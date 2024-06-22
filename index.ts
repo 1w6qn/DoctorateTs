@@ -1,6 +1,6 @@
 import express from 'express';
-import prod from "./handler/prod"
-import config from './config/config';
+import prod from "./app/config/prod"
+import config from './app/config';
 const app = express();
 
 app.use("/config/prod",prod)

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import config from "../config/config"
+import config from "../config"
 const router = Router();
 router.get('/official/Android/version', (req, res) => {
     res.send(config.version)

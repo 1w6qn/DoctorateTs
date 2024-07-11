@@ -5,12 +5,12 @@ Java.perform(() => {
     const sdk = Java.use("com.hypergryph.platform.hgsdk.contants.SDKConst$UrlInfo")
     sdk.getRemoteUrl.implementation = function () {
         log("[Java Layer]Changed Hypergryph SDK")
-        return `http://${serverUrl}/auth`
+        return `http://${serverUrl}`
     }
     const sdk2 = Java.use("com.hypergryph.platform.hguseragreement.contans.SDKConst$UrlInfo")
     sdk2.getRemoteUrl.implementation = function () {
         log("[Java Layer]Changed Hypergryph user agreement")
-        return `http://${serverUrl}/auth`
+        return `http://${serverUrl}`
     }
 })
 

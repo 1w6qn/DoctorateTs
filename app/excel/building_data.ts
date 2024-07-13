@@ -1,4 +1,4 @@
-import { ItemBundle } from "./character_table";
+import { ItemBundle, UnlockCondition } from "./character_table";
 
 export interface BuildingData {
     controlSlotId:                string;
@@ -68,11 +68,11 @@ export interface BuildingData {
 export interface BuildingBuff {
     buffId:       string;
     buffName:     string;
-    buffIcon:     BuffIcon;
+    buffIcon:     string;
     skillIcon:    string;
     sortId:       number;
-    buffColor:    BuffColor;
-    textColor:    TextColor;
+    buffColor:    string;
+    textColor:    string;
     buffCategory: BuffCategory;
     roomType:     RoomType;
     description:  string;
@@ -82,19 +82,6 @@ export enum BuffCategory {
     Function = "FUNCTION",
     Output = "OUTPUT",
     Recovery = "RECOVERY",
-}
-
-
-export enum BuffIcon {
-    Control = "control",
-    Dormitory = "dormitory",
-    Hire = "hire",
-    Manufacture = "manufacture",
-    Meeting = "meeting",
-    Power = "power",
-    Trading = "trading",
-    Training = "training",
-    Workshop = "workshop",
 }
 
 export enum RoomType {
@@ -117,35 +104,22 @@ export enum RoomType {
 export interface BuildingCharacter {
     charId:      string;
     maxManpower: number;
-    buffChar:    BuffChar[];
+    buffChar:    BuildingBuffCharSlot[];
 }
 
-export interface BuffChar {
-    buffData: BuffDatum[];
+export interface BuildingBuffCharSlot {
+    buffData: SlotItem[];
 }
 
-export interface BuffDatum {
+export interface SlotItem {
     buffId: string;
-    cond:   Cond;
-}
-
-export interface Cond {
-    phase: PhaseEnum;
-    level: number;
-}
-
-export enum PhaseEnum {
-    Phase0 = "PHASE_0",
-    Phase1 = "PHASE_1",
-    Phase2 = "PHASE_2",
+    cond:   UnlockCondition;
 }
 
 
 
-export interface CreditFormula {
-    initiative: ShopFormulas;
-    passive:    ShopFormulas;
-}
+
+
 
 
 
@@ -156,8 +130,8 @@ export interface CustomData {
     types:              { [key: string]: FurnitureTypeData };
     subTypes:           { [key: string]: FurnitureSubTypeData };
     defaultFurnitures:  { [key: string]: DormitoryDefaultFurnitureItem[] };
-    interactGroups:     InteractGroups;
-    diyUISortTemplates: DiyUISortTemplates;
+    interactGroups:     { [key: string]: InteractItem[] };
+    diyUISortTemplates: { [key: string]: { [key: string]: DiyUISortTemplateListData } };
 }
 
 
@@ -168,59 +142,26 @@ export interface DormitoryDefaultFurnitureItem {
     defaultPrefabId: string;
 }
 
-export interface DiyUISortTemplates {
-    THEME:              FURNITUREClass;
-    FURNITURE:          FURNITUREClass;
-    FURNITURE_IN_THEME: FURNITUREClass;
-    RECENT_THEME:       FURNITUREClass;
-    RECENT_FURNITURE:   FURNITUREClass;
-}
 
-export interface FURNITUREClass {
-    FOLD:   Expand;
-    EXPAND: Expand;
-}
-
-export interface Expand {
+export interface DiyUISortTemplateListData {
     diyUIType:            string;
-    expandState:          ExpandState;
+    expandState:          string;
     defaultTemplateIndex: number;
-    defaultTemplateOrder: EOrder;
-    templates:            Template[];
+    defaultTemplateOrder: DiyUISortOrder;
+    templates:            DiyUISortTemplateData[];
 }
 
-export enum EOrder {
+export enum DiyUISortOrder {
     Asc = "ASC",
     Desc = "DESC",
 }
 
-export enum ExpandState {
-    Expand = "EXPAND",
-    Fold = "FOLD",
-}
 
-export interface Template {
+export interface DiyUISortTemplateData {
     name:                string;
-    sequences:           Sequence[];
-    stableSequence:      StableSequence;
-    stableSequenceOrder: EOrder;
-}
-
-
-export enum Sequence {
-    FurnitureAtomsphere = "FurnitureAtomsphere",
-    FurnitureRecentAquireTime = "FurnitureRecentAquireTime",
-    FurnitureSortID = "FurnitureSortId",
-    ThemeAtomsphere = "ThemeAtomsphere",
-    ThemeCollectionProgress = "ThemeCollectionProgress",
-    ThemeRecentAquireTime = "ThemeRecentAquireTime",
-    ThemeSortID = "ThemeSortId",
-}
-
-export enum StableSequence {
-    FurnitureGroupID = "FurnitureGroupId",
-    FurnitureIsSingle = "FurnitureIsSingle",
-    None = "None",
+    sequences:           string[];
+    stableSequence:      string;
+    stableSequenceOrder: DiyUISortOrder;
 }
 
 export interface FurnitureData {
@@ -344,16 +285,13 @@ export interface GroupData {
     furniture: string[];
 }
 
-export interface InteractGroups {
-    swimsuit: Swimsuit[];
-}
 
-export interface Swimsuit {
+export interface InteractItem {
     skinId: string;
 }
 
-export interface SubTypeValue {
-    subType: SubTypeEnum;
+export interface FurnitureSubTypeData {
+    subType: FurnitureSubType;
     name:    string;
     type:    FurnitureType;
     sortId:  number;
@@ -385,7 +323,7 @@ export enum ThemeType {
     Normal = "NORMAL",
 }
 
-export interface TypeValue {
+export interface FurnitureTypeData {
     type: FurnitureType;
     name: string;
 }
@@ -433,11 +371,7 @@ export interface CountCost {
     items: ItemBundle[];
 }
 
-export interface Cost {
-    id:    string;
-    count: number;
-    type:  CostType;
-}
+
 
 export enum CostType {
     Gold = "GOLD",
@@ -480,7 +414,7 @@ export interface StoreyData {
 export interface RoomBeanParam {}
 export interface ControlRoomPhase extends RoomBeanParam {}
 export interface RoomBean<TParam> {
-    phases: TParam[];
+    phases: TParam[]|null;
 }
 export interface ControlRoomBean extends RoomBean<ControlRoomPhase> {
     basicCostBuff: number;
@@ -542,15 +476,19 @@ export interface ManufactFormula {
     costPoint:     number;
     formulaType:   string;
     buffType:      string;
-    costs:         Cost[];
-    requireRooms:  RequireRoom[];
-    requireStages: any[];
+    costs:         ItemBundle[];
+    requireRooms:  UnlockRoom[];
+    requireStages: UnlockStage[];
 }
 
-export interface RequireRoom {
+export interface UnlockRoom {
     roomId:    RoomType;
     roomLevel: number;
-    roomCount: number;
+    roomCount?: number;
+}
+export interface UnlockStage {
+    stageId: string;
+    rank: number;
 }
 
 export interface MeetingData {
@@ -624,36 +562,42 @@ export interface WorkshopFormula {
     count:             number;
     goldCost:          number;
     apCost:            number;
-    formulaType:       FormulaType;
-    buffType:          BuffType;
+    formulaType:       FormulaItemType;
+    buffType:          string;
     extraOutcomeRate:  number;
-    extraOutcomeGroup: ExtraOutcomeGroup[];
-    costs:             Cost[];
-    requireRooms:      RequireRoom[];
-    requireStages:     RequireStage[];
+    extraOutcomeGroup: WorkshopExtraWeightItem[];
+    costs:             ItemBundle[];
+    requireRooms:      UnlockRoom[];
+    requireStages:     UnlockStage[];
+}
+export interface ShopFormula {
+    formulaId:         string;
+    itemId:            string;
+    formulaType:       FormulaItemType;
+    costPoint:  number;
+    gainItem:             ItemBundle;
+    requireRooms:      UnlockRoom[];
 }
 
-export enum BuffType {
-    WAsc = "W_ASC",
-    WBuilding = "W_BUILDING",
-    WEvolve = "W_EVOLVE",
-    WSkill = "W_SKILL",
-}
-
-export interface ExtraOutcomeGroup {
+export interface WorkshopExtraWeightItem {
     weight:    number;
     itemId:    string;
     itemCount: number;
 }
 
-export enum FormulaType {
+export enum FormulaItemType {
     FAsc = "F_ASC",
     FBuilding = "F_BUILDING",
     FEvolve = "F_EVOLVE",
     FSkill = "F_SKILL",
 }
 
-export interface RequireStage {
-    stageId: string;
-    rank:    number;
+export interface CreditFormula {
+    initiative:ValueModel|{};
+    passive:ValueModel|{};
+}
+
+export interface ValueModel {
+    basic:number;
+    addition:number;
 }

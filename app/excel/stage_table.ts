@@ -7,46 +7,38 @@ export interface StageTable {
     tileInfo:                     { [key: string]: TileAppendInfo };
     forceOpenTable:               { [key: string]: WeeklyForceOpenTable };
     timelyStageDropInfo:          { [key: string]: TimelyDropTimeInfo };
-    overrideDropInfo:             OverrideDropInfo;
-    overrideUnlockInfo:           {};
-    timelyTable:                  { [key: string]: TimelyTable };
+    overrideDropInfo:             { [key: string]: OverrideDropInfo };
+    overrideUnlockInfo:           { [key: string]: OverrideUnlockInfo };
+    timelyTable:                  { [key: string]: TimelyDropInfo };
     stageValidInfo:               { [key: string]: StageValidInfo };
     stageFogInfo:                 { [key: string]: StageFogInfo };
-    stageStartConds:              StageStartConds;
+    stageStartConds:              { [key: string]: StageStartCond };
     diffGroupTable:               { [key: string]: StageDiffGroupTable };
-    storyStageShowGroup:          StoryStageShowGroup;
-    specialBattleFinishStageData: SpecialBattleFinishStageData;
+    storyStageShowGroup:          { [key: string]: { [key: string]: StoryStageShowGroup } };
+    specialBattleFinishStageData: { [key: string]: SpecialBattleFinishStageData };
     recordRewardData:             null;
-    apProtectZoneInfo:            ApProtectZoneInfo;
-    antiSpoilerDict:              AntiSpoilerDict;
-    actCustomStageDatas:          ActCustomStageDatas;
+    apProtectZoneInfo:            { [key: string]: ApProtectZoneInfo };
+    antiSpoilerDict:              { [key: string]: string };
+    actCustomStageDatas:          { [key: string]: ActCustomStageData };
     spNormalStageIdFor4StarList:  string[];
 }
 
 
 
-export interface Act27SideSp0 {
+export interface ActCustomStageData {
     overrideGameMode: string;
 }
 
-export interface AntiSpoilerDict {
-    main_14: string;
-}
 
 export interface ApProtectZoneInfo {
-    main_10: Main1;
-    main_11: Main1;
-    main_12: Main1;
-    main_13: Main1;
-    main_14: Main1;
-}
-
-export interface Main1 {
     zoneId:     string;
-    timeRanges: StageValidInfo[];
+    timeRanges: TimeRange[];
 }
-
 export interface StageValidInfo {
+    startTs: number;
+    endTs:   number;
+}
+export interface TimeRange {
     startTs: number;
     endTs:   number;
 }
@@ -74,10 +66,6 @@ export interface MapThemeData {
 }
 
 export interface OverrideDropInfo {
-    Logistics_Special_Permit: LogisticsSpecialPermit;
-}
-
-export interface LogisticsSpecialPermit {
     itemId:       string;
     startTs:      number;
     endTs:        number;
@@ -134,7 +122,7 @@ export enum OccPercent {
 
 
 
-export interface Main0815 {
+export interface SpecialBattleFinishStageData {
     stageId:               string;
     skipAccomplishPerform: boolean;
 }
@@ -157,14 +145,8 @@ export enum FogType {
     Zone = "ZONE",
 }
 
-export interface StageStartConds {
-    "main_08-16":  Easy1419;
-    "main_14-19":  Easy1419;
-    "easy_14-19":  Easy1419;
-    "tough_14-19": Easy1419;
-}
 
-export interface Easy1419 {
+export interface StageStartCond {
     requireChars:   RequireChar[];
     excludeAssists: string[];
     isNotPass:      boolean;
@@ -317,37 +299,30 @@ export interface TileAppendInfo {
 }
 
 
-export interface ExDropAct10D5 {
+export interface TimelyDropTimeInfo {
     startTs:               number;
     endTs:                 number;
     stagePic:              null | string;
     dropPicId:             null | string;
-    stageUnlock:           StageUnlock;
+    stageUnlock:           string;
     entranceDownPicId:     null | string;
     entranceUpPicId:       null | string;
     timelyGroupId:         string;
     weeklyPicId:           null | string;
     isReplace:             boolean;
-    apSupplyOutOfDateDict: {};
-}
-
-
-export interface ExDropAct {
-    startTs:               number;
-    endTs:                 number;
-    stagePic:              string;
-    dropPicId:             string;
-    stageUnlock:           StageUnlock;
-    entranceDownPicId:     string;
-    entranceUpPicId:       string;
-    timelyGroupId:         string;
-    weeklyPicId:           string;
-    isReplace:             boolean;
-    apSupplyOutOfDateDict: ApSupplyOutOfDateDict;
+    apSupplyOutOfDateDict: { [key: string]: number };
 }
 
 
 
-export interface TimelyTable {
+
+
+export interface TimelyDropInfo {
     dropInfo: { [key: string]: StageDropInfo };
+}
+export interface OverrideUnlockInfo {
+    groudId: string;
+    startTime:number;
+    endTime:number;
+    unlockDict: { [key: string]: ConditionDesc[] };
 }

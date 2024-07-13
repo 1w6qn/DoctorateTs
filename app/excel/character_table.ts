@@ -54,14 +54,8 @@ export interface ItemBundle {
 }
 
 export interface UnlockCondition {
-    phase: PhaseEnum;
+    phase: string|number;
     level: number;
-}
-
-export enum PhaseEnum {
-    Phase0 = "PHASE_0",
-    Phase1 = "PHASE_1",
-    Phase2 = "PHASE_2",
 }
 
 
@@ -209,13 +203,13 @@ export interface TalentData {
     description: null | string;
     rangeId: null | string;
     blackboard: Blackboard;
-    tokenKey: null | string;
+    tokenKey?: null|string;
 }
 
 export interface BlackboardDataPair {
     key: string;
     value: number;
-    valueStr: null | string;
+    valueStr?: null | string;
 }
 
 export interface TraitDataBundle {
@@ -225,13 +219,13 @@ export interface TraitDataBundle {
 export interface TraitData {
     unlockCondition: UnlockCondition;
     requiredPotentialRank: number;
-    blackboard: BlackboardDataPair[];
+    blackboard: Blackboard;
     overrideDescripton: null | string;
     prefabKey: null | string;
     rangeId: null | string;
 }
 export interface EquipTraitDataBundle {
-    candidates: EquipTraitData[];
+    candidates: EquipTraitData[]|null;
 }
 
 export interface EquipTraitData extends TraitData {

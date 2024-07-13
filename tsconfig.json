@@ -1,11 +1,18 @@
 {
-    "compilerOptions": {
-      "module": "commonjs",
-      "esModuleInterop": true,
-      "target": "es6",
-      "rootDir": "./",
-      "outDir": "./build",
-      "strict": true,
-      "skipLibCheck": true,
-    }
+  "compilerOptions": {
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "target": "es6",
+    "rootDir": "./",
+    "outDir": "./build",
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".", // 基准目录，通常是项目根目录
+    "paths": {
+      "@excel/*": [
+        "data/excel/*"
+      ],
+    },
   }
+}

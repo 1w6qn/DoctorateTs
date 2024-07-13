@@ -1,7 +1,4 @@
 import {Blackboard,EquipTalentDataBundle,EquipTraitDataBundle}from "./character_table"
-export interface BattleEquipTable {
-    [key:string]:BattleEquipPack
-}
 export interface BattleEquipPack {
     phases: BattleEquipPerLevelPack[];
 }

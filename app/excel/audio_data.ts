@@ -1,3 +1,4 @@
+//
 export interface AudioData {
     bgmBanks:         BGMBank[];
     soundFXBanks:     SoundFXBank[];
@@ -59,7 +60,7 @@ export interface Music {
 }
 
 export interface SnapshotBank {
-    targetSnapshot:  { [key: string]: string };
+    targetSnapshot:  string;
     hookSoundFxBank: string;
     delay:           number;
     duration:        number;
@@ -97,5 +98,3 @@ export interface SoundFXCtrlBank {
     ctrlStopFadetime: number;
     name:             string;
 }
-const AudioData:AudioData=require('./data/excel/audio_data.json');
-export default AudioData;

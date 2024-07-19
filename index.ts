@@ -1,11 +1,9 @@
 import express from 'express';
 import prod from "./app/config/prod"
 import auth from "./app/auth/auth"
-import config from './app/config';
-import { Excel } from './app/excel/excel';
+import config from './app/config';;
 
 const app = express();
-
 app.use("/config/prod",prod)
 app.use("/auth",auth)
 app.get('/', (req, res) => {

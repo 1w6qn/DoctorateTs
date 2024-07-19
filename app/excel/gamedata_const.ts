@@ -94,7 +94,7 @@ export interface GameDataConsts {
     defaultMinContinuousBattleTimes:     number;
     defaultMaxContinuousBattleTimes:     number;
     continuousActionOpen:                boolean;
-    subProfessionDamageTypePairs:        { [key: string]: SubProfessionAttackType };
+    subProfessionDamageTypePairs:        { [key: string]: string };
     classicProtectChar:                  string[];
 }
 

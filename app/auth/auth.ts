@@ -1,6 +1,7 @@
 import { Router } from "express";
 import config from "../config"
 const router = Router();
+
 router.get('/general/v1/server_time', (req, res) => {
     res.send({
         "status": 0,
@@ -48,18 +49,6 @@ router.get('/user/oauth2/v2/grant', (req, res) => {
             "uid": "1"
         }
     })
-})
-router.get('/pay/getUnconfirmedOrderIdList', (req, res) => {
-    res.send({
-        "orderIdList": [],
-        "playerDataDelta": {
-            "modified": {},
-            "deleted": {}
-        }
-    })
-})
-router.get('/app/v1/config', (req, res) => {
-    res.send(config.AppConfig)
 })
 
 export default router;

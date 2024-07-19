@@ -5,6 +5,7 @@ interface UserConfig {
         resVersion: string;
         clientVersion: string;
     };
+    enableMods:boolean;
     NetworkConfig: any;
     AppConfig: any;
 }
@@ -17,6 +18,7 @@ const config: UserConfig = {
         "resVersion": "24-07-09-15-29-50-f0a675",
         "clientVersion": "2.3.01"
       },
+    enableMods:false,
     NetworkConfig: {
         "configVer": "5",
         "funcVer": "V052",

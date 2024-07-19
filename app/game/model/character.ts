@@ -4,7 +4,7 @@ export interface PlayerCharacter{
     charId:string;
     level:number;
     exp:number;
-    evolvePhase:string;//EvolvePhase
+    evolvePhase:number;//EvolvePhase
     potentialRank:number;
     favorPoint:number;
     mainSkillLvl:number;

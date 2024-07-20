@@ -11,6 +11,12 @@ export class InventoryManager {
         this._trigger.on("useItems", this.useItems.bind(this))
         this._trigger.on("gainItems", this.gainItems.bind(this))
     }
+    get gold(){
+        return this.items["4001"] || 0
+    }
+    get diamondShard(){
+        return this.items["4003"] || 0
+    }
     _useItem(item: ItemBundle): void {
         if (!item.type) {
             item.type = excel.ItemTable.items[item.id].itemType as string
@@ -47,6 +53,9 @@ export class InventoryManager {
         for (const item of items) {
             this._gainItem(item)
         }
+    }
+    toJson(){
+        return this.items
     }
 
 }

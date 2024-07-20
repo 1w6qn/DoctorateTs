@@ -9,9 +9,15 @@ export interface PlayerCharacter{
     favorPoint:number;
     mainSkillLvl:number;
     gainTime:number;
+    voiceLan: string;
     starMark?:number;
     currentTmpl?:string
     tmpl?:{[key:string]:PlayerCharPatch}
+    skinId?:string
+    defaultSkillIndex?:number
+    skills?:PlayerCharSkill[]
+    currentEquip?:string|null
+    equip?:{[key:string]:PlayerCharEquipInfo}|null
 }
 export interface PlayerCharPatch{
     skinId:string

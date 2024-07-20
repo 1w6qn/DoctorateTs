@@ -56,3 +56,37 @@ export interface CharEquipInfo{
     locked:boolean;
     level:number;
 }
+
+export interface PlayerTroop {
+    curCharInstId: number;
+    curSquadCount: number;
+    squads: { [key: string]: PlayerSquad };
+    chars: { [key: string]: PlayerCharacter };
+    addon: { [key: string]: PlayerHandBookAddon };
+    charGroup: { [key: string]: { favorPoint: number } };
+    charMission: { [key: string]: { [key: string]: number } };
+}
+export interface PlayerHandBookAddon {
+    stage?: { [key: string]: PlayerHandBookAddon.GetInfo };
+    story?: { [key: string]: PlayerHandBookAddon.GetInfo };
+}
+export namespace PlayerHandBookAddon {
+    export interface GetInfo {
+        fts?: number
+        rts?: number
+    }
+}
+
+export interface PlayerSquad {
+    squadId: string;
+    name: string;
+    slots: Array<PlayerSquadItem | null>;
+}
+
+
+
+export interface PlayerSquadItem {
+    charInstId: number;
+    skillIndex: number;
+    currentEquip: null | string;
+}

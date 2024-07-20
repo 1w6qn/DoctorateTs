@@ -1,5 +1,5 @@
 import { PlayerActivity } from "./activity";
-import { PlayerCharacter } from "./character";
+import { PlayerSquadItem, PlayerTroop } from "./character";
 
 export interface PlayerDataModel {
     dungeon: PlayerDungeon;
@@ -106,31 +106,6 @@ export interface AvatarInfo {
     id: string;
 }
 
-export interface PlayerTroop {
-    curCharInstId: number;
-    curSquadCount: number;
-    squads: { [key: string]: PlayerSquad };
-    chars: { [key: string]: PlayerCharacter };
-    addon: { [key: string]: PlayerHandBookAddon };
-    charGroup: { [key: string]: { favorPoint: number } };
-    charMission: { [key: string]: { [key: string]: number } };
-}
-export interface PlayerHandBookAddon {
-    stage?: { [key: string]: PlayerHandBookAddon.GetInfo };
-    story?: { [key: string]: PlayerHandBookAddon.GetInfo };
-}
-export namespace PlayerHandBookAddon {
-    export interface GetInfo {
-        fts?: number
-        rts?: number
-    }
-}
-
-export interface PlayerSquad {
-    squadId: string;
-    name: string;
-    slots: Array<PlayerSquadItem | null>;
-}
 export interface PlayerDungeon {
     stages: { [key: string]: PlayerStage };
     //zones?:               { [key: string]: PlayerZone };
@@ -3266,16 +3241,9 @@ export interface Sandbox1_Troop {
     squad: PurpleSquad[];
     usedChar: any[];
 }
-
 export interface PurpleSquad {
     slots: PlayerSquadItem[];
     tools: string[];
-}
-
-export interface PlayerSquadItem {
-    charInstId: number;
-    skillIndex: number;
-    currentEquip: null | string;
 }
 
 export interface Setting {
@@ -4246,10 +4214,10 @@ export interface CardValue {
     favorPoint: number;
     potentialRank: number;
     mainSkillLvl: number;
-    skills: Skill[];
+    skills: any[];
     defaultSkillIndex: number;
     currentEquip: null | string;
-    equip: { [key: string]: EquipValue };
+    equip: { [key: string]: any };
     skin: string;
 }
 

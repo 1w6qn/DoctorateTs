@@ -15,13 +15,30 @@ export class PlayerDataManager {
         this.inventory = new InventoryManager(playerdata.inventory, this._trigger);
         this.troop=new TroopManager(playerdata.troop, this._trigger)
         this.status=playerdata.status
+
+        this._trigger.on("status:refresh",this._refreshStatus.bind(this))
     }
-    refreshStatus() {
-        //
-        this.status.gold=this.inventory.gold
-        this.status.diamondShard=this.inventory.diamondShard
-        //this.
-        this.status.lastOnlineTs=new Date().getTime()
+    refreshTime(){
+
+    }
+    _refreshStatus() {
+        this.status.gold=this.inventory.items["4001"]
+        this.status.diamondShard=this.inventory.items["4003"]
+        this.status.exp=this.inventory.items["5001"]
+        this.status.socialPoint=this.inventory.items["SOCIAL_PT"]
+        this.status.gachaTicket=this.inventory.items["7003"]
+        this.status.tenGachaTicket=this.inventory.items["7004"]
+        this.status.instantFinishTicket=this.inventory.items["7002"]
+        this.status.recruitLicense=this.inventory.items["7001"]
+        this.status.ap=this.inventory.items["AP_GAMEPLAY"]
+        this.status.iosDiamond=this.inventory.items["4002"]
+        this.status.androidDiamond=this.inventory.items["4002"]
+        this.status.practiceTicket=this.inventory.items["6001"]
+        this.status.hggShard=this.inventory.items["4004"]
+        this.status.lggShard=this.inventory.items["4005"]
+        this.status.classicShard=this.inventory.items["classic_normal_ticket"]
+        this.status.classicGachaTicket=this.inventory.items["classic_gacha"]
+        this.status.classicTenGachaTicket=this.inventory.items["classic_gacha_10"]
     }
     toJson() {
         return {

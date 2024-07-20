@@ -59,14 +59,14 @@ export class TroopManager {
         let char = this.getCharacterByInstId(instId);
         const expMap = excel.GameDataConst.characterExpMap;
         const goldMap = excel.GameDataConst.characterUpgradeCostMap;
-        const expItemMap: { [key: string]: number } = { "2001": 200, "2002": 400, "2003": 1000, "2004": 2000 };
+        const expItems=excel.ItemTable.expItems;
         let expTotal = 0, exp = 0, gold = 0;
         const charId = char.charId;
         const evolvePhase = char.evolvePhase;
         const rarity = parseInt(excel.CharacterTable[charId].rarity.slice(-1));
         const maxLevel = excel.GameDataConst.maxLevel[rarity - 1][evolvePhase];
         for (let i = 0; i < expMats.length; i++) {
-            expTotal += expItemMap[expMats[i].id];
+            expTotal += expItems[expMats[i].id].gainExp;
         }
         for (let i = char.level - 1; i < maxLevel; i++) {
             if (exp + expMap[evolvePhase][i] > expTotal) {

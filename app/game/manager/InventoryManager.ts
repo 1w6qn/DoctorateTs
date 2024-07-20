@@ -11,12 +11,6 @@ export class InventoryManager {
         this._trigger.on("useItems", this.useItems.bind(this))
         this._trigger.on("gainItems", this.gainItems.bind(this))
     }
-    get gold(){
-        return this.items["4001"] || 0
-    }
-    get diamondShard(){
-        return this.items["4003"] || 0
-    }
     _useItem(item: ItemBundle): void {
         if (!item.type) {
             item.type = excel.ItemTable.items[item.id].itemType as string
@@ -44,6 +38,8 @@ export class InventoryManager {
             case "CHAR":
                 this._trigger.emit("gainChar", item.id)
                 break;
+            case "GOLD":
+                this._trigger.emit("status:refresh")
             default:
                 this.items[item.id] = (this.items[item.id] || 0) + item.count
                 break;

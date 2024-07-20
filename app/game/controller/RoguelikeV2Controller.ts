@@ -1,4 +1,4 @@
-import { CurrentData, OuterData, PlayerRoguelikeV2 } from "../model/rlv2";
+import { CurrentData, OuterData, PlayerRoguelikeV2, RoguelikeNodePosition } from "../model/rlv2";
 
 export class RoguelikeV2Controller {
     pinned?: string;
@@ -20,6 +20,7 @@ export class RoguelikeV2Controller {
         }
     }
     createGame(theme:string,mode:string,modeGrade:number,predefinedId:string):void{
+        //TODO
         switch(theme){
             case "rogue_1":
                 break;
@@ -30,6 +31,12 @@ export class RoguelikeV2Controller {
             default:
                 break;
         }
+    }
+    moveTo(to:RoguelikeNodePosition):void{
+        this.current.player!.cursor.position=to
+        this.current.player!.state="PENDING"
+        //TODO
+
     }
     constructor(data:PlayerRoguelikeV2) {
         this.outer=data.outer

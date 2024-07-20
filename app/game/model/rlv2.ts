@@ -4,7 +4,7 @@ import { PlayerCharacter, SharedCharData } from "./character"
 export interface PlayerRoguelikeV2 {
     current: CurrentData
     outer: { [key: string]: OuterData }
-    pinned: string
+    pinned?: string
 }
 export interface OuterData {
     bp: BattlePass
@@ -101,13 +101,14 @@ export interface ChallengeCollection {
 }
 
 export interface CurrentData {
-    player: PlayerStatus
-    map: PlayerRoguelikeV2Dungeon
-    inventory: Inventory
-    game: Game
-    troop: Troop
-    buff: Buff
-    module: Module
+    player: PlayerStatus|null
+    record: Record|null
+    map: PlayerRoguelikeV2Dungeon|null
+    inventory: Inventory|null
+    game: Game|null
+    troop: Troop|null
+    buff: Buff|null
+    module: Module|null
 }
 export namespace CurrentData {
 

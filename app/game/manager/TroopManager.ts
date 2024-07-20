@@ -78,13 +78,21 @@ export class TroopManager {
         //TODO
         this._trigger.emit("useItems", expMats.concat([{ id: "4001", count: gold } as ItemBundle]))
     }
-    evolveCharacter(instId: number): void {
+    evolveCharacter(instId: number,destEvolvePhase:number): void {
         let char = this.getCharacterByInstId(instId);
+        const evolveCost=excel.CharacterTable[char.charId].phases[destEvolvePhase].evolveCost as ItemBundle[];
+        const rarity = parseInt(excel.CharacterTable[char.charId].rarity.slice(-1));
+        const goldCost=excel.GameDataConst.evolveGoldCost[rarity][destEvolvePhase];
+        this._trigger.emit("useItems", evolveCost.concat([{ id: "4001", count: goldCost } as ItemBundle]))
         //TODO
+        if(destEvolvePhase==2){
+            this.chars[instId - 1].skinId=char.charId+"#2";
+        }
+        this._trigger.emit("CharEvolved",{instId:instId,destEvolvePhase:destEvolvePhase})
     }
-    boostPotential(instId: number, itemId: string): void {
-        this._trigger.emit("gainItems", [{ id: itemId, count: 1 }])
-        this.chars[instId - 1].potentialRank += 1;
+    boostPotential(instId: number, itemId: string,targetRank: number): void {
+        this._trigger.emit("useItems", [{ id: itemId, count: 1 }])
+        this.chars[instId - 1].potentialRank=targetRank;
         //TODO 触发事件
     }
     setDefaultSkill(instId: number, defaultSkillIndex: number): void {

@@ -9,11 +9,16 @@ export class TroopManager {
     get curCharInstId(): number {
         return this.chars.length;
     }
+    get curSquadCount(): number {
+        return this.squads.length;
+    }
     _trigger: EventEmitter
+    _troop: PlayerTroop
     constructor(
         troop: PlayerTroop,
         trigger: EventEmitter
     ) {
+        this._troop=troop;
         this.chars = Object.values(troop.chars);
         this.squads = Object.values(troop.squads);
         this._trigger = trigger;
@@ -115,9 +120,16 @@ export class TroopManager {
         this._trigger.emit("useItems", excel.CharacterTable[char.charId].allSkillLvlup[targetLevel - 2].lvlUpCost as ItemBundle[])
         char.mainSkillLvl =targetLevel;
     }
-    toJson(): { [key: string]: PlayerCharacter } {
-        let sorted = Object.values(this.chars).sort((a, b) => a.instId - b.instId)
-        return Object.assign({}, ...sorted);
+    toJSON(): PlayerTroop {
+        return {
+            curCharInstId:this.curCharInstId,
+            curSquadCount:this.curSquadCount,
+            chars: Object.assign({}, ...Object.values(this.chars).sort((a, b) => a.instId - b.instId)),
+            squads:Object.assign({}, ...Object.values(this.squads).sort((a, b) => parseInt(a.squadId) - parseInt(b.squadId))),
+            addon:this._troop.addon,
+            charMission:this._troop.charMission,
+            charGroup:this._troop.charGroup,
+        };
     }
 
 }

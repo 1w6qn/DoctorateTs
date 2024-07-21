@@ -17,9 +17,13 @@ export class PlayerDataManager {
         this.status=playerdata.status
 
         this._trigger.on("status:refresh",this._refreshStatus.bind(this))
+        this._trigger.on("status:refresh:time",this.refreshTime.bind(this))
     }
     refreshTime(){
-
+        let ts=parseInt((new Date().getTime()/1000).toString())
+        this.status.lastRefreshTs=ts
+        this.status.lastApAddTime=ts
+        this.status.lastOnlineTs=ts
     }
     _refreshStatus() {
         this.status.gold=this.inventory.items["4001"]
@@ -40,7 +44,7 @@ export class PlayerDataManager {
         this.status.classicGachaTicket=this.inventory.items["classic_gacha"]
         this.status.classicTenGachaTicket=this.inventory.items["classic_gacha_10"]
     }
-    toJson() {
+    toJSON() {
         return {
             status:this.status,
             inventory: this.inventory

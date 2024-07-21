@@ -1,4 +1,4 @@
-namespace Logger {
+export namespace Logger {
     export function formatDate(time: string | number | Date = new Date().getTime(), format: string = 'YY-MM-DD hh:mm:ss'): string {
         let date = new Date(time);
         let year = date.getFullYear(),

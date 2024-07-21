@@ -1,5 +1,5 @@
 import { ItemBundle } from "app/excel/character_table";
-import excel from "app/excel/excel";
+import excel from "../../excel/excel";
 import EventEmitter from "events";
 
 export class InventoryManager {
@@ -50,7 +50,7 @@ export class InventoryManager {
             this._gainItem(item)
         }
     }
-    toJson(){
+    toJSON(){
         return this.items
     }
 

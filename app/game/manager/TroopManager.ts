@@ -1,6 +1,6 @@
 import EventEmitter from "events";
 import { PlayerCharacter, PlayerSquad, PlayerTroop } from "../model/character";
-import excel from "app/excel/excel";
+import excel from "../../excel/excel";
 import { ItemBundle } from "app/excel/character_table";
 
 export class TroopManager {

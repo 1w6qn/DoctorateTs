@@ -1,11 +1,16 @@
 import express from 'express';
 import prod from "./app/config/prod"
-import auth from "./app/auth/auth"
-import config from './app/config';;
+import auth from "./app/auth/auth";
+import game from "./app/game/app";
+import config from './app/config';
+import morgan from 'morgan';
+
 
 const app = express();
+app.use(morgan("short"))
 app.use("/config/prod",prod)
-app.use("/auth",auth)
+app.use("/",auth)
+app.use("/",game)
 app.get('/', (req, res) => {
   res.send('Hello world');
 });

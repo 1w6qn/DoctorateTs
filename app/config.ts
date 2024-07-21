@@ -12,10 +12,10 @@ interface UserConfig {
 
 
 const config: UserConfig = {
-    Host: 'http://192.168.0.6',
+    Host: 'http://192.168.1.10',
     PORT: 8443,
     version:{
-        "resVersion": "24-07-09-15-29-50-f0a675",
+        "resVersion": "24-07-15-10-57-16-e6a8d4",
         "clientVersion": "2.3.01"
       },
     enableMods:false,

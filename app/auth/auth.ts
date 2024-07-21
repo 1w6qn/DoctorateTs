@@ -40,7 +40,7 @@ router.get('/user/info/v1/basic', (req, res) => {
         }
     })
 })
-router.get('/user/oauth2/v2/grant', (req, res) => {
+router.post('/user/oauth2/v2/grant', (req, res) => {
     res.send({
         "status": 0,
         "msg": "OK",
@@ -50,5 +50,24 @@ router.get('/user/oauth2/v2/grant', (req, res) => {
         }
     })
 })
-
+router.post('/u8/user/v1/getToken', (req, res) => {
+    res.send({
+        "channelUid": "1",
+        "error": "",
+        "extension": JSON.stringify({
+            "isMinor": false,
+            "isAuthenticate": true
+        }),
+        "isGuest": 0,
+        "result": 0,
+        "token": "abcd",
+        "uid": "1"
+    })
+})
+router.post('/user/online/v1/loginout', (req, res) => {
+    res.send({})
+})
+router.post('/u8/pay/getAllProductList', (req, res) => {
+    res.send({"productList": []})
+})
 export default router;

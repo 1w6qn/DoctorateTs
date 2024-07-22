@@ -5,6 +5,7 @@ import { TroopManager } from "./TroopManager";
 import { DungeonManager } from "./DungeonManager";
 import { HomeManager } from "./HomeManager";
 import { StatusManager } from "./StatusManager";
+import { CheckInManager } from "./CheckInManager";
 
 export class PlayerDataManager {
     dungeon:DungeonManager
@@ -12,6 +13,7 @@ export class PlayerDataManager {
     troop: TroopManager
     status:StatusManager
     home:HomeManager
+    checkIn:CheckInManager
     _trigger: EventEmitter
     _playerdata: PlayerDataModel;
     get delta(){
@@ -26,19 +28,19 @@ export class PlayerDataManager {
         this._playerdata = playerdata;
         this._trigger = new EventEmitter();
 
-        this.status=new StatusManager(playerdata.status, this._trigger)
+        this.status=new StatusManager(playerdata, this._trigger)
         this.inventory = new InventoryManager(playerdata.inventory,playerdata.status, this._trigger);
         this.troop=new TroopManager(playerdata.troop, this._trigger)
         this.dungeon=new DungeonManager(playerdata.dungeon, this._trigger)
         this.home=new HomeManager(playerdata.background,playerdata.homeTheme, this._trigger)
-
+        this.checkIn=new CheckInManager(playerdata, this._trigger)
         
         
     }
     
     toJSON() {
         return {
-            status:this.status,
+            ...this.status.toJSON(),
             inventory: this.inventory,
             troop:this.troop,
             dungeon:this.dungeon,
@@ -80,12 +82,11 @@ export class PlayerDataManager {
             car:this._playerdata.car,
             recruit:this._playerdata.recruit,
             templateTrap:this._playerdata.templateTrap,
-            checkIn:this._playerdata.checkIn,
+            checkIn:this.checkIn,
             campaignsV2:this._playerdata.campaignsV2,
             setting:this._playerdata.setting,
             checkMeta:this._playerdata.checkMeta,
             limitedBuff:this._playerdata.limitedBuff,
-            collectionReward:this._playerdata.collectionReward,
             ...this.home.toJSON()
         }
     }

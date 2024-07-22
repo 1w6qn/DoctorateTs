@@ -58,6 +58,32 @@ export class InventoryManager {
                 break;
             case "GOLD":
                 this._trigger.emit("status:refresh",this)
+            case "DIAMOND":
+                this._trigger.emit("status:refresh",this)
+            case "EXP_PLAYER":
+                this._trigger.emit("status:refresh",this)
+            case "DIAMOND_SHD":
+                this._trigger.emit("status:refresh",this)
+            case "TKT_TRY":
+                this._trigger.emit("status:refresh",this)
+            case "TKT_RECRUIT":
+                this._trigger.emit("status:refresh",this)
+            case "TKT_INST_FIN":
+                this._trigger.emit("status:refresh",this)
+            case "TKT_GACHA":
+                this._trigger.emit("status:refresh",this)
+            case "TKT_GACHA_10":
+                this._trigger.emit("status:refresh",this)
+            case "RETURN_PROGRESS":
+                this._trigger.emit("status:refresh",this)
+            case "NEW_PROGRESS":
+                this._trigger.emit("status:refresh",this)
+            case "AP_GAMEPLAY":
+                this._trigger.emit("status:refresh",this)
+            case "HGG_SHD":
+                this._trigger.emit("status:refresh",this)
+            case "LGG_SHD":
+                this._trigger.emit("status:refresh",this)
             default:
                 this.items[item.id] = (this.items[item.id] || 0) + item.count
                 break;

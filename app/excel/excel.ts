@@ -11,7 +11,10 @@ import { ServerItemTable } from "./item_table";
 import ServerItemTableJson from "../../data/excel/item_table.json"
 import { StageTable } from "./stage_table";
 import StageTableJson from "../../data/excel/stage_table.json"
-
+import { HandbookInfoTable } from './handbook_info_table';
+import HandbookInfoTableJson from '../../data/excel/handbook_info_table.json';
+import { CheckinTable } from "./checkin_table";
+import CheckinTableJson from "../../data/excel/checkin_table.json"
 export class Excel {
     //AudioData:AudioData
     BattleEquipTable:{[key:string]:BattleEquipPack}
@@ -20,6 +23,8 @@ export class Excel {
     GameDataConst:GameDataConsts
     ItemTable:ServerItemTable
     StageTable:StageTable
+    HandbookInfoTable:HandbookInfoTable
+    CheckinTable:CheckinTable
     constructor() {
         //this.AudioData=AudioDataJson as AudioData
         this.BattleEquipTable=BattleEquipTable as {[key:string]:BattleEquipPack}
@@ -28,6 +33,8 @@ export class Excel {
         this.GameDataConst=GameDataConst
         this.ItemTable=ServerItemTableJson
         this.StageTable=StageTableJson as StageTable
+        this.HandbookInfoTable=HandbookInfoTableJson 
+        this.CheckinTable=CheckinTableJson
     }
 }
 export default new Excel()

@@ -1,13 +1,15 @@
 import EventEmitter from "events"
-import { AvatarInfo, PlayerStatus } from "../model/playerdata"
+import { AvatarInfo, PlayerCollection, PlayerDataModel, PlayerStatus } from "../model/playerdata"
 import { InventoryManager } from "./InventoryManager"
 import excel from "../../excel/excel"
 
 export class StatusManager {
     status: PlayerStatus
+    collectionReward:PlayerCollection
     _trigger: EventEmitter
-    constructor(status: PlayerStatus, _trigger: EventEmitter) {
-        this.status = status
+    constructor(playerdata: PlayerDataModel, _trigger: EventEmitter) {
+        this.status = playerdata.status
+        this.collectionReward=playerdata.collectionReward
         this._trigger = _trigger
         this._trigger.on("status:refresh:time",this.refreshTime.bind(this))
         this._trigger.on("status:refresh",this._refreshStatus.bind(this))
@@ -64,7 +66,14 @@ export class StatusManager {
         this.status.iosDiamond-=count
         this.status.diamondShard+=count*excel.GameDataConst.diamondToShdRate
     }
+    receiveTeamCollectionReward(rewardId:string){
+        this.collectionReward.team[rewardId]=1
+        this._trigger.emit("gainItems",[excel.HandbookInfoTable.teamMissionList[rewardId].item])
+    }
     toJSON(){
-        return this.status
+        return {
+            status:this.status,
+            collectionReward:this.collectionReward
+        }
     }
 }

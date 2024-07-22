@@ -6,7 +6,7 @@ export interface PlayerDataModel {
     activity: PlayerActivity;
     status: PlayerStatus;
     troop: PlayerTroop;
-    npcAudio: {[key:string]:{npcShowAudioInfoFlag: string}};
+    npcAudio: { [key: string]: { npcShowAudioInfoFlag: string } };
     pushFlags: PlayerPushFlags;
     equipment: PlayerEquipment;
     skin: PlayerSkins;
@@ -48,13 +48,13 @@ export interface PlayerDataModel {
     car: Car;
     recruit: PlayerDataRecruit;
     templateTrap: TemplateTrap;
-    checkIn: PlayerDataCheckIn;
+    checkIn: PlayerCheckIn;
     inventory: { [key: string]: number };
     campaignsV2: CampaignsV2;
     setting: Setting;
     checkMeta: CheckMeta;
     limitedBuff: LimitedBuff;
-    collectionReward: CollectionReward;
+    collectionReward: PlayerCollection;
 }
 export interface PlayerStatus {
     nickName: string;
@@ -240,13 +240,13 @@ export interface Backflow {
 
 export interface PlayerHomeBackground {
     selected: string;
-    bgs: {[key:string]:PlayerHomeUnlockStatus};
+    bgs: { [key: string]: PlayerHomeUnlockStatus };
 }
 
 
 export interface PlayerHomeUnlockStatus {
     unlock?: number;//unlockTime
-    conditions?: {[key:string]:PlayerHomeConditionProgress};
+    conditions?: { [key: string]: PlayerHomeConditionProgress };
 }
 
 
@@ -1056,28 +1056,28 @@ export interface Charm {
     squad: string[];
 }
 
-export interface PlayerDataCheckIn {
+export interface PlayerCheckIn {
     canCheckIn: number;
     checkInGroupId: string;
     checkInRewardIndex: number;
     checkInHistory: number[];
-    newbiePackage: NewbiePackage;
+    newbiePackage: PlayerCheckIn.PlayerNewbiePackage;
 }
-
-export interface NewbiePackage {
-    open: boolean;
-    groupId: string;
-    finish: number;
-    stopSale: number;
-    checkInHistory: any[];
+export namespace PlayerCheckIn {
+    export interface PlayerNewbiePackage {
+        open: boolean;
+        groupId: string;
+        finish: number;
+        stopSale: number;
+        checkInHistory: number[];//boolean[]
+    }
 }
-
 export interface CheckMeta {
     version: number;
     ts: number;
 }
 
-export interface CollectionReward {
+export interface PlayerCollection {
     team: { [key: string]: number };
 }
 
@@ -2182,7 +2182,7 @@ export interface SINGLE37_0_1_Class {
 
 export interface PlayerHomeTheme {
     selected: string;
-    themes: {[key:string]: PlayerHomeUnlockStatus};
+    themes: { [key: string]: PlayerHomeUnlockStatus };
 }
 
 export interface LimitedBuff {

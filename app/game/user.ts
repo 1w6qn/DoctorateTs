@@ -40,8 +40,7 @@ router.post("/useRenameCard", (req, res) => {
 })
 router.post("/receiveTeamCollectionReward", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    let rewardId=req.body!.rewardId
-    //todo
+    player.status.receiveTeamCollectionReward(req.body!.rewardId)
     player._trigger.emit("save")
     res.send(player.delta)
 })
@@ -76,8 +75,10 @@ router.post("/useItems", (req, res) => {
 })
 router.post("/checkIn", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    //player.status.changeAvatar(req.body!.avatar)
     player._trigger.emit("save")
-    res.send(player.delta)
+    res.send({
+        ...player.checkIn.checkIn(),
+        ...player.delta
+    })
 })
 export default router;

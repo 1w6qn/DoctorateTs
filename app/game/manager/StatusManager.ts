@@ -14,12 +14,33 @@ export class StatusManager {
         this._trigger.on("status:refresh:time",this.refreshTime.bind(this))
         this._trigger.on("status:refresh",this._refreshStatus.bind(this))
         this._trigger.on("status:change:secretary",this._changeSecretary.bind(this))
+        this._trigger.on("refresh:daily",this.dailyRefresh.bind(this))
+        this._trigger.on("refresh:weekly",this.weeklyRefresh.bind(this))
+        this._trigger.on("refresh:monthly",this.monthlyRefresh.bind(this))
     }
     refreshTime(){
         let ts=parseInt((new Date().getTime()/1000).toString())
+        let isNewDay=new Date(this.status.lastRefreshTs*1000-14400000).getDate()!=new Date().getDate()
+        if(isNewDay){
+            if(new Date().getDate()==1){
+                this._trigger.emit("refresh:monthly")
+            }
+            if(new Date().getDay()==1){
+                this._trigger.emit("refresh:weekly")
+            }
+            this._trigger.emit("refresh:daily")
+        }
         this.status.lastRefreshTs=ts
-        this.status.lastApAddTime=ts
         this.status.lastOnlineTs=ts
+    }
+    dailyRefresh(){
+
+    }
+    weeklyRefresh(){
+
+    }
+    monthlyRefresh(){
+
     }
     _refreshStatus(inventory:InventoryManager) {
         this.status.gold=inventory.items["4001"]

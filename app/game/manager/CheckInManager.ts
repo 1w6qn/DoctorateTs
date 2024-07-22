@@ -1,5 +1,5 @@
 import EventEmitter from "events";
-import { PlayerOpenServer, PlayerCheckIn, PlayerDataModel, PlayerStatus } from "../model/playerdata";
+import { PlayerOpenServer, PlayerCheckIn, PlayerDataModel, PlayerStatus } from '../model/playerdata';
 import excel from "../../excel/excel";
 import { ItemBundle } from "../../excel/character_table";
 
@@ -16,10 +16,23 @@ export class CheckInManager {
         this.openServer = playerdata.openServer;
         this._status = playerdata.status;
         this._trigger = _trigger;
+        this._trigger.on("refresh:monthly",this.monthlyRefresh.bind(this))
+        this._trigger.on("refresh:daily",this.dailyRefresh.bind(this))
+        
     }
     getChainLogInReward(index: number): ItemBundle[] {
         
         return []
+    }
+    dailyRefresh() {
+        this.data.canCheckIn=1
+        this.data.checkInRewardIndex +=1
+    }
+    monthlyRefresh() {
+        let ts=parseInt((new Date().getTime()/1000).toString())
+        this.data.checkInGroupId=Object.values(excel.CheckinTable.groups).find((t)=>ts>t.signStartTime&&ts<t.signEndTime)!.groupId
+        this.data.checkInHistory=[]
+        this.data.checkInRewardIndex=-1
     }
     checkIn(): { signInRewards: ItemBundle[], subscriptionRewards: ItemBundle[] } {
         let signInRewards: ItemBundle[] = []

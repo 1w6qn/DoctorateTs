@@ -30,11 +30,7 @@ router.post("/syncStatus", (req, res) => {
 });
 router.post("/syncPushMessage", (req, res) => {
     let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    console.log(req.body);
-    
-    res.send({
-
-    })
+    res.send({})
 });
 
 export default router;

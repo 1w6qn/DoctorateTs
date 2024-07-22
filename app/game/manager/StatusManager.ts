@@ -12,7 +12,6 @@ export class StatusManager {
         this.collectionReward=playerdata.collectionReward
         this._trigger = _trigger
         this._trigger.on("status:refresh:time",this.refreshTime.bind(this))
-        this._trigger.on("status:refresh",this._refreshStatus.bind(this))
         this._trigger.on("status:change:secretary",this._changeSecretary.bind(this))
         this._trigger.on("refresh:daily",this.dailyRefresh.bind(this))
         this._trigger.on("refresh:weekly",this.weeklyRefresh.bind(this))
@@ -30,6 +29,8 @@ export class StatusManager {
             }
             this._trigger.emit("refresh:daily")
         }
+        this.status.ap+=Math.floor((Math.floor(ts/1000)-this.status.lastApAddTime)/300)
+        this.status.lastApAddTime+=Math.floor((Math.floor(ts/1000)-this.status.lastApAddTime)/300)*300
         this.status.lastRefreshTs=ts
         this.status.lastOnlineTs=ts
     }

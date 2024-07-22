@@ -31,7 +31,7 @@ export class PlayerDataManager {
         this._trigger = new EventEmitter();
 
         this.status=new StatusManager(playerdata, this._trigger)
-        this.inventory = new InventoryManager(playerdata.inventory,playerdata.status, this._trigger);
+        this.inventory = new InventoryManager(playerdata.inventory,playerdata, this._trigger);
         this.troop=new TroopManager(playerdata.troop, this._trigger)
         this.dungeon=new DungeonManager(playerdata.dungeon, this._trigger)
         this.home=new HomeManager(playerdata.background,playerdata.homeTheme, this._trigger)

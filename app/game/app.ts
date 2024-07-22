@@ -6,6 +6,7 @@ import charBuild from './charBuild';
 import building from './building';
 import quest from './quest';
 import home from './home';
+import user from './user';
 import { accountManager } from './manager/AccountManger';
 
 const app = express()
@@ -20,8 +21,9 @@ app.use((req, res, next) => {
     next()
 })
 app.use("/account",account)
-app.use("/char",charBuild)
+app.use("/charBuild",charBuild)
 app.use("/building",building)
 app.use("/quest",quest)
+app.use("/user",user)
 app.use("/",home)
 export default app

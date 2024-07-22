@@ -5,10 +5,11 @@ import { ItemBundle } from "app/excel/character_table";
 
 export class TroopManager {
     
+    
     chars: PlayerCharacter[]
     squads: PlayerSquad[]
     get curCharInstId(): number {
-        return this.chars.length;
+        return this.chars.length+1;
     }
     get curSquadCount(): number {
         return this.squads.length;
@@ -72,14 +73,22 @@ export class TroopManager {
         const rarity = parseInt(excel.CharacterTable[charId].rarity.slice(-1));
         const maxLevel = excel.GameDataConst.maxLevel[rarity - 1][evolvePhase];
         for (let i = 0; i < expMats.length; i++) {
-            expTotal += expItems[expMats[i].id].gainExp;
+            expTotal += expItems[expMats[i].id].gainExp*expMats[i].count;
         }
-        for (let i = char.level - 1; i < maxLevel; i++) {
-            if (exp + expMap[evolvePhase][i] > expTotal) {
+        char.exp += expTotal;
+        while(true){
+            if (char.exp >= expMap[evolvePhase][char.level-1]){
+                char.exp -= expMap[evolvePhase][char.level-1];
+                char.level += 1;
+                gold += goldMap[evolvePhase][char.level-1]
+                if (char.level >= maxLevel) {
+                    char.level = maxLevel;
+                    char.exp=0
+                    break;
+                }
+            }else{
                 break;
             }
-            exp += expMap[evolvePhase][i];
-            gold += goldMap[evolvePhase][i]
         }
         //TODO
         this._trigger.emit("useItems", expMats.concat([{ id: "4001", count: gold } as ItemBundle]))
@@ -90,6 +99,9 @@ export class TroopManager {
         const rarity = parseInt(excel.CharacterTable[char.charId].rarity.slice(-1));
         const goldCost=excel.GameDataConst.evolveGoldCost[rarity][destEvolvePhase];
         this._trigger.emit("useItems", evolveCost.concat([{ id: "4001", count: goldCost } as ItemBundle]))
+        char.evolvePhase=destEvolvePhase;
+        char.level=1;
+        char.exp=0;
         //TODO
         if(destEvolvePhase==2){
             this.chars[instId - 1].skinId=char.charId+"#2";
@@ -129,6 +141,10 @@ export class TroopManager {
     }
     changeMarkStar(chrIdDict: {[key:string]:number}) {
         //TODO
+    }
+    changeSecretary(charInstId: number, skinId: string) {
+        let charId=this.getCharacterByInstId(charInstId).charId;
+        this._trigger.emit("status:change:secretary",charId,skinId)
     }
     toJSON(): PlayerTroop {
         return {

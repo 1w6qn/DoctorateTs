@@ -51,6 +51,7 @@ export interface ItemBundle {
     id: string;
     count: number;
     type?: string;
+    instId?: number;
 }
 export enum ItemType {
     NONE = 0,

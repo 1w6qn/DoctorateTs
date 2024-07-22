@@ -1,6 +1,7 @@
 import EventEmitter from "events"
-import { PlayerStatus } from "../model/playerdata"
+import { AvatarInfo, PlayerStatus } from "../model/playerdata"
 import { InventoryManager } from "./InventoryManager"
+import excel from "../../excel/excel"
 
 export class StatusManager {
     status: PlayerStatus
@@ -10,6 +11,7 @@ export class StatusManager {
         this._trigger = _trigger
         this._trigger.on("status:refresh:time",this.refreshTime.bind(this))
         this._trigger.on("status:refresh",this._refreshStatus.bind(this))
+        this._trigger.on("status:change:secretary",this._changeSecretary.bind(this))
     }
     refreshTime(){
         let ts=parseInt((new Date().getTime()/1000).toString())
@@ -36,8 +38,31 @@ export class StatusManager {
         this.status.classicGachaTicket=inventory.items["classic_gacha"]
         this.status.classicTenGachaTicket=inventory.items["classic_gacha_10"]
     }
+    _changeSecretary(charId: string, skinId: string) {
+        this.status.secretary=charId
+        this.status.secretarySkinId=skinId
+    }
     finishStory(storyId:string){
         this.status.flags[storyId]=1
+    }
+    changeAvatar(avatar: AvatarInfo) {
+        this.status.avatar=avatar
+    }
+    changeResume(resume: string) {
+        this.status.resume=resume
+    }
+    bindNickName(nickname: string) {
+        this.status.nickName=nickname
+    }
+    buyAp(){
+        this.status.ap+=120
+        this.status.androidDiamond-=1
+        this.status.iosDiamond-=1
+    }
+    exchangeDiamondShard(count:number){
+        this.status.androidDiamond-=count
+        this.status.iosDiamond-=count
+        this.status.diamondShard+=count*excel.GameDataConst.diamondToShdRate
     }
     toJSON(){
         return this.status

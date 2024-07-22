@@ -1,6 +1,5 @@
 import { readFileSync, writeFileSync } from "fs";
 import { PlayerDataModel } from "../model/playerdata";
-import EventEmitter from "events";
 import { PlayerDataManager } from './PlayerDataManager';
 
 export class AccountManager {

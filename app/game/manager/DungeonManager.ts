@@ -15,7 +15,7 @@ export class DungeonManager implements PlayerDungeon {
     this.hideStages = dungeon.hideStages;
     this.mainlineBannedStages = dungeon.mainlineBannedStages;
     this._trigger = _trigger;
-    this.initStages();
+    //this.initStages();
   }
   initStages() {
     for (let stageId in excel.StageTable.stages) {

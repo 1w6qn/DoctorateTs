@@ -12,7 +12,7 @@
     "morgan": "^1.10.0"
   },
   "scripts": {
-    "start": "tsc && nodemon index.ts",
+    "start": "tsc && nodemon index.ts --ext ts",
     "build": "tsc",
     "hook": "frida-compile hook/main.ts -o _arknights.js -c && frida -Uf com.hypergryph.arknights -l _arknights.js"
   },

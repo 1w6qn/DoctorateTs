@@ -21,14 +21,12 @@ router.post("/syncData", async (req, res) => {
 });
 router.post("/syncStatus", async (req, res) => {
     let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    player._trigger.emit("syncStatus");
+    player._trigger.emit("status:refresh:time");
     res.send({
         "ts": parseInt((new Date().getTime()/1000).toString()),
         "result": {},
         ...player.delta
     })
 });
-router.post("1", async (req, res) => {
-    console.log(req.body);
-});
+
 export default router;

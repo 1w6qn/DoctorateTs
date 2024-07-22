@@ -15,6 +15,8 @@ import { HandbookInfoTable } from './handbook_info_table';
 import HandbookInfoTableJson from '../../data/excel/handbook_info_table.json';
 import { CheckinTable } from "./checkin_table";
 import CheckinTableJson from "../../data/excel/checkin_table.json"
+import { StoryReviewMetaTable } from "./story_review_meta_table";
+import StoryReviewMetaTableJson from "../../data/excel/story_review_meta_table.json"
 export class Excel {
     //AudioData:AudioData
     BattleEquipTable:{[key:string]:BattleEquipPack}
@@ -25,6 +27,7 @@ export class Excel {
     StageTable:StageTable
     HandbookInfoTable:HandbookInfoTable
     CheckinTable:CheckinTable
+    StoryReviewMetaTable:StoryReviewMetaTable
     constructor() {
         //this.AudioData=AudioDataJson as AudioData
         this.BattleEquipTable=BattleEquipTable as {[key:string]:BattleEquipPack}
@@ -35,6 +38,7 @@ export class Excel {
         this.StageTable=StageTableJson as StageTable
         this.HandbookInfoTable=HandbookInfoTableJson 
         this.CheckinTable=CheckinTableJson
+        this.StoryReviewMetaTable=StoryReviewMetaTableJson
     }
 }
 export default new Excel()

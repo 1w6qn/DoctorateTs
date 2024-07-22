@@ -10,7 +10,7 @@ router.post("/login", (req, res) => {
         "serviceLicenseVersion": 0
     });
 });
-router.post("/syncData", async (req, res) => {
+router.post("/syncData", (req, res) => {
     let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     res.send({
         "result": 0,
@@ -19,13 +19,21 @@ router.post("/syncData", async (req, res) => {
         ...player.delta
     })
 });
-router.post("/syncStatus", async (req, res) => {
+router.post("/syncStatus", (req, res) => {
     let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     player._trigger.emit("status:refresh:time");
     res.send({
         "ts": parseInt((new Date().getTime()/1000).toString()),
         "result": {},
         ...player.delta
+    })
+});
+router.post("/syncPushMessage", (req, res) => {
+    let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    console.log(req.body);
+    
+    res.send({
+
     })
 });
 

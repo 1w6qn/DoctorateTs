@@ -6,6 +6,7 @@ import { DungeonManager } from "./DungeonManager";
 import { HomeManager } from "./HomeManager";
 import { StatusManager } from "./StatusManager";
 import { CheckInManager } from "./CheckInManager";
+import { StoryreviewManager } from "./StoryreviewManager";
 
 export class PlayerDataManager {
     dungeon:DungeonManager
@@ -14,6 +15,7 @@ export class PlayerDataManager {
     status:StatusManager
     home:HomeManager
     checkIn:CheckInManager
+    storyreview:StoryreviewManager
     _trigger: EventEmitter
     _playerdata: PlayerDataModel;
     get delta(){
@@ -34,7 +36,7 @@ export class PlayerDataManager {
         this.dungeon=new DungeonManager(playerdata.dungeon, this._trigger)
         this.home=new HomeManager(playerdata.background,playerdata.homeTheme, this._trigger)
         this.checkIn=new CheckInManager(playerdata, this._trigger)
-        
+        this.storyreview=new StoryreviewManager(playerdata.storyreview, this._trigger)
         
     }
     
@@ -67,7 +69,7 @@ export class PlayerDataManager {
             tower:this._playerdata.tower,
             siracusaMap:this._playerdata.siracusaMap,
             sandboxPerm:this._playerdata.sandboxPerm,
-            storyreview:this._playerdata.storyreview,
+            storyreview:this.storyreview,
             medal:this._playerdata.medal,
             event:this._playerdata.event,
             retro:this._playerdata.retro,

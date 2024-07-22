@@ -7,6 +7,9 @@ import building from './building';
 import quest from './quest';
 import home from './home';
 import user from './user';
+import activity from './activity';
+import storyreview from './storyreview';
+
 import { accountManager } from './manager/AccountManger';
 
 const app = express()
@@ -25,5 +28,7 @@ app.use("/charBuild",charBuild)
 app.use("/building",building)
 app.use("/quest",quest)
 app.use("/user",user)
+app.use("/activity",activity)
+app.use("/storyreview",storyreview)
 app.use("/",home)
 export default app

@@ -30,7 +30,7 @@ export interface PlayerDataModel {
     tower: PlayerDataTower;
     siracusaMap: SiracusaMap;
     sandboxPerm: any;
-    storyreview: Storyreview;
+    storyreview: PlayerStoryReview;
     medal: PlayerDataMedal;
     event: PlayerDataEvent;
     retro: Retro;
@@ -44,7 +44,7 @@ export interface PlayerDataModel {
     consumable: Consumable;
     charm: Charm;
     carousel: Carousel;
-    openServer: OpenServer;
+    openServer: PlayerOpenServer;
     car: Car;
     recruit: PlayerDataRecruit;
     templateTrap: TemplateTrap;
@@ -2321,7 +2321,7 @@ export interface Rewards {
 }
 
 export interface MissionMissions {
-    OPENSERVER: Openserver;
+    OPENSERVER: { [key: string]: ACTIVITYValue };
     DAILY: { [key: string]: ACTIVITYValue };
     WEEKLY: { [key: string]: ACTIVITYValue };
     GUIDE: { [key: string]: ACTIVITYValue };
@@ -2333,13 +2333,6 @@ export interface MissionMissions {
 export interface ACTIVITYValue {
     state: number;
     progress: MissionCalcState[];
-}
-
-export interface Openserver {
-    openserver_1: ACTIVITYValue;
-    openserver_2: ACTIVITYValue;
-    openserver_3: ACTIVITYValue;
-    openserver_4: ACTIVITYValue;
 }
 
 export interface NameCardStyle {
@@ -2366,12 +2359,12 @@ export interface Nc {
 
 
 
-export interface OpenServer {
+export interface PlayerOpenServer {
     checkIn: OpenServerCheckIn;
-    chainLogin: ChainLogin;
+    chainLogin: OpenServerChainLogin;
 }
 
-export interface ChainLogin {
+export interface OpenServerChainLogin {
     isAvailable: boolean;
     nowIndex: number;
     history: number[];
@@ -4049,84 +4042,22 @@ export interface YesterdayReward {
 }
 
 
-export interface Storyreview {
-    groups: Groups;
-    tags: Tags;
+export interface PlayerStoryReview {
+    groups: {[key: string]:PlayerStoryReviewUnlockInfo};
+    tags: {[key: string]:number};
 }
 
-export interface Groups {
-    "1stact": The1_Stact;
-    act3d0: The1_Stact;
-    act5d0: The1_Stact;
-    act9d0: The1_Stact;
-    act10d5: Act;
-    act11d0: The1_Stact;
-    act12d0: The1_Stact;
-    act13d0: Act;
-    act13d5: The1_Stact;
-    act15d0: The1_Stact;
-    act15d5: Act;
-    act16d5: The1_Stact;
-    act17d0: The1_Stact;
-    act18d0: The1_Stact;
-    act18d3: The1_Stact;
-    act7mini: Act;
-    act6d5: Act;
-    act8mini: Act;
-    act12side: The1_Stact;
-    act9mini: Act;
-    act4d0: Act;
-    act7d5: Act;
-    act13side: The1_Stact;
-    act15side: The1_Stact;
-    act10mini: Act;
-    act16side: The1_Stact;
-    act17side: The1_Stact;
-    act18side: The1_Stact;
-    act19side: The1_Stact;
-    act11mini: Act;
-    act20side: The1_Stact;
-    act12mini: Act;
-    act21side: The1_Stact;
-    act14side: The1_Stact;
-    act22side: The1_Stact;
-    act23side: The1_Stact;
-    act13mini: The1_Stact;
-    act14mini: The1_Stact;
-    act24side: The1_Stact;
-    act25side: The1_Stact;
-    act26side: The1_Stact;
-    act15mini: The1_Stact;
-    act27side: The1_Stact;
-    act28side: The1_Stact;
-    act29side: The1_Stact;
-    act30side: The1_Stact;
-    act16mini: The1_Stact;
-    act31side: The1_Stact;
-    act32side: The1_Stact;
-    act33side: The1_Stact;
-}
-
-export interface The1_Stact {
-    rts: number;
-    stories: StoryElement[];
-}
-
-export interface StoryElement {
+export interface StoryReviewUnlockInfo {
     id: string;
     uts: number;
     rc: number;
 }
-
-export interface Act {
+export interface PlayerStoryReviewUnlockInfo {
     rts: number;
-    stories: StoryElement[];
-    trailRewards: string[];
+    stories: StoryReviewUnlockInfo[];
+    trailRewards?: string[];
 }
 
-export interface Tags {
-    knownStoryAcceleration: number;
-}
 
 export interface TemplateTrap {
     domains: Domains;

@@ -1,10 +1,11 @@
 import EventEmitter from "events";
-import { PlayerCheckIn, PlayerDataModel, PlayerStatus } from "../model/playerdata";
+import { PlayerOpenServer, PlayerCheckIn, PlayerDataModel, PlayerStatus } from "../model/playerdata";
 import excel from "../../excel/excel";
 import { ItemBundle } from "../../excel/character_table";
 
 export class CheckInManager {
     data: PlayerCheckIn;
+    openServer: PlayerOpenServer
     _status: PlayerStatus
     _trigger: EventEmitter;
     get isSUb(): boolean {
@@ -12,10 +13,14 @@ export class CheckInManager {
     }
     constructor(playerdata: PlayerDataModel, _trigger: EventEmitter) {
         this.data = playerdata.checkIn;
+        this.openServer = playerdata.openServer;
         this._status = playerdata.status;
         this._trigger = _trigger;
     }
-
+    getChainLogInReward(index: number): ItemBundle[] {
+        
+        return []
+    }
     checkIn(): { signInRewards: ItemBundle[], subscriptionRewards: ItemBundle[] } {
         let signInRewards: ItemBundle[] = []
         let subscriptionRewards: ItemBundle[] = []
@@ -31,7 +36,10 @@ export class CheckInManager {
         }
         return { signInRewards: signInRewards, subscriptionRewards: subscriptionRewards }
     }
-    toJSON(): PlayerCheckIn {
-        return this.data;
+    toJSON() {
+        return {
+            checkIn: this.data,
+            openServer: this.openServer
+        }
     }
 }

@@ -108,13 +108,7 @@ export interface ActArchiveChapterLogData {
     displayId:   string;
     unlockDes:   string;
     logs:        string[];
-    chapterIcon: ChapterIconType;
-}
-
-export enum ChapterIconType {
-    Ex = "EX",
-    Hard = "HARD",
-    Normal = "NORMAL",
+    chapterIcon: string;
 }
 
 
@@ -201,17 +195,13 @@ export interface PicArchiveResItemData {
     id:             string;
     desc:           string;
     assetPath:      string;
-    type:           ActArchivePicType;
+    type:           string;
     subType:        null | string;
     picDescription: string;
     kvId:           null | string;
 }
 
-export enum ActArchivePicType {
-    EndingImage = "ENDING_IMAGE",
-    Image = "IMAGE",
-    RogueImage = "ROGUE_IMAGE",
-}
+
 
 export interface StoryArchiveResItemData {
     id:       string;

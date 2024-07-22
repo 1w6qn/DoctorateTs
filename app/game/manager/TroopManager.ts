@@ -1,9 +1,10 @@
 import EventEmitter from "events";
-import { PlayerCharacter, PlayerSquad, PlayerTroop } from "../model/character";
+import { PlayerCharacter, PlayerSquad, PlayerSquadItem, PlayerTroop } from "../model/character";
 import excel from "../../excel/excel";
 import { ItemBundle } from "app/excel/character_table";
 
 export class TroopManager {
+    
     chars: PlayerCharacter[]
     squads: PlayerSquad[]
     get curCharInstId(): number {
@@ -60,7 +61,7 @@ export class TroopManager {
         } as PlayerCharacter)
 
     }
-    upgradeCharacter(instId: number, expMats: ItemBundle[]): void {
+    upgradeChar(instId: number, expMats: ItemBundle[]): void {
         let char = this.getCharacterByInstId(instId);
         const expMap = excel.GameDataConst.characterExpMap;
         const goldMap = excel.GameDataConst.characterUpgradeCostMap;
@@ -83,7 +84,7 @@ export class TroopManager {
         //TODO
         this._trigger.emit("useItems", expMats.concat([{ id: "4001", count: gold } as ItemBundle]))
     }
-    evolveCharacter(instId: number,destEvolvePhase:number): void {
+    evolveChar(instId: number,destEvolvePhase:number): void {
         let char = this.getCharacterByInstId(instId);
         const evolveCost=excel.CharacterTable[char.charId].phases[destEvolvePhase].evolveCost as ItemBundle[];
         const rarity = parseInt(excel.CharacterTable[char.charId].rarity.slice(-1));
@@ -120,12 +121,27 @@ export class TroopManager {
         this._trigger.emit("useItems", excel.CharacterTable[char.charId].allSkillLvlup[targetLevel - 2].lvlUpCost as ItemBundle[])
         char.mainSkillLvl =targetLevel;
     }
+    squadFormation(squadId: number, slots: PlayerSquadItem[]): void {
+        this.squads[squadId].slots = slots;
+    }
+    changeSquadName(squadId: number, name: string): void {
+        this.squads[squadId].name = name;
+    }
+    changeMarkStar(chrIdDict: {[key:string]:number}) {
+        //TODO
+    }
     toJSON(): PlayerTroop {
         return {
             curCharInstId:this.curCharInstId,
             curSquadCount:this.curSquadCount,
-            chars: Object.assign({}, ...Object.values(this.chars).sort((a, b) => a.instId - b.instId)),
-            squads:Object.assign({}, ...Object.values(this.squads).sort((a, b) => parseInt(a.squadId) - parseInt(b.squadId))),
+            chars: this.chars.reduce((acc, char) => {
+                acc[char.instId.toString()] = char;
+                return acc;
+              },{} as {[key:string]:PlayerCharacter}),
+            squads:this.squads.reduce((acc, squad) => {
+                acc[squad.squadId.toString()] = squad;
+                return acc;
+              },{} as {[key:string]:PlayerSquad}),
             addon:this._troop.addon,
             charMission:this._troop.charMission,
             charGroup:this._troop.charGroup,

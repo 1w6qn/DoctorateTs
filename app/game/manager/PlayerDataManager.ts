@@ -3,52 +3,39 @@ import { PlayerDataModel, PlayerStatus } from "../model/playerdata";
 import { InventoryManager } from "./InventoryManager";
 import { TroopManager } from "./TroopManager";
 import { DungeonManager } from "./DungeonManager";
+import { HomeManager } from "./HomeManager";
+import { StatusManager } from "./StatusManager";
 
 export class PlayerDataManager {
     dungeon:DungeonManager
     inventory: InventoryManager
     troop: TroopManager
-    status:PlayerStatus
+    status:StatusManager
+    home:HomeManager
     _trigger: EventEmitter
     _playerdata: PlayerDataModel;
+    get delta(){
+        return {
+            playerDataDelta:{
+                modified:this,
+                deleted:{},
+            }
+        }
+    }
     constructor(playerdata:PlayerDataModel) {
         this._playerdata = playerdata;
         this._trigger = new EventEmitter();
 
-        this.status=playerdata.status
-
+        this.status=new StatusManager(playerdata.status, this._trigger)
         this.inventory = new InventoryManager(playerdata.inventory, this._trigger);
         this.troop=new TroopManager(playerdata.troop, this._trigger)
         this.dungeon=new DungeonManager(playerdata.dungeon, this._trigger)
+        this.home=new HomeManager(playerdata.background,playerdata.homeTheme, this._trigger)
 
-        this._trigger.on("status:refresh",this._refreshStatus.bind(this))
-        this._trigger.on("status:refresh:time",this.refreshTime.bind(this))
+        
+        
     }
-    refreshTime(){
-        let ts=parseInt((new Date().getTime()/1000).toString())
-        this.status.lastRefreshTs=ts
-        this.status.lastApAddTime=ts
-        this.status.lastOnlineTs=ts
-    }
-    _refreshStatus() {
-        this.status.gold=this.inventory.items["4001"]
-        this.status.diamondShard=this.inventory.items["4003"]
-        this.status.exp=this.inventory.items["5001"]
-        this.status.socialPoint=this.inventory.items["SOCIAL_PT"]
-        this.status.gachaTicket=this.inventory.items["7003"]
-        this.status.tenGachaTicket=this.inventory.items["7004"]
-        this.status.instantFinishTicket=this.inventory.items["7002"]
-        this.status.recruitLicense=this.inventory.items["7001"]
-        this.status.ap=this.inventory.items["AP_GAMEPLAY"]
-        this.status.iosDiamond=this.inventory.items["4002"]
-        this.status.androidDiamond=this.inventory.items["4002"]
-        this.status.practiceTicket=this.inventory.items["6001"]
-        this.status.hggShard=this.inventory.items["4004"]
-        this.status.lggShard=this.inventory.items["4005"]
-        this.status.classicShard=this.inventory.items["classic_normal_ticket"]
-        this.status.classicGachaTicket=this.inventory.items["classic_gacha"]
-        this.status.classicTenGachaTicket=this.inventory.items["classic_gacha_10"]
-    }
+    
     toJSON() {
         return {
             status:this.status,
@@ -73,7 +60,6 @@ export class PlayerDataManager {
             backflow:this._playerdata.backflow,
             mainline:this._playerdata.mainline,
             avatar:this._playerdata.avatar,
-            homeTheme:this._playerdata.homeTheme,
             rlv2:this._playerdata.rlv2,
             deepSea:this._playerdata.deepSea,
             tower:this._playerdata.tower,
@@ -100,6 +86,7 @@ export class PlayerDataManager {
             checkMeta:this._playerdata.checkMeta,
             limitedBuff:this._playerdata.limitedBuff,
             collectionReward:this._playerdata.collectionReward,
+            ...this.home.toJSON()
         }
     }
 }

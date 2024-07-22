@@ -23,8 +23,8 @@ export interface PlayerDataModel {
     backflow: Backflow;
     mainline: Mainline;
     avatar: PlayerDataAvatar;
-    background: Background;
-    homeTheme: HomeTheme;
+    background: PlayerHomeBackground;
+    homeTheme: PlayerHomeTheme;
     rlv2: any;
     deepSea: DeepSea;
     tower: PlayerDataTower;
@@ -238,46 +238,21 @@ export interface Backflow {
     current: null;
 }
 
-export interface Background {
+export interface PlayerHomeBackground {
     selected: string;
-    bgs: Bgs;
+    bgs: {[key:string]:PlayerHomeUnlockStatus};
 }
 
-export interface Bgs {
-    bg_rhodes_day: BgAnniversary1;
-    bg_rhodes_night: BgAnniversary1;
-    bg_main_victoria_1: BgAnniversary1;
-    bg_siesta_1: BgAnniversary1;
-    bg_kazimierz_1: BgAnniversary1;
-    bg_ursus_1: BgAnniversary1;
-    bg_yan_1: BgAnniversary1;
-    bg_iberia_1: BgAnniversary1;
-    bg_anniversary_1: BgAnniversary1;
-    bg_rogue_1: BgAnniversary1;
-    bg_laterano_1: BgAnniversary1;
-    bg_rhine_1: BgAnniversary1;
-    bg_rogue_2: BgAnniversary1;
-    bg_rogue_3: BgAnniversary1;
-    bg_kalts_1: BgKalts1;
-    bg_rainbowsix_1: BgKalts1;
-    bg_rhodes_flower_1: BgAnniversary1;
+
+export interface PlayerHomeUnlockStatus {
+    unlock?: number;//unlockTime
+    conditions?: {[key:string]:PlayerHomeConditionProgress};
 }
 
-export interface BgAnniversary1 {
-    unlock: number;
-}
 
-export interface BgKalts1 {
-    conditions: Conditions;
-}
-
-export interface Conditions {
-    "1": Conditions1;
-}
-
-export interface Conditions1 {
-    v: number;
-    t: number;
+export interface PlayerHomeConditionProgress {
+    v: number;//curProgress
+    t: number;//total
 }
 
 export interface PlayerDataBuilding {
@@ -2205,17 +2180,9 @@ export interface SINGLE37_0_1_Class {
     singleEnsureChar: string;
 }
 
-export interface HomeTheme {
+export interface PlayerHomeTheme {
     selected: string;
-    themes: Themes;
-}
-
-export interface Themes {
-    tm_rhodes_day: BgAnniversary1;
-    tm_rhodes_night: BgAnniversary1;
-    tm_rogue_3: BgAnniversary1;
-    tm_mainline_1: BgKalts1;
-    tm_rainbowsix_1: BgKalts1;
+    themes: {[key:string]: PlayerHomeUnlockStatus};
 }
 
 export interface LimitedBuff {

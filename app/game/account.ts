@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { PlayerDataModel } from "./model/playerdata";
 import httpContext from 'express-http-context';
 import { PlayerDataManager } from "./manager/PlayerDataManager";
 const router = Router();
@@ -12,28 +11,24 @@ router.post("/login", (req, res) => {
     });
 });
 router.post("/syncData", async (req, res) => {
-    let data:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    
+    let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     res.send({
         "result": 0,
         "ts": parseInt((new Date().getTime()/1000).toString()),
-        "user": data,
-        "playerDataDelta": {
-            "modified": {},
-            "deleted": {}
-        }
+        "user": player,
+        ...player.delta
     })
 });
 router.post("/syncStatus", async (req, res) => {
-    let data:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    data._trigger.emit("syncStatus");
+    let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    player._trigger.emit("syncStatus");
     res.send({
         "ts": parseInt((new Date().getTime()/1000).toString()),
         "result": {},
-        "playerDataDelta": {
-            "modified": {},
-            "deleted": {}
-        }
+        ...player.delta
     })
+});
+router.post("1", async (req, res) => {
+    console.log(req.body);
 });
 export default router;

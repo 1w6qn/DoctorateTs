@@ -7,6 +7,7 @@ import { HomeManager } from "./HomeManager";
 import { StatusManager } from "./StatusManager";
 import { CheckInManager } from "./CheckInManager";
 import { StoryreviewManager } from "./StoryreviewManager";
+import { MissionManager } from "./MissionManager";
 
 export class PlayerDataManager {
     dungeon:DungeonManager
@@ -16,6 +17,7 @@ export class PlayerDataManager {
     home:HomeManager
     checkIn:CheckInManager
     storyreview:StoryreviewManager
+    mission:MissionManager
     _trigger: EventEmitter
     _playerdata: PlayerDataModel;
     get delta(){
@@ -37,6 +39,7 @@ export class PlayerDataManager {
         this.home=new HomeManager(playerdata, this._trigger)
         this.checkIn=new CheckInManager(playerdata, this._trigger)
         this.storyreview=new StoryreviewManager(playerdata.storyreview, this._trigger)
+        this.mission=new MissionManager(playerdata, this._trigger)
         
     }
     
@@ -51,7 +54,7 @@ export class PlayerDataManager {
             pushFlags:this._playerdata.pushFlags,
             equipment:{},
             shop:this._playerdata.shop,
-            mission:this._playerdata.mission,
+            mission:this.mission,
             social:this._playerdata.social,
             building:this._playerdata.building,
             dexNav:this._playerdata.dexNav,

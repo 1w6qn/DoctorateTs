@@ -17,7 +17,7 @@ export interface PlayerDataModel {
     dexNav: DexNav;
     crisis: Crisis;
     crisisV2: CrisisV2;
-    nameCardStyle: NameCardStyle;
+    nameCardStyle: PlayerNameCardStyle;
     tshop: Tshop;
     gacha: PlayerDataGacha;
     backflow: Backflow;
@@ -2331,23 +2331,22 @@ export interface MissionPlayerState {
     progress: MissionCalcState[];
 }
 
-export interface NameCardStyle {
+export interface PlayerNameCardStyle {
     componentOrder: string[];
-    skin: NameCardStyleSkin;
+    skin: NameCardSkin;
+    misc: NameCardMisc;
 }
 
-export interface NameCardStyleSkin {
+export interface NameCardSkin {
     selected: string;
-    state: State;
+    state: {[key:string]:SkinState};
+}
+export interface NameCardMisc {
+    showDetail: boolean;
 }
 
-export interface State {
-    nc_rhodes_default: Nc;
-    nc_rhodes_light: Nc;
-    nc_sandbox_1: Nc;
-}
 
-export interface Nc {
+export interface SkinState {
     unlock: boolean;
     progress: Array<number[]> | null;
 }

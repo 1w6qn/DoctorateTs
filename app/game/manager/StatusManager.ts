@@ -1,15 +1,17 @@
 import EventEmitter from "events"
-import { AvatarInfo, PlayerCollection, PlayerDataModel, PlayerStatus } from "../model/playerdata"
+import { AvatarInfo, PlayerCollection, PlayerDataModel, PlayerStatus, PlayerNameCardStyle, NameCardMisc } from '../model/playerdata';
 import { InventoryManager } from "./InventoryManager"
 import excel from "../../excel/excel"
 
 export class StatusManager {
     status: PlayerStatus
     collectionReward:PlayerCollection
+    nameCardStyle:PlayerNameCardStyle
     _trigger: EventEmitter
     constructor(playerdata: PlayerDataModel, _trigger: EventEmitter) {
         this.status = playerdata.status
         this.collectionReward=playerdata.collectionReward
+        this.nameCardStyle=playerdata.nameCardStyle
         this._trigger = _trigger
         this._trigger.on("status:refresh:time",this.refreshTime.bind(this))
         this._trigger.on("status:change:secretary",this._changeSecretary.bind(this))
@@ -98,10 +100,29 @@ export class StatusManager {
         this.collectionReward.team[rewardId]=1
         this._trigger.emit("gainItems",[excel.HandbookInfoTable.teamMissionList[rewardId].item])
     }
+    getOtherPlayerNameCard(uid:string){
+        //TODO
+    }
+    editNameCard(flag:number,content:{skinId?:string,component?:string[],misc?:NameCardMisc}){
+        switch (flag) {
+            case 1:
+                this.nameCardStyle.componentOrder=content!.component as string[]
+                break;
+            case 2:
+                this.nameCardStyle.skin.selected=content!.skinId as string
+                break;
+            case 4:
+                this.nameCardStyle.misc=content!.misc as NameCardMisc
+                break;
+            default:
+                break;
+        }
+    }
     toJSON(){
         return {
             status:this.status,
-            collectionReward:this.collectionReward
+            collectionReward:this.collectionReward,
+            nameCardStyle:this.nameCardStyle,
         }
     }
 }

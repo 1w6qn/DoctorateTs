@@ -1,15 +1,6 @@
 import express from 'express';
 import httpContext from "express-http-context"
 import bodyParser from 'body-parser';
-import account from './router/account';
-import charBuild from './router/charBuild';
-import building from './router/building';
-import quest from './router/quest';
-import home from './router/home';
-import user from './router/user';
-import activity from './router/activity';
-import storyreview from './router/storyreview';
-
 import { accountManager } from './manager/AccountManger';
 
 const app = express()
@@ -23,12 +14,19 @@ app.use((req, res, next) => {
     }
     next()
 })
-app.use("/account",account)
-app.use("/charBuild",charBuild)
-app.use("/building",building)
-app.use("/quest",quest)
-app.use("/user",user)
-app.use("/activity",activity)
-app.use("/storyreview",storyreview)
-app.use("/",home)
+async function setup(app:express.Application){
+    app.use("/businessCard",(await import("./router/businessCard")).default)
+    app.use("/account",(await import("./router/account")).default)
+    app.use("/charBuild",(await import("./router/charBuild")).default)
+    app.use("/building",(await import("./router/building")).default)
+    app.use("/quest",(await import("./router/quest")).default)
+    app.use("/user",(await import("./router/user")).default)
+    app.use("/activity",(await import("./router/activity")).default)
+    app.use("/storyreview",(await import("./router/storyreview")).default)
+    app.use("/mission",(await import("./router/mission")).default)
+    app.use("/shop",(await import("./router/shop")).default)
+    app.use("/",(await import("./router/home")).default)
+}
+
+setup(app)
 export default app

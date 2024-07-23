@@ -30,6 +30,26 @@ export class MissionManager {
     weeklyRefresh() {
         this.mission.missionRewards.weeklyPoint = 0
         this.mission.missionRewards.rewards["WEEKLY"] = {}
+        for (let missionId in Object.values(excel.MissionTable.missions).filter((m) => m.type=="WEEKLY")) {
+            this.mission.missions.WEEKLY[missionId] = new MissionProgress(missionId, this._trigger).toJSON()
+        }
+    }
+    confirmMission(missionId: string){
+
+    }
+    confirmMissionGroup(missionGroupId:string){
+        
+        let rewards=excel.MissionTable.missionGroups[missionGroupId].rewards
+        if(rewards){
+            this._trigger.emit("gainItems",rewards)
+        }
+        this.mission.missionGroups[missionGroupId]=1
+    }
+    autoConfirmMissions(type:string){
+
+    }
+    exchangeMissionRewards(targetRewardsId:string){
+
     }
     toJSON() {
         return this.mission
@@ -38,6 +58,7 @@ export class MissionManager {
 export class MissionProgress {
     [key: string]: any
     progress: MissionCalcState[]
+    state:number
     missionId: string;
     _trigger: EventEmitter;
     param!:string[]
@@ -45,6 +66,7 @@ export class MissionProgress {
         this.missionId = missionId
         this.progress = []
         this._trigger = _trigger
+        this.state = excel.MissionTable.missions[this.missionId].preMissionIds ? 1 : 2
         this.init()
         //this._trigger.on("mission:update", this.update.bind(this))
     }
@@ -88,7 +110,7 @@ export class MissionProgress {
 
     toJSON(): MissionPlayerState {
         return {
-            state: excel.MissionTable.missions[this.missionId].preMissionIds ? 1 : 2,
+            state: this.state,
             progress: this.progress,
         }
     }

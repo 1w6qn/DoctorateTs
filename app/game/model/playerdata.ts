@@ -3232,12 +3232,7 @@ export interface Cash {
 
 export interface Classic {
     info: Info[];
-    progressInfo: CLASSICProgressInfo;
-}
-
-export interface CLASSICProgressInfo {
-    AAA3: CharBibeakProgress;
-    OLD1: CharBibeakProgress;
+    progressInfo: {[key:string]:CharBibeakProgress};
 }
 
 export interface Es {

@@ -20,10 +20,7 @@ export class CheckInManager {
         this._trigger.on("refresh:daily",this.dailyRefresh.bind(this))
         
     }
-    getChainLogInReward(index: number): ItemBundle[] {
-        
-        return []
-    }
+    
     dailyRefresh() {
         this.data.canCheckIn=1
         this.data.checkInRewardIndex +=1
@@ -33,6 +30,10 @@ export class CheckInManager {
         this.data.checkInGroupId=Object.values(excel.CheckinTable.groups).find((t)=>ts>t.signStartTime&&ts<t.signEndTime)!.groupId
         this.data.checkInHistory=[]
         this.data.checkInRewardIndex=-1
+    }
+    getChainLogInReward(index: number): ItemBundle[] {
+        
+        return []
     }
     checkIn(): { signInRewards: ItemBundle[], subscriptionRewards: ItemBundle[] } {
         let signInRewards: ItemBundle[] = []

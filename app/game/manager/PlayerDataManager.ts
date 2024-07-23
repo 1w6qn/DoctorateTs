@@ -8,6 +8,7 @@ import { StatusManager } from "./StatusManager";
 import { CheckInManager } from "./CheckInManager";
 import { StoryreviewManager } from "./StoryreviewManager";
 import { MissionManager } from "./MissionManager";
+import ShopController from "../controller/ShopController";
 
 export class PlayerDataManager {
     dungeon:DungeonManager
@@ -18,6 +19,7 @@ export class PlayerDataManager {
     checkIn:CheckInManager
     storyreview:StoryreviewManager
     mission:MissionManager
+    shop:ShopController
     _trigger: EventEmitter
     _playerdata: PlayerDataModel;
     get delta(){
@@ -40,7 +42,7 @@ export class PlayerDataManager {
         this.checkIn=new CheckInManager(playerdata, this._trigger)
         this.storyreview=new StoryreviewManager(playerdata.storyreview, this._trigger)
         this.mission=new MissionManager(playerdata, this._trigger)
-        
+        this.shop=new ShopController(playerdata, this._trigger)
     }
     
     toJSON() {
@@ -50,17 +52,15 @@ export class PlayerDataManager {
             troop:this.troop,
             dungeon:this.dungeon,
             activity:this._playerdata.activity,
-            npcAudio:this._playerdata.npcAudio,
             pushFlags:this._playerdata.pushFlags,
             equipment:{},
-            shop:this._playerdata.shop,
+            ...this.shop.toJSON(),
             mission:this.mission,
             social:this._playerdata.social,
             building:this._playerdata.building,
             dexNav:this._playerdata.dexNav,
             crisis:this._playerdata.crisis,
             crisisV2:this._playerdata.crisisV2,
-            nameCardStyle:this._playerdata.nameCardStyle,
             tshop:this._playerdata.tshop,
             gacha:this._playerdata.gacha,
             backflow:this._playerdata.backflow,

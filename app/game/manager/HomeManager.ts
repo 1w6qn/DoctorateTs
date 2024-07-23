@@ -59,6 +59,7 @@ export class HomeManager {
             background:this.background,
             homeTheme:this.homeTheme,
             setting:this.setting,
+            npcAudio:this.npcAudio,
         }
     }
 }

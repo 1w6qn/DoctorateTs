@@ -90,5 +90,47 @@ export interface ExtraQCObject {
     discount: number;
     goodEndTime: number;
     shopType: string;
-    newFlagTimeStamp: number;
+    newFlag: number;
+}
+export interface LMTGSGood {
+    goodId: string;
+    startTime: number;
+    endTime: number;
+    availCount: number;
+    item: ItemBundle;
+    price: ItemBundle;
+    sortId: number;
+}
+
+export interface LMTGSGoodList{
+    goodList: LMTGSGood[];
+    newFlag:string[]
+}
+export interface EPGSGood {
+    goodId: string;
+    startTime: number;
+    endTime: number;
+    availCount: number;
+    item: ItemBundle;
+    price: number;
+    sortId: number;
+}
+
+export interface EPGSGoodList{
+    goodList: EPGSGood[];
+    newFlag:string[]
+}
+export interface REPGood {
+    goodId: string;
+    startTime: number;
+    endTime: number;
+    availCount: number;
+    item: ItemBundle;
+    price: number;
+    sortId: number;
+}
+
+export interface REPGoodList{
+    goodList: REPGood[];
+    newFlag:string[]
 }

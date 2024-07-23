@@ -1,7 +1,7 @@
 
 import { Router } from 'express';
 import httpContext from 'express-http-context';
-import { PlayerDataManager } from './manager/PlayerDataManager';
+import { PlayerDataManager } from '../manager/PlayerDataManager';
 
 const router = Router();
 router.post("/sync", (req, res) => {

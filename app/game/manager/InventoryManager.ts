@@ -1,14 +1,16 @@
 import { ItemBundle } from "app/excel/character_table";
 import excel from "../../excel/excel";
 import EventEmitter from "events";
-import { PlayerDataModel } from "../model/playerdata";
+import { PlayerDataModel, PlayerSkins } from "../model/playerdata";
 
 export class InventoryManager {
     items: { [itemId: string]: number }
-    _playerdata:PlayerDataModel
+    skin: PlayerSkins
+    _playerdata: PlayerDataModel
     _trigger: EventEmitter
-    constructor(items: { [itemId: string]: number },_playerdata:PlayerDataModel, _trigger: EventEmitter) {
-        this.items = items
+    constructor(_playerdata: PlayerDataModel, _trigger: EventEmitter) {
+        this.items = _playerdata.inventory
+        this.skin = _playerdata.skin
         this._playerdata = _playerdata
         this._trigger = _trigger
         this._trigger.on("useItems", this.useItems.bind(this))
@@ -24,7 +26,7 @@ export class InventoryManager {
                 break;
 
             default:
-                this._gainItem({id: item.id,count: -item.count})
+                this._gainItem({ id: item.id, count: -item.count })
                 break;
         }
     }
@@ -42,32 +44,32 @@ export class InventoryManager {
                 this._trigger.emit("gainChar", item.id)
                 break;
             case "GOLD":
-                this._playerdata.status.gold+=item.count
+                this._playerdata.status.gold += item.count
                 break
             case "DIAMOND":
-                this._playerdata.status.iosDiamond+=item.count
-                this._playerdata.status.androidDiamond+=item.count
+                this._playerdata.status.iosDiamond += item.count
+                this._playerdata.status.androidDiamond += item.count
                 break
             case "EXP_PLAYER":
-                this._playerdata.status.exp+=item.count
+                this._playerdata.status.exp += item.count
                 break
             case "DIAMOND_SHD":
-                this._playerdata.status.diamondShard+=item.count
+                this._playerdata.status.diamondShard += item.count
                 break
             case "TKT_TRY":
-                this._playerdata.status.practiceTicket+=item.count
+                this._playerdata.status.practiceTicket += item.count
                 break
             case "TKT_RECRUIT":
-                this._playerdata.status.recruitLicense+=item.count
+                this._playerdata.status.recruitLicense += item.count
                 break
             case "TKT_INST_FIN":
-                this._playerdata.status.instantFinishTicket+=item.count
+                this._playerdata.status.instantFinishTicket += item.count
                 break
             case "TKT_GACHA":
-                this._playerdata.status.gachaTicket+=item.count
+                this._playerdata.status.gachaTicket += item.count
                 break
             case "TKT_GACHA_10":
-                this._playerdata.status.tenGachaTicket+=item.count
+                this._playerdata.status.tenGachaTicket += item.count
                 break
             case "RETURN_PROGRESS":
                 //this._playerdata.status.recruitLicense+=item.count
@@ -76,13 +78,17 @@ export class InventoryManager {
                 //this._playerdata.status.recruitLicense+=item.count
                 break
             case "AP_GAMEPLAY":
-                this._playerdata.status.ap+=item.count
+                this._playerdata.status.ap += item.count
                 break
             case "HGG_SHD":
-                this._playerdata.status.hggShard+=item.count
+                this._playerdata.status.hggShard += item.count
                 break
             case "LGG_SHD":
-                this._playerdata.status.lggShard+=item.count
+                this._playerdata.status.lggShard += item.count
+                break
+            case "CHAR_SKIN":
+                this.skin.characterSkins[item.id]=1
+                this.skin.skinTs[item.id]=parseInt((new Date().getTime()/1000).toString())
                 break
             default:
                 this.items[item.id] = (this.items[item.id] || 0) + item.count
@@ -94,9 +100,12 @@ export class InventoryManager {
             this._gainItem(item)
         }
     }
-    
-    toJSON(){
-        return this.items
+
+    toJSON() {
+        return { 
+            inventory: this.items, 
+            skin: this.skin
+        }
     }
 
 }

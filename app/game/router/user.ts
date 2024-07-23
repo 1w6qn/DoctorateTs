@@ -1,8 +1,8 @@
 
 import { Router } from 'express';
 import httpContext from 'express-http-context';
-import { PlayerDataManager } from './manager/PlayerDataManager';
-import { ItemBundle } from '../excel/character_table';
+import { PlayerDataManager } from '../manager/PlayerDataManager';
+import { ItemBundle } from '../../excel/character_table';
 
 const router = Router();
 router.post("/changeSecretary", (req, res) => {

@@ -31,7 +31,7 @@ export class PlayerDataManager {
         this._trigger = new EventEmitter();
 
         this.status=new StatusManager(playerdata, this._trigger)
-        this.inventory = new InventoryManager(playerdata.inventory,playerdata, this._trigger);
+        this.inventory = new InventoryManager(playerdata, this._trigger);
         this.troop=new TroopManager(playerdata.troop, this._trigger)
         this.dungeon=new DungeonManager(playerdata.dungeon, this._trigger)
         this.home=new HomeManager(playerdata, this._trigger)
@@ -43,14 +43,13 @@ export class PlayerDataManager {
     toJSON() {
         return {
             ...this.status.toJSON(),
-            inventory: this.inventory,
+            ...this.inventory.toJSON(),
             troop:this.troop,
             dungeon:this.dungeon,
             activity:this._playerdata.activity,
             npcAudio:this._playerdata.npcAudio,
             pushFlags:this._playerdata.pushFlags,
             equipment:{},
-            skin:this._playerdata.skin,
             shop:this._playerdata.shop,
             mission:this._playerdata.mission,
             social:this._playerdata.social,

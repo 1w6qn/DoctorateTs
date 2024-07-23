@@ -46,7 +46,7 @@ export interface PlayerDataModel {
     carousel: Carousel;
     openServer: PlayerOpenServer;
     car: Car;
-    recruit: PlayerDataRecruit;
+    recruit: PlayerRecruit;
     templateTrap: TemplateTrap;
     checkIn: PlayerCheckIn;
     inventory: { [key: string]: number };
@@ -2378,24 +2378,27 @@ export interface PlayerPushFlags {
     status: number;
 }
 
-export interface PlayerDataRecruit {
-    normal: RecruitNormal;
+export interface PlayerRecruit {
+    normal: NormalModel;
 }
 
-export interface RecruitNormal {
-    slots: { [key: string]: Slot };
+export interface NormalModel {
+    slots: { [key: string]: SlotModel };
 }
 
-export interface Slot {
+export interface SlotModel {
     state: number;
     tags: number[];
-    selectTags: any[];
+    selectTags: TagItem[];
     startTs: number;
     durationInSec: number;
     maxFinishTs: number;
     realFinishTs: number;
 }
-
+export interface TagItem {
+    tagId: number;
+    pick: number;
+}
 export interface Retro {
     coin: number;
     supplement: number;

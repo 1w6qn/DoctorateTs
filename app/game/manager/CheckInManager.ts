@@ -42,7 +42,8 @@ export class CheckInManager {
             let item = excel.CheckinTable.groups[this.data.checkInGroupId].items[this.data.checkInRewardIndex];
             signInRewards = [{ id: item.itemId, count: item.count, type: item.itemType }]
             if (this.isSUb) {
-                subscriptionRewards = excel.CheckinTable.monthlySubItem["mCard_1"][1].items
+                const currentMonthlySubId=excel.CheckinTable.currentMonthlySubId
+                subscriptionRewards = excel.CheckinTable.monthlySubItem[currentMonthlySubId][1].items
             }
             this.data.checkInHistory.push(0)
             this._trigger.emit("gainItems", subscriptionRewards.concat(signInRewards))

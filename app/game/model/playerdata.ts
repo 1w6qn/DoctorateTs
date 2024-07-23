@@ -51,7 +51,7 @@ export interface PlayerDataModel {
     checkIn: PlayerCheckIn;
     inventory: { [key: string]: number };
     campaignsV2: CampaignsV2;
-    setting: Setting;
+    setting: PlayerSetting;
     checkMeta: CheckMeta;
     limitedBuff: LimitedBuff;
     collectionReward: PlayerCollection;
@@ -3206,11 +3206,11 @@ export interface PurpleSquad {
     tools: string[];
 }
 
-export interface Setting {
-    perf: Perf;
+export interface PlayerSetting {
+    perf: PlayerSettingPerf;
 }
 
-export interface Perf {
+export interface PlayerSettingPerf {
     lowPower: number;
 }
 

@@ -94,6 +94,7 @@ export class InventoryManager {
             this._gainItem(item)
         }
     }
+    
     toJSON(){
         return this.items
     }

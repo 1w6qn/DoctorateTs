@@ -34,7 +34,7 @@ export class PlayerDataManager {
         this.inventory = new InventoryManager(playerdata.inventory,playerdata, this._trigger);
         this.troop=new TroopManager(playerdata.troop, this._trigger)
         this.dungeon=new DungeonManager(playerdata.dungeon, this._trigger)
-        this.home=new HomeManager(playerdata.background,playerdata.homeTheme, this._trigger)
+        this.home=new HomeManager(playerdata, this._trigger)
         this.checkIn=new CheckInManager(playerdata, this._trigger)
         this.storyreview=new StoryreviewManager(playerdata.storyreview, this._trigger)
         
@@ -85,7 +85,6 @@ export class PlayerDataManager {
             templateTrap:this._playerdata.templateTrap,
             ...this.checkIn.toJSON(),
             campaignsV2:this._playerdata.campaignsV2,
-            setting:this._playerdata.setting,
             checkMeta:this._playerdata.checkMeta,
             limitedBuff:this._playerdata.limitedBuff,
             ...this.home.toJSON()

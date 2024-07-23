@@ -146,6 +146,34 @@ export class TroopManager {
         let charId=this.getCharacterByInstId(charInstId).charId;
         this._trigger.emit("status:change:secretary",charId,skinId)
     }
+    decomposePotentialItem(charInstIdList:string[]):ItemBundle[]{
+        let costs:ItemBundle[]=[]
+        let items:ItemBundle[]=charInstIdList.reduce((acc,charInstId)=>{
+            let char=this.getCharacterByInstId(parseInt(charInstId));
+            let rarity=parseInt(excel.CharacterTable[char.charId].rarity.slice(-1))
+            let potentialItemId=excel.CharacterTable[char.charId].potentialItemId as string
+            costs.push({id:potentialItemId,count:-1})
+            acc.push(excel.GachaTable.potentialMaterialConverter.items[`${rarity-1}`])
+            return acc
+        },[] as ItemBundle[])
+        this._trigger.emit("useItems",costs)
+        this._trigger.emit("gainItems",items)
+        return items
+    }
+    decomposeClassicPotentialItem(charInstIdList:string[]):ItemBundle[]{
+        let costs:ItemBundle[]=[]
+        let items:ItemBundle[]=charInstIdList.reduce((acc,charInstId)=>{
+            let char=this.getCharacterByInstId(parseInt(charInstId));
+            let rarity=parseInt(excel.CharacterTable[char.charId].rarity.slice(-1))
+            let potentialItemId=excel.CharacterTable[char.charId].potentialItemId as string
+            costs.push({id:potentialItemId,count:-1})
+            acc.push(excel.GachaTable.classicPotentialMaterialConverter.items[`${rarity-1}`])
+            return acc
+        },[] as ItemBundle[])
+        this._trigger.emit("useItems",costs)
+        this._trigger.emit("gainItems",items)
+        return items
+    }
     toJSON(): PlayerTroop {
         return {
             curCharInstId:this.curCharInstId,
@@ -160,7 +188,10 @@ export class TroopManager {
               },{} as {[key:string]:PlayerSquad}),
             addon:this._troop.addon,
             charMission:this._troop.charMission,
-            charGroup:this._troop.charGroup,
+            charGroup:this.chars.reduce((acc, char) => {
+                acc[char.charId] = {favorPoint:char.favorPoint}
+                return acc
+            },{} as {[key:string]:{favorPoint:number}}),
         };
     }
 

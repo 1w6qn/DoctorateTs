@@ -2,12 +2,14 @@ import EventEmitter from "events";
 import { PlayerCharacter, PlayerSquad, PlayerSquadItem, PlayerTroop } from "../model/character";
 import excel from "../../excel/excel";
 import { ItemBundle } from "app/excel/character_table";
+import { PlayerDataModel } from "../model/playerdata";
 
 export class TroopManager {
     
     
     chars: PlayerCharacter[]
     squads: PlayerSquad[]
+    _playerdata: PlayerDataModel;
     get curCharInstId(): number {
         return this.chars.length+1;
     }
@@ -17,12 +19,13 @@ export class TroopManager {
     _trigger: EventEmitter
     _troop: PlayerTroop
     constructor(
-        troop: PlayerTroop,
+        playerdata: PlayerDataModel,
         trigger: EventEmitter
     ) {
-        this._troop=troop;
-        this.chars = Object.values(troop.chars);
-        this.squads = Object.values(troop.squads);
+        this._playerdata=playerdata;
+        this._troop=playerdata.troop;
+        this.chars = Object.values(this._troop.chars);
+        this.squads = Object.values(this._troop.squads);
         this._trigger = trigger;
         this._trigger.on("gainNewChar", this.gainNewCharacter.bind(this))
     }
@@ -152,8 +155,10 @@ export class TroopManager {
             let char=this.getCharacterByInstId(parseInt(charInstId));
             let rarity=parseInt(excel.CharacterTable[char.charId].rarity.slice(-1))
             let potentialItemId=excel.CharacterTable[char.charId].potentialItemId as string
-            costs.push({id:potentialItemId,count:-1})
-            acc.push(excel.GachaTable.potentialMaterialConverter.items[`${rarity-1}`])
+            let count=this._playerdata.inventory[potentialItemId]
+            costs.push({id:potentialItemId,count:count})
+            let item=excel.GachaTable.potentialMaterialConverter.items[`${rarity-1}`]
+            acc.push({id:item.id,count:item.count*count})
             return acc
         },[] as ItemBundle[])
         this._trigger.emit("useItems",costs)
@@ -165,9 +170,11 @@ export class TroopManager {
         let items:ItemBundle[]=charInstIdList.reduce((acc,charInstId)=>{
             let char=this.getCharacterByInstId(parseInt(charInstId));
             let rarity=parseInt(excel.CharacterTable[char.charId].rarity.slice(-1))
-            let potentialItemId=excel.CharacterTable[char.charId].potentialItemId as string
-            costs.push({id:potentialItemId,count:-1})
-            acc.push(excel.GachaTable.classicPotentialMaterialConverter.items[`${rarity-1}`])
+            let potentialItemId=excel.CharacterTable[char.charId].classicPotentialItemId as string
+            let count=this._playerdata.inventory[potentialItemId]
+            costs.push({id:potentialItemId,count:count})
+            let item=excel.GachaTable.classicPotentialMaterialConverter.items[`${rarity-1}`]
+            acc.push({id:item.id,count:item.count*count})
             return acc
         },[] as ItemBundle[])
         this._trigger.emit("useItems",costs)

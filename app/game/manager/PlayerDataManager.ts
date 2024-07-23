@@ -38,7 +38,7 @@ export class PlayerDataManager {
         this._trigger.setMaxListeners(10000);
         this.status=new StatusManager(playerdata, this._trigger)
         this.inventory = new InventoryManager(playerdata, this._trigger);
-        this.troop=new TroopManager(playerdata.troop, this._trigger)
+        this.troop=new TroopManager(playerdata, this._trigger)
         this.dungeon=new DungeonManager(playerdata.dungeon, this._trigger)
         this.home=new HomeManager(playerdata, this._trigger)
         this.checkIn=new CheckInManager(playerdata, this._trigger)

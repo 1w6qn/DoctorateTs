@@ -1,14 +1,14 @@
 import express from 'express';
 import httpContext from "express-http-context"
 import bodyParser from 'body-parser';
-import account from './account';
-import charBuild from './charBuild';
-import building from './building';
-import quest from './quest';
-import home from './home';
-import user from './user';
-import activity from './activity';
-import storyreview from './storyreview';
+import account from './router/account';
+import charBuild from './router/charBuild';
+import building from './router/building';
+import quest from './router/quest';
+import home from './router/home';
+import user from './router/user';
+import activity from './router/activity';
+import storyreview from './router/storyreview';
 
 import { accountManager } from './manager/AccountManger';
 

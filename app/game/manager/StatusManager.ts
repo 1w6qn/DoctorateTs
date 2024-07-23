@@ -29,8 +29,14 @@ export class StatusManager {
             }
             this._trigger.emit("refresh:daily")
         }
-        this.status.ap+=Math.floor((Math.floor(ts/1000)-this.status.lastApAddTime)/300)
-        this.status.lastApAddTime+=Math.floor((Math.floor(ts/1000)-this.status.lastApAddTime)/300)*300
+        if(this.status.ap<this.status.maxAp){
+            let apAdd=Math.floor((Math.floor(ts/1000)-this.status.lastApAddTime)/300)
+            if (this.status.ap+apAdd>this.status.maxAp){
+                apAdd=this.status.maxAp-this.status.ap
+            }
+            this.status.ap+=apAdd
+            this.status.lastApAddTime+=apAdd*300
+        }
         this.status.lastRefreshTs=ts
         this.status.lastOnlineTs=ts
     }
@@ -79,7 +85,7 @@ export class StatusManager {
         this.status.nickName=nickname
     }
     buyAp(){
-        this.status.ap+=120
+        this.status.ap+=this.status.maxAp
         this.status.androidDiamond-=1
         this.status.iosDiamond-=1
     }

@@ -11,7 +11,7 @@ export interface PlayerDataModel {
     equipment: PlayerEquipment;
     skin: PlayerSkins;
     shop: PlayerDataShop;
-    mission: PlayerDataMission;
+    mission: MissionPlayerData;
     social: PlayerDataSocial;
     building: PlayerDataBuilding;
     dexNav: DexNav;
@@ -2303,34 +2303,30 @@ export interface MedalValue {
     reward?: string;
 }
 
-export interface PlayerDataMission {
-    missions: MissionMissions;
-    missionRewards: MissionRewards;
+export interface MissionPlayerData {
+    missions: MissionPlayerDataGroup;
+    missionRewards: MissionDailyRewards;
     missionGroups: { [key: string]: number };
 }
 
-export interface MissionRewards {
+export interface MissionDailyRewards {
     dailyPoint: number;
     weeklyPoint: number;
-    rewards: Rewards;
+    rewards: {[key:string]:{ [key: string]: number }};
 }
 
-export interface Rewards {
-    DAILY: { [key: string]: number };
-    WEEKLY: { [key: string]: number };
+
+export interface MissionPlayerDataGroup {
+    OPENSERVER: { [key: string]: MissionPlayerState };
+    DAILY: { [key: string]: MissionPlayerState };
+    WEEKLY: { [key: string]: MissionPlayerState };
+    GUIDE: { [key: string]: MissionPlayerState };
+    MAIN: { [key: string]: MissionPlayerState };
+    ACTIVITY: { [key: string]: MissionPlayerState };
+    SUB: { [key: string]: MissionPlayerState };
 }
 
-export interface MissionMissions {
-    OPENSERVER: { [key: string]: ACTIVITYValue };
-    DAILY: { [key: string]: ACTIVITYValue };
-    WEEKLY: { [key: string]: ACTIVITYValue };
-    GUIDE: { [key: string]: ACTIVITYValue };
-    MAIN: { [key: string]: ACTIVITYValue };
-    ACTIVITY: { [key: string]: ACTIVITYValue };
-    SUB: { [key: string]: ACTIVITYValue };
-}
-
-export interface ACTIVITYValue {
+export interface MissionPlayerState {
     state: number;
     progress: MissionCalcState[];
 }

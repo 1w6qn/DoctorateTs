@@ -1,11 +1,12 @@
 import EventEmitter from "events";
 import { PlayerDataModel } from "../model/playerdata";
-import { CashGoodList, LowGoodList, SkinGoodList } from "../model/shop";
+import { CashGoodList, HighGoodList, LowGoodList, SkinGoodList } from "../model/shop";
 import { ItemBundle } from "../../excel/character_table";
 export class ShopController {
     lowGoodList!:LowGoodList
     skinGoodList!:SkinGoodList
     cashGoodList!:CashGoodList
+    highGoodList!:HighGoodList
     _playerdata:PlayerDataModel;
     _trigger:EventEmitter;
     constructor(_playerdata:PlayerDataModel,_trigger:EventEmitter) {
@@ -35,6 +36,14 @@ export class ShopController {
         }
         this.skinGoodList={
             goodList:[]
+        }
+        this.cashGoodList={
+            goodList:[]
+        }
+        this.highGoodList={
+            goodList:[],
+            progressGoodList:{},
+            newFlag:[]
         }
     }
     toJSON(){

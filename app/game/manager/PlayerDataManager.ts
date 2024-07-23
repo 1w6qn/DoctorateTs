@@ -29,7 +29,7 @@ export class PlayerDataManager {
     constructor(playerdata:PlayerDataModel) {
         this._playerdata = playerdata;
         this._trigger = new EventEmitter();
-
+        this._trigger.setMaxListeners(10000);
         this.status=new StatusManager(playerdata, this._trigger)
         this.inventory = new InventoryManager(playerdata, this._trigger);
         this.troop=new TroopManager(playerdata.troop, this._trigger)

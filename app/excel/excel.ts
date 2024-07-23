@@ -9,6 +9,7 @@ import { HandbookInfoTable } from './handbook_info_table';
 import { CheckinTable } from "./checkin_table";
 import { StoryReviewMetaTable } from "./story_review_meta_table";
 import { GachaData } from "./gacha_table";
+import { MissionTable } from './mission_table';
 export class Excel {
     BattleEquipTable!: { [key: string]: BattleEquipPack; };
     BuildingData!: BuildingData;
@@ -20,6 +21,7 @@ export class Excel {
     CheckinTable!: CheckinTable;
     StoryReviewMetaTable!: StoryReviewMetaTable;
     GachaTable!: GachaData;
+    MissionTable!: MissionTable;
     constructor() {
         this.init()
     }
@@ -34,6 +36,7 @@ export class Excel {
         this.CheckinTable=await import("../../data/excel/checkin_table.json")
         this.StoryReviewMetaTable=await import("../../data/excel/story_review_meta_table.json")
         this.GachaTable=await import("../../data/excel/gacha_table.json")
+        this.MissionTable=await import("../../data/excel/mission_table.json")
     }
 }
 export default new Excel()

@@ -58,3 +58,37 @@ export interface CashShopObject {
     plusNum: number
     desc: string
 }
+export interface HighGoodList{
+    goodList: QCObject[];
+    progressGoodList:{[key:string]:QCProgressGoodItem[]};
+    newFlag:string[]
+}
+export interface QCProgressGoodItem{
+    order:number;
+    price:number;
+    displayName:string;
+    item:ItemBundle;
+}
+export interface ClassicGoodList{
+    goodList: QCObject[];
+    progressGoodList:{[key:string]:QCProgressGoodItem[]};
+    newFlag:string[]
+}
+export interface ExtraGoodList{
+    goodList: ExtraQCObject[];
+    lastClick:number;
+    newFlag:string[]
+}
+export interface ExtraQCObject {
+    goodId: string;
+    item: ItemBundle;
+    displayName: string;
+    slotId: number;
+    originPrice: number;
+    price: number;
+    availCount: number;
+    discount: number;
+    goodEndTime: number;
+    shopType: string;
+    newFlagTimeStamp: number;
+}

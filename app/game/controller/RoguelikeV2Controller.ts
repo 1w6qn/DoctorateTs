@@ -1,12 +1,12 @@
 import EventEmitter from "events";
-import { CurrentData, OuterData, PlayerRoguelikePendingEvent, PlayerRoguelikeV2, RoguelikeNodePosition } from "../model/rlv2";
+import { PlayerRoguelikePendingEvent, PlayerRoguelikeV2, RoguelikeNodePosition } from "../model/rlv2";
 import excel from "../../excel/excel";
 import { Init } from "../../excel/roguelike_topic_table";
 
 export class RoguelikeV2Controller {
     pinned?: string;
-    outer: { [key: string]: OuterData; };
-    current: CurrentData;
+    outer: { [key: string]: PlayerRoguelikeV2.OuterData; };
+    current: PlayerRoguelikeV2.CurrentData;
     setPinned(id: string): void {
         this.pinned = id
     }
@@ -125,7 +125,7 @@ export class RoguelikeV2Controller {
                     content: {
                         initRecruitSet: {
                             step: [3, 4],
-                            option: init.initialRecruitGroup
+                            option: init.initialRecruitGroup as string[]
                         }
                     }
                 })
@@ -162,7 +162,14 @@ export class RoguelikeV2Controller {
 
         return []
     }
+    setTroopCarry(troopCarry:string[]){
+        this.current.module!.fragment!.troopCarry=troopCarry
+        this.current.module!.fragment!.limitWeight=this.current.module!.fragment!.troopCarry.reduce(
+            (acc,cur)=>acc+this.current.module!.fragment!.troopWeights[cur],0
+        )
+        this.current.module!.fragment!.overWeight=Math.floor(this.current!.module!.fragment!.limitWeight*1.5)
 
+    }
     constructor(data: PlayerRoguelikeV2, _trigger: EventEmitter) {
         this.outer = data.outer
         this.current = data.current

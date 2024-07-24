@@ -32,7 +32,7 @@ export class StatusManager {
             this._trigger.emit("refresh:daily")
         }
         if(this.status.ap<this.status.maxAp){
-            let apAdd=Math.floor((Math.floor(ts/1000)-this.status.lastApAddTime)/300)
+            let apAdd=Math.floor((ts-this.status.lastApAddTime)/300)
             if (this.status.ap+apAdd>this.status.maxAp){
                 apAdd=this.status.maxAp-this.status.ap
             }

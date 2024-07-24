@@ -27,6 +27,7 @@ export class PlayerDataManager {
     _playerdata: PlayerDataModel;
     excel:Excel
     loginTime:number=0
+    _battlesConfig: { [key: string]: { [key: string]: string; }; };
     get delta(){
         return {
             playerDataDelta:{
@@ -35,10 +36,11 @@ export class PlayerDataManager {
             }
         }
     }
-    constructor(playerdata:PlayerDataModel) {
+    constructor(playerdata:PlayerDataModel,battleConfig:{[key:string]:{[key:string]:string}}) {
         this._playerdata = playerdata;
         this._trigger = new EventEmitter();
         this._trigger.setMaxListeners(10000);
+        this._battlesConfig=battleConfig
         this.excel=new Excel()
         this.status=new StatusManager(playerdata, this._trigger)
         this.inventory = new InventoryManager(playerdata, this._trigger);
@@ -47,7 +49,7 @@ export class PlayerDataManager {
         this.home=new HomeManager(playerdata, this._trigger)
         this.checkIn=new CheckInManager(playerdata, this._trigger)
         this.storyreview=new StoryreviewManager(playerdata.storyreview, this._trigger)
-        //this.mission=new MissionManager(playerdata, this._trigger)
+        this.mission=new MissionManager(playerdata, this._trigger)
         this.shop=new ShopController(playerdata, this._trigger)
         this.recruit=new RecruitManager(playerdata.recruit, this._trigger)
 
@@ -65,7 +67,7 @@ export class PlayerDataManager {
             pushFlags:this._playerdata.pushFlags,
             equipment:{},
             ...this.shop.toJSON(),
-            mission:this._playerdata.mission,
+            mission:this.mission,
             social:this._playerdata.social,
             building:this._playerdata.building,
             dexNav:this._playerdata.dexNav,

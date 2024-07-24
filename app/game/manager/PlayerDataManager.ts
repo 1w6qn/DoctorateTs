@@ -10,6 +10,7 @@ import { StoryreviewManager } from "./StoryreviewManager";
 import { MissionManager } from "./MissionManager";
 import ShopController from "../controller/ShopController";
 import { RecruitManager } from "./RecruitManager";
+import { Excel } from "../../excel/excel";
 
 export class PlayerDataManager {
     dungeon:DungeonManager
@@ -24,6 +25,8 @@ export class PlayerDataManager {
     recruit:RecruitManager
     _trigger: EventEmitter
     _playerdata: PlayerDataModel;
+    excel:Excel
+    loginTime:number=0
     get delta(){
         return {
             playerDataDelta:{
@@ -36,6 +39,7 @@ export class PlayerDataManager {
         this._playerdata = playerdata;
         this._trigger = new EventEmitter();
         this._trigger.setMaxListeners(10000);
+        this.excel=new Excel()
         this.status=new StatusManager(playerdata, this._trigger)
         this.inventory = new InventoryManager(playerdata, this._trigger);
         this.troop=new TroopManager(playerdata, this._trigger)
@@ -46,6 +50,9 @@ export class PlayerDataManager {
         this.mission=new MissionManager(playerdata, this._trigger)
         this.shop=new ShopController(playerdata, this._trigger)
         this.recruit=new RecruitManager(playerdata.recruit, this._trigger)
+
+
+        this.loginTime=0
     }
     
     toJSON() {

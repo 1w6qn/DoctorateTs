@@ -3,6 +3,7 @@ import httpContext from 'express-http-context';
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 const router = Router();
 router.post("/login", (req, res) => {
+    
     res.send({
         "result": 0,
         "uid": "1",
@@ -12,6 +13,7 @@ router.post("/login", (req, res) => {
 });
 router.post("/syncData", (req, res) => {
     let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    player.loginTime=parseInt((new Date().getTime()/1000).toString());
     res.send({
         "result": 0,
         "ts": parseInt((new Date().getTime()/1000).toString()),

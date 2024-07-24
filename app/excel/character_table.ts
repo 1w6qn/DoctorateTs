@@ -29,7 +29,7 @@ export interface CharacterData {
     isNotObtainable: boolean;
     isSpChar: boolean;
     maxPotentialLevel: number;
-    rarity: RarityRank;
+    rarity: string;//RarityRank;
     profession: ProfessionCategory;
     subProfessionId: string;
     trait: TraitDataBundle | null;

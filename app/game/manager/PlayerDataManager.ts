@@ -11,6 +11,7 @@ import { MissionManager } from "./MissionManager";
 import ShopController from "../controller/ShopController";
 import { RecruitManager } from "./RecruitManager";
 import { Excel } from "../../excel/excel";
+import { RoguelikeV2Controller } from "../controller/RoguelikeV2Controller";
 
 export class PlayerDataManager {
     dungeon:DungeonManager
@@ -23,6 +24,7 @@ export class PlayerDataManager {
     mission!:MissionManager
     shop:ShopController
     recruit:RecruitManager
+    rlv2:RoguelikeV2Controller
     _trigger: EventEmitter
     _playerdata: PlayerDataModel;
     excel:Excel
@@ -52,7 +54,7 @@ export class PlayerDataManager {
         this.mission=new MissionManager(playerdata, this._trigger)
         this.shop=new ShopController(playerdata, this._trigger)
         this.recruit=new RecruitManager(playerdata.recruit, this._trigger)
-
+        this.rlv2=new RoguelikeV2Controller(playerdata.rlv2, this._trigger)
 
         this.loginTime=0
     }

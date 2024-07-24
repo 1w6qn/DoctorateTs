@@ -50,7 +50,7 @@ export interface GachaPoolClientData {
 }
 
 export interface DynMeta {
-    base64: string;
+    base64?: string;
 }
 
 export interface GachaTag {

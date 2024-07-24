@@ -8,7 +8,7 @@ export interface PlayerRoguelikeV2 {
 }
 export interface OuterData {
     bp: BattlePass
-    buff: Buff
+    buff: Buff1
     mission: Mission
     collect: Collection
     bank: Bank
@@ -82,7 +82,7 @@ export interface Bank {
     record: number
     reward: { [key: string]: number }
 }
-export interface Buff {
+export interface Buff1 {
     pointOwned: number
     pointCost: number
     unlocked: { [key: string]: number }
@@ -102,7 +102,7 @@ export interface ChallengeCollection {
 
 export interface CurrentData {
     player: PlayerStatus|null
-    record: Record|null
+    record: any|null
     map: PlayerRoguelikeV2Dungeon|null
     inventory: Inventory|null
     game: Game|null
@@ -115,7 +115,7 @@ export namespace CurrentData {
 }
 export interface Buff {
     tmpHP: number
-    capsule: Capsule
+    capsule: Capsule|null
     squadBuff: string[]
 }
 export interface Capsule {
@@ -127,7 +127,7 @@ export interface Troop {
     chars: { [key: string]: any }
     expedition: string[]
     expeditionDetails: { [key: string]: number/*ExpedType*/ }
-    expeditionReturn: ExpeditionReturn
+    expeditionReturn: ExpeditionReturn|null
     hasExpeditionReturn: boolean
 }
 export interface ExpeditionReturn {
@@ -162,7 +162,7 @@ export interface OuterBuff { }
 export interface Inventory {
     relic: { [key: string]: Relic }
     recruit: { [key: string]: Recruit }
-    trap: Trap
+    trap: Trap|null
     exploreTool: { [key: string]: ExploreTool }
     consumable: { [key: string]: number }
 }
@@ -236,10 +236,10 @@ export interface PlayerStatus {
     status: PlayerStatus.Status;
     toEnding: string
     chgEnding: boolean
-    innerMission: PlayerStatus.InnerMission[]
-    nodeMission: PlayerStatus.NodeMission
-    zoneReward: { [key: string]: PlayerStatus.ZoneRewardItem }
-    traderReturn: { [key: string]: PlayerStatus.ZoneRewardItem }
+    innerMission?: PlayerStatus.InnerMission[]
+    nodeMission?: PlayerStatus.NodeMission
+    zoneReward?: { [key: string]: PlayerStatus.ZoneRewardItem }
+    traderReturn?: { [key: string]: PlayerStatus.ZoneRewardItem }
 }
 export namespace PlayerStatus {
     export interface Properties {
@@ -252,6 +252,7 @@ export namespace PlayerStatus {
         capacity: number
         population: Properties.Population
         conPerfectBattle: number
+        hpShowState:string
     }
     export namespace Properties {
         export interface Hp {
@@ -266,7 +267,7 @@ export namespace PlayerStatus {
     }
     export interface NodePosition {
         zone: number
-        position: RoguelikeNodePosition
+        position: RoguelikeNodePosition|null
     }
     export interface Status {
         bankPut: number
@@ -299,8 +300,9 @@ export interface RoguelikeNodePosition {
 
 
 export interface PlayerRoguelikePendingEvent {
+    index:string
     type: string//PlayerRoguelikePlayerEventType
-    content: Content//___WIP___//Content
+    content: any//___WIP___//Content
 }
 /**
 

@@ -10,6 +10,7 @@ import { CheckinTable } from "./checkin_table";
 import { StoryReviewMetaTable } from "./story_review_meta_table";
 import { GachaData } from "./gacha_table";
 import { MissionTable } from './mission_table';
+import { RoguelikeTopicTable } from './roguelike_topic_table';
 export class Excel {
     BattleEquipTable!: { [key: string]: BattleEquipPack; };
     BuildingData!: BuildingData;
@@ -22,7 +23,7 @@ export class Excel {
     StoryReviewMetaTable!: StoryReviewMetaTable;
     GachaTable!: GachaData;
     MissionTable!: MissionTable;
-
+    RoguelikeTopicTable!: RoguelikeTopicTable;
     initPromise:Promise<void>;
     constructor() {
         this.initPromise=this.init()
@@ -38,7 +39,8 @@ export class Excel {
         this.HandbookInfoTable=await import('../../data/excel/handbook_info_table.json')
         this.CheckinTable=await import("../../data/excel/checkin_table.json")
         this.StoryReviewMetaTable=await import("../../data/excel/story_review_meta_table.json")
-        this.GachaTable=await import("../../data/excel/gacha_table.json")
+        this.GachaTable=await import("../../data/excel/gacha_table.json") as GachaData
+        this.RoguelikeTopicTable=(await import('../../data/excel/roguelike_topic_table.json')).default as RoguelikeTopicTable
     }
 }
 export default new Excel()

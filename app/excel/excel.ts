@@ -22,10 +22,13 @@ export class Excel {
     StoryReviewMetaTable!: StoryReviewMetaTable;
     GachaTable!: GachaData;
     MissionTable!: MissionTable;
+
+    initPromise:Promise<void>;
     constructor() {
-        this.init()
+        this.initPromise=this.init()
     }
     async init():Promise<void> {
+        this.MissionTable=await import("../../data/excel/mission_table.json")
         this.BattleEquipTable=(await import("../../data/excel/battle_equip_table.json")).default as {[key:string]:BattleEquipPack}
         this.BuildingData=await import("../../data/excel/building_data.json") as BuildingData
         this.CharacterTable=(await import("../../data/excel/character_table.json")).default as {[key:string]:CharacterData}
@@ -36,7 +39,6 @@ export class Excel {
         this.CheckinTable=await import("../../data/excel/checkin_table.json")
         this.StoryReviewMetaTable=await import("../../data/excel/story_review_meta_table.json")
         this.GachaTable=await import("../../data/excel/gacha_table.json")
-        this.MissionTable=await import("../../data/excel/mission_table.json")
     }
 }
 export default new Excel()

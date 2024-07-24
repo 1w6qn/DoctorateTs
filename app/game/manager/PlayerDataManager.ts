@@ -20,7 +20,7 @@ export class PlayerDataManager {
     home:HomeManager
     checkIn:CheckInManager
     storyreview:StoryreviewManager
-    mission:MissionManager
+    mission!:MissionManager
     shop:ShopController
     recruit:RecruitManager
     _trigger: EventEmitter
@@ -47,7 +47,7 @@ export class PlayerDataManager {
         this.home=new HomeManager(playerdata, this._trigger)
         this.checkIn=new CheckInManager(playerdata, this._trigger)
         this.storyreview=new StoryreviewManager(playerdata.storyreview, this._trigger)
-        this.mission=new MissionManager(playerdata, this._trigger)
+        //this.mission=new MissionManager(playerdata, this._trigger)
         this.shop=new ShopController(playerdata, this._trigger)
         this.recruit=new RecruitManager(playerdata.recruit, this._trigger)
 
@@ -65,7 +65,7 @@ export class PlayerDataManager {
             pushFlags:this._playerdata.pushFlags,
             equipment:{},
             ...this.shop.toJSON(),
-            mission:this.mission,
+            mission:this._playerdata.mission,
             social:this._playerdata.social,
             building:this._playerdata.building,
             dexNav:this._playerdata.dexNav,

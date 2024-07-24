@@ -1,12 +1,14 @@
 import EventEmitter from "events";
-import { MissionCalcState, MissionPlayerData, MissionPlayerState, PlayerDataModel } from '../model/playerdata';
+import { MissionCalcState, MissionDailyRewards, MissionPlayerData, MissionPlayerDataGroup, MissionPlayerState, PlayerDataModel } from '../model/playerdata';
 import excel from "../../excel/excel";
 import { ItemBundle } from "../../excel/character_table";
 function getProperty<Type, Key extends keyof Type>(obj: Type, key: Key) {
     return obj[key];
 }
 export class MissionManager {
-    mission: MissionPlayerData;
+    missions: {[key:string]:MissionProgress[]};
+    missionRewards:MissionDailyRewards
+    missionGroups:{[key:string]:number}
     _trigger: EventEmitter;
     get dailyMissionPeriod(): string {
         let ts = new Date().getTime() / 1000
@@ -19,48 +21,63 @@ export class MissionManager {
         return period!.periodList.find((p) => (new Date().getDay() + 1) in p.period)!.rewardGroupId
     }
     constructor(playerdata: PlayerDataModel, _trigger: EventEmitter) {
-        this.mission = playerdata.mission;
+        
+        this.missions = Object.fromEntries(Object.entries(playerdata.mission.missions).map(([type,v])=>
+            [type,Object.entries(v).map(([id,data])=>(new MissionProgress(id, _trigger,this,type,data.progress[0].value)))]
+        ))
+        this.missionRewards=playerdata.mission.missionRewards;
+        this.missionGroups=playerdata.mission.missionGroups;
         this._trigger = _trigger;
         this._trigger.on("refresh:weekly", this.weeklyRefresh.bind(this))
         this._trigger.on("refresh:daily", this.dailyRefresh.bind(this))
-        //this.init()
+        this._trigger.on("mission:complete", this.completeMission.bind(this))
+        
 
     }
-    init(){
-        for (let missionId of excel.MissionTable.missionGroups[this.dailyMissionPeriod].missionIds) {
-            let v=this.mission.missions.DAILY[missionId].progress[0].value
-            this.mission.missions.DAILY[missionId] = new MissionProgress(missionId, this._trigger,this,v)
-        }
-    }
     getMissionById(missionId: string): MissionPlayerState {
-        return this.mission.missions.DAILY[missionId]
+        let type=excel.MissionTable.missions[missionId].type
+        return this.missions[type].filter((m) => m.missionId == missionId)[0]
     }
     dailyRefresh() {
-        this.mission.missionRewards.dailyPoint = 0
-        this.mission.missionRewards.rewards["DAILY"] = {}
+        this.missionRewards.dailyPoint = 0
+        this.missionRewards.rewards["DAILY"] = {}
         for(let reward of Object.values(excel.MissionTable.periodicalRewards)){
             if(reward.groupId==this.dailyMissionRewardPeriod){
-                this.mission.missionRewards.rewards["DAILY"][reward.id]=0
+                this.missionRewards.rewards["DAILY"][reward.id]=0
             }
         }
-        this.mission.missions.DAILY = {}
+        this.missions["DAILY"] = []
         for (let missionId of excel.MissionTable.missionGroups[this.dailyMissionPeriod].missionIds) {
-            this.mission.missions.DAILY[missionId] = new MissionProgress(missionId, this._trigger,this)
+            this.missions["DAILY"].push(new MissionProgress(missionId, this._trigger,this,"DAILY"))
         }
     }
     weeklyRefresh() {
-        this.mission.missionRewards.weeklyPoint = 0
-        this.mission.missionRewards.rewards["WEEKLY"] = {}
-        this.mission.missions.WEEKLY = {}
+        this.missionRewards.weeklyPoint = 0
+        this.missionRewards.rewards["WEEKLY"] = {}
+        this.missions["WEEKLY"] = []
         for (let mission of Object.values(excel.MissionTable.missions).filter((m) => m.type=="WEEKLY")) {
-            this.mission.missions.WEEKLY[mission.id] = new MissionProgress(mission.id, this._trigger,this).toJSON()
+            this.missions["WEEKLY"].push(new MissionProgress(mission.id, this._trigger,this,"WEEKLY"))
         }
     }
     completeMission(missionId: string){
+        switch (excel.MissionTable.missions[missionId].type) {
+            case "DAILY":
+                //this.missionRewards.dailyPoint += 1
+                break;
         
+            default:
+                break;
+        }
     }
     confirmMission(missionId: string){
-
+        switch (excel.MissionTable.missions[missionId].type) {
+            case "DAILY":
+                this.missionRewards.dailyPoint += 1
+                break;
+        
+            default:
+                break;
+        }
     }
     confirmMissionGroup(missionGroupId:string){
         
@@ -68,7 +85,7 @@ export class MissionManager {
         if(rewards){
             this._trigger.emit("gainItems",rewards)
         }
-        this.mission.missionGroups[missionGroupId]=1
+        this.missionGroups[missionGroupId]=1
     }
     autoConfirmMissions(type:string){
 
@@ -76,8 +93,14 @@ export class MissionManager {
     exchangeMissionRewards(targetRewardsId:string){
 
     }
-    toJSON() {
-        return this.mission
+    toJSON():MissionPlayerData {
+        return {
+            missions:Object.fromEntries(Object.entries(this.missions).map(([type,v])=>
+                [type,v.reduce((acc,v)=>({...acc,[v.missionId]:v.toJSON()}),{} as { [k: string]: MissionPlayerState })]
+            )),
+            missionRewards:this.missionRewards,
+            missionGroups:this.missionGroups,
+        }
     }
 }
 export class MissionProgress implements MissionPlayerState {
@@ -87,7 +110,12 @@ export class MissionProgress implements MissionPlayerState {
     _trigger: EventEmitter;
     param!:string[]
     value:number
+    type:string
     get state():number{
+        if(!("value" in this.progress[0])){
+            console.log(this)
+            return 0
+        }
         if(this.progress[0].value==this.progress[0].target){
             return 3
         }else{
@@ -103,20 +131,32 @@ export class MissionProgress implements MissionPlayerState {
             return 2
         }
     }
-    constructor(missionId: string, _trigger: EventEmitter,_manager:MissionManager,value=0) {
+    constructor(missionId: string, _trigger: EventEmitter,_manager:MissionManager,type:string,value=0) {
         this.missionId = missionId
         this.value=value
         this.progress = []
         this._trigger = _trigger
         this._manager=_manager
+        this.type=type
         this.init()
         //this._trigger.on("mission:update", this.update.bind(this))
     }
-    init() {
-        const template = excel.MissionTable.missions[this.missionId].template
-        this.param = excel.MissionTable.missions[this.missionId].param
-        console.log(template)
-        if(!(template in this)){
+    async init() {
+        await excel.initPromise
+        let template
+        if(this.type=="ACTIVITY"){
+            template
+        }else{
+            template = excel.MissionTable.missions[this.missionId].template
+            this.param = excel.MissionTable.missions[this.missionId].param
+        }
+        
+        if(!template){
+            console.log(this.missionId)
+            return
+        }
+        if(template&&!(template in this)){
+            console.log(template)
             throw new Error("template not implemented yet")
         }
         this._trigger.on(template, this[template].bind(this))
@@ -320,6 +360,428 @@ export class MissionProgress implements MissionPlayerState {
                 break
         }
     }
+    UpgradeSkill(args:{completeState:number},mode: string = "update",) {
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    SquadFormation(args:{completeState:number},mode: string = "update",) {
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    CompleteStage(args:{completeState:number},mode: string = "update",) {
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    UpgradePlayer(args:{completeState:number},mode: string = "update",) {
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    CompleteAnyStage(args:{completeState:number},mode: string = "update",) {
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    HasChar(args:{completeState:number},mode: string = "update",) {
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    HasEquipment(args:{completeState:number},mode: string = "update",) {
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    EvolveChar(args:{completeState:number},mode: string = "update",) {
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    DiyComfort(args:{completeState:number},mode: string = "update",) {
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    HasRoom(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    WorkshopSynthesis(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    UpgradeSpecialization(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    BattleWithEnemyKill(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    CharIntimacy(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    CompleteBreakReward(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    StartInfoShare(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    EditBusinessCard(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    SetAssistCharList(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    ChangeSquadName(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    StageWithReplay(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    TakeOverReplay(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    CompleteCampaign(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    SetBuildingAssist(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    BoostPotential(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    WorkshopExBonus(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    BoostNormalGacha(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    CompleteMainStage(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    SendClue(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    GainTeamChar(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+    AccelerateOrder(args:{completeState:number},mode: string = "update",){
+        /**
+         * 
+         * 
+         */
+        switch (mode) {
+            case "init":
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                break
+            case "update":
+                
+                break
+        }
+    }
+
+
 
     toJSON(): MissionPlayerState {
         return {

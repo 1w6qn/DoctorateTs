@@ -2317,13 +2317,7 @@ export interface MissionDailyRewards {
 
 
 export interface MissionPlayerDataGroup {
-    OPENSERVER: { [key: string]: MissionPlayerState };
-    DAILY: { [key: string]: MissionPlayerState };
-    WEEKLY: { [key: string]: MissionPlayerState };
-    GUIDE: { [key: string]: MissionPlayerState };
-    MAIN: { [key: string]: MissionPlayerState };
-    ACTIVITY: { [key: string]: MissionPlayerState };
-    SUB: { [key: string]: MissionPlayerState };
+    [key:string]: { [key: string]: MissionPlayerState };
 }
 
 export interface MissionPlayerState {

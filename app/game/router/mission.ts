@@ -6,8 +6,9 @@ import { PlayerDataManager } from '../manager/PlayerDataManager';
 const router = Router();
 router.post("/confirmMission", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    player.mission.confirmMission(req.body!.missionId)
+    
     res.send({
+        items:player.mission.confirmMission(req.body!.missionId),
         ...player.delta
     })
     player._trigger.emit("save")
@@ -22,8 +23,9 @@ router.post("/confirmMissionGroup", (req, res) => {
 })
 router.post("/autoConfirmMissions", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    player.mission.autoConfirmMissions(req.body!.type)
+    
     res.send({
+        items:player.mission.autoConfirmMissions(req.body!.type),
         ...player.delta
     })
     player._trigger.emit("save")

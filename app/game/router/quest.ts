@@ -18,43 +18,19 @@ router.post("/changeSquadName", (req, res) => {
 })
 router.post("/battleStart", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    
     player._trigger.emit("save")
     res.send({
-        "apFailReturn": 0,
-        'battleId': 'abcdefgh-1234-5678-a1b2c3d4e5f6',
-        "inApProtectPeriod": false,
-        "isApProtect": 0,
-        "notifyPowerScoreNotEnoughIfFailed": false,
-        'playerDataDelta': {
-            'modified': {},
-            'deleted': {}
-        },
-        'result': 0
+        ...player.battle.start(req.body),
+        ...player.delta,
     })
 })
 router.post("/battleFinish", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    
+    console.log(req.body)
     player._trigger.emit("save")
     res.send({
-        "result":0,
-        "apFailReturn": 0,
-        "expScale": 1.2,
-        "goldScale": 1.2,
-        "rewards": [],
-        "firstRewards": [],
-        "unlockStages": [],
-        "unusualRewards": [],
-        "additionalRewards": [],
-        "furnitureRewards": [],
-        "alert": [],
-        "suggestFriend": false,
-        "pryResult": [],
-        "playerDataDelta": {
-            "modified": {},
-            "deleted": {}
-        }
+        ...player.battle.finish(req.body),
+        ...player.delta,
     })
 })
 export default router;

@@ -353,6 +353,7 @@ export type FluffyRelicDevLevel = "实在的" | "巧思的" | "幻想的" | "架
 export type WeightStatusLimitDesc = "每前进一步，失去1点目标生命（不会使目标生命低于1）" | "每前进一步，失去1点目标生命（不会使目标生命低于1），进入战斗时，所有单位部署费用+2" | "每前进一步，失去1点目标生命（不会使目标生命低于1），进入战斗时，所有单位部署费用+3";
 
 export interface Details {
+    [key: string]:any
     rogue_1: DetailsRogue1;
     rogue_2: DetailsRogue2;
     rogue_3: DetailsRogue3;

@@ -85,7 +85,7 @@ export namespace PlayerHandBookAddon {
 
 export interface PlayerSquad {
     squadId: string;
-    name: string;
+    name: string|null;
     slots: Array<PlayerSquadItem | null>;
 }
 
@@ -95,4 +95,35 @@ export interface PlayerSquadItem {
     charInstId: number;
     skillIndex: number;
     currentEquip: null | string;
+}
+
+
+
+
+
+export interface OrigChar extends FriendCommonData {
+    assistSlotIndex: number
+    aliasName: string
+    assistCharList: SharedCharData[]
+    isFriend: boolean
+    canRequestFriend: boolean
+}
+
+export interface FriendCommonData {
+    nickName: string
+    uid: string
+    serverName: string
+    nickNumber: string
+    level: number
+    lastOnlineTime: Date
+    recentVisited: boolean
+    avatar: AvatarInfo
+}
+export interface AvatarInfo {
+    type: string//PlayerAvatarType
+    id: string
+}
+export interface SquadFriendData extends FriendCommonData{
+    assistChar:SharedCharData[]
+    assistSlotIndex:number
 }

@@ -2,9 +2,9 @@ import EventEmitter from "events";
 import { MissionCalcState, MissionDailyRewards, MissionPlayerData, MissionPlayerDataGroup, MissionPlayerState, PlayerDataModel } from '../model/playerdata';
 import excel from "../../excel/excel";
 import { ItemBundle } from "../../excel/character_table";
-function getProperty<Type, Key extends keyof Type>(obj: Type, key: Key) {
-    return obj[key];
-}
+import { PlayerSquad } from "../model/character";
+import { TroopManager } from "./TroopManager";
+
 export class MissionManager {
     missions: { [key: string]: MissionProgress[] };
     missionRewards: MissionDailyRewards
@@ -276,17 +276,17 @@ export class MissionProgress implements MissionPlayerState {
                 break
         }
     }
-    ReceiveSocialPoint(args: { completeState: number }, mode: string = "update",) {
+    ReceiveSocialPoint(args: { socialPoint: number }, mode: string = "update",) {
         /**
          * 
          * 
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
+                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
                 break
             case "update":
-
+                this.progress[0].value+=args.socialPoint
                 break
         }
     }
@@ -304,7 +304,7 @@ export class MissionProgress implements MissionPlayerState {
                 break
         }
     }
-    NormalGacha(args: { completeState: number }, mode: string = "update",) {
+    NormalGacha(args: {}, mode: string = "update",) {
         /**
          * 
          * 
@@ -314,95 +314,95 @@ export class MissionProgress implements MissionPlayerState {
                 this.progress.push({ value: this.value, target: parseInt(this.param[2]) })
                 break
             case "update":
-
+                this.progress[0].value += 1
                 break
         }
     }
-    GainIntimacy(args: { completeState: number }, mode: string = "update",) {
+    GainIntimacy(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
+                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
                 break
             case "update":
-
+                this.progress[0].value += 1
                 break
         }
     }
-    ManufactureItem(args: { completeState: number }, mode: string = "update",) {
+    ManufactureItem(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
+                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
                 break
             case "update":
-
+                this.progress[0].value += 1
                 break
         }
     }
-    DeliveryOrder(args: { completeState: number }, mode: string = "update",) {
+    DeliveryOrder(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
+                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
                 break
             case "update":
-
+                this.progress[0].value += 1
                 break
         }
     }
-    RecoverCharBaseAp(args: { completeState: number }, mode: string = "update",) {
+    RecoverCharBaseAp(args: { charNum: number }, mode: string = "update",) {
         /**
          * 
          * 
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
+                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
                 break
             case "update":
-
+                this.progress[0].value += args.charNum
                 break
         }
     }
-    VisitBuilding(args: { completeState: number }, mode: string = "update",) {
+    VisitBuilding(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
+                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
                 break
             case "update":
-
+                this.progress[0].value += 1
                 break
         }
     }
-    UpgradeSkill(args: { completeState: number }, mode: string = "update",) {
+    UpgradeSkill(args: {targetLevel:number}, mode: string = "update",) {
         /**
          * 
          * 
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
+                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
                 break
             case "update":
-
+                this.progress[0].value += 1
                 break
         }
     }
-    SquadFormation(args: { completeState: number }, mode: string = "update",) {
+    SquadFormation(args: { squad: PlayerSquad }, mode: string = "update",) {
         /**
          * 
          * 
@@ -412,7 +412,7 @@ export class MissionProgress implements MissionPlayerState {
                 this.progress.push({ value: this.value, target: parseInt(this.param[2]) })
                 break
             case "update":
-
+                //TODO
                 break
         }
     }
@@ -430,17 +430,17 @@ export class MissionProgress implements MissionPlayerState {
                 break
         }
     }
-    UpgradePlayer(args: { completeState: number }, mode: string = "update",) {
+    UpgradePlayer(args: { level: number }, mode: string = "update",) {
         /**
          * 
          * 
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
+                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
                 break
             case "update":
-
+                this.progress[0].value=args.level
                 break
         }
     }
@@ -486,17 +486,20 @@ export class MissionProgress implements MissionPlayerState {
                 break
         }
     }
-    EvolveChar(args: { completeState: number }, mode: string = "update",) {
+    EvolveChar(args: { troop: TroopManager }, mode: string = "update",) {
         /**
-         * 
+         * 1:num;2:evolve phase
          * 
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
+                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
                 break
             case "update":
-
+                this.progress[0].value=args.troop.chars.reduce((acc, char) => {
+                    acc+=char.evolvePhase==parseInt(this.param[2])?1:0
+                    return acc
+                },0)
                 break
         }
     }
@@ -640,7 +643,7 @@ export class MissionProgress implements MissionPlayerState {
                 break
         }
     }
-    ChangeSquadName(args: { completeState: number }, mode: string = "update",) {
+    ChangeSquadName(args: {}, mode: string = "update",) {
         /**
          * 
          * 
@@ -650,7 +653,7 @@ export class MissionProgress implements MissionPlayerState {
                 this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
                 break
             case "update":
-
+                this.progress[0].value += 1
                 break
         }
     }

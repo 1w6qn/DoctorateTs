@@ -4,7 +4,7 @@ import { BattleEquipPack } from "./battle_equip_table";
 import { BuildingData } from "./building_data";
 import { GameDataConsts } from "./gamedata_const";
 import { ServerItemTable } from "./item_table";
-import { StageTable } from "./stage_table";
+import { StageTable } from './stage_table';
 import { HandbookInfoTable } from './handbook_info_table';
 import { CheckinTable } from "./checkin_table";
 import { StoryReviewMetaTable } from "./story_review_meta_table";

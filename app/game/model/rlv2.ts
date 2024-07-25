@@ -1,5 +1,5 @@
 import { Init } from "v8"
-import { PlayerCharacter, SharedCharData } from "./character"
+import { OrigChar, PlayerCharacter, SharedCharData } from "./character"
 import { Blackboard } from "../../excel/character_table"
 
 export interface PlayerRoguelikeV2Dungeon {
@@ -219,9 +219,9 @@ export namespace PlayerRoguelikeV2 {
             index: string
             id: string
             count: number
-            layer: number
+            layer?: number
             ts: number
-            used: boolean
+            used?: boolean
         }
         export interface Recruit {
             index: string
@@ -438,33 +438,11 @@ export namespace PlayerRoguelikeV2 {
 
 
 
-
 export interface FriendAssistData {
     orig: OrigChar
     recruit: PlayerRoguelikeV2.CurrentData.RecruitChar
 }
-export interface OrigChar extends FriendCommonData {
-    assistSlotIndex: number
-    aliasName: string
-    assistCharList: SharedCharData[]
-    isFriend: boolean
-    canRequestFriend: boolean
-}
 
-export interface FriendCommonData {
-    nickName: string
-    uid: string
-    serverName: string
-    nickNumber: string
-    level: number
-    lastOnlineTime: Date
-    recentVisited: boolean
-    avatar: AvatarInfo
-}
-export interface AvatarInfo {
-    type: string//PlayerAvatarType
-    id: string
-}
 
 
 

@@ -12,6 +12,7 @@ import ShopController from "../controller/ShopController";
 import { RecruitManager } from "./RecruitManager";
 import { Excel } from "../../excel/excel";
 import { RoguelikeV2Controller } from "../controller/RoguelikeV2Controller";
+import { BattleManager } from "./BattleManager";
 
 export class PlayerDataManager {
     dungeon:DungeonManager
@@ -25,6 +26,7 @@ export class PlayerDataManager {
     shop:ShopController
     recruit:RecruitManager
     rlv2:RoguelikeV2Controller
+    battle:BattleManager
     _trigger: EventEmitter
     _playerdata: PlayerDataModel;
     excel:Excel
@@ -55,6 +57,7 @@ export class PlayerDataManager {
         this.shop=new ShopController(playerdata, this._trigger)
         this.recruit=new RecruitManager(playerdata.recruit, this._trigger)
         this.rlv2=new RoguelikeV2Controller(playerdata.rlv2, this._trigger)
+        this.battle=new BattleManager(playerdata,battleConfig, this._trigger)
 
         this.loginTime=0
     }
@@ -80,7 +83,7 @@ export class PlayerDataManager {
             backflow:this._playerdata.backflow,
             mainline:this._playerdata.mainline,
             avatar:this._playerdata.avatar,
-            rlv2:this._playerdata.rlv2,
+            rlv2:this.rlv2,
             deepSea:this._playerdata.deepSea,
             tower:this._playerdata.tower,
             siracusaMap:this._playerdata.siracusaMap,

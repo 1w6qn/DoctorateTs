@@ -91,7 +91,30 @@ router.post("/getSkinGoodList", (req, res) => {
     })
     player._trigger.emit("save")
 })
-
+router.post("/getCashGoodList", (req, res) => {
+    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    res.send({
+        ...player.shop.cashGoodList,
+        ...player.delta
+    })
+    player._trigger.emit("save")
+})
+router.post("/getGPGoodList", (req, res) => {
+    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    res.send({
+        ...player.shop.GPGoodList,
+        ...player.delta
+    })
+    player._trigger.emit("save")
+})
+router.post("/getSocialGoodList", (req, res) => {
+    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    res.send({
+        ...player.shop.socialGoodList,
+        ...player.delta
+    })
+    player._trigger.emit("save")
+})
 
 
 router.post("/buyLowGood", (req, res) => {

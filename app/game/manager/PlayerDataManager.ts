@@ -26,7 +26,7 @@ export class PlayerDataManager {
     shop:ShopController
     recruit:RecruitManager
     rlv2:RoguelikeV2Controller
-    battle:BattleManager
+    battle!:BattleManager
     _trigger: EventEmitter
     _playerdata: PlayerDataModel;
     excel:Excel
@@ -57,11 +57,13 @@ export class PlayerDataManager {
         this.shop=new ShopController(playerdata, this._trigger)
         this.recruit=new RecruitManager(playerdata.recruit, this._trigger)
         this.rlv2=new RoguelikeV2Controller(playerdata.rlv2, this._trigger)
-        this.battle=new BattleManager(playerdata,battleConfig, this._trigger)
+        
 
         this.loginTime=0
     }
-    
+    init(){
+        this.battle=new BattleManager(this._playerdata,this._battlesConfig,this.loginTime, this._trigger)
+    }
     toJSON() {
         return {
             ...this.status.toJSON(),

@@ -134,3 +134,105 @@ export interface REPGoodList{
     goodList: REPGood[];
     newFlag:string[]
 }
+export interface SocialShopData {
+    goodId: string;
+    displayName: string;
+    item: ItemBundle;
+    price: number;
+    availCount: number;
+    slotItem:ShopSLot
+    discount:number
+    originPrice: number;
+}
+
+export interface ShopSLot{
+    price:number
+    displayName:string
+    item:ItemBundle
+}
+export interface SocialGoodList{
+    goodList: SocialShopData[];
+    charPurchase:{[key:string]:string}
+}
+
+
+export interface MonthlySubItem extends NormalGPItem {
+    cardId: string; 
+    dailyBonus: ItemBundle[]; 
+    imgId: string; 
+    backId: string; 
+}
+
+
+export interface LevelGPItem extends NormalGPItem {
+    playerLevel: number; 
+}
+
+
+export interface ChooseGPItem extends NormalGPItem {
+    options: Array<ChooseGiftPackageShopOption>; 
+    desc: string; 
+    itemDisplayDesc: string; 
+    itemDisplayNum: number; 
+}
+
+
+export interface ChooseGiftPackageShopOption {
+    goodId: string; 
+    OptionId: string; 
+    orderNum: number; 
+    item: ItemBundle; 
+}
+
+
+export interface NormalGPItem {
+    goodId: string; 
+    giftPackageId: string; 
+    priority: number; 
+    displayName: string; 
+    currencyUnit: string; 
+    availCount: number; 
+    buyCount: number; 
+    price: number; 
+    originPrice: number; 
+    discount: number; 
+    items: ItemBundle[]; 
+    specialItemInfos: Record<string, SpecialItemInfo>; 
+    startDateTime: number; 
+    endDateTime: number; 
+}
+
+
+export interface SpecialItemInfo {
+    showPreview: boolean; 
+    specialDesc: string; 
+    specialBtnText: string; 
+}
+
+
+export interface PeriodicityGPItem extends NormalGPItem {
+    groupId: string; 
+}
+
+
+export interface PeriodicityGroup {
+    groupId: string; 
+    startDateTime: number; 
+    endDateTime: number; 
+    packages: Record<string, PeriodicityGPItem>; 
+}
+
+
+export interface CondTrigGPItem extends NormalGPItem {
+    type: string; 
+}
+
+export interface GPGoodList {
+    weeklyGroup: PeriodicityGroup; 
+    monthlyGroup: PeriodicityGroup; 
+    monthlySub: Array<MonthlySubItem>; 
+    levelGP: Array<LevelGPItem>; 
+    oneTimeGP: Array<NormalGPItem>; 
+    chooseGroup: Array<ChooseGPItem>; 
+    condtionTriggerGroup?: Array<CondTrigGPItem>; 
+}

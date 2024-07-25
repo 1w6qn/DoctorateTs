@@ -10,10 +10,15 @@ router.post("/login", (req, res) => {
         "secret": "1",
         "serviceLicenseVersion": 0
     });
+    console.log(parseInt((new Date().getTime()/1000).toString()));
+
 });
 router.post("/syncData", (req, res) => {
     let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    console.log(parseInt((new Date().getTime()/1000).toString()));
+
     player.loginTime=parseInt((new Date().getTime()/1000).toString());
+    player.init()
     res.send({
         "result": 0,
         "ts": parseInt((new Date().getTime()/1000).toString()),

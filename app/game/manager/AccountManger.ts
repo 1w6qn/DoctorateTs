@@ -19,7 +19,7 @@ export class AccountManager {
         return this.data[secret || "1"];
     }
     savePlayerData(secret:string):void {
-        writeFileSync(`${__dirname}/../../../t.json`, JSON.stringify(this.data[secret||"1"],null,4));
+        writeFileSync(`${__dirname}/../../../${secret||"1"}.json`, JSON.stringify(this.data[secret||"1"],null,4));
     }
 }
 export const accountManager = new AccountManager();

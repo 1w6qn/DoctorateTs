@@ -25,6 +25,7 @@ async function setup(app:express.Application){
     app.use("/storyreview",(await import("./router/storyreview")).default)
     app.use("/mission",(await import("./router/mission")).default)
     app.use("/shop",(await import("./router/shop")).default)
+    app.use("/rlv2",(await import("./router/rlv2")).default)
     app.use("/",(await import("./router/home")).default)
 }
 

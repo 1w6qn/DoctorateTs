@@ -289,7 +289,7 @@ export namespace PlayerRoguelikeV2 {
                 fragments: { [key: string]: InventoryFragment }
                 troopWeights: { [key: string]: number }
                 troopCarry: string[]
-                sellCount: number
+                sellCount?: number
                 currInspiration: InventoryInspiration | null
             }
             export interface InventoryFragment {
@@ -299,15 +299,16 @@ export namespace PlayerRoguelikeV2 {
                 ts: number
                 weight: number
                 value: number
-                price: number
+                price?: number
+                ei:number
             }
             export interface InventoryInspiration {
                 instId: string,
                 id: string
             }
             export interface Disaster {
-                curDisasterId: string,
-                disperseStep: string
+                curDisaster: string|null,
+                disperseStep: number
             }
             export interface NodeUpgrade {
                 nodeTypeInfoMap: { [key: string]: NodeUpgradeInfo },
@@ -315,6 +316,7 @@ export namespace PlayerRoguelikeV2 {
             export interface NodeUpgradeInfo {
                 tempUpgrade: string,
                 upgradeList: string[]
+                currUpgradeIndex:number
             }
         }
 

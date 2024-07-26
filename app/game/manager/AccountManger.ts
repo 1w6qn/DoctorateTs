@@ -8,7 +8,7 @@ export class AccountManager {
     constructor() {
         this.battleReplays = JSON.parse(readFileSync(`${__dirname}/../../../data/user/battle.json`, 'utf8'))
         this.data = {
-            "1":new PlayerDataManager(JSON.parse(readFileSync(`${__dirname}/../../../t.json`, 'utf8'))as PlayerDataModel,this.battleReplays)
+            "1":new PlayerDataManager(JSON.parse(readFileSync(`${__dirname}/../../../data/user/databases/${"1"}.json`, 'utf8'))as PlayerDataModel,this.battleReplays)
         };
         for(let secret in this.data){
             this.data[secret]._trigger.on("save",()=>this.savePlayerData(secret));
@@ -19,7 +19,7 @@ export class AccountManager {
         return this.data[secret || "1"];
     }
     savePlayerData(secret:string):void {
-        writeFileSync(`${__dirname}/../../../${secret||"1"}.json`, JSON.stringify(this.data[secret||"1"],null,4));
+        writeFileSync(`${__dirname}/../../../data/user/databases/${secret||"1"}.json`, JSON.stringify(this.data[secret||"1"],null,4));
     }
 }
 export const accountManager = new AccountManager();

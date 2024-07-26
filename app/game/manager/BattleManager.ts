@@ -3,7 +3,7 @@ import { PlayerDataModel } from "../model/playerdata";
 import EventEmitter from "events";
 import { PlayerSquad, SquadFriendData } from "../model/character";
 import excel from "../../excel/excel";
-import CryptoJS from "crypto-js";
+import crypto from "crypto";
 export interface CommonStartBattleRequest {
     isRetro: number
     pray: number
@@ -35,20 +35,14 @@ export class BattleManager {
 
     }
     decryptBattleData(data: string) {
-        const battleData = CryptoJS.enc.Hex.parse(data.slice(0, data.length - 32));
+        const battleData = Buffer.from(data.slice(0, data.length - 32), 'hex');
         const src = LOG_TOKEN_KEY + this._playerdata.pushFlags.status.toString();
-        const key = CryptoJS.MD5(src).toString(CryptoJS.enc.Hex);
-        const iv = CryptoJS.enc.Hex.parse(data.slice(data.length - 32));
-        console.log(key.toString(), iv.toString())
-        const cipherParams = CryptoJS.lib.CipherParams.create({
-            ciphertext: battleData
-        });
-        const decrypt = CryptoJS.AES.decrypt(cipherParams, key, {
-            iv: iv,
-            mode: CryptoJS.mode.CBC,
-            padding: CryptoJS.pad.Pkcs7
-        });
-        const jsonData = JSON.parse(decrypt.toString(CryptoJS.enc.Utf8));
+        const key = crypto.createHash('md5').update(src).digest();
+        const iv = Buffer.from(data.slice(data.length - 32), 'hex');
+        const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
+        let decryptedData = decipher.update(battleData);
+        decryptedData = Buffer.concat([decryptedData, decipher.final()]);
+        const jsonData = JSON.parse(decryptedData.toString());
         return jsonData
     }
     async start(args: CommonStartBattleRequest) {
@@ -87,11 +81,7 @@ export class BattleManager {
         }
     }
     finish(args: { data: string, battleData: { isCheat: string, completeTime: number } }) {
-        try {
-            console.log(this.decryptBattleData(args.data))
-        } catch (error) {
-            console.log(error)
-        }
+        console.log(this.decryptBattleData(args.data))
         
         return {
             result: 0,

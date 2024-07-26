@@ -1,7 +1,7 @@
 import EventEmitter from "events"
 import { AvatarInfo, PlayerCollection, PlayerDataModel, PlayerStatus, PlayerNameCardStyle, NameCardMisc } from '../model/playerdata';
-import { InventoryManager } from "./InventoryManager"
 import excel from "../../excel/excel"
+import { ItemBundle } from "../../excel/character_table";
 
 export class StatusManager {
     status: PlayerStatus
@@ -51,25 +51,6 @@ export class StatusManager {
     monthlyRefresh(){
 
     }
-    _refreshStatus(inventory:InventoryManager) {
-        this.status.gold=inventory.items["4001"]
-        this.status.diamondShard=inventory.items["4003"]
-        this.status.exp=inventory.items["5001"]
-        this.status.socialPoint=inventory.items["SOCIAL_PT"]
-        this.status.gachaTicket=inventory.items["7003"]
-        this.status.tenGachaTicket=inventory.items["7004"]
-        this.status.instantFinishTicket=inventory.items["7002"]
-        this.status.recruitLicense=inventory.items["7001"]
-        this.status.ap=inventory.items["AP_GAMEPLAY"]
-        this.status.iosDiamond=inventory.items["4002"]
-        this.status.androidDiamond=inventory.items["4002"]
-        this.status.practiceTicket=inventory.items["6001"]
-        this.status.hggShard=inventory.items["4004"]
-        this.status.lggShard=inventory.items["4005"]
-        this.status.classicShard=inventory.items["classic_normal_ticket"]
-        this.status.classicGachaTicket=inventory.items["classic_gacha"]
-        this.status.classicTenGachaTicket=inventory.items["classic_gacha_10"]
-    }
     _changeSecretary(charId: string, skinId: string) {
         this.status.secretary=charId
         this.status.secretarySkinId=skinId
@@ -116,6 +97,78 @@ export class StatusManager {
                 break;
             default:
                 break;
+        }
+    }
+    _useItem(item: ItemBundle): void {
+        if (!item.type) {
+            item.type = excel.ItemTable.items[item.id].itemType as string
+        }
+        switch (item.type) {
+            default:
+                this._gainItem({ id: item.id, count: -item.count })
+                break;
+        }
+    }
+    _useItems(items: ItemBundle[]): void {
+        for (const item of items) {
+            this._useItem(item)
+        }
+    }
+    _gainItem(item: ItemBundle): void {
+        if (!item.type) {
+            item.type = excel.ItemTable.items[item.id].itemType as string
+        }
+        switch (item.type) {
+            case "GOLD":
+                this.status.gold += item.count
+                break
+            case "DIAMOND":
+                this.status.iosDiamond += item.count
+                this.status.androidDiamond += item.count
+                break
+            case "EXP_PLAYER":
+                this.status.exp += item.count
+                break
+            case "DIAMOND_SHD":
+                this.status.diamondShard += item.count
+                break
+            case "TKT_TRY":
+                this.status.practiceTicket += item.count
+                break
+            case "TKT_RECRUIT":
+                this.status.recruitLicense += item.count
+                break
+            case "TKT_INST_FIN":
+                this.status.instantFinishTicket += item.count
+                break
+            case "TKT_GACHA":
+                this.status.gachaTicket += item.count
+                break
+            case "TKT_GACHA_10":
+                this.status.tenGachaTicket += item.count
+                break
+            case "RETURN_PROGRESS":
+                //this.status.recruitLicense+=item.count
+                break
+            case "NEW_PROGRESS":
+                //this.status.recruitLicense+=item.count
+                break
+            case "AP_GAMEPLAY":
+                this.status.ap += item.count
+                break
+            case "HGG_SHD":
+                this.status.hggShard += item.count
+                break
+            case "LGG_SHD":
+                this.status.lggShard += item.count
+                break
+            default:
+                break;
+        }
+    }
+    _gainItems(items: ItemBundle[]): void {
+        for (const item of items) {
+            this._gainItem(item)
         }
     }
     toJSON(){

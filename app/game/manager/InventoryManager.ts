@@ -43,49 +43,6 @@ export class InventoryManager {
             case "CHAR":
                 this._trigger.emit("gainChar", item.id)
                 break;
-            case "GOLD":
-                this._playerdata.status.gold += item.count
-                break
-            case "DIAMOND":
-                this._playerdata.status.iosDiamond += item.count
-                this._playerdata.status.androidDiamond += item.count
-                break
-            case "EXP_PLAYER":
-                this._playerdata.status.exp += item.count
-                break
-            case "DIAMOND_SHD":
-                this._playerdata.status.diamondShard += item.count
-                break
-            case "TKT_TRY":
-                this._playerdata.status.practiceTicket += item.count
-                break
-            case "TKT_RECRUIT":
-                this._playerdata.status.recruitLicense += item.count
-                break
-            case "TKT_INST_FIN":
-                this._playerdata.status.instantFinishTicket += item.count
-                break
-            case "TKT_GACHA":
-                this._playerdata.status.gachaTicket += item.count
-                break
-            case "TKT_GACHA_10":
-                this._playerdata.status.tenGachaTicket += item.count
-                break
-            case "RETURN_PROGRESS":
-                //this._playerdata.status.recruitLicense+=item.count
-                break
-            case "NEW_PROGRESS":
-                //this._playerdata.status.recruitLicense+=item.count
-                break
-            case "AP_GAMEPLAY":
-                this._playerdata.status.ap += item.count
-                break
-            case "HGG_SHD":
-                this._playerdata.status.hggShard += item.count
-                break
-            case "LGG_SHD":
-                this._playerdata.status.lggShard += item.count
-                break
             case "CHAR_SKIN":
                 this.skin.characterSkins[item.id]=1
                 this.skin.skinTs[item.id]=parseInt((new Date().getTime()/1000).toString())

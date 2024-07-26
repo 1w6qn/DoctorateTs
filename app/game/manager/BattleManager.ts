@@ -3,7 +3,7 @@ import { PlayerDataModel } from "../model/playerdata";
 import EventEmitter from "events";
 import { PlayerSquad, SquadFriendData } from "../model/character";
 import excel from "../../excel/excel";
-import * as crypto from 'crypto';
+import CryptoJS from "crypto-js";
 export interface CommonStartBattleRequest {
     isRetro: number
     pray: number
@@ -24,34 +24,31 @@ const LOG_TOKEN_KEY = "pM6Umv*^hVQuB6t&";
 
 
 export class BattleManager {
-    loginTime: number
     _playerdata: PlayerDataModel;
     _config: { [key: string]: { [key: string]: string; }; };
     _trigger: EventEmitter;
 
-    constructor(_playerdata: PlayerDataModel, config: { [key: string]: { [key: string]: string } },loginTime: number, _trigger: EventEmitter) {
+    constructor(_playerdata: PlayerDataModel, config: { [key: string]: { [key: string]: string } }, _trigger: EventEmitter) {
         this._playerdata = _playerdata;
         this._config = config;
         this._trigger = _trigger;
-        this.loginTime = loginTime;
 
     }
     decryptBattleData(data: string) {
-        //TODO
-        console.log(this.loginTime)
-        const battleData = Buffer.from(data.slice(0, data.length - 32), 'hex');
-        const src = LOG_TOKEN_KEY + this.loginTime.toString();
-        const key = crypto.createHash('md5').update(src).digest();
-        const iv = Buffer.from(data.slice(data.length - 32), 'hex');
-        console.log(key.toString('hex'), iv.toString('hex'))
-        const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
-        let decryptedData = decipher.update(battleData);
-        decryptedData = Buffer.concat([decryptedData, decipher.final()]);
-
-        const unpad = (data: Buffer) => {
-            return data.subarray(0, data.length - data[data.length - 1]);
-        };
-        const jsonData = JSON.parse(unpad(decryptedData).toString());
+        const battleData = CryptoJS.enc.Hex.parse(data.slice(0, data.length - 32));
+        const src = LOG_TOKEN_KEY + this._playerdata.pushFlags.status.toString();
+        const key = CryptoJS.MD5(src).toString(CryptoJS.enc.Hex);
+        const iv = CryptoJS.enc.Hex.parse(data.slice(data.length - 32));
+        console.log(key.toString(), iv.toString())
+        const cipherParams = CryptoJS.lib.CipherParams.create({
+            ciphertext: battleData
+        });
+        const decrypt = CryptoJS.AES.decrypt(cipherParams, key, {
+            iv: iv,
+            mode: CryptoJS.mode.CBC,
+            padding: CryptoJS.pad.Pkcs7
+        });
+        const jsonData = JSON.parse(decrypt.toString(CryptoJS.enc.Utf8));
         return jsonData
     }
     async start(args: CommonStartBattleRequest) {
@@ -90,7 +87,12 @@ export class BattleManager {
         }
     }
     finish(args: { data: string, battleData: { isCheat: string, completeTime: number } }) {
-        //console.log(this.decryptBattleData(args.data))
+        try {
+            console.log(this.decryptBattleData(args.data))
+        } catch (error) {
+            console.log(error)
+        }
+        
         return {
             result: 0,
             apFailReturn: 0,

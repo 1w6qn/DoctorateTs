@@ -30,7 +30,6 @@ export class PlayerDataManager {
     _trigger: EventEmitter
     _playerdata: PlayerDataModel;
     excel:Excel
-    loginTime:number=0
     _battlesConfig: { [key: string]: { [key: string]: string; }; };
     get delta(){
         return {
@@ -55,14 +54,13 @@ export class PlayerDataManager {
         this.storyreview=new StoryreviewManager(playerdata.storyreview, this._trigger)
         this.mission=new MissionManager(playerdata, this._trigger)
         this.shop=new ShopController(playerdata, this._trigger)
+        this.battle=new BattleManager(this._playerdata,this._battlesConfig, this._trigger)
         this.recruit=new RecruitManager(playerdata.recruit, this._trigger)
         this.rlv2=new RoguelikeV2Controller(playerdata.rlv2, this._trigger)
         
-
-        this.loginTime=0
     }
     init(){
-        this.battle=new BattleManager(this._playerdata,this._battlesConfig,this.loginTime, this._trigger)
+        
     }
     toJSON() {
         return {

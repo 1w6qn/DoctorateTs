@@ -35,4 +35,12 @@ router.post("/npcAudio/changeLan", (req, res) => {
     player._trigger.emit("save")
     res.send(player.delta)
 })
+router.post("/story/finishStory", (req, res) => {
+    let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    //TODO
+    player._trigger.emit("save")
+    res.send({
+        ...player.delta
+    })
+})
 export default router;

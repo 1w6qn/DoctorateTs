@@ -24,10 +24,8 @@ export interface PredefinedChar {
     charId:      string;
     canBeFree:   boolean;
     uniEquipId:  null | string;
-    recruitType: RecruitType;
+    recruitType: string;
 }
-
-export type RecruitType = "FREE" | "THIRD_LOW" | "THIRD";
 
 export interface CustomizeData {
     rogue_1: CustomizeDataRogue1;
@@ -44,21 +42,19 @@ export interface CustomizeDataRogue1 {
 
 export interface DevelopmentToken {
     sortId:      number;
-    displayForm: DisplayForm;
+    displayForm: string;
     tokenDesc:   string;
 }
-
-export type DisplayForm = "PERCENTAGE" | "ABSOLUTE_VAL";
 
 export interface Rogue1_Development {
     buffId:          string;
     sortId:          number;
-    nodeType:        PurpleNodeType;
+    nodeType:        string;
     nextNodeId:      string[];
     frontNodeId:     string[];
     tokenCost:       number;
     buffName:        string;
-    buffIconId:      BuffIconID;
+    buffIconId:      string;
     buffTypeName:    string;
     buffDisplayInfo: BuffDisplayInfo[];
 }
@@ -66,14 +62,10 @@ export interface Rogue1_Development {
 export interface BuffDisplayInfo {
     displayType: string;
     displayNum:  number;
-    displayForm: DisplayForm;
+    displayForm: string;
     tokenDesc:   string;
     sortId:      number;
 }
-
-export type BuffIconID = "rogue_1_grow_icon_attack" | "rogue_1_grow_icon_def" | "rogue_1_grow_icon_hp" | "rogue_1_grow_icon_gold" | "rogue_1_grow_icon_mixed";
-
-export type PurpleNodeType = "BRANCH" | "KEY";
 
 export interface Rogue1_EndingText {
     summaryVariation:        string;
@@ -126,10 +118,8 @@ export interface DevelopmentLine {
     fromNodeR: number;
     toNodeP:   number;
     toNodeR:   number;
-    enrollId:  BpPurchaseActiveEnroll | null;
+    enrollId:  null | string;
 }
-
-export type BpPurchaseActiveEnroll = "rogue_1_enroll_2" | "rogue_2_enroll_2" | "rogue_3_enroll_2" | "";
 
 export interface DevelopmentRawTextGroup {
     nodeIdList:    string[];
@@ -141,7 +131,7 @@ export interface DevelopmentRawTextGroup {
 
 export interface Rogue2_Development {
     buffId:          string;
-    nodeType:        FluffyNodeType;
+    nodeType:        string;
     frontNodeId:     string[];
     nextNodeId:      string[];
     positionP:       number;
@@ -149,15 +139,11 @@ export interface Rogue2_Development {
     tokenCost:       number;
     buffName:        string;
     buffIconId:      string;
-    effectType:      EffectType;
+    effectType:      string;
     rawDesc:         string;
     buffDisplayInfo: BuffDisplayInfo[];
-    enrollId:        BpPurchaseActiveEnroll | null;
+    enrollId:        null | string;
 }
-
-export type EffectType = "BUFF" | "RAW_TEXT_EFFECT" | "RAW_TEXT_BAND";
-
-export type FluffyNodeType = "SMALL" | "NORMAL" | "LARGE_RHODES" | "LARGE_ABYSSAL" | "LARGE_IBERIA";
 
 export interface Rogue2_EndingText {
     summaryMutation:            string;
@@ -196,7 +182,7 @@ export interface CustomizeDataRogue3 {
 
 export interface Rogue3_Development {
     buffId:          string;
-    nodeType:        TentacledNodeType;
+    nodeType:        string;
     frontNodeId:     string[];
     nextNodeId:      string[];
     positionRow:     number;
@@ -204,19 +190,15 @@ export interface Rogue3_Development {
     tokenCost:       number;
     buffName:        string;
     buffIconId?:     string;
-    effectType:      EffectType;
+    effectType:      string;
     rawDesc:         string[];
     buffDisplayInfo: BuffDisplayInfo[];
-    groupId:         GroupID;
+    groupId:         string;
     enrollId:        null;
     activeIconId?:   string;
     inactiveIconId?: string;
     bottomIconId?:   string;
 }
-
-export type GroupID = "group_1" | "group_2" | "group_3" | "group_4";
-
-export type TentacledNodeType = "DIFFICULTY" | "NORMAL" | "KEY";
 
 export interface Rogue3_DevelopmentsDifficultyNodeInfos {
     rogue_3_difficulty_1: Rogue3__Difficulty;
@@ -225,12 +207,10 @@ export interface Rogue3_DevelopmentsDifficultyNodeInfos {
 }
 
 export interface Rogue3__Difficulty {
-    buffId:      Rogue3_Difficulty1_BuffID;
+    buffId:      string;
     nodeMap:     Rogue3_Difficulty1_NodeMap[];
     enableGrade: number;
 }
-
-export type Rogue3_Difficulty1_BuffID = "rogue_3_difficulty_1" | "rogue_3_difficulty_2" | "rogue_3_difficulty_3";
 
 export interface Rogue3_Difficulty1_NodeMap {
     frontNode: string;
@@ -238,17 +218,13 @@ export interface Rogue3_Difficulty1_NodeMap {
 }
 
 export interface PurpleDifficulty {
-    modeDifficulty: Mode;
+    modeDifficulty: string;
     grade:          number;
     totemProb:      number;
-    relicDevLevel:  PurpleRelicDevLevel | null;
-    buffs:          Rogue3_Difficulty1_BuffID[] | null;
+    relicDevLevel:  null | string;
+    buffs:          string[] | null;
     buffDesc:       string[];
 }
-
-export type Mode = "NORMAL" | "MONTH_TEAM" | "CHALLENGE" | "EASY" | "HARD";
-
-export type PurpleRelicDevLevel = "常态化" | "高寒化" | "冻土化" | "极地化";
 
 export interface Rogue3_EndingText {
     summaryGetTotem:         string;
@@ -318,7 +294,7 @@ export interface CommonDevelopmentDevelopmentsDifficultyNodeInfos {
 }
 
 export interface Rogue4__Difficulty {
-    buffId:      Rogue4_Difficulty1_BuffID;
+    buffId:      string;
     nodeMap:     Rogue4_Difficulty1_NodeMap[];
     enableGrade: number;
     enableDesc:  string;
@@ -326,34 +302,23 @@ export interface Rogue4__Difficulty {
     decoId:      null;
 }
 
-export type Rogue4_Difficulty1_BuffID = "rogue_4_difficulty_1" | "rogue_4_difficulty_2" | "rogue_4_difficulty_3";
-
 export interface Rogue4_Difficulty1_NodeMap {
     frontNodes: string[];
     nextNode:   string;
 }
 
 export interface FluffyDifficulty {
-    modeDifficulty:        Mode;
+    modeDifficulty:        string;
     grade:                 number;
-    leftDisasterDesc:      LeftDisasterDesc;
-    leftOverweightDesc:    LeftOverweightDesc;
-    relicDevLevel:         FluffyRelicDevLevel;
-    weightStatusLimitDesc: WeightStatusLimitDesc;
-    buffs:                 Rogue4_Difficulty1_BuffID[] | null;
+    leftDisasterDesc:      string;
+    leftOverweightDesc:    string;
+    relicDevLevel:         string;
+    weightStatusLimitDesc: string;
+    buffs:                 string[] | null;
     buffDesc:              string[];
 }
 
-export type LeftDisasterDesc = "成型期" | "扩张期" | "鼎盛期";
-
-export type LeftOverweightDesc = "轻松" | "标准" | "沉重";
-
-export type FluffyRelicDevLevel = "实在的" | "巧思的" | "幻想的" | "架空的";
-
-export type WeightStatusLimitDesc = "每前进一步，失去1点目标生命（不会使目标生命低于1）" | "每前进一步，失去1点目标生命（不会使目标生命低于1），进入战斗时，所有单位部署费用+2" | "每前进一步，失去1点目标生命（不会使目标生命低于1），进入战斗时，所有单位部署费用+3";
-
 export interface Details {
-    [key: string]:any
     rogue_1: DetailsRogue1;
     rogue_2: DetailsRogue2;
     rogue_3: DetailsRogue3;
@@ -483,7 +448,7 @@ export interface RelicRelic {
     relicGroupId: number;
     orderId:      string;
     isSpRelic:    boolean;
-    enrollId:     BpPurchaseActiveEnroll | null;
+    enrollId:     null | string;
 }
 
 export interface PurpleTrap {
@@ -512,35 +477,27 @@ export interface ArchiveUnlockCond {
 }
 
 export interface Enroll {
-    archiveType: ArchiveType;
-    enrollId:    BpPurchaseActiveEnroll | null;
+    archiveType: string;
+    enrollId:    null | string;
 }
-
-export type ArchiveType = "AVG" | "MUSIC" | "PIC" | "ENDBOOK";
 
 export interface UnlockCondDesc {
-    archiveType: ArchiveType;
-    description: UnlockCondDescDescription;
+    archiveType: string;
+    description: string;
 }
-
-export type UnlockCondDescDescription = "" | "需要触发某个故事" | "继续探索以解锁";
 
 export interface BankReward {
     rewardId:      string;
     unlockGoldCnt: number;
-    rewardType:    RewardType;
+    rewardType:    string;
     desc:          string;
 }
-
-export type RewardType = "ADD_SHOP_POS" | "UNLOCK_ITEM" | "UNLOCK_WITHDRAW" | "UNLOCK_SHOP_BATTLE";
 
 export interface BattleLoadingTip {
     tip:      string;
     weight:   number;
-    category: Category;
+    category: string;
 }
-
-export type Category = "ALL" | "TIER_5" | "TIER_6";
 
 export interface BattleSummeryDescriptions {
     EASY:       Challenge;
@@ -606,10 +563,8 @@ export interface Rogue1_Task01_Class {
 export interface Reward {
     id:    string;
     count: number;
-    type:  ItemTypeEnum;
+    type:  string;
 }
-
-export type ItemTypeEnum = "MATERIAL" | "CARD_EXP" | "GOLD" | "CHAR" | "CHAR_SKIN" | "HOME_THEME" | "PLAYER_AVATAR" | "UNI_COLLECTION" | "FURN" | "HOME_BACKGROUND" | "ITEM_PACK" | "VOUCHER_SKILL_SPECIALLEVELMAX_6";
 
 export interface Rogue1_Challenge02 {
     challengeId:              string;
@@ -847,45 +802,33 @@ export interface ChoiceScene {
     title:          string;
     description:    string;
     background:     null | string;
-    titleIcon:      TitleIcon | null;
+    titleIcon:      null | string;
     subTypeId:      number;
     useHiddenMusic: boolean;
 }
-
-export type TitleIcon = "title_icon_task" | "title_icon_task_reward";
 
 export interface Choice {
     id:                     string;
     title:                  string;
     description:            null | string;
     lockedCoverDesc:        null | string;
-    type:                   ChoiceType;
-    leftDecoType:           LeftDecoType;
+    type:                   string;
+    leftDecoType:           string;
     nextSceneId:            null | string;
-    icon:                   IconEnum | null;
+    icon:                   null | string;
     displayData:            DisplayData;
     forceShowWhenOnlyLeave: boolean;
 }
 
 export interface DisplayData {
-    type:                          DisplayDataType;
-    costHintType:                  THintType;
-    effectHintType:                THintType;
-    funcIconId:                    IconEnum | null;
+    type:                          string;
+    costHintType:                  string;
+    effectHintType:                string;
+    funcIconId:                    null | string;
     itemId:                        null | string;
     difficultyUpgradeRelicGroupId: null;
     taskId:                        null;
 }
-
-export type THintType = "NONE" | "CHAOS" | "VISION" | "ITEM" | "EXPEDITION" | "SACRIFICE" | "SACRIFICE_TOTEM" | "FRAGMENT";
-
-export type IconEnum = "unknown" | "leave" | "gold" | "battle" | "population" | "hp" | "relic" | "recruit" | "member" | "initial_reward_hp" | "initial_reward_population" | "initial_reward_gold" | "initial_reward_unknown" | "hpmax" | "san" | "key" | "dice" | "shield" | "adventure" | "sacrifice" | "initial_reward_shield" | "initial_reward_dice" | "teleport" | "totem" | "sacrifice_totem" | "vision" | "chaos_purify" | "fragment" | "disaster" | "weight" | "duel" | "";
-
-export type DisplayDataType = "NORMAL" | "ITEM";
-
-export type LeftDecoType = "NONE" | "DICE" | "TASK" | "TASK_REWARD" | "VISION";
-
-export type ChoiceType = "TRADE_PROB" | "NEXT" | "NEXT_PROB" | "LEAVE" | "TRADE" | "EXPEDITION" | "SACRIFICE" | "TRADE_PROB_SHOW" | "TELEPORT" | "WISH" | "SACRIFICE_TOTEM";
 
 export interface Rogue1_DetailConst {
     playerLevelTable:                  { [key: string]: PlayerLevelTable };
@@ -899,7 +842,7 @@ export interface Rogue1_DetailConst {
     collectButtonName:                 string;
     bpSystemName:                      string;
     autoSetKV:                         string;
-    bpPurchaseActiveEnroll:            BpPurchaseActiveEnroll;
+    bpPurchaseActiveEnroll:            string;
     defaultSacrificeDesc:              null | string;
     defaultExpeditionSelectDesc:       null | string;
     gotCharBuffToast:                  null | string;
@@ -938,7 +881,7 @@ export interface PlayerLevelTable {
 }
 
 export interface Rogue1_Difficulty {
-    modeDifficulty:       Mode;
+    modeDifficulty:       string;
     grade:                number;
     name:                 string;
     subName:              null | string;
@@ -949,7 +892,7 @@ export interface Rogue1_Difficulty {
     doMonthTask:          boolean;
     ruleDesc:             string;
     ruleDescReplacements: RuleDescReplacement[] | null;
-    failTitle:            FailTitle;
+    failTitle:            string;
     failImageId:          string;
     failForceDesc:        string;
     sortId:               number;
@@ -960,32 +903,24 @@ export interface Rogue1_Difficulty {
     addDesc:              null | string;
     isHard:               boolean;
     unlockText:           null | string;
-    displayIconId:        DisplayIconID | null;
+    displayIconId:        null | string;
     hideEndingStory:      boolean;
 }
 
-export type DisplayIconID = "icon_difficulty_0" | "icon_difficulty_1" | "icon_difficulty_2" | "icon_difficulty_3";
-
-export type FailTitle = "联系中断" | "小队解散" | "调查终止" | "暂时撤退";
-
 export interface RuleDescReplacement {
-    enrollId: BpPurchaseActiveEnroll;
+    enrollId: string;
     ruleDesc: string;
 }
 
 export interface EndingDetailList {
     textId:        string;
     text:          string;
-    eventType:     Type;
-    showType:      EndingDetailListShowType;
+    eventType:     string;
+    showType:      string;
     choiceSceneId: null | string;
     paramList:     string[];
     otherPara1:    null;
 }
-
-export type Type = "INCIDENT" | "ENTERTAINMENT" | "BATTLE_BOSS" | "BATTLE_NORMAL" | "BATTLE_ELITE" | "REST" | "WISH" | "SACRIFICE" | "EXPEDITION" | "BATTLE_SHOP" | "PORTAL" | "STORY" | "STORY_HIDDEN" | "UNKNOWN";
-
-export type EndingDetailListShowType = "SUM" | "SHOW_CONST" | "SHOW_CHOICE" | "SHOW_BOSS_END";
 
 export interface Rogue1_Endings {
     ro_ending_1: RoEnding1;
@@ -1000,13 +935,13 @@ export interface RoEnding1 {
     name:             string;
     desc:             string;
     bgId:             string;
-    icons:            IconElement[];
+    icons:            Icon[];
     priority:         number;
     changeEndingDesc: null | string;
     bossIconId:       null | string;
 }
 
-export interface IconElement {
+export interface Icon {
     level:  number;
     iconId: string;
 }
@@ -1080,15 +1015,13 @@ export interface Rogue1_GameConst {
     relicDesc:                         null;
     buffDesc:                          null;
     refreshNodeItemId:                 null;
-    portalZones:                       PortalZone[];
+    portalZones:                       string[];
     exploreExpOnKill:                  null;
 }
 
 export interface PurpleItemDropTagDict {
     TREASURE: string;
 }
-
-export type PortalZone = "zone_3" | "zone_1" | "zone_2" | "zone_4" | "zone_5" | "zone_6" | "zone_7" | "zone_secret" | "icon_zone_1" | "icon_zone_2" | "icon_zone_3" | "icon_zone_4" | "icon_zone_5" | "icon_zone_6" | "icon_zone_7" | "zone_portal_travel_1";
 
 export interface GrandPrize {
     grandPrizeDisplayId: string;
@@ -1106,12 +1039,12 @@ export interface GrandPrize {
 }
 
 export interface Init {
-    modeId:               Mode;
+    modeId:               string;
     modeGrade:            number;
     predefinedId:         null | string;
-    predefinedStyle:      PredefinedStyle | null;
+    predefinedStyle:      null | string;
     initialBandRelic:     string[];
-    initialRecruitGroup:  IconID[] | null;
+    initialRecruitGroup:  string[] | null;
     initialHp:            number;
     initialPopulation:    number;
     initialGold:          number;
@@ -1121,31 +1054,21 @@ export interface Init {
     initialKey:           number;
 }
 
-export type IconID = "recruit_group_1" | "recruit_group_2" | "recruit_group_3" | "recruit_group_random" | "recruit_group_c4" | "recruit_group_c5" | "recruit_group_m1" | "recruit_group_m2" | "recruit_group_m3" | "recruit_group_m4" | "recruit_group_m5" | "recruit_group_m6" | "recruit_group_m7" | "recruit_group_m8" | "ro3_recruit_group_c1";
-
-export type PredefinedStyle = "rogue_3_style_default" | "rogue_3_style_challenge" | "rogue_4_style_default";
-
 export interface Item {
     id:             string;
     name:           string;
     description:    null | string;
     usage:          string;
-    obtainApproach: "在集成战略模式中获得";
+    obtainApproach: string;
     iconId:         string;
-    type:           RewardItemTypeEnum;
-    subType:        SubType;
-    rarity:         Rarity;
+    type:           string;
+    subType:        string;
+    rarity:         string;
     value:          number;
     sortId:         number;
     canSacrifice:   boolean;
     unlockCondDesc: null | string;
 }
-
-export type Rarity = "NORMAL" | "BORN" | "NONE" | "SUPER_RARE" | "RARE";
-
-export type SubType = "NONE" | "CURSE" | "TEMP_TICKET" | "TOTEM_UPPER" | "TOTEM_LOWER";
-
-export type RewardItemTypeEnum = "ACTIVE_TOOL" | "BAND" | "CAPSULE" | "EXP" | "GOLD" | "HP" | "POPULATION" | "RECRUIT_TICKET" | "RELIC" | "SQUAD_CAPACITY" | "UPGRADE_TICKET" | "CUSTOM_TICKET" | "DICE_POINT" | "DICE_TYPE" | "HPMAX" | "KEY_POINT" | "SAN_POINT" | "SHIELD" | "LOCKED_TREASURE" | "TOTEM_EFFECT" | "CHAOS" | "CHAOS_LEVEL" | "CHAOS_PURIFY" | "EXPLORE_TOOL" | "FEATURE" | "TOTEM" | "VISION" | "DISASTER" | "DISASTER_TYPE" | "ABSTRACT_DISASTER" | "FRAGMENT" | "MAX_WEIGHT";
 
 export interface MilestoneUpdate {
     updateTime:        number;
@@ -1161,7 +1084,7 @@ export interface Milestone {
     tokenNum:     number;
     nextTokenNum: number;
     itemID:       string;
-    itemType:     ItemTypeEnum;
+    itemType:     string;
     itemCount:    number;
     isGoodPrize:  boolean;
     isGrandPrize: boolean;
@@ -1170,15 +1093,13 @@ export interface Milestone {
 export interface MonthMission {
     id:               string;
     taskName:         string;
-    taskClass:        TaskClass;
+    taskClass:        string;
     innerClassWeight: number;
     template:         string;
     paramList:        string[];
     desc:             string;
     tokenRewardNum:   number;
 }
-
-export type TaskClass = "C" | "B" | "A";
 
 export interface Rogue1_MonthSquad {
     month_team_1: MonthTeam;
@@ -1202,7 +1123,7 @@ export interface MonthTeam {
     teamYear:       string;
     teamIndex:      null | string;
     teamChars:      string[];
-    zoneId:         PortalZone | null;
+    zoneId:         null | string;
     chatId:         string;
     tokenRewardNum: number;
     items:          Reward[];
@@ -1238,8 +1159,8 @@ export interface RecruitGrps {
 }
 
 export interface RecruitGr {
-    id:         IconID;
-    iconId:     IconID;
+    id:         string;
+    iconId:     string;
     name:       string;
     desc:       string;
     unlockDesc: null | string;
@@ -1280,61 +1201,53 @@ export interface RogueRecruitTicket5_Star {
     id:              string;
     profession:      number;
     rarity:          number;
-    professionList:  Profession[];
-    rarityList:      RarityList[];
+    professionList:  string[];
+    rarityList:      string[];
     extraEliteNum:   number;
     extraFreeRarity: any[];
-    extraCharIds:    ExtraCharID[];
+    extraCharIds:    string[];
 }
-
-export type ExtraCharID = "char_504_rguard" | "char_507_rsnipe" | "char_505_rcast" | "char_506_rmedic" | "char_514_rdfend";
-
-export type Profession = "WARRIOR" | "SNIPER" | "TANK" | "MEDIC" | "SUPPORT" | "CASTER" | "SPECIAL" | "PIONEER" | "NONE";
-
-export type RarityList = "TIER_1" | "TIER_2" | "TIER_3" | "TIER_4" | "TIER_5" | "TIER_6";
 
 export interface Rogue1_RecruitTicketAllClass {
     id:              string;
     profession:      number;
-    rarity:          Category;
-    professionList:  Profession[];
-    rarityList:      RarityList[];
+    rarity:          string;
+    professionList:  string[];
+    rarityList:      string[];
     extraEliteNum:   number;
     extraFreeRarity: any[];
-    extraCharIds:    ExtraCharID[];
+    extraCharIds:    string[];
 }
 
 export interface Rogue1_RecruitTicketCasterClass {
     id:              string;
-    profession:      Profession;
-    rarity:          Category;
-    professionList:  Profession[];
-    rarityList:      RarityList[];
+    profession:      string;
+    rarity:          string;
+    professionList:  string[];
+    rarityList:      string[];
     extraEliteNum:   number;
-    extraFreeRarity: RarityList[];
-    extraCharIds:    ExtraCharID[];
+    extraFreeRarity: string[];
+    extraCharIds:    string[];
 }
 
 export interface RelicParam {
     id:                 string;
-    checkCharBoxTypes:  CheckCharBoxType[];
+    checkCharBoxTypes:  string[];
     checkCharBoxParams: CheckCharBoxParam[];
 }
 
 export interface CheckCharBoxParam {
-    valueProfessionMask: Profession;
+    valueProfessionMask: string;
     valueStrs:           string[] | null;
     valueInt:            number;
 }
 
-export type CheckCharBoxType = "PROFESSION" | "SUB_PROFESSION" | "UPGRADE";
-
 export interface Rogue1_Relic {
     id:    string;
-    buffs: RelicBuff[];
+    buffs: BuffElement[];
 }
 
-export interface RelicBuff {
+export interface BuffElement {
     key:        string;
     blackboard: Blackboard[];
 }
@@ -1389,26 +1302,20 @@ export interface Stage {
     id:            string;
     linkedStageId: string;
     levelId:       string;
-    code:          Code;
+    code:          string;
     name:          string;
-    loadingPicId:  LoadingPicID;
+    loadingPicId:  string;
     description:   string;
     eliteDesc:     null | string;
     isBoss:        number;
     isElite:       number;
-    difficulty:    DifficultyEnum;
-    capsulePool:   "pool_capsule_default" | null;
+    difficulty:    string;
+    capsulePool:   null | string;
     capsuleProb:   number;
     vutresProb:    number[];
     boxProb:       number[];
     specialNodeId: null | string;
 }
-
-export type Code = "ISW-DF" | "ISW-NO" | "ISW-SP" | "ISW-DU";
-
-export type DifficultyEnum = "NORMAL" | "FOUR_STAR";
-
-export type LoadingPicID = "loading_PCS" | "loading_SY" | "loading_SM_RL" | "loading_SKZ_RL";
 
 export interface StyleConfig {
     expStyleConfig: null;
@@ -1452,24 +1359,24 @@ export interface RogueUpgradeTicket5_Star {
     id:             string;
     profession:     number;
     rarity:         number;
-    professionList: Profession[];
-    rarityList:     RarityList[];
+    professionList: string[];
+    rarityList:     string[];
 }
 
 export interface RogueUpgradeTicketAll {
     id:             string;
     profession:     number;
-    rarity:         Category;
-    professionList: Profession[];
-    rarityList:     RarityList[];
+    rarity:         string;
+    professionList: string[];
+    rarityList:     string[];
 }
 
 export interface Rogue1_UpgradeTicketCasterClass {
     id:             string;
-    profession:     Profession;
-    rarity:         Category;
-    professionList: Profession[];
-    rarityList:     RarityList[];
+    profession:     string;
+    rarity:         string;
+    professionList: string[];
+    rarityList:     string[];
 }
 
 export interface Rogue1_VariationData {
@@ -1486,17 +1393,15 @@ export interface Rogue1_VariationData {
 
 export interface Variation1 {
     id:           string;
-    type?:        Variation1_Type;
+    type?:        string;
     outerName:    string;
     innerName:    string;
     functionDesc: string;
     desc:         string;
     iconId:       null | string;
     sound?:       null | string;
-    buffs?:       RelicBuff[];
+    buffs?:       BuffElement[];
 }
-
-export type Variation1_Type = "MAP" | "RES" | "BAT";
 
 export interface Rogue1_Zones {
     zone_1: Zone;
@@ -1516,7 +1421,7 @@ export interface Zone {
     buffDescription:   null | string;
     endingDescription: string;
     backgroundId:      string;
-    zoneIconId:        PortalZone;
+    zoneIconId:        string;
     isHiddenZone:      boolean;
 }
 
@@ -1596,10 +1501,8 @@ export interface BuffValue {
     iconId:         string;
     usage:          string;
     desc:           string;
-    color:          BuffColor;
+    color:          string;
 }
-
-export type BuffColor = "#9266b2" | "#b43b3b" | "#0098dc";
 
 export interface TentacledChat {
     chat: StickyChat;
@@ -1643,7 +1546,7 @@ export interface EndbookRogue {
 export interface ClientEndbookItemData {
     endBookId:   string;
     sortId:      number;
-    enrollId:    BpPurchaseActiveEnroll | null;
+    enrollId:    null | string;
     isLast:      boolean;
     endbookName: string;
     unlockDesc:  string;
@@ -2007,11 +1910,9 @@ export interface TaskDatum {
     taskId:        string;
     taskName:      string;
     taskDesc:      string;
-    rewardSceneId: RewardSceneID;
-    taskRarity:    Rarity;
+    rewardSceneId: string;
+    taskRarity:    string;
 }
-
-export type RewardSceneID = "scene_ro2_taskreward3_enter" | "scene_ro2_taskreward2_enter" | "scene_ro2_taskreward1_enter";
 
 export interface Treasures {
     rogue_2_treasure: Rogue2_Treasure[];
@@ -2166,12 +2067,10 @@ export interface ArchiveCompTotem {
 
 export interface TotemValue {
     id:                string;
-    type:              PosEnum;
-    enrollConditionId: BpPurchaseActiveEnroll | null;
+    type:              string;
+    enrollConditionId: null | string;
     sortId:            number;
 }
-
-export type PosEnum = "LOCATION" | "EFFECT" | "AFFIX";
 
 export interface Rogue3_Challenges {
     rogue_3_challenge_01: Rogue3_Challenge01;
@@ -2487,7 +2386,7 @@ export interface Rogue3_DetailConst {
     collectButtonName:                 string;
     bpSystemName:                      string;
     autoSetKV:                         string;
-    bpPurchaseActiveEnroll:            BpPurchaseActiveEnroll;
+    bpPurchaseActiveEnroll:            string;
     defaultSacrificeDesc:              string;
     defaultExpeditionSelectDesc:       string;
     gotCharBuffToast:                  string;
@@ -2667,7 +2566,7 @@ export interface Rogue3_StyleChallengeClass {
 }
 
 export interface SubTypeDatum {
-    eventType:   Type;
+    eventType:   string;
     subTypeId:   number;
     iconId:      string;
     name:        null;
@@ -2880,7 +2779,7 @@ export interface Rogue4_GameConst {
     badBoxTrapId:                      string;
     maxHpItemId:                       string;
     shieldItemId:                      string;
-    keyItemId:                         "rogue_4_fragment_I_1";
+    keyItemId:                         string;
     chestKeyCnt:                       number;
     chestKeyItemId:                    string;
     keyColorId:                        string;
@@ -2889,7 +2788,7 @@ export interface Rogue4_GameConst {
     overflowUsageSquadBuff:            string;
     specialTrapId:                     string;
     trapRewardRelicId:                 string;
-    unlockRouteItemId:                 "rogue_4_fragment_I_1";
+    unlockRouteItemId:                 string;
     unlockRouteItemCount:              number;
     hideBattleNodeName:                string;
     hideBattleNodeDescription:         string;
@@ -2917,7 +2816,7 @@ export interface Rogue4_GameConst {
     totemDesc:                         null;
     relicDesc:                         string;
     buffDesc:                          string;
-    refreshNodeItemId:                 "rogue_4_fragment_I_1";
+    refreshNodeItemId:                 string;
     portalZones:                       string[];
     exploreExpOnKill:                  string;
 }
@@ -2978,27 +2877,27 @@ export interface Rogue4_RecruitTickets {
 
 export interface RollNodeData {
     zone_1:                Zone1;
-    zone_2:                ZonePortalTravel1_Class;
-    zone_3:                ZonePortalTravel1_Class;
-    zone_4:                ZonePortalTravel1_Class;
-    zone_5:                ZonePortalTravel1_Class;
-    zone_6:                ZonePortalTravel1_Class;
+    zone_2:                ZonePortalRevival3_Class;
+    zone_3:                ZonePortalRevival3_Class;
+    zone_4:                ZonePortalRevival3_Class;
+    zone_5:                ZonePortalRevival3_Class;
+    zone_6:                ZonePortalRevival3_Class;
     zone_portal_normal_1:  ZonePortal;
     zone_portal_normal_2:  ZonePortal;
     zone_portal_normal_3:  ZonePortal;
     zone_portal_normal_4:  ZonePortal;
     zone_portal_normal_5:  ZonePortal;
     zone_portal_normal_6:  ZonePortal;
-    zone_portal_revival_3: ZonePortalRevival;
-    zone_portal_revival_4: ZonePortalRevival;
-    zone_portal_revival_5: ZonePortalRevival;
-    zone_portal_travel_1:  ZonePortalTravel1_Class;
+    zone_portal_revival_3: ZonePortalRevival3_Class;
+    zone_portal_revival_4: ZonePortalRevival3_Class;
+    zone_portal_revival_5: ZonePortalRevival3_Class;
+    zone_portal_travel_1:  ZonePortalRevival3_Class;
     zone_portal_end_1:     ZonePortal;
     zone_portal_end_2:     ZonePortal;
 }
 
 export interface Zone1 {
-    zoneId: PortalZone;
+    zoneId: string;
     groups: Zone1_Groups;
 }
 
@@ -3010,24 +2909,22 @@ export interface Zone1_Groups {
 }
 
 export interface BattleElite {
-    nodeType: BATTLEELITENodeType;
+    nodeType: string;
 }
 
-export type BATTLEELITENodeType = "BATTLE_ELITE" | "BATTLE_NORMAL" | "BATTLE_SHOP" | "INCIDENT" | "EXPEDITION" | "REST" | "SACRIFICE" | "WISH" | "DUEL" | "ENTERTAINMENT";
-
-export interface ZonePortalTravel1_Class {
-    zoneId: PortalZone;
+export interface ZonePortalRevival3_Class {
+    zoneId: string;
     groups: Zone2_Groups;
 }
 
 export interface Zone2_Groups {
     BATTLE_NORMAL:  BattleElite;
     BATTLE_ELITE:   BattleElite;
-    INCIDENT?:      BattleElite;
+    INCIDENT:       BattleElite;
     REST:           BattleElite;
     SACRIFICE?:     BattleElite;
     EXPEDITION:     BattleElite;
-    BATTLE_SHOP?:   BattleElite;
+    BATTLE_SHOP:    BattleElite;
     WISH:           BattleElite;
     ENTERTAINMENT?: BattleElite;
     DUEL?:          BattleElite;
@@ -3035,22 +2932,15 @@ export interface Zone2_Groups {
 
 export interface ZonePortal {
     zoneId: string;
-    groups: Zone2_Groups;
+    groups: ZonePortalEnd1_Groups;
 }
 
-export interface ZonePortalRevival {
-    zoneId: string;
-    groups: ZonePortalRevival3_Groups;
-}
-
-export interface ZonePortalRevival3_Groups {
+export interface ZonePortalEnd1_Groups {
     BATTLE_NORMAL: BattleElite;
     BATTLE_ELITE:  BattleElite;
     REST:          BattleElite;
     EXPEDITION:    BattleElite;
     DUEL:          BattleElite;
-    INCIDENT:      BattleElite;
-    BATTLE_SHOP:   BattleElite;
     WISH:          BattleElite;
 }
 
@@ -3136,11 +3026,9 @@ export interface ChaosData {
     name:         string;
     functionDesc: string;
     desc:         string;
-    sound:        ChaosDataSound;
+    sound:        string;
     sortId:       number;
 }
-
-export type ChaosDataSound = "ON_ROGUELIKE_VARIATION1" | "ON_ROGUELIKE_VARIATION2";
 
 export interface ChaosRange {
     chaosMax:           number;
@@ -3176,16 +3064,12 @@ export interface Dice {
 
 export interface Die {
     diceId:        string;
-    description:   DieDescription;
+    description:   string;
     isUpgradeDice: number;
     upgradeDiceId: null | string;
     diceFaceCount: number;
-    battleDiceId:  BattleDiceID;
+    battleDiceId:  string;
 }
-
-export type BattleDiceID = "rogue_2_dice_battle1" | "rogue_2_dice_battle2" | "rogue_2_dice_battle3";
-
-export type DieDescription = "随处可见的六面骰子。投下后似乎能决定什么。" | "并不常有的八面骰子。投下后似乎能决定什么。" | "极为少见的十二面骰子。投下后似乎能决定什么。";
 
 export interface DiceChoices {
     choice_ro2_wish_1:     string;
@@ -3215,25 +3099,19 @@ export interface DiceChoices {
 
 export interface DiceEvent {
     dicePointMax:    number;
-    diceResultClass: DiceResultClass;
+    diceResultClass: string;
     diceGroupId:     string;
     diceEventId:     string;
     resultDesc:      string;
-    showType:        DiceEventShowType;
+    showType:        string;
     canReroll:       boolean;
     diceEndingScene: string;
     diceEndingDesc:  string;
-    sound:           DiceEventSound;
+    sound:           string;
 }
 
-export type DiceResultClass = "BEST" | "GOOD" | "NORMAL" | "BAD" | "VERYBAD";
-
-export type DiceEventShowType = "VIRTUE" | "RAW_TEXT" | "MUTATION";
-
-export type DiceEventSound = "ON_ROGUELIKE_DICEGREAT" | "ON_ROGUELIKE_DICENORMAL" | "ON_ROGUELIKE_DICEBAD";
-
 export interface DicePredefine {
-    modeId:           Mode;
+    modeId:           string;
     modeGrade:        number;
     predefinedId:     null | string;
     initialDiceCount: number;
@@ -3254,7 +3132,7 @@ export interface DisasterDatum {
     toastIconId:  string;
     level:        number;
     name:         string;
-    levelName:    LeftDisasterDesc;
+    levelName:    string;
     type:         string;
     functionDesc: string;
     desc:         string;
@@ -3272,34 +3150,30 @@ export interface Rogue1_Fragment {
 }
 
 export interface AlchemyDatum {
-    fragmentTypeList:  TypeElement[];
+    fragmentTypeList:  string[];
     fragmentSquareSum: number;
-    poolRarity:        Rarity;
+    poolRarity:        string;
     relicProp:         number;
     shieldProp:        number;
     populationProp:    number;
 }
 
-export type TypeElement = "WISH" | "INSPIRATION" | "IDEA";
-
 export interface AlchemyFormulaDatum {
     fragmentIds:    string[];
     rewardId:       string;
     rewardCount:    number;
-    rewardItemType: RewardItemTypeEnum;
+    rewardItemType: string;
 }
 
 export interface FragmentBuffDatum {
     itemId:   string;
-    maskType: MaskType;
+    maskType: string;
     desc:     null | string;
 }
 
-export type MaskType = "ALL" | "BATTLES";
-
 export interface FragmentDatum {
     id:     string;
-    type:   TypeElement;
+    type:   string;
     value:  number;
     weight: number;
 }
@@ -3315,7 +3189,7 @@ export interface FragmentTypeData {
 }
 
 export interface Idea {
-    type:       TypeElement;
+    type:       string;
     typeName:   string;
     typeDesc:   string;
     typeIconId: string;
@@ -3346,19 +3220,17 @@ export interface NodeUpgradeDataMap {
 }
 
 export interface Alchemy {
-    nodeType:     ALCHEMYNodeType;
+    nodeType:     string;
     sortId:       number;
     permItemList: PermItemList[];
     tempItemList: TempItemList[];
 }
 
-export type ALCHEMYNodeType = "ALCHEMY" | "BATTLE_SHOP" | "REST";
-
 export interface PermItemList {
     upgradeId:     string;
-    nodeType:      ALCHEMYNodeType;
+    nodeType:      string;
     nodeLevel:     number;
-    costItemId:    "rogue_4_fragment_I_1";
+    costItemId:    string;
     costItemCount: number;
     desc:          string;
     nodeName:      string;
@@ -3366,9 +3238,9 @@ export interface PermItemList {
 
 export interface TempItemList {
     upgradeId:     string;
-    nodeType:      ALCHEMYNodeType;
+    nodeType:      string;
     sortId:        number;
-    costItemId:    "rogue_4_fragment_I_1";
+    costItemId:    string;
     costItemCount: number;
     desc:          string;
 }
@@ -3428,14 +3300,14 @@ export interface Rogue3__TotemEnchant {
 
 export interface TotemBuffData {
     totemId:                  string;
-    color:                    TotemBuffDataColor;
-    pos:                      PosEnum;
+    color:                    string;
+    pos:                      string;
     rhythm:                   string;
     normalDesc:               string;
     synergyDesc:              string;
     archiveDesc:              string;
-    combineGroupName:         CombineGroupName;
-    bgIconId:                 BgIconID;
+    combineGroupName:         string;
+    bgIconId:                 string;
     isManual:                 boolean;
     linkedNodeTypeData:       LinkedNodeTypeData;
     distanceMin:              number;
@@ -3446,18 +3318,10 @@ export interface TotemBuffData {
     portalLinkedNodeTypeData: LinkedNodeTypeData;
 }
 
-export type BgIconID = "bg_all" | "bg_blue" | "bg_green" | "bg_red" | "bg_boss";
-
-export type TotemBuffDataColor = "ALL" | "BLUE" | "GREEN" | "RED" | "NONE";
-
-export type CombineGroupName = "normal" | "boss";
-
 export interface LinkedNodeTypeData {
-    effectiveNodeTypes: Type[];
-    blurNodeTypes:      BlurNodeType[];
+    effectiveNodeTypes: string[];
+    blurNodeTypes:      string[];
 }
-
-export type BlurNodeType = "BATTLE" | "NO_BATTLE" | "NONE";
 
 export interface Vision {
     visionDatas:   { [key: string]: VisionData };
@@ -3474,7 +3338,7 @@ export interface VisionModuleConsts {
 
 export interface VisionChoice {
     value: number;
-    type:  "LOWER";
+    type:  string;
 }
 
 export interface VisionData {

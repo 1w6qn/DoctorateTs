@@ -1,9 +1,10 @@
 import EventEmitter from "events";
-import { MissionCalcState, MissionDailyRewards, MissionPlayerData, MissionPlayerDataGroup, MissionPlayerState, PlayerDataModel } from '../model/playerdata';
+import { MissionCalcState, MissionDailyRewards, MissionPlayerData, MissionPlayerState, PlayerDataModel, Complete } from '../model/playerdata';
 import excel from "../../excel/excel";
 import { ItemBundle } from "../../excel/character_table";
 import { PlayerSquad } from "../model/character";
 import { TroopManager } from "./TroopManager";
+import { BattleData } from '../model/battle';
 
 export class MissionManager {
     missions: { [key: string]: MissionProgress[] };
@@ -24,7 +25,7 @@ export class MissionManager {
         playerdata.mission.missions["OPENSERVER"] = {}
         playerdata.mission.missions["ACTIVITY"] = {}
         this.missions = Object.fromEntries(Object.entries(playerdata.mission.missions).map(([type, v]) =>
-            [type, Object.entries(v).map(([id, data]) => {return (new MissionProgress(id, _trigger, this, type, data.progress[0].value??0, data.state))})]
+            [type, Object.entries(v).map(([id, data]) => { return (new MissionProgress(id, _trigger, this, type, data.progress[0].value ?? 0, data.state)) })]
         ))
         this.missionRewards = playerdata.mission.missionRewards;
         this.missionGroups = playerdata.mission.missionGroups;
@@ -143,7 +144,7 @@ export class MissionProgress implements MissionPlayerState {
             console.log(this.missionId)
             return 0
         }
-        if (this.progress[0].value == this.progress[0].target && this.confirmed) {
+        if (this.progress[0].value >= (this.progress[0].target as number) && this.confirmed) {
             return 3
         } else {
             let preMissionIds = excel.MissionTable.missions[this.missionId]?.preMissionIds
@@ -270,9 +271,6 @@ export class MissionProgress implements MissionPlayerState {
                 break
             case "update":
                 this.progress[0].value += 1
-                if (this.progress[0].value == this.progress[0].target) {
-                    this._trigger.emit("mission:complete", this.missionId)
-                }
                 break
         }
     }
@@ -718,32 +716,46 @@ export class MissionProgress implements MissionPlayerState {
                 break
         }
     }
-    TakeOverReplay(args: { completeState: number }, mode: string = "update",) {
+    TakeOverReplay(args: BattleData, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
-                break
-            case "update":
-
-                break
+        switch (this.param[0]) {
+            case "0":
+                switch (mode) {
+                    case "init":
+                        this.progress.push({ value: this.value, target: parseInt(this.param[1])})
+                        break
+                    case "update":
+                        if(args.battleData.stats.autoReplayCancelled){
+                            this.progress[0].value += 1
+                        }
+                        break
+                }
+                break;
         }
+
     }
-    CompleteCampaign(args: { completeState: number }, mode: string = "update",) {
+    CompleteCampaign(args: {stageId:string,CompleteState:number}, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
-                break
-            case "update":
-
-                break
+        switch (this.param[0]) {
+            case "0":
+                switch (mode) {
+                    case "init":
+                        this.progress.push({ value: this.value, target: parseInt(this.param[1])})
+                        break
+                    case "update":
+                        let stageType=excel.StageTable.stages[args.stageId].stageType
+                        if(args.CompleteState >= parseInt(this.param[2]) && stageType == "CAMPAIGN"){
+                            this.progress[0].value += 1
+                        }
+                        break
+                }
+                break;
         }
     }
     SetBuildingAssist(args: { completeState: number }, mode: string = "update",) {

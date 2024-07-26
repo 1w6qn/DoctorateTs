@@ -21,7 +21,7 @@ router.post("/changeResume", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     player.status.changeResume(req.body!.resume)
     //TODO command system
-    if(req.body!.comman=="@refresh:daily"){
+    if(req.body!.resume=="@refresh:daily"){
         player._trigger.emit("refresh:daily")
     }
     player._trigger.emit("save")

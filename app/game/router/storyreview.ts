@@ -32,6 +32,7 @@ router.post("/unlockStoryByCoin", (req, res) => {
 })
 router.post("/trailReward", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    console.log(req.body)
     player.storyreview.trailReward(req.body!.groupId,req.body!.rewardIdList)
     
     player._trigger.emit("save")

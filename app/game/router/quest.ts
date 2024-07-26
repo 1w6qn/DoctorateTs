@@ -43,6 +43,7 @@ router.post("/getBattleReplay", (req, res) => {
 router.post("/saveBattleReplay", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     player._trigger.emit("save")
+    player.battle.saveReplay(req.body!.battleId, req.body!.battleReplay)
     res.send({
         ...player.delta,
     })

@@ -30,7 +30,6 @@ export class PlayerDataManager {
     _trigger: EventEmitter
     _playerdata: PlayerDataModel;
     excel:Excel
-    _battlesConfig: { [key: string]: { [key: string]: string; }; };
     get delta(){
         return {
             playerDataDelta:{
@@ -39,11 +38,10 @@ export class PlayerDataManager {
             }
         }
     }
-    constructor(playerdata:PlayerDataModel,battleConfig:{[key:string]:{[key:string]:string}}) {
+    constructor(playerdata:PlayerDataModel) {
         this._playerdata = playerdata;
         this._trigger = new EventEmitter();
         this._trigger.setMaxListeners(10000);
-        this._battlesConfig=battleConfig
         this.excel=new Excel()
         this.status=new StatusManager(playerdata, this._trigger)
         this.inventory = new InventoryManager(playerdata, this._trigger);
@@ -54,7 +52,7 @@ export class PlayerDataManager {
         this.storyreview=new StoryreviewManager(playerdata.storyreview, this._trigger)
         this.mission=new MissionManager(playerdata, this._trigger)
         this.shop=new ShopController(playerdata, this._trigger)
-        this.battle=new BattleManager(this._playerdata,this._battlesConfig, this._trigger)
+        this.battle=new BattleManager(this._playerdata, this._trigger)
         this.recruit=new RecruitManager(playerdata.recruit, this._trigger)
         this.rlv2=new RoguelikeV2Controller(playerdata.rlv2, this._trigger)
         

@@ -26,10 +26,24 @@ router.post("/battleStart", (req, res) => {
 })
 router.post("/battleFinish", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    console.log(req.body)
     player._trigger.emit("save")
     res.send({
         ...player.battle.finish(req.body),
+        ...player.delta,
+    })
+})
+router.post("/getBattleReplay", (req, res) => {
+    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    player._trigger.emit("save")
+    res.send({
+        battleReplay: player.battle.loadReplay(req.body!.stageId),
+        ...player.delta,
+    })
+})
+router.post("/saveBattleReplay", (req, res) => {
+    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    player._trigger.emit("save")
+    res.send({
         ...player.delta,
     })
 })

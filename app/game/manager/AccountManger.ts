@@ -3,23 +3,54 @@ import { PlayerDataModel } from "../model/playerdata";
 import { PlayerDataManager } from './PlayerDataManager';
 
 export class AccountManager {
-    data:{[key:string]:PlayerDataManager}
-    battleReplays:{[key:string]:{[key:string]:string}}
+    data: { [key: string]: PlayerDataManager }
+    configs: { [key: string]: UserConfig }
     constructor() {
-        this.battleReplays = JSON.parse(readFileSync(`${__dirname}/../../../data/user/battle.json`, 'utf8'))
-        this.data = {
-            "1":new PlayerDataManager(JSON.parse(readFileSync(`${__dirname}/../../../data/user/databases/${"1"}.json`, 'utf8'))as PlayerDataModel,this.battleReplays)
-        };
-        for(let secret in this.data){
-            this.data[secret]._trigger.on("save",()=>this.savePlayerData(secret));
+        this.configs = JSON.parse(readFileSync(`${__dirname}/../../../data/user/users.json`, 'utf8'))
+        this.data = {}
+        for (let uid in this.configs) {
+            this.data[uid]=new PlayerDataManager(JSON.parse(readFileSync(`${__dirname}/../../../data/user/databases/${uid||"1"}.json`, 'utf8')) as PlayerDataModel)
+            this.data[uid]._playerdata.status.uid=uid
+            this.data[uid]._trigger.on("save", () => this.savePlayerData(uid));
         }
-        
+        console.log(`AccountManager initialized;${Object.keys(this.configs).length} users loaded.`);
     }
-    getPlayerData(secret:string):PlayerDataManager {
-        return this.data[secret || "1"];
+    getBattleReplay(uid: string, stageId: string): string {
+        return this.configs[uid]?.battle.replays[stageId] || "";
     }
-    savePlayerData(secret:string):void {
-        writeFileSync(`${__dirname}/../../../data/user/databases/${secret||"1"}.json`, JSON.stringify(this.data[secret||"1"],null,4));
+    saveBattleReplay(uid: string,stageId: string, replay: string): void {
+        this.configs[uid]!.battle.replays[stageId]=replay
+        this.saveUserConfig()
     }
+    saveUserConfig(): void {
+        writeFileSync(`${__dirname}/../../../data/user/users.json`, JSON.stringify(this.configs, null, 4));
+    }
+    getBattleInfo(uid: string,battleId:string):BattleInfo|undefined{
+        return this.configs[uid]?.battle.infos[battleId];
+    }
+    saveBattleInfo(uid: string,battleId:string,info:BattleInfo):void{
+        this.configs[uid]!.battle.infos[battleId]=info
+        this.saveUserConfig()
+    }
+    getPlayerData(uid: string): PlayerDataManager {
+        return this.data[uid || "1"];
+    }
+    savePlayerData(uid: string): void {
+        writeFileSync(`${__dirname}/../../../data/user/databases/${uid || "1"}.json`, JSON.stringify(this.data[uid || "1"], null, 4));
+    }
+}
+export interface UserConfig {
+    uid: string
+    mails: []
+    friends: string[]
+    battle: {
+        stageId: string,
+        replays: { [key: string]: string },
+        infos: { [key: string]: BattleInfo }
+    }
+    rlv2: {}
+}
+export interface BattleInfo {
+    stageId:string
 }
 export const accountManager = new AccountManager();

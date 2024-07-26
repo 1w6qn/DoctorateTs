@@ -23,9 +23,8 @@ export class MissionManager {
     constructor(playerdata: PlayerDataModel, _trigger: EventEmitter) {
         playerdata.mission.missions["OPENSERVER"] = {}
         playerdata.mission.missions["ACTIVITY"] = {}
-
         this.missions = Object.fromEntries(Object.entries(playerdata.mission.missions).map(([type, v]) =>
-            [type, Object.entries(v).map(([id, data]) => (new MissionProgress(id, _trigger, this, type, data.progress[0].value, data.state)))]
+            [type, Object.entries(v).map(([id, data]) => {return (new MissionProgress(id, _trigger, this, type, data.progress[0].value??0, data.state))})]
         ))
         this.missionRewards = playerdata.mission.missionRewards;
         this.missionGroups = playerdata.mission.missionGroups;
@@ -81,7 +80,7 @@ export class MissionManager {
             case "DAILY":
                 this.missionRewards.dailyPoint += excel.MissionTable.missions[missionId].periodicalPoint
                 Object.entries(this.missionRewards.rewards["DAILY"]).reduce((acc, [k, v]) => {
-                    if (v == 0&&this.missionRewards.dailyPoint >= excel.MissionTable.periodicalRewards[k].periodicalPointCost) {
+                    if (v == 0 && this.missionRewards.dailyPoint >= excel.MissionTable.periodicalRewards[k].periodicalPointCost) {
                         this.missionRewards.dailyPoint -= excel.MissionTable.periodicalRewards[k].periodicalPointCost
                         items.push(...excel.MissionTable.periodicalRewards[k].rewards)
                         //console.log(items)
@@ -107,10 +106,10 @@ export class MissionManager {
         }
         this.missionGroups[missionGroupId] = 1
     }
-    autoConfirmMissions(type: string):ItemBundle[] {
-        let items:ItemBundle[]=[]
+    autoConfirmMissions(type: string): ItemBundle[] {
+        let items: ItemBundle[] = []
         for (let mission of this.missions[type]) {
-            if(mission.state==2 && mission.progress[0].value==mission.progress[0].target){
+            if (mission.state == 2 && mission.progress[0].value == mission.progress[0].target) {
                 items.push(...this.confirmMission(mission.missionId))
             }
         }
@@ -141,7 +140,7 @@ export class MissionProgress implements MissionPlayerState {
     confirmed: boolean
     get state(): number {
         if (!("value" in this.progress[0])) {
-            console.log(this)
+            console.log(this.missionId)
             return 0
         }
         if (this.progress[0].value == this.progress[0].target && this.confirmed) {
@@ -200,20 +199,21 @@ export class MissionProgress implements MissionPlayerState {
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
-                break
-            case "update":
-                let { completeState } = args
-                if (completeState == parseInt(this.param[2])) {
-                    this.progress[0].value += 1
+        switch (this.param[0]) {
+            case "0":
+                switch (mode) {
+                    case "init":
+                        this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                    case "update":
+                        let { completeState } = args
+                        if (completeState >= parseInt(this.param[2])) {
+                            this.progress[0].value += 1
+                        }
+                        break
                 }
-                if (this.progress[0].value == this.progress[0].target) {
-                    this._trigger.emit("mission:complete", this.missionId)
-                }
-                break
+                break;
         }
+
 
 
     }
@@ -283,10 +283,10 @@ export class MissionProgress implements MissionPlayerState {
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
                 break
             case "update":
-                this.progress[0].value+=args.socialPoint
+                this.progress[0].value += args.socialPoint
                 break
         }
     }
@@ -325,7 +325,7 @@ export class MissionProgress implements MissionPlayerState {
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
                 break
             case "update":
                 this.progress[0].value += 1
@@ -339,7 +339,7 @@ export class MissionProgress implements MissionPlayerState {
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
                 break
             case "update":
                 this.progress[0].value += 1
@@ -353,7 +353,7 @@ export class MissionProgress implements MissionPlayerState {
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
                 break
             case "update":
                 this.progress[0].value += 1
@@ -367,7 +367,7 @@ export class MissionProgress implements MissionPlayerState {
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
                 break
             case "update":
                 this.progress[0].value += args.charNum
@@ -381,21 +381,21 @@ export class MissionProgress implements MissionPlayerState {
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
                 break
             case "update":
                 this.progress[0].value += 1
                 break
         }
     }
-    UpgradeSkill(args: {targetLevel:number}, mode: string = "update",) {
+    UpgradeSkill(args: { targetLevel: number }, mode: string = "update",) {
         /**
          * 
          * 
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
                 break
             case "update":
                 this.progress[0].value += 1
@@ -421,14 +421,61 @@ export class MissionProgress implements MissionPlayerState {
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 })
-                break
-            case "update":
-
-                break
+        switch (this.param[0]) {
+            case "0":
+                switch (mode) {
+                    case "init":
+                        this.progress.push({ value: this.value, target: parseInt(this.param[2]) })
+                        break
+                    case "update":
+                        let { completeState } = args
+                        if (completeState >= parseInt(this.param[1]) && false) {
+                            this.progress[0].value += 1
+                        }
+                        break
+                }
+                break;
+            case "2":
+                switch (mode) {
+                    case "init":
+                        this.progress.push({ value: this.value, target: parseInt(this.param[2]) })
+                        break
+                    case "update":
+                        let { completeState } = args
+                        if (completeState >= parseInt(this.param[1]) && false) {
+                            this.progress[0].value += 1
+                        }
+                        break
+                }
+                break;
+            case "3":
+                switch (mode) {
+                    case "init":
+                        this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                        break
+                    case "update":
+                        let { completeState } = args
+                        if (completeState >= parseInt(this.param[1]) && false) {
+                            this.progress[0].value += 1
+                        }
+                        break
+                }
+                break;
+            case "4":
+                switch (mode) {
+                    case "init":
+                        this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                        break
+                    case "update":
+                        let { completeState } = args
+                        if (completeState >= parseInt(this.param[1]) && false) {
+                            this.progress[0].value += 1
+                        }
+                        break
+                }
+                break;
         }
+
     }
     UpgradePlayer(args: { level: number }, mode: string = "update",) {
         /**
@@ -437,10 +484,10 @@ export class MissionProgress implements MissionPlayerState {
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
                 break
             case "update":
-                this.progress[0].value=args.level
+                this.progress[0].value = args.level
                 break
         }
     }
@@ -493,13 +540,13 @@ export class MissionProgress implements MissionPlayerState {
          */
         switch (mode) {
             case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1])})
+                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
                 break
             case "update":
-                this.progress[0].value=args.troop.chars.reduce((acc, char) => {
-                    acc+=char.evolvePhase==parseInt(this.param[2])?1:0
+                this.progress[0].value = args.troop.chars.reduce((acc, char) => {
+                    acc += char.evolvePhase == parseInt(this.param[2]) ? 1 : 0
                     return acc
-                },0)
+                }, 0)
                 break
         }
     }

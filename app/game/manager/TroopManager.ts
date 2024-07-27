@@ -106,7 +106,7 @@ export class TroopManager {
         const expMap = excel.GameDataConst.characterExpMap;
         const goldMap = excel.GameDataConst.characterUpgradeCostMap;
         const expItems = excel.ItemTable.expItems;
-        let expTotal = 0, exp = 0, gold = 0;
+        let expTotal = 0, gold = 0;
         const charId = char.charId;
         const evolvePhase = char.evolvePhase;
         const rarity = parseInt(excel.CharacterTable[charId].rarity.slice(-1));

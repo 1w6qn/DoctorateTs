@@ -7,3 +7,4 @@ t.json
 a.json
 .VSCodeCounter/
 package-lock.json
+tmp/

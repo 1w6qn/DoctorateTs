@@ -1167,67 +1167,46 @@ export interface RecruitGr {
 }
 
 export interface Rogue1_RecruitTickets {
-    rogue_1_recruit_ticket_pioneer:              Rogue1_RecruitTicketCasterClass;
-    rogue_1_recruit_ticket_warrior:              Rogue1_RecruitTicketCasterClass;
-    rogue_1_recruit_ticket_tank:                 Rogue1_RecruitTicketCasterClass;
-    rogue_1_recruit_ticket_sniper:               Rogue1_RecruitTicketCasterClass;
-    rogue_1_recruit_ticket_caster:               Rogue1_RecruitTicketCasterClass;
-    rogue_1_recruit_ticket_support:              Rogue1_RecruitTicketCasterClass;
-    rogue_1_recruit_ticket_medic:                Rogue1_RecruitTicketCasterClass;
-    rogue_1_recruit_ticket_special:              Rogue1_RecruitTicketCasterClass;
-    rogue_1_recruit_ticket_pioneer_sp:           Rogue1_RecruitTicketCasterClass;
-    rogue_1_recruit_ticket_warrior_sp:           Rogue1_RecruitTicketCasterClass;
-    rogue_1_recruit_ticket_tank_sp:              Rogue1_RecruitTicketCasterClass;
-    rogue_1_recruit_ticket_sniper_sp:            Rogue1_RecruitTicketCasterClass;
-    rogue_1_recruit_ticket_caster_sp:            Rogue1_RecruitTicketCasterClass;
-    rogue_1_recruit_ticket_support_sp:           Rogue1_RecruitTicketCasterClass;
-    rogue_1_recruit_ticket_medic_sp:             Rogue1_RecruitTicketCasterClass;
-    rogue_1_recruit_ticket_special_sp:           Rogue1_RecruitTicketCasterClass;
-    rogue_1_recruit_ticket_double_1:             Rogue1_RecruitTicketAllClass;
-    rogue_1_recruit_ticket_double_2:             Rogue1_RecruitTicketAllClass;
-    rogue_1_recruit_ticket_double_3:             Rogue1_RecruitTicketAllClass;
-    rogue_1_recruit_ticket_double_4:             Rogue1_RecruitTicketAllClass;
-    rogue_1_recruit_ticket_quad_melee:           Rogue1_RecruitTicketAllClass;
-    rogue_1_recruit_ticket_quad_ranged:          Rogue1_RecruitTicketAllClass;
-    rogue_1_recruit_ticket_all:                  Rogue1_RecruitTicketAllClass;
-    rogue_1_recruit_ticket_5star:                RogueRecruitTicket5_Star;
-    rogue_1_recruit_ticket_all_premium:          Rogue1_RecruitTicketAllClass;
-    rogue_1_recruit_ticket_quad_melee_discount:  Rogue1_RecruitTicketAllClass;
-    rogue_1_recruit_ticket_quad_ranged_discount: Rogue1_RecruitTicketAllClass;
-    rogue_1_recruit_ticket_all_discount:         Rogue1_RecruitTicketAllClass;
+    rogue_1_recruit_ticket_pioneer:              RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_warrior:              RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_tank:                 RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_sniper:               RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_caster:               RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_support:              RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_medic:                RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_special:              RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_pioneer_sp:           RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_warrior_sp:           RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_tank_sp:              RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_sniper_sp:            RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_caster_sp:            RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_support_sp:           RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_medic_sp:             RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_special_sp:           RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_double_1:             RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_double_2:             RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_double_3:             RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_double_4:             RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_quad_melee:           RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_quad_ranged:          RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_all:                  RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_5star:                RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_all_premium:          RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_quad_melee_discount:  RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_quad_ranged_discount: RoguelikeRecruitTicketFeature;
+    rogue_1_recruit_ticket_all_discount:         RoguelikeRecruitTicketFeature;
 }
 
-export interface RogueRecruitTicket5_Star {
-    id:              string;
-    profession:      number;
-    rarity:          number;
-    professionList:  string[];
-    rarityList:      string[];
-    extraEliteNum:   number;
-    extraFreeRarity: any[];
-    extraCharIds:    string[];
-}
 
-export interface Rogue1_RecruitTicketAllClass {
+export interface RoguelikeRecruitTicketFeature {
     id:              string;
-    profession:      number;
-    rarity:          string;
+    profession:      string|number;
+    rarity:          string|number;
     professionList:  string[];
     rarityList:      string[];
-    extraEliteNum:   number;
-    extraFreeRarity: any[];
-    extraCharIds:    string[];
-}
-
-export interface Rogue1_RecruitTicketCasterClass {
-    id:              string;
-    profession:      string;
-    rarity:          string;
-    professionList:  string[];
-    rarityList:      string[];
-    extraEliteNum:   number;
-    extraFreeRarity: string[];
-    extraCharIds:    string[];
+    extraEliteNum?:   number;
+    extraFreeRarity?: string[];
+    extraCharIds?:    string[];
 }
 
 export interface RelicParam {
@@ -1866,44 +1845,44 @@ export interface Rogue2_Enrolls {
 }
 
 export interface Rogue2_RecruitTickets {
-    rogue_2_recruit_ticket_pioneer:              Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_warrior:              Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_tank:                 Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_sniper:               Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_caster:               Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_support:              Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_medic:                Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_special:              Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_pioneer_sp:           Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_warrior_sp:           Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_tank_sp:              Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_sniper_sp:            Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_caster_sp:            Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_support_sp:           Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_medic_sp:             Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_special_sp:           Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_pioneer_vip:          Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_warrior_vip:          Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_tank_vip:             Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_sniper_vip:           Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_caster_vip:           Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_support_vip:          Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_medic_vip:            Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_special_vip:          Rogue1_RecruitTicketCasterClass;
-    rogue_2_recruit_ticket_double_1:             Rogue1_RecruitTicketAllClass;
-    rogue_2_recruit_ticket_double_2:             Rogue1_RecruitTicketAllClass;
-    rogue_2_recruit_ticket_double_3:             Rogue1_RecruitTicketAllClass;
-    rogue_2_recruit_ticket_double_4:             Rogue1_RecruitTicketAllClass;
-    rogue_2_recruit_ticket_quad_melee:           Rogue1_RecruitTicketAllClass;
-    rogue_2_recruit_ticket_quad_ranged:          Rogue1_RecruitTicketAllClass;
-    rogue_2_recruit_ticket_all:                  Rogue1_RecruitTicketAllClass;
-    rogue_2_recruit_ticket_5star:                RogueRecruitTicket5_Star;
-    rogue_2_recruit_ticket_all_premium:          Rogue1_RecruitTicketAllClass;
-    rogue_2_recruit_ticket_quad_melee_discount:  Rogue1_RecruitTicketAllClass;
-    rogue_2_recruit_ticket_quad_ranged_discount: Rogue1_RecruitTicketAllClass;
-    rogue_2_recruit_ticket_all_discount:         Rogue1_RecruitTicketAllClass;
-    rogue_2_recruit_ticket_temp_5_up:            Rogue1_RecruitTicketAllClass;
-    rogue_2_recruit_ticket_temp_6_up:            Rogue1_RecruitTicketAllClass;
+    rogue_2_recruit_ticket_pioneer:              RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_warrior:              RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_tank:                 RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_sniper:               RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_caster:               RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_support:              RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_medic:                RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_special:              RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_pioneer_sp:           RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_warrior_sp:           RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_tank_sp:              RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_sniper_sp:            RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_caster_sp:            RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_support_sp:           RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_medic_sp:             RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_special_sp:           RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_pioneer_vip:          RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_warrior_vip:          RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_tank_vip:             RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_sniper_vip:           RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_caster_vip:           RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_support_vip:          RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_medic_vip:            RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_special_vip:          RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_double_1:             RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_double_2:             RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_double_3:             RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_double_4:             RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_quad_melee:           RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_quad_ranged:          RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_all:                  RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_5star:                RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_all_premium:          RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_quad_melee_discount:  RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_quad_ranged_discount: RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_all_discount:         RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_temp_5_up:            RoguelikeRecruitTicketFeature;
+    rogue_2_recruit_ticket_temp_6_up:            RoguelikeRecruitTicketFeature;
 }
 
 export interface TaskDatum {
@@ -2515,44 +2494,44 @@ export interface FluffyItemDropTagDict {
 }
 
 export interface Rogue3_RecruitTickets {
-    rogue_3_recruit_ticket_pioneer:              Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_warrior:              Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_tank:                 Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_sniper:               Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_caster:               Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_support:              Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_medic:                Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_special:              Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_pioneer_sp:           Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_warrior_sp:           Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_tank_sp:              Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_sniper_sp:            Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_caster_sp:            Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_support_sp:           Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_medic_sp:             Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_special_sp:           Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_pioneer_vip:          Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_warrior_vip:          Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_tank_vip:             Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_sniper_vip:           Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_caster_vip:           Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_support_vip:          Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_medic_vip:            Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_special_vip:          Rogue1_RecruitTicketCasterClass;
-    rogue_3_recruit_ticket_double_1:             Rogue1_RecruitTicketAllClass;
-    rogue_3_recruit_ticket_double_2:             Rogue1_RecruitTicketAllClass;
-    rogue_3_recruit_ticket_double_3:             Rogue1_RecruitTicketAllClass;
-    rogue_3_recruit_ticket_double_4:             Rogue1_RecruitTicketAllClass;
-    rogue_3_recruit_ticket_quad_melee:           Rogue1_RecruitTicketAllClass;
-    rogue_3_recruit_ticket_quad_ranged:          Rogue1_RecruitTicketAllClass;
-    rogue_3_recruit_ticket_all:                  Rogue1_RecruitTicketAllClass;
-    rogue_3_recruit_ticket_5star:                RogueRecruitTicket5_Star;
-    rogue_3_recruit_ticket_all_premium:          Rogue1_RecruitTicketAllClass;
-    rogue_3_recruit_ticket_quad_melee_discount:  Rogue1_RecruitTicketAllClass;
-    rogue_3_recruit_ticket_quad_ranged_discount: Rogue1_RecruitTicketAllClass;
-    rogue_3_recruit_ticket_all_discount:         Rogue1_RecruitTicketAllClass;
-    rogue_3_recruit_ticket_temp_5_up:            Rogue1_RecruitTicketAllClass;
-    rogue_3_recruit_ticket_temp_6_up:            Rogue1_RecruitTicketAllClass;
+    rogue_3_recruit_ticket_pioneer:              RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_warrior:              RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_tank:                 RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_sniper:               RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_caster:               RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_support:              RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_medic:                RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_special:              RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_pioneer_sp:           RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_warrior_sp:           RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_tank_sp:              RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_sniper_sp:            RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_caster_sp:            RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_support_sp:           RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_medic_sp:             RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_special_sp:           RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_pioneer_vip:          RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_warrior_vip:          RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_tank_vip:             RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_sniper_vip:           RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_caster_vip:           RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_support_vip:          RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_medic_vip:            RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_special_vip:          RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_double_1:             RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_double_2:             RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_double_3:             RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_double_4:             RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_quad_melee:           RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_quad_ranged:          RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_all:                  RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_5star:                RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_all_premium:          RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_quad_melee_discount:  RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_quad_ranged_discount: RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_all_discount:         RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_temp_5_up:            RoguelikeRecruitTicketFeature;
+    rogue_3_recruit_ticket_temp_6_up:            RoguelikeRecruitTicketFeature;
 }
 
 export interface Rogue3_Styles {
@@ -2625,7 +2604,7 @@ export interface DetailsRogue4 {
     zones:                        { [key: string]: Zone };
     variation:                    BandRef;
     traps:                        Rogue4_Traps;
-    recruitTickets:               Rogue4_RecruitTickets;
+    recruitTickets:               {[key:string]:RoguelikeRecruitTicketFeature};
     upgradeTickets:               Rogue4_UpgradeTickets;
     customTickets:                BandRef;
     relics:                       { [key: string]: Rogue1_Relic };
@@ -2830,50 +2809,6 @@ export interface Rogue4_MonthSquad {
     month_team_1: MonthTeam;
 }
 
-export interface Rogue4_RecruitTickets {
-    rogue_4_recruit_ticket_pioneer:              Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_warrior:              Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_tank:                 Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_sniper:               Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_caster:               Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_support:              Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_medic:                Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_special:              Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_pioneer_sp:           Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_warrior_sp:           Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_tank_sp:              Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_sniper_sp:            Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_caster_sp:            Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_support_sp:           Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_medic_sp:             Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_special_sp:           Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_pioneer_vip:          Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_warrior_vip:          Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_tank_vip:             Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_sniper_vip:           Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_caster_vip:           Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_support_vip:          Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_medic_vip:            Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_special_vip:          Rogue1_RecruitTicketCasterClass;
-    rogue_4_recruit_ticket_double_1:             Rogue1_RecruitTicketAllClass;
-    rogue_4_recruit_ticket_double_2:             Rogue1_RecruitTicketAllClass;
-    rogue_4_recruit_ticket_double_3:             Rogue1_RecruitTicketAllClass;
-    rogue_4_recruit_ticket_double_4:             Rogue1_RecruitTicketAllClass;
-    rogue_4_recruit_ticket_double_1_vip:         Rogue1_RecruitTicketAllClass;
-    rogue_4_recruit_ticket_double_2_vip:         Rogue1_RecruitTicketAllClass;
-    rogue_4_recruit_ticket_double_3_vip:         Rogue1_RecruitTicketAllClass;
-    rogue_4_recruit_ticket_double_4_vip:         Rogue1_RecruitTicketAllClass;
-    rogue_4_recruit_ticket_quad_melee:           Rogue1_RecruitTicketAllClass;
-    rogue_4_recruit_ticket_quad_ranged:          Rogue1_RecruitTicketAllClass;
-    rogue_4_recruit_ticket_all:                  Rogue1_RecruitTicketAllClass;
-    rogue_4_recruit_ticket_5star:                RogueRecruitTicket5_Star;
-    rogue_4_recruit_ticket_all_premium:          Rogue1_RecruitTicketAllClass;
-    rogue_4_recruit_ticket_quad_melee_discount:  Rogue1_RecruitTicketAllClass;
-    rogue_4_recruit_ticket_quad_ranged_discount: Rogue1_RecruitTicketAllClass;
-    rogue_4_recruit_ticket_all_discount:         Rogue1_RecruitTicketAllClass;
-    rogue_4_recruit_ticket_temp_5_up:            Rogue1_RecruitTicketAllClass;
-    rogue_4_recruit_ticket_temp_6_up:            Rogue1_RecruitTicketAllClass;
-}
 
 export interface RollNodeData {
     zone_1:                Zone1;

@@ -180,12 +180,15 @@ export namespace PlayerRoguelikeV2 {
 
         }
         export interface RecruitChar extends PlayerCharacter {
-            type: number//RoguelikeCharState
+            type: string//RoguelikeCharState
             upgradePhase: number
             upgradeLimited: boolean
             population: number
             isUpgrade: boolean
+            isCure?: boolean
+            charBuff?:any[]
             troopInstId: number
+
 
         }
 
@@ -226,12 +229,14 @@ export namespace PlayerRoguelikeV2 {
         export interface Recruit {
             index: string
             id: string
-            state: string//State
+            state: number//State
             list: RecruitChar[]
-            result: RecruitChar
+            result: RecruitChar|null
             ts: number
+            from: string
+            mustExtra:number
             needAssist: boolean
-            assistList: { [key: string]: FriendAssistData[] }
+            assistList?: { [key: string]: FriendAssistData[] }
         }
         export interface Module {
             san?: Module.San

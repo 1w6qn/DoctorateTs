@@ -4,7 +4,8 @@ import excel from "../../excel/excel";
 import { Init } from "../../excel/roguelike_topic_table";
 import _ from "lodash"
 import { readFileSync } from "fs";
-import { Blackboard } from "../../excel/character_table";
+import { RoguelikeInventoryManager } from "./rlv2/InventoryManager";
+import { TroopManager } from "../manager/TroopManager";
 export class RoguelikeV2Config {
     choiceScenes: { [key: string]: { choices: { [key: string]: number } } }
     constructor() {
@@ -16,6 +17,7 @@ export class RoguelikeV2Controller {
     outer: { [key: string]: PlayerRoguelikeV2.OuterData; };
     current: PlayerRoguelikeV2.CurrentData;
     pending!: RoguelikePendingEvent[]
+    _troop:TroopManager
     _data: RoguelikeV2Config;
     _trigger: EventEmitter
     inventory!: RoguelikeInventoryManager | null;
@@ -73,7 +75,7 @@ export class RoguelikeV2Controller {
             squadBuff: []
         }
         this.current.record = {brief: null}
-        this.inventory = new RoguelikeInventoryManager(this.current, this._trigger)
+        this.inventory = new RoguelikeInventoryManager(this.current,this._troop, this._trigger)
         this.current.map = { zones: {} }
         switch (args.theme) {
             case "rogue_1":
@@ -194,12 +196,13 @@ export class RoguelikeV2Controller {
         this.current.module!.fragment!.overWeight = Math.floor(this.current!.module!.fragment!.limitWeight * 1.5)
 
     }
-    constructor(data: PlayerRoguelikeV2, _trigger: EventEmitter) {
+    constructor(data: PlayerRoguelikeV2,troop:TroopManager, _trigger: EventEmitter) {
         this.outer = data.outer
         this.current = data.current
         this.pinned = data.pinned
         this._data = new RoguelikeV2Config()
         this._trigger = _trigger
+        this._troop=troop
     }
     toJSON(): PlayerRoguelikeV2 {
         return {
@@ -218,63 +221,10 @@ export class RoguelikeV2Controller {
         }
     }
 }
-export class RoguelikeInventoryManager {
-    index:number
-    _inventory: PlayerRoguelikeV2.CurrentData.Inventory
-    _player:PlayerRoguelikeV2.CurrentData
-    _trigger: EventEmitter
-    [key: string]: any
-
-    applyBuffs(...args:{key:string,blackboard:Blackboard}[]){
-        args.forEach(arg=>{
-            this[arg.key](arg.blackboard)
-        })
-    }
-    gainRelic(id: string, count: number): void {
-        let buffs=excel.RoguelikeTopicTable.details.rogue_4.relics[id].buffs
-        this.applyBuffs(...buffs)
-        this._inventory.relic[id] = {
-            index:`r_${this.index}`,
-            id:id,
-            count:count,
-            ts:parseInt((new Date().getTime()/1000).toString())
-        }
-    }
-    constructor(player:PlayerRoguelikeV2.CurrentData,_trigger: EventEmitter) {
-        this.index=0
-        this._inventory = {
-            relic: {},
-            recruit: {},
-            trap: null,
-            consumable: {},
-            exploreTool: {}
-        }
-        this._player=player
-        this._trigger=_trigger
-        this._trigger.on("rlv2:relic:gain", this.gainRelic.bind(this))
-    }
-    immediate_reward(blackboard: Blackboard){
-        switch(blackboard[0].valueStr){
-            case "rogue_4_gold":
-                this._player.player!.property.gold+=blackboard[1].value
-                break;
-            case "rogue_4_population":
-                this._player.player!.property.population.max+=blackboard[1].value
-                break;
-            default:
-                break;
-        }
-    }
-
-
-    toJSON(): PlayerRoguelikeV2.CurrentData.Inventory {
-        return this._inventory
-    }
-}
 export class RoguelikePendingEvent {
     index: number
     type: string
-    content!: PlayerRoguelikePendingEvent.Content
+    content: PlayerRoguelikePendingEvent.Content
     [key: string]: any
     constructor(type: string, index: number, args: {}) {
         this.type = type
@@ -320,6 +270,14 @@ export class RoguelikePendingEvent {
             }
         }
     }
+    RECRUIT(args: { tickets:string }):PlayerRoguelikePendingEvent.Content{
+        return{
+            recruit: {
+                ticket: args.tickets
+            }
+        }
+    }
+
     toJSON(): PlayerRoguelikePendingEvent {
         return {
             index: `e_${this.index}`,

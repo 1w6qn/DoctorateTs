@@ -13,6 +13,7 @@ import { RecruitManager } from "./RecruitManager";
 import { Excel } from "../../excel/excel";
 import { RoguelikeV2Controller } from "../controller/RoguelikeV2Controller";
 import { BattleManager } from "./BattleManager";
+import { GachaController } from "../controller/GachaController";
 
 export class PlayerDataManager {
     dungeon:DungeonManager
@@ -26,6 +27,7 @@ export class PlayerDataManager {
     shop:ShopController
     recruit:RecruitManager
     rlv2:RoguelikeV2Controller
+    gacha:GachaController
     battle!:BattleManager
     _trigger: EventEmitter
     _playerdata: PlayerDataModel;
@@ -55,10 +57,7 @@ export class PlayerDataManager {
         this.battle=new BattleManager(this._playerdata, this._trigger)
         this.recruit=new RecruitManager(playerdata.recruit,this.troop, this._trigger)
         this.rlv2=new RoguelikeV2Controller(playerdata.rlv2, this._trigger)
-        
-    }
-    init(){
-        
+        this.gacha=new GachaController(playerdata.gacha,this.status.uid,this.troop, this._trigger)
     }
     toJSON() {
         return {

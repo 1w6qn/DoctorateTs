@@ -56,4 +56,34 @@ router.post("/refreshTags", async (req, res) => {
     })
     player._trigger.emit("save")
 })
+router.post("/getPoolDetail", async (req, res) => {
+    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    await player.recruit.refreshTags(req.body!.slotId)
+    res.send({
+        detailInfo:player.gacha.getPoolDetail(req.body!.poolId),
+        gachaObjGroupType:0,
+        ...player.delta
+    })
+    player._trigger.emit("save")
+})
+router.post("/advancedGacha", async (req, res) => {
+    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    await player.recruit.refreshTags(req.body!.slotId)
+    res.send({
+        result:0,
+        charGet:await player.gacha.advancedGacha(req.body),
+        ...player.delta
+    })
+    player._trigger.emit("save")
+})
+router.post("/tenAdvancedGacha", async (req, res) => {
+    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    
+    res.send({
+        result:0,
+        gachaResultList:await player.gacha.tenAdvancedGacha(req.body),
+        ...player.delta
+    })
+    player._trigger.emit("save")
+})
 export default router;

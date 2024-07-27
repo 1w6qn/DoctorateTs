@@ -38,6 +38,13 @@ export class AccountManager {
     savePlayerData(uid: string): void {
         writeFileSync(`${__dirname}/../../../data/user/databases/${uid || "1"}.json`, JSON.stringify(this.data[uid || "1"], null, 4));
     }
+    getBeforeNonHitCnt(uid: string,gachaType:string):number{
+        return this.configs[uid]!.gacha[gachaType].beforeNonHitCnt
+    }
+    saveBeforeNonHitCnt(uid: string,gachaType:string,cnt:number):void{
+        this.configs[uid]!.gacha[gachaType].beforeNonHitCnt=cnt
+        this.saveUserConfig()
+    }
 }
 export interface UserConfig {
     uid: string
@@ -46,7 +53,12 @@ export interface UserConfig {
         stageId: string,
         replays: { [key: string]: string },
         infos: { [key: string]: BattleInfo }
-    }
+    },
+    gacha:{
+        [key:string]:{
+            beforeNonHitCnt:number,
+        }
+    },
     rlv2: {}
 }
 export interface BattleInfo {

@@ -12,10 +12,10 @@ router.post("/syncNoramlGacha", (req, res) => {
     })
     player._trigger.emit("save")
 })
-router.post("/finishNoramlGacha", (req, res) => {
+router.post("/finishNoramlGacha", async (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    player.recruit.finish(req.body!.slotId)
     res.send({
+        charGet: await player.recruit.finish(req.body!.slotId),
         ...player.delta
     })
     player._trigger.emit("save")
@@ -26,13 +26,14 @@ router.post("/boostNoramlGacha", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     player.recruit.boost(req.body!.slotId,req.body!.buy)
     res.send({
+        result:0,
         ...player.delta
     })
     player._trigger.emit("save")
 })
-router.post("/cancleNoramlGacha", (req, res) => {
+router.post("/cancleNoramlGacha", async (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    player.recruit.cancle(req.body!.slotId)
+    await player.recruit.cancle(req.body!.slotId)
 
     res.send({
         ...player.delta
@@ -47,9 +48,9 @@ router.post("/buyRecruitSlot", (req, res) => {
     })
     player._trigger.emit("save")
 })
-router.post("/refreshTags", (req, res) => {
+router.post("/refreshTags", async (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    player.recruit.refreshTags(req.body!.slotId)
+    await player.recruit.refreshTags(req.body!.slotId)
     res.send({
         ...player.delta
     })

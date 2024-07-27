@@ -53,7 +53,7 @@ export class PlayerDataManager {
         this.mission=new MissionManager(playerdata, this._trigger)
         this.shop=new ShopController(playerdata, this._trigger)
         this.battle=new BattleManager(this._playerdata, this._trigger)
-        this.recruit=new RecruitManager(playerdata.recruit, this._trigger)
+        this.recruit=new RecruitManager(playerdata.recruit,this.troop, this._trigger)
         this.rlv2=new RoguelikeV2Controller(playerdata.rlv2, this._trigger)
         
     }

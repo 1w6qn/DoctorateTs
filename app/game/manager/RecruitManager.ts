@@ -1,32 +1,38 @@
 import EventEmitter from "events";
 import { PlayerRecruit } from "../model/playerdata";
-import * as fs from 'fs';
-import { CharacterTable } from "../../excel/character_table";
-import { GachaData } from "../../excel/gacha_table";
 import excel from "../../excel/excel";
+import { TroopManager } from "./TroopManager";
+import { GachaResult } from "../model/gacha";
 
 
 export class RecruitManager {
     recruit: PlayerRecruit
+    _troop:TroopManager
     _trigger: EventEmitter
-    constructor(recruit: PlayerRecruit, _trigger: EventEmitter) {
+    constructor(recruit: PlayerRecruit,troop:TroopManager, _trigger: EventEmitter) {
         this.recruit = recruit
+        this._troop=troop
         this._trigger = _trigger
     }
     async refreshTags(slotId: number): Promise<void> {
         this.recruit.normal.slots[slotId.toString()].tags = await RecruitTools.refreshTagList()
     }
     sync() {
-
+        let ts=parseInt((new Date().getTime() / 1000).toString())
+        for(let slot of Object.values(this.recruit.normal.slots)){
+            if(slot.state === 2 &&ts>slot.maxFinishTs){
+                slot.realFinishTs = slot.maxFinishTs
+            }
+        }
     }
-    cancle(slotId: number) {
+    async cancle(slotId: number) {
         this.recruit.normal.slots[slotId.toString()].state = 1
         this.recruit.normal.slots[slotId.toString()].selectTags = []
         this.recruit.normal.slots[slotId.toString()].startTs = -1
         this.recruit.normal.slots[slotId.toString()].maxFinishTs = -1
         this.recruit.normal.slots[slotId.toString()].realFinishTs = -1
         this.recruit.normal.slots[slotId.toString()].durationInSec = -1
-
+        this.recruit.normal.slots[slotId.toString()].tags=await RecruitTools.refreshTagList()
     }
     buyRecruitSlot(slotId: number) {
         this.recruit.normal.slots[slotId.toString()].state = 1
@@ -38,28 +44,24 @@ export class RecruitManager {
         this.recruit.normal.slots[slotId.toString()].maxFinishTs = parseInt((new Date().getTime() / 1000).toString()) + duration
         this.recruit.normal.slots[slotId.toString()].realFinishTs = -1
         this.recruit.normal.slots[slotId.toString()].durationInSec = duration
-        await this.refreshTags(slotId)
+        this.recruit.normal.slots[slotId.toString()].tags=await RecruitTools.refreshTagList()
+        this._trigger.emit("useItems", [{type:"TKT_RECRUIT",count:1,id:""}])
         this._trigger.emit("NormalGacha", {})
     }
-    finish(slotId: number) {
+    async finish(slotId: number):Promise<GachaResult> {
         let selected = this.recruit.normal.slots[slotId.toString()].selectTags
-        let chars = Object.values(excel.CharacterTable).filter((char) => {
-            for (let tag of selected) {
-                let tagName = excel.GachaTable.gachaTags.find(t => t.tagId == tag.tagId)!.tagName
-                if (char.tagList?.includes(tagName)) {
-                    return true
-                }
-            }
-            return false
-        }).sort((a, b) => {
-            return parseInt(a.rarity.slice(-1)) - parseInt(b.rarity.slice(-1))
-        })
-        let char_id = chars[0]
-        this.cancle(slotId)
+        //TODO seperate
+        let [char_id,filtered] = await RecruitTools.generateValidTags(this.recruit.normal.slots[slotId.toString()].durationInSec,selected.map(v => v.tagId))
+        this.recruit.normal.slots[slotId.toString()].selectTags = selected.map(tag => ({ tagId: tag.tagId, pick: filtered.includes(tag.tagId)?1:0 }))
+        
+        await this.cancle(slotId)
+        return this._troop.gainChar(char_id)
     }
     boost(slotId: number, buy: number) {
         this.recruit.normal.slots[slotId.toString()].state = 3
         this.recruit.normal.slots[slotId.toString()].realFinishTs = parseInt((new Date().getTime() / 1000).toString())
+        this._trigger.emit("BoostNormalGacha", {})
+
     }
     toJSON(): PlayerRecruit {
         return this.recruit

@@ -8,6 +8,9 @@ export class StatusManager {
     collectionReward:PlayerCollection
     nameCardStyle:PlayerNameCardStyle
     _trigger: EventEmitter
+    get uid(): string {
+        return this.status.uid
+    }
     constructor(playerdata: PlayerDataModel, _trigger: EventEmitter) {
         this.status = playerdata.status
         this.collectionReward=playerdata.collectionReward

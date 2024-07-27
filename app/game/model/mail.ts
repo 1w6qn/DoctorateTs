@@ -1,6 +1,8 @@
+import { ItemBundle } from "app/excel/character_table";
+
 export interface MailItem extends BaseMailItem {
     mailId:    number;
-    items:     MailReward[];
+    items:     ItemBundle[];
     hasItem:   number;
 }
 export interface SurveyItem extends BaseMailItem {
@@ -19,13 +21,6 @@ export interface BaseMailItem{
     platform:  number;
     type:      number;
 }
-export interface MailReward {
-    id:    string;
-    type:  string;
-    count: number;
-    ts:    number;
-}
-
 export interface MailStyle {
     route:  number;
     banner: string;

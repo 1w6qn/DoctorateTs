@@ -23,7 +23,7 @@ export class HomeManager {
     }
     updateBackgroundCondition(bgID:string,conditionId:string,target:number){
         if(this.background.bgs[bgID].conditions){
-            let cond=this.background.bgs[bgID]!.conditions[conditionId]
+            let cond=this.background!.bgs[bgID]!.conditions[conditionId]
             cond.v=target
             if(cond.t==cond.v){
                 this._trigger.emit('background:unlock',bgID)
@@ -38,7 +38,7 @@ export class HomeManager {
     }
     updateHomeThemeCondition(themeId:string,conditionId:string,target:number){
         if(this.homeTheme.themes[themeId].conditions){
-            let cond=this.homeTheme.themes[themeId]!.conditions[conditionId]
+            let cond=this.homeTheme!.themes[themeId]!.conditions[conditionId]
             cond.v=target
             if(cond.t==cond.v){
                 this._trigger.emit('hometheme:unlock',themeId)

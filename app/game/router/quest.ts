@@ -7,45 +7,45 @@ const router = Router();
 router.post("/squadFormation", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     player.troop.squadFormation(req.body!.squadId, req.body!.slots)
-    player._trigger.emit("save")
     res.send(player.delta)
+    player._trigger.emit("save")
 })
 router.post("/changeSquadName", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     player.troop.changeSquadName(req.body!.squadId, req.body!.name)
-    player._trigger.emit("save")
     res.send(player.delta)
+    player._trigger.emit("save")
 })
 router.post("/battleStart", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    player._trigger.emit("save")
     res.send({
         ...player.battle.start(req.body),
         ...player.delta,
     })
+    player._trigger.emit("save")
 })
 router.post("/battleFinish", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    player._trigger.emit("save")
     res.send({
         ...player.battle.finish(req.body),
         ...player.delta,
     })
+    player._trigger.emit("save")
 })
 router.post("/getBattleReplay", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    player._trigger.emit("save")
     res.send({
         battleReplay: player.battle.loadReplay(req.body!.stageId),
         ...player.delta,
     })
+    player._trigger.emit("save")
 })
 router.post("/saveBattleReplay", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    player._trigger.emit("save")
     player.battle.saveReplay(req.body!.battleId, req.body!.battleReplay)
     res.send({
         ...player.delta,
     })
+    player._trigger.emit("save")
 })
 export default router;

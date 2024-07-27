@@ -1,7 +1,6 @@
 import { readFileSync, writeFileSync } from "fs";
 import { PlayerDataModel } from "../model/playerdata";
 import { PlayerDataManager } from './PlayerDataManager';
-import { MailItem } from "../model/mail";
 
 export class AccountManager {
     data: { [key: string]: PlayerDataManager }

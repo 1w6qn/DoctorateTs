@@ -33,8 +33,11 @@ export class RoguelikeFragmentManager {
             return [k, weight]
         }))
     }
-    alchemy(){
-        
+    alchemy(fragmentIndex:string[]){
+        //TODO
+    }
+    alchemyReward(fragmentIndex:string[]){
+        //TODO
     }
     use(id: string): void {
         this._fragments[id].used = true

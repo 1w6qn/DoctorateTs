@@ -1,5 +1,5 @@
 import 'frida-il2cpp-bridge';
-const serverUrl = "192.168.1.10:8443"
+const serverUrl = "192.168.1.11:8443"
 let log = console.log
 Java.perform(() => {
     const sdk = Java.use("com.hypergryph.platform.hgsdk.contants.SDKConst$UrlInfo")

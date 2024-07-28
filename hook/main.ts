@@ -16,8 +16,6 @@ Java.perform(() => {
 
 setTimeout(() => Il2Cpp.perform(() => {
     //Il2Cpp.dump("d.cs")
-    const SystemString = Il2Cpp.corlib.class("System.String");
-    const SystemDictionary = Il2Cpp.corlib.class("System.Collections.Generic.Dictionary`2");
     const Networker = Il2Cpp.domain.assembly("Torappu.Common").image.class("Torappu.Network.Networker");
     const GetOverrideRouterUrl = Networker.method<Il2Cpp.String>("get_overrideRouterUrl");
     GetOverrideRouterUrl.implementation = function (): Il2Cpp.String {

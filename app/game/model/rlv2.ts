@@ -1,4 +1,3 @@
-import { Init } from "v8"
 import { OrigChar, PlayerCharacter, SharedCharData } from "./character"
 import { Blackboard } from "../../excel/character_table"
 
@@ -193,14 +192,16 @@ export namespace PlayerRoguelikeV2 {
         }
 
         export interface Game {
-            uid: string
+            uid?: string
             theme: string
             mode: string
             modeGrade: number
             equivalentGrade: number
-            predefined: string
-            difficult: number
-            outerBuff: {}
+            predefined: string|null
+            difficult?: number
+            outer: {
+                support:boolean
+            }
             start: number
         }
         export interface Inventory {

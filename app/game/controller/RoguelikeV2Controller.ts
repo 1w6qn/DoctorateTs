@@ -1,11 +1,12 @@
 import EventEmitter from "events";
 import { PlayerRoguelikePendingEvent, PlayerRoguelikeV2, RoguelikeNodePosition } from "../model/rlv2";
 import excel from "../../excel/excel";
-import { Init } from "../../excel/roguelike_topic_table";
+import { RoguelikeGameInitData } from "../../excel/roguelike_topic_table";
 import _ from "lodash"
 import { readFileSync } from "fs";
 import { RoguelikeInventoryManager } from "./rlv2/InventoryManager";
 import { TroopManager } from "../manager/TroopManager";
+import { RoguelikeBuffManager } from "./rlv2/BuffManager";
 export class RoguelikeV2Config {
     choiceScenes: { [key: string]: { choices: { [key: string]: number } } }
     constructor() {
@@ -17,7 +18,8 @@ export class RoguelikeV2Controller {
     outer: { [key: string]: PlayerRoguelikeV2.OuterData; };
     current: PlayerRoguelikeV2.CurrentData;
     pending!: RoguelikePendingEvent[]
-    _troop:TroopManager
+    _buff: RoguelikeBuffManager
+    _troop: TroopManager
     _data: RoguelikeV2Config;
     _trigger: EventEmitter
     inventory!: RoguelikeInventoryManager | null;
@@ -36,11 +38,22 @@ export class RoguelikeV2Controller {
             module: null
         }
     }
-    async createGame(args:{theme: string, mode: string, modeGrade: number, predefinedId: string}): Promise<void> {
+    async createGame(args: { theme: string, mode: string, modeGrade: number, predefinedId: string }): Promise<void> {
         //TODO
         await excel.initPromise
         console.log("create game", args)
         let init
+        this.current.game = {
+            "mode": "NONE",
+            "predefined": null,
+            "theme": "",
+            "outer": {
+                "support": false
+            },
+            "start": -1,
+            "modeGrade": 0,
+            "equivalentGrade": 0
+        }
         this.current.player = {
             state: "INIT",
             property: {
@@ -74,8 +87,8 @@ export class RoguelikeV2Controller {
             capsule: null,
             squadBuff: []
         }
-        this.current.record = {brief: null}
-        this.inventory = new RoguelikeInventoryManager(this.current,this._troop, this._trigger)
+        this.current.record = { brief: null }
+        this.inventory = new RoguelikeInventoryManager(this, this._trigger)
         this.current.map = { zones: {} }
         switch (args.theme) {
             case "rogue_1":
@@ -87,7 +100,7 @@ export class RoguelikeV2Controller {
             case "rogue_4":
                 init = excel.RoguelikeTopicTable.details.rogue_4.init.find(
                     i => (i.modeGrade == args.modeGrade && i.predefinedId == args.predefinedId && i.modeId == args.mode)
-                ) as Init
+                ) as RoguelikeGameInitData
                 this.current.player.property.hp.current = init.initialHp
                 this.current.player.property.hp.max = init.initialHp
                 this.current.player.property.gold = init.initialGold
@@ -96,78 +109,18 @@ export class RoguelikeV2Controller {
                 this.current.player.property.shield = init.initialShield
                 this.current.player.property.hpShowState = "NORMAL"
                 this.current.player.toEnding = "ro4_ending_1"
-                
-                
-                
+
+
+
                 let pending: RoguelikePendingEvent[] = []
                 pending.push(new RoguelikePendingEvent("GAME_INIT_RELIC", 0, { step: 1, initConfig: init }))
                 pending.push(new RoguelikePendingEvent("GAME_INIT_SUPPORT", 1, { step: 2, initConfig: init }))
                 pending.push(new RoguelikePendingEvent("GAME_INIT_RECRUIT_SET", 2, { step: 3, initConfig: init }))
                 pending.push(new RoguelikePendingEvent("GAME_INIT_RECRUIT", 3, { step: 4, initConfig: init }))
-                this.pending=pending
-                this.current.player.pending=pending.map(e=>e.toJSON())
-                this.current.module={
-                    "fragment": {
-                        "totalWeight": 3,
-                        "limitWeight": 5,
-                        "overWeight": 7,
-                        "fragments": {
-                            "f_1": {
-                                "index": "f_1",
-                                "id": "rogue_4_fragment_I_1",
-                                "used": false,
-                                "ts": 1721797614,
-                                "weight": 3,
-                                "value": 3,
-                                "ei": -1
-                            }
-                        },
-                        "troopWeights": {},
-                        "troopCarry": [],
-                        "currInspiration": null
-                    },
-                    "disaster": {
-                        "curDisaster": null,
-                        "disperseStep": 0
-                    },
-                    "nodeUpgrade": {
-                        "nodeTypeInfoMap": {
-                            "REST": {
-                                "tempUpgrade": "temp_update_1",
-                                "upgradeList": [
-                                    "node_update_1",
-                                    "node_update_2",
-                                    "node_update_3",
-                                    "node_update_4",
-                                    "node_update_5"
-                                ],
-                                "currUpgradeIndex": 4
-                            },
-                            "BATTLE_SHOP": {
-                                "tempUpgrade": "temp_update_4",
-                                "upgradeList": [
-                                    "node_update_6",
-                                    "node_update_7",
-                                    "node_update_8",
-                                    "node_update_9",
-                                    "node_update_10"
-                                ],
-                                "currUpgradeIndex": 4
-                            },
-                            "ALCHEMY": {
-                                "tempUpgrade": "temp_update_7",
-                                "upgradeList": [
-                                    "node_update_11",
-                                    "node_update_12",
-                                    "node_update_13",
-                                    "node_update_14",
-                                    "node_update_15"
-                                ],
-                                "currUpgradeIndex": 4
-                            }
-                        }
-                    }
-                }
+                this.pending = pending
+                this.current.player.pending = pending.map(e => e.toJSON())
+                this.current.module = {}
+
                 break
             default:
                 break;
@@ -179,10 +132,10 @@ export class RoguelikeV2Controller {
         //TODO
 
     }
-    chooseInitialRelic(select: string){
-        let event=this.current.player!.pending.shift()
-        let relic=event!.content.initRelic!.items[select]
-        this.inventory?.gainRelic(relic.id,relic.count)
+    chooseInitialRelic(select: string) {
+        let event = this.current.player!.pending.shift()
+        let relic = event!.content.initRelic!.items[select]
+        this.inventory?.relic.gain(relic.id, relic.count)
 
     }
 
@@ -196,13 +149,15 @@ export class RoguelikeV2Controller {
         this.current.module!.fragment!.overWeight = Math.floor(this.current!.module!.fragment!.limitWeight * 1.5)
 
     }
-    constructor(data: PlayerRoguelikeV2,troop:TroopManager, _trigger: EventEmitter) {
+    constructor(data: PlayerRoguelikeV2, troop: TroopManager, _trigger: EventEmitter) {
         this.outer = data.outer
         this.current = data.current
         this.pinned = data.pinned
-        this._data = new RoguelikeV2Config()
         this._trigger = _trigger
-        this._troop=troop
+        this._data = new RoguelikeV2Config()
+        this._buff = new RoguelikeBuffManager(this.current, this._trigger)
+
+        this._troop = troop
     }
     toJSON(): PlayerRoguelikeV2 {
         return {
@@ -211,7 +166,7 @@ export class RoguelikeV2Controller {
                 player: this.current.player,
                 record: this.current.record,
                 map: this.current.map,
-                inventory: this.inventory?.toJSON()||null,
+                inventory: this.inventory?.toJSON() || null,
                 game: this.current.game,
                 troop: this.current.troop,
                 buff: this.current.buff,
@@ -231,7 +186,7 @@ export class RoguelikePendingEvent {
         this.index = index
         this.content = this[type](args) as PlayerRoguelikePendingEvent.Content
     }
-    GAME_INIT_RELIC(args: { step: number, initConfig: Init }): PlayerRoguelikePendingEvent.Content {
+    GAME_INIT_RELIC(args: { step: number, initConfig: RoguelikeGameInitData }): PlayerRoguelikePendingEvent.Content {
         return {
             initRelic: {
                 step: [args.step, 4],
@@ -241,7 +196,7 @@ export class RoguelikePendingEvent {
             }
         }
     }
-    GAME_INIT_SUPPORT(args: { step: number, initConfig: Init }): PlayerRoguelikePendingEvent.Content {
+    GAME_INIT_SUPPORT(args: { step: number, initConfig: RoguelikeGameInitData }): PlayerRoguelikePendingEvent.Content {
         return {
             initSupport: {
                 step: [args.step, 4],
@@ -252,7 +207,7 @@ export class RoguelikePendingEvent {
             }
         }
     }
-    GAME_INIT_RECRUIT_SET(args: { step: number, initConfig: Init }): PlayerRoguelikePendingEvent.Content {
+    GAME_INIT_RECRUIT_SET(args: { step: number, initConfig: RoguelikeGameInitData }): PlayerRoguelikePendingEvent.Content {
         return {
             initRecruitSet: {
                 step: [args.step, 4],
@@ -260,7 +215,7 @@ export class RoguelikePendingEvent {
             }
         }
     }
-    GAME_INIT_RECRUIT(args: { step: number, initConfig: Init }): PlayerRoguelikePendingEvent.Content {
+    GAME_INIT_RECRUIT(args: { step: number, initConfig: RoguelikeGameInitData }): PlayerRoguelikePendingEvent.Content {
         return {
             initRecruit: {
                 step: [args.step, 4],
@@ -270,8 +225,8 @@ export class RoguelikePendingEvent {
             }
         }
     }
-    RECRUIT(args: { tickets:string }):PlayerRoguelikePendingEvent.Content{
-        return{
+    RECRUIT(args: { tickets: string }): PlayerRoguelikePendingEvent.Content {
+        return {
             recruit: {
                 ticket: args.tickets
             }

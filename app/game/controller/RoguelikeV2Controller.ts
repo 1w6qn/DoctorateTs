@@ -155,7 +155,7 @@ export class RoguelikeV2Controller {
         this.pinned = data.pinned
         this._trigger = _trigger
         this._data = new RoguelikeV2Config()
-        this._buff = new RoguelikeBuffManager(this.current, this._trigger)
+        this._buff = new RoguelikeBuffManager(this, this._trigger)
 
         this._troop = troop
     }

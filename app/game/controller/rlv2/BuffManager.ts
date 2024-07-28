@@ -3,14 +3,17 @@ import { Blackboard } from "../../../excel/character_table"
 import excel from "../../../excel/excel"
 import { PlayerRoguelikeV2, RoguelikeBuff } from "../../model/rlv2"
 import EventEmitter from "events"
+import { RoguelikeV2Controller } from "../RoguelikeV2Controller"
 
 export class RoguelikeBuffManager {
-    _player: PlayerRoguelikeV2.CurrentData
+    _player: RoguelikeV2Controller
     _trigger: EventEmitter
     _buffs: RoguelikeBuff[]
+    _status:PlayerRoguelikeV2.CurrentData.PlayerStatus
     [key: string]: any
-    constructor(player: PlayerRoguelikeV2.CurrentData, _trigger: EventEmitter) {
+    constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
         this._player = player
+        this._status = this._player.current!.player as PlayerRoguelikeV2.CurrentData.PlayerStatus
         this._buffs = Object.values(player.inventory!.relic).reduce((acc, relic) => {
             let buffs = excel.RoguelikeTopicTable.details.rogue_4.relics[relic.id].buffs.filter(buff => buff.key != "immediate_reward")
             return [...acc, ...buffs]
@@ -42,37 +45,43 @@ export class RoguelikeBuffManager {
         let item: RoguelikeGameItemData = excel.RoguelikeTopicTable.details.rogue_4.items[blackboard[0].valueStr as string]
         switch (item.type) {
             case "HP":
-                this._player.player!.property.hp.current += blackboard[1].value
-                if (this._player.player!.property.hp.current > this._player.player!.property.hp.max) {
-                    this._player.player!.property.hp.current = this._player.player!.property.hp.max
+                this._status!.property.hp.current += blackboard[1].value
+                if (this._status!.property.hp.current > this._status!.property.hp.max) {
+                    this._status!.property.hp.current = this._status!.property.hp.max
                 }
                 break;
             case "HPMAX":
-                this._player.player!.property.hp.current += blackboard[1].value
-                this._player.player!.property.hp.max += blackboard[1].value
+                this._status!.property.hp.current += blackboard[1].value
+                this._status!.property.hp.max += blackboard[1].value
                 break;
             case "GOLD":
-                this._player.player!.property.gold += blackboard[1].value
+                this._status!.property.gold += blackboard[1].value
                 break;
             case "POPULATION":
-                this._player.player!.property.population.max += blackboard[1].value
+                this._status!.property.population.max += blackboard[1].value
                 break;
             case "EXP":
-                this._player.player!.property.exp += blackboard[1].value
+                this._status!.property.exp += blackboard[1].value
                 let map=excel.RoguelikeTopicTable.details.rogue_4.detailConst.playerLevelTable
-                while(this._player.player!.property.exp >= map[this._player.player!.property.level+1].exp){
-                    this._player.player!.property.level += 1
-                    this._player.player!.property.population.max += map[this._player.player!.property.level+1].populationUp
-                    this._player.player!.property.capacity += map[this._player.player!.property.level+1].squadCapacityUp
-                    this._player.player!.property.hp.max += map[this._player.player!.property.level+1].maxHpUp
-                    this._player.player!.property.hp.current += map[this._player.player!.property.level+1].populationUp
-                    this._player.player!.property.exp -= map[this._player.player!.property.level+1].exp
+                while(this._status!.property.exp >= map[this._status!.property.level+1].exp){
+
+                    this._status!.property.level += 1
+                    this._status!.property.exp -= map[this._status!.property.level+1].exp
+                    this._trigger.emit("rlv2:levelup",this._status!.property.level)
+
+                    this._status!.property.population.max += map[this._status!.property.level+1].populationUp
+                    this._status!.property.capacity += map[this._status!.property.level+1].squadCapacityUp
+                    this._status!.property.hp.max += map[this._status!.property.level+1].maxHpUp
+                    this._status!.property.hp.current += map[this._status!.property.level+1].populationUp
+                    
                 }
                 break;
             case "SQUAD_CAPACITY":
-                this._player.player!.property.capacity += blackboard[1].value
+                this._status!.property.capacity += blackboard[1].value
                 break;
-            
+            case "MAX_WEIGHT":
+                this._trigger.emit("rlv2:fragment:max_weight:add", blackboard[1].value)
+                break
             default:
                 console.log(blackboard[0].valueStr)
                 break;

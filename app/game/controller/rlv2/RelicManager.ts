@@ -10,7 +10,9 @@ export class RoguelikeRelicManager {
     _trigger: EventEmitter
 
 
-    
+    use(id: string): void {
+        
+    }
     gain(id: string, count: number): void {
         let buffs = excel.RoguelikeTopicTable.details.rogue_4.relics[id].buffs
         this._trigger.emit("rlv2:buff:apply", buffs)
@@ -23,7 +25,7 @@ export class RoguelikeRelicManager {
     }
     constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
         this.index = 0
-        this._relic = {}
+        this._relic = player.current.inventory?.relic||{}
         this._player = player
         this._trigger = _trigger
         this._trigger.on("rlv2:relic:gain", this.gain.bind(this))

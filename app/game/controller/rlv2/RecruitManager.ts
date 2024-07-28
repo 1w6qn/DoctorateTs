@@ -1,7 +1,7 @@
+import EventEmitter from "events"
 import excel from "../../../excel/excel"
 import { TroopManager } from "../../manager/TroopManager"
 import { PlayerRoguelikeV2 } from "../../model/rlv2"
-import EventEmitter from "events"
 import { RoguelikeV2Controller } from "../RoguelikeV2Controller"
 
 export class RoguelikeRecruitManager {
@@ -15,7 +15,7 @@ export class RoguelikeRecruitManager {
         let ticketInfo = excel.RoguelikeTopicTable.details.rogue_4.recruitTickets[id]
         let chars: PlayerRoguelikeV2.CurrentData.RecruitChar[] = this._troop.chars.reduce((acc, char) => {
             let data = excel.CharacterTable[char.charId]
-            const rarity = parseInt(data.rarity.slice(-1));
+            
             if (ticketInfo.professionList.some(p => data.profession.includes(p)) == false) {
                 return acc
             }
@@ -23,13 +23,14 @@ export class RoguelikeRecruitManager {
                 return acc;
             }
             let buffs = this._player._buff.filterBuffs("recruit_cost");
+            let rarity = parseInt(data.rarity.slice(-1));
             let population = [0, 0, 0, 0, 2, 6][rarity - 1]//TODO other theme
             for (let buff of buffs) {
                 if (buff.blackboard[0].valueStr?.includes(data.rarity) && buff.blackboard[1].valueStr?.includes(data.profession)) {
                     population -= buff.blackboard[2].value;
                 }
                 if (char.charId == "char_4151_tinman") {
-                    population -= 2
+                    population -= char.evolvePhase>0?2:1
 
                 }
             }
@@ -55,6 +56,7 @@ export class RoguelikeRecruitManager {
                 troopInstId: 0,
             }, levelPatch)]
         }, [] as PlayerRoguelikeV2.CurrentData.RecruitChar[])
+        //TODO free & thirdlow
         this._recruit[id].list = chars
     }
     done(id: string, optionId: string) {

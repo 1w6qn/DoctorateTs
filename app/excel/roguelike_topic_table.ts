@@ -328,18 +328,18 @@ export interface Details {
 }
 
 export interface DetailsRogue1 {
-    updates:                      Update[];
+    updates:                      RoguelikeTopicUpdate[];
     enrolls:                      Rogue1_Enrolls;
-    milestones:                   Milestone[];
-    milestoneUpdates:             MilestoneUpdate[];
-    grandPrizes:                  GrandPrize[];
-    monthMission:                 MonthMission[];
+    milestones:                   RoguelikeTopicBP[];
+    milestoneUpdates:             RoguelikeTopicMilestoneUpdateData[];
+    grandPrizes:                  RoguelikeTopicBPGrandPrize[];
+    monthMission:                 RoguelikeTopicMonthMission[];
     monthSquad:                   Rogue1_MonthSquad;
     challenges:                   Rogue1_Challenges;
     difficulties:                 Rogue1_Difficulty[];
-    bankRewards:                  BankReward[];
+    bankRewards:                  RoguelikeTopicBankReward[];
     archiveComp:                  Rogue1_ArchiveComp;
-    archiveUnlockCond:            ArchiveUnlockCond;
+    archiveUnlockCond:            RoguelikeArchiveUnlockCondData;
     detailConst:                  Rogue1_DetailConst;
     init:                         RoguelikeGameInitData[];
     stages:                       { [key: string]: Stage };
@@ -350,10 +350,10 @@ export interface DetailsRogue1 {
     upgradeTickets:               Rogue1_UpgradeTickets;
     customTickets:                BandRef;
     relics:                       { [key: string]: RoguelikeGameRelicData };
-    relicParams:                  { [key: string]: RelicParam };
+    relicParams:                  { [key: string]: RoguelikeGameRelicParamData };
     recruitGrps:                  RecruitGrps;
-    choices:                      { [key: string]: Choice };
-    choiceScenes:                 { [key: string]: ChoiceScene };
+    choices:                      { [key: string]: RoguelikeGameChoiceData };
+    choiceScenes:                 { [key: string]: RoguelikeGameChoiceSceneData };
     nodeTypeData:                 NodeTypeData;
     subTypeData:                  any[];
     variationData:                Rogue1_VariationData;
@@ -365,15 +365,15 @@ export interface DetailsRogue1 {
     capsuleDict:                  { [key: string]: CapsuleDict };
     endings:                      Rogue1_Endings;
     battleSummeryDescriptions:    BattleSummeryDescriptions;
-    battleLoadingTips:            BattleLoadingTip[];
+    battleLoadingTips:            TipData[];
     items:                        { [key: string]: RoguelikeGameItemData };
     bandRef:                      BandRef;
-    endingDetailList:             EndingDetailList[];
+    endingDetailList:             RoguelikeEndingDetailText[];
     endingRelicDetailList:        any[];
     treasures:                    BandRef;
     difficultyUpgradeRelicGroups: BandRef;
     styles:                       BandRef;
-    styleConfig:                  StyleConfig;
+    styleConfig:                  RoguelikePredefinedConstStyleData;
     exploreTools:                 BandRef;
     rollNodeData:                 BandRef;
 }
@@ -473,7 +473,7 @@ export interface Rogue1__ActiveTool {
     enrollId:   null;
 }
 
-export interface ArchiveUnlockCond {
+export interface RoguelikeArchiveUnlockCondData {
     unlockCondDesc: { [key: string]: UnlockCondDesc };
     enroll:         { [key: string]: Enroll };
 }
@@ -488,14 +488,14 @@ export interface UnlockCondDesc {
     description: string;
 }
 
-export interface BankReward {
+export interface RoguelikeTopicBankReward {
     rewardId:      string;
     unlockGoldCnt: number;
     rewardType:    string;
     desc:          string;
 }
 
-export interface BattleLoadingTip {
+export interface TipData {
     tip:      string;
     weight:   number;
     category: string;
@@ -799,7 +799,7 @@ export interface Rogue1_Challenge12_ChallengeTasks {
     rogue_1_task_12: Rogue1_Task01_Class;
 }
 
-export interface ChoiceScene {
+export interface RoguelikeGameChoiceSceneData {
     id:             string;
     title:          string;
     description:    string;
@@ -809,7 +809,7 @@ export interface ChoiceScene {
     useHiddenMusic: boolean;
 }
 
-export interface Choice {
+export interface RoguelikeGameChoiceData {
     id:                     string;
     title:                  string;
     description:            null | string;
@@ -914,7 +914,7 @@ export interface RuleDescReplacement {
     ruleDesc: string;
 }
 
-export interface EndingDetailList {
+export interface RoguelikeEndingDetailText {
     textId:        string;
     text:          string;
     eventType:     string;
@@ -1025,7 +1025,7 @@ export interface PurpleItemDropTagDict {
     TREASURE: string;
 }
 
-export interface GrandPrize {
+export interface RoguelikeTopicBPGrandPrize {
     grandPrizeDisplayId: string;
     sortId:              number;
     displayUnlockYear:   number;
@@ -1072,7 +1072,7 @@ export interface RoguelikeGameItemData {
     unlockCondDesc: null | string;
 }
 
-export interface MilestoneUpdate {
+export interface RoguelikeTopicMilestoneUpdateData {
     updateTime:        number;
     endTime:           number;
     maxBpLevel:        number;
@@ -1080,7 +1080,7 @@ export interface MilestoneUpdate {
     maxDisplayBpCount: number;
 }
 
-export interface Milestone {
+export interface RoguelikeTopicBP {
     id:           string;
     level:        number;
     tokenNum:     number;
@@ -1092,7 +1092,7 @@ export interface Milestone {
     isGrandPrize: boolean;
 }
 
-export interface MonthMission {
+export interface RoguelikeTopicMonthMission {
     id:               string;
     taskName:         string;
     taskClass:        string;
@@ -1135,32 +1135,32 @@ export interface MonthTeam {
 }
 
 export interface NodeTypeData {
-    BATTLE_NORMAL: BattleBoss;
-    BATTLE_ELITE:  BattleBoss;
-    BATTLE_BOSS:   BattleBoss;
-    SHOP:          BattleBoss;
-    REST:          BattleBoss;
-    INCIDENT:      BattleBoss;
-    TREASURE:      BattleBoss;
-    ENTERTAINMENT: BattleBoss;
-    UNKNOWN:       BattleBoss;
+    BATTLE_NORMAL: RoguelikeGameNodeTypeData;
+    BATTLE_ELITE:  RoguelikeGameNodeTypeData;
+    BATTLE_BOSS:   RoguelikeGameNodeTypeData;
+    SHOP:          RoguelikeGameNodeTypeData;
+    REST:          RoguelikeGameNodeTypeData;
+    INCIDENT:      RoguelikeGameNodeTypeData;
+    TREASURE:      RoguelikeGameNodeTypeData;
+    ENTERTAINMENT: RoguelikeGameNodeTypeData;
+    UNKNOWN:       RoguelikeGameNodeTypeData;
 }
 
-export interface BattleBoss {
+export interface RoguelikeGameNodeTypeData {
     name:        string;
     description: string;
 }
 
 export interface RecruitGrps {
-    recruit_group_random: RecruitGr;
-    recruit_group_1:      RecruitGr;
-    recruit_group_2:      RecruitGr;
-    recruit_group_3:      RecruitGr;
-    recruit_group_c4:     RecruitGr;
-    recruit_group_c5:     RecruitGr;
+    recruit_group_random: RoguelikeGameRecruitGrpData;
+    recruit_group_1:      RoguelikeGameRecruitGrpData;
+    recruit_group_2:      RoguelikeGameRecruitGrpData;
+    recruit_group_3:      RoguelikeGameRecruitGrpData;
+    recruit_group_c4:     RoguelikeGameRecruitGrpData;
+    recruit_group_c5:     RoguelikeGameRecruitGrpData;
 }
 
-export interface RecruitGr {
+export interface RoguelikeGameRecruitGrpData {
     id:         string;
     iconId:     string;
     name:       string;
@@ -1211,7 +1211,7 @@ export interface RoguelikeRecruitTicketFeature {
     extraCharIds?:    string[];
 }
 
-export interface RelicParam {
+export interface RoguelikeGameRelicParamData {
     id:                 string;
     checkCharBoxTypes:  string[];
     checkCharBoxParams: CheckCharBoxParam[];
@@ -1287,7 +1287,7 @@ export interface Stage {
     specialNodeId: null | string;
 }
 
-export interface StyleConfig {
+export interface RoguelikePredefinedConstStyleData {
     expStyleConfig: null;
 }
 
@@ -1306,7 +1306,7 @@ export interface Rogue1__ActiveTool1 {
     trapDesc: string;
 }
 
-export interface Update {
+export interface RoguelikeTopicUpdate {
     updateId:        string;
     topicUpdateTime: number;
     topicEndTime:    number;
@@ -1350,18 +1350,18 @@ export interface Rogue1_UpgradeTicketCasterClass {
 }
 
 export interface Rogue1_VariationData {
-    variation_1: Variation1;
-    variation_2: Variation1;
-    variation_3: Variation1;
-    variation_4: Variation1;
-    variation_5: Variation1;
-    variation_6: Variation1;
-    variation_7: Variation1;
-    variation_8: Variation1;
-    variation_9: Variation1;
+    variation_1: RoguelikeGameVariationData;
+    variation_2: RoguelikeGameVariationData;
+    variation_3: RoguelikeGameVariationData;
+    variation_4: RoguelikeGameVariationData;
+    variation_5: RoguelikeGameVariationData;
+    variation_6: RoguelikeGameVariationData;
+    variation_7: RoguelikeGameVariationData;
+    variation_8: RoguelikeGameVariationData;
+    variation_9: RoguelikeGameVariationData;
 }
 
-export interface Variation1 {
+export interface RoguelikeGameVariationData {
     id:           string;
     type?:        string;
     outerName:    string;
@@ -1396,18 +1396,18 @@ export interface Zone {
 }
 
 export interface DetailsRogue2 {
-    updates:                      Update[];
+    updates:                      RoguelikeTopicUpdate[];
     enrolls:                      Rogue2_Enrolls;
-    milestones:                   Milestone[];
-    milestoneUpdates:             MilestoneUpdate[];
-    grandPrizes:                  GrandPrize[];
-    monthMission:                 MonthMission[];
+    milestones:                   RoguelikeTopicBP[];
+    milestoneUpdates:             RoguelikeTopicMilestoneUpdateData[];
+    grandPrizes:                  RoguelikeTopicBPGrandPrize[];
+    monthMission:                 RoguelikeTopicMonthMission[];
     monthSquad:                   Rogue1_MonthSquad;
     challenges:                   Rogue2_Challenges;
     difficulties:                 Rogue1_Difficulty[];
-    bankRewards:                  BankReward[];
+    bankRewards:                  RoguelikeTopicBankReward[];
     archiveComp:                  Rogue2_ArchiveComp;
-    archiveUnlockCond:            ArchiveUnlockCond;
+    archiveUnlockCond:            RoguelikeArchiveUnlockCondData;
     detailConst:                  Rogue1_DetailConst;
     init:                         RoguelikeGameInitData[];
     stages:                       { [key: string]: Stage };
@@ -1418,30 +1418,30 @@ export interface DetailsRogue2 {
     upgradeTickets:               Rogue2_UpgradeTickets;
     customTickets:                CustomTickets;
     relics:                       { [key: string]: RoguelikeGameRelicData };
-    relicParams:                  { [key: string]: RelicParam };
-    recruitGrps:                  { [key: string]: RecruitGr };
-    choices:                      { [key: string]: Choice };
-    choiceScenes:                 { [key: string]: ChoiceScene };
-    nodeTypeData:                 { [key: string]: BattleBoss };
+    relicParams:                  { [key: string]: RoguelikeGameRelicParamData };
+    recruitGrps:                  { [key: string]: RoguelikeGameRecruitGrpData };
+    choices:                      { [key: string]: RoguelikeGameChoiceData };
+    choiceScenes:                 { [key: string]: RoguelikeGameChoiceSceneData };
+    nodeTypeData:                 { [key: string]: RoguelikeGameNodeTypeData };
     subTypeData:                  any[];
     variationData:                Rogue2_VariationData;
     charBuffData:                 CharBuffData;
-    squadBuffData:                { [key: string]: Variation1 };
+    squadBuffData:                { [key: string]: RoguelikeGameVariationData };
     taskData:                     { [key: string]: TaskDatum };
     gameConst:                    Rogue1_GameConst;
     shopDialogData:               Rogue1_ShopDialogData;
     capsuleDict:                  null;
     endings:                      Rogue2_Endings;
     battleSummeryDescriptions:    BattleSummeryDescriptions;
-    battleLoadingTips:            BattleLoadingTip[];
+    battleLoadingTips:            TipData[];
     items:                        { [key: string]: RoguelikeGameItemData };
     bandRef:                      { [key: string]: BandRefValue };
-    endingDetailList:             EndingDetailList[];
+    endingDetailList:             RoguelikeEndingDetailText[];
     endingRelicDetailList:        any[];
     treasures:                    Treasures;
     difficultyUpgradeRelicGroups: BandRef;
     styles:                       BandRef;
-    styleConfig:                  StyleConfig;
+    styleConfig:                  RoguelikePredefinedConstStyleData;
     exploreTools:                 BandRef;
     rollNodeData:                 BandRef;
 }
@@ -1803,14 +1803,14 @@ export interface Rogue2_Challenge12_ChallengeTasks {
 }
 
 export interface CharBuffData {
-    rogue_2_mutation_1: Variation1;
-    rogue_2_mutation_2: Variation1;
-    rogue_2_mutation_3: Variation1;
-    rogue_2_mutation_4: Variation1;
-    rogue_2_mutation_5: Variation1;
-    rogue_2_mutation_6: Variation1;
-    rogue_2_mutation_7: Variation1;
-    rogue_2_mutation_8: Variation1;
+    rogue_2_mutation_1: RoguelikeGameVariationData;
+    rogue_2_mutation_2: RoguelikeGameVariationData;
+    rogue_2_mutation_3: RoguelikeGameVariationData;
+    rogue_2_mutation_4: RoguelikeGameVariationData;
+    rogue_2_mutation_5: RoguelikeGameVariationData;
+    rogue_2_mutation_6: RoguelikeGameVariationData;
+    rogue_2_mutation_7: RoguelikeGameVariationData;
+    rogue_2_mutation_8: RoguelikeGameVariationData;
 }
 
 export interface CustomTickets {
@@ -1910,14 +1910,14 @@ export interface Rogue2_UpgradeTickets {
 }
 
 export interface Rogue2_VariationData {
-    rogue_2_variation_1: Variation1;
-    rogue_2_variation_2: Variation1;
-    rogue_2_variation_3: Variation1;
-    rogue_2_variation_4: Variation1;
-    rogue_2_variation_5: Variation1;
-    rogue_2_variation_6: Variation1;
-    rogue_2_variation_7: Variation1;
-    rogue_2_variation_8: Variation1;
+    rogue_2_variation_1: RoguelikeGameVariationData;
+    rogue_2_variation_2: RoguelikeGameVariationData;
+    rogue_2_variation_3: RoguelikeGameVariationData;
+    rogue_2_variation_4: RoguelikeGameVariationData;
+    rogue_2_variation_5: RoguelikeGameVariationData;
+    rogue_2_variation_6: RoguelikeGameVariationData;
+    rogue_2_variation_7: RoguelikeGameVariationData;
+    rogue_2_variation_8: RoguelikeGameVariationData;
 }
 
 export interface Rogue2_Zones {
@@ -1931,18 +1931,18 @@ export interface Rogue2_Zones {
 }
 
 export interface DetailsRogue3 {
-    updates:                      Update[];
+    updates:                      RoguelikeTopicUpdate[];
     enrolls:                      Rogue3_Enrolls;
-    milestones:                   Milestone[];
-    milestoneUpdates:             MilestoneUpdate[];
-    grandPrizes:                  GrandPrize[];
-    monthMission:                 MonthMission[];
+    milestones:                   RoguelikeTopicBP[];
+    milestoneUpdates:             RoguelikeTopicMilestoneUpdateData[];
+    grandPrizes:                  RoguelikeTopicBPGrandPrize[];
+    monthMission:                 RoguelikeTopicMonthMission[];
     monthSquad:                   Rogue1_MonthSquad;
     challenges:                   Rogue3_Challenges;
     difficulties:                 Rogue1_Difficulty[];
-    bankRewards:                  BankReward[];
+    bankRewards:                  RoguelikeTopicBankReward[];
     archiveComp:                  Rogue3_ArchiveComp;
-    archiveUnlockCond:            ArchiveUnlockCond;
+    archiveUnlockCond:            RoguelikeArchiveUnlockCondData;
     detailConst:                  Rogue3_DetailConst;
     init:                         RoguelikeGameInitData[];
     stages:                       { [key: string]: Stage };
@@ -1953,13 +1953,13 @@ export interface DetailsRogue3 {
     upgradeTickets:               Rogue3_UpgradeTickets;
     customTickets:                BandRef;
     relics:                       { [key: string]: RoguelikeGameRelicData };
-    relicParams:                  { [key: string]: RelicParam };
-    recruitGrps:                  { [key: string]: RecruitGr };
-    choices:                      { [key: string]: Choice };
-    choiceScenes:                 { [key: string]: ChoiceScene };
-    nodeTypeData:                 { [key: string]: BattleBoss };
+    relicParams:                  { [key: string]: RoguelikeGameRelicParamData };
+    recruitGrps:                  { [key: string]: RoguelikeGameRecruitGrpData };
+    choices:                      { [key: string]: RoguelikeGameChoiceData };
+    choiceScenes:                 { [key: string]: RoguelikeGameChoiceSceneData };
+    nodeTypeData:                 { [key: string]: RoguelikeGameNodeTypeData };
     subTypeData:                  SubTypeDatum[];
-    variationData:                Rogue3_VariationData;
+    variationData:                {[key:string]:RoguelikeGameVariationData};
     charBuffData:                 BandRef;
     squadBuffData:                BandRef;
     taskData:                     BandRef;
@@ -1968,15 +1968,15 @@ export interface DetailsRogue3 {
     capsuleDict:                  null;
     endings:                      Rogue3_Endings;
     battleSummeryDescriptions:    BattleSummeryDescriptions;
-    battleLoadingTips:            BattleLoadingTip[];
+    battleLoadingTips:            TipData[];
     items:                        { [key: string]: RoguelikeGameItemData };
     bandRef:                      BandRef;
-    endingDetailList:             EndingDetailList[];
+    endingDetailList:             RoguelikeEndingDetailText[];
     endingRelicDetailList:        any[];
     treasures:                    BandRef;
     difficultyUpgradeRelicGroups: { [key: string]: DifficultyUpgradeRelicGroup };
     styles:                       Rogue3_Styles;
-    styleConfig:                  StyleConfig;
+    styleConfig:                  RoguelikePredefinedConstStyleData;
     exploreTools:                 ExploreTools;
     rollNodeData:                 BandRef;
 }
@@ -2565,30 +2565,19 @@ export interface Rogue3_UpgradeTickets {
     rogue_3_upgrade_ticket_special: Rogue1_UpgradeTicketCasterClass;
 }
 
-export interface Rogue3_VariationData {
-    variation_1:       Variation1;
-    variation_2:       Variation1;
-    variation_3:       Variation1;
-    variation_4:       Variation1;
-    variation_5:       Variation1;
-    variation_6:       Variation1;
-    variation_shop:    Variation1;
-    variation_shelter: Variation1;
-}
-
 export interface DetailsRogue4 {
-    updates:                      Update[];
+    updates:                      RoguelikeTopicUpdate[];
     enrolls:                      BandRef;
-    milestones:                   Milestone[];
-    milestoneUpdates:             MilestoneUpdate[];
-    grandPrizes:                  GrandPrize[];
-    monthMission:                 MonthMission[];
+    milestones:                   RoguelikeTopicBP[];
+    milestoneUpdates:             RoguelikeTopicMilestoneUpdateData[];
+    grandPrizes:                  RoguelikeTopicBPGrandPrize[];
+    monthMission:                 RoguelikeTopicMonthMission[];
     monthSquad:                   Rogue4_MonthSquad;
     challenges:                   BandRef;
     difficulties:                 Rogue1_Difficulty[];
-    bankRewards:                  BankReward[];
+    bankRewards:                  RoguelikeTopicBankReward[];
     archiveComp:                  Rogue4_ArchiveComp;
-    archiveUnlockCond:            ArchiveUnlockCond;
+    archiveUnlockCond:            RoguelikeArchiveUnlockCondData;
     detailConst:                  Rogue4_DetailConst;
     init:                         RoguelikeGameInitData[];
     stages:                       { [key: string]: Stage };
@@ -2599,11 +2588,11 @@ export interface DetailsRogue4 {
     upgradeTickets:               Rogue4_UpgradeTickets;
     customTickets:                BandRef;
     relics:                       { [key: string]: RoguelikeGameRelicData };
-    relicParams:                  { [key: string]: RelicParam };
-    recruitGrps:                  { [key: string]: RecruitGr };
-    choices:                      { [key: string]: Choice };
-    choiceScenes:                 { [key: string]: ChoiceScene };
-    nodeTypeData:                 { [key: string]: BattleBoss };
+    relicParams:                  { [key: string]: RoguelikeGameRelicParamData };
+    recruitGrps:                  { [key: string]: RoguelikeGameRecruitGrpData };
+    choices:                      { [key: string]: RoguelikeGameChoiceData };
+    choiceScenes:                 { [key: string]: RoguelikeGameChoiceSceneData };
+    nodeTypeData:                 { [key: string]: RoguelikeGameNodeTypeData };
     subTypeData:                  any[];
     variationData:                BandRef;
     charBuffData:                 BandRef;
@@ -2614,17 +2603,17 @@ export interface DetailsRogue4 {
     capsuleDict:                  null;
     endings:                      Rogue4_Endings;
     battleSummeryDescriptions:    BattleSummeryDescriptions;
-    battleLoadingTips:            BattleLoadingTip[];
+    battleLoadingTips:            TipData[];
     items:                        { [key: string]: RoguelikeGameItemData };
     bandRef:                      { [key: string]: BandRefValue };
-    endingDetailList:             EndingDetailList[];
-    endingRelicDetailList:        EndingRelicDetailList[];
+    endingDetailList:             RoguelikeEndingDetailText[];
+    endingRelicDetailList:        RoguelikeEndingRelicDetailText[];
     treasures:                    BandRef;
     difficultyUpgradeRelicGroups: { [key: string]: DifficultyUpgradeRelicGroup };
     styles:                       Rogue4_Styles;
-    styleConfig:                  StyleConfig;
+    styleConfig:                  RoguelikePredefinedConstStyleData;
     exploreTools:                 BandRef;
-    rollNodeData:                 RollNodeData;
+    rollNodeData:                 RoguelikeRollNodeData;
 }
 
 export interface Rogue4_ArchiveComp {
@@ -2717,7 +2706,7 @@ export interface Rogue4_DetailConst {
     endingIconBorderCount:             number;
 }
 
-export interface EndingRelicDetailList {
+export interface RoguelikeEndingRelicDetailText {
     relicId:          string;
     summaryEventText: string;
 }
@@ -2801,7 +2790,7 @@ export interface Rogue4_MonthSquad {
 }
 
 
-export interface RollNodeData {
+export interface RoguelikeRollNodeData {
     zone_1:                Zone1;
     zone_2:                ZonePortalRevival3_Class;
     zone_3:                ZonePortalRevival3_Class;

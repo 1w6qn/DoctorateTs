@@ -27,7 +27,7 @@ router.post("/createGame", async(req, res) => {
 router.post("/chooseInitialRelic", async(req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     
-    await player.rlv2.chooseInitialRelic(req.body);
+    player.rlv2.chooseInitialRelic(req.body);
     res.send({
         
         ...player.delta

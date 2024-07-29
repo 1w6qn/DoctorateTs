@@ -9,18 +9,22 @@ import { RoguelikePlayerStatusManager } from "./PlayerStatusManager"
 export class RoguelikeBuffManager {
     _player: RoguelikeV2Controller
     _trigger: EventEmitter
-    _buffs: RoguelikeBuff[]
+    _buffs!: RoguelikeBuff[]
     _status:RoguelikePlayerStatusManager
     [key: string]: any
     constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
         this._player = player
         this._status = this._player._status
-        this._buffs = Object.values(player.inventory!.relic).reduce((acc, relic) => {
+        this._trigger = _trigger
+        this._trigger.on("rlv2:buff:apply", this.applyBuffs.bind(this))
+        this._trigger.on("rlv2:init", this.init.bind(this))
+    }
+    async init(){
+        await excel.initPromise
+        this._buffs = Object.values(this._player.inventory!.relic).reduce((acc, relic) => {
             let buffs = excel.RoguelikeTopicTable.details.rogue_4.relics[relic.id].buffs.filter(buff => buff.key != "immediate_reward")
             return [...acc, ...buffs]
         }, [] as RoguelikeBuff[])
-        this._trigger = _trigger
-        this._trigger.on("rlv2:buff:apply", this.applyBuffs.bind(this))
     }
     applyBuffs(...args: RoguelikeBuff[]) {
         args.forEach(arg => {

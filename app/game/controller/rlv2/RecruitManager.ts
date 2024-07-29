@@ -5,13 +5,16 @@ import { PlayerRoguelikeV2 } from "../../model/rlv2"
 import { RoguelikeV2Controller } from "../RoguelikeV2Controller"
 
 export class RoguelikeRecruitManager {
-    index: number
-    _recruit: { [key: string]: PlayerRoguelikeV2.CurrentData.Recruit }
+    _index: number
+    tickets: { [key: string]: PlayerRoguelikeV2.CurrentData.Recruit }
     _troop: TroopManager
     _player: RoguelikeV2Controller
     _trigger: EventEmitter
+    get index():string {
+        return `t_${this.index}`
+    }
     active(id: string) {
-        this._recruit[id].state = 1
+        this.tickets[id].state = 1
         let ticketInfo = excel.RoguelikeTopicTable.details.rogue_4.recruitTickets[id]
         let chars: PlayerRoguelikeV2.CurrentData.RecruitChar[] = this._troop.chars.reduce((acc, char) => {
             let data = excel.CharacterTable[char.charId]
@@ -57,16 +60,16 @@ export class RoguelikeRecruitManager {
             }, levelPatch)]
         }, [] as PlayerRoguelikeV2.CurrentData.RecruitChar[])
         //TODO free & thirdlow
-        this._recruit[id].list = chars
+        this.tickets[id].list = chars
     }
     done(id: string, optionId: string) {
-        this._recruit[id].state = 2
-        this._recruit[id].result = this._recruit[id].list.find(item => item.instId == parseInt(optionId)) as PlayerRoguelikeV2.CurrentData.RecruitChar
+        this.tickets[id].state = 2
+        this.tickets[id].result = this.tickets[id].list.find(item => item.instId == parseInt(optionId)) as PlayerRoguelikeV2.CurrentData.RecruitChar
 
     }
     gain(id: string, from: string, mustExtra: number): void {
-        this._recruit[id] = {
-            index: `t_${this.index}`,
+        this.tickets[id] = {
+            index: this.index,
             id: id,
             state: 0,
             list: [],
@@ -78,8 +81,8 @@ export class RoguelikeRecruitManager {
         }
     }
     constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
-        this.index = 0
-        this._recruit = player.current.inventory?.recruit || {}
+        this._index = 0
+        this.tickets = player.current.inventory?.recruit || {}
         this._troop = player._troop
         this._player = player
         this._trigger = _trigger
@@ -88,6 +91,6 @@ export class RoguelikeRecruitManager {
 
 
     toJSON(): { [key: string]: PlayerRoguelikeV2.CurrentData.Recruit } {
-        return this._recruit
+        return this.tickets
     }
 }

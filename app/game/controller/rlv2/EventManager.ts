@@ -17,7 +17,7 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
         this.content = this[type](args) as PlayerRoguelikePendingEvent.Content
     }
     get index():string{
-        return `e_${this.index}`
+        return `e_${this._index}`
     }
     GAME_INIT_RELIC(args: { step: number[], initConfig: RoguelikeGameInitData }): PlayerRoguelikePendingEvent.Content {
         return {
@@ -29,7 +29,7 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
             }
         }
     }
-    GAME_INIT_SUPPORT(args: { step: number[], initConfig: RoguelikeGameInitData }): PlayerRoguelikePendingEvent.Content {
+    GAME_INIT_SUPPORT(args: { step: number[]}): PlayerRoguelikePendingEvent.Content {
         return {
             initSupport: {
                 step: args.step,
@@ -48,7 +48,7 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
             }
         }
     }
-    GAME_INIT_RECRUIT(args: { step: number[], initConfig: RoguelikeGameInitData }): PlayerRoguelikePendingEvent.Content {
+    GAME_INIT_RECRUIT(args: { step: number[]}): PlayerRoguelikePendingEvent.Content {
         return {
             initRecruit: {
                 step: args.step,

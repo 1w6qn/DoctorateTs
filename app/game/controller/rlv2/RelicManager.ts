@@ -1,31 +1,38 @@
 import excel from "../../../excel/excel"
-import { PlayerRoguelikeV2 } from "../../model/rlv2"
+import { PlayerRoguelikeV2, RoguelikeItemBundle } from "../../model/rlv2"
 import EventEmitter from "events"
 import { RoguelikeV2Controller } from '../RoguelikeV2Controller';
 
 export class RoguelikeRelicManager {
-    index: number
-    _relic: { [key: string]: PlayerRoguelikeV2.CurrentData.Relic }
+    
+    relics: { [key: string]: PlayerRoguelikeV2.CurrentData.Relic }
+    _index: number
     _player: RoguelikeV2Controller
     _trigger: EventEmitter
 
 
+    get index(): string {
+        return `r_${this._index}`
+    }
+
     use(id: string): void {
         
     }
-    gain(id: string, count: number): void {
-        let buffs = excel.RoguelikeTopicTable.details.rogue_4.relics[id].buffs
-        this._trigger.emit("rlv2:buff:apply", buffs)
-        this._relic[id] = {
-            index: `r_${this.index}`,
-            id: id,
-            count: count,
+    async gain(relic:RoguelikeItemBundle): Promise<void> {
+        await excel.initPromise
+        let buffs = excel.RoguelikeTopicTable.details.rogue_4.relics[relic.id].buffs
+        console.log(relic.id, buffs)
+        this._trigger.emit("rlv2:buff:apply", ...buffs)
+        this.relics[relic.id] = {
+            index: this.index,
+            id: relic.id,
+            count: relic.count,
             ts: parseInt((new Date().getTime() / 1000).toString())
         }
     }
     constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
-        this.index = 0
-        this._relic = player.current.inventory?.relic||{}
+        this._index = 0
+        this.relics = player.current.inventory?.relic||{}
         this._player = player
         this._trigger = _trigger
         this._trigger.on("rlv2:relic:gain", this.gain.bind(this))
@@ -34,6 +41,6 @@ export class RoguelikeRelicManager {
 
 
     toJSON(): { [key: string]: PlayerRoguelikeV2.CurrentData.Relic } {
-        return this._relic
+        return this.relics
     }
 }

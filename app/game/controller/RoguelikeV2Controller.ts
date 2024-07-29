@@ -19,9 +19,8 @@ export class RoguelikeV2Controller {
     pinned?: string;
     outer: { [key: string]: PlayerRoguelikeV2.OuterData; };
     current: PlayerRoguelikeV2.CurrentData;
-    pending!: RoguelikePendingEvent[]
     _status!:RoguelikePlayerStatusManager
-    _buff: RoguelikeBuffManager
+    _buff!: RoguelikeBuffManager
     _troop: TroopManager
     _data: RoguelikeV2Config;
     _trigger: EventEmitter
@@ -41,23 +40,23 @@ export class RoguelikeV2Controller {
             module: null
         }
     }
-    async createGame(args: { theme: string, mode: string, modeGrade: number, predefinedId: string }): Promise<void> {
+    async createGame(args: { theme: string, mode: string, modeGrade: number, predefinedId: string|null }): Promise<void> {
         //TODO
         await excel.initPromise
         console.log("create game", args)
-        let init
+        this.giveUpGame()
         this.current.game = {
-            mode: "NONE",
-            predefined: null,
-            theme: "",
+            mode: args.mode,
+            predefined: args.predefinedId,
+            theme: args.theme,
             outer: {
                 support: false
             },
-            start: -1,
-            modeGrade: 0,
-            equivalentGrade: 0
+            start: parseInt((new Date().getTime() / 1000).toString()),
+            modeGrade: args.modeGrade,
+            equivalentGrade: args.modeGrade
         }
-        this.current.player = new RoguelikePlayerStatusManager(this, this._trigger)
+        
         this.current.troop = {
             chars: {},
             expedition: [],
@@ -71,8 +70,11 @@ export class RoguelikeV2Controller {
             squadBuff: []
         }
         this.current.record = { brief: null }
-        this.inventory = new RoguelikeInventoryManager(this, this._trigger)
+        
         this.current.map = { zones: {} }
+        this.current.module = {}
+        
+        this._trigger.emit("rlv2:create",this)
         switch (args.theme) {
             case "rogue_1":
                 break;
@@ -81,9 +83,6 @@ export class RoguelikeV2Controller {
             case "rogue_3":
                 break;
             case "rogue_4":
-                //this.current.module!.fragment=new RoguelikeFragmentManager(this,this._trigger)
-                this.current.module = {}
-
                 break
             default:
                 break;
@@ -95,10 +94,10 @@ export class RoguelikeV2Controller {
         //TODO
 
     }
-    chooseInitialRelic(select: string) {
-        let event = this.current.player!.pending.shift()
-        let relic = event!.content.initRelic!.items[select]
-        this.inventory?.relic.gain(relic.id, relic.count)
+    chooseInitialRelic(args:{select: string}) {
+        let event = this.current.player!.pending.filter(e => e.type === "GAME_INIT_RELIC").shift()
+        let relic = event!.content.initRelic!.items[args.select]
+        this._trigger.emit("rlv2:relic:gain", relic)
 
     }
 
@@ -114,9 +113,11 @@ export class RoguelikeV2Controller {
         this.pinned = data.pinned
         this._trigger = _trigger
         this._data = new RoguelikeV2Config()
-        this._buff = new RoguelikeBuffManager(this, this._trigger)
-
         this._troop = troop
+        this._status = new RoguelikePlayerStatusManager(this, this._trigger)
+        this.inventory = new RoguelikeInventoryManager(this, this._trigger)
+        this._buff = new RoguelikeBuffManager(this, this._trigger)
+        this._trigger.emit("rlv2:init", this)
     }
     toJSON(): PlayerRoguelikeV2 {
         return {
@@ -125,7 +126,7 @@ export class RoguelikeV2Controller {
                 player: this._status,
                 record: this.current.record,
                 map: this.current.map,
-                inventory: this.inventory?.toJSON() || null,
+                inventory: this.inventory,
                 game: this.current.game,
                 troop: this.current.troop,
                 buff: this.current.buff,

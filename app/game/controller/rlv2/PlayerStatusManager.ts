@@ -24,7 +24,7 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
             state: "NONE",
             property: {
                 exp: 0,
-                level: 0,
+                level: 1,
                 maxLevel: 0,
                 hp: { current: 0, max: 0 },
                 gold: 0,
@@ -49,15 +49,16 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
         this.status = _status.status
         this.pending = _status.pending
         this._trigger = _trigger
-        this._trigger.on("rlv2:init", this.init.bind(this))
+        this._trigger.on("rlv2:create", this.create.bind(this))
     }
     get state(): string {
-        if (!(this._player.current.game!.start == -1)) return "NONE"
-        if (!this.pending.some(e => e.type.includes("INIT"))) return "INIT"
+        if (this._player.current.game!.start == -1) return "NONE"
+        if (this.pending.some(e => e.type.includes("INIT"))) return "INIT"
         if (this.pending) return "PENDING"
         return "WAIT_MOVE"
     }
-    init() {
+    async create() {
+        await excel.initPromise
         let game = this._player.current.game!
         let init = excel.RoguelikeTopicTable.details.rogue_4.init.find(
             i => (i.modeGrade == game.modeGrade && i.predefinedId == game.predefined && i.modeId == game.mode)
@@ -69,10 +70,11 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
         this.property.population.max = init.initialPopulation
         this.property.shield = init.initialShield
         let stepCnt=4
-        this.pending.push(new RoguelikePendingEvent(this._player, "GAME_INIT_RELIC", 0, {step:[1,4]}))
-        this.pending.push(new RoguelikePendingEvent(this._player, "GAME_INIT_SUPPORT", 1, {step:[2,4]}))
-        this.pending.push(new RoguelikePendingEvent(this._player, "GAME_INIT_RECRUIT_SET", 2, {step:[3,4]}))
-        this.pending.push(new RoguelikePendingEvent(this._player, "GAME_INIT_RECRUIT", 3, {step:[4,4]}))
+        this.pending=[]
+        this.pending.push(new RoguelikePendingEvent(this._player, "GAME_INIT_RELIC", 0, {step:[1,4],initConfig:init}))
+        this.pending.push(new RoguelikePendingEvent(this._player, "GAME_INIT_SUPPORT", 1, {step:[2,4],initConfig:init}))
+        this.pending.push(new RoguelikePendingEvent(this._player, "GAME_INIT_RECRUIT_SET", 2, {step:[3,4],initConfig:init}))
+        this.pending.push(new RoguelikePendingEvent(this._player, "GAME_INIT_RECRUIT", 3, {step:[4,4],initConfig:init}))
         this.toEnding = `ro${game.theme.slice(-1)}_ending_1`
     }
 

@@ -12,6 +12,11 @@ export class RoguelikeBattleManager {
         this._player = player
         this._trigger = _trigger
     }
-    
+    start(){
+
+    }
+    finish(){
+        
+    }
 }
 

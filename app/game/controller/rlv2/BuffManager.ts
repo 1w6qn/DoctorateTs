@@ -4,16 +4,17 @@ import excel from "../../../excel/excel"
 import { PlayerRoguelikeV2, RoguelikeBuff } from "../../model/rlv2"
 import EventEmitter from "events"
 import { RoguelikeV2Controller } from "../RoguelikeV2Controller"
+import { RoguelikePlayerStatusManager } from "./PlayerStatusManager"
 
 export class RoguelikeBuffManager {
     _player: RoguelikeV2Controller
     _trigger: EventEmitter
     _buffs: RoguelikeBuff[]
-    _status:PlayerRoguelikeV2.CurrentData.PlayerStatus
+    _status:RoguelikePlayerStatusManager
     [key: string]: any
     constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
         this._player = player
-        this._status = this._player.current!.player as PlayerRoguelikeV2.CurrentData.PlayerStatus
+        this._status = this._player._status
         this._buffs = Object.values(player.inventory!.relic).reduce((acc, relic) => {
             let buffs = excel.RoguelikeTopicTable.details.rogue_4.relics[relic.id].buffs.filter(buff => buff.key != "immediate_reward")
             return [...acc, ...buffs]

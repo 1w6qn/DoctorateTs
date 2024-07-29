@@ -58,7 +58,6 @@ router.post("/refreshTags", async (req, res) => {
 })
 router.post("/getPoolDetail", async (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    await player.recruit.refreshTags(req.body!.slotId)
     res.send({
         detailInfo:player.gacha.getPoolDetail(req.body!.poolId),
         gachaObjGroupType:0,
@@ -68,7 +67,6 @@ router.post("/getPoolDetail", async (req, res) => {
 })
 router.post("/advancedGacha", async (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    await player.recruit.refreshTags(req.body!.slotId)
     res.send({
         result:0,
         charGet:await player.gacha.advancedGacha(req.body),

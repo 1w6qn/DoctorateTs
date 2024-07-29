@@ -76,7 +76,7 @@ export class PlayerDataManager {
             crisis:this._playerdata.crisis,
             crisisV2:this._playerdata.crisisV2,
             tshop:this._playerdata.tshop,
-            gacha:this._playerdata.gacha,
+            gacha:this.gacha,
             backflow:this._playerdata.backflow,
             mainline:this._playerdata.mainline,
             avatar:this._playerdata.avatar,

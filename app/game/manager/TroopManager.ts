@@ -38,10 +38,10 @@ export class TroopManager {
         return this.chars.at(instId - 1) as PlayerCharacter;
     }
     gainChar(charId: string, args: {from:string}={from:"NORMAL"}): GachaResult {
-        let isNew=this.chars.some(char => char.charId === charId)?1:0
+        let isNew=this.chars.some(char => char.charId === charId)?0:1
         let charInstId=0
         let items:ItemBundle[]=[]
-        if (isNew) {
+        if (!isNew) {
             let potentId = excel.CharacterTable[charId].potentialItemId as string;
             items.push({ id: potentId, count: 1, type: "MATERIAL" })
             let t=this._playerdata.dexNav.character[charId].count>6

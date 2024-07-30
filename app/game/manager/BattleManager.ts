@@ -2,8 +2,8 @@ import { accountManager } from '../manager/AccountManger';
 import { PlayerDataModel } from "../model/playerdata";
 import EventEmitter from "events";
 import { PlayerSquad, SquadFriendData } from "../model/character";
-import excel from "../../excel/excel";
-import crypto from "crypto";
+import excel from "@excel/excel";
+import { decryptBattleData } from '@utils/crypt';
 export interface CommonStartBattleRequest {
     isRetro: number
     pray: number
@@ -19,10 +19,6 @@ export interface CommonStartBattleRequest {
     startTs: number
 }
 
-
-const LOG_TOKEN_KEY = "pM6Umv*^hVQuB6t&";
-
-
 export class BattleManager {
     _playerdata: PlayerDataModel;
     _trigger: EventEmitter;
@@ -31,18 +27,6 @@ export class BattleManager {
         this._playerdata = _playerdata;
         this._trigger = _trigger;
 
-    }
-    decryptBattleData(data: string) {
-        const battleData = Buffer.from(data.slice(0, data.length - 32), 'hex');
-        const src = LOG_TOKEN_KEY + this._playerdata.pushFlags.status.toString();
-        const key = crypto.createHash('md5').update(src).digest();
-        const iv = Buffer.from(data.slice(data.length - 32), 'hex');
-        const decipher = crypto.createDecipheriv('aes-128-cbc', key, iv);
-        let decryptedData = decipher.update(battleData);
-        let decrypt = Buffer.concat([decryptedData, decipher.final()]).toString();
-        console.log(decrypt)
-        const jsonData = JSON.parse(decrypt);
-        return jsonData
     }
     async start(args: CommonStartBattleRequest) {
         await excel.initPromise
@@ -80,7 +64,7 @@ export class BattleManager {
         }
     }
     finish(args: { data: string, battleData: { isCheat: string, completeTime: number } }) {
-        let battleData=this.decryptBattleData(args.data)
+        let battleData=decryptBattleData(args.data,this._playerdata.pushFlags.status)
         let stageId=accountManager.getBattleInfo(this._playerdata.status.uid,battleData.battleId)?.stageId
         this._trigger.emit('CompleteStageAnyType', battleData)
         this._trigger.emit('CompleteStage', {...battleData,stageId:stageId})

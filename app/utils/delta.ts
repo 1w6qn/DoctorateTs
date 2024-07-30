@@ -1,5 +1,3 @@
-import { readFileSync } from "fs";
-
 type Diff<T> = {
     path: string;
     value1: T;
@@ -10,7 +8,7 @@ function isObject(obj: any): boolean {
     return obj !== null && typeof obj === 'object' && !Array.isArray(obj);
 }
 
-function compare<T extends object>(obj1: T, obj2: T): object {
+export function compare<T extends object>(obj1: T, obj2: T): object {
     const diffs: Diff<any>[] = [];
     const newObject: any = { ...obj2 };
 
@@ -54,11 +52,3 @@ function compare<T extends object>(obj1: T, obj2: T): object {
 
     return newObject;
 }
-
-const obj1 = JSON.parse(readFileSync(`${__dirname}/../../a.json`, 'utf-8'));
-
-const obj2 = JSON.parse(readFileSync(`${__dirname}/../../1.json`, 'utf-8'));
-let ts = new Date().getTime()
-const o = compare(obj1, obj2);
-let dt = new Date().getTime() - ts
-console.log(o, dt);

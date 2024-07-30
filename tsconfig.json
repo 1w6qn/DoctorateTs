@@ -11,8 +11,15 @@
     "baseUrl": ".", // 基准目录，通常是项目根目录
     "paths": {
       "@excel/*": [
-        "data/excel/*"
+        "app/excel/*"
       ],
+      "@utils/*": [
+        "app/utils/*"
+      ],
+      "@game/*":[
+        "app/game/*"
+      ]
     },
+    "forceConsistentCasingInFileNames":true
   }
 }

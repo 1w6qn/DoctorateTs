@@ -1,4 +1,4 @@
-import excel from "../../../excel/excel"
+import excel from "@excel/excel"
 import { PlayerRoguelikeV2 } from "../../model/rlv2"
 import EventEmitter from "events"
 import { RoguelikeV2Controller } from '../RoguelikeV2Controller';
@@ -87,7 +87,7 @@ export class RoguelikeFragmentManager {
         return {
             totalWeight: this._totalWeight,
             limitWeight: this.limitWeight,
-            overWeight: Math.floor(this.limitWeight),
+            overWeight: Math.floor(this.limitWeight*1.5),
             fragments: this._fragments,
             troopWeights: this._troopWeights,
             troopCarry: this._troopCarry,

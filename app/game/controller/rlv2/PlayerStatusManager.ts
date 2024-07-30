@@ -2,7 +2,7 @@ import { EventEmitter } from "events"
 import { PlayerRoguelikePendingEvent, PlayerRoguelikeV2 } from "../../model/rlv2"
 
 import { RoguelikeV2Controller } from '../RoguelikeV2Controller';
-import excel from "../../../excel/excel";
+import excel from "@excel/excel";
 import { RoguelikeGameInitData } from "app/excel/roguelike_topic_table";
 import { RoguelikePendingEvent } from "./EventManager";
 

@@ -1,4 +1,4 @@
-import { RoguelikeGameInitData } from "../../../excel/roguelike_topic_table"
+import { RoguelikeGameInitData } from "@excel/roguelike_topic_table"
 import { PlayerRoguelikePendingEvent } from "../../model/rlv2"
 import _ from "lodash"
 import { RoguelikeV2Controller } from "../RoguelikeV2Controller"

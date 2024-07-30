@@ -12,7 +12,7 @@ export class RoguelikeFragmentManager {
     _player: RoguelikeV2Controller
     _trigger: EventEmitter
     get _totalWeight(): number {
-        return Object.values(this._fragments).reduce((acc, cur) => acc + cur.weight, 0)
+        return Object.values(this._fragments).filter(f =>!f.used).reduce((acc, cur) => acc + cur.weight, 0)
     }
     get _troopWeights(): { [key: string]: number } {
         let chars = this._player.current.troop!.chars
@@ -33,21 +33,30 @@ export class RoguelikeFragmentManager {
             return [k, weight]
         }))
     }
-    alchemy(fragmentIndex:string[]){
+    alchemy(fragmentIndex:[string,string]){
+        let [f1,f2]=fragmentIndex
         //TODO
     }
-    alchemyReward(fragmentIndex:string[]){
+    alchemyReward(fragmentIndex:[string,string]){
+        let [f1,f2]=fragmentIndex
         //TODO
     }
-    use(id: string,count:number): void {
-        this._fragments[id].used = true
+    useInspiration(fragmentIndex: string): void {
+        this._fragments[fragmentIndex].used = true
         this._currInspiration = {
-            instId:this._fragments[id].index,
-            id:id
+            instId:fragmentIndex,
+            id:this._fragments[fragmentIndex].id,
+            ei:-1,
         }
     }
-    lose(id: string): void {
-        delete this._fragments[id]
+    use(id: string,count:number){
+        for(let i=0;i<count;i++){
+            let f=Object.values(this._fragments).filter(f => f.id == id &&!f.used)[i]!
+            f.used=true
+        }
+    }
+    lose(fragmentIndex: string): void {
+        this._fragments[fragmentIndex].used = true
     }
     gain(id: string): void {
         let data = excel.RoguelikeTopicTable.modules.rogue_4.fragment?.fragmentData[id]
@@ -75,6 +84,9 @@ export class RoguelikeFragmentManager {
         this._trigger.on("rlv2:fragment:max_weight:add", (count)=>{
             this.limitWeight+=count
         })
+        this._trigger.on("rlv2:fragment:use", this.use.bind(this))
+        this._trigger.on("rlv2:fragment:lose", this.lose.bind(this))
+        this._trigger.on("rlv2:fragment:use:inspiration", this.useInspiration.bind(this))
 
         this._trigger.on("rlv2:levelup", targetLevel => {
             this.limitWeight += excel.RoguelikeTopicTable.modules.rogue_4.fragment?.fragmentLevelData[targetLevel].weightUp as number

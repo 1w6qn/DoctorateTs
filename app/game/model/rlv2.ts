@@ -266,7 +266,7 @@ export namespace PlayerRoguelikeV2 {
             }
             export interface Totem {
                 totemPiece: InventoryTotem[],
-                predictTotemId: string,
+                predictTotemId?: string,
 
             }
             export interface Vision {
@@ -310,7 +310,8 @@ export namespace PlayerRoguelikeV2 {
             }
             export interface InventoryInspiration {
                 instId: string,
-                id: string
+                id: string,
+                ei?:number
             }
             export interface Disaster {
                 curDisaster: string|null,

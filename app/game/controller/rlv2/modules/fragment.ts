@@ -1,7 +1,7 @@
 import excel from "@excel/excel"
-import { PlayerRoguelikeV2 } from "../../model/rlv2"
+import { PlayerRoguelikeV2 } from "../../../model/rlv2"
 import EventEmitter from "events"
-import { RoguelikeV2Controller } from '../RoguelikeV2Controller';
+import { RoguelikeV2Controller } from '../../RoguelikeV2Controller';
 
 export class RoguelikeFragmentManager {
     index: number
@@ -39,7 +39,7 @@ export class RoguelikeFragmentManager {
     alchemyReward(fragmentIndex:string[]){
         //TODO
     }
-    use(id: string): void {
+    use(id: string,count:number): void {
         this._fragments[id].used = true
         this._currInspiration = {
             instId:this._fragments[id].index,

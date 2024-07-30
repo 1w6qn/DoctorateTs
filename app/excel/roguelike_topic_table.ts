@@ -4,7 +4,7 @@ export interface RoguelikeTopicTable {
     topics:        Topics;
     constant:      Constant;
     details:       Details;
-    modules:       Modules;
+    modules:       {[key: string]:RoguelikeModule};
     customizeData: CustomizeData;
 }
 
@@ -2906,33 +2906,27 @@ export interface Rogue4_UpgradeTickets {
     rogue_4_upgrade_ticket_special: Rogue1_UpgradeTicketCasterClass;
 }
 
-export interface Modules {
-    rogue_1: ModulesRogue1;
-    rogue_2: ModulesRogue1;
-    rogue_3: ModulesRogue1;
-    rogue_4: ModulesRogue1;
-}
 
-export interface ModulesRogue1 {
+export interface RoguelikeModule {
     moduleTypes: string[];
-    sanCheck:    SANCheck | null;
-    dice:        Dice | null;
-    chaos:       Rogue1_Chaos | null;
-    totemBuff:   TotemBuff | null;
-    vision:      Vision | null;
-    fragment:    Rogue1_Fragment | null;
-    disaster:    Rogue1_Disaster | null;
-    nodeUpgrade: NodeUpgrade | null;
+    sanCheck:    RoguelikeSanCheckModuleData | null;
+    dice:        RoguelikeDiceModuleData | null;
+    chaos:       RoguelikeChaosModuleData | null;
+    totemBuff:   RoguelikeTotemBuffModuleData | null;
+    vision:      RoguelikeVisionModuleData | null;
+    fragment:    RoguelikeFragmentModuleData | null;
+    disaster:    RoguelikeDisasterModuleData | null;
+    nodeUpgrade: RoguelikeNodeUpgradeModuleData | null;
 }
 
-export interface Rogue1_Chaos {
-    chaosDatas:    { [key: string]: ChaosData };
-    chaosRanges:   ChaosRange[];
-    levelInfoDict: LevelInfoDict;
-    moduleConsts:  ChaosModuleConsts;
+export interface RoguelikeChaosModuleData {
+    chaosDatas:    { [key: string]: RoguelikeChaosData };
+    chaosRanges:   RoguelikeChaosRangeData[];
+    levelInfoDict: {[key:string]:{ [key: string]: RoguelikeChaosPredefineLevelInfo }};
+    moduleConsts:  RoguelikeChaosModuleConsts;
 }
 
-export interface ChaosData {
+export interface RoguelikeChaosData {
     chaosId:      string;
     level:        number;
     nextChaosId:  null | string;
@@ -2945,23 +2939,17 @@ export interface ChaosData {
     sortId:       number;
 }
 
-export interface ChaosRange {
+export interface RoguelikeChaosRangeData {
     chaosMax:           number;
     chaosDungeonEffect: string;
 }
 
-export interface LevelInfoDict {
-    rule_1: { [key: string]: Rule };
-    rule_2: { [key: string]: Rule };
-    rule_3: { [key: string]: Rule };
-}
-
-export interface Rule {
+export interface RoguelikeChaosPredefineLevelInfo {
     chaosLevelBeginNum: number;
     chaosLevelEndNum:   number;
 }
 
-export interface ChaosModuleConsts {
+export interface RoguelikeChaosModuleConsts {
     maxChaosLevel:           number;
     maxChaosSlot:            number;
     chaosNotMaxDescription:  string;
@@ -2969,15 +2957,15 @@ export interface ChaosModuleConsts {
     chaosPredictDescription: string;
 }
 
-export interface Dice {
-    dice:           { [key: string]: Die };
-    diceEvents:     { [key: string]: DiceEvent };
-    diceChoices:    DiceChoices;
-    diceRuleGroups: { [key: string]: DiceRuleGroup };
-    dicePredefines: DicePredefine[];
+export interface RoguelikeDiceModuleData {
+    dice:           { [key: string]: RoguelikeDiceData };
+    diceEvents:     { [key: string]: RoguelikeDiceRuleData };
+    diceChoices:    { [key: string]: string };
+    diceRuleGroups: { [key: string]: RoguelikeDiceRuleGroupData };
+    dicePredefines: RoguelikeDicePredefineData[];
 }
 
-export interface Die {
+export interface RoguelikeDiceData {
     diceId:        string;
     description:   string;
     isUpgradeDice: number;
@@ -2986,33 +2974,8 @@ export interface Die {
     battleDiceId:  string;
 }
 
-export interface DiceChoices {
-    choice_ro2_wish_1:     string;
-    choice_ro2_wish_2:     string;
-    choice_ro2_wish_3:     string;
-    choice_ro2_wish_4:     string;
-    choice_ro2_wish_5:     string;
-    choice_ro2_wish_6:     string;
-    choice_ro2_wish_7:     string;
-    choice_ro2_recruit1_3: string;
-    choice_ro2_9_1:        string;
-    choice_ro2_9_3:        string;
-    choice_ro2_9_4:        string;
-    choice_ro2_9_5:        string;
-    choice_ro2_9_6:        string;
-    choice_ro2_9_7:        string;
-    choice_ro2_9_8:        string;
-    choice_ro2_9_9:        string;
-    choice_ro2_9_10:       string;
-    choice_ro2_9_11:       string;
-    choice_ro2_9_12:       string;
-    choice_ro2_king_1:     string;
-    choice_ro2_king_3:     string;
-    choice_ro2_liar1_1:    string;
-    choice_ro2_bossa1_2:   string;
-}
 
-export interface DiceEvent {
+export interface RoguelikeDiceRuleData {
     dicePointMax:    number;
     diceResultClass: string;
     diceGroupId:     string;
@@ -3025,23 +2988,23 @@ export interface DiceEvent {
     sound:           string;
 }
 
-export interface DicePredefine {
+export interface RoguelikeDicePredefineData {
     modeId:           string;
     modeGrade:        number;
     predefinedId:     null | string;
     initialDiceCount: number;
 }
 
-export interface DiceRuleGroup {
+export interface RoguelikeDiceRuleGroupData {
     ruleGroupId: string;
     minGoodNum:  number;
 }
 
-export interface Rogue1_Disaster {
-    disasterData: { [key: string]: DisasterDatum };
+export interface RoguelikeDisasterModuleData {
+    disasterData: { [key: string]: RoguelikeDisasterData };
 }
 
-export interface DisasterDatum {
+export interface RoguelikeDisasterData {
     id:           string;
     iconId:       string;
     toastIconId:  string;
@@ -3054,17 +3017,17 @@ export interface DisasterDatum {
     sound:        null;
 }
 
-export interface Rogue1_Fragment {
-    fragmentData:       { [key: string]: FragmentDatum };
-    fragmentTypeData:   FragmentTypeData;
-    moduleConsts:       FragmentModuleConsts;
-    fragmentBuffData:   { [key: string]: FragmentBuffDatum };
-    alchemyData:        { [key: string]: AlchemyDatum };
-    alchemyFormulaData: { [key: string]: AlchemyFormulaDatum };
-    fragmentLevelData:  { [key: string]: FragmentLevelDatum };
+export interface RoguelikeFragmentModuleData {
+    fragmentData:       { [key: string]: RoguelikeFragmentData };
+    fragmentTypeData:   {[key:string]:RoguelikeFragmentTypeData};
+    moduleConsts:       RoguelikeFragmentModuleConsts;
+    fragmentBuffData:   { [key: string]: RoguelikeFragmentBuffData };
+    alchemyData:        { [key: string]: RoguelikeAlchemyData };
+    alchemyFormulaData: { [key: string]: RoguelikeAlchemyFormulationData };
+    fragmentLevelData:  { [key: string]: RoguelikeFragmentLevelRelatedData };
 }
 
-export interface AlchemyDatum {
+export interface RoguelikeAlchemyData {
     fragmentTypeList:  string[];
     fragmentSquareSum: number;
     poolRarity:        string;
@@ -3073,44 +3036,40 @@ export interface AlchemyDatum {
     populationProp:    number;
 }
 
-export interface AlchemyFormulaDatum {
+export interface RoguelikeAlchemyFormulationData {
     fragmentIds:    string[];
     rewardId:       string;
     rewardCount:    number;
     rewardItemType: string;
 }
 
-export interface FragmentBuffDatum {
+export interface RoguelikeFragmentBuffData {
     itemId:   string;
     maskType: string;
     desc:     null | string;
 }
 
-export interface FragmentDatum {
+export interface RoguelikeFragmentData {
     id:     string;
     type:   string;
     value:  number;
     weight: number;
 }
 
-export interface FragmentLevelDatum {
+export interface RoguelikeFragmentLevelRelatedData {
     weightUp: number;
 }
 
-export interface FragmentTypeData {
-    WISH:        Idea;
-    INSPIRATION: Idea;
-    IDEA:        Idea;
-}
 
-export interface Idea {
+
+export interface RoguelikeFragmentTypeData {
     type:       string;
     typeName:   string;
     typeDesc:   string;
     typeIconId: string;
 }
 
-export interface FragmentModuleConsts {
+export interface RoguelikeFragmentModuleConsts {
     weightStatusSafeDesc:            string;
     weightStatusLimitDesc:           string;
     weightStatusOverweightDesc:      string;
@@ -3124,24 +3083,19 @@ export interface FragmentModuleConsts {
     weightUpgradeToastFormat:        string;
 }
 
-export interface NodeUpgrade {
-    nodeUpgradeDataMap: NodeUpgradeDataMap;
+export interface RoguelikeNodeUpgradeModuleData {
+    nodeUpgradeDataMap: {[key:string]:RoguelikeNodeUpgradeData};
 }
 
-export interface NodeUpgradeDataMap {
-    REST:        Alchemy;
-    BATTLE_SHOP: Alchemy;
-    ALCHEMY:     Alchemy;
-}
 
-export interface Alchemy {
+export interface RoguelikeNodeUpgradeData {
     nodeType:     string;
     sortId:       number;
-    permItemList: PermItemList[];
-    tempItemList: TempItemList[];
+    permItemList: RoguelikePermNodeUpgradeItemData[];
+    tempItemList: RoguelikeTempNodeUpgradeItemData[];
 }
 
-export interface PermItemList {
+export interface RoguelikePermNodeUpgradeItemData {
     upgradeId:     string;
     nodeType:      string;
     nodeLevel:     number;
@@ -3151,7 +3105,7 @@ export interface PermItemList {
     nodeName:      string;
 }
 
-export interface TempItemList {
+export interface RoguelikeTempNodeUpgradeItemData {
     upgradeId:     string;
     nodeType:      string;
     sortId:        number;
@@ -3160,52 +3114,39 @@ export interface TempItemList {
     desc:          string;
 }
 
-export interface SANCheck {
-    sanRanges:    SANRange[];
-    moduleConsts: SANCheckModuleConsts;
+export interface RoguelikeSanCheckModuleData {
+    sanRanges:    RoguelikeSanRangeData[];
+    moduleConsts: RoguelikeSanCheckConsts;
 }
 
-export interface SANCheckModuleConsts {
+export interface RoguelikeSanCheckConsts {
     sanDecreaseToast: string;
 }
 
-export interface SANRange {
+export interface RoguelikeSanRangeData {
     sanMax:           number;
     diceGroupId:      string;
     description:      string;
     sanDungeonEffect: string;
     sanEffectRank:    string;
-    sanEndingDesc:    null;
+    sanEndingDesc:    null|string;
 }
 
-export interface TotemBuff {
-    totemBuffDatas: { [key: string]: TotemBuffData };
-    subBuffs:       SubBuffs;
-    moduleConsts:   TotemBuffModuleConsts;
+export interface RoguelikeTotemBuffModuleData {
+    totemBuffDatas: { [key: string]: RoguelikeTotemBuffData };
+    subBuffs:       { [key: string]: RoguelikeTotemSubBuffData };
+    moduleConsts:   RoguelikeTotemModuleConsts;
 }
 
-export interface TotemBuffModuleConsts {
+export interface RoguelikeTotemModuleConsts {
     totemPredictDescription:    string;
-    colorCombineDesc:           ColorCombineDesc;
+    colorCombineDesc:           { [key: string]: string };
     bossCombineDesc:            string;
     battleNoPredictDescription: string;
     shopNoGoodsDescription:     string;
 }
 
-export interface ColorCombineDesc {
-    RED:   string;
-    GREEN: string;
-    BLUE:  string;
-}
-
-export interface SubBuffs {
-    rogue_3_totem_enchant_1: Rogue3__TotemEnchant;
-    rogue_3_totem_enchant_2: Rogue3__TotemEnchant;
-    rogue_3_totem_enchant_3: Rogue3__TotemEnchant;
-    rogue_3_totem_enchant_4: Rogue3__TotemEnchant;
-}
-
-export interface Rogue3__TotemEnchant {
+export interface RoguelikeTotemSubBuffData {
     subBuffId:    string;
     name:         string;
     desc:         string;
@@ -3213,7 +3154,7 @@ export interface Rogue3__TotemEnchant {
     info:         string;
 }
 
-export interface TotemBuffData {
+export interface RoguelikeTotemBuffData {
     totemId:                  string;
     color:                    string;
     pos:                      string;
@@ -3224,39 +3165,39 @@ export interface TotemBuffData {
     combineGroupName:         string;
     bgIconId:                 string;
     isManual:                 boolean;
-    linkedNodeTypeData:       LinkedNodeTypeData;
+    linkedNodeTypeData:       RoguelikeTotemLinkedNodeTypeData;
     distanceMin:              number;
     distanceMax:              number;
     vertPassable:             boolean;
     expandLength:             number;
     onlyForVert:              boolean;
-    portalLinkedNodeTypeData: LinkedNodeTypeData;
+    portalLinkedNodeTypeData: RoguelikeTotemLinkedNodeTypeData;
 }
 
-export interface LinkedNodeTypeData {
+export interface RoguelikeTotemLinkedNodeTypeData {
     effectiveNodeTypes: string[];
     blurNodeTypes:      string[];
 }
 
-export interface Vision {
-    visionDatas:   { [key: string]: VisionData };
-    visionChoices: { [key: string]: VisionChoice };
-    moduleConsts:  VisionModuleConsts;
+export interface RoguelikeVisionModuleData {
+    visionDatas:   { [key: string]: RoguelikeVisionData };
+    visionChoices: { [key: string]: VisionChoiceConfig };
+    moduleConsts:  RoguelikeVisionModuleConsts;
 }
 
-export interface VisionModuleConsts {
+export interface RoguelikeVisionModuleConsts {
     maxVision:              number;
     totemBottomDescription: string;
     chestBottomDescription: string;
     goodsBottomDescription: string;
 }
 
-export interface VisionChoice {
+export interface VisionChoiceConfig {
     value: number;
     type:  string;
 }
 
-export interface VisionData {
+export interface RoguelikeVisionData {
     sightNum:   number;
     level:      number;
     canForesee: boolean;

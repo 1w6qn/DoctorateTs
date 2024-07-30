@@ -1,8 +1,9 @@
 import EventEmitter from "events";
 import { PlayerRecruit } from "../model/playerdata";
-import excel from "../../excel/excel";
+import excel from "@excel/excel";
 import { TroopManager } from "./TroopManager";
 import { GachaResult } from "../model/gacha";
+import { randomChoices, randomChoice, randomSample,randomInt } from "@utils/random";
 
 
 export class RecruitManager {
@@ -171,17 +172,17 @@ export class RecruitTools {
         const probs = Object.values(rankWeights);
 
         while (tagsSet.length < 5) {
-            const randomGroup = this.randomChoices(ranks, probs, 10);
-            const charPool = randomGroup.map(group => this.randomChoice(charsList[parseInt(group[0])-1]));
+            const randomGroup = randomChoices(ranks, probs, 10);
+            const charPool = randomGroup.map(group => randomChoice(charsList[parseInt(group[0])-1]));
             tagsSet = [...new Set(charPool.flatMap(char => charData[char].tags))] as number[];
         }
 
-        const tagList = this.randomSample(tagsSet, 5).sort((a, b) => a - b);
+        const tagList = randomSample(tagsSet, 5).sort((a, b) => a - b);
         return tagList;
     }
     static async generateValidTags(duration: number, tagList: number[]): Promise<[string, number[]]> {
         const [charList, charData] = await this.generateRecruitableData();
-        const selectedTags = this.randomSample(tagList, this.randomInt(0, 3));
+        const selectedTags = randomSample(tagList, randomInt(0, 3));
         let charRange: [number, number];
         if (duration <= 13800) {
             charRange = [0, 3];
@@ -214,49 +215,23 @@ export class RecruitTools {
 
         if (selectedTags.length === 1 && !selectedTags.includes(11)) {
             const compensation = 6.3 - (duration / 600 * 0.05);
-            const crossTag = this.randomChoices([0, 1], [100 - compensation, compensation], 1)[0];
+            const crossTag = randomChoices([0, 1], [100 - compensation, compensation], 1)[0];
         }
 
         let randomCharId: string;
         if (sortedMatchingChars.length === 0) {
             charRange[1] += 1;
             const groupWeights = [5, 15, 77, 2, 1].slice(charRange[0], charRange[1] + 1);
-            const group = this.randomChoices(Array.from({ length: charRange[1] - charRange[0] + 1 }, (_, i) => i + charRange[0]), groupWeights, 1)[0];
+            const group = randomChoices(Array.from({ length: charRange[1] - charRange[0] + 1 }, (_, i) => i + charRange[0]), groupWeights, 1)[0];
             const allChars = charList[group];
-            randomCharId = this.randomChoice(allChars);
+            randomCharId = randomChoice(allChars);
         } else {
-            randomCharId = this.randomChoice(sortedMatchingChars.map(x => x[0]));
+            randomCharId = randomChoice(sortedMatchingChars.map(x => x[0]));
         }
 
         const filterTags = selectedTags.filter(x => !charData[randomCharId].tags.includes(x));
 
         return [randomCharId, filterTags];
     }
-    static randomInt(min: number, max: number): number {
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    }
-
-    private static randomChoices<T>(arr: T[], weights: number[], k: number): T[] {
-        const result: T[] = [];
-        for (let i = 0; i < k; i++) {
-            const totalWeight = weights.reduce((a, b) => a + b, 0);
-            let random = Math.random() * totalWeight;
-            for (let j = 0; j < arr.length; j++) {
-                random -= weights[j];
-                if (random <= 0) {
-                    result.push(arr[j]);
-                    break;
-                }
-            }
-        }
-        return result;
-    }
-
-    private static randomSample<T>(arr: T[], k: number): T[] {
-        return arr.sort(() => 0.5 - Math.random()).slice(0, k);
-    }
-
-    private static randomChoice<T>(arr: T[]): T {
-        return arr[Math.floor(Math.random() * arr.length)];
-    }
+    
 }

@@ -2,11 +2,12 @@ import EventEmitter from "events"
 import { PlayerDataGacha } from '../model/playerdata';
 import { GachaDetailData, GachaDetailTable, GachaPerChar, GachaResult } from "../model/gacha";
 import { readFileSync } from "fs";
-import excel from "../../excel/excel";
+import excel from "@excel/excel";
 import { TroopManager } from "../manager/TroopManager";
-import _, { before } from "lodash";
+import _ from "lodash";
 import { accountManager } from "../manager/AccountManger";
-import { ItemBundle } from "../../excel/character_table";
+import { ItemBundle } from "@excel/character_table";
+import { randomChoice, randomChoices } from "@utils/random";
 
 export class GachaController {
     gacha: PlayerDataGacha
@@ -80,13 +81,13 @@ export class GachaController {
         console.log(rank)
         if (perChar) {
             if (rr < perChar.percent * perChar.count) {
-                charId = this.randomChoice(perChar.charIdList)
+                charId = randomChoice(perChar.charIdList)
             } else {
                 let l = detail.availCharInfo.perAvailList.find((c) => c.rarityRank === rank)?.charIdList as string[]
-                charId = this.randomChoice(l.filter((c) => !perChar.charIdList.includes(c)))
+                charId = randomChoice(l.filter((c) => !perChar.charIdList.includes(c)))
             }
         } else {
-            charId = this.randomChoice(detail.availCharInfo.perAvailList.find((c) => c.rarityRank === rank)!.charIdList)
+            charId = randomChoice(detail.availCharInfo.perAvailList.find((c) => c.rarityRank === rank)!.charIdList)
         }
 
         return charId
@@ -104,7 +105,7 @@ export class GachaController {
             let perAvailList = detail.availCharInfo.perAvailList.filter((c) => c.rarityRank != 5)
             let ranks = perAvailList.map((c) => c.rarityRank)
             let weights = perAvailList.map((r) => r.totalPercent)
-            rank = this.randomChoices(ranks, weights, 1)[0]
+            rank = randomChoices(ranks, weights, 1)[0]
             if (rank < 4 && this.gacha.normal[poolId].avail && this.gacha.normal[poolId].cnt == this.gacha.normal[poolId].maxCnt) {
                 rank = 4
             }
@@ -117,24 +118,6 @@ export class GachaController {
     }
     getPoolDetail(poolId: string): GachaDetailData {
         return this._table.details[poolId]
-    }
-    private randomChoices<T>(arr: T[], weights: number[], k: number): T[] {
-        const result: T[] = [];
-        for (let i = 0; i < k; i++) {
-            const totalWeight = weights.reduce((a, b) => a + b, 0);
-            let random = Math.random() * totalWeight;
-            for (let j = 0; j < arr.length; j++) {
-                random -= weights[j];
-                if (random <= 0) {
-                    result.push(arr[j]);
-                    break;
-                }
-            }
-        }
-        return result;
-    }
-    private randomChoice<T>(arr: T[]): T {
-        return arr[Math.floor(Math.random() * arr.length)];
     }
     toJSON(): PlayerDataGacha {
         return this.gacha

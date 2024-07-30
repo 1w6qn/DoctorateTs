@@ -1,23 +1,9 @@
 import 'frida-il2cpp-bridge';
-import os from 'os';
-
-function getLocalIpAddress(): string {
-    const interfaces = os.networkInterfaces();
-    for (const interfaceName in interfaces) {
-        const networkInterface = interfaces[interfaceName];
-        if (networkInterface) {
-            for (const iface of networkInterface) {
-                // 检查是否是IPv4并且不是回环地址
-                if (iface.family === 'IPv4' && !iface.internal) {
-                    return iface.address;
-                }
-            }
-        }
-    }
-    return "";
+let getIPAdress = () => {
+    return "192.168.1.11"
 }
-
-const serverUrl = `${getLocalIpAddress()}:8443`;
+console.log(`[Main]IP Address: ${getIPAdress()}`);
+const serverUrl = `${getIPAdress()}:8443`;
 let log = console.log
 Java.perform(() => {
     const sdk = Java.use("com.hypergryph.platform.hgsdk.contants.SDKConst$UrlInfo")

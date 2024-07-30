@@ -21,6 +21,8 @@ export class StatusManager {
         this._trigger.on("refresh:daily",this.dailyRefresh.bind(this))
         this._trigger.on("refresh:weekly",this.weeklyRefresh.bind(this))
         this._trigger.on("refresh:monthly",this.monthlyRefresh.bind(this))
+        this._trigger.on("useItems", this._useItems.bind(this))
+        this._trigger.on("gainItems", this._gainItems.bind(this))
     }
     refreshTime(){
         let ts=parseInt((new Date().getTime()/1000).toString())
@@ -108,7 +110,7 @@ export class StatusManager {
         }
         switch (item.type) {
             default:
-                this._gainItem({ id: item.id, count: -item.count })
+                this._gainItem({ id: item.id, count: -item.count ,type: item.type ,instId: item.instId })
                 break;
         }
     }
@@ -118,6 +120,7 @@ export class StatusManager {
         }
     }
     _gainItem(item: ItemBundle): void {
+        console.log("gain item", item)
         if (!item.type) {
             item.type = excel.ItemTable.items[item.id].itemType as string
         }

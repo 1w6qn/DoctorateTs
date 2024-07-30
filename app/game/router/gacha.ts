@@ -4,7 +4,7 @@ import httpContext from 'express-http-context';
 import { PlayerDataManager } from '../manager/PlayerDataManager';
 
 const router = Router();
-router.post("/syncNoramlGacha", (req, res) => {
+router.post("/syncNormalGacha", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
 
     res.send({
@@ -12,7 +12,7 @@ router.post("/syncNoramlGacha", (req, res) => {
     })
     player._trigger.emit("save")
 })
-router.post("/finishNoramlGacha", async (req, res) => {
+router.post("/finishNormalGacha", async (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     res.send({
         charGet: await player.recruit.finish(req.body!.slotId),
@@ -20,9 +20,17 @@ router.post("/finishNoramlGacha", async (req, res) => {
     })
     player._trigger.emit("save")
 })
+router.post("/normalGacha", async (req, res) => {
+    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    res.send({
+        charGet: await player.recruit.normalGacha(req.body),
+        ...player.delta
+    })
+    player._trigger.emit("save")
+})
 
 
-router.post("/boostNoramlGacha", (req, res) => {
+router.post("/boostNormalGacha", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     player.recruit.boost(req.body!.slotId,req.body!.buy)
     res.send({
@@ -31,7 +39,7 @@ router.post("/boostNoramlGacha", (req, res) => {
     })
     player._trigger.emit("save")
 })
-router.post("/cancleNoramlGacha", async (req, res) => {
+router.post("/cancleNormalGacha", async (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     await player.recruit.cancle(req.body!.slotId)
 
@@ -76,10 +84,10 @@ router.post("/advancedGacha", async (req, res) => {
 })
 router.post("/tenAdvancedGacha", async (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    
+    let r=await player.gacha.tenAdvancedGacha(req.body)
     res.send({
         result:0,
-        gachaResultList:await player.gacha.tenAdvancedGacha(req.body),
+        gachaResultList:r,
         ...player.delta
     })
     player._trigger.emit("save")

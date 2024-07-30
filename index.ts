@@ -5,7 +5,6 @@ import game from "./app/game/app";
 import config from './app/config';
 import morgan from 'morgan';
 
-
 const app = express();
 app.use(morgan("short"))
 app.use("/config/prod",prod)

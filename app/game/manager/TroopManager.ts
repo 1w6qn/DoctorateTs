@@ -28,7 +28,7 @@ export class TroopManager {
         this.chars = Object.values(this._troop.chars);
         this.squads = Object.values(this._troop.squads);
         this._trigger = trigger;
-        this._trigger.on("gainNewChar", this.gainNewCharacter.bind(this))
+        this._trigger.on("gainChar", this.gainChar.bind(this))
     }
 
     getCharacterByCharId(charId: string): PlayerCharacter {

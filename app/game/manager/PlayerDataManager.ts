@@ -10,7 +10,6 @@ import { StoryreviewManager } from "./StoryreviewManager";
 import { MissionManager } from "./MissionManager";
 import ShopController from "../controller/ShopController";
 import { RecruitManager } from "./RecruitManager";
-import { Excel } from "../../excel/excel";
 import { RoguelikeV2Controller } from "../controller/RoguelikeV2Controller";
 import { BattleManager } from "./BattleManager";
 import { GachaController } from "../controller/GachaController";
@@ -31,11 +30,10 @@ export class PlayerDataManager {
     battle!:BattleManager
     _trigger: EventEmitter
     _playerdata: PlayerDataModel;
-    excel:Excel
     get delta(){
         return {
             playerDataDelta:{
-                modified:this,
+                modified:this.toJSON(),
                 deleted:{},
             }
         }
@@ -44,7 +42,7 @@ export class PlayerDataManager {
         this._playerdata = playerdata;
         this._trigger = new EventEmitter();
         this._trigger.setMaxListeners(10000);
-        this.excel=new Excel()
+        
         this.status=new StatusManager(playerdata, this._trigger)
         this.inventory = new InventoryManager(playerdata, this._trigger);
         this.troop=new TroopManager(playerdata, this._trigger)

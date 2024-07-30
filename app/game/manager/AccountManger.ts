@@ -11,7 +11,9 @@ export class AccountManager {
         for (let uid in this.configs) {
             this.data[uid]=new PlayerDataManager(JSON.parse(readFileSync(`${__dirname}/../../../data/user/databases/${uid||"1"}.json`, 'utf8')) as PlayerDataModel)
             this.data[uid]._playerdata.status.uid=uid
-            this.data[uid]._trigger.on("save", () => this.savePlayerData(uid));
+            this.data[uid]._trigger.on("save", () => {
+                this.savePlayerData(uid)
+            });
         }
         console.log(`AccountManager initialized;${Object.keys(this.configs).length} users loaded.`);
     }

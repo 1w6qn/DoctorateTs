@@ -240,6 +240,7 @@ export namespace PlayerRoguelikeV2 {
             assistList?: { [key: string]: FriendAssistData[] }
         }
         export interface Module {
+            [key: string]: any
             san?: Module.San
             dice?: Module.Dice
             totem?: Module.Totem

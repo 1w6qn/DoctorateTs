@@ -4,7 +4,7 @@ import { RoguelikeV2Controller } from '../../RoguelikeV2Controller';
 import excel from "@excel/excel";
 import { randomChoice } from "@utils/random";
 
-export class RoguelikeNodeUpgradeManager {
+export class RoguelikeTotemManager {
     _totemPiece:PlayerRoguelikeV2.CurrentData.Module.InventoryTotem[]
     _predictTotemId:string|undefined
     _player: RoguelikeV2Controller

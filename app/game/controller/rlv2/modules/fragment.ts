@@ -72,6 +72,10 @@ export class RoguelikeFragmentManager {
         this.index += 1
 
     }
+    init(){
+
+    }
+    continue(){}
     constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
         this.index = 0
         this.limitWeight = 0
@@ -80,6 +84,8 @@ export class RoguelikeFragmentManager {
         this._currInspiration = player.current.module?.fragment?.currInspiration || null
         this._player = player
         this._trigger = _trigger
+        this._trigger.on("rlv2:module:init", this.init.bind(this))
+        this._trigger.on("rlv2:continue", this.continue.bind(this))
         this._trigger.on("rlv2:fragment:gain", this.gain.bind(this))
         this._trigger.on("rlv2:fragment:max_weight:add", (count)=>{
             this.limitWeight+=count

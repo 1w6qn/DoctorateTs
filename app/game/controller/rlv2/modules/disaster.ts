@@ -1,10 +1,11 @@
-import { PlayerRoguelikeV2 } from "../../../model/rlv2"
 import EventEmitter from "events"
-import { RoguelikeV2Controller } from '../../RoguelikeV2Controller';
 import excel from "@excel/excel";
 import { randomChoice } from "@utils/random";
+import { PlayerRoguelikeV2 } from "../../../model/rlv2"
+import { RoguelikeV2Controller } from '../../RoguelikeV2Controller';
 
-export class RoguelikeNodeUpgradeManager {
+
+export class RoguelikeDisasterManager {
     _curDisaster: string|null
     _disperseStep:number
     _player: RoguelikeV2Controller
@@ -14,7 +15,7 @@ export class RoguelikeNodeUpgradeManager {
         this._curDisaster=null
         this._disperseStep=0
         this._trigger = _trigger
-        this._trigger.on("rlv2:init", this.init.bind(this))
+        this._trigger.on("rlv2:module:init", this.init.bind(this))
         this._trigger.on("rlv2:continue", this.continue.bind(this))
         this._trigger.on("rlv2:disaster:generate", this.generate.bind(this))
         this._trigger.on("rlv2:move", ()=>{

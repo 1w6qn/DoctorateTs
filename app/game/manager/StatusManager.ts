@@ -110,7 +110,7 @@ export class StatusManager {
         }
         switch (item.type) {
             default:
-                this._gainItem({ id: item.id, count: -item.count ,type: item.type ,instId: item.instId })
+                this._gainItem(Object.assign(item, { count: -item.count }))
                 break;
         }
     }

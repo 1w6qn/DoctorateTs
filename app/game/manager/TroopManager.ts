@@ -29,7 +29,7 @@ export class TroopManager {
         this.chars = this._troop.chars;
         this.squads = this._troop.squads;
         this._trigger = trigger;
-        this._trigger.on("gainChar", this.gainChar.bind(this))
+        this._trigger.on("char:get", this.gainChar.bind(this))
     }
 
     getCharacterByCharId(charId: string): PlayerCharacter {
@@ -43,6 +43,7 @@ export class TroopManager {
         let charInstId=0
         let items:ItemBundle[]=[]
         if (!isNew) {
+            charInstId=this.getCharacterByCharId(charId).instId
             let potentId = excel.CharacterTable[charId].potentialItemId as string;
             items.push({ id: potentId, count: 1, type: "MATERIAL" })
             let t=this._playerdata.dexNav.character[charId].count>6
@@ -68,16 +69,15 @@ export class TroopManager {
                 default:
                     break;
             }
-            this._playerdata.dexNav.character[charId].count+=1
         } else {
-            let charInstId=this.curCharInstId
+            charInstId=this.curCharInstId
             this.chars[this.curCharInstId]={
                 "instId": charInstId,
                 "charId": charId,
                 "favorPoint": 0,
                 "potentialRank": 0,
                 "mainSkillLvl": 1,
-                "skin": `${charId}#1`,
+                "skinId": `${charId}#1`,
                 "level": 1,
                 "exp": 0,
                 "evolvePhase": 0,
@@ -87,8 +87,8 @@ export class TroopManager {
                 "currentEquip": null,
                 "equip": {},
                 "voiceLan": "CN_MANDARIN"
-            } as PlayerCharacter
-            this._playerdata.dexNav.character[charId]={charInstId:charInstId,count:1}
+            }
+            this._trigger.emit("char:init", this.getCharacterByCharId(charId))
             items.push({ id: "4004", count: 1, type: "HGG_SHD" })
         }
         this._trigger.emit("gainItems", items)

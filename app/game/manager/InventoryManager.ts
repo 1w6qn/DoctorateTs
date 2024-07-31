@@ -2,6 +2,7 @@ import { ItemBundle } from "app/excel/character_table";
 import excel from "../../excel/excel";
 import EventEmitter from "events";
 import { PlayerDataModel, PlayerSkins } from "../model/playerdata";
+import { now } from "@utils/time";
 
 export class InventoryManager {
     items: { [itemId: string]: number }
@@ -26,7 +27,7 @@ export class InventoryManager {
                 break;
 
             default:
-                this._gainItem({ id: item.id, count: -item.count })
+                this._gainItem(Object.assign(item, { count: -item.count }))
                 break;
         }
     }
@@ -41,11 +42,11 @@ export class InventoryManager {
         }
         switch (item.type) {
             case "CHAR":
-                this._trigger.emit("gainChar", item.id)
+                this._trigger.emit("char:get", item.id)
                 break;
             case "CHAR_SKIN":
                 this.skin.characterSkins[item.id]=1
-                this.skin.skinTs[item.id]=parseInt((new Date().getTime()/1000).toString())
+                this.skin.skinTs[item.id]=now()
                 break
             default:
                 this.items[item.id] = (this.items[item.id] || 0) + item.count

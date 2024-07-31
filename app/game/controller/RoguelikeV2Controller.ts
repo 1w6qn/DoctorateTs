@@ -3,10 +3,10 @@ import {  PlayerRoguelikeV2, RoguelikeNodePosition } from '../model/rlv2';
 import excel from "@excel/excel";
 import _ from "lodash"
 import { readFileSync } from "fs";
-import { RoguelikeInventoryManager } from "./rlv2/InventoryManager";
+import { RoguelikeInventoryManager } from "./rlv2/inventory";
 import { TroopManager } from "../manager/TroopManager";
-import { RoguelikeBuffManager } from "./rlv2/BuffManager";
-import { RoguelikePlayerStatusManager } from "./rlv2/PlayerStatusManager";
+import { RoguelikeBuffManager } from "./rlv2/buff";
+import { RoguelikePlayerStatusManager } from "./rlv2/status";
 export class RoguelikeV2Config {
     choiceScenes: { [key: string]: { choices: { [key: string]: number } } }
     constructor() {

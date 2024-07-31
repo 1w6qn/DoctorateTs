@@ -1,5 +1,5 @@
 import { Router } from "express";
-import config from "../config"
+import { now } from "@utils/time";
 const router = Router();
 
 router.get('/general/v1/server_time', (req, res) => {
@@ -8,13 +8,13 @@ router.get('/general/v1/server_time', (req, res) => {
         "type": "A",
         "msg": "OK",
         "data": {
-            "serverTime": new Date().getTime(),
+            "serverTime": now(),
             "isHoliday": false
         }
     })
 })
-router.get('/app/v1/config', (req, res) => {
-    res.send(config.AppConfig)
+router.get('/app/v1/config', async(req, res) => {
+    res.send(await import("../../data/appConfig.json"))
 })
 router.get('/user/auth/v1/token_by_phone_password', (req, res) => {
     res.send({

@@ -19,12 +19,7 @@ export class RecruitManager {
         this.recruit.normal.slots[slotId].tags = await RecruitTools.refreshTagList()
     }
     sync() {
-        let ts=parseInt((new Date().getTime() / 1000).toString())
-        for(let slot of Object.values(this.recruit.normal.slots)){
-            if(slot.state === 2 &&ts>slot.maxFinishTs){
-                slot.realFinishTs = slot.maxFinishTs
-            }
-        }
+        
     }
     async cancle(slotId: number) {
         this.recruit.normal.slots[slotId].state = 1
@@ -62,7 +57,6 @@ export class RecruitManager {
         this.recruit.normal.slots[slotId].state = 3
         this.recruit.normal.slots[slotId].realFinishTs = parseInt((new Date().getTime() / 1000).toString())
         this._trigger.emit("BoostNormalGacha", {})
-
     }
     toJSON(): PlayerRecruit {
         return this.recruit

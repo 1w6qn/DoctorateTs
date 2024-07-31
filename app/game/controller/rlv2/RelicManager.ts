@@ -2,6 +2,7 @@ import excel from "@excel/excel"
 import { PlayerRoguelikeV2, RoguelikeItemBundle } from "../../model/rlv2"
 import EventEmitter from "events"
 import { RoguelikeV2Controller } from '../RoguelikeV2Controller';
+import { now } from "@utils/time";
 
 export class RoguelikeRelicManager {
     
@@ -27,7 +28,7 @@ export class RoguelikeRelicManager {
             index: this.index,
             id: relic.id,
             count: relic.count,
-            ts: parseInt((new Date().getTime() / 1000).toString())
+            ts: now()
         }
     }
     constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {

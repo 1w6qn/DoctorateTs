@@ -1,7 +1,8 @@
 import EventEmitter from "events";
 import { PlayerOpenServer, PlayerCheckIn, PlayerDataModel, PlayerStatus } from '../model/playerdata';
-import excel from "../../excel/excel";
-import { ItemBundle } from "../../excel/character_table";
+import excel from "@excel/excel";
+import { ItemBundle } from "@excel/character_table";
+import { now } from "@utils/time";
 
 export class CheckInManager {
     data: PlayerCheckIn;
@@ -9,7 +10,7 @@ export class CheckInManager {
     _status: PlayerStatus
     _trigger: EventEmitter;
     get isSUb(): boolean {
-        return this._status.monthlySubscriptionStartTime < Date.now() && Date.now() < this._status.monthlySubscriptionEndTime
+        return this._status.monthlySubscriptionStartTime < now() && now() < this._status.monthlySubscriptionEndTime
     }
     constructor(playerdata: PlayerDataModel, _trigger: EventEmitter) {
         this.data = playerdata.checkIn;
@@ -26,7 +27,7 @@ export class CheckInManager {
         this.data.checkInRewardIndex +=1
     }
     monthlyRefresh() {
-        let ts=parseInt((new Date().getTime()/1000).toString())
+        let ts=now()
         this.data.checkInGroupId=Object.values(excel.CheckinTable.groups).find((t)=>ts>t.signStartTime&&ts<t.signEndTime)!.groupId
         this.data.checkInHistory=[]
         this.data.checkInRewardIndex=-1

@@ -4,6 +4,7 @@ import EventEmitter from "events";
 import { PlayerSquad, SquadFriendData } from "../model/character";
 import excel from "@excel/excel";
 import { decryptBattleData } from '@utils/crypt';
+import { now } from '@utils/time';
 export interface CommonStartBattleRequest {
     isRetro: number
     pray: number
@@ -33,7 +34,7 @@ export class BattleManager {
         let battleId="1"
         let zoneId = excel.StageTable.stages[args.stageId].zoneId
         let apFailReturn = excel.StageTable.stages[args.stageId].apFailReturn
-        let ts = parseInt((new Date().getTime() / 1000).toString())
+        let ts = now()
         let inApProtectPeriod = false;
         if (zoneId in excel.StageTable.apProtectZoneInfo) {
             inApProtectPeriod = excel.StageTable.apProtectZoneInfo[zoneId].timeRanges.some(range => ts >= range.startTs && ts <= range.endTs)

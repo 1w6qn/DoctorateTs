@@ -4,7 +4,7 @@ import { PlayerRoguelikePendingEvent, PlayerRoguelikeV2 } from "../../model/rlv2
 import { RoguelikeV2Controller } from '../RoguelikeV2Controller';
 import excel from "@excel/excel";
 import { RoguelikeGameInitData } from "app/excel/roguelike_topic_table";
-import { RoguelikePendingEvent } from "./EventManager";
+import { RoguelikeEventManager, RoguelikePendingEvent } from "./events";
 
 
 
@@ -12,10 +12,10 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
     property: PlayerRoguelikeV2.CurrentData.PlayerStatus.Properties
     cursor: PlayerRoguelikeV2.CurrentData.PlayerStatus.NodePosition
     trace: PlayerRoguelikeV2.CurrentData.PlayerStatus.NodePosition[]
-    pending: PlayerRoguelikePendingEvent[]
     status: PlayerRoguelikeV2.CurrentData.PlayerStatus.Status
     toEnding: string
     chgEnding: boolean
+    _pending:RoguelikeEventManager
     _player: RoguelikeV2Controller
     _trigger: EventEmitter
     constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
@@ -47,9 +47,12 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
         this.chgEnding = _status.chgEnding
         this.toEnding = _status.toEnding
         this.status = _status.status
-        this.pending = _status.pending
+        this._pending = new RoguelikeEventManager(this._player, _trigger)
         this._trigger = _trigger
         this._trigger.on("rlv2:create", this.create.bind(this))
+    }
+    get pending(): RoguelikePendingEvent[] {
+        return this._pending._pending
     }
     get state(): string {
         if (this._player.current.game!.start == -1) return "NONE"
@@ -62,19 +65,13 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
         let game = this._player.current.game!
         let init = excel.RoguelikeTopicTable.details.rogue_4.init.find(
             i => (i.modeGrade == game.modeGrade && i.predefinedId == game.predefined && i.modeId == game.mode)
-        ) as RoguelikeGameInitData
+        )!
         this.property.hp.current = init.initialHp
         this.property.hp.max = init.initialHp
         this.property.gold = init.initialGold
         this.property.capacity = init.initialSquadCapacity
         this.property.population.max = init.initialPopulation
         this.property.shield = init.initialShield
-        let stepCnt=4
-        this.pending=[]
-        this.pending.push(new RoguelikePendingEvent(this._player, "GAME_INIT_RELIC", 0, {step:[1,4],initConfig:init}))
-        this.pending.push(new RoguelikePendingEvent(this._player, "GAME_INIT_SUPPORT", 1, {step:[2,4],initConfig:init}))
-        this.pending.push(new RoguelikePendingEvent(this._player, "GAME_INIT_RECRUIT_SET", 2, {step:[3,4],initConfig:init}))
-        this.pending.push(new RoguelikePendingEvent(this._player, "GAME_INIT_RECRUIT", 3, {step:[4,4],initConfig:init}))
         this.toEnding = `ro${game.theme.slice(-1)}_ending_1`
     }
 

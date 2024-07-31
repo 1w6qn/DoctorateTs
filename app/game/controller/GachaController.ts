@@ -55,6 +55,7 @@ export class GachaController {
         let detail = this._table.details[poolId]
         let beforeNonHitCnt = accountManager.getBeforeNonHitCnt(this.uid, ruleType)
         let rank: number
+        //TODO
         switch (ruleType) {
             case "NORMAL":
                 rank = this._getRarityRank(poolId, { beforeNonHitCnt })

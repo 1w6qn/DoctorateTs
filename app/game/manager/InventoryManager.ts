@@ -32,6 +32,8 @@ export class InventoryManager {
         }
     }
     _gainItem(item: ItemBundle): void {
+        const info=excel.ItemTable.items[item.id]
+        console.log(`[InventoryManager] 获得物品 ${info.name} x ${item.count}`)
         if (!item.type) {
             item.type = excel.ItemTable.items[item.id].itemType as string
         }

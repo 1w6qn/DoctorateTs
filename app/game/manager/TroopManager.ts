@@ -9,8 +9,8 @@ import { pick } from "lodash";
 export class TroopManager {
 
 
-    chars: {[key: string]: PlayerCharacter}
-    squads: {[key: string]: PlayerSquad}
+    chars: { [key: string]: PlayerCharacter }
+    squads: { [key: string]: PlayerSquad }
     _playerdata: PlayerDataModel;
     get curCharInstId(): number {
         return Object.keys(this.chars).length + 1;
@@ -38,44 +38,65 @@ export class TroopManager {
     getCharacterByInstId(instId: number): PlayerCharacter {
         return this.chars[instId] as PlayerCharacter;
     }
-    gainChar(charId: string, args: {from:string}={from:"NORMAL"}): GachaResult {
-        let isNew=Object.values(this.chars).some(char => char.charId === charId)?0:1
-        let charInstId=0
-        let items:ItemBundle[]=[]
-        console.log("gainChar", excel.CharacterTable[charId].name, isNew, args)
+    gainChar(charId: string, args: { from: string } = { from: "NORMAL" }): GachaResult {
+        let isNew = Object.values(this.chars).some(char => char.charId === charId) ? 0 : 1
+        let charInstId = 0
+        let items: ItemBundle[] = []
+        let info = excel.CharacterTable[charId]
+        console.log(`[TroopManager] 获得${info.rarity.slice(-1)}星干员 ${info.name} ${isNew} ${args.from}`)
         if (!isNew) {
-            charInstId=this.getCharacterByCharId(charId).instId
+            charInstId = this.getCharacterByCharId(charId).instId
             let potentId = excel.CharacterTable[charId].potentialItemId as string;
             items.push({ id: potentId, count: 1, type: "MATERIAL" })
-            let t=false
-            if(this._playerdata.dexNav.character[charId]){
-                t=this._playerdata.dexNav.character[charId].count>6
+            let t = false
+            if (this._playerdata.dexNav.character[charId]) {
+                t = this._playerdata.dexNav.character[charId].count > 6
             }
-            switch (excel.CharacterTable[charId].rarity) {
-                case "TIER_6":
-                    items.push({ id: "4004", count: t? 15 : 10, type: "HGG_SHD" })
-                    break;
-                case "TIER_5":
-                    items.push({ id: "4004", count: t? 8 : 5, type: "HGG_SHD" })
-                    break;
-                case "TIER_4":
-                    items.push({ id: "4005", count: 30, type: "LGG_SHD" })
-                    break;
-                case "TIER_3":
-                    items.push({ id: "4005", count: 5, type: "LGG_SHD" })
-                    break;
-                case "TIER_2":
-                    items.push({ id: "4005", count: 1, type: "LGG_SHD" })
-                    break;
-                case "TIER_1":
-                    items.push({ id: "4005", count: 1, type: "LGG_SHD" })
-                    break;
-                default:
-                    break;
+            if (args.from == "CLASSIC") {
+                switch (excel.CharacterTable[charId].rarity) {
+                    case "TIER_6":
+                        items.push({id:"classic_normal_ticket",count:100})
+                        break;
+                    case "TIER_5":
+                        items.push({id:"classic_normal_ticket",count:50})
+                        break;
+                    case "TIER_4":
+                        items.push({id:"classic_normal_ticket",count:5})
+                        break;
+                    case "TIER_3":
+                        items.push({id:"classic_normal_ticket",count:1})
+                        break;
+                    default:
+                        break;
+                }
+            } else {
+                switch (excel.CharacterTable[charId].rarity) {
+                    case "TIER_6":
+                        items.push({ id: "4004", count: t ? 15 : 10, type: "HGG_SHD" })
+                        break;
+                    case "TIER_5":
+                        items.push({ id: "4004", count: t ? 8 : 5, type: "HGG_SHD" })
+                        break;
+                    case "TIER_4":
+                        items.push({ id: "4005", count: 30, type: "LGG_SHD" })
+                        break;
+                    case "TIER_3":
+                        items.push({ id: "4005", count: 5, type: "LGG_SHD" })
+                        break;
+                    case "TIER_2":
+                        items.push({ id: "4005", count: 1, type: "LGG_SHD" })
+                        break;
+                    case "TIER_1":
+                        items.push({ id: "4005", count: 1, type: "LGG_SHD" })
+                        break;
+                    default:
+                        break;
+                }
             }
+
         } else {
-            charInstId=this.curCharInstId
-            this.chars[this.curCharInstId]={
+            charInstId = this.curCharInstId
+            this.chars[this.curCharInstId] = {
                 "instId": charInstId,
                 "charId": charId,
                 "favorPoint": 0,
@@ -93,7 +114,12 @@ export class TroopManager {
                 "voiceLan": "CN_MANDARIN"
             }
             this._trigger.emit("char:init", this.getCharacterByCharId(charId))
-            items.push({ id: "4004", count: 1, type: "HGG_SHD" })
+            if(args.from == "CLASSIC"){
+                items.push({id:"classic_normal_ticket",count:10})
+            }else{
+                items.push({ id: "4004", count: 1, type: "HGG_SHD" })
+            }
+            
         }
         this._trigger.emit("gainItems", items)
         return {
@@ -228,7 +254,7 @@ export class TroopManager {
             squads: this.squads,
             addon: this._troop.addon,
             charMission: this._troop.charMission,
-            charGroup: pick(this.chars,["favorPoint"]),
+            charGroup: pick(this.chars, ["favorPoint"]),
         };
     }
 

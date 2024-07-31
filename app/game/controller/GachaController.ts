@@ -1,5 +1,5 @@
 import EventEmitter from "events"
-import { PlayerDataGacha } from '../model/playerdata';
+import { PlayerGacha } from '../model/playerdata';
 import { GachaDetailData, GachaDetailTable, GachaPerChar, GachaResult } from "../model/gacha";
 import { readFileSync } from "fs";
 import excel from "@excel/excel";
@@ -10,12 +10,12 @@ import { ItemBundle } from "@excel/character_table";
 import { randomChoice, randomChoices } from "@utils/random";
 
 export class GachaController {
-    gacha: PlayerDataGacha
+    gacha: PlayerGacha
     uid: string
     _troop: TroopManager
     _table: GachaDetailTable
     _trigger: EventEmitter
-    constructor(gacha: PlayerDataGacha, uid: string, troop: TroopManager, _trigger: EventEmitter) {
+    constructor(gacha: PlayerGacha, uid: string, troop: TroopManager, _trigger: EventEmitter) {
         this.gacha = gacha
         this.uid = uid
         this._troop = troop
@@ -54,31 +54,80 @@ export class GachaController {
         let ruleType = excel.GachaTable.gachaPoolClient.find((g) => g.gachaPoolId === poolId)!.gachaRuleType
         let detail = this._table.details[poolId]
         let beforeNonHitCnt = accountManager.getBeforeNonHitCnt(this.uid, ruleType)
+        let rank: number
         switch (ruleType) {
             case "NORMAL":
-
-                let rank = this._getRarityRank(poolId, { beforeNonHitCnt })
+                rank = this._getRarityRank(poolId, { beforeNonHitCnt })
                 beforeNonHitCnt = rank != 5 ? beforeNonHitCnt + 1 : 0
                 charId = this._getRandomChar(poolId, rank, {})
                 break;
+            case "LIMITED":
+                rank = this._getRarityRank(poolId, { beforeNonHitCnt })
+                beforeNonHitCnt = rank != 5 ? beforeNonHitCnt + 1 : 0
+                charId = this._getRandomChar(poolId, rank, {})
+                break;
+            case "LINKAGE":
+                rank = this._getRarityRank(poolId, { beforeNonHitCnt })
+                beforeNonHitCnt = rank != 5 ? beforeNonHitCnt + 1 : 0
+                charId = this._getRandomChar(poolId, rank, {})
+                break;
+            case "ATTAIN":
+                rank = this._getRarityRank(poolId, { beforeNonHitCnt })
+                beforeNonHitCnt = rank != 5 ? beforeNonHitCnt + 1 : 0
+                charId = this._getRandomChar(poolId, rank, {})
+                break;
+            case "CLASSIC":
+                rank = this._getRarityRank(poolId, { beforeNonHitCnt })
+                beforeNonHitCnt = rank != 5 ? beforeNonHitCnt + 1 : 0
+                charId = this._getRandomChar(poolId, rank, {})
+                break;
+            case "SINGLE":
+                let ensure=""
+                this.gacha.single[poolId].singleEnsureCnt += 1
+                if (this.gacha.single[poolId]) {
+                    if (this.gacha.single[poolId].singleEnsureCnt == 150) {
+                        this.gacha.single[poolId].singleEnsureUse = true
+                        ensure=this.gacha.single[poolId].singleEnsureChar
+                    }
+                } else {
+                    this.gacha.single[poolId] = {
+                        singleEnsureCnt: 0,
+                        singleEnsureUse: false,
+                        singleEnsureChar: detail.upCharInfo!.perCharList[0].charIdList[0]
+                    }
+                }
+                rank = this._getRarityRank(poolId, { beforeNonHitCnt })
+                beforeNonHitCnt = rank != 5 ? beforeNonHitCnt + 1 : 0
+                charId = this._getRandomChar(poolId, rank, {ensure: ensure})
+                break;
+            case "FESCLASSIC":
+                rank = this._getRarityRank(poolId, { beforeNonHitCnt })
+                beforeNonHitCnt = rank != 5 ? beforeNonHitCnt + 1 : 0
 
+                charId = this._getRandomChar(poolId, rank, {})
+                break
+            case "CLASSIC_ATTAIN":
+                rank = this._getRarityRank(poolId, { beforeNonHitCnt })
+                beforeNonHitCnt = rank != 5 ? beforeNonHitCnt + 1 : 0
+                charId = this._getRandomChar(poolId, rank, {})
+                break;
             default:
 
                 break;
         }
+        accountManager.saveBeforeNonHitCnt(this.uid, ruleType, beforeNonHitCnt)
         return {
+            ...this._troop.gainChar(charId, { from: ruleType }),
             logInfo: {
                 beforeNonHitCnt: beforeNonHitCnt,
-            },
-            ...this._troop.gainChar(charId, { from: ruleType })
+            }
         }
     }
-    _getRandomChar(poolId: string, rank: number, args: {}): string {
+    _getRandomChar(poolId: string, rank: number, args: { ensure?: string }): string {
         let charId = ""
         let detail = this._table.details[poolId]
         let perChar = detail.upCharInfo!.perCharList.find((c) => c.rarityRank === rank) as GachaPerChar
         let rr = Math.random()
-        console.log(rank)
         if (perChar) {
             if (rr < perChar.percent * perChar.count) {
                 charId = randomChoice(perChar.charIdList)
@@ -90,7 +139,7 @@ export class GachaController {
             charId = randomChoice(detail.availCharInfo.perAvailList.find((c) => c.rarityRank === rank)!.charIdList)
         }
 
-        return charId
+        return args.ensure || charId
     }
     _getRarityRank(poolId: string, args: { beforeNonHitCnt: number },): number {
         let detail = this._table.details[poolId]
@@ -117,7 +166,7 @@ export class GachaController {
     getPoolDetail(poolId: string): GachaDetailData {
         return this._table.details[poolId]
     }
-    toJSON(): PlayerDataGacha {
+    toJSON(): PlayerGacha {
         return this.gacha
     }
 }

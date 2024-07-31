@@ -19,7 +19,7 @@ export interface PlayerDataModel {
     crisisV2: CrisisV2;
     nameCardStyle: PlayerNameCardStyle;
     tshop: Tshop;
-    gacha: PlayerDataGacha;
+    gacha: PlayerGacha;
     backflow: Backflow;
     mainline: Mainline;
     avatar: PlayerDataAvatar;
@@ -1781,64 +1781,30 @@ export interface PlayerDataEvent {
     building: number;
 }
 
-export interface PlayerDataGacha {
-    newbee: Newbee;
-    normal: { [key: string]: NormalValue };
-    limit: Limit;
-    linkage: Linkage;
-    attain: Attain;
-    single: Single;
-    fesClassic: FesClassic;
+export interface PlayerGacha {
+    newbee: PlayerNewbeeGachaPool;
+    normal: { [key: string]: PlayerGachaPool };
+    limit: {[key:string]:PlayerFreeLimitGacha};
+    linkage: {[key:string]:any};
+    attain: {[key:string]:PlayerAttainGacha};
+    single: {[key:string]:PlayerSingleGacha};
+    fesClassic: {[key:string]:PlayerFesClassicGacha};
 }
-
-export interface Attain {
-    ATTAIN_24_0_3: ATTAIN24_0_3_Class;
-    ATTAIN_34_0_3: ATTAIN24_0_3_Class;
-    ATTAIN_45_0_5: ATTAIN24_0_3_Class;
-}
-
-export interface ATTAIN24_0_3_Class {
+export interface PlayerAttainGacha {
     attain6Count: number;
 }
 
-export interface FesClassic {
-    FESCLASSIC_38_0_2: Fesclassic0_2;
-    FESCLASSIC_41_0_2: Fesclassic0_2;
-}
 
-export interface Fesclassic0_2 {
+export interface PlayerFesClassicGacha {
     upChar: { [key: string]: string[] };
 }
 
-export interface Limit {
-    LIMITED_9_0_3: Limited;
-    LIMITED_14_0_1: Limited;
-    LIMITED_16_0_1: Limited;
-    LIMITED_16_0_4: Limited;
-    LIMITED_18_0_3: Limited;
-    LIMITED_21_0_1: Limited;
-    LIMITED_23_0_1: Limited;
-    LIMITED_25_0_1: Limited;
-    LIMITED_27_0_3: Limited;
-    LIMITED_30_0_1: Limited;
-    LIMITED_33_0_1: Limited;
-    LIMITED_35_0_1: Limited;
-    LIMITED_38_0_1: Limited;
-    LIMITED_41_0_1: Limited;
-    LIMITED_44_0_1: Limited;
-    LIMITED_47_0_1: Limited;
-    LIMITED_50_0_1: Limited50_0_1;
+export interface PlayerFreeLimitGacha {
+    leastFree: number;
+    poolCnt?: number;
+    recruitedFreeChar?: boolean;
 }
 
-export interface Limited {
-    leastFree: number;
-}
-
-export interface Limited50_0_1 {
-    poolCnt: number;
-    recruitedFreeChar: boolean;
-    leastFree: number;
-}
 
 export interface Linkage {
     LINKAGE_17_0_1: LINKAGE17_0_1_Class;
@@ -1864,27 +1830,21 @@ export interface Linkage36_0_1 {
     LINKAGE_MH_01: Linkage01;
 }
 
-export interface Newbee {
+export interface PlayerNewbeeGachaPool {
     openFlag: number;
     cnt: number;
     poolId: string;
 }
 
-export interface NormalValue {
+export interface PlayerGachaPool {
     cnt: number;
     maxCnt: number;
     rarity: number;
     avail: boolean;
 }
 
-export interface Single {
-    SINGLE_37_0_1: SINGLE37_0_1_Class;
-    SINGLE_40_0_1: SINGLE37_0_1_Class;
-    SINGLE_45_0_1: SINGLE37_0_1_Class;
-    SINGLE_45_0_4: SINGLE37_0_1_Class;
-}
 
-export interface SINGLE37_0_1_Class {
+export interface PlayerSingleGacha {
     singleEnsureCnt: number;
     singleEnsureUse: boolean;
     singleEnsureChar: string;

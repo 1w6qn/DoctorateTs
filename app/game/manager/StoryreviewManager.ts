@@ -1,6 +1,7 @@
 import EventEmitter from "events";
 import { PlayerStoryReview } from "../model/playerdata";
 import excel from "../../excel/excel";
+import { now } from "@utils/time";
 
 export class StoryreviewManager {
     storyreview:PlayerStoryReview
@@ -18,7 +19,7 @@ export class StoryreviewManager {
         this.storyreview.groups[storyId].stories.find(story=>story.id==storyId)!.rc+=1
     }
     rewardGroup(groupId:string){
-        this.storyreview.groups[groupId].rts=parseInt((new Date().getTime()/1000).toString())
+        this.storyreview.groups[groupId].rts=now()
     }
     markStoryAcceKnown(){
         this.storyreview.tags["knownStoryAcceleration"]=1

@@ -1,5 +1,6 @@
 import EventEmitter from 'events';
 import { PlayerDataModel, PlayerHomeBackground, PlayerHomeTheme, PlayerSetting } from '../model/playerdata';
+import { now } from '@utils/time';
 export class HomeManager {
     background:PlayerHomeBackground;
     homeTheme: PlayerHomeTheme;
@@ -31,7 +32,7 @@ export class HomeManager {
         }
     }
     unlockBackground(bgID:string){
-        this.background.bgs[bgID].unlock=parseInt((new Date().getTime()/1000).toString())
+        this.background.bgs[bgID].unlock=now()
     }
     setHomeTheme(themeId:string){
         this.homeTheme.selected=themeId
@@ -46,7 +47,7 @@ export class HomeManager {
         }
     }
     unlockHomeTheme(themeId:string){
-        this.homeTheme.themes[themeId].unlock=parseInt((new Date().getTime()/1000).toString())
+        this.homeTheme.themes[themeId].unlock=now()
     }
     setLowPower(newValue:number){
         this.setting.perf.lowPower=newValue

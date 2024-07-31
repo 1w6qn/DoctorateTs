@@ -73,18 +73,6 @@ export class RoguelikeV2Controller {
         this.current.module = {}
         
         this._trigger.emit("rlv2:create",this)
-        switch (args.theme) {
-            case "rogue_1":
-                break;
-            case "rogue_2":
-                break;
-            case "rogue_3":
-                break;
-            case "rogue_4":
-                break
-            default:
-                break;
-        }
     }
     moveTo(to: RoguelikeNodePosition): void {
         this.current.player!.cursor.position = to
@@ -96,6 +84,18 @@ export class RoguelikeV2Controller {
         let event = this.current.player!.pending.filter(e => e.type === "GAME_INIT_RELIC").shift()
         let relic = event!.content.initRelic!.items[args.select]
         this._trigger.emit("rlv2:relic:gain", relic)
+
+    }
+    chooseInitialRecruitSet(args:{select: string}) {
+        let event = this.current.player!.pending.filter(e => e.type === "GAME_INIT_RECRUIT_SET").shift()
+        let event2=this.current.player!.pending.find(e => e.type === "GAME_INIT_RECRUIT")!
+
+        //TODO
+        this._trigger.emit("rlv2:recruit:gain", )
+        event2.content.initRecruit!.tickets=[
+            "t_1","t_2","t_3"
+        ]
+        this._trigger.emit("rlv2:relic:gain", event)
 
     }
 

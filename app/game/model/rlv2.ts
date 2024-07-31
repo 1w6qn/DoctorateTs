@@ -667,7 +667,7 @@ export interface RoguelikeBuff {
     blackboard:Blackboard
 }
 export interface RoguelikeItemBundle {
-    sub:number
+    sub?:number
     id: string
     count: number
 }

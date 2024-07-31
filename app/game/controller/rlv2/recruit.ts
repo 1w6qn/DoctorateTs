@@ -3,6 +3,7 @@ import excel from "@excel/excel"
 import { TroopManager } from "../../manager/TroopManager"
 import { PlayerRoguelikeV2 } from "../../model/rlv2"
 import { RoguelikeV2Controller } from "../RoguelikeV2Controller"
+import { now } from "@utils/time"
 
 export class RoguelikeRecruitManager {
     _index: number
@@ -77,8 +78,9 @@ export class RoguelikeRecruitManager {
             from: from,
             mustExtra: mustExtra,
             needAssist: from == "initial",
-            ts: parseInt((new Date().getTime() / 1000).toString())
+            ts: now()
         }
+        this._index++
     }
     constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
         this._index = 0

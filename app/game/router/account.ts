@@ -1,6 +1,7 @@
 import { Router } from "express";
 import httpContext from 'express-http-context';
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { now } from "@utils/time";
 const router = Router();
 router.post("/login", (req, res) => {
     
@@ -14,10 +15,10 @@ router.post("/login", (req, res) => {
 });
 router.post("/syncData", (req, res) => {
     let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    player._playerdata.pushFlags.status=parseInt((new Date().getTime()/1000).toString())
+    player._playerdata.pushFlags.status=now()
     res.send({
         "result": 0,
-        "ts": parseInt((new Date().getTime()/1000).toString()),
+        "ts": now(),
         "user": player,
         ...player.delta
     })
@@ -26,7 +27,7 @@ router.post("/syncStatus", (req, res) => {
     let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     player._trigger.emit("status:refresh:time");
     res.send({
-        "ts": parseInt((new Date().getTime()/1000).toString()),
+        "ts": now(),
         "result": {},
         ...player.delta
     })

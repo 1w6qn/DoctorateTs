@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "fs";
 import { BaseMailItem, MailItem, MailMetaInfo } from "../model/mail";
 import { ItemBundle } from "app/excel/character_table";
+import { now } from "@utils/time";
 
 export class MailManager {
     database: MailDB
@@ -18,7 +19,7 @@ export class MailManager {
         let mail=this.database.user[uid].find(mail => mail.mailId === args.mailId&&mail.type===args.type)
         let items:ItemBundle[]=[]
         if(mail && mail.receiveAt==-1){
-            mail.receiveAt=parseInt((new Date().getTime()/1000).toString())
+            mail.receiveAt=now()
             if(mail.hasItem){
                 items.push(...mail.items)
             }
@@ -46,7 +47,7 @@ export class MailManager {
         let items:ItemBundle[]=[]
         mailList.forEach(mail=>{
             if(mail && mail.receiveAt==-1){
-                mail.receiveAt=parseInt((new Date().getTime()/1000).toString())
+                mail.receiveAt=now()
                 if(mail.hasItem){
                     items.push(...mail.items)
                 }

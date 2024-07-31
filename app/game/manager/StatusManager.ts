@@ -2,6 +2,7 @@ import EventEmitter from "events"
 import { AvatarInfo, PlayerCollection, PlayerDataModel, PlayerStatus, PlayerNameCardStyle, NameCardMisc } from '../model/playerdata';
 import excel from "../../excel/excel"
 import { ItemBundle } from "../../excel/character_table";
+import { now } from "@utils/time";
 
 export class StatusManager {
     status: PlayerStatus
@@ -25,7 +26,7 @@ export class StatusManager {
         this._trigger.on("gainItems", (items: ItemBundle[]) => items.forEach(item => this._gainItem(item)))
     }
     refreshTime(){
-        let ts=parseInt((new Date().getTime()/1000).toString())
+        let ts=now()
         let isNewDay=new Date(this.status.lastRefreshTs*1000-14400000).getDate()!=new Date().getDate()
         if(isNewDay){
             if(new Date().getDate()==1){

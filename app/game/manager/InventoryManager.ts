@@ -14,8 +14,8 @@ export class InventoryManager {
         this.skin = _playerdata.skin
         this._playerdata = _playerdata
         this._trigger = _trigger
-        this._trigger.on("useItems", this.useItems.bind(this))
-        this._trigger.on("gainItems", this.gainItems.bind(this))
+        this._trigger.on("useItems", (items: ItemBundle[]) => items.forEach(item => this._useItem(item)))
+        this._trigger.on("gainItems", (items: ItemBundle[]) => items.forEach(item => this._gainItem(item)))
     }
     _useItem(item: ItemBundle): void {
         if (!item.type) {
@@ -27,13 +27,8 @@ export class InventoryManager {
                 break;
 
             default:
-                this._gainItem(Object.assign(item, { count: -item.count }))
+                this._trigger.emit("gainItems",[Object.assign(item, { count: -item.count })])
                 break;
-        }
-    }
-    useItems(items: ItemBundle[]): void {
-        for (const item of items) {
-            this._useItem(item)
         }
     }
     _gainItem(item: ItemBundle): void {
@@ -48,14 +43,12 @@ export class InventoryManager {
                 this.skin.characterSkins[item.id]=1
                 this.skin.skinTs[item.id]=now()
                 break
+            case "MATERIAL":
+                this.items[item.id] = (this.items[item.id] || 0) + item.count
+                break;
             default:
                 this.items[item.id] = (this.items[item.id] || 0) + item.count
                 break;
-        }
-    }
-    gainItems(items: ItemBundle[]): void {
-        for (const item of items) {
-            this._gainItem(item)
         }
     }
 

@@ -21,8 +21,8 @@ export class StatusManager {
         this._trigger.on("refresh:daily",this.dailyRefresh.bind(this))
         this._trigger.on("refresh:weekly",this.weeklyRefresh.bind(this))
         this._trigger.on("refresh:monthly",this.monthlyRefresh.bind(this))
-        this._trigger.on("useItems", this._useItems.bind(this))
-        this._trigger.on("gainItems", this._gainItems.bind(this))
+        this._trigger.on("useItems", (items: ItemBundle[]) => items.forEach(item => this._useItem(item)))
+        this._trigger.on("gainItems", (items: ItemBundle[]) => items.forEach(item => this._gainItem(item)))
     }
     refreshTime(){
         let ts=parseInt((new Date().getTime()/1000).toString())
@@ -92,13 +92,13 @@ export class StatusManager {
     editNameCard(flag:number,content:{skinId?:string,component?:string[],misc?:NameCardMisc}){
         switch (flag) {
             case 1:
-                this.nameCardStyle.componentOrder=content!.component as string[]
+                this.nameCardStyle.componentOrder=content.component!
                 break;
             case 2:
-                this.nameCardStyle.skin.selected=content!.skinId as string
+                this.nameCardStyle.skin.selected=content.skinId!
                 break;
             case 4:
-                this.nameCardStyle.misc=content!.misc as NameCardMisc
+                this.nameCardStyle.misc=content.misc!
                 break;
             default:
                 break;
@@ -114,13 +114,7 @@ export class StatusManager {
                 break;
         }
     }
-    _useItems(items: ItemBundle[]): void {
-        for (const item of items) {
-            this._useItem(item)
-        }
-    }
     _gainItem(item: ItemBundle): void {
-        console.log("gain item", item)
         if (!item.type) {
             item.type = excel.ItemTable.items[item.id].itemType as string
         }
@@ -170,11 +164,6 @@ export class StatusManager {
                 break
             default:
                 break;
-        }
-    }
-    _gainItems(items: ItemBundle[]): void {
-        for (const item of items) {
-            this._gainItem(item)
         }
     }
     toJSON(){

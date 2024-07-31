@@ -58,7 +58,7 @@ export class GachaController {
             case "NORMAL":
 
                 let rank = this._getRarityRank(poolId, { beforeNonHitCnt })
-                beforeNonHitCnt = rank == 5 ? beforeNonHitCnt + 1 : 0
+                beforeNonHitCnt = rank != 5 ? beforeNonHitCnt + 1 : 0
                 charId = this._getRandomChar(poolId, rank, {})
                 break;
 
@@ -96,11 +96,9 @@ export class GachaController {
         let detail = this._table.details[poolId]
         let per6 = detail.availCharInfo.perAvailList.find((c) => c.rarityRank === 5)!.totalPercent
         let rank = 2
-        per6 += args.beforeNonHitCnt > 50 ? 0 : (args.beforeNonHitCnt - 50) * 0.02
+        per6 += args.beforeNonHitCnt < 50 ? 0 : (args.beforeNonHitCnt - 50) * 0.02
         if (Math.random() <= per6) {
-            rank = 6
-            console.log("hit")
-
+            rank = 5
         } else {
             let perAvailList = detail.availCharInfo.perAvailList.filter((c) => c.rarityRank != 5)
             let ranks = perAvailList.map((c) => c.rarityRank)

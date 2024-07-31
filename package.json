@@ -11,7 +11,8 @@
     "frida-compile": "^16.4.1",
     "frida-il2cpp-bridge": "^0.9.0",
     "lodash": "^4.17.21",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "tsconfig-paths": "^4.2.0"
   },
   "scripts": {
     "start": "tsc && nodemon index.ts --ext ts",

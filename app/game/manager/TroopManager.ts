@@ -42,11 +42,15 @@ export class TroopManager {
         let isNew=Object.values(this.chars).some(char => char.charId === charId)?0:1
         let charInstId=0
         let items:ItemBundle[]=[]
+        console.log("gainChar", excel.CharacterTable[charId].name, isNew, args)
         if (!isNew) {
             charInstId=this.getCharacterByCharId(charId).instId
             let potentId = excel.CharacterTable[charId].potentialItemId as string;
             items.push({ id: potentId, count: 1, type: "MATERIAL" })
-            let t=this._playerdata.dexNav.character[charId].count>6
+            let t=false
+            if(this._playerdata.dexNav.character[charId]){
+                t=this._playerdata.dexNav.character[charId].count>6
+            }
             switch (excel.CharacterTable[charId].rarity) {
                 case "TIER_6":
                     items.push({ id: "4004", count: t? 15 : 10, type: "HGG_SHD" })

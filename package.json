@@ -12,6 +12,7 @@
     "frida-il2cpp-bridge": "^0.9.0",
     "lodash": "^4.17.21",
     "morgan": "^1.10.0",
+    "node-fetch": "^3.3.2",
     "tsconfig-paths": "^4.2.0"
   },
   "scripts": {

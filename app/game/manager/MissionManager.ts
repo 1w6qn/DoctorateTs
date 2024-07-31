@@ -187,7 +187,15 @@ export class MissionProgress implements MissionPlayerState {
             console.log(template)
             throw new Error("template not implemented yet")
         }
-        this._trigger.on(template, this[template].bind(this))
+        this._trigger.on(template, (args:{},mode)=>{
+            this[template](args,mode)
+            if(mode=="update"){
+                console.log(`[MissionManager] ${this.missionId} update ${this.progress[0].value}/${this.progress[0].target}`)
+                if(this.progress[0].value>=this.progress[0].target!){
+                    console.log(`[MissionManager] ${this.missionId} complete`)
+                }
+            }
+        })
         this[template]({}, "init")
 
     }

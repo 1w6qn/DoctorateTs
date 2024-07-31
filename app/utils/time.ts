@@ -13,3 +13,6 @@ export function checkNewMonth(ts1: number,ts2: number,delta=14400000): boolean {
 export function checkNewYear(ts1: number,ts2: number,delta=14400000): boolean {
     return new Date(ts1*1000-delta).getFullYear()!=ts2
 }
+export function checkNewWeek(ts1: number,ts2: number,delta=14400000): boolean {
+    return new Date(ts1*1000-delta).getDay()!=ts2
+}

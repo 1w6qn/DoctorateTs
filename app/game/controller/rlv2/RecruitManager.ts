@@ -16,7 +16,7 @@ export class RoguelikeRecruitManager {
     active(id: string) {
         this.tickets[id].state = 1
         let ticketInfo = excel.RoguelikeTopicTable.details.rogue_4.recruitTickets[id]
-        let chars: PlayerRoguelikeV2.CurrentData.RecruitChar[] = this._troop.chars.reduce((acc, char) => {
+        let chars: PlayerRoguelikeV2.CurrentData.RecruitChar[] = Object.values(this._troop.chars).reduce((acc, char) => {
             let data = excel.CharacterTable[char.charId]
             
             if (ticketInfo.professionList.some(p => data.profession.includes(p)) == false) {

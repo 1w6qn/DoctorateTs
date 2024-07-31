@@ -1,54 +1,45 @@
-type Diff<T> = {
-    path: string;
-    value1: T;
-    value2: T;
+type DeepPartial<T> = {
+    [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
 
-function isObject(obj: any): boolean {
-    return obj !== null && typeof obj === 'object' && !Array.isArray(obj);
-}
+function compareObjects<T extends object=object>(oldObj: T, newObj: T): { modified: DeepPartial<T>, deleted: DeepPartial<T> } {
+    const modified: DeepPartial<T> = {};
+    const deleted: DeepPartial<T> = {};
 
-export function compare<T extends object>(obj1: T, obj2: T): object {
-    const diffs: Diff<any>[] = [];
-    const newObject: any = { ...obj2 };
-
-    function compareObjects(obj1: any, obj2: any, path: string = '') {
-        const keys = new Set([...Object.keys(obj1), ...Object.keys(obj2)]);
-
-        keys.forEach(key => {
-            const value1 = obj1[key];
-            const value2 = obj2[key];
-            const currentPath = path ? `${path}.${key}` : key;
-
-            if (isObject(value1) && isObject(value2)) {
-                compareObjects(value1, value2, currentPath);
-            } else if (value1 !== value2 && !Array.isArray(value1) && !Array.isArray(value2)) {
-                diffs.push({
-                    path: currentPath,
-                    value1: value1,
-                    value2: value2
-                });
+    function compare<K extends keyof T>(oldObj: T, newObj: T, key: K): void {
+        if (oldObj[key] === newObj[key]) {
+            return;
+        }
+        if (Array.isArray(oldObj[key]) || Array.isArray(newObj[key])) {
+            // 如果键值是数组，则跳过比较
+            return;
+        }
+        if (typeof oldObj[key] === 'object' && oldObj[key] !== null && typeof newObj[key] === 'object' && newObj[key] !== null) {
+            // 递归比较子对象
+            compareObjects(oldObj[key] as unknown as object, newObj[key] as unknown as object);
+        } else {
+            // 如果新对象中不存在该键，则认为是删除
+            if (!(key in newObj)) {
+                deleted[key] = oldObj[key];
+            } else {
+                // 否则认为是修改
+                if (!modified.hasOwnProperty(key)) {
+                    modified[key] = {} as T[K];
+                }
+                modified[key] = newObj[key];
             }
-        });
+        }
     }
 
-    compareObjects(obj1, obj2);
-
-    diffs.forEach(diff => {
-        const paths = diff.path.split('.');
-        let current = newObject;
-
-        paths.forEach((path, index) => {
-            if (index === paths.length - 1) {
-                current[path] = diff.value2;
+    for (const key in oldObj) {
+        if (oldObj.hasOwnProperty(key)) {
+            if (key in newObj) {
+                compare(oldObj, newObj, key);
             } else {
-                if (!current[path]) {
-                    current[path] = {};
-                }
-                current = current[path];
+                deleted[key] = oldObj[key];
             }
-        });
-    });
+        }
+    }
 
-    return newObject;
+    return { modified, deleted };
 }

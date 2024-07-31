@@ -4,18 +4,19 @@ import excel from "../../excel/excel";
 import { ItemBundle } from "app/excel/character_table";
 import { PlayerDataModel } from "../model/playerdata";
 import { GachaResult } from "../model/gacha";
+import { pick } from "lodash";
 
 export class TroopManager {
 
 
-    chars: PlayerCharacter[]
-    squads: PlayerSquad[]
+    chars: {[key: string]: PlayerCharacter}
+    squads: {[key: string]: PlayerSquad}
     _playerdata: PlayerDataModel;
     get curCharInstId(): number {
-        return this.chars.length + 1;
+        return Object.keys(this.chars).length + 1;
     }
     get curSquadCount(): number {
-        return this.squads.length;
+        return Object.keys(this.squads).length;
     }
     _trigger: EventEmitter
     _troop: PlayerTroop
@@ -25,20 +26,20 @@ export class TroopManager {
     ) {
         this._playerdata = playerdata;
         this._troop = playerdata.troop;
-        this.chars = Object.values(this._troop.chars);
-        this.squads = Object.values(this._troop.squads);
+        this.chars = this._troop.chars;
+        this.squads = this._troop.squads;
         this._trigger = trigger;
         this._trigger.on("gainChar", this.gainChar.bind(this))
     }
 
     getCharacterByCharId(charId: string): PlayerCharacter {
-        return this.chars.find(char => char.charId === charId) as PlayerCharacter;
+        return Object.values(this.chars).find(char => char.charId === charId) as PlayerCharacter;
     }
     getCharacterByInstId(instId: number): PlayerCharacter {
-        return this.chars.at(instId - 1) as PlayerCharacter;
+        return this.chars[instId] as PlayerCharacter;
     }
     gainChar(charId: string, args: {from:string}={from:"NORMAL"}): GachaResult {
-        let isNew=this.chars.some(char => char.charId === charId)?0:1
+        let isNew=Object.values(this.chars).some(char => char.charId === charId)?0:1
         let charInstId=0
         let items:ItemBundle[]=[]
         if (!isNew) {
@@ -70,7 +71,7 @@ export class TroopManager {
             this._playerdata.dexNav.character[charId].count+=1
         } else {
             let charInstId=this.curCharInstId
-            this.chars.push({
+            this.chars[this.curCharInstId]={
                 "instId": charInstId,
                 "charId": charId,
                 "favorPoint": 0,
@@ -86,7 +87,7 @@ export class TroopManager {
                 "currentEquip": null,
                 "equip": {},
                 "voiceLan": "CN_MANDARIN"
-            } as PlayerCharacter)
+            } as PlayerCharacter
             this._playerdata.dexNav.character[charId]={charInstId:charInstId,count:1}
             items.push({ id: "4004", count: 1, type: "HGG_SHD" })
         }
@@ -97,9 +98,6 @@ export class TroopManager {
             isNew: isNew,
             itemGet: items
         }
-    }
-    gainNewCharacter(charId: string): void {
-        
     }
     upgradeChar(instId: number, expMats: ItemBundle[]): void {
         let char = this.getCharacterByInstId(instId);
@@ -144,29 +142,29 @@ export class TroopManager {
         char.exp = 0;
         //TODO
         if (destEvolvePhase == 2) {
-            this.chars[instId - 1].skinId = char.charId + "#2";
+            this.chars[instId].skinId = char.charId + "#2";
         }
         this._trigger.emit("CharEvolved", { instId: instId, destEvolvePhase: destEvolvePhase })
     }
     boostPotential(instId: number, itemId: string, targetRank: number): void {
         this._trigger.emit("useItems", [{ id: itemId, count: 1 }])
-        this.chars[instId - 1].potentialRank = targetRank;
+        this.chars[instId].potentialRank = targetRank;
         //TODO 触发事件
     }
     setDefaultSkill(instId: number, defaultSkillIndex: number): void {
-        this.chars[instId - 1].defaultSkillIndex = defaultSkillIndex;
+        this.chars[instId].defaultSkillIndex = defaultSkillIndex;
     }
     changeCharSkin(instId: number, skinId: string): void {
-        this.chars[instId - 1].skinId = skinId;
+        this.chars[instId].skinId = skinId;
     }
     setEquipment(instId: number, equipId: string): void {
-        this.chars[instId - 1].currentEquip = equipId;
+        this.chars[instId].currentEquip = equipId;
     }
     changeCharTemplate(instId: number, templateId: string): void {
-        this.chars[instId - 1].currentTmpl = templateId;
+        this.chars[instId].currentTmpl = templateId;
     }
     batchSetCharVoiceLan(voiceLan: string): void {
-        this.chars.forEach(char => char.voiceLan = voiceLan);
+        Object.values(this.chars).forEach(char => char.voiceLan = voiceLan);
     }
     upgradeSkill(instId: number, targetLevel: number): void {
         let char = this.getCharacterByInstId(instId);
@@ -222,20 +220,11 @@ export class TroopManager {
         return {
             curCharInstId: this.curCharInstId,
             curSquadCount: this.curSquadCount,
-            chars: this.chars.reduce((acc, char) => {
-                acc[char.instId.toString()] = char;
-                return acc;
-            }, {} as { [key: string]: PlayerCharacter }),
-            squads: this.squads.reduce((acc, squad) => {
-                acc[squad.squadId.toString()] = squad;
-                return acc;
-            }, {} as { [key: string]: PlayerSquad }),
+            chars: this.chars,
+            squads: this.squads,
             addon: this._troop.addon,
             charMission: this._troop.charMission,
-            charGroup: this.chars.reduce((acc, char) => {
-                acc[char.charId] = { favorPoint: char.favorPoint }
-                return acc
-            }, {} as { [key: string]: { favorPoint: number } }),
+            charGroup: pick(this.chars,["favorPoint"]),
         };
     }
 

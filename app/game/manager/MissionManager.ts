@@ -541,7 +541,7 @@ export class MissionProgress implements MissionPlayerState {
                 this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
                 break
             case "update":
-                this.progress[0].value = args.troop.chars.reduce((acc, char) => {
+                this.progress[0].value = Object.values(args.troop.chars).reduce((acc, char) => {
                     acc += char.evolvePhase == parseInt(this.param[2]) ? 1 : 0
                     return acc
                 }, 0)

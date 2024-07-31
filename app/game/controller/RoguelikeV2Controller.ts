@@ -1,13 +1,11 @@
 import EventEmitter from "events";
-import { PlayerRoguelikePendingEvent, PlayerRoguelikeV2, RoguelikeNodePosition } from '../model/rlv2';
-import excel from "../../excel/excel";
-import { RoguelikeGameInitData } from "../../excel/roguelike_topic_table";
+import {  PlayerRoguelikeV2, RoguelikeNodePosition } from '../model/rlv2';
+import excel from "@excel/excel";
 import _ from "lodash"
 import { readFileSync } from "fs";
 import { RoguelikeInventoryManager } from "./rlv2/InventoryManager";
 import { TroopManager } from "../manager/TroopManager";
 import { RoguelikeBuffManager } from "./rlv2/BuffManager";
-import { RoguelikePendingEvent } from "./rlv2/EventManager";
 import { RoguelikePlayerStatusManager } from "./rlv2/PlayerStatusManager";
 export class RoguelikeV2Config {
     choiceScenes: { [key: string]: { choices: { [key: string]: number } } }

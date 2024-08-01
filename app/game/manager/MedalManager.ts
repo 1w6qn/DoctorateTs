@@ -2,11 +2,12 @@ import EventEmitter from "events";
 import {  PlayerDataMedal, PlayerDataModel } from '../model/playerdata';
 import excel from "../../excel/excel";
 import { ItemBundle } from "../../excel/character_table";
+import { now } from "@utils/time";
 export class MedalManager {
     medal: PlayerDataMedal;
     _trigger: EventEmitter;
     get dailyMissionPeriod(): string {
-        let ts = new Date().getTime() / 1000
+        let ts = now()
         let period = excel.MissionTable.dailyMissionPeriodInfo.find((p) => p.startTime <= ts && p.endTime >= ts)
         return period!.periodList.find((p) => (new Date().getDay() + 1) in p.period)!.missionGroupId
     }

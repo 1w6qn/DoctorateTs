@@ -41,7 +41,11 @@ export class CheckInManager {
         let subscriptionRewards: ItemBundle[] = []
         if (this.data.canCheckIn) {
             this.data.canCheckIn = 0;
+            if(this.data.checkInRewardIndex<0){
+                this.data.checkInRewardIndex=0
+            }
             let item = excel.CheckinTable.groups[this.data.checkInGroupId].items[this.data.checkInRewardIndex];
+            console.log(item)
             signInRewards = [{ id: item.itemId, count: item.count, type: item.itemType }]
             if (this.isSUb) {
                 const currentMonthlySubId=excel.CheckinTable.currentMonthlySubId

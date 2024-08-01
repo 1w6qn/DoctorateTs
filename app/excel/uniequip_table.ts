@@ -23,21 +23,15 @@ export interface UniEquipData {
     tmplId:            null | string;
     showLevel:         number;
     unlockLevel:       number;
-    unlockFavorPoint:  number;
+    unlockFavorPoint?:  number;
     missionList:       string[];
     itemCost:          { [key: string]: ItemBundle[] } | null;
-    type:              UniEquipType;
+    type:              string;//UniEquipType;
     uniEquipGetTime:   number;
     charEquipOrder:    number;
 }
 
 
-
-
-export enum UniEquipType {
-    Advanced = "ADVANCED",
-    Initial = "INITIAL",
-}
 
 
 export interface UniEquipTimeInfo {

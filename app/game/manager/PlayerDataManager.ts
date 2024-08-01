@@ -56,6 +56,7 @@ export class PlayerDataManager {
         this.recruit=new RecruitManager(playerdata.recruit,this.troop, this._trigger)
         this.rlv2=new RoguelikeV2Controller(playerdata.rlv2,this.troop, this._trigger)
         this.gacha=new GachaController(playerdata.gacha,this.status.uid,this.troop, this._trigger)
+        this._trigger.emit("game:fix")
     }
     toJSON() {
         return {
@@ -101,7 +102,8 @@ export class PlayerDataManager {
             campaignsV2:this._playerdata.campaignsV2,
             checkMeta:this._playerdata.checkMeta,
             limitedBuff:this._playerdata.limitedBuff,
-            ...this.home.toJSON()
+            ...this.home.toJSON(),
+            trainingGround:this._playerdata.trainingGround,
         }
     }
 }

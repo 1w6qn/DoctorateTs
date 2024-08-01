@@ -41,7 +41,7 @@ export interface PlayerDataModel {
     };
     ticket: Ticket;
     aprilFool: AprilFoolClass;
-    consumable: Consumable;
+    consumable: {[key:string]:{[key:string]:PlayerConsumableItem}};
     charm: Charm;
     carousel: Carousel;
     openServer: PlayerOpenServer;
@@ -55,6 +55,7 @@ export interface PlayerDataModel {
     checkMeta: CheckMeta;
     limitedBuff: LimitedBuff;
     collectionReward: PlayerCollection;
+    trainingGround?:any
 }
 export interface PlayerStatus {
     nickName: string;
@@ -1081,240 +1082,14 @@ export interface PlayerCollection {
     team: { [key: string]: number };
 }
 
-export interface Consumable {
-    LIMITED_TKT_GACHA_10_903: {};
-    LMTGS_COIN_903: {};
-    ap_supply_lt_100: {};
-    ap_supply_lt_010: ApSupplyLt010;
-    randomMaterial_3: RandomMaterial3;
-    randomMaterial_1: RandomMaterial1;
-    randomMaterialRune_1: RandomMaterialRune1;
-    randomMaterialRune_2: RandomMaterialRune2;
-    voucher_recruitR5_pick2: VoucherRecruitR5Pick2;
-    randomDiamondShd_2: {};
-    LIMITED_TKT_GACHA_10_1401: {};
-    LMTGS_COIN_1401: {};
-    randomMaterial_4: RandomMaterial4;
-    randomMaterialRune_3: RandomMaterialRune3;
-    LMTGS_COIN_601: {};
-    LIMITED_TKT_GACHA_10_1601: {};
-    LMTGS_COIN_1601: {};
-    randomMaterialRune_4: RandomMaterialRune4;
-    LINKAGE_TKT_GACHA_10_1701: {};
-    renamingCard: RenamingCard;
-    LMTGS_COIN_1803: {};
-    voucher_item_4pick1_1803: VoucherItem4Pick11803;
-    voucher_recruitR5_pick1803: VoucherRecruitR5Pick1803;
-    LIMITED_TKT_GACHA_10_1803: {};
-    ap_supply_lt_60: {};
-    randomMaterialRune_5: RandomMaterialRune5;
-    LIMITED_TKT_GACHA_10_2101: {};
-    LMTGS_COIN_2101: {};
-    LIMITED_TKT_GACHA_10_2301: {};
-    LMTGS_COIN_2301: {};
-    randomMaterialRune_6: RandomMaterialRune6;
-    LIMITED_TKT_GACHA_10_2501: {};
-    LMTGS_COIN_2501: {};
-    ap_supply_lt_100_2022_5: {};
-    ap_supply_lt_100_2022_4: {};
-    ap_supply_lt_100_2022_3: {};
-    ap_supply_lt_100_2022_2: {};
-    ap_supply_lt_100_2022_1: {};
-    randomMaterialRune_8: RandomMaterialRune8;
-    randomMaterial_6: RandomMaterial6;
-    voucher_recruitR5_pick2701: VoucherRecruitR5Pick2701;
-    LIMITED_TKT_GACHA_10_2701: {};
-    ap_supply_lt_120: { [key: string]: EtObsidianPassRep1 };
-    LMTGS_COIN_2701: {};
-    EXTERMINATION_AGENT: ExterminationAgent;
-    randomMaterialRune_9: RandomMaterialRune9;
-    LIMITED_TKT_GACHA_10_3001: {};
-    LMTGS_COIN_3001: {};
-    ap_supply_lt_120_2022_4: {};
-    randomMaterialRune_10: RandomMaterialRune10;
-    randomMaterial_7: RandomMaterial7;
-    LIMITED_TKT_GACHA_10_3301: {};
-    LMTGS_COIN_3301: {};
-    ap_supply_lt_80: ApSupplyLt80;
-    randomMaterialRune_11: RandomMaterialRune11;
-    LIMITED_TKT_GACHA_10_3501: {};
-    LMTGS_COIN_3501: {};
-    ap_supply_lt_100_2023_5: {};
-    ap_supply_lt_100_2023_4: {};
-    ap_supply_lt_100_2023_3: {};
-    ap_supply_lt_100_2023_2: {};
-    ap_supply_lt_100_2023_1: {};
-    LINKAGE_TKT_GACHA_10_3601: {};
-    LINKAGE_TKT_GACHA_10_3602: {};
-    randomMaterialRune_12: RandomMaterialRune12;
-    randomMaterial_8: RandomMaterial8;
-    LIMITED_TKT_GACHA_10_3801: {};
-    voucher_recruitR5_pick3801: VoucherRecruitR5Pick3801;
-    LMTGS_COIN_3801: {};
-    randomMaterial_rhine2: RandomMaterialRhine2;
-    LIMITED_TKT_GACHA_10_4101: {};
-    LMTGS_COIN_4101: {};
-    randomMaterial_siesta2: RandomMaterialSiesta2;
-    ap_supply_lt_120_2023_3: {};
-    randomMaterial_9: RandomMaterial9;
-    LIMITED_TKT_GACHA_10_4401: {};
-    LMTGS_COIN_4401: {};
-    randomMaterial_leith2: RandomMaterialLeith2;
-    LIMITED_TKT_GACHA_10_4701: {};
-    LMTGS_COIN_4701: {};
-    ap_supply_lt_100_2024_3: {};
-    ap_supply_lt_100_2024_2: {};
-    ap_supply_lt_100_2024_1: {};
-    ap_supply_lt_100_2024_5: {};
-    ap_supply_lt_100_2024_4: {};
-    LINKAGE_TKT_GACHA_10_4801: {};
-    LIMITED_TKT_GACHA_10_5001: {};
-    voucher_recruitR5_pick5001: VoucherRecruitR5Pick5001;
-    LMTGS_COIN_5001: LmtgsCoin5001;
-    randomMaterial_10: RandomMaterial10;
-    premium_material_issue_voucher: PremiumMaterialIssueVoucher;
-}
 
-export interface ExterminationAgent {
-    "499": EtObsidianPassRep1;
-}
 
-export interface EtObsidianPassRep1 {
+export interface PlayerConsumableItem {
     ts: number;
     count: number;
 }
 
-export interface LmtgsCoin5001 {
-    "495": EtObsidianPassRep1;
-}
 
-export interface ApSupplyLt010 {
-    "496": EtObsidianPassRep1;
-}
-
-export interface ApSupplyLt80 {
-    "489": EtObsidianPassRep1;
-}
-
-export interface PremiumMaterialIssueVoucher {
-    "501": EtObsidianPassRep1;
-}
-
-export interface RandomMaterialRune1 {
-    "17": EtObsidianPassRep1;
-}
-
-export interface RandomMaterialRune10 {
-    "216": EtObsidianPassRep1;
-}
-
-export interface RandomMaterialRune11 {
-    "275": EtObsidianPassRep1;
-}
-
-export interface RandomMaterialRune12 {
-    "338": EtObsidianPassRep1;
-}
-
-export interface RandomMaterialRune2 {
-    "30": EtObsidianPassRep1;
-}
-
-export interface RandomMaterialRune3 {
-    "66": EtObsidianPassRep1;
-}
-
-export interface RandomMaterialRune4 {
-    "80": EtObsidianPassRep1;
-}
-
-export interface RandomMaterialRune5 {
-    "104": EtObsidianPassRep1;
-}
-
-export interface RandomMaterialRune6 {
-    "124": EtObsidianPassRep1;
-}
-
-export interface RandomMaterialRune8 {
-    "142": EtObsidianPassRep1;
-}
-
-export interface RandomMaterialRune9 {
-    "170": EtObsidianPassRep1;
-}
-
-export interface RandomMaterial1 {
-    "14": EtObsidianPassRep1;
-}
-
-export interface RandomMaterial10 {
-    "497": EtObsidianPassRep1;
-}
-
-export interface RandomMaterial3 {
-    "5": EtObsidianPassRep1;
-}
-
-export interface RandomMaterial4 {
-    "52": EtObsidianPassRep1;
-}
-
-export interface RandomMaterial6 {
-    "148": EtObsidianPassRep1;
-}
-
-export interface RandomMaterial7 {
-    "234": EtObsidianPassRep1;
-}
-
-export interface RandomMaterial8 {
-    "339": EtObsidianPassRep1;
-}
-
-export interface RandomMaterial9 {
-    "409": EtObsidianPassRep1;
-}
-
-export interface RandomMaterialLeith2 {
-    "419": EtObsidianPassRep1;
-}
-
-export interface RandomMaterialRhine2 {
-    "351": EtObsidianPassRep1;
-}
-
-export interface RandomMaterialSiesta2 {
-    "385": EtObsidianPassRep1;
-}
-
-export interface RenamingCard {
-    "89": EtObsidianPassRep1;
-}
-
-export interface VoucherItem4Pick11803 {
-    "98": EtObsidianPassRep1;
-}
-
-export interface VoucherRecruitR5Pick1803 {
-    "99": EtObsidianPassRep1;
-}
-
-export interface VoucherRecruitR5Pick2 {
-    "32": EtObsidianPassRep1;
-}
-
-export interface VoucherRecruitR5Pick2701 {
-    "152": EtObsidianPassRep1;
-}
-
-export interface VoucherRecruitR5Pick3801 {
-    "349": EtObsidianPassRep1;
-}
-
-export interface VoucherRecruitR5Pick5001 {
-    "494": EtObsidianPassRep1;
-}
 
 export interface Crisis {
     current: string;
@@ -1861,7 +1636,7 @@ export interface LimitedBuff {
 }
 
 export interface LimitedBuffInventory {
-    Logistics_Special_Permit: EtObsidianPassRep1;
+    Logistics_Special_Permit: PlayerConsumableItem;
 }
 
 export interface Mainline {
@@ -3740,7 +3515,7 @@ export interface Trap {
 }
 
 export interface Ticket {
-    et_ObsidianPass_rep_1: EtObsidianPassRep1;
+    et_ObsidianPass_rep_1: PlayerConsumableItem;
 }
 
 export interface PlayerDataTower {

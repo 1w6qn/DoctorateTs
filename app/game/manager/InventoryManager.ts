@@ -48,6 +48,14 @@ export class InventoryManager {
             case "MATERIAL":
                 this.items[item.id] = (this.items[item.id] || 0) + item.count
                 break;
+            case "LMTGS_COIN":
+                if(this._playerdata.consumable[item.id]["999"]){
+                    this._playerdata.consumable[item.id]["999"].count+=item.count
+                }
+                else{
+                    this._playerdata.consumable[item.id]["999"]={count:item.count,ts:-1}
+                }
+                break;
             default:
                 this.items[item.id] = (this.items[item.id] || 0) + item.count
                 break;

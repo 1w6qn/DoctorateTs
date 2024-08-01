@@ -22,6 +22,9 @@ export class GachaController {
         this._table = JSON.parse(readFileSync(`${__dirname}/../../../data/gacha_detail_table.json`, 'utf8'))
         this._trigger = _trigger
     }
+    fix(){
+        
+    }
     async advancedGacha(args: { poolId: string, useTkt: number, itemId: string }): Promise<GachaResult & { logInfo: { beforeNonHitCnt: number } }> {
         let costs: ItemBundle[] = []
         //TODO
@@ -52,6 +55,7 @@ export class GachaController {
         }
         let charId = ""
         let ruleType = excel.GachaTable.gachaPoolClient.find((g) => g.gachaPoolId === poolId)!.gachaRuleType
+        let extras:{[key:string]:any}={from:ruleType}
         let detail = this._table.details[poolId]
         let beforeNonHitCnt = accountManager.getBeforeNonHitCnt(this.uid, ruleType)
         let rank: number
@@ -63,6 +67,7 @@ export class GachaController {
                 charId = this._getRandomChar(poolId, rank, {})
                 break;
             case "LIMITED":
+                extras.extraItem={id:excel.GachaTable.gachaPoolClient.find((g) => g.gachaPoolId === poolId)!.LMTGSID,count:1}as ItemBundle
                 rank = this._getRarityRank(poolId, { beforeNonHitCnt })
                 beforeNonHitCnt = rank != 5 ? beforeNonHitCnt + 1 : 0
                 charId = this._getRandomChar(poolId, rank, {})

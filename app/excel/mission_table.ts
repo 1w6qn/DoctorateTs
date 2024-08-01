@@ -33,7 +33,7 @@ export interface CrossAppShareMission {
 export interface DailyMissionGroupInfo {
     startTime:  number;
     endTime:    number;
-    tagState:   null;
+    tagState:   null|string;
     periodList: PeriodInfo[];
 }
 

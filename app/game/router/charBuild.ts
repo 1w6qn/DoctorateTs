@@ -28,6 +28,12 @@ router.post("/setEquipment", (req, res) => {
     player._trigger.emit("save")
     res.send(player.delta)
 })
+router.post("/unlockEquipment", (req, res) => {
+    let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    player.troop.unlockEquipment(req.body)
+    player._trigger.emit("save")
+    res.send(player.delta)
+})
 router.post("/changeCharTemplate", (req, res) => {
     let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     player.troop.changeCharTemplate(req.body!.charInstId,req.body!.templateId)

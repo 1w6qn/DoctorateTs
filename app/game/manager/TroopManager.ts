@@ -4,7 +4,8 @@ import excel from "../../excel/excel";
 import { ItemBundle } from "app/excel/character_table";
 import { PlayerDataModel } from "../model/playerdata";
 import { GachaResult } from "../model/gacha";
-import { pick } from "lodash";
+import { pick, template } from "lodash";
+import { now } from "@utils/time";
 
 export class TroopManager {
 
@@ -22,14 +23,21 @@ export class TroopManager {
     _troop: PlayerTroop
     constructor(
         playerdata: PlayerDataModel,
-        trigger: EventEmitter
+        trigger: EventEmitter,
+        mode: string="",
     ) {
         this._playerdata = playerdata;
         this._troop = playerdata.troop;
-        this.chars = this._troop.chars;
+        if(mode == "all"){
+            this.chars={}
+        }else{
+           this.chars = this._troop.chars; 
+        }
+        
         this.squads = this._troop.squads;
         this._trigger = trigger;
         this._trigger.on("char:get", this.gainChar.bind(this))
+        this._trigger.on("game:fix", this.fix.bind(this))
     }
 
     getCharacterByCharId(charId: string): PlayerCharacter {
@@ -38,7 +46,7 @@ export class TroopManager {
     getCharacterByInstId(instId: number): PlayerCharacter {
         return this.chars[instId] as PlayerCharacter;
     }
-    gainChar(charId: string, args: { from: string } = { from: "NORMAL" }): GachaResult {
+    gainChar(charId: string, args: { from: string, extraItem?: ItemBundle } = { from: "NORMAL" }): GachaResult {
         let isNew = Object.values(this.chars).some(char => char.charId === charId) ? 0 : 1
         let charInstId = 0
         let items: ItemBundle[] = []
@@ -55,16 +63,16 @@ export class TroopManager {
             if (args.from == "CLASSIC") {
                 switch (excel.CharacterTable[charId].rarity) {
                     case "TIER_6":
-                        items.push({id:"classic_normal_ticket",count:100})
+                        items.push({ id: "classic_normal_ticket", count: 100 })
                         break;
                     case "TIER_5":
-                        items.push({id:"classic_normal_ticket",count:50})
+                        items.push({ id: "classic_normal_ticket", count: 50 })
                         break;
                     case "TIER_4":
-                        items.push({id:"classic_normal_ticket",count:5})
+                        items.push({ id: "classic_normal_ticket", count: 5 })
                         break;
                     case "TIER_3":
-                        items.push({id:"classic_normal_ticket",count:1})
+                        items.push({ id: "classic_normal_ticket", count: 1 })
                         break;
                     default:
                         break;
@@ -72,22 +80,22 @@ export class TroopManager {
             } else {
                 switch (excel.CharacterTable[charId].rarity) {
                     case "TIER_6":
-                        items.push({ id: "4004", count: t ? 15 : 10, type: "HGG_SHD" })
+                        items.push({ id: "4004", count: t ? 15 : 10 })
                         break;
                     case "TIER_5":
-                        items.push({ id: "4004", count: t ? 8 : 5, type: "HGG_SHD" })
+                        items.push({ id: "4004", count: t ? 8 : 5 })
                         break;
                     case "TIER_4":
-                        items.push({ id: "4005", count: 30, type: "LGG_SHD" })
+                        items.push({ id: "4005", count: 30 })
                         break;
                     case "TIER_3":
-                        items.push({ id: "4005", count: 5, type: "LGG_SHD" })
+                        items.push({ id: "4005", count: 5 })
                         break;
                     case "TIER_2":
-                        items.push({ id: "4005", count: 1, type: "LGG_SHD" })
+                        items.push({ id: "4005", count: 1 })
                         break;
                     case "TIER_1":
-                        items.push({ id: "4005", count: 1, type: "LGG_SHD" })
+                        items.push({ id: "4005", count: 1 })
                         break;
                     default:
                         break;
@@ -107,19 +115,23 @@ export class TroopManager {
                 "exp": 0,
                 "evolvePhase": 0,
                 "defaultSkillIndex": -1,
-                "gainTime": new Date().getTime(),
+                "gainTime": now(),
                 "skills": [],
                 "currentEquip": null,
                 "equip": {},
                 "voiceLan": "CN_MANDARIN"
             }
             this._trigger.emit("char:init", this.getCharacterByCharId(charId))
-            if(args.from == "CLASSIC"){
-                items.push({id:"classic_normal_ticket",count:10})
-            }else{
+            if (args.from == "CLASSIC") {
+                items.push({ id: "classic_normal_ticket", count: 10 })
+            } else {
                 items.push({ id: "4004", count: 1, type: "HGG_SHD" })
             }
-            
+            if (args.extraItem) {
+                items.push(args.extraItem)
+            }
+            this._trigger.emit("game:fix")
+
         }
         this._trigger.emit("gainItems", items)
         return {
@@ -210,6 +222,24 @@ export class TroopManager {
     changeMarkStar(chrIdDict: { [key: string]: number }) {
         //TODO
     }
+    unlockEquipment(args: { charInstId: number, templateId: string, equipId: string }) {
+        let char = this.getCharacterByInstId(args.charInstId);
+        if (args.templateId) {
+            char.tmpl![args.templateId].equip[args.equipId].hide=0
+            char.tmpl![args.templateId].equip[args.equipId].locked=0
+        }else{
+            char.equip![args.equipId].hide=0
+            char.equip![args.equipId].locked=0
+        }
+    }
+    upgradeEquipment(args: { charInstId: number, templateId: string, equipId: string ,targetLevel:number }) {
+        let char = this.getCharacterByInstId(args.charInstId);
+        if (args.templateId) {
+            char.tmpl![args.templateId].equip[args.equipId].level=args.targetLevel
+        }else{
+            char.equip![args.equipId].level=args.targetLevel
+        }
+    }
     changeSecretary(charInstId: number, skinId: string) {
         let charId = this.getCharacterByInstId(charInstId).charId;
         this._trigger.emit("status:change:secretary", charId, skinId)
@@ -257,5 +287,41 @@ export class TroopManager {
             charGroup: pick(this.chars, ["favorPoint"]),
         };
     }
+    async fix(): Promise<void> {
+        await excel.initPromise
+        Object.values(this.chars).forEach(char => {
+            if (char.charId == "char_002_amiya") {
+                //TODO
+                return
+            }
+            let skills = excel.CharacterTable[char.charId].skills
+            skills.forEach(skill => {
+                if (!char.skills?.some(s => s.skillId == skill.skillId)) {
+                    char.skills?.push({
+                        skillId: skill.skillId!,
+                        unlock: (char.evolvePhase >= parseInt(skill.unlockCond.phase.toString().slice(-1)) && char.level >= skill.unlockCond.level) ? 1 : 0,
+                        state: 0,
+                        specializeLevel: 0,
+                        completeUpgradeTime: -1
+                    })
+                }else{
+                    char.skills!.find(s => s.skillId == skill.skillId)!.unlock = (char.evolvePhase >= parseInt(skill.unlockCond.phase.toString().slice(-1)) && char.level >= skill.unlockCond.level) ? 1 : 0
+                }
+            })
+            char.defaultSkillIndex=skills?(char.defaultSkillIndex!=-1?char.defaultSkillIndex:0):-1
+            let equips = excel.UniequipTable.equipDict
+            Object.values(equips).filter(equip => equip.charId == char.charId).forEach(equip => {
+                char.equip = char.equip || {}
+                char.equip[equip.uniEquipId] = char.equip[equip.uniEquipId] || {
+                    hide: 1,
+                    locked: 1,
+                    level: 1
+                }
+            })
+            if (char.evolvePhase == 2 && char.equip) {
+                char.currentEquip = char.currentEquip || Object.keys(char.equip)[0]!
+            }
 
+        })
+    }
 }

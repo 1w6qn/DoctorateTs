@@ -14,15 +14,15 @@ const config: UserConfig = {
     Host: 'http://192.168.1.11',
     PORT: 8443,
     version:{
-        "resVersion": "24-07-23-15-16-02-a53606",
-        "clientVersion": "2.3.01"
+        "resVersion": "24-07-31-04-23-55-e2099f",
+        "clientVersion": "2.3.21"
       },
     enableMods:false,
     NetworkConfig: {
         "configVer": "5",
-        "funcVer": "V052",
+        "funcVer": "V053",
         "configs": {
-            "V052": {
+            "V053": {
                 "override": true,
                 "network": {
                     "gs": "{server}",

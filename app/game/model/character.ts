@@ -27,13 +27,16 @@ export interface PlayerCharPatch{
     equip:{[key:string]:PlayerCharEquipInfo}
 }
 export interface PlayerCharSkill{
-    unlock:boolean
+    unlock:number
     skillId:string
-    specializeLevel:string
+    state:number
+    specializeLevel:number
+    completeUpgradeTime:number
 }
 export interface PlayerCharEquipInfo{
-    locked:boolean
+    locked:number
     level:number
+    hide:number
 }
 export interface SharedCharData{
     charId:string;

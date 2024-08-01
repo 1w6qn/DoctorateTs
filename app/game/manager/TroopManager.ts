@@ -199,9 +199,7 @@ export class TroopManager {
     changeCharSkin(instId: number, skinId: string): void {
         this.chars[instId].skinId = skinId;
     }
-    setEquipment(instId: number, equipId: string): void {
-        this.chars[instId].currentEquip = equipId;
-    }
+    
     changeCharTemplate(instId: number, templateId: string): void {
         this.chars[instId].currentTmpl = templateId;
     }
@@ -222,6 +220,14 @@ export class TroopManager {
     changeMarkStar(chrIdDict: { [key: string]: number }) {
         //TODO
     }
+    setEquipment(args: { charInstId: number, templateId: string, equipId: string }): void {
+        let char = this.getCharacterByInstId(args.charInstId);
+        if (args.templateId) {
+            char.tmpl![args.templateId].currentEquip=args.equipId
+        }else{
+            char.currentEquip=args.equipId
+        }
+    }
     unlockEquipment(args: { charInstId: number, templateId: string, equipId: string }) {
         let char = this.getCharacterByInstId(args.charInstId);
         if (args.templateId) {
@@ -231,14 +237,20 @@ export class TroopManager {
             char.equip![args.equipId].hide=0
             char.equip![args.equipId].locked=0
         }
+        this._trigger.emit("useItems",excel.UniequipTable.equipDict[args.equipId].itemCost!["1"])
     }
     upgradeEquipment(args: { charInstId: number, templateId: string, equipId: string ,targetLevel:number }) {
         let char = this.getCharacterByInstId(args.charInstId);
+        let items: ItemBundle[] = []
         if (args.templateId) {
             char.tmpl![args.templateId].equip[args.equipId].level=args.targetLevel
         }else{
             char.equip![args.equipId].level=args.targetLevel
         }
+        for (let i = char.equip![args.equipId].level; i < args.targetLevel+1; i++) {
+            items.push(...excel.UniequipTable.equipDict[args.equipId].itemCost![i])
+        }
+        this._trigger.emit("useItems", items)
     }
     changeSecretary(charInstId: number, skinId: string) {
         let charId = this.getCharacterByInstId(charInstId).charId;

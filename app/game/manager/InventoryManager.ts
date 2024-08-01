@@ -27,7 +27,7 @@ export class InventoryManager {
                 break;
 
             default:
-                this._trigger.emit("gainItems",[Object.assign(item, { count: -item.count })])
+                this._trigger.emit("gainItems",[Object.assign({},item, { count: -item.count })])
                 break;
         }
     }

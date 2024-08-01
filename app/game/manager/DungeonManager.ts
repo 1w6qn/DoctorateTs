@@ -15,19 +15,20 @@ export class DungeonManager implements PlayerDungeon {
     this.hideStages = dungeon.hideStages;
     this.mainlineBannedStages = dungeon.mainlineBannedStages;
     this._trigger = _trigger;
-    //this.initStages();
+    this.initStages();
   }
-  initStages() {
+  async initStages() {
+    await excel.initPromise
     for (let stageId in excel.StageTable.stages) {
       if (!(stageId in this.stages)) {
         this.stages[stageId] = {
-          "completeTimes": 0,
+          "completeTimes": 1,
           "hasBattleReplay": 0,
           "noCostCnt": 0,
           "practiceTimes": 0,
           "stageId": stageId,
-          "startTimes": 0,
-          "state": 0,//TODO
+          "startTimes": 1,
+          "state": 3,
         }
       }
     }

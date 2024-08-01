@@ -8,3 +8,4 @@ a.json
 .VSCodeCounter/
 package-lock.json
 tmp/
+test/

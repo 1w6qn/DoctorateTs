@@ -172,9 +172,9 @@ export class MissionProgress implements MissionPlayerState {
     }
     async init() {
         await excel.initPromise
-        let template
+        let template:string
         if (this.type == "ACTIVITY") {
-            template
+            template=""
         } else {
             template = excel.MissionTable.missions[this.missionId].template
             this.param = excel.MissionTable.missions[this.missionId].param

@@ -1,5 +1,5 @@
 import express from 'express';
-import fetch from 'node-fetch';
+import fetch from 'axios';
 import fs from 'fs';
 import path from 'path';
 import config from 'app/config';
@@ -51,7 +51,7 @@ app.get("/config/prod/announce_meta/Android/preannouncement.meta.json", async (r
         method: 'GET',
         headers: headers as any
     });
-    const data = await response.text();
+    const data = await response.data;
     res.send(data);
 });
 
@@ -62,7 +62,7 @@ app.get("/config/prod/announce_meta/Android/announcement.meta.json", async (req,
         method: 'GET',
         headers: headers as any
     });
-    const data = await response.text();
+    const data = await response.data;
     res.send(data);
 });
 
@@ -71,10 +71,10 @@ app.post("/u8/user/v1/getToken", async (req, res) => {
     delete headers.host;
     const response = await fetch("https://as.hypergryph.com/u8/user/v1/getToken", {
         method: 'POST',
-        body: JSON.stringify(req.body),
+        data: JSON.stringify(req.body),
         headers: headers as any
     });
-    const data = await response.text();
+    const data = await response.data;
     res.send(data);
 });
 
@@ -85,7 +85,7 @@ app.get("/user/info/v1/basic", async (req, res) => {
         method: 'GET',
         headers: headers as any
     });
-    const data = await response.text();
+    const data = await response.data;
     res.send(data);
 });
 
@@ -114,7 +114,7 @@ app.get("/general/v1/server_time", async (req, res) => {
         method: 'GET',
         headers: headers as any
     });
-    const data = await response.text();
+    const data = await response.data;
     res.send(data);
 });
 
@@ -125,7 +125,7 @@ app.get("/app/v1/config", async (req, res) => {
         method: 'GET',
         headers: headers as any
     });
-    const data = await response.text();
+    const data = await response.data;
     res.send(data);
 });
 
@@ -136,7 +136,7 @@ app.get("/u8/user/auth/v1/agreement_version", async (req, res) => {
         method: 'GET',
         headers: headers as any
     });
-    const data = await response.text();
+    const data = await response.data;
     console.log(data);
     res.send(data);
 });
@@ -146,10 +146,10 @@ app.post("/user/oauth2/v2/grant", async (req, res) => {
     delete headers.host;
     const response = await fetch("https://as.hypergryph.com/user/oauth2/v2/grant", {
         method: 'POST',
-        body: JSON.stringify(req.body),
+        data: JSON.stringify(req.body),
         headers: headers as any
     });
-    const data = await response.text();
+    const data = await response.data;
     res.send(data);
 });
 
@@ -158,10 +158,10 @@ app.post("/user/auth/v1/token_by_phone_password", async (req, res) => {
     delete headers.host;
     const response = await fetch("https://as.hypergryph.com/user/auth/v1/token_by_phone_password", {
         method: 'POST',
-        body: JSON.stringify(req.body),
+        data: JSON.stringify(req.body),
         headers: headers as any
     });
-    const data = await response.text();
+    const data = await response.data;
     res.send(data);
 });
 
@@ -170,10 +170,10 @@ app.post("/pre_get_token", async (req, res) => {
     delete headers.host;
     const response = await fetch("https://as.hypergryph.com/pre_get_token", {
         method: 'POST',
-        body: JSON.stringify(req.body),
+        data: JSON.stringify(req.body),
         headers: headers as any
     });
-    const data = await response.text();
+    const data = await response.data;
     res.send(data);
 });
 
@@ -182,19 +182,22 @@ app.post("/user/online/v1/loginout", async (req, res) => {
     delete headers.host;
     const response = await fetch("https://as.hypergryph.com/user/online/v1/loginout", {
         method: 'POST',
-        body: JSON.stringify(req.body),
+        data: JSON.stringify(req.body),
         headers: headers as any
     });
-    const data = await response.text();
+    const data = await response.data;
     res.send(data);
 });
 
 app.post("/u8/pay/getAllProductList", async (req, res) => {
+    const headers = { ...req.headers };
+    delete headers.host;
     const response = await fetch("https://as.hypergryph.com/u8/pay/getAllProductList", {
         method: 'POST',
-        body: JSON.stringify(req.body)
+        data: JSON.stringify(req.body),
+        headers: headers as any
     });
-    const data = await response.text();
+    const data = await response.data;
     printj(data, "getAllProductList");
     res.send(data);
 });
@@ -205,10 +208,10 @@ app.post("/pay/:a", async (req, res) => {
     delete headers.host;
     const response = await fetch(`https://as.hypergryph.com/pay/${req.params.a}`, {
         method: 'POST',
-        body: JSON.stringify(req.body),
+        data: JSON.stringify(req.body),
         headers: headers as any
     });
-    const data = await response.text();
+    const data = await response.data;
     printj(data, `pay_${req.params.a}_res_`);
     printj(JSON.stringify(req.body), `pay_${req.params.a}_req_`);
     res.send(data);
@@ -219,10 +222,11 @@ app.post("/:b/:a", async (req, res) => {
     delete headers.host;
     const response = await fetch(`https://ak-gs-gf.hypergryph.com/${req.params.b}/${req.params.a}`, {
         method: 'POST',
-        body: JSON.stringify(req.body),
+        data: JSON.stringify(req.body),
         headers: headers as any
     });
-    const data = await response.text();
+    const data = await response.data;
+    console.log(headers["secret"])
     printj(data, `${req.params.b}_${req.params.a}_res_`);
     printj(JSON.stringify(req.body), `${req.params.b}_${req.params.a}_req_`);
     res.send(data);
@@ -233,10 +237,10 @@ app.post("/:b/:a/:c", async (req, res) => {
     delete headers.host;
     const response = await fetch(`https://ak-gs-gf.hypergryph.com/${req.params.b}/${req.params.a}/${req.params.c}`, {
         method: 'POST',
-        body: JSON.stringify(req.body),
+        data: JSON.stringify(req.body),
         headers: headers as any
     });
-    const data = await response.text();
+    const data = await response.data;
     printj(data, `${req.params.b}_${req.params.a}_${req.params.c}_res_`);
     printj(JSON.stringify(req.body), `${req.params.b}_${req.params.a}_${req.params.c}_req_`);
     res.send(data);

@@ -34,6 +34,36 @@ router.post("/chooseInitialRelic", async(req, res) => {
     })
     player._trigger.emit("save")
 })
+router.post("/chooseInitialRecruitSet", async(req, res) => {
+    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    
+    await player.rlv2.chooseInitialRecruitSet(req.body);
+    res.send({
+        
+        ...player.delta
+    })
+    player._trigger.emit("save")
+})
+router.post("/activeRecruitTicket", async(req, res) => {
+    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    
+    await player.rlv2.activeRecruitTicket(req.body);
+    res.send({
+        
+        ...player.delta
+    })
+    player._trigger.emit("save")
+})
+router.post("/recruitChar", async(req, res) => {
+    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    
+    await player.rlv2.recruitChar(req.body);
+    res.send({
+        
+        ...player.delta
+    })
+    player._trigger.emit("save")
+})
 router.post("/moveTo", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     player.rlv2.moveTo(req.body);

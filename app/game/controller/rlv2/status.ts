@@ -8,6 +8,7 @@ import { RoguelikeEventManager, RoguelikePendingEvent } from "./events";
 
 
 export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentData.PlayerStatus {
+    state:string
     property: PlayerRoguelikeV2.CurrentData.PlayerStatus.Properties
     cursor: PlayerRoguelikeV2.CurrentData.PlayerStatus.NodePosition
     trace: PlayerRoguelikeV2.CurrentData.PlayerStatus.NodePosition[]
@@ -40,6 +41,7 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
             toEnding: "",
             chgEnding: false
         }
+        this.state = _status.state
         this.property = _status.property
         this.cursor = _status.cursor
         this.trace = _status.trace
@@ -54,18 +56,13 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
     get pending(): RoguelikePendingEvent[] {
         return this._pending._pending
     }
-    get state(): string {
-        if (this._player.current.game!.start == -1) return "NONE"
-        if (this.pending.some(e => e.type.includes("INIT"))) return "INIT"
-        if (this.pending) return "PENDING"
-        return "WAIT_MOVE"
-    }
     async create() {
         await excel.initPromise
         let game = this._player.current.game!
         let init = excel.RoguelikeTopicTable.details.rogue_4.init.find(
             i => (i.modeGrade == game.modeGrade && i.predefinedId == game.predefined && i.modeId == game.mode)
         )!
+        this.state = "INIT"
         this.property.hp.current = init.initialHp
         this.property.hp.max = init.initialHp
         this.property.gold = init.initialGold

@@ -12,11 +12,11 @@ export class RoguelikeRecruitManager {
     _player: RoguelikeV2Controller
     _trigger: EventEmitter
     get index():string {
-        return `t_${this.index}`
+        return `t_${this._index}`
     }
     active(id: string) {
         this.tickets[id].state = 1
-        let ticketInfo = excel.RoguelikeTopicTable.details.rogue_4.recruitTickets[id]
+        let ticketInfo = excel.RoguelikeTopicTable.details.rogue_4.recruitTickets[this.tickets[id].id]
         let chars: PlayerRoguelikeV2.CurrentData.RecruitChar[] = Object.values(this._troop.chars).reduce((acc, char) => {
             let data = excel.CharacterTable[char.charId]
             
@@ -66,10 +66,10 @@ export class RoguelikeRecruitManager {
     done(id: string, optionId: string) {
         this.tickets[id].state = 2
         this.tickets[id].result = this.tickets[id].list.find(item => item.instId == parseInt(optionId)) as PlayerRoguelikeV2.CurrentData.RecruitChar
-
+        this._trigger.emit("rlv2:char:get", this.tickets[id].result)
     }
     gain(id: string, from: string, mustExtra: number): void {
-        this.tickets[id] = {
+        this.tickets[this.index] = {
             index: this.index,
             id: id,
             state: 0,
@@ -89,6 +89,11 @@ export class RoguelikeRecruitManager {
         this._player = player
         this._trigger = _trigger
         this._trigger.on("rlv2:recruit:gain", this.gain.bind(this))
+        this._trigger.on("rlv2:recruit:active", this.active.bind(this))
+        this._trigger.on("rlv2:recruit:done", this.done.bind(this))
+        this._trigger.on("rlv2:create",()=>{
+            this.tickets = {}
+        })
     }
 
 

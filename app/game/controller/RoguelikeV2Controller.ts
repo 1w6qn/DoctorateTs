@@ -9,6 +9,7 @@ import { RoguelikeBuffManager } from "./rlv2/buff";
 import { RoguelikePlayerStatusManager } from "./rlv2/status";
 import { now } from "@utils/time";
 import { RoguelikeModuleManager } from "./rlv2/module";
+import roexcel from "./rlv2/excel";
 export class RoguelikeV2Config {
     choiceScenes: { [key: string]: { choices: { [key: string]: number } } }
     constructor() {
@@ -50,7 +51,7 @@ export class RoguelikeV2Controller {
             predefined: args.predefinedId,
             theme: args.theme,
             outer: {
-                support: true
+                support: false
             },
             start: now(),
             modeGrade: args.modeGrade,
@@ -70,6 +71,7 @@ export class RoguelikeV2Controller {
         }
         this.current.record = { brief: null }
         this.current.map = { zones: {} }
+        
         this._trigger.emit("rlv2:create",this)
     }
     moveTo(to: RoguelikeNodePosition): void {
@@ -84,18 +86,26 @@ export class RoguelikeV2Controller {
         await this.inventory!._relic.gain(relic)
 
     }
-    chooseInitialRecruitSet(args:{select: string}) {
+    async chooseInitialRecruitSet(args:{select: string}) {
+        await roexcel.initPromise
+        const theme=this.current.game!.theme
         let event = this._status.pending.shift()
         let event2=this._status.pending.find(e => e.type === "GAME_INIT_RECRUIT")!
-
         //TODO
-        event2.content.initRecruit!.tickets=[
-            "t_1","t_2","t_3"
-        ]
-        this._trigger.emit("rlv2:recruit:gain", event)
+        roexcel.RoguelikeConsts[theme].recruitGrps[args.select].forEach(r => {
+            console.log("gain recruit",r)
+            this._trigger.emit("rlv2:recruit:gain",r,"initial",0)
+        })
+        event2.content.initRecruit!.tickets=Object.values(this.inventory!.recruit).filter(r=>r.from=="initial").map(r=>r.index)
+        
 
     }
-
+    activeRecruitTicket(args:{id:string}){
+        this._trigger.emit("rlv2:recruit:active",args.id)
+    }
+    recruitChar(args:{ticketIndex:string,optionId:string}){
+        this._trigger.emit("rlv2:recruit:done",args.ticketIndex,args.optionId)
+    }
 
 
     setTroopCarry(troopCarry: string[]) {
@@ -119,14 +129,14 @@ export class RoguelikeV2Controller {
         return {
             outer: this.outer,
             current: {
-                player: this._status,
+                player: this.current.player==null?null: this._status,
                 record: this.current.record,
                 map: this.current.map,
-                inventory: this.inventory,
+                inventory: this.current.inventory==null?null: this.inventory,
                 game: this.current.game,
                 troop: this.current.troop,
                 buff: this.current.buff,
-                module: this._module
+                module: this.current.module==null?null: this._module
             },
             pinned: this.pinned
         }

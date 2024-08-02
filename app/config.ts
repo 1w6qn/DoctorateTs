@@ -14,7 +14,7 @@ const config: UserConfig = {
     Host: 'http://192.168.1.11',
     PORT: 8443,
     version:{
-        "resVersion": "24-07-31-04-23-55-e2099f",
+        "resVersion": "24-08-01-19-38-25-0f631d",
         "clientVersion": "2.3.21"
       },
     enableMods:false,

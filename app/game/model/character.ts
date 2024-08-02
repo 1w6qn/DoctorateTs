@@ -87,7 +87,7 @@ export namespace PlayerHandBookAddon {
 }
 
 export interface PlayerSquad {
-    squadId: string;
+    squadId: string|null;
     name: string|null;
     slots: Array<PlayerSquadItem | null>;
 }

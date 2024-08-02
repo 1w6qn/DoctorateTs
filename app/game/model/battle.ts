@@ -1,3 +1,4 @@
+import { PlayerSquad, SquadFriendData } from "../model/character";
 export interface BattleData {
     battleId:      string;
     interrupt:     number;
@@ -51,3 +52,18 @@ export interface BattleStats {
     autoReplayCancelled:     number;
 }
 
+
+export interface CommonStartBattleRequest {
+    isRetro: number
+    pray: number
+    battleType: number
+    continuous: {
+        battleTimes: number
+    }
+    usePracticeTicket: number,
+    stageId: string,
+    squad: PlayerSquad
+    assistFriend: null | SquadFriendData
+    isReplay: number
+    startTs: number
+}

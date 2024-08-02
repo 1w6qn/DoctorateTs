@@ -11,6 +11,8 @@ import { now } from "@utils/time";
 import { RoguelikeModuleManager } from "./rlv2/module";
 import roexcel from "./rlv2/excel";
 import { RoguelikeTroopManager } from "./rlv2/troop";
+import { RoguelikeMapManager } from "./rlv2/map";
+import { PlayerSquad } from "@game/model/character";
 export class RoguelikeV2Config {
     choiceScenes: { [key: string]: { choices: { [key: string]: number } } }
     constructor() {
@@ -22,6 +24,7 @@ export class RoguelikeV2Controller {
     outer: { [key: string]: PlayerRoguelikeV2.OuterData; };
     current: PlayerRoguelikeV2.CurrentData;
     troop: RoguelikeTroopManager
+    _map!:RoguelikeMapManager
     _status!:RoguelikePlayerStatusManager
     _buff!: RoguelikeBuffManager
     _module!:RoguelikeModuleManager
@@ -44,24 +47,17 @@ export class RoguelikeV2Controller {
             modeGrade: 0,
             equivalentGrade: 0
         }
-        this.current.troop = {
-            chars: {},
-            expedition: [],
-            expeditionDetails: {},
-            expeditionReturn: null,
-            hasExpeditionReturn: false
-        };
         this.current.buff = {
             tmpHP: 0,
             capsule: null,
             squadBuff: []
         }
         this.current.record = { brief: null }
-        this.current.map = { zones: {} }
         this._trigger.emit("rlv2:init",this)
     }
     async createGame(args: { theme: string, mode: string, modeGrade: number, predefinedId: string|null }): Promise<void> {
         //TODO
+        await roexcel.initPromise
         await excel.initPromise
         console.log("[RLV2] Game creation", args)
         this.current.game = {
@@ -82,15 +78,15 @@ export class RoguelikeV2Controller {
         }
         this.current.record = { brief: null }
         this.current.map = { zones: {} }
-        
         this._trigger.emit("rlv2:create",this)
-    }
-    moveTo(to: RoguelikeNodePosition): void {
-        this.current.player!.cursor.position = to
-        this.current.player!.state = "PENDING"
-        //TODO
+        Object.entries(roexcel.RoguelikeConsts[args.theme].outbuff).forEach(([k, v]) => {
+            if(this.outer[args.theme].buff.unlocked[k]){
+                this._buff.applyBuffs(...v)
+            }
+        })
 
     }
+    
     async chooseInitialRelic(args:{select: string}) {
         let event = this._status.pending.shift()
         let relic = event!.content.initRelic!.items[args.select]
@@ -121,10 +117,21 @@ export class RoguelikeV2Controller {
     finishEvent(){
         this._status.pending.shift()
         this._status.cursor.zone+=1
-        this.current.map?.zones[this._status.cursor.zone]
+        this._trigger.emit("rlv2:zone:new",this._status.cursor.zone)
     }
+    moveAndBattleStart(args:{to:RoguelikeNodePosition,stageId:string,squad:PlayerSquad}):string{
 
+        this.moveTo(args.to)
+        let c={}
+        this._trigger.emit("rlv2:battle:start",c)
+        return ""
+    }
+    moveTo(to: RoguelikeNodePosition): void {
+        this.current.player!.cursor.position = to
+        this.current.player!.state = "PENDING"
+        //TODO
 
+    }
     setTroopCarry(troopCarry: string[]) {
         this.current.module!.fragment
 
@@ -154,12 +161,15 @@ export class RoguelikeV2Controller {
             squadBuff: []
         }
         this.current.record = { brief: null }
-        this.current.map = { zones: {} }
+        
         this.troop = new RoguelikeTroopManager(this, this._trigger)
         this._status = new RoguelikePlayerStatusManager(this, this._trigger)
         this.inventory = new RoguelikeInventoryManager(this, this._trigger)
         this._buff = new RoguelikeBuffManager(this, this._trigger)
+        this._map = new RoguelikeMapManager(this, this._trigger)
         this._module = new RoguelikeModuleManager(this, this._trigger)
+        //outbuff
+        
         this._trigger.emit("rlv2:init", this)
     }
     toJSON(): PlayerRoguelikeV2 {
@@ -168,7 +178,7 @@ export class RoguelikeV2Controller {
             current: {
                 player: this._status,
                 record: this.current.record,
-                map: this.current.map,
+                map: this._map,
                 inventory: this.inventory,
                 game: this.current.game,
                 troop: this.troop,

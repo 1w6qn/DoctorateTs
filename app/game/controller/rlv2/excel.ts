@@ -1,8 +1,9 @@
 
-import { RoguelikeGameRelicData } from '@excel/roguelike_topic_table';
+
+import { RoguelikeBuff } from '@game/model/rlv2';
 
 export interface RoguelikeConst {
-    outbuff:{[key:string]:RoguelikeGameRelicData}
+    outbuff:{[key:string]:RoguelikeBuff[]}
     recruitGrps:{[key:string]:string[]}
 }
 export class RoguelikeExcel {

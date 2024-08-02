@@ -294,7 +294,7 @@ export interface TalentData {
 
 export interface BlackboardDataPair {
     key: string;
-    value: number;
+    value?: number;
     valueStr?: null | string;
 }
 

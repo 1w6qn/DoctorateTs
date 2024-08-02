@@ -1,24 +1,11 @@
 import { accountManager } from '../manager/AccountManger';
 import { PlayerDataModel } from "../model/playerdata";
 import EventEmitter from "events";
-import { PlayerSquad, SquadFriendData } from "../model/character";
+
 import excel from "@excel/excel";
 import { decryptBattleData } from '@utils/crypt';
 import { now } from '@utils/time';
-export interface CommonStartBattleRequest {
-    isRetro: number
-    pray: number
-    battleType: number
-    continuous: {
-        battleTimes: number
-    }
-    usePracticeTicket: number,
-    stageId: string,
-    squad: PlayerSquad
-    assistFriend: null | SquadFriendData
-    isReplay: number
-    startTs: number
-}
+import { CommonStartBattleRequest } from '@game/model/battle';
 
 export class BattleManager {
     _playerdata: PlayerDataModel;

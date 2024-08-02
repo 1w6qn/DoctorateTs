@@ -47,7 +47,7 @@ export class RoguelikeBuffManager {
         return {key:key,blackboard:[]}
     }
     immediate_reward(blackboard: Blackboard) {
-        let item: RoguelikeItemBundle={id:blackboard[0].valueStr!,count:blackboard[1].value,sub:0}
+        let item: RoguelikeItemBundle={id:blackboard[0].valueStr!,count:blackboard[1].value!,sub:0}
         this._trigger.emit("rlv2:get:items", [item])
     }
 }

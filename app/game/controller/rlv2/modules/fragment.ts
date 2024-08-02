@@ -20,6 +20,11 @@ export class RoguelikeFragmentManager {
             let data = excel.CharacterTable[v.charId]
             let rarity = parseInt(data.rarity.slice(-1));
             let weight = [[2, 2, 2, 2, 3, 4], [-1, -1, -1, 4, 5, 6]][v.evolvePhase == 2 ? 1 : 0][rarity - 1]
+            this._player._buff.filterBuffs("char_weight_rarity").forEach(b => {
+                if(b.blackboard[0].value == rarity){
+                    weight+=b.blackboard[1].value!
+                }
+            })
             if (v.charId == "char_4151_tinman") {
                 weight += 0
                 if (v.evolvePhase > 0) {
@@ -29,7 +34,6 @@ export class RoguelikeFragmentManager {
                     }
                 }
             }
-            //TODO outbuff
             return [k, weight]
         }))
     }

@@ -73,7 +73,8 @@ export class RoguelikeFragmentManager {
 
     }
     init(){
-
+        this.index = 0
+        this.limitWeight = 5
     }
     continue(){}
     constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {

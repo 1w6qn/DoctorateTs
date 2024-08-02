@@ -13,6 +13,7 @@ import { RecruitManager } from "./RecruitManager";
 import { RoguelikeV2Controller } from "../controller/RoguelikeV2Controller";
 import { BattleManager } from "./BattleManager";
 import { GachaController } from "../controller/GachaController";
+import { accountManager } from "./AccountManger";
 
 export class PlayerDataManager {
     dungeon:DungeonManager

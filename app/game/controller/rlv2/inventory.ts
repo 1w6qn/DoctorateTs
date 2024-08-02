@@ -33,7 +33,7 @@ export class RoguelikeInventoryManager implements PlayerRoguelikeV2.CurrentData.
     }
     getItem(item: RoguelikeItemBundle) {
         const type = excel.RoguelikeTopicTable.details.rogue_4.items[item.id].type
-
+        console.log(`[RLV2] 获得 ${item.id} * ${item.count}`)
         switch (type) {
             case "RECRUIT_TICKET":
                 break

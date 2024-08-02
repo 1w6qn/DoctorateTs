@@ -2,7 +2,7 @@ type DeepPartial<T> = {
     [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
 
-function compareObjects<T extends object=object>(oldObj: T, newObj: T): { modified: DeepPartial<T>, deleted: DeepPartial<T> } {
+export function compareObjects<T extends object=object>(oldObj: T, newObj: T): { modified: DeepPartial<T>, deleted: DeepPartial<T> } {
     const modified: DeepPartial<T> = {};
     const deleted: DeepPartial<T> = {};
 

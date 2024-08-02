@@ -128,6 +128,7 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
             default:
                 break;
         }
+        
     }
     toJSON(): PlayerRoguelikeV2.CurrentData.PlayerStatus {
         return {

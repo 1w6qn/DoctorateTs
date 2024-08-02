@@ -30,6 +30,7 @@ export class RoguelikeRelicManager {
             count: relic.count,
             ts: now()
         }
+        this._index++
     }
     constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
         this._index = 0

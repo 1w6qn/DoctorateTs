@@ -3,7 +3,7 @@ import { PlayerGacha } from '../model/playerdata';
 import { GachaDetailData, GachaDetailTable, GachaPerChar, GachaResult } from "../model/gacha";
 import { readFileSync } from "fs";
 import excel from "@excel/excel";
-import { TroopManager } from "../manager/TroopManager";
+import { TroopManager } from "../manager/troop";
 import _ from "lodash";
 import { accountManager } from "../manager/AccountManger";
 import { ItemBundle } from "@excel/character_table";

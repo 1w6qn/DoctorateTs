@@ -4,7 +4,7 @@ import excel from "../../excel/excel";
 import { ItemBundle } from "app/excel/character_table";
 import { PlayerDataModel } from "../model/playerdata";
 import { GachaResult } from "../model/gacha";
-import { pick, template } from "lodash";
+import { pick } from "lodash";
 import { now } from "@utils/time";
 
 export class TroopManager {

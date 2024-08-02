@@ -3,7 +3,7 @@ import { MissionCalcState, MissionDailyRewards, MissionPlayerData, MissionPlayer
 import excel from "../../excel/excel";
 import { ItemBundle } from "../../excel/character_table";
 import { PlayerSquad } from "../model/character";
-import { TroopManager } from "./TroopManager";
+import { TroopManager } from "./troop";
 import { BattleData } from '../model/battle';
 
 export class MissionManager {

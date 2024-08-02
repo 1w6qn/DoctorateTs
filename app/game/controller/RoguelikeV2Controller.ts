@@ -4,7 +4,7 @@ import excel from "@excel/excel";
 import _ from "lodash"
 import { readFileSync } from "fs";
 import { RoguelikeInventoryManager } from "./rlv2/inventory";
-import { TroopManager } from "../manager/TroopManager";
+import { TroopManager } from "../manager/troop";
 import { RoguelikeBuffManager } from "./rlv2/buff";
 import { RoguelikePlayerStatusManager } from "./rlv2/status";
 export class RoguelikeV2Config {

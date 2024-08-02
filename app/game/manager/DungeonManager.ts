@@ -19,16 +19,17 @@ export class DungeonManager implements PlayerDungeon {
   }
   async initStages() {
     await excel.initPromise
+    
     for (let stageId in excel.StageTable.stages) {
       if (!(stageId in this.stages)) {
         this.stages[stageId] = {
-          "completeTimes": 1,
-          "hasBattleReplay": 0,
-          "noCostCnt": 0,
-          "practiceTimes": 0,
-          "stageId": stageId,
-          "startTimes": 1,
-          "state": 3,
+          completeTimes: 1,
+          hasBattleReplay: 0,
+          noCostCnt: 0,
+          practiceTimes: 0,
+          stageId: stageId,
+          startTimes: 1,
+          state: 3,
         }
       }
     }

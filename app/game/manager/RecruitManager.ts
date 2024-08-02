@@ -1,7 +1,7 @@
 import EventEmitter from "events";
 import { PlayerRecruit } from "../model/playerdata";
 import excel from "@excel/excel";
-import { TroopManager } from "./TroopManager";
+import { TroopManager } from "./troop";
 import { GachaResult } from "../model/gacha";
 import { randomChoices, randomChoice, randomSample,randomInt } from "@utils/random";
 

@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 import { PlayerDataModel } from "../model/playerdata";
 import { InventoryManager } from "./InventoryManager";
-import { TroopManager } from "./TroopManager";
+import { TroopManager } from "./troop";
 import { DungeonManager } from "./DungeonManager";
 import { HomeManager } from "./HomeManager";
 import { StatusManager } from "./StatusManager";

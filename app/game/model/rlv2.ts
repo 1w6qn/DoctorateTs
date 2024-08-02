@@ -174,7 +174,7 @@ export namespace PlayerRoguelikeV2 {
         export interface Char extends PlayerCharacter {
             upgradePhase: number
             upgradeLimited: boolean
-            type: number//RoguelikeCharState
+            type: string//RoguelikeCharState
             charBuff: string[]
 
         }
@@ -668,6 +668,7 @@ export interface RoguelikeBuff {
 }
 export interface RoguelikeItemBundle {
     sub?:number
+    type?:string
     id: string
     count: number
 }

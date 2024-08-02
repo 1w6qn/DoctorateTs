@@ -57,9 +57,16 @@ router.post("/activeRecruitTicket", async(req, res) => {
 router.post("/recruitChar", async(req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     
-    await player.rlv2.recruitChar(req.body);
     res.send({
-        
+        chars:player.rlv2.recruitChar(req.body),
+        ...player.delta
+    })
+    player._trigger.emit("save")
+})
+router.post("/finishEvent", async(req, res) => {
+    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    player.rlv2.finishEvent(),
+    res.send({
         ...player.delta
     })
     player._trigger.emit("save")

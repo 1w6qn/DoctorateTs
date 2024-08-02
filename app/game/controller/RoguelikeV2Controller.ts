@@ -10,6 +10,7 @@ import { RoguelikePlayerStatusManager } from "./rlv2/status";
 import { now } from "@utils/time";
 import { RoguelikeModuleManager } from "./rlv2/module";
 import roexcel from "./rlv2/excel";
+import { RoguelikeTroopManager } from "./rlv2/troop";
 export class RoguelikeV2Config {
     choiceScenes: { [key: string]: { choices: { [key: string]: number } } }
     constructor() {
@@ -20,6 +21,7 @@ export class RoguelikeV2Controller {
     pinned?: string;
     outer: { [key: string]: PlayerRoguelikeV2.OuterData; };
     current: PlayerRoguelikeV2.CurrentData;
+    troop: RoguelikeTroopManager
     _status!:RoguelikePlayerStatusManager
     _buff!: RoguelikeBuffManager
     _module!:RoguelikeModuleManager
@@ -31,16 +33,32 @@ export class RoguelikeV2Controller {
         this.pinned = id
     }
     giveUpGame(): void {
-        this.current = {
-            player: null,
-            record: null,
-            map: null,
-            inventory: null,
-            game: null,
-            troop: null,
-            buff: null,
-            module: null
+        this.current.game = {
+            mode: "",
+            predefined: "",
+            theme: "",
+            outer: {
+                support: false
+            },
+            start: -1,
+            modeGrade: 0,
+            equivalentGrade: 0
         }
+        this.current.troop = {
+            chars: {},
+            expedition: [],
+            expeditionDetails: {},
+            expeditionReturn: null,
+            hasExpeditionReturn: false
+        };
+        this.current.buff = {
+            tmpHP: 0,
+            capsule: null,
+            squadBuff: []
+        }
+        this.current.record = { brief: null }
+        this.current.map = { zones: {} }
+        this._trigger.emit("rlv2:init",this)
     }
     async createGame(args: { theme: string, mode: string, modeGrade: number, predefinedId: string|null }): Promise<void> {
         //TODO
@@ -57,13 +75,6 @@ export class RoguelikeV2Controller {
             modeGrade: args.modeGrade,
             equivalentGrade: args.modeGrade
         }
-        this.current.troop = {
-            chars: {},
-            expedition: [],
-            expeditionDetails: {},
-            expeditionReturn: null,
-            hasExpeditionReturn: false
-        };
         this.current.buff = {
             tmpHP: 0,
             capsule: null,
@@ -103,8 +114,14 @@ export class RoguelikeV2Controller {
     activeRecruitTicket(args:{id:string}){
         this._trigger.emit("rlv2:recruit:active",args.id)
     }
-    recruitChar(args:{ticketIndex:string,optionId:string}){
+    recruitChar(args:{ticketIndex:string,optionId:string}):PlayerRoguelikeV2.CurrentData.RecruitChar[]{
         this._trigger.emit("rlv2:recruit:done",args.ticketIndex,args.optionId)
+        return [this.inventory?.recruit[args.ticketIndex].result!]
+    }
+    finishEvent(){
+        this._status.pending.shift()
+        this._status.cursor.zone+=1
+        this.current.map?.zones[this._status.cursor.zone]
     }
 
 
@@ -119,6 +136,26 @@ export class RoguelikeV2Controller {
         this._trigger = _trigger
         this._data = new RoguelikeV2Config()
         this._troop = troop
+        this.current.game = {
+            mode: "",
+            predefined: "",
+            theme: "",
+            outer: {
+                support: false
+            },
+            start: -1,
+            modeGrade: 0,
+            equivalentGrade: 0
+        }
+        
+        this.current.buff = {
+            tmpHP: 0,
+            capsule: null,
+            squadBuff: []
+        }
+        this.current.record = { brief: null }
+        this.current.map = { zones: {} }
+        this.troop = new RoguelikeTroopManager(this, this._trigger)
         this._status = new RoguelikePlayerStatusManager(this, this._trigger)
         this.inventory = new RoguelikeInventoryManager(this, this._trigger)
         this._buff = new RoguelikeBuffManager(this, this._trigger)
@@ -129,14 +166,14 @@ export class RoguelikeV2Controller {
         return {
             outer: this.outer,
             current: {
-                player: this.current.player==null?null: this._status,
+                player: this._status,
                 record: this.current.record,
                 map: this.current.map,
-                inventory: this.current.inventory==null?null: this.inventory,
+                inventory: this.inventory,
                 game: this.current.game,
-                troop: this.current.troop,
+                troop: this.troop,
                 buff: this.current.buff,
-                module: this.current.module==null?null: this._module
+                module: this._module
             },
             pinned: this.pinned
         }

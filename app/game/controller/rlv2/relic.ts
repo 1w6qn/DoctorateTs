@@ -38,6 +38,9 @@ export class RoguelikeRelicManager {
         this._player = player
         this._trigger = _trigger
         this._trigger.on("rlv2:relic:gain", this.gain.bind(this))
+        this._trigger.on("rlv2:init",()=>{
+            this.relics = {}
+        })
         this._trigger.on("rlv2:create",()=>{
             this.relics = {}
         })

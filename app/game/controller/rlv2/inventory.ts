@@ -29,10 +29,22 @@ export class RoguelikeInventoryManager implements PlayerRoguelikeV2.CurrentData.
         this.exploreTool = {}
         this._player = player
         this._trigger = _trigger
+        this._trigger.on('rlv2:init', this.init.bind(this))
+        this._trigger.on("rlv2:create", this.create.bind(this))
         this._trigger.on('rlv2:get:items', (items: RoguelikeItemBundle[]) => items.forEach(item => this.getItem(item)))
     }
+    init(){
+        this.trap = null
+        this.consumable = {}
+        this.exploreTool = {}
+    }
+    create(){
+        this.trap = null
+        this.consumable = {}
+        this.exploreTool = {}
+    }
     getItem(item: RoguelikeItemBundle) {
-        const type = excel.RoguelikeTopicTable.details.rogue_4.items[item.id].type
+        const type = item.type||excel.RoguelikeTopicTable.details.rogue_4.items[item.id].type
         console.log(`[RLV2] 获得 ${item.id} * ${item.count}`)
         switch (type) {
             case "RECRUIT_TICKET":
@@ -50,8 +62,8 @@ export class RoguelikeInventoryManager implements PlayerRoguelikeV2.CurrentData.
 
     toJSON(): PlayerRoguelikeV2.CurrentData.Inventory {
         return {
-            relic: this._relic.relics,
-            recruit: this._recruit.tickets,
+            relic: this.relic,
+            recruit: this.recruit,
             trap: this.trap,
             consumable: this.consumable,
             exploreTool: this.exploreTool

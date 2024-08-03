@@ -88,7 +88,7 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
     }
     getItem(item: RoguelikeItemBundle){
         const type=item.type||excel.RoguelikeTopicTable.details.rogue_4.items[item.id].type
-        
+
         switch (type) {
             case "HP":
                 this.property.hp.current += item.count

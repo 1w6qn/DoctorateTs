@@ -47,8 +47,8 @@ export class RoguelikeBuffManager {
         args.forEach(arg => {
             if (arg.key == "immediate_reward") {
                 this.immediate_reward(arg.blackboard)
-            } else {
-                
+            } else if(arg.key == "item_cover_set") {
+                this.item_cover_set(arg.blackboard)
             }
         })
         this._buffs.push(...args)
@@ -67,5 +67,14 @@ export class RoguelikeBuffManager {
     immediate_reward(blackboard: Blackboard) {
         let item: RoguelikeItemBundle={id:blackboard[0].valueStr!,count:blackboard[1].value!,sub:0}
         this._trigger.emit("rlv2:get:items", [item])
+    }
+    item_cover_set(blackboard: Blackboard) {
+        let item: RoguelikeItemBundle={id:blackboard[0].valueStr!,count:blackboard[1].value!,sub:0}
+        const type=item.type||excel.RoguelikeTopicTable.details.rogue_4.items[item.id].type
+        switch(type){
+            case "HP":
+                this._status.property.hp.current=item.count
+                break
+        }
     }
 }

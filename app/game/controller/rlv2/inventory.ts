@@ -44,7 +44,7 @@ export class RoguelikeInventoryManager implements PlayerRoguelikeV2.CurrentData.
         this.exploreTool = {}
     }
     getItem(item: RoguelikeItemBundle) {
-        const type = item.type||excel.RoguelikeTopicTable.details.rogue_4.items[item.id].type
+        const type = item.type||excel.RoguelikeTopicTable.details.rogue_4.items[item.id].type||"POOL"
         console.log(`[RLV2] 获得 ${item.id} * ${item.count}`)
         switch (type) {
             case "RECRUIT_TICKET":
@@ -69,6 +69,9 @@ export class RoguelikeInventoryManager implements PlayerRoguelikeV2.CurrentData.
                 break
             case "FRAGMENT":
                 this._trigger.emit("rlv2:fragment:gain", item.id)
+                break
+            case "POOL":
+                //this._trigger.emit("rlv2:pool:gain", item.id)
                 break
             default:
                 console.log(type)

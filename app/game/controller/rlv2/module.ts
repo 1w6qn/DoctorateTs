@@ -16,10 +16,15 @@ export class RoguelikeModuleManager {
         this._player = player
         this._modules = []
         this._trigger = _trigger
-        this._trigger.on("rlv2:create", this.init.bind(this))
+        this._trigger.on("rlv2:init", this.init.bind(this))
+        this._trigger.on("rlv2:create", this.create.bind(this))
         this._trigger.on("rlv2:continue", this.continue.bind(this))
     }
-    init() {
+    init(){
+        this._modules = []
+        
+    }
+    create() {
         const theme = this._player.current.game!.theme
         let moduleHandler:{[key:string]:()=>any}={
             FRAGMENT:()=>new RoguelikeFragmentManager(this._player, this._trigger),

@@ -26,7 +26,189 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
         this.zones = {}
     }
     generate(id:number){
-        //TODO: generate zone
+        //TODO
+        this.zones[id]={
+            "id": "zone_"+id,
+            "index": id,
+            "nodes": {
+                "0": {
+                    "index": "0",
+                    "pos": {
+                        "x": 0,
+                        "y": 0
+                    },
+                    "next": [
+                        {
+                            "x": 1,
+                            "y": 0
+                        }
+                    ],
+                    "type": 1,
+                    "refresh": {
+                        "usedCount": 0,
+                        "count": 1,
+                        "cost": 1
+                    },
+                    "stage": "ro4_n_1_4"
+                },
+                "1": {
+                    "index": "1",
+                    "pos": {
+                        "x": 0,
+                        "y": 1
+                    },
+                    "next": [
+                        {
+                            "x": 1,
+                            "y": 1
+                        },
+                        {
+                            "x": 1,
+                            "y": 2
+                        }
+                    ],
+                    "type": 1,
+                    "refresh": {
+                        "usedCount": 0,
+                        "count": 1,
+                        "cost": 1
+                    },
+                    "stage": "ro4_n_1_1",
+                    "fts": 1722149443
+                },
+                "100": {
+                    "index": "100",
+                    "pos": {
+                        "x": 1,
+                        "y": 0
+                    },
+                    "next": [
+                        {
+                            "x": 2,
+                            "y": 0
+                        }
+                    ],
+                    "type": 32,
+                    "refresh": {
+                        "usedCount": 0,
+                        "count": 1,
+                        "cost": 1
+                    }
+                },
+                "101": {
+                    "index": "101",
+                    "pos": {
+                        "x": 1,
+                        "y": 1
+                    },
+                    "next": [
+                        {
+                            "x": 2,
+                            "y": 1
+                        },
+                        {
+                            "x": 1,
+                            "y": 2,
+                            "key": true
+                        }
+                    ],
+                    "type": 32,
+                    "refresh": {
+                        "usedCount": 0,
+                        "count": 1,
+                        "cost": 1
+                    }
+                },
+                "102": {
+                    "index": "102",
+                    "pos": {
+                        "x": 1,
+                        "y": 2
+                    },
+                    "next": [
+                        {
+                            "x": 2,
+                            "y": 1
+                        },
+                        {
+                            "x": 1,
+                            "y": 1,
+                            "key": true
+                        }
+                    ],
+                    "type": 2,
+                    "refresh": {
+                        "usedCount": 0,
+                        "count": 1,
+                        "cost": 1
+                    }
+                },
+                "200": {
+                    "index": "200",
+                    "pos": {
+                        "x": 2,
+                        "y": 0
+                    },
+                    "next": [
+                        {
+                            "x": 3,
+                            "y": 0
+                        },
+                        {
+                            "x": 2,
+                            "y": 1,
+                            "key": true
+                        }
+                    ],
+                    "type": 32,
+                    "refresh": {
+                        "usedCount": 0,
+                        "count": 1,
+                        "cost": 1
+                    }
+                },
+                "201": {
+                    "index": "201",
+                    "pos": {
+                        "x": 2,
+                        "y": 1
+                    },
+                    "next": [
+                        {
+                            "x": 3,
+                            "y": 0
+                        },
+                        {
+                            "x": 2,
+                            "y": 0,
+                            "key": true
+                        }
+                    ],
+                    "type": 32,
+                    "refresh": {
+                        "usedCount": 0,
+                        "count": 1,
+                        "cost": 1
+                    }
+                },
+                "300": {
+                    "index": "300",
+                    "pos": {
+                        "x": 3,
+                        "y": 0
+                    },
+                    "next": [],
+                    "type": 4096,
+                    "zone_end": true,
+                    "refresh": {
+                        "usedCount": 0,
+                        "count": 1,
+                        "cost": 1
+                    }
+                }
+            },
+            "variation": []
+        }
     }
     toJSON(): PlayerRoguelikeV2Dungeon {
         return {

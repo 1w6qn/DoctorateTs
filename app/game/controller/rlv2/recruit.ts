@@ -30,8 +30,9 @@ export class RoguelikeRecruitManager {
             let rarity = parseInt(data.rarity.slice(-1));
             let population = [0, 0, 0, 0, 2, 6][rarity - 1]//TODO other theme
             for (let buff of buffs) {
+                console.log(buff)
                 if (buff.blackboard[0].valueStr?.includes(data.rarity) && buff.blackboard[1].valueStr?.includes(data.profession)) {
-                    population -= buff.blackboard[2].value;
+                    population -= buff.blackboard[2].value!;
                 }
                 if (char.charId == "char_4151_tinman") {
                     population -= char.evolvePhase>0?2:1
@@ -49,7 +50,8 @@ export class RoguelikeRecruitManager {
                     exp: 0,
                 }
             }
-            return [...acc, Object.assign(char, {
+            return [...acc, Object.assign({},char, {
+                instId:acc.length,
                 type: "NORMAL",
                 upgradePhase: 0,
                 upgradeLimited: true,
@@ -57,7 +59,7 @@ export class RoguelikeRecruitManager {
                 isCure: false,
                 charBuff: [],
                 isUpgrade: false,
-                troopInstId: 0,
+                troopInstId:Object.keys(this._player.troop.chars).length,
             }, levelPatch)]
         }, [] as PlayerRoguelikeV2.CurrentData.RecruitChar[])
         //TODO free & thirdlow
@@ -66,8 +68,10 @@ export class RoguelikeRecruitManager {
     done(id: string, optionId: string) {
         this.tickets[id].state = 2
         this.tickets[id].result = this.tickets[id].list.find(item => item.instId == parseInt(optionId)) as PlayerRoguelikeV2.CurrentData.RecruitChar
+        
         this._trigger.emit("rlv2:char:get", this.tickets[id].result)
         this._trigger.emit("rlv2:get:items",[{id:"",count:-this.tickets[id].result.population,type:"POPULATION"}])
+        this.tickets[id].list=[]
     }
     gain(id: string, from: string, mustExtra: number): void {
         this.tickets[this.index] = {
@@ -90,6 +94,9 @@ export class RoguelikeRecruitManager {
         this._player = player
         this._trigger = _trigger
         this._trigger.on("rlv2:init",()=>{
+            this.tickets={}
+        })
+        this._trigger.on("rlv2:create",()=>{
             this.tickets={}
         })
         this._trigger.on("rlv2:recruit:gain", this.gain.bind(this))

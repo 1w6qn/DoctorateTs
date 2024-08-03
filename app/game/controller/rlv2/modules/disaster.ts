@@ -21,7 +21,7 @@ export class RoguelikeDisasterManager {
         this._trigger.on("rlv2:move", ()=>{
             if(this._curDisaster){
                 this._disperseStep-=1
-            }else if(Math.random()<0.7){
+            }else if(Math.random()<0.3){
                 this._trigger.emit("rlv2:disaster:generate")
             }
         })

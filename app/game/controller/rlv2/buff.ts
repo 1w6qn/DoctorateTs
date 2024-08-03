@@ -38,15 +38,17 @@ export class RoguelikeBuffManager {
             let buffs = roexcel.RoguelikeConsts[theme].outbuff[id]
             return [...acc, ...buffs]
         }, [] as RoguelikeBuff[])
+        this.applyBuffs(...this._buffs)
     }
     applyBuffs(...args: RoguelikeBuff[]) {
         args.forEach(arg => {
             if (arg.key == "immediate_reward") {
                 this.immediate_reward(arg.blackboard)
             } else {
-                this._buffs.push(arg)
+                
             }
         })
+        this._buffs.push(...args)
     }
     filterBuffs(key: string): RoguelikeBuff[] {
         return this._buffs.filter(buff => buff.key == key)

@@ -44,7 +44,7 @@ export class RoguelikeV2Controller {
     }
     giveUpGame(): void {
         this.current.game = {
-            mode: "",
+            mode: "NONE",
             predefined: "",
             theme: "",
             outer: {
@@ -91,11 +91,8 @@ export class RoguelikeV2Controller {
         this.current.record = { brief: null }
         this.current.map = { zones: {} }
         this._trigger.emit("rlv2:create", this)
-        Object.entries(roexcel.RoguelikeConsts[args.theme].outbuff).forEach(([k, v]) => {
-            if (this.outer[args.theme].buff.unlocked[k]) {
-                this._buff.applyBuffs(...v)
-            }
-        })
+
+        
 
     }
 
@@ -131,8 +128,10 @@ export class RoguelikeV2Controller {
     }
     finishEvent() {
         this._status.pending.shift()
-        this._status.cursor.zone += 1
+        this._status.cursor.zone = 1
+        this._status.cursor.position=null
         this._trigger.emit("rlv2:zone:new", this._status.cursor.zone)
+        this._status.state="WAIT_MOVE"
     }
     async moveAndBattleStart(args: { 
         to: RoguelikeNodePosition, 
@@ -162,6 +161,7 @@ export class RoguelikeV2Controller {
                 }])
             }
         }
+        this._trigger.emit("rlv2:move")
 
         
         this._status.cursor.position = args.to
@@ -184,7 +184,7 @@ export class RoguelikeV2Controller {
         this._data = new RoguelikeV2Config()
         this._troop = player.troop
         this.current.game = {
-            mode: "",
+            mode: "NONE",
             predefined: "",
             theme: "",
             outer: {

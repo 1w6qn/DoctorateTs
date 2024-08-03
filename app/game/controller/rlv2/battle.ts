@@ -40,9 +40,9 @@ export class RoguelikeBattleManager {
         let battleId="1"
         const loginTime=this._player._player.loginTime
         const data=decryptBattleData(args.data,loginTime)
-        const battleLog=await decryptBattleLog(args.battleLog)
+        //const battleLog=await decryptBattleLog(args.battleLog)
         console.log(data)
-        console.log(battleLog)
+        //console.log(battleLog)
         let info=this._player._player.getBattleInfo(battleId)
     }
 }

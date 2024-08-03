@@ -15,7 +15,7 @@ export class RoguelikeFragmentManager {
         return Object.values(this._fragments).filter(f =>!f.used).reduce((acc, cur) => acc + cur.weight, 0)
     }
     get _troopWeights(): { [key: string]: number } {
-        let chars = this._player.current.troop!.chars
+        let chars = this._player.troop.chars
         return Object.fromEntries(Object.entries(chars).map(([k, v]) => {
             let data = excel.CharacterTable[v.charId]
             let rarity = parseInt(data.rarity.slice(-1));
@@ -78,7 +78,7 @@ export class RoguelikeFragmentManager {
     }
     init(){
         this.index = 0
-        this.limitWeight = 5
+        this.limitWeight = 3
     }
     continue(){}
     constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {

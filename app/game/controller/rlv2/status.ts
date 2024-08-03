@@ -8,18 +8,28 @@ import { RoguelikeEventManager, RoguelikePendingEvent } from "./events";
 
 
 export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentData.PlayerStatus {
-    state:string
-    property: PlayerRoguelikeV2.CurrentData.PlayerStatus.Properties
-    cursor: PlayerRoguelikeV2.CurrentData.PlayerStatus.NodePosition
-    trace: PlayerRoguelikeV2.CurrentData.PlayerStatus.NodePosition[]
-    status: PlayerRoguelikeV2.CurrentData.PlayerStatus.Status
-    toEnding: string
-    chgEnding: boolean
+    state!:string
+    property!: PlayerRoguelikeV2.CurrentData.PlayerStatus.Properties
+    cursor!: PlayerRoguelikeV2.CurrentData.PlayerStatus.NodePosition;
+    trace!: PlayerRoguelikeV2.CurrentData.PlayerStatus.NodePosition[];
+    status!: PlayerRoguelikeV2.CurrentData.PlayerStatus.Status;
+    toEnding!: string;
+    chgEnding!: boolean;
     _pending:RoguelikeEventManager
     _player: RoguelikeV2Controller
     _trigger: EventEmitter
     constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
         this._player = player
+        this.init()
+        this._pending = new RoguelikeEventManager(this._player, _trigger)
+        this._trigger = _trigger
+        this._trigger.on("rlv2:create", this.create.bind(this))
+        this._trigger.on('rlv2:get:items', (items: RoguelikeItemBundle[])=>items.forEach(item=>this.getItem(item)))
+    }
+    get pending(): RoguelikePendingEvent[] {
+        return this._pending._pending
+    }
+    init(){
         let _status = this._player.current.player || {
             state: "NONE",
             property: {
@@ -48,13 +58,6 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
         this.chgEnding = _status.chgEnding
         this.toEnding = _status.toEnding
         this.status = _status.status
-        this._pending = new RoguelikeEventManager(this._player, _trigger)
-        this._trigger = _trigger
-        this._trigger.on("rlv2:create", this.create.bind(this))
-        this._trigger.on('rlv2:get:items', (items: RoguelikeItemBundle[])=>items.forEach(item=>this.getItem(item)))
-    }
-    get pending(): RoguelikePendingEvent[] {
-        return this._pending._pending
     }
     async create() {
         await excel.initPromise
@@ -100,7 +103,12 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
                 this.property.gold += item.count
                 break;
             case "POPULATION":
-                this.property.population.max += item.count
+                if(item.count>=0){
+                    this.property.population.max += item.count
+                }else{
+                    this.property.population.cost -= item.count
+                }
+                
                 break;
             case "EXP":
                 this.property.exp += item.count

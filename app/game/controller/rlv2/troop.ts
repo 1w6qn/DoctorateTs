@@ -25,7 +25,8 @@ export class RoguelikeTroopManager implements PlayerRoguelikeV2.CurrentData.Troo
         this.expeditionDetails = {}
         this.expeditionReturn = null
         this._trigger = _trigger
-
+        this._trigger.on("rlv2:init", this.init.bind(this))
+        this._trigger.on("rlv2:create", this.create.bind(this))
         this._trigger.on("rlv2:char:get", this.getChar.bind(this))
     }
     init() {

@@ -505,13 +505,13 @@ export namespace PlayerRoguelikePendingEvent {
     }
     export interface BattleContent {
         state: number
-        chestCnt: number
-        goldTrapCnt: number
-        tmpChar: PlayerRoguelikeV2.CurrentData.Char[]
-        unKeepBuff: RoguelikeBuff[]
-        diceRoll: number[]
-        sanity: number
-        boxInfo: { [key: string]: number }
+        chestCnt?: number
+        goldTrapCnt?: number
+        tmpChar?: PlayerRoguelikeV2.CurrentData.Char[]
+        unKeepBuff?: RoguelikeBuff[]
+        diceRoll?: number[]
+        sanity?: number
+        boxInfo?: { [key: string]: number }
         isFailProtect?: boolean
     }
     export interface InitRecruitContent {

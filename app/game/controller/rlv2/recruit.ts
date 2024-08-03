@@ -26,23 +26,27 @@ export class RoguelikeRecruitManager {
             if (ticketInfo.rarityList.some(r => data.rarity == r) == false) {
                 return acc;
             }
-            let buffs = this._player._buff.filterBuffs("recruit_cost");
+            let isUpgraded=false
             let rarity = parseInt(data.rarity.slice(-1));
             let population = [0, 0, 0, 0, 2, 6][rarity - 1]//TODO other theme
-            for (let buff of buffs) {
+            for (let buff of this._player._buff.filterBuffs("recruit_cost")) {
+                if (buff.blackboard[0].valueStr?.includes(data.rarity) && buff.blackboard[1].valueStr?.includes(data.profession)) {
+                    population += buff.blackboard[2].value!;
+                }
+            }
+            for (let buff of this._player._buff.filterBuffs("limited_direct_upgrade")) {
                 console.log(buff)
                 if (buff.blackboard[0].valueStr?.includes(data.rarity) && buff.blackboard[1].valueStr?.includes(data.profession)) {
-                    population -= buff.blackboard[2].value!;
+                    isUpgraded=Math.random()<=buff.blackboard[3].value!;
                 }
-
             }
+            
             if (char.charId == "char_4151_tinman") {
                 population -= char.evolvePhase > 0 ? 2 : 1
 
             }
-            //TODO skill&uniequip
             let levelPatch = {}
-            if (char.evolvePhase == 2) {
+            if (char.evolvePhase == 2 && isUpgraded == false ) {
 
                 const maxLevel = excel.GameDataConst.maxLevel[rarity - 1][1];
                 levelPatch = {
@@ -53,17 +57,16 @@ export class RoguelikeRecruitManager {
                         return Object.assign({}, s, { specializeLevel: 0 })
                     })
                 }
-                console.log(levelPatch)
             }
             return [...acc, Object.assign({}, char, {
                 instId: acc.length,
                 type: "NORMAL",
-                upgradePhase: 0,
-                upgradeLimited: true,
+                upgradePhase: isUpgraded?1:0,
+                upgradeLimited: !isUpgraded,
                 population: population >= 0 ? population : 0,
                 isCure: false,
                 charBuff: [],
-                isUpgrade: false,
+                isUpgrade: isUpgraded,
                 troopInstId: Object.keys(this._player.troop.chars).length,
             }, levelPatch)]
         }, [] as PlayerRoguelikeV2.CurrentData.RecruitChar[])

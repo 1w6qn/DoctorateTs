@@ -48,8 +48,21 @@ export class RoguelikeInventoryManager implements PlayerRoguelikeV2.CurrentData.
         console.log(`[RLV2] 获得 ${item.id} * ${item.count}`)
         switch (type) {
             case "RECRUIT_TICKET":
+                this._trigger.emit("rlv2:recruit:gain", item.id,"battle",0)
+                let ticket=Object.values(this.recruit).slice(-1)[0].index
+                this._trigger.emit("rlv2:recruit:active",ticket)
+                this._trigger.emit("rlv2:event:create","RECRUIT",{
+                    ticket:ticket
+                })
+                
                 break
             case "UPGRADE_TICKET":
+                this._trigger.emit("rlv2:recruit:gain", item.id,"battle",0)
+                ticket=Object.values(this.recruit).slice(-1)[0].index
+                this._trigger.emit("rlv2:recruit:active",ticket)
+                this._trigger.emit("rlv2:event:create","RECRUIT",{
+                    ticket:ticket
+                })
                 break
             case "MAX_WEIGHT":
                 this._trigger.emit("rlv2:fragment:max_weight:add", item.count)

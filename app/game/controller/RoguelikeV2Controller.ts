@@ -162,7 +162,7 @@ export class RoguelikeV2Controller {
             }
         }
         this._trigger.emit("rlv2:move")
-
+        this._status.trace.push({zone:this._status.cursor.zone,position:args.to})
         
         this._status.cursor.position = args.to
 
@@ -174,6 +174,7 @@ export class RoguelikeV2Controller {
         let rewardGrp=this._status.pending[0].content.battleReward!.rewards.find(r=>r.index==args.index)!
         let reward=rewardGrp.items.find(r=>r.sub==args.sub)
         this._trigger.emit("rlv2:get:items",reward)
+        
         rewardGrp.done=1
     }
 

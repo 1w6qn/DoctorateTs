@@ -98,7 +98,9 @@ export class RoguelikeFragmentManager {
         this._trigger.on("rlv2:fragment:use", this.use.bind(this))
         this._trigger.on("rlv2:fragment:lose", this.lose.bind(this))
         this._trigger.on("rlv2:fragment:use:inspiration", this.useInspiration.bind(this))
-
+        this._trigger.on("rlv2:fragment:set_troop_carry", (troopCarry: string[])=>{
+            this._troopCarry=troopCarry
+        })
         this._trigger.on("rlv2:levelup", targetLevel => {
             this.limitWeight += excel.RoguelikeTopicTable.modules.rogue_4.fragment?.fragmentLevelData[targetLevel].weightUp as number
         })

@@ -6,22 +6,25 @@ export interface PlayerRoguelikeV2Dungeon {
 }
 export interface PlayerRoguelikeV2Zone {
     id: string
+    index:number
     nodes: { [key: string]: PlayerRoguelikeNode }
     variation: string[]
 }
 
 export interface PlayerRoguelikeNode {
+    index:string
     pos: RoguelikeNodePosition
     next: RoguelikeNodeLine[]
-    type: string//RoguelikeEventType
-    fts: number
-    realContent: PlayerNodeDetailContent
-    attach: string[]
-    shop: RoguelikeShop
-    scenes: PlayerRoguelikePendingEvent.SceneContent
-    stage: string
-    visibility: string//PlayerNodeForesightType
-    refresh: PlayerNodeRollInfo
+    type: number//RoguelikeEventType
+    fts?: number
+    realContent?: PlayerNodeDetailContent
+    attach?: string[]
+    shop?: RoguelikeShop
+    scenes?: PlayerRoguelikePendingEvent.SceneContent
+    stage?: string
+    visibility?: string//PlayerNodeForesightType
+    refresh?: PlayerNodeRollInfo
+    zone_end?:boolean
 }
 export interface RoguelikeShop {
     goods: RoguelikeGoods[]
@@ -36,8 +39,8 @@ export interface RoguelikeGoods {
 export interface RoguelikeNodeLine {
     x: number
     y: number
-    hidden: string//HiddenType
-    key: boolean
+    hidden?: string//HiddenType
+    key?: boolean
 }
 export interface PlayerNodeDetailContent {
     scene: string
@@ -54,6 +57,7 @@ export namespace PlayerNodeDetailContent {
 }
 
 export interface PlayerNodeRollInfo {
+    usedCount: number
     count: number
     cost: number
 }
@@ -503,12 +507,12 @@ export namespace PlayerRoguelikePendingEvent {
         state: number
         chestCnt: number
         goldTrapCnt: number
-        tmpChar: PlayerRoguelikeV2.CurrentData.Char
-        unKeepBuff: RoguelikeBuff
-        diceRoll: number
+        tmpChar: PlayerRoguelikeV2.CurrentData.Char[]
+        unKeepBuff: RoguelikeBuff[]
+        diceRoll: number[]
         sanity: number
         boxInfo: { [key: string]: number }
-        isFailProtect: boolean
+        isFailProtect?: boolean
     }
     export interface InitRecruitContent {
         step: number[]

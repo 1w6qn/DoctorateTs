@@ -5,7 +5,7 @@ import { RoguelikeBuff, RoguelikeItemBundle } from "../../model/rlv2"
 import EventEmitter from "events"
 import { RoguelikeV2Controller } from "../RoguelikeV2Controller"
 import { RoguelikePlayerStatusManager } from "./status"
-
+import roexcel from "./excel"
 export class RoguelikeBuffManager {
     _player: RoguelikeV2Controller
     _trigger: EventEmitter
@@ -18,11 +18,24 @@ export class RoguelikeBuffManager {
         this._trigger = _trigger
         this._trigger.on("rlv2:buff:apply", this.applyBuffs.bind(this))
         this._trigger.on("rlv2:init", this.init.bind(this))
+        this._trigger.on("rlv2:create", this.create.bind(this))
+        this._trigger.on("rlv2:continue", this.continue.bind(this))
     }
     async init(){
+        
+    }
+    async continue(){
         await excel.initPromise
         this._buffs = Object.values(this._player.inventory!.relic).reduce((acc, relic) => {
-            let buffs = excel.RoguelikeTopicTable.details.rogue_4.relics[relic.id].buffs.filter(buff => buff.key != "immediate_reward")
+            let buffs = excel.RoguelikeTopicTable.details.rogue_4.relics[relic.id].buffs
+            return [...acc, ...buffs]
+        }, [] as RoguelikeBuff[])
+    }
+    async create() {
+        await roexcel.initPromise
+        const theme=this._player.current.game!.theme
+        this._buffs = Object.keys(this._player.outer[theme].buff.unlocked).reduce((acc, id) => {
+            let buffs = roexcel.RoguelikeConsts[theme].outbuff[id]
             return [...acc, ...buffs]
         }, [] as RoguelikeBuff[])
     }

@@ -1,5 +1,5 @@
 import EventEmitter from "events";
-import {  PlayerRoguelikeV2, RoguelikeNodePosition } from '../model/rlv2';
+import { PlayerRoguelikeV2, RoguelikeNodePosition } from '../model/rlv2';
 import excel from "@excel/excel";
 import _ from "lodash"
 import { readFileSync } from "fs";
@@ -13,6 +13,11 @@ import roexcel from "./rlv2/excel";
 import { RoguelikeTroopManager } from "./rlv2/troop";
 import { RoguelikeMapManager } from "./rlv2/map";
 import { PlayerSquad } from "@game/model/character";
+import { RoguelikePendingEvent } from "./rlv2/events";
+import { RoguelikeBattleManager } from "./rlv2/battle";
+import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { RoguelikeFragmentManager } from "./rlv2/modules/fragment";
+import { BattleData } from "@game/model/battle";
 export class RoguelikeV2Config {
     choiceScenes: { [key: string]: { choices: { [key: string]: number } } }
     constructor() {
@@ -24,12 +29,14 @@ export class RoguelikeV2Controller {
     outer: { [key: string]: PlayerRoguelikeV2.OuterData; };
     current: PlayerRoguelikeV2.CurrentData;
     troop: RoguelikeTroopManager
-    _map!:RoguelikeMapManager
-    _status!:RoguelikePlayerStatusManager
+    _map!: RoguelikeMapManager
+    _status!: RoguelikePlayerStatusManager
     _buff!: RoguelikeBuffManager
-    _module!:RoguelikeModuleManager
+    _module!: RoguelikeModuleManager
+    _battle!: RoguelikeBattleManager
     _troop: TroopManager
     _data: RoguelikeV2Config;
+    _player: PlayerDataManager
     _trigger: EventEmitter
     inventory!: RoguelikeInventoryManager | null;
     setPinned(id: string): void {
@@ -53,9 +60,14 @@ export class RoguelikeV2Controller {
             squadBuff: []
         }
         this.current.record = { brief: null }
-        this._trigger.emit("rlv2:init",this)
+        this._trigger.emit("rlv2:init", this)
     }
-    async createGame(args: { theme: string, mode: string, modeGrade: number, predefinedId: string|null }): Promise<void> {
+    async createGame(args: { 
+        theme: string, 
+        mode: string, 
+        modeGrade: number, 
+        predefinedId: string | null 
+    }): Promise<void> {
         //TODO
         await roexcel.initPromise
         await excel.initPromise
@@ -78,71 +90,99 @@ export class RoguelikeV2Controller {
         }
         this.current.record = { brief: null }
         this.current.map = { zones: {} }
-        this._trigger.emit("rlv2:create",this)
+        this._trigger.emit("rlv2:create", this)
         Object.entries(roexcel.RoguelikeConsts[args.theme].outbuff).forEach(([k, v]) => {
-            if(this.outer[args.theme].buff.unlocked[k]){
+            if (this.outer[args.theme].buff.unlocked[k]) {
                 this._buff.applyBuffs(...v)
             }
         })
 
     }
-    
-    async chooseInitialRelic(args:{select: string}) {
+
+    async chooseInitialRelic(args: { select: string }) {
         let event = this._status.pending.shift()
         let relic = event!.content.initRelic!.items[args.select]
         await this.inventory!._relic.gain(relic)
 
     }
-    async chooseInitialRecruitSet(args:{select: string}) {
+    async chooseInitialRecruitSet(args: { select: string }) {
         await roexcel.initPromise
-        const theme=this.current.game!.theme
+        const theme = this.current.game!.theme
         let event = this._status.pending.shift()
-        let event2=this._status.pending.find(e => e.type === "GAME_INIT_RECRUIT")!
+        let event2 = this._status.pending.find(e => e.type === "GAME_INIT_RECRUIT")!
         //TODO
         roexcel.RoguelikeConsts[theme].recruitGrps[args.select].forEach(r => {
-            console.log("gain recruit",r)
-            this._trigger.emit("rlv2:recruit:gain",r,"initial",0)
+            console.log("gain recruit", r)
+            this._trigger.emit("rlv2:recruit:gain", r, "initial", 0)
         })
-        event2.content.initRecruit!.tickets=Object.values(this.inventory!.recruit).filter(r=>r.from=="initial").map(r=>r.index)
-        
+        event2.content.initRecruit!.tickets = Object.values(this.inventory!.recruit).filter(r => r.from == "initial").map(r => r.index)
+
 
     }
-    activeRecruitTicket(args:{id:string}){
-        this._trigger.emit("rlv2:recruit:active",args.id)
+    activeRecruitTicket(args: { id: string }) {
+        this._trigger.emit("rlv2:recruit:active", args.id)
     }
-    recruitChar(args:{ticketIndex:string,optionId:string}):PlayerRoguelikeV2.CurrentData.RecruitChar[]{
-        this._trigger.emit("rlv2:recruit:done",args.ticketIndex,args.optionId)
+    recruitChar(args: { 
+        ticketIndex: string, 
+        optionId: string 
+    }): PlayerRoguelikeV2.CurrentData.RecruitChar[] {
+        this._trigger.emit("rlv2:recruit:done", args.ticketIndex, args.optionId)
         return [this.inventory?.recruit[args.ticketIndex].result!]
     }
-    finishEvent(){
+    finishEvent() {
         this._status.pending.shift()
-        this._status.cursor.zone+=1
-        this._trigger.emit("rlv2:zone:new",this._status.cursor.zone)
+        this._status.cursor.zone += 1
+        this._trigger.emit("rlv2:zone:new", this._status.cursor.zone)
     }
-    moveAndBattleStart(args:{to:RoguelikeNodePosition,stageId:string,squad:PlayerSquad}):string{
+    async moveAndBattleStart(args: { 
+        to: RoguelikeNodePosition, 
+        stageId: string, 
+        squad: PlayerSquad 
+    }): Promise<string> {
 
-        this.moveTo(args.to)
-        let c={}
-        this._trigger.emit("rlv2:battle:start",c)
+        await this.moveTo(args)
+        let nodeId = args.to.x * 100 + args.to.y
+        let stageId = this._map.zones[this._status.cursor.zone].nodes[nodeId].stage
+        this._trigger.emit("rlv2:battle:start", stageId)
         return ""
     }
-    moveTo(to: RoguelikeNodePosition): void {
-        this.current.player!.cursor.position = to
-        this.current.player!.state = "PENDING"
-        //TODO
+    async moveTo(args: { to: RoguelikeNodePosition }): Promise<void> {
+        await excel.initPromise
+        const theme = this.current.game!.theme
+        const detail=excel.RoguelikeTopicTable.details.rogue_4.gameConst
+        let pos = this._status.cursor.position
+        this._status.state = "PENDING"
+        if (pos) {
+            let nodeId = pos.x * 100 + pos.y
+            let node = this._map.zones[this._status.cursor.zone].nodes[nodeId]
+            if (node.next.find(n => n.x === args.to.x && n.y === args.to.y)?.key) {
+                this._trigger.emit("rlv2:get:items", [{
+                    id:detail.unlockRouteItemId,
+                    count:detail.unlockRouteItemCount,
+                }])
+            }
+        }
+
+        
+        this._status.cursor.position = args.to
 
     }
+    battleFinish(args: {battleLog:string,data:string,battleData:BattleData} ){
+        this._trigger.emit("rlv2:battle:finish", args)
+    }
+
+
     setTroopCarry(troopCarry: string[]) {
-        this.current.module!.fragment
-
+        this._trigger.emit("rlv2:fragment:set_troop_carry")
     }
-    constructor(data: PlayerRoguelikeV2, troop: TroopManager, _trigger: EventEmitter) {
-        this.outer = data.outer
-        this.current = data.current
-        this.pinned = data.pinned
+    constructor(player: PlayerDataManager, _trigger: EventEmitter) {
+        this.outer = player._playerdata.rlv2.outer
+        this.current = player._playerdata.rlv2.current
+        this.pinned = player._playerdata.rlv2.pinned
+        this._player = player
         this._trigger = _trigger
         this._data = new RoguelikeV2Config()
-        this._troop = troop
+        this._troop = player.troop
         this.current.game = {
             mode: "",
             predefined: "",
@@ -154,22 +194,22 @@ export class RoguelikeV2Controller {
             modeGrade: 0,
             equivalentGrade: 0
         }
-        
+
         this.current.buff = {
             tmpHP: 0,
             capsule: null,
             squadBuff: []
         }
         this.current.record = { brief: null }
-        
+
         this.troop = new RoguelikeTroopManager(this, this._trigger)
         this._status = new RoguelikePlayerStatusManager(this, this._trigger)
         this.inventory = new RoguelikeInventoryManager(this, this._trigger)
         this._buff = new RoguelikeBuffManager(this, this._trigger)
         this._map = new RoguelikeMapManager(this, this._trigger)
         this._module = new RoguelikeModuleManager(this, this._trigger)
-        //outbuff
-        
+        this._battle = new RoguelikeBattleManager(this, this._trigger)
+
         this._trigger.emit("rlv2:init", this)
     }
     toJSON(): PlayerRoguelikeV2 {

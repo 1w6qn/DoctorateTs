@@ -71,9 +71,27 @@ router.post("/finishEvent", async(req, res) => {
     })
     player._trigger.emit("save")
 })
-router.post("/moveTo", (req, res) => {
+router.post("/moveTo", async(req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    player.rlv2.moveTo(req.body);
+    await player.rlv2.moveTo(req.body);
+    res.send({
+        
+        ...player.delta
+    })
+    player._trigger.emit("save")
+})
+router.post("/moveAndBattleStart", async(req, res) => {
+    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    await player.rlv2.moveAndBattleStart(req.body);
+    res.send({
+        
+        ...player.delta
+    })
+    player._trigger.emit("save")
+})
+router.post("/battleFinish", async(req, res) => {
+    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    await player.rlv2.battleFinish(req.body);
     res.send({
         
         ...player.delta

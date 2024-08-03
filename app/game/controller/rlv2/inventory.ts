@@ -54,6 +54,9 @@ export class RoguelikeInventoryManager implements PlayerRoguelikeV2.CurrentData.
             case "MAX_WEIGHT":
                 this._trigger.emit("rlv2:fragment:max_weight:add", item.count)
                 break
+            case "FRAGMENT":
+                this._trigger.emit("rlv2:fragment:gain", item.id)
+                break
             default:
                 console.log(type)
                 break;

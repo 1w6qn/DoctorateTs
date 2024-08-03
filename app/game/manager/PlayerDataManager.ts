@@ -13,7 +13,7 @@ import { RecruitManager } from "./RecruitManager";
 import { RoguelikeV2Controller } from "../controller/RoguelikeV2Controller";
 import { BattleManager } from "./BattleManager";
 import { GachaController } from "../controller/GachaController";
-import { accountManager } from "./AccountManger";
+import { accountManager, BattleInfo } from "./AccountManger";
 
 export class PlayerDataManager {
     dungeon:DungeonManager
@@ -39,6 +39,15 @@ export class PlayerDataManager {
             }
         }
     }
+    get uid(){
+        return this.status.uid
+    }
+    get loginTime(){
+        return this._playerdata.pushFlags.status
+    }
+    getBattleInfo(battleId:string):BattleInfo{
+        return accountManager.getBattleInfo(this.uid,battleId)!
+    }
     constructor(playerdata:PlayerDataModel) {
         this._playerdata = playerdata;
         this._trigger = new EventEmitter();
@@ -55,9 +64,12 @@ export class PlayerDataManager {
         this.shop=new ShopController(playerdata, this._trigger)
         this.battle=new BattleManager(this._playerdata, this._trigger)
         this.recruit=new RecruitManager(playerdata.recruit,this.troop, this._trigger)
-        this.rlv2=new RoguelikeV2Controller(playerdata.rlv2,this.troop, this._trigger)
+        this.rlv2=new RoguelikeV2Controller(this, this._trigger)
         this.gacha=new GachaController(playerdata.gacha,this.status.uid,this.troop, this._trigger)
         this._trigger.emit("game:fix")
+        this._trigger.emit("save:battle",(battleId:string, info:BattleInfo)=>{
+            accountManager.saveBattleInfo(this.uid,battleId, info)
+        })
     }
     toJSON() {
         return {

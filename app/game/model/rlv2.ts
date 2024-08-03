@@ -677,11 +677,11 @@ export interface RoguelikeItemBundle {
     count: number
 }
 export interface RoguelikeReward {
-    index: string
+    index: number
     items: RoguelikeItemBundle[]
-    done: boolean
-    exDrop: boolean
-    exDropSrc: string
+    done: number
+    exDrop: number
+    exDropSrc?: string
 }
 export interface RoguelikeStageEarn {
     exp: number

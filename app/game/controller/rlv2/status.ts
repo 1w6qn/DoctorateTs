@@ -23,6 +23,7 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
         this.init()
         this._pending = new RoguelikeEventManager(this._player, _trigger)
         this._trigger = _trigger
+        this._trigger.on("rlv2:init", this.init.bind(this))
         this._trigger.on("rlv2:create", this.create.bind(this))
         this._trigger.on('rlv2:get:items', (items: RoguelikeItemBundle[])=>items.forEach(item=>this.getItem(item)))
     }
@@ -30,7 +31,7 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
         return this._pending._pending
     }
     init(){
-        let _status = this._player.current.player || {
+        let _status = {
             state: "NONE",
             property: {
                 exp: 0,

@@ -15,6 +15,7 @@ export class RoguelikeBuffManager {
     constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
         this._player = player
         this._status = this._player._status
+        this._buffs = []
         this._trigger = _trigger
         this._trigger.on("rlv2:buff:apply", this.applyBuffs.bind(this))
         this._trigger.on("rlv2:init", this.init.bind(this))
@@ -26,19 +27,21 @@ export class RoguelikeBuffManager {
     }
     async continue(){
         await excel.initPromise
-        this._buffs = Object.values(this._player.inventory!.relic).reduce((acc, relic) => {
+        Object.values(this._player.inventory!.relic).reduce((acc, relic) => {
             let buffs = excel.RoguelikeTopicTable.details.rogue_4.relics[relic.id].buffs
+            this._buffs.push(...buffs)
             return [...acc, ...buffs]
         }, [] as RoguelikeBuff[])
     }
     async create() {
         await roexcel.initPromise
         const theme=this._player.current.game!.theme
-        this._buffs = Object.keys(this._player.outer[theme].buff.unlocked).reduce((acc, id) => {
+        Object.keys(this._player.outer[theme].buff.unlocked).reduce((acc, id) => {
             let buffs = roexcel.RoguelikeConsts[theme].outbuff[id]
+            this.applyBuffs(...buffs)
             return [...acc, ...buffs]
         }, [] as RoguelikeBuff[])
-        this.applyBuffs(...this._buffs)
+        
     }
     applyBuffs(...args: RoguelikeBuff[]) {
         args.forEach(arg => {

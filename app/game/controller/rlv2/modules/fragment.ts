@@ -21,7 +21,7 @@ export class RoguelikeFragmentManager {
             let rarity = parseInt(data.rarity.slice(-1));
             let weight = [[2, 2, 2, 2, 3, 4], [-1, -1, -1, 4, 5, 6]][v.evolvePhase == 2 ? 1 : 0][rarity - 1]
             this._player._buff.filterBuffs("char_weight_rarity").forEach(b => {
-                if(b.blackboard[0].value == rarity){
+                if(b.blackboard[0].value == rarity-1){
                     weight+=b.blackboard[1].value!
                 }
             })
@@ -79,6 +79,9 @@ export class RoguelikeFragmentManager {
     init(){
         this.index = 0
         this.limitWeight = 3
+        this._currInspiration = null
+        this._fragments = {}
+        this._troopCarry = []
     }
     continue(){}
     constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
@@ -99,6 +102,9 @@ export class RoguelikeFragmentManager {
         this._trigger.on("rlv2:fragment:lose", this.lose.bind(this))
         this._trigger.on("rlv2:fragment:use:inspiration", this.useInspiration.bind(this))
         this._trigger.on("rlv2:fragment:set_troop_carry", (troopCarry: string[])=>{
+            let weights=this._troopWeights
+            this.limitWeight-=this._troopCarry.reduce((acc,cur)=>acc+weights[cur],0)
+            this.limitWeight+=troopCarry.reduce((acc,cur)=>acc+weights[cur],0)
             this._troopCarry=troopCarry
         })
         this._trigger.on("rlv2:levelup", targetLevel => {

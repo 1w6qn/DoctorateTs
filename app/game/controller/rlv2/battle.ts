@@ -44,6 +44,9 @@ export class RoguelikeBattleManager {
         console.log(data)
         //console.log(battleLog)
         let info=this._player._player.getBattleInfo(battleId)
+        let event=this._player._status.pending.shift()
+        //TODO: 处理战斗结果
+        this._player._status.state="WAIT_MOVE"
     }
 }
 

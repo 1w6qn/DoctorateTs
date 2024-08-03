@@ -170,10 +170,15 @@ export class RoguelikeV2Controller {
     battleFinish(args: {battleLog:string,data:string,battleData:BattleData} ){
         this._trigger.emit("rlv2:battle:finish", args)
     }
+    chooseBattleReward(args:{index:number,sub:number}){
+        let rewardGrp=this._status.pending[0].content.battleReward!.rewards.find(r=>r.index==args.index)!
+        let reward=rewardGrp.items.find(r=>r.sub==args.sub)
+        this._trigger.emit("rlv2:get:items",reward)
+        rewardGrp.done=1
+    }
 
-
-    setTroopCarry(troopCarry: string[]) {
-        this._trigger.emit("rlv2:fragment:set_troop_carry")
+    setTroopCarry(args:{troopCarry: string[]}) {
+        this._trigger.emit("rlv2:fragment:set_troop_carry",args.troopCarry)
     }
     constructor(player: PlayerDataManager, _trigger: EventEmitter) {
         this.outer = player._playerdata.rlv2.outer

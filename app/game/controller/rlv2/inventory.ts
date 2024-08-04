@@ -71,8 +71,8 @@ export class RoguelikeInventoryManager implements PlayerRoguelikeV2.CurrentData.
                 this._trigger.emit("rlv2:fragment:gain", item.id)
                 break
             case "POOL":
-                this._player._pool.get(item.id,item.id.includes("fragment"))
-                this._trigger.emit("rlv2:get:items", item.id)
+                let ro=this._player._pool.get(item.id,item.id.includes("fragment"))
+                this._trigger.emit("rlv2:get:items", ro.id)
                 //this._trigger.emit("rlv2:pool:gain", item.id)
                 break
             default:

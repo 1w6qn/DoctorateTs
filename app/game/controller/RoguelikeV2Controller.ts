@@ -1,5 +1,5 @@
 import EventEmitter from "events";
-import { PlayerRoguelikeV2, RoguelikeNodePosition } from '../model/rlv2';
+import { PlayerRoguelikeV2, RoguelikeNodePosition, TorappuRoguelikeEventType } from '../model/rlv2';
 import excel from "@excel/excel";
 import _ from "lodash"
 import { readFileSync } from "fs";
@@ -154,6 +154,7 @@ export class RoguelikeV2Controller {
         let pos = this._status.cursor.position
         this._status.state = "PENDING"
         if (pos) {
+
             let nodeId = pos.x * 100 + pos.y
             let node = this._map.zones[this._status.cursor.zone].nodes[nodeId]
             if (node.next.find(n => n.x === args.to.x && n.y === args.to.y)?.key) {
@@ -168,7 +169,12 @@ export class RoguelikeV2Controller {
         })
         this._trigger.emit("rlv2:move")
         this._status.trace.push({zone:this._status.cursor.zone,position:args.to})
-        
+        let next=this._map.findNode(this._status.cursor.zone,args.to)
+        switch(next.type){
+            case TorappuRoguelikeEventType.INCIDENT:
+                
+                break
+        }
         this._status.cursor.position = args.to
 
     }

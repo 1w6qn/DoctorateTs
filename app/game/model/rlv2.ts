@@ -1,6 +1,34 @@
 import { OrigChar, PlayerCharacter, SharedCharData } from "./character"
 import { Blackboard } from "../../excel/character_table"
 
+// Assembly-CSharp
+export enum TorappuRoguelikeEventType {
+    NONE = 0,
+    BATTLE_NORMAL = 1,
+    BATTLE_ELITE = 2,
+    BATTLE_BOSS = 4,
+    SHOP = 8,
+    REST = 16,
+    INCIDENT = 32,
+    TREASURE = 64,
+    ENTERTAINMENT = 128,
+    UNKNOWN = 256,
+    WISH = 512,
+    SACRIFICE = 1024,
+    EXPEDITION = 2048,
+    BATTLE_SHOP = 4096,
+    PORTAL = 8192,
+    MISSION = 16384,
+    STORY = 32768,
+    STORY_HIDDEN = 65536,
+    ALCHEMY = 131072,
+    DUEL = 262144,
+    BATTLES = 7,
+    CHOICES = 388848,
+    EVENTS = 392952,
+    ALL = 392959
+}
+
 export interface PlayerRoguelikeV2Dungeon {
     zones: { [key: string]: PlayerRoguelikeV2Zone }
 }

@@ -1,5 +1,5 @@
 import { EventEmitter } from "events"
-import { PlayerRoguelikeV2, PlayerRoguelikeV2Dungeon, PlayerRoguelikeV2Zone, RoguelikeBuff, RoguelikeItemBundle } from "../../model/rlv2"
+import { PlayerRoguelikeNode, PlayerRoguelikeV2, PlayerRoguelikeV2Dungeon, PlayerRoguelikeV2Zone, RoguelikeBuff } from '../../model/rlv2';
 import { RoguelikeV2Controller } from '../RoguelikeV2Controller';
 import excel from "@excel/excel";
 
@@ -226,6 +226,9 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
             },
             "variation": []
         }
+    }
+    findNode( zone_id: number,pos:{x: number, y: number},): PlayerRoguelikeNode {
+        return this.zones[zone_id].nodes[100 * pos.x + pos.y]
     }
     toJSON(): PlayerRoguelikeV2Dungeon {
         return {

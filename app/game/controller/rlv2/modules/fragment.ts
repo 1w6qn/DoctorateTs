@@ -1,5 +1,5 @@
 import excel from "@excel/excel"
-import { PlayerRoguelikeV2 } from "../../../model/rlv2"
+import { PlayerRoguelikeV2, RoguelikeBuff } from '../../../model/rlv2';
 import EventEmitter from "events"
 import { RoguelikeV2Controller } from '../../RoguelikeV2Controller';
 
@@ -106,6 +106,15 @@ export class RoguelikeFragmentManager {
             this.limitWeight-=this._troopCarry.reduce((acc,cur)=>acc+weights[cur],0)
             this.limitWeight+=troopCarry.reduce((acc,cur)=>acc+weights[cur],0)
             this._troopCarry=troopCarry
+        })
+        this._trigger.on("rlv2:fragment:change_type_weight",(b:RoguelikeBuff)=>{
+            const theme=player.current.game!.theme
+            Object.values(this._fragments).forEach(f=>{
+                let info = excel.RoguelikeTopicTable.modules.rogue_4.fragment?.fragmentData[f.id]
+                if(b.blackboard[1].valueStr==info?.type){
+                    f.weight+=b.blackboard[0].value!
+                }
+            })
         })
         this._trigger.on("rlv2:levelup", targetLevel => {
             this.limitWeight += excel.RoguelikeTopicTable.modules.rogue_4.fragment?.fragmentLevelData[targetLevel].weightUp as number

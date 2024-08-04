@@ -35,7 +35,7 @@ export class RoguelikeRecruitManager {
                 }
             }
             for (let buff of this._player._buff.filterBuffs("limited_direct_upgrade")) {
-                console.log(buff)
+                
                 if (buff.blackboard[0].valueStr?.includes(data.rarity) && buff.blackboard[1].valueStr?.includes(data.profession)) {
                     isUpgraded=Math.random()<=buff.blackboard[3].value!;
                 }
@@ -66,7 +66,7 @@ export class RoguelikeRecruitManager {
                 population: population >= 0 ? population : 0,
                 isCure: false,
                 charBuff: [],
-                isUpgrade: isUpgraded,
+                isUpgrade: false,
                 troopInstId: Object.keys(this._player.troop.chars).length,
             }, levelPatch)]
         }, [] as PlayerRoguelikeV2.CurrentData.RecruitChar[])

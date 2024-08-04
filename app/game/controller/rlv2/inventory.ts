@@ -45,7 +45,7 @@ export class RoguelikeInventoryManager implements PlayerRoguelikeV2.CurrentData.
     }
     getItem(item: RoguelikeItemBundle) {
         const type = item.type||excel.RoguelikeTopicTable.details.rogue_4.items[item.id].type||"POOL"
-        console.log(`[RLV2] 获得 ${item.id} * ${item.count}`)
+        console.log(`[RLV2] 获得 ${item.id||item.type} * ${item.count}`)
         switch (type) {
             case "RECRUIT_TICKET":
                 this._trigger.emit("rlv2:recruit:gain", item.id,"battle",0)

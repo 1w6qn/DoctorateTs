@@ -41,7 +41,7 @@ export class RoguelikeBattleManager {
         const loginTime=this._player._player.loginTime
         const data=decryptBattleData(args.data,loginTime)
         //const battleLog=await decryptBattleLog(args.battleLog)
-        console.log(data)
+        console.log(JSON.stringify(data))
         //console.log(battleLog)
         let info=this._player._player.getBattleInfo(battleId)
         let event=this._player._status.pending.shift()
@@ -49,7 +49,71 @@ export class RoguelikeBattleManager {
         for (let buff of this._player._buff.filterBuffs("battle_extra_reward")) {
             this._trigger.emit("rlv2:get:items", [{id:buff.blackboard[0].valueStr!,count:buff.blackboard[1].value!}])
         }
-        this._player._status.state="WAIT_MOVE"
+        this._player._buff.filterBuffs("battle_extra_reward").forEach(b=>{
+            if(b.blackboard[2].value){
+
+            }
+        })
+        this._trigger.emit("rlv2:event:create","BATTLE_REWARD",{
+            "earn": {
+                "damage": 0,
+                "hp": 0,
+                "shield": 0,
+                "exp": 13,
+                "populationMax": 4,
+                "squadCapacity": 0,
+                "maxHpUp": 0
+            },
+            "rewards": [
+                {
+                    "index": 0,
+                    "items": [
+                        {
+                            "sub": 0,
+                            "id": "rogue_4_gold",
+                            "count": 1
+                        }
+                    ],
+                    "done": 0
+                },
+                {
+                    "index": 1,
+                    "items": [
+                        {
+                            "sub": 0,
+                            "id": "rogue_4_fragment_F_13",
+                            "count": 1
+                        }
+                    ],
+                    "done": 0
+                },
+                {
+                    "index": 2,
+                    "items": [
+                        {
+                            "sub": 0,
+                            "id": "rogue_4_fragment_D_06",
+                            "count": 1
+                        }
+                    ],
+                    "done": 0
+                },
+                {
+                    "index": 3,
+                    "items": [
+                        {
+                            "sub": 0,
+                            "id": "rogue_4_recruit_ticket_support",
+                            "count": 1
+                        }
+                    ],
+                    "done": 0
+                }
+            ],
+            "show": "2",
+            "state": 0,
+            "isPerfect": 1
+        })
     }
 }
 

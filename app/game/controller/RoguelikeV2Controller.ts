@@ -174,6 +174,9 @@ export class RoguelikeV2Controller {
     }
     battleFinish(args: {battleLog:string,data:string,battleData:BattleData} ){
         this._trigger.emit("rlv2:battle:finish", args)
+        let pos=`${this._status.cursor.position!.x*100+this._status.cursor.position!.y}`
+        this._map.zones[this._status.cursor.zone].nodes[pos].fts=now()
+        
     }
     chooseBattleReward(args:{index:number,sub:number}){
         let rewardGrp=this._status.pending[0].content.battleReward!.rewards.find(r=>r.index==args.index)!
@@ -181,6 +184,15 @@ export class RoguelikeV2Controller {
         this._trigger.emit("rlv2:get:items",[reward])
         
         rewardGrp.done=1
+    }
+    finishBattleReward(args:{}){
+        this._status.pending.shift()
+        this._status.state="WAIT_MOVE"
+    }
+
+    bankWithdraw(args: {}) {
+        const theme = this.current.game!.theme
+        this._trigger.emit("rlv2:bank:withdraw")
     }
 
     setTroopCarry(args:{troopCarry: string[]}) {

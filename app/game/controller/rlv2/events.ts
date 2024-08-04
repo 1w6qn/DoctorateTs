@@ -151,6 +151,11 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
             battle: args
         }
     }
+    BATTLE_REWARD(args: PlayerRoguelikePendingEvent.BattleRewardContent): PlayerRoguelikePendingEvent.Content {
+        return {
+            battleReward: args
+        }
+    }
     toJSON(): PlayerRoguelikePendingEvent {
         return {
             index: this.index,

@@ -23,7 +23,7 @@ export class RoguelikeBuffManager {
         this._trigger.on("rlv2:continue", this.continue.bind(this))
     }
     async init() {
-
+        this._buffs = []
     }
     async continue() {
         await excel.initPromise
@@ -50,6 +50,8 @@ export class RoguelikeBuffManager {
                 this.immediate_reward(arg.blackboard)
             } else if (arg.key == "item_cover_set") {
                 this.item_cover_set(arg.blackboard)
+            }else if (arg.key == "change_fragment_type_weight") {
+                this._trigger.emit("rlv2:fragment:change_type_weight", arg.blackboard)
             }
         })
         this._buffs.push(...args)

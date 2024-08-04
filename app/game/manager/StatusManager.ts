@@ -104,6 +104,7 @@ export class StatusManager {
                 break;
         }
     }
+
     _useItem(item: ItemBundle): void {
         if (!item.type) {
             item.type = excel.ItemTable.items[item.id].itemType as string

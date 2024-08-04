@@ -1,12 +1,12 @@
 import { EventEmitter } from "events"
-import { PlayerRoguelikeV2, PlayerRoguelikeV2Dungeon, PlayerRoguelikeV2Zone, RoguelikeItemBundle } from "../../model/rlv2"
+import { PlayerRoguelikeV2, PlayerRoguelikeV2Dungeon, PlayerRoguelikeV2Zone, RoguelikeBuff, RoguelikeItemBundle } from "../../model/rlv2"
 import { RoguelikeV2Controller } from '../RoguelikeV2Controller';
 import excel from "@excel/excel";
 
 
 
 export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
-    zones:{ [key: string]: PlayerRoguelikeV2Zone }
+    zones: { [key: string]: PlayerRoguelikeV2Zone }
     _player: RoguelikeV2Controller
     _trigger: EventEmitter
 
@@ -17,18 +17,35 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
         this._trigger.on('rlv2:init', this.init.bind(this))
         this._trigger.on("rlv2:create", this.create.bind(this))
         this._trigger.on("rlv2:zone:new", this.generate.bind(this))
-        
+
     }
-    init(){
+    init() {
         this.zones = {}
     }
-    create(){
+    create() {
         this.zones = {}
     }
-    generate(id:number){
+    generate(id: number) {
+        this._player._buff.filterBuffs("zone_into_reward").forEach(b => {
+            if (b.blackboard[2].value == id) {
+                this._trigger.emit("rlv2:get:items", { id: b.blackboard[0].valueStr, count: b.blackboard[1].value })
+            }
+        })
+        this._player._buff.filterBuffs("zone_into_cost").forEach(b => {
+            if (b.blackboard[2].value == id) {
+                this._trigger.emit("rlv2:get:items", { id: b.blackboard[0].valueStr, count: -b.blackboard[1].value! })
+            }
+        })
+        this._player._buff.filterBuffs("zone_into_buff").forEach(b => {
+            let buff:RoguelikeBuff = {
+                key: b.blackboard[0].valueStr!,
+                blackboard: b.blackboard.slice(1),
+            }
+            this._player._buff.applyBuffs(buff)
+        })
         //TODO
-        this.zones[id]={
-            "id": "zone_"+id,
+        this.zones[id] = {
+            "id": "zone_" + id,
             "index": id,
             "nodes": {
                 "0": {
@@ -212,7 +229,7 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
     }
     toJSON(): PlayerRoguelikeV2Dungeon {
         return {
-            zones:this.zones
+            zones: this.zones
         }
     }
 }

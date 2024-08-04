@@ -36,8 +36,10 @@ export class RoguelikeDisasterManager {
     }
     generate(steps:number=5){
         const theme = this._player.current.game!.theme
-        const modeGrade=this._player.current.game!.modeGrade
-        const level=modeGrade>=12?3:modeGrade>=6?2:1
+        let level=1
+        this._player._buff.filterBuffs("disaster_level_up").forEach(b=>{
+            level+=b.blackboard[0].value!
+        })
         let disasters=Object.values(excel.RoguelikeTopicTable.modules[theme].disaster!.disasterData).filter(d=>d.level==level)
         this._curDisaster=randomChoice(Object.keys(disasters))
         this._disperseStep=steps

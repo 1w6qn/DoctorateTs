@@ -18,6 +18,7 @@ import { RoguelikeBattleManager } from "./rlv2/battle";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { RoguelikeFragmentManager } from "./rlv2/modules/fragment";
 import { BattleData } from "@game/model/battle";
+import { RoguelikePoolManager } from "./rlv2/pool";
 export class RoguelikeV2Config {
     choiceScenes: { [key: string]: { choices: { [key: string]: number } } }
     constructor() {
@@ -35,6 +36,7 @@ export class RoguelikeV2Controller {
     _module!: RoguelikeModuleManager
     _battle!: RoguelikeBattleManager
     _troop: TroopManager
+    _pool:RoguelikePoolManager
     _data: RoguelikeV2Config;
     _player: PlayerDataManager
     _trigger: EventEmitter
@@ -161,6 +163,9 @@ export class RoguelikeV2Controller {
                 }])
             }
         }
+        this._buff.filterBuffs("overweight_move_cost").forEach(b => {
+            this._trigger.emit("rlv2:get:items", [{id:b.blackboard[0].valueStr,count:-b.blackboard[1].value!}])
+        })
         this._trigger.emit("rlv2:move")
         this._status.trace.push({zone:this._status.cursor.zone,position:args.to})
         
@@ -173,7 +178,7 @@ export class RoguelikeV2Controller {
     chooseBattleReward(args:{index:number,sub:number}){
         let rewardGrp=this._status.pending[0].content.battleReward!.rewards.find(r=>r.index==args.index)!
         let reward=rewardGrp.items.find(r=>r.sub==args.sub)
-        this._trigger.emit("rlv2:get:items",reward)
+        this._trigger.emit("rlv2:get:items",[reward])
         
         rewardGrp.done=1
     }
@@ -215,7 +220,7 @@ export class RoguelikeV2Controller {
         this._map = new RoguelikeMapManager(this, this._trigger)
         this._module = new RoguelikeModuleManager(this, this._trigger)
         this._battle = new RoguelikeBattleManager(this, this._trigger)
-
+        this._pool=new RoguelikePoolManager(this,this._trigger)
         this._trigger.emit("rlv2:init", this)
     }
     toJSON(): PlayerRoguelikeV2 {

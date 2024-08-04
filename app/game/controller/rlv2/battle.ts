@@ -47,7 +47,7 @@ export class RoguelikeBattleManager {
         let event=this._player._status.pending.shift()
         //TODO: 处理战斗结果
         for (let buff of this._player._buff.filterBuffs("battle_extra_reward")) {
-            this._trigger.emit("rlv2:get:items", {id:buff.blackboard[0].valueStr!,count:buff.blackboard[1].value!})
+            this._trigger.emit("rlv2:get:items", [{id:buff.blackboard[0].valueStr!,count:buff.blackboard[1].value!}])
         }
         this._player._status.state="WAIT_MOVE"
     }

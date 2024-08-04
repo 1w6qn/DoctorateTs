@@ -37,9 +37,10 @@ router.post("/npcAudio/changeLan", (req, res) => {
 })
 router.post("/story/finishStory", (req, res) => {
     let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    //TODO
+    player.status.finishStory(req.body)
     player._trigger.emit("save")
     res.send({
+        items:[],
         ...player.delta
     })
 })

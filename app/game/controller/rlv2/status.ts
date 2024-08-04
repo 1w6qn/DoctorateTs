@@ -72,7 +72,10 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
         this.property.gold = init.initialGold
         this.property.capacity = init.initialSquadCapacity
         this.property.population.max = init.initialPopulation
+        this.property.population.cost = 0
+        this.property.conPerfectBattle = 0
         this.property.shield = init.initialShield
+        this.property.maxLevel=10
         this.toEnding = `ro${game.theme.slice(-1)}_ending_1`
     }
 
@@ -109,7 +112,6 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
                 }else{
                     this.property.population.cost -= item.count
                 }
-                
                 break;
             case "EXP":
                 this.property.exp += item.count

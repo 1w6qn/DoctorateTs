@@ -159,7 +159,7 @@ export class RoguelikeV2Controller {
             if (node.next.find(n => n.x === args.to.x && n.y === args.to.y)?.key) {
                 this._trigger.emit("rlv2:get:items", [{
                     id:detail.unlockRouteItemId,
-                    count:detail.unlockRouteItemCount,
+                    count:-detail.unlockRouteItemCount,
                 }])
             }
         }
@@ -197,6 +197,12 @@ export class RoguelikeV2Controller {
 
     setTroopCarry(args:{troopCarry: string[]}) {
         this._trigger.emit("rlv2:fragment:set_troop_carry",args.troopCarry)
+    }
+    loseFragment(args:{fragmentIndex: string[]}) {
+        this._trigger.emit("rlv2:fragment:lose",args.fragmentIndex)
+    }
+    useInspiration(args:{fragmentIndex: string[]}) {
+        this._trigger.emit("rlv2:fragment:use_inspiration",args.fragmentIndex)
     }
     constructor(player: PlayerDataManager, _trigger: EventEmitter) {
         this.outer = player._playerdata.rlv2.outer

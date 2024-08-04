@@ -2,6 +2,7 @@ import excel from "@excel/excel"
 import { PlayerRoguelikeV2, RoguelikeBuff } from '../../../model/rlv2';
 import EventEmitter from "events"
 import { RoguelikeV2Controller } from '../../RoguelikeV2Controller';
+import { now } from "@utils/time";
 
 export class RoguelikeFragmentManager {
     index: number
@@ -68,7 +69,7 @@ export class RoguelikeFragmentManager {
             index: `f_${this.index}`,
             id: id,
             used: false,
-            ts: parseInt((new Date().getTime() / 1000).toString()),
+            ts: now(),
             weight: data!.weight,
             value: data!.value,
             ei: -1
@@ -100,7 +101,7 @@ export class RoguelikeFragmentManager {
         })
         this._trigger.on("rlv2:fragment:use", this.use.bind(this))
         this._trigger.on("rlv2:fragment:lose", this.lose.bind(this))
-        this._trigger.on("rlv2:fragment:use:inspiration", this.useInspiration.bind(this))
+        this._trigger.on("rlv2:fragment:use_inspiration", this.useInspiration.bind(this))
         this._trigger.on("rlv2:fragment:set_troop_carry", (troopCarry: string[])=>{
             let weights=this._troopWeights
             this.limitWeight-=this._troopCarry.reduce((acc,cur)=>acc+weights[cur],0)

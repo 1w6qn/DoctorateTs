@@ -26,8 +26,8 @@ export class RoguelikeBattleManager {
         }
         this._trigger.emit('rlv2:event:create',"BATTLE",{
             state: 1,
-            chestCnt: 1,
-            goldTrapCnt: 0,
+            chestCnt: 2,
+            goldTrapCnt: 1,
             diceRoll: [],
             boxInfo: {},
             tmpChar: [],

@@ -125,4 +125,22 @@ router.post("/setTroopCarry", async(req, res) => {
     })
     player._trigger.emit("save")
 })
+router.post("/loseFragment", async(req, res) => {
+    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    player.rlv2.loseFragment(req.body);
+    res.send({
+        
+        ...player.delta
+    })
+    player._trigger.emit("save")
+})
+router.post("/useInspiration", async(req, res) => {
+    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    player.rlv2.useInspiration(req.body);
+    res.send({
+        
+        ...player.delta
+    })
+    player._trigger.emit("save")
+})
 export default router;

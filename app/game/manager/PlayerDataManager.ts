@@ -1,13 +1,13 @@
 import { EventEmitter } from "events";
 import { PlayerDataModel } from "../model/playerdata";
-import { InventoryManager } from "./InventoryManager";
+import { InventoryManager } from "./inventory";
 import { TroopManager } from "./troop";
 import { DungeonManager } from "./DungeonManager";
-import { HomeManager } from "./HomeManager";
+import { HomeManager } from "./home";
 import { StatusManager } from "./StatusManager";
 import { CheckInManager } from "./CheckInManager";
 import { StoryreviewManager } from "./StoryreviewManager";
-import { MissionManager } from "./MissionManager";
+import { MissionManager } from "./mission";
 import ShopController from "../controller/ShopController";
 import { RecruitManager } from "./RecruitManager";
 import { RoguelikeV2Controller } from "../controller/RoguelikeV2Controller";

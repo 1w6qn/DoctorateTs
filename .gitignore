@@ -9,3 +9,5 @@ a.json
 package-lock.json
 tmp/
 test/
+assets/
+mods/

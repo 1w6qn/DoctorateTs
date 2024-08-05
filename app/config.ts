@@ -5,7 +5,11 @@ interface UserConfig {
         resVersion: string;
         clientVersion: string;
     };
-    enableMods:boolean;
+    assets:{
+        enableMods:boolean;
+        downloadLocally:boolean;
+    };
+    
     NetworkConfig: any;
 }
 
@@ -17,7 +21,10 @@ const config: UserConfig = {
         "resVersion": "24-08-01-19-38-25-0f631d",
         "clientVersion": "2.3.21"
       },
-    enableMods:false,
+    assets:{
+        enableMods:true,
+        downloadLocally:true
+    },
     NetworkConfig: {
         "configVer": "5",
         "funcVer": "V053",

@@ -2,7 +2,14 @@ import { Router } from "express";
 import config from "../config"
 const router = Router();
 router.get('/official/Android/version', (req, res) => {
-    res.send(config.version)
+    let modPatch={}
+    if(config.assets.enableMods){
+        modPatch={
+            resVersion:config.version.resVersion+Math.floor(Math.random()*100)
+        }
+    }
+    res.send(Object.assign({},config.version,modPatch))
+    
 })
 router.get('/official/network_config', (req, res) => {
     let content = JSON.stringify(config.NetworkConfig);

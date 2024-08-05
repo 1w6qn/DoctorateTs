@@ -1,0 +1,112 @@
+{
+    "file": {
+        "D:\\develop\\test\\mods\\activity_[uc]act5fun.dat": {
+            "size": 22197,
+            "crc32": 76825596
+        },
+        "D:\\develop\\test\\mods\\audio_custom_se_act5fun.dat": {
+            "size": 1373074,
+            "crc32": 3634793739
+        },
+        "D:\\develop\\test\\mods\\scenes_activities_act5d0_level_act5d0_10_level_act5d0_10.dat": {
+            "size": 215267,
+            "crc32": 158229550
+        },
+        "D:\\develop\\test\\mods\\scenes_activities_act5fun_level_act5fun_01_level_act5fun_01.dat": {
+            "size": 312042,
+            "crc32": 2766164377
+        },
+        "D:\\develop\\test\\mods\\scenes_activities_act5fun_level_act5fun_01_level_act5fun_01_lightingdata.dat": {
+            "size": 534512,
+            "crc32": 2438401595
+        },
+        "D:\\develop\\test\\mods\\scenes_activities_act5fun_level_act5fun_02_level_act5fun_02.dat": {
+            "size": 312182,
+            "crc32": 3751489465
+        },
+        "D:\\develop\\test\\mods\\scenes_activities_act5fun_level_act5fun_02_level_act5fun_02_lightingdata.dat": {
+            "size": 530870,
+            "crc32": 3196783353
+        }
+    },
+    "mod": {
+        "mods": [
+            {
+                "name": "activity/[uc]act5fun.ab",
+                "hash": "c1947fae9f1579e3bf730d7303e2cefc",
+                "md5": "c1947fae9f1579e3bf730d7303e2cefc",
+                "totalSize": 23461,
+                "abSize": 23461
+            },
+            {
+                "name": "scenes/activities/act5d0/level_act5d0_10/level_act5d0_10.ab",
+                "hash": "53b3263098372fb3c0257cd69b0d90de",
+                "md5": "53b3263098372fb3c0257cd69b0d90de",
+                "totalSize": 289977,
+                "abSize": 289977
+            },
+            {
+                "name": "scenes/activities/act5fun/level_act5fun_01/level_act5fun_01.ab",
+                "hash": "19178de9c5120803e799e21f8ada08b7",
+                "md5": "19178de9c5120803e799e21f8ada08b7",
+                "totalSize": 504535,
+                "abSize": 504535
+            },
+            {
+                "name": "scenes/activities/act5fun/level_act5fun_02/level_act5fun_02.ab",
+                "hash": "894415b9e4a0efaad5d0bc714c026b28",
+                "md5": "894415b9e4a0efaad5d0bc714c026b28",
+                "totalSize": 504076,
+                "abSize": 504076
+            },
+            {
+                "name": "scenes/activities/act5fun/level_act5fun_01/level_act5fun_01/lightingdata.ab",
+                "hash": "76b80ee2b9def56cc95c57ec5d5ed837",
+                "md5": "76b80ee2b9def56cc95c57ec5d5ed837",
+                "totalSize": 588398,
+                "abSize": 588398
+            },
+            {
+                "name": "scenes/activities/act5fun/level_act5fun_02/level_act5fun_02/lightingdata.ab",
+                "hash": "8be5a1c9616a5e64b12a04f34d0cd7fc",
+                "md5": "8be5a1c9616a5e64b12a04f34d0cd7fc",
+                "totalSize": 584960,
+                "abSize": 584960
+            },
+            {
+                "name": "audio/custom_se/act5fun.ab",
+                "hash": "324bc8e61963a7d5cd2b7ecfa6bc5a89",
+                "md5": "324bc8e61963a7d5cd2b7ecfa6bc5a89",
+                "totalSize": 1375810,
+                "abSize": 1375810
+            }
+        ],
+        "name": [
+            "activity/[uc]act5fun.ab",
+            "scenes/activities/act5d0/level_act5d0_10/level_act5d0_10.ab",
+            "scenes/activities/act5fun/level_act5fun_01/level_act5fun_01.ab",
+            "scenes/activities/act5fun/level_act5fun_02/level_act5fun_02.ab",
+            "scenes/activities/act5fun/level_act5fun_01/level_act5fun_01/lightingdata.ab",
+            "scenes/activities/act5fun/level_act5fun_02/level_act5fun_02/lightingdata.ab",
+            "audio/custom_se/act5fun.ab"
+        ],
+        "path": [
+            "D:\\develop\\test\\mods\\activity_[uc]act5fun.dat",
+            "D:\\develop\\test\\mods\\scenes_activities_act5d0_level_act5d0_10_level_act5d0_10.dat",
+            "D:\\develop\\test\\mods\\scenes_activities_act5fun_level_act5fun_01_level_act5fun_01.dat",
+            "D:\\develop\\test\\mods\\scenes_activities_act5fun_level_act5fun_02_level_act5fun_02.dat",
+            "D:\\develop\\test\\mods\\scenes_activities_act5fun_level_act5fun_01_level_act5fun_01_lightingdata.dat",
+            "D:\\develop\\test\\mods\\scenes_activities_act5fun_level_act5fun_02_level_act5fun_02_lightingdata.dat",
+            "D:\\develop\\test\\mods\\audio_custom_se_act5fun.dat"
+        ],
+        "download": [
+            "activity_[uc]act5fun.dat",
+            "scenes_activities_act5d0_level_act5d0_10_level_act5d0_10.dat",
+            "scenes_activities_act5fun_level_act5fun_01_level_act5fun_01.dat",
+            "scenes_activities_act5fun_level_act5fun_02_level_act5fun_02.dat",
+            "scenes_activities_act5fun_level_act5fun_01_level_act5fun_01_lightingdata.dat",
+            "scenes_activities_act5fun_level_act5fun_02_level_act5fun_02_lightingdata.dat",
+            "audio_custom_se_act5fun.dat"
+        ]
+    }
+}

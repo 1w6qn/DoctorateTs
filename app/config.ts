@@ -22,8 +22,8 @@ const config: UserConfig = {
         "clientVersion": "2.3.21"
       },
     assets:{
-        enableMods:true,
-        downloadLocally:true
+        enableMods:false,
+        downloadLocally:false
     },
     NetworkConfig: {
         "configVer": "5",

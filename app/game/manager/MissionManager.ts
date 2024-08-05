@@ -1,7 +1,7 @@
 import EventEmitter from "events";
-import { MissionCalcState, MissionDailyRewards, MissionPlayerData, MissionPlayerState, PlayerDataModel, Complete } from '../model/playerdata';
-import excel from "../../excel/excel";
-import { ItemBundle } from "../../excel/character_table";
+import { MissionCalcState, MissionDailyRewards, MissionPlayerData, MissionPlayerState, PlayerDataModel } from '../model/playerdata';
+import excel from "@excel/excel";
+import { ItemBundle } from "@excel/character_table";
 import { PlayerSquad } from "../model/character";
 import { TroopManager } from "./troop";
 import { BattleData } from '../model/battle';

@@ -11,7 +11,7 @@ import { MissionManager } from "./MissionManager";
 import ShopController from "../controller/ShopController";
 import { RecruitManager } from "./RecruitManager";
 import { RoguelikeV2Controller } from "../controller/RoguelikeV2Controller";
-import { BattleManager } from "./BattleManager";
+import { BattleManager } from "./battle";
 import { GachaController } from "../controller/GachaController";
 import { accountManager, BattleInfo } from "./AccountManger";
 

@@ -19,7 +19,7 @@ router.post("/background/setBackground", (req, res) => {
 router.post("/char/changeMarkStar", (req, res) => {
     let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     console.log(req.body)
-    player.troop.changeMarkStar(req.body!.chrIdDict)
+    player.troop.changeMarkStar(req.body)
     player._trigger.emit("save")
     res.send(player.delta)
 })

@@ -70,7 +70,7 @@ router.post("/upgradeSkill", (req, res) => {
 })
 router.post("/evolveChar", (req, res) => {
     let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    player.troop.evolveChar(req.body!.charInstId,req.body!.destEvolvePhase)
+    player.troop.evolveChar(req.body)
     player._trigger.emit("save")
     res.send(player.delta)
 })

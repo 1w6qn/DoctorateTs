@@ -12,7 +12,7 @@ router.post("/squadFormation", (req, res) => {
 })
 router.post("/changeSquadName", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    player.troop.changeSquadName(req.body!.squadId, req.body!.name)
+    player.troop.changeSquadName(req.body)
     res.send(player.delta)
     player._trigger.emit("save")
 })
@@ -35,14 +35,14 @@ router.post("/battleFinish", (req, res) => {
 router.post("/getBattleReplay", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
     res.send({
-        battleReplay: player.battle.loadReplay(req.body!.stageId),
+        battleReplay: player.battle.loadReplay(req.body),
         ...player.delta,
     })
     player._trigger.emit("save")
 })
 router.post("/saveBattleReplay", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    player.battle.saveReplay(req.body!.battleId, req.body!.battleReplay)
+    player.battle.saveReplay(req.body)
     res.send({
         ...player.delta,
     })

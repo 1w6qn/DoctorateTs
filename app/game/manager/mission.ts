@@ -3,10 +3,8 @@ import { MissionCalcState, MissionDailyRewards, MissionPlayerData, MissionPlayer
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 import { PlayerCharacter, PlayerSquad } from "../model/character";
-import { TroopManager } from "./troop";
 import { BattleData } from '../model/battle';
-import { parse } from "path";
-import { max } from "lodash";
+import { now } from "@utils/time";
 
 export class MissionManager {
     missions: { [key: string]: MissionProgress[] };
@@ -14,17 +12,16 @@ export class MissionManager {
     missionGroups: { [key: string]: number }
     _trigger: EventEmitter;
     get dailyMissionPeriod(): string {
-        let ts = new Date().getTime() / 1000
+        let ts = now()
         let period = excel.MissionTable.dailyMissionPeriodInfo.find((p) => p.startTime <= ts && p.endTime >= ts)
         return period!.periodList.find((p) => p.period.includes(new Date().getDay() + 1))!.missionGroupId
     }
     get dailyMissionRewardPeriod(): string {
-        let ts = new Date().getTime() / 1000
+        let ts = now()
         let period = excel.MissionTable.dailyMissionPeriodInfo.find((p) => p.startTime <= ts && p.endTime >= ts)
         return period!.periodList.find((p) => p.period.includes(new Date().getDay() + 1))!.rewardGroupId
     }
     constructor(playerdata: PlayerDataModel, _trigger: EventEmitter) {
-        playerdata.mission.missions["OPENSERVER"] = {}
         playerdata.mission.missions["ACTIVITY"] = {}
         this.missions = Object.fromEntries(Object.entries(playerdata.mission.missions).map(([type, v]) =>
             [type, Object.entries(v).map(([id, data]) => { return (new MissionProgress(id, _trigger, this, type, data.progress[0].value ?? 0, data.state)) })]
@@ -34,9 +31,6 @@ export class MissionManager {
         this._trigger = _trigger;
         this._trigger.on("refresh:weekly", this.weeklyRefresh.bind(this))
         this._trigger.on("refresh:daily", this.dailyRefresh.bind(this))
-        this._trigger.on("mission:complete", this.completeMission.bind(this))
-
-
     }
     getMissionById(missionId: string): MissionProgress {
         let type = excel.MissionTable.missions[missionId].type
@@ -64,18 +58,7 @@ export class MissionManager {
             this.missions["WEEKLY"].push(new MissionProgress(mission.id, this._trigger, this, "WEEKLY"))
         }
     }
-    completeMission(missionId: string) {
 
-        switch (excel.MissionTable.missions[missionId].type) {
-            case "DAILY":
-                //this.missionRewards.dailyPoint += 1
-                break;
-
-            default:
-                break;
-        }
-
-    }
     confirmMission(missionId: string): ItemBundle[] {
         let items: ItemBundle[] = []
         this.getMissionById(missionId).confirmed = true
@@ -191,11 +174,10 @@ export class MissionProgress implements MissionPlayerState {
         }
         this._trigger.on(template, (args: {}, mode) => {
             this[template](args, mode)
-            if (mode == "update") {
-                console.log(`[MissionManager] ${this.missionId} update ${this.progress[0].value}/${this.progress[0].target}`)
-                if (this.progress[0].value >= this.progress[0].target!) {
-                    console.log(`[MissionManager] ${this.missionId} complete`)
-                }
+            //console.log(`[MissionManager] ${this.missionId} update ${this.progress[0].value}/${this.progress[0].target}`)
+            if (this.progress[0].value >= this.progress[0].target!) {
+                console.log(`[MissionManager] ${this.missionId} complete`)
+                this._trigger.removeListener(template, this[template])
             }
         })
         this[template]({}, "init")
@@ -578,7 +560,7 @@ export class MissionProgress implements MissionPlayerState {
         }
         funcs[this.param[0]][mode](args)
     }
-    SquadFormation(args: { squad: PlayerSquad }, mode: string = "update",) {
+    SquadFormation(args: {}, mode: string = "update",) {
         /**
          * 
          * 

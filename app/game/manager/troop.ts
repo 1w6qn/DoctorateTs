@@ -102,7 +102,8 @@ export class TroopManager {
                 }
             }
 
-        } else {
+        }
+        else {
             charInstId = this.curCharInstId
             this.chars[this.curCharInstId] = {
                 "instId": charInstId,
@@ -173,25 +174,25 @@ export class TroopManager {
         this._trigger.emit("useItems", expMats.concat([{ id: "4001", count: gold } as ItemBundle]))
         this._trigger.emit("UpgradeChar", {})
     }
-    evolveChar(instId: number, destEvolvePhase: number): void {
-        let char = this.getCharacterByInstId(instId);
-        const evolveCost = excel.CharacterTable[char.charId].phases[destEvolvePhase].evolveCost as ItemBundle[];
+    evolveChar(args:{instId: number, destEvolvePhase: number}): void {
+        let char = this.getCharacterByInstId(args.instId);
+        const evolveCost = excel.CharacterTable[char.charId].phases[args.destEvolvePhase].evolveCost as ItemBundle[];
         const rarity = parseInt(excel.CharacterTable[char.charId].rarity.slice(-1));
-        const goldCost = excel.GameDataConst.evolveGoldCost[rarity][destEvolvePhase];
+        const goldCost = excel.GameDataConst.evolveGoldCost[rarity][args.destEvolvePhase];
         this._trigger.emit("useItems", evolveCost.concat([{ id: "4001", count: goldCost } as ItemBundle]))
-        char.evolvePhase = destEvolvePhase;
+        char.evolvePhase = args.destEvolvePhase;
         char.level = 1;
         char.exp = 0;
         //TODO
-        if (destEvolvePhase == 2) {
-            this.chars[instId].skinId = char.charId + "#2";
+        if (args.destEvolvePhase == 2) {
+            this.chars[args.instId].skinId = char.charId + "#2";
         }
-        this._trigger.emit("CharEvolved", { instId: instId, destEvolvePhase: destEvolvePhase })
+        this._trigger.emit("EvolveChar", args)
     }
     boostPotential(instId: number, itemId: string, targetRank: number): void {
         this._trigger.emit("useItems", [{ id: itemId, count: 1 }])
         this.chars[instId].potentialRank = targetRank;
-        //TODO 触发事件
+        this._trigger.emit("BoostPotential", { targetRank: targetRank })
     }
     setDefaultSkill(instId: number, defaultSkillIndex: number): void {
         this.chars[instId].defaultSkillIndex = defaultSkillIndex;
@@ -210,14 +211,17 @@ export class TroopManager {
         let char = this.getCharacterByInstId(instId);
         this._trigger.emit("useItems", excel.CharacterTable[char.charId].allSkillLvlup[targetLevel - 2].lvlUpCost as ItemBundle[])
         char.mainSkillLvl = targetLevel;
+        this._trigger.emit("BoostPotential", { targetLevel: targetLevel })
     }
     squadFormation(squadId: number, slots: PlayerSquadItem[]): void {
         this.squads[squadId].slots = slots;
+        this._trigger.emit("SquadFormation",this.squads[squadId])
     }
-    changeSquadName(squadId: number, name: string): void {
-        this.squads[squadId].name = name;
+    changeSquadName(args:{squadId: number, name: string}): void {
+        this.squads[args.squadId].name = args.name;
+        this._trigger.emit("ChangeSquadName")
     }
-    changeMarkStar(chrIdDict: { [key: string]: number }) {
+    changeMarkStar(args:{chrIdDict: { [key: string]: number }}) {
         //TODO
     }
     setEquipment(args: { charInstId: number, templateId: string, equipId: string }): void {
@@ -238,6 +242,7 @@ export class TroopManager {
             char.equip![args.equipId].locked=0
         }
         this._trigger.emit("useItems",excel.UniequipTable.equipDict[args.equipId].itemCost!["1"])
+        this._trigger.emit("HasEquipmemt",{...char,...args})
     }
     upgradeEquipment(args: { charInstId: number, templateId: string, equipId: string ,targetLevel:number }) {
         let char = this.getCharacterByInstId(args.charInstId);
@@ -251,6 +256,7 @@ export class TroopManager {
             items.push(...excel.UniequipTable.equipDict[args.equipId].itemCost![i])
         }
         this._trigger.emit("useItems", items)
+        this._trigger.emit("HasEquipmemt",{...char,...args})
     }
     changeSecretary(charInstId: number, skinId: string) {
         let charId = this.getCharacterByInstId(charInstId).charId;
@@ -288,17 +294,7 @@ export class TroopManager {
         this._trigger.emit("gainItems", items)
         return items
     }
-    toJSON(): PlayerTroop {
-        return {
-            curCharInstId: this.curCharInstId,
-            curSquadCount: this.curSquadCount,
-            chars: this.chars,
-            squads: this.squads,
-            addon: this._troop.addon,
-            charMission: this._troop.charMission,
-            charGroup: pick(this.chars, ["favorPoint"]),
-        };
-    }
+    
     async fix(): Promise<void> {
         await excel.initPromise
         Object.values(this.chars).forEach(char => {
@@ -335,5 +331,16 @@ export class TroopManager {
             }
 
         })
+    }
+    toJSON(): PlayerTroop {
+        return {
+            curCharInstId: this.curCharInstId,
+            curSquadCount: this.curSquadCount,
+            chars: this.chars,
+            squads: this.squads,
+            addon: this._troop.addon,
+            charMission: this._troop.charMission,
+            charGroup: pick(this.chars, ["favorPoint"]),
+        };
     }
 }

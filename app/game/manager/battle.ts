@@ -72,12 +72,12 @@ export class BattleManager {
             pryResult: [],
         }
     }
-    loadReplay(stageId:string):string{
-        return accountManager.getBattleReplay(this._playerdata.status.uid,stageId)
+    loadReplay(args:{stageId:string}):string{
+        return accountManager.getBattleReplay(this._playerdata.status.uid,args.stageId)
     }
-    saveReplay(battleId:string,battleReplay:string):void{
-        let stageId=accountManager.getBattleInfo(this._playerdata.status.uid,battleId)?.stageId
-        return accountManager.saveBattleReplay(this._playerdata.status.uid,stageId as string,battleReplay)
+    saveReplay(args:{battleId:string,battleReplay:string}):void{
+        let stageId=accountManager.getBattleInfo(this._playerdata.status.uid,args.battleId)?.stageId
+        return accountManager.saveBattleReplay(this._playerdata.status.uid,stageId as string,args.battleReplay)
     }
 
 }

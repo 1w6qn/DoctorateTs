@@ -3,6 +3,7 @@ import { AvatarInfo, PlayerCollection, PlayerDataModel, PlayerStatus, PlayerName
 import excel from "../../excel/excel"
 import { ItemBundle } from "../../excel/character_table";
 import { checkNewDay, checkNewMonth, checkNewWeek, now } from "@utils/time";
+import moment from "moment";
 
 export class StatusManager {
     status: PlayerStatus
@@ -30,10 +31,10 @@ export class StatusManager {
         if (checkNewDay(this.status.lastRefreshTs, ts)) {
             this._trigger.emit("refresh:daily")
         }
-        if (new Date().getDate() == 1 && checkNewMonth(this.status.lastRefreshTs, ts)) {
+        if (moment().date() == 1 && checkNewMonth(this.status.lastRefreshTs, ts)) {
             this._trigger.emit("refresh:monthly")
         }
-        if (new Date().getDay() == 1 && checkNewWeek(this.status.lastRefreshTs, ts)) {
+        if (moment().day() == 1 && checkNewWeek(this.status.lastRefreshTs, ts)) {
             this._trigger.emit("refresh:weekly")
         }
         if (this.status.ap < this.status.maxAp) {
@@ -109,62 +110,41 @@ export class StatusManager {
         if (!item.type) {
             item.type = excel.ItemTable.items[item.id].itemType as string
         }
-        switch (item.type) {
-            default:
-                this._gainItem(Object.assign({},item, { count: -item.count }))
-                break;
+        const funcs: { [key: string]: (item: ItemBundle) => void } = {
+            
         }
+        if(funcs[item.type]){
+            funcs[item.type](item)
+        }else{
+            this._gainItem(Object.assign({}, item, { count: -item.count }))
+        }
+
     }
     _gainItem(item: ItemBundle): void {
         if (!item.type) {
             item.type = excel.ItemTable.items[item.id].itemType as string
         }
-        switch (item.type) {
-            case "GOLD":
-                this.status.gold += item.count
-                break
-            case "DIAMOND":
+        const funcs: { [key: string]: (item: ItemBundle) => void } = {
+            "GOLD": (item: ItemBundle) => this.status.gold += item.count,
+            "DIAMOND": (item: ItemBundle) => {
                 this.status.iosDiamond += item.count
                 this.status.androidDiamond += item.count
-                break
-            case "EXP_PLAYER":
-                this.status.exp += item.count
-                break
-            case "DIAMOND_SHD":
-                this.status.diamondShard += item.count
-                break
-            case "TKT_TRY":
-                this.status.practiceTicket += item.count
-                break
-            case "TKT_RECRUIT":
-                this.status.recruitLicense += item.count
-                break
-            case "TKT_INST_FIN":
-                this.status.instantFinishTicket += item.count
-                break
-            case "TKT_GACHA":
-                this.status.gachaTicket += item.count
-                break
-            case "TKT_GACHA_10":
-                this.status.tenGachaTicket += item.count
-                break
-            case "RETURN_PROGRESS":
-                //this.status.recruitLicense+=item.count
-                break
-            case "NEW_PROGRESS":
-                //this.status.recruitLicense+=item.count
-                break
-            case "AP_GAMEPLAY":
-                this.status.ap += item.count
-                break
-            case "HGG_SHD":
-                this.status.hggShard += item.count
-                break
-            case "LGG_SHD":
-                this.status.lggShard += item.count
-                break
-            default:
-                break;
+            },
+            "EXP_PLAYER": (item: ItemBundle) => this.status.exp += item.count,
+            "DIAMOND_SHD": (item: ItemBundle) =>this.status.diamondShard += item.count,
+            "TKT_TRY": (item: ItemBundle) => this.status.practiceTicket += item.count,
+            "TKT_RECRUIT": (item: ItemBundle) => this.status.recruitLicense += item.count,
+            "TKT_INST_FIN": (item: ItemBundle) => this.status.instantFinishTicket += item.count,
+            "TKT_GACHA": (item: ItemBundle) => this.status.gachaTicket += item.count,
+            "TKT_GACHA_10": (item: ItemBundle) => this.status.tenGachaTicket += item.count,
+            "RETURN_PROGRESS": (item: ItemBundle) => {},
+            "NEW_PROGRESS": (item: ItemBundle) => {},
+            "AP_GAMEPLAY": (item: ItemBundle) => this.status.ap += item.count,
+            "HGG_SHD": (item: ItemBundle) => this.status.hggShard += item.count,
+            "LGG_SHD": (item: ItemBundle) => this.status.lggShard += item.count,
+        }
+        if (funcs[item.type]) {
+            funcs[item.type](item)
         }
     }
     toJSON() {

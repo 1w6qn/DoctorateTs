@@ -37,6 +37,19 @@ export class AccountManager {
     getPlayerData(uid: string): PlayerDataManager {
         return this.data[uid || "1"];
     }
+    getPlayerFriendInfo(uid:string,type:number):FriendSortViewModel{
+        let patch={}
+        let player=this.getPlayerData(uid)
+        const funcs: { [key: number]: () => void } = {
+            1: () => {
+                
+            }
+        }
+        return {
+            uid:uid,
+            level:player.status.status.level,
+        }
+    }
     savePlayerData(uid: string): void {
         writeFileSync(`${__dirname}/../../../data/user/databases/${uid || "1"}.json`, JSON.stringify(this.data[uid || "1"], null, 4));
     }
@@ -47,6 +60,9 @@ export class AccountManager {
     saveBeforeNonHitCnt(uid: string,gachaType:string,cnt:number):void{
         this.configs[uid]!.gacha[gachaType].beforeNonHitCnt=cnt
         this.saveUserConfig()
+    }
+    getSocial(uid: string): { friends: string[] } {
+        return this.configs[uid]!.social;
     }
     deleteFriend(uid: string, friendUid: string): void {
         const social=this.configs[uid]!.social
@@ -60,6 +76,13 @@ export class AccountManager {
     searchPlayer(keyword: string): string[] {
         return []
     }
+}
+export interface FriendSortViewModel{
+    uid:string,
+    level:number,
+    infoShare?:number,
+    infoShareVisited?:number,
+    recentVisited?:number,
 }
 export interface UserConfig {
     uid: string

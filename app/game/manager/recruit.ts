@@ -4,6 +4,7 @@ import excel from "@excel/excel";
 import { TroopManager } from "./troop";
 import { GachaResult } from "../model/gacha";
 import { randomChoices, randomChoice, randomSample,randomInt } from "@utils/random";
+import { now } from "@utils/time";
 
 
 export class RecruitManager {
@@ -36,9 +37,9 @@ export class RecruitManager {
     async normalGacha(args:{slotId: number, tagList: number[], specialTagId: number, duration: number}) {
         this.recruit.normal.slots[args.slotId].state = 2
         this.recruit.normal.slots[args.slotId].selectTags = args.tagList.map(tag => ({ tagId: tag, pick: 1 }))
-        this.recruit.normal.slots[args.slotId].startTs = parseInt((new Date().getTime() / 1000).toString())
-        this.recruit.normal.slots[args.slotId].maxFinishTs = parseInt((new Date().getTime() / 1000).toString()) + args.duration
-        this.recruit.normal.slots[args.slotId].realFinishTs = parseInt((new Date().getTime() / 1000).toString()) + args.duration
+        this.recruit.normal.slots[args.slotId].startTs = now()
+        this.recruit.normal.slots[args.slotId].maxFinishTs = now() + args.duration
+        this.recruit.normal.slots[args.slotId].realFinishTs = now() + args.duration
         this.recruit.normal.slots[args.slotId].durationInSec = args.duration
         this.recruit.normal.slots[args.slotId].tags=await RecruitTools.refreshTagList()
         this._trigger.emit("useItems", [{id:"7001",count:1,type:"TKT_RECRUIT"}])
@@ -55,7 +56,7 @@ export class RecruitManager {
     }
     boost(slotId: number, buy: number) {
         this.recruit.normal.slots[slotId].state = 3
-        this.recruit.normal.slots[slotId].realFinishTs = parseInt((new Date().getTime() / 1000).toString())
+        this.recruit.normal.slots[slotId].realFinishTs = now()
         this._trigger.emit("BoostNormalGacha", {})
     }
     toJSON(): PlayerRecruit {

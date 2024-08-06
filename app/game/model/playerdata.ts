@@ -22,7 +22,7 @@ export interface PlayerDataModel {
     gacha: PlayerGacha;
     backflow: Backflow;
     mainline: Mainline;
-    avatar: PlayerDataAvatar;
+    avatar: PlayerAvatar;
     background: PlayerHomeBackground;
     homeTheme: PlayerHomeTheme;
     rlv2: any;
@@ -223,16 +223,14 @@ export interface Act5Fun {
     highScore: number;
 }
 
-export interface PlayerDataAvatar {
-    avatar_icon: { [key: string]: AvatarIcon };
+export interface PlayerAvatar {
+    avatar_icon: { [key: string]: PlayerAvatarBlock };
 }
 
-export interface AvatarIcon {
+export interface PlayerAvatarBlock {
     ts: number;
-    src: SrcEnum;
+    src: string;
 }
-
-export type SrcEnum = "other" | "initial";
 
 export interface Backflow {
     open: boolean;

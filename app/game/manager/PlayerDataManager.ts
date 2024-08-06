@@ -4,12 +4,12 @@ import { InventoryManager } from "./inventory";
 import { TroopManager } from "./troop";
 import { DungeonManager } from "./DungeonManager";
 import { HomeManager } from "./home";
-import { StatusManager } from "./StatusManager";
+import { StatusManager } from "./status";
 import { CheckInManager } from "./CheckInManager";
 import { StoryreviewManager } from "./StoryreviewManager";
 import { MissionManager } from "./mission";
 import ShopController from "../controller/ShopController";
-import { RecruitManager } from "./RecruitManager";
+import { RecruitManager } from "./recruit";
 import { RoguelikeV2Controller } from "../controller/RoguelikeV2Controller";
 import { BattleManager } from "./battle";
 import { GachaController } from "../controller/GachaController";
@@ -54,7 +54,7 @@ export class PlayerDataManager {
         this._trigger.setMaxListeners(10000);
         
         this.status=new StatusManager(playerdata, this._trigger)
-        this.inventory = new InventoryManager(playerdata, this._trigger);
+        this.inventory = new InventoryManager(this, this._trigger);
         this.troop=new TroopManager(playerdata, this._trigger)
         this.dungeon=new DungeonManager(playerdata.dungeon, this._trigger)
         this.home=new HomeManager(playerdata, this._trigger)
@@ -91,7 +91,6 @@ export class PlayerDataManager {
             gacha:this.gacha,
             backflow:this._playerdata.backflow,
             mainline:this._playerdata.mainline,
-            avatar:this._playerdata.avatar,
             rlv2:this.rlv2,
             deepSea:this._playerdata.deepSea,
             tower:this._playerdata.tower,
@@ -105,7 +104,6 @@ export class PlayerDataManager {
             roguelike:this._playerdata.roguelike,
             ticket:this._playerdata.ticket,
             aprilFool:this._playerdata.aprilFool,
-            consumable:this._playerdata.consumable,
             charm:this._playerdata.charm,
             carousel:this._playerdata.carousel,
             car:this._playerdata.car,

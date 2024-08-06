@@ -1,5 +1,5 @@
 import { PlayerActivity } from "./activity";
-import { PlayerSquadItem, PlayerTroop } from "./character";
+import { PlayerFriendAssist, PlayerSquadItem, PlayerTroop } from "./character";
 
 export interface PlayerDataModel {
     dungeon: PlayerDungeon;
@@ -12,7 +12,7 @@ export interface PlayerDataModel {
     skin: PlayerSkins;
     shop: PlayerDataShop;
     mission: MissionPlayerData;
-    social: PlayerDataSocial;
+    social: PlayerSocial;
     building: PlayerDataBuilding;
     dexNav: DexNav;
     crisis: Crisis;
@@ -3449,22 +3449,22 @@ export interface Release {
 
 
 
-export interface PlayerDataSocial {
-    assistCharList: PlayerSquadItem[];
-    yesterdayReward: YesterdayReward;
-    yCrisisSs: string;
-    medalBoard: MedalBoard;
-    yCrisisV2Ss: string;
+export interface PlayerSocial {
+    assistCharList: PlayerFriendAssist[];
+    yesterdayReward: PlayerSocialReward;
+    yCrisisSs: string;//yesterdayCrisisSeasonId
+    medalBoard: PlayerMedalBoard;
+    yCrisisV2Ss: string;//yesterdayCrisisSeasonId
 }
 
-export interface MedalBoard {
+export interface PlayerMedalBoard {
     type: string;
     custom: null;
     template: string;
     templateMedalList: string[];
 }
 
-export interface YesterdayReward {
+export interface PlayerSocialReward {
     canReceive: number;
     assistAmount: number;
     comfortAmount: number;

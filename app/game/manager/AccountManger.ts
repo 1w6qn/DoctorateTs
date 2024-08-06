@@ -40,6 +40,7 @@ export class AccountManager {
     savePlayerData(uid: string): void {
         writeFileSync(`${__dirname}/../../../data/user/databases/${uid || "1"}.json`, JSON.stringify(this.data[uid || "1"], null, 4));
     }
+
     getBeforeNonHitCnt(uid: string,gachaType:string):number{
         return this.configs[uid]!.gacha[gachaType].beforeNonHitCnt
     }
@@ -47,10 +48,24 @@ export class AccountManager {
         this.configs[uid]!.gacha[gachaType].beforeNonHitCnt=cnt
         this.saveUserConfig()
     }
+    deleteFriend(uid: string, friendUid: string): void {
+        const social=this.configs[uid]!.social
+        social.friends.splice(social.friends.indexOf(friendUid), 1);
+        this.saveUserConfig();
+    }
+    addFriend(uid: string, friendUid: string): void {
+        this.configs[uid]!.social.friends.push(friendUid);
+        this.saveUserConfig();
+    }
+    searchPlayer(keyword: string): string[] {
+        return []
+    }
 }
 export interface UserConfig {
     uid: string
-    friends: string[]
+    social:{
+        friends: string[]
+    }
     battle: {
         stageId: string,
         replays: { [key: string]: string },

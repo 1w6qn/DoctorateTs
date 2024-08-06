@@ -100,8 +100,7 @@ export interface PlayerSquadItem {
     currentEquip: null | string;
 }
 
-
-
+export type PlayerFriendAssist =PlayerSquadItem
 
 
 export interface OrigChar extends FriendCommonData {

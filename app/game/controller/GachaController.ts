@@ -60,6 +60,16 @@ export class GachaController {
         let beforeNonHitCnt = accountManager.getBeforeNonHitCnt(this.uid, ruleType)
         let rank: number
         //TODO
+        const funcs: {[key:string]:()=>void}={
+            "NORMAL":()=>{},
+            "LIMITED":()=>{},
+            "LINKAGE":()=>{},
+            "ATTAIN":()=>{},
+            "CLASSIC":()=>{},
+            "SINGLE":()=>{},
+            "FESCLASSIC":()=>{},
+            "CLASSIC_ATTAIN":()=>{},
+        }
         switch (ruleType) {
             case "NORMAL":
                 rank = this._getRarityRank(poolId, { beforeNonHitCnt })
@@ -148,16 +158,16 @@ export class GachaController {
         return args.ensure || charId
     }
     _getRarityRank(poolId: string, args: { beforeNonHitCnt: number },): number {
-        let detail = this._table.details[poolId]
+        const detail = this._table.details[poolId]
         let per6 = detail.availCharInfo.perAvailList.find((c) => c.rarityRank === 5)!.totalPercent
         let rank = 2
         per6 += args.beforeNonHitCnt < 50 ? 0 : (args.beforeNonHitCnt - 50) * 0.02
         if (Math.random() <= per6) {
             rank = 5
         } else {
-            let perAvailList = detail.availCharInfo.perAvailList.filter((c) => c.rarityRank != 5)
-            let ranks = perAvailList.map((c) => c.rarityRank)
-            let weights = perAvailList.map((r) => r.totalPercent)
+            const perAvailList = detail.availCharInfo.perAvailList.filter((c) => c.rarityRank != 5)
+            const ranks = perAvailList.map((c) => c.rarityRank)
+            const weights = perAvailList.map((r) => r.totalPercent)
             rank = randomChoices(ranks, weights, 1)[0]
             if (rank < 4 && this.gacha.normal[poolId].avail && this.gacha.normal[poolId].cnt == this.gacha.normal[poolId].maxCnt) {
                 rank = 4

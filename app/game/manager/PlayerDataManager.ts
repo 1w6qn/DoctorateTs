@@ -14,6 +14,7 @@ import { RoguelikeV2Controller } from "../controller/RoguelikeV2Controller";
 import { BattleManager } from "./battle";
 import { GachaController } from "../controller/GachaController";
 import { accountManager, BattleInfo } from "./AccountManger";
+import { SocialManager } from "./social";
 
 export class PlayerDataManager {
     dungeon:DungeonManager
@@ -28,6 +29,7 @@ export class PlayerDataManager {
     recruit:RecruitManager
     rlv2:RoguelikeV2Controller
     gacha:GachaController
+    social:SocialManager
     battle!:BattleManager
     _trigger: EventEmitter
     _playerdata: PlayerDataModel;
@@ -65,6 +67,7 @@ export class PlayerDataManager {
         this.battle=new BattleManager(this._playerdata, this._trigger)
         this.recruit=new RecruitManager(playerdata.recruit,this.troop, this._trigger)
         this.rlv2=new RoguelikeV2Controller(this, this._trigger)
+        this.social=new SocialManager(playerdata, this._trigger)
         this.gacha=new GachaController(playerdata.gacha,this.status.uid,this.troop, this._trigger)
         this._trigger.emit("game:fix")
         this._trigger.emit("save:battle",(battleId:string, info:BattleInfo)=>{
@@ -82,7 +85,7 @@ export class PlayerDataManager {
             equipment:{},
             ...this.shop.toJSON(),
             mission:this.mission,
-            social:this._playerdata.social,
+            social:this.social,
             building:this._playerdata.building,
             dexNav:this._playerdata.dexNav,
             crisis:this._playerdata.crisis,

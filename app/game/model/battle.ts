@@ -1,4 +1,5 @@
 import { PlayerSquad, SquadFriendData } from "../model/character";
+type ListCounterPool<T>={Key:T,Value:number}[]
 export interface BattleData {
     battleId:      string;
     interrupt:     number;
@@ -22,7 +23,7 @@ export interface BattleStats {
     killedEnemiesCnt:        number;
     unnatrualRecoveredCost:  number;
     charStats:               any[];
-    enemyStats:              any[];
+    enemyStats:              ListCounterPool<BattleStats.EnemyStatKey>;
     skillTrigStats:          any[];
     charAdvancedStats:       {};
     enemyAdvancedStats:      {};
@@ -52,7 +53,13 @@ export interface BattleStats {
     autoReplayCancelled:     number;
 }
 
-
+export namespace BattleStats{
+    export interface EnemyStatKey{
+        enemyId: string
+        counterType:string
+        isInvalidKilled:number
+    }
+}
 export interface CommonStartBattleRequest {
     isRetro: number
     pray: number

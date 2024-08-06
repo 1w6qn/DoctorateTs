@@ -2,9 +2,10 @@ import EventEmitter from "events";
 import { MissionCalcState, MissionDailyRewards, MissionPlayerData, MissionPlayerState, PlayerDataModel } from '../model/playerdata';
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
-import { PlayerSquad } from "../model/character";
+import { PlayerCharacter, PlayerSquad } from "../model/character";
 import { TroopManager } from "./troop";
 import { BattleData } from '../model/battle';
+import { parse } from "path";
 
 export class MissionManager {
     missions: { [key: string]: MissionProgress[] };
@@ -172,9 +173,9 @@ export class MissionProgress implements MissionPlayerState {
     }
     async init() {
         await excel.initPromise
-        let template:string
+        let template: string
         if (this.type == "ACTIVITY") {
-            template=""
+            template = ""
         } else {
             template = excel.MissionTable.missions[this.missionId].template
             this.param = excel.MissionTable.missions[this.missionId].param
@@ -187,11 +188,11 @@ export class MissionProgress implements MissionPlayerState {
             console.log(template)
             throw new Error("template not implemented yet")
         }
-        this._trigger.on(template, (args:{},mode)=>{
-            this[template](args,mode)
-            if(mode=="update"){
+        this._trigger.on(template, (args: {}, mode) => {
+            this[template](args, mode)
+            if (mode == "update") {
                 console.log(`[MissionManager] ${this.missionId} update ${this.progress[0].value}/${this.progress[0].target}`)
-                if(this.progress[0].value>=this.progress[0].target!){
+                if (this.progress[0].value >= this.progress[0].target!) {
                     console.log(`[MissionManager] ${this.missionId} complete`)
                 }
             }
@@ -203,284 +204,456 @@ export class MissionProgress implements MissionPlayerState {
     update() {
 
     }
-    CompleteStageAnyType(args: { completeState: number }, mode: string = "update",) {
+    CompleteStageAnyType(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (this.param[0]) {
-            case "0":
-                switch (mode) {
-                    case "init":
-                        this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
-                    case "update":
-                        let { completeState } = args
-                        if (completeState >= parseInt(this.param[2])) {
-                            this.progress[0].value += 1
-                        }
-                        break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: BattleData) => {
+                    let { completeState } = args
+                    if (completeState >= parseInt(this.param[2])) {
+                        this.progress[0].value += 1
+                    }
                 }
-                break;
+            }
         }
-
-
-
+        funcs[this.param[0]][mode](args)
     }
-    StageWithEnemyKill(args: { completeState: number }, mode: string = "update",) {
+    StageWithEnemyKill(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
-                break
-            case "update":
-
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "1": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: BattleData) => {
+                    let { completeState } = args
+                    if (completeState >= 2) {
+                        this.progress[0].value += args.killCnt
+                    }
+                }
+            },
+            "2": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: BattleData) => {
+                    const enemies = this.param[2].split("^")
+                    args.battleData.stats.enemyStats.forEach((stat) => {
+                        if (enemies.includes(stat.Key.enemyId) && stat.Key.counterType == "HP_ZERO") {
+                            this.progress[0].value += stat.Value
+                        }
+                    })
+                }
+            },
+            "5": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[2]) })
+                },
+                "update": (args: BattleData & { stageId: string }) => {
+                    const stages = this.param[1].split("^")
+                    if (stages.includes(args.stageId) && args.completeState >= 2) {
+                        this.progress[0].value += args.killCnt
+                    }
+                }
+            },
+            "6": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[3]) })
+                },
+                "update": (args: BattleData & { stageId: string }) => {
+                    const stages = this.param[1].split("^")
+                    if (!stages.includes(args.stageId)) {
+                        return
+                    }
+                    if (args.completeState < parseInt(this.param[3])) {
+                        return
+                    }
+                    if (args.killCnt >= parseInt(this.param[2])) {
+                        this.progress[0].value += 1
+                    }
+                }
+            },
         }
+        funcs[this.param[0]][mode](args)
+
     }
-    EnemyKillInAnyStage(args: { completeState: number }, mode: string = "update",) {
+    EnemyKillInAnyStage(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
-                break
-            case "update":
-
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: BattleData) => {
+                    if (args.completeState < parseInt(this.param[2])) {
+                        return
+                    }
+                    this.progress[0].value += args.killCnt
+                }
+            }
         }
+        funcs[this.param[0]][mode](args)
     }
     StageWithAssistChar(args: { completeState: number }, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
-                break
-            case "update":
-
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "1": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[2]) })
+                },
+                "update": (args: BattleData) => {
+                    //TODO
+                }
+            }
         }
+        funcs[this.param[0]][mode](args)
     }
     UpgradeChar(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
-                break
-            case "update":
-                this.progress[0].value += 1
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": () => {
+                    this.progress[0].value += 1
+                }
+            },
+            "1": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: { char: PlayerCharacter }) => {
+                    if (args.char.evolvePhase < parseInt(this.param[2])) {
+                        return
+                    }
+                    if (args.char.level >= parseInt(this.param[3])) {
+                        this.progress[0].value += 1
+                    }
+                }
+            },
+            "2": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: { exp: number }) => {
+                    this.progress[0].value += args.exp
+                }
+            },
         }
+        funcs[this.param[0]][mode](args)
     }
-    ReceiveSocialPoint(args: { socialPoint: number }, mode: string = "update",) {
+    ReceiveSocialPoint(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
-                break
-            case "update":
-                this.progress[0].value += args.socialPoint
-                break
+
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: { socialPoint: number }) => {
+                    this.progress[0].value += args.socialPoint
+                }
+            },
+            "1": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {}) => {
+                    this.progress[0].value += 1
+                }
+            }
         }
+        funcs[this.param[0]][mode](args)
     }
     BuyShopItem(args: { completeState: number }, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
-                break
-            case "update":
-
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: { type: string }) => {
+                    const shops="LS^HS^ES".split("^")
+                    if(shops.includes(args.type)){
+                        this.progress[0].value += 1
+                    }
+                }
+            },
+            "1": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {type:string}) => {
+                    if(args.type=="SOCIAL"){
+                        this.progress[0].value += 1
+                    }
+                    
+                }
+            },
+            "3": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {type:string,socialPoint:number}) => {
+                    if(args.type!="SOCIAL"){
+                        return
+                    }
+                    this.progress[0].value += args.socialPoint
+                }
+            }
         }
+        funcs[this.param[0]][mode](args)
     }
     NormalGacha(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[2]) })
-                break
-            case "update":
-                this.progress[0].value += 1
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[2]) })
+                },
+                "update": (args: {}) => {
+                    this.progress[0].value += 1
+                }
+            }
         }
+        funcs[this.param[0]][mode](args)
     }
     GainIntimacy(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
-                break
-            case "update":
-                this.progress[0].value += 1
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {count:number}) => {
+                    this.progress[0].value += args.count
+                }
+            }
         }
+        funcs[this.param[0]][mode](args)
     }
     ManufactureItem(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
-                break
-            case "update":
-                this.progress[0].value += 1
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {item:ItemBundle}) => {
+                    if(args.item.id==this.param[2]){
+                        this.progress[0].value += args.item.count
+                    }
+                }
+            },
+            "1": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {count:number}) => {
+                    this.progress[0].value += args.count
+                }
+            },
+            "2": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {item:ItemBundle}) => {
+                    const items=this.param[2].split("#")
+                    if(items.includes(args.item.id)){
+                        this.progress[0].value += 1
+                    }
+                }
+            }
         }
+        funcs[this.param[0]][mode](args)
     }
     DeliveryOrder(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
-                break
-            case "update":
-                this.progress[0].value += 1
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "1": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {count:number}) => {
+                    this.progress[0].value += args.count
+                }
+            }
         }
+        funcs[this.param[0]][mode](args)
     }
-    RecoverCharBaseAp(args: { charNum: number }, mode: string = "update",) {
+    RecoverCharBaseAp(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
-                break
-            case "update":
-                this.progress[0].value += args.charNum
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {count:number}) => {
+                    this.progress[0].value += args.count
+                }
+            }
         }
+        funcs[this.param[0]][mode](args)
     }
     VisitBuilding(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
-                break
-            case "update":
-                this.progress[0].value += 1
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {}) => {
+                    this.progress[0].value += 1
+                }
+            }
         }
+        funcs[this.param[0]][mode](args)
     }
     UpgradeSkill(args: { targetLevel: number }, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
-                break
-            case "update":
-                this.progress[0].value += 1
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {}) => {
+                    this.progress[0].value += 1
+                }
+            },
+            "1": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {targetLevel:number}) => {
+                    this.progress[0].value += args.targetLevel
+                }
+            }
         }
+        funcs[this.param[0]][mode](args)
     }
     SquadFormation(args: { squad: PlayerSquad }, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[2]) })
-                break
-            case "update":
-                //TODO
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[2]) })
+                },
+                "update": (args: PlayerSquad) => {
+                    let flag=false
+                    //TODO
+                    this.progress[0].value += flag ? 1 : 0
+                }
+            }
         }
+        funcs[this.param[0]][mode](args)
     }
     CompleteStage(args: { completeState: number }, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (this.param[0]) {
-            case "0":
-                switch (mode) {
-                    case "init":
-                        this.progress.push({ value: this.value, target: parseInt(this.param[2]) })
-                        break
-                    case "update":
-                        let { completeState } = args
-                        if (completeState >= parseInt(this.param[1]) && false) {
-                            this.progress[0].value += 1
-                        }
-                        break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[2]) })
+                },
+                "update": (args: BattleData&{stageId:string}) => {
+                    const stages=this.param[1].split("^")
+                    if(!stages.includes(args.stageId)){
+                        return 
+                    }
+                    if(args.completeState>=2){
+                        this.progress[0].value += 1
+                    }
                 }
-                break;
-            case "2":
-                switch (mode) {
-                    case "init":
-                        this.progress.push({ value: this.value, target: parseInt(this.param[2]) })
-                        break
-                    case "update":
-                        let { completeState } = args
-                        if (completeState >= parseInt(this.param[1]) && false) {
-                            this.progress[0].value += 1
-                        }
-                        break
+            },
+            "2":{
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[2]) })
+                },
+                "update": (args: BattleData) => {
+                    if(args.completeState>=parseInt(this.param[1])){
+                        this.progress[0].value += 1
+                    }
                 }
-                break;
-            case "3":
-                switch (mode) {
-                    case "init":
-                        this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
-                        break
-                    case "update":
-                        let { completeState } = args
-                        if (completeState >= parseInt(this.param[1]) && false) {
-                            this.progress[0].value += 1
-                        }
-                        break
+            },
+            "3":{
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: BattleData&{isPractice:number}) => {
+                    if(!args.isPractice){
+                        return
+                    }
+                    if(args.completeState>=2){
+                        this.progress[0].value += 1
+                    }
                 }
-                break;
-            case "4":
-                switch (mode) {
-                    case "init":
-                        this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
-                        break
-                    case "update":
-                        let { completeState } = args
-                        if (completeState >= parseInt(this.param[1]) && false) {
-                            this.progress[0].value += 1
-                        }
-                        break
+            },
+            "4": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: BattleData&{stageId:string}) => {
+                    if(!args.stageId.includes("#f#")){
+                        return 
+                    }
+                    if(args.completeState>=3){
+                        this.progress[0].value += 1
+                    }
                 }
-                break;
+            }
         }
+        funcs[this.param[0]][mode](args)
 
     }
     UpgradePlayer(args: { level: number }, mode: string = "update",) {
@@ -488,87 +661,165 @@ export class MissionProgress implements MissionPlayerState {
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
-                break
-            case "update":
-                this.progress[0].value = args.level
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {level:number}) => {
+                    this.progress[0].value = args.level
+                }
+            }
         }
+        funcs[this.param[0]][mode](args)
     }
-    CompleteAnyStage(args: { completeState: number }, mode: string = "update",) {
+    CompleteAnyStage(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: 1 })
-                break
-            case "update":
-
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: 1 })
+                },
+                "update": (args: BattleData&{stageId:string}) => {
+                    const stages=this.param[1].split("^")
+                    if(!stages.includes(args.stageId)){
+                        return 
+                    }
+                    if(args.completeState>=parseInt(this.param[2])){
+                        this.progress[0].value += 1
+                    }
+                }
+            }
         }
+        funcs[this.param[0]][mode](args)
     }
-    HasChar(args: { completeState: number }, mode: string = "update",) {
+    HasChar(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
-                break
-            case "update":
-
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {char:PlayerCharacter}) => {
+                    const data=excel.CharacterTable[args.char.charId]
+                    if(args.char.evolvePhase<parseInt(this.param[2])){
+                        return
+                    }
+                    if(args.char.level<parseInt(this.param[3])){
+                        return
+                    }
+                    if(data.rarity.slice(-1)!=this.param[4]&&this.param[4]!="-1"){
+                        return
+                    }
+                    if(data.profession!=this.param[5]&&this.param[5]!="ALL"){
+                        return
+                    }
+                    this.progress[0].value += 1
+                }
+            },
+            "1": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {char:PlayerCharacter}) => {
+                    const data=excel.CharacterTable[args.char.charId]
+                    if(args.char.evolvePhase<parseInt(this.param[2])){
+                        return
+                    }
+                    if(args.char.level<parseInt(this.param[3])){
+                        return
+                    }
+                    if(data.rarity.slice(-1)!=this.param[4]&&this.param[4]!="-1"){
+                        return
+                    }
+                    if(data.profession!=this.param[5]&&this.param[5]!="ALL"){
+                        return
+                    }
+                    this.progress[0].value += 1
+                }
+            },
         }
+        funcs[this.param[0]][mode](args)
     }
-    HasEquipment(args: { completeState: number }, mode: string = "update",) {
+    HasEquipment(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
-                break
-            case "update":
-
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[3]) })
+                },
+                "update": (args: {char:PlayerCharacter}) => {
+                    const data=excel.CharacterTable[args.char.charId]
+                    const rarities=this.param[1].split("^")
+                    const levels=this.param[2].split("^")
+                    if(args.char.evolvePhase<2){
+                        return
+                    }
+                    if(!rarities.includes(data.rarity.slice(-1))){
+                        return
+                    }
+                    Object.values(args.char.equip!).forEach(e=>{
+                        if(levels.includes(e.level.toString())){
+                            this.progress[0].value += 1
+                        }
+                    })
+                }
+            }
         }
+        funcs[this.param[0]][mode](args)
     }
-    EvolveChar(args: { troop: TroopManager }, mode: string = "update",) {
+    EvolveChar(args: {}, mode: string = "update",) {
         /**
          * 1:num;2:evolve phase
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
-                break
-            case "update":
-                this.progress[0].value = Object.values(args.troop.chars).reduce((acc, char) => {
-                    acc += char.evolvePhase == parseInt(this.param[2]) ? 1 : 0
-                    return acc
-                }, 0)
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "1": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {char:PlayerCharacter}) => {
+                    if(args.char.evolvePhase>=parseInt(this.param[2])){
+                        this.progress[0].value += 1
+                    }
+                }
+            }
         }
+        funcs[this.param[0]][mode](args)
     }
-    DiyComfort(args: { completeState: number }, mode: string = "update",) {
+    DiyComfort(args: {}, mode: string = "update",) {
         /**
          * 
          * 
          */
-        switch (mode) {
-            case "init":
-                this.progress.push({ value: this.value, target: parseInt(this.param[1]) || 1 }) ?? 1
-                break
-            case "update":
-
-                break
+        const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
+            "0": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {char:PlayerCharacter}) => {
+                    //TODO
+                }
+            },
+            "1": {
+                "init": () => {
+                    this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
+                },
+                "update": (args: {char:PlayerCharacter}) => {
+                    //TODO
+                }
+            }
         }
+        funcs[this.param[0]][mode](args)
     }
     HasRoom(args: { completeState: number }, mode: string = "update",) {
         /**
@@ -733,10 +984,10 @@ export class MissionProgress implements MissionPlayerState {
             case "0":
                 switch (mode) {
                     case "init":
-                        this.progress.push({ value: this.value, target: parseInt(this.param[1])})
+                        this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
                         break
                     case "update":
-                        if(args.battleData.stats.autoReplayCancelled){
+                        if (args.battleData.stats.autoReplayCancelled) {
                             this.progress[0].value += 1
                         }
                         break
@@ -745,7 +996,7 @@ export class MissionProgress implements MissionPlayerState {
         }
 
     }
-    CompleteCampaign(args: {stageId:string,CompleteState:number}, mode: string = "update",) {
+    CompleteCampaign(args: { stageId: string, CompleteState: number }, mode: string = "update",) {
         /**
          * 
          * 
@@ -754,11 +1005,11 @@ export class MissionProgress implements MissionPlayerState {
             case "0":
                 switch (mode) {
                     case "init":
-                        this.progress.push({ value: this.value, target: parseInt(this.param[1])})
+                        this.progress.push({ value: this.value, target: parseInt(this.param[1]) })
                         break
                     case "update":
-                        let stageType=excel.StageTable.stages[args.stageId].stageType
-                        if(args.CompleteState >= parseInt(this.param[2]) && stageType == "CAMPAIGN"){
+                        let stageType = excel.StageTable.stages[args.stageId].stageType
+                        if (args.CompleteState >= parseInt(this.param[2]) && stageType == "CAMPAIGN") {
                             this.progress[0].value += 1
                         }
                         break

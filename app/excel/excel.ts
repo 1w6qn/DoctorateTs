@@ -12,6 +12,8 @@ import { GachaData } from "./gacha_table";
 import { MissionTable } from './mission_table';
 import { RoguelikeTopicTable } from './roguelike_topic_table';
 import { UniEquipTable } from "./uniequip_table";
+import { FavorTable } from "./favor_table";
+
 export class Excel {
     BattleEquipTable!: { [key: string]: BattleEquipPack; };
     BuildingData!: BuildingData;
@@ -26,6 +28,7 @@ export class Excel {
     MissionTable!: MissionTable;
     RoguelikeTopicTable!: RoguelikeTopicTable;
     UniequipTable!:UniEquipTable
+    favorTable!:FavorTable
     initPromise:Promise<void>;
     constructor() {
         this.initPromise=this.init()
@@ -44,6 +47,7 @@ export class Excel {
         this.GachaTable=await import("../../data/excel/gacha_table.json") as GachaData
         this.RoguelikeTopicTable=(await import('../../data/excel/roguelike_topic_table.json')).default as RoguelikeTopicTable
         this.UniequipTable=await import('../../data/excel/uniequip_table.json') as UniEquipTable
+        this.favorTable=await import('../../data/excel/favor_table.json')
     }
 }
 export default new Excel()

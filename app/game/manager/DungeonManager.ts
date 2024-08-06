@@ -15,7 +15,11 @@ export class DungeonManager implements PlayerDungeon {
     this.hideStages = dungeon.hideStages;
     this.mainlineBannedStages = dungeon.mainlineBannedStages;
     this._trigger = _trigger;
+    this._trigger.on("stage:update",this.update.bind(this))
     //this.initStages();
+  }
+  update(){
+    
   }
   async initStages() {
     await excel.initPromise

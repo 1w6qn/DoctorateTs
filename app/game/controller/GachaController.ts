@@ -55,7 +55,7 @@ export class GachaController {
         }
         let charId = ""
         let ruleType = excel.GachaTable.gachaPoolClient.find((g) => g.gachaPoolId === poolId)!.gachaRuleType
-        let extras:{[key:string]:any}={from:ruleType}
+        let extras:{[key:string]:any,from:string}={from:ruleType}
         let detail = this._table.details[poolId]
         let beforeNonHitCnt = accountManager.getBeforeNonHitCnt(this.uid, ruleType)
         let rank: number
@@ -123,7 +123,7 @@ export class GachaController {
         }
         accountManager.saveBeforeNonHitCnt(this.uid, ruleType, beforeNonHitCnt)
         return {
-            ...this._troop.gainChar(charId, { from: ruleType }),
+            ...this._troop.gainChar(charId, extras),
             logInfo: {
                 beforeNonHitCnt: beforeNonHitCnt,
             }

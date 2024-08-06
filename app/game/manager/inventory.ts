@@ -102,10 +102,10 @@ export class InventoryManager {
                     this.consumable[item.id]["999"]={count:item.count,ts:-1}
                 }
             },
-            "EPGS_COIN":(item:ItemBundle)=>{},
+            "EPGS_COIN":(item:ItemBundle)=>this.items[item.id] = (this.items[item.id] || 0) + item.count,
             "LIMITED_TKT_GACHA_10":(item:ItemBundle)=>{},
             "LIMITED_FREE_GACHA":(item:ItemBundle)=>{},
-            "REP_COIN":(item:ItemBundle)=>{},
+            "REP_COIN":(item:ItemBundle)=>this.items[item.id] = (this.items[item.id] || 0) + item.count,
             "ROGUELIKE":(item:ItemBundle)=>{},
             "LINKAGE_TKT_GACHA_10":(item:ItemBundle)=>{},
             "VOUCHER_ELITE_II_4":(item:ItemBundle)=>{},
@@ -120,7 +120,7 @@ export class InventoryManager {
                 }
             },
             "UNI_COLLECTION":(item:ItemBundle)=>{},
-            "VOUCHER_FULL_POTENTIAL":(item:ItemBundle)=>{},
+            "VOUCHER_FULL_POTENTIAL":(item:ItemBundle)=>this.items[item.id] = (this.items[item.id] || 0) + item.count,
             "RL_COIN":(item:ItemBundle)=>{},
             "RETURN_CREDIT":(item:ItemBundle)=>{},
             "MEDAL":(item:ItemBundle)=>{},

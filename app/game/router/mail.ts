@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import httpContext from 'express-http-context';
 import { PlayerDataManager } from '../manager/PlayerDataManager';
-import { mailManager } from '../manager/MailManager';
+import { mailManager } from '../manager/mail';
 
 const router = Router();
 router.post("/removeAllReceivedMail", (req, res) => {

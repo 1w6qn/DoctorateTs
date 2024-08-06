@@ -1,5 +1,5 @@
 import EventEmitter from "events";
-import { PlayerCharacter, PlayerSquad, PlayerSquadItem, PlayerTroop } from "../model/character";
+import { PlayerCharacter, PlayerHandBookAddon, PlayerSquad, PlayerSquadItem, PlayerTroop } from "../model/character";
 import excel from "../../excel/excel";
 import { ItemBundle } from "app/excel/character_table";
 import { PlayerDataModel } from "../model/playerdata";
@@ -12,7 +12,9 @@ export class TroopManager {
 
     chars: { [key: string]: PlayerCharacter }
     squads: { [key: string]: PlayerSquad }
-    _playerdata: PlayerDataModel;
+    addon:{[key:string]:PlayerHandBookAddon}
+    charMission: { [key: string]: {[key:string]:number} }
+    
     get curCharInstId(): number {
         return Object.keys(this.chars).length + 1;
     }
@@ -20,21 +22,13 @@ export class TroopManager {
         return Object.keys(this.squads).length;
     }
     _trigger: EventEmitter
-    _troop: PlayerTroop
-    constructor(
-        playerdata: PlayerDataModel,
-        trigger: EventEmitter,
-        mode: string="",
-    ) {
+    _playerdata: PlayerDataModel;
+    constructor(playerdata: PlayerDataModel,trigger: EventEmitter) {
         this._playerdata = playerdata;
-        this._troop = playerdata.troop;
-        if(mode == "all"){
-            this.chars={}
-        }else{
-           this.chars = this._troop.chars; 
-        }
-        
-        this.squads = this._troop.squads;
+        this.chars = playerdata.troop.chars; 
+        this.squads = playerdata.troop.squads;
+        this.addon = playerdata.troop.addon;
+        this.charMission = playerdata.troop.charMission;
         this._trigger = trigger;
         this._trigger.on("char:get", this.gainChar.bind(this))
         this._trigger.on("game:fix", this.fix.bind(this))
@@ -267,10 +261,10 @@ export class TroopManager {
         let items: ItemBundle[] = charInstIdList.reduce((acc, charInstId) => {
             let char = this.getCharacterByInstId(parseInt(charInstId));
             let rarity = parseInt(excel.CharacterTable[char.charId].rarity.slice(-1))
-            let potentialItemId = excel.CharacterTable[char.charId].potentialItemId as string
+            let potentialItemId = excel.CharacterTable[char.charId].potentialItemId!
             let count = this._playerdata.inventory[potentialItemId]
             costs.push({ id: potentialItemId, count: count })
-            let item = excel.GachaTable.potentialMaterialConverter.items[`${rarity - 1}`]
+            let item = excel.GachaTable.potentialMaterialConverter.items[rarity - 1]
             acc.push({ id: item.id, count: item.count * count })
             return acc
         }, [] as ItemBundle[])
@@ -283,10 +277,10 @@ export class TroopManager {
         let items: ItemBundle[] = charInstIdList.reduce((acc, charInstId) => {
             let char = this.getCharacterByInstId(parseInt(charInstId));
             let rarity = parseInt(excel.CharacterTable[char.charId].rarity.slice(-1))
-            let potentialItemId = excel.CharacterTable[char.charId].classicPotentialItemId as string
+            let potentialItemId = excel.CharacterTable[char.charId].classicPotentialItemId!
             let count = this._playerdata.inventory[potentialItemId]
             costs.push({ id: potentialItemId, count: count })
-            let item = excel.GachaTable.classicPotentialMaterialConverter.items[`${rarity - 1}`]
+            let item = excel.GachaTable.classicPotentialMaterialConverter.items[rarity - 1]
             acc.push({ id: item.id, count: item.count * count })
             return acc
         }, [] as ItemBundle[])
@@ -338,8 +332,8 @@ export class TroopManager {
             curSquadCount: this.curSquadCount,
             chars: this.chars,
             squads: this.squads,
-            addon: this._troop.addon,
-            charMission: this._troop.charMission,
+            addon: this.addon,
+            charMission: this.charMission,
             charGroup: pick(this.chars, ["favorPoint"]),
         };
     }

@@ -14,7 +14,7 @@ export interface PlayerDataModel {
     mission: MissionPlayerData;
     social: PlayerSocial;
     building: PlayerBuilding;
-    dexNav: DexNav;
+    dexNav: PlayerDexNav;
     crisis: Crisis;
     crisisV2: CrisisV2;
     nameCardStyle: PlayerNameCardStyle;
@@ -1267,11 +1267,11 @@ export interface Tech {
     branch: string;
 }
 
-export interface DexNav {
+export interface PlayerDexNav {
     character: { [key: string]: PlayerCharacterRecord };
-    formula: Formula;
-    enemy: DexNavEnemy;
-    teamV2: TeamV2;
+    formula: PlayerFormulaUnlockRecord;
+    enemy: PlayerEnemyHandBook;
+    teamV2: { [key: string]: { [key: string]: number } };
 }
 
 export interface PlayerCharacterRecord {
@@ -1280,63 +1280,15 @@ export interface PlayerCharacterRecord {
     classicCount?: number;
 }
 
-export interface DexNavEnemy {
+export interface PlayerEnemyHandBook {
     enemies: { [key: string]: number };
     stage: { [key: string]: string[] };
 }
 
-export interface Formula {
+export interface PlayerFormulaUnlockRecord {
     shop: {};
     manufacture: { [key: string]: number };
     workshop: { [key: string]: number };
-}
-
-export interface TeamV2 {
-    rhodes: { [key: string]: number };
-    action4: { [key: string]: number };
-    victoria: { [key: string]: number };
-    reserve1: { [key: string]: number };
-    siracusa: { [key: string]: number };
-    reserve6: { [key: string]: number };
-    lungmen: { [key: string]: number };
-    reserve4: { [key: string]: number };
-    sami: { [key: string]: number };
-    babel: { [key: string]: number };
-    kazimierz: { [key: string]: number };
-    leithanien: { [key: string]: number };
-    higashi: { [key: string]: number };
-    columbia: { [key: string]: number };
-    blacksteel: { [key: string]: number };
-    followers: { [key: string]: number };
-    penguin: { [key: string]: number };
-    student: { [key: string]: number };
-    ursus: { [key: string]: number };
-    laterano: { [key: string]: number };
-    karlan: { [key: string]: number };
-    kjerag: { [key: string]: number };
-    siesta: { [key: string]: number };
-    lee: { [key: string]: number };
-    sweep: { [key: string]: number };
-    rim: { [key: string]: number };
-    sargon: { [key: string]: number };
-    abyssal: { [key: string]: number };
-    glasgow: { [key: string]: number };
-    rhine: { [key: string]: number };
-    lgd: { [key: string]: number };
-    chiave: { [key: string]: number };
-    elite: { [key: string]: number };
-    yan: { [key: string]: number };
-    rainbow: { [key: string]: number };
-    egir: { [key: string]: number };
-    iberia: { [key: string]: number };
-    bolivar: { [key: string]: number };
-    pinus: { [key: string]: number };
-    sui: { [key: string]: number };
-    minos: Minos;
-}
-
-export interface Minos {
-    "188": number;
 }
 
 

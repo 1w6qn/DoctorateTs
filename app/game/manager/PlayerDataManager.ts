@@ -1,12 +1,12 @@
 import { EventEmitter } from "events";
-import { PlayerDataModel, TeamV2 } from '../model/playerdata';
+import { PlayerDataModel } from '../model/playerdata';
 import { InventoryManager } from "./inventory";
 import { TroopManager } from "./troop";
 import { DungeonManager } from "./DungeonManager";
 import { HomeManager } from "./home";
 import { StatusManager } from "./status";
 import { CheckInManager } from "./CheckInManager";
-import { StoryreviewManager } from "./StoryreviewManager";
+import { StoryreviewManager } from "./storyreview";
 import { MissionManager } from "./mission";
 import ShopController from "../controller/ShopController";
 import { RecruitManager } from "./recruit";
@@ -15,6 +15,8 @@ import { BattleManager } from "./battle";
 import { GachaController } from "../controller/GachaController";
 import { accountManager, BattleInfo } from "./AccountManger";
 import { SocialManager } from "./social";
+import { DexNavManager } from "./dexnav";
+import { BuildingManager } from "./building";
 
 export class PlayerDataManager {
     dungeon:DungeonManager
@@ -30,6 +32,8 @@ export class PlayerDataManager {
     rlv2:RoguelikeV2Controller
     gacha:GachaController
     social:SocialManager
+    dexNav:DexNavManager
+    building:BuildingManager
     battle!:BattleManager
     _trigger: EventEmitter
     _playerdata: PlayerDataModel;
@@ -69,6 +73,8 @@ export class PlayerDataManager {
         this.rlv2=new RoguelikeV2Controller(this, this._trigger)
         this.social=new SocialManager(playerdata, this._trigger)
         this.gacha=new GachaController(playerdata.gacha,this.status.uid,this.troop, this._trigger)
+        this.dexNav=new DexNavManager(this, this._trigger)
+        this.building=new BuildingManager(this, this._trigger)
         this._trigger.emit("game:fix")
         this._trigger.emit("save:battle",(battleId:string, info:BattleInfo)=>{
             accountManager.saveBattleInfo(this.uid,battleId, info)
@@ -82,12 +88,12 @@ export class PlayerDataManager {
             registerTs:this.status.status.registerTs,
             mainStageProgress:this.status.status.mainStageProgress,
             charCnt:this.troop.curCharInstId-1,
-            furnCnt:0,
-            skinCnt:0,
+            furnCnt:this.building.furnCnt,
+            skinCnt:this.inventory.skinCnt,
             secretary:this.status.status.secretary,
             secretarySkinId:this.status.status.secretarySkinId,
             resume:this.status.status.resume,
-            TeamV2:{},
+            TeamV2:this.dexNav.teamV2Info,
             friendNumLimit:this.status.status.friendNumLimit,
             serverName:this.status.status.serverName,
             level:this.status.status.level,
@@ -95,8 +101,8 @@ export class PlayerDataManager {
             avatar:this.status.status.avatar,
             assistCharList:[],
             lastOnlineTime:this.status.status.lastOnlineTs,
-            board:[],
-            infoShare:-1,
+            board:this.building.boardInfo,
+            infoShare:this.building.infoShare,
             medalBoard:{},
             recentVisited:0,
             skin:this.status.nameCardStyle.skin
@@ -114,8 +120,8 @@ export class PlayerDataManager {
             ...this.shop.toJSON(),
             mission:this.mission,
             social:this.social,
-            building:this._playerdata.building,
-            dexNav:this._playerdata.dexNav,
+            building:this.building,
+            dexNav:this.dexNav,
             crisis:this._playerdata.crisis,
             crisisV2:this._playerdata.crisisV2,
             tshop:this._playerdata.tshop,

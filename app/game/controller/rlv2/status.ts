@@ -25,7 +25,6 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
         this._trigger = _trigger
         this._trigger.on("rlv2:init", this.init.bind(this))
         this._trigger.on("rlv2:create", this.create.bind(this))
-        this._trigger.on('rlv2:get:items', (items: RoguelikeItemBundle[])=>items.forEach(item=>this.getItem(item)))
     }
     get pending(): RoguelikePendingEvent[] {
         return this._pending._pending
@@ -89,57 +88,6 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
             this._trigger.emit("rlv2:bankPut", succeed)
         }
 
-    }
-    getItem(item: RoguelikeItemBundle){
-        const theme=this._player.current.game!.theme
-        const type=item.type||excel.RoguelikeTopicTable.details[theme].items[item.id].type
-
-        switch (type) {
-            case "HP":
-                this.property.hp.current += item.count
-                if (this.property.hp.current > this.property.hp.max) {
-                    this.property.hp.current = this.property.hp.max
-                }
-                break;
-            case "HPMAX":
-                this.property.hp.current += item.count
-                this.property.hp.max += item.count
-                break;
-            case "GOLD":
-                this.property.gold += item.count
-                break;
-            case "POPULATION":
-                if(item.count>=0){
-                    this.property.population.max += item.count
-                }else{
-                    this.property.population.cost -= item.count
-                }
-                break;
-            case "EXP":
-
-                this.property.exp += item.count
-                let map=excel.RoguelikeTopicTable.details[theme].detailConst.playerLevelTable
-                while(this.property.exp >= map[this.property.level+1].exp){
-                    this.property.level += 1
-                    this.property.exp -= map[this.property.level+1].exp
-                    this._trigger.emit("rlv2:levelup",this.property.level)
-                    this.property.population.max += map[this.property.level+1].populationUp
-                    this.property.capacity += map[this.property.level+1].squadCapacityUp
-                    this.property.hp.max += map[this.property.level+1].maxHpUp
-                    this.property.hp.current += map[this.property.level+1].populationUp
-                    
-                }
-                break;
-            case "SQUAD_CAPACITY":
-                this.property.capacity += item.count
-                break;
-            case "SHIELD":
-                this.property.shield+=item.count
-                break;
-            default:
-                break;
-        }
-        
     }
     toJSON(): PlayerRoguelikeV2.CurrentData.PlayerStatus {
         return {

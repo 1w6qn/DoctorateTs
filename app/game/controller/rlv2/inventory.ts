@@ -44,7 +44,8 @@ export class RoguelikeInventoryManager implements PlayerRoguelikeV2.CurrentData.
         this.exploreTool = {}
     }
     getItem(item: RoguelikeItemBundle) {
-        const type = item.type||excel.RoguelikeTopicTable.details.rogue_4.items[item.id].type||"POOL"
+        const theme = this._player.current.game!.theme
+        const type = item.type||excel.RoguelikeTopicTable.details[theme].items[item.id].type||"POOL"
         console.log(`[RLV2] 获得 ${item.id||item.type} * ${item.count}`)
         switch (type) {
             case "RECRUIT_TICKET":

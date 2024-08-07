@@ -27,8 +27,9 @@ export class RoguelikeBuffManager {
     }
     async continue() {
         await excel.initPromise
+        const theme = this._player.current.game!.theme
         Object.values(this._player.inventory!.relic).reduce((acc, relic) => {
-            let buffs = excel.RoguelikeTopicTable.details.rogue_4.relics[relic.id].buffs
+            let buffs = excel.RoguelikeTopicTable.details[theme].relics[relic.id].buffs
             this._buffs.push(...buffs)
             return [...acc, ...buffs]
         }, [] as RoguelikeBuff[])
@@ -74,7 +75,8 @@ export class RoguelikeBuffManager {
     }
     item_cover_set(blackboard: Blackboard) {
         let item: RoguelikeItemBundle = { id: blackboard[0].valueStr!, count: blackboard[1].value!, sub: 0 }
-        const type = item.type || excel.RoguelikeTopicTable.details.rogue_4.items[item.id].type
+        const theme = this._player.current.game!.theme
+        const type = item.type || excel.RoguelikeTopicTable.details[theme].items[item.id].type
         switch (type) {
             case "HP":
                 this._status.property.hp.current = item.count

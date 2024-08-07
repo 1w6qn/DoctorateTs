@@ -148,7 +148,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2{
     async moveTo(args: { to: RoguelikeNodePosition }): Promise<void> {
         await excel.initPromise
         const theme = this.current.game!.theme
-        const detail=excel.RoguelikeTopicTable.details.rogue_4.gameConst
+        const detail=excel.RoguelikeTopicTable.details[theme].gameConst
         let pos = this._status.cursor.position
         this._status.state = "PENDING"
         if (pos) {

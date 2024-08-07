@@ -21,7 +21,8 @@ export class RoguelikeRelicManager {
     }
     async gain(relic:RoguelikeItemBundle): Promise<void> {
         await excel.initPromise
-        let buffs = excel.RoguelikeTopicTable.details.rogue_4.relics[relic.id].buffs
+        const theme = this._player.current.game!.theme
+        let buffs = excel.RoguelikeTopicTable.details[theme].relics[relic.id].buffs
         console.log(relic.id, buffs)
         this._trigger.emit("rlv2:buff:apply", ...buffs)
         this.relics[relic.id] = {

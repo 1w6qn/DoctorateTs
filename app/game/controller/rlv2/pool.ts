@@ -43,7 +43,7 @@ export class RoguelikePoolManager {
                 
             })
         }
-        Object.values(excel.RoguelikeTopicTable.details.rogue_4.items).filter(data=>data.canSacrifice).forEach(data=>{
+        Object.values(excel.RoguelikeTopicTable.details[theme].items).filter(data=>data.canSacrifice).forEach(data=>{
             if(data.value==8){
                 this._pools["pool_sacrifice_n"].push(data.id)
             }

@@ -63,7 +63,8 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
     async create() {
         await excel.initPromise
         let game = this._player.current.game!
-        let init = excel.RoguelikeTopicTable.details.rogue_4.init.find(
+        const theme=game.theme
+        let init = excel.RoguelikeTopicTable.details[theme].init.find(
             i => (i.modeGrade == game.modeGrade && i.predefinedId == game.predefined && i.modeId == game.mode)
         )!
         this.state = "INIT"
@@ -90,7 +91,8 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
 
     }
     getItem(item: RoguelikeItemBundle){
-        const type=item.type||excel.RoguelikeTopicTable.details.rogue_4.items[item.id].type
+        const theme=this._player.current.game!.theme
+        const type=item.type||excel.RoguelikeTopicTable.details[theme].items[item.id].type
 
         switch (type) {
             case "HP":
@@ -114,8 +116,9 @@ export class RoguelikePlayerStatusManager implements PlayerRoguelikeV2.CurrentDa
                 }
                 break;
             case "EXP":
+
                 this.property.exp += item.count
-                let map=excel.RoguelikeTopicTable.details.rogue_4.detailConst.playerLevelTable
+                let map=excel.RoguelikeTopicTable.details[theme].detailConst.playerLevelTable
                 while(this.property.exp >= map[this.property.level+1].exp){
                     this.property.level += 1
                     this.property.exp -= map[this.property.level+1].exp

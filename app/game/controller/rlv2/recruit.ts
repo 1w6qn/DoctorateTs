@@ -15,8 +15,9 @@ export class RoguelikeRecruitManager {
         return `t_${this._index}`
     }
     active(id: string) {
+        const theme = this._player.current.game!.theme
         this.tickets[id].state = 1
-        let ticketInfo = excel.RoguelikeTopicTable.details.rogue_4.recruitTickets[this.tickets[id].id]
+        let ticketInfo = excel.RoguelikeTopicTable.details[theme].recruitTickets[this.tickets[id].id]
         let chars: PlayerRoguelikeV2.CurrentData.RecruitChar[] = Object.values(this._troop.chars).reduce((acc, char) => {
             let data = excel.CharacterTable[char.charId]
 

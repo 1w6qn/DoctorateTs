@@ -3,6 +3,8 @@ import { PlayerMedalBoard, PlayerDataModel, PlayerSocial, PlayerSocialReward } f
 import { PlayerFriendAssist } from "@game/model/character";
 import EventEmitter from "events";
 import { accountManager } from './AccountManger';
+import { pick } from "lodash";
+import { FriendDataWithNameCard } from "@game/model/social";
 enum FriendServiceType {
     SEARCH_FRIEND = 0,
     GET_FRIEND_LIST = 1,
@@ -28,14 +30,22 @@ export class SocialManager implements PlayerSocial {
     getSortListInfo(args: {
         type: FriendServiceType, sortKeyList: string[], param: { [key: string]: string }
     }) {
-        const friendList = accountManager.getSocial(this._uid).friends;
+        const friendIdList=accountManager.getSocial(this._uid).friends;
+        const friendInfoList = friendIdList.map(friend => accountManager.getPlayerFriendInfo(friend));
         let res: any[] = []
+        const funcs:{[key:number]:(friend:FriendDataWithNameCard,param:{ [key: string]: string })=>any}={
+            [FriendServiceType.SEARCH_FRIEND]:(friend:FriendDataWithNameCard,param:{ [key: string]: string })=>{
 
-        friendList.forEach(friend => {
-            res.push(accountManager.getPlayerFriendInfo(friend, args.type))
-        })
+            },
+            [FriendServiceType.GET_FRIEND_LIST]:(friendInfo:FriendDataWithNameCard,param:{ [key: string]: string })=>{
+                return pick(friendInfo,['level','uid','infoShare'])
+            },
+            [FriendServiceType.GET_FRIEND_REQUEST]:(friend:FriendDataWithNameCard,param:{ [key: string]: string })=>{
 
-        return res
+            }
+        }
+
+        return friendInfoList.map(friend => funcs[args.type](friend,args.param))
     }
     getFriendList(args:{idList:string[]}){
         const friendList = accountManager.getSocial(this._uid).friends;

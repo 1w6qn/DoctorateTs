@@ -1,5 +1,5 @@
 import { PlayerActivity } from "./activity";
-import { PlayerFriendAssist, PlayerSquadItem, PlayerTroop } from "./character";
+import { AvatarInfo, PlayerFriendAssist, PlayerSquadItem, PlayerTroop } from "./character";
 
 export interface PlayerDataModel {
     dungeon: PlayerDungeon;
@@ -31,7 +31,7 @@ export interface PlayerDataModel {
     siracusaMap: SiracusaMap;
     sandboxPerm: any;
     storyreview: PlayerStoryReview;
-    medal: PlayerDataMedal;
+    medal: PlayerMedal;
     event: PlayerDataEvent;
     retro: Retro;
     share: Share;
@@ -102,10 +102,6 @@ export interface PlayerStatus {
     classicTenGachaTicket: number;
 }
 
-export interface AvatarInfo {
-    type: string;
-    id: string;
-}
 
 export interface PlayerDungeon {
     stages: { [key: string]: PlayerStage };
@@ -1463,27 +1459,28 @@ export interface CHALLENGEValue {
     progress: number[];
 }
 
-export interface PlayerDataMedal {
-    medals: { [key: string]: MedalValue };
-    custom: Custom;
+export interface PlayerMedal {
+    medals: { [key: string]: PlayerPerMedal };
+    custom: PlayerMedalCustom;
 }
 
-export interface Custom {
+export interface PlayerMedalCustom {
     currentIndex: string;
-    customs: Customs;
+    customs: {[key: string]: PlayerMedalCustomLayout};
 }
 
-export interface Customs {
-    "1": Customs1;
-}
 
-export interface Customs1 {
-    layout: any[];
-}
 
-export interface MedalValue {
+export interface PlayerMedalCustomLayout {
+    layout: PlayerMedalCustomLayoutItem[];
+}
+export interface PlayerMedalCustomLayoutItem {
+    id:string,
+    pos:number[]
+}
+export interface PlayerPerMedal {
     id: string;
-    val: Array<number[]>;
+    val: number[][];
     fts: number;
     rts: number;
     reward?: string;

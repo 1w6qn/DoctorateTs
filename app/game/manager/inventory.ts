@@ -82,7 +82,6 @@ export class InventoryManager {
                         inUse: 0
                     }
                 }
-
             },
             "AP_GAMEPLAY": (item: ItemBundle) => this._status.ap += item.count,
             "AP_BASE": (item: ItemBundle) => {},
@@ -168,7 +167,12 @@ export class InventoryManager {
             "SANDBOX_PERM": (item: ItemBundle) => { },
             "SANDBOX_TOKEN": (item: ItemBundle) => { },
             "TEMPLATE_TRAP": (item: ItemBundle) => { },
-            "NAME_CARD_SKIN": (item: ItemBundle) => { },
+            "NAME_CARD_SKIN": (item: ItemBundle) => {
+                this._player.status.nameCardStyle.skin.state[item.id]={
+                    unlock:true,
+                    progress:null
+                }
+            },
             "EXCLUSIVE_TKT_GACHA": (item: ItemBundle) => { },
             "EXCLUSIVE_TKT_GACHA_10": (item: ItemBundle) => { },
         }

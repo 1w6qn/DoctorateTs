@@ -17,6 +17,7 @@ import { accountManager, BattleInfo } from "./AccountManger";
 import { SocialManager } from "./social";
 import { DexNavManager } from "./dexnav";
 import { BuildingManager } from "./building";
+import { FriendDataWithNameCard } from "@game/model/social";
 
 export class PlayerDataManager {
     dungeon:DungeonManager
@@ -80,11 +81,22 @@ export class PlayerDataManager {
             accountManager.saveBattleInfo(this.uid,battleId, info)
         })
     }
-    get socialInfo(){
+    get socialInfo():FriendDataWithNameCard{
         return {
             nickName:this.status.status.nickName,
             nickNumber:this.status.status.nickNumber,
             uid:this.uid,
+            serverName:this.status.status.serverName,
+            level:this.status.status.level,
+            //avatarId:this.status.status.avatarId,
+            avatar:this.status.status.avatar,
+            assistCharList:[],
+            lastOnlineTime:this.status.status.lastOnlineTs,
+            board:this.building.boardInfo,
+            infoShare:this.building.infoShare,
+            recentVisited:0,
+            skin:this.status.nameCardStyle.skin,
+
             registerTs:this.status.status.registerTs,
             mainStageProgress:this.status.status.mainStageProgress,
             charCnt:this.troop.curCharInstId-1,
@@ -93,19 +105,9 @@ export class PlayerDataManager {
             secretary:this.status.status.secretary,
             secretarySkinId:this.status.status.secretarySkinId,
             resume:this.status.status.resume,
-            TeamV2:this.dexNav.teamV2Info,
-            friendNumLimit:this.status.status.friendNumLimit,
-            serverName:this.status.status.serverName,
-            level:this.status.status.level,
-            avatarId:this.status.status.avatarId,
-            avatar:this.status.status.avatar,
-            assistCharList:[],
-            lastOnlineTime:this.status.status.lastOnlineTs,
-            board:this.building.boardInfo,
-            infoShare:this.building.infoShare,
-            medalBoard:{},
-            recentVisited:0,
-            skin:this.status.nameCardStyle.skin
+            teamV2:this.dexNav.teamV2Info,
+            medalBoard:{type:"",template:null,custom:null},
+            nameCardStyle:this.status.nameCardStyle,
         }
     }
     toJSON() {

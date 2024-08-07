@@ -1,10 +1,10 @@
 import EventEmitter from "events";
-import {  PlayerDataMedal, PlayerDataModel } from '../model/playerdata';
+import {  PlayerMedal, PlayerDataModel } from '../model/playerdata';
 import excel from "../../excel/excel";
 import { ItemBundle } from "../../excel/character_table";
 import { now } from "@utils/time";
 export class MedalManager {
-    medal: PlayerDataMedal;
+    medal: PlayerMedal;
     _trigger: EventEmitter;
     get dailyMissionPeriod(): string {
         let ts = now()

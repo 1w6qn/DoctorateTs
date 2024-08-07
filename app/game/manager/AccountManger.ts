@@ -40,18 +40,8 @@ export class AccountManager {
     getPlayerData(uid: string): PlayerDataManager {
         return this.data[uid || "1"];
     }
-    getPlayerFriendInfo(uid:string,type:number):FriendSortViewModel{
-        let patch={}
-        let player=this.getPlayerData(uid)
-        const funcs: { [key: number]: () => void } = {
-            1: () => {
-                
-            }
-        }
-        return {
-            uid:uid,
-            level:player.status.status.level,
-        }
+    getPlayerFriendInfo(uid:string){
+        return this.getPlayerData(uid).socialInfo
     }
     savePlayerData(uid: string): void {
         writeFileSync(`${__dirname}/../../../data/user/databases/${uid || "1"}.json`, JSON.stringify(this.data[uid || "1"], null, 4));

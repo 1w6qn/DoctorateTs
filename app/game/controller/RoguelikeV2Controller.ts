@@ -13,10 +13,8 @@ import roexcel from "./rlv2/excel";
 import { RoguelikeTroopManager } from "./rlv2/troop";
 import { RoguelikeMapManager } from "./rlv2/map";
 import { PlayerSquad } from "@game/model/character";
-import { RoguelikePendingEvent } from "./rlv2/events";
 import { RoguelikeBattleManager } from "./rlv2/battle";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { RoguelikeFragmentManager } from "./rlv2/modules/fragment";
 import { BattleData } from "@game/model/battle";
 import { RoguelikePoolManager } from "./rlv2/pool";
 export class RoguelikeV2Config {
@@ -25,7 +23,7 @@ export class RoguelikeV2Config {
         this.choiceScenes = JSON.parse(readFileSync(`${__dirname}/../../../data/rlv2/choices.json`, "utf-8"))
     }
 }
-export class RoguelikeV2Controller {
+export class RoguelikeV2Controller implements PlayerRoguelikeV2{
     pinned?: string;
     outer: { [key: string]: PlayerRoguelikeV2.OuterData; };
     current: PlayerRoguelikeV2.CurrentData;
@@ -154,7 +152,6 @@ export class RoguelikeV2Controller {
         let pos = this._status.cursor.position
         this._status.state = "PENDING"
         if (pos) {
-
             let nodeId = pos.x * 100 + pos.y
             let node = this._map.zones[this._status.cursor.zone].nodes[nodeId]
             if (node.next.find(n => n.x === args.to.x && n.y === args.to.y)?.key) {

@@ -41,7 +41,7 @@ export class SocialManager implements PlayerSocial {
 
             },
             [FriendServiceType.GET_FRIEND_LIST]:(friendInfo:FriendDataWithNameCard,param:{ [key: string]: string })=>{
-                return pick(friendInfo,['level','uid','infoShare'])
+                return pick(friendInfo,['uid',...args.sortKeyList])
             },
             [FriendServiceType.GET_FRIEND_REQUEST]:(friend:FriendDataWithNameCard,param:{ [key: string]: string })=>{
 
@@ -61,10 +61,8 @@ export class SocialManager implements PlayerSocial {
         accountManager.sendFriendRequest(this._uid,args.id)
     }
     processFriendRequest(args:{friendId:string,action:FriendDealEnum}){
-        if(args.action===FriendDealEnum.REFUSE){
-            accountManager.deleteFriendRequest(this._uid,args.friendId)
-        }else{
-            accountManager.deleteFriendRequest(this._uid,args.friendId)
+        accountManager.deleteFriendRequest(this._uid,args.friendId)
+        if(args.action===FriendDealEnum.ACCEPT){
             accountManager.addFriend(this._uid,args.friendId)
         }
     }

@@ -32,6 +32,8 @@ export class RoguelikeEventManager {
         this._index++
     }
     create(): void {
+        this._index = 0
+        this._pending = []
         const game = this._player.current.game!
         const initConfig = excel.RoguelikeTopicTable.details.rogue_4.init.find(
             i => (i.modeGrade == game.modeGrade && i.predefinedId == game.predefined && i.modeId == game.mode)

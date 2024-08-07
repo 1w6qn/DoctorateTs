@@ -29,6 +29,7 @@ export class InventoryManager {
         }
         const funcs: { [key: string]: (item: ItemBundle) => void } = {
             "TKT_GACHA_PRSV": (item: ItemBundle) => { },
+            
         }
         if (funcs[item.type]) {
             funcs[item.type](item)

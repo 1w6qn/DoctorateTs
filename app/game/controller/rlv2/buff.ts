@@ -3,7 +3,7 @@ import { Blackboard, ItemBundle } from "@excel/character_table"
 import excel from "@excel/excel"
 import { RoguelikeBuff, RoguelikeItemBundle } from "../../model/rlv2"
 import EventEmitter from "events"
-import { RoguelikeV2Controller } from "../RoguelikeV2Controller"
+import { RoguelikeV2Controller } from "../rlv2"
 import { RoguelikePlayerStatusManager } from "./status"
 import roexcel from "./excel"
 export class RoguelikeBuffManager {

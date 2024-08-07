@@ -2,7 +2,7 @@ import EventEmitter from "events"
 import excel from "@excel/excel"
 import { TroopManager } from "../../manager/troop"
 import { PlayerRoguelikeV2 } from "../../model/rlv2"
-import { RoguelikeV2Controller } from "../RoguelikeV2Controller"
+import { RoguelikeV2Controller } from "../rlv2"
 import { now } from "@utils/time"
 
 export class RoguelikeRecruitManager {

@@ -10,7 +10,7 @@ import { StoryreviewManager } from "./storyreview";
 import { MissionManager } from "./mission";
 import ShopController from "../controller/ShopController";
 import { RecruitManager } from "./recruit";
-import { RoguelikeV2Controller } from "../controller/RoguelikeV2Controller";
+import { RoguelikeV2Controller } from "../controller/rlv2";
 import { BattleManager } from "./battle";
 import { GachaController } from "../controller/GachaController";
 import { accountManager, BattleInfo } from "./AccountManger";

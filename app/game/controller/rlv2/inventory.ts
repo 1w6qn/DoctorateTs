@@ -2,7 +2,7 @@ import { EventEmitter } from "events"
 import { PlayerRoguelikeV2, RoguelikeItemBundle } from "../../model/rlv2"
 import { RoguelikeRelicManager } from "./relic"
 import { RoguelikeRecruitManager } from "./recruit"
-import { RoguelikeV2Controller } from '../RoguelikeV2Controller';
+import { RoguelikeV2Controller } from '../rlv2';
 import excel from "@excel/excel";
 
 

@@ -1,5 +1,5 @@
 import { EventEmitter } from "events"
-import { RoguelikeV2Controller } from '../RoguelikeV2Controller';
+import { RoguelikeV2Controller } from '../rlv2';
 import { BattleData } from "@game/model/battle";
 import { decryptBattleData, decryptBattleLog } from "@utils/crypt";
 

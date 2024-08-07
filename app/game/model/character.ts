@@ -98,6 +98,7 @@ export interface PlayerSquadItem {
     charInstId: number;
     skillIndex: number;
     currentEquip: null | string;
+    currentTmpl?: null | string;
 }
 
 export type PlayerFriendAssist =PlayerSquadItem

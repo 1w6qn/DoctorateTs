@@ -66,6 +66,18 @@ export class AccountManager {
         this.configs[uid]!.social.friends.push(friendUid);
         this.saveUserConfig();
     }
+    sendFriendRequest(from: string, to: string): void {
+        this.configs[to]!.social.friendRequests.push(from);
+        this.saveUserConfig();
+    }
+    deleteFriendRequest(uid: string, friendId: string): void {
+        const social=this.configs[uid]!.social
+        social.friendRequests.splice(social.friendRequests.indexOf(friendId), 1);
+        this.saveUserConfig();
+    }
+    getFriendRequests(uid: string): string[] {
+        return this.configs[uid]!.social.friendRequests;
+    }
     searchPlayer(keyword: string): string[] {
         return []
     }
@@ -80,7 +92,8 @@ export interface FriendSortViewModel{
 export interface UserConfig {
     uid: string
     social:{
-        friends: string[]
+        friends: string[],
+        friendRequests: string[]
     }
     battle: {
         stageId: string,

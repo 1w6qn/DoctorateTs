@@ -10,6 +10,10 @@ enum FriendServiceType {
     GET_FRIEND_LIST = 1,
     GET_FRIEND_REQUEST = 2,
 }
+enum FriendDealEnum{
+    REFUSE=0,
+    ACCEPT=1
+}
 export class SocialManager implements PlayerSocial {
     assistCharList: PlayerFriendAssist[];
     yesterdayReward: PlayerSocialReward;
@@ -32,7 +36,6 @@ export class SocialManager implements PlayerSocial {
     }) {
         const friendIdList=accountManager.getSocial(this._uid).friends;
         const friendInfoList = friendIdList.map(friend => accountManager.getPlayerFriendInfo(friend));
-        let res: any[] = []
         const funcs:{[key:number]:(friend:FriendDataWithNameCard,param:{ [key: string]: string })=>any}={
             [FriendServiceType.SEARCH_FRIEND]:(friend:FriendDataWithNameCard,param:{ [key: string]: string })=>{
 
@@ -48,7 +51,44 @@ export class SocialManager implements PlayerSocial {
         return friendInfoList.map(friend => funcs[args.type](friend,args.param))
     }
     getFriendList(args:{idList:string[]}){
-        const friendList = accountManager.getSocial(this._uid).friends;
+        const friendInfoList = args.idList.map(friend => accountManager.getPlayerFriendInfo(friend));
+        return friendInfoList
+    }
+    deleteFriend(args:{id:string}){
+        accountManager.deleteFriend(this._uid,args.id)
+    }
+    sendFriendRequest(args:{id:string}){
+        accountManager.sendFriendRequest(this._uid,args.id)
+    }
+    processFriendRequest(args:{friendId:string,action:FriendDealEnum}){
+        if(args.action===FriendDealEnum.REFUSE){
+            accountManager.deleteFriendRequest(this._uid,args.friendId)
+        }else{
+            accountManager.deleteFriendRequest(this._uid,args.friendId)
+            accountManager.addFriend(this._uid,args.friendId)
+        }
+    }
+    receiveSocialPoint(){
+        if(this.yesterdayReward.canReceive){
+            let point=this.yesterdayReward.assistAmount+this.yesterdayReward.comfortAmount
+            this._trigger.emit('gainItems',[{id:"",type:'SOCIAL_PT',num:point}])
+            this.yesterdayReward.canReceive=0
+        }
+    }
+    setCardShowMedal(args:{type:string,customIndex:string,templateGroup:string}){
+        this.medalBoard.type=args.type
+        this.medalBoard.template=args.templateGroup
+        //TODO
+        //this.medalBoard.custom=args.customIndex
+    }
+    setAssistCharList(assistCharList:PlayerFriendAssist[]){
+        this.assistCharList=assistCharList
+    }
+    setFriendAlias(){
+
+    }
+    searchPlayer(args:{idList:string[]}){
+        
     }
     toJSON() {
         return {

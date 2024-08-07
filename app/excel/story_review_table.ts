@@ -1,12 +1,12 @@
 import { ItemBundle } from "./character_table";
 import { StageCondition } from "./story_table";
 
-export type StoryTable = {[key: string]:StoryReviewGroupClientData}
+export type StoryReviewTable = {[key: string]:StoryReviewGroupClientData}
 export interface StoryReviewGroupClientData {
     id:                   string;
     name:                 string;
-    entryType:            StoryReviewEntryType;
-    actType:              StoryReviewType;
+    entryType:            string;
+    actType:              string;
     startTime:            number;
     endTime:              number;
     startShowTime:        number;
@@ -22,22 +22,8 @@ export interface StoryReviewGroupClientData {
     infoUnlockDatas:      StoryReviewInfoClientData[];
 }
 
-export enum StoryReviewType {
-    ActivityStory = "ACTIVITY_STORY",
-    MainStory = "MAIN_STORY",
-    MiniStory = "MINI_STORY",
-    None = "NONE",
-}
-
-export enum StoryReviewEntryType {
-    Activity = "ACTIVITY",
-    Mainline = "MAINLINE",
-    MiniActivity = "MINI_ACTIVITY",
-    None = "NONE",
-}
-
 export interface StoryReviewInfoClientData {
-    storyReviewType: StoryReviewType;
+    storyReviewType: string;
     storyId:         string;
     storyGroup:      string;
     storySort:       number;
@@ -50,19 +36,11 @@ export interface StoryReviewInfoClientData {
     storyCanEnter:   number;
     storyTxt:        string;
     avgTag:          string;
-    unLockType:      StoryReviewUnlockType;
+    unLockType:      string;
     costItemType:    string;//ItemType;
     costItemId:      string | null;
     costItemCount:   number;
     stageCount:      number;
     requiredStages:  StageCondition[] | null;
-}
-
-
-
-
-export enum StoryReviewUnlockType {
-    StageClear = "STAGE_CLEAR",
-    UseItem = "USE_ITEM",
 }
 

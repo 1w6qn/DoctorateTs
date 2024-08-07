@@ -24,6 +24,9 @@ export class AccountManager {
         this.configs[uid]!.battle.replays[stageId]=replay
         this.saveUserConfig()
     }
+    getUserConfig(uid: string): UserConfig {
+        return this.configs[uid]!;
+    }
     saveUserConfig(): void {
         writeFileSync(`${__dirname}/../../../data/user/users.json`, JSON.stringify(this.configs, null, 4));
     }

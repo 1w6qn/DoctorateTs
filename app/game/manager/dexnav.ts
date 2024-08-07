@@ -1,5 +1,5 @@
 import EventEmitter from "events";
-import { DexNav, PlayerDataBuilding } from "../model/playerdata";
+import { DexNav, PlayerBuilding } from "../model/playerdata";
 import excel from "@excel/excel";
 import { PlayerCharacter } from "@game/model/character";
 import { now } from "@utils/time";

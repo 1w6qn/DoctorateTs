@@ -1,14 +1,14 @@
 import EventEmitter from "events";
-import { PlayerDataBuilding } from "../model/playerdata";
+import { PlayerBuilding } from "../model/playerdata";
 import excel from "@excel/excel";
 import { PlayerCharacter } from "@game/model/character";
 import { now } from "@utils/time";
 
 
 export class BuildingManager {
-    _building: PlayerDataBuilding;
+    _building: PlayerBuilding;
     _trigger: EventEmitter;
-    constructor(building: PlayerDataBuilding, _trigger: EventEmitter) {
+    constructor(building: PlayerBuilding, _trigger: EventEmitter) {
 
         this._building = building;
         this._trigger = _trigger;

@@ -13,7 +13,7 @@ export interface PlayerDataModel {
     shop: PlayerDataShop;
     mission: MissionPlayerData;
     social: PlayerSocial;
-    building: PlayerDataBuilding;
+    building: PlayerBuilding;
     dexNav: DexNav;
     crisis: Crisis;
     crisisV2: CrisisV2;
@@ -41,7 +41,7 @@ export interface PlayerDataModel {
     };
     ticket: Ticket;
     aprilFool: AprilFoolClass;
-    consumable: {[key:string]:{[key:string]:PlayerConsumableItem}};
+    consumable: { [key: string]: { [key: string]: PlayerConsumableItem } };
     charm: Charm;
     carousel: Carousel;
     openServer: PlayerOpenServer;
@@ -55,7 +55,7 @@ export interface PlayerDataModel {
     checkMeta: CheckMeta;
     limitedBuff: LimitedBuff;
     collectionReward: PlayerCollection;
-    trainingGround?:any
+    trainingGround?: any
 }
 export interface PlayerStatus {
     nickName: string;
@@ -254,44 +254,44 @@ export interface PlayerHomeConditionProgress {
     t: number;//total
 }
 
-export interface PlayerDataBuilding {
-    status: BuildingStatus;
-    chars: { [key: string]: BuildingChar };
-    roomSlots: { [key: string]: RoomSlot };
-    rooms: Rooms;
-    furniture: { [key: string]: Furniture };
+export interface PlayerBuilding {
+    status: PlayerBuildingStatus;
+    chars: { [key: string]: PlayerBuildingChar };
+    roomSlots: { [key: string]: PlayerBuildingRoomSlot };
+    rooms: PlayerBuildingRoom;
+    furniture: { [key: string]: PlayerBuildingFurnitureInfo };
     diyPresetSolutions: {};
     assist: number[];
-    solution: Solution;
+    solution: PlayerBuildingSolution;
 }
 
-export interface BuildingChar {
+export interface PlayerBuildingChar {
     charId: string;
     lastApAddTime: number;
     ap: number;
     roomSlotId: string;
     index: number;
     changeScale: number;
-    bubble: Bubble;
+    bubble: PlayerBuildingChar.BubbleContainer;
     workTime: number;
 }
-
-export interface Bubble {
-    normal: Assist;
-    assist: Assist;
+export namespace PlayerBuildingChar {
+    export interface BubbleContainer {
+        normal: PlayerBuildingCharBubble;
+        assist: PlayerBuildingCharBubble;
+    }
 }
-
-export interface Assist {
+export interface PlayerBuildingCharBubble {
     add: number;
     ts: number;
 }
 
-export interface Furniture {
+export interface PlayerBuildingFurnitureInfo {
     count: number;
     inUse: number;
 }
 
-export interface RoomSlot {
+export interface PlayerBuildingRoomSlot {
     level: number;
     state: number;
     roomId: string;
@@ -299,51 +299,50 @@ export interface RoomSlot {
     completeConstructTime: number;
 }
 
-export interface Rooms {
-    CONTROL: Control;
+export interface PlayerBuildingRoom {
+    CONTROL: { [key: string]: PlayerBuildingControl };
     ELEVATOR: { [key: string]: {} };
-    POWER: POWERClass;
-    MANUFACTURE: Manufacture;
-    TRADING: TRADINGClass;
-    CORRIDOR: Corridor;
-    WORKSHOP: Workshop;
-    DORMITORY: DORMITORYClass;
-    MEETING: Meeting;
-    HIRE: HIREClass;
-    TRAINING: Training;
+    POWER: { [key: string]: PlayerBuildingPower };
+    MANUFACTURE: { [key: string]: PlayerBuildingManufacture };
+    TRADING: { [key: string]: PlayerBuildingTrading };
+    CORRIDOR: { [key: string]: {} };
+    WORKSHOP: { [key: string]: PlayerBuildingWorkshop };
+    DORMITORY: {[key:string]:PlayerBuildingDormitory};
+    MEETING: { [key: string]: PlayerBuildingMeeting };
+    HIRE: { [key: string]: PlayerBuildingHire };
+    TRAINING: { [key: string]: PlayerBuildingTraining };
 }
 
-export interface Control {
-    slot_34: Slot34;
-}
 
-export interface Slot34 {
-    buff: Slot34_Buff;
+export interface PlayerBuildingControl {
+    buff: PlayerBuildingControlBuff;
     apCost: number;
     lastUpdateTime: number;
 }
 
-export interface Slot34_Buff {
-    global: PurpleGlobal;
+export interface PlayerBuildingControlBuff {
+    global: PlayerBuildingControlBuff.Global;
     manufacture: PurpleManufacture;
     trading: Trading;
     meeting: PurpleMeeting;
     apCost: { [key: string]: number };
-    point: Point;
+    point: {[key:string]:number};
     hire: Hire;
     power: Power;
     dormitory: Dormitory;
     training: BuffTraining;
 }
-
+export namespace PlayerBuildingControlBuff {
+    export interface Global {
+        apCost: number;
+        roomCnt: {};
+    }
+}
 export interface Dormitory {
     recover: number;
 }
 
-export interface PurpleGlobal {
-    apCost: number;
-    roomCnt: {};
-}
+
 
 export interface Hire {
     spUp: SPUp;
@@ -371,10 +370,6 @@ export interface PurpleMeeting {
     notOwned: number;
 }
 
-export interface Point {
-    bd_ash: number;
-}
-
 export interface Power {
     apCost: number;
 }
@@ -393,89 +388,58 @@ export interface BuffTraining {
     speed: number;
 }
 
-export interface Corridor {
-    slot_29: {};
-    slot_31: {};
-    slot_17: {};
-    slot_19: {};
-    slot_22: {};
-    slot_12: {};
-    slot_10: {};
-    slot_2: {};
-}
 
-export interface DORMITORYClass {
-    slot_28: Slot2;
-    slot_20: Slot2;
-    slot_9: Slot3_Class;
-    slot_3: Slot3_Class;
-}
 
-export interface Slot2 {
-    buff: Slot20_Buff;
+export interface PlayerBuildingDormitory {
+    buff: PlayerBuildingDormitory.Buff;
     comfort: number;
-    diySolution: Slot20_DiySolution;
+    diySolution: PlayerBuildingDIYSolution;
 }
-
-export interface Slot20_Buff {
-    apCost: PurpleApCost;
-    point: {};
+export namespace PlayerBuildingDormitory {
+    export interface Buff {
+        apCost: Buff.ApCost;
+        point: {};
+    }
+    export namespace Buff {
+        export interface ApCost {
+            all: number;
+            single: ApCost.SingleTarget;
+            self: {};
+            exclude: {};
+        }
+        export namespace ApCost {
+            export interface SingleTarget {
+                target: number | null;
+                value: number;
+            }
+        }
+    }
 }
-
-export interface PurpleApCost {
-    all: number;
-    single: MissionCalcState;
-    self: {};
-    exclude: {};
-}
-
 export interface MissionCalcState {
     target: number | null;
     value: number;
 }
 
-export interface Slot20_DiySolution {
+export interface PlayerBuildingDIYSolution {
     wallPaper: string;
     floor: string;
-    carpet: PurpleCarpet[];
-    other: PurpleCarpet[];
+    carpet: PlayerBuildingFurniturePositionInfo[];
+    other: PlayerBuildingFurniturePositionInfo[];
 }
 
-export interface PurpleCarpet {
+export interface PlayerBuildingFurniturePositionInfo {
     id: string;
-    coordinate: Coordinate;
+    coordinate: PlayerBuildingGridPosition;
 }
 
-export interface Coordinate {
+export interface PlayerBuildingGridPosition {
     x: number;
     y: number;
-    dir: number;
+    dir?: number;
 }
 
-export interface Slot3_Class {
-    buff: Slot20_Buff;
-    comfort: number;
-    diySolution: Slot3_DiySolution;
-}
-
-export interface Slot3_DiySolution {
-    wallPaper: string;
-    floor: string;
-    carpet: FluffyCarpet[];
-    other: FluffyCarpet[];
-}
-
-export interface FluffyCarpet {
-    id: string;
-    coordinate: Matrix;
-}
-
-export interface HIREClass {
-    slot_23: Slot23;
-}
-
-export interface Slot23 {
-    buff: Slot23_Buff;
+export interface PlayerBuildingHire {
+    buff: PlayerBuildingHireBuff;
     state: number;
     refreshCount: number;
     lastUpdateTime: number;
@@ -484,7 +448,7 @@ export interface Slot23 {
     completeWorkTime: number;
 }
 
-export interface Slot23_Buff {
+export interface PlayerBuildingHireBuff {
     speed: number;
     meeting: FluffyMeeting;
     stack: Stack;
@@ -509,14 +473,10 @@ export interface StackChar {
     refresh: number;
 }
 
-export interface Manufacture {
-    slot_25: Slot25;
-    slot_5: Slot5;
-    slot_15: Slot15;
-}
 
-export interface Slot15 {
-    buff: Slot15_Buff;
+
+export interface PlayerBuildingManufacture {
+    buff: PlayerBuildingManufactureBuff;
     state: number;
     formulaId: string;
     remainSolutionCnt: number;
@@ -528,124 +488,46 @@ export interface Slot15 {
     completeWorkTime: number;
     capacity: number;
     processPoint: number;
-    display: Display;
+    display: BuildingBuffDisplay;
 }
 
-export interface Slot15_Buff {
+export interface PlayerBuildingManufactureBuff {
     apCost: TentacledApCost;
     speed: number;
     capacity: number;
     sSpeed: number;
     tSpeed: {};
     cSpeed: number;
-    capFrom: {};
+    capFrom: { [key: string]: number };
     maxSpeed: number;
     point: {};
     flag: {};
-    skillExtend: {};
+    skillExtend: { [key: string]: string[] };
 }
 
 export interface TentacledApCost {
-    self: {};
+    self: { [key: string]: number };
     all: number;
 }
 
-export interface Display {
+export interface BuildingBuffDisplay {
     base: number;
     buff: number;
 }
 
-export interface Slot25 {
-    buff: Slot25_Buff;
-    state: number;
-    formulaId: string;
-    remainSolutionCnt: number;
-    outputSolutionCnt: number;
-    lastUpdateTime: number;
-    saveTime: number;
-    tailTime: number;
-    apCost: number;
-    completeWorkTime: number;
-    capacity: number;
-    processPoint: number;
-    display: Display;
-}
-
-export interface Slot25_Buff {
-    apCost: TentacledApCost;
-    speed: number;
-    capacity: number;
-    sSpeed: number;
-    tSpeed: {};
-    cSpeed: number;
-    capFrom: {};
-    maxSpeed: number;
-    point: {};
-    flag: {};
-    skillExtend: SkillExtend;
-}
-
-export interface SkillExtend {
-    "manu_prod_spd[000]": string[];
-    "manu_prod_spd[010]": string[];
-}
-
-export interface Slot5 {
-    buff: Slot5_Buff;
-    state: number;
-    formulaId: string;
-    remainSolutionCnt: number;
-    outputSolutionCnt: number;
-    lastUpdateTime: number;
-    saveTime: number;
-    tailTime: number;
-    apCost: number;
-    completeWorkTime: number;
-    capacity: number;
-    processPoint: number;
-    display: Display;
-}
-
-export interface Slot5_Buff {
-    apCost: StickyApCost;
-    speed: number;
-    capacity: number;
-    sSpeed: number;
-    tSpeed: {};
-    cSpeed: number;
-    capFrom: CapFrom;
-    maxSpeed: number;
-    point: {};
-    flag: {};
-    skillExtend: {};
-}
-
-export interface StickyApCost {
-    self: CapFrom;
-    all: number;
-}
-
-export interface CapFrom {
-    "92": number;
-}
-
-export interface Meeting {
-    slot_36: Slot36;
-}
-
-export interface Slot36 {
-    buff: Slot36_Buff;
+export interface PlayerBuildingMeeting {
+    buff: PlayerBuildingMeetingBuff;
     state: number;
     speed: number;
     processPoint: number;
-    ownStock: Stock[];
-    receiveStock: Stock[];
-    board: Board;
-    socialReward: SocialReward;
-    dailyReward: null;
+    ownStock: PlayerBuildingMeetingClue[];
+    receiveStock: PlayerBuildingMeetingClue[];
+    board: { [key: string]: string };
+    socialReward: PlayerBuildingMeetingSocialReward;
+    dailyReward: null | PlayerBuildingMeetingClue;
     expiredReward: number;
     received: number;
-    infoShare: InfoShare;
+    infoShare: PlayerBuildingMeetingInfoShareState;
     lastUpdateTime: number;
     mfc: {};
     completeWorkTime: number;
@@ -653,105 +535,72 @@ export interface Slot36 {
     mustgetClue: any[];
 }
 
-export interface Board {
-    PENGUIN: string;
-    BLACKSTEEL: string;
-    RHODES: string;
-}
 
-export interface Slot36_Buff {
+export interface PlayerBuildingMeetingBuff {
     speed: number;
-    weight: Weight;
+    weight: { [key: string]: number };
     flag: {};
     apCost: FluffyApCost;
     notOwned: number;
     owned: number;
 }
 
-export interface Weight {
-    RHINE: number;
-    PENGUIN: number;
-    BLACKSTEEL: number;
-    URSUS: number;
-    GLASGOW: number;
-    KJERAG: number;
-    RHODES: number;
-}
 
-export interface InfoShare {
+export interface PlayerBuildingMeetingInfoShareState {
     ts: number;
     reward: number;
 }
 
-export interface Stock {
+export interface PlayerBuildingMeetingClue {
     id: string;
     type: string;
     number: number;
     uid: string;
     name: string;
     nickNum: string;
-    chars: OwnStockChar[];
+    chars: PlayerBuildingMeetingClueChar[];
     inUse: number;
     ts?: number;
 }
 
-export interface OwnStockChar {
+export interface PlayerBuildingMeetingClueChar {
     charId: string;
     level: number;
     skin: string;
     evolvePhase: number;
 }
 
-export interface SocialReward {
+export interface PlayerBuildingMeetingSocialReward {
     daily: number;
     search: number;
 }
 
-export interface POWERClass {
-    slot_26: Slot16_Class;
-    slot_16: Slot16_Class;
-    slot_7: Slot16_Class;
+export interface PlayerBuildingPower {
+    buff: PlayerBuildingPowerBuff;
 }
 
-export interface Slot16_Class {
-    buff: Slot16_Buff;
-}
-
-export interface Slot16_Buff {
+export interface PlayerBuildingPowerBuff {
     laborSpeed: number;
     apCost: FluffyApCost;
-    global: FluffyGlobal;
-    manufacture: FluffyManufacture;
+    global: { roomCnt: {} };
+    manufacture: { charSpeed: {} };
 }
 
-export interface FluffyGlobal {
-    roomCnt: {};
-}
 
-export interface FluffyManufacture {
-    charSpeed: {};
-}
-
-export interface TRADINGClass {
-    slot_24: Slot24_Class;
-    slot_14: Slot14;
-    slot_6: Slot24_Class;
-}
-
-export interface Slot14 {
-    buff: Slot14_Buff;
+export interface PlayerBuildingTrading {
+    buff: PlayerBuildingTradingBuff;
     state: number;
     lastUpdateTime: number;
     strategy: string;
     stockLimit: number;
     apCost: number;
     stock: any[];
-    next: Next;
+    next: PlayerBuildingTradingNext;
     completeWorkTime: number;
-    display: Display;
+    display: BuildingBuffDisplay;
 }
 
-export interface Slot14_Buff {
+export interface PlayerBuildingTradingBuff {
     speed: number;
     limit: number;
     apCost: IndigoApCost;
@@ -789,63 +638,30 @@ export interface OrderChecker {
     cnt: number;
 }
 
-export interface Next {
+export interface PlayerBuildingTradingNext {
     order: number;
     processPoint: number;
     maxPoint: number;
     speed: number;
 }
 
-export interface Slot24_Class {
-    buff: Slot24_Buff;
+
+
+
+export interface PlayerBuildingTraining {
+    buff: PlayerBuildingTrainingBuff;
     state: number;
     lastUpdateTime: number;
-    strategy: string;
-    stockLimit: number;
-    apCost: number;
-    stock: any[];
-    next: Next;
-    completeWorkTime: number;
-    display: Display;
+    trainee: PlayerBuildingTrainee;
+    trainer: PlayerBuildingTrainer;
 }
 
-export interface Slot24_Buff {
-    speed: number;
-    limit: number;
-    apCost: IndecentApCost;
-    rate: {};
-    tgw: any[];
-    point: {};
-    manuLines: {};
-    orderBuff: any[];
-    violatedInfo: ViolatedInfo;
-    orderWtBuff: any[];
-}
-
-export interface IndecentApCost {
-    all: number;
-    single: {};
-    self: {};
-}
-
-export interface Training {
-    slot_13: Slot13;
-}
-
-export interface Slot13 {
-    buff: Slot13_Buff;
-    state: number;
-    lastUpdateTime: number;
-    trainee: Trainee;
-    trainer: Trainer;
-}
-
-export interface Slot13_Buff {
+export interface PlayerBuildingTrainingBuff {
     speed: number;
     lvEx: {};
     lvCost: {};
     reduce: Reduce;
-    reduceTimeBd: ReduceTimeBd;
+    reduceTimeBd: PlayerBuildingTrainingReduceTimeBd;
 }
 
 export interface Reduce {
@@ -854,14 +670,14 @@ export interface Reduce {
     cut: number;
 }
 
-export interface ReduceTimeBd {
+export interface PlayerBuildingTrainingReduceTimeBd {
     fulltime: boolean;
     activated: boolean;
     cnt: number;
     reset: boolean;
 }
 
-export interface Trainee {
+export interface PlayerBuildingTrainee {
     charInstId: number;
     state: number;
     targetSkill: number;
@@ -869,80 +685,67 @@ export interface Trainee {
     speed: number;
 }
 
-export interface Trainer {
+export interface PlayerBuildingTrainer {
     charInstId: number;
     state: number;
 }
 
-export interface Workshop {
-    slot_32: Slot32;
-}
-
-export interface Slot32 {
-    buff: Slot32_Buff;
+export interface PlayerBuildingWorkshop {
+    buff: PlayerBuildingWorkshopBuff;
     statistic: Statistic;
 }
 
-export interface Slot32_Buff {
-    rate: Rate;
-    cost: Cost;
-    costRe: CostRe;
-    frate: any[];
+export interface PlayerBuildingWorkshopBuff {
+    rate: { [key: string]: number };
+    apRate: { [key: string]: { [key: string]: number } };
+    frate: PlayerBuildingWorkshopBuff.Frate[];
+    goldFree: { [key: string]: number };
+    cost: PlayerBuildingWorkshopBuff.Cost;
+    costRe: PlayerBuildingWorkshopBuff.CostRe;
+    costForce: PlayerBuildingWorkshopBuff.CostForce;
+    costDevide: PlayerBuildingWorkshopBuff.CostDevide;
     recovery: Recovery;
-    goldFree: GoldFree;
-    costForce: CostForce;
     fFix: FFix;
     activeBonus: {};
-    apRate: ApRate;
-    costDevide: CostDevide;
 }
 
-export interface ApRate {
-    all: All;
+export namespace PlayerBuildingWorkshopBuff {
+    export interface Frate {
+        fid: string;
+        rate: number;
+    }
+    export interface Cost {
+        type: string;
+        limit: number;
+        reduction: number;
+    }
+    export interface CostRe {
+        type: string;
+        from: number;
+        change: number;
+    }
+    export interface CostDevide {
+        type: string;
+        limit: number;
+        denominator: number;
+    }
+
+    export interface CostForce {
+        type: string;
+        cost: number;
+    }
+
+
 }
 
-export interface All {
-    "2880000": number;
-}
 
-export interface Cost {
-    type: string;
-    limit: number;
-    reduction: number;
-}
 
-export interface CostDevide {
-    type: string;
-    limit: number;
-    denominator: number;
-}
 
-export interface CostForce {
-    type: string;
-    cost: number;
-}
-
-export interface CostRe {
-    type: string;
-    from: number;
-    change: number;
-}
 
 export interface FFix {
     asRarity: {};
 }
 
-export interface GoldFree {
-    W_EVOLVE: number;
-}
-
-export interface Rate {
-    all: number;
-    W_EVOLVE: number;
-    W_BUILDING: number;
-    W_ASC: number;
-    W_SKILL: number;
-}
 
 export interface Recovery {
     type: string;
@@ -954,26 +757,17 @@ export interface Statistic {
     noAddition: number;
 }
 
-export interface Solution {
-    furnitureTs: FurnitureTs;
+export interface PlayerBuildingSolution {
+    furnitureTs: { [key: string]: number };
 }
 
-export interface FurnitureTs {
-    furni_act50d0_hourGlass_01: number;
-    furni_laundry_poor_01: number;
-    furni_Airship_partitionwall_01: number;
-    furni_Airship_wallpaper_01: number;
-    furni_Airship_floor_01: number;
-    furni_Airship_ceilinglamp_01: number;
-    furni_Airship_controldesk_01: number;
+
+export interface PlayerBuildingStatus {
+    labor: PlayerBuildingLabor;
+    workshop: PlayerBuildingWorkshopStatus;
 }
 
-export interface BuildingStatus {
-    labor: Labor;
-    workshop: WorkshopClass;
-}
-
-export interface Labor {
+export interface PlayerBuildingLabor {
     buffSpeed: number;
     processPoint: number;
     value: number;
@@ -981,14 +775,11 @@ export interface Labor {
     maxValue: number;
 }
 
-export interface WorkshopClass {
+export interface PlayerBuildingWorkshopStatus {
     bonusActive: number;
-    bonus: Bonus;
+    bonus: { [key: string]: number[] };
 }
 
-export interface Bonus {
-    ws_bonus1_40: number[];
-}
 
 export interface CampaignsV2 {
     campaignCurrentFee: number;
@@ -1477,7 +1268,7 @@ export interface Tech {
 }
 
 export interface DexNav {
-    character: {[key: string]: PlayerCharacterRecord};
+    character: { [key: string]: PlayerCharacterRecord };
     formula: Formula;
     enemy: DexNavEnemy;
     teamV2: TeamV2;
@@ -1557,11 +1348,11 @@ export interface PlayerDataEvent {
 export interface PlayerGacha {
     newbee: PlayerNewbeeGachaPool;
     normal: { [key: string]: PlayerGachaPool };
-    limit: {[key:string]:PlayerFreeLimitGacha};
-    linkage: {[key:string]:any};
-    attain: {[key:string]:PlayerAttainGacha};
-    single: {[key:string]:PlayerSingleGacha};
-    fesClassic: {[key:string]:PlayerFesClassicGacha};
+    limit: { [key: string]: PlayerFreeLimitGacha };
+    linkage: { [key: string]: any };
+    attain: { [key: string]: PlayerAttainGacha };
+    single: { [key: string]: PlayerSingleGacha };
+    fesClassic: { [key: string]: PlayerFesClassicGacha };
 }
 export interface PlayerAttainGacha {
     attain6Count: number;
@@ -1755,12 +1546,12 @@ export interface MissionPlayerData {
 export interface MissionDailyRewards {
     dailyPoint: number;
     weeklyPoint: number;
-    rewards: {[key:string]:{ [key: string]: number }};
+    rewards: { [key: string]: { [key: string]: number } };
 }
 
 
 export interface MissionPlayerDataGroup {
-    [key:string]: { [key: string]: MissionPlayerState };
+    [key: string]: { [key: string]: MissionPlayerState };
 }
 
 export interface MissionPlayerState {
@@ -1776,7 +1567,7 @@ export interface PlayerNameCardStyle {
 
 export interface NameCardSkin {
     selected: string;
-    state: {[key:string]:SkinState};
+    state: { [key: string]: SkinState };
 }
 export interface NameCardMisc {
     showDetail: boolean;
@@ -2672,7 +2463,7 @@ export interface Cash {
 
 export interface Classic {
     info: Info[];
-    progressInfo: {[key:string]:CharBibeakProgress};
+    progressInfo: { [key: string]: CharBibeakProgress };
 }
 
 export interface Es {
@@ -3473,8 +3264,8 @@ export interface PlayerSocialReward {
 
 
 export interface PlayerStoryReview {
-    groups: {[key: string]:PlayerStoryReviewUnlockInfo};
-    tags: {[key: string]:number};
+    groups: { [key: string]: PlayerStoryReviewUnlockInfo };
+    tags: { [key: string]: number };
 }
 
 export interface StoryReviewUnlockInfo {

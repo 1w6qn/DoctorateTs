@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import { PlayerDataModel } from "../model/playerdata";
+import { PlayerDataModel, TeamV2 } from '../model/playerdata';
 import { InventoryManager } from "./inventory";
 import { TroopManager } from "./troop";
 import { DungeonManager } from "./DungeonManager";
@@ -73,6 +73,34 @@ export class PlayerDataManager {
         this._trigger.emit("save:battle",(battleId:string, info:BattleInfo)=>{
             accountManager.saveBattleInfo(this.uid,battleId, info)
         })
+    }
+    get socialInfo(){
+        return {
+            nickName:this.status.status.nickName,
+            nickNumber:this.status.status.nickNumber,
+            uid:this.uid,
+            registerTs:this.status.status.registerTs,
+            mainStageProgress:this.status.status.mainStageProgress,
+            charCnt:this.troop.curCharInstId-1,
+            furnCnt:0,
+            skinCnt:0,
+            secretary:this.status.status.secretary,
+            secretarySkinId:this.status.status.secretarySkinId,
+            resume:this.status.status.resume,
+            TeamV2:{},
+            friendNumLimit:this.status.status.friendNumLimit,
+            serverName:this.status.status.serverName,
+            level:this.status.status.level,
+            avatarId:this.status.status.avatarId,
+            avatar:this.status.status.avatar,
+            assistCharList:[],
+            lastOnlineTime:this.status.status.lastOnlineTs,
+            board:[],
+            infoShare:-1,
+            medalBoard:{},
+            recentVisited:0,
+            skin:this.status.nameCardStyle.skin
+        }
     }
     toJSON() {
         return {

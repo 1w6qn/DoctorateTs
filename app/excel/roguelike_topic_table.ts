@@ -358,7 +358,7 @@ export interface RoguelikeTopicDetail {
     taskData:                     {[key:string]:RoguelikeTaskData};
     gameConst:                    RoguelikeGameConst;
     shopDialogData:               RoguelikeGameShopDialogData;
-    capsuleDict:                  { [key: string]: RoguelikeTopicCapsule };
+    capsuleDict:                  { [key: string]: RoguelikeTopicCapsule }|null;
     endings:                      {[key:string]:RoguelikeGameEndingData};
     battleSummeryDescriptions:    {[key:string]:RoguelikeBattleSummeryDescriptionData};
     battleLoadingTips:            TipData[];
@@ -376,7 +376,7 @@ export interface RoguelikeTopicDetail {
 
 export interface RoguelikeArchiveComponentData {
     relic:    ActArchiveRelicData;
-    capsule:  ActArchiveCapsuleData;
+    capsule:  null|ActArchiveCapsuleData;
     trap:     ActArchiveTrapData;
     chat:     ActArchiveChatData;
     endbook:  ActArchiveEndbookData;
@@ -561,7 +561,7 @@ export interface RoguelikeTopicDetailConst {
     collectButtonName:                 string;
     bpSystemName:                      string;
     autoSetKV:                         string;
-    bpPurchaseActiveEnroll:            string;
+    bpPurchaseActiveEnroll:            string|null;
     defaultSacrificeDesc:              null | string;
     defaultExpeditionSelectDesc:       null | string;
     gotCharBuffToast:                  null | string;

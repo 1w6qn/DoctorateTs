@@ -56,6 +56,9 @@ export class Excel {
         this.FavorTable=await import('../../data/excel/favor_table.json');
         this.StoryReviewTable=(await import('../../data/excel/story_review_table.json')).default;
         this.MedalTable=await import('../../data/excel/medal_table.json');
+
+
+        
         this.GachaDetailTable=await import('../../data/gacha_detail_table.json');
     }
 }

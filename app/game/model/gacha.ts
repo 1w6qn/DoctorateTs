@@ -1,4 +1,4 @@
-import { ItemBundle } from "../../excel/character_table"
+import { ItemBundle } from "@excel/character_table"
 
 export interface GachaResult{
     charInstId:number

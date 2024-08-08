@@ -50,7 +50,7 @@ export interface PlayerDataModel {
     templateTrap: TemplateTrap;
     checkIn: PlayerCheckIn;
     inventory: { [key: string]: number };
-    campaignsV2: CampaignsV2;
+    campaignsV2: PlayerCampaign;
     setting: PlayerSetting;
     checkMeta: CheckMeta;
     limitedBuff: LimitedBuff;
@@ -303,7 +303,7 @@ export interface PlayerBuildingRoom {
     TRADING: { [key: string]: PlayerBuildingTrading };
     CORRIDOR: { [key: string]: {} };
     WORKSHOP: { [key: string]: PlayerBuildingWorkshop };
-    DORMITORY: {[key:string]:PlayerBuildingDormitory};
+    DORMITORY: { [key: string]: PlayerBuildingDormitory };
     MEETING: { [key: string]: PlayerBuildingMeeting };
     HIRE: { [key: string]: PlayerBuildingHire };
     TRAINING: { [key: string]: PlayerBuildingTraining };
@@ -322,7 +322,7 @@ export interface PlayerBuildingControlBuff {
     trading: Trading;
     meeting: PurpleMeeting;
     apCost: { [key: string]: number };
-    point: {[key:string]:number};
+    point: { [key: string]: number };
     hire: Hire;
     power: Power;
     dormitory: Dormitory;
@@ -777,37 +777,30 @@ export interface PlayerBuildingWorkshopStatus {
 }
 
 
-export interface CampaignsV2 {
+export interface PlayerCampaign {
     campaignCurrentFee: number;
     campaignTotalFee: number;
     lastRefreshTs: number;
-    instances: { [key: string]: Instance };
-    open: Open;
-    missions: CampaignsV2Missions;
+    instances: { [key: string]: PlayerCampaign.Stage };
+    open: PlayerCampaign.StageOpenInfo;
+    missions: { [key: string]: number };
     sweepMaxKills: { [key: string]: number };
 }
+export namespace PlayerCampaign {
+    export interface Stage {
+        maxKills: number;
+        rewardStatus: number[];
+    }
 
-export interface Instance {
-    maxKills: number;
-    rewardStatus: number[];
+    export interface StageOpenInfo {
+        permanent: string[];
+        rotate: string;
+        rGroup: string;
+        training: string[];
+        tGroup: string;
+        tAllOpen: string;
+    }
 }
-
-export interface CampaignsV2Missions {
-    exterminateActivity_1: number;
-    exterminateActivity_2: number;
-    exterminateActivity_3: number;
-    exterminateActivity_4: number;
-}
-
-export interface Open {
-    permanent: string[];
-    rotate: string;
-    rGroup: string;
-    training: string[];
-    tGroup: string;
-    tAllOpen: string;
-}
-
 export interface Car {
     battleCar: BattleCarClass;
     exhibitionCar: BattleCarClass;
@@ -1466,7 +1459,7 @@ export interface PlayerMedal {
 
 export interface PlayerMedalCustom {
     currentIndex: string;
-    customs: {[key: string]: PlayerMedalCustomLayout};
+    customs: { [key: string]: PlayerMedalCustomLayout };
 }
 
 
@@ -1475,8 +1468,8 @@ export interface PlayerMedalCustomLayout {
     layout: PlayerMedalCustomLayoutItem[];
 }
 export interface PlayerMedalCustomLayoutItem {
-    id:string,
-    pos:number[]
+    id: string,
+    pos: number[]
 }
 export interface PlayerPerMedal {
     id: string;
@@ -3199,7 +3192,7 @@ export interface PlayerSocial {
 
 export interface PlayerMedalBoard {
     type: string;
-    custom: null|PlayerMedalCustomLayout;
+    custom: null | PlayerMedalCustomLayout;
     template: string;
     templateMedalList: string[];
 }

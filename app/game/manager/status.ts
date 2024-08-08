@@ -76,9 +76,8 @@ export class StatusManager {
         this._trigger.emit("useItems",[{ id:"",type: "DIAMOND", count: 1 }])
     }
     exchangeDiamondShard(count: number) {
-        this.status.androidDiamond -= count
-        this.status.iosDiamond -= count
-        this.status.diamondShard += count * excel.GameDataConst.diamondToShdRate
+        this._trigger.emit("useItems",[{ id:"",type: "DIAMOND", count: count }])
+        this._trigger.emit("gainItems",[{ id:"",type: "DIAMOND_SHD", count: count * excel.GameDataConst.diamondToShdRate }])
     }
     receiveTeamCollectionReward(rewardId: string) {
         this.collectionReward.team[rewardId] = 1

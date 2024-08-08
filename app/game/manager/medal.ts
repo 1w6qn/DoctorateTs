@@ -35,6 +35,7 @@ export class MedalManager implements PlayerMedal {
         }
     }
 }
+//TODO:complete the template
 export class MedalProgress implements PlayerPerMedal {
     [key: string]: any
     val: number[][]

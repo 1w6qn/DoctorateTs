@@ -15,6 +15,7 @@ import { UniEquipTable } from "./uniequip_table";
 import { FavorTable } from "./favor_table";
 import { StoryReviewTable } from "./story_review_table";
 import { MedalData } from "./medal_table";
+import { GachaDetailTable } from "./gacha_detail_table";
 
 export class Excel {
     BattleEquipTable!: BattleEquipTable;
@@ -33,6 +34,7 @@ export class Excel {
     StoryReviewTable!:StoryReviewTable
     FavorTable!:FavorTable
     MedalTable!:MedalData
+    GachaDetailTable!:GachaDetailTable
     initPromise:Promise<void>;
     constructor() {
         this.initPromise=this.init()
@@ -54,6 +56,7 @@ export class Excel {
         this.FavorTable=await import('../../data/excel/favor_table.json');
         this.StoryReviewTable=(await import('../../data/excel/story_review_table.json')).default;
         this.MedalTable=await import('../../data/excel/medal_table.json');
+        this.GachaDetailTable=await import('../../data/gacha_detail_table.json');
     }
 }
 export default new Excel()

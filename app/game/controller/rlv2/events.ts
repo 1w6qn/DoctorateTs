@@ -36,14 +36,11 @@ export class RoguelikeEventManager {
         this._pending = []
         const game = this._player.current.game!
         const theme = this._player.current.game!.theme
-        const initConfig = excel.RoguelikeTopicTable.details[theme].init.find(
-            i => (i.modeGrade == game.modeGrade && i.predefinedId == game.predefined && i.modeId == game.mode)
-        )!
+        const initConfig = this._player.initConfig
         //TODO 
         let totalStep = game.outer.support ? 4 : 3
         this._trigger.emit("rlv2:event:create", "GAME_INIT_RELIC", {
             step: [this._index + 1, totalStep],
-            initConfig: initConfig
         })
         if (game.outer.support) {
             this._trigger.emit("rlv2:event:create", "GAME_INIT_SUPPORT", {
@@ -53,7 +50,6 @@ export class RoguelikeEventManager {
         }
         this._trigger.emit("rlv2:event:create", "GAME_INIT_RECRUIT_SET", {
             step: [this._index + 1, totalStep],
-            initConfig: initConfig
         })
         this._trigger.emit("rlv2:event:create", "GAME_INIT_RECRUIT", {
             step: [this._index + 1, totalStep]
@@ -82,36 +78,50 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
     get index(): string {
         return `e_${this._index}`
     }
-    GAME_INIT_RELIC(args: { step: number[], initConfig: RoguelikeGameInitData }): PlayerRoguelikePendingEvent.Content {
+    GAME_INIT_RELIC(args: { step: [number,number]}): PlayerRoguelikePendingEvent.Content {
+        const initConfig=this._player.initConfig
         return {
             initRelic: {
                 step: args.step,
-                items: args.initConfig.initialBandRelic.reduce((acc, cur, idx) => {
+                items: initConfig.initialBandRelic.reduce((acc, cur, idx) => {
                     return { ...acc, [idx.toString()]: { id: cur, count: 1 } }
                 }, {})
             }
         }
     }
-    GAME_INIT_SUPPORT(args: { step: number[], id: string }): PlayerRoguelikePendingEvent.Content {
+    GAME_INIT_SUPPORT(args: { step: [number,number], id: string }): PlayerRoguelikePendingEvent.Content {
+        const game=this._player.current.game!
+        const initConfig=this._player.initConfig
         return {
             initSupport: {
                 step: args.step,
                 scene: {
-                    id: args.id,
-                    choices: {}
+                    id: `scene_ro${game.theme.slice(-1)}_startbuff_enter`,
+                    choices: {
+                        "choice_ro4_startbuff_1": 1,
+                        "choice_ro4_startbuff_2": 1,
+                        "choice_ro4_startbuff_3": 1,
+                        "choice_ro4_startbuff_4": 1,
+                        "choice_ro4_startbuff_5": 1,
+                        "choice_ro4_startbuff_6": 1,
+                    }
                 }
             }
         }
     }
-    GAME_INIT_RECRUIT_SET(args: { step: number[], initConfig: RoguelikeGameInitData }): PlayerRoguelikePendingEvent.Content {
+    GAME_INIT_RECRUIT_SET(args: { step: [number,number]}): PlayerRoguelikePendingEvent.Content {
+        const initConfig=this._player.initConfig
         return {
             initRecruitSet: {
                 step: args.step,
-                option: args.initConfig.initialRecruitGroup!
+                option: initConfig.initialRecruitGroup!
             }
         }
     }
-    GAME_INIT_RECRUIT(args: { step: number[] }): PlayerRoguelikePendingEvent.Content {
+    GAME_INIT_RECRUIT(args: { step: [number,number] }): PlayerRoguelikePendingEvent.Content {
+        this._trigger.on("rlv2:choose_init_recruit_set", (tickets: string[]) => {
+            this.content.initRecruit!.tickets = tickets
+        })
         return {
             initRecruit: {
                 step: args.step,

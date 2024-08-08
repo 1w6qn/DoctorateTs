@@ -1,8 +1,9 @@
 import EventEmitter from "events"
-import { AvatarInfo, PlayerCollection, PlayerDataModel, PlayerStatus, PlayerNameCardStyle, NameCardMisc } from '../model/playerdata';
+import { PlayerCollection, PlayerDataModel, PlayerStatus, PlayerNameCardStyle, NameCardMisc } from '../model/playerdata';
 import excel from "@excel/excel"
 import { checkNewDay, checkNewMonth, checkNewWeek, now } from "@utils/time";
 import moment from "moment";
+import { AvatarInfo } from "@game/model/character";
 
 export class StatusManager {
     status: PlayerStatus

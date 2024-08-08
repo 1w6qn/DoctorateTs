@@ -165,7 +165,7 @@ export class TroopManager {
             }
         }
         //TODO
-        this._trigger.emit("useItems", expMats.concat([{ id: "4001", count: gold } as ItemBundle]))
+        this._trigger.emit("useItems", expMats.push({ id: "4001", count: gold }))
         this._trigger.emit("UpgradeChar", {})
     }
     evolveChar(args:{instId: number, destEvolvePhase: number}): void {

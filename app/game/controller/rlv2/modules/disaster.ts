@@ -1,7 +1,7 @@
 import EventEmitter from "events"
 import excel from "@excel/excel";
 import { randomChoice } from "@utils/random";
-import { PlayerRoguelikeV2 } from "../../../model/rlv2"
+import { PlayerRoguelikeV2, RoguelikeBuff } from "../../../model/rlv2"
 import { RoguelikeV2Controller } from '../../rlv2';
 
 
@@ -51,6 +51,13 @@ export class RoguelikeDisasterManager {
     abstract() {
         this._disperseStep = 0
         this._curDisaster = null
+    }
+    getBuff():RoguelikeBuff[]{
+        let buff:RoguelikeBuff[]=[]
+        if(this._curDisaster){
+            buff= []
+        }
+        return buff
     }
     toJSON(): PlayerRoguelikeV2.CurrentData.Module.Disaster {
         return {

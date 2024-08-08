@@ -3199,7 +3199,7 @@ export interface PlayerSocial {
 
 export interface PlayerMedalBoard {
     type: string;
-    custom: null;
+    custom: null|PlayerMedalCustomLayout;
     template: string;
     templateMedalList: string[];
 }

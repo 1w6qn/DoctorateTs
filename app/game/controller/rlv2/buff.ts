@@ -51,7 +51,7 @@ export class RoguelikeBuffManager {
                 this.immediate_reward(arg.blackboard)
             } else if (arg.key == "item_cover_set") {
                 this.item_cover_set(arg.blackboard)
-            }else if (arg.key == "change_fragment_type_weight") {
+            } else if (arg.key == "change_fragment_type_weight") {
                 this._trigger.emit("rlv2:fragment:change_type_weight", arg.blackboard)
             }
         })
@@ -61,13 +61,20 @@ export class RoguelikeBuffManager {
         return this._buffs.filter(buff => buff.key == key)
     }
     generateBuff(key: string, id: string, value: number): RoguelikeBuff {
-        switch (key) {
-            case "immediate_reward":
-                return { key: key, blackboard: [{ key: "id", value: 0.0, valueStr: id }, { key: "count", value: value, valueStr: null }] }
-                break
-            
+        let blackboard:Blackboard=[]
+        const funcs: { [key: string]: (id: string, value: number) => Blackboard } = {
+            "immediate_reward": (id: string, value: number) => {
+                return [
+                    { key: "id", value: 0.0, valueStr: id },
+                    { key: "count", value: value, valueStr: null }
+                ]
+
+            },
         }
-        return { key: key, blackboard: [] }
+        if (funcs[key]) {
+            blackboard= funcs[key](id, value)
+        }
+        return { key: key, blackboard: blackboard }
     }
     immediate_reward(blackboard: Blackboard) {
         let item: RoguelikeItemBundle = { id: blackboard[0].valueStr!, count: blackboard[1].value!, sub: 0 }

@@ -172,7 +172,7 @@ export class MissionProgress implements MissionPlayerState {
             console.log(template)
             throw new Error("template not implemented yet")
         }
-        this._trigger.on(template, (args: {}, mode) => {
+        this._trigger.on(template, (args: {}, mode:string="update") => {
             this[template](args, mode)
             //console.log(`[MissionManager] ${this.missionId} update ${this.progress[0].value}/${this.progress[0].target}`)
             if (this.progress[0].value >= this.progress[0].target!) {
@@ -902,10 +902,10 @@ export class MissionProgress implements MissionPlayerState {
                 },
                 "update": (args: { favorPoint: number }) => {
                     let percent: number = 0
-                    if (args.favorPoint == excel.favorTable.maxFavor) {
+                    if (args.favorPoint == excel.FavorTable.maxFavor) {
                         percent = 200
                     }
-                    percent = excel.favorTable.favorFrames.find((f, idx, table) => {
+                    percent = excel.FavorTable.favorFrames.find((f, idx, table) => {
                         return args.favorPoint >= table[idx].level && args.favorPoint < table[idx + 1].level
                     })!.data.percent
                     if (percent >= parseInt(this.param[2])) {

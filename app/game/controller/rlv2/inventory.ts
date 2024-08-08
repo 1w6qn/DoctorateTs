@@ -98,9 +98,21 @@ export class RoguelikeInventoryManager implements PlayerRoguelikeV2.CurrentData.
                     ticket: ticket
                 })
             },
-            "RELIC":(item:RoguelikeItemBundle)=>{},
-            "BP_POINT":(item:RoguelikeItemBundle)=>{},
-            "GROW_POINT":(item:RoguelikeItemBundle)=>{},
+            "RELIC":(item:RoguelikeItemBundle)=>{
+                this._trigger.emit("rlv2:relic:gain", item.id)
+            },
+            "BP_POINT":(item:RoguelikeItemBundle)=>{
+                const theme=this._player.current.game!.theme
+                this._player.outer[theme].bp.point += item.count
+                const maxNum=excel.RoguelikeTopicTable.details[theme].milestones.at(-1)!.tokenNum
+                if(this._player.outer[theme].bp.point>maxNum){
+                    this._player.outer[theme].bp.point=maxNum
+                }
+            },
+            "GROW_POINT":(item:RoguelikeItemBundle)=>{
+                const theme=this._player.current.game!.theme
+                this._player.outer[theme].collect
+            },
             "BAND":(item:RoguelikeItemBundle)=>{},
             "ACTIVE_TOOL":(item:RoguelikeItemBundle)=>{},
             "CAPSULE":(item:RoguelikeItemBundle)=>{},
@@ -116,7 +128,6 @@ export class RoguelikeInventoryManager implements PlayerRoguelikeV2.CurrentData.
             "DICE_POINT":(item:RoguelikeItemBundle)=>{},
             "DICE_TYPE":(item:RoguelikeItemBundle)=>{},
             "SHIELD":(item: RoguelikeItemBundle)=>this._player._status.property.shield += item.count,
-
             "LOCKED_TREASURE":(item:RoguelikeItemBundle)=>{},
             "CUSTOM_TICKET":(item:RoguelikeItemBundle)=>{},
             "TOTEM":(item:RoguelikeItemBundle)=>{},

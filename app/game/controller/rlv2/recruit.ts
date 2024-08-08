@@ -79,7 +79,7 @@ export class RoguelikeRecruitManager {
         this.tickets[id].result = this.tickets[id].list.find(item => item.instId == parseInt(optionId)) as PlayerRoguelikeV2.CurrentData.RecruitChar
 
         this._trigger.emit("rlv2:char:get", this.tickets[id].result)
-        this._trigger.emit("rlv2:get:items", [{ id: "", count: -this.tickets[id].result.population, type: "POPULATION" }])
+        this._trigger.emit("rlv2:get:items", [{ id: "", count: -this.tickets[id].result.population||0, type: "POPULATION" }])
         this.tickets[id].list = []
     }
     gain(id: string, from: string, mustExtra: number): void {

@@ -17,6 +17,7 @@ import { RoguelikeBattleManager } from "./rlv2/battle";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { BattleData } from "@game/model/battle";
 import { RoguelikePoolManager } from "./rlv2/pool";
+import { RoguelikeGameInitData } from "@excel/roguelike_topic_table";
 export class RoguelikeV2Config {
     choiceScenes: { [key: string]: { choices: { [key: string]: number } } }
     constructor() {
@@ -39,6 +40,13 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2{
     _player: PlayerDataManager
     _trigger: EventEmitter
     inventory!: RoguelikeInventoryManager | null;
+    get initConfig():RoguelikeGameInitData{
+        const game=this.current.game!
+        const initConfig=excel.RoguelikeTopicTable.details[game.theme].init.find(
+            i => (i.modeGrade == game.modeGrade && i.predefinedId == game.predefined && i.modeId == game.mode)
+        )!
+        return initConfig
+    }
     setPinned(id: string): void {
         this.pinned = id
     }

@@ -29,7 +29,7 @@ export class StatusManager {
     refreshTime() {
         let ts = now()
         if (checkNewDay(this.status.lastRefreshTs, ts)) {
-            this._trigger.emit("refresh:daily")
+            this._trigger.emit("refresh:daily",this.status.lastRefreshTs)
         }
         if (moment().date() == 1 && checkNewMonth(this.status.lastRefreshTs, ts)) {
             this._trigger.emit("refresh:monthly")

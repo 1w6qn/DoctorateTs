@@ -1,4 +1,32 @@
+import { CharacterData } from "@excel/character_table";
+import excel from "@excel/excel";
+import EventEmitter from "events";
 
+export class Character{
+    _data:PlayerCharacter
+    _info!:CharacterData
+    _trigger:EventEmitter;
+    constructor(data:PlayerCharacter,_trigger:EventEmitter){
+        this._data = data;
+        this.init();
+        this._trigger = _trigger;
+        
+    }
+    async init(){
+        await excel.initPromise;
+        this._info = excel.CharacterTable[this._data.charId];
+        this._trigger.on("evolve",(destEvolvePhase:number)=>{
+            excel.SkinTable.buildinEvolveMap
+        })  
+    }
+    evolve(destEvolvePhase:number){
+        this._data.evolvePhase = destEvolvePhase;
+        
+    }
+    toJSON():PlayerCharacter{
+        return this._data
+    }
+}
 export interface PlayerCharacter{
     instId: number;
     charId:string;

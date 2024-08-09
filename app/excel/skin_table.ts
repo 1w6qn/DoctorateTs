@@ -45,7 +45,7 @@ export interface CharSkinData {
     isBuySkin:     boolean;
     tmplId:        null | string;
     voiceId:       null | string;
-    voiceType:     SkinVoiceType;
+    voiceType:     string;
     displaySkin:   DisplaySkin;
 }
 
@@ -81,13 +81,6 @@ export interface TokenSkinInfo {
     tokenId:     string;
     tokenSkinId: string;
 }
-
-export enum SkinVoiceType {
-    All = "ALL",
-    Illust = "ILLUST",
-    None = "NONE",
-}
-
 export interface SpecialSkinInfo {
     skinId:    string;
     startTime: number;

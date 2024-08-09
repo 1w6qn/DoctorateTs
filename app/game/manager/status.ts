@@ -4,22 +4,24 @@ import excel from "@excel/excel"
 import { checkNewDay, checkNewMonth, checkNewWeek, now } from "@utils/time";
 import moment from "moment";
 import { AvatarInfo } from "@game/model/character";
+import { PlayerDataManager } from "./PlayerDataManager";
 
 export class StatusManager {
     status: PlayerStatus
     collectionReward: PlayerCollection
     nameCardStyle: PlayerNameCardStyle
+    _player:PlayerDataManager
     _trigger: EventEmitter
     get uid(): string {
         return this.status.uid
     }
-    constructor(playerdata: PlayerDataModel, _trigger: EventEmitter) {
-        this.status = playerdata.status
-        this.collectionReward = playerdata.collectionReward
-        this.nameCardStyle = playerdata.nameCardStyle
+    constructor(player: PlayerDataManager, _trigger: EventEmitter) {
+        this.status = player._playerdata.status
+        this.collectionReward = player._playerdata.collectionReward
+        this.nameCardStyle = player._playerdata.nameCardStyle
+        this._player = player
         this._trigger = _trigger
         this._trigger.on("status:refresh:time", this.refreshTime.bind(this))
-        this._trigger.on("status:change:secretary", this._changeSecretary.bind(this))
         this._trigger.on("refresh:daily", this.dailyRefresh.bind(this))
         this._trigger.on("refresh:weekly", this.weeklyRefresh.bind(this))
         this._trigger.on("refresh:monthly", this.monthlyRefresh.bind(this))
@@ -55,9 +57,10 @@ export class StatusManager {
     monthlyRefresh() {
 
     }
-    _changeSecretary(charId: string, skinId: string) {
+    changeSecretary(args:{charInstId: number, skinId: string}) {
+        const charId = this._player.troop.getCharacterByInstId(args.charInstId).charId
         this.status.secretary = charId
-        this.status.secretarySkinId = skinId
+        this.status.secretarySkinId = args.skinId
     }
     finishStory(storyId: string) {
         this.status.flags[storyId] = 1

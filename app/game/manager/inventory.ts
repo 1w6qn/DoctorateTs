@@ -28,8 +28,16 @@ export class InventoryManager {
             item.type = excel.ItemTable.items[item.id].itemType as string
         }
         const funcs: { [key: string]: (item: ItemBundle) => void } = {
-            "TKT_GACHA_PRSV": (item: ItemBundle) => { },
-            
+            "TKT_GACHA_PRSV": (item: ItemBundle) => this.consumable[item.id][item.instId!].count-=item.count,
+            "VOUCHER_ELITE_II_4": (item: ItemBundle) => this.consumable[item.id][item.instId!].count-=item.count,
+            "VOUCHER_ELITE_II_5": (item: ItemBundle) => this.consumable[item.id][item.instId!].count-=item.count,
+            "VOUCHER_ELITE_II_6": (item: ItemBundle) => this.consumable[item.id][item.instId!].count-=item.count,
+            "VOUCHER_LEVELMAX_6": (item: ItemBundle) => this.consumable[item.id][item.instId!].count-=item.count,
+            "VOUCHER_LEVELMAX_5": (item: ItemBundle) => this.consumable[item.id][item.instId!].count-=item.count,
+            "VOUCHER_LEVELMAX_4": (item: ItemBundle) => this.consumable[item.id][item.instId!].count-=item.count,
+            "VOUCHER_SKILL_SPECIALLEVELMAX_6": (item: ItemBundle) => this.consumable[item.id][item.instId!].count-=item.count,
+            "VOUCHER_SKILL_SPECIALLEVELMAX_5": (item: ItemBundle) => this.consumable[item.id][item.instId!].count-=item.count,
+            "VOUCHER_SKILL_SPECIALLEVELMAX_4": (item: ItemBundle) => this.consumable[item.id][item.instId!].count-=item.count,
         }
         if (funcs[item.type]) {
             funcs[item.type](item)

@@ -7,7 +7,7 @@ import { ItemBundle } from '../../excel/character_table';
 const router = Router();
 router.post("/changeSecretary", (req, res) => {
     let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
-    player.troop.changeSecretary(req.body!.charInstId, req.body!.skinId)
+    player.status.changeSecretary(req.body)
     player._trigger.emit("save")
     res.send(player.delta)
 })

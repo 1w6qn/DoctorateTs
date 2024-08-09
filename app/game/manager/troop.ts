@@ -191,6 +191,13 @@ export class TroopManager {
     setDefaultSkill(instId: number, defaultSkillIndex: number): void {
         this.chars[instId].defaultSkillIndex = defaultSkillIndex;
     }
+    upgradeSkill(instId: number, targetLevel: number): void {
+        let char = this.getCharacterByInstId(instId);
+        this._trigger.emit("useItems", excel.CharacterTable[char.charId].allSkillLvlup[targetLevel - 2].lvlUpCost as ItemBundle[])
+        char.mainSkillLvl = targetLevel;
+        this._trigger.emit("BoostPotential", { targetLevel: targetLevel })
+    }
+
     changeCharSkin(instId: number, skinId: string): void {
         this.chars[instId].skinId = skinId;
     }
@@ -198,25 +205,15 @@ export class TroopManager {
     changeCharTemplate(instId: number, templateId: string): void {
         this.chars[instId].currentTmpl = templateId;
     }
+
     batchSetCharVoiceLan(voiceLan: string): void {
         Object.values(this.chars).forEach(char => char.voiceLan = voiceLan);
     }
-    upgradeSkill(instId: number, targetLevel: number): void {
-        let char = this.getCharacterByInstId(instId);
-        this._trigger.emit("useItems", excel.CharacterTable[char.charId].allSkillLvlup[targetLevel - 2].lvlUpCost as ItemBundle[])
-        char.mainSkillLvl = targetLevel;
-        this._trigger.emit("BoostPotential", { targetLevel: targetLevel })
-    }
-    squadFormation(squadId: number, slots: PlayerSquadItem[]): void {
-        this.squads[squadId].slots = slots;
-        this._trigger.emit("SquadFormation",this.squads[squadId])
-    }
-    changeSquadName(args:{squadId: number, name: string}): void {
-        this.squads[args.squadId].name = args.name;
-        this._trigger.emit("ChangeSquadName")
-    }
-    changeMarkStar(args:{chrIdDict: { [key: string]: number }}) {
-        //TODO
+    setCharVoiceLan(charList:number[],voiceLan:string){
+        charList.forEach(charInstId=>{
+            let char = this.getCharacterByInstId(charInstId)
+            char.voiceLan=voiceLan
+        })
     }
     setEquipment(args: { charInstId: number, templateId: string, equipId: string }): void {
         let char = this.getCharacterByInstId(args.charInstId);
@@ -252,10 +249,64 @@ export class TroopManager {
         this._trigger.emit("useItems", items)
         this._trigger.emit("HasEquipmemt",{...char,...args})
     }
-    changeSecretary(charInstId: number, skinId: string) {
-        let charId = this.getCharacterByInstId(charInstId).charId;
-        this._trigger.emit("status:change:secretary", charId, skinId)
+
+    changeMarkStar(args:{chrIdDict: { [key: string]: number }}) {
+        Object.entries(args.chrIdDict).forEach(([charId, mark]) => {
+            let char = this.getCharacterByCharId(charId);
+            char.starMark = mark;
+        })
     }
+    lockChar(){}
+    sellChar(){}
+    upgradeSpecialization(args: { charInstId: number, skillIndex: number ,targetLevel:number }){
+
+    }
+    completeUpgradeSpecialization(args: { charInstId: number, skillIndex: number ,targetLevel:number }){
+        //TODO
+        let char = this.getCharacterByInstId(args.charInstId)
+        char.skills![args.skillIndex].completeUpgradeTime=-1
+        char.skills![args.skillIndex].specializeLevel=args.targetLevel
+        this._trigger.emit("UpgradeSpecialization",args)
+    }
+    getSpCharMissionReward(args: { charId: string, missionId: string }): ItemBundle[] {
+        let items:ItemBundle[] = excel.CharMetaTable.spCharMissions[args.charId][args.missionId].rewards
+        this.charMission[args.charId][args.missionId] = 2
+        this._trigger.emit("gainItems", items)
+        return items
+    }
+    evolveCharUseItem(args: { charInstId: number, itemId: string ,instId:number }){
+        let char = this.getCharacterByInstId(args.charInstId)
+        char.evolvePhase=2
+        char.level=1
+        char.exp=0
+        this.chars[args.instId].skinId = char.charId + "#2";
+        this._trigger.emit("useItems",[{id:args.itemId,count:1,instId:args.instId}])
+    }
+    upgradeCharLevelMaxUseItem(args: { charInstId: number, itemId: string ,instId:number }){
+        let char = this.getCharacterByInstId(args.charInstId)
+        const rarity=parseInt(excel.CharacterTable[char.charId].rarity.slice(-1))
+        const maxLevel=excel.GameDataConst.maxLevel[rarity-1][char.evolvePhase]
+        char.level=maxLevel
+        char.exp=0
+        this._trigger.emit("useItems",[{id:args.itemId,count:1,instId:args.instId}])
+    }
+    upgradeSpecializedSkillUseItem(args: { charInstId: number,skillIndex:number, itemId: string ,instId:number }){
+        let char = this.getCharacterByInstId(args.charInstId)
+        char.skills![args.skillIndex].specializeLevel=3
+        this._trigger.emit("useItems",[{id:args.itemId,count:1,instId:args.instId}])
+    }
+
+
+    squadFormation(squadId: number, slots: PlayerSquadItem[]): void {
+        this.squads[squadId].slots = slots;
+        this._trigger.emit("SquadFormation",this.squads[squadId])
+    }
+    changeSquadName(args:{squadId: number, name: string}): void {
+        this.squads[args.squadId].name = args.name;
+        this._trigger.emit("ChangeSquadName")
+    }
+
+
     decomposePotentialItem(charInstIdList: string[]): ItemBundle[] {
         let costs: ItemBundle[] = []
         let items: ItemBundle[] = charInstIdList.reduce((acc, charInstId) => {
@@ -287,6 +338,22 @@ export class TroopManager {
         this._trigger.emit("useItems", costs)
         this._trigger.emit("gainItems", items)
         return items
+    }
+    
+    addonStoryUnlock(args: { charId: string, storyId: string }){
+        if(!this.addon[args.charId].story){
+            this.addon[args.charId].story = {}
+        }
+        this.addon[args.charId].story![args.storyId] = {
+            fts:now(),
+            rts:now()
+        }
+    }
+    addonStageBattleStart(args: { charId: string, stageId: string ,squad:PlayerSquad,stageType:string}){
+        //TODO
+    }
+    addonStageBattleFinish(){
+
     }
     
     async fix(): Promise<void> {

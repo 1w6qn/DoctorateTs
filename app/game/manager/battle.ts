@@ -14,7 +14,7 @@ export class BattleManager {
     constructor(_playerdata: PlayerDataModel,  _trigger: EventEmitter) {
         this._playerdata = _playerdata;
         this._trigger = _trigger;
-
+        this._trigger.on('battle:start', this.start.bind(this))
     }
     async start(args: CommonStartBattleRequest) {
         await excel.initPromise

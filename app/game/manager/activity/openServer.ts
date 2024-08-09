@@ -2,11 +2,11 @@ import EventEmitter from "events";
 import { PlayerOpenServer, OpenServerChainLogin, OpenServerCheckIn } from '../../model/playerdata';
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
-import { now } from "@utils/time";
+import { checkBetween, now } from "@utils/time";
 import { PlayerDataManager } from "../PlayerDataManager";
 import moment from "moment";
 
-export class CheckInManager implements PlayerOpenServer {
+export class OpenServerManager implements PlayerOpenServer {
 
     checkIn: OpenServerCheckIn;
     chainLogin: OpenServerChainLogin;
@@ -18,31 +18,42 @@ export class CheckInManager implements PlayerOpenServer {
         this._player = player;
         this._trigger = _trigger;
         this._trigger.on("refresh:daily", this.dailyRefresh.bind(this))
+        this._trigger.on("openserver:chain:login", (ts)=>{
+            const diff=moment().diff(moment(ts), 'days')
+            this.chainLogin.nowIndex+=1
+            if(diff<=1){
+                this.chainLogin.history[this.chainLogin.nowIndex]=this.chainLogin.history[this.chainLogin.nowIndex]||1   
+            }else{
+                this.chainLogin.nowIndex=0
+            }
 
+        })
     }
 
 
     dailyRefresh(ts: number) {
-        const diff=moment().diff(moment(ts), 'days')
-        if(diff<=1&&this.chainLogin.isAvailable){
-            this.chainLogin.history.push(1)
-            this.chainLogin.nowIndex+=1
-            
+        if(this.chainLogin.isAvailable){
+            this._trigger.emit("openserver:chain:login",ts)
         }
         if(this.checkIn.isAvailable){
             this.checkIn.history.push(1)
-            
         }
     }
-    getChainLogInReward(args:{index: number}): ItemBundle[] {
-        let items=excel.open
-        
+    async getChainLogInReward(args:{index: number}): Promise<ItemBundle[]> {
+        await excel.initPromise
+        const schedule=excel.OpenServerTable.schedule.find((s)=>checkBetween(now(),s.startTs,s.endTs))!.id
+        let item=excel.OpenServerTable.dataMap[schedule].chainLoginData[this.chainLogin.nowIndex].item
+        let items=[{id:item.itemId,count:item.count}]
         this.chainLogin.isAvailable=this.chainLogin.history.length==7
-        return []
+        return items
     }
-    getCheckInReward(): ItemBundle[] {
+    async getCheckInReward(): Promise<ItemBundle[]> {
+        await excel.initPromise
+        const schedule=excel.OpenServerTable.schedule.find((s)=>checkBetween(now(),s.startTs,s.endTs))!.id
+        const item=excel.OpenServerTable.dataMap[schedule].checkInData[this.checkIn.history.length-1].item
+        let items=[{id:item.itemId,count:item.count}]
         this.checkIn.isAvailable=this.checkIn.history.length==14
-        return []
+        return items
     }
     toJSON() {
         return {

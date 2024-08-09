@@ -18,6 +18,7 @@ import { MedalData } from "./medal_table";
 import { GachaDetailTable } from "./gacha_detail_table";
 import { CharMetaTable } from "./char_meta_table";
 import { SkinTable } from "./skin_table";
+import { OpenServerSchedule } from "./open_server_table";
 
 export class Excel {
     BattleEquipTable!: BattleEquipTable;
@@ -39,6 +40,7 @@ export class Excel {
     GachaDetailTable!:GachaDetailTable
     CharMetaTable!:CharMetaTable
     SkinTable!:SkinTable
+    OpenServerTable!:OpenServerSchedule
     initPromise:Promise<void>;
     constructor() {
         this.initPromise=this.init()
@@ -62,6 +64,7 @@ export class Excel {
         this.MedalTable=await import('../../data/excel/medal_table.json');
         this.CharMetaTable=await import('../../data/excel/char_meta_table.json');
         this.SkinTable=(await import('../../data/excel/skin_table.json')).default;
+        this.OpenServerTable=(await import('../../data/excel/open_server_table.json')).default;
         
         this.GachaDetailTable=await import('../../data/gacha_detail_table.json');
     }

@@ -34,7 +34,9 @@ export class CheckInManager implements PlayerOpenServer {
             
         }
     }
-    getChainLogInReward(index: number): ItemBundle[] {
+    getChainLogInReward(args:{index: number}): ItemBundle[] {
+        let items=excel.open
+        
         this.chainLogin.isAvailable=this.chainLogin.history.length==7
         return []
     }

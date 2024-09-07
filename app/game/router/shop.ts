@@ -4,7 +4,7 @@ import httpContext from 'express-http-context';
 import { PlayerDataManager } from '../manager/PlayerDataManager';
 const router = Router();
 router.post("/decomposePotentialItem", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     res.send({
         items: player.troop.decomposePotentialItem(req.body!.charInstIdList),
         ...player.delta
@@ -12,7 +12,7 @@ router.post("/decomposePotentialItem", (req, res) => {
     player._trigger.emit("save")
 })
 router.post("/decomposeClassicPotentialItem", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     res.send({
         items: player.troop.decomposeClassicPotentialItem(req.body!.charInstIdList),
         ...player.delta
@@ -20,7 +20,7 @@ router.post("/decomposeClassicPotentialItem", (req, res) => {
     player._trigger.emit("save")
 })
 router.post("/getGoodPurchaseState", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     res.send({
         result:{},
         ...player.delta
@@ -28,7 +28,7 @@ router.post("/getGoodPurchaseState", (req, res) => {
     player._trigger.emit("save")
 })
 router.post("/getLowGoodList", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     res.send({
         ...player.shop.lowGoodList,
         ...player.delta
@@ -36,7 +36,7 @@ router.post("/getLowGoodList", (req, res) => {
     player._trigger.emit("save")
 })
 router.post("/getHighGoodList", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     res.send({
         ...player.shop.highGoodList,
         ...player.delta
@@ -44,7 +44,7 @@ router.post("/getHighGoodList", (req, res) => {
     player._trigger.emit("save")
 })
 router.post("/getClassicGoodList", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     res.send({
         ...player.shop.classicGoodList,
         ...player.delta
@@ -52,7 +52,7 @@ router.post("/getClassicGoodList", (req, res) => {
     player._trigger.emit("save")
 })
 router.post("/getEPGSGoodList", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     res.send({
         ...player.shop.EPGSGoodList,
         ...player.delta
@@ -60,7 +60,7 @@ router.post("/getEPGSGoodList", (req, res) => {
     player._trigger.emit("save")
 })
 router.post("/getLMTGSGoodList", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     res.send({
         ...player.shop.LMTGSGoodList,
         ...player.delta
@@ -68,7 +68,7 @@ router.post("/getLMTGSGoodList", (req, res) => {
     player._trigger.emit("save")
 })
 router.post("/getExtraGoodList", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     res.send({
         ...player.shop.extraGoodList,
         ...player.delta
@@ -76,7 +76,7 @@ router.post("/getExtraGoodList", (req, res) => {
     player._trigger.emit("save")
 })
 router.post("/getREPGoodList", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     res.send({
         ...player.shop.REPGoodList,
         ...player.delta
@@ -84,7 +84,7 @@ router.post("/getREPGoodList", (req, res) => {
     player._trigger.emit("save")
 })
 router.post("/getSkinGoodList", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     res.send({
         ...player.shop.skinGoodList,
         ...player.delta
@@ -92,7 +92,7 @@ router.post("/getSkinGoodList", (req, res) => {
     player._trigger.emit("save")
 })
 router.post("/getCashGoodList", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     res.send({
         ...player.shop.cashGoodList,
         ...player.delta
@@ -100,7 +100,7 @@ router.post("/getCashGoodList", (req, res) => {
     player._trigger.emit("save")
 })
 router.post("/getGPGoodList", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     res.send({
         ...player.shop.GPGoodList,
         ...player.delta
@@ -108,7 +108,7 @@ router.post("/getGPGoodList", (req, res) => {
     player._trigger.emit("save")
 })
 router.post("/getSocialGoodList", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     res.send({
         ...player.shop.socialGoodList,
         ...player.delta
@@ -118,7 +118,7 @@ router.post("/getSocialGoodList", (req, res) => {
 
 
 router.post("/buyLowGood", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     res.send({
         result:0,
         items:player.shop.buyLowGood(req.body!.goodId,req.body!.count),
@@ -127,7 +127,7 @@ router.post("/buyLowGood", (req, res) => {
     player._trigger.emit("save")
 })
 router.post("/buySkinGood", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     player.shop.buySkinGood(req.body!.goodId)
     res.send({
         ...player.delta

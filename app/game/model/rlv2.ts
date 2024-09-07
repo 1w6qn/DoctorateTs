@@ -1,5 +1,5 @@
-import { OrigChar, PlayerCharacter, SharedCharData } from "./character"
-import { Blackboard } from "../../excel/character_table"
+import { OrigChar, PlayerCharacter } from "./character"
+import { Blackboard } from "@excel/character_table"
 
 // Assembly-CSharp
 export enum TorappuRoguelikeEventType {

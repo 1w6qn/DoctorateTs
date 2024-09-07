@@ -1,4 +1,4 @@
-import { PlayerRoguelikeV2 } from "../../../model/rlv2"
+import { PlayerRoguelikeV2 } from "@game/model/rlv2"
 import EventEmitter from "events"
 import { RoguelikeV2Controller } from '../../rlv2';
 import excel from "@excel/excel";

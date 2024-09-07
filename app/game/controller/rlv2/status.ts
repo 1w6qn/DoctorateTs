@@ -1,5 +1,5 @@
 import { EventEmitter } from "events"
-import { PlayerRoguelikeV2, RoguelikeItemBundle } from '../../model/rlv2';
+import { PlayerRoguelikeV2 } from '../../model/rlv2';
 
 import { RoguelikeV2Controller } from '../rlv2';
 import excel from "@excel/excel";

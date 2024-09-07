@@ -1,5 +1,5 @@
 import EventEmitter from "events"
-import { PlayerCollection, PlayerDataModel, PlayerStatus, PlayerNameCardStyle, NameCardMisc } from '../model/playerdata';
+import { PlayerCollection, PlayerStatus, PlayerNameCardStyle, NameCardMisc } from '../model/playerdata';
 import excel from "@excel/excel"
 import { checkNewDay, checkNewMonth, checkNewWeek, now } from "@utils/time";
 import moment from "moment";

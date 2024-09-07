@@ -1,7 +1,7 @@
 import { ItemBundle } from "app/excel/character_table";
 import excel from "../../excel/excel";
 import EventEmitter from "events";
-import { PlayerConsumableItem, PlayerAvatar, PlayerSkins, PlayerStatus } from "../model/playerdata";
+import { PlayerConsumableItem, PlayerSkins, PlayerStatus } from "../model/playerdata";
 import { now } from "@utils/time";
 import { PlayerDataManager } from "./PlayerDataManager";
 

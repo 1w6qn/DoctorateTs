@@ -1,7 +1,7 @@
 import EventEmitter from "events";
 import { PlayerDataModel, PlayerDataShop } from "../model/playerdata";
 import { CashGoodList, HighGoodList, LowGoodList, SkinGoodList, REPGoodList, LMTGSGoodList, EPGSGoodList, ClassicGoodList, ExtraGoodList, GPGoodList, SocialGoodList } from '../model/shop';
-import { ItemBundle } from "../../excel/character_table";
+import { ItemBundle } from "@excel/character_table";
 export class ShopController {
     shop: PlayerDataShop
     lowGoodList!: LowGoodList

@@ -1,6 +1,5 @@
 import EventEmitter from "events";
 import { PlayerBuilding, PlayerBuildingChar, PlayerBuildingFurnitureInfo, PlayerBuildingRoom, PlayerBuildingRoomSlot, PlayerBuildingSolution, PlayerBuildingStatus } from "../model/playerdata";
-import excel from "@excel/excel";
 import { PlayerCharacter } from "@game/model/character";
 import { now } from "@utils/time";
 import { PlayerDataManager } from "./PlayerDataManager";

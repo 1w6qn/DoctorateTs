@@ -1,8 +1,6 @@
-import { PlayerRoguelikeV2 } from "../../../model/rlv2"
+import { PlayerRoguelikeV2 } from "@game/model/rlv2"
 import EventEmitter from "events"
 import { RoguelikeV2Controller } from '../../rlv2';
-import excel from "@excel/excel";
-import { randomChoice } from "@utils/random";
 
 export class RoguelikeTotemManager {
     _totemPiece:PlayerRoguelikeV2.CurrentData.Module.InventoryTotem[]

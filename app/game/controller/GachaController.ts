@@ -2,7 +2,6 @@ import EventEmitter from "events"
 import { PlayerGacha } from '../model/playerdata';
 import { GachaResult } from "../model/gacha";
 import { GachaDetailData, GachaDetailTable, GachaPerChar } from "@excel/gacha_detail_table";
-import { readFileSync } from "fs";
 import excel from "@excel/excel";
 import { TroopManager } from "../manager/troop";
 import { accountManager } from "../manager/AccountManger";
@@ -19,7 +18,7 @@ export class GachaController {
         this.gacha = gacha
         this.uid = uid
         this._troop = troop
-        this._table = JSON.parse(readFileSync(`${__dirname}/../../../data/gacha_detail_table.json`, 'utf8'))
+        this._table = excel.GachaDetailTable
         this._trigger = _trigger
     }
     fix() {
@@ -61,16 +60,16 @@ export class GachaController {
         let rank: number = 0
 
         const funcs: { [key: string]: () => string } = {
-            "NORMAL": () => this._handleGacha(poolId, { beforeNonHitCnt }),
-            "LIMITED": () => {
+            NORMAL: () => this._handleGacha(poolId, { beforeNonHitCnt }),
+            LIMITED: () => {
                 extras.extraItem = { id: excel.GachaTable.gachaPoolClient.find((g) => g.gachaPoolId === poolId)!.LMTGSID, count: 1 }
                 return this._handleGacha(poolId, { beforeNonHitCnt })
 
             },
-            "LINKAGE": () => this._handleGacha(poolId, { beforeNonHitCnt }),
-            "ATTAIN": () => this._handleGacha(poolId, { beforeNonHitCnt }),
-            "CLASSIC": () => this._handleGacha(poolId, { beforeNonHitCnt }),
-            "SINGLE": () => {
+            LINKAGE: () => this._handleGacha(poolId, { beforeNonHitCnt }),
+            ATTAIN: () => this._handleGacha(poolId, { beforeNonHitCnt }),
+            CLASSIC: () => this._handleGacha(poolId, { beforeNonHitCnt }),
+            SINGLE: () => {
                 let ensure = ""
                 if (!this.gacha.single[poolId]) {
                     this.gacha.single[poolId] = {
@@ -88,8 +87,8 @@ export class GachaController {
                 this._handleGacha(poolId, { beforeNonHitCnt,ensure })
                 return charId
             },
-            "FESCLASSIC": () => this._handleGacha(poolId, { beforeNonHitCnt }),
-            "CLASSIC_ATTAIN": () => this._handleGacha(poolId, { beforeNonHitCnt }),
+            FESCLASSIC: () => this._handleGacha(poolId, { beforeNonHitCnt }),
+            CLASSIC_ATTAIN: () => this._handleGacha(poolId, { beforeNonHitCnt }),
         }
 
         charId=funcs[ruleType]()
@@ -104,11 +103,10 @@ export class GachaController {
     }
     _handleGacha(poolId: string, args: { beforeNonHitCnt: number, ensure?: string }):string{
         let rank = this._getRarityRank(poolId, args);
-        let charId = this._getRandomChar(poolId, rank, args);
-        return charId
+        return this._getRandomChar(poolId, rank, args)
     }
     _getRandomChar(poolId: string, rank: number, args: { ensure?: string }): string {
-        let charId = ""
+        let charId: string
         let detail = this._table.details[poolId]
         let perChar = detail.upCharInfo!.perCharList.find((c) => c.rarityRank === rank) as GachaPerChar
         let rr = Math.random()
@@ -133,7 +131,7 @@ export class GachaController {
     _getRarityRank(poolId: string, args: { beforeNonHitCnt: number },): number {
         const detail = this._table.details[poolId]
         let per6 = detail.availCharInfo.perAvailList.find((c) => c.rarityRank === 5)!.totalPercent
-        let rank = 2
+        let rank: number
         per6 += args.beforeNonHitCnt < 50 ? 0 : (args.beforeNonHitCnt - 50) * 0.02
         if (Math.random() <= per6) {
             rank = 5

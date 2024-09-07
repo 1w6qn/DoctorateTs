@@ -21,10 +21,10 @@ export class RoguelikeRecruitManager {
         let chars: PlayerRoguelikeV2.CurrentData.RecruitChar[] = Object.values(this._troop.chars).reduce((acc, char) => {
             let data = excel.CharacterTable[char.charId]
 
-            if (ticketInfo.professionList.some(p => data.profession.includes(p)) == false) {
+            if (!ticketInfo.professionList.some(p => data.profession.includes(p))) {
                 return acc
             }
-            if (ticketInfo.rarityList.some(r => data.rarity == r) == false) {
+            if (!ticketInfo.rarityList.some(r => data.rarity == r)) {
                 return acc;
             }
             let isUpgraded=false
@@ -47,7 +47,7 @@ export class RoguelikeRecruitManager {
 
             }
             let levelPatch = {}
-            if (char.evolvePhase == 2 && isUpgraded == false ) {
+            if (char.evolvePhase == 2 && !isUpgraded ) {
 
                 const maxLevel = excel.GameDataConst.maxLevel[rarity - 1][1];
                 levelPatch = {

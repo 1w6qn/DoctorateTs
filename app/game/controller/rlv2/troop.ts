@@ -1,9 +1,7 @@
-import excel from "@excel/excel"
-import { PlayerRoguelikeV2, RoguelikeItemBundle } from "../../model/rlv2"
+import { PlayerRoguelikeV2 } from "../../model/rlv2"
 import EventEmitter from "events"
 import { RoguelikeV2Controller } from '../rlv2';
-import { now } from "@utils/time";
-import { omit, pick } from "lodash";
+import { omit } from "lodash";
 
 export class RoguelikeTroopManager implements PlayerRoguelikeV2.CurrentData.Troop {
     _index: number;

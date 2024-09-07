@@ -1,8 +1,7 @@
 import excel from "@excel/excel"
-import { PlayerRoguelikeV2, RoguelikeItemBundle } from "../../model/rlv2"
+import { RoguelikeItemBundle } from "../../model/rlv2"
 import EventEmitter from "events"
 import { RoguelikeV2Controller } from '../rlv2';
-import { now } from "@utils/time";
 import { randomChoice } from "@utils/random";
 
 export class RoguelikePoolManager {

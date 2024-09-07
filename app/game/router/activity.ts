@@ -4,7 +4,7 @@ import { PlayerDataManager } from '../manager/PlayerDataManager';
 
 const router = Router();
 router.post("/getChainLogInReward", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     
     player._trigger.emit("save")
     res.send({
@@ -13,7 +13,7 @@ router.post("/getChainLogInReward", (req, res) => {
     })
 })
 router.post("/getChainLogInFinalRewards", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
 
     player._trigger.emit("save")
     res.send({
@@ -22,7 +22,7 @@ router.post("/getChainLogInFinalRewards", (req, res) => {
     })
 })
 router.post("/getOpenServerCheckInReward", (req, res) => {
-    let player: PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player: PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
 
     player._trigger.emit("save")
     res.send({

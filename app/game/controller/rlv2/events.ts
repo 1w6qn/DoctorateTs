@@ -1,9 +1,7 @@
-import { RoguelikeGameInitData } from "@excel/roguelike_topic_table"
 import { PlayerRoguelikePendingEvent } from "../../model/rlv2"
-import _ from "lodash"
 import { RoguelikeV2Controller } from "../rlv2"
 import EventEmitter from "events"
-import excel from "@excel/excel"
+
 export class RoguelikeEventManager {
     _index: number
     _player: RoguelikeV2Controller

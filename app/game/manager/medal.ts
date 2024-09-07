@@ -1,10 +1,9 @@
 import EventEmitter from "events";
-import { PlayerMedal, PlayerDataModel, PlayerPerMedal, PlayerMedalCustom, PlayerMedalCustomLayout, PlayerDungeon, PlayerCampaign } from '../model/playerdata';
+import { PlayerMedal, PlayerDataModel, PlayerPerMedal, PlayerMedalCustom, PlayerMedalCustomLayout, PlayerCampaign } from '../model/playerdata';
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
 import moment from "moment";
-import { BattleData } from "@game/model/battle";
 import { DungeonManager } from "./dungeon";
 export class MedalManager implements PlayerMedal {
     medals: { [key: string]: PlayerPerMedal };

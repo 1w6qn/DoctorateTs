@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from "fs";
-import { BaseMailItem, MailItem, MailMetaInfo } from "../model/mail";
+import { MailItem, MailMetaInfo } from "../model/mail";
 import { ItemBundle } from "app/excel/character_table";
 import { now } from "@utils/time";
 

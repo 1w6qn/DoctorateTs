@@ -2,7 +2,7 @@ type DeepPartial<T> = {
     [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
 
-export function compareObjects<T extends object=object>(oldObj: T, newObj: T): { modified: DeepPartial<T>, deleted: DeepPartial<T> } {
+export function compareObjects<T extends object = object>(oldObj: T, newObj: T): { modified: DeepPartial<T>, deleted: DeepPartial<T> } {
     const modified: DeepPartial<T> = {};
     const deleted: DeepPartial<T> = {};
 
@@ -42,4 +42,36 @@ export function compareObjects<T extends object=object>(oldObj: T, newObj: T): {
     }
 
     return { modified, deleted };
+}
+export function applyModifications<T extends object = object>(targetObj: T, delta: { modified: DeepPartial<T>, deleted: DeepPartial<T> }): void {
+    // 将 modified 的内容合并到 targetObj
+    for (const key in delta.modified) {
+        if (delta.modified.hasOwnProperty(key)) {
+            if (typeof delta.modified[key] === 'object' && delta.modified[key] !== null && !Array.isArray(delta.modified[key])) {
+                // 如果 modified[key] 是一个对象，递归调用 applyModifications
+                if (!targetObj[key]) {
+                    targetObj[key] = {} as any;
+                }
+                applyModifications(targetObj[key] as object, { modified: delta.modified[key] as DeepPartial<object>, deleted: {} });
+            } else {
+                // 否则直接赋值
+                targetObj[key] = delta.modified[key] as T[typeof key];
+            }
+        }
+    }
+
+    // 从 targetObj 中删除 deleted 中指定的键
+    for (const key in delta.deleted) {
+        if (delta.deleted.hasOwnProperty(key)) {
+            if (typeof delta.deleted[key] === 'object' && delta.deleted[key] !== null && !Array.isArray(delta.deleted[key])) {
+                // 如果 deleted[key] 是一个对象，递归调用 applyModifications
+                if (targetObj[key]) {
+                    applyModifications(targetObj[key] as object, { modified: {}, deleted: delta.deleted[key] as DeepPartial<object> });
+                }
+            } else {
+                // 否则直接删除键
+                delete targetObj[key];
+            }
+        }
+    }
 }

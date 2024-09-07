@@ -1,4 +1,4 @@
-import { RoguelikeBuff } from "../game/model/rlv2";
+import { RoguelikeBuff } from "@game/model/rlv2";
 import { ItemBundle } from "./character_table";
 
 export interface RoguelikeTopicTable {

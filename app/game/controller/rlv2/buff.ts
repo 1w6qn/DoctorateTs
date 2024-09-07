@@ -1,5 +1,4 @@
-import { RoguelikeGameItemData } from "@excel/roguelike_topic_table"
-import { Blackboard, ItemBundle } from "@excel/character_table"
+import { Blackboard } from "@excel/character_table"
 import excel from "@excel/excel"
 import { RoguelikeBuff, RoguelikeItemBundle } from "../../model/rlv2"
 import EventEmitter from "events"

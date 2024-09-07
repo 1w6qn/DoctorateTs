@@ -14,7 +14,7 @@ router.post("/login", (req, res) => {
 
 });
 router.post("/syncData", (req, res) => {
-    let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player:PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     player._playerdata.pushFlags.status=now()
     res.send({
         "result": 0,
@@ -24,7 +24,7 @@ router.post("/syncData", (req, res) => {
     })
 });
 router.post("/syncStatus", (req, res) => {
-    let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player:PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     player._trigger.emit("status:refresh:time");
     res.send({
         "ts": now(),
@@ -33,7 +33,7 @@ router.post("/syncStatus", (req, res) => {
     })
 });
 router.post("/syncPushMessage", (req, res) => {
-    let player:PlayerDataManager = httpContext.get("playerdata") as PlayerDataManager;
+    let player:PlayerDataManager = httpContext.get("playerData") as PlayerDataManager;
     res.send({})
 });
 

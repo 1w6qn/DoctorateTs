@@ -1,5 +1,5 @@
 import excel from "@excel/excel"
-import { PlayerRoguelikeV2, RoguelikeBuff } from '../../../model/rlv2';
+import { PlayerRoguelikeV2, RoguelikeBuff } from '@game/model/rlv2';
 import EventEmitter from "events"
 import { RoguelikeV2Controller } from '../../rlv2';
 import { now } from "@utils/time";

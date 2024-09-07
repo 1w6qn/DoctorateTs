@@ -1,5 +1,3 @@
-
-import { BuildingData } from "./building_data";
 import { ItemBundle } from "./character_table";
 
 export interface ServerItemTable {

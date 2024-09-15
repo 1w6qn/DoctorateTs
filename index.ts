@@ -16,5 +16,6 @@ app.get('/', (req, res) => {
   res.send('Hello world');
 });
 app.listen(config.PORT, () => {
-  console.log(`Express with Typescript! http://localhost:${config.PORT}`);
+  console.log(`--------------DoctorateTs--------------`);
+  console.log(`running at http://localhost:${config.PORT}`);
 });

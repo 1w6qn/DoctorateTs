@@ -1,0 +1,852 @@
+{
+    "rogue_4": {
+        "outbuff": {
+            "rogue_4_outbuff_1": [
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "max_hp",
+                            "value": 0.01,
+                            "valueStr": null
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_2":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "def",
+                            "value": 0.01
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_3":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "atk",
+                            "value": 0.01
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_4":[
+                {
+                    "key": "bp_reward_increase",
+                    "blackboard": [
+                        {
+                            "key": "value",
+                            "value": 2
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_5":[
+                {
+                    "key": "immediate_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_shield"
+                        },
+                        {
+                            "key": "count",
+                            "value": 1
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_6":[
+                {
+                    "key": "immediate_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_gold"
+                        },
+                        {
+                            "key": "count",
+                            "value": 1
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_7":[
+                {
+                    "key": "unlock_node",
+                    "blackboard": [
+                        {
+                            "key": "node",
+                            "valueStr": "PORTAL"
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_8":[
+                {
+                    "key": "unlock_node",
+                    "blackboard": [
+                        {
+                            "key": "node",
+                            "valueStr": "EXPEDITION"
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_9":[
+                {
+                    "key": "unlock_node",
+                    "blackboard": [
+                        {
+                            "key": "node",
+                            "valueStr": "SACRIFICE"
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_10":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "def",
+                            "value": 0.01
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_11":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "atk",
+                            "value": 0.01
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_difficulty_1":[
+                {
+                    "key": "immediate_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_gold"
+                        },
+                        {
+                            "key": "count",
+                            "value": 2
+                        }
+                    ]
+                },
+                {
+                    "key": "bp_reward_increase",
+                    "blackboard": [
+                        {
+                            "key": "value",
+                            "value": 2
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_12":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "max_hp",
+                            "value": 0.01
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_13":[
+                {
+                    "key": "bp_reward_increase",
+                    "blackboard": [
+                        {
+                            "key": "value",
+                            "value": 2
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_14":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "max_hp",
+                            "value": 0.02
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_15":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "def",
+                            "value": 0.02
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_16":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "atk",
+                            "value": 0.02
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_17":[
+                
+            ],
+            "rogue_4_outbuff_18":[
+                
+            ],
+            "rogue_4_outbuff_19":[
+                
+            ],
+            "rogue_4_outbuff_20":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "def",
+                            "value": 0.02
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_21":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "max_hp",
+                            "value": 0.02
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_22":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "atk",
+                            "value": 0.02
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_23":[
+                {
+                    "key": "expedition_extra_random_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_fragment_I_1"
+                        },
+                        {
+                            "key": "min",
+                            "value": 1
+                        },
+                        {
+                            "key": "max",
+                            "value": 1
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_24":[
+                {
+                    "key": "immediate_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_fragment_I_1"
+                        },
+                        {
+                            "key": "count",
+                            "value": 1
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_difficulty_2":[
+                {
+                    "key": "bp_reward_increase",
+                    "blackboard": [
+                        {
+                            "key": "value",
+                            "value": 2
+                        }
+                    ]
+                },
+                {
+                    "key": "inc_outerbuff_shop_slot_unlock",
+                    "blackboard": [
+                        {
+                            "key": "count",
+                            "value": 2
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_25":[
+                {
+                    "key": "immediate_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_gold"
+                        },
+                        {
+                            "key": "count",
+                            "value": 1
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_26":[
+                {
+                    "key": "immediate_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_gold"
+                        },
+                        {
+                            "key": "count",
+                            "value": 1
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_27":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "def",
+                            "value": 0.02
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_28":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "max_hp",
+                            "value": 0.02
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_29":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "atk",
+                            "value": 0.02
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_30":[
+                {
+                    "key": "up_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_exp"
+                        },
+                        {
+                            "key": "up",
+                            "value": 0.1
+                        },
+                        {
+                            "key": "mask",
+                            "valueStr": "battle"
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_31":[
+                {
+                    "key": "immediate_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_gold"
+                        },
+                        {
+                            "key": "count",
+                            "value": 1
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_32":[
+                {
+                    "key": "bp_reward_increase",
+                    "blackboard": [
+                        {
+                            "key": "value",
+                            "value": 2
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_33":[
+                
+            ],
+            "rogue_4_outbuff_34":[
+
+            ],
+            "rogue_4_outbuff_35":[
+                
+            ],
+            "rogue_4_outbuff_36":[
+                {
+                    "key": "immediate_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_gold"
+                        },
+                        {
+                            "key": "count",
+                            "value": 1
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_37":[
+                {
+                    "key": "immediate_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_max_weight"
+                        },
+                        {
+                            "key": "count",
+                            "value": 1
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_38":[
+                {
+                    "key": "immediate_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_shield"
+                        },
+                        {
+                            "key": "count",
+                            "value": 1
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_39":[
+                {
+                    "key": "up_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_exp"
+                        },
+                        {
+                            "key": "up",
+                            "value": 0.1
+                        },
+                        {
+                            "key": "mask",
+                            "valueStr": "battle"
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_40":[
+                {
+                    "key": "immediate_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_gold"
+                        },
+                        {
+                            "key": "count",
+                            "value": 1
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_41":[
+                {
+                    "key": "bp_reward_increase",
+                    "blackboard": [
+                        {
+                            "key": "value",
+                            "value": 2
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_difficulty_3":[
+                {
+                    "key": "bp_reward_increase",
+                    "blackboard": [
+                        {
+                            "key": "value",
+                            "value": 2
+                        }
+                    ]
+                },
+                {
+                    "key": "char_weight_rarity",
+                    "blackboard": [
+                        {
+                            "key": "rarity",
+                            "value": 3
+                        },
+                        {
+                            "key": "value",
+                            "value": 1
+                        }
+                    ]
+                },
+                {
+                    "key": "char_weight_rarity",
+                    "blackboard": [
+                        {
+                            "key": "rarity",
+                            "value": 4
+                        },
+                        {
+                            "key": "value",
+                            "value": 1
+                        }
+                    ]
+                },
+                {
+                    "key": "char_weight_rarity",
+                    "blackboard": [
+                        {
+                            "key": "rarity",
+                            "value": 5
+                        },
+                        {
+                            "key": "value",
+                            "value": 1
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_42":[
+                {
+                    "key": "immediate_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_gold"
+                        },
+                        {
+                            "key": "count",
+                            "value": 2
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_43":[
+                {
+                    "key": "immediate_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_max_weight"
+                        },
+                        {
+                            "key": "count",
+                            "value": 1
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_44":[
+                {
+                    "key": "up_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_exp"
+                        },
+                        {
+                            "key": "up",
+                            "value": 0.1
+                        },
+                        {
+                            "key": "mask",
+                            "valueStr": "battle"
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_45":[
+                {
+                    "key": "bp_reward_increase",
+                    "blackboard": [
+                        {
+                            "key": "value",
+                            "value": 2
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_46":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "def",
+                            "value": 0.02
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_47":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "max_hp",
+                            "value": 0.02
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_48":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "atk",
+                            "value": 0.02
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_49":[
+                {
+                    "key": "level_char_limit_add",
+                    "blackboard": [
+                        {
+                            "key": "value",
+                            "value": 1
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_50":[
+                {
+                    "key": "battle_extra_drop",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "pool_fragment_1"
+                        },
+                        {
+                            "key": "count",
+                            "value": 1
+                        },
+                        {
+                            "key": "perfect",
+                            "value": 1
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_51":[
+                {
+                    "key": "immediate_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_squad_capacity"
+                        },
+                        {
+                            "key": "count",
+                            "value": 1
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_52":[
+                {
+                    "key": "char_weight_rarity",
+                    "blackboard": [
+                        {
+                            "key": "rarity",
+                            "value": 3
+                        },
+                        {
+                            "key": "value",
+                            "value": 1
+                        }
+                    ]
+                },
+                {
+                    "key": "char_weight_rarity",
+                    "blackboard": [
+                        {
+                            "key": "rarity",
+                            "value": 4
+                        },
+                        {
+                            "key": "value",
+                            "value": 1
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_53":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "atk",
+                            "value": 0.05
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_54":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "def",
+                            "value": 0.05
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_55":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "max_hp",
+                            "value": 0.05
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_56":[
+                {
+                    "key": "immediate_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_gold"
+                        },
+                        {
+                            "key": "count",
+                            "value": 2
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_57":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "atk",
+                            "value": 0.05
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_58":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "def",
+                            "value": 0.05
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_59":[
+                {
+                    "key": "char_attribute_mul",
+                    "blackboard": [
+                        {
+                            "key": "max_hp",
+                            "value": 0.05
+                        }
+                    ]
+                }
+            ],
+            "rogue_4_outbuff_60":[
+                {
+                    "key": "immediate_reward",
+                    "blackboard": [
+                        {
+                            "key": "id",
+                            "valueStr": "rogue_4_gold"
+                        },
+                        {
+                            "key": "count",
+                            "value": 2
+                        }
+                    ]
+                }
+            ]
+        },
+        "modebuff":{
+            "1":[
+                
+            ]
+        },
+        "recruitGrps": {
+            "recruit_group_1": [
+                "rogue_4_recruit_ticket_pioneer",
+                "rogue_4_recruit_ticket_sniper",
+                "rogue_4_recruit_ticket_special"
+            ],
+            "recruit_group_2": [
+                "rogue_4_recruit_ticket_tank",
+                "rogue_4_recruit_ticket_sniper",
+                "rogue_4_recruit_ticket_caster"
+            ],
+            "recruit_group_3": [
+                "rogue_4_recruit_ticket_warrior",
+                "rogue_4_recruit_ticket_support",
+                "rogue_4_recruit_ticket_medic"
+            ]
+        }
+    }
+}

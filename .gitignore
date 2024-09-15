@@ -1,7 +1,6 @@
 node_modules
 build
 yarn.lock
-data
 _arknights.js
 t.json
 a.json
@@ -13,3 +12,4 @@ assets/
 mods/
 mods.json
 src/
+.idea

@@ -54,12 +54,9 @@ export class CheckInManager {
             this.data.checkInHistory.push(0)
             this._trigger.emit("gainItems", subscriptionRewards.concat(signInRewards))
         }
-        return { signInRewards: signInRewards, subscriptionRewards: subscriptionRewards }
+        return { signInRewards, subscriptionRewards }
     }
     toJSON() {
-        return {
-            checkIn: this.data,
-            openServer: this.openServer
-        }
+        return this.data
     }
 }

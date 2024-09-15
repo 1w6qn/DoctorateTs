@@ -1,0 +1,1144 @@
+[
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "max_hp",
+                "value": 0.01
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "atk",
+                "value": 0.01
+            }
+        ]
+    },
+    {
+        "key": "bp_reward_increase",
+        "blackboard": [
+            {
+                "key": "value",
+                "value": 2
+            }
+        ]
+    },
+    {
+        "key": "unlock_node",
+        "blackboard": [
+            {
+                "key": "node",
+                "valueStr": "EXPEDITION"
+            }
+        ]
+    },
+    {
+        "key": "bp_reward_increase",
+        "blackboard": [
+            {
+                "key": "value",
+                "value": 2
+            }
+        ]
+    },
+    {
+        "key": "immediate_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_gold"
+            },
+            {
+                "key": "count",
+                "value": 2
+            }
+        ]
+    },
+    {
+        "key": "bp_reward_increase",
+        "blackboard": [
+            {
+                "key": "value",
+                "value": 2
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "max_hp",
+                "value": 0.02
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "atk",
+                "value": 0.02
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "atk",
+                "value": 0.02
+            }
+        ]
+    },
+    {
+        "key": "immediate_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_fragment_I_1"
+            },
+            {
+                "key": "count",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "bp_reward_increase",
+        "blackboard": [
+            {
+                "key": "value",
+                "value": 2
+            }
+        ]
+    },
+    {
+        "key": "inc_outerbuff_shop_slot_unlock",
+        "blackboard": [
+            {
+                "key": "count",
+                "value": 2
+            }
+        ]
+    },
+    {
+        "key": "immediate_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_shield"
+            },
+            {
+                "key": "count",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "unlock_node",
+        "blackboard": [
+            {
+                "key": "node",
+                "valueStr": "PORTAL"
+            }
+        ]
+    },
+    {
+        "key": "immediate_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_gold"
+            },
+            {
+                "key": "count",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "atk",
+                "value": 0.02
+            }
+        ]
+    },
+    {
+        "key": "bp_reward_increase",
+        "blackboard": [
+            {
+                "key": "value",
+                "value": 2
+            }
+        ]
+    },
+    {
+        "key": "immediate_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_gold"
+            },
+            {
+                "key": "count",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "unlock_node",
+        "blackboard": [
+            {
+                "key": "node",
+                "valueStr": "SACRIFICE"
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "atk",
+                "value": 0.01
+            }
+        ]
+    },
+    {
+        "key": "immediate_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_gold"
+            },
+            {
+                "key": "count",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "immediate_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_shield"
+            },
+            {
+                "key": "count",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "bp_reward_increase",
+        "blackboard": [
+            {
+                "key": "value",
+                "value": 2
+            }
+        ]
+    },
+    {
+        "key": "bp_reward_increase",
+        "blackboard": [
+            {
+                "key": "value",
+                "value": 2
+            }
+        ]
+    },
+    {
+        "key": "char_weight_rarity",
+        "blackboard": [
+            {
+                "key": "rarity",
+                "value": 3
+            },
+            {
+                "key": "value",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "char_weight_rarity",
+        "blackboard": [
+            {
+                "key": "rarity",
+                "value": 4
+            },
+            {
+                "key": "value",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "char_weight_rarity",
+        "blackboard": [
+            {
+                "key": "rarity",
+                "value": 5
+            },
+            {
+                "key": "value",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "immediate_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_max_weight"
+            },
+            {
+                "key": "count",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "bp_reward_increase",
+        "blackboard": [
+            {
+                "key": "value",
+                "value": 2
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "atk",
+                "value": 0.02
+            }
+        ]
+    },
+    {
+        "key": "immediate_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_squad_capacity"
+            },
+            {
+                "key": "count",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "immediate_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_gold"
+            },
+            {
+                "key": "count",
+                "value": 2
+            }
+        ]
+    },
+    {
+        "key": "immediate_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_gold"
+            },
+            {
+                "key": "count",
+                "value": 2
+            }
+        ]
+    },
+    {
+        "key": "char_weight_rarity",
+        "blackboard": [
+            {
+                "key": "rarity",
+                "value": 3
+            },
+            {
+                "key": "value",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "char_weight_rarity",
+        "blackboard": [
+            {
+                "key": "rarity",
+                "value": 4
+            },
+            {
+                "key": "value",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "immediate_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_gold"
+            },
+            {
+                "key": "count",
+                "value": 2
+            }
+        ]
+    },
+    {
+        "key": "up_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_exp"
+            },
+            {
+                "key": "up",
+                "value": 0.1
+            },
+            {
+                "key": "mask",
+                "valueStr": "battle"
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "def",
+                "value": 0.02
+            }
+        ]
+    },
+    {
+        "key": "level_char_limit_add",
+        "blackboard": [
+            {
+                "key": "value",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "atk",
+                "value": 0.05
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "atk",
+                "value": 0.05
+            }
+        ]
+    },
+    {
+        "key": "immediate_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_gold"
+            },
+            {
+                "key": "count",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "battle_extra_drop",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "pool_fragment_1"
+            },
+            {
+                "key": "count",
+                "value": 1
+            },
+            {
+                "key": "perfect",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "max_hp",
+                "value": 0.05
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "def",
+                "value": 0.02
+            }
+        ]
+    },
+    {
+        "key": "up_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_exp"
+            },
+            {
+                "key": "up",
+                "value": 0.1
+            },
+            {
+                "key": "mask",
+                "valueStr": "battle"
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "def",
+                "value": 0.01
+            }
+        ]
+    },
+    {
+        "key": "immediate_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_gold"
+            },
+            {
+                "key": "count",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "up_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_exp"
+            },
+            {
+                "key": "up",
+                "value": 0.1
+            },
+            {
+                "key": "mask",
+                "valueStr": "battle"
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "def",
+                "value": 0.01
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "max_hp",
+                "value": 0.01
+            }
+        ]
+    },
+    {
+        "key": "immediate_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_max_weight"
+            },
+            {
+                "key": "count",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "immediate_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_gold"
+            },
+            {
+                "key": "count",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "def",
+                "value": 0.02
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "def",
+                "value": 0.02
+            }
+        ]
+    },
+    {
+        "key": "expedition_extra_random_reward",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_fragment_I_1"
+            },
+            {
+                "key": "min",
+                "value": 1
+            },
+            {
+                "key": "max",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "max_hp",
+                "value": 0.02
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "max_hp",
+                "value": 0.02
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "max_hp",
+                "value": 0.02
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "def",
+                "value": 0.05
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "max_hp",
+                "value": 0.05
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "def",
+                "value": 0.05
+            }
+        ]
+    },
+    {
+        "key": "level_char_limit_add",
+        "blackboard": [
+            {
+                "key": "value",
+                "value": -1
+            }
+        ]
+    },
+    {
+        "key": "global_buff_normal",
+        "blackboard": [
+            {
+                "key": "key",
+                "valueStr": "enemy_damage_resistance[inf]"
+            },
+            {
+                "key": "damage_resistance",
+                "value": 0.1
+            },
+            {
+                "key": "selector.enemy_level_type",
+                "valueStr": "ELITE"
+            }
+        ]
+    },
+    {
+        "key": "global_buff_normal",
+        "blackboard": [
+            {
+                "key": "key",
+                "valueStr": "enemy_damage_resistance[inf]"
+            },
+            {
+                "key": "damage_resistance",
+                "value": 0.1
+            },
+            {
+                "key": "selector.enemy_level_type",
+                "valueStr": "BOSS"
+            }
+        ]
+    },
+    {
+        "key": "global_buff_normal",
+        "blackboard": [
+            {
+                "key": "key",
+                "valueStr": "ally_damage_scale[ep_dark]"
+            },
+            {
+                "key": "ep_damage_scale",
+                "value": 1.3
+            }
+        ]
+    },
+    {
+        "key": "global_buff_normal",
+        "blackboard": [
+            {
+                "key": "key",
+                "valueStr": "enemy_atk_down"
+            },
+            {
+                "key": "atk",
+                "value": 1.1
+            },
+            {
+                "key": "selector.enemy_level_type",
+                "valueStr": "ELITE"
+            }
+        ]
+    },
+    {
+        "key": "global_buff_normal",
+        "blackboard": [
+            {
+                "key": "key",
+                "valueStr": "enemy_max_hp_down"
+            },
+            {
+                "key": "max_hp",
+                "value": 1.2
+            },
+            {
+                "key": "selector.enemy_level_type",
+                "valueStr": "ELITE"
+            }
+        ]
+    },
+    {
+        "key": "global_buff_normal",
+        "blackboard": [
+            {
+                "key": "key",
+                "valueStr": "enemy_atk_down"
+            },
+            {
+                "key": "atk",
+                "value": 1.1
+            },
+            {
+                "key": "selector.enemy_level_type",
+                "valueStr": "BOSS"
+            }
+        ]
+    },
+    {
+        "key": "global_buff_normal",
+        "blackboard": [
+            {
+                "key": "key",
+                "valueStr": "enemy_max_hp_down"
+            },
+            {
+                "key": "max_hp",
+                "value": 1.2
+            },
+            {
+                "key": "selector.enemy_level_type",
+                "valueStr": "BOSS"
+            }
+        ]
+    },
+    {
+        "key": "disaster_rate_up",
+        "blackboard": [
+            {
+                "key": "rate",
+                "valueStr": "0,0,0.1,0.15,0.2,0.2,0.2"
+            }
+        ]
+    },
+    {
+        "key": "enemy_attribute_mul",
+        "blackboard": [
+            {
+                "key": "selector.enemy",
+                "valueStr": "enemy_2073_skzrck"
+            },
+            {
+                "key": "max_hp",
+                "value": 0.2
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_mul",
+        "blackboard": [
+            {
+                "key": "selector.profession",
+                "valueStr": "trap"
+            },
+            {
+                "key": "selector.char",
+                "valueStr": "trap_760_skztzs"
+            },
+            {
+                "key": "max_hp",
+                "value": 0.2
+            }
+        ]
+    },
+    {
+        "key": "disaster_level_up",
+        "blackboard": [
+            {
+                "key": "level_up",
+                "value": 2
+            }
+        ]
+    },
+    {
+        "key": "overweight_move_cost",
+        "blackboard": [
+            {
+                "key": "id",
+                "valueStr": "rogue_4_hp"
+            },
+            {
+                "key": "count",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "char_attribute_add",
+        "blackboard": [
+            {
+                "key": "cost",
+                "value": 3
+            },
+            {
+                "key": "condition_key",
+                "valueStr": "OVERWEIGHT"
+            },
+            {
+                "key": "condition_value",
+                "valueStr": "true"
+            }
+        ]
+    },
+    {
+        "key": "zone_into_buff",
+        "blackboard": [
+            {
+                "key": "buff",
+                "valueStr": "global_buff_normal"
+            },
+            {
+                "key": "key",
+                "valueStr": "enemy_atk_down"
+            },
+            {
+                "key": "atk",
+                "value": 1.2
+            }
+        ]
+    },
+    {
+        "key": "zone_into_buff",
+        "blackboard": [
+            {
+                "key": "buff",
+                "valueStr": "global_buff_normal"
+            },
+            {
+                "key": "key",
+                "valueStr": "enemy_max_hp_down"
+            },
+            {
+                "key": "max_hp",
+                "value": 1.2
+            }
+        ]
+    },
+    {
+        "key": "recruit_cost",
+        "blackboard": [
+            {
+                "key": "rarity",
+                "valueStr": "TIER_6"
+            },
+            {
+                "key": "profession",
+                "valueStr": "PIONEER,WARRIOR,TANK,SNIPER,CASTER,SUPPORT,MEDIC,SPECIAL"
+            },
+            {
+                "key": "delta",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "recruit_cost",
+        "blackboard": [
+            {
+                "key": "rarity",
+                "valueStr": "TIER_5"
+            },
+            {
+                "key": "profession",
+                "valueStr": "PIONEER,WARRIOR,TANK,SNIPER,CASTER,SUPPORT,MEDIC,SPECIAL"
+            },
+            {
+                "key": "delta",
+                "value": 1
+            }
+        ]
+    },
+    {
+        "key": "global_buff_normal",
+        "blackboard": [
+            {
+                "key": "key",
+                "valueStr": "rogue_4_difficulty_buff_11"
+            },
+            {
+                "key": "damage_resistance",
+                "value": 0.5
+            }
+        ]
+    },
+    {
+        "key": "global_buff_normal",
+        "blackboard": [
+            {
+                "key": "key",
+                "valueStr": "enemy_max_hp_down"
+            },
+            {
+                "key": "max_hp",
+                "value": 2
+            },
+            {
+                "key": "selector.enemy",
+                "valueStr": "enemy_2083_skzhg"
+            }
+        ]
+    },
+    {
+        "key": "global_buff_normal",
+        "blackboard": [
+            {
+                "key": "key",
+                "valueStr": "enemy_max_hp_down"
+            },
+            {
+                "key": "max_hp",
+                "value": 1.5
+            },
+            {
+                "key": "selector.enemy",
+                "valueStr": "enemy_2081_skztxs"
+            }
+        ]
+    },
+    {
+        "key": "enemy_skill_blackboard_assign",
+        "blackboard": [
+            {
+                "key": "selector.enemy",
+                "valueStr": "enemy_2082_skzdd"
+            },
+            {
+                "key": "skill_name",
+                "valueStr": "SpawnToken_S2"
+            },
+            {
+                "key": "key",
+                "valueStr": "branch_id"
+            },
+            {
+                "key": "value_str",
+                "valueStr": "spawn_skzddd_hard"
+            }
+        ]
+    },
+    {
+        "key": "enemy_talent_blackboard_assign",
+        "blackboard": [
+            {
+                "key": "selector.enemy",
+                "valueStr": "enemy_2080_skzlwy"
+            },
+            {
+                "key": "talent_key",
+                "valueStr": "M2Reborn"
+            },
+            {
+                "key": "key",
+                "valueStr": "max_respawn_cnt"
+            },
+            {
+                "key": "value",
+                "value": 1
+            },
+            {
+                "key": "condition_key",
+                "valueStr": "OVERWEIGHT"
+            },
+            {
+                "key": "condition_value",
+                "valueStr": "true"
+            }
+        ]
+    },
+    {
+        "key": "enemy_talent_blackboard_assign",
+        "blackboard": [
+            {
+                "key": "selector.enemy",
+                "valueStr": "enemy_2082_skzdd"
+            },
+            {
+                "key": "talent_key",
+                "valueStr": "RebornS2"
+            },
+            {
+                "key": "key",
+                "valueStr": "max_respawn_cnt"
+            },
+            {
+                "key": "value",
+                "value": 1
+            },
+            {
+                "key": "condition_key",
+                "valueStr": "OVERWEIGHT"
+            },
+            {
+                "key": "condition_value",
+                "valueStr": "true"
+            }
+        ]
+    },
+    {
+        "key": "enemy_talent_blackboard_assign",
+        "blackboard": [
+            {
+                "key": "selector.enemy",
+                "valueStr": "enemy_2081_skztxs"
+            },
+            {
+                "key": "talent_key",
+                "valueStr": "Line"
+            },
+            {
+                "key": "key",
+                "valueStr": "branch_id"
+            },
+            {
+                "key": "value_str",
+                "valueStr": "branch_skztxy_final_hard"
+            },
+            {
+                "key": "condition_key",
+                "valueStr": "OVERWEIGHT"
+            },
+            {
+                "key": "condition_value",
+                "valueStr": "true"
+            }
+        ]
+    },
+    {
+        "key": "global_buff_normal",
+        "blackboard": [
+            {
+                "key": "key",
+                "valueStr": "enemy_atk_down"
+            },
+            {
+                "key": "atk",
+                "value": 1.2
+            }
+        ]
+    },
+    {
+        "key": "global_buff_normal",
+        "blackboard": [
+            {
+                "key": "key",
+                "valueStr": "enemy_max_hp_down"
+            },
+            {
+                "key": "max_hp",
+                "value": 1.2
+            }
+        ]
+    }
+]

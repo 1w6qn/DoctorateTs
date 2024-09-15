@@ -18,6 +18,7 @@ import { SocialManager } from "./social";
 import { DexNavManager } from "./dexnav";
 import { BuildingManager } from "./building";
 import { FriendDataWithNameCard } from "@game/model/social";
+import {OpenServerManager} from "@game/manager/activity/openServer";
 
 export class PlayerDataManager {
     dungeon:DungeonManager
@@ -35,6 +36,7 @@ export class PlayerDataManager {
     social:SocialManager
     dexNav:DexNavManager
     building:BuildingManager
+    openServer:OpenServerManager
     battle!:BattleManager
     _trigger: EventEmitter
     _playerdata: PlayerDataModel;
@@ -76,6 +78,7 @@ export class PlayerDataManager {
         this.gacha=new GachaController(playerdata.gacha,this.status.uid,this.troop, this._trigger)
         this.dexNav=new DexNavManager(this, this._trigger)
         this.building=new BuildingManager(this, this._trigger)
+        this.openServer=new OpenServerManager(this,this._trigger)
         this._trigger.emit("game:fix")
         this._trigger.emit("save:battle",(battleId:string, info:BattleInfo)=>{
             accountManager.saveBattleInfo(this.uid,battleId, info)
@@ -149,6 +152,7 @@ export class PlayerDataManager {
             recruit:this.recruit,
             templateTrap:this._playerdata.templateTrap,
             ...this.checkIn.toJSON(),
+            openServer:this.openServer,
             campaignsV2:this._playerdata.campaignsV2,
             checkMeta:this._playerdata.checkMeta,
             limitedBuff:this._playerdata.limitedBuff,

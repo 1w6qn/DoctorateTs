@@ -101,7 +101,7 @@ export class TroopManager {
             charInstId = this.curCharInstId
             this.chars[this.curCharInstId] = {
                 "instId": charInstId,
-                "charId": charId,
+                charId,
                 "favorPoint": 0,
                 "potentialRank": 0,
                 "mainSkillLvl": 1,
@@ -233,7 +233,7 @@ export class TroopManager {
             char.equip![args.equipId].locked=0
         }
         this._trigger.emit("useItems",excel.UniequipTable.equipDict[args.equipId].itemCost!["1"])
-        this._trigger.emit("HasEquipmemt",{...char,...args})
+        this._trigger.emit("HasEquipment",{...char,...args})
     }
     upgradeEquipment(args: { charInstId: number, templateId: string, equipId: string ,targetLevel:number }) {
         let char = this.getCharacterByInstId(args.charInstId);
@@ -247,7 +247,7 @@ export class TroopManager {
             items.push(...excel.UniequipTable.equipDict[args.equipId].itemCost![i])
         }
         this._trigger.emit("useItems", items)
-        this._trigger.emit("HasEquipmemt",{...char,...args})
+        this._trigger.emit("HasEquipment",{...char,...args})
     }
 
     changeMarkStar(args:{chrIdDict: { [key: string]: number }}) {

@@ -71,7 +71,7 @@ export class RoguelikeRecruitManager {
                 troopInstId: Object.keys(this._player.troop.chars).length,
             }, levelPatch)]
         }, [] as PlayerRoguelikeV2.CurrentData.RecruitChar[])
-        //TODO free & thirdlow
+        //TODO free & third-low
         this.tickets[id].list = chars
     }
     done(id: string, optionId: string) {
@@ -85,12 +85,12 @@ export class RoguelikeRecruitManager {
     gain(id: string, from: string, mustExtra: number): void {
         this.tickets[this.index] = {
             index: this.index,
-            id: id,
+            id,
             state: 0,
             list: [],
             result: null,
-            from: from,
-            mustExtra: mustExtra,
+            from,
+            mustExtra,
             needAssist: from == "initial",
             ts: now()
         }

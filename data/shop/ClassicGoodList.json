@@ -1,0 +1,480 @@
+{
+    "goodList": [
+        {
+            "goodId": "KS_1008",
+            "displayName": "\u9ea6\u54f2\u4f26",
+            "priority": 1,
+            "number": 1,
+            "goodType": "NORMAL",
+            "item": {
+                "id": "char_248_mgllan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            "progressGoodId": null,
+            "price": 2000,
+            "originPrice": 2000,
+            "discount": 0,
+            "availCount": 1,
+            "goodStartTime": 1689192000,
+            "goodEndTime": 1690401599
+        },
+        {
+            "goodId": "KS_2008",
+            "displayName": "\u53ef\u9882",
+            "priority": 1,
+            "number": 2,
+            "goodType": "NORMAL",
+            "item": {
+                "id": "char_201_moeshd",
+                "count": 1,
+                "type": "CHAR"
+            },
+            "progressGoodId": null,
+            "price": 500,
+            "originPrice": 500,
+            "discount": 0,
+            "availCount": 1,
+            "goodStartTime": 1689192000,
+            "goodEndTime": 1690401599
+        },
+        {
+            "goodId": "KS_3004",
+            "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+            "priority": 2,
+            "number": 3,
+            "goodType": "PROGRESS",
+            "item": null,
+            "progressGoodId": "AAA4",
+            "price": 0,
+            "originPrice": 0,
+            "discount": 0,
+            "availCount": 0,
+            "goodStartTime": 1688155200,
+            "goodEndTime": 1690833599
+        }
+    ],
+    "progressGoodList": {
+        "AAA1": [
+            {
+                "order": 1,
+                "price": 100,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 1,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 2,
+                "price": 180,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 2,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 3,
+                "price": 400,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 5,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 4,
+                "price": 700,
+                "displayName": "\u6279\u91cf\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha_10",
+                    "count": 1,
+                    "type": "CLASSIC_TKT_GACHA_10"
+                }
+            },
+            {
+                "order": 5,
+                "price": 1200,
+                "displayName": "\u6279\u91cf\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha_10",
+                    "count": 2,
+                    "type": "CLASSIC_TKT_GACHA_10"
+                }
+            }
+        ],
+        "AAA2": [
+            {
+                "order": 1,
+                "price": 100,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 1,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 2,
+                "price": 180,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 2,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 3,
+                "price": 400,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 5,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 4,
+                "price": 700,
+                "displayName": "\u6279\u91cf\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha_10",
+                    "count": 1,
+                    "type": "CLASSIC_TKT_GACHA_10"
+                }
+            },
+            {
+                "order": 5,
+                "price": 1200,
+                "displayName": "\u6279\u91cf\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha_10",
+                    "count": 2,
+                    "type": "CLASSIC_TKT_GACHA_10"
+                }
+            }
+        ],
+        "AAA3": [
+            {
+                "order": 1,
+                "price": 100,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 1,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 2,
+                "price": 180,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 2,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 3,
+                "price": 400,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 5,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 4,
+                "price": 700,
+                "displayName": "\u6279\u91cf\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha_10",
+                    "count": 1,
+                    "type": "CLASSIC_TKT_GACHA_10"
+                }
+            },
+            {
+                "order": 5,
+                "price": 1200,
+                "displayName": "\u6279\u91cf\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha_10",
+                    "count": 2,
+                    "type": "CLASSIC_TKT_GACHA_10"
+                }
+            }
+        ],
+        "AAA4": [
+            {
+                "order": 1,
+                "price": 100,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 1,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 2,
+                "price": 180,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 2,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 3,
+                "price": 400,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 5,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 4,
+                "price": 700,
+                "displayName": "\u6279\u91cf\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha_10",
+                    "count": 1,
+                    "type": "CLASSIC_TKT_GACHA_10"
+                }
+            },
+            {
+                "order": 5,
+                "price": 1200,
+                "displayName": "\u6279\u91cf\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha_10",
+                    "count": 2,
+                    "type": "CLASSIC_TKT_GACHA_10"
+                }
+            }
+        ],
+        "AAA5": [
+            {
+                "order": 1,
+                "price": 100,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 1,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 2,
+                "price": 180,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 2,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 3,
+                "price": 400,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 5,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 4,
+                "price": 700,
+                "displayName": "\u6279\u91cf\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha_10",
+                    "count": 1,
+                    "type": "CLASSIC_TKT_GACHA_10"
+                }
+            },
+            {
+                "order": 5,
+                "price": 1200,
+                "displayName": "\u6279\u91cf\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha_10",
+                    "count": 2,
+                    "type": "CLASSIC_TKT_GACHA_10"
+                }
+            }
+        ],
+        "AAA6": [
+            {
+                "order": 1,
+                "price": 100,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 1,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 2,
+                "price": 180,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 2,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 3,
+                "price": 400,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 5,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 4,
+                "price": 700,
+                "displayName": "\u6279\u91cf\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha_10",
+                    "count": 1,
+                    "type": "CLASSIC_TKT_GACHA_10"
+                }
+            },
+            {
+                "order": 5,
+                "price": 1200,
+                "displayName": "\u6279\u91cf\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha_10",
+                    "count": 2,
+                    "type": "CLASSIC_TKT_GACHA_10"
+                }
+            }
+        ],
+        "AAA7": [
+            {
+                "order": 1,
+                "price": 100,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 1,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 2,
+                "price": 180,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 2,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 3,
+                "price": 400,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 5,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 4,
+                "price": 700,
+                "displayName": "\u6279\u91cf\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha_10",
+                    "count": 1,
+                    "type": "CLASSIC_TKT_GACHA_10"
+                }
+            },
+            {
+                "order": 5,
+                "price": 1200,
+                "displayName": "\u6279\u91cf\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha_10",
+                    "count": 2,
+                    "type": "CLASSIC_TKT_GACHA_10"
+                }
+            }
+        ],
+        "AAA8": [
+            {
+                "order": 1,
+                "price": 100,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 1,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 2,
+                "price": 180,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 2,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 3,
+                "price": 400,
+                "displayName": "\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha",
+                    "count": 5,
+                    "type": "CLASSIC_TKT_GACHA"
+                }
+            },
+            {
+                "order": 4,
+                "price": 700,
+                "displayName": "\u6279\u91cf\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha_10",
+                    "count": 1,
+                    "type": "CLASSIC_TKT_GACHA_10"
+                }
+            },
+            {
+                "order": 5,
+                "price": 1200,
+                "displayName": "\u6279\u91cf\u4e2d\u575a\u5bfb\u8bbf\u51ed\u8bc1",
+                "item": {
+                    "id": "classic_gacha_10",
+                    "count": 2,
+                    "type": "CLASSIC_TKT_GACHA_10"
+                }
+            }
+        ]
+    },
+    "newFlag": [],
+    "playerDataDelta": {
+        "modified": {},
+        "deleted": {}
+    }
+}

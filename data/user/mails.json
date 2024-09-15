@@ -1,0 +1,29 @@
+{
+    "user": {
+        "1": [
+            {
+                "mailId": 2032377,
+                "items": [
+                    {
+                        "id": "4001",
+                        "type": "GOLD",
+                        "count": 30000,
+                        "ts": 0
+                    }
+                ],
+                "from": "penguin_logistics",
+                "subject": "test",
+                "content": "test",
+                "createAt": 1720620721,
+                "expireAt": 1723212721,
+                "style": {
+                    "route": 0,
+                    "banner": ""
+                },
+                "platform": -1,
+                "type": 0,
+                "receiveAt": 1720621999
+            }
+        ]
+    }
+}

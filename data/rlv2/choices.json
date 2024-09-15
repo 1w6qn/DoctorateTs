@@ -1,0 +1,15 @@
+{
+    "choiceScenes":{
+        "scene_ro4_startbuff_enter":{
+            "choices":[
+                "choice_ro4_startbuff_1",
+                "choice_ro4_startbuff_2",
+                "choice_ro4_startbuff_3",
+                "choice_ro4_startbuff_4",
+                "choice_ro4_startbuff_5",
+                "choice_ro4_startbuff_6",
+                "choice_ro4_startbuff_7"
+            ]
+        }
+    }
+}

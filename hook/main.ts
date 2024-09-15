@@ -23,7 +23,7 @@ setTimeout(() => Il2Cpp.perform(() => {
     const Networker = Il2Cpp.domain.assembly("Torappu.Common").image.class("Torappu.Network.Networker");
     const GetOverrideRouterUrl = Networker.method<Il2Cpp.String>("get_overrideRouterUrl");
     GetOverrideRouterUrl.implementation = function (): Il2Cpp.String {
-        return Il2Cpp.string(`http://${serverUrl}/config/prod/official/network_config`);
+        return Il2Cpp.string(`${serverUrl}/config/prod/official/network_config`);
     }
     log("[Il2Cpp Layer]Hooked GetOverrideRouterUrl")
     const CryptUtils = Il2Cpp.domain.assembly("Assembly-CSharp").image.class("Torappu.CryptUtils");

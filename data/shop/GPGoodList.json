@@ -1,0 +1,1744 @@
+{
+	"weeklyGroup": {
+		"groupId": "gW_149",
+		"startDateTime": 1640548800,
+		"endDateTime": -1,
+		"packages": {
+			"GP_gW_149_W_1": {
+				"goodId": "GP_gW_149_W_1",
+				"groupId": "gW_149",
+				"giftPackageId": "W_2",
+				"displayName": "全物品（买多了会变负的）",
+				"priority": 50,
+				"availCount": 1,
+				"currencyUnit": "CASH",
+				"price": 68,
+				"originPrice": 68,
+				"discount": 0,
+				"items": [
+					{
+						"id": "4001",
+						"count": 999999999,
+						"type": "GOLD"
+					},
+					{
+						"id": "2004",
+						"count": 999999999,
+						"type": "CARD_EXP"
+					},
+					{
+						"id": "2003",
+						"count": 999999999,
+						"type": "CARD_EXP"
+					},
+					{
+						"id": "2002",
+						"count": 999999999,
+						"type": "CARD_EXP"
+					},
+					{
+						"id": "3301",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3302",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3303",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30011",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30012",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30013",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30014",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30061",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30062",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30063",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30064",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30031",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30032",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30033",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30034",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30021",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30022",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30023",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30024",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30041",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30042",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30043",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30044",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30051",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30052",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30053",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30054",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30073",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30074",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30083",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30084",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30093",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30094",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30103",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30104",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30115",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30125",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30135",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "31013",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "31014",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "31023",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "31024",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "31033",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "31034",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "30145",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "31043",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "31044",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "31053",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "31054",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3105",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3401",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3131",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3132",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3133",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3112",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3113",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+
+					{
+						"id": "3114",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "32001",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3213",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3223",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3233",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3243",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3253",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3263",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3273",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3283",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3212",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3222",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3232",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3242",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3252",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3262",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3272",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3282",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3211",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3221",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3231",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3241",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3251",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3261",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3271",
+						"count": 999999999,
+						"type": "MATERIAL"
+					},
+					{
+						"id": "3281",
+						"count": 999999999,
+						"type": "MATERIAL"
+					}
+				]
+			}
+		}
+	},
+	"monthlyGroup": {
+		"groupId": "gM_37",
+		"startDateTime": 1638302400,
+		"endDateTime": -1,
+		"packages": {
+			"GP_gM_37_M_1": {
+				"goodId": "GP_gM_37_M_1",
+				"groupId": "gM_37",
+				"giftPackageId": "M_1",
+				"displayName": "每月寻访组合包",
+				"priority": 60,
+				"availCount": 1,
+				"currencyUnit": "CASH",
+				"price": 168,
+				"originPrice": 168,
+				"discount": 0,
+				"items": [
+					{
+						"id": "4002",
+						"count": 42,
+						"type": "DIAMOND"
+					},
+					{
+						"id": "7004",
+						"count": 1,
+						"type": "TKT_GACHA_10"
+					}
+				]
+			}
+		}
+	},
+	"monthlySub": [],
+	"levelGP": [],
+	"oneTimeGP": [
+		{
+			"goodId": "GP_Once_1",
+			"giftPackageId": "Once_1",
+			"priority": 100,
+			"displayName": "全角色（动画有点长，建议买完直接重登）",
+			"currencyUnit": "CASH",
+			"price": 6,
+			"originPrice": 6,
+			"discount": 0,
+			"availCount": 1,
+			"startDateTime": -1,
+			"endDateTime": -1,
+			"items": [
+				{
+					"id": "char_285_medic2",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_286_cast3",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_376_therex",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_4000_jnight",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_502_nblade",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_500_noirc",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_503_rang",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_501_durin",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_009_12fce",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_123_fang",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_240_wyvern",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_192_falco",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_208_melan",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_209_ardign",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_122_beagle",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_124_kroos",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_211_adnach",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_121_lava",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_120_hibisc",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_212_ansel",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_210_stward",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_278_orchid",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_282_catap",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_283_midn",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_284_spot",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_281_popka",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_141_nights",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_109_fmout",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_235_jesica",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_126_shotst",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_118_yuki",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_198_blackd",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_149_scave",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_290_vigna",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_130_doberm",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_289_gyuki",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_193_frostl",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_127_estell",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_185_frncat",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_237_gravel",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_236_rope",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_117_myrrh",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_187_ccheal",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_181_flower",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_199_yak",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_150_snakek",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_196_sunbr",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_110_deepcl",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_183_skgoat",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_277_sqrrel",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_137_brownb",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_253_greyy",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_151_myrtle",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_298_susuro",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_260_durnar",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_355_ethan",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_190_clour",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_133_mm",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_302_glaze",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_385_finlpp",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_337_utage",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_301_cutter",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_258_podego",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_328_cammou",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_272_strong",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_366_acdrop",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_271_spikes",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_381_bubble",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_347_jaksel",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_440_pinecn",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_452_bstalk",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_469_indigo",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_484_robrta",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_4004_pudd",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_128_plosis",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_115_headbr",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_102_texas",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_106_franka",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_155_tiger",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_140_whitew",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_143_ghost",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_129_bluep",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_204_platnm",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_219_meteo",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_002_amiya",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_166_skfire",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_242_otter",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_108_silent",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_171_bldsk",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_148_nearl",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_144_red",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_107_liskam",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_201_moeshd",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_163_hpsts",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_145_prove",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_158_milu",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_173_slchan",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_174_slbell",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_195_glassb",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_101_sora",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_215_mantic",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_241_panda",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_220_grani",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_164_nightm",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_308_swire",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_274_astesi",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_348_ceylon",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_326_glacus",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_275_breeze",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_131_flameb",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_279_excu",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_261_sddrag",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_356_broca",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_243_waaifu",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_325_bison",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_367_swllow",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_226_hmau",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_383_snsant",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_306_leizi",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_379_sesa",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_252_bibeak",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_230_savage",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_254_vodfox",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_333_sidero",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_401_elysm",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_378_asbest",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_343_tknogi",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_405_absin",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_373_lionhd",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_294_ayer",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_345_folnic",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_344_beewax",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_349_chiave",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_336_folivo",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_218_cuttle",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_411_tomimi",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_415_flint",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_365_aprl",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_388_mint",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_346_aosta",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_265_sophia",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_436_whispr",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_214_kafka",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_451_robin",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_338_iris",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_402_tuye",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_455_nothin",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_1011_lava2",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_457_blitz",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_458_rfrost",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_459_tachak",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_363_toddi",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_304_zebra",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_475_akafyu",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_478_kirara",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_369_bena",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_421_crow",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_486_takila",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_473_mberry",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_431_ashlok",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_449_glider",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_496_wildmn",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_489_serum",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_422_aurora",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_4013_kjera",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_4025_aprot2",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_476_blkngt",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_492_quercu",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_1021_kroos2",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_103_angel",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_112_siege",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_134_ifrit",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_180_amgoat",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_291_aglina",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_147_shining",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_179_cgbird",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_136_hsguma",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_202_demkni",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_172_svrash",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_263_skadi",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_010_chen",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_340_shwaz",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_188_helage",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_248_mgllan",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_213_mostma",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_225_haak",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_2014_nian",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_017_huang",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_2013_cerber",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_222_bpipe",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_250_phatom",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_400_weedy",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_113_cqbw",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_197_poca",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_358_lisa",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_293_thorns",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_416_zumama",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_350_surtr",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_423_blemsh",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_391_rosmon",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_311_mudrok",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_264_f12yin",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_332_archet",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_2015_dusk",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_362_saga",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_456_ash",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_472_pasngr",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_1012_skadi2",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_003_kalts",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_474_glady",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_426_billro",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_485_pallas",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_1013_chen2",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_437_mizuki",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_430_fartth",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_479_sleach",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_1014_nearl2",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_420_flamtl",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_206_gnosis",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_322_lmlee",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_377_gdglow",
+					"count": 1,
+					"type": "CHAR"
+				},
+				{
+					"id": "char_2023_ling",
+					"count": 1,
+					"type": "CHAR"
+				}
+			]
+		},
+		{
+			"goodId": "GP_Once_2",
+			"giftPackageId": "Once_2",
+			"priority": 90,
+			"displayName": "新人寻访组合包",
+			"currencyUnit": "CASH",
+			"price": 128,
+			"originPrice": 128,
+			"discount": 0,
+			"availCount": 1,
+			"startDateTime": -1,
+			"endDateTime": -1,
+			"items": [
+				{
+					"id": "7004",
+					"count": 2,
+					"type": "TKT_GACHA_10"
+				}
+			]
+		},
+		{
+			"goodId": "GP_Once_3",
+			"giftPackageId": "Once_3",
+			"priority": 80,
+			"displayName": "新人养成组合包",
+			"currencyUnit": "CASH",
+			"price": 68,
+			"originPrice": 68,
+			"discount": 0,
+			"availCount": 1,
+			"startDateTime": -1,
+			"endDateTime": -1,
+			"items": [
+				{
+					"id": "4002",
+					"count": 13,
+					"type": "DIAMOND"
+				},
+				{
+					"id": "4001",
+					"count": 40000,
+					"type": "GOLD"
+				},
+				{
+					"id": "2003",
+					"count": 20,
+					"type": "CARD_EXP"
+				},
+				{
+					"id": "2002",
+					"count": 30,
+					"type": "CARD_EXP"
+				},
+				{
+					"id": "2001",
+					"count": 40,
+					"type": "CARD_EXP"
+				},
+				{
+					"id": "3302",
+					"count": 10,
+					"type": "MATERIAL"
+				},
+				{
+					"id": "3301",
+					"count": 30,
+					"type": "MATERIAL"
+				},
+				{
+					"id": "30062",
+					"count": 4,
+					"type": "MATERIAL"
+				},
+				{
+					"id": "30052",
+					"count": 5,
+					"type": "MATERIAL"
+				},
+				{
+					"id": "30042",
+					"count": 5,
+					"type": "MATERIAL"
+				},
+				{
+					"id": "30032",
+					"count": 1,
+					"type": "MATERIAL"
+				},
+				{
+					"id": "30022",
+					"count": 1,
+					"type": "MATERIAL"
+				},
+				{
+					"id": "30012",
+					"count": 10,
+					"type": "MATERIAL"
+				}
+			]
+		},
+		{
+			"goodId": "GP_Once_4",
+			"giftPackageId": "Once_4",
+			"priority": 70,
+			"displayName": "新人家具组合包",
+			"currencyUnit": "CASH",
+			"price": 68,
+			"originPrice": 68,
+			"discount": 0,
+			"availCount": 1,
+			"startDateTime": -1,
+			"endDateTime": -1,
+			"items": [
+				{
+					"id": "4002",
+					"count": 6,
+					"type": "DIAMOND"
+				},
+				{
+					"id": "3401",
+					"count": 2400,
+					"type": "MATERIAL"
+				}
+			]
+		}
+	],
+	"chooseGroup": [],
+	"playerDataDelta": {
+		"modified": {},
+		"deleted": {}
+	}
+}

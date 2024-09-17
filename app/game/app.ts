@@ -6,9 +6,11 @@ import { accountManager } from "./manager/AccountManger";
 const app = express();
 app.use(bodyParser.json());
 app.use(httpContext.middleware);
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   if (req.headers?.secret) {
-    //TODO
+    if (req.headers.secret != "1") {
+      req.headers.secret = "1";
+    }
     const data = accountManager.getPlayerData(req.headers.secret as string);
     httpContext.set("playerData", data);
   }

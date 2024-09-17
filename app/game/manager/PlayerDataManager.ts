@@ -105,7 +105,6 @@ export class PlayerDataManager {
       uid: this.uid,
       serverName: this.status.status.serverName,
       level: this.status.status.level,
-      //avatarId:this.status.status.avatarId,
       avatar: this.status.status.avatar,
       assistCharList: [],
       lastOnlineTime: this.status.status.lastOnlineTs,

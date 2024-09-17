@@ -205,8 +205,8 @@ export class GachaController {
     return rank;
   }
 
-  getPoolDetail(poolId: string): GachaDetailData {
-    return this._table.details[poolId];
+  getPoolDetail(args: { poolId: string }): GachaDetailData {
+    return this._table.details[args.poolId];
   }
 
   toJSON(): PlayerGacha {

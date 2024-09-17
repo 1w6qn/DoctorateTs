@@ -26,26 +26,30 @@ export class RecruitManager {
     this._trigger = _trigger;
   }
 
-  async refreshTags(slotId: number): Promise<void> {
-    this.recruit.normal.slots[slotId].tags =
+  async refreshTags(args: { slotId: number }): Promise<void> {
+    this.recruit.normal.slots[args.slotId].tags =
       await RecruitTools.refreshTagList();
   }
 
-  sync() {}
+  async sync() {}
 
-  async cancle(slotId: number) {
-    this.recruit.normal.slots[slotId].state = 1;
-    this.recruit.normal.slots[slotId].selectTags = [];
-    this.recruit.normal.slots[slotId].startTs = -1;
-    this.recruit.normal.slots[slotId].maxFinishTs = -1;
-    this.recruit.normal.slots[slotId].realFinishTs = -1;
-    this.recruit.normal.slots[slotId].durationInSec = -1;
-    this.recruit.normal.slots[slotId].tags =
-      await RecruitTools.refreshTagList();
+  async cancel(args: { slotId: number }) {
+    this.recruit.normal.slots[args.slotId] = Object.assign(
+      this.recruit.normal.slots[args.slotId],
+      {
+        state: 1,
+        selectTags: [],
+        startTs: -1,
+        maxFinishTs: -1,
+        realFinishTs: -1,
+        durationInSec: -1,
+        tags: await RecruitTools.refreshTagList(),
+      },
+    );
   }
 
-  buyRecruitSlot(slotId: number) {
-    this.recruit.normal.slots[slotId].state = 1;
+  buyRecruitSlot(args: { slotId: number }) {
+    this.recruit.normal.slots[args.slotId].state = 1;
   }
 
   async normalGacha(args: {
@@ -54,41 +58,46 @@ export class RecruitManager {
     specialTagId: number;
     duration: number;
   }) {
-    this.recruit.normal.slots[args.slotId].state = 2;
-    this.recruit.normal.slots[args.slotId].selectTags = args.tagList.map(
-      (tag) => ({ tagId: tag, pick: 1 }),
+    this.recruit.normal.slots[args.slotId] = Object.assign(
+      this.recruit.normal.slots[args.slotId],
+      {
+        state: 2,
+        selectTags: args.tagList.map((tag) => ({ tagId: tag, pick: 1 })),
+        startTs: now(),
+        maxFinishTs: now() + args.duration,
+        realFinishTs: now() + args.duration,
+        durationInSec: args.duration,
+        tags: await RecruitTools.refreshTagList(),
+      },
     );
-    this.recruit.normal.slots[args.slotId].startTs = now();
-    this.recruit.normal.slots[args.slotId].maxFinishTs = now() + args.duration;
-    this.recruit.normal.slots[args.slotId].realFinishTs = now() + args.duration;
-    this.recruit.normal.slots[args.slotId].durationInSec = args.duration;
-    this.recruit.normal.slots[args.slotId].tags =
-      await RecruitTools.refreshTagList();
     this._trigger.emit("useItems", [
       { id: "7001", count: 1, type: "TKT_RECRUIT" },
     ]);
     this._trigger.emit("NormalGacha", {});
   }
 
-  async finish(slotId: number): Promise<GachaResult> {
-    const selected = this.recruit.normal.slots[slotId].selectTags;
+  async finish(args: { slotId: number }): Promise<GachaResult> {
     //TODO seperate
     const [char_id, filtered] = await RecruitTools.generateValidTags(
-      this.recruit.normal.slots[slotId].durationInSec,
-      selected.map((v) => v.tagId),
+      this.recruit.normal.slots[args.slotId].durationInSec,
+      this.recruit.normal.slots[args.slotId].selectTags.map((v) => v.tagId),
     );
-    this.recruit.normal.slots[slotId].selectTags = selected.map((tag) => ({
-      tagId: tag.tagId,
-      pick: filtered.includes(tag.tagId) ? 1 : 0,
-    }));
+    this.recruit.normal.slots[args.slotId].selectTags =
+      this.recruit.normal.slots[args.slotId].selectTags.map((tag) => ({
+        tagId: tag.tagId,
+        pick: filtered.includes(tag.tagId) ? 1 : 0,
+      }));
 
-    await this.cancle(slotId);
+    await this.cancel(args);
     return this._troop.gainChar(char_id);
   }
 
-  boost(slotId: number, buy: number) {
-    this.recruit.normal.slots[slotId].state = 3;
-    this.recruit.normal.slots[slotId].realFinishTs = now();
+  boost(args: { slotId: number; buy: number }) {
+    if (args.buy == 0) {
+      //
+    }
+    this.recruit.normal.slots[args.slotId].state = 2;
+    this.recruit.normal.slots[args.slotId].realFinishTs = now();
     this._trigger.emit("BoostNormalGacha", {});
   }
 
@@ -184,6 +193,7 @@ export class RecruitTools {
         [100 - compensation, compensation],
         1,
       )[0];
+      console.log(crossTag);
     }
 
     let randomCharId: string;

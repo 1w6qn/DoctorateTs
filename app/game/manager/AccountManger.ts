@@ -21,9 +21,7 @@ export class AccountManager {
     });
     for (const uid in this.configs) {
       this.data[uid] = new PlayerDataManager(
-        await readJson<PlayerDataModel>(
-          `./data/user/databases/${uid || "1"}.json`,
-        ),
+        await readJson<PlayerDataModel>(`./data/user/databases/${uid}.json`),
       );
       this.data[uid]._playerdata.status.uid = uid;
       this.data[uid]._trigger.on("save", async () => {
@@ -67,7 +65,7 @@ export class AccountManager {
   }
 
   getPlayerData(uid: string): PlayerDataManager {
-    return this.data[uid || "1"];
+    return this.data[uid];
   }
 
   getPlayerFriendInfo(uid: string) {
@@ -76,8 +74,8 @@ export class AccountManager {
 
   async savePlayerData(uid: string): Promise<void> {
     await writeFile(
-      `./data/user/databases/${uid || "1"}.json`,
-      JSON.stringify(this.data[uid || "1"], null, 4),
+      `./data/user/databases/${uid}.json`,
+      JSON.stringify(this.data[uid], null, 4),
     );
   }
 
@@ -121,8 +119,11 @@ export class AccountManager {
   }
 
   async searchPlayer(keyword: string): Promise<string[]> {
-    //TODO;
-    return [keyword];
+    return Object.entries(this.data)
+      .filter(([uid, data]) => {
+        return uid == keyword || data.socialInfo.nickName == keyword;
+      })
+      .map(([uid]) => uid);
   }
 }
 

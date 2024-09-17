@@ -1,12 +1,12 @@
-import { ItemBundle } from "app/excel/character_table";
-import excel from "../../excel/excel";
+import { ItemBundle } from "@excel/character_table";
+import excel from "@excel/excel";
+import { now } from "@utils/time";
 import EventEmitter from "events";
 import {
   PlayerConsumableItem,
   PlayerSkins,
   PlayerStatus,
 } from "../model/playerdata";
-import { now } from "@utils/time";
 import { PlayerDataManager } from "./PlayerDataManager";
 
 export class InventoryManager {
@@ -29,7 +29,7 @@ export class InventoryManager {
       items.forEach((item) => this._useItem(item)),
     );
     this._trigger.on("gainItems", (items: ItemBundle[]) =>
-      items.forEach((item) => this._gainItem(item)),
+      items.forEach((item) => this.gainItem(item)),
     );
   }
 
@@ -41,30 +41,22 @@ export class InventoryManager {
     if (!item.type) {
       item.type = excel.ItemTable.items[item.id].itemType as string;
     }
+    const consumableFunc = (item: ItemBundle) =>
+      (this.consumable[item.id][item.instId!].count -= item.count);
     const funcs: { [key: string]: (item: ItemBundle) => void } = {
-      TKT_GACHA_PRSV: (item: ItemBundle) =>
-        (this.consumable[item.id][item.instId!].count -= item.count),
-      VOUCHER_ELITE_II_4: (item: ItemBundle) =>
-        (this.consumable[item.id][item.instId!].count -= item.count),
-      VOUCHER_ELITE_II_5: (item: ItemBundle) =>
-        (this.consumable[item.id][item.instId!].count -= item.count),
-      VOUCHER_ELITE_II_6: (item: ItemBundle) =>
-        (this.consumable[item.id][item.instId!].count -= item.count),
-      VOUCHER_LEVELMAX_6: (item: ItemBundle) =>
-        (this.consumable[item.id][item.instId!].count -= item.count),
-      VOUCHER_LEVELMAX_5: (item: ItemBundle) =>
-        (this.consumable[item.id][item.instId!].count -= item.count),
-      VOUCHER_LEVELMAX_4: (item: ItemBundle) =>
-        (this.consumable[item.id][item.instId!].count -= item.count),
-      VOUCHER_SKILL_SPECIALLEVELMAX_6: (item: ItemBundle) =>
-        (this.consumable[item.id][item.instId!].count -= item.count),
-      VOUCHER_SKILL_SPECIALLEVELMAX_5: (item: ItemBundle) =>
-        (this.consumable[item.id][item.instId!].count -= item.count),
-      VOUCHER_SKILL_SPECIALLEVELMAX_4: (item: ItemBundle) =>
-        (this.consumable[item.id][item.instId!].count -= item.count),
+      TKT_GACHA_PRSV: consumableFunc,
+      VOUCHER_ELITE_II_4: consumableFunc,
+      VOUCHER_ELITE_II_5: consumableFunc,
+      VOUCHER_ELITE_II_6: consumableFunc,
+      VOUCHER_LEVELMAX_6: consumableFunc,
+      VOUCHER_LEVELMAX_5: consumableFunc,
+      VOUCHER_LEVELMAX_4: consumableFunc,
+      VOUCHER_SKILL_SPECIALLEVELMAX_6: consumableFunc,
+      VOUCHER_SKILL_SPECIALLEVELMAX_5: consumableFunc,
+      VOUCHER_SKILL_SPECIALLEVELMAX_4: consumableFunc,
     };
     if (funcs[item.type]) {
-      funcs[item.type](item);
+      funcs[item.type]?.(item);
     } else {
       this._trigger.emit("gainItems", [
         Object.assign({}, item, { count: -item.count }),
@@ -72,7 +64,7 @@ export class InventoryManager {
     }
   }
 
-  _gainItem(item: ItemBundle, callback?: () => void): void {
+  gainItem(item: ItemBundle, callback?: () => void): void {
     const info = excel.ItemTable.items[item.id];
     console.log(`[InventoryManager] 获得物品 ${info.name} x ${item.count}`);
     if (!item.type) {
@@ -96,11 +88,13 @@ export class InventoryManager {
               this._status.exp -= exp;
               this._status.maxAp =
                 excel.GameDataConst.playerApMap[this._status.level - 1];
-              this._gainItem({
-                id: "",
-                type: "AP_GAMEPLAY",
-                count: this._status.maxAp,
-              });
+              this._trigger.emit("gainItems", [
+                {
+                  id: "",
+                  type: "AP_GAMEPLAY",
+                  count: this._status.maxAp,
+                },
+              ]);
               this._trigger.emit("player:levelup");
             }
           });

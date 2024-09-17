@@ -1,12 +1,16 @@
 import EventEmitter from "events";
-import { PlayerDungeon, PlayerHiddenStage, PlayerSpecialStage, PlayerStage } from "../model/playerdata";
+import {
+  PlayerDungeon,
+  PlayerHiddenStage,
+  PlayerSpecialStage,
+  PlayerStage,
+} from "../model/playerdata";
 import excel from "../../excel/excel";
 
-
 export class DungeonManager implements PlayerDungeon {
-  stages: { [key: string]: PlayerStage; };
-  cowLevel: { [key: string]: PlayerSpecialStage; };
-  hideStages: { [key: string]: PlayerHiddenStage; };
+  stages: { [key: string]: PlayerStage };
+  cowLevel: { [key: string]: PlayerSpecialStage };
+  hideStages: { [key: string]: PlayerHiddenStage };
   mainlineBannedStages: string[];
   _trigger: EventEmitter;
   constructor(dungeon: PlayerDungeon, _trigger: EventEmitter) {
@@ -15,16 +19,15 @@ export class DungeonManager implements PlayerDungeon {
     this.hideStages = dungeon.hideStages;
     this.mainlineBannedStages = dungeon.mainlineBannedStages;
     this._trigger = _trigger;
-    this._trigger.on("stage:update",this.update.bind(this))
+    this._trigger.on("stage:update", this.update.bind(this));
     //this.initStages();
   }
-  update(){
-    
-  }
+
+  update() {}
   async initStages() {
-    await excel.initPromise
-    
-    for (let stageId in excel.StageTable.stages) {
+    await excel.initPromise;
+
+    for (const stageId in excel.StageTable.stages) {
       if (!(stageId in this.stages)) {
         this.stages[stageId] = {
           completeTimes: 1,
@@ -34,7 +37,7 @@ export class DungeonManager implements PlayerDungeon {
           stageId: stageId,
           startTimes: 1,
           state: 3,
-        }
+        };
       }
     }
   }
@@ -44,8 +47,7 @@ export class DungeonManager implements PlayerDungeon {
       stages: this.stages,
       cowLevel: this.cowLevel,
       hideStages: this.hideStages,
-      mainlineBannedStages: this.mainlineBannedStages
-    }
+      mainlineBannedStages: this.mainlineBannedStages,
+    };
   }
-
 }

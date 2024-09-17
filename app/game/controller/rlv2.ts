@@ -1,5 +1,9 @@
 import EventEmitter from "events";
-import { PlayerRoguelikeV2, RoguelikeNodePosition, TorappuRoguelikeEventType } from '../model/rlv2';
+import {
+  PlayerRoguelikeV2,
+  RoguelikeNodePosition,
+  TorappuRoguelikeEventType,
+} from "../model/rlv2";
 import excel from "@excel/excel";
 import { readFileSync } from "fs";
 import { RoguelikeInventoryManager } from "./rlv2/inventory";
@@ -17,254 +21,287 @@ import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { BattleData } from "@game/model/battle";
 import { RoguelikePoolManager } from "./rlv2/pool";
 import { RoguelikeGameInitData } from "@excel/roguelike_topic_table";
+
 export class RoguelikeV2Config {
-    choiceScenes: { [key: string]: { choices: { [key: string]: number } } }
-    constructor() {
-        this.choiceScenes = JSON.parse(readFileSync(`${__dirname}/../../../data/rlv2/choices.json`, "utf-8"))
-    }
+  choiceScenes: { [key: string]: { choices: { [key: string]: number } } };
+
+  constructor() {
+    this.choiceScenes = JSON.parse(
+      readFileSync(`${__dirname}/../../../data/rlv2/choices.json`, "utf-8"),
+    );
+  }
 }
-export class RoguelikeV2Controller implements PlayerRoguelikeV2{
-    pinned?: string;
-    outer: { [key: string]: PlayerRoguelikeV2.OuterData; };
-    current: PlayerRoguelikeV2.CurrentData;
-    troop: RoguelikeTroopManager
-    _map!: RoguelikeMapManager
-    _status!: RoguelikePlayerStatusManager
-    _buff!: RoguelikeBuffManager
-    _module!: RoguelikeModuleManager
-    _battle!: RoguelikeBattleManager
-    _troop: TroopManager
-    _pool:RoguelikePoolManager
-    _data: RoguelikeV2Config;
-    _player: PlayerDataManager
-    _trigger: EventEmitter
-    inventory!: RoguelikeInventoryManager | null;
-    get initConfig():RoguelikeGameInitData{
-        const game=this.current.game!
-        const initConfig=excel.RoguelikeTopicTable.details[game.theme].init.find(
-            i => (i.modeGrade == game.modeGrade && i.predefinedId == game.predefined && i.modeId == game.mode)
-        )!
-        return initConfig
-    }
-    setPinned(id: string): void {
-        this.pinned = id
-    }
-    giveUpGame(): void {
-        this.current.game = {
-            mode: "NONE",
-            predefined: "",
-            theme: "",
-            outer: {
-                support: false
-            },
-            start: -1,
-            modeGrade: 0,
-            equivalentGrade: 0
-        }
-        this.current.buff = {
-            tmpHP: 0,
-            capsule: null,
-            squadBuff: []
-        }
-        this.current.record = { brief: null }
-        this._trigger.emit("rlv2:init", this)
-    }
-    async createGame(args: { 
-        theme: string, 
-        mode: string, 
-        modeGrade: number, 
-        predefinedId: string | null 
-    }): Promise<void> {
-        //TODO
-        await roexcel.initPromise
-        await excel.initPromise
-        console.log("[RLV2] Game creation", args)
-        this.current.game = {
-            mode: args.mode,
-            predefined: args.predefinedId,
-            theme: args.theme,
-            outer: {
-                support: false
-            },
-            start: now(),
-            modeGrade: args.modeGrade,
-            equivalentGrade: args.modeGrade
-        }
-        this.current.buff = {
-            tmpHP: 0,
-            capsule: null,
-            squadBuff: []
-        }
-        this.current.record = { brief: null }
-        this.current.map = { zones: {} }
-        this._trigger.emit("rlv2:create", this)
 
-        
+export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
+  pinned?: string;
+  outer: { [key: string]: PlayerRoguelikeV2.OuterData };
+  current: PlayerRoguelikeV2.CurrentData;
+  troop: RoguelikeTroopManager;
+  _map!: RoguelikeMapManager;
+  _status!: RoguelikePlayerStatusManager;
+  _buff!: RoguelikeBuffManager;
+  _module!: RoguelikeModuleManager;
+  _battle!: RoguelikeBattleManager;
+  _troop: TroopManager;
+  _pool: RoguelikePoolManager;
+  _data: RoguelikeV2Config;
+  _player: PlayerDataManager;
+  _trigger: EventEmitter;
+  inventory!: RoguelikeInventoryManager | null;
 
-    }
+  constructor(player: PlayerDataManager, _trigger: EventEmitter) {
+    this.outer = player._playerdata.rlv2.outer;
+    this.current = player._playerdata.rlv2.current;
+    this.pinned = player._playerdata.rlv2.pinned;
+    this._player = player;
+    this._trigger = _trigger;
+    this._data = new RoguelikeV2Config();
+    this._troop = player.troop;
+    this.current.game = {
+      mode: "NONE",
+      predefined: "",
+      theme: "",
+      outer: {
+        support: false,
+      },
+      start: -1,
+      modeGrade: 0,
+      equivalentGrade: 0,
+    };
 
-    async chooseInitialRelic(args: { select: string }) {
-        let event = this._status.pending.shift()
-        let relic = event!.content.initRelic!.items[args.select]
-        await this.inventory!._relic.gain(relic)
+    this.current.buff = {
+      tmpHP: 0,
+      capsule: null,
+      squadBuff: [],
+    };
+    this.current.record = { brief: null };
 
-    }
-    async chooseInitialRecruitSet(args: { select: string }) {
-        await roexcel.initPromise
-        const theme = this.current.game!.theme
-        let event = this._status.pending.shift()
-        let event2 = this._status.pending.find(e => e.type === "GAME_INIT_RECRUIT")!
-        //TODO
-        roexcel.RoguelikeConsts[theme].recruitGrps[args.select].forEach(r => {
-            console.log("gain recruit", r)
-            this._trigger.emit("rlv2:recruit:gain", r, "initial", 0)
-        })
-        event2.content.initRecruit!.tickets = Object.values(this.inventory!.recruit).filter(r => r.from == "initial").map(r => r.index)
+    this.troop = new RoguelikeTroopManager(this, this._trigger);
+    this._status = new RoguelikePlayerStatusManager(this, this._trigger);
+    this.inventory = new RoguelikeInventoryManager(this, this._trigger);
+    this._buff = new RoguelikeBuffManager(this, this._trigger);
+    this._map = new RoguelikeMapManager(this, this._trigger);
+    this._module = new RoguelikeModuleManager(this, this._trigger);
+    this._battle = new RoguelikeBattleManager(this, this._trigger);
+    this._pool = new RoguelikePoolManager(this, this._trigger);
+    this._trigger.emit("rlv2:init", this);
+  }
 
+  get initConfig(): RoguelikeGameInitData {
+    const game = this.current.game!;
+    return excel.RoguelikeTopicTable.details[game.theme].init.find(
+      (i) =>
+        i.modeGrade == game.modeGrade &&
+        i.predefinedId == game.predefined &&
+        i.modeId == game.mode,
+    )!;
+  }
 
-    }
-    activeRecruitTicket(args: { id: string }) {
-        this._trigger.emit("rlv2:recruit:active", args.id)
-    }
-    recruitChar(args: { 
-        ticketIndex: string, 
-        optionId: string 
-    }): PlayerRoguelikeV2.CurrentData.RecruitChar[] {
-        this._trigger.emit("rlv2:recruit:done", args.ticketIndex, args.optionId)
-        return [this.inventory?.recruit[args.ticketIndex].result!]
-    }
-    finishEvent() {
-        this._status.pending.shift()
-        this._status.cursor.zone = 1
-        this._status.cursor.position=null
-        this._trigger.emit("rlv2:zone:new", this._status.cursor.zone)
-        this._status.state="WAIT_MOVE"
-    }
-    async moveAndBattleStart(args: { 
-        to: RoguelikeNodePosition, 
-        stageId: string, 
-        squad: PlayerSquad 
-    }): Promise<string> {
+  setPinned(id: string): void {
+    this.pinned = id;
+  }
 
-        await this.moveTo(args)
-        let nodeId = args.to.x * 100 + args.to.y
-        let stageId = this._map.zones[this._status.cursor.zone].nodes[nodeId].stage
-        this._trigger.emit("rlv2:battle:start", stageId)
-        return ""
-    }
-    async moveTo(args: { to: RoguelikeNodePosition }): Promise<void> {
-        await excel.initPromise
-        const theme = this.current.game!.theme
-        const detail=excel.RoguelikeTopicTable.details[theme].gameConst
-        let pos = this._status.cursor.position
-        this._status.state = "PENDING"
-        if (pos) {
-            let nodeId = pos.x * 100 + pos.y
-            let node = this._map.zones[this._status.cursor.zone].nodes[nodeId]
-            if (node.next.find(n => n.x === args.to.x && n.y === args.to.y)?.key) {
-                this._trigger.emit("rlv2:get:items", [{
-                    id:detail.unlockRouteItemId,
-                    count:-detail.unlockRouteItemCount,
-                }])
-            }
-        }
-        this._buff.filterBuffs("overweight_move_cost").forEach(b => {
-            this._trigger.emit("rlv2:get:items", [{id:b.blackboard[0].valueStr,count:-b.blackboard[1].value!}])
-        })
-        this._trigger.emit("rlv2:move")
-        this._status.trace.push({zone:this._status.cursor.zone,position:args.to})
-        let next=this._map.findNode(this._status.cursor.zone,args.to)
-        switch(next.type){
-            case TorappuRoguelikeEventType.INCIDENT:
-                
-                break
-        }
-        this._status.cursor.position = args.to
+  giveUpGame(): void {
+    this.current.game = {
+      mode: "NONE",
+      predefined: "",
+      theme: "",
+      outer: {
+        support: false,
+      },
+      start: -1,
+      modeGrade: 0,
+      equivalentGrade: 0,
+    };
+    this.current.buff = {
+      tmpHP: 0,
+      capsule: null,
+      squadBuff: [],
+    };
+    this.current.record = { brief: null };
+    this._trigger.emit("rlv2:init", this);
+  }
 
-    }
-    battleFinish(args: {battleLog:string,data:string,battleData:BattleData} ){
-        this._trigger.emit("rlv2:battle:finish", args)
-        let pos=`${this._status.cursor.position!.x*100+this._status.cursor.position!.y}`
-        this._map.zones[this._status.cursor.zone].nodes[pos].fts=now()
-        
-    }
-    chooseBattleReward(args:{index:number,sub:number}){
-        let rewardGrp=this._status.pending[0].content.battleReward!.rewards.find(r=>r.index==args.index)!
-        let reward=rewardGrp.items.find(r=>r.sub==args.sub)
-        this._trigger.emit("rlv2:get:items",[reward])
-        
-        rewardGrp.done=1
-    }
-    finishBattleReward(args:{}){
-        this._status.pending.shift()
-        this._status.state="WAIT_MOVE"
-    }
+  async createGame(args: {
+    theme: string;
+    mode: string;
+    modeGrade: number;
+    predefinedId: string | null;
+  }): Promise<void> {
+    //TODO
+    await roexcel.initPromise;
+    await excel.initPromise;
+    console.log("[RLV2] Game creation", args);
+    this.current.game = {
+      mode: args.mode,
+      predefined: args.predefinedId,
+      theme: args.theme,
+      outer: {
+        support: false,
+      },
+      start: now(),
+      modeGrade: args.modeGrade,
+      equivalentGrade: args.modeGrade,
+    };
+    this.current.buff = {
+      tmpHP: 0,
+      capsule: null,
+      squadBuff: [],
+    };
+    this.current.record = { brief: null };
+    this.current.map = { zones: {} };
+    this._trigger.emit("rlv2:create", this);
+  }
 
-    bankWithdraw(args: {}) {
-        const theme = this.current.game!.theme
-        this._trigger.emit("rlv2:bank:withdraw")
-    }
+  async chooseInitialRelic(args: { select: string }) {
+    const event = this._status.pending.shift();
+    const relic = event!.content.initRelic!.items[args.select];
+    await this.inventory!._relic.gain(relic);
+  }
 
-    setTroopCarry(args:{troopCarry: string[]}) {
-        this._trigger.emit("rlv2:fragment:set_troop_carry",args.troopCarry)
-    }
-    loseFragment(args:{fragmentIndex: string[]}) {
-        this._trigger.emit("rlv2:fragment:lose",args.fragmentIndex)
-    }
-    useInspiration(args:{fragmentIndex: string[]}) {
-        this._trigger.emit("rlv2:fragment:use_inspiration",args.fragmentIndex)
-    }
-    constructor(player: PlayerDataManager, _trigger: EventEmitter) {
-        this.outer = player._playerdata.rlv2.outer
-        this.current = player._playerdata.rlv2.current
-        this.pinned = player._playerdata.rlv2.pinned
-        this._player = player
-        this._trigger = _trigger
-        this._data = new RoguelikeV2Config()
-        this._troop = player.troop
-        this.current.game = {
-            mode: "NONE",
-            predefined: "",
-            theme: "",
-            outer: {
-                support: false
-            },
-            start: -1,
-            modeGrade: 0,
-            equivalentGrade: 0
-        }
+  async chooseInitialRecruitSet(args: { select: string }) {
+    await roexcel.initPromise;
+    const theme = this.current.game!.theme;
+    const event = this._status.pending.shift();
+    const event2 = this._status.pending.find(
+      (e) => e.type === "GAME_INIT_RECRUIT",
+    )!;
+    //TODO
+    roexcel.RoguelikeConsts[theme].recruitGrps[args.select].forEach((r) => {
+      console.log("gain recruit", r);
+      this._trigger.emit("rlv2:recruit:gain", r, "initial", 0);
+    });
+    event2.content.initRecruit!.tickets = Object.values(this.inventory!.recruit)
+      .filter((r) => r.from == "initial")
+      .map((r) => r.index);
+  }
 
-        this.current.buff = {
-            tmpHP: 0,
-            capsule: null,
-            squadBuff: []
-        }
-        this.current.record = { brief: null }
+  activeRecruitTicket(args: { id: string }) {
+    this._trigger.emit("rlv2:recruit:active", args.id);
+  }
 
-        this.troop = new RoguelikeTroopManager(this, this._trigger)
-        this._status = new RoguelikePlayerStatusManager(this, this._trigger)
-        this.inventory = new RoguelikeInventoryManager(this, this._trigger)
-        this._buff = new RoguelikeBuffManager(this, this._trigger)
-        this._map = new RoguelikeMapManager(this, this._trigger)
-        this._module = new RoguelikeModuleManager(this, this._trigger)
-        this._battle = new RoguelikeBattleManager(this, this._trigger)
-        this._pool=new RoguelikePoolManager(this,this._trigger)
-        this._trigger.emit("rlv2:init", this)
+  recruitChar(args: {
+    ticketIndex: string;
+    optionId: string;
+  }): PlayerRoguelikeV2.CurrentData.RecruitChar[] {
+    this._trigger.emit("rlv2:recruit:done", args.ticketIndex, args.optionId);
+    return [this.inventory?.recruit[args.ticketIndex].result!];
+  }
+
+  finishEvent() {
+    this._status.pending.shift();
+    this._status.cursor.zone = 1;
+    this._status.cursor.position = null;
+    this._trigger.emit("rlv2:zone:new", this._status.cursor.zone);
+    this._status.state = "WAIT_MOVE";
+  }
+
+  async moveAndBattleStart(args: {
+    to: RoguelikeNodePosition;
+    stageId: string;
+    squad: PlayerSquad;
+  }): Promise<string> {
+    await this.moveTo(args);
+    const nodeId = args.to.x * 100 + args.to.y;
+    const stageId =
+      this._map.zones[this._status.cursor.zone].nodes[nodeId].stage;
+    this._trigger.emit("rlv2:battle:start", stageId);
+    return "";
+  }
+
+  async moveTo(args: { to: RoguelikeNodePosition }): Promise<void> {
+    await excel.initPromise;
+    const theme = this.current.game!.theme;
+    const detail = excel.RoguelikeTopicTable.details[theme].gameConst;
+    const pos = this._status.cursor.position;
+    this._status.state = "PENDING";
+    if (pos) {
+      const nodeId = pos.x * 100 + pos.y;
+      const node = this._map.zones[this._status.cursor.zone].nodes[nodeId];
+      if (node.next.find((n) => n.x === args.to.x && n.y === args.to.y)?.key) {
+        this._trigger.emit("rlv2:get:items", [
+          {
+            id: detail.unlockRouteItemId,
+            count: -detail.unlockRouteItemCount,
+          },
+        ]);
+      }
     }
-    toJSON(): PlayerRoguelikeV2 {
-        return {
-            outer: this.outer,
-            current: {
-                player: this._status,
-                record: this.current.record,
-                map: this._map,
-                inventory: this.inventory,
-                game: this.current.game,
-                troop: this.troop,
-                buff: this.current.buff,
-                module: this._module
-            },
-            pinned: this.pinned
-        }
+    this._buff.filterBuffs("overweight_move_cost").forEach((b) => {
+      this._trigger.emit("rlv2:get:items", [
+        { id: b.blackboard[0].valueStr, count: -b.blackboard[1].value! },
+      ]);
+    });
+    this._trigger.emit("rlv2:move");
+    this._status.trace.push({
+      zone: this._status.cursor.zone,
+      position: args.to,
+    });
+    const next = this._map.findNode(this._status.cursor.zone, args.to);
+    switch (next.type) {
+      case TorappuRoguelikeEventType.INCIDENT:
+        break;
     }
+    this._status.cursor.position = args.to;
+  }
+
+  battleFinish(args: {
+    battleLog: string;
+    data: string;
+    battleData: BattleData;
+  }) {
+    this._trigger.emit("rlv2:battle:finish", args);
+    const pos = `${this._status.cursor.position!.x * 100 + this._status.cursor.position!.y}`;
+    this._map.zones[this._status.cursor.zone].nodes[pos].fts = now();
+  }
+
+  chooseBattleReward(args: { index: number; sub: number }) {
+    const rewardGrp =
+      this._status.pending[0].content.battleReward!.rewards.find(
+        (r) => r.index == args.index,
+      )!;
+    const reward = rewardGrp.items.find((r) => r.sub == args.sub);
+    this._trigger.emit("rlv2:get:items", [reward]);
+
+    rewardGrp.done = 1;
+  }
+
+  finishBattleReward(args: {}) {
+    this._status.pending.shift();
+    this._status.state = "WAIT_MOVE";
+  }
+
+  bankWithdraw(args: {}) {
+    const theme = this.current.game!.theme;
+    this._trigger.emit("rlv2:bank:withdraw");
+  }
+
+  setTroopCarry(args: { troopCarry: string[] }) {
+    this._trigger.emit("rlv2:fragment:set_troop_carry", args.troopCarry);
+  }
+
+  loseFragment(args: { fragmentIndex: string[] }) {
+    this._trigger.emit("rlv2:fragment:lose", args.fragmentIndex);
+  }
+
+  useInspiration(args: { fragmentIndex: string[] }) {
+    this._trigger.emit("rlv2:fragment:use_inspiration", args.fragmentIndex);
+  }
+
+  toJSON(): PlayerRoguelikeV2 {
+    return {
+      outer: this.outer,
+      current: {
+        player: this._status,
+        record: this.current.record,
+        map: this._map,
+        inventory: this.inventory,
+        game: this.current.game,
+        troop: this.troop,
+        buff: this.current.buff,
+        module: this._module,
+      },
+      pinned: this.pinned,
+    };
+  }
 }

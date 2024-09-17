@@ -1,6 +1,6 @@
 import excel from "@excel/excel";
 import EventEmitter from "events";
-import {PlayerCharacter, PlayerCharEquipInfo, PlayerCharPatch, PlayerCharSkill} from "@game/model/character";
+import { PlayerCharacter } from "@game/model/character";
 import {CharacterData} from "@excel/character_table";
 
 export class Character{

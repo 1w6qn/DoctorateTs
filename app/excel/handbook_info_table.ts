@@ -68,20 +68,20 @@ export interface HandbookDisplayCondition {
 }
 
 export interface HandbookStoryStageData {
-    charId:           string;
-    stageId:          string;
-    levelId:          string;
-    zoneId:           string;
-    code:             string;
-    name:             string;
-    loadingPicId:     string;
-    description:      string;
-    unlockParam:      HandbookUnlockParam[];
-    rewardItem:       ItemBundle[];
-    stageNameForShow: string;
-    zoneNameForShow:  string;
-    picId:            string;
-    stageGetTime:     number;
+  charId: string;
+  stageId: string;
+  levelId: string;
+  zoneId: string;
+  code: string;
+  name: string;
+  loadingPicId: string;
+  description: string;
+  unlockParam: HandbookUnlockParam[];
+  rewardItem: ItemBundle[];
+  stageNameForShow?: string;
+  zoneNameForShow?: string;
+  picId?: string;
+  stageGetTime: number;
 }
 
 

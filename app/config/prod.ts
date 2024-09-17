@@ -1,37 +1,44 @@
 import { Router } from "express";
-import config from "../config"
+import config from "../config";
+
 const router = Router();
-router.get('/official/Android/version', (req, res) => {
-    let modPatch={}
-    if(config.assets.enableMods){
-        modPatch={
-            resVersion:config.version.resVersion+Math.floor(Math.random()*100)
-        }
-    }
-    res.send(Object.assign({},config.version,modPatch))
-    
-})
-router.get('/official/network_config', (req, res) => {
-    let content = JSON.stringify(config.NetworkConfig);
-    res.send({
-        sign: "sign",
-        content: content.replace(/{server}/g, `${config.Host}:${config.PORT}`)
-    })
-})
-router.get('/official/refresh_config', (req, res) => {
-    res.send({"resVersion":config.version.resVersion})
-})
-router.get('/official/remote_config', (req, res) => {
-    res.send({
-        enableGameBI: false,
-        enableSDKNetSecure: true,
-        enableBestHttp: true
-    })
-})
-router.get('/announce_meta/Android/preannouncement.meta.json', async(req, res) => {
-    res.send(await import("../../data/announce/preannouncement.meta.json"))
-})
-router.get('/announce_meta/Android/announcement.meta.json', async(req, res) => {
-    res.send(await import("../../data/announce/announcement.meta.json"))
-})
-export default router ;
+router.get("/official/Android/version", (req, res) => {
+  let modPatch = {};
+  if (config.assets.enableMods) {
+    modPatch = {
+      resVersion: config.version.resVersion + Math.floor(Math.random() * 100),
+    };
+  }
+  res.send(Object.assign({}, config.version, modPatch));
+});
+router.get("/official/network_config", (req, res) => {
+  const content = JSON.stringify(config.NetworkConfig).replace(
+    /{server}/g,
+    `${config.Host}:${config.PORT}`,
+  );
+  const sign = "sign";
+  res.send({ sign, content });
+});
+router.get("/official/refresh_config", (req, res) => {
+  res.send({ resVersion: config.version.resVersion });
+});
+router.get("/official/remote_config", (req, res) => {
+  res.send({
+    enableGameBI: false,
+    enableSDKNetSecure: true,
+    enableBestHttp: true,
+  });
+});
+router.get(
+  "/announce_meta/Android/preannouncement.meta.json",
+  async (req, res) => {
+    res.send(await import("../../data/announce/preannouncement.meta.json"));
+  },
+);
+router.get(
+  "/announce_meta/Android/announcement.meta.json",
+  async (req, res) => {
+    res.send(await import("../../data/announce/announcement.meta.json"));
+  },
+);
+export default router;

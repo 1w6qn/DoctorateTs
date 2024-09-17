@@ -34,7 +34,7 @@ router.get(
         );
       }
     }
-    if (await exists(basePath)) {
+    if (!(await exists(basePath))) {
       await mkdir(basePath, { recursive: true });
     }
 

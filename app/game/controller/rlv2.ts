@@ -130,7 +130,6 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }): Promise<void> {
     //TODO
     await roexcel.initPromise;
-    await excel.initPromise;
     console.log("[RLV2] Game creation", args);
     this.current.game = {
       mode: args.mode,
@@ -210,7 +209,6 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }
 
   async moveTo(args: { to: RoguelikeNodePosition }): Promise<void> {
-    await excel.initPromise;
     const theme = this.current.game!.theme;
     const detail = excel.RoguelikeTopicTable.details[theme].gameConst;
     const pos = this._status.cursor.position;

@@ -462,7 +462,6 @@ export class TroopManager {
   addonStageBattleFinish() {}
 
   async fix(): Promise<void> {
-    await excel.initPromise;
     Object.values(this.chars).forEach((char) => {
       if (char.charId == "char_002_amiya") {
         //TODO

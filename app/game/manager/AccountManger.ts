@@ -1,32 +1,39 @@
-import { readFileSync, writeFileSync } from "fs";
 import { PlayerDataModel } from "../model/playerdata";
 import { PlayerDataManager } from "./PlayerDataManager";
+import { readJson } from "@utils/file";
+import { writeFile } from "fs/promises";
+import { EventEmitter } from "events";
 
 export class AccountManager {
-  data: { [key: string]: PlayerDataManager };
-  configs: { [key: string]: UserConfig };
+  data!: { [key: string]: PlayerDataManager };
+  configs!: { [key: string]: UserConfig };
+  _trigger!: EventEmitter;
 
-  constructor() {
-    this.configs = JSON.parse(
-      readFileSync(`${__dirname}/../../../data/user/users.json`, "utf8"),
-    );
+  constructor() {}
+
+  async init() {
+    console.time("[AccountManager][loaded]");
+    this.configs = await readJson(`./data/user/users.json`);
     this.data = {};
+    this._trigger = new EventEmitter();
+    this._trigger.on("save", async () => {
+      await this.saveUserConfig();
+    });
     for (const uid in this.configs) {
       this.data[uid] = new PlayerDataManager(
-        JSON.parse(
-          readFileSync(
-            `${__dirname}/../../../data/user/databases/${uid || "1"}.json`,
-            "utf8",
-          ),
-        ) as PlayerDataModel,
+        await readJson<PlayerDataModel>(
+          `./data/user/databases/${uid || "1"}.json`,
+        ),
       );
       this.data[uid]._playerdata.status.uid = uid;
-      this.data[uid]._trigger.on("save", () => {
-        this.savePlayerData(uid);
+      this.data[uid]._trigger.on("save", async () => {
+        await this.savePlayerData(uid);
+        await this.saveUserConfig();
       });
     }
+    console.timeEnd("[AccountManager][loaded]");
     console.log(
-      `AccountManager initialized;${Object.keys(this.configs).length} users loaded.`,
+      `[AccountManager] ${Object.keys(this.configs).length} users loaded.`,
     );
   }
 
@@ -36,16 +43,16 @@ export class AccountManager {
 
   saveBattleReplay(uid: string, stageId: string, replay: string): void {
     this.configs[uid]!.battle.replays[stageId] = replay;
-    this.saveUserConfig();
+    this._trigger.emit("save");
   }
 
   getUserConfig(uid: string): UserConfig {
     return this.configs[uid]!;
   }
 
-  saveUserConfig(): void {
-    writeFileSync(
-      `${__dirname}/../../../data/user/users.json`,
+  async saveUserConfig(): Promise<void> {
+    await writeFile(
+      `./data/user/users.json`,
       JSON.stringify(this.configs, null, 4),
     );
   }
@@ -56,7 +63,7 @@ export class AccountManager {
 
   saveBattleInfo(uid: string, battleId: string, info: BattleInfo): void {
     this.configs[uid]!.battle.infos[battleId] = info;
-    this.saveUserConfig();
+    this._trigger.emit("save");
   }
 
   getPlayerData(uid: string): PlayerDataManager {
@@ -67,9 +74,9 @@ export class AccountManager {
     return this.getPlayerData(uid).socialInfo;
   }
 
-  savePlayerData(uid: string): void {
-    writeFileSync(
-      `${__dirname}/../../../data/user/databases/${uid || "1"}.json`,
+  async savePlayerData(uid: string): Promise<void> {
+    await writeFile(
+      `./data/user/databases/${uid || "1"}.json`,
       JSON.stringify(this.data[uid || "1"], null, 4),
     );
   }
@@ -80,7 +87,7 @@ export class AccountManager {
 
   saveBeforeNonHitCnt(uid: string, gachaType: string, cnt: number): void {
     this.configs[uid]!.gacha[gachaType].beforeNonHitCnt = cnt;
-    this.saveUserConfig();
+    this._trigger.emit("save");
   }
 
   getSocial(uid: string): { friends: string[] } {
@@ -90,30 +97,30 @@ export class AccountManager {
   deleteFriend(uid: string, friendUid: string): void {
     const social = this.configs[uid]!.social;
     social.friends.splice(social.friends.indexOf(friendUid), 1);
-    this.saveUserConfig();
+    this._trigger.emit("save");
   }
 
   addFriend(uid: string, friendUid: string): void {
     this.configs[uid]!.social.friends.push(friendUid);
-    this.saveUserConfig();
+    this._trigger.emit("save");
   }
 
   sendFriendRequest(from: string, to: string): void {
     this.configs[to]!.social.friendRequests.push(from);
-    this.saveUserConfig();
+    this._trigger.emit("save");
   }
 
   deleteFriendRequest(uid: string, friendId: string): void {
     const social = this.configs[uid]!.social;
     social.friendRequests.splice(social.friendRequests.indexOf(friendId), 1);
-    this.saveUserConfig();
+    this._trigger.emit("save");
   }
 
-  getFriendRequests(uid: string): string[] {
+  async getFriendRequests(uid: string): Promise<string[]> {
     return this.configs[uid]!.social.friendRequests;
   }
 
-  searchPlayer(keyword: string): string[] {
+  async searchPlayer(keyword: string): Promise<string[]> {
     //TODO;
     return [keyword];
   }
@@ -131,6 +138,7 @@ export interface UserConfig {
   social: {
     friends: string[];
     friendRequests: string[];
+    visited: string[];
   };
   battle: {
     stageId: string;

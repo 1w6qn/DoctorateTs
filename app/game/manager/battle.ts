@@ -18,7 +18,6 @@ export class BattleManager {
   }
 
   async start(args: CommonStartBattleRequest) {
-    await excel.initPromise;
     const battleId = "1";
     const zoneId = excel.StageTable.stages[args.stageId].zoneId;
     let apFailReturn = excel.StageTable.stages[args.stageId].apFailReturn;

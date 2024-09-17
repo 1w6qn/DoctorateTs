@@ -30,7 +30,6 @@ export class RoguelikeBuffManager {
   }
 
   async continue() {
-    await excel.initPromise;
     const theme = this._player.current.game!.theme;
     Object.values(this._player.inventory!.relic).reduce((acc, relic) => {
       const buffs =

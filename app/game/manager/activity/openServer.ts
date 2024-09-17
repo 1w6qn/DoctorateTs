@@ -44,7 +44,6 @@ export class OpenServerManager implements PlayerOpenServer {
   }
 
   async getChainLogInReward(args: { index: number }): Promise<ItemBundle[]> {
-    await excel.initPromise;
     const schedule = excel.OpenServerTable.schedule.find((s) =>
       checkBetween(now(), s.startTs, s.endTs),
     )!.id;
@@ -58,7 +57,6 @@ export class OpenServerManager implements PlayerOpenServer {
   }
 
   async getCheckInReward(): Promise<ItemBundle[]> {
-    await excel.initPromise;
     const schedule = excel.OpenServerTable.schedule.find((s) =>
       checkBetween(now(), s.startTs, s.endTs),
     )!.id;

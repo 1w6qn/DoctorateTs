@@ -18,6 +18,7 @@ import { GachaDetailTable } from "./gacha_detail_table";
 import { CharMetaTable } from "./char_meta_table";
 import { SkinTable } from "./skin_table";
 import { OpenServerSchedule } from "./open_server_table";
+import { readJson } from "@utils/file";
 
 export class Excel {
   BattleEquipTable!: BattleEquipTable;
@@ -40,54 +41,66 @@ export class Excel {
   CharMetaTable!: CharMetaTable;
   SkinTable!: SkinTable;
   OpenServerTable!: OpenServerSchedule;
-  initPromise: Promise<void>;
 
-  constructor() {
-    this.initPromise = this.init().then(() => {
-      console.log("[excel]loaded");
-    });
-  }
+  constructor() {}
 
   async init(): Promise<void> {
-    this.MissionTable = await import("../../data/excel/mission_table.json");
-    this.BattleEquipTable = (
-      await import("../../data/excel/battle_equip_table.json")
-    ).default as BattleEquipTable;
-    this.BuildingData = (await import(
-      "../../data/excel/building_data.json"
-    )) as BuildingData;
-    this.CharacterTable = (
-      await import("../../data/excel/character_table.json")
-    ).default as CharacterTable;
-    this.GameDataConst = await import("../../data/excel/gamedata_const.json");
-    this.ItemTable = await import("../../data/excel/item_table.json");
-    this.StageTable = (await import("../../data/excel/stage_table.json"))
-      .default as StageTable;
-    this.HandbookInfoTable = (
-      await import("../../data/excel/handbook_info_table.json")
-    ).default;
-    this.CheckinTable = await import("../../data/excel/checkin_table.json");
-    this.StoryReviewMetaTable = await import(
-      "../../data/excel/story_review_meta_table.json"
+    this.MissionTable = await readJson<MissionTable>(
+      "./data/excel/mission_table.json",
     );
-    this.GachaTable = (await import(
-      "../../data/excel/gacha_table.json"
-    )) as GachaData;
-    this.RoguelikeTopicTable = (
-      await import("../../data/excel/roguelike_topic_table.json")
-    ).default as RoguelikeTopicTable;
-    this.UniequipTable = await import("../../data/excel/uniequip_table.json");
-    this.FavorTable = await import("../../data/excel/favor_table.json");
-    this.StoryReviewTable = (
-      await import("../../data/excel/story_review_table.json")
-    ).default;
-    this.MedalTable = await import("../../data/excel/medal_table.json");
-    this.CharMetaTable = await import("../../data/excel/char_meta_table.json");
-    this.SkinTable = (await import("../../data/excel/skin_table.json")).default;
-    this.OpenServerTable = (
-      await import("../../data/excel/open_server_table.json")
-    ).default;
-    this.GachaDetailTable = await import("../../data/gacha_detail_table.json");
+    this.BattleEquipTable = await readJson<BattleEquipTable>(
+      "./data/excel/battle_equip_table.json",
+    );
+    this.BuildingData = await readJson<BuildingData>(
+      "./data/excel/building_data.json",
+    );
+    this.CharacterTable = await readJson<CharacterTable>(
+      "./data/excel/character_table.json",
+    );
+    this.GameDataConst = await readJson<GameDataConsts>(
+      "./data/excel/gamedata_const.json",
+    );
+    this.ItemTable = await readJson<ServerItemTable>(
+      "./data/excel/item_table.json",
+    );
+    this.StageTable = await readJson<StageTable>(
+      "./data/excel/stage_table.json",
+    );
+    this.HandbookInfoTable = await readJson<HandbookInfoTable>(
+      "./data/excel/handbook_info_table.json",
+    );
+    this.CheckinTable = await readJson<CheckinTable>(
+      "./data/excel/checkin_table.json",
+    );
+    this.StoryReviewMetaTable = await readJson<StoryReviewMetaTable>(
+      "./data/excel/story_review_meta_table.json",
+    );
+    this.GachaTable = await readJson<GachaData>(
+      "./data/excel/gacha_table.json",
+    );
+    this.RoguelikeTopicTable = await readJson<RoguelikeTopicTable>(
+      "./data/excel/roguelike_topic_table.json",
+    );
+    this.UniequipTable = await readJson<UniEquipTable>(
+      "./data/excel/uniequip_table.json",
+    );
+    this.FavorTable = await readJson<FavorTable>(
+      "./data/excel/favor_table.json",
+    );
+    this.StoryReviewTable = await readJson<StoryReviewTable>(
+      "./data/excel/story_review_table.json",
+    );
+    this.MedalTable = await readJson<MedalData>(
+      "./data/excel/medal_table.json",
+    );
+    this.CharMetaTable = await readJson<CharMetaTable>(
+      "./data/excel/char_meta_table.json",
+    );
+    this.SkinTable = await readJson<SkinTable>("./data/excel/skin_table.json");
+    this.OpenServerTable = await readJson<OpenServerSchedule>(
+      "./data/excel/open_server_table.json",
+    );
+    this.GachaDetailTable = await readJson("./data/gacha_detail_table.json");
   }
 }
 

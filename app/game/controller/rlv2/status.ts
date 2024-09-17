@@ -65,7 +65,6 @@ export class RoguelikePlayerStatusManager
   }
 
   async create() {
-    await excel.initPromise;
     const game = this._player.current.game!;
     const theme = game.theme;
     const init = excel.RoguelikeTopicTable.details[theme].init.find(

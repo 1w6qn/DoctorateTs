@@ -25,8 +25,6 @@ export class DungeonManager implements PlayerDungeon {
 
   update() {}
   async initStages() {
-    await excel.initPromise;
-
     for (const stageId in excel.StageTable.stages) {
       if (!(stageId in this.stages)) {
         this.stages[stageId] = {

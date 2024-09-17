@@ -65,7 +65,6 @@ export class GachaController {
     useTkt: number;
     itemId: string;
   }): Promise<GachaResult & { logInfo: { beforeNonHitCnt: number } }> {
-    await excel.initPromise;
     const { poolId, useTkt, itemId } = args;
     if (!(poolId in this.gacha.normal)) {
       this.gacha.normal[poolId] = {

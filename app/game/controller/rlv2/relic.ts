@@ -32,7 +32,6 @@ export class RoguelikeRelicManager {
   use(id: string): void {}
 
   async gain(relic: RoguelikeItemBundle): Promise<void> {
-    await excel.initPromise;
     const theme = this._player.current.game!.theme;
     const buffs =
       excel.RoguelikeTopicTable.details[theme].relics[relic.id].buffs;

@@ -10,12 +10,13 @@ app.use((req, res, next) => {
   if (req.headers?.secret) {
     //TODO
     const data = accountManager.getPlayerData(req.headers.secret as string);
-    httpContext.set("playerdata", data);
+    httpContext.set("playerData", data);
   }
   next();
 });
 
-async function setup(app: express.Application) {
+export async function setup(app: express.Application) {
+  await accountManager.init();
   app.use("/businessCard", (await import("./router/businessCard")).default);
   app.use("/account", (await import("./router/account")).default);
   app.use("/charBuild", (await import("./router/charBuild")).default);
@@ -30,6 +31,4 @@ async function setup(app: express.Application) {
   app.use("/gacha", (await import("./router/gacha")).default);
   app.use("/", (await import("./router/home")).default);
 }
-
-setup(app).then();
 export default app;

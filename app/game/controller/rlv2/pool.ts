@@ -28,7 +28,6 @@ export class RoguelikePoolManager {
   }
 
   async create() {
-    await excel.initPromise;
     const theme = this._player.current.game!.theme;
     this._pools["pool_sacrifice_n"] = [];
     this._pools["pool_sacrifice_r"] = [];

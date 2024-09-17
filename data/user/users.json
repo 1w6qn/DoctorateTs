@@ -1,7 +1,12 @@
 {
     "1": {
         "uid": "1",
+      "social": {
         "friends": [],
+        "friendRequests": [],
+        "visited": []
+      },
+
         "battle": {
             "stageId": "",
             "replays": {

@@ -84,7 +84,7 @@ export class PlayerDataManager {
   get delta() {
     return {
       playerDataDelta: {
-        modified: this.toJSON(),
+        modified: {},
         deleted: {},
       },
     };

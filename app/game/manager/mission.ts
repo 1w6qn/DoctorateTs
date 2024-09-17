@@ -68,7 +68,6 @@ export class MissionManager {
   }
 
   async dailyRefresh() {
-    await excel.initPromise;
     this.missionRewards.dailyPoint = 0;
     this.missionRewards.rewards["DAILY"] = {};
     for (const reward of Object.values(excel.MissionTable.periodicalRewards)) {
@@ -231,7 +230,6 @@ export class MissionProgress implements MissionPlayerState {
   }
 
   async init() {
-    await excel.initPromise;
     let template: string;
     if (this.type == "ACTIVITY") {
       template = "";

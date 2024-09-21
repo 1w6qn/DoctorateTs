@@ -78,7 +78,9 @@ export class GachaController {
     const ruleType = excel.GachaTable.gachaPoolClient.find(
       (g) => g.gachaPoolId === poolId,
     )!.gachaRuleType;
-    const extras: { [key: string]: any; from: string } = { from: ruleType };
+    const extras: { [key: string]: object | string; from: string } = {
+      from: ruleType,
+    };
     const detail = this._table.details[poolId];
     let beforeNonHitCnt = accountManager.getBeforeNonHitCnt(this.uid, ruleType);
     const rank: number = 0;

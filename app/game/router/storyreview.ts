@@ -4,7 +4,7 @@ import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { now } from "@utils/time";
 
 const router = Router();
-router.post("/markStoryAcceKnown", (req, res) => {
+router.post("/markStoryAcceKnown", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -12,7 +12,7 @@ router.post("/markStoryAcceKnown", (req, res) => {
   res.send(player.delta);
   player._trigger.emit("save");
 });
-router.post("/rewardGroup", (req, res) => {
+router.post("/rewardGroup", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -22,7 +22,7 @@ router.post("/rewardGroup", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/readStory", (req, res) => {
+router.post("/readStory", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -30,7 +30,7 @@ router.post("/readStory", (req, res) => {
   res.send(player.delta);
   player._trigger.emit("save");
 });
-router.post("/unlockStoryByCoin", (req, res) => {
+router.post("/unlockStoryByCoin", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -41,7 +41,7 @@ router.post("/unlockStoryByCoin", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/trailReward", (req, res) => {
+router.post("/trailReward", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;

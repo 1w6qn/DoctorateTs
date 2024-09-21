@@ -4,7 +4,7 @@ import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { now } from "@utils/time";
 
 const router = Router();
-router.post("/login", (req, res) => {
+router.post("/login", async (req, res) => {
   res.send({
     result: 0,
     uid: "1",
@@ -12,19 +12,19 @@ router.post("/login", (req, res) => {
     serviceLicenseVersion: 0,
   });
 });
-router.post("/syncData", (req, res) => {
+router.post("/syncData", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
   player._playerdata.pushFlags.status = now();
-  res.send({
+  res.json({
     result: 0,
     ts: now(),
     user: player,
     ...player.delta,
   });
 });
-router.post("/syncStatus", (req, res) => {
+router.post("/syncStatus", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -35,7 +35,7 @@ router.post("/syncStatus", (req, res) => {
     ...player.delta,
   });
 });
-router.post("/syncPushMessage", (req, res) => {
+router.post("/syncPushMessage", async (req, res) => {
   res.send({});
 });
 

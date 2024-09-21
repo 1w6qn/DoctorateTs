@@ -3,7 +3,7 @@ import httpContext from "express-http-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 
 const router = Router();
-router.post("/squadFormation", (req, res) => {
+router.post("/squadFormation", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -11,7 +11,7 @@ router.post("/squadFormation", (req, res) => {
   res.send(player.delta);
   player._trigger.emit("save");
 });
-router.post("/changeSquadName", (req, res) => {
+router.post("/changeSquadName", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -19,7 +19,7 @@ router.post("/changeSquadName", (req, res) => {
   res.send(player.delta);
   player._trigger.emit("save");
 });
-router.post("/battleStart", (req, res) => {
+router.post("/battleStart", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -29,7 +29,7 @@ router.post("/battleStart", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/battleFinish", (req, res) => {
+router.post("/battleFinish", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -39,7 +39,7 @@ router.post("/battleFinish", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/getBattleReplay", (req, res) => {
+router.post("/getBattleReplay", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -49,7 +49,7 @@ router.post("/getBattleReplay", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/saveBattleReplay", (req, res) => {
+router.post("/saveBattleReplay", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;

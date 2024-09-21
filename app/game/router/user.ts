@@ -4,7 +4,7 @@ import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 
 const router = Router();
-router.post("/changeSecretary", (req, res) => {
+router.post("/changeSecretary", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -12,7 +12,7 @@ router.post("/changeSecretary", (req, res) => {
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/changeAvatar", (req, res) => {
+router.post("/changeAvatar", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -20,7 +20,7 @@ router.post("/changeAvatar", (req, res) => {
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/changeResume", (req, res) => {
+router.post("/changeResume", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -32,7 +32,7 @@ router.post("/changeResume", (req, res) => {
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/bindNickName", (req, res) => {
+router.post("/bindNickName", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -40,7 +40,7 @@ router.post("/bindNickName", (req, res) => {
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/useRenameCard", (req, res) => {
+router.post("/useRenameCard", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -51,7 +51,7 @@ router.post("/useRenameCard", (req, res) => {
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/receiveTeamCollectionReward", (req, res) => {
+router.post("/receiveTeamCollectionReward", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -59,7 +59,7 @@ router.post("/receiveTeamCollectionReward", (req, res) => {
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/buyAp", (req, res) => {
+router.post("/buyAp", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -67,7 +67,7 @@ router.post("/buyAp", (req, res) => {
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/exchangeDiamondShard", (req, res) => {
+router.post("/exchangeDiamondShard", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -75,7 +75,7 @@ router.post("/exchangeDiamondShard", (req, res) => {
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/useItem", (req, res) => {
+router.post("/useItem", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -88,7 +88,7 @@ router.post("/useItem", (req, res) => {
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/useItems", (req, res) => {
+router.post("/useItems", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -104,7 +104,7 @@ router.post("/useItems", (req, res) => {
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/checkIn", (req, res) => {
+router.post("/checkIn", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;

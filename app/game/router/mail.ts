@@ -4,23 +4,25 @@ import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { mailManager } from "../manager/mail";
 
 const router = Router();
-router.post("/removeAllReceivedMail", (req, res) => {
+router.post("/removeAllReceivedMail", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
+  mailManager.removeAllReceivedMail(player.uid, req.body);
   res.send({
     ...player.delta,
   });
 });
-router.post("/receiveAllMail", (req, res) => {
+router.post("/receiveAllMail", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
   res.send({
+    items: mailManager.receiveAllMail(player.uid, req.body),
     ...player.delta,
   });
 });
-router.post("/getMetaInfoList", (req, res) => {
+router.post("/getMetaInfoList", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -29,7 +31,7 @@ router.post("/getMetaInfoList", (req, res) => {
     ...player.delta,
   });
 });
-router.post("/receiveMail", (req, res) => {
+router.post("/receiveMail", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -39,7 +41,7 @@ router.post("/receiveMail", (req, res) => {
     ...player.delta,
   });
 });
-router.post("/listMailbox", (req, res) => {
+router.post("/listMailbox", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;

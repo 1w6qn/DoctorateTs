@@ -1,8 +1,8 @@
 import EventEmitter from "events";
 import { PlayerStoryReview } from "../model/playerdata";
-import excel from "../../excel/excel";
-import { now } from "@utils/time";
+import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
+import { now } from "@utils/time";
 
 export class StoryreviewManager {
   storyreview: PlayerStoryReview;
@@ -36,7 +36,7 @@ export class StoryreviewManager {
   }
 
   markStoryAcceKnown() {
-    this.storyreview.tags["knownStoryAcceleration"] = 1;
+    this.storyreview.tags.knownStoryAcceleration = 1;
   }
 
   trailReward(args: { groupId: string; rewardIdList: string[] }): ItemBundle[] {
@@ -55,7 +55,7 @@ export class StoryreviewManager {
     return items;
   }
 
-  toJSON() {
+  toJSON(): PlayerStoryReview {
     return this.storyreview;
   }
 }

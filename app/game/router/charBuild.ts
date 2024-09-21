@@ -3,34 +3,31 @@ import httpContext from "express-http-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 
 const router = Router();
-router.post("/batchSetCharVoiceLan", (req, res) => {
+router.post("/batchSetCharVoiceLan", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  player.troop.batchSetCharVoiceLan(req.body!.voiceLan);
+  player.troop.batchSetCharVoiceLan(req.body);
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/setDefaultSkill", (req, res) => {
+router.post("/setDefaultSkill", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  player.troop.setDefaultSkill(
-    req.body!.charInstId,
-    req.body!.defaultSkillIndex,
-  );
+  player.troop.setDefaultSkill(req.body);
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/changeCharSkin", (req, res) => {
+router.post("/changeCharSkin", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  player.troop.changeCharSkin(req.body!.charInstId, req.body!.skinId);
+  player.troop.changeCharSkin(req.body);
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/setEquipment", (req, res) => {
+router.post("/setEquipment", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -38,7 +35,7 @@ router.post("/setEquipment", (req, res) => {
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/unlockEquipment", (req, res) => {
+router.post("/unlockEquipment", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -46,7 +43,7 @@ router.post("/unlockEquipment", (req, res) => {
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/upgradeEquipment", (req, res) => {
+router.post("/upgradeEquipment", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -54,47 +51,43 @@ router.post("/upgradeEquipment", (req, res) => {
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/changeCharTemplate", (req, res) => {
+router.post("/changeCharTemplate", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  player.troop.changeCharTemplate(req.body!.charInstId, req.body!.templateId);
+  player.troop.changeCharTemplate(req.body);
   player._trigger.emit("save");
   res.send(player.delta);
 });
 
-router.post("/boostPotential", (req, res) => {
+router.post("/boostPotential", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  player.troop.boostPotential(
-    req.body!.charInstId,
-    req.body!.itemId,
-    req.body!.targetRank,
-  );
+  player.troop.boostPotential(req.body);
   player._trigger.emit("save");
   res.send({
     result: 1,
     ...player.delta,
   });
 });
-router.post("/upgradeChar", (req, res) => {
+router.post("/upgradeChar", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  player.troop.upgradeChar(req.body!.charInstId, req.body!.expMats);
+  player.troop.upgradeChar(req.body);
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/upgradeSkill", (req, res) => {
+router.post("/upgradeSkill", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  player.troop.upgradeSkill(req.body!.charInstId, req.body!.targetLevel);
+  player.troop.upgradeSkill(req.body);
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/evolveChar", (req, res) => {
+router.post("/evolveChar", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;

@@ -98,7 +98,8 @@ export class MissionManager {
     }
   }
 
-  confirmMission(missionId: string): ItemBundle[] {
+  confirmMission(args: { missionId: string }): ItemBundle[] {
+    const { missionId } = args;
     const items: ItemBundle[] = [];
     this.getMissionById(missionId).confirmed = true;
     switch (excel.MissionTable.missions[missionId].type) {
@@ -134,7 +135,8 @@ export class MissionManager {
     return items;
   }
 
-  confirmMissionGroup(missionGroupId: string) {
+  confirmMissionGroup(args: { missionGroupId: string }) {
+    const { missionGroupId } = args;
     const rewards = excel.MissionTable.missionGroups[missionGroupId].rewards;
     if (rewards) {
       this._trigger.emit("gainItems", rewards);
@@ -142,20 +144,23 @@ export class MissionManager {
     this.missionGroups[missionGroupId] = 1;
   }
 
-  autoConfirmMissions(type: string): ItemBundle[] {
+  autoConfirmMissions(args: { type: string }): ItemBundle[] {
+    const { type } = args;
     const items: ItemBundle[] = [];
     for (const mission of this.missions[type]) {
       if (
         mission.state == 2 &&
         mission.progress[0].value == mission.progress[0].target
       ) {
-        items.push(...this.confirmMission(mission.missionId));
+        items.push(...this.confirmMission({ missionId: mission.missionId }));
       }
     }
     return items;
   }
 
-  exchangeMissionRewards(targetRewardsId: string) {}
+  exchangeMissionRewards(args: { targetRewardsId: string }) {
+    //TODO
+  }
 
   toJSON(): MissionPlayerData {
     return {

@@ -212,7 +212,7 @@ export class InventoryManager {
       MATERIAL_ISSUE_VOUCHER: () => {},
       CRS_SHOP_COIN_V2: () => {},
       HOME_THEME: (item: ItemBundle) => {
-        this._trigger.emit("hometheme:get", item.id);
+        this._trigger.emit("homeTheme:get", item.id);
       },
       SANDBOX_PERM: () => {},
       SANDBOX_TOKEN: () => {},

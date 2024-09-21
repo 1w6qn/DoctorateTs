@@ -3,7 +3,7 @@ import httpContext from "express-http-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 
 const router = Router();
-router.post("/giveUpGame", (req, res) => {
+router.post("/giveUpGame", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;

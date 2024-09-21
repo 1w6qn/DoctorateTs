@@ -3,7 +3,7 @@ import httpContext from "express-http-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 
 const router = Router();
-router.post("/decomposePotentialItem", (req, res) => {
+router.post("/decomposePotentialItem", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -13,7 +13,7 @@ router.post("/decomposePotentialItem", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/decomposeClassicPotentialItem", (req, res) => {
+router.post("/decomposeClassicPotentialItem", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -23,7 +23,7 @@ router.post("/decomposeClassicPotentialItem", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/getGoodPurchaseState", (req, res) => {
+router.post("/getGoodPurchaseState", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -33,7 +33,7 @@ router.post("/getGoodPurchaseState", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/getLowGoodList", (req, res) => {
+router.post("/getLowGoodList", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -43,7 +43,7 @@ router.post("/getLowGoodList", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/getHighGoodList", (req, res) => {
+router.post("/getHighGoodList", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -53,7 +53,7 @@ router.post("/getHighGoodList", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/getClassicGoodList", (req, res) => {
+router.post("/getClassicGoodList", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -63,7 +63,7 @@ router.post("/getClassicGoodList", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/getEPGSGoodList", (req, res) => {
+router.post("/getEPGSGoodList", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -73,7 +73,7 @@ router.post("/getEPGSGoodList", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/getLMTGSGoodList", (req, res) => {
+router.post("/getLMTGSGoodList", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -83,7 +83,7 @@ router.post("/getLMTGSGoodList", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/getExtraGoodList", (req, res) => {
+router.post("/getExtraGoodList", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -93,7 +93,7 @@ router.post("/getExtraGoodList", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/getREPGoodList", (req, res) => {
+router.post("/getREPGoodList", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -103,7 +103,7 @@ router.post("/getREPGoodList", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/getSkinGoodList", (req, res) => {
+router.post("/getSkinGoodList", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -123,7 +123,7 @@ router.post("/getCashGoodList", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/getGPGoodList", (req, res) => {
+router.post("/getGPGoodList", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -133,7 +133,7 @@ router.post("/getGPGoodList", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/getSocialGoodList", (req, res) => {
+router.post("/getSocialGoodList", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -144,7 +144,7 @@ router.post("/getSocialGoodList", (req, res) => {
   player._trigger.emit("save");
 });
 
-router.post("/buyLowGood", (req, res) => {
+router.post("/buyLowGood", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -155,7 +155,7 @@ router.post("/buyLowGood", (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/buySkinGood", (req, res) => {
+router.post("/buySkinGood", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;

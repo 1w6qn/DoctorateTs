@@ -59,7 +59,7 @@ export class TroopManager {
     )
       ? 0
       : 1;
-    let charInstId = 0;
+    let charInstId;
     const items: ItemBundle[] = [];
     const info = excel.CharacterTable[charId];
     console.log(
@@ -153,7 +153,8 @@ export class TroopManager {
     };
   }
 
-  upgradeChar(instId: number, expMats: ItemBundle[]): void {
+  upgradeChar(args: { instId: number; expMats: ItemBundle[] }): void {
+    const { instId, expMats } = args;
     const char = this.getCharacterByInstId(instId);
     const expMap = excel.GameDataConst.characterExpMap;
     const goldMap = excel.GameDataConst.characterUpgradeCostMap;
@@ -209,17 +210,22 @@ export class TroopManager {
     this._trigger.emit("EvolveChar", args);
   }
 
-  boostPotential(instId: number, itemId: string, targetRank: number): void {
-    this._trigger.emit("useItems", [{ id: itemId, count: 1 }]);
-    this.chars[instId].potentialRank = targetRank;
-    this._trigger.emit("BoostPotential", { targetRank: targetRank });
+  boostPotential(args: {
+    instId: number;
+    itemId: string;
+    targetRank: number;
+  }): void {
+    this._trigger.emit("useItems", [{ id: args.itemId, count: 1 }]);
+    this.chars[args.instId].potentialRank = args.targetRank;
+    this._trigger.emit("BoostPotential", { targetRank: args.targetRank });
   }
 
-  setDefaultSkill(instId: number, defaultSkillIndex: number): void {
-    this.chars[instId].defaultSkillIndex = defaultSkillIndex;
+  setDefaultSkill(args: { instId: number; defaultSkillIndex: number }): void {
+    this.chars[args.instId].defaultSkillIndex = args.defaultSkillIndex;
   }
 
-  upgradeSkill(instId: number, targetLevel: number): void {
+  upgradeSkill(args: { instId: number; targetLevel: number }): void {
+    const { instId, targetLevel } = args;
     const char = this.getCharacterByInstId(instId);
     this._trigger.emit(
       "useItems",
@@ -230,16 +236,18 @@ export class TroopManager {
     this._trigger.emit("BoostPotential", { targetLevel: targetLevel });
   }
 
-  changeCharSkin(instId: number, skinId: string): void {
-    this.chars[instId].skinId = skinId;
+  changeCharSkin(args: { instId: number; skinId: string }): void {
+    this.chars[args.instId].skinId = args.skinId;
   }
 
-  changeCharTemplate(instId: number, templateId: string): void {
-    this.chars[instId].currentTmpl = templateId;
+  changeCharTemplate(args: { instId: number; templateId: string }): void {
+    this.chars[args.instId].currentTmpl = args.templateId;
   }
 
-  batchSetCharVoiceLan(voiceLan: string): void {
-    Object.values(this.chars).forEach((char) => (char.voiceLan = voiceLan));
+  batchSetCharVoiceLan(args: { voiceLan: string }): void {
+    Object.values(this.chars).forEach(
+      (char) => (char.voiceLan = args.voiceLan),
+    );
   }
 
   setCharVoiceLan(charList: number[], voiceLan: string) {

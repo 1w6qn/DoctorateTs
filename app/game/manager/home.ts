@@ -34,11 +34,11 @@ export class HomeManager {
       };
     });
     this._trigger.on(
-      "hometheme:condition:update",
+      "homeTheme:condition:update",
       this.updateHomeThemeCondition.bind(this),
     );
-    this._trigger.on("hometheme:unlock", this.unlockHomeTheme.bind(this));
-    this._trigger.on("hometheme:get", (id: string) => {
+    this._trigger.on("homeTheme:unlock", this.unlockHomeTheme.bind(this));
+    this._trigger.on("homeTheme:get", (id: string) => {
       this.homeTheme.themes[id] = {
         unlock: now(),
       };
@@ -59,38 +59,39 @@ export class HomeManager {
     }
   }
 
-  unlockBackground(bgID: string) {
-    this.background.bgs[bgID].unlock = now();
+  unlockBackground(args: { bgID: string }) {
+    this.background.bgs[args.bgID].unlock = now();
   }
 
-  setHomeTheme(themeId: string) {
-    this.homeTheme.selected = themeId;
+  setHomeTheme(args: { themeId: string }) {
+    this.homeTheme.selected = args.themeId;
   }
 
-  updateHomeThemeCondition(
-    themeId: string,
-    conditionId: string,
-    target: number,
-  ) {
+  updateHomeThemeCondition(args: {
+    themeId: string;
+    conditionId: string;
+    target: number;
+  }) {
+    const { themeId, conditionId, target } = args;
     if (this.homeTheme.themes[themeId]!.conditions!) {
       const cond = this.homeTheme!.themes[themeId]!.conditions![conditionId];
       cond.v = target;
       if (cond.t == cond.v) {
-        this._trigger.emit("hometheme:unlock", themeId);
+        this._trigger.emit("homeTheme:unlock", themeId);
       }
     }
   }
 
-  unlockHomeTheme(themeId: string) {
-    this.homeTheme.themes[themeId].unlock = now();
+  unlockHomeTheme(args: { themeId: string }) {
+    this.homeTheme.themes[args.themeId].unlock = now();
   }
 
-  setLowPower(newValue: number) {
-    this.setting.perf.lowPower = newValue;
+  setLowPower(args: { newValue: number }) {
+    this.setting.perf.lowPower = args.newValue;
   }
 
-  npcAudioChangeLan(id: string, VoiceLan: string) {
-    this.npcAudio[id].npcShowAudioInfoFlag = VoiceLan;
+  npcAudioChangeLan(args: { id: string; voiceLan: string }) {
+    this.npcAudio[args.id].npcShowAudioInfoFlag = args.voiceLan;
   }
 
   toJSON() {

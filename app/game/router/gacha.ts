@@ -3,7 +3,7 @@ import httpContext from "express-http-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 
 const router = Router();
-router.post("/syncNormalGacha", (req, res) => {
+router.post("/syncNormalGacha", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -56,7 +56,7 @@ router.post("/cancleNormalGacha", async (req, res) => {
   });
   player._trigger.emit("save");
 });
-router.post("/buyRecruitSlot", (req, res) => {
+router.post("/buyRecruitSlot", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;

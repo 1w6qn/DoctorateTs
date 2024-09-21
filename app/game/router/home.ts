@@ -3,23 +3,23 @@ import httpContext from "express-http-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 
 const router = Router();
-router.post("/homeTheme/change", (req, res) => {
+router.post("/homeTheme/change", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  player.home.setHomeTheme(req.body.themeId);
+  player.home.setHomeTheme(req.body);
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/background/setBackground", (req, res) => {
+router.post("/background/setBackground", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  player.home.setBackground(req.body.bgID);
+  player.home.setBackground(req.body);
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/char/changeMarkStar", (req, res) => {
+router.post("/char/changeMarkStar", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
@@ -28,23 +28,23 @@ router.post("/char/changeMarkStar", (req, res) => {
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/setting/perf/setLowPower", (req, res) => {
+router.post("/setting/perf/setLowPower", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  player.home.setLowPower(req.body!.newValue);
+  player.home.setLowPower(req.body);
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/npcAudio/changeLan", (req, res) => {
+router.post("/npcAudio/changeLan", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  player.home.npcAudioChangeLan(req.body!.id, req.body!.voiceLan);
+  player.home.npcAudioChangeLan(req.body);
   player._trigger.emit("save");
   res.send(player.delta);
 });
-router.post("/story/finishStory", (req, res) => {
+router.post("/story/finishStory", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;

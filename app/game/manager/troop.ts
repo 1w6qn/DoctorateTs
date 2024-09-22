@@ -6,8 +6,8 @@ import {
   PlayerSquadItem,
   PlayerTroop,
 } from "../model/character";
-import excel from "../../excel/excel";
-import { ItemBundle } from "app/excel/character_table";
+import excel from "@excel/excel";
+import { ItemBundle } from "@excel/character_table";
 import { PlayerDataModel } from "../model/playerdata";
 import { GachaResult } from "../model/gacha";
 import { pick } from "lodash";
@@ -23,10 +23,10 @@ export class TroopManager {
 
   constructor(playerdata: PlayerDataModel, trigger: EventEmitter) {
     this._playerdata = playerdata;
-    this.chars = playerdata.troop.chars;
-    this.squads = playerdata.troop.squads;
-    this.addon = playerdata.troop.addon;
-    this.charMission = playerdata.troop.charMission;
+    this.chars = this._playerdata.troop.chars;
+    this.squads = this._playerdata.troop.squads;
+    this.addon = this._playerdata.troop.addon;
+    this.charMission = this._playerdata.troop.charMission;
     this._trigger = trigger;
     this._trigger.on("char:get", this.gainChar.bind(this));
     this._trigger.on("game:fix", this.fix.bind(this));

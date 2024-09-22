@@ -1,8 +1,9 @@
 import { Router } from "express";
 import config from "../config";
+import { readJson } from "@utils/file";
 
 const router = Router();
-router.get("/official/Android/version", (req, res) => {
+router.get("/official/Android/version", async (req, res) => {
   let modPatch = {};
   if (config.assets.enableMods) {
     modPatch = {
@@ -11,7 +12,7 @@ router.get("/official/Android/version", (req, res) => {
   }
   res.send(Object.assign({}, config.version, modPatch));
 });
-router.get("/official/network_config", (req, res) => {
+router.get("/official/network_config", async (req, res) => {
   const content = JSON.stringify(config.NetworkConfig).replace(
     /{server}/g,
     `${config.Host}:${config.PORT}`,
@@ -19,10 +20,10 @@ router.get("/official/network_config", (req, res) => {
   const sign = "sign";
   res.send({ sign, content });
 });
-router.get("/official/refresh_config", (req, res) => {
+router.get("/official/refresh_config", async (req, res) => {
   res.send({ resVersion: config.version.resVersion });
 });
-router.get("/official/remote_config", (req, res) => {
+router.get("/official/remote_config", async (req, res) => {
   res.send({
     enableGameBI: false,
     enableSDKNetSecure: true,
@@ -32,13 +33,13 @@ router.get("/official/remote_config", (req, res) => {
 router.get(
   "/announce_meta/Android/preannouncement.meta.json",
   async (req, res) => {
-    res.send(await import("../../data/announce/preannouncement.meta.json"));
+    res.send(readJson("../../data/announce/preannouncement.meta.json"));
   },
 );
 router.get(
   "/announce_meta/Android/announcement.meta.json",
   async (req, res) => {
-    res.send(await import("../../data/announce/announcement.meta.json"));
+    res.send(readJson("../../data/announce/announcement.meta.json"));
   },
 );
 export default router;

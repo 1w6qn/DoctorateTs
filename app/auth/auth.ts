@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { now } from "@utils/time";
+import { readJson } from "@utils/file";
+
 const router = Router();
 
 router.get("/general/v1/server_time", (req, res) => {
@@ -14,7 +16,7 @@ router.get("/general/v1/server_time", (req, res) => {
   });
 });
 router.get("/app/v1/config", async (req, res) => {
-  res.send(await import("../../data/appConfig.json"));
+  res.send(readJson("../../data/appConfig.json"));
 });
 router.get("/user/auth/v1/token_by_phone_password", (req, res) => {
   res.send({

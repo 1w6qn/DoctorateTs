@@ -1,100 +1,97 @@
 //
 export interface AudioData {
-    bgmBanks:         BGMBank[];
-    soundFXBanks:     SoundFXBank[];
-    soundFXCtrlBanks: SoundFXCtrlBank[];
-    snapshotBanks:    SnapshotBank[];
-    battleVoice:      BattleVoice;
-    musics:           Music[];
-    duckings:         Ducking[];
-    fadeStyles:       FadeStyle[];
-    soundFxVoiceLang: { [key: string]: { [key: string]: string } };
-    bankAlias:        { [key: string]: string };
+  readonly bgmBanks: BGMBank[];
+  readonly soundFXBanks: SoundFXBank[];
+  readonly soundFXCtrlBanks: SoundFXCtrlBank[];
+  readonly snapshotBanks: SnapshotBank[];
+  readonly battleVoice: BattleVoice;
+  readonly musics: Music[];
+  readonly duckings: Ducking[];
+  readonly fadeStyles: FadeStyle[];
+  readonly soundFxVoiceLang: { [key: string]: { [key: string]: string } };
+  readonly bankAlias: { [key: string]: string };
 }
 
 export interface BattleVoice {
-    crossfade:                         number;
-    minTimeDeltaForEnemyEncounter:     number;
-    minSpCostForImportantPassiveSkill: number;
-    voiceTypeOptions:                  VoiceTypeOption[];
+  readonly crossfade: number;
+  readonly minTimeDeltaForEnemyEncounter: number;
+  readonly minSpCostForImportantPassiveSkill: number;
+  readonly voiceTypeOptions: VoiceTypeOption[];
 }
 
 export interface VoiceTypeOption {
-    voiceType:             number;
-    priority:              number;
-    overlapIfSamePriority: boolean;
-    cooldown:              number;
-    delay:                 number;
+  readonly voiceType: number;
+  readonly priority: number;
+  readonly overlapIfSamePriority: boolean;
+  readonly cooldown: number;
+  readonly delay: number;
 }
 
 export interface BGMBank {
-    intro:        null | string;
-    loop:         null | string;
-    volume:       number;
-    crossfade:    number;
-    delay:        number;
-    name:         string;
-    fadeStyleId?: string;
+  readonly intro: null | string;
+  readonly loop: null | string;
+  readonly volume: number;
+  readonly crossfade: number;
+  readonly delay: number;
+  readonly name: string;
+  readonly fadeStyleId?: string;
 }
 
 export interface Ducking {
-    bank:         string;
-    volume:       number;
-    fadeTime:     number;
-    delay:        number;
-    fadeStyleId?: string;
+  readonly bank: string;
+  readonly volume: number;
+  readonly fadeTime: number;
+  readonly delay: number;
+  readonly fadeStyleId?: string;
 }
 
 export interface FadeStyle {
-    styleName:   string;
-    fadeinTime:  number;
-    fadeoutTime: number;
-    fadeinType:  string;
-    fadeoutType: string;
+  readonly styleName: string;
+  readonly fadeinTime: number;
+  readonly fadeoutTime: number;
+  readonly fadeinType: string;
+  readonly fadeoutType: string;
 }
 
 export interface Music {
-    id:   string;
-    name: string;
-    bank: string;
+  readonly id: string;
+  readonly name: string;
+  readonly bank: string;
 }
 
 export interface SnapshotBank {
-    targetSnapshot:  string;
-    hookSoundFxBank: string;
-    delay:           number;
-    duration:        number;
-    name:            string;
+  readonly targetSnapshot: string;
+  readonly hookSoundFxBank: string;
+  readonly delay: number;
+  readonly duration: number;
+  readonly name: string;
 }
-
 
 export interface SoundFXBank {
-    sounds:           Sound[] | null;
-    maxSoundAllowed:  number;
-    popOldest:        boolean;
-    customMixerGroup: {[key: string]: string} | null;
-    loop:             boolean;
-    name:             string;
+  readonly sounds: Sound[] | null;
+  readonly maxSoundAllowed: number;
+  readonly popOldest: boolean;
+  readonly customMixerGroup: { [key: string]: string } | null;
+  readonly loop: boolean;
+  readonly name: string;
 }
 
-
-
 export interface Sound {
-    asset:           string;
-    weight:          number;
-    important:       boolean;
-    is2D:            boolean;
-    delay:           number;
-    minPitch:        number;
-    maxPitch:        number;
-    minVolume:       number;
-    maxVolume:       number;
-    ignoreTimeScale: boolean;
+  readonly asset: string;
+  readonly weight: number;
+  readonly important: boolean;
+  readonly is2D: boolean;
+  readonly delay: number;
+  readonly minPitch: number;
+  readonly maxPitch: number;
+  readonly minVolume: number;
+  readonly maxVolume: number;
+  readonly ignoreTimeScale: boolean;
 }
 
 export interface SoundFXCtrlBank {
-    targetBank:       string;
-    ctrlStop:         boolean;
-    ctrlStopFadetime: number;
-    name:             string;
+  readonly targetBank: string;
+  readonly ctrlStop: boolean;
+  readonly ctrlStopFadetime: number;
+  readonly name: string;
 }

@@ -6,9 +6,11 @@ import asset from "./app/asset";
 import config from "./app/config";
 import morgan from "morgan";
 import excel from "@excel/excel";
+import { enablePatches } from "immer";
 
 (async () => {
   console.time();
+  enablePatches();
   await excel.init();
   const app = express();
   app.use(morgan("short"));

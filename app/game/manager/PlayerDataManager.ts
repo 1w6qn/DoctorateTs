@@ -19,8 +19,10 @@ import { DexNavManager } from "./dexnav";
 import { BuildingManager } from "./building";
 import { FriendDataWithNameCard } from "@game/model/social";
 import { OpenServerManager } from "@game/manager/activity/openServer";
+import { produce } from "immer";
 
 export class PlayerDataManager {
+  //[immerable] = true;
   dungeon: DungeonManager;
   inventory: InventoryManager;
   troop: TroopManager;
@@ -40,9 +42,12 @@ export class PlayerDataManager {
   battle!: BattleManager;
   _trigger: EventEmitter;
   _playerdata: PlayerDataModel;
-
+  _changes: object[];
+  _inverseChanges: object[];
   constructor(playerdata: PlayerDataModel) {
     this._playerdata = playerdata;
+    this._changes = [];
+    this._inverseChanges = [];
     this._trigger = new EventEmitter();
     this._trigger.setMaxListeners(10000);
 
@@ -127,6 +132,16 @@ export class PlayerDataManager {
     };
   }
 
+  async update(recipe: (draft: PlayerDataModel) => void) {
+    this._playerdata = produce(
+      this._playerdata,
+      recipe,
+      (patches, inversePatches) => {
+        this._changes.push(patches);
+        this._inverseChanges.push(inversePatches);
+      },
+    );
+  }
   getBattleInfo(battleId: string): BattleInfo {
     return accountManager.getBattleInfo(this.uid, battleId)!;
   }

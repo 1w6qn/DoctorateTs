@@ -6,7 +6,7 @@ import {
   PlayerStatus,
 } from "../model/playerdata";
 import excel from "@excel/excel";
-import { checkNewDay, checkNewMonth, checkNewWeek, now } from "@utils/time";
+import { checkNew, now } from "@utils/time";
 import moment from "moment";
 import { AvatarInfo } from "@game/model/character";
 import { PlayerDataManager } from "./PlayerDataManager";
@@ -36,13 +36,19 @@ export class StatusManager {
 
   refreshTime() {
     const ts = now();
-    if (checkNewDay(this.status.lastRefreshTs, ts)) {
+    if (checkNew(this.status.lastRefreshTs, ts, "day")) {
       this._trigger.emit("refresh:daily", this.status.lastRefreshTs);
     }
-    if (moment().date() == 1 && checkNewMonth(this.status.lastRefreshTs, ts)) {
+    if (
+      moment().date() == 1 &&
+      checkNew(this.status.lastRefreshTs, ts, "month")
+    ) {
       this._trigger.emit("refresh:monthly");
     }
-    if (moment().day() == 1 && checkNewWeek(this.status.lastRefreshTs, ts)) {
+    if (
+      moment().day() == 1 &&
+      checkNew(this.status.lastRefreshTs, ts, "week")
+    ) {
       this._trigger.emit("refresh:weekly");
     }
     this.status.lastRefreshTs = ts;

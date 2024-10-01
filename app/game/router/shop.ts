@@ -150,7 +150,83 @@ router.post("/buyLowGood", async (req, res) => {
   ) as PlayerDataManager;
   res.send({
     result: 0,
-    items: player.shop.buyLowGood(req.body!.goodId, req.body!.count),
+    items: await player.shop.buyLowGood(req.body),
+    ...player.delta,
+  });
+  player._trigger.emit("save");
+});
+router.post("/buyHighGood", async (req, res) => {
+  const player: PlayerDataManager = httpContext.get(
+    "playerData",
+  ) as PlayerDataManager;
+  res.send({
+    result: 0,
+    items: await player.shop.buyHighGood(req.body),
+    ...player.delta,
+  });
+  player._trigger.emit("save");
+});
+router.post("/buyExtraGood", async (req, res) => {
+  const player: PlayerDataManager = httpContext.get(
+    "playerData",
+  ) as PlayerDataManager;
+  res.send({
+    result: 0,
+    items: await player.shop.buyExtraGood(req.body),
+    ...player.delta,
+  });
+  player._trigger.emit("save");
+});
+router.post("/buyCashGood", async (req, res) => {
+  const player: PlayerDataManager = httpContext.get(
+    "playerData",
+  ) as PlayerDataManager;
+  res.send({
+    result: 0,
+    ...player.delta,
+  });
+  player._trigger.emit("save");
+});
+router.post("/buyEPGSGood", async (req, res) => {
+  const player: PlayerDataManager = httpContext.get(
+    "playerData",
+  ) as PlayerDataManager;
+  res.send({
+    result: 0,
+    items: await player.shop.buyEPGSGood(req.body),
+    ...player.delta,
+  });
+  player._trigger.emit("save");
+});
+router.post("/buyREPGood", async (req, res) => {
+  const player: PlayerDataManager = httpContext.get(
+    "playerData",
+  ) as PlayerDataManager;
+  res.send({
+    result: 0,
+    items: await player.shop.buyREPGood(req.body),
+    ...player.delta,
+  });
+  player._trigger.emit("save");
+});
+router.post("/buyClassicGood", async (req, res) => {
+  const player: PlayerDataManager = httpContext.get(
+    "playerData",
+  ) as PlayerDataManager;
+  res.send({
+    result: 0,
+    items: await player.shop.buyClassicGood(req.body),
+    ...player.delta,
+  });
+  player._trigger.emit("save");
+});
+router.post("/buyLMTGSGood", async (req, res) => {
+  const player: PlayerDataManager = httpContext.get(
+    "playerData",
+  ) as PlayerDataManager;
+  res.send({
+    result: 0,
+    items: await player.shop.buyLMTGSGood(req.body),
     ...player.delta,
   });
   player._trigger.emit("save");
@@ -159,10 +235,11 @@ router.post("/buySkinGood", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  player.shop.buySkinGood(req.body!.goodId);
+  await player.shop.buySkinGood(req.body);
   res.send({
     ...player.delta,
   });
   player._trigger.emit("save");
 });
+
 export default router;

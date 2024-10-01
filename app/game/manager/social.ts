@@ -1,7 +1,6 @@
 import {
   PlayerDataModel,
   PlayerMedalBoard,
-  PlayerSocial,
   PlayerSocialReward,
 } from "@game/model/playerdata";
 import { PlayerFriendAssist } from "@game/model/character";
@@ -20,7 +19,8 @@ enum FriendDealEnum {
   REFUSE = 0,
   ACCEPT = 1,
 }
-export class SocialManager implements PlayerSocial {
+
+export class SocialManager {
   assistCharList: PlayerFriendAssist[];
   yesterdayReward: PlayerSocialReward;
   yCrisisSs: string;

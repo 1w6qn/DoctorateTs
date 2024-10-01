@@ -1,5 +1,4 @@
 import EventEmitter from "events";
-import { PlayerRecruit } from "../model/playerdata";
 import excel from "@excel/excel";
 import { TroopManager } from "./troop";
 import { GachaResult } from "../model/gacha";
@@ -10,33 +9,37 @@ import {
   randomSample,
 } from "@utils/random";
 import { now } from "@utils/time";
+import { PlayerDataManager } from "./PlayerDataManager";
 
 export class RecruitManager {
-  recruit: PlayerRecruit;
+  _player: PlayerDataManager;
   _troop: TroopManager;
   _trigger: EventEmitter;
 
   constructor(
-    recruit: PlayerRecruit,
+    player: PlayerDataManager,
     troop: TroopManager,
     _trigger: EventEmitter,
   ) {
-    this.recruit = recruit;
+    this._player = player;
     this._troop = troop;
     this._trigger = _trigger;
   }
 
   async refreshTags(args: { slotId: number }): Promise<void> {
-    this.recruit.normal.slots[args.slotId].tags =
-      await RecruitTools.refreshTagList();
+    const { slotId } = args;
+    await this._player.update(async (draft) => {
+      draft.recruit.normal.slots[slotId].tags =
+        await RecruitTools.refreshTagList();
+    });
   }
 
   async sync() {}
 
   async cancel(args: { slotId: number }) {
-    this.recruit.normal.slots[args.slotId] = Object.assign(
-      this.recruit.normal.slots[args.slotId],
-      {
+    const { slotId } = args;
+    await this._player.update(async (draft) => {
+      draft.recruit.normal.slots[slotId] = {
         state: 1,
         selectTags: [],
         startTs: -1,
@@ -44,12 +47,15 @@ export class RecruitManager {
         realFinishTs: -1,
         durationInSec: -1,
         tags: await RecruitTools.refreshTagList(),
-      },
-    );
+      };
+    });
   }
 
-  buyRecruitSlot(args: { slotId: number }) {
-    this.recruit.normal.slots[args.slotId].state = 1;
+  async buyRecruitSlot(args: { slotId: number }) {
+    const { slotId } = args;
+    await this._player.update(async (draft) => {
+      draft.recruit.normal.slots[slotId].state = 1;
+    });
   }
 
   async normalGacha(args: {
@@ -58,18 +64,18 @@ export class RecruitManager {
     specialTagId: number;
     duration: number;
   }) {
-    this.recruit.normal.slots[args.slotId] = Object.assign(
-      this.recruit.normal.slots[args.slotId],
-      {
+    const { slotId, tagList, duration } = args;
+    await this._player.update(async (draft) => {
+      draft.recruit.normal.slots[slotId] = {
         state: 2,
-        selectTags: args.tagList.map((tag) => ({ tagId: tag, pick: 1 })),
+        selectTags: tagList.map((tag) => ({ tagId: tag, pick: 1 })),
         startTs: now(),
-        maxFinishTs: now() + args.duration,
-        realFinishTs: now() + args.duration,
-        durationInSec: args.duration,
+        maxFinishTs: now() + duration,
+        realFinishTs: now() + duration,
+        durationInSec: duration,
         tags: await RecruitTools.refreshTagList(),
-      },
-    );
+      };
+    });
     this._trigger.emit("useItems", [
       { id: "7001", count: 1, type: "TKT_RECRUIT" },
     ]);
@@ -77,32 +83,32 @@ export class RecruitManager {
   }
 
   async finish(args: { slotId: number }): Promise<GachaResult> {
+    const { slotId } = args;
+    const { durationInSec, selectTags } =
+      this._player._playerdata.recruit.normal.slots[slotId];
     //TODO seperate
     const [char_id, filtered] = await RecruitTools.generateValidTags(
-      this.recruit.normal.slots[args.slotId].durationInSec,
-      this.recruit.normal.slots[args.slotId].selectTags.map((v) => v.tagId),
+      durationInSec,
+      selectTags.map((v) => v.tagId),
     );
-    this.recruit.normal.slots[args.slotId].selectTags =
-      this.recruit.normal.slots[args.slotId].selectTags.map((tag) => ({
+    await this._player.update(async (draft) => {
+      draft.recruit.normal.slots[slotId].selectTags = selectTags.map((tag) => ({
         tagId: tag.tagId,
         pick: filtered.includes(tag.tagId) ? 1 : 0,
       }));
-
+    });
     await this.cancel(args);
     return this._troop.gainChar(char_id);
   }
 
-  boost(args: { slotId: number; buy: number }) {
-    if (args.buy == 0) {
-      //
-    }
-    this.recruit.normal.slots[args.slotId].state = 2;
-    this.recruit.normal.slots[args.slotId].realFinishTs = now();
+  async boost(args: { slotId: number; buy: number }) {
+    const { slotId } = args;
+    //TODO:
+    await this._player.update(async (draft) => {
+      draft.recruit.normal.slots[slotId].state = 2;
+      draft.recruit.normal.slots[args.slotId].realFinishTs = now();
+    });
     this._trigger.emit("BoostNormalGacha", {});
-  }
-
-  toJSON(): PlayerRecruit {
-    return this.recruit;
   }
 }
 interface CharData {
@@ -114,7 +120,6 @@ interface CharData {
 }
 export class RecruitTools {
   static async refreshTagList(): Promise<number[]> {
-    await excel.init();
     const rankWeights = {
       "6star": 0.210417,
       "5star": 0.523127,
@@ -250,7 +255,6 @@ export class RecruitTools {
   private static async generateRecruitableData(): Promise<
     [Record<number, string[]>, CharData]
   > {
-    await excel.init();
     const tag2name = excel.GachaTable.gachaTags.slice(0, -2).reduce(
       (acc, v) => {
         acc[v.tagId] = v.tagName;

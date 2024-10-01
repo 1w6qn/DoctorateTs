@@ -1,88 +1,84 @@
 import EventEmitter from "events";
-import {
-  PlayerCheckIn,
-  PlayerDataModel,
-  PlayerOpenServer,
-  PlayerStatus,
-} from "../model/playerdata";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
-import { now } from "@utils/time";
+import { checkBetween, now } from "@utils/time";
+import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 
 export class CheckInManager {
-  data: PlayerCheckIn;
-  openServer: PlayerOpenServer;
-  _status: PlayerStatus;
+  _player: PlayerDataManager;
   _trigger: EventEmitter;
 
-  constructor(playerdata: PlayerDataModel, _trigger: EventEmitter) {
-    this.data = playerdata.checkIn;
-    this.openServer = playerdata.openServer;
-    this._status = playerdata.status;
+  constructor(player: PlayerDataManager, _trigger: EventEmitter) {
+    this._player = player;
     this._trigger = _trigger;
     this._trigger.on("refresh:monthly", this.monthlyRefresh.bind(this));
     this._trigger.on("refresh:daily", this.dailyRefresh.bind(this));
   }
 
   get isSUb(): boolean {
-    return (
-      this._status.monthlySubscriptionStartTime < now() &&
-      now() < this._status.monthlySubscriptionEndTime
+    const { monthlySubscriptionStartTime, monthlySubscriptionEndTime } =
+      this._player._playerdata.status;
+    return checkBetween(
+      now(),
+      monthlySubscriptionStartTime,
+      monthlySubscriptionEndTime,
     );
   }
 
-  dailyRefresh() {
-    this.data.canCheckIn = 1;
-    this.data.checkInRewardIndex += 1;
+  async dailyRefresh() {
+    await this._player.update(async (draft) => {
+      draft.checkIn.canCheckIn = 1;
+      draft.checkIn.checkInRewardIndex += 1;
+    });
   }
 
-  monthlyRefresh() {
+  async monthlyRefresh() {
     const ts = now();
-    this.data.checkInGroupId = Object.values(excel.CheckinTable.groups).find(
-      (t) => ts > t.signStartTime && ts < t.signEndTime,
-    )!.groupId;
-    this.data.checkInHistory = [];
-    this.data.checkInRewardIndex = -1;
+    await this._player.update(async (draft) => {
+      draft.checkIn.checkInGroupId = Object.values(
+        excel.CheckinTable.groups,
+      ).find((t) => checkBetween(ts, t.signStartTime, t.signEndTime))!.groupId;
+      draft.checkIn.checkInHistory = [];
+      draft.checkIn.checkInRewardIndex = -1;
+    });
   }
 
-  getChainLogInReward(index: number): ItemBundle[] {
+  async getChainLogInReward(index: number): Promise<ItemBundle[]> {
     return [];
   }
 
-  checkIn(): {
+  async checkIn(): Promise<{
     signInRewards: ItemBundle[];
     subscriptionRewards: ItemBundle[];
-  } {
-    let signInRewards: ItemBundle[] = [];
-    let subscriptionRewards: ItemBundle[] = [];
-    if (this.data.canCheckIn) {
-      this.data.canCheckIn = 0;
-      if (this.data.checkInRewardIndex < 0) {
-        this.data.checkInRewardIndex = 0;
+  }> {
+    const signInRewards: ItemBundle[] = [];
+    const subscriptionRewards: ItemBundle[] = [];
+    await this._player.update(async (draft) => {
+      if (!draft.checkIn.canCheckIn) {
+        return;
+      }
+      draft.checkIn.canCheckIn = 0;
+      if (draft.checkIn.checkInRewardIndex < 0) {
+        draft.checkIn.checkInRewardIndex = 0;
       }
       const item =
-        excel.CheckinTable.groups[this.data.checkInGroupId].items[
-          this.data.checkInRewardIndex
+        excel.CheckinTable.groups[draft.checkIn.checkInGroupId].items[
+          draft.checkIn.checkInRewardIndex
         ];
-      console.log(item);
-      signInRewards = [
-        { id: item.itemId, count: item.count, type: item.itemType },
-      ];
+      signInRewards.push({
+        id: item.itemId,
+        count: item.count,
+        type: item.itemType,
+      });
       if (this.isSUb) {
         const currentMonthlySubId = excel.CheckinTable.currentMonthlySubId;
-        subscriptionRewards =
-          excel.CheckinTable.monthlySubItem[currentMonthlySubId][1].items;
+        subscriptionRewards.push(
+          ...excel.CheckinTable.monthlySubItem[currentMonthlySubId][1].items,
+        );
       }
-      this.data.checkInHistory.push(0);
-      this._trigger.emit(
-        "gainItems",
-        subscriptionRewards.concat(signInRewards),
-      );
-    }
+      draft.checkIn.checkInHistory.push(0);
+    });
+    this._trigger.emit("gainItems", subscriptionRewards.concat(signInRewards));
     return { signInRewards, subscriptionRewards };
-  }
-
-  toJSON() {
-    return this.data;
   }
 }

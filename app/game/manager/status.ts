@@ -1,10 +1,5 @@
 import EventEmitter from "events";
-import {
-  NameCardMisc,
-  PlayerCollection,
-  PlayerNameCardStyle,
-  PlayerStatus,
-} from "../model/playerdata";
+import { NameCardMisc, PlayerStatus } from "../model/playerdata";
 import excel from "@excel/excel";
 import { checkNew, now } from "@utils/time";
 import moment from "moment";
@@ -12,16 +7,10 @@ import { AvatarInfo } from "@game/model/character";
 import { PlayerDataManager } from "./PlayerDataManager";
 
 export class StatusManager {
-  status: PlayerStatus;
-  collectionReward: PlayerCollection;
-  nameCardStyle: PlayerNameCardStyle;
   _player: PlayerDataManager;
   _trigger: EventEmitter;
 
   constructor(player: PlayerDataManager, _trigger: EventEmitter) {
-    this.status = player._playerdata.status;
-    this.collectionReward = player._playerdata.collectionReward;
-    this.nameCardStyle = player._playerdata.nameCardStyle;
     this._player = player;
     this._trigger = _trigger;
     this._trigger.on("status:refresh:time", this.refreshTime.bind(this));
@@ -34,111 +23,123 @@ export class StatusManager {
     return this.status.uid;
   }
 
-  refreshTime() {
+  get status(): PlayerStatus {
+    return this._player._playerdata.status;
+  }
+
+  async refreshTime() {
     const ts = now();
-    if (checkNew(this.status.lastRefreshTs, ts, "day")) {
-      this._trigger.emit("refresh:daily", this.status.lastRefreshTs);
+    const { lastRefreshTs } = this.status;
+    if (checkNew(lastRefreshTs, ts, "day")) {
+      this._trigger.emit("refresh:daily", lastRefreshTs);
     }
-    if (
-      moment().date() == 1 &&
-      checkNew(this.status.lastRefreshTs, ts, "month")
-    ) {
+    if (moment().date() == 1 && checkNew(lastRefreshTs, ts, "month")) {
       this._trigger.emit("refresh:monthly");
     }
-    if (
-      moment().day() == 1 &&
-      checkNew(this.status.lastRefreshTs, ts, "week")
-    ) {
+    if (moment().day() == 1 && checkNew(lastRefreshTs, ts, "week")) {
       this._trigger.emit("refresh:weekly");
     }
-    this.status.lastRefreshTs = ts;
-    this.status.lastOnlineTs = ts;
+    await this._player.update(async (draft) => {
+      draft.status.lastRefreshTs = ts;
+      draft.status.lastOnlineTs = ts;
+    });
   }
 
-  dailyRefresh() {}
+  async dailyRefresh() {}
 
-  weeklyRefresh() {}
+  async weeklyRefresh() {}
 
-  monthlyRefresh() {}
+  async monthlyRefresh() {}
 
-  changeSecretary(args: { charInstId: number; skinId: string }) {
-    this.status.secretary = this._player.troop.getCharacterByInstId(
-      args.charInstId,
-    ).charId;
-    this.status.secretarySkinId = args.skinId;
+  async changeSecretary(args: { charInstId: number; skinId: string }) {
+    const { charInstId, skinId } = args;
+    const charId = this._player.troop.getCharacterByInstId(charInstId).charId;
+    await this._player.update(async (draft) => {
+      draft.status.secretary = charId;
+      draft.status.secretarySkinId = skinId;
+    });
   }
 
-  finishStory(args: { storyId: string }) {
-    this.status.flags[args.storyId] = 1;
+  async finishStory(args: { storyId: string }) {
+    const { storyId } = args;
+    await this._player.update(async (draft) => {
+      draft.status.flags[storyId] = 1;
+    });
   }
 
-  changeAvatar(args: { avatar: AvatarInfo }) {
-    this.status.avatar = args.avatar;
+  async changeAvatar(args: { avatar: AvatarInfo }) {
+    const { avatar } = args;
+    await this._player.update(async (draft) => {
+      draft.status.avatar = avatar;
+    });
   }
 
-  changeResume(args: { resume: string }) {
-    this.status.resume = args.resume;
+  async changeResume(args: { resume: string }) {
+    const { resume } = args;
+    await this._player.update(async (draft) => {
+      draft.status.resume = resume;
+    });
   }
 
-  bindNickName(args: { nickname: string }) {
-    this.status.nickName = args.nickname;
+  async bindNickName(args: { nickname: string }) {
+    const { nickname } = args;
+    await this._player.update(async (draft) => {
+      draft.status.nickName = nickname;
+    });
   }
 
-  buyAp() {
+  async buyAp() {
     this._trigger.emit("gainItems", [
       { id: "", type: "AP_GAMEPLAY", count: this.status.maxAp },
     ]);
     this._trigger.emit("useItems", [{ id: "", type: "DIAMOND", count: 1 }]);
   }
 
-  exchangeDiamondShard(args: { count: number }) {
-    this._trigger.emit("useItems", [
-      { id: "", type: "DIAMOND", count: args.count },
-    ]);
+  async exchangeDiamondShard(args: { count: number }) {
+    const { count } = args;
+    this._trigger.emit("useItems", [{ id: "", type: "DIAMOND", count: count }]);
     this._trigger.emit("gainItems", [
       {
         id: "",
         type: "DIAMOND_SHD",
-        count: args.count * excel.GameDataConst.diamondToShdRate,
+        count: count * excel.GameDataConst.diamondToShdRate,
       },
     ]);
   }
 
-  receiveTeamCollectionReward(args: { rewardId: string }) {
-    this.collectionReward.team[args.rewardId] = 1;
+  async receiveTeamCollectionReward(args: { rewardId: string }) {
+    const { rewardId } = args;
+    await this._player.update(async (draft) => {
+      draft.collectionReward.team[rewardId] = 1;
+    });
     this._trigger.emit("gainItems", [
-      excel.HandbookInfoTable.teamMissionList[args.rewardId].item,
+      excel.HandbookInfoTable.teamMissionList[rewardId].item,
     ]);
   }
 
-  getOtherPlayerNameCard(args: { uid: string }) {
+  async getOtherPlayerNameCard(args: { uid: string }) {
     //TODO
   }
 
-  editNameCard(args: {
+  async editNameCard(args: {
     flag: number;
     content: { skinId?: string; component?: string[]; misc?: NameCardMisc };
   }) {
-    switch (args.flag) {
-      case 1:
-        this.nameCardStyle.componentOrder = args.content.component!;
-        break;
-      case 2:
-        this.nameCardStyle.skin.selected = args.content.skinId!;
-        break;
-      case 4:
-        this.nameCardStyle.misc = args.content.misc!;
-        break;
-      default:
-        break;
-    }
-  }
-
-  toJSON() {
-    return {
-      status: this.status,
-      collectionReward: this.collectionReward,
-      nameCardStyle: this.nameCardStyle,
-    };
+    const { flag, content } = args;
+    await this._player.update(async (draft) => {
+      switch (flag) {
+        case 1:
+          draft.nameCardStyle.componentOrder = content.component!;
+          break;
+        case 2:
+          draft.nameCardStyle.skin.selected = content.skinId!;
+          break;
+        case 4:
+          draft.nameCardStyle.misc = content.misc!;
+          break;
+        default:
+          break;
+      }
+    });
   }
 }

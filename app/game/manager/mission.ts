@@ -39,7 +39,7 @@ export class MissionManager {
     this.missionGroups = playerdata.mission.missionGroups;
     this._trigger = _trigger;
     this._trigger.on("refresh:weekly", this.weeklyRefresh.bind(this));
-    this._trigger.on("refresh:daily", this.dailyRefresh.bind(this));
+    //this._trigger.on("refresh:daily", this.dailyRefresh.bind(this));
   }
 
   get dailyMissionPeriod(): string {

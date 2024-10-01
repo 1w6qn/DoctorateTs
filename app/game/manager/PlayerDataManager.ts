@@ -8,7 +8,7 @@ import { StatusManager } from "./status";
 import { CheckInManager } from "./checkin";
 import { StoryreviewManager } from "./storyreview";
 import { MissionManager } from "./mission";
-import ShopController from "../controller/ShopController";
+import ShopController from "../controller/shop";
 import { RecruitManager } from "./recruit";
 import { RoguelikeV2Controller } from "../controller/rlv2";
 import { BattleManager } from "./battle";
@@ -19,10 +19,10 @@ import { DexNavManager } from "./dexnav";
 import { BuildingManager } from "./building";
 import { FriendDataWithNameCard } from "@game/model/social";
 import { OpenServerManager } from "@game/manager/activity/openServer";
-import { produce } from "immer";
+import { createDraft, finishDraft, Patch } from "immer";
+import { patchesToObject } from "@utils/delta";
 
 export class PlayerDataManager {
-  //[immerable] = true;
   dungeon: DungeonManager;
   inventory: InventoryManager;
   troop: TroopManager;
@@ -42,8 +42,8 @@ export class PlayerDataManager {
   battle!: BattleManager;
   _trigger: EventEmitter;
   _playerdata: PlayerDataModel;
-  _changes: object[];
-  _inverseChanges: object[];
+  _changes: Patch[][];
+  _inverseChanges: Patch[][];
   constructor(playerdata: PlayerDataModel) {
     this._playerdata = playerdata;
     this._changes = [];
@@ -54,21 +54,17 @@ export class PlayerDataManager {
     this.status = new StatusManager(this, this._trigger);
     this.inventory = new InventoryManager(this, this._trigger);
     this.troop = new TroopManager(playerdata, this._trigger);
-    this.dungeon = new DungeonManager(playerdata.dungeon, this._trigger);
-    this.home = new HomeManager(playerdata, this._trigger);
-    this.checkIn = new CheckInManager(playerdata, this._trigger);
+    this.dungeon = new DungeonManager(this, this._trigger);
+    this.home = new HomeManager(this, this._trigger);
+    this.checkIn = new CheckInManager(this, this._trigger);
     this.storyreview = new StoryreviewManager(
       playerdata.storyreview,
       this._trigger,
     );
     this.mission = new MissionManager(playerdata, this._trigger);
-    this.shop = new ShopController(playerdata, this._trigger);
+    this.shop = new ShopController(this, this._trigger);
     this.battle = new BattleManager(this._playerdata, this._trigger);
-    this.recruit = new RecruitManager(
-      playerdata.recruit,
-      this.troop,
-      this._trigger,
-    );
+    this.recruit = new RecruitManager(this, this.troop, this._trigger);
     this.rlv2 = new RoguelikeV2Controller(this, this._trigger);
     this.social = new SocialManager(playerdata, this._trigger);
     this.gacha = new GachaController(
@@ -87,11 +83,12 @@ export class PlayerDataManager {
   }
 
   get delta() {
+    const delta = patchesToObject(
+      this._changes.reduce((pre, acc) => acc.concat(pre), []),
+    );
+    this._changes = [];
     return {
-      playerDataDelta: {
-        modified: {},
-        deleted: {},
-      },
+      playerDataDelta: delta,
     };
   }
 
@@ -116,7 +113,7 @@ export class PlayerDataManager {
       board: this.building.boardInfo,
       infoShare: this.building.infoShare,
       recentVisited: 0,
-      skin: this.status.nameCardStyle.skin,
+      skin: this._playerdata.nameCardStyle.skin,
 
       registerTs: this.status.status.registerTs,
       mainStageProgress: this.status.status.mainStageProgress,
@@ -128,19 +125,17 @@ export class PlayerDataManager {
       resume: this.status.status.resume,
       teamV2: this.dexNav.teamV2Info,
       medalBoard: { type: "", template: null, custom: null },
-      nameCardStyle: this.status.nameCardStyle,
+      nameCardStyle: this._playerdata.nameCardStyle,
     };
   }
 
-  async update(recipe: (draft: PlayerDataModel) => void) {
-    this._playerdata = produce(
-      this._playerdata,
-      recipe,
-      (patches, inversePatches) => {
-        this._changes.push(patches);
-        this._inverseChanges.push(inversePatches);
-      },
-    );
+  async update(recipe: (draft: PlayerDataModel) => Promise<void>) {
+    const draft = createDraft(this._playerdata);
+    await recipe(draft);
+    finishDraft(draft, (patches, inversePatches) => {
+      this._changes.push(patches);
+      this._inverseChanges.push(inversePatches);
+    });
   }
   getBattleInfo(battleId: string): BattleInfo {
     return accountManager.getBattleInfo(this.uid, battleId)!;
@@ -148,18 +143,20 @@ export class PlayerDataManager {
 
   toJSON() {
     return {
-      ...this.status.toJSON(),
+      status: this._playerdata.status,
+      collectionReward: this._playerdata.collectionReward,
+      nameCardStyle: this._playerdata.nameCardStyle,
       ...this.inventory.toJSON(),
       troop: this.troop,
-      dungeon: this.dungeon,
+      dungeon: this._playerdata.dungeon,
       activity: this._playerdata.activity,
       pushFlags: this._playerdata.pushFlags,
       equipment: {},
-      ...this.shop.toJSON(),
+      shop: this._playerdata.shop,
       mission: this.mission,
       social: this.social,
       building: this.building,
-      dexNav: this.dexNav,
+      dexNav: this._playerdata.dexNav,
       crisis: this._playerdata.crisis,
       crisisV2: this._playerdata.crisisV2,
       tshop: this._playerdata.tshop,
@@ -182,14 +179,18 @@ export class PlayerDataManager {
       charm: this._playerdata.charm,
       carousel: this._playerdata.carousel,
       car: this._playerdata.car,
-      recruit: this.recruit,
+      recruit: this._playerdata.recruit,
       templateTrap: this._playerdata.templateTrap,
-      ...this.checkIn.toJSON(),
+      checkIn: this._playerdata.checkIn,
       openServer: this.openServer,
       campaignsV2: this._playerdata.campaignsV2,
       checkMeta: this._playerdata.checkMeta,
       limitedBuff: this._playerdata.limitedBuff,
-      ...this.home.toJSON(),
+      background: this._playerdata.background,
+      homeTheme: this._playerdata.homeTheme,
+      setting: this._playerdata.setting,
+      npcAudio: this._playerdata.npcAudio,
+      avatar: this._playerdata.avatar,
       trainingGround: this._playerdata.trainingGround,
     };
   }

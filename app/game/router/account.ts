@@ -16,11 +16,10 @@ router.post("/syncData", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  await player.update((draft) => {
+  await player.update(async (draft) => {
     draft.pushFlags.status = now();
   });
-  console.log(player._changes);
-  res.json({
+  res.send({
     result: 0,
     ts: now(),
     user: player,

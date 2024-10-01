@@ -19,9 +19,6 @@ import { enablePatches } from "immer";
   await setup(game);
   app.use("/", game);
   app.use("/assetbundle", asset);
-  app.use("/", async (req, res) => {
-    res.send("Hello");
-  });
   app.listen(config.PORT, async () => {
     console.timeEnd();
     console.log(`--------------DoctorateTs--------------`);

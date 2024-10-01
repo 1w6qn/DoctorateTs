@@ -1,23 +1,13 @@
 import EventEmitter from "events";
-import {
-  PlayerDungeon,
-  PlayerHiddenStage,
-  PlayerSpecialStage,
-  PlayerStage,
-} from "../model/playerdata";
-import excel from "../../excel/excel";
+import excel from "@excel/excel";
+import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 
-export class DungeonManager implements PlayerDungeon {
-  stages: { [key: string]: PlayerStage };
-  cowLevel: { [key: string]: PlayerSpecialStage };
-  hideStages: { [key: string]: PlayerHiddenStage };
-  mainlineBannedStages: string[];
+export class DungeonManager {
+  _player: PlayerDataManager;
   _trigger: EventEmitter;
-  constructor(dungeon: PlayerDungeon, _trigger: EventEmitter) {
-    this.stages = dungeon.stages;
-    this.cowLevel = dungeon.cowLevel;
-    this.hideStages = dungeon.hideStages;
-    this.mainlineBannedStages = dungeon.mainlineBannedStages;
+
+  constructor(player: PlayerDataManager, _trigger: EventEmitter) {
+    this._player = player;
     this._trigger = _trigger;
     this._trigger.on("stage:update", this.update.bind(this));
     //this.initStages();
@@ -26,8 +16,8 @@ export class DungeonManager implements PlayerDungeon {
   update() {}
   async initStages() {
     for (const stageId in excel.StageTable.stages) {
-      if (!(stageId in this.stages)) {
-        this.stages[stageId] = {
+      if (!(stageId in this._player._playerdata.dungeon.stages)) {
+        this._player._playerdata.dungeon.stages[stageId] = {
           completeTimes: 1,
           hasBattleReplay: 0,
           noCostCnt: 0,
@@ -38,14 +28,5 @@ export class DungeonManager implements PlayerDungeon {
         };
       }
     }
-  }
-
-  toJSON(): PlayerDungeon {
-    return {
-      stages: this.stages,
-      cowLevel: this.cowLevel,
-      hideStages: this.hideStages,
-      mainlineBannedStages: this.mainlineBannedStages,
-    };
   }
 }

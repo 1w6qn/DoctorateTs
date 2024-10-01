@@ -1,106 +1,111 @@
 import EventEmitter from "events";
-import {
-  PlayerAvatar,
-  PlayerDataModel,
-  PlayerHomeBackground,
-  PlayerHomeTheme,
-  PlayerSetting,
-} from "../model/playerdata";
 import { now } from "@utils/time";
+import { PlayerDataManager } from "./PlayerDataManager";
 
 export class HomeManager {
-  background: PlayerHomeBackground;
-  homeTheme: PlayerHomeTheme;
-  avatar: PlayerAvatar;
-  setting: PlayerSetting;
-  npcAudio: { [key: string]: { npcShowAudioInfoFlag: string } };
+  _player: PlayerDataManager;
   _trigger: EventEmitter;
 
-  constructor(playerdata: PlayerDataModel, _trigger: EventEmitter) {
-    this.background = playerdata.background;
-    this.homeTheme = playerdata.homeTheme;
-    this.setting = playerdata.setting;
-    this.npcAudio = playerdata.npcAudio;
-    this.avatar = playerdata.avatar;
+  constructor(player: PlayerDataManager, _trigger: EventEmitter) {
+    this._player = player;
     this._trigger = _trigger;
     this._trigger.on(
       "background:condition:update",
       this.updateBackgroundCondition.bind(this),
     );
     this._trigger.on("background:unlock", this.unlockBackground.bind(this));
-    this._trigger.on("background:get", (id: string) => {
-      this.background.bgs[id] = {
-        unlock: now(),
-      };
+    this._trigger.on("background:get", async (id: string) => {
+      await this._player.update(async (draft) => {
+        draft.background.bgs[id] = {
+          unlock: now(),
+        };
+      });
     });
     this._trigger.on(
       "homeTheme:condition:update",
       this.updateHomeThemeCondition.bind(this),
     );
     this._trigger.on("homeTheme:unlock", this.unlockHomeTheme.bind(this));
-    this._trigger.on("homeTheme:get", (id: string) => {
-      this.homeTheme.themes[id] = {
-        unlock: now(),
-      };
+    this._trigger.on("homeTheme:get", async (id: string) => {
+      await this._player.update(async (draft) => {
+        draft.homeTheme.themes[id] = {
+          unlock: now(),
+        };
+      });
     });
   }
 
-  setBackground(bgID: string) {
-    this.background.selected = bgID;
+  async setBackground(bgID: string) {
+    await this._player.update(async (draft) => {
+      draft.background.selected = bgID;
+    });
   }
 
-  updateBackgroundCondition(bgID: string, conditionId: string, target: number) {
-    if (this.background.bgs[bgID]!.conditions!) {
-      const cond = this.background.bgs[bgID]!.conditions![conditionId];
-      cond.v = target;
-      if (cond.t == cond.v) {
-        this._trigger.emit("background:unlock", bgID);
+  async updateBackgroundCondition(
+    bgID: string,
+    conditionId: string,
+    target: number,
+  ) {
+    await this._player.update(async (draft) => {
+      if (draft.background.bgs[bgID]!.conditions!) {
+        const cond = draft.background.bgs[bgID]!.conditions![conditionId];
+        cond.v = target;
+        if (cond.t == cond.v) {
+          this._trigger.emit("background:unlock", bgID);
+        }
       }
-    }
+    });
   }
 
-  unlockBackground(args: { bgID: string }) {
-    this.background.bgs[args.bgID].unlock = now();
+  async unlockBackground(args: { bgID: string }) {
+    const { bgID } = args;
+    await this._player.update(async (draft) => {
+      draft.background.bgs[bgID].unlock = now();
+    });
   }
 
-  setHomeTheme(args: { themeId: string }) {
-    this.homeTheme.selected = args.themeId;
+  async setHomeTheme(args: { themeId: string }) {
+    const { themeId } = args;
+    await this._player.update(async (draft) => {
+      draft.homeTheme.selected = themeId;
+    });
   }
 
-  updateHomeThemeCondition(args: {
+  async updateHomeThemeCondition(args: {
     themeId: string;
     conditionId: string;
     target: number;
   }) {
     const { themeId, conditionId, target } = args;
-    if (this.homeTheme.themes[themeId]!.conditions!) {
-      const cond = this.homeTheme!.themes[themeId]!.conditions![conditionId];
-      cond.v = target;
-      if (cond.t == cond.v) {
-        this._trigger.emit("homeTheme:unlock", themeId);
+    await this._player.update(async (draft) => {
+      if (draft.homeTheme.themes[themeId]!.conditions!) {
+        const cond = draft.homeTheme!.themes[themeId]!.conditions![conditionId];
+        cond.v = target;
+        if (cond.t == cond.v) {
+          this._trigger.emit("homeTheme:unlock", themeId);
+        }
       }
-    }
+    });
   }
 
-  unlockHomeTheme(args: { themeId: string }) {
-    this.homeTheme.themes[args.themeId].unlock = now();
+  async unlockHomeTheme(args: { themeId: string }) {
+    const { themeId } = args;
+    await this._player.update(async (draft) => {
+      draft.homeTheme.themes[themeId].unlock = now();
+    });
   }
 
-  setLowPower(args: { newValue: number }) {
-    this.setting.perf.lowPower = args.newValue;
+  async setLowPower(args: { newValue: number }) {
+    const { newValue } = args;
+    await this._player.update(async (draft) => {
+      draft.setting.perf.lowPower = newValue;
+    });
   }
 
-  npcAudioChangeLan(args: { id: string; voiceLan: string }) {
-    this.npcAudio[args.id].npcShowAudioInfoFlag = args.voiceLan;
-  }
-
-  toJSON() {
-    return {
-      background: this.background,
-      homeTheme: this.homeTheme,
-      setting: this.setting,
-      npcAudio: this.npcAudio,
-      avatar: this.avatar,
-    };
+  async npcAudioChangeLan(args: { id: string; voiceLan: string }) {
+    const { id, voiceLan } = args;
+    await this._player.update(async (draft) => {
+      draft.npcAudio[id].npcShowAudioInfoFlag = voiceLan;
+    });
   }
 }

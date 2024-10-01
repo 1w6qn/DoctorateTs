@@ -7,7 +7,7 @@ router.post("/homeTheme/change", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  player.home.setHomeTheme(req.body);
+  await player.home.setHomeTheme(req.body);
   player._trigger.emit("save");
   res.send(player.delta);
 });
@@ -15,7 +15,7 @@ router.post("/background/setBackground", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  player.home.setBackground(req.body);
+  await player.home.setBackground(req.body);
   player._trigger.emit("save");
   res.send(player.delta);
 });
@@ -24,7 +24,7 @@ router.post("/char/changeMarkStar", async (req, res) => {
     "playerData",
   ) as PlayerDataManager;
   console.log(req.body);
-  player.troop.changeMarkStar(req.body);
+  await player.troop.changeMarkStar(req.body);
   player._trigger.emit("save");
   res.send(player.delta);
 });
@@ -32,7 +32,7 @@ router.post("/setting/perf/setLowPower", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  player.home.setLowPower(req.body);
+  await player.home.setLowPower(req.body);
   player._trigger.emit("save");
   res.send(player.delta);
 });
@@ -40,7 +40,7 @@ router.post("/npcAudio/changeLan", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  player.home.npcAudioChangeLan(req.body);
+  await player.home.npcAudioChangeLan(req.body);
   player._trigger.emit("save");
   res.send(player.delta);
 });
@@ -48,7 +48,7 @@ router.post("/story/finishStory", async (req, res) => {
   const player: PlayerDataManager = httpContext.get(
     "playerData",
   ) as PlayerDataManager;
-  player.status.finishStory(req.body);
+  await player.status.finishStory(req.body);
   player._trigger.emit("save");
   res.send({
     items: [],

@@ -11,7 +11,7 @@ import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
 import moment from "moment";
-import { DungeonManager } from "./dungeon";
+import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 
 export class MedalManager implements PlayerMedal {
   medals: { [key: string]: PlayerPerMedal };
@@ -163,10 +163,10 @@ export class MedalProgress implements PlayerPerMedal {
      */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[2])),
-      update: (args: DungeonManager) => {
+      update: (args: PlayerDataManager) => {
         const stages: string[] = this.param[1].split(";");
         let count = 0;
-        Object.values(args.stages).forEach((stage) => {
+        Object.values(args._playerdata.dungeon.stages).forEach((stage) => {
           if (
             stages.includes(stage.stageId) &&
             stage.state >= parseInt(this.param[0])

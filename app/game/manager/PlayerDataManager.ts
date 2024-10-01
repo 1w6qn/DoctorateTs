@@ -57,16 +57,13 @@ export class PlayerDataManager {
     this.dungeon = new DungeonManager(this, this._trigger);
     this.home = new HomeManager(this, this._trigger);
     this.checkIn = new CheckInManager(this, this._trigger);
-    this.storyreview = new StoryreviewManager(
-      playerdata.storyreview,
-      this._trigger,
-    );
+    this.storyreview = new StoryreviewManager(this, this._trigger);
     this.mission = new MissionManager(playerdata, this._trigger);
     this.shop = new ShopController(this, this._trigger);
     this.battle = new BattleManager(this._playerdata, this._trigger);
     this.recruit = new RecruitManager(this, this.troop, this._trigger);
     this.rlv2 = new RoguelikeV2Controller(this, this._trigger);
-    this.social = new SocialManager(playerdata, this._trigger);
+    this.social = new SocialManager(this, this._trigger);
     this.gacha = new GachaController(
       playerdata.gacha,
       this.status.uid,
@@ -154,7 +151,7 @@ export class PlayerDataManager {
       equipment: {},
       shop: this._playerdata.shop,
       mission: this.mission,
-      social: this.social,
+      social: this._playerdata.social,
       building: this.building,
       dexNav: this._playerdata.dexNav,
       crisis: this._playerdata.crisis,
@@ -168,7 +165,7 @@ export class PlayerDataManager {
       tower: this._playerdata.tower,
       siracusaMap: this._playerdata.siracusaMap,
       sandboxPerm: this._playerdata.sandboxPerm,
-      storyreview: this.storyreview,
+      storyreview: this._playerdata.storyreview,
       medal: this._playerdata.medal,
       event: this._playerdata.event,
       retro: this._playerdata.retro,

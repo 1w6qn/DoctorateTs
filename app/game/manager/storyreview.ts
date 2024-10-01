@@ -1,61 +1,71 @@
 import EventEmitter from "events";
-import { PlayerStoryReview } from "../model/playerdata";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
+import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 
 export class StoryreviewManager {
-  storyreview: PlayerStoryReview;
+  _player: PlayerDataManager;
   _trigger: EventEmitter;
 
-  constructor(storyreview: PlayerStoryReview, _trigger: EventEmitter) {
-    this.storyreview = storyreview;
+  constructor(player: PlayerDataManager, _trigger: EventEmitter) {
+    this._player = player;
     this._trigger = _trigger;
   }
 
-  unlockStoryByCoin(args: { storyId: string }) {
-    this.storyreview.groups[args.storyId].stories.push({
-      id: args.storyId,
-      uts: now(),
-      rc: 0,
+  async unlockStoryByCoin(args: { storyId: string }) {
+    const { storyId } = args;
+    await this._player.update(async (draft) => {
+      draft.storyreview.groups[storyId].stories.push({
+        id: storyId,
+        uts: now(),
+        rc: 0,
+      });
     });
     this._trigger.emit("useItems", [{ id: "STORY_REVIEW_COIN", count: 1 }]);
   }
 
-  readStory(args: { storyId: string }) {
-    this.storyreview.groups[args.storyId].stories.find(
-      (story) => story.id == args.storyId,
-    )!.rc += 1;
+  async readStory(args: { storyId: string }) {
+    const { storyId } = args;
+    await this._player.update(async (draft) => {
+      draft.storyreview.groups[storyId].stories.find(
+        (story) => story.id == storyId,
+      )!.rc += 1;
+    });
   }
 
-  rewardGroup(args: { groupId: string }) {
-    this.storyreview.groups[args.groupId].rts = now();
-    const items = excel.StoryReviewTable[args.groupId].rewards;
+  async rewardGroup(args: { groupId: string }) {
+    const { groupId } = args;
+    await this._player.update(async (draft) => {
+      draft.storyreview.groups[groupId].rts = now();
+    });
+    const items = excel.StoryReviewTable[groupId].rewards;
     this._trigger.emit("gainItems", items);
     return items;
   }
 
-  markStoryAcceKnown() {
-    this.storyreview.tags.knownStoryAcceleration = 1;
+  async markStoryAcceKnown() {
+    await this._player.update(async (draft) => {
+      draft.storyreview.tags.knownStoryAcceleration = 1;
+    });
   }
 
-  trailReward(args: { groupId: string; rewardIdList: string[] }): ItemBundle[] {
+  async trailReward(args: {
+    groupId: string;
+    rewardIdList: string[];
+  }): Promise<ItemBundle[]> {
+    const { groupId, rewardIdList } = args;
     const group =
-      excel.StoryReviewMetaTable.miniActTrialData.miniActTrialDataMap[
-        args.groupId
-      ];
+      excel.StoryReviewMetaTable.miniActTrialData.miniActTrialDataMap[groupId];
     const rewardList = group.rewardList.filter((reward) =>
-      args.rewardIdList.includes(reward.trialRewardId),
+      rewardIdList.includes(reward.trialRewardId),
     );
     const items = rewardList.map((reward) => reward.item);
     this._trigger.emit("gainItems", items);
-    this.storyreview.groups[args.groupId].trailRewards?.push(
-      ...args.rewardIdList,
-    );
-    return items;
-  }
+    await this._player.update(async (draft) => {
+      draft.storyreview.groups[groupId].trailRewards?.push(...rewardIdList);
+    });
 
-  toJSON(): PlayerStoryReview {
-    return this.storyreview;
+    return items;
   }
 }

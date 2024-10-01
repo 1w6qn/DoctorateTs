@@ -169,7 +169,7 @@ export class InventoryManager {
       VOUCHER_SKIN: () => {},
       RETRO_COIN: () => {},
       PLAYER_AVATAR: (item: ItemBundle) => {
-        this._player.home.avatar.avatar_icon[item.id] = {
+        this._player._playerdata.avatar.avatar_icon[item.id] = {
           ts: now(),
           src: "other",
         };
@@ -218,7 +218,7 @@ export class InventoryManager {
       SANDBOX_TOKEN: () => {},
       TEMPLATE_TRAP: () => {},
       NAME_CARD_SKIN: (item: ItemBundle) => {
-        this._player.status.nameCardStyle.skin.state[item.id] = {
+        this._player._playerdata.nameCardStyle.skin.state[item.id] = {
           unlock: true,
           progress: null,
         };

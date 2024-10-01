@@ -1,13 +1,9 @@
-import {
-  PlayerDataModel,
-  PlayerMedalBoard,
-  PlayerSocialReward,
-} from "@game/model/playerdata";
 import { PlayerFriendAssist } from "@game/model/character";
 import EventEmitter from "events";
 import { accountManager } from "./AccountManger";
 import { pick } from "lodash";
 import { FriendDataWithNameCard } from "@game/model/social";
+import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 
 enum FriendServiceType {
   SEARCH_FRIEND = 0,
@@ -21,21 +17,13 @@ enum FriendDealEnum {
 }
 
 export class SocialManager {
-  assistCharList: PlayerFriendAssist[];
-  yesterdayReward: PlayerSocialReward;
-  yCrisisSs: string;
-  medalBoard: PlayerMedalBoard;
-  yCrisisV2Ss: string;
+  _player: PlayerDataManager;
   _uid: string;
   _trigger: EventEmitter;
 
-  constructor(player: PlayerDataModel, _trigger: EventEmitter) {
-    this.assistCharList = player.social.assistCharList;
-    this.yesterdayReward = player.social.yesterdayReward;
-    this.yCrisisSs = player.social.yCrisisSs;
-    this.medalBoard = player.social.medalBoard;
-    this.yCrisisV2Ss = player.social.yCrisisV2Ss;
-    this._uid = player.status.uid;
+  constructor(player: PlayerDataManager, _trigger: EventEmitter) {
+    this._player = player;
+    this._uid = player._playerdata.status.uid;
     this._trigger = _trigger;
   }
 
@@ -44,6 +32,7 @@ export class SocialManager {
     sortKeyList: string[];
     param: { [key: string]: string };
   }) {
+    const { type, sortKeyList, param } = args;
     const friendIdList = accountManager.getSocial(this._uid).friends;
     const friendInfoList = friendIdList.map((friend) =>
       accountManager.getPlayerFriendInfo(friend),
@@ -52,25 +41,16 @@ export class SocialManager {
       [key: number]: (
         friend: FriendDataWithNameCard,
         param: { [key: string]: string },
-      ) => any;
+      ) => object | void;
     } = {
-      [FriendServiceType.SEARCH_FRIEND]: (
-        friend: FriendDataWithNameCard,
-        param: { [key: string]: string },
-      ) => {},
-      [FriendServiceType.GET_FRIEND_LIST]: (
-        friendInfo: FriendDataWithNameCard,
-        param: { [key: string]: string },
-      ) => {
-        return pick(friendInfo, ["uid", ...args.sortKeyList]);
+      [FriendServiceType.SEARCH_FRIEND]: () => {},
+      [FriendServiceType.GET_FRIEND_LIST]: (friend: FriendDataWithNameCard) => {
+        return pick(friend, ["uid", ...sortKeyList]);
       },
-      [FriendServiceType.GET_FRIEND_REQUEST]: (
-        friend: FriendDataWithNameCard,
-        param: { [key: string]: string },
-      ) => {},
+      [FriendServiceType.GET_FRIEND_REQUEST]: () => {},
     };
 
-    return friendInfoList.map((friend) => funcs[args.type](friend, args.param));
+    return friendInfoList.map((friend) => funcs[type](friend, param));
   }
 
   getFriendList(args: { idList: string[] }) {
@@ -94,43 +74,44 @@ export class SocialManager {
     }
   }
 
-  receiveSocialPoint() {
-    if (this.yesterdayReward.canReceive) {
-      const point =
-        this.yesterdayReward.assistAmount + this.yesterdayReward.comfortAmount;
-      this._trigger.emit("gainItems", [
-        { id: "", type: "SOCIAL_PT", num: point },
-      ]);
-      this.yesterdayReward.canReceive = 0;
-    }
+  async receiveSocialPoint() {
+    await this._player.update(async (draft) => {
+      if (draft.social.yesterdayReward.canReceive) {
+        const point =
+          draft.social.yesterdayReward.assistAmount +
+          draft.social.yesterdayReward.comfortAmount;
+        this._trigger.emit("gainItems", [
+          { id: "", type: "SOCIAL_PT", num: point },
+        ]);
+        draft.social.yesterdayReward.canReceive = 0;
+      }
+    });
   }
 
-  setCardShowMedal(args: {
+  async setCardShowMedal(args: {
     type: string;
     customIndex: string;
     templateGroup: string;
   }) {
-    this.medalBoard.type = args.type;
-    this.medalBoard.template = args.templateGroup;
-    //TODO
-    //this.medalBoard.custom=args.customIndex
+    const { type, templateGroup } = args;
+    await this._player.update(async (draft) => {
+      draft.social.medalBoard.type = type;
+      draft.social.medalBoard.template = templateGroup;
+      //TODO
+      //draft.social.medalBoard.custom = customIndex;
+    });
   }
 
-  setAssistCharList(assistCharList: PlayerFriendAssist[]) {
-    this.assistCharList = assistCharList;
+  async setAssistCharList(args: { assistCharList: PlayerFriendAssist[] }) {
+    const { assistCharList } = args;
+    await this._player.update(async (draft) => {
+      draft.social.assistCharList = assistCharList;
+    });
   }
 
   setFriendAlias() {}
 
-  searchPlayer(args: { idList: string[] }) {}
-
-  toJSON() {
-    return {
-      assistCharList: this.assistCharList,
-      yesterdayReward: this.yesterdayReward,
-      yCrisisSs: this.yCrisisSs,
-      medalBoard: this.medalBoard,
-      yCrisisV2Ss: this.yCrisisV2Ss,
-    };
+  searchPlayer(args: { idList: string[] }) {
+    const { idList } = args;
   }
 }

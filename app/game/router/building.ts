@@ -5,9 +5,7 @@ import { now } from "@utils/time";
 
 const router = Router();
 router.post("/sync", async (req, res) => {
-  const player: PlayerDataManager = httpContext.get(
-    "playerData",
-  ) as PlayerDataManager;
+  const player = httpContext.get("playerData") as PlayerDataManager;
   const ts = now();
   player._playerdata.event.building = ts + 5000;
   res.send({

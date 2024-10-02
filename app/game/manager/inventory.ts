@@ -2,28 +2,16 @@ import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
 import { now } from "@utils/time";
 import EventEmitter from "events";
-import {
-  PlayerConsumableItem,
-  PlayerSkins,
-  PlayerStatus,
-} from "../model/playerdata";
+import { PlayerDataModel } from "../model/playerdata";
 import { PlayerDataManager } from "./PlayerDataManager";
+import { WritableDraft } from "immer";
 
 export class InventoryManager {
-  items: { [itemId: string]: number };
-  skin: PlayerSkins;
-  consumable: { [key: string]: { [key: string]: PlayerConsumableItem } };
-
-  _status: PlayerStatus;
   _player: PlayerDataManager;
   _trigger: EventEmitter;
 
   constructor(player: PlayerDataManager, _trigger: EventEmitter) {
     this._player = player;
-    this.items = player._playerdata.inventory;
-    this.skin = player._playerdata.skin;
-    this.consumable = player._playerdata.consumable;
-    this._status = player._playerdata.status;
     this._trigger = _trigger;
     this._trigger.on("useItems", (items: ItemBundle[]) =>
       items.forEach((item) => this._useItem(item)),
@@ -33,17 +21,28 @@ export class InventoryManager {
     );
   }
 
-  get skinCnt(): number {
-    return Object.keys(this.skin.characterSkins).length;
+  get items(): { [itemId: string]: number } {
+    return this._player._playerdata.inventory;
   }
 
-  _useItem(item: ItemBundle): void {
+  get skinCnt(): number {
+    return Object.keys(this._player._playerdata.skin.characterSkins).length;
+  }
+
+  async _useItem(item: ItemBundle): Promise<void> {
     if (!item.type) {
       item.type = excel.ItemTable.items[item.id].itemType as string;
     }
-    const consumableFunc = (item: ItemBundle) =>
-      (this.consumable[item.id][item.instId!].count -= item.count);
-    const funcs: { [key: string]: (item: ItemBundle) => void } = {
+    const consumableFunc = (
+      item: ItemBundle,
+      draft: WritableDraft<PlayerDataModel>,
+    ) => (draft.consumable[item.id][item.instId!].count -= item.count);
+    const funcs: {
+      [key: string]: (
+        item: ItemBundle,
+        draft: WritableDraft<PlayerDataModel>,
+      ) => void;
+    } = {
       TKT_GACHA_PRSV: consumableFunc,
       VOUCHER_ELITE_II_4: consumableFunc,
       VOUCHER_ELITE_II_5: consumableFunc,
@@ -56,7 +55,9 @@ export class InventoryManager {
       VOUCHER_SKILL_SPECIALLEVELMAX_4: consumableFunc,
     };
     if (funcs[item.type]) {
-      funcs[item.type]?.(item);
+      await this._player.update(async (draft) => {
+        funcs[item.type!](item, draft);
+      });
     } else {
       this._trigger.emit("gainItems", [
         Object.assign({}, item, { count: -item.count }),
@@ -64,79 +65,81 @@ export class InventoryManager {
     }
   }
 
-  gainItem(item: ItemBundle, callback?: () => void): void {
+  async gainItem(item: ItemBundle, callback?: () => void): Promise<void> {
     const info = excel.ItemTable.items[item.id];
     console.log(`[InventoryManager] 获得物品 ${info.name} x ${item.count}`);
     if (!item.type) {
       item.type = excel.ItemTable.items[item.id].itemType as string;
     }
-    const funcs: { [key: string]: (item: ItemBundle) => void } = {
+    const funcs: {
+      [key: string]: (
+        item: ItemBundle,
+        draft: WritableDraft<PlayerDataModel>,
+      ) => void;
+    } = {
       NONE: () => {},
-      CHAR: (item: ItemBundle) => this._trigger.emit("char:get", item.id),
-      CARD_EXP: (item: ItemBundle) =>
-        (this.items[item.id] = (this.items[item.id] || 0) + item.count),
-      MATERIAL: (item: ItemBundle) =>
-        (this.items[item.id] = (this.items[item.id] || 0) + item.count),
-      GOLD: (item: ItemBundle) => (this._status.gold += item.count),
-      EXP_PLAYER: (item: ItemBundle) => {
-        this._status.exp += item.count;
+      CHAR: (item) => this._trigger.emit("char:get", item.id),
+      CARD_EXP: (item, draft) =>
+        (draft.inventory[item.id] = (this.items[item.id] || 0) + item.count),
+      MATERIAL: (item, draft) =>
+        (draft.inventory[item.id] = (this.items[item.id] || 0) + item.count),
+      GOLD: (item, draft) => (draft.status.gold += item.count),
+      EXP_PLAYER: (item, draft) => {
+        draft.status.exp += item.count;
         excel.GameDataConst.playerExpMap
-          .slice(this._status.level - 1)
+          .slice(draft.status.level - 1)
           .forEach((exp) => {
-            if (this._status.exp >= exp) {
-              this._status.level += 1;
-              this._status.exp -= exp;
-              this._status.maxAp =
-                excel.GameDataConst.playerApMap[this._status.level - 1];
+            if (draft.status.exp >= exp) {
+              draft.status.level += 1;
+              draft.status.exp -= exp;
+              draft.status.maxAp =
+                excel.GameDataConst.playerApMap[draft.status.level - 1];
               this._trigger.emit("gainItems", [
                 {
                   id: "",
                   type: "AP_GAMEPLAY",
-                  count: this._status.maxAp,
+                  count: draft.status.maxAp,
                 },
               ]);
               this._trigger.emit("player:levelup");
             }
           });
       },
-      TKT_TRY: (item: ItemBundle) =>
-        (this._status.practiceTicket += item.count),
-      TKT_RECRUIT: (item: ItemBundle) =>
-        (this._status.recruitLicense += item.count),
-      TKT_INST_FIN: (item: ItemBundle) =>
-        (this._status.instantFinishTicket += item.count),
-      TKT_GACHA: (item: ItemBundle) => (this._status.gachaTicket += item.count),
-      ACTIVITY_COIN: (item: ItemBundle) =>
-        (this.items[item.id] = (this.items[item.id] || 0) + item.count),
-      DIAMOND: (item: ItemBundle) => {
-        this._status.iosDiamond += item.count;
-        this._status.androidDiamond += item.count;
+      TKT_TRY: (item, draft) => (draft.status.practiceTicket += item.count),
+      TKT_RECRUIT: (item, draft) => (draft.status.recruitLicense += item.count),
+      TKT_INST_FIN: (item, draft) =>
+        (draft.status.instantFinishTicket += item.count),
+      TKT_GACHA: (item, draft) => (draft.status.gachaTicket += item.count),
+      ACTIVITY_COIN: (item, draft) =>
+        (draft.inventory[item.id] = (this.items[item.id] || 0) + item.count),
+      DIAMOND: (item, draft) => {
+        draft.status.iosDiamond += item.count;
+        draft.status.androidDiamond += item.count;
       },
-      DIAMOND_SHD: (item: ItemBundle) =>
-        (this._status.diamondShard += item.count),
-      HGG_SHD: (item: ItemBundle) => (this._status.hggShard += item.count),
-      LGG_SHD: (item: ItemBundle) => (this._status.lggShard += item.count),
-      FURN: (item: ItemBundle) => {
-        if (this._player.building.furniture[item.id]) {
-          this._player.building.furniture[item.id].count += item.count;
+      DIAMOND_SHD: (item, draft) => (draft.status.diamondShard += item.count),
+      HGG_SHD: (item, draft) => (draft.status.hggShard += item.count),
+      LGG_SHD: (item, draft) => (draft.status.lggShard += item.count),
+      FURN: (item, draft) => {
+        if (draft.building.furniture[item.id]) {
+          draft.building.furniture[item.id].count += item.count;
         } else {
-          this._player.building.furniture[item.id] = {
+          draft.building.furniture[item.id] = {
             count: item.count,
             inUse: 0,
           };
         }
       },
-      AP_GAMEPLAY: (item: ItemBundle) => (this._status.ap += item.count),
+      AP_GAMEPLAY: (item, draft) => (draft.status.ap += item.count),
       AP_BASE: () => {},
-      SOCIAL_PT: (item: ItemBundle) => (this._status.socialPoint += item.count),
-      CHAR_SKIN: (item: ItemBundle) => {
-        this.skin.characterSkins[item.id] = 1;
-        this.skin.skinTs[item.id] = now();
+      SOCIAL_PT: (item, draft) => (draft.status.socialPoint += item.count),
+      CHAR_SKIN: (item, draft) => {
+        draft.skin.characterSkins[item.id] = 1;
+        draft.skin.skinTs[item.id] = now();
       },
-      TKT_GACHA_10: (item: ItemBundle) =>
-        (this._status.tenGachaTicket += item.count),
-      TKT_GACHA_PRSV: (item: ItemBundle) =>
-        (this.items[item.id] = (this.items[item.id] || 0) + item.count),
+      TKT_GACHA_10: (item, draft) =>
+        (draft.status.tenGachaTicket += item.count),
+      TKT_GACHA_PRSV: (item, draft) =>
+        (draft.inventory[item.id] = (this.items[item.id] || 0) + item.count),
       AP_ITEM: () => {},
       AP_SUPPLY: () => {},
       RENAMING_CARD: () => {},
@@ -148,19 +151,19 @@ export class InventoryManager {
       VOUCHER_MGACHA: () => {},
       CRS_SHOP_COIN: () => {},
       CRS_RUNE_COIN: () => {},
-      LMTGS_COIN: (item: ItemBundle) => {
-        if (this.consumable[item.id]["999"]) {
-          this.consumable[item.id]["999"].count += item.count;
+      LMTGS_COIN: (item, draft) => {
+        if (draft.consumable[item.id]["999"]) {
+          draft.consumable[item.id]["999"].count += item.count;
         } else {
-          this.consumable[item.id]["999"] = { count: item.count, ts: -1 };
+          draft.consumable[item.id]["999"] = { count: item.count, ts: -1 };
         }
       },
-      EPGS_COIN: (item: ItemBundle) =>
-        (this.items[item.id] = (this.items[item.id] || 0) + item.count),
+      EPGS_COIN: (item, draft) =>
+        (draft.inventory[item.id] = (this.items[item.id] || 0) + item.count),
       LIMITED_TKT_GACHA_10: () => {},
       LIMITED_FREE_GACHA: () => {},
-      REP_COIN: (item: ItemBundle) =>
-        (this.items[item.id] = (this.items[item.id] || 0) + item.count),
+      REP_COIN: (item, draft) =>
+        (draft.inventory[item.id] = (this.items[item.id] || 0) + item.count),
       ROGUELIKE: () => {},
       LINKAGE_TKT_GACHA_10: () => {},
       VOUCHER_ELITE_II_4: () => {},
@@ -168,20 +171,20 @@ export class InventoryManager {
       VOUCHER_ELITE_II_6: () => {},
       VOUCHER_SKIN: () => {},
       RETRO_COIN: () => {},
-      PLAYER_AVATAR: (item: ItemBundle) => {
-        this._player._playerdata.avatar.avatar_icon[item.id] = {
+      PLAYER_AVATAR: (item, draft) => {
+        draft.avatar.avatar_icon[item.id] = {
           ts: now(),
           src: "other",
         };
       },
       UNI_COLLECTION: () => {},
-      VOUCHER_FULL_POTENTIAL: (item: ItemBundle) =>
-        (this.items[item.id] = (this.items[item.id] || 0) + item.count),
+      VOUCHER_FULL_POTENTIAL: (item, draft) =>
+        (draft.inventory[item.id] = (this.items[item.id] || 0) + item.count),
       RL_COIN: () => {},
       RETURN_CREDIT: () => {},
       MEDAL: () => {},
       CHARM: () => {},
-      HOME_BACKGROUND: (item: ItemBundle) => {
+      HOME_BACKGROUND: (item) => {
         this._trigger.emit("background:get", item.id);
       },
       EXTERMINATION_AGENT: () => {},
@@ -197,12 +200,11 @@ export class InventoryManager {
       ITEM_PACK: () => {},
       SANDBOX: () => {},
       FAVOR_ADD_ITEM: () => {},
-      CLASSIC_SHD: (item: ItemBundle) =>
-        (this._status.classicShard += item.count),
-      CLASSIC_TKT_GACHA: (item: ItemBundle) =>
-        (this._status.classicGachaTicket += item.count),
-      CLASSIC_TKT_GACHA_10: (item: ItemBundle) =>
-        (this._status.classicTenGachaTicket += item.count),
+      CLASSIC_SHD: (item, draft) => (draft.status.classicShard += item.count),
+      CLASSIC_TKT_GACHA: (item, draft) =>
+        (draft.status.classicGachaTicket += item.count),
+      CLASSIC_TKT_GACHA_10: (item, draft) =>
+        (draft.status.classicTenGachaTicket += item.count),
       LIMITED_BUFF: () => {},
       CLASSIC_FES_PICK_TIER_5: () => {},
       CLASSIC_FES_PICK_TIER_6: () => {},
@@ -211,14 +213,14 @@ export class InventoryManager {
       MCARD_VOUCHER: () => {},
       MATERIAL_ISSUE_VOUCHER: () => {},
       CRS_SHOP_COIN_V2: () => {},
-      HOME_THEME: (item: ItemBundle) => {
+      HOME_THEME: (item) => {
         this._trigger.emit("homeTheme:get", item.id);
       },
       SANDBOX_PERM: () => {},
       SANDBOX_TOKEN: () => {},
       TEMPLATE_TRAP: () => {},
-      NAME_CARD_SKIN: (item: ItemBundle) => {
-        this._player._playerdata.nameCardStyle.skin.state[item.id] = {
+      NAME_CARD_SKIN: (item, draft) => {
+        draft.nameCardStyle.skin.state[item.id] = {
           unlock: true,
           progress: null,
         };
@@ -227,14 +229,8 @@ export class InventoryManager {
       EXCLUSIVE_TKT_GACHA_10: () => {},
     };
     callback?.();
-    funcs[item.type](item);
-  }
-
-  toJSON() {
-    return {
-      inventory: this.items,
-      skin: this.skin,
-      consumable: this.consumable,
-    };
+    await this._player.update(async (draft) => {
+      funcs[item.type!](item, draft);
+    });
   }
 }

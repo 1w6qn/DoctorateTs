@@ -13,9 +13,7 @@ router.post("/login", async (req, res) => {
   });
 });
 router.post("/syncData", async (req, res) => {
-  const player: PlayerDataManager = httpContext.get(
-    "playerData",
-  ) as PlayerDataManager;
+  const player = httpContext.get("playerData") as PlayerDataManager;
   await player.update(async (draft) => {
     draft.pushFlags.status = now();
   });
@@ -27,9 +25,7 @@ router.post("/syncData", async (req, res) => {
   });
 });
 router.post("/syncStatus", async (req, res) => {
-  const player: PlayerDataManager = httpContext.get(
-    "playerData",
-  ) as PlayerDataManager;
+  const player = httpContext.get("playerData") as PlayerDataManager;
   player._trigger.emit("status:refresh:time");
   res.send({
     ts: now(),

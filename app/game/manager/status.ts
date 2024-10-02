@@ -5,6 +5,7 @@ import { checkNew, now } from "@utils/time";
 import moment from "moment";
 import { AvatarInfo } from "@game/model/character";
 import { PlayerDataManager } from "./PlayerDataManager";
+import { accountManager } from "@game/manager/AccountManger";
 
 export class StatusManager {
   _player: PlayerDataManager;
@@ -89,10 +90,10 @@ export class StatusManager {
   }
 
   async buyAp() {
+    this._trigger.emit("useItems", [{ id: "", type: "DIAMOND", count: 1 }]);
     this._trigger.emit("gainItems", [
       { id: "", type: "AP_GAMEPLAY", count: this.status.maxAp },
     ]);
-    this._trigger.emit("useItems", [{ id: "", type: "DIAMOND", count: 1 }]);
   }
 
   async exchangeDiamondShard(args: { count: number }) {
@@ -118,7 +119,10 @@ export class StatusManager {
   }
 
   async getOtherPlayerNameCard(args: { uid: string }) {
+    const { uid } = args;
+    const friendInfo = accountManager.getPlayerFriendInfo(uid);
     //TODO
+    return friendInfo.nameCardStyle;
   }
 
   async editNameCard(args: {

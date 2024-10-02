@@ -50,7 +50,6 @@ export class PlayerDataManager {
     this._inverseChanges = [];
     this._trigger = new EventEmitter();
     this._trigger.setMaxListeners(10000);
-
     this.status = new StatusManager(this, this._trigger);
     this.inventory = new InventoryManager(this, this._trigger);
     this.troop = new TroopManager(playerdata, this._trigger);
@@ -74,9 +73,12 @@ export class PlayerDataManager {
     this.building = new BuildingManager(this, this._trigger);
     this.openServer = new OpenServerManager(this, this._trigger);
     this._trigger.emit("game:fix");
-    this._trigger.emit("save:battle", (battleId: string, info: BattleInfo) => {
-      accountManager.saveBattleInfo(this.uid, battleId, info);
-    });
+    this._trigger.emit(
+      "save:battle",
+      async (battleId: string, info: BattleInfo) => {
+        accountManager.saveBattleInfo(this.uid, battleId, info);
+      },
+    );
   }
 
   get delta() {
@@ -90,7 +92,7 @@ export class PlayerDataManager {
   }
 
   get uid() {
-    return this.status.uid;
+    return this._playerdata.status.uid;
   }
 
   get loginTime() {
@@ -99,27 +101,26 @@ export class PlayerDataManager {
 
   get socialInfo(): FriendDataWithNameCard {
     return {
-      nickName: this.status.status.nickName,
-      nickNumber: this.status.status.nickNumber,
+      nickName: this._playerdata.status.nickName,
+      nickNumber: this._playerdata.status.nickNumber,
       uid: this.uid,
-      serverName: this.status.status.serverName,
-      level: this.status.status.level,
-      avatar: this.status.status.avatar,
+      serverName: this._playerdata.status.serverName,
+      level: this._playerdata.status.level,
+      avatar: this._playerdata.status.avatar,
       assistCharList: [],
-      lastOnlineTime: this.status.status.lastOnlineTs,
+      lastOnlineTime: this._playerdata.status.lastOnlineTs,
       board: this.building.boardInfo,
       infoShare: this.building.infoShare,
       recentVisited: 0,
       skin: this._playerdata.nameCardStyle.skin,
-
-      registerTs: this.status.status.registerTs,
-      mainStageProgress: this.status.status.mainStageProgress,
+      registerTs: this._playerdata.status.registerTs,
+      mainStageProgress: this._playerdata.status.mainStageProgress,
       charCnt: this.troop.curCharInstId - 1,
       furnCnt: this.building.furnCnt,
       skinCnt: this.inventory.skinCnt,
-      secretary: this.status.status.secretary,
-      secretarySkinId: this.status.status.secretarySkinId,
-      resume: this.status.status.resume,
+      secretary: this._playerdata.status.secretary,
+      secretarySkinId: this._playerdata.status.secretarySkinId,
+      resume: this._playerdata.status.resume,
       teamV2: this.dexNav.teamV2Info,
       medalBoard: { type: "", template: null, custom: null },
       nameCardStyle: this._playerdata.nameCardStyle,
@@ -143,7 +144,9 @@ export class PlayerDataManager {
       status: this._playerdata.status,
       collectionReward: this._playerdata.collectionReward,
       nameCardStyle: this._playerdata.nameCardStyle,
-      ...this.inventory.toJSON(),
+      inventory: this._playerdata.inventory,
+      skin: this._playerdata.skin,
+      consumable: this._playerdata.consumable,
       troop: this.troop,
       dungeon: this._playerdata.dungeon,
       activity: this._playerdata.activity,
@@ -179,7 +182,7 @@ export class PlayerDataManager {
       recruit: this._playerdata.recruit,
       templateTrap: this._playerdata.templateTrap,
       checkIn: this._playerdata.checkIn,
-      openServer: this.openServer,
+      openServer: this._playerdata.openServer,
       campaignsV2: this._playerdata.campaignsV2,
       checkMeta: this._playerdata.checkMeta,
       limitedBuff: this._playerdata.limitedBuff,

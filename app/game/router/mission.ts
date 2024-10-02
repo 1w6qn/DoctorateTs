@@ -4,9 +4,7 @@ import { PlayerDataManager } from "../manager/PlayerDataManager";
 
 const router = Router();
 router.post("/confirmMission", async (req, res) => {
-  const player: PlayerDataManager = httpContext.get(
-    "playerData",
-  ) as PlayerDataManager;
+  const player = httpContext.get("playerData") as PlayerDataManager;
 
   res.send({
     items: player.mission.confirmMission(req.body),
@@ -15,17 +13,13 @@ router.post("/confirmMission", async (req, res) => {
   player._trigger.emit("save");
 });
 router.post("/confirmMissionGroup", async (req, res) => {
-  const player: PlayerDataManager = httpContext.get(
-    "playerData",
-  ) as PlayerDataManager;
+  const player = httpContext.get("playerData") as PlayerDataManager;
   player.mission.confirmMissionGroup(req.body);
   res.send(player.delta);
   player._trigger.emit("save");
 });
 router.post("/autoConfirmMissions", async (req, res) => {
-  const player: PlayerDataManager = httpContext.get(
-    "playerData",
-  ) as PlayerDataManager;
+  const player = httpContext.get("playerData") as PlayerDataManager;
 
   res.send({
     items: player.mission.autoConfirmMissions(req.body),
@@ -34,9 +28,7 @@ router.post("/autoConfirmMissions", async (req, res) => {
   player._trigger.emit("save");
 });
 router.post("/exchangeMissionRewards", async (req, res) => {
-  const player: PlayerDataManager = httpContext.get(
-    "playerData",
-  ) as PlayerDataManager;
+  const player = httpContext.get("playerData") as PlayerDataManager;
   player.mission.exchangeMissionRewards(req.body);
   res.send({
     ...player.delta,

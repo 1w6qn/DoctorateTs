@@ -4,7 +4,7 @@ import { readJson } from "@utils/file";
 
 const router = Router();
 
-router.get("/general/v1/server_time", (req, res) => {
+router.get("/general/v1/server_time", async (req, res) => {
   res.send({
     status: 0,
     type: "A",
@@ -16,7 +16,7 @@ router.get("/general/v1/server_time", (req, res) => {
   });
 });
 router.get("/app/v1/config", async (req, res) => {
-  res.send(readJson("../../data/appConfig.json"));
+  res.send(await readJson("./data/appConfig.json"));
 });
 router.get("/user/auth/v1/token_by_phone_password", (req, res) => {
   res.send({
@@ -27,7 +27,7 @@ router.get("/user/auth/v1/token_by_phone_password", (req, res) => {
     },
   });
 });
-router.get("/user/info/v1/basic", (req, res) => {
+router.get("/user/info/v1/basic", async (req, res) => {
   res.send({
     status: 0,
     msg: "OK",
@@ -42,7 +42,7 @@ router.get("/user/info/v1/basic", (req, res) => {
     },
   });
 });
-router.post("/user/oauth2/v2/grant", (req, res) => {
+router.post("/user/oauth2/v2/grant", async (req, res) => {
   res.send({
     status: 0,
     msg: "OK",
@@ -52,10 +52,9 @@ router.post("/user/oauth2/v2/grant", (req, res) => {
     },
   });
 });
-router.post("/u8/user/v1/getToken", (req, res) => {
+router.post("/u8/user/v1/getToken", async (req, res) => {
   res.send({
     channelUid: "1",
-    error: "",
     extension: JSON.stringify({
       isMinor: false,
       isAuthenticate: true,
@@ -66,10 +65,10 @@ router.post("/u8/user/v1/getToken", (req, res) => {
     uid: "1",
   });
 });
-router.post("/user/online/v1/loginout", (req, res) => {
+router.post("/user/online/v1/loginout", async (req, res) => {
   res.send({});
 });
-router.post("/u8/pay/getAllProductList", (req, res) => {
+router.post("/u8/pay/getAllProductList", async (req, res) => {
   res.send({ productList: [] });
 });
 export default router;

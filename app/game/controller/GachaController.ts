@@ -7,32 +7,29 @@ import {
   GachaPerChar,
 } from "@excel/gacha_detail_table";
 import excel from "@excel/excel";
-import { TroopManager } from "../manager/troop";
 import { accountManager } from "../manager/AccountManger";
 import { ItemBundle } from "@excel/character_table";
 import { randomChoice, randomChoices } from "@utils/random";
+import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 
 export class GachaController {
-  gacha: PlayerGacha;
-  uid: string;
-  _troop: TroopManager;
   _table: GachaDetailTable;
+  _player: PlayerDataManager;
   _trigger: EventEmitter;
 
-  constructor(
-    gacha: PlayerGacha,
-    uid: string,
-    troop: TroopManager,
-    _trigger: EventEmitter,
-  ) {
-    this.gacha = gacha;
-    this.uid = uid;
-    this._troop = troop;
+  constructor(player: PlayerDataManager, _trigger: EventEmitter) {
     this._table = excel.GachaDetailTable;
+    this._player = player;
     this._trigger = _trigger;
   }
 
-  fix() {}
+  get uid(): string {
+    return this._player.uid;
+  }
+
+  get gacha(): PlayerGacha {
+    return this._player._playerdata.gacha;
+  }
 
   async advancedGacha(args: {
     poolId: string;
@@ -65,16 +62,19 @@ export class GachaController {
     useTkt: number;
     itemId: string;
   }): Promise<GachaResult & { logInfo: { beforeNonHitCnt: number } }> {
-    const { poolId, useTkt, itemId } = args;
-    if (!(poolId in this.gacha.normal)) {
-      this.gacha.normal[poolId] = {
-        cnt: 0,
-        maxCnt: 10,
-        rarity: 4,
-        avail: true,
-      };
-    }
-    let charId = "";
+    const { poolId } = args;
+    //TODO: cost items
+    await this._player.update(async (draft) => {
+      if (!(poolId in draft.gacha.normal)) {
+        draft.gacha.normal[poolId] = {
+          cnt: 0,
+          maxCnt: 10,
+          rarity: 4,
+          avail: true,
+        };
+      }
+    });
+
     const ruleType = excel.GachaTable.gachaPoolClient.find(
       (g) => g.gachaPoolId === poolId,
     )!.gachaRuleType;
@@ -85,9 +85,9 @@ export class GachaController {
     let beforeNonHitCnt = accountManager.getBeforeNonHitCnt(this.uid, ruleType);
     const rank: number = 0;
 
-    const funcs: { [key: string]: () => string } = {
-      NORMAL: () => this._handleGacha(poolId, { beforeNonHitCnt }),
-      LIMITED: () => {
+    const funcs: { [key: string]: () => Promise<string> } = {
+      NORMAL: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
+      LIMITED: async () => {
         extras.extraItem = {
           id: excel.GachaTable.gachaPoolClient.find(
             (g) => g.gachaPoolId === poolId,
@@ -96,54 +96,57 @@ export class GachaController {
         };
         return this._handleGacha(poolId, { beforeNonHitCnt });
       },
-      LINKAGE: () => this._handleGacha(poolId, { beforeNonHitCnt }),
-      ATTAIN: () => this._handleGacha(poolId, { beforeNonHitCnt }),
-      CLASSIC: () => this._handleGacha(poolId, { beforeNonHitCnt }),
-      SINGLE: () => {
+      LINKAGE: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
+      ATTAIN: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
+      CLASSIC: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
+      SINGLE: async () => {
         let ensure = "";
-        if (!this.gacha.single[poolId]) {
-          this.gacha.single[poolId] = {
-            singleEnsureCnt: 0,
-            singleEnsureUse: false,
-            singleEnsureChar: detail.upCharInfo!.perCharList[0].charIdList[0],
-          };
-        }
-        this.gacha.single[poolId].singleEnsureCnt += 1;
-        if (this.gacha.single[poolId].singleEnsureCnt == 150) {
-          this.gacha.single[poolId].singleEnsureUse = true;
-          ensure = this.gacha.single[poolId].singleEnsureChar;
-        }
-        this._handleGacha(poolId, { beforeNonHitCnt, ensure });
-        return charId;
+        await this._player.update(async (draft) => {
+          if (!draft.gacha.single[poolId]) {
+            draft.gacha.single[poolId] = {
+              singleEnsureCnt: 0,
+              singleEnsureUse: false,
+              singleEnsureChar: detail.upCharInfo!.perCharList[0].charIdList[0],
+            };
+          }
+          draft.gacha.single[poolId].singleEnsureCnt += 1;
+          if (draft.gacha.single[poolId].singleEnsureCnt == 150) {
+            draft.gacha.single[poolId].singleEnsureUse = true;
+            ensure = draft.gacha.single[poolId].singleEnsureChar;
+          }
+        });
+
+        return this._handleGacha(poolId, { beforeNonHitCnt, ensure });
       },
-      FESCLASSIC: () => this._handleGacha(poolId, { beforeNonHitCnt }),
-      CLASSIC_ATTAIN: () => this._handleGacha(poolId, { beforeNonHitCnt }),
+      FESCLASSIC: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
+      CLASSIC_ATTAIN: async () =>
+        this._handleGacha(poolId, { beforeNonHitCnt }),
     };
 
-    charId = funcs[ruleType]();
+    const charId = await funcs[ruleType]();
     beforeNonHitCnt = rank != 5 ? beforeNonHitCnt + 1 : 0;
     accountManager.saveBeforeNonHitCnt(this.uid, ruleType, beforeNonHitCnt);
     return {
-      ...this._troop.gainChar(charId, extras),
+      ...this._player.troop.gainChar(charId, extras),
       logInfo: {
         beforeNonHitCnt: beforeNonHitCnt,
       },
     };
   }
 
-  _handleGacha(
+  async _handleGacha(
     poolId: string,
     args: { beforeNonHitCnt: number; ensure?: string },
-  ): string {
-    const rank = this._getRarityRank(poolId, args);
+  ): Promise<string> {
+    const rank = await this._getRarityRank(poolId, args);
     return this._getRandomChar(poolId, rank, args);
   }
 
-  _getRandomChar(
+  async _getRandomChar(
     poolId: string,
     rank: number,
     args: { ensure?: string },
-  ): string {
+  ): Promise<string> {
     let charId: string;
     const detail = this._table.details[poolId];
     const perChar = detail.upCharInfo!.perCharList.find(
@@ -176,7 +179,10 @@ export class GachaController {
     return args.ensure || charId;
   }
 
-  _getRarityRank(poolId: string, args: { beforeNonHitCnt: number }): number {
+  async _getRarityRank(
+    poolId: string,
+    args: { beforeNonHitCnt: number },
+  ): Promise<number> {
     const detail = this._table.details[poolId];
     let per6 = detail.availCharInfo.perAvailList.find(
       (c) => c.rarityRank === 5,
@@ -200,18 +206,17 @@ export class GachaController {
         rank = 4;
       }
     }
-    this.gacha.normal[poolId].cnt += 1;
-    if (this.gacha.normal[poolId].avail && rank >= 4) {
-      this.gacha.normal[poolId].avail = false;
-    }
+    await this._player.update(async (draft) => {
+      draft.gacha.normal[poolId].cnt += 1;
+      if (draft.gacha.normal[poolId].avail && rank >= 4) {
+        draft.gacha.normal[poolId].avail = false;
+      }
+    });
+
     return rank;
   }
 
-  getPoolDetail(args: { poolId: string }): GachaDetailData {
+  async getPoolDetail(args: { poolId: string }): Promise<GachaDetailData> {
     return this._table.details[args.poolId];
-  }
-
-  toJSON(): PlayerGacha {
-    return this.gacha;
   }
 }

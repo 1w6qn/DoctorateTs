@@ -52,7 +52,7 @@ export class PlayerDataManager {
     this._trigger.setMaxListeners(10000);
     this.status = new StatusManager(this, this._trigger);
     this.inventory = new InventoryManager(this, this._trigger);
-    this.troop = new TroopManager(playerdata, this._trigger);
+    this.troop = new TroopManager(this, this._trigger);
     this.dungeon = new DungeonManager(this, this._trigger);
     this.home = new HomeManager(this, this._trigger);
     this.checkIn = new CheckInManager(this, this._trigger);
@@ -63,12 +63,7 @@ export class PlayerDataManager {
     this.recruit = new RecruitManager(this, this.troop, this._trigger);
     this.rlv2 = new RoguelikeV2Controller(this, this._trigger);
     this.social = new SocialManager(this, this._trigger);
-    this.gacha = new GachaController(
-      playerdata.gacha,
-      this.status.uid,
-      this.troop,
-      this._trigger,
-    );
+    this.gacha = new GachaController(this, this._trigger);
     this.dexNav = new DexNavManager(this, this._trigger);
     this.building = new BuildingManager(this, this._trigger);
     this.openServer = new OpenServerManager(this, this._trigger);
@@ -147,7 +142,7 @@ export class PlayerDataManager {
       inventory: this._playerdata.inventory,
       skin: this._playerdata.skin,
       consumable: this._playerdata.consumable,
-      troop: this.troop,
+      troop: this._playerdata.troop,
       dungeon: this._playerdata.dungeon,
       activity: this._playerdata.activity,
       pushFlags: this._playerdata.pushFlags,
@@ -155,12 +150,12 @@ export class PlayerDataManager {
       shop: this._playerdata.shop,
       mission: this.mission,
       social: this._playerdata.social,
-      building: this.building,
+      building: this._playerdata.building,
       dexNav: this._playerdata.dexNav,
       crisis: this._playerdata.crisis,
       crisisV2: this._playerdata.crisisV2,
       tshop: this._playerdata.tshop,
-      gacha: this.gacha,
+      gacha: this._playerdata.gacha,
       backflow: this._playerdata.backflow,
       mainline: this._playerdata.mainline,
       rlv2: this.rlv2,

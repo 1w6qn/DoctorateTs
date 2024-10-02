@@ -20,8 +20,9 @@
         "app/game/*"
       ]
     },
-    "forceConsistentCasingInFileNames":true
-  },"ts-node": {
+    "forceConsistentCasingInFileNames": true
+  },
+  "ts-node": {
     "require": ["tsconfig-paths/register"]
  }
 }

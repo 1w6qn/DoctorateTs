@@ -1,7 +1,7 @@
 import "frida-il2cpp-bridge";
 
 const getIPAdress = () => {
-  return "192.168.0.6";
+  return "192.168.0.100";
 };
 console.log(`[Main]IP Address: ${getIPAdress()}`);
 const serverUrl = `http:` + `//${getIPAdress()}:8000`;
@@ -26,7 +26,7 @@ Java.perform(() => {
 setTimeout(
   () =>
     Il2Cpp.perform(() => {
-      //Il2Cpp.dump("d.cs")
+      Il2Cpp.dump("d.cs");
       const Networker = Il2Cpp.domain
         .assembly("Torappu.Common")
         .image.class("Torappu.Network.Networker");

@@ -4,32 +4,38 @@ import {
   PlayerHandBookAddon,
   PlayerSquad,
   PlayerSquadItem,
-  PlayerTroop,
 } from "../model/character";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
-import { PlayerDataModel } from "../model/playerdata";
 import { GachaResult } from "../model/gacha";
-import { pick } from "lodash";
 import { now } from "@utils/time";
+import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 
 export class TroopManager {
-  chars: { [key: string]: PlayerCharacter };
-  squads: { [key: string]: PlayerSquad };
-  addon: { [key: string]: PlayerHandBookAddon };
-  charMission: { [key: string]: { [key: string]: number } };
   _trigger: EventEmitter;
-  _playerdata: PlayerDataModel;
+  _player: PlayerDataManager;
 
-  constructor(playerdata: PlayerDataModel, trigger: EventEmitter) {
-    this._playerdata = playerdata;
-    this.chars = this._playerdata.troop.chars;
-    this.squads = this._playerdata.troop.squads;
-    this.addon = this._playerdata.troop.addon;
-    this.charMission = this._playerdata.troop.charMission;
+  constructor(player: PlayerDataManager, trigger: EventEmitter) {
+    this._player = player;
     this._trigger = trigger;
     this._trigger.on("char:get", this.gainChar.bind(this));
     this._trigger.on("game:fix", this.fix.bind(this));
+  }
+
+  get chars(): { [key: string]: PlayerCharacter } {
+    return this._player._playerdata.troop.chars;
+  }
+
+  get squads(): { [key: string]: PlayerSquad } {
+    return this._player._playerdata.troop.squads;
+  }
+
+  get addon(): { [key: string]: PlayerHandBookAddon } {
+    return this._player._playerdata.troop.addon;
+  }
+
+  get charMission(): { [key: string]: { [key: string]: number } } {
+    return this._player._playerdata.troop.charMission;
   }
 
   get curCharInstId(): number {
@@ -70,8 +76,8 @@ export class TroopManager {
       const potentId = excel.CharacterTable[charId].potentialItemId as string;
       items.push({ id: potentId, count: 1, type: "MATERIAL" });
       let t = false;
-      if (this._playerdata.dexNav.character[charId]) {
-        t = this._playerdata.dexNav.character[charId].count > 6;
+      if (this._player._playerdata.dexNav.character[charId]) {
+        t = this._player._playerdata.dexNav.character[charId].count > 6;
       }
       if (args.from == "CLASSIC") {
         switch (excel.CharacterTable[charId].rarity) {
@@ -415,7 +421,7 @@ export class TroopManager {
       );
       const potentialItemId =
         excel.CharacterTable[char.charId].potentialItemId!;
-      const count = this._playerdata.inventory[potentialItemId];
+      const count = this._player._playerdata.inventory[potentialItemId];
       costs.push({ id: potentialItemId, count: count });
       const item =
         excel.GachaTable.potentialMaterialConverter.items[rarity - 1];
@@ -436,7 +442,7 @@ export class TroopManager {
       );
       const potentialItemId =
         excel.CharacterTable[char.charId].classicPotentialItemId!;
-      const count = this._playerdata.inventory[potentialItemId];
+      const count = this._player._playerdata.inventory[potentialItemId];
       costs.push({ id: potentialItemId, count: count });
       const item =
         excel.GachaTable.classicPotentialMaterialConverter.items[rarity - 1];
@@ -519,17 +525,5 @@ export class TroopManager {
         char.currentEquip = char.currentEquip || Object.keys(char.equip)[0]!;
       }
     });
-  }
-
-  toJSON(): PlayerTroop {
-    return {
-      curCharInstId: this.curCharInstId,
-      curSquadCount: this.curSquadCount,
-      chars: this.chars,
-      squads: this.squads,
-      addon: this.addon,
-      charMission: this.charMission,
-      charGroup: pick(this.chars, ["favorPoint"]),
-    };
   }
 }

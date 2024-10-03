@@ -7,13 +7,11 @@ router.post("/squadFormation", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   player.troop.squadFormation(req.body!.squadId, req.body!.slots);
   res.send(player.delta);
-  player._trigger.emit("save");
 });
 router.post("/changeSquadName", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   player.troop.changeSquadName(req.body);
   res.send(player.delta);
-  player._trigger.emit("save");
 });
 router.post("/battleStart", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
@@ -21,7 +19,6 @@ router.post("/battleStart", async (req, res) => {
     ...(await player.battle.start(req.body)),
     ...player.delta,
   });
-  player._trigger.emit("save");
 });
 router.post("/battleFinish", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
@@ -29,7 +26,6 @@ router.post("/battleFinish", async (req, res) => {
     ...player.battle.finish(req.body),
     ...player.delta,
   });
-  player._trigger.emit("save");
 });
 router.post("/getBattleReplay", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
@@ -37,7 +33,6 @@ router.post("/getBattleReplay", async (req, res) => {
     battleReplay: player.battle.loadReplay(req.body),
     ...player.delta,
   });
-  player._trigger.emit("save");
 });
 router.post("/saveBattleReplay", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
@@ -45,6 +40,5 @@ router.post("/saveBattleReplay", async (req, res) => {
   res.send({
     ...player.delta,
   });
-  player._trigger.emit("save");
 });
 export default router;

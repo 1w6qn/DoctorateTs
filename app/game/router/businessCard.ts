@@ -9,7 +9,6 @@ router.post("/editNameCard", async (req, res) => {
   res.send({
     ...player.delta,
   });
-  player._trigger.emit("save");
 });
 router.post("/getOtherPlayerNameCard", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
@@ -17,6 +16,5 @@ router.post("/getOtherPlayerNameCard", async (req, res) => {
   res.send({
     ...player.delta,
   });
-  player._trigger.emit("save");
 });
 export default router;

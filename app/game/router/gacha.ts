@@ -9,7 +9,6 @@ router.post("/syncNormalGacha", async (req, res) => {
   res.send({
     ...player.delta,
   });
-  player._trigger.emit("save");
 });
 router.post("/finishNormalGacha", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
@@ -17,7 +16,6 @@ router.post("/finishNormalGacha", async (req, res) => {
     charGet: await player.recruit.finish(req.body),
     ...player.delta,
   });
-  player._trigger.emit("save");
 });
 router.post("/normalGacha", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
@@ -25,7 +23,6 @@ router.post("/normalGacha", async (req, res) => {
     charGet: await player.recruit.normalGacha(req.body),
     ...player.delta,
   });
-  player._trigger.emit("save");
 });
 
 router.post("/boostNormalGacha", async (req, res) => {
@@ -35,7 +32,6 @@ router.post("/boostNormalGacha", async (req, res) => {
     result: 0,
     ...player.delta,
   });
-  player._trigger.emit("save");
 });
 router.post("/cancleNormalGacha", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
@@ -44,7 +40,6 @@ router.post("/cancleNormalGacha", async (req, res) => {
   res.send({
     ...player.delta,
   });
-  player._trigger.emit("save");
 });
 router.post("/buyRecruitSlot", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
@@ -52,7 +47,6 @@ router.post("/buyRecruitSlot", async (req, res) => {
   res.send({
     ...player.delta,
   });
-  player._trigger.emit("save");
 });
 router.post("/refreshTags", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
@@ -60,7 +54,6 @@ router.post("/refreshTags", async (req, res) => {
   res.send({
     ...player.delta,
   });
-  player._trigger.emit("save");
 });
 router.post("/getPoolDetail", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
@@ -69,7 +62,6 @@ router.post("/getPoolDetail", async (req, res) => {
     gachaObjGroupType: 0,
     ...player.delta,
   });
-  player._trigger.emit("save");
 });
 router.post("/advancedGacha", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
@@ -78,7 +70,6 @@ router.post("/advancedGacha", async (req, res) => {
     charGet: await player.gacha.advancedGacha(req.body),
     ...player.delta,
   });
-  player._trigger.emit("save");
 });
 router.post("/tenAdvancedGacha", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
@@ -88,6 +79,5 @@ router.post("/tenAdvancedGacha", async (req, res) => {
     gachaResultList: r,
     ...player.delta,
   });
-  player._trigger.emit("save");
 });
 export default router;

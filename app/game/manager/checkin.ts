@@ -43,10 +43,6 @@ export class CheckInManager {
     });
   }
 
-  async getChainLogInReward(index: number): Promise<ItemBundle[]> {
-    return [];
-  }
-
   async checkIn(): Promise<{
     signInRewards: ItemBundle[];
     subscriptionRewards: ItemBundle[];

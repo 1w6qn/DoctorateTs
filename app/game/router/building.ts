@@ -12,6 +12,5 @@ router.post("/sync", async (req, res) => {
     ts,
     ...player.delta,
   });
-  player._trigger.emit("save");
 });
 export default router;

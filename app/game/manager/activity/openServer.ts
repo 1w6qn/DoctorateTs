@@ -43,31 +43,42 @@ export class OpenServerManager {
     const schedule = excel.OpenServerTable.schedule.find((s) =>
       checkBetween(now(), s.startTs, s.endTs),
     )!.id;
-    let item!: OpenServerItemData;
+    const item =
+      excel.OpenServerTable.dataMap[schedule].chainLoginData[index].item;
     await this._player.update(async (draft) => {
-      item =
-        excel.OpenServerTable.dataMap[schedule].chainLoginData[
-          draft.openServer.chainLogin.nowIndex
-        ].item;
-      draft.openServer.chainLogin.isAvailable =
-        draft.openServer.chainLogin.history.length == 7;
+      draft.openServer.chainLogin.history[index] = 0;
     });
-
     return [{ id: item.itemId, count: item.count }];
   }
 
-  async getCheckInReward(): Promise<ItemBundle[]> {
+  async getChainLogInFinalRewards(): Promise<ItemBundle[]> {
     const schedule = excel.OpenServerTable.schedule.find((s) =>
       checkBetween(now(), s.startTs, s.endTs),
     )!.id;
     let item!: OpenServerItemData;
     await this._player.update(async (draft) => {
-      item =
-        excel.OpenServerTable.dataMap[schedule].checkInData[
-          draft.openServer.checkIn.history.length - 1
-        ].item;
-      draft.openServer.checkIn.isAvailable =
-        draft.openServer.checkIn.history.length == 14;
+      item = excel.OpenServerTable.dataMap[schedule].chainLoginData[-1].item;
+      draft.openServer.chainLogin.isAvailable = false;
+    });
+
+    return [{ id: item.itemId, count: item.count }];
+  }
+
+  async getCheckInReward(args: { index: number }): Promise<ItemBundle[]> {
+    const { index } = args;
+    const schedule = excel.OpenServerTable.schedule.find((s) =>
+      checkBetween(now(), s.startTs, s.endTs),
+    )!.id;
+    let item!: OpenServerItemData;
+    await this._player.update(async (draft) => {
+      item = excel.OpenServerTable.dataMap[schedule].checkInData[index].item;
+      draft.openServer.checkIn.history[index] = 0;
+      if (
+        draft.openServer.checkIn.history.length == 14 &&
+        !draft.openServer.checkIn.history.some((n) => n == 1)
+      ) {
+        draft.openServer.checkIn.isAvailable = false;
+      }
     });
     return [{ id: item.itemId, count: item.count }];
   }

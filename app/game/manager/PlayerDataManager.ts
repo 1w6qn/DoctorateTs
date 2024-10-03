@@ -81,6 +81,7 @@ export class PlayerDataManager {
       this._changes.reduce((pre, acc) => acc.concat(pre), []),
     );
     this._changes = [];
+    this._trigger.emit("save");
     return {
       playerDataDelta: delta,
     };

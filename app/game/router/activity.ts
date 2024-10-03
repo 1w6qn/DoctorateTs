@@ -5,26 +5,22 @@ import { PlayerDataManager } from "../manager/PlayerDataManager";
 const router = Router();
 router.post("/getChainLogInReward", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-
-  player._trigger.emit("save");
   res.send({
-    reward: [],
+    reward: await player.openServer.getChainLogInReward(req.body),
     ...player.delta,
   });
 });
 router.post("/getChainLogInFinalRewards", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  player._trigger.emit("save");
   res.send({
-    reward: [],
+    reward: await player.openServer.getChainLogInFinalRewards(),
     ...player.delta,
   });
 });
 router.post("/getOpenServerCheckInReward", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.openServer.getCheckInReward();
-  player._trigger.emit("save");
   res.send({
+    reward: await player.openServer.getCheckInReward(req.body),
     ...player.delta,
   });
 });

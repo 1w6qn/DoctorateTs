@@ -21,7 +21,7 @@ router.get("/official/network_config", async (req, res) => {
   res.send({ sign, content });
 });
 router.get("/official/refresh_config", async (req, res) => {
-  res.send({ resVersion: config.version.resVersion });
+  res.send(config.version);
 });
 router.get("/official/remote_config", async (req, res) => {
   res.send({
@@ -33,13 +33,13 @@ router.get("/official/remote_config", async (req, res) => {
 router.get(
   "/announce_meta/Android/preannouncement.meta.json",
   async (req, res) => {
-    res.send(readJson("../../data/announce/preannouncement.meta.json"));
+    res.send(readJson("./data/announce/preannouncement.meta.json"));
   },
 );
 router.get(
   "/announce_meta/Android/announcement.meta.json",
   async (req, res) => {
-    res.send(readJson("../../data/announce/announcement.meta.json"));
+    res.send(readJson("./data/announce/announcement.meta.json"));
   },
 );
 export default router;

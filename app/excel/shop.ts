@@ -283,5 +283,5 @@ export interface GPGoodList {
   levelGP: Array<LevelGPItem>;
   oneTimeGP: Array<NormalGPItem>;
   chooseGroup: Array<ChooseGPItem>;
-  condtionTriggerGroup?: Array<CondTrigGPItem>;
+  conditionTriggerGroup?: Array<CondTrigGPItem>;
 }

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import httpContext from "express-http-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import excel from "@excel/excel";
 
 const router = Router();
 router.post("/decomposePotentialItem", async (req, res) => {
@@ -30,7 +31,7 @@ router.post("/getGoodPurchaseState", async (req, res) => {
 router.post("/getLowGoodList", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   res.send({
-    ...player.shop.lowGoodList,
+    ...excel.ShopTable.lowGoodList,
     ...player.delta,
   });
   player._trigger.emit("save");
@@ -38,7 +39,7 @@ router.post("/getLowGoodList", async (req, res) => {
 router.post("/getHighGoodList", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   res.send({
-    ...player.shop.highGoodList,
+    ...excel.ShopTable.highGoodList,
     ...player.delta,
   });
   player._trigger.emit("save");
@@ -46,7 +47,7 @@ router.post("/getHighGoodList", async (req, res) => {
 router.post("/getClassicGoodList", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   res.send({
-    ...player.shop.classicGoodList,
+    ...excel.ShopTable.classicGoodList,
     ...player.delta,
   });
   player._trigger.emit("save");
@@ -54,7 +55,7 @@ router.post("/getClassicGoodList", async (req, res) => {
 router.post("/getEPGSGoodList", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   res.send({
-    ...player.shop.EPGSGoodList,
+    ...excel.ShopTable.EPGSGoodList,
     ...player.delta,
   });
   player._trigger.emit("save");
@@ -62,7 +63,7 @@ router.post("/getEPGSGoodList", async (req, res) => {
 router.post("/getLMTGSGoodList", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   res.send({
-    ...player.shop.LMTGSGoodList,
+    ...excel.ShopTable.LMTGSGoodList,
     ...player.delta,
   });
   player._trigger.emit("save");
@@ -70,7 +71,7 @@ router.post("/getLMTGSGoodList", async (req, res) => {
 router.post("/getExtraGoodList", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   res.send({
-    ...player.shop.extraGoodList,
+    ...excel.ShopTable.extraGoodList,
     ...player.delta,
   });
   player._trigger.emit("save");
@@ -78,7 +79,7 @@ router.post("/getExtraGoodList", async (req, res) => {
 router.post("/getREPGoodList", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   res.send({
-    ...player.shop.REPGoodList,
+    ...excel.ShopTable.REPGoodList,
     ...player.delta,
   });
   player._trigger.emit("save");
@@ -86,7 +87,7 @@ router.post("/getREPGoodList", async (req, res) => {
 router.post("/getSkinGoodList", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   res.send({
-    ...player.shop.skinGoodList,
+    ...excel.ShopTable.skinGoodList,
     ...player.delta,
   });
   player._trigger.emit("save");
@@ -94,7 +95,7 @@ router.post("/getSkinGoodList", async (req, res) => {
 router.post("/getCashGoodList", (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   res.send({
-    ...player.shop.cashGoodList,
+    ...excel.ShopTable.cashGoodList,
     ...player.delta,
   });
   player._trigger.emit("save");
@@ -102,7 +103,7 @@ router.post("/getCashGoodList", (req, res) => {
 router.post("/getGPGoodList", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   res.send({
-    ...player.shop.GPGoodList,
+    ...excel.ShopTable.GPGoodList,
     ...player.delta,
   });
   player._trigger.emit("save");
@@ -147,6 +148,15 @@ router.post("/buyCashGood", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   res.send({
     result: 0,
+    ...player.delta,
+  });
+  player._trigger.emit("save");
+});
+router.post("/buyEPGSGood", async (req, res) => {
+  const player = httpContext.get("playerData") as PlayerDataManager;
+  res.send({
+    result: 0,
+    items: await player.shop.buyEPGSGood(req.body),
     ...player.delta,
   });
   player._trigger.emit("save");

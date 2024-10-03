@@ -35,6 +35,33 @@ export class ShopController {
     //
   }
 
+  /*
+  async _buyGood(shop,label:string,args: {
+    goodId: string;
+    count: number;
+  }): Promise<ItemBundle[]> {
+    const { goodId, count } = args;
+    const good = shop.goodList.find(
+      (g) => g.goodId === goodId,
+    );
+    let item=good!.item
+    item.count*=count
+    await this._player.update(async (draft) => {
+      const existingItem = draft.shop.LS.info.find((i) => i.id === goodId);
+      if (existingItem) {
+        existingItem.count += count;
+      } else {
+        draft.shop.LS.info.push({ id: goodId, count });
+      }
+    });
+    this._trigger.emit("useItems", [
+      { id: "4005", count: good!.price * count },
+    ]);
+    this._trigger.emit("gainItems", [item]);
+    return [item];
+  }
+  
+   */
   async buyLowGood(args: {
     goodId: string;
     count: number;
@@ -45,10 +72,11 @@ export class ShopController {
     );
     const item = { id: good!.item.id, count: good!.item.count * count };
     await this._player.update(async (draft) => {
-      if (draft.shop.LS.info.some((i) => i.id === good!.goodId)) {
-        draft.shop.LS.info.find((i) => i.id === good!.goodId)!.count += count;
+      const existingItem = draft.shop.LS.info.find((i) => i.id === goodId);
+      if (existingItem) {
+        existingItem.count += count;
       } else {
-        draft.shop.LS.info.push({ id: good!.goodId, count: count });
+        draft.shop.LS.info.push({ id: goodId, count });
       }
     });
     this._trigger.emit("useItems", [

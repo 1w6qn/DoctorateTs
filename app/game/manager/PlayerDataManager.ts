@@ -19,7 +19,7 @@ import { DexNavManager } from "./dexnav";
 import { BuildingManager } from "./building";
 import { FriendDataWithNameCard } from "@game/model/social";
 import { OpenServerManager } from "@game/manager/activity/openServer";
-import { createDraft, finishDraft, Patch } from "immer";
+import { createDraft, finishDraft, Patch, WritableDraft } from "immer";
 import { patchesToObject } from "@utils/delta";
 
 export class PlayerDataManager {
@@ -122,7 +122,9 @@ export class PlayerDataManager {
     };
   }
 
-  async update(recipe: (draft: PlayerDataModel) => Promise<void>) {
+  async update(
+    recipe: (draft: WritableDraft<PlayerDataModel>) => Promise<void>,
+  ) {
     const draft = createDraft(this._playerdata);
     await recipe(draft);
     this._playerdata = finishDraft(draft, (patches, inversePatches) => {

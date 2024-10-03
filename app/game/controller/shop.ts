@@ -1,31 +1,10 @@
 import EventEmitter from "events";
-import {
-  CashGoodList,
-  ClassicGoodList,
-  EPGSGoodList,
-  ExtraGoodList,
-  GPGoodList,
-  HighGoodList,
-  LMTGSGoodList,
-  LowGoodList,
-  REPGoodList,
-  SkinGoodList,
-  SocialGoodList,
-} from "../model/shop";
 import { ItemBundle } from "@excel/character_table";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { SocialGoodList } from "@excel/shop";
+import excel from "@excel/excel";
 
 export class ShopController {
-  lowGoodList!: LowGoodList;
-  skinGoodList!: SkinGoodList;
-  cashGoodList!: CashGoodList;
-  highGoodList!: HighGoodList;
-  REPGoodList!: REPGoodList;
-  LMTGSGoodList!: LMTGSGoodList;
-  EPGSGoodList!: EPGSGoodList;
-  classicGoodList!: ClassicGoodList;
-  extraGoodList!: ExtraGoodList;
-  GPGoodList!: GPGoodList;
   socialGoodList!: SocialGoodList;
   _player: PlayerDataManager;
   _trigger: EventEmitter;
@@ -35,7 +14,10 @@ export class ShopController {
     this._trigger = _trigger;
     this._trigger.on("refresh:monthly", this.monthlyRefresh.bind(this));
     this._trigger.on("refresh:daily", this.dailyRefresh.bind(this));
-    this.initShop();
+    this.socialGoodList = {
+      goodList: [],
+      charPurchase: {},
+    };
   }
 
   async dailyRefresh() {}
@@ -58,7 +40,9 @@ export class ShopController {
     count: number;
   }): Promise<ItemBundle[]> {
     const { goodId, count } = args;
-    const good = this.lowGoodList.goodList.find((g) => g.goodId === goodId);
+    const good = excel.ShopTable.lowGoodList.goodList.find(
+      (g) => g.goodId === goodId,
+    );
     const item = { id: good!.item.id, count: good!.item.count * count };
     await this._player.update(async (draft) => {
       if (draft.shop.LS.info.some((i) => i.id === good!.goodId)) {
@@ -79,7 +63,9 @@ export class ShopController {
     count: number;
   }): Promise<ItemBundle[]> {
     const { goodId, count } = args;
-    const good = this.highGoodList.goodList.find((g) => g.goodId === goodId);
+    const good = excel.ShopTable.highGoodList.goodList.find(
+      (g) => g.goodId === goodId,
+    );
     let item!: ItemBundle;
     await this._player.update(async (draft) => {
       if (!good?.progressGoodId) {
@@ -91,7 +77,7 @@ export class ShopController {
         }
       } else {
         const progressGood =
-          this.highGoodList.progressGoodList[good!.progressGoodId];
+          excel.ShopTable.highGoodList.progressGoodList[good!.progressGoodId];
         item =
           progressGood[
             draft.shop.HS.progressInfo[good!.progressGoodId].order - 1
@@ -117,7 +103,9 @@ export class ShopController {
     count: number;
   }): Promise<ItemBundle[]> {
     const { goodId, count } = args;
-    const good = this.extraGoodList.goodList.find((g) => g.goodId === goodId);
+    const good = excel.ShopTable.extraGoodList.goodList.find(
+      (g) => g.goodId === goodId,
+    );
     const item = { id: good!.item.id, count: good!.item.count * count };
     await this._player.update(async (draft) => {
       if (draft.shop.ES.info.some((i) => i.id === good!.goodId)) {
@@ -135,7 +123,9 @@ export class ShopController {
 
   async buySkinGood(args: { goodId: string }): Promise<void> {
     const { goodId } = args;
-    const good = this.skinGoodList.goodList.find((g) => g.goodId === goodId);
+    const good = excel.ShopTable.skinGoodList.goodList.find(
+      (g) => g.goodId === goodId,
+    );
     const item = { id: good!.skinId, count: 1, type: "CHAR_SKIN" };
     this._trigger.emit("useItems", [{ id: "4002", count: good!.price }]);
     this._trigger.emit("gainItems", [item]);
@@ -150,7 +140,9 @@ export class ShopController {
     count: number;
   }): Promise<ItemBundle[]> {
     const { goodId, count } = args;
-    const good = this.EPGSGoodList.goodList.find((g) => g.goodId === goodId);
+    const good = excel.ShopTable.EPGSGoodList.goodList.find(
+      (g) => g.goodId === goodId,
+    );
     const item = { id: good!.item.id, count: good!.item.count * count };
     await this._player.update(async (draft) => {
       if (draft.shop.EPGS.info.some((i) => i.id === good!.goodId)) {
@@ -172,7 +164,9 @@ export class ShopController {
     count: number;
   }): Promise<ItemBundle[]> {
     const { goodId, count } = args;
-    const good = this.REPGoodList.goodList.find((g) => g.goodId === goodId);
+    const good = excel.ShopTable.REPGoodList.goodList.find(
+      (g) => g.goodId === goodId,
+    );
     const item = { id: good!.item.id, count: good!.item.count * count };
     await this._player.update(async (draft) => {
       if (draft.shop.REP.info.some((i) => i.id === good!.goodId)) {
@@ -194,7 +188,9 @@ export class ShopController {
     count: number;
   }): Promise<ItemBundle[]> {
     const { goodId, count } = args;
-    const good = this.classicGoodList.goodList.find((g) => g.goodId === goodId);
+    const good = excel.ShopTable.classicGoodList.goodList.find(
+      (g) => g.goodId === goodId,
+    );
     let item!: ItemBundle;
     await this._player.update(async (draft) => {
       if (!good?.progressGoodId) {
@@ -208,7 +204,7 @@ export class ShopController {
       } else {
         const { progressGoodId } = good;
         const progressGood =
-          this.classicGoodList.progressGoodList[progressGoodId];
+          excel.ShopTable.classicGoodList.progressGoodList[progressGoodId];
         item =
           progressGood[
             draft.shop.CLASSIC.progressInfo[progressGoodId].order - 1
@@ -234,7 +230,9 @@ export class ShopController {
     count: number;
   }): Promise<ItemBundle[]> {
     const { goodId, count } = args;
-    const good = this.LMTGSGoodList.goodList.find((g) => g.goodId === goodId);
+    const good = excel.ShopTable.LMTGSGoodList.goodList.find(
+      (g) => g.goodId === goodId,
+    );
     const item = { id: good!.item.id, count: good!.item.count * count };
     this._trigger.emit("useItems", [
       { id: "LMTGS_COIN", count: good!.price.count * count },
@@ -242,52 +240,6 @@ export class ShopController {
     //TODO
     this._trigger.emit("gainItems", [item]);
     return [item];
-  }
-
-  async initShop(): Promise<void> {
-    this.lowGoodList = {
-      groups: [],
-      goodList: [],
-      shopEndTime: -1,
-      newFlag: [],
-    };
-    this.skinGoodList = {
-      goodList: [],
-    };
-    this.cashGoodList = {
-      goodList: [],
-    };
-    this.highGoodList = {
-      goodList: [],
-      progressGoodList: {},
-      newFlag: [],
-    };
-    this.extraGoodList = {
-      goodList: [],
-      lastClick: -1,
-      newFlag: [],
-    };
-    this.REPGoodList = {
-      goodList: [],
-      newFlag: [],
-    };
-    this.EPGSGoodList = {
-      goodList: [],
-      newFlag: [],
-    };
-    this.LMTGSGoodList = {
-      goodList: [],
-      newFlag: [],
-    };
-    this.classicGoodList = {
-      goodList: [],
-      newFlag: [],
-      progressGoodList: {},
-    };
-    this.socialGoodList = {
-      goodList: [],
-      charPurchase: {},
-    };
   }
 }
 export default ShopController;

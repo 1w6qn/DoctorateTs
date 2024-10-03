@@ -624,9 +624,5 @@
             "sortId": 48,
             "availCount": -1
         }
-    ],
-    "playerDataDelta": {
-        "modified": {},
-        "deleted": {}
-    }
+    ]
 }

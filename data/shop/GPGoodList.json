@@ -1736,9 +1736,5 @@
 			]
 		}
 	],
-	"chooseGroup": [],
-	"playerDataDelta": {
-		"modified": {},
-		"deleted": {}
-	}
+	"chooseGroup": []
 }

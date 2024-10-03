@@ -147,21 +147,5 @@
         "char_260_durnar": 6
     },
     "costSocialPoint": 113520,
-    "creditGroup": "creditGroup2",
-    "playerDataDelta": {
-        "modified": {
-            "shop": {
-                "SOCIAL": {
-                    "curShopId": "SOCIAL20211106",
-                    "info": [],
-                    "charPurchase": {
-                        "char_198_blackd": 6,
-                        "char_187_ccheal": 6,
-                        "char_260_durnar": 6
-                    }
-                }
-            }
-        },
-        "deleted": {}
-    }
+    "creditGroup": "creditGroup2"
 }

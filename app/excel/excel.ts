@@ -19,6 +19,8 @@ import { CharMetaTable } from "./char_meta_table";
 import { SkinTable } from "./skin_table";
 import { OpenServerSchedule } from "./open_server_table";
 import { readJson } from "@utils/file";
+import { RoguelikeConst } from "@excel/roguelike_consts";
+import { ShopData } from "@excel/shop";
 
 export class Excel {
   BattleEquipTable!: BattleEquipTable;
@@ -42,9 +44,12 @@ export class Excel {
   SkinTable!: SkinTable;
   OpenServerTable!: OpenServerSchedule;
 
+  RoguelikeConsts!: { [key: string]: RoguelikeConst };
+  ShopTable!: ShopData;
   constructor() {}
 
   async init(): Promise<void> {
+    console.time("[excel][loaded]");
     this.MissionTable = await readJson<MissionTable>(
       "./data/excel/mission_table.json",
     );
@@ -101,6 +106,14 @@ export class Excel {
       "./data/excel/open_server_table.json",
     );
     this.GachaDetailTable = await readJson("./data/gacha_detail_table.json");
+    this.RoguelikeConsts = await readJson("./data/rlv2.json");
+    console.timeEnd("[excel][loaded]");
+    console.log("[excel] 21 excels loaded");
+    this.ShopTable = new ShopData();
+    await this.ShopTable.init();
+    console.time("[excel][shop][loaded]");
+    console.log("[excel][shop] 10 shops loaded");
+    console.timeEnd("[excel][shop][loaded]");
   }
 }
 

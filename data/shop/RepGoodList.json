@@ -261,9 +261,5 @@
             "availCount": 4
         }
     ],
-    "newFlag": [],
-    "playerDataDelta": {
-        "modified": {},
-        "deleted": {}
-    }
+    "newFlag": []
 }

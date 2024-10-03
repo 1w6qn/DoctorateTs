@@ -5,10 +5,8 @@ import { PlayerDataManager } from "../manager/PlayerDataManager";
 const router = Router();
 router.post("/syncNormalGacha", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-
-  res.send({
-    ...player.delta,
-  });
+  await player.recruit.sync();
+  res.send(player.delta);
 });
 router.post("/finishNormalGacha", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
@@ -27,7 +25,7 @@ router.post("/normalGacha", async (req, res) => {
 
 router.post("/boostNormalGacha", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  player.recruit.boost(req.body);
+  await player.recruit.boost(req.body);
   res.send({
     result: 0,
     ...player.delta,
@@ -36,24 +34,17 @@ router.post("/boostNormalGacha", async (req, res) => {
 router.post("/cancleNormalGacha", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   await player.recruit.cancel(req.body);
-
-  res.send({
-    ...player.delta,
-  });
+  res.send(player.delta);
 });
 router.post("/buyRecruitSlot", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  player.recruit.buyRecruitSlot(req.body);
-  res.send({
-    ...player.delta,
-  });
+  await player.recruit.buyRecruitSlot(req.body);
+  res.send(player.delta);
 });
 router.post("/refreshTags", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   await player.recruit.refreshTags(req.body);
-  res.send({
-    ...player.delta,
-  });
+  res.send(player.delta);
 });
 router.post("/getPoolDetail", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
@@ -73,10 +64,9 @@ router.post("/advancedGacha", async (req, res) => {
 });
 router.post("/tenAdvancedGacha", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  const r = await player.gacha.tenAdvancedGacha(req.body);
   res.send({
     result: 0,
-    gachaResultList: r,
+    gachaResultList: await player.gacha.tenAdvancedGacha(req.body),
     ...player.delta,
   });
 });

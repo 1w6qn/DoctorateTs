@@ -49,6 +49,7 @@ export class MailManager {
   }
 
   getMetaInfoList(uid: string, args: { from: number }): MailMetaInfo[] {
+    console.log(args);
     return this.database.user[uid].map((mail) => {
       return {
         mailId: mail.mailId,

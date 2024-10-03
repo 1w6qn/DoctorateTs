@@ -15,7 +15,7 @@ export class CheckInManager {
     this._trigger.on("refresh:daily", this.dailyRefresh.bind(this));
   }
 
-  get isSUb(): boolean {
+  get isSub(): boolean {
     const { monthlySubscriptionStartTime, monthlySubscriptionEndTime } =
       this._player._playerdata.status;
     return checkBetween(
@@ -66,7 +66,7 @@ export class CheckInManager {
         count: item.count,
         type: item.itemType,
       });
-      if (this.isSUb) {
+      if (this.isSub) {
         const currentMonthlySubId = excel.CheckinTable.currentMonthlySubId;
         subscriptionRewards.push(
           ...excel.CheckinTable.monthlySubItem[currentMonthlySubId][1].items,

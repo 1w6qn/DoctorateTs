@@ -11,7 +11,9 @@ app.use(async (req, res, next) => {
     if (req.headers.secret != "1") {
       req.headers.secret = "1";
     }
-    const data = accountManager.getPlayerData(req.headers.secret as string);
+    const data = await accountManager.getPlayerData(
+      req.headers.secret as string,
+    );
     httpContext.set("playerData", data);
   }
   next();
@@ -32,6 +34,7 @@ export async function setup(app: express.Application) {
   app.use("/rlv2", (await import("./router/rlv2")).default);
   app.use("/gacha", (await import("./router/gacha")).default);
   app.use("/mail", (await import("./router/mail")).default);
+  app.use("/social", (await import("./router/social")).default);
   app.use("/", (await import("./router/home")).default);
 }
 export default app;

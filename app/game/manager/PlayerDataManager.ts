@@ -12,7 +12,7 @@ import ShopController from "../controller/shop";
 import { RecruitManager } from "./recruit";
 import { RoguelikeV2Controller } from "../controller/rlv2";
 import { BattleManager } from "./battle";
-import { GachaController } from "../controller/GachaController";
+import { GachaController } from "../controller/gacha";
 import { accountManager, BattleInfo } from "./AccountManger";
 import { SocialManager } from "./social";
 import { DexNavManager } from "./dexnav";
@@ -125,7 +125,7 @@ export class PlayerDataManager {
   async update(recipe: (draft: PlayerDataModel) => Promise<void>) {
     const draft = createDraft(this._playerdata);
     await recipe(draft);
-    finishDraft(draft, (patches, inversePatches) => {
+    this._playerdata = finishDraft(draft, (patches, inversePatches) => {
       this._changes.push(patches);
       this._inverseChanges.push(inversePatches);
     });

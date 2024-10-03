@@ -6,27 +6,27 @@ import { now } from "@utils/time";
 const router = Router();
 router.post("/markStoryAcceKnown", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  player.storyreview.markStoryAcceKnown();
+  await player.storyreview.markStoryAcceKnown();
   res.send(player.delta);
   player._trigger.emit("save");
 });
 router.post("/rewardGroup", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   res.send({
-    items: player.storyreview.rewardGroup(req.body),
+    items: await player.storyreview.rewardGroup(req.body),
     ...player.delta,
   });
   player._trigger.emit("save");
 });
 router.post("/readStory", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  player.storyreview.readStory(req.body!.storyId);
+  await player.storyreview.readStory(req.body!.storyId);
   res.send(player.delta);
   player._trigger.emit("save");
 });
 router.post("/unlockStoryByCoin", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  player.storyreview.unlockStoryByCoin(req.body!.storyId);
+  await player.storyreview.unlockStoryByCoin(req.body!.storyId);
   res.send({
     unlockTs: now(),
     ...player.delta,
@@ -35,9 +35,8 @@ router.post("/unlockStoryByCoin", async (req, res) => {
 });
 router.post("/trailReward", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-
   res.send({
-    items: player.storyreview.trailReward(req.body),
+    items: await player.storyreview.trailReward(req.body),
     ...player.delta,
   });
   player._trigger.emit("save");

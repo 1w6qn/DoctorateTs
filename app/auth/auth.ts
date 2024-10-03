@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { now } from "@utils/time";
 import { readJson } from "@utils/file";
+import { accountManager } from "@game/manager/AccountManger";
 
 const router = Router();
 
@@ -18,41 +19,40 @@ router.get("/general/v1/server_time", async (req, res) => {
 router.get("/app/v1/config", async (req, res) => {
   res.send(await readJson("./data/appConfig.json"));
 });
-router.get("/user/auth/v1/token_by_phone_password", (req, res) => {
+router.get("/user/auth/v1/token_by_phone_password", async (req, res) => {
+  const code = await accountManager.tokenByPhonePassword(
+    req.body!.phone,
+    req.body!.password,
+  );
   res.send({
     status: 0,
     msg: "OK",
     data: {
-      token: "doctorate",
+      token: code,
     },
   });
 });
 router.get("/user/info/v1/basic", async (req, res) => {
+  const uid = await accountManager.getUidByToken(req.body!.code);
+  const data = await accountManager.getUserConfig(uid);
   res.send({
     status: 0,
     msg: "OK",
-    data: {
-      hgId: "1",
-      phone: "doctorate",
-      email: "doctorate",
-      identityNum: "doctorate",
-      identityName: "doctorate",
-      isMinor: false,
-      isLatestUserAgreement: true,
-    },
+    data: data.auth,
   });
 });
 router.post("/user/oauth2/v2/grant", async (req, res) => {
+  const code: string = req.body!.token;
+  const uid = await accountManager.getUidByToken(code);
   res.send({
     status: 0,
     msg: "OK",
-    data: {
-      code: "doctorate",
-      uid: "1",
-    },
+    data: { code, uid },
   });
 });
 router.post("/u8/user/v1/getToken", async (req, res) => {
+  const code: string = JSON.parse(req.body!.extension).code;
+  const uid = await accountManager.getUidByToken(code);
   res.send({
     channelUid: "1",
     extension: JSON.stringify({
@@ -61,8 +61,8 @@ router.post("/u8/user/v1/getToken", async (req, res) => {
     }),
     isGuest: 0,
     result: 0,
-    token: "1",
-    uid: "1",
+    token: code,
+    uid,
   });
 });
 router.post("/user/online/v1/loginout", async (req, res) => {

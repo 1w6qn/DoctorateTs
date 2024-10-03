@@ -120,8 +120,7 @@ export class StatusManager {
 
   async getOtherPlayerNameCard(args: { uid: string }) {
     const { uid } = args;
-    const friendInfo = accountManager.getPlayerFriendInfo(uid);
-    //TODO
+    const friendInfo = await accountManager.getPlayerFriendInfo(uid);
     return friendInfo.nameCardStyle;
   }
 

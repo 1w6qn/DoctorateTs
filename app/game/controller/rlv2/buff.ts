@@ -4,15 +4,12 @@ import { RoguelikeBuff, RoguelikeItemBundle } from "../../model/rlv2";
 import EventEmitter from "events";
 import { RoguelikeV2Controller } from "../rlv2";
 import { RoguelikePlayerStatusManager } from "./status";
-import roexcel from "./excel";
 
 export class RoguelikeBuffManager {
   _player: RoguelikeV2Controller;
   _trigger: EventEmitter;
   _buffs!: RoguelikeBuff[];
   _status: RoguelikePlayerStatusManager;
-
-  [key: string]: any;
 
   constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
     this._player = player;
@@ -40,14 +37,13 @@ export class RoguelikeBuffManager {
   }
 
   async create() {
-    await roexcel.initPromise;
     const theme = this._player.current.game!.theme;
     const modeGrade = this._player.current.game!.modeGrade;
     Object.keys(this._player.outer[theme].buff.unlocked).forEach((id) => {
-      const buffs = roexcel.RoguelikeConsts[theme].outbuff[id];
+      const buffs = excel.RoguelikeConsts[theme].outbuff[id];
       this.applyBuffs(...buffs);
     });
-    this.applyBuffs(...roexcel.RoguelikeConsts[theme].modebuff[modeGrade]);
+    this.applyBuffs(...excel.RoguelikeConsts[theme].modebuff[modeGrade]);
   }
 
   applyBuffs(...args: RoguelikeBuff[]) {

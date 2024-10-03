@@ -2385,9 +2385,5 @@
 			"slotId": 50,
 			"currencyUnit": "DIAMOND"
 		}
-	],
-	"playerDataDelta": {
-		"modified": {},
-		"deleted": {}
-	}
+    ]
 }

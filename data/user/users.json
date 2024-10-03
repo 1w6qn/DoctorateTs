@@ -1,31 +1,40 @@
 {
-    "1": {
-        "uid": "1",
-      "social": {
-        "friends": [],
-        "friendRequests": [],
-        "visited": []
+  "1": {
+    "password": "1",
+    "auth": {
+      "hgId": "1",
+      "phone": "1",
+      "email": "1",
+      "identityNum": "doctorate",
+      "identityName": "doctorate",
+      "isMinor": false,
+      "isLatestUserAgreement": true
+    },
+    "uid": "1",
+    "social": {
+      "friends": [],
+      "friendRequests": [],
+      "visited": []
+    },
+    "battle": {
+      "stageId": "",
+      "replays": {
+        "act35side_09": "UEsDBC0AAAAIAJh8AVkb5F8v//////////8NABQAZGVmYXVsdF9lbnRyeQEAEAAOGwAAAAAAAMoEAAAAAAAAxZnLbts4FIbfRdm6Km+60Ct3glkUE2CCtpjFFIXAWIzDiUQ5Iu3UKPLuc0jlaskWgzpOVrZESt//n8PDw/hXNBf1UqiF/ltXm39ka1SjoymaRFbV0li4GU0jnBHCeJYjHk2i/5pVq0UVTX9FtbSiFFa4zzBWl6Itzyux+QZzoynJeYwpRUk2iRaill+kWVU2muJJZMRadoMiggj7gPIPCH/DyZSmU8rjNGWc0H/hZa2shdJKL04bA1M5f3bpTF3K80ZpuE4n0bWqKln+qWWtpDl1F1kyiWplzMurIK2Sa1l9LuHln+ZWrZWFex/F3NLEqFJ+9LeLx++FVw3yFtLP2bqxFpUq/xp4+R1MulkJmPIdXL4S7WdtrHtClsOda6X909yNAie4qDetreTMrOpatieYwKNtvfSYelVVfkrVUZvreVMXwhhlbDEHY76TH9HDAF3Kn16l/3q2hkDhB82ABR+XV8K48MCnxkptlai+CH0dTcGvS7Fu2j+EBZTzbhhGMEWZT/5tp0AbTS9FZeQkWmklb1Zq6ZkevhQIkXst0dOQs+7t9G7y0gpM8bYXhJDiYqmWctaKuTzB+324arvBBdkyAO8wgO8zgBzKAM8UoJ/wdFs/wzQvtGiFtidkVHw38DDqfyf8fa2opxWhXqxTVlxislF6JpfNzQrCnYxK7iYES073SUaHCngH1XcB91zI+EDEaVE1i8YEBNyPK+iWePKu4j1TSLYPVD5Ek+JWmVJWAeK7gftDn4WJx4cS3zGFqGcD6nFaiEUjLAlQ3w0scGCp50cp9R1UiPyE9hIf5VmhtDSzi2Z+ko8a4Ibul/8U/OytMj+g0mHS29WggyrMuhXmaibqCyX1XH7dgBx7JY0SJ2xUezc5VH16lF2uYwqJPUn7qU94sRG2Ccl8Py644udHWfeeKUQ7RgPa88LKn8KQmbKyFRaa7oBOp5sSXPz5UYp/BxVU/waKfyH0QlazW1WVAQb4wcH6s6MsAs80JP8HgDQL49v/Z4cpHrM0TRO3F8CpS9lVK93xCaZD/9MlDMtYTjO3Zrx/A8eECA4XzdJHsVStnFt/aqNOpXFPa5tb6PVhfuMswXcuFs8YcNZBHISBvGBAoQy0Y6BjDHyA4alpGDaCvIRI7yH4NgPLYw5/CSPv6USSxJRSkpPkMF7sxdjpRYZ9PMYQ8oz1ER5K+avSkm0T5EmMIBrkIAg4JBY9BI7ioMXJEd5GeGxmgkwg9wS0R8BiDgRZkh6CYa8LOxkgp2LiIPBoKFxP+5Lh6UwXZESyu0gh7tcF4Qeh2Lsq9lBgGmeOgr7n4sSMxgwoRp3gAwyPZ4zhgGwx0N0MmYsH5qNZkWZkwIn7nfI1BRujPgSP8yAITrLe8ng8aL+KIu9BJJATsD7GC3ae5AOl6qH5G6bAw7WqTwEVmwZs4m+al1kSY87zgDUa5ERQ1e47wdM4haRg43WbsYGkePh/W1DBojtLBUF+I8f0IKkZFJCeFQTKFYWAHMYIElIoBowgLEZpyhLyFutjV5eL+hjul4SUMfrm2/nu5o4w5PoqRvF7rlPCsOt0s/EdPUt5j+Lxfxe/60UCFJSiYxYLlxZwEoOsLpv6q5TuJZQgynKY3q60PFPuhyV33ry7+x9QSwECMwAtAAAACACYfAFZG+RfL///////////DQAUAAAAAAAAAAAAAAAAAAAAZGVmYXVsdF9lbnRyeQEAEAAOGwAAAAAAAMoEAAAAAAAAUEsFBgAAAAABAAEATwAAAAkFAAAAAA=="
       },
-
-        "battle": {
-            "stageId": "",
-            "replays": {
-                "act35side_09": "UEsDBC0AAAAIAJh8AVkb5F8v//////////8NABQAZGVmYXVsdF9lbnRyeQEAEAAOGwAAAAAAAMoEAAAAAAAAxZnLbts4FIbfRdm6Km+60Ct3glkUE2CCtpjFFIXAWIzDiUQ5Iu3UKPLuc0jlaskWgzpOVrZESt//n8PDw/hXNBf1UqiF/ltXm39ka1SjoymaRFbV0li4GU0jnBHCeJYjHk2i/5pVq0UVTX9FtbSiFFa4zzBWl6Itzyux+QZzoynJeYwpRUk2iRaill+kWVU2muJJZMRadoMiggj7gPIPCH/DyZSmU8rjNGWc0H/hZa2shdJKL04bA1M5f3bpTF3K80ZpuE4n0bWqKln+qWWtpDl1F1kyiWplzMurIK2Sa1l9LuHln+ZWrZWFex/F3NLEqFJ+9LeLx++FVw3yFtLP2bqxFpUq/xp4+R1MulkJmPIdXL4S7WdtrHtClsOda6X909yNAie4qDetreTMrOpatieYwKNtvfSYelVVfkrVUZvreVMXwhhlbDEHY76TH9HDAF3Kn16l/3q2hkDhB82ABR+XV8K48MCnxkptlai+CH0dTcGvS7Fu2j+EBZTzbhhGMEWZT/5tp0AbTS9FZeQkWmklb1Zq6ZkevhQIkXst0dOQs+7t9G7y0gpM8bYXhJDiYqmWctaKuTzB+324arvBBdkyAO8wgO8zgBzKAM8UoJ/wdFs/wzQvtGiFtidkVHw38DDqfyf8fa2opxWhXqxTVlxislF6JpfNzQrCnYxK7iYES073SUaHCngH1XcB91zI+EDEaVE1i8YEBNyPK+iWePKu4j1TSLYPVD5Ek+JWmVJWAeK7gftDn4WJx4cS3zGFqGcD6nFaiEUjLAlQ3w0scGCp50cp9R1UiPyE9hIf5VmhtDSzi2Z+ko8a4Ibul/8U/OytMj+g0mHS29WggyrMuhXmaibqCyX1XH7dgBx7JY0SJ2xUezc5VH16lF2uYwqJPUn7qU94sRG2Ccl8Py644udHWfeeKUQ7RgPa88LKn8KQmbKyFRaa7oBOp5sSXPz5UYp/BxVU/waKfyH0QlazW1WVAQb4wcH6s6MsAs80JP8HgDQL49v/Z4cpHrM0TRO3F8CpS9lVK93xCaZD/9MlDMtYTjO3Zrx/A8eECA4XzdJHsVStnFt/aqNOpXFPa5tb6PVhfuMswXcuFs8YcNZBHISBvGBAoQy0Y6BjDHyA4alpGDaCvIRI7yH4NgPLYw5/CSPv6USSxJRSkpPkMF7sxdjpRYZ9PMYQ8oz1ER5K+avSkm0T5EmMIBrkIAg4JBY9BI7ioMXJEd5GeGxmgkwg9wS0R8BiDgRZkh6CYa8LOxkgp2LiIPBoKFxP+5Lh6UwXZESyu0gh7tcF4Qeh2Lsq9lBgGmeOgr7n4sSMxgwoRp3gAwyPZ4zhgGwx0N0MmYsH5qNZkWZkwIn7nfI1BRujPgSP8yAITrLe8ng8aL+KIu9BJJATsD7GC3ae5AOl6qH5G6bAw7WqTwEVmwZs4m+al1kSY87zgDUa5ERQ1e47wdM4haRg43WbsYGkePh/W1DBojtLBUF+I8f0IKkZFJCeFQTKFYWAHMYIElIoBowgLEZpyhLyFutjV5eL+hjul4SUMfrm2/nu5o4w5PoqRvF7rlPCsOt0s/EdPUt5j+Lxfxe/60UCFJSiYxYLlxZwEoOsLpv6q5TuJZQgynKY3q60PFPuhyV33ry7+x9QSwECMwAtAAAACACYfAFZG+RfL///////////DQAUAAAAAAAAAAAAAAAAAAAAZGVmYXVsdF9lbnRyeQEAEAAOGwAAAAAAAMoEAAAAAAAAUEsFBgAAAAABAAEATwAAAAkFAAAAAA=="
-            },
-            "infos": {
-                "1": {
-                    "stageId": "act35side_09"
-                }
-            }
-        },
-        "gacha": {
-            "NORMAL": {
-                "beforeNonHitCnt": 4
-            },
-            "LIMITED": {
-                "beforeNonHitCnt": 40
-            }
-        },
-        "rlv2": {}
-    }
+      "infos": {
+        "1": {
+          "stageId": "act35side_09"
+        }
+      }
+    },
+    "gacha": {
+      "NORMAL": {
+        "beforeNonHitCnt": 4
+      },
+      "LIMITED": {
+        "beforeNonHitCnt": 40
+      }
+    },
+    "rlv2": {}
+  }
 }

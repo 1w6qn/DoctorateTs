@@ -27,15 +27,15 @@ export class SocialManager {
     this._trigger = _trigger;
   }
 
-  getSortListInfo(args: {
+  async getSortListInfo(args: {
     type: FriendServiceType;
     sortKeyList: string[];
     param: { [key: string]: string };
   }) {
     const { type, sortKeyList, param } = args;
     const friendIdList = accountManager.getSocial(this._uid).friends;
-    const friendInfoList = friendIdList.map((friend) =>
-      accountManager.getPlayerFriendInfo(friend),
+    const friendInfoList = await Promise.all(
+      friendIdList.map((friend) => accountManager.getPlayerFriendInfo(friend)),
     );
     const funcs: {
       [key: number]: (
@@ -53,21 +53,24 @@ export class SocialManager {
     return friendInfoList.map((friend) => funcs[type](friend, param));
   }
 
-  getFriendList(args: { idList: string[] }) {
-    return args.idList.map((friend) =>
-      accountManager.getPlayerFriendInfo(friend),
+  async getFriendList(args: { idList: string[] }) {
+    return await Promise.all(
+      args.idList.map((friend) => accountManager.getPlayerFriendInfo(friend)),
     );
   }
 
-  deleteFriend(args: { id: string }) {
+  async deleteFriend(args: { id: string }) {
     accountManager.deleteFriend(this._uid, args.id);
   }
 
-  sendFriendRequest(args: { id: string }) {
+  async sendFriendRequest(args: { id: string }) {
     accountManager.sendFriendRequest(this._uid, args.id);
   }
 
-  processFriendRequest(args: { friendId: string; action: FriendDealEnum }) {
+  async processFriendRequest(args: {
+    friendId: string;
+    action: FriendDealEnum;
+  }) {
     accountManager.deleteFriendRequest(this._uid, args.friendId);
     if (args.action === FriendDealEnum.ACCEPT) {
       accountManager.addFriend(this._uid, args.friendId);
@@ -109,9 +112,11 @@ export class SocialManager {
     });
   }
 
-  setFriendAlias() {}
+  async setFriendAlias(args: {}) {}
 
-  searchPlayer(args: { idList: string[] }) {
+  async searchPlayer(args: { idList: string[] }) {
     const { idList } = args;
   }
+
+  async getFriendRequestList() {}
 }

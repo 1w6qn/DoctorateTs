@@ -12,7 +12,6 @@ import { RoguelikeBuffManager } from "./rlv2/buff";
 import { RoguelikePlayerStatusManager } from "./rlv2/status";
 import { now } from "@utils/time";
 import { RoguelikeModuleManager } from "./rlv2/module";
-import roexcel from "./rlv2/excel";
 import { RoguelikeTroopManager } from "./rlv2/troop";
 import { RoguelikeMapManager } from "./rlv2/map";
 import { PlayerSquad } from "@game/model/character";
@@ -129,7 +128,6 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     predefinedId: string | null;
   }): Promise<void> {
     //TODO
-    await roexcel.initPromise;
     console.log("[RLV2] Game creation", args);
     this.current.game = {
       mode: args.mode,
@@ -159,14 +157,13 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }
 
   async chooseInitialRecruitSet(args: { select: string }) {
-    await roexcel.initPromise;
     const theme = this.current.game!.theme;
     const event = this._status.pending.shift();
     const event2 = this._status.pending.find(
       (e) => e.type === "GAME_INIT_RECRUIT",
     )!;
     //TODO
-    roexcel.RoguelikeConsts[theme].recruitGrps[args.select].forEach((r) => {
+    excel.RoguelikeConsts[theme].recruitGrps[args.select].forEach((r) => {
       console.log("gain recruit", r);
       this._trigger.emit("rlv2:recruit:gain", r, "initial", 0);
     });
@@ -175,7 +172,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       .map((r) => r.index);
   }
 
-  activeRecruitTicket(args: { id: string }) {
+  async activeRecruitTicket(args: { id: string }) {
     this._trigger.emit("rlv2:recruit:active", args.id);
   }
 
@@ -243,7 +240,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     this._status.cursor.position = args.to;
   }
 
-  battleFinish(args: {
+  async battleFinish(args: {
     battleLog: string;
     data: string;
     battleData: BattleData;

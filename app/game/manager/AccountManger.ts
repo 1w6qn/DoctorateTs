@@ -44,7 +44,7 @@ export class AccountManager {
     this._trigger.emit("save");
   }
 
-  getUserConfig(uid: string): UserConfig {
+  async getUserConfig(uid: string): Promise<UserConfig> {
     return this.configs[uid]!;
   }
 
@@ -64,12 +64,12 @@ export class AccountManager {
     this._trigger.emit("save");
   }
 
-  getPlayerData(uid: string): PlayerDataManager {
+  async getPlayerData(uid: string): Promise<PlayerDataManager> {
     return this.data[uid];
   }
 
-  getPlayerFriendInfo(uid: string) {
-    return this.getPlayerData(uid).socialInfo;
+  async getPlayerFriendInfo(uid: string) {
+    return (await this.getPlayerData(uid)).socialInfo;
   }
 
   async savePlayerData(uid: string): Promise<void> {
@@ -125,6 +125,24 @@ export class AccountManager {
       })
       .map(([uid]) => uid);
   }
+
+  async tokenByPhonePassword(phone: string, password: string): Promise<string> {
+    const uid =
+      Object.entries(this.configs).find(([, conf]) => {
+        return conf.auth.phone == phone && conf.password == password;
+      })?.[0] ?? "";
+    return this.getTokenByUid(uid);
+  }
+
+  async getTokenByUid(uid: string): Promise<string> {
+    return uid;
+  }
+
+  async getUidByToken(token: string): Promise<string> {
+    return token;
+  }
+
+  async loginout() {}
 }
 
 export interface FriendSortViewModel {
@@ -136,6 +154,16 @@ export interface FriendSortViewModel {
 }
 export interface UserConfig {
   uid: string;
+  password: string;
+  auth: {
+    hgId: string;
+    phone: string;
+    email: string;
+    identityNum: string;
+    identityName: string;
+    isMinor: false;
+    isLatestUserAgreement: true;
+  };
   social: {
     friends: string[];
     friendRequests: string[];

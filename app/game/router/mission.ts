@@ -14,7 +14,7 @@ router.post("/confirmMission", async (req, res) => {
 });
 router.post("/confirmMissionGroup", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  player.mission.confirmMissionGroup(req.body);
+  await player.mission.confirmMissionGroup(req.body);
   res.send(player.delta);
   player._trigger.emit("save");
 });
@@ -22,14 +22,14 @@ router.post("/autoConfirmMissions", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
 
   res.send({
-    items: player.mission.autoConfirmMissions(req.body),
+    items: await player.mission.autoConfirmMissions(req.body),
     ...player.delta,
   });
   player._trigger.emit("save");
 });
 router.post("/exchangeMissionRewards", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  player.mission.exchangeMissionRewards(req.body);
+  await player.mission.exchangeMissionRewards(req.body);
   res.send({
     ...player.delta,
   });

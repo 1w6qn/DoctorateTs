@@ -12,9 +12,9 @@ export async function size(filePath: string): Promise<number> {
 }
 
 export async function readJson<T = object>(filePath: string): Promise<T> {
-  console.time("[JSON][loaded][async] " + filePath);
+  //console.time("[JSON][loaded][async] " + filePath);
   const data = await readFile(filePath, "utf-8");
-  console.timeEnd("[JSON][loaded][async] " + filePath);
+  //console.timeEnd("[JSON][loaded][async] " + filePath);
   return JSON.parse(data) as T;
 }
 

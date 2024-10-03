@@ -135,7 +135,7 @@ export class MissionManager {
     return items;
   }
 
-  confirmMissionGroup(args: { missionGroupId: string }) {
+  async confirmMissionGroup(args: { missionGroupId: string }) {
     const { missionGroupId } = args;
     const rewards = excel.MissionTable.missionGroups[missionGroupId].rewards;
     if (rewards) {
@@ -144,7 +144,7 @@ export class MissionManager {
     this.missionGroups[missionGroupId] = 1;
   }
 
-  autoConfirmMissions(args: { type: string }): ItemBundle[] {
+  async autoConfirmMissions(args: { type: string }): Promise<ItemBundle[]> {
     const { type } = args;
     const items: ItemBundle[] = [];
     for (const mission of this.missions[type]) {
@@ -158,7 +158,7 @@ export class MissionManager {
     return items;
   }
 
-  exchangeMissionRewards(args: { targetRewardsId: string }) {
+  async exchangeMissionRewards(args: { targetRewardsId: string }) {
     //TODO
   }
 

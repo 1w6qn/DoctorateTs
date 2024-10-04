@@ -73,7 +73,7 @@ export class RecruitManager {
     this._trigger.emit("useItems", [
       { id: "7001", count: 1, type: "TKT_RECRUIT" },
     ]);
-    this._trigger.emit("NormalGacha", {});
+    this._trigger.emit("NormalGacha");
   }
 
   async finish(args: { slotId: number }): Promise<GachaResult> {
@@ -111,7 +111,7 @@ export class RecruitManager {
       draft.recruit.normal.slots[slotId].state = 2;
       draft.recruit.normal.slots[args.slotId].realFinishTs = now();
     });
-    this._trigger.emit("BoostNormalGacha", {});
+    this._trigger.emit("BoostNormalGacha");
   }
 }
 interface CharData {

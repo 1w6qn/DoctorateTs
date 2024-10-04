@@ -15,13 +15,18 @@ export class RoguelikePoolManager {
     this._player = player;
     this._trigger = _trigger;
     this._trigger.on("rlv2:relic:recycle", this.recycle.bind(this));
+    this._trigger.on("rlv2:relic:put", this.put.bind(this));
     this._trigger.on("rlv2:init", this.init.bind(this));
     this._trigger.on("rlv2:create", this.create.bind(this));
   }
 
-  recycle(id: string): void {}
+  recycle(id: string) {
+    console.log(id);
+  }
 
-  put(id: string): void {}
+  put(id: string) {
+    console.log(id);
+  }
 
   init() {
     this._pools = {};
@@ -59,8 +64,7 @@ export class RoguelikePoolManager {
 
   get(id: string, putback = false): RoguelikeItemBundle {
     const res = this._pools[id] ? randomChoice(this._pools[id]) : "";
-    if (putback) {
-    } else {
+    if (!putback) {
       this._pools[id].splice(this._pools[id].indexOf(res), 1);
     }
     return { id: res, count: 1 };

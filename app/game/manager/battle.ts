@@ -15,6 +15,7 @@ export class BattleManager {
     this._playerdata = _playerdata;
     this._trigger = _trigger;
     this._trigger.on("battle:start", this.start.bind(this));
+    this._trigger.on("battle:finish", this.finish.bind(this));
   }
 
   async start(args: CommonStartBattleRequest) {

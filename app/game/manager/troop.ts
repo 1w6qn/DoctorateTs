@@ -42,10 +42,6 @@ export class TroopManager {
     return Object.keys(this.chars).length + 1;
   }
 
-  get curSquadCount(): number {
-    return Object.keys(this.squads).length;
-  }
-
   getCharacterByCharId(charId: string): PlayerCharacter {
     return Object.values(this.chars).find(
       (char) => char.charId === charId,
@@ -162,7 +158,10 @@ export class TroopManager {
     return res;
   }
 
-  upgradeChar(args: { instId: number; expMats: ItemBundle[] }): void {
+  async upgradeChar(args: {
+    instId: number;
+    expMats: ItemBundle[];
+  }): Promise<void> {
     const { instId, expMats } = args;
     const char = this.getCharacterByInstId(instId);
     const expMap = excel.GameDataConst.characterExpMap;
@@ -198,7 +197,10 @@ export class TroopManager {
     this._trigger.emit("UpgradeChar", {});
   }
 
-  evolveChar(args: { instId: number; destEvolvePhase: number }): void {
+  async evolveChar(args: {
+    instId: number;
+    destEvolvePhase: number;
+  }): Promise<void> {
     const char = this.getCharacterByInstId(args.instId);
     const evolveCost = excel.CharacterTable[char.charId].phases[
       args.destEvolvePhase
@@ -217,24 +219,30 @@ export class TroopManager {
     if (args.destEvolvePhase == 2) {
       this.chars[args.instId].skinId = char.charId + "#2";
     }
-    this._trigger.emit("EvolveChar", args);
+    this._trigger.emit("EvolveChar", { char });
   }
 
-  boostPotential(args: {
+  async boostPotential(args: {
     instId: number;
     itemId: string;
     targetRank: number;
-  }): void {
+  }): Promise<void> {
     this._trigger.emit("useItems", [{ id: args.itemId, count: 1 }]);
     this.chars[args.instId].potentialRank = args.targetRank;
-    this._trigger.emit("BoostPotential", { targetRank: args.targetRank });
+    this._trigger.emit("BoostPotential", { targetLevel: args.targetRank });
   }
 
-  setDefaultSkill(args: { instId: number; defaultSkillIndex: number }): void {
+  async setDefaultSkill(args: {
+    instId: number;
+    defaultSkillIndex: number;
+  }): Promise<void> {
     this.chars[args.instId].defaultSkillIndex = args.defaultSkillIndex;
   }
 
-  upgradeSkill(args: { instId: number; targetLevel: number }): void {
+  async upgradeSkill(args: {
+    instId: number;
+    targetLevel: number;
+  }): Promise<void> {
     const { instId, targetLevel } = args;
     const char = this.getCharacterByInstId(instId);
     this._trigger.emit(
@@ -243,35 +251,42 @@ export class TroopManager {
         .lvlUpCost as ItemBundle[],
     );
     char.mainSkillLvl = targetLevel;
-    this._trigger.emit("BoostPotential", { targetLevel: targetLevel });
+    this._trigger.emit("BoostPotential", { targetLevel });
   }
 
-  changeCharSkin(args: { instId: number; skinId: string }): void {
+  async changeCharSkin(args: {
+    instId: number;
+    skinId: string;
+  }): Promise<void> {
     this.chars[args.instId].skinId = args.skinId;
   }
 
-  changeCharTemplate(args: { instId: number; templateId: string }): void {
+  async changeCharTemplate(args: {
+    instId: number;
+    templateId: string;
+  }): Promise<void> {
     this.chars[args.instId].currentTmpl = args.templateId;
   }
 
-  batchSetCharVoiceLan(args: { voiceLan: string }): void {
+  async batchSetCharVoiceLan(args: { voiceLan: string }): Promise<void> {
     Object.values(this.chars).forEach(
       (char) => (char.voiceLan = args.voiceLan),
     );
   }
 
-  setCharVoiceLan(charList: number[], voiceLan: string) {
+  async setCharVoiceLan(args: { charList: number[]; voiceLan: string }) {
+    const { charList, voiceLan } = args;
     charList.forEach((charInstId) => {
       const char = this.getCharacterByInstId(charInstId);
       char.voiceLan = voiceLan;
     });
   }
 
-  setEquipment(args: {
+  async setEquipment(args: {
     charInstId: number;
     templateId: string;
     equipId: string;
-  }): void {
+  }): Promise<void> {
     const char = this.getCharacterByInstId(args.charInstId);
     if (args.templateId) {
       char.tmpl![args.templateId].currentEquip = args.equipId;
@@ -280,7 +295,7 @@ export class TroopManager {
     }
   }
 
-  unlockEquipment(args: {
+  async unlockEquipment(args: {
     charInstId: number;
     templateId: string;
     equipId: string;
@@ -297,10 +312,10 @@ export class TroopManager {
       "useItems",
       excel.UniequipTable.equipDict[args.equipId].itemCost!["1"],
     );
-    this._trigger.emit("HasEquipment", { ...char, ...args });
+    this._trigger.emit("HasEquipment", { char });
   }
 
-  upgradeEquipment(args: {
+  async upgradeEquipment(args: {
     charInstId: number;
     templateId: string;
     equipId: string;
@@ -321,42 +336,54 @@ export class TroopManager {
       items.push(...excel.UniequipTable.equipDict[args.equipId].itemCost![i]);
     }
     this._trigger.emit("useItems", items);
-    this._trigger.emit("HasEquipment", { ...char, ...args });
+    this._trigger.emit("HasEquipment", { char });
   }
 
-  changeMarkStar(args: { chrIdDict: { [key: string]: number } }) {
+  async changeMarkStar(args: { chrIdDict: { [key: string]: number } }) {
     Object.entries(args.chrIdDict).forEach(([charId, mark]) => {
       const char = this.getCharacterByCharId(charId);
       char.starMark = mark;
     });
   }
 
-  lockChar() {}
+  async lockChar(args: { charInstIdList: number[] }) {
+    const { charInstIdList } = args;
+    charInstIdList.forEach(() => {});
+  }
 
-  sellChar() {}
+  async sellChar(args: { charInstIdList: number[] }) {
+    const { charInstIdList } = args;
+    charInstIdList.forEach(() => {});
+  }
 
-  upgradeSpecialization(args: {
-    charInstId: number;
-    skillIndex: number;
-    targetLevel: number;
-  }) {}
-
-  completeUpgradeSpecialization(args: {
+  async upgradeSpecialization(args: {
     charInstId: number;
     skillIndex: number;
     targetLevel: number;
   }) {
+    const { charInstId, skillIndex, targetLevel } = args;
+    const char = this.getCharacterByInstId(charInstId);
+    //TODO:
+    char.skills![skillIndex].specializeLevel = targetLevel;
+  }
+
+  async completeUpgradeSpecialization(args: {
+    charInstId: number;
+    skillIndex: number;
+    targetLevel: number;
+  }) {
+    const { charInstId, skillIndex, targetLevel } = args;
     //TODO
-    const char = this.getCharacterByInstId(args.charInstId);
-    char.skills![args.skillIndex].completeUpgradeTime = -1;
-    char.skills![args.skillIndex].specializeLevel = args.targetLevel;
+    const char = this.getCharacterByInstId(charInstId);
+    char.skills![skillIndex].completeUpgradeTime = -1;
+    char.skills![skillIndex].specializeLevel = targetLevel;
     this._trigger.emit("UpgradeSpecialization", args);
   }
 
-  getSpCharMissionReward(args: {
+  async getSpCharMissionReward(args: {
     charId: string;
     missionId: string;
-  }): ItemBundle[] {
+  }): Promise<ItemBundle[]> {
     const items: ItemBundle[] =
       excel.CharMetaTable.spCharMissions[args.charId][args.missionId].rewards;
     this.charMission[args.charId][args.missionId] = 2;
@@ -364,7 +391,7 @@ export class TroopManager {
     return items;
   }
 
-  evolveCharUseItem(args: {
+  async evolveCharUseItem(args: {
     charInstId: number;
     itemId: string;
     instId: number;
@@ -379,7 +406,7 @@ export class TroopManager {
     ]);
   }
 
-  upgradeCharLevelMaxUseItem(args: {
+  async upgradeCharLevelMaxUseItem(args: {
     charInstId: number;
     itemId: string;
     instId: number;
@@ -393,7 +420,7 @@ export class TroopManager {
     ]);
   }
 
-  upgradeSpecializedSkillUseItem(args: {
+  async upgradeSpecializedSkillUseItem(args: {
     charInstId: number;
     skillIndex: number;
     itemId: string;
@@ -406,17 +433,25 @@ export class TroopManager {
     ]);
   }
 
-  squadFormation(squadId: number, slots: PlayerSquadItem[]): void {
+  async squadFormation(
+    squadId: number,
+    slots: PlayerSquadItem[],
+  ): Promise<void> {
     this.squads[squadId].slots = slots;
-    this._trigger.emit("SquadFormation", this.squads[squadId]);
+    this._trigger.emit("SquadFormation");
   }
 
-  changeSquadName(args: { squadId: number; name: string }): void {
+  async changeSquadName(args: {
+    squadId: number;
+    name: string;
+  }): Promise<void> {
     this.squads[args.squadId].name = args.name;
     this._trigger.emit("ChangeSquadName");
   }
 
-  decomposePotentialItem(charInstIdList: string[]): ItemBundle[] {
+  async decomposePotentialItem(
+    charInstIdList: string[],
+  ): Promise<ItemBundle[]> {
     const costs: ItemBundle[] = [];
     const items: ItemBundle[] = charInstIdList.reduce((acc, charInstId) => {
       const char = this.getCharacterByInstId(parseInt(charInstId));
@@ -437,7 +472,9 @@ export class TroopManager {
     return items;
   }
 
-  decomposeClassicPotentialItem(charInstIdList: string[]): ItemBundle[] {
+  async decomposeClassicPotentialItem(
+    charInstIdList: string[],
+  ): Promise<ItemBundle[]> {
     const costs: ItemBundle[] = [];
     const items: ItemBundle[] = charInstIdList.reduce((acc, charInstId) => {
       const char = this.getCharacterByInstId(parseInt(charInstId));
@@ -458,7 +495,7 @@ export class TroopManager {
     return items;
   }
 
-  addonStoryUnlock(args: { charId: string; storyId: string }) {
+  async addonStoryUnlock(args: { charId: string; storyId: string }) {
     if (!this.addon[args.charId].story) {
       this.addon[args.charId].story = {};
     }
@@ -468,16 +505,36 @@ export class TroopManager {
     };
   }
 
-  addonStageBattleStart(args: {
+  async addonStageBattleStart(args: {
     charId: string;
     stageId: string;
     squad: PlayerSquad;
     stageType: string;
   }) {
+    const { stageId, squad } = args;
     //TODO
+    this._trigger.emit("battle:start", {
+      isRetro: 0,
+      pray: 0,
+      battleType: 0,
+      continuous: {
+        battleTimes: 1,
+      },
+      usePracticeTicket: 1,
+      stageId: stageId,
+      squad: squad,
+      assistFriend: null,
+      isReplay: 0,
+      startTs: now(),
+    });
   }
 
-  addonStageBattleFinish() {}
+  async addonStageBattleFinish(args: {
+    data: string;
+    battleData: { isCheat: string; completeTime: number };
+  }) {
+    this._trigger.emit("battle:finish", args);
+  }
 
   async fix(): Promise<void> {
     Object.values(this.chars).forEach((char) => {

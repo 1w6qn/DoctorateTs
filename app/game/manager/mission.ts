@@ -39,7 +39,7 @@ export class MissionManager {
     this.missionGroups = playerdata.mission.missionGroups;
     this._trigger = _trigger;
     this._trigger.on("refresh:weekly", this.weeklyRefresh.bind(this));
-    //this._trigger.on("refresh:daily", this.dailyRefresh.bind(this));
+    this._trigger.on("refresh:daily", this.dailyRefresh.bind(this));
   }
 
   get dailyMissionPeriod(): string {
@@ -1003,16 +1003,17 @@ export const MissionTemplates: {
         });
       },
       update: (mission: MissionProgress, args: { favorPoint: number }) => {
-        let percent: number = 0;
+        let percent: number;
         if (args.favorPoint == excel.FavorTable.maxFavor) {
           percent = 200;
+        } else {
+          percent = excel.FavorTable.favorFrames.find((_f, idx, table) => {
+            return (
+              args.favorPoint >= table[idx].level &&
+              args.favorPoint < table[idx + 1].level
+            );
+          })!.data.percent;
         }
-        percent = excel.FavorTable.favorFrames.find((f, idx, table) => {
-          return (
-            args.favorPoint >= table[idx].level &&
-            args.favorPoint < table[idx + 1].level
-          );
-        })!.data.percent;
         if (percent >= parseInt(mission.param[2])) {
           mission.progress[0].value += 1;
         }
@@ -1148,8 +1149,8 @@ export const MissionTemplates: {
           target: parseInt(mission.param[1]),
         });
       },
-      update: (mission: MissionProgress, args: { targetRank: number }) => {
-        if (args.targetRank >= parseInt(mission.param[2])) {
+      update: (mission: MissionProgress, args: { targetLevel: number }) => {
+        if (args.targetLevel >= parseInt(mission.param[2])) {
           mission.progress[0].value += 1;
         }
       },

@@ -26,6 +26,12 @@ export interface EventMap {
   "building:char:init": [PlayerCharacter];
   "save:battle": [string, { stageId: string }];
   "battle:start": [CommonStartBattleRequest];
+  "battle:finish": [
+    {
+      data: string;
+      battleData: { isCheat: string; completeTime: number };
+    },
+  ];
   "background:get": [string];
   "background:unlock": [{ bgID: string }];
   "background:condition:update": [string, string, number];
@@ -55,6 +61,7 @@ export interface EventMap {
   "rlv2:choose_init_recruit_set": [string[]];
   "rlv2:relic:gain": [RoguelikeItemBundle];
   "rlv2:relic:recycle": [string];
+  "rlv2:relic:put": [string];
   "rlv2:event:create": [string, object];
   "rlv2:buff:apply": [...RoguelikeBuff[]];
   "rlv2:zone:new": [number];
@@ -117,7 +124,7 @@ export interface EventMap {
   TakeOverReplay: [BattleData];
   CompleteCampaign: [BattleData & { stageId: string }];
   SetBuildingAssist: [];
-  BoostPotential: [{ targetRank: number }];
+  BoostPotential: [{ targetLevel: number }];
   WorkshopExBonus: [];
   BoostNormalGacha: [];
   CompleteMainStage: [BattleData & { stageId: string }];

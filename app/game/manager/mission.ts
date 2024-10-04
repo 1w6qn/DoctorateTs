@@ -7,10 +7,10 @@ import {
 } from "../model/playerdata";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
-import { PlayerCharacter, PlayerSquad } from "../model/character";
+import { PlayerCharacter } from "../model/character";
 import { BattleData } from "../model/battle";
 import { now } from "@utils/time";
-import { TypedEventEmitter } from "@game/model/events";
+import { EventMap, TypedEventEmitter } from "@game/model/events";
 
 export class MissionManager {
   missions: { [key: string]: MissionProgress[] };
@@ -235,1163 +235,38 @@ export class MissionProgress implements MissionPlayerState {
   }
 
   async init() {
-    let template: string;
+    let template: keyof typeof MissionTemplates;
     if (this.type == "ACTIVITY") {
-      template = "";
+      return;
     } else {
-      template = excel.MissionTable.missions[this.missionId].template;
+      template = excel.MissionTable.missions[this.missionId]
+        .template as keyof typeof MissionTemplates;
       this.param = excel.MissionTable.missions[this.missionId].param;
     }
     if (!template) {
       console.log(this.missionId);
       return;
     }
-    if (template && !(template in this)) {
+    if (template && !(template in MissionTemplates)) {
       console.log(template);
       throw new Error("template not implemented yet");
     }
-    this._trigger.on(template, (args: {}, mode: string = "update") => {
-      this[template](args, mode);
+    //TODO:infer from variable
+    const func = (args: any) => {
+      return MissionTemplates[template]![this.param[0]].update(this, args);
+    };
+    this._trigger.on(template, (args: any) => {
+      MissionTemplates[template]![this.param[0]].update(this, args);
       //console.log(`[MissionManager] ${this.missionId} update ${this.progress[0].value}/${this.progress[0].target}`)
       if (this.progress[0].value >= this.progress[0].target!) {
         console.log(`[MissionManager] ${this.missionId} complete`);
-        this._trigger.removeListener(template, this[template]);
+        this._trigger.removeListener(template, func);
       }
     });
-    this[template]({}, "init");
+    MissionTemplates[template]![this.param[0]].init(this);
   }
 
   update() {}
-
-  CompleteStageAnyType(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: BattleData) => {
-          const { completeState } = args;
-          if (completeState >= parseInt(this.param[2])) {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  StageWithEnemyKill(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: BattleData) => {},
-      },
-      "1": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: BattleData) => {
-          const { completeState } = args;
-          if (completeState >= 2) {
-            this.progress[0].value += args.killCnt;
-          }
-        },
-      },
-      "2": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: BattleData) => {
-          const enemies = this.param[2].split("^");
-          args.battleData.stats.enemyStats.forEach((stat) => {
-            if (
-              enemies.includes(stat.Key.enemyId) &&
-              stat.Key.counterType == "HP_ZERO"
-            ) {
-              this.progress[0].value += stat.Value;
-            }
-          });
-        },
-      },
-      "3": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: BattleData) => {},
-      },
-      "5": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[2]),
-          });
-        },
-        update: (args: BattleData & { stageId: string }) => {
-          const stages = this.param[1].split("^");
-          if (stages.includes(args.stageId) && args.completeState >= 2) {
-            this.progress[0].value += args.killCnt;
-          }
-        },
-      },
-      "6": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[3]),
-          });
-        },
-        update: (args: BattleData & { stageId: string }) => {
-          const stages = this.param[1].split("^");
-          if (!stages.includes(args.stageId)) {
-            return;
-          }
-          if (args.completeState < parseInt(this.param[3])) {
-            return;
-          }
-          if (args.killCnt >= parseInt(this.param[2])) {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  EnemyKillInAnyStage(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: BattleData) => {
-          if (args.completeState < parseInt(this.param[2])) {
-            return;
-          }
-          this.progress[0].value += args.killCnt;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  StageWithAssistChar(
-    args: { completeState: number },
-    mode: string = "update",
-  ) {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "1": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[2]),
-          });
-        },
-        update: (args: BattleData) => {
-          //TODO
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  UpgradeChar(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: () => {
-          this.progress[0].value += 1;
-        },
-      },
-      "1": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { char: PlayerCharacter }) => {
-          if (args.char.evolvePhase < parseInt(this.param[2])) {
-            return;
-          }
-          if (args.char.level >= parseInt(this.param[3])) {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-      "2": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { exp: number }) => {
-          this.progress[0].value += args.exp;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  ReceiveSocialPoint(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { socialPoint: number }) => {
-          this.progress[0].value += args.socialPoint;
-        },
-      },
-      "1": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: {}) => {
-          this.progress[0].value += 1;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  BuyShopItem(args: { completeState: number }, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { type: string }) => {
-          const shops = "LS^HS^ES".split("^");
-          if (shops.includes(args.type)) {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-      "1": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { type: string }) => {
-          if (args.type == "SOCIAL") {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-      "3": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { type: string; socialPoint: number }) => {
-          if (args.type != "SOCIAL") {
-            return;
-          }
-          this.progress[0].value += args.socialPoint;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  NormalGacha(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[2]),
-          });
-        },
-        update: (args: {}) => {
-          this.progress[0].value += 1;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  GainIntimacy(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { count: number }) => {
-          this.progress[0].value += args.count;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  ManufactureItem(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { item: ItemBundle }) => {
-          if (args.item.id == this.param[2]) {
-            this.progress[0].value += args.item.count;
-          }
-        },
-      },
-      "1": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { count: number }) => {
-          this.progress[0].value += args.count;
-        },
-      },
-      "2": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { item: ItemBundle }) => {
-          const items = this.param[2].split("#");
-          if (items.includes(args.item.id)) {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  DeliveryOrder(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { count: number }) => {
-          this.progress[0].value += args.count;
-        },
-      },
-      "1": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { count: number }) => {
-          this.progress[0].value += args.count;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  RecoverCharBaseAp(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { count: number }) => {
-          this.progress[0].value += args.count;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  VisitBuilding(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: {}) => {
-          this.progress[0].value += 1;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  UpgradeSkill(args: { targetLevel: number }, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: {}) => {
-          this.progress[0].value += 1;
-        },
-      },
-      "1": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { targetLevel: number }) => {
-          this.progress[0].value += args.targetLevel;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  SquadFormation(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[2]),
-          });
-        },
-        update: (args: PlayerSquad) => {
-          const flag = false;
-          //TODO
-          this.progress[0].value += flag ? 1 : 0;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  CompleteStage(args: { completeState: number }, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[2]),
-          });
-        },
-        update: (args: BattleData & { stageId: string }) => {
-          const stages = this.param[1].split("^");
-          if (!stages.includes(args.stageId)) {
-            return;
-          }
-          if (args.completeState >= 2) {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-      "2": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[2]),
-          });
-        },
-        update: (args: BattleData) => {
-          if (args.completeState >= parseInt(this.param[1])) {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-      "3": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: BattleData & { isPractice: number }) => {
-          if (!args.isPractice) {
-            return;
-          }
-          if (args.completeState >= 2) {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-      "4": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: BattleData & { stageId: string }) => {
-          if (!args.stageId.includes("#f#")) {
-            return;
-          }
-          if (args.completeState >= 3) {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  UpgradePlayer(args: { level: number }, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { level: number }) => {
-          this.progress[0].value = args.level;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  CompleteAnyStage(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({ value: this.value, target: 1 });
-        },
-        update: (args: BattleData & { stageId: string }) => {
-          const stages = this.param[1].split("^");
-          if (!stages.includes(args.stageId)) {
-            return;
-          }
-          if (args.completeState >= parseInt(this.param[2])) {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  HasChar(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { char: PlayerCharacter }) => {
-          const data = excel.CharacterTable[args.char.charId];
-          if (args.char.evolvePhase < parseInt(this.param[2])) {
-            return;
-          }
-          if (args.char.level < parseInt(this.param[3])) {
-            return;
-          }
-          if (data.rarity.slice(-1) != this.param[4] && this.param[4] != "-1") {
-            return;
-          }
-          if (data.profession != this.param[5] && this.param[5] != "ALL") {
-            return;
-          }
-          this.progress[0].value += 1;
-        },
-      },
-      "1": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { char: PlayerCharacter }) => {
-          const data = excel.CharacterTable[args.char.charId];
-          if (args.char.evolvePhase < parseInt(this.param[2])) {
-            return;
-          }
-          if (args.char.level < parseInt(this.param[3])) {
-            return;
-          }
-          if (data.rarity.slice(-1) != this.param[4] && this.param[4] != "-1") {
-            return;
-          }
-          if (data.profession != this.param[5] && this.param[5] != "ALL") {
-            return;
-          }
-          this.progress[0].value += 1;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  HasEquipment(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[3]),
-          });
-        },
-        update: (args: { char: PlayerCharacter }) => {
-          const data = excel.CharacterTable[args.char.charId];
-          const rarities = this.param[1].split("^");
-          const levels = this.param[2].split("^");
-          if (args.char.evolvePhase < 2) {
-            return;
-          }
-          if (!rarities.includes(data.rarity.slice(-1))) {
-            return;
-          }
-          Object.values(args.char.equip!).forEach((e) => {
-            if (levels.includes(e.level.toString())) {
-              this.progress[0].value += 1;
-            }
-          });
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  EvolveChar(args: {}, mode: string = "update") {
-    /**
-     * 1:num;2:evolve phase
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "1": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { char: PlayerCharacter }) => {
-          if (args.char.evolvePhase >= parseInt(this.param[2])) {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  DiyComfort(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { char: PlayerCharacter }) => {
-          //TODO
-        },
-      },
-      "1": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { char: PlayerCharacter }) => {
-          //TODO
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  HasRoom(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { char: PlayerCharacter }) => {
-          //TODO
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  WorkshopSynthesis(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { item: ItemBundle }) => {
-          if (args.item.id == this.param[2]) {
-            this.progress[0].value += args.item.count;
-          }
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  UpgradeSpecialization(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: {}) => {
-          this.progress[0].value += 1;
-        },
-      },
-      "1": {
-        init: () => {
-          this.progress.push({ value: this.value, target: 1 });
-        },
-        update: (args: { targetLevel: number }) => {
-          if (args.targetLevel >= parseInt(this.param[1])) {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  BattleWithEnemyKill(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[2]),
-          });
-        },
-        update: (args: BattleData & { stageId: string }) => {
-          const stages = this.param[1].split("^");
-          if (!stages.includes(args.stageId)) {
-            return;
-          }
-          if (args.killCnt >= this.progress[0].value) {
-            this.progress[0].value = args.killCnt;
-          }
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  CharIntimacy(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { favorPoint: number }) => {
-          let percent: number = 0;
-          if (args.favorPoint == excel.FavorTable.maxFavor) {
-            percent = 200;
-          }
-          percent = excel.FavorTable.favorFrames.find((f, idx, table) => {
-            return (
-              args.favorPoint >= table[idx].level &&
-              args.favorPoint < table[idx + 1].level
-            );
-          })!.data.percent;
-          if (percent >= parseInt(this.param[2])) {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  CompleteBreakReward(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({ value: this.value, target: 1 });
-        },
-        update: (args: {}) => {
-          //TODO
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  StartInfoShare(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: {}) => {
-          this.progress[0].value += 1;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  EditBusinessCard(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({ value: this.value, target: 1 });
-        },
-        update: (args: {}) => {
-          this.progress[0].value += 1;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  SetAssistCharList(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "1": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: {}) => {
-          this.progress[0].value += 1;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  ChangeSquadName(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: {}) => {
-          this.progress[0].value += 1;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  StageWithReplay(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { isReplay: number }) => {
-          if (args.isReplay) {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  TakeOverReplay(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: BattleData) => {
-          if (args.battleData.stats.autoReplayCancelled) {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  CompleteCampaign(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: BattleData & { stageId: string }) => {
-          const stageType = excel.StageTable.stages[args.stageId].stageType;
-          if (args.completeState < 2) {
-            return;
-          }
-          if (stageType == "CAMPAIGN") {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  SetBuildingAssist(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({ value: this.value, target: 1 });
-        },
-        update: (args: {}) => {
-          this.progress[0].value += 1;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  BoostPotential(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "1": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: { targetRank: number }) => {
-          if (args.targetRank >= parseInt(this.param[2])) {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
 
   toJSON(): MissionPlayerState {
     return {
@@ -1402,44 +277,919 @@ export class MissionProgress implements MissionPlayerState {
 }
 
 export const MissionTemplates: {
-  [key: string]: {
-    [key: string]: {
-      [key: string]: (mission: MissionProgress, args: any) => void;
+  [key in keyof Partial<EventMap>]: {
+    [p: string]: {
+      init: (mission: MissionProgress) => void;
+      update: (mission: MissionProgress, args: any) => void;
     };
   };
 } = {
-  WorkshopExBonus: {
+  CompleteStageAnyType: {
     "0": {
-      init: (mission) => {
+      init: (mission: MissionProgress) => {
         mission.progress.push({
           value: mission.value,
           target: parseInt(mission.param[1]),
         });
       },
-      update: (mission) => {
+      update: (mission: MissionProgress, args: BattleData) => {
+        const { completeState } = args;
+        if (completeState >= parseInt(mission.param[2])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+
+  StageWithEnemyKill: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: () => {},
+    },
+    "1": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: BattleData) => {
+        const { completeState } = args;
+        if (completeState >= 2) {
+          mission.progress[0].value += args.killCnt;
+        }
+      },
+    },
+    "2": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: BattleData) => {
+        const enemies = mission.param[2].split("^");
+        args.battleData.stats.enemyStats.forEach((stat) => {
+          if (
+            enemies.includes(stat.Key.enemyId) &&
+            stat.Key.counterType == "HP_ZERO"
+          ) {
+            mission.progress[0].value += stat.Value;
+          }
+        });
+      },
+    },
+    "3": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: () => {},
+    },
+    "5": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (
+        mission: MissionProgress,
+        args: BattleData & { stageId: string },
+      ) => {
+        const stages = mission.param[1].split("^");
+        if (stages.includes(args.stageId) && args.completeState >= 2) {
+          mission.progress[0].value += args.killCnt;
+        }
+      },
+    },
+    "6": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[3]),
+        });
+      },
+      update: (
+        mission: MissionProgress,
+        args: BattleData & { stageId: string },
+      ) => {
+        const stages = mission.param[1].split("^");
+        if (!stages.includes(args.stageId)) {
+          return;
+        }
+        if (args.completeState < parseInt(mission.param[3])) {
+          return;
+        }
+        if (args.killCnt >= parseInt(mission.param[2])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+
+  EnemyKillInAnyStage: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: BattleData) => {
+        if (args.completeState < parseInt(mission.param[2])) {
+          return;
+        }
+        mission.progress[0].value += args.killCnt;
+      },
+    },
+  },
+
+  StageWithAssistChar: {
+    "1": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: () => {
+        //TODO
+      },
+    },
+  },
+
+  UpgradeChar: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress) => {
+        mission.progress[0].value += 1;
+      },
+    },
+    "1": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { char: PlayerCharacter }) => {
+        if (args.char.evolvePhase < parseInt(mission.param[2])) {
+          return;
+        }
+        if (args.char.level >= parseInt(mission.param[3])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    "2": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { exp: number }) => {
+        mission.progress[0].value += args.exp;
+      },
+    },
+  },
+
+  ReceiveSocialPoint: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { socialPoint: number }) => {
+        mission.progress[0].value += args.socialPoint;
+      },
+    },
+    "1": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress) => {
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+
+  BuyShopItem: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { type: string }) => {
+        const shops = "LS^HS^ES".split("^");
+        if (shops.includes(args.type)) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    "1": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { type: string }) => {
+        if (args.type == "SOCIAL") {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    "3": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (
+        mission: MissionProgress,
+        args: { type: string; socialPoint: number },
+      ) => {
+        if (args.type != "SOCIAL") {
+          return;
+        }
+        mission.progress[0].value += args.socialPoint;
+      },
+    },
+  },
+
+  NormalGacha: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (mission: MissionProgress) => {
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+
+  GainIntimacy: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { count: number }) => {
+        mission.progress[0].value += args.count;
+      },
+    },
+  },
+  ManufactureItem: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { item: ItemBundle }) => {
+        if (args.item.id == mission.param[2]) {
+          mission.progress[0].value += args.item.count;
+        }
+      },
+    },
+    "1": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { count: number }) => {
+        mission.progress[0].value += args.count;
+      },
+    },
+    "2": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { item: ItemBundle }) => {
+        const items = mission.param[2].split("#");
+        if (items.includes(args.item.id)) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+  DeliveryOrder: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { count: number }) => {
+        mission.progress[0].value += args.count;
+      },
+    },
+    "1": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { count: number }) => {
+        mission.progress[0].value += args.count;
+      },
+    },
+  },
+  RecoverCharBaseAp: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { count: number }) => {
+        mission.progress[0].value += args.count;
+      },
+    },
+  },
+  VisitBuilding: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress) => {
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+  UpgradeSkill: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress) => {
+        mission.progress[0].value += 1;
+      },
+    },
+    "1": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { targetLevel: number }) => {
+        mission.progress[0].value += args.targetLevel;
+      },
+    },
+  },
+  SquadFormation: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (mission: MissionProgress) => {
+        const flag = false;
+        //TODO
+        mission.progress[0].value += flag ? 1 : 0;
+      },
+    },
+  },
+  CompleteStage: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (
+        mission: MissionProgress,
+        args: BattleData & { stageId: string },
+      ) => {
+        const stages = mission.param[1].split("^");
+        if (!stages.includes(args.stageId)) {
+          return;
+        }
+        if (args.completeState >= 2) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    "2": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (mission: MissionProgress, args: BattleData) => {
+        if (args.completeState >= parseInt(mission.param[1])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    "3": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (
+        mission: MissionProgress,
+        args: BattleData & { isPractice: number },
+      ) => {
+        if (!args.isPractice) {
+          return;
+        }
+        if (args.completeState >= 2) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    "4": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (
+        mission: MissionProgress,
+        args: BattleData & { stageId: string },
+      ) => {
+        if (!args.stageId.includes("#f#")) {
+          return;
+        }
+        if (args.completeState >= 3) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+  UpgradePlayer: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { level: number }) => {
+        mission.progress[0].value = args.level;
+      },
+    },
+  },
+  CompleteAnyStage: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (
+        mission: MissionProgress,
+        args: BattleData & { stageId: string },
+      ) => {
+        const stages = mission.param[1].split("^");
+        if (!stages.includes(args.stageId)) {
+          return;
+        }
+        if (args.completeState >= parseInt(mission.param[2])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+  HasChar: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { char: PlayerCharacter }) => {
+        const data = excel.CharacterTable[args.char.charId];
+        if (args.char.evolvePhase < parseInt(mission.param[2])) {
+          return;
+        }
+        if (args.char.level < parseInt(mission.param[3])) {
+          return;
+        }
+        if (
+          data.rarity.slice(-1) != mission.param[4] &&
+          mission.param[4] != "-1"
+        ) {
+          return;
+        }
+        if (data.profession != mission.param[5] && mission.param[5] != "ALL") {
+          return;
+        }
+        mission.progress[0].value += 1;
+      },
+    },
+    "1": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { char: PlayerCharacter }) => {
+        const data = excel.CharacterTable[args.char.charId];
+        if (args.char.evolvePhase < parseInt(mission.param[2])) {
+          return;
+        }
+        if (args.char.level < parseInt(mission.param[3])) {
+          return;
+        }
+        if (
+          data.rarity.slice(-1) != mission.param[4] &&
+          mission.param[4] != "-1"
+        ) {
+          return;
+        }
+        if (data.profession != mission.param[5] && mission.param[5] != "ALL") {
+          return;
+        }
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+  HasEquipment: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[3]),
+        });
+      },
+      update: (mission: MissionProgress, args: { char: PlayerCharacter }) => {
+        const data = excel.CharacterTable[args.char.charId];
+        const rarities = mission.param[1].split("^");
+        const levels = mission.param[2].split("^");
+        if (args.char.evolvePhase < 2) {
+          return;
+        }
+        if (!rarities.includes(data.rarity.slice(-1))) {
+          return;
+        }
+        Object.values(args.char.equip!).forEach((e) => {
+          if (levels.includes(e.level.toString())) {
+            mission.progress[0].value += 1;
+          }
+        });
+      },
+    },
+  },
+  EvolveChar: {
+    "1": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { char: PlayerCharacter }) => {
+        if (args.char.evolvePhase >= parseInt(mission.param[2])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+  DiyComfort: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: () => {
+        //TODO
+      },
+    },
+    "1": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: () => {
+        //TODO
+      },
+    },
+  },
+  HasRoom: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: () => {
+        //TODO
+      },
+    },
+  },
+  WorkshopSynthesis: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { item: ItemBundle }) => {
+        if (args.item.id == mission.param[2]) {
+          mission.progress[0].value += args.item.count;
+        }
+      },
+    },
+  },
+  UpgradeSpecialization: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress) => {
+        mission.progress[0].value += 1;
+      },
+    },
+    "1": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission: MissionProgress, args: { targetLevel: number }) => {
+        if (args.targetLevel >= parseInt(mission.param[1])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+  BattleWithEnemyKill: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (
+        mission: MissionProgress,
+        args: BattleData & { stageId: string },
+      ) => {
+        const stages = mission.param[1].split("^");
+        if (!stages.includes(args.stageId)) {
+          return;
+        }
+        if (args.killCnt >= mission.progress[0].value) {
+          mission.progress[0].value = args.killCnt;
+        }
+      },
+    },
+  },
+  CharIntimacy: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { favorPoint: number }) => {
+        let percent: number = 0;
+        if (args.favorPoint == excel.FavorTable.maxFavor) {
+          percent = 200;
+        }
+        percent = excel.FavorTable.favorFrames.find((f, idx, table) => {
+          return (
+            args.favorPoint >= table[idx].level &&
+            args.favorPoint < table[idx + 1].level
+          );
+        })!.data.percent;
+        if (percent >= parseInt(mission.param[2])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+  CompleteBreakReward: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: () => {
+        //TODO
+      },
+    },
+  },
+  StartInfoShare: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress) => {
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+  EditBusinessCard: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission: MissionProgress) => {
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+  SetAssistCharList: {
+    "1": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress) => {
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+  ChangeSquadName: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress) => {
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+  StageWithReplay: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { isReplay: number }) => {
+        if (args.isReplay) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+  TakeOverReplay: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: BattleData) => {
+        if (args.battleData.stats.autoReplayCancelled) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+  CompleteCampaign: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (
+        mission: MissionProgress,
+        args: BattleData & { stageId: string },
+      ) => {
+        const stageType = excel.StageTable.stages[args.stageId].stageType;
+        if (args.completeState < 2) {
+          return;
+        }
+        if (stageType == "CAMPAIGN") {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+  SetBuildingAssist: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission: MissionProgress) => {
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+  BoostPotential: {
+    "1": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress, args: { targetRank: number }) => {
+        if (args.targetRank >= parseInt(mission.param[2])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+  WorkshopExBonus: {
+    "0": {
+      init: (mission: MissionProgress) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission: MissionProgress) => {
         mission.progress[0].value += 1;
       },
     },
   },
   BoostNormalGacha: {
     "0": {
-      init: (mission) => {
+      init: (mission: MissionProgress) => {
         mission.progress.push({
           value: mission.value,
           target: parseInt(mission.param[1]),
         });
       },
-      update: (mission) => {
+      update: (mission: MissionProgress) => {
         mission.progress[0].value += 1;
       },
     },
   },
   CompleteMainStage: {
     "1": {
-      init: (mission) => {
+      init: (mission: MissionProgress) => {
         mission.progress.push({ value: mission.value, target: 1 });
       },
-      update: (mission, args: BattleData & { stageId: string }) => {
+      update: (
+        mission: MissionProgress,
+        args: BattleData & { stageId: string },
+      ) => {
         if (args.stageId != mission.param[1]) {
           return;
         }
@@ -1451,20 +1201,20 @@ export const MissionTemplates: {
   },
   SendClue: {
     "0": {
-      init: (mission) => {
+      init: (mission: MissionProgress) => {
         mission.progress.push({
           value: mission.value,
           target: parseInt(mission.param[1]),
         });
       },
-      update: (mission) => {
+      update: (mission: MissionProgress) => {
         mission.progress[0].value += 1;
       },
     },
   },
   GainTeamChar: {
     "0": {
-      init: (mission) => {
+      init: (mission: MissionProgress) => {
         mission.progress.push({ value: mission.value, target: 1 });
       },
       update: () => {
@@ -1474,10 +1224,10 @@ export const MissionTemplates: {
   },
   AccelerateOrder: {
     "0": {
-      init: (mission) => {
+      init: (mission: MissionProgress) => {
         mission.progress.push({ value: mission.value, target: 1 });
       },
-      update: (mission) => {
+      update: (mission: MissionProgress) => {
         mission.progress[0].value += 1;
       },
     },

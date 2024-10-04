@@ -81,8 +81,49 @@ export interface EventMap {
   "rlv2:fragment:lose": [string];
 
   //mission
-  CompleteStageAnyType: [any];
+  CompleteStageAnyType: [BattleData];
+  StageWithEnemyKill: [BattleData & { stageId: string }];
+  EnemyKillInAnyStage: [BattleData];
+  StageWithAssistChar: [];
+  UpgradeChar: [{ char?: PlayerCharacter; exp?: number }];
+  ReceiveSocialPoint: [{ socialPoint: number }];
+  BuyShopItem: [{ type: string; socialPoint?: number }];
+  NormalGacha: [];
+  GainIntimacy: [{ count: number }];
+  ManufactureItem: [{ item?: ItemBundle; count?: number }];
+  DeliveryOrder: [{ count: number }];
+  RecoverCharBaseAp: [{ count: number }];
+  VisitBuilding: [];
+  UpgradeSkill: [{ targetLevel: number }];
+  SquadFormation: [];
+  CompleteStage: [BattleData & { stageId: string }];
+  UpgradePlayer: [{ level: number }];
+  CompleteAnyStage: [BattleData & { stageId: string }];
+  HasChar: [{ char: PlayerCharacter }];
+  HasEquipment: [{ char: PlayerCharacter }];
+  EvolveChar: [{ char: PlayerCharacter }];
+  DiyComfort: [];
+  HasRoom: [];
+  WorkshopSynthesis: [{ item: ItemBundle }];
+  UpgradeSpecialization: [{ targetLevel: number }];
+  BattleWithEnemyKill: [BattleData & { stageId: string }];
+  CharIntimacy: [{ favorPoint: number }];
+  CompleteBreakReward: [];
+  StartInfoShare: [];
+  EditBusinessCard: [];
+  SetAssistCharList: [];
   ChangeSquadName: [];
+  StageWithReplay: [{ isReplay: number }];
+  TakeOverReplay: [BattleData];
+  CompleteCampaign: [BattleData & { stageId: string }];
+  SetBuildingAssist: [];
+  BoostPotential: [{ targetRank: number }];
+  WorkshopExBonus: [];
+  BoostNormalGacha: [];
+  CompleteMainStage: [BattleData & { stageId: string }];
+  SendClue: [];
+  GainTeamChar: [];
+  AccelerateOrder: [];
 }
 
 export class TypedEventEmitter extends EventEmitter<EventMap> {}

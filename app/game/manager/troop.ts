@@ -147,7 +147,7 @@ export class TroopManager {
       }
       this._trigger.emit("game:fix");
     }
-    this._trigger.emit("gainItems", items);
+    this._trigger.emit("items:get", items);
     const res = {
       charInstId: charInstId,
       charId: charId,
@@ -193,8 +193,8 @@ export class TroopManager {
     }
     //TODO
     expMats.push({ id: "4001", count: gold });
-    this._trigger.emit("useItems", expMats);
-    this._trigger.emit("UpgradeChar", {});
+    this._trigger.emit("items:use", expMats);
+    this._trigger.emit("UpgradeChar", { char, exp: expTotal });
   }
 
   async evolveChar(args: {
@@ -209,7 +209,7 @@ export class TroopManager {
     const goldCost =
       excel.GameDataConst.evolveGoldCost[rarity][args.destEvolvePhase];
     this._trigger.emit(
-      "useItems",
+      "items:use",
       evolveCost.concat([{ id: "4001", count: goldCost } as ItemBundle]),
     );
     char.evolvePhase = args.destEvolvePhase;
@@ -227,7 +227,7 @@ export class TroopManager {
     itemId: string;
     targetRank: number;
   }): Promise<void> {
-    this._trigger.emit("useItems", [{ id: args.itemId, count: 1 }]);
+    this._trigger.emit("items:use", [{ id: args.itemId, count: 1 }]);
     this.chars[args.instId].potentialRank = args.targetRank;
     this._trigger.emit("BoostPotential", { targetLevel: args.targetRank });
   }
@@ -246,7 +246,7 @@ export class TroopManager {
     const { instId, targetLevel } = args;
     const char = this.getCharacterByInstId(instId);
     this._trigger.emit(
-      "useItems",
+      "items:use",
       excel.CharacterTable[char.charId].allSkillLvlup[targetLevel - 2]
         .lvlUpCost as ItemBundle[],
     );
@@ -309,7 +309,7 @@ export class TroopManager {
       char.equip![args.equipId].locked = 0;
     }
     this._trigger.emit(
-      "useItems",
+      "items:use",
       excel.UniequipTable.equipDict[args.equipId].itemCost!["1"],
     );
     this._trigger.emit("HasEquipment", { char });
@@ -335,7 +335,7 @@ export class TroopManager {
     ) {
       items.push(...excel.UniequipTable.equipDict[args.equipId].itemCost![i]);
     }
-    this._trigger.emit("useItems", items);
+    this._trigger.emit("items:use", items);
     this._trigger.emit("HasEquipment", { char });
   }
 
@@ -387,7 +387,7 @@ export class TroopManager {
     const items: ItemBundle[] =
       excel.CharMetaTable.spCharMissions[args.charId][args.missionId].rewards;
     this.charMission[args.charId][args.missionId] = 2;
-    this._trigger.emit("gainItems", items);
+    this._trigger.emit("items:get", items);
     return items;
   }
 
@@ -401,7 +401,7 @@ export class TroopManager {
     char.level = 1;
     char.exp = 0;
     this.chars[args.instId].skinId = char.charId + "#2";
-    this._trigger.emit("useItems", [
+    this._trigger.emit("items:use", [
       { id: args.itemId, count: 1, instId: args.instId },
     ]);
   }
@@ -415,7 +415,7 @@ export class TroopManager {
     const rarity = parseInt(excel.CharacterTable[char.charId].rarity.slice(-1));
     char.level = excel.GameDataConst.maxLevel[rarity - 1][char.evolvePhase];
     char.exp = 0;
-    this._trigger.emit("useItems", [
+    this._trigger.emit("items:use", [
       { id: args.itemId, count: 1, instId: args.instId },
     ]);
   }
@@ -428,7 +428,7 @@ export class TroopManager {
   }) {
     const char = this.getCharacterByInstId(args.charInstId);
     char.skills![args.skillIndex].specializeLevel = 3;
-    this._trigger.emit("useItems", [
+    this._trigger.emit("items:use", [
       { id: args.itemId, count: 1, instId: args.instId },
     ]);
   }
@@ -449,49 +449,55 @@ export class TroopManager {
     this._trigger.emit("ChangeSquadName");
   }
 
-  async decomposePotentialItem(
-    charInstIdList: string[],
-  ): Promise<ItemBundle[]> {
+  async decomposePotentialItem(args: {
+    charInstIdList: string[];
+  }): Promise<ItemBundle[]> {
     const costs: ItemBundle[] = [];
-    const items: ItemBundle[] = charInstIdList.reduce((acc, charInstId) => {
-      const char = this.getCharacterByInstId(parseInt(charInstId));
-      const rarity = parseInt(
-        excel.CharacterTable[char.charId].rarity.slice(-1),
-      );
-      const potentialItemId =
-        excel.CharacterTable[char.charId].potentialItemId!;
-      const count = this._player._playerdata.inventory[potentialItemId];
-      costs.push({ id: potentialItemId, count: count });
-      const item =
-        excel.GachaTable.potentialMaterialConverter.items[rarity - 1];
-      acc.push({ id: item.id, count: item.count * count });
-      return acc;
-    }, [] as ItemBundle[]);
-    this._trigger.emit("useItems", costs);
-    this._trigger.emit("gainItems", items);
+    const items: ItemBundle[] = args.charInstIdList.reduce(
+      (acc, charInstId) => {
+        const char = this.getCharacterByInstId(parseInt(charInstId));
+        const rarity = parseInt(
+          excel.CharacterTable[char.charId].rarity.slice(-1),
+        );
+        const potentialItemId =
+          excel.CharacterTable[char.charId].potentialItemId!;
+        const count = this._player._playerdata.inventory[potentialItemId];
+        costs.push({ id: potentialItemId, count: count });
+        const item =
+          excel.GachaTable.potentialMaterialConverter.items[rarity - 1];
+        acc.push({ id: item.id, count: item.count * count });
+        return acc;
+      },
+      [] as ItemBundle[],
+    );
+    this._trigger.emit("items:use", costs);
+    this._trigger.emit("items:get", items);
     return items;
   }
 
-  async decomposeClassicPotentialItem(
-    charInstIdList: string[],
-  ): Promise<ItemBundle[]> {
+  async decomposeClassicPotentialItem(args: {
+    charInstIdList: string[];
+  }): Promise<ItemBundle[]> {
     const costs: ItemBundle[] = [];
-    const items: ItemBundle[] = charInstIdList.reduce((acc, charInstId) => {
-      const char = this.getCharacterByInstId(parseInt(charInstId));
-      const rarity = parseInt(
-        excel.CharacterTable[char.charId].rarity.slice(-1),
-      );
-      const potentialItemId =
-        excel.CharacterTable[char.charId].classicPotentialItemId!;
-      const count = this._player._playerdata.inventory[potentialItemId];
-      costs.push({ id: potentialItemId, count: count });
-      const item =
-        excel.GachaTable.classicPotentialMaterialConverter.items[rarity - 1];
-      acc.push({ id: item.id, count: item.count * count });
-      return acc;
-    }, [] as ItemBundle[]);
-    this._trigger.emit("useItems", costs);
-    this._trigger.emit("gainItems", items);
+    const items: ItemBundle[] = args.charInstIdList.reduce(
+      (acc, charInstId) => {
+        const char = this.getCharacterByInstId(parseInt(charInstId));
+        const rarity = parseInt(
+          excel.CharacterTable[char.charId].rarity.slice(-1),
+        );
+        const potentialItemId =
+          excel.CharacterTable[char.charId].classicPotentialItemId!;
+        const count = this._player._playerdata.inventory[potentialItemId];
+        costs.push({ id: potentialItemId, count: count });
+        const item =
+          excel.GachaTable.classicPotentialMaterialConverter.items[rarity - 1];
+        acc.push({ id: item.id, count: item.count * count });
+        return acc;
+      },
+      [] as ItemBundle[],
+    );
+    this._trigger.emit("items:use", costs);
+    this._trigger.emit("items:get", items);
     return items;
   }
 

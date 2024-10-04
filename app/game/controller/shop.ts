@@ -79,10 +79,10 @@ export class ShopController {
         draft.shop.LS.info.push({ id: goodId, count });
       }
     });
-    this._trigger.emit("useItems", [
+    this._trigger.emit("items:use", [
       { id: "4005", count: good!.price * count },
     ]);
-    this._trigger.emit("gainItems", [item]);
+    this._trigger.emit("items:get", [item]);
     return [item];
   }
 
@@ -119,10 +119,10 @@ export class ShopController {
       }
     });
 
-    this._trigger.emit("useItems", [
+    this._trigger.emit("items:use", [
       { id: "4004", count: good!.price * count },
     ]);
-    this._trigger.emit("gainItems", [item]);
+    this._trigger.emit("items:get", [item]);
     return [item];
   }
 
@@ -142,10 +142,10 @@ export class ShopController {
         draft.shop.ES.info.push({ id: good!.goodId, count: count });
       }
     });
-    this._trigger.emit("useItems", [
+    this._trigger.emit("items:use", [
       { id: "4006", count: good!.price * count },
     ]);
-    this._trigger.emit("gainItems", [item]);
+    this._trigger.emit("items:get", [item]);
     return [item];
   }
 
@@ -155,12 +155,13 @@ export class ShopController {
       (g) => g.goodId === goodId,
     );
     const item = { id: good!.skinId, count: 1, type: "CHAR_SKIN" };
-    this._trigger.emit("useItems", [{ id: "4002", count: good!.price }]);
-    this._trigger.emit("gainItems", [item]);
+    this._trigger.emit("items:use", [{ id: "4002", count: good!.price }]);
+    this._trigger.emit("items:get", [item]);
   }
 
   async buyCashGood(args: { goodId: string }): Promise<void> {
     const { goodId } = args;
+    console.log(goodId);
   }
 
   async buyEPGSGood(args: {
@@ -180,10 +181,10 @@ export class ShopController {
       }
     });
 
-    this._trigger.emit("useItems", [
+    this._trigger.emit("items:use", [
       { id: "EPGS_COIN", count: good!.price * count },
     ]);
-    this._trigger.emit("gainItems", [item]);
+    this._trigger.emit("items:get", [item]);
     return [item];
   }
 
@@ -204,10 +205,10 @@ export class ShopController {
       }
     });
 
-    this._trigger.emit("useItems", [
+    this._trigger.emit("items:use", [
       { id: "REP_COIN", count: good!.price * count },
     ]);
-    this._trigger.emit("gainItems", [item]);
+    this._trigger.emit("items:get", [item]);
     return [item];
   }
 
@@ -246,10 +247,10 @@ export class ShopController {
       }
     });
 
-    this._trigger.emit("useItems", [
+    this._trigger.emit("items:use", [
       { id: "4004", count: good!.price * count },
     ]);
-    this._trigger.emit("gainItems", [item]);
+    this._trigger.emit("items:get", [item]);
     return [item];
   }
 
@@ -262,11 +263,11 @@ export class ShopController {
       (g) => g.goodId === goodId,
     );
     const item = { id: good!.item.id, count: good!.item.count * count };
-    this._trigger.emit("useItems", [
+    this._trigger.emit("items:use", [
       { id: "LMTGS_COIN", count: good!.price.count * count },
     ]);
     //TODO
-    this._trigger.emit("gainItems", [item]);
+    this._trigger.emit("items:get", [item]);
     return [item];
   }
 }

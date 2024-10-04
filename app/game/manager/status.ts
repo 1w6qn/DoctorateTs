@@ -90,16 +90,18 @@ export class StatusManager {
   }
 
   async buyAp() {
-    this._trigger.emit("useItems", [{ id: "", type: "DIAMOND", count: 1 }]);
-    this._trigger.emit("gainItems", [
+    this._trigger.emit("items:use", [{ id: "", type: "DIAMOND", count: 1 }]);
+    this._trigger.emit("items:get", [
       { id: "", type: "AP_GAMEPLAY", count: this.status.maxAp },
     ]);
   }
 
   async exchangeDiamondShard(args: { count: number }) {
     const { count } = args;
-    this._trigger.emit("useItems", [{ id: "", type: "DIAMOND", count: count }]);
-    this._trigger.emit("gainItems", [
+    this._trigger.emit("items:use", [
+      { id: "", type: "DIAMOND", count: count },
+    ]);
+    this._trigger.emit("items:get", [
       {
         id: "",
         type: "DIAMOND_SHD",
@@ -113,7 +115,7 @@ export class StatusManager {
     await this._player.update(async (draft) => {
       draft.collectionReward.team[rewardId] = 1;
     });
-    this._trigger.emit("gainItems", [
+    this._trigger.emit("items:get", [
       excel.HandbookInfoTable.teamMissionList[rewardId].item,
     ]);
   }

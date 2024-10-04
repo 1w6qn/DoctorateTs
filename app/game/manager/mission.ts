@@ -106,8 +106,8 @@ export class MissionManager {
       case "DAILY":
         this.missionRewards.dailyPoint +=
           excel.MissionTable.missions[missionId].periodicalPoint;
-        Object.entries(this.missionRewards.rewards["DAILY"]).reduce(
-          (acc, [k, v]) => {
+        Object.entries(this.missionRewards.rewards["DAILY"]).forEach(
+          ([k, v]) => {
             if (
               v == 0 &&
               this.missionRewards.dailyPoint >=
@@ -119,9 +119,7 @@ export class MissionManager {
               //console.log(items)
               this.missionRewards.rewards["DAILY"][k] = 1;
             }
-            return 0;
           },
-          0,
         );
         break;
       case "WEEKLY":
@@ -131,7 +129,7 @@ export class MissionManager {
       default:
         break;
     }
-    this._trigger.emit("gainItems", items);
+    this._trigger.emit("items:get", items);
     return items;
   }
 
@@ -139,7 +137,7 @@ export class MissionManager {
     const { missionGroupId } = args;
     const rewards = excel.MissionTable.missionGroups[missionGroupId].rewards;
     if (rewards) {
-      this._trigger.emit("gainItems", rewards);
+      this._trigger.emit("items:get", rewards);
     }
     this.missionGroups[missionGroupId] = 1;
   }
@@ -179,8 +177,6 @@ export class MissionManager {
   }
 }
 export class MissionProgress implements MissionPlayerState {
-  [key: string]: any;
-
   progress: MissionCalcState[];
   missionId: string;
   _trigger: TypedEventEmitter;
@@ -277,10 +273,10 @@ export class MissionProgress implements MissionPlayerState {
 }
 
 export const MissionTemplates: {
-  [key in keyof Partial<EventMap>]: {
+  [T in keyof Partial<EventMap>]: {
     [p: string]: {
       init: (mission: MissionProgress) => void;
-      update: (mission: MissionProgress, args: any) => void;
+      update: (mission: MissionProgress, ...args: EventMap[T]) => void;
     };
   };
 } = {

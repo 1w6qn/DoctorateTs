@@ -13,10 +13,10 @@ export class InventoryManager {
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
-    this._trigger.on("useItems", (items: ItemBundle[]) =>
+    this._trigger.on("items:use", (items: ItemBundle[]) =>
       items.forEach((item) => this._useItem(item)),
     );
-    this._trigger.on("gainItems", (items: ItemBundle[]) =>
+    this._trigger.on("items:get", (items: ItemBundle[]) =>
       items.forEach((item) => this.gainItem(item)),
     );
   }
@@ -59,7 +59,7 @@ export class InventoryManager {
         funcs[item.type!](item, draft);
       });
     } else {
-      this._trigger.emit("gainItems", [
+      this._trigger.emit("items:get", [
         Object.assign({}, item, { count: -item.count }),
       ]);
     }
@@ -94,7 +94,7 @@ export class InventoryManager {
               draft.status.exp -= exp;
               draft.status.maxAp =
                 excel.GameDataConst.playerApMap[draft.status.level - 1];
-              this._trigger.emit("gainItems", [
+              this._trigger.emit("items:get", [
                 {
                   id: "",
                   type: "AP_GAMEPLAY",

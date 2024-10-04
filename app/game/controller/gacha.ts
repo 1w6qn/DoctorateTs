@@ -38,7 +38,7 @@ export class GachaController {
   }): Promise<GachaResult & { logInfo: { beforeNonHitCnt: number } }> {
     const costs: ItemBundle[] = [];
     //TODO
-    this._trigger.emit("useItems", costs);
+    this._trigger.emit("items:use", costs);
     return await this.doAdvancedGacha(args);
   }
 
@@ -53,7 +53,7 @@ export class GachaController {
     for (let i = 0; i < 10; i++) {
       res.push(await this.doAdvancedGacha(args));
     }
-    this._trigger.emit("useItems", costs);
+    this._trigger.emit("items:use", costs);
     return res;
   }
 

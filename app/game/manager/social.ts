@@ -83,7 +83,7 @@ export class SocialManager {
         const point =
           draft.social.yesterdayReward.assistAmount +
           draft.social.yesterdayReward.comfortAmount;
-        this._trigger.emit("gainItems", [
+        this._trigger.emit("items:get", [
           { id: "", type: "SOCIAL_PT", count: point },
         ]);
         draft.social.yesterdayReward.canReceive = 0;

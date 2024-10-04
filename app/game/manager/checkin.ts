@@ -74,7 +74,7 @@ export class CheckInManager {
       }
       draft.checkIn.checkInHistory.push(0);
     });
-    this._trigger.emit("gainItems", subscriptionRewards.concat(signInRewards));
+    this._trigger.emit("items:get", subscriptionRewards.concat(signInRewards));
     return { signInRewards, subscriptionRewards };
   }
 }

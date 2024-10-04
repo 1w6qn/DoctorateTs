@@ -31,7 +31,7 @@ router.post("/bindNickName", async (req, res) => {
 router.post("/useRenameCard", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   await player.status.bindNickName(req.body);
-  player._trigger.emit("useItems", [
+  player._trigger.emit("items:use", [
     { id: req.body!.itemId, count: 1, instId: req.body!.instId } as ItemBundle,
   ]);
   res.send(player.delta);
@@ -58,7 +58,7 @@ router.post("/useItem", async (req, res) => {
     count: req.body!.count,
     instId: req.body!.instId,
   } as ItemBundle;
-  player._trigger.emit("useItems", [item]);
+  player._trigger.emit("items:use", [item]);
 
   res.send(player.delta);
 });
@@ -70,7 +70,7 @@ router.post("/useItems", async (req, res) => {
     instId: number;
   }[] = req.body!.items;
   player._trigger.emit(
-    "useItems",
+    "items:use",
     items.map((item) => {
       return {
         id: item.itemId,

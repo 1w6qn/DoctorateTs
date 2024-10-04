@@ -7,14 +7,14 @@ const router = Router();
 router.post("/decomposePotentialItem", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   res.send({
-    items: player.troop.decomposePotentialItem(req.body!.charInstIdList),
+    items: await player.troop.decomposePotentialItem(req.body),
     ...player.delta,
   });
 });
 router.post("/decomposeClassicPotentialItem", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   res.send({
-    items: player.troop.decomposeClassicPotentialItem(req.body!.charInstIdList),
+    items: await player.troop.decomposeClassicPotentialItem(req.body),
     ...player.delta,
   });
 });
@@ -129,6 +129,7 @@ router.post("/buyExtraGood", async (req, res) => {
 });
 router.post("/buyCashGood", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
+  await player.shop.buyCashGood(req.body);
   res.send({
     result: 0,
     ...player.delta,

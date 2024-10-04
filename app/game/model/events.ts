@@ -10,7 +10,7 @@ import {
 import { PlayerCharacter } from "@game/model/character";
 import { RoguelikeV2Controller } from "@game/controller/rlv2";
 
-export interface EventMap {
+export type EventMap = {
   save: [];
   "game:fix": [];
   "status:refresh:time": [];
@@ -20,8 +20,8 @@ export interface EventMap {
   "stage:update": [];
   "char:get": [string, { from: string }?, ((res: GachaResult) => void)?];
   "char:init": [PlayerCharacter];
-  useItems: [ItemBundle[]];
-  gainItems: [ItemBundle[]];
+  "items:use": [ItemBundle[]];
+  "items:get": [ItemBundle[]];
   "player:levelUp": [];
   "building:char:init": [PlayerCharacter];
   "save:battle": [string, { stageId: string }];
@@ -92,18 +92,18 @@ export interface EventMap {
   StageWithEnemyKill: [BattleData & { stageId: string }];
   EnemyKillInAnyStage: [BattleData];
   StageWithAssistChar: [];
-  UpgradeChar: [{ char?: PlayerCharacter; exp?: number }];
+  UpgradeChar: [{ char: PlayerCharacter; exp: number }];
   ReceiveSocialPoint: [{ socialPoint: number }];
-  BuyShopItem: [{ type: string; socialPoint?: number }];
+  BuyShopItem: [{ type: string; socialPoint: number }];
   NormalGacha: [];
   GainIntimacy: [{ count: number }];
-  ManufactureItem: [{ item?: ItemBundle; count?: number }];
+  ManufactureItem: [{ item: ItemBundle; count: number }];
   DeliveryOrder: [{ count: number }];
   RecoverCharBaseAp: [{ count: number }];
   VisitBuilding: [];
   UpgradeSkill: [{ targetLevel: number }];
   SquadFormation: [];
-  CompleteStage: [BattleData & { stageId: string }];
+  CompleteStage: [BattleData & { stageId: string; isPractice: number }];
   UpgradePlayer: [{ level: number }];
   CompleteAnyStage: [BattleData & { stageId: string }];
   HasChar: [{ char: PlayerCharacter }];
@@ -131,6 +131,6 @@ export interface EventMap {
   SendClue: [];
   GainTeamChar: [];
   AccelerateOrder: [];
-}
+};
 
 export class TypedEventEmitter extends EventEmitter<EventMap> {}

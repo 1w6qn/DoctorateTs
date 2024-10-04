@@ -22,7 +22,7 @@ export class StoryreviewManager {
         rc: 0,
       });
     });
-    this._trigger.emit("useItems", [{ id: "STORY_REVIEW_COIN", count: 1 }]);
+    this._trigger.emit("items:use", [{ id: "STORY_REVIEW_COIN", count: 1 }]);
   }
 
   async readStory(args: { storyId: string }) {
@@ -40,7 +40,7 @@ export class StoryreviewManager {
       draft.storyreview.groups[groupId].rts = now();
     });
     const items = excel.StoryReviewTable[groupId].rewards!;
-    this._trigger.emit("gainItems", items);
+    this._trigger.emit("items:get", items);
     return items;
   }
 
@@ -61,7 +61,7 @@ export class StoryreviewManager {
       rewardIdList.includes(reward.trialRewardId),
     );
     const items = rewardList.map((reward) => reward.item);
-    this._trigger.emit("gainItems", items);
+    this._trigger.emit("items:get", items);
     await this._player.update(async (draft) => {
       draft.storyreview.groups[groupId].trailRewards?.push(...rewardIdList);
     });

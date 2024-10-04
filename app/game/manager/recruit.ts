@@ -70,7 +70,7 @@ export class RecruitManager {
         tags: await RecruitTools.refreshTagList(),
       };
     });
-    this._trigger.emit("useItems", [
+    this._trigger.emit("items:use", [
       { id: "7001", count: 1, type: "TKT_RECRUIT" },
     ]);
     this._trigger.emit("NormalGacha");

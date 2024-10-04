@@ -65,12 +65,12 @@ export class BattleManager {
       args.data,
       this._playerdata.pushFlags.status,
     );
-    const stageId = accountManager.getBattleInfo(
+    const battleInfo = accountManager.getBattleInfo(
       this._playerdata.status.uid,
       battleData.battleId,
-    )?.stageId;
+    );
     this._trigger.emit("CompleteStageAnyType", battleData);
-    this._trigger.emit("CompleteStage", { ...battleData, stageId: stageId });
+    this._trigger.emit("CompleteStage", { ...battleData, ...battleInfo });
     return {
       result: 0,
       apFailReturn: 0,

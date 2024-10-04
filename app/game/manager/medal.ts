@@ -37,7 +37,7 @@ export class MedalManager implements PlayerMedal {
       (m) => m.groupId == args.group,
     )!.itemList;
     this.medals[args.medalId].rts = now();
-    this._trigger.emit("gainItems", items);
+    this._trigger.emit("items:get", items);
     return items;
   }
 

@@ -3,11 +3,12 @@ import { PlayerDataManager } from "./PlayerDataManager";
 import { readJson } from "@utils/file";
 import { writeFile } from "fs/promises";
 import { EventEmitter } from "events";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class AccountManager {
   data!: { [key: string]: PlayerDataManager };
   configs!: { [key: string]: UserConfig };
-  _trigger!: EventEmitter;
+  _trigger!: TypedEventEmitter;
 
   constructor() {}
 

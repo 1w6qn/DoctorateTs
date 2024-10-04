@@ -1,13 +1,13 @@
-import { EventEmitter } from "events";
 import { RoguelikeV2Controller } from "../rlv2";
 import { BattleData } from "@game/model/battle";
 import { decryptBattleData } from "@utils/crypt";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeBattleManager {
   _player: RoguelikeV2Controller;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
+  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
     this._trigger.on("rlv2:battle:start", this.start.bind(this));

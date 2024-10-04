@@ -1,4 +1,3 @@
-import EventEmitter from "events";
 import { PlayerGacha } from "../model/playerdata";
 import { GachaResult } from "../model/gacha";
 import {
@@ -11,13 +10,14 @@ import { accountManager } from "../manager/AccountManger";
 import { ItemBundle } from "@excel/character_table";
 import { randomChoice, randomChoices } from "@utils/random";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class GachaController {
   _table: GachaDetailTable;
   _player: PlayerDataManager;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(player: PlayerDataManager, _trigger: EventEmitter) {
+  constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._table = excel.GachaDetailTable;
     this._player = player;
     this._trigger = _trigger;
@@ -126,8 +126,17 @@ export class GachaController {
     const charId = await funcs[ruleType]();
     beforeNonHitCnt = rank != 5 ? beforeNonHitCnt + 1 : 0;
     accountManager.saveBeforeNonHitCnt(this.uid, ruleType, beforeNonHitCnt);
+    let result!: GachaResult;
+    this._trigger.emit(
+      "char:get",
+      charId,
+      { from: "NORMAL" },
+      (res: GachaResult) => {
+        result = res;
+      },
+    );
     return {
-      ...this._player.troop.gainChar(charId, extras),
+      ...result,
       logInfo: {
         beforeNonHitCnt: beforeNonHitCnt,
       },

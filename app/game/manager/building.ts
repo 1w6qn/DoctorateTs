@@ -1,13 +1,13 @@
-import EventEmitter from "events";
 import { PlayerCharacter } from "@game/model/character";
 import { now } from "@utils/time";
 import { PlayerDataManager } from "./PlayerDataManager";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class BuildingManager {
   _player: PlayerDataManager;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(player: PlayerDataManager, _trigger: EventEmitter) {
+  constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
     this._trigger.on("building:char:init", async (char: PlayerCharacter) => {

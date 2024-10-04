@@ -1,13 +1,12 @@
-import EventEmitter from "events";
-
 import { max } from "lodash";
 import { PlayerDataManager } from "./PlayerDataManager";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class DexNavManager {
   _player: PlayerDataManager;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(player: PlayerDataManager, _trigger: EventEmitter) {
+  constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
     this._trigger.on("char:get", this.charGetDexNavPrefix.bind(this));

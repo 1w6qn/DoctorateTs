@@ -1,6 +1,4 @@
-import EventEmitter from "events";
 import excel from "@excel/excel";
-import { TroopManager } from "./troop";
 import { GachaResult } from "../model/gacha";
 import {
   randomChoice,
@@ -10,20 +8,16 @@ import {
 } from "@utils/random";
 import { now } from "@utils/time";
 import { PlayerDataManager } from "./PlayerDataManager";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class RecruitManager {
   _player: PlayerDataManager;
-  _troop: TroopManager;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(
-    player: PlayerDataManager,
-    troop: TroopManager,
-    _trigger: EventEmitter,
-  ) {
+  constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
-    this._troop = troop;
     this._trigger = _trigger;
+    this._trigger.on("recruit:refresh:tags", this.refreshTags.bind(this));
   }
 
   async refreshTags(args: { slotId: number }): Promise<void> {
@@ -98,7 +92,16 @@ export class RecruitManager {
       }));
     });
     await this.cancel(args);
-    return this._troop.gainChar(char_id);
+    let result!: GachaResult;
+    this._trigger.emit(
+      "char:get",
+      char_id,
+      { from: "NORMAL" },
+      (res: GachaResult) => {
+        result = res;
+      },
+    );
+    return result;
   }
 
   async boost(args: { slotId: number; buy: number }) {

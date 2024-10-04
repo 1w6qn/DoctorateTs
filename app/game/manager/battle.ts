@@ -1,17 +1,17 @@
 import { accountManager } from "../manager/AccountManger";
 import { PlayerDataModel } from "../model/playerdata";
-import EventEmitter from "events";
 
 import excel from "@excel/excel";
 import { decryptBattleData } from "@utils/crypt";
 import { now } from "@utils/time";
 import { CommonStartBattleRequest } from "@game/model/battle";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class BattleManager {
   _playerdata: PlayerDataModel;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(_playerdata: PlayerDataModel, _trigger: EventEmitter) {
+  constructor(_playerdata: PlayerDataModel, _trigger: TypedEventEmitter) {
     this._playerdata = _playerdata;
     this._trigger = _trigger;
     this._trigger.on("battle:start", this.start.bind(this));

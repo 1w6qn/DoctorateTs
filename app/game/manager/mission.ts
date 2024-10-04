@@ -1,4 +1,3 @@
-import EventEmitter from "events";
 import {
   MissionCalcState,
   MissionDailyRewards,
@@ -11,14 +10,15 @@ import { ItemBundle } from "@excel/character_table";
 import { PlayerCharacter, PlayerSquad } from "../model/character";
 import { BattleData } from "../model/battle";
 import { now } from "@utils/time";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class MissionManager {
   missions: { [key: string]: MissionProgress[] };
   missionRewards: MissionDailyRewards;
   missionGroups: { [key: string]: number };
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(playerdata: PlayerDataModel, _trigger: EventEmitter) {
+  constructor(playerdata: PlayerDataModel, _trigger: TypedEventEmitter) {
     playerdata.mission.missions["ACTIVITY"] = {};
     this.missions = Object.fromEntries(
       Object.entries(playerdata.mission.missions).map(([type, v]) => [
@@ -183,7 +183,7 @@ export class MissionProgress implements MissionPlayerState {
 
   progress: MissionCalcState[];
   missionId: string;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
   _manager: MissionManager;
   param!: string[];
   value: number;
@@ -192,7 +192,7 @@ export class MissionProgress implements MissionPlayerState {
 
   constructor(
     missionId: string,
-    _trigger: EventEmitter,
+    _trigger: TypedEventEmitter,
     _manager: MissionManager,
     type: string,
     value = 0,
@@ -1393,128 +1393,6 @@ export class MissionProgress implements MissionPlayerState {
     funcs[this.param[0]][mode](args);
   }
 
-  WorkshopExBonus(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: {}) => {
-          this.progress[0].value += 1;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  BoostNormalGacha(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: {}) => {
-          this.progress[0].value += 1;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  CompleteMainStage(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "1": {
-        init: () => {
-          this.progress.push({ value: this.value, target: 1 });
-        },
-        update: (args: BattleData & { stageId: string }) => {
-          if (args.stageId != this.param[1]) {
-            return;
-          }
-          if (args.completeState >= 2) {
-            this.progress[0].value += 1;
-          }
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  SendClue(args: { completeState: number }, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({
-            value: this.value,
-            target: parseInt(this.param[1]),
-          });
-        },
-        update: (args: {}) => {
-          this.progress[0].value += 1;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  GainTeamChar(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({ value: this.value, target: 1 });
-        },
-        update: (args: {}) => {
-          //TODO
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
-  AccelerateOrder(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: { [key: string]: (args: any) => void } } = {
-      "0": {
-        init: () => {
-          this.progress.push({ value: this.value, target: 1 });
-        },
-        update: (args: {}) => {
-          this.progress[0].value += 1;
-        },
-      },
-    };
-    funcs[this.param[0]][mode](args);
-  }
-
   toJSON(): MissionPlayerState {
     return {
       state: this.state,
@@ -1522,3 +1400,86 @@ export class MissionProgress implements MissionPlayerState {
     };
   }
 }
+
+export const MissionTemplates: {
+  [key: string]: {
+    [key: string]: {
+      [key: string]: (mission: MissionProgress, args: any) => void;
+    };
+  };
+} = {
+  WorkshopExBonus: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission) => {
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+  BoostNormalGacha: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission) => {
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+  CompleteMainStage: {
+    "1": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId != mission.param[1]) {
+          return;
+        }
+        if (args.completeState >= 2) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+  SendClue: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission) => {
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+  GainTeamChar: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: () => {
+        //TODO
+      },
+    },
+  },
+  AccelerateOrder: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission) => {
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+};

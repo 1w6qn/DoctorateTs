@@ -1,4 +1,3 @@
-import { EventEmitter } from "events";
 import { PlayerDataModel } from "../model/playerdata";
 import { InventoryManager } from "./inventory";
 import { TroopManager } from "./troop";
@@ -21,6 +20,7 @@ import { FriendDataWithNameCard } from "@game/model/social";
 import { OpenServerManager } from "@game/manager/activity/openServer";
 import { createDraft, finishDraft, Patch, WritableDraft } from "immer";
 import { patchesToObject } from "@utils/delta";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class PlayerDataManager {
   dungeon: DungeonManager;
@@ -40,7 +40,7 @@ export class PlayerDataManager {
   building: BuildingManager;
   openServer: OpenServerManager;
   battle!: BattleManager;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
   _playerdata: PlayerDataModel;
   _changes: Patch[][];
   _inverseChanges: Patch[][];
@@ -48,7 +48,7 @@ export class PlayerDataManager {
     this._playerdata = playerdata;
     this._changes = [];
     this._inverseChanges = [];
-    this._trigger = new EventEmitter();
+    this._trigger = new TypedEventEmitter();
     this._trigger.setMaxListeners(10000);
     this.status = new StatusManager(this, this._trigger);
     this.inventory = new InventoryManager(this, this._trigger);
@@ -60,7 +60,7 @@ export class PlayerDataManager {
     this.mission = new MissionManager(playerdata, this._trigger);
     this.shop = new ShopController(this, this._trigger);
     this.battle = new BattleManager(this._playerdata, this._trigger);
-    this.recruit = new RecruitManager(this, this.troop, this._trigger);
+    this.recruit = new RecruitManager(this, this._trigger);
     this.rlv2 = new RoguelikeV2Controller(this, this._trigger);
     this.social = new SocialManager(this, this._trigger);
     this.gacha = new GachaController(this, this._trigger);
@@ -68,7 +68,7 @@ export class PlayerDataManager {
     this.building = new BuildingManager(this, this._trigger);
     this.openServer = new OpenServerManager(this, this._trigger);
     this._trigger.emit("game:fix");
-    this._trigger.emit(
+    this._trigger.on(
       "save:battle",
       async (battleId: string, info: BattleInfo) => {
         accountManager.saveBattleInfo(this.uid, battleId, info);

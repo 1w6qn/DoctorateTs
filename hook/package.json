@@ -1,0 +1,9 @@
+{
+  "name": "hook",
+  "version": "1.0.0",
+  "main": "main.js",
+  "license": "MIT",
+  "dependencies": {
+    "@types/frida-gum": "^18.7.1"
+  }
+}

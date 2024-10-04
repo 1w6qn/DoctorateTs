@@ -1,7 +1,7 @@
 import { PlayerRoguelikeV2 } from "../../model/rlv2";
-import EventEmitter from "events";
 import { RoguelikeV2Controller } from "../rlv2";
 import { omit } from "lodash";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeTroopManager
   implements PlayerRoguelikeV2.CurrentData.Troop
@@ -12,9 +12,9 @@ export class RoguelikeTroopManager
   expeditionDetails: { [key: string]: number };
   expeditionReturn: PlayerRoguelikeV2.CurrentData.ExpeditionReturn | null;
   _player: RoguelikeV2Controller;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
+  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
     this._index = 0;
     this._player = player;
     this.chars = {};

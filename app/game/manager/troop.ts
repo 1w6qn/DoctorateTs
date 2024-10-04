@@ -1,4 +1,3 @@
-import EventEmitter from "events";
 import {
   PlayerCharacter,
   PlayerHandBookAddon,
@@ -10,12 +9,13 @@ import { ItemBundle } from "@excel/character_table";
 import { GachaResult } from "../model/gacha";
 import { now } from "@utils/time";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class TroopManager {
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
   _player: PlayerDataManager;
 
-  constructor(player: PlayerDataManager, trigger: EventEmitter) {
+  constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = trigger;
     this._trigger.on("char:get", this.gainChar.bind(this));
@@ -56,10 +56,11 @@ export class TroopManager {
     return this.chars[instId] as PlayerCharacter;
   }
 
-  gainChar(
+  async gainChar(
     charId: string,
     args: { from: string; extraItem?: ItemBundle } = { from: "NORMAL" },
-  ): GachaResult {
+    callback?: (res: GachaResult) => void,
+  ): Promise<GachaResult> {
     const isNew = Object.values(this.chars).some(
       (char) => char.charId === charId,
     )
@@ -151,12 +152,14 @@ export class TroopManager {
       this._trigger.emit("game:fix");
     }
     this._trigger.emit("gainItems", items);
-    return {
+    const res = {
       charInstId: charInstId,
       charId: charId,
       isNew: isNew,
       itemGet: items,
     };
+    callback?.(res);
+    return res;
   }
 
   upgradeChar(args: { instId: number; expMats: ItemBundle[] }): void {
@@ -190,7 +193,8 @@ export class TroopManager {
       }
     }
     //TODO
-    this._trigger.emit("useItems", expMats.push({ id: "4001", count: gold }));
+    expMats.push({ id: "4001", count: gold });
+    this._trigger.emit("useItems", expMats);
     this._trigger.emit("UpgradeChar", {});
   }
 

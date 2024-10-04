@@ -1,14 +1,14 @@
-import EventEmitter from "events";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class StoryreviewManager {
   _player: PlayerDataManager;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(player: PlayerDataManager, _trigger: EventEmitter) {
+  constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
   }
@@ -39,7 +39,7 @@ export class StoryreviewManager {
     await this._player.update(async (draft) => {
       draft.storyreview.groups[groupId].rts = now();
     });
-    const items = excel.StoryReviewTable[groupId].rewards;
+    const items = excel.StoryReviewTable[groupId].rewards!;
     this._trigger.emit("gainItems", items);
     return items;
   }

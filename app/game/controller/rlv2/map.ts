@@ -1,4 +1,3 @@
-import { EventEmitter } from "events";
 import {
   PlayerRoguelikeNode,
   PlayerRoguelikeV2Dungeon,
@@ -6,13 +5,14 @@ import {
   RoguelikeBuff,
 } from "../../model/rlv2";
 import { RoguelikeV2Controller } from "../rlv2";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
   zones: { [key: string]: PlayerRoguelikeV2Zone };
   _player: RoguelikeV2Controller;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
+  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
     this.zones = {};
     this._player = player;
     this._trigger = _trigger;
@@ -32,18 +32,22 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
   generate(id: number) {
     this._player._buff.filterBuffs("zone_into_reward").forEach((b) => {
       if (b.blackboard[2].value == id) {
-        this._trigger.emit("rlv2:get:items", {
-          id: b.blackboard[0].valueStr,
-          count: b.blackboard[1].value,
-        });
+        this._trigger.emit("rlv2:get:items", [
+          {
+            id: b.blackboard[0].valueStr!,
+            count: b.blackboard[1].value!,
+          },
+        ]);
       }
     });
     this._player._buff.filterBuffs("zone_into_cost").forEach((b) => {
       if (b.blackboard[2].value == id) {
-        this._trigger.emit("rlv2:get:items", {
-          id: b.blackboard[0].valueStr,
-          count: -b.blackboard[1].value!,
-        });
+        this._trigger.emit("rlv2:get:items", [
+          {
+            id: b.blackboard[0].valueStr!,
+            count: -b.blackboard[1].value!,
+          },
+        ]);
       }
     });
     this._player._buff.filterBuffs("zone_into_buff").forEach((b) => {

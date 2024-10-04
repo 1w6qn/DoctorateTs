@@ -1,16 +1,16 @@
 import excel from "@excel/excel";
 import { RoguelikeItemBundle } from "../../model/rlv2";
-import EventEmitter from "events";
 import { RoguelikeV2Controller } from "../rlv2";
 import { randomChoice } from "@utils/random";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikePoolManager {
   _pools: { [id: string]: string[] };
 
   _player: RoguelikeV2Controller;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
+  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
     this._pools = {};
     this._player = player;
     this._trigger = _trigger;

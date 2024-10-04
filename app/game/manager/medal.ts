@@ -1,4 +1,3 @@
-import EventEmitter from "events";
 import {
   PlayerCampaign,
   PlayerDataModel,
@@ -12,13 +11,14 @@ import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
 import moment from "moment";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class MedalManager implements PlayerMedal {
   medals: { [key: string]: PlayerPerMedal };
   custom: PlayerMedalCustom;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(playerdata: PlayerDataModel, _trigger: EventEmitter) {
+  constructor(playerdata: PlayerDataModel, _trigger: TypedEventEmitter) {
     this.medals = playerdata.medal.medals;
     this.custom = playerdata.medal.custom;
     this._trigger = _trigger;
@@ -57,11 +57,11 @@ export class MedalProgress implements PlayerPerMedal {
   rts: number;
   fts: number;
   reward: string;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
   _v: number;
   param!: string[];
 
-  constructor(item: PlayerPerMedal, _trigger: EventEmitter) {
+  constructor(item: PlayerPerMedal, _trigger: TypedEventEmitter) {
     this.id = item.id;
     this.val = [[]];
     this.rts = item.rts;

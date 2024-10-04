@@ -1,9 +1,9 @@
-import { EventEmitter } from "events";
 import { PlayerRoguelikeV2, RoguelikeItemBundle } from "../../model/rlv2";
 import { RoguelikeRelicManager } from "./relic";
 import { RoguelikeRecruitManager } from "./recruit";
 import { RoguelikeV2Controller } from "../rlv2";
 import excel from "@excel/excel";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeInventoryManager
   implements PlayerRoguelikeV2.CurrentData.Inventory
@@ -12,9 +12,9 @@ export class RoguelikeInventoryManager
   consumable: {};
   exploreTool: {};
   _player: RoguelikeV2Controller;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
+  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
     this._relic = new RoguelikeRelicManager(player, _trigger);
     this._recruit = new RoguelikeRecruitManager(player, _trigger);
     this.trap = null;
@@ -97,7 +97,7 @@ export class RoguelikeInventoryManager
           this._player._status.property.exp -=
             map[this._player._status.property.level + 1].exp;
           this._trigger.emit(
-            "rlv2:levelup",
+            "rlv2:levelUp",
             this._player._status.property.level,
           );
           this._player._status.property.population.max +=
@@ -129,7 +129,7 @@ export class RoguelikeInventoryManager
         });
       },
       RELIC: (item: RoguelikeItemBundle) => {
-        this._trigger.emit("rlv2:relic:gain", item.id);
+        this._trigger.emit("rlv2:relic:gain", item);
       },
       BP_POINT: (item: RoguelikeItemBundle) => {
         const theme = this._player.current.game!.theme;
@@ -152,7 +152,7 @@ export class RoguelikeInventoryManager
           item.id,
           item.id.includes("fragment"),
         );
-        this._trigger.emit("rlv2:get:items", ro.id);
+        //this._trigger.emit("rlv2:get:items", ro.id);
         //this._trigger.emit("rlv2:pool:gain", item.id)
       },
       RL_BP: (item: RoguelikeItemBundle) => {},

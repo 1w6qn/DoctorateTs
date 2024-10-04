@@ -1,17 +1,17 @@
-import EventEmitter from "events";
 import excel from "@excel/excel";
 import { TroopManager } from "../../manager/troop";
 import { PlayerRoguelikeV2 } from "../../model/rlv2";
 import { RoguelikeV2Controller } from "../rlv2";
 import { now } from "@utils/time";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeRecruitManager {
   tickets: { [key: string]: PlayerRoguelikeV2.CurrentData.Recruit };
   _troop: TroopManager;
   _player: RoguelikeV2Controller;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
+  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
     this._index = 0;
     this.tickets = player.current.inventory?.recruit || {};
     this._troop = player._troop;
@@ -122,7 +122,7 @@ export class RoguelikeRecruitManager {
       (item) => item.instId == parseInt(optionId),
     ) as PlayerRoguelikeV2.CurrentData.RecruitChar;
 
-    this._trigger.emit("rlv2:char:get", this.tickets[id].result);
+    this._trigger.emit("rlv2:char:get", this.tickets[id].result!);
     this._trigger.emit("rlv2:get:items", [
       {
         id: "",

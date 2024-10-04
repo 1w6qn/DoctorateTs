@@ -1,16 +1,16 @@
 import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
 import { now } from "@utils/time";
-import EventEmitter from "events";
 import { PlayerDataModel } from "../model/playerdata";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { WritableDraft } from "immer";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class InventoryManager {
   _player: PlayerDataManager;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(player: PlayerDataManager, _trigger: EventEmitter) {
+  constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
     this._trigger.on("useItems", (items: ItemBundle[]) =>
@@ -101,7 +101,7 @@ export class InventoryManager {
                   count: draft.status.maxAp,
                 },
               ]);
-              this._trigger.emit("player:levelup");
+              this._trigger.emit("player:levelUp");
             }
           });
       },

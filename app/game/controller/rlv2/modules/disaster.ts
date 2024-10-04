@@ -1,16 +1,16 @@
-import EventEmitter from "events";
 import excel from "@excel/excel";
 import { randomChoice } from "@utils/random";
 import { PlayerRoguelikeV2, RoguelikeBuff } from "@game/model/rlv2";
 import { RoguelikeV2Controller } from "../../rlv2";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeDisasterManager {
   _curDisaster: string | null;
   _disperseStep: number;
   _player: RoguelikeV2Controller;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
+  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
     this._player = player;
     this._curDisaster = null;
     this._disperseStep = 0;

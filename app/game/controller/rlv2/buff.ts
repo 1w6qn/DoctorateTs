@@ -1,17 +1,17 @@
 import { Blackboard } from "@excel/character_table";
 import excel from "@excel/excel";
 import { RoguelikeBuff, RoguelikeItemBundle } from "../../model/rlv2";
-import EventEmitter from "events";
 import { RoguelikeV2Controller } from "../rlv2";
 import { RoguelikePlayerStatusManager } from "./status";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeBuffManager {
   _player: RoguelikeV2Controller;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
   _buffs!: RoguelikeBuff[];
   _status: RoguelikePlayerStatusManager;
 
-  constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
+  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
     this._player = player;
     this._status = this._player._status;
     this._buffs = [];
@@ -53,7 +53,7 @@ export class RoguelikeBuffManager {
       } else if (arg.key == "item_cover_set") {
         this.item_cover_set(arg.blackboard);
       } else if (arg.key == "change_fragment_type_weight") {
-        this._trigger.emit("rlv2:fragment:change_type_weight", arg.blackboard);
+        this._trigger.emit("rlv2:fragment:change_type_weight", arg);
       }
     });
     this._buffs.push(...args);

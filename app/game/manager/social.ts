@@ -1,9 +1,9 @@
 import { PlayerFriendAssist } from "@game/model/character";
-import EventEmitter from "events";
 import { accountManager } from "./AccountManger";
 import { pick } from "lodash";
 import { FriendDataWithNameCard } from "@game/model/social";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { TypedEventEmitter } from "@game/model/events";
 
 enum FriendServiceType {
   SEARCH_FRIEND = 0,
@@ -19,9 +19,9 @@ enum FriendDealEnum {
 export class SocialManager {
   _player: PlayerDataManager;
   _uid: string;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(player: PlayerDataManager, _trigger: EventEmitter) {
+  constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._uid = player._playerdata.status.uid;
     this._trigger = _trigger;
@@ -84,7 +84,7 @@ export class SocialManager {
           draft.social.yesterdayReward.assistAmount +
           draft.social.yesterdayReward.comfortAmount;
         this._trigger.emit("gainItems", [
-          { id: "", type: "SOCIAL_PT", num: point },
+          { id: "", type: "SOCIAL_PT", count: point },
         ]);
         draft.social.yesterdayReward.canReceive = 0;
       }

@@ -1,14 +1,14 @@
-import EventEmitter from "events";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 import { checkBetween, now } from "@utils/time";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class CheckInManager {
   _player: PlayerDataManager;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(player: PlayerDataManager, _trigger: EventEmitter) {
+  constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
     this._trigger.on("refresh:monthly", this.monthlyRefresh.bind(this));

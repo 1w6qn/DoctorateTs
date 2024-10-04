@@ -9,24 +9,7 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "baseUrl": ".", // 基准目录，通常是项目根目录
-    "paths": {
-      "@excel/*": [
-        "app/excel/*"
-      ],
-      "@utils/*": [
-        "app/utils/*"
-      ],
-      "@game/*":[
-        "app/game/*"
-      ]
-    },
+    "paths": {},
     "forceConsistentCasingInFileNames": true
-  },
-  "include": [
-    "app/**/*",
-    "index.ts"
-  ],
-  "ts-node": {
-    "require": ["tsconfig-paths/register"]
- }
+  }
 }

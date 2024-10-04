@@ -1,4 +1,3 @@
-import EventEmitter from "events";
 import { NameCardMisc, PlayerStatus } from "../model/playerdata";
 import excel from "@excel/excel";
 import { checkNew, now } from "@utils/time";
@@ -6,12 +5,13 @@ import moment from "moment";
 import { AvatarInfo } from "@game/model/character";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { accountManager } from "@game/manager/AccountManger";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class StatusManager {
   _player: PlayerDataManager;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(player: PlayerDataManager, _trigger: EventEmitter) {
+  constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
     this._trigger.on("status:refresh:time", this.refreshTime.bind(this));

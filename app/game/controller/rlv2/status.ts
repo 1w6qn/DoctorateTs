@@ -1,9 +1,9 @@
-import { EventEmitter } from "events";
 import { PlayerRoguelikeV2 } from "../../model/rlv2";
 
 import { RoguelikeV2Controller } from "../rlv2";
 import excel from "@excel/excel";
 import { RoguelikeEventManager, RoguelikePendingEvent } from "./events";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikePlayerStatusManager
   implements PlayerRoguelikeV2.CurrentData.PlayerStatus
@@ -16,9 +16,9 @@ export class RoguelikePlayerStatusManager
   toEnding!: string;
   chgEnding!: boolean;
   _player: RoguelikeV2Controller;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
+  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
     this._player = player;
     this.init();
     this._pending = new RoguelikeEventManager(this._player, _trigger);

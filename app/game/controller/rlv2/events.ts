@@ -1,14 +1,14 @@
 import { PlayerRoguelikePendingEvent } from "../../model/rlv2";
 import { RoguelikeV2Controller } from "../rlv2";
-import EventEmitter from "events";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeEventManager {
   _index: number;
   _player: RoguelikeV2Controller;
   _pending: RoguelikePendingEvent[] = [];
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(_player: RoguelikeV2Controller, _trigger: EventEmitter) {
+  constructor(_player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
     this._index = 0;
     this._player = _player;
     this._pending = [];
@@ -26,7 +26,7 @@ export class RoguelikeEventManager {
 
   continue(): void {}
 
-  createEvent(type: string, args: {}): void {
+  createEvent(type: string, args: object): void {
     this._pending.push(
       new RoguelikePendingEvent(
         this._player,
@@ -72,11 +72,11 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
   type: string;
   content: PlayerRoguelikePendingEvent.Content;
   _player: RoguelikeV2Controller;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
   constructor(
     _player: RoguelikeV2Controller,
-    _trigger: EventEmitter,
+    _trigger: TypedEventEmitter,
     type: string,
     index: number,
     args: {},

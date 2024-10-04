@@ -1,8 +1,8 @@
 import excel from "@excel/excel";
 import { PlayerRoguelikeV2, RoguelikeBuff } from "@game/model/rlv2";
-import EventEmitter from "events";
 import { RoguelikeV2Controller } from "../../rlv2";
 import { now } from "@utils/time";
+import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeFragmentManager {
   index: number;
@@ -13,9 +13,9 @@ export class RoguelikeFragmentManager {
   _troopCarry: string[];
   _currInspiration: PlayerRoguelikeV2.CurrentData.Module.InventoryInspiration | null;
   _player: RoguelikeV2Controller;
-  _trigger: EventEmitter;
+  _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: EventEmitter) {
+  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
     this.index = 0;
     this.limitWeight = 0;
     this._fragments = player.current.module?.fragment?.fragments || {};
@@ -61,7 +61,7 @@ export class RoguelikeFragmentManager {
         }
       });
     });
-    this._trigger.on("rlv2:levelup", (targetLevel) => {
+    this._trigger.on("rlv2:levelUp", (targetLevel) => {
       const theme = this._player.current.game!.theme;
       this.limitWeight += excel.RoguelikeTopicTable.modules[theme].fragment
         ?.fragmentLevelData[targetLevel].weightUp as number;

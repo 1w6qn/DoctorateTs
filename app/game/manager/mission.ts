@@ -248,11 +248,14 @@ export class MissionProgress implements MissionPlayerState {
       throw new Error("template not implemented yet");
     }
     //TODO:infer from variable
-    const func = (args: any) => {
-      return MissionTemplates[template]![this.param[0]].update(this, args);
+    const func = (args: unknown) => {
+      return MissionTemplates[template]![this.param[0]].update(
+        this,
+        args as never,
+      );
     };
-    this._trigger.on(template, (args: any) => {
-      MissionTemplates[template]![this.param[0]].update(this, args);
+    this._trigger.on(template, (args: unknown) => {
+      MissionTemplates[template]![this.param[0]].update(this, args as never);
       //console.log(`[MissionManager] ${this.missionId} update ${this.progress[0].value}/${this.progress[0].target}`)
       if (this.progress[0].value >= this.progress[0].target!) {
         console.log(`[MissionManager] ${this.missionId} complete`);

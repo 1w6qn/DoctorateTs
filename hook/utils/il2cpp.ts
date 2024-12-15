@@ -1,4 +1,5 @@
 import { log } from "./logger";
+import "frida-il2cpp-bridge";
 
 export function instantiate(
   klass: Il2Cpp.Class,
@@ -120,6 +121,7 @@ export function traceFunc(
   });
 }
 
+/*
 export function dumpso(mod: Module) {
   const path =
     Il2Cpp.application.dataPath +
@@ -136,3 +138,4 @@ export function dumpso(mod: Module) {
   file.close();
   log("[1;36m[" + mod.name + "] 已导出到路径:[m [1;34m" + path + "[m");
 }
+*/

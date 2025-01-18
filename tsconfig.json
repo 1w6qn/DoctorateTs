@@ -24,7 +24,8 @@
   },
   "include": [
     "app/**/*",
-    "index.ts"
+    "index.ts",
+    "test.ts"
   ],
   "ts-node": {
     "require": ["tsconfig-paths/register"]

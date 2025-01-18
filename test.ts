@@ -33,6 +33,17 @@ const createProxyHandler = (baseUrl: string) => {
     const endpoint: string = (req.params.endpoint as unknown as string[]).join(
       "/",
     );
+
+    // 保存请求数据的代码
+    const requestData = {
+      method: req.method,
+      url: req.originalUrl,
+      headers: req.headers,
+      body: req.body,
+      query: req.query,
+      timestamp: new Date().toISOString(),
+    };
+
     try {
       const response = await axios({
         method: req.method,
@@ -43,6 +54,9 @@ const createProxyHandler = (baseUrl: string) => {
       });
       res.send(response.data);
       await printJson(response.data, endpoint); // 在这里调用 printJson
+
+      // 保存请求数据到文件
+      await printJson(JSON.stringify(requestData), `request_${endpoint}`);
     } catch (error) {
       const axiosError = error as AxiosError; // 类型断言
       const errorMessage = axiosError.response

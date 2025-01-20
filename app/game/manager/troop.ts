@@ -433,11 +433,11 @@ export class TroopManager {
     ]);
   }
 
-  async squadFormation(
-    squadId: number,
-    slots: PlayerSquadItem[],
-  ): Promise<void> {
-    this.squads[squadId].slots = slots;
+  async squadFormation(args: {
+    squadId: number;
+    slots: PlayerSquadItem[];
+  }): Promise<void> {
+    this.squads[args.squadId].slots = args.slots;
     this._trigger.emit("SquadFormation");
   }
 

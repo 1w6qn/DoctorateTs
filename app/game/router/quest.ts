@@ -2,15 +2,31 @@ import { Router } from "express";
 import httpContext from "express-http-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 
+/**
+ *    SQUAD_FORMATION = "/quest/squadFormation";
+ *    SQUAD_RENAME = "/quest/changeSquadName";
+ *    SQUAD_GET_ASSIST_LIST = "/quest/getAssistList";
+ *    DEFAULT_BATTLE_START = "/quest/battleStart";
+ *    DEFAULT_BATTLE_FINISH = "/quest/battleFinish";
+ *    DEFAULT_BATTLE_CONTINUE = "/quest/battleContinue";
+ *    SAVE_BATTLE_REPLAY = "/quest/saveBattleReplay";
+ *    LOAD_BATTLE_REPLAY = "/quest/getBattleReplay";
+ *    FINISH_STORY_STAGE = "/quest/finishStoryStage";
+ *    UNLOCK_STAGE_FOG = "/quest/unlockStageFog";
+ *    UNLOCK_HIDDEN_STAGE = "/quest/unlockHideStage";
+ *    GET_SPECIAL_STAGE_REWARD = "/quest/getCowLevelReward";
+ *    GET_ZONE_RECORD_REWARD = "/quest/getMainlineRecordRewards";
+ *    GET_MAINLINE_CACHE = "/quest/getMainlineCache";
+ *    **/
 const router = Router();
 router.post("/squadFormation", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  player.troop.squadFormation(req.body!.squadId, req.body!.slots);
+  await player.troop.squadFormation(req.body);
   res.send(player.delta);
 });
 router.post("/changeSquadName", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  player.troop.changeSquadName(req.body);
+  await player.troop.changeSquadName(req.body);
   res.send(player.delta);
 });
 router.post("/battleStart", async (req, res) => {
@@ -37,8 +53,6 @@ router.post("/getBattleReplay", async (req, res) => {
 router.post("/saveBattleReplay", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   player.battle.saveReplay(req.body);
-  res.send({
-    ...player.delta,
-  });
+  res.send(player.delta);
 });
 export default router;

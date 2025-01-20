@@ -6,7 +6,7 @@
         "avatarId": "avatar_ass_01",
         "avatarType": "ASSISTANT",
         "avatarIdSort": 1,
-        "avatarIdDesc": "来自当前助理\\n{0}",
+        "avatarIdDesc": "当前名片形象\\n{0}\\n<color=#7f7f7f>可前往界面配置选择形象</color>",
         "avatarItemName": "助理干员",
         "avatarItemDesc": "\\",
         "avatarItemUsage": "\\",
@@ -309,6 +309,66 @@
         "avatarIdDesc": "购买礼包获得\\n“快赶走啦！”",
         "avatarItemName": "“快赶走啦！”",
         "avatarItemDesc": "“哇啊啊啊！莱欧斯、森西、齐尔查克！快把它们弄走！”",
+        "avatarItemUsage": "用来彰显个性的图案，能够将之设置为头像。",
+        "obtainApproach": "特殊方式获得"
+      },
+      {
+        "avatarId": "avatar_special_31",
+        "avatarType": "SPECIAL",
+        "avatarIdSort": 31,
+        "avatarIdDesc": "合金重工系列模型头像特典\\n“蓄能”",
+        "avatarItemName": "“蓄能”",
+        "avatarItemDesc": "稍等片刻，THRM-EX马上为您带来引爆整个房间的热情。",
+        "avatarItemUsage": "用来彰显个性的图案，能够将之设置为头像。",
+        "obtainApproach": "特殊方式获得"
+      },
+      {
+        "avatarId": "avatar_special_32",
+        "avatarType": "SPECIAL",
+        "avatarIdSort": 32,
+        "avatarIdDesc": "购买礼包获得\\n“这照片是你吗？”",
+        "avatarItemName": "“这照片是你吗？”",
+        "avatarItemDesc": "“我知道他不是在问我本人......请再来一次，我会忍住的......”",
+        "avatarItemUsage": "用来彰显个性的图案，能够将之设置为头像。",
+        "obtainApproach": "特殊方式获得"
+      },
+      {
+        "avatarId": "avatar_special_33",
+        "avatarType": "SPECIAL",
+        "avatarIdSort": 33,
+        "avatarIdDesc": "购买礼包获得\\n“咔！”",
+        "avatarItemName": "“咔！”",
+        "avatarItemDesc": "“不对，你的表情应该悲伤而又狂喜，眼神清澈中带着阴霾，嘴角上扬又咬牙切齿——”",
+        "avatarItemUsage": "用来彰显个性的图案，能够将之设置为头像。",
+        "obtainApproach": "特殊方式获得"
+      },
+      {
+        "avatarId": "avatar_special_34",
+        "avatarType": "SPECIAL",
+        "avatarIdSort": 34,
+        "avatarIdDesc": "购买礼包获得\\n“重岳故事”",
+        "avatarItemName": "“重岳故事”",
+        "avatarItemDesc": "为了拍宣传海报，他滑了二十次电梯，从桥上跳下三十多次。还不忘提醒大家不要模仿。",
+        "avatarItemUsage": "用来彰显个性的图案，能够将之设置为头像。",
+        "obtainApproach": "特殊方式获得"
+      },
+      {
+        "avatarId": "avatar_special_35",
+        "avatarType": "SPECIAL",
+        "avatarIdSort": 35,
+        "avatarIdDesc": "购买首次发售时装\\n【寰宇独奏】获得\\n“兔兔小夜曲”",
+        "avatarItemName": "“兔兔小夜曲”",
+        "avatarItemDesc": "一个充满着爱的时刻缓缓到来，星星也为此刻而奏响夜空。",
+        "avatarItemUsage": "用来彰显个性的图案，能够将之设置为头像。",
+        "obtainApproach": "特殊方式获得"
+      },
+      {
+        "avatarId": "avatar_special_36",
+        "avatarType": "SPECIAL",
+        "avatarIdSort": 36,
+        "avatarIdDesc": "罗森联动活动获得\\n“兔兔店员”",
+        "avatarItemName": "“兔兔店员”",
+        "avatarItemDesc": "为了提醒你路途中也要记得及时补充能量，兔兔店员整理好了各类推荐商品，等待你来尽情挑选。欢迎光临罗森便利店！",
         "avatarItemUsage": "用来彰显个性的图案，能够将之设置为头像。",
         "obtainApproach": "特殊方式获得"
       },
@@ -823,6 +883,86 @@
         "obtainApproach": "签到活动获得"
       },
       {
+        "avatarId": "avatar_activity_VEC1",
+        "avatarType": "ACTIVITY",
+        "avatarIdSort": 52,
+        "avatarIdDesc": "【矢量突破】突破里程碑\\n“矢量”",
+        "avatarItemName": "“矢量”",
+        "avatarItemDesc": "破裂的障碍，凝聚的决心，不断超越的前路。",
+        "avatarItemUsage": "用来彰显个性的图案，能够将之设置为头像。",
+        "obtainApproach": "在矢量突破活动中获得"
+      },
+      {
+        "avatarId": "avatar_activity_IS",
+        "avatarType": "ACTIVITY",
+        "avatarIdSort": 53,
+        "avatarIdDesc": "【叙拉古人】记录修复\\n“叙拉古人”",
+        "avatarItemName": "“叙拉古人”",
+        "avatarItemDesc": "“你听，叙拉古的雨停了吗？”",
+        "avatarItemUsage": "用来彰显个性的图案，能够将之设置为头像。",
+        "obtainApproach": "记录修复获得"
+      },
+      {
+        "avatarId": "avatar_activity_AC",
+        "avatarType": "ACTIVITY",
+        "avatarIdSort": 54,
+        "avatarIdDesc": "【卫戍协议】功勋兑换处\\n“船舰”",
+        "avatarItemName": "“船舰”",
+        "avatarItemDesc": "蹚过荒野、逃离天灾、拒止盗匪的一叶孤舟。",
+        "avatarItemUsage": "用来彰显个性的图案，能够将之设置为头像。",
+        "obtainApproach": "在卫戍协议活动中获得"
+      },
+      {
+        "avatarId": "avatar_activity_WB",
+        "avatarType": "ACTIVITY",
+        "avatarIdSort": 55,
+        "avatarIdDesc": "【登临意】记录修复\\n“登临意”",
+        "avatarItemName": "“登临意”",
+        "avatarItemDesc": "黄尘万里，征鼓起——",
+        "avatarItemUsage": "用来彰显个性的图案，能够将之设置为头像。",
+        "obtainApproach": "记录修复获得"
+      },
+      {
+        "avatarId": "avatar_activity_RL4_2",
+        "avatarType": "ACTIVITY",
+        "avatarIdSort": 56,
+        "avatarIdDesc": "【集成战略】限时任务\\n“追寻”",
+        "avatarItemName": "“追寻”",
+        "avatarItemDesc": "人们不追求同一个愿望，却会为了许愿的机会伸出双手。",
+        "avatarItemUsage": "用来彰显个性的图案，能够将之设置为头像。",
+        "obtainApproach": "在集成战略限时任务中获得"
+      },
+      {
+        "avatarId": "avatar_activity_FD",
+        "avatarType": "ACTIVITY",
+        "avatarIdSort": 57,
+        "avatarIdDesc": "【眠于树影之中】记录修复\\n“眠于树影之中”",
+        "avatarItemName": "“眠于树影之中”",
+        "avatarItemDesc": "萨米倾听你之所求。萨米引导你之所往。",
+        "avatarItemUsage": "用来彰显个性的图案，能够将之设置为头像。",
+        "obtainApproach": "记录修复获得"
+      },
+      {
+        "avatarId": "avatar_activity_FC",
+        "avatarType": "ACTIVITY",
+        "avatarIdSort": 58,
+        "avatarIdDesc": "【照我以火】记录修复\\n“照我以火”",
+        "avatarItemName": "“照我以火”",
+        "avatarItemDesc": "一簇火苗，亦可使前路微明。",
+        "avatarItemUsage": "用来彰显个性的图案，能够将之设置为头像。",
+        "obtainApproach": "记录修复获得"
+      },
+      {
+        "avatarId": "avatar_activity_ARC1",
+        "avatarType": "ACTIVITY",
+        "avatarIdSort": 59,
+        "avatarIdDesc": "【视相博物馆】兑换台\\n“通关”",
+        "avatarItemName": "“通关”",
+        "avatarItemDesc": "留名排行榜，你就是罗德岛的成就之星！",
+        "avatarItemUsage": "用来彰显个性的图案，能够将之设置为头像。",
+        "obtainApproach": "在视相博物馆活动中获得"
+      },
+      {
         "avatarId": "avatar_def_01",
         "avatarType": "DEFAULT",
         "avatarIdSort": 1,
@@ -976,7 +1116,7 @@
     "avatarTypeData": {
       "ASSISTANT": {
         "avatarType": "ASSISTANT",
-        "typeName": "当前助理",
+        "typeName": "名片形象",
         "avatarIdList": [
           "avatar_ass_01"
         ]
@@ -1014,7 +1154,13 @@
           "avatar_special_27",
           "avatar_special_28",
           "avatar_special_29",
-          "avatar_special_30"
+          "avatar_special_30",
+          "avatar_special_31",
+          "avatar_special_32",
+          "avatar_special_33",
+          "avatar_special_34",
+          "avatar_special_35",
+          "avatar_special_36"
         ]
       },
       "ACTIVITY": {
@@ -1071,7 +1217,15 @@
           "avatar_activity_DC",
           "avatar_activity_RL4_1",
           "avatar_activity_IC",
-          "avatar_activity_DT"
+          "avatar_activity_DT",
+          "avatar_activity_VEC1",
+          "avatar_activity_IS",
+          "avatar_activity_AC",
+          "avatar_activity_WB",
+          "avatar_activity_RL4_2",
+          "avatar_activity_FD",
+          "avatar_activity_FC",
+          "avatar_activity_ARC1"
         ]
       },
       "DEFAULT": {
@@ -1358,6 +1512,32 @@
         "unlockDesList": [
           "[采购中心]中购买层叠地城奇谈礼包获得"
         ]
+      },
+      {
+        "bgId": "bg_sui_1",
+        "bgSortId": 21,
+        "bgStartTime": 1735459200,
+        "bgName": "青穰",
+        "bgMusicId": "music_bg_sui",
+        "bgDes": "稻禾青青黍麦黄，锦绣长风抚青穰。",
+        "bgUsage": "一张照片，一段回忆，凝聚了泰拉大地的某个瞬间。",
+        "obtainApproach": "礼包购买",
+        "unlockDesList": [
+          "[采购中心]中购买大荒青禾组合包获得"
+        ]
+      },
+      {
+        "bgId": "bg_rogue_4",
+        "bgSortId": 22,
+        "bgStartTime": 1735675200,
+        "bgName": "意塑",
+        "bgMusicId": "music_rogue_4_1",
+        "bgDes": "属于直觉、愿望、本能与臆想的无尽求索。",
+        "bgUsage": "一张照片，一段回忆，凝聚了泰拉大地的某个瞬间。",
+        "obtainApproach": "集成战略奖励",
+        "unlockDesList": [
+          "[集成战略]萨卡兹的无终奇语奖励"
+        ]
       }
     ],
     "themeList": [
@@ -1470,6 +1650,38 @@
         "isLimitObtain": true,
         "hideWhenLimit": true,
         "rarity": 5
+      },
+      {
+        "id": "tm_sui_1",
+        "type": "ACTIVITY",
+        "sortId": 8,
+        "startTime": 1735459200,
+        "tmName": "大荒",
+        "tmDes": "地块有序地升降，人们栽种出一个又一个良田万亩的未来。",
+        "tmUsage": "在不变动功能的情况下，对PRTS界面进行了重新设计。",
+        "obtainApproach": "采购中心组合包",
+        "unlockDesList": [
+          "[采购中心]中购买大荒青禾组合包获得"
+        ],
+        "isLimitObtain": true,
+        "hideWhenLimit": true,
+        "rarity": 5
+      },
+      {
+        "id": "tm_arcade_1",
+        "type": "ACTIVITY",
+        "sortId": 9,
+        "startTime": 1735459200,
+        "tmName": "视相",
+        "tmDes": "打开乐趣的博物馆，登上游戏的王座。",
+        "tmUsage": "在不变动功能的情况下，对PRTS界面进行了重新设计。",
+        "obtainApproach": "视相博物馆奖励",
+        "unlockDesList": [
+          "视相博物馆活动奖励"
+        ],
+        "isLimitObtain": true,
+        "hideWhenLimit": true,
+        "rarity": 4
       }
     ],
     "backgroundLimitData": {
@@ -1520,6 +1732,18 @@
             "displayAfterEndTime": false
           }
         ]
+      },
+      "bg_sui_1": {
+        "bgId": "bg_sui_1",
+        "limitInfos": [
+          {
+            "limitInfoId": "bg_sui_1#1",
+            "startTime": 1735459200,
+            "endTime": 1737230399,
+            "invalidObtainDesc": "暂无获取途径",
+            "displayAfterEndTime": false
+          }
+        ]
       }
     },
     "themeLimitData": {
@@ -1549,6 +1773,26 @@
           {
             "startTime": 1725249600,
             "endTime": 1726430399,
+            "invalidObtainDesc": "暂未开放获取途径"
+          }
+        ]
+      },
+      "tm_sui_1": {
+        "id": "tm_sui_1",
+        "limitInfos": [
+          {
+            "startTime": 1735459200,
+            "endTime": 1737230399,
+            "invalidObtainDesc": "暂未开放获取途径"
+          }
+        ]
+      },
+      "tm_arcade_1": {
+        "id": "tm_arcade_1",
+        "limitInfos": [
+          {
+            "startTime": 1735459200,
+            "endTime": 1736884799,
             "invalidObtainDesc": "暂未开放获取途径"
           }
         ]
@@ -1925,12 +2169,149 @@
             "availEndTime": 1728158400
           }
         ]
+      },
+      "nc_undertides_1": {
+        "id": "nc_undertides_1",
+        "name": "回溯",
+        "type": "ACTIVITY",
+        "sortId": 11,
+        "isSpTheme": false,
+        "defaultShowDetail": true,
+        "themeName": "",
+        "themeEnName": "",
+        "skinStartTime": 1728446400,
+        "skinDesc": "被呼唤的血脉，被追思的源头。",
+        "usageDesc": "在不变动功能的情况下，对prts进行了重新设计。",
+        "skinApproach": "特典兑换",
+        "unlockConditionCnt": 1,
+        "unlockDescList": [
+          "设定集兑换码兑换获得"
+        ],
+        "fixedModuleList": [
+          "module_background",
+          "module_illust",
+          "module_collect",
+          "module_avatar",
+          "module_avatar_simple"
+        ],
+        "rarity": 4,
+        "isTimeLimit": true,
+        "timeLimitInfoList": [
+          {
+            "id": "nc_undertides_1",
+            "availStartTime": 1728446400,
+            "availEndTime": 1798574400
+          }
+        ]
+      },
+      "nc_5d5_1": {
+        "id": "nc_5d5_1",
+        "name": "剧幕",
+        "type": "ACTIVITY",
+        "sortId": 12,
+        "isSpTheme": false,
+        "defaultShowDetail": true,
+        "themeName": "",
+        "themeEnName": "",
+        "skinStartTime": 1729949400,
+        "skinDesc": "沉沉帷幕将所谓善恶统统掩藏，揭幕者的心中应怀勇气还是骄狂？",
+        "usageDesc": "在不变动功能的情况下，对prts进行了重新设计。",
+        "skinApproach": "感谢庆典前瞻签到奖励",
+        "unlockConditionCnt": 1,
+        "unlockDescList": [
+          "在感谢庆典前瞻签到获得"
+        ],
+        "fixedModuleList": [
+          "module_background",
+          "module_illust",
+          "module_collect",
+          "module_avatar",
+          "module_avatar_simple"
+        ],
+        "rarity": 4,
+        "isTimeLimit": true,
+        "timeLimitInfoList": [
+          {
+            "id": "nc_5d5_1",
+            "availStartTime": 1729949400,
+            "availEndTime": 1730750400
+          }
+        ]
+      },
+      "nc_movie_1": {
+        "id": "nc_movie_1",
+        "name": "集锦",
+        "type": "ACTIVITY",
+        "sortId": 13,
+        "isSpTheme": false,
+        "defaultShowDetail": true,
+        "themeName": "",
+        "themeEnName": "",
+        "skinStartTime": 1733990400,
+        "skinDesc": "“都标了嘛，本故事纯属虚构。再追着问是真是假，可要吃我脑瓜崩了哦。”",
+        "usageDesc": "在不变动功能的情况下，对prts进行了重新设计。",
+        "skinApproach": "影印留形组合包",
+        "unlockConditionCnt": 1,
+        "unlockDescList": [
+          "在[采购中心]中购买影印留形组合包获得"
+        ],
+        "fixedModuleList": [
+          "module_background",
+          "module_illust",
+          "module_collect",
+          "module_avatar",
+          "module_avatar_simple"
+        ],
+        "rarity": 4,
+        "isTimeLimit": true,
+        "timeLimitInfoList": [
+          {
+            "id": "nc_movie_1",
+            "availStartTime": 1733990400,
+            "availEndTime": 1735761599
+          }
+        ]
       }
     },
     "consts": {
       "defaultNameCardSkinId": "nc_rhodes_default",
       "canUidHide": false,
       "removableModuleMaxCount": 7
+    }
+  },
+  "mailArchiveData": {
+    "mailArchiveInfoDict": {},
+    "constData": {
+      "funcOpenTs": 1737518400
+    }
+  },
+  "mailSenderData": {
+    "senderDict": {
+      "penguin_logistics": {
+        "senderId": "penguin_logistics",
+        "senderName": "企鹅物流",
+        "avatarId": "mail_avatar_penguin_logistics"
+      },
+      "rhodes_island": {
+        "senderId": "rhodes_island",
+        "senderName": "罗德岛",
+        "avatarId": "icon_rhodes_island"
+      },
+      "npc_007_closure": {
+        "senderId": "npc_007_closure",
+        "senderName": "可露希尔",
+        "avatarId": "mail_closure"
+      },
+      "siren_records": {
+        "senderId": "siren_records",
+        "senderName": "塞壬唱片",
+        "avatarId": "mail_siren_record"
+      },
+      "amiya_2024": {
+        "senderId": "amiya_2024",
+        "senderName": "阿米娅",
+        "avatarId": "avatar_special_amiya"
+      }
     }
   }
 }

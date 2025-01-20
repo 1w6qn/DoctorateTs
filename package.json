@@ -9,7 +9,7 @@
     "crc": "^4.3.2",
     "crypto-js": "^4.2.0",
     "express": "^5.0.0",
-    "express-http-context": "^1.2.4",
+    "express-http-context2": "^1.0.0",
     "frida-compile": "^16.4.1",
     "frida-il2cpp-bridge": "^0.9.0",
     "immer": "^10.1.1",

@@ -1,11 +1,11 @@
+import httpContext from "express-http-context2";
 import express from "express";
-import httpContext from "express-http-context";
 import bodyParser from "body-parser";
 import { accountManager } from "./manager/AccountManger";
 
 const app = express();
-app.use(bodyParser.json());
 app.use(httpContext.middleware);
+app.use(bodyParser.json());
 app.use(async (req, res, next) => {
   if (req.headers?.secret) {
     if (req.headers.secret != "1") {

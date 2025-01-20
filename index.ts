@@ -1,18 +1,19 @@
 import express from "express";
-import prod from "./app/config/prod";
-import auth from "./app/auth/auth";
-import game, { setup } from "./app/game/app";
-import asset from "./app/asset";
 import config from "./app/config";
-import morgan from "morgan";
 import excel from "@excel/excel";
 import { enablePatches } from "immer";
+import morgan from "morgan";
+import prod from "./app/config/prod";
+import auth from "./app/auth/auth";
+import asset from "./app/asset";
+import game, { setup } from "./app/game/app";
 
 (async () => {
   console.time();
   enablePatches();
   await excel.init();
   const app = express();
+
   app.use(morgan("short"));
   app.use("/config/prod", prod);
   app.use("/", auth);

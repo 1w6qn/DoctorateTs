@@ -1,5 +1,5 @@
 import { Router } from "express";
-import httpContext from "express-http-context";
+import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 
 /**

@@ -88,14 +88,15 @@ export class MedalProgress implements PlayerPerMedal {
     if (template && !(template in this)) {
       throw new Error("template not implemented yet");
     }
-    this._trigger.on(template, (args: object, mode: string) => {
+    /**(args: object, mode: string) => {
       this[template](args, mode);
       if (this.val[0][0] >= this.val[0][0]!) {
         console.log(`[MedalManager] ${this.id} complete`);
         this._trigger.removeListener(template, this[template]);
       }
-    });
-    this[template]({}, "init");
+       } */
+    //this._trigger.on(template, null);
+    //this[template]({}, "init");
   }
 
   update() {}

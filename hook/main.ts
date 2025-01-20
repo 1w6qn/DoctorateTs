@@ -1,5 +1,4 @@
 import "frida-il2cpp-bridge";
-import formatLog = Logger.formatLog;
 
 namespace Logger {
   export function formatDate(
@@ -385,7 +384,9 @@ setTimeout(() =>
           const color = logColors[name] || "m"; // 默认颜色
           const cleanedMessage = cleanString(message);
           const cleanedStackTrace = cleanString(stackTrace);
-          Logger.log(formatLog(name, color, cleanedMessage, cleanedStackTrace));
+          Logger.log(
+            Logger.formatLog(name, color, cleanedMessage, cleanedStackTrace),
+          );
         },
       },
     );

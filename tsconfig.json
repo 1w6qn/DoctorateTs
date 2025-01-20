@@ -6,7 +6,6 @@
     "rootDir": "./",
     "outDir": "./build",
     "strict": true,
-    "skipLibCheck": true,
     "resolveJsonModule": true,
     "baseUrl": ".", // 基准目录，通常是项目根目录
     "paths": {
@@ -19,13 +18,16 @@
       "@game/*":[
         "app/game/*"
       ]
-    },
-    "forceConsistentCasingInFileNames": true
+    }
   },
   "include": [
     "app/**/*",
-    "index.ts",
-    "test.ts"
+    "index.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/lib.dom.d.ts",
+    "hook/main.ts"
   ],
   "ts-node": {
     "require": ["tsconfig-paths/register"]

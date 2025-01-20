@@ -1,7 +1,8 @@
-import { readFileSync, writeFileSync } from "fs";
 import { MailItem, MailMetaInfo } from "../model/mail";
 import { ItemBundle } from "app/excel/character_table";
 import { now } from "@utils/time";
+import { writeFile } from "fs/promises";
+import { readFileSync } from "fs";
 
 export class MailManager {
   database: MailDB;
@@ -13,14 +14,14 @@ export class MailManager {
     );
   }
 
-  listMailbox(
+  async listMailbox(
     uid: string,
     args: {
       sysMailIdList: number[];
       surveyMailIdList: string[];
       mailIdList: number[];
     },
-  ): MailItem[] {
+  ): Promise<MailItem[]> {
     return this.database.user[uid].filter((mail) => {
       return (
         args.sysMailIdList.includes(mail.mailId) ||
@@ -30,10 +31,10 @@ export class MailManager {
     });
   }
 
-  receiveMail(
+  async receiveMail(
     uid: string,
     args: { mailId: number; type: number },
-  ): ItemBundle[] {
+  ): Promise<ItemBundle[]> {
     const mail = this.database.user[uid].find(
       (mail) => mail.mailId === args.mailId && mail.type === args.type,
     );
@@ -44,11 +45,14 @@ export class MailManager {
         items = mail.items;
       }
     }
-    this.saveDatabase();
+    await this.saveDatabase();
     return items;
   }
 
-  getMetaInfoList(uid: string, args: { from: number }): MailMetaInfo[] {
+  async getMetaInfoList(
+    uid: string,
+    args: { from: number },
+  ): Promise<MailMetaInfo[]> {
     console.log(args);
     return this.database.user[uid].map((mail) => {
       return {
@@ -61,14 +65,14 @@ export class MailManager {
     });
   }
 
-  receiveAllMail(
+  async receiveAllMail(
     uid: string,
     args: {
       sysMailIdList: number[];
       surveyMailIdList: string[];
       mailIdList: number[];
     },
-  ): ItemBundle[] {
+  ): Promise<ItemBundle[]> {
     const mailList = this.database.user[uid].filter((mail) => {
       return (
         args.sysMailIdList.includes(mail.mailId) ||
@@ -85,11 +89,11 @@ export class MailManager {
         }
       }
     });
-    this.saveDatabase();
+    await this.saveDatabase();
     return items;
   }
 
-  removeAllReceivedMail(
+  async removeAllReceivedMail(
     uid: string,
     args: {
       sysMailIdList: number[];
@@ -104,16 +108,15 @@ export class MailManager {
         args.mailIdList.includes(mail.mailId)
       );
     });
-    this.saveDatabase();
+    await this.saveDatabase();
   }
 
-  sendMail() {}
+  async sendMail() {}
 
-  saveDatabase() {
-    writeFileSync(
+  async saveDatabase() {
+    await writeFile(
       `${__dirname}/../../../data/user/mails.json`,
       JSON.stringify(this.database),
-      "utf8",
     );
   }
 }

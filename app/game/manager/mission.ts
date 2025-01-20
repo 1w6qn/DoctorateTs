@@ -1,5 +1,5 @@
 import {
-  MissionCalcState,
+  BaseProgress,
   MissionDailyRewards,
   MissionPlayerData,
   MissionPlayerState,
@@ -177,7 +177,7 @@ export class MissionManager {
   }
 }
 export class MissionProgress implements MissionPlayerState {
-  progress: MissionCalcState[];
+  progress: BaseProgress[];
   missionId: string;
   _trigger: TypedEventEmitter;
   _manager: MissionManager;

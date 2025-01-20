@@ -21,6 +21,7 @@ import { OpenServerManager } from "@game/manager/activity/openServer";
 import { createDraft, finishDraft, Patch, WritableDraft } from "immer";
 import { patchesToObject } from "@utils/delta";
 import { TypedEventEmitter } from "@game/model/events";
+import { CharRotationManager } from "@game/manager/charRotation";
 
 export class PlayerDataManager {
   dungeon: DungeonManager;
@@ -28,6 +29,7 @@ export class PlayerDataManager {
   troop: TroopManager;
   status: StatusManager;
   home: HomeManager;
+  charRotation: CharRotationManager;
   checkIn: CheckInManager;
   storyreview: StoryreviewManager;
   mission!: MissionManager;
@@ -55,6 +57,7 @@ export class PlayerDataManager {
     this.troop = new TroopManager(this, this._trigger);
     this.dungeon = new DungeonManager(this, this._trigger);
     this.home = new HomeManager(this, this._trigger);
+    this.charRotation = new CharRotationManager(this, this._trigger);
     this.checkIn = new CheckInManager(this, this._trigger);
     this.storyreview = new StoryreviewManager(this, this._trigger);
     this.mission = new MissionManager(playerdata, this._trigger);
@@ -190,6 +193,7 @@ export class PlayerDataManager {
       npcAudio: this._playerdata.npcAudio,
       avatar: this._playerdata.avatar,
       trainingGround: this._playerdata.trainingGround,
+      charRotation: this._playerdata.charRotation,
     };
   }
 }

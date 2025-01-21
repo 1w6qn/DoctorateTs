@@ -22,6 +22,7 @@ import { createDraft, finishDraft, Patch, WritableDraft } from "immer";
 import { patchesToObject } from "@utils/delta";
 import { TypedEventEmitter } from "@game/model/events";
 import { CharRotationManager } from "@game/manager/charRotation";
+import { RetroManager } from "@game/manager/retro";
 
 export class PlayerDataManager {
   dungeon: DungeonManager;
@@ -41,6 +42,7 @@ export class PlayerDataManager {
   dexNav: DexNavManager;
   building: BuildingManager;
   openServer: OpenServerManager;
+  retro: RetroManager;
   battle!: BattleManager;
   _trigger: TypedEventEmitter;
   _playerdata: PlayerDataModel;
@@ -70,6 +72,7 @@ export class PlayerDataManager {
     this.dexNav = new DexNavManager(this, this._trigger);
     this.building = new BuildingManager(this, this._trigger);
     this.openServer = new OpenServerManager(this, this._trigger);
+    this.retro = new RetroManager(this, this._trigger);
     this._trigger.emit("game:fix");
     this._trigger.on(
       "save:battle",

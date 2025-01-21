@@ -21,6 +21,7 @@ import { OpenServerSchedule } from "./open_server_table";
 import { readJson } from "@utils/file";
 import { RoguelikeConst } from "@excel/roguelike_consts";
 import { ShopData } from "@excel/shop";
+import { RetroStageTable } from "@excel/retro_table";
 
 export class Excel {
   BattleEquipTable!: BattleEquipTable;
@@ -43,7 +44,7 @@ export class Excel {
   CharMetaTable!: CharMetaTable;
   SkinTable!: SkinTable;
   OpenServerTable!: OpenServerSchedule;
-
+  RetroTable!: RetroStageTable;
   RoguelikeConsts!: { [key: string]: RoguelikeConst };
   ShopTable!: ShopData;
   constructor() {}
@@ -104,6 +105,9 @@ export class Excel {
     this.SkinTable = await readJson<SkinTable>("./data/excel/skin_table.json");
     this.OpenServerTable = await readJson<OpenServerSchedule>(
       "./data/excel/open_server_table.json",
+    );
+    this.RetroTable = await readJson<RetroStageTable>(
+      "./data/excel/retro_table.json",
     );
     this.GachaDetailTable = await readJson<GachaDetailTable>(
       "./data/gacha_detail_table.json",

@@ -105,8 +105,12 @@ export class Excel {
     this.OpenServerTable = await readJson<OpenServerSchedule>(
       "./data/excel/open_server_table.json",
     );
-    this.GachaDetailTable = await readJson("./data/gacha_detail_table.json");
-    this.RoguelikeConsts = await readJson("./data/rlv2.json");
+    this.GachaDetailTable = await readJson<GachaDetailTable>(
+      "./data/gacha_detail_table.json",
+    );
+    this.RoguelikeConsts = await readJson<{ [key: string]: RoguelikeConst }>(
+      "./data/rlv2.json",
+    );
     console.timeEnd("[excel][loaded]");
     console.log("[excel] 21 excels loaded");
     this.ShopTable = new ShopData();

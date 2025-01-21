@@ -1,25 +1,25 @@
 import {
   BaseProgress,
-  MissionDailyRewards,
   MissionPlayerData,
   MissionPlayerState,
-  PlayerDataModel,
 } from "../model/playerdata";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 import { PlayerCharacter } from "../model/character";
 import { BattleData } from "../model/battle";
-import { now } from "@utils/time";
+import { checkBetween, now } from "@utils/time";
 import { EventMap, TypedEventEmitter } from "@game/model/events";
 import { MissionData } from "@excel/mission_table";
+import { PlayerDataManager } from "./PlayerDataManager";
 
 export class MissionManager {
   missions: { [key: string]: MissionProgress[] };
-  missionRewards: MissionDailyRewards;
-  missionGroups: { [key: string]: number };
   _trigger: TypedEventEmitter;
+  _player: PlayerDataManager;
 
-  constructor(playerdata: PlayerDataModel, _trigger: TypedEventEmitter) {
+  constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
+    this._player = player;
+    const playerdata = player._playerdata;
     playerdata.mission.missions["ACTIVITY"] = {};
     this.missions = Object.fromEntries(
       Object.entries(playerdata.mission.missions).map(([type, v]) => [
@@ -36,8 +36,6 @@ export class MissionManager {
         }),
       ]),
     );
-    this.missionRewards = playerdata.mission.missionRewards;
-    this.missionGroups = playerdata.mission.missionGroups;
     this._trigger = _trigger;
     this._trigger.on("refresh:weekly", this.weeklyRefresh.bind(this));
     this._trigger.on("refresh:daily", this.dailyRefresh.bind(this));
@@ -69,13 +67,17 @@ export class MissionManager {
   }
 
   async dailyRefresh() {
-    this.missionRewards.dailyPoint = 0;
-    this.missionRewards.rewards["DAILY"] = {};
-    for (const reward of Object.values(excel.MissionTable.periodicalRewards)) {
-      if (reward.groupId == this.dailyMissionRewardPeriod) {
-        this.missionRewards.rewards["DAILY"][reward.id] = 0;
+    await this._player.update(async (draft) => {
+      draft.mission.missionRewards.dailyPoint = 0;
+      draft.mission.missionRewards.rewards["DAILY"] = {};
+      for (const reward of Object.values(
+        excel.MissionTable.periodicalRewards,
+      )) {
+        if (reward.groupId == this.dailyMissionRewardPeriod) {
+          draft.mission.missionRewards.rewards["DAILY"][reward.id] = 0;
+        }
       }
-    }
+    });
     const missionIds =
       excel.MissionTable.missionGroups[this.dailyMissionPeriod].missionIds;
     this.missions["DAILY"] = await Promise.all(
@@ -86,9 +88,11 @@ export class MissionManager {
     );
   }
 
-  weeklyRefresh() {
-    this.missionRewards.weeklyPoint = 0;
-    this.missionRewards.rewards["WEEKLY"] = {};
+  async weeklyRefresh() {
+    await this._player.update(async (draft) => {
+      draft.mission.missionRewards.weeklyPoint = 0;
+      draft.mission.missionRewards.rewards["WEEKLY"] = {};
+    });
     this.missions["WEEKLY"] = [];
     for (const mission of Object.values(excel.MissionTable.missions).filter(
       (m) => m.type == "WEEKLY",
@@ -99,37 +103,40 @@ export class MissionManager {
     }
   }
 
-  confirmMission(args: { missionId: string }): ItemBundle[] {
+  async confirmMission(args: { missionId: string }): Promise<ItemBundle[]> {
     const { missionId } = args;
     const items: ItemBundle[] = [];
     this.getMissionById(missionId).confirmed = true;
-    switch (excel.MissionTable.missions[missionId].type) {
-      case "DAILY":
-        this.missionRewards.dailyPoint +=
-          excel.MissionTable.missions[missionId].periodicalPoint;
-        Object.entries(this.missionRewards.rewards["DAILY"]).forEach(
-          ([k, v]) => {
-            if (
-              v == 0 &&
-              this.missionRewards.dailyPoint >=
-                excel.MissionTable.periodicalRewards[k].periodicalPointCost
-            ) {
-              this.missionRewards.dailyPoint -=
-                excel.MissionTable.periodicalRewards[k].periodicalPointCost;
-              items.push(...excel.MissionTable.periodicalRewards[k].rewards);
-              //console.log(items)
-              this.missionRewards.rewards["DAILY"][k] = 1;
-            }
-          },
-        );
-        break;
-      case "WEEKLY":
-        this.missionRewards.weeklyPoint +=
-          excel.MissionTable.missions[missionId].periodicalPoint;
-        break;
-      default:
-        break;
-    }
+    await this._player.update(async (draft) => {
+      switch (excel.MissionTable.missions[missionId].type) {
+        case "DAILY":
+          draft.mission.missionRewards.dailyPoint +=
+            excel.MissionTable.missions[missionId].periodicalPoint;
+          Object.entries(draft.mission.missionRewards.rewards["DAILY"]).forEach(
+            ([k, v]) => {
+              if (
+                v == 0 &&
+                draft.mission.missionRewards.dailyPoint >=
+                  excel.MissionTable.periodicalRewards[k].periodicalPointCost
+              ) {
+                draft.mission.missionRewards.dailyPoint -=
+                  excel.MissionTable.periodicalRewards[k].periodicalPointCost;
+                items.push(...excel.MissionTable.periodicalRewards[k].rewards);
+                //console.log(items)
+                draft.mission.missionRewards.rewards["DAILY"][k] = 1;
+              }
+            },
+          );
+          break;
+        case "WEEKLY":
+          draft.mission.missionRewards.weeklyPoint +=
+            excel.MissionTable.missions[missionId].periodicalPoint;
+          break;
+        default:
+          break;
+      }
+    });
+
     this._trigger.emit("items:get", items);
     return items;
   }
@@ -140,7 +147,9 @@ export class MissionManager {
     if (rewards) {
       this._trigger.emit("items:get", rewards);
     }
-    this.missionGroups[missionGroupId] = 1;
+    await this._player.update(async (draft) => {
+      draft.mission.missionGroups[missionGroupId] = 1;
+    });
   }
 
   async autoConfirmMissions(args: { type: string }): Promise<ItemBundle[]> {
@@ -151,13 +160,19 @@ export class MissionManager {
       (m) => m.state == 2 && m.progress[0].value == m.progress[0].target,
     );
     for (const mission of completedMissions) {
-      items.push(...this.confirmMission({ missionId: mission.missionId }));
+      items.push(
+        ...(await this.confirmMission({ missionId: mission.missionId })),
+      );
     }
     return items;
   }
 
   async exchangeMissionRewards(args: { targetRewardsId: string }) {
-    //TODO
+    const { targetRewardsId } = args;
+    const rewards =
+      excel.MissionTable.periodicalRewards[targetRewardsId].rewards;
+    this._trigger.emit("items:get", rewards);
+    return rewards;
   }
 
   toJSON(): MissionPlayerData {
@@ -171,8 +186,8 @@ export class MissionManager {
           ),
         ]),
       ),
-      missionRewards: this.missionRewards,
-      missionGroups: this.missionGroups,
+      missionRewards: this._player._playerdata.mission.missionRewards,
+      missionGroups: this._player._playerdata.mission.missionGroups,
     };
   }
 }
@@ -201,7 +216,6 @@ export class MissionProgress implements MissionPlayerState {
     this._manager = _manager;
     this.type = type;
     this.confirmed = state == 3;
-    this.init();
     //this._trigger.on("mission:update", this.update.bind(this))
   }
 
@@ -236,9 +250,16 @@ export class MissionProgress implements MissionPlayerState {
     if (this.type == "ACTIVITY") {
       return;
     } else if (this.type == "OPENSERVER") {
-      mission = excel.OpenServerTable.dataMap[
-        "openseverTaskGroup1"
-      ].openServerMissionData.find((m) => m.id == this.missionId)!;
+      const group = excel.OpenServerTable.schedule.find((v) =>
+        checkBetween(
+          this._manager._player._playerdata.status.registerTs,
+          v.startTs,
+          v.endTs,
+        ),
+      )!.id;
+      mission = excel.OpenServerTable.dataMap[group].openServerMissionData.find(
+        (m) => m.id == this.missionId,
+      )!;
     } else {
       mission = excel.MissionTable.missions[this.missionId];
     }
@@ -253,10 +274,6 @@ export class MissionProgress implements MissionPlayerState {
     } else {
       console.error(`Mission ID ${this.missionId} not found`);
       return;
-    }
-    if (template && !(template in MissionTemplates)) {
-      console.log(template);
-      throw new Error("template not implemented yet");
     }
     //TODO:infer from variable
     const func = (args: unknown) => {

@@ -28,7 +28,7 @@ export class AccountManager {
       await Promise.all(
         Object.values(this.data[uid].mission.missions)
           .reduce((acc, val) => acc.concat(val))
-          .map((mission) => mission.init),
+          .map((mission) => mission.init()),
       );
       this.data[uid]._trigger.on("save", async () => {
         await this.savePlayerData(uid);

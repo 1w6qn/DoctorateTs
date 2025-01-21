@@ -19,7 +19,7 @@ router.get("/general/v1/server_time", async (req, res) => {
 router.get("/app/v1/config", async (req, res) => {
   res.send(await readJson("./data/appConfig.json"));
 });
-router.get("/user/auth/v1/token_by_phone_password", async (req, res) => {
+router.post("/user/auth/v1/token_by_phone_password", async (req, res) => {
   const code = await accountManager.tokenByPhonePassword(
     req.body!.phone,
     req.body!.password,
@@ -33,7 +33,7 @@ router.get("/user/auth/v1/token_by_phone_password", async (req, res) => {
   });
 });
 router.get("/user/info/v1/basic", async (req, res) => {
-  const uid = await accountManager.getUidByToken(req.body!.code);
+  const uid = await accountManager.getUidByToken(req.query!.token as string);
   const data = await accountManager.getUserConfig(uid);
   res.send({
     status: 0,

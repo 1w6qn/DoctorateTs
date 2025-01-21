@@ -7,16 +7,17 @@ import prod from "./app/config/prod";
 import auth from "./app/auth/auth";
 import asset from "./app/asset";
 import game, { setup } from "./app/game/app";
+import bodyParser from "body-parser";
 
 (async () => {
   console.time();
   enablePatches();
   await excel.init();
   const app = express();
-
+  app.use(bodyParser.json());
   app.use(morgan("short"));
   app.use("/config/prod", prod);
-  app.use("/", auth);
+  app.use("/auth", auth);
   await setup(game);
   app.use("/", game);
   app.use("/assetbundle", asset);

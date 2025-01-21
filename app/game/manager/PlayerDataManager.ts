@@ -60,7 +60,7 @@ export class PlayerDataManager {
     this.charRotation = new CharRotationManager(this, this._trigger);
     this.checkIn = new CheckInManager(this, this._trigger);
     this.storyreview = new StoryreviewManager(this, this._trigger);
-    this.mission = new MissionManager(this._playerdata, this._trigger);
+    this.mission = new MissionManager(this, this._trigger);
     this.shop = new ShopController(this, this._trigger);
     this.battle = new BattleManager(this._playerdata, this._trigger);
     this.recruit = new RecruitManager(this, this._trigger);

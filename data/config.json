@@ -1,9 +1,9 @@
 {
   "Host": "http://192.168.0.100",
-  "PORT": 8000,
+  "PORT": 8443,
   "version": {
-    "resVersion": "24-09-23-11-27-19-c6564b",
-    "clientVersion": "2.3.61"
+    "resVersion": "25-01-08-07-44-44-3d8742",
+    "clientVersion": "2.4.21"
   },
   "assets": {
     "enableMods": false,
@@ -12,14 +12,14 @@
   },
   "NetworkConfig": {
     "configVer": "5",
-    "funcVer": "V054",
+    "funcVer": "V057",
     "configs": {
-      "V054": {
+      "V057": {
         "override": true,
         "network": {
           "gs": "{server}",
-          "as": "{server}",
-          "u8": "{server}/u8",
+          "as": "{server}/auth",
+          "u8": "{server}/auth/u8",
           "hu": "{server}/assetbundle/official",
           "hv": "{server}/config/prod/official/{0}/version",
           "rc": "{server}/config/prod/official/remote_config",

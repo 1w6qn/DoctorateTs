@@ -25,6 +25,11 @@ export class AccountManager {
         await readJson<PlayerDataModel>(`./data/user/databases/${uid}.json`),
       );
       this.data[uid]._playerdata.status.uid = uid;
+      await Promise.all(
+        Object.values(this.data[uid].mission.missions)
+          .reduce((acc, val) => acc.concat(val))
+          .map((mission) => mission.init),
+      );
       this.data[uid]._trigger.on("save", async () => {
         await this.savePlayerData(uid);
         await this.saveUserConfig();

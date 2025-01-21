@@ -11,6 +11,7 @@ import { PlayerCharacter } from "../model/character";
 import { BattleData } from "../model/battle";
 import { now } from "@utils/time";
 import { EventMap, TypedEventEmitter } from "@game/model/events";
+import { MissionData } from "@excel/mission_table";
 
 export class MissionManager {
   missions: { [key: string]: MissionProgress[] };
@@ -75,14 +76,14 @@ export class MissionManager {
         this.missionRewards.rewards["DAILY"][reward.id] = 0;
       }
     }
-    this.missions["DAILY"] = [];
-    for (const missionId of excel.MissionTable.missionGroups[
-      this.dailyMissionPeriod
-    ].missionIds) {
-      this.missions["DAILY"].push(
-        new MissionProgress(missionId, this._trigger, this, "DAILY"),
-      );
-    }
+    const missionIds =
+      excel.MissionTable.missionGroups[this.dailyMissionPeriod].missionIds;
+    this.missions["DAILY"] = await Promise.all(
+      missionIds.map(
+        (missionId) =>
+          new MissionProgress(missionId, this._trigger, this, "DAILY"),
+      ),
+    );
   }
 
   weeklyRefresh() {
@@ -145,13 +146,12 @@ export class MissionManager {
   async autoConfirmMissions(args: { type: string }): Promise<ItemBundle[]> {
     const { type } = args;
     const items: ItemBundle[] = [];
-    for (const mission of this.missions[type]) {
-      if (
-        mission.state == 2 &&
-        mission.progress[0].value == mission.progress[0].target
-      ) {
-        items.push(...this.confirmMission({ missionId: mission.missionId }));
-      }
+    const missions = this.missions[type];
+    const completedMissions = missions.filter(
+      (m) => m.state == 2 && m.progress[0].value == m.progress[0].target,
+    );
+    for (const mission of completedMissions) {
+      items.push(...this.confirmMission({ missionId: mission.missionId }));
     }
     return items;
   }
@@ -232,15 +232,26 @@ export class MissionProgress implements MissionPlayerState {
 
   async init() {
     let template: keyof typeof MissionTemplates;
+    let mission: MissionData;
     if (this.type == "ACTIVITY") {
       return;
+    } else if (this.type == "OPENSERVER") {
+      mission = excel.OpenServerTable.dataMap[
+        "openseverTaskGroup1"
+      ].openServerMissionData.find((m) => m.id == this.missionId)!;
     } else {
-      template = excel.MissionTable.missions[this.missionId]
-        .template as keyof typeof MissionTemplates;
-      this.param = excel.MissionTable.missions[this.missionId].param;
+      mission = excel.MissionTable.missions[this.missionId];
     }
-    if (!template) {
-      console.log(this.missionId);
+    if (mission) {
+      if (mission.template in MissionTemplates) {
+        template = mission.template as keyof typeof MissionTemplates;
+        this.param = mission.param;
+      } else {
+        console.error(`Invalid template: ${mission.template}`);
+        return;
+      }
+    } else {
+      console.error(`Mission ID ${this.missionId} not found`);
       return;
     }
     if (template && !(template in MissionTemplates)) {

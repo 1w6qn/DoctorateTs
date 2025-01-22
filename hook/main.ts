@@ -367,6 +367,9 @@ setTimeout(() =>
       "UnityEngine.Application",
     );
     const CallLogCallback = UnityEngine_Application.method("CallLogCallback");
+
+    //Il2Cpp.trace(true).methods(CallLogCallback).and().attach();
+
     const UnityEngine_LogType = UnityEngineCoreModule.class(
       "UnityEngine.LogType",
     );
@@ -390,6 +393,6 @@ setTimeout(() =>
         },
       },
     );
-    //Il2Cpp.dump("d.cs");
+    Il2Cpp.dump("d.cs");
   }),
 );

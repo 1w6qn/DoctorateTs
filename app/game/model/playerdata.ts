@@ -2485,7 +2485,7 @@ export interface PlayerGoodProgressData {
 
 export interface PlayerCharRotation {
   current: string;
-  presets: { [key: string]: PlayerCharRotationPreset };
+  preset: { [key: string]: PlayerCharRotationPreset };
 }
 
 export interface PlayerCharRotationPreset {

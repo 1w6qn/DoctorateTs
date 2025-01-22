@@ -86,7 +86,7 @@
 - [ ] BIND_NICKNAME = "/user/bindNickName";
 - [ ] BUY_AP = "/user/buyAp";
 - [ ] DIAMOND_EXCHANGE = "/user/exchangeDiamondShard";
-- [ ] CHANGE_RESUME = "user/changeResume";
+- [x] CHANGE_RESUME = "user/changeResume";
 - [ ] USE_ITEM = "/user/useItem";
 - [ ] USE_ITEMS = "/user/useItems";
 - [ ] USE_RENAME_CARD = "/user/useRenameCard";
@@ -304,7 +304,7 @@
 - [ ] VEC_BREAK_BATTLE_FINISH = "/activity/vecBreak/battleFinish";
 - [ ] ARCADE_BATTLE_START = "/activity/arcade/battleStart";
 - [ ] ARCADE_BATTLE_FINISH = "/activity/arcade/battleFinish";
-- [ ] CHAR_ROTATION_SET_CURRENT = "/charRotation/setCurrent";
-- [ ] CHAR_ROTATION_CREATE_PRESET = "/charRotation/createPreset";
-- [ ] CHAR_ROTATION_UPDATE_PRESET = "/charRotation/updatePreset";
-- [ ] CHAR_ROTATION_DELETE_PRESET = "/charRotation/deletePreset";
+- [x] CHAR_ROTATION_SET_CURRENT = "/charRotation/setCurrent";
+- [x] CHAR_ROTATION_CREATE_PRESET = "/charRotation/createPreset";
+- [x] CHAR_ROTATION_UPDATE_PRESET = "/charRotation/updatePreset";
+- [x] CHAR_ROTATION_DELETE_PRESET = "/charRotation/deletePreset";

@@ -159,11 +159,11 @@ export class TroopManager {
   }
 
   async upgradeChar(args: {
-    instId: number;
+    charInstId: number;
     expMats: ItemBundle[];
   }): Promise<void> {
-    const { instId, expMats } = args;
-    const char = this.getCharacterByInstId(instId);
+    const { charInstId, expMats } = args;
+    const char = this.getCharacterByInstId(charInstId);
     const expMap = excel.GameDataConst.characterExpMap;
     const goldMap = excel.GameDataConst.characterUpgradeCostMap;
     const expItems = excel.ItemTable.expItems;
@@ -176,21 +176,25 @@ export class TroopManager {
     for (let i = 0; i < expMats.length; i++) {
       expTotal += expItems[expMats[i].id].gainExp * expMats[i].count;
     }
-    char.exp += expTotal;
-    while (true) {
-      if (char.exp >= expMap[evolvePhase][char.level - 1]) {
-        char.exp -= expMap[evolvePhase][char.level - 1];
-        char.level += 1;
-        gold += goldMap[evolvePhase][char.level - 1];
-        if (char.level >= maxLevel) {
-          char.level = maxLevel;
-          char.exp = 0;
+
+    await this._player.update(async () => {
+      char.exp += expTotal;
+      while (true) {
+        if (char.exp >= expMap[evolvePhase][char.level - 1]) {
+          char.exp -= expMap[evolvePhase][char.level - 1];
+          char.level += 1;
+          gold += goldMap[evolvePhase][char.level - 1];
+          if (char.level >= maxLevel) {
+            char.level = maxLevel;
+            char.exp = 0;
+            break;
+          }
+        } else {
           break;
         }
-      } else {
-        break;
       }
-    }
+    });
+
     //TODO
     expMats.push({ id: "4001", count: gold });
     this._trigger.emit("items:use", expMats);

@@ -1,6 +1,7 @@
 import { PlayerDataManager } from "./PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 import { PlayerCharRotationSlot } from "@game/model/playerdata";
+import { original } from "immer";
 import { maxBy, toNumber } from "lodash";
 
 export class CharRotationManager {
@@ -13,9 +14,11 @@ export class CharRotationManager {
   }
 
   async setCurrent(args: { instId: string }) {
+    console.log("setCurrent", args);
     await this._player.update(async (draft) => {
       draft.charRotation.current = args.instId;
-      const preset = draft.charRotation.presets[args.instId];
+      console.log("draft", original(draft.charRotation));
+      const preset = draft.charRotation.preset[args.instId];
       draft.background.selected = preset.background;
       draft.homeTheme.selected = preset.homeTheme;
       draft.status.secretarySkinId = preset.profile;
@@ -26,8 +29,8 @@ export class CharRotationManager {
   async createPreset() {
     let instId;
     await this._player.update(async (draft) => {
-      instId = maxBy(Object.keys(draft.charRotation.presets))!;
-      draft.charRotation.presets[instId] = {
+      instId = maxBy(Object.keys(draft.charRotation.preset))!;
+      draft.charRotation.preset[instId] = {
         name: "未命名界面配置",
         background: "bg_rhodes_day",
         homeTheme: "tm_rhodes_day",
@@ -47,30 +50,30 @@ export class CharRotationManager {
   async updatePreset(args: CharRotationUpdatePresetRequest) {
     await this._player.update(async (draft) => {
       if (args.data?.name) {
-        draft.charRotation.presets[args.instId].name = args.data.name;
+        draft.charRotation.preset[args.instId].name = args.data.name;
       }
       if (args.data?.background) {
-        draft.charRotation.presets[args.instId].background =
+        draft.charRotation.preset[args.instId].background =
           args.data.background;
         draft.background.selected = args.data.background;
       }
       if (args.data?.homeTheme) {
-        draft.charRotation.presets[args.instId].homeTheme = args.data.homeTheme;
+        draft.charRotation.preset[args.instId].homeTheme = args.data.homeTheme;
         draft.homeTheme.selected = args.data.homeTheme;
       }
       if (args.data?.secretarySkinId) {
-        draft.charRotation.presets[args.instId].profile =
+        draft.charRotation.preset[args.instId].profile =
           args.data.secretarySkinId;
         draft.status.secretarySkinId = args.data.secretarySkinId;
       }
       if (args.data?.secretaryCharInstId) {
-        draft.charRotation.presets[args.instId].profileInst = toNumber(
+        draft.charRotation.preset[args.instId].profileInst = toNumber(
           args.data.secretaryCharInstId,
         );
         draft.status.secretary = args.data.secretaryCharInstId;
       }
       if (args.data?.slots) {
-        draft.charRotation.presets[args.instId].slots = args.data.slots;
+        draft.charRotation.preset[args.instId].slots = args.data.slots;
       }
     });
   }
@@ -78,7 +81,7 @@ export class CharRotationManager {
   async deletePreset(args: { instId: string }) {
     const { instId } = args;
     await this._player.update(async (draft) => {
-      delete draft.charRotation.presets[instId];
+      delete draft.charRotation.preset[instId];
     });
   }
 }

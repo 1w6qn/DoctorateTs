@@ -216,6 +216,7 @@ export class MissionProgress implements MissionPlayerState {
     this._manager = _manager;
     this.type = type;
     this.confirmed = state == 3;
+    this.init();
     //this._trigger.on("mission:update", this.update.bind(this))
   }
 

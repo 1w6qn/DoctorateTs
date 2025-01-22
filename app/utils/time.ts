@@ -14,5 +14,5 @@ export function checkNew(
   type: StartOf,
   delta = 14400000,
 ): boolean {
-  return moment(ts1 - delta).isSame(moment(ts2 - delta), type);
+  return !moment(ts1 - delta).isSame(moment(ts2 - delta), type);
 }

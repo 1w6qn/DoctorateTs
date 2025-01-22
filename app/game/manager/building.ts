@@ -50,4 +50,11 @@ export class BuildingManager {
     //TODO
     return Object.keys(this._player._playerdata.building.furniture).length;
   }
+
+  async sync() {
+    await this._player.update(async (draft) => {
+      draft.event.building = now() + 5000;
+    });
+    return now();
+  }
 }

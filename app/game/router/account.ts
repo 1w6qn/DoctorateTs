@@ -34,6 +34,8 @@ router.post("/syncStatus", async (req, res) => {
   });
 });
 router.post("/syncPushMessage", async (req, res) => {
+  const player = httpContext.get("playerData") as PlayerDataManager;
+  player._trigger.emit("save");
   res.send({});
 });
 

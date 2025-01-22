@@ -5,32 +5,34 @@ import { PlayerDataManager } from "../manager/PlayerDataManager";
 const router = Router();
 router.post("/setDefaultSkill", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.setDefaultSkill(req.body);
+  await player.char.setDefaultSkill(req.body);
   res.send(player.delta);
 });
 router.post("/upgradeChar", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.upgradeChar(req.body);
-  res.send(player.delta);
+  await player.char.upgradeChar(req.body);
+  const delta = player.delta;
+  console.log(delta);
+  res.send(delta);
 });
 router.post("/evolveChar", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.evolveChar(req.body);
+  await player.char.evolveChar(req.body);
   res.send(player.delta);
 });
 router.post("/lockChar", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.lockChar(req.body);
+  await player.char.lockChar(req.body);
   res.send(player.delta);
 });
 router.post("/sellChar", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.sellChar(req.body);
+  await player.char.sellChar(req.body);
   res.send(player.delta);
 });
 router.post("/boostPotential", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.boostPotential(req.body);
+  await player.char.boostPotential(req.body);
   res.send({
     result: 1,
     ...player.delta,
@@ -39,47 +41,47 @@ router.post("/boostPotential", async (req, res) => {
 
 router.post("/upgradeSkill", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.upgradeSkill(req.body);
+  await player.char.upgradeSkill(req.body);
   res.send(player.delta);
 });
 router.post("/upgradeSpecialization", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.upgradeSpecialization(req.body);
+  await player.char.upgradeSpecialization(req.body);
   res.send(player.delta);
 });
 router.post("/completeUpgradeSpecialization", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.completeUpgradeSpecialization(req.body);
+  await player.char.completeUpgradeSpecialization(req.body);
   res.send(player.delta);
 });
 router.post("/changeCharSkin", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.changeCharSkin(req.body);
+  await player.char.changeCharSkin(req.body);
   res.send(player.delta);
 });
 router.post("/changeCharTemplate", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.changeCharTemplate(req.body);
+  await player.char.changeCharTemplate(req.body);
   res.send(player.delta);
 });
 router.post("/getSpCharMissionReward", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.getSpCharMissionReward(req.body);
+  await player.char.getSpCharMissionReward(req.body);
   res.send(player.delta);
 });
 router.post("/evolveCharUseItem", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.evolveCharUseItem(req.body);
+  await player.char.evolveCharUseItem(req.body);
   res.send(player.delta);
 });
 router.post("/upgradeCharLevelMaxUseItem", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.upgradeCharLevelMaxUseItem(req.body);
+  await player.char.upgradeCharLevelMaxUseItem(req.body);
   res.send(player.delta);
 });
 router.post("/upgradeSpecializedSkillUseItem", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.upgradeSpecializedSkillUseItem(req.body);
+  await player.char.upgradeSpecializedSkillUseItem(req.body);
   res.send(player.delta);
 });
 
@@ -100,28 +102,28 @@ router.post("/addonStage/battleFinish", async (req, res) => {
 });
 router.post("/unlockEquipment", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.unlockEquipment(req.body);
+  await player.char.unlockEquipment(req.body);
   res.send(player.delta);
 });
 router.post("/upgradeEquipment", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.upgradeEquipment(req.body);
+  await player.char.upgradeEquipment(req.body);
   res.send(player.delta);
 });
 router.post("/setEquipment", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.setEquipment(req.body);
+  await player.char.setEquipment(req.body);
   res.send(player.delta);
 });
 
 router.post("/batchSetCharVoiceLan", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.batchSetCharVoiceLan(req.body);
+  await player.char.batchSetCharVoiceLan(req.body);
   res.send(player.delta);
 });
 router.post("/setCharVoiceLan", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.setCharVoiceLan(req.body);
+  await player.char.setCharVoiceLan(req.body);
   res.send(player.delta);
 });
 export default router;

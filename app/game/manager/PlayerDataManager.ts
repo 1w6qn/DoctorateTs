@@ -23,6 +23,7 @@ import { patchesToObject } from "@utils/delta";
 import { TypedEventEmitter } from "@game/model/events";
 import { CharRotationManager } from "@game/manager/charRotation";
 import { RetroManager } from "@game/manager/retro";
+import { CharManager } from "@game/manager/char";
 
 export class PlayerDataManager {
   dungeon: DungeonManager;
@@ -43,6 +44,7 @@ export class PlayerDataManager {
   building: BuildingManager;
   openServer: OpenServerManager;
   retro: RetroManager;
+  char: CharManager;
   battle!: BattleManager;
   _trigger: TypedEventEmitter;
   _playerdata: PlayerDataModel;
@@ -73,6 +75,7 @@ export class PlayerDataManager {
     this.building = new BuildingManager(this, this._trigger);
     this.openServer = new OpenServerManager(this, this._trigger);
     this.retro = new RetroManager(this, this._trigger);
+    this.char = new CharManager(this, this._trigger);
     this._trigger.emit("game:fix");
     this._trigger.on(
       "save:battle",
@@ -117,7 +120,7 @@ export class PlayerDataManager {
       skin: this._playerdata.nameCardStyle.skin,
       registerTs: this._playerdata.status.registerTs,
       mainStageProgress: this._playerdata.status.mainStageProgress,
-      charCnt: this.troop.curCharInstId - 1,
+      charCnt: this._playerdata.troop.curCharInstId - 1,
       furnCnt: this.building.furnCnt,
       skinCnt: this.inventory.skinCnt,
       secretary: this._playerdata.status.secretary,

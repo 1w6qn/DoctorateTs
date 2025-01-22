@@ -56,11 +56,11 @@ export class RoguelikeRecruitManager {
         return acc;
       }
       let isUpgraded = false;
-      const rarity = parseInt(data.rarity.slice(-1));
+      const rarity = data.rarity;
       let population = [0, 0, 0, 0, 2, 6][rarity - 1]; //TODO other theme
       for (const buff of this._player._buff.filterBuffs("recruit_cost")) {
         if (
-          buff.blackboard[0].valueStr?.includes(data.rarity) &&
+          buff.blackboard[0].valueStr?.includes(data.rarity.toString()) &&
           buff.blackboard[1].valueStr?.includes(data.profession)
         ) {
           population += buff.blackboard[2].value!;
@@ -70,7 +70,7 @@ export class RoguelikeRecruitManager {
         "limited_direct_upgrade",
       )) {
         if (
-          buff.blackboard[0].valueStr?.includes(data.rarity) &&
+          buff.blackboard[0].valueStr?.includes(data.rarity.toString()) &&
           buff.blackboard[1].valueStr?.includes(data.profession)
         ) {
           isUpgraded = Math.random() <= buff.blackboard[3].value!;

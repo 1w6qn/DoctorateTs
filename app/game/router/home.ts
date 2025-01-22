@@ -35,7 +35,7 @@ router.post("/charRotation/deletePreset", async (req, res) => {
 });
 router.post("/char/changeMarkStar", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.troop.changeMarkStar(req.body);
+  await player.char.changeMarkStar(req.body);
   res.send(player.delta);
 });
 router.post("/setting/perf/setLowPower", async (req, res) => {

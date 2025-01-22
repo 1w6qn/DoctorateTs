@@ -163,8 +163,7 @@
           "item": {
             "itemId": "4001",
             "itemType": "GOLD",
-            "count": 5000,
-            "name": null
+            "count": 5000
           },
           "colorId": 1
         },
@@ -173,8 +172,7 @@
           "item": {
             "itemId": "2002",
             "itemType": "CARD_EXP",
-            "count": 15,
-            "name": null
+            "count": 15
           },
           "colorId": 1
         },
@@ -183,8 +181,7 @@
           "item": {
             "itemId": "3301",
             "itemType": "MATERIAL",
-            "count": 10,
-            "name": null
+            "count": 10
           },
           "colorId": 1
         },
@@ -193,8 +190,7 @@
           "item": {
             "itemId": "7001",
             "itemType": "TKT_RECRUIT",
-            "count": 5,
-            "name": null
+            "count": 5
           },
           "colorId": 1
         },
@@ -203,8 +199,7 @@
           "item": {
             "itemId": "4001",
             "itemType": "GOLD",
-            "count": 8000,
-            "name": null
+            "count": 8000
           },
           "colorId": 1
         },
@@ -213,8 +208,7 @@
           "item": {
             "itemId": "3112",
             "itemType": "MATERIAL",
-            "count": 15,
-            "name": null
+            "count": 15
           },
           "colorId": 1
         },
@@ -223,8 +217,7 @@
           "item": {
             "itemId": "2004",
             "itemType": "CARD_EXP",
-            "count": 8,
-            "name": null
+            "count": 8
           },
           "colorId": 1
         },
@@ -233,8 +226,7 @@
           "item": {
             "itemId": "3302",
             "itemType": "MATERIAL",
-            "count": 15,
-            "name": null
+            "count": 15
           },
           "colorId": 1
         },
@@ -243,8 +235,7 @@
           "item": {
             "itemId": "4001",
             "itemType": "GOLD",
-            "count": 20000,
-            "name": null
+            "count": 20000
           },
           "colorId": 1
         },
@@ -253,8 +244,7 @@
           "item": {
             "itemId": "30053",
             "itemType": "MATERIAL",
-            "count": 3,
-            "name": null
+            "count": 3
           },
           "colorId": 1
         },
@@ -263,8 +253,7 @@
           "item": {
             "itemId": "3303",
             "itemType": "MATERIAL",
-            "count": 8,
-            "name": null
+            "count": 8
           },
           "colorId": 1
         },
@@ -273,8 +262,7 @@
           "item": {
             "itemId": "30063",
             "itemType": "MATERIAL",
-            "count": 2,
-            "name": null
+            "count": 2
           },
           "colorId": 1
         },
@@ -283,8 +271,7 @@
           "item": {
             "itemId": "2004",
             "itemType": "CARD_EXP",
-            "count": 20,
-            "name": null
+            "count": 20
           },
           "colorId": 2
         },
@@ -293,8 +280,7 @@
           "item": {
             "itemId": "4001",
             "itemType": "GOLD",
-            "count": 50000,
-            "name": null
+            "count": 50000
           },
           "colorId": 2
         }
@@ -305,8 +291,7 @@
           "item": {
             "itemId": "4003",
             "itemType": "DIAMOND_SHD",
-            "count": 600,
-            "name": null
+            "count": 600
           },
           "colorId": 1
         },
@@ -315,8 +300,7 @@
           "item": {
             "itemId": "7003",
             "itemType": "TKT_GACHA",
-            "count": 2,
-            "name": null
+            "count": 2
           },
           "colorId": 1
         },
@@ -325,8 +309,7 @@
           "item": {
             "itemId": "4002",
             "itemType": "DIAMOND",
-            "count": 5,
-            "name": null
+            "count": 5
           },
           "colorId": 1
         },
@@ -335,8 +318,7 @@
           "item": {
             "itemId": "3401",
             "itemType": "MATERIAL",
-            "count": 500,
-            "name": null
+            "count": 500
           },
           "colorId": 1
         },
@@ -345,8 +327,7 @@
           "item": {
             "itemId": "7003",
             "itemType": "TKT_GACHA",
-            "count": 2,
-            "name": null
+            "count": 2
           },
           "colorId": 1
         },
@@ -355,8 +336,7 @@
           "item": {
             "itemId": "7002",
             "itemType": "TKT_INST_FIN",
-            "count": 10,
-            "name": null
+            "count": 10
           },
           "colorId": 1
         },
@@ -365,14 +345,11 @@
           "item": {
             "itemId": "char_173_slchan",
             "itemType": "CHAR",
-            "count": 1,
-            "name": null
+            "count": 1
           },
           "colorId": 2
         }
-      ],
-      "totalCheckinCharData": [],
-      "chainLoginCharData": []
+      ]
     },
     "openseverTaskGroup2": {
       "openServerMissionGroup": {
@@ -517,8 +494,7 @@
           "item": {
             "itemId": "4001",
             "itemType": "GOLD",
-            "count": 20000,
-            "name": null
+            "count": 20000
           },
           "colorId": 1
         },
@@ -527,8 +503,7 @@
           "item": {
             "itemId": "2003",
             "itemType": "CARD_EXP",
-            "count": 20,
-            "name": null
+            "count": 20
           },
           "colorId": 1
         },
@@ -537,8 +512,7 @@
           "item": {
             "itemId": "3301",
             "itemType": "MATERIAL",
-            "count": 30,
-            "name": null
+            "count": 30
           },
           "colorId": 1
         },
@@ -547,8 +521,7 @@
           "item": {
             "itemId": "7001",
             "itemType": "TKT_RECRUIT",
-            "count": 5,
-            "name": null
+            "count": 5
           },
           "colorId": 1
         },
@@ -567,8 +540,7 @@
           "item": {
             "itemId": "4001",
             "itemType": "GOLD",
-            "count": 30000,
-            "name": null
+            "count": 30000
           },
           "colorId": 1
         },
@@ -577,8 +549,7 @@
           "item": {
             "itemId": "2004",
             "itemType": "CARD_EXP",
-            "count": 15,
-            "name": null
+            "count": 15
           },
           "colorId": 1
         },
@@ -587,8 +558,7 @@
           "item": {
             "itemId": "3302",
             "itemType": "MATERIAL",
-            "count": 20,
-            "name": null
+            "count": 20
           },
           "colorId": 1
         },
@@ -597,8 +567,7 @@
           "item": {
             "itemId": "4001",
             "itemType": "GOLD",
-            "count": 40000,
-            "name": null
+            "count": 40000
           },
           "colorId": 1
         },
@@ -617,8 +586,7 @@
           "item": {
             "itemId": "3303",
             "itemType": "MATERIAL",
-            "count": 8,
-            "name": null
+            "count": 8
           },
           "colorId": 1
         },
@@ -637,8 +605,7 @@
           "item": {
             "itemId": "2004",
             "itemType": "CARD_EXP",
-            "count": 20,
-            "name": null
+            "count": 20
           },
           "colorId": 1
         },
@@ -669,8 +636,7 @@
           "item": {
             "itemId": "4002",
             "itemType": "DIAMOND",
-            "count": 5,
-            "name": null
+            "count": 5
           },
           "colorId": 1
         },
@@ -689,8 +655,7 @@
           "item": {
             "itemId": "7003",
             "itemType": "TKT_GACHA",
-            "count": 2,
-            "name": null
+            "count": 2
           },
           "colorId": 1
         },
@@ -699,8 +664,7 @@
           "item": {
             "itemId": "7003",
             "itemType": "TKT_GACHA",
-            "count": 2,
-            "name": null
+            "count": 2
           },
           "colorId": 1
         },
@@ -709,8 +673,7 @@
           "item": {
             "itemId": "7003",
             "itemType": "TKT_GACHA",
-            "count": 2,
-            "name": null
+            "count": 2
           },
           "colorId": 1
         },
@@ -4597,7 +4560,7 @@
         "desc": "公开招募新增干员：山、卡夫卡、松果",
         "diffMissionCount": 0,
         "startTime": 1730433600,
-        "endTime": 1916078399,
+        "endTime": 1737518399,
         "imageId": "page_056_normalgacha",
         "iconId": "page_056_normalgacha_icon",
         "missionList": [
@@ -4705,6 +4668,140 @@
             "missionId": "back_perm_102",
             "groupId": "return_g_21",
             "sortId": 102,
+            "jumpType": "RECRUIT_BUILD",
+            "jumpParam": null,
+            "desc": "累计完成25次公开招募",
+            "rewardList": [
+              {
+                "id": "return_credit_token2",
+                "count": 3,
+                "type": "RETURN_CREDIT"
+              },
+              {
+                "id": "31063",
+                "count": 2,
+                "type": "MATERIAL"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "groupId": "return_g_22",
+        "sortId": 8,
+        "tabTitle": "公开招募",
+        "title": "公开招募更新",
+        "desc": "公开招募新增干员：空弦、爱丽丝、豆苗",
+        "diffMissionCount": 0,
+        "startTime": 1737518400,
+        "endTime": 1916078399,
+        "imageId": "page_058_normalgacha",
+        "iconId": "page_058_normalgacha_icon",
+        "missionList": [
+          {
+            "missionId": "back_perm_103",
+            "groupId": "return_g_22",
+            "sortId": 103,
+            "jumpType": "RECRUIT_BUILD",
+            "jumpParam": null,
+            "desc": "累计完成1次公开招募",
+            "rewardList": [
+              {
+                "id": "return_credit_token2",
+                "count": 1,
+                "type": "RETURN_CREDIT"
+              },
+              {
+                "id": "4001",
+                "count": 5000,
+                "type": "GOLD"
+              }
+            ]
+          },
+          {
+            "missionId": "back_perm_104",
+            "groupId": "return_g_22",
+            "sortId": 104,
+            "jumpType": "RECRUIT_BUILD",
+            "jumpParam": null,
+            "desc": "累计完成5次公开招募",
+            "rewardList": [
+              {
+                "id": "return_credit_token2",
+                "count": 1,
+                "type": "RETURN_CREDIT"
+              },
+              {
+                "id": "2004",
+                "count": 5,
+                "type": "CARD_EXP"
+              }
+            ]
+          },
+          {
+            "missionId": "back_perm_105",
+            "groupId": "return_g_22",
+            "sortId": 105,
+            "jumpType": "RECRUIT_BUILD",
+            "jumpParam": null,
+            "desc": "累计完成10次公开招募",
+            "rewardList": [
+              {
+                "id": "return_credit_token2",
+                "count": 1,
+                "type": "RETURN_CREDIT"
+              },
+              {
+                "id": "30033",
+                "count": 2,
+                "type": "MATERIAL"
+              }
+            ]
+          },
+          {
+            "missionId": "back_perm_106",
+            "groupId": "return_g_22",
+            "sortId": 106,
+            "jumpType": "RECRUIT_BUILD",
+            "jumpParam": null,
+            "desc": "累计完成15次公开招募",
+            "rewardList": [
+              {
+                "id": "return_credit_token2",
+                "count": 2,
+                "type": "RETURN_CREDIT"
+              },
+              {
+                "id": "31033",
+                "count": 2,
+                "type": "MATERIAL"
+              }
+            ]
+          },
+          {
+            "missionId": "back_perm_107",
+            "groupId": "return_g_22",
+            "sortId": 107,
+            "jumpType": "RECRUIT_BUILD",
+            "jumpParam": null,
+            "desc": "累计完成20次公开招募",
+            "rewardList": [
+              {
+                "id": "return_credit_token2",
+                "count": 2,
+                "type": "RETURN_CREDIT"
+              },
+              {
+                "id": "30023",
+                "count": 2,
+                "type": "MATERIAL"
+              }
+            ]
+          },
+          {
+            "missionId": "back_perm_108",
+            "groupId": "return_g_22",
+            "sortId": 108,
             "jumpType": "RECRUIT_BUILD",
             "jumpParam": null,
             "desc": "累计完成25次公开招募",

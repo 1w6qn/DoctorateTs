@@ -76,9 +76,9 @@ app.get("/config/prod/official/network_config", (req, res) => {
     sign: "sign",
     content: JSON.stringify({
       configVer: "5",
-      funcVer: "V057",
+      funcVer: "V058",
       configs: {
-        V057: {
+        V058: {
           override: true,
           network: {
             gs: "http://192.168.0.100:8443/game/",

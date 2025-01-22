@@ -805,23 +805,23 @@ export interface RoguelikeTopicMonthMission {
 }
 
 export interface RoguelikeTopicMonthSquad {
-    id:             string;
-    teamName:       string;
-    teamSubName:    null | string;
-    teamFlavorDesc: null | string;
-    teamDes:        string;
-    teamColor:      string;
-    teamMonth:      string;
-    teamYear:       string;
-    teamIndex:      null | string;
-    teamChars:      string[];
-    zoneId:         null | string;
-    chatId:         string;
-    tokenRewardNum: number;
-    items:          ItemBundle[];
-    startTime:      number;
-    endTime:        number;
-    taskDes:        null | string;
+  id: string;
+  teamName: string;
+  teamSubName: null | string;
+  teamFlavorDesc: null | string;
+  teamDes: string;
+  teamColor: string;
+  teamMonth: string;
+  teamYear: string;
+  teamIndex: null | string;
+  teamChars: string[];
+  zoneId: null | string;
+  chatId: string;
+  tokenRewardNum: number;
+  items: ItemBundle[];
+  startTime: number;
+  endTime: number;
+  taskDes: null | string;
 }
 
 
@@ -844,7 +844,7 @@ export interface RoguelikeGameRecruitTicketData {
     profession:      string|number;
     rarity:          string|number;
     professionList:  string[];
-    rarityList:      string[];
+  rarityList: number[];
     extraEliteNum?:   number;
     extraFreeRarity?: string[];
     extraCharIds?:    string[];

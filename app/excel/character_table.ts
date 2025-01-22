@@ -9,37 +9,37 @@ export interface CharacterTable {
     [key: string]: CharacterData
 }
 export interface CharacterData {
-    name: string;
-    description: null | string;
-    canUseGeneralPotentialItem: boolean;
-    canUseActivityPotentialItem: boolean;
-    potentialItemId: null | string;
-    activityPotentialItemId: null | string;
-    classicPotentialItemId: null | string;
-    nationId: null | string;
-    groupId: null | string;
-    teamId: null | string;
-    displayNumber: null | string;
-    appellation: string;
-    position: BuildableType;
-    tagList: string[] | null;
-    itemUsage: null | string;
-    itemDesc: null | string;
-    itemObtainApproach: string | null;
-    isNotObtainable: boolean;
-    isSpChar: boolean;
-    maxPotentialLevel: number;
-    rarity: string;//RarityRank;
-    profession: ProfessionCategory;
-    subProfessionId: string;
-    trait: TraitDataBundle | null;
-    phases: PhaseData[];
-    skills: MainSkill[];
-    displayTokenDict: { [key: string]: boolean } | null;
-    talents: TalentDataBundle[] | null;
-    potentialRanks: PotentialRank[];
-    favorKeyFrames: KeyFrames<AttributesData> | null;
-    allSkillLvlup: SkillLevelCost[];
+  name: string;
+  description: null | string;
+  canUseGeneralPotentialItem: boolean;
+  canUseActivityPotentialItem: boolean;
+  potentialItemId: null | string;
+  activityPotentialItemId: null | string;
+  classicPotentialItemId: null | string;
+  nationId: null | string;
+  groupId: null | string;
+  teamId: null | string;
+  displayNumber: null | string;
+  appellation: string;
+  position: BuildableType;
+  tagList: string[] | null;
+  itemUsage: null | string;
+  itemDesc: null | string;
+  itemObtainApproach: string | null;
+  isNotObtainable: boolean;
+  isSpChar: boolean;
+  maxPotentialLevel: number;
+  rarity: number; //RarityRank;
+  profession: ProfessionCategory;
+  subProfessionId: string;
+  trait: TraitDataBundle | null;
+  phases: PhaseData[];
+  skills: MainSkill[];
+  displayTokenDict: { [key: string]: boolean } | null;
+  talents: TalentDataBundle[] | null;
+  potentialRanks: PotentialRank[];
+  favorKeyFrames: KeyFrames<AttributesData> | null;
+  allSkillLvlup: SkillLevelCost[];
 }
 
 export interface SkillLevelCost {

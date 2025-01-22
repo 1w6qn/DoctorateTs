@@ -11,8 +11,7 @@
       "zoneNameTitleEx": "EPISODE",
       "zoneNameThird": "EPISODE 00",
       "lockedText": "",
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "main_1": {
       "zoneID": "main_1",
@@ -25,8 +24,7 @@
       "zoneNameTitleEx": "EPISODE",
       "zoneNameThird": "EPISODE 01",
       "lockedText": "完成上一章以解锁",
-      "canPreview": true,
-      "hasAdditionalPanel": false
+      "canPreview": true
     },
     "main_2": {
       "zoneID": "main_2",
@@ -39,8 +37,7 @@
       "zoneNameTitleEx": "EPISODE",
       "zoneNameThird": "EPISODE 02",
       "lockedText": "完成上一章以解锁",
-      "canPreview": true,
-      "hasAdditionalPanel": false
+      "canPreview": true
     },
     "main_3": {
       "zoneID": "main_3",
@@ -53,8 +50,7 @@
       "zoneNameTitleEx": "EPISODE",
       "zoneNameThird": "EPISODE 03",
       "lockedText": "完成上一章以解锁",
-      "canPreview": true,
-      "hasAdditionalPanel": false
+      "canPreview": true
     },
     "guide_1": {
       "zoneID": "guide_1",
@@ -67,8 +63,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": "",
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "main_4": {
       "zoneID": "main_4",
@@ -81,8 +76,7 @@
       "zoneNameTitleEx": "EPISODE",
       "zoneNameThird": "EPISODE 04",
       "lockedText": "完成上一章以解锁",
-      "canPreview": true,
-      "hasAdditionalPanel": false
+      "canPreview": true
     },
     "main_5": {
       "zoneID": "main_5",
@@ -95,8 +89,7 @@
       "zoneNameTitleEx": "EPISODE",
       "zoneNameThird": "EPISODE 05",
       "lockedText": "完成上一章以解锁",
-      "canPreview": true,
-      "hasAdditionalPanel": false
+      "canPreview": true
     },
     "main_6": {
       "zoneID": "main_6",
@@ -109,8 +102,7 @@
       "zoneNameTitleEx": "EPISODE",
       "zoneNameThird": "EPISODE 06",
       "lockedText": "完成上一章以解锁",
-      "canPreview": true,
-      "hasAdditionalPanel": false
+      "canPreview": true
     },
     "main_7": {
       "zoneID": "main_7",
@@ -123,8 +115,7 @@
       "zoneNameTitleEx": "EPISODE",
       "zoneNameThird": "EPISODE 07",
       "lockedText": "完成上一章以解锁",
-      "canPreview": true,
-      "hasAdditionalPanel": false
+      "canPreview": true
     },
     "main_8": {
       "zoneID": "main_8",
@@ -137,8 +128,7 @@
       "zoneNameTitleEx": "EPISODE",
       "zoneNameThird": "EPISODE 08",
       "lockedText": "完成上一章以解锁",
-      "canPreview": true,
-      "hasAdditionalPanel": false
+      "canPreview": true
     },
     "main_9": {
       "zoneID": "main_9",
@@ -151,8 +141,7 @@
       "zoneNameTitleEx": "EPISODE",
       "zoneNameThird": "EPISODE 09",
       "lockedText": "完成上一章以解锁",
-      "canPreview": true,
-      "hasAdditionalPanel": false
+      "canPreview": true
     },
     "main_10": {
       "zoneID": "main_10",
@@ -235,8 +224,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": "当前不可进入",
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "weekly_2": {
       "zoneID": "weekly_2",
@@ -249,8 +237,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": "当前不可进入",
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "weekly_3": {
       "zoneID": "weekly_3",
@@ -263,8 +250,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": "当前不可进入",
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "weekly_4": {
       "zoneID": "weekly_4",
@@ -277,8 +263,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": "当前不可进入",
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "weekly_5": {
       "zoneID": "weekly_5",
@@ -291,8 +276,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": "当前不可进入",
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "weekly_6": {
       "zoneID": "weekly_6",
@@ -305,8 +289,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": "当前不可进入",
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "weekly_7": {
       "zoneID": "weekly_7",
@@ -319,8 +302,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": "当前不可进入",
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "weekly_8": {
       "zoneID": "weekly_8",
@@ -333,8 +315,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": "当前不可进入",
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "weekly_9": {
       "zoneID": "weekly_9",
@@ -347,8 +328,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": "当前不可进入",
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "camp_zone_1": {
       "zoneID": "camp_zone_1",
@@ -361,8 +341,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "camp_zone_2": {
       "zoneID": "camp_zone_2",
@@ -375,8 +354,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "camp_zone_3": {
       "zoneID": "camp_zone_3",
@@ -389,8 +367,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "camp_zone_4": {
       "zoneID": "camp_zone_4",
@@ -403,8 +380,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "camp_zone_5": {
       "zoneID": "camp_zone_5",
@@ -417,8 +393,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "camp_zone_6": {
       "zoneID": "camp_zone_6",
@@ -431,8 +406,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "camp_zone_7": {
       "zoneID": "camp_zone_7",
@@ -445,8 +419,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "camp_zone_8": {
       "zoneID": "camp_zone_8",
@@ -459,8 +432,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "camp_zone_9": {
       "zoneID": "camp_zone_9",
@@ -473,8 +445,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "camp_zone_10": {
       "zoneID": "camp_zone_10",
@@ -487,8 +458,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "camp_zone_11": {
       "zoneID": "camp_zone_11",
@@ -501,8 +471,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "camp_zone_12": {
       "zoneID": "camp_zone_12",
@@ -515,8 +484,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "camp_zone_13": {
       "zoneID": "camp_zone_13",
@@ -529,8 +497,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_tr_01": {
       "zoneID": "tower_tr_01",
@@ -543,8 +510,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_tr_02": {
       "zoneID": "tower_tr_02",
@@ -557,8 +523,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_tr_03": {
       "zoneID": "tower_tr_03",
@@ -571,8 +536,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_n_05": {
       "zoneID": "tower_n_05",
@@ -585,8 +549,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_n_06": {
       "zoneID": "tower_n_06",
@@ -599,8 +562,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_n_07": {
       "zoneID": "tower_n_07",
@@ -613,8 +575,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_n_08": {
       "zoneID": "tower_n_08",
@@ -627,8 +588,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_n_09": {
       "zoneID": "tower_n_09",
@@ -641,8 +601,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_n_10": {
       "zoneID": "tower_n_10",
@@ -655,8 +614,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_n_11": {
       "zoneID": "tower_n_11",
@@ -669,8 +627,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_n_12": {
       "zoneID": "tower_n_12",
@@ -683,8 +640,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_n_13": {
       "zoneID": "tower_n_13",
@@ -697,8 +653,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_n_14": {
       "zoneID": "tower_n_14",
@@ -711,8 +666,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_n_15": {
       "zoneID": "tower_n_15",
@@ -725,8 +679,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_n_16": {
       "zoneID": "tower_n_16",
@@ -739,8 +692,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_n_17": {
       "zoneID": "tower_n_17",
@@ -753,8 +705,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_n_01": {
       "zoneID": "tower_n_01",
@@ -767,8 +718,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_n_02": {
       "zoneID": "tower_n_02",
@@ -781,8 +731,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_n_03": {
       "zoneID": "tower_n_03",
@@ -795,8 +744,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "tower_n_04": {
       "zoneID": "tower_n_04",
@@ -809,8 +757,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "rogue_1": {
       "zoneID": "rogue_1",
@@ -823,8 +770,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "rogue_2": {
       "zoneID": "rogue_2",
@@ -837,8 +783,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "rogue_3": {
       "zoneID": "rogue_3",
@@ -851,8 +796,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "rogue_4": {
       "zoneID": "rogue_4",
@@ -865,8 +809,46 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
+    },
+    "act40side_zone1": {
+      "zoneID": "act40side_zone1",
+      "zoneIndex": 0,
+      "type": "ACTIVITY",
+      "zoneNameFirst": null,
+      "zoneNameSecond": "识七味",
+      "zoneNameTitleCurrent": null,
+      "zoneNameTitleUnCurrent": null,
+      "zoneNameTitleEx": null,
+      "zoneNameThird": null,
+      "lockedText": null,
+      "canPreview": false
+    },
+    "act40side_zone2": {
+      "zoneID": "act40side_zone2",
+      "zoneIndex": 1,
+      "type": "ACTIVITY",
+      "zoneNameFirst": null,
+      "zoneNameSecond": "阅世情",
+      "zoneNameTitleCurrent": null,
+      "zoneNameTitleUnCurrent": null,
+      "zoneNameTitleEx": null,
+      "zoneNameThird": null,
+      "lockedText": null,
+      "canPreview": false
+    },
+    "act40side_zone3": {
+      "zoneID": "act40side_zone3",
+      "zoneIndex": 2,
+      "type": "ACTIVITY",
+      "zoneNameFirst": null,
+      "zoneNameSecond": "怅别离",
+      "zoneNameTitleCurrent": null,
+      "zoneNameTitleUnCurrent": null,
+      "zoneNameTitleEx": null,
+      "zoneNameThird": null,
+      "lockedText": null,
+      "canPreview": false
     },
     "zone_1": {
       "zoneID": "zone_1",
@@ -879,8 +861,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "zone_2": {
       "zoneID": "zone_2",
@@ -893,8 +874,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "zone_3": {
       "zoneID": "zone_3",
@@ -907,8 +887,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "zone_4": {
       "zoneID": "zone_4",
@@ -921,8 +900,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act30sre_zone1": {
       "zoneID": "act30sre_zone1",
@@ -935,8 +913,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act30sre_zone2": {
       "zoneID": "act30sre_zone2",
@@ -949,8 +926,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act39side_zone1": {
       "zoneID": "act39side_zone1",
@@ -963,8 +939,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act39side_zone2": {
       "zoneID": "act39side_zone2",
@@ -977,8 +952,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act1vautochess_zone1": {
       "zoneID": "act1vautochess_zone1",
@@ -991,8 +965,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act29sre_zone1": {
       "zoneID": "act29sre_zone1",
@@ -1005,8 +978,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act29sre_zone2": {
       "zoneID": "act29sre_zone2",
@@ -1019,8 +991,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act29sre_zone3": {
       "zoneID": "act29sre_zone3",
@@ -1033,8 +1004,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act38side_zone1": {
       "zoneID": "act38side_zone1",
@@ -1047,8 +1017,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act38side_zone2": {
       "zoneID": "act38side_zone2",
@@ -1061,8 +1030,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act38side_zone3": {
       "zoneID": "act38side_zone3",
@@ -1075,8 +1043,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act37side_zone1": {
       "zoneID": "act37side_zone1",
@@ -1089,8 +1056,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act37side_zone2": {
       "zoneID": "act37side_zone2",
@@ -1103,8 +1069,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act1vecb_zone1": {
       "zoneID": "act1vecb_zone1",
@@ -1117,8 +1082,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act1vecb_zone2": {
       "zoneID": "act1vecb_zone2",
@@ -1131,8 +1095,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act1vecb_zone3": {
       "zoneID": "act1vecb_zone3",
@@ -1145,8 +1108,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act28sre_zone1": {
       "zoneID": "act28sre_zone1",
@@ -1159,8 +1121,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act28sre_zone2": {
       "zoneID": "act28sre_zone2",
@@ -1173,8 +1134,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act36side_zone1": {
       "zoneID": "act36side_zone1",
@@ -1187,8 +1147,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act36side_zone2": {
       "zoneID": "act36side_zone2",
@@ -1201,8 +1160,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act27sre_zone1": {
       "zoneID": "act27sre_zone1",
@@ -1215,8 +1173,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act27sre_zone2": {
       "zoneID": "act27sre_zone2",
@@ -1229,8 +1186,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act27sre_zone3": {
       "zoneID": "act27sre_zone3",
@@ -1243,8 +1199,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act35side_zone1": {
       "zoneID": "act35side_zone1",
@@ -1257,8 +1212,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act35side_zone2": {
       "zoneID": "act35side_zone2",
@@ -1271,8 +1225,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act35side_zone3": {
       "zoneID": "act35side_zone3",
@@ -1285,8 +1238,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act17mini_zone1": {
       "zoneID": "act17mini_zone1",
@@ -1299,8 +1251,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act26sre_zone1": {
       "zoneID": "act26sre_zone1",
@@ -1313,8 +1264,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act26sre_zone2": {
       "zoneID": "act26sre_zone2",
@@ -1327,8 +1277,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act34side_zone1": {
       "zoneID": "act34side_zone1",
@@ -1341,8 +1290,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act34side_zone2": {
       "zoneID": "act34side_zone2",
@@ -1355,8 +1303,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act25sre_zone1": {
       "zoneID": "act25sre_zone1",
@@ -1369,8 +1316,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act25sre_zone2": {
       "zoneID": "act25sre_zone2",
@@ -1383,8 +1329,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act25sre_zone3": {
       "zoneID": "act25sre_zone3",
@@ -1397,8 +1342,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act2vmulti_zone1": {
       "zoneID": "act2vmulti_zone1",
@@ -1411,8 +1355,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act33side_zone1": {
       "zoneID": "act33side_zone1",
@@ -1425,8 +1368,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act33side_zone2": {
       "zoneID": "act33side_zone2",
@@ -1439,8 +1381,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act33side_zone3": {
       "zoneID": "act33side_zone3",
@@ -1453,8 +1394,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act32side_zone1": {
       "zoneID": "act32side_zone1",
@@ -1467,8 +1407,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act32side_zone2": {
       "zoneID": "act32side_zone2",
@@ -1481,8 +1420,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act1r6sre_zone1": {
       "zoneID": "act1r6sre_zone1",
@@ -1495,8 +1433,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act1r6sre_zone2": {
       "zoneID": "act1r6sre_zone2",
@@ -1509,8 +1446,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act4bossrush_zone1": {
       "zoneID": "act4bossrush_zone1",
@@ -1523,8 +1459,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act31side_zone1": {
       "zoneID": "act31side_zone1",
@@ -1537,8 +1472,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act31side_zone2": {
       "zoneID": "act31side_zone2",
@@ -1551,8 +1485,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act31side_zone3": {
       "zoneID": "act31side_zone3",
@@ -1565,8 +1498,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act23sre_zone1": {
       "zoneID": "act23sre_zone1",
@@ -1579,8 +1511,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act23sre_zone2": {
       "zoneID": "act23sre_zone2",
@@ -1593,8 +1524,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act16mini_zone1": {
       "zoneID": "act16mini_zone1",
@@ -1607,8 +1537,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act22sre_zone1": {
       "zoneID": "act22sre_zone1",
@@ -1621,8 +1550,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act22sre_zone2": {
       "zoneID": "act22sre_zone2",
@@ -1635,8 +1563,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act30side_zone1": {
       "zoneID": "act30side_zone1",
@@ -1649,8 +1576,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act30side_zone2": {
       "zoneID": "act30side_zone2",
@@ -1663,8 +1589,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act29side_zone1": {
       "zoneID": "act29side_zone1",
@@ -1677,8 +1602,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act29side_zone2": {
       "zoneID": "act29side_zone2",
@@ -1691,8 +1615,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act29side_zone3": {
       "zoneID": "act29side_zone3",
@@ -1705,8 +1628,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act21sre_zone1": {
       "zoneID": "act21sre_zone1",
@@ -1719,8 +1641,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act21sre_zone2": {
       "zoneID": "act21sre_zone2",
@@ -1733,8 +1654,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act21sre_zone3": {
       "zoneID": "act21sre_zone3",
@@ -1747,8 +1667,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act28side_zone1": {
       "zoneID": "act28side_zone1",
@@ -1761,8 +1680,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act28side_zone2": {
       "zoneID": "act28side_zone2",
@@ -1775,8 +1693,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act20sre_zone1": {
       "zoneID": "act20sre_zone1",
@@ -1789,8 +1706,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act20sre_zone2": {
       "zoneID": "act20sre_zone2",
@@ -1803,8 +1719,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act20sre_zone3": {
       "zoneID": "act20sre_zone3",
@@ -1817,8 +1732,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act20sre_zone4": {
       "zoneID": "act20sre_zone4",
@@ -1831,8 +1745,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act20sre_zone5": {
       "zoneID": "act20sre_zone5",
@@ -1845,8 +1758,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act3bossrush_zone1": {
       "zoneID": "act3bossrush_zone1",
@@ -1859,8 +1771,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act27side_zone1": {
       "zoneID": "act27side_zone1",
@@ -1873,8 +1784,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act27side_zone2": {
       "zoneID": "act27side_zone2",
@@ -1887,8 +1797,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act27side_zone3": {
       "zoneID": "act27side_zone3",
@@ -1901,8 +1810,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act19sre_zone1": {
       "zoneID": "act19sre_zone1",
@@ -1915,8 +1823,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act19sre_zone2": {
       "zoneID": "act19sre_zone2",
@@ -1929,8 +1836,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act15mini_zone1": {
       "zoneID": "act15mini_zone1",
@@ -1943,8 +1849,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act26side_zone1": {
       "zoneID": "act26side_zone1",
@@ -1957,8 +1862,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act26side_zone2": {
       "zoneID": "act26side_zone2",
@@ -1971,8 +1875,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act18sre_zone1": {
       "zoneID": "act18sre_zone1",
@@ -1985,8 +1888,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act18sre_zone2": {
       "zoneID": "act18sre_zone2",
@@ -1999,8 +1901,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act25side_zone1": {
       "zoneID": "act25side_zone1",
@@ -2013,8 +1914,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act25side_zone2": {
       "zoneID": "act25side_zone2",
@@ -2027,8 +1927,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act25side_zone3": {
       "zoneID": "act25side_zone3",
@@ -2041,8 +1940,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act17sre_zone1": {
       "zoneID": "act17sre_zone1",
@@ -2055,8 +1953,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act17sre_zone2": {
       "zoneID": "act17sre_zone2",
@@ -2069,8 +1966,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act17sre_zone3": {
       "zoneID": "act17sre_zone3",
@@ -2083,8 +1979,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act17sre_zone4": {
       "zoneID": "act17sre_zone4",
@@ -2097,8 +1992,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act17sre_zone5": {
       "zoneID": "act17sre_zone5",
@@ -2111,8 +2005,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act24side_zone1": {
       "zoneID": "act24side_zone1",
@@ -2125,8 +2018,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act24side_zone2": {
       "zoneID": "act24side_zone2",
@@ -2139,8 +2031,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act16sre_zone1": {
       "zoneID": "act16sre_zone1",
@@ -2153,8 +2044,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act16sre_zone2": {
       "zoneID": "act16sre_zone2",
@@ -2167,8 +2057,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act14mini_zone1": {
       "zoneID": "act14mini_zone1",
@@ -2181,8 +2070,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act23side_zone1": {
       "zoneID": "act23side_zone1",
@@ -2195,8 +2083,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act23side_zone2": {
       "zoneID": "act23side_zone2",
@@ -2209,8 +2096,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act15sre_zone1": {
       "zoneID": "act15sre_zone1",
@@ -2223,8 +2109,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act15sre_zone2": {
       "zoneID": "act15sre_zone2",
@@ -2237,8 +2122,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act22side_zone1": {
       "zoneID": "act22side_zone1",
@@ -2251,8 +2135,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act22side_zone2": {
       "zoneID": "act22side_zone2",
@@ -2265,8 +2148,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act2bossrush_zone1": {
       "zoneID": "act2bossrush_zone1",
@@ -2279,8 +2161,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act21side_zone1": {
       "zoneID": "act21side_zone1",
@@ -2293,8 +2174,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act21side_zone2": {
       "zoneID": "act21side_zone2",
@@ -2307,8 +2187,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act21side_zone3": {
       "zoneID": "act21side_zone3",
@@ -2321,8 +2200,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act14sre_zone1": {
       "zoneID": "act14sre_zone1",
@@ -2335,8 +2213,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act14sre_zone2": {
       "zoneID": "act14sre_zone2",
@@ -2349,8 +2226,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act13sre_zone1": {
       "zoneID": "act13sre_zone1",
@@ -2363,8 +2239,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act13sre_zone2": {
       "zoneID": "act13sre_zone2",
@@ -2377,8 +2252,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act13sre_zone3": {
       "zoneID": "act13sre_zone3",
@@ -2391,8 +2265,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act13mini_zone1": {
       "zoneID": "act13mini_zone1",
@@ -2405,8 +2278,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act12mini_zone1": {
       "zoneID": "act12mini_zone1",
@@ -2419,8 +2291,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act20side_zone1": {
       "zoneID": "act20side_zone1",
@@ -2433,8 +2304,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act20side_zone2": {
       "zoneID": "act20side_zone2",
@@ -2447,8 +2317,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act20side_zone3": {
       "zoneID": "act20side_zone3",
@@ -2461,8 +2330,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act20side_zone4": {
       "zoneID": "act20side_zone4",
@@ -2475,8 +2343,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act20side_zone5": {
       "zoneID": "act20side_zone5",
@@ -2489,8 +2356,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act1bossrush_zone1": {
       "zoneID": "act1bossrush_zone1",
@@ -2503,8 +2369,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act12sre_zone1": {
       "zoneID": "act12sre_zone1",
@@ -2517,8 +2382,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act12sre_zone2": {
       "zoneID": "act12sre_zone2",
@@ -2531,8 +2395,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act12sre_zone3": {
       "zoneID": "act12sre_zone3",
@@ -2545,8 +2408,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act11mini_zone1": {
       "zoneID": "act11mini_zone1",
@@ -2559,8 +2421,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act19side_zone1": {
       "zoneID": "act19side_zone1",
@@ -2573,8 +2434,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act19side_zone2": {
       "zoneID": "act19side_zone2",
@@ -2587,8 +2447,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act18side_zone1": {
       "zoneID": "act18side_zone1",
@@ -2601,8 +2460,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act18side_zone2": {
       "zoneID": "act18side_zone2",
@@ -2615,8 +2473,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act11sre_zone1": {
       "zoneID": "act11sre_zone1",
@@ -2629,8 +2486,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act11sre_zone2": {
       "zoneID": "act11sre_zone2",
@@ -2643,8 +2499,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act17side_zone1": {
       "zoneID": "act17side_zone1",
@@ -2657,8 +2512,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act17side_zone2": {
       "zoneID": "act17side_zone2",
@@ -2671,8 +2525,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act17side_zone3": {
       "zoneID": "act17side_zone3",
@@ -2685,8 +2538,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act17side_zone4": {
       "zoneID": "act17side_zone4",
@@ -2699,8 +2551,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act17side_zone5": {
       "zoneID": "act17side_zone5",
@@ -2713,8 +2564,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act10sre_zone1": {
       "zoneID": "act10sre_zone1",
@@ -2727,8 +2577,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act10sre_zone2": {
       "zoneID": "act10sre_zone2",
@@ -2741,8 +2590,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act16side_zone1": {
       "zoneID": "act16side_zone1",
@@ -2755,8 +2603,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act16side_zone2": {
       "zoneID": "act16side_zone2",
@@ -2769,8 +2616,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act10mini_zone1": {
       "zoneID": "act10mini_zone1",
@@ -2783,8 +2629,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act15side_zone1": {
       "zoneID": "act15side_zone1",
@@ -2797,8 +2642,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act15side_zone2": {
       "zoneID": "act15side_zone2",
@@ -2811,8 +2655,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act9sre_zone1": {
       "zoneID": "act9sre_zone1",
@@ -2825,8 +2668,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act9sre_zone2": {
       "zoneID": "act9sre_zone2",
@@ -2839,8 +2681,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act14side_zone1": {
       "zoneID": "act14side_zone1",
@@ -2853,8 +2694,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act14side_zone2": {
       "zoneID": "act14side_zone2",
@@ -2867,8 +2707,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act8sre_zone1": {
       "zoneID": "act8sre_zone1",
@@ -2881,8 +2720,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act8sre_zone2": {
       "zoneID": "act8sre_zone2",
@@ -2895,8 +2733,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act13side_zone1": {
       "zoneID": "act13side_zone1",
@@ -2909,8 +2746,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act13side_zone2": {
       "zoneID": "act13side_zone2",
@@ -2923,8 +2759,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act13side_zone3": {
       "zoneID": "act13side_zone3",
@@ -2937,8 +2772,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act9mini_zone1": {
       "zoneID": "act9mini_zone1",
@@ -2951,8 +2785,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act7sre_zone1": {
       "zoneID": "act7sre_zone1",
@@ -2965,8 +2798,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act7sre_zone2": {
       "zoneID": "act7sre_zone2",
@@ -2979,8 +2811,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act12side_zone1": {
       "zoneID": "act12side_zone1",
@@ -2993,8 +2824,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act12side_zone2": {
       "zoneID": "act12side_zone2",
@@ -3007,8 +2837,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act12side_zone3": {
       "zoneID": "act12side_zone3",
@@ -3021,8 +2850,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act6sre_zone1": {
       "zoneID": "act6sre_zone1",
@@ -3035,8 +2863,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act6sre_zone2": {
       "zoneID": "act6sre_zone2",
@@ -3049,8 +2876,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act8mini_zone1": {
       "zoneID": "act8mini_zone1",
@@ -3063,8 +2889,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act1lock_zone1": {
       "zoneID": "act1lock_zone1",
@@ -3077,8 +2902,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act5sre_zone1": {
       "zoneID": "act5sre_zone1",
@@ -3091,8 +2915,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act5sre_zone2": {
       "zoneID": "act5sre_zone2",
@@ -3105,8 +2928,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act5sre_zone3": {
       "zoneID": "act5sre_zone3",
@@ -3119,8 +2941,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act7mini_zone1": {
       "zoneID": "act7mini_zone1",
@@ -3133,8 +2954,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act18d3_zone1": {
       "zoneID": "act18d3_zone1",
@@ -3147,8 +2967,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act18d3_zone2": {
       "zoneID": "act18d3_zone2",
@@ -3161,8 +2980,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act18d0_zone1": {
       "zoneID": "act18d0_zone1",
@@ -3175,8 +2993,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act18d0_zone2": {
       "zoneID": "act18d0_zone2",
@@ -3189,8 +3006,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act17d7_zone1": {
       "zoneID": "act17d7_zone1",
@@ -3203,8 +3019,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act17d5_zone1": {
       "zoneID": "act17d5_zone1",
@@ -3217,8 +3032,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act17d5_zone2": {
       "zoneID": "act17d5_zone2",
@@ -3231,8 +3045,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act17d5_zone3": {
       "zoneID": "act17d5_zone3",
@@ -3245,8 +3058,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act17d0_zone1": {
       "zoneID": "act17d0_zone1",
@@ -3259,8 +3071,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act17d0_zone2": {
       "zoneID": "act17d0_zone2",
@@ -3273,8 +3084,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act16d5_zone1": {
       "zoneID": "act16d5_zone1",
@@ -3287,8 +3097,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act16d5_zone2": {
       "zoneID": "act16d5_zone2",
@@ -3301,8 +3110,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act15d5_zone1": {
       "zoneID": "act15d5_zone1",
@@ -3315,8 +3123,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act15d0_zone1": {
       "zoneID": "act15d0_zone1",
@@ -3329,8 +3136,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act15d0_zone2": {
       "zoneID": "act15d0_zone2",
@@ -3343,8 +3149,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act14d7_zone1": {
       "zoneID": "act14d7_zone1",
@@ -3357,8 +3162,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act14d7_zone2": {
       "zoneID": "act14d7_zone2",
@@ -3371,8 +3175,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act13d5_zone1": {
       "zoneID": "act13d5_zone1",
@@ -3385,8 +3188,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act13d5_zone2": {
       "zoneID": "act13d5_zone2",
@@ -3399,8 +3201,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act13d2_zone1": {
       "zoneID": "act13d2_zone1",
@@ -3413,8 +3214,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act13d2_zone2": {
       "zoneID": "act13d2_zone2",
@@ -3427,8 +3227,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act13d0_zone1": {
       "zoneID": "act13d0_zone1",
@@ -3441,8 +3240,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act12d0_zone1": {
       "zoneID": "act12d0_zone1",
@@ -3455,8 +3253,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act12d0_zone2": {
       "zoneID": "act12d0_zone2",
@@ -3469,8 +3266,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act11d7_zone1": {
       "zoneID": "act11d7_zone1",
@@ -3483,8 +3279,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act11d7_zone2": {
       "zoneID": "act11d7_zone2",
@@ -3497,8 +3292,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act11d7_zone3": {
       "zoneID": "act11d7_zone3",
@@ -3511,8 +3305,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act11d0_zone1": {
       "zoneID": "act11d0_zone1",
@@ -3525,8 +3318,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act11d0_zone2": {
       "zoneID": "act11d0_zone2",
@@ -3539,8 +3331,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act11d0_zone3": {
       "zoneID": "act11d0_zone3",
@@ -3553,8 +3344,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act10d5_zone1": {
       "zoneID": "act10d5_zone1",
@@ -3567,8 +3357,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act9d0_zone1": {
       "zoneID": "act9d0_zone1",
@@ -3581,8 +3370,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act9d0_zone2": {
       "zoneID": "act9d0_zone2",
@@ -3595,8 +3383,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act9d0_zone3": {
       "zoneID": "act9d0_zone3",
@@ -3609,8 +3396,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act5d0_zone1": {
       "zoneID": "act5d0_zone1",
@@ -3623,8 +3409,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "act5d0_zone2": {
       "zoneID": "act5d0_zone2",
@@ -3637,8 +3422,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "A003_zone1": {
       "zoneID": "A003_zone1",
@@ -3651,8 +3435,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "A003_zone2": {
       "zoneID": "A003_zone2",
@@ -3665,8 +3448,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "A003_zone3": {
       "zoneID": "A003_zone3",
@@ -3679,8 +3461,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "A001_zone1": {
       "zoneID": "A001_zone1",
@@ -3693,8 +3474,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "A001_zone2": {
       "zoneID": "A001_zone2",
@@ -3707,8 +3487,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_1_zone1": {
       "zoneID": "permanent_sub_1_zone1",
@@ -3721,8 +3500,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_1_zone2": {
       "zoneID": "permanent_sub_1_zone2",
@@ -3735,8 +3513,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_1_zone3": {
       "zoneID": "permanent_sub_1_zone3",
@@ -3749,8 +3526,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_2_zone1": {
       "zoneID": "permanent_sub_2_zone1",
@@ -3763,8 +3539,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_2_zone2": {
       "zoneID": "permanent_sub_2_zone2",
@@ -3777,8 +3552,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_3_zone1": {
       "zoneID": "permanent_sub_3_zone1",
@@ -3791,8 +3565,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_3_zone2": {
       "zoneID": "permanent_sub_3_zone2",
@@ -3805,8 +3578,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_4_zone1": {
       "zoneID": "permanent_sub_4_zone1",
@@ -3819,8 +3591,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_4_zone2": {
       "zoneID": "permanent_sub_4_zone2",
@@ -3833,8 +3604,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_4_zone3": {
       "zoneID": "permanent_sub_4_zone3",
@@ -3847,8 +3617,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_4_zone4": {
       "zoneID": "permanent_sub_4_zone4",
@@ -3861,8 +3630,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_4_zone5": {
       "zoneID": "permanent_sub_4_zone5",
@@ -3875,8 +3643,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_5_zone1": {
       "zoneID": "permanent_sub_5_zone1",
@@ -3889,8 +3656,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_5_zone2": {
       "zoneID": "permanent_sub_5_zone2",
@@ -3903,8 +3669,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_5_zone3": {
       "zoneID": "permanent_sub_5_zone3",
@@ -3917,8 +3682,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_6_zone1": {
       "zoneID": "permanent_sub_6_zone1",
@@ -3931,8 +3695,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_6_zone2": {
       "zoneID": "permanent_sub_6_zone2",
@@ -3945,8 +3708,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_6_zone3": {
       "zoneID": "permanent_sub_6_zone3",
@@ -3959,8 +3721,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_7_zone1": {
       "zoneID": "permanent_sub_7_zone1",
@@ -3973,8 +3734,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sub_7_zone2": {
       "zoneID": "permanent_sub_7_zone2",
@@ -3987,8 +3747,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_1_zone1": {
       "zoneID": "permanent_sidestory_1_zone1",
@@ -4001,8 +3760,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_1_zone2": {
       "zoneID": "permanent_sidestory_1_zone2",
@@ -4015,8 +3773,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_2_zone1": {
       "zoneID": "permanent_sidestory_2_zone1",
@@ -4029,8 +3786,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_2_zone2": {
       "zoneID": "permanent_sidestory_2_zone2",
@@ -4043,8 +3799,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_2_zone3": {
       "zoneID": "permanent_sidestory_2_zone3",
@@ -4057,8 +3812,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_3_zone1": {
       "zoneID": "permanent_sidestory_3_zone1",
@@ -4071,8 +3825,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_3_zone2": {
       "zoneID": "permanent_sidestory_3_zone2",
@@ -4085,8 +3838,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_4_zone1": {
       "zoneID": "permanent_sidestory_4_zone1",
@@ -4099,8 +3851,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_4_zone2": {
       "zoneID": "permanent_sidestory_4_zone2",
@@ -4113,8 +3864,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_4_zone3": {
       "zoneID": "permanent_sidestory_4_zone3",
@@ -4127,8 +3877,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_5_zone1": {
       "zoneID": "permanent_sidestory_5_zone1",
@@ -4141,8 +3890,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_5_zone2": {
       "zoneID": "permanent_sidestory_5_zone2",
@@ -4155,8 +3903,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_6_zone1": {
       "zoneID": "permanent_sidestory_6_zone1",
@@ -4169,8 +3916,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_6_zone2": {
       "zoneID": "permanent_sidestory_6_zone2",
@@ -4183,8 +3929,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_7_zone1": {
       "zoneID": "permanent_sidestory_7_zone1",
@@ -4197,8 +3942,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_7_zone2": {
       "zoneID": "permanent_sidestory_7_zone2",
@@ -4211,8 +3955,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_8_zone1": {
       "zoneID": "permanent_sidestory_8_zone1",
@@ -4225,8 +3968,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_8_zone2": {
       "zoneID": "permanent_sidestory_8_zone2",
@@ -4239,8 +3981,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_9_zone1": {
       "zoneID": "permanent_sidestory_9_zone1",
@@ -4253,8 +3994,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_9_zone2": {
       "zoneID": "permanent_sidestory_9_zone2",
@@ -4267,8 +4007,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_9_zone3": {
       "zoneID": "permanent_sidestory_9_zone3",
@@ -4281,8 +4020,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_10_zone1": {
       "zoneID": "permanent_sidestory_10_zone1",
@@ -4295,8 +4033,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_10_zone2": {
       "zoneID": "permanent_sidestory_10_zone2",
@@ -4309,8 +4046,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_10_zone3": {
       "zoneID": "permanent_sidestory_10_zone3",
@@ -4323,8 +4059,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_11_zone1": {
       "zoneID": "permanent_sidestory_11_zone1",
@@ -4337,8 +4072,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_11_zone2": {
       "zoneID": "permanent_sidestory_11_zone2",
@@ -4351,8 +4085,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_12_zone1": {
       "zoneID": "permanent_sidestory_12_zone1",
@@ -4365,8 +4098,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_12_zone2": {
       "zoneID": "permanent_sidestory_12_zone2",
@@ -4379,8 +4111,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_13_zone1": {
       "zoneID": "permanent_sidestory_13_zone1",
@@ -4393,8 +4124,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_13_zone2": {
       "zoneID": "permanent_sidestory_13_zone2",
@@ -4407,8 +4137,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_14_zone1": {
       "zoneID": "permanent_sidestory_14_zone1",
@@ -4421,8 +4150,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_14_zone2": {
       "zoneID": "permanent_sidestory_14_zone2",
@@ -4435,8 +4163,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_15_zone1": {
       "zoneID": "permanent_sidestory_15_zone1",
@@ -4449,8 +4176,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_15_zone2": {
       "zoneID": "permanent_sidestory_15_zone2",
@@ -4463,8 +4189,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_16_zone1": {
       "zoneID": "permanent_sidestory_16_zone1",
@@ -4477,8 +4202,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_16_zone2": {
       "zoneID": "permanent_sidestory_16_zone2",
@@ -4491,8 +4215,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_16_zone3": {
       "zoneID": "permanent_sidestory_16_zone3",
@@ -4505,8 +4228,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_16_zone4": {
       "zoneID": "permanent_sidestory_16_zone4",
@@ -4519,8 +4241,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_16_zone5": {
       "zoneID": "permanent_sidestory_16_zone5",
@@ -4533,8 +4254,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_21_zone1": {
       "zoneID": "permanent_sidestory_21_zone1",
@@ -4547,8 +4267,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_21_zone2": {
       "zoneID": "permanent_sidestory_21_zone2",
@@ -4561,8 +4280,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_21_zone3": {
       "zoneID": "permanent_sidestory_21_zone3",
@@ -4575,8 +4293,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_18_zone1": {
       "zoneID": "permanent_sidestory_18_zone1",
@@ -4589,8 +4306,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_18_zone2": {
       "zoneID": "permanent_sidestory_18_zone2",
@@ -4603,8 +4319,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_19_zone1": {
       "zoneID": "permanent_sidestory_19_zone1",
@@ -4617,8 +4332,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_19_zone2": {
       "zoneID": "permanent_sidestory_19_zone2",
@@ -4631,8 +4345,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_20_zone1": {
       "zoneID": "permanent_sidestory_20_zone1",
@@ -4645,8 +4358,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_20_zone2": {
       "zoneID": "permanent_sidestory_20_zone2",
@@ -4659,8 +4371,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_17_zone1": {
       "zoneID": "permanent_sidestory_17_zone1",
@@ -4673,8 +4384,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_17_zone2": {
       "zoneID": "permanent_sidestory_17_zone2",
@@ -4687,8 +4397,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_17_zone3": {
       "zoneID": "permanent_sidestory_17_zone3",
@@ -4701,8 +4410,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_22_zone1": {
       "zoneID": "permanent_sidestory_22_zone1",
@@ -4715,8 +4423,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_22_zone2": {
       "zoneID": "permanent_sidestory_22_zone2",
@@ -4729,8 +4436,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_23_zone1": {
       "zoneID": "permanent_sidestory_23_zone1",
@@ -4743,8 +4449,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_23_zone2": {
       "zoneID": "permanent_sidestory_23_zone2",
@@ -4757,8 +4462,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_23_zone3": {
       "zoneID": "permanent_sidestory_23_zone3",
@@ -4771,8 +4475,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_24_zone1": {
       "zoneID": "permanent_sidestory_24_zone1",
@@ -4785,8 +4488,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     },
     "permanent_sidestory_24_zone2": {
       "zoneID": "permanent_sidestory_24_zone2",
@@ -4799,8 +4501,7 @@
       "zoneNameTitleEx": null,
       "zoneNameThird": null,
       "lockedText": null,
-      "canPreview": false,
-      "hasAdditionalPanel": false
+      "canPreview": false
     }
   },
   "weeklyAdditionInfo": {
@@ -4890,6 +4591,18 @@
     }
   },
   "zoneValidInfo": {
+    "act40side_zone1": {
+      "startTs": 1737518400,
+      "endTs": 1739303999
+    },
+    "act40side_zone2": {
+      "startTs": 1738137600,
+      "endTs": 1739303999
+    },
+    "act40side_zone3": {
+      "startTs": 1738742400,
+      "endTs": 1739303999
+    },
     "zone_1": {
       "startTs": 1735459200,
       "endTs": 1736625599
@@ -5719,7 +5432,7 @@
       "spoilAlert": false,
       "zoneOpenTime": -1,
       "diffGroup": [
-        "NORMAL"
+        2
       ]
     },
     "main_1": {
@@ -5737,7 +5450,7 @@
       "spoilAlert": false,
       "zoneOpenTime": -1,
       "diffGroup": [
-        "NORMAL"
+        2
       ]
     },
     "main_2": {
@@ -5755,7 +5468,7 @@
       "spoilAlert": false,
       "zoneOpenTime": -1,
       "diffGroup": [
-        "NORMAL"
+        2
       ]
     },
     "main_3": {
@@ -5773,7 +5486,7 @@
       "spoilAlert": false,
       "zoneOpenTime": -1,
       "diffGroup": [
-        "NORMAL"
+        2
       ]
     },
     "main_4": {
@@ -5791,7 +5504,7 @@
       "spoilAlert": false,
       "zoneOpenTime": -1,
       "diffGroup": [
-        "NORMAL"
+        2
       ]
     },
     "main_5": {
@@ -5809,7 +5522,7 @@
       "spoilAlert": false,
       "zoneOpenTime": -1,
       "diffGroup": [
-        "NORMAL"
+        2
       ]
     },
     "main_6": {
@@ -5827,7 +5540,7 @@
       "spoilAlert": false,
       "zoneOpenTime": -1,
       "diffGroup": [
-        "NORMAL"
+        2
       ]
     },
     "main_7": {
@@ -5845,7 +5558,7 @@
       "spoilAlert": false,
       "zoneOpenTime": -1,
       "diffGroup": [
-        "NORMAL"
+        2
       ]
     },
     "main_8": {
@@ -5863,7 +5576,7 @@
       "spoilAlert": false,
       "zoneOpenTime": -1,
       "diffGroup": [
-        "NORMAL"
+        2
       ]
     },
     "main_9": {
@@ -5881,8 +5594,8 @@
       "spoilAlert": true,
       "zoneOpenTime": -1,
       "diffGroup": [
-        "EASY",
-        "NORMAL"
+        1,
+        2
       ]
     },
     "main_10": {
@@ -5900,9 +5613,9 @@
       "spoilAlert": false,
       "zoneOpenTime": 1649908800,
       "diffGroup": [
-        "EASY",
-        "NORMAL",
-        "TOUGH"
+        1,
+        2,
+        4
       ]
     },
     "main_11": {
@@ -5920,9 +5633,9 @@
       "spoilAlert": false,
       "zoneOpenTime": 1665475200,
       "diffGroup": [
-        "EASY",
-        "NORMAL",
-        "TOUGH"
+        1,
+        2,
+        4
       ]
     },
     "main_12": {
@@ -5940,9 +5653,9 @@
       "spoilAlert": false,
       "zoneOpenTime": 1680753600,
       "diffGroup": [
-        "EASY",
-        "NORMAL",
-        "TOUGH"
+        1,
+        2,
+        4
       ]
     },
     "main_13": {
@@ -5960,9 +5673,9 @@
       "spoilAlert": false,
       "zoneOpenTime": 1696737600,
       "diffGroup": [
-        "EASY",
-        "NORMAL",
-        "TOUGH"
+        1,
+        2,
+        4
       ]
     },
     "main_14": {
@@ -5980,9 +5693,9 @@
       "spoilAlert": false,
       "zoneOpenTime": 1714536000,
       "diffGroup": [
-        "EASY",
-        "NORMAL",
-        "TOUGH"
+        1,
+        2,
+        4
       ]
     }
   },
@@ -6000,8 +5713,8 @@
           "rewards": [
             {
               "bindStageId": "easy_10-01",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_10_note_1",
               "textPath": "",
               "textDesc": "",
@@ -6020,8 +5733,8 @@
             },
             {
               "bindStageId": "main_10-01",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": "pic_2_main_10_note_1",
               "textPath": "Obt/Record/main_10/text_main_10_note_1",
               "textDesc": "",
@@ -6040,8 +5753,8 @@
             },
             {
               "bindStageId": "tough_10-01",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_10_note_1",
               "textPath": null,
               "textDesc": "某本塔拉语诗集中的一页。\n诗的内容大多数维多利亚人耳熟能详，是中学阅读课常见的篇目。",
@@ -6070,8 +5783,8 @@
           "rewards": [
             {
               "bindStageId": "easy_10-06",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_10_note_2",
               "textPath": "",
               "textDesc": "",
@@ -6090,8 +5803,8 @@
             },
             {
               "bindStageId": "main_10-06",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": "pic_2_main_10_note_2",
               "textPath": "Obt/Record/main_10/text_main_10_note_2",
               "textDesc": "",
@@ -6110,8 +5823,8 @@
             },
             {
               "bindStageId": "tough_10-06",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_10_note_2",
               "textPath": null,
               "textDesc": "来自菲利普伯爵的一封请柬。\n或许因为时间地点的变动，这封请柬已经作废了。",
@@ -6140,8 +5853,8 @@
           "rewards": [
             {
               "bindStageId": "easy_10-10",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_10_note_3",
               "textPath": "",
               "textDesc": "",
@@ -6165,8 +5878,8 @@
             },
             {
               "bindStageId": "main_10-10",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": "pic_2_main_10_note_3",
               "textPath": "Obt/Record/main_10/text_main_10_note_3",
               "textDesc": "",
@@ -6190,8 +5903,8 @@
             },
             {
               "bindStageId": "tough_10-10",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_10_note_3",
               "textPath": null,
               "textDesc": "海蒂通过一些手段争取到的运输许可证明。\n这张许可证同时附带着一整页的限制条例。",
@@ -6220,8 +5933,8 @@
           "rewards": [
             {
               "bindStageId": "easy_10-13",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_10_note_4",
               "textPath": "",
               "textDesc": "",
@@ -6245,8 +5958,8 @@
             },
             {
               "bindStageId": "main_10-13",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": "pic_2_main_10_note_4",
               "textPath": "Obt/Record/main_10/text_main_10_note_4",
               "textDesc": "",
@@ -6270,8 +5983,8 @@
             },
             {
               "bindStageId": "tough_10-13",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_10_note_4",
               "textPath": null,
               "textDesc": "“战士比尔”的照片。\n现在自救军成员们看到他的照片，都会心情复杂地转过头去。",
@@ -6305,8 +6018,8 @@
           "rewards": [
             {
               "bindStageId": "easy_10-15",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_10_note_5",
               "textPath": "",
               "textDesc": "",
@@ -6330,8 +6043,8 @@
             },
             {
               "bindStageId": "main_10-15",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": "pic_2_main_10_note_5",
               "textPath": "Obt/Record/main_10/text_main_10_note_5",
               "textDesc": "",
@@ -6355,8 +6068,8 @@
             },
             {
               "bindStageId": "tough_10-15",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_10_note_5",
               "textPath": null,
               "textDesc": "一片黑色的羽毛。\n黑色的羽兽已经飞向了风暴。",
@@ -6390,8 +6103,8 @@
           "rewards": [
             {
               "bindStageId": "hard_10-01",
-              "stageDiff1": "HARD",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 5,
+              "stageDiff": 4,
               "picRes": "pic_3_main_10_note_6",
               "textPath": "Obt/Record/main_10/text_main_10_note_6",
               "textDesc": null,
@@ -6420,8 +6133,8 @@
           "rewards": [
             {
               "bindStageId": "hard_10-02",
-              "stageDiff1": "HARD",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 5,
+              "stageDiff": 4,
               "picRes": "pic_3_main_10_note_7",
               "textPath": "Obt/Record/main_10/text_main_10_note_7",
               "textDesc": null,
@@ -6450,8 +6163,8 @@
           "rewards": [
             {
               "bindStageId": "hard_10-03",
-              "stageDiff1": "HARD",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 5,
+              "stageDiff": 4,
               "picRes": "pic_3_main_10_note_8",
               "textPath": "Obt/Record/main_10/text_main_10_note_8",
               "textDesc": null,
@@ -6500,8 +6213,8 @@
           "rewards": [
             {
               "bindStageId": "easy_11-01",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_11_note_1",
               "textPath": "",
               "textDesc": "",
@@ -6520,8 +6233,8 @@
             },
             {
               "bindStageId": "main_11-01",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": null,
               "textPath": "Obt/Record/main_11/text_main_11_note_1",
               "textDesc": "",
@@ -6540,8 +6253,8 @@
             },
             {
               "bindStageId": "tough_11-01",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_11_note_1",
               "textPath": null,
               "textDesc": "矗立在王宫前的瞭望塔楼。\n数百年过去了，塔楼早已坍塌，只留下了一张草图，供后人想象它最初的模样。",
@@ -6570,8 +6283,8 @@
           "rewards": [
             {
               "bindStageId": "easy_11-06",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_11_note_2",
               "textPath": "",
               "textDesc": "",
@@ -6590,8 +6303,8 @@
             },
             {
               "bindStageId": "main_11-06",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": null,
               "textPath": "Obt/Record/main_11/text_main_11_note_2",
               "textDesc": "",
@@ -6610,8 +6323,8 @@
             },
             {
               "bindStageId": "tough_11-06",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_11_note_2",
               "textPath": null,
               "textDesc": "统领塔楼骑士的警戒长的身份象征。\n是荣誉，更是责任。",
@@ -6640,8 +6353,8 @@
           "rewards": [
             {
               "bindStageId": "easy_11-10",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_11_note_3",
               "textPath": "",
               "textDesc": "",
@@ -6665,8 +6378,8 @@
             },
             {
               "bindStageId": "main_11-10",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": null,
               "textPath": "Obt/Record/main_11/text_main_11_note_3",
               "textDesc": "",
@@ -6690,8 +6403,8 @@
             },
             {
               "bindStageId": "tough_11-10",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_11_note_3",
               "textPath": null,
               "textDesc": "维多利亚颁发的最高战功勋章。\n只有真正英勇的维多利亚战士才能拥有。而在白狼家族的厅堂上挂着的还不止一枚。",
@@ -6720,8 +6433,8 @@
           "rewards": [
             {
               "bindStageId": "easy_11-13",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_11_note_4",
               "textPath": "",
               "textDesc": "",
@@ -6745,8 +6458,8 @@
             },
             {
               "bindStageId": "main_11-13",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": null,
               "textPath": "Obt/Record/main_11/text_main_11_note_4",
               "textDesc": "",
@@ -6770,8 +6483,8 @@
             },
             {
               "bindStageId": "tough_11-13",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_11_note_4",
               "textPath": null,
               "textDesc": "满载着喜悦的报纸一角。\n那一天，所有维多利亚的报纸都在歌颂着弗雷德里克三世征服高卢的功绩。",
@@ -6805,8 +6518,8 @@
           "rewards": [
             {
               "bindStageId": "main_11-17",
-              "stageDiff1": "PREDEFINED",
-              "stageDiff": "EASY",
+              "stageDiff1": 4,
+              "stageDiff": 1,
               "picRes": "pic_1_main_11_note_5",
               "textPath": "",
               "textDesc": "",
@@ -6814,8 +6527,8 @@
             },
             {
               "bindStageId": "main_11-17",
-              "stageDiff1": "PREDEFINED",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 4,
+              "stageDiff": 2,
               "picRes": null,
               "textPath": "Obt/Record/main_11/text_main_11_note_5",
               "textDesc": "",
@@ -6854,8 +6567,8 @@
             },
             {
               "bindStageId": "main_11-17",
-              "stageDiff1": "PREDEFINED",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 4,
+              "stageDiff": 4,
               "picRes": "pic_3_main_11_note_5",
               "textPath": null,
               "textDesc": "火光中的王宫一角。\n无人知晓维多利亚将走向何方。",
@@ -6873,8 +6586,8 @@
           "rewards": [
             {
               "bindStageId": "hard_11-01",
-              "stageDiff1": "HARD",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 5,
+              "stageDiff": 4,
               "picRes": "pic_3_main_11_note_6",
               "textPath": "Obt/Record/main_11/text_main_11_note_6",
               "textDesc": null,
@@ -6903,8 +6616,8 @@
           "rewards": [
             {
               "bindStageId": "hard_11-02",
-              "stageDiff1": "HARD",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 5,
+              "stageDiff": 4,
               "picRes": "pic_3_main_11_note_7",
               "textPath": "Obt/Record/main_11/text_main_11_note_7",
               "textDesc": null,
@@ -6933,8 +6646,8 @@
           "rewards": [
             {
               "bindStageId": "hard_11-03",
-              "stageDiff1": "HARD",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 5,
+              "stageDiff": 4,
               "picRes": "pic_3_main_11_note_8",
               "textPath": "Obt/Record/main_11/text_main_11_note_8",
               "textDesc": null,
@@ -6963,8 +6676,8 @@
           "rewards": [
             {
               "bindStageId": "hard_11-04",
-              "stageDiff1": "HARD",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 5,
+              "stageDiff": 4,
               "picRes": "pic_3_main_11_note_9",
               "textPath": "Obt/Record/main_11/text_main_11_note_9",
               "textDesc": null,
@@ -7013,8 +6726,8 @@
           "rewards": [
             {
               "bindStageId": "easy_12-03",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_12_note_1",
               "textPath": "",
               "textDesc": "",
@@ -7033,8 +6746,8 @@
             },
             {
               "bindStageId": "main_12-03",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": null,
               "textPath": "Obt/Record/main_12/text_main_12_note_1",
               "textDesc": "",
@@ -7058,8 +6771,8 @@
             },
             {
               "bindStageId": "tough_12-03",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_12_note_1",
               "textPath": null,
               "textDesc": "秃头佩尔虽然自己街区的生意经营得红红火火，但是外形欠妥老是被客人嘲笑，甚至吓跑了不少贵族太太小姐。他灵机一动，为自己装了颗铭刻“财运滚滚”的假金牙来祝福面包店将来挣大钱，没承想店里的生意真就如他所愿了。",
@@ -7088,8 +6801,8 @@
           "rewards": [
             {
               "bindStageId": "easy_12-06",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_12_note_2",
               "textPath": "",
               "textDesc": "",
@@ -7108,8 +6821,8 @@
             },
             {
               "bindStageId": "main_12-06",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": null,
               "textPath": "Obt/Record/main_12/text_main_12_note_2",
               "textDesc": "",
@@ -7133,8 +6846,8 @@
             },
             {
               "bindStageId": "tough_12-06",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_12_note_2",
               "textPath": null,
               "textDesc": "第三届哥伦比亚纹章学交流大会闭幕仪式上，籍籍无名的年轻学者有幸代替获奖的老师发言，而老师也在会后亲手将自己的勋章赠予了年轻学者，勉励他成为维多利亚纹章学界的明日之星，师徒之情一时传为佳话。",
@@ -7168,8 +6881,8 @@
           "rewards": [
             {
               "bindStageId": "easy_12-11",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_12_note_3",
               "textPath": "",
               "textDesc": "",
@@ -7193,8 +6906,8 @@
             },
             {
               "bindStageId": "main_12-11",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": null,
               "textPath": "Obt/Record/main_12/text_main_12_note_3",
               "textDesc": "",
@@ -7218,8 +6931,8 @@
             },
             {
               "bindStageId": "tough_12-11",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_12_note_3",
               "textPath": null,
               "textDesc": "诺伯特区帮派们的头头在对抗萨卡兹，保护街区这个问题上达成了奇妙的共识，他们谋划着在物资运输通道打响反抗的第一枪。无论合作结果如何，这对各敌对帮派里偷摸搞恋爱的年轻人可是大好消息。",
@@ -7253,8 +6966,8 @@
           "rewards": [
             {
               "bindStageId": "easy_12-15",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_12_note_4",
               "textPath": "",
               "textDesc": "",
@@ -7278,8 +6991,8 @@
             },
             {
               "bindStageId": "main_12-15",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": null,
               "textPath": "Obt/Record/main_12/text_main_12_note_4",
               "textDesc": "",
@@ -7303,8 +7016,8 @@
             },
             {
               "bindStageId": "tough_12-15",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_12_note_4",
               "textPath": null,
               "textDesc": "战争时期，不论是谁，观赏些大尺度电影总归是一个疏解压力的好方法。麦克拉伦正是清楚地明白这个道理，才借着这些原本不允许公开播放的片子大赚了一笔。不过话说回来，这时候哪还有人来负责纠察呢？",
@@ -7338,8 +7051,8 @@
           "rewards": [
             {
               "bindStageId": "easy_12-18",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_12_note_5",
               "textPath": "",
               "textDesc": "",
@@ -7363,8 +7076,8 @@
             },
             {
               "bindStageId": "main_12-18",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": null,
               "textPath": "Obt/Record/main_12/text_main_12_note_5",
               "textDesc": "",
@@ -7388,8 +7101,8 @@
             },
             {
               "bindStageId": "tough_12-18",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_12_note_5",
               "textPath": null,
               "textDesc": "贝尔德还记得自己得意满满地向格拉斯哥帮成员炫耀自己的新蝴蝶刀时，因陀罗提议这刀属于帮派财产，于是自作主张在刀柄上印上了格拉斯哥帮的印记。虽然贝尔德为此和因陀罗打了一架，但是按维娜的话来说，贝尔德多少有点半推半就的意思。",
@@ -7423,8 +7136,8 @@
           "rewards": [
             {
               "bindStageId": "hard_12-01",
-              "stageDiff1": "HARD",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 5,
+              "stageDiff": 4,
               "picRes": "pic_3_main_12_note_6",
               "textPath": "Obt/Record/main_12/text_main_12_note_6",
               "textDesc": null,
@@ -7453,8 +7166,8 @@
           "rewards": [
             {
               "bindStageId": "hard_12-02",
-              "stageDiff1": "HARD",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 5,
+              "stageDiff": 4,
               "picRes": "pic_3_main_12_note_7",
               "textPath": "Obt/Record/main_12/text_main_12_note_7",
               "textDesc": null,
@@ -7483,8 +7196,8 @@
           "rewards": [
             {
               "bindStageId": "hard_12-03",
-              "stageDiff1": "HARD",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 5,
+              "stageDiff": 4,
               "picRes": "pic_3_main_12_note_8",
               "textPath": "Obt/Record/main_12/text_main_12_note_8",
               "textDesc": null,
@@ -7513,8 +7226,8 @@
           "rewards": [
             {
               "bindStageId": "hard_12-04",
-              "stageDiff1": "HARD",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 5,
+              "stageDiff": 4,
               "picRes": "pic_3_main_12_note_9",
               "textPath": "Obt/Record/main_12/text_main_12_note_9",
               "textDesc": null,
@@ -7563,8 +7276,8 @@
           "rewards": [
             {
               "bindStageId": "easy_13-04",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_13_note_1",
               "textPath": "",
               "textDesc": "",
@@ -7583,8 +7296,8 @@
             },
             {
               "bindStageId": "main_13-04",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": null,
               "textPath": "Obt/Record/main_13/text_main_13_note_1",
               "textDesc": "",
@@ -7603,8 +7316,8 @@
             },
             {
               "bindStageId": "tough_13-04",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_13_note_1",
               "textPath": null,
               "textDesc": "我记得，很可爱。——安\n爸爸，我喜欢礼物！我不高兴是因为妈妈拍照迟到了！\n我有正事耽搁了，下次会注意。——妈妈",
@@ -7633,8 +7346,8 @@
           "rewards": [
             {
               "bindStageId": "easy_13-09",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_13_note_2",
               "textPath": "",
               "textDesc": "",
@@ -7653,8 +7366,8 @@
             },
             {
               "bindStageId": "main_13-09",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": null,
               "textPath": "Obt/Record/main_13/text_main_13_note_2",
               "textDesc": "",
@@ -7673,8 +7386,8 @@
             },
             {
               "bindStageId": "tough_13-09",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_13_note_2",
               "textPath": null,
               "textDesc": "（密文已翻译）\n妈妈，爸爸教会了我密文书写，你觉得我写得如何？他还夸我在理解“什么是有价值的信息”这个问题上很有天赋！\n对了，我还发现这里的铁路和火车都采用了我们维多利亚的制式。爸爸说这是因为谢拉格的变革背后有开斯特公爵的支持，但我们不必操心这件事。",
@@ -7703,8 +7416,8 @@
           "rewards": [
             {
               "bindStageId": "easy_13-12",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_13_note_3",
               "textPath": "",
               "textDesc": "",
@@ -7728,8 +7441,8 @@
             },
             {
               "bindStageId": "main_13-12",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": null,
               "textPath": "Obt/Record/main_13/text_main_13_note_3",
               "textDesc": "",
@@ -7748,8 +7461,8 @@
             },
             {
               "bindStageId": "tough_13-12",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_13_note_3",
               "textPath": null,
               "textDesc": "正如我当晚跪在您身前许下的承诺，“我至死都会是你的属臣，我的公爵”。——肯特·温德米尔",
@@ -7778,8 +7491,8 @@
           "rewards": [
             {
               "bindStageId": "easy_13-16",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_13_note_4",
               "textPath": "",
               "textDesc": "",
@@ -7803,8 +7516,8 @@
             },
             {
               "bindStageId": "main_13-16",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": null,
               "textPath": "Obt/Record/main_13/text_main_13_note_4",
               "textDesc": "",
@@ -7823,8 +7536,8 @@
             },
             {
               "bindStageId": "tough_13-16",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_13_note_4",
               "textPath": null,
               "textDesc": "（密文已翻译）\n我从爸爸的遗物里找到了这张卡片，上面还有他留下的消息，或许这对您已经不重要了。\n斯塔福德公爵和卡文迪许公爵不重要，我会额外注意开斯特公爵。\n我试探了阿什沃思公爵，他背后的那位暂时对于维多利亚的未来没有表态，这很反常。——肯特",
@@ -7858,8 +7571,8 @@
           "rewards": [
             {
               "bindStageId": "easy_13-19",
-              "stageDiff1": "EASY",
-              "stageDiff": "EASY",
+              "stageDiff1": 1,
+              "stageDiff": 1,
               "picRes": "pic_1_main_13_note_5",
               "textPath": "",
               "textDesc": "",
@@ -7883,8 +7596,8 @@
             },
             {
               "bindStageId": "main_13-19",
-              "stageDiff1": "NORMAL",
-              "stageDiff": "NORMAL",
+              "stageDiff1": 2,
+              "stageDiff": 2,
               "picRes": null,
               "textPath": "Obt/Record/main_13/text_main_13_note_5",
               "textDesc": "",
@@ -7903,8 +7616,8 @@
             },
             {
               "bindStageId": "tough_13-19",
-              "stageDiff1": "TOUGH",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 3,
+              "stageDiff": 4,
               "picRes": "pic_3_main_13_note_5",
               "textPath": null,
               "textDesc": "“艰难的决定”从来不是为了具体的人，或许你所维护的公爵制度早已不再是维多利亚所必需的心脏，爸爸。\n但我永远为你骄傲，我真想当面告诉你这件事。\n——戴菲恩",
@@ -7933,8 +7646,8 @@
           "rewards": [
             {
               "bindStageId": "hard_13-01",
-              "stageDiff1": "HARD",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 5,
+              "stageDiff": 4,
               "picRes": "pic_3_main_13_note_6",
               "textPath": "Obt/Record/main_13/text_main_13_note_6",
               "textDesc": null,
@@ -7963,8 +7676,8 @@
           "rewards": [
             {
               "bindStageId": "hard_13-02",
-              "stageDiff1": "HARD",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 5,
+              "stageDiff": 4,
               "picRes": "pic_3_main_13_note_7",
               "textPath": "Obt/Record/main_13/text_main_13_note_7",
               "textDesc": null,
@@ -7993,8 +7706,8 @@
           "rewards": [
             {
               "bindStageId": "hard_13-03",
-              "stageDiff1": "HARD",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 5,
+              "stageDiff": 4,
               "picRes": "pic_3_main_13_note_8",
               "textPath": "Obt/Record/main_13/text_main_13_note_8",
               "textDesc": null,
@@ -8023,8 +7736,8 @@
           "rewards": [
             {
               "bindStageId": "hard_13-04",
-              "stageDiff1": "HARD",
-              "stageDiff": "TOUGH",
+              "stageDiff1": 5,
+              "stageDiff": 4,
               "picRes": "pic_3_main_13_note_9",
               "textPath": "Obt/Record/main_13/text_main_13_note_9",
               "textDesc": null,

@@ -23,6 +23,7 @@ export class RecruitManager {
   async refreshTags(args: { slotId: number }): Promise<void> {
     const { slotId } = args;
     await this._player.update(async (draft) => {
+      //TODO
       draft.recruit.normal.slots[slotId].tags =
         await RecruitTools.refreshTagList();
     });
@@ -33,15 +34,14 @@ export class RecruitManager {
   async cancel(args: { slotId: number }) {
     const { slotId } = args;
     await this._player.update(async (draft) => {
-      draft.recruit.normal.slots[slotId] = {
-        state: 1,
-        selectTags: [],
-        startTs: -1,
-        maxFinishTs: -1,
-        realFinishTs: -1,
-        durationInSec: -1,
-        tags: await RecruitTools.refreshTagList(),
-      };
+      const slot = draft.recruit.normal.slots[slotId];
+      slot.state = 1;
+      slot.selectTags = [];
+      slot.startTs = -1;
+      slot.maxFinishTs = -1;
+      slot.realFinishTs = -1;
+      slot.durationInSec = -1;
+      slot.tags = await RecruitTools.refreshTagList();
     });
   }
 
@@ -291,7 +291,7 @@ export class RecruitTools {
       }
       const data = {
         name: value.name,
-        rarity: parseInt(value.rarity.slice(-1)) - 1,
+        rarity: value.rarity,
         tags: [] as number[],
       };
 

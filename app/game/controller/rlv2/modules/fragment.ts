@@ -79,7 +79,7 @@ export class RoguelikeFragmentManager {
     return Object.fromEntries(
       Object.entries(chars).map(([k, v]) => {
         const data = excel.CharacterTable[v.charId];
-        const rarity = parseInt(data.rarity.slice(-1));
+        const rarity = data.rarity;
         let weight = [
           [2, 2, 2, 2, 3, 4],
           [-1, -1, -1, 4, 5, 6],

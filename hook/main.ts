@@ -302,10 +302,6 @@ const logColors: { [key: string]: string } = {
   Exception: "31;43m",
 };
 
-function cleanString(s: NativePointer) {
-  return Il2CppUtils.readCSharpString(s)?.replace(/<\/*color.*?>/g, "") || "";
-}
-
 Java.perform(() => {
   const sdk = Java.use(
     "com.hypergryph.platform.hgsdk.contants.SDKConst$UrlInfo",
@@ -379,20 +375,31 @@ setTimeout(() =>
         CallLogCallback.relativeVirtualAddress,
       ),
       {
-        onEnter: ([, message, stackTrace, logType]: NativePointer[]) => {
+        onEnter: (args: NativePointer[]) => {
           const name = Il2CppUtils.getEnumName(
-            logType.toInt32(),
+            args[3].toInt32(),
             UnityEngine_LogType,
           );
           const color = logColors[name] || "m"; // 默认颜色
-          const cleanedMessage = cleanString(message);
-          const cleanedStackTrace = cleanString(stackTrace);
           Logger.log(
-            Logger.formatLog(name, color, cleanedMessage, cleanedStackTrace),
+            "[1;" +
+              color +
+              "<" +
+              name +
+              "> from Unity" +
+              ":\n" +
+              Il2CppUtils.readCSharpString(args[1])?.replace(
+                /<\/*color.*?>/g,
+                "",
+              ) +
+              "[m\n    " +
+              "[1;30m" +
+              Il2CppUtils.readCSharpString(args[2])?.replace(/\n/g, "\n    ") +
+              "[m",
           );
         },
       },
     );
-    Il2Cpp.dump("d.cs");
+    //Il2Cpp.dump("d.cs");
   }),
 );

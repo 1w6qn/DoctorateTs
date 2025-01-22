@@ -1,4 +1,3 @@
-import { max } from "lodash";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 
@@ -28,15 +27,14 @@ export class DexNavManager {
       const { character } = draft.dexNav;
       if (!(charId in character)) {
         character[charId] = {
-          charInstId: max(Object.values(character).map((k) => k.count))! + 1,
-          count: 1,
+          charInstId: draft.troop.curCharInstId,
+          count: 0,
         };
         return;
       }
       if (from === "CLASSIC") {
         character[charId].classicCount = 1 + (character[charId].count ?? 0);
       } else {
-        character[charId].count += 1;
       }
     });
   }

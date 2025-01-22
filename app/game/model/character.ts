@@ -1,22 +1,22 @@
-export interface PlayerCharacter{
-    instId: number;
-    charId:string;
-    level:number;
-    exp:number;
-    evolvePhase:number;//EvolvePhase
-    potentialRank:number;
-    favorPoint:number;
-    mainSkillLvl:number;
-    gainTime:number;
-    voiceLan: string;
-    starMark?:number;
-    currentTmpl?:string
-    tmpl?:{[key:string]:PlayerCharPatch}
-    skinId?:string
-    defaultSkillIndex?:number
-    skills?:PlayerCharSkill[]
-    currentEquip?:string|null
-    equip?:{[key:string]:PlayerCharEquipInfo}|null
+export interface PlayerCharacter {
+  instId: number;
+  charId: string;
+  level: number;
+  exp: number;
+  evolvePhase: number; //EvolvePhase
+  potentialRank: number;
+  favorPoint: number;
+  mainSkillLvl: number;
+  gainTime: number;
+  voiceLan: string;
+  starMark?: number;
+  currentTmpl?: string;
+  tmpl?: { [key: string]: PlayerCharPatch };
+  skin?: string;
+  defaultSkillIndex?: number;
+  skills?: PlayerCharSkill[];
+  currentEquip?: string | null;
+  equip?: { [key: string]: PlayerCharEquipInfo } | null;
 }
 export interface PlayerCharPatch{
     skinId:string

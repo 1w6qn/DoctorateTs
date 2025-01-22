@@ -845,7 +845,7 @@ export const MissionTemplates: {
           return;
         }
         if (
-          data.rarity.slice(-1) != mission.param[4] &&
+          data.rarity.toString() != mission.param[4] &&
           mission.param[4] != "-1"
         ) {
           return;
@@ -872,7 +872,7 @@ export const MissionTemplates: {
           return;
         }
         if (
-          data.rarity.slice(-1) != mission.param[4] &&
+          data.rarity.toString() != mission.param[4] &&
           mission.param[4] != "-1"
         ) {
           return;
@@ -899,7 +899,7 @@ export const MissionTemplates: {
         if (args.char.evolvePhase < 2) {
           return;
         }
-        if (!rarities.includes(data.rarity.slice(-1))) {
+        if (!rarities.includes(data.rarity.toString())) {
           return;
         }
         Object.values(args.char.equip!).forEach((e) => {

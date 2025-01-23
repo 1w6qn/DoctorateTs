@@ -25,8 +25,30 @@ router.post("/changeResume", async (req, res) => {
 });
 router.post("/bindNickName", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.status.bindNickName(req.body);
-  res.send(player.delta);
+  const nickName = req.body!.nickName;
+  let result = 0;
+  const specialChars = "~!@#$%^&*()_+{}|:\"<>?[]\\;',./";
+  if (nickName.length > 16) {
+    result = 1;
+  }
+
+  if (Array.from(specialChars).some((char) => nickName.includes(char))) {
+    result = 2;
+  }
+
+  const sensitiveWords = ["admin", "ban", "banned", "forbidden", "root"];
+  if (sensitiveWords.includes(nickName.toLowerCase())) {
+    result = 3;
+  }
+
+  if (nickName.toLowerCase().includes("doctoratepy")) {
+    result = 4;
+  }
+  if (result !== 0) res.send({ result });
+  else {
+    await player.status.bindNickName(req.body);
+    res.send(player.delta);
+  }
 });
 router.post("/useRenameCard", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
@@ -48,8 +70,15 @@ router.post("/buyAp", async (req, res) => {
 });
 router.post("/exchangeDiamondShard", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.status.exchangeDiamondShard(req.body);
-  res.send(player.delta);
+  if (player._playerdata.status.androidDiamond < req.body!.count) {
+    res.send({
+      result: 1,
+      errMsg: "至纯源石不足，是否前往商店购买至纯源石？",
+    });
+  } else {
+    await player.status.exchangeDiamondShard(req.body);
+    res.send(player.delta);
+  }
 });
 router.post("/useItem", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;

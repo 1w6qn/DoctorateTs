@@ -89,32 +89,46 @@ export class AccountManager {
     this._trigger.emit("save");
   }
 
-  getSocial(uid: string): { friends: string[] } {
+  async getSocial(uid: string): Promise<{
+    friends: { uid: string; alias: string }[];
+    friendRequests: string[];
+    visited: string[];
+  }> {
     return this.configs[uid]!.social;
   }
 
-  deleteFriend(uid: string, friendUid: string): void {
+  async deleteFriend(uid: string, friendUid: string): Promise<void> {
     const social = this.configs[uid]!.social;
-    social.friends.splice(social.friends.indexOf(friendUid), 1);
+    const friend = social.friends.find((f) => f.uid == friendUid)!;
+    social.friends.splice(social.friends.indexOf(friend), 1);
     this._trigger.emit("save");
   }
 
-  addFriend(uid: string, friendUid: string): void {
-    this.configs[uid]!.social.friends.push(friendUid);
+  async addFriend(uid: string, friendUid: string): Promise<void> {
+    this.configs[uid]!.social.friends.push({ uid: friendUid, alias: "" });
     this._trigger.emit("save");
   }
 
-  sendFriendRequest(from: string, to: string): void {
+  async sendFriendRequest(from: string, to: string): Promise<void> {
     this.configs[to]!.social.friendRequests.push(from);
     this._trigger.emit("save");
   }
 
-  deleteFriendRequest(uid: string, friendId: string): void {
+  async deleteFriendRequest(uid: string, friendId: string): Promise<void> {
     const social = this.configs[uid]!.social;
     social.friendRequests.splice(social.friendRequests.indexOf(friendId), 1);
     this._trigger.emit("save");
   }
 
+  async setFriendAlias(
+    uid: string,
+    friendId: string,
+    alias: string,
+  ): Promise<void> {
+    const social = this.configs[uid]!.social;
+    social.friends.find((f) => f.uid == friendId)!.alias = alias;
+    this._trigger.emit("save");
+  }
   async getFriendRequests(uid: string): Promise<string[]> {
     return this.configs[uid]!.social.friendRequests;
   }
@@ -122,11 +136,14 @@ export class AccountManager {
   async searchPlayer(keyword: string): Promise<string[]> {
     return Object.entries(this.data)
       .filter(([uid, data]) => {
-        return uid == keyword || data.socialInfo.nickName == keyword;
+        return (
+          keyword.includes(uid) ||
+          data.socialInfo.nickName == keyword ||
+          data.socialInfo.nickName + "#" + data.socialInfo.nickNumber == keyword
+        );
       })
       .map(([uid]) => uid);
   }
-
   async tokenByPhonePassword(phone: string, password: string): Promise<string> {
     const uid =
       Object.entries(this.configs).find(([, conf]) => {
@@ -166,7 +183,7 @@ export interface UserConfig {
     isLatestUserAgreement: true;
   };
   social: {
-    friends: string[];
+    friends: { uid: string; alias: string }[];
     friendRequests: string[];
     visited: string[];
   };

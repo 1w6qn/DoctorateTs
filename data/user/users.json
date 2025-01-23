@@ -12,7 +12,12 @@
     },
     "uid": "1",
     "social": {
-      "friends": [],
+      "friends": [
+        {
+          "uid": "1",
+          "alias": ""
+        }
+      ],
       "friendRequests": [],
       "visited": []
     },

@@ -2293,9 +2293,9 @@ export interface PlayerSocial {
 
 export interface PlayerMedalBoard {
   type: string;
-  custom: null | PlayerMedalCustomLayout;
-  template: string;
-  templateMedalList: string[];
+  custom: null | string;
+  template: string | null;
+  templateMedalList: string[] | null;
 }
 
 export interface PlayerSocialReward {

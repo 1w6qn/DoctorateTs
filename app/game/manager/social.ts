@@ -1,19 +1,14 @@
 import { PlayerFriendAssist } from "@game/model/character";
 import { accountManager } from "./AccountManger";
 import { pick } from "lodash";
-import { FriendDataWithNameCard } from "@game/model/social";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
+import excel from "@excel/excel";
 
 enum FriendServiceType {
   SEARCH_FRIEND = 0,
   GET_FRIEND_LIST = 1,
   GET_FRIEND_REQUEST = 2,
-}
-
-enum FriendDealEnum {
-  REFUSE = 0,
-  ACCEPT = 1,
 }
 
 export class SocialManager {
@@ -33,48 +28,66 @@ export class SocialManager {
     param: { [key: string]: string };
   }) {
     const { type, sortKeyList, param } = args;
-    const friendIdList = accountManager.getSocial(this._uid).friends;
-    const friendInfoList = await Promise.all(
-      friendIdList.map((friend) => accountManager.getPlayerFriendInfo(friend)),
-    );
-    const funcs: {
-      [key: number]: (
-        friend: FriendDataWithNameCard,
-        param: { [key: string]: string },
-      ) => object | void;
-    } = {
-      [FriendServiceType.SEARCH_FRIEND]: () => {},
-      [FriendServiceType.GET_FRIEND_LIST]: (friend: FriendDataWithNameCard) => {
-        return pick(friend, ["uid", ...sortKeyList]);
-      },
-      [FriendServiceType.GET_FRIEND_REQUEST]: () => {},
-    };
 
-    return friendInfoList.map((friend) => funcs[type](friend, param));
+    if (type === FriendServiceType.GET_FRIEND_REQUEST) {
+      return await accountManager.getFriendRequests(this._uid);
+    } else if (type === FriendServiceType.SEARCH_FRIEND) {
+      const playerList = await accountManager.searchPlayer(
+        param.nickName + "#" + param.nickNumber,
+      );
+      const infoList = await Promise.all(
+        playerList.map((friend) => accountManager.getPlayerFriendInfo(friend)),
+      );
+      return infoList.map((friend) => pick(friend, ["uid", "level"]));
+    } else if (type === FriendServiceType.GET_FRIEND_LIST) {
+      const social = await accountManager.getSocial(this._uid);
+      const friendIdList = social.friends.map((friend) => friend.uid);
+      const friendInfoList = await Promise.all(
+        friendIdList.map((friend) =>
+          accountManager.getPlayerFriendInfo(friend),
+        ),
+      );
+      return friendInfoList.map((friend) =>
+        pick(friend, ["uid", ...sortKeyList]),
+      );
+    }
   }
 
   async getFriendList(args: { idList: string[] }) {
-    return await Promise.all(
-      args.idList.map((friend) => accountManager.getPlayerFriendInfo(friend)),
+    const { idList } = args;
+    const friends = await Promise.all(
+      idList.map((friend) => accountManager.getPlayerFriendInfo(friend)),
     );
+    const friendAlias = (await accountManager.getSocial(this._uid)).friends.map(
+      (friend) => friend.alias,
+    );
+    return {
+      friends,
+      friendAlias,
+      resultIdList: idList,
+    };
   }
 
   async deleteFriend(args: { id: string }) {
-    accountManager.deleteFriend(this._uid, args.id);
+    await accountManager.deleteFriend(this._uid, args.id);
   }
 
   async sendFriendRequest(args: { id: string }) {
-    accountManager.sendFriendRequest(this._uid, args.id);
+    await accountManager.sendFriendRequest(this._uid, args.id);
   }
 
-  async processFriendRequest(args: {
-    friendId: string;
-    action: FriendDealEnum;
-  }) {
-    accountManager.deleteFriendRequest(this._uid, args.friendId);
-    if (args.action === FriendDealEnum.ACCEPT) {
-      accountManager.addFriend(this._uid, args.friendId);
+  async processFriendRequest(args: { friendId: string; action: number }) {
+    await accountManager.deleteFriendRequest(this._uid, args.friendId);
+    if (args.action === 1) {
+      await accountManager.addFriend(this._uid, args.friendId);
+      await accountManager.deleteFriendRequest(args.friendId, this._uid);
     }
+    await this._player.update(async (draft) => {
+      draft.pushFlags.hasFriendRequest = 0;
+    });
+    return {
+      friendNum: (await accountManager.getSocial(this._uid)).friends.length,
+    };
   }
 
   async receiveSocialPoint() {
@@ -96,12 +109,44 @@ export class SocialManager {
     customIndex: string;
     templateGroup: string;
   }) {
-    const { type, templateGroup } = args;
+    const { type, customIndex, templateGroup } = args;
     await this._player.update(async (draft) => {
-      draft.social.medalBoard.type = type;
-      draft.social.medalBoard.template = templateGroup;
-      //TODO
-      //draft.social.medalBoard.custom = customIndex;
+      const medalBoard = draft.social.medalBoard;
+      medalBoard.type = type;
+      if (type === "CUSTOM") {
+        medalBoard.custom = customIndex;
+        medalBoard.template = null;
+        medalBoard.templateMedalList = null;
+      } else if (type === "TEMPLATE") {
+        medalBoard.custom = null;
+        medalBoard.template = templateGroup;
+        let medalGroupId;
+        if (templateGroup.includes("Activity")) {
+          medalGroupId = "activityMedal";
+        } else if (templateGroup.includes("Rogue")) {
+          medalGroupId = "rogueMedal";
+        } else {
+          medalGroupId = "";
+        }
+        const medalIdList = excel.MedalTable.medalTypeData[
+          medalGroupId
+        ].groupData.find((item) => item.groupId === templateGroup)!.medalId;
+        medalIdList.push(
+          ...excel.MedalTable.medalList
+            .filter(
+              (medal) => medal.medalId in medalIdList && medal.advancedMedal,
+            )
+            .map((medal) => medal.advancedMedal!),
+        );
+
+        medalBoard.templateMedalList = medalIdList.filter(
+          (medal) => medal in draft.medal.medals,
+        );
+      } else {
+        medalBoard.custom = null;
+        medalBoard.template = null;
+        medalBoard.templateMedalList = null;
+      }
     });
   }
 
@@ -112,11 +157,41 @@ export class SocialManager {
     });
   }
 
-  async setFriendAlias(args: {}) {}
+  async setFriendAlias(args: { friendId: string; alias: string }) {
+    const { friendId, alias } = args;
+    await accountManager.setFriendAlias(this._uid, friendId, alias);
+  }
 
   async searchPlayer(args: { idList: string[] }) {
     const { idList } = args;
+    const social = await accountManager.getSocial(this._uid);
+    const friendRequestList = await Promise.all(
+      idList.map((id) => accountManager.getPlayerFriendInfo(id)),
+    );
+    const friendStatusList = friendRequestList.map((id) => {
+      if (social.friends.some((friend) => friend.uid === id.uid)) {
+        return 2;
+      } else if (social.friendRequests.includes(id.uid)) {
+        return 1;
+      } else {
+        return 0;
+      }
+    });
+    return {
+      players: friendRequestList,
+      resultIdList: idList,
+      friendStatusList: friendStatusList,
+    };
   }
 
-  async getFriendRequestList() {}
+  async getFriendRequestList(args: { idList: string[] }) {
+    const { idList } = args;
+    const friendRequestList = idList.map((id) =>
+      accountManager.getPlayerFriendInfo(id),
+    );
+    return {
+      requestList: await Promise.all(friendRequestList),
+      resultIdList: idList,
+    };
+  }
 }

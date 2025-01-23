@@ -69,6 +69,33 @@ export class InventoryManager {
     if (!item.type) {
       item.type = excel.ItemTable.items[item.id].itemType as string;
     }
+    const consumableFunc = (
+      item: ItemBundle,
+      draft: WritableDraft<PlayerDataModel>,
+    ) => {
+      let consumableId = item?.instId;
+      if (!consumableId) {
+        const consumable_set = new Set<number>();
+        for (const item of Object.values(draft.consumable)) {
+          const keys = Object.keys(item);
+          if (keys.length > 0) {
+            consumable_set.add(parseInt(keys[0], 10));
+          }
+        }
+        const maxConsumableId =
+          consumable_set.size > 0 ? Math.max(...Array.from(consumable_set)) : 0;
+        consumableId = maxConsumableId + 1;
+      }
+
+      if (!draft.consumable[item.id]) {
+        draft.consumable[item.id] = {};
+      }
+      if (draft.consumable[item.id][consumableId]) {
+        draft.consumable[item.id][consumableId].count += item.count;
+      } else {
+        draft.consumable[item.id][consumableId] = { count: item.count, ts: -1 };
+      }
+    };
     const funcs: {
       [key: string]: (
         item: ItemBundle,
@@ -127,7 +154,18 @@ export class InventoryManager {
           };
         }
       },
-      AP_GAMEPLAY: (item, draft) => (draft.status.ap += item.count),
+      AP_GAMEPLAY: (item, draft) => {
+        const addAp = Math.floor((now() - draft.status.lastApAddTime) / 360);
+        if (draft.status.ap < draft.status.maxAp) {
+          if (draft.status.ap + addAp >= draft.status.maxAp) {
+            draft.status.ap = draft.status.maxAp;
+          } else if (addAp > 0) {
+            draft.status.ap += addAp;
+          }
+        }
+        draft.status.ap += item.count;
+        draft.status.lastApAddTime = now();
+      },
       AP_BASE: () => {},
       SOCIAL_PT: (item, draft) => (draft.status.socialPoint += item.count),
       CHAR_SKIN: (item, draft) => {
@@ -139,35 +177,29 @@ export class InventoryManager {
       TKT_GACHA_PRSV: (item, draft) =>
         (draft.inventory[item.id] = (this.items[item.id] || 0) + item.count),
       AP_ITEM: () => {},
-      AP_SUPPLY: () => {},
-      RENAMING_CARD: () => {},
-      RENAMING_CARD_2: () => {},
+      AP_SUPPLY: consumableFunc,
+      RENAMING_CARD: consumableFunc,
+      RENAMING_CARD_2: consumableFunc,
       ET_STAGE: () => {},
       ACTIVITY_ITEM: () => {},
-      VOUCHER_PICK: () => {},
-      VOUCHER_CGACHA: () => {},
-      VOUCHER_MGACHA: () => {},
+      VOUCHER_PICK: consumableFunc,
+      VOUCHER_CGACHA: consumableFunc,
+      VOUCHER_MGACHA: consumableFunc,
       CRS_SHOP_COIN: () => {},
       CRS_RUNE_COIN: () => {},
-      LMTGS_COIN: (item, draft) => {
-        if (draft.consumable[item.id]["999"]) {
-          draft.consumable[item.id]["999"].count += item.count;
-        } else {
-          draft.consumable[item.id]["999"] = { count: item.count, ts: -1 };
-        }
-      },
+      LMTGS_COIN: consumableFunc,
       EPGS_COIN: (item, draft) =>
         (draft.inventory[item.id] = (this.items[item.id] || 0) + item.count),
-      LIMITED_TKT_GACHA_10: () => {},
+      LIMITED_TKT_GACHA_10: consumableFunc,
       LIMITED_FREE_GACHA: () => {},
       REP_COIN: (item, draft) =>
         (draft.inventory[item.id] = (this.items[item.id] || 0) + item.count),
       ROGUELIKE: () => {},
-      LINKAGE_TKT_GACHA_10: () => {},
-      VOUCHER_ELITE_II_4: () => {},
-      VOUCHER_ELITE_II_5: () => {},
-      VOUCHER_ELITE_II_6: () => {},
-      VOUCHER_SKIN: () => {},
+      LINKAGE_TKT_GACHA_10: consumableFunc,
+      VOUCHER_ELITE_II_4: consumableFunc,
+      VOUCHER_ELITE_II_5: consumableFunc,
+      VOUCHER_ELITE_II_6: consumableFunc,
+      VOUCHER_SKIN: consumableFunc,
       RETRO_COIN: () => {},
       PLAYER_AVATAR: (item, draft) => {
         draft.avatar.avatar_icon[item.id] = {
@@ -185,17 +217,17 @@ export class InventoryManager {
       HOME_BACKGROUND: (item) => {
         this._trigger.emit("background:get", item.id);
       },
-      EXTERMINATION_AGENT: () => {},
-      OPTIONAL_VOUCHER_PICK: () => {},
+      EXTERMINATION_AGENT: consumableFunc,
+      OPTIONAL_VOUCHER_PICK: consumableFunc,
       ACT_CART_COMPONENT: () => {},
-      VOUCHER_LEVELMAX_6: () => {},
-      VOUCHER_LEVELMAX_5: () => {},
-      VOUCHER_LEVELMAX_4: () => {},
-      VOUCHER_SKILL_SPECIALLEVELMAX_6: () => {},
-      VOUCHER_SKILL_SPECIALLEVELMAX_5: () => {},
-      VOUCHER_SKILL_SPECIALLEVELMAX_4: () => {},
-      ACTIVITY_POTENTIAL: () => {},
-      ITEM_PACK: () => {},
+      VOUCHER_LEVELMAX_6: consumableFunc,
+      VOUCHER_LEVELMAX_5: consumableFunc,
+      VOUCHER_LEVELMAX_4: consumableFunc,
+      VOUCHER_SKILL_SPECIALLEVELMAX_6: consumableFunc,
+      VOUCHER_SKILL_SPECIALLEVELMAX_5: consumableFunc,
+      VOUCHER_SKILL_SPECIALLEVELMAX_4: consumableFunc,
+      ACTIVITY_POTENTIAL: consumableFunc,
+      ITEM_PACK: consumableFunc,
       SANDBOX: () => {},
       FAVOR_ADD_ITEM: () => {},
       CLASSIC_SHD: (item, draft) => (draft.status.classicShard += item.count),
@@ -209,7 +241,7 @@ export class InventoryManager {
       RETURN_PROGRESS: () => {},
       NEW_PROGRESS: () => {},
       MCARD_VOUCHER: () => {},
-      MATERIAL_ISSUE_VOUCHER: () => {},
+      MATERIAL_ISSUE_VOUCHER: consumableFunc,
       CRS_SHOP_COIN_V2: () => {},
       HOME_THEME: (item) => {
         this._trigger.emit("homeTheme:get", item.id);
@@ -223,8 +255,8 @@ export class InventoryManager {
           progress: null,
         };
       },
-      EXCLUSIVE_TKT_GACHA: () => {},
-      EXCLUSIVE_TKT_GACHA_10: () => {},
+      EXCLUSIVE_TKT_GACHA: consumableFunc,
+      EXCLUSIVE_TKT_GACHA_10: consumableFunc,
     };
     callback?.();
     await this._player.update(async (draft) => {

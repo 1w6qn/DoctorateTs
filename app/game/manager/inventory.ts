@@ -13,16 +13,16 @@ export class InventoryManager {
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
-    this._trigger.on("items:use", (items: ItemBundle[]) =>
-      items.forEach((item) => this._useItem(item)),
+    this._trigger.on(
+      "items:use",
+      async (items: ItemBundle[]) =>
+        await Promise.all(items.map((item) => this._useItem(item))),
     );
-    this._trigger.on("items:get", (items: ItemBundle[]) =>
-      items.forEach((item) => this.gainItem(item)),
+    this._trigger.on(
+      "items:get",
+      async (items: ItemBundle[]) =>
+        await Promise.all(items.map((item) => this.gainItem(item))),
     );
-  }
-
-  get items(): { [itemId: string]: number } {
-    return this._player._playerdata.inventory;
   }
 
   get skinCnt(): number {
@@ -33,15 +33,17 @@ export class InventoryManager {
     if (!item.type) {
       item.type = excel.ItemTable.items[item.id].itemType as string;
     }
-    const consumableFunc = (
+    const consumableFunc = async (
       item: ItemBundle,
       draft: WritableDraft<PlayerDataModel>,
-    ) => (draft.consumable[item.id][item.instId!].count -= item.count);
+    ) => {
+      draft.consumable[item.id][item.instId!].count -= item.count;
+    };
     const funcs: {
       [key: string]: (
         item: ItemBundle,
         draft: WritableDraft<PlayerDataModel>,
-      ) => void;
+      ) => Promise<void>;
     } = {
       TKT_GACHA_PRSV: consumableFunc,
       VOUCHER_ELITE_II_4: consumableFunc,
@@ -53,10 +55,16 @@ export class InventoryManager {
       VOUCHER_SKILL_SPECIALLEVELMAX_6: consumableFunc,
       VOUCHER_SKILL_SPECIALLEVELMAX_5: consumableFunc,
       VOUCHER_SKILL_SPECIALLEVELMAX_4: consumableFunc,
+      AP_SUPPLY: async (item, draft) => {
+        await consumableFunc(item, draft);
+        this._trigger.emit("items:get", [
+          { id: "", type: "AP_GAMEPLAY", count: 120 * item.count },
+        ]);
+      },
     };
     if (funcs[item.type]) {
       await this._player.update(async (draft) => {
-        funcs[item.type!](item, draft);
+        await funcs[item.type!](item, draft);
       });
     } else {
       this._trigger.emit("items:get", [
@@ -66,10 +74,11 @@ export class InventoryManager {
   }
 
   async gainItem(item: ItemBundle, callback?: () => void): Promise<void> {
+    console.log("gainItem", item);
     if (!item.type) {
       item.type = excel.ItemTable.items[item.id].itemType as string;
     }
-    const consumableFunc = (
+    const consumableFunc = async (
       item: ItemBundle,
       draft: WritableDraft<PlayerDataModel>,
     ) => {
@@ -100,16 +109,22 @@ export class InventoryManager {
       [key: string]: (
         item: ItemBundle,
         draft: WritableDraft<PlayerDataModel>,
-      ) => void;
+      ) => Promise<void>;
     } = {
-      NONE: () => {},
-      CHAR: (item) => this._trigger.emit("char:get", item.id),
-      CARD_EXP: (item, draft) =>
-        (draft.inventory[item.id] = (this.items[item.id] || 0) + item.count),
-      MATERIAL: (item, draft) =>
-        (draft.inventory[item.id] = (this.items[item.id] || 0) + item.count),
-      GOLD: (item, draft) => (draft.status.gold += item.count),
-      EXP_PLAYER: (item, draft) => {
+      NONE: async () => {},
+      CHAR: async (item) => {
+        this._trigger.emit("char:get", item.id);
+      },
+      CARD_EXP: async (item, draft) => {
+        draft.inventory[item.id] = (draft.inventory[item.id] || 0) + item.count;
+      },
+      MATERIAL: async (item, draft) => {
+        draft.inventory[item.id] = (draft.inventory[item.id] || 0) + item.count;
+      },
+      GOLD: async (item, draft) => {
+        draft.status.gold += item.count;
+      },
+      EXP_PLAYER: async (item, draft) => {
         draft.status.exp += item.count;
         excel.GameDataConst.playerExpMap
           .slice(draft.status.level - 1)
@@ -130,21 +145,34 @@ export class InventoryManager {
             }
           });
       },
-      TKT_TRY: (item, draft) => (draft.status.practiceTicket += item.count),
-      TKT_RECRUIT: (item, draft) => (draft.status.recruitLicense += item.count),
-      TKT_INST_FIN: (item, draft) =>
-        (draft.status.instantFinishTicket += item.count),
-      TKT_GACHA: (item, draft) => (draft.status.gachaTicket += item.count),
-      ACTIVITY_COIN: (item, draft) =>
-        (draft.inventory[item.id] = (this.items[item.id] || 0) + item.count),
-      DIAMOND: (item, draft) => {
-        draft.status.iosDiamond += item.count;
+      TKT_TRY: async (item, draft) => {
+        draft.status.practiceTicket += item.count;
+      },
+      TKT_RECRUIT: async (item, draft) => {
+        draft.status.recruitLicense += item.count;
+      },
+      TKT_INST_FIN: async (item, draft) => {
+        draft.status.instantFinishTicket += item.count;
+      },
+      TKT_GACHA: async (item, draft) => {
+        draft.status.gachaTicket += item.count;
+      },
+      ACTIVITY_COIN: async (item, draft) => {
+        draft.inventory[item.id] = (draft.inventory[item.id] || 0) + item.count;
+      },
+      DIAMOND: async (item, draft) => {
         draft.status.androidDiamond += item.count;
       },
-      DIAMOND_SHD: (item, draft) => (draft.status.diamondShard += item.count),
-      HGG_SHD: (item, draft) => (draft.status.hggShard += item.count),
-      LGG_SHD: (item, draft) => (draft.status.lggShard += item.count),
-      FURN: (item, draft) => {
+      DIAMOND_SHD: async (item, draft) => {
+        draft.status.diamondShard += item.count;
+      },
+      HGG_SHD: async (item, draft) => {
+        draft.status.hggShard += item.count;
+      },
+      LGG_SHD: async (item, draft) => {
+        draft.status.lggShard += item.count;
+      },
+      FURN: async (item, draft) => {
         if (draft.building.furniture[item.id]) {
           draft.building.furniture[item.id].count += item.count;
         } else {
@@ -153,8 +181,9 @@ export class InventoryManager {
             inUse: 0,
           };
         }
+        draft.building.solution.furnitureTs[item.id] = now();
       },
-      AP_GAMEPLAY: (item, draft) => {
+      AP_GAMEPLAY: async (item, draft) => {
         const addAp = Math.floor((now() - draft.status.lastApAddTime) / 360);
         if (draft.status.ap < draft.status.maxAp) {
           if (draft.status.ap + addAp >= draft.status.maxAp) {
@@ -163,63 +192,71 @@ export class InventoryManager {
             draft.status.ap += addAp;
           }
         }
+        console.log("AP_GAMEPLAY", item.count, addAp, draft.status.ap);
         draft.status.ap += item.count;
         draft.status.lastApAddTime = now();
       },
-      AP_BASE: () => {},
-      SOCIAL_PT: (item, draft) => (draft.status.socialPoint += item.count),
-      CHAR_SKIN: (item, draft) => {
+      AP_BASE: async () => {},
+      SOCIAL_PT: async (item, draft) => {
+        draft.status.socialPoint += item.count;
+      },
+      CHAR_SKIN: async (item, draft) => {
         draft.skin.characterSkins[item.id] = 1;
         draft.skin.skinTs[item.id] = now();
       },
-      TKT_GACHA_10: (item, draft) =>
-        (draft.status.tenGachaTicket += item.count),
-      TKT_GACHA_PRSV: (item, draft) =>
-        (draft.inventory[item.id] = (this.items[item.id] || 0) + item.count),
-      AP_ITEM: () => {},
+      TKT_GACHA_10: async (item, draft) => {
+        draft.status.tenGachaTicket += item.count;
+      },
+      TKT_GACHA_PRSV: async (item, draft) => {
+        draft.inventory[item.id] = (draft.inventory[item.id] || 0) + item.count;
+      },
+      AP_ITEM: async () => {},
       AP_SUPPLY: consumableFunc,
       RENAMING_CARD: consumableFunc,
       RENAMING_CARD_2: consumableFunc,
-      ET_STAGE: () => {},
-      ACTIVITY_ITEM: () => {},
+      ET_STAGE: async () => {},
+      ACTIVITY_ITEM: async () => {},
       VOUCHER_PICK: consumableFunc,
       VOUCHER_CGACHA: consumableFunc,
       VOUCHER_MGACHA: consumableFunc,
-      CRS_SHOP_COIN: () => {},
-      CRS_RUNE_COIN: () => {},
+      CRS_SHOP_COIN: async () => {},
+      CRS_RUNE_COIN: async () => {},
       LMTGS_COIN: consumableFunc,
-      EPGS_COIN: (item, draft) =>
-        (draft.inventory[item.id] = (this.items[item.id] || 0) + item.count),
+      EPGS_COIN: async (item, draft) => {
+        draft.inventory[item.id] = (draft.inventory[item.id] || 0) + item.count;
+      },
       LIMITED_TKT_GACHA_10: consumableFunc,
-      LIMITED_FREE_GACHA: () => {},
-      REP_COIN: (item, draft) =>
-        (draft.inventory[item.id] = (this.items[item.id] || 0) + item.count),
-      ROGUELIKE: () => {},
+      LIMITED_FREE_GACHA: async () => {},
+      REP_COIN: async (item, draft) => {
+        draft.inventory[item.id] = (draft.inventory[item.id] || 0) + item.count;
+      },
+      ROGUELIKE: async () => {},
       LINKAGE_TKT_GACHA_10: consumableFunc,
       VOUCHER_ELITE_II_4: consumableFunc,
       VOUCHER_ELITE_II_5: consumableFunc,
       VOUCHER_ELITE_II_6: consumableFunc,
       VOUCHER_SKIN: consumableFunc,
-      RETRO_COIN: () => {},
-      PLAYER_AVATAR: (item, draft) => {
+      RETRO_COIN: async () => {},
+      PLAYER_AVATAR: async (item, draft) => {
         draft.avatar.avatar_icon[item.id] = {
           ts: now(),
           src: "other",
         };
       },
-      UNI_COLLECTION: () => {},
-      VOUCHER_FULL_POTENTIAL: (item, draft) =>
-        (draft.inventory[item.id] = (this.items[item.id] || 0) + item.count),
-      RL_COIN: () => {},
-      RETURN_CREDIT: () => {},
-      MEDAL: () => {},
-      CHARM: () => {},
-      HOME_BACKGROUND: (item) => {
+      UNI_COLLECTION: async () => {},
+      VOUCHER_FULL_POTENTIAL: async (item, draft) => {
+        draft.inventory[item.id] = (draft.inventory[item.id] || 0) + item.count;
+      },
+      RL_COIN: async () => {},
+      RETURN_CREDIT: async () => {},
+      MEDAL: async () => {},
+      CHARM: async () => {},
+      HOME_BACKGROUND: async (item) => {
         this._trigger.emit("background:get", item.id);
       },
       EXTERMINATION_AGENT: consumableFunc,
       OPTIONAL_VOUCHER_PICK: consumableFunc,
-      ACT_CART_COMPONENT: () => {},
+      ACT_CART_COMPONENT: async () => {},
       VOUCHER_LEVELMAX_6: consumableFunc,
       VOUCHER_LEVELMAX_5: consumableFunc,
       VOUCHER_LEVELMAX_4: consumableFunc,
@@ -228,28 +265,32 @@ export class InventoryManager {
       VOUCHER_SKILL_SPECIALLEVELMAX_4: consumableFunc,
       ACTIVITY_POTENTIAL: consumableFunc,
       ITEM_PACK: consumableFunc,
-      SANDBOX: () => {},
-      FAVOR_ADD_ITEM: () => {},
-      CLASSIC_SHD: (item, draft) => (draft.status.classicShard += item.count),
-      CLASSIC_TKT_GACHA: (item, draft) =>
-        (draft.status.classicGachaTicket += item.count),
-      CLASSIC_TKT_GACHA_10: (item, draft) =>
-        (draft.status.classicTenGachaTicket += item.count),
-      LIMITED_BUFF: () => {},
-      CLASSIC_FES_PICK_TIER_5: () => {},
-      CLASSIC_FES_PICK_TIER_6: () => {},
-      RETURN_PROGRESS: () => {},
-      NEW_PROGRESS: () => {},
-      MCARD_VOUCHER: () => {},
+      SANDBOX: async () => {},
+      FAVOR_ADD_ITEM: async () => {},
+      CLASSIC_SHD: async (item, draft) => {
+        draft.status.classicShard += item.count;
+      },
+      CLASSIC_TKT_GACHA: async (item, draft) => {
+        draft.status.classicGachaTicket += item.count;
+      },
+      CLASSIC_TKT_GACHA_10: async (item, draft) => {
+        draft.status.classicTenGachaTicket += item.count;
+      },
+      LIMITED_BUFF: async () => {},
+      CLASSIC_FES_PICK_TIER_5: async () => {},
+      CLASSIC_FES_PICK_TIER_6: async () => {},
+      RETURN_PROGRESS: async () => {},
+      NEW_PROGRESS: async () => {},
+      MCARD_VOUCHER: async () => {},
       MATERIAL_ISSUE_VOUCHER: consumableFunc,
-      CRS_SHOP_COIN_V2: () => {},
-      HOME_THEME: (item) => {
+      CRS_SHOP_COIN_V2: async () => {},
+      HOME_THEME: async (item) => {
         this._trigger.emit("homeTheme:get", item.id);
       },
-      SANDBOX_PERM: () => {},
-      SANDBOX_TOKEN: () => {},
-      TEMPLATE_TRAP: () => {},
-      NAME_CARD_SKIN: (item, draft) => {
+      SANDBOX_PERM: async () => {},
+      SANDBOX_TOKEN: async () => {},
+      TEMPLATE_TRAP: async () => {},
+      NAME_CARD_SKIN: async (item, draft) => {
         draft.nameCardStyle.skin.state[item.id] = {
           unlock: true,
           progress: null,
@@ -260,7 +301,8 @@ export class InventoryManager {
     };
     callback?.();
     await this._player.update(async (draft) => {
-      funcs[item.type!](item, draft);
+      await funcs[item.type!](item, draft);
+      console.log("update", draft.status.diamondShard, now());
     });
   }
 }

@@ -16,7 +16,7 @@ import { accountManager, BattleInfo } from "./AccountManger";
 import { SocialManager } from "./social";
 import { DexNavManager } from "./dexnav";
 import { BuildingManager } from "./building";
-import { FriendDataWithNameCard } from "@game/model/social";
+import { FriendDataWithNameCard, FriendMedalBoard } from "@game/model/social";
 import { OpenServerManager } from "@game/manager/activity/openServer";
 import { createDraft, finishDraft, Patch, WritableDraft } from "immer";
 import { patchesToObject } from "@utils/delta";
@@ -90,7 +90,9 @@ export class PlayerDataManager {
       this._changes.reduce((pre, acc) => acc.concat(pre), []),
     );
     this._changes = [];
+    console.log(this._playerdata.status.androidDiamond);
     this._trigger.emit("save");
+    console.log("delta", JSON.stringify(delta));
     return {
       playerDataDelta: delta,
     };
@@ -105,19 +107,58 @@ export class PlayerDataManager {
   }
 
   get socialInfo(): FriendDataWithNameCard {
+    let medalBoard: FriendMedalBoard;
+    if (this._playerdata.social.medalBoard.custom) {
+      medalBoard = {
+        custom:
+          this._playerdata.medal.custom.customs[
+            this._playerdata.social.medalBoard.custom
+          ],
+        type: this._playerdata.social.medalBoard.type,
+        template: null,
+      };
+    } else {
+      medalBoard = {
+        custom: null,
+        type: this._playerdata.social.medalBoard.type,
+        template: {
+          groupId: this._playerdata.social.medalBoard.template!,
+          medalList: this._playerdata.social.medalBoard.templateMedalList!,
+        },
+      };
+    }
+    const assistCharList = this._playerdata.social.assistCharList.map(
+      (char) => {
+        const charInfo = this._playerdata.troop.chars[char.charInstId];
+        const res = {
+          charId: charInfo.charId,
+          skinId: charInfo.skin,
+          skills: charInfo.skills,
+          mainSkillLvl: charInfo.mainSkillLvl,
+          skillIndex: char.skillIndex,
+          evolvePhase: charInfo.evolvePhase,
+          favorPoint: charInfo.favorPoint,
+          potentialRank: charInfo.potentialRank,
+          level: charInfo.level,
+          crisisRecord: {},
+          crisisV2Record: {},
+          currentEquip: char.currentEquip,
+          equip: charInfo.equip,
+        };
+        if (char?.currentTmpl) {
+          return Object.assign({}, res, {
+            currentTmpl: char.currentTmpl,
+            tmpl: charInfo.tmpl!,
+          });
+        } else {
+          return res;
+        }
+      },
+    );
     return {
       nickName: this._playerdata.status.nickName,
       nickNumber: this._playerdata.status.nickNumber,
       uid: this.uid,
-      serverName: this._playerdata.status.serverName,
-      level: this._playerdata.status.level,
-      avatar: this._playerdata.status.avatar,
-      assistCharList: [],
-      lastOnlineTime: this._playerdata.status.lastOnlineTs,
-      board: this.building.boardInfo,
-      infoShare: this.building.infoShare,
-      recentVisited: 0,
-      skin: this._playerdata.nameCardStyle.skin,
       registerTs: this._playerdata.status.registerTs,
       mainStageProgress: this._playerdata.status.mainStageProgress,
       charCnt: this._playerdata.troop.curCharInstId - 1,
@@ -127,7 +168,20 @@ export class PlayerDataManager {
       secretarySkinId: this._playerdata.status.secretarySkinId,
       resume: this._playerdata.status.resume,
       teamV2: this.dexNav.teamV2Info,
-      medalBoard: { type: "", template: null, custom: null },
+      serverName: this._playerdata.status.serverName,
+      level: this._playerdata.status.level,
+      avatar: this._playerdata.status.avatar,
+      assistCharList: assistCharList,
+      lastOnlineTime: this._playerdata.status.lastOnlineTs,
+      board: this.building.boardInfo,
+      infoShare: this.building.infoShare,
+      recentVisited: 0,
+      skin: {
+        selected: this._playerdata.nameCardStyle.skin.selected,
+        state: {},
+      },
+      birthday: this._playerdata.status.birthday,
+      medalBoard: medalBoard,
       nameCardStyle: this._playerdata.nameCardStyle,
     };
   }
@@ -143,6 +197,7 @@ export class PlayerDataManager {
       this._changes.push(patches);
       this._inverseChanges.push(inversePatches);
     });
+    console.log(JSON.stringify(this._changes));
   }
   getBattleInfo(battleId: string): BattleInfo {
     return accountManager.getBattleInfo(this.uid, battleId)!;

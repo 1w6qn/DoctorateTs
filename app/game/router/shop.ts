@@ -102,7 +102,13 @@ router.post("/getSocialGoodList", async (req, res) => {
     ...player.delta,
   });
 });
-
+router.post("/getFurniGoodList", async (req, res) => {
+  const player = httpContext.get("playerData") as PlayerDataManager;
+  res.send({
+    ...excel.ShopTable.furniGoodList,
+    ...player.delta,
+  });
+});
 router.post("/buyLowGood", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   res.send({
@@ -172,6 +178,14 @@ router.post("/buyLMTGSGood", async (req, res) => {
   res.send({
     result: 0,
     items: await player.shop.buyLMTGSGood(req.body),
+    ...player.delta,
+  });
+});
+router.post("/buyFurniGood", async (req, res) => {
+  const player = httpContext.get("playerData") as PlayerDataManager;
+  res.send({
+    result: 0,
+    items: await player.shop.buyFurniGood(req.body),
     ...player.delta,
   });
 });

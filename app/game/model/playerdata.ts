@@ -99,6 +99,7 @@ export interface PlayerStatus {
   serverName: string;
   avatarId: string;
   resume: string;
+  birthday: PlayerBirthday;
   friendNumLimit: number;
   monthlySubscriptionStartTime: number;
   monthlySubscriptionEndTime: number;
@@ -111,7 +112,10 @@ export interface PlayerStatus {
   classicGachaTicket: number;
   classicTenGachaTicket: number;
 }
-
+export interface PlayerBirthday {
+  month: number;
+  day: number;
+}
 export interface PlayerDungeon {
   stages: { [key: string]: PlayerStage };
   //zones?:               { [key: string]: PlayerZone };

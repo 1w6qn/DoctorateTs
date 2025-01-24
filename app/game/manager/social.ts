@@ -4,6 +4,7 @@ import { pick } from "lodash";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 import excel from "@excel/excel";
+import { NameCardMisc } from "@game/model/playerdata";
 
 enum FriendServiceType {
   SEARCH_FRIEND = 0,
@@ -30,7 +31,13 @@ export class SocialManager {
     const { type, sortKeyList, param } = args;
 
     if (type === FriendServiceType.GET_FRIEND_REQUEST) {
-      return await accountManager.getFriendRequests(this._uid);
+      const friendIdList = await accountManager.getFriendRequests(this._uid);
+      const friendInfoList = await Promise.all(
+        friendIdList.map((friend) =>
+          accountManager.getPlayerFriendInfo(friend),
+        ),
+      );
+      return friendInfoList;
     } else if (type === FriendServiceType.SEARCH_FRIEND) {
       const playerList = await accountManager.searchPlayer(
         param.nickName + "#" + param.nickNumber,
@@ -72,8 +79,13 @@ export class SocialManager {
     await accountManager.deleteFriend(this._uid, args.id);
   }
 
-  async sendFriendRequest(args: { id: string }) {
-    await accountManager.sendFriendRequest(this._uid, args.id);
+  async sendFriendRequest(args: {
+    friendId: string;
+    afterBattle: number;
+    originType: number;
+    battleOrigin: string | null;
+  }) {
+    await accountManager.sendFriendRequest(this._uid, args.friendId);
   }
 
   async processFriendRequest(args: { friendId: string; action: number }) {
@@ -82,9 +94,11 @@ export class SocialManager {
       await accountManager.addFriend(this._uid, args.friendId);
       await accountManager.deleteFriendRequest(args.friendId, this._uid);
     }
-    await this._player.update(async (draft) => {
-      draft.pushFlags.hasFriendRequest = 0;
-    });
+    if ((await accountManager.getFriendRequests(args.friendId)).length === 0) {
+      await this._player.update(async (draft) => {
+        draft.pushFlags.hasFriendRequest = 0;
+      });
+    }
     return {
       friendNum: (await accountManager.getSocial(this._uid)).friends.length,
     };
@@ -150,6 +164,33 @@ export class SocialManager {
     });
   }
 
+  async getOtherPlayerNameCard(args: { uid: string }) {
+    const { uid } = args;
+    const friendInfo = await accountManager.getPlayerFriendInfo(uid);
+    return friendInfo;
+  }
+
+  async editNameCard(args: {
+    flag: number;
+    content: { skinId?: string; component?: string[]; misc?: NameCardMisc };
+  }) {
+    const { flag, content } = args;
+    await this._player.update(async (draft) => {
+      switch (flag) {
+        case 1:
+          draft.nameCardStyle.componentOrder = content.component!;
+          break;
+        case 2:
+          draft.nameCardStyle.skin.selected = content.skinId!;
+          break;
+        case 4:
+          draft.nameCardStyle.misc = content.misc!;
+          break;
+        default:
+          break;
+      }
+    });
+  }
   async setAssistCharList(args: { assistCharList: PlayerFriendAssist[] }) {
     const { assistCharList } = args;
     await this._player.update(async (draft) => {

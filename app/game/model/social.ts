@@ -1,5 +1,5 @@
 import { AvatarInfo, SharedCharData } from './character';
-import { NameCardSkin, PlayerMedalCustomLayout, PlayerNameCardStyle } from './playerdata';
+import { NameCardSkin, PlayerBirthday, PlayerMedalCustomLayout, PlayerNameCardStyle } from './playerdata';
 export interface FriendDataWithNameCard extends FriendData {
     registerTs:number,
     mainStageProgress:string|null,
@@ -12,6 +12,7 @@ export interface FriendDataWithNameCard extends FriendData {
     team?:{[key:string]:number},
     teamV2:{[key:string]:number},
     medalBoard:FriendMedalBoard,
+    birthday:PlayerBirthday,
     nameCardStyle:PlayerNameCardStyle,
 }
 export interface FriendData extends FriendCommonData{

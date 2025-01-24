@@ -270,5 +270,32 @@ export class ShopController {
     this._trigger.emit("items:get", [item]);
     return [item];
   }
+
+  async buyFurniGood(args: {
+    goodId: string;
+    buyCount: number;
+    costType: string;
+  }): Promise<ItemBundle[]> {
+    const { goodId, buyCount, costType } = args;
+    const good = excel.ShopTable.furniGoodList.goods.find(
+      (g) => g.goodId === goodId,
+    )!;
+    if (costType === "COIN_FURN") {
+      this._trigger.emit("items:use", [
+        { id: "3401", count: good.priceCoin * buyCount },
+      ]);
+    } else {
+      this._trigger.emit("items:use", [
+        { id: "", type: "DIAMOND", count: good.priceDia * buyCount },
+      ]);
+    }
+    await this._player.update(async (draft) => {
+      const existingItem = draft.shop.FURNI.info.find((i) => i.id === goodId);
+      existingItem!.count += buyCount;
+    });
+    const item = { id: good.furniId, type: "FURN", count: buyCount };
+    this._trigger.emit("items:get", [item]);
+    return [item];
+  }
 }
 export default ShopController;

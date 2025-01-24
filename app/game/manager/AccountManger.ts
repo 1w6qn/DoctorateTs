@@ -26,6 +26,7 @@ export class AccountManager {
       );
       this.data[uid]._playerdata.status.uid = uid;
       this.data[uid]._trigger.on("save", async () => {
+        console.log(`[AccountManager][save] ${uid}`);
         await this.savePlayerData(uid);
         await this.saveUserConfig();
       });
@@ -111,6 +112,9 @@ export class AccountManager {
 
   async sendFriendRequest(from: string, to: string): Promise<void> {
     this.configs[to]!.social.friendRequests.push(from);
+    (await this.getPlayerData(to)).update(async (draft) => {
+      draft.pushFlags.hasFriendRequest = 1;
+    });
     this._trigger.emit("save");
   }
 

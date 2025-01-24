@@ -8,7 +8,6 @@ export class DexNavManager {
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
-    this._trigger.on("char:get", this.charGetDexNavPrefix.bind(this));
   }
 
   get teamV2Info(): { [key: string]: number } {
@@ -16,26 +15,5 @@ export class DexNavManager {
       (acc, [k, v]) => ({ ...acc, [k]: Object.keys(v).length }),
       {},
     );
-  }
-
-  async charGetDexNavPrefix(
-    charId: string,
-    args: { from: string } = { from: "NORMAL" },
-  ) {
-    const { from } = args;
-    await this._player.update(async (draft) => {
-      const { character } = draft.dexNav;
-      if (!(charId in character)) {
-        character[charId] = {
-          charInstId: draft.troop.curCharInstId,
-          count: 0,
-        };
-        return;
-      }
-      if (from === "CLASSIC") {
-        character[charId].classicCount = 1 + (character[charId].count ?? 0);
-      } else {
-      }
-    });
   }
 }

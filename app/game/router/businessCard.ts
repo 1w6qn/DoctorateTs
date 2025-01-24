@@ -5,15 +5,15 @@ import { PlayerDataManager } from "../manager/PlayerDataManager";
 const router = Router();
 router.post("/editNameCard", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.status.editNameCard(req.body);
+  await player.social.editNameCard(req.body);
   res.send({
     ...player.delta,
   });
 });
 router.post("/getOtherPlayerNameCard", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  await player.status.getOtherPlayerNameCard(req.body);
   res.send({
+    nameCard: await player.social.getOtherPlayerNameCard(req.body),
     ...player.delta,
   });
 });

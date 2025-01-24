@@ -93,9 +93,10 @@ router.post("/useItem", async (req, res) => {
 });
 router.post("/useItems", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
+  console.log(req.body!.items);
   const items: {
     itemId: string;
-    count: number;
+    cnt: number;
     instId: number;
   }[] = req.body!.items;
   player._trigger.emit(
@@ -103,11 +104,13 @@ router.post("/useItems", async (req, res) => {
     items.map((item) => {
       return {
         id: item.itemId,
-        count: item.count,
+        count: item.cnt,
         instId: item.instId,
       };
     }),
   );
+  console.log("useItems finish");
+  console.log(player.delta);
   res.send(player.delta);
 });
 router.post("/checkIn", async (req, res) => {

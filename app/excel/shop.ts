@@ -12,6 +12,7 @@ export class ShopData {
   classicGoodList!: ClassicGoodList;
   extraGoodList!: ExtraGoodList;
   GPGoodList!: GPGoodList;
+  furniGoodList!: FurniGoodList;
 
   constructor() {}
 
@@ -44,6 +45,9 @@ export class ShopData {
       "./data/shop/ExtraGoodList.json",
     );
     this.GPGoodList = await readJson<GPGoodList>("./data/shop/GPGoodList.json");
+    this.furniGoodList = await readJson<FurniGoodList>(
+      "./data/shop/FurniGoodList.json",
+    );
   }
 }
 
@@ -284,4 +288,58 @@ export interface GPGoodList {
   oneTimeGP: Array<NormalGPItem>;
   chooseGroup: Array<ChooseGPItem>;
   conditionTriggerGroup?: Array<CondTrigGPItem>;
+}
+
+export interface FurniGoodList {
+  goods: FurniGood[];
+  groups: FurniGroup[];
+}
+
+export interface FurniGood {
+  goodId: string;
+  furniId: string;
+  shopDisplay: number;
+  displayName: string;
+  priceCoin: number;
+  priceDia: number;
+  discount: number;
+  originPriceCoin: number;
+  originPriceDia: number;
+  end: number;
+  count: number;
+  sequence: number;
+}
+
+export interface FurniGroup {
+  packageId: string;
+  icon: string;
+  name: string;
+  description: string;
+  sequence: number;
+  saleBegin: number;
+  saleEnd: number;
+  decoration: number;
+  goodList: FurniGoodData[];
+  eventGoodList: EventGoodData[];
+  imageList: ImageDisplayData[];
+}
+
+export interface EventGoodData {
+  name: string;
+  count: number;
+  furniId: string;
+  set: string;
+  sequence: number;
+}
+
+export interface FurniGoodData {
+  goodId: string;
+  count: number;
+  set: string;
+  sequence: number;
+}
+
+export interface ImageDisplayData {
+  picId: string;
+  index: number;
 }

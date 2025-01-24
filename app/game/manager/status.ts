@@ -1,10 +1,9 @@
-import { NameCardMisc, PlayerStatus } from "../model/playerdata";
+import { PlayerStatus } from "../model/playerdata";
 import excel from "@excel/excel";
 import { checkNew, now } from "@utils/time";
 import moment from "moment";
 import { AvatarInfo } from "@game/model/character";
 import { PlayerDataManager } from "./PlayerDataManager";
-import { accountManager } from "@game/manager/AccountManger";
 import { TypedEventEmitter } from "@game/model/events";
 
 export class StatusManager {
@@ -92,21 +91,22 @@ export class StatusManager {
   async buyAp() {
     this._trigger.emit("items:use", [{ id: "", type: "DIAMOND", count: 1 }]);
     this._trigger.emit("items:get", [
-      { id: "", type: "AP_GAMEPLAY", count: this.status.maxAp },
+      { id: "", type: "AP_GAMEPLAY", count: 135 },
     ]);
   }
 
   async exchangeDiamondShard(args: { count: number }) {
     const { count } = args;
-    this._trigger.emit("items:use", [
-      { id: "", type: "DIAMOND", count: count },
-    ]);
     this._trigger.emit("items:get", [
       {
         id: "",
         type: "DIAMOND_SHD",
         count: count * excel.GameDataConst.diamondToShdRate,
       },
+    ]);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    this._trigger.emit("items:use", [
+      { id: "", type: "DIAMOND", count: count },
     ]);
   }
 
@@ -118,33 +118,5 @@ export class StatusManager {
     this._trigger.emit("items:get", [
       excel.HandbookInfoTable.teamMissionList[rewardId].item,
     ]);
-  }
-
-  async getOtherPlayerNameCard(args: { uid: string }) {
-    const { uid } = args;
-    const friendInfo = await accountManager.getPlayerFriendInfo(uid);
-    return friendInfo.nameCardStyle;
-  }
-
-  async editNameCard(args: {
-    flag: number;
-    content: { skinId?: string; component?: string[]; misc?: NameCardMisc };
-  }) {
-    const { flag, content } = args;
-    await this._player.update(async (draft) => {
-      switch (flag) {
-        case 1:
-          draft.nameCardStyle.componentOrder = content.component!;
-          break;
-        case 2:
-          draft.nameCardStyle.skin.selected = content.skinId!;
-          break;
-        case 4:
-          draft.nameCardStyle.misc = content.misc!;
-          break;
-        default:
-          break;
-      }
-    });
   }
 }

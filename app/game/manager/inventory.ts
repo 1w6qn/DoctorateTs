@@ -122,26 +122,31 @@ export class InventoryManager {
       },
       EXP_PLAYER: async (item, draft) => {
         draft.status.exp += item.count;
-        excel.GameDataConst.playerExpMap
-          .slice(draft.status.level - 1)
-          .forEach((exp) => {
-            if (draft.status.exp >= exp) {
-              draft.status.level += 1;
-              draft.status.exp -= exp;
-              draft.status.maxAp =
-                excel.GameDataConst.playerApMap[draft.status.level - 1];
-              this._trigger.emit("items:get", [
-                [
-                  {
-                    id: "",
-                    type: "AP_GAMEPLAY",
-                    count: draft.status.maxAp,
-                  },
-                ],
-              ]);
-              this._trigger.emit("player:levelUp", []);
-            }
-          });
+        for (
+          let i = draft.status.level - 1;
+          i < excel.GameDataConst.playerExpMap.length;
+          i++
+        ) {
+          const exp = excel.GameDataConst.playerExpMap[i];
+          if (draft.status.exp >= exp) {
+            draft.status.level += 1;
+            draft.status.exp -= exp;
+            draft.status.maxAp =
+              excel.GameDataConst.playerApMap[draft.status.level - 1];
+            await this._trigger.emit("items:get", [
+              [
+                {
+                  id: "",
+                  type: "AP_GAMEPLAY",
+                  count: draft.status.maxAp,
+                },
+              ],
+            ]);
+            await this._trigger.emit("player:levelUp", []);
+          } else {
+            break;
+          }
+        }
       },
       TKT_TRY: async (item, draft) => {
         draft.status.practiceTicket += item.count;

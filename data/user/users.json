@@ -15,7 +15,7 @@
             "friends": [
                 {
                     "uid": "1",
-                    "alias": "2"
+                  "alias": ""
                 }
             ],
             "friendRequests": [],

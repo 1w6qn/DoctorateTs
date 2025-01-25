@@ -93,7 +93,6 @@ router.post("/useItem", async (req, res) => {
     instId: req.body!.instId,
   } as ItemBundle;
   await player._trigger.emit("items:use", [[item]]);
-
   res.send(player.delta);
 });
 router.post("/useItems", async (req, res) => {
@@ -113,8 +112,6 @@ router.post("/useItems", async (req, res) => {
       };
     }),
   ]);
-  console.log("useItems finish");
-  console.log(player.delta);
   res.send(player.delta);
 });
 router.post("/checkIn", async (req, res) => {

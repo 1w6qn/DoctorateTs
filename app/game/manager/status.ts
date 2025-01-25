@@ -108,7 +108,6 @@ export class StatusManager {
         },
       ],
     ]);
-    await new Promise((resolve) => setTimeout(resolve, 10));
     await this._trigger.emit("items:use", [
       [{ id: "", type: "DIAMOND", count: count }],
     ]);

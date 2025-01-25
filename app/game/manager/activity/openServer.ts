@@ -14,7 +14,7 @@ export class OpenServerManager {
     this._player = player;
     this._trigger = _trigger;
     this._trigger.on("refresh:daily", this.dailyRefresh.bind(this));
-    this._trigger.on("openserver:chain:login", async (ts: number) => {
+    this._trigger.on("openserver:chain:login", async ([ts]: [number]) => {
       const diff = moment().diff(moment(ts), "days");
       await this._player.update(async (draft) => {
         draft.openServer.chainLogin.nowIndex += 1;
@@ -28,10 +28,10 @@ export class OpenServerManager {
     });
   }
 
-  async dailyRefresh(ts: number) {
+  async dailyRefresh([ts]: [number]) {
     await this._player.update(async (draft) => {
       if (draft.openServer.chainLogin.isAvailable) {
-        this._trigger.emit("openserver:chain:login", ts);
+        await this._trigger.emit("openserver:chain:login", [ts]);
       }
       if (draft.openServer.checkIn.isAvailable) {
         draft.openServer.checkIn.history.push(1);

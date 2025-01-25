@@ -45,7 +45,7 @@ export class RoguelikeTroopManager
     this.expeditionReturn = null;
   }
 
-  getChar(char: PlayerRoguelikeV2.CurrentData.RecruitChar) {
+  getChar([char]: [PlayerRoguelikeV2.CurrentData.RecruitChar]) {
     console.log("[RLV2] getChar", char);
     const c = omit(char, [
       "isUpgrade",

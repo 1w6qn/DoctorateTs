@@ -20,11 +20,11 @@ export class RoguelikePoolManager {
     this._trigger.on("rlv2:create", this.create.bind(this));
   }
 
-  recycle(id: string) {
+  recycle([id]: [string]) {
     console.log(id);
   }
 
-  put(id: string) {
+  put([id]: [string]) {
     console.log(id);
   }
 

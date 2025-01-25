@@ -13,16 +13,12 @@ export class InventoryManager {
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
-    this._trigger.on(
-      "items:use",
-      async (items: ItemBundle[]) =>
-        await Promise.all(items.map((item) => this._useItem(item))),
-    );
-    this._trigger.on(
-      "items:get",
-      async (items: ItemBundle[]) =>
-        await Promise.all(items.map((item) => this.gainItem(item))),
-    );
+    this._trigger.on("items:use", async ([items]: [ItemBundle[]]) => {
+      await Promise.all(items.map((item) => this._useItem(item)));
+    });
+    this._trigger.on("items:get", async ([items]: [ItemBundle[]]) => {
+      await Promise.all(items.map((item) => this.gainItem(item)));
+    });
   }
 
   get skinCnt(): number {
@@ -57,8 +53,8 @@ export class InventoryManager {
       VOUCHER_SKILL_SPECIALLEVELMAX_4: consumableFunc,
       AP_SUPPLY: async (item, draft) => {
         await consumableFunc(item, draft);
-        this._trigger.emit("items:get", [
-          { id: "", type: "AP_GAMEPLAY", count: 120 * item.count },
+        await this._trigger.emit("items:get", [
+          [{ id: "", type: "AP_GAMEPLAY", count: 120 * item.count }],
         ]);
       },
     };
@@ -67,8 +63,8 @@ export class InventoryManager {
         await funcs[item.type!](item, draft);
       });
     } else {
-      this._trigger.emit("items:get", [
-        Object.assign({}, item, { count: -item.count }),
+      await this._trigger.emit("items:get", [
+        [Object.assign({}, item, { count: -item.count })],
       ]);
     }
   }
@@ -113,7 +109,7 @@ export class InventoryManager {
     } = {
       NONE: async () => {},
       CHAR: async (item) => {
-        this._trigger.emit("char:get", item.id);
+        await this._trigger.emit("char:get", [item.id]);
       },
       CARD_EXP: async (item, draft) => {
         draft.inventory[item.id] = (draft.inventory[item.id] || 0) + item.count;
@@ -135,13 +131,15 @@ export class InventoryManager {
               draft.status.maxAp =
                 excel.GameDataConst.playerApMap[draft.status.level - 1];
               this._trigger.emit("items:get", [
-                {
-                  id: "",
-                  type: "AP_GAMEPLAY",
-                  count: draft.status.maxAp,
-                },
+                [
+                  {
+                    id: "",
+                    type: "AP_GAMEPLAY",
+                    count: draft.status.maxAp,
+                  },
+                ],
               ]);
-              this._trigger.emit("player:levelUp");
+              this._trigger.emit("player:levelUp", []);
             }
           });
       },
@@ -252,7 +250,7 @@ export class InventoryManager {
       MEDAL: async () => {},
       CHARM: async () => {},
       HOME_BACKGROUND: async (item) => {
-        this._trigger.emit("background:get", item.id);
+        await this._trigger.emit("background:get", [item.id]);
       },
       EXTERMINATION_AGENT: consumableFunc,
       OPTIONAL_VOUCHER_PICK: consumableFunc,
@@ -285,7 +283,7 @@ export class InventoryManager {
       MATERIAL_ISSUE_VOUCHER: consumableFunc,
       CRS_SHOP_COIN_V2: async () => {},
       HOME_THEME: async (item) => {
-        this._trigger.emit("homeTheme:get", item.id);
+        await this._trigger.emit("homeTheme:get", [item.id]);
       },
       SANDBOX_PERM: async () => {},
       SANDBOX_TOKEN: async () => {},

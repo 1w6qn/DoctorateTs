@@ -11,10 +11,28 @@ export class HomeManager {
     this._trigger = _trigger;
     this._trigger.on(
       "background:condition:update",
-      this.updateBackgroundCondition.bind(this),
+      async ([bgID, conditionId, target]: [string, string, number]) => {
+        await this._player.update(async (draft) => {
+          if (draft.background.bgs[bgID]!.conditions!) {
+            const cond = draft.background.bgs[bgID]!.conditions![conditionId];
+            cond.v = target;
+            if (cond.t == cond.v) {
+              await this._trigger.emit("background:unlock", [{ bgID }]);
+            }
+          }
+        });
+      },
     );
-    this._trigger.on("background:unlock", this.unlockBackground.bind(this));
-    this._trigger.on("background:get", async (id: string) => {
+    this._trigger.on(
+      "background:unlock",
+      async ([args]: [{ bgID: string }]) => {
+        const { bgID } = args;
+        await this._player.update(async (draft) => {
+          draft.background.bgs[bgID].unlock = now();
+        });
+      },
+    );
+    this._trigger.on("background:get", async ([id]: [string]) => {
       await this._player.update(async (draft) => {
         draft.background.bgs[id] = {
           unlock: now(),
@@ -23,10 +41,32 @@ export class HomeManager {
     });
     this._trigger.on(
       "homeTheme:condition:update",
-      this.updateHomeThemeCondition.bind(this),
+      async ([args]: [
+        { themeId: string; conditionId: string; target: number },
+      ]) => {
+        const { themeId, conditionId, target } = args;
+        await this._player.update(async (draft) => {
+          if (draft.homeTheme.themes[themeId]!.conditions!) {
+            const cond =
+              draft.homeTheme!.themes[themeId]!.conditions![conditionId];
+            cond.v = target;
+            if (cond.t == cond.v) {
+              await this._trigger.emit("homeTheme:unlock", [{ themeId }]);
+            }
+          }
+        });
+      },
     );
-    this._trigger.on("homeTheme:unlock", this.unlockHomeTheme.bind(this));
-    this._trigger.on("homeTheme:get", async (id: string) => {
+    this._trigger.on(
+      "homeTheme:unlock",
+      async ([args]: [{ themeId: string }]) => {
+        const { themeId } = args;
+        await this._player.update(async (draft) => {
+          draft.homeTheme.themes[themeId].unlock = now();
+        });
+      },
+    );
+    this._trigger.on("homeTheme:get", async ([id]: [string]) => {
       await this._player.update(async (draft) => {
         draft.homeTheme.themes[id] = {
           unlock: now(),
@@ -41,57 +81,10 @@ export class HomeManager {
     });
   }
 
-  async updateBackgroundCondition(
-    bgID: string,
-    conditionId: string,
-    target: number,
-  ) {
-    await this._player.update(async (draft) => {
-      if (draft.background.bgs[bgID]!.conditions!) {
-        const cond = draft.background.bgs[bgID]!.conditions![conditionId];
-        cond.v = target;
-        if (cond.t == cond.v) {
-          this._trigger.emit("background:unlock", { bgID });
-        }
-      }
-    });
-  }
-
-  async unlockBackground(args: { bgID: string }) {
-    const { bgID } = args;
-    await this._player.update(async (draft) => {
-      draft.background.bgs[bgID].unlock = now();
-    });
-  }
-
   async setHomeTheme(args: { themeId: string }) {
     const { themeId } = args;
     await this._player.update(async (draft) => {
       draft.homeTheme.selected = themeId;
-    });
-  }
-
-  async updateHomeThemeCondition(args: {
-    themeId: string;
-    conditionId: string;
-    target: number;
-  }) {
-    const { themeId, conditionId, target } = args;
-    await this._player.update(async (draft) => {
-      if (draft.homeTheme.themes[themeId]!.conditions!) {
-        const cond = draft.homeTheme!.themes[themeId]!.conditions![conditionId];
-        cond.v = target;
-        if (cond.t == cond.v) {
-          this._trigger.emit("homeTheme:unlock", { themeId });
-        }
-      }
-    });
-  }
-
-  async unlockHomeTheme(args: { themeId: string }) {
-    const { themeId } = args;
-    await this._player.update(async (draft) => {
-      draft.homeTheme.themes[themeId].unlock = now();
     });
   }
 

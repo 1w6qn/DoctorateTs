@@ -17,13 +17,15 @@ export class RoguelikeDisasterManager {
     this._trigger = _trigger;
     this._trigger.on("rlv2:module:init", this.init.bind(this));
     this._trigger.on("rlv2:continue", this.continue.bind(this));
-    this._trigger.on("rlv2:disaster:generate", this.generate.bind(this));
+    this._trigger.on("rlv2:disaster:generate", () => {
+      this.generate.bind(this);
+    });
     this._trigger.on("rlv2:disaster:abstract", this.abstract.bind(this));
     this._trigger.on("rlv2:move", () => {
       if (this._curDisaster) {
         this._disperseStep -= 1;
       } else if (Math.random() < 0.3) {
-        this._trigger.emit("rlv2:disaster:generate");
+        this._trigger.emit("rlv2:disaster:generate", []);
       }
       if (this._disperseStep <= 0) {
         this._curDisaster = null;
@@ -41,7 +43,7 @@ export class RoguelikeDisasterManager {
     this._disperseStep = this._player.current.module!.disaster!.disperseStep;
   }
 
-  generate(steps: number = 5) {
+  generate([steps = 5]: [number]) {
     const theme = this._player.current.game!.theme;
     let level = 1;
     this._player._buff.filterBuffs("disaster_level_up").forEach((b) => {

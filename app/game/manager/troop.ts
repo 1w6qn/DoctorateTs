@@ -41,7 +41,7 @@ export class TroopManager {
     slots: PlayerSquadItem[];
   }): Promise<void> {
     this.squads[args.squadId].slots = args.slots;
-    this._trigger.emit("SquadFormation");
+    await this._trigger.emit("SquadFormation", []);
   }
 
   async changeSquadName(args: {
@@ -49,7 +49,7 @@ export class TroopManager {
     name: string;
   }): Promise<void> {
     this.squads[args.squadId].name = args.name;
-    this._trigger.emit("ChangeSquadName");
+    await this._trigger.emit("ChangeSquadName", []);
   }
 
   async decomposePotentialItem(args: {
@@ -71,8 +71,8 @@ export class TroopManager {
       },
       [] as ItemBundle[],
     );
-    this._trigger.emit("items:use", costs);
-    this._trigger.emit("items:get", items);
+    await this._trigger.emit("items:use", [costs]);
+    await this._trigger.emit("items:get", [items]);
     return items;
   }
 
@@ -95,8 +95,8 @@ export class TroopManager {
       },
       [] as ItemBundle[],
     );
-    this._trigger.emit("items:use", costs);
-    this._trigger.emit("items:get", items);
+    await this._trigger.emit("items:use", [costs]);
+    await this._trigger.emit("items:get", [items]);
     return items;
   }
 
@@ -118,27 +118,29 @@ export class TroopManager {
   }) {
     const { stageId, squad } = args;
     //TODO
-    this._trigger.emit("battle:start", {
-      isRetro: 0,
-      pray: 0,
-      battleType: 0,
-      continuous: {
-        battleTimes: 1,
+    await this._trigger.emit("battle:start", [
+      {
+        isRetro: 0,
+        pray: 0,
+        battleType: 0,
+        continuous: {
+          battleTimes: 1,
+        },
+        usePracticeTicket: 1,
+        stageId: stageId,
+        squad: squad,
+        assistFriend: null,
+        isReplay: 0,
+        startTs: now(),
       },
-      usePracticeTicket: 1,
-      stageId: stageId,
-      squad: squad,
-      assistFriend: null,
-      isReplay: 0,
-      startTs: now(),
-    });
+    ]);
   }
 
   async addonStageBattleFinish(args: {
     data: string;
     battleData: { isCheat: string; completeTime: number };
   }) {
-    this._trigger.emit("battle:finish", args);
+    await this._trigger.emit("battle:finish", [args]);
   }
 
   async fix(): Promise<void> {

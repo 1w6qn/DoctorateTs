@@ -14,11 +14,15 @@ export class BattleManager {
   constructor(_playerdata: PlayerDataModel, _trigger: TypedEventEmitter) {
     this._playerdata = _playerdata;
     this._trigger = _trigger;
-    this._trigger.on("battle:start", this.start.bind(this));
-    this._trigger.on("battle:finish", this.finish.bind(this));
+    this._trigger.on("battle:start", () => {
+      this.start.bind(this);
+    });
+    this._trigger.on("battle:finish", () => {
+      this.start.bind(this);
+    });
   }
 
-  async start(args: CommonStartBattleRequest) {
+  async start([args]: [CommonStartBattleRequest]) {
     const battleId = "1";
     const zoneId = excel.StageTable.stages[args.stageId].zoneId;
     let apFailReturn = excel.StageTable.stages[args.stageId].apFailReturn;
@@ -44,7 +48,7 @@ export class BattleManager {
       this._playerdata.dungeon.stages[args.stageId].practiceTimes += 1;
     }
     this._playerdata.dungeon.stages[args.stageId].startTimes += 1;
-    accountManager.saveBattleInfo(this._playerdata.status.uid, battleId, {
+    await accountManager.saveBattleInfo(this._playerdata.status.uid, battleId, {
       stageId: args.stageId,
     });
     return {
@@ -57,7 +61,7 @@ export class BattleManager {
     };
   }
 
-  finish(args: {
+  async finish(args: {
     data: string;
     battleData: { isCheat: string; completeTime: number };
   }) {
@@ -69,8 +73,8 @@ export class BattleManager {
       this._playerdata.status.uid,
       battleData.battleId,
     );
-    this._trigger.emit("CompleteStageAnyType", battleData);
-    this._trigger.emit("CompleteStage", { ...battleData, ...battleInfo });
+    await this._trigger.emit("CompleteStageAnyType", battleData);
+    await this._trigger.emit("CompleteStage", { ...battleData, ...battleInfo });
     return {
       result: 0,
       apFailReturn: 0,
@@ -88,19 +92,22 @@ export class BattleManager {
     };
   }
 
-  loadReplay(args: { stageId: string }): string {
-    return accountManager.getBattleReplay(
+  async loadReplay(args: { stageId: string }): Promise<string> {
+    return await accountManager.getBattleReplay(
       this._playerdata.status.uid,
       args.stageId,
     );
   }
 
-  saveReplay(args: { battleId: string; battleReplay: string }): void {
+  async saveReplay(args: {
+    battleId: string;
+    battleReplay: string;
+  }): Promise<void> {
     const stageId = accountManager.getBattleInfo(
       this._playerdata.status.uid,
       args.battleId,
     )?.stageId;
-    return accountManager.saveBattleReplay(
+    return await accountManager.saveBattleReplay(
       this._playerdata.status.uid,
       stageId as string,
       args.battleReplay,

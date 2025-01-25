@@ -30,7 +30,7 @@ router.post("/battleStart", async (req, res) => {
 router.post("/battleFinish", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   res.send({
-    ...player.battle.finish(req.body),
+    ...(await player.battle.finish(req.body)),
     ...player.delta,
   });
 });

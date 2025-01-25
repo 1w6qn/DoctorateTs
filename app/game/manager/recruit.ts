@@ -17,7 +17,9 @@ export class RecruitManager {
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
-    this._trigger.on("recruit:refresh:tags", this.refreshTags.bind(this));
+    this._trigger.on("recruit:refresh:tags", async ([args]) => {
+      await this.refreshTags(args);
+    });
   }
 
   async refreshTags(args: { slotId: number }): Promise<void> {
@@ -70,10 +72,10 @@ export class RecruitManager {
         tags: await RecruitTools.refreshTagList(),
       };
     });
-    this._trigger.emit("items:use", [
-      { id: "7001", count: 1, type: "TKT_RECRUIT" },
+    await this._trigger.emit("items:use", [
+      [{ id: "7001", count: 1, type: "TKT_RECRUIT" }],
     ]);
-    this._trigger.emit("NormalGacha");
+    await this._trigger.emit("NormalGacha", []);
   }
 
   async finish(args: { slotId: number }): Promise<GachaResult> {
@@ -93,14 +95,13 @@ export class RecruitManager {
     });
     await this.cancel(args);
     let result!: GachaResult;
-    this._trigger.emit(
-      "char:get",
+    await this._trigger.emit("char:get", [
       char_id,
       { from: "NORMAL" },
       (res: GachaResult) => {
         result = res;
       },
-    );
+    ]);
     return result;
   }
 
@@ -111,7 +112,7 @@ export class RecruitManager {
       draft.recruit.normal.slots[slotId].state = 2;
       draft.recruit.normal.slots[args.slotId].realFinishTs = now();
     });
-    this._trigger.emit("BoostNormalGacha");
+    await this._trigger.emit("BoostNormalGacha", []);
   }
 }
 interface CharData {

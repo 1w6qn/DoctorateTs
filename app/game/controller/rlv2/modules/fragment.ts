@@ -27,7 +27,7 @@ export class RoguelikeFragmentManager {
     this._trigger.on("rlv2:module:init", this.init.bind(this));
     this._trigger.on("rlv2:continue", this.continue.bind(this));
     this._trigger.on("rlv2:fragment:gain", this.gain.bind(this));
-    this._trigger.on("rlv2:fragment:max_weight:add", (count) => {
+    this._trigger.on("rlv2:fragment:max_weight:add", ([count]) => {
       this.limitWeight += count;
     });
     this._trigger.on("rlv2:fragment:use", this.use.bind(this));
@@ -38,7 +38,7 @@ export class RoguelikeFragmentManager {
     );
     this._trigger.on(
       "rlv2:fragment:set_troop_carry",
-      (troopCarry: string[]) => {
+      ([troopCarry]: [string[]]) => {
         const weights = this._troopWeights;
         this.limitWeight -= this._troopCarry.reduce(
           (acc, cur) => acc + weights[cur],
@@ -51,17 +51,22 @@ export class RoguelikeFragmentManager {
         this._troopCarry = troopCarry;
       },
     );
-    this._trigger.on("rlv2:fragment:change_type_weight", (b: RoguelikeBuff) => {
-      const theme = player.current.game!.theme;
-      Object.values(this._fragments).forEach((f) => {
-        const info =
-          excel.RoguelikeTopicTable.modules[theme].fragment?.fragmentData[f.id];
-        if (b.blackboard[1].valueStr == info?.type) {
-          f.weight += b.blackboard[0].value!;
-        }
-      });
-    });
-    this._trigger.on("rlv2:levelUp", (targetLevel) => {
+    this._trigger.on(
+      "rlv2:fragment:change_type_weight",
+      ([b]: [RoguelikeBuff]) => {
+        const theme = player.current.game!.theme;
+        Object.values(this._fragments).forEach((f) => {
+          const info =
+            excel.RoguelikeTopicTable.modules[theme].fragment?.fragmentData[
+              f.id
+            ];
+          if (b.blackboard[1].valueStr == info?.type) {
+            f.weight += b.blackboard[0].value!;
+          }
+        });
+      },
+    );
+    this._trigger.on("rlv2:levelUp", ([targetLevel]) => {
       const theme = this._player.current.game!.theme;
       this.limitWeight += excel.RoguelikeTopicTable.modules[theme].fragment
         ?.fragmentLevelData[targetLevel].weightUp as number;
@@ -113,7 +118,7 @@ export class RoguelikeFragmentManager {
     //TODO
   }
 
-  useInspiration(fragmentIndex: string): void {
+  useInspiration([fragmentIndex]: [string]): void {
     this._fragments[fragmentIndex].used = true;
     this._currInspiration = {
       instId: fragmentIndex,
@@ -122,7 +127,7 @@ export class RoguelikeFragmentManager {
     };
   }
 
-  use(id: string, count: number) {
+  use([id, count]: [string, number]) {
     for (let i = 0; i < count; i++) {
       const f = Object.values(this._fragments).filter(
         (f) => f.id == id && !f.used,
@@ -131,11 +136,11 @@ export class RoguelikeFragmentManager {
     }
   }
 
-  lose(fragmentIndex: string): void {
+  lose([fragmentIndex]: [string]): void {
     this._fragments[fragmentIndex].used = true;
   }
 
-  gain(id: string): void {
+  gain([id]: [string]): void {
     const theme = this._player.current.game!.theme;
     const data =
       excel.RoguelikeTopicTable.modules[theme].fragment?.fragmentData[id];

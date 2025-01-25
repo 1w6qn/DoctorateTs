@@ -2,8 +2,8 @@ import { PlayerDataModel } from "../model/playerdata";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { readJson } from "@utils/file";
 import { writeFile } from "fs/promises";
-import { EventEmitter } from "events";
 import { TypedEventEmitter } from "@game/model/events";
+import Emittery from "emittery";
 
 export class AccountManager {
   data!: { [key: string]: PlayerDataManager };
@@ -16,7 +16,7 @@ export class AccountManager {
     console.time("[AccountManager][loaded]");
     this.configs = await readJson(`./data/user/users.json`);
     this.data = {};
-    this._trigger = new EventEmitter();
+    this._trigger = new Emittery();
     this._trigger.on("save", async () => {
       await this.saveUserConfig();
     });
@@ -37,13 +37,17 @@ export class AccountManager {
     );
   }
 
-  getBattleReplay(uid: string, stageId: string): string {
+  async getBattleReplay(uid: string, stageId: string): Promise<string> {
     return this.configs[uid]?.battle.replays[stageId] || "";
   }
 
-  saveBattleReplay(uid: string, stageId: string, replay: string): void {
+  async saveBattleReplay(
+    uid: string,
+    stageId: string,
+    replay: string,
+  ): Promise<void> {
     this.configs[uid]!.battle.replays[stageId] = replay;
-    this._trigger.emit("save");
+    await this._trigger.emit("save", []);
   }
 
   async getUserConfig(uid: string): Promise<UserConfig> {
@@ -61,9 +65,13 @@ export class AccountManager {
     return this.configs[uid]?.battle.infos[battleId];
   }
 
-  saveBattleInfo(uid: string, battleId: string, info: BattleInfo): void {
+  async saveBattleInfo(
+    uid: string,
+    battleId: string,
+    info: BattleInfo,
+  ): Promise<void> {
     this.configs[uid]!.battle.infos[battleId] = info;
-    this._trigger.emit("save");
+    await this._trigger.emit("save", []);
   }
 
   async getPlayerData(uid: string): Promise<PlayerDataManager> {
@@ -85,9 +93,13 @@ export class AccountManager {
     return this.configs[uid]!.gacha[gachaType].beforeNonHitCnt;
   }
 
-  saveBeforeNonHitCnt(uid: string, gachaType: string, cnt: number): void {
+  async saveBeforeNonHitCnt(
+    uid: string,
+    gachaType: string,
+    cnt: number,
+  ): Promise<void> {
     this.configs[uid]!.gacha[gachaType].beforeNonHitCnt = cnt;
-    this._trigger.emit("save");
+    await this._trigger.emit("save", []);
   }
 
   async getSocial(uid: string): Promise<{
@@ -102,26 +114,27 @@ export class AccountManager {
     const social = this.configs[uid]!.social;
     const friend = social.friends.find((f) => f.uid == friendUid)!;
     social.friends.splice(social.friends.indexOf(friend), 1);
-    this._trigger.emit("save");
+    await this._trigger.emit("save", []);
   }
 
   async addFriend(uid: string, friendUid: string): Promise<void> {
     this.configs[uid]!.social.friends.push({ uid: friendUid, alias: "" });
-    this._trigger.emit("save");
+    await this._trigger.emit("save", []);
   }
 
   async sendFriendRequest(from: string, to: string): Promise<void> {
     this.configs[to]!.social.friendRequests.push(from);
-    (await this.getPlayerData(to)).update(async (draft) => {
+    const friendData = await this.getPlayerData(to);
+    await friendData.update(async (draft) => {
       draft.pushFlags.hasFriendRequest = 1;
     });
-    this._trigger.emit("save");
+    await this._trigger.emit("save", []);
   }
 
   async deleteFriendRequest(uid: string, friendId: string): Promise<void> {
     const social = this.configs[uid]!.social;
     social.friendRequests.splice(social.friendRequests.indexOf(friendId), 1);
-    this._trigger.emit("save");
+    await this._trigger.emit("save", []);
   }
 
   async setFriendAlias(
@@ -131,7 +144,7 @@ export class AccountManager {
   ): Promise<void> {
     const social = this.configs[uid]!.social;
     social.friends.find((f) => f.uid == friendId)!.alias = alias;
-    this._trigger.emit("save");
+    await this._trigger.emit("save", []);
   }
   async getFriendRequests(uid: string): Promise<string[]> {
     return this.configs[uid]!.social.friendRequests;

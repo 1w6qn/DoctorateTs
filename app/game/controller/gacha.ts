@@ -38,7 +38,7 @@ export class GachaController {
   }): Promise<GachaResult & { logInfo: { beforeNonHitCnt: number } }> {
     const costs: ItemBundle[] = [];
     //TODO
-    this._trigger.emit("items:use", costs);
+    await this._trigger.emit("items:use", [costs]);
     return await this.doAdvancedGacha(args);
   }
 
@@ -53,7 +53,7 @@ export class GachaController {
     for (let i = 0; i < 10; i++) {
       res.push(await this.doAdvancedGacha(args));
     }
-    this._trigger.emit("items:use", costs);
+    await this._trigger.emit("items:use", [costs]);
     return res;
   }
 
@@ -125,16 +125,19 @@ export class GachaController {
 
     const charId = await funcs[ruleType]();
     beforeNonHitCnt = rank != 5 ? beforeNonHitCnt + 1 : 0;
-    accountManager.saveBeforeNonHitCnt(this.uid, ruleType, beforeNonHitCnt);
+    await accountManager.saveBeforeNonHitCnt(
+      this.uid,
+      ruleType,
+      beforeNonHitCnt,
+    );
     let result!: GachaResult;
-    this._trigger.emit(
-      "char:get",
+    await this._trigger.emit("char:get", [
       charId,
       { from: "NORMAL" },
       (res: GachaResult) => {
         result = res;
       },
-    );
+    ]);
     return {
       ...result,
       logInfo: {

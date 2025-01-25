@@ -17,7 +17,10 @@ router.post("/changeAvatar", async (req, res) => {
 router.post("/changeResume", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   if ((req.body!.resume as string).slice(0) == "@") {
-    player._trigger.emit(req.body!.resume.slice(1, req.body!.resume.length));
+    await player._trigger.emit(
+      req.body!.resume.slice(1, req.body!.resume.length),
+      [],
+    );
   } else {
     await player.status.changeResume(req.body);
   }
@@ -40,10 +43,6 @@ router.post("/bindNickName", async (req, res) => {
   if (sensitiveWords.includes(nickName.toLowerCase())) {
     result = 3;
   }
-
-  if (nickName.toLowerCase().includes("doctoratepy")) {
-    result = 4;
-  }
   if (result !== 0) res.send({ result });
   else {
     await player.status.bindNickName(req.body);
@@ -53,8 +52,14 @@ router.post("/bindNickName", async (req, res) => {
 router.post("/useRenameCard", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   await player.status.bindNickName(req.body);
-  player._trigger.emit("items:use", [
-    { id: req.body!.itemId, count: 1, instId: req.body!.instId } as ItemBundle,
+  await player._trigger.emit("items:use", [
+    [
+      {
+        id: req.body!.itemId,
+        count: 1,
+        instId: req.body!.instId,
+      } as ItemBundle,
+    ],
   ]);
   res.send(player.delta);
 });
@@ -87,7 +92,7 @@ router.post("/useItem", async (req, res) => {
     count: req.body!.count,
     instId: req.body!.instId,
   } as ItemBundle;
-  player._trigger.emit("items:use", [item]);
+  await player._trigger.emit("items:use", [[item]]);
 
   res.send(player.delta);
 });
@@ -99,8 +104,7 @@ router.post("/useItems", async (req, res) => {
     cnt: number;
     instId: number;
   }[] = req.body!.items;
-  player._trigger.emit(
-    "items:use",
+  await player._trigger.emit("items:use", [
     items.map((item) => {
       return {
         id: item.itemId,
@@ -108,7 +112,7 @@ router.post("/useItems", async (req, res) => {
         instId: item.instId,
       };
     }),
-  );
+  ]);
   console.log("useItems finish");
   console.log(player.delta);
   res.send(player.delta);

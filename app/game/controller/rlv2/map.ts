@@ -29,24 +29,28 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
     this.zones = {};
   }
 
-  generate(id: number) {
+  generate([id]: [number]) {
     this._player._buff.filterBuffs("zone_into_reward").forEach((b) => {
       if (b.blackboard[2].value == id) {
         this._trigger.emit("rlv2:get:items", [
-          {
-            id: b.blackboard[0].valueStr!,
-            count: b.blackboard[1].value!,
-          },
+          [
+            {
+              id: b.blackboard[0].valueStr!,
+              count: b.blackboard[1].value!,
+            },
+          ],
         ]);
       }
     });
     this._player._buff.filterBuffs("zone_into_cost").forEach((b) => {
       if (b.blackboard[2].value == id) {
         this._trigger.emit("rlv2:get:items", [
-          {
-            id: b.blackboard[0].valueStr!,
-            count: -b.blackboard[1].value!,
-          },
+          [
+            {
+              id: b.blackboard[0].valueStr!,
+              count: -b.blackboard[1].value!,
+            },
+          ],
         ]);
       }
     });
@@ -55,7 +59,7 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
         key: b.blackboard[0].valueStr!,
         blackboard: b.blackboard.slice(1),
       };
-      this._player._buff.applyBuffs(buff);
+      this._player._buff.applyBuffs([[buff]]);
     });
     //TODO
     this.zones[id] = {

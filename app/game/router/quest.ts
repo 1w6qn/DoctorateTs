@@ -39,7 +39,7 @@ router.post("/battleStart", async (req, res) => {
 router.post("/battleFinish", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
   res.send({
-    ...player.battle.finish(req.body),
+    ...(await player.battle.finish(req.body)),
     ...player.delta,
   });
 });
@@ -52,7 +52,7 @@ router.post("/getBattleReplay", async (req, res) => {
 });
 router.post("/saveBattleReplay", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  player.battle.saveReplay(req.body);
+  await player.battle.saveReplay(req.body);
   res.send(player.delta);
 });
 export default router;

@@ -23,9 +23,15 @@ export class RoguelikeRecruitManager {
     this._trigger.on("rlv2:create", () => {
       this.tickets = {};
     });
-    this._trigger.on("rlv2:recruit:gain", this.gain.bind(this));
-    this._trigger.on("rlv2:recruit:active", this.active.bind(this));
-    this._trigger.on("rlv2:recruit:done", this.done.bind(this));
+    this._trigger.on("rlv2:recruit:gain", async ([id, from, mustExtra]) => {
+      await this.gain(id, from, mustExtra);
+    });
+    this._trigger.on("rlv2:recruit:active", async ([id]) => {
+      await this.active(id);
+    });
+    this._trigger.on("rlv2:recruit:done", async ([id, optionId]) => {
+      await this.done(id, optionId);
+    });
     this._trigger.on("rlv2:create", () => {
       this.tickets = {};
     });
@@ -37,7 +43,7 @@ export class RoguelikeRecruitManager {
     return `t_${this._index}`;
   }
 
-  active(id: string) {
+  async active(id: string) {
     const theme = this._player.current.game!.theme;
     this.tickets[id].state = 1;
     const ticketInfo =
@@ -116,24 +122,26 @@ export class RoguelikeRecruitManager {
     this.tickets[id].list = chars;
   }
 
-  done(id: string, optionId: string) {
+  async done(id: string, optionId: string) {
     this.tickets[id].state = 2;
     this.tickets[id].result = this.tickets[id].list.find(
       (item) => item.instId == parseInt(optionId),
     ) as PlayerRoguelikeV2.CurrentData.RecruitChar;
 
-    this._trigger.emit("rlv2:char:get", this.tickets[id].result!);
-    this._trigger.emit("rlv2:get:items", [
-      {
-        id: "",
-        count: -this.tickets[id].result!.population || 0,
-        type: "POPULATION",
-      },
+    await this._trigger.emit("rlv2:char:get", [this.tickets[id].result!]);
+    await this._trigger.emit("rlv2:get:items", [
+      [
+        {
+          id: "",
+          count: -this.tickets[id].result!.population || 0,
+          type: "POPULATION",
+        },
+      ],
     ]);
     this.tickets[id].list = [];
   }
 
-  gain(id: string, from: string, mustExtra: number): void {
+  async gain(id: string, from: string, mustExtra: number): Promise<void> {
     this.tickets[this.index] = {
       index: this.index,
       id,

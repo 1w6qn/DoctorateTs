@@ -32,12 +32,11 @@ export class SocialManager {
 
     if (type === FriendServiceType.GET_FRIEND_REQUEST) {
       const friendIdList = await accountManager.getFriendRequests(this._uid);
-      const friendInfoList = await Promise.all(
+      return await Promise.all(
         friendIdList.map((friend) =>
           accountManager.getPlayerFriendInfo(friend),
         ),
       );
-      return friendInfoList;
     } else if (type === FriendServiceType.SEARCH_FRIEND) {
       const playerList = await accountManager.searchPlayer(
         param.nickName + "#" + param.nickNumber,
@@ -110,8 +109,8 @@ export class SocialManager {
         const point =
           draft.social.yesterdayReward.assistAmount +
           draft.social.yesterdayReward.comfortAmount;
-        this._trigger.emit("items:get", [
-          { id: "", type: "SOCIAL_PT", count: point },
+        await this._trigger.emit("items:get", [
+          [{ id: "", type: "SOCIAL_PT", count: point }],
         ]);
         draft.social.yesterdayReward.canReceive = 0;
       }
@@ -166,8 +165,7 @@ export class SocialManager {
 
   async getOtherPlayerNameCard(args: { uid: string }) {
     const { uid } = args;
-    const friendInfo = await accountManager.getPlayerFriendInfo(uid);
-    return friendInfo;
+    return await accountManager.getPlayerFriendInfo(uid);
   }
 
   async editNameCard(args: {

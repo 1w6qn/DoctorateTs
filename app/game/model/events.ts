@@ -1,4 +1,3 @@
-import { EventEmitter } from "events";
 import { ItemBundle } from "@excel/character_table";
 import { GachaResult } from "@game/model/gacha";
 import { BattleData, CommonStartBattleRequest } from "@game/model/battle";
@@ -9,6 +8,7 @@ import {
 } from "@game/model/rlv2";
 import { PlayerCharacter } from "@game/model/character";
 import { RoguelikeV2Controller } from "@game/controller/rlv2";
+import Emittery from "emittery";
 
 export type EventMap = {
   save: [];
@@ -63,7 +63,7 @@ export type EventMap = {
   "rlv2:relic:recycle": [string];
   "rlv2:relic:put": [string];
   "rlv2:event:create": [string, object];
-  "rlv2:buff:apply": [...RoguelikeBuff[]];
+  "rlv2:buff:apply": [[...RoguelikeBuff[]]];
   "rlv2:zone:new": [number];
   "rlv2:battle:start": [string];
   "rlv2:battle:finish": [
@@ -133,4 +133,4 @@ export type EventMap = {
   AccelerateOrder: [];
 };
 
-export class TypedEventEmitter extends EventEmitter<EventMap> {}
+export class TypedEventEmitter extends Emittery<EventMap> {}

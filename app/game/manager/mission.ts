@@ -137,7 +137,7 @@ export class MissionManager {
       }
     });
 
-    this._trigger.emit("items:get", items);
+    await this._trigger.emit("items:get", [items]);
     return items;
   }
 
@@ -145,7 +145,7 @@ export class MissionManager {
     const { missionGroupId } = args;
     const rewards = excel.MissionTable.missionGroups[missionGroupId].rewards;
     if (rewards) {
-      this._trigger.emit("items:get", rewards);
+      await this._trigger.emit("items:get", [rewards]);
     }
     await this._player.update(async (draft) => {
       draft.mission.missionGroups[missionGroupId] = 1;
@@ -171,7 +171,7 @@ export class MissionManager {
     const { targetRewardsId } = args;
     const rewards =
       excel.MissionTable.periodicalRewards[targetRewardsId].rewards;
-    this._trigger.emit("items:get", rewards);
+    await this._trigger.emit("items:get", [rewards]);
     return rewards;
   }
 
@@ -288,7 +288,7 @@ export class MissionProgress implements MissionPlayerState {
       //console.log(`[MissionManager] ${this.missionId} update ${this.progress[0].value}/${this.progress[0].target}`)
       if (this.progress[0].value >= this.progress[0].target!) {
         console.log(`[MissionManager] ${this.missionId} complete`);
-        this._trigger.removeListener(template, func);
+        this._trigger.off(template, func);
       }
     });
     MissionTemplates[template]![this.param[0]].init(this);

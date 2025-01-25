@@ -10,29 +10,32 @@ export class BuildingManager {
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
-    this._trigger.on("building:char:init", async (char: PlayerCharacter) => {
-      await this._player.update(async (draft) => {
-        draft.building.chars[char.instId] = {
-          charId: char.charId,
-          lastApAddTime: now(),
-          ap: 8640000,
-          roomSlotId: "",
-          index: -1,
-          changeScale: 0,
-          bubble: {
-            normal: {
-              add: -1,
-              ts: 0,
+    this._trigger.on(
+      "building:char:init",
+      async ([char]: [PlayerCharacter]) => {
+        await this._player.update(async (draft) => {
+          draft.building.chars[char.instId] = {
+            charId: char.charId,
+            lastApAddTime: now(),
+            ap: 8640000,
+            roomSlotId: "",
+            index: -1,
+            changeScale: 0,
+            bubble: {
+              normal: {
+                add: -1,
+                ts: 0,
+              },
+              assist: {
+                add: -1,
+                ts: 0,
+              },
             },
-            assist: {
-              add: -1,
-              ts: 0,
-            },
-          },
-          workTime: 0,
-        };
-      });
-    });
+            workTime: 0,
+          };
+        });
+      },
+    );
   }
 
   get boardInfo(): string[] {

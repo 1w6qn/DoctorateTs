@@ -39,7 +39,7 @@ export class RoguelikeModuleManager {
         this._modules[moduleName] = moduleHandler[moduleName]();
       }
     }
-    this._trigger.emit("rlv2:module:init");
+    this._trigger.emit("rlv2:module:init", []);
   }
 
   continue() {}

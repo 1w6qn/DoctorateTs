@@ -14,7 +14,7 @@ export class RoguelikeBattleManager {
     this._trigger.on("rlv2:battle:finish", this.finish.bind(this));
   }
 
-  start(stageId: string) {
+  async start([stageId]: [string]) {
     const battleId = "1";
     let sanity = 0;
     const diceRoll = [];
@@ -24,24 +24,29 @@ export class RoguelikeBattleManager {
     if ("DICE" in this._player._module._modules) {
       //TODO
     }
-    this._trigger.emit("rlv2:event:create", "BATTLE", {
-      state: 1,
-      chestCnt: 2,
-      goldTrapCnt: 1,
-      diceRoll: [],
-      boxInfo: {},
-      tmpChar: [],
-      sanity: sanity,
-      unKeepBuff: this._player._buff._buffs,
-    });
-    this._trigger.emit("save:battle", battleId, { stageId: stageId });
+    await this._trigger.emit("rlv2:event:create", [
+      "BATTLE",
+      {
+        state: 1,
+        chestCnt: 2,
+        goldTrapCnt: 1,
+        diceRoll: [],
+        boxInfo: {},
+        tmpChar: [],
+        sanity: sanity,
+        unKeepBuff: this._player._buff._buffs,
+      },
+    ]);
+    await this._trigger.emit("save:battle", [battleId, { stageId: stageId }]);
   }
 
-  async finish(args: {
-    battleLog: string;
-    data: string;
-    battleData: BattleData;
-  }) {
+  async finish([args]: [
+    {
+      battleLog: string;
+      data: string;
+      battleData: BattleData;
+    },
+  ]) {
     const battleId = "1";
     const loginTime = this._player._player.loginTime;
     const data = decryptBattleData(args.data, loginTime);
@@ -52,73 +57,81 @@ export class RoguelikeBattleManager {
     const event = this._player._status.pending.shift();
     //TODO: 处理战斗结果
     for (const buff of this._player._buff.filterBuffs("battle_extra_reward")) {
-      this._trigger.emit("rlv2:get:items", [
-        { id: buff.blackboard[0].valueStr!, count: buff.blackboard[1].value! },
+      await this._trigger.emit("rlv2:get:items", [
+        [
+          {
+            id: buff.blackboard[0].valueStr!,
+            count: buff.blackboard[1].value!,
+          },
+        ],
       ]);
     }
     this._player._buff.filterBuffs("battle_extra_reward").forEach((b) => {
       if (b.blackboard[2].value) {
       }
     });
-    this._trigger.emit("rlv2:event:create", "BATTLE_REWARD", {
-      earn: {
-        damage: 0,
-        hp: 0,
-        shield: 0,
-        exp: 13,
-        populationMax: 4,
-        squadCapacity: 0,
-        maxHpUp: 0,
+    await this._trigger.emit("rlv2:event:create", [
+      "BATTLE_REWARD",
+      {
+        earn: {
+          damage: 0,
+          hp: 0,
+          shield: 0,
+          exp: 13,
+          populationMax: 4,
+          squadCapacity: 0,
+          maxHpUp: 0,
+        },
+        rewards: [
+          {
+            index: 0,
+            items: [
+              {
+                sub: 0,
+                id: "rogue_4_gold",
+                count: 1,
+              },
+            ],
+            done: 0,
+          },
+          {
+            index: 1,
+            items: [
+              {
+                sub: 0,
+                id: "rogue_4_fragment_F_13",
+                count: 1,
+              },
+            ],
+            done: 0,
+          },
+          {
+            index: 2,
+            items: [
+              {
+                sub: 0,
+                id: "rogue_4_fragment_D_06",
+                count: 1,
+              },
+            ],
+            done: 0,
+          },
+          {
+            index: 3,
+            items: [
+              {
+                sub: 0,
+                id: "rogue_4_recruit_ticket_support",
+                count: 1,
+              },
+            ],
+            done: 0,
+          },
+        ],
+        show: "2",
+        state: 0,
+        isPerfect: 1,
       },
-      rewards: [
-        {
-          index: 0,
-          items: [
-            {
-              sub: 0,
-              id: "rogue_4_gold",
-              count: 1,
-            },
-          ],
-          done: 0,
-        },
-        {
-          index: 1,
-          items: [
-            {
-              sub: 0,
-              id: "rogue_4_fragment_F_13",
-              count: 1,
-            },
-          ],
-          done: 0,
-        },
-        {
-          index: 2,
-          items: [
-            {
-              sub: 0,
-              id: "rogue_4_fragment_D_06",
-              count: 1,
-            },
-          ],
-          done: 0,
-        },
-        {
-          index: 3,
-          items: [
-            {
-              sub: 0,
-              id: "rogue_4_recruit_ticket_support",
-              count: 1,
-            },
-          ],
-          done: 0,
-        },
-      ],
-      show: "2",
-      state: 0,
-      isPerfect: 1,
-    });
+    ]);
   }
 }

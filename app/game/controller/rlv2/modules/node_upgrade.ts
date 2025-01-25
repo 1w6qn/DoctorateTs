@@ -49,7 +49,7 @@ export class RoguelikeNodeUpgradeManager {
       this._player.current.module!.nodeUpgrade!.nodeTypeInfoMap;
   }
 
-  upgrade(nodeType: string) {
+  upgrade([nodeType]: [string]) {
     const theme = this._player.current.game!.theme;
     const tempMap =
       excel.RoguelikeTopicTable.modules[theme].nodeUpgrade!.nodeUpgradeDataMap;
@@ -58,11 +58,10 @@ export class RoguelikeNodeUpgradeManager {
         (item) => item.upgradeId == this._nodeTypeInfoMap[nodeType].tempUpgrade,
       )!;
       this._nodeTypeInfoMap[nodeType].upgradeList.push(tempItem.upgradeId);
-      this._trigger.emit(
-        "rlv2:fragment:use",
+      this._trigger.emit("rlv2:fragment:use", [
         tempItem.costItemId,
         tempItem.costItemCount,
-      );
+      ]);
     } else {
       const permItem = tempMap[nodeType].permItemList.find(
         (item) =>
@@ -74,11 +73,10 @@ export class RoguelikeNodeUpgradeManager {
       this._player.outer[theme].collect.nodeUpgrade[nodeType].unlockList.push(
         permItem.upgradeId,
       );
-      this._trigger.emit(
-        "rlv2:fragment:use",
+      this._trigger.emit("rlv2:fragment:use", [
         permItem.costItemId,
         permItem.costItemCount,
-      );
+      ]);
     }
   }
 

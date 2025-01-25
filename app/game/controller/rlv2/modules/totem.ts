@@ -18,7 +18,7 @@ export class RoguelikeTotemManager {
 
   use(totoemIndex: [string, string], nodeIndex: string[]) {
     //TODO
-    this._trigger.emit("rlv2:node:attach", nodeIndex, []);
+    this._trigger.emit("rlv2:node:attach", [nodeIndex, []]);
   }
 
   init() {

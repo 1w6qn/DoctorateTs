@@ -29,12 +29,13 @@ export class RetroManager {
     await this._player.update(async (draft) => {
       draft.retro.trail[args.retroId][args.rewardId] = 1;
     });
-    this._trigger.emit("items:get", [reward]);
+    await this._trigger.emit("items:get", [[reward]]);
     return [reward];
   }
 
   async getRetroPassReward(args: { retroId: string; activityId: string }) {
     //TODO
+    console.log(args);
     return [] as ItemBundle[];
   }
 }

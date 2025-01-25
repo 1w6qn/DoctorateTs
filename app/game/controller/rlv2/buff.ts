@@ -41,21 +41,23 @@ export class RoguelikeBuffManager {
     const modeGrade = this._player.current.game!.modeGrade;
     Object.keys(this._player.outer[theme].buff.unlocked).forEach((id) => {
       const buffs = excel.RoguelikeConsts[theme].outbuff[id];
-      this.applyBuffs(...buffs);
+      this.applyBuffs([[...buffs]]);
     });
-    this.applyBuffs(...excel.RoguelikeConsts[theme].modebuff[modeGrade]);
+    await this.applyBuffs([
+      [...excel.RoguelikeConsts[theme].modebuff[modeGrade]],
+    ]);
   }
 
-  applyBuffs(...args: RoguelikeBuff[]) {
-    args.forEach((arg) => {
+  async applyBuffs([[...args]]: [RoguelikeBuff[]]) {
+    for (const arg of args) {
       if (arg.key == "immediate_reward") {
-        this.immediate_reward(arg.blackboard);
+        await this.immediate_reward(arg.blackboard);
       } else if (arg.key == "item_cover_set") {
-        this.item_cover_set(arg.blackboard);
+        await this.item_cover_set(arg.blackboard);
       } else if (arg.key == "change_fragment_type_weight") {
-        this._trigger.emit("rlv2:fragment:change_type_weight", arg);
+        await this._trigger.emit("rlv2:fragment:change_type_weight", [arg]);
       }
-    });
+    }
     this._buffs.push(...args);
   }
 
@@ -80,16 +82,16 @@ export class RoguelikeBuffManager {
     return { key: key, blackboard: blackboard };
   }
 
-  immediate_reward(blackboard: Blackboard) {
+  async immediate_reward(blackboard: Blackboard) {
     const item: RoguelikeItemBundle = {
       id: blackboard[0].valueStr!,
       count: blackboard[1].value!,
       sub: 0,
     };
-    this._trigger.emit("rlv2:get:items", [item]);
+    await this._trigger.emit("rlv2:get:items", [[item]]);
   }
 
-  item_cover_set(blackboard: Blackboard) {
+  async item_cover_set(blackboard: Blackboard) {
     const item: RoguelikeItemBundle = {
       id: blackboard[0].valueStr!,
       count: blackboard[1].value!,

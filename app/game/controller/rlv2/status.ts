@@ -86,13 +86,13 @@ export class RoguelikePlayerStatusManager
     this.toEnding = `ro${game.theme.slice(-1)}_ending_1`;
   }
 
-  bankPut() {
+  async bankPut() {
     const theme = this._player.current.game!.theme;
     const succeed = Math.random() <= 0.5;
     if (succeed && this._player.outer[theme].bank.current <= 999) {
       this.status.bankPut += 1;
       this._player.outer[theme].bank.current += 1;
-      this._trigger.emit("rlv2:bankPut", succeed);
+      await this._trigger.emit("rlv2:bankPut", [succeed]);
     }
   }
 

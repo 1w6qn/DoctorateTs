@@ -16,7 +16,9 @@ export class RoguelikeEventManager {
     this._trigger.on("rlv2:init", this.init.bind(this));
     this._trigger.on("rlv2:continue", this.continue.bind(this));
     this._trigger.on("rlv2:create", this.create.bind(this));
-    this._trigger.on("rlv2:event:create", this.createEvent.bind(this));
+    this._trigger.on("rlv2:event:create", () => {
+      this.createEvent.bind(this);
+    });
   }
 
   init(): void {
@@ -26,7 +28,7 @@ export class RoguelikeEventManager {
 
   continue(): void {}
 
-  createEvent(type: string, args: object): void {
+  createEvent([type, args]: [string, object]): void {
     this._pending.push(
       new RoguelikePendingEvent(
         this._player,
@@ -47,21 +49,33 @@ export class RoguelikeEventManager {
     const initConfig = this._player.initConfig;
     //TODO
     const totalStep = game.outer.support ? 4 : 3;
-    this._trigger.emit("rlv2:event:create", "GAME_INIT_RELIC", {
-      step: [this._index + 1, totalStep],
-    });
-    if (game.outer.support) {
-      this._trigger.emit("rlv2:event:create", "GAME_INIT_SUPPORT", {
+    this._trigger.emit("rlv2:event:create", [
+      "GAME_INIT_RELIC",
+      {
         step: [this._index + 1, totalStep],
-        id: "",
-      });
+      },
+    ]);
+    if (game.outer.support) {
+      this._trigger.emit("rlv2:event:create", [
+        "GAME_INIT_SUPPORT",
+        {
+          step: [this._index + 1, totalStep],
+          id: "",
+        },
+      ]);
     }
-    this._trigger.emit("rlv2:event:create", "GAME_INIT_RECRUIT_SET", {
-      step: [this._index + 1, totalStep],
-    });
-    this._trigger.emit("rlv2:event:create", "GAME_INIT_RECRUIT", {
-      step: [this._index + 1, totalStep],
-    });
+    this._trigger.emit("rlv2:event:create", [
+      "GAME_INIT_RECRUIT_SET",
+      {
+        step: [this._index + 1, totalStep],
+      },
+    ]);
+    this._trigger.emit("rlv2:event:create", [
+      "GAME_INIT_RECRUIT",
+      {
+        step: [this._index + 1, totalStep],
+      },
+    ]);
   }
 
   toJSON(): PlayerRoguelikePendingEvent[] {
@@ -149,9 +163,12 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
   GAME_INIT_RECRUIT(args: {
     step: [number, number];
   }): PlayerRoguelikePendingEvent.Content {
-    this._trigger.on("rlv2:choose_init_recruit_set", (tickets: string[]) => {
-      this.content.initRecruit!.tickets = tickets;
-    });
+    this._trigger.on(
+      "rlv2:choose_init_recruit_set",
+      ([tickets]: [string[]]) => {
+        this.content.initRecruit!.tickets = tickets;
+      },
+    );
     return {
       initRecruit: {
         step: args.step,

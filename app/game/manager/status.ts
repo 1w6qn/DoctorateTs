@@ -31,13 +31,13 @@ export class StatusManager {
     const ts = now();
     const { lastRefreshTs } = this.status;
     if (checkNew(lastRefreshTs, ts, "day")) {
-      this._trigger.emit("refresh:daily", lastRefreshTs);
+      await this._trigger.emit("refresh:daily", [lastRefreshTs]);
     }
     if (moment().date() == 1 && checkNew(lastRefreshTs, ts, "month")) {
-      this._trigger.emit("refresh:monthly");
+      await this._trigger.emit("refresh:monthly", []);
     }
     if (moment().day() == 1 && checkNew(lastRefreshTs, ts, "week")) {
-      this._trigger.emit("refresh:weekly");
+      await this._trigger.emit("refresh:weekly", []);
     }
     await this._player.update(async (draft) => {
       draft.status.lastRefreshTs = ts;
@@ -89,24 +89,28 @@ export class StatusManager {
   }
 
   async buyAp() {
-    this._trigger.emit("items:use", [{ id: "", type: "DIAMOND", count: 1 }]);
-    this._trigger.emit("items:get", [
-      { id: "", type: "AP_GAMEPLAY", count: 135 },
+    await this._trigger.emit("items:use", [
+      [{ id: "", type: "DIAMOND", count: 1 }],
+    ]);
+    await this._trigger.emit("items:get", [
+      [{ id: "", type: "AP_GAMEPLAY", count: 135 }],
     ]);
   }
 
   async exchangeDiamondShard(args: { count: number }) {
     const { count } = args;
-    this._trigger.emit("items:get", [
-      {
-        id: "",
-        type: "DIAMOND_SHD",
-        count: count * excel.GameDataConst.diamondToShdRate,
-      },
+    await this._trigger.emit("items:get", [
+      [
+        {
+          id: "",
+          type: "DIAMOND_SHD",
+          count: count * excel.GameDataConst.diamondToShdRate,
+        },
+      ],
     ]);
     await new Promise((resolve) => setTimeout(resolve, 10));
-    this._trigger.emit("items:use", [
-      { id: "", type: "DIAMOND", count: count },
+    await this._trigger.emit("items:use", [
+      [{ id: "", type: "DIAMOND", count: count }],
     ]);
   }
 
@@ -115,8 +119,8 @@ export class StatusManager {
     await this._player.update(async (draft) => {
       draft.collectionReward.team[rewardId] = 1;
     });
-    this._trigger.emit("items:get", [
-      excel.HandbookInfoTable.teamMissionList[rewardId].item,
+    await this._trigger.emit("items:get", [
+      [excel.HandbookInfoTable.teamMissionList[rewardId].item],
     ]);
   }
 }

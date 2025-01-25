@@ -24,7 +24,7 @@ export class RoguelikeInventoryManager
     this._trigger = _trigger;
     this._trigger.on("rlv2:init", this.init.bind(this));
     this._trigger.on("rlv2:create", this.create.bind(this));
-    this._trigger.on("rlv2:get:items", (items: RoguelikeItemBundle[]) =>
+    this._trigger.on("rlv2:get:items", ([items]: [RoguelikeItemBundle[]]) =>
       items.forEach((item) => this.getItem(item)),
     );
   }
@@ -96,10 +96,9 @@ export class RoguelikeInventoryManager
           this._player._status.property.level += 1;
           this._player._status.property.exp -=
             map[this._player._status.property.level + 1].exp;
-          this._trigger.emit(
-            "rlv2:levelUp",
+          this._trigger.emit("rlv2:levelUp", [
             this._player._status.property.level,
-          );
+          ]);
           this._player._status.property.population.max +=
             map[this._player._status.property.level + 1].populationUp;
           this._player._status.property.capacity +=
@@ -113,23 +112,29 @@ export class RoguelikeInventoryManager
       SQUAD_CAPACITY: (item: RoguelikeItemBundle) =>
         (this._player._status.property.capacity += item.count),
       RECRUIT_TICKET: (item: RoguelikeItemBundle) => {
-        this._trigger.emit("rlv2:recruit:gain", item.id, "battle", 0);
+        this._trigger.emit("rlv2:recruit:gain", [item.id, "battle", 0]);
         const ticket = Object.values(this.recruit).slice(-1)[0].index;
-        this._trigger.emit("rlv2:recruit:active", ticket);
-        this._trigger.emit("rlv2:event:create", "RECRUIT", {
-          ticket: ticket,
-        });
+        this._trigger.emit("rlv2:recruit:active", [ticket]);
+        this._trigger.emit("rlv2:event:create", [
+          "RECRUIT",
+          {
+            ticket: ticket,
+          },
+        ]);
       },
       UPGRADE_TICKET: (item: RoguelikeItemBundle) => {
-        this._trigger.emit("rlv2:recruit:gain", item.id, "battle", 0);
+        this._trigger.emit("rlv2:recruit:gain", [item.id, "battle", 0]);
         const ticket = Object.values(this.recruit).slice(-1)[0].index;
-        this._trigger.emit("rlv2:recruit:active", ticket);
-        this._trigger.emit("rlv2:event:create", "RECRUIT", {
-          ticket: ticket,
-        });
+        this._trigger.emit("rlv2:recruit:active", [ticket]);
+        this._trigger.emit("rlv2:event:create", [
+          "RECRUIT",
+          {
+            ticket: ticket,
+          },
+        ]);
       },
       RELIC: (item: RoguelikeItemBundle) => {
-        this._trigger.emit("rlv2:relic:gain", item);
+        this._trigger.emit("rlv2:relic:gain", [item]);
       },
       BP_POINT: (item: RoguelikeItemBundle) => {
         const theme = this._player.current.game!.theme;
@@ -142,7 +147,6 @@ export class RoguelikeInventoryManager
       },
       GROW_POINT: (item: RoguelikeItemBundle) => {
         const theme = this._player.current.game!.theme;
-        this._player.outer[theme].collect;
       },
       BAND: (item: RoguelikeItemBundle) => {},
       ACTIVE_TOOL: (item: RoguelikeItemBundle) => {},
@@ -174,15 +178,15 @@ export class RoguelikeInventoryManager
       CHAOS_LEVEL: (item: RoguelikeItemBundle) => {},
       EXPLORE_TOOL: (item: RoguelikeItemBundle) => {},
       FRAGMENT: (item: RoguelikeItemBundle) => {
-        this._trigger.emit("rlv2:fragment:gain", item.id);
+        this._trigger.emit("rlv2:fragment:gain", [item.id]);
       },
       MAX_WEIGHT: (item: RoguelikeItemBundle) => {
-        this._trigger.emit("rlv2:fragment:max_weight:add", item.count);
+        this._trigger.emit("rlv2:fragment:max_weight:add", [item.count]);
       },
       DISASTER: (item: RoguelikeItemBundle) => {},
       DISASTER_TYPE: (item: RoguelikeItemBundle) => {},
       ABSTRACT_DISASTER: (item: RoguelikeItemBundle) => {
-        this._trigger.emit("rlv2:disaster:abstract");
+        this._trigger.emit("rlv2:disaster:abstract", []);
       },
     };
     funcs[type](item);

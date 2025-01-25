@@ -13,14 +13,16 @@ export class CharManager {
   constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = trigger;
-    this._trigger.on("char:get", this.onCharGet.bind(this));
+    this._trigger.on("char:get", () => {
+      this.onCharGet.bind(this);
+    });
   }
 
-  async onCharGet(
-    charId: string,
-    args: { from: string; extraItem?: ItemBundle } = { from: "NORMAL" },
-    callback?: (res: GachaResult) => void,
-  ): Promise<GachaResult> {
+  async onCharGet([charId, args = { from: "NORMAL" }, callback]: [
+    string,
+    { from: string; extraItem?: ItemBundle },
+    ((res: GachaResult) => void)?,
+  ]): Promise<GachaResult> {
     let res: GachaResult;
     await this._player.update(async (draft) => {
       const { from, extraItem } = args;
@@ -110,7 +112,7 @@ export class CharManager {
           equip: {},
           voiceLan: "CN_MANDARIN",
         };
-        this._trigger.emit("char:init", draft.troop.chars[charInstId]);
+        await this._trigger.emit("char:init", [draft.troop.chars[charInstId]]);
         if (from == "CLASSIC") {
           items.push({ id: "classic_normal_ticket", count: 10 });
         } else {
@@ -120,7 +122,7 @@ export class CharManager {
           items.push(extraItem);
         }
       }
-      this._trigger.emit("items:get", items);
+      await this._trigger.emit("items:get", [items]);
       const res = {
         charInstId: charInstId,
         charId: charId,
@@ -170,8 +172,8 @@ export class CharManager {
       console.log(gold);
       expMats.push({ id: "4001", count: gold });
       console.log(expMats);
-      this._trigger.emit("items:use", expMats);
-      this._trigger.emit("UpgradeChar", { char, exp: expTotal });
+      await this._trigger.emit("items:use", [expMats]);
+      await this._trigger.emit("UpgradeChar", [{ char, exp: expTotal }]);
     });
     //TODO
   }
@@ -189,10 +191,9 @@ export class CharManager {
       const rarity = excel.CharacterTable[char.charId].rarity;
       const goldCost =
         excel.GameDataConst.evolveGoldCost[rarity][destEvolvePhase];
-      this._trigger.emit(
-        "items:use",
+      await this._trigger.emit("items:use", [
         evolveCost.concat([{ id: "4001", count: goldCost } as ItemBundle]),
-      );
+      ]);
       char.evolvePhase = destEvolvePhase;
       char.level = 1;
       char.exp = 0;
@@ -200,7 +201,7 @@ export class CharManager {
       if (destEvolvePhase == 2) {
         char.skin = char.charId + "#2";
       }
-      this._trigger.emit("EvolveChar", { char });
+      await this._trigger.emit("EvolveChar", [{ char }]);
     });
   }
 
@@ -213,8 +214,8 @@ export class CharManager {
       const { charInstId, itemId, targetRank } = args;
       const char = draft.troop.chars[charInstId];
       char.potentialRank = targetRank;
-      this._trigger.emit("items:use", [{ id: itemId, count: 1 }]);
-      this._trigger.emit("BoostPotential", { targetLevel: targetRank });
+      await this._trigger.emit("items:use", [[{ id: itemId, count: 1 }]]);
+      await this._trigger.emit("BoostPotential", [{ targetLevel: targetRank }]);
     });
   }
 
@@ -240,8 +241,8 @@ export class CharManager {
         excel.CharacterTable[char.charId].allSkillLvlup[targetLevel - 2]
           .lvlUpCost!;
       char.mainSkillLvl = targetLevel;
-      this._trigger.emit("items:use", targetLevelCost);
-      this._trigger.emit("BoostPotential", { targetLevel });
+      await this._trigger.emit("items:use", [targetLevelCost]);
+      await this._trigger.emit("BoostPotential", [{ targetLevel }]);
     });
   }
 
@@ -317,11 +318,10 @@ export class CharManager {
         char.equip![equipId].hide = 0;
         char.equip![equipId].locked = 0;
       }
-      this._trigger.emit(
-        "items:use",
+      await this._trigger.emit("items:use", [
         excel.UniequipTable.equipDict[equipId].itemCost!["1"],
-      );
-      this._trigger.emit("HasEquipment", { char });
+      ]);
+      await this._trigger.emit("HasEquipment", [{ char }]);
     });
   }
 
@@ -343,8 +343,8 @@ export class CharManager {
       for (let i = char.equip![equipId].level; i < targetLevel + 1; i++) {
         items.push(...excel.UniequipTable.equipDict[equipId].itemCost![i]);
       }
-      this._trigger.emit("items:use", items);
-      this._trigger.emit("HasEquipment", { char });
+      await this._trigger.emit("items:use", [items]);
+      await this._trigger.emit("HasEquipment", [{ char }]);
     });
   }
 
@@ -398,7 +398,7 @@ export class CharManager {
       const char = draft.troop.chars[charInstId];
       char.skills![skillIndex].completeUpgradeTime = -1;
       char.skills![skillIndex].specializeLevel = targetLevel;
-      this._trigger.emit("UpgradeSpecialization", args);
+      await this._trigger.emit("UpgradeSpecialization", [args]);
     });
   }
 
@@ -411,7 +411,7 @@ export class CharManager {
       const { charId, missionId } = args;
       items = excel.CharMetaTable.spCharMissions[charId][missionId].rewards;
       draft.troop.charMission[charId][missionId] = 2;
-      this._trigger.emit("items:get", items);
+      await this._trigger.emit("items:get", [items]);
     });
     return items;
   }
@@ -428,7 +428,9 @@ export class CharManager {
       char.level = 1;
       char.exp = 0;
       char.skin = char.charId + "#2";
-      this._trigger.emit("items:use", [{ id: itemId, count: 1, instId }]);
+      await this._trigger.emit("items:use", [
+        [{ id: itemId, count: 1, instId }],
+      ]);
     });
   }
 
@@ -443,7 +445,9 @@ export class CharManager {
       const rarity = excel.CharacterTable[char.charId].rarity;
       char.level = excel.GameDataConst.maxLevel[rarity][2];
       char.exp = 0;
-      this._trigger.emit("items:use", [{ id: itemId, count: 1, instId }]);
+      await this._trigger.emit("items:use", [
+        [{ id: itemId, count: 1, instId }],
+      ]);
     });
   }
 
@@ -457,7 +461,9 @@ export class CharManager {
       const { charInstId, skillIndex, itemId, instId } = args;
       const char = draft.troop.chars[charInstId];
       char.skills![skillIndex].specializeLevel = 3;
-      this._trigger.emit("items:use", [{ id: itemId, count: 1, instId }]);
+      await this._trigger.emit("items:use", [
+        [{ id: itemId, count: 1, instId }],
+      ]);
     });
   }
 }

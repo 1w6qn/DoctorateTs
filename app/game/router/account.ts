@@ -26,7 +26,7 @@ router.post("/syncData", async (req, res) => {
 });
 router.post("/syncStatus", async (req, res) => {
   const player = httpContext.get("playerData") as PlayerDataManager;
-  player._trigger.emit("status:refresh:time");
+  await player._trigger.emit("status:refresh:time", []);
   res.send({
     ts: now(),
     result: {},

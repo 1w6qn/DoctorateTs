@@ -55,7 +55,6 @@ export class PlayerDataManager {
     this._changes = [];
     this._inverseChanges = [];
     this._trigger = new TypedEventEmitter();
-    this._trigger.setMaxListeners(10000);
     this.status = new StatusManager(this, this._trigger);
     this.inventory = new InventoryManager(this, this._trigger);
     this.troop = new TroopManager(this, this._trigger);
@@ -76,11 +75,11 @@ export class PlayerDataManager {
     this.openServer = new OpenServerManager(this, this._trigger);
     this.retro = new RetroManager(this, this._trigger);
     this.char = new CharManager(this, this._trigger);
-    this._trigger.emit("game:fix");
+    //this._trigger.emit("game:fix", []);
     this._trigger.on(
       "save:battle",
-      async (battleId: string, info: BattleInfo) => {
-        accountManager.saveBattleInfo(this.uid, battleId, info);
+      async ([battleId, info]: [string, BattleInfo]) => {
+        await accountManager.saveBattleInfo(this.uid, battleId, info);
       },
     );
   }
@@ -91,7 +90,7 @@ export class PlayerDataManager {
     );
     this._changes = [];
     console.log(this._playerdata.status.androidDiamond);
-    this._trigger.emit("save");
+    this._trigger.emit("save", []);
     console.log("delta", JSON.stringify(delta));
     return {
       playerDataDelta: delta,

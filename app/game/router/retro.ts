@@ -23,3 +23,4 @@ router.post("/retro/getRetroPassReward", async (req, res) => {
     ...player.delta,
   });
 });
+export default router;

@@ -27,44 +27,86 @@ export class BattleManager {
   }
 
   async start([args]: [CommonStartBattleRequest]) {
-    const { stageId } = args;
+    const { stageId, usePracticeTicket, squad } = args;
     const battleId = "1";
-    const zoneId = excel.StageTable.stages[stageId].zoneId;
-    let apFailReturn = excel.StageTable.stages[stageId].apFailReturn;
-    const ts = now();
+    const { zoneId, apCost, dangerLevel } = excel.StageTable.stages[stageId];
+    let { apFailReturn } = excel.StageTable.stages[stageId];
+    let notifyPowerScoreNotEnoughIfFailed = false;
+
+    // Check zoneInfo of apProtect
     let inApProtectPeriod = false;
     if (zoneId in excel.StageTable.apProtectZoneInfo) {
       inApProtectPeriod = excel.StageTable.apProtectZoneInfo[
         zoneId
-      ].timeRanges.some((range) => ts >= range.startTs && ts <= range.endTs);
+      ].timeRanges.some(
+        (range) => now() >= range.startTs && now() <= range.endTs,
+      );
     }
     let isApProtect = 0;
     await this._player.update(async (draft) => {
       if (draft.dungeon.stages[stageId].noCostCnt == 1) {
         isApProtect = 1;
-        apFailReturn = excel.StageTable.stages[stageId].apCost;
+        apFailReturn = apCost;
       }
       if (inApProtectPeriod) {
         isApProtect = 1;
       }
-      if (args.usePracticeTicket == 1) {
+      // Add current stage
+      if (stageId in draft.dungeon.stages) {
+        draft.dungeon.stages[stageId].startTimes += 1;
+      } else {
+        draft.dungeon.stages[stageId] = {
+          stageId: stageId,
+          completeTimes: 0,
+          startTimes: 0,
+          practiceTimes: 0,
+          state: 0,
+          hasBattleReplay: 0,
+          noCostCnt: stageId.includes("guide") ? 1 : 0,
+        };
+      }
+      // Check if PracticeTicket is used
+      if (apCost == 0 || usePracticeTicket) {
         isApProtect = 0;
         apFailReturn = 0;
+      }
+      if (usePracticeTicket) {
         draft.status.practiceTicket -= 1;
         draft.dungeon.stages[stageId].practiceTimes += 1;
       }
-      draft.dungeon.stages[stageId].startTimes += 1;
+      // Check user powerScore
+      squad.slots.forEach((char) => {
+        if (!char) return;
+        if (!dangerLevel || dangerLevel == "-") return;
+        const { charInstId } = char;
+        const stageLevel = parseInt(dangerLevel.slice(-2).replace(".", ""));
+        const { level: charLevel, evolvePhase } = draft.troop.chars[charInstId];
+        if (
+          dangerLevel.startsWith("精英1") &&
+          (evolvePhase < 1 || charLevel < stageLevel)
+        ) {
+          notifyPowerScoreNotEnoughIfFailed = true;
+          return;
+        } else if (
+          dangerLevel.startsWith("精英2") &&
+          (evolvePhase < 2 || charLevel < stageLevel)
+        ) {
+          notifyPowerScoreNotEnoughIfFailed = true;
+          return;
+        }
+      });
       await accountManager.saveBattleInfo(draft.status.uid, battleId, {
         stageId,
+        isPractice: usePracticeTicket,
       });
     });
 
     return {
-      apFailReturn: apFailReturn,
-      battleId: battleId,
-      inApProtectPeriod: inApProtectPeriod,
-      isApProtect: isApProtect,
-      notifyPowerScoreNotEnoughIfFailed: false,
+      apFailReturn,
+      battleId,
+      inApProtectPeriod,
+      isApProtect,
+      notifyPowerScoreNotEnoughIfFailed,
       result: 0,
     };
   }
@@ -106,25 +148,109 @@ export class BattleManager {
     data: string;
     battleData: { isCheat: string; completeTime: number };
   }) {
-    await this._player.update(async (draft) => {
-      const battleData = decryptBattleData(args.data, draft.pushFlags.status);
-      const battleInfo = accountManager.getBattleInfo(
-        draft.status.uid,
-        battleData.battleId,
-      );
+    const { data } = args;
+    const battleData = await decryptBattleData(
+      data,
+      this._player._playerdata.pushFlags.status,
+    );
+    const battleInfo = await accountManager.getBattleInfo(
+      this._player.uid,
+      battleData.battleId,
+    );
+    let goldScale = 0,
+      expScale = 0,
+      apFailReturn = 0,
+      suggestFriend = false;
 
-      await this._trigger.emit("CompleteStageAnyType", battleData);
-      await this._trigger.emit("CompleteStage", {
-        ...battleData,
-        ...battleInfo,
-      });
+    const { apCost, expGain, goldGain } =
+      excel.StageTable.stages[battleInfo.stageId];
+    const { stageId, isPractice } = battleInfo;
+    if (battleData.completeState === 3) {
+      goldScale = 1.2;
+      expScale = 1.2;
+    } else if (battleData.completeState === 2) {
+      goldScale = 1;
+      expScale = 1;
+    }
+    await this._trigger.emit("items:get", [
+      [
+        {
+          type: "AP_GAMEPLAY",
+          id: "",
+          count: -apCost,
+        },
+        {
+          type: "EXP_PLAYER",
+          id: "",
+          count: expGain * expScale,
+        },
+        {
+          type: "GOLD",
+          id: "4001",
+          count: goldGain * goldScale,
+        },
+      ],
+    ]);
+    await this._player.update(async (draft) => {
+      const playerStage = draft.dungeon.stages[stageId];
+      if (isPractice) {
+        if (playerStage.state == 0) {
+          playerStage.state = 1;
+        }
+        return;
+      }
+      if (battleData.completeState === 1) {
+        if (playerStage.state == 0) {
+          draft.dexNav.enemy.stage[stageId] = Object.keys(
+            battleData.battleData.stats.enemyList,
+          );
+          playerStage.state = 1;
+        }
+        if (playerStage.noCostCnt) {
+          apFailReturn = apCost;
+          playerStage.noCostCnt -= 1;
+        } else {
+          apFailReturn = excel.StageTable.stages[stageId].apFailReturn;
+        }
+        await this._trigger.emit("items:get", [
+          [
+            {
+              type: "AP_GAMEPLAY",
+              id: "",
+              count: apFailReturn,
+            },
+          ],
+        ]);
+      } else {
+        let firstClear = false;
+        if (playerStage.state != 3 && battleData.completeState === 3) {
+          firstClear = true;
+        }
+        if (playerStage.state == 3 && battleData.completeState === 4) {
+          firstClear = true;
+        }
+        if (firstClear) {
+        }
+      }
     });
 
+    await this._trigger.emit("CompleteStageAnyType", [battleData]);
+    await this._trigger.emit("CompleteStage", [
+      {
+        ...battleData,
+        ...battleInfo,
+      },
+    ]);
+    if (isPractice) {
+      return {
+        result: 0,
+      };
+    }
     return {
       result: 0,
-      apFailReturn: 0,
-      expScale: 1.2,
-      goldScale: 1.2,
+      apFailReturn,
+      expScale,
+      goldScale,
       rewards: [],
       firstRewards: [],
       unlockStages: [],
@@ -132,7 +258,7 @@ export class BattleManager {
       additionalRewards: [],
       furnitureRewards: [],
       alert: [],
-      suggestFriend: false,
+      suggestFriend,
       pryResult: [],
     };
   }
@@ -572,9 +698,11 @@ export class BattleManager {
     battleReplay: string;
   }): Promise<void> {
     const { battleId, battleReplay } = args;
-    const stageId = accountManager.getBattleInfo(
-      this._player._playerdata.status.uid,
-      battleId,
+    const stageId = (
+      await accountManager.getBattleInfo(
+        this._player._playerdata.status.uid,
+        battleId,
+      )
     )?.stageId;
     return await accountManager.saveBattleReplay(
       this._player._playerdata.status.uid,

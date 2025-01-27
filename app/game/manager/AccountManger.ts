@@ -61,8 +61,8 @@ export class AccountManager {
     );
   }
 
-  getBattleInfo(uid: string, battleId: string): BattleInfo | undefined {
-    return this.configs[uid]?.battle.infos[battleId];
+  async getBattleInfo(uid: string, battleId: string): Promise<BattleInfo> {
+    return this.configs[uid]!.battle.infos[battleId];
   }
 
   async saveBattleInfo(
@@ -89,7 +89,7 @@ export class AccountManager {
     );
   }
 
-  getBeforeNonHitCnt(uid: string, gachaType: string): number {
+  async getBeforeNonHitCnt(uid: string, gachaType: string): Promise<number> {
     return this.configs[uid]!.gacha[gachaType].beforeNonHitCnt;
   }
 
@@ -218,5 +218,6 @@ export interface UserConfig {
 }
 export interface BattleInfo {
   stageId: string;
+  isPractice: number;
 }
 export const accountManager = new AccountManager();

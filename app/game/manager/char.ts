@@ -23,14 +23,15 @@ export class CharManager {
     { from: string; extraItem?: ItemBundle },
     ((res: GachaResult) => void)?,
   ]): Promise<GachaResult> {
-    let res: GachaResult;
+    let isNew: number = 0;
+    let charInstId: number = 0;
+    const items: ItemBundle[] = [];
     await this._player.update(async (draft) => {
       const { from, extraItem } = args;
-      const isNew = draft.dexNav.character[charId] ? 0 : 1;
-      const items: ItemBundle[] = [];
+      isNew = draft.dexNav.character[charId] ? 0 : 1;
       const info = excel.CharacterTable[charId];
       console.log(
-        `[TroopManager] 获得${info.rarity}星干员 ${info.name} ${isNew} ${from}`,
+        `[TroopManager] 获得${info.rarity + 1}星干员 ${info.name} ${isNew} ${from}`,
       );
       if (isNew) {
         draft.dexNav.character[charId] = {
@@ -48,7 +49,7 @@ export class CharManager {
       } else {
         dexInfo.count += 1;
       }
-      const charInstId: number = dexInfo.charInstId;
+      charInstId = dexInfo.charInstId;
       if (!isNew) {
         const potentId = excel.CharacterTable[charId].potentialItemId!;
         items.push({ id: potentId, count: 1, type: "MATERIAL" });
@@ -123,15 +124,15 @@ export class CharManager {
         }
       }
       await this._trigger.emit("items:get", [items]);
-      const res = {
-        charInstId: charInstId,
-        charId: charId,
-        isNew: isNew,
-        itemGet: items,
-      };
-      callback?.(res);
     });
-    return res!;
+    const res = {
+      charInstId: charInstId,
+      charId: charId,
+      isNew: isNew,
+      itemGet: items,
+    };
+    callback?.(res);
+    return res;
   }
 
   async upgradeChar(args: {

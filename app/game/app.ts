@@ -35,6 +35,7 @@ export async function setup(app: express.Application) {
   app.use("/gacha", (await import("./router/gacha")).default);
   app.use("/mail", (await import("./router/mail")).default);
   app.use("/social", (await import("./router/social")).default);
+  app.use("/retro", (await import("./router/retro")).default);
   app.use("/", (await import("./router/home")).default);
 }
 export default app;

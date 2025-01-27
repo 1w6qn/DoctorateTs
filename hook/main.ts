@@ -266,7 +266,7 @@ setTimeout(() =>
     Logger.log("[1;36mAPK签名:[m [1;34m" + JavaUtils.getAppSignature() + "[m");
     //Network Config Hook
     const Networker = Il2Cpp.domain
-      .assembly("Torappu.Common")
+      .assembly("Assembly-CSharp")
       .image.class("Torappu.Network.Networker");
     const GetOverrideRouterUrl = Networker.method<Il2Cpp.String>(
       "get_overrideRouterUrl",

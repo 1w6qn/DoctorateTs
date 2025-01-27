@@ -14,15 +14,15 @@ export class CharRotationManager {
   }
 
   async setCurrent(args: { instId: string }) {
-    console.log("setCurrent", args);
+    const { instId } = args;
     await this._player.update(async (draft) => {
-      draft.charRotation.current = args.instId;
+      draft.charRotation.current = instId;
       console.log("draft", original(draft.charRotation));
-      const preset = draft.charRotation.preset[args.instId];
+      const preset = draft.charRotation.preset[instId];
       draft.background.selected = preset.background;
       draft.homeTheme.selected = preset.homeTheme;
       draft.status.secretarySkinId = preset.profile;
-      draft.status.secretary = preset.profileInst.toString();
+      draft.status.secretary = draft.troop.chars[preset.profileInst].charId;
     });
   }
 
@@ -48,32 +48,32 @@ export class CharRotationManager {
   }
 
   async updatePreset(args: CharRotationUpdatePresetRequest) {
+    const { instId, data } = args;
     await this._player.update(async (draft) => {
-      if (args.data?.name) {
-        draft.charRotation.preset[args.instId].name = args.data.name;
+      if (data?.name) {
+        draft.charRotation.preset[instId].name = data.name;
       }
-      if (args.data?.background) {
-        draft.charRotation.preset[args.instId].background =
-          args.data.background;
-        draft.background.selected = args.data.background;
+      if (data?.background) {
+        draft.charRotation.preset[instId].background = data.background;
+        draft.background.selected = data.background;
       }
-      if (args.data?.homeTheme) {
-        draft.charRotation.preset[args.instId].homeTheme = args.data.homeTheme;
-        draft.homeTheme.selected = args.data.homeTheme;
+      if (data?.homeTheme) {
+        draft.charRotation.preset[instId].homeTheme = data.homeTheme;
+        draft.homeTheme.selected = data.homeTheme;
       }
-      if (args.data?.secretarySkinId) {
-        draft.charRotation.preset[args.instId].profile =
-          args.data.secretarySkinId;
-        draft.status.secretarySkinId = args.data.secretarySkinId;
+      if (data?.secretarySkinId) {
+        draft.charRotation.preset[instId].profile = data.secretarySkinId;
+        draft.status.secretarySkinId = data.secretarySkinId;
       }
-      if (args.data?.secretaryCharInstId) {
-        draft.charRotation.preset[args.instId].profileInst = toNumber(
-          args.data.secretaryCharInstId,
+      if (data?.secretaryCharInstId) {
+        draft.charRotation.preset[instId].profileInst = toNumber(
+          data.secretaryCharInstId,
         );
-        draft.status.secretary = args.data.secretaryCharInstId;
+        draft.status.secretary =
+          draft.troop.chars[data.secretaryCharInstId].charId;
       }
-      if (args.data?.slots) {
-        draft.charRotation.preset[args.instId].slots = args.data.slots;
+      if (data?.slots) {
+        draft.charRotation.preset[instId].slots = data.slots;
       }
     });
   }

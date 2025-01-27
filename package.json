@@ -28,7 +28,7 @@
   "scripts": {
     "start": "nodemon index.ts --ext ts",
     "build": "tsc",
-    "hook": "frida-compile hook/main.ts -o _arknights.js -c && frida -Uf com.hypergryph.arknights -l _arknights.js",
+    "hook": "frida-compile hook/main.ts -o _arknights.js -c",
     "test": "ts-node test.ts"
   },
   "devDependencies": {

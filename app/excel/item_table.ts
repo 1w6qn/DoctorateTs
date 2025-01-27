@@ -60,7 +60,7 @@ export interface ItemData {
   itemId: string;
   name: string;
   description: null | string;
-  rarity: string; //ItemRarity;
+  rarity: number; //ItemRarity;
   iconId: string;
   overrideBkg: null | string;
   stackIconId: null | string;

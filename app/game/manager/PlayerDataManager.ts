@@ -65,7 +65,7 @@ export class PlayerDataManager {
     this.storyreview = new StoryreviewManager(this, this._trigger);
     this.mission = new MissionManager(this, this._trigger);
     this.shop = new ShopController(this, this._trigger);
-    this.battle = new BattleManager(this._playerdata, this._trigger);
+    this.battle = new BattleManager(this, this._trigger);
     this.recruit = new RecruitManager(this, this._trigger);
     this.rlv2 = new RoguelikeV2Controller(this, this._trigger);
     this.social = new SocialManager(this, this._trigger);

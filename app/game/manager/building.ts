@@ -50,7 +50,6 @@ export class BuildingManager {
   }
 
   get furnCnt(): number {
-    //TODO
     return Object.keys(this._player._playerdata.building.furniture).length;
   }
 

@@ -265,7 +265,7 @@ export enum StageType {
 
 export interface ConditionDesc {
   stageId: string;
-  completeState: PlayerBattleRank;
+  completeState: number;
 }
 
 export enum PlayerBattleRank {

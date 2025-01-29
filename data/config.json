@@ -12,9 +12,9 @@
   },
   "NetworkConfig": {
     "configVer": "5",
-    "funcVer": "V050",
+    "funcVer": "V048",
     "configs": {
-      "V050": {
+      "V048": {
         "override": true,
         "network": {
           "gs": "{server}",

@@ -11,31 +11,31 @@ import { PlayerDataManager } from "../manager/PlayerDataManager";
  *    **/
 const router = Router();
 router.post("/getBreakReward", async (req, res) => {
-  const player = httpContext.get("playerData") as PlayerDataManager;
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   await player.troop.squadFormation(req.body);
   res.send(player.delta);
 });
 router.post("/getExMissionReward", async (req, res) => {
-  const player = httpContext.get("playerData") as PlayerDataManager;
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   await player.troop.changeSquadName(req.body);
   res.send(player.delta);
 });
 router.post("/battleStart", async (req, res) => {
-  const player = httpContext.get("playerData") as PlayerDataManager;
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   res.send({
     ...(await player.battle.start(req.body)),
     ...player.delta,
   });
 });
 router.post("/battleFinish", async (req, res) => {
-  const player = httpContext.get("playerData") as PlayerDataManager;
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   res.send({
     ...(await player.battle.finish(req.body)),
     ...player.delta,
   });
 });
 router.post("/battleSweep", async (req, res) => {
-  const player = httpContext.get("playerData") as PlayerDataManager;
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   res.send({
     battleReplay: player.battle.loadReplay(req.body),
     ...player.delta,

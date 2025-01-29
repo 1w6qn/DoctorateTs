@@ -407,14 +407,14 @@ export class CharManager {
     charId: string;
     missionId: string;
   }): Promise<ItemBundle[]> {
-    let items: ItemBundle[] = [];
-    await this._player.update(async (draft) => {
+    return await this._player.update(async (draft) => {
       const { charId, missionId } = args;
-      items = excel.CharMetaTable.spCharMissions[charId][missionId].rewards;
+      const items =
+        excel.CharMetaTable.spCharMissions[charId][missionId].rewards;
       draft.troop.charMission[charId][missionId] = 2;
       await this._trigger.emit("items:get", [items]);
+      return items;
     });
-    return items;
   }
 
   async evolveCharUseItem(args: {

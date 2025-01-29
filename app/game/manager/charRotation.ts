@@ -2,7 +2,7 @@ import { PlayerDataManager } from "./PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 import { PlayerCharRotationSlot } from "@game/model/playerdata";
 import { original } from "immer";
-import { maxBy, toNumber } from "lodash";
+import { maxBy } from "lodash";
 
 export class CharRotationManager {
   _player: PlayerDataManager;
@@ -14,8 +14,8 @@ export class CharRotationManager {
   }
 
   async setCurrent(args: { instId: string }) {
-    const { instId } = args;
     await this._player.update(async (draft) => {
+      const { instId } = args;
       draft.charRotation.current = instId;
       console.log("draft", original(draft.charRotation));
       const preset = draft.charRotation.preset[instId];
@@ -27,9 +27,8 @@ export class CharRotationManager {
   }
 
   async createPreset() {
-    let instId;
-    await this._player.update(async (draft) => {
-      instId = maxBy(Object.keys(draft.charRotation.preset))!;
+    return await this._player.update(async (draft) => {
+      const instId = maxBy(Object.keys(draft.charRotation.preset))!;
       draft.charRotation.preset[instId] = {
         name: "未命名界面配置",
         background: "bg_rhodes_day",
@@ -43,13 +42,13 @@ export class CharRotationManager {
           },
         ],
       };
+      return instId;
     });
-    return instId;
   }
 
   async updatePreset(args: CharRotationUpdatePresetRequest) {
-    const { instId, data } = args;
     await this._player.update(async (draft) => {
+      const { instId, data } = args;
       if (data?.name) {
         draft.charRotation.preset[instId].name = data.name;
       }
@@ -66,7 +65,7 @@ export class CharRotationManager {
         draft.status.secretarySkinId = data.secretarySkinId;
       }
       if (data?.secretaryCharInstId) {
-        draft.charRotation.preset[instId].profileInst = toNumber(
+        draft.charRotation.preset[instId].profileInst = parseInt(
           data.secretaryCharInstId,
         );
         draft.status.secretary =
@@ -79,8 +78,8 @@ export class CharRotationManager {
   }
 
   async deletePreset(args: { instId: string }) {
-    const { instId } = args;
     await this._player.update(async (draft) => {
+      const { instId } = args;
       delete draft.charRotation.preset[instId];
     });
   }

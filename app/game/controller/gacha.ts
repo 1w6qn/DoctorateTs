@@ -82,7 +82,10 @@ export class GachaController {
       from: ruleType,
     };
     const detail = this._table.details[poolId];
-    let beforeNonHitCnt = accountManager.getBeforeNonHitCnt(this.uid, ruleType);
+    let beforeNonHitCnt = await accountManager.getBeforeNonHitCnt(
+      this.uid,
+      ruleType,
+    );
     const rank: number = 0;
 
     const funcs: { [key: string]: () => Promise<string> } = {

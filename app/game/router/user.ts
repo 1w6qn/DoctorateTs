@@ -5,17 +5,17 @@ import { ItemBundle } from "@excel/character_table";
 
 const router = Router();
 router.post("/changeSecretary", async (req, res) => {
-  const player = httpContext.get("playerData") as PlayerDataManager;
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   await player.status.changeSecretary(req.body);
   res.send(player.delta);
 });
 router.post("/changeAvatar", async (req, res) => {
-  const player = httpContext.get("playerData") as PlayerDataManager;
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   await player.status.changeAvatar(req.body);
   res.send(player.delta);
 });
 router.post("/changeResume", async (req, res) => {
-  const player = httpContext.get("playerData") as PlayerDataManager;
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   if ((req.body!.resume as string).slice(0) == "@") {
     await player._trigger.emit(
       req.body!.resume.slice(1, req.body!.resume.length),
@@ -27,7 +27,7 @@ router.post("/changeResume", async (req, res) => {
   res.send(player.delta);
 });
 router.post("/bindNickName", async (req, res) => {
-  const player = httpContext.get("playerData") as PlayerDataManager;
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   const nickName = req.body!.nickName;
   let result = 0;
   const specialChars = "~!@#$%^&*()_+{}|:\"<>?[]\\;',./";
@@ -50,7 +50,7 @@ router.post("/bindNickName", async (req, res) => {
   }
 });
 router.post("/useRenameCard", async (req, res) => {
-  const player = httpContext.get("playerData") as PlayerDataManager;
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   await player.status.bindNickName(req.body);
   await player._trigger.emit("items:use", [
     [
@@ -64,17 +64,17 @@ router.post("/useRenameCard", async (req, res) => {
   res.send(player.delta);
 });
 router.post("/receiveTeamCollectionReward", async (req, res) => {
-  const player = httpContext.get("playerData") as PlayerDataManager;
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   await player.status.receiveTeamCollectionReward(req.body);
   res.send(player.delta);
 });
 router.post("/buyAp", async (req, res) => {
-  const player = httpContext.get("playerData") as PlayerDataManager;
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   await player.status.buyAp();
   res.send(player.delta);
 });
 router.post("/exchangeDiamondShard", async (req, res) => {
-  const player = httpContext.get("playerData") as PlayerDataManager;
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   if (player._playerdata.status.androidDiamond < req.body!.count) {
     res.send({
       result: 1,
@@ -86,7 +86,7 @@ router.post("/exchangeDiamondShard", async (req, res) => {
   }
 });
 router.post("/useItem", async (req, res) => {
-  const player = httpContext.get("playerData") as PlayerDataManager;
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   const item = {
     id: req.body!.itemId,
     count: req.body!.count,
@@ -96,7 +96,7 @@ router.post("/useItem", async (req, res) => {
   res.send(player.delta);
 });
 router.post("/useItems", async (req, res) => {
-  const player = httpContext.get("playerData") as PlayerDataManager;
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   console.log(req.body!.items);
   const items: {
     itemId: string;
@@ -115,7 +115,7 @@ router.post("/useItems", async (req, res) => {
   res.send(player.delta);
 });
 router.post("/checkIn", async (req, res) => {
-  const player = httpContext.get("playerData") as PlayerDataManager;
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   res.send({
     ...(await player.checkIn.checkIn()),
     ...player.delta,

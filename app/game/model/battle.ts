@@ -47,7 +47,7 @@ export interface BattleStats {
   totalDamage: number;
   fixedPlayTime: number;
   extraInfo: { [key: string]: string };
-  extraBattleInfo: object;
+  extraBattleInfo: { [key: string]: number };
   clientAntiCheatLog: object;
   idList: object[];
   packedRuneDataList: null;

@@ -24,7 +24,7 @@ export type EventMap = {
   "items:get": [ItemBundle[]];
   "player:levelUp": [];
   "building:char:init": [PlayerCharacter];
-  "save:battle": [string, { stageId: string }];
+  "save:battle": [string, { stageId: string; isPractice: number }];
   "battle:start": [CommonStartBattleRequest];
   "battle:finish": [
     {

@@ -15,16 +15,6 @@ export class CheckInManager {
     this._trigger.on("refresh:daily", this.dailyRefresh.bind(this));
   }
 
-  get isSub(): boolean {
-    const { monthlySubscriptionStartTime, monthlySubscriptionEndTime } =
-      this._player._playerdata.status;
-    return checkBetween(
-      now(),
-      monthlySubscriptionStartTime,
-      monthlySubscriptionEndTime,
-    );
-  }
-
   async dailyRefresh() {
     await this._player.update(async (draft) => {
       draft.checkIn.canCheckIn = 1;
@@ -33,11 +23,12 @@ export class CheckInManager {
   }
 
   async monthlyRefresh() {
-    const ts = now();
     await this._player.update(async (draft) => {
       draft.checkIn.checkInGroupId = Object.values(
         excel.CheckinTable.groups,
-      ).find((t) => checkBetween(ts, t.signStartTime, t.signEndTime))!.groupId;
+      ).find((t) =>
+        checkBetween(now(), t.signStartTime, t.signEndTime),
+      )!.groupId;
       draft.checkIn.checkInHistory = [];
       draft.checkIn.checkInRewardIndex = -1;
     });
@@ -47,9 +38,9 @@ export class CheckInManager {
     signInRewards: ItemBundle[];
     subscriptionRewards: ItemBundle[];
   }> {
-    const signInRewards: ItemBundle[] = [];
-    const subscriptionRewards: ItemBundle[] = [];
-    await this._player.update(async (draft) => {
+    return (await this._player.update(async (draft) => {
+      const signInRewards: ItemBundle[] = [];
+      const subscriptionRewards: ItemBundle[] = [];
       if (!draft.checkIn.canCheckIn) {
         return;
       }
@@ -66,17 +57,25 @@ export class CheckInManager {
         count: item.count,
         type: item.itemType,
       });
-      if (this.isSub) {
+      const { monthlySubscriptionStartTime, monthlySubscriptionEndTime } =
+        draft.status;
+      if (
+        checkBetween(
+          now(),
+          monthlySubscriptionStartTime,
+          monthlySubscriptionEndTime,
+        )
+      ) {
         const currentMonthlySubId = excel.CheckinTable.currentMonthlySubId;
         subscriptionRewards.push(
           ...excel.CheckinTable.monthlySubItem[currentMonthlySubId][1].items,
         );
       }
       draft.checkIn.checkInHistory.push(0);
-    });
-    await this._trigger.emit("items:get", [
-      subscriptionRewards.concat(signInRewards),
-    ]);
-    return { signInRewards, subscriptionRewards };
+      await this._trigger.emit("items:get", [
+        subscriptionRewards.concat(signInRewards),
+      ]);
+      return { signInRewards, subscriptionRewards };
+    }))!;
   }
 }

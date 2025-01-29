@@ -159,12 +159,21 @@ export class BattleManager {
     );
     let goldScale = 0,
       expScale = 0,
-      apFailReturn = 0,
-      suggestFriend = false;
-
+      apFailReturn = 0;
+    const suggestFriend = false;
+    const unlockStages: string[] = [];
+    const unlockStagesObject = [];
     const { apCost, expGain, goldGain } =
       excel.StageTable.stages[battleInfo.stageId];
     const { stageId, isPractice } = battleInfo;
+    const displayDetailRewards =
+      excel.StageTable.stages[stageId].stageDropInfo.displayDetailRewards;
+    let [
+      additionalRewards,
+      unusualRewards,
+      furnitureRewards,
+      rewards,
+    ]: ItemBundle[][] = [[], [], [], []];
     if (battleData.completeState === 3) {
       goldScale = 1.2;
       expScale = 1.2;
@@ -223,13 +232,107 @@ export class BattleManager {
         ]);
       } else {
         let firstClear = false;
-        if (playerStage.state != 3 && battleData.completeState === 3) {
+        if (
+          (playerStage.state != 3 && battleData.completeState === 3) ||
+          (playerStage.state == 3 && battleData.completeState === 4)
+        ) {
           firstClear = true;
         }
-        if (playerStage.state == 3 && battleData.completeState === 4) {
-          firstClear = true;
+        if (playerStage.state == 1 && battleData.completeState in [2, 3]) {
+          if (stageId == "main_08-16") {
+            //todo: amiya guard
+          }
+          // unlock recruit
+          if (stageId == "main_00-02") {
+            draft.recruit.normal.slots[0].state = 1;
+            draft.recruit.normal.slots[1].state = 1;
+          }
+          //unlock stage
+          const unlockList: { [key: string]: ConditionDesc[] } = {};
+          for (const item of Object.keys(excel.StageTable.stages)) {
+            unlockList[item] = excel.StageTable.stages[item].unlockCondition;
+          }
+          for (const item of Object.keys(unlockList)) {
+            let passCondition = 0;
+            if (unlockList[item].length == 0) {
+              //todo
+            } else {
+              for (const condition of unlockList[item]) {
+                if (condition.stageId in Object.keys(draft.dungeon.stages)) {
+                  if (
+                    draft.dungeon.stages[condition.stageId].state >=
+                    condition.completeState
+                  ) {
+                    passCondition += 1;
+                  }
+                }
+                if (stageId == condition.stageId) {
+                  if (battleData.completeState >= condition.completeState) {
+                    passCondition += 1;
+                  }
+                }
+              }
+              if (passCondition == unlockList[item].length) {
+                const unlockStage = {
+                  stageId: item,
+                  practiceTimes: 0,
+                  completeTimes: 0,
+                  startTimes: 0,
+                  state: 0,
+                  hasBattleReplay: 0,
+                  noCostCnt: 1,
+                };
+                for (const chr of ["#f#", "hard_", "tr_"]) {
+                  if (item.includes(chr)) {
+                    unlockStage.noCostCnt = 0;
+                  }
+                }
+                if (!(item in Object.keys(draft.dungeon.stages))) {
+                  if (
+                    excel.StageTable.stages[stageId].stageType in
+                      ["MAIN", "SUB"] &&
+                    excel.StageTable.stages[item].stageType in ["MAIN", "SUB"]
+                  ) {
+                    draft.status.mainStageProgress = item;
+                  }
+                  draft.dungeon.stages[item] = unlockStage;
+                  unlockStages.push(item);
+                  unlockStagesObject.push(unlockStage);
+                }
+              }
+            }
+          }
         }
         if (firstClear) {
+          for (const item of displayDetailRewards) {
+            if (item.dropType in [1, 8]) {
+              await this._trigger.emit("items:get", [
+                [
+                  {
+                    type: item.type,
+                    id: item.id,
+                    count: 1,
+                  },
+                ],
+              ]);
+            }
+          }
+        }
+        if (playerStage.state != 3 || battleData.completeState === 4) {
+          draft.dungeon.stages[stageId].state = battleData.completeState;
+        }
+        [additionalRewards, unusualRewards, furnitureRewards, rewards] =
+          await this.dropReward(
+            displayDetailRewards,
+            battleData.completeState,
+            stageId,
+          );
+        if (goldGain * goldScale != 0) {
+          rewards.push({
+            type: "GOLD",
+            id: "4001",
+            count: goldGain * goldScale,
+          });
         }
       }
     });
@@ -242,12 +345,9 @@ export class BattleManager {
       },
     ]);
     if (isPractice) {
-      return {
-        result: 0,
-      };
+      return {};
     }
     return {
-      result: 0,
       apFailReturn,
       expScale,
       goldScale,
@@ -266,7 +366,6 @@ export class BattleManager {
   async dropReward(
     displayDetailRewards: DisplayDetailRewards[],
     completeState: number,
-    dropRate: number,
     stageId: string,
   ): Promise<ItemBundle[][]> {
     const additionalRewards: ItemBundle[] = [];
@@ -276,7 +375,7 @@ export class BattleManager {
 
     for (const item of displayDetailRewards) {
       const { occPercent, dropType, id: reward_id, type: reward_type } = item;
-      let reward_count = dropRate;
+      let reward_count = 1;
       let reward_rarity = 0;
       let addPercent = 0;
 
@@ -325,7 +424,7 @@ export class BattleManager {
         addPercent += randomChoices([-1, 0, 1], [5, 90, 5], 1)[0];
       }
 
-      const handleMaterial = (stageId: string, dropRate: number) => {
+      const handleMaterial = (stageId: string) => {
         const ToughSiege: { [key: string]: number } = {
           wk_toxic_1: 5,
           wk_toxic_2: 8,
@@ -395,7 +494,7 @@ export class BattleManager {
         }
       };
 
-      if (reward_type === "MATERIAL") handleMaterial(stageId, dropRate);
+      if (reward_type === "MATERIAL") handleMaterial(stageId);
 
       if (reward_type === "CARD_EXP") {
         const TacticalDrill: {
@@ -673,12 +772,7 @@ export class BattleManager {
       !rewards.length &&
       displayDetailRewards.length
     ) {
-      return this.dropReward(
-        displayDetailRewards,
-        completeState,
-        dropRate,
-        stageId,
-      );
+      return this.dropReward(displayDetailRewards, completeState, stageId);
     }
     await this._trigger.emit("items:get", [
       additionalRewards.concat(unusualRewards, furnitureRewards, rewards),

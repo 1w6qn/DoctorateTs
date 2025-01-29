@@ -24,6 +24,7 @@ import { TypedEventEmitter } from "@game/model/events";
 import { CharRotationManager } from "@game/manager/charRotation";
 import { RetroManager } from "@game/manager/retro";
 import { CharManager } from "@game/manager/char";
+import { AprilFoolManager } from "@game/manager/aprilFool";
 
 export class PlayerDataManager {
   dungeon: DungeonManager;
@@ -45,6 +46,7 @@ export class PlayerDataManager {
   openServer: OpenServerManager;
   retro: RetroManager;
   char: CharManager;
+  aprilFool: AprilFoolManager;
   battle!: BattleManager;
   _trigger: TypedEventEmitter;
   _playerdata: PlayerDataModel;
@@ -75,6 +77,7 @@ export class PlayerDataManager {
     this.openServer = new OpenServerManager(this, this._trigger);
     this.retro = new RetroManager(this, this._trigger);
     this.char = new CharManager(this, this._trigger);
+    this.aprilFool = new AprilFoolManager(this, this._trigger);
     //this._trigger.emit("game:fix", []);
     this._trigger.on(
       "save:battle",
@@ -187,19 +190,21 @@ export class PlayerDataManager {
 
   async init() {}
 
-  async update(
-    recipe: (draft: WritableDraft<PlayerDataModel>) => Promise<void>,
+  async update<T>(
+    recipe: (draft: WritableDraft<PlayerDataModel>) => Promise<T>,
   ) {
     const draft = createDraft(this._playerdata);
-    await recipe(draft);
+    const result = await recipe(draft);
     this._playerdata = finishDraft(draft, (patches, inversePatches) => {
       this._changes.push(patches);
       this._inverseChanges.push(inversePatches);
     });
     console.log(JSON.stringify(this._changes));
+    return result;
   }
-  getBattleInfo(battleId: string): BattleInfo {
-    return accountManager.getBattleInfo(this.uid, battleId)!;
+
+  async getBattleInfo(battleId: string): Promise<BattleInfo> {
+    return (await accountManager.getBattleInfo(this.uid, battleId))!;
   }
 
   toJSON() {

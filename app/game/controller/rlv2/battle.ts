@@ -37,7 +37,10 @@ export class RoguelikeBattleManager {
         unKeepBuff: this._player._buff._buffs,
       },
     ]);
-    await this._trigger.emit("save:battle", [battleId, { stageId: stageId }]);
+    await this._trigger.emit("save:battle", [
+      battleId,
+      { stageId: stageId, isPractice: 0 },
+    ]);
   }
 
   async finish([args]: [

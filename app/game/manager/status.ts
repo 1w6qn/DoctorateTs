@@ -52,38 +52,38 @@ export class StatusManager {
   async monthlyRefresh() {}
 
   async changeSecretary(args: { charInstId: number; skinId: string }) {
-    const { charInstId, skinId } = args;
-    const charId = this._player.troop.getCharacterByInstId(charInstId).charId;
     await this._player.update(async (draft) => {
+      const { charInstId, skinId } = args;
+      const charId = draft.troop.chars[charInstId].charId;
       draft.status.secretary = charId;
       draft.status.secretarySkinId = skinId;
     });
   }
 
   async finishStory(args: { storyId: string }) {
-    const { storyId } = args;
     await this._player.update(async (draft) => {
+      const { storyId } = args;
       draft.status.flags[storyId] = 1;
     });
   }
 
   async changeAvatar(args: { avatar: AvatarInfo }) {
-    const { avatar } = args;
     await this._player.update(async (draft) => {
+      const { avatar } = args;
       draft.status.avatar = avatar;
     });
   }
 
   async changeResume(args: { resume: string }) {
-    const { resume } = args;
     await this._player.update(async (draft) => {
+      const { resume } = args;
       draft.status.resume = resume;
     });
   }
 
   async bindNickName(args: { nickname: string }) {
-    const { nickname } = args;
     await this._player.update(async (draft) => {
+      const { nickname } = args;
       draft.status.nickName = nickname;
     });
   }

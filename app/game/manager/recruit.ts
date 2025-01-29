@@ -25,7 +25,7 @@ export class RecruitManager {
   async refreshTags(args: { slotId: number }): Promise<void> {
     const { slotId } = args;
     await this._player.update(async (draft) => {
-      //TODO
+      //TODO building update
       draft.recruit.normal.slots[slotId].tags =
         await RecruitTools.refreshTagList();
     });
@@ -34,8 +34,8 @@ export class RecruitManager {
   async sync() {}
 
   async cancel(args: { slotId: number }) {
-    const { slotId } = args;
     await this._player.update(async (draft) => {
+      const { slotId } = args;
       const slot = draft.recruit.normal.slots[slotId];
       slot.state = 1;
       slot.selectTags = [];
@@ -48,8 +48,8 @@ export class RecruitManager {
   }
 
   async buyRecruitSlot(args: { slotId: number }) {
-    const { slotId } = args;
     await this._player.update(async (draft) => {
+      const { slotId } = args;
       draft.recruit.normal.slots[slotId].state = 1;
     });
   }
@@ -60,8 +60,8 @@ export class RecruitManager {
     specialTagId: number;
     duration: number;
   }) {
-    const { slotId, tagList, duration } = args;
     await this._player.update(async (draft) => {
+      const { slotId, tagList, duration } = args;
       draft.recruit.normal.slots[slotId] = {
         state: 2,
         selectTags: tagList.map((tag) => ({ tagId: tag, pick: 1 })),
@@ -71,48 +71,50 @@ export class RecruitManager {
         durationInSec: duration,
         tags: await RecruitTools.refreshTagList(),
       };
+      await this._trigger.emit("items:use", [
+        [{ id: "7001", count: 1, type: "TKT_RECRUIT" }],
+      ]);
+      await this._trigger.emit("NormalGacha", []);
     });
-    await this._trigger.emit("items:use", [
-      [{ id: "7001", count: 1, type: "TKT_RECRUIT" }],
-    ]);
-    await this._trigger.emit("NormalGacha", []);
   }
 
   async finish(args: { slotId: number }): Promise<GachaResult> {
-    const { slotId } = args;
-    const { durationInSec, selectTags } =
-      this._player._playerdata.recruit.normal.slots[slotId];
-    //TODO seperate
-    const [char_id, filtered] = await RecruitTools.generateValidTags(
-      durationInSec,
-      selectTags.map((v) => v.tagId),
-    );
-    await this._player.update(async (draft) => {
+    return await this._player.update(async (draft) => {
+      const { slotId } = args;
+      const { durationInSec, selectTags } =
+        this._player._playerdata.recruit.normal.slots[slotId];
+      //TODO seperate
+      const [char_id, filtered] = await RecruitTools.generateValidTags(
+        durationInSec,
+        selectTags.map((v) => v.tagId),
+      );
       draft.recruit.normal.slots[slotId].selectTags = selectTags.map((tag) => ({
         tagId: tag.tagId,
         pick: filtered.includes(tag.tagId) ? 1 : 0,
       }));
+      await this.cancel(args);
+      let result!: GachaResult;
+      await this._trigger.emit("char:get", [
+        char_id,
+        { from: "NORMAL" },
+        (res: GachaResult) => {
+          result = res;
+        },
+      ]);
+      return result;
     });
-    await this.cancel(args);
-    let result!: GachaResult;
-    await this._trigger.emit("char:get", [
-      char_id,
-      { from: "NORMAL" },
-      (res: GachaResult) => {
-        result = res;
-      },
-    ]);
-    return result;
   }
 
   async boost(args: { slotId: number; buy: number }) {
-    const { slotId } = args;
-    //TODO:
     await this._player.update(async (draft) => {
+      const { slotId } = args;
       draft.recruit.normal.slots[slotId].state = 2;
       draft.recruit.normal.slots[args.slotId].realFinishTs = now();
+      await this._trigger.emit("BoostNormalGacha", []);
+      await this._trigger.emit("items:use", [
+        [{ id: "7001", count: 1, type: "TKT_INST_FIN" }],
+      ]);
     });
-    await this._trigger.emit("BoostNormalGacha", []);
   }
 }
 interface CharData {

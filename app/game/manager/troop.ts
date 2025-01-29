@@ -40,74 +40,83 @@ export class TroopManager {
     squadId: number;
     slots: PlayerSquadItem[];
   }): Promise<void> {
-    this.squads[args.squadId].slots = args.slots;
-    await this._trigger.emit("SquadFormation", []);
+    const { squadId, slots } = args;
+    await this._player.update(async (draft) => {
+      draft.troop.squads[squadId].slots = slots;
+      await this._trigger.emit("SquadFormation", []);
+    });
   }
 
   async changeSquadName(args: {
     squadId: number;
     name: string;
   }): Promise<void> {
-    this.squads[args.squadId].name = args.name;
-    await this._trigger.emit("ChangeSquadName", []);
+    const { squadId, name } = args;
+    await this._player.update(async (draft) => {
+      draft.troop.squads[squadId].name = name;
+      await this._trigger.emit("SquadFormation", []);
+    });
   }
 
   async decomposePotentialItem(args: {
     charInstIdList: string[];
   }): Promise<ItemBundle[]> {
-    const costs: ItemBundle[] = [];
-    const items: ItemBundle[] = args.charInstIdList.reduce(
-      (acc, charInstId) => {
-        const char = this.getCharacterByInstId(parseInt(charInstId));
+    const { charInstIdList } = args;
+    return await this._player.update(async (draft) => {
+      const costs: ItemBundle[] = [];
+      const items: ItemBundle[] = charInstIdList.reduce((acc, charInstId) => {
+        const char = draft.troop.chars[charInstId];
         const rarity = excel.CharacterTable[char.charId].rarity;
         const potentialItemId =
           excel.CharacterTable[char.charId].potentialItemId!;
-        const count = this._player._playerdata.inventory[potentialItemId];
+        const count = draft.inventory[potentialItemId];
         costs.push({ id: potentialItemId, count: count });
         const item =
           excel.GachaTable.potentialMaterialConverter.items[rarity - 1];
         acc.push({ id: item.id, count: item.count * count });
         return acc;
-      },
-      [] as ItemBundle[],
-    );
-    await this._trigger.emit("items:use", [costs]);
-    await this._trigger.emit("items:get", [items]);
-    return items;
+      }, [] as ItemBundle[]);
+      await this._trigger.emit("items:use", [costs]);
+      await this._trigger.emit("items:get", [items]);
+      return items;
+    });
   }
 
   async decomposeClassicPotentialItem(args: {
     charInstIdList: string[];
   }): Promise<ItemBundle[]> {
-    const costs: ItemBundle[] = [];
-    const items: ItemBundle[] = args.charInstIdList.reduce(
-      (acc, charInstId) => {
-        const char = this.getCharacterByInstId(parseInt(charInstId));
+    const { charInstIdList } = args;
+    return await this._player.update(async (draft) => {
+      const costs: ItemBundle[] = [];
+      const items: ItemBundle[] = charInstIdList.reduce((acc, charInstId) => {
+        const char = draft.troop.chars[charInstId];
         const rarity = excel.CharacterTable[char.charId].rarity;
         const potentialItemId =
           excel.CharacterTable[char.charId].classicPotentialItemId!;
-        const count = this._player._playerdata.inventory[potentialItemId];
+        const count = draft.inventory[potentialItemId];
         costs.push({ id: potentialItemId, count: count });
         const item =
           excel.GachaTable.classicPotentialMaterialConverter.items[rarity - 1];
         acc.push({ id: item.id, count: item.count * count });
         return acc;
-      },
-      [] as ItemBundle[],
-    );
-    await this._trigger.emit("items:use", [costs]);
-    await this._trigger.emit("items:get", [items]);
-    return items;
+      }, [] as ItemBundle[]);
+      await this._trigger.emit("items:use", [costs]);
+      await this._trigger.emit("items:get", [items]);
+      return items;
+    });
   }
 
   async addonStoryUnlock(args: { charId: string; storyId: string }) {
-    if (!this.addon[args.charId].story) {
-      this.addon[args.charId].story = {};
-    }
-    this.addon[args.charId].story![args.storyId] = {
-      fts: now(),
-      rts: now(),
-    };
+    const { charId, storyId } = args;
+    await this._player.update(async (draft) => {
+      if (!draft.troop.addon[charId].story) {
+        draft.troop.addon[charId].story = {};
+      }
+      draft.troop.addon[charId].story[storyId] = {
+        fts: now(),
+        rts: now(),
+      };
+    });
   }
 
   async addonStageBattleStart(args: {

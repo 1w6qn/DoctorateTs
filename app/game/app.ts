@@ -36,6 +36,7 @@ export async function setup(app: express.Application) {
   app.use("/mail", (await import("./router/mail")).default);
   app.use("/social", (await import("./router/social")).default);
   app.use("/retro", (await import("./router/retro")).default);
+  app.use("/aprilFool", (await import("./router/aprilFool")).default);
   app.use("/", (await import("./router/home")).default);
 }
 export default app;

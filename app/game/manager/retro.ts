@@ -21,16 +21,15 @@ export class RetroManager {
   }
 
   async getRetroTrailReward(args: { retroId: string; rewardId: string }) {
-    const reward = excel.RetroTable.retroTrailList[
-      args.retroId
-    ].trailRewardList.find(
-      (v) => v.trailRewardID === args.rewardId,
-    )!.rewardItem;
-    await this._player.update(async (draft) => {
-      draft.retro.trail[args.retroId][args.rewardId] = 1;
+    return await this._player.update(async (draft) => {
+      const { retroId, rewardId } = args;
+      const reward = excel.RetroTable.retroTrailList[
+        retroId
+      ].trailRewardList.find((v) => v.trailRewardID === rewardId)!.rewardItem;
+      draft.retro.trail[retroId][rewardId] = 1;
+      await this._trigger.emit("items:get", [[reward]]);
+      return [reward];
     });
-    await this._trigger.emit("items:get", [[reward]]);
-    return [reward];
   }
 
   async getRetroPassReward(args: { retroId: string; activityId: string }) {

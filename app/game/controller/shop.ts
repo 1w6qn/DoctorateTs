@@ -34,56 +34,29 @@ export class ShopController {
 
     //
   }
-
-  /*
-  async _buyGood(shop,label:string,args: {
-    goodId: string;
-    count: number;
-  }): Promise<ItemBundle[]> {
-    const { goodId, count } = args;
-    const good = shop.goodList.find(
-      (g) => g.goodId === goodId,
-    );
-    let item=good!.item
-    item.count*=count
-    await this._player.update(async (draft) => {
-      const existingItem = draft.shop.LS.info.find((i) => i.id === goodId);
-      if (existingItem) {
-        existingItem.count += count;
-      } else {
-        draft.shop.LS.info.push({ id: goodId, count });
-      }
-    });
-    this._trigger.emit("useItems", [
-      { id: "4005", count: good!.price * count },
-    ]);
-    this._trigger.emit("gainItems", [item]);
-    return [item];
-  }
-  
-   */
   async buyLowGood(args: {
     goodId: string;
     count: number;
   }): Promise<ItemBundle[]> {
     const { goodId, count } = args;
-    const good = excel.ShopTable.lowGoodList.goodList.find(
-      (g) => g.goodId === goodId,
-    );
-    const item = { id: good!.item.id, count: good!.item.count * count };
-    await this._player.update(async (draft) => {
+    return await this._player.update(async (draft) => {
+      const good = excel.ShopTable.lowGoodList.goodList.find(
+        (g) => g.goodId === goodId,
+      )!;
+      const item = good.item;
+      item.count *= count;
       const existingItem = draft.shop.LS.info.find((i) => i.id === goodId);
       if (existingItem) {
         existingItem.count += count;
       } else {
         draft.shop.LS.info.push({ id: goodId, count });
       }
+      await this._trigger.emit("items:use", [
+        [{ id: "4005", count: good.price * count }],
+      ]);
+      await this._trigger.emit("items:get", [[item]]);
+      return [item];
     });
-    await this._trigger.emit("items:use", [
-      [{ id: "4005", count: good!.price * count }],
-    ]);
-    await this._trigger.emit("items:get", [[item]]);
-    return [item];
   }
 
   async buyHighGood(args: {

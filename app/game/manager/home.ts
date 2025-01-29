@@ -76,8 +76,9 @@ export class HomeManager {
   }
 
   async setBackground(args: { bgID: string }) {
+    const { bgID } = args;
     await this._player.update(async (draft) => {
-      draft.background.selected = args.bgID;
+      draft.background.selected = bgID;
     });
   }
 

@@ -14,22 +14,22 @@ export class StoryreviewManager {
   }
 
   async unlockStoryByCoin(args: { storyId: string }) {
-    const { storyId } = args;
     await this._player.update(async (draft) => {
+      const { storyId } = args;
       draft.storyreview.groups[storyId].stories.push({
         id: storyId,
         uts: now(),
         rc: 0,
       });
+      await this._trigger.emit("items:use", [
+        [{ id: "STORY_REVIEW_COIN", count: 1 }],
+      ]);
     });
-    await this._trigger.emit("items:use", [
-      [{ id: "STORY_REVIEW_COIN", count: 1 }],
-    ]);
   }
 
   async readStory(args: { storyId: string }) {
-    const { storyId } = args;
     await this._player.update(async (draft) => {
+      const { storyId } = args;
       draft.storyreview.groups[storyId].stories.find(
         (story) => story.id == storyId,
       )!.rc += 1;
@@ -37,13 +37,13 @@ export class StoryreviewManager {
   }
 
   async rewardGroup(args: { groupId: string }) {
-    const { groupId } = args;
-    await this._player.update(async (draft) => {
+    return await this._player.update(async (draft) => {
+      const { groupId } = args;
       draft.storyreview.groups[groupId].rts = now();
+      const items = excel.StoryReviewTable[groupId].rewards!;
+      await this._trigger.emit("items:get", [items]);
+      return items;
     });
-    const items = excel.StoryReviewTable[groupId].rewards!;
-    await this._trigger.emit("items:get", [items]);
-    return items;
   }
 
   async markStoryAcceKnown() {
@@ -56,18 +56,19 @@ export class StoryreviewManager {
     groupId: string;
     rewardIdList: string[];
   }): Promise<ItemBundle[]> {
-    const { groupId, rewardIdList } = args;
-    const group =
-      excel.StoryReviewMetaTable.miniActTrialData.miniActTrialDataMap[groupId];
-    const rewardList = group.rewardList.filter((reward) =>
-      rewardIdList.includes(reward.trialRewardId),
-    );
-    const items = rewardList.map((reward) => reward.item);
-    await this._trigger.emit("items:get", [items]);
-    await this._player.update(async (draft) => {
+    return await this._player.update(async (draft) => {
+      const { groupId, rewardIdList } = args;
+      const group =
+        excel.StoryReviewMetaTable.miniActTrialData.miniActTrialDataMap[
+          groupId
+        ];
+      const rewardList = group.rewardList.filter((reward) =>
+        rewardIdList.includes(reward.trialRewardId),
+      );
+      const items = rewardList.map((reward) => reward.item);
+      await this._trigger.emit("items:get", [items]);
       draft.storyreview.groups[groupId].trailRewards?.push(...rewardIdList);
+      return items;
     });
-
-    return items;
   }
 }

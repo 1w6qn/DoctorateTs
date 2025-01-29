@@ -27,7 +27,7 @@ export class InventoryManager {
 
   async _useItem(item: ItemBundle): Promise<void> {
     if (!item.type) {
-      item.type = excel.ItemTable.items[item.id].itemType as string;
+      item.type = excel.ItemTable.items[item.id].itemType;
     }
     const consumableFunc = async (
       item: ItemBundle,
@@ -58,7 +58,7 @@ export class InventoryManager {
         ]);
       },
     };
-    if (funcs[item.type]) {
+    if (item.type in funcs) {
       await this._player.update(async (draft) => {
         await funcs[item.type!](item, draft);
       });
@@ -305,7 +305,6 @@ export class InventoryManager {
     callback?.();
     await this._player.update(async (draft) => {
       await funcs[item.type!](item, draft);
-      console.log("update", draft.status.diamondShard, now());
     });
   }
 }

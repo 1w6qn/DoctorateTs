@@ -69,7 +69,7 @@ export interface ItemData {
   obtainApproach: null | string;
   hideInItemGet: boolean;
   classifyType: string; //ItemClassifyType;
-  itemType: number | string;
+  itemType: string;
   stageDropList: ItemData.StageDropInfo[];
   buildingProductList: ItemData.BuildingProductInfo[];
   voucherRelateList: ItemData.VoucherRelateInfo[] | null;

@@ -18,21 +18,22 @@ export class BattleManager {
   constructor(_player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = _player;
     this._trigger = _trigger;
-    this._trigger.on("battle:start", () => {
-      this.start.bind(this);
+    this._trigger.on("battle:start", async([args]) => {
+      await this.start(args);
     });
-    this._trigger.on("battle:finish", () => {
-      this.start.bind(this);
+    this._trigger.on("battle:finish", async([args]) => {
+      await this.finish(args);
     });
   }
 
-  async start([args]: [CommonStartBattleRequest]) {
+  async start(args: CommonStartBattleRequest) {
+    console.log("start battle", args);
     const { stageId, usePracticeTicket, squad } = args;
     const battleId = "1";
     const { zoneId, apCost, dangerLevel } = excel.StageTable.stages[stageId];
     let { apFailReturn } = excel.StageTable.stages[stageId];
     let notifyPowerScoreNotEnoughIfFailed = false;
-
+    
     // Check zoneInfo of apProtect
     let inApProtectPeriod = false;
     if (zoneId in excel.StageTable.apProtectZoneInfo) {

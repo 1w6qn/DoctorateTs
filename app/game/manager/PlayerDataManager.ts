@@ -90,9 +90,9 @@ export class PlayerDataManager {
   get delta() {
     const delta = patchesToObject(
       this._changes.reduce((pre, acc) => acc.concat(pre), []),
+      this._playerdata
     );
     this._changes = [];
-    console.log(this._playerdata.status.androidDiamond);
     this._trigger.emit("save", []);
     console.log("delta", JSON.stringify(delta));
     return {
@@ -197,9 +197,9 @@ export class PlayerDataManager {
     const result = await recipe(draft);
     this._playerdata = finishDraft(draft, (patches, inversePatches) => {
       this._changes.push(patches);
+      console.log("patches", patches);
       this._inverseChanges.push(inversePatches);
     });
-    console.log(JSON.stringify(this._changes));
     return result;
   }
 

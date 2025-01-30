@@ -1,4 +1,3 @@
-import { PlayerStatus } from "../model/playerdata";
 import excel from "@excel/excel";
 import { checkNew, now } from "@utils/time";
 import moment from "moment";
@@ -20,26 +19,24 @@ export class StatusManager {
   }
 
   get uid(): string {
-    return this.status.uid;
+    return this._player._playerdata.status.uid;
   }
-
-  get status(): PlayerStatus {
-    return this._player._playerdata.status;
-  }
-
   async refreshTime() {
-    const ts = now();
-    const { lastRefreshTs } = this.status;
-    if (checkNew(lastRefreshTs, ts, "day")) {
-      await this._trigger.emit("refresh:daily", [lastRefreshTs]);
-    }
-    if (moment().date() == 1 && checkNew(lastRefreshTs, ts, "month")) {
-      await this._trigger.emit("refresh:monthly", []);
-    }
-    if (moment().day() == 1 && checkNew(lastRefreshTs, ts, "week")) {
-      await this._trigger.emit("refresh:weekly", []);
-    }
     await this._player.update(async (draft) => {
+      const ts = now();
+      const { lastRefreshTs } = draft.status;
+      if (checkNew(lastRefreshTs, ts, "day")) {
+        console.log("[EventManager] Daily refresh");
+        await this._trigger.emit("refresh:daily", [lastRefreshTs]);
+      }
+      if (moment().day() == 1 && checkNew(lastRefreshTs, ts, "week")) {
+        console.log("[EventManager] Daily refresh");
+        await this._trigger.emit("refresh:weekly", []);
+      }
+      if (moment().date() == 1 && checkNew(lastRefreshTs, ts, "month")) {
+        console.log("[EventManager] Daily refresh");
+        await this._trigger.emit("refresh:monthly", []);
+      }
       draft.status.lastRefreshTs = ts;
       draft.status.lastOnlineTs = ts;
     });
@@ -52,8 +49,8 @@ export class StatusManager {
   async monthlyRefresh() {}
 
   async changeSecretary(args: { charInstId: number; skinId: string }) {
+    const { charInstId, skinId } = args;
     await this._player.update(async (draft) => {
-      const { charInstId, skinId } = args;
       const charId = draft.troop.chars[charInstId].charId;
       draft.status.secretary = charId;
       draft.status.secretarySkinId = skinId;
@@ -61,29 +58,29 @@ export class StatusManager {
   }
 
   async finishStory(args: { storyId: string }) {
+    const { storyId } = args;
     await this._player.update(async (draft) => {
-      const { storyId } = args;
       draft.status.flags[storyId] = 1;
     });
   }
 
   async changeAvatar(args: { avatar: AvatarInfo }) {
+    const { avatar } = args;
     await this._player.update(async (draft) => {
-      const { avatar } = args;
       draft.status.avatar = avatar;
     });
   }
 
   async changeResume(args: { resume: string }) {
+    const { resume } = args;
     await this._player.update(async (draft) => {
-      const { resume } = args;
       draft.status.resume = resume;
     });
   }
 
   async bindNickName(args: { nickname: string }) {
+    const { nickname } = args;
     await this._player.update(async (draft) => {
-      const { nickname } = args;
       draft.status.nickName = nickname;
     });
   }
@@ -109,7 +106,7 @@ export class StatusManager {
       ],
     ]);
     await this._trigger.emit("items:use", [
-      [{ id: "", type: "DIAMOND", count: count }],
+      [{ id: "", type: "DIAMOND", count }],
     ]);
   }
 

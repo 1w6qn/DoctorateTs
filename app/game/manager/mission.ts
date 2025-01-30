@@ -283,7 +283,7 @@ export class MissionProgress implements MissionPlayerState {
         args as never,
       );
     };
-    this._trigger.on(template, (args: unknown) => {
+    this._trigger.on(template, ([args]: unknown[]) => {
       MissionTemplates[template]![this.param[0]].update(this, args as never);
       //console.log(`[MissionManager] ${this.missionId} update ${this.progress[0].value}/${this.progress[0].target}`)
       if (this.progress[0].value >= this.progress[0].target!) {

@@ -149,14 +149,6 @@ router.post("/buyEPGSGood", async (req, res) => {
     ...player.delta,
   });
 });
-router.post("/buyEPGSGood", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
-  res.send({
-    result: 0,
-    items: await player.shop.buyEPGSGood(req.body),
-    ...player.delta,
-  });
-});
 router.post("/buyREPGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   res.send({

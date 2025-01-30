@@ -54,9 +54,9 @@ export class BuildingManager {
   }
 
   async sync() {
-    await this._player.update(async (draft) => {
+    return await this._player.update(async (draft) => {
       draft.event.building = now() + 5000;
+      return now();
     });
-    return now();
   }
 }

@@ -46,7 +46,7 @@ router.post("/battleFinish", async (req, res) => {
 router.post("/getBattleReplay", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   res.send({
-    battleReplay: player.battle.loadReplay(req.body),
+    battleReplay:await player.battle.loadReplay(req.body),
     ...player.delta,
   });
 });

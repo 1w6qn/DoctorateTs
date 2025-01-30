@@ -1,9 +1,15 @@
 import { Patch } from "immer";
 
-const setNestedValue = (obj: any, path: (string | number)[], value: any) => {
+const setNestedValue = (obj: any, origin: any, path: (string | number)[], value: any) => {
   let current = obj;
+  let originCurrent = origin;
 
-  path.forEach((key, index) => {
+  for (let index = 0; index < path.length; index++) {
+    const key = path[index];
+    if (Array.isArray(originCurrent)) {
+      setNestedValue(obj, origin, path.slice(0, index), originCurrent);
+      break;
+    }
     if (index === path.length - 1) {
       current[key] = value;
     } else {
@@ -11,11 +17,12 @@ const setNestedValue = (obj: any, path: (string | number)[], value: any) => {
         current[key] = {};
       }
       current = current[key];
+      originCurrent = originCurrent[key] || {};
     }
-  });
+  }
 };
 
-export function patchesToObject(patch: Patch[]) {
+export function patchesToObject(patch: Patch[], origin: any) {
   const result = {
     modified: {},
     deleted: {},
@@ -23,9 +30,9 @@ export function patchesToObject(patch: Patch[]) {
   patch.forEach((op) => {
     const path = op.path;
     if (op.op === "remove") {
-      setNestedValue(result.deleted, path, null);
+      setNestedValue(result.deleted, origin, path, null);
     } else {
-      setNestedValue(result.modified, path, op.value);
+      setNestedValue(result.modified, origin, path, op.value);
     }
   });
   return result;

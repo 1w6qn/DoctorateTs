@@ -2,8 +2,8 @@
   "Host": "http://192.168.0.100",
   "PORT": 8443,
   "version": {
-    "resVersion": "24-03-29-14-33-44-5002d2",
-    "clientVersion": "2.2.21"
+    "resVersion": "25-01-23-12-42-24-1e19eb",
+    "clientVersion": "2.4.41"
   },
   "assets": {
     "enableMods": false,
@@ -12,9 +12,9 @@
   },
   "NetworkConfig": {
     "configVer": "5",
-    "funcVer": "V048",
+    "funcVer": "V058",
     "configs": {
-      "V048": {
+      "V058": {
         "override": true,
         "network": {
           "gs": "{server}",

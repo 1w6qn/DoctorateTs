@@ -8,8 +8,8 @@
         "gachaTicket": 0,
         "tenGachaTicket": 0,
         "instantFinishTicket": 639,
-        "hggShard": 123,
-        "lggShard": 2093,
+        "hggShard": 6,
+        "lggShard": 1733,
         "recruitLicense": 112,
         "progress": 30000,
         "buyApRemainTimes": 10,
@@ -1236,16 +1236,16 @@
         },
         "ap": 8,
         "maxAp": 178,
-        "androidDiamond": 27,
+        "androidDiamond": 9,
         "iosDiamond": 0,
-        "diamondShard": 870,
-        "gold": 5721506,
+        "diamondShard": 1570,
+        "gold": 5729506,
         "practiceTicket": 30,
-        "lastRefreshTs": 1737879816,
+        "lastRefreshTs": 1738216849,
         "lastApAddTime": 1737667025,
         "mainStageProgress": null,
         "registerTs": 1588414598,
-        "lastOnlineTs": 1737879816,
+        "lastOnlineTs": 1738216849,
         "serverName": "泰拉",
         "avatarId": "0",
         "resume": "20120712",
@@ -1261,7 +1261,7 @@
         },
         "globalVoiceLan": "CN_MANDARIN",
         "classicShard": 24,
-        "classicGachaTicket": 7,
+        "classicGachaTicket": 23,
         "classicTenGachaTicket": 0,
         "birthday": {
             "month": 3,
@@ -1370,11 +1370,11 @@
         "3301": 815,
         "3302": 321,
         "3303": 154,
-        "3401": 176,
-        "4006": 892,
+        "3401": 26,
+        "4006": 652,
         "30011": 728,
         "30012": 81,
-        "30013": 6,
+        "30013": 7,
         "30014": 0,
         "30021": 290,
         "30022": 265,
@@ -1386,7 +1386,7 @@
         "30034": 13,
         "30041": 84,
         "30042": 84,
-        "30043": 229,
+        "30043": 230,
         "30044": 0,
         "30051": 342,
         "30052": 202,
@@ -1397,7 +1397,7 @@
         "30063": 1,
         "30064": 2,
         "30073": 40,
-        "30074": 0,
+        "30074": 1,
         "30083": 103,
         "30084": 0,
         "30093": 26,
@@ -1416,7 +1416,7 @@
         "31033": 173,
         "31034": 2,
         "31043": 131,
-        "31044": 32,
+        "31044": 34,
         "31053": 150,
         "31054": 9,
         "31063": 106,
@@ -1425,8 +1425,8 @@
         "31074": 5,
         "31083": 53,
         "31084": 0,
-        "32001": 1,
-        "EPGS_COIN": 1074,
+        "32001": 3,
+        "EPGS_COIN": 934,
         "p_char_120_hibisc": 0,
         "p_char_208_melan": 0,
         "p_char_281_popka": 0,
@@ -1526,7 +1526,7 @@
         "p_char_469_indigo": 0,
         "p_char_385_finlpp": 0,
         "p_char_421_crow": 0,
-        "mod_unlock_token": 23,
+        "mod_unlock_token": 25,
         "act12side_token_key01": 1,
         "act12side_token_key02": 1,
         "act12side_token_key03": 1,
@@ -1864,7 +1864,8 @@
             "char_311_mudrok@wild#10": 1,
             "char_1034_jesca2@cfa#1": 1,
             "char_1037_amiya3@sale#13": 1,
-            "char_301_cutter@marthe#8": 1
+            "char_301_cutter@marthe#8": 1,
+            "char_274_astesi@shining#1": 1
         },
         "skinTs": {
             "char_164_nightm@epoque#5": 1593568512,
@@ -2006,7 +2007,8 @@
             "char_311_mudrok@wild#10": 1733626072,
             "char_1034_jesca2@cfa#1": 1734168334,
             "char_1037_amiya3@sale#13": 1735371085,
-            "char_301_cutter@marthe#8": 1735765895
+            "char_301_cutter@marthe#8": 1735765895,
+            "char_274_astesi@shining#1": 1738206178
         }
     },
     "consumable": {
@@ -2439,10 +2441,7 @@
                         "tmpl": {
                             "char_1037_amiya3": {
                                 "skillIndex": 1,
-                                "currentEquip": "uniequip_001_amiya3"
-                            },
-                            "char_002_amiya": {
-                                "skillIndex": 0
+                                "currentEquip": "uniequip_002_amiya3"
                             }
                         }
                     },
@@ -10378,7 +10377,7 @@
                 "favorPoint": 2700,
                 "potentialRank": 0,
                 "mainSkillLvl": 1,
-                "skin": "char_274_astesi@epoque#23",
+                "skin": "char_274_astesi@shining#1",
                 "level": 1,
                 "exp": 0,
                 "evolvePhase": 0,
@@ -18256,11 +18255,11 @@
             "main_00-02": {
                 "stageId": "main_00-02",
                 "completeTimes": 1,
-                "startTimes": 1,
+                "startTimes": 5,
                 "practiceTimes": 0,
                 "state": 3,
                 "hasBattleReplay": 1,
-                "noCostCnt": 1
+                "noCostCnt": 0
             },
             "tr_02": {
                 "stageId": "tr_02",
@@ -35632,7 +35631,7 @@
         "hasFriendRequest": 0,
         "hasClues": 0,
         "hasFreeLevelGP": 0,
-        "status": 1737879805
+        "status": 1738216844
     },
     "equipment": {},
     "shop": {
@@ -35667,6 +35666,34 @@
                 {
                     "id": "LS_lggShdShopnumber69_7",
                     "count": 5
+                },
+                {
+                    "id": "LS_lggShdShopnumber19_5",
+                    "count": 19
+                },
+                {
+                    "id": "LS_lggShdShopnumber19_3",
+                    "count": 9
+                },
+                {
+                    "id": "LS_lggShdShopnumber19_4",
+                    "count": 1
+                },
+                {
+                    "id": "LS_lggShdShopnumber19_2",
+                    "count": 1
+                },
+                {
+                    "id": "LS_lggShdShopnumber19_1",
+                    "count": 2
+                },
+                {
+                    "id": "LS_lggShdShopnumber19_12",
+                    "count": 1
+                },
+                {
+                    "id": "LS_lggShdShopnumber19_15",
+                    "count": 1
                 }
             ]
         },
@@ -35800,6 +35827,14 @@
                 {
                     "id": "HS_31008",
                     "count": 1
+                },
+                {
+                    "id": "HS_15111",
+                    "count": 2
+                },
+                {
+                    "id": "HS_11111",
+                    "count": 1
                 }
             ],
             "progressInfo": {
@@ -35874,6 +35909,10 @@
                 "OLD4": {
                     "count": 0,
                     "order": 2
+                },
+                "CCC4": {
+                    "order": 4,
+                    "count": 0
                 }
             }
         },
@@ -35902,7 +35941,7 @@
                 },
                 {
                     "id": "ES_xShdShopPerm1_3",
-                    "count": 77
+                    "count": 80
                 },
                 {
                     "id": "ES_xShdShopPerm3_2",
@@ -35926,7 +35965,7 @@
                 },
                 {
                     "id": "ES_xShdShopMonth22_1",
-                    "count": 2
+                    "count": 4
                 },
                 {
                     "id": "ES_xShdShopMonth25_1",
@@ -37578,7 +37617,7 @@
                 },
                 {
                     "id": "bauhaus_4",
-                    "count": 0
+                    "count": 1
                 },
                 {
                     "id": "bauhaus_5",
@@ -39830,6 +39869,10 @@
                 {
                     "id": "good_EPGS_14",
                     "count": 1
+                },
+                {
+                    "id": "good_EPGS_40",
+                    "count": 2
                 }
             ]
         },
@@ -57180,7 +57223,7 @@
                 "inUse": 0
             },
             "furni_bauhaus_framedWallArt_01": {
-                "count": 1,
+                "count": 2,
                 "inUse": 0
             },
             "furni_westCoast_palm_01": {
@@ -61593,7 +61636,8 @@
                 "furni_niansroom_decogroup_01": 1737540608,
                 "furni_niansroom_carpet_01": 1737540608,
                 "furni_niansroom_dragoncutoff_01": 1737540608,
-                "furni_laundry_wallpaper_01": 1737666932
+                "furni_laundry_wallpaper_01": 1737666932,
+                "furni_bauhaus_framedWallArt_01": 1738206723
             }
         },
         "music": {
@@ -88400,8 +88444,7 @@
     },
     "sandboxPerm": {
         "template": {
-            "SANDBOX_V2": {
-            }
+            "SANDBOX_V2": {}
         },
         "isClose": false
     },
@@ -104094,7 +104137,7 @@
         }
     },
     "event": {
-        "building": 1737729361
+        "building": 1738221855
     },
     "retro": {
         "coin": 2,

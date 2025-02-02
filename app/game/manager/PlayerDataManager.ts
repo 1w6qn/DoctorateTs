@@ -90,7 +90,7 @@ export class PlayerDataManager {
   get delta() {
     const delta = patchesToObject(
       this._changes.reduce((pre, acc) => acc.concat(pre), []),
-      this._playerdata
+      this._playerdata,
     );
     this._changes = [];
     this._trigger.emit("save", []);
@@ -208,59 +208,6 @@ export class PlayerDataManager {
   }
 
   toJSON() {
-    return {
-      status: this._playerdata.status,
-      collectionReward: this._playerdata.collectionReward,
-      nameCardStyle: this._playerdata.nameCardStyle,
-      inventory: this._playerdata.inventory,
-      skin: this._playerdata.skin,
-      consumable: this._playerdata.consumable,
-      troop: this._playerdata.troop,
-      dungeon: this._playerdata.dungeon,
-      activity: this._playerdata.activity,
-      pushFlags: this._playerdata.pushFlags,
-      equipment: {},
-      shop: this._playerdata.shop,
-      mission: this.mission,
-      social: this._playerdata.social,
-      building: this._playerdata.building,
-      dexNav: this._playerdata.dexNav,
-      crisis: this._playerdata.crisis,
-      crisisV2: this._playerdata.crisisV2,
-      tshop: this._playerdata.tshop,
-      gacha: this._playerdata.gacha,
-      backflow: this._playerdata.backflow,
-      mainline: this._playerdata.mainline,
-      rlv2: this.rlv2,
-      deepSea: this._playerdata.deepSea,
-      tower: this._playerdata.tower,
-      siracusaMap: this._playerdata.siracusaMap,
-      sandboxPerm: this._playerdata.sandboxPerm,
-      storyreview: this._playerdata.storyreview,
-      medal: this._playerdata.medal,
-      event: this._playerdata.event,
-      retro: this._playerdata.retro,
-      share: this._playerdata.share,
-      roguelike: this._playerdata.roguelike,
-      ticket: this._playerdata.ticket,
-      aprilFool: this._playerdata.aprilFool,
-      charm: this._playerdata.charm,
-      carousel: this._playerdata.carousel,
-      car: this._playerdata.car,
-      recruit: this._playerdata.recruit,
-      templateTrap: this._playerdata.templateTrap,
-      checkIn: this._playerdata.checkIn,
-      openServer: this._playerdata.openServer,
-      campaignsV2: this._playerdata.campaignsV2,
-      checkMeta: this._playerdata.checkMeta,
-      limitedBuff: this._playerdata.limitedBuff,
-      background: this._playerdata.background,
-      homeTheme: this._playerdata.homeTheme,
-      setting: this._playerdata.setting,
-      npcAudio: this._playerdata.npcAudio,
-      avatar: this._playerdata.avatar,
-      trainingGround: this._playerdata.trainingGround,
-      charRotation: this._playerdata.charRotation,
-    };
+    return this._playerdata;
   }
 }

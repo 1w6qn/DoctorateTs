@@ -252,9 +252,15 @@ Java.perform(() => {
   const MTPDetection = Java.use("com.hg.sdk.MTPDetection");
   MTPDetection.onUserLogin.implementation = () => {};
 });
-setTimeout(() =>
-  Il2Cpp.perform(() => {
-    Logger.log("[1;36m==========Programme started!==========[m");
+setTimeout(
+  () =>
+    Il2Cpp.perform(() => {
+      Il2Cpp.dump("d.cs");
+    }),
+  500,
+);
+/**
+ * Logger.log("[1;36m==========Programme started!==========[m");
     Logger.logNormal("[Il2CppHook] Starting il2cpp layer hook...");
     Logger.log(
       "[1;36m应用包名:[m [1;34m" + Il2Cpp.application.identifier + "[m",
@@ -329,6 +335,4 @@ setTimeout(() =>
         },
       },
     );
-    //Il2Cpp.dump("d.cs");
-  }),
-);
+ */

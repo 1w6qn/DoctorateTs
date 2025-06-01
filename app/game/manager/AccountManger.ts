@@ -6,17 +6,19 @@ import { TypedEventEmitter } from "@game/model/events";
 import Emittery from "emittery";
 
 export class AccountManager {
-  data!: { [key: string]: PlayerDataManager };
-  configs!: { [key: string]: UserConfig };
-  _trigger!: TypedEventEmitter;
+  data: { [key: string]: PlayerDataManager };
+  configs: { [key: string]: UserConfig };
+  _trigger: TypedEventEmitter;
 
-  constructor() {}
+  constructor() {
+    this.configs = {};
+    this.data = {};
+    this._trigger = new Emittery();
+  }
 
   async init() {
     console.time("[AccountManager][loaded]");
     this.configs = await readJson(`./data/user/users.json`);
-    this.data = {};
-    this._trigger = new Emittery();
     this._trigger.on("save", async () => {
       await this.saveUserConfig();
     });

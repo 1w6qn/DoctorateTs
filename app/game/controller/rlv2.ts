@@ -20,6 +20,7 @@ import { BattleData } from "@game/model/battle";
 import { RoguelikePoolManager } from "./rlv2/pool";
 import { RoguelikeGameInitData } from "@excel/roguelike_topic_table";
 import { TypedEventEmitter } from "@game/model/events";
+import { WritableDraft } from "immer";
 
 export class RoguelikeV2Config {
   choiceScenes: { [key: string]: { choices: { [key: string]: number } } };
@@ -96,29 +97,43 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     )!;
   }
 
-  setPinned(id: string): void {
-    this.pinned = id;
+  async update<T>(
+    recipe: (draft: WritableDraft<PlayerRoguelikeV2>) => Promise<T>,
+  ): Promise<T> {
+    return await this._player.update(async (draft) => {
+      return await recipe(draft.rlv2);
+    });
   }
 
-  giveUpGame(): void {
-    this.current.game = {
-      mode: "NONE",
-      predefined: "",
-      theme: "",
-      outer: {
-        support: false,
-      },
-      start: -1,
-      modeGrade: 0,
-      equivalentGrade: 0,
-    };
-    this.current.buff = {
-      tmpHP: 0,
-      capsule: null,
-      squadBuff: [],
-    };
-    this.current.record = { brief: null };
-    this._trigger.emit("rlv2:init", [this]);
+  async setPinned(args: { id: string }): Promise<void> {
+    const { id } = args;
+    await this.update(async (draft) => {
+      draft.pinned = id;
+    });
+  }
+
+  async giveUpGame(): Promise<void> {
+    await this.update(async (draft) => {
+      draft.current.game = {
+        mode: "NONE",
+        predefined: "",
+        theme: "",
+        outer: {
+          support: false,
+        },
+        start: -1,
+        modeGrade: 0,
+        equivalentGrade: 0,
+      };
+      draft.current.buff = {
+        tmpHP: 0,
+        capsule: null,
+        squadBuff: [],
+      };
+      draft.current.record = { brief: null };
+    });
+
+    await this._trigger.emit("rlv2:init", [this]);
   }
 
   async createGame(args: {
@@ -151,14 +166,14 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }
 
   async chooseInitialRelic(args: { select: string }) {
-    const event = this._status.pending.shift();
-    const relic = event!.content.initRelic!.items[args.select];
+    const event = this._status.pending.shift()!;
+    const relic = event.content.initRelic!.items[args.select];
     await this.inventory!._relic.gain([relic]);
   }
 
   async chooseInitialRecruitSet(args: { select: string }) {
     const theme = this.current.game!.theme;
-    const event = this._status.pending.shift();
+    const event = this._status.pending.shift()!;
     const event2 = this._status.pending.find(
       (e) => e.type === "GAME_INIT_RECRUIT",
     )!;
@@ -176,12 +191,13 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     await this._trigger.emit("rlv2:recruit:active", [args.id]);
   }
 
-  recruitChar(args: {
+  async recruitChar(args: {
     ticketIndex: string;
     optionId: string;
-  }): PlayerRoguelikeV2.CurrentData.RecruitChar[] {
-    this._trigger.emit("rlv2:recruit:done", [args.ticketIndex, args.optionId]);
-    return [this.inventory!.recruit[args.ticketIndex].result!];
+  }): Promise<PlayerRoguelikeV2.CurrentData.RecruitChar[]> {
+    const { ticketIndex, optionId } = args;
+    await this._trigger.emit("rlv2:recruit:done", [ticketIndex, optionId]);
+    return [this.inventory!.recruit[ticketIndex].result!];
   }
 
   finishEvent() {

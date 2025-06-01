@@ -19,6 +19,7 @@ export type EventMap = {
   "refresh:daily": [number];
   "stage:update": [];
   "char:get": [string, { from: string }?, ((res: GachaResult) => void)?];
+  "char:levelUp": [number];
   "char:init": [PlayerCharacter];
   "items:use": [ItemBundle[]];
   "items:get": [ItemBundle[]];

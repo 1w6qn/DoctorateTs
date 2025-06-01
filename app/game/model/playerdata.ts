@@ -244,6 +244,7 @@ export interface PlayerBuilding {
   diyPresetSolutions: {};
   assist: number[];
   solution: PlayerBuildingSolution;
+  music: { selected: string };
 }
 
 export interface PlayerBuildingChar {
@@ -292,8 +293,14 @@ export interface PlayerBuildingRoom {
   MEETING: { [key: string]: PlayerBuildingMeeting };
   HIRE: { [key: string]: PlayerBuildingHire };
   TRAINING: { [key: string]: PlayerBuildingTraining };
+  PRIVATE: { [key: string]: PlayerBuildingPrivate };
 }
 
+export interface PlayerBuildingPrivate {
+  owners: number[];
+  comfort: number;
+  diySolution: PlayerBuildingDIYSolution;
+}
 export interface PlayerBuildingControl {
   buff: PlayerBuildingControlBuff;
   apCost: number;

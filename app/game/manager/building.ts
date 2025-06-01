@@ -59,4 +59,29 @@ export class BuildingManager {
       return now();
     });
   }
+
+  async changeBGM(args: { musicId: string }) {
+    const { musicId } = args;
+    return await this._player.update(async (draft) => {
+      draft.building.music.selected = musicId;
+    });
+  }
+
+  async setPrivateDormOwner(args: { slotId: string; charInstId: number }) {
+    const { slotId, charInstId } = args;
+    return await this._player.update(async (draft) => {
+      draft.building.rooms.PRIVATE[slotId].owners = [charInstId];
+    });
+  }
+
+  async setBuildingAssist(args: { type: number; charInstId: number }) {
+    const { type, charInstId } = args;
+    return await this._player.update(async (draft) => {
+      if (draft.building.assist.includes(charInstId)) {
+        const index = draft.building.assist.indexOf(charInstId);
+        draft.building.assist[index] = -1;
+      }
+      draft.building.assist[type] = charInstId;
+    });
+  }
 }

@@ -1,5 +1,5 @@
 import { PlayerGacha } from "../model/playerdata";
-import { GachaResult } from "../model/gacha";
+import { GachaResult, GachaType } from "../model/gacha";
 import {
   GachaDetailData,
   GachaDetailTable,
@@ -36,8 +36,24 @@ export class GachaController {
     useTkt: number;
     itemId: string;
   }): Promise<GachaResult & { logInfo: { beforeNonHitCnt: number } }> {
+    const {poolId,useTkt,itemId}=args
     const costs: ItemBundle[] = [];
-    //TODO
+    switch (useTkt) {
+      case GachaType.Diamond:
+        if(poolId.startsWith("BOOT")){
+          costs.push({id:"DIAMOND_SHD",count:380})
+        }else{
+          costs.push({id:"DIAMOND_SHD",count:600})
+        }
+      case GachaType.SingleTicket:
+        costs.push({id:"TKT_GACHA",count:1})
+      case GachaType.LimitSingle:
+        costs.push({id:"LIMITED_FREE_GACHA",count:1})
+      case GachaType.UseItem:
+        costs.push({id:itemId,count:1})
+      case GachaType.ClassicSingleTicket:
+        costs.push({id:"CLASSIC_TKT_GACHA",count:1})
+    }
     await this._trigger.emit("items:use", [costs]);
     return await this.doAdvancedGacha(args);
   }
@@ -45,13 +61,33 @@ export class GachaController {
   async tenAdvancedGacha(args: {
     poolId: string;
     useTkt: number;
-    itemId: string;
+    itemList: ItemBundle[];
   }): Promise<(GachaResult & { logInfo: { beforeNonHitCnt: number } })[]> {
+    const {poolId,useTkt,itemList}=args
     const costs: ItemBundle[] = [];
+    switch (useTkt) {
+      case GachaType.Diamond:
+        if(poolId.startsWith("BOOT")){
+          costs.push({id:"DIAMOND_SHD",count:3800})
+        }else{
+          costs.push({id:"DIAMOND_SHD",count:6000})
+        }
+      case GachaType.TenTicket:
+        costs.push({id:"TKT_GACHA_10",count:1})
+      case GachaType.TenSingleTkt:
+        costs.push({id:"TKT_GACHA",count:10})
+      case GachaType.ClassicTenTicket:
+        costs.push({id:"CLASSIC_TKT_GACHA_10",count:1})
+      case GachaType.classicTenSingleTicket:
+        costs.push({id:"CLASSIC_TKT_GACHA",count:10})
+      case GachaType.CombineTenTicket:
+        costs.concat(itemList)
+      case GachaType.UseItem:
+        costs.concat(itemList)
+    }
     const res: (GachaResult & { logInfo: { beforeNonHitCnt: number } })[] = [];
-    //TODO
     for (let i = 0; i < 10; i++) {
-      res.push(await this.doAdvancedGacha(args));
+      res.push(await this.doAdvancedGacha({poolId,useTkt,itemId:""}));
     }
     await this._trigger.emit("items:use", [costs]);
     return res;

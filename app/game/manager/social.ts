@@ -167,7 +167,18 @@ export class SocialManager {
     const { uid } = args;
     return await accountManager.getPlayerFriendInfo(uid);
   }
-
+  async changeNameCardComponent(args: { component: string[] }){
+    const { component } = args;
+    await this._player.update(async (draft) => {
+      draft.nameCardStyle.componentOrder = component;
+    });
+  }
+  async changeNameCardSkin(args: { skinId: string }){
+    const { skinId } = args;
+    await this._player.update(async (draft) => {
+      draft.nameCardStyle.skin.selected = skinId;
+    });
+  }
   async editNameCard(args: {
     flag: number;
     content: { skinId?: string; component?: string[]; misc?: NameCardMisc };

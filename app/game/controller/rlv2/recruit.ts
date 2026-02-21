@@ -51,7 +51,7 @@ export class RoguelikeRecruitManager {
         this.tickets[id].id
       ];
     const chars: PlayerRoguelikeV2.CurrentData.RecruitChar[] = Object.values(
-      this._troop.chars,
+      this._player.troop.chars,
     ).reduce((acc, char) => {
       const data = excel.CharacterTable[char.charId];
 

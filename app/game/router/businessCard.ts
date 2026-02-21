@@ -3,12 +3,20 @@ import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 
 const router = Router();
+router.post("/changeNameCardSkin", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  await player.social.changeNameCardSkin(req.body);
+  res.send(player.delta);
+});
+router.post("/changeNameCardComponent", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  await player.social.changeNameCardComponent(req.body);
+  res.send(player.delta);
+});
 router.post("/editNameCard", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   await player.social.editNameCard(req.body);
-  res.send({
-    ...player.delta,
-  });
+  res.send(player.delta);
 });
 router.post("/getOtherPlayerNameCard", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;

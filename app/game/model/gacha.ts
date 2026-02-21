@@ -10,3 +10,16 @@ export interface GachaResult{
         now:number
     }
 }
+export enum GachaType {
+    None = 4294967295,
+    Diamond = 0,
+    SingleTicket = 1,
+    TenTicket = 2,
+    LimitSingle = 3,
+    UseItem = 4,
+    TenSingleTkt = 5,
+    ClassicSingleTicket = 6,
+    ClassicTenTicket = 7,
+    classicTenSingleTicket = 8,
+    CombineTenTicket = 9
+}

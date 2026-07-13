@@ -1,3 +1,10 @@
+/**
+ * Excel 数据表管理模块
+ * 
+ * 负责加载和管理所有游戏配置数据表（Excel 数据），包括角色、关卡、物品、抽卡等数据。
+ * 所有数据表在服务器启动时加载，运行时只读访问。
+ */
+
 import { CharacterTable } from "./character_table";
 import { BattleEquipTable } from "./battle_equip_table";
 import { BuildingData } from "./building_data";
@@ -23,32 +30,67 @@ import { RoguelikeConst } from "@excel/roguelike_consts";
 import { ShopData } from "@excel/shop";
 import { RetroStageTable } from "@excel/retro_table";
 
+/**
+ * Excel 数据表管理类
+ * 
+ * 聚合所有游戏配置数据表，提供统一的访问接口。
+ */
 export class Excel {
+  /** 战斗装备数据表 */
   BattleEquipTable!: BattleEquipTable;
+  /** 基建数据表 */
   BuildingData!: BuildingData;
+  /** 角色数据表 */
   CharacterTable!: CharacterTable;
+  /** 游戏常量数据表 */
   GameDataConst!: GameDataConsts;
+  /** 物品数据表 */
   ItemTable!: ServerItemTable;
+  /** 关卡数据表 */
   StageTable!: StageTable;
+  /** 图鉴信息数据表 */
   HandbookInfoTable!: HandbookInfoTable;
+  /** 签到数据表 */
   CheckinTable!: CheckinTable;
+  /** 故事回顾元数据表 */
   StoryReviewMetaTable!: StoryReviewMetaTable;
+  /** 抽卡数据表 */
   GachaTable!: GachaData;
+  /** 任务数据表 */
   MissionTable!: MissionTable;
+  /** 肉鸽主题数据表 */
   RoguelikeTopicTable!: RoguelikeTopicTable;
+  /** 模组数据表 */
   UniequipTable!: UniEquipTable;
+  /** 故事回顾数据表 */
   StoryReviewTable!: StoryReviewTable;
+  /** 信赖度数据表 */
   FavorTable!: FavorTable;
+  /** 勋章数据表 */
   MedalTable!: MedalData;
+  /** 抽卡详情数据表 */
   GachaDetailTable!: GachaDetailTable;
+  /** 角色元数据表 */
   CharMetaTable!: CharMetaTable;
+  /** 皮肤数据表 */
   SkinTable!: SkinTable;
+  /** 开服活动数据表 */
   OpenServerTable!: OpenServerSchedule;
+  /** 复刻关卡数据表 */
   RetroTable!: RetroStageTable;
+  /** 肉鸽常量配置 */
   RoguelikeConsts!: { [key: string]: RoguelikeConst };
+  /** 商店数据表 */
   ShopTable!: ShopData;
+
   constructor() {}
 
+  /**
+   * 初始化所有 Excel 数据表
+   * 
+   * 从 data/excel/ 目录下加载所有 JSON 格式的数据表文件，
+   * 并初始化商店数据。
+   */
   async init(): Promise<void> {
     console.time("[excel][loaded]");
     this.MissionTable = await readJson<MissionTable>(
@@ -125,4 +167,5 @@ export class Excel {
   }
 }
 
+/** Excel 数据表管理实例 */
 export default new Excel();

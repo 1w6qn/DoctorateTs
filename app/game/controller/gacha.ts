@@ -1,3 +1,10 @@
+/**
+ * 抽卡控制器类
+ * 
+ * 负责处理抽卡相关的核心业务逻辑，包括单抽、十连抽、保底机制、稀有度概率计算等。
+ * 使用抽卡数据表配置和玩家数据管理器协同工作。
+ */
+
 import { PlayerGacha } from "../model/playerdata";
 import { GachaResult, GachaType } from "../model/gacha";
 import {
@@ -13,24 +20,50 @@ import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 
 export class GachaController {
+  /** 抽卡详情数据表 */
   _table: GachaDetailTable;
+  /** 玩家数据管理器 */
   _player: PlayerDataManager;
+  /** 事件触发器 */
   _trigger: TypedEventEmitter;
 
+  /**
+   * 构造函数
+   * @param player - 玩家数据管理器
+   * @param _trigger - 事件触发器
+   */
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._table = excel.GachaDetailTable;
     this._player = player;
     this._trigger = _trigger;
   }
 
+  /**
+   * 获取用户ID
+   * @returns 用户ID
+   */
   get uid(): string {
     return this._player.uid;
   }
 
+  /**
+   * 获取玩家抽卡数据
+   * @returns 玩家抽卡数据
+   */
   get gacha(): PlayerGacha {
     return this._player._playerdata.gacha;
   }
 
+  /**
+   * 执行单次高级抽卡
+   * 
+   * 根据抽卡类型扣除相应消耗，然后执行抽卡逻辑。
+   * @param args - 抽卡参数
+   * @param args.poolId - 抽卡池ID
+   * @param args.useTkt - 使用的抽卡类型
+   * @param args.itemId - 使用的物品ID（当useTkt为UseItem时）
+   * @returns 抽卡结果和保底计数信息
+   */
   async advancedGacha(args: {
     poolId: string;
     useTkt: number;
@@ -58,6 +91,16 @@ export class GachaController {
     return await this.doAdvancedGacha(args);
   }
 
+  /**
+   * 执行十连高级抽卡
+   * 
+   * 根据抽卡类型扣除相应消耗，执行10次单抽逻辑。
+   * @param args - 抽卡参数
+   * @param args.poolId - 抽卡池ID
+   * @param args.useTkt - 使用的抽卡类型
+   * @param args.itemList - 使用的物品列表（当useTkt为CombineTenTicket或UseItem时）
+   * @returns 抽卡结果数组和保底计数信息
+   */
   async tenAdvancedGacha(args: {
     poolId: string;
     useTkt: number;
@@ -93,13 +136,22 @@ export class GachaController {
     return res;
   }
 
+  /**
+   * 执行实际抽卡逻辑
+   * 
+   * 根据抽卡池规则类型执行不同的抽卡策略，计算稀有度，获取随机角色。
+   * @param args - 抽卡参数
+   * @param args.poolId - 抽卡池ID
+   * @param args.useTkt - 使用的抽卡类型
+   * @param args.itemId - 使用的物品ID
+   * @returns 抽卡结果和保底计数信息
+   */
   async doAdvancedGacha(args: {
     poolId: string;
     useTkt: number;
     itemId: string;
   }): Promise<GachaResult & { logInfo: { beforeNonHitCnt: number } }> {
     const { poolId } = args;
-    //TODO: cost items
     await this._player.update(async (draft) => {
       if (!(poolId in draft.gacha.normal)) {
         draft.gacha.normal[poolId] = {
@@ -185,6 +237,16 @@ export class GachaController {
     };
   }
 
+  /**
+   * 处理抽卡逻辑
+   * 
+   * 根据保底计数和确保角色，计算稀有度并获取随机角色。
+   * @param poolId - 抽卡池ID
+   * @param args - 参数
+   * @param args.beforeNonHitCnt - 保底计数
+   * @param args.ensure - 确保获取的角色ID（可选）
+   * @returns 角色ID
+   */
   async _handleGacha(
     poolId: string,
     args: { beforeNonHitCnt: number; ensure?: string },
@@ -193,6 +255,16 @@ export class GachaController {
     return this._getRandomChar(poolId, rank, args);
   }
 
+  /**
+   * 获取随机角色
+   * 
+   * 根据稀有度从抽卡池中随机选择一个角色，考虑UP角色概率。
+   * @param poolId - 抽卡池ID
+   * @param rank - 稀有度等级
+   * @param args - 参数
+   * @param args.ensure - 确保获取的角色ID（可选）
+   * @returns 角色ID
+   */
   async _getRandomChar(
     poolId: string,
     rank: number,
@@ -230,6 +302,16 @@ export class GachaController {
     return args.ensure || charId;
   }
 
+  /**
+   * 获取稀有度等级
+   * 
+   * 根据抽卡池配置和保底机制计算本次抽卡的稀有度。
+   * 五星概率随保底计数递增，10连必出四星及以上。
+   * @param poolId - 抽卡池ID
+   * @param args - 参数
+   * @param args.beforeNonHitCnt - 保底计数
+   * @returns 稀有度等级
+   */
   async _getRarityRank(
     poolId: string,
     args: { beforeNonHitCnt: number },
@@ -267,6 +349,12 @@ export class GachaController {
     return rank;
   }
 
+  /**
+   * 获取抽卡池详情
+   * @param args - 参数
+   * @param args.poolId - 抽卡池ID
+   * @returns 抽卡池详情数据
+   */
   async getPoolDetail(args: { poolId: string }): Promise<GachaDetailData> {
     return this._table.details[args.poolId];
   }

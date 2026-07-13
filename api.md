@@ -1,310 +1,1350 @@
-- [ ] SDK_LOGIN_BY_PWD = "/user/login";
-- [ ] SDK_AUTH = "/user/auth";
-- [ ] SDK_PAY_CREATE_ORDER_APPSTORE = "/pay/createOrderAppstore";
-- [ ] SDK_LEGACY_PAY_CONFIRM_ORDER_APPSTORE = "/pay/confirmOrderAppstore";
-- [ ] SDK_PAY_CONFIRM_ORDER_APPSTORE = "/pay/confirmOrderAppstoreNew";
-- [ ] SDK_SEND_SMS_CODE = "/user/sendSmsCode";
-- [ ] SDK_USER_REGISTER = "/user/register";
-- [ ] SDK_USER_IDENTITY_AUTH = "/user/authenticateUserIdentity";
-- [ ] SDK_USER_CHECK_ID_CARD = "/user/checkIdCard";
-- [ ] SDK_GUEST_CAPTCHA = "/captcha/v1/register";
-- [ ] SDK_GUEST_LOGIN = "/user/v1/guestLogin";
-- [ ] SDK_LOGIN_BY_SMS = "/user/loginBySmsCode";
-- [ ] SDK_PING = "/online/v1/ping";
-- [ ] SDK_LOGINOUT = "/online/v1/loginout";
-- [ ] SDK_UPDATE_AGREEMENT = "/user/updateAgreement";
-- [ ] SDK_CHANGE_PWD = "/user/changePassword";
-- [ ] SDK_CHANGE_PHONE_CHECK = "/user/changePhoneCheck";
-- [ ] SDK_CHANGE_PHONE = "/user/changePhone";
-- [ ] LOGIN = "/account/login";
-- [ ] SYNC_DATA = "/account/syncData";
-- [ ] SYNC_STATUS = "/account/syncStatus";
-- [ ] SYNC_PUSH_MSG = "/account/syncPushMessage";
-- [ ] CHEAT = "/admin/cheat";
-- [ ] VERSION = "/admin/getVersion";
-- [x] SQUAD_FORMATION = "/quest/squadFormation";
-- [x] SQUAD_RENAME = "/quest/changeSquadName";
-- [ ] SQUAD_GET_ASSIST_LIST = "/quest/getAssistList";
-- [ ] DEFAULT_BATTLE_START = "/quest/battleStart";
-- [ ] DEFAULT_BATTLE_FINISH = "/quest/battleFinish";
-- [ ] DEFAULT_BATTLE_CONTINUE = "/quest/battleContinue";
-- [ ] SAVE_BATTLE_REPLAY = "/quest/saveBattleReplay";
-- [ ] LOAD_BATTLE_REPLAY = "/quest/getBattleReplay";
-- [ ] FINISH_STORY_STAGE = "/quest/finishStoryStage";
-- [ ] UNLOCK_STAGE_FOG = "/quest/unlockStageFog";
-- [ ] UNLOCK_HIDDEN_STAGE = "/quest/unlockHideStage";
-- [ ] GET_SPECIAL_STAGE_REWARD = "/quest/getCowLevelReward";
-- [ ] GET_ZONE_RECORD_REWARD = "/quest/getMainlineRecordRewards";
-- [ ] GET_MAINLINE_CACHE = "/quest/getMainlineCache";
-- [ ] CAMP_CONFIRM_BREAK_REWARD = "/campaignV2/getBreakReward";
-- [ ] CAMP_GET_COMMON_MISSION_REWARD = "/campaignV2/getExMissionReward";
-- [ ] CAMP_BATTLE_START = "/campaignV2/battleStart";
-- [ ] CAMP_BATTLE_FINISH = "/campaignV2/battleFinish";
-- [ ] CAMP_BATTLE_SWEEP = "/campaignV2/battleSweep";
-- [ ] RETRO_UNLOCK = "/retro/unlockRetroBlock";
-- [ ] RETRO_TRAIL_REWARDGET = "/retro/getRetroTrailReward";
-- [ ] RETRO_PASS_REWARD = "/retro/getRetroPassReward";
-- [ ] RUNE_BATTLE_START = "/rune/battleStart";
-- [ ] RUNE_BATTLE_FINISH = "/rune/battleFinish";
-- [ ] SET_DEFAULT_SKILL = "/charBuild/setDefaultSkill";
-- [ ] UPGRADE_CHAR = "/charBuild/upgradeChar";
-- [x] EVOLVE_CHAR = "/charBuild/evolveChar";
-- [ ] LOCK_CHAR = "/charBuild/lockChar";
-- [ ] SELL_CHAR = "/charBuild/sellChar";
-- [ ] BOOST_POTENTIAL = "/charBuild/boostPotential";
-- [x] UPGRADE_SKILL = "charBuild/upgradeSkill";
-- [ ] UPGRADE_SPECIALIZATION = "charBuild/upgradeSpecialization";
-- [ ] CONFIRM_SPECIALIZATION = "charBuild/completeUpgradeSpecialization";
-- [x] CHANGE_SKIN_SELECT = "charBuild/changeCharSkin";
-- [x] CHANGE_TEMPLATE_SELECT = "charBuild/changeCharTemplate";
-- [ ] GET_SP_CHAR_MISSION_REWARD = "charBuild/getSpCharMissionReward";
-- [ ] EVOLVE_CHAR_USE_ITEM = "/charBuild/evolveCharUseItem";
-- [x] SETUNIEQUIPMENT = "/charBuild/setEquipment";
-- [ ] CHANGE_STAR_MARK_CHAR = "/char/changeMarkStar";
-- [ ] UPGRADE_CHAR_LEVEL_MAX = "/charBuild/upgradeCharLevelMaxUseItem";
-- [ ] UPGRADE_SPEC_SKILL_USING_ITEM = "/charBuild/upgradeSpecializedSkillUseItem";
-- [ ] FINISH_STORY = "/story/finishStory";
-- [x] CANCEL_NORMAL_GACHA = "/gacha/cancelNormalGacha";
-- [x] REFRESH_TAG_GACHA = "/gacha/refreshTags";
-- [x] SYNC_NORMAL_GACHA = "/gacha/syncNormalGacha";
-- [ ] BUY_RECRUIT_SLOT = "/gacha/buyRecruitSlot";
-- [x] FINISH_NORMAL_GACHA = "/gacha/finishNormalGacha";
-- [x] NORMAL_GACHA = "/gacha/normalGacha";
-- [x] BOOST_NORMAL_GACHA = "/gacha/boostNormalGacha";
-- [ ] GET_POOL_DETAIL = "/gacha/getPoolDetail";
-- [ ] ADVANCED_GACHA = "/gacha/advancedGacha";
-- [ ] TEN_ADVANCED_GACHA = "/gacha/tenAdvancedGacha";
-- [ ] CHOOSE_POOL_UP = "/gacha/choosePoolUp";
-- [ ] GET_FREE_CHAR = "/gacha/getFreeChar";
-- [ ] LIST_MAIL_BOX = "/mail/listMailBox";
-- [ ] RECEIVE_MAIL = "/mail/receiveMail";
-- [ ] MAIL_GET_METAINFO_LIST = "/mail/getMetaInfoList";
-- [ ] RECEIVE_ALL_MAIL = "mail/receiveAllMail";
-- [ ] REMOVE_ALL_RECEIVED_MAIL = "mail/removeAllReceivedMail";
-- [ ] SURVEY_START = "/survey/startSurvey";
-- [ ] MAIL_ARCHIVE_GET_LIST = "/mailCollection/getList";
-- [ ] BIND_NICKNAME = "/user/bindNickName";
-- [ ] BUY_AP = "/user/buyAp";
-- [ ] DIAMOND_EXCHANGE = "/user/exchangeDiamondShard";
-- [x] CHANGE_RESUME = "user/changeResume";
-- [ ] USE_ITEM = "/user/useItem";
-- [ ] USE_ITEMS = "/user/useItems";
-- [ ] USE_RENAME_CARD = "/user/useRenameCard";
-- [ ] GET_VOUCHER_DETAIL = "/depot/getVoucherDetail";
-- [ ] VOUCHER_GACHA = "/depot/voucherGacha";
-- [ ] CHAR_GACHA_VOUCHER_DETAIL = "/depot/getCharGachaVoucherDetail";
-- [ ] ITEM_GACHA_VOUCHER_DETAIL = "/depot/getMaterialVoucherDetail";
-- [ ] CHAR_GACHA_VOUCHER = "/depot/useCharGachaVoucher";
-- [ ] ITEM_GACHA_VOUCHER = "/depot/useMaterialVoucher";
-- [ ] USE_FULL_POTENTIAL_ITEM = "/depot/useFullPotentialItem";
-- [ ] USE_OPTION_VOUCHER = "/depot/useOptionVoucher";
-- [ ] ACTIVITY_CHAIN = "/activity/getChainLogInReward";
-- [ ] ACTIVITY_CHECKIN = "/activity/getOpenServerCheckInReward";
-- [ ] ACTIVITY_CHAINFINAL = "/activity/getChainLogInFinalRewards";
-- [x] SOCIAL_FRIEND_DELETE = "/social/deleteFriend";
-- [x] SOCIAL_FRIEND_SEND_REQUEST = "/social/sendFriendRequest";
-- [x] SOCIAL_FRIEND_DEAL_REQUEST = "/social/processFriendRequest";
-- [x] SOCIAL_FRIEND_SEARCH_FRIEND = "/social/searchPlayer";
-- [x] SOCIAL_GET_SORT_FRIEND_INFO = "/social/getSortListInfo";
-- [x] SOCIAL_FRIEND_GET_FRIEND_LIST = "/social/getFriendList";
-- [x] SOCIAL_FRIEND_GET_FRIEND_REQUEST_LIST = "/social/getFriendRequestList";
-- [x] SOCIAL_FRIEND_SET_ASSIST_CHAR = "/social/setAssistCharList";
-- [x] SOCIAL_FRIEND_SET_FRIEND_ALIAS = "/social/setFriendAlias";
-- [ ] SOCIAL_RECIEVE_SOCIRAL_POINT = "/social/receiveSocialPoint";
-- [x] SET_CARD_SHOW_MEDAL_REQUEST = "/social/setCardShowMedal";
-- [x] GET_OTHER_PLAYER_NAME_CARD = "/businessCard/getOtherPlayerNameCard";
-- [x] EDIT_NAME_CARD = "/businessCard/editNameCard";
-- [ ] MEDAL_REWARD_REQUEST = "/medal/rewardMedal";
-- [ ] MEDAL_SET_CUSTOM_DATA = "/medal/setCustomData";
-- [ ] CHECKIN_HOME = "/user/checkIn";
-- [ ] CHANGE_SECRETARY = "/user/changeSecretary";
-- [ ] RECEIVE_TEAMCOLLECTION_REWARD = "/user/receiveTeamCollectionReward";
-- [ ] UNLOCK_CHAR_WORD_STORY = "/charBuild/addonStory/unlock";
-- [ ] BATTLE_START_ADDON = "charBuild/addonStage/battleStart";
-- [ ] BATTLE_FINISH_ADDON = "charBuild/addonStage/battleFinish";
-- [ ] MISSION_EXCHANGEMISSIONREWARDS = "/mission/exchangeMissionRewards";
-- [ ] MISSION_CONFIRMMISSION = "mission/confirmMission";
-- [ ] MISSION_CONFIRMMISSIONGROUP = "mission/confirmMissionGroup";
-- [ ] MISSION_AUTOCONFIRMMISSIONS = "mission/autoConfirmMissions";
-- [ ] CHECK_FORBIDDEN = "/shop/checkForbidden";
-- [ ] SHOP_GET_FURNITURESHOP_LIST = "shop/getFurniGoodList";
-- [ ] SHOP_BUY_FURNITURE_ITEM = "shop/buyFurniGood";
-- [ ] SHOP_SKIN_LIST = "shop/getSkinGoodList";
-- [ ] SHOP_CASH_LIST = "shop/getCashGoodList";
-- [ ] SHOP_HIGH_QC_LIST = "shop/getHighGoodList";
-- [ ] SHOP_LOW_QC_LIST = "shop/getLowGoodList";
-- [ ] SHOP_CLASSIC_QC_LIST = "shop/getClassicGoodList";
-- [ ] SHOP_EXTRA_QC_LIST = "shop/getExtraGoodList";
-- [ ] SHOP_LMTGS_LIST = "shop/getLMTGSGoodList";
-- [ ] SHOP_EPGS_LIST = "shop/getEPGSGoodList";
-- [ ] SHOP_REP_LIST = "shop/getRepGoodList";
-- [ ] SHOP_GP_LIST = "shop/getGPGoodList";
-- [ ] SHOP_SOCIAL_LIST = "shop/getSocialGoodList";
-- [ ] SHOP_PURCHASE_STATE = "shop/getGoodPurchaseState";
-- [ ] SHOP_DECOMPOSE_POTENTIAL = "shop/decomposePotentialItem";
-- [ ] SHOP_DECOMPOSE_CLASSIC_POTENTIAL = "shop/decomposeClassicPotentialItem";
-- [ ] SHOP_BUY_HIGH_GOOD = "shop/buyHighGood";
-- [ ] SHOP_BUY_EXTRA_GOOD = "shop/buyExtraGood";
-- [ ] SHOP_BUY_LOW_GOOD = "shop/buyLowGood";
-- [ ] SHOP_BUY_CLASSIC_GOOD = "shop/buyClassicGood";
-- [ ] SHOP_BUY_GP_GOOD = "shop/buyGPGood";
-- [ ] SHOP_BUY_SKIN_GOOD = "shop/buySkinGood";
-- [ ] SHOP_FURN_GROUP_GOOD = "/shop/buyFurniGroup";
-- [ ] SHOP_BUY_CASH_GOOD = "shop/buyCashGood";
-- [ ] SHOP_BUY_SOCIAL_GOOD = "shop/buySocialGood";
-- [ ] SHOP_GET_CASH_PURCHASE_RESULT = "shop/getCashGoodPurchaseResult";
-- [ ] SHOP_BUY_LMTGS_GOOD = "shop/buyLMTGSGood";
-- [ ] SHOP_BUY_EPGS_GOOD = "shop/buyEPGSGood";
-- [ ] SHOP_BUY_REP_GOOD = "shop/buyRepGood";
-- [ ] SHOP_GET_VOUCHER_SKIN_GOOD_LIST = "shop/getVoucherSkinGoodList";
-- [ ] SHOP_USE_VOUCHER_SKIN = "shop/useVoucherSkin";
-- [ ] TEMPLATE_SHOP_GET_GOOD_LIST = "templateShop/getGoodList";
-- [ ] TEMPLATE_SHOP_BUY_GOOD = "templateShop/buyGood";
-- [ ] TEMPLATE_TRAP_SET_SQUAD_LIST = "/templateTrap/setTrapSquad";
-- [ ] CHANGE_AVATAR = "/user/changeAvatar";
-- [ ] UNLOCK_EQUIPMENT = "/charBuild/unlockEquipment";
-- [ ] UPGRADE_EQUIPMENT = "/charBuild/upgradeEquipment";
-- [ ] SET_CHAR_VOICE_LAN = "/charBuild/setCharVoiceLan";
-- [ ] BATCH_SET_CHAR_VOICE_LAN = "/charBuild/batchSetCharVoiceLan";
-- [ ] CHANGE_NPC_VOICE_LAN = "/npcAudio/changeLan";
-- [ ] SET_BACK_GROUND = "/background/setBackground";
-- [ ] SET_THEME = "/homeTheme/change";
-- [ ] SET_LOW_POWER = "/setting/perf/setLowPower";
-- [ ] CRISIS_BATTLE_START = "crisis/battleStart";
-- [ ] CRISIS_BATTLE_FINISH = "crisis/battleFinish";
-- [ ] CRISIS_GET_INFO = "crisis/getInfo";
-- [ ] CRISIS_GET_SHOP_INFO = "crisis/getGoodList";
-- [ ] CRISIS_BUY_GOODS = "crisis/buyGoods";
-- [ ] CRISIS_CHALLENGE_REWARD_TSK = "crisis/challengeRewardTask";
-- [ ] CRISIS_CHALLENGE_REWARD_LEVEL = "crisis/challengeRewardPoint";
-- [ ] CRISIS_CHALLENGE_REWARD_ALL = "crisis/challengeRewardAll";
-- [ ] CRISIS_UNLOCK_MAP_REWARD_ALL = "crisis/unlockMapRank";
-- [ ] CRISIS_UNLOCK_RUNE = "crisis/unlockRune";
-- [ ] CRISIS_GET_ALL_ITEMS = "crisis/getAllItems";
-- [ ] CRISIS_V2_GET_INFO = "crisisV2/getInfo";
-- [ ] CRISIS_V2_GET_SNAPSHOT = "crisisV2/getSnapshot";
-- [ ] CRISIS_V2_GET_SHOP_INFO = "crisisV2/getGoodList";
-- [ ] CRISIS_V2_GET_MISSION_REWARDS = "crisisV2/confirmMissions";
-- [ ] CRISIS_V2_BATTLE_START = "crisisV2/battleStart";
-- [ ] CRISIS_V2_BATTLE_FINISH = "crisisV2/battleFinish";
-- [ ] CRISIS_V2_BUY_GOODS = "crisisV2/buyGood";
-- [ ] CHAR_BUILD_INC_INTIMACY = "building/gainIntimacy";
-- [ ] CHAR_BUILD_INC_ASSIST_INTIMACY = "building/gainAssistIntimacy";
-- [ ] CHAR_BUILD_ALL_INTIMACY = "building/gainAllIntimacy";
-- [ ] SOCIAL_VISIT_BUILDING = "building/visitBuilding";
-- [ ] BUILDING_UPGRADE_ROOM = "building/upgradeRoom";
-- [ ] BUILDING_UPGRADE_COMPLETE_ROOM = "building/completeUpgradeRoom";
-- [ ] BUILDING_SETTLE_MANUFACT = "building/settleManufacture";
-- [ ] BUILDING_SYNC = "building/sync";
-- [ ] BUILDING_BUILD_ROOM = "building/buildRoom";
-- [ ] BUILDING_CLEAN_ROOM_SLOT = "building/cleanRoomSlot";
-- [ ] BUILDING_VISIT_BUILDING = "building/visitBuilding";
-- [ ] BUILDING_CHANGE_MANUF_FORMULA = "building/changeManufactureSolution";
-- [ ] BUILDING_CHANGE_SHOP_FORUMULA = "building/changeSaleSolution";
-- [ ] BUILDING_ASSIGN_CHAR = "building/assignChar";
-- [ ] BUILDING_SETTLE_SALE = "building/settleSale";
-- [ ] BUILDING_DEGRADE_ROOM = "building/degradeRoom";
-- [ ] BUILDING_DEGRADE_DIY_ROOM = "building/upgradeDiyLevel";
-- [ ] BUILDING_CHANGE_DIY_SOLUTION = "building/changeDiySolution";
-- [ ] BUILDING_SAVE_DIY_PRESET_SOLUTION = "building/saveDiyPresetSolution";
-- [ ] BUILDING_RENAME_DIY_PRESET_SOLUTION = "building/changePresetName";
-- [ ] BUILDING_GET_DIY_PRESET_THUMBNAIL_URL = "building/getThumbnailUrl";
-- [ ] BUILDING_UPDATE_SKILL = "building/upgradeSpecialization";
-- [ ] BUILDING_FINISH_UPDATE_SKILL = "building/completeUpgradeSpecialization";
-- [ ] BUILDING_WORKSHOP_SYNTHESIS = "building/workshopSynthesis";
-- [ ] BUILDING_WORKSHOP_FURN_DECOMPOSITE = "building/workshopDecomposition";
-- [ ] BUILDING_FRIEND_GET_SORT_LIST = "/building/getClueFriendList";
-- [ ] BUILDING_DELIVERY_ORDER = "building/deliveryOrder";
-- [ ] BUILDING_CHANGE_STRATEGY = "building/changeStrategy";
-- [ ] BUILDING_DELETE_ORDER = "building/deleteOrder";
-- [ ] BUILDING_ACCELERATE_ORDER = "building/accelerateOrder";
-- [ ] BUILDING_ACCELERATE_SOLUTION = "building/accelerateSolution";
-- [ ] BUILDING_BUY_LABOR = "building/buyLabor";
-- [ ] BUILDING_GET_ASSIST_REPORT = "building/getAssistReport";
-- [ ] BUILDING_SET_ASSIST = "building/setBuildingAssist";
-- [ ] BUILDING_DELETE_OWN_CLUE = "building/deleteOwnClue";
-- [ ] BUILDING_DELETE_RECEIVE_CLUE = "building/deleteReceiveClue";
-- [ ] BUILDING_PUT_CLUE_TO_THE_BOARD = "building/putClueToTheBoard";
-- [ ] BUILDING_SEND_CLUE = "building/sendClue";
-- [ ] BUILDING_GET_MEETING_ROOM_REWARD = "building/getMeetingroomReward";
-- [ ] BUILDING_GET_CLUE_BOX = "building/getClueBox";
-- [ ] BUILDING_RECEIVE_CLUE_TO_STOCK = "building/receiveClueToStock";
-- [ ] BUILDING_START_INFO_SHARE = "building/startInfoShare";
-- [ ] BUILDING_TAKE_CLUE_FROM_BOARD = "building/takeClueFromBoard";
-- [ ] BUILDING_GET_INFO_SHARE_VISITOR_NUM = "building/getInfoShareVisitorsNum";
-- [ ] BUILDING_RECEIVE_INFO_SHARE_REWARD = "building/getInfoShareReward";
-- [ ] BUILDING_GET_RECENT_VISITOR = "building/getRecentVisitors";
-- [ ] BUILDING_GET_DAILY_CLUE = "building/getDailyClue";
-- [ ] BUILDING_BATCH_DELIVERY = "building/deliveryBatchOrder";
-- [ ] BUILDING_BATCH_WORK = "building/batchChangeWorkChar";
-- [ ] BUILDING_BATCH_REST = "building/batchRestChar";
-- [ ] BUILDING_ADD_PRESET_QUEUE = "/building/addPresetQueue";
-- [ ] BUILDING_DELETE_PRESET_QUEUE = "/building/deletePresetQueue";
-- [ ] BUILDING_EDIT_PRESET_QUEUE = "/building/editPresetQueue";
-- [ ] BUILDING_USE_PRESET_QUEUE = "/building/useOnePresetQueue";
-- [ ] STORY_REVIEW_UNLOCK = "storyreview/unlockStoryByCoin";
-- [ ] STORY_REVIEW_READ = "storyreview/readStory";
-- [ ] STORY_REVIEW_GET_REWARDS = "storyreview/rewardGroup";
-- [ ] MARK_STORY_ACCE_KNOWN = "storyreview/markStoryAcceKnown";
-- [ ] STORY_REVIEW_GET_TRIAL_REWARD = "storyreview/trailReward";
-- [ ] BATTLE_START_TRAINING_CAMP = "/trainingGround/battleStart";
-- [ ] BATTLE_FINISH_TRAINING_CAMP = "/trainingGround/battleFinish";
-- [ ] ROGUELIKE_SELECT_INITIAL_RELIC = "/rlv2/chooseInitialRelic";
-- [ ] ROGUELIKE_SELECT_INITIAL_CHOICE = "roguelike/chooseInitialScene";
-- [ ] ROGUELIKE_SELECT_INITIAL_RECRUIT_SET = "/rlv2/chooseInitialRecruitSet";
-- [ ] ROGUELIKE_MOVE_TO = "rlv2/moveTo";
-- [ ] ROGUELIKE_FINISH_REWARD = "/rlv2/finishBattleReward";
-- [ ] ROGUELIKE_SHOP_ACTION = "rlv2/shopAction";
-- [ ] ROGUELIKE_BANK_INVEST = "/rlv2/bankPut";
-- [ ] ROGUELIKE_BANK_WITHDRAW = "/rlv2/bankWithdraw";
-- [ ] ROGUELIKE_SELECT_REWARD = "/rlv2/chooseBattleReward";
-- [ ] ROGUELIKE_SELECT_CHOICE = "rlv2/selectChoice";
-- [ ] ROGUELIKE_CONFIRM_NODE_MISSION = "rlv2/nodeMission/confirm";
-- [ ] ROGUELIKE_GIVE_UP_NODE_MISSION = "rlv2/nodeMission/giveUp";
-- [ ] ROGUELIKE_READ_MISSION_TIP = "rlv2/nodeMission/closeTip";
-- [ ] ROGUELIKE_ACTIVATE_TICKET = "/rlv2/activeRecruitTicket";
-- [ ] ROGUELIKE_CLOSE_TICKET = "/rlv2/closeRecruitTicket";
-- [ ] ROGUELIKE_RECRUIT_CHAR = "/rlv2/recruitChar";
-- [ ] ROGUELIKE_ENDING_CHANGE_READ = "/rlv2/readEndingChange";
-- [ ] ROGUELIKE_ROLL_NODE = "/rlv2/rerollNode";
-- [ ] ROGUELIKE_UPGRADE_NODE = "/rlv2/upgradeNode";
-- [ ] ROGUELIKE_GET_TICKET_ASSIST_LIST = "/rlv2/getTicketAssistList";
-- [ ] ROGUELIKE_RECRUIT_ASSIST_CHAR = "/rlv2/recruitAssistChar";
-- [ ] ROGUELIKE_UPGRADE_CHAR = "roguelike/upgradeChar";
-- [ ] ROGUELIKE_BATTLE_START = "/rlv2/moveAndBattleStart";
-- [ ] ROGUELIKE_BATTLE_FINISH = "/rlv2/battleFinish";
-- [ ] ROGUELIKE_FINISH_EVENT = "/rlv2/finishEvent";
-- [ ] ROGUELIKE_DICE_CHOICE = "/rlv2/diceChoice";
-- [ ] ROGUELIKE_SACRIFICE_CHOICE = "/rlv2/sacrificeChoice";
-- [ ] ROGUELIKE_EXPEDITION_CHOICE = "/rlv2/expeditionChoice";
-- [ ] ROGUELIKE_EXPEDITION_RETURN_CHOICE = "/rlv2/game/confirmExpeditonReturn";
-- [ ] ROGUELIKE_SHOP_BATTLE_START = "/rlv2/shopBattleStart";
-- [ ] ROGUELIKE_SHOP_REFRESH = "/rlv2/refreshShop";
-- [ ] ROGUELIKE_TOPIC_PIN = "/rlv2/setPinned";
-- [ ] ROGUELIKE_ZONE_REWARD = "/rlv2/confirmZoneReward";
-- [ ] ROGUELIKE_TRADER_RETURN = "/rlv2/confirmTraderReturn";
-- [ ] ROGUELIKE_CHOOSE_INITIAL_EXPLORE_TOOL = "/rlv2/chooseInitialExploreTool";
-- [ ] CLIMB_TOWER_LAYER_FIRST_PASS_REWARD = "/tower/layerReward";
-- [ ] CLIMB_TOWER_CREATE_GAME = "/tower/createGame";
-- [ ] CLIMB_TOWER_SETTLE_GAME = "/tower/settleGame";
-- [ ] CLIMB_TOWER_INIT_GOD_CARD = "/tower/initGodCard";
-- [ ] CLIMB_TOWER_INIT_GAME = "/tower/initGame";
-- [ ] CLIMB_TOWER_INIT_SQUAD = "/tower/initCard";
-- [ ] CLIMB_TOWER_BATTLE_START = "/tower/battleStart";
-- [ ] CLIMB_TOWER_BATTLE_FINISH = "/tower/battleFinish";
-- [ ] CLIMB_TOWER_HALF_TIME_RECRUIT = "/tower/recruit";
-- [ ] CLIMB_TOWER_RECRUIT_SUB_GOD_CARD = "/tower/chooseSubGodCard";
-- [ ] CLIMB_TOWER_SEASON_MISSION_AWARD = "/tower/seasonMissonsAward";
-- [ ] CLIMB_TOWER_SWEEP = "/tower/sweepGame";
-- [ ] PAY_CREATE_ORDER = "/pay/createOrder";
-- [ ] PAY_CONFIRM_ORDER = "/pay/confirmOrder";
-- [ ] PAY_GET_UNCONFIRMED_ORDER_LIST = "/pay/getUnconfirmedOrderIdList";
-- [ ] VEC_BREAK_SET_DEFEND = "/activity/vecBreak/setDefend";
-- [ ] VEC_BREAK_BATTLE_START = "/activity/vecBreak/battleStart";
-- [ ] VEC_BREAK_BATTLE_FINISH = "/activity/vecBreak/battleFinish";
-- [ ] ARCADE_BATTLE_START = "/activity/arcade/battleStart";
-- [ ] ARCADE_BATTLE_FINISH = "/activity/arcade/battleFinish";
-- [x] CHAR_ROTATION_SET_CURRENT = "/charRotation/setCurrent";
-- [x] CHAR_ROTATION_CREATE_PRESET = "/charRotation/createPreset";
-- [x] CHAR_ROTATION_UPDATE_PRESET = "/charRotation/updatePreset";
-- [x] CHAR_ROTATION_DELETE_PRESET = "/charRotation/deletePreset";
+# DoctorateTs API 接口文档
+
+## 概述
+
+本文档记录了 DoctorateTs 服务器提供的所有 API 接口。所有接口均为 POST 请求，返回 JSON 格式数据。
+
+## 基础路径
+
+- 认证接口：`/auth`
+- 游戏接口：`/`
+
+## 通用响应格式
+
+```json
+{
+  "result": 0,
+  "playerDataDelta": { ... },
+  "data": { ... }
+}
+```
+
+- `result`: 错误码，0 表示成功
+- `playerDataDelta`: 玩家数据变更（增量更新）
+- `data`: 接口返回的具体数据
+
+---
+
+## 认证模块
+
+### GET /auth/general/v1/server_time
+获取服务器时间
+
+**响应**:
+```json
+{
+  "status": 0,
+  "type": "A",
+  "msg": "OK",
+  "data": {
+    "serverTime": 1700000000,
+    "isHoliday": false
+  }
+}
+```
+
+### GET /auth/app/v1/config
+获取应用配置
+
+**响应**: 返回应用配置 JSON
+
+### POST /auth/user/auth/v1/token_by_phone_password
+通过手机号和密码获取 Token
+
+**请求参数**:
+```json
+{
+  "phone": "string",
+  "password": "string"
+}
+```
+
+**响应**:
+```json
+{
+  "status": 0,
+  "msg": "OK",
+  "data": {
+    "token": "string"
+  }
+}
+```
+
+### GET /auth/user/info/v1/basic
+获取用户基本信息
+
+**请求参数**:
+- `token`: 用户 Token（URL 参数）
+
+**响应**:
+```json
+{
+  "status": 0,
+  "msg": "OK",
+  "data": {
+    "hgId": "string",
+    "phone": "string",
+    "email": "string"
+  }
+}
+```
+
+### POST /auth/user/oauth2/v2/grant
+OAuth2 授权
+
+**请求参数**:
+```json
+{
+  "token": "string"
+}
+```
+
+**响应**:
+```json
+{
+  "status": 0,
+  "msg": "OK",
+  "data": {
+    "code": "string",
+    "uid": "string"
+  }
+}
+```
+
+---
+
+## 账号模块
+
+### POST /account/login
+用户登录
+
+**响应**:
+```json
+{
+  "result": 0,
+  "uid": "string",
+  "secret": "string",
+  "serviceLicenseVersion": 0
+}
+```
+
+### POST /account/syncData
+同步用户数据
+
+**响应**:
+```json
+{
+  "result": 0,
+  "ts": 1700000000,
+  "user": { ... },
+  "playerDataDelta": { ... }
+}
+```
+
+### POST /account/syncStatus
+同步用户状态
+
+**响应**:
+```json
+{
+  "ts": 1700000000,
+  "result": {},
+  "playerDataDelta": { ... }
+}
+```
+
+### POST /account/syncPushMessage
+同步推送消息
+
+**响应**:
+```json
+{
+  "playerDataDelta": { ... }
+}
+```
+
+---
+
+## 用户模块
+
+### POST /user/changeSecretary
+更换助理干员
+
+**请求参数**:
+```json
+{
+  "charInstId": 123
+}
+```
+
+### POST /user/changeAvatar
+更换头像
+
+**请求参数**:
+```json
+{
+  "avatarId": "string"
+}
+```
+
+### POST /user/changeResume
+修改个人简介
+
+**请求参数**:
+```json
+{
+  "resume": "string"
+}
+```
+
+### POST /user/bindNickName
+绑定昵称
+
+**请求参数**:
+```json
+{
+  "nickName": "string"
+}
+```
+
+**响应**:
+- `result: 0` - 成功
+- `result: 1` - 昵称过长（超过16字符）
+- `result: 2` - 包含特殊字符
+- `result: 3` - 包含敏感词
+
+### POST /user/useRenameCard
+使用改名卡
+
+**请求参数**:
+```json
+{
+  "nickName": "string",
+  "itemId": "string",
+  "instId": 123
+}
+```
+
+### POST /user/receiveTeamCollectionReward
+领取编队收集奖励
+
+**请求参数**:
+```json
+{
+  "groupId": "string"
+}
+```
+
+### POST /user/buyAp
+购买理智
+
+### POST /user/exchangeDiamondShard
+兑换源石碎片
+
+**请求参数**:
+```json
+{
+  "count": 10
+}
+```
+
+### POST /user/useItem
+使用物品
+
+**请求参数**:
+```json
+{
+  "itemId": "string",
+  "count": 1,
+  "instId": 123
+}
+```
+
+### POST /user/useItems
+批量使用物品
+
+**请求参数**:
+```json
+{
+  "items": [
+    { "itemId": "string", "cnt": 1, "instId": 123 }
+  ]
+}
+```
+
+### POST /user/checkIn
+签到
+
+**响应**:
+```json
+{
+  "rewards": [...],
+  "playerDataDelta": { ... }
+}
+```
+
+---
+
+## 抽卡模块
+
+### POST /gacha/syncNormalGacha
+同步公开招募状态
+
+### POST /gacha/finishNormalGacha
+完成公开招募
+
+**请求参数**:
+```json
+{
+  "slotId": "string"
+}
+```
+
+**响应**:
+```json
+{
+  "charGet": { ... },
+  "playerDataDelta": { ... }
+}
+```
+
+### POST /gacha/normalGacha
+开始公开招募
+
+**请求参数**:
+```json
+{
+  "slotId": "string",
+  "tags": [1, 2, 3]
+}
+```
+
+**响应**:
+```json
+{
+  "charGet": { ... },
+  "playerDataDelta": { ... }
+}
+```
+
+### POST /gacha/boostNormalGacha
+加速公开招募
+
+**请求参数**:
+```json
+{
+  "slotId": "string"
+}
+```
+
+### POST /gacha/cancelNormalGacha
+取消公开招募
+
+**请求参数**:
+```json
+{
+  "slotId": "string"
+}
+```
+
+### POST /gacha/buyRecruitSlot
+购买招募栏位
+
+**请求参数**:
+```json
+{
+  "num": 1
+}
+```
+
+### POST /gacha/refreshTags
+刷新招募标签
+
+**请求参数**:
+```json
+{
+  "slotId": "string"
+}
+```
+
+### POST /gacha/getPoolDetail
+获取卡池详情
+
+**请求参数**:
+```json
+{
+  "poolId": "string"
+}
+```
+
+**响应**:
+```json
+{
+  "detailInfo": { ... },
+  "gachaObjGroupType": 0,
+  "playerDataDelta": { ... }
+}
+```
+
+### POST /gacha/advancedGacha
+高级抽卡（单抽）
+
+**请求参数**:
+```json
+{
+  "poolId": "string",
+  "useTkt": 1,
+  "itemId": "string"
+}
+```
+
+**响应**:
+```json
+{
+  "result": 0,
+  "charGet": { ... },
+  "playerDataDelta": { ... }
+}
+```
+
+### POST /gacha/tenAdvancedGacha
+高级抽卡（十连）
+
+**请求参数**:
+```json
+{
+  "poolId": "string",
+  "useTkt": 1,
+  "itemList": [...]
+}
+```
+
+**响应**:
+```json
+{
+  "result": 0,
+  "gachaResultList": [...],
+  "playerDataDelta": { ... }
+}
+```
+
+---
+
+## 角色养成模块
+
+### POST /charBuild/setDefaultSkill
+设置默认技能
+
+**请求参数**:
+```json
+{
+  "charInstId": 123,
+  "skillIndex": 1
+}
+```
+
+### POST /charBuild/upgradeChar
+升级角色
+
+**请求参数**:
+```json
+{
+  "charInstId": 123,
+  "targetLevel": 50
+}
+```
+
+### POST /charBuild/evolveChar
+精英化角色
+
+**请求参数**:
+```json
+{
+  "charInstId": 123
+}
+```
+
+### POST /charBuild/lockChar
+锁定角色
+
+**请求参数**:
+```json
+{
+  "charInstId": 123,
+  "isLock": true
+}
+```
+
+### POST /charBuild/sellChar
+出售角色
+
+**请求参数**:
+```json
+{
+  "charInstIds": [123]
+}
+```
+
+### POST /charBuild/boostPotential
+提升潜能
+
+**请求参数**:
+```json
+{
+  "charInstId": 123
+}
+```
+
+### POST /charBuild/upgradeSkill
+升级技能
+
+**请求参数**:
+```json
+{
+  "charInstId": 123,
+  "skillId": "string",
+  "level": 7
+}
+```
+
+### POST /charBuild/upgradeSpecialization
+专精技能
+
+**请求参数**:
+```json
+{
+  "charInstId": 123,
+  "skillId": "string"
+}
+```
+
+### POST /charBuild/completeUpgradeSpecialization
+完成技能专精
+
+**请求参数**:
+```json
+{
+  "charInstId": 123,
+  "skillId": "string"
+}
+```
+
+### POST /charBuild/changeCharSkin
+更换角色皮肤
+
+**请求参数**:
+```json
+{
+  "charInstId": 123,
+  "skinId": "string"
+}
+```
+
+### POST /charBuild/changeCharTemplate
+切换角色模板
+
+**请求参数**:
+```json
+{
+  "charInstId": 123,
+  "templateId": "string"
+}
+```
+
+### POST /charBuild/unlockEquipment
+解锁模组
+
+**请求参数**:
+```json
+{
+  "charInstId": 123,
+  "equipId": "string"
+}
+```
+
+### POST /charBuild/upgradeEquipment
+升级模组
+
+**请求参数**:
+```json
+{
+  "charInstId": 123,
+  "equipId": "string"
+}
+```
+
+### POST /charBuild/setEquipment
+装备模组
+
+**请求参数**:
+```json
+{
+  "charInstId": 123,
+  "equipId": "string"
+}
+```
+
+### POST /charBuild/setCharVoiceLan
+设置角色语音语言
+
+**请求参数**:
+```json
+{
+  "charInstId": 123,
+  "voiceLan": "string"
+}
+```
+
+### POST /charBuild/batchSetCharVoiceLan
+批量设置角色语音语言
+
+**请求参数**:
+```json
+{
+  "charInstIds": [123],
+  "voiceLan": "string"
+}
+```
+
+---
+
+## 社交模块
+
+### POST /social/deleteFriend
+删除好友
+
+**请求参数**:
+```json
+{
+  "friendUid": "string"
+}
+```
+
+### POST /social/sendFriendRequest
+发送好友请求
+
+**请求参数**:
+```json
+{
+  "friendUid": "string"
+}
+```
+
+### POST /social/processFriendRequest
+处理好友请求
+
+**请求参数**:
+```json
+{
+  "friendUid": "string",
+  "isAccept": true
+}
+```
+
+### POST /social/searchPlayer
+搜索玩家
+
+**请求参数**:
+```json
+{
+  "keyword": "string"
+}
+```
+
+**响应**:
+```json
+{
+  "players": [...],
+  "playerDataDelta": { ... }
+}
+```
+
+### POST /social/getSortListInfo
+获取好友排序列表信息
+
+**请求参数**:
+```json
+{
+  "friendUids": ["string"]
+}
+```
+
+### POST /social/getFriendList
+获取好友列表
+
+### POST /social/getFriendRequestList
+获取好友请求列表
+
+### POST /social/setAssistCharList
+设置助战干员
+
+**请求参数**:
+```json
+{
+  "assistCharList": [...]
+}
+```
+
+### POST /social/setFriendAlias
+设置好友备注
+
+**请求参数**:
+```json
+{
+  "friendUid": "string",
+  "alias": "string"
+}
+```
+
+### POST /social/receiveSocialPoint
+领取社交点数
+
+### POST /social/setCardShowMedal
+设置名片展示勋章
+
+**请求参数**:
+```json
+{
+  "medalIds": [...]
+}
+```
+
+---
+
+## 名片模块
+
+### POST /businessCard/changeNameCardSkin
+更换名片皮肤
+
+**请求参数**:
+```json
+{
+  "skinId": "string"
+}
+```
+
+### POST /businessCard/changeNameCardComponent
+更换名片组件
+
+**请求参数**:
+```json
+{
+  "componentOrder": ["string"]
+}
+```
+
+### POST /businessCard/editNameCard
+编辑名片
+
+**请求参数**:
+```json
+{
+  "birthday": { "month": 1, "day": 1 },
+  "showDetail": true,
+  "showBirthday": true
+}
+```
+
+### POST /businessCard/getOtherPlayerNameCard
+获取其他玩家名片
+
+**请求参数**:
+```json
+{
+  "uid": "string"
+}
+```
+
+**响应**:
+```json
+{
+  "nameCard": { ... },
+  "playerDataDelta": { ... }
+}
+```
+
+---
+
+## 商店模块
+
+### POST /shop/decomposePotentialItem
+分解潜能材料
+
+**请求参数**:
+```json
+{
+  "charInstIds": [123]
+}
+```
+
+**响应**:
+```json
+{
+  "items": [...],
+  "playerDataDelta": { ... }
+}
+```
+
+### POST /shop/decomposeClassicPotentialItem
+分解经典潜能材料
+
+**请求参数**:
+```json
+{
+  "charInstIds": [123]
+}
+```
+
+### POST /shop/getGoodPurchaseState
+获取商品购买状态
+
+### POST /shop/getLowGoodList
+获取低级商店商品列表
+
+### POST /shop/getHighGoodList
+获取高级商店商品列表
+
+### POST /shop/getClassicGoodList
+获取经典商店商品列表
+
+### POST /shop/getEPGSGoodList
+获取联合行动商品列表
+
+### POST /shop/getLMTGSGoodList
+获取限定商品列表
+
+### POST /shop/getExtraGoodList
+获取额外商店商品列表
+
+### POST /shop/getREPGoodList
+获取声望商店商品列表
+
+### POST /shop/getSkinGoodList
+获取皮肤商店商品列表
+
+### POST /shop/getCashGoodList
+获取现金商店商品列表
+
+### POST /shop/getGPGoodList
+获取信用商店商品列表
+
+### POST /shop/getSocialGoodList
+获取社交商店商品列表
+
+### POST /shop/getFurniGoodList
+获取家具商店商品列表
+
+### POST /shop/buyLowGood
+购买低级商店商品
+
+**请求参数**:
+```json
+{
+  "goodId": "string",
+  "count": 1
+}
+```
+
+### POST /shop/buyHighGood
+购买高级商店商品
+
+**请求参数**:
+```json
+{
+  "goodId": "string",
+  "count": 1
+}
+```
+
+### POST /shop/buyExtraGood
+购买额外商店商品
+
+### POST /shop/buyCashGood
+购买现金商品
+
+### POST /shop/buyEPGSGood
+购买联合行动商品
+
+### POST /shop/buyREPGood
+购买声望商品
+
+### POST /shop/buyClassicGood
+购买经典商店商品
+
+### POST /shop/buyLMTGSGood
+购买限定商品
+
+### POST /shop/buyFurniGood
+购买家具
+
+### POST /shop/buySkinGood
+购买皮肤
+
+---
+
+## 肉鸽模式模块
+
+### POST /rlv2/giveUpGame
+放弃肉鸽游戏
+
+### POST /rlv2/createGame
+创建肉鸽游戏
+
+**请求参数**:
+```json
+{
+  "theme": "string",
+  "mode": "string",
+  "modeGrade": 0,
+  "predefinedId": "string"
+}
+```
+
+### POST /rlv2/chooseInitialRelic
+选择初始遗物
+
+**请求参数**:
+```json
+{
+  "select": "string"
+}
+```
+
+### POST /rlv2/chooseInitialRecruitSet
+选择初始招募组
+
+**请求参数**:
+```json
+{
+  "select": "string"
+}
+```
+
+### POST /rlv2/activeRecruitTicket
+激活招募券
+
+**请求参数**:
+```json
+{
+  "id": "string"
+}
+```
+
+### POST /rlv2/recruitChar
+招募角色
+
+**请求参数**:
+```json
+{
+  "ticketIndex": "string",
+  "optionId": "string"
+}
+```
+
+**响应**:
+```json
+{
+  "chars": [...],
+  "playerDataDelta": { ... }
+}
+```
+
+### POST /rlv2/finishEvent
+完成事件
+
+### POST /rlv2/moveTo
+移动到节点
+
+**请求参数**:
+```json
+{
+  "to": { "x": 0, "y": 0 }
+}
+```
+
+### POST /rlv2/moveAndBattleStart
+移动并开始战斗
+
+**请求参数**:
+```json
+{
+  "to": { "x": 0, "y": 0 },
+  "stageId": "string",
+  "squad": { ... }
+}
+```
+
+### POST /rlv2/battleFinish
+战斗结束
+
+**请求参数**:
+```json
+{
+  "battleLog": "string",
+  "data": "string",
+  "battleData": { ... }
+}
+```
+
+### POST /rlv2/chooseBattleReward
+选择战斗奖励
+
+**请求参数**:
+```json
+{
+  "index": 0,
+  "sub": 0
+}
+```
+
+### POST /rlv2/finishBattleReward
+完成战斗奖励选择
+
+### POST /rlv2/setTroopCarry
+设置编队携带
+
+**请求参数**:
+```json
+{
+  "troopCarry": ["string"]
+}
+```
+
+### POST /rlv2/loseFragment
+失去碎片
+
+**请求参数**:
+```json
+{
+  "fragmentIndex": "string"
+}
+```
+
+### POST /rlv2/useInspiration
+使用灵感
+
+**请求参数**:
+```json
+{
+  "fragmentIndex": "string"
+}
+```
+
+### POST /rlv2/setPinned
+设置置顶
+
+**请求参数**:
+```json
+{
+  "id": "string"
+}
+```
+
+---
+
+## 基建模块
+
+### POST /building/sync
+同步基建数据
+
+### POST /building/upgradeRoom
+升级房间
+
+**请求参数**:
+```json
+{
+  "roomId": "string"
+}
+```
+
+### POST /building/completeUpgradeRoom
+完成房间升级
+
+### POST /building/settleManufacture
+结算制造站
+
+**请求参数**:
+```json
+{
+  "roomId": "string"
+}
+```
+
+### POST /building/buildRoom
+建造房间
+
+**请求参数**:
+```json
+{
+  "roomType": "string",
+  "roomId": "string"
+}
+```
+
+### POST /building/cleanRoomSlot
+清理房间槽位
+
+**请求参数**:
+```json
+{
+  "roomSlotId": "string"
+}
+```
+
+### POST /building/visitBuilding
+访问基建
+
+### POST /building/changeManufactureSolution
+更换制造配方
+
+**请求参数**:
+```json
+{
+  "roomId": "string",
+  "formulaId": "string"
+}
+```
+
+### POST /building/changeSaleSolution
+更换贸易配方
+
+**请求参数**:
+```json
+{
+  "roomId": "string",
+  "formulaId": "string"
+}
+```
+
+### POST /building/assignChar
+分配干员
+
+**请求参数**:
+```json
+{
+  "roomSlotId": "string",
+  "charInstId": 123
+}
+```
+
+### POST /building/settleSale
+结算贸易站
+
+**请求参数**:
+```json
+{
+  "roomId": "string"
+}
+```
+
+### POST /building/deliveryOrder
+交付订单
+
+**请求参数**:
+```json
+{
+  "roomId": "string",
+  "orderId": "string"
+}
+```
+
+### POST /building/changeStrategy
+更换策略
+
+**请求参数**:
+```json
+{
+  "roomId": "string",
+  "strategy": "string"
+}
+```
+
+---
+
+## 任务模块
+
+### POST /mission/exchangeMissionRewards
+兑换任务奖励
+
+**请求参数**:
+```json
+{
+  "missionGroupId": "string"
+}
+```
+
+### POST /mission/confirmMission
+确认任务完成
+
+**请求参数**:
+```json
+{
+  "missionId": "string"
+}
+```
+
+### POST /mission/confirmMissionGroup
+确认任务组完成
+
+**请求参数**:
+```json
+{
+  "missionGroupId": "string"
+}
+```
+
+### POST /mission/autoConfirmMissions
+自动确认所有已完成任务
+
+---
+
+## 邮件模块
+
+### POST /mail/listMailBox
+获取邮件列表
+
+### POST /mail/receiveMail
+领取邮件
+
+**请求参数**:
+```json
+{
+  "mailId": "string"
+}
+```
+
+### POST /mail/receiveAllMail
+领取所有邮件
+
+### POST /mail/removeAllReceivedMail
+删除所有已领取邮件
+
+---
+
+## 活动模块
+
+### POST /activity/getChainLogInReward
+获取连续登录奖励
+
+**请求参数**:
+```json
+{
+  "index": 0
+}
+```
+
+### POST /activity/getOpenServerCheckInReward
+获取开服签到奖励
+
+**请求参数**:
+```json
+{
+  "index": 0
+}
+```
+
+---
+
+## 角色轮换模块
+
+### POST /charRotation/setCurrent
+设置当前轮换
+
+**请求参数**:
+```json
+{
+  "presetId": "string"
+}
+```
+
+### POST /charRotation/createPreset
+创建轮换预设
+
+**请求参数**:
+```json
+{
+  "name": "string",
+  "background": "string",
+  "homeTheme": "string",
+  "profile": "string",
+  "slots": [...]
+}
+```
+
+### POST /charRotation/updatePreset
+更新轮换预设
+
+**请求参数**:
+```json
+{
+  "presetId": "string",
+  "name": "string",
+  "slots": [...]
+}
+```
+
+### POST /charRotation/deletePreset
+删除轮换预设
+
+**请求参数**:
+```json
+{
+  "presetId": "string"
+}
+```
+
+---
+
+## 故事回顾模块
+
+### POST /storyreview/unlockStoryByCoin
+使用金币解锁故事
+
+**请求参数**:
+```json
+{
+  "groupId": "string"
+}
+```
+
+### POST /storyreview/readStory
+标记故事已读
+
+**请求参数**:
+```json
+{
+  "storyId": "string"
+}
+```
+
+### POST /storyreview/rewardGroup
+领取故事奖励
+
+**请求参数**:
+```json
+{
+  "groupId": "string"
+}
+```
+
+---
+
+## 资源文件模块
+
+### GET /assetbundle/official/Android/assets/:assetsHash/:fileName
+获取资源文件
+
+**路径参数**:
+- `assetsHash`: 资源哈希
+- `fileName`: 文件名
+
+**响应**: 返回资源文件二进制数据
+
+---
+
+## 配置模块
+
+### GET /config/prod
+获取生产环境配置
+
+**响应**: 返回生产环境配置 JSON

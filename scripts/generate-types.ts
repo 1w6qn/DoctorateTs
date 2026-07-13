@@ -256,12 +256,10 @@ function parseFbsFile(content: string): { enums: EnumDef[]; tables: TableDef[] }
 
 function generateEnumCode(enumDef: EnumDef): string {
   const values = enumDef.values
-    .map(v => `    ${v.name} = ${v.value},`)
-    .join("\n");
+    .map(v => `"${v.name}"`)
+    .join(" | ");
 
-  return `export enum ${enumDef.name} {
-${values}
-}`;
+  return `export type ${enumDef.name} = ${values};`;
 }
 
 function generateInterfaceCode(tableDef: TableDef): string {

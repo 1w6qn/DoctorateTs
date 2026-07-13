@@ -4,3294 +4,715 @@
  * 请勿手动修改此文件
  */
 
-export enum AbnormalCombo {
-    SLEEPING = 0,
-    SHELTERING = 1,
-    E_NUM = 2,
-}
-
-export enum AbnormalFlag {
-    STUNNED = 0,
-    SP_RECOVER_STOPPED = 1,
-    TARGET_FREE = 2,
-    BLOCK_FREE = 3,
-    HIDDEN = 4,
-    INVINCIBLE = 5,
-    UNDEADABLE = 6,
-    HEAL_FREE = 7,
-    UNBALANCE_IMMUNE = 8,
-    INVISIBLE = 9,
-    UNUSED_PLACEHOLDER_2 = 14,
-    ALLY_TARGET_FREE = 15,
-    UNUSED_PLACEHOLDER_1 = 10,
-    DISARMED = 11,
-    SILENCED = 12,
-    UNMOVABLE = 13,
-    FROZEN = 16,
-    CAMOUFLAGE = 17,
-    FORCE_DISARMED = 18,
-    STUNNED_NO_AMPLIFY_DAMAGE = 19,
-    DISABLE_COMBAT = 20,
-    ELEMENT_FREE_ALL = 21,
-    UNMOVABLE_PRIVATE = 22,
-    COLD = 23,
-    SKILL_NOT_ACTIVATABLE = 24,
-    LEVITATE = 25,
-    DURANCE = 26,
-    NOT_WITHDRAWABLE = 27,
-    OUT_OF_GROUND = 28,
-    SP_MODIFY_STOPPED = 29,
-    ANTI_STATUS_RESISTABLE = 30,
-    DISARMED_COMBAT = 31,
-    TOWER_TARGET_FREE = 32,
-    FEARED = 33,
-    SKILL_ACTIVABLE_IN_ABNORMAL = 34,
-    MOTION_TARGET_FREE = 35,
-    FORCE_LEVITATE = 36,
-    BUFF_ADD_CAN_BE_CANCELED_IF_DEFENSE = 37,
-    DEFENSE_BUFF_ADD_IF_CANCELABLE_BUFF = 38,
-    PALSY = 39,
-    PALSYING = 40,
-    ATTRACTED = 41,
-    FEARED_PRIVATE = 42,
-    DOZE = 43,
-    TELEPORTED = 44,
-    E_NUM = 45,
-}
-
-export enum Act12SideData_ActZoneClass {
-    NONE = 0,
-    NORMAL = 1,
-    HIGHLEVEL = 2,
-    SUB = 3,
-}
-
-export enum Act12SideData_RecycleAnimationState {
-    NONE = 0,
-    NORMAL = 1,
-    SMILE = 2,
-}
-
-export enum Act12SideData_RecycleDialogType {
-    NONE = 0,
-    EMPTY = 1,
-    LOW = 2,
-    MEDIUM = 3,
-    HIGH = 4,
-    GACHA = 5,
-}
-
-export enum Act13SideData_ActZoneClass {
-    NONE = 0,
-    NORMAL = 1,
-    HIGHLEVEL = 2,
-    SUB = 3,
-}
-
-export enum Act13SideData_PrestigeRank {
-    D = 0,
-    C = 1,
-    B = 2,
-    A = 3,
-    S = 4,
-}
-
-export enum Act13SideData_UnlockCondition {
-    NONE = 0,
-    PRESTIGE = 1,
-    STAGE = 2,
-}
-
-export enum Act17sideData_ArchiveItemStageUnlockParam {
-    NONE = 0,
-    PLAYED = 1,
-    PASS = 2,
-    COMPLETE = 3,
-}
-
-export enum Act17sideData_ArchiveItemUnlockCondition {
-    NONE = 0,
-    STAGE = 1,
-    NODE = 2,
-}
-
-export enum Act17sideData_ChapterIconType {
-    NORMAL = 0,
-    EX = 1,
-    HARD = 2,
-}
-
-export enum Act17sideData_NodeType {
-    LANDMARK = 0,
-    STORY = 1,
-    BATTLE = 2,
-    ENDING = 3,
-    TREASURE = 4,
-    EVENT = 5,
-    TECH = 6,
-    CHOICE = 7,
-}
-
-export enum Act17sideData_TrackPointType {
-    NONE = 0,
-    MAIN = 1,
-    SUB = 2,
-}
-
-export enum Act17sideData_TreasureType {
-    SMALL = 0,
-    SPECIAL = 1,
-}
-
-export enum Act1VHalfIdleBattleItemType {
-    EQUIP = 0,
-    TRAP = 1,
-}
-
-export enum Act1VHalfIdleEquipType {
-    WEAPON = 0,
-    ARMOR = 1,
-    ACCESSORY = 2,
-    NUM = 3,
-}
-
-export enum Act1VHalfIdleGachaPoolType {
-    NONE = 0,
-    GACHA_NORMAL = 1,
-    GACHA_NEWPLAYER = 2,
-    GACHA_PAC = 3,
-    GACHA_DIRECT = 4,
-}
-
-export enum Act1VHalfIdleItemType {
-    NONE = 0,
-    LEVEL_EXP = 1,
-    SKILL_EXP = 2,
-    STRATEGY_POINT = 3,
-    ASC = 4,
-    GACHA = 5,
-    MODEL = 6,
-    ACTIVITY_ITEM = 7,
-}
-
-export enum Act1VHalfIdlePlotCombineType {
-    NONE = 0,
-    SINGLE = 1,
-    PLUS = 2,
-    PLUS_OR = 3,
-}
-
-export enum Act1VHalfIdlePlotType {
-    NONE = 0,
-    LANDSCAPE = 1,
-    ROAD = 2,
-    ROADSIDE = 3,
-    SPECIAL = 4,
-}
-
-export enum Act1VHalfIdleTechTreeNodeType {
-    NONE = 0,
-    NORMAL = 1,
-    DIFFICULTY = 2,
-}
-
-export enum Act24SideData_MeldingGoodDisplayType {
-    NONE = 0,
-    RARE_1 = 1,
-    RARE_2 = 2,
-    RARE_3 = 3,
-}
-
-export enum Act24SideData_MeldingGoodGachaType {
-    NONE = 0,
-    LIMITED = 1,
-    UNLIMITED = 2,
-}
-
-export enum Act24SideData_MeldingItemRarityType {
-    NONE = 0,
-    RARITY_1 = 1,
-    RARITY_2 = 2,
-    RARITY_3 = 3,
-    RARITY_4 = 4,
-    RARITY_5 = 5,
-    RARITY_6 = 6,
-}
-
-export enum Act24SideData_MissionType {
-    NONE = 0,
-    HUNTING_TASK = 1,
-    COLLECTION_TASK = 2,
-    EXPLORATION_TASK = 3,
-    MONSTER_TASK = 4,
-    INVATION_TASK = 5,
-}
-
-export enum Act25SideData_Act25SideArchiveItemType {
-    PIC = 0,
-    STORY = 1,
-    BATTLE_PERFORMANCE = 2,
-    KEY = 3,
-    ENUM = 4,
-}
-
-export enum Act25SideData_Act25SideArchiveItemUnlockType {
-    MISSION = 0,
-    STAGE = 1,
-    BUFF = 2,
-}
-
-export enum Act25SideData_Act25sideTechType {
-    TECH_1 = 0,
-    TECH_2 = 1,
-    TECH_3 = 2,
-    TECH_4 = 3,
-    TECH_NUM = 4,
-}
-
-export enum Act29SideData_Act29SideInvestType {
-    MAJOR = 0,
-    RARE = 1,
-    NORMAL = 2,
-}
-
-export enum Act29SideData_Act29SideOrcheType {
-    ORCHE_1 = 0,
-    ORCHE_2 = 1,
-    ORCHE_3 = 2,
-    ENUM = 3,
-}
-
-export enum Act29SideData_Act29SideProductType {
-    PRODUCT_TYPE_1 = 0,
-    PRODUCT_TYPE_2 = 1,
-    PRODUCT_TYPE_3 = 2,
-    PRODUCT_TYPE_4 = 3,
-    PRODUCT_TYPE_5 = 4,
-    ENUM = 5,
-}
-
-export enum Act35SideData_DialogueNameBgType {
-    NONE = 0,
-    GREEN = 1,
-    BLUE = 2,
-}
-
-export enum Act35SideData_DialogueType {
-    NONE = 0,
-    ENTRY = 1,
-    BONUS = 2,
-    BUY = 3,
-    PROCESS = 4,
-}
-
-export enum Act38SideData_NpcDialogType {
-    NONE = 0,
-    ENTER_PUZZLE = 1,
-    PLATE_ERROR = 2,
-    HINT_SUCC = 3,
-    HINT_FAIL = 4,
-    PUZZLE_SOLVED = 5,
-}
-
-export enum Act3D0Data_GachaBoxType {
-    LIMITED = 0,
-    UNLIMITED = 1,
-}
-
-export enum Act3D0Data_GoodType {
-    NORMAL = 0,
-    SPECIAL = 1,
-}
-
-export enum Act42D0Data_Act42D0AreaDifficulty {
-    NONE = 0,
-    NORMAL = 1,
-    HARD = 2,
-}
-
-export enum Act44SideData_InsightType {
-    PATIENCE = 0,
-    ATTENTION = 1,
-    TRUST = 2,
-}
-
-export enum Act4funStageAttributeType {
-    POS = 0,
-    NEG = 1,
-}
-
-export enum Act4funSuperChatType {
-    ROLLED = 0,
-    RELATED = 1,
-}
-
-export enum Act5D1Data_GoodType {
-    NORMAL = 0,
-    PROGRESS = 1,
-}
-
-export enum Act6FunAchievementType {
-    NORMAL = 0,
-    EX = 1,
-}
-
-export enum Act9D0Data_ActivityNewsLineType {
-    TextContent = 0,
-    ImageContent = 1,
-}
-
-export enum ActArcadeData_BadgeType {
-    COMMON = 0,
-    ZONE = 1,
-    ULTIMATE = 2,
-}
-
-export enum ActArcadeData_Rank {
-    B = 0,
-    A = 1,
-    S = 2,
-    SS = 3,
-    SSS = 4,
-}
-
-export enum ActArcadeData_SubModeType {
-    MINER = 0,
-    DRAW = 1,
-    LINE = 2,
-    CAR = 3,
-    E_NUM = 4,
-}
-
-export enum ActArchiveCopperType {
-    LUCK = 1,
-    COPPER = 2,
-    GILD = 3,
-    ERR_ZERO = 0,
-}
-
-export enum ActArchivePicType {
-    IMAGE = 0,
-    BACKGROUND = 1,
-    ENDING_IMAGE = 2,
-    ROGUE_IMAGE = 3,
-}
-
-export enum ActArchiveResData_ArchiveNewsLineType {
-    TextContent = 0,
-    ImageContent = 1,
-}
-
-export enum ActArchiveTotemType {
-    LOCATION = 0,
-    EFFECT = 1,
-    AFFIX = 2,
-}
-
-export enum ActArchiveType {
-    NONE = 0,
-    TIMELINE = 1,
-    MUSIC = 2,
-    PIC = 3,
-    AVG = 4,
-    STORY = 5,
-    NEWS = 6,
-    BUFF = 7,
-    RELIC = 8,
-    CAPSULE = 9,
-    TRAP = 10,
-    CHAT = 11,
-    LANDMARK = 12,
-    LOG = 13,
-    ACTIVITY_ENTRY = 14,
-    DYNAMIC_MUSIC = 15,
-    DYNAMIC_PIC = 16,
-    ENDBOOK = 17,
-    DYNAMIC_STORY = 18,
-    TOTEM = 19,
-    CHAOS = 20,
-    CHALLENGE_BOOK = 21,
-    ACHIEVEMENT = 22,
-    QUEST = 23,
-    FRAGMENT = 24,
-    DISASTER = 25,
-    COPPER = 26,
-    WRATH = 27,
-    SCRAP = 28,
-    WEATHER = 29,
-}
-
-export enum ActAutoChessBondActiveConditionType {
-    BOARD = 0,
-    BOARD_AND_DECK = 1,
-    DECK = 2,
-    BOARD_ALL_CHESS = 3,
-}
-
-export enum ActAutoChessBondActiveType {
-    BATTLE = 0,
-    ALL = 1,
-    MANI = 2,
-}
-
-export enum ActAutoChessModeDifficultyType {
-    TRAINING = 0,
-    FUNNY = 1,
-    NORMAL = 2,
-    HARD = 3,
-    ABYSS = 4,
-}
-
-export enum ActAutoChessModeType {
-    LOCAL = 0,
-    SINGLE = 1,
-    MULTI = 2,
-}
-
-export enum ActivityBossRushData_BossRushStageType {
-    NONE = 0,
-    NORMAL = 1,
-    TEAM = 2,
-    EX = 3,
-    SP = 4,
-}
-
-export enum ActivityCollectionData_JumpType {
-    NONE = 0,
-    ROGUE = 1,
-    CHAR_REPO = 2,
-}
-
-export enum ActivityCompleteType {
-    SPECIAL = 0,
-    CAN_COMPLETE = 1,
-    CANNOT_COMPLETE = 2,
-}
-
-export enum ActivityDisplayType {
-    NONE = 0,
-    SIDESTORY = 1,
-    BRANCHLINE = 2,
-    MINISTORY = 3,
-}
-
-export enum ActivityInterlockData_InterlockStageType {
-    NONE = 0,
-    NORMAL = 1,
-    INTERLOCK = 2,
-    FINAL = 3,
-}
-
-export enum ActivityThemeType {
-    NONE = 0,
-    ACTIVITY = 1,
-    CRISIS = 2,
-    MAINLINE = 3,
-    ROGUELIKE = 4,
-    CRISISV2 = 5,
-    SANDBOX_PERM = 6,
-    ACTIVITY_COMP = 7,
-}
-
-export enum ActivityType {
-    DEFAULT = 0,
-    MISSION_ONLY = 1,
-    CHECKIN_ONLY = 2,
-    CHECKIN_ALL_PLAYER = 3,
-    TYPE_ACT3D0 = 4,
-    TYPE_ACT4D0 = 5,
-    TYPE_ACT5D0 = 6,
-    TYPE_ACT5D1 = 7,
-    COLLECTION = 8,
-    AVG_ONLY = 9,
-    TYPE_ACT9D0 = 10,
-    TYPE_ACT12SIDE = 11,
-    TYPE_ACT13SIDE = 12,
-    TYPE_ACT17SIDE = 13,
-    LOGIN_ONLY = 14,
-    MINISTORY = 15,
-    ROGUELIKE = 16,
-    PRAY_ONLY = 17,
-    MULTIPLAY = 18,
-    MULTIPLAY_VERIFY2 = 19,
-    TYPE_ACT17D7 = 20,
-    GRID_GACHA = 21,
-    GRID_GACHA_V2 = 22,
-    INTERLOCK = 23,
-    APRIL_FOOL = 24,
-    BOSS_RUSH = 25,
-    TYPE_ACT20SIDE = 26,
-    FLOAT_PARADE = 27,
-    TYPE_ACT21SIDE = 28,
-    MAIN_BUFF = 29,
-    TYPE_ACT24SIDE = 30,
-    FLIP_ONLY = 31,
-    TYPE_ACT25SIDE = 32,
-    CHECKIN_VS = 33,
-    SWITCH_ONLY = 34,
-    TYPE_ACT27SIDE = 35,
-    UNIQUE_ONLY = 36,
-    MAINLINE_BP = 37,
-    TYPE_ACT42D0 = 38,
-    TYPE_ACT29SIDE = 39,
-    BLESS_ONLY = 40,
-    CHECKIN_ACCESS = 41,
-    YEAR_5_GENERAL = 42,
-    TYPE_ACT35SIDE = 43,
-    VEC_BREAK = 44,
-    TYPE_ACT36SIDE = 45,
-    TYPE_ACT38SIDE = 46,
-    AUTOCHESS_VERIFY1 = 47,
-    CHECKIN_VIDEO = 48,
-    ARCADE = 49,
-    MULTIPLAY_V3 = 50,
-    TYPE_MAINSS = 51,
-    ENEMY_DUEL = 52,
-    VEC_BREAK_V2 = 53,
-    TYPE_ACT42SIDE = 54,
-    TYPE_ACT44SIDE = 55,
-    HALFIDLE_VERIFY1 = 56,
-    TYPE_ACT45SIDE = 57,
-    TEAM_QUEST = 58,
-    RECRUIT_ONLY = 59,
-    TYPE_ACT46SIDE = 60,
-    AUTOCHESS_SEASON = 61,
-    ACT_FOOTBALL = 62,
-    ENUM = 63,
-}
-
-export enum ActMultiV3BlockDirType {
-    NONE = 0,
-    UP = 1,
-    RIGHT = 2,
-    DOWN = 3,
-    LEFT = 4,
-}
-
-export enum ActMultiV3BlockType {
-    NONE = 0,
-    START = 1,
-    END = 2,
-    MID = 3,
-}
-
-export enum ActMultiV3IdentityType {
-    NONE = 0,
-    HIGH = 1,
-    LOW = 2,
-    TEMPORARY = 3,
-    ALL = 4,
-}
-
-export enum ActMultiV3MapDiffType {
-    NONE = 0,
-    TRAINING = 1,
-    ORDINARY = 2,
-    DIFFICULTY = 3,
-    EXTREMELY = 4,
-}
-
-export enum ActMultiV3MapModeType {
-    NONE = 0,
-    NORMAL = 1,
-    FOOTBALL = 2,
-    DEFENCE = 3,
-    RAFT = 4,
-}
-
-export enum ActMultiV3MatchPosType {
-    NORMAL = 0,
-    COACH = 1,
-    STUDENT = 2,
-}
-
-export enum ActMultiV3PrepareStepType {
-    NONE = 0,
-    STAGE_CHOOSE = 1,
-    ENTRANCE = 2,
-    CHAR_PICK = 3,
-    SYS_ALLOC = 4,
-    SQUAD_CHECK = 5,
-}
-
-export enum ActVecBreakV2ParticleType {
-    NONE = 0,
-    HARD = 1,
-}
-
-export enum ActVecBreakV2StageOrderType {
-    NONE = 0,
-    A = 1,
-    B = 2,
-    C = 3,
-    D = 4,
-}
-
-export enum AlchemyPoolRarityType {
-    NORMAL = 0,
-    RARE = 1,
-    SUPER_RARE = 2,
-}
-
-export enum Anniv7thDisplayNodeType {
-    LETTER = 0,
-    TYPE_WRITER = 1,
-    RECORD = 2,
-    SIGN = 3,
-}
-
-export enum AppearanceStyle {
-    MAIN_NORMAL = 0,
-    MAIN_PREDEFINED = 1,
-    SUB = 2,
-    TRAINING = 3,
-    HIGH_DIFFICULTY = 4,
-    MIST_OPS = 5,
-    SPECIAL_STORY = 6,
-}
-
-export enum AttributeModifierData_AttributeModifier_FormulaItemType {
-    ADDITION = 0,
-    MULTIPLIER = 1,
-    FINAL_ADDITION = 2,
-    FINAL_SCALER = 3,
-}
-
-export enum AttributeType {
-    MAX_HP = 0,
-    ATK = 1,
-    DEF = 2,
-    MAGIC_RESISTANCE = 3,
-    COST = 4,
-    BLOCK_CNT = 5,
-    MOVE_SPEED = 6,
-    ATTACK_SPEED = 7,
-    BASE_ATTACK_TIME = 8,
-    RESERVED_0 = 9,
-    RESERVED_1 = 10,
-    RESERVED_2 = 11,
-    RESERVED_3 = 12,
-    HP_RECOVERY_PER_SEC = 13,
-    SP_RECOVERY_PER_SEC = 14,
-    ABILITY_RANGE_FORWARD_EXTEND = 15,
-    MAX_DEPLOY_COUNT = 16,
-    DEF_PENETRATE = 17,
-    MAGIC_RESIST_PENETRATE = 18,
-    HP_RECOVERY_PER_SEC_BY_MAX_HP_RATIO = 19,
-    TAUNT_LEVEL = 20,
-    RESPAWN_TIME = 21,
-    MAX_DECK_STACK_CNT = 22,
-    MASS_LEVEL = 23,
-    BASE_FORCE_LEVEL = 24,
-    DEF_PENETRATE_FIXED = 25,
-    ONE_MINUS_STATUS_RESISTANCE = 26,
-    MAGIC_RESIST_PENETRATE_FIXED = 27,
-    MAX_EP = 28,
-    EP_RECOVERY_PER_SEC = 29,
-    SP_RECOVER_RATIO = 30,
-    EP_DAMAGE_RESISTANCE = 31,
-    EP_RESISTANCE = 32,
-    DAMAGE_HITRATE_PHYSICAL = 33,
-    DAMAGE_HITRATE_MAGICAL = 34,
-    EP_BREAK_RECOVER_SPEED = 35,
-    SLOW_DOWN = 36,
-    BLOCK_RADIUS_SCALE = 37,
-    E_NUM = 38,
-}
-
-export enum Audio_Middleware_Data_AudioFadeType {
-    LINEAR = 0,
-    CONCAVE = 1,
-}
-
-export enum Audio_MixerDesc_Category {
-    CUSTOM = 0,
-    FX_UI = 1,
-    FX_BATTLE = 2,
-    MUSIC = 3,
-    VOICE = 4,
-    MASTER = 5,
-}
-
-export enum AutoChessBondType {
-    NONE = 0,
-    REGULAR = 1,
-    SEASON = 2,
-}
-
-export enum AutoChessBroadcastType {
-    NONE = 0,
-    GOLDEN_CHAR = 1,
-    SHOP_LEVEL = 2,
-    BOSS_HIT = 3,
-    CHAR_DAMAGE = 4,
-    CHAR_GIFT = 5,
-    BOND_EFFECT = 6,
-}
-
-export enum AutoChessChessType {
-    NORMAL = 0,
-    DIY = 1,
-    PRESET = 2,
-}
-
-export enum AutoChessCountType {
-    NONE = 0,
-    BATTLE_LAYER = 1,
-    COUNTING = 2,
-    PROFESSIONS = 3,
-    GROUPS = 4,
-    LEVEL = 5,
-    PURCHASE = 6,
-}
-
-export enum AutoChessEffectChoiceType {
-    EQUIP_FREE = 0,
-    EQUIP_PAID = 1,
-    BOUNTY_HUNT = 2,
-    BUFF_SELECT = 3,
-    PERSONAL_CHOOSE = 4,
-}
-
-export enum AutoChessEffectCounterType {
-    NONE = 0,
-    TURN_COUNT = 1,
-    TRIGGER_COUNT = 2,
-    CHAR_COUNT = 3,
-    STACK_COUNT = 4,
-    COIN_JAR = 5,
-}
-
-export enum AutoChessEffectType {
-    NONE = 0,
-    BAND_INITIAL = 1,
-    ENEMY = 2,
-    ENEMY_TEMPORARY = 3,
-    ALLY = 4,
-    EQUIP = 5,
-    MAGIC = 6,
-    CHAR_MAP = 7,
-    BOND = 8,
-    ENEMY_GAIN = 9,
-    BUFF_GAIN = 10,
-    GARRISON = 11,
-}
-
-export enum AutoChessItemType {
-    CHAR = 0,
-    EQUIP = 1,
-    MAGIC = 2,
-    TOKEN = 3,
-}
-
-export enum AutoChessPrepareStepType {
-    NONE = 0,
-    INFO_CHECK = 1,
-    BAND_CHECK = 2,
-    BATTLE_CHECK = 3,
-}
-
-export enum AutoChessShopTokenDisplayType {
-    DEFAULT = 0,
-    HIDDEN = 1,
-}
-
-export enum AutoChessSkillTriggerType {
-    DEFAULT = 0,
-    ALWAYS = 1,
-    SEARCH = 2,
-    MLYSS_WTRMAN = 3,
-    MARCILS2 = 4,
-    TRY_SEARCH_ENEMY_SKILL = 5,
-    TRY_SEARCH_ALLY_SKILL = 6,
-    CUSTOM_RANGE_SEARCH_ENEMY = 7,
-    CUSTOM_RANGE_SEARCH_ALLY = 8,
-    GDGLOW_SKILL_2 = 9,
-    ACT_DEFAULT = 10,
-    AUTO_STOP = 11,
-    TAKE_DAMAGE = 12,
-}
-
-export enum Battle_Cooperate_EndTileType {
-    NONE = 0,
-    MY_SIDE = 1,
-    MATE_SIDE = 2,
-    SHARED = 3,
-}
-
-export enum Battle_Cooperate_LASTROUNDRESULT {
-    GOAL = 0,
-    LOST = 1,
-}
-
-export enum Battle_SideType {
-    NONE = 0,
-    ALLY = 1,
-    ENEMY = 2,
-    BOTH_ALLY_AND_ENEMY = 3,
-    NEUTRAL = 4,
-    ALL = 7,
-}
-
-export enum BattleDialogType {
-    NONE = 0,
-    BEFORE = 1,
-    REACT = 2,
-    AFTER = 3,
-    ENUM = 4,
-}
-
-export enum BattleFunctionDisableMask {
-    NONE = 0,
-    CARD_LIST = 1,
-    CHARACTER_MENU = 2,
-    CHARACTER_INFO = 4,
-    SYSTEM_MENU = 8,
-    PAUSE_BUTTON = 16,
-    SPEED_SWITCHER_BUTTON = 32,
-    BATTLE_STATUS = 64,
-    COST_PANEL = 128,
-    SLOW_MOTION = 256,
-    PAUSE_BUTTON_INTERACT = 512,
-    SYSTEM_MENU_INTERACT = 1024,
-    SPEED_SWITCHER_BUTTON_INTERACT = 2048,
-    UNIT_HUD_SKILL_CAST_MASK = 4096,
-    WITHDRAWABLE_PANEL = 8192,
-    COST_PANEL_KEEP_CHARACTERLIMIT = 16384,
-    CHARACTER_LIMIT = 32768,
-    AUTOCHESS_SELL_OR_DESTORY = 65536,
-    CHARACTER_MENU_PANEL = 131072,
-    ALL = 262143,
-}
-
-export enum BattleVoiceOption_BattleVoiceType {
-    BATTLE_START = 0,
-    ENCOUNTER_ENEMY = 1,
-    PLACE_CHAR = 2,
-    FOCUS_CHAR = 3,
-    SKILL_ACTIVE = 4,
-    SKILL_PASSIVE_IMP = 5,
-    SKILL_PASSIVE_NOR = 6,
-    NORMAL_ATTACK = 7,
-    E_NUM = 8,
-}
-
-export enum BuffData_OnEventPriority {
-    HIGHER_PRIORITY = 2000,
-    HIGH_PRIORITY = 1000,
-    DEFAULT = 0,
-}
-
-export enum BuffData_OverrideType {
-    DEFAULT = 0,
-    STACK = 1,
-    UNIQUE = 2,
-    EXTEND = 3,
-    EXTEND_TIME = 4,
-}
-
-export enum BuffData_StatusResistable {
-    NO = 0,
-    YES = 1,
-    AUTOMATIC = 2,
-}
-
-export enum BuildableType {
-    NONE = 0,
-    MELEE = 1,
-    RANGED = 2,
-    ALL = 3,
-}
-
-export enum BuildingData_BuffCategory {
-    NONE = 0,
-    FUNCTION = 1,
-    OUTPUT = 2,
-    RECOVERY = 3,
-}
-
-export enum BuildingData_CharStationFilterType {
-    All = 0,
-    DormLock = 1,
-    NotStationed = 2,
-}
-
-export enum BuildingData_DiySortType {
-    NONE = 0,
-    THEME = 1,
-    FURNITURE = 2,
-    FURNITURE_IN_THEME = 3,
-    RECENT_THEME = 4,
-    RECENT_FURNITURE = 5,
-    MEETING_THEME = 6,
-    MEETING_FURNITURE = 7,
-    MEETING_FURNITURE_IN_THEME = 8,
-    MEETING_RECENT_THEME = 9,
-    MEETING_RECENT_FURNITURE = 10,
-}
-
-export enum BuildingData_DiyUISortOrder {
-    DESC = 0,
-    ASC = 1,
-}
-
-export enum BuildingData_FormulaItemType {
-    NONE = 0,
-    F_EVOLVE = 1,
-    F_BUILDING = 2,
-    F_GOLD = 3,
-    F_DIAMOND = 4,
-    F_FURNITURE = 5,
-    F_EXP = 6,
-    F_ASC = 7,
-    F_SKILL = 8,
-}
-
-export enum BuildingData_FurnitureCategory {
-    FURNITURE = 0,
-    WALL = 1,
-    FLOOR = 2,
-}
-
-export enum BuildingData_FurnitureInteract {
-    NONE = 0,
-    ANIMATOR = 1,
-    MUSIC = 2,
-    FUNCTION = 3,
-}
-
-export enum BuildingData_FurnitureLocation {
-    NONE = 0,
-    WALL = 1,
-    FLOOR = 2,
-    CARPET = 3,
-    CEILING = 4,
-    POSTER = 5,
-    CEILINGDECAL = 6,
-}
-
-export enum BuildingData_FurnitureSubType {
-    NONE = 0,
-    CHAIR = 1,
-    SOFA = 2,
-    BARSTOOL = 3,
-    STOOL = 4,
-    BENCH = 5,
-    ORTHER_S = 6,
-    POSTER = 7,
-    CURTAIN = 8,
-    BOARD_WD = 9,
-    SHELF = 10,
-    INSTRUMENT_WD = 11,
-    ART_WD = 12,
-    PLAQUE = 13,
-    CONTRACT = 14,
-    ANNIHILATION = 15,
-    ORTHER_WD = 16,
-    FLOORLAMP = 17,
-    PLANT = 18,
-    PARTITION = 19,
-    COOKING = 20,
-    CATERING = 21,
-    DEVICE = 22,
-    INSTRUMENT_D = 23,
-    ART_D = 24,
-    BOARD_D = 25,
-    ENTERTAINMENT = 26,
-    STORAGE = 27,
-    DRESSING = 28,
-    WARM = 29,
-    WASH = 30,
-    ORTHER_D = 31,
-    COLUMN = 32,
-    DECORATION_C = 33,
-    CURTAIN_C = 34,
-    DEVICE_C = 35,
-    CONTRACT_2 = 36,
-    LIGHT = 37,
-    ORTHER_C = 38,
-    VISITOR = 39,
-    MUSIC = 40,
-}
-
-export enum BuildingData_FurnitureType {
-    FLOOR = 0,
-    CARPET = 1,
-    SEATING = 2,
-    BEDDING = 3,
-    TABLE = 4,
-    CABINET = 5,
-    DECORATION = 6,
-    WALLPAPER = 7,
-    WALLDECO = 8,
-    WALLLAMP = 9,
-    CEILING = 10,
-    CEILINGLAMP = 11,
-    FUNCTION = 12,
-    INTERACT = 13,
-}
-
-export enum BuildingData_LayoutData_StoreyData_Type {
-    UPGROUND = 0,
-    DOWNGROUND = 1,
-}
-
-export enum BuildingData_LODLEVEL {
-    HIGHEST = 0,
-    HIGH = 1,
-    LOW = 2,
-    LOWEST = 3,
-    COUNT = 4,
-}
-
-export enum BuildingData_RoomCategory {
-    NONE = 0,
-    FUNCTION = 1,
-    OUTPUT = 2,
-    CUSTOM = 4,
-    ELEVATOR = 8,
-    CORRIDOR = 16,
-    SPECIAL = 32,
-    CUSTOM_P = 64,
-    ELEVATOR_P = 128,
-    CORRIDOR_P = 256,
-    ALL = 511,
-}
-
-export enum BuildingData_RoomType {
-    NONE = 0,
-    CONTROL = 1,
-    POWER = 2,
-    MANUFACTURE = 4,
-    SHOP = 8,
-    DORMITORY = 16,
-    MEETING = 32,
-    HIRE = 64,
-    ELEVATOR = 128,
-    CORRIDOR = 256,
-    TRADING = 512,
-    WORKSHOP = 1024,
-    TRAINING = 2048,
-    PRIVATE = 4096,
-    FUNCTIONAL = 3710,
-    ALL = 8191,
-}
-
-export enum CampaignStageType {
-    NONE = 0,
-    PERMANENT = 1,
-    ROTATE = 2,
-    TRAINING = 3,
-}
-
-export enum CartComponents_CartAccessoryPos {
-    NONE = 0,
-    ROOF = 1,
-    HEADSTOCK = 2,
-    TRUNK_01 = 3,
-    TRUNK_02 = 4,
-    CAR_OS_01 = 5,
-    CAR_OS_02 = 6,
-}
-
-export enum CartComponents_CartAccessoryType {
-    NONE = 0,
-    ROOF = 1,
-    HEADSTOCK = 2,
-    TRUNK = 3,
-    CAR_OS = 4,
-}
-
-export enum CGGalleryCGCompositeType {
-    NONE = 0,
-    HORIZONTAL = 1,
-    VERTICAL = 2,
-    GRID = 3,
-}
-
-export enum CGGalleryCGSource {
-    IMAGE = 0,
-    BACKGROUND = 1,
-    ITEM = 2,
-}
-
-export enum ChaosEffectRank {
-    CHAOS_EFFECT_0 = 0,
-    CHAOS_EFFECT_1 = 1,
-    CHAOS_EFFECT_2 = 2,
-}
-
-export enum CharacterData_PotentialRank_TypeEnum {
-    BUFF = 0,
-    CUSTOM = 1,
-}
-
-export enum CharMasterType {
-    NONE = 0,
-    SYSTEM = 1,
-    BATTLE = 2,
-}
-
-export enum CharmRarity {
-    NONE = 0,
-    LOW = 1,
-    MEDIUM = 2,
-    HIGH = 3,
-}
-
-export enum CharWordShowType {
-    HOME_SHOW = 0,
-    HOME_PLACE = 1,
-    HOME_WAIT = 2,
-    GACHA = 3,
-    EVOLVE_ONE = 4,
-    EVOLVE_TWO = 5,
-    FOUR_STAR = 6,
-    THREE_STAR = 7,
-    TWO_STAR = 8,
-    LOSE = 9,
-    LEVEL_UP = 10,
-    SQUAD = 11,
-    SQUAD_FIRST = 12,
-    BATTLE_START = 13,
-    BATTLE_FACE_ENEMY = 14,
-    BATTLE_SELECT = 15,
-    BATTLE_PLACE = 16,
-    BATTLE_SKILL_1 = 17,
-    BATTLE_SKILL_2 = 18,
-    BATTLE_SKILL_3 = 19,
-    BATTLE_SKILL_4 = 20,
-    BUILDING_PLACE = 21,
-    BUILDING_DRAGGING = 22,
-    BUILDING_FAVOR_BUBBLE = 23,
-    BUILDING_TOUCHING = 24,
-    LOADING_PANEL = 25,
-    BIRTHDAY = 26,
-    NEW_YEAR = 27,
-    VALENT_DAY = 28,
-    DRAGON_BOAT_FESTIVAL = 29,
-    HALLOWEEN_DAY = 30,
-    CHRISMATS_DAY = 31,
-    GREETING = 32,
-    ANNIVERSARY = 33,
-    UNUSED = 34,
-    E_ALL = 35,
-}
-
-export enum CharWordVoiceType {
-    ONLY_TEXT = 0,
-    HAVE_CV = 1,
-    ENUM = 2,
-}
-
-export enum CheckpointType {
-    MOVE = 0,
-    WAIT_FOR_SECONDS = 1,
-    WAIT_FOR_PLAY_TIME = 2,
-    WAIT_CURRENT_FRAGMENT_TIME = 3,
-    WAIT_CURRENT_WAVE_TIME = 4,
-    DISAPPEAR = 5,
-    APPEAR_AT_POS = 6,
-    ALERT = 7,
-    PATROL_MOVE = 8,
-    WAIT_BOSSRUSH_WAVE = 9,
-    MAP_OFFSET_MOVE = 10,
-    INVALID = 11,
-}
-
-export enum ClimbTowerCardType {
-    SEASON = 0,
-    TOWER = 1,
-}
-
-export enum ClimbTowerLevelType {
-    NORMAL = 0,
-    HIGHLEVEL = 1,
-    BOSS = 2,
-}
-
-export enum ClimbTowerTaticalBuffType {
-    A = 0,
-    B = 1,
-}
-
-export enum ClimbTowerTowerType {
-    TRAINING = 0,
-    NORMAL = 1,
-}
-
-export enum CollectType {
-    ALL = 0,
-    ROGUE = 1,
-    SANDBOX = 2,
-}
-
-export enum CommonUnlockType {
-    STAGECLEAR = 0,
-    HASCHAR = 1,
-    NONE = 2,
-}
-
-export enum CrisisV2AppraiseType {
-    RANK_D = 0,
-    RANK_C = 1,
-    RANK_B = 2,
-    RANK_A = 3,
-    RANK_S = 4,
-    RANK_SS = 5,
-    RANK_SSS = 6,
-}
-
-export enum CrossAppShareMissionType {
-    NORMAL = 0,
-    ACTIVITY = 1,
-}
-
-export enum CustomTicketType {
-    NONE = 0,
-    PURIFY = 1,
-    GET_CANDLE = 2,
-}
-
-export enum DataUnlockType {
-    DIRECT = 0,
-    AWAKE = 1,
-    FAVOR = 2,
-    STAGE = 3,
-    ITEM = 4,
-    NEVER = 5,
-    PATCH = 6,
-    NONE = 7,
-}
-
-export enum DiceResultClass {
-    VERYBAD = 0,
-    BAD = 1,
-    NORMAL = 2,
-    GOOD = 3,
-    GREAT = 4,
-    BEST = 4,
-}
-
-export enum DiceResultShowType {
-    RAW_TEXT = 0,
-    MUTATION = 1,
-    VIRTUE = 2,
-}
-
-export enum EmojiSceneType {
-    NONE = 0,
-    ACTMULTIV3_ROOM = 1,
-    ACTMULTIV3_PICK = 2,
-    ACTMULTIV3_BATTLE = 3,
-    ENEMYDUEL_BATTLE = 4,
-    AUTOCHESS_ROOM = 5,
-    AUTOCHESS_BATTLE = 6,
-    BUILDING_ACTION = 7,
-}
-
-export enum EnemyDuelBetStrategy {
-    DEFAULT = 0,
-    CHOOSE_WIN = 1,
-    CHOOSE_ODD = 2,
-    FOLLOW_FEWER = 3,
-    FOLLOW_MORE = 4,
-    CHOOSE_ODD_ENEMY_COUNT = 5,
-    CHOOSE_EVEN_ENEMY_COUNT = 6,
-    ALWAYS_LEFT = 7,
-}
-
-export enum EnemyDuelModeType {
-    OPERATION = 0,
-    STAND = 1,
-}
-
-export enum EnemyHandBookDamageType {
-    PHYSIC = 0,
-    MAGIC = 1,
-    HEAL = 2,
-    NO_DAMAGE = 3,
-}
-
-export enum EnemyHandBookData_TextFormat {
-    NORMAL = 0,
-    TITLE = 1,
-    SILENCE = 2,
-}
-
-export enum EnemyLevelType {
-    NORMAL = 0,
-    ELITE = 1,
-    BOSS = 2,
-    E_NUM = 3,
-}
-
-export enum EvolvePhase {
-    PHASE_0 = 0,
-    PHASE_1 = 1,
-    PHASE_2 = 2,
-    PHASE_3 = 3,
-    E_NUM = 4,
-}
-
-export enum FestivalVoiceTimeType {
-    NONE = 0,
-    FESTIVAL = 1,
-    BIRTHDAY = 2,
-}
-
-export enum FifthAnnivExploreValueType {
-    TEAMVALUE_1 = 0,
-    TEAMVALUE_2 = 1,
-    TEAMVALUE_3 = 2,
-}
-
-export enum FireworkData_FireworkDirectionType {
-    TWO_DIR = 0,
-    FOUR_DIR = 1,
-}
-
-export enum FireworkData_FireworkType {
-    RED = 0,
-    BLUE = 1,
-    YELLOW = 2,
-    GREEN = 3,
-}
-
-export enum FogType {
-    ZONE = 0,
-    STAGE = 1,
-}
-
-export enum GachaRuleType {
-    NORMAL = 0,
-    LIMITED = 1,
-    LINKAGE = 2,
-    ATTAIN = 3,
-    CLASSIC = 4,
-    SINGLE = 5,
-    FESCLASSIC = 6,
-    CLASSIC_ATTAIN = 7,
-    SPECIAL = 8,
-    DOUBLE = 9,
-    CLASSIC_DOUBLE = 10,
-    BACKFLOW = 11,
-}
-
-export enum HalfIdleTrapBuildableType {
-    NONE = 0,
-    HIGHLAND = 1,
-    LOWLAND = 2,
-    IGNORE_TILE_HEIGHT = 3,
-    LHHE = 4,
-    LHPLT = 5,
-    LHRUIN = 6,
-    LHBOT = 7,
-}
-
-export enum HandbookDisplayCondition_DisplayType {
-    DISPLAY_IF_CHAREXIST = 0,
-    INVISIBLE_IF_CHAREXIST = 1,
-}
-
-export enum HomeMultiFormChangeRule {
-    NONE = 0,
-    TIME = 1,
-}
-
-export enum HotUpdateMetaPicData_PicType {
-    NONE = 0,
-    SKIN = 1,
-}
-
-export enum IllustNPCResType {
-    NONE = 0,
-    NPC = 1,
-    CHAR = 2,
-}
-
-export enum ItemClassifyType {
-    NONE = 0,
-    CONSUME = 1,
-    NORMAL = 2,
-    MATERIAL = 3,
-}
-
-export enum ItemDropShopType {
-    HGGSHD_SHOP = 0,
-    LGGSHD_SHOP = 1,
-    XSHD_SHOP = 2,
-    EPGS_SHOP = 3,
-    REP_SHOP = 4,
-    CLASSIC_SHOP = 5,
-}
-
-export enum ItemRarity {
-    TIER_1 = 0,
-    TIER_2 = 1,
-    TIER_3 = 2,
-    TIER_4 = 3,
-    TIER_5 = 4,
-    TIER_6 = 5,
-    E_NUM = 6,
-}
-
-export enum ItemType {
-    NONE = 0,
-    CHAR = 1,
-    CARD_EXP = 2,
-    MATERIAL = 3,
-    GOLD = 4,
-    EXP_PLAYER = 5,
-    TKT_TRY = 6,
-    TKT_RECRUIT = 7,
-    TKT_INST_FIN = 8,
-    TKT_GACHA = 9,
-    ACTIVITY_COIN = 10,
-    DIAMOND = 11,
-    DIAMOND_SHD = 12,
-    HGG_SHD = 13,
-    LGG_SHD = 14,
-    FURN = 15,
-    AP_GAMEPLAY = 16,
-    AP_BASE = 17,
-    SOCIAL_PT = 18,
-    CHAR_SKIN = 19,
-    TKT_GACHA_10 = 20,
-    TKT_GACHA_PRSV = 21,
-    AP_ITEM = 22,
-    AP_SUPPLY = 23,
-    RENAMING_CARD = 24,
-    RENAMING_CARD_2 = 25,
-    ET_STAGE = 26,
-    ACTIVITY_ITEM = 27,
-    VOUCHER_PICK = 28,
-    VOUCHER_CGACHA = 29,
-    VOUCHER_MGACHA = 30,
-    CRS_SHOP_COIN = 31,
-    CRS_RUNE_COIN = 32,
-    LMTGS_COIN = 33,
-    EPGS_COIN = 34,
-    LIMITED_TKT_GACHA_10 = 35,
-    LIMITED_FREE_GACHA = 36,
-    REP_COIN = 37,
-    ROGUELIKE = 38,
-    LINKAGE_TKT_GACHA_10 = 39,
-    VOUCHER_ELITE_II_4 = 40,
-    VOUCHER_ELITE_II_5 = 41,
-    VOUCHER_ELITE_II_6 = 42,
-    VOUCHER_SKIN = 43,
-    RETRO_COIN = 44,
-    PLAYER_AVATAR = 45,
-    UNI_COLLECTION = 46,
-    VOUCHER_FULL_POTENTIAL = 47,
-    RL_COIN = 48,
-    RETURN_CREDIT = 49,
-    MEDAL = 50,
-    CHARM = 51,
-    HOME_BACKGROUND = 52,
-    EXTERMINATION_AGENT = 53,
-    OPTIONAL_VOUCHER_PICK = 54,
-    ACT_CART_COMPONENT = 55,
-    VOUCHER_LEVELMAX_6 = 56,
-    VOUCHER_LEVELMAX_5 = 57,
-    VOUCHER_LEVELMAX_4 = 58,
-    VOUCHER_SKILL_SPECIALLEVELMAX_6 = 59,
-    VOUCHER_SKILL_SPECIALLEVELMAX_5 = 60,
-    VOUCHER_SKILL_SPECIALLEVELMAX_4 = 61,
-    ACTIVITY_POTENTIAL = 62,
-    ITEM_PACK = 63,
-    SANDBOX = 64,
-    FAVOR_ADD_ITEM = 65,
-    CLASSIC_SHD = 66,
-    CLASSIC_TKT_GACHA = 67,
-    CLASSIC_TKT_GACHA_10 = 68,
-    LIMITED_BUFF = 69,
-    CLASSIC_FES_PICK_TIER_5 = 70,
-    CLASSIC_FES_PICK_TIER_6 = 71,
-    RETURN_PROGRESS = 72,
-    NEW_PROGRESS = 73,
-    MCARD_VOUCHER = 74,
-    MATERIAL_ISSUE_VOUCHER = 75,
-    CRS_SHOP_COIN_V2 = 76,
-    HOME_THEME = 77,
-    SANDBOX_PERM = 78,
-    SANDBOX_TOKEN = 79,
-    TEMPLATE_TRAP = 80,
-    NAME_CARD_SKIN = 81,
-    EMOTICON_SET = 82,
-    EXCLUSIVE_TKT_GACHA = 83,
-    EXCLUSIVE_TKT_GACHA_10 = 84,
-    SO_CHAR_EXP = 85,
-    GIFTPACKAGE_TKT = 86,
-    VOUCHER_SKIN_V2 = 87,
-    RANDOM_VOUCHER_SKIN = 88,
-    ACT1VHALFIDLE_ITEM = 89,
-    PLOT_ITEM = 90,
-    MAGAZINE_LEAF = 91,
-    STICKER = 92,
-}
-
-export enum KeyCodeType {
-    KEYBOARD = 0,
-    MOUSE = 1,
-}
-
-export enum KeyEffectGroup {
-    BATTLE = 0,
-    OUT_BATTLE = 1,
-    ALL = 2,
-}
-
-export enum KeySettingGroup {
-    BATTLE = 0,
-    NORMAL = 1,
-}
-
-export enum LevelData_Difficulty {
-    NONE = 0,
-    NORMAL = 1,
-    FOUR_STAR = 2,
-    EASY = 4,
-    SIX_STAR = 8,
-    ALL = 15,
-}
-
-export enum LevelData_WaveData_FragmentData_ActionData_ActionType {
-    SPAWN = 0,
-    PREVIEW_CURSOR = 1,
-    STORY = 2,
-    TUTORIAL = 3,
-    PLAY_BGM = 4,
-    DISPLAY_ENEMY_INFO = 5,
-    ACTIVATE_PREDEFINED = 6,
-    PLAY_OPERA = 7,
-    TRIGGER_PREDEFINED = 8,
-    BATTLE_EVENTS = 9,
-    WITHDRAW_PREDEFINED = 10,
-    DIALOG = 11,
-    SHOW_ALL_HIDDEN_CARDS = 12,
-    EMPTY = 13,
-    E_NUM = 14,
-}
-
-export enum LevelData_WaveData_FragmentData_ActionData_RandomType {
-    ALWAYS = 0,
-    PER_DAY = 1,
-    NEVER = 2,
-    PER_SETTLE_DAY = 3,
-    PER_SEASON = 4,
-}
-
-export enum LevelData_WaveData_FragmentData_ActionData_RefreshType {
-    ALWAYS = 0,
-    PER_DAY = 1,
-    NEVER = 2,
-    PER_SETTLE_DAY = 3,
-    PER_SEASON = 4,
-}
-
-export enum LifeType {
-    IMMEDIATELY = 0,
-    LIMITED = 1,
-    INFINITY = 2,
-    CUSTOM = 3,
-}
-
-export enum MagazineLeafType {
-    DEFAULT = 0,
-    ROGUE = 1,
-    SANDBOX = 2,
-    AMIYA = 3,
-}
-
-export enum MailArchiveItemType {
-    NORMAL = 0,
-    BIRTHDAY = 1,
-    OPEN_SERVER = 2,
-}
-
-export enum MainlineZoneData_ZoneReplayBtnType {
-    NONE = 0,
-    RECAP = 1,
-    REPLAY = 2,
-}
-
-export enum MedalExpireType {
-    NONE = 0,
-    INIT = 1,
-    TEMP = 2,
-    PERM = 3,
-}
-
-export enum MedalRarity {
-    T1 = 0,
-    T1D5 = 1,
-    T2 = 2,
-    T2D5 = 3,
-    T3 = 4,
-    T3D5 = 5,
-}
-
-export enum MileStoneInfo_GoodType {
-    NORMAL = 0,
-    SPECIAL = 1,
-}
-
-export enum MiniActTrialData_RuleType {
-    NONE = 0,
-    TITLE = 1,
-    CONTENT = 2,
-}
-
-export enum MissionItemBgType {
-    COMMON = 0,
-    Equipment = 1,
-    Char = 2,
-}
-
-export enum MissionType {
-    UNKNOWN = 0,
-    MAIN = 1,
-    DAILY = 2,
-    WEEKLY = 3,
-    GUIDE = 4,
-    SUB = 5,
-    ACTIVITY = 6,
-    OPENSERVER = 7,
-    TOWERSEASON = 8,
-    RETRO = 9,
-    SPECIAL_OPERATOR = 10,
-    SPECIAL_OPERATOR_WEEKLY = 11,
-}
-
-export enum MotionMask {
-    NONE = 0,
-    WALK_ONLY = 1,
-    FLY_ONLY = 2,
-    ALL = 3,
-}
-
-export enum MotionMode {
-    WALK = 0,
-    FLY = 1,
-    E_NUM = 2,
-}
-
-export enum NameCardV2ModuleSubType {
-    NONE = 0,
-    SIGN = 1,
-    ASSIST = 2,
-    MEDAL = 3,
-    MAINLINE = 4,
-    EQUIPMENT = 5,
-}
-
-export enum NameCardV2ModuleType {
-    NONE = 0,
-    BACKGROUND = 1,
-    ILLUST = 2,
-    COLLECT = 3,
-    AVATAR = 4,
-    REMOVABLE = 5,
-    AVATAR_SIMPLE = 6,
-}
-
-export enum NameCardV2SkinType {
-    NONE = 0,
-    BASE = 1,
-    SPECIAL = 2,
-    DYNAMIC = 3,
-}
-
-export enum NpcStrategy {
-    DEFAULT = 0,
-    CHOOSE_WIN = 1,
-    CHOOSE_ODD = 2,
-    FOLLOW_FEWER = 3,
-    FOLLOW_MORE = 4,
-}
-
-export enum OccPer {
-    ALWAYS = 0,
-    ALMOST = 1,
-    USUAL = 2,
-    OFTEN = 3,
-    SOMETIMES = 4,
-    NEVER = 5,
-    DEFINITELY_BUFF = 6,
-}
-
-export enum OverrideGameMode {
-    NONE = 0,
-    ACT27SIDE = 1,
-}
-
-export enum PlayerAvatarGroupType {
-    NONE = 0,
-    ASSISTANT = 1,
-    DEFAULT = 2,
-    SPECIAL = 3,
-    ACTIVITY = 4,
-    DYNAMIC = 5,
-}
-
-export enum PlayerBattleRank {
-    FAIL = 1,
-    PASS = 2,
-    COMPLETE = 3,
-    ERR_ZERO = 0,
-}
-
-export enum PlayerSideMask {
-    ALL = 0,
-    SIDE_A = 2,
-    SIDE_B = 4,
-    NONE = 255,
-}
-
-export enum PlayerStageState {
-    UNLOCKED = 0,
-    PLAYED = 1,
-    PASS = 2,
-    COMPLETE = 3,
-}
-
-export enum ProfessionCategory {
-    NONE = 0,
-    WARRIOR = 1,
-    SNIPER = 2,
-    TANK = 4,
-    MEDIC = 8,
-    SUPPORT = 16,
-    CASTER = 32,
-    SPECIAL = 64,
-    TOKEN = 128,
-    TRAP = 256,
-    PIONEER = 512,
-}
-
-export enum ProfessionID {
-    WARRIOR = 0,
-    SNIPER = 1,
-    TANK = 2,
-    MEDIC = 3,
-    SUPPORT = 4,
-    CASTER = 5,
-    SPECIAL = 6,
-    PIONEER = 9,
-    TOKEN = 7,
-    TRAP = 8,
-}
-
-export enum RarityRank {
-    TIER_1 = 0,
-    TIER_2 = 1,
-    TIER_3 = 2,
-    TIER_4 = 3,
-    TIER_5 = 4,
-    TIER_6 = 5,
-    E_NUM = 6,
-}
-
-export enum RarityRankMask {
-    NONE = 0,
-    TIER_1 = 1,
-    TIER_2 = 2,
-    TIER_3 = 4,
-    TIER_4 = 8,
-    TIER_5 = 16,
-    TIER_6 = 32,
-    ALL = 63,
-}
-
-export enum RecommendItemTagTips {
-    ONSALE = 0,
-    DEADLINE = 1,
-    NONE = 2,
-}
-
-export enum RecordRewardStageDiff {
-    NONE = 0,
-    EASY = 1,
-    NORMAL = 2,
-    TOUGH = 3,
-    PREDEFINED = 4,
-    HARD = 5,
-}
-
-export enum RetroType {
-    SIDESTORY = 0,
-    BRANCHLINE = 1,
-}
-
-export enum ReturnAllOpenType {
-    RESOURCE = 0,
-    CAMP = 1,
-}
-
-export enum ReturnJumpType {
-    NONE = 0,
-    ZONE_GROUP = 1,
-    ROGUE = 2,
-    CLIMB_TOWER = 3,
-    CAMPAIGN = 4,
-    BUILDING = 5,
-    RECRUIT_BUILD = 6,
-    DAILY_MISSION = 7,
-    SANDBOX = 8,
-    MAIN_SS = 9,
-}
-
-export enum ReturnMissionGroupType {
-    DAILY = 0,
-    NORMAL = 1,
-    DIFF = 2,
-}
-
-export enum ReturnNewsType {
-    NONE = 0,
-    MAIN_SS = 1,
-    ROGUE = 2,
-    SANDBOX = 3,
-}
-
-export enum RL02DevelopmentEffectType {
-    BUFF = 0,
-    RAW_TEXT_EFFECT = 1,
-    RAW_TEXT_BAND = 2,
-    NONE = 10,
-}
-
-export enum RL02DevelopmentNodeType {
-    NONE = 0,
-    SMALL = 1,
-    NORMAL = 2,
-    LARGE_RHODES = 3,
-    LARGE_ABYSSAL = 4,
-    LARGE_IBERIA = 5,
-}
-
-export enum RL03DevelopmentEffectType {
-    BUFF = 0,
-    RAW_TEXT_EFFECT = 1,
-    RAW_TEXT_BAND = 2,
-}
-
-export enum RL03DevelopmentNodeType {
-    NONE = 0,
-    NORMAL = 1,
-    KEY = 2,
-    DIFFICULTY = 3,
-}
-
-export enum RoguelikeActivityType {
-    NONE = 0,
-    SEED_MODE = 1,
-}
-
-export enum RoguelikeBankRewardCountType {
-    HIGHEST_RECORD = 0,
-    TOTAL_SUM = 1,
-}
-
-export enum RoguelikeCharState {
-    NORMAL = 0,
-    UPGRADE = 1,
-    UPGRADE_BUFF = 2,
-    UPGRADE_BONUS = 3,
-    FREE = 4,
-    ASSIST = 5,
-    THIRD = 6,
-    MONTHLY = 7,
-    THIRD_LOW = 8,
-    MERCENARY = 9,
-}
-
-export enum RoguelikeChoiceDisplayType {
-    NONE = 0,
-    NORMAL = 1,
-    ITEM = 2,
-    TASK = 3,
-}
-
-export enum RoguelikeChoiceHintType {
-    NONE = 0,
-    ITEM = 1,
-    CANDLED_CHAR = 2,
-    GUIDED_CHAR = 3,
-    SACRIFICE = 4,
-    SACRIFICE_TOTEM = 5,
-    SACRIFICE_SCRAP = 6,
-    EXPEDITION = 7,
-    CANDLE = 8,
-    GUIDED = 9,
-    HP = 10,
-    VISION = 11,
-    STASHED_RECRUIT = 12,
-    SEED_COST = 13,
-    ITEM_COST = 14,
-    CHAOS = 15,
-    FRAGMENT = 16,
-    SP_ZONE_AP = 17,
-    COPPER_LUCK = 18,
-    AP_LEFT = 19,
-}
-
-export enum RoguelikeChoiceLeftDecoType {
-    NONE = 0,
-    TASK = 1,
-    TASK_REWARD = 2,
-    DICE = 3,
-    VISION = 4,
-}
-
-export enum RoguelikeCommonDevelopmentEffectType {
-    BUFF = 0,
-    RAW_TEXT_EFFECT = 1,
-    RAW_TEXT_BAND = 2,
-}
-
-export enum RoguelikeCommonDevelopmentNodeType {
-    NONE = 0,
-    NORMAL = 1,
-    KEY = 2,
-    DIFFICULTY = 3,
-}
-
-export enum RoguelikeCopperBuffType {
-    NONE = 0,
-    REFRESH = 1,
-    MOVE = 2,
-}
-
-export enum RoguelikeCopperDivineResultType {
-    NONE = 0,
-    GOOD = 1,
-    NORMAL = 2,
-    BAD = 3,
-}
-
-export enum RoguelikeCopperDivineType {
-    NONE = 0,
-    DIVINE = 1,
-    EVENT = 2,
-}
-
-export enum RoguelikeCopperLuckyLevel {
-    NONE = 0,
-    HIGH = 1,
-    MID = 2,
-    LOW = 3,
-}
-
-export enum RoguelikeCopperType {
-    NONE = 0,
-    BLANK = 1,
-    FIGHT = 2,
-    RESOURCE = 3,
-    UNSOUND = 4,
-    TREASURE = 5,
-    SPECIAL = 6,
-}
-
-export enum RoguelikeEndingDetailText_Type {
-    SHOW_CHOICE = 0,
-    SHOW_RELIC = 1,
-    SHOW_CAPSULE = 2,
-    SHOW_ACTIVE_TOOL = 3,
-    SHOW_ACCELERATE_CHAR = 4,
-    SHOW_NORMAL_RECRUIT = 5,
-    SHOW_DIRECT_RECRUIT = 6,
-    SHOW_FRIEND_RECRUIT = 7,
-    SHOW_FREE_RECRUIT = 8,
-    BUY = 9,
-    INVEST = 10,
-    SHOW_STAGE = 11,
-    SHOW_CONST = 12,
-    SUM = 13,
-    SHOW_BOSS_END = 14,
-    SHOW_BATTLE = 15,
-}
-
-export enum RoguelikeEnrollType {
-    DLC = 0,
-    REVIEW = 1,
-}
-
-export enum RoguelikeEventType {
-    NONE = 0,
-    BATTLE_NORMAL = 1,
-    BATTLE_ELITE = 2,
-    BATTLE_BOSS = 4,
-    SHOP = 8,
-    REST = 16,
-    INCIDENT = 32,
-    TREASURE = 64,
-    ENTERTAINMENT = 128,
-    UNKNOWN = 256,
-    WISH = 512,
-    SACRIFICE = 1024,
-    EXPEDITION = 2048,
-    BATTLE_SHOP = 4096,
-    PORTAL = 8192,
-    MISSION = 16384,
-    STORY = 32768,
-    STORY_HIDDEN = 65536,
-    ALCHEMY = 131072,
-    DUEL = 262144,
-    STASHED_RECRUIT = 524288,
-    SPECIAL_ZONE = 1048576,
-    SCRAP_SHOP = 2097152,
-    DOOR = 4194304,
-    FINAL = 8388608,
-    EVACUATE = 16777216,
-    EMPLOY = 33554432,
-    LIGHT = 67108864,
-    BATTLE_SAVAGE = 134217728,
-    EMPTY = 268435456,
-    BATTLES = 134217735,
-    CHOICES = 27127536,
-    EVENTS = 402521848,
-    ALL = 536739583,
-}
-
-export enum RoguelikeExpStyleConfigParam {
-    BATTLE_END_HP_LOSE_TEXT = 0,
-}
-
-export enum RoguelikeFragmentType {
-    NONE = 0,
-    INSPIRATION = 1,
-    WISH = 2,
-    IDEA = 3,
-}
-
-export enum RoguelikeGameCharBuffType {
-    NONE = 0,
-    MUTATION = 1,
-    EVOLUTION = 2,
-    FROM_RELIC = 3,
-}
-
-export enum RoguelikeGameChoiceType {
-    NONE = 0,
-    LEAVE = 1,
-    NEXT = 2,
-    NEXT_PROB = 3,
-    TRADE = 4,
-    TRADE_PROB = 5,
-    SACRIFICE = 6,
-    TELEPORT = 7,
-    EXPEDITION = 8,
-    WISH = 9,
-    TRADE_PROB_SHOW = 10,
-    SACRIFICE_TOTEM = 11,
-    WISH_ALL = 12,
-    KILL = 13,
-    USE_STASHED_TICKET = 14,
-    EXPEDITION_ALL = 15,
-    EXPEDITION_RETURN_ALL = 16,
-    PACIFY_WRATH = 17,
-    GILD_COPPER = 18,
-    ITEM_REROLL = 19,
-    ITEM_TOP_UP = 20,
-    GILD_COPPER_ALL = 21,
-    JUMP_PROB = 22,
-    JUMP = 23,
-    ZONE_END = 24,
-    MOVE = 25,
-    VISION = 26,
-    SCRAP_PAY_SHOW = 27,
-}
-
-export enum RoguelikeGameItemRarity {
-    NONE = 0,
-    BORN = 1,
-    NORMAL = 2,
-    RARE = 3,
-    SUPER_RARE = 4,
-}
-
-export enum RoguelikeGameItemSubType {
-    NONE = 0,
-    CURSE = 1,
-    TEMP_TICKET = 2,
-    TOTEM_UPPER = 4,
-    TOTEM_LOWER = 8,
-    SECRET = 16,
-    SINGLE_RAND_FREE = 32,
-    RED_CAPSULE = 64,
-}
-
-export enum RoguelikeGameItemType {
-    NONE = 0,
-    HP = 1,
-    HPMAX = 2,
-    GOLD = 3,
-    POPULATION = 4,
-    EXP = 5,
-    SQUAD_CAPACITY = 6,
-    RECRUIT_TICKET = 7,
-    UPGRADE_TICKET = 8,
-    RELIC = 9,
-    BP_POINT = 10,
-    GROW_POINT = 11,
-    BAND = 12,
-    ACTIVE_TOOL = 13,
-    CAPSULE = 14,
-    POOL = 15,
-    RL_BP = 16,
-    RL_GP = 17,
-    KEY_POINT = 18,
-    SAN_POINT = 19,
-    DICE_POINT = 20,
-    DICE_TYPE = 21,
-    SHIELD = 22,
-    LOCKED_TREASURE = 23,
-    CUSTOM_TICKET = 24,
-    TOTEM = 25,
-    TOTEM_EFFECT = 26,
-    FEATURE = 27,
-    VISION = 28,
-    CHAOS = 29,
-    CHAOS_PURIFY = 30,
-    CHAOS_LEVEL = 31,
-    EXPLORE_TOOL = 32,
-    FRAGMENT = 33,
-    MAX_WEIGHT = 34,
-    DISASTER = 35,
-    DISASTER_TYPE = 36,
-    ABSTRACT_DISASTER = 37,
-    PILL = 38,
-    BIGPILL = 39,
-    COPPER = 40,
-    COPPER_BUFF = 41,
-    DIVINATION_KIT = 42,
-    WRATH = 43,
-    SPECIAL_ZONE_AP = 44,
-    COPPER_DRAW_NUM = 45,
-    STASH_RECRUIT_LIMIT = 46,
-    NODE_BUOY = 47,
-    SCRAP = 48,
-    LEGACY = 49,
-    CHARACTER = 50,
-}
-
-export enum RoguelikeGameMonthTaskClass {
-    NONE = 0,
-    C = 1,
-    B = 2,
-    A = 3,
-}
-
-export enum RoguelikeGameRelicCheckType {
-    NONE = 0,
-    PROFESSION = 1,
-    SUB_PROFESSION = 2,
-    UPGRADE = 3,
-}
-
-export enum RoguelikeGameVariationType {
-    NONE = 0,
-    MAP = 1,
-    RES = 2,
-    BAT = 3,
-}
-
-export enum RoguelikeModuleType {
-    NONE = 0,
-    SANCHECK = 1,
-    DICE = 2,
-    CHAOS = 3,
-    TOTEMBUFF = 4,
-    VISION = 5,
-    FRAGMENT = 6,
-    DISASTER = 7,
-    NODE_UPGRADE = 8,
-    COPPER = 9,
-    WRATH = 10,
-    CANDLE = 11,
-    SKY = 12,
-    GRID_ZONE = 13,
-    WEATHER = 14,
-    SCRAP = 15,
-}
-
-export enum RoguelikeMonthChatTrigType {
-    NONE = 0,
-    TRANSITING = 1,
-    DUNGEON = 2,
-}
-
-export enum RoguelikeMoveScrapRangeType {
-    RANGE = 0,
-    FULL_MAP = 1,
-}
-
-export enum RoguelikeRewardExDropTagSrcType {
-    NONE = 0,
-    TREASURE = 1,
-    TOTEM = 2,
-    EXPLORE_TOOL = 3,
-    COPPER = 4,
-    EVIL_TEMPLE = 5,
-    TREASURE_MAP = 6,
-    LOOP_CHIP = 7,
-    STEP = 8,
-    GREED = 9,
-    GOLDEN_AGE = 10,
-}
-
-export enum RoguelikeScrapType {
-    NONE = 0,
-    MOVE = 1,
-    GOODS = 2,
-    PASSIVE = 3,
-}
-
-export enum RoguelikeSkyZoneNodeType {
-    NONE = 0,
-    ORIGIN = 1,
-    BATTLE = 2,
-    TRIAL_GATE = 4,
-    INCIDENT = 8,
-    TREASURE = 16,
-    SHOP = 32,
-    SACRIFICE = 64,
-    ENTERTAINMENT = 128,
-    MARKET = 256,
-    BATTLE_HARD = 512,
-    INCIDENT_BOSS = 1024,
-    INCIDENT_BOSS_ONLY = 2048,
-    CHOICES = 3548,
-    BATTLES = 514,
-}
-
-export enum RoguelikeTaskRarity {
-    NORMAL = 0,
-    RARE = 1,
-    SUPER_RARE = 2,
-}
-
-export enum RoguelikeTopicBankRewardType {
-    NONE = 0,
-    UNLOCK_ITEM = 1,
-    ADD_SHOP_POS = 2,
-    UNLOCK_WITHDRAW = 3,
-    UNLOCK_SHOP_BATTLE = 4,
-    UNLOCK_SHOP_REFRESH = 5,
-}
-
-export enum RoguelikeTopicDevNodeType {
-    BRANCH = 0,
-    KEY = 1,
-    NONE = 10,
-}
-
-export enum RoguelikeTopicDevTokenDisplayForm {
-    ABSOLUTE_VAL = 0,
-    PERCENTAGE = 1,
-}
-
-export enum RoguelikeTopicDifficultyWarningType {
-    NONE = 0,
-    NORMAL = 1,
-    HARD = 2,
-}
-
-export enum RoguelikeTopicMode {
-    NONE = 0,
-    EASY = 1,
-    NORMAL = 2,
-    HARD = 3,
-    NORML_END = 4,
-    MONTH_TEAM = 5,
-    CHALLENGE = 6,
-}
-
-export enum RoguelikeTotemBlurNodeType {
-    NONE = 0,
-    BATTLE = 1,
-    NO_BATTLE = 2,
-}
-
-export enum RoguelikeTotemColorType {
-    NONE = 0,
-    RED = 1,
-    GREEN = 2,
-    BLUE = 3,
-    ALL = 4,
-}
-
-export enum RoguelikeTotemPosType {
-    LOCATION = 0,
-    EFFECT = 1,
-}
-
-export enum RoguelikeVisionModuleData_VisionChoiceCheckType {
-    LOWER = 0,
-    UPPER = 1,
-}
-
-export enum SandboxArchiveQuestType {
-    NONE = 0,
-    MAIN = 1,
-    SIDE = 2,
-}
-
-export enum SandboxBuildingItemType {
-    NONE = 0,
-    PRODUCTION = 1,
-    SCOUT = 2,
-    BATTLE = 3,
-    FUNCTION = 4,
-}
-
-export enum SandboxCraftItemType {
-    SHORT = 0,
-    LONG = 1,
-}
-
-export enum SandboxDailyDescTemplateType {
-    VISITOR = 0,
-    RARE_ANIMAL = 1,
-    WANDER = 2,
-    MARKET = 3,
-}
-
-export enum SandboxDevelopmentLineStyle {
-    EMPTY = 0,
-    LEVEL_PASS = 1,
-    LEVEL_BLOCK = 2,
-}
-
-export enum SandboxDevelopmentType {
-    NONE = 0,
-    SURVIVE = 1,
-    COLLECT = 2,
-    SHOP = 3,
-    BATTLE = 4,
-    DUNGEON = 5,
-    EXPLORE = 6,
-    RESOURCE = 7,
-    INITIAL = 8,
-}
-
-export enum SandboxEnemyRushType {
-    NORMAL = 0,
-    ELITE = 1,
-    BOSS = 2,
-}
-
-export enum SandboxEventChoiceType {
-    LEAVE = 0,
-    TRADE = 1,
-    NEXT = 2,
-    MISSION = 3,
-}
-
-export enum SandboxEventType {
-    RESOURCE = 0,
-    FOOD = 1,
-    MISSION = 2,
-    BUSINESS = 3,
-    ADVENTURE = 4,
-    MYSTERY = 5,
-}
-
-export enum SandboxFoodAttribute {
-    NONE = 0,
-    SURVIVE = 1,
-    COST = 2,
-    ATTACK = 3,
-    COOLDOWN = 4,
-    SKILL_POINT = 5,
-    SPECIAL = 6,
-    ENHANCED = 7,
-    FUNCTION = 8,
-}
-
-export enum SandboxFoodMatType {
-    MAIN = 0,
-    SUB = 1,
-}
-
-export enum SandboxFoodVariantType {
-    NONE = 0,
-    ALPHA = 1,
-    BETA = 2,
-    GAMMA = 3,
-}
-
-export enum SandboxItemType {
-    NONE = 0,
-    TACTICAL = 1,
-    STAMINA = 2,
-    STAMINAPOT = 3,
-    BUILDING = 4,
-    BUILDINGMAT = 5,
-    FOOD = 6,
-    FOODMAT = 7,
-    SPECIALMAT = 8,
-    GOLD = 9,
-    CRAFT = 10,
-    PLACEHOLDER = 11,
-}
-
-export enum SandboxNodeType {
-    NONE = 0,
-    HOME = 1,
-    BATTLE = 2,
-    NEST = 3,
-    COLLECT = 4,
-    HUNT = 5,
-    CAVE = 6,
-    EVENT = 7,
-    MISSION = 8,
-    MARKET = 9,
-}
-
-export enum SandboxPermItemType {
-    NONE = 0,
-    TACTICAL = 1,
-    BUILDING = 2,
-    BUILDINGMAT = 3,
-    FOOD = 4,
-    FOODMAT = 5,
-    SPECIALMAT = 6,
-    COIN = 9,
-    CRAFT = 10,
-    PLACEHOLDER = 11,
-    STAMINAPOT = 12,
-    ANIMAL = 13,
-    INSECT = 14,
-    SLUGITEM = 15,
-    RELIC = 16,
-    RECIPE = 17,
-    PRODUCT = 18,
-    TOOLKIT = 19,
-    RANDRELIC = 20,
-    RANDRECIPE = 21,
-    CURRENCY = 22,
-    COOKBOOK = 23,
-    BASEBUILDING = 24,
-    BASECOIN = 25,
-    BASEANIMAL = 26,
-    BASETACTICAL = 27,
-    TECHPOINT = 28,
-}
-
-export enum SandboxPermTemplateType {
-    NONE = 0,
-    SANDBOX_V2 = 1,
-    SANDBOX_V3 = 2,
-}
-
-export enum SandboxRewardTrapDropType {
-    COLLECT = 0,
-    DAILY = 1,
-    ACTIVATE = 2,
-    DURATION = 3,
-}
-
-export enum SandboxShopCoinType {
-    DIMENSION_COIN = 0,
-    GOLD = 1,
-    BASE_GOLD = 2,
-    BASE_GOLDEX = 3,
-}
-
-export enum SandboxV2BaseUnlockFuncDisplayType {
-    NONE = 0,
-    NEW = 1,
-    UPDATE = 2,
-    NUMBER = 3,
-}
-
-export enum SandboxV2BaseUnlockFuncType {
-    NONE = 0,
-    HOME_PUTPOST = 1,
-    HOME_PORTABLE = 2,
-    REWARDSHOP = 3,
-    TECH = 4,
-    REAR = 5,
-    BUILD = 6,
-    SHOP = 7,
-    RACING = 8,
-}
-
-export enum SandboxV2ConfirmIconType {
-    COMMON = 0,
-    EMERGENCY = 1,
-    QUIT = 2,
-    EVACUATE = 3,
-    EVACUATELOSS = 4,
-    NORMAL = 5,
-    COMBAT = 6,
-    CONSTRUCT = 7,
-    NEXTDAY = 8,
-    RIFT_EXIT = 9,
-    LOAD_ARCHIVE = 10,
-}
-
-export enum SandboxV2CraftItemType {
-    BASE_BUILDING = 0,
-    TACTICAL = 1,
-    COMBAT_BUILDING = 2,
-}
-
-export enum SandboxV2EnemyRushType {
-    NORMAL = 0,
-    ELITE = 1,
-    BOSS = 2,
-    BANDIT = 3,
-    RALLY = 4,
-    THIEF = 5,
-    MESSENGER = 6,
-    INSECT = 7,
-}
-
-export enum SandboxV2EventChoiceType {
-    NONE = 0,
-    NEXT = 1,
-    LEAVE = 2,
-    MISSION = 3,
-}
-
-export enum SandboxV2EventType {
-    NONE = 0,
-    EVENT = 1,
-    MISSION = 2,
-    QUEST_EVENT = 3,
-    QUEST_MISSION = 4,
-}
-
-export enum SandboxV2ItemTrapTag {
-    OUTPUT = 0,
-    COLLECTION = 1,
-    IMPAIR = 2,
-    ENHANCE = 3,
-    EXPLORE = 4,
-    SPECTACLE = 5,
-    DECORATE = 6,
-    DEFEND = 7,
-    SCOUT = 8,
-}
-
-export enum SandboxV2NodeType {
-    NONE = 0,
-    HOME = 1,
-    HOME_OUTPOST = 2,
-    BATTLE = 3,
-    NEST = 4,
-    COLLECT = 5,
-    HUNT = 6,
-    CAVE = 7,
-    MINE = 8,
-    ENCOUNTER = 9,
-    EXPEDITION = 10,
-    SHOP = 11,
-    GATE = 12,
-    MARKET = 13,
-    HOME_PORTABLE = 14,
-    HOME_PORTABLE_RIFT = 15,
-    SELECTION = 16,
-    RACING = 17,
-}
-
-export enum SandboxV2NpcType {
-    NORMAL = 0,
-    FIXED_RIFT = 1,
-    RANDOM_RIFT = 2,
-    PREY_RIFT = 3,
-}
-
-export enum SandboxV2QuestLineBadgeType {
-    NONE = 0,
-    SIDE = 1,
-    GUIDE = 2,
-    MAIN = 3,
-    RIFT = 4,
-}
-
-export enum SandboxV2QuestLineScopeType {
-    MAIN = 0,
-    RIFT = 1,
-    ALL = 2,
-}
-
-export enum SandboxV2QuestLineType {
-    NONE = 0,
-    MAIN = 1,
-    SIDE = 2,
-    GUIDE = 3,
-    TRAINING = 4,
-}
-
-export enum SandboxV2QuestRouteType {
-    NONE = 0,
-    ENEMY_RUSH = 1,
-    EVENT = 2,
-    NODE = 3,
-    NPC = 4,
-}
-
-export enum SandboxV2RacerNameType {
-    PREFIX = 0,
-    SUFFIX = 1,
-}
-
-export enum SandboxV2RacerTalentType {
-    BORN = 0,
-    LEARNED = 1,
-}
-
-export enum SandboxV2RiftMainTargetType {
-    NONE = 0,
-    FIND = 1,
-    BOSS_HUNT = 2,
-    WILD_HUNT = 3,
-    PROTECT = 4,
-    FIGHT = 5,
-    CATCH_THIEF = 6,
-    PREY_HUNT = 7,
-}
-
-export enum SandboxV2SeasonType {
-    NONE = 0,
-    DRY = 1,
-    RAINY = 2,
-    CHALLENGE = 3,
-}
-
-export enum SandboxV2TrapItemType {
-    NONE = 0,
-    BATTLE = 1,
-    TACTICAL = 2,
-    FUNCTION = 3,
-    ANIMAL = 4,
-}
-
-export enum SandboxV2WeatherType {
-    NORMAL = 0,
-    RAINFOREST = 1,
-    VOLCANO = 2,
-    DESERT = 3,
-}
-
-export enum SandboxV3BagItemType {
-    NONE = 0,
-    MATERIALBAG = 1,
-    RELICBAG = 2,
-}
-
-export enum SandboxV3BaseBuildType {
-    NONE = 0,
-    ROAD = 1,
-    CANAL = 2,
-    RAILWAY = 3,
-    PRODUCTION = 4,
-    HOUSE = 5,
-    POWER = 6,
-    BEAUTY = 7,
-}
-
-export enum SandboxV3BasementUnlockFuncDisplayType {
-    NONE = 0,
-    NEW = 1,
-    UPDATE = 2,
-    NUMBER = 3,
-}
-
-export enum SandboxV3BasementUnlockFuncType {
-    NONE = 0,
-    HOME_PUTPOST = 1,
-    TECH = 2,
-    MAP = 3,
-}
-
-export enum SandboxV3BaseTrapType {
-    NONE = 0,
-    PATH = 1,
-    AGRICULTURE = 2,
-    SETTLEMENT = 3,
-    PDLINE = 4,
-    DECORATION = 5,
-    OTHER = 6,
-}
-
-export enum SandboxV3BuildScoreType {
-    NONE = 0,
-    NPC = 1,
-    TRAP = 2,
-    LEVEL = 3,
-    ENPC = 4,
-}
-
-export enum SandboxV3ElectricTransferType {
-    NONE = 0,
-    FUNCTION = 1,
-    SUPPLY = 2,
-    ADDITION = 3,
-    AMPLIFY = 4,
-}
-
-export enum SandboxV3EnemyRewardType {
-    NONE = 0,
-    ITEM = 1,
-    POWER = 2,
-    LUCKYDROP = 3,
-}
-
-export enum SandboxV3MapTileType {
-    NONE = 0,
-    TEXTURE = 1,
-    BUILDING = 2,
-}
-
-export enum SandboxV3MilestoneStage {
-    EARLY = 0,
-    MIDDLE = 1,
-    LATE = 2,
-}
-
-export enum SandboxV3NodeType {
-    NONE = 0,
-    HOME = 1,
-    STORY = 2,
-    EXPLORE = 3,
-}
-
-export enum SandboxV3NpcType {
-    NORMAL = 0,
-    BASE = 1,
-}
-
-export enum SandboxV3QuestLineBadgeType {
-    NONE = 0,
-    MAIN = 1,
-    SIDE = 2,
-    GUIDE = 3,
-}
-
-export enum SandboxV3ShopType {
-    NONE = 0,
-    REST = 1,
-    BATTLE = 2,
-}
-
-export enum SandboxV3TaskDifficultyType {
-    NONE = 0,
-    EASY = 1,
-    NORMAL = 2,
-    HARD = 3,
-}
-
-export enum SandboxV3TaskType {
-    DEPLOY_TRAP_BY_GROUP = 0,
-    CONSTRUCT_TRAP_BY_GROUP = 1,
-    OWN_TRAP_BY_GROUP = 2,
-    OWN_TRAP_AND_DELIVER = 3,
-    OWN_TRAP_BY_TYPE = 4,
-    ITEM_DELIVERY = 5,
-    GATHER = 6,
-    KILL_ENEMY = 7,
-    KILL_ENEMY_FILTER_BY_TAG = 8,
-    KILL_ENEMY_FILTER_BY_LEVELTYPE = 9,
-    UNLOCK_ROOM_BY_MASK = 10,
-    UNLOCK_ROOM_CULMULATIVE = 11,
-    CATCH_ANIMAL = 12,
-    PROSPERITY_KEEP = 13,
-    AESTHETICS_REACH = 14,
-    PROSPERITY_REACH = 15,
-    AESTHETICS_INCREASE = 16,
-    PROSPERITY_INCREASE = 17,
-    TRADE_IN_SALE = 18,
-    CHARACTER_CHECK = 19,
-    RAILWAY_CHECK = 20,
-}
-
-export enum SandboxV3TrapType {
-    PRODUCER = 0,
-    INFRASTRUCTURE = 1,
-    PROCESSOR = 2,
-    SERVICE = 3,
-    AESTHETICS = 4,
-    TACTICAL = 5,
-}
-
-export enum SandboxWeatherType {
-    NORMAL = 0,
-    RAINFOREST = 1,
-    VOLCANO = 2,
-    DESERT = 3,
-}
-
-export enum SanEffectRank {
-    SAN_EFFECT_0 = 0,
-    SAN_EFFECT_1 = 1,
-    SAN_EFFECT_2 = 2,
-    SAN_EFFECT_3 = 3,
-}
-
-export enum ScoreGroupType {
-    WONDER = 0,
-    DEBRIS_CLEAN = 1,
-    NPC_RECRUIT = 2,
-    TRAP_BUILD = 3,
-    TRAP_RULE = 4,
-}
-
-export enum SharedConsts_Direction {
-    UP = 0,
-    RIGHT = 1,
-    DOWN = 2,
-    LEFT = 3,
-    E_NUM = 4,
-    INVALID = 4,
-}
-
-export enum ShopCondTrigPackageType {
-    NONE = 0,
-    RETURN_PROGRESS = 1,
-    RETURN_ONCE = 2,
-    NEW_PROGRESS = 3,
-    CHOOSE_REGISTER_TIME = 4,
-    CHOOSE_NEWBIE = 5,
-}
-
-export enum ShopGPTabType {
-    DEFAULT_ALL = 0,
-    MONTH_CARD = 1,
-    PERM = 2,
-    NEWBIE = 3,
-    RETURN = 4,
-    RECOMMOND = 5,
-    TIMELY = 6,
-}
-
-export enum ShopRecommendTemplateType {
-    DEFAULT = 0,
-    NORSKIN = 1,
-    RETURNSKIN = 2,
-    NORFURN = 3,
-    NORGIFT = 4,
-}
-
-export enum ShopRouteTarget {
-    RECOMMENDSHOP = 0,
-    CASHSHOP = 1,
-    GIFTPACKAGE = 2,
-    SKINSHOP = 3,
-    HQCSHOP = 4,
-    LQCSHOP = 5,
-    EXQCSHOP = 6,
-    SOCAILSHOP = 7,
-    FURNSHOP = 8,
-    REPSHOP = 9,
-    LMGTSSHOP = 10,
-    EPGSSHOP = 11,
-    CLASSICSHOP = 12,
-    NONE = 13,
-}
-
-export enum ShopUnlockType {
-    ALWAYS_UNLOCK = 0,
-    SKIN_UNLOCK = 1,
-    FURN_UNLOCK = 2,
-    BOTH_SKIN_FURN = 3,
-}
-
-export enum SiracusaData_CardGainType {
-    NONE = 0,
-    STAGE_GAIN = 1,
-    TASK_GAIN = 2,
-}
-
-export enum SiracusaData_NavigationType {
-    NONE = 0,
-    AVG = 1,
-    LEVEL = 2,
-    CHAR_CARD = 3,
-}
-
-export enum SiracusaData_TaskRingLogicType {
-    NONE = 0,
-    LINEAR = 1,
-    AND = 2,
-    OR = 3,
-}
-
-export enum SiracusaData_TaskType {
-    NONE = 0,
-    BATTLE = 1,
-    AVG = 2,
-}
-
-export enum SiracusaData_ZoneUnlockType {
-    NONE = 0,
-    STAGE_UNLOCK = 1,
-    TASK_UNLOCK = 2,
-}
-
-export enum SixStarMilestoneRewardType {
-    UNLOCK_STAGE = 0,
-    REWARD = 1,
-}
-
-export enum SixStarStageCompatibleDropType {
-    COMPLETE_ONLY = 0,
-}
-
-export enum SkillDurationType {
-    NONE = 0,
-    AMMO = 1,
-}
-
-export enum SkillType {
-    PASSIVE = 0,
-    MANUAL = 1,
-    AUTO = 2,
-}
-
-export enum SkinVoiceType {
-    NONE = 0,
-    ILLUST = 1,
-    ALL = 2,
-}
-
-export enum SourceApplyWay {
-    NONE = 0,
-    MELEE = 1,
-    RANGED = 2,
-    ALL = 3,
-}
-
-export enum SpCharMissionCondType {
-    NONE = 0,
-    EVOLVE_PHASE = 1,
-}
-
-export enum SpecialOperatorConditionViewType {
-    TASK = 0,
-    EVOLVEPHASE = 1,
-}
-
-export enum SpecialOperatorDetailNodeType {
-    NONE = 0,
-    EVOLVE = 1,
-    SKILL = 2,
-    TALENT = 3,
-    MASTER = 4,
-    UNIEQUIP = 5,
-}
-
-export enum SpecialOperatorTargetType {
-    NONE = 0,
-    ROGUE = 1,
-}
-
-export enum SpType {
-    NONE = 0,
-    INCREASE_WITH_TIME = 1,
-    INCREASE_WHEN_ATTACK = 2,
-    INCREASE_WHEN_TAKEN_DAMAGE = 4,
-    ATTACK_OR_DAMAGE = 6,
-    ALL = 7,
-}
-
-export enum StageButtonInFogRenderType {
-    HIDE = 0,
-    SHOW_WITH_FOG_SIX_STAR = 1,
-}
-
-export enum StageData_PerformanceStageFlag {
-    NORMAL_STAGE = 0,
-    PERFORMANCE_STAGE = 1,
-}
-
-export enum StageData_SpecialStageUnlockProgressType {
-    ONCE = 0,
-    PROGRESS = 1,
-}
-
-export enum StageDiffGroup {
-    NONE = 0,
-    EASY = 1,
-    NORMAL = 2,
-    TOUGH = 4,
-    ALL = 7,
-}
-
-export enum StageDropType {
-    NONE = 0,
-    ONCE = 1,
-    NORMAL = 2,
-    SPECIAL = 3,
-    ADDITIONAL = 4,
-    APRETURN = 5,
-    DIAMOND_MATERIAL = 6,
-    FUNITURE_DROP = 7,
-    COMPLETE = 8,
-    CHARM_DROP = 9,
-    OVERRIDE_DROP = 10,
-    ITEM_RETURN = 11,
-    CONDITION_DROP = 12,
-}
-
-export enum StageType {
-    MAIN = 0,
-    DAILY = 1,
-    TRAINING = 2,
-    ACTIVITY = 3,
-    GUIDE = 4,
-    SUB = 5,
-    CAMPAIGN = 6,
-    SPECIAL_STORY = 7,
-    HANDBOOK_BATTLE = 8,
-    CLIMB_TOWER = 9,
-    ENUM = 10,
-}
-
-export enum StickerType {
-    DEFAULT = 0,
-    ROGUE = 1,
-    SANDBOX = 2,
-    AMIYA = 3,
-}
-
-export enum StoryData_Trigger_TriggerType {
-    GAME_START = 0,
-    BEFORE_BATTLE = 1,
-    AFTER_BATTLE = 2,
-    SWITCH_TO_SCENE = 3,
-    PAGE_LOADED = 4,
-    STORY_FINISH = 5,
-    CUSTOM_OPERATION = 6,
-    STORY_FINISH_OR_PAGE_LOADED = 7,
-    ACTIVITY_LOADED = 8,
-    ACTIVITY_ANNOUNCE = 9,
-    CRISIS_SEASON_LOADED = 10,
-    STORY_FINISH_OR_CUSTOM_OPERATION = 11,
-    E_NUM = 12,
-}
-
-export enum StorylineLocationType {
-    STORY_SET = 0,
-    BEFORE = 1,
-    AFTER = 2,
-    MAINLINE_SPLIT = 3,
-}
-
-export enum StorylineStorySetType {
-    MAINLINE = 0,
-    SS = 1,
-    COLLECT = 2,
-}
-
-export enum StorylineType {
-    CONTINUE = 0,
-    DISCRETE = 1,
-}
-
-export enum StoryReviewEntryType {
-    NONE = 0,
-    ACTIVITY = 1,
-    MINI_ACTIVITY = 2,
-    MAINLINE = 3,
-}
-
-export enum StoryReviewType {
-    NONE = 0,
-    ACTIVITY_STORY = 1,
-    MINI_STORY = 2,
-    MAIN_STORY = 3,
-}
-
-export enum StoryReviewUnlockType {
-    STAGE_CLEAR = 0,
-    USE_ITEM = 1,
-    BY_START_TIME = 2,
-    NOTHING = 3,
-}
-
-export enum SubProfessionAttackType {
-    NONE = 0,
-    PHYSICAL = 1,
-    MAGICAL = 2,
-    HEAL = 3,
-}
-
-export enum TemplateMissionBigRewardType {
-    NONE = 0,
-    ILLUST_CHAR_REWARD = 1,
-    CUSTOM = 2,
-    PIC_REWARD = 3,
-    SKIN_REWARD = 4,
-}
-
-export enum TemplateMissionCoinInfoType {
-    COMMON = 0,
-    CUSTOM = 1,
-}
-
-export enum TemplateMissionTitleType {
-    COMMON = 0,
-    CUSTOM = 1,
-}
-
-export enum TileData_HeightType {
-    LOWLAND = 0,
-    HIGHLAND = 1,
-    E_NUM = 2,
-}
-
-export enum TileData_HeightTypeMask {
-    NONE = 0,
-    LOWLAND = 1,
-    HIGHLAND = 2,
-    ALL = 3,
-}
-
-export enum TipData_Category {
-    NONE = 0,
-    BATTLE = 1,
-    UI = 2,
-    BUILDING = 4,
-    GACHA = 8,
-    MISC = 16,
-    ALL = 31,
-}
-
-export enum UIGuideTarget {
-    NONE = 0,
-    BUILDING_CONTROL = 1,
-    BUILDING_DORM = 2,
-    BUILDING_HIRE = 3,
-    BUILDING_MANUFACT = 4,
-    BUILDING_MEETING = 5,
-    BUILDING_TRADING = 6,
-    CHAR_INFO = 7,
-    FRIEND = 8,
-    RECRUIT = 9,
-    SHOP = 10,
-    SQUAD_NORMAL = 11,
-    SQUAD_BATTLE = 12,
-    STAGE_MAINLINE = 13,
-    BUILDING_POWER = 14,
-    MISSION = 15,
-    CHAR_SKILL_SELECT = 16,
-    BUILDING_WORKSHOP = 17,
-    STAGE_CAMPAIGN = 18,
-    CHAR_EVOLVE = 19,
-    HANDBOOK = 20,
-    BUILDING_FURN_SHOP = 21,
-    BUILDING_TRAINING = 22,
-    STAGE_ACTIVITY = 23,
-    CRISIS_STAGE = 24,
-    ROGUELIKE_CHARSELECT = 25,
-    ROGUELIKE_BP = 26,
-    CLIMB_TOWER_ENTRY = 27,
-    CLIMB_TOWER_LAYER = 28,
-    ROGUELIKE_DUNGEON = 31,
-    RL03_TOTEM = 32,
-    GROCERY = 33,
-    TUNING = 34,
-    CRISIS_V2 = 35,
-    MISSION_ARCHIVE = 36,
-    FIFTH_ANNIV_EXPLORE = 37,
-    CARVING = 38,
-    VEC_BREAK = 39,
-    FIREWORK = 40,
-    BUILDING_STATION_MANAGE = 41,
-    ACT_MULTI_V3 = 42,
-    ENEMY_DUEL = 43,
-    VEC_BREAK_V2 = 44,
-    GUN_TASK = 45,
-    SPECIAL_OPERATOR = 46,
-    INFORMANT = 47,
-    ACT1VHALFIDLE = 48,
-    MONOPOLY = 49,
-    AUTO_CHESS = 50,
-    ART_GALLERY = 51,
-    ART_MAGAZINE = 52,
-    ACT_FOOTBALL = 53,
-}
-
-export enum UniEquipTarget {
-    NONE = 0,
-    TRAIT = 1,
-    TRAIT_DATA_ONLY = 2,
-    TALENT = 3,
-    TALENT_DATA_ONLY = 4,
-    DISPLAY = 5,
-    OVERWRITE_BATTLE_DATA = 6,
-}
-
-export enum UniEquipType {
-    INITIAL = 0,
-    ADVANCED = 1,
-}
-
-export enum VersusCheckInData_TasteType {
-    DRAW = 0,
-    SWEET = 1,
-    SALT = 2,
-}
-
-export enum VoiceLangGroupType {
-    NONE = 0,
-    CN_MANDARIN = 1,
-    JP = 2,
-    EN = 3,
-    KR = 4,
-    CUSTOM = 5,
-    LINKAGE = 6,
-}
-
-export enum VoiceLangType {
-    NONE = 0,
-    JP = 1,
-    CN_MANDARIN = 2,
-    EN = 3,
-    KR = 4,
-    CN_TOPOLECT = 5,
-    LINKAGE = 6,
-    ITA = 7,
-    GER = 8,
-    RUS = 9,
-    FRE = 10,
-    SPA = 11,
-}
-
-export enum VoucherDisplayType {
-    NONE = 0,
-    DIVIDE = 1,
-}
-
-export enum WeeklyType {
-    NONE = 0,
-    MATERIAL = 1,
-    SPECIAL = 2,
-    EVOLVE = 3,
-}
-
-export enum ZoneType {
-    NONE = 0,
-    MAINLINE = 1,
-    WEEKLY = 2,
-    ACTIVITY = 3,
-    GUIDE = 4,
-    TRAINING = 5,
-    CAMPAIGN = 6,
-    SIDESTORY = 7,
-    BRANCHLINE = 8,
-    ROGUELIKE = 9,
-    CLIMB_TOWER = 10,
-    MAINLINE_ACTIVITY = 11,
-    MAINLINE_RETRO = 12,
-}
+export type AbnormalCombo = "SLEEPING" | "SHELTERING" | "E_NUM";
+
+export type AbnormalFlag = "STUNNED" | "SP_RECOVER_STOPPED" | "TARGET_FREE" | "BLOCK_FREE" | "HIDDEN" | "INVINCIBLE" | "UNDEADABLE" | "HEAL_FREE" | "UNBALANCE_IMMUNE" | "INVISIBLE" | "UNUSED_PLACEHOLDER_2" | "ALLY_TARGET_FREE" | "UNUSED_PLACEHOLDER_1" | "DISARMED" | "SILENCED" | "UNMOVABLE" | "FROZEN" | "CAMOUFLAGE" | "FORCE_DISARMED" | "STUNNED_NO_AMPLIFY_DAMAGE" | "DISABLE_COMBAT" | "ELEMENT_FREE_ALL" | "UNMOVABLE_PRIVATE" | "COLD" | "SKILL_NOT_ACTIVATABLE" | "LEVITATE" | "DURANCE" | "NOT_WITHDRAWABLE" | "OUT_OF_GROUND" | "SP_MODIFY_STOPPED" | "ANTI_STATUS_RESISTABLE" | "DISARMED_COMBAT" | "TOWER_TARGET_FREE" | "FEARED" | "SKILL_ACTIVABLE_IN_ABNORMAL" | "MOTION_TARGET_FREE" | "FORCE_LEVITATE" | "BUFF_ADD_CAN_BE_CANCELED_IF_DEFENSE" | "DEFENSE_BUFF_ADD_IF_CANCELABLE_BUFF" | "PALSY" | "PALSYING" | "ATTRACTED" | "FEARED_PRIVATE" | "DOZE" | "TELEPORTED" | "E_NUM";
+
+export type Act12SideData_ActZoneClass = "NONE" | "NORMAL" | "HIGHLEVEL" | "SUB";
+
+export type Act12SideData_RecycleAnimationState = "NONE" | "NORMAL" | "SMILE";
+
+export type Act12SideData_RecycleDialogType = "NONE" | "EMPTY" | "LOW" | "MEDIUM" | "HIGH" | "GACHA";
+
+export type Act13SideData_ActZoneClass = "NONE" | "NORMAL" | "HIGHLEVEL" | "SUB";
+
+export type Act13SideData_PrestigeRank = "D" | "C" | "B" | "A" | "S";
+
+export type Act13SideData_UnlockCondition = "NONE" | "PRESTIGE" | "STAGE";
+
+export type Act17sideData_ArchiveItemStageUnlockParam = "NONE" | "PLAYED" | "PASS" | "COMPLETE";
+
+export type Act17sideData_ArchiveItemUnlockCondition = "NONE" | "STAGE" | "NODE";
+
+export type Act17sideData_ChapterIconType = "NORMAL" | "EX" | "HARD";
+
+export type Act17sideData_NodeType = "LANDMARK" | "STORY" | "BATTLE" | "ENDING" | "TREASURE" | "EVENT" | "TECH" | "CHOICE";
+
+export type Act17sideData_TrackPointType = "NONE" | "MAIN" | "SUB";
+
+export type Act17sideData_TreasureType = "SMALL" | "SPECIAL";
+
+export type Act1VHalfIdleBattleItemType = "EQUIP" | "TRAP";
+
+export type Act1VHalfIdleEquipType = "WEAPON" | "ARMOR" | "ACCESSORY" | "NUM";
+
+export type Act1VHalfIdleGachaPoolType = "NONE" | "GACHA_NORMAL" | "GACHA_NEWPLAYER" | "GACHA_PAC" | "GACHA_DIRECT";
+
+export type Act1VHalfIdleItemType = "NONE" | "LEVEL_EXP" | "SKILL_EXP" | "STRATEGY_POINT" | "ASC" | "GACHA" | "MODEL" | "ACTIVITY_ITEM";
+
+export type Act1VHalfIdlePlotCombineType = "NONE" | "SINGLE" | "PLUS" | "PLUS_OR";
+
+export type Act1VHalfIdlePlotType = "NONE" | "LANDSCAPE" | "ROAD" | "ROADSIDE" | "SPECIAL";
+
+export type Act1VHalfIdleTechTreeNodeType = "NONE" | "NORMAL" | "DIFFICULTY";
+
+export type Act24SideData_MeldingGoodDisplayType = "NONE" | "RARE_1" | "RARE_2" | "RARE_3";
+
+export type Act24SideData_MeldingGoodGachaType = "NONE" | "LIMITED" | "UNLIMITED";
+
+export type Act24SideData_MeldingItemRarityType = "NONE" | "RARITY_1" | "RARITY_2" | "RARITY_3" | "RARITY_4" | "RARITY_5" | "RARITY_6";
+
+export type Act24SideData_MissionType = "NONE" | "HUNTING_TASK" | "COLLECTION_TASK" | "EXPLORATION_TASK" | "MONSTER_TASK" | "INVATION_TASK";
+
+export type Act25SideData_Act25SideArchiveItemType = "PIC" | "STORY" | "BATTLE_PERFORMANCE" | "KEY" | "ENUM";
+
+export type Act25SideData_Act25SideArchiveItemUnlockType = "MISSION" | "STAGE" | "BUFF";
+
+export type Act25SideData_Act25sideTechType = "TECH_1" | "TECH_2" | "TECH_3" | "TECH_4" | "TECH_NUM";
+
+export type Act29SideData_Act29SideInvestType = "MAJOR" | "RARE" | "NORMAL";
+
+export type Act29SideData_Act29SideOrcheType = "ORCHE_1" | "ORCHE_2" | "ORCHE_3" | "ENUM";
+
+export type Act29SideData_Act29SideProductType = "PRODUCT_TYPE_1" | "PRODUCT_TYPE_2" | "PRODUCT_TYPE_3" | "PRODUCT_TYPE_4" | "PRODUCT_TYPE_5" | "ENUM";
+
+export type Act35SideData_DialogueNameBgType = "NONE" | "GREEN" | "BLUE";
+
+export type Act35SideData_DialogueType = "NONE" | "ENTRY" | "BONUS" | "BUY" | "PROCESS";
+
+export type Act38SideData_NpcDialogType = "NONE" | "ENTER_PUZZLE" | "PLATE_ERROR" | "HINT_SUCC" | "HINT_FAIL" | "PUZZLE_SOLVED";
+
+export type Act3D0Data_GachaBoxType = "LIMITED" | "UNLIMITED";
+
+export type Act3D0Data_GoodType = "NORMAL" | "SPECIAL";
+
+export type Act42D0Data_Act42D0AreaDifficulty = "NONE" | "NORMAL" | "HARD";
+
+export type Act44SideData_InsightType = "PATIENCE" | "ATTENTION" | "TRUST";
+
+export type Act4funStageAttributeType = "POS" | "NEG";
+
+export type Act4funSuperChatType = "ROLLED" | "RELATED";
+
+export type Act5D1Data_GoodType = "NORMAL" | "PROGRESS";
+
+export type Act6FunAchievementType = "NORMAL" | "EX";
+
+export type Act9D0Data_ActivityNewsLineType = "TextContent" | "ImageContent";
+
+export type ActArcadeData_BadgeType = "COMMON" | "ZONE" | "ULTIMATE";
+
+export type ActArcadeData_Rank = "B" | "A" | "S" | "SS" | "SSS";
+
+export type ActArcadeData_SubModeType = "MINER" | "DRAW" | "LINE" | "CAR" | "E_NUM";
+
+export type ActArchiveCopperType = "LUCK" | "COPPER" | "GILD" | "ERR_ZERO";
+
+export type ActArchivePicType = "IMAGE" | "BACKGROUND" | "ENDING_IMAGE" | "ROGUE_IMAGE";
+
+export type ActArchiveResData_ArchiveNewsLineType = "TextContent" | "ImageContent";
+
+export type ActArchiveTotemType = "LOCATION" | "EFFECT" | "AFFIX";
+
+export type ActArchiveType = "NONE" | "TIMELINE" | "MUSIC" | "PIC" | "AVG" | "STORY" | "NEWS" | "BUFF" | "RELIC" | "CAPSULE" | "TRAP" | "CHAT" | "LANDMARK" | "LOG" | "ACTIVITY_ENTRY" | "DYNAMIC_MUSIC" | "DYNAMIC_PIC" | "ENDBOOK" | "DYNAMIC_STORY" | "TOTEM" | "CHAOS" | "CHALLENGE_BOOK" | "ACHIEVEMENT" | "QUEST" | "FRAGMENT" | "DISASTER" | "COPPER" | "WRATH" | "SCRAP" | "WEATHER";
+
+export type ActAutoChessBondActiveConditionType = "BOARD" | "BOARD_AND_DECK" | "DECK" | "BOARD_ALL_CHESS";
+
+export type ActAutoChessBondActiveType = "BATTLE" | "ALL" | "MANI";
+
+export type ActAutoChessModeDifficultyType = "TRAINING" | "FUNNY" | "NORMAL" | "HARD" | "ABYSS";
+
+export type ActAutoChessModeType = "LOCAL" | "SINGLE" | "MULTI";
+
+export type ActivityBossRushData_BossRushStageType = "NONE" | "NORMAL" | "TEAM" | "EX" | "SP";
+
+export type ActivityCollectionData_JumpType = "NONE" | "ROGUE" | "CHAR_REPO";
+
+export type ActivityCompleteType = "SPECIAL" | "CAN_COMPLETE" | "CANNOT_COMPLETE";
+
+export type ActivityDisplayType = "NONE" | "SIDESTORY" | "BRANCHLINE" | "MINISTORY";
+
+export type ActivityInterlockData_InterlockStageType = "NONE" | "NORMAL" | "INTERLOCK" | "FINAL";
+
+export type ActivityThemeType = "NONE" | "ACTIVITY" | "CRISIS" | "MAINLINE" | "ROGUELIKE" | "CRISISV2" | "SANDBOX_PERM" | "ACTIVITY_COMP";
+
+export type ActivityType = "DEFAULT" | "MISSION_ONLY" | "CHECKIN_ONLY" | "CHECKIN_ALL_PLAYER" | "TYPE_ACT3D0" | "TYPE_ACT4D0" | "TYPE_ACT5D0" | "TYPE_ACT5D1" | "COLLECTION" | "AVG_ONLY" | "TYPE_ACT9D0" | "TYPE_ACT12SIDE" | "TYPE_ACT13SIDE" | "TYPE_ACT17SIDE" | "LOGIN_ONLY" | "MINISTORY" | "ROGUELIKE" | "PRAY_ONLY" | "MULTIPLAY" | "MULTIPLAY_VERIFY2" | "TYPE_ACT17D7" | "GRID_GACHA" | "GRID_GACHA_V2" | "INTERLOCK" | "APRIL_FOOL" | "BOSS_RUSH" | "TYPE_ACT20SIDE" | "FLOAT_PARADE" | "TYPE_ACT21SIDE" | "MAIN_BUFF" | "TYPE_ACT24SIDE" | "FLIP_ONLY" | "TYPE_ACT25SIDE" | "CHECKIN_VS" | "SWITCH_ONLY" | "TYPE_ACT27SIDE" | "UNIQUE_ONLY" | "MAINLINE_BP" | "TYPE_ACT42D0" | "TYPE_ACT29SIDE" | "BLESS_ONLY" | "CHECKIN_ACCESS" | "YEAR_5_GENERAL" | "TYPE_ACT35SIDE" | "VEC_BREAK" | "TYPE_ACT36SIDE" | "TYPE_ACT38SIDE" | "AUTOCHESS_VERIFY1" | "CHECKIN_VIDEO" | "ARCADE" | "MULTIPLAY_V3" | "TYPE_MAINSS" | "ENEMY_DUEL" | "VEC_BREAK_V2" | "TYPE_ACT42SIDE" | "TYPE_ACT44SIDE" | "HALFIDLE_VERIFY1" | "TYPE_ACT45SIDE" | "TEAM_QUEST" | "RECRUIT_ONLY" | "TYPE_ACT46SIDE" | "AUTOCHESS_SEASON" | "ACT_FOOTBALL" | "ENUM";
+
+export type ActMultiV3BlockDirType = "NONE" | "UP" | "RIGHT" | "DOWN" | "LEFT";
+
+export type ActMultiV3BlockType = "NONE" | "START" | "END" | "MID";
+
+export type ActMultiV3IdentityType = "NONE" | "HIGH" | "LOW" | "TEMPORARY" | "ALL";
+
+export type ActMultiV3MapDiffType = "NONE" | "TRAINING" | "ORDINARY" | "DIFFICULTY" | "EXTREMELY";
+
+export type ActMultiV3MapModeType = "NONE" | "NORMAL" | "FOOTBALL" | "DEFENCE" | "RAFT";
+
+export type ActMultiV3MatchPosType = "NORMAL" | "COACH" | "STUDENT";
+
+export type ActMultiV3PrepareStepType = "NONE" | "STAGE_CHOOSE" | "ENTRANCE" | "CHAR_PICK" | "SYS_ALLOC" | "SQUAD_CHECK";
+
+export type ActVecBreakV2ParticleType = "NONE" | "HARD";
+
+export type ActVecBreakV2StageOrderType = "NONE" | "A" | "B" | "C" | "D";
+
+export type AlchemyPoolRarityType = "NORMAL" | "RARE" | "SUPER_RARE";
+
+export type Anniv7thDisplayNodeType = "LETTER" | "TYPE_WRITER" | "RECORD" | "SIGN";
+
+export type AppearanceStyle = "MAIN_NORMAL" | "MAIN_PREDEFINED" | "SUB" | "TRAINING" | "HIGH_DIFFICULTY" | "MIST_OPS" | "SPECIAL_STORY";
+
+export type AttributeModifierData_AttributeModifier_FormulaItemType = "ADDITION" | "MULTIPLIER" | "FINAL_ADDITION" | "FINAL_SCALER";
+
+export type AttributeType = "MAX_HP" | "ATK" | "DEF" | "MAGIC_RESISTANCE" | "COST" | "BLOCK_CNT" | "MOVE_SPEED" | "ATTACK_SPEED" | "BASE_ATTACK_TIME" | "RESERVED_0" | "RESERVED_1" | "RESERVED_2" | "RESERVED_3" | "HP_RECOVERY_PER_SEC" | "SP_RECOVERY_PER_SEC" | "ABILITY_RANGE_FORWARD_EXTEND" | "MAX_DEPLOY_COUNT" | "DEF_PENETRATE" | "MAGIC_RESIST_PENETRATE" | "HP_RECOVERY_PER_SEC_BY_MAX_HP_RATIO" | "TAUNT_LEVEL" | "RESPAWN_TIME" | "MAX_DECK_STACK_CNT" | "MASS_LEVEL" | "BASE_FORCE_LEVEL" | "DEF_PENETRATE_FIXED" | "ONE_MINUS_STATUS_RESISTANCE" | "MAGIC_RESIST_PENETRATE_FIXED" | "MAX_EP" | "EP_RECOVERY_PER_SEC" | "SP_RECOVER_RATIO" | "EP_DAMAGE_RESISTANCE" | "EP_RESISTANCE" | "DAMAGE_HITRATE_PHYSICAL" | "DAMAGE_HITRATE_MAGICAL" | "EP_BREAK_RECOVER_SPEED" | "SLOW_DOWN" | "BLOCK_RADIUS_SCALE" | "E_NUM";
+
+export type Audio_Middleware_Data_AudioFadeType = "LINEAR" | "CONCAVE";
+
+export type Audio_MixerDesc_Category = "CUSTOM" | "FX_UI" | "FX_BATTLE" | "MUSIC" | "VOICE" | "MASTER";
+
+export type AutoChessBondType = "NONE" | "REGULAR" | "SEASON";
+
+export type AutoChessBroadcastType = "NONE" | "GOLDEN_CHAR" | "SHOP_LEVEL" | "BOSS_HIT" | "CHAR_DAMAGE" | "CHAR_GIFT" | "BOND_EFFECT";
+
+export type AutoChessChessType = "NORMAL" | "DIY" | "PRESET";
+
+export type AutoChessCountType = "NONE" | "BATTLE_LAYER" | "COUNTING" | "PROFESSIONS" | "GROUPS" | "LEVEL" | "PURCHASE";
+
+export type AutoChessEffectChoiceType = "EQUIP_FREE" | "EQUIP_PAID" | "BOUNTY_HUNT" | "BUFF_SELECT" | "PERSONAL_CHOOSE";
+
+export type AutoChessEffectCounterType = "NONE" | "TURN_COUNT" | "TRIGGER_COUNT" | "CHAR_COUNT" | "STACK_COUNT" | "COIN_JAR";
+
+export type AutoChessEffectType = "NONE" | "BAND_INITIAL" | "ENEMY" | "ENEMY_TEMPORARY" | "ALLY" | "EQUIP" | "MAGIC" | "CHAR_MAP" | "BOND" | "ENEMY_GAIN" | "BUFF_GAIN" | "GARRISON";
+
+export type AutoChessItemType = "CHAR" | "EQUIP" | "MAGIC" | "TOKEN";
+
+export type AutoChessPrepareStepType = "NONE" | "INFO_CHECK" | "BAND_CHECK" | "BATTLE_CHECK";
+
+export type AutoChessShopTokenDisplayType = "DEFAULT" | "HIDDEN";
+
+export type AutoChessSkillTriggerType = "DEFAULT" | "ALWAYS" | "SEARCH" | "MLYSS_WTRMAN" | "MARCILS2" | "TRY_SEARCH_ENEMY_SKILL" | "TRY_SEARCH_ALLY_SKILL" | "CUSTOM_RANGE_SEARCH_ENEMY" | "CUSTOM_RANGE_SEARCH_ALLY" | "GDGLOW_SKILL_2" | "ACT_DEFAULT" | "AUTO_STOP" | "TAKE_DAMAGE";
+
+export type Battle_Cooperate_EndTileType = "NONE" | "MY_SIDE" | "MATE_SIDE" | "SHARED";
+
+export type Battle_Cooperate_LASTROUNDRESULT = "GOAL" | "LOST";
+
+export type Battle_SideType = "NONE" | "ALLY" | "ENEMY" | "BOTH_ALLY_AND_ENEMY" | "NEUTRAL" | "ALL";
+
+export type BattleDialogType = "NONE" | "BEFORE" | "REACT" | "AFTER" | "ENUM";
+
+export type BattleFunctionDisableMask = "NONE" | "CARD_LIST" | "CHARACTER_MENU" | "CHARACTER_INFO" | "SYSTEM_MENU" | "PAUSE_BUTTON" | "SPEED_SWITCHER_BUTTON" | "BATTLE_STATUS" | "COST_PANEL" | "SLOW_MOTION" | "PAUSE_BUTTON_INTERACT" | "SYSTEM_MENU_INTERACT" | "SPEED_SWITCHER_BUTTON_INTERACT" | "UNIT_HUD_SKILL_CAST_MASK" | "WITHDRAWABLE_PANEL" | "COST_PANEL_KEEP_CHARACTERLIMIT" | "CHARACTER_LIMIT" | "AUTOCHESS_SELL_OR_DESTORY" | "CHARACTER_MENU_PANEL" | "ALL";
+
+export type BattleVoiceOption_BattleVoiceType = "BATTLE_START" | "ENCOUNTER_ENEMY" | "PLACE_CHAR" | "FOCUS_CHAR" | "SKILL_ACTIVE" | "SKILL_PASSIVE_IMP" | "SKILL_PASSIVE_NOR" | "NORMAL_ATTACK" | "E_NUM";
+
+export type BuffData_OnEventPriority = "HIGHER_PRIORITY" | "HIGH_PRIORITY" | "DEFAULT";
+
+export type BuffData_OverrideType = "DEFAULT" | "STACK" | "UNIQUE" | "EXTEND" | "EXTEND_TIME";
+
+export type BuffData_StatusResistable = "NO" | "YES" | "AUTOMATIC";
+
+export type BuildableType = "NONE" | "MELEE" | "RANGED" | "ALL";
+
+export type BuildingData_BuffCategory = "NONE" | "FUNCTION" | "OUTPUT" | "RECOVERY";
+
+export type BuildingData_CharStationFilterType = "All" | "DormLock" | "NotStationed";
+
+export type BuildingData_DiySortType = "NONE" | "THEME" | "FURNITURE" | "FURNITURE_IN_THEME" | "RECENT_THEME" | "RECENT_FURNITURE" | "MEETING_THEME" | "MEETING_FURNITURE" | "MEETING_FURNITURE_IN_THEME" | "MEETING_RECENT_THEME" | "MEETING_RECENT_FURNITURE";
+
+export type BuildingData_DiyUISortOrder = "DESC" | "ASC";
+
+export type BuildingData_FormulaItemType = "NONE" | "F_EVOLVE" | "F_BUILDING" | "F_GOLD" | "F_DIAMOND" | "F_FURNITURE" | "F_EXP" | "F_ASC" | "F_SKILL";
+
+export type BuildingData_FurnitureCategory = "FURNITURE" | "WALL" | "FLOOR";
+
+export type BuildingData_FurnitureInteract = "NONE" | "ANIMATOR" | "MUSIC" | "FUNCTION";
+
+export type BuildingData_FurnitureLocation = "NONE" | "WALL" | "FLOOR" | "CARPET" | "CEILING" | "POSTER" | "CEILINGDECAL";
+
+export type BuildingData_FurnitureSubType = "NONE" | "CHAIR" | "SOFA" | "BARSTOOL" | "STOOL" | "BENCH" | "ORTHER_S" | "POSTER" | "CURTAIN" | "BOARD_WD" | "SHELF" | "INSTRUMENT_WD" | "ART_WD" | "PLAQUE" | "CONTRACT" | "ANNIHILATION" | "ORTHER_WD" | "FLOORLAMP" | "PLANT" | "PARTITION" | "COOKING" | "CATERING" | "DEVICE" | "INSTRUMENT_D" | "ART_D" | "BOARD_D" | "ENTERTAINMENT" | "STORAGE" | "DRESSING" | "WARM" | "WASH" | "ORTHER_D" | "COLUMN" | "DECORATION_C" | "CURTAIN_C" | "DEVICE_C" | "CONTRACT_2" | "LIGHT" | "ORTHER_C" | "VISITOR" | "MUSIC";
+
+export type BuildingData_FurnitureType = "FLOOR" | "CARPET" | "SEATING" | "BEDDING" | "TABLE" | "CABINET" | "DECORATION" | "WALLPAPER" | "WALLDECO" | "WALLLAMP" | "CEILING" | "CEILINGLAMP" | "FUNCTION" | "INTERACT";
+
+export type BuildingData_LayoutData_StoreyData_Type = "UPGROUND" | "DOWNGROUND";
+
+export type BuildingData_LODLEVEL = "HIGHEST" | "HIGH" | "LOW" | "LOWEST" | "COUNT";
+
+export type BuildingData_RoomCategory = "NONE" | "FUNCTION" | "OUTPUT" | "CUSTOM" | "ELEVATOR" | "CORRIDOR" | "SPECIAL" | "CUSTOM_P" | "ELEVATOR_P" | "CORRIDOR_P" | "ALL";
+
+export type BuildingData_RoomType = "NONE" | "CONTROL" | "POWER" | "MANUFACTURE" | "SHOP" | "DORMITORY" | "MEETING" | "HIRE" | "ELEVATOR" | "CORRIDOR" | "TRADING" | "WORKSHOP" | "TRAINING" | "PRIVATE" | "FUNCTIONAL" | "ALL";
+
+export type CampaignStageType = "NONE" | "PERMANENT" | "ROTATE" | "TRAINING";
+
+export type CartComponents_CartAccessoryPos = "NONE" | "ROOF" | "HEADSTOCK" | "TRUNK_01" | "TRUNK_02" | "CAR_OS_01" | "CAR_OS_02";
+
+export type CartComponents_CartAccessoryType = "NONE" | "ROOF" | "HEADSTOCK" | "TRUNK" | "CAR_OS";
+
+export type CGGalleryCGCompositeType = "NONE" | "HORIZONTAL" | "VERTICAL" | "GRID";
+
+export type CGGalleryCGSource = "IMAGE" | "BACKGROUND" | "ITEM";
+
+export type ChaosEffectRank = "CHAOS_EFFECT_0" | "CHAOS_EFFECT_1" | "CHAOS_EFFECT_2";
+
+export type CharacterData_PotentialRank_TypeEnum = "BUFF" | "CUSTOM";
+
+export type CharMasterType = "NONE" | "SYSTEM" | "BATTLE";
+
+export type CharmRarity = "NONE" | "LOW" | "MEDIUM" | "HIGH";
+
+export type CharWordShowType = "HOME_SHOW" | "HOME_PLACE" | "HOME_WAIT" | "GACHA" | "EVOLVE_ONE" | "EVOLVE_TWO" | "FOUR_STAR" | "THREE_STAR" | "TWO_STAR" | "LOSE" | "LEVEL_UP" | "SQUAD" | "SQUAD_FIRST" | "BATTLE_START" | "BATTLE_FACE_ENEMY" | "BATTLE_SELECT" | "BATTLE_PLACE" | "BATTLE_SKILL_1" | "BATTLE_SKILL_2" | "BATTLE_SKILL_3" | "BATTLE_SKILL_4" | "BUILDING_PLACE" | "BUILDING_DRAGGING" | "BUILDING_FAVOR_BUBBLE" | "BUILDING_TOUCHING" | "LOADING_PANEL" | "BIRTHDAY" | "NEW_YEAR" | "VALENT_DAY" | "DRAGON_BOAT_FESTIVAL" | "HALLOWEEN_DAY" | "CHRISMATS_DAY" | "GREETING" | "ANNIVERSARY" | "UNUSED" | "E_ALL";
+
+export type CharWordVoiceType = "ONLY_TEXT" | "HAVE_CV" | "ENUM";
+
+export type CheckpointType = "MOVE" | "WAIT_FOR_SECONDS" | "WAIT_FOR_PLAY_TIME" | "WAIT_CURRENT_FRAGMENT_TIME" | "WAIT_CURRENT_WAVE_TIME" | "DISAPPEAR" | "APPEAR_AT_POS" | "ALERT" | "PATROL_MOVE" | "WAIT_BOSSRUSH_WAVE" | "MAP_OFFSET_MOVE" | "INVALID";
+
+export type ClimbTowerCardType = "SEASON" | "TOWER";
+
+export type ClimbTowerLevelType = "NORMAL" | "HIGHLEVEL" | "BOSS";
+
+export type ClimbTowerTaticalBuffType = "A" | "B";
+
+export type ClimbTowerTowerType = "TRAINING" | "NORMAL";
+
+export type CollectType = "ALL" | "ROGUE" | "SANDBOX";
+
+export type CommonUnlockType = "STAGECLEAR" | "HASCHAR" | "NONE";
+
+export type CrisisV2AppraiseType = "RANK_D" | "RANK_C" | "RANK_B" | "RANK_A" | "RANK_S" | "RANK_SS" | "RANK_SSS";
+
+export type CrossAppShareMissionType = "NORMAL" | "ACTIVITY";
+
+export type CustomTicketType = "NONE" | "PURIFY" | "GET_CANDLE";
+
+export type DataUnlockType = "DIRECT" | "AWAKE" | "FAVOR" | "STAGE" | "ITEM" | "NEVER" | "PATCH" | "NONE";
+
+export type DiceResultClass = "VERYBAD" | "BAD" | "NORMAL" | "GOOD" | "GREAT" | "BEST";
+
+export type DiceResultShowType = "RAW_TEXT" | "MUTATION" | "VIRTUE";
+
+export type EmojiSceneType = "NONE" | "ACTMULTIV3_ROOM" | "ACTMULTIV3_PICK" | "ACTMULTIV3_BATTLE" | "ENEMYDUEL_BATTLE" | "AUTOCHESS_ROOM" | "AUTOCHESS_BATTLE" | "BUILDING_ACTION";
+
+export type EnemyDuelBetStrategy = "DEFAULT" | "CHOOSE_WIN" | "CHOOSE_ODD" | "FOLLOW_FEWER" | "FOLLOW_MORE" | "CHOOSE_ODD_ENEMY_COUNT" | "CHOOSE_EVEN_ENEMY_COUNT" | "ALWAYS_LEFT";
+
+export type EnemyDuelModeType = "OPERATION" | "STAND";
+
+export type EnemyHandBookDamageType = "PHYSIC" | "MAGIC" | "HEAL" | "NO_DAMAGE";
+
+export type EnemyHandBookData_TextFormat = "NORMAL" | "TITLE" | "SILENCE";
+
+export type EnemyLevelType = "NORMAL" | "ELITE" | "BOSS" | "E_NUM";
+
+export type EvolvePhase = "PHASE_0" | "PHASE_1" | "PHASE_2" | "PHASE_3" | "E_NUM";
+
+export type FestivalVoiceTimeType = "NONE" | "FESTIVAL" | "BIRTHDAY";
+
+export type FifthAnnivExploreValueType = "TEAMVALUE_1" | "TEAMVALUE_2" | "TEAMVALUE_3";
+
+export type FireworkData_FireworkDirectionType = "TWO_DIR" | "FOUR_DIR";
+
+export type FireworkData_FireworkType = "RED" | "BLUE" | "YELLOW" | "GREEN";
+
+export type FogType = "ZONE" | "STAGE";
+
+export type GachaRuleType = "NORMAL" | "LIMITED" | "LINKAGE" | "ATTAIN" | "CLASSIC" | "SINGLE" | "FESCLASSIC" | "CLASSIC_ATTAIN" | "SPECIAL" | "DOUBLE" | "CLASSIC_DOUBLE" | "BACKFLOW";
+
+export type HalfIdleTrapBuildableType = "NONE" | "HIGHLAND" | "LOWLAND" | "IGNORE_TILE_HEIGHT" | "LHHE" | "LHPLT" | "LHRUIN" | "LHBOT";
+
+export type HandbookDisplayCondition_DisplayType = "DISPLAY_IF_CHAREXIST" | "INVISIBLE_IF_CHAREXIST";
+
+export type HomeMultiFormChangeRule = "NONE" | "TIME";
+
+export type HotUpdateMetaPicData_PicType = "NONE" | "SKIN";
+
+export type IllustNPCResType = "NONE" | "NPC" | "CHAR";
+
+export type ItemClassifyType = "NONE" | "CONSUME" | "NORMAL" | "MATERIAL";
+
+export type ItemDropShopType = "HGGSHD_SHOP" | "LGGSHD_SHOP" | "XSHD_SHOP" | "EPGS_SHOP" | "REP_SHOP" | "CLASSIC_SHOP";
+
+export type ItemRarity = "TIER_1" | "TIER_2" | "TIER_3" | "TIER_4" | "TIER_5" | "TIER_6" | "E_NUM";
+
+export type ItemType = "NONE" | "CHAR" | "CARD_EXP" | "MATERIAL" | "GOLD" | "EXP_PLAYER" | "TKT_TRY" | "TKT_RECRUIT" | "TKT_INST_FIN" | "TKT_GACHA" | "ACTIVITY_COIN" | "DIAMOND" | "DIAMOND_SHD" | "HGG_SHD" | "LGG_SHD" | "FURN" | "AP_GAMEPLAY" | "AP_BASE" | "SOCIAL_PT" | "CHAR_SKIN" | "TKT_GACHA_10" | "TKT_GACHA_PRSV" | "AP_ITEM" | "AP_SUPPLY" | "RENAMING_CARD" | "RENAMING_CARD_2" | "ET_STAGE" | "ACTIVITY_ITEM" | "VOUCHER_PICK" | "VOUCHER_CGACHA" | "VOUCHER_MGACHA" | "CRS_SHOP_COIN" | "CRS_RUNE_COIN" | "LMTGS_COIN" | "EPGS_COIN" | "LIMITED_TKT_GACHA_10" | "LIMITED_FREE_GACHA" | "REP_COIN" | "ROGUELIKE" | "LINKAGE_TKT_GACHA_10" | "VOUCHER_ELITE_II_4" | "VOUCHER_ELITE_II_5" | "VOUCHER_ELITE_II_6" | "VOUCHER_SKIN" | "RETRO_COIN" | "PLAYER_AVATAR" | "UNI_COLLECTION" | "VOUCHER_FULL_POTENTIAL" | "RL_COIN" | "RETURN_CREDIT" | "MEDAL" | "CHARM" | "HOME_BACKGROUND" | "EXTERMINATION_AGENT" | "OPTIONAL_VOUCHER_PICK" | "ACT_CART_COMPONENT" | "VOUCHER_LEVELMAX_6" | "VOUCHER_LEVELMAX_5" | "VOUCHER_LEVELMAX_4" | "VOUCHER_SKILL_SPECIALLEVELMAX_6" | "VOUCHER_SKILL_SPECIALLEVELMAX_5" | "VOUCHER_SKILL_SPECIALLEVELMAX_4" | "ACTIVITY_POTENTIAL" | "ITEM_PACK" | "SANDBOX" | "FAVOR_ADD_ITEM" | "CLASSIC_SHD" | "CLASSIC_TKT_GACHA" | "CLASSIC_TKT_GACHA_10" | "LIMITED_BUFF" | "CLASSIC_FES_PICK_TIER_5" | "CLASSIC_FES_PICK_TIER_6" | "RETURN_PROGRESS" | "NEW_PROGRESS" | "MCARD_VOUCHER" | "MATERIAL_ISSUE_VOUCHER" | "CRS_SHOP_COIN_V2" | "HOME_THEME" | "SANDBOX_PERM" | "SANDBOX_TOKEN" | "TEMPLATE_TRAP" | "NAME_CARD_SKIN" | "EMOTICON_SET" | "EXCLUSIVE_TKT_GACHA" | "EXCLUSIVE_TKT_GACHA_10" | "SO_CHAR_EXP" | "GIFTPACKAGE_TKT" | "VOUCHER_SKIN_V2" | "RANDOM_VOUCHER_SKIN" | "ACT1VHALFIDLE_ITEM" | "PLOT_ITEM" | "MAGAZINE_LEAF" | "STICKER";
+
+export type KeyCodeType = "KEYBOARD" | "MOUSE";
+
+export type KeyEffectGroup = "BATTLE" | "OUT_BATTLE" | "ALL";
+
+export type KeySettingGroup = "BATTLE" | "NORMAL";
+
+export type LevelData_Difficulty = "NONE" | "NORMAL" | "FOUR_STAR" | "EASY" | "SIX_STAR" | "ALL";
+
+export type LevelData_WaveData_FragmentData_ActionData_ActionType = "SPAWN" | "PREVIEW_CURSOR" | "STORY" | "TUTORIAL" | "PLAY_BGM" | "DISPLAY_ENEMY_INFO" | "ACTIVATE_PREDEFINED" | "PLAY_OPERA" | "TRIGGER_PREDEFINED" | "BATTLE_EVENTS" | "WITHDRAW_PREDEFINED" | "DIALOG" | "SHOW_ALL_HIDDEN_CARDS" | "EMPTY" | "E_NUM";
+
+export type LevelData_WaveData_FragmentData_ActionData_RandomType = "ALWAYS" | "PER_DAY" | "NEVER" | "PER_SETTLE_DAY" | "PER_SEASON";
+
+export type LevelData_WaveData_FragmentData_ActionData_RefreshType = "ALWAYS" | "PER_DAY" | "NEVER" | "PER_SETTLE_DAY" | "PER_SEASON";
+
+export type LifeType = "IMMEDIATELY" | "LIMITED" | "INFINITY" | "CUSTOM";
+
+export type MagazineLeafType = "DEFAULT" | "ROGUE" | "SANDBOX" | "AMIYA";
+
+export type MailArchiveItemType = "NORMAL" | "BIRTHDAY" | "OPEN_SERVER";
+
+export type MainlineZoneData_ZoneReplayBtnType = "NONE" | "RECAP" | "REPLAY";
+
+export type MedalExpireType = "NONE" | "INIT" | "TEMP" | "PERM";
+
+export type MedalRarity = "T1" | "T1D5" | "T2" | "T2D5" | "T3" | "T3D5";
+
+export type MileStoneInfo_GoodType = "NORMAL" | "SPECIAL";
+
+export type MiniActTrialData_RuleType = "NONE" | "TITLE" | "CONTENT";
+
+export type MissionItemBgType = "COMMON" | "Equipment" | "Char";
+
+export type MissionType = "UNKNOWN" | "MAIN" | "DAILY" | "WEEKLY" | "GUIDE" | "SUB" | "ACTIVITY" | "OPENSERVER" | "TOWERSEASON" | "RETRO" | "SPECIAL_OPERATOR" | "SPECIAL_OPERATOR_WEEKLY";
+
+export type MotionMask = "NONE" | "WALK_ONLY" | "FLY_ONLY" | "ALL";
+
+export type MotionMode = "WALK" | "FLY" | "E_NUM";
+
+export type NameCardV2ModuleSubType = "NONE" | "SIGN" | "ASSIST" | "MEDAL" | "MAINLINE" | "EQUIPMENT";
+
+export type NameCardV2ModuleType = "NONE" | "BACKGROUND" | "ILLUST" | "COLLECT" | "AVATAR" | "REMOVABLE" | "AVATAR_SIMPLE";
+
+export type NameCardV2SkinType = "NONE" | "BASE" | "SPECIAL" | "DYNAMIC";
+
+export type NpcStrategy = "DEFAULT" | "CHOOSE_WIN" | "CHOOSE_ODD" | "FOLLOW_FEWER" | "FOLLOW_MORE";
+
+export type OccPer = "ALWAYS" | "ALMOST" | "USUAL" | "OFTEN" | "SOMETIMES" | "NEVER" | "DEFINITELY_BUFF";
+
+export type OverrideGameMode = "NONE" | "ACT27SIDE";
+
+export type PlayerAvatarGroupType = "NONE" | "ASSISTANT" | "DEFAULT" | "SPECIAL" | "ACTIVITY" | "DYNAMIC";
+
+export type PlayerBattleRank = "FAIL" | "PASS" | "COMPLETE" | "ERR_ZERO";
+
+export type PlayerSideMask = "ALL" | "SIDE_A" | "SIDE_B" | "NONE";
+
+export type PlayerStageState = "UNLOCKED" | "PLAYED" | "PASS" | "COMPLETE";
+
+export type ProfessionCategory = "NONE" | "WARRIOR" | "SNIPER" | "TANK" | "MEDIC" | "SUPPORT" | "CASTER" | "SPECIAL" | "TOKEN" | "TRAP" | "PIONEER";
+
+export type ProfessionID = "WARRIOR" | "SNIPER" | "TANK" | "MEDIC" | "SUPPORT" | "CASTER" | "SPECIAL" | "PIONEER" | "TOKEN" | "TRAP";
+
+export type RarityRank = "TIER_1" | "TIER_2" | "TIER_3" | "TIER_4" | "TIER_5" | "TIER_6" | "E_NUM";
+
+export type RarityRankMask = "NONE" | "TIER_1" | "TIER_2" | "TIER_3" | "TIER_4" | "TIER_5" | "TIER_6" | "ALL";
+
+export type RecommendItemTagTips = "ONSALE" | "DEADLINE" | "NONE";
+
+export type RecordRewardStageDiff = "NONE" | "EASY" | "NORMAL" | "TOUGH" | "PREDEFINED" | "HARD";
+
+export type RetroType = "SIDESTORY" | "BRANCHLINE";
+
+export type ReturnAllOpenType = "RESOURCE" | "CAMP";
+
+export type ReturnJumpType = "NONE" | "ZONE_GROUP" | "ROGUE" | "CLIMB_TOWER" | "CAMPAIGN" | "BUILDING" | "RECRUIT_BUILD" | "DAILY_MISSION" | "SANDBOX" | "MAIN_SS";
+
+export type ReturnMissionGroupType = "DAILY" | "NORMAL" | "DIFF";
+
+export type ReturnNewsType = "NONE" | "MAIN_SS" | "ROGUE" | "SANDBOX";
+
+export type RL02DevelopmentEffectType = "BUFF" | "RAW_TEXT_EFFECT" | "RAW_TEXT_BAND" | "NONE";
+
+export type RL02DevelopmentNodeType = "NONE" | "SMALL" | "NORMAL" | "LARGE_RHODES" | "LARGE_ABYSSAL" | "LARGE_IBERIA";
+
+export type RL03DevelopmentEffectType = "BUFF" | "RAW_TEXT_EFFECT" | "RAW_TEXT_BAND";
+
+export type RL03DevelopmentNodeType = "NONE" | "NORMAL" | "KEY" | "DIFFICULTY";
+
+export type RoguelikeActivityType = "NONE" | "SEED_MODE";
+
+export type RoguelikeBankRewardCountType = "HIGHEST_RECORD" | "TOTAL_SUM";
+
+export type RoguelikeCharState = "NORMAL" | "UPGRADE" | "UPGRADE_BUFF" | "UPGRADE_BONUS" | "FREE" | "ASSIST" | "THIRD" | "MONTHLY" | "THIRD_LOW" | "MERCENARY";
+
+export type RoguelikeChoiceDisplayType = "NONE" | "NORMAL" | "ITEM" | "TASK";
+
+export type RoguelikeChoiceHintType = "NONE" | "ITEM" | "CANDLED_CHAR" | "GUIDED_CHAR" | "SACRIFICE" | "SACRIFICE_TOTEM" | "SACRIFICE_SCRAP" | "EXPEDITION" | "CANDLE" | "GUIDED" | "HP" | "VISION" | "STASHED_RECRUIT" | "SEED_COST" | "ITEM_COST" | "CHAOS" | "FRAGMENT" | "SP_ZONE_AP" | "COPPER_LUCK" | "AP_LEFT";
+
+export type RoguelikeChoiceLeftDecoType = "NONE" | "TASK" | "TASK_REWARD" | "DICE" | "VISION";
+
+export type RoguelikeCommonDevelopmentEffectType = "BUFF" | "RAW_TEXT_EFFECT" | "RAW_TEXT_BAND";
+
+export type RoguelikeCommonDevelopmentNodeType = "NONE" | "NORMAL" | "KEY" | "DIFFICULTY";
+
+export type RoguelikeCopperBuffType = "NONE" | "REFRESH" | "MOVE";
+
+export type RoguelikeCopperDivineResultType = "NONE" | "GOOD" | "NORMAL" | "BAD";
+
+export type RoguelikeCopperDivineType = "NONE" | "DIVINE" | "EVENT";
+
+export type RoguelikeCopperLuckyLevel = "NONE" | "HIGH" | "MID" | "LOW";
+
+export type RoguelikeCopperType = "NONE" | "BLANK" | "FIGHT" | "RESOURCE" | "UNSOUND" | "TREASURE" | "SPECIAL";
+
+export type RoguelikeEndingDetailText_Type = "SHOW_CHOICE" | "SHOW_RELIC" | "SHOW_CAPSULE" | "SHOW_ACTIVE_TOOL" | "SHOW_ACCELERATE_CHAR" | "SHOW_NORMAL_RECRUIT" | "SHOW_DIRECT_RECRUIT" | "SHOW_FRIEND_RECRUIT" | "SHOW_FREE_RECRUIT" | "BUY" | "INVEST" | "SHOW_STAGE" | "SHOW_CONST" | "SUM" | "SHOW_BOSS_END" | "SHOW_BATTLE";
+
+export type RoguelikeEnrollType = "DLC" | "REVIEW";
+
+export type RoguelikeEventType = "NONE" | "BATTLE_NORMAL" | "BATTLE_ELITE" | "BATTLE_BOSS" | "SHOP" | "REST" | "INCIDENT" | "TREASURE" | "ENTERTAINMENT" | "UNKNOWN" | "WISH" | "SACRIFICE" | "EXPEDITION" | "BATTLE_SHOP" | "PORTAL" | "MISSION" | "STORY" | "STORY_HIDDEN" | "ALCHEMY" | "DUEL" | "STASHED_RECRUIT" | "SPECIAL_ZONE" | "SCRAP_SHOP" | "DOOR" | "FINAL" | "EVACUATE" | "EMPLOY" | "LIGHT" | "BATTLE_SAVAGE" | "EMPTY" | "BATTLES" | "CHOICES" | "EVENTS" | "ALL";
+
+export type RoguelikeExpStyleConfigParam = "BATTLE_END_HP_LOSE_TEXT";
+
+export type RoguelikeFragmentType = "NONE" | "INSPIRATION" | "WISH" | "IDEA";
+
+export type RoguelikeGameCharBuffType = "NONE" | "MUTATION" | "EVOLUTION" | "FROM_RELIC";
+
+export type RoguelikeGameChoiceType = "NONE" | "LEAVE" | "NEXT" | "NEXT_PROB" | "TRADE" | "TRADE_PROB" | "SACRIFICE" | "TELEPORT" | "EXPEDITION" | "WISH" | "TRADE_PROB_SHOW" | "SACRIFICE_TOTEM" | "WISH_ALL" | "KILL" | "USE_STASHED_TICKET" | "EXPEDITION_ALL" | "EXPEDITION_RETURN_ALL" | "PACIFY_WRATH" | "GILD_COPPER" | "ITEM_REROLL" | "ITEM_TOP_UP" | "GILD_COPPER_ALL" | "JUMP_PROB" | "JUMP" | "ZONE_END" | "MOVE" | "VISION" | "SCRAP_PAY_SHOW";
+
+export type RoguelikeGameItemRarity = "NONE" | "BORN" | "NORMAL" | "RARE" | "SUPER_RARE";
+
+export type RoguelikeGameItemSubType = "NONE" | "CURSE" | "TEMP_TICKET" | "TOTEM_UPPER" | "TOTEM_LOWER" | "SECRET" | "SINGLE_RAND_FREE" | "RED_CAPSULE";
+
+export type RoguelikeGameItemType = "NONE" | "HP" | "HPMAX" | "GOLD" | "POPULATION" | "EXP" | "SQUAD_CAPACITY" | "RECRUIT_TICKET" | "UPGRADE_TICKET" | "RELIC" | "BP_POINT" | "GROW_POINT" | "BAND" | "ACTIVE_TOOL" | "CAPSULE" | "POOL" | "RL_BP" | "RL_GP" | "KEY_POINT" | "SAN_POINT" | "DICE_POINT" | "DICE_TYPE" | "SHIELD" | "LOCKED_TREASURE" | "CUSTOM_TICKET" | "TOTEM" | "TOTEM_EFFECT" | "FEATURE" | "VISION" | "CHAOS" | "CHAOS_PURIFY" | "CHAOS_LEVEL" | "EXPLORE_TOOL" | "FRAGMENT" | "MAX_WEIGHT" | "DISASTER" | "DISASTER_TYPE" | "ABSTRACT_DISASTER" | "PILL" | "BIGPILL" | "COPPER" | "COPPER_BUFF" | "DIVINATION_KIT" | "WRATH" | "SPECIAL_ZONE_AP" | "COPPER_DRAW_NUM" | "STASH_RECRUIT_LIMIT" | "NODE_BUOY" | "SCRAP" | "LEGACY" | "CHARACTER";
+
+export type RoguelikeGameMonthTaskClass = "NONE" | "C" | "B" | "A";
+
+export type RoguelikeGameRelicCheckType = "NONE" | "PROFESSION" | "SUB_PROFESSION" | "UPGRADE";
+
+export type RoguelikeGameVariationType = "NONE" | "MAP" | "RES" | "BAT";
+
+export type RoguelikeModuleType = "NONE" | "SANCHECK" | "DICE" | "CHAOS" | "TOTEMBUFF" | "VISION" | "FRAGMENT" | "DISASTER" | "NODE_UPGRADE" | "COPPER" | "WRATH" | "CANDLE" | "SKY" | "GRID_ZONE" | "WEATHER" | "SCRAP";
+
+export type RoguelikeMonthChatTrigType = "NONE" | "TRANSITING" | "DUNGEON";
+
+export type RoguelikeMoveScrapRangeType = "RANGE" | "FULL_MAP";
+
+export type RoguelikeRewardExDropTagSrcType = "NONE" | "TREASURE" | "TOTEM" | "EXPLORE_TOOL" | "COPPER" | "EVIL_TEMPLE" | "TREASURE_MAP" | "LOOP_CHIP" | "STEP" | "GREED" | "GOLDEN_AGE";
+
+export type RoguelikeScrapType = "NONE" | "MOVE" | "GOODS" | "PASSIVE";
+
+export type RoguelikeSkyZoneNodeType = "NONE" | "ORIGIN" | "BATTLE" | "TRIAL_GATE" | "INCIDENT" | "TREASURE" | "SHOP" | "SACRIFICE" | "ENTERTAINMENT" | "MARKET" | "BATTLE_HARD" | "INCIDENT_BOSS" | "INCIDENT_BOSS_ONLY" | "CHOICES" | "BATTLES";
+
+export type RoguelikeTaskRarity = "NORMAL" | "RARE" | "SUPER_RARE";
+
+export type RoguelikeTopicBankRewardType = "NONE" | "UNLOCK_ITEM" | "ADD_SHOP_POS" | "UNLOCK_WITHDRAW" | "UNLOCK_SHOP_BATTLE" | "UNLOCK_SHOP_REFRESH";
+
+export type RoguelikeTopicDevNodeType = "BRANCH" | "KEY" | "NONE";
+
+export type RoguelikeTopicDevTokenDisplayForm = "ABSOLUTE_VAL" | "PERCENTAGE";
+
+export type RoguelikeTopicDifficultyWarningType = "NONE" | "NORMAL" | "HARD";
+
+export type RoguelikeTopicMode = "NONE" | "EASY" | "NORMAL" | "HARD" | "NORML_END" | "MONTH_TEAM" | "CHALLENGE";
+
+export type RoguelikeTotemBlurNodeType = "NONE" | "BATTLE" | "NO_BATTLE";
+
+export type RoguelikeTotemColorType = "NONE" | "RED" | "GREEN" | "BLUE" | "ALL";
+
+export type RoguelikeTotemPosType = "LOCATION" | "EFFECT";
+
+export type RoguelikeVisionModuleData_VisionChoiceCheckType = "LOWER" | "UPPER";
+
+export type SandboxArchiveQuestType = "NONE" | "MAIN" | "SIDE";
+
+export type SandboxBuildingItemType = "NONE" | "PRODUCTION" | "SCOUT" | "BATTLE" | "FUNCTION";
+
+export type SandboxCraftItemType = "SHORT" | "LONG";
+
+export type SandboxDailyDescTemplateType = "VISITOR" | "RARE_ANIMAL" | "WANDER" | "MARKET";
+
+export type SandboxDevelopmentLineStyle = "EMPTY" | "LEVEL_PASS" | "LEVEL_BLOCK";
+
+export type SandboxDevelopmentType = "NONE" | "SURVIVE" | "COLLECT" | "SHOP" | "BATTLE" | "DUNGEON" | "EXPLORE" | "RESOURCE" | "INITIAL";
+
+export type SandboxEnemyRushType = "NORMAL" | "ELITE" | "BOSS";
+
+export type SandboxEventChoiceType = "LEAVE" | "TRADE" | "NEXT" | "MISSION";
+
+export type SandboxEventType = "RESOURCE" | "FOOD" | "MISSION" | "BUSINESS" | "ADVENTURE" | "MYSTERY";
+
+export type SandboxFoodAttribute = "NONE" | "SURVIVE" | "COST" | "ATTACK" | "COOLDOWN" | "SKILL_POINT" | "SPECIAL" | "ENHANCED" | "FUNCTION";
+
+export type SandboxFoodMatType = "MAIN" | "SUB";
+
+export type SandboxFoodVariantType = "NONE" | "ALPHA" | "BETA" | "GAMMA";
+
+export type SandboxItemType = "NONE" | "TACTICAL" | "STAMINA" | "STAMINAPOT" | "BUILDING" | "BUILDINGMAT" | "FOOD" | "FOODMAT" | "SPECIALMAT" | "GOLD" | "CRAFT" | "PLACEHOLDER";
+
+export type SandboxNodeType = "NONE" | "HOME" | "BATTLE" | "NEST" | "COLLECT" | "HUNT" | "CAVE" | "EVENT" | "MISSION" | "MARKET";
+
+export type SandboxPermItemType = "NONE" | "TACTICAL" | "BUILDING" | "BUILDINGMAT" | "FOOD" | "FOODMAT" | "SPECIALMAT" | "COIN" | "CRAFT" | "PLACEHOLDER" | "STAMINAPOT" | "ANIMAL" | "INSECT" | "SLUGITEM" | "RELIC" | "RECIPE" | "PRODUCT" | "TOOLKIT" | "RANDRELIC" | "RANDRECIPE" | "CURRENCY" | "COOKBOOK" | "BASEBUILDING" | "BASECOIN" | "BASEANIMAL" | "BASETACTICAL" | "TECHPOINT";
+
+export type SandboxPermTemplateType = "NONE" | "SANDBOX_V2" | "SANDBOX_V3";
+
+export type SandboxRewardTrapDropType = "COLLECT" | "DAILY" | "ACTIVATE" | "DURATION";
+
+export type SandboxShopCoinType = "DIMENSION_COIN" | "GOLD" | "BASE_GOLD" | "BASE_GOLDEX";
+
+export type SandboxV2BaseUnlockFuncDisplayType = "NONE" | "NEW" | "UPDATE" | "NUMBER";
+
+export type SandboxV2BaseUnlockFuncType = "NONE" | "HOME_PUTPOST" | "HOME_PORTABLE" | "REWARDSHOP" | "TECH" | "REAR" | "BUILD" | "SHOP" | "RACING";
+
+export type SandboxV2ConfirmIconType = "COMMON" | "EMERGENCY" | "QUIT" | "EVACUATE" | "EVACUATELOSS" | "NORMAL" | "COMBAT" | "CONSTRUCT" | "NEXTDAY" | "RIFT_EXIT" | "LOAD_ARCHIVE";
+
+export type SandboxV2CraftItemType = "BASE_BUILDING" | "TACTICAL" | "COMBAT_BUILDING";
+
+export type SandboxV2EnemyRushType = "NORMAL" | "ELITE" | "BOSS" | "BANDIT" | "RALLY" | "THIEF" | "MESSENGER" | "INSECT";
+
+export type SandboxV2EventChoiceType = "NONE" | "NEXT" | "LEAVE" | "MISSION";
+
+export type SandboxV2EventType = "NONE" | "EVENT" | "MISSION" | "QUEST_EVENT" | "QUEST_MISSION";
+
+export type SandboxV2ItemTrapTag = "OUTPUT" | "COLLECTION" | "IMPAIR" | "ENHANCE" | "EXPLORE" | "SPECTACLE" | "DECORATE" | "DEFEND" | "SCOUT";
+
+export type SandboxV2NodeType = "NONE" | "HOME" | "HOME_OUTPOST" | "BATTLE" | "NEST" | "COLLECT" | "HUNT" | "CAVE" | "MINE" | "ENCOUNTER" | "EXPEDITION" | "SHOP" | "GATE" | "MARKET" | "HOME_PORTABLE" | "HOME_PORTABLE_RIFT" | "SELECTION" | "RACING";
+
+export type SandboxV2NpcType = "NORMAL" | "FIXED_RIFT" | "RANDOM_RIFT" | "PREY_RIFT";
+
+export type SandboxV2QuestLineBadgeType = "NONE" | "SIDE" | "GUIDE" | "MAIN" | "RIFT";
+
+export type SandboxV2QuestLineScopeType = "MAIN" | "RIFT" | "ALL";
+
+export type SandboxV2QuestLineType = "NONE" | "MAIN" | "SIDE" | "GUIDE" | "TRAINING";
+
+export type SandboxV2QuestRouteType = "NONE" | "ENEMY_RUSH" | "EVENT" | "NODE" | "NPC";
+
+export type SandboxV2RacerNameType = "PREFIX" | "SUFFIX";
+
+export type SandboxV2RacerTalentType = "BORN" | "LEARNED";
+
+export type SandboxV2RiftMainTargetType = "NONE" | "FIND" | "BOSS_HUNT" | "WILD_HUNT" | "PROTECT" | "FIGHT" | "CATCH_THIEF" | "PREY_HUNT";
+
+export type SandboxV2SeasonType = "NONE" | "DRY" | "RAINY" | "CHALLENGE";
+
+export type SandboxV2TrapItemType = "NONE" | "BATTLE" | "TACTICAL" | "FUNCTION" | "ANIMAL";
+
+export type SandboxV2WeatherType = "NORMAL" | "RAINFOREST" | "VOLCANO" | "DESERT";
+
+export type SandboxV3BagItemType = "NONE" | "MATERIALBAG" | "RELICBAG";
+
+export type SandboxV3BaseBuildType = "NONE" | "ROAD" | "CANAL" | "RAILWAY" | "PRODUCTION" | "HOUSE" | "POWER" | "BEAUTY";
+
+export type SandboxV3BasementUnlockFuncDisplayType = "NONE" | "NEW" | "UPDATE" | "NUMBER";
+
+export type SandboxV3BasementUnlockFuncType = "NONE" | "HOME_PUTPOST" | "TECH" | "MAP";
+
+export type SandboxV3BaseTrapType = "NONE" | "PATH" | "AGRICULTURE" | "SETTLEMENT" | "PDLINE" | "DECORATION" | "OTHER";
+
+export type SandboxV3BuildScoreType = "NONE" | "NPC" | "TRAP" | "LEVEL" | "ENPC";
+
+export type SandboxV3ElectricTransferType = "NONE" | "FUNCTION" | "SUPPLY" | "ADDITION" | "AMPLIFY";
+
+export type SandboxV3EnemyRewardType = "NONE" | "ITEM" | "POWER" | "LUCKYDROP";
+
+export type SandboxV3MapTileType = "NONE" | "TEXTURE" | "BUILDING";
+
+export type SandboxV3MilestoneStage = "EARLY" | "MIDDLE" | "LATE";
+
+export type SandboxV3NodeType = "NONE" | "HOME" | "STORY" | "EXPLORE";
+
+export type SandboxV3NpcType = "NORMAL" | "BASE";
+
+export type SandboxV3QuestLineBadgeType = "NONE" | "MAIN" | "SIDE" | "GUIDE";
+
+export type SandboxV3ShopType = "NONE" | "REST" | "BATTLE";
+
+export type SandboxV3TaskDifficultyType = "NONE" | "EASY" | "NORMAL" | "HARD";
+
+export type SandboxV3TaskType = "DEPLOY_TRAP_BY_GROUP" | "CONSTRUCT_TRAP_BY_GROUP" | "OWN_TRAP_BY_GROUP" | "OWN_TRAP_AND_DELIVER" | "OWN_TRAP_BY_TYPE" | "ITEM_DELIVERY" | "GATHER" | "KILL_ENEMY" | "KILL_ENEMY_FILTER_BY_TAG" | "KILL_ENEMY_FILTER_BY_LEVELTYPE" | "UNLOCK_ROOM_BY_MASK" | "UNLOCK_ROOM_CULMULATIVE" | "CATCH_ANIMAL" | "PROSPERITY_KEEP" | "AESTHETICS_REACH" | "PROSPERITY_REACH" | "AESTHETICS_INCREASE" | "PROSPERITY_INCREASE" | "TRADE_IN_SALE" | "CHARACTER_CHECK" | "RAILWAY_CHECK";
+
+export type SandboxV3TrapType = "PRODUCER" | "INFRASTRUCTURE" | "PROCESSOR" | "SERVICE" | "AESTHETICS" | "TACTICAL";
+
+export type SandboxWeatherType = "NORMAL" | "RAINFOREST" | "VOLCANO" | "DESERT";
+
+export type SanEffectRank = "SAN_EFFECT_0" | "SAN_EFFECT_1" | "SAN_EFFECT_2" | "SAN_EFFECT_3";
+
+export type ScoreGroupType = "WONDER" | "DEBRIS_CLEAN" | "NPC_RECRUIT" | "TRAP_BUILD" | "TRAP_RULE";
+
+export type SharedConsts_Direction = "UP" | "RIGHT" | "DOWN" | "LEFT" | "E_NUM" | "INVALID";
+
+export type ShopCondTrigPackageType = "NONE" | "RETURN_PROGRESS" | "RETURN_ONCE" | "NEW_PROGRESS" | "CHOOSE_REGISTER_TIME" | "CHOOSE_NEWBIE";
+
+export type ShopGPTabType = "DEFAULT_ALL" | "MONTH_CARD" | "PERM" | "NEWBIE" | "RETURN" | "RECOMMOND" | "TIMELY";
+
+export type ShopRecommendTemplateType = "DEFAULT" | "NORSKIN" | "RETURNSKIN" | "NORFURN" | "NORGIFT";
+
+export type ShopRouteTarget = "RECOMMENDSHOP" | "CASHSHOP" | "GIFTPACKAGE" | "SKINSHOP" | "HQCSHOP" | "LQCSHOP" | "EXQCSHOP" | "SOCAILSHOP" | "FURNSHOP" | "REPSHOP" | "LMGTSSHOP" | "EPGSSHOP" | "CLASSICSHOP" | "NONE";
+
+export type ShopUnlockType = "ALWAYS_UNLOCK" | "SKIN_UNLOCK" | "FURN_UNLOCK" | "BOTH_SKIN_FURN";
+
+export type SiracusaData_CardGainType = "NONE" | "STAGE_GAIN" | "TASK_GAIN";
+
+export type SiracusaData_NavigationType = "NONE" | "AVG" | "LEVEL" | "CHAR_CARD";
+
+export type SiracusaData_TaskRingLogicType = "NONE" | "LINEAR" | "AND" | "OR";
+
+export type SiracusaData_TaskType = "NONE" | "BATTLE" | "AVG";
+
+export type SiracusaData_ZoneUnlockType = "NONE" | "STAGE_UNLOCK" | "TASK_UNLOCK";
+
+export type SixStarMilestoneRewardType = "UNLOCK_STAGE" | "REWARD";
+
+export type SixStarStageCompatibleDropType = "COMPLETE_ONLY";
+
+export type SkillDurationType = "NONE" | "AMMO";
+
+export type SkillType = "PASSIVE" | "MANUAL" | "AUTO";
+
+export type SkinVoiceType = "NONE" | "ILLUST" | "ALL";
+
+export type SourceApplyWay = "NONE" | "MELEE" | "RANGED" | "ALL";
+
+export type SpCharMissionCondType = "NONE" | "EVOLVE_PHASE";
+
+export type SpecialOperatorConditionViewType = "TASK" | "EVOLVEPHASE";
+
+export type SpecialOperatorDetailNodeType = "NONE" | "EVOLVE" | "SKILL" | "TALENT" | "MASTER" | "UNIEQUIP";
+
+export type SpecialOperatorTargetType = "NONE" | "ROGUE";
+
+export type SpType = "NONE" | "INCREASE_WITH_TIME" | "INCREASE_WHEN_ATTACK" | "INCREASE_WHEN_TAKEN_DAMAGE" | "ATTACK_OR_DAMAGE" | "ALL";
+
+export type StageButtonInFogRenderType = "HIDE" | "SHOW_WITH_FOG_SIX_STAR";
+
+export type StageData_PerformanceStageFlag = "NORMAL_STAGE" | "PERFORMANCE_STAGE";
+
+export type StageData_SpecialStageUnlockProgressType = "ONCE" | "PROGRESS";
+
+export type StageDiffGroup = "NONE" | "EASY" | "NORMAL" | "TOUGH" | "ALL";
+
+export type StageDropType = "NONE" | "ONCE" | "NORMAL" | "SPECIAL" | "ADDITIONAL" | "APRETURN" | "DIAMOND_MATERIAL" | "FUNITURE_DROP" | "COMPLETE" | "CHARM_DROP" | "OVERRIDE_DROP" | "ITEM_RETURN" | "CONDITION_DROP";
+
+export type StageType = "MAIN" | "DAILY" | "TRAINING" | "ACTIVITY" | "GUIDE" | "SUB" | "CAMPAIGN" | "SPECIAL_STORY" | "HANDBOOK_BATTLE" | "CLIMB_TOWER" | "ENUM";
+
+export type StickerType = "DEFAULT" | "ROGUE" | "SANDBOX" | "AMIYA";
+
+export type StoryData_Trigger_TriggerType = "GAME_START" | "BEFORE_BATTLE" | "AFTER_BATTLE" | "SWITCH_TO_SCENE" | "PAGE_LOADED" | "STORY_FINISH" | "CUSTOM_OPERATION" | "STORY_FINISH_OR_PAGE_LOADED" | "ACTIVITY_LOADED" | "ACTIVITY_ANNOUNCE" | "CRISIS_SEASON_LOADED" | "STORY_FINISH_OR_CUSTOM_OPERATION" | "E_NUM";
+
+export type StorylineLocationType = "STORY_SET" | "BEFORE" | "AFTER" | "MAINLINE_SPLIT";
+
+export type StorylineStorySetType = "MAINLINE" | "SS" | "COLLECT";
+
+export type StorylineType = "CONTINUE" | "DISCRETE";
+
+export type StoryReviewEntryType = "NONE" | "ACTIVITY" | "MINI_ACTIVITY" | "MAINLINE";
+
+export type StoryReviewType = "NONE" | "ACTIVITY_STORY" | "MINI_STORY" | "MAIN_STORY";
+
+export type StoryReviewUnlockType = "STAGE_CLEAR" | "USE_ITEM" | "BY_START_TIME" | "NOTHING";
+
+export type SubProfessionAttackType = "NONE" | "PHYSICAL" | "MAGICAL" | "HEAL";
+
+export type TemplateMissionBigRewardType = "NONE" | "ILLUST_CHAR_REWARD" | "CUSTOM" | "PIC_REWARD" | "SKIN_REWARD";
+
+export type TemplateMissionCoinInfoType = "COMMON" | "CUSTOM";
+
+export type TemplateMissionTitleType = "COMMON" | "CUSTOM";
+
+export type TileData_HeightType = "LOWLAND" | "HIGHLAND" | "E_NUM";
+
+export type TileData_HeightTypeMask = "NONE" | "LOWLAND" | "HIGHLAND" | "ALL";
+
+export type TipData_Category = "NONE" | "BATTLE" | "UI" | "BUILDING" | "GACHA" | "MISC" | "ALL";
+
+export type UIGuideTarget = "NONE" | "BUILDING_CONTROL" | "BUILDING_DORM" | "BUILDING_HIRE" | "BUILDING_MANUFACT" | "BUILDING_MEETING" | "BUILDING_TRADING" | "CHAR_INFO" | "FRIEND" | "RECRUIT" | "SHOP" | "SQUAD_NORMAL" | "SQUAD_BATTLE" | "STAGE_MAINLINE" | "BUILDING_POWER" | "MISSION" | "CHAR_SKILL_SELECT" | "BUILDING_WORKSHOP" | "STAGE_CAMPAIGN" | "CHAR_EVOLVE" | "HANDBOOK" | "BUILDING_FURN_SHOP" | "BUILDING_TRAINING" | "STAGE_ACTIVITY" | "CRISIS_STAGE" | "ROGUELIKE_CHARSELECT" | "ROGUELIKE_BP" | "CLIMB_TOWER_ENTRY" | "CLIMB_TOWER_LAYER" | "ROGUELIKE_DUNGEON" | "RL03_TOTEM" | "GROCERY" | "TUNING" | "CRISIS_V2" | "MISSION_ARCHIVE" | "FIFTH_ANNIV_EXPLORE" | "CARVING" | "VEC_BREAK" | "FIREWORK" | "BUILDING_STATION_MANAGE" | "ACT_MULTI_V3" | "ENEMY_DUEL" | "VEC_BREAK_V2" | "GUN_TASK" | "SPECIAL_OPERATOR" | "INFORMANT" | "ACT1VHALFIDLE" | "MONOPOLY" | "AUTO_CHESS" | "ART_GALLERY" | "ART_MAGAZINE" | "ACT_FOOTBALL";
+
+export type UniEquipTarget = "NONE" | "TRAIT" | "TRAIT_DATA_ONLY" | "TALENT" | "TALENT_DATA_ONLY" | "DISPLAY" | "OVERWRITE_BATTLE_DATA";
+
+export type UniEquipType = "INITIAL" | "ADVANCED";
+
+export type VersusCheckInData_TasteType = "DRAW" | "SWEET" | "SALT";
+
+export type VoiceLangGroupType = "NONE" | "CN_MANDARIN" | "JP" | "EN" | "KR" | "CUSTOM" | "LINKAGE";
+
+export type VoiceLangType = "NONE" | "JP" | "CN_MANDARIN" | "EN" | "KR" | "CN_TOPOLECT" | "LINKAGE" | "ITA" | "GER" | "RUS" | "FRE" | "SPA";
+
+export type VoucherDisplayType = "NONE" | "DIVIDE";
+
+export type WeeklyType = "NONE" | "MATERIAL" | "SPECIAL" | "EVOLVE";
+
+export type ZoneType = "NONE" | "MAINLINE" | "WEEKLY" | "ACTIVITY" | "GUIDE" | "TRAINING" | "CAMPAIGN" | "SIDESTORY" | "BRANCHLINE" | "ROGUELIKE" | "CLIMB_TOWER" | "MAINLINE_ACTIVITY" | "MAINLINE_RETRO";
 
 export interface Act12SideData {
     constData: Act12SideDataConstData;
@@ -9671,7 +7092,7 @@ export interface CharacterData {
     isNotObtainable: boolean;
     isSpChar: boolean;
     maxPotentialLevel: number;
-    rarity: RarityRank;
+    rarity: number;
     profession: ProfessionCategory;
     subProfessionId: string;
     trait: CharacterDataTraitDataBundle;
@@ -12040,7 +9461,7 @@ export interface MissionData {
     unlockCondition: string;
     unlockParam: string[];
     missionGroup: string;
-    toPage: string;
+    toPage: null | string;
     periodicalPoint: number;
     rewards: MissionDisplayRewards[];
     backImagePath: string;
@@ -12551,6 +9972,7 @@ export interface RetroTrailData {
 
 export interface RetroTrailRewardItem {
     trailRewardId: string;
+    trailRewardID: string;
     starCount: number;
     rewardItem: ItemBundle;
 }
@@ -13782,6 +11204,7 @@ export interface RoguelikeGameItemData {
     type: RoguelikeGameItemType;
     subType: RoguelikeGameItemSubType;
     rarity: RoguelikeGameItemRarity;
+    value: number;
     sortId: number;
     canSacrifice: boolean;
     tinyIconColor: string;
@@ -13816,9 +11239,9 @@ export interface RoguelikeGameRecruitTicketData {
     profession: ProfessionCategory;
     rarity: RarityRankMask;
     professionList: ProfessionID[];
-    rarityList: RarityRank[];
+    rarityList: number[];
     extraEliteNum: number;
-    extraFreeRarity: RarityRank[];
+    extraFreeRarity: number[];
     extraCharIds: string[];
 }
 
@@ -17297,6 +14720,7 @@ export interface SpCharMissionData {
     condType: SpCharMissionCondType;
     param: string[];
     rewards: ItemBundle[];
+    [key: string]: any;
 }
 
 export interface SpData {
@@ -17552,14 +14976,14 @@ export interface StageData {
 
 export interface StageDataConditionDesc {
     stageId: string;
-    completeState: PlayerBattleRank;
+    completeState: number;
 }
 
 export interface StageDataDisplayDetailRewards {
-    occPercent: OccPer;
+    occPercent: number;
     type: ItemType;
     id: string;
-    dropType: StageDropType;
+    dropType: number;
 }
 
 export interface StageDataDisplayRewards {

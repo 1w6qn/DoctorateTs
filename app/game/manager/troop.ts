@@ -1,6 +1,7 @@
 import { PlayerSquad, PlayerSquadItem } from "../model/character";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
+import { CharacterDataMainSkill } from "@excel/types_auto_gen";
 import { now } from "@utils/time";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
@@ -130,7 +131,7 @@ export class TroopManager {
         return;
       }
       const skills = excel.CharacterTable[char.charId].skills;
-      skills.forEach((skill) => {
+      skills.forEach((skill: CharacterDataMainSkill) => {
         if (!char.skills?.some((s) => s.skillId == skill.skillId)) {
           char.skills?.push({
             skillId: skill.skillId!,

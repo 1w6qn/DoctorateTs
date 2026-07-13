@@ -28,7 +28,9 @@
     "start": "nodemon index.ts --ext ts",
     "build": "tsc",
     "hook": "frida-compile hook/main.ts -o _arknights.js -c",
-    "test": "ts-node test.ts"
+    "test": "ts-node test.ts",
+    "update": "ts-node scripts/update-data.ts",
+    "update:skip": "ts-node scripts/update-data.ts --skip-update"
   },
   "devDependencies": {
     "@eslint/js": "^9.10.0",

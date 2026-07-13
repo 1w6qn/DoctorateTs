@@ -19,15 +19,31 @@ import bodyParser from "body-parser";
  * 应用启动入口函数
  * 
  * 执行以下步骤：
- * 1. 启用 Immer 补丁功能
- * 2. 初始化 Excel 数据表
- * 3. 创建 Express 应用
- * 4. 注册中间件（JSON解析、日志记录）
- * 5. 注册路由（配置、认证、游戏、资源）
- * 6. 启动服务器监听
+ * 1. 更新游戏数据和生成类型（可选）
+ * 2. 启用 Immer 补丁功能
+ * 3. 初始化 Excel 数据表
+ * 4. 创建 Express 应用
+ * 5. 注册中间件（JSON解析、日志记录）
+ * 6. 注册路由（配置、认证、游戏、资源）
+ * 7. 启动服务器监听
  */
 (async () => {
   console.time();
+  
+  const args = process.argv.slice(2);
+  const skipUpdate = args.includes("--skip-update") || args.includes("-s");
+  
+  if (!skipUpdate) {
+    console.log("[index] 开始更新游戏数据...");
+    try {
+      const updateModule = await import("./scripts/update-data");
+      await updateModule.main(false);
+      console.log("[index] 游戏数据更新完成");
+    } catch (error) {
+      console.error("[index] 游戏数据更新失败，使用本地缓存数据:", (error as Error).message);
+    }
+  }
+  
   enablePatches();
   await excel.init();
   const app = express();

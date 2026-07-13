@@ -262,17 +262,52 @@ function generateEnumCode(enumDef: EnumDef): string {
   return `export type ${enumDef.name} = ${values};`;
 }
 
+const COMPATIBILITY_FIXES: { [key: string]: { [key: string]: string } } = {
+  RoguelikeGameItemData: { value: "number" },
+  RetroTrailRewardItem: { trailRewardID: "string" },
+};
+
+const TYPE_OVERRIDES: { [key: string]: { [key: string]: string } } = {
+  MissionData: { toPage: "null | string" },
+  StageDataConditionDesc: { completeState: "number" },
+  StageDataDisplayDetailRewards: { occPercent: "number", dropType: "number" },
+  CharacterData: { rarity: "number" },
+  RoguelikeGameRecruitTicketData: { rarityList: "number[]", extraFreeRarity: "number[]" },
+};
+
+const INDEX_SIGNATURE_INTERFACES = ["SpCharMissionData", "CharacterData", "StoryReviewGroupClientData"];
+
 function generateInterfaceCode(tableDef: TableDef): string {
   const fields = tableDef.fields
     .map(f => {
-      const typeStr = f.isArray ? `${f.type}[]` : f.type;
+      const fieldName = f.name;
+      let typeStr = f.isArray ? `${f.type}[]` : f.type;
+      
+      if (TYPE_OVERRIDES[tableDef.name] && TYPE_OVERRIDES[tableDef.name][fieldName]) {
+        typeStr = TYPE_OVERRIDES[tableDef.name][fieldName];
+      }
+      
       const optionalStr = f.isOptional ? "?" : "";
-      return `    ${f.name}${optionalStr}: ${typeStr};`;
+      return `    ${fieldName}${optionalStr}: ${typeStr};`;
     })
     .join("\n");
 
+  let extraFields = "";
+  if (COMPATIBILITY_FIXES[tableDef.name]) {
+    Object.entries(COMPATIBILITY_FIXES[tableDef.name]).forEach(([name, type]) => {
+      if (!tableDef.fields.some(f => f.name === name)) {
+        extraFields += `\n    ${name}: ${type};`;
+      }
+    });
+  }
+
+  let indexSignature = "";
+  if (INDEX_SIGNATURE_INTERFACES.includes(tableDef.name)) {
+    indexSignature = "\n    [key: string]: any;";
+  }
+
   return `export interface ${tableDef.name} {
-${fields}
+${fields}${extraFields}${indexSignature}
 }`;
 }
 

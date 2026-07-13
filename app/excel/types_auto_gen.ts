@@ -7103,6 +7103,7 @@ export interface CharacterData {
     potentialRanks: CharacterDataPotentialRank[];
     favorKeyFrames: KeyFrames2KeyFrameTorappuAttributesDeltaDataTorappuAttributesData[];
     allSkillLvlup: CharacterDataSkillLevelCost[];
+    [key: string]: any;
 }
 
 export interface CharacterDataEquipTalentDataBundle {
@@ -9972,9 +9973,9 @@ export interface RetroTrailData {
 
 export interface RetroTrailRewardItem {
     trailRewardId: string;
-    trailRewardID: string;
     starCount: number;
     rewardItem: ItemBundle;
+    trailRewardID: string;
 }
 
 export interface RetroTrailRuleData {
@@ -11204,12 +11205,12 @@ export interface RoguelikeGameItemData {
     type: RoguelikeGameItemType;
     subType: RoguelikeGameItemSubType;
     rarity: RoguelikeGameItemRarity;
-    value: number;
     sortId: number;
     canSacrifice: boolean;
     tinyIconColor: string;
     unlockCondDesc: string;
     shortUsage: string;
+    value: number;
 }
 
 export interface RoguelikeGameNodeSubTypeData {
@@ -15257,6 +15258,7 @@ export interface StoryReviewGroupClientData {
     storyCompleteMedalId: string;
     rewards: ItemBundle[];
     infoUnlockDatas: StoryReviewInfoClientData[];
+    [key: string]: any;
 }
 
 export interface StoryReviewInfoClientData {

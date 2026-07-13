@@ -64,10 +64,6 @@ import {
   ZoneTable,
 } from "./types_auto_gen";
 import { ServerItemTable } from "./item_table";
-import { CharacterTable } from "./character_table";
-import { BattleEquipTable } from "./battle_equip_table";
-import { CheckinTable } from "./checkin_table";
-import { StoryReviewTable } from "./story_review_table";
 import { GachaDetailTable } from "./gacha_detail_table";
 import { RoguelikeConst } from "@excel/roguelike_consts";
 import { ShopData } from "@excel/shop";
@@ -80,20 +76,20 @@ export type ChapterData = any;
  * 聚合所有游戏配置数据表，提供统一的访问接口。
  */
 export class Excel {
-  BattleEquipTable!: BattleEquipTable;
+  BattleEquipTable!: BattleEquipPack;
   BuildingData!: BuildingData;
-  CharacterTable!: CharacterTable;
+  CharacterTable!: CharacterData;
   GameDataConst!: GameDataConsts;
   ItemTable!: ServerItemTable;
   StageTable!: StageTable;
   HandbookInfoTable!: HandbookInfoTable;
-  CheckinTable!: CheckinTable;
+  CheckinTable!: CheckInTable;
   StoryReviewMetaTable!: StoryReviewMetaTable;
   GachaTable!: GachaData;
   MissionTable!: MissionTable;
   RoguelikeTopicTable!: RoguelikeTopicTable;
   UniequipTable!: UniEquipTable;
-  StoryReviewTable!: StoryReviewTable;
+  StoryReviewTable!: StoryReviewGroupClientData;
   FavorTable!: FavorTable;
   MedalTable!: MedalData;
   GachaDetailTable!: GachaDetailTable;
@@ -154,13 +150,13 @@ export class Excel {
     this.MissionTable = await readJson<MissionTable>(
       "./data/excel/mission_table.json",
     );
-    this.BattleEquipTable = await readJson<BattleEquipTable>(
+    this.BattleEquipTable = await readJson<BattleEquipPack>(
       "./data/excel/battle_equip_table.json",
     );
     this.BuildingData = await readJson<BuildingData>(
       "./data/excel/building_data.json",
     );
-    this.CharacterTable = await readJson<CharacterTable>(
+    this.CharacterTable = await readJson<CharacterData>(
       "./data/excel/character_table.json",
     );
     this.GameDataConst = await readJson<GameDataConsts>(
@@ -175,7 +171,7 @@ export class Excel {
     this.HandbookInfoTable = await readJson<HandbookInfoTable>(
       "./data/excel/handbook_info_table.json",
     );
-    this.CheckinTable = await readJson<CheckinTable>(
+    this.CheckinTable = await readJson<CheckInTable>(
       "./data/excel/checkin_table.json",
     );
     this.StoryReviewMetaTable = await readJson<StoryReviewMetaTable>(
@@ -193,7 +189,7 @@ export class Excel {
     this.FavorTable = await readJson<FavorTable>(
       "./data/excel/favor_table.json",
     );
-    this.StoryReviewTable = await readJson<StoryReviewTable>(
+    this.StoryReviewTable = await readJson<StoryReviewGroupClientData>(
       "./data/excel/story_review_table.json",
     );
     this.MedalTable = await readJson<MedalData>(

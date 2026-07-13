@@ -18,3 +18,4 @@ users/
 .trae/
 OpenArknightsFBS/
 ArknightsGameData/
+*.cs

@@ -298,7 +298,7 @@ export class RecruitTools {
         tags: [] as number[],
       };
 
-      const tags = value.tagList.map((tag_name) => name2tag[tag_name]);
+      const tags = value.tagList.map((tag_name: string) => name2tag[tag_name]);
       if (data.rarity === 5) tags.push(11);
       else if (data.rarity === 4) tags.push(14);
       if (value.position === "MELEE") tags.push(9);

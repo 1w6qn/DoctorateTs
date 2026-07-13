@@ -60,6 +60,14 @@ export async function setup(app: express.Application) {
   app.use("/social", (await import("./router/social")).default);
   app.use("/retro", (await import("./router/retro")).default);
   app.use("/aprilFool", (await import("./router/aprilFool")).default);
+  app.use("/crisis", (await import("./router/crisis")).default);
+  app.use("/deepsea", (await import("./router/deepsea")).default);
+  app.use("/tower", (await import("./router/tower")).default);
+  app.use("/charm", (await import("./router/charm")).default);
+  app.use("/charRotation", (await import("./router/charRotation")).default);
+  app.use("/depot", (await import("./router/depot")).default);
+  app.use("/sandbox", (await import("./router/sandbox")).default);
+  app.use("/templateShop", (await import("./router/templateShop")).default);
   app.use("/", (await import("./router/home")).default);
 }
 

@@ -1,24 +1,9 @@
-/**
- * 加密解密工具模块
- * 
- * 提供游戏数据的加密解密功能，包括战斗数据、作弊检测数据和战斗回放数据。
- */
-
 import crypto from "crypto";
 import JSZip from "jszip";
 import { BattleData } from "@game/model/battle";
 
 const LOG_TOKEN_KEY = "pM6Umv*^hVQuB6t&";
 
-/**
- * 解密战斗数据
- * 
- * 使用 AES-128-CBC 算法解密战斗数据，密钥由 LOG_TOKEN_KEY 和登录时间生成。
- * 
- * @param data - 加密的战斗数据（十六进制字符串）
- * @param loginTime - 登录时间戳
- * @returns 解密后的战斗数据对象
- */
 export async function decryptBattleData(
   data: string,
   loginTime: number,
@@ -33,15 +18,6 @@ export async function decryptBattleData(
   return JSON.parse(decrypt) as BattleData;
 }
 
-/**
- * 加密战斗数据
- * 
- * 使用 AES-128-CBC 算法加密战斗数据，密钥由 LOG_TOKEN_KEY 和登录时间生成。
- * 
- * @param data - 要加密的战斗数据对象
- * @param loginTime - 登录时间戳
- * @returns 加密后的十六进制字符串
- */
 export async function encryptBattleData(
   data: object,
   loginTime: number,
@@ -56,14 +32,6 @@ export async function encryptBattleData(
   return encryptedData + iv.toString("hex");
 }
 
-/**
- * 加密战斗 ID 用于作弊检测
- * 
- * 将战斗 ID 的每个字节加 7 后进行 Base64 编码。
- * 
- * @param battleId - 战斗 ID
- * @returns 加密后的字符串
- */
 export async function encryptIsCheat(battleId: string): Promise<string> {
   return btoa(
     Buffer.from(battleId)
@@ -72,28 +40,12 @@ export async function encryptIsCheat(battleId: string): Promise<string> {
   );
 }
 
-/**
- * 解密作弊检测数据
- * 
- * 将 Base64 解码后的数据每个字节减 7 还原原始战斗 ID。
- * 
- * @param isCheat - 加密的作弊检测数据
- * @returns 原始战斗 ID
- */
 export async function decryptIsCheat(isCheat: string): Promise<string> {
   return Buffer.from(isCheat, "base64")
     .map((v) => v - 7)
     .toString();
 }
 
-/**
- * 解密战斗回放数据
- * 
- * 战斗回放数据经过 Base64 编码和 ZIP 压缩，此函数进行反向操作。
- * 
- * @param battleReplay - Base64 编码的战斗回放数据
- * @returns 解密后的战斗回放对象
- */
 export async function decryptBattleReplay(
   battleReplay: string,
 ): Promise<object> {

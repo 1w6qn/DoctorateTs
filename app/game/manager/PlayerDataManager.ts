@@ -1,10 +1,3 @@
-/**
- * 玩家数据管理器类
- * 
- * 作为单个玩家数据的核心管理类，负责协调玩家的所有子系统（背包、队伍、地牢、基建等）。
- * 使用 Immer 进行状态管理，支持增量更新和撤销操作。
- */
-
 import { PlayerDataModel } from "../model/playerdata";
 import { InventoryManager } from "./inventory";
 import { TroopManager } from "./troop";
@@ -34,61 +27,31 @@ import { CharManager } from "@game/manager/char";
 import { AprilFoolManager } from "@game/manager/aprilFool";
 
 export class PlayerDataManager {
-  /** 地牢管理器 */
   dungeon: DungeonManager;
-  /** 背包管理器 */
   inventory: InventoryManager;
-  /** 队伍管理器 */
   troop: TroopManager;
-  /** 状态管理器 */
   status: StatusManager;
-  /** 家园管理器 */
   home: HomeManager;
-  /** 角色轮换管理器 */
   charRotation: CharRotationManager;
-  /** 签到管理器 */
   checkIn: CheckInManager;
-  /** 剧情回顾管理器 */
   storyreview: StoryreviewManager;
-  /** 任务管理器 */
   mission!: MissionManager;
-  /** 商店控制器 */
   shop: ShopController;
-  /** 招募管理器 */
   recruit: RecruitManager;
-  /** 肉鸽V2控制器 */
   rlv2: RoguelikeV2Controller;
-  /** 抽卡控制器 */
   gacha: GachaController;
-  /** 社交管理器 */
   social: SocialManager;
-  /** 索引导航管理器 */
   dexNav: DexNavManager;
-  /** 基建管理器 */
   building: BuildingManager;
-  /** 开服活动管理器 */
   openServer: OpenServerManager;
-  /** 怀旧活动管理器 */
   retro: RetroManager;
-  /** 角色管理器 */
   char: CharManager;
-  /** 愚人节活动管理器 */
   aprilFool: AprilFoolManager;
-  /** 战斗管理器 */
   battle!: BattleManager;
-  /** 事件触发器 */
   _trigger: TypedEventEmitter;
-  /** 玩家原始数据模型 */
   _playerdata: PlayerDataModel;
-  /** 变更补丁列表 */
   _changes: Patch[][];
-  /** 逆变更补丁列表（用于撤销） */
   _inverseChanges: Patch[][];
-
-  /**
-   * 构造函数
-   * @param playerdata - 玩家数据模型
-   */
   constructor(playerdata: PlayerDataModel) {
     this._playerdata = playerdata;
     this._changes = [];
@@ -115,6 +78,7 @@ export class PlayerDataManager {
     this.retro = new RetroManager(this, this._trigger);
     this.char = new CharManager(this, this._trigger);
     this.aprilFool = new AprilFoolManager(this, this._trigger);
+    //this._trigger.emit("game:fix", []);
     this._trigger.on(
       "save:battle",
       async ([battleId, info]: [string, BattleInfo]) => {
@@ -123,12 +87,6 @@ export class PlayerDataManager {
     );
   }
 
-  /**
-   * 获取增量更新数据
-   * 
-   * 将所有变更补丁转换为对象形式，用于客户端同步。
-   * @returns 包含 playerDataDelta 的增量数据
-   */
   get delta() {
     const delta = patchesToObject(
       this._changes.reduce((pre, acc) => acc.concat(pre), []),
@@ -142,28 +100,14 @@ export class PlayerDataManager {
     };
   }
 
-  /**
-   * 获取用户ID
-   * @returns 用户ID
-   */
   get uid() {
     return this._playerdata.status.uid;
   }
 
-  /**
-   * 获取登录时间戳
-   * @returns 登录时间戳
-   */
   get loginTime() {
     return this._playerdata.pushFlags.status;
   }
 
-  /**
-   * 获取玩家社交信息（用于好友展示）
-   * 
-   * 包含昵称、等级、助战角色、勋章板等信息。
-   * @returns 玩家社交信息对象
-   */
   get socialInfo(): FriendDataWithNameCard {
     let medalBoard: FriendMedalBoard;
     if (this._playerdata.social.medalBoard.custom) {
@@ -244,16 +188,8 @@ export class PlayerDataManager {
     };
   }
 
-  /** 初始化方法（预留） */
   async init() {}
 
-  /**
-   * 更新玩家数据（使用 Immer）
-   * 
-   * 通过传入的 recipe 函数修改数据，自动记录变更补丁。
-   * @param recipe - 数据修改函数
-   * @returns recipe 函数的返回值
-   */
   async update<T>(
     recipe: (draft: WritableDraft<PlayerDataModel>) => Promise<T>,
   ) {
@@ -267,19 +203,10 @@ export class PlayerDataManager {
     return result;
   }
 
-  /**
-   * 获取战斗信息
-   * @param battleId - 战斗ID
-   * @returns 战斗信息对象
-   */
   async getBattleInfo(battleId: string): Promise<BattleInfo> {
     return (await accountManager.getBattleInfo(this.uid, battleId))!;
   }
 
-  /**
-   * 序列化为JSON
-   * @returns 玩家数据模型对象
-   */
   toJSON() {
     return this._playerdata;
   }

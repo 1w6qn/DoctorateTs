@@ -1,10 +1,3 @@
-/**
- * 商店控制器类
- * 
- * 负责处理商店购买相关的核心业务逻辑，包括低级商店、高级商店、皮肤商店、
- * 家具商店等多种类型商店的购买操作和刷新逻辑。
- */
-
 import { ItemBundle } from "@excel/character_table";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { SocialGoodList } from "@excel/shop";
@@ -12,18 +5,10 @@ import excel from "@excel/excel";
 import { TypedEventEmitter } from "@game/model/events";
 
 export class ShopController {
-  /** 社交商店商品列表 */
   socialGoodList!: SocialGoodList;
-  /** 玩家数据管理器 */
   _player: PlayerDataManager;
-  /** 事件触发器 */
   _trigger: TypedEventEmitter;
 
-  /**
-   * 构造函数
-   * @param player - 玩家数据管理器
-   * @param _trigger - 事件触发器
-   */
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
@@ -35,15 +20,10 @@ export class ShopController {
     };
   }
 
-  /** 每日刷新处理（预留） */
   async dailyRefresh() {}
 
-  /**
-   * 每月刷新处理
-   * 
-   * 更新月度商店的ID和分组信息，重置购买记录。
-   */
   async monthlyRefresh() {
+    //LS refresh
     const ts = new Date();
     const monthNum = ts.getMonth() - 5 + (ts.getFullYear() - 2019) * 12;
     await this._player.update(async (draft) => {
@@ -51,15 +31,9 @@ export class ShopController {
       draft.shop.LS.curGroupId = `lggShdGroupnumber${monthNum}_Group_1`;
       draft.shop.LS.info = [];
     });
-  }
 
-  /**
-   * 购买低级商店商品
-   * @param args - 购买参数
-   * @param args.goodId - 商品ID
-   * @param args.count - 购买数量
-   * @returns 获取的物品列表
-   */
+    //
+  }
   async buyLowGood(args: {
     goodId: string;
     count: number;
@@ -84,13 +58,6 @@ export class ShopController {
     return [item];
   }
 
-  /**
-   * 购买高级商店商品
-   * @param args - 购买参数
-   * @param args.goodId - 商品ID
-   * @param args.count - 购买数量
-   * @returns 获取的物品列表
-   */
   async buyHighGood(args: {
     goodId: string;
     count: number;
@@ -139,13 +106,6 @@ export class ShopController {
     return [item];
   }
 
-  /**
-   * 购买额外商店商品
-   * @param args - 购买参数
-   * @param args.goodId - 商品ID
-   * @param args.count - 购买数量
-   * @returns 获取的物品列表
-   */
   async buyExtraGood(args: {
     goodId: string;
     count: number;
@@ -170,11 +130,6 @@ export class ShopController {
     return [item];
   }
 
-  /**
-   * 购买皮肤商店商品
-   * @param args - 购买参数
-   * @param args.goodId - 商品ID
-   */
   async buySkinGood(args: { goodId: string }): Promise<void> {
     const { goodId } = args;
     const good = excel.ShopTable.skinGoodList.goodList.find(
@@ -187,23 +142,11 @@ export class ShopController {
     await this._trigger.emit("items:get", [[item]]);
   }
 
-  /**
-   * 购买现金商店商品（预留）
-   * @param args - 购买参数
-   * @param args.goodId - 商品ID
-   */
   async buyCashGood(args: { goodId: string }): Promise<void> {
     const { goodId } = args;
     console.log(goodId);
   }
 
-  /**
-   * 购买联合行动商店商品
-   * @param args - 购买参数
-   * @param args.goodId - 商品ID
-   * @param args.count - 购买数量
-   * @returns 获取的物品列表
-   */
   async buyEPGSGood(args: {
     goodId: string;
     count: number;
@@ -228,13 +171,6 @@ export class ShopController {
     return [item];
   }
 
-  /**
-   * 购买声望商店商品
-   * @param args - 购买参数
-   * @param args.goodId - 商品ID
-   * @param args.count - 购买数量
-   * @returns 获取的物品列表
-   */
   async buyREPGood(args: {
     goodId: string;
     count: number;
@@ -259,13 +195,6 @@ export class ShopController {
     return [item];
   }
 
-  /**
-   * 购买经典商店商品
-   * @param args - 购买参数
-   * @param args.goodId - 商品ID
-   * @param args.count - 购买数量
-   * @returns 获取的物品列表
-   */
   async buyClassicGood(args: {
     goodId: string;
     count: number;
@@ -317,13 +246,6 @@ export class ShopController {
     return [item];
   }
 
-  /**
-   * 购买限定商店商品
-   * @param args - 购买参数
-   * @param args.goodId - 商品ID
-   * @param args.count - 购买数量
-   * @returns 获取的物品列表
-   */
   async buyLMTGSGood(args: {
     goodId: string;
     count: number;
@@ -336,18 +258,11 @@ export class ShopController {
     await this._trigger.emit("items:use", [
       [{ id: "LMTGS_COIN", count: good!.price.count * count }],
     ]);
+    //TODO
     await this._trigger.emit("items:get", [[item]]);
     return [item];
   }
 
-  /**
-   * 购买家具商店商品
-   * @param args - 购买参数
-   * @param args.goodId - 商品ID
-   * @param args.buyCount - 购买数量
-   * @param args.costType - 消耗类型（COIN_FURN或DIAMOND）
-   * @returns 获取的物品列表
-   */
   async buyFurniGood(args: {
     goodId: string;
     buyCount: number;
@@ -379,5 +294,4 @@ export class ShopController {
     return [item];
   }
 }
-
 export default ShopController;

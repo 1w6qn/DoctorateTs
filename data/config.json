@@ -1,6 +1,9 @@
 {
   "Host": "http://192.168.0.100",
   "PORT": 8443,
+  "functions": {
+    "enableSingleton": false
+  },
   "version": {
     "clientVersion": "2.5.60",
     "resVersion": "25-05-20-12-36-22_4803e1"

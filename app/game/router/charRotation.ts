@@ -18,29 +18,8 @@ const router = Router();
  */
 router.post("/setCurrent", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { instId } = req.body;
-
-  res.send({
-    playerDataDelta: {
-      modified: {
-        charRotation: {
-          current: String(instId),
-        },
-        status: {
-          secretary: "",
-          secretarySkinId: "",
-        },
-        background: {
-          selected: "",
-        },
-        homeTheme: {
-          selected: "",
-        },
-      },
-      deleted: {},
-    },
-    pushMessage: [],
-  });
+  await player.charRotation.setCurrent(req.body);
+  res.send(player.delta);
 });
 
 /**
@@ -50,17 +29,8 @@ router.post("/setCurrent", async (req, res) => {
  */
 router.post("/createPreset", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-
-  res.send({
-    playerDataDelta: {
-      modified: {
-        charRotation: {},
-      },
-      deleted: {},
-    },
-    pushMessage: [],
-    instId: 2,
-  });
+  await player.charRotation.createPreset();
+  res.send(player.delta);
 });
 
 /**
@@ -71,19 +41,8 @@ router.post("/createPreset", async (req, res) => {
  */
 router.post("/deletePreset", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { instId } = req.body;
-
-  res.send({
-    playerDataDelta: {
-      modified: {},
-      deleted: {
-        charRotation: {
-          preset: instId,
-        },
-      },
-    },
-    pushMessage: [],
-  });
+  await player.charRotation.deletePreset(req.body);
+  res.send(player.delta);
 });
 
 /**
@@ -95,17 +54,8 @@ router.post("/deletePreset", async (req, res) => {
  */
 router.post("/updatePreset", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-
-  res.send({
-    playerDataDelta: {
-      modified: {
-        charRotation: {},
-      },
-      deleted: {},
-    },
-    pushMessage: [],
-    result: 0,
-  });
+  await player.charRotation.updatePreset(req.body);
+  res.send(player.delta);
 });
 
 export default router;

@@ -17,7 +17,6 @@ export class CharRotationManager {
     await this._player.update(async (draft) => {
       const { instId } = args;
       draft.charRotation.current = instId;
-      console.log("draft", original(draft.charRotation));
       const preset = draft.charRotation.preset[instId];
       draft.background.selected = preset.background;
       draft.homeTheme.selected = preset.homeTheme;

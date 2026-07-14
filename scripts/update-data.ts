@@ -23,7 +23,6 @@ const REPOS: RepositoryConfig[] = [
 
 const EXCEL_SOURCE_DIR = path.join(__dirname, "../ArknightsGameData/zh_CN/gamedata/excel");
 const EXCEL_TARGET_DIR = path.join(__dirname, "../data/excel");
-
 function log(message: string): void {
   console.log(`[update-data] ${message}`);
 }
@@ -81,6 +80,8 @@ function copyExcelFiles(): boolean {
     fs.mkdirSync(EXCEL_TARGET_DIR, { recursive: true });
   }
   
+  let copiedCount = 0;
+  
   try {
     const files = fs.readdirSync(EXCEL_SOURCE_DIR);
     
@@ -90,21 +91,21 @@ function copyExcelFiles(): boolean {
       
       if (fs.statSync(sourcePath).isFile()) {
         fs.copyFileSync(sourcePath, targetPath);
-        log(`复制文件: ${file}`);
+        copiedCount++;
       }
     });
-    
-    log(`共复制 ${files.length} 个文件`);
-    return true;
   } catch (error) {
-    logError(`复制文件失败: ${(error as Error).message}`);
+    logError(`复制excel文件失败: ${(error as Error).message}`);
     return false;
   }
+  
+  log(`复制完成，总计 ${copiedCount} 个文件`);
+  return true;
 }
 
 function generateTypes(): boolean {
   log(`生成 TypeScript 类型...`);
-  return executeCommand("ts-node scripts/generate-types.ts", path.join(__dirname, ".."));
+  return executeCommand("npx ts-node scripts/generate-types.ts", path.join(__dirname, ".."));
 }
 
 export async function main(skipUpdate: boolean = false): Promise<number> {
@@ -137,9 +138,11 @@ export async function main(skipUpdate: boolean = false): Promise<number> {
   return 0;
 }
 
-const args = process.argv.slice(2);
-const skipUpdate = args.includes("--skip-update") || args.includes("-s");
+if (require.main === module) {
+  const args = process.argv.slice(2);
+  const skipUpdate = args.includes("--skip-update") || args.includes("-s");
 
-main(skipUpdate).then((code) => {
-  process.exit(code);
-});
+  main(skipUpdate).then((code) => {
+    process.exit(code);
+  });
+}

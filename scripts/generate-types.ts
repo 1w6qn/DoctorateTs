@@ -316,8 +316,6 @@ function main() {
     .readdirSync(FBS_DIR)
     .filter(file => file.endsWith(".fbs"));
 
-  console.log(`Found ${fbsFiles.length} FBS files`);
-
   const allEnums: Map<string, EnumDef> = new Map();
   const allTables: Map<string, TableDef> = new Map();
 
@@ -338,11 +336,7 @@ function main() {
         allTables.set(t.name, t);
       }
     });
-
-    console.log(`  - ${fbsFile}: ${parsed.enums.length} enums, ${parsed.tables.length} tables`);
   }
-
-  console.log(`\nTotal (unique): ${allEnums.size} enums, ${allTables.size} tables`);
 
   const outputPath = path.join(OUTPUT_DIR, "types_auto_gen.ts");
 
@@ -366,8 +360,7 @@ function main() {
   });
 
   fs.writeFileSync(outputPath, outputContent);
-  console.log(`\nGenerated: ${outputPath}`);
-  console.log(`File size: ${(outputContent.length / 1024 / 1024).toFixed(2)} MB`);
+  console.log(`生成完成: ${allEnums.size} enums, ${allTables.size} tables`);
 }
 
 main();

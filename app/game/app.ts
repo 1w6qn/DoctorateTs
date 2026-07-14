@@ -1,11 +1,28 @@
+/**
+ * 游戏应用主模块
+ * 
+ * 创建 Express 应用实例，配置中间件，注册所有游戏路由。
+ */
+
 import httpContext from "express-http-context2";
 import express from "express";
 import bodyParser from "body-parser";
 import { accountManager } from "./manager/AccountManger";
 
+/** Express 应用实例 */
 const app = express();
+
+/** 注册 httpContext 中间件，用于请求上下文管理 */
 app.use(httpContext.middleware);
+
+/** 注册 JSON 解析中间件 */
 app.use(bodyParser.json());
+
+/**
+ * 全局中间件：验证用户身份并设置玩家数据上下文
+ * 
+ * 通过请求头中的 secret 字段验证用户身份，将玩家数据注入到请求上下文中。
+ */
 app.use(async (req, res, next) => {
   if (req.headers?.secret) {
     if (req.headers.secret != "1") {
@@ -19,6 +36,12 @@ app.use(async (req, res, next) => {
   next();
 });
 
+/**
+ * 设置游戏应用路由
+ * 
+ * 初始化账户管理器并注册所有游戏模块的路由。
+ * @param app - Express 应用实例
+ */
 export async function setup(app: express.Application) {
   await accountManager.init();
   app.use("/businessCard", (await import("./router/businessCard")).default);
@@ -47,4 +70,5 @@ export async function setup(app: express.Application) {
   app.use("/templateShop", (await import("./router/templateShop")).default);
   app.use("/", (await import("./router/home")).default);
 }
+
 export default app;

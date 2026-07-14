@@ -23,6 +23,11 @@ const REPOS: RepositoryConfig[] = [
 
 const EXCEL_SOURCE_DIR = path.join(__dirname, "../ArknightsGameData/zh_CN/gamedata/excel");
 const EXCEL_TARGET_DIR = path.join(__dirname, "../data/excel");
+const BATTLE_SOURCE_DIR = path.join(__dirname, "../ArknightsGameData/zh_CN/gamedata/battle");
+const LEVELS_SOURCE_DIR = path.join(__dirname, "../ArknightsGameData/zh_CN/gamedata/levels/enemydata");
+const GACHA_SOURCE_DIR = path.join(__dirname, "../data/gacha");
+const GACHA_DETAIL_TARGET = path.join(__dirname, "../data/gacha_detail_table.json");
+
 function log(message: string): void {
   console.log(`[update-data] ${message}`);
 }
@@ -99,6 +104,38 @@ function copyExcelFiles(): boolean {
     return false;
   }
   
+  try {
+    if (fs.existsSync(BATTLE_SOURCE_DIR)) {
+      const battleFiles = ["ep_breakbuff_table.json", "extra_battlelog_table.json"];
+      for (const file of battleFiles) {
+        const sourcePath = path.join(BATTLE_SOURCE_DIR, file);
+        const targetPath = path.join(EXCEL_TARGET_DIR, file);
+        if (fs.existsSync(sourcePath)) {
+          fs.copyFileSync(sourcePath, targetPath);
+          copiedCount++;
+        }
+      }
+    }
+  } catch (error) {
+    logError(`复制battle文件失败: ${(error as Error).message}`);
+  }
+  
+  try {
+    if (fs.existsSync(LEVELS_SOURCE_DIR)) {
+      const levelsFiles = ["enemy_database.json"];
+      for (const file of levelsFiles) {
+        const sourcePath = path.join(LEVELS_SOURCE_DIR, file);
+        const targetPath = path.join(EXCEL_TARGET_DIR, file);
+        if (fs.existsSync(sourcePath)) {
+          fs.copyFileSync(sourcePath, targetPath);
+          copiedCount++;
+        }
+      }
+    }
+  } catch (error) {
+    logError(`复制levels文件失败: ${(error as Error).message}`);
+  }
+  
   log(`复制完成，总计 ${copiedCount} 个文件`);
   return true;
 }
@@ -106,6 +143,52 @@ function copyExcelFiles(): boolean {
 function generateTypes(): boolean {
   log(`生成 TypeScript 类型...`);
   return executeCommand("npx ts-node scripts/generate-types.ts", path.join(__dirname, ".."));
+}
+
+function mergeGachaFiles(): boolean {
+  log(`合并 gacha 文件...`);
+  
+  if (!fs.existsSync(GACHA_SOURCE_DIR)) {
+    logError(`gacha 源目录不存在: ${GACHA_SOURCE_DIR}`);
+    return false;
+  }
+  
+  const SKIP_FILES = ["gacha.json", "normalGacha.json", "DEFAULT.json"];
+  const result: { [key: string]: any } = { details: {} };
+  let mergedCount = 0;
+  
+  try {
+    const files = fs.readdirSync(GACHA_SOURCE_DIR);
+    
+    for (const file of files) {
+      if (!file.endsWith(".json")) continue;
+      if (SKIP_FILES.includes(file)) continue;
+      
+      const sourcePath = path.join(GACHA_SOURCE_DIR, file);
+      if (!fs.statSync(sourcePath).isFile()) continue;
+      
+      const content = fs.readFileSync(sourcePath, "utf-8");
+      let data: any;
+      try {
+        data = JSON.parse(content);
+      } catch {
+        continue;
+      }
+      
+      if (data.detailInfo) {
+        const gachaId = file.replace(".json", "");
+        result.details[gachaId] = data.detailInfo;
+        mergedCount++;
+      }
+    }
+    
+    fs.writeFileSync(GACHA_DETAIL_TARGET, JSON.stringify(result, null, 4));
+    log(`合并完成，总计 ${mergedCount} 个卡池`);
+    return true;
+  } catch (error) {
+    logError(`合并 gacha 文件失败: ${(error as Error).message}`);
+    return false;
+  }
 }
 
 export async function main(skipUpdate: boolean = false): Promise<number> {
@@ -131,6 +214,12 @@ export async function main(skipUpdate: boolean = false): Promise<number> {
   log("\n生成类型文件...");
   if (!generateTypes()) {
     logError("生成类型文件失败");
+    return 1;
+  }
+  
+  log("\n合并 gacha 文件...");
+  if (!mergeGachaFiles()) {
+    logError("合并 gacha 文件失败");
     return 1;
   }
   

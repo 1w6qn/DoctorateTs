@@ -68,6 +68,12 @@ export async function setup(app: express.Application) {
   app.use("/depot", (await import("./router/depot")).default);
   app.use("/sandbox", (await import("./router/sandbox")).default);
   app.use("/templateShop", (await import("./router/templateShop")).default);
+  app.use("/multiplayer", (await import("./router/multiplayer")).default);
+  app.use("/roguelike", (await import("./router/roguelike")).default);
+  app.use("/campaignV2", (await import("./router/campaignV2")).default);
+  app.use("/vecbreak", (await import("./router/vecbreak")).default);
+  app.use("/interlock", (await import("./router/interlock")).default);
+  app.use("/autochess", (await import("./router/autochess")).default);
   app.use("/", (await import("./router/home")).default);
 }
 

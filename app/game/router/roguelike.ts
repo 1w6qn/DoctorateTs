@@ -4,18 +4,7 @@ import { PlayerDataManager } from "../manager/PlayerDataManager";
 
 const router = Router();
 
-router.post("/campaignV2/battleStart", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { stageId: string };
-  
-  res.send({
-    battleId: "abcdefgh-1234-5678-a1b2c3d4e5f6",
-    ...player.delta,
-    result: 0,
-  });
-});
-
-router.post("/campaignV2/battleFinish", async (req, res) => {
+router.post("/roguelike/createGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   
   res.send({
@@ -24,36 +13,51 @@ router.post("/campaignV2/battleFinish", async (req, res) => {
   });
 });
 
-router.post("/campaignV2/battleSweep", async (req, res) => {
+router.post("/roguelike/finishGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   
   res.send({
     ...player.delta,
     result: 0,
-    apFailReturn: 1,
-    rewards: [],
-    unlockStages: [],
-    unusualRewards: [],
-    additionalRewards: [],
-    furnitureRewards: [],
-    diamondMaterialRewards: [
-      { type: "DIAMOND_SHD", id: "4003", count: 1 },
-    ],
-    currentFeeBefore: 0,
-    currentFeeAfter: 1,
   });
 });
 
-router.post("/campaignV2/getBreakReward", async (req, res) => {
+router.post("/roguelike/giveUpGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   
-  res.send(player.delta);
+  res.send({
+    ...player.delta,
+    result: 0,
+  });
 });
 
-router.post("/campaignV2/getExMissionReward", async (req, res) => {
+router.post("/roguelike/milestoneReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   
-  res.send(player.delta);
+  res.send({
+    ...player.delta,
+    items: [],
+    result: 0,
+  });
+});
+
+router.post("/roguelike/milestoneRewardTryBest", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  
+  res.send({
+    ...player.delta,
+    items: [],
+    result: 0,
+  });
+});
+
+router.post("/roguelike/upgradeOutBuff", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  
+  res.send({
+    ...player.delta,
+    result: 0,
+  });
 });
 
 export default router;

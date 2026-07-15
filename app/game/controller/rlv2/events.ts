@@ -1,6 +1,7 @@
 import { PlayerRoguelikePendingEvent } from "../../model/rlv2";
 import { RoguelikeV2Controller } from "../rlv2";
 import { TypedEventEmitter } from "@game/model/events";
+import excel from "@excel/excel";
 
 export class RoguelikeEventManager {
   _index: number;
@@ -16,9 +17,7 @@ export class RoguelikeEventManager {
     this._trigger.on("rlv2:init", this.init.bind(this));
     this._trigger.on("rlv2:continue", this.continue.bind(this));
     this._trigger.on("rlv2:create", this.create.bind(this));
-    this._trigger.on("rlv2:event:create", () => {
-      this.createEvent.bind(this);
-    });
+    this._trigger.on("rlv2:event:create", this.createEvent.bind(this));
   }
 
   init(): void {
@@ -47,33 +46,38 @@ export class RoguelikeEventManager {
     const game = this._player.current.game!;
     const theme = this._player.current.game!.theme;
     const initConfig = this._player.initConfig;
-    //TODO
-    const totalStep = game.outer.support ? 4 : 3;
+
+    const supportEnabled = game.outer.support || false;
+    const totalStep = supportEnabled ? 4 : 3;
+
     this._trigger.emit("rlv2:event:create", [
       "GAME_INIT_RELIC",
       {
-        step: [this._index + 1, totalStep],
+        step: [1, totalStep],
       },
     ]);
-    if (game.outer.support) {
+
+    if (supportEnabled) {
       this._trigger.emit("rlv2:event:create", [
         "GAME_INIT_SUPPORT",
         {
-          step: [this._index + 1, totalStep],
+          step: [2, totalStep],
           id: "",
         },
       ]);
     }
+
     this._trigger.emit("rlv2:event:create", [
       "GAME_INIT_RECRUIT_SET",
       {
-        step: [this._index + 1, totalStep],
+        step: [supportEnabled ? 3 : 2, totalStep],
       },
     ]);
+
     this._trigger.emit("rlv2:event:create", [
       "GAME_INIT_RECRUIT",
       {
-        step: [this._index + 1, totalStep],
+        step: [totalStep, totalStep],
       },
     ]);
   }
@@ -222,6 +226,34 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
   ): PlayerRoguelikePendingEvent.Content {
     return {
       battleReward: args,
+    };
+  }
+
+  SCENE(args: {
+    scene: {
+      id: string;
+      choices: { [key: string]: number };
+      choiceAdditional: { [key: string]: { rewards: any[] } };
+    };
+    done: boolean;
+    popReport: boolean;
+  }): PlayerRoguelikePendingEvent.Content {
+    return {
+      scene: {
+        id: args.scene.id,
+        choices: args.scene.choices,
+        choiceAdditional: args.scene.choiceAdditional,
+      },
+      done: args.done,
+      popReport: args.popReport,
+    };
+  }
+
+  END_RESULT(args: {
+    result: PlayerRoguelikePendingEvent.EndingResult;
+  }): PlayerRoguelikePendingEvent.Content {
+    return {
+      result: args.result,
     };
   }
 

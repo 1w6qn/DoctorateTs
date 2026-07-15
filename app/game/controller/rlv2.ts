@@ -142,12 +142,11 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     modeGrade: number;
     predefinedId: string | null;
   }): Promise<void> {
-    //TODO
-    console.log("[RLV2] Game creation", args);
+    const theme = args.theme;
     this.current.game = {
-      mode: args.mode,
+      mode: args.mode === "MONTH_TEAM" || args.mode === "CHALLENGE" ? "NORMAL" : args.mode,
       predefined: args.predefinedId,
-      theme: args.theme,
+      theme: theme,
       outer: {
         support: false,
       },
@@ -162,6 +161,14 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     };
     this.current.record = { brief: null };
     this.current.map = { zones: {} };
+    this.current.troop = {
+      chars: {},
+      expedition: [],
+      expeditionDetails: {},
+      expeditionReturn: null,
+      hasExpeditionReturn: false,
+    };
+
     await this._trigger.emit("rlv2:create", [this]);
   }
 
@@ -206,6 +213,254 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     this._status.cursor.position = null;
     this._trigger.emit("rlv2:zone:new", [this._status.cursor.zone]);
     this._status.state = "WAIT_MOVE";
+  }
+
+  async selectChoice(args: { choice: string }): Promise<void> {
+    const { choice } = args;
+    const theme = this.current.game!.theme;
+    const detail = excel.RoguelikeTopicTable.details[theme];
+    const choiceConfig = detail.choices[choice] as any;
+    
+    if (choice === "choice_leave") {
+      this._status.pending.shift();
+      this._status.state = "WAIT_MOVE";
+      return;
+    }
+
+    const isBattle = choice.includes("bat") || typeof choiceConfig?.choices === "string";
+    
+    if (isBattle) {
+      const nextSceneId = choiceConfig?.nextSceneId;
+      if (nextSceneId) {
+        const sceneChoices = excel.RoguelikeTopicTable.details[theme].choices;
+        const nextChoiceKeys = Object.keys(sceneChoices).filter(
+          (k) => k.startsWith(`choice_${nextSceneId}_`)
+        );
+        
+        this._status.pending.shift();
+        this._trigger.emit("rlv2:event:create", [
+          "SCENE",
+          {
+            scene: {
+              id: nextSceneId,
+              choices: nextChoiceKeys.reduce((acc, key) => ({ ...acc, [key]: 1 }), {}),
+              choiceAdditional: nextChoiceKeys.reduce((acc, key) => ({ ...acc, [key]: { rewards: [] } }), {}),
+            },
+            done: false,
+            popReport: false,
+          },
+        ]);
+      } else {
+        let stageId = choiceConfig?.choices as string;
+        if (stageId && stageId.endsWith("_")) {
+          const stageKeys = Object.keys(detail.stages || {}).filter((k) => k.includes(stageId));
+          if (stageKeys.length > 0) {
+            stageId = stageKeys[Math.floor(Math.random() * stageKeys.length)];
+          }
+        }
+        
+        if (stageId) {
+          const nodeId = this._status.cursor.position
+            ? this._status.cursor.position.x * 100 + this._status.cursor.position.y
+            : 0;
+          const zone = this._status.cursor.zone;
+          if (this._map.zones[zone]?.nodes[nodeId]) {
+            this._map.zones[zone].nodes[nodeId].stage = stageId;
+          }
+          
+          this._status.pending.shift();
+          this._trigger.emit("rlv2:event:create", [
+            "BATTLE",
+            {
+              state: 1,
+              chestCnt: 100,
+              goldTrapCnt: 100,
+              diceRoll: [],
+              boxInfo: {},
+              tmpChar: [],
+              sanity: 0,
+              unKeepBuff: [],
+            },
+          ]);
+        }
+      }
+    } else {
+      const nextSceneId = choiceConfig?.nextSceneId;
+      if (nextSceneId) {
+        const lose = choiceConfig?.lose;
+        const get = choiceConfig?.get;
+        const mLose = choiceConfig?.m_lose;
+        const mGet = choiceConfig?.m_get;
+        const iGet = choiceConfig?.i_get;
+        const iLose = choiceConfig?.i_lose;
+        
+        if (mLose) {
+          this._module.applyModuleDelta(mLose, -1);
+        }
+        if (mGet) {
+          this._module.applyModuleDelta(mGet, 1);
+        }
+        if (iGet) {
+          this.applyInventoryDelta(iGet, 1);
+        }
+        if (iLose) {
+          this.applyInventoryDelta(iLose, -1);
+        }
+        if (lose && typeof lose === "object") {
+          this.applyPropertyDelta(lose, -1);
+          if (this._status.property.gold < 0) {
+            this._status.property.gold = 0;
+          }
+        }
+        if (get && typeof get === "object") {
+          this.applyPropertyDelta(get, 1);
+        }
+        if (typeof get === "string") {
+          const itemKeys = Object.keys(detail.items || {}).filter(
+            (k) => k.includes(get) && !k.includes("curse_")
+          );
+          if (itemKeys.length > 0) {
+            const itemId = itemKeys[Math.floor(Math.random() * itemKeys.length)];
+            this._trigger.emit("rlv2:get:items", [[{ id: itemId, count: 1 }]]);
+          }
+        }
+        
+        const sceneChoices = excel.RoguelikeTopicTable.details[theme].choices;
+        const nextChoiceKeys = Object.keys(sceneChoices).filter(
+          (k) => k.startsWith(`choice_${nextSceneId}_`)
+        );
+        
+        this._status.pending.shift();
+        this._trigger.emit("rlv2:event:create", [
+          "SCENE",
+          {
+            scene: {
+              id: nextSceneId,
+              choices: nextChoiceKeys.reduce((acc, key) => ({ ...acc, [key]: 1 }), {}),
+              choiceAdditional: nextChoiceKeys.reduce((acc, key) => ({ ...acc, [key]: { rewards: [] } }), {}),
+            },
+            done: false,
+            popReport: false,
+          },
+        ]);
+      } else {
+        this._status.pending.shift();
+        this._status.state = "WAIT_MOVE";
+      }
+    }
+  }
+
+  applyPropertyDelta(delta: { [key: string]: number }, sign: number): void {
+    Object.entries(delta).forEach(([key, value]) => {
+      if (key in this._status.property) {
+        (this._status.property as any)[key] += sign * value;
+      }
+    });
+  }
+
+  applyInventoryDelta(delta: { [key: string]: any }, sign: number): void {
+    Object.entries(delta).forEach(([key, value]) => {
+      if (key === "consumable" && typeof value === "object") {
+        Object.entries(value).forEach(([itemId, count]) => {
+          this._trigger.emit("rlv2:get:items", [[{ id: itemId, count: sign * (count as number) }]]);
+        });
+      }
+    });
+  }
+
+  generateShopGoods(theme: string): any[] {
+    const detail = excel.RoguelikeTopicTable.details[theme];
+    const ticket = `${theme}_recruit_ticket_all`;
+    const priceId = `${theme}_gold`;
+    
+    const goods: any[] = [{
+      index: "0",
+      itemId: ticket,
+      count: 1,
+      priceId: priceId,
+      priceCount: 0,
+      origCost: 0,
+      displayPriceChg: false,
+      _retainDiscount: 1,
+    }];
+
+    let i = 1;
+    const relicMap = detail.archiveComp?.relic?.relic || {};
+    for (const relicId of Object.keys(relicMap)) {
+      goods.push({
+        index: `${i}`,
+        itemId: relicId,
+        count: 1,
+        priceId: priceId,
+        priceCount: 0,
+        origCost: 0,
+        displayPriceChg: false,
+        _retainDiscount: 1,
+      });
+      i++;
+    }
+
+    const difficultyGroups = detail.difficultyUpgradeRelicGroups || {};
+    for (const group of Object.values(difficultyGroups)) {
+      const relicData = (group as any).relicData || [];
+      for (const relicItem of relicData) {
+        goods.push({
+          index: `${i}`,
+          itemId: relicItem.relicId,
+          count: 1,
+          priceId: priceId,
+          priceCount: 0,
+          origCost: 0,
+          displayPriceChg: false,
+          _retainDiscount: 1,
+        });
+        i++;
+      }
+    }
+
+    return goods;
+  }
+
+  async buyGoods(args: { select: number }): Promise<void> {
+    const { select } = args;
+    const shopEvent = this._status.pending[0];
+    if (!shopEvent || shopEvent.type !== "SHOP") return;
+    
+    const goods = shopEvent.content.shop?.goods || [];
+    const selectedGood = goods[select];
+    if (!selectedGood) return;
+
+    const itemId = selectedGood.itemId;
+    const priceCount = selectedGood.priceCount || 0;
+
+    if (priceCount > 0 && this._status.property.gold < priceCount) {
+      return;
+    }
+
+    if (priceCount > 0) {
+      this._status.property.gold -= priceCount;
+    }
+
+    if (itemId.includes("_recruit_ticket_")) {
+      this._trigger.emit("rlv2:recruit:gain", [itemId, "shop", 0]);
+      const tickets = Object.values(this.inventory!.recruit);
+      const ticketIndex = tickets[tickets.length - 1]?.index;
+      if (ticketIndex) {
+        this._trigger.emit("rlv2:recruit:active", [ticketIndex]);
+        this._trigger.emit("rlv2:event:create", ["RECRUIT", { ticket: ticketIndex }]);
+      }
+    } else if (itemId.includes("_relic_")) {
+      this._trigger.emit("rlv2:relic:gain", [{ id: itemId, count: 1 }]);
+    } else if (itemId.includes("_active_tool_")) {
+      this._trigger.emit("rlv2:get:items", [[{ id: itemId, count: 1 }]]);
+    } else if (itemId.includes("_explore_tool_")) {
+      this._trigger.emit("rlv2:get:items", [[{ id: itemId, count: 1 }]]);
+    }
+
+    goods.splice(select, 1);
+    for (let idx = select; idx < goods.length; idx++) {
+      goods[idx].index = `${idx}`;
+    }
   }
 
   async moveAndBattleStart(args: {
@@ -253,6 +508,23 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     const next = this._map.findNode(this._status.cursor.zone, args.to);
     switch (next.type) {
       case TorappuRoguelikeEventType.INCIDENT:
+        break;
+      case TorappuRoguelikeEventType.SHOP:
+      case 4096:
+        this._status.state = "PENDING";
+        this._trigger.emit("rlv2:event:create", [
+          "BATTLE_SHOP",
+          {
+            bank: {
+              open: true,
+              canPut: true,
+              canWithdraw: true,
+              withdraw: 0,
+              cost: 1,
+              withdrawLimit: 20,
+            },
+          },
+        ]);
         break;
     }
     this._status.cursor.position = args.to;
@@ -316,5 +588,55 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       },
       pinned: this.pinned,
     };
+  }
+
+  async gameSettle(): Promise<void> {
+    const game = this.current.game!;
+    const theme = game.theme;
+    const endTs = Date.now();
+    const startTs = game.start || Date.now();
+
+    const brief = {
+      level: this._status.property.level,
+      success: this._status.toEnding === "normal" ? 1 : 0,
+      ending: this._status.toEnding,
+      theme: theme,
+      mode: game.mode,
+      predefined: game.predefined || "",
+      band: "",
+      startTs: startTs,
+      endTs: endTs,
+      endZoneId: `${this._status.cursor.zone}`,
+      modeGrade: game.modeGrade,
+    };
+
+    const record = {
+      cntZone: Object.keys(this._map.zones).length,
+      relicList: Object.values(this.inventory!.relic).map((r) => (r as any).id),
+      capsuleList: [],
+      activeToolList: [],
+      charBuff: [],
+      squadBuff: this.current.buff?.squadBuff || [],
+      totemList: [],
+      exploreToolList: [],
+      fragmentList: [],
+    };
+
+    this.current.record = {
+      brief: brief,
+      record: record,
+    };
+
+    await this._trigger.emit("rlv2:event:create", [
+      "END_RESULT",
+      {
+        result: {
+          brief: brief,
+          record: record,
+        },
+      },
+    ]);
+
+    this._status.state = "END";
   }
 }

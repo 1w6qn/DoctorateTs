@@ -63,7 +63,8 @@ export class RoguelikeRecruitManager {
       }
       let isUpgraded = false;
       const rarity = data.rarity;
-      let population = [0, 0, 0, 0, 2, 6][rarity - 1]; //TODO other theme
+      const popMap = [0, 0, 0, 2, 3, 6];
+      let population = popMap[rarity - 1];
       for (const buff of this._player._buff.filterBuffs("recruit_cost")) {
         if (
           buff.blackboard[0].valueStr?.includes(data.rarity.toString()) &&
@@ -118,7 +119,52 @@ export class RoguelikeRecruitManager {
         ),
       ];
     }, [] as PlayerRoguelikeV2.CurrentData.RecruitChar[]);
-    //TODO free & third-low
+
+    const freeCharIndexes: number[] = [];
+    const tierMap: { [key: string]: number } = {
+      TIER_1: 1,
+      TIER_2: 2,
+      TIER_3: 3,
+      TIER_4: 4,
+      TIER_5: 5,
+      TIER_6: 6,
+    };
+
+    for (let i = 0; i < chars.length; i++) {
+      const char = chars[i];
+      const charData = excel.CharacterTable[char.charId];
+      if (!charData) continue;
+
+      const extraFreeRarity = ticketInfo.extraFreeRarity || [];
+      for (const tier of extraFreeRarity) {
+        const tierNum = tierMap[tier];
+        if (tierNum && charData.rarity === tierNum) {
+          freeCharIndexes.push(i);
+          break;
+        }
+      }
+    }
+
+    if (freeCharIndexes.length > 0) {
+      const freeIndex = freeCharIndexes[Math.floor(Math.random() * freeCharIndexes.length)];
+      chars[freeIndex].type = "FREE";
+      chars[freeIndex].population = 0;
+    }
+
+    const sortedByRarity = [...chars].sort((a, b) => {
+      const aRarity = excel.CharacterTable[a.charId]?.rarity || 0;
+      const bRarity = excel.CharacterTable[b.charId]?.rarity || 0;
+      return aRarity - bRarity;
+    });
+
+    if (sortedByRarity.length >= 3) {
+      const thirdLowChar = sortedByRarity[2];
+      const thirdLowIndex = chars.findIndex((c) => c.charId === thirdLowChar.charId);
+      if (thirdLowIndex !== -1) {
+        chars[thirdLowIndex].type = "THIRD_LOW";
+      }
+    }
+
     this.tickets[id].list = chars;
   }
 

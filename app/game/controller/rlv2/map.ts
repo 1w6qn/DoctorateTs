@@ -3,9 +3,12 @@ import {
   PlayerRoguelikeV2Dungeon,
   PlayerRoguelikeV2Zone,
   RoguelikeBuff,
+  TorappuRoguelikeEventType,
 } from "../../model/rlv2";
 import { RoguelikeV2Controller } from "../rlv2";
 import { TypedEventEmitter } from "@game/model/events";
+import excel from "@excel/excel";
+import * as crypto from "crypto";
 
 export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
   zones: { [key: string]: PlayerRoguelikeV2Zone };
@@ -27,6 +30,25 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
 
   create() {
     this.zones = {};
+  }
+
+  randByKey(seed: string, ...keys: string[]): number {
+    const hash = crypto.createHash("md5").update(`${seed}_${keys.join("_")}`).digest("hex");
+    return parseInt(hash, 16);
+  }
+
+  weightedRandom(weights: { type: number; weight: number }[]): number {
+    const totalWeight = weights.reduce((acc, w) => acc + w.weight, 0);
+    let random = this.randByKey("map_rand", Math.random().toString(36).substring(7));
+    let randomValue = random % totalWeight;
+    
+    for (const item of weights) {
+      if (randomValue < item.weight) {
+        return item.type;
+      }
+      randomValue -= item.weight;
+    }
+    return weights[weights.length - 1].type;
   }
 
   generate([id]: [number]) {
@@ -61,187 +83,321 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
       };
       this._player._buff.applyBuffs([[buff]]);
     });
-    //TODO
-    this.zones[id] = {
-      id: "zone_" + id,
-      index: id,
-      nodes: {
-        "0": {
-          index: "0",
-          pos: {
-            x: 0,
-            y: 0,
-          },
-          next: [
-            {
-              x: 1,
-              y: 0,
-            },
-          ],
-          type: 1,
-          refresh: {
-            usedCount: 0,
-            count: 1,
-            cost: 1,
-          },
-          stage: "ro4_n_1_4",
-        },
-        "1": {
-          index: "1",
-          pos: {
-            x: 0,
-            y: 1,
-          },
-          next: [
-            {
-              x: 1,
-              y: 1,
-            },
-            {
-              x: 1,
-              y: 2,
-            },
-          ],
-          type: 1,
-          refresh: {
-            usedCount: 0,
-            count: 1,
-            cost: 1,
-          },
-          stage: "ro4_n_1_1",
-          fts: 1722149443,
-        },
-        "100": {
-          index: "100",
-          pos: {
-            x: 1,
-            y: 0,
-          },
-          next: [
-            {
-              x: 2,
-              y: 0,
-            },
-          ],
-          type: 32,
-          refresh: {
-            usedCount: 0,
-            count: 1,
-            cost: 1,
-          },
-        },
-        "101": {
-          index: "101",
-          pos: {
-            x: 1,
-            y: 1,
-          },
-          next: [
-            {
-              x: 2,
-              y: 1,
-            },
-            {
-              x: 1,
-              y: 2,
-              key: true,
-            },
-          ],
-          type: 32,
-          refresh: {
-            usedCount: 0,
-            count: 1,
-            cost: 1,
-          },
-        },
-        "102": {
-          index: "102",
-          pos: {
-            x: 1,
-            y: 2,
-          },
-          next: [
-            {
-              x: 2,
-              y: 1,
-            },
-            {
-              x: 1,
-              y: 1,
-              key: true,
-            },
-          ],
-          type: 2,
-          refresh: {
-            usedCount: 0,
-            count: 1,
-            cost: 1,
-          },
-        },
+
+    const theme = this._player.current.game!.theme;
+    const roNum = parseInt(theme.split("_")[1]);
+    const zone = id;
+
+    const shopType = theme !== "rogue_1" ? 4096 : 8;
+    const wishType = theme !== "rogue_1" ? 512 : 64;
+
+    const typeWeights: { type: number; weight: number }[] = [
+      { type: TorappuRoguelikeEventType.BATTLE_NORMAL, weight: 60 },
+      { type: TorappuRoguelikeEventType.BATTLE_ELITE, weight: 15 },
+      { type: TorappuRoguelikeEventType.INCIDENT, weight: 20 },
+      { type: wishType, weight: 20 },
+    ];
+
+    if (zone > 1) {
+      typeWeights.push({ type: TorappuRoguelikeEventType.REST, weight: 20 });
+      switch (roNum) {
+        case 1:
+          typeWeights.push(
+            { type: TorappuRoguelikeEventType.BATTLE_BOSS, weight: 10 },
+            { type: shopType, weight: 10 },
+            { type: TorappuRoguelikeEventType.TREASURE, weight: 10 },
+            { type: TorappuRoguelikeEventType.ENTERTAINMENT, weight: 10 },
+            { type: TorappuRoguelikeEventType.UNKNOWN, weight: 10 },
+          );
+          break;
+        case 2:
+          typeWeights.push(
+            { type: TorappuRoguelikeEventType.BATTLE_BOSS, weight: 10 },
+            { type: TorappuRoguelikeEventType.SACRIFICE, weight: 10 },
+            { type: TorappuRoguelikeEventType.EXPEDITION, weight: 10 },
+            { type: 4096, weight: 10 },
+            { type: TorappuRoguelikeEventType.PORTAL, weight: 10 },
+            { type: TorappuRoguelikeEventType.MISSION, weight: 10 },
+          );
+          break;
+        case 3:
+          typeWeights.push(
+            { type: TorappuRoguelikeEventType.BATTLE_BOSS, weight: 10 },
+            { type: TorappuRoguelikeEventType.SACRIFICE, weight: 10 },
+            { type: TorappuRoguelikeEventType.EXPEDITION, weight: 10 },
+            { type: 4096, weight: 10 },
+            { type: TorappuRoguelikeEventType.PORTAL, weight: 10 },
+            { type: TorappuRoguelikeEventType.STORY_HIDDEN, weight: 10 },
+          );
+          break;
+        case 4:
+          typeWeights.push(
+            { type: TorappuRoguelikeEventType.BATTLE_BOSS, weight: 10 },
+            { type: TorappuRoguelikeEventType.ENTERTAINMENT, weight: 10 },
+            { type: TorappuRoguelikeEventType.UNKNOWN, weight: 10 },
+            { type: TorappuRoguelikeEventType.SACRIFICE, weight: 10 },
+            { type: TorappuRoguelikeEventType.EXPEDITION, weight: 10 },
+            { type: 4096, weight: 10 },
+            { type: TorappuRoguelikeEventType.PORTAL, weight: 10 },
+            { type: TorappuRoguelikeEventType.ALCHEMY, weight: 10 },
+            { type: TorappuRoguelikeEventType.DUEL, weight: 10 },
+          );
+          break;
+        case 5:
+          typeWeights.push(
+            { type: TorappuRoguelikeEventType.BATTLE_BOSS, weight: 10 },
+            { type: TorappuRoguelikeEventType.SACRIFICE, weight: 10 },
+            { type: TorappuRoguelikeEventType.EXPEDITION, weight: 10 },
+            { type: 4096, weight: 10 },
+            { type: TorappuRoguelikeEventType.PORTAL, weight: 10 },
+            { type: TorappuRoguelikeEventType.DUEL, weight: 10 },
+          );
+          break;
+      }
+    }
+
+    const yMax = [0, 2, 3, 4, 4, 4, 4, 4, 4];
+    const stages = Object.keys(excel.RoguelikeTopicTable.details[theme].stages || {});
+    const normalList = stages.filter((s) => s.startsWith(`ro${roNum}_n_${zone}_`));
+    const eliteList = stages.filter((s) => s.startsWith(`ro${roNum}_e_${zone}_`));
+    const bossList = stages.filter((s) => /^ro\d+_b_[1-9]$/.test(s));
+
+    const nodesByX: { [key: number]: number[] } = {};
+    let canAddShop = true;
+    const isZone1 = zone === 1;
+
+    const nodes: { [key: string]: PlayerRoguelikeNode } = {};
+
+    const maxX = isZone1 ? 3 : zone * 2;
+    for (let x = 0; x <= maxX; x++) {
+      nodesByX[x] = [];
+      const isEndCol = !isZone1 && x === maxX;
+
+      if (isEndCol) {
+        let endType: number;
+        let endCount: number;
+        switch (zone) {
+          case 2:
+            endType = 512;
+            endCount = 2;
+            break;
+          case 3:
+            endType = 4;
+            endCount = 1;
+            break;
+          default:
+            endType = shopType;
+            endCount = 1;
+        }
+
+        for (let y = 0; y < endCount; y++) {
+          const nodeIndex = x * 100 + y;
+          const node: PlayerRoguelikeNode = {
+            index: `${nodeIndex}`,
+            pos: { x, y },
+            next: [],
+            type: endType,
+            zone_end: true,
+            refresh: { usedCount: 0, count: 99, cost: 1 },
+          };
+
+          if (endType === TorappuRoguelikeEventType.BATTLE_BOSS && bossList.length > 0) {
+            const randomIndex = this.randByKey("boss_stage", zone.toString()) % bossList.length;
+            node.stage = bossList[randomIndex];
+          }
+
+          nodes[`${nodeIndex}`] = node;
+          nodesByX[x].push(y);
+        }
+        continue;
+      }
+
+      if (isZone1 && x >= 2) continue;
+
+      const ySize = (this.randByKey("y_size", zone.toString(), x.toString()) % yMax[zone]) + 1;
+
+      let currentTypeWeights = [...typeWeights];
+      if (canAddShop && x > 0) {
+        currentTypeWeights.push({ type: shopType, weight: 10 });
+        canAddShop = false;
+      }
+
+      for (let y = 0; y < ySize; y++) {
+        const nodeIndex = x * 100 + y;
+        const nodeType = this.weightedRandom(currentTypeWeights);
+
+        const node: PlayerRoguelikeNode = {
+          index: `${nodeIndex}`,
+          pos: { x, y },
+          next: [],
+          type: nodeType,
+          refresh: { usedCount: 0, count: 99, cost: 1 },
+        };
+
+        if (nodeType === TorappuRoguelikeEventType.BATTLE_NORMAL && normalList.length > 0) {
+          const randomIndex = this.randByKey("normal_stage", zone.toString(), x.toString(), y.toString()) % normalList.length;
+          node.stage = normalList[randomIndex];
+        } else if (nodeType === TorappuRoguelikeEventType.BATTLE_ELITE && eliteList.length > 0) {
+          const randomIndex = this.randByKey("elite_stage", zone.toString(), x.toString(), y.toString()) % eliteList.length;
+          node.stage = eliteList[randomIndex];
+        }
+
+        nodes[`${nodeIndex}`] = node;
+        nodesByX[x].push(y);
+      }
+    }
+
+    if (isZone1) {
+      const z1NodeType = roNum === 5 ? shopType : TorappuRoguelikeEventType.INCIDENT;
+      const endType = roNum === 5 ? 1048576 : shopType;
+
+      const zone1Nodes: { [key: string]: PlayerRoguelikeNode } = {
         "200": {
           index: "200",
-          pos: {
-            x: 2,
-            y: 0,
-          },
-          next: [
-            {
-              x: 3,
-              y: 0,
-            },
-            {
-              x: 2,
-              y: 1,
-              key: true,
-            },
-          ],
-          type: 32,
-          refresh: {
-            usedCount: 0,
-            count: 1,
-            cost: 1,
-          },
+          pos: { x: 2, y: 0 },
+          next: [{ x: 3, y: 0 }],
+          type: z1NodeType,
+          refresh: { usedCount: 0, count: 99, cost: 1 },
         },
         "201": {
           index: "201",
-          pos: {
-            x: 2,
-            y: 1,
-          },
-          next: [
-            {
-              x: 3,
-              y: 0,
-            },
-            {
-              x: 2,
-              y: 0,
-              key: true,
-            },
-          ],
-          type: 32,
-          refresh: {
-            usedCount: 0,
-            count: 1,
-            cost: 1,
-          },
+          pos: { x: 2, y: 1 },
+          next: [{ x: 3, y: 0 }],
+          type: z1NodeType,
+          refresh: { usedCount: 0, count: 99, cost: 1 },
         },
         "300": {
           index: "300",
-          pos: {
-            x: 3,
-            y: 0,
-          },
+          pos: { x: 3, y: 0 },
           next: [],
-          type: 4096,
+          type: endType,
           zone_end: true,
-          refresh: {
-            usedCount: 0,
-            count: 1,
-            cost: 1,
-          },
+          refresh: { usedCount: 0, count: 99, cost: 1 },
         },
-      },
+      };
+
+      Object.assign(nodes, zone1Nodes);
+      nodesByX[2] = [0, 1];
+      nodesByX[3] = [0];
+    }
+
+    for (const [idx, node] of Object.entries(nodes)) {
+      const { x, y } = node.pos;
+      if (isZone1 && x >= 2) continue;
+
+      node.next = [];
+
+      if (x + 1 in nodesByX) {
+        const candidates: { x: number; y: number }[] = [];
+        for (const ny of [y - 1, y, y + 1]) {
+          if (nodesByX[x + 1].includes(ny)) {
+            candidates.push({ x: x + 1, y: ny });
+          }
+        }
+
+        if (candidates.length > 0) {
+          const k = Math.min(2, candidates.length);
+          const shuffled = candidates.sort(() => Math.random() - 0.5);
+          node.next.push(...shuffled.slice(0, k));
+        }
+      }
+
+      if (x !== 0) {
+        for (const ny of [y - 1, y + 1]) {
+          if (nodesByX[x].includes(ny)) {
+            if (Math.random() < 0.3) {
+              const edge: { x: number; y: number; key?: boolean } = { x, y: ny };
+              if (Math.random() < 0.5) {
+                edge.key = true;
+              }
+              node.next.push(edge);
+            }
+          }
+        }
+      }
+    }
+
+    const incoming: { [key: string]: boolean } = {};
+    Object.keys(nodes).forEach((idx) => {
+      incoming[idx] = false;
+    });
+
+    for (const [srcIdx, src] of Object.entries(nodes)) {
+      const sx = src.pos.x;
+      for (const e of src.next) {
+        if (e.x === sx + 1) {
+          const tidx = `${e.x * 100 + e.y}`;
+          if (tidx in incoming) {
+            incoming[tidx] = true;
+          }
+        }
+      }
+    }
+
+    const hasOutgoing = (node: PlayerRoguelikeNode): boolean => {
+      const x = node.pos.x;
+      return node.next.some((e) => e.x === x + 1);
+    };
+
+    const xLast = Math.max(...Object.keys(nodesByX).map(Number));
+
+    for (const [idx, node] of Object.entries(nodes)) {
+      const { x, y } = node.pos;
+      if (isZone1 && x >= 2) continue;
+
+      const inOk = incoming[idx];
+      const outOk = hasOutgoing(node);
+
+      if (x === 0) {
+        if (outOk) continue;
+
+        const ny = nodesByX[x + 1].reduce((prev, curr) =>
+          Math.abs(curr - y) < Math.abs(prev - y) ? curr : prev,
+        );
+        node.next.push({ x: x + 1, y: ny });
+        continue;
+      }
+
+      if (x === xLast) {
+        if (inOk) continue;
+
+        const py = nodesByX[x - 1].reduce((prev, curr) =>
+          Math.abs(curr - y) < Math.abs(prev - y) ? curr : prev,
+        );
+        const prevIdx = `${(x - 1) * 100 + py}`;
+        nodes[prevIdx].next.push({ x, y });
+        continue;
+      }
+
+      if (!inOk) {
+        const py = nodesByX[x - 1].reduce((prev, curr) =>
+          Math.abs(curr - y) < Math.abs(prev - y) ? curr : prev,
+        );
+        const prevIdx = `${(x - 1) * 100 + py}`;
+        nodes[prevIdx].next.push({ x, y });
+      }
+
+      if (!outOk) {
+        const ny = nodesByX[x + 1].reduce((prev, curr) =>
+          Math.abs(curr - y) < Math.abs(prev - y) ? curr : prev,
+        );
+        node.next.push({ x: x + 1, y: ny });
+      }
+    }
+
+    for (const node of Object.values(nodes)) {
+      if (node.next) {
+        node.next.sort((a, b) => {
+          if (a.x !== b.x) return a.x - b.x;
+          return a.y - b.y;
+        });
+      }
+    }
+
+    this.zones[id] = {
+      id: `zone_${id}`,
+      index: id,
+      nodes: nodes,
       variation: [],
     };
   }

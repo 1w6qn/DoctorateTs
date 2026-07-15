@@ -110,12 +110,71 @@ export class RoguelikeFragmentManager {
 
   alchemy(fragmentIndex: [string, string]) {
     const [f1, f2] = fragmentIndex;
-    //TODO
+    const theme = this._player.current.game!.theme;
+    const fragmentData = excel.RoguelikeTopicTable.modules[theme].fragment;
+    const alchemyData = fragmentData?.alchemyData || {};
+
+    const fragment1 = this._fragments[f1];
+    const fragment2 = this._fragments[f2];
+    if (!fragment1 || !fragment2 || fragment1.used || fragment2.used) {
+      return;
+    }
+
+    const type1 = fragmentData?.fragmentData[fragment1.id]?.type || "";
+    const type2 = fragmentData?.fragmentData[fragment2.id]?.type || "";
+    const value1 = fragment1.value;
+    const value2 = fragment2.value;
+    const squareSum = value1 * value1 + value2 * value2;
+
+    let matchedRecipe: any = null;
+    for (const recipe of Object.values(alchemyData)) {
+      const types = (recipe as any).fragmentTypeList;
+      const expectedSum = (recipe as any).fragmentSquareSum;
+      if (
+        expectedSum === squareSum &&
+        ((types[0] === type1 && types[1] === type2) ||
+          (types[0] === type2 && types[1] === type1))
+      ) {
+        matchedRecipe = recipe;
+        break;
+      }
+    }
+
+    if (matchedRecipe) {
+      fragment1.used = true;
+      fragment2.used = true;
+
+      const rand = Math.random();
+      if (rand < (matchedRecipe as any).relicProp) {
+        this._trigger.emit("rlv2:get:items", [[{ id: `${theme}_relic_`, count: 1 }]]);
+      } else if (rand < (matchedRecipe as any).relicProp + (matchedRecipe as any).shieldProp) {
+        this._player._status.property.shield += 1000;
+      } else if (rand < (matchedRecipe as any).relicProp + (matchedRecipe as any).shieldProp + (matchedRecipe as any).populationProp) {
+        this._player._status.property.population.max += 1;
+      }
+    }
   }
 
   alchemyReward(fragmentIndex: [string, string]) {
     const [f1, f2] = fragmentIndex;
-    //TODO
+    const theme = this._player.current.game!.theme;
+    const fragmentData = excel.RoguelikeTopicTable.modules[theme].fragment;
+
+    const fragment1 = this._fragments[f1];
+    const fragment2 = this._fragments[f2];
+    if (!fragment1 || !fragment2) {
+      return;
+    }
+
+    const value1 = fragment1.value;
+    const value2 = fragment2.value;
+    const totalValue = value1 + value2;
+
+    const goldReward = totalValue * 50;
+    this._player._status.property.gold += goldReward;
+
+    const expReward = totalValue * 10;
+    this._player._status.property.exp += expReward;
   }
 
   useInspiration([fragmentIndex]: [string]): void {

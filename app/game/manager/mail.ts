@@ -7,7 +7,6 @@ import { readFileSync } from "fs";
 export class MailManager {
   database: MailDB;
 
-  //TODO survey mail
   constructor() {
     this.database = JSON.parse(
       readFileSync(`${__dirname}/../../../data/user/mails.json`, "utf8"),

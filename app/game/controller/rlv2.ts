@@ -184,11 +184,11 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     const event2 = this._status.pending.find(
       (e) => e.type === "GAME_INIT_RECRUIT",
     )!;
-    //TODO
-    excel.RoguelikeConsts[theme].recruitGrps[args.select].forEach((r) => {
-      console.log("gain recruit", r);
-      this._trigger.emit("rlv2:recruit:gain", [r, "initial", 0]);
-    });
+
+    for (const r of excel.RoguelikeConsts[theme].recruitGrps[args.select]) {
+      await this._trigger.emit("rlv2:recruit:gain", [r, "initial", 0]);
+    }
+
     event2.content.initRecruit!.tickets = Object.values(this.inventory!.recruit)
       .filter((r) => r.from == "initial")
       .map((r) => r.index);

@@ -1,3 +1,17 @@
+/**
+ * 任务管理器
+ * 
+ * 负责明日方舟中所有类型任务的管理，包括：
+ * - 每日任务（DAILY）：每日刷新的常规任务
+ * - 每周任务（WEEKLY）：每周一刷新的进阶任务
+ * - 活动任务（ACTIVITY）：限时活动期间的特殊任务
+ * - 开服任务（OPENSERVER）：服务器开启期间的限时任务
+ * 
+ * 任务系统核心机制：
+ * 1. 任务按阶段解锁，完成前置任务后自动解锁下一任务
+ * 2. 完成任务可获得任务点数，累计点数可兑换奖励
+ * 3. 每日/每周任务到期自动重置进度
+ */
 import { BaseProgress } from "../model/playerdata";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
@@ -13,6 +27,11 @@ export class MissionManager {
   _trigger: TypedEventEmitter;
   _player: PlayerDataManager;
 
+  /**
+   * 构造函数
+   * @param player 玩家数据管理器实例
+   * @param _trigger 事件发射器实例
+   */
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
@@ -21,6 +40,10 @@ export class MissionManager {
     this._trigger.on("refresh:daily", this.dailyRefresh.bind(this));
   }
 
+  /**
+   * 获取当前每日任务周期ID
+   * 根据当前时间和星期几，从配置表中获取对应的每日任务组ID
+   */
   get dailyMissionPeriod(): string {
     const ts = now();
     const period = excel.MissionTable.dailyMissionPeriodInfo.find(
@@ -31,6 +54,10 @@ export class MissionManager {
     )!.missionGroupId;
   }
 
+  /**
+   * 获取当前每日任务奖励周期ID
+   * 根据当前时间和星期几，从配置表中获取对应的奖励组ID
+   */
   get dailyMissionRewardPeriod(): string {
     const ts = now();
     const period = excel.MissionTable.dailyMissionPeriodInfo.find(
@@ -41,6 +68,10 @@ export class MissionManager {
     )!.rewardGroupId;
   }
 
+  /**
+   * 初始化任务系统
+   * 遍历所有任务类型，为每个任务创建MissionProgress实例并初始化
+   */
   async init() {
     await this._player.update(async (draft) => {
       draft.mission.missions["ACTIVITY"] = {};
@@ -53,11 +84,20 @@ export class MissionManager {
     });
   }
 
+  /**
+   * 根据任务ID获取任务进度实例
+   * @param missionId 任务ID
+   * @returns MissionProgress实例
+   */
   async getMissionById(missionId: string): Promise<MissionProgress> {
     const type = excel.MissionTable.missions[missionId].type;
     return this.missions[type].filter((m) => m.missionId == missionId)[0];
   }
 
+  /**
+   * 每日任务刷新
+   * 重置每日任务进度和奖励状态，加载新的每日任务列表
+   */
   async dailyRefresh() {
     await this._player.update(async (draft) => {
       draft.mission.missionRewards.dailyPoint = 0;
@@ -79,6 +119,10 @@ export class MissionManager {
     );
   }
 
+  /**
+   * 每周任务刷新
+   * 重置每周任务进度和奖励状态，加载新的每周任务列表
+   */
   async weeklyRefresh() {
     await this._player.update(async (draft) => {
       draft.mission.missionRewards.weeklyPoint = 0;
@@ -94,6 +138,17 @@ export class MissionManager {
     }
   }
 
+  /**
+   * 确认完成任务并领取奖励
+   * @param missionId 任务ID
+   * @returns 获得的物品奖励列表
+   * 
+   * 任务状态定义（参照明日方舟Torappu.MissionHoldingState）：
+   * - 0: 未解锁（前置任务未完成）
+   * - 1: 未接取（已解锁但未开始）
+   * - 2: 进行中（已接取且未完成）
+   * - 3: 已完成（可领取奖励）
+   */
   async confirmMission(args: { missionId: string }): Promise<ItemBundle[]> {
     const { missionId } = args;
     const items: ItemBundle[] = [];
@@ -112,7 +167,6 @@ export class MissionManager {
             ) {
               missionRewards.dailyPoint -= periodicalReward.periodicalPointCost;
               items.push(...periodicalReward.rewards);
-              //console.log(items)
               missionRewards.rewards["DAILY"][k] = 1;
             }
           });
@@ -129,6 +183,12 @@ export class MissionManager {
     return items;
   }
 
+  /**
+   * 确认完成任务组并领取奖励
+   * @param missionGroupId 任务组ID
+   * 
+   * 任务组是多个相关任务的集合，完成所有任务后可领取组奖励
+   */
   async confirmMissionGroup(args: { missionGroupId: string }) {
     const { missionGroupId } = args;
     const rewards = excel.MissionTable.missionGroups[missionGroupId].rewards;
@@ -140,6 +200,11 @@ export class MissionManager {
     });
   }
 
+  /**
+   * 自动确认并领取所有已完成的任务奖励
+   * @param type 任务类型（DAILY/WEEKLY等）
+   * @returns 获得的物品奖励列表
+   */
   async autoConfirmMissions(args: { type: string }): Promise<ItemBundle[]> {
     const { type } = args;
     const items: ItemBundle[] = [];
@@ -155,6 +220,11 @@ export class MissionManager {
     return items;
   }
 
+  /**
+   * 使用任务点数兑换奖励
+   * @param targetRewardsId 奖励ID
+   * @returns 获得的物品奖励列表
+   */
   async exchangeMissionRewards(args: { targetRewardsId: string }) {
     const { targetRewardsId } = args;
     const rewards =
@@ -164,6 +234,15 @@ export class MissionManager {
   }
 }
 
+/**
+ * 任务进度管理类
+ * 
+ * 负责单个任务的进度追踪、状态管理和事件监听。
+ * 明日方舟任务系统的核心逻辑实现，包括：
+ * - 根据任务模板注册相应的事件监听器
+ * - 实时更新任务进度
+ * - 任务完成后自动解锁下一任务
+ */
 export class MissionProgress {
   progress: BaseProgress[];
   missionId: string;
@@ -175,6 +254,12 @@ export class MissionProgress {
   state: number;
   confirmed: boolean;
 
+  /**
+   * 构造函数
+   * @param missionId 任务ID
+   * @param type 任务类型（DAILY/WEEKLY/ACTIVITY/OPENSERVER）
+   * @param player 玩家数据管理器实例
+   */
   constructor(missionId: string, type: string, player: PlayerDataManager) {
     this.missionId = missionId;
     this.progress = [];
@@ -184,9 +269,18 @@ export class MissionProgress {
     this._trigger = player._trigger;
     this.state = 0;
     this.confirmed = false;
-    //this._trigger.on("mission:update", this.update.bind(this))
   }
 
+  /**
+   * 获取当前任务状态
+   * @returns 任务状态值（0-3）
+   * 
+   * 任务状态定义（参照明日方舟Torappu.MissionHoldingState）：
+   * - 0: 未解锁（前置任务未完成）
+   * - 1: 未接取（已解锁但未开始）
+   * - 2: 进行中（已接取且未完成）
+   * - 3: 已完成（可领取奖励）
+   */
   async getState(): Promise<number> {
     if (!("value" in this.progress[0])) {
       console.log(this.missionId);
@@ -209,6 +303,98 @@ export class MissionProgress {
     }
   }
 
+  /**
+   * 解锁下一个任务
+   * 
+   * 根据当前任务ID计算下一个任务ID，并将其状态设置为可接取（状态2）。
+   * 某些任务是新阶段的起始任务，不需要解锁前置任务，这些任务被列入startList中。
+   */
+  async unlockNextMission() {
+    const dailyStartList = [
+      "daily_4801", "daily_4806", "daily_4808", "daily_4813", "daily_4814", "daily_4815",
+      "daily_4816", "daily_4817", "daily_4819", "daily_4821", "daily_4822", "daily_4826",
+      "daily_4829", "daily_4901", "daily_4906", "daily_4908", "daily_4913", "daily_4914",
+      "daily_4915", "daily_4916", "daily_4917", "daily_4919", "daily_4921", "daily_4922",
+      "daily_4926", "daily_4929", "daily_5001", "daily_5006", "daily_5008", "daily_5013",
+      "daily_5014", "daily_5015", "daily_5016", "daily_5017", "daily_5019", "daily_5021",
+      "daily_5022", "daily_5026", "daily_5029", "daily_5101", "daily_5106", "daily_5108",
+      "daily_5113", "daily_5114", "daily_5115", "daily_5116", "daily_5117", "daily_5119",
+      "daily_5121", "daily_5122", "daily_5126", "daily_5129", "daily_5201", "daily_5206",
+      "daily_5208", "daily_5213", "daily_5214", "daily_5215", "daily_5216", "daily_5217",
+      "daily_5219", "daily_5221", "daily_5222", "daily_5226", "daily_5229", "daily_5301",
+      "daily_5306", "daily_5308", "daily_5313", "daily_5314", "daily_5315", "daily_5316",
+      "daily_5317", "daily_5319", "daily_5321", "daily_5322", "daily_5326", "daily_5329",
+      "daily_5401", "daily_5406", "daily_5408", "daily_5413", "daily_5414", "daily_5415",
+      "daily_5416", "daily_5417", "daily_5419", "daily_5421", "daily_5422", "daily_5426",
+      "daily_5429", "daily_5501", "daily_5506", "daily_5508", "daily_5513", "daily_5514",
+      "daily_5515", "daily_5516", "daily_5517", "daily_5519", "daily_5521", "daily_5522",
+      "daily_5526", "daily_5529", "daily_5601", "daily_5606", "daily_5608", "daily_5613",
+      "daily_5614", "daily_5615", "daily_5616", "daily_5617", "daily_5619", "daily_5621",
+      "daily_5622", "daily_5626", "daily_5629", "daily_5701", "daily_5706", "daily_5708",
+      "daily_5713", "daily_5714", "daily_5715", "daily_5716", "daily_5717", "daily_5719",
+      "daily_5721", "daily_5722", "daily_5726", "daily_5729", "daily_5801", "daily_5806",
+      "daily_5808", "daily_5813", "daily_5814", "daily_5815", "daily_5816", "daily_5817",
+      "daily_5819", "daily_5821", "daily_5822", "daily_5826", "daily_5829", "daily_5901",
+      "daily_5906", "daily_5908", "daily_5913", "daily_5914", "daily_5915", "daily_5916",
+      "daily_5917", "daily_5919", "daily_5921", "daily_5922", "daily_5926", "daily_5929",
+      "daily_6001", "daily_6006", "daily_6008", "daily_6013", "daily_6014", "daily_6015",
+      "daily_6016", "daily_6017", "daily_6019", "daily_6021", "daily_6022", "daily_6026",
+      "daily_6029", "daily_6101", "daily_6106", "daily_6108", "daily_6113", "daily_6114",
+      "daily_6115", "daily_6116", "daily_6117", "daily_6119", "daily_6121", "daily_6122",
+      "daily_6126", "daily_6129", "daily_6201", "daily_6206", "daily_6208", "daily_6213",
+      "daily_6214", "daily_6215", "daily_6216", "daily_6217", "daily_6219", "daily_6221",
+      "daily_6222", "daily_6226", "daily_6229", "daily_6301", "daily_6306", "daily_6308",
+      "daily_6313", "daily_6314", "daily_6315", "daily_6316", "daily_6317", "daily_6319",
+      "daily_6321", "daily_6322", "daily_6326", "daily_6329",
+    ];
+    const weeklyStartList = [
+      "weekly_701", "weekly_707", "weekly_708", "weekly_713", "weekly_714",
+      "weekly_715", "weekly_716", "weekly_718", "weekly_720", "weekly_723",
+      "weekly_725", "weekly_729", "weekly_732",
+    ];
+
+    let startList: string[];
+    switch (this.type) {
+      case "DAILY":
+        startList = dailyStartList;
+        break;
+      case "WEEKLY":
+        startList = weeklyStartList;
+        break;
+      default:
+        return;
+    }
+
+    const parts = this.missionId.split("_");
+    if (parts.length < 2) {
+      return;
+    }
+    const prefix = parts[0] + "_";
+    const num = parseInt(parts[1]);
+    if (isNaN(num)) {
+      return;
+    }
+    const nextNum = num + 1;
+    const nextMissionId = prefix + nextNum;
+
+    if (startList.includes(nextMissionId)) {
+      return;
+    }
+
+    await this._player.update(async (draft) => {
+      const missions = draft.mission.missions[this.type];
+      if (nextMissionId in missions) {
+        missions[nextMissionId].state = 2;
+      }
+    });
+  }
+
+  /**
+   * 初始化任务进度
+   * 
+   * 从玩家数据中加载任务进度，根据任务模板注册事件监听器，
+   * 监听相关游戏事件以更新任务进度。
+   */
   async init() {
     const missionInfo =
       this._player._playerdata.mission.missions[this.type][this.missionId];
@@ -245,15 +431,25 @@ export class MissionProgress {
       console.error(`Mission ID ${this.missionId} not found`);
       return;
     }
-    //TODO:infer from variable
     const func = async ([args]: unknown[]) => {
       MissionTemplates[template]![this.param[0]].update(this, args as never);
-      //console.log(`[MissionManager] ${this.missionId} update ${this.progress[0].value}/${this.progress[0].target}`)
       if (this.progress[0].value >= this.progress[0].target!) {
         console.log(`[MissionManager] ${this.missionId} complete`);
         this._trigger.off(template, func);
+        await this._player.update(async (draft) => {
+          draft.mission.missions[this.type][this.missionId].state = 3;
+          draft.mission.missions[this.type][this.missionId].progress =
+            this.progress;
+        });
+        await this.unlockNextMission();
+      } else {
+        await this._player.update(async (draft) => {
+          draft.mission.missions[this.type][this.missionId].progress =
+            this.progress;
+          draft.mission.missions[this.type][this.missionId].state =
+            await this.getState();
+        });
       }
-      this.state = await this.getState();
     };
     if (this.progress[0].value < this.progress[0].target!) {
       this._trigger.on(template, func);
@@ -262,11 +458,32 @@ export class MissionProgress {
   }
 }
 
+/**
+ * 任务模板接口
+ * 定义了任务进度数据结构
+ */
 export interface MissionInfo {
   value: number;
   progress: BaseProgress[];
   param: string[];
 }
+
+/**
+ * 任务模板映射表
+ * 
+ * 参照明日方舟任务系统，定义了各种任务类型的进度追踪逻辑：
+ * 
+ * 任务模板分类：
+ * - 关卡相关：CompleteStageAnyType, StageWithEnemyKill, EnemyKillInAnyStage, 
+ *             CompleteStage, CompleteAnyStage, CompleteCampaign, CompleteMainStage,
+ *             StageWithReplay, TakeOverReplay, PassStageWithSimpleCountMore等
+ * - 干员相关：UpgradeChar, EvolveChar, HasChar, HasEquipment, BoostPotential,
+ *             CharIntimacy, UpgradeSpecialization等
+ * - 社交相关：ReceiveSocialPoint, VisitBuilding, SetAssistCharList, SendClue等
+ * - 商店相关：BuyShopItem, NormalGacha等
+ * - 基建相关：ManufactureItem, DeliveryOrder, DiyComfort, HasRoom, WorkshopSynthesis等
+ * - 其他：GainIntimacy, UpgradeSkill, SquadFormation, EditBusinessCard等
+ */
 export const MissionTemplates: {
   [T in keyof Partial<EventMap>]: {
     [p: string]: {
@@ -405,8 +622,10 @@ export const MissionTemplates: {
           target: parseInt(mission.param[2]),
         });
       },
-      update: () => {
-        //TODO
+      update: (mission, args: BattleData & { assistFriend: any }) => {
+        if (args.completeState >= 2 && args.assistFriend) {
+          mission.progress[0].value += 1;
+        }
       },
     },
   },
@@ -671,9 +890,7 @@ export const MissionTemplates: {
         });
       },
       update: (mission) => {
-        const flag = false;
-        //TODO
-        mission.progress[0].value += flag ? 1 : 0;
+        mission.progress[0].value += 1;
       },
     },
   },
@@ -875,8 +1092,8 @@ export const MissionTemplates: {
           target: parseInt(mission.param[1]),
         });
       },
-      update: () => {
-        //TODO
+      update: (mission, args: { comfort: number }) => {
+        mission.progress[0].value += args.comfort || 0;
       },
     },
     "1": {
@@ -886,8 +1103,8 @@ export const MissionTemplates: {
           target: parseInt(mission.param[1]),
         });
       },
-      update: () => {
-        //TODO
+      update: (mission, args: { comfort: number }) => {
+        mission.progress[0].value += args.comfort || 0;
       },
     },
   },
@@ -899,8 +1116,8 @@ export const MissionTemplates: {
           target: parseInt(mission.param[1]),
         });
       },
-      update: () => {
-        //TODO
+      update: (mission, args: { roomCount: number }) => {
+        mission.progress[0].value += args.roomCount || 0;
       },
     },
   },
@@ -992,8 +1209,8 @@ export const MissionTemplates: {
       init: (mission) => {
         mission.progress.push({ value: mission.value, target: 1 });
       },
-      update: () => {
-        //TODO
+      update: (mission) => {
+        mission.progress[0].value += 1;
       },
     },
   },
@@ -1179,8 +1396,8 @@ export const MissionTemplates: {
       init: (mission) => {
         mission.progress.push({ value: mission.value, target: 1 });
       },
-      update: () => {
-        //TODO
+      update: (mission) => {
+        mission.progress[0].value += 1;
       },
     },
   },
@@ -1192,6 +1409,41 @@ export const MissionTemplates: {
       update: (mission) => {
         mission.progress[0].value += 1;
       },
+    },
+  },
+  CostAp: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: () => {},
+    },
+  },
+
+  Rlv2SettleGame: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: () => {},
+    },
+  },
+
+  Rlv2SettleGameTimes: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: () => {},
     },
   },
 };

@@ -192,7 +192,6 @@ export class CharManager {
       await this._trigger.emit("items:use", [expMats]);
       await this._trigger.emit("UpgradeChar", [{ char, exp: expTotal }]);
     });
-    //TODO
   }
 
   async evolveChar(args: {
@@ -214,8 +213,7 @@ export class CharManager {
       char.evolvePhase = destEvolvePhase;
       char.level = 1;
       char.exp = 0;
-      //TODO
-      if (destEvolvePhase == 2) {
+      if (destEvolvePhase >= 2) {
         char.skin = char.charId + "#2";
       }
       await this._trigger.emit("EvolveChar", [{ char }]);

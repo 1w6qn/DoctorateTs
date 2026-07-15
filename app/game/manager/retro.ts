@@ -33,8 +33,23 @@ export class RetroManager {
   }
 
   async getRetroPassReward(args: { retroId: string; activityId: string }) {
-    //TODO
-    console.log(args);
-    return [] as ItemBundle[];
+    const { retroId } = args;
+    const rewards: ItemBundle[] = [];
+    const retroActivities = excel.ActivityTable.activity;
+    for (const [, activities] of Object.entries(retroActivities)) {
+      for (const [id, activity] of Object.entries(activities as { [key: string]: any })) {
+        if (id === args.activityId && "retroData" in activity) {
+          const retroData = activity.retroData;
+          if (retroData?.rewards) {
+            const passReward = retroData.rewards.find((r: { id: string }) => r.id === retroId);
+            if (passReward?.items) {
+              rewards.push(...passReward.items);
+            }
+          }
+        }
+      }
+    }
+    await this._trigger.emit("items:get", [rewards]);
+    return rewards;
   }
 }

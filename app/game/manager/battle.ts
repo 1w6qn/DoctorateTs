@@ -127,7 +127,53 @@ export class BattleManager {
           unlock_list[item] = stage_data[item].unlockCondition;
         }
 
-        //todo: 解锁关卡`
+        for (const item of Object.keys(unlock_list)) {
+          let passCondition = 0;
+          if (unlock_list[item].length == 0) {
+            if (!(item in Object.keys(draft.dungeon.stages))) {
+              draft.dungeon.stages[item] = {
+                stageId: item,
+                practiceTimes: 0,
+                completeTimes: 0,
+                startTimes: 0,
+                state: 0,
+                hasBattleReplay: 0,
+                noCostCnt: 1,
+              };
+              unlockStages.push(item);
+            }
+          } else {
+            for (const condition of unlock_list[item]) {
+              if (condition.stageId in Object.keys(draft.dungeon.stages)) {
+                if (
+                  draft.dungeon.stages[condition.stageId].state >=
+                  condition.completeState
+                ) {
+                  passCondition += 1;
+                }
+              }
+              if (stageId == condition.stageId) {
+                if (3 >= condition.completeState) {
+                  passCondition += 1;
+                }
+              }
+            }
+            if (passCondition == unlock_list[item].length) {
+              if (!(item in Object.keys(draft.dungeon.stages))) {
+                draft.dungeon.stages[item] = {
+                  stageId: item,
+                  practiceTimes: 0,
+                  completeTimes: 0,
+                  startTimes: 0,
+                  state: 0,
+                  hasBattleReplay: 0,
+                  noCostCnt: 1,
+                };
+                unlockStages.push(item);
+              }
+            }
+          }
+        }
 
         rewards.push({
           type: "DIAMOND",
@@ -256,7 +302,18 @@ export class BattleManager {
           for (const item of Object.keys(unlockList)) {
             let passCondition = 0;
             if (unlockList[item].length == 0) {
-              //todo
+              if (!(item in Object.keys(draft.dungeon.stages))) {
+                draft.dungeon.stages[item] = {
+                  stageId: item,
+                  practiceTimes: 0,
+                  completeTimes: 0,
+                  startTimes: 0,
+                  state: 0,
+                  hasBattleReplay: 0,
+                  noCostCnt: 1,
+                };
+                unlockStages.push(item);
+              }
             } else {
               for (const condition of unlockList[item]) {
                 if (condition.stageId in Object.keys(draft.dungeon.stages)) {

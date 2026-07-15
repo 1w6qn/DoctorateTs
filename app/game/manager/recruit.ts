@@ -25,7 +25,6 @@ export class RecruitManager {
   async refreshTags(args: { slotId: number }): Promise<void> {
     const { slotId } = args;
     await this._player.update(async (draft) => {
-      //TODO building update
       draft.recruit.normal.slots[slotId].tags =
         await RecruitTools.refreshTagList();
     });
@@ -83,7 +82,6 @@ export class RecruitManager {
       const { slotId } = args;
       const { durationInSec, selectTags } =
         this._player._playerdata.recruit.normal.slots[slotId];
-      //TODO seperate
       const [char_id, filtered] = await RecruitTools.generateValidTags(
         durationInSec,
         selectTags.map((v) => v.tagId),

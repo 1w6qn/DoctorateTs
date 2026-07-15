@@ -98,7 +98,6 @@ export class TroopManager {
     stageType: string;
   }) {
     const { stageId, squad } = args;
-    //TODO
     await this._trigger.emit("battle:start", [
       {
         isRetro: 0,
@@ -127,7 +126,6 @@ export class TroopManager {
   async fix(): Promise<void> {
     Object.values(this._player._playerdata.troop.chars).forEach((char) => {
       if (char.charId == "char_002_amiya") {
-        //TODO
         return;
       }
       const skills = excel.CharacterTable[char.charId].skills;

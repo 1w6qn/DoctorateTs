@@ -1,3 +1,18 @@
+/**
+ * 勋章管理器
+ * 
+ * 负责明日方舟中所有勋章的管理，包括：
+ * - 勋章进度追踪
+ * - 勋章完成检测
+ * - 勋章奖励发放
+ * - 勋章展示自定义
+ * 
+ * 勋章系统核心机制：
+ * 1. 勋章通过完成特定目标获得（如升级干员、通关关卡等）
+ * 2. 每个勋章有独立的进度追踪逻辑
+ * 3. 完成勋章可获得相应奖励（通常为家具或头像框）
+ * 4. 玩家可自定义勋章展示布局
+ */
 import {
   PlayerCampaign,
   PlayerDataModel,
@@ -11,44 +26,119 @@ import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
 import moment from "moment";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { TypedEventEmitter } from "@game/model/events";
+import { EventMap, TypedEventEmitter } from "@game/model/events";
+import { PlayerCharacter } from "../model/character";
 
 export class MedalManager implements PlayerMedal {
-  medals: { [key: string]: PlayerPerMedal };
+  medals: { [key: string]: MedalProgress };
   custom: PlayerMedalCustom;
   _trigger: TypedEventEmitter;
+  _playerdata: PlayerDataModel;
 
+  /**
+   * 构造函数
+   * @param playerdata 玩家数据模型实例
+   * @param _trigger 事件发射器实例
+   */
   constructor(playerdata: PlayerDataModel, _trigger: TypedEventEmitter) {
-    this.medals = playerdata.medal.medals;
+    this._playerdata = playerdata;
+    this.medals = {};
     this.custom = playerdata.medal.custom;
     this._trigger = _trigger;
+    this._trigger.on("medal:complete", this.onMedalComplete.bind(this));
   }
 
+  /**
+   * 初始化勋章系统
+   * 遍历所有勋章数据，创建MedalProgress实例并初始化
+   */
+  async init() {
+    for (const [id, item] of Object.entries(this._playerdata.medal.medals)) {
+      this.medals[id] = new MedalProgress(item, this._trigger);
+    }
+  }
+
+  /**
+   * 设置勋章自定义展示数据
+   * @param index 自定义布局索引
+   * @param data 自定义布局数据
+   */
   setCustomData(args: { index: string; data: PlayerMedalCustomLayout }) {
     this.custom.currentIndex = args.index;
     this.custom.customs[args.index] = args.data;
   }
 
+  /**
+   * 发放勋章奖励
+   * @param medalId 勋章ID
+   * @param group 奖励组ID
+   * @returns 获得的物品奖励列表
+   * 
+   * 勋章奖励通常包括：家具、头像框、名片装饰等
+   */
   rewardMedal(args: { medalId: string; group: string }) {
-    const medalRewardGroup = excel.MedalTable.medalList.find(
+    const medalInfo = excel.MedalTable.medalList.find(
       (m) => m.medalId == args.medalId,
-    )!.medalRewardGroup;
+    )!;
+    const medalRewardGroup = medalInfo.medalRewardGroup;
     const items: ItemBundle[] = medalRewardGroup.find(
       (m) => m.groupId == args.group,
     )!.itemList;
-    this.medals[args.medalId].rts = now();
+    if (this.medals[args.medalId]) {
+      this.medals[args.medalId].rts = now();
+    } else if (this._playerdata.medal.medals[args.medalId]) {
+      this._playerdata.medal.medals[args.medalId].rts = now();
+    }
     this._trigger.emit("items:get", [items]);
     return items;
   }
 
+  /**
+   * 勋章完成事件处理
+   * @param medalId 完成的勋章ID
+   * 
+   * 当勋章进度达到目标时触发，自动发放奖励
+   */
+  async onMedalComplete([{ medalId }]: [{ medalId: string }]) {
+    const medalInfo = excel.MedalTable.medalList.find(
+      (m) => m.medalId == medalId,
+    )!;
+    if (!medalInfo || !medalInfo.medalRewardGroup || medalInfo.medalRewardGroup.length === 0) {
+      return;
+    }
+    const defaultRewardGroup = medalInfo.medalRewardGroup[0];
+    await this.rewardMedal({ medalId, group: defaultRewardGroup.groupId });
+  }
+
+  /**
+   * 序列化勋章数据
+   * @returns 勋章数据的JSON表示
+   */
   toJSON() {
     return {
-      medals: this.medals,
+      medals: Object.fromEntries(
+        Object.entries(this.medals).map(([id, medal]) => [id, medal.toJSON()]),
+      ),
       customs: this.custom,
     };
   }
 }
-//TODO:complete the template
+/**
+ * 勋章进度管理类
+ * 
+ * 负责单个勋章的进度追踪、事件监听和完成检测。
+ * 明日方舟勋章系统的核心逻辑实现，包括：
+ * - 根据勋章模板注册相应的事件监听器
+ * - 实时更新勋章进度
+ * - 勋章完成后触发奖励发放事件
+ * 
+ * 勋章进度数据结构：
+ * - val[0][0]: 当前进度值
+ * - val[0][1]: 目标进度值
+ * - fts: 首次获得时间戳（完成时间）
+ * - rts: 奖励领取时间戳
+ * - reward: 奖励领取状态
+ */
 export class MedalProgress implements PlayerPerMedal {
   [key: string]: any;
 
@@ -61,6 +151,11 @@ export class MedalProgress implements PlayerPerMedal {
   _v: number;
   param!: string[];
 
+  /**
+   * 构造函数
+   * @param item 玩家勋章数据
+   * @param _trigger 事件发射器实例
+   */
   constructor(item: PlayerPerMedal, _trigger: TypedEventEmitter) {
     this.id = item.id;
     this.val = [[]];
@@ -75,37 +170,56 @@ export class MedalProgress implements PlayerPerMedal {
     this.val = item.val;
   }
 
+  /**
+   * 初始化勋章进度
+   * 
+   * 根据勋章模板注册事件监听器，监听相关游戏事件以更新勋章进度。
+   * 如果勋章已完成（进度达到目标），则不注册监听器。
+   */
   init() {
     const medalInfo = excel.MedalTable.medalList.find(
       (m) => m.medalId == this.id,
     )!;
-    const template = medalInfo.template;
+    const template = medalInfo.template as string;
     if (!template) {
       this.val = [];
       return;
     }
     this.param = medalInfo.unlockParam;
-    if (template && !(template in this)) {
-      throw new Error("template not implemented yet");
+    if (!(template in this)) {
+      throw new Error(`template ${template} not implemented yet`);
     }
-    /**(args: object, mode: string) => {
-      this[template](args, mode);
-      if (this.val[0][0] >= this.val[0][0]!) {
+
+    (this as any)[template]({}, "init");
+
+    const target = this.val[0][1];
+    if (this.val[0][0] >= target) {
+      return;
+    }
+
+    const func = (args: any[]) => {
+      (this as any)[template](args[0], "update");
+      if (this.val[0][0] >= target) {
         console.log(`[MedalManager] ${this.id} complete`);
-        this._trigger.removeListener(template, this[template]);
+        this._trigger.off(template as any, func);
+        this._trigger.emit("medal:complete", [{ medalId: this.id }]);
       }
-       } */
-    //this._trigger.on(template, null);
-    //this[template]({}, "init");
+    };
+
+    this._trigger.on(template as any, func);
   }
 
+  /**
+   * 空更新方法（用于兼容性）
+   */
   update() {}
 
+  /**
+   * 玩家等级勋章模板
+   * 追踪玩家等级达到指定等级
+   * @param param[0] 目标等级
+   */
   PlayerLevel(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { level: number }) => {
@@ -115,11 +229,12 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 加入游戏天数勋章模板
+   * 追踪玩家加入游戏的天数
+   * @param param[0] 目标天数
+   */
   JoinGameDays(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -129,11 +244,12 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 干员数量勋章模板
+   * 追踪玩家拥有的干员数量
+   * @param param[0] 目标干员数量
+   */
   CharNum(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { curCharInstId: number }) => {
@@ -143,11 +259,12 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 招募次数勋章模板
+   * 追踪玩家招募干员的次数
+   * @param param[0] 目标招募次数
+   */
   RecruitCount(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: {}) => {
@@ -157,11 +274,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 通关特定关卡勋章模板
+   * 追踪玩家通关指定关卡的数量
+   * @param param[0] 通关状态要求
+   * @param param[1] 关卡ID列表（分号分隔）
+   * @param param[2] 目标通关数量
+   */
   PassStageSome(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[2])),
       update: (args: PlayerDataManager) => {
@@ -181,11 +301,12 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 剿灭作战花费理智勋章模板
+   * 追踪玩家在剿灭作战中花费的理智（源石碎片）数量
+   * @param param[0] 目标花费数量
+   */
   CampaignsDiamondLimit(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: PlayerCampaign) => {
@@ -195,11 +316,12 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 剿灭作战完成勋章模板
+   * 追踪玩家完成剿灭作战的次数（击杀400敌人且领取奖励）
+   * @param param[0] 剿灭作战ID
+   */
   CampaignsComplete(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, 1),
       update: (args: PlayerCampaign) => {
@@ -215,113 +337,149 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 通关剿灭作战勋章模板
+   * 追踪玩家通关剿灭作战的数量
+   * @param param[0] 目标通关数量
+   */
   PassTower(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: (args: { count: number }) => {
+        this.val[0][0] += args.count;
       },
     };
     funcs[mode](args);
   }
 
+  /**
+   * 干员精英化次数勋章模板
+   * 追踪玩家将干员精英化到指定阶段的次数
+   * @param param[0] 目标精英化次数
+   * @param param[1] 精英化阶段要求（默认为2，即精英二）
+   */
   CharEvolveCount(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: (args: { char: PlayerCharacter }) => {
+        if (args.char.evolvePhase >= parseInt(this.param[1] || "2")) {
+          this.val[0][0] += 1;
+        }
       },
     };
     funcs[mode](args);
   }
 
+  /**
+   * 干员技能升级次数勋章模板
+   * 追踪玩家升级干员技能的总次数（按等级累加）
+   * @param param[0] 目标技能等级累加值
+   */
   CharSkillCount(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: (args: { targetLevel: number }) => {
+        this.val[0][0] += args.targetLevel;
       },
     };
     funcs[mode](args);
   }
 
+  /**
+   * 干员技能专精次数勋章模板
+   * 追踪玩家将干员技能专精到指定等级的次数
+   * @param param[0] 目标专精次数
+   * @param param[1] 专精等级要求（默认为3）
+   */
   CharSkillSpecCount(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: (args: { targetLevel: number }) => {
+        if (args.targetLevel >= parseInt(this.param[1] || "3")) {
+          this.val[0][0] += 1;
+        }
       },
     };
     funcs[mode](args);
   }
 
+  /**
+   * 干员信赖度达成勋章模板
+   * 追踪玩家将干员信赖度提升到指定百分比的次数
+   * @param param[0] 目标干员数量
+   * @param param[1] 信赖度百分比要求（默认为200%）
+   */
   CharFavorCount(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: (args: { favorPoint: number }) => {
+        let percent: number;
+        if (args.favorPoint == excel.FavorTable.maxFavor) {
+          percent = 200;
+        } else {
+          const frame = excel.FavorTable.favorFrames.find((_f, idx, table) => {
+            return (
+              args.favorPoint >= table[idx].level &&
+              args.favorPoint < (table[idx + 1]?.level || Infinity)
+            );
+          });
+          percent = frame?.data.percent || 0;
+        }
+        if (percent >= parseInt(this.param[1] || "200")) {
+          this.val[0][0] += 1;
+        }
       },
     };
     funcs[mode](args);
   }
 
+  /**
+   * 获取干员勋章模板
+   * 追踪玩家获取指定稀有度干员的数量
+   * @param param[0] 目标干员数量
+   * @param param[1] 干员稀有度要求（默认为5星）
+   */
   GotChars(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: (args: { char: PlayerCharacter }) => {
+        const data = excel.CharacterTable[args.char.charId];
+        if (data.rarity >= parseInt(this.param[1] || "5")) {
+          this.val[0][0] += 1;
+        }
       },
     };
     funcs[mode](args);
   }
 
+  /**
+   * 干员潜能提升勋章模板
+   * 追踪玩家将干员潜能提升到指定等级的次数
+   * @param param[0] 目标潜能提升次数
+   * @param param[1] 潜能等级要求（默认为6）
+   */
   CharPotential(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: (args: { targetLevel: number }) => {
+        if (args.targetLevel >= parseInt(this.param[1] || "6")) {
+          this.val[0][0] += 1;
+        }
       },
     };
     funcs[mode](args);
   }
 
+  /**
+   * 解锁干员档案勋章模板
+   * 追踪玩家解锁干员档案的数量
+   * @param param[0] 目标解锁数量
+   */
   CharStoryUnlock(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: () => {
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);
@@ -482,98 +640,70 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   Rlv2PassNode(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: () => {
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);
   }
 
   Rlv2BpLevel(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: (args: { level: number }) => {
+        this.val[0][0] = args.level;
       },
     };
     funcs[mode](args);
   }
 
   PermUpgrade(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: () => {
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);
   }
 
   UseAlchemy(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: () => {
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);
   }
 
   Rlv2Recruit(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: () => {
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);
   }
 
   Rlv2GetTeamReward(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: () => {
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);
   }
 
   Rlv2EndingCollect(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: (args: { ending: string }) => {
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);
@@ -818,28 +948,22 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   PassStageWithSimpleTokenCountLess(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: (args: { tokenCount: number }) => {
+        if (args.tokenCount <= parseInt(this.param[1])) {
+          this.val[0][0] += 1;
+        }
       },
     };
     funcs[mode](args);
   }
 
   PassStageKilledTotal(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: (args: { killCnt: number }) => {
+        this.val[0][0] += args.killCnt;
       },
     };
     funcs[mode](args);
@@ -902,42 +1026,32 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   PassStageWithSimpleTokenCountMore(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: (args: { tokenCount: number }) => {
+        if (args.tokenCount >= parseInt(this.param[1])) {
+          this.val[0][0] += 1;
+        }
       },
     };
     funcs[mode](args);
   }
 
   CrisisV2DimScoreTotal(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: (args: { score: number }) => {
+        this.val[0][0] += args.score;
       },
     };
     funcs[mode](args);
   }
 
   CrisisV2NodeSome(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      update: () => {
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);
@@ -1792,6 +1906,622 @@ export class MedalProgress implements PlayerPerMedal {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
         this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Act1ArcadeCollectAllBadge勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Act1ArcadeCollectAllBadge(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Act1FootballScores勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Act1FootballScores(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Act1HalfidleUpgradeChar勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Act1HalfidleUpgradeChar(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Act38SideCompletePuzzle勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Act38SideCompletePuzzle(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Act42sideUnlockGunCnt勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Act42sideUnlockGunCnt(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Act46sidePassMonopolyStage勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Act46sidePassMonopolyStage(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActMultiV3CommitAlbum勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActMultiV3CommitAlbum(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActMultiV3CompleteSimpleEvent勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActMultiV3CompleteSimpleEvent(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActMultiV3DefenceWave勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActMultiV3DefenceWave(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActMultiV3FootballGoal勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActMultiV3FootballGoal(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActMultiV3GainTitle勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActMultiV3GainTitle(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActMultiV3StageDefenceDamage勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActMultiV3StageDefenceDamage(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActMultiV3StageStar勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActMultiV3StageStar(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActMultiV3TotalStar勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActMultiV3TotalStar(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActVecBreakV2LevelSimpleEventAtLeast勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActVecBreakV2LevelSimpleEventAtLeast(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActVecBreakV2PassStageBeforeTime勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActVecBreakV2PassStageBeforeTime(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActVecBreakV2PassStageWithEnemyKilled勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActVecBreakV2PassStageWithEnemyKilled(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActVecBreakV2PassStageWithSkillUsed勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActVecBreakV2PassStageWithSkillUsed(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActVecBreakV2SimpleEventAtLeast勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActVecBreakV2SimpleEventAtLeast(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActivityAutoChessBandBadgeCount勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActivityAutoChessBandBadgeCount(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActivityAutoChessCharChessUpgrade勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActivityAutoChessCharChessUpgrade(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActivityAutoChessPassGame勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActivityAutoChessPassGame(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActivityAutoChessPassWithBandAccumulative勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActivityAutoChessPassWithBandAccumulative(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActivityAutoChessPassWithBondAccumulative勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActivityAutoChessPassWithBondAccumulative(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActivityBattleHeal勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActivityBattleHeal(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActivityEnemyDuelRank勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  ActivityEnemyDuelRank(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * CharEvolvePhase勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  CharEvolvePhase(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * GainSixStarGroupPoint勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  GainSixStarGroupPoint(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * RecalRuneStageScoreSome勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  RecalRuneStageScoreSome(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Rlv2CopperDraw勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Rlv2CopperDraw(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Rlv2PassNodeStrict勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Rlv2PassNodeStrict(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Rlv2PassZone勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Rlv2PassZone(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Rlv2SpecialZoneEnter勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Rlv2SpecialZoneEnter(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Sbv3BaseUpgrade勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Sbv3BaseUpgrade(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Sbv3BattleTaskCount勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Sbv3BattleTaskCount(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Sbv3ClearDebris勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Sbv3ClearDebris(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Sbv3DeployBuilding勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Sbv3DeployBuilding(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Sbv3DungeonKillEnemyType勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Sbv3DungeonKillEnemyType(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Sbv3ElectricScore勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Sbv3ElectricScore(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Sbv3GainCookbook勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Sbv3GainCookbook(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Sbv3PassDungeon勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Sbv3PassDungeon(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Sbv3QuestFinish勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Sbv3QuestFinish(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Sbv3TechUnlock勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  Sbv3TechUnlock(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * TotalCheckinCount勋章模板
+   * 追踪玩家在游戏中的相关行为
+   */
+  TotalCheckinCount(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);

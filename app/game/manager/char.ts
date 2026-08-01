@@ -16,9 +16,9 @@ export class CharManager {
     this._trigger.on("char:get", () => {
       this.onCharGet.bind(this);
     });
-    this._trigger.on("char:levelUp", async ([charInstId]) => {
+    this._trigger.on("char:levelUp", async ([{ charId, level }]) => {
       await this._player.update(async (draft) => {
-        const char = draft.troop.chars[charInstId];
+        const char = draft.troop.chars[charId];
         const charInfo = excel.CharacterTable[char.charId];
         if (charInfo.rarity <= 1 && char.level == 30) {
           //unlock addonStage

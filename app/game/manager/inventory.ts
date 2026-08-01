@@ -142,7 +142,7 @@ export class InventoryManager {
                 },
               ],
             ]);
-            await this._trigger.emit("player:levelUp", []);
+            await this._trigger.emit("player:levelUp", [{ level: draft.status.level }]);
           } else {
             break;
           }

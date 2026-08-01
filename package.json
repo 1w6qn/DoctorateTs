@@ -28,7 +28,9 @@
     "start": "nodemon index.ts --ext ts",
     "build": "tsc",
     "hook": "frida-compile hook/main.ts -o _arknights.js -c",
-    "test": "ts-node test.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "update": "ts-node scripts/update-data.ts",
     "update:skip": "ts-node scripts/update-data.ts --skip-update"
   },
@@ -41,6 +43,7 @@
     "@types/node": "^22.5.5",
     "@types/node-fetch": "^2.6.11",
     "@types/yauzl": "^2.10.3",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.10.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
@@ -50,6 +53,7 @@
     "prettier": "^3.3.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.2",
-    "typescript-eslint": "^8.6.0"
+    "typescript-eslint": "^8.6.0",
+    "vitest": "^4.1.10"
   }
 }

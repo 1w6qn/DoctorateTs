@@ -366,11 +366,11 @@ export class BuildingManager {
 
   /**
    * 批量完成订单
-   * 参考实现：与 deliveryOrder 类似，批量交付订单
+   * 对 orderId 数组中的每个订单执行交付逻辑，扣除贸易凭证并增加金币
    * @param args - 包含 slotId 和 orderId 列表的参数对象
    */
   async deliveryBatchOrder(args: { slotId: string; orderId: string[] }) {
-    const { slotId } = args;
+    const { slotId, orderId } = args;
     return await this._player.update(async (draft) => {
       const tradingRoom = draft.building.rooms.TRADING[slotId];
       if (
@@ -378,12 +378,18 @@ export class BuildingManager {
         Array.isArray(tradingRoom.stock) &&
         tradingRoom.stock.length > 0
       ) {
-        const stockItem = tradingRoom.stock[0] as any;
-        const goldNum = stockItem?.count || 0;
-        draft.inventory["3003"] =
-          (draft.inventory["3003"] || 0) - goldNum;
-        draft.status.gold += goldNum * 500;
-        tradingRoom.stock = [];
+        for (const oid of orderId) {
+          const stockIdx = tradingRoom.stock.findIndex(
+            (s: any) => s.orderId === oid,
+          );
+          if (stockIdx === -1) continue;
+          const stockItem = tradingRoom.stock[stockIdx] as any;
+          const goldNum = stockItem?.count || 0;
+          draft.inventory["3003"] =
+            (draft.inventory["3003"] || 0) - goldNum;
+          draft.status.gold += goldNum * 500;
+          tradingRoom.stock.splice(stockIdx, 1);
+        }
       }
     });
   }

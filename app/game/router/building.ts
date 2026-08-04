@@ -407,7 +407,7 @@ router.post("/buyLabor", async (req, res) => {
 router.post("/cleanRoomSlot", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   await player.building.cleanRoomSlot(req.body);
-  res.send(req.body);
+  res.send(player.delta);
 });
 
 /** 确认留言板奖励（简化实现） */

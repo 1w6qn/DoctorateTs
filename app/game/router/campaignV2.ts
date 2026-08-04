@@ -1,32 +1,76 @@
+/**
+ * 主线战役V2路由模块
+ *
+ * 处理主线战役V2（campaignV2）相关的 HTTP 请求，包括战斗开始、战斗结束、扫荡、
+ * 突破奖励和额外任务奖励等接口。
+ *
+ * 业务逻辑委托给 Manager 层（BattleManager 等）处理，路由层仅负责协议适配与响应封装。
+ *
+ * 参考实现：reference/opendoctoratepy-ex-public/server/campaignV2.py
+ */
+
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { CommonStartBattleRequest } from "../model/battle";
 
 const router = Router();
 
+/**
+ * 主线战役V2战斗开始
+ *
+ * 委托 BattleManager.start 处理战斗初始化逻辑（关卡状态、体力消耗、AP保护等），
+ * 并合并 playerDataDelta 返回给客户端。
+ *
+ * @route POST /campaignV2/battleStart
+ * @param req.body - CommonStartBattleRequest 结构，包含 stageId、squad 等字段
+ * @returns battleId、战斗结果及玩家增量数据
+ */
 router.post("/campaignV2/battleStart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { stageId: string };
-  
+  const battleResult = await player.battle.start(
+    req.body as CommonStartBattleRequest,
+  );
+
   res.send({
-    battleId: "abcdefgh-1234-5678-a1b2c3d4e5f6",
+    ...battleResult,
     ...player.delta,
-    result: 0,
   });
 });
 
+/**
+ * 主线战役V2战斗结束
+ *
+ * 委托 BattleManager.finish 处理战斗结算逻辑（关卡解锁、奖励掉落、经验/金币结算等），
+ * 并合并 playerDataDelta 返回给客户端。
+ *
+ * @route POST /campaignV2/battleFinish
+ * @param req.body - 包含 data（加密战斗数据）和 battleData 字段
+ * @returns 战斗结算结果及玩家增量数据
+ */
 router.post("/campaignV2/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  
+  const finishResult = await player.battle.finish(req.body);
+
   res.send({
+    ...finishResult,
     ...player.delta,
-    result: 0,
   });
 });
 
+/**
+ * 主线战役V2扫荡
+ *
+ * 简化实现：返回固定的扫荡奖励结构。
+ * 由于 Manager 层未提供 sweep 方法（且参考实现亦为静态返回），
+ * 此处在路由层直接构造符合协议的响应，diamondMaterialRewards 返回固定钻石碎屑。
+ *
+ * @route POST /campaignV2/battleSweep
+ * @returns 扫荡结果（奖励列表、解锁关卡、玩家增量数据等）
+ */
 router.post("/campaignV2/battleSweep", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  
+
   res.send({
     ...player.delta,
     result: 0,
@@ -44,16 +88,32 @@ router.post("/campaignV2/battleSweep", async (req, res) => {
   });
 });
 
+/**
+ * 获取主线战役V2突破奖励
+ *
+ * 简化实现：参考 Python 实现返回 202 状态码（已接受但未处理）。
+ * 突破奖励的完整逻辑涉及 mission 系统的 CompleteBreakReward 事件，
+ * 当前版本暂不实现，等待后续迭代补全。
+ *
+ * @route POST /campaignV2/getBreakReward
+ * @returns HTTP 202 状态码
+ */
 router.post("/campaignV2/getBreakReward", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
-  
-  res.send(player.delta);
+  res.sendStatus(202);
 });
 
+/**
+ * 获取主线战役V2额外任务奖励
+ *
+ * 简化实现：参考 Python 实现返回 202 状态码（已接受但未处理）。
+ * 额外任务奖励的完整逻辑涉及 mission 系统的事件触发与奖励发放，
+ * 当前版本暂不实现，等待后续迭代补全。
+ *
+ * @route POST /campaignV2/getExMissionReward
+ * @returns HTTP 202 状态码
+ */
 router.post("/campaignV2/getExMissionReward", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
-  
-  res.send(player.delta);
+  res.sendStatus(202);
 });
 
 export default router;

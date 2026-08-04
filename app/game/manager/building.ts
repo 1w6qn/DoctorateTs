@@ -2,11 +2,25 @@ import { PlayerCharacter } from "@game/model/character";
 import { now } from "@utils/time";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
+import { WritableDraft } from "immer";
+import { PlayerDataModel } from "@game/model/playerdata";
 
+/**
+ * 基建管理器类
+ *
+ * 负责游戏基建系统的所有业务逻辑，包括房间管理、干员分配、订单生产、
+ * 线索系统、预设队列以及其他基建相关功能。
+ * 通过 Immer 进行状态管理，所有变更通过 PlayerDataManager.update 进行。
+ */
 export class BuildingManager {
   _player: PlayerDataManager;
   _trigger: TypedEventEmitter;
 
+  /**
+   * 构造函数
+   * @param player - 玩家数据管理器实例
+   * @param _trigger - 事件触发器
+   */
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
@@ -38,21 +52,28 @@ export class BuildingManager {
     );
   }
 
+  /** 获取会客室留言板信息 */
   get boardInfo(): string[] {
     return Object.keys(
       Object.values(this._player._playerdata.building.rooms.MEETING)[0].board,
     );
   }
 
+  /** 获取信息共享时间戳 */
   get infoShare(): number {
     return Object.values(this._player._playerdata.building.rooms.MEETING)[0]
       .infoShare.ts;
   }
 
+  /** 获取家具数量 */
   get furnCnt(): number {
     return Object.keys(this._player._playerdata.building.furniture).length;
   }
 
+  /**
+   * 同步基建数据
+   * @returns 当前时间戳
+   */
   async sync() {
     return await this._player.update(async (draft) => {
       draft.event.building = now() + 5000;
@@ -60,6 +81,10 @@ export class BuildingManager {
     });
   }
 
+  /**
+   * 切换基建背景音乐
+   * @param args - 包含 musicId 的参数对象
+   */
   async changeBGM(args: { musicId: string }) {
     const { musicId } = args;
     return await this._player.update(async (draft) => {
@@ -67,6 +92,10 @@ export class BuildingManager {
     });
   }
 
+  /**
+   * 设置私人宿舍归属
+   * @param args - 包含 slotId 和 charInstId 的参数对象
+   */
   async setPrivateDormOwner(args: { slotId: string; charInstId: number }) {
     const { slotId, charInstId } = args;
     return await this._player.update(async (draft) => {
@@ -74,6 +103,10 @@ export class BuildingManager {
     });
   }
 
+  /**
+   * 设置基建助战干员
+   * @param args - 包含 type（位置）和 charInstId 的参数对象
+   */
   async setBuildingAssist(args: { type: number; charInstId: number }) {
     const { type, charInstId } = args;
     return await this._player.update(async (draft) => {
@@ -83,5 +116,786 @@ export class BuildingManager {
       }
       draft.building.assist[type] = charInstId;
     });
+  }
+
+  // ==================== 房间管理 ====================
+
+  /**
+   * 建造房间
+   * 简化实现：根据 roomSlotId 和 roomId 更新房间的建造状态
+   * @param args - 包含 roomSlotId 和 roomId 的参数对象
+   */
+  async buildRoom(args: { roomSlotId: string; roomId: string }) {
+    const { roomSlotId, roomId } = args;
+    return await this._player.update(async (draft) => {
+      const slot = draft.building.roomSlots[roomSlotId];
+      if (slot) {
+        slot.state = 1;
+        slot.roomId = roomId;
+        slot.completeConstructTime = now() + 1;
+      }
+    });
+  }
+
+  /**
+   * 升级房间等级
+   * 对应 Python 参考实现的 changRoomLevel
+   * @param args - 包含 roomSlotId 和 targetLevel 的参数对象
+   */
+  async upgradeRoom(args: { roomSlotId: string; targetLevel: number }) {
+    const { roomSlotId, targetLevel } = args;
+    return await this._player.update(async (draft) => {
+      const slot = draft.building.roomSlots[roomSlotId];
+      if (slot) {
+        slot.level = targetLevel;
+      }
+    });
+  }
+
+  /**
+   * 完成房间升级
+   * 简化实现：将房间状态置为已完成，参考 Python 实现返回 202
+   */
+  async completeUpgradeRoom() {
+    return await this._player.update(async (draft) => {
+      draft.event.building = now() + 5000;
+    });
+  }
+
+  /**
+   * 降级房间
+   * 简化实现：降低房间等级
+   * @param args - 包含 roomSlotId 的参数对象
+   */
+  async degradeRoom(args: { roomSlotId: string }) {
+    const { roomSlotId } = args;
+    return await this._player.update(async (draft) => {
+      const slot = draft.building.roomSlots[roomSlotId];
+      if (slot && slot.level > 1) {
+        slot.level -= 1;
+      }
+    });
+  }
+
+  /**
+   * 专精升级
+   * 简化实现：实际专精逻辑在 CharManager 中处理，此处仅触发事件
+   * @param args - 请求体参数
+   */
+  async upgradeSpecialization(args: any) {
+    return args;
+  }
+
+  /**
+   * 完成专精升级
+   * 简化实现：实际专精逻辑在 CharManager 中处理，此处仅触发事件
+   * @param args - 请求体参数
+   */
+  async completeUpgradeSpecialization(args: any) {
+    return args;
+  }
+
+  /**
+   * 升级自定义等级
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   */
+  async upgradeDiyLevel() {
+    return await this._player.update(async (draft) => {
+      draft.event.building = now() + 5000;
+    });
+  }
+
+  // ==================== 干员分配 ====================
+
+  /**
+   * 分配干员到房间
+   * 参考 Python AssignChar 实现：将干员从原房间移除并分配到目标房间
+   * 对于训练室（slot_13）会特殊处理 trainer/trainee
+   * @param args - 包含 roomSlotId 和 charInstIdList 的参数对象
+   */
+  async assignChar(args: { roomSlotId: string; charInstIdList: number[] }) {
+    const { roomSlotId, charInstIdList } = args;
+    return await this._player.update(async (draft) => {
+      // 先将所有房间中已存在的相同干员移除（置为 -1）
+      for (const slotKey in draft.building.roomSlots) {
+        const slot = draft.building.roomSlots[slotKey];
+        const ids = slot.charInstIds;
+        for (let i = 0; i < ids.length; i++) {
+          for (let n = 0; n < charInstIdList.length; n++) {
+            if (charInstIdList[n] === ids[i]) {
+              ids[i] = -1;
+            }
+          }
+        }
+      }
+      // 将目标房间的干员列表替换为新列表
+      draft.building.roomSlots[roomSlotId].charInstIds = charInstIdList;
+
+      // 训练室特殊处理
+      if (roomSlotId === "slot_13" && charInstIdList.length >= 2) {
+        const trainer = charInstIdList[0];
+        const trainee = charInstIdList[1];
+        const trainingRoom = draft.building.rooms.TRAINING[roomSlotId];
+        if (trainingRoom) {
+          trainingRoom.trainee.charInstId = trainee;
+          trainingRoom.trainee.targetSkill = -1;
+          trainingRoom.trainee.speed = 1000;
+          trainingRoom.trainer.charInstId = trainer;
+          trainingRoom.trainee.state = trainee === -1 ? 0 : 3;
+          trainingRoom.trainer.state = trainer === -1 ? 0 : 3;
+        }
+      }
+    });
+  }
+
+  /**
+   * 批量更换工作干员
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async batchChangeWorkChar(args: any) {
+    return args;
+  }
+
+  /**
+   * 批量休息干员
+   * 简化实现：参考 Python 实现，将指定干员从工作位置移除
+   * @param args - 请求体参数
+   */
+  async batchRestChar(args: any) {
+    return await this._player.update(async (draft) => {
+      // 简化实现：保留接口结构
+      draft.event.building = now() + 5000;
+    });
+  }
+
+  /**
+   * 获得信赖（单个干员）
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async gainIntimacy(args: any) {
+    return args;
+  }
+
+  /**
+   * 获得全部信赖
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async gainAllIntimacy(args: any) {
+    return args;
+  }
+
+  /**
+   * 获得助战信赖
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async gainAssistIntimacy(args: any) {
+    return args;
+  }
+
+  /**
+   * 确认私人宿舍信赖
+   * 参考实现：将指定干员的信赖点数提升到 25570
+   * @param args - 包含 charInstId 的参数对象
+   */
+  async confirmPrivateDormIntimacy(args: { charInstId: number }) {
+    const charInstId = String(args.charInstId);
+    let charId = "";
+    const charInfo = this._player._playerdata.troop.chars[charInstId];
+    if (charInfo) {
+      charId = charInfo.charId;
+    }
+    return await this._player.update(async (draft) => {
+      if (charId && draft.troop.charGroup[charId]) {
+        draft.troop.charGroup[charId].favorPoint = 25570;
+      }
+      if (charId && draft.troop.chars[charInstId]) {
+        draft.troop.chars[charInstId].favorPoint = 25570;
+      }
+    });
+  }
+
+  // ==================== 订单/生产 ====================
+
+  /**
+   * 加速订单
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async accelerateOrder(args: any) {
+    return args;
+  }
+
+  /**
+   * 加速方案
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async accelerateSolution(args: any) {
+    return args;
+  }
+
+  /**
+   * 完成订单（贸易站交付）
+   * 参考实现：扣除订单库存物品，增加金币
+   * @param args - 包含 slotId 和 orderId 的参数对象
+   */
+  async deliveryOrder(args: { slotId: string; orderId: string }) {
+    const { slotId } = args;
+    return await this._player.update(async (draft) => {
+      const tradingRoom = draft.building.rooms.TRADING[slotId];
+      if (
+        tradingRoom &&
+        Array.isArray(tradingRoom.stock) &&
+        tradingRoom.stock.length > 0
+      ) {
+        const stockItem = tradingRoom.stock[0] as any;
+        const goldNum = stockItem?.count || 0;
+        // 扣除贸易凭证（3003）并增加金币
+        draft.inventory["3003"] =
+          (draft.inventory["3003"] || 0) - goldNum;
+        draft.status.gold += goldNum * 500;
+        // 清空订单库存
+        tradingRoom.stock = [];
+      }
+    });
+  }
+
+  /**
+   * 批量完成订单
+   * 参考实现：与 deliveryOrder 类似，批量交付订单
+   * @param args - 包含 slotId 和 orderId 列表的参数对象
+   */
+  async deliveryBatchOrder(args: { slotId: string; orderId: string[] }) {
+    const { slotId } = args;
+    return await this._player.update(async (draft) => {
+      const tradingRoom = draft.building.rooms.TRADING[slotId];
+      if (
+        tradingRoom &&
+        Array.isArray(tradingRoom.stock) &&
+        tradingRoom.stock.length > 0
+      ) {
+        const stockItem = tradingRoom.stock[0] as any;
+        const goldNum = stockItem?.count || 0;
+        draft.inventory["3003"] =
+          (draft.inventory["3003"] || 0) - goldNum;
+        draft.status.gold += goldNum * 500;
+        tradingRoom.stock = [];
+      }
+    });
+  }
+
+  /**
+   * 删除订单
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async deleteOrder(args: any) {
+    return args;
+  }
+
+  /**
+   * 制造站结算
+   * 参考实现：根据配方将产出物品加入背包，并消耗对应材料，重置制造站状态
+   * @param args - 包含 roomSlotId 的参数对象
+   */
+  async settleManufacture(args: { roomSlotId: string }) {
+    const { roomSlotId } = args;
+    return await this._player.update(async (draft) => {
+      this._settleManufactureInternal(draft, roomSlotId);
+      // 重置制造站状态
+      const room = draft.building.rooms.MANUFACTURE[roomSlotId];
+      room.state = 0;
+      room.formulaId = "";
+      room.lastUpdateTime = now();
+      room.completeWorkTime = -1;
+      room.remainSolutionCnt = 0;
+      room.outputSolutionCnt = 0;
+    });
+  }
+
+  /**
+   * 内部方法：执行制造站结算的材料/产出更新
+   * 对应 Python 实现中根据 FormulaId 范围处理不同配方类型的逻辑
+   * @param draft - Immer 可写草稿
+   * @param roomSlotId - 房间槽位 ID
+   */
+  private _settleManufactureInternal(
+    draft: WritableDraft<PlayerDataModel>,
+    roomSlotId: string,
+  ) {
+    const room = draft.building.rooms.MANUFACTURE[roomSlotId];
+    if (!room) return;
+    const outputSolutionCnt = room.outputSolutionCnt;
+    const formulaIdStr = String(room.formulaId);
+    if (outputSolutionCnt === 0 || !formulaIdStr) return;
+    const formulaIdNum = parseInt(formulaIdStr, 10);
+    if (isNaN(formulaIdNum)) return;
+
+    // 配方 ID 5~12：精英材料，需要消耗基础材料和作战记录
+    if (formulaIdNum >= 5 && formulaIdNum <= 12) {
+      const itemIdMap: { [key: number]: string } = {
+        5: "3212",
+        6: "3222",
+        7: "3232",
+        8: "3242",
+        9: "3252",
+        10: "3262",
+        11: "3272",
+        12: "3282",
+      };
+      const itemId = itemIdMap[formulaIdNum];
+      draft.inventory[formulaIdStr] =
+        (draft.inventory[formulaIdStr] || 0) + outputSolutionCnt;
+      if (itemId) {
+        draft.inventory[itemId] =
+          (draft.inventory[itemId] || 0) - 2 * outputSolutionCnt;
+      }
+      draft.inventory["32001"] =
+        (draft.inventory["32001"] || 0) - 1 * outputSolutionCnt;
+    } else if (formulaIdNum > 12) {
+      // 配方 ID 13/14：消耗龙门币和材料
+      const itemIdMap: { [key: number]: string } = {
+        13: "30012",
+        14: "30062",
+      };
+      const goldCostMap: { [key: number]: number } = {
+        13: 1600,
+        14: 1000,
+      };
+      const itemId = itemIdMap[formulaIdNum];
+      draft.inventory[formulaIdStr] =
+        (draft.inventory[formulaIdStr] || 0) + outputSolutionCnt;
+      if (itemId) {
+        draft.inventory[itemId] =
+          (draft.inventory[itemId] || 0) - 2 * outputSolutionCnt;
+      }
+      const goldCost = goldCostMap[formulaIdNum] || 0;
+      draft.status.gold -= goldCost * outputSolutionCnt;
+    } else {
+      // 其他配方：仅增加产出物品
+      draft.inventory[formulaIdStr] =
+        (draft.inventory[formulaIdStr] || 0) + outputSolutionCnt;
+    }
+  }
+
+  /**
+   * 贸易站结算
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async settleSale(args: any) {
+    return args;
+  }
+
+  /**
+   * 更换制造方案
+   * 参考实现：先结算当前产出，再切换到新配方
+   * @param args - 包含 roomSlotId、targetFormulaId、solutionCount 的参数对象
+   */
+  async changeManufactureSolution(args: {
+    roomSlotId: string;
+    targetFormulaId: string;
+    solutionCount: number;
+  }) {
+    const { roomSlotId, targetFormulaId, solutionCount } = args;
+    return await this._player.update(async (draft) => {
+      // 先结算当前已产出的方案
+      this._settleManufactureInternal(draft, roomSlotId);
+      // 切换到新配方
+      const room = draft.building.rooms.MANUFACTURE[roomSlotId];
+      room.state = 1;
+      room.formulaId = targetFormulaId;
+      room.lastUpdateTime = now();
+      room.completeWorkTime = -1;
+      room.remainSolutionCnt = 0;
+      room.outputSolutionCnt = solutionCount;
+    });
+  }
+
+  /**
+   * 更换贸易方案
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async changeSaleSolution(args: any) {
+    return args;
+  }
+
+  /**
+   * 更换自定义方案
+   * 参考实现：根据 roomSlotId 找到对应房间类型，更新其 diySolution 字段
+   * @param args - 包含 roomSlotId 和 solution 的参数对象
+   */
+  async changeDiySolution(args: { roomSlotId: string; solution: any }) {
+    const { roomSlotId, solution } = args;
+    return await this._player.update(async (draft) => {
+      // 会客室（slot_36）单独处理
+      if (roomSlotId === "slot_36") {
+        (draft.building.rooms.MEETING[roomSlotId] as any).diySolution = solution;
+        return;
+      }
+      // 其他房间：通过 roomSlots 找到房间类型
+      const slot = draft.building.roomSlots[roomSlotId];
+      if (slot) {
+        const roomType = slot.roomId as keyof PlayerDataModel["building"]["rooms"];
+        const room = draft.building.rooms[roomType];
+        if (room && room[roomSlotId]) {
+          (room[roomSlotId] as any).diySolution = solution;
+        }
+      }
+    });
+  }
+
+  /**
+   * 加工站合成
+   * 参考实现：消耗配方材料，产出目标物品，扣除龙门币
+   * @param args - 包含 roomSlotId、times 的参数对象
+   * @returns 合成结果对象（包含 type/id/count）
+   */
+  async workshopSynthesis(args: { roomSlotId: string; times: number }) {
+    const { roomSlotId, times } = args;
+    let resultItem: { type: string; id: string; count: number } | null = null;
+    await this._player.update(async (draft) => {
+      const workshopRoom = draft.building.rooms.MANUFACTURE[roomSlotId] as any;
+      // 注：Python 实现从 MANUFACTURE 房间获取 formulaId，此处保留该逻辑
+      const workshopFormula = workshopRoom?.formulaId;
+      if (workshopFormula && typeof workshopFormula === "object") {
+        const costs = workshopFormula.costs || [];
+        for (const cost of costs) {
+          const itemId = cost.id;
+          const itemCount = cost.count;
+          draft.inventory[itemId] =
+            (draft.inventory[itemId] || 0) - itemCount * times;
+        }
+        // 增加产出物品
+        if (workshopFormula.itemId) {
+          draft.inventory[workshopFormula.itemId] =
+            (draft.inventory[workshopFormula.itemId] || 0) + times;
+        }
+        if (workshopFormula.goldCost) {
+          draft.status.gold -= workshopFormula.goldCost * times;
+        }
+        resultItem = {
+          type: "MATERIAL",
+          id: workshopFormula.itemId,
+          count: times,
+        };
+      }
+    });
+    return resultItem;
+  }
+
+  /**
+   * 加工站分解
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async workshopDecomposition(args: any) {
+    return args;
+  }
+
+  // ==================== 线索系统 ====================
+
+  /**
+   * 获取每日线索
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async getDailyClue(args: any) {
+    return args;
+  }
+
+  /**
+   * 发送线索
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async sendClue(args: any) {
+    return args;
+  }
+
+  /**
+   * 自动发送线索
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async sendClueAuto(args: any) {
+    return args;
+  }
+
+  /**
+   * 接收线索到库存
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async receiveClueToStock(args: any) {
+    return args;
+  }
+
+  /**
+   * 放置线索到留言板
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async putClueToTheBoard(args: any) {
+    return args;
+  }
+
+  /**
+   * 自动放置线索到留言板
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async putClueToTheBoardAuto(args: any) {
+    return args;
+  }
+
+  /**
+   * 删除自己持有的线索
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async deleteOwnClue(args: any) {
+    return args;
+  }
+
+  /**
+   * 删除接收到的线索
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async deleteReceiveClue(args: any) {
+    return args;
+  }
+
+  /**
+   * 获取线索盒
+   * 参考实现：返回空盒子列表
+   * @returns 包含 box 字段的对象
+   */
+  async getClueBox() {
+    return { box: [] };
+  }
+
+  /**
+   * 获取线索好友列表
+   * 参考实现：返回空好友列表
+   * @returns 包含 result 字段的对象
+   */
+  async getClueFriendList() {
+    return { result: [] };
+  }
+
+  /**
+   * 获取会议室奖励
+   * 参考实现：返回空奖励列表
+   * @returns 包含 rewards 的对象
+   */
+  async getMeetingroomReward() {
+    return {
+      rewards: [],
+    };
+  }
+
+  // ==================== 预设队列 ====================
+
+  /**
+   * 添加预设队列
+   * 简化实现：参考 Python 实现返回空的 building delta 结构
+   * @param args - 请求体参数
+   */
+  async addPresetQueue(args: any) {
+    return args;
+  }
+
+  /**
+   * 删除预设队列
+   * 简化实现：参考 Python 实现返回空的 building delta 结构
+   * @param args - 请求体参数
+   */
+  async deletePresetQueue(args: any) {
+    return args;
+  }
+
+  /**
+   * 编辑预设队列
+   * 简化实现：参考 Python 实现返回空的 building delta 结构
+   * @param args - 请求体参数
+   */
+  async editPresetQueue(args: any) {
+    return args;
+  }
+
+  /**
+   * 使用预设队列
+   * 简化实现：参考 Python 实现返回空的 building delta 结构
+   * @param args - 请求体参数
+   */
+  async usePresetQueue(args: any) {
+    return args;
+  }
+
+  /**
+   * 使用单个预设队列
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async useOnePresetQueue(args: any) {
+    return args;
+  }
+
+  /**
+   * 修改预设名称
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async changePresetName(args: any) {
+    return args;
+  }
+
+  /**
+   * 保存自定义预设方案
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async saveDiyPresetSolution(args: any) {
+    return args;
+  }
+
+  /**
+   * 编辑锁定队列
+   * 简化实现：参考 Python 实现，预留接口
+   * @param args - 请求体参数
+   */
+  async editLockQueue(args: any) {
+    return args;
+  }
+
+  // ==================== 其他功能 ====================
+
+  /**
+   * 更改贸易站策略
+   * 参考实现：更新对应贸易站房间的 strategy 字段
+   * @param args - 包含 slotId 和 strategy 的参数对象
+   */
+  async changeStrategy(args: { slotId: string; strategy: string }) {
+    const { slotId, strategy } = args;
+    return await this._player.update(async (draft) => {
+      const tradingRoom = draft.building.rooms.TRADING[slotId];
+      if (tradingRoom) {
+        tradingRoom.strategy = strategy;
+      }
+    });
+  }
+
+  /**
+   * 购买劳动力
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async buyLabor(args: any) {
+    return args;
+  }
+
+  /**
+   * 清理房间槽位
+   * 简化实现：参考 Python 实现，预留接口
+   * @param args - 请求体参数
+   */
+  async cleanRoomSlot(args: any) {
+    return args;
+  }
+
+  /**
+   * 确认留言板奖励
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async confirmMessageBoardReward(args: any) {
+    return args;
+  }
+
+  /**
+   * 获取协助报告
+   * 参考实现：返回近 4 天的制造/贸易/信赖报告数据
+   * @returns 包含 reports 数组的对象
+   */
+  async getAssistReport() {
+    const ts = now();
+    return {
+      reports: [
+        { ts, manufacture: {}, trading: {}, favor: [] },
+        { ts: ts - 86400, manufacture: {}, trading: {}, favor: [] },
+        { ts: ts - 172800, manufacture: {}, trading: {}, favor: [] },
+        { ts: ts - 345600, manufacture: {}, trading: {}, favor: [] },
+      ],
+    };
+  }
+
+  /**
+   * 获取信息共享访客数
+   * 参考实现：返回 0 个访客
+   * @returns 包含 num 字段的对象
+   */
+  async getInfoShareVisitorsNum() {
+    return { num: 0 };
+  }
+
+  /**
+   * 获取最近访客
+   * 参考实现：返回空访客列表
+   * @returns 包含 visitors 字段的对象
+   */
+  async getRecentVisitors() {
+    return { visitors: [] };
+  }
+
+  /**
+   * 获取他人留言板内容
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async getOthersMessageBoardContent(args: any) {
+    return args;
+  }
+
+  /**
+   * 获取缩略图 URL
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async getThumbnailUrl(args: any) {
+    return args;
+  }
+
+  /**
+   * 发送表情
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async sendEmoji(args: any) {
+    return args;
+  }
+
+  /**
+   * 开始信息共享
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async startInfoShare(args: any) {
+    return args;
+  }
+
+  /**
+   * 访问基建
+   * 简化实现：参考 Python 实现返回 202，预留接口
+   * @param args - 请求体参数
+   */
+  async visitBuilding(args: any) {
+    return args;
   }
 }

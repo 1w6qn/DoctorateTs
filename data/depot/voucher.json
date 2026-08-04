@@ -1,0 +1,6088 @@
+{
+    "voucher_item_4pick1": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_108_silent",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_107_liskam",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_174_slbell",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_144_red",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_item_4pick1_1803": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_108_silent",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_107_liskam",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_174_slbell",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_144_red",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_item_pick601": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_010_chen",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_017_huang",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_103_angel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_112_siege",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_134_ifrit",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_136_hsguma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_147_shining",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_172_svrash",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_179_cgbird",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_180_amgoat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_188_helage",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_202_demkni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_213_mostma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_248_mgllan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_263_skadi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_291_aglina",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_340_shwaz",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_item_pick1401": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_010_chen",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_017_huang",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_103_angel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_112_siege",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_134_ifrit",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_136_hsguma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_147_shining",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_172_svrash",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_179_cgbird",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_180_amgoat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_188_helage",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_202_demkni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_213_mostma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_222_bpipe",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_225_haak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_248_mgllan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_250_phatom",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_263_skadi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_291_aglina",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_340_shwaz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2013_cerber",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_item_pick1803": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_010_chen",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_017_huang",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_103_angel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_112_siege",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_134_ifrit",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_136_hsguma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_147_shining",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_172_svrash",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_179_cgbird",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_180_amgoat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_188_helage",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_202_demkni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_213_mostma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_222_bpipe",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_225_haak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_248_mgllan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_250_phatom",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_263_skadi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_291_aglina",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_340_shwaz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2013_cerber",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_400_weedy",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_197_poca",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_358_lisa",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_293_thorns",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_416_zumama",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_350_surtr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_423_blemsh",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_item_pick2301": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_010_chen",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_017_huang",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_103_angel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_112_siege",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_134_ifrit",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_136_hsguma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_147_shining",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_172_svrash",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_179_cgbird",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_180_amgoat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_188_helage",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_202_demkni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_213_mostma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_222_bpipe",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_225_haak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_248_mgllan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_250_phatom",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_263_skadi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_291_aglina",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_340_shwaz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2013_cerber",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_400_weedy",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_197_poca",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_358_lisa",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_293_thorns",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_416_zumama",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_350_surtr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_423_blemsh",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_311_mudrok",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_264_f12yin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_332_archet",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_362_saga",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_472_pasngr",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_item_pick2701": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_010_chen",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_017_huang",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_103_angel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_112_siege",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_134_ifrit",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_136_hsguma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_147_shining",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_172_svrash",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_179_cgbird",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_180_amgoat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_188_helage",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_202_demkni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_213_mostma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_222_bpipe",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_225_haak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_248_mgllan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_250_phatom",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_263_skadi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_291_aglina",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_340_shwaz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2013_cerber",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_400_weedy",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_197_poca",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_358_lisa",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_293_thorns",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_416_zumama",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_350_surtr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_423_blemsh",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_311_mudrok",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_264_f12yin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_332_archet",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_362_saga",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_472_pasngr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_003_kalts",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_426_billro",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_485_pallas",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_437_mizuki",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_479_sleach",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_430_fartth",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_item_pick3301": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_010_chen",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_017_huang",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_103_angel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_112_siege",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_134_ifrit",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_136_hsguma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_147_shining",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_172_svrash",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_179_cgbird",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_180_amgoat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_188_helage",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_202_demkni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_213_mostma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_222_bpipe",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_225_haak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_248_mgllan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_250_phatom",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_263_skadi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_291_aglina",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_340_shwaz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2013_cerber",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_400_weedy",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_197_poca",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_358_lisa",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_293_thorns",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_416_zumama",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_350_surtr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_423_blemsh",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_311_mudrok",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_264_f12yin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_332_archet",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_362_saga",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_472_pasngr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_003_kalts",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_426_billro",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_485_pallas",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_437_mizuki",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_479_sleach",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_430_fartth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_420_flamtl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_206_gnosis",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_322_lmlee",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_377_gdglow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_300_phenxi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4039_horn",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_item_pick3801": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_010_chen",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_017_huang",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_103_angel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_112_siege",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_134_ifrit",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_136_hsguma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_147_shining",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_172_svrash",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_179_cgbird",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_180_amgoat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_188_helage",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_202_demkni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_213_mostma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_222_bpipe",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_225_haak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_248_mgllan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_250_phatom",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_263_skadi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_291_aglina",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_340_shwaz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2013_cerber",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_400_weedy",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_197_poca",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_358_lisa",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_293_thorns",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_416_zumama",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_350_surtr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_423_blemsh",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_311_mudrok",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_264_f12yin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_332_archet",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_362_saga",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_472_pasngr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_003_kalts",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_426_billro",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_485_pallas",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_437_mizuki",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_479_sleach",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_430_fartth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_420_flamtl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_206_gnosis",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_322_lmlee",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_377_gdglow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_300_phenxi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4039_horn",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4009_irene",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4046_ebnhlz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4048_doroth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4055_bgsnow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4064_mlynar",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4072_ironmn",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_item_pick4401": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_010_chen",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_017_huang",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_103_angel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_112_siege",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_134_ifrit",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_136_hsguma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_147_shining",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_172_svrash",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_179_cgbird",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_180_amgoat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_188_helage",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_202_demkni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_213_mostma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_222_bpipe",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_225_haak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_248_mgllan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_250_phatom",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_263_skadi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_291_aglina",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_340_shwaz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2013_cerber",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_400_weedy",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_197_poca",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_358_lisa",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_293_thorns",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_416_zumama",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_350_surtr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_423_blemsh",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_311_mudrok",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_264_f12yin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_332_archet",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_362_saga",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_472_pasngr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_003_kalts",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_426_billro",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_485_pallas",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_437_mizuki",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_479_sleach",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_430_fartth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_420_flamtl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_206_gnosis",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_322_lmlee",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_377_gdglow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_300_phenxi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4039_horn",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4009_irene",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4046_ebnhlz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4048_doroth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4055_bgsnow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4064_mlynar",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4072_ironmn",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4065_judge",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1020_reed2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4080_lin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4082_qiubai",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4087_ines",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_item_pick5001": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_010_chen",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_017_huang",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_103_angel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_112_siege",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_134_ifrit",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_136_hsguma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_147_shining",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_172_svrash",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_179_cgbird",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_180_amgoat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_188_helage",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_202_demkni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_213_mostma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_222_bpipe",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_225_haak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_248_mgllan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_250_phatom",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_263_skadi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_291_aglina",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_340_shwaz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2013_cerber",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_400_weedy",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_197_poca",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_358_lisa",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_293_thorns",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_416_zumama",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_350_surtr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_423_blemsh",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_311_mudrok",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_264_f12yin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_332_archet",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_362_saga",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_472_pasngr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_003_kalts",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_426_billro",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_485_pallas",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_437_mizuki",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_479_sleach",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_430_fartth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_420_flamtl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_206_gnosis",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_322_lmlee",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_377_gdglow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_300_phenxi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4039_horn",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4009_irene",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4046_ebnhlz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4048_doroth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4055_bgsnow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4064_mlynar",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4072_ironmn",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4065_judge",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1020_reed2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4080_lin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4082_qiubai",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4087_ines",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4027_heyak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1032_excu2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2012_typhon",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1033_swire2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1034_jesca2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4088_hodrer",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_item_pick5601": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_003_kalts",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_426_billro",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_485_pallas",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_437_mizuki",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_479_sleach",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_430_fartth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_420_flamtl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_206_gnosis",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_322_lmlee",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_377_gdglow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_300_phenxi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4039_horn",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4009_irene",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4046_ebnhlz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4048_doroth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4055_bgsnow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4064_mlynar",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4072_ironmn",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4065_judge",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1020_reed2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4080_lin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4082_qiubai",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4087_ines",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4027_heyak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1032_excu2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2012_typhon",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1033_swire2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1034_jesca2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4088_hodrer",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4098_vvana",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4116_blkkgt",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4117_ray",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4121_zuole",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4132_ascln",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_103_angel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_112_siege",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_134_ifrit",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_180_amgoat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_291_aglina",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_147_shining",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_179_cgbird",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_136_hsguma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_202_demkni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_172_svrash",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_263_skadi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_010_chen",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_340_shwaz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_188_helage",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_248_mgllan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_213_mostma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_017_huang",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_225_haak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2013_cerber",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_222_bpipe",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_250_phatom",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_400_weedy",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_197_poca",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_358_lisa",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_293_thorns",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_416_zumama",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_350_surtr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_423_blemsh",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_311_mudrok",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_264_f12yin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_332_archet",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_362_saga",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_472_pasngr",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_item_pick6101": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_322_lmlee",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_377_gdglow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_300_phenxi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4039_horn",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4009_irene",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4046_ebnhlz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4048_doroth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4055_bgsnow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4064_mlynar",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4072_ironmn",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4065_judge",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1020_reed2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4080_lin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4082_qiubai",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4087_ines",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4027_heyak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1032_excu2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2012_typhon",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1033_swire2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1034_jesca2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4088_hodrer",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4098_vvana",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4116_blkkgt",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4117_ray",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4121_zuole",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4132_ascln",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4133_logos",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4145_ulpia",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4146_nymph",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4138_narant",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1019_siege2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_103_angel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_112_siege",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_134_ifrit",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_180_amgoat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_291_aglina",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_147_shining",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_179_cgbird",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_136_hsguma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_202_demkni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_172_svrash",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_263_skadi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_010_chen",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_340_shwaz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_188_helage",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_248_mgllan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_213_mostma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_017_huang",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_225_haak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2013_cerber",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_222_bpipe",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_250_phatom",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_400_weedy",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_197_poca",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_358_lisa",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_293_thorns",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_416_zumama",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_350_surtr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_423_blemsh",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_311_mudrok",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_264_f12yin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_332_archet",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_362_saga",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_472_pasngr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_003_kalts",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_426_billro",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_485_pallas",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_437_mizuki",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_479_sleach",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_430_fartth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_420_flamtl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_206_gnosis",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_recruitR6_pick6401": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_202_demkni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_222_bpipe",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_180_amgoat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_350_surtr",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_item_pick6701": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_322_lmlee",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_377_gdglow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_300_phenxi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4039_horn",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4009_irene",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4046_ebnhlz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4048_doroth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4055_bgsnow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4064_mlynar",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4072_ironmn",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4065_judge",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1020_reed2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4080_lin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4082_qiubai",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4087_ines",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4027_heyak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1032_excu2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2012_typhon",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1033_swire2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1034_jesca2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4088_hodrer",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4098_vvana",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4116_blkkgt",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4117_ray",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4121_zuole",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4132_ascln",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4133_logos",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4145_ulpia",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4146_nymph",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4138_narant",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1019_siege2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4026_vulpis",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1039_thorn2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1040_blaze2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4010_etlchi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_450_necras",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4179_monstr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_103_angel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_112_siege",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_134_ifrit",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_180_amgoat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_291_aglina",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_147_shining",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_179_cgbird",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_136_hsguma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_202_demkni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_172_svrash",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_263_skadi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_010_chen",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_340_shwaz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_188_helage",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_248_mgllan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_213_mostma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_017_huang",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_225_haak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2013_cerber",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_222_bpipe",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_250_phatom",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_400_weedy",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_197_poca",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_358_lisa",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_293_thorns",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_416_zumama",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_350_surtr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_423_blemsh",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_311_mudrok",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_264_f12yin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_332_archet",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_362_saga",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_472_pasngr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_003_kalts",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_426_billro",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_485_pallas",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_437_mizuki",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_479_sleach",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_430_fartth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_420_flamtl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_206_gnosis",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_class_pick5601": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_003_kalts",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_426_billro",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_485_pallas",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_437_mizuki",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_479_sleach",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_430_fartth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_420_flamtl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_206_gnosis",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_322_lmlee",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_377_gdglow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_300_phenxi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4039_horn",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4009_irene",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4046_ebnhlz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4048_doroth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4055_bgsnow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4064_mlynar",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4072_ironmn",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4065_judge",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1020_reed2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4080_lin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4082_qiubai",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4087_ines",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4027_heyak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1032_excu2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2012_typhon",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1033_swire2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1034_jesca2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4088_hodrer",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4098_vvana",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4116_blkkgt",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4117_ray",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4121_zuole",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4132_ascln",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_103_angel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_112_siege",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_134_ifrit",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_180_amgoat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_291_aglina",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_147_shining",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_179_cgbird",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_136_hsguma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_202_demkni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_172_svrash",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_263_skadi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_010_chen",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_340_shwaz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_188_helage",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_248_mgllan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_213_mostma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_017_huang",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_225_haak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2013_cerber",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_222_bpipe",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_250_phatom",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_400_weedy",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_197_poca",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_358_lisa",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_293_thorns",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_416_zumama",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_350_surtr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_423_blemsh",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_311_mudrok",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_264_f12yin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_332_archet",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_362_saga",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_472_pasngr",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_class_pick6101": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_322_lmlee",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_377_gdglow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_300_phenxi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4039_horn",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4009_irene",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4046_ebnhlz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4048_doroth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4055_bgsnow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4064_mlynar",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4072_ironmn",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4065_judge",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1020_reed2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4080_lin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4082_qiubai",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4087_ines",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4027_heyak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1032_excu2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2012_typhon",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1033_swire2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1034_jesca2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4088_hodrer",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4098_vvana",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4116_blkkgt",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4117_ray",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4121_zuole",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4132_ascln",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4133_logos",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4145_ulpia",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4146_nymph",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4138_narant",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1019_siege2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_103_angel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_112_siege",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_134_ifrit",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_180_amgoat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_291_aglina",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_147_shining",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_179_cgbird",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_136_hsguma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_202_demkni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_172_svrash",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_263_skadi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_010_chen",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_340_shwaz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_188_helage",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_248_mgllan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_213_mostma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_017_huang",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_225_haak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2013_cerber",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_222_bpipe",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_250_phatom",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_400_weedy",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_197_poca",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_358_lisa",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_293_thorns",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_416_zumama",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_350_surtr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_423_blemsh",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_311_mudrok",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_264_f12yin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_332_archet",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_362_saga",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_472_pasngr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_003_kalts",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_426_billro",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_485_pallas",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_437_mizuki",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_479_sleach",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_430_fartth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_420_flamtl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_206_gnosis",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_class_pick6701": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_322_lmlee",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_377_gdglow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_300_phenxi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4039_horn",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4009_irene",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4046_ebnhlz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4048_doroth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4055_bgsnow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4064_mlynar",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4072_ironmn",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4065_judge",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1020_reed2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4080_lin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4082_qiubai",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4087_ines",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4027_heyak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1032_excu2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2012_typhon",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1033_swire2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1034_jesca2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4088_hodrer",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4098_vvana",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4116_blkkgt",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4117_ray",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4121_zuole",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4132_ascln",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4133_logos",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4145_ulpia",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4146_nymph",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4138_narant",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1019_siege2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4026_vulpis",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1039_thorn2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1040_blaze2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4010_etlchi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_450_necras",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4179_monstr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_103_angel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_112_siege",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_134_ifrit",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_180_amgoat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_291_aglina",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_147_shining",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_179_cgbird",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_136_hsguma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_202_demkni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_172_svrash",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_263_skadi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_010_chen",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_340_shwaz",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_188_helage",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_248_mgllan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_213_mostma",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_017_huang",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_225_haak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_2013_cerber",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_222_bpipe",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_250_phatom",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_400_weedy",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_197_poca",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_358_lisa",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_293_thorns",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_416_zumama",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_350_surtr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_423_blemsh",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_311_mudrok",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_264_f12yin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_332_archet",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_362_saga",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_472_pasngr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_003_kalts",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_426_billro",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_485_pallas",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_437_mizuki",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_479_sleach",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_430_fartth",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_420_flamtl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_206_gnosis",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_recruitR5_pick1803": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_128_plosis",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_115_headbr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_102_texas",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_106_franka",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_140_whitew",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_143_ghost",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_129_bluep",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_204_platnm",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_219_meteo",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_166_skfire",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_242_otter",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_108_silent",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_171_bldsk",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_148_nearl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_144_red",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_107_liskam",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_201_moeshd",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_145_prove",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_158_milu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_173_slchan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_174_slbell",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_195_glassb",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_101_sora",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_215_mantic",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_241_panda",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_recruitR5_pick2701": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_128_plosis",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_115_headbr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_102_texas",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_106_franka",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_140_whitew",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_143_ghost",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_129_bluep",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_204_platnm",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_219_meteo",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_166_skfire",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_242_otter",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_108_silent",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_171_bldsk",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_148_nearl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_144_red",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_107_liskam",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_201_moeshd",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_145_prove",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_158_milu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_173_slchan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_174_slbell",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_195_glassb",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_101_sora",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_215_mantic",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_241_panda",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_164_nightm",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_308_swire",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_326_glacus",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_274_astesi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_279_excu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_243_waaifu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_261_sddrag",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_356_broca",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_367_swllow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_226_hmau",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_306_leizi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_379_sesa",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_254_vodfox",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_401_elysm",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_378_asbest",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_343_tknogi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_373_lionhd",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_294_ayer",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_344_beewax",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_349_chiave",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_218_cuttle",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_415_flint",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_365_aprl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_346_aosta",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_436_whispr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_214_kafka",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_338_iris",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_455_nothin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_363_toddi",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_recruitR5_pick3801": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_128_plosis",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_115_headbr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_102_texas",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_106_franka",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_140_whitew",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_143_ghost",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_129_bluep",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_204_platnm",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_219_meteo",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_166_skfire",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_242_otter",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_108_silent",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_171_bldsk",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_148_nearl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_144_red",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_107_liskam",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_201_moeshd",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_145_prove",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_158_milu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_173_slchan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_174_slbell",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_195_glassb",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_101_sora",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_215_mantic",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_241_panda",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_164_nightm",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_308_swire",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_326_glacus",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_274_astesi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_279_excu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_243_waaifu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_261_sddrag",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_356_broca",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_367_swllow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_226_hmau",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_306_leizi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_379_sesa",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_254_vodfox",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_401_elysm",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_378_asbest",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_343_tknogi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_373_lionhd",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_294_ayer",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_344_beewax",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_349_chiave",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_218_cuttle",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_415_flint",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_365_aprl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_346_aosta",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_436_whispr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_214_kafka",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_338_iris",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_455_nothin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_363_toddi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_475_akafyu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_478_kirara",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_421_crow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_473_mberry",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_431_ashlok",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_489_serum",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_422_aurora",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_476_blkngt",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_492_quercu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4016_kazema",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4040_rockr",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_recruitR5_pick5001": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_128_plosis",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_115_headbr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_102_texas",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_106_franka",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_140_whitew",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_143_ghost",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_129_bluep",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_204_platnm",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_219_meteo",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_166_skfire",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_242_otter",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_108_silent",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_171_bldsk",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_148_nearl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_144_red",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_107_liskam",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_201_moeshd",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_145_prove",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_158_milu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_173_slchan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_174_slbell",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_195_glassb",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_101_sora",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_215_mantic",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_241_panda",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_164_nightm",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_308_swire",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_326_glacus",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_274_astesi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_279_excu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_243_waaifu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_261_sddrag",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_356_broca",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_367_swllow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_226_hmau",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_306_leizi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_379_sesa",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_254_vodfox",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_401_elysm",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_378_asbest",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_343_tknogi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_373_lionhd",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_294_ayer",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_344_beewax",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_349_chiave",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_218_cuttle",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_415_flint",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_365_aprl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_346_aosta",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_436_whispr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_214_kafka",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_338_iris",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_455_nothin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_363_toddi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_475_akafyu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_478_kirara",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_421_crow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_473_mberry",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_431_ashlok",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_489_serum",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_422_aurora",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_476_blkngt",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_492_quercu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4016_kazema",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4040_rockr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_433_windft",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1024_hbisc2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1027_greyy2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_497_ctable",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4032_provs",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4071_peper",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4014_lunacu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_297_hamoni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_493_firwhl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4083_chimes",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_464_cement",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_recruitR5_pick6101": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_128_plosis",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_115_headbr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_102_texas",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_106_franka",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_140_whitew",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_143_ghost",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_129_bluep",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_204_platnm",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_219_meteo",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_166_skfire",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_242_otter",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_108_silent",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_171_bldsk",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_148_nearl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_144_red",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_107_liskam",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_201_moeshd",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_145_prove",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_158_milu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_173_slchan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_174_slbell",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_195_glassb",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_101_sora",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_215_mantic",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_241_panda",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_164_nightm",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_308_swire",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_326_glacus",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_274_astesi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_279_excu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_243_waaifu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_261_sddrag",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_356_broca",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_367_swllow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_226_hmau",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_306_leizi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_379_sesa",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_254_vodfox",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_401_elysm",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_378_asbest",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_343_tknogi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_373_lionhd",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_294_ayer",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_344_beewax",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_349_chiave",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_218_cuttle",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_415_flint",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_365_aprl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_346_aosta",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_436_whispr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_214_kafka",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_338_iris",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_455_nothin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_363_toddi",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_475_akafyu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_478_kirara",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_421_crow",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_473_mberry",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_431_ashlok",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_489_serum",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_422_aurora",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_476_blkngt",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_492_quercu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4016_kazema",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4040_rockr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_433_windft",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1024_hbisc2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_1027_greyy2",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_497_ctable",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4032_provs",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4071_peper",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4014_lunacu",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_297_hamoni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_493_firwhl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4083_chimes",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_464_cement",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4006_melnte",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4015_spuria",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_341_sntlla",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_488_buildr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4105_almond",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_494_vendla",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4109_baslin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_194_leto",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4081_warmy",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_4122_grabds",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_446_aroma",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_recruitR5_pick2": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_155_tiger",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_163_hpsts",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_recruitR6_pick5301": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_017_huang",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_103_angel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_172_svrash",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_202_demkni",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_264_f12yin",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_293_thorns",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_item_4pick1_5301": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_128_plosis",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_140_whitew",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_143_ghost",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_173_slchan",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_recruitR4_1": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_141_nights",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_109_fmout",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_235_jesica",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_126_shotst",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_118_yuki",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_149_scave",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_290_vigna",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_130_doberm",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_289_gyuki",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_193_frostl",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_127_estell",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_185_frncat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_237_gravel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_236_rope",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_117_myrrh",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_181_flower",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_199_yak",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_150_snakek",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_196_sunbr",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_183_skgoat",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_277_sqrrel",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    },
+    "voucher_recruitR3_1": {
+        "voucherType": "CHAR_VOUCHER",
+        "pickNum": 1,
+        "voucherBgDec": null,
+        "extraDataDic": {},
+        "itemList": [
+            {
+                "id": "char_123_fang",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_240_wyvern",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_192_falco",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_208_melan",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_122_beagle",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_124_kroos",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_211_adnach",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_121_lava",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_120_hibisc",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_212_ansel",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_210_stward",
+                "count": 1,
+                "type": "CHAR"
+            },
+            {
+                "id": "char_278_orchid",
+                "count": 1,
+                "type": "CHAR"
+            }
+        ],
+        "validTimeInfo": {
+            "startTs": -1,
+            "endTs": -1
+        }
+    }
+}

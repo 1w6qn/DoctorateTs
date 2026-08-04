@@ -75,6 +75,8 @@ export async function setup(app: express.Application) {
   app.use("/interlock", (await import("./router/interlock")).default);
   app.use("/autochess", (await import("./router/autochess")).default);
   app.use("/", (await import("./router/home")).default);
+  // 挂载 user 模块的根级路由（gallery/cg/medal/mainlineClue/server_time 等非 /user 前缀接口）
+  app.use("/", (await import("./router/user")).rootRouter);
 }
 
 export default app;

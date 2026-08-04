@@ -1,7 +1,8 @@
-/**
+﻿/**
  * 商店路由模块
- * 
+ *
  * 处理商店相关的 HTTP 请求，包括商品列表查询和各类商店的购买操作。
+ * 路由层保持轻薄，业务逻辑委托给 ShopController / TroopManager 等 Manager 层处理。
  */
 
 import { Router } from "express";
@@ -41,13 +42,28 @@ router.post("/decomposeClassicPotentialItem", async (req, res) => {
 
 /**
  * 获取商品购买状态
+ *
+ * 返回玩家在各商店的购买记录，客户端据此判断商品是否已购买、限购次数等。
+ * 参考实现中此接口返回空对象，此处返回玩家 shop 状态中的所有购买记录。
  * @route POST /shop/getGoodPurchaseState
  * @returns 购买状态和玩家增量数据
  */
 router.post("/getGoodPurchaseState", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  // 汇总各商店的购买记录，供客户端判断限购状态
+  const shopState = player._playerdata.shop;
   res.send({
-    result: {},
+    result: {
+      LS: shopState.LS.info,
+      HS: shopState.HS.info,
+      ES: shopState.ES.info,
+      CASH: shopState.CASH.info,
+      EPGS: shopState.EPGS.info,
+      REP: shopState.REP.info,
+      CLASSIC: shopState.CLASSIC.info,
+      FURNI: shopState.FURNI.info,
+      SOCIAL: shopState.SOCIAL.info,
+    },
     ...player.delta,
   });
 });
@@ -255,15 +271,17 @@ router.post("/buyExtraGood", async (req, res) => {
 
 /**
  * 购买现金商店商品
+ *
+ * 现金商店以钻石为货币，购买后记录次数并支持首充翻倍。
  * @route POST /shop/buyCashGood
  * @param req.body - 购买参数
  * @returns 购买结果和玩家增量数据
  */
 router.post("/buyCashGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  await player.shop.buyCashGood(req.body);
   res.send({
     result: 0,
+    items: await player.shop.buyCashGood(req.body),
     ...player.delta,
   });
 });
@@ -353,6 +371,89 @@ router.post("/buySkinGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   await player.shop.buySkinGood(req.body);
   res.send({
+    ...player.delta,
+  });
+});
+
+/**
+ * 使用凭证购买礼包商店商品
+ *
+ * 对应参考实现中的 buyShopGoodWithTicket，使用凭证兑换礼包。
+ * goodId 格式约定为 `GP_<goodType>_<序列>`，详见 ShopController.buyGoodWithTicket。
+ * @route POST /shop/buyGoodWithTicket
+ * @param req.body.ticketId - 凭证ID
+ * @param req.body.goodId - 商品ID
+ * @returns 购买结果（含获得的物品列表）和玩家增量数据
+ */
+router.post("/buyGoodWithTicket", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  res.send({
+    result: 0,
+    items: await player.shop.buyGoodWithTicket(req.body),
+    ...player.delta,
+  });
+});
+
+/**
+ * 获取现金商品购买结果
+ *
+ * 用于外部支付通道回调后的查询。参考实现中为占位（返回 202）。
+ * 此处返回玩家当前 shop.CASH 的购买记录。
+ * @route POST /shop/getCashGoodPurchaseResult
+ * @returns 购买结果和玩家增量数据
+ */
+router.post("/getCashGoodPurchaseResult", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  res.send({
+    result: await player.shop.getCashGoodPurchaseResult(),
+    ...player.delta,
+  });
+});
+
+/**
+ * 获取凭证皮肤商品列表
+ *
+ * 凭证皮肤指通过特殊凭证兑换的皮肤。参考实现中为占位（返回 202）。
+ * 此处基于皮肤商店列表筛选可兑换项返回。
+ * @route POST /shop/getVoucherSkinGoodList
+ * @returns 凭证皮肤商品列表和玩家增量数据
+ */
+router.post("/getVoucherSkinGoodList", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  res.send({
+    ...player.shop.getVoucherSkinGoodList(),
+    ...player.delta,
+  });
+});
+
+/**
+ * 使用凭证兑换皮肤
+ *
+ * 参考实现中为占位（返回 202）。此处实现：发放对应皮肤并记录购买。
+ * @route POST /shop/useVoucherSkin
+ * @param req.body.goodId - 商品ID
+ * @returns 玩家增量数据
+ */
+router.post("/useVoucherSkin", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  await player.shop.useVoucherSkin(req.body);
+  res.send({
+    ...player.delta,
+  });
+});
+
+/**
+ * 检查商店禁止状态
+ *
+ * 用于客户端校验玩家是否被限制购买。参考实现中为占位（返回 202）。
+ * 此处简化实现：永远返回未禁止状态。
+ * @route POST /shop/checkForbidden
+ * @returns 禁止状态和玩家增量数据
+ */
+router.post("/checkForbidden", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  res.send({
+    ...player.shop.checkForbidden(),
     ...player.delta,
   });
 });

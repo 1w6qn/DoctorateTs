@@ -2,6 +2,7 @@ import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
+import { now } from "@utils/time";
 
 const router = Router();
 router.post("/changeSecretary", async (req, res) => {
@@ -121,4 +122,293 @@ router.post("/checkIn", async (req, res) => {
     ...player.delta,
   });
 });
+// ==================== 新增路由 ====================
+
+/**
+ * 绑定生日
+ *
+ * 设置玩家 status 中的生日信息（月份与日期）。
+ * 参考实现：reference/opendoctoratepy-ex-public/server/user.py bindBirthday
+ *
+ * 路径：POST /user/bindBirthday
+ * @param req.body.month - 生日月份
+ * @param req.body.day - 生日日期
+ * @returns playerDataDelta（包含 status.birthday 的变更）
+ */
+router.post("/bindBirthday", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { month, day } = req.body;
+  await player.update(async (draft) => {
+    draft.status.birthday = {
+      month: Number(month),
+      day: Number(day),
+    };
+  });
+  res.send(player.delta);
+});
+
 export default router;
+
+// ==================== 根级路由 ====================
+//
+// 以下路由在参考实现（user.py）中定义，但其 URL 路径并不挂在 /user 前缀下
+// （例如 /gallery/*、/cg/*、/medal/*、/mainlineClue/*、/general/v1/server_time）。
+// 因此通过独立的 rootRouter 导出，并在 app.ts 中挂载到根路径 "/"。
+//
+// 注意：gallery 与 mainline.clue 字段在当前手写的 PlayerDataModel 中尚未声明，
+// 但在实际玩家数据 JSON 与 excel 生成的类型（types-playerdata.ts）中均存在对应结构。
+// 此处使用 `(draft as any)` 访问这些字段，以确保 Immer 能够追踪变更并生成 delta。
+
+/**
+ * 服务器内 CG 收藏集合（内存态）
+ *
+ * 参考实现中 cgList 存储于 server_data（SERVER_DATA_PATH），为全服共享数据。
+ * 此处简化为模块级内存 Set，进程重启后不持久化。
+ */
+const cgCollection = new Set<string>();
+
+/** 根级路由实例，挂载非 /user 前缀的用户相关接口 */
+export const rootRouter = Router();
+
+/**
+ * 领取勋章奖励
+ *
+ * 参考实现中为占位接口（返回 {}, 202）。
+ * MedalManager 虽存在 rewardMedal 方法，但未挂载到 PlayerDataManager，
+ * 故此处保持与参考实现一致的占位行为。
+ *
+ * 路径：POST /medal/rewardMedal
+ */
+rootRouter.post("/medal/rewardMedal", async (req, res) => {
+  res.sendStatus(202);
+});
+
+/**
+ * 解锁主线线索
+ *
+ * 将指定线索的解锁状态设置为 2（已解锁）。
+ * 参考实现：reference/opendoctoratepy-ex-public/server/user.py mainlineClue.unlockClue
+ *
+ * 路径：POST /mainlineClue/unlockClue
+ * @param req.body.id - 线索 ID
+ * @returns playerDataDelta（包含 mainline.clue.state 的变更）
+ */
+rootRouter.post("/mainlineClue/unlockClue", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { id } = req.body;
+  await player.update(async (draft) => {
+    const mainline = draft.mainline as any;
+    if (!mainline.clue) {
+      mainline.clue = { unlock: false, state: {}, reward: {} };
+    }
+    mainline.clue.state[id] = 2;
+  });
+  res.send(player.delta);
+});
+
+/**
+ * 获取 CG 收藏列表
+ *
+ * 返回当前服务器已收藏的 CG 列表。
+ * 参考实现：reference/opendoctoratepy-ex-public/server/user.py CG.getCgCollection
+ *
+ * 路径：POST /cg/getCgCollection
+ * @returns playerDataDelta 与 cgList
+ */
+rootRouter.post("/cg/getCgCollection", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  res.send({
+    ...player.delta,
+    cgList: Array.from(cgCollection),
+  });
+});
+
+/**
+ * 添加 CG 到收藏列表
+ *
+ * 参考实现：reference/opendoctoratepy-ex-public/server/user.py CG.addCgCollection
+ *
+ * 路径：POST /cg/addCgCollection
+ * @param req.body.cgId - CG ID
+ * @returns playerDataDelta 与更新后的 cgList
+ */
+rootRouter.post("/cg/addCgCollection", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { cgId } = req.body;
+  cgCollection.add(cgId);
+  res.send({
+    ...player.delta,
+    cgList: Array.from(cgCollection),
+  });
+});
+
+/**
+ * 从 CG 收藏列表移除
+ *
+ * 参考实现：reference/opendoctoratepy-ex-public/server/user.py CG.removeCgCollection
+ *
+ * 路径：POST /cg/removeCgCollection
+ * @param req.body.cgId - CG ID
+ * @returns playerDataDelta 与更新后的 cgList
+ */
+rootRouter.post("/cg/removeCgCollection", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { cgId } = req.body;
+  cgCollection.delete(cgId);
+  res.send({
+    ...player.delta,
+    cgList: Array.from(cgCollection),
+  });
+});
+
+/**
+ * 初始化或获取玩家 gallery 数据
+ *
+ * 辅助函数：在 Immer draft 中确保 gallery 字段存在，
+ * 若不存在则初始化默认结构。gallery 字段在手写 PlayerDataModel 中未声明，
+ * 但在 excel 生成的类型与实际玩家数据中存在对应结构。
+ *
+ * @param draft - Immer 可写草稿
+ * @returns gallery 数据对象
+ */
+function ensureGallery(draft: any): any {
+  if (!draft.gallery) {
+    draft.gallery = {
+      firstRewards: false,
+      leafMap: {},
+    };
+  }
+  return draft.gallery;
+}
+
+/**
+ * 领取画廊首通奖励
+ *
+ * 标记首通奖励已领取，并初始化默认杂志页（leaf_default2）。
+ * 参考实现：reference/opendoctoratepy-ex-public/server/user.py gallery.getFirstRewards
+ *
+ * 路径：POST /gallery/getFirstRewards
+ * @returns playerDataDelta（包含 gallery 的变更）
+ */
+rootRouter.post("/gallery/getFirstRewards", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  await player.update(async (draft) => {
+    const gallery = ensureGallery(draft);
+    gallery.firstRewards = true;
+    gallery.leafMap["leaf_default2"] = {
+      charSkin: null,
+      decorList: [],
+      getTs: now(),
+      leafId: "leaf_default2",
+      version: 0,
+    };
+  });
+  res.send(player.delta);
+});
+
+/**
+ * 获取杂志缩略图 URL 列表
+ *
+ * 参考实现根据 leafMap 中的内容生成缩略图 URL。
+ * 此处简化实现：返回与请求 idList 等长的 null 占位数组，
+ * 同时同步 gallery 数据到 delta。
+ *
+ * 路径：POST /gallery/getThumbnailUrl
+ * @param req.body.idList - 杂志页 ID 列表
+ * @returns playerDataDelta 与 url 列表
+ */
+rootRouter.post("/gallery/getThumbnailUrl", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const idList: string[] = req.body?.idList || [];
+  await player.update(async (draft) => {
+    ensureGallery(draft);
+  });
+  res.send({
+    ...player.delta,
+    url: idList.map(() => null),
+  });
+});
+
+/**
+ * 修改杂志编队
+ *
+ * 参考实现仅返回当前 gallery 数据而不实际修改编队。
+ * 此处同步 gallery 数据到 delta。
+ *
+ * 路径：POST /gallery/changeMagazineSquad
+ * @returns playerDataDelta（包含 gallery 的变更）
+ */
+rootRouter.post("/gallery/changeMagazineSquad", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  await player.update(async (draft) => {
+    ensureGallery(draft);
+  });
+  res.send(player.delta);
+});
+
+/**
+ * 保存自定义杂志（V1）
+ *
+ * 更新指定杂志页的装饰列表与角色皮肤。
+ * 参考实现中还处理 base64 缩略图图片的保存，此处简化为仅更新数据结构。
+ * 参考实现：reference/opendoctoratepy-ex-public/server/user.py gallery.saveDiyMagazineV1
+ *
+ * 路径：POST /gallery/saveDiyMagazineV1
+ * @param req.body.magazine.leafId - 杂志页 ID
+ * @param req.body.magazine.decorList - 装饰列表
+ * @param req.body.magazine.charSkin - 角色皮肤
+ * @returns playerDataDelta（包含 gallery.leafMap 的变更）
+ */
+rootRouter.post("/gallery/saveDiyMagazineV1", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { magazine } = req.body;
+  await player.update(async (draft) => {
+    const gallery = ensureGallery(draft);
+    if (magazine?.leafId) {
+      if (!gallery.leafMap[magazine.leafId]) {
+        gallery.leafMap[magazine.leafId] = {
+          charSkin: null,
+          decorList: [],
+          getTs: now(),
+          leafId: magazine.leafId,
+          version: 0,
+        };
+      }
+      gallery.leafMap[magazine.leafId].decorList = magazine.decorList || [];
+      gallery.leafMap[magazine.leafId].charSkin = magazine.charSkin || null;
+    }
+  });
+  res.send(player.delta);
+});
+
+/**
+ * 领取画廊收集奖励
+ *
+ * 参考实现中为占位接口（返回 {}, 202）。
+ *
+ * 路径：POST /gallery/getCollectionRewards
+ */
+rootRouter.post("/gallery/getCollectionRewards", async (req, res) => {
+  res.sendStatus(202);
+});
+
+/**
+ * 获取服务器时间
+ *
+ * 返回当前服务器时间戳。该接口为 SDK/门户类接口，
+ * 响应格式使用 status/msg/data 包裹，而非游戏协议的 playerDataDelta。
+ * 参考实现：reference/opendoctoratepy-ex-public/server/user.py server_time
+ *
+ * 路径：GET /general/v1/server_time
+ * @returns 服务器时间与节日标识
+ */
+rootRouter.get("/general/v1/server_time", async (req, res) => {
+  res.send({
+    status: 0,
+    msg: "OK",
+    data: {
+      serverTime: now(),
+      isHoliday: false,
+    },
+  });
+});

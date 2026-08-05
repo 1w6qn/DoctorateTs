@@ -1,7 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { AdminService } from "../../../app/admin/AdminService";
 import { accountManager } from "../../../app/game/manager/AccountManger";
+import { mailManager } from "../../../app/game/manager/mail";
 import { mockPlayerData } from "../../helpers";
+
+// 拦截所有 fs/promises.writeFile，避免 createUser 写真实存档文件
+vi.mock("fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("fs/promises")>();
+  return { ...actual, writeFile: vi.fn().mockResolvedValue(undefined) };
+});
 
 describe("AdminService 只读能力", () => {
   let service: AdminService;
@@ -107,5 +114,79 @@ describe("AdminService 发放物品", () => {
 
   it("数量必须为正整数", async () => {
     await expect(service.grantItem("1", "4001", -1)).rejects.toThrow(/数量/);
+  });
+});
+
+describe("AdminService 邮件与建号", () => {
+  let service: AdminService;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    service = new AdminService();
+    const pd = mockPlayerData({
+      status: {
+        uid: "1" as any,
+        nickName: "阿米娅",
+        nickNumber: "1",
+        level: 1,
+        registerTs: 0,
+        lastOnlineTs: 0,
+      } as any,
+      troop: { curCharInstId: 2 } as any,
+    });
+    (accountManager as any).data = { "1": pd };
+    (accountManager as any).configs = {
+      "1": {
+        uid: "1",
+        password: "1",
+        auth: { phone: "13800000000" },
+        social: {},
+        battle: {},
+        gacha: {},
+        rlv2: {},
+      },
+    };
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+  });
+
+  it("sendMail 应调用 mailManager 并返回邮件", async () => {
+    const spy = vi
+      .spyOn(mailManager, "sendMail")
+      .mockResolvedValue({ mailId: 1000000 } as any);
+    const mail = await service.sendMail("1", {
+      subject: "欢迎",
+      content: "你好",
+      items: [{ id: "4001", count: 100 }],
+    });
+    expect(spy).toHaveBeenCalledWith(
+      "1",
+      expect.objectContaining({ subject: "欢迎" }),
+    );
+    expect(mail.mailId).toBe(1000000);
+  });
+
+  it("sendMail 对不存在用户应报错", async () => {
+    await expect(
+      service.sendMail("999", { subject: "x", content: "", items: [] }),
+    ).rejects.toThrow(/不存在/);
+  });
+
+  it("createUser 应生成新 uid 并更新 configs", async () => {
+    const uid = await service.createUser("13900000000", "pw123");
+    expect(uid).toBe("2");
+    expect((accountManager as any).configs[uid]).toBeDefined();
+    expect((accountManager as any).configs[uid].auth.phone).toBe("13900000000");
+    expect(accountManager.saveUserConfig).toHaveBeenCalled();
+  });
+
+  it("createUser 对重复手机号应报错", async () => {
+    await expect(service.createUser("13800000000", "pw123")).rejects.toThrow(
+      /手机号/,
+    );
+  });
+
+  it("createUser 对空手机号应报错", async () => {
+    await expect(service.createUser("", "pw123")).rejects.toThrow(/手机号/);
   });
 });

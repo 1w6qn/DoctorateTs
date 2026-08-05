@@ -458,6 +458,27 @@ describe("BattleManager", () => {
       expect(Array.isArray(result)).toBe(true);
       expect(result.length).toBe(4);
     });
+
+    it("持续零产出时不应无限递归（防栈溢出）", async () => {
+      const randomUtils = await import("@utils/random");
+      // 所有概率掉落都不命中 → 每轮零产出 → 触发重试路径
+      vi.spyOn(randomUtils, "randomChoices").mockReturnValue([0] as any);
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      const result = await manager.dropReward(
+        [
+          { occPercent: 4, dropType: 2, id: "mat_001", type: "MATERIAL" },
+        ] as any,
+        3,
+        "main_01-07"
+      );
+
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBe(4);
+    });
   });
 
   describe("finishStoryStage", () => {

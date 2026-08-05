@@ -450,6 +450,7 @@ export class BattleManager {
     displayDetailRewards: DisplayDetailRewards[],
     completeState: number,
     stageId: string,
+    depth = 0,
   ): Promise<ItemBundle[][]> {
     const additionalRewards: ItemBundle[] = [];
     const unusualRewards: ItemBundle[] = [];
@@ -855,7 +856,10 @@ export class BattleManager {
       !rewards.length &&
       displayDetailRewards.length
     ) {
-      return this.dropReward(displayDetailRewards, completeState, stageId);
+      // 防死循环：概率未中的条目永不移除，重试不会收敛；最多重试 10 轮后返回当前（可能为空）结果
+      if (depth < 10) {
+        return this.dropReward(displayDetailRewards, completeState, stageId, depth + 1);
+      }
     }
     await this._trigger.emit("items:get", [
       additionalRewards.concat(unusualRewards, furnitureRewards, rewards),

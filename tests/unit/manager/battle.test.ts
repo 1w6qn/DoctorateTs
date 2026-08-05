@@ -463,4 +463,78 @@ describe("BattleManager", () => {
       );
     });
   });
+
+  describe("finish 后处理", () => {
+    beforeEach(() => {
+      mockExcelRef.StageTable.stages["main_01-07"].stageDropInfo.displayDetailRewards =
+        [];
+      delete mockExcelRef.StageTable.stages["main_01-08"];
+    });
+
+    it("胜利时应返回真实结算清单并累加 completeTimes", async () => {
+      mockExcelRef.StageTable.stages[
+        "main_01-07"
+      ].stageDropInfo.displayDetailRewards = [
+        { occPercent: 0, dropType: 3, id: "mat_001", type: "MATERIAL" },
+      ];
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      const result = await manager.finish({
+        data: "encrypted_battle_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      } as any);
+
+      expect(result.rewards).toBeDefined();
+      expect(result.unusualRewards).toBeDefined();
+      expect(result.additionalRewards).toBeDefined();
+      expect(result.furnitureRewards).toBeDefined();
+      expect(result.firstRewards).toBeDefined();
+      expect(result.unlockStages).toBeDefined();
+      expect(
+        mockPlayer._playerdata.dungeon!.stages["main_01-07"].completeTimes
+      ).toBe(1);
+    });
+
+    it("首次通关（state=0 → completeState=3）应返回 firstRewards", async () => {
+      mockExcelRef.StageTable.stages[
+        "main_01-07"
+      ].stageDropInfo.displayDetailRewards = [
+        { occPercent: 0, dropType: 1, id: "mat_001", type: "MATERIAL" },
+      ];
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      const result = await manager.finish({
+        data: "encrypted_battle_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      } as any);
+
+      expect(result.firstRewards.length).toBeGreaterThan(0);
+    });
+
+    it("胜利时应返回解锁关卡列表", async () => {
+      mockPlayer._playerdata.dungeon!.stages["main_01-07"].state = 1;
+      mockExcelRef.StageTable.stages["main_01-08"] = {
+        stageId: "main_01-08",
+        stageType: "MAIN",
+        unlockCondition: [{ stageId: "main_01-07", completeState: 3 }],
+      };
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      const result = await manager.finish({
+        data: "encrypted_battle_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      } as any);
+
+      expect(result.unlockStages).toContain("main_01-08");
+    });
+  });
 });

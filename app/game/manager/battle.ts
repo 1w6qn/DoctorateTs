@@ -210,6 +210,7 @@ export class BattleManager {
     const suggestFriend = false;
     const unlockStages: string[] = [];
     const unlockStagesObject = [];
+    const firstRewards: ItemBundle[] = [];
     const { apCost, expGain, goldGain } =
       excel.StageTable.stages[battleInfo.stageId];
     const { stageId, isPractice } = battleInfo;
@@ -285,7 +286,7 @@ export class BattleManager {
         ) {
           firstClear = true;
         }
-        if (playerStage.state == 1 && battleData.completeState in [2, 3]) {
+        if (playerStage.state == 1 && [2, 3].includes(battleData.completeState)) {
           if (stageId == "main_08-16") {
             //todo: amiya guard
           }
@@ -347,9 +348,12 @@ export class BattleManager {
                 }
                 if (!(item in Object.keys(draft.dungeon.stages))) {
                   if (
-                    excel.StageTable.stages[stageId].stageType in
-                      ["MAIN", "SUB"] &&
-                    excel.StageTable.stages[item].stageType in ["MAIN", "SUB"]
+                    ["MAIN", "SUB"].includes(
+                      excel.StageTable.stages[stageId].stageType,
+                    ) &&
+                    ["MAIN", "SUB"].includes(
+                      excel.StageTable.stages[item].stageType,
+                    )
                   ) {
                     draft.status.mainStageProgress = item;
                   }
@@ -363,7 +367,12 @@ export class BattleManager {
         }
         if (firstClear) {
           for (const item of displayDetailRewards) {
-            if (item.dropType in [1, 8]) {
+            if ([1, 8].includes(item.dropType)) {
+              firstRewards.push({
+                type: item.type,
+                id: item.id,
+                count: 1,
+              });
               await this._trigger.emit("items:get", [
                 [
                   {
@@ -378,6 +387,10 @@ export class BattleManager {
         }
         if (playerStage.state != 3 || battleData.completeState === 4) {
           draft.dungeon.stages[stageId].state = battleData.completeState;
+        }
+        // 胜利时累加通关次数（非练习）
+        if ([2, 3].includes(battleData.completeState)) {
+          draft.dungeon.stages[stageId].completeTimes += 1;
         }
         [additionalRewards, unusualRewards, furnitureRewards, rewards] =
           await this.dropReward(
@@ -409,12 +422,12 @@ export class BattleManager {
       apFailReturn,
       expScale,
       goldScale,
-      rewards: [],
-      firstRewards: [],
-      unlockStages: [],
-      unusualRewards: [],
-      additionalRewards: [],
-      furnitureRewards: [],
+      rewards,
+      firstRewards,
+      unlockStages,
+      unusualRewards,
+      additionalRewards,
+      furnitureRewards,
       alert: [],
       suggestFriend,
       pryResult: [],

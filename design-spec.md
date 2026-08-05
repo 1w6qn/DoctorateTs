@@ -771,6 +771,13 @@ BattleManager（app/game/manager/battle.ts）的战斗结束（finish）后处�
 - **`in [` 操作符误用**（4 处）：`completeState in [2, 3]` 实际检查数组索引而非包含关系（`3 in [2,3]` 恒 false），导致关卡解锁、主线进度更新、dropType=8 首通奖励等逻辑从未生效 → 改为 `[..].includes(x)`
 - **dropReward 无限递归**：零产出时用未收敛的 `displayDetailRewards` 重试（概率未中的条目永不移除）→ 真实掉落表下栈溢出崩溃 → 增加 depth 上限（10 轮）防死循环
 
+### 12.4 掉落信息自动提取（excel 驱动）
+- **归一化**：`app/excel/stage_table.ts` 的 `normalizeStageDropInfo` 在 excel 加载时（excel.init）将 `displayDetailRewards` 的 `occPercent`/`dropType` 字符串映射为数字档位（`ALWAYS→0, USUAL→1, OFTEN→2, SOMETIMES→3, ALMOST→4`；`ONCE→1, NORMAL→2, SPECIAL→3, ADDITIONAL→4, COMPLETE/CONDITION_DROP→8`），幂等（数字值保持不变）
+- **修复前**：原始 excel 为字符串格式，而 dropReward 按数字比较 → **所有关卡掉落从未生效**（仅 finish 硬编码 GOLD/EXP 结算）
+- **补产出**：对照 Python 参考 quest.py，`occPercent=0/dropType=2`（ALWAYS+NORMAL 必掉基础掉落）分支补 `pushReward()`——此前只 console.log 不产出，必掉材料（如 1-7 的 30012）从未掉落
+- **保留的硬编码表**：SpecialGold / TacticalDrill / ToughSiege 等特殊关卡固定掉落（游戏设计值，excel 不含数量字段，无法自动提取）
+- 已验证：main_01-07 归一化后 11 条掉落全部数字化，dropReward 正确产出必掉材料 30012 与概率掉落 30041/30061/3003 等
+
 ### 12.3 已知约束
 - `/campaignV2/*` 等后半段路由（app/game/app.ts 61 行后）在真实服务器上未生效（404），为项目既有问题，与战斗结算无关；建议后续单独排查
 - `/charBuild/addonStage/battleStart` 路由不返回 battleId，且固定练习模式（usePracticeTicket=1），HTTP 链路无法闭环非练习战斗——进程级 E2E 与单测覆盖结算逻辑

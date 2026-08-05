@@ -432,22 +432,40 @@ export class BuildingManager {
 
   // ==================== 订单/生产 ====================
 
-  /**
-   * 加速订单
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
-   */
-  async accelerateOrder(args: any) {
-    return args;
+  /** 内部方法：结算单条订单（扣凭证 3003、加金币 count×500） */
+  private _settleOrderInternal(
+    draft: WritableDraft<PlayerDataModel>,
+    stockItem: any,
+  ): void {
+    const goldNum = stockItem?.count || 0;
+    draft.inventory["3003"] = (draft.inventory["3003"] || 0) - goldNum;
+    draft.status.gold += goldNum * 500;
   }
 
   /**
-   * 加速方案
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
+   * 加速订单（立即结算指定订单）
+   * @param args - 包含 slotId 和 orderId 的参数对象
    */
-  async accelerateSolution(args: any) {
-    return args;
+  async accelerateOrder(args: { slotId: string; orderId: number }) {
+    const { slotId, orderId } = args;
+    return await this._player.update(async (draft) => {
+      const room = draft.building.rooms.TRADING[slotId];
+      if (room && Array.isArray(room.stock)) {
+        const idx = room.stock.findIndex((s: any) => s.orderId === orderId);
+        if (idx !== -1) {
+          this._settleOrderInternal(draft, room.stock[idx]);
+          room.stock.splice(idx, 1);
+        }
+      }
+    });
+  }
+
+  /**
+   * 加速方案（立即结算全部库存订单）
+   * @param args - 包含 slotId 的参数对象
+   */
+  async accelerateSolution(args: { slotId: string }) {
+    return this.settleSale(args);
   }
 
   /**
@@ -508,11 +526,16 @@ export class BuildingManager {
 
   /**
    * 删除订单
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
+   * @param args - 包含 slotId 和 orderId 的参数对象
    */
-  async deleteOrder(args: any) {
-    return args;
+  async deleteOrder(args: { slotId: string; orderId: number }) {
+    const { slotId, orderId } = args;
+    return await this._player.update(async (draft) => {
+      const room = draft.building.rooms.TRADING[slotId];
+      if (room && Array.isArray(room.stock)) {
+        room.stock = room.stock.filter((s: any) => s.orderId !== orderId);
+      }
+    });
   }
 
   /**
@@ -602,11 +625,20 @@ export class BuildingManager {
 
   /**
    * 贸易站结算
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
+   * 结算全部库存订单：扣贸易凭证 3003，按 count×500 兑换金币
+   * @param args - 包含 slotId 的参数对象
    */
-  async settleSale(args: any) {
-    return args;
+  async settleSale(args: { slotId: string }) {
+    const { slotId } = args;
+    return await this._player.update(async (draft) => {
+      const room = draft.building.rooms.TRADING[slotId];
+      if (room && Array.isArray(room.stock)) {
+        for (const item of room.stock) {
+          this._settleOrderInternal(draft, item);
+        }
+        room.stock = [];
+      }
+    });
   }
 
   /**
@@ -636,11 +668,20 @@ export class BuildingManager {
 
   /**
    * 更换贸易方案
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
+   * @param args - 包含 slotId 和 solution（strategy/stockLimit）的参数对象
    */
-  async changeSaleSolution(args: any) {
-    return args;
+  async changeSaleSolution(args: {
+    slotId: string;
+    solution: { strategy: string; stockLimit: number };
+  }) {
+    const { slotId, solution } = args;
+    return await this._player.update(async (draft) => {
+      const room = draft.building.rooms.TRADING[slotId];
+      if (room) {
+        if (solution.strategy) room.strategy = solution.strategy;
+        if (solution.stockLimit != null) room.stockLimit = solution.stockLimit;
+      }
+    });
   }
 
   /**

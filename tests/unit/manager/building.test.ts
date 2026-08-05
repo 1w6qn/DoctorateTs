@@ -490,3 +490,89 @@ describe("BuildingManager 信赖系统", () => {
     expect(mockPlayer._playerdata.troop!.chars["1003"].favorPoint).toBeGreaterThan(300);
   });
 });
+
+describe("BuildingManager 贸易站", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({
+      building: {
+        status: { labor: { buffSpeed: 0, processPoint: 0, value: 0, lastUpdateTime: 0, maxValue: 100 }, workshop: { bonusActive: 0, bonus: {} } },
+        chars: {},
+        roomSlots: {},
+        rooms: {
+          CONTROL: {}, ELEVATOR: {}, POWER: {}, MANUFACTURE: {}, TRADING: {
+            slot_6: {
+              strategy: "O_GOLD",
+              stock: [
+                { orderId: 1, count: 4, type: "O_GOLD", itemId: "3003" },
+                { orderId: 2, count: 2, type: "O_GOLD", itemId: "3003" },
+              ],
+              stockLimit: 6,
+              completeWorkTime: 0,
+            } as any,
+          },
+          CORRIDOR: {}, WORKSHOP: {}, DORMITORY: {}, MEETING: {}, HIRE: {},
+          TRAINING: {}, PRIVATE: {},
+        },
+        furniture: {},
+        diyPresetSolutions: {},
+        assist: [-1, -1, -1],
+        solution: { furnitureTs: {} },
+        music: { selected: "bgm_default" },
+      } as any,
+      status: { gold: 1000 } as any,
+      inventory: { "3003": 10 } as any,
+      event: { building: 0 },
+    });
+    mockPlayer._trigger = mockTrigger;
+    mockPlayer.update = vi
+      .fn()
+      .mockImplementation(
+        async (recipe: (draft: any) => Promise<any> | any) => {
+          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+          const result = await recipe(draft);
+          Object.assign(mockPlayer._playerdata, draft);
+          return result;
+        }
+      );
+  });
+
+  it("settleSale 应结算全部库存订单为金币", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.settleSale({ slotId: "slot_6" } as any);
+    expect(mockPlayer._playerdata.status!.gold).toBeGreaterThan(1000);
+    expect(mockPlayer._playerdata.building!.rooms.TRADING.slot_6.stock).toEqual([]);
+    // 消耗贸易凭证 3003（4+2=6）
+    expect(mockPlayer._playerdata.inventory!["3003"]).toBe(4);
+  });
+
+  it("changeSaleSolution 应更新策略并重置库存上限", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.changeSaleSolution({ slotId: "slot_6", solution: { strategy: "O_LMD", stockLimit: 8 } } as any);
+    expect(mockPlayer._playerdata.building!.rooms.TRADING.slot_6.strategy).toBe("O_LMD");
+    expect(mockPlayer._playerdata.building!.rooms.TRADING.slot_6.stockLimit).toBe(8);
+  });
+
+  it("deleteOrder 应移除指定订单", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.deleteOrder({ slotId: "slot_6", orderId: 1 } as any);
+    expect(mockPlayer._playerdata.building!.rooms.TRADING.slot_6.stock).toHaveLength(1);
+  });
+
+  it("accelerateOrder 应立即使指定订单结算", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.accelerateOrder({ slotId: "slot_6", orderId: 1 } as any);
+    expect(mockPlayer._playerdata.building!.rooms.TRADING.slot_6.stock).toHaveLength(1);
+    expect(mockPlayer._playerdata.status!.gold).toBeGreaterThan(1000);
+  });
+
+  it("accelerateSolution 应结算全部库存订单", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.accelerateSolution({ slotId: "slot_6" } as any);
+    expect(mockPlayer._playerdata.building!.rooms.TRADING.slot_6.stock).toEqual([]);
+  });
+});

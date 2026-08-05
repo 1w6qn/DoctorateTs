@@ -15,6 +15,7 @@
 12. [战斗结算后处理逻辑](#12-战斗结算后处理逻辑)
 13. [勋章系统实现](#13-勋章系统实现)
 14. [任务系统实现](#14-任务系统实现)
+15. [官服数据迁移](#15-官服数据迁移)
 
 ---
 
@@ -834,3 +835,33 @@ BattleManager（app/game/manager/battle.ts）的战斗结束（finish）后处�
 ### 14.4 简化项（YAGNI）
 - 46 个模板仅核心模板有单测（CompleteStageAnyType / StageWithEnemyKill / UpgradeChar / CompleteAnyStage）；活动类模板依赖活动数据按需验证
 - 任务状态 0/1 转换（未解锁→未接取）沿用既有实现，未扩展
+
+---
+
+## 15. 官服数据迁移
+
+### 15.1 用途
+用官服账号（手机号+密码）自动登录官服、拉取玩家数据、转换为私服存档并注册账号，实现「一键迁移官服数据到私服」。
+
+### 15.2 使用方式
+```bash
+npm run migrate:official -- --accounts <账号文件路径> --template 1
+```
+- `--accounts`：账号文件（每行「手机号 密码」或两行一组「手机号\n密码」，忽略备注），默认 `reference/checkin-master/accounts.txt`
+- `--template`：私服模板存档 uid（兜底字段来源），默认 1
+
+### 15.3 登录协议（scripts/official-api.ts）
+1. `getResVersion`：`ak-conf.hypergryph.com/config/prod/official/Android/version`
+2. `getToken` 三步：`as.hypergryph.com/user/auth/v1/token_by_phone_password` → `oauth2/v2/grant`（appCode=7318def77669979d）→ `u8/user/v1/getToken`（u8_sign HMAC-SHA1）
+3. `loginGame`：`ak-gs-gf.hypergryph.com/account/login`（拿 secret）
+4. `syncPlayerData`：`/account/syncData`（返回完整玩家数据 user 字段）
+全部使用 Node 24 内置 fetch + node:crypto，**零第三方依赖**。
+
+### 15.4 转换与注册
+- **convertOfficialData**（scripts/official-convert.ts）：官服 user 与私服存档同源——官方字段直接沿用、uid 替换为私服新 uid、移除连接态（secret/seqnum）、**模板全字段兜底**（官方缺失字段从模板存档复制，保证私服可加载）
+- **registerImportedUser**（scripts/official-register.ts）：新 uid 从现有账号递增；写入 `data/user/databases/{uid}.json` + `users.json` 注册（auth.phone=官服手机号、auth.hgId=官服 uid、password 随机）
+
+### 15.5 已知限制
+- 真实官服调用未在测试中验证（全部 mock fetch）：官服接口可能变更、存在风控/验证码——脚本输出清晰错误，单个账号失败不中断其他
+- 不迁移战斗回放/battleLog（仅全量拉取玩家数据）
+- 迁移后的账号需重启服务器（或 `accountManager.init()` 重载）才能生效

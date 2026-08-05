@@ -220,20 +220,41 @@ export class BuildingManager {
 
   /**
    * 专精升级
-   * 简化实现：实际专精逻辑在 CharManager 中处理，此处仅触发事件
-   * @param args - 请求体参数
+   * 将目标技能置为专精中（state=1），完成时由 completeUpgradeSpecialization 提升等级
+   * @param args - 包含 charInstId 和 targetSkill（技能索引）的参数对象
    */
-  async upgradeSpecialization(args: any) {
-    return args;
+  async upgradeSpecialization(args: {
+    charInstId: number;
+    targetSkill: number;
+    reduceTimeBd?: any;
+  }) {
+    const { charInstId, targetSkill } = args;
+    return await this._player.update(async (draft) => {
+      const char = draft.troop.chars[String(charInstId)];
+      if (char && char.skills && char.skills[targetSkill]) {
+        char.skills[targetSkill].state = 1; // 专精中
+      }
+    });
   }
 
   /**
    * 完成专精升级
-   * 简化实现：实际专精逻辑在 CharManager 中处理，此处仅触发事件
-   * @param args - 请求体参数
+   * 提升目标技能 specializeLevel 并复位状态
+   * @param args - 包含 charInstId 和 targetSkill（技能索引）的参数对象
    */
-  async completeUpgradeSpecialization(args: any) {
-    return args;
+  async completeUpgradeSpecialization(args: {
+    charInstId: number;
+    targetSkill: number;
+  }) {
+    const { charInstId, targetSkill } = args;
+    return await this._player.update(async (draft) => {
+      const char = draft.troop.chars[String(charInstId)];
+      if (char && char.skills && char.skills[targetSkill]) {
+        char.skills[targetSkill].specializeLevel += 1;
+        char.skills[targetSkill].state = 0;
+        char.skills[targetSkill].completeUpgradeTime = -1;
+      }
+    });
   }
 
   /**
@@ -750,11 +771,17 @@ export class BuildingManager {
 
   /**
    * 加工站分解
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
+   * 分解家具为木材（30012），私服简化固定产出
+   * @param args - 包含 furnitureId 和 count 的参数对象
    */
-  async workshopDecomposition(args: any) {
-    return args;
+  async workshopDecomposition(args: { furnitureId: string; count: number }) {
+    const { furnitureId, count } = args;
+    return await this._player.update(async (draft) => {
+      const furn = draft.building.furniture[furnitureId];
+      if (!furn || furn.count < count) return;
+      furn.count -= count;
+      draft.inventory["30012"] = (draft.inventory["30012"] || 0) + count * 2;
+    });
   }
 
   // ==================== 线索系统 ====================

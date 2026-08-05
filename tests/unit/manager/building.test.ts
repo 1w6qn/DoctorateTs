@@ -576,3 +576,76 @@ describe("BuildingManager 贸易站", () => {
     expect(mockPlayer._playerdata.building!.rooms.TRADING.slot_6.stock).toEqual([]);
   });
 });
+
+describe("BuildingManager 加工分解与专精", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({
+      building: {
+        status: { labor: { buffSpeed: 0, processPoint: 0, value: 0, lastUpdateTime: 0, maxValue: 100 }, workshop: { bonusActive: 0, bonus: {} } },
+        chars: {},
+        roomSlots: {},
+        rooms: {
+          CONTROL: {}, ELEVATOR: {}, POWER: {}, MANUFACTURE: {}, TRADING: {},
+          CORRIDOR: {}, WORKSHOP: {}, DORMITORY: {}, MEETING: {}, HIRE: {},
+          TRAINING: {}, PRIVATE: {},
+        },
+        furniture: {
+          furn_001: { count: 3, inUse: 1 },
+        },
+        diyPresetSolutions: {},
+        assist: [-1, -1, -1],
+        solution: { furnitureTs: {} },
+        music: { selected: "bgm_default" },
+      } as any,
+      inventory: { "30012": 1 } as any,
+      troop: {
+        chars: {
+          "1001": {
+            charId: "char_001",
+            skills: [{ skillId: "skill_1", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 }],
+          } as any,
+        },
+      } as any,
+      event: { building: 0 },
+    });
+    mockPlayer._trigger = mockTrigger;
+    mockPlayer.update = vi
+      .fn()
+      .mockImplementation(
+        async (recipe: (draft: any) => Promise<any> | any) => {
+          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+          const result = await recipe(draft);
+          Object.assign(mockPlayer._playerdata, draft);
+          return result;
+        }
+      );
+  });
+
+  it("workshopDecomposition 应分解家具并增加材料", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.workshopDecomposition({ furnitureId: "furn_001", count: 1 } as any);
+    expect(mockPlayer._playerdata.building!.furniture.furn_001.count).toBe(2);
+    expect(mockPlayer._playerdata.inventory!["30012"]).toBeGreaterThan(1);
+  });
+
+  it("upgradeSpecialization 应记录专精目标（state=1）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.upgradeSpecialization({ charInstId: 1001, targetSkill: 0 } as any);
+    expect(mockPlayer._playerdata.troop!.chars["1001"].skills[0].state).toBe(1);
+  });
+
+  it("completeUpgradeSpecialization 应提升 specializeLevel 并复位", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.upgradeSpecialization({ charInstId: 1001, targetSkill: 0 } as any);
+    await manager.completeUpgradeSpecialization({ charInstId: 1001, targetSkill: 0 } as any);
+    const skill = mockPlayer._playerdata.troop!.chars["1001"].skills[0];
+    expect(skill.specializeLevel).toBe(1);
+    expect(skill.state).toBe(0);
+    expect(skill.completeUpgradeTime).toBe(-1);
+  });
+});

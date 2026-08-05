@@ -26,7 +26,10 @@ import { MedalManager } from "./medal";
 import { BuildingManager } from "./building";
 import { FriendDataWithNameCard, FriendMedalBoard } from "@game/model/social";
 import { OpenServerManager } from "@game/manager/activity/openServer";
-import { createDraft, finishDraft, Patch, WritableDraft } from "immer";
+import { createDraft, finishDraft, Patch, WritableDraft, setAutoFreeze } from "immer";
+// 私服场景管理器（MedalProgress/MissionProgress）直接修改玩家数据数组，
+// 禁用 Immer 自动冻结避免 push 操作崩溃
+setAutoFreeze(false);
 import { patchesToObject } from "@utils/delta";
 import { TypedEventEmitter } from "@game/model/events";
 import { CharRotationManager } from "@game/manager/charRotation";

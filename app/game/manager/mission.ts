@@ -73,18 +73,21 @@ export class MissionManager {
    * 遍历所有任务类型，为每个任务创建MissionProgress实例并初始化
    */
   async init() {
+    // 先补 ACTIVITY 空分组（Immer draft 内不创建 MissionProgress，避免模板 push 到冻结 draft）
     await this._player.update(async (draft) => {
       draft.mission.missions["ACTIVITY"] = {};
-      for (const [type, v] of Object.entries(draft.mission.missions)) {
-        // 填充内存任务列表（confirmMission/getMissionById 依赖）
-        this.missions[type] = [];
-        for (const [id] of Object.entries(v)) {
-          const mission = new MissionProgress(id, type, this._player);
-          await mission.init();
-          this.missions[type].push(mission);
-        }
-      }
     });
+    for (const [type, v] of Object.entries(
+      this._player._playerdata.mission.missions,
+    )) {
+      // 填充内存任务列表（confirmMission/getMissionById 依赖）
+      this.missions[type] = [];
+      for (const [id] of Object.entries(v)) {
+        const mission = new MissionProgress(id, type, this._player);
+        await mission.init();
+        this.missions[type].push(mission);
+      }
+    }
   }
 
   /**

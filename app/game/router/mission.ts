@@ -7,7 +7,7 @@ router.post("/confirmMission", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
 
   res.send({
-    items: player.mission.confirmMission(req.body),
+    items: await player.mission.confirmMission(req.body),
     ...player.delta,
   });
 });

@@ -1,5 +1,5 @@
 import { MailItem, MailMetaInfo } from "../model/mail";
-import { ItemBundle } from "app/excel/character_table";
+import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
 import { writeFile } from "fs/promises";
 import { readFileSync } from "fs";

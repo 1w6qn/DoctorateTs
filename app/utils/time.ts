@@ -5,7 +5,8 @@
  */
 
 import moment from "moment";
-import StartOf = moment.unitOfTime.StartOf;
+// 类型别名（Node 原生 transform-types 不支持 import= 语法）
+type StartOf = moment.unitOfTime.StartOf;
 
 /**
  * 获取当前时间戳（秒）

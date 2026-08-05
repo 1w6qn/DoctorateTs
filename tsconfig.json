@@ -8,29 +8,12 @@
     "strict": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "baseUrl": ".", // 基准目录，通常是项目根目录
     "paths": {
-      "@excel/*": [
-        "app/excel/*"
-      ],
-      "@utils/*": [
-        "app/utils/*"
-      ],
-      "@game/*":[
-        "app/game/*"
-      ]
+      "@excel/*": ["./app/excel/*"],
+      "@utils/*": ["./app/utils/*"],
+      "@game/*": ["./app/game/*"]
     }
   },
-  "include": [
-    "app/**/*",
-    "index.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "**/lib.dom.d.ts",
-    "hook/main.ts"
-  ],
-  "ts-node": {
-    "require": ["tsconfig-paths/register"]
- }
+  "include": ["app/**/*", "index.ts"],
+  "exclude": ["node_modules", "**/lib.dom.d.ts", "hook/main.ts"]
 }

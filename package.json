@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
+  "type": "commonjs",
   "dependencies": {
     "axios": "^1.7.2",
     "body-parser": "1.20.3",
@@ -31,11 +32,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "ts": "ts-node test.ts",
-    "admin": "ts-node scripts/admin-cli.ts",
-    "update": "ts-node scripts/update-data.ts",
-    "update:skip": "ts-node scripts/update-data.ts --skip-update",
-    "migrate:official": "ts-node scripts/migrate-official.ts"
+    "ts": "tsx test.ts",
+    "admin": "tsx scripts/admin-cli.ts",
+    "update": "tsx scripts/update-data.ts",
+    "update:skip": "tsx scripts/update-data.ts --skip-update",
+    "migrate:official": "tsx scripts/migrate-official.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.10.0",
@@ -54,8 +55,8 @@
     "globals": "^15.9.0",
     "nodemon": "^3.1.4",
     "prettier": "^3.3.3",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.5.2",
+    "tsx": "^4.23.7",
+    "typescript": "^7.0.2",
     "typescript-eslint": "^8.6.0",
     "vitest": "^4.1.10"
   }

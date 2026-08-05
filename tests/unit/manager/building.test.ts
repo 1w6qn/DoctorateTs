@@ -415,3 +415,78 @@ describe("BuildingManager 批量干员", () => {
     expect(mockPlayer._playerdata.building!.roomSlots.slot_5.charInstIds).toEqual([-1, -1, -1]);
   });
 });
+
+describe("BuildingManager 信赖系统", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({
+      building: {
+        status: { labor: { buffSpeed: 0, processPoint: 0, value: 0, lastUpdateTime: 0, maxValue: 100 }, workshop: { bonusActive: 0, bonus: {} } },
+        chars: {},
+        roomSlots: {
+          slot_5: { level: 3, state: 2, roomId: "MANUFACTURE", charInstIds: [1001, 1002], completeConstructTime: 0 },
+        },
+        rooms: {
+          CONTROL: {}, ELEVATOR: {}, POWER: {}, MANUFACTURE: {}, TRADING: {},
+          CORRIDOR: {}, WORKSHOP: {}, DORMITORY: {}, MEETING: {}, HIRE: {},
+          TRAINING: {}, PRIVATE: {},
+        },
+        furniture: {},
+        diyPresetSolutions: {},
+        assist: [1003, -1, -1],
+        solution: { furnitureTs: {} },
+        music: { selected: "bgm_default" },
+      } as any,
+      troop: {
+        chars: {
+          "1001": { charId: "char_001", favorPoint: 100 } as any,
+          "1002": { charId: "char_002", favorPoint: 200 } as any,
+          "1003": { charId: "char_003", favorPoint: 300 } as any,
+        },
+        charGroup: {
+          char_001: { favorPoint: 100 } as any,
+          char_002: { favorPoint: 200 } as any,
+          char_003: { favorPoint: 300 } as any,
+        },
+      } as any,
+      event: { building: 0 },
+    });
+    mockPlayer._trigger = mockTrigger;
+    mockPlayer.update = vi
+      .fn()
+      .mockImplementation(
+        async (recipe: (draft: any) => Promise<any> | any) => {
+          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+          const result = await recipe(draft);
+          Object.assign(mockPlayer._playerdata, draft);
+          return result;
+        }
+      );
+  });
+
+  it("gainIntimacy 应给指定干员加信赖（同步 chars 与 charGroup）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.gainIntimacy({ charInstId: 1001 } as any);
+    expect(mockPlayer._playerdata.troop!.chars["1001"].favorPoint).toBeGreaterThan(100);
+    expect(mockPlayer._playerdata.troop!.charGroup.char_001.favorPoint).toBeGreaterThan(100);
+    expect(mockPlayer._playerdata.troop!.chars["1002"].favorPoint).toBe(200);
+  });
+
+  it("gainAllIntimacy 应给全部工作干员加信赖", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.gainAllIntimacy({} as any);
+    expect(mockPlayer._playerdata.troop!.chars["1001"].favorPoint).toBeGreaterThan(100);
+    expect(mockPlayer._playerdata.troop!.chars["1002"].favorPoint).toBeGreaterThan(200);
+    expect(mockPlayer._playerdata.troop!.chars["1003"].favorPoint).toBe(300);
+  });
+
+  it("gainAssistIntimacy 应给助战列表干员加信赖", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.gainAssistIntimacy({} as any);
+    expect(mockPlayer._playerdata.troop!.chars["1003"].favorPoint).toBeGreaterThan(300);
+  });
+});

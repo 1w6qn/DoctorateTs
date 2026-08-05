@@ -348,31 +348,64 @@ export class BuildingManager {
     });
   }
 
-  /**
-   * 获得信赖（单个干员）
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
-   */
-  async gainIntimacy(args: any) {
-    return args;
+  /** 单次信赖增加量（私服简化常量） */
+  private _intimacyGain = 12;
+
+  /** 给单个干员增加信赖（同步更新 troop.chars 与 charGroup） */
+  private _addFavor(
+    draft: WritableDraft<PlayerDataModel>,
+    charInstId: number,
+    gain: number,
+  ): void {
+    const char = draft.troop.chars[String(charInstId)];
+    if (!char) return;
+    char.favorPoint += gain;
+    if (draft.troop.charGroup[char.charId]) {
+      draft.troop.charGroup[char.charId].favorPoint += gain;
+    }
   }
 
   /**
-   * 获得全部信赖
-   * 简化实现：参考 Python 实现返回 202，预留接口
+   * 获得信赖（单个干员）
+   * @param args - 包含 charInstId 的参数对象
+   */
+  async gainIntimacy(args: { charInstId: number }) {
+    const { charInstId } = args;
+    return await this._player.update(async (draft) => {
+      this._addFavor(draft, charInstId, this._intimacyGain);
+    });
+  }
+
+  /**
+   * 获得全部信赖（所有在岗干员）
    * @param args - 请求体参数
    */
   async gainAllIntimacy(args: any) {
-    return args;
+    return await this._player.update(async (draft) => {
+      const seen = new Set<number>();
+      for (const slotKey in draft.building.roomSlots) {
+        for (const instId of draft.building.roomSlots[slotKey].charInstIds) {
+          if (instId > 0 && !seen.has(instId)) {
+            seen.add(instId);
+            this._addFavor(draft, instId, this._intimacyGain);
+          }
+        }
+      }
+    });
   }
 
   /**
-   * 获得助战信赖
-   * 简化实现：参考 Python 实现返回 202，预留接口
+   * 获得助战信赖（assist 列表中的干员）
    * @param args - 请求体参数
    */
   async gainAssistIntimacy(args: any) {
-    return args;
+    return await this._player.update(async (draft) => {
+      for (const instId of draft.building.assist) {
+        if (instId > 0) {
+          this._addFavor(draft, instId, this._intimacyGain);
+        }
+      }
+    });
   }
 
   /**

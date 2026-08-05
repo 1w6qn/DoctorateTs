@@ -31,6 +31,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "ts": "ts-node test.ts",
+    "admin": "ts-node scripts/admin-cli.ts",
     "update": "ts-node scripts/update-data.ts",
     "update:skip": "ts-node scripts/update-data.ts --skip-update"
   },

@@ -6,6 +6,7 @@ import {
   MailDB,
 } from "../../../app/game/manager/mail";
 import { now } from "../../../app/utils/time";
+import { parseArgs } from "../../../scripts/admin-cli";
 
 describe("admin 配置", () => {
   it("应能从 config 中读取 enable 与 token", () => {
@@ -60,5 +61,27 @@ describe("nextMailId", () => {
       buildMailItem("1", { subject: "b", content: "", items: [] }, 1000001),
     ];
     expect(nextMailId(db)).toBe(1000002);
+  });
+});
+
+describe("CLI 参数解析", () => {
+  it("应解析命令与位置参数", () => {
+    expect(parseArgs(["users", "grant", "1", "4001", "100"])).toEqual({
+      command: "users",
+      args: ["grant", "1", "4001", "100"],
+      flags: {},
+    });
+  });
+
+  it("应识别 --items 键值参数", () => {
+    expect(parseArgs(["mail", "send", "--items", "4001:5,5001:10"])).toEqual({
+      command: "mail",
+      args: ["send"],
+      flags: { items: "4001:5,5001:10" },
+    });
+  });
+
+  it("无参数时 command 为空", () => {
+    expect(parseArgs([])).toEqual({ command: "", args: [], flags: {} });
   });
 });

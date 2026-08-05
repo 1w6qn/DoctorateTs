@@ -80,7 +80,7 @@ vi.mock("moment", () => ({
 }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { MissionManager, MissionProgress } from "@game/manager/mission";
+import { MissionManager, MissionProgress, MissionTemplates } from "@game/manager/mission";
 
 describe("MissionManager", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
@@ -490,5 +490,61 @@ describe("MissionManager", () => {
       const state = await progress.getState();
       expect(state).toBe(2);
     });
+  });
+});
+
+describe("MissionTemplates 核心模板", () => {
+  function makeMission(param: string[], value = 0) {
+    return { value, param, progress: [] } as any;
+  }
+
+  it("CompleteStageAnyType 通关状态达标应推进进度", () => {
+    const mission = makeMission(["0", "1", "2"]);
+    MissionTemplates.CompleteStageAnyType["0"].init(mission);
+    expect(mission.progress[0]).toEqual({ value: 0, target: 1 });
+    MissionTemplates.CompleteStageAnyType["0"].update(mission, { completeState: 3 } as any);
+    expect(mission.progress[0].value).toBe(1);
+  });
+
+  it("CompleteStageAnyType 通关状态不足不应推进", () => {
+    const mission = makeMission(["0", "1", "2"]);
+    MissionTemplates.CompleteStageAnyType["0"].init(mission);
+    MissionTemplates.CompleteStageAnyType["0"].update(mission, { completeState: 1 } as any);
+    expect(mission.progress[0].value).toBe(0);
+  });
+
+  it("StageWithEnemyKill 应累计击杀数", () => {
+    const mission = makeMission(["1", "10"]);
+    MissionTemplates.StageWithEnemyKill["1"].init(mission);
+    expect(mission.progress[0].target).toBe(10);
+    MissionTemplates.StageWithEnemyKill["1"].update(mission, { completeState: 3, killCnt: 5 } as any);
+    expect(mission.progress[0].value).toBe(5);
+  });
+
+  it("StageWithEnemyKill 未通关不应累计击杀", () => {
+    const mission = makeMission(["1", "10"]);
+    MissionTemplates.StageWithEnemyKill["1"].init(mission);
+    MissionTemplates.StageWithEnemyKill["1"].update(mission, { completeState: 1, killCnt: 5 } as any);
+    expect(mission.progress[0].value).toBe(0);
+  });
+
+  it("UpgradeChar 应累加干员升级次数", () => {
+    const mission = makeMission(["0", "5"]);
+    MissionTemplates.UpgradeChar["0"].init(mission);
+    expect(mission.progress[0].target).toBe(5);
+    MissionTemplates.UpgradeChar["0"].update(mission, {} as any);
+    MissionTemplates.UpgradeChar["0"].update(mission, {} as any);
+    expect(mission.progress[0].value).toBe(2);
+  });
+
+  it("CompleteAnyStage 指定关卡通关应推进", () => {
+    const mission = makeMission(["0", "main_01-07", "2"]);
+    MissionTemplates.CompleteAnyStage["0"].init(mission);
+    expect(mission.progress[0].target).toBe(1);
+    MissionTemplates.CompleteAnyStage["0"].update(mission, { completeState: 3, stageId: "main_01-07" } as any);
+    expect(mission.progress[0].value).toBe(1);
+    // 非指定关卡不推进
+    MissionTemplates.CompleteAnyStage["0"].update(mission, { completeState: 3, stageId: "main_02-07" } as any);
+    expect(mission.progress[0].value).toBe(1);
   });
 });

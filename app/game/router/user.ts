@@ -173,14 +173,18 @@ export const rootRouter = Router();
 /**
  * 领取勋章奖励
  *
- * 参考实现中为占位接口（返回 {}, 202）。
- * MedalManager 虽存在 rewardMedal 方法，但未挂载到 PlayerDataManager，
- * 故此处保持与参考实现一致的占位行为。
+ * 调用 MedalManager.rewardMedal 发放对应奖励组物品（items:get），
+ * 并记录领取时间戳 rts（防重复领取）。
  *
  * 路径：POST /medal/rewardMedal
  */
 rootRouter.post("/medal/rewardMedal", async (req, res) => {
-  res.sendStatus(202);
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const items = await player.medal.rewardMedal(req.body);
+  res.send({
+    items,
+    ...player.delta,
+  });
 });
 
 /**

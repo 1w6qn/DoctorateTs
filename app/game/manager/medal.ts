@@ -173,14 +173,15 @@ export class MedalProgress implements PlayerPerMedal {
     this.rts = item.rts;
     this.fts = item.fts;
     this.reward = item.reward || "";
-    this._v = item.val[0][0] || 0;
+    this._v = item.val?.[0]?.[0] || 0;
     this._trigger = _trigger;
     // 未完成（fts 未设或进度未满）的勋章注册进度监听，使既有存档也能继续追踪
     const target = item.val?.[0]?.[1];
     if (!this.fts || (target && this._v < target)) {
       this.init();
     }
-    this.val = item.val;
+    // val 缺失的旧数据兜底为空进度（避免后续访问崩溃）
+    this.val = item.val ?? [[]];
   }
 
   /**
@@ -196,7 +197,11 @@ export class MedalProgress implements PlayerPerMedal {
     }
     const medalInfo = excel.MedalTable.medalList.find(
       (m) => m.medalId == this.id,
-    )!;
+    );
+    // 勋章不在配置表中（活动下架残留等）时跳过进度注册
+    if (!medalInfo) {
+      return;
+    }
     const template = medalInfo.template as string;
     if (!template) {
       this.val = [];

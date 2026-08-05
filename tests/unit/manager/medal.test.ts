@@ -620,6 +620,12 @@ describe("Medal 核心修复", () => {
         unlockParam: ["100"],
         medalRewardGroup: [],
       },
+      {
+        medalId: "medal_broken",
+        template: "PlayerLevel",
+        unlockParam: ["1"],
+        medalRewardGroup: [],
+      },
     ];
   });
 
@@ -639,6 +645,16 @@ describe("Medal 核心修复", () => {
       mockTrigger as any,
     );
     expect(onSpy).not.toHaveBeenCalled();
+  });
+
+  it("val 缺失的勋章（旧数据）构造不应崩溃", () => {
+    const onSpy = vi.spyOn(mockTrigger, "on");
+    const progress = new MedalProgress(
+      { id: "medal_broken", fts: 0, rts: -1, reward: "" } as any,
+      mockTrigger as any,
+    );
+    expect(progress.val).toEqual([[]]);
+    expect(onSpy).toHaveBeenCalled();
   });
 
   it("rewardMedal 已领取（rts != -1）不应重复发放", async () => {

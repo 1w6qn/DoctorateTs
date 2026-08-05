@@ -13,6 +13,7 @@
 10. [好友系统与 SQLite 数据层](#10-好友系统与sqlite数据层)
 11. [基建系统逻辑说明](#11-基建系统逻辑说明)
 12. [战斗结算后处理逻辑](#12-战斗结算后处理逻辑)
+13. [勋章系统实现](#13-勋章系统实现)
 
 ---
 
@@ -782,3 +783,27 @@ BattleManager（app/game/manager/battle.ts）的战斗结束（finish）后处�
 - `/campaignV2/*` 等后半段路由（app/game/app.ts 61 行后）在真实服务器上未生效（404），为项目既有问题，与战斗结算无关；建议后续单独排查
 - `/charBuild/addonStage/battleStart` 路由不返回 battleId，且固定练习模式（usePracticeTicket=1），HTTP 链路无法闭环非练习战斗——进程级 E2E 与单测覆盖结算逻辑
 - 失败（completeState=1）不结算信赖/通关次数，rewards 为空
+
+---
+
+## 13. 勋章系统实现
+
+### 13.1 架构
+- **MedalManager**（app/game/manager/medal.ts）：勋章集合管理（init / setCustomData / rewardMedal / onMedalComplete / toJSON），构造时监听 `medal:complete` 事件
+- **MedalProgress**：单个勋章进度追踪，**164 个 excel 模板全部实现**（PlayerLevel / PassStageSome / RecruitCount / GotChars / Rlv2* / Sbv3* / Act* 等），按模板注册事件监听推进进度
+
+### 13.2 核心机制
+- **挂载**：MedalManager 挂载到 PlayerDataManager（`player.medal`），构造时 `init()` 遍历玩家勋章创建进度实例
+- **进度追踪**：构造条件放宽为「fts 未设 **或** 进度未满」→ 既有存档（1190 勋章中 228 个未满）也能继续追踪；模板事件（CompleteStage / char:get 等）触发时更新进度，达标后 `off` 监听并 emit `medal:complete`
+- **领奖**：`/medal/rewardMedal` 路由调用 `player.medal.rewardMedal`，发放奖励组物品（items:get）并记录 rts
+- **防重复**：rts != -1 视为已领取，重复请求返回空
+- **持久化**：进度 val 与 `_playerdata.medal.medals` 共享引用（模板 update 直接写回）；rts 领取后显式同步写回持久态
+
+### 13.3 容错（旧数据兼容）
+- 勋章 `val` 缺失（旧存档）→ 构造兜底为 `[[]]`，不崩溃
+- 勋章 ID 不在 excel MedalTable（活动下架残留）→ 跳过进度注册
+- excel 未初始化时构造（PlayerDataManager 早于 excel 加载）→ 跳过进度注册
+
+### 13.4 简化项（YAGNI）
+- 164 个模板全部实现但仅核心模板有单测（PlayerLevel / JoinGameDays / CharNum / RecruitCount / GotChars / CharEvolveCount / PassTower）；活动类模板（Act*/Crisis*）依赖活动数据，按需验证
+- 勋章展示（setCustomData / 名片展示）沿用既有实现，未扩展

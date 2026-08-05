@@ -548,3 +548,79 @@ describe("MissionTemplates 核心模板", () => {
     expect(mission.progress[0].value).toBe(1);
   });
 });
+
+describe("MissionManager 刷新", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+  let mockExcelRef: any;
+
+  beforeEach(async () => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockExcelRef = (vi.mocked(await import("@excel/excel")).default as any);
+    mockExcelRef.MissionTable.dailyMissionPeriodInfo = [
+      {
+        startTime: 0,
+        endTime: 9999999999,
+        periodList: [
+          { period: [1, 2, 3, 4, 5, 6, 7], missionGroupId: "daily_group", rewardGroupId: "daily_reward" },
+        ],
+      },
+    ];
+    mockExcelRef.MissionTable.missionGroups = {
+      daily_group: { missionIds: ["daily_r1"] },
+    };
+    mockExcelRef.MissionTable.missions = {
+      daily_r1: { id: "daily_r1", type: "DAILY", template: "CompleteStageAnyType", param: ["0", "1", "2"] },
+      weekly_r1: { id: "weekly_r1", type: "WEEKLY", template: "CompleteStageAnyType", param: ["0", "1", "2"] },
+    };
+    mockExcelRef.MissionTable.periodicalRewards = {
+      r1: { id: "r1", groupId: "daily_reward", periodicalPointCost: 10, rewards: [{ id: "4001", type: "GOLD", count: 100 }] },
+    };
+
+    mockPlayer = mockPlayerData({
+      mission: {
+        missions: {
+          DAILY: { daily_r1: { state: 1, progress: [{ value: 0, target: 1 }] } },
+          WEEKLY: {},
+          ACTIVITY: {},
+          OPENSERVER: {},
+        },
+        missionRewards: {
+          dailyPoint: 100,
+          weeklyPoint: 50,
+          rewards: { DAILY: {}, WEEKLY: {} },
+        },
+        missionGroups: {},
+      },
+    });
+    mockPlayer._trigger = mockTrigger;
+    mockPlayer.update = vi
+      .fn()
+      .mockImplementation(
+        async (recipe: (draft: any) => Promise<any> | any) => {
+          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+          const result = await recipe(draft);
+          Object.assign(mockPlayer._playerdata, draft);
+          return result;
+        }
+      );
+  });
+
+  it("dailyRefresh 应重置每日点数并加载每日任务", async () => {
+    const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
+    await manager.dailyRefresh();
+    expect(mockPlayer._playerdata.mission!.missionRewards.dailyPoint).toBe(0);
+    expect(mockPlayer._playerdata.mission!.missionRewards.rewards["DAILY"]).toEqual({ r1: 0 });
+    expect(manager.missions["DAILY"]).toHaveLength(1);
+    expect(manager.missions["DAILY"][0].missionId).toBe("daily_r1");
+  });
+
+  it("weeklyRefresh 应重置每周点数并加载每周任务", async () => {
+    const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
+    await manager.weeklyRefresh();
+    expect(mockPlayer._playerdata.mission!.missionRewards.weeklyPoint).toBe(0);
+    expect(manager.missions["WEEKLY"]).toHaveLength(1);
+    expect(manager.missions["WEEKLY"][0].missionId).toBe("weekly_r1");
+  });
+});

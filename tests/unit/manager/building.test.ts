@@ -279,3 +279,74 @@ describe("BuildingManager", () => {
     });
   });
 });
+
+describe("BuildingManager 内部工具方法", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({
+      building: {
+        status: { labor: { buffSpeed: 0, processPoint: 0, value: 0, lastUpdateTime: 0, maxValue: 100 }, workshop: { bonusActive: 0, bonus: {} } },
+        chars: {},
+        roomSlots: {},
+        rooms: {
+          CONTROL: {}, ELEVATOR: {}, POWER: {}, MANUFACTURE: {}, TRADING: {},
+          CORRIDOR: {}, WORKSHOP: {}, DORMITORY: {}, MEETING: {}, HIRE: {},
+          TRAINING: {}, PRIVATE: {},
+        },
+        furniture: {},
+        diyPresetSolutions: {},
+        assist: [-1, -1, -1],
+        solution: { furnitureTs: {} },
+        music: { selected: "bgm_default" },
+      } as any,
+      event: { building: 0 },
+    });
+    mockPlayer._trigger = mockTrigger;
+    mockPlayer.update = vi
+      .fn()
+      .mockImplementation(
+        async (recipe: (draft: any) => Promise<any> | any) => {
+          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+          const result = await recipe(draft);
+          Object.assign(mockPlayer._playerdata, draft);
+          return result;
+        }
+      );
+  });
+
+  it("_findRoomSlotIdByChar 应找到干员所在槽位", () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    mockPlayer._playerdata.building!.roomSlots = {
+      slot_1: { level: 1, state: 2, roomId: "MANUFACTURE", charInstIds: [1001, -1], completeConstructTime: 0 } as any,
+      slot_2: { level: 1, state: 2, roomId: "TRADING", charInstIds: [1002], completeConstructTime: 0 } as any,
+    };
+    expect(manager._findRoomSlotIdByChar(1001)).toBe("slot_1");
+    expect(manager._findRoomSlotIdByChar(9999)).toBeUndefined();
+  });
+
+  it("_clearCharFromRooms 应从所有槽位移除指定干员", () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    mockPlayer._playerdata.building!.roomSlots = {
+      slot_1: { level: 1, state: 2, roomId: "MANUFACTURE", charInstIds: [1001, 1002], completeConstructTime: 0 } as any,
+      slot_2: { level: 1, state: 2, roomId: "TRADING", charInstIds: [1002], completeConstructTime: 0 } as any,
+    };
+    manager._clearCharFromRooms([1002]);
+    expect(mockPlayer._playerdata.building!.roomSlots.slot_1.charInstIds).toEqual([1001, -1]);
+    expect(mockPlayer._playerdata.building!.roomSlots.slot_2.charInstIds).toEqual([-1]);
+  });
+
+  it("_nextClueId 应生成未占用的递增线索 ID", () => {
+    mockPlayer._playerdata.building!.rooms.MEETING = {
+      room_001: {
+        ownStock: [{ id: "clue_001", type: "clue_1", number: 1, uid: "1", name: "A", nickNum: "1", chars: [], inUse: 0 }],
+        receiveStock: [],
+      } as any,
+    };
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    expect(manager._nextClueId()).toBe("clue_002");
+  });
+});

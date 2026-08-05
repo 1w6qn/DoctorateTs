@@ -118,6 +118,47 @@ export class BuildingManager {
     });
   }
 
+  // ==================== 内部工具方法 ====================
+
+  /** 查找干员所在房间槽位 ID */
+  _findRoomSlotIdByChar(charInstId: number): string | undefined {
+    const slots = this._player._playerdata.building.roomSlots;
+    for (const slotId of Object.keys(slots)) {
+      if (slots[slotId].charInstIds.includes(charInstId)) {
+        return slotId;
+      }
+    }
+    return undefined;
+  }
+
+  /** 从所有房间槽位中移除指定干员（置为 -1） */
+  _clearCharFromRooms(charInstIdList: number[]): void {
+    const slots = this._player._playerdata.building.roomSlots;
+    for (const slotId of Object.keys(slots)) {
+      const ids = slots[slotId].charInstIds;
+      for (let i = 0; i < ids.length; i++) {
+        if (charInstIdList.includes(ids[i])) {
+          ids[i] = -1;
+        }
+      }
+    }
+  }
+
+  /** 生成线索 ID（递增且不与现有库存冲突） */
+  _nextClueId(): string {
+    const meeting = Object.values(this._player._playerdata.building.rooms.MEETING)[0];
+    const used = new Set<string>();
+    for (const c of [
+      ...(meeting?.ownStock ?? []),
+      ...(meeting?.receiveStock ?? []),
+    ]) {
+      used.add(c.id);
+    }
+    let i = 1;
+    while (used.has(`clue_${String(i).padStart(3, "0")}`)) i++;
+    return `clue_${String(i).padStart(3, "0")}`;
+  }
+
   // ==================== 房间管理 ====================
 
   /**

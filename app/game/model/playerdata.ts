@@ -245,6 +245,8 @@ export interface PlayerBuilding {
   assist: number[];
   solution: PlayerBuildingSolution;
   music: { selected: string };
+  /** 预设队列（key 为 roomSlotId，旧存档首次写入时惰性初始化） */
+  presetQueues: {};
 }
 
 export interface PlayerBuildingChar {

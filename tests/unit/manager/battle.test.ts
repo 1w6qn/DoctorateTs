@@ -479,6 +479,24 @@ describe("BattleManager", () => {
       expect(Array.isArray(result)).toBe(true);
       expect(result.length).toBe(4);
     });
+
+    it("ALWAYS+NORMAL 必掉材料应产出到 rewards", async () => {
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      const result = await manager.dropReward(
+        [
+          { occPercent: 0, dropType: 2, id: "mat_001", type: "MATERIAL" },
+        ] as any,
+        3,
+        "main_01-07"
+      );
+
+      // result[3] = rewards
+      expect(result[3].some((r: any) => r.id === "mat_001")).toBe(true);
+    });
   });
 
   describe("finishStoryStage", () => {

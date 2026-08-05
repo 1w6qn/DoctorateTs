@@ -710,11 +710,14 @@ export class BattleManager {
             displayDetailRewards = displayDetailRewards.filter(
               (i) => i !== item,
             );
-          else if (dropType === 2)
+          else if (dropType === 2) {
+            // ALWAYS + NORMAL：必掉基础掉落（对照 Python quest.py 对应分支末尾产出）
             console.log(
               `- occPercent:0,dropType:2 -\n${JSON.stringify(item)}`,
               "debug",
             );
+            pushReward();
+          }
           else if (dropType === 8)
             displayDetailRewards = displayDetailRewards.filter(
               (i) => i !== item,

@@ -969,76 +969,124 @@ export class BuildingManager {
 
   // ==================== 预设队列 ====================
 
+  /** 惰性获取预设队列容器（旧存档无该字段时初始化） */
+  private _presetQueues(draft: WritableDraft<PlayerDataModel>): any {
+    const building = draft.building as any;
+    if (!building.presetQueues) building.presetQueues = {};
+    return building.presetQueues;
+  }
+
   /**
    * 添加预设队列
-   * 简化实现：参考 Python 实现返回空的 building delta 结构
-   * @param args - 请求体参数
+   * @param args - 包含 roomSlotId、presetName、charInstIdList 的参数对象
    */
-  async addPresetQueue(args: any) {
-    return args;
+  async addPresetQueue(args: {
+    roomSlotId: string;
+    presetName: string;
+    charInstIdList: number[];
+  }) {
+    const { roomSlotId, presetName, charInstIdList } = args;
+    return await this._player.update(async (draft) => {
+      const queues = this._presetQueues(draft);
+      queues[roomSlotId] = {
+        name: presetName ?? "",
+        charInstIdList,
+        createTs: now(),
+      };
+    });
   }
 
   /**
    * 删除预设队列
-   * 简化实现：参考 Python 实现返回空的 building delta 结构
-   * @param args - 请求体参数
+   * @param args - 包含 roomSlotId 的参数对象
    */
-  async deletePresetQueue(args: any) {
-    return args;
+  async deletePresetQueue(args: { roomSlotId: string }) {
+    const { roomSlotId } = args;
+    return await this._player.update(async (draft) => {
+      const queues = this._presetQueues(draft);
+      delete queues[roomSlotId];
+    });
   }
 
   /**
    * 编辑预设队列
-   * 简化实现：参考 Python 实现返回空的 building delta 结构
-   * @param args - 请求体参数
+   * @param args - 包含 roomSlotId、presetName、charInstIdList 的参数对象
    */
-  async editPresetQueue(args: any) {
-    return args;
+  async editPresetQueue(args: {
+    roomSlotId: string;
+    presetName?: string;
+    charInstIdList?: number[];
+  }) {
+    const { roomSlotId, presetName, charInstIdList } = args;
+    return await this._player.update(async (draft) => {
+      const queues = this._presetQueues(draft);
+      const queue = queues[roomSlotId];
+      if (!queue) return;
+      if (presetName != null) queue.name = presetName;
+      if (charInstIdList != null) queue.charInstIdList = charInstIdList;
+    });
   }
 
   /**
-   * 使用预设队列
-   * 简化实现：参考 Python 实现返回空的 building delta 结构
-   * @param args - 请求体参数
+   * 使用预设队列（应用干员到房间，清空其他房间占用）
+   * @param args - 包含 roomSlotId 的参数对象
    */
-  async usePresetQueue(args: any) {
-    return args;
+  async usePresetQueue(args: { roomSlotId: string }) {
+    const { roomSlotId } = args;
+    return await this._player.update(async (draft) => {
+      const queues = this._presetQueues(draft);
+      const queue = queues[roomSlotId];
+      if (!queue) return;
+      for (const slotKey in draft.building.roomSlots) {
+        if (slotKey === roomSlotId) continue;
+        const ids = draft.building.roomSlots[slotKey].charInstIds;
+        for (let i = 0; i < ids.length; i++) {
+          if (queue.charInstIdList.includes(ids[i])) ids[i] = -1;
+        }
+      }
+      draft.building.roomSlots[roomSlotId].charInstIds = [...queue.charInstIdList];
+    });
   }
 
   /**
-   * 使用单个预设队列
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
+   * 使用单个预设队列（单房间版，同 usePresetQueue）
+   * @param args - 包含 roomSlotId 的参数对象
    */
-  async useOnePresetQueue(args: any) {
-    return args;
+  async useOnePresetQueue(args: { roomSlotId: string }) {
+    return this.usePresetQueue(args);
   }
 
   /**
    * 修改预设名称
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
+   * @param args - 包含 roomSlotId 和 presetName 的参数对象
    */
-  async changePresetName(args: any) {
-    return args;
+  async changePresetName(args: { roomSlotId: string; presetName: string }) {
+    const { roomSlotId, presetName } = args;
+    return this.editPresetQueue({ roomSlotId, presetName });
   }
 
   /**
-   * 保存自定义预设方案
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
+   * 保存自定义预设方案（diyPresetSolutions）
+   * @param args - 包含 presetName 和 solution 的参数对象
    */
-  async saveDiyPresetSolution(args: any) {
-    return args;
+  async saveDiyPresetSolution(args: { presetName: string; solution: any }) {
+    const { presetName, solution } = args;
+    return await this._player.update(async (draft) => {
+      (draft.building as any).diyPresetSolutions[presetName] = solution;
+    });
   }
 
   /**
-   * 编辑锁定队列
-   * 简化实现：参考 Python 实现，预留接口
-   * @param args - 请求体参数
+   * 编辑锁定队列（记录锁定状态）
+   * @param args - 包含 roomSlotId 和 locked 的参数对象
    */
-  async editLockQueue(args: any) {
-    return args;
+  async editLockQueue(args: { roomSlotId: string; locked: boolean }) {
+    const { roomSlotId, locked } = args;
+    return await this._player.update(async (draft) => {
+      const queues = this._presetQueues(draft);
+      const queue = queues[roomSlotId];
+      if (queue) queue.locked = locked;
+    });
   }
 
   // ==================== 其他功能 ====================

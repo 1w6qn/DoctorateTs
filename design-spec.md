@@ -14,6 +14,7 @@
 11. [基建系统逻辑说明](#11-基建系统逻辑说明)
 12. [战斗结算后处理逻辑](#12-战斗结算后处理逻辑)
 13. [勋章系统实现](#13-勋章系统实现)
+14. [任务系统实现](#14-任务系统实现)
 
 ---
 
@@ -807,3 +808,29 @@ BattleManager（app/game/manager/battle.ts）的战斗结束（finish）后处�
 ### 13.4 简化项（YAGNI）
 - 164 个模板全部实现但仅核心模板有单测（PlayerLevel / JoinGameDays / CharNum / RecruitCount / GotChars / CharEvolveCount / PassTower）；活动类模板（Act*/Crisis*）依赖活动数据，按需验证
 - 勋章展示（setCustomData / 名片展示）沿用既有实现，未扩展
+
+---
+
+## 14. 任务系统实现
+
+### 14.1 架构
+- **MissionManager**（app/game/manager/mission.ts）：任务集合管理（init / getMissionById / dailyRefresh / weeklyRefresh / confirmMission / confirmMissionGroup / autoConfirmMissions / exchangeMissionRewards），构造时监听 `refresh:daily` / `refresh:weekly` 事件
+- **MissionTemplates**：按事件组织的任务模板映射（**46 个 excel 模板全覆盖**、无空实现），模板按 param[0] 细分（如 StageWithEnemyKill 的 0/1/2/3/5/6 分支）
+- **MissionProgress**：单个任务进度追踪，按模板注册事件监听，达标后 off + state=3 + unlockNextMission
+
+### 14.2 核心机制
+- **挂载**：MissionManager 挂载到 PlayerDataManager（`player.mission`），构造时 `init()` 填充内存任务列表（DAILY 29 / WEEKLY 32 / GUIDE 72 / MAIN 82 / SUB 262 / OPENSERVER 4，共 481 个）
+- **进度追踪**：MissionProgress.init 查 excel mission → 注册模板事件监听；事件触发时 update 推进，达标后写回 state=3 并解锁后续任务
+- **刷新**：dailyRefresh 重置 dailyPoint + 按星期加载当日任务组；weeklyRefresh 重置 weeklyPoint + 加载全部 WEEKLY 任务
+- **确认**：confirmMission 累计任务点数并自动兑换达标奖励组；autoConfirmMissions 批量确认
+- **修复**：`/mission/confirmMission` 路由补 await（原返回 Promise 对象）
+
+### 14.3 深层修复（任务系统从未生效的根因）
+- **MissionManager.init 未挂载**：PlayerDataManager 构造未调用 → 481 个任务进度监听从未注册
+- **init 未填充内存任务列表**：`this.missions` 为空 → getMissionById/confirmMission 依赖崩溃
+- **Immer draft 内 push 崩溃**：init 在 `player.update` 回调内创建 MissionProgress（模板 push 到冻结 draft）→ 重构为「先补 ACTIVITY 分组，再在 draft 外创建进度实例」
+- **Immer autoFreeze 冻结玩家数据**：finishDraft 默认冻结 `_playerdata`，管理器（MedalProgress/MissionProgress）直接修改数组（push）崩溃 → **全局禁用 autoFreeze**（PlayerDataManager 模块加载时 `setAutoFreeze(false)`），私服直接修改模式适用
+
+### 14.4 简化项（YAGNI）
+- 46 个模板仅核心模板有单测（CompleteStageAnyType / StageWithEnemyKill / UpgradeChar / CompleteAnyStage）；活动类模板依赖活动数据按需验证
+- 任务状态 0/1 转换（未解锁→未接取）沿用既有实现，未扩展

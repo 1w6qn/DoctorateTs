@@ -90,7 +90,9 @@ export class SocialManager {
   async processFriendRequest(args: { friendId: string; action: number }) {
     await accountManager.deleteFriendRequest(this._uid, args.friendId);
     if (args.action === 1) {
+      // 双向好友：己方加对方 + 对方加己方
       await accountManager.addFriend(this._uid, args.friendId);
+      await accountManager.addFriend(args.friendId, this._uid);
       await accountManager.deleteFriendRequest(args.friendId, this._uid);
     }
     if ((await accountManager.getFriendRequests(args.friendId)).length === 0) {

@@ -12,6 +12,7 @@
 9. [管理后台设计规范](#9-管理后台设计规范)
 10. [好友系统与 SQLite 数据层](#10-好友系统与sqlite数据层)
 11. [基建系统逻辑说明](#11-基建系统逻辑说明)
+12. [战斗结算后处理逻辑](#12-战斗结算后处理逻辑)
 
 ---
 
@@ -753,3 +754,24 @@ BuildingManager（app/game/manager/building.ts）已实现完整基建玩法：
 - 社交展示类接口（getRecentVisitors / getInfoShareVisitorsNum / sendEmoji / visitBuilding 等）返回空
 - 制造/加工配方未严格按 BuildingData 表执行，使用简化产出规则
 - 加速不消耗道具（私服友好）；buyLabor 1 源石/次 +10 劳动力
+
+---
+
+## 12. 战斗结算后处理逻辑
+
+### 12.1 覆盖范围
+BattleManager（app/game/manager/battle.ts）的战斗结束（finish）后处理：
+- 结算清单：rewards / unusualRewards / additionalRewards / furnitureRewards / firstRewards / unlockStages 真实返回（此前为全空数组）
+- 通关次数：胜利（completeState 2/3，非练习）时 `dungeon.stages[stageId].completeTimes + 1`
+- 干员信赖：胜利时参战 squad 干员 `troop.chars[instId].favorPoint + 1`（battleInfo 新增 squad 字段，start 时保存）
+- battleId：唯一化（时间戳 + 随机数），替代固定 "1"，避免多场战斗互相覆盖 battleInfo/replay
+- 结算回传：`battle:finish` 事件新增可选回调，TroopManager.addonStageBattleFinish 收集结果，`/charBuild/addonStage/battleFinish` 路由合并 `{...result, ...delta}` 返回
+
+### 12.2 修复的隐藏 bug
+- **`in [` 操作符误用**（4 处）：`completeState in [2, 3]` 实际检查数组索引而非包含关系（`3 in [2,3]` 恒 false），导致关卡解锁、主线进度更新、dropType=8 首通奖励等逻辑从未生效 → 改为 `[..].includes(x)`
+- **dropReward 无限递归**：零产出时用未收敛的 `displayDetailRewards` 重试（概率未中的条目永不移除）→ 真实掉落表下栈溢出崩溃 → 增加 depth 上限（10 轮）防死循环
+
+### 12.3 已知约束
+- `/campaignV2/*` 等后半段路由（app/game/app.ts 61 行后）在真实服务器上未生效（404），为项目既有问题，与战斗结算无关；建议后续单独排查
+- `/charBuild/addonStage/battleStart` 路由不返回 battleId，且固定练习模式（usePracticeTicket=1），HTTP 链路无法闭环非练习战斗——进程级 E2E 与单测覆盖结算逻辑
+- 失败（completeState=1）不结算信赖/通关次数，rewards 为空

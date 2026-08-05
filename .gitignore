@@ -25,3 +25,5 @@ Dorothinights
 coverage/
 cankao/
 reference/
+# SQLite runtime-generated (friend/social data, auto-created on first start)
+data/user/social.db

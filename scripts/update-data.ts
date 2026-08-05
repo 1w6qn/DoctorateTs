@@ -28,12 +28,102 @@ const LEVELS_SOURCE_DIR = path.join(__dirname, "../ArknightsGameData/zh_CN/gamed
 const GACHA_SOURCE_DIR = path.join(__dirname, "../data/gacha");
 const GACHA_DETAIL_TARGET = path.join(__dirname, "../data/gacha_detail_table.json");
 
+/**
+ * 完全离线模式启动所需的本地数据文件（相对项目根目录）。
+ * 覆盖 excel.init()、ShopData.init()、AccountManager.init() 及 auth 模块加载的全部文件。
+ */
+const REQUIRED_DATA_FILES: string[] = [
+  // 配置文件
+  "data/config.json",
+  "data/appConfig.json",
+  // 用户数据
+  "data/user/users.json",
+  // Excel 数据表（excel.init() 加载）
+  "data/excel/mission_table.json",
+  "data/excel/battle_equip_table.json",
+  "data/excel/building_data.json",
+  "data/excel/character_table.json",
+  "data/excel/gamedata_const.json",
+  "data/excel/item_table.json",
+  "data/excel/stage_table.json",
+  "data/excel/handbook_info_table.json",
+  "data/excel/checkin_table.json",
+  "data/excel/story_review_meta_table.json",
+  "data/excel/gacha_table.json",
+  "data/excel/roguelike_topic_table.json",
+  "data/excel/uniequip_table.json",
+  "data/excel/favor_table.json",
+  "data/excel/story_review_table.json",
+  "data/excel/medal_table.json",
+  "data/excel/char_meta_table.json",
+  "data/excel/skin_table.json",
+  "data/excel/open_server_table.json",
+  "data/excel/retro_table.json",
+  "data/excel/activity_table.json",
+  "data/excel/campaign_table.json",
+  "data/excel/chapter_table.json",
+  "data/excel/char_master_table.json",
+  "data/excel/char_patch_table.json",
+  "data/excel/charword_table.json",
+  "data/excel/charm_table.json",
+  "data/excel/climb_tower_table.json",
+  "data/excel/crisis_table.json",
+  "data/excel/crisis_v2_table.json",
+  "data/excel/display_meta_table.json",
+  "data/excel/enemy_database.json",
+  "data/excel/enemy_handbook_table.json",
+  "data/excel/ep_breakbuff_table.json",
+  "data/excel/extra_battlelog_table.json",
+  "data/excel/handbook_team_table.json",
+  "data/excel/hotupdate_meta_table.json",
+  "data/excel/meta_ui_table.json",
+  "data/excel/player_avatar_table.json",
+  "data/excel/range_table.json",
+  "data/excel/replicate_table.json",
+  "data/excel/roguelike_table.json",
+  "data/excel/sandbox_table.json",
+  "data/excel/sandbox_perm_table.json",
+  "data/excel/shop_client_table.json",
+  "data/excel/skill_table.json",
+  "data/excel/special_operator_table.json",
+  "data/excel/story_table.json",
+  "data/excel/uniequip_data.json",
+  "data/excel/zone_table.json",
+  "data/rlv2.json",
+  "data/gacha_detail_table.json",
+  // 商店数据（ShopData.init() 加载）
+  "data/shop/LowGoodList.json",
+  "data/shop/SkinGoodList.json",
+  "data/shop/CashGoodList.json",
+  "data/shop/HighGoodList.json",
+  "data/shop/REPGoodList.json",
+  "data/shop/LMTGSGoodList.json",
+  "data/shop/EPGSGoodList.json",
+  "data/shop/ClassicGoodList.json",
+  "data/shop/ExtraGoodList.json",
+  "data/shop/GPGoodList.json",
+  "data/shop/FurniGoodList.json",
+];
+
 function log(message: string): void {
   console.log(`[update-data] ${message}`);
 }
 
 function logError(message: string): void {
   console.error(`[update-data][ERROR] ${message}`);
+}
+
+/**
+ * 校验本地数据文件完整性（纯文件系统操作，不进行任何网络访问）。
+ *
+ * @param baseDir - 项目根目录，默认取当前工作目录
+ * @returns 缺失文件的相对路径列表，空数组表示数据完整
+ */
+export function verifyLocalData(baseDir: string = process.cwd()): string[] {
+  const missing = REQUIRED_DATA_FILES.filter(
+    (file) => !fs.existsSync(path.join(baseDir, file)),
+  );
+  return missing;
 }
 
 function executeCommand(command: string, cwd: string): boolean {
@@ -191,7 +281,38 @@ function mergeGachaFiles(): boolean {
   }
 }
 
-export async function main(skipUpdate: boolean = false): Promise<number> {
+/**
+ * 数据更新入口
+ *
+ * 三种模式：
+ * - 默认（在线更新）：拉取远端仓库并同步数据
+ * - `skipUpdate=true`：跳过仓库拉取，仅执行本地复制/生成/合并
+ * - `offline=true`（完全离线）：不进行任何网络操作，仅校验本地数据完整性
+ *
+ * @param skipUpdate - 是否跳过仓库更新
+ * @param offline - 是否完全离线模式（优先级最高）
+ * @returns 0 表示成功，1 表示失败
+ */
+export async function main(skipUpdate: boolean = false, offline: boolean = false): Promise<number> {
+  if (offline) {
+    log("===== 完全离线模式 =====");
+    log("跳过仓库更新 / 数据复制 / 类型生成 / gacha 合并，不进行任何网络操作");
+
+    const missing = verifyLocalData();
+    if (missing.length > 0) {
+      logError(`本地数据不完整，缺少 ${missing.length} 个文件，无法离线启动：`);
+      for (const file of missing) {
+        logError(`  缺少: ${file}`);
+      }
+      logError("请先在有网络的环境执行 `npm run update` 完成数据初始化，");
+      logError("或去掉 --offline 参数以在线模式启动（会自动回退到本地缓存）。");
+      return 1;
+    }
+
+    log(`本地数据完整性校验通过（${REQUIRED_DATA_FILES.length} 个文件就绪）`);
+    return 0;
+  }
+
   log("===== 开始更新数据 =====");
   
   if (!skipUpdate) {
@@ -230,8 +351,9 @@ export async function main(skipUpdate: boolean = false): Promise<number> {
 if (require.main === module) {
   const args = process.argv.slice(2);
   const skipUpdate = args.includes("--skip-update") || args.includes("-s");
+  const offline = args.includes("--offline") || args.includes("-o");
 
-  main(skipUpdate).then((code) => {
+  main(skipUpdate, offline).then((code) => {
     process.exit(code);
   });
 }

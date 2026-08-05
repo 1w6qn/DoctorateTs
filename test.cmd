@@ -1,0 +1,1 @@
+mitmweb -m local:Arknights.exe --no-rawtcp -M "|^https?://.*\.hypergryph\.com(.*)|http://127.0.0.1:8443\1"

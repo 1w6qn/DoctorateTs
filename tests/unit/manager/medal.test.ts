@@ -93,7 +93,7 @@ describe("MedalManager", () => {
           "medal_test_001": {
             id: "medal_test_001",
             val: [[50, 100]],
-            rts: 0,
+            rts: -1,
             fts: 0,
             reward: "",
           },
@@ -226,7 +226,7 @@ describe("MedalManager", () => {
         {
           id: "medal_test_001",
           val: [[50, 100]],
-          rts: 0,
+          rts: -1,
           fts: 0,
           reward: "",
         } as any,
@@ -262,6 +262,8 @@ describe("MedalManager", () => {
         },
       ];
 
+      // 该勋章未领取（rts=-1）才允许发放奖励
+      mockPlayer._playerdata.medal!.medals["medal_test_002"].rts = -1;
       const emitSpy = vi.spyOn(mockTrigger, "emit");
       const result = manager.rewardMedal({
         medalId: "medal_test_002",
@@ -487,5 +489,96 @@ describe("MedalManager", () => {
       expect(json.id).toBe("medal_json");
       expect(json.val).toEqual([[75, 100]]);
     });
+});
+
+describe("Medal 核心修复", () => {
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+  let mockExcelRef: any;
+
+  beforeEach(async () => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockExcelRef = (vi.mocked(await import("@excel/excel")).default as any);
+    mockExcelRef.MedalTable.medalList = [
+      {
+        medalId: "medal_lv_1",
+        template: "PlayerLevel",
+        unlockParam: ["50"],
+        medalRewardGroup: [
+          { groupId: "g1", itemList: [{ id: "furn_1", count: 1, type: "FURN" }] },
+        ],
+      },
+      {
+        medalId: "medal_lv_2",
+        template: "PlayerLevel",
+        unlockParam: ["100"],
+        medalRewardGroup: [],
+      },
+    ];
   });
+
+  it("fts 非 0 但进度未满的勋章应注册进度监听", () => {
+    const onSpy = vi.spyOn(mockTrigger, "on");
+    new MedalProgress(
+      { id: "medal_lv_1", val: [[30, 50]], fts: 1000, rts: -1, reward: "" } as any,
+      mockTrigger as any,
+    );
+    expect(onSpy).toHaveBeenCalledWith("PlayerLevel", expect.any(Function));
+  });
+
+  it("进度已满的勋章不应注册监听", () => {
+    const onSpy = vi.spyOn(mockTrigger, "on");
+    new MedalProgress(
+      { id: "medal_lv_1", val: [[50, 50]], fts: 1000, rts: -1, reward: "" } as any,
+      mockTrigger as any,
+    );
+    expect(onSpy).not.toHaveBeenCalled();
+  });
+
+  it("rewardMedal 已领取（rts != -1）不应重复发放", async () => {
+    const pd: any = mockPlayerData({
+      medal: {
+        medals: {
+          medal_lv_1: {
+            id: "medal_lv_1",
+            val: [[50, 50]],
+            rts: 1234567890,
+            fts: 1000,
+            reward: "",
+          },
+        },
+        custom: { currentIndex: "0", customs: {} },
+      },
+    });
+    pd._trigger = mockTrigger;
+    const manager = new MedalManager(pd._playerdata as any, mockTrigger as any);
+    await manager.init();
+    const emitSpy = vi.spyOn(mockTrigger, "emit");
+    const items = await manager.rewardMedal({ medalId: "medal_lv_1", group: "g1" });
+    expect(items).toEqual([]);
+    expect(emitSpy).not.toHaveBeenCalledWith("items:get", expect.any(Array));
+  });
+
+  it("rewardMedal 领取后 rts 应持久化到 playerdata", async () => {
+    const pd: any = mockPlayerData({
+      medal: {
+        medals: {
+          medal_lv_1: {
+            id: "medal_lv_1",
+            val: [[50, 50]],
+            rts: -1,
+            fts: 1000,
+            reward: "",
+          },
+        },
+        custom: { currentIndex: "0", customs: {} },
+      },
+    });
+    pd._trigger = mockTrigger;
+    const manager = new MedalManager(pd._playerdata as any, mockTrigger as any);
+    await manager.init();
+    await manager.rewardMedal({ medalId: "medal_lv_1", group: "g1" });
+    expect(pd._playerdata.medal.medals["medal_lv_1"].rts).not.toBe(-1);
+  });
+});
 });

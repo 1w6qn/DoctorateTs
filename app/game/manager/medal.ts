@@ -77,6 +77,12 @@ export class MedalManager implements PlayerMedal {
    * 勋章奖励通常包括：家具、头像框、名片装饰等
    */
   rewardMedal(args: { medalId: string; group: string }) {
+    // 已领取（rts != -1）不重复发放
+    const current =
+      this.medals[args.medalId] ?? this._playerdata.medal.medals[args.medalId];
+    if (current && current.rts !== undefined && current.rts !== -1) {
+      return [];
+    }
     const medalInfo = excel.MedalTable.medalList.find(
       (m) => m.medalId == args.medalId,
     )!;
@@ -84,10 +90,15 @@ export class MedalManager implements PlayerMedal {
     const items: ItemBundle[] = medalRewardGroup.find(
       (m) => m.groupId == args.group,
     )!.itemList;
+    const rts = now();
     if (this.medals[args.medalId]) {
-      this.medals[args.medalId].rts = now();
+      this.medals[args.medalId].rts = rts;
+      // 同步写回持久态（MedalProgress 构造持有引用，rts 为标量需显式同步）
+      if (this._playerdata.medal.medals[args.medalId]) {
+        this._playerdata.medal.medals[args.medalId].rts = rts;
+      }
     } else if (this._playerdata.medal.medals[args.medalId]) {
-      this._playerdata.medal.medals[args.medalId].rts = now();
+      this._playerdata.medal.medals[args.medalId].rts = rts;
     }
     this._trigger.emit("items:get", [items]);
     return items;
@@ -164,7 +175,9 @@ export class MedalProgress implements PlayerPerMedal {
     this.reward = item.reward || "";
     this._v = item.val[0][0] || 0;
     this._trigger = _trigger;
-    if (!this.fts) {
+    // 未完成（fts 未设或进度未满）的勋章注册进度监听，使既有存档也能继续追踪
+    const target = item.val?.[0]?.[1];
+    if (!this.fts || (target && this._v < target)) {
       this.init();
     }
     this.val = item.val;

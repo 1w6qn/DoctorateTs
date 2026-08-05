@@ -60,10 +60,11 @@ export function convertOfficialData(
     delete data[field];
   }
 
-  // 3. 私服特有字段兜底（官方已有则优先保留）
-  for (const field of PRIVATE_ONLY_FIELDS) {
-    if (data[field] === undefined && opts.template[field] !== undefined) {
-      data[field] = deepClone(opts.template[field]);
+  // 3. 模板字段兜底（官方数据缺失的字段全部从模板复制，保证私服可加载）
+  //    官方已有字段优先保留；status 特殊（uid 已替换，官方必有）
+  for (const [field, value] of Object.entries(opts.template)) {
+    if (data[field] === undefined && field !== "status") {
+      data[field] = deepClone(value);
     }
   }
 

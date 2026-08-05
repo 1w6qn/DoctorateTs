@@ -34,7 +34,8 @@
     "ts": "ts-node test.ts",
     "admin": "ts-node scripts/admin-cli.ts",
     "update": "ts-node scripts/update-data.ts",
-    "update:skip": "ts-node scripts/update-data.ts --skip-update"
+    "update:skip": "ts-node scripts/update-data.ts --skip-update",
+    "migrate:official": "ts-node scripts/migrate-official.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.10.0",

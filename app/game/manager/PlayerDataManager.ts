@@ -22,6 +22,7 @@ import { GachaController } from "../controller/gacha";
 import { accountManager, BattleInfo } from "./AccountManger";
 import { SocialManager } from "./social";
 import { DexNavManager } from "./dexnav";
+import { MedalManager } from "./medal";
 import { BuildingManager } from "./building";
 import { FriendDataWithNameCard, FriendMedalBoard } from "@game/model/social";
 import { OpenServerManager } from "@game/manager/activity/openServer";
@@ -72,6 +73,8 @@ export class PlayerDataManager {
   retro: RetroManager;
   /** 角色管理器 */
   char: CharManager;
+  /** 勋章管理器 */
+  medal: MedalManager;
   /** 愚人节活动管理器 */
   aprilFool: AprilFoolManager;
   /** 战斗管理器 */
@@ -114,6 +117,8 @@ export class PlayerDataManager {
     this.openServer = new OpenServerManager(this, this._trigger);
     this.retro = new RetroManager(this, this._trigger);
     this.char = new CharManager(this, this._trigger);
+    this.medal = new MedalManager(this._playerdata, this._trigger);
+    void this.medal.init();
     this.aprilFool = new AprilFoolManager(this, this._trigger);
     this._trigger.on(
       "save:battle",

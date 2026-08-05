@@ -190,6 +190,10 @@ export class MedalProgress implements PlayerPerMedal {
    * 如果勋章已完成（进度达到目标），则不注册监听器。
    */
   init() {
+    // excel 未初始化时跳过（私服健壮性：PlayerDataManager 构造早于 excel 加载的场景不崩）
+    if (!excel.MedalTable?.medalList) {
+      return;
+    }
     const medalInfo = excel.MedalTable.medalList.find(
       (m) => m.medalId == this.id,
     )!;

@@ -388,6 +388,8 @@ export interface UserConfig {
 export interface BattleInfo {
   stageId: string;
   isPractice: number;
+  /** 出战编队（用于结算信赖等后处理） */
+  squad?: { slots: ({ charInstId: number } | null)[] };
 }
 
 /** 账户管理器全局实例 */

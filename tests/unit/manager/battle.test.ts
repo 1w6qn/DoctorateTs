@@ -536,5 +536,28 @@ describe("BattleManager", () => {
 
       expect(result.unlockStages).toContain("main_01-08");
     });
+
+    it("胜利时应给出战干员增加信赖", async () => {
+      (mockPlayer._playerdata.troop!.chars as any)["1001"].favorPoint = 0;
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      const squad = { slots: [{ charInstId: 1001 }, null] };
+
+      await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad,
+      } as any);
+      await manager.finish({
+        data: "encrypted_battle_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      } as any);
+
+      expect(
+        (mockPlayer._playerdata.troop!.chars as any)["1001"].favorPoint
+      ).toBe(1);
+    });
   });
 });

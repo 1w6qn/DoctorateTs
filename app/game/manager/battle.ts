@@ -99,6 +99,7 @@ export class BattleManager {
       await accountManager.saveBattleInfo(draft.status.uid, battleId, {
         stageId,
         isPractice: usePracticeTicket,
+        squad,
       });
     });
 
@@ -391,6 +392,15 @@ export class BattleManager {
         // 胜利时累加通关次数（非练习）
         if ([2, 3].includes(battleData.completeState)) {
           draft.dungeon.stages[stageId].completeTimes += 1;
+          // 出战后干员信赖结算（参战编队干员各 +1 favorPoint）
+          if (battleInfo.squad) {
+            for (const char of battleInfo.squad.slots) {
+              if (char && draft.troop.chars[char.charInstId]) {
+                const target = draft.troop.chars[char.charInstId];
+                target.favorPoint = (target.favorPoint || 0) + 1;
+              }
+            }
+          }
         }
         [additionalRewards, unusualRewards, furnitureRewards, rewards] =
           await this.dropReward(

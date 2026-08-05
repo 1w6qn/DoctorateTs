@@ -1348,3 +1348,35 @@ OAuth2 授权
 获取生产环境配置
 
 **响应**: 返回生产环境配置 JSON
+
+---
+
+## 管理 API（/admin/*）
+
+管理后台接口，前缀 `/admin`，与游戏协议分离。
+
+**认证**：请求头 `X-Admin-Token: <token>` 或 `Authorization: Bearer <token>`
+**前置**：`data/config.json` 中 `admin.enable=true`，token 为 `admin.token` 值
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET  | `/admin/api/status` | 服务器状态（端口/离线模式/版本/用户数/数据文件） |
+| GET  | `/admin/api/users` | 用户列表（uid/昵称/等级/手机/最后在线） |
+| GET  | `/admin/api/users/:uid` | 用户详情（资源/道具摘要） |
+| POST | `/admin/api/users` | 创建用户 `{phone, password}` |
+| POST | `/admin/api/users/:uid/grant` | 发放物品 `{itemId, count}` |
+| POST | `/admin/api/mail` | 发送邮件 `{uid, subject, content, items:[{id, count}]}` |
+| GET  | `/admin/api/config` | 查看配置（只读） |
+| GET  | `/admin/dashboard` | Dashboard 管理页面（免认证，登录在页面内完成） |
+
+**示例（发放物品）**:
+```bash
+curl -X POST http://localhost:8443/admin/api/users/1/grant \
+  -H "X-Admin-Token: mytoken" -H "Content-Type: application/json" \
+  -d '{"itemId":"4001","count":100}'
+```
+
+**错误码**：
+- `401`：令牌无效或缺失
+- `403`：管理接口未启用（admin.enable=false）
+- `400`：参数非法（用户不存在、数量非正整数、手机号重复等）

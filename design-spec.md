@@ -8,6 +8,8 @@
 5. [数据模型设计规范](#5-数据模型设计规范)
 6. [设计模式和架构原则](#6-设计模式和架构原则)
 7. [工具和配置规范](#7-工具和配置规范)
+8. [启动模式与离线支持](#8-启动模式与离线支持)
+9. [管理后台设计规范](#9-管理后台设计规范)
 
 ---
 
@@ -27,6 +29,7 @@ DoctorateTs 是一个基于 Express 框架的 Node.js 服务器应用，用于�
 - 使用 Immer 进行状态管理，支持增量更新和撤销操作
 - 所有游戏配置数据存储在 JSON 文件中，运行时加载为只读数据表
 - 支持自动更新游戏数据和生成类型定义文件
+- 支持完全离线启动模式（`--offline`），零网络操作，启动前校验本地数据完整性
 
 ---
 
@@ -550,6 +553,8 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
 - `npm run build`: 编译 TypeScript
 - `npm run update`: 更新游戏数据并生成类型
 - `npm run test`: 运行测试
+- `npm run update -- --offline`: 以完全离线模式校验本地数据完整性（不联网）
+- 启动参数：`--offline` / `-o`（完全离线模式）、`--skip-update` / `-s`（跳过更新）
 
 ### 7.4 代码注释规范
 - 使用 JSDoc 格式注释
@@ -566,6 +571,92 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
 get socialInfo(): FriendDataWithNameCard {
   // ...
 }
+```
+
+---
+
+## 8. 启动模式与离线支持
+
+### 8.1 启动模式总览
+
+| 模式 | 触发方式 | 网络行为 | 适用场景 |
+|------|----------|----------|----------|
+| 在线更新（默认） | 直接启动 / `npm start` | git pull/clone 拉取 OpenArknightsFBS、ArknightsGameData，随后复制数据、生成类型、合并 gacha；失败自动回退本地缓存 | 首次部署、需要更新游戏数据 |
+| 跳过更新 | `--skip-update` / `-s` | 跳过仓库拉取，仍执行本地复制、类型生成（npx）、gacha 合并 | 本地数据完整、希望快速启动 |
+| 完全离线 | `--offline` / `-o`，或 `data/config.json` 中 `"offline": true` | **零网络操作**：不执行 git、不调用 npx、不复制、不合并 | 无网络 / 内网 / 演示环境 |
+
+### 8.2 完全离线模式设计原则
+
+1. **零网络访问**：不执行任何 git 命令（`clone`/`pull`），不通过 npx 启动子进程，从根源上杜绝网络请求和长时间超时等待。
+2. **启动前校验**：在加载数据表之前，对本地必需数据文件清单（`REQUIRED_DATA_FILES`，共 66 个文件）做完整性检查。
+3. **快速失败**：数据缺失时立即退出（exit code 1），列出缺失文件清单并给出解决指引，绝不带病启动。
+
+### 8.3 校验范围
+
+| 分类 | 路径 | 数量 |
+|------|------|------|
+| 应用配置 | `data/config.json`、`data/appConfig.json` | 2 |
+| 用户数据 | `data/user/users.json` | 1 |
+| Excel 数据表 | `data/excel/*.json` | 50 |
+| 肉鸽/卡池 | `data/rlv2.json`、`data/gacha_detail_table.json` | 2 |
+| 商店数据 | `data/shop/*.json` | 11 |
+
+校验实现位于 `scripts/update-data.ts` 的 `verifyLocalData(baseDir)`：基于 `REQUIRED_DATA_FILES` 清单过滤出不存在的文件，返回缺失列表；入口 `index.ts` 在离线模式下先执行该校验，返回非 0 则终止启动。
+
+### 8.4 启动流程
+
+```
+启动 index.ts → 解析命令行参数
+  │
+  ├─ offline=true（--offline / -o / config.offline）
+  │     └─ verifyLocalData()
+  │           ├─ 数据缺失 → 打印缺失清单 + 解决指引 → exit(1)
+  │           └─ 数据完整 → excel.init() → 监听端口 → 启动完成
+  │
+  ├─ skipUpdate=true（--skip-update / -s）
+  │     └─ 跳过更新 → excel.init() → 监听端口
+  │
+  └─ 默认（在线更新）
+        └─ git 拉取 + 复制数据 + 生成类型 + 合并 gacha
+              └─ 成功 → excel.init() → 监听端口
+              └─ 失败 → 回退本地缓存 → excel.init() → 监听端口
+```
+
+---
+
+## 9. 管理后台设计规范
+
+### 9.1 功能定位
+管理后台面向服主，提供 CLI（`npm run admin`）与 Web Dashboard（`/admin/dashboard`）两套入口，
+覆盖用户管理（列表/详情/创建）、物品发放、邮件发送、服务器状态查看与基础配置修改。
+
+### 9.2 架构
+- 管理服务层 `app/admin/AdminService.ts`：纯逻辑层，CLI 与 HTTP 共用，复用 `AccountManager` / `mailManager` / `InventoryManager`。
+- CLI `scripts/admin-cli.ts`：直接操作本地数据，无需启动服务器，完全离线可用。
+- HTTP 管理 API `app/admin/admin-router.ts`：前缀 `/admin/api`，Bearer Token 认证（`admin-auth.ts`）。
+- Dashboard `app/admin/dashboard/index.html`：单文件静态页（内联 CSS/JS，零构建依赖），页面免认证、API 需令牌。
+
+### 9.3 配置
+`data/config.json` 新增 `admin` 段：
+- `enable`：是否开启 HTTP 管理接口（默认 `false`，安全默认）
+- `token`：管理 API Bearer Token（服主自行修改）
+
+### 9.4 安全
+- 管理接口默认关闭；开启必须设置强 token。
+- 所有管理操作（发放物品/发邮件/建号）校验用户存在性与参数合法性（数量为正整数、手机号唯一）。
+- 建议仅在内网/本机暴露管理接口；Dashboard 页面免认证，但所有 API 请求必须携带令牌。
+
+### 9.5 数据一致性
+- 写操作统一走 `PlayerDataManager.update`（Immer 补丁）+ `accountManager.savePlayerData` / `saveUserConfig` 落盘。
+- 创建用户采用模板复制（以 uid=1 数据库为模板）保证 `PlayerDataModel` 字段完整，写入文件后由 `reloadUser` 热加载进内存。
+- `mailManager.sendMail` 为系统邮件唯一入口，`mailId` 全局自增（`nextMailId`，最小 1000000）。
+
+### 9.6 CLI 命令一览
+```
+users list | users info <uid> | users create <phone> [password] | users grant <uid> <itemId> <count>
+mail send <uid> <subject> [content] [--items id:count,...]
+server status
+config show | config set <key> <value>
 ```
 
 ---
@@ -600,3 +691,5 @@ get socialInfo(): FriendDataWithNameCard {
 6. 加载 Excel 数据表
 7. 启动服务器
 ```
+
+> 完全离线模式（`--offline`）跳过步骤 2-5，仅校验本地数据完整性（`verifyLocalData`）后直接进入步骤 6；数据缺失时退出并提示先联网执行 `npm run update`。

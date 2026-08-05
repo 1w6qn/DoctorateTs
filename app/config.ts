@@ -16,6 +16,8 @@ interface UserConfig {
   Host: string;
   /** 服务器端口 */
   PORT: number;
+  /** 是否完全离线模式启动（不进行任何网络操作，使用本地缓存数据） */
+  offline?: boolean;
   /** 版本信息 */
   version: {
     /** 资源版本 */
@@ -34,6 +36,13 @@ interface UserConfig {
   };
   /** 网络配置 */
   NetworkConfig: object;
+  /** 管理后台配置 */
+  admin?: {
+    /** 是否开启 /admin HTTP 管理接口 */
+    enable: boolean;
+    /** 管理 API Bearer Token */
+    token: string;
+  };
 }
 
 /** 应用配置实例 */

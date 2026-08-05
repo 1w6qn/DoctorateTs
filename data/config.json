@@ -1,6 +1,7 @@
 {
   "Host": "http://192.168.0.100",
   "PORT": 8443,
+  "offline": false,
   "functions": {
     "enableSingleton": false
   },
@@ -36,5 +37,9 @@
         }
       }
     }
+  },
+  "admin": {
+    "enable": false,
+    "token": "doctorate-admin"
   }
 }

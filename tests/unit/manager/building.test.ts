@@ -20,6 +20,7 @@ vi.mock("@excel/types_auto_gen", () => ({}));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import { BuildingManager } from "@game/manager/building";
+import { accountManager } from "@game/manager/AccountManger";
 
 /**
  * BuildingManager 单元测试
@@ -647,5 +648,138 @@ describe("BuildingManager 加工分解与专精", () => {
     expect(skill.specializeLevel).toBe(1);
     expect(skill.state).toBe(0);
     expect(skill.completeUpgradeTime).toBe(-1);
+  });
+});
+
+describe("BuildingManager 线索系统", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({
+      building: {
+        status: { labor: { buffSpeed: 0, processPoint: 0, value: 0, lastUpdateTime: 0, maxValue: 100 }, workshop: { bonusActive: 0, bonus: {} } },
+        chars: {},
+        roomSlots: {},
+        rooms: {
+          CONTROL: {}, ELEVATOR: {}, POWER: {}, MANUFACTURE: {}, TRADING: {},
+          CORRIDOR: {}, WORKSHOP: {}, DORMITORY: {}, MEETING: {
+            room_001: {
+              ownStock: [],
+              receiveStock: [],
+              board: {},
+              dailyReward: null,
+              socialReward: { daily: 0, search: 0 },
+              mustgetClue: [],
+            } as any,
+          }, HIRE: {},
+          TRAINING: {}, PRIVATE: {},
+        },
+        furniture: {},
+        diyPresetSolutions: {},
+        assist: [-1, -1, -1],
+        solution: { furnitureTs: {} },
+        music: { selected: "bgm_default" },
+      } as any,
+      status: { uid: "1", nickName: "A", nickNumber: "1" } as any,
+      event: { building: 0 },
+    });
+    mockPlayer._trigger = mockTrigger;
+    mockPlayer.update = vi
+      .fn()
+      .mockImplementation(
+        async (recipe: (draft: any) => Promise<any> | any) => {
+          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+          const result = await recipe(draft);
+          Object.assign(mockPlayer._playerdata, draft);
+          return result;
+        }
+      );
+    // getClueFriendList 依赖 accountManager
+    vi.spyOn(accountManager, "getSocial").mockResolvedValue({ friends: [], friendRequests: [], visited: [] } as any);
+    vi.spyOn(accountManager, "getPlayerFriendInfo").mockResolvedValue({ uid: "2", nickName: "B", nickNumber: "1", level: 1 } as any);
+  });
+
+  it("getDailyClue 应获得一条每日线索", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.getDailyClue({} as any);
+    const room = mockPlayer._playerdata.building!.rooms.MEETING.room_001;
+    expect(room.ownStock).toHaveLength(1);
+    expect(room.dailyReward).not.toBeNull();
+  });
+
+  it("getDailyClue 重复调用不应重复发线索", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.getDailyClue({} as any);
+    await manager.getDailyClue({} as any);
+    expect(mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock).toHaveLength(1);
+  });
+
+  it("sendClue 应将线索从 ownStock 移到 receiveStock", async () => {
+    mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock = [
+      { id: "clue_001", type: "clue_1", number: 1, uid: "1", name: "A", nickNum: "1", chars: [], inUse: 0 },
+    ] as any;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.sendClue({ id: "clue_001", friendId: "2" } as any);
+    const room = mockPlayer._playerdata.building!.rooms.MEETING.room_001;
+    expect(room.ownStock).toHaveLength(0);
+    expect(room.receiveStock).toHaveLength(1);
+  });
+
+  it("receiveClueToStock 应将接收的线索转入库存", async () => {
+    mockPlayer._playerdata.building!.rooms.MEETING.room_001.receiveStock = [
+      { id: "clue_001", type: "clue_1", number: 1, uid: "2", name: "B", nickNum: "1", chars: [], inUse: 0 },
+    ] as any;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.receiveClueToStock({ id: "clue_001" } as any);
+    const room = mockPlayer._playerdata.building!.rooms.MEETING.room_001;
+    expect(room.receiveStock).toHaveLength(0);
+    expect(room.ownStock).toHaveLength(1);
+  });
+
+  it("putClueToTheBoard 应放置线索到留言板", async () => {
+    mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock = [
+      { id: "clue_001", type: "clue_1", number: 1, uid: "1", name: "A", nickNum: "1", chars: [], inUse: 0 },
+    ] as any;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.putClueToTheBoard({ id: "clue_001" } as any);
+    const room = mockPlayer._playerdata.building!.rooms.MEETING.room_001;
+    expect(room.ownStock).toHaveLength(0);
+    expect(Object.keys(room.board)).toContain("clue_001");
+  });
+
+  it("deleteOwnClue 应删除自己持有的线索", async () => {
+    mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock = [
+      { id: "clue_001", type: "clue_1", number: 1, uid: "1", name: "A", nickNum: "1", chars: [], inUse: 0 },
+    ] as any;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.deleteOwnClue({ id: "clue_001" } as any);
+    expect(mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock).toHaveLength(0);
+  });
+
+  it("getClueBox 应返回 ownStock 与 receiveStock 合并盒", async () => {
+    mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock = [
+      { id: "clue_001", type: "clue_1", number: 1, uid: "1", name: "A", nickNum: "1", chars: [], inUse: 0 },
+    ] as any;
+    mockPlayer._playerdata.building!.rooms.MEETING.room_001.receiveStock = [
+      { id: "clue_002", type: "clue_2", number: 1, uid: "2", name: "B", nickNum: "1", chars: [], inUse: 0 },
+    ] as any;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const box = await manager.getClueBox();
+    expect(box.box).toHaveLength(2);
+  });
+
+  it("getClueFriendList 应返回好友列表", async () => {
+    vi.spyOn(accountManager, "getSocial").mockResolvedValue({
+      friends: [{ uid: "2", alias: "" }],
+      friendRequests: [],
+      visited: [],
+    } as any);
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const result = await manager.getClueFriendList();
+    expect(result.result).toHaveLength(1);
+    expect(result.result[0].uid).toBe("2");
   });
 });

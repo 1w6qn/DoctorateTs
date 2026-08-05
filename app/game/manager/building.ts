@@ -4,6 +4,8 @@ import { PlayerDataManager } from "./PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 import { WritableDraft } from "immer";
 import { PlayerDataModel } from "@game/model/playerdata";
+import { PlayerBuildingMeetingClue } from "@game/model/playerdata";
+import { accountManager } from "./AccountManger";
 
 /**
  * 基建管理器类
@@ -786,105 +788,183 @@ export class BuildingManager {
 
   // ==================== 线索系统 ====================
 
+  /** 获取首个会客室房间 */
+  private _meetingRoom() {
+    const rooms = this._player._playerdata.building.rooms.MEETING;
+    return Object.values(rooms)[0];
+  }
+
   /**
    * 获取每日线索
-   * 简化实现：参考 Python 实现返回 202，预留接口
+   * 每日一条免费线索（dailyReward 已领则不重复发放）
    * @param args - 请求体参数
    */
   async getDailyClue(args: any) {
-    return args;
+    return await this._player.update(async (draft) => {
+      const room = Object.values(draft.building.rooms.MEETING)[0];
+      if (!room || room.dailyReward) return;
+      const status = draft.status;
+      const clue: PlayerBuildingMeetingClue = {
+        id: this._nextClueId(),
+        type: `clue_${1 + Math.floor(Math.random() * 7)}`,
+        number: 1 + Math.floor(Math.random() * 3),
+        uid: String(status.uid),
+        name: status.nickName,
+        nickNum: String(status.nickNumber),
+        chars: [],
+        inUse: 0,
+      };
+      room.ownStock.push(clue);
+      room.dailyReward = clue;
+    });
   }
 
   /**
-   * 发送线索
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
+   * 发送线索（ownStock → receiveStock，私服简化在同一玩家库存间流转）
+   * @param args - 包含 id 和 friendId 的参数对象
    */
-  async sendClue(args: any) {
-    return args;
+  async sendClue(args: { id: string; friendId: string }) {
+    const { id, friendId } = args;
+    return await this._player.update(async (draft) => {
+      const room = Object.values(draft.building.rooms.MEETING)[0];
+      if (!room) return;
+      const idx = room.ownStock.findIndex((c) => c.id === id);
+      if (idx === -1) return;
+      const clue = room.ownStock.splice(idx, 1)[0];
+      clue.uid = String(friendId);
+      room.receiveStock.push(clue);
+    });
   }
 
   /**
-   * 自动发送线索
-   * 简化实现：参考 Python 实现返回 202，预留接口
+   * 自动发送线索（发送第一条可发线索）
    * @param args - 请求体参数
    */
   async sendClueAuto(args: any) {
-    return args;
+    return await this._player.update(async (draft) => {
+      const room = Object.values(draft.building.rooms.MEETING)[0];
+      if (!room || room.ownStock.length === 0) return;
+      const clue = room.ownStock.shift()!;
+      room.receiveStock.push(clue);
+    });
   }
 
   /**
-   * 接收线索到库存
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
+   * 接收线索到库存（receiveStock → ownStock）
+   * @param args - 包含 id 的参数对象
    */
-  async receiveClueToStock(args: any) {
-    return args;
+  async receiveClueToStock(args: { id: string }) {
+    const { id } = args;
+    return await this._player.update(async (draft) => {
+      const room = Object.values(draft.building.rooms.MEETING)[0];
+      if (!room) return;
+      const idx = room.receiveStock.findIndex((c) => c.id === id);
+      if (idx === -1) return;
+      const clue = room.receiveStock.splice(idx, 1)[0];
+      room.ownStock.push(clue);
+    });
   }
 
   /**
    * 放置线索到留言板
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
+   * @param args - 包含 id 的参数对象
    */
-  async putClueToTheBoard(args: any) {
-    return args;
+  async putClueToTheBoard(args: { id: string }) {
+    const { id } = args;
+    return await this._player.update(async (draft) => {
+      const room = Object.values(draft.building.rooms.MEETING)[0];
+      if (!room) return;
+      const idx = room.ownStock.findIndex((c) => c.id === id);
+      if (idx === -1) return;
+      const clue = room.ownStock.splice(idx, 1)[0];
+      room.board[id] = id;
+    });
   }
 
   /**
-   * 自动放置线索到留言板
-   * 简化实现：参考 Python 实现返回 202，预留接口
+   * 自动放置线索到留言板（放置全部可放线索）
    * @param args - 请求体参数
    */
   async putClueToTheBoardAuto(args: any) {
-    return args;
+    return await this._player.update(async (draft) => {
+      const room = Object.values(draft.building.rooms.MEETING)[0];
+      if (!room) return;
+      for (const clue of room.ownStock) {
+        room.board[clue.id] = clue.id;
+      }
+      room.ownStock = [];
+    });
   }
 
   /**
    * 删除自己持有的线索
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
+   * @param args - 包含 id 的参数对象
    */
-  async deleteOwnClue(args: any) {
-    return args;
+  async deleteOwnClue(args: { id: string }) {
+    const { id } = args;
+    return await this._player.update(async (draft) => {
+      const room = Object.values(draft.building.rooms.MEETING)[0];
+      if (!room) return;
+      room.ownStock = room.ownStock.filter((c) => c.id !== id);
+    });
   }
 
   /**
    * 删除接收到的线索
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
+   * @param args - 包含 id 的参数对象
    */
-  async deleteReceiveClue(args: any) {
-    return args;
+  async deleteReceiveClue(args: { id: string }) {
+    const { id } = args;
+    return await this._player.update(async (draft) => {
+      const room = Object.values(draft.building.rooms.MEETING)[0];
+      if (!room) return;
+      room.receiveStock = room.receiveStock.filter((c) => c.id !== id);
+    });
   }
 
   /**
-   * 获取线索盒
-   * 参考实现：返回空盒子列表
+   * 获取线索盒（ownStock + receiveStock）
    * @returns 包含 box 字段的对象
    */
   async getClueBox() {
-    return { box: [] };
+    const room = this._meetingRoom();
+    return {
+      box: [...(room?.ownStock ?? []), ...(room?.receiveStock ?? [])],
+    };
   }
 
   /**
-   * 获取线索好友列表
-   * 参考实现：返回空好友列表
+   * 获取线索好友列表（基于好友关系数据）
    * @returns 包含 result 字段的对象
    */
   async getClueFriendList() {
-    return { result: [] };
+    const uid = String(this._player._playerdata.status.uid);
+    const social = await accountManager.getSocial(uid);
+    const result = await Promise.all(
+      social.friends.map(async (f) => {
+        const info = await accountManager.getPlayerFriendInfo(f.uid);
+        return {
+          uid: f.uid,
+          nickName: info.nickName,
+          nickNumber: info.nickNumber,
+          level: info.level,
+        };
+      }),
+    );
+    return { result };
   }
 
   /**
-   * 获取会议室奖励
-   * 参考实现：返回空奖励列表
+   * 获取会议室奖励（信用点）
    * @returns 包含 rewards 的对象
    */
   async getMeetingroomReward() {
-    return {
-      rewards: [],
-    };
+    const room = this._meetingRoom();
+    const rewards: any[] = [];
+    if (room?.socialReward?.daily) {
+      rewards.push({ type: "credit", count: room.socialReward.daily });
+    }
+    return { rewards };
   }
 
   // ==================== 预设队列 ====================

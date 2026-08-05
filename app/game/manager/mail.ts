@@ -110,7 +110,19 @@ export class MailManager {
     await this.saveDatabase();
   }
 
-  async sendMail() {}
+  /**
+   * 发送系统邮件
+   * @param uid - 接收者用户ID
+   * @param args - 邮件内容参数（标题、正文、附件）
+   * @returns 创建的邮件对象
+   */
+  async sendMail(uid: string, args: SendMailArgs): Promise<MailItem> {
+    const userMails = (this.database.user[uid] ??= []);
+    const mail = buildMailItem(uid, args, nextMailId(this.database));
+    userMails.push(mail);
+    await this.saveDatabase();
+    return mail;
+  }
 
   async saveDatabase() {
     await writeFile(
@@ -121,6 +133,55 @@ export class MailManager {
 }
 export interface MailDB {
   user: { [key: string]: MailItem[] };
+}
+
+/** 邮件创建参数 */
+export interface SendMailArgs {
+  subject: string;
+  content: string;
+  items: ItemBundle[];
+  /** 过期时间戳；缺省 30 天后 */
+  expireAt?: number;
+}
+
+/** 生成全局唯一邮件ID（扫描现有最大值+1，最小 1000000） */
+export function nextMailId(database: MailDB): number {
+  let max = 0;
+  for (const uid of Object.keys(database.user)) {
+    for (const mail of database.user[uid]) {
+      if (mail.mailId > max) max = mail.mailId;
+    }
+  }
+  return Math.max(max + 1, 1000000);
+}
+
+/**
+ * 构造邮件对象（纯函数，便于单测）
+ * @param uid - 接收者用户ID
+ * @param args - 邮件内容参数
+ * @param mailId - 邮件ID（调用方保证全局唯一，通常由 nextMailId 生成）
+ */
+export function buildMailItem(
+  uid: string,
+  args: SendMailArgs,
+  mailId: number,
+): MailItem {
+  return {
+    uid,
+    mailId,
+    from: "system",
+    subject: args.subject,
+    content: args.content,
+    createAt: now(),
+    expireAt: args.expireAt ?? now() + 30 * 24 * 3600,
+    receiveAt: -1,
+    state: 0,
+    style: { route: 0, banner: "" },
+    platform: -1,
+    type: 0,
+    hasItem: args.items.length > 0 ? 1 : 0,
+    items: args.items,
+  };
 }
 
 export const mailManager = new MailManager();

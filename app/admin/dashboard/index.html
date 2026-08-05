@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DoctorateTs 管理后台</title>
+<style>
+  :root {
+    --bg: #141414; --panel: #1e1e20; --border: #333;
+    --gold: #d9a441; --text: #e8e6e3; --muted: #9a978f; --danger: #c0504d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: "Microsoft YaHei", sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 24px;
+           background: var(--panel); border-bottom: 1px solid var(--border); }
+  header h1 { font-size: 18px; letter-spacing: 2px; color: var(--gold); }
+  .status-pill { font-size: 12px; padding: 4px 10px; border-radius: 999px;
+                 background: #2a2a2c; border: 1px solid var(--border); }
+  .status-pill.online { color: #7ec699; border-color: #7ec699; }
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 24px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: normal; }
+  tr.clickable { cursor: pointer; }
+  tr.clickable:hover, tr.active { background: #26262a; }
+  button { background: #333; color: var(--text); border: 1px solid var(--border);
+           border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+  button.primary { background: var(--gold); color: #141414; border-color: var(--gold); font-weight: bold; }
+  .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.6);
+                display: none; align-items: center; justify-content: center; z-index: 50; }
+  .modal-mask.show { display: flex; }
+  .modal { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+           padding: 20px; width: 420px; max-width: 92vw; }
+  .modal h3 { margin-bottom: 14px; color: var(--gold); }
+  input, textarea { width: 100%; background: #111; color: var(--text); border: 1px solid var(--border);
+                    border-radius: 6px; padding: 8px 10px; margin: 6px 0 12px; font-size: 13px; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  #login { position: fixed; inset: 0; background: var(--bg); z-index: 99;
+           display: flex; align-items: center; justify-content: center; }
+  #login .box { width: 340px; }
+  label { font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<!-- 登录层 -->
+<div id="login">
+  <div class="card box">
+    <h1 style="color:var(--gold);margin-bottom:16px;">DoctorateTs 管理后台</h1>
+    <label>管理令牌（data/config.json 中 admin.token）</label>
+    <input id="login-token" type="password" placeholder="请输入管理令牌">
+    <button class="primary" id="login-btn" style="width:100%;">进入后台</button>
+    <p id="login-err" style="color:var(--danger);margin-top:8px;display:none;">令牌无效或管理接口未启用</p>
+  </div>
+</div>
+
+<header>
+  <h1>DOCTORATETS 管理后台</h1>
+  <span class="status-pill" id="pill-offline">离线模式</span>
+  <span class="status-pill">端口 <span id="pill-port">-</span></span>
+  <span class="status-pill">用户 <span id="pill-users">-</span></span>
+  <span style="margin-left:auto;font-size:12px;color:var(--muted);" id="pill-uptime"></span>
+  <button id="logout-btn">退出</button>
+</header>
+
+<main>
+  <!-- 左侧：用户列表 -->
+  <section class="card">
+    <div class="row" style="align-items:center;margin-bottom:10px;">
+      <h3 style="color:var(--gold);">用户列表</h3>
+      <button class="primary" id="btn-create" style="margin-left:auto;">+ 创建用户</button>
+    </div>
+    <table>
+      <thead><tr><th>UID</th><th>昵称</th><th>等级</th><th>手机</th><th>最后在线</th><th></th></tr></thead>
+      <tbody id="user-tbody"></tbody>
+    </table>
+    <p id="user-empty" style="color:var(--muted);text-align:center;padding:20px;">暂无用户</p>
+  </section>
+
+  <!-- 右侧：详情/操作 -->
+  <section class="card" id="detail-card">
+    <h3 style="color:var(--gold);" id="detail-title">用户详情</h3>
+    <div id="detail-body" style="color:var(--muted);padding:20px 0;text-align:center;">点击左侧用户查看详情</div>
+  </section>
+</main>
+
+<!-- 弹窗：发放物品 -->
+<div class="modal-mask" id="modal-grant">
+  <div class="modal">
+    <h3>发放物品 — <span id="grant-uid"></span></h3>
+    <label>物品 ID（如 4001=金币、5001=合成玉，以游戏为准）</label>
+    <input id="grant-item" placeholder="4001">
+    <label>数量</label>
+    <input id="grant-count" type="number" value="1" min="1">
+    <div class="row">
+      <button id="grant-cancel">取消</button>
+      <button class="primary" id="grant-ok">发放</button>
+    </div>
+  </div>
+</div>
+
+<!-- 弹窗：发送邮件 -->
+<div class="modal-mask" id="modal-mail">
+  <div class="modal">
+    <h3>发送邮件 — <span id="mail-uid"></span></h3>
+    <label>标题</label>
+    <input id="mail-subject" placeholder="邮件标题">
+    <label>内容</label>
+    <textarea id="mail-content" rows="3" placeholder="邮件正文"></textarea>
+    <label>附件（id:count，逗号分隔，如 4001:100,5001:10）</label>
+    <input id="mail-items" placeholder="4001:100,5001:10">
+    <div class="row">
+      <button id="mail-cancel">取消</button>
+      <button class="primary" id="mail-ok">发送</button>
+    </div>
+  </div>
+</div>
+
+<!-- 弹窗：创建用户 -->
+<div class="modal-mask" id="modal-create">
+  <div class="modal">
+    <h3>创建用户</h3>
+    <label>手机号</label>
+    <input id="create-phone" placeholder="13800000000">
+    <label>密码（留空默认同手机号）</label>
+    <input id="create-password" placeholder="123456">
+    <div class="row">
+      <button id="create-cancel">取消</button>
+      <button class="primary" id="create-ok">创建</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* DoctorateTs 管理后台交互逻辑（原生 JS，零依赖） */
+(function () {
+  "use strict";
+  var API = "/admin/api";
+  var token = localStorage.getItem("adminToken") || "";
+  var selectedUid = null;
+
+  function api(path, options) {
+    options = options || {};
+    var headers = { "X-Admin-Token": token };
+    if (options.headers) Object.assign(headers, options.headers);
+    if (options.body) headers["Content-Type"] = "application/json";
+    return fetch(API + path, Object.assign({}, options, { headers: headers }))
+      .then(function (res) {
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("认证失败");
+        }
+        return res.json().then(function (data) {
+          if (!res.ok) throw new Error(data.error || "请求失败(" + res.status + ")");
+          return data;
+        });
+      });
+  }
+
+  function fmtTs(ts) { return ts ? new Date(ts * 1000).toLocaleString() : "-"; }
+  function $(id) { return document.getElementById(id); }
+
+  function refreshStatus() {
+    return api("/status").then(function (st) {
+      $("pill-offline").textContent = st.offline ? "离线模式" : "在线模式";
+      $("pill-offline").className = "status-pill" + (st.offline ? "" : " online");
+      $("pill-port").textContent = st.port;
+      $("pill-users").textContent = st.userCount;
+      $("pill-uptime").textContent = "运行 " + Math.floor(st.uptime / 60) + " 分钟";
+    }).catch(function () {});
+  }
+
+  function refreshUsers() {
+    return api("/users").then(function (users) {
+      var tbody = $("user-tbody");
+      tbody.innerHTML = "";
+      $("user-empty").style.display = users.length ? "none" : "block";
+      users.forEach(function (u) {
+        var tr = document.createElement("tr");
+        tr.className = "clickable";
+        if (u.uid === selectedUid) tr.classList.add("active");
+        tr.innerHTML =
+          "<td>" + u.uid + "</td><td>" + escapeHtml(u.nickName) + "</td><td>" + u.level + "</td>" +
+          "<td>" + escapeHtml(u.phone || "-") + "</td><td>" + fmtTs(u.lastOnlineTs) + "</td>" +
+          "<td><button data-grant=\"" + u.uid + "\" style=\"padding:2px 8px;\">发物品</button> " +
+          "<button data-mail=\"" + u.uid + "\" style=\"padding:2px 8px;\">发邮件</button></td>";
+        tr.querySelector("[data-grant]").addEventListener("click", function (e) {
+          e.stopPropagation();
+          openGrant(u.uid);
+        });
+        tr.querySelector("[data-mail]").addEventListener("click", function (e) {
+          e.stopPropagation();
+          openMail(u.uid);
+        });
+        tr.addEventListener("click", function () { selectUser(u.uid); });
+        tbody.appendChild(tr);
+      });
+    }).catch(function () {});
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function selectUser(uid) {
+    selectedUid = uid;
+    refreshUsers();
+    api("/users/" + encodeURIComponent(uid)).then(function (info) {
+      var body = $("detail-body");
+      body.style.textAlign = "left";
+      var inv = Object.keys(info.inventory || {}).slice(0, 20)
+        .map(function (k) { return escapeHtml(k) + " x" + info.inventory[k]; })
+        .join("<br>") || "（空）";
+      body.innerHTML =
+        "<p><b>" + escapeHtml(info.nickName) + "#" + escapeHtml(info.nickNumber) + "</b> Lv." + info.level + "</p>" +
+        "<p style=\"color:var(--muted);margin-top:6px;\">UID " + info.uid + " | 注册 " + fmtTs(info.registerTs) +
+        " | 最后在线 " + fmtTs(info.lastOnlineTs) + "</p>" +
+        "<hr style=\"border-color:var(--border);margin:12px 0;\">" +
+        "<table>" +
+        "<tr><td>金币</td><td>" + info.gold + "</td><td>合成玉</td><td>" + info.androidDiamond + "</td></tr>" +
+        "<tr><td>寻访凭证</td><td>" + info.gachaTicket + "</td><td>招募许可</td><td>" + info.recruitLicense + "</td></tr>" +
+        "<tr><td>演习券</td><td>" + info.practiceTicket + "</td><td>经验</td><td>" + info.exp + "</td></tr>" +
+        "<tr><td>干员数</td><td>" + info.charCnt + "</td><td></td><td></td></tr>" +
+        "</table>" +
+        "<h4 style=\"color:var(--gold);margin:12px 0 6px;\">背包道具（前 20）</h4>" +
+        "<div style=\"font-size:12px;color:var(--muted);max-height:220px;overflow:auto;\">" + inv + "</div>";
+    }).catch(function () {});
+  }
+
+  function showModal(id) { $(id).classList.add("show"); }
+  function hideModal(id) { $(id).classList.remove("show"); }
+
+  function openGrant(uid) {
+    $("grant-uid").textContent = uid;
+    $("grant-item").value = "";
+    $("grant-count").value = "1";
+    showModal("modal-grant");
+  }
+  $("grant-ok").addEventListener("click", function () {
+    var itemId = $("grant-item").value.trim();
+    var count = Number($("grant-count").value);
+    var uid = $("grant-uid").textContent;
+    if (!itemId) { alert("请填写物品 ID"); return; }
+    api("/users/" + encodeURIComponent(uid) + "/grant", {
+      method: "POST",
+      body: JSON.stringify({ itemId: itemId, count: count }),
+    }).then(function () {
+      hideModal("modal-grant");
+      alert("发放成功：" + itemId + " x" + count);
+      selectUser(uid);
+    }).catch(function (e) { alert("发放失败：" + e.message); });
+  });
+  $("grant-cancel").addEventListener("click", function () { hideModal("modal-grant"); });
+
+  function openMail(uid) {
+    $("mail-uid").textContent = uid;
+    $("mail-subject").value = "";
+    $("mail-content").value = "";
+    $("mail-items").value = "";
+    showModal("modal-mail");
+  }
+  $("mail-ok").addEventListener("click", function () {
+    var uid = $("mail-uid").textContent;
+    var subject = $("mail-subject").value.trim();
+    var content = $("mail-content").value;
+    var items = ($("mail-items").value || "").split(",")
+      .filter(Boolean).map(function (s) {
+        var p = s.split(":");
+        return { id: p[0], count: Number(p[1] || 1) };
+      });
+    if (!subject) { alert("请填写标题"); return; }
+    api("/mail", {
+      method: "POST",
+      body: JSON.stringify({ uid: uid, subject: subject, content: content, items: items }),
+    }).then(function (r) {
+      hideModal("modal-mail");
+      alert("邮件已发送，mailId=" + r.mailId);
+    }).catch(function (e) { alert("发送失败：" + e.message); });
+  });
+  $("mail-cancel").addEventListener("click", function () { hideModal("modal-mail"); });
+
+  $("btn-create").addEventListener("click", function () {
+    $("create-phone").value = "";
+    $("create-password").value = "";
+    showModal("modal-create");
+  });
+  $("create-ok").addEventListener("click", function () {
+    var phone = $("create-phone").value.trim();
+    var password = $("create-password").value || phone;
+    if (!phone) { alert("请填写手机号"); return; }
+    api("/users", {
+      method: "POST",
+      body: JSON.stringify({ phone: phone, password: password }),
+    }).then(function (r) {
+      hideModal("modal-create");
+      alert("已创建用户 uid=" + r.uid);
+      refreshUsers();
+    }).catch(function (e) { alert("创建失败：" + e.message); });
+  });
+  $("create-cancel").addEventListener("click", function () { hideModal("modal-create"); });
+
+  function showLogin() { $("login").style.display = "flex"; }
+  function hideLogin() { $("login").style.display = "none"; }
+  if (token) hideLogin(); else showLogin();
+
+  $("login-btn").addEventListener("click", function () {
+    token = $("login-token").value.trim();
+    api("/status").then(function () {
+      localStorage.setItem("adminToken", token);
+      hideLogin();
+      refreshAll();
+    }).catch(function () {
+      $("login-err").style.display = "block";
+    });
+  });
+  $("login-token").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") $("login-btn").click();
+  });
+  $("logout-btn").addEventListener("click", function () {
+    token = "";
+    localStorage.removeItem("adminToken");
+    selectedUid = null;
+    showLogin();
+  });
+
+  function refreshAll() {
+    refreshStatus();
+    refreshUsers();
+  }
+
+  refreshAll();
+  setInterval(refreshAll, 10000);
+})();
+</script>
+</body>
+</html>

@@ -29,7 +29,8 @@ export class BattleManager {
   async start(args: CommonStartBattleRequest) {
     console.log("start battle", args);
     const { stageId, usePracticeTicket, squad } = args;
-    const battleId = "1";
+    // 唯一 battleId（时间戳 + 随机数），避免多场战斗互相覆盖 battleInfo/replay
+    const battleId = `${now()}_${Math.floor(Math.random() * 100000)}`;
     const { zoneId, apCost, dangerLevel } = excel.StageTable.stages[stageId];
     let { apFailReturn } = excel.StageTable.stages[stageId];
     let notifyPowerScoreNotEnoughIfFailed = false;

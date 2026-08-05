@@ -320,6 +320,28 @@ describe("BattleManager", () => {
         mockPlayer._playerdata.dungeon!.stages["main_01-07"]
       ).toBeDefined();
     });
+
+    it("两次 start 应生成不同的 battleId", async () => {
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      const squad = { slots: [null, null] };
+      const r1 = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad,
+      } as any);
+      const r2 = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad,
+      } as any);
+
+      expect(r1.battleId).toBeDefined();
+      expect(r1.battleId).not.toBe(r2.battleId);
+    });
   });
 
   describe("finish", () => {
@@ -545,10 +567,19 @@ describe("BattleManager", () => {
       );
       const squad = { slots: [{ charInstId: 1001 }, null] };
 
-      await manager.start({
+      const started = await manager.start({
         stageId: "main_01-07",
         usePracticeTicket: false,
         squad,
+      } as any);
+      // 让 finish 使用 start 生成的 battleId 查找 battleInfo（含 squad）
+      const crypt = await import("@utils/crypt");
+      vi.mocked(crypt.decryptBattleData).mockResolvedValue({
+        battleId: started.battleId,
+        battleData: {
+          stats: { enemyList: {}, autoReplayCancelled: false },
+        },
+        completeState: 3,
       } as any);
       await manager.finish({
         data: "encrypted_battle_data",

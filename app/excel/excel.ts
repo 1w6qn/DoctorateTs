@@ -6,6 +6,7 @@
  */
 
 import { readJson } from "@utils/file";
+import { normalizeStageDropInfo } from "./stage_table";
 import {
   ActivityTable,
   BattleEquipPack,
@@ -168,6 +169,8 @@ export class Excel {
     this.StageTable = await readJson<StageTable>(
       "./data/excel/stage_table.json",
     );
+    // 归一化掉落信息（occPercent/dropType 字符串 → 数字档位，供 dropReward 使用）
+    normalizeStageDropInfo(this.StageTable);
     this.HandbookInfoTable = await readJson<HandbookInfoTable>(
       "./data/excel/handbook_info_table.json",
     );

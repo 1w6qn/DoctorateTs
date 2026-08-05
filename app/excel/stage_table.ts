@@ -116,6 +116,48 @@ export enum OccPercent {
   Usual = "USUAL",
 }
 
+/** occPercent 字符串 → 数字档位（对应 dropReward 概率语义：0=必定, 1=75%, 2=40%, 3=15%, 4=3%） */
+export const OCC_PERCENT_NUMERIC: { [key: string]: number } = {
+  [OccPercent.Always]: 0,
+  [OccPercent.Usual]: 1,
+  [OccPercent.Often]: 2,
+  [OccPercent.Sometimes]: 3,
+  [OccPercent.Almost]: 4,
+};
+
+/** dropType 字符串 → 数字（1=首通, 2=普通, 3=特殊, 4=额外, 8=完成/条件） */
+export const DROP_TYPE_NUMERIC: { [key: string]: number } = {
+  [StageDropType.Once]: 1,
+  [StageDropType.Normal]: 2,
+  [StageDropType.Special]: 3,
+  [StageDropType.Additional]: 4,
+  [StageDropType.Complete]: 8,
+  CONDITION_DROP: 8,
+};
+
+/**
+ * 归一化掉落信息：将 displayDetailRewards 的 occPercent/dropType 从字符串映射为数字档位。
+ * 原始 excel 数据为字符串（ALWAYS/NORMAL 等），dropReward 逻辑按数字档位判断。
+ * 已在 excel 加载时调用（excel.init），幂等（数字值保持不变）。
+ * @param table - StageTable 结构（stages 字段）
+ */
+export function normalizeStageDropInfo(table: {
+  stages: { [key: string]: { stageDropInfo?: { displayDetailRewards?: any[] } | null } };
+}): void {
+  for (const stage of Object.values(table.stages)) {
+    const drops = stage?.stageDropInfo?.displayDetailRewards;
+    if (!drops) continue;
+    for (const item of drops) {
+      if (typeof item.occPercent === "string") {
+        item.occPercent = OCC_PERCENT_NUMERIC[item.occPercent] ?? 0;
+      }
+      if (typeof item.dropType === "string") {
+        item.dropType = DROP_TYPE_NUMERIC[item.dropType] ?? 2;
+      }
+    }
+  }
+}
+
 export interface SpecialBattleFinishStageData {
   stageId: string;
   skipAccomplishPerform: boolean;

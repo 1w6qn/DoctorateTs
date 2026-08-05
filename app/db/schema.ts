@@ -1,0 +1,33 @@
+/**
+ * SQLite 建表 SQL（好友系统）
+ *
+ * 表结构：
+ * - friends：好友关系（uid -> friend_uid，alias 备注）
+ * - friend_requests：好友申请（from_uid -> to_uid）
+ * - visited：访问记录（uid -> visited_uid）
+ */
+export const SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS friends (
+  uid        TEXT NOT NULL,
+  friend_uid TEXT NOT NULL,
+  alias      TEXT NOT NULL DEFAULT '',
+  create_ts  INTEGER NOT NULL,
+  PRIMARY KEY (uid, friend_uid)
+);
+CREATE INDEX IF NOT EXISTS idx_friends_friend ON friends(friend_uid);
+
+CREATE TABLE IF NOT EXISTS friend_requests (
+  from_uid   TEXT NOT NULL,
+  to_uid     TEXT NOT NULL,
+  create_ts  INTEGER NOT NULL,
+  PRIMARY KEY (from_uid, to_uid)
+);
+CREATE INDEX IF NOT EXISTS idx_friend_requests_to ON friend_requests(to_uid);
+
+CREATE TABLE IF NOT EXISTS visited (
+  uid         TEXT NOT NULL,
+  visited_uid TEXT NOT NULL,
+  ts          INTEGER NOT NULL,
+  PRIMARY KEY (uid, visited_uid)
+);
+`;

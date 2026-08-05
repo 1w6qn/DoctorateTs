@@ -10,6 +10,7 @@
 7. [工具和配置规范](#7-工具和配置规范)
 8. [启动模式与离线支持](#8-启动模式与离线支持)
 9. [管理后台设计规范](#9-管理后台设计规范)
+10. [好友系统与 SQLite 数据层](#10-好友系统与sqlite数据层)
 
 ---
 
@@ -693,3 +694,33 @@ config show | config set <key> <value>
 ```
 
 > 完全离线模式（`--offline`）跳过步骤 2-5，仅校验本地数据完整性（`verifyLocalData`）后直接进入步骤 6；数据缺失时退出并提示先联网执行 `npm run update`。
+
+---
+
+## 10. 好友系统与 SQLite 数据层
+
+### 10.1 数据存储
+好友关系数据（好友列表、好友申请、访问记录）存储在 `data/user/social.db`（SQLite），
+使用 Node 24 内置 `node:sqlite`（DatabaseSync），零第三方依赖。
+`data/user/users.json` 中的 `social` 字段仅作为首次迁移来源，迁移后不再作为数据源（重置为空结构）。
+`social.db` 为运行时生成文件，已在 `.gitignore` 中忽略，不加入离线校验清单（REQUIRED_DATA_FILES）。
+
+### 10.2 表结构
+- `friends(uid, friend_uid, alias, create_ts)`：好友关系，主键 (uid, friend_uid)
+- `friend_requests(from_uid, to_uid, create_ts)`：好友申请，主键 (from_uid, to_uid)
+- `visited(uid, visited_uid, ts)`：访问记录，主键 (uid, visited_uid)
+
+### 10.3 架构
+- `app/db/database.ts`：连接单例（默认 `data/user/social.db`，测试用 `:memory:`；复用已关闭连接时自动重建）
+- `app/db/schema.ts`：建表 SQL（幂等）
+- `app/db/friend-repo.ts`：`FriendRepository` 仓储（3 表 CRUD）
+- `app/db/migrate.ts`：`migrateFromUserConfigs` 首次启动从 users.json 导入并重置 JSON 社交字段
+- `AccountManager._friendRepo`：init() 中惰性初始化（避免模块加载时创建数据库文件），社交方法（getSocial/addFriend/deleteFriend/sendFriendRequest/deleteFriendRequest/setFriendAlias/getFriendRequests）走仓储，签名不变
+
+### 10.4 业务规则
+- 双向好友：同意申请（processFriendRequest action=1）时双方互加；删除好友（deleteFriend）时双方互删
+- 请求校验（sendFriendRequest）：不能向自己发送；对方已是好友拒绝；重复申请拒绝
+- 申请接受后同步删除申请记录，并清除接收方 pushFlags.hasFriendRequest
+
+### 10.5 已知约束
+- 游戏中间件（app/game/app.ts）将所有 secret 强制映射为 uid=1（单机私服设计），多玩家交互逻辑由单测与独立进程集成脚本覆盖

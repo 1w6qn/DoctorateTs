@@ -489,7 +489,113 @@ describe("MedalManager", () => {
       expect(json.id).toBe("medal_json");
       expect(json.val).toEqual([[75, 100]]);
     });
-});
+
+    it("JoinGameDays 模板应计算注册天数", () => {
+      mockExcelRef.MedalTable.medalList = [
+        {
+          medalId: "medal_days",
+          template: "JoinGameDays",
+          unlockParam: ["30"],
+          medalRewardGroup: [],
+        },
+      ];
+      const progress = new MedalProgress(
+        { id: "medal_days", val: [[0, 30]], fts: 0, rts: -1, reward: "" } as any,
+        mockTrigger as any
+      );
+      expect(progress.val[0][1]).toBe(30);
+      progress.JoinGameDays({ registerTs: 100 }, "update");
+      expect(progress.val[0][0]).toBeGreaterThanOrEqual(0);
+    });
+
+    it("CharNum 模板应记录干员数量", () => {
+      mockExcelRef.MedalTable.medalList = [
+        {
+          medalId: "medal_chnum",
+          template: "CharNum",
+          unlockParam: ["10"],
+          medalRewardGroup: [],
+        },
+      ];
+      const progress = new MedalProgress(
+        { id: "medal_chnum", val: [[0, 10]], fts: 0, rts: -1, reward: "" } as any,
+        mockTrigger as any
+      );
+      progress.CharNum({ curCharInstId: 8 }, "update");
+      expect(progress.val[0][0]).toBe(8);
+    });
+
+    it("RecruitCount 模板应累加招募次数", () => {
+      mockExcelRef.MedalTable.medalList = [
+        {
+          medalId: "medal_recruit",
+          template: "RecruitCount",
+          unlockParam: ["5"],
+          medalRewardGroup: [],
+        },
+      ];
+      const progress = new MedalProgress(
+        { id: "medal_recruit", val: [[0, 5]], fts: 0, rts: -1, reward: "" } as any,
+        mockTrigger as any
+      );
+      progress.RecruitCount({}, "update");
+      progress.RecruitCount({}, "update");
+      expect(progress.val[0][0]).toBe(2);
+    });
+
+    it("GotChars 模板应累加获得干员数", () => {
+      mockExcelRef.MedalTable.medalList = [
+        {
+          medalId: "medal_got",
+          template: "GotChars",
+          unlockParam: ["3"],
+          medalRewardGroup: [],
+        },
+      ];
+      mockExcelRef.CharacterTable = { char_001: { rarity: 5 } };
+      const progress = new MedalProgress(
+        { id: "medal_got", val: [[0, 3]], fts: 0, rts: -1, reward: "" } as any,
+        mockTrigger as any
+      );
+      progress.GotChars({ char: { charId: "char_001" } }, "update");
+      expect(progress.val[0][0]).toBe(1);
+    });
+
+    it("CharEvolveCount 模板应累加精一数量", () => {
+      mockExcelRef.MedalTable.medalList = [
+        {
+          medalId: "medal_evolve",
+          template: "CharEvolveCount",
+          unlockParam: ["1"],
+          medalRewardGroup: [],
+        },
+      ];
+      const progress = new MedalProgress(
+        { id: "medal_evolve", val: [[0, 1]], fts: 0, rts: -1, reward: "" } as any,
+        mockTrigger as any
+      );
+      progress.CharEvolveCount({ char: { evolvePhase: 2 } }, "update");
+      expect(progress.val[0][0]).toBe(1);
+    });
+
+    it("PassTower 模板应累加通关次数", () => {
+      mockExcelRef.MedalTable.medalList = [
+        {
+          medalId: "medal_tower",
+          template: "PassTower",
+          unlockParam: ["2"],
+          medalRewardGroup: [],
+        },
+      ];
+      const progress = new MedalProgress(
+        { id: "medal_tower", val: [[0, 2]], fts: 0, rts: -1, reward: "" } as any,
+        mockTrigger as any
+      );
+      progress.PassTower({ count: 1 }, "update");
+      progress.PassTower({ count: 1 }, "update");
+      expect(progress.val[0][0]).toBe(2);
+    });
+  });
 
 describe("Medal 核心修复", () => {
   let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;

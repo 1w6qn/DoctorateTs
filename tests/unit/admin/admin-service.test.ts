@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { AdminService } from "../../../app/admin/AdminService";
 import { accountManager } from "../../../app/game/manager/AccountManger";
 import { mockPlayerData } from "../../helpers";
@@ -65,5 +65,47 @@ describe("AdminService 只读能力", () => {
     expect(st.userCount).toBe(1);
     expect(typeof st.port).toBe("number");
     expect(st.dataFiles.length).toBeGreaterThan(0);
+  });
+});
+
+describe("AdminService 发放物品", () => {
+  let service: AdminService;
+  let pd: any;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    service = new AdminService();
+    pd = mockPlayerData({
+      status: { uid: "1" as any, nickName: "阿米娅", level: 1, gold: 0 } as any,
+      troop: { curCharInstId: 2 } as any,
+    });
+    // mock 的 PlayerDataManager 没有 inventory 管理器，附加 stub 模拟 GOLD 分支
+    pd.inventory = {
+      gainItem: vi.fn().mockImplementation(async (item: any) => {
+        pd._playerdata.status.gold += item.count;
+      }),
+    };
+    (accountManager as any).data = { "1": pd };
+    (accountManager as any).configs = {
+      "1": { uid: "1", auth: { phone: "" }, social: {}, battle: {}, gacha: {}, rlv2: {} },
+    };
+    // 拦截落盘，避免写真实文件
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+  });
+
+  it("发放金币应累加到 status.gold 并落盘", async () => {
+    await service.grantItem("1", "4001", 5000);
+    expect(pd._playerdata.status.gold).toBe(5000);
+    expect(pd.inventory.gainItem).toHaveBeenCalledWith({ id: "4001", count: 5000 });
+    expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
+  });
+
+  it("对不存在用户应抛出明确错误", async () => {
+    await expect(service.grantItem("999", "4001", 1)).rejects.toThrow(/不存在/);
+  });
+
+  it("数量必须为正整数", async () => {
+    await expect(service.grantItem("1", "4001", -1)).rejects.toThrow(/数量/);
   });
 });

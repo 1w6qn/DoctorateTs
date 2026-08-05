@@ -90,6 +90,24 @@ export class AdminService {
     };
   }
 
+  /**
+   * 发放物品/资源
+   * @param uid - 目标用户ID
+   * @param itemId - 物品ID（如 4001=金币、5001=合成玉）
+   * @param count - 数量（正整数）
+   */
+  async grantItem(uid: string, itemId: string, count: number): Promise<void> {
+    if (!Number.isInteger(count) || count <= 0) {
+      throw new Error(`数量必须为正整数，收到: ${count}`);
+    }
+    const pd = accountManager.data[uid];
+    if (!pd) {
+      throw new Error(`用户不存在: ${uid}`);
+    }
+    await pd.inventory.gainItem({ id: itemId, count });
+    await this.savePlayer(uid);
+  }
+
   /** 服务器状态 */
   async status(): Promise<ServerStatus> {
     const files = [

@@ -11,6 +11,9 @@ import { readJson } from "@utils/file";
 import { writeFile } from "fs/promises";
 import { TypedEventEmitter } from "@game/model/events";
 import Emittery from "emittery";
+import { FriendRepository } from "../../db/friend-repo";
+import { openDatabase } from "../../db/database";
+import { migrateFromUserConfigs } from "../../db/migrate";
 
 export class AccountManager {
   /** 玩家数据管理器映射，key为uid */
@@ -19,6 +22,8 @@ export class AccountManager {
   configs: { [key: string]: UserConfig };
   /** 事件触发器 */
   _trigger: TypedEventEmitter;
+  /** 好友关系仓储（SQLite，init() 中初始化，避免模块加载时创建数据库文件） */
+  _friendRepo!: FriendRepository;
 
   constructor() {
     this.configs = {};
@@ -34,10 +39,15 @@ export class AccountManager {
    */
   async init() {
     console.time("[AccountManager][loaded]");
+    // 打开好友关系数据库（social.db 首次运行自动创建）
+    this._friendRepo = new FriendRepository(openDatabase());
     this.configs = await readJson(`./data/user/users.json`);
     this._trigger.on("save", async () => {
       await this.saveUserConfig();
     });
+    // 社交数据迁移：social.db 首次创建时从 users.json 导入，之后 SQLite 为唯一事实源
+    migrateFromUserConfigs(openDatabase(), this.configs);
+    await this.saveUserConfig();
     for (const uid in this.configs) {
       this.data[uid] = new PlayerDataManager(
         await readJson<PlayerDataModel>(`./data/user/databases/${uid}.json`),
@@ -188,38 +198,50 @@ export class AccountManager {
     friendRequests: string[];
     visited: string[];
   }> {
-    return this.configs[uid]!.social;
+    return {
+      friends: this._friendRepo.getFriendList(uid),
+      friendRequests: this._friendRepo.getFriendRequests(uid),
+      visited: this._friendRepo.getVisited(uid),
+    };
   }
 
   /**
-   * 删除好友
+   * 删除好友（双向删除：双方好友列表都移除对方）
    * @param uid - 用户ID
    * @param friendUid - 好友用户ID
    */
   async deleteFriend(uid: string, friendUid: string): Promise<void> {
-    const social = this.configs[uid]!.social;
-    const friend = social.friends.find((f) => f.uid == friendUid)!;
-    social.friends.splice(social.friends.indexOf(friend), 1);
+    this._friendRepo.deleteFriend(uid, friendUid);
+    this._friendRepo.deleteFriend(friendUid, uid);
     await this._trigger.emit("save", []);
   }
 
   /**
-   * 添加好友
+   * 添加好友（单向；双向关系由调用方决定，如 processFriendRequest）
    * @param uid - 用户ID
    * @param friendUid - 好友用户ID
    */
   async addFriend(uid: string, friendUid: string): Promise<void> {
-    this.configs[uid]!.social.friends.push({ uid: friendUid, alias: "" });
+    this._friendRepo.addFriend(uid, friendUid);
     await this._trigger.emit("save", []);
   }
 
   /**
-   * 发送好友请求
+   * 发送好友请求（带校验：不能给自己发、已是好友拒绝、重复申请拒绝）
    * @param from - 发送请求的用户ID
    * @param to - 接收请求的用户ID
    */
   async sendFriendRequest(from: string, to: string): Promise<void> {
-    this.configs[to]!.social.friendRequests.push(from);
+    if (from === to) {
+      throw new Error("不能向自己发送好友请求");
+    }
+    if (this._friendRepo.hasFriend(from, to)) {
+      throw new Error("对方已是你的好友");
+    }
+    if (this._friendRepo.hasFriendRequest(to, from)) {
+      throw new Error("好友请求已发送，请勿重复发送");
+    }
+    this._friendRepo.sendFriendRequest(from, to);
     const friendData = await this.getPlayerData(to);
     await friendData.update(async (draft) => {
       draft.pushFlags.hasFriendRequest = 1;
@@ -233,8 +255,7 @@ export class AccountManager {
    * @param friendId - 发起请求的用户ID
    */
   async deleteFriendRequest(uid: string, friendId: string): Promise<void> {
-    const social = this.configs[uid]!.social;
-    social.friendRequests.splice(social.friendRequests.indexOf(friendId), 1);
+    this._friendRepo.deleteFriendRequest(uid, friendId);
     await this._trigger.emit("save", []);
   }
 
@@ -249,8 +270,7 @@ export class AccountManager {
     friendId: string,
     alias: string,
   ): Promise<void> {
-    const social = this.configs[uid]!.social;
-    social.friends.find((f) => f.uid == friendId)!.alias = alias;
+    this._friendRepo.setFriendAlias(uid, friendId, alias);
     await this._trigger.emit("save", []);
   }
 
@@ -260,7 +280,7 @@ export class AccountManager {
    * @returns 好友请求用户ID列表
    */
   async getFriendRequests(uid: string): Promise<string[]> {
-    return this.configs[uid]!.social.friendRequests;
+    return this._friendRepo.getFriendRequests(uid);
   }
 
   /**

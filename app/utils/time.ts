@@ -45,5 +45,8 @@ export function checkNew(
   type: StartOf,
   delta = 14400000,
 ): boolean {
-  return !moment(ts1 - delta).isSame(moment(ts2 - delta), type);
+  // 兼容秒级（now() 返回 moment().unix()）与毫秒级时间戳：
+  // delta 语义为毫秒（默认 4 小时），统一换算为秒后比较，避免秒级时间戳被 moment 误解析
+  const deltaSec = delta / 1000;
+  return !moment(ts1 - deltaSec).isSame(moment(ts2 - deltaSec), type);
 }

@@ -4,6 +4,8 @@ import moment from "moment";
 import { AvatarInfo } from "@game/model/character";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
+import { WritableDraft } from "immer";
+import { PlayerDataModel } from "@game/model/playerdata";
 
 export class StatusManager {
   _player: PlayerDataManager;
@@ -22,31 +24,67 @@ export class StatusManager {
     return this._player._playerdata.status.uid;
   }
   async refreshTime() {
+    // 先读取跨天判断所需的时间戳，再触发刷新事件
+    // 注意：不能在 Immer recipe 内 emit（嵌套 update 会被外层 finishDraft 覆盖丢失）
+    const ts = now();
+    const lastRefreshTs = this._player._playerdata.status.lastRefreshTs;
+    if (checkNew(lastRefreshTs, ts, "day")) {
+      console.log("[EventManager] Daily refresh");
+      await this._trigger.emit("refresh:daily", [lastRefreshTs]);
+    }
+    if (moment().day() == 1 && checkNew(lastRefreshTs, ts, "week")) {
+      console.log("[EventManager] Daily refresh");
+      await this._trigger.emit("refresh:weekly", []);
+    }
+    if (moment().date() == 1 && checkNew(lastRefreshTs, ts, "month")) {
+      console.log("[EventManager] Daily refresh");
+      await this._trigger.emit("refresh:monthly", []);
+    }
     await this._player.update(async (draft) => {
-      const ts = now();
-      const { lastRefreshTs } = draft.status;
-      if (checkNew(lastRefreshTs, ts, "day")) {
-        console.log("[EventManager] Daily refresh");
-        await this._trigger.emit("refresh:daily", [lastRefreshTs]);
-      }
-      if (moment().day() == 1 && checkNew(lastRefreshTs, ts, "week")) {
-        console.log("[EventManager] Daily refresh");
-        await this._trigger.emit("refresh:weekly", []);
-      }
-      if (moment().date() == 1 && checkNew(lastRefreshTs, ts, "month")) {
-        console.log("[EventManager] Daily refresh");
-        await this._trigger.emit("refresh:monthly", []);
-      }
       draft.status.lastRefreshTs = ts;
       draft.status.lastOnlineTs = ts;
     });
   }
 
-  async dailyRefresh() {}
+  /**
+   * 每日刷新：恢复体力并重置每日购买次数
+   */
+  async dailyRefresh() {
+    await this._player.update(async (draft) => {
+      this._refreshAp(draft);
+      draft.status.buyApRemainTimes = 10;
+    });
+  }
 
-  async weeklyRefresh() {}
+  /**
+   * 每周刷新（委托 dailyRefresh：跨周必然跨日，执行体力恢复与购买次数重置）
+   */
+  async weeklyRefresh() {
+    return this.dailyRefresh();
+  }
 
-  async monthlyRefresh() {}
+  /**
+   * 每月刷新（委托 dailyRefresh：跨月必然跨日，执行体力恢复与购买次数重置）
+   */
+  async monthlyRefresh() {
+    return this.dailyRefresh();
+  }
+
+  /**
+   * 内部方法：按时间恢复体力
+   * 每 6 分钟恢复 1 点（与 inventory AP_GAMEPLAY 逻辑一致），上限 maxAp
+   * @param draft - Immer 可写草稿
+   */
+  private _refreshAp(draft: WritableDraft<PlayerDataModel>) {
+    const addAp = Math.floor((now() - draft.status.lastApAddTime) / 360);
+    if (draft.status.ap < draft.status.maxAp) {
+      draft.status.ap = Math.min(
+        draft.status.ap + Math.max(addAp, 0),
+        draft.status.maxAp,
+      );
+    }
+    draft.status.lastApAddTime = now();
+  }
 
   async changeSecretary(args: { charInstId: number; skinId: string }) {
     const { charInstId, skinId } = args;

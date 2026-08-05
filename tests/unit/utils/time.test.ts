@@ -110,4 +110,17 @@ describe('checkNew', () => {
     expect(checkNew(ts1, ts2, 'day')).toBe(true);
     expect(checkNew(ts1, ts2, 'month')).toBe(true);
   });
+
+  it('秒级时间戳（now() 返回 unix 秒）在不同天时应该返回 true', () => {
+    // 模拟生产场景：秒级时间戳 + 默认 delta（4 小时毫秒）
+    const ts1 = 1738216849; // 2025-01-30T14:00:49+08:00
+    const ts2 = 1785902603; // 2026-08-05T12:03:23+08:00
+    expect(checkNew(ts1, ts2, 'day')).toBe(true);
+  });
+
+  it('秒级时间戳在同一天时应该返回 false', () => {
+    const ts1 = 1738216849; // 2025-01-30T14:00:49+08:00
+    const ts2 = 1738234449; // 2025-01-30T18:54:09+08:00（同日）
+    expect(checkNew(ts1, ts2, 'day')).toBe(false);
+  });
 });

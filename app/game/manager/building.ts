@@ -1108,20 +1108,33 @@ export class BuildingManager {
 
   /**
    * 购买劳动力
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
+   * 消耗源石（1 源石/次），增加 labor.value（+10/次，上限 maxValue）
+   * @param args - 包含 buyCount 的参数对象
    */
-  async buyLabor(args: any) {
-    return args;
+  async buyLabor(args: { buyCount: number }) {
+    const { buyCount } = args;
+    return await this._player.update(async (draft) => {
+      const labor = draft.building.status.labor;
+      const cost = 1;
+      if (draft.status.androidDiamond < cost * buyCount) return;
+      draft.status.androidDiamond -= cost * buyCount;
+      labor.value = Math.min(labor.value + 10 * buyCount, labor.maxValue);
+    });
   }
 
   /**
    * 确认留言板奖励
-   * 简化实现：参考 Python 实现返回 202，预留接口
+   * 发放信用点（socialReward.daily + search），标记已领取
    * @param args - 请求体参数
    */
   async confirmMessageBoardReward(args: any) {
-    return args;
+    return await this._player.update(async (draft) => {
+      const room = Object.values(draft.building.rooms.MEETING)[0];
+      if (!room || room.received) return;
+      const reward = room.socialReward.daily + room.socialReward.search;
+      draft.inventory["3003"] = (draft.inventory["3003"] || 0) + reward;
+      room.received = 1;
+    });
   }
 
   /**

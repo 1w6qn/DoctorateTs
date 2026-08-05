@@ -858,3 +858,75 @@ describe("BuildingManager 预设队列", () => {
     expect((mockPlayer._playerdata.building! as any).presetQueues.slot_5.name).toBe("新名字");
   });
 });
+
+describe("BuildingManager 劳动力与留言板奖励", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({
+      building: {
+        status: {
+          labor: { buffSpeed: 0, processPoint: 0, value: 50, lastUpdateTime: 0, maxValue: 225 },
+          workshop: { bonusActive: 0, bonus: {} },
+        },
+        chars: {},
+        roomSlots: {},
+        rooms: {
+          CONTROL: {}, ELEVATOR: {}, POWER: {}, MANUFACTURE: {}, TRADING: {},
+          CORRIDOR: {}, WORKSHOP: {}, DORMITORY: {}, MEETING: {
+            room_001: {
+              board: { clue_001: "clue_001" },
+              socialReward: { daily: 10, search: 5 },
+              received: 0,
+            } as any,
+          }, HIRE: {},
+          TRAINING: {}, PRIVATE: {},
+        },
+        furniture: {},
+        diyPresetSolutions: {},
+        assist: [-1, -1, -1],
+        solution: { furnitureTs: {} },
+        music: { selected: "bgm_default" },
+      } as any,
+      status: { gold: 1000, androidDiamond: 100 } as any,
+      inventory: {} as any,
+      event: { building: 0 },
+    });
+    mockPlayer._trigger = mockTrigger;
+    mockPlayer.update = vi
+      .fn()
+      .mockImplementation(
+        async (recipe: (draft: any) => Promise<any> | any) => {
+          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+          const result = await recipe(draft);
+          Object.assign(mockPlayer._playerdata, draft);
+          return result;
+        }
+      );
+  });
+
+  it("buyLabor 应消耗源石并增加劳动力", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.buyLabor({ buyCount: 1 } as any);
+    expect(mockPlayer._playerdata.building!.status.labor.value).toBeGreaterThan(50);
+    expect(mockPlayer._playerdata.status!.androidDiamond).toBeLessThan(100);
+  });
+
+  it("confirmMessageBoardReward 应发放信用点并标记已领取", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.confirmMessageBoardReward({} as any);
+    const room = mockPlayer._playerdata.building!.rooms.MEETING.room_001;
+    expect(room.received).toBe(1);
+    expect(mockPlayer._playerdata.inventory!["3003"]).toBe(15);
+  });
+
+  it("confirmMessageBoardReward 重复领取不应重复发放", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.confirmMessageBoardReward({} as any);
+    await manager.confirmMessageBoardReward({} as any);
+    expect(mockPlayer._playerdata.inventory!["3003"]).toBe(15);
+  });
+});

@@ -57,7 +57,7 @@ interface MaterialVoucherPoolEntry {
  * 1. voucher.json：存储干员兑换券（VOUCHER_PICK）的可选干员列表
  * 2. item_table 的 voucherRelateList：反向查找材料凭证关联的物品列表
  */
-class VoucherDataManager {
+export class VoucherDataManager {
   /** 凭证数据表缓存（voucher.json） */
   private static _voucherTable: { [key: string]: VoucherInfo } | null = null;
 

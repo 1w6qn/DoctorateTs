@@ -145,7 +145,6 @@ export class PlayerDataManager {
     );
     this._changes = [];
     this._trigger.emit("save", []);
-    console.log("delta", JSON.stringify(delta));
     return {
       playerDataDelta: delta,
     };
@@ -270,7 +269,6 @@ export class PlayerDataManager {
     const result = await recipe(draft);
     this._playerdata = finishDraft(draft, (patches, inversePatches) => {
       this._changes.push(patches);
-      console.log("patches", patches);
       this._inverseChanges.push(inversePatches);
     });
     return result;

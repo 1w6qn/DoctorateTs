@@ -21,6 +21,7 @@ import { checkBetween, now } from "@utils/time";
 import { EventMap, TypedEventEmitter } from "@game/model/events";
 import { MissionData } from "@excel/types_auto_gen";
 import { PlayerDataManager } from "./PlayerDataManager";
+import { logger } from "@utils/logger";
 
 export class MissionManager {
   missions: { [key: string]: MissionProgress[] };
@@ -289,7 +290,6 @@ export class MissionProgress {
    */
   async getState(): Promise<number> {
     if (!("value" in this.progress[0])) {
-      console.log(this.missionId);
       return 0;
     }
     if (this.progress[0].value >= this.progress[0].target! && this.confirmed) {
@@ -430,17 +430,17 @@ export class MissionProgress {
         template = mission.template as keyof typeof MissionTemplates;
         this.param = mission.param;
       } else {
-        console.error(`Invalid template: ${mission.template}`);
+        logger.error("MissionManager", `Invalid template: ${mission.template}`);
         return;
       }
     } else {
-      console.error(`Mission ID ${this.missionId} not found`);
+      logger.error("MissionManager", `Mission ID ${this.missionId} not found`);
       return;
     }
     const func = async ([args]: unknown[]) => {
       MissionTemplates[template]![this.param[0]].update(this, args as never);
       if (this.progress[0].value >= this.progress[0].target!) {
-        console.log(`[MissionManager] ${this.missionId} complete`);
+        logger.info("MissionManager", `${this.missionId} complete`);
         this._trigger.off(template, func);
         await this._player.update(async (draft) => {
           draft.mission.missions[this.type][this.missionId].state = 3;

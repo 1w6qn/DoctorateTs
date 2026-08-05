@@ -5,6 +5,7 @@ import excel from "@excel/excel";
 import { GachaResult } from "@game/model/gacha";
 import { now } from "@utils/time";
 import { ceil } from "lodash";
+import { logger } from "@utils/logger";
 
 export class CharManager {
   _trigger: TypedEventEmitter;
@@ -46,8 +47,9 @@ export class CharManager {
       const { from, extraItem } = args;
       isNew = draft.dexNav.character[charId] ? 0 : 1;
       const info = excel.CharacterTable[charId];
-      console.log(
-        `[TroopManager] 获得${info.rarity + 1}星干员 ${info.name} ${isNew} ${from}`,
+      logger.info(
+        "CharManager",
+        `获得${info.rarity + 1}星干员 ${info.name} ${isNew ? "新" : "重复"} ${from}`,
       );
       if (isNew) {
         draft.dexNav.character[charId] = {
@@ -172,7 +174,6 @@ export class CharManager {
       }
       char.exp += expTotal;
       while (true) {
-        console.log(gold);
         if (char.exp >= expMap[evolvePhase][char.level - 1]) {
           char.exp -= expMap[evolvePhase][char.level - 1];
           char.level += 1;
@@ -186,9 +187,7 @@ export class CharManager {
           break;
         }
       }
-      console.log(gold);
       expMats.push({ id: "4001", count: gold });
-      console.log(expMats);
       await this._trigger.emit("items:use", [expMats]);
       await this._trigger.emit("UpgradeChar", [{ char, exp: expTotal }]);
     });

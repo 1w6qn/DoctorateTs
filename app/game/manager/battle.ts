@@ -10,6 +10,7 @@ import { ItemBundle } from "@excel/character_table";
 import { ConditionDesc, DisplayDetailRewards } from "@excel/stage_table";
 import { divmod, randomChoice, randomChoices } from "@utils/random";
 import { pick } from "lodash";
+import { logger } from "@utils/logger";
 
 export class BattleManager {
   _player: PlayerDataManager;
@@ -28,7 +29,6 @@ export class BattleManager {
   }
 
   async start(args: CommonStartBattleRequest) {
-    console.log("start battle", args);
     const { stageId, usePracticeTicket, squad } = args;
     // 唯一 battleId（时间戳 + 随机数），避免多场战斗互相覆盖 battleInfo/replay
     const battleId = `${now()}_${Math.floor(Math.random() * 100000)}`;
@@ -712,9 +712,9 @@ export class BattleManager {
             );
           else if (dropType === 2) {
             // ALWAYS + NORMAL：必掉基础掉落（对照 Python quest.py 对应分支末尾产出）
-            console.log(
-              `- occPercent:0,dropType:2 -\n${JSON.stringify(item)}`,
-              "debug",
+            logger.debug(
+              "BattleManager",
+              `- occPercent:0,dropType:2 - ${JSON.stringify(item)}`,
             );
             pushReward();
           }
@@ -725,9 +725,9 @@ export class BattleManager {
           else pushReward();
         } else if (occPercent === 1) {
           if (dropType === 2) {
-            console.log(
-              `- occPercent:1,dropType:2 -\n${JSON.stringify(item)}`,
-              "debug",
+            logger.debug(
+              "BattleManager",
+              `- occPercent:1,dropType:2 - ${JSON.stringify(item)}`,
             );
             const drop_array = randomChoices(
               [0, 1],
@@ -743,9 +743,9 @@ export class BattleManager {
           }
         } else if (occPercent === 2) {
           if (dropType === 2) {
-            console.log(
-              `- occPercent:2,dropType:2 -\n${JSON.stringify(item)}`,
-              "debug",
+            logger.debug(
+              "BattleManager",
+              `- occPercent:2,dropType:2 - ${JSON.stringify(item)}`,
             );
             if (stageId.includes("pro_")) {
               const drop_array = randomChoices([0, 1], [50, 50], 1)[0];
@@ -770,9 +770,9 @@ export class BattleManager {
           }
         } else if (occPercent === 3) {
           if (dropType === 2) {
-            console.log(
-              `- occPercent:3,dropType:2 -\n${JSON.stringify(item)}`,
-              "debug",
+            logger.debug(
+              "BattleManager",
+              `- occPercent:3,dropType:2 - ${JSON.stringify(item)}`,
             );
             const drop_array = randomChoices(
               [0, 1],
@@ -781,9 +781,9 @@ export class BattleManager {
             )[0];
             if (drop_array) pushReward();
           } else if (dropType === 4) {
-            console.log(
-              `- occPercent:3,dropType:4 -\n${JSON.stringify(item)}`,
-              "debug",
+            logger.debug(
+              "BattleManager",
+              `- occPercent:3,dropType:4 - ${JSON.stringify(item)}`,
             );
             const drop_array = randomChoices(
               [0, 1],
@@ -799,9 +799,9 @@ export class BattleManager {
           }
         } else if (occPercent === 4) {
           if (dropType === 2) {
-            console.log(
-              `- occPercent:4,dropType:2 -\n${JSON.stringify(item)}`,
-              "debug",
+            logger.debug(
+              "BattleManager",
+              `- occPercent:4,dropType:2 - ${JSON.stringify(item)}`,
             );
             const drop_array = randomChoices(
               [0, 1],
@@ -810,9 +810,9 @@ export class BattleManager {
             )[0];
             if (drop_array) pushReward();
           } else if (dropType === 3) {
-            console.log(
-              `- occPercent:4,dropType:3 -\n${JSON.stringify(item)}`,
-              "debug",
+            logger.debug(
+              "BattleManager",
+              `- occPercent:4,dropType:3 - ${JSON.stringify(item)}`,
             );
             const drop_array = randomChoices(
               [0, 1],
@@ -826,9 +826,9 @@ export class BattleManager {
                 count: reward_count,
               });
           } else if (dropType === 4) {
-            console.log(
-              `- occPercent:4,dropType:4 -\n${JSON.stringify(item)}`,
-              "debug",
+            logger.debug(
+              "BattleManager",
+              `- occPercent:4,dropType:4 - ${JSON.stringify(item)}`,
             );
             const drop_array = randomChoices(
               [1, 0],
@@ -843,10 +843,7 @@ export class BattleManager {
               });
           }
         } else {
-          console.log(
-            `[1;31mUnknown dropType: ${JSON.stringify(item)}[0;0m`,
-            "info",
-          );
+          logger.warn("BattleManager", `Unknown dropType: ${JSON.stringify(item)}`);
         }
       };
 

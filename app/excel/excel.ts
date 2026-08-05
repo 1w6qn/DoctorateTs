@@ -6,6 +6,7 @@
  */
 
 import { readJson } from "@utils/file";
+import { logger } from "@utils/logger";
 import { normalizeStageDropInfo } from "./stage_table";
 import {
   ActivityTable,
@@ -147,7 +148,6 @@ export class Excel {
    * 并初始化商店数据。
    */
   async init(): Promise<void> {
-    console.time("[excel][loaded]");
     this.MissionTable = await readJson<MissionTable>(
       "./data/excel/mission_table.json",
     );
@@ -325,13 +325,10 @@ export class Excel {
     this.RoguelikeConsts = await readJson<{ [key: string]: RoguelikeConst }>(
       "./data/rlv2.json",
     );
-    console.timeEnd("[excel][loaded]");
-    console.log("[excel] 44 excels loaded");
+    logger.info("Excel", "44 excels loaded");
     this.ShopTable = new ShopData();
     await this.ShopTable.init();
-    console.time("[excel][shop][loaded]");
-    console.log("[excel][shop] 10 shops loaded");
-    console.timeEnd("[excel][shop][loaded]");
+    logger.info("Excel", "10 shops loaded");
   }
 }
 

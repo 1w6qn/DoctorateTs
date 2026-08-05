@@ -4,6 +4,7 @@ import { RoguelikeRecruitManager } from "./recruit";
 import { RoguelikeV2Controller } from "../rlv2";
 import excel from "@excel/excel";
 import { TypedEventEmitter } from "@game/model/events";
+import { logger } from "@utils/logger";
 
 export class RoguelikeInventoryManager
   implements PlayerRoguelikeV2.CurrentData.Inventory
@@ -59,7 +60,7 @@ export class RoguelikeInventoryManager
       item.type ||
       excel.RoguelikeTopicTable.details[theme].items[item.id].type ||
       "POOL";
-    console.log(`[RLV2] 获得 ${item.id || item.type} * ${item.count}`);
+    logger.info("RLV2Inventory", `获得 ${item.id || item.type} * ${item.count}`);
     const funcs: { [key: string]: (item: RoguelikeItemBundle) => void } = {
       NONE: (item: RoguelikeItemBundle) => {},
       HP: (item: RoguelikeItemBundle) => {

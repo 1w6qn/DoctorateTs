@@ -6,6 +6,7 @@ import { PlayerDataManager } from "./PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 import { WritableDraft } from "immer";
 import { PlayerDataModel } from "@game/model/playerdata";
+import { logger } from "@utils/logger";
 
 export class StatusManager {
   _player: PlayerDataManager;
@@ -29,15 +30,15 @@ export class StatusManager {
     const ts = now();
     const lastRefreshTs = this._player._playerdata.status.lastRefreshTs;
     if (checkNew(lastRefreshTs, ts, "day")) {
-      console.log("[EventManager] Daily refresh");
+      logger.info("StatusManager", "daily refresh");
       await this._trigger.emit("refresh:daily", [lastRefreshTs]);
     }
     if (moment().day() == 1 && checkNew(lastRefreshTs, ts, "week")) {
-      console.log("[EventManager] Daily refresh");
+      logger.info("StatusManager", "weekly refresh");
       await this._trigger.emit("refresh:weekly", []);
     }
     if (moment().date() == 1 && checkNew(lastRefreshTs, ts, "month")) {
-      console.log("[EventManager] Daily refresh");
+      logger.info("StatusManager", "monthly refresh");
       await this._trigger.emit("refresh:monthly", []);
     }
     await this._player.update(async (draft) => {

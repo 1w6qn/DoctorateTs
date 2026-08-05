@@ -2,8 +2,11 @@ import { describe, it, expect } from "vitest";
 import { logger, text2color } from "@utils/logger";
 
 describe("logger", () => {
-  it("应引用 console 作为日志记录器", () => {
-    expect(logger).toBe(console);
+  it("应提供统一的分级日志方法", () => {
+    expect(typeof logger.debug).toBe("function");
+    expect(typeof logger.info).toBe("function");
+    expect(typeof logger.warn).toBe("function");
+    expect(typeof logger.error).toBe("function");
   });
 });
 

@@ -16,6 +16,7 @@ import { now } from "@utils/time";
 import { decryptBattleData } from "@utils/crypt";
 import { randomSample } from "@utils/random";
 import excel from "@excel/excel";
+import { logger } from "@utils/logger";
 
 const router = Router();
 
@@ -281,7 +282,7 @@ router.post("/battleFinish", async (req, res) => {
   try {
     battleData = await decryptBattleData(data, player.loginTime);
   } catch (err) {
-    console.error("[tower/battleFinish] decrypt failed:", err);
+    logger.error("tower/battleFinish", "decrypt failed:", err);
     res.send({
       drop: [],
       isNewRecord: false,

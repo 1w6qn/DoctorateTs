@@ -35,7 +35,6 @@ export class RoguelikeRelicManager {
     const theme = this._player.current.game!.theme;
     const buffs =
       excel.RoguelikeTopicTable.details[theme].relics[relic.id].buffs;
-    console.log(relic.id, buffs);
     await this._trigger.emit("rlv2:buff:apply", [[...buffs]]);
     this.relics[relic.id] = {
       index: this.index,

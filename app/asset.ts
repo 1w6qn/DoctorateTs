@@ -8,6 +8,7 @@ import yauzl, { ZipFile } from "yauzl";
 import { mkdir, readdir, readFile, writeFile } from "fs/promises";
 import config from "./config";
 import { exists, size } from "@utils/file";
+import { logger } from "@utils/logger";
 
 const router = Router();
 
@@ -60,7 +61,7 @@ router.get(
         MODS_LIST.path[i],
       ])) {
         if (fileName === mod && (await exists(path))) {
-          console.log(mod, path);
+          logger.debug("Asset", "use mod file", mod, path);
           wrongSize = false;
           filePath = path;
           basePath = join(__dirname, "..", "mods");
@@ -76,7 +77,7 @@ router.get(
       assetsHash,
       wrongSize,
     );
-    console.log(fp);
+    logger.debug("Asset", "serve", fp);
     res.sendFile(fp);
   },
 );
@@ -98,7 +99,7 @@ let MODS_LIST: ModsList = {
 const downloadingFiles: { [key: string]: EventEmitter } = {};
 
 async function downloadFile(url: string, filePath: string): Promise<void> {
-  console.log(`\x1b[1;33mDownload ${filePath.split("/").pop()}\x1b[0;0m`);
+  logger.info("Asset", `Download ${filePath.split("/").pop()}`);
   const response = await axios.get(url, { responseType: "arraybuffer" });
   await writeFile(filePath, response.data);
 }
@@ -148,7 +149,7 @@ async function exportFile(
 
     const cachePath = join(__dirname, "..", "./assets/cache/");
     const savePath = join(cachePath, "hot_update_list.json");
-    console.log(cachePath);
+    logger.debug("Asset", "cache path", cachePath);
     if (!(await exists(cachePath))) {
       await mkdir(cachePath, { recursive: true });
     }
@@ -228,7 +229,7 @@ async function loadMods(): Promise<ModsList> {
   }
 
   if (modCacheValid && modCache) {
-    console.log(`${fileList[0]} - \x1b[1;32mUsing Cached Mod...\x1b[0;0m`);
+    logger.info("Asset", `${fileList[0]} - Using Cached Mod...`);
     return modCache.mod;
   }
   let modFile: yauzl.ZipFile;
@@ -242,8 +243,9 @@ async function loadMods(): Promise<ModsList> {
       if (!/\/$/.test(entry.fileName)) {
         const modName = entry.fileName;
         if (loadedModList.name.includes(modName)) {
-          console.log(
-            `${filePath} - \x1b[1;33mConflict with other mods...\x1b[0;0m`,
+          logger.warn(
+            "Asset",
+            `${filePath} - Conflict with other mods...`,
           );
           modFile.readEntry();
           return;
@@ -266,8 +268,9 @@ async function loadMods(): Promise<ModsList> {
               abSize: abSize,
             };
 
-            console.log(
-              `${filePath} - \x1b[1;32mMod loaded successfully...\x1b[0;0m`,
+            logger.info(
+              "Asset",
+              `${filePath} - Mod loaded successfully...`,
             );
 
             loadedModList.mods.push(abInfo);

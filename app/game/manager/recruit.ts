@@ -220,7 +220,6 @@ export class RecruitTools {
         [100 - compensation, compensation],
         1,
       )[0];
-      console.log(crossTag);
     }
 
     let randomCharId: string;

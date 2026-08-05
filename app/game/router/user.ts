@@ -98,7 +98,6 @@ router.post("/useItem", async (req, res) => {
 });
 router.post("/useItems", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  console.log(req.body!.items);
   const items: {
     itemId: string;
     cnt: number;

@@ -52,7 +52,6 @@ export class MailManager {
     uid: string,
     args: { from: number },
   ): Promise<MailMetaInfo[]> {
-    console.log(args);
     return this.database.user[uid].map((mail) => {
       return {
         mailId: mail.mailId,

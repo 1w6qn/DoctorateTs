@@ -11,9 +11,7 @@ router.post("/setDefaultSkill", async (req, res) => {
 router.post("/upgradeChar", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   await player.char.upgradeChar(req.body);
-  const delta = player.delta;
-  console.log(delta);
-  res.send(delta);
+  res.send(player.delta);
 });
 router.post("/evolveChar", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;

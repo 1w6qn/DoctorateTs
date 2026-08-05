@@ -17,6 +17,7 @@ import { PlayerCharacter } from "@game/model/character";
 import { RoguelikeV2Controller } from "@game/controller/rlv2";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import Emittery from "emittery";
+import { logger } from "@utils/logger";
 
 /**
  * 事件映射类型
@@ -549,14 +550,16 @@ export class EventBus extends TypedEventEmitter {
     if (validator) {
       const passed = validator(args);
       if (!passed) {
-        console.warn(
-          `[EventBus] Validation failed for event: ${eventName} args: ${JSON.stringify(args)}`
+        logger.warn(
+          "EventBus",
+          `Validation failed for event: ${eventName} args: ${JSON.stringify(args)}`,
         );
         if (this.strictValidation) {
           if (this.loggingEnabled) {
             const duration = (performance.now() - startTime).toFixed(3);
-            console.log(
-              `[EventBus] emit: ${eventName} args: ${JSON.stringify(args)} time: ${duration}ms (blocked by validation)`
+            logger.info(
+              "EventBus",
+              `emit: ${eventName} args: ${JSON.stringify(args)} time: ${duration}ms (blocked by validation)`,
             );
           }
           return;
@@ -570,8 +573,9 @@ export class EventBus extends TypedEventEmitter {
         if (result === false) {
           if (this.loggingEnabled) {
             const duration = (performance.now() - startTime).toFixed(3);
-            console.log(
-              `[EventBus] emit: ${eventName} args: ${JSON.stringify(args)} time: ${duration}ms (blocked)`
+            logger.info(
+              "EventBus",
+              `emit: ${eventName} args: ${JSON.stringify(args)} time: ${duration}ms (blocked)`,
             );
           }
           return;
@@ -608,8 +612,9 @@ export class EventBus extends TypedEventEmitter {
 
     if (this.loggingEnabled) {
       const duration = (performance.now() - startTime).toFixed(3);
-      console.log(
-        `[EventBus] emit: ${eventName} args: ${JSON.stringify(args)} time: ${duration}ms`
+      logger.info(
+        "EventBus",
+        `emit: ${eventName} args: ${JSON.stringify(args)} time: ${duration}ms`,
       );
     }
   }
@@ -800,15 +805,14 @@ export function createLoggingMiddleware(): EventMiddleware<keyof EventMap> {
   return {
     before(eventName, args) {
       startTime = performance.now();
-      console.log(
-        `[EventBus] emit: ${eventName} args: ${JSON.stringify(args)}`
+      logger.debug(
+        "EventBus",
+        `emit: ${eventName} args: ${JSON.stringify(args)}`,
       );
     },
     after(eventName, args) {
       const duration = (performance.now() - startTime).toFixed(3);
-      console.log(
-        `[EventBus] complete: ${eventName} time: ${duration}ms`
-      );
+      logger.debug("EventBus", `complete: ${eventName} time: ${duration}ms`);
     },
   };
 }
@@ -835,8 +839,9 @@ export function createValidationMiddleware(
 
       const passed = validator(args);
       if (!passed) {
-        console.warn(
-          `[EventBus] Validation failed for event: ${eventName} args: ${JSON.stringify(args)}`
+        logger.warn(
+          "EventBus",
+          `Validation failed for event: ${eventName} args: ${JSON.stringify(args)}`,
         );
         if (strictValidation) {
           return false;

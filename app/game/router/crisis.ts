@@ -12,6 +12,7 @@ import { now } from "@utils/time";
 import { readJson } from "@utils/file";
 import { decryptBattleData } from "@utils/crypt";
 import excel from "@excel/excel";
+import { logger } from "@utils/logger";
 
 // ==================== 常量定义 ====================
 
@@ -378,7 +379,7 @@ router.post("/getCrisisInfo", async (req, res) => {
     res.send(rune);
   } catch (err) {
     /** 数据文件加载失败时返回最小响应 */
-    console.error("[crisis/getCrisisInfo] 加载数据失败:", err);
+    logger.error("crisis/getCrisisInfo", "加载数据失败:", err);
     res.send({
       ts: currentTime,
       data: {},
@@ -423,7 +424,7 @@ router.post("/battleStart", async (req, res) => {
       }
     }
   } catch (err) {
-    console.error("[crisis/battleStart] 计算风险等级失败:", err);
+    logger.error("crisis/battleStart", "计算风险等级失败:", err);
   }
 
   /** 保存战斗上下文，供 battleFinish 使用 */
@@ -689,7 +690,7 @@ router.post("/v2/getInfo", async (req, res) => {
     res.send(rune);
   } catch (err) {
     /** 数据文件加载失败时返回最小响应 */
-    console.error("[crisis/v2/getInfo] 加载数据失败:", err);
+    logger.error("crisis/v2/getInfo", "加载数据失败:", err);
     res.send({
       info: {},
       ts: now() - 10,
@@ -750,7 +751,7 @@ router.post("/v2/battleFinish", async (req, res) => {
     scoreCurrent = result.scoreCurrent;
     runeIds = result.runeIds;
   } catch (err) {
-    console.error("[crisis/v2/battleFinish] 计算分数失败:", err);
+    logger.error("crisis/v2/battleFinish", "计算分数失败:", err);
   }
 
   res.send({
@@ -935,7 +936,7 @@ router.post("/recalRune/battleFinish", async (req, res) => {
     }
   } catch (err) {
     /** 解密失败时默认战斗成功 */
-    console.error("[crisis/recalRune/battleFinish] 解密战斗数据失败:", err);
+    logger.error("crisis/recalRune/battleFinish", "解密战斗数据失败:", err);
   }
 
   /** completeState 为 3 表示战斗成功 */

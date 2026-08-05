@@ -14,6 +14,7 @@ import Emittery from "emittery";
 import { FriendRepository } from "../../db/friend-repo";
 import { openDatabase } from "../../db/database";
 import { migrateFromUserConfigs } from "../../db/migrate";
+import { logger } from "@utils/logger";
 
 export class AccountManager {
   /** 玩家数据管理器映射，key为uid */
@@ -38,7 +39,7 @@ export class AccountManager {
    * 设置保存事件监听器。
    */
   async init() {
-    console.time("[AccountManager][loaded]");
+    logger.info("AccountManager", "loading users...");
     // 打开好友关系数据库（social.db 首次运行自动创建）
     this._friendRepo = new FriendRepository(openDatabase());
     this.configs = await readJson(`./data/user/users.json`);
@@ -54,14 +55,13 @@ export class AccountManager {
       );
       this.data[uid]._playerdata.status.uid = uid;
       this.data[uid]._trigger.on("save", async () => {
-        console.log(`[AccountManager][save] ${uid}`);
         await this.savePlayerData(uid);
         await this.saveUserConfig();
       });
     }
-    console.timeEnd("[AccountManager][loaded]");
-    console.log(
-      `[AccountManager] ${Object.keys(this.configs).length} users loaded.`,
+    logger.info(
+      "AccountManager",
+      `${Object.keys(this.configs).length} users loaded`,
     );
   }
 

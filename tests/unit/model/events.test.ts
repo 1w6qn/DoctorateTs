@@ -315,7 +315,7 @@ describe("EventBus", () => {
 
       spy.mockRestore();
 
-      const matched = logs.find((l) => l.includes("[EventBus] emit:"));
+      const matched = logs.find((l) => l.includes("emit: mission:complete"));
       expect(matched).toBeTruthy();
       expect(matched!.includes("mission:complete")).toBe(true);
       expect(matched!.includes("test-123")).toBe(true);

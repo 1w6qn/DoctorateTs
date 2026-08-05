@@ -28,6 +28,7 @@ import moment from "moment";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { EventMap, TypedEventEmitter } from "@game/model/events";
 import { PlayerCharacter } from "../model/character";
+import { logger } from "@utils/logger";
 
 export class MedalManager implements PlayerMedal {
   medals: { [key: string]: MedalProgress };
@@ -222,7 +223,7 @@ export class MedalProgress implements PlayerPerMedal {
     const func = (args: any[]) => {
       (this as any)[template](args[0], "update");
       if (this.val[0][0] >= target) {
-        console.log(`[MedalManager] ${this.id} complete`);
+        logger.info("MedalManager", `${this.id} complete`);
         this._trigger.off(template as any, func);
         this._trigger.emit("medal:complete", [{ medalId: this.id }]);
       }

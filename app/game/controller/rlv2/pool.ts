@@ -3,6 +3,7 @@ import { RoguelikeItemBundle } from "../../model/rlv2";
 import { RoguelikeV2Controller } from "../rlv2";
 import { randomChoice } from "@utils/random";
 import { TypedEventEmitter } from "@game/model/events";
+import { logger } from "@utils/logger";
 
 export class RoguelikePoolManager {
   _pools: { [id: string]: string[] };
@@ -21,11 +22,11 @@ export class RoguelikePoolManager {
   }
 
   recycle([id]: [string]) {
-    console.log(id);
+    logger.debug("RLV2Pool", "recycle", id);
   }
 
   put([id]: [string]) {
-    console.log(id);
+    logger.debug("RLV2Pool", "put", id);
   }
 
   init() {

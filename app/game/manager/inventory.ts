@@ -70,7 +70,6 @@ export class InventoryManager {
   }
 
   async gainItem(item: ItemBundle, callback?: () => void): Promise<void> {
-    console.log("gainItem", item);
     if (!item.type) {
       item.type = excel.ItemTable.items[item.id].itemType as string;
     }
@@ -195,7 +194,6 @@ export class InventoryManager {
             draft.status.ap += addAp;
           }
         }
-        console.log("AP_GAMEPLAY", item.count, addAp, draft.status.ap);
         draft.status.ap += item.count;
         draft.status.lastApAddTime = now();
       },

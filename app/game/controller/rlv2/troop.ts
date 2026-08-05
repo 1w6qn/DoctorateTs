@@ -46,7 +46,6 @@ export class RoguelikeTroopManager
   }
 
   getChar([char]: [PlayerRoguelikeV2.CurrentData.RecruitChar]) {
-    console.log("[RLV2] getChar", char);
     const c = omit(char, [
       "isUpgrade",
       "isCure",

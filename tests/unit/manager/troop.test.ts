@@ -285,7 +285,7 @@ describe("TroopManager", () => {
   });
 
   describe("addonStageBattleFinish", () => {
-    it("应该触发 battle:finish 事件并原样传递参数", async () => {
+    it("应该触发 battle:finish 事件并原样传递参数与回调", async () => {
       const manager = new TroopManager(
         mockPlayer as any,
         mockTrigger as any
@@ -298,7 +298,35 @@ describe("TroopManager", () => {
       };
       await manager.addonStageBattleFinish(args);
 
-      expect(emitSpy).toHaveBeenCalledWith("battle:finish", [args]);
+      expect(emitSpy).toHaveBeenCalledWith("battle:finish", [
+        args,
+        expect.any(Function),
+      ]);
+    });
+
+    it("应通过回调回传战斗结算结果", async () => {
+      const manager = new TroopManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      const mockResult = {
+        rewards: [{ id: "mat_001", type: "MATERIAL", count: 1 }],
+        firstRewards: [],
+      };
+      mockTrigger.on(
+        "battle:finish",
+        (([args, cb]: [any, any]) => {
+          cb(mockResult);
+        }) as any
+      );
+
+      const result = await manager.addonStageBattleFinish({
+        data: "test_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      });
+
+      expect(result).toEqual(mockResult);
     });
   });
 

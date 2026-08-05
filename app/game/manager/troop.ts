@@ -120,7 +120,14 @@ export class TroopManager {
     data: string;
     battleData: { isCheat: string; completeTime: number };
   }) {
-    await this._trigger.emit("battle:finish", [args]);
+    let result: unknown;
+    await this._trigger.emit("battle:finish", [
+      args,
+      (res: unknown) => {
+        result = res;
+      },
+    ]);
+    return result;
   }
 
   async fix(): Promise<void> {

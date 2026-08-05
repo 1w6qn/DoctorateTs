@@ -97,8 +97,8 @@ router.post("/addonStage/battleStart", async (req, res) => {
 });
 router.post("/addonStage/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  await player.troop.addonStageBattleFinish(req.body);
-  res.send(player.delta);
+  const result = await player.troop.addonStageBattleFinish(req.body);
+  res.send({ ...(result as object), ...player.delta });
 });
 router.post("/unlockEquipment", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;

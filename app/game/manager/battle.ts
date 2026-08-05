@@ -21,8 +21,9 @@ export class BattleManager {
     this._trigger.on("battle:start", async([args]) => {
       await this.start(args);
     });
-    this._trigger.on("battle:finish", async([args]) => {
-      await this.finish(args);
+    this._trigger.on("battle:finish", async([args, cb]) => {
+      const result = await this.finish(args);
+      if (typeof cb === "function") cb(result);
     });
   }
 

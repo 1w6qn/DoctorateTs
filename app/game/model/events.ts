@@ -69,12 +69,13 @@ export type EventMap = {
   "save:battle": [string, { stageId: string; isPractice: number }];
   /** 战斗开始事件 - 开始战斗 */
   "battle:start": [CommonStartBattleRequest];
-  /** 战斗结束事件 - 战斗完成 */
+  /** 战斗结束事件 - 战斗完成（回调可选，用于回传结算结果） */
   "battle:finish": [
     {
       data: string;
       battleData: { isCheat: string; completeTime: number };
     },
+    ((res: unknown) => void)?,
   ];
   /** 战斗完成事件 - 战斗完成 */
   "battle:complete": [{ stageId: string; result: string }];

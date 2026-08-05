@@ -32,8 +32,22 @@ import bodyParser from "body-parser";
   
   const args = process.argv.slice(2);
   const skipUpdate = args.includes("--skip-update") || args.includes("-s");
+  // 完全离线模式：命令行参数 --offline/-o 或 data/config.json 中 offline: true
+  const offline = args.includes("--offline") || args.includes("-o") || config.offline === true;
   
-  if (!skipUpdate) {
+  if (offline) {
+    console.log("[index] 完全离线模式：跳过所有网络操作，使用本地缓存数据");
+    const updateModule = await import("./scripts/update-data");
+    const code = await updateModule.main(false, true);
+    if (code !== 0) {
+      console.error(
+        "[index] 本地数据不完整，无法离线启动。请先联网执行 `npm run update` 初始化数据，",
+      );
+      console.error("[index] 或去掉 --offline 参数以在线模式启动（会自动回退到本地缓存）。");
+      process.exit(1);
+    }
+    console.log("[index] 本地数据校验通过，继续启动...");
+  } else if (!skipUpdate) {
     console.log("[index] 开始更新游戏数据...");
     try {
       const updateModule = await import("./scripts/update-data");
@@ -42,6 +56,8 @@ import bodyParser from "body-parser";
     } catch (error) {
       console.error("[index] 游戏数据更新失败，使用本地缓存数据:", (error as Error).message);
     }
+  } else {
+    console.log("[index] 跳过游戏数据更新，使用本地缓存数据");
   }
   
   enablePatches();
@@ -54,6 +70,8 @@ import bodyParser from "body-parser";
   await setup(game);
   app.use("/", game);
   app.use("/assetbundle", asset);
+  // 管理后台（CLI 之外的 Web 管理入口，需在 data/config.json 中开启 admin.enable）
+  app.use("/admin", (await import("./app/admin/admin-router")).default);
   app.listen(config.PORT, async () => {
     console.timeEnd();
     console.log(`--------------DoctorateTs--------------`);

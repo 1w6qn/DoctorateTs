@@ -76,9 +76,12 @@ export class MissionManager {
     await this._player.update(async (draft) => {
       draft.mission.missions["ACTIVITY"] = {};
       for (const [type, v] of Object.entries(draft.mission.missions)) {
+        // 填充内存任务列表（confirmMission/getMissionById 依赖）
+        this.missions[type] = [];
         for (const [id] of Object.entries(v)) {
           const mission = new MissionProgress(id, type, this._player);
           await mission.init();
+          this.missions[type].push(mission);
         }
       }
     });

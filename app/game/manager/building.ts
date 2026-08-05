@@ -291,22 +291,60 @@ export class BuildingManager {
 
   /**
    * 批量更换工作干员
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
+   * 将指定房间的干员列表替换为 charInstIdList，同时清空这些干员在其他房间的占用
+   * @param args - 包含 roomSlotId 和 charInstIdList 的参数对象
    */
-  async batchChangeWorkChar(args: any) {
-    return args;
+  async batchChangeWorkChar(args: {
+    roomSlotId: string;
+    charInstIdList: number[];
+  }) {
+    const { roomSlotId, charInstIdList } = args;
+    return await this._player.update(async (draft) => {
+      // 清空这些干员在其他房间的占用
+      for (const slotKey in draft.building.roomSlots) {
+        if (slotKey === roomSlotId) continue;
+        const ids = draft.building.roomSlots[slotKey].charInstIds;
+        for (let i = 0; i < ids.length; i++) {
+          if (charInstIdList.includes(ids[i])) {
+            ids[i] = -1;
+          }
+        }
+      }
+      draft.building.roomSlots[roomSlotId].charInstIds = charInstIdList;
+    });
   }
 
   /**
    * 批量休息干员
-   * 简化实现：参考 Python 实现，将指定干员从工作位置移除
-   * @param args - 请求体参数
+   * 将指定干员从所有房间的工作位置移除（置为 -1）
+   * @param args - 包含 charInstIdList 的参数对象
    */
-  async batchRestChar(args: any) {
+  async batchRestChar(args: { charInstIdList: number[] }) {
+    const { charInstIdList } = args;
     return await this._player.update(async (draft) => {
-      // 简化实现：保留接口结构
-      draft.event.building = now() + 5000;
+      for (const slotKey in draft.building.roomSlots) {
+        const ids = draft.building.roomSlots[slotKey].charInstIds;
+        for (let i = 0; i < ids.length; i++) {
+          if (charInstIdList.includes(ids[i])) {
+            ids[i] = -1;
+          }
+        }
+      }
+    });
+  }
+
+  /**
+   * 清理房间槽位
+   * 清空房间内全部干员（置为 -1）
+   * @param args - 包含 roomSlotId 的参数对象
+   */
+  async cleanRoomSlot(args: { roomSlotId: string }) {
+    const { roomSlotId } = args;
+    return await this._player.update(async (draft) => {
+      const slot = draft.building.roomSlots[roomSlotId];
+      if (slot) {
+        slot.charInstIds = slot.charInstIds.map(() => -1);
+      }
     });
   }
 
@@ -845,15 +883,6 @@ export class BuildingManager {
    * @param args - 请求体参数
    */
   async buyLabor(args: any) {
-    return args;
-  }
-
-  /**
-   * 清理房间槽位
-   * 简化实现：参考 Python 实现，预留接口
-   * @param args - 请求体参数
-   */
-  async cleanRoomSlot(args: any) {
     return args;
   }
 

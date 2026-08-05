@@ -350,3 +350,68 @@ describe("BuildingManager 内部工具方法", () => {
     expect(manager._nextClueId()).toBe("clue_002");
   });
 });
+
+describe("BuildingManager 批量干员", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({
+      building: {
+        status: { labor: { buffSpeed: 0, processPoint: 0, value: 0, lastUpdateTime: 0, maxValue: 100 }, workshop: { bonusActive: 0, bonus: {} } },
+        chars: {},
+        roomSlots: {
+          slot_5: { level: 3, state: 2, roomId: "MANUFACTURE", charInstIds: [1001, 1002, 1003], completeConstructTime: 0 },
+          slot_6: { level: 3, state: 2, roomId: "TRADING", charInstIds: [1004], completeConstructTime: 0 },
+        },
+        rooms: {
+          CONTROL: {}, ELEVATOR: {}, POWER: {}, MANUFACTURE: {}, TRADING: {},
+          CORRIDOR: {}, WORKSHOP: {}, DORMITORY: {}, MEETING: {}, HIRE: {},
+          TRAINING: {}, PRIVATE: {},
+        },
+        furniture: {},
+        diyPresetSolutions: {},
+        assist: [-1, -1, -1],
+        solution: { furnitureTs: {} },
+        music: { selected: "bgm_default" },
+      } as any,
+      event: { building: 0 },
+    });
+    mockPlayer._trigger = mockTrigger;
+    mockPlayer.update = vi
+      .fn()
+      .mockImplementation(
+        async (recipe: (draft: any) => Promise<any> | any) => {
+          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+          const result = await recipe(draft);
+          Object.assign(mockPlayer._playerdata, draft);
+          return result;
+        }
+      );
+  });
+
+  it("batchChangeWorkChar 应替换指定房间的干员并清空旧位置", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.batchChangeWorkChar({
+      roomSlotId: "slot_5",
+      charInstIdList: [1004, 1005],
+    } as any);
+    expect(mockPlayer._playerdata.building!.roomSlots.slot_5.charInstIds).toEqual([1004, 1005]);
+    expect(mockPlayer._playerdata.building!.roomSlots.slot_6.charInstIds).toEqual([-1]);
+  });
+
+  it("batchRestChar 应清空指定干员在所有房间的占用", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.batchRestChar({ charInstIdList: [1001, 1004] } as any);
+    expect(mockPlayer._playerdata.building!.roomSlots.slot_5.charInstIds).toEqual([-1, 1002, 1003]);
+    expect(mockPlayer._playerdata.building!.roomSlots.slot_6.charInstIds).toEqual([-1]);
+  });
+
+  it("cleanRoomSlot 应清空房间全部干员", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.cleanRoomSlot({ roomSlotId: "slot_5" } as any);
+    expect(mockPlayer._playerdata.building!.roomSlots.slot_5.charInstIds).toEqual([-1, -1, -1]);
+  });
+});

@@ -11,6 +11,7 @@
 8. [启动模式与离线支持](#8-启动模式与离线支持)
 9. [管理后台设计规范](#9-管理后台设计规范)
 10. [好友系统与 SQLite 数据层](#10-好友系统与sqlite数据层)
+11. [基建系统逻辑说明](#11-基建系统逻辑说明)
 
 ---
 
@@ -724,3 +725,31 @@ config show | config set <key> <value>
 
 ### 10.5 已知约束
 - 游戏中间件（app/game/app.ts）将所有 secret 强制映射为 uid=1（单机私服设计），多玩家交互逻辑由单测与独立进程集成脚本覆盖
+
+---
+
+## 11. 基建系统逻辑说明
+
+### 11.1 覆盖范围
+BuildingManager（app/game/manager/building.ts）已实现完整基建玩法：
+- 房间管理：建造/升级/降级/清理槽位
+- 干员分配：assignChar / 批量更换（batchChangeWorkChar）/ 批量休息（batchRestChar）
+- 生产：制造结算（settleManufacture）/ 贸易结算（settleSale）/ 加工合成与分解（workshopSynthesis / workshopDecomposition）/ 加速（accelerateOrder / accelerateSolution）
+- 信赖：gainIntimacy / gainAllIntimacy / gainAssistIntimacy（单次 +12 favorPoint）
+- 线索：getDailyClue / sendClue / receiveClueToStock / putClueToTheBoard / deleteOwnClue 等 11 个方法
+- 预设队列：add / delete / edit / use / useOne / changeName / saveDiy / editLock（存储于 building.presetQueues）
+- 其他：buyLabor / confirmMessageBoardReward / 专精（upgradeSpecialization / completeUpgradeSpecialization）
+
+### 11.2 实现约定
+- 所有变更通过 PlayerDataManager.update（Immer）落盘
+- 贸易结算：订单按 count × 500 兑换金币（与 deliveryOrder 一致），扣除贸易凭证 3003
+- 信赖获得：单次 +12 favorPoint（同步 troop.chars 与 charGroup）
+- 线索：每日一条（getDailyClue），ownStock/receiveStock/board 三区流转，ID 全局递增（_nextClueId）
+- 预设队列：building.presetQueues（key 为 roomSlotId），旧存档惰性初始化（_presetQueues）
+- 专精：upgradeSpecialization 置技能 state=1，completeUpgradeSpecialization 提升 specializeLevel 并复位
+- 家具分解：产出木材（30012），简化固定产出 count × 2
+
+### 11.3 简化项（YAGNI）
+- 社交展示类接口（getRecentVisitors / getInfoShareVisitorsNum / sendEmoji / visitBuilding 等）返回空
+- 制造/加工配方未严格按 BuildingData 表执行，使用简化产出规则
+- 加速不消耗道具（私服友好）；buyLabor 1 源石/次 +10 劳动力

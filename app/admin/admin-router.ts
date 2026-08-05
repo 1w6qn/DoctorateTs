@@ -1,8 +1,8 @@
 /**
  * 管理 REST API 路由
  *
- * 所有接口前缀 /admin/api，需通过 adminAuth 认证。
- * Dashboard 静态页挂在 /admin/dashboard。
+ * API 前缀 /admin/api，需通过 adminAuth 认证。
+ * Dashboard 页面 /admin/dashboard 免认证（登录在页面内完成）。
  */
 import { Router, Request, Response } from "express";
 import path from "path";
@@ -11,7 +11,15 @@ import { adminAuth } from "./admin-auth";
 import config from "../config";
 
 const router = Router();
-router.use(adminAuth);
+
+/** Dashboard 静态页面（免认证，页面内输入令牌后访问 API） */
+router.get("/dashboard", (_req: Request, res: Response) => {
+  // 用 process.cwd() 而非 __dirname，兼容 ts-node 与 tsc build 产物
+  res.sendFile(path.join(process.cwd(), "app", "admin", "dashboard", "index.html"));
+});
+
+/** API 全部需要认证 */
+router.use("/api", adminAuth);
 
 /** 服务器状态 */
 router.get("/api/status", async (_req: Request, res: Response) => {
@@ -78,12 +86,6 @@ router.post("/api/mail", async (req: Request, res: Response) => {
 /** 配置（只读） */
 router.get("/api/config", (_req: Request, res: Response) => {
   res.json(config);
-});
-
-/** Dashboard 静态页面 */
-router.get("/dashboard", (_req: Request, res: Response) => {
-  // 用 process.cwd() 而非 __dirname，兼容 ts-node 与 tsc build 产物
-  res.sendFile(path.join(process.cwd(), "app", "admin", "dashboard", "index.html"));
 });
 
 export default router;

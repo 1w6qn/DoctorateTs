@@ -215,7 +215,10 @@ export class AdminService {
     }
     return {
       port: config.PORT,
-      offline: (config as any).offline === true,
+      offline:
+        (config as any).offline === true ||
+        process.argv.includes("--offline") ||
+        process.argv.includes("-o"),
       clientVersion: config.version.clientVersion,
       resVersion: config.version.resVersion,
       uptime: Math.floor(process.uptime()),

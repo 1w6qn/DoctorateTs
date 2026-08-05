@@ -30,7 +30,25 @@ export class RecruitManager {
     });
   }
 
-  async sync() {}
+  /**
+   * 同步招募状态
+   * 将已到期的招募槽位标记为可领取（state=3），供客户端刷新招募页
+   */
+  async sync() {
+    await this._player.update(async (draft) => {
+      const slots = draft.recruit.normal.slots;
+      for (const slotId of Object.keys(slots)) {
+        const slot = slots[slotId];
+        if (
+          slot.state === 2 &&
+          slot.realFinishTs !== -1 &&
+          slot.realFinishTs <= now()
+        ) {
+          slot.state = 3;
+        }
+      }
+    });
+  }
 
   async cancel(args: { slotId: number }) {
     await this._player.update(async (draft) => {

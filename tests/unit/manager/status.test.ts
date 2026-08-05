@@ -340,4 +340,56 @@ describe("StatusManager", () => {
       expect(mockPlayer._playerdata.status!.lastOnlineTs).toBe(1234567890);
     });
   });
+
+  describe("dailyRefresh", () => {
+    it("应该恢复体力并重置每日购买次数", async () => {
+      mockPlayer._playerdata.status!.ap = 50;
+      mockPlayer._playerdata.status!.maxAp = 100;
+      mockPlayer._playerdata.status!.lastApAddTime = 0;
+      mockPlayer._playerdata.status!.buyApRemainTimes = 0;
+      const manager = new StatusManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      await manager.dailyRefresh();
+
+      expect(mockPlayer._playerdata.status!.ap).toBe(100);
+      expect(mockPlayer._playerdata.status!.buyApRemainTimes).toBe(10);
+      expect(mockPlayer._playerdata.status!.lastApAddTime).toBe(1234567890);
+    });
+
+    it("体力已满时不应超出上限", async () => {
+      mockPlayer._playerdata.status!.ap = 100;
+      mockPlayer._playerdata.status!.maxAp = 100;
+      mockPlayer._playerdata.status!.lastApAddTime = 0;
+      const manager = new StatusManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      await manager.dailyRefresh();
+
+      expect(mockPlayer._playerdata.status!.ap).toBe(100);
+    });
+  });
+
+  describe("weeklyRefresh / monthlyRefresh", () => {
+    it("应委托 dailyRefresh 执行刷新（恢复体力+重置购买次数）", async () => {
+      mockPlayer._playerdata.status!.ap = 30;
+      mockPlayer._playerdata.status!.maxAp = 100;
+      mockPlayer._playerdata.status!.lastApAddTime = 0;
+      mockPlayer._playerdata.status!.buyApRemainTimes = 0;
+      const manager = new StatusManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      const dailySpy = vi.spyOn(manager, "dailyRefresh");
+
+      await manager.weeklyRefresh();
+      await manager.monthlyRefresh();
+
+      expect(dailySpy).toHaveBeenCalledTimes(2);
+    });
+  });
 });

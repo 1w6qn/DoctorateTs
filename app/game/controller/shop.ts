@@ -45,8 +45,14 @@ export class ShopController {
     };
   }
 
-  /** 每日刷新处理（预留） */
-  async dailyRefresh() {}
+  /**
+   * 每日刷新处理：重置低级商店每日限购记录
+   */
+  async dailyRefresh() {
+    await this._player.update(async (draft) => {
+      draft.shop.LS.info = [];
+    });
+  }
 
   /**
    * 每月刷新处理

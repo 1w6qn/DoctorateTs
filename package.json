@@ -26,7 +26,8 @@
     "yauzl": "^3.1.3"
   },
   "scripts": {
-    "start": "nodemon --exec tsx index.ts --ext ts",
+    "start": "tsx index.ts",
+    "start:dev": "nodemon --exec tsx index.ts --ext ts",
     "build": "tsc",
     "hook": "frida-compile hook/main.ts -o _arknights.js -c",
     "test": "vitest run",

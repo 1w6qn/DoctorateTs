@@ -102,6 +102,8 @@ export class BattleManager {
         stageId,
         isPractice: usePracticeTicket,
         squad,
+        // 助战好友信息（assistFriend 为 null 时不保存）
+        ...(args.assistFriend ? { assistFriend: args.assistFriend } : {}),
       });
     });
 

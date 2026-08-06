@@ -390,6 +390,13 @@ export interface BattleInfo {
   isPractice: number;
   /** 出战编队（用于结算信赖等后处理） */
   squad?: { slots: ({ charInstId: number } | null)[] };
+  /** 助战好友信息（编队借用好友干员） */
+  assistFriend?: {
+    uid: string;
+    nickName: string;
+    assistChar: { charId: string; level?: number }[];
+    assistSlotIndex: number;
+  } | null;
 }
 
 /** 账户管理器全局实例 */

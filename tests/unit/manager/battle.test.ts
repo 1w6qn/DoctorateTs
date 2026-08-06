@@ -630,4 +630,40 @@ describe("BattleManager", () => {
       ).toBe(1);
     });
   });
+
+  describe("start 保存助战好友信息", () => {
+    async function lastSavedBattleInfo() {
+      const { accountManager } = await import("@game/manager/AccountManger");
+      const calls = vi.mocked(accountManager.saveBattleInfo).mock.calls;
+      return calls[calls.length - 1][2];
+    }
+
+    it("应保存 assistFriend 到 battleInfo", async () => {
+      const manager = new BattleManager(mockPlayer as any, mockTrigger as any);
+      const assistFriend = {
+        uid: "2",
+        nickName: "好友",
+        assistChar: [{ charId: "char_002", level: 50 }],
+        assistSlotIndex: 1,
+      };
+      await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad: { slots: [] },
+        assistFriend,
+      } as any);
+      expect((await lastSavedBattleInfo()).assistFriend).toEqual(assistFriend);
+    });
+
+    it("无助战时不保存 assistFriend", async () => {
+      const manager = new BattleManager(mockPlayer as any, mockTrigger as any);
+      await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad: { slots: [] },
+        assistFriend: null,
+      } as any);
+      expect((await lastSavedBattleInfo()).assistFriend).toBeUndefined();
+    });
+  });
 });

@@ -94,6 +94,13 @@ describe("rlv2 局外buff/难度buff/招募组数据", () => {
       // mock 的 RoguelikeConsts.rogue_3.modebuff = {} → create 不崩
       await expect((player.rlv2 as any)._buff.create()).resolves.not.toThrow();
     });
+
+    it("outer 无该主题数据（从未玩过）时不崩", async () => {
+      // outer 为空（makePlayer 默认），create 遍历 unlocked 为空对象
+      const emptyPlayer = makePlayer({});
+      emptyPlayer.rlv2.current.game = { theme: "rogue_3", mode: "NORMAL", modeGrade: 0, predefined: null } as any;
+      await expect((emptyPlayer.rlv2 as any)._buff.create()).resolves.not.toThrow();
+    });
   });
 
   describe("chooseInitialRecruitSet 招募组", () => {

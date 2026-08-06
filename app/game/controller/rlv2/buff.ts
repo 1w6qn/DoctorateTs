@@ -39,7 +39,9 @@ export class RoguelikeBuffManager {
   async create() {
     const theme = this._player.current.game!.theme;
     const modeGrade = this._player.current.game!.modeGrade;
-    Object.keys(this._player.outer[theme].buff.unlocked).forEach((id) => {
+    // 存档可能没有该主题的 outer 数据（从未玩过）→ 容错
+    const unlocked = this._player.outer?.[theme]?.buff?.unlocked ?? {};
+    Object.keys(unlocked).forEach((id) => {
       const buffs = excel.RoguelikeConsts[theme]?.outbuff?.[id];
       if (!buffs) return;
       this.applyBuffs([[...buffs]]);

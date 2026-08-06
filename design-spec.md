@@ -901,6 +901,25 @@ npm run migrate:official -- --accounts <账号文件路径> --template 1
 - useTotem 的混沌值扣减未实现（fragment/chaos 模块结构复杂）——仅接线图腾 use
 - leaveShop/confirmPredict 的 zoneEndChecker（关卡结束检查）未实现——复用现有 pending 清理模式
 
+### 16.5 数据补全（2026-08，数据源与消费链路）
+
+| 数据文件 | 覆盖 | 数据源 | 消费点 |
+|---|---|---|---|
+| `data/rlv2/event_choices.json`（505KB） | rogue_1..5 不期而遇全量效果 | 参考项目 odpy（官方 choices 的效果增强版，rogue_3/4/5 与官方 excel 数量完全一致） | `selectChoice`（lose/get/m_lose/m_get/i_get/i_lose/curse/get_id）、`moveTo` INCIDENT 生成 SCENE |
+| `data/rlv2.json`（RoguelikeConsts） | 6 主题 outbuff/modebuff/recruitGrps | outbuff 从官方 `customizeData[theme].developments`（含 commonDevelopment）的 `buffDisplayInfo` 转换（displayType→RoguelikeBuff 映射，PERCENTAGE 除 100、ABSOLUTE_VAL 作 count）；modebuff 从 odpy `rlv2_data.py` rogue_buffs（rogue_2/3 难度 0-15）；recruitGrps 从官方 `details[theme].recruitGrps` 全量 | `buff.create()`（outbuff/modebuff 应用）、`chooseInitialRecruitSet` |
+| `data/rlv2/nodesInfo.json` | 6 主题 × zone 关卡列表（Normal/Emergency/Boss） | 官方 `details[theme].stages` 按 `ro{n}_{n|e}_{zone}_` 前缀提取 | `map.generate()` 优先读（缺失回退动态过滤） |
+| `data/rlv2/choices.json` | 6 主题开局 buff（行动奖励）场景 | 官方 `choiceScenes` + `choices`（startbuff 前缀） | `RoguelikeV2Config.choiceScenes`（数据完整性） |
+
+**selectChoice 数据源切换**：官方 excel choices 无 lose/get 效果字段（效果藏在 description `<@ro.get>` 标签），selectChoice 改读 `eventChoices[theme].choices[choice]`（lose/get/m_lose/m_get/i_get/i_lose），官方 excel 仅提供 nextSceneId/type 元数据。下一场景选项列表来自 event_choices 的 `choices` 数组（不再用 `choice_{sceneId}_` 前缀匹配——真实数据匹配不到）。
+
+**不期而遇事件生成**：`moveTo` 到 INCIDENT（type=32）节点时从 `eventChoices[theme].enter` 随机抽场景生成 SCENE 事件。
+
+**区域推进（zone 推进）**：`finishEvent`/`finishBattleReward`/`leaveShop`/`confirmPredict`/`selectChoice(choice_leave)` 节点结束后调 `checkZoneEnd()`——当前节点 `zone_end: true` 时推进 `cursor.zone+1` 并生成新层地图（`rlv2:zone:new`）；达到主流程最大层（`maxZone`，取有 Normal/Emergency 关卡的 zone 最大值）触发 `gameSettle()` 结算。初始阶段（zone=0）结束生成第一层地图。
+
+**容错**：`buff.create()` 对 `outer[theme]` 缺失（从未玩过该主题）与 `modebuff[modeGrade]` 缺失均容错；`chooseInitialRecruitSet` 招募组缺失回退官方 excel recruitGrps。
+
+**死文件清理**：`data/rlv2/choiceBuffs.json`、`data/rlv2/recruitGroups.json` 零引用已删除（数据由官方 excel/event_choices/data/rlv2.json 覆盖）。
+
 ---
 
 ## 17. 子域名分发与远程配置

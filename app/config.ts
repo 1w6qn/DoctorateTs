@@ -5,6 +5,23 @@
  */
 
 import { readJsonSync } from "@utils/file";
+import os from "os";
+
+/**
+ * 自动检测本机局域网 IPv4 地址（真机/模拟器连接场景）
+ * 取第一个非回环 IPv4；无局域网 IP 时回退 127.0.0.1
+ */
+export function detectLocalIp(): string {
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] || []) {
+      if (net.family === "IPv4" && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+  return "127.0.0.1";
+}
 
 /**
  * 用户配置接口
@@ -49,5 +66,10 @@ interface UserConfig {
 
 /** 应用配置实例 */
 const config = readJsonSync<UserConfig>("./data/config.json");
+
+// Host 支持 "auto"：自动检测本机局域网 IPv4（避免硬编码 IP，换网络环境无需改配置）
+if (String(config.Host).includes("auto")) {
+  config.Host = `http://${detectLocalIp()}`;
+}
 
 export default config;

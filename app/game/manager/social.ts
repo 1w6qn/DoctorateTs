@@ -211,48 +211,75 @@ export class SocialManager {
 
   /**
    * 获取编队助战列表（按职业筛选好友助战干员）
-   * 好友随机排序，最多取 6 个，干员按 charId 去重
+   * 好友随机排序，最多取 6 个，干员按 charId 去重；
+   * 好友数据不足时从其他账号随机补位（非好友、可请求）
    */
   async getAssistList(args: { profession: string }) {
     const { profession } = args;
     const social = await accountManager.getSocial(this._uid);
-    const friends = [...social.friends].sort(() => Math.random() - 0.5);
+    const friendUids = new Set(social.friends.map((f) => f.uid));
     const assistList: any[] = [];
     const usedCharIds = new Set<string>();
+    const MAX_LIST = 6;
 
+    const buildAssistInfo = (info: any, isFriend: boolean, alias: string) => {
+      const assistChars: any[] = info?.assistCharList || [];
+      const matched = assistChars.find((c) => {
+        const data = excel.CharacterTable[c?.charId];
+        return data?.profession === profession;
+      });
+      if (!matched) return null;
+      if (usedCharIds.has(matched.charId)) return null;
+      usedCharIds.add(matched.charId);
+      return {
+        aliasName: isFriend ? alias : null,
+        assistCharList: assistChars,
+        assistSlotIndex: assistChars.indexOf(matched),
+        avatar: info.avatar,
+        canRequestFriend: !isFriend,
+        isFriend,
+        lastOnlineTime: info.lastOnlineTime,
+        level: info.level,
+        nickName: info.nickName,
+        nickNumber: info.nickNumber,
+        powerScore: 200,
+        uid: info.uid,
+      };
+    };
+
+    // 1. 好友助战（随机洗牌，最多 MAX_LIST）
+    const friends = [...social.friends].sort(() => Math.random() - 0.5);
     for (const friend of friends) {
-      if (assistList.length >= 6) break;
+      if (assistList.length >= MAX_LIST) break;
       let info: any;
       try {
         info = await accountManager.getPlayerFriendInfo(friend.uid);
       } catch {
         continue;
       }
-      const assistChars: any[] = info?.assistCharList || [];
-      // 找该职业的助战干员（assistCharList 元素含 charId/charInstId）
-      const matched = assistChars.find((c) => {
-        const data = excel.CharacterTable[c?.charId];
-        return data?.profession === profession;
-      });
-      if (!matched) continue;
-      if (usedCharIds.has(matched.charId)) continue;
-      usedCharIds.add(matched.charId);
-
-      assistList.push({
-        aliasName: friend.alias,
-        assistCharList: assistChars,
-        assistSlotIndex: assistChars.indexOf(matched),
-        avatar: info.avatar,
-        canRequestFriend: false,
-        isFriend: true,
-        lastOnlineTime: info.lastOnlineTime,
-        level: info.level,
-        nickName: info.nickName,
-        nickNumber: info.nickNumber,
-        powerScore: 200,
-        uid: friend.uid,
-      });
+      const item = buildAssistInfo(info, true, friend.alias);
+      if (item) assistList.push(item);
     }
+
+    // 2. 数据不足时随机补位（其他账号，非好友）
+    if (assistList.length < MAX_LIST) {
+      const otherUids = accountManager
+        .getPlayerUidList()
+        .filter((uid) => uid !== this._uid && !friendUids.has(uid))
+        .sort(() => Math.random() - 0.5);
+      for (const uid of otherUids) {
+        if (assistList.length >= MAX_LIST) break;
+        let info: any;
+        try {
+          info = await accountManager.getPlayerFriendInfo(uid);
+        } catch {
+          continue;
+        }
+        const item = buildAssistInfo(info, false, "");
+        if (item) assistList.push(item);
+      }
+    }
+
     return assistList;
   }
 

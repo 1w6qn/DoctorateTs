@@ -144,6 +144,13 @@ export class AccountManager {
   }
 
   /**
+   * 获取全部已加载账号 uid 列表
+   */
+  getPlayerUidList(): string[] {
+    return Object.keys(this.data);
+  }
+
+  /**
    * 获取玩家社交信息（好友相关）
    * @param uid - 用户ID
    * @returns 玩家社交信息

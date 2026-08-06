@@ -16,8 +16,8 @@ function resolveServer(raw: string | null): string {
   const server = `${config.Host}:${config.PORT}`;
   return raw
     .replace("{server}", server)
-    .replace(/^[a-z]+:\/\/[a-z0-9.-]+(?::\d+)?/i, server)
-    .replace("{0}", config.version.clientVersion);
+    .replace(/^[a-z]+:\/\/[a-z0-9.-]+(?::\d+)?/i, server);
+  // {0} 占位符保留（客户端自行替换为版本/平台，如 hv: .../official/{0}/version）
 }
 
 /**

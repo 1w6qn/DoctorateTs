@@ -80,6 +80,10 @@ router.post("/user/auth/v1/token_by_phone_password", async (req, res) => {
 router.get("/user/info/v1/basic", async (req, res) => {
   const uid = await accountManager.getUidByToken(req.query!.token as string);
   const data = await accountManager.getUserConfig(uid);
+  if (!data) {
+    // token 无效/用户不存在：返回明确错误而非 500
+    return res.status(404).send({ status: 1, msg: "用户不存在", code: "USER_NOT_FOUND" });
+  }
   res.send({
     status: 0,
     msg: "OK",

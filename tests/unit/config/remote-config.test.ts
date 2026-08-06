@@ -42,6 +42,13 @@ describe("buildNetworkConfig（官方格式）", () => {
     // 内部字段不暴露
     expect(cfg.secure).toBeUndefined();
   });
+
+  it("hv 应保留 {0} 占位符（客户端自行替换为版本/平台）", () => {
+    const cfg = buildNetworkConfig();
+    expect(String(cfg.hv)).toContain("{0}");
+    expect(String(cfg.hv)).toContain("/config/prod/official/");
+    expect(String(cfg.hv)).toMatch(/^http/);
+  });
 });
 
 describe("buildRemoteConfig（功能配置）", () => {

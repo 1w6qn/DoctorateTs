@@ -75,6 +75,14 @@ describe("auth 路由", () => {
     );
   });
 
+  it("GET /user/info/v1/basic token 无效（用户不存在）应返回 404 而非 500", async () => {
+    (accountManager.getUserConfig as any).mockResolvedValueOnce(undefined);
+    const res = mockRes();
+    await call(authRouter, { method: "GET", url: "/user/info/v1/basic", query: { token: "invalid" } }, res);
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ status: 1 }));
+  });
+
   it("POST /user/oauth2/v2/grant 应返回授权码与 uid", async () => {
     const res = mockRes();
     await call(authRouter, { method: "POST", url: "/user/oauth2/v2/grant", body: { token: "t2" } }, res);

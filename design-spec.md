@@ -992,6 +992,7 @@ npm run migrate:official -- --accounts <账号文件路径> --template 1
 1. **原子写**（`savePlayerData`）：先写 `{uid}.json.tmp` 再 `rename`——避免写盘中断导致存档截断损坏（评估中发现 1.json 曾损坏）——`perf(auth): 存档原子写与防抖合并保存`
 2. **防抖合并**（`scheduleSave`/`flushSave`）：save 事件改为 500ms 防抖——窗口内多次变更只落盘一次（多玩家/高频请求场景每请求省 ~6.6ms 序列化）；`flushSave(uid)` 可显式立即保存（服务器关闭时调用）——同上提交
 3. **excel 并行加载**：`excel.init` 的 44 个串行 `await readJson` 改为 `Promise.all` 批量加载（loaders 数组）——IO 重叠，启动 927ms → 848ms（~9%）；收益受限于 JSON.parse 单线程 CPU——`perf(excel): 数据表并行加载`
+4. **syncData 直改时间戳**：登录全量同步改为直改 `pushFlags.status`（免 Immer update 与存档防抖保存）；实测基线 avg 20.7ms / p95 52ms（响应 1290KB）——大头为 1.3MB 序列化（不可避免），Immer 惰性代理本就不深拷贝全量——`perf(sync): syncData 直改时间戳`
 
 ### 20.3 待优化项（YAGNI 暂缓）
 - **excel 懒加载**：启动 927ms 主要耗时（154.6MB JSON 全量 parse）——可改为按需加载 + 缓存（收益：启动降至 ~200ms）

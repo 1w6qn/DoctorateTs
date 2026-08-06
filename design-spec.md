@@ -22,6 +22,7 @@
 19. [用户创建与自动注册](#19-用户创建与自动注册)
 20. [服务端性能评估与优化](#20-服务端性能评估与优化)
 21. [服务器地址配置](#21-服务器地址配置)
+22. [资源与版本自动同步](#22-资源与版本自动同步)
 
 ---
 
@@ -1019,3 +1020,26 @@ npm run migrate:official -- --accounts <账号文件路径> --template 1
 ```
 
 客户端通过 `network_config` 接口（gs 字段）拿到实际连接地址。
+
+---
+
+## 22. 资源与版本自动同步
+
+### 22.1 触发时机
+- `npm run update`（CLI 手动）
+- 服务器**在线模式**启动（index.ts 自动调 `updateModule.main(false)`）
+- 离线模式跳过（不联网）
+
+### 22.2 更新流程（scripts/update-data.ts main）
+1. **仓库更新**：git pull/clone `OpenArknightsFBS` + `ArknightsGameData`
+2. **数据复制**：excel JSON（zh_CN/gamedata/excel + battle + levels）→ `data/excel/`
+3. **类型生成**：`generate-types.ts`（377 enums / 1684 tables）
+4. **gacha 合并**：`data/gacha/` → `gacha_detail_table.json`
+5. **版本同步**（`syncGameVersion`）：调官服 `ak-conf.hypergryph.com/config/prod/official/Android/version`（复用 `scripts/official-api.ts` 的 `getResVersion`）→ 更新 `data/config.json` 的 `version`（clientVersion/resVersion）——客户端版本接口/热更新列表据此工作
+
+### 22.3 实测
+`syncGameVersion` 真实拉取：`2.5.60/25-05-20-12-36-22_4803e1 → 2.7.61/26-08-03-23-34-20_a745fc`（版本无变化时跳过写盘）。
+
+### 22.4 注意
+- **版本与资源需同步更新**：单独跑 syncGameVersion 会得到新版本号但本地 excel/assets 仍是旧数据（客户端请求新资源会 404）——正确做法是完整 `npm run update`（数据+版本一起）
+- 版本更新后需重启服务器生效（config 启动时读取）

@@ -6,19 +6,24 @@
     "enableSingleton": false
   },
   "version": {
-    "clientVersion": "2.5.60",
-    "resVersion": "25-05-20-12-36-22_4803e1"
+    "clientVersion": "2.7.61",
+    "resVersion": "26-08-03-23-34-20_a745fc",
+    "windows": {
+      "clientVersion": "2.7.61",
+      "resVersion": "26-08-03-23-35-52_3445f2"
+    }
   },
   "assets": {
     "enableMods": false,
     "downloadLocally": false,
+    "downloadPeoxy": false,
     "autoUpdate": true
   },
   "NetworkConfig": {
     "configVer": "5",
-    "funcVer": "V061",
+    "funcVer": "V070",
     "configs": {
-      "V058": {
+      "V070": {
         "override": true,
         "network": {
           "gs": "{server}",

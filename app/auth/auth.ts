@@ -99,6 +99,11 @@ router.post("/user/info/v1/need_cloud_auth", async (req, res) => {
   res.send({ status: 0, msg: "OK" });
 });
 
+/** 用户协议版本（客户端检查——私服固定最新版本） */
+router.get("/u8/user/auth/v1/agreement_version", async (req, res) => {
+  res.send({ status: 0, msg: "OK", data: { version: 1 } });
+});
+
 /** OAuth2 授权 v1（兼容旧客户端——同 v2 逻辑） */
 router.post("/user/oauth2/v1/grant", async (req, res) => {
   const code: string = req.body!.token;

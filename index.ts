@@ -69,6 +69,7 @@ import { accountManager } from "./app/game/manager/AccountManger";
   app.use(createHostRouter());
   app.use("/config/prod", prod);
   app.use("/api/remote_config", remoteConfigRouter);
+  app.use("/api/gate", (await import("./app/config/gate")).default);
   app.use("/auth", auth);
   await setup(game);
   app.use("/", game);

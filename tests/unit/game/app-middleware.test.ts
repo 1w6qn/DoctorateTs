@@ -67,10 +67,13 @@ describe("authMiddleware 认证中间件", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("无 secret 头时应直接放行", async () => {
+  it("无 secret 头时（single 模式）也应注入 uid=1", async () => {
+    configMock.default.authMode = "single";
+    (accountManager.getPlayerData as any).mockResolvedValue({ uid: "1" });
     const { req, res, next } = mockReqRes({});
     await authMiddleware(req, res, next);
-    expect(accountManager.getPlayerData).not.toHaveBeenCalled();
+    expect(accountManager.getPlayerData).toHaveBeenCalledWith("1");
+    expect(httpContext.set).toHaveBeenCalledWith("playerData", { uid: "1" });
     expect(next).toHaveBeenCalled();
   });
 });

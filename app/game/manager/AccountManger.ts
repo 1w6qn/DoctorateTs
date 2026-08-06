@@ -353,15 +353,16 @@ export class AccountManager {
    * @returns 用户Token（即uid）
    */
   async tokenByPhonePassword(phone: string, password: string): Promise<string> {
+    if (config.authMode !== "real") {
+      // 单例模式：任意登录返回固定 uid=1（不查询/不注册——单账号私服）
+      return "1";
+    }
     const found = Object.entries(this.configs).find(([, conf]) => {
       return conf.auth.phone == phone && conf.password == password;
     });
     if (found) {
-      if (config.authMode === "real") {
-        // 真实模式：返回账号 secret（参考 DoctoratePy——token=secret）
-        return found[1].secret || this.getTokenByUid(found[0]);
-      }
-      return this.getTokenByUid(found[0]);
+      // 真实模式：返回账号 secret（参考 DoctoratePy——token=secret）
+      return found[1].secret || this.getTokenByUid(found[0]);
     }
     // 账号不存在：自动注册（私服创建新用户），返回新 uid 作为 token
     const uid = await this.registerUser(phone, password);
@@ -446,8 +447,8 @@ export class AccountManager {
       const found = Object.entries(this.configs).find(([, c]) => c.secret === token);
       return found ? found[0] : "";
     }
-    // 单例模式：token 原样（私服单机宽松）
-    return token;
+    // 单例模式：任意 token 收敛到 uid=1（oauth2/basic/u8 全流程返回固定账号）
+    return "1";
   }
 
   /** 登出方法（预留） */

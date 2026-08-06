@@ -1,4 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+
+const configMock = vi.hoisted(() => ({ default: { authMode: "real" } }));
+vi.mock("../../../app/config", () => configMock);
+
 import { accountManager } from "../../../app/game/manager/AccountManger";
 import { mockPlayerData } from "../../helpers";
 

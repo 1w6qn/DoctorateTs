@@ -21,10 +21,17 @@ describe("getUidByToken 认证模式", () => {
     };
   });
 
-  it("single 模式：token 原样返回（token=uid 简化）", async () => {
+  it("single 模式：任意 token 收敛到 uid=1（oauth2/basic/u8 全流程正常）", async () => {
     (config as any).authMode = "single";
-    expect(await accountManager.getUidByToken("aId1QCwRP8rVkxSYsG4bCzjQ")).toBe("aId1QCwRP8rVkxSYsG4bCzjQ");
-    expect(await accountManager.getUidByToken("2221")).toBe("2221");
+    expect(await accountManager.getUidByToken("aId1QCwRP8rVkxSYsG4bCzjQ")).toBe("1");
+    expect(await accountManager.getUidByToken("2221")).toBe("1");
+    expect(await accountManager.getUidByToken("")).toBe("1");
+  });
+
+  it("single 模式 tokenByPhonePassword 返回固定 uid=1（不注册新账号）", async () => {
+    (config as any).authMode = "single";
+    expect(await accountManager.tokenByPhonePassword("13900001111", "any")).toBe("1");
+    expect(await accountManager.tokenByPhonePassword("不存在", "pwd")).toBe("1");
   });
 
   it("real 模式：有效 uid 返回原样，无效 token 返回空串", async () => {

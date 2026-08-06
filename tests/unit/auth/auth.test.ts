@@ -75,12 +75,40 @@ describe("auth 路由", () => {
     );
   });
 
-  it("GET /user/info/v1/basic token 无效（用户不存在）应返回 404 而非 500", async () => {
+  it("GET /user/info/v1/basic token 无效（用户不存在）应返回 200 + 空 auth（不卡流程）", async () => {
     (accountManager.getUserConfig as any).mockResolvedValueOnce(undefined);
     const res = mockRes();
     await call(authRouter, { method: "GET", url: "/user/info/v1/basic", query: { token: "invalid" } }, res);
-    expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ status: 1 }));
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.send).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 0, data: {} }),
+    );
+  });
+
+  it("POST /user/info/v1/need_cloud_auth 应返回 OK", async () => {
+    const res = mockRes();
+    await call(authRouter, { method: "POST", url: "/user/info/v1/need_cloud_auth" }, res);
+    expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ status: 0, msg: "OK" }));
+  });
+
+  it("POST /user/oauth2/v1/grant 应返回授权码与 uid（兼容 v1）", async () => {
+    const res = mockRes();
+    await call(authRouter, { method: "POST", url: "/user/oauth2/v1/grant", body: { token: "t3" } }, res);
+    expect(res.send).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { code: "t3", uid: "10000" } }),
+    );
+  });
+
+  it("POST /u8/user/verifyAccount 应返回账号验证结果", async () => {
+    const res = mockRes();
+    await call(
+      authRouter,
+      { method: "POST", url: "/u8/user/verifyAccount", body: { extension: JSON.stringify({ access_token: "t4" }) } },
+      res,
+    );
+    expect(res.send).toHaveBeenCalledWith(
+      expect.objectContaining({ result: 0, uid: "10000", token: "t4" }),
+    );
   });
 
   it("POST /user/oauth2/v2/grant 应返回授权码与 uid", async () => {

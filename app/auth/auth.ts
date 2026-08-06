@@ -80,14 +80,27 @@ router.post("/user/auth/v1/token_by_phone_password", async (req, res) => {
 router.get("/user/info/v1/basic", async (req, res) => {
   const uid = await accountManager.getUidByToken(req.query!.token as string);
   const data = await accountManager.getUserConfig(uid);
-  if (!data) {
-    // token 无效/用户不存在：返回明确错误而非 500
-    return res.status(404).send({ status: 1, msg: "用户不存在", code: "USER_NOT_FOUND" });
-  }
   res.send({
     status: 0,
     msg: "OK",
-    data: data.auth,
+    // token 无效时宽松返回空 auth（参考 DoctoratePy：按 token 查用户，私服单机不卡流程）
+    data: data?.auth || {},
+  });
+});
+
+/** 是否需要云授权（参考 DoctoratePy userV1NeedCloudAuth） */
+router.post("/user/info/v1/need_cloud_auth", async (req, res) => {
+  res.send({ status: 0, msg: "OK" });
+});
+
+/** OAuth2 授权 v1（兼容旧客户端——同 v2 逻辑） */
+router.post("/user/oauth2/v1/grant", async (req, res) => {
+  const code: string = req.body!.token;
+  const uid = await accountManager.getUidByToken(code);
+  res.send({
+    status: 0,
+    msg: "OK",
+    data: { code, uid },
   });
 });
 
@@ -132,6 +145,21 @@ router.post("/u8/user/v1/getToken", async (req, res) => {
     result: 0,
     token: code,
     uid,
+  });
+});
+
+/** U8 渠道账号验证（参考 DoctoratePy userVerifyAccount——access_token 换 uid） */
+router.post("/u8/user/verifyAccount", async (req, res) => {
+  const token: string = JSON.parse(req.body!.extension).access_token;
+  const uid = await accountManager.getUidByToken(token);
+  res.send({
+    result: 0,
+    uid,
+    error: "",
+    extension: JSON.stringify({ isGuest: false }),
+    channelUid: uid,
+    token,
+    isGuest: 0,
   });
 });
 

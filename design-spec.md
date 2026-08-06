@@ -16,6 +16,8 @@
 13. [勋章系统实现](#13-勋章系统实现)
 14. [任务系统实现](#14-任务系统实现)
 15. [官服数据迁移](#15-官服数据迁移)
+16. [集成战略 rlv2 接口补全](#16-集成战略-rlv2-接口补全)
+17. [子域名分发与远程配置](#17-子域名分发与远程配置)
 
 ---
 
@@ -865,3 +867,54 @@ npm run migrate:official -- --accounts <账号文件路径> --template 1
 - 真实官服调用未在测试中验证（全部 mock fetch）：官服接口可能变更、存在风控/验证码——脚本输出清晰错误，单个账号失败不中断其他
 - 不迁移战斗回放/battleLog（仅全量拉取玩家数据）
 - 迁移后的账号需重启服务器（或 `accountManager.init()` 重载）才能生效
+
+---
+
+## 16. 集成战略 rlv2 接口补全
+
+### 16.1 背景
+对照参考项目 Dorothinights（Python）的 rogue_3 接口集审计，现有 `app/game/controller/rlv2.ts`（主控制器）已实现 28 个方法（createGame/buyGoods/moveTo/battleFinish/gameSettle 等），本次补全 5 个缺失接口。
+
+### 16.2 本次补全接口
+| 接口 | 行为 | 参考 |
+|------|------|------|
+| `refreshShop` | 重生成当前 SHOP 商品 + refreshCnt-1 | Dorothinights refreshShop.py |
+| `leaveShop` | 清空 pending → WAIT_MOVE | finishNodeAndEndCheck.py |
+| `confirmPredict` | 清空 pending → WAIT_MOVE（rogue_3 预兆确认） | confirmPredict.py |
+| `useTotem` | 接线 `modules/totem.ts` 的 `use()`（上下板效果已实现） | useTotem.py |
+| `closeRecruitTicket` | 招募票 state=3（关闭）+ 清空候选列表 | closeRecruitTicket.py |
+
+路由：`app/game/router/rlv2.ts` 新增 5 个 POST（refreshShop/leaveShop/useTotem/confirmPredict/closeRecruitTicket）。
+
+### 16.3 隐藏问题
+- **`_status.pending` 是只读 getter**（经 `_pending._pending` 内部数组操作）——实现/测试都需注意
+- **图腾管理器访问**：`_module.totem` getter（`_modules["TOTEM"]`）——返回 any 避免与 `Module.totem` 结构类型冲突
+- **外援 buff 配置缺失**（buff.ts）：`RoguelikeConsts[theme].outbuff[id]` 在真实数据下可能 undefined → 可选链容错
+- **createGame 真实数据链路**（既有问题）：`modebuff`/`outbuff` 等 excel 配置在真实存档下仍可能缺失——本次仅修复 outbuff，createGame 完整链路留后续
+
+### 16.4 简化项（YAGNI）
+- useTotem 的混沌值扣减未实现（fragment/chaos 模块结构复杂）——仅接线图腾 use
+- leaveShop/confirmPredict 的 zoneEndChecker（关卡结束检查）未实现——复用现有 pending 清理模式
+
+---
+
+## 17. 子域名分发与远程配置
+
+### 17.1 子域名分发（app/config/host-router.ts）
+私服场景：客户端通过改 hosts/DNS 将 `*.hypergryph.com` 指向私服，请求保留官服子域名 Host 头。`createHostRouter()` 中间件按子域名映射：
+- `as.hypergryph.com/*` → `/auth/*`（账号系统）
+- `ak-conf.hypergryph.com/*` → 保持（配置：/config/prod、/api/remote_config）
+- `ak-gs-gf.hypergryph.com/*` → 保持（游戏：/account、/user 等）
+- `game-config.hypergryph.com/*` → 保持（新版远程配置）
+- 非 `*.hypergryph.com`（localhost/IP 直连）不重写
+
+### 17.2 新版远程配置接口（app/config/remote-config.ts）
+新版客户端（game-config 域名）请求的两个接口：
+- `/api/remote_config/1/prod/default/Windows/network_config` → 网络端点配置（官方扁平格式：an/as/gs/hu/u8/hv 等，域名替换为私服地址）
+- `/api/remote_config/1/prod/default/Windows/remote_config` → 功能配置（官方格式：fapv2/HGDownload_1/2、enableGameBI、enableNativeLicense、bakeMuzzleEnableRate 等）
+
+功能配置字段可在 `data/config.json` 的 `RemoteConfig` 覆盖，缺省使用官服默认值。
+
+### 17.3 已知约束
+- Node fetch 会覆盖自定义 Host 头——子域名验证需用 node http 或 curl（E2E 经验）
+- 旧版 `/config/prod/official/network_config`（{sign, content} 格式）保持兼容（prod.ts 复用 buildNetworkConfigContent）

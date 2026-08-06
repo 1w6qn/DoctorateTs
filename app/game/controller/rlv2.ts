@@ -463,6 +463,36 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     }
   }
 
+  /** 商店刷新：重生成当前商店商品并扣除刷新次数 */
+  async refreshShop(): Promise<void> {
+    const shopEvent = this._status.pending[0];
+    if (!shopEvent || shopEvent.type !== "SHOP") return;
+    const shop = shopEvent.content.shop;
+    if (!shop || (shop.refreshCnt ?? 0) <= 0) return;
+    shop.goods = this.generateShopGoods(this.current.game!.theme);
+    shop.refreshCnt -= 1;
+  }
+
+  /** 离开商店：清空 pending 回到等待移动状态 */
+  async leaveShop(): Promise<void> {
+    this._status._pending._pending.length = 0;
+    this._status.state = "WAIT_MOVE";
+  }
+
+  /** 确认预兆（rogue_3 独有）：清理 pending 回到等待移动状态 */
+  async confirmPredict(): Promise<void> {
+    this._status._pending._pending.length = 0;
+    this._status.state = "WAIT_MOVE";
+  }
+
+  /** 使用图腾：接线图腾管理器 use（上下板效果） */
+  async useTotem(args: {
+    totemIndex: [string, string];
+    nodeIndex: string[];
+  }): Promise<void> {
+    this._module.totem.use(args.totemIndex, args.nodeIndex);
+  }
+
   async moveAndBattleStart(args: {
     to: RoguelikeNodePosition;
     stageId: string;

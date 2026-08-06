@@ -48,6 +48,11 @@ export class RoguelikeModuleManager {
 
   continue() {}
 
+  /** 图腾管理器访问器（rogue_3 TOTEM 模块） */
+  get totem(): any {
+    return this._modules["TOTEM"];
+  }
+
   toJSON(): PlayerRoguelikeV2.CurrentData.Module {
     const result: PlayerRoguelikeV2.CurrentData.Module = {};
     Object.entries(this._modules).forEach(([k, v]) => {

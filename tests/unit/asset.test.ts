@@ -1,0 +1,66 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("axios", () => ({
+  default: { get: vi.fn().mockResolvedValue({ data: { abInfos: [] } }) },
+}));
+vi.mock("@utils/file", () => ({
+  readJsonSync: vi.fn(() => ({
+    Host: "http://127.0.0.1",
+    PORT: 8443,
+    version: { resVersion: "25-05-20-12-36-22_4803e1", clientVersion: "2.5.60" },
+    assets: { enableMods: false, downloadLocally: false, autoUpdate: true },
+    NetworkConfig: {},
+  })),
+  exists: vi.fn().mockResolvedValue(false),
+  size: vi.fn().mockResolvedValue(0),
+}));
+vi.mock("fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("fs/promises")>();
+  return { ...actual, readFile: vi.fn(), writeFile: vi.fn().mockResolvedValue(undefined), mkdir: vi.fn().mockResolvedValue(undefined) };
+});
+
+import assetRouter from "../../../app/asset";
+
+function mockRes() {
+  return { sendFile: vi.fn(), redirect: vi.fn(), send: vi.fn(), status: vi.fn().mockReturnThis() };
+}
+
+describe("asset 资源路由", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("Windows 平台热更新列表路径应匹配并返回", async () => {
+    const res = mockRes();
+    await assetRouter(
+      {
+        method: "GET",
+        url: "/official/Windows/assets/25-05-20-12-36-22_4803e1/hot_update_list.json",
+        params: {
+          platform: "Windows",
+          assetsHash: "25-05-20-12-36-22_4803e1",
+          fileName: "hot_update_list.json",
+        },
+      } as any,
+      res as any,
+      () => {},
+    );
+    await new Promise((r) => setTimeout(r, 30));
+    expect(res.sendFile).toHaveBeenCalled();
+  });
+
+  it("Android 平台路径保持兼容", async () => {
+    const res = mockRes();
+    await assetRouter(
+      {
+        method: "GET",
+        url: "/official/Android/assets/abc123/hot_update_list.json",
+        params: { platform: "Android", assetsHash: "abc123", fileName: "hot_update_list.json" },
+      } as any,
+      res as any,
+      () => {},
+    );
+    await new Promise((r) => setTimeout(r, 30));
+    expect(res.sendFile).toHaveBeenCalled();
+  });
+});

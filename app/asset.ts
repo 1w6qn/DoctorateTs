@@ -13,10 +13,11 @@ import { logger } from "@utils/logger";
 const router = Router();
 
 router.get(
-  "/official/Android/assets/:assetsHash/:fileName",
+  "/official/:platform/assets/:assetsHash/:fileName",
   async (req, res) => {
     const { assetsHash } = req.params;
     let { fileName } = req.params;
+    // 平台参数（Android/Windows/iOS）仅用于路径匹配，资源 CDN 统一走 Android 目录
     const version = config.version.resVersion;
     let basePath = join(__dirname, "..", "assets", version, "redirect");
 

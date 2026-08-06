@@ -25,8 +25,10 @@ describe("buildNetworkConfigContent", () => {
   it("应替换 {server} 占位符为 Host:PORT", () => {
     const content = buildNetworkConfigContent();
     const parsed = JSON.parse(content);
-    expect(parsed.configs.V058.network.gs).toMatch(/^http/);
-    expect(parsed.configs.V058.network.gs).not.toContain("{server}");
+    // funcVer 动态（V058 → V070 由 syncGameVersion 自动同步）
+    const funcVer = Object.keys(parsed.configs)[0];
+    expect(parsed.configs[funcVer].network.gs).toMatch(/^http/);
+    expect(parsed.configs[funcVer].network.gs).not.toContain("{server}");
   });
 });
 

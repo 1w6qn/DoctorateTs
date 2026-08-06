@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
-import { getResVersion } from "./official-api";
+import { getResVersion, CONF_API } from "./official-api";
 
 interface RepositoryConfig {
   name: string;
@@ -356,25 +356,72 @@ export async function main(skipUpdate: boolean = false, offline: boolean = false
 }
 
 /**
- * 同步最新游戏版本（clientVersion/resVersion）到 data/config.json
- * 从官服 version 接口获取最新版本号，客户端版本接口/热更新列表据此工作
+ * 同步最新游戏版本与网络配置（参考 odpy tools/update_config.py）
+ * - 版本：Android（默认）+ Windows（独立 resVersion——Windows 客户端资源路径用）
+ * - 网络配置：拉取官服 network_config 的 funcVer，变化时旧 configs 复制到新 funcVer
  */
 export async function syncGameVersion(): Promise<boolean> {
   try {
-    const version = await getResVersion();
     const configPath = path.join(__dirname, "..", "data", "config.json");
     const configData = JSON.parse(fs.readFileSync(configPath, "utf8"));
     const old = `${configData.version?.clientVersion}/${configData.version?.resVersion}`;
+
+    // 1. Android 版本（默认）
+    const android = await getResVersion();
+
+    // 2. Windows 版本（独立 resVersion）
+    let windows: { clientVersion: string; resVersion: string } | null = null;
+    try {
+      const res = await fetch(`${CONF_API}/config/prod/official/Windows/version`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.resVersion && data?.clientVersion) {
+          windows = { clientVersion: data.clientVersion, resVersion: data.resVersion };
+        }
+      }
+    } catch {
+      // Windows 版本获取失败不阻塞
+    }
+
+    // 3. funcVer 网络配置同步
+    try {
+      const ncRes = await fetch(`${CONF_API}/config/prod/official/network_config`);
+      if (ncRes.ok) {
+        const ncData = await ncRes.json();
+        const content = JSON.parse(ncData.content);
+        const funcVer: string | undefined = content.funcVer;
+        if (funcVer && configData.NetworkConfig?.configs) {
+          const configs = configData.NetworkConfig.configs;
+          if (!configs[funcVer]) {
+            const oldFuncVer = Object.keys(configs)[0];
+            if (oldFuncVer) {
+              configs[funcVer] = configs[oldFuncVer];
+              delete configs[oldFuncVer];
+            }
+          }
+          configData.NetworkConfig.funcVer = funcVer;
+        }
+      }
+    } catch {
+      // funcVer 同步失败不阻塞
+    }
+
+    // 写入（version.windows 为可选——Android 默认保持单 version 兼容）
     configData.version = {
-      clientVersion: version.clientVersion,
-      resVersion: version.resVersion,
+      clientVersion: android.clientVersion,
+      resVersion: android.resVersion,
     };
+    if (windows) {
+      configData.version.windows = windows;
+    }
     fs.writeFileSync(configPath, JSON.stringify(configData, null, 2) + "\n");
-    const next = `${version.clientVersion}/${version.resVersion}`;
-    if (old === next) {
-      log(`游戏版本无变化（${next}）`);
+
+    const next = `${android.clientVersion}/${android.resVersion}`;
+    const winNext = windows ? ` + win:${windows.resVersion}` : "";
+    if (old === next && !windows) {
+      log(`游戏版本无变化（${next}${winNext}）`);
     } else {
-      log(`游戏版本已更新: ${old} → ${next}`);
+      log(`游戏版本已更新: ${old} → ${next}${winNext}`);
     }
     return true;
   } catch (error) {

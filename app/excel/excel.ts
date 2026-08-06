@@ -143,189 +143,82 @@ export class Excel {
 
   /**
    * 初始化所有 Excel 数据表
-   * 
-   * 从 data/excel/ 目录下加载所有 JSON 格式的数据表文件，
-   * 并初始化商店数据。
+   *
+   * 从 data/excel/ 目录下批量并行加载所有 JSON 格式的数据表文件
+   * （Promise.all 并发读文件 + parse，避免串行 IO），并初始化商店数据。
    */
   async init(): Promise<void> {
-    this.MissionTable = await readJson<MissionTable>(
-      "./data/excel/mission_table.json",
-    );
-    this.BattleEquipTable = await readJson<BattleEquipPack>(
-      "./data/excel/battle_equip_table.json",
-    );
-    this.BuildingData = await readJson<BuildingData>(
-      "./data/excel/building_data.json",
-    );
-    this.CharacterTable = await readJson<CharacterData>(
-      "./data/excel/character_table.json",
-    );
-    this.GameDataConst = await readJson<GameDataConsts>(
-      "./data/excel/gamedata_const.json",
-    );
-    this.ItemTable = await readJson<ServerItemTable>(
-      "./data/excel/item_table.json",
-    );
-    this.StageTable = await readJson<StageTable>(
-      "./data/excel/stage_table.json",
-    );
+    const loaders: [keyof Excel, string][] = [
+      ["MissionTable", "./data/excel/mission_table.json"],
+      ["BattleEquipTable", "./data/excel/battle_equip_table.json"],
+      ["BuildingData", "./data/excel/building_data.json"],
+      ["CharacterTable", "./data/excel/character_table.json"],
+      ["GameDataConst", "./data/excel/gamedata_const.json"],
+      ["ItemTable", "./data/excel/item_table.json"],
+      ["StageTable", "./data/excel/stage_table.json"],
+      ["HandbookInfoTable", "./data/excel/handbook_info_table.json"],
+      ["CheckinTable", "./data/excel/checkin_table.json"],
+      ["StoryReviewMetaTable", "./data/excel/story_review_meta_table.json"],
+      ["GachaTable", "./data/excel/gacha_table.json"],
+      ["RoguelikeTopicTable", "./data/excel/roguelike_topic_table.json"],
+      ["UniequipTable", "./data/excel/uniequip_table.json"],
+      ["FavorTable", "./data/excel/favor_table.json"],
+      ["StoryReviewTable", "./data/excel/story_review_table.json"],
+      ["MedalTable", "./data/excel/medal_table.json"],
+      ["CharMetaTable", "./data/excel/char_meta_table.json"],
+      ["SkinTable", "./data/excel/skin_table.json"],
+      ["OpenServerTable", "./data/excel/open_server_table.json"],
+      ["RetroTable", "./data/excel/retro_table.json"],
+      ["GachaDetailTable", "./data/gacha_detail_table.json"],
+      ["ActivityTable", "./data/excel/activity_table.json"],
+      ["CampaignTable", "./data/excel/campaign_table.json"],
+      ["ChapterTable", "./data/excel/chapter_table.json"],
+      ["CharMasterTable", "./data/excel/char_master_table.json"],
+      ["CharPatchTable", "./data/excel/char_patch_table.json"],
+      ["CharWordTable", "./data/excel/charword_table.json"],
+      ["CharmTable", "./data/excel/charm_table.json"],
+      ["ClimbTowerTable", "./data/excel/climb_tower_table.json"],
+      ["CrisisTable", "./data/excel/crisis_table.json"],
+      ["CrisisV2AppraiseWrap", "./data/excel/crisis_v2_table.json"],
+      ["CrisisV2ConstData", "./data/excel/crisis_v2_table.json"],
+      ["CrisisV2SeasonInfo", "./data/excel/crisis_v2_table.json"],
+      ["CrisisV2SharedData", "./data/excel/crisis_v2_table.json"],
+      ["DisplayMetaTable", "./data/excel/display_meta_table.json"],
+      ["EnemyDatabase", "./data/excel/enemy_database.json"],
+      ["EnemyHandbookLevelInfoTable", "./data/excel/enemy_handbook_table.json"],
+      ["EnemyHandbookRaceTable", "./data/excel/enemy_handbook_table.json"],
+      ["EpBreakBuffData", "./data/excel/ep_breakbuff_table.json"],
+      ["ExtraBattleLogData", "./data/excel/extra_battlelog_table.json"],
+      ["HandbookTeamTable", "./data/excel/handbook_team_table.json"],
+      ["HotUpdateMetaTable", "./data/excel/hotupdate_meta_table.json"],
+      ["MetaUIDisplayTable", "./data/excel/meta_ui_table.json"],
+      ["PlayerAvatarTable", "./data/excel/player_avatar_table.json"],
+      ["RangeTable", "./data/excel/range_table.json"],
+      ["ReplicateTable", "./data/excel/replicate_table.json"],
+      ["RoguelikeActivityTable", "./data/excel/roguelike_table.json"],
+      ["SandboxActTable", "./data/excel/sandbox_table.json"],
+      ["SandboxBaseConstTable", "./data/excel/sandbox_table.json"],
+      ["SandboxMapConstTable", "./data/excel/sandbox_table.json"],
+      ["SandboxPermTable", "./data/excel/sandbox_perm_table.json"],
+      ["SandboxTable", "./data/excel/sandbox_table.json"],
+      ["ShopClientTable", "./data/excel/shop_client_table.json"],
+      ["SkillDataBundle", "./data/excel/skill_table.json"],
+      ["SpecialOperatorTable", "./data/excel/special_operator_table.json"],
+      ["StoryData", "./data/excel/story_table.json"],
+      ["UniEquipData", "./data/excel/uniequip_data.json"],
+      ["ZoneTable", "./data/excel/zone_table.json"],
+      ["RoguelikeConsts", "./data/rlv2.json"],
+    ];
+
+    const results = await Promise.all(loaders.map(([, path]) => readJson(path)));
+    loaders.forEach(([key], i) => {
+      (this as any)[key] = results[i];
+    });
+
     // 归一化掉落信息（occPercent/dropType 字符串 → 数字档位，供 dropReward 使用）
     normalizeStageDropInfo(this.StageTable);
-    this.HandbookInfoTable = await readJson<HandbookInfoTable>(
-      "./data/excel/handbook_info_table.json",
-    );
-    this.CheckinTable = await readJson<CheckInTable>(
-      "./data/excel/checkin_table.json",
-    );
-    this.StoryReviewMetaTable = await readJson<StoryReviewMetaTable>(
-      "./data/excel/story_review_meta_table.json",
-    );
-    this.GachaTable = await readJson<GachaData>(
-      "./data/excel/gacha_table.json",
-    );
-    this.RoguelikeTopicTable = await readJson<RoguelikeTopicTable>(
-      "./data/excel/roguelike_topic_table.json",
-    );
-    this.UniequipTable = await readJson<UniEquipTable>(
-      "./data/excel/uniequip_table.json",
-    );
-    this.FavorTable = await readJson<FavorTable>(
-      "./data/excel/favor_table.json",
-    );
-    this.StoryReviewTable = await readJson<StoryReviewGroupClientData>(
-      "./data/excel/story_review_table.json",
-    );
-    this.MedalTable = await readJson<MedalData>(
-      "./data/excel/medal_table.json",
-    );
-    this.CharMetaTable = await readJson<CharMetaTable>(
-      "./data/excel/char_meta_table.json",
-    );
-    this.SkinTable = await readJson<SkinTable>("./data/excel/skin_table.json");
-    this.OpenServerTable = await readJson<OpenServerSchedule>(
-      "./data/excel/open_server_table.json",
-    );
-    this.RetroTable = await readJson<RetroStageTable>(
-      "./data/excel/retro_table.json",
-    );
-    this.GachaDetailTable = await readJson<GachaDetailTable>(
-      "./data/gacha_detail_table.json",
-    );
-    this.ActivityTable = await readJson<ActivityTable>(
-      "./data/excel/activity_table.json",
-    );
-    this.CampaignTable = await readJson<CampaignTable>(
-      "./data/excel/campaign_table.json",
-    );
-    this.ChapterTable = await readJson<{ [key: string]: ChapterData }>(
-      "./data/excel/chapter_table.json",
-    );
-    this.CharMasterTable = await readJson<{ [key: string]: CharMasterBasicData }>(
-      "./data/excel/char_master_table.json",
-    );
-    this.CharPatchTable = await readJson<CharPatchData>(
-      "./data/excel/char_patch_table.json",
-    );
-    this.CharWordTable = await readJson<CharWordTable>(
-      "./data/excel/charword_table.json",
-    );
-    this.CharmTable = await readJson<CharmData>(
-      "./data/excel/charm_table.json",
-    );
-    this.ClimbTowerTable = await readJson<ClimbTowerTable>(
-      "./data/excel/climb_tower_table.json",
-    );
-    this.CrisisTable = await readJson<CrisisClientData>(
-      "./data/excel/crisis_table.json",
-    );
-    this.CrisisV2AppraiseWrap = await readJson<CrisisV2AppraiseWrap>(
-      "./data/excel/crisis_v2_table.json",
-    );
-    this.CrisisV2ConstData = await readJson<CrisisV2ConstData>(
-      "./data/excel/crisis_v2_table.json",
-    );
-    this.CrisisV2SeasonInfo = await readJson<CrisisV2SeasonInfo>(
-      "./data/excel/crisis_v2_table.json",
-    );
-    this.CrisisV2SharedData = await readJson<CrisisV2SharedData>(
-      "./data/excel/crisis_v2_table.json",
-    );
-    this.DisplayMetaTable = await readJson<DisplayMetaData>(
-      "./data/excel/display_meta_table.json",
-    );
-    this.EnemyDatabase = await readJson<EnemyDatabase>(
-      "./data/excel/enemy_database.json",
-    );
-    this.EnemyHandbookLevelInfoTable = await readJson<EnemyHandbookLevelInfoData>(
-      "./data/excel/enemy_handbook_table.json",
-    );
-    this.EnemyHandbookRaceTable = await readJson<EnemyHandbookRaceData>(
-      "./data/excel/enemy_handbook_table.json",
-    );
-    this.EpBreakBuffData = await readJson<EPBreakBuffData>(
-      "./data/excel/ep_breakbuff_table.json",
-    );
-    this.ExtraBattleLogData = await readJson<ExtraBattleLogData>(
-      "./data/excel/extra_battlelog_table.json",
-    );
-    this.HandbookTeamTable = await readJson<HandbookTeamData>(
-      "./data/excel/handbook_team_table.json",
-    );
-    this.HotUpdateMetaTable = await readJson<HotUpdateMetaTable>(
-      "./data/excel/hotupdate_meta_table.json",
-    );
-    this.MetaUIDisplayTable = await readJson<MetaUIDisplayTable>(
-      "./data/excel/meta_ui_table.json",
-    );
-    this.PlayerAvatarTable = await readJson<PlayerAvatarData>(
-      "./data/excel/player_avatar_table.json",
-    );
-    this.RangeTable = await readJson<RangeData>(
-      "./data/excel/range_table.json",
-    );
-    this.ReplicateTable = await readJson<ReplicateTable>(
-      "./data/excel/replicate_table.json",
-    );
-    this.RoguelikeActivityTable = await readJson<RoguelikeActivityTable>(
-      "./data/excel/roguelike_table.json",
-    );
-    this.SandboxActTable = await readJson<SandboxActTable>(
-      "./data/excel/sandbox_table.json",
-    );
-    this.SandboxBaseConstTable = await readJson<SandboxBaseConstTable>(
-      "./data/excel/sandbox_table.json",
-    );
-    this.SandboxMapConstTable = await readJson<SandboxMapConstTable>(
-      "./data/excel/sandbox_table.json",
-    );
-    this.SandboxPermTable = await readJson<SandboxPermTable>(
-      "./data/excel/sandbox_perm_table.json",
-    );
-    this.SandboxTable = await readJson<SandboxTable>(
-      "./data/excel/sandbox_table.json",
-    );
-    this.ShopClientTable = await readJson<ShopClientData>(
-      "./data/excel/shop_client_table.json",
-    );
-    this.SkillDataBundle = await readJson<SkillDataBundle>(
-      "./data/excel/skill_table.json",
-    );
-    this.SpecialOperatorTable = await readJson<SpecialOperatorTable>(
-      "./data/excel/special_operator_table.json",
-    );
-    this.StoryData = await readJson<StoryData>(
-      "./data/excel/story_table.json",
-    );
-    this.UniEquipData = await readJson<UniEquipData>(
-      "./data/excel/uniequip_data.json",
-    );
-    this.ZoneTable = await readJson<ZoneTable>(
-      "./data/excel/zone_table.json",
-    );
-    this.RoguelikeConsts = await readJson<{ [key: string]: RoguelikeConst }>(
-      "./data/rlv2.json",
-    );
-    logger.info("Excel", "44 excels loaded");
+
+    logger.info("Excel", `${loaders.length} excels loaded`);
     this.ShopTable = new ShopData();
     await this.ShopTable.init();
     logger.info("Excel", "10 shops loaded");

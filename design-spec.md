@@ -937,7 +937,7 @@ npm run migrate:official -- --accounts <账号文件路径> --template 1
 ### 18.3 数据流
 1. **设置**：`setAssistCharList({assistCharList})` → `player.social.assistCharList`（{charInstId, skillIndex} 引用）
 2. **展示**：`socialInfo` getter 把助战 charInstId 映射为完整干员数据（charId/skills/level/favorPoint 等）——好友列表/助战列表复用
-3. **借用**：`getAssistList({profession})` 读好友 `socialInfo.assistCharList` 按职业匹配（excel.CharacterTable[charId].profession）→ 构造 OrigChar（nickName/uid/level/avatar/assistSlotIndex/powerScore=200 简化）
+3. **借用**：`getAssistList({profession})` 读好友 `socialInfo.assistCharList` 按职业匹配（excel.CharacterTable[charId].profession）→ 构造 OrigChar（nickName/uid/level/avatar/assistSlotIndex/powerScore=200 简化）；**好友数据不足 6 个时从其他账号随机补位**（isFriend=false、canRequestFriend=true、aliasName=null）
 4. **战斗**：`battleStart` 的 `assistFriend`（SquadFriendData）保存到 BattleInfo（供结算/日志）
 
 ### 18.4 已知约束

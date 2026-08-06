@@ -57,5 +57,6 @@
     "enable": false,
     "token": "doctorate-admin"
   },
-  "authMode": "single"
+  "authMode": "single",
+  "singleAutoMaxAccount": true
 }

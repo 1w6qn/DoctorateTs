@@ -17,6 +17,7 @@ import auth from "./app/auth/auth";
 import asset from "./app/asset";
 import game, { setup } from "./app/game/app";
 import bodyParser from "body-parser";
+import { accountManager } from "./app/game/manager/AccountManger";
 
 /**
  * 应用启动入口函数
@@ -72,7 +73,23 @@ import bodyParser from "body-parser";
   await setup(game);
   app.use("/", game);
   app.use("/assetbundle", asset);
-  // 管理后台（CLI 之外的 Web 管理入口，需在 data/config.json 中开启 admin.enable）
+
+  // 单例模式：自动生成满配账号（全干员/全物品——随版本刷新，版本变化重新生成）
+  if (config.authMode === "single" && config.singleAutoMaxAccount !== false) {
+    try {
+      const player = await accountManager.getPlayerData("1");
+      const marker = (player as any)?._playerdata?.status?.maxAccountResVersion;
+      if (player && marker !== config.version.resVersion) {
+        const { generateMaxedAccount } = await import("./scripts/generate-max-account");
+        await generateMaxedAccount(player);
+        await accountManager.flushSave("1");
+        logger.info("index", `单例满配账号已生成（版本 ${config.version.resVersion}）`);
+      }
+    } catch (error) {
+      logger.error("index", "满配账号生成失败:", (error as Error).message);
+    }
+  }
+
   app.use("/admin", (await import("./app/admin/admin-router")).default);
   app.listen(config.PORT, () => {
     logger.info("index", `--------------DoctorateTs--------------`);

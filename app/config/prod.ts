@@ -43,16 +43,24 @@ router.get("/official/remote_config", async (req, res) => {
     enableBestHttp: true,
   });
 });
+// 公告元数据（平台参数化——Android/Windows/iOS）
 router.get(
-  "/announce_meta/Android/preannouncement.meta.json",
+  "/announce_meta/:platform/preannouncement.meta.json",
   async (req, res) => {
-    res.send(readJson("./data/announce/preannouncement.meta.json"));
+    res.send(await readJson("./data/announce/preannouncement.meta.json"));
   },
 );
 router.get(
-  "/announce_meta/Android/announcement.meta.json",
+  "/announce_meta/:platform/announcement.meta.json",
   async (req, res) => {
-    res.send(readJson("./data/announce/announcement.meta.json"));
+    res.send(await readJson("./data/announce/announcement.meta.json"));
+  },
+);
+// 容错：客户端 URL 拼接（announce_meta + /api/gate/meta 误拼成一条请求）——返回公告
+router.get(
+  "/announce_meta/:platform/preannouncement.meta.json/api/gate/meta/:gatePlatform",
+  async (req, res) => {
+    res.send(await readJson("./data/announce/preannouncement.meta.json"));
   },
 );
 export default router;

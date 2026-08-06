@@ -1,37 +1,51 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("axios", () => ({
-  default: { get: vi.fn().mockResolvedValue({ data: { abInfos: [] } }) },
+const mockConfig = vi.hoisted(() => ({
+  Host: "http://127.0.0.1",
+  PORT: 8443,
+  version: {
+    resVersion: "25-05-20-12-36-22_4803e1",
+    clientVersion: "2.5.60",
+    windows: { resVersion: "26-07-30-09-00-07_win", clientVersion: "2.5.60" },
+  },
+  assets: { enableMods: false, downloadLocally: false, autoUpdate: true, downloadPeoxy: false },
+  NetworkConfig: {},
 }));
+
 vi.mock("@utils/file", () => ({
-  readJsonSync: vi.fn(() => ({
-    Host: "http://127.0.0.1",
-    PORT: 8443,
-    version: {
-      resVersion: "25-05-20-12-36-22_4803e1",
-      clientVersion: "2.5.60",
-      windows: { resVersion: "26-07-30-09-00-07_win", clientVersion: "2.5.60" },
-    },
-    assets: { enableMods: false, downloadLocally: false, autoUpdate: true },
-    NetworkConfig: {},
-  })),
+  readJsonSync: vi.fn(() => mockConfig),
   exists: vi.fn().mockResolvedValue(false),
   size: vi.fn().mockResolvedValue(0),
 }));
+vi.mock("axios", () => ({
+  default: { get: vi.fn().mockResolvedValue({ data: { abInfos: [] } }) },
+}));
 vi.mock("fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs/promises")>();
-  return { ...actual, readFile: vi.fn(), writeFile: vi.fn().mockResolvedValue(undefined), mkdir: vi.fn().mockResolvedValue(undefined) };
+  return {
+    ...actual,
+    readFile: vi.fn(),
+    writeFile: vi.fn().mockResolvedValue(undefined),
+    mkdir: vi.fn().mockResolvedValue(undefined),
+  };
 });
 
 import assetRouter from "../../../app/asset";
 
 function mockRes() {
-  return { sendFile: vi.fn(), redirect: vi.fn(), send: vi.fn(), status: vi.fn().mockReturnThis() };
+  return {
+    sendFile: vi.fn(),
+    redirect: vi.fn(),
+    send: vi.fn(),
+    status: vi.fn().mockReturnThis(),
+    setHeader: vi.fn(),
+  };
 }
 
 describe("asset 资源路由", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockConfig.assets.downloadPeoxy = false;
   });
 
   it("Windows 平台热更新列表路径应匹配并返回", async () => {
@@ -84,5 +98,36 @@ describe("asset 资源路由", () => {
     expect(res.redirect).toHaveBeenCalledWith(
       "https://ak.hycdn.cn/assetbundle/official/Windows/assets/26-07-30-09-00-07_win/char_pack.dat",
     );
+  });
+
+  it("代理模式应转发官服 CDN（支持 Range 头）", async () => {
+    mockConfig.assets.downloadPeoxy = true;
+    const headers = new Map([["content-type", "application/octet-stream"]]);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      status: 206,
+      arrayBuffer: async () => new ArrayBuffer(4),
+      headers: { forEach: (cb: any) => headers.forEach((v, k) => cb(v, k)) },
+    } as any);
+
+    const res = mockRes();
+    await assetRouter(
+      {
+        method: "GET",
+        url: "/official/Windows/assets/26-07-30-09-00-07_win/char_pack.dat",
+        headers: { range: "bytes=0-99" },
+        params: { platform: "Windows", assetsHash: "26-07-30-09-00-07_win", fileName: "char_pack.dat" },
+      } as any,
+      res as any,
+      () => {},
+    );
+    await new Promise((r) => setTimeout(r, 30));
+
+    // 转发 CDN 状态码/头/body，且携带 Range 头
+    expect(res.status).toHaveBeenCalledWith(206);
+    expect(res.setHeader).toHaveBeenCalledWith("content-type", "application/octet-stream");
+    expect(res.send).toHaveBeenCalled();
+    // Range 转发给 CDN
+    const fetchMock = vi.mocked(globalThis.fetch);
+    expect(String((fetchMock.mock.calls[0][1] as any).headers.Range)).toBe("bytes=0-99");
   });
 });

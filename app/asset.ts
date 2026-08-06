@@ -30,6 +30,31 @@ router.get(
       MODS_LIST = await loadMods();
     }
 
+    // odpy 代理模式（downloadPeoxy）：直接转发官服 CDN（支持 Range 断点续传，不落盘）
+    if (
+      (config.assets as any).downloadPeoxy &&
+      fileName !== "hot_update_list.json" &&
+      !MODS_LIST.download.includes(fileName)
+    ) {
+      const forwardHeaders: Record<string, string> = {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36",
+      };
+      const rangeHeader = req.headers.range as string | undefined;
+      if (rangeHeader) forwardHeaders.Range = rangeHeader;
+      const resp = await fetch(
+        `https://ak.hycdn.cn/assetbundle/official/${cdnPlatform}/assets/${version}/${fileName}`,
+        { headers: forwardHeaders },
+      );
+      const body = Buffer.from(await resp.arrayBuffer());
+      res.status(resp.status);
+      resp.headers.forEach((value, key) => {
+        if (key.toLowerCase() !== "transfer-encoding") res.setHeader(key, value);
+      });
+      res.send(body);
+      return;
+    }
+
     if (!config.assets.downloadLocally) {
       basePath = join(__dirname, "..", "assets", version);
       if (

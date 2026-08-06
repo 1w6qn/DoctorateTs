@@ -50,6 +50,8 @@ interface UserConfig {
     downloadLocally: boolean;
     /** 是否自动更新 */
     autoUpdate: boolean;
+    /** 代理模式（odpy 参考）：直接转发官服 CDN，不落盘 */
+    downloadPeoxy?: boolean;
   };
   /** 网络配置 */
   NetworkConfig: object;

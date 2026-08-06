@@ -82,7 +82,7 @@ describe("asset 资源路由", () => {
     expect(res.sendFile).toHaveBeenCalled();
   });
 
-  it("Windows 平台非热更新文件应重定向到 Windows CDN", async () => {
+  it("Windows 平台非热更新文件应重定向到 CDN（资源版本跟随客户端路径）", async () => {
     const res = mockRes();
     await assetRouter(
       {
@@ -94,9 +94,9 @@ describe("asset 资源路由", () => {
       () => {},
     );
     await new Promise((r) => setTimeout(r, 30));
-    // downloadLocally=false → 重定向官服 CDN（Windows 平台 + Windows resVersion）
+    // downloadLocally=false → 重定向官服 CDN（Android CDN 资源通用 + 客户端请求的版本）
     expect(res.redirect).toHaveBeenCalledWith(
-      "https://ak.hycdn.cn/assetbundle/official/Windows/assets/26-07-30-09-00-07_win/char_pack.dat",
+      "https://ak.hycdn.cn/assetbundle/official/Android/assets/26-07-30-09-00-07_win/char_pack.dat",
     );
   });
 

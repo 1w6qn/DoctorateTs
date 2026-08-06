@@ -17,13 +17,10 @@ router.get(
   async (req, res) => {
     const { assetsHash } = req.params;
     let { fileName } = req.params;
-    // 平台参数（Android/Windows/iOS）：Windows 用独立 resVersion（odpy 参考），其余用默认
-    const isWindows = req.params.platform === "Windows";
-    const version = isWindows
-      ? (config.version as any).windows?.resVersion || config.version.resVersion
-      : config.version.resVersion;
-    // CDN 平台路径（odpy 参考：system 参数——Windows 客户端下载 Windows 资源）
-    const cdnPlatform = isWindows ? "Windows" : "Android";
+    // 资源版本跟随客户端请求路径（资源按版本存储——客户端从 hv 拿到 resVersion 拼路径）；
+    // Windows 客户端资源与 Android 通用（官服 Windows 版复用 Android 资源包）——统一 Android CDN
+    const version = assetsHash;
+    const cdnPlatform = "Android";
     let basePath = join(__dirname, "..", "assets", version, "redirect");
 
     if (fileName === "hot_update_list.json" && config.assets.enableMods) {

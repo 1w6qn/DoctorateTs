@@ -209,6 +209,53 @@ export class SocialManager {
     });
   }
 
+  /**
+   * 获取编队助战列表（按职业筛选好友助战干员）
+   * 好友随机排序，最多取 6 个，干员按 charId 去重
+   */
+  async getAssistList(args: { profession: string }) {
+    const { profession } = args;
+    const social = await accountManager.getSocial(this._uid);
+    const friends = [...social.friends].sort(() => Math.random() - 0.5);
+    const assistList: any[] = [];
+    const usedCharIds = new Set<string>();
+
+    for (const friend of friends) {
+      if (assistList.length >= 6) break;
+      let info: any;
+      try {
+        info = await accountManager.getPlayerFriendInfo(friend.uid);
+      } catch {
+        continue;
+      }
+      const assistChars: any[] = info?.assistCharList || [];
+      // 找该职业的助战干员（assistCharList 元素含 charId/charInstId）
+      const matched = assistChars.find((c) => {
+        const data = excel.CharacterTable[c?.charId];
+        return data?.profession === profession;
+      });
+      if (!matched) continue;
+      if (usedCharIds.has(matched.charId)) continue;
+      usedCharIds.add(matched.charId);
+
+      assistList.push({
+        aliasName: friend.alias,
+        assistCharList: assistChars,
+        assistSlotIndex: assistChars.indexOf(matched),
+        avatar: info.avatar,
+        canRequestFriend: false,
+        isFriend: true,
+        lastOnlineTime: info.lastOnlineTime,
+        level: info.level,
+        nickName: info.nickName,
+        nickNumber: info.nickNumber,
+        powerScore: 200,
+        uid: friend.uid,
+      });
+    }
+    return assistList;
+  }
+
   async setFriendAlias(args: { friendId: string; alias: string }) {
     const { friendId, alias } = args;
     await accountManager.setFriendAlias(this._uid, friendId, alias);

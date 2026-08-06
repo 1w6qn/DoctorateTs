@@ -29,6 +29,13 @@ router.post("/changeSquadName", async (req, res) => {
   await player.troop.changeSquadName(req.body);
   res.send(player.delta);
 });
+router.post("/getAssistList", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  res.send({
+    list: await player.social.getAssistList(req.body),
+    ...player.delta,
+  });
+});
 router.post("/battleStart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   res.send({

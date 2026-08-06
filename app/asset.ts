@@ -17,8 +17,11 @@ router.get(
   async (req, res) => {
     const { assetsHash } = req.params;
     let { fileName } = req.params;
-    // 平台参数（Android/Windows/iOS）仅用于路径匹配，资源 CDN 统一走 Android 目录
-    const version = config.version.resVersion;
+    // 平台参数（Android/Windows/iOS）：Windows 用独立 resVersion（odpy 参考），其余用默认
+    const isWindows = req.params.platform === "Windows";
+    const version = isWindows
+      ? (config.version as any).windows?.resVersion || config.version.resVersion
+      : config.version.resVersion;
     let basePath = join(__dirname, "..", "assets", version, "redirect");
 
     if (fileName === "hot_update_list.json" && config.assets.enableMods) {

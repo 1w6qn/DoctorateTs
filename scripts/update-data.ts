@@ -232,7 +232,8 @@ function copyExcelFiles(): boolean {
 
 function generateTypes(): boolean {
   log(`生成 TypeScript 类型...`);
-  return executeCommand("npx ts-node scripts/generate-types.ts", path.join(__dirname, ".."));
+  // TS7 后 ts-node 不可用，改用 tsx 执行器
+  return executeCommand("npx tsx scripts/generate-types.ts", path.join(__dirname, ".."));
 }
 
 function mergeGachaFiles(): boolean {

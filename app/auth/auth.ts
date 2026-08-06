@@ -181,6 +181,171 @@ router.post("/user/online/v1/loginout", async (req, res) => {
   res.send({});
 });
 
+/** 在线心跳（参考 DoctoratePy onlineV1Ping——客户端定期请求，返回正常 result 避免断线） */
+router.post("/user/online/v1/ping", async (req, res) => {
+  res.send({
+    alertTime: 600,
+    interval: 120,
+    message: "OK",
+    result: 0,
+    timeLeft: -1,
+  });
+});
+
+/**
+ * 手机号密码登录（参考 DoctoratePy userLogin）
+ * result: 0 成功 / 1 用户名或密码错误 / 4 该用户尚不存在
+ */
+router.post("/user/auth/v1/login", async (req, res) => {
+  const { account, password } = req.body ?? {};
+  const found = Object.entries(accountManager.configs).find(
+    ([, c]) => c.auth?.phone == account,
+  );
+  if (!found) {
+    return res.send({ result: 4 });
+  }
+  const [uid, conf] = found;
+  if (conf.password !== password) {
+    return res.send({ result: 1 });
+  }
+  res.send({
+    result: 0,
+    uid,
+    token: conf.secret || uid,
+    isAuthenticate: true,
+    isMinor: false,
+    needAuthenticate: false,
+    isLatestUserAgreement: true,
+  });
+});
+
+/**
+ * 手机号注册（参考 DoctoratePy userRegister）
+ * result: 0 成功 / 5 <errMsg> 密码格式错误或账号已存在
+ */
+router.post("/user/auth/v1/register", async (req, res) => {
+  const { account, password } = req.body ?? {};
+  if (
+    !/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d!@#$%^&*]{8,16}$/.test(password || "")
+  ) {
+    return res.send({
+      result: 5,
+      errMsg:
+        "<color=red>密码格式错误</color>\n密码应为8-16位大小写字母和数字的组合\n其中可以选择包含一些常用字符",
+    });
+  }
+  const exists = Object.values(accountManager.configs).some(
+    (c) => c.auth?.phone == account,
+  );
+  if (exists) {
+    return res.send({ result: 5, errMsg: "该账户已存在，请检查注册信息" });
+  }
+  const uid = await accountManager.registerUser(account, password);
+  const token = accountManager.configs[uid]?.secret || uid;
+  res.send({
+    result: 0,
+    uid,
+    token,
+    isAuthenticate: false,
+    isMinor: false,
+    needAuthenticate: true,
+    isLatestUserAgreement: true,
+  });
+});
+
+/** 短信验证码登录（参考 DoctoratePy userLoginBySmsCode——私服简化：账号存在即成功） */
+router.post("/user/auth/v1/login_by_smscode", async (req, res) => {
+  const { account } = req.body ?? {};
+  const found = Object.entries(accountManager.configs).find(
+    ([, c]) => c.auth?.phone == account,
+  );
+  if (!found) {
+    return res.send({ result: 1 });
+  }
+  const [uid, conf] = found;
+  res.send({
+    result: 0,
+    uid,
+    token: conf.secret || uid,
+    isAuthenticate: true,
+    isMinor: false,
+    needAuthenticate: false,
+    isLatestUserAgreement: true,
+  });
+});
+
+/** 发送短信验证码（参考 DoctoratePy userSendSmsCode——私服直接成功） */
+router.post("/user/auth/v1/send_sms_code", async (req, res) => {
+  res.send({ result: 0, msg: "OK" });
+});
+
+/** 发送手机验证码（参考 DoctoratePy userInfoV1SendPhoneCode） */
+router.post("/user/info/v1/send_phone_code", async (req, res) => {
+  res.send({ status: 0, msg: "OK" });
+});
+
+/** 实名认证（参考 DoctoratePy userAuthenticateUserIdentity——私服直接通过） */
+router.post("/user/auth/v1/authenticate_user_identity", async (req, res) => {
+  res.send({ result: 0, message: "OK", isMinor: false });
+});
+
+/** 同意用户协议（参考 DoctoratePy userUpdateAgreement） */
+router.post("/user/auth/v1/update_agreement", async (req, res) => {
+  res.send({ result: 0, message: "OK", isMinor: false });
+});
+
+/** 身份证校验（参考 DoctoratePy userCheckIdCard——私服直接通过） */
+router.post("/user/auth/v1/check_id_card", async (req, res) => {
+  res.send({ result: 0, message: "OK", isMinor: false });
+});
+
+/** 修改密码（参考 DoctoratePy userChangePassword——私服简化成功） */
+router.post("/user/auth/v1/change_password", async (req, res) => {
+  res.send({ result: 0 });
+});
+
+/** 换绑手机检查（参考 DoctoratePy userChangePhoneCheck） */
+router.post("/user/auth/v1/change_phone_check", async (req, res) => {
+  res.send({ result: 0 });
+});
+
+/** 换绑手机（参考 DoctoratePy userChangePhone——私服简化成功） */
+router.post("/user/auth/v1/change_phone", async (req, res) => {
+  res.send({ result: 0 });
+});
+
+/** 游客登录（参考 DoctoratePy userV1GuestLogin——私服返回未激活） */
+router.post("/user/auth/v1/guest_login", async (req, res) => {
+  res.send({ result: 3 });
+});
+
+/** 注销授权（参考 DoctoratePy userOauth2V1UnbindGrant——私服直接成功） */
+router.post("/user/oauth2/v1/unbind_grant", async (req, res) => {
+  res.send({ status: 0, msg: "OK" });
+});
+
+/** 支付订单状态（参考 DoctoratePy payConfirmOrderState——私服无支付返回未完成） */
+router.post("/u8/pay/confirmOrderState", async (req, res) => {
+  res.send({ payState: 0 });
+});
+
+/** Token 换取用户状态（参考 DoctoratePy userAuth——客户端登录后校验） */
+router.post("/user/auth", async (req, res) => {
+  const token = String(req.body?.token ?? "");
+  const uid = await accountManager.getUidByToken(token);
+  if (!uid) {
+    return res.status(404).send({ status: 1, msg: "用户不存在" });
+  }
+  res.send({
+    uid,
+    isMinor: false,
+    isAuthenticate: true,
+    isGuest: false,
+    needAuthenticate: false,
+    isLatestUserAgreement: true,
+  });
+});
+
 /**
  * 获取 U8 渠道商品列表
  * 

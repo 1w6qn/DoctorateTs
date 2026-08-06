@@ -18,6 +18,7 @@
 15. [官服数据迁移](#15-官服数据迁移)
 16. [集成战略 rlv2 接口补全](#16-集成战略-rlv2-接口补全)
 17. [子域名分发与远程配置](#17-子域名分发与远程配置)
+18. [助战系统](#18-助战系统)
 
 ---
 
@@ -918,3 +919,29 @@ npm run migrate:official -- --accounts <账号文件路径> --template 1
 ### 17.3 已知约束
 - Node fetch 会覆盖自定义 Host 头——子域名验证需用 node http 或 curl（E2E 经验）
 - 旧版 `/config/prod/official/network_config`（{sign, content} 格式）保持兼容（prod.ts 复用 buildNetworkConfigContent）
+
+---
+
+## 18. 助战系统
+
+### 18.1 用途
+明日方舟助战：玩家在助战位放置干员（社交）、好友在编队时可借用（战斗）。私服单机场景：多账号互相借用。
+
+### 18.2 接口
+| 接口 | 行为 | 状态 |
+|------|------|------|
+| `POST /social/setAssistCharList` | 保存助战干员列表（charInstId/skillIndex）到 `player.social.assistCharList` | 既有 |
+| `POST /quest/getAssistList` | 编队助战列表：按职业筛选好友助战干员，随机最多 6 个、charId 去重，返回 OrigChar 结构 | **本次新增** |
+| `POST /quest/battleStart` | 战斗开始保存 `assistFriend`（uid/assistChar/assistSlotIndex）到 BattleInfo | **本次补全** |
+
+### 18.3 数据流
+1. **设置**：`setAssistCharList({assistCharList})` → `player.social.assistCharList`（{charInstId, skillIndex} 引用）
+2. **展示**：`socialInfo` getter 把助战 charInstId 映射为完整干员数据（charId/skills/level/favorPoint 等）——好友列表/助战列表复用
+3. **借用**：`getAssistList({profession})` 读好友 `socialInfo.assistCharList` 按职业匹配（excel.CharacterTable[charId].profession）→ 构造 OrigChar（nickName/uid/level/avatar/assistSlotIndex/powerScore=200 简化）
+4. **战斗**：`battleStart` 的 `assistFriend`（SquadFriendData）保存到 BattleInfo（供结算/日志）
+
+### 18.4 已知约束
+- 战斗内助战干员数据由客户端自带（encryptBattleData）——服务端仅记录 assistFriend，不额外处理干员进队
+- 助战社交点结算（借出方 yesterdayReward.assistAmount 累加）**未实现**（YAGNI）——需跨玩家写入 + 每日重置机制，留后续
+- powerScore 简化为固定 200（参考实现也是 TODO）
+- 好友关系数据来自 SQLite（social.db）——getAssistList 依赖好友关系存在

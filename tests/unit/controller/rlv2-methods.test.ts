@@ -100,4 +100,27 @@ describe("rlv2 补全接口", () => {
       expect(totemUse).toHaveBeenCalledWith(["t_0", "t_1"], ["1"]);
     });
   });
+
+  describe("closeRecruitTicket", () => {
+    it("应关闭指定招募票（state=3 并清空列表）", async () => {
+      player.rlv2.inventory.recruit["t_1"] = {
+        index: "t_1",
+        id: "ticket_1",
+        state: 1,
+        list: [{ instId: 0 }],
+        result: null,
+        ts: 0,
+        from: "shop",
+        mustExtra: 0,
+        needAssist: false,
+      } as any;
+      await (player.rlv2 as any).closeRecruitTicket({ id: "t_1" });
+      expect(player.rlv2.inventory.recruit["t_1"].state).toBe(3);
+      expect(player.rlv2.inventory.recruit["t_1"].list).toHaveLength(0);
+    });
+
+    it("不存在的票应静默返回", async () => {
+      await (player.rlv2 as any).closeRecruitTicket({ id: "t_999" });
+    });
+  });
 });

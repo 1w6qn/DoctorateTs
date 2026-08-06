@@ -493,6 +493,14 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     this._module.totem.use(args.totemIndex, args.nodeIndex);
   }
 
+  /** 关闭招募票：标记关闭（state=3）并清空候选列表 */
+  async closeRecruitTicket(args: { id: string }): Promise<void> {
+    const ticket = this.inventory!.recruit[args.id];
+    if (!ticket) return;
+    ticket.state = 3;
+    ticket.list = [];
+  }
+
   async moveAndBattleStart(args: {
     to: RoguelikeNodePosition;
     stageId: string;

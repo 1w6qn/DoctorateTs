@@ -9,7 +9,7 @@ import { PlayerDataModel } from "../model/playerdata";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { readJson } from "@utils/file";
 import { now } from "@utils/time";
-import { writeFile } from "fs/promises";
+import { writeFile, rename } from "fs/promises";
 import { TypedEventEmitter } from "@game/model/events";
 import Emittery from "emittery";
 import { FriendRepository } from "../../db/friend-repo";
@@ -55,9 +55,9 @@ export class AccountManager {
         await readJson<PlayerDataModel>(`./data/user/databases/${uid}.json`),
       );
       this.data[uid]._playerdata.status.uid = uid;
-      this.data[uid]._trigger.on("save", async () => {
-        await this.savePlayerData(uid);
-        await this.saveUserConfig();
+      this.data[uid]._trigger.on("save", () => {
+        // 防抖合并：500ms 内的多次变更只落盘一次
+        this.scheduleSave(uid);
       });
     }
     logger.info(
@@ -160,15 +160,51 @@ export class AccountManager {
     return (await this.getPlayerData(uid)).socialInfo;
   }
 
+  /** 保存防抖定时器（key 为 uid） */
+  private _saveTimers: { [uid: string]: NodeJS.Timeout } = {};
+
+  /** 保存防抖窗口（毫秒） */
+  private _saveDebounceMs = 500;
+
   /**
-   * 保存玩家数据到文件
+   * 防抖调度保存：窗口内的多次变更合并为一次落盘（原子写 + 配置保存）
+   * @param uid - 用户ID
+   */
+  private scheduleSave(uid: string): void {
+    if (this._saveTimers[uid]) return;
+    this._saveTimers[uid] = setTimeout(() => {
+      delete this._saveTimers[uid];
+      void this.flushSave(uid);
+    }, this._saveDebounceMs);
+  }
+
+  /**
+   * 立即保存玩家数据（原子写 + 用户配置）
+   * 服务器关闭/测试可显式调用；防抖到期也会调用
+   * @param uid - 用户ID
+   */
+  async flushSave(uid: string): Promise<void> {
+    if (this._saveTimers[uid]) {
+      clearTimeout(this._saveTimers[uid]);
+      delete this._saveTimers[uid];
+    }
+    try {
+      await this.savePlayerData(uid);
+      await this.saveUserConfig();
+    } catch (e) {
+      logger.error("AccountManager", `save ${uid} failed: ${(e as Error).message}`);
+    }
+  }
+
+  /**
+   * 保存玩家数据到文件（原子写：临时文件 + rename，避免写盘中断损坏存档）
    * @param uid - 用户ID
    */
   async savePlayerData(uid: string): Promise<void> {
-    await writeFile(
-      `./data/user/databases/${uid}.json`,
-      JSON.stringify(this.data[uid], null, 4),
-    );
+    const finalPath = `./data/user/databases/${uid}.json`;
+    const tmpPath = `${finalPath}.tmp`;
+    await writeFile(tmpPath, JSON.stringify(this.data[uid], null, 4));
+    await rename(tmpPath, finalPath);
   }
 
   /**

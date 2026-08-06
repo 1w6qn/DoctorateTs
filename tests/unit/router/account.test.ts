@@ -44,10 +44,12 @@ describe("account 路由", () => {
     );
   });
 
-  it("syncData 应更新 pushFlags.status 并返回 user", async () => {
+  it("syncData 应直改 pushFlags.status（不走 Immer，避免深拷贝）并返回 user", async () => {
     const res = mockRes();
     await call({ method: "POST", url: "/syncData" }, res);
-    expect(mockPlayer.update).toHaveBeenCalled();
+    // 直改登录时间戳（不调 update——全量同步无需 delta）
+    expect(mockPlayer.update).not.toHaveBeenCalled();
+    expect(mockPlayer._playerdata.pushFlags.status).toBe(1234567890);
     const arg = res.send.mock.calls[0][0];
     expect(arg.result).toBe(0);
     expect(arg.ts).toBe(1234567890);

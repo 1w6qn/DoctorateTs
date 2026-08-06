@@ -14,14 +14,13 @@ router.post("/login", async (req, res) => {
 });
 router.post("/syncData", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  await player.update(async (draft) => {
-    draft.pushFlags.status = now();
-  });
+  // 直改登录时间戳：全量同步返回完整 user，无需 delta，
+  // 避免 Immer update 深拷贝 1.3MB 存档（性能优化）
+  player._playerdata.pushFlags.status = now();
   res.send({
     result: 0,
     ts: now(),
     user: player,
-    ...player.delta,
   });
 });
 router.post("/syncStatus", async (req, res) => {

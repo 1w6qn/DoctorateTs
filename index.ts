@@ -12,6 +12,7 @@ import { enablePatches } from "immer";
 import morgan from "morgan";
 import prod from "./app/config/prod";
 import { remoteConfigRouter } from "./app/config/remote-config";
+import { createHostRouter } from "./app/config/host-router";
 import auth from "./app/auth/auth";
 import asset from "./app/asset";
 import game, { setup } from "./app/game/app";
@@ -63,6 +64,8 @@ import bodyParser from "body-parser";
   const app = express();
   app.use(bodyParser.json());
   app.use(morgan("short"));
+  // 子域名分发：*.hypergryph.com 请求按官服子域名映射到私服路由
+  app.use(createHostRouter());
   app.use("/config/prod", prod);
   app.use("/api/remote_config", remoteConfigRouter);
   app.use("/auth", auth);

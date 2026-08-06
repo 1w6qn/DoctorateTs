@@ -38,6 +38,16 @@
       }
     }
   },
+  "RemoteConfig": {
+    "fapv2": 1,
+    "HGDownload_1": 10000,
+    "HGDownload_2": 10000,
+    "enableGameBI": true,
+    "showRecordNumber": false,
+    "enableNativeLicense": true,
+    "bakeMuzzleEnableRate": 0,
+    "enemyBakeMuzzleEnableRate": 3000
+  },
   "admin": {
     "enable": false,
     "token": "doctorate-admin"

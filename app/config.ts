@@ -36,6 +36,8 @@ interface UserConfig {
   };
   /** 网络配置 */
   NetworkConfig: object;
+  /** 远程功能配置（新版 remote_config 接口响应，缺省使用官方默认值） */
+  RemoteConfig?: Record<string, unknown>;
   /** 管理后台配置 */
   admin?: {
     /** 是否开启 /admin HTTP 管理接口 */

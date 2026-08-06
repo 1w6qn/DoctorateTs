@@ -9,6 +9,7 @@ import { Router } from "express";
 import { now } from "@utils/time";
 import { readJson } from "@utils/file";
 import { accountManager } from "@game/manager/AccountManger";
+import config from "../config";
 
 const router = Router();
 
@@ -80,6 +81,10 @@ router.post("/user/auth/v1/token_by_phone_password", async (req, res) => {
 router.get("/user/info/v1/basic", async (req, res) => {
   const uid = await accountManager.getUidByToken(req.query!.token as string);
   const data = await accountManager.getUserConfig(uid);
+  if (config.authMode === "real" && !uid) {
+    // 真实模式：无效 token 严格报错（单例模式宽松）
+    return res.status(404).send({ status: 1, msg: "用户不存在", code: "USER_NOT_FOUND" });
+  }
   res.send({
     status: 0,
     msg: "OK",

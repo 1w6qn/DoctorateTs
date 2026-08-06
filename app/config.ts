@@ -64,6 +64,8 @@ interface UserConfig {
     /** 管理 API Bearer Token */
     token: string;
   };
+  /** 认证模式：single（单例——secret 强制 1，任意 token 宽松）/ real（真实——多账号严格校验） */
+  authMode?: "single" | "real";
 }
 
 /** 应用配置实例 */

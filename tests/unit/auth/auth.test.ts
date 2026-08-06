@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 
+const configMock = vi.hoisted(() => ({ default: { authMode: "single" } }));
+vi.mock("../../../app/config", () => configMock);
+
 vi.mock("@game/manager/AccountManger", () => ({
   accountManager: {
     tokenByPhonePassword: vi.fn().mockResolvedValue("token_123"),
@@ -76,6 +79,7 @@ describe("auth 路由", () => {
   });
 
   it("GET /user/info/v1/basic token 无效（用户不存在）应返回 200 + 空 auth（不卡流程）", async () => {
+    configMock.default.authMode = "single";
     (accountManager.getUserConfig as any).mockResolvedValueOnce(undefined);
     const res = mockRes();
     await call(authRouter, { method: "GET", url: "/user/info/v1/basic", query: { token: "invalid" } }, res);
@@ -83,6 +87,15 @@ describe("auth 路由", () => {
     expect(res.send).toHaveBeenCalledWith(
       expect.objectContaining({ status: 0, data: {} }),
     );
+  });
+
+  it("real 模式：token 无效应返回 404（严格校验）", async () => {
+    configMock.default.authMode = "real";
+    (accountManager.getUidByToken as any).mockResolvedValueOnce("");
+    const res = mockRes();
+    await call(authRouter, { method: "GET", url: "/user/info/v1/basic", query: { token: "invalid" } }, res);
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ status: 1 }));
   });
 
   it("POST /user/info/v1/need_cloud_auth 应返回 OK", async () => {

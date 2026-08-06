@@ -14,6 +14,7 @@ import { TypedEventEmitter } from "@game/model/events";
 import Emittery from "emittery";
 import { FriendRepository } from "../../db/friend-repo";
 import { openDatabase } from "../../db/database";
+import config from "../../config";
 import { migrateFromUserConfigs } from "../../db/migrate";
 import { logger } from "@utils/logger";
 
@@ -433,6 +434,11 @@ export class AccountManager {
    * @returns 用户ID（即token）
    */
   async getUidByToken(token: string): Promise<string> {
+    if (config.authMode === "real") {
+      // 真实模式：token 必须是已注册用户 uid，无效返回空串（auth 层严格报错）
+      return this.configs[token] ? token : "";
+    }
+    // 单例模式：token 原样（私服单机宽松）
     return token;
   }
 

@@ -8,6 +8,7 @@ import httpContext from "express-http-context2";
 import express from "express";
 import bodyParser from "body-parser";
 import { accountManager } from "./manager/AccountManger";
+import config from "../config";
 
 /** Express 应用实例 */
 const app = express();
@@ -19,22 +20,29 @@ app.use(httpContext.middleware);
 app.use(bodyParser.json());
 
 /**
- * 全局中间件：验证用户身份并设置玩家数据上下文
- * 
- * 通过请求头中的 secret 字段验证用户身份，将玩家数据注入到请求上下文中。
+ * 认证中间件：根据认证模式解析 secret 并注入玩家数据上下文
+ * - single（单例）：强制 secret=1（单账号私服，任意 secret 都映射到 uid=1）
+ * - real（真实）：保留客户端 secret（多账号），无效返回 401
  */
-app.use(async (req, res, next) => {
+export const authMiddleware: express.RequestHandler = async (req, res, next) => {
   if (req.headers?.secret) {
-    if (req.headers.secret != "1") {
+    if (config.authMode === "real") {
+      // 真实模式：保留客户端 secret（多账号），无效返回 401
+      const data = await accountManager.getPlayerData(req.headers.secret as string);
+      if (!data) {
+        return res.status(401).send({ status: 401, msg: "无效的 secret" });
+      }
+      httpContext.set("playerData", data);
+    } else {
+      // 单例模式：强制 uid=1（单账号私服）
       req.headers.secret = "1";
+      httpContext.set("playerData", await accountManager.getPlayerData("1"));
     }
-    const data = await accountManager.getPlayerData(
-      req.headers.secret as string,
-    );
-    httpContext.set("playerData", data);
   }
   next();
-});
+};
+
+app.use(authMiddleware);
 
 /**
  * 设置游戏应用路由

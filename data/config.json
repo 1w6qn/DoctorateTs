@@ -56,5 +56,6 @@
   "admin": {
     "enable": false,
     "token": "doctorate-admin"
-  }
+  },
+  "authMode": "single"
 }

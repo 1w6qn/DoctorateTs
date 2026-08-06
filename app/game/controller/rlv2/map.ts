@@ -9,11 +9,13 @@ import { RoguelikeV2Controller } from "../rlv2";
 import { TypedEventEmitter } from "@game/model/events";
 import excel from "@excel/excel";
 import * as crypto from "crypto";
+import { readFileSync } from "fs";
 
 export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
   zones: { [key: string]: PlayerRoguelikeV2Zone };
   _player: RoguelikeV2Controller;
   _trigger: TypedEventEmitter;
+  _nodesInfo: any;
 
   constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
     this.zones = {};
@@ -22,6 +24,13 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
     this._trigger.on("rlv2:init", this.init.bind(this));
     this._trigger.on("rlv2:create", this.create.bind(this));
     this._trigger.on("rlv2:zone:new", this.generate.bind(this));
+    try {
+      this._nodesInfo = JSON.parse(
+        readFileSync(`${__dirname}/../../../data/rlv2/nodesInfo.json`, "utf-8"),
+      );
+    } catch {
+      this._nodesInfo = null;
+    }
   }
 
   init() {
@@ -158,9 +167,17 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
 
     const yMax = [0, 2, 3, 4, 4, 4, 4, 4, 4];
     const stages = Object.keys(excel.RoguelikeTopicTable.details[theme].stages || {});
-    const normalList = stages.filter((s) => s.startsWith(`ro${roNum}_n_${zone}_`));
-    const eliteList = stages.filter((s) => s.startsWith(`ro${roNum}_e_${zone}_`));
-    const bossList = stages.filter((s) => /^ro\d+_b_[1-9]$/.test(s));
+    // 关卡列表优先读 data/rlv2/nodesInfo.json（官方 stages 提取），缺失回退动态过滤
+    const nodeInfo = this._nodesInfo?.themes?.[theme]?.zones?.[String(zone)];
+    const normalList = nodeInfo?.Normal?.length
+      ? nodeInfo.Normal
+      : stages.filter((s) => s.startsWith(`ro${roNum}_n_${zone}_`));
+    const eliteList = nodeInfo?.Emergency?.length
+      ? nodeInfo.Emergency
+      : stages.filter((s) => s.startsWith(`ro${roNum}_e_${zone}_`));
+    const bossList = nodeInfo?.Boss?.length
+      ? nodeInfo.Boss
+      : stages.filter((s) => /^ro\d+_b_[1-9]$/.test(s));
 
     const nodesByX: { [key: number]: number[] } = {};
     let canAddShop = true;

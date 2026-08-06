@@ -233,12 +233,63 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     return [this.inventory!.recruit[ticketIndex].result!];
   }
 
-  finishEvent() {
+  async finishEvent() {
     this._status.pending.shift();
-    this._status.cursor.zone = 1;
+    if (this._status.cursor.zone === 0) {
+      // 初始阶段结束 → 生成第一层地图
+      this._status.cursor.zone = 1;
+      this._status.cursor.position = null;
+      await this._trigger.emit("rlv2:zone:new", [this._status.cursor.zone]);
+      this._status.state = "WAIT_MOVE";
+    } else {
+      // 先检查本层终点（isZoneEnd 依赖当前 position），再清空位置
+      const settling = await this.checkZoneEnd();
+      this._status.cursor.position = null;
+      if (settling) {
+        // 最终层结算已触发（gameSettle 为异步，此处同步置 END 保证状态一致）
+        this._status.state = "END";
+        return;
+      }
+      this._status.state = "WAIT_MOVE";
+    }
+  }
+
+  /** 主流程最大层数（取有普通/紧急关卡的 zone 最大值） */
+  get maxZone(): number {
+    const theme = this.current.game!.theme;
+    const stages = Object.keys(
+      (excel.RoguelikeTopicTable as any)?.details?.[theme]?.stages || {},
+    );
+    let max = 0;
+    for (const s of stages) {
+      const m = s.match(/^ro\d+_[ne]_(\d+)_/);
+      if (m) max = Math.max(max, parseInt(m[1], 10));
+    }
+    return max || 6;
+  }
+
+  /** 当前节点是否为本层终点（zone_end） */
+  private isZoneEnd(): boolean {
+    const pos = this._status.cursor.position;
+    if (!pos) return false;
+    const node = this._map.zones[this._status.cursor.zone]?.nodes[
+      pos.x * 100 + pos.y
+    ];
+    return !!node?.zone_end;
+  }
+
+  /** 节点结束后检查：到达本层终点则推进下一层（最终层则结算）。返回是否已触发结算。 */
+  private async checkZoneEnd(): Promise<boolean> {
+    if (!this.isZoneEnd()) return false;
+    const zone = this._status.cursor.zone;
+    if (zone >= this.maxZone) {
+      void this.gameSettle();
+      return true;
+    }
+    this._status.cursor.zone += 1;
     this._status.cursor.position = null;
-    this._trigger.emit("rlv2:zone:new", [this._status.cursor.zone]);
-    this._status.state = "WAIT_MOVE";
+    await this._trigger.emit("rlv2:zone:new", [this._status.cursor.zone]);
+    return false;
   }
 
   async selectChoice(args: { choice: string }): Promise<void> {
@@ -251,6 +302,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
 
     if (choice === "choice_leave") {
       this._status.pending.shift();
+      await this.checkZoneEnd();
       this._status.state = "WAIT_MOVE";
       return;
     }
@@ -497,12 +549,14 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   /** 离开商店：清空 pending 回到等待移动状态 */
   async leaveShop(): Promise<void> {
     this._status._pending._pending.length = 0;
+    await this.checkZoneEnd();
     this._status.state = "WAIT_MOVE";
   }
 
   /** 确认预兆（rogue_3 独有）：清理 pending 回到等待移动状态 */
   async confirmPredict(): Promise<void> {
     this._status._pending._pending.length = 0;
+    await this.checkZoneEnd();
     this._status.state = "WAIT_MOVE";
   }
 
@@ -634,8 +688,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     rewardGrp.done = 1;
   }
 
-  finishBattleReward(args: {}) {
+  async finishBattleReward(args: {}) {
     this._status.pending.shift();
+    await this.checkZoneEnd();
     this._status.state = "WAIT_MOVE";
   }
 

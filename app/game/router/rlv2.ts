@@ -43,7 +43,7 @@ router.post("/recruitChar", async (req, res) => {
 });
 router.post("/finishEvent", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  player.rlv2.finishEvent();
+  await player.rlv2.finishEvent();
   res.send(player.delta);
 });
 router.post("/moveTo", async (req, res) => {
@@ -68,7 +68,7 @@ router.post("/chooseBattleReward", async (req, res) => {
 });
 router.post("/finishBattleReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  player.rlv2.finishBattleReward(req.body);
+  await player.rlv2.finishBattleReward(req.body);
   res.send(player.delta);
 });
 router.post("/setTroopCarry", async (req, res) => {

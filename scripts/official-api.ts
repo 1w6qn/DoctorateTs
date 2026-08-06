@@ -152,22 +152,32 @@ export async function loginGame(
   resVersion: string,
   clientVersion: string,
   devices: { deviceId: string; deviceId2: string; deviceId3: string },
-): Promise<{ secret: string }> {
-  const data = await postJson(`${GAME_API}/account/login`, {
-    networkVersion: "5",
-    uid,
-    token,
-    assetsVersion: resVersion,
-    clientVersion,
-    platform: 1,
-    deviceId: devices.deviceId,
-    deviceId2: devices.deviceId2,
-    deviceId3: devices.deviceId3,
+): Promise<{ secret: string; seqnum: string }> {
+  const res = await fetch(`${GAME_API}/account/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      networkVersion: "5",
+      uid,
+      token,
+      assetsVersion: resVersion,
+      clientVersion,
+      platform: 1,
+      deviceId: devices.deviceId,
+      deviceId2: devices.deviceId2,
+      deviceId3: devices.deviceId3,
+    }),
   });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status} @ account/login`);
+  }
+  const data = await res.json();
   if (!data?.secret) {
     throw new Error("登录失败：account/login 未返回 secret");
   }
-  return { secret: data.secret };
+  // 官服响应头带 seqnum（后续请求必须递增——参考 checkin-master post 后更新）
+  const seqnum = res.headers.get("seqnum") || "1";
+  return { secret: data.secret, seqnum };
 }
 
 /**
@@ -187,14 +197,14 @@ export async function syncPlayerData(
     devices.deviceId2,
     devices.deviceId3,
   );
-  const { secret } = await loginGame(uid, token, resVersion, clientVersion, devices);
+  const { secret, seqnum } = await loginGame(uid, token, resVersion, clientVersion, devices);
 
   const res = await fetch(`${GAME_API}/account/syncData`, {
     method: "POST",
     headers: {
       uid,
       secret,
-      seqnum: "0",
+      seqnum,
       "Content-Type": "application/json",
       // 对齐参考实现（checkin-master post 头）：Unity 版本头官服可能校验
       "X-Unity-Version": "2017.4.39f1",
@@ -205,7 +215,8 @@ export async function syncPlayerData(
     body: JSON.stringify({ platform: 1 }),
   });
   if (!res.ok) {
-    throw new Error(`HTTP ${res.status} @ syncData`);
+    const body = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status} @ syncData: ${body.slice(0, 200)}`);
   }
   const data = await res.json();
   if (!data?.user) {

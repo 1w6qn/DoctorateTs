@@ -11,8 +11,8 @@ import {
   u8Sign,
 } from "../../../scripts/official-api";
 
-function jsonRes(body: any) {
-  return { ok: true, json: async () => body };
+function jsonRes(body: any, headers: Record<string, string> = {}) {
+  return { ok: true, headers: new Headers(headers), json: async () => body };
 }
 
 describe("official-api", () => {

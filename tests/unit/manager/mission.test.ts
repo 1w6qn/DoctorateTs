@@ -623,4 +623,18 @@ describe("MissionManager 刷新", () => {
     expect(manager.missions["WEEKLY"]).toHaveLength(1);
     expect(manager.missions["WEEKLY"][0].missionId).toBe("weekly_r1");
   });
+
+  it("init 数据表缺失的任务应跳过（不进入内存列表，不 ERROR）", async () => {
+    // 旧版本存档任务（t_old_*）在新数据中缺失——版本更新后常见
+    mockExcelRef.MissionTable.missions = {};
+    mockPlayer._playerdata.mission!.missions = {
+      MAIN: {
+        t_old_1: { state: 0, progress: [{ value: 0, target: 1 }] },
+        t_old_2: { state: 0, progress: [{ value: 0, target: 1 }] },
+      },
+    };
+    const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
+    await manager.init();
+    expect(manager.missions["MAIN"]).toEqual([]);
+  });
 });

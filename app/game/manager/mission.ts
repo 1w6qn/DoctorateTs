@@ -86,7 +86,10 @@ export class MissionManager {
       for (const [id] of Object.entries(v)) {
         const mission = new MissionProgress(id, type, this._player);
         await mission.init();
-        this.missions[type].push(mission);
+        // 无效任务（数据表缺失）跳过——不进入内存列表
+        if (mission.valid) {
+          this.missions[type].push(mission);
+        }
       }
     }
   }
@@ -260,6 +263,8 @@ export class MissionProgress {
   value: number;
   state: number;
   confirmed: boolean;
+  /** 任务是否有效（数据表缺失/版本错位时为 false——init 时跳过） */
+  valid = true;
 
   /**
    * 构造函数
@@ -430,11 +435,16 @@ export class MissionProgress {
         template = mission.template as keyof typeof MissionTemplates;
         this.param = mission.param;
       } else {
-        logger.error("MissionManager", `Invalid template: ${mission.template}`);
+        // 模板无效（数据版本错位）——标记无效并降级日志
+        this.valid = false;
+        logger.debug("MissionManager", `Invalid template: ${mission.template} (${this.missionId})`);
         return;
       }
     } else {
-      logger.error("MissionManager", `Mission ID ${this.missionId} not found`);
+      // 任务不存在（旧版本存档任务在新数据中缺失——版本更新后常见）：
+      // 标记无效并降级日志（debug），避免 ERROR 刷屏；init 循环跳过
+      this.valid = false;
+      logger.debug("MissionManager", `Mission ID ${this.missionId} not found in data`);
       return;
     }
     const func = async ([args]: unknown[]) => {

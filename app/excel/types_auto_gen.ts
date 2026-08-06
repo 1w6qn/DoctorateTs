@@ -6,7 +6,7 @@
 
 export type AbnormalCombo = "SLEEPING" | "SHELTERING" | "E_NUM";
 
-export type AbnormalFlag = "STUNNED" | "SP_RECOVER_STOPPED" | "TARGET_FREE" | "BLOCK_FREE" | "HIDDEN" | "INVINCIBLE" | "UNDEADABLE" | "HEAL_FREE" | "UNBALANCE_IMMUNE" | "INVISIBLE" | "UNUSED_PLACEHOLDER_2" | "ALLY_TARGET_FREE" | "UNUSED_PLACEHOLDER_1" | "DISARMED" | "SILENCED" | "UNMOVABLE" | "FROZEN" | "CAMOUFLAGE" | "FORCE_DISARMED" | "STUNNED_NO_AMPLIFY_DAMAGE" | "DISABLE_COMBAT" | "ELEMENT_FREE_ALL" | "UNMOVABLE_PRIVATE" | "COLD" | "SKILL_NOT_ACTIVATABLE" | "LEVITATE" | "DURANCE" | "NOT_WITHDRAWABLE" | "OUT_OF_GROUND" | "SP_MODIFY_STOPPED" | "ANTI_STATUS_RESISTABLE" | "DISARMED_COMBAT" | "TOWER_TARGET_FREE" | "FEARED" | "SKILL_ACTIVABLE_IN_ABNORMAL" | "MOTION_TARGET_FREE" | "FORCE_LEVITATE" | "BUFF_ADD_CAN_BE_CANCELED_IF_DEFENSE" | "DEFENSE_BUFF_ADD_IF_CANCELABLE_BUFF" | "PALSY" | "PALSYING" | "ATTRACTED" | "FEARED_PRIVATE" | "DOZE" | "TELEPORTED" | "E_NUM";
+export type AbnormalFlag = "STUNNED" | "SP_RECOVER_STOPPED" | "TARGET_FREE" | "BLOCK_FREE" | "HIDDEN" | "INVINCIBLE" | "UNDEADABLE" | "HEAL_FREE" | "UNBALANCE_IMMUNE" | "INVISIBLE" | "UNUSED_PLACEHOLDER_2" | "ALLY_TARGET_FREE" | "UNUSED_PLACEHOLDER_1" | "DISARMED" | "SILENCED" | "UNMOVABLE" | "FROZEN" | "CAMOUFLAGE" | "FORCE_DISARMED" | "STUNNED_NO_AMPLIFY_DAMAGE" | "DISABLE_COMBAT" | "ELEMENT_FREE_ALL" | "UNMOVABLE_PRIVATE" | "COLD" | "SKILL_NOT_ACTIVATABLE" | "LEVITATE" | "DURANCE" | "NOT_WITHDRAWABLE" | "OUT_OF_GROUND" | "SP_MODIFY_STOPPED" | "ANTI_STATUS_RESISTABLE" | "DISARMED_COMBAT" | "TOWER_TARGET_FREE" | "FEARED" | "SKILL_ACTIVABLE_IN_ABNORMAL" | "MOTION_TARGET_FREE" | "FORCE_LEVITATE" | "BUFF_ADD_CAN_BE_CANCELED_IF_DEFENSE" | "DEFENSE_BUFF_ADD_IF_CANCELABLE_BUFF" | "PALSY" | "PALSYING" | "ATTRACTED" | "FEARED_PRIVATE" | "DOZE" | "TELEPORTED" | "GROUND_BOUND" | "E_NUM";
 
 export type Act12SideData_ActZoneClass = "NONE" | "NORMAL" | "HIGHLEVEL" | "SUB";
 
@@ -106,6 +106,16 @@ export type ActArchiveTotemType = "LOCATION" | "EFFECT" | "AFFIX";
 
 export type ActArchiveType = "NONE" | "TIMELINE" | "MUSIC" | "PIC" | "AVG" | "STORY" | "NEWS" | "BUFF" | "RELIC" | "CAPSULE" | "TRAP" | "CHAT" | "LANDMARK" | "LOG" | "ACTIVITY_ENTRY" | "DYNAMIC_MUSIC" | "DYNAMIC_PIC" | "ENDBOOK" | "DYNAMIC_STORY" | "TOTEM" | "CHAOS" | "CHALLENGE_BOOK" | "ACHIEVEMENT" | "QUEST" | "FRAGMENT" | "DISASTER" | "COPPER" | "WRATH" | "SCRAP" | "WEATHER";
 
+export type ActArkHubActorType = "FURNI" | "LOGIN_REWARDS" | "ARKDEX_DUEL" | "ARKDEX_PLAYER";
+
+export type ActArkHubItemType = "NONE" | "ACTIVITY_COIN" | "COIN" | "ARKDEX" | "PIXEL";
+
+export type ActArkHubMenuType = "NONE" | "INVITE_FRIEND" | "MESSAGE" | "SETTING" | "ARKDEX_CREATURE" | "ARKDEX_ITEM" | "ARKDEX_ALBUM" | "ARKPIXEL" | "ARKDEX_TRADE";
+
+export type ActArkHubModuleType = "NONE" | "ARKDEX" | "ARKPIXEL";
+
+export type ActArkHubNameCardState = "BATTLE" | "CAPTURE" | "MATCH" | "PIXEL" | "INTERACT";
+
 export type ActAutoChessBondActiveConditionType = "BOARD" | "BOARD_AND_DECK" | "DECK" | "BOARD_ALL_CHESS";
 
 export type ActAutoChessBondActiveType = "BATTLE" | "ALL" | "MANI";
@@ -126,7 +136,7 @@ export type ActivityInterlockData_InterlockStageType = "NONE" | "NORMAL" | "INTE
 
 export type ActivityThemeType = "NONE" | "ACTIVITY" | "CRISIS" | "MAINLINE" | "ROGUELIKE" | "CRISISV2" | "SANDBOX_PERM" | "ACTIVITY_COMP";
 
-export type ActivityType = "DEFAULT" | "MISSION_ONLY" | "CHECKIN_ONLY" | "CHECKIN_ALL_PLAYER" | "TYPE_ACT3D0" | "TYPE_ACT4D0" | "TYPE_ACT5D0" | "TYPE_ACT5D1" | "COLLECTION" | "AVG_ONLY" | "TYPE_ACT9D0" | "TYPE_ACT12SIDE" | "TYPE_ACT13SIDE" | "TYPE_ACT17SIDE" | "LOGIN_ONLY" | "MINISTORY" | "ROGUELIKE" | "PRAY_ONLY" | "MULTIPLAY" | "MULTIPLAY_VERIFY2" | "TYPE_ACT17D7" | "GRID_GACHA" | "GRID_GACHA_V2" | "INTERLOCK" | "APRIL_FOOL" | "BOSS_RUSH" | "TYPE_ACT20SIDE" | "FLOAT_PARADE" | "TYPE_ACT21SIDE" | "MAIN_BUFF" | "TYPE_ACT24SIDE" | "FLIP_ONLY" | "TYPE_ACT25SIDE" | "CHECKIN_VS" | "SWITCH_ONLY" | "TYPE_ACT27SIDE" | "UNIQUE_ONLY" | "MAINLINE_BP" | "TYPE_ACT42D0" | "TYPE_ACT29SIDE" | "BLESS_ONLY" | "CHECKIN_ACCESS" | "YEAR_5_GENERAL" | "TYPE_ACT35SIDE" | "VEC_BREAK" | "TYPE_ACT36SIDE" | "TYPE_ACT38SIDE" | "AUTOCHESS_VERIFY1" | "CHECKIN_VIDEO" | "ARCADE" | "MULTIPLAY_V3" | "TYPE_MAINSS" | "ENEMY_DUEL" | "VEC_BREAK_V2" | "TYPE_ACT42SIDE" | "TYPE_ACT44SIDE" | "HALFIDLE_VERIFY1" | "TYPE_ACT45SIDE" | "TEAM_QUEST" | "RECRUIT_ONLY" | "TYPE_ACT46SIDE" | "AUTOCHESS_SEASON" | "ACT_FOOTBALL" | "ENUM";
+export type ActivityType = "DEFAULT" | "MISSION_ONLY" | "CHECKIN_ONLY" | "CHECKIN_ALL_PLAYER" | "TYPE_ACT3D0" | "TYPE_ACT4D0" | "TYPE_ACT5D0" | "TYPE_ACT5D1" | "COLLECTION" | "AVG_ONLY" | "TYPE_ACT9D0" | "TYPE_ACT12SIDE" | "TYPE_ACT13SIDE" | "TYPE_ACT17SIDE" | "LOGIN_ONLY" | "MINISTORY" | "ROGUELIKE" | "PRAY_ONLY" | "MULTIPLAY" | "MULTIPLAY_VERIFY2" | "TYPE_ACT17D7" | "GRID_GACHA" | "GRID_GACHA_V2" | "INTERLOCK" | "APRIL_FOOL" | "BOSS_RUSH" | "TYPE_ACT20SIDE" | "FLOAT_PARADE" | "TYPE_ACT21SIDE" | "MAIN_BUFF" | "TYPE_ACT24SIDE" | "FLIP_ONLY" | "TYPE_ACT25SIDE" | "CHECKIN_VS" | "SWITCH_ONLY" | "TYPE_ACT27SIDE" | "UNIQUE_ONLY" | "MAINLINE_BP" | "TYPE_ACT42D0" | "TYPE_ACT29SIDE" | "BLESS_ONLY" | "CHECKIN_ACCESS" | "YEAR_5_GENERAL" | "TYPE_ACT35SIDE" | "VEC_BREAK" | "TYPE_ACT36SIDE" | "TYPE_ACT38SIDE" | "AUTOCHESS_VERIFY1" | "CHECKIN_VIDEO" | "ARCADE" | "MULTIPLAY_V3" | "TYPE_MAINSS" | "ENEMY_DUEL" | "VEC_BREAK_V2" | "TYPE_ACT42SIDE" | "TYPE_ACT44SIDE" | "HALFIDLE_VERIFY1" | "TYPE_ACT45SIDE" | "TEAM_QUEST" | "RECRUIT_ONLY" | "TYPE_ACT46SIDE" | "AUTOCHESS_SEASON" | "ARK_HUB" | "ACT_FOOTBALL" | "TYPE_ACT53SIDE" | "ENUM";
 
 export type ActMultiV3BlockDirType = "NONE" | "UP" | "RIGHT" | "DOWN" | "LEFT";
 
@@ -151,6 +161,34 @@ export type AlchemyPoolRarityType = "NORMAL" | "RARE" | "SUPER_RARE";
 export type Anniv7thDisplayNodeType = "LETTER" | "TYPE_WRITER" | "RECORD" | "SIGN";
 
 export type AppearanceStyle = "MAIN_NORMAL" | "MAIN_PREDEFINED" | "SUB" | "TRAINING" | "HIGH_DIFFICULTY" | "MIST_OPS" | "SPECIAL_STORY";
+
+export type ArkdexModeType = "NONE" | "ARKDEX_DUEL_SINGLEROUND" | "ARKDEX_DUEL_BO3" | "ARKDEX_DUEL_4PLAYER";
+
+export type ArkDexNpcCardStrategy = "RANDOM" | "FIXED_ORDER" | "PREFER_ELEMENT_0" | "PREFER_ELEMENT_1" | "PREFER_ELEMENT_2" | "PREFER_RANGED" | "PREFER_RARITY" | "COUNTER_PLAYER_MAJOR" | "COUNTERED_BY_PLAYER_MAJOR" | "BAG_MIN_ELEMENT" | "BAG_MAX_ELEMENT" | "RANDOM_FROM_ALL";
+
+export type ArkDexNpcTileStrategy = "RANDOM" | "PREFER_NEAR_SELF" | "PREFER_FAR_SELF" | "RANGED_NEAR_MELEE_FAR" | "PREFER_MIDDLE" | "RANDOM_FROM_ALL";
+
+export type ArkventAudioMetaFlag = "NONE" | "MUSIC" | "LOOP";
+
+export type ArkventAudioRollOffType = "LINEAR" | "LOGARITHMIC" | "THIRD_PARTY";
+
+export type ArkventAudioSpatialType = "NONE" | "OFFSET_Z" | "DISTANCE";
+
+export type ArkventAudioTriggerMode = "NONE" | "ONE_SHOT" | "PERIODIC" | "EXIT";
+
+export type ArkventCameraBlendStyle = "Default" | "Cut" | "EaseInOut" | "EaseIn" | "EaseOut" | "HardIn" | "HardOut" | "Linear";
+
+export type ArkventNPCSpineType = "BUILDING" | "ARKVENT";
+
+export type ArkventRangeType = "NONE" | "CIRCLE" | "RECT";
+
+export type ArkventSpineFaceType = "RIGHT" | "LEFT";
+
+export type ArkventTaskActorTriggerType = "NONE" | "AUTO" | "ENTER" | "INTERACT" | "AUTO_ONCE";
+
+export type ArkventTaskActorType = "NONE" | "NPC" | "FURNITURE" | "TRIGGER" | "COLLIDER" | "VIRTUAL" | "NPC_SHOW_ONLY" | "FURNITURE_SHOW_ONLY" | "TRIGGER_SHOW_ONLY" | "SCENE_OBJECT_CONTROL" | "EFFECT" | "FLAG_EXPRESSION";
+
+export type ArkventTaskVarSeqCompareOperation = "NONE" | "GT" | "GE" | "EQ" | "NEQ" | "LE" | "LT";
 
 export type AttributeModifierData_AttributeModifier_FormulaItemType = "ADDITION" | "MULTIPLIER" | "FINAL_ADDITION" | "FINAL_SCALER";
 
@@ -278,7 +316,9 @@ export type DiceResultClass = "VERYBAD" | "BAD" | "NORMAL" | "GOOD" | "GREAT" | 
 
 export type DiceResultShowType = "RAW_TEXT" | "MUTATION" | "VIRTUE";
 
-export type EmojiSceneType = "NONE" | "ACTMULTIV3_ROOM" | "ACTMULTIV3_PICK" | "ACTMULTIV3_BATTLE" | "ENEMYDUEL_BATTLE" | "AUTOCHESS_ROOM" | "AUTOCHESS_BATTLE" | "BUILDING_ACTION";
+export type EasingType = "INSTANT" | "LINEAR" | "EASE_IN" | "EASE_OUT" | "EASE_IN_OUT" | "EXPONENTIAL";
+
+export type EmojiSceneType = "NONE" | "ACTMULTIV3_ROOM" | "ACTMULTIV3_PICK" | "ACTMULTIV3_BATTLE" | "ENEMYDUEL_BATTLE" | "AUTOCHESS_ROOM" | "AUTOCHESS_BATTLE" | "BUILDING_ACTION" | "ARKHUB_ROOM";
 
 export type EnemyDuelBetStrategy = "DEFAULT" | "CHOOSE_WIN" | "CHOOSE_ODD" | "FOLLOW_FEWER" | "FOLLOW_MORE" | "CHOOSE_ODD_ENEMY_COUNT" | "CHOOSE_EVEN_ENEMY_COUNT" | "ALWAYS_LEFT";
 
@@ -320,11 +360,11 @@ export type ItemDropShopType = "HGGSHD_SHOP" | "LGGSHD_SHOP" | "XSHD_SHOP" | "EP
 
 export type ItemRarity = "TIER_1" | "TIER_2" | "TIER_3" | "TIER_4" | "TIER_5" | "TIER_6" | "E_NUM";
 
-export type ItemType = "NONE" | "CHAR" | "CARD_EXP" | "MATERIAL" | "GOLD" | "EXP_PLAYER" | "TKT_TRY" | "TKT_RECRUIT" | "TKT_INST_FIN" | "TKT_GACHA" | "ACTIVITY_COIN" | "DIAMOND" | "DIAMOND_SHD" | "HGG_SHD" | "LGG_SHD" | "FURN" | "AP_GAMEPLAY" | "AP_BASE" | "SOCIAL_PT" | "CHAR_SKIN" | "TKT_GACHA_10" | "TKT_GACHA_PRSV" | "AP_ITEM" | "AP_SUPPLY" | "RENAMING_CARD" | "RENAMING_CARD_2" | "ET_STAGE" | "ACTIVITY_ITEM" | "VOUCHER_PICK" | "VOUCHER_CGACHA" | "VOUCHER_MGACHA" | "CRS_SHOP_COIN" | "CRS_RUNE_COIN" | "LMTGS_COIN" | "EPGS_COIN" | "LIMITED_TKT_GACHA_10" | "LIMITED_FREE_GACHA" | "REP_COIN" | "ROGUELIKE" | "LINKAGE_TKT_GACHA_10" | "VOUCHER_ELITE_II_4" | "VOUCHER_ELITE_II_5" | "VOUCHER_ELITE_II_6" | "VOUCHER_SKIN" | "RETRO_COIN" | "PLAYER_AVATAR" | "UNI_COLLECTION" | "VOUCHER_FULL_POTENTIAL" | "RL_COIN" | "RETURN_CREDIT" | "MEDAL" | "CHARM" | "HOME_BACKGROUND" | "EXTERMINATION_AGENT" | "OPTIONAL_VOUCHER_PICK" | "ACT_CART_COMPONENT" | "VOUCHER_LEVELMAX_6" | "VOUCHER_LEVELMAX_5" | "VOUCHER_LEVELMAX_4" | "VOUCHER_SKILL_SPECIALLEVELMAX_6" | "VOUCHER_SKILL_SPECIALLEVELMAX_5" | "VOUCHER_SKILL_SPECIALLEVELMAX_4" | "ACTIVITY_POTENTIAL" | "ITEM_PACK" | "SANDBOX" | "FAVOR_ADD_ITEM" | "CLASSIC_SHD" | "CLASSIC_TKT_GACHA" | "CLASSIC_TKT_GACHA_10" | "LIMITED_BUFF" | "CLASSIC_FES_PICK_TIER_5" | "CLASSIC_FES_PICK_TIER_6" | "RETURN_PROGRESS" | "NEW_PROGRESS" | "MCARD_VOUCHER" | "MATERIAL_ISSUE_VOUCHER" | "CRS_SHOP_COIN_V2" | "HOME_THEME" | "SANDBOX_PERM" | "SANDBOX_TOKEN" | "TEMPLATE_TRAP" | "NAME_CARD_SKIN" | "EMOTICON_SET" | "EXCLUSIVE_TKT_GACHA" | "EXCLUSIVE_TKT_GACHA_10" | "SO_CHAR_EXP" | "GIFTPACKAGE_TKT" | "VOUCHER_SKIN_V2" | "RANDOM_VOUCHER_SKIN" | "ACT1VHALFIDLE_ITEM" | "PLOT_ITEM" | "MAGAZINE_LEAF" | "STICKER";
+export type ItemType = "NONE" | "CHAR" | "CARD_EXP" | "MATERIAL" | "GOLD" | "EXP_PLAYER" | "TKT_TRY" | "TKT_RECRUIT" | "TKT_INST_FIN" | "TKT_GACHA" | "ACTIVITY_COIN" | "DIAMOND" | "DIAMOND_SHD" | "HGG_SHD" | "LGG_SHD" | "FURN" | "AP_GAMEPLAY" | "AP_BASE" | "SOCIAL_PT" | "CHAR_SKIN" | "TKT_GACHA_10" | "TKT_GACHA_PRSV" | "AP_ITEM" | "AP_SUPPLY" | "RENAMING_CARD" | "RENAMING_CARD_2" | "ET_STAGE" | "ACTIVITY_ITEM" | "VOUCHER_PICK" | "VOUCHER_CGACHA" | "VOUCHER_MGACHA" | "CRS_SHOP_COIN" | "CRS_RUNE_COIN" | "LMTGS_COIN" | "EPGS_COIN" | "LIMITED_TKT_GACHA_10" | "LIMITED_FREE_GACHA" | "REP_COIN" | "ROGUELIKE" | "LINKAGE_TKT_GACHA_10" | "VOUCHER_ELITE_II_4" | "VOUCHER_ELITE_II_5" | "VOUCHER_ELITE_II_6" | "VOUCHER_SKIN" | "RETRO_COIN" | "PLAYER_AVATAR" | "UNI_COLLECTION" | "VOUCHER_FULL_POTENTIAL" | "RL_COIN" | "RETURN_CREDIT" | "MEDAL" | "CHARM" | "HOME_BACKGROUND" | "EXTERMINATION_AGENT" | "OPTIONAL_VOUCHER_PICK" | "ACT_CART_COMPONENT" | "VOUCHER_LEVELMAX_6" | "VOUCHER_LEVELMAX_5" | "VOUCHER_LEVELMAX_4" | "VOUCHER_SKILL_SPECIALLEVELMAX_6" | "VOUCHER_SKILL_SPECIALLEVELMAX_5" | "VOUCHER_SKILL_SPECIALLEVELMAX_4" | "ACTIVITY_POTENTIAL" | "ITEM_PACK" | "SANDBOX" | "FAVOR_ADD_ITEM" | "CLASSIC_SHD" | "CLASSIC_TKT_GACHA" | "CLASSIC_TKT_GACHA_10" | "LIMITED_BUFF" | "CLASSIC_FES_PICK_TIER_5" | "CLASSIC_FES_PICK_TIER_6" | "RETURN_PROGRESS" | "NEW_PROGRESS" | "MCARD_VOUCHER" | "MATERIAL_ISSUE_VOUCHER" | "CRS_SHOP_COIN_V2" | "HOME_THEME" | "SANDBOX_PERM" | "SANDBOX_TOKEN" | "TEMPLATE_TRAP" | "NAME_CARD_SKIN" | "EMOTICON_SET" | "EXCLUSIVE_TKT_GACHA" | "EXCLUSIVE_TKT_GACHA_10" | "SO_CHAR_EXP" | "GIFTPACKAGE_TKT" | "VOUCHER_SKIN_V2" | "RANDOM_VOUCHER_SKIN" | "ACT1VHALFIDLE_ITEM" | "PLOT_ITEM" | "MAGAZINE_LEAF" | "STICKER" | "ARKHUB";
 
 export type KeyCodeType = "KEYBOARD" | "MOUSE";
 
-export type KeyEffectGroup = "BATTLE" | "OUT_BATTLE" | "ALL";
+export type KeyEffectGroup = "BATTLE" | "OUT_BATTLE" | "ARKVENT" | "ALL";
 
 export type KeySettingGroup = "BATTLE" | "NORMAL";
 
@@ -652,6 +692,8 @@ export type SpecialOperatorDetailNodeType = "NONE" | "EVOLVE" | "SKILL" | "TALEN
 
 export type SpecialOperatorTargetType = "NONE" | "ROGUE";
 
+export type SpineFlipMode = "INPUT" | "VELOCITY";
+
 export type SpType = "NONE" | "INCREASE_WITH_TIME" | "INCREASE_WHEN_ATTACK" | "INCREASE_WHEN_TAKEN_DAMAGE" | "ATTACK_OR_DAMAGE" | "ALL";
 
 export type StageButtonInFogRenderType = "HIDE" | "SHOW_WITH_FOG_SIX_STAR";
@@ -696,7 +738,9 @@ export type TileData_HeightTypeMask = "NONE" | "LOWLAND" | "HIGHLAND" | "ALL";
 
 export type TipData_Category = "NONE" | "BATTLE" | "UI" | "BUILDING" | "GACHA" | "MISC" | "ALL";
 
-export type UIGuideTarget = "NONE" | "BUILDING_CONTROL" | "BUILDING_DORM" | "BUILDING_HIRE" | "BUILDING_MANUFACT" | "BUILDING_MEETING" | "BUILDING_TRADING" | "CHAR_INFO" | "FRIEND" | "RECRUIT" | "SHOP" | "SQUAD_NORMAL" | "SQUAD_BATTLE" | "STAGE_MAINLINE" | "BUILDING_POWER" | "MISSION" | "CHAR_SKILL_SELECT" | "BUILDING_WORKSHOP" | "STAGE_CAMPAIGN" | "CHAR_EVOLVE" | "HANDBOOK" | "BUILDING_FURN_SHOP" | "BUILDING_TRAINING" | "STAGE_ACTIVITY" | "CRISIS_STAGE" | "ROGUELIKE_CHARSELECT" | "ROGUELIKE_BP" | "CLIMB_TOWER_ENTRY" | "CLIMB_TOWER_LAYER" | "ROGUELIKE_DUNGEON" | "RL03_TOTEM" | "GROCERY" | "TUNING" | "CRISIS_V2" | "MISSION_ARCHIVE" | "FIFTH_ANNIV_EXPLORE" | "CARVING" | "VEC_BREAK" | "FIREWORK" | "BUILDING_STATION_MANAGE" | "ACT_MULTI_V3" | "ENEMY_DUEL" | "VEC_BREAK_V2" | "GUN_TASK" | "SPECIAL_OPERATOR" | "INFORMANT" | "ACT1VHALFIDLE" | "MONOPOLY" | "AUTO_CHESS" | "ART_GALLERY" | "ART_MAGAZINE" | "ACT_FOOTBALL";
+export type TurningMode = "INSTANT" | "MOMENTUM";
+
+export type UIGuideTarget = "NONE" | "BUILDING_CONTROL" | "BUILDING_DORM" | "BUILDING_HIRE" | "BUILDING_MANUFACT" | "BUILDING_MEETING" | "BUILDING_TRADING" | "CHAR_INFO" | "FRIEND" | "RECRUIT" | "SHOP" | "SQUAD_NORMAL" | "SQUAD_BATTLE" | "STAGE_MAINLINE" | "BUILDING_POWER" | "MISSION" | "CHAR_SKILL_SELECT" | "BUILDING_WORKSHOP" | "STAGE_CAMPAIGN" | "CHAR_EVOLVE" | "HANDBOOK" | "BUILDING_FURN_SHOP" | "BUILDING_TRAINING" | "STAGE_ACTIVITY" | "CRISIS_STAGE" | "ROGUELIKE_CHARSELECT" | "ROGUELIKE_BP" | "CLIMB_TOWER_ENTRY" | "CLIMB_TOWER_LAYER" | "ROGUELIKE_DUNGEON" | "RL03_TOTEM" | "GROCERY" | "TUNING" | "CRISIS_V2" | "MISSION_ARCHIVE" | "FIFTH_ANNIV_EXPLORE" | "CARVING" | "VEC_BREAK" | "FIREWORK" | "BUILDING_STATION_MANAGE" | "ACT_MULTI_V3" | "ENEMY_DUEL" | "VEC_BREAK_V2" | "GUN_TASK" | "SPECIAL_OPERATOR" | "INFORMANT" | "ACT1VHALFIDLE" | "MONOPOLY" | "AUTO_CHESS" | "ART_GALLERY" | "ART_MAGAZINE" | "ACT_FOOTBALL" | "PIXEL_MAP" | "ARK_HUB" | "ARK_ODC";
 
 export type UniEquipTarget = "NONE" | "TRAIT" | "TRAIT_DATA_ONLY" | "TALENT" | "TALENT_DATA_ONLY" | "DISPLAY" | "OVERWRITE_BATTLE_DATA";
 
@@ -2786,6 +2830,27 @@ export interface Act4funValueEffectInfoData {
     effectParams: { [key: string]: number };
 }
 
+export interface Act53SideData {
+    zoneAdditionDataMap: { [key: string]: Act53SideDataAct53SideZoneAdditionData };
+    actOdcStageIdList: string[];
+    constData: Act53SideDataAct53SideConstData;
+}
+
+export interface Act53SideDataAct53SideConstData {
+    arkOdcTopicId: string;
+    arkOdcUnlockStageId: string;
+    arkOdcUnlockText: string;
+    arkOdcUpdateText: string;
+    campaignStageId: string;
+    campaignEnemyCnt: number;
+    coinItemId: string;
+}
+
+export interface Act53SideDataAct53SideZoneAdditionData {
+    zoneId: string;
+    unlockText: string;
+}
+
 export interface Act5D0Data {
     mileStoneInfo: MileStoneInfo[];
     mileStoneTokenId: string;
@@ -3650,6 +3715,151 @@ export interface ActArchiveWrathItemData {
     isSp: boolean;
 }
 
+export interface ActArkHubConstData {
+    maxChannelPlayerLimit: number;
+    emojiCD: number;
+    emojiTime: number;
+    runMaxStableMoveSpeed: number;
+    walkMaxStableMoveSpeed: number;
+    stableMovementSharpness: number;
+    defaultAlpha: number;
+    runConfiguredAnimScale: number;
+    walkConfiguredAnimScale: number;
+    minAnimScale: number;
+    maxAnimScale: number;
+    defaultMovePreset: string;
+    defaultSpineFlip: SpineFlipMode;
+    defaultSlideStopThreshold: number;
+    reportMaxNum: number;
+    invitationSendCd: number;
+    invitationValidityPeriod: number;
+    storyMachineCameraConfigId: string;
+    pingConds: PingCond[];
+    btnCancelInteractStyleId: string;
+    npcDefaultFx: string;
+    npcSelectedFx: string;
+    enterLobbyFx: string;
+    interactSelectedFx: string;
+    spraySummonFx: string;
+    sprayFadeFx: string;
+    petSummonFx: string;
+    followDistance: number;
+    stopDistance: number;
+    moveSpeed: number;
+    followOffset: number;
+    colorSpineOutline: string;
+    highQualityPetSpineCount: number;
+    lowQualityPetSpineCount: number;
+    midQualityPetSpineCount: number;
+}
+
+export interface ActArkHubData {
+    moduleData: ActArkHubModuleData;
+    interactiveUnitData: { [key: number]: ActArkHubInteractiveUnitData };
+    enabledEmoticonThemeIdList: string[];
+    reportPlayerDataList: CommonReportPlayerData[];
+    menuData: { [key: string]: ActArkHubMenuData };
+    constData: ActArkHubConstData;
+    moveFixData: { [key: string]: ActArkHubMoveFixData };
+    movePresetData: { [key: string]: ArkventMovePresetData };
+    skinPresetDict: { [key: string]: string };
+    playerStateInfoData: { [key: string]: ActArkHubPlayerStateInfoData };
+    rewardDataDict: { [key: string]: ActArkHubRewardData };
+    spawnFxDurationDict: { [key: string]: number };
+    loadingTipList: ActArkhubLoadingTipData[];
+}
+
+export interface ActArkHubInteractiveUnitData {
+    editorActorId: number;
+    actorInteractPointCount: number;
+    displayNameId: string;
+    unitId: string;
+    assetId: string;
+    actorType: ActArkHubActorType;
+    actorParam: string;
+    avgId: string;
+    interactionRequirements: string[];
+    position: clz_UnityEngine_Vector3;
+    yaw: number;
+    blockRange: ArkventRangeData;
+    interactRange: ArkventRangeData;
+    triggerCameraConfig: string;
+    interactCameraConfig: string;
+    interactBtnStyleId: string;
+    headUpStyleId: string;
+    sceneId: number;
+    overrideAnimConfig: { [key: string]: string };
+    spineFace: ArkventSpineFaceType;
+    hasSafePos: boolean;
+    safePos: clz_UnityEngine_Vector3;
+}
+
+export interface ActArkHubItemData {
+    itemId: string;
+    itemNumId: number;
+    itemType: ActArkHubItemType;
+    itemName: string;
+    itemUsage: string;
+    itemDesc: string;
+    obtainApproach: string;
+    stackLimit: number;
+    maxEffectCount: number;
+    rarity: ItemRarity;
+    itemSortId: number;
+    isUsable: boolean;
+    isShow: boolean;
+    accumulateDesc: string;
+}
+
+export interface ActArkhubLoadingTipData {
+    tip: string;
+    weight: number;
+}
+
+export interface ActArkHubMenuData {
+    type: ActArkHubMenuType;
+    name: string;
+    iconId: string;
+    isPermanent: boolean;
+    sortId: number;
+    unlockToast: string;
+    bannedToast: string;
+}
+
+export interface ActArkHubModuleData {
+    arkdexModule: ArkdexModuleData;
+    arkpixelModule: ArkpixelModuleData;
+    moduleTypes: ActArkHubModuleType[];
+}
+
+export interface ActArkHubMoveFixData {
+    skinId: string;
+    runMaxStableMoveSpeed: number;
+    walkMaxStableMoveSpeed: number;
+    alpha: number;
+    runConfiguredAnimScale: number;
+    walkConfiguredAnimScale: number;
+    slideStopThreshold: number;
+    spineFlip: SpineFlipMode;
+}
+
+export interface ActArkHubPlayerStateInfoData {
+    state: ActArkHubNameCardState;
+    iconId: string;
+    name: string;
+}
+
+export interface ActArkHubRewardData {
+    rewardId: string;
+    itemList: ActArkHubRewardItem[];
+}
+
+export interface ActArkHubRewardItem {
+    itemId: string;
+    count: number;
+    itemType: ActArkHubItemType;
+}
+
 export interface ActAutoChessData {
     modeDataDict: { [key: string]: ActAutoChessDataActAutoChessModeData };
     baseRewardDataList: ActAutoChessDataActAutoChessBaseRewardData[];
@@ -4175,6 +4385,7 @@ export interface ActivityCustomDataAct25sideCustomData {
 export interface ActivityDynEntrySwitchData {
     entrySwitchInfo: { [key: string]: DynEntrySwitchInfo };
     randomEntrySwitchInfo: { [key: string]: DynEntrySwitchInfo };
+    entryAnimationInfo: { [key: string]: DynEntryAnimationInfo };
 }
 
 export interface ActivityEnemyDuelAnnounceData {
@@ -4682,6 +4893,7 @@ export interface ActivityTable {
     fifthAnnivExploreData: FifthAnnivExploreData;
     anniv7thData: Anniv7thMainlineData;
     autoChessData: AutoChessData;
+    arkhubData: ArkhubData;
     stringRes: { [key: string]: string };
     activityTraps: { [key: string]: ActivityTableActivityTrapsData };
     activityTrapMissions: { [key: string]: ActivityTableActivityTrapMissionsData };
@@ -4743,6 +4955,8 @@ export interface ActivityTableActivityDetailTable {
     TYPE_ACT46SIDE: { [key: string]: Act46SideData };
     AUTOCHESS_SEASON: { [key: string]: ActAutoChessData };
     ACT_FOOTBALL: { [key: string]: ActFootballData };
+    ARK_HUB: { [key: string]: ActArkHubData };
+    TYPE_ACT53SIDE: { [key: string]: Act53SideData };
 }
 
 export interface ActivityTableActivityExtraData {
@@ -5587,6 +5801,478 @@ export interface ApSupplyFeature {
     hasTs: boolean;
 }
 
+export interface ArkdexAdvantageTypeData {
+    advantageType: string;
+    sortId: number;
+    name: string;
+    typeIcon: string;
+    entryEffectKey: string;
+    damageScaleMap: { [key: string]: number };
+}
+
+export interface ArkdexCaptureAreaData {
+    areaId: number;
+}
+
+export interface ArkdexConstData {
+    arkdexCreatureBagMaxNum: number;
+    arkdexCreatureBagAlertNum: number;
+    operatorTeamSize: number;
+    totalSquadCnt: number;
+    teamSlots: number;
+    teamSize: number;
+    maxTeamRarityCount: number;
+    soloCharacterLimit: number;
+    brawlCharacterLimit: number;
+    buildEntryMaxTime: number;
+    battleEntryMaxTime: number;
+    settleMaxTime: number;
+    pingConds: PingCond[];
+    maxLoadingTime: number;
+    deployPhaseTime: number;
+    deployPhaseHintTime: number;
+    battlePhaseTimeMax: number;
+    modeOperationRankTime: number;
+    petFollowPanelScale: number;
+    tradeRequestTime: number;
+    creaturedDisappearAlert: number;
+    creatureInteractRange: ArkventRangeData;
+    creatureInteractStyleId: string;
+    creatureDisplayNameId: string;
+    creatureHeadUpStyleId: string;
+}
+
+export interface ArkdexCreatureData {
+    creatureNumId: number;
+    enemyId: string;
+    deployedEnemyId: string;
+    trapId: string;
+    uiDisplayScale: number;
+    followScale: number;
+    animSpeedFollow: number;
+    rarity: number;
+    specialRarity: boolean;
+    sortId: number;
+    orderId: string;
+    name: string;
+    creatureIcon: string;
+    worldEntityId: string;
+    alterNumId: number;
+    upWeightTagIsShow: boolean;
+    advantageType: string;
+    description: string;
+    abilities: string[];
+    obtainApproach: string;
+    hp: number;
+    atk: number;
+    def: number;
+    mag: number;
+    moveSpeed: number;
+    atkSpeed: number;
+    hpPct: number;
+    atkPct: number;
+    defPct: number;
+    magPct: number;
+    moveSpeedPct: number;
+    atkSpeedPct: number;
+}
+
+export interface ArkdexItemEffectData {
+    itemNumId: number;
+    buff: string;
+    activeDesc: string;
+    blackboard: BlackboardDataPair[];
+}
+
+export interface ArkdexModeData {
+    modeId: string;
+    modeNumId: number;
+    isMultiplayer: boolean;
+    numMax: number;
+    battleNpcCount: number;
+    isMatching: boolean;
+    maxRoundNumber: number;
+    stageTimeMax: number;
+    characterLimit: number;
+    modeType: ArkdexModeType;
+    stageIds: string[];
+    modeName: string;
+    modeHint: string;
+    matchingIconId: string;
+}
+
+export interface ArkdexModuleData {
+    modeData: { [key: string]: ArkdexModeData };
+    creatureData: { [key: number]: ArkdexCreatureData };
+    advantageTypeData: { [key: string]: ArkdexAdvantageTypeData };
+    advantageCounterMap: { [key: string]: string[] };
+    npcInfoData: { [key: number]: ArkdexNpcInfoData };
+    npcDuelStrategyData: { [key: string]: ArkdexNpcDuelStrategyData };
+    itemEffectData: { [key: number]: ArkdexItemEffectData };
+    traitData: { [key: number]: ArkdexTraitData };
+    sceneTypeMap: { [key: number]: string };
+    npcBattleParamData: { [key: number]: ArkdexNpcBattleParamData };
+    npcPixelData: { [key: string]: ArkdexNpcPixelData };
+    captureAreaData: { [key: number]: ArkdexCaptureAreaData };
+    dexConstData: ArkdexConstData;
+}
+
+export interface ArkdexNpcBattleParamData {
+    npcBattleId: number;
+    modeId: string;
+}
+
+export interface ArkdexNpcDuelCreatureData {
+    creatureNumId: number;
+    traitMask: number;
+}
+
+export interface ArkdexNpcDuelStrategyData {
+    strategyGroupId: string;
+    strategyId: string;
+    tileStrategy: ArkDexNpcTileStrategy;
+    cardStrategy: ArkDexNpcCardStrategy;
+    creatureData: ArkdexNpcDuelCreatureData[];
+    weight: number;
+}
+
+export interface ArkdexNpcInfoData {
+    npcId: number;
+    strategyGroupId: string;
+    name: string;
+    avatarId: string;
+    npcProb: number;
+    avatarType: PlayerAvatarGroupType;
+    nameCardSkinId: string;
+    nameCardSkinTmplId: number;
+}
+
+export interface ArkdexNpcPixelData {
+    npcPixelId: string;
+    npcPixelIcon: string;
+    npcPixelName: string;
+    npcLockedToast: string;
+}
+
+export interface ArkdexTraitData {
+    sortId: number;
+    traitMask: number;
+    traitId: string;
+    name: string;
+    icon: string;
+    description: string;
+    color: string;
+    buff: BlackboardDataPair[];
+}
+
+export interface ArkhubData {
+    itemData: { [key: string]: ActArkHubItemData };
+}
+
+export interface ArkOdcBasicData {
+    topicId: string;
+    rewardGroups: { [key: string]: ItemBundle[] };
+    moveConstData: ArkOdcMoveConstData;
+    loadingData: { [key: string]: ArkOdcLoadingData };
+    constData: ArkOdcConstData;
+    taskTrackingConstData: ArkOdcTaskTrackingConstData;
+    clientTrackingData: ArkOdcTaskTrackingData;
+}
+
+export interface ArkOdcConstData {
+    defaultSceneId: string;
+    defaultLoadingId: string;
+    playerSpineName: string;
+    idleSpecialAnimName: string;
+    idleSpecialAnimInterval: number;
+    resetExpIds: string[];
+    npcSelectedFx: string;
+    interactSelectedFx: string;
+    sceneValidPositionY: number;
+}
+
+export interface ArkOdcLoadingData {
+    loadingId: string;
+    weight: number;
+}
+
+export interface ArkOdcMoveConstData {
+    runMaxStableMoveSpeed: number;
+    walkMaxStableMoveSpeed: number;
+    stableMovementSharpness: number;
+    defaultAlpha: number;
+    runConfiguredAnimScale: number;
+    walkConfiguredAnimScale: number;
+    minAnimScale: number;
+    maxAnimScale: number;
+    spineFlip: SpineFlipMode;
+    defaultSlideStopThreshold: number;
+    presetData: ArkventMovePresetData;
+}
+
+export interface ArkOdcTable {
+    odcDataMap: { [key: string]: ArkOdcBasicData };
+    arkventDataMap: { [key: string]: ArkventData };
+}
+
+export interface ArkOdcTaskTrackingConstData {
+    taskTrackerHeightThreshold: number;
+    distanceUnitScale: number;
+    taskTrackerYOffset: number;
+}
+
+export interface ArkOdcTaskTrackingData {
+    mainDataDict: { [key: string]: ArkOdcTaskTrackingMainData };
+}
+
+export interface ArkOdcTaskTrackingEntryData {
+    trackEntryId: string;
+    questId: string;
+    stage: number;
+    slot: number;
+    slotOrder: number;
+    description: string;
+    trackActorId: string;
+    enableCompass: boolean;
+    triggerCondIds: string[];
+    completeCondId: string;
+    progressCompleteFlags: string[];
+    progressCount: number;
+}
+
+export interface ArkOdcTaskTrackingMainData {
+    questId: string;
+    priority: number;
+    title: string;
+    startBannerDesc: string;
+    completeBannerDesc: string;
+    entryDict: { [key: string]: ArkOdcTaskTrackingEntryData };
+}
+
+export interface ArkpixelConstData {
+    arkpixelBagNum: number;
+    arkpixelOtherPlayerBagNum: number;
+    maxReleaseTimesPerStage: number;
+    pixelParamId: string;
+    hiddenCreatorName: string;
+    scenePixelDisplayRadius: number;
+    pixelShowLimitConfigList: number[];
+    showCollectIconCount: number;
+    maxCollectedCount: number;
+    maxCollectedDisplayText: string;
+}
+
+export interface ArkpixelModuleData {
+    pixelConstData: ArkpixelConstData;
+    releaseStageData: { [key: string]: ArkpixelReleaseStageData };
+}
+
+export interface ArkpixelReleaseStageData {
+    arkpixelStage: string;
+    startTime: number;
+    arkpixelReleaseTimes: number;
+}
+
+export interface ArkventAnimMixData {
+    mixDurationMap: { [key: string]: number };
+}
+
+export interface ArkventAudioSourceData {
+    id: string;
+    positionX: number;
+    positionY: number;
+    positionZ: number;
+    module: string;
+    signal: string;
+    subSignal: string;
+    meta: ArkventAudioMetaFlag;
+    soundPlaybackPolicy: number;
+    minDist: number;
+    maxDist: number;
+    rollOffType: ArkventAudioRollOffType;
+    spatialBlend: ArkventAudioSpatialProfile;
+    spatialVolume: ArkventAudioSpatialProfile;
+    volume: number;
+    effectiveRange: ArkventRangeData;
+    triggerMode: ArkventAudioTriggerMode;
+    periodicFixedInterval: number;
+    periodicMinInterval: number;
+    periodicMaxInterval: number;
+    applyIntervalOnFirstPlay: boolean;
+    fadeOutTime: number;
+    mutexGroup: string;
+    mutexOrder: number;
+    bindActors: string[];
+    tags: string[];
+}
+
+export interface ArkventAudioSpatialProfile {
+    type: ArkventAudioSpatialType;
+    name: string;
+}
+
+export interface ArkventBarkData {
+    barkAreaRadius: number;
+    showAreaRadius: number;
+    barkPoolData: { [key: string]: ArkventBarkPoolData };
+}
+
+export interface ArkventBarkItemData {
+    content: string;
+    weight: number;
+    duration: number;
+    cooldown: number;
+}
+
+export interface ArkventBarkPoolData {
+    barkItemData: ArkventBarkItemData[];
+}
+
+export interface ArkventCameraConfigData {
+    pcConfig: ArkventCameraPlatformConfig;
+    mobileConfig: ArkventCameraPlatformConfig;
+}
+
+export interface ArkventCameraPlatformConfig {
+    blendDuration: number;
+    blendStyle: ArkventCameraBlendStyle;
+    pitch: number;
+    cameraDistance: number;
+    lookAheadTime: number;
+    lookAheadSmoothing: number;
+    screenX: number;
+    screenY: number;
+    trackedObjectOffset: clz_UnityEngine_Vector3;
+    deadZoneWidth: number;
+    deadZoneHeight: number;
+    deadZoneDepth: number;
+    softZoneWidth: number;
+    softZoneHeight: number;
+    biasX: number;
+    biasY: number;
+    xDamping: number;
+    yDamping: number;
+    zDamping: number;
+}
+
+export interface ArkventData {
+    taskData: ArkventTaskData;
+    sceneDataMap: { [key: number]: ArkventSceneData };
+    nameMappingData: ArkventNameMappingData;
+    interactBtnStyleDict: { [key: string]: ArkventInteractBtnStyleData };
+    headUIData: { [key: string]: ArkventHeadUIData };
+    barkData: ArkventBarkData;
+    animMixData: ArkventAnimMixData;
+    sceneAudioMap: { [key: number]: ArkventAudioSourceData[] };
+}
+
+export interface ArkventHeadUIData {
+    id: string;
+    icon: string;
+    bgStyle: string;
+}
+
+export interface ArkventInteractBtnStyleData {
+    id: string;
+    icon: string;
+    bgStyle: string;
+    displayText: string;
+    textColorStr: string;
+}
+
+export interface ArkventMovePresetData {
+    presetId: string;
+    accelEasingType: EasingType;
+    accelDuration: number;
+    accPower: number;
+    decEasingType: EasingType;
+    decDuration: number;
+    decPower: number;
+    turningMode: TurningMode;
+    momentumTurnSpeed: number;
+    momentumTurnSpeedLow: number;
+}
+
+export interface ArkventNameMappingData {
+    displayNameMap: { [key: string]: string };
+}
+
+export interface ArkventRangeData {
+    type: ArkventRangeType;
+    position: clz_UnityEngine_Vector3;
+    bounds: clz_UnityEngine_Vector3;
+}
+
+export interface ArkventSceneData {
+    sceneId: string;
+    sceneIdHash: number;
+    sceneName: string;
+    assetId: string;
+    spawnPos: clz_UnityEngine_Vector3;
+    spawnRadius: number;
+    moveCameraConfigId: string;
+    idleCameraConfigId: string;
+}
+
+export interface ArkventTaskActorData {
+    actorId: string;
+    actorNameId: string;
+    actorEnvLineId: string;
+    sceneId: number;
+    isGlobal: boolean;
+    charId: string;
+    skinId: string;
+    arkventSpineId: string;
+    npcSpineType: ArkventNPCSpineType;
+    overrideAnimConfig: { [key: string]: string };
+    furnitureAssetId: string;
+    actorType: ArkventTaskActorType;
+    actorPosition: clz_UnityEngine_Vector3;
+    actorYaw: number;
+    actorShowCondition: ArkventTaskShowCondition[];
+    actorTriggerType: ArkventTaskActorTriggerType;
+    actorTriggerOperations: { [key: string]: ArkventTaskActorTriggerOperation[] };
+    triggerRange: ArkventRangeData;
+    colliderRange: ArkventRangeData;
+    interactRange: ArkventRangeData;
+    triggerCameraConfig: string;
+    interactCameraConfig: string;
+    sceneStatusDriverId: string;
+    sceneObjectStatus: string;
+    effectId: string;
+    effectOffsetY: number;
+    interactBtnStyleId: string;
+    interactingBtnStyleId: string;
+    interactSoundFx: string;
+    headUpStyleId: string;
+    spineFace: ArkventSpineFaceType;
+    persistFaceWhenInteract: boolean;
+    hasSafePos: boolean;
+    safePos: clz_UnityEngine_Vector3;
+}
+
+export interface ArkventTaskActorTriggerOperation {
+    operationId: string;
+    operationTemplate: string;
+    operationParams: { [key: string]: string };
+    finishOperation: boolean;
+    preserveBlackout: boolean;
+}
+
+export interface ArkventTaskData {
+    topicId: string;
+    actorData: { [key: string]: ArkventTaskActorData };
+    varSeqData: string[];
+    cameraConfigData: { [key: string]: ArkventCameraConfigData };
+}
+
+export interface ArkventTaskShowCondition {
+    conditionType: string;
+    varSeqList: string[];
+    type: ArkventTaskVarSeqCompareOperation;
+    value: number;
+}
+
 export interface ArtGalleryCollectConstData {
     collectTypeFilterAll: string;
     collectTypeFilterAllUnselect: string;
@@ -5706,6 +6392,7 @@ export interface AttributesData {
     palsyImmune: boolean;
     attractImmune: boolean;
     teleportImmune: boolean;
+    groundBoundImmune: boolean;
 }
 
 export interface AttributesDeltaData {
@@ -5736,6 +6423,7 @@ export interface AttributesDeltaData {
     palsyImmune: boolean;
     attractImmune: boolean;
     teleportImmune: boolean;
+    groundBoundImmune: boolean;
 }
 
 export interface AudioMiddlewareDataBGMBank {
@@ -6232,6 +6920,7 @@ export interface BuffData {
     isStunnable: boolean;
     isFreezable: boolean;
     isLevitatable: boolean;
+    isGroundBoundable: boolean;
     statusResistable: BuffData_StatusResistable;
     templateKey: string;
     disableOverride: boolean;
@@ -7845,6 +8534,15 @@ export interface DisplayMetaData {
     magazineLeafData: MagazineLeafData;
     stickerData: StickerData;
     avgDialogSettingData: AVGDialogSettingData;
+    pixelMapData: PixelMapData;
+}
+
+export interface DynEntryAnimationInfo {
+    animationId: string;
+    sortId: number;
+    isDefaultAnimation: boolean;
+    stageId: string;
+    signalId: string;
 }
 
 export interface DynEntrySwitchInfo {
@@ -7913,6 +8611,7 @@ export interface EnemyDatabaseAttributesData {
     palsyImmune: Undefinable1SystemBoolean;
     attractImmune: Undefinable1SystemBoolean;
     teleportImmune: Undefinable1SystemBoolean;
+    groundBoundImmune: Undefinable1SystemBoolean;
 }
 
 export interface EnemyDatabaseEnemyData {
@@ -8861,7 +9560,7 @@ export interface KeySettingGroupData {
     funcType: KeySettingGroup;
     keyEffectGroup: KeyEffectGroup;
     isHidden: boolean;
-    relatedActType: ActivityType;
+    relatedActTypes: ActivityType[];
     gameModeTag: string;
     sortId: number;
     startTs: number;
@@ -9173,6 +9872,7 @@ export interface MagazineLeafItemData {
     templateId: string;
     templateStartTime: number;
     templateColor: string;
+    templateColor2: string;
     skinDefaultPos: clz_UnityEngine_Vector2;
     skinDefaultScale: number;
     leafDecorMaxNumMap: { [key: string]: number };
@@ -9742,6 +10442,22 @@ export interface PCKeyData {
 export interface PingCond {
     cond: number;
     txt: string;
+}
+
+export interface PixelMapConstData {
+    uidWaterMark: boolean;
+}
+
+export interface PixelMapData {
+    paramMap: { [key: string]: PixelMapParamData };
+    constData: PixelMapConstData;
+}
+
+export interface PixelMapParamData {
+    width: number;
+    height: number;
+    initColor: string;
+    htmlColors: string[];
 }
 
 export interface PlayerAvatarData {
@@ -14928,6 +15644,7 @@ export interface StageData {
     dangerLevel: string;
     dangerPoint: number;
     loadingPicId: string;
+    battleFinishLoadingPicId: string;
     canPractice: boolean;
     canBattleReplay: boolean;
     apCost: number;

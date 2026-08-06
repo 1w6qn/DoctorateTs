@@ -46582,6 +46582,553 @@
       }
     ]
   },
+  "skchr_jcinta_2": {
+    "skillId": "skchr_jcinta_2",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "伞下乘荫",
+        "rangeId": "x-1",
+        "description": "停止攻击，逐渐回复总共<@ba.vup>{value}</>点部署费用，技能持续期间使天赋效果的范围扩大且效果提升至<@ba.vup>{talent_scale}</>倍，并每秒治疗天赋范围内的<@ba.vup>{attack@heal_max_target}</>名友方干员相当于嘉辛塔<@ba.vup>{attack@heal_scale:0%}</>攻击力的生命值",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 40,
+          "initSp": 5,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_jcinta_2",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "value",
+            "value": 27.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.11,
+            "valueStr": null
+          },
+          {
+            "key": "cost",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "talent_scale",
+            "value": 1.1,
+            "valueStr": null
+          },
+          {
+            "key": "talent_range_flag",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_scale",
+            "value": 0.1,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_max_target",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "伞下乘荫",
+        "rangeId": "x-1",
+        "description": "停止攻击，逐渐回复总共<@ba.vup>{value}</>点部署费用，技能持续期间使天赋效果的范围扩大且效果提升至<@ba.vup>{talent_scale}</>倍，并每秒治疗天赋范围内的<@ba.vup>{attack@heal_max_target}</>名友方干员相当于嘉辛塔<@ba.vup>{attack@heal_scale:0%}</>攻击力的生命值",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 39,
+          "initSp": 5,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_jcinta_2",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "value",
+            "value": 27.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.11,
+            "valueStr": null
+          },
+          {
+            "key": "cost",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "talent_scale",
+            "value": 1.2,
+            "valueStr": null
+          },
+          {
+            "key": "talent_range_flag",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_scale",
+            "value": 0.12,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_max_target",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "伞下乘荫",
+        "rangeId": "x-1",
+        "description": "停止攻击，逐渐回复总共<@ba.vup>{value}</>点部署费用，技能持续期间使天赋效果的范围扩大且效果提升至<@ba.vup>{talent_scale}</>倍，并每秒治疗天赋范围内的<@ba.vup>{attack@heal_max_target}</>名友方干员相当于嘉辛塔<@ba.vup>{attack@heal_scale:0%}</>攻击力的生命值",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 38,
+          "initSp": 5,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_jcinta_2",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "value",
+            "value": 27.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.11,
+            "valueStr": null
+          },
+          {
+            "key": "cost",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "talent_scale",
+            "value": 1.2,
+            "valueStr": null
+          },
+          {
+            "key": "talent_range_flag",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_scale",
+            "value": 0.15,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_max_target",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "伞下乘荫",
+        "rangeId": "x-1",
+        "description": "停止攻击，逐渐回复总共<@ba.vup>{value}</>点部署费用，技能持续期间使天赋效果的范围扩大且效果提升至<@ba.vup>{talent_scale}</>倍，并每秒治疗天赋范围内的<@ba.vup>{attack@heal_max_target}</>名友方干员相当于嘉辛塔<@ba.vup>{attack@heal_scale:0%}</>攻击力的生命值",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 37,
+          "initSp": 7,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_jcinta_2",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "value",
+            "value": 27.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.11,
+            "valueStr": null
+          },
+          {
+            "key": "cost",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "talent_scale",
+            "value": 1.4,
+            "valueStr": null
+          },
+          {
+            "key": "talent_range_flag",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_scale",
+            "value": 0.15,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_max_target",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "伞下乘荫",
+        "rangeId": "x-1",
+        "description": "停止攻击，逐渐回复总共<@ba.vup>{value}</>点部署费用，技能持续期间使天赋效果的范围扩大且效果提升至<@ba.vup>{talent_scale}</>倍，并每秒治疗天赋范围内的<@ba.vup>{attack@heal_max_target}</>名友方干员相当于嘉辛塔<@ba.vup>{attack@heal_scale:0%}</>攻击力的生命值",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 36,
+          "initSp": 7,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_jcinta_2",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "value",
+            "value": 27.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.11,
+            "valueStr": null
+          },
+          {
+            "key": "cost",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "talent_scale",
+            "value": 1.4,
+            "valueStr": null
+          },
+          {
+            "key": "talent_range_flag",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_scale",
+            "value": 0.17,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_max_target",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "伞下乘荫",
+        "rangeId": "x-1",
+        "description": "停止攻击，逐渐回复总共<@ba.vup>{value}</>点部署费用，技能持续期间使天赋效果的范围扩大且效果提升至<@ba.vup>{talent_scale}</>倍，并每秒治疗天赋范围内的<@ba.vup>{attack@heal_max_target}</>名友方干员相当于嘉辛塔<@ba.vup>{attack@heal_scale:0%}</>攻击力的生命值",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 35,
+          "initSp": 7,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_jcinta_2",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "value",
+            "value": 27.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.11,
+            "valueStr": null
+          },
+          {
+            "key": "cost",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "talent_scale",
+            "value": 1.7,
+            "valueStr": null
+          },
+          {
+            "key": "talent_range_flag",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_scale",
+            "value": 0.17,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_max_target",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "伞下乘荫",
+        "rangeId": "x-1",
+        "description": "停止攻击，逐渐回复总共<@ba.vup>{value}</>点部署费用，技能持续期间使天赋效果的范围扩大且效果提升至<@ba.vup>{talent_scale}</>倍，并每秒治疗天赋范围内的<@ba.vup>{attack@heal_max_target}</>名友方干员相当于嘉辛塔<@ba.vup>{attack@heal_scale:0%}</>攻击力的生命值",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 34,
+          "initSp": 9,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_jcinta_2",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "value",
+            "value": 27.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.11,
+            "valueStr": null
+          },
+          {
+            "key": "cost",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "talent_scale",
+            "value": 1.7,
+            "valueStr": null
+          },
+          {
+            "key": "talent_range_flag",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_scale",
+            "value": 0.22,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_max_target",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "伞下乘荫",
+        "rangeId": "x-1",
+        "description": "停止攻击，逐渐回复总共<@ba.vup>{value}</>点部署费用，技能持续期间使天赋效果的范围扩大且效果提升至<@ba.vup>{talent_scale}</>倍，并每秒治疗天赋范围内的<@ba.vup>{attack@heal_max_target}</>名友方干员相当于嘉辛塔<@ba.vup>{attack@heal_scale:0%}</>攻击力的生命值",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 33,
+          "initSp": 11,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_jcinta_2",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "value",
+            "value": 27.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.11,
+            "valueStr": null
+          },
+          {
+            "key": "cost",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "talent_scale",
+            "value": 1.9,
+            "valueStr": null
+          },
+          {
+            "key": "talent_range_flag",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_scale",
+            "value": 0.22,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_max_target",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "伞下乘荫",
+        "rangeId": "x-1",
+        "description": "停止攻击，逐渐回复总共<@ba.vup>{value}</>点部署费用，技能持续期间使天赋效果的范围扩大且效果提升至<@ba.vup>{talent_scale}</>倍，并每秒治疗天赋范围内的<@ba.vup>{attack@heal_max_target}</>名友方干员相当于嘉辛塔<@ba.vup>{attack@heal_scale:0%}</>攻击力的生命值",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 32,
+          "initSp": 13,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_jcinta_2",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "value",
+            "value": 27.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.11,
+            "valueStr": null
+          },
+          {
+            "key": "cost",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "talent_scale",
+            "value": 1.9,
+            "valueStr": null
+          },
+          {
+            "key": "talent_range_flag",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_scale",
+            "value": 0.24,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_max_target",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "伞下乘荫",
+        "rangeId": "x-1",
+        "description": "停止攻击，逐渐回复总共<@ba.vup>{value}</>点部署费用，技能持续期间使天赋效果的范围扩大且效果提升至<@ba.vup>{talent_scale}</>倍，并每秒治疗天赋范围内的<@ba.vup>{attack@heal_max_target}</>名友方干员相当于嘉辛塔<@ba.vup>{attack@heal_scale:0%}</>攻击力的生命值",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 30,
+          "initSp": 15,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_jcinta_2",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "value",
+            "value": 27.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.11,
+            "valueStr": null
+          },
+          {
+            "key": "cost",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "talent_scale",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "talent_range_flag",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_scale",
+            "value": 0.25,
+            "valueStr": null
+          },
+          {
+            "key": "attack@heal_max_target",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      }
+    ]
+  },
   "skchr_blkngt_1": {
     "skillId": "skchr_blkngt_1",
     "iconId": null,
@@ -91771,6 +92318,353 @@
           {
             "key": "ct",
             "value": 3.0,
+            "valueStr": null
+          }
+        ]
+      }
+    ]
+  },
+  "skchr_tmslot_2": {
+    "skillId": "skchr_tmslot_2",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "科技与传统仪式",
+        "rangeId": null,
+        "description": "浮游单元<@ba.vup>+{attack@cnt}</>，释放浮游单元锁定敌人攻击\\n<$ba.overdrive>过载</>：自身停止攻击，攻击力<@ba.vup>+{atk:0%}</>，攻击速度<@ba.vup>+{attack_speed}</>\\n<@ba.rem>浮游单元锁敌后直至敌人被击杀或技能结束后返回干员身边，浮游单元锁定的敌人离开自身攻击范围时，立刻过载</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 50,
+          "initSp": 10,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_tmslot_2",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.17,
+            "valueStr": null
+          },
+          {
+            "key": "attack_speed",
+            "value": 20.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@cnt",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "科技与传统仪式",
+        "rangeId": null,
+        "description": "浮游单元<@ba.vup>+{attack@cnt}</>，释放浮游单元锁定敌人攻击\\n<$ba.overdrive>过载</>：自身停止攻击，攻击力<@ba.vup>+{atk:0%}</>，攻击速度<@ba.vup>+{attack_speed}</>\\n<@ba.rem>浮游单元锁敌后直至敌人被击杀或技能结束后返回干员身边，浮游单元锁定的敌人离开自身攻击范围时，立刻过载</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 48,
+          "initSp": 10,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_tmslot_2",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.2,
+            "valueStr": null
+          },
+          {
+            "key": "attack_speed",
+            "value": 25.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@cnt",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "科技与传统仪式",
+        "rangeId": null,
+        "description": "浮游单元<@ba.vup>+{attack@cnt}</>，释放浮游单元锁定敌人攻击\\n<$ba.overdrive>过载</>：自身停止攻击，攻击力<@ba.vup>+{atk:0%}</>，攻击速度<@ba.vup>+{attack_speed}</>\\n<@ba.rem>浮游单元锁敌后直至敌人被击杀或技能结束后返回干员身边，浮游单元锁定的敌人离开自身攻击范围时，立刻过载</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 46,
+          "initSp": 10,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_tmslot_2",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.23,
+            "valueStr": null
+          },
+          {
+            "key": "attack_speed",
+            "value": 30.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@cnt",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "科技与传统仪式",
+        "rangeId": null,
+        "description": "浮游单元<@ba.vup>+{attack@cnt}</>，释放浮游单元锁定敌人攻击\\n<$ba.overdrive>过载</>：自身停止攻击，攻击力<@ba.vup>+{atk:0%}</>，攻击速度<@ba.vup>+{attack_speed}</>\\n<@ba.rem>浮游单元锁敌后直至敌人被击杀或技能结束后返回干员身边，浮游单元锁定的敌人离开自身攻击范围时，立刻过载</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 45,
+          "initSp": 15,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_tmslot_2",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.26,
+            "valueStr": null
+          },
+          {
+            "key": "attack_speed",
+            "value": 35.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@cnt",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "科技与传统仪式",
+        "rangeId": null,
+        "description": "浮游单元<@ba.vup>+{attack@cnt}</>，释放浮游单元锁定敌人攻击\\n<$ba.overdrive>过载</>：自身停止攻击，攻击力<@ba.vup>+{atk:0%}</>，攻击速度<@ba.vup>+{attack_speed}</>\\n<@ba.rem>浮游单元锁敌后直至敌人被击杀或技能结束后返回干员身边，浮游单元锁定的敌人离开自身攻击范围时，立刻过载</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 43,
+          "initSp": 15,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_tmslot_2",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.29,
+            "valueStr": null
+          },
+          {
+            "key": "attack_speed",
+            "value": 40.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@cnt",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "科技与传统仪式",
+        "rangeId": null,
+        "description": "浮游单元<@ba.vup>+{attack@cnt}</>，释放浮游单元锁定敌人攻击\\n<$ba.overdrive>过载</>：自身停止攻击，攻击力<@ba.vup>+{atk:0%}</>，攻击速度<@ba.vup>+{attack_speed}</>\\n<@ba.rem>浮游单元锁敌后直至敌人被击杀或技能结束后返回干员身边，浮游单元锁定的敌人离开自身攻击范围时，立刻过载</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 41,
+          "initSp": 15,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_tmslot_2",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.32,
+            "valueStr": null
+          },
+          {
+            "key": "attack_speed",
+            "value": 45.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@cnt",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "科技与传统仪式",
+        "rangeId": null,
+        "description": "浮游单元<@ba.vup>+{attack@cnt}</>，释放浮游单元锁定敌人攻击\\n<$ba.overdrive>过载</>：自身停止攻击，攻击力<@ba.vup>+{atk:0%}</>，攻击速度<@ba.vup>+{attack_speed}</>\\n<@ba.rem>浮游单元锁敌后直至敌人被击杀或技能结束后返回干员身边，浮游单元锁定的敌人离开自身攻击范围时，立刻过载</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 40,
+          "initSp": 20,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_tmslot_2",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.35,
+            "valueStr": null
+          },
+          {
+            "key": "attack_speed",
+            "value": 50.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@cnt",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "科技与传统仪式",
+        "rangeId": null,
+        "description": "浮游单元<@ba.vup>+{attack@cnt}</>，释放浮游单元锁定敌人攻击\\n<$ba.overdrive>过载</>：自身停止攻击，攻击力<@ba.vup>+{atk:0%}</>，攻击速度<@ba.vup>+{attack_speed}</>\\n<@ba.rem>浮游单元锁敌后直至敌人被击杀或技能结束后返回干员身边，浮游单元锁定的敌人离开自身攻击范围时，立刻过载</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 40,
+          "initSp": 20,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_tmslot_2",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.4,
+            "valueStr": null
+          },
+          {
+            "key": "attack_speed",
+            "value": 55.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@cnt",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "科技与传统仪式",
+        "rangeId": null,
+        "description": "浮游单元<@ba.vup>+{attack@cnt}</>，释放浮游单元锁定敌人攻击\\n<$ba.overdrive>过载</>：自身停止攻击，攻击力<@ba.vup>+{atk:0%}</>，攻击速度<@ba.vup>+{attack_speed}</>\\n<@ba.rem>浮游单元锁敌后直至敌人被击杀或技能结束后返回干员身边，浮游单元锁定的敌人离开自身攻击范围时，立刻过载</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 40,
+          "initSp": 20,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_tmslot_2",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.45,
+            "valueStr": null
+          },
+          {
+            "key": "attack_speed",
+            "value": 60.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@cnt",
+            "value": 1.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "科技与传统仪式",
+        "rangeId": null,
+        "description": "浮游单元<@ba.vup>+{attack@cnt}</>，释放浮游单元锁定敌人攻击\\n<$ba.overdrive>过载</>：自身停止攻击，攻击力<@ba.vup>+{atk:0%}</>，攻击速度<@ba.vup>+{attack_speed}</>\\n<@ba.rem>浮游单元锁敌后直至敌人被击杀或技能结束后返回干员身边，浮游单元锁定的敌人离开自身攻击范围时，立刻过载</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 40,
+          "initSp": 25,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_tmslot_2",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "attack_speed",
+            "value": 65.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@cnt",
+            "value": 1.0,
             "valueStr": null
           }
         ]
@@ -285889,6 +286783,1547 @@
       }
     ]
   },
+  "skchr_aglna2_1": {
+    "skillId": "skchr_aglna2_1",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "极速送达",
+        "rangeId": "3-6",
+        "description": "部署后立刻<$ba.liftoff>起飞</>，攻击范围<@ba.vup>扩大</>，攻击力<@ba.vup>+{atk:0%}</>，同时攻击两个目标",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "skchr_aglna2_1",
+        "duration": 55.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.6,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 2.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "极速送达",
+        "rangeId": "3-6",
+        "description": "部署后立刻<$ba.liftoff>起飞</>，攻击范围<@ba.vup>扩大</>，攻击力<@ba.vup>+{atk:0%}</>，同时攻击两个目标",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "skchr_aglna2_1",
+        "duration": 55.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.65,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 2.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "极速送达",
+        "rangeId": "3-6",
+        "description": "部署后立刻<$ba.liftoff>起飞</>，攻击范围<@ba.vup>扩大</>，攻击力<@ba.vup>+{atk:0%}</>，同时攻击两个目标",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "skchr_aglna2_1",
+        "duration": 55.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.7,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 2.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "极速送达",
+        "rangeId": "3-6",
+        "description": "部署后立刻<$ba.liftoff>起飞</>，攻击范围<@ba.vup>扩大</>，攻击力<@ba.vup>+{atk:0%}</>，同时攻击两个目标",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "skchr_aglna2_1",
+        "duration": 56.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.75,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 2.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "极速送达",
+        "rangeId": "3-6",
+        "description": "部署后立刻<$ba.liftoff>起飞</>，攻击范围<@ba.vup>扩大</>，攻击力<@ba.vup>+{atk:0%}</>，同时攻击两个目标",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "skchr_aglna2_1",
+        "duration": 56.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.8,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 2.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "极速送达",
+        "rangeId": "3-6",
+        "description": "部署后立刻<$ba.liftoff>起飞</>，攻击范围<@ba.vup>扩大</>，攻击力<@ba.vup>+{atk:0%}</>，同时攻击两个目标",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "skchr_aglna2_1",
+        "duration": 56.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.9,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 2.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "极速送达",
+        "rangeId": "3-6",
+        "description": "部署后立刻<$ba.liftoff>起飞</>，攻击范围<@ba.vup>扩大</>，攻击力<@ba.vup>+{atk:0%}</>，同时攻击两个目标",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "skchr_aglna2_1",
+        "duration": 56.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 2.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "极速送达",
+        "rangeId": "3-6",
+        "description": "部署后立刻<$ba.liftoff>起飞</>，攻击范围<@ba.vup>扩大</>，攻击力<@ba.vup>+{atk:0%}</>，同时攻击两个目标",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "skchr_aglna2_1",
+        "duration": 58.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.1,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 2.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "极速送达",
+        "rangeId": "3-6",
+        "description": "部署后立刻<$ba.liftoff>起飞</>，攻击范围<@ba.vup>扩大</>，攻击力<@ba.vup>+{atk:0%}</>，同时攻击两个目标",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "skchr_aglna2_1",
+        "duration": 58.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.2,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 2.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "极速送达",
+        "rangeId": "3-6",
+        "description": "部署后立刻<$ba.liftoff>起飞</>，攻击范围<@ba.vup>扩大</>，攻击力<@ba.vup>+{atk:0%}</>，同时攻击两个目标",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "skchr_aglna2_1",
+        "duration": 60.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.35,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 2.0,
+            "valueStr": null
+          }
+        ]
+      }
+    ]
+  },
+  "skchr_aglna2_2": {
+    "skillId": "skchr_aglna2_2",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "重力自定义",
+        "rangeId": "3-10",
+        "description": "攻击范围<@ba.vup>扩大</>并向前方滑翔<$ba.liftoff>起飞</>，使掠过的攻击范围内的地面敌人<$ba.levitate>浮空</><@ba.vup>{buff_duration_levitate}</>秒、飞行敌人<$ba.groundbind>缚地</><@ba.vup>{buff_duration_ground_bound}</>秒，随后攻击间隔<@ba.vup>缩短</>，攻击力<@ba.vup>+{atk:0%}</>，攻击变为法术伤害且同时攻击<@ba.vup>{attack@max_target}</>个目标",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 35,
+          "initSp": 17,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_2",
+        "duration": 22.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.75,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": -0.5,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "chant_duration",
+            "value": 2.5,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 10.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_ground_bound",
+            "value": 18.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_levitate",
+            "value": 8.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "重力自定义",
+        "rangeId": "3-10",
+        "description": "攻击范围<@ba.vup>扩大</>并向前方滑翔<$ba.liftoff>起飞</>，使掠过的攻击范围内的地面敌人<$ba.levitate>浮空</><@ba.vup>{buff_duration_levitate}</>秒、飞行敌人<$ba.groundbind>缚地</><@ba.vup>{buff_duration_ground_bound}</>秒，随后攻击间隔<@ba.vup>缩短</>，攻击力<@ba.vup>+{atk:0%}</>，攻击变为法术伤害且同时攻击<@ba.vup>{attack@max_target}</>个目标",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 34,
+          "initSp": 17,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_2",
+        "duration": 22.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.85,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": -0.5,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "chant_duration",
+            "value": 2.5,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 10.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_ground_bound",
+            "value": 18.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_levitate",
+            "value": 8.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "重力自定义",
+        "rangeId": "3-10",
+        "description": "攻击范围<@ba.vup>扩大</>并向前方滑翔<$ba.liftoff>起飞</>，使掠过的攻击范围内的地面敌人<$ba.levitate>浮空</><@ba.vup>{buff_duration_levitate}</>秒、飞行敌人<$ba.groundbind>缚地</><@ba.vup>{buff_duration_ground_bound}</>秒，随后攻击间隔<@ba.vup>缩短</>，攻击力<@ba.vup>+{atk:0%}</>，攻击变为法术伤害且同时攻击<@ba.vup>{attack@max_target}</>个目标",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 33,
+          "initSp": 17,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_2",
+        "duration": 22.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.95,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": -0.6,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "chant_duration",
+            "value": 2.5,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 10.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_ground_bound",
+            "value": 18.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_levitate",
+            "value": 8.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "重力自定义",
+        "rangeId": "3-10",
+        "description": "攻击范围<@ba.vup>扩大</>并向前方滑翔<$ba.liftoff>起飞</>，使掠过的攻击范围内的地面敌人<$ba.levitate>浮空</><@ba.vup>{buff_duration_levitate}</>秒、飞行敌人<$ba.groundbind>缚地</><@ba.vup>{buff_duration_ground_bound}</>秒，随后攻击间隔<@ba.vup>缩短</>，攻击力<@ba.vup>+{atk:0%}</>，攻击变为法术伤害且同时攻击<@ba.vup>{attack@max_target}</>个目标",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 32,
+          "initSp": 17,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_2",
+        "duration": 22.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.05,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": -0.6,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "chant_duration",
+            "value": 2.5,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 10.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_ground_bound",
+            "value": 20.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_levitate",
+            "value": 10.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "重力自定义",
+        "rangeId": "3-10",
+        "description": "攻击范围<@ba.vup>扩大</>并向前方滑翔<$ba.liftoff>起飞</>，使掠过的攻击范围内的地面敌人<$ba.levitate>浮空</><@ba.vup>{buff_duration_levitate}</>秒、飞行敌人<$ba.groundbind>缚地</><@ba.vup>{buff_duration_ground_bound}</>秒，随后攻击间隔<@ba.vup>缩短</>，攻击力<@ba.vup>+{atk:0%}</>，攻击变为法术伤害且同时攻击<@ba.vup>{attack@max_target}</>个目标",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 31,
+          "initSp": 18,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_2",
+        "duration": 22.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.15,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": -0.7,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "chant_duration",
+            "value": 2.5,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 10.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_ground_bound",
+            "value": 20.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_levitate",
+            "value": 10.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "重力自定义",
+        "rangeId": "3-10",
+        "description": "攻击范围<@ba.vup>扩大</>并向前方滑翔<$ba.liftoff>起飞</>，使掠过的攻击范围内的地面敌人<$ba.levitate>浮空</><@ba.vup>{buff_duration_levitate}</>秒、飞行敌人<$ba.groundbind>缚地</><@ba.vup>{buff_duration_ground_bound}</>秒，随后攻击间隔<@ba.vup>缩短</>，攻击力<@ba.vup>+{atk:0%}</>，攻击变为法术伤害且同时攻击<@ba.vup>{attack@max_target}</>个目标",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 30,
+          "initSp": 19,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_2",
+        "duration": 22.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.25,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": -0.7,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "chant_duration",
+            "value": 2.5,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 10.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_ground_bound",
+            "value": 20.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_levitate",
+            "value": 10.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "重力自定义",
+        "rangeId": "3-10",
+        "description": "攻击范围<@ba.vup>扩大</>并向前方滑翔<$ba.liftoff>起飞</>，使掠过的攻击范围内的地面敌人<$ba.levitate>浮空</><@ba.vup>{buff_duration_levitate}</>秒、飞行敌人<$ba.groundbind>缚地</><@ba.vup>{buff_duration_ground_bound}</>秒，随后攻击间隔<@ba.vup>较大幅缩短</>，攻击力<@ba.vup>+{atk:0%}</>，攻击变为法术伤害且同时攻击<@ba.vup>{attack@max_target}</>个目标",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 29,
+          "initSp": 20,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_2",
+        "duration": 22.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.35,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": -0.8,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "chant_duration",
+            "value": 2.5,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 10.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_ground_bound",
+            "value": 22.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_levitate",
+            "value": 12.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "重力自定义",
+        "rangeId": "3-10",
+        "description": "攻击范围<@ba.vup>扩大</>并向前方滑翔<$ba.liftoff>起飞</>，使掠过的攻击范围内的地面敌人<$ba.levitate>浮空</><@ba.vup>{buff_duration_levitate}</>秒、飞行敌人<$ba.groundbind>缚地</><@ba.vup>{buff_duration_ground_bound}</>秒，随后攻击间隔<@ba.vup>较大幅缩短</>，攻击力<@ba.vup>+{atk:0%}</>，攻击变为法术伤害且同时攻击<@ba.vup>{attack@max_target}</>个目标",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 28,
+          "initSp": 20,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_2",
+        "duration": 22.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.45,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": -0.8,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "chant_duration",
+            "value": 2.5,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 10.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_ground_bound",
+            "value": 22.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_levitate",
+            "value": 12.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "重力自定义",
+        "rangeId": "3-10",
+        "description": "攻击范围<@ba.vup>扩大</>并向前方滑翔<$ba.liftoff>起飞</>，使掠过的攻击范围内的地面敌人<$ba.levitate>浮空</><@ba.vup>{buff_duration_levitate}</>秒、飞行敌人<$ba.groundbind>缚地</><@ba.vup>{buff_duration_ground_bound}</>秒，随后攻击间隔<@ba.vup>较大幅缩短</>，攻击力<@ba.vup>+{atk:0%}</>，攻击变为法术伤害且同时攻击<@ba.vup>{attack@max_target}</>个目标",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 27,
+          "initSp": 21,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_2",
+        "duration": 22.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.55,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": -0.8,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "chant_duration",
+            "value": 2.5,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 10.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_ground_bound",
+            "value": 22.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_levitate",
+            "value": 12.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "重力自定义",
+        "rangeId": "3-10",
+        "description": "攻击范围<@ba.vup>扩大</>并向前方滑翔<$ba.liftoff>起飞</>，使掠过的攻击范围内的地面敌人<$ba.levitate>浮空</><@ba.vup>{buff_duration_levitate}</>秒、飞行敌人<$ba.groundbind>缚地</><@ba.vup>{buff_duration_ground_bound}</>秒，随后攻击间隔<@ba.vup>较大幅缩短</>，攻击力<@ba.vup>+{atk:0%}</>，攻击变为法术伤害且同时攻击<@ba.vup>{attack@max_target}</>个目标",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 25,
+          "initSp": 21,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_2",
+        "duration": 22.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.65,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": -0.8,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "chant_duration",
+            "value": 2.5,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 10.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_ground_bound",
+            "value": 22.0,
+            "valueStr": null
+          },
+          {
+            "key": "buff_duration_levitate",
+            "value": 12.0,
+            "valueStr": null
+          }
+        ]
+      }
+    ]
+  },
+  "skchr_aglna2_3": {
+    "skillId": "skchr_aglna2_3",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "酸橙的心事",
+        "rangeId": "3-9",
+        "description": "立刻<$ba.liftoff>起飞</>，攻击力<@ba.vup>+{atk:0%}</>，获得<@ba.vup>{damage_resistance:0%}</>的<$ba.airprotect>对空庇护</>，攻击范围<@ba.vup>扩大</>，且周围8格视作予愿安洁莉娜的额外攻击范围，攻击对<@ba.vup>{attack@max_walk_target}</>个敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的物理伤害且额外攻击1个飞行敌人；范围内飞行敌人移动速度<@ba.vup>{move_speed:0%}</>，<@ba.vup>原技能范围</>内有未被阻挡的可阻挡飞行敌人，且自身未阻挡时，<$ba.addash>移动</>至该敌人所在格\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后技能结束（期间可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 48,
+          "initSp": 16,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_3",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 2.45,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "move_speed",
+            "value": -0.3,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[unblocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[blocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "atk",
+            "value": 0.15,
+            "valueStr": null
+          },
+          {
+            "key": "damage_resistance",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "attack@attack_range_id",
+            "value": 0.0,
+            "valueStr": "x-4"
+          },
+          {
+            "key": "attack@max_walk_target",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 30.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "酸橙的心事",
+        "rangeId": "3-9",
+        "description": "立刻<$ba.liftoff>起飞</>，攻击力<@ba.vup>+{atk:0%}</>，获得<@ba.vup>{damage_resistance:0%}</>的<$ba.airprotect>对空庇护</>，攻击范围<@ba.vup>扩大</>，且周围8格视作予愿安洁莉娜的额外攻击范围，攻击对<@ba.vup>{attack@max_walk_target}</>个敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的物理伤害且额外攻击1个飞行敌人；范围内飞行敌人移动速度<@ba.vup>{move_speed:0%}</>，<@ba.vup>原技能范围</>内有未被阻挡的可阻挡飞行敌人，且自身未阻挡时，<$ba.addash>移动</>至该敌人所在格\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后技能结束（期间可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 46,
+          "initSp": 17,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_3",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 2.55,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "move_speed",
+            "value": -0.3,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[unblocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[blocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "atk",
+            "value": 0.15,
+            "valueStr": null
+          },
+          {
+            "key": "damage_resistance",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "attack@attack_range_id",
+            "value": 0.0,
+            "valueStr": "x-4"
+          },
+          {
+            "key": "attack@max_walk_target",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 30.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "酸橙的心事",
+        "rangeId": "3-9",
+        "description": "立刻<$ba.liftoff>起飞</>，攻击力<@ba.vup>+{atk:0%}</>，获得<@ba.vup>{damage_resistance:0%}</>的<$ba.airprotect>对空庇护</>，攻击范围<@ba.vup>扩大</>，且周围8格视作予愿安洁莉娜的额外攻击范围，攻击对<@ba.vup>{attack@max_walk_target}</>个敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的物理伤害且额外攻击1个飞行敌人；范围内飞行敌人移动速度<@ba.vup>{move_speed:0%}</>，<@ba.vup>原技能范围</>内有未被阻挡的可阻挡飞行敌人，且自身未阻挡时，<$ba.addash>移动</>至该敌人所在格\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后技能结束（期间可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 44,
+          "initSp": 18,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_3",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 2.65,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "move_speed",
+            "value": -0.3,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[unblocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[blocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "atk",
+            "value": 0.15,
+            "valueStr": null
+          },
+          {
+            "key": "damage_resistance",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "attack@attack_range_id",
+            "value": 0.0,
+            "valueStr": "x-4"
+          },
+          {
+            "key": "attack@max_walk_target",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 30.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "酸橙的心事",
+        "rangeId": "3-9",
+        "description": "立刻<$ba.liftoff>起飞</>，攻击力<@ba.vup>+{atk:0%}</>，获得<@ba.vup>{damage_resistance:0%}</>的<$ba.airprotect>对空庇护</>，攻击范围<@ba.vup>扩大</>，且周围8格视作予愿安洁莉娜的额外攻击范围，攻击对<@ba.vup>{attack@max_walk_target}</>个敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的物理伤害且额外攻击1个飞行敌人；范围内飞行敌人移动速度<@ba.vup>{move_speed:0%}</>，<@ba.vup>原技能范围</>内有未被阻挡的可阻挡飞行敌人，且自身未阻挡时，<$ba.addash>移动</>至该敌人所在格\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后技能结束（期间可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 42,
+          "initSp": 19,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_3",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 2.75,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "move_speed",
+            "value": -0.4,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[unblocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[blocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "atk",
+            "value": 0.2,
+            "valueStr": null
+          },
+          {
+            "key": "damage_resistance",
+            "value": 0.55,
+            "valueStr": null
+          },
+          {
+            "key": "attack@attack_range_id",
+            "value": 0.0,
+            "valueStr": "x-4"
+          },
+          {
+            "key": "attack@max_walk_target",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 30.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "酸橙的心事",
+        "rangeId": "3-9",
+        "description": "立刻<$ba.liftoff>起飞</>，攻击力<@ba.vup>+{atk:0%}</>，获得<@ba.vup>{damage_resistance:0%}</>的<$ba.airprotect>对空庇护</>，攻击范围<@ba.vup>扩大</>，且周围8格视作予愿安洁莉娜的额外攻击范围，攻击对<@ba.vup>{attack@max_walk_target}</>个敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的物理伤害且额外攻击1个飞行敌人；范围内飞行敌人移动速度<@ba.vup>{move_speed:0%}</>，<@ba.vup>原技能范围</>内有未被阻挡的可阻挡飞行敌人，且自身未阻挡时，<$ba.addash>移动</>至该敌人所在格\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后技能结束（期间可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 40,
+          "initSp": 20,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_3",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 2.85,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "move_speed",
+            "value": -0.4,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[unblocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[blocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "atk",
+            "value": 0.2,
+            "valueStr": null
+          },
+          {
+            "key": "damage_resistance",
+            "value": 0.55,
+            "valueStr": null
+          },
+          {
+            "key": "attack@attack_range_id",
+            "value": 0.0,
+            "valueStr": "x-4"
+          },
+          {
+            "key": "attack@max_walk_target",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 31.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "酸橙的心事",
+        "rangeId": "3-9",
+        "description": "立刻<$ba.liftoff>起飞</>，攻击力<@ba.vup>+{atk:0%}</>，获得<@ba.vup>{damage_resistance:0%}</>的<$ba.airprotect>对空庇护</>，攻击范围<@ba.vup>扩大</>，且周围8格视作予愿安洁莉娜的额外攻击范围，攻击对<@ba.vup>{attack@max_walk_target}</>个敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的物理伤害且额外攻击1个飞行敌人；范围内飞行敌人移动速度<@ba.vup>{move_speed:0%}</>，<@ba.vup>原技能范围</>内有未被阻挡的可阻挡飞行敌人，且自身未阻挡时，<$ba.addash>移动</>至该敌人所在格\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后技能结束（期间可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 38,
+          "initSp": 21,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_3",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 2.95,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "move_speed",
+            "value": -0.4,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[unblocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[blocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "atk",
+            "value": 0.2,
+            "valueStr": null
+          },
+          {
+            "key": "damage_resistance",
+            "value": 0.55,
+            "valueStr": null
+          },
+          {
+            "key": "attack@attack_range_id",
+            "value": 0.0,
+            "valueStr": "x-4"
+          },
+          {
+            "key": "attack@max_walk_target",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 31.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "酸橙的心事",
+        "rangeId": "3-9",
+        "description": "立刻<$ba.liftoff>起飞</>，攻击力<@ba.vup>+{atk:0%}</>，获得<@ba.vup>{damage_resistance:0%}</>的<$ba.airprotect>对空庇护</>，攻击范围<@ba.vup>扩大</>，且周围8格视作予愿安洁莉娜的额外攻击范围，攻击对<@ba.vup>{attack@max_walk_target}</>个敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的物理伤害且额外攻击1个飞行敌人；范围内飞行敌人移动速度<@ba.vup>{move_speed:0%}</>，<@ba.vup>原技能范围</>内有未被阻挡的可阻挡飞行敌人，且自身未阻挡时，<$ba.addash>移动</>至该敌人所在格\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后技能结束（期间可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 36,
+          "initSp": 22,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_3",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 3.05,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "move_speed",
+            "value": -0.4,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[unblocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[blocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "atk",
+            "value": 0.3,
+            "valueStr": null
+          },
+          {
+            "key": "damage_resistance",
+            "value": 0.6,
+            "valueStr": null
+          },
+          {
+            "key": "attack@attack_range_id",
+            "value": 0.0,
+            "valueStr": "x-4"
+          },
+          {
+            "key": "attack@max_walk_target",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 31.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "酸橙的心事",
+        "rangeId": "3-9",
+        "description": "立刻<$ba.liftoff>起飞</>，攻击力<@ba.vup>+{atk:0%}</>，获得<@ba.vup>{damage_resistance:0%}</>的<$ba.airprotect>对空庇护</>，攻击范围<@ba.vup>扩大</>，且周围8格视作予愿安洁莉娜的额外攻击范围，攻击对<@ba.vup>{attack@max_walk_target}</>个敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的物理伤害且额外攻击1个飞行敌人；范围内飞行敌人移动速度<@ba.vup>{move_speed:0%}</>，<@ba.vup>原技能范围</>内有未被阻挡的可阻挡飞行敌人，且自身未阻挡时，<$ba.addash>移动</>至该敌人所在格\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后技能结束（期间可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 34,
+          "initSp": 23,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_3",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 3.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "move_speed",
+            "value": -0.5,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[unblocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[blocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "atk",
+            "value": 0.3,
+            "valueStr": null
+          },
+          {
+            "key": "damage_resistance",
+            "value": 0.6,
+            "valueStr": null
+          },
+          {
+            "key": "attack@attack_range_id",
+            "value": 0.0,
+            "valueStr": "x-4"
+          },
+          {
+            "key": "attack@max_walk_target",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 33.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "酸橙的心事",
+        "rangeId": "3-9",
+        "description": "立刻<$ba.liftoff>起飞</>，攻击力<@ba.vup>+{atk:0%}</>，获得<@ba.vup>{damage_resistance:0%}</>的<$ba.airprotect>对空庇护</>，攻击范围<@ba.vup>扩大</>，且周围8格视作予愿安洁莉娜的额外攻击范围，攻击对<@ba.vup>{attack@max_walk_target}</>个敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的物理伤害且额外攻击1个飞行敌人；范围内飞行敌人移动速度<@ba.vup>{move_speed:0%}</>，<@ba.vup>原技能范围</>内有未被阻挡的可阻挡飞行敌人，且自身未阻挡时，<$ba.addash>移动</>至该敌人所在格\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后技能结束（期间可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 32,
+          "initSp": 23,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_3",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 3.55,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "move_speed",
+            "value": -0.5,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[unblocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[blocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "atk",
+            "value": 0.3,
+            "valueStr": null
+          },
+          {
+            "key": "damage_resistance",
+            "value": 0.6,
+            "valueStr": null
+          },
+          {
+            "key": "attack@attack_range_id",
+            "value": 0.0,
+            "valueStr": "x-4"
+          },
+          {
+            "key": "attack@max_walk_target",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 33.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "酸橙的心事",
+        "rangeId": "3-9",
+        "description": "立刻<$ba.liftoff>起飞</>，攻击力<@ba.vup>+{atk:0%}</>，获得<@ba.vup>{damage_resistance:0%}</>的<$ba.airprotect>对空庇护</>，攻击范围<@ba.vup>扩大</>，且周围8格视作予愿安洁莉娜的额外攻击范围，攻击对<@ba.vup>{attack@max_walk_target}</>个敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的物理伤害且额外攻击1个飞行敌人；范围内飞行敌人移动速度<@ba.vup>{move_speed:0%}</>，<@ba.vup>原技能范围</>内有未被阻挡的可阻挡飞行敌人，且自身未阻挡时，<$ba.addash>移动</>至该敌人所在格\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后技能结束（期间可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 30,
+          "initSp": 24,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_aglna2_3",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 3.8,
+            "valueStr": null
+          },
+          {
+            "key": "attack@max_target",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "move_speed",
+            "value": -0.6,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[unblocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "aglna2_s_3[blocked].attack_speed",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "atk",
+            "value": 0.3,
+            "valueStr": null
+          },
+          {
+            "key": "damage_resistance",
+            "value": 0.65,
+            "valueStr": null
+          },
+          {
+            "key": "attack@attack_range_id",
+            "value": 0.0,
+            "valueStr": "x-4"
+          },
+          {
+            "key": "attack@max_walk_target",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 33.0,
+            "valueStr": null
+          }
+        ]
+      }
+    ]
+  },
   "skchr_shining_1": {
     "skillId": "skchr_shining_1",
     "iconId": null,
@@ -310322,6 +312757,1844 @@
       }
     ]
   },
+  "skchr_mcnist_1": {
+    "skillId": "skchr_mcnist_1",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "聚类分析",
+        "rangeId": null,
+        "description": "攻击间隔<@ba.vdown>增大</>，攻击变为<@ba.vup>五连击</>的群体攻击，每次造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的范围物理伤害\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "AUTO",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WHEN_ATTACK",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 12,
+          "initSp": 0,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_1",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 0.8,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@times",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_delay_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 1.1,
+            "valueStr": null
+          },
+          {
+            "key": "attack@interval",
+            "value": 0.2,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "聚类分析",
+        "rangeId": null,
+        "description": "攻击间隔<@ba.vdown>增大</>，攻击变为<@ba.vup>五连击</>的群体攻击，每次造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的范围物理伤害\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "AUTO",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WHEN_ATTACK",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 12,
+          "initSp": 0,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_1",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 0.85,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@times",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_delay_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 1.1,
+            "valueStr": null
+          },
+          {
+            "key": "attack@interval",
+            "value": 0.2,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "聚类分析",
+        "rangeId": null,
+        "description": "攻击间隔<@ba.vdown>增大</>，攻击变为<@ba.vup>五连击</>的群体攻击，每次造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的范围物理伤害\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "AUTO",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WHEN_ATTACK",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 11,
+          "initSp": 0,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_1",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 0.9,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@times",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_delay_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 1.1,
+            "valueStr": null
+          },
+          {
+            "key": "attack@interval",
+            "value": 0.2,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "聚类分析",
+        "rangeId": null,
+        "description": "攻击间隔<@ba.vdown>增大</>，攻击变为<@ba.vup>五连击</>的群体攻击，每次造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的范围物理伤害\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "AUTO",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WHEN_ATTACK",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 11,
+          "initSp": 0,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_1",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 0.95,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@times",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_delay_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 1.1,
+            "valueStr": null
+          },
+          {
+            "key": "attack@interval",
+            "value": 0.2,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "聚类分析",
+        "rangeId": null,
+        "description": "攻击间隔<@ba.vdown>增大</>，攻击变为<@ba.vup>五连击</>的群体攻击，每次造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的范围物理伤害\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "AUTO",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WHEN_ATTACK",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 10,
+          "initSp": 0,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_1",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@times",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_delay_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 1.1,
+            "valueStr": null
+          },
+          {
+            "key": "attack@interval",
+            "value": 0.2,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "聚类分析",
+        "rangeId": null,
+        "description": "攻击间隔<@ba.vdown>增大</>，攻击变为<@ba.vup>五连击</>的群体攻击，每次造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的范围物理伤害\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "AUTO",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WHEN_ATTACK",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 10,
+          "initSp": 0,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_1",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 1.05,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@times",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_delay_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 1.1,
+            "valueStr": null
+          },
+          {
+            "key": "attack@interval",
+            "value": 0.2,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "聚类分析",
+        "rangeId": null,
+        "description": "攻击间隔<@ba.vdown>增大</>，攻击变为<@ba.vup>五连击</>的群体攻击，每次造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的范围物理伤害\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "AUTO",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WHEN_ATTACK",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 9,
+          "initSp": 0,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_1",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 1.1,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@times",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_delay_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 1.1,
+            "valueStr": null
+          },
+          {
+            "key": "attack@interval",
+            "value": 0.2,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "聚类分析",
+        "rangeId": null,
+        "description": "攻击间隔<@ba.vdown>增大</>，攻击变为<@ba.vup>五连击</>的群体攻击，每次造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的范围物理伤害\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "AUTO",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WHEN_ATTACK",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 9,
+          "initSp": 0,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_1",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 1.25,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@times",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_delay_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 1.1,
+            "valueStr": null
+          },
+          {
+            "key": "attack@interval",
+            "value": 0.2,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "聚类分析",
+        "rangeId": null,
+        "description": "攻击间隔<@ba.vdown>增大</>，攻击变为<@ba.vup>五连击</>的群体攻击，每次造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的范围物理伤害\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "AUTO",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WHEN_ATTACK",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 8,
+          "initSp": 0,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_1",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 1.4,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@times",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_delay_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 1.1,
+            "valueStr": null
+          },
+          {
+            "key": "attack@interval",
+            "value": 0.2,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "聚类分析",
+        "rangeId": null,
+        "description": "攻击间隔<@ba.vdown>增大</>，攻击变为<@ba.vup>五连击</>的群体攻击，每次造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的范围物理伤害\\n<@ba.rem>攻击装有{attack@trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "AUTO",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WHEN_ATTACK",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 7,
+          "initSp": 0,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_1",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "attack@atk_scale",
+            "value": 1.55,
+            "valueStr": null
+          },
+          {
+            "key": "attack@trigger_time",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "attack@times",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_delay_time",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 1.1,
+            "valueStr": null
+          },
+          {
+            "key": "attack@interval",
+            "value": 0.2,
+            "valueStr": null
+          }
+        ]
+      }
+    ]
+  },
+  "skchr_mcnist_2": {
+    "skillId": "skchr_mcnist_2",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "协防术式",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，自身和结构性原理立刻获得最大生命<@ba.vup>{hp_ratio:0%}</>的<$ba.barrier>屏障</>，<$ba.barrier>屏障</>被摧毁时对周围敌人造成攻击力<@ba.vup>{atk_scale:0%}</>的法术伤害和<@ba.vup>{not_combat}</>秒的<$ba.tremble>战栗</>，并消耗1发弹药再次获得<$ba.barrier>屏障</>\\n<@ba.rem>攻击装有{trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 65,
+          "initSp": 27,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_2",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.6,
+            "valueStr": null
+          },
+          {
+            "key": "hp_ratio",
+            "value": 0.1,
+            "valueStr": null
+          },
+          {
+            "key": "trigger_time",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "range_radius",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "not_combat",
+            "value": 2.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "协防术式",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，自身和结构性原理立刻获得最大生命<@ba.vup>{hp_ratio:0%}</>的<$ba.barrier>屏障</>，<$ba.barrier>屏障</>被摧毁时对周围敌人造成攻击力<@ba.vup>{atk_scale:0%}</>的法术伤害和<@ba.vup>{not_combat}</>秒的<$ba.tremble>战栗</>，并消耗1发弹药再次获得<$ba.barrier>屏障</>\\n<@ba.rem>攻击装有{trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 65,
+          "initSp": 27,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_2",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.7,
+            "valueStr": null
+          },
+          {
+            "key": "hp_ratio",
+            "value": 0.1,
+            "valueStr": null
+          },
+          {
+            "key": "trigger_time",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "range_radius",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "not_combat",
+            "value": 2.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "协防术式",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，自身和结构性原理立刻获得最大生命<@ba.vup>{hp_ratio:0%}</>的<$ba.barrier>屏障</>，<$ba.barrier>屏障</>被摧毁时对周围敌人造成攻击力<@ba.vup>{atk_scale:0%}</>的法术伤害和<@ba.vup>{not_combat}</>秒的<$ba.tremble>战栗</>，并消耗1发弹药再次获得<$ba.barrier>屏障</>\\n<@ba.rem>攻击装有{trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 65,
+          "initSp": 27,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_2",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.8,
+            "valueStr": null
+          },
+          {
+            "key": "hp_ratio",
+            "value": 0.1,
+            "valueStr": null
+          },
+          {
+            "key": "trigger_time",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "range_radius",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "not_combat",
+            "value": 2.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "协防术式",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，自身和结构性原理立刻获得最大生命<@ba.vup>{hp_ratio:0%}</>的<$ba.barrier>屏障</>，<$ba.barrier>屏障</>被摧毁时对周围敌人造成攻击力<@ba.vup>{atk_scale:0%}</>的法术伤害和<@ba.vup>{not_combat}</>秒的<$ba.tremble>战栗</>，并消耗1发弹药再次获得<$ba.barrier>屏障</>\\n<@ba.rem>攻击装有{trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 60,
+          "initSp": 30,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_2",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.9,
+            "valueStr": null
+          },
+          {
+            "key": "hp_ratio",
+            "value": 0.1,
+            "valueStr": null
+          },
+          {
+            "key": "trigger_time",
+            "value": 6.0,
+            "valueStr": null
+          },
+          {
+            "key": "range_radius",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "not_combat",
+            "value": 2.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "协防术式",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，自身和结构性原理立刻获得最大生命<@ba.vup>{hp_ratio:0%}</>的<$ba.barrier>屏障</>，<$ba.barrier>屏障</>被摧毁时对周围敌人造成攻击力<@ba.vup>{atk_scale:0%}</>的法术伤害和<@ba.vup>{not_combat}</>秒的<$ba.tremble>战栗</>，并消耗1发弹药再次获得<$ba.barrier>屏障</>\\n<@ba.rem>攻击装有{trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 60,
+          "initSp": 30,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_2",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "hp_ratio",
+            "value": 0.1,
+            "valueStr": null
+          },
+          {
+            "key": "trigger_time",
+            "value": 6.0,
+            "valueStr": null
+          },
+          {
+            "key": "range_radius",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "not_combat",
+            "value": 2.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "协防术式",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，自身和结构性原理立刻获得最大生命<@ba.vup>{hp_ratio:0%}</>的<$ba.barrier>屏障</>，<$ba.barrier>屏障</>被摧毁时对周围敌人造成攻击力<@ba.vup>{atk_scale:0%}</>的法术伤害和<@ba.vup>{not_combat}</>秒的<$ba.tremble>战栗</>，并消耗1发弹药再次获得<$ba.barrier>屏障</>\\n<@ba.rem>攻击装有{trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 60,
+          "initSp": 30,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_2",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.1,
+            "valueStr": null
+          },
+          {
+            "key": "hp_ratio",
+            "value": 0.1,
+            "valueStr": null
+          },
+          {
+            "key": "trigger_time",
+            "value": 6.0,
+            "valueStr": null
+          },
+          {
+            "key": "range_radius",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "not_combat",
+            "value": 2.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "协防术式",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，自身和结构性原理立刻获得最大生命<@ba.vup>{hp_ratio:0%}</>的<$ba.barrier>屏障</>，<$ba.barrier>屏障</>被摧毁时对周围敌人造成攻击力<@ba.vup>{atk_scale:0%}</>的法术伤害和<@ba.vup>{not_combat}</>秒的<$ba.tremble>战栗</>，并消耗1发弹药再次获得<$ba.barrier>屏障</>\\n<@ba.rem>攻击装有{trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 55,
+          "initSp": 33,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_2",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.2,
+            "valueStr": null
+          },
+          {
+            "key": "hp_ratio",
+            "value": 0.1,
+            "valueStr": null
+          },
+          {
+            "key": "trigger_time",
+            "value": 7.0,
+            "valueStr": null
+          },
+          {
+            "key": "range_radius",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "not_combat",
+            "value": 2.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "协防术式",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，自身和结构性原理立刻获得最大生命<@ba.vup>{hp_ratio:0%}</>的<$ba.barrier>屏障</>，<$ba.barrier>屏障</>被摧毁时对周围敌人造成攻击力<@ba.vup>{atk_scale:0%}</>的法术伤害和<@ba.vup>{not_combat}</>秒的<$ba.tremble>战栗</>，并消耗1发弹药再次获得<$ba.barrier>屏障</>\\n<@ba.rem>攻击装有{trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 53,
+          "initSp": 34,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_2",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.3,
+            "valueStr": null
+          },
+          {
+            "key": "hp_ratio",
+            "value": 0.1,
+            "valueStr": null
+          },
+          {
+            "key": "trigger_time",
+            "value": 7.0,
+            "valueStr": null
+          },
+          {
+            "key": "range_radius",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "not_combat",
+            "value": 2.5,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "协防术式",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，自身和结构性原理立刻获得最大生命<@ba.vup>{hp_ratio:0%}</>的<$ba.barrier>屏障</>，<$ba.barrier>屏障</>被摧毁时对周围敌人造成攻击力<@ba.vup>{atk_scale:0%}</>的法术伤害和<@ba.vup>{not_combat}</>秒的<$ba.tremble>战栗</>，并消耗1发弹药再次获得<$ba.barrier>屏障</>\\n<@ba.rem>攻击装有{trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 52,
+          "initSp": 34,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_2",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.4,
+            "valueStr": null
+          },
+          {
+            "key": "hp_ratio",
+            "value": 0.1,
+            "valueStr": null
+          },
+          {
+            "key": "trigger_time",
+            "value": 7.0,
+            "valueStr": null
+          },
+          {
+            "key": "range_radius",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "not_combat",
+            "value": 3.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "协防术式",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，自身和结构性原理立刻获得最大生命<@ba.vup>{hp_ratio:0%}</>的<$ba.barrier>屏障</>，<$ba.barrier>屏障</>被摧毁时对周围敌人造成攻击力<@ba.vup>{atk_scale:0%}</>的法术伤害和<@ba.vup>{not_combat}</>秒的<$ba.tremble>战栗</>，并消耗1发弹药再次获得<$ba.barrier>屏障</>\\n<@ba.rem>攻击装有{trigger_time}发弹药，打完后结束（可随时停止技能）</>",
+        "skillType": "MANUAL",
+        "durationType": "AMMO",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 50,
+          "initSp": 35,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_2",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "hp_ratio",
+            "value": 0.1,
+            "valueStr": null
+          },
+          {
+            "key": "trigger_time",
+            "value": 8.0,
+            "valueStr": null
+          },
+          {
+            "key": "range_radius",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "not_combat",
+            "value": 3.0,
+            "valueStr": null
+          }
+        ]
+      }
+    ]
+  },
+  "skchr_mcnist_3": {
+    "skillId": "skchr_mcnist_3",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "工程学十字星",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，攻击间隔<@ba.vdown>大幅增大</>，攻击变为对十字范围内所有敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的法术伤害，可攻击结构性原理阻挡的目标\\n结构性原理向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 45,
+          "initSp": 18,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_3",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 2.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@atk_scale",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "projectile_range",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 0.0,
+            "valueStr": "x-6"
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，攻击间隔<@ba.vdown>大幅增大</>，攻击变为对十字范围内所有敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的法术伤害，可攻击结构性原理阻挡的目标\\n结构性原理向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 45,
+          "initSp": 18,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_3",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.2,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 2.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@atk_scale",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "projectile_range",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 0.0,
+            "valueStr": "x-6"
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，攻击间隔<@ba.vdown>大幅增大</>，攻击变为对十字范围内所有敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的法术伤害，可攻击结构性原理阻挡的目标\\n结构性原理向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 45,
+          "initSp": 18,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_3",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.4,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 2.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@atk_scale",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "projectile_range",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 0.0,
+            "valueStr": "x-6"
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，攻击间隔<@ba.vdown>大幅增大</>，攻击变为对十字范围内所有敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的法术伤害，可攻击结构性原理阻挡的目标\\n结构性原理向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 43,
+          "initSp": 20,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_3",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.6,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 2.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@atk_scale",
+            "value": 2.2,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "projectile_range",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 0.0,
+            "valueStr": "x-6"
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，攻击间隔<@ba.vdown>大幅增大</>，攻击变为对十字范围内所有敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的法术伤害，可攻击结构性原理阻挡的目标\\n结构性原理向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 43,
+          "initSp": 20,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_3",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.8,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 2.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@atk_scale",
+            "value": 2.2,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "projectile_range",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 0.0,
+            "valueStr": "x-6"
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，攻击间隔<@ba.vdown>大幅增大</>，攻击变为对十字范围内所有敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的法术伤害，可攻击结构性原理阻挡的目标\\n结构性原理向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 43,
+          "initSp": 20,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_3",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 2.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@atk_scale",
+            "value": 2.2,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "projectile_range",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 0.0,
+            "valueStr": "x-6"
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，攻击间隔<@ba.vdown>大幅增大</>，攻击变为对十字范围内所有敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的法术伤害，可攻击结构性原理阻挡的目标\\n结构性原理向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 41,
+          "initSp": 22,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_3",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 2.2,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 2.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@atk_scale",
+            "value": 2.4,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "projectile_range",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 0.0,
+            "valueStr": "x-6"
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，攻击间隔<@ba.vdown>大幅增大</>，攻击变为对十字范围内所有敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的法术伤害，可攻击结构性原理阻挡的目标\\n结构性原理向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 39,
+          "initSp": 23,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_3",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 2.4,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 2.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@atk_scale",
+            "value": 2.4,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "projectile_range",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 0.0,
+            "valueStr": "x-6"
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，攻击间隔<@ba.vdown>大幅增大</>，攻击变为对十字范围内所有敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的法术伤害，可攻击结构性原理阻挡的目标\\n结构性原理向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 37,
+          "initSp": 24,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_3",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 2.6,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 2.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@atk_scale",
+            "value": 2.4,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "projectile_range",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 0.0,
+            "valueStr": "x-6"
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，攻击间隔<@ba.vdown>大幅增大</>，攻击变为对十字范围内所有敌人造成攻击力<@ba.vup>{attack@atk_scale:0%}</>的法术伤害，可攻击结构性原理阻挡的目标\\n结构性原理向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 35,
+          "initSp": 25,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_mcnist_3",
+        "duration": 40.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 2.8,
+            "valueStr": null
+          },
+          {
+            "key": "base_attack_time",
+            "value": 2.3,
+            "valueStr": null
+          },
+          {
+            "key": "attack@atk_scale",
+            "value": 2.6,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          },
+          {
+            "key": "projectile_range",
+            "value": 1.5,
+            "valueStr": null
+          },
+          {
+            "key": "attack@projectile_range",
+            "value": 0.0,
+            "valueStr": "x-6"
+          }
+        ]
+      }
+    ]
+  },
+  "sktok_mcgraf_1": {
+    "skillId": "sktok_mcgraf_1",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "结构性原理",
+        "rangeId": null,
+        "description": null,
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_mcgraf",
+        "duration": 0.0,
+        "blackboard": []
+      }
+    ]
+  },
+  "sktok_mcgraf_2": {
+    "skillId": "sktok_mcgraf_2",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "结构性原理",
+        "rangeId": null,
+        "description": null,
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_mcgraf",
+        "duration": 0.0,
+        "blackboard": []
+      }
+    ]
+  },
+  "sktok_mcgraf_3": {
+    "skillId": "sktok_mcgraf_3",
+    "iconId": "sktok_mcnist_mcgraf",
+    "hidden": false,
+    "levels": [
+      {
+        "name": "工程学十字星",
+        "rangeId": "4-1",
+        "description": "向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_mcgraf",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": "4-1",
+        "description": "向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_mcgraf",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": "4-1",
+        "description": "向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_mcgraf",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": "4-1",
+        "description": "向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_mcgraf",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": "4-1",
+        "description": "向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_mcgraf",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": "4-1",
+        "description": "向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_mcgraf",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": "4-1",
+        "description": "向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_mcgraf",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": "4-1",
+        "description": "向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_mcgraf",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": "4-1",
+        "description": "向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_mcgraf",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "工程学十字星",
+        "rangeId": "4-1",
+        "description": "向前方冲锋，碰到敌人或高台时对范围内所有敌人造成机械师攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害并停下，周围的敌人获得逐渐衰减的50%的<$ba.weaken>虚弱</>效果",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_mcgraf",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "atk_scale",
+            "value": 3.0,
+            "valueStr": null
+          }
+        ]
+      }
+    ]
+  },
   "skchr_yu_1": {
     "skillId": "skchr_yu_1",
     "iconId": null,
@@ -311557,6 +315830,1647 @@
           {
             "key": "prob",
             "value": 0.2,
+            "valueStr": null
+          }
+        ]
+      }
+    ]
+  },
+  "skchr_thumpy_1": {
+    "skillId": "skchr_thumpy_1",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "“还不走？”",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>，同时攻击并以<@ba.vup>小力度</>推动所有阻挡的敌人",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 40,
+          "initSp": 15,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_1",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.2,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.2,
+            "valueStr": null
+          },
+          {
+            "key": "attack@force",
+            "value": 0.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“还不走？”",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>，同时攻击并以<@ba.vup>小力度</>推动所有阻挡的敌人",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 39,
+          "initSp": 15,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_1",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.22,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.22,
+            "valueStr": null
+          },
+          {
+            "key": "attack@force",
+            "value": 0.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“还不走？”",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>，同时攻击并以<@ba.vup>小力度</>推动所有阻挡的敌人",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 38,
+          "initSp": 15,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_1",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.25,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.25,
+            "valueStr": null
+          },
+          {
+            "key": "attack@force",
+            "value": 0.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“还不走？”",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>，同时攻击并以<@ba.vup>小力度</>推动所有阻挡的敌人",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 37,
+          "initSp": 15,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_1",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.28,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.28,
+            "valueStr": null
+          },
+          {
+            "key": "attack@force",
+            "value": 0.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“还不走？”",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>，同时攻击并以<@ba.vup>小力度</>推动所有阻挡的敌人",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 36,
+          "initSp": 15,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_1",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.31,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.31,
+            "valueStr": null
+          },
+          {
+            "key": "attack@force",
+            "value": 0.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“还不走？”",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>，同时攻击并以<@ba.vup>小力度</>推动所有阻挡的敌人",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 35,
+          "initSp": 15,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_1",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.34,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.34,
+            "valueStr": null
+          },
+          {
+            "key": "attack@force",
+            "value": 0.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“还不走？”",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>，同时攻击并以<@ba.vup>小力度</>推动所有阻挡的敌人",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 34,
+          "initSp": 15,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_1",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.37,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.37,
+            "valueStr": null
+          },
+          {
+            "key": "attack@force",
+            "value": 0.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“还不走？”",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>，同时攻击并以<@ba.vup>小力度</>推动所有阻挡的敌人",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 33,
+          "initSp": 15,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_1",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.4,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.4,
+            "valueStr": null
+          },
+          {
+            "key": "attack@force",
+            "value": 0.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“还不走？”",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>，同时攻击并以<@ba.vup>小力度</>推动所有阻挡的敌人",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 32,
+          "initSp": 15,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_1",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.45,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.45,
+            "valueStr": null
+          },
+          {
+            "key": "attack@force",
+            "value": 0.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“还不走？”",
+        "rangeId": null,
+        "description": "攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>，同时攻击并以<@ba.vup>小力度</>推动所有阻挡的敌人",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 30,
+          "initSp": 15,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_1",
+        "duration": 30.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "attack@force",
+            "value": 0.0,
+            "valueStr": null
+          }
+        ]
+      }
+    ]
+  },
+  "skchr_thumpy_2": {
+    "skillId": "skchr_thumpy_2",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "“慢慢走~”",
+        "rangeId": null,
+        "description": "攻击力和防御力<@ba.vup>+{def:0%}</>；向前方可通行地面喷洒占据<@ba.vup>4</>格的强力胶，每<@ba.vup>{interval}</>秒造成相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害和<@ba.vup>{sluggish}</>秒<$ba.sluggish>停顿</>，其他干员对强力胶内的敌人造成物理伤害时附带相当于珊比攻击力<@ba.vup>{ep_damage_ratio[damage]:0%}</>的<$ba.dt.erosion>侵蚀损伤</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 33,
+          "initSp": 14,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_2",
+        "duration": 20.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.4,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.4,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.3,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "sluggish",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 0.7,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[damage]",
+            "value": 0.15,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“慢慢走~”",
+        "rangeId": null,
+        "description": "攻击力和防御力<@ba.vup>+{def:0%}</>；向前方可通行地面喷洒占据<@ba.vup>4</>格的强力胶，每<@ba.vup>{interval}</>秒造成相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害和<@ba.vup>{sluggish}</>秒<$ba.sluggish>停顿</>，其他干员对强力胶内的敌人造成物理伤害时附带相当于珊比攻击力<@ba.vup>{ep_damage_ratio[damage]:0%}</>的<$ba.dt.erosion>侵蚀损伤</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 32,
+          "initSp": 14,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_2",
+        "duration": 20.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.42,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.42,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.32,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "sluggish",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 0.7,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[damage]",
+            "value": 0.15,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“慢慢走~”",
+        "rangeId": null,
+        "description": "攻击力和防御力<@ba.vup>+{def:0%}</>；向前方可通行地面喷洒占据<@ba.vup>4</>格的强力胶，每<@ba.vup>{interval}</>秒造成相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害和<@ba.vup>{sluggish}</>秒<$ba.sluggish>停顿</>，其他干员对强力胶内的敌人造成物理伤害时附带相当于珊比攻击力<@ba.vup>{ep_damage_ratio[damage]:0%}</>的<$ba.dt.erosion>侵蚀损伤</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 31,
+          "initSp": 14,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_2",
+        "duration": 20.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.45,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.45,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.34,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "sluggish",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 0.7,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[damage]",
+            "value": 0.15,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“慢慢走~”",
+        "rangeId": null,
+        "description": "攻击力和防御力<@ba.vup>+{def:0%}</>；向前方可通行地面喷洒占据<@ba.vup>4</>格的强力胶，每<@ba.vup>{interval}</>秒造成相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害和<@ba.vup>{sluggish}</>秒<$ba.sluggish>停顿</>，其他干员对强力胶内的敌人造成物理伤害时附带相当于珊比攻击力<@ba.vup>{ep_damage_ratio[damage]:0%}</>的<$ba.dt.erosion>侵蚀损伤</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 30,
+          "initSp": 14,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_2",
+        "duration": 20.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.48,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.48,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.37,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "sluggish",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 0.7,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[damage]",
+            "value": 0.15,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“慢慢走~”",
+        "rangeId": null,
+        "description": "攻击力和防御力<@ba.vup>+{def:0%}</>；向前方可通行地面喷洒占据<@ba.vup>4</>格的强力胶，每<@ba.vup>{interval}</>秒造成相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害和<@ba.vup>{sluggish}</>秒<$ba.sluggish>停顿</>，其他干员对强力胶内的敌人造成物理伤害时附带相当于珊比攻击力<@ba.vup>{ep_damage_ratio[damage]:0%}</>的<$ba.dt.erosion>侵蚀损伤</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 29,
+          "initSp": 14,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_2",
+        "duration": 20.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.51,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.51,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.39,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "sluggish",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 0.7,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[damage]",
+            "value": 0.15,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“慢慢走~”",
+        "rangeId": null,
+        "description": "攻击力和防御力<@ba.vup>+{def:0%}</>；向前方可通行地面喷洒占据<@ba.vup>4</>格的强力胶，每<@ba.vup>{interval}</>秒造成相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害和<@ba.vup>{sluggish}</>秒<$ba.sluggish>停顿</>，其他干员对强力胶内的敌人造成物理伤害时附带相当于珊比攻击力<@ba.vup>{ep_damage_ratio[damage]:0%}</>的<$ba.dt.erosion>侵蚀损伤</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 28,
+          "initSp": 14,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_2",
+        "duration": 20.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.54,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.54,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.41,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "sluggish",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 0.7,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[damage]",
+            "value": 0.15,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“慢慢走~”",
+        "rangeId": null,
+        "description": "攻击力和防御力<@ba.vup>+{def:0%}</>；向前方可通行地面喷洒占据<@ba.vup>4</>格的强力胶，每<@ba.vup>{interval}</>秒造成相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害和<@ba.vup>{sluggish}</>秒<$ba.sluggish>停顿</>，其他干员对强力胶内的敌人造成物理伤害时附带相当于珊比攻击力<@ba.vup>{ep_damage_ratio[damage]:0%}</>的<$ba.dt.erosion>侵蚀损伤</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 27,
+          "initSp": 14,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_2",
+        "duration": 20.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.57,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.57,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.43,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "sluggish",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 0.7,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[damage]",
+            "value": 0.15,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“慢慢走~”",
+        "rangeId": null,
+        "description": "攻击力和防御力<@ba.vup>+{def:0%}</>；向前方可通行地面喷洒占据<@ba.vup>4</>格的强力胶，每<@ba.vup>{interval}</>秒造成相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害和<@ba.vup>{sluggish}</>秒<$ba.sluggish>停顿</>，其他干员对强力胶内的敌人造成物理伤害时附带相当于珊比攻击力<@ba.vup>{ep_damage_ratio[damage]:0%}</>的<$ba.dt.erosion>侵蚀损伤</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 26,
+          "initSp": 14,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_2",
+        "duration": 20.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.6,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.6,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.45,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "sluggish",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 0.7,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[damage]",
+            "value": 0.15,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“慢慢走~”",
+        "rangeId": null,
+        "description": "攻击力和防御力<@ba.vup>+{def:0%}</>；向前方可通行地面喷洒占据<@ba.vup>4</>格的强力胶，每<@ba.vup>{interval}</>秒造成相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害和<@ba.vup>{sluggish}</>秒<$ba.sluggish>停顿</>，其他干员对强力胶内的敌人造成物理伤害时附带相当于珊比攻击力<@ba.vup>{ep_damage_ratio[damage]:0%}</>的<$ba.dt.erosion>侵蚀损伤</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 25,
+          "initSp": 14,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_2",
+        "duration": 20.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.65,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.65,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.47,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "sluggish",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 0.7,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[damage]",
+            "value": 0.15,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“慢慢走~”",
+        "rangeId": null,
+        "description": "攻击力和防御力<@ba.vup>+{def:0%}</>；向前方可通行地面喷洒占据<@ba.vup>4</>格的强力胶，每<@ba.vup>{interval}</>秒造成相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害和<@ba.vup>{sluggish}</>秒<$ba.sluggish>停顿</>，其他干员对强力胶内的敌人造成物理伤害时附带相当于珊比攻击力<@ba.vup>{ep_damage_ratio[damage]:0%}</>的<$ba.dt.erosion>侵蚀损伤</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 23,
+          "initSp": 14,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_2",
+        "duration": 20.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.7,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.7,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "sluggish",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 0.7,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[damage]",
+            "value": 0.15,
+            "valueStr": null
+          }
+        ]
+      }
+    ]
+  },
+  "skchr_thumpy_3": {
+    "skillId": "skchr_thumpy_3",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "“不准走！”",
+        "rangeId": null,
+        "description": "阻挡数<@ba.vup>+2</>且同时攻击所有阻挡的敌人，攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>；向前展开<@ba.vup>4</>格的便携传送带，使重量小于等于<@ba.vup>4</>且未被阻挡的敌人以每秒<@ba.vup>0.8</>格的速度移向珊比；传送带上的敌人每秒受到相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害，且<$ba.dt.erosion2>侵蚀损伤</>爆发时防御力额外<@ba.vup>{thumpy[ep_break_water].def}</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 58,
+          "initSp": 39,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_3",
+        "duration": 60.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.5,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.6,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.2,
+            "valueStr": null
+          },
+          {
+            "key": "block_cnt",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "conveyor_speed",
+            "value": 0.8,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "thumpy[ep_break_water].def",
+            "value": -30.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“不准走！”",
+        "rangeId": null,
+        "description": "阻挡数<@ba.vup>+2</>且同时攻击所有阻挡的敌人，攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>；向前展开<@ba.vup>4</>格的便携传送带，使重量小于等于<@ba.vup>4</>且未被阻挡的敌人以每秒<@ba.vup>0.8</>格的速度移向珊比；传送带上的敌人每秒受到相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害，且<$ba.dt.erosion2>侵蚀损伤</>爆发时防御力额外<@ba.vup>{thumpy[ep_break_water].def}</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 58,
+          "initSp": 39,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_3",
+        "duration": 60.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.55,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.65,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.22,
+            "valueStr": null
+          },
+          {
+            "key": "block_cnt",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "conveyor_speed",
+            "value": 0.8,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "thumpy[ep_break_water].def",
+            "value": -30.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“不准走！”",
+        "rangeId": null,
+        "description": "阻挡数<@ba.vup>+2</>且同时攻击所有阻挡的敌人，攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>；向前展开<@ba.vup>4</>格的便携传送带，使重量小于等于<@ba.vup>4</>且未被阻挡的敌人以每秒<@ba.vup>0.8</>格的速度移向珊比；传送带上的敌人每秒受到相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害，且<$ba.dt.erosion2>侵蚀损伤</>爆发时防御力额外<@ba.vup>{thumpy[ep_break_water].def}</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 58,
+          "initSp": 39,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_3",
+        "duration": 60.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.6,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.7,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.24,
+            "valueStr": null
+          },
+          {
+            "key": "block_cnt",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "conveyor_speed",
+            "value": 0.8,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "thumpy[ep_break_water].def",
+            "value": -30.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“不准走！”",
+        "rangeId": null,
+        "description": "阻挡数<@ba.vup>+2</>且同时攻击所有阻挡的敌人，攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>；向前展开<@ba.vup>4</>格的便携传送带，使重量小于等于<@ba.vup>4</>且未被阻挡的敌人以每秒<@ba.vup>0.8</>格的速度移向珊比；传送带上的敌人每秒受到相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害，且<$ba.dt.erosion2>侵蚀损伤</>爆发时防御力额外<@ba.vup>{thumpy[ep_break_water].def}</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 58,
+          "initSp": 39,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_3",
+        "duration": 60.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.65,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.75,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.27,
+            "valueStr": null
+          },
+          {
+            "key": "block_cnt",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "conveyor_speed",
+            "value": 0.8,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "thumpy[ep_break_water].def",
+            "value": -30.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“不准走！”",
+        "rangeId": null,
+        "description": "阻挡数<@ba.vup>+2</>且同时攻击所有阻挡的敌人，攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>；向前展开<@ba.vup>4</>格的便携传送带，使重量小于等于<@ba.vup>4</>且未被阻挡的敌人以每秒<@ba.vup>0.8</>格的速度移向珊比；传送带上的敌人每秒受到相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害，且<$ba.dt.erosion2>侵蚀损伤</>爆发时防御力额外<@ba.vup>{thumpy[ep_break_water].def}</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 57,
+          "initSp": 40,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_3",
+        "duration": 60.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.7,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.85,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.29,
+            "valueStr": null
+          },
+          {
+            "key": "block_cnt",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "conveyor_speed",
+            "value": 0.8,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "thumpy[ep_break_water].def",
+            "value": -30.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“不准走！”",
+        "rangeId": null,
+        "description": "阻挡数<@ba.vup>+2</>且同时攻击所有阻挡的敌人，攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>；向前展开<@ba.vup>4</>格的便携传送带，使重量小于等于<@ba.vup>4</>且未被阻挡的敌人以每秒<@ba.vup>0.8</>格的速度移向珊比；传送带上的敌人每秒受到相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害，且<$ba.dt.erosion2>侵蚀损伤</>爆发时防御力额外<@ba.vup>{thumpy[ep_break_water].def}</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 57,
+          "initSp": 40,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_3",
+        "duration": 60.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.75,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 0.95,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.31,
+            "valueStr": null
+          },
+          {
+            "key": "block_cnt",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "conveyor_speed",
+            "value": 0.8,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "thumpy[ep_break_water].def",
+            "value": -30.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“不准走！”",
+        "rangeId": null,
+        "description": "阻挡数<@ba.vup>+2</>且同时攻击所有阻挡的敌人，攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>；向前展开<@ba.vup>4</>格的便携传送带，使重量小于等于<@ba.vup>4</>且未被阻挡的敌人以每秒<@ba.vup>0.8</>格的速度移向珊比；传送带上的敌人每秒受到相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害，且<$ba.dt.erosion2>侵蚀损伤</>爆发时防御力额外<@ba.vup>{thumpy[ep_break_water].def}</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 57,
+          "initSp": 40,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_3",
+        "duration": 60.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.8,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 1.05,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.33,
+            "valueStr": null
+          },
+          {
+            "key": "block_cnt",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "conveyor_speed",
+            "value": 0.8,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "thumpy[ep_break_water].def",
+            "value": -30.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“不准走！”",
+        "rangeId": null,
+        "description": "阻挡数<@ba.vup>+2</>且同时攻击所有阻挡的敌人，攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>；向前展开<@ba.vup>4</>格的便携传送带，使重量小于等于<@ba.vup>4</>且未被阻挡的敌人以每秒<@ba.vup>0.8</>格的速度移向珊比；传送带上的敌人每秒受到相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害，且<$ba.dt.erosion2>侵蚀损伤</>爆发时防御力额外<@ba.vup>{thumpy[ep_break_water].def}</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 56,
+          "initSp": 41,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_3",
+        "duration": 60.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.85,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 1.15,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.35,
+            "valueStr": null
+          },
+          {
+            "key": "block_cnt",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "conveyor_speed",
+            "value": 0.8,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "thumpy[ep_break_water].def",
+            "value": -30.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“不准走！”",
+        "rangeId": null,
+        "description": "阻挡数<@ba.vup>+2</>且同时攻击所有阻挡的敌人，攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>；向前展开<@ba.vup>4</>格的便携传送带，使重量小于等于<@ba.vup>4</>且未被阻挡的敌人以每秒<@ba.vup>0.8</>格的速度移向珊比；传送带上的敌人每秒受到相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害，且<$ba.dt.erosion2>侵蚀损伤</>爆发时防御力额外<@ba.vup>{thumpy[ep_break_water].def}</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 56,
+          "initSp": 41,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_3",
+        "duration": 60.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 0.9,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 1.25,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.37,
+            "valueStr": null
+          },
+          {
+            "key": "block_cnt",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "conveyor_speed",
+            "value": 0.8,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "thumpy[ep_break_water].def",
+            "value": -30.0,
+            "valueStr": null
+          }
+        ]
+      },
+      {
+        "name": "“不准走！”",
+        "rangeId": null,
+        "description": "阻挡数<@ba.vup>+2</>且同时攻击所有阻挡的敌人，攻击力<@ba.vup>+{atk:0%}</>，防御力<@ba.vup>+{def:0%}</>；向前展开<@ba.vup>4</>格的便携传送带，使重量小于等于<@ba.vup>4</>且未被阻挡的敌人以每秒<@ba.vup>0.8</>格的速度移向珊比；传送带上的敌人每秒受到相当于珊比攻击力<@ba.vup>{atk_scale:0%}</>的物理伤害，且<$ba.dt.erosion2>侵蚀损伤</>爆发时防御力额外<@ba.vup>{thumpy[ep_break_water].def}</>",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 55,
+          "initSp": 42,
+          "increment": 1.0
+        },
+        "prefabId": "skchr_thumpy_3",
+        "duration": 60.0,
+        "blackboard": [
+          {
+            "key": "atk",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "def",
+            "value": 1.35,
+            "valueStr": null
+          },
+          {
+            "key": "atk_scale",
+            "value": 0.4,
+            "valueStr": null
+          },
+          {
+            "key": "block_cnt",
+            "value": 2.0,
+            "valueStr": null
+          },
+          {
+            "key": "interval",
+            "value": 1.0,
+            "valueStr": null
+          },
+          {
+            "key": "conveyor_speed",
+            "value": 0.8,
+            "valueStr": null
+          },
+          {
+            "key": "ep_damage_ratio[trigger]",
+            "value": 0.0,
+            "valueStr": null
+          },
+          {
+            "key": "max_cnt",
+            "value": 5.0,
+            "valueStr": null
+          },
+          {
+            "key": "mass_level",
+            "value": 4.0,
+            "valueStr": null
+          },
+          {
+            "key": "thumpy[ep_break_water].def",
+            "value": -30.0,
             "valueStr": null
           }
         ]
@@ -379813,6 +385727,254 @@
         },
         "prefabId": "sktok_ctlzog",
         "duration": -1.0,
+        "blackboard": []
+      }
+    ]
+  },
+  "sktok_shtlbx": {
+    "skillId": "sktok_shtlbx",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "“款到出货”",
+        "rangeId": null,
+        "description": "消耗50点部署费用开启，战斗后获得1个零件",
+        "skillType": "MANUAL",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 20,
+          "initSp": 0,
+          "increment": 1.0
+        },
+        "prefabId": "sktok_shtlbx",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "cost",
+            "value": 50.0,
+            "valueStr": null
+          }
+        ]
+      }
+    ]
+  },
+  "sktok_shnbox": {
+    "skillId": "sktok_shnbox",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "诱人珍宝",
+        "rangeId": null,
+        "description": "击破额外获得2源石锭",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_empty",
+        "duration": -1.0,
+        "blackboard": []
+      }
+    ]
+  },
+  "sktok_shrbox": {
+    "skillId": "sktok_shrbox",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "刺人植物",
+        "rangeId": null,
+        "description": "反弹部分受到的伤害，击破额外获得5源石锭",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_empty",
+        "duration": -1.0,
+        "blackboard": []
+      }
+    ]
+  },
+  "sktok_shsbox": {
+    "skillId": "sktok_shsbox",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "极诱人珍宝",
+        "rangeId": null,
+        "description": "击破额外获得10源石锭",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_shsbox",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "branch_id",
+            "value": 0.0,
+            "valueStr": "shsbox"
+          }
+        ]
+      }
+    ]
+  },
+  "sktok_shmbmb": {
+    "skillId": "sktok_shmbmb",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "全域信息失真",
+        "rangeId": null,
+        "description": "对全场我方单位造成少量法术伤害，并使源阶方损失8%生命",
+        "skillType": "AUTO",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 25,
+          "initSp": 0,
+          "increment": 1.0
+        },
+        "prefabId": "sktok_shmbmb",
+        "duration": -1.0,
+        "blackboard": [
+          {
+            "key": "scale",
+            "value": 0.2,
+            "valueStr": null
+          },
+          {
+            "key": "hp_ratio",
+            "value": 0.08,
+            "valueStr": null
+          }
+        ]
+      }
+    ]
+  },
+  "sktok_shchst": {
+    "skillId": "sktok_shchst",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "“我的了！”",
+        "rangeId": null,
+        "description": "击破后，可部署干员偷取1-2个商店物品，部署的干员无法再部署",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_empty",
+        "duration": -1.0,
+        "blackboard": []
+      }
+    ]
+  },
+  "sktok_shfort": {
+    "skillId": "sktok_shfort",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "\"危朽\"",
+        "rangeId": null,
+        "description": "会被“玻利瓦尔，症结之核”释放的“灾厄之口”转化为“崩解”",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_empty",
+        "duration": -1.0,
+        "blackboard": []
+      }
+    ]
+  },
+  "sktok_shruin": {
+    "skillId": "sktok_shruin",
+    "iconId": null,
+    "hidden": false,
+    "levels": [
+      {
+        "name": "\"崩解\"",
+        "rangeId": null,
+        "description": "会被“玻利瓦尔，症结之核”释放的“灾厄之口”摧毁",
+        "skillType": "PASSIVE",
+        "durationType": "NONE",
+        "spData": {
+          "spType": 8,
+          "levelUpCost": null,
+          "maxChargeTime": 0,
+          "spCost": 0,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_empty",
+        "duration": -1.0,
+        "blackboard": []
+      }
+    ]
+  },
+  "sktok_agmbox_1": {
+    "skillId": "sktok_agmbox_1",
+    "iconId": "sktok_agmbox",
+    "hidden": false,
+    "levels": [
+      {
+        "name": "显示",
+        "rangeId": null,
+        "description": null,
+        "skillType": "AUTO",
+        "durationType": "NONE",
+        "spData": {
+          "spType": "INCREASE_WITH_TIME",
+          "levelUpCost": null,
+          "maxChargeTime": 1,
+          "spCost": 3,
+          "initSp": 0,
+          "increment": 0.0
+        },
+        "prefabId": "sktok_agmbox_1",
+        "duration": 0.0,
         "blackboard": []
       }
     ]

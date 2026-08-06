@@ -12,12 +12,7 @@
         },
         "uid": "1",
         "social": {
-            "friends": [
-                {
-                    "uid": "1",
-                    "alias": ""
-                }
-            ],
+            "friends": [],
             "friendRequests": [],
             "visited": []
         },
@@ -56,12 +51,7 @@
         },
         "uid": "1",
         "social": {
-            "friends": [
-                {
-                    "uid": "1",
-                    "alias": ""
-                }
-            ],
+            "friends": [],
             "friendRequests": [],
             "visited": []
         },
@@ -84,6 +74,32 @@
                 "beforeNonHitCnt": 40
             }
         },
+        "rlv2": {}
+    },
+    "2222": {
+        "uid": "2222",
+        "password": "single",
+        "secret": "3d2422bcc18231e8c5bd0b1317dcb681",
+        "auth": {
+            "hgId": "2222",
+            "phone": "2222",
+            "email": "",
+            "identityNum": "doctorate",
+            "identityName": "doctorate",
+            "isMinor": false,
+            "isLatestUserAgreement": true
+        },
+        "social": {
+            "friends": [],
+            "friendRequests": [],
+            "visited": []
+        },
+        "battle": {
+            "stageId": "",
+            "replays": {},
+            "infos": {}
+        },
+        "gacha": {},
         "rlv2": {}
     }
 }

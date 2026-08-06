@@ -38,11 +38,21 @@ describe("official-api", () => {
     fetchMock
       .mockResolvedValueOnce(jsonRes({ data: { token: "t1" } })) // token_by_phone_password
       .mockResolvedValueOnce(jsonRes({ data: { token: "t2" } })) // grant
-      .mockResolvedValueOnce(jsonRes({ data: { token: "t3", uid: "10001" } })); // u8 getToken
+      .mockResolvedValueOnce(jsonRes({ token: "t3", uid: "10001" })); // u8 getToken（官服顶层格式）
     const r = await getToken("13800000000", "pwd", "dev1", "dev2", "dev3");
     expect(r.uid).toBe("10001");
     expect(r.token).toBe("t3");
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("getToken 应兼容 data 包装的 u8 getToken 响应", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonRes({ data: { token: "t1" } }))
+      .mockResolvedValueOnce(jsonRes({ data: { token: "t2" } }))
+      .mockResolvedValueOnce(jsonRes({ data: { token: "t3", uid: "10001" } }));
+    const r = await getToken("13800000000", "pwd", "dev1", "dev2", "dev3");
+    expect(r.uid).toBe("10001");
+    expect(r.token).toBe("t3");
   });
 
   it("getToken 登录失败应抛出错误", async () => {

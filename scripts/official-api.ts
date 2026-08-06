@@ -131,10 +131,13 @@ export async function getToken(
   };
   req.sign = u8Sign(req);
   const r3 = await postJson(`${ACCOUNT_API}/u8/user/v1/getToken`, req);
-  const token = r3?.data?.token;
-  const uid = r3?.data?.uid;
+  // 官服/参考实现返回顶层 token/uid（DoctoratePy u8.py、checkin-master 解构顶层）；兼容 data 包装
+  const token = r3?.token ?? r3?.data?.token;
+  const uid = r3?.uid ?? r3?.data?.uid;
   if (!token || !uid) {
-    throw new Error("登录失败：u8 getToken 未返回 token/uid");
+    throw new Error(
+      `登录失败：u8 getToken 未返回 token/uid（result=${r3?.result}, error=${r3?.error ?? r3?.msg ?? ""}）`,
+    );
   }
   return { token, uid };
 }

@@ -8,6 +8,7 @@
 import { Router } from "express";
 import { now } from "@utils/time";
 import { readJson } from "@utils/file";
+import { logger } from "@utils/logger";
 import { accountManager } from "@game/manager/AccountManger";
 import config from "../config";
 
@@ -190,6 +191,19 @@ router.post("/user/online/v1/loginout", async (req, res) => {
  */
 router.post("/u8/pay/getAllProductList", async (req, res) => {
   res.send({ productList: [] });
+});
+
+/**
+ * 统一异常处理（API 兜底）
+ * 异步 handler 抛错（Express 5 自动捕获）→ 返回 JSON 错误而非裸 500
+ */
+router.use((err: any, _req: any, res: any, _next: any) => {
+  logger.error("auth", (err as Error)?.message || String(err));
+  res.status(500).send({
+    status: 1,
+    msg: "服务器内部错误",
+    code: "INTERNAL_ERROR",
+  });
 });
 
 export default router;

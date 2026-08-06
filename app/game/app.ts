@@ -27,12 +27,12 @@ app.use(bodyParser.json());
 export const authMiddleware: express.RequestHandler = async (req, res, next) => {
   if (req.headers?.secret) {
     if (config.authMode === "real") {
-      // 真实模式：保留客户端 secret（多账号），无效返回 401
-      const data = await accountManager.getPlayerData(req.headers.secret as string);
-      if (!data) {
+      // 真实模式：secret 是 uid 或账号 token（参考 DoctoratePy query_account_by_secret），无效返回 401
+      const uid = await accountManager.getUidByToken(req.headers.secret as string);
+      if (!uid) {
         return res.status(401).send({ status: 401, msg: "无效的 secret" });
       }
-      httpContext.set("playerData", data);
+      httpContext.set("playerData", await accountManager.getPlayerData(uid));
     } else {
       // 单例模式：强制 uid=1（单账号私服）
       req.headers.secret = "1";

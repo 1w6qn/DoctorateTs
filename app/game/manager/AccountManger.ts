@@ -10,6 +10,7 @@ import { PlayerDataManager } from "./PlayerDataManager";
 import { readJson } from "@utils/file";
 import { now } from "@utils/time";
 import { writeFile, rename } from "fs/promises";
+import { createHash } from "crypto";
 import { TypedEventEmitter } from "@game/model/events";
 import Emittery from "emittery";
 import { FriendRepository } from "../../db/friend-repo";
@@ -356,6 +357,10 @@ export class AccountManager {
       return conf.auth.phone == phone && conf.password == password;
     });
     if (found) {
+      if (config.authMode === "real") {
+        // 真实模式：返回账号 secret（参考 DoctoratePy——token=secret）
+        return found[1].secret || this.getTokenByUid(found[0]);
+      }
       return this.getTokenByUid(found[0]);
     }
     // 账号不存在：自动注册（私服创建新用户），返回新 uid 作为 token
@@ -398,6 +403,7 @@ export class AccountManager {
     const userConfig: UserConfig = {
       uid: newUid,
       password,
+      secret: generateSecret(phoneStr),
       auth: {
         hgId: newUid,
         phone: phoneStr,
@@ -430,13 +436,15 @@ export class AccountManager {
 
   /**
    * 通过Token获取uid
-   * @param token - 用户Token
-   * @returns 用户ID（即token）
+   * @param token - 用户Token（uid 或账号 secret）
+   * @returns 用户ID（匹配 uid 或 secret；无效返回空串）
    */
   async getUidByToken(token: string): Promise<string> {
     if (config.authMode === "real") {
-      // 真实模式：token 必须是已注册用户 uid，无效返回空串（auth 层严格报错）
-      return this.configs[token] ? token : "";
+      // 真实模式：token 匹配 uid 或账号 secret（参考 DoctoratePy query_account_by_secret）
+      if (this.configs[token]) return token;
+      const found = Object.entries(this.configs).find(([, c]) => c.secret === token);
+      return found ? found[0] : "";
     }
     // 单例模式：token 原样（私服单机宽松）
     return token;
@@ -457,6 +465,17 @@ export interface FriendSortViewModel {
   recentVisited?: number;
 }
 
+/** 账号密钥渠道常量（参考 DoctoratePy USER_TOKEN_KEY——官方 appCode） */
+const USER_TOKEN_KEY = "7318def77669979d";
+
+/**
+ * 生成账号密钥（参考 DoctoratePy user.py：MD5(account + 渠道密钥)——确定性）
+ * @param phone - 注册手机号
+ */
+export function generateSecret(phone: string): string {
+  return createHash("md5").update(`${phone}${USER_TOKEN_KEY}`).digest("hex");
+}
+
 /**
  * 用户配置接口
  * 
@@ -465,6 +484,8 @@ export interface FriendSortViewModel {
 export interface UserConfig {
   uid: string;
   password: string;
+  /** 账号密钥（参考 DoctoratePy：MD5(phone + 渠道密钥)，真实模式 token 用） */
+  secret?: string;
   auth: {
     hgId: string;
     phone: string;

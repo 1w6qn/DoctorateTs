@@ -24,10 +24,31 @@ import { WritableDraft } from "immer";
 
 export class RoguelikeV2Config {
   choiceScenes: { [key: string]: { choices: { [key: string]: number } } };
+  eventChoices: {
+    [theme: string]: {
+      enter: { [sceneId: string]: string[] };
+      choices: {
+        [choiceId: string]: {
+          choices: string[] | string;
+          lose?: any;
+          get?: any;
+          m_lose?: any;
+          m_get?: any;
+          i_get?: any;
+          i_lose?: any;
+          curse?: boolean;
+          get_id?: any;
+        };
+      };
+    };
+  };
 
   constructor() {
     this.choiceScenes = JSON.parse(
       readFileSync(`${__dirname}/../../../data/rlv2/choices.json`, "utf-8"),
+    );
+    this.eventChoices = JSON.parse(
+      readFileSync(`${__dirname}/../../../data/rlv2/event_choices.json`, "utf-8"),
     );
   }
 }
@@ -220,45 +241,48 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     const theme = this.current.game!.theme;
     const detail = excel.RoguelikeTopicTable.details[theme];
     const choiceConfig = detail.choices[choice] as any;
-    
+    // 效果数据（lose/get/m_lose/m_get/i_get/i_lose 与后续选项）来自 data/rlv2/event_choices.json
+    const eventConfig = this._data.eventChoices?.[theme]?.choices?.[choice] as any;
+
     if (choice === "choice_leave") {
       this._status.pending.shift();
       this._status.state = "WAIT_MOVE";
       return;
     }
 
-    const isBattle = choice.includes("bat") || typeof choiceConfig?.choices === "string";
-    
+    const isBattle = choice.includes("bat") || typeof eventConfig?.choices === "string";
+
+    // 构建下一场景 SCENE 事件的选项表（选项列表来自 event_choices 的 choices 数组）
+    const buildSceneChoices = (sceneId: string) => {
+      const list = Array.isArray(eventConfig?.choices) ? (eventConfig.choices as string[]) : [];
+      const choices = list.reduce((acc, key) => ({ ...acc, [key]: 1 }), {});
+      const choiceAdditional = list.reduce((acc, key) => ({ ...acc, [key]: { rewards: [] } }), {});
+      this._status.pending.shift();
+      this._trigger.emit("rlv2:event:create", [
+        "SCENE",
+        {
+          scene: { id: sceneId, choices, choiceAdditional },
+          done: false,
+          popReport: false,
+        },
+      ]);
+    };
+
     if (isBattle) {
       const nextSceneId = choiceConfig?.nextSceneId;
       if (nextSceneId) {
-        const sceneChoices = excel.RoguelikeTopicTable.details[theme].choices;
-        const nextChoiceKeys = Object.keys(sceneChoices).filter(
-          (k) => k.startsWith(`choice_${nextSceneId}_`)
-        );
-        
-        this._status.pending.shift();
-        this._trigger.emit("rlv2:event:create", [
-          "SCENE",
-          {
-            scene: {
-              id: nextSceneId,
-              choices: nextChoiceKeys.reduce((acc, key) => ({ ...acc, [key]: 1 }), {}),
-              choiceAdditional: nextChoiceKeys.reduce((acc, key) => ({ ...acc, [key]: { rewards: [] } }), {}),
-            },
-            done: false,
-            popReport: false,
-          },
-        ]);
+        buildSceneChoices(nextSceneId);
       } else {
-        let stageId = choiceConfig?.choices as string;
-        if (stageId && stageId.endsWith("_")) {
-          const stageKeys = Object.keys(detail.stages || {}).filter((k) => k.includes(stageId));
+        const stageKeyword =
+          typeof eventConfig?.choices === "string" ? (eventConfig.choices as string) : undefined;
+        let stageId = stageKeyword;
+        if (stageKeyword && stageKeyword.endsWith("_")) {
+          const stageKeys = Object.keys(detail.stages || {}).filter((k) => k.includes(stageKeyword));
           if (stageKeys.length > 0) {
             stageId = stageKeys[Math.floor(Math.random() * stageKeys.length)];
           }
         }
-        
+
         if (stageId) {
           const nodeId = this._status.cursor.position
             ? this._status.cursor.position.x * 100 + this._status.cursor.position.y
@@ -267,7 +291,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
           if (this._map.zones[zone]?.nodes[nodeId]) {
             this._map.zones[zone].nodes[nodeId].stage = stageId;
           }
-          
+
           this._status.pending.shift();
           this._trigger.emit("rlv2:event:create", [
             "BATTLE",
@@ -287,13 +311,13 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     } else {
       const nextSceneId = choiceConfig?.nextSceneId;
       if (nextSceneId) {
-        const lose = choiceConfig?.lose;
-        const get = choiceConfig?.get;
-        const mLose = choiceConfig?.m_lose;
-        const mGet = choiceConfig?.m_get;
-        const iGet = choiceConfig?.i_get;
-        const iLose = choiceConfig?.i_lose;
-        
+        const lose = eventConfig?.lose;
+        const get = eventConfig?.get;
+        const mLose = eventConfig?.m_lose;
+        const mGet = eventConfig?.m_get;
+        const iGet = eventConfig?.i_get;
+        const iLose = eventConfig?.i_lose;
+
         if (mLose) {
           this._module.applyModuleDelta(mLose, -1);
         }
@@ -324,25 +348,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
             this._trigger.emit("rlv2:get:items", [[{ id: itemId, count: 1 }]]);
           }
         }
-        
-        const sceneChoices = excel.RoguelikeTopicTable.details[theme].choices;
-        const nextChoiceKeys = Object.keys(sceneChoices).filter(
-          (k) => k.startsWith(`choice_${nextSceneId}_`)
-        );
-        
-        this._status.pending.shift();
-        this._trigger.emit("rlv2:event:create", [
-          "SCENE",
-          {
-            scene: {
-              id: nextSceneId,
-              choices: nextChoiceKeys.reduce((acc, key) => ({ ...acc, [key]: 1 }), {}),
-              choiceAdditional: nextChoiceKeys.reduce((acc, key) => ({ ...acc, [key]: { rewards: [] } }), {}),
-            },
-            done: false,
-            popReport: false,
-          },
-        ]);
+
+        buildSceneChoices(nextSceneId);
       } else {
         this._status.pending.shift();
         this._status.state = "WAIT_MOVE";
@@ -350,10 +357,19 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     }
   }
 
-  applyPropertyDelta(delta: { [key: string]: number }, sign: number): void {
+  applyPropertyDelta(delta: { [key: string]: any }, sign: number): void {
     Object.entries(delta).forEach(([key, value]) => {
-      if (key in this._status.property) {
-        (this._status.property as any)[key] += sign * value;
+      const target = (this._status.property as any)[key];
+      if (target === undefined) return;
+      if (typeof value === "object" && value !== null) {
+        // 嵌套对象（如 hp: {current: 2}）——事件效果常见格式
+        Object.entries(value).forEach(([subKey, subVal]) => {
+          if (typeof target?.[subKey] === "number" && typeof subVal === "number") {
+            target[subKey] += sign * subVal;
+          }
+        });
+      } else if (typeof target === "number" && typeof value === "number") {
+        (this._status.property as any)[key] = target + sign * value;
       }
     });
   }
@@ -545,8 +561,32 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     });
     const next = this._map.findNode(this._status.cursor.zone, args.to);
     switch (next.type) {
-      case TorappuRoguelikeEventType.INCIDENT:
+      case TorappuRoguelikeEventType.INCIDENT: {
+        // 不期而遇：从 event_choices 的 enter 场景池随机抽一个，生成 SCENE 事件
+        const enterScenes = this._data.eventChoices?.[theme]?.enter;
+        if (enterScenes) {
+          const sceneIds = Object.keys(enterScenes);
+          if (sceneIds.length > 0) {
+            const sceneId = sceneIds[Math.floor(Math.random() * sceneIds.length)];
+            const choicesList = enterScenes[sceneId] || [];
+            const choices = choicesList.reduce((acc, cid) => ({ ...acc, [cid]: 1 }), {});
+            const choiceAdditional = choicesList.reduce(
+              (acc, cid) => ({ ...acc, [cid]: { rewards: [] } }),
+              {},
+            );
+            this._status.state = "PENDING";
+            this._trigger.emit("rlv2:event:create", [
+              "SCENE",
+              {
+                scene: { id: sceneId, choices, choiceAdditional },
+                done: false,
+                popReport: false,
+              },
+            ]);
+          }
+        }
         break;
+      }
       case TorappuRoguelikeEventType.SHOP:
       case 4096:
         this._status.state = "PENDING";

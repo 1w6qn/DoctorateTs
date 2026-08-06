@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
+import { getResVersion } from "./official-api";
 
 interface RepositoryConfig {
   name: string;
@@ -344,9 +345,42 @@ export async function main(skipUpdate: boolean = false, offline: boolean = false
     logError("合并 gacha 文件失败");
     return 1;
   }
-  
+
+  log("\n同步最新游戏版本...");
+  if (!(await syncGameVersion())) {
+    logError("同步游戏版本失败，使用本地版本");
+  }
+
   log("\n===== 数据更新完成 =====");
   return 0;
+}
+
+/**
+ * 同步最新游戏版本（clientVersion/resVersion）到 data/config.json
+ * 从官服 version 接口获取最新版本号，客户端版本接口/热更新列表据此工作
+ */
+export async function syncGameVersion(): Promise<boolean> {
+  try {
+    const version = await getResVersion();
+    const configPath = path.join(__dirname, "..", "data", "config.json");
+    const configData = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    const old = `${configData.version?.clientVersion}/${configData.version?.resVersion}`;
+    configData.version = {
+      clientVersion: version.clientVersion,
+      resVersion: version.resVersion,
+    };
+    fs.writeFileSync(configPath, JSON.stringify(configData, null, 2) + "\n");
+    const next = `${version.clientVersion}/${version.resVersion}`;
+    if (old === next) {
+      log(`游戏版本无变化（${next}）`);
+    } else {
+      log(`游戏版本已更新: ${old} → ${next}`);
+    }
+    return true;
+  } catch (error) {
+    logError(`同步游戏版本失败: ${(error as Error).message}`);
+    return false;
+  }
 }
 
 if (require.main === module) {

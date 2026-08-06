@@ -920,6 +920,24 @@ npm run migrate:official -- --accounts <账号文件路径> --template 1
 
 **死文件清理**：`data/rlv2/choiceBuffs.json`、`data/rlv2/recruitGroups.json` 零引用已删除（数据由官方 excel/event_choices/data/rlv2.json 覆盖）。
 
+### 16.6 藏品池功能（2026-08，战斗收藏品掉落）
+
+**池分类**（`app/game/controller/rlv2/pool.ts` `create()`，官方 `details[theme].items` 动态分池）：
+- `pool_relic_all`：全部收藏品（type === "RELIC"）
+- `pool_relic_normal` / `pool_relic_rare` / `pool_relic_super_rare`：按 `rarity` 分类（NORMAL/RARE/SUPER_RARE，BORN 不在稀有度池）
+- `pool_sacrifice_n/r`：可献祭物品（value 8/12）
+- `pool_fragment_3/4/5`：构想碎片（INSPIRATION/WISH/IDEA，仅含 fragment 模块的主题）
+
+**随机抽取**：`getRelic(poolId, hasRelic)`——从池随机抽一个**未拥有**的收藏品（过滤 hasRelic），**不放回**（同池不重复，`splice` 移除）。池空或全部已拥有返回空串。
+
+**战斗掉落**（`battle.ts` `finish()` 胜利分支，参考 Dorothinights `generateBaseBattleRewards`）：
+- 掉落顺序：招募券 → 金币 → 碎片 → **随机收藏品**
+- 收藏品项格式 `{index, items: [{sub, id, count: 1}], done: 0}`，id 来自 `pool_relic_all`（过滤已拥有）
+- 概率：普通/紧急 40%，boss 战（stage 含 `_b_`）**必掉 2 个**
+- 选择链路：`chooseBattleReward` → `rlv2:get:items` → `inventory.getItem`（RELIC type）→ `rlv2:relic:gain`（已有，无需改动）
+
+**简化（YAGNI）**：官方无"battle 池/boss 池"分组（relics 只有 id+buffs），战斗统一用 `pool_relic_all`；精确概率在客户端，私服用简化概率。
+
 ---
 
 ## 17. 子域名分发与远程配置

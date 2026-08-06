@@ -19,6 +19,7 @@
 16. [集成战略 rlv2 接口补全](#16-集成战略-rlv2-接口补全)
 17. [子域名分发与远程配置](#17-子域名分发与远程配置)
 18. [助战系统](#18-助战系统)
+19. [用户创建与自动注册](#19-用户创建与自动注册)
 
 ---
 
@@ -945,3 +946,30 @@ npm run migrate:official -- --accounts <账号文件路径> --template 1
 - 助战社交点结算（借出方 yesterdayReward.assistAmount 累加）**未实现**（YAGNI）——需跨玩家写入 + 每日重置机制，留后续
 - powerScore 简化为固定 200（参考实现也是 TODO）
 - 好友关系数据来自 SQLite（social.db）——getAssistList 依赖好友关系存在
+
+---
+
+## 19. 用户创建与自动注册
+
+### 19.1 创建方式（三种等价入口）
+| 入口 | 说明 |
+|------|------|
+| `POST /auth/user/auth/v1/token_by_phone_password` | **登录自动注册**：手机号+密码不存在时自动创建用户并返回 token（新 uid） |
+| `npm run admin -- users create <phone> [password]` | 管理后台 CLI 创建 |
+| Dashboard「+ 创建用户」 | Web 管理界面创建 |
+
+### 19.2 实现（AccountManager.registerUser）
+- **模板复制**：以 `data/user/databases/1.json` 为模板深拷贝，替换 uid/昵称（博士{uid}）/注册时间
+- **uid 递增**：现有账号最大值 +1
+- **注册**：写入 `databases/{uid}.json` + `users.json`（auth.phone=手机号、hgId=uid、password=密码）
+- **查重**：手机号已存在抛错
+
+### 19.3 数据流
+1. 客户端输入新手机号+密码登录 → `tokenByPhonePassword` 未匹配 → `registerUser` 自动创建 → 返回 uid 作为 token
+2. 后续 `grant`/`getToken`/`syncData` 走标准流程（账号即 token）
+3. 管理后台 CLI/Dashboard 的 createUser 复用同一注册逻辑（DRY）
+
+### 19.4 已知约束
+- 模板存档缺失（1.json 被删）时注册失败并给出清晰错误
+- 新用户昵称固定「博士{uid}」、等级/资产继承模板（1 号账号）——私服简化
+- 服务器运行中注册的新用户，`accountManager.data` 无内存实例——需 `reloadUser`/重启后同步数据（CLI 场景已热加载；登录场景在下次 init 后生效）

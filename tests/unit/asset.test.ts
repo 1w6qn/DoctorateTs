@@ -7,7 +7,11 @@ vi.mock("@utils/file", () => ({
   readJsonSync: vi.fn(() => ({
     Host: "http://127.0.0.1",
     PORT: 8443,
-    version: { resVersion: "25-05-20-12-36-22_4803e1", clientVersion: "2.5.60" },
+    version: {
+      resVersion: "25-05-20-12-36-22_4803e1",
+      clientVersion: "2.5.60",
+      windows: { resVersion: "26-07-30-09-00-07_win", clientVersion: "2.5.60" },
+    },
     assets: { enableMods: false, downloadLocally: false, autoUpdate: true },
     NetworkConfig: {},
   })),
@@ -62,5 +66,23 @@ describe("asset 资源路由", () => {
     );
     await new Promise((r) => setTimeout(r, 30));
     expect(res.sendFile).toHaveBeenCalled();
+  });
+
+  it("Windows 平台非热更新文件应重定向到 Windows CDN", async () => {
+    const res = mockRes();
+    await assetRouter(
+      {
+        method: "GET",
+        url: "/official/Windows/assets/26-07-30-09-00-07_win/char_pack.dat",
+        params: { platform: "Windows", assetsHash: "26-07-30-09-00-07_win", fileName: "char_pack.dat" },
+      } as any,
+      res as any,
+      () => {},
+    );
+    await new Promise((r) => setTimeout(r, 30));
+    // downloadLocally=false → 重定向官服 CDN（Windows 平台 + Windows resVersion）
+    expect(res.redirect).toHaveBeenCalledWith(
+      "https://ak.hycdn.cn/assetbundle/official/Windows/assets/26-07-30-09-00-07_win/char_pack.dat",
+    );
   });
 });

@@ -22,6 +22,8 @@ router.get(
     const version = isWindows
       ? (config.version as any).windows?.resVersion || config.version.resVersion
       : config.version.resVersion;
+    // CDN 平台路径（odpy 参考：system 参数——Windows 客户端下载 Windows 资源）
+    const cdnPlatform = isWindows ? "Windows" : "Android";
     let basePath = join(__dirname, "..", "assets", version, "redirect");
 
     if (fileName === "hot_update_list.json" && config.assets.enableMods) {
@@ -35,7 +37,7 @@ router.get(
         !MODS_LIST.download.includes(fileName)
       ) {
         return res.redirect(
-          `https://ak.hycdn.cn/assetbundle/official/Android/assets/${version}/${fileName}`,
+          `https://ak.hycdn.cn/assetbundle/official/${cdnPlatform}/assets/${version}/${fileName}`,
         );
       }
     }
@@ -74,7 +76,7 @@ router.get(
       }
     }
     const fp = await exportFile(
-      `https://ak.hycdn.cn/assetbundle/official/Android/assets/${version}/${fileName}`,
+      `https://ak.hycdn.cn/assetbundle/official/${cdnPlatform}/assets/${version}/${fileName}`,
       basePath,
       fileName,
       filePath,

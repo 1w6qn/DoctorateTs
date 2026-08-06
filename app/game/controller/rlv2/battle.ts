@@ -148,6 +148,34 @@ export class RoguelikeBattleManager {
         });
       }
 
+      // 随机收藏品掉落（参考 Dorothinights generateBaseBattleRewards：
+      // 收藏品池过滤已拥有，boss 战必掉 2 个）
+      const pos = this._player._status.cursor.position;
+      const node = pos
+        ? this._player._map.zones[this._player._status.cursor.zone]?.nodes[
+            pos.x * 100 + pos.y
+          ]
+        : undefined;
+      const curStageId = (node as any)?.stage || "";
+      const isBoss = curStageId.includes("_b_");
+      const relicChance = isBoss ? 1 : 0.4; // 简化概率：普通/紧急 40%，boss 100%
+      const hasRelic = Object.values(this._player.inventory!.relic || {}).map(
+        (r) => (r as any).id,
+      );
+      const relicCount = isBoss ? 2 : 1;
+      if (Math.random() < relicChance) {
+        const relicItems: any[] = [];
+        for (let i = 0; i < relicCount; i++) {
+          const relicId = this._player._pool.getRelic("pool_relic_all", hasRelic);
+          if (!relicId) break;
+          relicItems.push({ sub: i, id: relicId, count: 1 });
+          hasRelic.push(relicId);
+        }
+        if (relicItems.length > 0) {
+          rewards.push({ index: rewards.length, items: relicItems, done: 0 });
+        }
+      }
+
       await this._trigger.emit("rlv2:event:create", [
         "BATTLE_REWARD",
         {

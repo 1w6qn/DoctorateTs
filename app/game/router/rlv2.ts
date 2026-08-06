@@ -91,4 +91,29 @@ router.post("/setPinned", async (req, res) => {
   player.rlv2.setPinned(req.body);
   res.send(player.delta);
 });
+router.post("/refreshShop", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  await player.rlv2.refreshShop();
+  res.send(player.delta);
+});
+router.post("/leaveShop", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  await player.rlv2.leaveShop();
+  res.send(player.delta);
+});
+router.post("/useTotem", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  await player.rlv2.useTotem(req.body);
+  res.send(player.delta);
+});
+router.post("/confirmPredict", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  await player.rlv2.confirmPredict();
+  res.send(player.delta);
+});
+router.post("/closeRecruitTicket", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  await player.rlv2.closeRecruitTicket(req.body);
+  res.send(player.delta);
+});
 export default router;

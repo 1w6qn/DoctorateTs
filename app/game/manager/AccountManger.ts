@@ -8,6 +8,7 @@
 import { PlayerDataModel } from "../model/playerdata";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { readJson } from "@utils/file";
+import { now } from "@utils/time";
 import { writeFile } from "fs/promises";
 import { TypedEventEmitter } from "@game/model/events";
 import Emittery from "emittery";
@@ -314,11 +315,71 @@ export class AccountManager {
    * @returns 用户Token（即uid）
    */
   async tokenByPhonePassword(phone: string, password: string): Promise<string> {
-    const uid =
-      Object.entries(this.configs).find(([, conf]) => {
-        return conf.auth.phone == phone && conf.password == password;
-      })?.[0] ?? "";
+    const found = Object.entries(this.configs).find(([, conf]) => {
+      return conf.auth.phone == phone && conf.password == password;
+    });
+    if (found) {
+      return this.getTokenByUid(found[0]);
+    }
+    // 账号不存在：自动注册（私服创建新用户），返回新 uid 作为 token
+    const uid = await this.registerUser(phone, password);
     return this.getTokenByUid(uid);
+  }
+
+  /**
+   * 创建新用户
+   * 以 1 号用户数据库为模板复制，替换 uid/昵称/注册时间，写入文件并更新内存配置。
+   * @param phone - 登录手机号
+   * @param password - 登录密码
+   * @returns 新用户 uid
+   */
+  async registerUser(phone: string, password: string): Promise<string> {
+    const phoneStr = String(phone ?? "").trim();
+    if (!phoneStr) {
+      throw new Error(`手机号不能为空`);
+    }
+    if (Object.values(this.configs).some((c) => c.auth.phone === phoneStr)) {
+      throw new Error(`手机号已存在: ${phoneStr}`);
+    }
+    const uids = Object.keys(this.configs).map(Number);
+    const newUid = String((uids.length ? Math.max(...uids) : 0) + 1);
+
+    const templatePath = `./data/user/databases/1.json`;
+    let templateData: any;
+    try {
+      templateData = await readJson(templatePath);
+    } catch {
+      throw new Error(`找不到模板存档 ${templatePath}，无法创建用户`);
+    }
+    const playerData = JSON.parse(JSON.stringify(templateData));
+    playerData.status.uid = newUid;
+    playerData.status.nickName = `博士${newUid}`;
+    playerData.status.nickNumber = "1";
+    playerData.status.registerTs = now();
+    playerData.status.lastOnlineTs = 0;
+
+    const userConfig: UserConfig = {
+      uid: newUid,
+      password,
+      auth: {
+        hgId: newUid,
+        phone: phoneStr,
+        email: "",
+        identityNum: "doctorate",
+        identityName: "doctorate",
+        isMinor: false,
+        isLatestUserAgreement: true,
+      },
+      social: { friends: [], friendRequests: [], visited: [] },
+      battle: { stageId: "", replays: {}, infos: {} },
+      gacha: {},
+      rlv2: {},
+    };
+
+    await writeFile(`./data/user/databases/${newUid}.json`, JSON.stringify(playerData));
+    this.configs[newUid] = userConfig;
+    await this.saveUserConfig();
+    return newUid;
   }
 
   /**

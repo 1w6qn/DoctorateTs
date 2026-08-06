@@ -44,9 +44,10 @@ export class RoguelikeBuffManager {
       if (!buffs) return;
       this.applyBuffs([[...buffs]]);
     });
-    await this.applyBuffs([
-      [...excel.RoguelikeConsts[theme].modebuff[modeGrade]],
-    ]);
+    const modebuff = excel.RoguelikeConsts?.[theme]?.modebuff?.[modeGrade];
+    if (modebuff) {
+      await this.applyBuffs([[...modebuff]]);
+    }
   }
 
   async applyBuffs([[...args]]: [RoguelikeBuff[]]) {

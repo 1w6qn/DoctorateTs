@@ -206,7 +206,12 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       (e) => e.type === "GAME_INIT_RECRUIT",
     )!;
 
-    for (const r of excel.RoguelikeConsts[theme].recruitGrps[args.select]) {
+    // 招募组数据源：data/rlv2.json（RoguelikeConsts）优先，缺失回退官方 excel recruitGrps
+    const grps =
+      excel.RoguelikeConsts?.[theme]?.recruitGrps ??
+      (excel.RoguelikeTopicTable as any)?.details?.[theme]?.recruitGrps ??
+      {};
+    for (const r of grps[args.select] ?? []) {
       await this._trigger.emit("rlv2:recruit:gain", [r, "initial", 0]);
     }
 

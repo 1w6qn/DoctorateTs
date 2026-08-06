@@ -196,8 +196,11 @@ export async function syncPlayerData(
       secret,
       seqnum: "0",
       "Content-Type": "application/json",
+      // 对齐参考实现（checkin-master post 头）：Unity 版本头官服可能校验
+      "X-Unity-Version": "2017.4.39f1",
       "User-Agent":
         "Dalvik/2.1.0 (Linux; U; Android 6.0.1; X Build/V417IR)",
+      Connection: "Keep-Alive",
     },
     body: JSON.stringify({ platform: 1 }),
   });

@@ -139,50 +139,8 @@ export class AdminService {
    * @returns 新用户 uid
    */
   async createUser(phone: string, password: string): Promise<string> {
-    const phoneStr = String(phone ?? "").trim();
-    if (!phoneStr) {
-      throw new Error(`手机号不能为空`);
-    }
-    if (Object.values(accountManager.configs).some((c) => c.auth.phone === phoneStr)) {
-      throw new Error(`手机号已存在: ${phoneStr}`);
-    }
-    const uids = Object.keys(accountManager.configs).map(Number);
-    const newUid = String((uids.length ? Math.max(...uids) : 0) + 1);
-
-    const templatePath = `./data/user/databases/1.json`;
-    if (!(await exists(templatePath))) {
-      throw new Error(`找不到模板存档 ${templatePath}，无法创建用户`);
-    }
-    const templateData = await readJson<any>(templatePath);
-    const playerData = JSON.parse(JSON.stringify(templateData));
-    playerData.status.uid = newUid;
-    playerData.status.nickName = `博士${newUid}`;
-    playerData.status.nickNumber = "1";
-    playerData.status.registerTs = now();
-    playerData.status.lastOnlineTs = 0;
-
-    const userConfig: UserConfig = {
-      uid: newUid,
-      password,
-      auth: {
-        hgId: newUid,
-        phone: phoneStr,
-        email: "",
-        identityNum: "doctorate",
-        identityName: "doctorate",
-        isMinor: false,
-        isLatestUserAgreement: true,
-      },
-      social: { friends: [], friendRequests: [], visited: [] },
-      battle: { stageId: "", replays: {}, infos: {} },
-      gacha: {},
-      rlv2: {},
-    };
-
-    await writeJson(`./data/user/databases/${newUid}.json`, playerData);
-    accountManager.configs[newUid] = userConfig;
-    await accountManager.saveUserConfig();
-    return newUid;
+    // 注册逻辑统一在 AccountManager（模板复制 + uid 递增 + 写文件 + 更新配置）
+    return accountManager.registerUser(phone, password);
   }
 
   /**

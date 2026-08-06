@@ -133,20 +133,26 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
     id: string;
   }): PlayerRoguelikePendingEvent.Content {
     const game = this._player.current.game!;
-    const initConfig = this._player.initConfig;
+    const theme = game.theme;
+    const roNum = theme.slice(-1);
+    // 按主题动态取开局 buff（行动奖励）场景与选项：
+    // rogue_1 无 ro 前缀（scene_startbuff_enter / choice_startbuff_N），其余为 scene_roX_startbuff_enter / choice_roX_startbuff_N
+    const sceneId =
+      roNum === "1" ? "scene_startbuff_enter" : `scene_ro${roNum}_startbuff_enter`;
+    const choiceKeys = Object.keys(
+      excel.RoguelikeTopicTable.details[theme]?.choices || {},
+    ).filter((k) =>
+      roNum === "1"
+        ? k.startsWith("choice_startbuff_")
+        : k.startsWith(`choice_ro${roNum}_startbuff_`),
+    );
+    const choices = choiceKeys.reduce((acc, key) => ({ ...acc, [key]: 1 }), {});
     return {
       initSupport: {
         step: args.step,
         scene: {
-          id: `scene_ro${game.theme.slice(-1)}_startbuff_enter`,
-          choices: {
-            choice_ro4_startbuff_1: 1,
-            choice_ro4_startbuff_2: 1,
-            choice_ro4_startbuff_3: 1,
-            choice_ro4_startbuff_4: 1,
-            choice_ro4_startbuff_5: 1,
-            choice_ro4_startbuff_6: 1,
-          },
+          id: sceneId,
+          choices,
         },
       },
     };

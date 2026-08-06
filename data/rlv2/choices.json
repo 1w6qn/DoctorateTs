@@ -1,7 +1,39 @@
 {
-    "choiceScenes":{
-        "scene_ro4_startbuff_enter":{
-            "choices":[
+    "choiceScenes": {
+        "scene_startbuff_enter": {
+            "choices": [
+                "choice_startbuff_1",
+                "choice_startbuff_2",
+                "choice_startbuff_3",
+                "choice_startbuff_4",
+                "choice_startbuff_5",
+                "choice_startbuff_6"
+            ]
+        },
+        "scene_ro2_startbuff_enter": {
+            "choices": [
+                "choice_ro2_startbuff_1",
+                "choice_ro2_startbuff_2",
+                "choice_ro2_startbuff_3",
+                "choice_ro2_startbuff_4",
+                "choice_ro2_startbuff_5",
+                "choice_ro2_startbuff_6",
+                "choice_ro2_startbuff_7",
+                "choice_ro2_startbuff_8"
+            ]
+        },
+        "scene_ro3_startbuff_enter": {
+            "choices": [
+                "choice_ro3_startbuff_1",
+                "choice_ro3_startbuff_2",
+                "choice_ro3_startbuff_3",
+                "choice_ro3_startbuff_4",
+                "choice_ro3_startbuff_5",
+                "choice_ro3_startbuff_6"
+            ]
+        },
+        "scene_ro4_startbuff_enter": {
+            "choices": [
                 "choice_ro4_startbuff_1",
                 "choice_ro4_startbuff_2",
                 "choice_ro4_startbuff_3",
@@ -9,6 +41,32 @@
                 "choice_ro4_startbuff_5",
                 "choice_ro4_startbuff_6",
                 "choice_ro4_startbuff_7"
+            ]
+        },
+        "scene_ro5_startbuff_enter": {
+            "choices": [
+                "choice_ro5_startbuff_1",
+                "choice_ro5_startbuff_2",
+                "choice_ro5_startbuff_3",
+                "choice_ro5_startbuff_4",
+                "choice_ro5_startbuff_5",
+                "choice_ro5_startbuff_6"
+            ]
+        },
+        "scene_ro6_startbuff_enter": {
+            "choices": [
+                "choice_ro6_startbuff_1",
+                "choice_ro6_startbuff_2",
+                "choice_ro6_startbuff_3",
+                "choice_ro6_startbuff_4",
+                "choice_ro6_startbuff_5",
+                "choice_ro6_startbuff_6",
+                "choice_ro6_startbuff_7",
+                "choice_ro6_startbuff_8",
+                "choice_ro6_startbuff_9",
+                "choice_ro6_startbuff_10",
+                "choice_ro6_startbuff_11",
+                "choice_ro6_startbuff_12"
             ]
         }
     }

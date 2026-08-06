@@ -66,6 +66,8 @@ interface UserConfig {
   };
   /** 认证模式：single（单例——secret 强制 1，任意 token 宽松）/ real（真实——多账号严格校验） */
   authMode?: "single" | "real";
+  /** 单例模式固定账号 uid（默认 "1"——如某账号异常可切换过渡） */
+  singleUid?: string;
   /** 单例模式是否自动生成满配账号（全干员/全物品，随版本刷新——默认开启） */
   singleAutoMaxAccount?: boolean;
 }

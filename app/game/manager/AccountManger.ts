@@ -354,8 +354,8 @@ export class AccountManager {
    */
   async tokenByPhonePassword(phone: string, password: string): Promise<string> {
     if (config.authMode !== "real") {
-      // 单例模式：任意登录返回固定 uid=1（不查询/不注册——单账号私服）
-      return "1";
+      // 单例模式：任意登录返回固定账号（不查询/不注册——单账号私服）
+      return config.singleUid || "1";
     }
     const found = Object.entries(this.configs).find(([, conf]) => {
       return conf.auth.phone == phone && conf.password == password;
@@ -427,6 +427,53 @@ export class AccountManager {
   }
 
   /**
+   * 确保单例账号存在（不存在时以 1 号模板创建——干净账号）
+   * 单例模式固定账号（config.singleUid）可能不存在（如切到 2222 过渡）
+   * @param uid - 单例账号 uid
+   */
+  async ensureSingleUser(uid: string): Promise<void> {
+    if (this.configs[uid]) return;
+    const templatePath = `./data/user/databases/1.json`;
+    const templateData = await readJson(templatePath);
+    const playerData = JSON.parse(JSON.stringify(templateData));
+    playerData.status.uid = uid;
+    playerData.status.nickName = `博士${uid}`;
+    playerData.status.nickNumber = "1";
+    playerData.status.registerTs = now();
+    playerData.status.lastOnlineTs = 0;
+
+    const userConfig: UserConfig = {
+      uid,
+      password: "single",
+      secret: generateSecret(`single_${uid}`),
+      auth: {
+        hgId: uid,
+        phone: uid,
+        email: "",
+        identityNum: "doctorate",
+        identityName: "doctorate",
+        isMinor: false,
+        isLatestUserAgreement: true,
+      },
+      social: { friends: [], friendRequests: [], visited: [] },
+      battle: { stageId: "", replays: {}, infos: {} },
+      gacha: {},
+      rlv2: {},
+    };
+
+    await writeFile(`./data/user/databases/${uid}.json`, JSON.stringify(playerData));
+    this.configs[uid] = userConfig;
+    await this.saveUserConfig();
+
+    // 加载玩家数据（与 init 一致——getPlayerData 可用；直接使用内存 playerData，避免重读文件）
+    this.data[uid] = new PlayerDataManager(playerData as PlayerDataModel);
+    this.data[uid]._playerdata.status.uid = uid;
+    this.data[uid]._trigger.on("save", () => {
+      this.scheduleSave(uid);
+    });
+  }
+
+  /**
    * 通过uid获取Token
    * @param uid - 用户ID
    * @returns 用户Token（即uid）
@@ -447,8 +494,8 @@ export class AccountManager {
       const found = Object.entries(this.configs).find(([, c]) => c.secret === token);
       return found ? found[0] : "";
     }
-    // 单例模式：任意 token 收敛到 uid=1（oauth2/basic/u8 全流程返回固定账号）
-    return "1";
+    // 单例模式：任意 token 收敛到固定账号（oauth2/basic/u8 全流程返回单例 uid）
+    return config.singleUid || "1";
   }
 
   /** 登出方法（预留） */

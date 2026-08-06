@@ -35,9 +35,10 @@ export const authMiddleware: express.RequestHandler = async (req, res, next) => 
       httpContext.set("playerData", await accountManager.getPlayerData(uid));
     }
   } else {
-    // 单例模式：无论是否有 secret 都强制 uid=1（单账号私服——客户端全流程正常）
-    req.headers.secret = "1";
-    httpContext.set("playerData", await accountManager.getPlayerData("1"));
+    // 单例模式：无论是否有 secret 都强制固定账号（单账号私服——客户端全流程正常）
+    const singleUid = config.singleUid || "1";
+    req.headers.secret = singleUid;
+    httpContext.set("playerData", await accountManager.getPlayerData(singleUid));
   }
   next();
 };

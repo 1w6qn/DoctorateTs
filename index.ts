@@ -75,16 +75,27 @@ import { accountManager } from "./app/game/manager/AccountManger";
   app.use("/", game);
   app.use("/assetbundle", asset);
 
+  // 单例模式：确保固定账号存在（如配置的 singleUid 不存在则自动创建）
+  if (config.authMode === "single") {
+    const singleUid = config.singleUid || "1";
+    try {
+      await accountManager.ensureSingleUser(singleUid);
+    } catch (error) {
+      logger.error("index", "单例账号创建失败:", (error as Error).message);
+    }
+  }
+
   // 单例模式：自动生成满配账号（全干员/全物品——随版本刷新，版本变化重新生成）
   if (config.authMode === "single" && config.singleAutoMaxAccount !== false) {
+    const singleUid = config.singleUid || "1";
     try {
-      const player = await accountManager.getPlayerData("1");
+      const player = await accountManager.getPlayerData(singleUid);
       const marker = (player as any)?._playerdata?.status?.maxAccountResVersion;
       if (player && marker !== config.version.resVersion) {
         const { generateMaxedAccount } = await import("./scripts/generate-max-account");
         await generateMaxedAccount(player);
-        await accountManager.flushSave("1");
-        logger.info("index", `单例满配账号已生成（版本 ${config.version.resVersion}）`);
+        await accountManager.flushSave(singleUid);
+        logger.info("index", `单例满配账号已生成（${singleUid}，版本 ${config.version.resVersion}）`);
       }
     } catch (error) {
       logger.error("index", "满配账号生成失败:", (error as Error).message);

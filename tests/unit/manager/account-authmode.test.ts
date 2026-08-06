@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("../../../app/config", () => ({
-  default: { authMode: "single" },
-}));
+const configMock = vi.hoisted(() => ({ default: { authMode: "single" } }));
+vi.mock("../../../app/config", () => configMock);
 vi.mock("@utils/time", () => ({ now: () => 1234567890 }));
 vi.mock("fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs/promises")>();
@@ -15,6 +14,8 @@ import config from "../../../app/config";
 describe("getUidByToken 认证模式", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    configMock.default.authMode = "single";
+    configMock.default.singleUid = undefined;
     (accountManager as any).configs = {
       "1": { auth: { phone: "1" } },
       "2221": { auth: { phone: "2221" } },
@@ -32,6 +33,43 @@ describe("getUidByToken 认证模式", () => {
     (config as any).authMode = "single";
     expect(await accountManager.tokenByPhonePassword("13900001111", "any")).toBe("1");
     expect(await accountManager.tokenByPhonePassword("不存在", "pwd")).toBe("1");
+  });
+
+  it("single 模式配置 singleUid 时收敛到该账号（过渡用）", async () => {
+    (config as any).authMode = "single";
+    (config as any).singleUid = "2222";
+    expect(await accountManager.getUidByToken("any")).toBe("2222");
+    expect(await accountManager.tokenByPhonePassword("x", "y")).toBe("2222");
+  });
+
+  it("ensureSingleUser 应创建缺失的单例账号（干净模板）", async () => {
+    const spy = vi
+      .spyOn(accountManager, "saveUserConfig")
+      .mockResolvedValue(undefined as any);
+    await accountManager.ensureSingleUser("2222");
+    const conf = (accountManager as any).configs["2222"];
+    expect(conf).toBeDefined();
+    expect(conf.auth.phone).toBe("2222");
+    expect(conf.secret).toBeDefined();
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it("ensureSingleUser 后应加载玩家数据（getPlayerData 可用）", async () => {
+    const spy = vi
+      .spyOn(accountManager, "saveUserConfig")
+      .mockResolvedValue(undefined as any);
+    await accountManager.ensureSingleUser("2222");
+    const data = (accountManager as any).data["2222"];
+    expect(data).toBeDefined();
+    expect(data._playerdata.status.uid).toBe("2222");
+  });
+
+  it("ensureSingleUser 账号已存在时应直接返回", async () => {
+    const spy = vi
+      .spyOn(accountManager, "saveUserConfig")
+      .mockResolvedValue(undefined as any);
+    await accountManager.ensureSingleUser("1");
+    expect(spy).not.toHaveBeenCalled();
   });
 
   it("real 模式：有效 uid 返回原样，无效 token 返回空串", async () => {

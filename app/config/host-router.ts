@@ -21,6 +21,17 @@ function hasPathPrefix(path: string, prefix: string): boolean {
 
 export function createHostRouter(): RequestHandler {
   return (req, _res, next) => {
+    // 路径级子域名前缀：部分客户端把子域名路径化（直连私服 IP 时 Host 不带子域名）
+    // 在 Host 判断前处理（覆盖 /as/app/v1/config、/game-config/api/remote_config 等场景）
+    if (req.url.startsWith("/as/")) {
+      req.url = "/auth" + req.url.slice(3);
+      return next();
+    }
+    if (req.url.startsWith("/game-config/")) {
+      req.url = req.url.slice("/game-config".length) || "/";
+      return next();
+    }
+
     const host = (req.headers.host || "").toLowerCase();
     if (!host.endsWith(HOST_SUFFIX)) {
       return next();

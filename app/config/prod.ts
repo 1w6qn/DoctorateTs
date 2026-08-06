@@ -13,6 +13,16 @@ router.get("/official/Android/version", async (req, res) => {
   }
   res.send(Object.assign({}, config.version, modPatch));
 });
+// hv 端点格式：/config/prod/official/{clientVersion}/version（客户端按版本号请求）
+router.get("/official/:version/version", async (req, res) => {
+  let modPatch = {};
+  if (config.assets.enableMods) {
+    modPatch = {
+      resVersion: config.version.resVersion + Math.floor(Math.random() * 100),
+    };
+  }
+  res.send(Object.assign({}, config.version, modPatch));
+});
 router.get("/official/network_config", async (req, res) => {
   const content = buildNetworkConfigContent();
   const sign = "sign";

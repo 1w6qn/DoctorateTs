@@ -80,6 +80,14 @@ describe("createHostRouter（子域名分发）", () => {
     expect(req.url).toBe("/api/remote_config/1/prod/default/Windows/remote_config");
   });
 
+  it("路径级 /as/ 前缀应映射到 /auth（子域名路径化客户端）", () => {
+    const handler = createHostRouter();
+    const req = mockReq("127.0.0.1:8443", "/as/app/v1/config?appCode=7318def77669979d&platform=2");
+    const next = vi.fn();
+    handler(req, {} as any, next);
+    expect(req.url).toBe("/auth/app/v1/config?appCode=7318def77669979d&platform=2");
+  });
+
   it("非 hypergryph 域名（localhost/私服 IP 直连）不应重写", () => {
     const handler = createHostRouter();
     const req = mockReq("localhost:8443", "/account/syncData");

@@ -860,6 +860,7 @@ describe("BuildingManager 加工站合成（Excel 驱动）", () => {
   });
 
   it("workshopSynthesis 应按 workshopFormulas 扣材料/金币并产出", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5); // > extraOutcomeRate 0.1，不触发副产物
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     const result = await manager.workshopSynthesis({ roomSlotId: "slot_5", times: 1, formulaId: "1" } as any);
     expect(mockPlayer._playerdata.inventory!["3112"]).toBe(8); // 10 - 2
@@ -1145,6 +1146,24 @@ describe("BuildingManager 劳动力与留言板奖励", () => {
     await manager.buyLabor({ buyCount: 1 } as any);
     expect(mockPlayer._playerdata.building!.status.labor.value).toBeGreaterThan(50);
     expect(mockPlayer._playerdata.status!.androidDiamond).toBeLessThan(100);
+  });
+
+  it("sync 应按 laborRecoverTime 自动恢复劳动力", async () => {
+    // lastUpdateTime = now() - 3600（360 秒 1 点 → 恢复 10 点）
+    mockPlayer._playerdata.building.status.labor.lastUpdateTime = 1234567890 - 3600;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.sync();
+    expect(mockPlayer._playerdata.building!.status.labor.value).toBe(60); // 50 + 10
+    expect(mockPlayer._playerdata.building!.status.labor.lastUpdateTime).toBe(1234567890);
+  });
+
+  it("sync 恢复劳动力不应超过 maxValue 上限", async () => {
+    mockPlayer._playerdata.building.status.labor.value = 220;
+    mockPlayer._playerdata.building.status.labor.maxValue = 225;
+    mockPlayer._playerdata.building.status.labor.lastUpdateTime = 1234567890 - 7200;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.sync();
+    expect(mockPlayer._playerdata.building!.status.labor.value).toBe(225); // 封顶
   });
 
   it("confirmMessageBoardReward 应发放信用点并标记已领取", async () => {

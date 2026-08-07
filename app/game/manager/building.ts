@@ -6,7 +6,7 @@ import { WritableDraft } from "immer";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { PlayerBuildingMeetingClue } from "@game/model/playerdata";
 import { accountManager } from "./AccountManger";
-import { getManufactFormula, getWorkshopFormula } from "@excel/building_excel";
+import { getManufactFormula, getWorkshopFormula, getBuildingConstant } from "@excel/building_excel";
 
 /**
  * 基建管理器类
@@ -74,11 +74,29 @@ export class BuildingManager {
   }
 
   /**
+   * 按 laborRecoverTime（秒/点）自动恢复劳动力（sync 等入口调用）
+   * 例：laborRecoverTime=360 → 6 分钟恢复 1 点，封顶 maxValue
+   */
+  private _recoverLabor(draft: WritableDraft<PlayerDataModel>): void {
+    const labor = draft.building.status.labor;
+    const rate = getBuildingConstant<number>("laborRecoverTime") ?? 360;
+    const ts = now();
+    const elapsed = ts - (labor.lastUpdateTime || ts);
+    if (elapsed <= 0 || rate <= 0) return;
+    const gain = Math.floor(elapsed / rate);
+    if (gain > 0) {
+      labor.value = Math.min(labor.value + gain, labor.maxValue);
+      labor.lastUpdateTime = ts;
+    }
+  }
+
+  /**
    * 同步基建数据
    * @returns 当前时间戳
    */
   async sync() {
     return await this._player.update(async (draft) => {
+      this._recoverLabor(draft);
       draft.event.building = now() + 5000;
       return now();
     });
@@ -1107,6 +1125,7 @@ export class BuildingManager {
   /**
    * 购买劳动力
    * 消耗源石（1 源石/次），增加 labor.value（+10/次，上限 maxValue）
+   * 注：apToLaborRatio=2 是 AP→劳动力 比例（apToLaborUnlockLevel=4 解锁），buyLabor 用源石走官方固定 10 点——YAGNI 未接入
    * @param args - 包含 buyCount 的参数对象
    */
   async buyLabor(args: { buyCount: number }) {

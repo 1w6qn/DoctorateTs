@@ -413,22 +413,35 @@ export class MissionProgress {
     this.progress = missionInfo.progress;
     this.state = missionInfo.state;
     let template: keyof typeof MissionTemplates;
-    let mission: MissionData;
+    let mission: MissionData | undefined;
     if (this.type == "ACTIVITY") {
       return;
     } else if (this.type == "OPENSERVER") {
-      const group = excel.OpenServerTable.schedule.find((v) =>
+      // 开服任务数据缺失容错（excel 未初始化/版本错位）——标记无效并降级日志，避免 unhandled rejection
+      const schedule = excel.OpenServerTable?.schedule;
+      const group = schedule?.find((v) =>
         checkBetween(
           this._player._playerdata.status.registerTs,
           v.startTs,
           v.endTs,
         ),
-      )!.id;
-      mission = excel.OpenServerTable.dataMap[group].openServerMissionData.find(
+      )?.id;
+      if (!group) {
+        this.valid = false;
+        logger.debug("MissionManager", `OpenServer schedule not found (${this.missionId})`);
+        return;
+      }
+      mission = excel.OpenServerTable!.dataMap[group].openServerMissionData.find(
         (m) => m.id == this.missionId,
-      )!;
+      );
+      if (!mission) {
+        this.valid = false;
+        logger.debug("MissionManager", `Mission ID ${this.missionId} not found in OpenServer data`);
+        return;
+      }
     } else {
-      mission = excel.MissionTable.missions[this.missionId];
+      // excel 未初始化/表缺失时 mission 为 undefined → 走下方「任务不存在」降级分支（valid=false + debug）
+      mission = excel.MissionTable?.missions?.[this.missionId];
     }
     if (mission) {
       if (mission.template in MissionTemplates) {

@@ -1,4 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+// PlayerDataManager 构造挂载 mission.init（fire-and-forget）需要 Immer Patches 插件——
+// 缺失会报「The plugin for 'Patches' has not been loaded」unhandled rejection（假阳性噪音）
+import { enablePatches } from "immer";
+enablePatches();
 
 const configMock = vi.hoisted(() => ({ default: { authMode: "single" } }));
 vi.mock("../../../app/config", () => configMock);

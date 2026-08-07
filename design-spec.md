@@ -950,6 +950,14 @@ npm run migrate:official -- --accounts <账号文件路径> --template 1
 - `game-config.hypergryph.com/*` → 保持（新版远程配置）
 - 非 `*.hypergryph.com`（localhost/IP 直连）不重写
 
+**mitmweb 重定向场景**（`mitmweb -M "|^https?://.*\.hypergryph\.com(.*)|http://127.0.0.1:8443\1"`）：
+mitmproxy map remote 设置 URL 时会同步改写 Host 头为 `127.0.0.1:8443`，子域名信息丢失。此时启用**路径级兜底分发**（`applyPathFallback`）：
+- `/game/*` → 剥 `/game` 基址前缀（ak-gs 域路径化形式）
+- `/app/*`、`/u8/*`、`/user/auth*`、`/user/info*`、`/user/online*`、`/user/oauth2*` → 加 `/auth` 前缀（as 域接口）
+- 游戏域 `/user/changeSecretary`、`/user/buyAp` 等二级段不在列表，不会被误判
+
+**客户端事件批量上报**：`POST /batch_event`（游戏域根级接口，home.ts）——客户端定期上报行为事件，私服返回空对象 `{}`（客户端只认状态码）。
+
 ### 17.2 新版远程配置接口（app/config/remote-config.ts）
 新版客户端（game-config 域名）请求的两个接口：
 - `/api/remote_config/1/prod/default/Windows/network_config` → 网络端点配置（官方扁平格式：an/as/gs/hu/u8/hv 等，域名替换为私服地址）

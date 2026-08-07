@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>集成战略 · 地图生成节点交互可视化</title>
+<style>
+  :root {
+    --bg: #12141a; --panel: #1b1e27; --panel2: #232735; --border: #2e3444;
+    --text: #d8dee9; --dim: #7a8299; --accent: #5b8def;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
+  header {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 10;
+  }
+  header h1 { font-size: 16px; font-weight: 600; }
+  header .sub { color: var(--dim); font-size: 12px; }
+  .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-left: auto; }
+  select, button {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer;
+  }
+  select:hover, button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .zone-badge {
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 10px; font-size: 12px; color: var(--accent);
+  }
+  main { flex: 1; display: flex; min-height: 0; }
+  #canvas-wrap { flex: 1; overflow: auto; padding: 16px; position: relative; }
+  svg { display: block; min-width: 100%; }
+  .legend {
+    position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 12px; margin-bottom: 12px; font-size: 12px; align-items: center;
+  }
+  .legend .item { display: flex; align-items: center; gap: 4px; }
+  .legend .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  #side {
+    width: 300px; background: var(--panel); border-left: 1px solid var(--border);
+    padding: 16px; overflow-y: auto; flex-shrink: 0;
+  }
+  #side h3 { font-size: 13px; color: var(--dim); margin-bottom: 8px; font-weight: 600; }
+  #side .empty { color: var(--dim); font-size: 12px; line-height: 1.8; }
+  #side table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  #side td { padding: 4px 6px; border-bottom: 1px solid var(--border); }
+  #side td:first-child { color: var(--dim); width: 70px; }
+  #path-info { margin-top: 12px; }
+  #path-info .step { font-size: 12px; padding: 3px 0; color: var(--text); }
+  #path-info .step b { color: var(--accent); }
+  .node-circle { cursor: pointer; }
+  .node-circle:hover { filter: brightness(1.3); }
+  .node-label { font-size: 10px; fill: var(--dim); pointer-events: none; }
+  .edge { stroke: #3a4156; stroke-width: 1.4; fill: none; }
+  .edge-key { stroke: #d8a657; stroke-width: 2; stroke-dasharray: 4 3; fill: none; }
+  .edge-path { stroke: var(--accent); stroke-width: 2.6; fill: none; }
+  .zone-title { font-size: 14px; font-weight: 600; fill: var(--text); }
+  .zone-end-mark { font-size: 10px; fill: #e06c75; }
+  .foot { padding: 8px 20px; color: var(--dim); font-size: 11px; border-top: 1px solid var(--border); background: var(--panel); }
+</style>
+</head>
+<body>
+<header>
+  <h1>集成战略 · 地图生成节点交互</h1>
+  <span class="sub">复现 app/game/controller/rlv2/map.ts 的 generate() 逻辑</span>
+  <div class="controls">
+    <label>主题</label>
+    <select id="theme"></select>
+    <span class="zone-badge" id="zoneBadge">zone 1</span>
+    <button id="btnGen" class="primary">重新生成</button>
+    <button id="btnNext">推进下一层 →</button>
+    <button id="btnPrev">← 返回上层</button>
+  </div>
+</header>
+
+<main>
+  <div id="canvas-wrap">
+    <div class="legend" id="legend"></div>
+    <svg id="map" width="900" height="480"></svg>
+  </div>
+  <div id="side">
+    <h3>节点详情</h3>
+    <div id="node-detail" class="empty">点击地图节点查看详情。<br><br>绿色连线 = 普通路径；<br>黄色虚线 = 需要钥匙的 key 路径；<br>蓝色高亮 = 模拟移动路径。</div>
+    <h3 style="margin-top:16px">模拟移动路径</h3>
+    <div id="path-info" class="empty">点击起点节点，沿 next 连线点击下一个节点逐步推进。</div>
+  </div>
+</main>
+
+<div class="foot">
+  数据源：data/excel/roguelike_topic_table.json（stages）+ data/rlv2/nodesInfo.json（关卡池）· 算法与 map.ts 一致（md5 种子随机、权重节点类型、同列/跨列连线、zone_end 终点）
+</div>
+
+<script src="game-data.js"></script>
+<script>
+/* ========== 工具：MD5（与 map.ts randByKey 一致的种子哈希） ========== */
+const md5 = (function () {
+  function L(x, c) { return (x << c) | (x >>> (32 - c)); }
+  function V(x) { return (((x & 0xaaaaaaaa) >>> 1) | ((x & 0x55555555) << 1)) >>> 0; }
+  function G(x) { return (((x & 0xcccccccc) >>> 2) | ((x & 0x33333333) << 2)) >>> 0; }
+  function H(x) { return (((x & 0xf0f0f0f0) >>> 4) | ((x & 0x0f0f0f0f) << 4)) >>> 0; }
+  function I(x) { return (((x & 0xff00ff00) >>> 8) | ((x & 0x00ff00ff) << 8)) >>> 0; }
+  function J(x) { return ((x >>> 16) | (x << 16)) >>> 0; }
+  function K(a, b) { const c = (a & 0xffff) + (b & 0xffff); const d = ((a >>> 16) + (b >>> 16) + (c >>> 16)) << 16; return (d | (c & 0xffff)) >>> 0; }
+  function N(a, b, c, d, x, s, t) { return K(L(K(K(b, a), K(x, t)), d), s); }
+  function O(a, b, c, d, x, s, t) { return N((b & c) | (~b & d), a, b, x, s, t); }
+  function P(a, b, c, d, x, s, t) { return N((b & d) | (c & ~d), a, b, x, s, t); }
+  function Q(a, b, c, d, x, s, t) { return N(b ^ c ^ d, a, b, x, s, t); }
+  function R(a, b, c, d, x, s, t) { return N(c ^ (b | ~d), a, b, x, s, t); }
+  function S(s) {
+    const n = s.length; let m = [];
+    for (let i = 0; i < n; i++) m[i] = s.charCodeAt(i);
+    const b = (n + 8) >>> 6;
+    m[b * 16 + 14] = n * 8;
+    for (let i = 0; i < b * 16; i++) if (m[i] === undefined) m[i] = 0;
+    let a = 1732584193, c = -271733879, d = -1732584194, e = 271733878;
+    const f = [7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21];
+    const g = [3614090360, 3905402710, 606105819, 3250441966, 4118548399, 1200080426, 2821735955, 4249261313, 1770035416, 2336552879, 4294925233, 2304563134, 1804603682, 4254626195, 2792965006, 1236535329, 4129170786, 3225465664, 643717713, 3921069994, 3593408605, 38016083, 3634488961, 3889429448, 568446438, 3275163606, 4107603335, 1163531501, 2850285829, 4243563512, 1735328473, 2368359562, 4294588738, 2272392833, 1839030562, 4259657740, 2763975236, 1272893353, 4139469664, 3200236656, 681279174, 3936430074, 3572445317, 76029189, 3654602809, 3873151461, 530742520, 3299628645, 4096336452, 1126891415, 2878612391, 4237533241, 1700485571, 2399980690, 4293915773, 2240044497, 1873313359, 4264355552, 2734768916, 1309151649, 4149444226, 3174756917, 718787259, 3951481745];
+    for (let i = 0; i < b; i++) {
+      const t = a, u = c, v = d, w = e;
+      let k = a;
+      a = O(a, c, d, e, m[i * 16 + 0], f[0], g[0]); e = O(e, a, c, d, m[i * 16 + 1], f[1], g[1]); d = O(d, e, a, c, m[i * 16 + 2], f[2], g[2]); c = O(c, d, e, a, m[i * 16 + 3], f[3], g[3]); a = O(a, c, d, e, m[i * 16 + 4], f[4], g[4]); e = O(e, a, c, d, m[i * 16 + 5], f[5], g[5]); d = O(d, e, a, c, m[i * 16 + 6], f[6], g[6]); c = O(c, d, e, a, m[i * 16 + 7], f[7], g[7]); a = O(a, c, d, e, m[i * 16 + 8], f[8], g[8]); e = O(e, a, c, d, m[i * 16 + 9], f[9], g[9]); d = O(d, e, a, c, m[i * 16 + 10], f[10], g[10]); c = O(c, d, e, a, m[i * 16 + 11], f[11], g[11]); a = O(a, c, d, e, m[i * 16 + 12], f[12], g[12]); e = O(e, a, c, d, m[i * 16 + 13], f[13], g[13]); d = O(d, e, a, c, m[i * 16 + 14], f[14], g[14]); c = O(c, d, e, a, m[i * 16 + 15], f[15], g[15]);
+      a = P(a, c, d, e, m[i * 16 + 1], f[16], g[16]); e = P(e, a, c, d, m[i * 16 + 6], f[17], g[17]); d = P(d, e, a, c, m[i * 16 + 11], f[18], g[18]); c = P(c, d, e, a, m[i * 16 + 0], f[19], g[19]); a = P(a, c, d, e, m[i * 16 + 5], f[20], g[20]); e = P(e, a, c, d, m[i * 16 + 10], f[21], g[21]); d = P(d, e, a, c, m[i * 16 + 15], f[22], g[22]); c = P(c, d, e, a, m[i * 16 + 4], f[23], g[23]); a = P(a, c, d, e, m[i * 16 + 9], f[24], g[24]); e = P(e, a, c, d, m[i * 16 + 14], f[25], g[25]); d = P(d, e, a, c, m[i * 16 + 3], f[26], g[26]); c = P(c, d, e, a, m[i * 16 + 8], f[27], g[27]); a = P(a, c, d, e, m[i * 16 + 13], f[28], g[28]); e = P(e, a, c, d, m[i * 16 + 2], f[29], g[29]); d = P(d, e, a, c, m[i * 16 + 7], f[30], g[30]); c = P(c, d, e, a, m[i * 16 + 12], f[31], g[31]);
+      a = Q(a, c, d, e, m[i * 16 + 5], f[32], g[32]); e = Q(e, a, c, d, m[i * 16 + 8], f[33], g[33]); d = Q(d, e, a, c, m[i * 16 + 11], f[34], g[34]); c = Q(c, d, e, a, m[i * 16 + 14], f[35], g[35]); a = Q(a, c, d, e, m[i * 16 + 1], f[36], g[36]); e = Q(e, a, c, d, m[i * 16 + 4], f[37], g[37]); d = Q(d, e, a, c, m[i * 16 + 7], f[38], g[38]); c = Q(c, d, e, a, m[i * 16 + 10], f[39], g[39]); a = Q(a, c, d, e, m[i * 16 + 13], f[40], g[40]); e = Q(e, a, c, d, m[i * 16 + 0], f[41], g[41]); d = Q(d, e, a, c, m[i * 16 + 3], f[42], g[42]); c = Q(c, d, e, a, m[i * 16 + 6], f[43], g[43]); a = Q(a, c, d, e, m[i * 16 + 9], f[44], g[44]); e = Q(e, a, c, d, m[i * 16 + 12], f[45], g[45]); d = Q(d, e, a, c, m[i * 16 + 15], f[46], g[46]); c = Q(c, d, e, a, m[i * 16 + 2], f[47], g[47]);
+      a = R(a, c, d, e, m[i * 16 + 0], f[48], g[48]); e = R(e, a, c, d, m[i * 16 + 7], f[49], g[49]); d = R(d, e, a, c, m[i * 16 + 14], f[50], g[50]); c = R(c, d, e, a, m[i * 16 + 5], f[51], g[51]); a = R(a, c, d, e, m[i * 16 + 12], f[52], g[52]); e = R(e, a, c, d, m[i * 16 + 3], f[53], g[53]); d = R(d, e, a, c, m[i * 16 + 10], f[54], g[54]); c = R(c, d, e, a, m[i * 16 + 1], f[55], g[55]); a = R(a, c, d, e, m[i * 16 + 8], f[56], g[56]); e = R(e, a, c, d, m[i * 16 + 15], f[57], g[57]); d = R(d, e, a, c, m[i * 16 + 6], f[58], g[58]); c = R(c, d, e, a, m[i * 16 + 13], f[59], g[59]); a = R(a, c, d, e, m[i * 16 + 4], f[60], g[60]); e = R(e, a, c, d, m[i * 16 + 11], f[61], g[61]); d = R(d, e, a, c, m[i * 16 + 2], f[62], g[62]); c = R(c, d, e, a, m[i * 16 + 9], f[63], g[63]);
+      a = K(a, t); c = K(c, u); d = K(d, v); e = K(e, w);
+    }
+    function hex(x) { const h = "0123456789abcdef"; let s = ""; for (let i = 0; i < 4; i++) s += h.charAt((x >> (i * 8 + 4)) & 15) + h.charAt((x >> (i * 8)) & 15); return s; }
+    return hex(a) + hex(c) + hex(d) + hex(e);
+  }
+  return S;
+})();
+
+/* ========== 复现 map.ts 的生成逻辑 ========== */
+const ET = {
+  NONE: 0, BATTLE_NORMAL: 1, BATTLE_ELITE: 2, BATTLE_BOSS: 4, SHOP: 8, REST: 16,
+  INCIDENT: 32, TREASURE: 64, ENTERTAINMENT: 128, UNKNOWN: 256, WISH: 512,
+  SACRIFICE: 1024, EXPEDITION: 2048, BATTLE_SHOP: 4096,
+};
+const TYPE_NAMES = {};
+for (const [k, v] of Object.entries(ET)) TYPE_NAMES[v] = k;
+
+function randByKey(seed, ...keys) {
+  const hash = md5(`${seed}_${keys.join("_")}`);
+  return parseInt(hash, 16);
+}
+
+/* map.ts generate([id]) 核心逻辑 */
+function generateMap(theme, zone, data) {
+  const roNum = parseInt(theme.split("_")[1]);
+  const yMax = [0, 2, 3, 4, 4, 4, 4, 4, 4];
+  const nodeInfo = data.zones?.[String(zone)];
+  const normalList = nodeInfo?.Normal?.length ? nodeInfo.Normal : data.normal.filter((s) => s.startsWith(`ro${roNum}_n_${zone}_`));
+  const eliteList = nodeInfo?.Emergency?.length ? nodeInfo.Emergency : data.elite.filter((s) => s.startsWith(`ro${roNum}_e_${zone}_`));
+  const bossList = nodeInfo?.Boss?.length ? nodeInfo.Boss : data.boss;
+
+  const shopType = theme !== "rogue_1" ? 4096 : 8;
+  const wishType = theme !== "rogue_1" ? 512 : 64;
+
+  const typeWeights = [
+    { type: ET.BATTLE_NORMAL, weight: 60 },
+    { type: ET.BATTLE_ELITE, weight: 15 },
+    { type: ET.INCIDENT, weight: 20 },
+    { type: wishType, weight: 20 },
+  ];
+  if (zone > 1) {
+    typeWeights.push({ type: ET.REST, weight: 20 });
+    switch (roNum) {
+      case 1: typeWeights.push({ type: ET.BATTLE_BOSS, weight: 10 }, { type: shopType, weight: 10 }, { type: ET.TREASURE, weight: 10 }, { type: ET.ENTERTAINMENT, weight: 10 }, { type: ET.UNKNOWN, weight: 10 }); break;
+      case 2: typeWeights.push({ type: ET.BATTLE_BOSS, weight: 10 }, { type: ET.SACRIFICE, weight: 10 }, { type: ET.EXPEDITION, weight: 10 }, { type: 4096, weight: 10 }, { type: ET.PORTAL ?? 8192, weight: 10 }, { type: ET.MISSION ?? 16384, weight: 10 }); break;
+      case 3: typeWeights.push({ type: ET.BATTLE_BOSS, weight: 10 }, { type: ET.SACRIFICE, weight: 10 }, { type: ET.EXPEDITION, weight: 10 }, { type: 4096, weight: 10 }, { type: ET.PORTAL ?? 8192, weight: 10 }, { type: ET.STORY_HIDDEN ?? 65536, weight: 10 }); break;
+      case 4: typeWeights.push({ type: ET.BATTLE_BOSS, weight: 10 }, { type: ET.ENTERTAINMENT, weight: 10 }, { type: ET.UNKNOWN, weight: 10 }, { type: ET.SACRIFICE, weight: 10 }, { type: ET.EXPEDITION, weight: 10 }, { type: 4096, weight: 10 }, { type: 8192, weight: 10 }, { type: 131072, weight: 10 }, { type: 262144, weight: 10 }); break;
+      case 5: typeWeights.push({ type: ET.BATTLE_BOSS, weight: 10 }, { type: ET.SACRIFICE, weight: 10 }, { type: ET.EXPEDITION, weight: 10 }, { type: 4096, weight: 10 }, { type: 8192, weight: 10 }, { type: 262144, weight: 10 }, { type: 524288, weight: 10 }); break;
+    }
+  }
+
+  const nodesByX = {};
+  let canAddShop = true;
+  const isZone1 = zone === 1;
+  const nodes = {};
+  const maxX = isZone1 ? 3 : zone * 2;
+
+  for (let x = 0; x <= maxX; x++) {
+    nodesByX[x] = [];
+    const isEndCol = !isZone1 && x === maxX;
+    if (isEndCol) {
+      let endType, endCount;
+      switch (zone) {
+        case 2: endType = 512; endCount = 2; break;
+        case 3: endType = 4; endCount = 1; break;
+        default: endType = shopType; endCount = 1;
+      }
+      for (let y = 0; y < endCount; y++) {
+        const nodeIndex = x * 100 + y;
+        const node = { index: `${nodeIndex}`, pos: { x, y }, next: [], type: endType, zone_end: true, refresh: { usedCount: 0, count: 99, cost: 1 } };
+        if (endType === ET.BATTLE_BOSS && bossList.length > 0) {
+          const ri = randByKey("boss_stage", zone.toString()) % bossList.length;
+          node.stage = bossList[ri];
+        }
+        nodes[`${nodeIndex}`] = node;
+        nodesByX[x].push(y);
+      }
+      continue;
+    }
+    if (isZone1 && x >= 2) continue;
+    const ySize = (randByKey("y_size", zone.toString(), x.toString()) % yMax[zone]) + 1;
+    let currentTypeWeights = [...typeWeights];
+    if (canAddShop && x > 0) {
+      currentTypeWeights.push({ type: shopType, weight: 10 });
+      canAddShop = false;
+    }
+    for (let y = 0; y < ySize; y++) {
+      const nodeIndex = x * 100 + y;
+      const nodeType = weightedRandom(currentTypeWeights);
+      const node = { index: `${nodeIndex}`, pos: { x, y }, next: [], type: nodeType, refresh: { usedCount: 0, count: 99, cost: 1 } };
+      if (nodeType === ET.BATTLE_NORMAL && normalList.length > 0) {
+        const ri = randByKey("normal_stage", zone.toString(), x.toString(), y.toString()) % normalList.length;
+        node.stage = normalList[ri];
+      } else if (nodeType === ET.BATTLE_ELITE && eliteList.length > 0) {
+        const ri = randByKey("elite_stage", zone.toString(), x.toString(), y.toString()) % eliteList.length;
+        node.stage = eliteList[ri];
+      }
+      nodes[`${nodeIndex}`] = node;
+      nodesByX[x].push(y);
+    }
+  }
+
+  if (isZone1) {
+    const z1NodeType = roNum === 5 ? shopType : ET.INCIDENT;
+    const endType = roNum === 5 ? 1048576 : shopType;
+    Object.assign(nodes, {
+      "200": { index: "200", pos: { x: 2, y: 0 }, next: [{ x: 3, y: 0 }], type: z1NodeType, refresh: { usedCount: 0, count: 99, cost: 1 } },
+      "201": { index: "201", pos: { x: 2, y: 1 }, next: [{ x: 3, y: 0 }], type: z1NodeType, refresh: { usedCount: 0, count: 99, cost: 1 } },
+      "300": { index: "300", pos: { x: 3, y: 0 }, next: [], type: endType, zone_end: true, refresh: { usedCount: 0, count: 99, cost: 1 } },
+    });
+    nodesByX[2] = [0, 1];
+    nodesByX[3] = [0];
+  }
+
+  /* 连线 */
+  for (const [idx, node] of Object.entries(nodes)) {
+    const { x, y } = node.pos;
+    if (isZone1 && x >= 2) continue;
+    node.next = [];
+    if (x + 1 in nodesByX) {
+      const candidates = [];
+      for (const ny of [y - 1, y, y + 1]) {
+        if (nodesByX[x + 1].includes(ny)) candidates.push({ x: x + 1, y: ny });
+      }
+      if (candidates.length > 0) {
+        const k = Math.min(2, candidates.length);
+        const shuffled = candidates.sort(() => Math.random() - 0.5);
+        node.next.push(...shuffled.slice(0, k));
+      }
+    }
+    if (x !== 0) {
+      for (const ny of [y - 1, y + 1]) {
+        if (nodesByX[x].includes(ny)) {
+          if (Math.random() < 0.3) {
+            const edge = { x, y: ny };
+            if (Math.random() < 0.5) edge.key = true;
+            node.next.push(edge);
+          }
+        }
+      }
+    }
+  }
+
+  /* 连通性修正 */
+  const incoming = {};
+  Object.keys(nodes).forEach((idx) => { incoming[idx] = false; });
+  for (const [srcIdx, src] of Object.entries(nodes)) {
+    const sx = src.pos.x;
+    for (const e of src.next) {
+      if (e.x === sx + 1) {
+        const tidx = `${e.x * 100 + e.y}`;
+        if (tidx in incoming) incoming[tidx] = true;
+      }
+    }
+  }
+  const hasOutgoing = (node) => node.next.some((e) => e.x === node.pos.x + 1);
+  const xLast = Math.max(...Object.keys(nodesByX).map(Number));
+  for (const [idx, node] of Object.entries(nodes)) {
+    const { x, y } = node.pos;
+    if (isZone1 && x >= 2) continue;
+    const inOk = incoming[idx];
+    const outOk = hasOutgoing(node);
+    if (x === 0) {
+      if (outOk) continue;
+      const ny = nodesByX[x + 1].reduce((prev, curr) => Math.abs(curr - y) < Math.abs(prev - y) ? curr : prev);
+      node.next.push({ x: x + 1, y: ny });
+      continue;
+    }
+    if (x === xLast) {
+      if (inOk) continue;
+      const py = nodesByX[x - 1].reduce((prev, curr) => Math.abs(curr - y) < Math.abs(prev - y) ? curr : prev);
+      const prevIdx = `${(x - 1) * 100 + py}`;
+      nodes[prevIdx].next.push({ x, y });
+      continue;
+    }
+    if (!inOk) {
+      const py = nodesByX[x - 1].reduce((prev, curr) => Math.abs(curr - y) < Math.abs(prev - y) ? curr : prev);
+      const prevIdx = `${(x - 1) * 100 + py}`;
+      nodes[prevIdx].next.push({ x, y });
+    }
+    if (!outOk) {
+      const ny = nodesByX[x + 1].reduce((prev, curr) => Math.abs(curr - y) < Math.abs(prev - y) ? curr : prev);
+      node.next.push({ x: x + 1, y: ny });
+    }
+  }
+  for (const node of Object.values(nodes)) {
+    if (node.next) node.next.sort((a, b) => (a.x !== b.x ? a.x - b.x : a.y - b.y));
+  }
+  return nodes;
+}
+
+function weightedRandom(weights) {
+  const totalWeight = weights.reduce((acc, w) => acc + w.weight, 0);
+  const random = randByKey("map_rand", Math.random().toString(36).substring(7));
+  let randomValue = random % totalWeight;
+  for (const item of weights) {
+    if (randomValue < item.weight) return item.type;
+    randomValue -= item.weight;
+  }
+  return weights[weights.length - 1].type;
+}
+
+/* ========== 渲染 ========== */
+const THEMES = ["rogue_1", "rogue_2", "rogue_3", "rogue_4", "rogue_5", "rogue_6"];
+const TYPE_COLORS = {
+  1: "#5b8def", 2: "#a06ee0", 4: "#e06c75", 8: "#e5c07b", 4096: "#e5c07b",
+  16: "#98c379", 32: "#d19a66", 64: "#56b6c2", 128: "#e06c9f", 256: "#6b7280",
+  512: "#f0c674", 1024: "#be5046", 2048: "#4db6ac", 8192: "#c678dd",
+  131072: "#61afef", 262144: "#d19a66", 524288: "#98c379", 1048576: "#e06c75", 65536: "#56b6c2",
+};
+const state = { theme: "rogue_1", zone: 1, nodes: {}, path: [] };
+let selectedNode = null;
+
+function typeColor(t) { return TYPE_COLORS[t] || "#6b7280"; }
+
+function setup() {
+  const sel = document.getElementById("theme");
+  sel.innerHTML = THEMES.map((t) => `<option value="${t}">${t}（${MAPVIZ_DATA[t].normal.length} 普通 / ${MAPVIZ_DATA[t].elite.length} 紧急 / ${MAPVIZ_DATA[t].boss.length} boss）</option>`).join("");
+  sel.value = state.theme;
+  const legend = document.getElementById("legend");
+  const entries = [
+    [1, "普通作战"], [2, "紧急作战"], [4, "险路恶敌"], [8, "商店"], [16, "安全的角落"],
+    [32, "不期而遇"], [64, "古堡馈赠"], [128, "兴致盎然"], [256, "迷雾重重"], [512, "得偿所愿"],
+    [1024, "失与得"], [2048, "先行一步"], [4096, "诡意行商"], [8192, "误入奇境"],
+  ];
+  legend.innerHTML = entries.map(([t, n]) => `<span class="item"><span class="dot" style="background:${typeColor(t)}"></span>${n}</span>`).join("") +
+    `<span class="item"><span class="dot" style="background:transparent;border:1px solid #d8a657;border-radius:50%"></span>zone_end</span>` +
+    `<span class="item"><span style="display:inline-block;width:14px;border-top:2px dashed #d8a657"></span>key 路径</span>`;
+  document.getElementById("btnGen").onclick = () => { generateAndRender(); };
+  document.getElementById("btnNext").onclick = () => { state.zone += 1; generateAndRender(); };
+  document.getElementById("btnPrev").onclick = () => { if (state.zone > 1) { state.zone -= 1; generateAndRender(); } };
+  sel.onchange = () => { state.theme = sel.value; state.zone = 1; generateAndRender(); };
+  generateAndRender();
+}
+
+function generateAndRender() {
+  state.nodes = generateMap(state.theme, state.zone, MAPVIZ_DATA[state.theme]);
+  state.path = [];
+  selectedNode = null;
+  document.getElementById("zoneBadge").textContent = `zone ${state.zone}`;
+  document.getElementById("node-detail").innerHTML = `<div class="empty">点击地图节点查看详情。</div>`;
+  document.getElementById("path-info").innerHTML = `<div class="empty">点击起点节点，沿 next 连线逐步推进。</div>`;
+  render();
+}
+
+function render() {
+  const svg = document.getElementById("map");
+  const NS = "http://www.w3.org/2000/svg";
+  svg.innerHTML = "";
+  const nodes = state.nodes;
+  const entries = Object.entries(nodes);
+  const maxX = Math.max(...entries.map(([, n]) => n.pos.x));
+  const maxY = Math.max(...entries.map(([, n]) => n.pos.y));
+  const COLS = 180, ROWS = 64, R = 15, PAD_X = 60, PAD_Y = 40;
+  const w = PAD_X * 2 + maxX * COLS + 40;
+  const h = PAD_Y * 2 + maxY * ROWS + 60;
+  svg.setAttribute("width", w);
+  svg.setAttribute("height", h);
+
+  const posOf = (n) => ({ x: PAD_X + n.pos.x * COLS, y: PAD_Y + n.pos.y * ROWS });
+
+  // zone 标题
+  const title = document.createElementNS(NS, "text");
+  title.setAttribute("x", PAD_X);
+  title.setAttribute("y", 18);
+  title.setAttribute("class", "zone-title");
+  title.textContent = `zone_${state.zone} · ${state.theme}`;
+  svg.appendChild(title);
+
+  const edges = [];
+  for (const [idx, n] of entries) {
+    for (const e of n.next) {
+      const tidx = `${e.x * 100 + e.y}`;
+      const t = nodes[tidx];
+      if (!t) continue;
+      edges.push({ from: posOf(n), to: posOf(t), key: e.key });
+    }
+  }
+  const pathSet = new Set();
+  for (let i = 0; i + 1 < state.path.length; i++) {
+    pathSet.add(`${state.path[i].x},${state.path[i].y}->${state.path[i + 1].x},${state.path[i + 1].y}`);
+  }
+
+  for (const e of edges) {
+    const cls = pathSet.has(`${e.from.y === undefined ? "" : ""}`) ? "" : "";
+    const line = document.createElementNS(NS, "line");
+    line.setAttribute("x1", e.from.x); line.setAttribute("y1", e.from.y);
+    line.setAttribute("x2", e.to.x); line.setAttribute("y2", e.to.y);
+    line.setAttribute("class", e.key ? "edge-key" : "edge");
+    svg.appendChild(line);
+  }
+
+  // 模拟路径高亮（在连线上叠加）
+  for (let i = 0; i + 1 < state.path.length; i++) {
+    const a = state.path[i], b = state.path[i + 1];
+    const na = nodes[`${a.x * 100 + a.y}`], nb = nodes[`${b.x * 100 + b.y}`];
+    if (!na || !nb) continue;
+    const line = document.createElementNS(NS, "line");
+    line.setAttribute("x1", posOf(na).x); line.setAttribute("y1", posOf(na).y);
+    line.setAttribute("x2", posOf(nb).x); line.setAttribute("y2", posOf(nb).y);
+    line.setAttribute("class", "edge-path");
+    svg.appendChild(line);
+  }
+
+  for (const [idx, n] of entries) {
+    const p = posOf(n);
+    const g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "node-group");
+    g.style.cursor = "pointer";
+    const circle = document.createElementNS(NS, "circle");
+    circle.setAttribute("cx", p.x); circle.setAttribute("cy", p.y);
+    circle.setAttribute("r", R);
+    circle.setAttribute("fill", typeColor(n.type));
+    circle.setAttribute("stroke", n.zone_end ? "#f0c674" : "#1b1e27");
+    circle.setAttribute("stroke-width", n.zone_end ? 2.5 : 1.5);
+    circle.setAttribute("class", "node-circle");
+    if (n.type === 4) circle.setAttribute("stroke", "#e06c75");
+    g.appendChild(circle);
+
+    // 类型缩写标签
+    const label = document.createElementNS(NS, "text");
+    label.setAttribute("x", p.x); label.setAttribute("y", p.y + 3.5);
+    label.setAttribute("text-anchor", "middle");
+    label.setAttribute("class", "node-label");
+    label.style.fill = "#fff";
+    label.style.fontSize = "8px";
+    label.textContent = typeAbbr(n.type);
+    g.appendChild(label);
+
+    // stage 小标签
+    if (n.stage) {
+      const st = document.createElementNS(NS, "text");
+      st.setAttribute("x", p.x); st.setAttribute("y", p.y + R + 12);
+      st.setAttribute("text-anchor", "middle");
+      st.setAttribute("class", "node-label");
+      st.textContent = n.stage.replace(`ro${state.theme.slice(-1)}_`, "").replace(/_/g, ".");
+      g.appendChild(st);
+    }
+    // zone_end 标记
+    if (n.zone_end) {
+      const ze = document.createElementNS(NS, "text");
+      ze.setAttribute("x", p.x); ze.setAttribute("y", p.y - R - 6);
+      ze.setAttribute("text-anchor", "middle");
+      ze.setAttribute("class", "zone-end-mark");
+      ze.textContent = "终点";
+      g.appendChild(ze);
+    }
+    g.dataset.idx = idx;
+    g.addEventListener("click", () => onNodeClick(idx));
+    svg.appendChild(g);
+  }
+}
+
+function typeAbbr(t) {
+  const map = { 1: "战", 2: "急", 4: "BOSS", 8: "店", 16: "休", 32: "遇", 64: "藏", 128: "兴", 256: "迷", 512: "愿", 1024: "失", 2048: "先", 4096: "商", 8192: "奇" };
+  return map[t] || "?";
+}
+
+function onNodeClick(idx) {
+  const n = state.nodes[idx];
+  if (!n) return;
+  selectedNode = n;
+  const detail = document.getElementById("node-detail");
+  detail.innerHTML = `
+    <table>
+      <tr><td>索引</td><td><b>${n.index}</b>${n.zone_end ? ' <span style="color:#e06c75">(zone_end)</span>' : ""}</td></tr>
+      <tr><td>类型</td><td>${TYPE_NAMES[n.type] || n.type}（${n.type}）</td></tr>
+      <tr><td>坐标</td><td>(${n.pos.x}, ${n.pos.y})</td></tr>
+      <tr><td>关卡</td><td>${n.stage || "—"}</td></tr>
+      <tr><td>下一节点</td><td>${n.next.length ? n.next.map((e) => `(${e.x},${e.y})${e.key ? "🔑" : ""}`).join(" ") : "—"}</td></tr>
+      <tr><td>刷新</td><td>${n.refresh?.count ?? "—"} 次</td></tr>
+    </table>
+    <div style="margin-top:8px;font-size:11px;color:var(--dim)">点击"推进"按钮或选择下一个可到达节点模拟移动。</div>
+  `;
+
+  // 模拟移动：若当前节点是路径终点，则把点击节点追加到路径
+  const pathInfo = document.getElementById("path-info");
+  const last = state.path[state.path.length - 1];
+  if (state.path.length === 0) {
+    state.path.push({ x: n.pos.x, y: n.pos.y });
+    pathInfo.innerHTML = `<div class="step">起点：(${n.pos.x}, ${n.pos.y}) <b>${TYPE_NAMES[n.type] || n.type}</b></div>`;
+  } else if (last && n.pos.x === last.x && n.pos.y === last.y) {
+    pathInfo.innerHTML += `<div class="step" style="color:var(--dim)">已在该节点</div>`;
+  } else {
+    const canReach = state.nodes[`${last.x * 100 + last.y}`]?.next?.some((e) => e.x === n.pos.x && e.y === n.pos.y);
+    if (canReach) {
+      state.path.push({ x: n.pos.x, y: n.pos.y });
+      pathInfo.innerHTML += `<div class="step">→ (${n.pos.x}, ${n.pos.y}) <b>${TYPE_NAMES[n.type] || n.type}</b>${n.stage ? ` <span style="color:var(--dim)">[${n.stage}]</span>` : ""}${n.zone_end ? ' <span style="color:#e06c75">[到达终点]</span>' : ""}</div>`;
+    } else {
+      state.pathInfo = pathInfo;
+      pathInfo.innerHTML += `<div class="step" style="color:#e06c75">✗ (${n.pos.x}, ${n.pos.y}) 不可达（不在当前节点 next 中）</div>`;
+    }
+  }
+  render();
+}
+
+setup();
+</script>
+</body>
+</html>

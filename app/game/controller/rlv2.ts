@@ -406,6 +406,14 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
           }
         }
 
+        // 官方选项效果：displayData.itemId（REST 回血/进阶券/希望等节点特有效果）
+        const officialItem = (choiceConfig?.displayData as any)?.itemId;
+        if (officialItem) {
+          this._trigger.emit("rlv2:get:items", [
+            [{ id: officialItem, count: 1 }],
+          ]);
+        }
+
         buildSceneChoices(nextSceneId);
       } else {
         this._status.pending.shift();
@@ -663,8 +671,75 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
           },
         ]);
         break;
+      default: {
+        // 非战斗节点效果：按节点类型从官方 choiceScenes 抽 enter 场景，生成 SCENE
+        // （REST 安全的角落 / WISH 得偿所愿 / TREASURE 古堡馈赠 / SACRIFICE 失与得 /
+        //   ENTERTAINMENT 兴致盎然 / EXPEDITION 先行一步 / UNKNOWN 迷雾重重）
+        this.createNodeScene(theme, next.type);
+        break;
+      }
     }
     this._status.cursor.position = args.to;
+  }
+
+  /**
+   * 节点类型 → 官方 enter 场景前缀映射
+   * 场景前缀关联：scene_roX_{prefix}*_enter 与 choice_roX_{prefix}_*（选项）同前缀
+   */
+  private static readonly NODE_SCENE_PREFIX: {
+    [type: number]: string[];
+  } = {
+    [TorappuRoguelikeEventType.REST]: ["rest"],
+    [TorappuRoguelikeEventType.WISH]: ["relic"],
+    [TorappuRoguelikeEventType.TREASURE]: ["chest"],
+    [TorappuRoguelikeEventType.SACRIFICE]: ["sacrifice"],
+    [TorappuRoguelikeEventType.ENTERTAINMENT]: ["ent"],
+    [TorappuRoguelikeEventType.EXPEDITION]: ["scout"],
+    [TorappuRoguelikeEventType.UNKNOWN]: ["nportal", "eportal"],
+  };
+
+  /**
+   * 生成节点进入场景（SCENE 事件）
+   * 从官方 choiceScenes 按节点类型前缀抽 enter 场景，选项取自官方 choices 同前缀列表
+   * 效果：选项 displayData.itemId 在 selectChoice 时发放（官方配置）
+   */
+  private createNodeScene(theme: string, nodeType: number): void {
+    const prefixes =
+      RoguelikeV2Controller.NODE_SCENE_PREFIX[nodeType];
+    if (!prefixes) return;
+    const detail = excel.RoguelikeTopicTable.details[theme];
+    const sceneIds = Object.keys(detail.choiceScenes || {}).filter(
+      (id) =>
+        id.endsWith("_enter") &&
+        prefixes.some((p) => id.includes(`_${p}`)),
+    );
+    if (sceneIds.length === 0) return;
+    const sceneId =
+      sceneIds[Math.floor(Math.random() * sceneIds.length)];
+    const roNum = theme.slice(-1);
+    const prefix = prefixes.find((p) => sceneId.includes(`_${p}`))!;
+    const choiceIds = Object.keys(detail.choices || {}).filter(
+      (k) =>
+        k.startsWith(`choice_ro${roNum}_${prefix}`) && !k.endsWith("_enter"),
+    );
+    if (choiceIds.length === 0) return;
+    const choices = choiceIds.reduce(
+      (acc, cid) => ({ ...acc, [cid]: 1 }),
+      {},
+    );
+    const choiceAdditional = choiceIds.reduce(
+      (acc, cid) => ({ ...acc, [cid]: { rewards: [] } }),
+      {},
+    );
+    this._status.state = "PENDING";
+    this._trigger.emit("rlv2:event:create", [
+      "SCENE",
+      {
+        scene: { id: sceneId, choices, choiceAdditional },
+        done: false,
+        popReport: false,
+      },
+    ]);
   }
 
   async battleFinish(args: {

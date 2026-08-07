@@ -751,24 +751,30 @@ BuildingManager（app/game/manager/building.ts）已实现完整基建玩法：
 - 房间管理：建造/升级/降级/清理槽位
 - 干员分配：assignChar / 批量更换（batchChangeWorkChar）/ 批量休息（batchRestChar）
 - 生产：制造结算（settleManufacture）/ 贸易结算（settleSale）/ 加工合成与分解（workshopSynthesis / workshopDecomposition）/ 加速（accelerateOrder / accelerateSolution）
-- 信赖：gainIntimacy / gainAllIntimacy / gainAssistIntimacy（单次 +12 favorPoint）
+- 信赖：gainIntimacy / gainAllIntimacy / gainAssistIntimacy（单次量由 basicFavorPerDay 派生，默认 12）
 - 线索：getDailyClue / sendClue / receiveClueToStock / putClueToTheBoard / deleteOwnClue 等 11 个方法
 - 预设队列：add / delete / edit / use / useOne / changeName / saveDiy / editLock（存储于 building.presetQueues）
 - 其他：buyLabor / confirmMessageBoardReward / 专精（upgradeSpecialization / completeUpgradeSpecialization）
 
 ### 11.2 实现约定
 - 所有变更通过 PlayerDataManager.update（Immer）落盘
-- 贸易结算：订单按 count × 500 兑换金币（与 deliveryOrder 一致），扣除贸易凭证 3003
-- 信赖获得：单次 +12 favorPoint（同步 troop.chars 与 charGroup）
-- 线索：每日一条（getDailyClue），ownStock/receiveStock/board 三区流转，ID 全局递增（_nextClueId）
+- **Excel 驱动（2026-08-07，替代硬编码简化）**：查询工具层 `app/excel/building_excel.ts`（getManufactFormula / getWorkshopFormula / getRoomPhase / getGoldRate / getBuildingConstant）
+  - 制造结算：查 `manufactFormulas`（14 配方：F_EXP 2001-2003 / F_GOLD 3003 / F_ASC 3213-3283 / F_DIAMOND 3141）——产出 `itemId×count×outputSolutionCnt`、消耗 `costs`（MATERIAL 扣 inventory / GOLD 扣金币）
+  - 贸易结算：对齐真实订单结构 `{instId, delivery:[{id,count}], gain:{id,type,count}}`——扣 delivery 物品、加 gain 物品（不再 count×500 假结算）；instId 查找
+  - 加工合成：查 `workshopFormulas`（68 配方）——goldCost/costs 消耗、产出、`extraOutcomeRate` 概率触发 `extraOutcomeGroup` 加权副产物；formulaId 支持请求体传入（回退房间 formulaId）
+  - 劳动力：`laborRecoverTime`（360 秒/点）自动恢复（sync 入口，封顶 maxValue）
+  - 房间建造/升级：查 `rooms[roomId].phases[level].buildCost`——扣 items（MATERIAL/GOLD）与 labor
+  - 信赖：单次量 = `basicFavorPerDay`（720）÷ 60（每小时量，默认 12/次），同步 troop.chars 与 charGroup
+- 线索：每日一条（getDailyClue），ownStock/receiveStock/board 三区流转，**type 用 7 阵营**（RHINE/PENGUIN/BLACKSTEEL/URSUS/GLASGOW/KJERAG/RHODES）、**id 用真实格式 `{uid}#{随机}#{时间戳}`**（对齐真实存档，替代递增 clue_ID）
 - 预设队列：building.presetQueues（key 为 roomSlotId），旧存档惰性初始化（_presetQueues）
 - 专精：upgradeSpecialization 置技能 state=1，completeUpgradeSpecialization 提升 specializeLevel 并复位
 - 家具分解：产出木材（30012），简化固定产出 count × 2
 
 ### 11.3 简化项（YAGNI）
 - 社交展示类接口（getRecentVisitors / getInfoShareVisitorsNum / sendEmoji / visitBuilding 等）返回空
-- 制造/加工配方未严格按 BuildingData 表执行，使用简化产出规则
-- 加速不消耗道具（私服友好）；buyLabor 1 源石/次 +10 劳动力
+- 加速不消耗道具（私服友好）；buyLabor 1 源石/次 +10 劳动力（apToLaborRatio=2 为 AP→劳动力比例，未接入）
+- 干员基建 buff（chars.buffChar + buffs 表 747 个）**未应用**（服务端不重算，存档已有 buff 字段；客户端自行计算显示）
+- 加工体力消耗（workshopFormulas.apCost）、制造心情消耗（costPoint）未接入（单位未确认）
 
 ---
 

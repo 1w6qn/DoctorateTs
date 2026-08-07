@@ -803,6 +803,48 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     };
   }
 
+  /**
+   * 解锁增益树（科技树）节点
+   * 校验：节点存在、未解锁、前置节点全部解锁、增益点足够
+   * 成功：扣 pointOwned、加 pointCost、写 unlocked[buffId]=1
+   * @param theme 主题（rogue_1..6）
+   * @param buffId 节点 id（developments.buffId，如 outbuff_1 / rogue_2_outbuff_1）
+   * @returns { success: boolean; reason?: string }
+   */
+  async unlockBuff(
+    theme: string,
+    buffId: string,
+  ): Promise<{ success: boolean; reason?: string }> {
+    const customize = excel.RoguelikeTopicTable.customizeData?.[theme];
+    const devs =
+      customize?.developments && !Array.isArray(customize.developments)
+        ? customize.developments
+        : customize?.commonDevelopment?.developments;
+    const dev = devs?.[buffId];
+    if (!dev) return { success: false, reason: "NODE_NOT_FOUND" };
+
+    const buff = this.outer[theme]?.buff;
+    if (!buff) return { success: false, reason: "THEME_NOT_READY" };
+    const unlocked = buff.unlocked || {};
+    if (unlocked[buffId]) return { success: false, reason: "ALREADY_UNLOCKED" };
+    const fronts = dev.frontNodeId || [];
+    for (const f of fronts) {
+      if (!unlocked[f]) return { success: false, reason: "FRONT_NOT_UNLOCKED" };
+    }
+    if (buff.pointOwned < dev.tokenCost)
+      return { success: false, reason: "POINT_NOT_ENOUGH" };
+
+    await this.update(async (draft) => {
+      const db = draft.outer[theme].buff;
+      db.pointOwned -= dev.tokenCost;
+      db.pointCost = (db.pointCost || 0) + dev.tokenCost;
+      db.unlocked = { ...(db.unlocked || {}), [buffId]: 1 };
+    });
+    // Immer finishDraft 替换 _playerdata，刷新本控制器引用（否则 this.outer 读到旧对象）
+    this.outer = this._player._playerdata.rlv2.outer;
+    return { success: true };
+  }
+
   async gameSettle(): Promise<void> {
     const game = this.current.game!;
     const theme = game.theme;

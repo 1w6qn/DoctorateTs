@@ -446,9 +446,9 @@ get delta() {
 ### 5.3 数据持久化
 
 #### 5.3.1 存储方式
-- 使用 JSON 文件存储数据
+- 使用 JSON 文件 + SQLite 存储数据
 - 玩家数据存储在 `data/user/databases/{uid}.json`
-- 用户配置存储在 `data/user/users.json`
+- 用户配置（账号/密钥/战斗回放/抽卡保底等 UserConfig）存储在 SQLite `users` 表（`data/user/social.db`）——`data/user/users.json` 仅作为首次迁移种子（2026-08 迁移）
 
 #### 5.3.2 保存机制
 - 通过事件触发器（TypedEventEmitter）触发保存
@@ -712,22 +712,27 @@ config show | config set <key> <value>
 ## 10. 好友系统与 SQLite 数据层
 
 ### 10.1 数据存储
-好友关系数据（好友列表、好友申请、访问记录）存储在 `data/user/social.db`（SQLite），
+好友关系数据（好友列表、好友申请、访问记录）与**用户账号配置**（UserConfig）存储在 `data/user/social.db`（SQLite），
 使用 Node 24 内置 `node:sqlite`（DatabaseSync），零第三方依赖。
 `data/user/users.json` 中的 `social` 字段仅作为首次迁移来源，迁移后不再作为数据源（重置为空结构）。
-`social.db` 为运行时生成文件，已在 `.gitignore` 中忽略，不加入离线校验清单（REQUIRED_DATA_FILES）。
+**2026-08 起 users.json 整体退化为首次迁移种子**——`AccountManager.init` 在 SQLite `users` 表为空时导入，之后用户配置以 SQLite 为唯一事实源（`saveUserConfig` 只写库，不再写 users.json）。
+`social.db` 为运行时生成文件，已在 `.gitignore` 中忽略，不加入离线校验清单（REQUIRED_DATA_FILES，users.json 种子文件保留在清单中）。
 
 ### 10.2 表结构
 - `friends(uid, friend_uid, alias, create_ts)`：好友关系，主键 (uid, friend_uid)
 - `friend_requests(from_uid, to_uid, create_ts)`：好友申请，主键 (from_uid, to_uid)
 - `visited(uid, visited_uid, ts)`：访问记录，主键 (uid, visited_uid)
+- `users(uid, data, updated_ts)`：用户账号配置，主键 uid；`data` 为 UserConfig JSON 列（uid/password/secret/auth/social/battle/gacha/rlv2 整体序列化）
 
 ### 10.3 架构
 - `app/db/database.ts`：连接单例（默认 `data/user/social.db`，测试用 `:memory:`；复用已关闭连接时自动重建）
 - `app/db/schema.ts`：建表 SQL（幂等）
-- `app/db/friend-repo.ts`：`FriendRepository` 仓储（3 表 CRUD）
-- `app/db/migrate.ts`：`migrateFromUserConfigs` 首次启动从 users.json 导入并重置 JSON 社交字段
+- `app/db/friend-repo.ts`：`FriendRepository` 仓储（好友 3 表 CRUD）
+- `app/db/user-repo.ts`：`UserRepository` 仓储（users 表 CRUD：getAll/get/upsert/upsertAll——upsertAll 为全量同步语义：DELETE + INSERT 事务）+ `migrateUsersFromJsonFile`（users.json → SQLite 幂等迁移）
+- `app/db/migrate.ts`：`migrateFromUserConfigs` 首次启动从 users.json 导入好友数据并重置 JSON 社交字段
 - `AccountManager._friendRepo`：init() 中惰性初始化（避免模块加载时创建数据库文件），社交方法（getSocial/addFriend/deleteFriend/sendFriendRequest/deleteFriendRequest/setFriendAlias/getFriendRequests）走仓储，签名不变
+- `AccountManager._userRepo`：init() 中初始化——`configs = getAll()`（空则迁移 users.json 种子）；`saveUserConfig` 全量 `upsertAll(configs)`（未 init 时 no-op，测试安全）
+- 官服迁移脚本（`scripts/official-register.ts`/`migrate-official.ts`）注册/读取用户同样走 SQLite（users.json 仅种子）
 
 ### 10.4 业务规则
 - 双向好友：同意申请（processFriendRequest action=1）时双方互加；删除好友（deleteFriend）时双方互删
@@ -866,7 +871,7 @@ npm run migrate:official -- --accounts <账号文件路径> --template 1
 
 ### 15.4 转换与注册
 - **convertOfficialData**（scripts/official-convert.ts）：官服 user 与私服存档同源——官方字段直接沿用、uid 替换为私服新 uid、移除连接态（secret/seqnum）、**模板全字段兜底**（官方缺失字段从模板存档复制，保证私服可加载）
-- **registerImportedUser**（scripts/official-register.ts）：新 uid 从现有账号递增；写入 `data/user/databases/{uid}.json` + `users.json` 注册（auth.phone=官服手机号、auth.hgId=官服 uid、password 随机）
+- **registerImportedUser**（scripts/official-register.ts）：新 uid 从现有账号递增；写入 `data/user/databases/{uid}.json` + SQLite `users` 表注册（auth.phone=官服手机号、auth.hgId=官服 uid、password 随机）
 
 ### 15.5 已知限制
 - 真实官服调用未在测试中验证（全部 mock fetch）：官服接口可能变更、存在风控/验证码——脚本输出清晰错误，单个账号失败不中断其他
@@ -1009,7 +1014,7 @@ mitmproxy map remote 设置 URL 时会同步改写 Host 头为 `127.0.0.1:8443`�
 ### 19.2 实现（AccountManager.registerUser）
 - **模板复制**：以 `data/user/databases/1.json` 为模板深拷贝，替换 uid/昵称（博士{uid}）/注册时间
 - **uid 递增**：现有账号最大值 +1
-- **注册**：写入 `databases/{uid}.json` + `users.json`（auth.phone=手机号、hgId=uid、password=密码）
+- **注册**：写入 `databases/{uid}.json` + SQLite `users` 表（auth.phone=手机号、hgId=uid、password=密码；users.json 已迁移为种子不再写入）
 - **secret 生成**：`generateSecret(phone)` = MD5(phone + 渠道密钥)（确定性）——token=secret 语义（参考 DoctoratePy）
 - **查重**：手机号已存在抛错
 

@@ -1181,3 +1181,64 @@ describe("BuildingManager 劳动力与留言板奖励", () => {
     expect(mockPlayer._playerdata.inventory!["3003"]).toBe(15);
   });
 });
+
+describe("BuildingManager 房间建造与升级（Excel 驱动）", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({
+      building: {
+        status: { labor: { buffSpeed: 0, processPoint: 0, value: 100, lastUpdateTime: 0, maxValue: 225 }, workshop: { bonusActive: 0, bonus: {} } },
+        chars: {},
+        roomSlots: {
+          slot_5: { level: 1, state: 1, roomId: "MANUFACTURE", charInstIds: [], completeConstructTime: -1 },
+        },
+        rooms: {
+          CONTROL: {}, ELEVATOR: {}, POWER: {}, TRADING: {},
+          MANUFACTURE: {}, CORRIDOR: {}, WORKSHOP: {}, DORMITORY: {}, MEETING: {}, HIRE: {},
+          TRAINING: {}, PRIVATE: {},
+        },
+        furniture: {},
+        diyPresetSolutions: {},
+        assist: [-1, -1, -1],
+        solution: { furnitureTs: {} },
+        music: { selected: "bgm_default" },
+      } as any,
+      status: { gold: 10000 } as any,
+      inventory: { "3131": 10, "3132": 10 } as any,
+      event: { building: 0 },
+    });
+    mockPlayer._trigger = mockTrigger;
+    mockPlayer.update = vi
+      .fn()
+      .mockImplementation(
+        async (recipe: (draft: any) => Promise<any> | any) => {
+          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+          const result = await recipe(draft);
+          Object.assign(mockPlayer._playerdata, draft);
+          return result;
+        }
+      );
+  });
+
+  it("buildRoom 应按 buildCost 扣材料与劳动力", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.buildRoom({ roomSlotId: "slot_5", roomId: "MANUFACTURE" } as any);
+    expect(mockPlayer._playerdata.inventory!["3131"]).toBe(9); // 10 - 1
+    expect(mockPlayer._playerdata.building!.status.labor.value).toBe(90); // 100 - 10
+    expect(mockPlayer._playerdata.building!.roomSlots.slot_5.state).toBe(1);
+    expect(mockPlayer._playerdata.building!.roomSlots.slot_5.roomId).toBe("MANUFACTURE");
+    expect(mockPlayer._playerdata.building!.roomSlots.slot_5.completeConstructTime).toBe(1234567891); // now + 1
+  });
+
+  it("upgradeRoom 应按目标等级 buildCost 扣材料与劳动力", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.upgradeRoom({ roomSlotId: "slot_5", targetLevel: 2 } as any);
+    expect(mockPlayer._playerdata.inventory!["3132"]).toBe(8); // 10 - 2
+    expect(mockPlayer._playerdata.building!.status.labor.value).toBe(80); // 100 - 20
+    expect(mockPlayer._playerdata.building!.roomSlots.slot_5.level).toBe(2);
+  });
+});

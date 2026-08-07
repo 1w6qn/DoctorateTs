@@ -6,7 +6,7 @@ import { WritableDraft } from "immer";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { PlayerBuildingMeetingClue } from "@game/model/playerdata";
 import { accountManager } from "./AccountManger";
-import { getManufactFormula, getWorkshopFormula, getBuildingConstant } from "@excel/building_excel";
+import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase } from "@excel/building_excel";
 
 /**
  * 基建管理器类
@@ -183,35 +183,58 @@ export class BuildingManager {
   // ==================== 房间管理 ====================
 
   /**
-   * 建造房间
-   * 简化实现：根据 roomSlotId 和 roomId 更新房间的建造状态
+   * 建造房间（Excel 驱动——按 rooms[roomId].phases[1].buildCost 扣材料/劳动力）
    * @param args - 包含 roomSlotId 和 roomId 的参数对象
    */
   async buildRoom(args: { roomSlotId: string; roomId: string }) {
     const { roomSlotId, roomId } = args;
     return await this._player.update(async (draft) => {
       const slot = draft.building.roomSlots[roomSlotId];
-      if (slot) {
-        slot.state = 1;
-        slot.roomId = roomId;
-        slot.completeConstructTime = now() + 1;
-      }
+      if (!slot) return;
+      // 建造 = 1 级相位 buildCost（材料/金币/劳动力）
+      const phase = getRoomPhase(roomId, 1);
+      if (!phase) return; // 房间类型未知——容错跳过
+      this._applyBuildCost(draft, phase.buildCost);
+      slot.state = 1;
+      slot.roomId = roomId;
+      slot.completeConstructTime = now() + 1;
     });
   }
 
   /**
-   * 升级房间等级
-   * 对应 Python 参考实现的 changRoomLevel
+   * 升级房间等级（Excel 驱动——按目标等级相位 buildCost 扣资源）
    * @param args - 包含 roomSlotId 和 targetLevel 的参数对象
    */
   async upgradeRoom(args: { roomSlotId: string; targetLevel: number }) {
     const { roomSlotId, targetLevel } = args;
     return await this._player.update(async (draft) => {
       const slot = draft.building.roomSlots[roomSlotId];
-      if (slot) {
-        slot.level = targetLevel;
-      }
+      if (!slot) return;
+      const phase = getRoomPhase(slot.roomId, targetLevel);
+      if (!phase) return; // 相位不存在——容错跳过
+      this._applyBuildCost(draft, phase.buildCost);
+      slot.level = targetLevel;
     });
+  }
+
+  /** 内部方法：应用建造/升级消耗（items 扣 inventory/金币、labor 扣劳动力） */
+  private _applyBuildCost(
+    draft: WritableDraft<PlayerDataModel>,
+    buildCost?: { items?: { id: string; count: number; type: string }[]; time?: number; labor?: number },
+  ): void {
+    for (const item of buildCost?.items ?? []) {
+      if (item.type === "GOLD") {
+        draft.status.gold -= item.count;
+      } else {
+        draft.inventory[item.id] = (draft.inventory[item.id] || 0) - item.count;
+      }
+    }
+    if (buildCost?.labor) {
+      draft.building.status.labor.value = Math.max(
+        draft.building.status.labor.value - buildCost.labor,
+        0,
+      );
+    }
   }
 
   /**

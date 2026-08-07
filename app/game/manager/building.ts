@@ -456,26 +456,38 @@ export class BuildingManager {
 
   // ==================== 订单/生产 ====================
 
-  /** 内部方法：结算单条订单（扣凭证 3003、加金币 count×500） */
+  /**
+   * 内部方法：结算单条订单（真实订单结构——扣 delivery 物品、加 gain 物品）
+   * 例：delivery=[{3003×3}]、gain={4001(金币)×1500} → 扣 3003×3、加金币 1500
+   */
   private _settleOrderInternal(
     draft: WritableDraft<PlayerDataModel>,
     stockItem: any,
   ): void {
-    const goldNum = stockItem?.count || 0;
-    draft.inventory["3003"] = (draft.inventory["3003"] || 0) - goldNum;
-    draft.status.gold += goldNum * 500;
+    for (const d of stockItem?.delivery ?? []) {
+      draft.inventory[d.id] = (draft.inventory[d.id] || 0) - (d.count ?? 1);
+    }
+    const gain = stockItem?.gain;
+    if (gain) {
+      if (gain.type === "GOLD") {
+        draft.status.gold += gain.count ?? 0;
+      } else {
+        draft.inventory[gain.id] =
+          (draft.inventory[gain.id] || 0) + (gain.count ?? 1);
+      }
+    }
   }
 
   /**
-   * 加速订单（立即结算指定订单）
-   * @param args - 包含 slotId 和 orderId 的参数对象
+   * 加速订单（立即结算指定订单——按 instId 查找）
+   * @param args - 包含 slotId 和 orderId（订单 instId）的参数对象
    */
   async accelerateOrder(args: { slotId: string; orderId: number }) {
     const { slotId, orderId } = args;
     return await this._player.update(async (draft) => {
       const room = draft.building.rooms.TRADING[slotId];
       if (room && Array.isArray(room.stock)) {
-        const idx = room.stock.findIndex((s: any) => s.orderId === orderId);
+        const idx = room.stock.findIndex((s: any) => s.instId === orderId);
         if (idx !== -1) {
           this._settleOrderInternal(draft, room.stock[idx]);
           room.stock.splice(idx, 1);
@@ -493,8 +505,7 @@ export class BuildingManager {
   }
 
   /**
-   * 完成订单（贸易站交付）
-   * 参考实现：扣除订单库存物品，增加金币
+   * 完成订单（贸易站交付——结算首条库存订单，扣 delivery 加 gain）
    * @param args - 包含 slotId 和 orderId 的参数对象
    */
   async deliveryOrder(args: { slotId: string; orderId: string }) {
@@ -506,21 +517,14 @@ export class BuildingManager {
         Array.isArray(tradingRoom.stock) &&
         tradingRoom.stock.length > 0
       ) {
-        const stockItem = tradingRoom.stock[0] as any;
-        const goldNum = stockItem?.count || 0;
-        // 扣除贸易凭证（3003）并增加金币
-        draft.inventory["3003"] =
-          (draft.inventory["3003"] || 0) - goldNum;
-        draft.status.gold += goldNum * 500;
-        // 清空订单库存
-        tradingRoom.stock = [];
+        this._settleOrderInternal(draft, tradingRoom.stock[0]);
+        tradingRoom.stock.shift();
       }
     });
   }
 
   /**
-   * 批量完成订单
-   * 对 orderId 数组中的每个订单执行交付逻辑，扣除贸易凭证并增加金币
+   * 批量完成订单（对 orderId 数组中的每个订单按 instId 结算）
    * @param args - 包含 slotId 和 orderId 列表的参数对象
    */
   async deliveryBatchOrder(args: { slotId: string; orderId: string[] }) {
@@ -534,14 +538,10 @@ export class BuildingManager {
       ) {
         for (const oid of orderId) {
           const stockIdx = tradingRoom.stock.findIndex(
-            (s: any) => s.orderId === oid,
+            (s: any) => String(s.instId) === String(oid),
           );
           if (stockIdx === -1) continue;
-          const stockItem = tradingRoom.stock[stockIdx] as any;
-          const goldNum = stockItem?.count || 0;
-          draft.inventory["3003"] =
-            (draft.inventory["3003"] || 0) - goldNum;
-          draft.status.gold += goldNum * 500;
+          this._settleOrderInternal(draft, tradingRoom.stock[stockIdx]);
           tradingRoom.stock.splice(stockIdx, 1);
         }
       }
@@ -549,15 +549,15 @@ export class BuildingManager {
   }
 
   /**
-   * 删除订单
-   * @param args - 包含 slotId 和 orderId 的参数对象
+   * 删除订单（按 instId）
+   * @param args - 包含 slotId 和 orderId（订单 instId）的参数对象
    */
   async deleteOrder(args: { slotId: string; orderId: number }) {
     const { slotId, orderId } = args;
     return await this._player.update(async (draft) => {
       const room = draft.building.rooms.TRADING[slotId];
       if (room && Array.isArray(room.stock)) {
-        room.stock = room.stock.filter((s: any) => s.orderId !== orderId);
+        room.stock = room.stock.filter((s: any) => s.instId !== orderId);
       }
     });
   }

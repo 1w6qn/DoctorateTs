@@ -116,7 +116,18 @@ OAuth2 授权
 ## 账号模块
 
 ### POST /account/login
-用户登录
+用户登录（token 换游戏凭证 secret）
+
+**请求参数**（参考 DoctoratePy accountLogin）:
+```json
+{
+  "token": "string",
+  "clientVersion": "string",
+  "networkVersion": 0
+}
+```
+- `token`：as 域登录/授权得到的账号 token（real 模式为 secret 或 uid，single 模式任意串）
+- `clientVersion`/`networkVersion`：版本信息（私服宽松不校验）
 
 **响应**:
 ```json
@@ -124,9 +135,12 @@ OAuth2 授权
   "result": 0,
   "uid": "string",
   "secret": "string",
-  "serviceLicenseVersion": 0
+  "serviceLicenseVersion": 0,
+  "majorVersion": "446"
 }
 ```
+- `secret`：后续所有游戏请求的请求头凭证（客户端带 `secret` 头访问 syncData 等接口）
+- 错误：`{ "result": 3 }`（token 无效——记忆已经模糊，请重新输入登录信息）
 
 ### POST /account/syncData
 同步用户数据

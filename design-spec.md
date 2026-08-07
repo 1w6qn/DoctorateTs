@@ -1010,17 +1010,41 @@ mitmproxy map remote 设置 URL 时会同步改写 Host 头为 `127.0.0.1:8443`�
 - **模板复制**：以 `data/user/databases/1.json` 为模板深拷贝，替换 uid/昵称（博士{uid}）/注册时间
 - **uid 递增**：现有账号最大值 +1
 - **注册**：写入 `databases/{uid}.json` + `users.json`（auth.phone=手机号、hgId=uid、password=密码）
+- **secret 生成**：`generateSecret(phone)` = MD5(phone + 渠道密钥)（确定性）——token=secret 语义（参考 DoctoratePy）
 - **查重**：手机号已存在抛错
 
 ### 19.3 数据流
-1. 客户端输入新手机号+密码登录 → `tokenByPhonePassword` 未匹配 → `registerUser` 自动创建 → 返回 uid 作为 token
-2. 后续 `grant`/`getToken`/`syncData` 走标准流程（账号即 token）
+1. 客户端输入新手机号+密码登录 → `tokenByPhonePassword` 未匹配 → `registerUser` 自动创建 → 返回账号 secret 作为 token（**不是 uid**——旧实现返回 uid，2026-08 对齐 DoctoratePy token=secret 模型）
+2. 后续 `grant`/`getToken`/`syncData` 走标准流程（token=secret 或 uid 兼容）
 3. 管理后台 CLI/Dashboard 的 createUser 复用同一注册逻辑（DRY）
 
 ### 19.4 已知约束
 - 模板存档缺失（1.json 被删）时注册失败并给出清晰错误
 - 新用户昵称固定「博士{uid}」、等级/资产继承模板（1 号账号）——私服简化
-- 服务器运行中注册的新用户，`accountManager.data` 无内存实例——需 `reloadUser`/重启后同步数据（CLI 场景已热加载；登录场景在下次 init 后生效）
+- 服务器运行中注册的新用户**免重启**：`getPlayerData(uid)` 懒加载（`_loadPlayer`）——data 缺失时自动从 `databases/{uid}.json` 读取并加载（与 init/ensureSingleUser 共用加载逻辑）
+
+### 19.5 完整 Token 登录流程（2026-08-07）
+客户端登录链路（对齐 DoctoratePy `server/account.py` accountLogin）：
+
+```
+① POST /user/auth/v1/token_by_phone_password {phone, password}
+      → {data: {token}}                                   [as 域，账号 token = secret]
+② POST /user/oauth2/v2/grant {appCode, token}
+      → {data: {code, uid}}                               [as 域，授权码]
+③ POST /account/login {token, clientVersion, networkVersion}
+      → {result:0, uid, secret, serviceLicenseVersion:0, majorVersion:"446"}   [gs 域，换游戏凭证]
+④ 客户端所有游戏请求带 secret 头 → authMiddleware 解析玩家
+      single：强制 secret=singleUid（任意 token 收敛）
+      real：getUidByToken(secret) → getPlayerData(uid)，无效 401
+```
+
+关键实现：
+- **`/account/login` 按 token 动态解析**（`app/game/router/account.ts`）：读 `req.body.token` → `accountManager.getUidByToken(token)`（real 按 uid/secret 双查；single 任意 token 收敛 singleUid）→ 返回动态 `uid` + `secret`（账号 secret，无则回退 uid）——**无效 token 返回 `{result: 3}`**（参考 DoctoratePy「记忆已经模糊，请重新输入登录信息」）
+- **版本校验 YAGNI**：`clientVersion`/`networkVersion` 读取但不拦截——私服客户端版本可能滞后于配置（用户不跑 update），严格校验（result 2/5）会卡登录且客户端不报原因；版本同步由 `syncGameVersion`（22 章）负责
+- **`getTokenByUid(uid)`**：返回 `configs[uid].secret || uid`（完整 token 语义；旧账号无 secret 回退 uid）
+- **`getPlayerData(uid)` 懒加载**：data 缺失时 `_loadPlayer` 从存档文件读取——real 模式注册新账号后登录/同步免重启
+- **防御**：`/account/syncData`、`/account/syncStatus`、`/account/syncPushMessage` 在 `httpContext` 无 playerData（real 模式无 secret 头）时返回 **401** 而非 500
+- **`loginout`**：返回 `{result: 0}`（对齐 DoctoratePy onlineV1LoginOut）
 
 ---
 

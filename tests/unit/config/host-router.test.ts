@@ -97,61 +97,63 @@ describe("createHostRouter（子域名分发）", () => {
   });
 
   // ==================== mitmweb 重定向场景（Host 被改写为 127.0.0.1:8443） ====================
+  // 注：auth 已挂根路径（index.ts `app.use("/", auth)`），as 域接口（/app、/u8、/user/*）直接命中，
+  //     applyPathFallback 不再需要加 /auth 前缀兜底（2026-08-07 新分发方案）
 
-  it("mitmweb 重写 Host 后 /app 路径应兜底加 /auth 前缀（as 域配置）", () => {
+  it("mitmweb 重写 Host 后 /app 路径保持原样（auth 挂根直接命中 as 域配置）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/app/v1/config?appCode=7318def77669979d&platform=2");
     const next = vi.fn();
     handler(req, {} as any, next);
-    expect(req.url).toBe("/auth/app/v1/config?appCode=7318def77669979d&platform=2");
+    expect(req.url).toBe("/app/v1/config?appCode=7318def77669979d&platform=2");
   });
 
-  it("mitmweb 重写 Host 后 /u8 路径应兜底加 /auth 前缀（as 域 U8 渠道）", () => {
+  it("mitmweb 重写 Host 后 /u8 路径保持原样（auth 挂根直接命中 U8 渠道）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/u8/user/v1/getToken");
     const next = vi.fn();
     handler(req, {} as any, next);
-    expect(req.url).toBe("/auth/u8/user/v1/getToken");
+    expect(req.url).toBe("/u8/user/v1/getToken");
   });
 
-  it("mitmweb 重写 Host 后 /user/auth 路径应兜底加 /auth 前缀（as 域登录）", () => {
+  it("mitmweb 重写 Host 后 /user/auth 路径保持原样（auth 挂根直接命中登录）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/user/auth/v1/login");
     const next = vi.fn();
     handler(req, {} as any, next);
-    expect(req.url).toBe("/auth/user/auth/v1/login");
+    expect(req.url).toBe("/user/auth/v1/login");
   });
 
-  it("mitmweb 重写 Host 后精确 /user/auth 也应加 /auth 前缀（Token 校验）", () => {
+  it("mitmweb 重写 Host 后精确 /user/auth 保持原样（auth 挂根直接命中 Token 校验）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/user/auth");
     const next = vi.fn();
     handler(req, {} as any, next);
-    expect(req.url).toBe("/auth/user/auth");
+    expect(req.url).toBe("/user/auth");
   });
 
-  it("mitmweb 重写 Host 后 /user/info 路径应兜底加 /auth 前缀（as 域用户信息）", () => {
+  it("mitmweb 重写 Host 后 /user/info 路径保持原样（auth 挂根直接命中用户信息）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/user/info/v1/basic?token=abc");
     const next = vi.fn();
     handler(req, {} as any, next);
-    expect(req.url).toBe("/auth/user/info/v1/basic?token=abc");
+    expect(req.url).toBe("/user/info/v1/basic?token=abc");
   });
 
-  it("mitmweb 重写 Host 后 /user/online 路径应兜底加 /auth 前缀（as 域心跳）", () => {
+  it("mitmweb 重写 Host 后 /user/online 路径保持原样（auth 挂根直接命中心跳）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/user/online/v1/ping");
     const next = vi.fn();
     handler(req, {} as any, next);
-    expect(req.url).toBe("/auth/user/online/v1/ping");
+    expect(req.url).toBe("/user/online/v1/ping");
   });
 
-  it("mitmweb 重写 Host 后 /user/oauth2 路径应兜底加 /auth 前缀（as 域授权）", () => {
+  it("mitmweb 重写 Host 后 /user/oauth2 路径保持原样（auth 挂根直接命中授权）", () => {
     const handler = createHostRouter();
     const req = mockReq("127.0.0.1:8443", "/user/oauth2/v2/grant");
     const next = vi.fn();
     handler(req, {} as any, next);
-    expect(req.url).toBe("/auth/user/oauth2/v2/grant");
+    expect(req.url).toBe("/user/oauth2/v2/grant");
   });
 
   it("mitmweb 重写 Host 后游戏域 /user 接口不应被误判（保持原路径）", () => {

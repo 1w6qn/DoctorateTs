@@ -869,7 +869,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       cntZone: Object.keys(this._map.zones).length,
       relicList: Object.values(this.inventory!.relic).map((r) => (r as any).id),
       capsuleList: [],
-      activeToolList: [],
+      activeToolList: Object.values(this.inventory?.exploreTool || {}).map(
+        (t) => (t as any).id,
+      ),
       charBuff: [],
       squadBuff: this.current.buff?.squadBuff || [],
       totemList: [],
@@ -881,6 +883,60 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       brief: brief,
       record: record,
     };
+
+    // 探索分数（官方公式，用户提供 2026-08：萨卡兹方式，各主题一致）
+    // 层数档位 0/30/80/150/270/400/550/650（>7 按 7）+ 步数×1 + 普通战×10 + 招募×2
+    // + 物品×5（收藏品+战术道具，不含思绪）+ 领袖战×30 + 精英战×20，求和 × 难度倍率
+    const ZONE_SCORES = [0, 30, 80, 150, 270, 400, 550, 650];
+    const clearedZones = Math.min(this._status.cursor.zone, 7);
+    const zoneScore = ZONE_SCORES[clearedZones];
+    const steps = this._status.trace.length;
+    let normalBattles = 0;
+    let eliteBattles = 0;
+    let leaderBattles = 0;
+    for (const t of this._status.trace) {
+      const node = this._map.zones[t.zone]?.nodes[
+        `${t.position.x * 100 + t.position.y}`
+      ];
+      const type = node?.type ?? 0;
+      if (type === 1) normalBattles++;
+      else if (type === 2) eliteBattles++;
+      else if (type === 4) leaderBattles++;
+    }
+    const recruitCount = Object.values(this.inventory!.recruit || {}).filter(
+      (t) => (t as any).result,
+    ).length;
+    const itemCount =
+      (record.relicList?.length || 0) + (record.activeToolList?.length || 0);
+    const raw =
+      zoneScore +
+      steps +
+      normalBattles * 10 +
+      recruitCount * 2 +
+      itemCount * 5 +
+      leaderBattles * 30 +
+      eliteBattles * 20;
+    const difficulty = excel.RoguelikeTopicTable.details[theme].difficulties?.find(
+      (d) => d.modeDifficulty === game.mode && d.grade === game.modeGrade,
+    );
+    const scoreFactor = difficulty?.scoreFactor ?? 1;
+    const exploreScore = Math.floor(raw * scoreFactor);
+    // 分数转换魂灵书签效率 1:1（历史重构提升暂不做，YAGNI）
+    await this.update(async (draft) => {
+      const outerTheme = draft.outer[theme] ?? (draft.outer[theme] = {} as any);
+      const buff =
+        outerTheme.buff ??
+        (outerTheme.buff = {
+          pointOwned: 0,
+          pointCost: 0,
+          unlocked: {},
+          score: 0,
+        } as any);
+      buff.score = (buff.score || 0) + exploreScore;
+      buff.pointOwned = (buff.pointOwned || 0) + exploreScore;
+    });
+    // Immer finishDraft 替换 _playerdata，刷新本控制器引用
+    this.outer = this._player._playerdata.rlv2.outer;
 
     await this._trigger.emit("rlv2:event:create", [
       "END_RESULT",

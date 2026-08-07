@@ -949,6 +949,34 @@ npm run migrate:official -- --accounts <账号文件路径> --template 1
 
 **简化（YAGNI）**：官方无"battle 池/boss 池"分组（relics 只有 id+buffs），战斗统一用 `pool_relic_all`；精确概率在客户端，私服用简化概率。
 
+### 16.7 增益树（科技树）解锁与加成（2026-08）
+
+**数据**（官方 excel，6 主题全）：`customizeData[theme].developments`（rogue_1..3）或 `.commonDevelopment.developments`（rogue_4..6）——节点 `{buffId, frontNodeId[], nextNodeId[], tokenCost, nodeType, buffName}`。解锁状态存 `outer[theme].buff = {pointOwned, pointCost, unlocked: {buffId: 1}, score}`（已验证 pointCost == 已解锁节点 tokenCost 总和）。
+
+**解锁**（`rlv2.ts` `unlockBuff(theme, buffId)` + `router/roguelike.ts` `POST /roguelike/upgradeOutBuff`）：
+- 校验：节点存在 → 未解锁 → 前置（frontNodeId 数组）全部解锁 → pointOwned ≥ tokenCost
+- 成功：pointOwned -= tokenCost、pointCost += tokenCost、unlocked[buffId] = 1
+- 请求体 `{theme, id}`（兼容 buffId 字段名）；失败返回 `{result: 1, errorMsg: NODE_NOT_FOUND/ALREADY_UNLOCKED/FRONT_NOT_UNLOCKED/POINT_NOT_ENOUGH}`
+- 注意：update（Immer）替换 _playerdata 后需刷新 `this.outer` 引用
+
+**加成**：`buff.ts create()` 开局应用 `outer[theme].buff.unlocked` 的 outbuff（已有）——新解锁节点下一局生效。
+
+**探索分数结算**（`gameSettle()`，官方公式，用户提供 2026-08：萨卡兹方式，各主题一致）：
+
+| 项目 | 分值 |
+|---|---|
+| 通过层数（档位 0/30/80/150/270/400/550/650，>7 按 7） | 档位值 |
+| 通过步数（trace.length） | ×1 |
+| 普通战斗次数（trace 节点 type 1） | ×10 |
+| 招募干员次数（recruit.tickets[].result 非空） | ×2 |
+| 获得物品数（收藏品 relicList + 战术道具 activeToolList，不含思绪） | ×5 |
+| 领袖战斗次数（trace 节点 type 4） | ×30 |
+| 精英战斗次数（trace 节点 type 2） | ×20 |
+
+求和 × 难度倍率（`details[theme].difficulties[].scoreFactor`，按 mode+modeGrade 匹配，MONTH_TEAM/CHALLENGE=0）= 探索分数；默认分数→魂灵书签转换效率 1:1（`score += 探索分数`、`pointOwned += 探索分数`）。历史重构提升转换效率暂未实现（YAGNI）。
+
+**注意**：createGame 把 MONTH_TEAM/CHALLENGE mode 转成 NORMAL（现有行为），实际结算按 NORMAL 倍率；若需 MONTH_TEAM=0 需改 createGame 保留 mode。
+
 ---
 
 ## 17. 子域名分发与远程配置

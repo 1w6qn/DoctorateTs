@@ -1,10 +1,64 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@excel/excel", () => {
-  return {
-    default: {},
-  };
-});
+// Excel BuildingData 样本（真实结构，制造/加工/房间/常量——任务 2-7 复用）
+const excelMock = vi.hoisted(() => ({
+  default: {
+    BuildingData: {
+      manufactFormulas: {
+        "1": { formulaId: "1", itemId: "2001", count: 1, costPoint: 2700, formulaType: "F_EXP", costs: [] },
+        "4": { formulaId: "4", itemId: "3003", count: 1, costPoint: 4320, formulaType: "F_GOLD", costs: [] },
+        "5": {
+          formulaId: "5", itemId: "3213", count: 1, costPoint: 1, formulaType: "F_ASC",
+          costs: [
+            { id: "3212", count: 2, type: "MATERIAL" },
+            { id: "32001", count: 1, type: "MATERIAL" },
+          ],
+        },
+        "13": {
+          formulaId: "13", itemId: "3141", count: 1, costPoint: 3600, formulaType: "F_DIAMOND",
+          costs: [
+            { id: "30012", count: 2, type: "MATERIAL" },
+            { id: "4001", count: 1600, type: "GOLD" },
+          ],
+        },
+      },
+      workshopFormulas: {
+        "1": {
+          formulaId: "1", itemId: "3131", count: 1, goldCost: 800, apCost: 360000,
+          costs: [{ id: "3112", count: 2, type: "MATERIAL" }],
+          extraOutcomeRate: 0.1,
+          extraOutcomeGroup: [{ weight: 100, itemId: "3112", itemCount: 1 }],
+        },
+      },
+      rooms: {
+        MANUFACTURE: {
+          phases: [
+            {
+              buildCost: { items: [{ id: "3131", count: 1, type: "MATERIAL" }], time: 0, labor: 10 },
+              maxStationedNum: 1,
+            },
+            {
+              buildCost: { items: [{ id: "3132", count: 2, type: "MATERIAL" }], time: 0, labor: 20 },
+              maxStationedNum: 2,
+            },
+          ],
+        },
+        TRADING: {
+          phases: [
+            { buildCost: { items: [], time: 0, labor: 10 }, maxStationedNum: 1 },
+          ],
+        },
+      },
+      goldItems: { "3003": 500 },
+      laborRecoverTime: 360,
+      basicFavorPerDay: 720,
+      apToLaborRatio: 2,
+      manufactReduceTimeUnit: 180,
+      tradingReduceTimeUnit: 180,
+    },
+  },
+}));
+vi.mock("@excel/excel", () => excelMock);
 
 vi.mock("@game/manager/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
@@ -575,6 +629,101 @@ describe("BuildingManager 贸易站", () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.accelerateSolution({ slotId: "slot_6" } as any);
     expect(mockPlayer._playerdata.building!.rooms.TRADING.slot_6.stock).toEqual([]);
+  });
+});
+
+describe("BuildingManager 制造站（Excel 驱动）", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({
+      building: {
+        status: { labor: { buffSpeed: 0, processPoint: 0, value: 100, lastUpdateTime: 0, maxValue: 100 }, workshop: { bonusActive: 0, bonus: {} } },
+        chars: {},
+        roomSlots: {},
+        rooms: {
+          CONTROL: {}, ELEVATOR: {}, POWER: {}, TRADING: {},
+          MANUFACTURE: {
+            slot_5: {
+              state: 1,
+              formulaId: "4",
+              remainSolutionCnt: 73,
+              outputSolutionCnt: 2,
+              lastUpdateTime: 0,
+              completeWorkTime: -1,
+              capacity: 24,
+            } as any,
+          },
+          CORRIDOR: {}, WORKSHOP: {}, DORMITORY: {}, MEETING: {}, HIRE: {},
+          TRAINING: {}, PRIVATE: {},
+        },
+        furniture: {},
+        diyPresetSolutions: {},
+        assist: [-1, -1, -1],
+        solution: { furnitureTs: {} },
+        music: { selected: "bgm_default" },
+      } as any,
+      status: { gold: 10000 } as any,
+      inventory: { "3212": 10, "32001": 5, "30012": 10 } as any,
+      event: { building: 0 },
+    });
+    mockPlayer._trigger = mockTrigger;
+    mockPlayer.update = vi
+      .fn()
+      .mockImplementation(
+        async (recipe: (draft: any) => Promise<any> | any) => {
+          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+          const result = await recipe(draft);
+          Object.assign(mockPlayer._playerdata, draft);
+          return result;
+        }
+      );
+  });
+
+  it("settleManufacture F_GOLD（formulaId 4）应产出 3003×outputSolutionCnt 并重置状态", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.settleManufacture({ roomSlotId: "slot_5" } as any);
+    expect(mockPlayer._playerdata.inventory!["3003"]).toBe(2);
+    expect(mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5.state).toBe(0);
+    expect(mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5.formulaId).toBe("");
+  });
+
+  it("settleManufacture F_EXP（formulaId 1）应产出 2001", async () => {
+    mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.formulaId = "1";
+    mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.outputSolutionCnt = 3;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.settleManufacture({ roomSlotId: "slot_5" } as any);
+    expect(mockPlayer._playerdata.inventory!["2001"]).toBe(3);
+  });
+
+  it("settleManufacture F_ASC（formulaId 5）应产出 3213 并消耗 3212×2 + 32001×1", async () => {
+    mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.formulaId = "5";
+    mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.outputSolutionCnt = 1;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.settleManufacture({ roomSlotId: "slot_5" } as any);
+    expect(mockPlayer._playerdata.inventory!["3213"]).toBe(1);
+    expect(mockPlayer._playerdata.inventory!["3212"]).toBe(8);
+    expect(mockPlayer._playerdata.inventory!["32001"]).toBe(4);
+  });
+
+  it("settleManufacture F_DIAMOND（formulaId 13）应产出 3141 并扣金币 1600×n", async () => {
+    mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.formulaId = "13";
+    mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.outputSolutionCnt = 1;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.settleManufacture({ roomSlotId: "slot_5" } as any);
+    expect(mockPlayer._playerdata.inventory!["3141"]).toBe(1);
+    expect(mockPlayer._playerdata.inventory!["30012"]).toBe(8);
+    expect(mockPlayer._playerdata.status!.gold).toBe(8400);
+  });
+
+  it("settleManufacture 未知配方应跳过（不崩溃）", async () => {
+    mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.formulaId = "999";
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.settleManufacture({ roomSlotId: "slot_5" } as any);
+    expect(mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5.state).toBe(0);
   });
 });
 

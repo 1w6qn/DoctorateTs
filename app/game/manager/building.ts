@@ -6,6 +6,7 @@ import { WritableDraft } from "immer";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { PlayerBuildingMeetingClue } from "@game/model/playerdata";
 import { accountManager } from "./AccountManger";
+import { getManufactFormula } from "@excel/building_excel";
 
 /**
  * 基建管理器类
@@ -582,8 +583,8 @@ export class BuildingManager {
   }
 
   /**
-   * 内部方法：执行制造站结算的材料/产出更新
-   * 对应 Python 实现中根据 FormulaId 范围处理不同配方类型的逻辑
+   * 内部方法：执行制造站结算的材料/产出更新（Excel 驱动——查 manufactFormulas）
+   * 产出：itemId × count × outputSolutionCnt；消耗：costs（MATERIAL 扣 inventory / GOLD 扣 status.gold）
    * @param draft - Immer 可写草稿
    * @param roomSlotId - 房间槽位 ID
    */
@@ -594,55 +595,24 @@ export class BuildingManager {
     const room = draft.building.rooms.MANUFACTURE[roomSlotId];
     if (!room) return;
     const outputSolutionCnt = room.outputSolutionCnt;
-    const formulaIdStr = String(room.formulaId);
+    const formulaIdStr = String(room.formulaId ?? "");
     if (outputSolutionCnt === 0 || !formulaIdStr) return;
-    const formulaIdNum = parseInt(formulaIdStr, 10);
-    if (isNaN(formulaIdNum)) return;
+    const formula = getManufactFormula(formulaIdStr);
+    if (!formula) return; // 配方不存在（数据版本错位）——容错跳过
 
-    // 配方 ID 5~12：精英材料，需要消耗基础材料和作战记录
-    if (formulaIdNum >= 5 && formulaIdNum <= 12) {
-      const itemIdMap: { [key: number]: string } = {
-        5: "3212",
-        6: "3222",
-        7: "3232",
-        8: "3242",
-        9: "3252",
-        10: "3262",
-        11: "3272",
-        12: "3282",
-      };
-      const itemId = itemIdMap[formulaIdNum];
-      draft.inventory[formulaIdStr] =
-        (draft.inventory[formulaIdStr] || 0) + outputSolutionCnt;
-      if (itemId) {
-        draft.inventory[itemId] =
-          (draft.inventory[itemId] || 0) - 2 * outputSolutionCnt;
+    // 产出：itemId × count × 已产出方案数
+    const gainCount = (formula.count ?? 1) * outputSolutionCnt;
+    draft.inventory[formula.itemId] =
+      (draft.inventory[formula.itemId] || 0) + gainCount;
+
+    // 消耗：costs（MATERIAL 扣 inventory / GOLD 扣 status.gold）
+    for (const cost of formula.costs ?? []) {
+      if (cost.type === "GOLD") {
+        draft.status.gold -= cost.count * outputSolutionCnt;
+      } else {
+        draft.inventory[cost.id] =
+          (draft.inventory[cost.id] || 0) - cost.count * outputSolutionCnt;
       }
-      draft.inventory["32001"] =
-        (draft.inventory["32001"] || 0) - 1 * outputSolutionCnt;
-    } else if (formulaIdNum > 12) {
-      // 配方 ID 13/14：消耗龙门币和材料
-      const itemIdMap: { [key: number]: string } = {
-        13: "30012",
-        14: "30062",
-      };
-      const goldCostMap: { [key: number]: number } = {
-        13: 1600,
-        14: 1000,
-      };
-      const itemId = itemIdMap[formulaIdNum];
-      draft.inventory[formulaIdStr] =
-        (draft.inventory[formulaIdStr] || 0) + outputSolutionCnt;
-      if (itemId) {
-        draft.inventory[itemId] =
-          (draft.inventory[itemId] || 0) - 2 * outputSolutionCnt;
-      }
-      const goldCost = goldCostMap[formulaIdNum] || 0;
-      draft.status.gold -= goldCost * outputSolutionCnt;
-    } else {
-      // 其他配方：仅增加产出物品
-      draft.inventory[formulaIdStr] =
-        (draft.inventory[formulaIdStr] || 0) + outputSolutionCnt;
     }
   }
 

@@ -144,15 +144,15 @@ describe("auth 路由", () => {
     );
   });
 
-  it("POST /user/online/v1/loginout 应返回空对象", async () => {
+  it("POST /user/online/v1/loginout 应返回登出成功结果（参考 DoctoratePy onlineV1LoginOut）", async () => {
     const res = mockRes();
     await call(authRouter, { method: "POST", url: "/user/online/v1/loginout" }, res);
-    expect(res.send).toHaveBeenCalledWith({});
+    expect(res.send).toHaveBeenCalledWith({ result: 0 });
   });
 
-  it("POST /u8/pay/getAllProductList 应返回空商品列表", async () => {
+  it("POST /u8/pay/getAllProductList 应返回商品列表（读 AllProductList.json）", async () => {
     const res = mockRes();
     await call(authRouter, { method: "POST", url: "/u8/pay/getAllProductList" }, res);
-    expect(res.send).toHaveBeenCalledWith({ productList: [] });
+    expect(res.send).toHaveBeenCalledWith({ version: "1", appVersion: "1.0" });
   });
 });

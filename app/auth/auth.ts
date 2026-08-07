@@ -175,15 +175,13 @@ router.post("/u8/user/verifyAccount", async (req, res) => {
 });
 
 /**
- * 用户登出
- * 
- * 处理用户登出请求。
- * 
+ * 用户登出（参考 DoctoratePy onlineV1LoginOut）
+ *
  * @route POST /auth/user/online/v1/loginout
- * @returns 空对象
+ * @returns 登出成功结果
  */
 router.post("/user/online/v1/loginout", async (req, res) => {
-  res.send({});
+  res.send({ result: 0 });
 });
 
 /** 在线心跳（参考 DoctoratePy onlineV1Ping——客户端定期请求，返回正常 result 避免断线） */
@@ -354,13 +352,13 @@ router.post("/user/auth", async (req, res) => {
 /**
  * 获取 U8 渠道商品列表
  * 
- * 返回 U8 渠道的付费商品列表（当前为空）。
+ * 返回 U8 渠道的付费商品列表（从本地 AllProductList.json 读取）。
  * 
  * @route POST /auth/u8/pay/getAllProductList
  * @returns 商品列表
  */
 router.post("/u8/pay/getAllProductList", async (req, res) => {
-  res.send({ productList: [] });
+  res.send(await readJson("./data/shop/AllProductList.json"));
 });
 
 /**

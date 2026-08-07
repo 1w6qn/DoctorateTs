@@ -154,6 +154,8 @@ describe("rlv2 地图生成数据与区域推进", () => {
       await (player.rlv2 as any).finishEvent();
 
       expect((player.rlv2 as any)._status.state).toBe("END");
+      // gameSettle 为异步（含 update 写 outer），等待其微任务完成
+      await new Promise((r) => setTimeout(r, 0));
       const pending = (player.rlv2 as any)._status.pending;
       const endEvent = pending.find((e: any) => e.type === "END_RESULT");
       expect(endEvent).toBeDefined();

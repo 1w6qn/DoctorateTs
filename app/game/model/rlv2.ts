@@ -451,6 +451,7 @@ export namespace PlayerRoguelikeV2 {
             pointOwned: number
             pointCost: number
             unlocked: { [key: string]: number }
+            score: number
         }
         export interface MonthTeam {
             reward: { [key: string]: number }

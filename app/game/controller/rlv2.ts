@@ -815,7 +815,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     theme: string,
     buffId: string,
   ): Promise<{ success: boolean; reason?: string }> {
-    const customize = excel.RoguelikeTopicTable.customizeData?.[theme];
+    const customize = (excel.RoguelikeTopicTable.customizeData as any)?.[theme];
     const devs =
       customize?.developments && !Array.isArray(customize.developments)
         ? customize.developments
@@ -896,7 +896,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     let leaderBattles = 0;
     for (const t of this._status.trace) {
       const node = this._map.zones[t.zone]?.nodes[
-        `${t.position.x * 100 + t.position.y}`
+        `${(t.position?.x ?? 0) * 100 + (t.position?.y ?? 0)}`
       ];
       const type = node?.type ?? 0;
       if (type === 1) normalBattles++;

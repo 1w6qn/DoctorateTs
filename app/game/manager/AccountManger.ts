@@ -15,6 +15,7 @@ import { TypedEventEmitter } from "@game/model/events";
 import Emittery from "emittery";
 import { FriendRepository } from "../../db/friend-repo";
 import { openDatabase } from "../../db/database";
+import { UserRepository, migrateUsersFromJsonFile } from "../../db/user-repo";
 import config from "../../config";
 import { migrateFromUserConfigs } from "../../db/migrate";
 import { logger } from "@utils/logger";
@@ -28,6 +29,8 @@ export class AccountManager {
   _trigger: TypedEventEmitter;
   /** 好友关系仓储（SQLite，init() 中初始化，避免模块加载时创建数据库文件） */
   _friendRepo!: FriendRepository;
+  /** 用户配置仓储（SQLite，init() 中初始化——users.json 仅首次迁移种子） */
+  _userRepo!: UserRepository;
 
   constructor() {
     this.configs = {};
@@ -38,14 +41,20 @@ export class AccountManager {
   /**
    * 初始化账户管理器
    * 
-   * 从 data/user/users.json 加载用户配置，从 data/user/databases/ 加载玩家数据。
-   * 设置保存事件监听器。
+   * 从 SQLite（users 表）加载用户配置（首次表空时从 users.json 种子迁移），
+   * 从 data/user/databases/ 加载玩家数据。设置保存事件监听器。
    */
   async init() {
     logger.info("AccountManager", "loading users...");
     // 打开好友关系数据库（social.db 首次运行自动创建）
     this._friendRepo = new FriendRepository(openDatabase());
-    this.configs = await readJson(`./data/user/users.json`);
+    this._userRepo = new UserRepository(openDatabase());
+    // 用户配置：SQLite 唯一事实源；首次（表空）从 users.json 种子迁移
+    this.configs = this._userRepo.getAll();
+    if (Object.keys(this.configs).length === 0) {
+      await migrateUsersFromJsonFile(openDatabase(), this._userRepo);
+      this.configs = this._userRepo.getAll();
+    }
     this._trigger.on("save", async () => {
       await this.saveUserConfig();
     });
@@ -96,13 +105,13 @@ export class AccountManager {
   }
 
   /**
-   * 保存用户配置到文件
+   * 保存用户配置到 SQLite（全量同步 upsert）
+   * 未 init（_userRepo 未初始化，如单测直接操作 configs）时 no-op——不污染真实库
    */
   async saveUserConfig(): Promise<void> {
-    await writeFile(
-      `./data/user/users.json`,
-      JSON.stringify(this.configs, null, 4),
-    );
+    if (this._userRepo) {
+      await this._userRepo.upsertAll(this.configs);
+    }
   }
 
   /**

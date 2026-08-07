@@ -9,6 +9,15 @@ vi.mock("../../../scripts/official-register", () => ({
   loadUsers: vi.fn(() => ({ "1": { uid: "1" } })),
   nextUid: vi.fn(() => "2"),
 }));
+// readUsers 改走 SQLite——mock user-repo 返回种子用户（避免真实 social.db）
+vi.mock("../../../app/db/user-repo", () => ({
+  UserRepository: class {
+    getAll() {
+      return { "1": { uid: "1" } };
+    }
+  },
+  migrateUsersFromJsonFile: vi.fn(),
+}));
 
 const accountsContent = vi.hoisted(
   () => "13800000000\npwd123\n测试用\n13900000000\npwd456\n第二个",

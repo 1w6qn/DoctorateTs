@@ -9,6 +9,8 @@
  */
 import { readFileSync } from "fs";
 import * as path from "path";
+import { openDatabase } from "../app/db/database";
+import { UserRepository } from "../app/db/user-repo";
 import { syncPlayerData } from "./official-api";
 import { convertOfficialData } from "./official-convert";
 import { registerImportedUser } from "./official-register";
@@ -97,15 +99,9 @@ export async function runMigration(opts: {
   return results;
 }
 
-/** 读取 users.json（简单复用，避免循环依赖） */
+/** 读取现有用户（SQLite——users.json 已迁移为种子） */
 function readUsers(): { [key: string]: any } {
-  try {
-    return JSON.parse(
-      readFileSync(path.join(__dirname, "../data/user/users.json"), "utf8"),
-    );
-  } catch {
-    return {};
-  }
+  return new UserRepository(openDatabase()).getAll();
 }
 
 /** CLI 入口 */

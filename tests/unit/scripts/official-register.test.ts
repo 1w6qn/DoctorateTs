@@ -1,39 +1,31 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// 共享内存状态：users.json 写入后回读（模拟真实文件读回）
-const state = vi.hoisted(() => {
-  const users: any = { "1": { uid: "1", password: "p" } };
-  return { users };
-});
-
-vi.mock("fs", () => ({
-  readFileSync: vi.fn(() => JSON.stringify(state.users)),
-}));
+// databases 存档写入 mock（防真实落盘）；账号注册走 SQLite（:memory:）
 vi.mock("fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs/promises")>();
-  return {
-    ...actual,
-    writeFile: vi.fn((file: any, content: string) => {
-      if (String(file).includes("users.json")) {
-        state.users = JSON.parse(content);
-      }
-      return Promise.resolve(undefined);
-    }),
-  };
+  return { ...actual, writeFile: vi.fn().mockResolvedValue(undefined) };
 });
 
+import { openDatabase, closeDatabase } from "../../../app/db/database";
+import { UserRepository } from "../../../app/db/user-repo";
 import { registerImportedUser } from "../../../scripts/official-register";
 
 describe("registerImportedUser", () => {
+  let repo: UserRepository;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    state.users = { "1": { uid: "1", password: "p" } };
+    // 单例连接指向内存库（registerImportedUser 内部 openDatabase() 复用）
+    openDatabase(":memory:");
+    repo = new UserRepository(openDatabase());
   });
 
-  it("应生成新 uid 并注册账号", async () => {
-    const { writeFile } = await import("fs/promises");
-    const writeFileMock = vi.mocked(writeFile);
+  afterEach(() => {
+    closeDatabase();
+  });
 
+  it("应生成新 uid 并注册账号（写 SQLite users 表）", async () => {
+    repo.upsert("1", { uid: "1", password: "p" } as any);
     const result = await registerImportedUser({
       phone: "13800000000",
       officialUid: "10001",
@@ -41,19 +33,20 @@ describe("registerImportedUser", () => {
     });
     expect(result.uid).toBe("2");
     // 存档写入（databases/2.json）
+    const { writeFile } = await import("fs/promises");
+    const writeFileMock = vi.mocked(writeFile);
     const saveCall = writeFileMock.mock.calls.find((c) => String(c[0]).includes("databases"));
     expect(saveCall).toBeDefined();
     expect(JSON.parse(saveCall![1]).status.uid).toBe("2");
-    // users.json 注册
-    const usersCall = writeFileMock.mock.calls.find((c) => String(c[0]).includes("users.json"));
-    expect(usersCall).toBeDefined();
-    const users = JSON.parse(usersCall![1]);
+    // SQLite 注册
+    const users = repo.getAll();
     expect(users["2"].auth.phone).toBe("13800000000");
     expect(users["2"].auth.hgId).toBe("10001");
     expect(users["2"].social).toBeDefined();
   });
 
-  it("连续注册应递增 uid", async () => {
+  it("连续注册应递增 uid（基于 SQLite 现有账号）", async () => {
+    repo.upsert("1", { uid: "1", password: "p" } as any);
     await registerImportedUser({
       phone: "13800000000",
       officialUid: "10001",

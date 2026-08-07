@@ -2,23 +2,19 @@
  * 迁移账号注册与存档写入
  *
  * 将转换后的私服存档写入 data/user/databases/{newUid}.json，
- * 并在 data/user/users.json 中注册账号（auth.phone 用官服手机号、auth.hgId 保留官服 uid）。
+ * 并在 SQLite（users 表）中注册账号（auth.phone 用官服手机号、auth.hgId 保留官服 uid）。
  * 新 uid 从现有账号最大值递增。
  */
-import { readFileSync, writeFile } from "fs";
 import { writeFile as writeFileAsync } from "fs/promises";
 import * as path from "path";
+import { openDatabase } from "../app/db/database";
+import { UserRepository } from "../app/db/user-repo";
 
 const DATA_USER_DIR = path.join(__dirname, "../data/user");
-const USERS_FILE = path.join(DATA_USER_DIR, "users.json");
 
-/** 读取 users.json（若不存在返回空） */
+/** 读取现有用户（SQLite——users.json 已迁移为种子） */
 export function loadUsers(): { [key: string]: any } {
-  try {
-    return JSON.parse(readFileSync(USERS_FILE, "utf8"));
-  } catch {
-    return {};
-  }
+  return new UserRepository(openDatabase()).getAll();
 }
 
 /** 计算下一个新 uid（现有数字最大 +1，最小 2） */
@@ -75,9 +71,9 @@ export async function registerImportedUser(opts: {
     "utf8",
   );
 
-  // 2. 注册账号
+  // 2. 注册账号（SQLite——users.json 已迁移为种子，不再写文件）
   users[newUid] = entry;
-  await writeFileAsync(USERS_FILE, JSON.stringify(users), "utf8");
+  new UserRepository(openDatabase()).upsert(newUid, entry);
 
   return {
     uid: newUid,

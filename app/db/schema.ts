@@ -30,4 +30,11 @@ CREATE TABLE IF NOT EXISTS visited (
   ts          INTEGER NOT NULL,
   PRIMARY KEY (uid, visited_uid)
 );
+
+-- 用户账号配置（users.json 迁移目标——SQLite 为唯一事实源，users.json 仅首次迁移种子）
+CREATE TABLE IF NOT EXISTS users (
+  uid        TEXT PRIMARY KEY,
+  data       TEXT NOT NULL,
+  updated_ts INTEGER NOT NULL
+);
 `;

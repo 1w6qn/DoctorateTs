@@ -54,8 +54,8 @@ describe("AccountManager 创建新用户", () => {
 
   it("tokenByPhonePassword 账号不存在应自动注册", async () => {
     const token = await accountManager.tokenByPhonePassword("13911112222", "pwd3");
-    // 自动注册返回新 uid 作为 token
-    expect(token).toBe("2");
+    // 自动注册返回新账号的 secret 作为 token（参考 DoctoratePy token=secret 模型）
+    expect(token).toBe((accountManager as any).configs["2"].secret);
     expect((accountManager as any).configs["2"].auth.phone).toBe("13911112222");
     expect((accountManager as any).configs["2"].password).toBe("pwd3");
   });

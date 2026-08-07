@@ -165,21 +165,6 @@ export class BuildingManager {
     }
   }
 
-  /** 生成线索 ID（递增且不与现有库存冲突） */
-  _nextClueId(): string {
-    const meeting = Object.values(this._player._playerdata.building.rooms.MEETING)[0];
-    const used = new Set<string>();
-    for (const c of [
-      ...(meeting?.ownStock ?? []),
-      ...(meeting?.receiveStock ?? []),
-    ]) {
-      used.add(c.id);
-    }
-    let i = 1;
-    while (used.has(`clue_${String(i).padStart(3, "0")}`)) i++;
-    return `clue_${String(i).padStart(3, "0")}`;
-  }
-
   // ==================== 房间管理 ====================
 
   /**
@@ -413,8 +398,14 @@ export class BuildingManager {
     });
   }
 
-  /** 单次信赖增加量（私服简化常量） */
-  private _intimacyGain = 12;
+  /**
+   * 单次信赖增加量（Excel 驱动：basicFavorPerDay 每日信赖量 ÷ 60 ≈ 每小时量）
+   * 例：basicFavorPerDay=720 → 12/次（官服按小时累积信赖，私服简化每次操作发放）
+   */
+  private get _intimacyGain(): number {
+    const perDay = getBuildingConstant<number>("basicFavorPerDay") ?? 720;
+    return Math.max(Math.round(perDay / 60), 1);
+  }
 
   /** 给单个干员增加信赖（同步更新 troop.chars 与 charGroup） */
   private _addFavor(
@@ -833,9 +824,21 @@ export class BuildingManager {
     return Object.values(rooms)[0];
   }
 
+  /** 线索阵营（真实存档 type 取值，与 MEETING buff.weight keys 一致） */
+  private static _CLUE_FACTIONS = [
+    "RHINE",
+    "PENGUIN",
+    "BLACKSTEEL",
+    "URSUS",
+    "GLASGOW",
+    "KJERAG",
+    "RHODES",
+  ];
+
   /**
    * 获取每日线索
    * 每日一条免费线索（dailyReward 已领则不重复发放）
+   * 真实格式：type=阵营、id={uid}#{随机}#{时间戳}
    * @param args - 请求体参数
    */
   async getDailyClue(args: any) {
@@ -844,8 +847,10 @@ export class BuildingManager {
       if (!room || room.dailyReward) return;
       const status = draft.status;
       const clue: PlayerBuildingMeetingClue = {
-        id: this._nextClueId(),
-        type: `clue_${1 + Math.floor(Math.random() * 7)}`,
+        id: `${status.uid}#${Math.floor(Math.random() * 9000 + 1000)}#${now()}`,
+        type: BuildingManager._CLUE_FACTIONS[
+          Math.floor(Math.random() * BuildingManager._CLUE_FACTIONS.length)
+        ],
         number: 1 + Math.floor(Math.random() * 3),
         uid: String(status.uid),
         name: status.nickName,

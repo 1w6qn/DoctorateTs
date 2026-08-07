@@ -394,15 +394,9 @@ describe("BuildingManager 内部工具方法", () => {
     expect(mockPlayer._playerdata.building!.roomSlots.slot_2.charInstIds).toEqual([-1]);
   });
 
-  it("_nextClueId 应生成未占用的递增线索 ID", () => {
-    mockPlayer._playerdata.building!.rooms.MEETING = {
-      room_001: {
-        ownStock: [{ id: "clue_001", type: "clue_1", number: 1, uid: "1", name: "A", nickNum: "1", chars: [], inUse: 0 }],
-        receiveStock: [],
-      } as any,
-    };
-    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
-    expect(manager._nextClueId()).toBe("clue_002");
+  it("线索 id 已改为真实格式（不再使用递增 clue_ID 方法）", () => {
+    // _nextClueId 已随线索 id 格式对齐真实存档（{uid}#{n}#{ts}）删除
+    expect(typeof (BuildingManager as any).prototype._nextClueId).toBe("undefined");
   });
 });
 
@@ -529,6 +523,12 @@ describe("BuildingManager 信赖系统", () => {
     expect(mockPlayer._playerdata.troop!.chars["1001"].favorPoint).toBeGreaterThan(100);
     expect(mockPlayer._playerdata.troop!.charGroup.char_001.favorPoint).toBeGreaterThan(100);
     expect(mockPlayer._playerdata.troop!.chars["1002"].favorPoint).toBe(200);
+  });
+
+  it("gainIntimacy 信赖量由 basicFavorPerDay 派生（720/60=12）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.gainIntimacy({ charInstId: 1001 } as any);
+    expect(mockPlayer._playerdata.troop!.chars["1001"].favorPoint).toBe(112); // 100 + 12
   });
 
   it("gainAllIntimacy 应给全部工作干员加信赖", async () => {
@@ -941,6 +941,17 @@ describe("BuildingManager 线索系统", () => {
     const room = mockPlayer._playerdata.building!.rooms.MEETING.room_001;
     expect(room.ownStock).toHaveLength(1);
     expect(room.dailyReward).not.toBeNull();
+  });
+
+  it("getDailyClue 应生成阵营线索（type ∈ 7 阵营、id {uid}#{n}#{ts}）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.getDailyClue({} as any);
+    const clue = mockPlayer._playerdata.building!.rooms.MEETING.room_001.dailyReward;
+    expect([
+      "RHINE", "PENGUIN", "BLACKSTEEL", "URSUS",
+      "GLASGOW", "KJERAG", "RHODES",
+    ]).toContain(clue.type);
+    expect(clue.id).toMatch(/^\d+#\d+#\d+$/);
   });
 
   it("getDailyClue 重复调用不应重复发线索", async () => {

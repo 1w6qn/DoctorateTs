@@ -6,7 +6,7 @@ import { WritableDraft } from "immer";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { PlayerBuildingMeetingClue } from "@game/model/playerdata";
 import { accountManager } from "./AccountManger";
-import { getManufactFormula } from "@excel/building_excel";
+import { getManufactFormula, getWorkshopFormula } from "@excel/building_excel";
 
 /**
  * 基建管理器类
@@ -703,40 +703,68 @@ export class BuildingManager {
   }
 
   /**
-   * 加工站合成
-   * 参考实现：消耗配方材料，产出目标物品，扣除龙门币
-   * @param args - 包含 roomSlotId、times 的参数对象
+   * 加工站合成（Excel 驱动——查 workshopFormulas）
+   * 消耗 costs（MATERIAL 扣 inventory / GOLD 扣金币）+ goldCost，产出 itemId×count×times，
+   * extraOutcomeRate 概率触发 extraOutcomeGroup 加权副产物。
+   * @param args - 包含 roomSlotId、times、formulaId（客户端传，缺失时回退房间 formulaId）的参数对象
    * @returns 合成结果对象（包含 type/id/count）
    */
-  async workshopSynthesis(args: { roomSlotId: string; times: number }) {
-    const { roomSlotId, times } = args;
+  async workshopSynthesis(args: {
+    roomSlotId: string;
+    times: number;
+    formulaId?: string;
+  }) {
+    const { roomSlotId, times, formulaId } = args;
     let resultItem: { type: string; id: string; count: number } | null = null;
     await this._player.update(async (draft) => {
-      const workshopRoom = draft.building.rooms.MANUFACTURE[roomSlotId] as any;
-      // 注：Python 实现从 MANUFACTURE 房间获取 formulaId，此处保留该逻辑
-      const workshopFormula = workshopRoom?.formulaId;
-      if (workshopFormula && typeof workshopFormula === "object") {
-        const costs = workshopFormula.costs || [];
-        for (const cost of costs) {
-          const itemId = cost.id;
-          const itemCount = cost.count;
-          draft.inventory[itemId] =
-            (draft.inventory[itemId] || 0) - itemCount * times;
+      const roomFormulaId =
+        formulaId ?? (draft.building.rooms.MANUFACTURE as any)[roomSlotId]?.formulaId;
+      const formula = getWorkshopFormula(roomFormulaId);
+      if (!formula) return; // 配方不存在（数据版本错位/制造配方 ID）——容错跳过
+
+      // 消耗：costs（MATERIAL 扣 inventory / GOLD 扣金币）
+      for (const cost of formula.costs ?? []) {
+        if (cost.type === "GOLD") {
+          draft.status.gold -= cost.count * times;
+        } else {
+          draft.inventory[cost.id] =
+            (draft.inventory[cost.id] || 0) - cost.count * times;
         }
-        // 增加产出物品
-        if (workshopFormula.itemId) {
-          draft.inventory[workshopFormula.itemId] =
-            (draft.inventory[workshopFormula.itemId] || 0) + times;
-        }
-        if (workshopFormula.goldCost) {
-          draft.status.gold -= workshopFormula.goldCost * times;
-        }
-        resultItem = {
-          type: "MATERIAL",
-          id: workshopFormula.itemId,
-          count: times,
-        };
       }
+      // 消耗：goldCost（合成手续费）
+      if (formula.goldCost) {
+        draft.status.gold -= formula.goldCost * times;
+      }
+      // 产出
+      draft.inventory[formula.itemId] =
+        (draft.inventory[formula.itemId] || 0) + (formula.count ?? 1) * times;
+      // 副产物（extraOutcomeRate 概率 + extraOutcomeGroup 加权随机）
+      if (
+        formula.extraOutcomeRate &&
+        formula.extraOutcomeGroup?.length &&
+        Math.random() < formula.extraOutcomeRate
+      ) {
+        const pool = formula.extraOutcomeGroup as {
+          weight?: number;
+          itemId: string;
+          itemCount: number;
+        }[];
+        const total = pool.reduce((s, g) => s + (g.weight ?? 1), 0);
+        let roll = Math.random() * total;
+        for (const g of pool) {
+          roll -= g.weight ?? 1;
+          if (roll <= 0) {
+            draft.inventory[g.itemId] =
+              (draft.inventory[g.itemId] || 0) + (g.itemCount ?? 1) * times;
+            break;
+          }
+        }
+      }
+      resultItem = {
+        type: "MATERIAL",
+        id: formula.itemId,
+        count: times,
+      };
     });
     return resultItem;
   }

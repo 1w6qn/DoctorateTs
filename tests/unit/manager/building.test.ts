@@ -818,6 +818,71 @@ describe("BuildingManager 加工分解与专精", () => {
   });
 });
 
+describe("BuildingManager 加工站合成（Excel 驱动）", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({
+      building: {
+        status: { labor: { buffSpeed: 0, processPoint: 0, value: 100, lastUpdateTime: 0, maxValue: 100 }, workshop: { bonusActive: 0, bonus: {} } },
+        chars: {},
+        roomSlots: {},
+        rooms: {
+          CONTROL: {}, ELEVATOR: {}, POWER: {}, TRADING: {},
+          MANUFACTURE: { slot_5: { formulaId: "" } as any },
+          CORRIDOR: {}, WORKSHOP: {}, DORMITORY: {}, MEETING: {}, HIRE: {},
+          TRAINING: {}, PRIVATE: {},
+        },
+        furniture: {},
+        diyPresetSolutions: {},
+        assist: [-1, -1, -1],
+        solution: { furnitureTs: {} },
+        music: { selected: "bgm_default" },
+      } as any,
+      status: { gold: 10000 } as any,
+      inventory: { "3112": 10 } as any,
+      event: { building: 0 },
+    });
+    mockPlayer._trigger = mockTrigger;
+    mockPlayer.update = vi
+      .fn()
+      .mockImplementation(
+        async (recipe: (draft: any) => Promise<any> | any) => {
+          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+          const result = await recipe(draft);
+          Object.assign(mockPlayer._playerdata, draft);
+          return result;
+        }
+      );
+  });
+
+  it("workshopSynthesis 应按 workshopFormulas 扣材料/金币并产出", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const result = await manager.workshopSynthesis({ roomSlotId: "slot_5", times: 1, formulaId: "1" } as any);
+    expect(mockPlayer._playerdata.inventory!["3112"]).toBe(8); // 10 - 2
+    expect(mockPlayer._playerdata.status!.gold).toBe(9200); // 10000 - 800
+    expect(mockPlayer._playerdata.inventory!["3131"]).toBe(1);
+    expect(result).toEqual({ type: "MATERIAL", id: "3131", count: 1 });
+  });
+
+  it("workshopSynthesis 副产物概率触发时额外产出（extraOutcomeGroup 加权）", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.05); // < extraOutcomeRate 0.1
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.workshopSynthesis({ roomSlotId: "slot_5", times: 1, formulaId: "1" } as any);
+    expect(mockPlayer._playerdata.inventory!["3112"]).toBe(9); // 10 - 2 + 副产物 1
+  });
+
+  it("workshopSynthesis 未知配方应跳过（不崩溃）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const result = await manager.workshopSynthesis({ roomSlotId: "slot_5", times: 1, formulaId: "999" } as any);
+    expect(result).toBeNull();
+    expect(mockPlayer._playerdata.inventory!["3112"]).toBe(10);
+  });
+});
+
 describe("BuildingManager 线索系统", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
   let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;

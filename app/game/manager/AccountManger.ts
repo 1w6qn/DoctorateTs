@@ -53,14 +53,7 @@ export class AccountManager {
     migrateFromUserConfigs(openDatabase(), this.configs);
     await this.saveUserConfig();
     for (const uid in this.configs) {
-      this.data[uid] = new PlayerDataManager(
-        await readJson<PlayerDataModel>(`./data/user/databases/${uid}.json`),
-      );
-      this.data[uid]._playerdata.status.uid = uid;
-      this.data[uid]._trigger.on("save", () => {
-        // 防抖合并：500ms 内的多次变更只落盘一次
-        this.scheduleSave(uid);
-      });
+      await this._loadPlayer(uid);
     }
     logger.info(
       "AccountManager",
@@ -138,12 +131,33 @@ export class AccountManager {
   }
 
   /**
-   * 获取玩家数据管理器
+   * 获取玩家数据管理器（懒加载：data 未加载时从存档文件读取——real 模式注册新账号后免重启）
    * @param uid - 用户ID
    * @returns 玩家数据管理器实例
    */
   async getPlayerData(uid: string): Promise<PlayerDataManager> {
+    if (!this.data[uid]) {
+      await this._loadPlayer(uid);
+    }
     return this.data[uid];
+  }
+
+  /**
+   * 加载玩家数据到内存（文件读取 + 事件接线；init/ensureSingleUser/懒加载共用）
+   * @param uid - 用户ID
+   * @param playerData - 可选：已有数据对象则跳过文件读取（ensureSingleUser 用）
+   */
+  private async _loadPlayer(uid: string, playerData?: PlayerDataModel): Promise<void> {
+    if (this.data[uid]) return;
+    const data =
+      playerData ??
+      (await readJson<PlayerDataModel>(`./data/user/databases/${uid}.json`));
+    this.data[uid] = new PlayerDataManager(data);
+    this.data[uid]._playerdata.status.uid = uid;
+    this.data[uid]._trigger.on("save", () => {
+      // 防抖合并：500ms 内的多次变更只落盘一次
+      this.scheduleSave(uid);
+    });
   }
 
   /**
@@ -466,20 +480,16 @@ export class AccountManager {
     await this.saveUserConfig();
 
     // 加载玩家数据（与 init 一致——getPlayerData 可用；直接使用内存 playerData，避免重读文件）
-    this.data[uid] = new PlayerDataManager(playerData as PlayerDataModel);
-    this.data[uid]._playerdata.status.uid = uid;
-    this.data[uid]._trigger.on("save", () => {
-      this.scheduleSave(uid);
-    });
+    await this._loadPlayer(uid, playerData as PlayerDataModel);
   }
 
   /**
-   * 通过uid获取Token
+   * 通过uid获取Token（真实模式：账号 secret；旧账号无 secret 回退 uid）
    * @param uid - 用户ID
-   * @returns 用户Token（即uid）
+   * @returns 用户Token（secret 或 uid）
    */
   async getTokenByUid(uid: string): Promise<string> {
-    return uid;
+    return this.configs[uid]?.secret || uid;
   }
 
   /**

@@ -7,9 +7,16 @@ vi.mock("fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs/promises")>();
   return { ...actual, writeFile: vi.fn().mockResolvedValue(undefined), rename: vi.fn().mockResolvedValue(undefined) };
 });
+// readJson 默认走真实实现（读文件），懒加载用例可 mockResolvedValueOnce 覆盖
+vi.mock("@utils/file", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@utils/file")>();
+  return { ...actual, readJson: vi.fn(actual.readJson) };
+});
 
 import { accountManager } from "../../../app/game/manager/AccountManger";
 import config from "../../../app/config";
+import { readJson } from "@utils/file";
+import { readFileSync } from "fs";
 
 describe("getUidByToken 认证模式", () => {
   beforeEach(() => {
@@ -106,5 +113,25 @@ describe("getUidByToken 认证模式", () => {
       "1": { auth: { phone: "1" }, password: "p1", secret: "secret_1" },
     };
     expect(await accountManager.tokenByPhonePassword("1", "p1")).toBe("secret_1");
+  });
+
+  it("getTokenByUid 应返回账号 secret（无 secret 旧账号回退 uid）", async () => {
+    (accountManager as any).configs = {
+      "1": { auth: { phone: "1" }, secret: "abc123" },
+      "2": { auth: { phone: "2" } },
+    };
+    expect(await accountManager.getTokenByUid("1")).toBe("abc123");
+    expect(await accountManager.getTokenByUid("2")).toBe("2");
+  });
+
+  it("getPlayerData 懒加载：data 缺失时从存档文件加载（real 模式注册后免重启）", async () => {
+    // 用真实 1.json 模板构造完整 playerdata（PlayerDataManager 构造需要完整字段）
+    const raw = JSON.parse(readFileSync("./data/user/databases/1.json", "utf8"));
+    raw.status.uid = "7";
+    (vi.mocked(readJson) as any).mockResolvedValueOnce(raw);
+    (accountManager as any).data = {}; // 模拟未加载状态
+    const player = await accountManager.getPlayerData("7");
+    expect(player).toBeDefined();
+    expect((player as any)._playerdata.status.uid).toBe("7");
   });
 });

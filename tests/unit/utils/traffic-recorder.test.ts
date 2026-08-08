@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as path from "path";
 import * as fs from "fs";
+import * as os from "os";
 import { createTrafficRecorder } from "../../../app/utils/traffic-recorder";
 
-const RECORD_ROOT = "tmp";
+// 测试专用独立临时目录——绝不碰真实 tmp/（官服抓包目录，跑测试清空会导致参考数据丢失）
+const RECORD_ROOT = path.join(os.tmpdir(), "traffic-recorder-test");
 
 function mockReq(originalUrl: string, method = "POST", body: any = {}) {
   return {
@@ -39,19 +41,17 @@ describe("createTrafficRecorder（调试请求/响应记录）", () => {
   const cfgOff = { debug: { recordTraffic: false } };
 
   beforeEach(() => {
-    // 清理 tmp/ 下测试产生的目录（只删本中间件前缀目录）
-    for (const dir of ["account", "request_account", "u8", "request_u8"]) {
-      const p = path.join(RECORD_ROOT, dir);
-      if (fs.existsSync(p)) fs.rmSync(p, { recursive: true, force: true });
-    }
+    // 清理测试专用临时目录（只影响本测试，不动 tmp/）
+    if (fs.existsSync(RECORD_ROOT)) fs.rmSync(RECORD_ROOT, { recursive: true, force: true });
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    if (fs.existsSync(RECORD_ROOT)) fs.rmSync(RECORD_ROOT, { recursive: true, force: true });
   });
 
-  it("recordTraffic=true 时记录 request 与 response 到 tmp/（对齐 test.ts 目录）", async () => {
-    const handler = createTrafficRecorder(cfgOn);
+  it("recordTraffic=true 时记录 request 与 response（独立临时目录，对齐 test.ts 目录结构）", async () => {
+    const handler = createTrafficRecorder(cfgOn, RECORD_ROOT);
     const req = mockReq("/account/syncData");
     const res = mockRes();
     const next = vi.fn();
@@ -77,7 +77,7 @@ describe("createTrafficRecorder（调试请求/响应记录）", () => {
   });
 
   it("recordTraffic=false（默认）时不写任何文件", async () => {
-    const handler = createTrafficRecorder(cfgOff);
+    const handler = createTrafficRecorder(cfgOff, RECORD_ROOT);
     const req = mockReq("/account/syncData");
     const res = mockRes();
     handler(req, res, () => {});
@@ -89,7 +89,7 @@ describe("createTrafficRecorder（调试请求/响应记录）", () => {
   });
 
   it("url 带 query 时目录只取路径部分", async () => {
-    const handler = createTrafficRecorder(cfgOn);
+    const handler = createTrafficRecorder(cfgOn, RECORD_ROOT);
     const req = mockReq("/u8/user/v1/getToken?appCode=abc&platform=2");
     const res = mockRes();
     handler(req, res, () => {});
@@ -101,7 +101,7 @@ describe("createTrafficRecorder（调试请求/响应记录）", () => {
   });
 
   it("res.json 同样被记录", async () => {
-    const handler = createTrafficRecorder(cfgOn);
+    const handler = createTrafficRecorder(cfgOn, RECORD_ROOT);
     const req = mockReq("/account/login");
     const res = mockRes();
     handler(req, res, () => {});

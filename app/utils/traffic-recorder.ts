@@ -13,7 +13,7 @@ import { RequestHandler } from "express";
 import { mkdir, writeFile } from "fs/promises";
 import * as path from "path";
 
-/** 记录目录根（与 test.ts 一致，相对进程 cwd） */
+/** 记录目录根（与 test.ts 一致，相对进程 cwd；可通过 createTrafficRecorder 第二参数覆盖——测试用独立目录避免清空真实抓包） */
 const RECORD_ROOT = "tmp";
 
 /**
@@ -21,17 +21,18 @@ const RECORD_ROOT = "tmp";
  *
  * @param req - 请求对象（用 originalUrl 提取 module/endpoint，兼容 host-router 前缀剥除）
  * @param prefix - 目录前缀（""=response、"request_"=request）
+ * @param root - 记录根目录（默认 tmp/；测试传独立临时目录）
  * @returns 形如 tmp/account/syncData 或 tmp/request_account/syncData
  */
-function recordDir(req: any, prefix: string): string {
+function recordDir(req: any, prefix: string, root: string): string {
   // originalUrl 去掉 query 后按 / 分段；host-router 已把 /auth/... 剥为 /u8/...，
   // 这里按最终路径分段（与官服抓包 tmp/ 目录一致——官服抓包也是无 /auth 前缀的目录）
   const url = req.originalUrl.split("?")[0];
   const segments = url.split("/").filter(Boolean);
-  if (!segments.length) return path.join(RECORD_ROOT, prefix + "root");
+  if (!segments.length) return path.join(root, prefix + "root");
   const [module, ...rest] = segments;
   const endpoint = rest.join("/") || module;
-  return path.join(RECORD_ROOT, prefix + module, endpoint);
+  return path.join(root, prefix + module, endpoint);
 }
 
 /**
@@ -41,9 +42,13 @@ function recordDir(req: any, prefix: string): string {
  * 开启条件：config.debug?.recordTraffic === true。
  *
  * @param config - 应用配置（读取 debug.recordTraffic）
+ * @param root - 记录根目录（默认 "tmp"；测试传独立临时目录，避免清空/污染真实抓包）
  * @returns Express 中间件
  */
-export function createTrafficRecorder(config: { debug?: { recordTraffic?: boolean } }): RequestHandler {
+export function createTrafficRecorder(
+  config: { debug?: { recordTraffic?: boolean } },
+  root: string = RECORD_ROOT,
+): RequestHandler {
   return (req, res, next) => {
     if (!config.debug?.recordTraffic) return next();
 
@@ -84,8 +89,8 @@ export function createTrafficRecorder(config: { debug?: { recordTraffic?: boolea
               /* 非 JSON 文本（如 404 HTML）保持原样 */
             }
           }
-          const reqDir = recordDir(req, "request_");
-          const resDir = recordDir(req, "");
+          const reqDir = recordDir(req, "request_", root);
+          const resDir = recordDir(req, "", root);
           await mkdir(reqDir, { recursive: true });
           await mkdir(resDir, { recursive: true });
           await writeFile(

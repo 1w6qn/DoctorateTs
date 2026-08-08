@@ -158,13 +158,15 @@ export const SERVER_ADD_FIELDS: Record<string, Record<string, string>> = {
   PlayerCharacter: {
     skin: "string",
     defaultSkillIndex: "number",
-    skills: "PlayerSkill[]",
+    skills: "object[]",
     voiceLan: "string",
     currentEquip: "string",
     equip: "{ [key: string]: PlayerCharEquipInfo }",
     master: "object",
   },
-  // Building 系列（服务端 buff/房间结构）
+  PlayerCharPatch: {
+    skills: "object[]",
+  },
   PlayerBuildingWorkshopStatus: { bonusActive: "number" },
   PlayerBuildingCharBubble: { ts: "number" },
   PlayerBuildingChar_BubbleContainer: { private: "object" },

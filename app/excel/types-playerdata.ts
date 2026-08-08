@@ -377,7 +377,7 @@ export interface PlayerCharacter {
     tmpl: { [key: string]: PlayerCharPatch };
     skin: string;
     defaultSkillIndex: number;
-    skills: PlayerSkill[];
+    skills: object[];
     voiceLan: string;
     currentEquip: string;
     equip: { [key: string]: PlayerCharEquipInfo };
@@ -389,7 +389,7 @@ export interface PlayerCharPatch {
     defaultSkillIndex: number;
     currentEquip: string;
     equip: { [key: string]: PlayerCharEquipInfo };
-    skills: PlayerSkill[];
+    skills: object[];
 }
 
 export interface PlayerNpcWithAudio {

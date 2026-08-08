@@ -23,4 +23,26 @@ router.post("/retro/getRetroPassReward", async (req, res) => {
     ...player.delta,
   });
 });
+router.post("/retro/typeAct20side/competitionStart", async (req, res) => {
+  // 参考 OBS misc_bp.retro_typeAct20side_competitionStart：固定 stub
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  res.send({
+    result: 0,
+    battleId: "00000000-0000-0000-0000-000000000000",
+    ...player.delta,
+  });
+});
+router.post("/retro/typeAct20side/competitionFinish", async (req, res) => {
+  // 参考 OBS misc_bp.retro_typeAct20side_competitionFinish：固定评价结构
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  res.send({
+    performance: 0,
+    expression: 0,
+    operation: 0,
+    total: 0,
+    level: "SS",
+    isNew: false,
+    ...player.delta,
+  });
+});
 export default router;

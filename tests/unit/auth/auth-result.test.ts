@@ -178,6 +178,12 @@ describe("auth 结果补全（参考 DoctoratePy）", () => {
     expect(res.send).toHaveBeenCalledWith({ result: 0, message: "OK", isMinor: false });
   });
 
+  it("POST /u8/user/auth/v1/agreement_version 应返回协议版本（同 GET 响应）", async () => {
+    const res = mockRes();
+    await call(authRouter, { method: "POST", url: "/u8/user/auth/v1/agreement_version" }, res);
+    expect(res.send).toHaveBeenCalledWith({ status: 0, msg: "OK", data: { version: 1 } });
+  });
+
   it("POST /user/auth/v1/check_id_card 应返回身份证校验 result", async () => {
     const res = mockRes();
     await call(authRouter, { method: "POST", url: "/user/auth/v1/check_id_card", body: { idCardNum: "11010119900101001X" } }, res);

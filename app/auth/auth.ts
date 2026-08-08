@@ -99,8 +99,11 @@ router.post("/user/info/v1/need_cloud_auth", async (req, res) => {
   res.send({ status: 0, msg: "OK" });
 });
 
-/** 用户协议版本（客户端检查——私服固定最新版本） */
+/** 用户协议版本（客户端检查——私服固定最新版本；POST 为 U8 SDK 备选调用方式，响应同 GET） */
 router.get("/u8/user/auth/v1/agreement_version", async (req, res) => {
+  res.send({ status: 0, msg: "OK", data: { version: 1 } });
+});
+router.post("/u8/user/auth/v1/agreement_version", async (req, res) => {
   res.send({ status: 0, msg: "OK", data: { version: 1 } });
 });
 

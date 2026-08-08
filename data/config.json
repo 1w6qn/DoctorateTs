@@ -28,7 +28,7 @@
         "network": {
           "gs": "{server}",
           "as": "{server}",
-          "u8": "{server}/auth/u8",
+          "u8": "{server}/u8",
           "hu": "{server}/assetbundle/official",
           "hv": "{server}/config/prod/official/{0}/version",
           "rc": "{server}/config/prod/official/remote_config",

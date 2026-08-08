@@ -74,7 +74,9 @@ describe("auth 路由", () => {
     await call(authRouter, { method: "GET", url: "/user/info/v1/basic", query: { token: "t" } }, res);
     expect(accountManager.getUidByToken).toHaveBeenCalledWith("t");
     expect(res.send).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { phone: "13800000000" } }),
+      expect.objectContaining({
+        data: expect.objectContaining({ phone: "13800000000" }),
+      }),
     );
   });
 
@@ -85,7 +87,7 @@ describe("auth 路由", () => {
     await call(authRouter, { method: "GET", url: "/user/info/v1/basic", query: { token: "invalid" } }, res);
     expect(res.status).not.toHaveBeenCalled();
     expect(res.send).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 0, data: {} }),
+      expect.objectContaining({ status: 0, data: expect.objectContaining({ isLatestUserAgreement: true }) }),
     );
   });
 

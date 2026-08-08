@@ -14,6 +14,11 @@ import config from "../config";
 
 const router = Router();
 
+/** 动态服务器地址（去硬编码——协议/客服链接跟随 config.Host:PORT，与 remote-config resolveServer 一致） */
+function serverUrl(): string {
+  return `${config.Host}:${config.PORT}`;
+}
+
 /**
  * 获取服务器时间
  * 
@@ -43,7 +48,12 @@ router.get("/general/v1/server_time", async (req, res) => {
  * @returns 应用配置 JSON
  */
 router.get("/app/v1/config", async (req, res) => {
-  res.send(await readJson("./data/appConfig.json"));
+  const cfg = (await readJson("./data/appConfig.json")) as any;
+  // 用户中心指向本地 /pcSdk/userInfo（官服 userCenterUrl 跳官方页面——私服化去硬编码）
+  if (cfg?.data) {
+    cfg.data.userCenterUrl = `${serverUrl()}/pcSdk/userInfo`;
+  }
+  res.send(cfg);
 });
 
 /**
@@ -86,11 +96,18 @@ router.get("/user/info/v1/basic", async (req, res) => {
     // 真实模式：无效 token 严格报错（单例模式宽松）
     return res.status(404).send({ status: 1, msg: "用户不存在", code: "USER_NOT_FOUND" });
   }
+  // 对齐官服抓包结构：identityNum/identityName/isMinor/isLatestUserAgreement（2026-08-08 user/info/v1/basic）
   res.send({
     status: 0,
     msg: "OK",
     // token 无效时宽松返回空 auth（参考 DoctoratePy：按 token 查用户，私服单机不卡流程）
-    data: data?.auth || {},
+    data: {
+      ...(data?.auth || {}),
+      identityNum: uid,
+      identityName: uid,
+      isMinor: false,
+      isLatestUserAgreement: true,
+    },
   });
 });
 
@@ -99,12 +116,35 @@ router.post("/user/info/v1/need_cloud_auth", async (req, res) => {
   res.send({ status: 0, msg: "OK" });
 });
 
-/** 用户协议版本（客户端检查——私服固定最新版本；POST 为 U8 SDK 备选调用方式，响应同 GET） */
+/** 用户协议版本（客户端检查——私服固定最新版本；POST 为 U8 SDK 备选调用方式，响应同 GET；协议 URL 动态跟随服务器地址） */
+function agreementVersionBody(): Record<string, unknown> {
+  const server = serverUrl();
+  return {
+    data: {
+      agreementUrl: {
+        childrenPrivacy: `${server}/protocol/plain/ak/children_privacy`,
+        privacy: `${server}/protocol/plain/ak/privacy`,
+        service: `${server}/protocol/plain/ak/service`,
+        updateOverview: `${server}/protocol/plain/ak/overview_of_changes`,
+      },
+      authorized: true,
+      isLatestUserAgreement: true,
+    },
+    msg: "OK",
+    status: 0,
+    type: "",
+  };
+}
 router.get("/u8/user/auth/v1/agreement_version", async (req, res) => {
-  res.send({ status: 0, msg: "OK", data: { version: 1 } });
+  res.send(agreementVersionBody());
 });
 router.post("/u8/user/auth/v1/agreement_version", async (req, res) => {
-  res.send({ status: 0, msg: "OK", data: { version: 1 } });
+  res.send(agreementVersionBody());
+});
+
+/** PC SDK 用户中心（客户端 userCenterUrl 跳转；官服抓包响应为 null） */
+router.get("/pcSdk/userInfo", async (_req, res) => {
+  res.send(null);
 });
 
 /** OAuth2 授权 v1（兼容旧客户端——同 v2 逻辑） */
@@ -149,16 +189,20 @@ router.post("/user/oauth2/v2/grant", async (req, res) => {
 router.post("/u8/user/v1/getToken", async (req, res) => {
   const code: string = JSON.parse(req.body!.extension).code;
   const uid = await accountManager.getUidByToken(code);
+  // 对齐官服抓包结构：captcha/error/isNew 字段（2026-08-07 auth/u8/user/v1/getToken）
   res.send({
-    channelUid: "1",
+    result: 0,
+    captcha: {},
+    error: "",
+    uid,
+    channelUid: uid,
+    token: code,
+    isGuest: 0,
     extension: JSON.stringify({
       isMinor: false,
       isAuthenticate: true,
     }),
-    isGuest: 0,
-    result: 0,
-    token: code,
-    uid,
+    isNew: false,
   });
 });
 

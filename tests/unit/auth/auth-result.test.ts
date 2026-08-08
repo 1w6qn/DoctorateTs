@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 
-const configMock = vi.hoisted(() => ({ default: { authMode: "real" } }));
+const configMock = vi.hoisted(() => ({
+  default: { authMode: "real", Host: "http://127.0.0.1", PORT: 8443 },
+}));
 vi.mock("../../../app/config", () => configMock);
 
 // mock accountManager：提供 configs（login/register 用）+ 基础方法
@@ -178,10 +180,76 @@ describe("auth 结果补全（参考 DoctoratePy）", () => {
     expect(res.send).toHaveBeenCalledWith({ result: 0, message: "OK", isMinor: false });
   });
 
-  it("POST /u8/user/auth/v1/agreement_version 应返回协议版本（同 GET 响应）", async () => {
+  it("POST /u8/user/auth/v1/agreement_version 应返回协议版本（agreementUrl 动态跟随服务器地址）", async () => {
     const res = mockRes();
     await call(authRouter, { method: "POST", url: "/u8/user/auth/v1/agreement_version" }, res);
-    expect(res.send).toHaveBeenCalledWith({ status: 0, msg: "OK", data: { version: 1 } });
+    const arg = res.send.mock.calls[0][0];
+    expect(arg.status).toBe(0);
+    expect(arg.msg).toBe("OK");
+    expect(arg.data.authorized).toBe(true);
+    expect(arg.data.isLatestUserAgreement).toBe(true);
+    expect(arg.data.agreementUrl.privacy).toBe(
+      "http://127.0.0.1:8443/protocol/plain/ak/privacy",
+    );
+  });
+
+  it("GET /u8/user/auth/v1/agreement_version 应返回协议版本（同 POST 结构）", async () => {
+    const res = mockRes();
+    await call(authRouter, { method: "GET", url: "/u8/user/auth/v1/agreement_version" }, res);
+    const arg = res.send.mock.calls[0][0];
+    expect(arg.data.agreementUrl.childrenPrivacy).toContain("/protocol/plain/ak/children_privacy");
+    expect(arg.data.authorized).toBe(true);
+  });
+
+  it("GET /pcSdk/userInfo 应返回 null（对齐官服抓包）", async () => {
+    const res = mockRes();
+    await call(authRouter, { method: "GET", url: "/pcSdk/userInfo" }, res);
+    expect(res.send).toHaveBeenCalledWith(null);
+  });
+
+  it("POST /u8/user/v1/getToken 应返回完整 U8 渠道结构（captcha/error/isNew）", async () => {
+    const res = mockRes();
+    await call(
+      authRouter,
+      {
+        method: "POST",
+        url: "/u8/user/v1/getToken",
+        body: { extension: JSON.stringify({ code: "secret_10000" }) },
+      },
+      res,
+    );
+    const arg = res.send.mock.calls[0][0];
+    expect(arg).toEqual(
+      expect.objectContaining({
+        result: 0,
+        captcha: {},
+        error: "",
+        uid: "10000",
+        channelUid: "10000",
+        token: "secret_10000",
+        isGuest: 0,
+        isNew: false,
+      }),
+    );
+  });
+
+  it("GET /user/info/v1/basic 应返回完整用户信息（identityNum/isMinor 等）", async () => {
+    const res = mockRes();
+    await call(
+      authRouter,
+      { method: "GET", url: "/user/info/v1/basic", query: { token: "secret_10000" } },
+      res,
+    );
+    const arg = res.send.mock.calls[0][0];
+    expect(arg.data).toEqual(
+      expect.objectContaining({
+        phone: "13800000001",
+        identityNum: "10000",
+        identityName: "10000",
+        isMinor: false,
+        isLatestUserAgreement: true,
+      }),
+    );
   });
 
   it("POST /user/auth/v1/check_id_card 应返回身份证校验 result", async () => {

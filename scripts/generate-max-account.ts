@@ -10,24 +10,76 @@ import excel from "@excel/excel";
 import config from "../app/config";
 import { PlayerDataManager } from "../app/game/manager/PlayerDataManager";
 
-/** 满配干员结构（满潜/满级/精二/满信赖/满技能） */
+/** 从 excel 干员数据生成满配技能列表（满解锁 + 满专精） */
+function buildMaxedSkills(charData: any): { skillId: string; unlock: number; state: number; specializeLevel: number; completeUpgradeTime: number }[] {
+  return ((charData?.skills as any[]) || [])
+    .filter((s) => s?.skillId)
+    .map((s) => ({
+      skillId: s.skillId,
+      unlock: 1,
+      state: 0,
+      specializeLevel: 3,
+      completeUpgradeTime: -1,
+    }));
+}
+
+/** 从 excel 装备表生成满配装备字典（满级满解锁） */
+function buildMaxedEquip(charId: string): { ids: string[]; equip: Record<string, unknown> } {
+  const ids: string[] = (excel as any).UniequipTable?.charEquip?.[charId] || [];
+  const equip: Record<string, unknown> = {};
+  for (const id of ids) equip[id] = { hide: 0, locked: 0, level: 3 };
+  return { ids, equip };
+}
+
+/**
+ * 满配干员结构（满潜/满级/精二/满信赖/满技能）
+ * 参考 data：player_data.json（官服 453 干员抓包——通用结构含 skills/equip/voiceLan/starMark，无 tmpl；
+ * 唯一例外 char_002_amiya 带 currentTmpl/tmpl 三形态）。
+ */
 export function buildMaxedChar(instId: number, charId: string): Record<string, unknown> {
-  return {
+  const charData = (excel.CharacterTable as any)[charId];
+  const skills = buildMaxedSkills(charData);
+  const { ids: equipIds, equip } = buildMaxedEquip(charId);
+  // 精二满级：最高阶段 maxLevel（无 phases 数据回退 90）
+  const phases = charData?.phases as any[] | undefined;
+  const maxEvolve = phases && phases.length > 0 ? phases.length - 1 : 2;
+  const maxLevel = phases?.[maxEvolve]?.maxLevel ?? 90;
+  const base = {
     instId,
     charId,
     favorPoint: 25570,
     potentialRank: 5,
-    mainSkillLvl: 10,
+    mainSkillLvl: 7, // 技能 7 级满（专精等级在 skills[].specializeLevel）
     skin: null,
-    level: 90,
+    level: maxLevel,
     exp: 0,
-    evolvePhase: 2,
+    evolvePhase: maxEvolve,
     defaultSkillIndex: -1,
     gainTime: Math.floor(Date.now() / 1000),
-    skills: [],
-    currentTmpl: null,
-    tmpl: {},
+    skills,
+    currentEquip: equipIds[0] || null,
+    equip,
+    voiceLan: "CN_MANDARIN",
+    starMark: 0,
   };
+  // 阿米娅特殊：多形态模板（升变——客户端按 tmpl 渲染形态，缺字段会异常）
+  if (charId === "char_002_amiya") {
+    const tmpl: Record<string, unknown> = {};
+    for (const form of ["char_002_amiya", "char_1001_amiya2", "char_1037_amiya3"]) {
+      const tChar = (excel.CharacterTable as any)[form];
+      const tSkills = buildMaxedSkills(tChar);
+      const { ids: tEquipIds, equip: tEquip } = buildMaxedEquip(form);
+      tmpl[form] = {
+        skinId: null,
+        defaultSkillIndex: tSkills.length > 0 ? 0 : -1,
+        skills: tSkills,
+        currentEquip: tEquipIds[0] || null,
+        equip: tEquip,
+      };
+    }
+    return { ...base, currentTmpl: "char_002_amiya", tmpl };
+  }
+  return base;
 }
 
 /**

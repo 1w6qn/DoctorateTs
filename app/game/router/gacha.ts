@@ -66,11 +66,11 @@ router.post("/boostNormalGacha", async (req, res) => {
 
 /**
  * 取消普通招募
- * @route POST /gacha/cancleNormalGacha
+ * @route POST /gacha/cancelNormalGacha
  * @param req.body - 取消参数
  * @returns 玩家增量数据
  */
-router.post("/cancleNormalGacha", async (req, res) => {
+router.post("/cancelNormalGacha", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   await player.recruit.cancel(req.body);
   res.send(player.delta);

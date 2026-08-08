@@ -1,6 +1,7 @@
 /**
  * 自动生成的玩家数据类型定义文件
  * 从 reference/com.hypergryph.arknights_2.7.61.cs 反编译文件生成
+ * （客户端闭包 + 服务端协议适配，见 scripts/playerdata-server-adapt.ts）
  * 生成命令: npm run generate:playerdata
  * 请勿手动修改此文件
  */
@@ -293,6 +294,10 @@ export interface PlayerStatus {
     freeDiamond: number;
     flags: { [key: string]: boolean };
     friendAssist: PlayerFriendAssist[];
+    uid: string;
+    avatarId: string;
+    friendNumLimit: number;
+    tipMonthlyCardExpireTs: number;
 }
 
 export interface AvatarInfo {
@@ -370,6 +375,12 @@ export interface PlayerCharacter {
     starMark: CharStarMarkState;
     currentTmpl: string;
     tmpl: { [key: string]: PlayerCharPatch };
+    skin: string;
+    defaultSkillIndex: number;
+    skills: PlayerSkill[];
+    voiceLan: string;
+    currentEquip: string;
+    equip: { [key: string]: PlayerCharEquipInfo };
 }
 
 export interface PlayerCharPatch {
@@ -377,10 +388,12 @@ export interface PlayerCharPatch {
     defaultSkillIndex: number;
     currentEquip: string;
     equip: { [key: string]: PlayerCharEquipInfo };
+    skills: PlayerSkill[];
 }
 
 export interface PlayerNpcWithAudio {
     voiceLan: VoiceLangType;
+    npcShowAudioInfoFlag: string;
 }
 
 export interface MileStonePlayerInfo_MileStoneRewardTicketItem {
@@ -409,6 +422,10 @@ export interface OpenServerFullOpen {
 export interface PlayerHandBookAddon_GetInfo {
     fts: number;
     rts: number;
+    startTimes: number;
+    completeTimes: number;
+    state: number;
+    startTime: number;
 }
 
 export interface PlayerHandBookAddon {
@@ -1777,72 +1794,7 @@ export interface PlayerActivity_PlayerAct53SideActivity {
     favorList: string[];
 }
 
-export interface PlayerActivity {
-    defaultActivityList: { [key: string]: PlayerActivity_PlayerDefaultActivity };
-    missionOnlyActivityList: { [key: string]: PlayerActivity_PlayerMissionOnlyTypeActivity };
-    checkinOnlyActivityList: { [key: string]: PlayerActivity_PlayerCheckinOnlyTypeActivity };
-    checkinAllActivityList: { [key: string]: PlayerActivity_PlayerCheckinAllTypeActivity };
-    checkinVsActivityList: { [key: string]: PlayerActivity_PlayerCheckinVsTypeActivity };
-    collectionActivityList: { [key: string]: PlayerActivity_PlayerCollectionTypeActivity };
-    avgOnlyActivityList: { [key: string]: PlayerActivity_PlayerAVGOnlyTypeActivity };
-    loginOnlyActivityList: { [key: string]: PlayerActivity_PlayerLoginOnlyTypeActivity };
-    miniStoryActivityList: { [key: string]: PlayerActivity_PlayerMiniStoryActivity };
-    roguelikeActivityList: { [key: string]: PlayerActivity_PlayerRoguelikeActivity };
-    prayOnlyActivityList: { [key: string]: PlayerActivity_PlayerPrayOnlyActivity };
-    flipOnlyActivityList: { [key: string]: PlayerActivity_PlayerFlipOnlyActivity };
-    multiplayActivityList: { [key: string]: PlayerActivity_PlayerMultiplayActivity };
-    multiplayV2ActivityList: { [key: string]: PlayerActivity_PlayerMultiplayV2Activity };
-    multiV3ActivityList: { [key: string]: PlayerActivity_PlayerMultiV3Activity };
-    interlockActivityList: { [key: string]: PlayerActivity_PlayerInterlockActivity };
-    act3D0ActivityList: { [key: string]: PlayerActivity_PlayerAct3D0Activity };
-    act4D0ActivityList: { [key: string]: PlayerActivity_PlayerAct4D0Activity };
-    act5D0ActivityList: { [key: string]: PlayerActivity_PlayerAct5D0Activity };
-    act5D1ActivityList: { [key: string]: PlayerActivity_PlayerAct5D1Activity };
-    act9D0ActivityList: { [key: string]: PlayerActivity_PlayerAct9D0Activity };
-    act17D7ActivityList: { [key: string]: PlayerActivity_PlayerAct17D7Activity };
-    act12sideActivityList: { [key: string]: PlayerActivity_PlayerAct12sideActivity };
-    act13sideActivityList: { [key: string]: PlayerActivity_PlayerAct13sideActivity };
-    gridGachaActivityList: { [key: string]: PlayerActivity_PlayerGridGachaActivity };
-    gridGachaV2ActivityList: { [key: string]: object };
-    actFunActivityList: { [key: string]: PlayerActivity_PlayerAprilFoolActivity };
-    act17sideActivityList: { [key: string]: PlayerActivity_PlayerAct17SideActivity };
-    bossRushActivityList: { [key: string]: PlayerActivity_PlayerBossRushActivity };
-    enemyDuelActivityList: { [key: string]: PlayerActivity_PlayerEnemyDuelActivity };
-    vecBreakV2ActivityList: { [key: string]: PlayerActivity_PlayerVecBreakV2 };
-    arcadeActivityList: { [key: string]: PlayerActivity_PlayerArcadeActivity };
-    act20sideActivityList: { [key: string]: PlayerActivity_PlayerAct20SideActivity };
-    floatParadeActivityList: { [key: string]: PlayerActivity_PlayerActFloatParadeActivity };
-    act21sideActivityList: { [key: string]: PlayerActivity_PlayerAct21SideActivity };
-    mainlineBuffActivityList: { [key: string]: PlayerActivity_PlayerActMainlineBuff };
-    act24sideActivityList: { [key: string]: PlayerActivity_PlayerAct24SideActivity };
-    act25sideActivityList: { [key: string]: PlayerActivity_PlayerAct25SideActivity };
-    switchOnlyList: { [key: string]: PlayerActivity_PlayerSwitchOnlyActivity };
-    act27sideActivityList: { [key: string]: PlayerActivity_PlayerAct27SideActivity };
-    uniqueOnlyList: { [key: string]: PlayerActivity_PlayerUniqueOnlyActivity };
-    mainlineBpActivityList: { [key: string]: object };
-    act42D0ActivityList: { [key: string]: PlayerActivity_PlayerAct42D0Activity };
-    act29sideActivityList: { [key: string]: PlayerActivity_PlayerAct29SideActivity };
-    blessOnlyList: { [key: string]: PlayerActivity_PlayerBlessOnlyActivity };
-    checkinAccessList: { [key: string]: object };
-    year5GeneralList: { [key: string]: PlayerActivity_PlayerYear5GeneralActivity };
-    act35sideActivityList: { [key: string]: PlayerActivity_PlayerAct35SideActivity };
-    act36sideActivityList: { [key: string]: PlayerActivity_PlayerAct36SideActivity };
-    act38sideActivityList: { [key: string]: PlayerActivity_PlayerAct38SideActivity };
-    autoChessList: { [key: string]: PlayerActivity_PlayerAutoChessV1Activity };
-    checkinVideoActivityList: { [key: string]: object };
-    actMainSSActivityList: { [key: string]: PlayerActivity_PlayerActMainSSActivity };
-    act42sideActivityList: { [key: string]: PlayerActivity_PlayerAct42SideActivity };
-    act44sideActivityList: { [key: string]: PlayerActivity_PlayerAct44SideActivity };
-    act1vHalfIdleActivityList: { [key: string]: PlayerActivity_PlayerAct1VHalfIdleActivity };
-    act45sideActivityList: { [key: string]: PlayerActivity_PlayerAct45SideActivity };
-    teamQuestActivityList: { [key: string]: object };
-    recruitOnlyList: { [key: string]: PlayerActivity_PlayerRecruitOnlyAct };
-    act46sideActivityList: { [key: string]: PlayerActivity_PlayerAct46SideActivity };
-    actAutoChessActivityList: { [key: string]: PlayerActivity_PlayerActAutoChessActivity };
-    actArkhubActivityList: { [key: string]: PlayerActivity_PlayerActArkhubActivity };
-    actFootballActivityList: { [key: string]: PlayerActivity_PlayerActFootballActivity };
-    act53sideActivityList: { [key: string]: PlayerActivity_PlayerAct53SideActivity };
-}
+export type PlayerActivity = { [typeKey: string]: { [actId: string]: object } };
 
 export interface PlayerTemplateTrap_Trap {
     count: number;
@@ -1905,6 +1857,10 @@ export interface PlayerSpecialStage {
     id: string;
     unlockTs: number;
     rewardTs: number;
+    type: string;
+    val: number;
+    fts: number;
+    rts: number;
 }
 
 export interface PlayerZone {
@@ -1917,6 +1873,8 @@ export interface PlayerStage {
     state: PlayerStageState;
     hasBattleReplay: boolean;
     noCostCnt: number;
+    startTimes: number;
+    practiceTimes: number;
 }
 
 export interface PlayerAutoChessPerm {
@@ -1973,6 +1931,7 @@ export interface PlayerGacha_PlayerGachaPool {
     cnt: number;
     maxCnt: number;
     avail: boolean;
+    rarity: number;
 }
 
 export interface PlayerGacha_PlayerFreeLimitGacha {
@@ -2023,12 +1982,14 @@ export interface PlayerGacha {
     fesClassic: { [key: string]: PlayerGacha_PlayerFesClassicGacha };
     special: { [key: string]: PlayerGacha_PlayerSpecialGacha };
     backflow: { [key: string]: PlayerGacha_PlayerReturnGacha };
+    double: object;
 }
 
 export interface PlayerMedalBoard {
     type: NameCardMedalType;
-    customIndex: string;
-    templateGroupId: string;
+    custom: string;
+    template: string;
+    templateMedalList: { [key: string]: object };
 }
 
 export interface PlayerSocialReward {
@@ -2039,8 +2000,8 @@ export interface PlayerSocialReward {
 }
 
 export interface PlayerSocial {
-    yesterdayCrisisSeasonId: string;
-    yesterdayCrisisV2SeasonId: string;
+    yCrisisSs: string;
+    yCrisisV2Ss: string;
     assistCharList: PlayerFriendAssist[];
     yesterdayReward: PlayerSocialReward;
     medalBoard: PlayerMedalBoard;
@@ -2050,12 +2011,13 @@ export interface PlayerSocial {
 export interface PlayerTroop {
     troopCapacity: number;
     curSquadCount: number;
-    curCharInstCount: number;
+    curCharInstId: number;
     squads: { [key: string]: PlayerSquad };
     chars: { [key: string]: PlayerCharacter };
     addon: { [key: string]: PlayerHandBookAddon };
     charMission: { [key: string]: { [key: string]: PlayerTroop_CharMissionState } };
     spOperator: { [key: string]: { [key: string]: { [key: string]: PlayerSpecialOperatorNode } } };
+    charGroup: { [key: string]: object };
 }
 
 export interface PlayerGoodItemData {
@@ -2138,20 +2100,7 @@ export interface PlayerTemplateShop {
     progressInfo: { [key: string]: PlayerGoodProgressData };
 }
 
-export interface PlayerShop {
-    lowQCShop: PlayerLowQCShopProgressData;
-    highQCShop: PlayerHighQCShopProgressData;
-    classicQCShop: PlayerClassicQCShopProgressData;
-    extraQCShop: PlayerCommonShopProgressData;
-    lmtgsQCShop: PlayerLMTGSProgressData;
-    epgsQCShop: PlayerEPGSProgressData;
-    repQCShop: PlayerEPGSProgressData;
-    cashShop: PlayerCashProgressData;
-    giftShop: PlayerGiftProgressData;
-    socialShop: PlayerSocialShopData;
-    furnitureShop: PlayerFurnitureShopData;
-    skinShop: PlayerSkinShopData;
-}
+export type PlayerShop = { [shopType: string]: object };
 
 export interface PlayerInviteInfo {
     uid: string;
@@ -2300,6 +2249,7 @@ export interface PlayerRetroBlock {
 
 export interface PlayerAvatar {
     playerAvatarIcons: { [key: string]: PlayerAvatarBlock };
+    avatar_icon: { [key: string]: object };
 }
 
 export interface PlayerAvatarBlock {
@@ -2712,9 +2662,14 @@ export interface PlayerCrisisSocialInfo {
 }
 
 export interface PlayerCrisis {
-    currentSeason: string;
+    current: string;
     shop: PlayerCrisisShop;
     season: { [key: string]: PlayerCrisisSeason };
+    lst: number;
+    nst: number;
+    map: object;
+    training: object;
+    box: object;
 }
 
 export interface PlayerCrisisV2Season_RewardInfo {
@@ -2750,6 +2705,8 @@ export interface PlayerCrisisV2 {
     shop: PlayerCrisisShop;
     newRecordTs: number;
     nextRefreshTs: number;
+    current: string;
+    nst: number;
 }
 
 export interface PlayerRecalRune {
@@ -3569,6 +3526,7 @@ export interface PlayerReturnData {
     open: boolean;
     currentV2: PlayerReturnData_CurrentV2Data;
     version: PlayerReturnData_Version;
+    current: object;
 }
 
 export interface PlayerRoguelikeV2Zone {
@@ -3861,7 +3819,7 @@ export interface CharmStatus {
     squad: string[];
 }
 
-export interface PlayerCartInfo_Cart {}
+export type PlayerCartInfo_Cart = { [key: string]: string };
 
 export interface PlayerCartInfo_CompInfo {
     id: string;
@@ -4061,11 +4019,13 @@ export interface PlayerHomeConditionProgress {
 export interface PlayerHomeBackground {
     selectedId: string;
     bgs: { [key: string]: PlayerHomeUnlockStatus };
+    selected: string;
 }
 
 export interface PlayerHomeTheme {
     selectedId: string;
     themes: { [key: string]: PlayerHomeUnlockStatus };
+    selected: string;
 }
 
 export interface PlayerSetting {
@@ -4142,6 +4102,8 @@ export interface PlayerMainlineRecord {
     missionArchive: { [key: string]: PlayerMissionArchive };
     explore: PlayerMainlineExplore;
     clue: PlayerMainlineClue;
+    version: number;
+    charVoiceRecord: { [key: string]: object };
 }
 
 export interface PlayerMainlineExplore_PlayerExploreGameContext {
@@ -5384,7 +5346,7 @@ export interface PlayerDataModel {
     ACTIVITY_FIELD: string;
     SANDBOX_PERM_FIELD: string;
     SANDBOX_PERM_TEMPLATE_FIELD: string;
-    events: PlayerEvents;
+    event: PlayerEvents;
     pushFlags: PlayerPushFlags;
     status: PlayerStatus;
     monthlySub: { [key: string]: PlayerMonthlySubPer };
@@ -5398,7 +5360,7 @@ export interface PlayerDataModel {
     dexNav: PlayerDexNav;
     skin: PlayerSkins;
     medal: PlayerMedal;
-    PlayerAvatar: PlayerAvatar;
+    avatar: PlayerAvatar;
     collectionReward: PlayerCollection;
     equipment: PlayerEquipment;
     inventory: { [key: string]: number };
@@ -5420,8 +5382,8 @@ export interface PlayerDataModel {
     roguelike: PlayerRoguelike;
     rlv2: PlayerRoguelikeV2;
     backflow: PlayerReturnData;
-    campaign: PlayerCampaign;
-    autoChessPerm: PlayerAutoChessPerm;
+    campaignsV2: PlayerCampaign;
+    autochessSeason: PlayerAutoChessPerm;
     charm: CharmStatus;
     deepSea: PlayerDeepSea;
     car: PlayerCartInfo;
@@ -5432,18 +5394,19 @@ export interface PlayerDataModel {
     emoticon: PlayerEmoticon;
     share: PlayerCrossAppShare;
     trainingGround: PlayerTrainingCamp;
-    playerHomeBackground: PlayerHomeBackground;
-    playerHomeTheme: PlayerHomeTheme;
-    playerNameCardStyle: PlayerNameCardStyle;
+    background: PlayerHomeBackground;
+    homeTheme: PlayerHomeTheme;
+    nameCardStyle: PlayerNameCardStyle;
     playerSetting: PlayerSetting;
-    playerAprilFool: PlayerAprilFool;
+    aprilFool: PlayerAprilFool;
     npcAudio: { [key: string]: PlayerNpcWithAudio };
     charRotation: PlayerCharRotation;
     gallery: PlayerGallery;
-    arkOdc: PlayerArkOdc;
-    playerMainlineRecord: PlayerMainlineRecord;
+    arkodc: PlayerArkOdc;
+    mainline: PlayerMainlineRecord;
     limitedBuff: PlayerLimitedDropBuff;
     performanceStory: PlayerPerformanceStory;
+    deleted: { [key: string]: object };
 }
 
 export interface FireworkData_PlateSlotData {

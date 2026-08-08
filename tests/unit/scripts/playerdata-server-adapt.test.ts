@@ -28,7 +28,7 @@ describe("playerdata-server-adapt", () => {
   it("override 字段类型（结构差异）", () => {
     const out = applyServerAdapt([cls("PlayerCartInfo_Cart", {})]);
     const cart = out.find(c => c.name === "PlayerCartInfo_Cart")!;
-    expect(cart.fields[0].type).toBe("{ [key: string]: string }");
+    expect(cart.aliasType).toBe("{ [key: string]: string }");
   });
 
   it("不存在的接口/字段静默跳过", () => {

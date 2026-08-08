@@ -1,4 +1,5 @@
 import { parseFile, extractTypeNames, type ClassDef, type EnumDef } from "./playerdata-parser";
+import { applyServerAdapt } from "./playerdata-server-adapt";
 
 /** PlayerDataModel 类型闭包（类），字段类型引用传递 */
 function buildClassClosure(classes: ClassDef[], rootName: string): Set<string> {
@@ -28,6 +29,10 @@ function generateEnumCode(enumDef: EnumDef): string {
 }
 
 function generateInterfaceCode(classDef: ClassDef): string {
+  // 整接口覆盖为类型别名（服务端字典结构，如 PlayerActivity）
+  if (classDef.aliasType !== undefined) {
+    return `export type ${classDef.name} = ${classDef.aliasType};`;
+  }
   if (classDef.fields.length === 0) return `export interface ${classDef.name} {}`;
   const fields = classDef.fields.map(f => `    ${f.name}: ${f.type};`).join("\n");
   return `export interface ${classDef.name} {\n${fields}\n}`;
@@ -77,9 +82,13 @@ export function buildPlayerDataTypes(content: string): BuildResult {
     throw new Error(`PlayerDataModel 类型闭包存在未定义引用: ${[...missing].join(", ")}`);
   }
 
+  // 服务端协议适配（客户端字段名 → 服务端 JSON key，补充/覆盖服务端独有结构）
+  const adaptedClasses = applyServerAdapt(filteredClasses);
+
   let output = "/**\n";
   output += " * 自动生成的玩家数据类型定义文件\n";
   output += " * 从 reference/com.hypergryph.arknights_2.7.61.cs 反编译文件生成\n";
+  output += " * （客户端闭包 + 服务端协议适配，见 scripts/playerdata-server-adapt.ts）\n";
   output += " * 生成命令: npm run generate:playerdata\n";
   output += " * 请勿手动修改此文件\n";
   output += " */\n\n";
@@ -88,14 +97,14 @@ export function buildPlayerDataTypes(content: string): BuildResult {
     output += generateEnumCode(enumDef);
     output += "\n\n";
   });
-  filteredClasses.forEach(classDef => {
+  adaptedClasses.forEach(classDef => {
     output += generateInterfaceCode(classDef);
     output += "\n\n";
   });
 
   return {
     output,
-    classes: filteredClasses.map(c => c.name),
+    classes: adaptedClasses.map(c => c.name),
     enums: filteredEnums.map(e => e.name),
   };
 }

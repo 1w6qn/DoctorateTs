@@ -1,4 +1,4 @@
-import type { ClassDef, FieldDef } from "./playerdata-parser";
+import type { ClassDef } from "./playerdata-parser";
 
 /**
  * 服务端协议适配层
@@ -146,13 +146,12 @@ export const SERVER_OVERRIDE_FIELDS: Record<string, Record<string, string>> = {
   },
 };
 
-/** 应用整接口覆盖（"[server]" 键）：返回覆盖后的字段列表；无覆盖返回 null */
-function applyWholeOverride(iface: ClassDef): FieldDef[] | null {
+/** 应用整接口覆盖（"[server]" 键）：返回覆盖后的类型别名；无覆盖返回 null */
+function applyWholeOverride(iface: ClassDef): string | null {
   const override = SERVER_OVERRIDE_FIELDS[iface.name];
   if (!override) return null;
   const whole = override["[server]"];
-  if (whole === undefined) return null;
-  return [{ name: "[server:index]", rawType: whole, type: whole }];
+  return whole === undefined ? null : whole;
 }
 
 /**
@@ -178,9 +177,11 @@ export function applyServerAdapt(classes: ClassDef[]): ClassDef[] {
       }
     }
 
-    // 3. override（整接口覆盖优先）
-    const whole = applyWholeOverride(iface);
-    if (whole) fields = whole;
+    // 3. override（整接口覆盖优先：转为类型别名）
+    const aliasType = applyWholeOverride(iface);
+    if (aliasType !== null) {
+      return { ...iface, fields: [], aliasType };
+    }
 
     return { ...iface, fields };
   });

@@ -10,6 +10,8 @@ export interface ClassDef {
   fullName: string;
   name: string;
   fields: FieldDef[];
+  /** 整接口覆盖为类型别名时使用（如服务端字典结构）：输出 export type X = aliasType; */
+  aliasType?: string;
 }
 
 export interface EnumDef {

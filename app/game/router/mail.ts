@@ -33,7 +33,7 @@ router.post("/receiveMail", async (req, res) => {
     ...player.delta,
   });
 });
-router.post("/listMailbox", async (req, res) => {
+router.post("/listMailBox", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   res.send({
     mailList: await mailManager.listMailbox(player.status.uid, req.body),

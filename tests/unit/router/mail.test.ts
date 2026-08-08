@@ -38,9 +38,9 @@ describe("mail 路由", () => {
     });
   });
 
-  it("listMailbox 应返回邮件列表", async () => {
+  it("listMailBox 应返回邮件列表（大小写对齐 api.md）", async () => {
     const res = mockRes();
-    await call({ method: "POST", url: "/listMailbox", body: { mailIdList: [1] } }, res);
+    await call({ method: "POST", url: "/listMailBox", body: { mailIdList: [1] } }, res);
     expect(mailManager.listMailbox).toHaveBeenCalledWith("10000", { mailIdList: [1] });
     expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ mailList: [{ mailId: 1 }] }));
   });

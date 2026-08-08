@@ -76,4 +76,49 @@ router.post("/charm/setSquad", async (req, res) => {
   });
   res.send(player.delta);
 });
+router.post("/firework/savePlateSlots", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  // 参考 OBS misc_bp.firework_savePlateSlots：firework.plate.slots = slots
+  await player.update(async (draft) => {
+    (draft as any).firework.plate.slots = req.body.slots;
+  });
+  res.send(player.delta);
+});
+router.post("/firework/changeAnimal", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  // 参考 OBS misc_bp.firework_changeAnimal：firework.animal.select = animal
+  await player.update(async (draft) => {
+    (draft as any).firework.animal.select = req.body.animal;
+  });
+  res.send({ animal: req.body.animal, ...player.delta });
+});
+router.post("/car/confirmBattleCar", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  // 参考 OBS misc_bp.car_confirmBattleCar：car.battleCar = car
+  await player.update(async (draft) => {
+    draft.car.battleCar = req.body.car;
+  });
+  res.send(player.delta);
+});
+router.post("/templateTrap/setTrapSquad", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  // 参考 OBS misc_bp.templateTrap_setTrapSquad：templateTrap.domains[id].squad = trapSquad
+  await player.update(async (draft) => {
+    draft.templateTrap.domains[req.body.trapDomainId].squad = req.body.trapSquad;
+  });
+  res.send({
+    trapDomainId: req.body.trapDomainId,
+    trapSquad: req.body.trapSquad,
+    ...player.delta,
+  });
+});
+router.post("/troop/pinSpecialOperator", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  // 参考 OBS misc_bp.troop_pinSpecialOperator：mission.pinnedSpecialOperator = troop.chars[instId].charId
+  await player.update(async (draft) => {
+    const charId = draft.troop.chars[req.body.instId].charId;
+    (draft as any).mission.pinnedSpecialOperator = charId;
+  });
+  res.send(player.delta);
+});
 export default router;

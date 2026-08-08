@@ -5,6 +5,13 @@ import { mailManager } from "../../../app/game/manager/mail";
 import { mockPlayerData } from "../../helpers";
 import config from "../../../app/config";
 import { appendFile, mkdir } from "fs/promises";
+import { runMigration } from "../../../scripts/migrate-official";
+
+// 官服迁移 mock（不真实联网/写库）
+vi.mock("../../../scripts/migrate-official", () => ({
+  runMigration: vi.fn(),
+  parseAccounts: vi.fn(),
+}));
 
 // excel 表桩（名称解析/物品校验/满配/干员属性共用）
 vi.mock("@excel/excel", () => ({
@@ -655,6 +662,59 @@ describe("AdminService 卡池管理", () => {
     expect(await service.listPlayerPity("1")).toEqual([
       { ruleType: "NORMAL", beforeNonHitCnt: 5 },
     ]);
+  });
+});
+
+describe("AdminService 官服迁移", () => {
+  let service: AdminService;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    service = new AdminService();
+    const pd = makeFullPd();
+    stubAccounts(pd);
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.mocked(appendFile).mockResolvedValue(undefined);
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+    vi.mocked(runMigration).mockResolvedValue([
+      { phone: "13800000000", uid: "2", nickName: "A" },
+      { phone: "13900000000", error: "登录失败" },
+    ]);
+  });
+
+  it("migrateOfficial 应透传账号文本、热加载成功用户并审计", async () => {
+    const reloadSpy = vi.spyOn(service, "reloadUser").mockResolvedValue(undefined);
+    const results = await service.migrateOfficial(
+      "13800000000 pwd\n13900000000 pwd2",
+      "1",
+    );
+    expect(runMigration).toHaveBeenCalledWith({
+      accounts: "13800000000 pwd\n13900000000 pwd2",
+      templateUid: "1",
+    });
+    expect(results).toHaveLength(2);
+    // 仅成功账号热加载
+    expect(reloadSpy).toHaveBeenCalledTimes(1);
+    expect(reloadSpy).toHaveBeenCalledWith("2");
+    // 审计日志写入
+    expect(appendFile).toHaveBeenCalled();
+  });
+
+  it("migrateOfficial 空账号应抛错", async () => {
+    await expect(service.migrateOfficial("  \n  ", "1")).rejects.toThrow(
+      /账号内容为空/,
+    );
+  });
+
+  it("migrateOfficial 成功账号热加载失败不应中断", async () => {
+    vi.mocked(runMigration).mockResolvedValue([
+      { phone: "13800000000", uid: "2", nickName: "A" },
+    ]);
+    vi.spyOn(service, "reloadUser").mockRejectedValue(new Error("文件缺失"));
+    const results = await service.migrateOfficial("13800000000 pwd", "1");
+    expect(results).toHaveLength(1);
+    expect(results[0].uid).toBe("2");
   });
 });
 

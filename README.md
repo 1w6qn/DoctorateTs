@@ -53,6 +53,8 @@ npm run admin -- gacha pool NORMAL_0_1          # 卡池详情（UP/可用干员
 npm run admin -- gacha state 1 NORMAL_0_1       # 玩家卡池状态（UP 选择+保底计数）
 npm run admin -- gacha up 1 NORMAL_0_1 阿米娅   # 设置玩家 UP（支持中文名；空=清除）
 npm run admin -- gacha pity 1 NORMAL 50         # 设置玩家保底计数（按规则类型）
+npm run admin -- official accounts accounts.txt # 预览官服账号文件解析结果
+npm run admin -- official migrate accounts.txt  # 官服账号迁移（联网拉取→注册私服账号）
 npm run admin -- config show                    # 查看配置
 npm run admin -- config set admin.token mytoken # 修改配置（重启后生效）
 ```
@@ -70,6 +72,7 @@ npm run admin -- config set admin.token mytoken # 修改配置（重启后生效
    - **干员**：干员列表 + 行内编辑（等级/精二/潜能/技能）
    - **邮件**：邮件列表/删除，弹窗支持群发（全部用户）
    - **卡池**：卡池清单/详情（UP 干员+概率），管理选中玩家的卡池 UP 选择与保底计数
+   - **迁移**：官服账号转移 —— 粘贴账号（每行 手机号 密码）执行迁移，显示每账号结果（需联网访问官服）
    - **接口**：REST API 控制台 —— 管理 API 端点浏览/调用（迷你 Postman）+ 游戏协议调试器（带玩家 secret 调真实游戏端点，如 /user/info、/gacha/advancedGacha）
    - **数据**：完整玩家数据 JSON 只读查看
    - **统计**：等级分布 / 注册分布 / 资源合计（顶部区块）

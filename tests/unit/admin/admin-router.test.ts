@@ -33,6 +33,7 @@ vi.mock("../../../app/admin/AdminService", () => ({
     getPlayerPoolState: vi.fn().mockResolvedValue({ poolId: "NORMAL_0_1", upCharIds: [], beforeNonHitCnt: 0 }),
     setPlayerPoolUp: vi.fn().mockResolvedValue({ poolId: "NORMAL_0_1", upCharIds: ["char_002_amiya"] }),
     setPlayerPity: vi.fn().mockResolvedValue({ uid: "1", ruleType: "NORMAL", beforeNonHitCnt: 42 }),
+    migrateOfficial: vi.fn().mockResolvedValue([{ phone: "13800000000", uid: "2", nickName: "A" }]),
   },
 }));
 vi.mock("../../../app/admin/admin-auth", () => ({
@@ -310,5 +311,21 @@ describe("admin 路由（扩展能力）", () => {
     );
     expect(adminService.setPlayerPity).toHaveBeenCalledWith("1", "NORMAL", 42);
     expect(res5.json).toHaveBeenCalledWith({ uid: "1", ruleType: "NORMAL", beforeNonHitCnt: 42 });
+  });
+
+  it("POST /api/official/migrate 应透传账号文本与模板 uid", async () => {
+    const res = mockRes();
+    await call(
+      {
+        method: "POST",
+        url: "/api/official/migrate",
+        body: { accounts: "13800000000 pwd", templateUid: "1" },
+      },
+      res,
+    );
+    expect(adminService.migrateOfficial).toHaveBeenCalledWith("13800000000 pwd", "1");
+    expect(res.json).toHaveBeenCalledWith({
+      results: [{ phone: "13800000000", uid: "2", nickName: "A" }],
+    });
   });
 });

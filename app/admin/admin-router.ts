@@ -349,6 +349,20 @@ router.post("/api/users/:uid/pity", async (req: Request, res: Response) => {
   }
 });
 
+/** 官服账号迁移（联网拉取官服数据 → 注册私服账号） */
+router.post("/api/official/migrate", async (req: Request, res: Response) => {
+  try {
+    const { accounts, templateUid } = req.body ?? {};
+    const results = await adminService.migrateOfficial(
+      String(accounts ?? ""),
+      String(templateUid ?? "1"),
+    );
+    res.json({ results });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 /** 配置（只读） */
 router.get("/api/config", (_req: Request, res: Response) => {
   res.json(config);

@@ -47,6 +47,10 @@
  *   gacha up <uid> <poolId> [charId...]                设置玩家 UP（空=清除）
  *   gacha pity <uid> [ruleType] [count]                查看/设置玩家保底计数
  *
+ * 官服迁移:
+ *   official accounts <file> [--json]                  预览账号文件解析结果
+ *   official migrate <file> [--template uid]           官服账号迁移（联网拉取→注册私服账号）
+ *
  * 其他:
  *   help / exit                                        帮助 / 退出交互模式
  *
@@ -54,6 +58,7 @@
  */
 import { enablePatches } from "immer";
 import * as readline from "readline";
+import { readFileSync } from "fs";
 import excel from "@excel/excel";
 import { accountManager } from "@game/manager/AccountManger";
 import { adminService } from "../app/admin/AdminService";
@@ -153,6 +158,10 @@ export function printHelp(): void {
   gacha state <uid> <poolId> [--json]               玩家卡池状态（UP 选择+保底计数）
   gacha up <uid> <poolId> [charId...]               设置玩家 UP（空=清除）
   gacha pity <uid> [ruleType] [count]               查看/设置玩家保底计数
+
+官服迁移:
+  official accounts <file> [--json]                 预览账号文件解析结果
+  official migrate <file> [--template uid]          官服账号迁移（联网拉取→注册私服账号）
 
 其他:
   help / exit                                       帮助 / 退出`);
@@ -724,6 +733,71 @@ async function runGacha(args: string[], flags: { [key: string]: string }): Promi
   process.exitCode = 1;
 }
 
+/** official 子命令（官服账号迁移） */
+async function runOfficial(
+  args: string[],
+  flags: { [key: string]: string },
+): Promise<void> {
+  const sub = args[0];
+  if (sub === "accounts") {
+    const file = args[1];
+    if (!file) {
+      console.error("用法: official accounts <file> [--json]");
+      process.exitCode = 1;
+      return;
+    }
+    const { parseAccounts } = await import("../scripts/migrate-official");
+    const list = parseAccounts(readFileSync(file, "utf8"));
+    if (flags.json) {
+      output(list, flags);
+      return;
+    }
+    if (!list.length) {
+      console.log("未解析到账号（每行 手机号 密码，或两行一组 手机号\\n密码）");
+      return;
+    }
+    console.table(
+      list.map((a) => ({ 手机号: a.phone, 密码: a.pwd })),
+    );
+    return;
+  }
+  if (sub === "migrate") {
+    const file = args[1];
+    const templateUid = flags.template ?? "1";
+    if (!file) {
+      console.error("用法: official migrate <accounts文件> [--template uid]");
+      process.exitCode = 1;
+      return;
+    }
+    if (!(await import("fs")).existsSync(file)) {
+      console.error(`账号文件不存在: ${file}`);
+      process.exitCode = 1;
+      return;
+    }
+    console.log("开始官服迁移（需公网访问官服，逐账号执行，请稍候）...");
+    const results = await adminService.migrateOfficial(
+      readFileSync(file, "utf8"),
+      templateUid,
+    );
+    if (flags.json) {
+      output(results, flags);
+      return;
+    }
+    const ok = results.filter((r) => !r.error).length;
+    for (const r of results) {
+      if (r.error) {
+        console.log(`  [失败] ${r.phone}: ${r.error}`);
+      } else {
+        console.log(`  [成功] ${r.phone} → uid=${r.uid} 昵称=${r.nickName}`);
+      }
+    }
+    console.log(`迁移完成：${ok}/${results.length} 成功`);
+    return;
+  }
+  console.error("用法: official migrate <accounts文件> [--template uid] | official accounts <file> [--json]");
+  process.exitCode = 1;
+}
+
 /** 命令分发（main 与交互模式共用） */
 export async function dispatch(
   command: string,
@@ -748,6 +822,9 @@ export async function dispatch(
       break;
     case "gacha":
       await runGacha(args, flags);
+      break;
+    case "official":
+      await runOfficial(args, flags);
       break;
     case "help":
     case "-h":

@@ -153,6 +153,7 @@
         <div class="tab" data-tab="mails">邮件</div>
         <div class="tab" data-tab="pools">卡池</div>
         <div class="tab" data-tab="api">接口</div>
+        <div class="tab" data-tab="migrate">迁移</div>
         <div class="tab" data-tab="raw">数据</div>
       </div>
       <div class="tab-pane active" id="pane-overview"></div>
@@ -160,6 +161,7 @@
       <div class="tab-pane" id="pane-mails"></div>
       <div class="tab-pane" id="pane-pools"></div>
       <div class="tab-pane" id="pane-api"></div>
+      <div class="tab-pane" id="pane-migrate"></div>
       <div class="tab-pane" id="pane-raw"></div>
     </div>
   </section>
@@ -393,6 +395,7 @@
     else if (tab === "mails") loadMails(uid);
     else if (tab === "pools") loadPoolsPane();
     else if (tab === "api") loadApiPane();
+    else if (tab === "migrate") loadMigratePane();
     else if (tab === "raw") loadRaw(uid);
   }
 
@@ -956,6 +959,47 @@
         }).catch(function (e) { alert("设置失败：" + e.message); });
       });
     }).catch(function () {});
+  }
+
+  /* ---------- 迁移 Tab（官服账号转移） ---------- */
+
+  function loadMigratePane() {
+    var pane = $("pane-migrate");
+    pane.innerHTML =
+      '<p style="color:var(--muted);font-size:12px;">官服账号迁移：服务器联网拉取官服数据（官方服务器），转换后注册为私服账号，' +
+      "新用户自动加载。<br>格式：每行「手机号 密码」，或两行一组「手机号\\n密码」；空行/备注行忽略。</p>" +
+      "<label>账号内容</label>" +
+      '<textarea id="migrate-accounts" rows="8" placeholder="13800000000 password123&#10;13900000000&#10;pwd456"></textarea>' +
+      '<div class="row">' +
+      '<input id="migrate-template" placeholder="模板 uid" value="1" style="flex:0 0 140px;">' +
+      '<button id="migrate-run" class="primary">执行迁移</button></div>' +
+      '<div class="resp-box" id="migrate-resp" style="margin-top:10px;">结果显示在此</div>';
+    $("migrate-run").addEventListener("click", runMigrate);
+  }
+
+  function runMigrate() {
+    var accounts = $("migrate-accounts").value;
+    var templateUid = $("migrate-template").value.trim() || "1";
+    if (!accounts.trim()) { alert("请粘贴账号内容"); return; }
+    $("migrate-resp").textContent = "迁移中...（需联网访问官服，逐账号执行，请耐心等待）";
+    api("/official/migrate", {
+      method: "POST",
+      body: JSON.stringify({ accounts: accounts, templateUid: templateUid }),
+    }).then(function (r) {
+      var results = r.results || [];
+      var ok = results.filter(function (x) { return !x.error; }).length;
+      var lines = results.map(function (x) {
+        return x.error
+          ? "[失败] " + x.phone + ": " + x.error
+          : "[成功] " + x.phone + " → uid=" + x.uid + " 昵称=" + (x.nickName || "");
+      });
+      $("migrate-resp").textContent = "迁移完成：" + ok + "/" + results.length + " 成功\n" + lines.join("\n");
+      refreshUsers();
+      refreshStats();
+      refreshLogs();
+    }).catch(function (e) {
+      $("migrate-resp").textContent = "迁移失败: " + e.message;
+    });
   }
 
   /* ---------- 登录 ---------- */

@@ -72,8 +72,9 @@ export async function registerImportedUser(opts: {
   );
 
   // 2. 注册账号（SQLite——users.json 已迁移为种子，不再写文件）
-  users[newUid] = entry;
-  new UserRepository(openDatabase()).upsert(newUid, entry);
+  // entry 为动态构造的 UserConfig（buildUserEntry 返回宽松类型，此处断言 UserConfig）
+  users[newUid] = entry as any;
+  new UserRepository(openDatabase()).upsert(newUid, entry as any);
 
   return {
     uid: newUid,

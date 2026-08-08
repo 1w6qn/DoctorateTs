@@ -15,6 +15,7 @@ import { accountManager } from "@game/manager/AccountManger";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { mailManager } from "@game/manager/mail";
+import { runMigration } from "../../scripts/migrate-official";
 import { exists, size, readJson } from "@utils/file";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";
@@ -868,6 +869,44 @@ export class AdminService {
       ruleType,
       beforeNonHitCnt: v?.beforeNonHitCnt ?? 0,
     }));
+  }
+
+  /**
+   * 官服账号迁移（联网拉取官服数据 → 转私服存档 → 注册账号）
+   * 成功后热加载新用户到内存（服务器运行中可直接使用），并写审计日志。
+   * @param accountsText - 账号内容文本（每行「手机号 密码」或两行一组「手机号\n密码」）
+   * @param templateUid - 模板存档 uid（私服特有字段兜底，默认 1）
+   * @returns 每账号迁移结果（成功 uid/昵称，失败 error；单个失败不中断）
+   */
+  async migrateOfficial(
+    accountsText: string,
+    templateUid = "1",
+  ): Promise<Awaited<ReturnType<typeof runMigration>>> {
+    if (!accountsText?.trim()) {
+      throw new Error("账号内容为空");
+    }
+    const results = await runMigration({
+      accounts: accountsText,
+      templateUid,
+    });
+    for (const r of results) {
+      if (r.uid) {
+        try {
+          await this.reloadUser(r.uid); // 热加载到内存（服务器运行中创建后立即可用）
+        } catch (e) {
+          logger.warn(
+            "AdminService",
+            `迁移后加载用户 ${r.uid} 失败: ${(e as Error).message}`,
+          );
+        }
+        await this._audit(
+          "officialMigrate",
+          r.uid,
+          `${r.phone} 昵称=${r.nickName ?? ""}`,
+        );
+      }
+    }
+    return results;
   }
 
   /** 统计聚合（等级分布/注册分布/资源合计） */

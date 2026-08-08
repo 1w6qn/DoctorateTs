@@ -57,7 +57,7 @@ describe("runMigration", () => {
     (registerImportedUser as any).mockResolvedValue({ uid: "2", nickName: "A" });
 
     const results = await runMigration({
-      accountsPath: "test.txt",
+      accounts: accountsContent,
       templateUid: "1",
     });
 
@@ -76,7 +76,7 @@ describe("runMigration", () => {
     (registerImportedUser as any).mockResolvedValue({ uid: "3", nickName: "B" });
 
     const results = await runMigration({
-      accountsPath: "test.txt",
+      accounts: accountsContent,
       templateUid: "1",
     });
     expect(results).toHaveLength(2);
@@ -88,7 +88,7 @@ describe("runMigration", () => {
     (syncPlayerData as any).mockResolvedValue({ status: { uid: "10001" } });
     (registerImportedUser as any).mockResolvedValue({ uid: "2", nickName: "" });
 
-    await runMigration({ accountsPath: "test.txt", templateUid: "1" });
+    await runMigration({ accounts: accountsContent, templateUid: "1" });
     const call = (registerImportedUser as any).mock.calls[0][0];
     const converted = call.convertedData;
     // 模板兜底字段（official-convert 内部逻辑）

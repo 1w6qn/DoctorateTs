@@ -142,6 +142,16 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
     ],
     body: '{"ruleType":"NORMAL","count":50}',
   },
+  {
+    method: "POST",
+    path: "/api/official/migrate",
+    summary: "官服账号迁移（联网拉取官服数据 → 注册私服账号；需公网访问官服）",
+    params: [
+      { name: "accounts", type: "string", required: true, desc: "账号内容（每行 手机号 密码，或两行一组 手机号\\n密码）" },
+      { name: "templateUid", type: "string", desc: "模板存档 uid（私服特有字段兜底，默认 1）" },
+    ],
+    body: '{"accounts":"13800000000\\npassword123","templateUid":"1"}',
+  },
   { method: "GET", path: "/api/config", summary: "查看配置（只读）" },
   {
     method: "POST",

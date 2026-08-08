@@ -56,14 +56,15 @@ export function parseAccounts(content: string): { phone: string; pwd: string }[]
 
 /**
  * 批量迁移
+ * @param opts.accounts - 账号内容文本（每行「手机号 密码」或两行一组「手机号\n密码」；Dashboard 粘贴与 CLI 读文件共用）
+ * @param opts.templateUid - 私服模板存档 uid（兜底字段来源）
  * @returns 每个账号的迁移结果（单个失败不中断其他账号）
  */
 export async function runMigration(opts: {
-  accountsPath: string;
+  accounts: string;
   templateUid: string;
 }): Promise<MigrationResult[]> {
-  const content = readFileSync(opts.accountsPath, "utf8");
-  const accounts = parseAccounts(content);
+  const accounts = parseAccounts(opts.accounts);
 
   // 读取模板存档（私服特有字段兜底）
   const templatePath = path.join(
@@ -114,8 +115,9 @@ if (require.main === module) {
   const accountsPath =
     getArg("--accounts") ?? path.join(__dirname, "../reference/checkin-master/accounts.txt");
   const templateUid = getArg("--template") ?? "1";
+  const content = readFileSync(accountsPath, "utf8");
 
-  runMigration({ accountsPath, templateUid })
+  runMigration({ accounts: content, templateUid })
     .then((results) => {
       const ok = results.filter((r) => !r.error).length;
       console.log(`迁移完成：${ok}/${results.length} 成功`);

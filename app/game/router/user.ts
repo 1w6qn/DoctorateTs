@@ -366,20 +366,67 @@ rootRouter.post("/gallery/saveDiyMagazineV1", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { magazine } = req.body;
   await player.update(async (draft) => {
-    const gallery = ensureGallery(draft);
-    if (magazine?.leafId) {
-      if (!gallery.leafMap[magazine.leafId]) {
-        gallery.leafMap[magazine.leafId] = {
-          charSkin: null,
-          decorList: [],
-          getTs: now(),
-          leafId: magazine.leafId,
-          version: 0,
-        };
-      }
-      gallery.leafMap[magazine.leafId].decorList = magazine.decorList || [];
-      gallery.leafMap[magazine.leafId].charSkin = magazine.charSkin || null;
+    saveDiyMagazine(draft, magazine);
+  });
+  res.send(player.delta);
+});
+
+/**
+ * 保存自定义杂志（V2）
+ *
+ * 与 V1 相同的 leafMap 更新逻辑（OBS misc_bp.saveDiyMagazineV2 字段一致），
+ * 客户端 V2 走 form-data 的 json 字段，DTS bodyParser.json 已解析为 JSON body。
+ *
+ * 路径：POST /gallery/saveDiyMagazineV2
+ * @param req.body.magazine - 杂志数据（leafId/charSkin/decorList）
+ * @returns playerDataDelta（包含 gallery.leafMap 的变更）
+ */
+rootRouter.post("/gallery/saveDiyMagazineV2", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { magazine } = req.body;
+  await player.update(async (draft) => {
+    saveDiyMagazine(draft, magazine);
+  });
+  res.send(player.delta);
+});
+
+/**
+ * 保存自定义杂志公共逻辑（V1/V2 共用）
+ *
+ * @param draft - Immer 可写草稿
+ * @param magazine - 杂志数据（leafId/charSkin/decorList）
+ */
+function saveDiyMagazine(draft: any, magazine: any): void {
+  const gallery = ensureGallery(draft);
+  if (magazine?.leafId) {
+    if (!gallery.leafMap[magazine.leafId]) {
+      gallery.leafMap[magazine.leafId] = {
+        charSkin: null,
+        decorList: [],
+        getTs: now(),
+        leafId: magazine.leafId,
+        version: 0,
+      };
     }
+    gallery.leafMap[magazine.leafId].decorList = magazine.decorList || [];
+    gallery.leafMap[magazine.leafId].charSkin = magazine.charSkin || null;
+  }
+}
+
+/**
+ * 设置勋章自定义数据
+ *
+ * 参考 OBS misc_bp.medal_setCustomData：写入 medal.custom.customs["1"]。
+ *
+ * 路径：POST /medal/setCustomData
+ * @param req.body.data - 自定义布局数据
+ * @returns playerDataDelta（包含 medal.custom 的变更）
+ */
+rootRouter.post("/medal/setCustomData", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const customData = req.body.data;
+  await player.update(async (draft) => {
+    draft.medal.custom.customs["1"] = customData;
   });
   res.send(player.delta);
 });

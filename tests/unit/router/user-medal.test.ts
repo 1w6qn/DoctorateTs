@@ -40,4 +40,37 @@ describe("medal 根级路由", () => {
       expect.objectContaining({ items: [{ id: "furn_1", type: "FURN", count: 1 }], modified: {} }),
     );
   });
+
+  it("setCustomData 应写入 medal.custom.customs[1]（对齐 OBS misc_bp）", async () => {
+    const draft: any = { medal: { custom: { customs: {} } } };
+    const update = vi.fn(async (fn: (d: any) => void) => {
+      fn(draft);
+    });
+    (vi.mocked(httpContext.get) as any).mockReturnValue({
+      update,
+      delta: { modified: {} },
+    });
+    const res = mockRes();
+    const customData = { layout: [{ x: 1 }] };
+    await call({ method: "POST", url: "/medal/setCustomData", body: { data: customData } }, res);
+    expect(draft.medal.custom.customs["1"]).toBe(customData);
+    expect(res.send).toHaveBeenCalledWith({ modified: {} });
+  });
+
+  it("saveDiyMagazineV2 应更新 gallery.leafMap（对齐 OBS misc_bp）", async () => {
+    const draft: any = { gallery: { leafMap: {} } };
+    const update = vi.fn(async (fn: (d: any) => void) => {
+      fn(draft);
+    });
+    (vi.mocked(httpContext.get) as any).mockReturnValue({
+      update,
+      delta: { modified: {} },
+    });
+    const res = mockRes();
+    const magazine = { leafId: "leaf_1", charSkin: "char_1001#1", decorList: [{ id: 1 }] };
+    await call({ method: "POST", url: "/gallery/saveDiyMagazineV2", body: { magazine } }, res);
+    expect(draft.gallery.leafMap["leaf_1"].charSkin).toBe("char_1001#1");
+    expect(draft.gallery.leafMap["leaf_1"].decorList).toEqual([{ id: 1 }]);
+    expect(res.send).toHaveBeenCalledWith({ modified: {} });
+  });
 });

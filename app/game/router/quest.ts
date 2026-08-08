@@ -62,4 +62,30 @@ router.post("/saveBattleReplay", async (req, res) => {
   await player.battle.saveReplay(req.body);
   res.send(player.delta);
 });
+router.post("/battleContinue", async (req, res) => {
+  // 继续战斗：参考 OBS bp_quest.battleContinue，仅返回固定 stub（战斗数据由 battleFinish 结算）
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  res.send({
+    result: 1,
+    battleId: "00000000-0000-0000-0000-000000000000",
+    apFailReturn: 0,
+    ...player.delta,
+  });
+});
+router.post("/finishStoryStage", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  res.send({
+    ...(await player.battle.finishStoryStage(req.body)),
+    ...player.delta,
+  });
+});
+router.post("/editStageSixStarTag", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { stageId, selected } = req.body;
+  // 手写 PlayerDataModel 未声明 dungeon.sixStar（生成参考类型 types-playerdata.ts 有），用 (draft as any) 访问
+  await player.update(async (draft) => {
+    (draft as any).dungeon.sixStar.stages[stageId].tagSelected = selected;
+  });
+  res.send(player.delta);
+});
 export default router;

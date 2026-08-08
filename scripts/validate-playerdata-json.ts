@@ -66,9 +66,10 @@ const FIELD_ALIASES: { [jsonKey: string]: string } = {
 // ---------- TS 类型归一化 ----------
 
 interface TsType {
-  kind: "index" | "array" | "iface" | "enum" | "primitive" | "unknown";
+  kind: "index" | "array" | "iface" | "enum" | "primitive" | "objliteral" | "unknown";
   valueType?: string; // index/array
   ifaceName?: string;
+  literal?: string; // objliteral：对象字面量类型体 { a: X; b: Y }
 }
 
 function classifyType(
@@ -82,9 +83,15 @@ function classifyType(
   t = t.replace(/\|\s*(null|undefined)\s*/g, "").trim();
   if (!t) return { kind: "unknown" };
 
-  // 索引签名 { [key: K]: V }
-  const indexMatch = t.match(/^\{\s*\[key:\s*[^\]]+\]:\s*(.+)\s*\}$/);
+  // 索引签名 { [key: K]: V }（索引名任意，如 [typeKey:]/[roomType:]）
+  const indexMatch = t.match(/^\{\s*\[[a-zA-Z_][a-zA-Z0-9_]*:\s*[^\]]+\]:\s*(.+)\s*\}$/);
   if (indexMatch) return { kind: "index", valueType: indexMatch[1].trim() };
+
+  // 对象字面量 { a: X; b: Y; ... }（服务端适配层生成的具名属性类型）
+  const objMatch = t.match(/^\{\s*([\s\S]+)\s*\}$/);
+  if (objMatch && objMatch[1].includes(":")) {
+    return { kind: "objliteral", literal: objMatch[1] };
+  }
 
   // 数组 X[]
   const arrayMatch = t.match(/^(.+)\[\]$/);
@@ -96,7 +103,7 @@ function classifyType(
   // 基础类型
   if (/^(string|number|boolean|object|any|Date)$/.test(t)) return { kind: "primitive" };
 
-  // 类型别名（枚举/索引别名）
+  // 类型别名（枚举/索引/对象字面量别名）
   if (aliases.has(t)) {
     if (seen.has(t)) return { kind: "unknown" };
     seen.add(t);
@@ -105,10 +112,8 @@ function classifyType(
     if (aliasTarget === "string" || (aliasTarget.includes('"') && aliasTarget.includes("|"))) {
       return { kind: "enum" };
     }
-    // 索引别名
-    const aliasIndex = aliasTarget.match(/^\{\s*\[key:\s*[^\]]+\]:\s*(.+)\s*\}$/);
-    if (aliasIndex) return { kind: "index", valueType: aliasIndex[1].trim() };
-    return { kind: "unknown" };
+    // 递归解析其余结构（索引签名/对象字面量）
+    return classifyType(aliasTarget, interfaces, aliases, seen);
   }
 
   // 接口
@@ -181,6 +186,26 @@ function walk(
     if (t.kind === "index") {
       for (const key of Object.keys(jsonValue as object)) {
         walk((jsonValue as any)[key], t.valueType!, `${path}.${key}`, report, interfaces, aliases);
+      }
+      return;
+    }
+    if (t.kind === "objliteral") {
+      // 对象字面量类型 { a: X; b: Y; ... }（按分号切分，不支持嵌套字面量）
+      const fields: FieldMap = {};
+      for (const part of t.literal!.split(";")) {
+        const idx = part.indexOf(":");
+        if (idx === -1) continue;
+        const name = part.slice(0, idx).trim();
+        const type = part.slice(idx + 1).trim();
+        if (name) fields[name] = type;
+      }
+      for (const key of Object.keys(jsonValue as object)) {
+        const childPath = `${path}.${key}`;
+        if (key in fields) {
+          walk((jsonValue as any)[key], fields[key], childPath, report, interfaces, aliases);
+        } else {
+          report.missing.push(`${childPath}: 类型对象字面量未声明该字段（JSON 类型 ${typeof (jsonValue as any)[key]}）`);
+        }
       }
       return;
     }

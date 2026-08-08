@@ -7,9 +7,10 @@ import * as path from "path";
  * 用官服真实玩家存档校验 app/excel/types-playerdata.ts 的 PlayerDataModel
  * 类型闭包是否完整描述真实数据结构（"toJson 输出与原输入一致"）。
  *
- * 用法: npx tsx scripts/validate-playerdata-json.ts [--input <json>] [--types <ts>]
+ * 用法: npx tsx scripts/validate-playerdata-json.ts [--input <json>] [--types <ts>] [--root <path>]
  * 默认输入: reference/OpenBachelorS-master/tmp/player_data.json
  * 默认类型: app/excel/types-playerdata.ts
+ * --root: JSON 内玩家数据根路径（如官服账号文件 test.json 的 "user"）
  */
 
 // ---------- 类型定义文件解析 ----------
@@ -224,17 +225,28 @@ function walk(
 
 // ---------- main ----------
 
+function getArg(args: string[], name: string, def: string): string {
+  const idx = args.indexOf(name);
+  return idx !== -1 && args[idx + 1] ? args[idx + 1] : def;
+}
+
 function main(): void {
   const args = process.argv.slice(2);
-  const input =
-    args[args.indexOf("--input") + 1] ??
-    "D:/develop/DoctorateTs/reference/OpenBachelorS-master/tmp/player_data.json";
-  const typesFile =
-    args[args.indexOf("--types") + 1] ?? "D:/develop/DoctorateTs/app/excel/types-playerdata.ts";
+  const input = getArg(args, "--input", "D:/develop/DoctorateTs/reference/OpenBachelorS-master/tmp/player_data.json");
+  const typesFile = getArg(args, "--types", "D:/develop/DoctorateTs/app/excel/types-playerdata.ts");
+  const rootPath = getArg(args, "--root", "");
 
   console.log(`输入 JSON: ${input}`);
+  if (rootPath) console.log(`玩家数据根路径: ${rootPath}`);
   console.log(`类型定义: ${typesFile}`);
-  const json = JSON.parse(fs.readFileSync(input, "utf-8"));
+  const parsed = JSON.parse(fs.readFileSync(input, "utf-8"));
+  const json = rootPath
+    ? rootPath.split(".").reduce((acc: unknown, key: string) => (acc as any)?.[key], parsed)
+    : parsed;
+  if (json === undefined || json === null) {
+    console.error(`根路径 "${rootPath}" 不存在`);
+    process.exit(1);
+  }
   const typesContent = fs.readFileSync(typesFile, "utf-8");
   const interfaces = parseInterfaces(typesContent);
   const aliases = parseTypeAliases(typesContent);

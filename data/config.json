@@ -58,6 +58,6 @@
     "token": "doctorate-admin"
   },
   "authMode": "single",
-  "singleAutoMaxAccount": false,
+  "singleAutoMaxAccount": true,
   "singleUid": "2222"
 }

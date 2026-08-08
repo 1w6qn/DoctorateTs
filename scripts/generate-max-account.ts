@@ -8,6 +8,7 @@
  */
 import excel from "@excel/excel";
 import config from "../app/config";
+import { readJson } from "@utils/file";
 import { PlayerDataManager } from "../app/game/manager/PlayerDataManager";
 
 /** 从 excel 干员数据生成满配技能列表（满解锁 + 满专精） */
@@ -83,12 +84,30 @@ export function buildMaxedChar(instId: number, charId: string): Record<string, u
 }
 
 /**
- * 生成满配账号（覆盖玩家数据——全干员/全物品/大额资源）
+ * 生成满配账号（覆盖玩家数据）
+ *
+ * single 模式唯一实例：以 player_data.json（官服满级号抓包——uid=1/453 干员/完整模块结构）为基底，
+ * 不再逐字段 excel 生成（旧生成器 currentTmpl:null 结构是干员列表卡死根因）。
+ * player_data.json 缺失时回退旧 excel 生成逻辑。
+ *
  * @param player - 目标玩家（单例模式为 uid=1）
  */
 export async function generateMaxedAccount(player: PlayerDataManager): Promise<void> {
   const data = player._playerdata as any;
 
+  // 以 player_data.json 为基底（官服满级号——结构完整，直接作为账号数据）
+  const base = await readJson<any>("./player_data.json").catch(() => null);
+  if (base && base.troop?.chars) {
+    const uid = data.status?.uid;
+    for (const k of Object.keys(data)) delete data[k];
+    Object.assign(data, base);
+    // 保持当前账号 uid（single=1）；版本标记（启动时比较——版本变化重新生成）
+    data.status.uid = uid;
+    data.status.maxAccountResVersion = config.version.resVersion;
+    return;
+  }
+
+  // 回退：player_data.json 缺失——excel 逐干员生成（旧逻辑，结构见 buildMaxedChar）
   // 1. 全干员（char_ 前缀——玩家可用干员）
   const charIds = Object.keys(excel.CharacterTable).filter((k) =>
     k.startsWith("char_"),

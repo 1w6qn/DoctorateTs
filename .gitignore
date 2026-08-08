@@ -7,6 +7,7 @@ a.json
 .VSCodeCounter/
 package-lock.json
 tmp/
+tmp1/
 test/
 assets/
 mods/
@@ -19,6 +20,7 @@ users/
 OpenArknightsFBS/
 ArknightsGameData/
 *.cs
+!tests/fixtures/*.cs
 opendoctoratepy-ex-public/
 .reasonix/
 Dorothinights

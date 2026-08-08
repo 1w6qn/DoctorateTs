@@ -7,6 +7,7 @@
 
 import { PlayerDataModel } from "../model/playerdata";
 import { PlayerDataManager } from "./PlayerDataManager";
+import { repairPlayerData } from "../util/repair-playerdata";
 import { readJson } from "@utils/file";
 import { now } from "@utils/time";
 import { writeFile, rename } from "fs/promises";
@@ -161,6 +162,8 @@ export class AccountManager {
     const data =
       playerData ??
       (await readJson<PlayerDataModel>(`./data/user/databases/${uid}.json`));
+    // 修复旧生成器遗留的坏干员结构（currentTmpl:null 卡死干员列表）——幂等
+    repairPlayerData(data);
     this.data[uid] = new PlayerDataManager(data);
     this.data[uid]._playerdata.status.uid = uid;
     this.data[uid]._trigger.on("save", () => {

@@ -11,7 +11,7 @@ import config from "../app/config";
 import { PlayerDataManager } from "../app/game/manager/PlayerDataManager";
 
 /** 从 excel 干员数据生成满配技能列表（满解锁 + 满专精） */
-function buildMaxedSkills(charData: any): { skillId: string; unlock: number; state: number; specializeLevel: number; completeUpgradeTime: number }[] {
+export function buildMaxedSkills(charData: any): { skillId: string; unlock: number; state: number; specializeLevel: number; completeUpgradeTime: number }[] {
   return ((charData?.skills as any[]) || [])
     .filter((s) => s?.skillId)
     .map((s) => ({
@@ -24,7 +24,7 @@ function buildMaxedSkills(charData: any): { skillId: string; unlock: number; sta
 }
 
 /** 从 excel 装备表生成满配装备字典（满级满解锁） */
-function buildMaxedEquip(charId: string): { ids: string[]; equip: Record<string, unknown> } {
+export function buildMaxedEquip(charId: string): { ids: string[]; equip: Record<string, unknown> } {
   const ids: string[] = (excel as any).UniequipTable?.charEquip?.[charId] || [];
   const equip: Record<string, unknown> = {};
   for (const id of ids) equip[id] = { hide: 0, locked: 0, level: 3 };

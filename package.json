@@ -37,6 +37,7 @@
     "admin": "tsx scripts/admin-cli.ts",
     "update": "tsx scripts/update-data.ts",
     "update:skip": "tsx scripts/update-data.ts --skip-update",
+    "generate:playerdata": "tsx scripts/generate-playerdata-types.ts",
     "migrate:official": "tsx scripts/migrate-official.ts"
   },
   "devDependencies": {

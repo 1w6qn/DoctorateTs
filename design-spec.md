@@ -569,7 +569,17 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
 - `npm run update -- --offline`: 以完全离线模式校验本地数据完整性（不联网）
 - 启动参数：`--offline` / `-o`（完全离线模式）、`--skip-update` / `-s`（跳过更新）
 
-### 7.4 代码注释规范
+### 7.4 PlayerDataModel 类型生成
+
+`app/excel/types-playerdata.ts` 是从官服反编译文件自动提取的**存档结构权威参考类型**（PlayerDataModel 字段类型传递闭包），未被运行时 import（运行时存档模型为手写 `app/game/model/playerdata.ts`）。
+
+- 输入：`reference/com.hypergryph.arknights_2.7.61.cs`（官服反编译，`reference/` 已被 gitignore，不入库）
+- 命令：`npm run generate:playerdata`
+- 产物：纯闭包 802 类 / 113 枚举，含 2.7.61 新增 `arkOdc` 等 22 个类型；`ListDict<K,V>` 映射为字典 `{ [key: K]: V }`（与真实存档 JSON 一致）
+- 链路：`scripts/playerdata-parser.ts`（括号配对解析、完整枚举值、类型映射）→ `scripts/playerdata-builder.ts`（类型闭包、TS 生成、未定义引用自检）→ `scripts/generate-playerdata-types.ts`（CLI）
+- 注意：手写模型与生成类型字段命名不同（如 `campaignsV2` vs `campaign`、`event` vs `events`、`nameCardStyle` vs `playerNameCardStyle`）；对照补全手写模型时以生成类型为准
+
+### 7.5 代码注释规范
 - 使用 JSDoc 格式注释
 - 每个类和函数都必须有注释
 - 注释描述功能、参数和返回值
@@ -876,7 +886,7 @@ npm run migrate:official -- --accounts <账号文件路径> --template 1
 全部使用 Node 24 内置 fetch + node:crypto，**零第三方依赖**。
 
 ### 15.4 转换与注册
-- **convertOfficialData**（scripts/official-convert.ts）：官服 user 与私服存档同源——官方字段直接沿用、uid 替换为私服新 uid、移除连接态（secret/seqnum）、**模板全字段兜底**（官方缺失字段从模板存档复制，保证私服可加载）
+- **convertOfficialData**（scripts/official-convert.ts）：官服 user 与私服存档同源——官方字段直接沿用、uid 替换为私服新 uid、移除连接态（secret/seqnum）、**模板全字段兜底**（官方缺失**或为空对象**的字段从模板存档复制，保证私服可加载——官服 syncData 中 shop/tshop/inventory/crisis 等可能为空对象，而私服路由直接访问 `shop.LS.info` 等深层结构，空对象会导致 500）
 - **registerImportedUser**（scripts/official-register.ts）：新 uid 从现有账号递增；写入 `data/user/databases/{uid}.json` + SQLite `users` 表注册（auth.phone=官服手机号、auth.hgId=官服 uid、password 随机）
 
 ### 15.5 已知限制

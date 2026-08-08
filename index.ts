@@ -7,6 +7,7 @@
 import express from "express";
 import config from "./app/config";
 import { logger } from "./app/utils/logger";
+import { createTrafficRecorder } from "./app/utils/traffic-recorder";
 import excel from "@excel/excel";
 import { enablePatches } from "immer";
 import morgan from "morgan";
@@ -65,12 +66,17 @@ import { accountManager } from "./app/game/manager/AccountManger";
   const app = express();
   app.use(bodyParser.json());
   app.use(morgan("short"));
+  // 调试记录：debug.recordTraffic=true 时保存 request/response 到 tmp/（对齐 test.ts 抓包目录）
+  app.use(createTrafficRecorder(config));
   // 子域名分发：*.hypergryph.com 请求按官服子域名映射到私服路由
   app.use(createHostRouter());
   app.use("/config/prod", prod);
   app.use("/api/remote_config", remoteConfigRouter);
   app.use("/api/gate", (await import("./app/config/gate")).default);
-  app.use("/auth", auth);
+  // 启动器版本检查（/api/game/get_latest——action:0 空包，客户端无需更新直接启动）
+  app.use("/api/game", (await import("./app/config/launcher")).default);
+  // auth 挂根路径：as 域接口（/user/*、/u8/*、/app/* 等）直接命中（用户最终决定，勿改回 /auth）
+  app.use("/", auth);
   await setup(game);
   app.use("/", game);
   app.use("/assetbundle", asset);

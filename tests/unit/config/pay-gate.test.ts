@@ -40,4 +40,13 @@ describe("gate 网关 meta 路由", () => {
     expect(arg.data.platform).toBe("Windows");
     expect(arg.data.serverTime).toBe(1234567890);
   });
+
+  it("info/:platform 应返回网关信息（启动链路早期请求）", async () => {
+    const res = mockRes();
+    await call(gateRouter, "/info/Windows?sign=1%202%203", res);
+    const arg = res.send.mock.calls[0][0];
+    expect(arg.code).toBe(0);
+    expect(arg.data.platform).toBe("Windows");
+    expect(arg.data.serverTime).toBe(1234567890);
+  });
 });

@@ -67,25 +67,30 @@ export class GachaController {
   async advancedGacha(args: {
     poolId: string;
     useTkt: number;
-    itemId: string;
+    itemId: string | null;
   }): Promise<GachaResult & { logInfo: { beforeNonHitCnt: number } }> {
     const {poolId,useTkt,itemId}=args
     const costs: ItemBundle[] = [];
     switch (useTkt) {
       case GachaType.Diamond:
         if(poolId.startsWith("BOOT")){
-          costs.push({id:"DIAMOND_SHD",count:380})
+          costs.push({id:"4003",type:"DIAMOND_SHD",count:380})
         }else{
-          costs.push({id:"DIAMOND_SHD",count:600})
+          costs.push({id:"4003",type:"DIAMOND_SHD",count:600})
         }
+        break;
       case GachaType.SingleTicket:
-        costs.push({id:"TKT_GACHA",count:1})
+        costs.push({id:"TKT_GACHA",type:"TKT_GACHA",count:1})
+        break;
       case GachaType.LimitSingle:
-        costs.push({id:"LIMITED_FREE_GACHA",count:1})
+        costs.push({id:"LIMITED_FREE_GACHA",type:"LIMITED_FREE_GACHA",count:1})
+        break;
       case GachaType.UseItem:
-        costs.push({id:itemId,count:1})
+        costs.push({id:itemId ?? "",count:1})
+        break;
       case GachaType.ClassicSingleTicket:
-        costs.push({id:"CLASSIC_TKT_GACHA",count:1})
+        costs.push({id:"CLASSIC_TKT_GACHA",type:"CLASSIC_TKT_GACHA",count:1})
+        break;
     }
     await this._trigger.emit("items:use", [costs]);
     return await this.doAdvancedGacha(args);
@@ -111,22 +116,29 @@ export class GachaController {
     switch (useTkt) {
       case GachaType.Diamond:
         if(poolId.startsWith("BOOT")){
-          costs.push({id:"DIAMOND_SHD",count:3800})
+          costs.push({id:"4003",type:"DIAMOND_SHD",count:3800})
         }else{
-          costs.push({id:"DIAMOND_SHD",count:6000})
+          costs.push({id:"4003",type:"DIAMOND_SHD",count:6000})
         }
+        break;
       case GachaType.TenTicket:
-        costs.push({id:"TKT_GACHA_10",count:1})
+        costs.push({id:"TKT_GACHA_10",type:"TKT_GACHA_10",count:1})
+        break;
       case GachaType.TenSingleTkt:
-        costs.push({id:"TKT_GACHA",count:10})
+        costs.push({id:"TKT_GACHA",type:"TKT_GACHA",count:10})
+        break;
       case GachaType.ClassicTenTicket:
-        costs.push({id:"CLASSIC_TKT_GACHA_10",count:1})
+        costs.push({id:"CLASSIC_TKT_GACHA_10",type:"CLASSIC_TKT_GACHA_10",count:1})
+        break;
       case GachaType.classicTenSingleTicket:
-        costs.push({id:"CLASSIC_TKT_GACHA",count:10})
+        costs.push({id:"CLASSIC_TKT_GACHA",type:"CLASSIC_TKT_GACHA",count:10})
+        break;
       case GachaType.CombineTenTicket:
-        costs.concat(itemList)
+        costs.push(...itemList)
+        break;
       case GachaType.UseItem:
-        costs.concat(itemList)
+        costs.push(...itemList)
+        break;
     }
     const res: (GachaResult & { logInfo: { beforeNonHitCnt: number } })[] = [];
     for (let i = 0; i < 10; i++) {
@@ -149,7 +161,7 @@ export class GachaController {
   async doAdvancedGacha(args: {
     poolId: string;
     useTkt: number;
-    itemId: string;
+    itemId: string | null;
   }): Promise<GachaResult & { logInfo: { beforeNonHitCnt: number } }> {
     const { poolId } = args;
     await this._player.update(async (draft) => {

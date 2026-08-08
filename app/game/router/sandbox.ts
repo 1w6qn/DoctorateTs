@@ -8,6 +8,152 @@ import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { now } from "@utils/time";
+import {
+  SandboxPermChangeTopicRequest,
+  SandboxPermChangeTopicResponse,
+  SandboxPermPinTopicRequest,
+  SandboxPermPinTopicResponse,
+  SandboxV2AlchemyRequest,
+  SandboxV2AlchemyResponse,
+  SandboxV2BasementUpgradeRequest,
+  SandboxV2BasementUpgradeResponse,
+  SandboxV2BattleFinishRequest,
+  SandboxV2BattleFinishResponse,
+  SandboxV2BattleStartRequest,
+  SandboxV2BattleStartResponse,
+  SandboxV2ChallengeExitRequest,
+  SandboxV2ChallengeExitResponse,
+  SandboxV2ChallengeSettleRequest,
+  SandboxV2ChallengeSettleResponse,
+  SandboxV2CookDrinkRequest,
+  SandboxV2CookDrinkResponse,
+  SandboxV2CookFoodRequest,
+  SandboxV2CookFoodResponse,
+  SandboxV2ConstructOperationRequest,
+  SandboxV2ConstructOperationResponse,
+  SandboxV2CraftRequest,
+  SandboxV2CraftResponse,
+  SandboxV2CreateGameRequest,
+  SandboxV2CreateGameResponse,
+  SandboxV2DineRequest,
+  SandboxV2DineResponse,
+  SandboxV2DiscardApRequest,
+  SandboxV2DiscardApResponse,
+  SandboxV2EventChoiceRequest,
+  SandboxV2EventChoiceResponse,
+  SandboxV2ExploreModeRequest,
+  SandboxV2ExploreModeResponse,
+  SandboxV2ExtractRequest,
+  SandboxV2ExtractResponse,
+  SandboxV2GetChallengeRewardRequest,
+  SandboxV2GetChallengeRewardResponse,
+  SandboxV2GuideLoadRequest,
+  SandboxV2GuideLoadResponse,
+  SandboxV2HomeBuildSaveRequest,
+  SandboxV2HomeBuildSaveResponse,
+  SandboxV2LoadArchiveRequest,
+  SandboxV2LoadArchiveResponse,
+  SandboxV2MonthBattleFinishRequest,
+  SandboxV2MonthBattleFinishResponse,
+  SandboxV2MonthBattleStartRequest,
+  SandboxV2MonthBattleStartResponse,
+  SandboxV2NextDayRequest,
+  SandboxV2NextDayResponse,
+  SandboxV2RacingBattleFinishRequest,
+  SandboxV2RacingBattleFinishResponse,
+  SandboxV2RacingBattleStartRequest,
+  SandboxV2RacingBattleStartResponse,
+  SandboxV2RacingLearnTalentRequest,
+  SandboxV2RacingLearnTalentResponse,
+  SandboxV2RacingRegisterRequest,
+  SandboxV2RacingRegisterResponse,
+  SandboxV2RacingReleaseRequest,
+  SandboxV2RacingReleaseResponse,
+  SandboxV2RacingSaveMarkRequest,
+  SandboxV2RacingSaveMarkResponse,
+  SandboxV2RemoveSupplyRequest,
+  SandboxV2RemoveSupplyResponse,
+  SandboxV2RiftCloseRequest,
+  SandboxV2RiftCloseResponse,
+  SandboxV2RiftCreateRequest,
+  SandboxV2RiftCreateResponse,
+  SandboxV2RiftSetDifficultyRequest,
+  SandboxV2RiftSetDifficultyResponse,
+  SandboxV2RiftSetTeamRequest,
+  SandboxV2RiftSetTeamResponse,
+  SandboxV2RiftSettleRequest,
+  SandboxV2RiftSettleResponse,
+  SandboxV2ScienceUnlockRequest,
+  SandboxV2ScienceUnlockResponse,
+  SandboxV2SetSquadRequest,
+  SandboxV2SetSquadResponse,
+  SandboxV2SetSupplyRequest,
+  SandboxV2SetSupplyResponse,
+  SandboxV2SettleDayRequest,
+  SandboxV2SettleDayResponse,
+  SandboxV2SettleGameRequest,
+  SandboxV2SettleGameResponse,
+  SandboxV2ShopBuyRequest,
+  SandboxV2ShopBuyResponse,
+  SandboxV2StartChallengeRequest,
+  SandboxV2StartChallengeResponse,
+  SandboxV2StartMissionRequest,
+  SandboxV2StartMissionResponse,
+  SandboxV2SwitchModeRequest,
+  SandboxV2SwitchModeResponse,
+  SandboxV3BaseShopBuyRequest,
+  SandboxV3BaseShopBuyResponse,
+  SandboxV3BaseShopSellRequest,
+  SandboxV3BaseShopSellResponse,
+  SandboxV3BattleFinishRequest,
+  SandboxV3BattleFinishResponse,
+  SandboxV3BattleStartRequest,
+  SandboxV3BattleStartResponse,
+  SandboxV3BuildSaveRequest,
+  SandboxV3BuildSaveResponse,
+  SandboxV3ChangeDefendRequest,
+  SandboxV3ChangeDefendResponse,
+  SandboxV3ChooseBandRequest,
+  SandboxV3ChooseBandResponse,
+  SandboxV3CreateGameRequest,
+  SandboxV3CreateGameResponse,
+  SandboxV3DayPassRecruitRequest,
+  SandboxV3DayPassRecruitResponse,
+  SandboxV3EatFoodRequest,
+  SandboxV3EatFoodResponse,
+  SandboxV3EnterBaseRequest,
+  SandboxV3EnterBaseResponse,
+  SandboxV3EventChoiceRequest,
+  SandboxV3EventChoiceResponse,
+  SandboxV3GetDayPassRecruitListRequest,
+  SandboxV3GetDayPassRecruitListResponse,
+  SandboxV3GiveUpGameRequest,
+  SandboxV3GiveUpGameResponse,
+  SandboxV3HarvestRequest,
+  SandboxV3HarvestResponse,
+  SandboxV3HomeUpgradeRequest,
+  SandboxV3HomeUpgradeResponse,
+  SandboxV3InitRecruitRequest,
+  SandboxV3InitRecruitResponse,
+  SandboxV3NextDayRequest,
+  SandboxV3NextDayResponse,
+  SandboxV3RefreshHarvestRequest,
+  SandboxV3RefreshHarvestResponse,
+  SandboxV3SettleGameRequest,
+  SandboxV3SettleGameResponse,
+  SandboxV3ShopBuyRecruitRequest,
+  SandboxV3ShopBuyRecruitResponse,
+  SandboxV3ShopBuyRequest,
+  SandboxV3ShopBuyResponse,
+  SandboxV3ShopRefreshRequest,
+  SandboxV3ShopRefreshResponse,
+  SandboxV3ShopSellRequest,
+  SandboxV3ShopSellResponse,
+  SandboxV3SwitchModeRequest,
+  SandboxV3SwitchModeResponse,
+  SandboxV3UnlockTechRequest,
+  SandboxV3UnlockTechResponse,
+} from "../model/protocol/sandbox";
 
 const router = Router();
 
@@ -18,6 +164,7 @@ const router = Router();
  */
 router.post("/changeTopic", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as SandboxPermChangeTopicRequest;
 
   res.send({
     playerDataDelta: {
@@ -25,7 +172,7 @@ router.post("/changeTopic", async (req, res) => {
       deleted: {},
     },
     result: 0,
-  });
+  } satisfies SandboxPermChangeTopicResponse);
 });
 
 /**
@@ -34,6 +181,7 @@ router.post("/changeTopic", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/pinTopic", async (req, res) => {
+  req.body as SandboxPermPinTopicRequest;
   res.sendStatus(202);
 });
 
@@ -44,13 +192,14 @@ router.post("/pinTopic", async (req, res) => {
  */
 router.post("/v2/createGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as SandboxV2CreateGameRequest;
 
   res.send({
     playerDataDelta: {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies SandboxV2CreateGameResponse);
 });
 
 /**
@@ -60,13 +209,14 @@ router.post("/v2/createGame", async (req, res) => {
  */
 router.post("/v2/battleStart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as SandboxV2BattleStartRequest;
 
   res.send({
     playerDataDelta: {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies SandboxV2BattleStartResponse);
 });
 
 /**
@@ -76,13 +226,14 @@ router.post("/v2/battleStart", async (req, res) => {
  */
 router.post("/v2/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as SandboxV2BattleFinishRequest;
 
   res.send({
     playerDataDelta: {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies SandboxV2BattleFinishResponse);
 });
 
 /**
@@ -91,6 +242,7 @@ router.post("/v2/battleFinish", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/eatFood", async (req, res) => {
+  req.body as SandboxV2DineRequest;
   res.sendStatus(202);
 });
 
@@ -100,6 +252,7 @@ router.post("/v2/eatFood", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/cookDrink", async (req, res) => {
+  req.body as SandboxV2CookDrinkRequest;
   res.sendStatus(202);
 });
 
@@ -109,6 +262,7 @@ router.post("/v2/cookDrink", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/cookFood", async (req, res) => {
+  req.body as SandboxV2CookFoodRequest;
   res.sendStatus(202);
 });
 
@@ -119,13 +273,14 @@ router.post("/v2/cookFood", async (req, res) => {
  */
 router.post("/v2/setSquad", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as SandboxV2SetSquadRequest;
 
   res.send({
     playerDataDelta: {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies SandboxV2SetSquadResponse);
 });
 
 /**
@@ -135,13 +290,14 @@ router.post("/v2/setSquad", async (req, res) => {
  */
 router.post("/v2/settleGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as SandboxV2SettleGameRequest;
 
   res.send({
     playerDataDelta: {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies SandboxV2SettleGameResponse);
 });
 
 /**
@@ -151,13 +307,14 @@ router.post("/v2/settleGame", async (req, res) => {
  */
 router.post("/v2/homeBuildSave", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as SandboxV2HomeBuildSaveRequest;
 
   res.send({
     playerDataDelta: {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies SandboxV2HomeBuildSaveResponse);
 });
 
 /**
@@ -167,13 +324,14 @@ router.post("/v2/homeBuildSave", async (req, res) => {
  */
 router.post("/v2/monthBattleStart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as SandboxV2MonthBattleStartRequest;
 
   res.send({
     playerDataDelta: {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies SandboxV2MonthBattleStartResponse);
 });
 
 /**
@@ -183,13 +341,14 @@ router.post("/v2/monthBattleStart", async (req, res) => {
  */
 router.post("/v2/monthBattleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as SandboxV2MonthBattleFinishRequest;
 
   res.send({
     playerDataDelta: {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies SandboxV2MonthBattleFinishResponse);
 });
 
 /**
@@ -199,13 +358,14 @@ router.post("/v2/monthBattleFinish", async (req, res) => {
  */
 router.post("/v2/exploreMode", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as SandboxV2ExploreModeRequest;
 
   res.send({
     playerDataDelta: {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies SandboxV2ExploreModeResponse);
 });
 
 /**
@@ -215,13 +375,14 @@ router.post("/v2/exploreMode", async (req, res) => {
  */
 router.post("/v2/eventChoice", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as SandboxV2EventChoiceRequest;
 
   res.send({
     playerDataDelta: {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies SandboxV2EventChoiceResponse);
 });
 
 /**
@@ -230,6 +391,7 @@ router.post("/v2/eventChoice", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/alchemy", async (req, res) => {
+  req.body as SandboxV2AlchemyRequest;
   res.sendStatus(202);
 });
 
@@ -239,6 +401,7 @@ router.post("/v2/alchemy", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/baseUpgrade", async (req, res) => {
+  req.body as SandboxV2BasementUpgradeRequest;
   res.sendStatus(202);
 });
 
@@ -248,6 +411,7 @@ router.post("/v2/baseUpgrade", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/build", async (req, res) => {
+  req.body as SandboxV2ConstructOperationRequest;
   res.sendStatus(202);
 });
 
@@ -257,6 +421,7 @@ router.post("/v2/build", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/cook", async (req, res) => {
+  req.body as SandboxV2CraftRequest;
   res.sendStatus(202);
 });
 
@@ -266,6 +431,7 @@ router.post("/v2/cook", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/discardAp", async (req, res) => {
+  req.body as SandboxV2DiscardApRequest;
   res.sendStatus(202);
 });
 
@@ -275,6 +441,7 @@ router.post("/v2/discardAp", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/enterChallenge", async (req, res) => {
+  req.body as SandboxV2StartChallengeRequest;
   res.sendStatus(202);
 });
 
@@ -284,6 +451,7 @@ router.post("/v2/enterChallenge", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/exitChallenge", async (req, res) => {
+  req.body as SandboxV2ChallengeExitRequest;
   res.sendStatus(202);
 });
 
@@ -293,6 +461,7 @@ router.post("/v2/exitChallenge", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/extract", async (req, res) => {
+  req.body as SandboxV2ExtractRequest;
   res.sendStatus(202);
 });
 
@@ -302,6 +471,7 @@ router.post("/v2/extract", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/getChallengeReward", async (req, res) => {
+  req.body as SandboxV2GetChallengeRewardRequest;
   res.sendStatus(202);
 });
 
@@ -311,6 +481,7 @@ router.post("/v2/getChallengeReward", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/guideLoad", async (req, res) => {
+  req.body as SandboxV2GuideLoadRequest;
   res.sendStatus(202);
 });
 
@@ -320,6 +491,7 @@ router.post("/v2/guideLoad", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/load", async (req, res) => {
+  req.body as SandboxV2LoadArchiveRequest;
   res.sendStatus(202);
 });
 
@@ -329,6 +501,7 @@ router.post("/v2/load", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/nextDay", async (req, res) => {
+  req.body as SandboxV2NextDayRequest;
   res.sendStatus(202);
 });
 
@@ -338,6 +511,7 @@ router.post("/v2/nextDay", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/removeSupply", async (req, res) => {
+  req.body as SandboxV2RemoveSupplyRequest;
   res.sendStatus(202);
 });
 
@@ -347,6 +521,7 @@ router.post("/v2/removeSupply", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/riftClose", async (req, res) => {
+  req.body as SandboxV2RiftCloseRequest;
   res.sendStatus(202);
 });
 
@@ -356,6 +531,7 @@ router.post("/v2/riftClose", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/riftCreate", async (req, res) => {
+  req.body as SandboxV2RiftCreateRequest;
   res.sendStatus(202);
 });
 
@@ -365,6 +541,7 @@ router.post("/v2/riftCreate", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/riftSetDifficulty", async (req, res) => {
+  req.body as SandboxV2RiftSetDifficultyRequest;
   res.sendStatus(202);
 });
 
@@ -374,6 +551,7 @@ router.post("/v2/riftSetDifficulty", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/riftSetTeam", async (req, res) => {
+  req.body as SandboxV2RiftSetTeamRequest;
   res.sendStatus(202);
 });
 
@@ -383,6 +561,7 @@ router.post("/v2/riftSetTeam", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/riftSettle", async (req, res) => {
+  req.body as SandboxV2RiftSettleRequest;
   res.sendStatus(202);
 });
 
@@ -392,6 +571,7 @@ router.post("/v2/riftSettle", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/setSupply", async (req, res) => {
+  req.body as SandboxV2SetSupplyRequest;
   res.sendStatus(202);
 });
 
@@ -401,6 +581,7 @@ router.post("/v2/setSupply", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/settleChallenge", async (req, res) => {
+  req.body as SandboxV2ChallengeSettleRequest;
   res.sendStatus(202);
 });
 
@@ -410,6 +591,7 @@ router.post("/v2/settleChallenge", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/settleDay", async (req, res) => {
+  req.body as SandboxV2SettleDayRequest;
   res.sendStatus(202);
 });
 
@@ -419,6 +601,7 @@ router.post("/v2/settleDay", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/shopBuy", async (req, res) => {
+  req.body as SandboxV2ShopBuyRequest;
   res.sendStatus(202);
 });
 
@@ -428,6 +611,7 @@ router.post("/v2/shopBuy", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/startMission", async (req, res) => {
+  req.body as SandboxV2StartMissionRequest;
   res.sendStatus(202);
 });
 
@@ -437,6 +621,7 @@ router.post("/v2/startMission", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/switchMode", async (req, res) => {
+  req.body as SandboxV2SwitchModeRequest;
   res.sendStatus(202);
 });
 
@@ -446,6 +631,7 @@ router.post("/v2/switchMode", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v2/unlockTech", async (req, res) => {
+  req.body as SandboxV2ScienceUnlockRequest;
   res.sendStatus(202);
 });
 
@@ -456,13 +642,14 @@ router.post("/v2/unlockTech", async (req, res) => {
  */
 router.post("/v3/switchMode", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as SandboxV3SwitchModeRequest;
 
   res.send({
     playerDataDelta: {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies SandboxV3SwitchModeResponse);
 });
 
 /**
@@ -473,7 +660,7 @@ router.post("/v3/switchMode", async (req, res) => {
  */
 router.post("/v3/productionRefresh", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { topicId } = req.body;
+  const { topicId } = req.body as SandboxV3RefreshHarvestRequest;
 
   res.send({
     playerDataDelta: {
@@ -494,7 +681,7 @@ router.post("/v3/productionRefresh", async (req, res) => {
       },
       deleted: {},
     },
-  });
+  } satisfies SandboxV3RefreshHarvestResponse);
 });
 
 /**
@@ -505,7 +692,7 @@ router.post("/v3/productionRefresh", async (req, res) => {
  */
 router.post("/v3/productionHarvest", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { topicId } = req.body;
+  const { topicId } = req.body as SandboxV3HarvestRequest;
 
   res.send({
     playerDataDelta: {
@@ -520,7 +707,7 @@ router.post("/v3/productionHarvest", async (req, res) => {
       },
       deleted: {},
     },
-  });
+  } satisfies SandboxV3HarvestResponse);
 });
 
 /**
@@ -530,13 +717,14 @@ router.post("/v3/productionHarvest", async (req, res) => {
  */
 router.post("/v3/homeEnter", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as SandboxV3EnterBaseRequest;
 
   res.send({
     playerDataDelta: {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies SandboxV3EnterBaseResponse);
 });
 
 /**
@@ -549,13 +737,14 @@ router.post("/v3/homeEnter", async (req, res) => {
  */
 router.post("/v3/homeShopBuy", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as SandboxV3BaseShopBuyRequest;
 
   res.send({
     playerDataDelta: {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies SandboxV3BaseShopBuyResponse);
 });
 
 /**
@@ -567,13 +756,14 @@ router.post("/v3/homeShopBuy", async (req, res) => {
  */
 router.post("/v3/homeSave", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as SandboxV3BuildSaveRequest;
 
   res.send({
     playerDataDelta: {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies SandboxV3BuildSaveResponse);
 });
 
 /**
@@ -582,6 +772,7 @@ router.post("/v3/homeSave", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v3/homeShopSell", async (req, res) => {
+  req.body as SandboxV3BaseShopSellRequest;
   res.sendStatus(202);
 });
 
@@ -591,6 +782,7 @@ router.post("/v3/homeShopSell", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v3/homeUpgrade", async (req, res) => {
+  req.body as SandboxV3HomeUpgradeRequest;
   res.sendStatus(202);
 });
 
@@ -604,7 +796,7 @@ router.post("/v3/homeUpgrade", async (req, res) => {
  */
 router.post("/v3/createGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { topicId } = req.body;
+  const { topicId } = req.body as SandboxV3CreateGameRequest;
 
   res.send({
     playerDataDelta: {
@@ -673,7 +865,7 @@ router.post("/v3/createGame", async (req, res) => {
       },
       deleted: {},
     },
-  });
+  } satisfies SandboxV3CreateGameResponse);
 });
 
 /**
@@ -684,7 +876,7 @@ router.post("/v3/createGame", async (req, res) => {
  */
 router.post("/v3/giveUpGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { topicId } = req.body;
+  const { topicId } = req.body as SandboxV3GiveUpGameRequest;
 
   res.send({
     playerDataDelta: {
@@ -701,7 +893,7 @@ router.post("/v3/giveUpGame", async (req, res) => {
       },
       deleted: {},
     },
-  });
+  } satisfies SandboxV3GiveUpGameResponse);
 });
 
 /**
@@ -710,6 +902,7 @@ router.post("/v3/giveUpGame", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v3/battleStart", async (req, res) => {
+  req.body as SandboxV3BattleStartRequest;
   res.sendStatus(202);
 });
 
@@ -719,6 +912,7 @@ router.post("/v3/battleStart", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v3/battleFinish", async (req, res) => {
+  req.body as SandboxV3BattleFinishRequest;
   res.sendStatus(202);
 });
 
@@ -733,7 +927,7 @@ router.post("/v3/battleFinish", async (req, res) => {
  */
 router.post("/v3/changeDefend", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { topicId } = req.body;
+  const { topicId } = req.body as SandboxV3ChangeDefendRequest;
 
   res.send({
     playerDataDelta: {
@@ -750,7 +944,7 @@ router.post("/v3/changeDefend", async (req, res) => {
       },
       deleted: {},
     },
-  });
+  } satisfies SandboxV3ChangeDefendResponse);
 });
 
 /**
@@ -759,6 +953,7 @@ router.post("/v3/changeDefend", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v3/chooseBand", async (req, res) => {
+  req.body as SandboxV3ChooseBandRequest;
   res.sendStatus(202);
 });
 
@@ -768,6 +963,7 @@ router.post("/v3/chooseBand", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v3/dailyRecruit", async (req, res) => {
+  req.body as SandboxV3DayPassRecruitRequest;
   res.sendStatus(202);
 });
 
@@ -777,6 +973,7 @@ router.post("/v3/dailyRecruit", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v3/eatFood", async (req, res) => {
+  req.body as SandboxV3EatFoodRequest;
   res.sendStatus(202);
 });
 
@@ -786,6 +983,7 @@ router.post("/v3/eatFood", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v3/eventChoice", async (req, res) => {
+  req.body as SandboxV3EventChoiceRequest;
   res.sendStatus(202);
 });
 
@@ -795,6 +993,7 @@ router.post("/v3/eventChoice", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v3/getDailyRecruitList", async (req, res) => {
+  req.body as SandboxV3GetDayPassRecruitListRequest;
   res.sendStatus(202);
 });
 
@@ -804,6 +1003,7 @@ router.post("/v3/getDailyRecruitList", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v3/nextDay", async (req, res) => {
+  req.body as SandboxV3NextDayRequest;
   res.sendStatus(202);
 });
 
@@ -813,6 +1013,7 @@ router.post("/v3/nextDay", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v3/initRecruit", async (req, res) => {
+  req.body as SandboxV3InitRecruitRequest;
   res.sendStatus(202);
 });
 
@@ -822,6 +1023,7 @@ router.post("/v3/initRecruit", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v3/settleGame", async (req, res) => {
+  req.body as SandboxV3SettleGameRequest;
   res.sendStatus(202);
 });
 
@@ -831,6 +1033,7 @@ router.post("/v3/settleGame", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v3/shopBuy", async (req, res) => {
+  req.body as SandboxV3ShopBuyRequest;
   res.sendStatus(202);
 });
 
@@ -840,6 +1043,7 @@ router.post("/v3/shopBuy", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v3/shopBuyRecruit", async (req, res) => {
+  req.body as SandboxV3ShopBuyRecruitRequest;
   res.sendStatus(202);
 });
 
@@ -849,6 +1053,7 @@ router.post("/v3/shopBuyRecruit", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v3/shopRefresh", async (req, res) => {
+  req.body as SandboxV3ShopRefreshRequest;
   res.sendStatus(202);
 });
 
@@ -858,6 +1063,7 @@ router.post("/v3/shopRefresh", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/v3/shopSell", async (req, res) => {
+  req.body as SandboxV3ShopSellRequest;
   res.sendStatus(202);
 });
 
@@ -870,7 +1076,7 @@ router.post("/v3/shopSell", async (req, res) => {
  */
 router.post("/v3/unlockTech", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { topicId, techId } = req.body;
+  const { topicId, techId } = req.body as SandboxV3UnlockTechRequest;
 
   res.send({
     playerDataDelta: {
@@ -887,7 +1093,7 @@ router.post("/v3/unlockTech", async (req, res) => {
       },
       deleted: {},
     },
-  });
+  } satisfies SandboxV3UnlockTechResponse);
 });
 
 /**
@@ -896,6 +1102,7 @@ router.post("/v3/unlockTech", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/racingBattleFinish", async (req, res) => {
+  req.body as SandboxV2RacingBattleFinishRequest;
   res.sendStatus(202);
 });
 
@@ -905,6 +1112,7 @@ router.post("/racingBattleFinish", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/racingBattleStart", async (req, res) => {
+  req.body as SandboxV2RacingBattleStartRequest;
   res.sendStatus(202);
 });
 
@@ -914,6 +1122,7 @@ router.post("/racingBattleStart", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/racingLearnTalent", async (req, res) => {
+  req.body as SandboxV2RacingLearnTalentRequest;
   res.sendStatus(202);
 });
 
@@ -923,6 +1132,7 @@ router.post("/racingLearnTalent", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/racingRegister", async (req, res) => {
+  req.body as SandboxV2RacingRegisterRequest;
   res.sendStatus(202);
 });
 
@@ -932,6 +1142,7 @@ router.post("/racingRegister", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/racingRelease", async (req, res) => {
+  req.body as SandboxV2RacingReleaseRequest;
   res.sendStatus(202);
 });
 
@@ -941,6 +1152,7 @@ router.post("/racingRelease", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/racingSaveMark", async (req, res) => {
+  req.body as SandboxV2RacingSaveMarkRequest;
   res.sendStatus(202);
 });
 

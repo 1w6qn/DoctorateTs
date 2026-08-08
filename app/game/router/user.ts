@@ -1,35 +1,96 @@
+/**
+ * 用户路由
+ * 请求/响应类型见 @game/model/protocol/user（参考 CS 2.7.61 协议类）
+ */
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
+import {
+  AddCgCollectionRequest,
+  AddCgCollectionResponse,
+  BindBirthdayRequest,
+  BindBirthdayResponse,
+  BindNickNameRequest,
+  BindNickNameResponse,
+  BuyApRequest,
+  BuyApResponse,
+  ChangeAvatarRequest,
+  ChangeAvatarResponse,
+  ChangeMagazineSquadRequest,
+  ChangeMagazineSquadResponse,
+  ChangeResumeRequest,
+  ChangeResumeResponse,
+  ChangeSecretaryRequest,
+  ChangeSecretaryResponse,
+  CheckInHomeRequest,
+  CheckInHomeResponse,
+  ExchangeDiamondShardRequest,
+  ExchangeDiamondShardResponse,
+  GetCgCollectionRequest,
+  GetCgCollectionResponse,
+  GetFirstRewardsRequest,
+  GetFirstRewardsResponse,
+  GetThumbnailUrlRequest,
+  GetThumbnailUrlResponse,
+  MedalSetCustomDataRequest,
+  MedalSetCustomDataResponse,
+  ReceiveTeamCollectionRewardRequest,
+  ReceiveTeamCollectionRewardResponse,
+  RemoveCgCollectionRequest,
+  RemoveCgCollectionResponse,
+  RewardMedalRequest,
+  RewardMedalResponse,
+  SaveDiyMagazineRequest,
+  SaveDiyMagazineResponse,
+  ServerTimeResponse,
+  UnlockClueRequest,
+  UnlockClueResponse,
+  UseItemRequest,
+  UseItemResponse,
+  UseItemsRequest,
+  UseItemsResponse,
+  UseRenameCardRequest,
+  UseRenameCardResponse,
+} from "../model/protocol/user";
 
 const router = Router();
+
+/** 更换秘书干员（CS: ChangeSecretaryRequest） */
 router.post("/changeSecretary", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  await player.status.changeSecretary(req.body);
-  res.send(player.delta);
+  const body = req.body as ChangeSecretaryRequest;
+  await player.status.changeSecretary(body);
+  res.send(player.delta satisfies ChangeSecretaryResponse);
 });
+
+/** 更换头像（CS: ChangeAvatarRequest） */
 router.post("/changeAvatar", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  await player.status.changeAvatar(req.body);
-  res.send(player.delta);
+  const body = req.body as ChangeAvatarRequest;
+  await player.status.changeAvatar(body);
+  res.send(player.delta satisfies ChangeAvatarResponse);
 });
+
+/** 更换简介（CS: ChangeResumeRequest） */
 router.post("/changeResume", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  if ((req.body!.resume as string).slice(0) == "@") {
-    await player._trigger.emit(
-      req.body!.resume.slice(1, req.body!.resume.length),
-      [],
-    );
+  const body = req.body as ChangeResumeRequest;
+  if ((body?.resume as string).slice(0) == "@") {
+    // 动态事件名（resume 以 @ 开头时触发对应事件），绕过 EventMap 静态键检查
+    player._trigger.emit(body.resume.slice(1, body.resume.length) as any, []);
   } else {
-    await player.status.changeResume(req.body);
+    await player.status.changeResume(body);
   }
-  res.send(player.delta);
+  res.send(player.delta satisfies ChangeResumeResponse);
 });
+
+/** 绑定昵称（服务端自定义） */
 router.post("/bindNickName", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const nickName = req.body!.nickName;
+  const body = req.body as BindNickNameRequest;
+  const nickName = body.nickName;
   let result = 0;
   const specialChars = "~!@#$%^&*()_+{}|:\"<>?[]\\;',./";
   if (nickName.length > 16) {
@@ -44,65 +105,84 @@ router.post("/bindNickName", async (req, res) => {
   if (sensitiveWords.includes(nickName.toLowerCase())) {
     result = 3;
   }
-  if (result !== 0) res.send({ result });
+  if (result !== 0) res.send({ result } satisfies BindNickNameResponse);
   else {
-    await player.status.bindNickName(req.body);
-    res.send(player.delta);
+    // 注意：客户端字段为 nickName，管理器契约读取 nickname（既有不一致，保持原行为）
+    await player.status.bindNickName(body as unknown as { nickname: string });
+    res.send(player.delta satisfies BindNickNameResponse);
   }
 });
+
+/** 使用改名卡（CS: UseRenameCardRequest） */
 router.post("/useRenameCard", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  await player.status.bindNickName(req.body);
+  const body = req.body as UseRenameCardRequest;
+  await player.status.bindNickName({ nickname: body.nickName });
   await player._trigger.emit("items:use", [
     [
       {
-        id: req.body!.itemId,
+        id: body.itemId,
         count: 1,
-        instId: req.body!.instId,
+        instId: body.instId,
       } as ItemBundle,
     ],
   ]);
-  res.send(player.delta);
+  res.send(player.delta satisfies UseRenameCardResponse);
 });
+
+/** 领取团队收集奖励（CS: ReceiveTeamCollectionRewardRequest） */
 router.post("/receiveTeamCollectionReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  await player.status.receiveTeamCollectionReward(req.body);
-  res.send(player.delta);
+  const body = req.body as ReceiveTeamCollectionRewardRequest;
+  await player.status.receiveTeamCollectionReward(body);
+  res.send(player.delta satisfies ReceiveTeamCollectionRewardResponse);
 });
+
+/** 购买理智（CS: BuyApRequest） */
 router.post("/buyAp", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as BuyApRequest;
   await player.status.buyAp();
-  res.send(player.delta);
+  res.send(player.delta satisfies BuyApResponse);
 });
+
+/** 兑换源石碎片（CS: ExchangeDiamondShardRequest） */
 router.post("/exchangeDiamondShard", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  if (player._playerdata.status.androidDiamond < req.body!.count) {
+  const body = req.body as ExchangeDiamondShardRequest;
+  if (player._playerdata.status.androidDiamond < body.count) {
     res.send({
       result: 1,
       errMsg: "至纯源石不足，是否前往商店购买至纯源石？",
-    });
+    } satisfies ExchangeDiamondShardResponse);
   } else {
-    await player.status.exchangeDiamondShard(req.body);
-    res.send(player.delta);
+    await player.status.exchangeDiamondShard(body);
+    res.send(player.delta satisfies ExchangeDiamondShardResponse);
   }
 });
+
+/** 使用单个物品（CS: UseItemRequest） */
 router.post("/useItem", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as UseItemRequest;
   const item = {
-    id: req.body!.itemId,
-    count: req.body!.count,
-    instId: req.body!.instId,
+    id: body.itemId,
+    count: body.count,
+    instId: body.instId,
   } as ItemBundle;
   await player._trigger.emit("items:use", [[item]]);
-  res.send(player.delta);
+  res.send(player.delta satisfies UseItemResponse);
 });
+
+/** 使用多个物品（CS: UseItemsRequest） */
 router.post("/useItems", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as UseItemsRequest;
   const items: {
     itemId: string;
     cnt: number;
     instId: number;
-  }[] = req.body!.items;
+  }[] = body.items;
   await player._trigger.emit("items:use", [
     items.map((item) => {
       return {
@@ -112,15 +192,19 @@ router.post("/useItems", async (req, res) => {
       };
     }),
   ]);
-  res.send(player.delta);
+  res.send(player.delta satisfies UseItemsResponse);
 });
+
+/** 签到（CS ServiceCode: CHECKIN_HOME） */
 router.post("/checkIn", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as CheckInHomeRequest;
   res.send({
     ...(await player.checkIn.checkIn()),
     ...player.delta,
-  });
+  } satisfies CheckInHomeResponse);
 });
+
 // ==================== 新增路由 ====================
 
 /**
@@ -136,14 +220,15 @@ router.post("/checkIn", async (req, res) => {
  */
 router.post("/bindBirthday", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { month, day } = req.body;
+  const body = req.body as BindBirthdayRequest;
+  const { month, day } = body;
   await player.update(async (draft) => {
     draft.status.birthday = {
       month: Number(month),
       day: Number(day),
     };
   });
-  res.send(player.delta);
+  res.send(player.delta satisfies BindBirthdayResponse);
 });
 
 export default router;
@@ -179,11 +264,12 @@ export const rootRouter = Router();
  */
 rootRouter.post("/medal/rewardMedal", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const items = await player.medal.rewardMedal(req.body);
+  const body = req.body as RewardMedalRequest;
+  const items = await player.medal.rewardMedal(body);
   res.send({
     items,
     ...player.delta,
-  });
+  } satisfies RewardMedalResponse);
 });
 
 /**
@@ -198,7 +284,8 @@ rootRouter.post("/medal/rewardMedal", async (req, res) => {
  */
 rootRouter.post("/mainlineClue/unlockClue", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { id } = req.body;
+  const body = req.body as UnlockClueRequest;
+  const { id } = body;
   await player.update(async (draft) => {
     const mainline = draft.mainline as any;
     if (!mainline.clue) {
@@ -206,7 +293,7 @@ rootRouter.post("/mainlineClue/unlockClue", async (req, res) => {
     }
     mainline.clue.state[id] = 2;
   });
-  res.send(player.delta);
+  res.send(player.delta satisfies UnlockClueResponse);
 });
 
 /**
@@ -220,10 +307,11 @@ rootRouter.post("/mainlineClue/unlockClue", async (req, res) => {
  */
 rootRouter.post("/cg/getCgCollection", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetCgCollectionRequest;
   res.send({
     ...player.delta,
     cgList: Array.from(cgCollection),
-  });
+  } satisfies GetCgCollectionResponse);
 });
 
 /**
@@ -237,12 +325,13 @@ rootRouter.post("/cg/getCgCollection", async (req, res) => {
  */
 rootRouter.post("/cg/addCgCollection", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { cgId } = req.body;
+  const body = req.body as AddCgCollectionRequest;
+  const { cgId } = body;
   cgCollection.add(cgId);
   res.send({
     ...player.delta,
     cgList: Array.from(cgCollection),
-  });
+  } satisfies AddCgCollectionResponse);
 });
 
 /**
@@ -256,12 +345,13 @@ rootRouter.post("/cg/addCgCollection", async (req, res) => {
  */
 rootRouter.post("/cg/removeCgCollection", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { cgId } = req.body;
+  const body = req.body as RemoveCgCollectionRequest;
+  const { cgId } = body;
   cgCollection.delete(cgId);
   res.send({
     ...player.delta,
     cgList: Array.from(cgCollection),
-  });
+  } satisfies RemoveCgCollectionResponse);
 });
 
 /**
@@ -295,6 +385,7 @@ function ensureGallery(draft: any): any {
  */
 rootRouter.post("/gallery/getFirstRewards", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetFirstRewardsRequest;
   await player.update(async (draft) => {
     const gallery = ensureGallery(draft);
     gallery.firstRewards = true;
@@ -306,7 +397,7 @@ rootRouter.post("/gallery/getFirstRewards", async (req, res) => {
       version: 0,
     };
   });
-  res.send(player.delta);
+  res.send(player.delta satisfies GetFirstRewardsResponse);
 });
 
 /**
@@ -322,14 +413,15 @@ rootRouter.post("/gallery/getFirstRewards", async (req, res) => {
  */
 rootRouter.post("/gallery/getThumbnailUrl", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const idList: string[] = req.body?.idList || [];
+  const body = req.body as GetThumbnailUrlRequest;
+  const idList: string[] = body?.idList || [];
   await player.update(async (draft) => {
     ensureGallery(draft);
   });
   res.send({
     ...player.delta,
     url: idList.map(() => null),
-  });
+  } satisfies GetThumbnailUrlResponse);
 });
 
 /**
@@ -343,10 +435,11 @@ rootRouter.post("/gallery/getThumbnailUrl", async (req, res) => {
  */
 rootRouter.post("/gallery/changeMagazineSquad", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as ChangeMagazineSquadRequest;
   await player.update(async (draft) => {
     ensureGallery(draft);
   });
-  res.send(player.delta);
+  res.send(player.delta satisfies ChangeMagazineSquadResponse);
 });
 
 /**
@@ -364,11 +457,12 @@ rootRouter.post("/gallery/changeMagazineSquad", async (req, res) => {
  */
 rootRouter.post("/gallery/saveDiyMagazineV1", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { magazine } = req.body;
+  const body = req.body as SaveDiyMagazineRequest;
+  const { magazine } = body;
   await player.update(async (draft) => {
     saveDiyMagazine(draft, magazine);
   });
-  res.send(player.delta);
+  res.send(player.delta satisfies SaveDiyMagazineResponse);
 });
 
 /**
@@ -383,11 +477,12 @@ rootRouter.post("/gallery/saveDiyMagazineV1", async (req, res) => {
  */
 rootRouter.post("/gallery/saveDiyMagazineV2", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { magazine } = req.body;
+  const body = req.body as SaveDiyMagazineRequest;
+  const { magazine } = body;
   await player.update(async (draft) => {
     saveDiyMagazine(draft, magazine);
   });
-  res.send(player.delta);
+  res.send(player.delta satisfies SaveDiyMagazineResponse);
 });
 
 /**
@@ -424,11 +519,12 @@ function saveDiyMagazine(draft: any, magazine: any): void {
  */
 rootRouter.post("/medal/setCustomData", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const customData = req.body.data;
+  const body = req.body as MedalSetCustomDataRequest;
+  const customData = body.data;
   await player.update(async (draft) => {
     draft.medal.custom.customs["1"] = customData;
   });
-  res.send(player.delta);
+  res.send(player.delta satisfies MedalSetCustomDataResponse);
 });
 
 /**
@@ -460,5 +556,5 @@ rootRouter.get("/general/v1/server_time", async (req, res) => {
       serverTime: now(),
       isHoliday: false,
     },
-  });
+  } satisfies ServerTimeResponse);
 });

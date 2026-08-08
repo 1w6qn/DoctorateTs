@@ -2,11 +2,18 @@
  * 深海路由模块
  * 
  * 处理深海猎人相关的 HTTP 请求，包括科技树分支选择等功能。
+ * 请求/响应类型见 @game/model/protocol/deepsea（参考 CS 2.7.61 协议类）。
  */
 
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import {
+  DeepSeaChangeTechBranchRequest,
+  DeepSeaChangeTechBranchResponse,
+  DeepSeaReadEventRequest,
+  DeepSeaReadEventResponse,
+} from "../model/protocol/deepsea";
 
 const router = Router();
 
@@ -18,7 +25,7 @@ const router = Router();
  */
 router.post("/branch", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const branches = req.body.branches || [];
+  const { branches = [] } = req.body as DeepSeaChangeTechBranchRequest;
 
   const techTrees: { [key: string]: { branch: string; state: number } } = {};
   for (const branch of branches) {
@@ -37,7 +44,7 @@ router.post("/branch", async (req, res) => {
         },
       },
     },
-  });
+  } satisfies DeepSeaChangeTechBranchResponse);
 });
 
 /**
@@ -47,13 +54,14 @@ router.post("/branch", async (req, res) => {
  */
 router.post("/event", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as DeepSeaReadEventRequest;
 
   res.send({
     playerDataDelta: {
       deleted: {},
       modified: {},
     },
-  });
+  } satisfies DeepSeaReadEventResponse);
 });
 
 export default router;

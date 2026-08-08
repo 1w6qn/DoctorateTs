@@ -18,6 +18,24 @@ import { readJsonSync } from "@utils/file";
 import { ItemBundle } from "@excel/character_table";
 import { randomChoice } from "@utils/random";
 import excel from "@excel/excel";
+import {
+  BoostPotentialRequest,
+  BoostPotentialResponse,
+  GetVoucherDetailRequest,
+  GetVoucherDetailResponse,
+  UseCharGachaVoucherRequest,
+  UseCharGachaVoucherResponse,
+  UseMaterialVoucherRequest,
+  UseMaterialVoucherResponse,
+  UseOptionalVoucherRequest,
+  UseOptionalVoucherResponse,
+  VoucherCharDetailRequest,
+  VoucherCharDetailResponse,
+  VoucherGachaDetailRequest,
+  VoucherGachaDetailResponse,
+  VoucherItemDetailRequest,
+  VoucherItemDetailResponse,
+} from "../model/protocol/depot";
 
 /** 凭证信息接口（对应 voucher.json 中的数据结构） */
 interface VoucherInfo {
@@ -152,12 +170,12 @@ const router = Router();
  */
 router.post("/getVoucherDetail", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { itemId } = req.body;
+  const { itemId } = req.body as GetVoucherDetailRequest;
   const voucherInfo = VoucherDataManager.getVoucher(itemId);
   res.send({
     ...voucherInfo,
     ...player.delta,
-  });
+  } satisfies GetVoucherDetailResponse);
 });
 
 /**
@@ -171,11 +189,12 @@ router.post("/getVoucherDetail", async (req, res) => {
  */
 router.post("/voucherGacha", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as VoucherGachaDetailRequest;
   // 简化实现：凭证抽卡逻辑较为复杂，需要根据凭证关联的卡池执行抽卡策略
   // 当前仅返回玩家增量数据，完整实现可参考 GachaController.doAdvancedGacha
   res.send({
     ...player.delta,
-  });
+  } satisfies VoucherGachaDetailResponse);
 });
 
 /**
@@ -190,12 +209,12 @@ router.post("/voucherGacha", async (req, res) => {
  */
 router.post("/getCharGachaVoucherDetail", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { itemId } = req.body;
+  const { itemId } = req.body as VoucherCharDetailRequest;
   const voucherInfo = VoucherDataManager.getVoucher(itemId);
   res.send({
     ...voucherInfo,
     ...player.delta,
-  });
+  } satisfies VoucherCharDetailResponse);
 });
 
 /**
@@ -209,7 +228,7 @@ router.post("/getCharGachaVoucherDetail", async (req, res) => {
  */
 router.post("/getMaterialVoucherDetail", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { itemId } = req.body;
+  const { itemId } = req.body as VoucherItemDetailRequest;
   const relatedItems = VoucherDataManager.findRelatedItems(itemId);
   const pool: MaterialVoucherPoolEntry[] = relatedItems.map((item, index) => ({
     itemId: item.itemId,
@@ -228,7 +247,7 @@ router.post("/getMaterialVoucherDetail", async (req, res) => {
       pool: pool,
     },
     ...player.delta,
-  });
+  } satisfies VoucherItemDetailResponse);
 });
 
 /**
@@ -244,7 +263,7 @@ router.post("/getMaterialVoucherDetail", async (req, res) => {
  */
 router.post("/useCharGachaVoucher", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { itemId, instId } = req.body;
+  const { itemId, instId } = req.body as UseCharGachaVoucherRequest;
   // 消耗凭证物品（consumable 类型，需要 instId 定位具体实例）
   await player._trigger.emit("items:use", [
     [
@@ -257,7 +276,7 @@ router.post("/useCharGachaVoucher", async (req, res) => {
   ]);
   res.send({
     ...player.delta,
-  });
+  } satisfies UseCharGachaVoucherResponse);
 });
 
 /**
@@ -274,7 +293,7 @@ router.post("/useCharGachaVoucher", async (req, res) => {
  */
 router.post("/useMaterialVoucher", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { itemId, instId, count } = req.body;
+  const { itemId, instId, count } = req.body as UseMaterialVoucherRequest;
   const useCount = count || 1;
   // 消耗凭证物品
   await player._trigger.emit("items:use", [
@@ -307,7 +326,7 @@ router.post("/useMaterialVoucher", async (req, res) => {
   res.send({
     itemGet: itemGet,
     ...player.delta,
-  });
+  } satisfies UseMaterialVoucherResponse);
 });
 
 /**
@@ -322,7 +341,7 @@ router.post("/useMaterialVoucher", async (req, res) => {
  */
 router.post("/useFullPotentialItem", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { charInstId, itemId } = req.body;
+  const { charInstId, itemId } = req.body as BoostPotentialRequest;
   // 获取干员信息以计算最大潜能等级
   const char = player._playerdata.troop.chars[charInstId];
   const charInfo = excel.CharacterTable[char.charId];
@@ -337,7 +356,7 @@ router.post("/useFullPotentialItem", async (req, res) => {
   res.send({
     result: 1,
     ...player.delta,
-  });
+  } satisfies BoostPotentialResponse);
 });
 
 /**
@@ -354,7 +373,7 @@ router.post("/useFullPotentialItem", async (req, res) => {
  */
 router.post("/useOptionVoucher", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { itemId, instId, choices, voucherCount } = req.body;
+  const { itemId, instId, choices, voucherCount } = req.body as UseOptionalVoucherRequest;
   const consumeCount = voucherCount || 1;
   // 消耗凭证物品
   await player._trigger.emit("items:use", [
@@ -374,7 +393,7 @@ router.post("/useOptionVoucher", async (req, res) => {
   res.send({
     itemGet: itemGet,
     ...player.delta,
-  });
+  } satisfies UseOptionalVoucherResponse);
 });
 
 export default router;

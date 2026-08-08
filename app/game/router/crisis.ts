@@ -13,6 +13,48 @@ import { readJson } from "@utils/file";
 import { decryptBattleData } from "@utils/crypt";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
+import {
+  CrisisBuyGoodsRequest,
+  CrisisBuyGoodsResponse,
+  CrisisChallengeRewardAllRequest,
+  CrisisChallengeRewardAllResponse,
+  CrisisChallengeRewardPointRequest,
+  CrisisChallengeRewardPointResponse,
+  CrisisChallengeRewardTaskRequest,
+  CrisisChallengeRewardTaskResponse,
+  CrisisGetAllItemsRequest,
+  CrisisGetAllItemsResponse,
+  CrisisGetGoodListRequest,
+  CrisisGetGoodListResponse,
+  CrisisGetInfoRequest,
+  CrisisGetInfoResponse,
+  CrisisUnlockMapRankRequest,
+  CrisisUnlockMapRankResponse,
+  CrisisUnlockRuneRequest,
+  CrisisUnlockRuneResponse,
+  CrisisV1BattleFinishRequest,
+  CrisisV1BattleFinishResponse,
+  CrisisV1BattleStartRequest,
+  CrisisV1BattleStartResponse,
+  CrisisV2BattleFinishRequest,
+  CrisisV2BattleFinishResponse,
+  CrisisV2BattleStartRequest,
+  CrisisV2BattleStartResponse,
+  CrisisV2BuyGoodRequest,
+  CrisisV2BuyGoodResponse,
+  CrisisV2ConfirmMissionsRequest,
+  CrisisV2ConfirmMissionsResponse,
+  CrisisV2GetGoodListRequest,
+  CrisisV2GetGoodListResponse,
+  CrisisV2GetInfoRequest,
+  CrisisV2GetInfoResponse,
+  CrisisV2GetSnapshotRequest,
+  CrisisV2GetSnapshotResponse,
+  RecalRuneBattleFinishRequest,
+  RecalRuneBattleFinishResponse,
+  RecalRuneBattleStartRequest,
+  RecalRuneBattleStartResponse,
+} from "../model/protocol/crisis";
 
 // ==================== 常量定义 ====================
 
@@ -353,6 +395,7 @@ router.post("/getCrisisInfo", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const currentTime = now();
   const nextDay = currentTime + ONE_DAY_SECONDS;
+  req.body as CrisisGetInfoRequest;
 
   try {
     const rune = await dataCache.getV1Data(DEFAULT_SELECTED_CRISIS);
@@ -376,7 +419,7 @@ router.post("/getCrisisInfo", async (req, res) => {
       draft.crisis.training.nst = nextDay;
     });
 
-    res.send(rune);
+    res.send(rune satisfies CrisisGetInfoResponse);
   } catch (err) {
     /** 数据文件加载失败时返回最小响应 */
     logger.error("crisis/getCrisisInfo", "加载数据失败:", err);
@@ -394,7 +437,7 @@ router.post("/getCrisisInfo", async (req, res) => {
         },
         deleted: {},
       },
-    });
+    } satisfies CrisisGetInfoResponse);
   }
 });
 
@@ -407,7 +450,7 @@ router.post("/getCrisisInfo", async (req, res) => {
  */
 router.post("/battleStart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { stageId, rune: runeList } = req.body;
+  const { stageId, rune: runeList } = req.body as CrisisV1BattleStartRequest;
 
   let totalRisks = 0;
   try {
@@ -443,7 +486,7 @@ router.post("/battleStart", async (req, res) => {
     result: 0,
     sign: "abcde",
     signStr: "abcdefg",
-  });
+  } satisfies CrisisV1BattleStartResponse);
 });
 
 /**
@@ -453,6 +496,7 @@ router.post("/battleStart", async (req, res) => {
  */
 router.post("/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as CrisisV1BattleFinishRequest;
 
   /** 获取战斗开始时保存的风险等级 */
   const ctx = battleStore.getV1(player.uid);
@@ -471,7 +515,7 @@ router.post("/battleFinish", async (req, res) => {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies CrisisV1BattleFinishResponse);
 });
 
 /**
@@ -481,6 +525,7 @@ router.post("/battleFinish", async (req, res) => {
  */
 router.post("/getGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as CrisisGetGoodListRequest;
 
   /** 返回玩家危机合约商店数据 */
   res.send({
@@ -490,7 +535,7 @@ router.post("/getGoodList", async (req, res) => {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies CrisisGetGoodListResponse);
 });
 
 /**
@@ -505,7 +550,7 @@ router.post("/getGoodList", async (req, res) => {
  */
 router.post("/buyGoods", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { goodId, count } = req.body;
+  const { goodId, count } = req.body as CrisisBuyGoodsRequest;
 
   await player.update(async (draft) => {
     /** 更新商店购买记录 */
@@ -522,7 +567,7 @@ router.post("/buyGoods", async (req, res) => {
   res.send({
     items: [],
     ...player.delta,
-  });
+  } satisfies CrisisBuyGoodsResponse);
 });
 
 /**
@@ -536,7 +581,7 @@ router.post("/buyGoods", async (req, res) => {
  */
 router.post("/challengeRewardTask", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { seasonId, taskId } = req.body;
+  const { seasonId, taskId } = req.body as CrisisChallengeRewardTaskRequest;
 
   await player.update(async (draft) => {
     const season = (draft.crisis.season as any)?.[seasonId];
@@ -548,7 +593,7 @@ router.post("/challengeRewardTask", async (req, res) => {
   res.send({
     items: [],
     ...player.delta,
-  });
+  } satisfies CrisisChallengeRewardTaskResponse);
 });
 
 /**
@@ -562,7 +607,7 @@ router.post("/challengeRewardTask", async (req, res) => {
  */
 router.post("/challengeRewardPoint", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { seasonId, pointId } = req.body;
+  const { seasonId, pointId } = req.body as CrisisChallengeRewardPointRequest;
 
   await player.update(async (draft) => {
     const season = (draft.crisis.season as any)?.[seasonId];
@@ -577,7 +622,7 @@ router.post("/challengeRewardPoint", async (req, res) => {
   res.send({
     items: [],
     ...player.delta,
-  });
+  } satisfies CrisisChallengeRewardPointResponse);
 });
 
 /**
@@ -590,7 +635,7 @@ router.post("/challengeRewardPoint", async (req, res) => {
  */
 router.post("/challengeRewardAll", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { seasonId } = req.body;
+  const { seasonId } = req.body as CrisisChallengeRewardAllRequest;
 
   await player.update(async (draft) => {
     const season = (draft.crisis.season as any)?.[seasonId];
@@ -606,7 +651,7 @@ router.post("/challengeRewardAll", async (req, res) => {
   res.send({
     items: [],
     ...player.delta,
-  });
+  } satisfies CrisisChallengeRewardAllResponse);
 });
 
 /**
@@ -616,6 +661,7 @@ router.post("/challengeRewardAll", async (req, res) => {
  */
 router.post("/getAllItems", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as CrisisGetAllItemsRequest;
 
   res.send({
     shop: player._playerdata.crisis.shop,
@@ -624,7 +670,7 @@ router.post("/getAllItems", async (req, res) => {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies CrisisGetAllItemsResponse);
 });
 
 /**
@@ -637,7 +683,7 @@ router.post("/getAllItems", async (req, res) => {
  */
 router.post("/unlockMapRank", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { mapId } = req.body;
+  const { mapId } = req.body as CrisisUnlockMapRankRequest;
 
   await player.update(async (draft) => {
     if (!draft.crisis.map[mapId]) {
@@ -649,7 +695,7 @@ router.post("/unlockMapRank", async (req, res) => {
     draft.crisis.map[mapId].confirmed = 1;
   });
 
-  res.send(player.delta);
+  res.send(player.delta satisfies CrisisUnlockMapRankResponse);
 });
 
 /**
@@ -663,7 +709,7 @@ router.post("/unlockMapRank", async (req, res) => {
  */
 router.post("/unlockRune", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { seasonId, runeId } = req.body;
+  const { seasonId, runeId } = req.body as CrisisUnlockRuneRequest;
 
   await player.update(async (draft) => {
     const season = (draft.crisis.season as any)?.[seasonId];
@@ -672,7 +718,7 @@ router.post("/unlockRune", async (req, res) => {
     }
   });
 
-  res.send(player.delta);
+  res.send(player.delta satisfies CrisisUnlockRuneResponse);
 });
 
 // ==================== 危机合约V2路由 ====================
@@ -684,10 +730,11 @@ router.post("/unlockRune", async (req, res) => {
  */
 router.post("/v2/getInfo", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as CrisisV2GetInfoRequest;
 
   try {
     const rune = await dataCache.getV2Data(DEFAULT_SELECTED_CRISIS_V2);
-    res.send(rune);
+    res.send(rune satisfies CrisisV2GetInfoResponse);
   } catch (err) {
     /** 数据文件加载失败时返回最小响应 */
     logger.error("crisis/v2/getInfo", "加载数据失败:", err);
@@ -698,7 +745,7 @@ router.post("/v2/getInfo", async (req, res) => {
         modified: {},
         deleted: {},
       },
-    });
+    } satisfies CrisisV2GetInfoResponse);
   }
 });
 
@@ -711,7 +758,7 @@ router.post("/v2/getInfo", async (req, res) => {
  */
 router.post("/v2/battleStart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { mapId, runeSlots } = req.body;
+  const { mapId, runeSlots } = req.body as CrisisV2BattleStartRequest;
 
   /** 保存战斗上下文，供 battleFinish 使用 */
   battleStore.setV2(player.uid, {
@@ -726,7 +773,7 @@ router.post("/v2/battleStart", async (req, res) => {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies CrisisV2BattleStartResponse);
 });
 
 /**
@@ -736,6 +783,7 @@ router.post("/v2/battleStart", async (req, res) => {
  */
 router.post("/v2/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as CrisisV2BattleFinishRequest;
 
   /** 获取战斗开始时保存的上下文 */
   const ctx = battleStore.getV2(player.uid);
@@ -770,7 +818,7 @@ router.post("/v2/battleFinish", async (req, res) => {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies CrisisV2BattleFinishResponse);
 });
 
 /**
@@ -779,6 +827,8 @@ router.post("/v2/battleFinish", async (req, res) => {
  * @returns 快照详情和玩家增量数据
  */
 router.post("/v2/getSnapshot", async (req, res) => {
+  req.body as CrisisV2GetSnapshotRequest;
+
   res.send({
     detail: {},
     simple: {},
@@ -786,7 +836,7 @@ router.post("/v2/getSnapshot", async (req, res) => {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies CrisisV2GetSnapshotResponse);
 });
 
 /**
@@ -796,6 +846,7 @@ router.post("/v2/getSnapshot", async (req, res) => {
  */
 router.post("/v2/getGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as CrisisV2GetGoodListRequest;
 
   /** 返回玩家危机合约V2商店数据 */
   res.send({
@@ -805,7 +856,7 @@ router.post("/v2/getGoodList", async (req, res) => {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies CrisisV2GetGoodListResponse);
 });
 
 /**
@@ -816,13 +867,15 @@ router.post("/v2/getGoodList", async (req, res) => {
  * 简化实现：返回空推送消息，实际任务确认逻辑需要完整的任务系统支持。
  */
 router.post("/v2/confirmMissions", async (req, res) => {
+  req.body as CrisisV2ConfirmMissionsRequest;
+
   res.send({
     pushMessage: [],
     playerDataDelta: {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies CrisisV2ConfirmMissionsResponse);
 });
 
 /**
@@ -837,7 +890,7 @@ router.post("/v2/confirmMissions", async (req, res) => {
  */
 router.post("/v2/buyGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { goodId, count } = req.body;
+  const { goodId, count } = req.body as CrisisV2BuyGoodRequest;
 
   await player.update(async (draft) => {
     /** 更新V2商店购买记录 */
@@ -854,7 +907,7 @@ router.post("/v2/buyGood", async (req, res) => {
   res.send({
     items: [],
     ...player.delta,
-  });
+  } satisfies CrisisV2BuyGoodResponse);
 });
 
 // ==================== 重构符文路由 ====================
@@ -871,7 +924,7 @@ router.post("/v2/buyGood", async (req, res) => {
  */
 router.post("/recalRune/battleStart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { seasonId, stageId, runes, slots, assistFriend } = req.body;
+  const { seasonId, stageId, runes, slots, assistFriend } = req.body as RecalRuneBattleStartRequest;
 
   /** 保存战斗上下文，供 battleFinish 使用 */
   battleStore.setRecal(player.uid, {
@@ -889,7 +942,7 @@ router.post("/recalRune/battleStart", async (req, res) => {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies RecalRuneBattleStartResponse);
 });
 
 /**
@@ -904,6 +957,7 @@ router.post("/recalRune/battleStart", async (req, res) => {
  */
 router.post("/recalRune/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as RecalRuneBattleFinishRequest;
 
   /** 获取战斗开始时保存的上下文 */
   const ctx = battleStore.getRecal(player.uid);
@@ -926,9 +980,9 @@ router.post("/recalRune/battleFinish", async (req, res) => {
   let completeState = 3;
   let hp = 0;
   try {
-    if (req.body.data) {
+    if (body.data) {
       const battleData = await decryptBattleData(
-        req.body.data,
+        body.data,
         player._playerdata.pushFlags.status,
       );
       completeState = battleData.completeState;
@@ -956,7 +1010,7 @@ router.post("/recalRune/battleFinish", async (req, res) => {
       modified: {},
       deleted: {},
     },
-  });
+  } satisfies RecalRuneBattleFinishResponse);
 });
 
 export default router;

@@ -3,6 +3,18 @@ import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { accountManager } from "../manager/AccountManger";
 import { now } from "@utils/time";
+import { buildSyncDataDelta } from "@utils/delta";
+import config from "../../config";
+import {
+  LoginRequest,
+  LoginResponse,
+  SyncDataRequest,
+  SyncDataResponse,
+  SyncPushMessageRequest,
+  SyncPushMessageResponse,
+  SyncStatusRequest,
+  SyncStatusResponse,
+} from "../model/protocol/account";
 
 const router = Router();
 
@@ -13,11 +25,12 @@ const router = Router();
  * 版本校验 YAGNI：clientVersion/networkVersion 读取但不拦截（私服客户端版本可能滞后，避免卡登录）
  */
 router.post("/login", async (req, res) => {
-  const token = String(req.body?.token ?? "");
+  const body = req.body as LoginRequest;
+  const token = String(body?.token ?? "");
   const uid = await accountManager.getUidByToken(token);
   if (!uid) {
     // 参考 DoctoratePy：result 3 = 记忆已经模糊，请重新输入登录信息
-    return res.send({ result: 3 });
+    return res.send({ result: 3 } satisfies LoginResponse);
   }
   const conf = await accountManager.getUserConfig(uid);
   res.send({
@@ -25,8 +38,8 @@ router.post("/login", async (req, res) => {
     uid,
     secret: conf?.secret || uid,
     serviceLicenseVersion: 0,
-    majorVersion: "446",
-  });
+    majorVersion: config.majorVersion || "446",
+  } satisfies LoginResponse);
 });
 
 router.post("/syncData", async (req, res) => {
@@ -34,6 +47,7 @@ router.post("/syncData", async (req, res) => {
   if (!player) {
     return res.status(401).send({ status: 401, msg: "未登录（缺少 secret）" });
   }
+  req.body as SyncDataRequest;
 
   await player.update(async (draft) => {
     draft.pushFlags.status = now();
@@ -41,9 +55,9 @@ router.post("/syncData", async (req, res) => {
   res.send({
     result: 0,
     ts: now(),
-    user: player,
+    user: player.toJSON(),
     ...player.delta,
-  });
+  } satisfies SyncDataResponse);
 });
 
 router.post("/syncStatus", async (req, res) => {
@@ -51,12 +65,13 @@ router.post("/syncStatus", async (req, res) => {
   if (!player) {
     return res.status(401).send({ status: 401, msg: "未登录（缺少 secret）" });
   }
+  req.body as SyncStatusRequest;
   await player._trigger.emit("status:refresh:time", []);
   res.send({
     ts: now(),
     result: {},
     ...player.delta,
-  });
+  } satisfies SyncStatusResponse);
 });
 
 router.post("/syncPushMessage", async (req, res) => {
@@ -64,7 +79,13 @@ router.post("/syncPushMessage", async (req, res) => {
   if (!player) {
     return res.status(401).send({ status: 401, msg: "未登录（缺少 secret）" });
   }
-  res.send(player.delta);
+  req.body as SyncPushMessageRequest;
+  const ts = now();
+  res.send({
+    now: ts,
+    next: ts + 60,
+    ...player.delta,
+  } satisfies SyncPushMessageResponse);
 });
 
 export default router;

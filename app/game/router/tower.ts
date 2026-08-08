@@ -2,6 +2,7 @@
  * 爬塔路由模块
  *
  * 处理保全派驻相关的 HTTP 请求，包括游戏创建、神卡初始化、战斗处理等功能。
+ * 请求/响应类型见 @game/model/protocol/tower（参考 CS 2.7.61 协议类）。
  *
  * 实现说明：
  * - 路由处理函数通过 PlayerDataManager.update() 修改玩家数据，并使用 player.delta 返回增量。
@@ -17,6 +18,32 @@ import { decryptBattleData } from "@utils/crypt";
 import { randomSample } from "@utils/random";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
+import {
+  ClimbTowerBattleFinishRequest,
+  ClimbTowerBattleFinishResponse,
+  ClimbTowerBattleStartRequest,
+  ClimbTowerBattleStartResponse,
+  ClimbTowerCreateGameRequest,
+  ClimbTowerCreateGameResponse,
+  ClimbTowerHalftimeRecruitRequest,
+  ClimbTowerHalftimeRecruitResponse,
+  ClimbTowerInitGameRequest,
+  ClimbTowerInitGameResponse,
+  ClimbTowerInitGodCardRequest,
+  ClimbTowerInitGodCardResponse,
+  ClimbTowerInitSquadRequest,
+  ClimbTowerInitSquadResponse,
+  ClimbTowerLayerFirstPassRewardRequest,
+  ClimbTowerLayerFirstPassRewardResponse,
+  ClimbTowerRecruitSubGodCardRequest,
+  ClimbTowerRecruitSubGodCardResponse,
+  ClimbTowerSeasonMissionAwardRequest,
+  ClimbTowerSeasonMissionAwardResponse,
+  ClimbTowerSettleGameRequest,
+  ClimbTowerSettleGameResponse,
+  ClimbTowerSweepRequest,
+  ClimbTowerSweepResponse,
+} from "../model/protocol/tower";
 
 const router = Router();
 
@@ -80,7 +107,7 @@ function buildRecruitCandidate(draft: any): any[] {
  */
 router.post("/createGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { tower, isHard } = req.body;
+  const { tower, isHard } = req.body as ClimbTowerCreateGameRequest;
 
   // 从塔表中读取对应模式（普通/困难）的关卡列表
   const towerData = excel.ClimbTowerTable.towers[tower];
@@ -133,7 +160,7 @@ router.post("/createGame", async (req, res) => {
     };
   });
 
-  res.send(player.delta);
+  res.send(player.delta satisfies ClimbTowerCreateGameResponse);
 });
 
 /**
@@ -147,14 +174,14 @@ router.post("/createGame", async (req, res) => {
  */
 router.post("/initGodCard", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { godCardId } = req.body;
+  const { godCardId } = req.body as ClimbTowerInitGodCardRequest;
 
   await player.update(async (draft) => {
     draft.tower.current.status.state = "INIT_BUFF";
     draft.tower.current.godCard.id = godCardId;
   });
 
-  res.send(player.delta);
+  res.send(player.delta satisfies ClimbTowerInitGodCardResponse);
 });
 
 /**
@@ -169,7 +196,7 @@ router.post("/initGodCard", async (req, res) => {
  */
 router.post("/initGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { strategy, tactical } = req.body;
+  const { strategy, tactical } = req.body as ClimbTowerInitGameRequest;
 
   await player.update(async (draft) => {
     draft.tower.current.status.state = "INIT_CARD";
@@ -177,7 +204,7 @@ router.post("/initGame", async (req, res) => {
     draft.tower.current.status.tactical = tactical;
   });
 
-  res.send(player.delta);
+  res.send(player.delta satisfies ClimbTowerInitGameResponse);
 });
 
 /**
@@ -192,7 +219,7 @@ router.post("/initGame", async (req, res) => {
  */
 router.post("/initCard", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { slots } = req.body;
+  const { slots } = req.body as ClimbTowerInitSquadRequest;
 
   await player.update(async (draft) => {
     draft.tower.current.status.state = "STANDBY";
@@ -222,7 +249,7 @@ router.post("/initCard", async (req, res) => {
     }
   });
 
-  res.send(player.delta);
+  res.send(player.delta satisfies ClimbTowerInitSquadResponse);
 });
 
 /**
@@ -236,7 +263,7 @@ router.post("/initCard", async (req, res) => {
  */
 router.post("/battleStart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { stageId } = req.body;
+  const { stageId } = req.body as ClimbTowerBattleStartRequest;
 
   await player.update(async (draft) => {
     // 计算当前关卡在层数列表中的索引（0-based）
@@ -255,7 +282,7 @@ router.post("/battleStart", async (req, res) => {
     }
   });
 
-  res.send(player.delta);
+  res.send(player.delta satisfies ClimbTowerBattleStartResponse);
 });
 
 /**
@@ -275,7 +302,7 @@ router.post("/battleStart", async (req, res) => {
  */
 router.post("/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { data } = req.body;
+  const { data } = req.body as ClimbTowerBattleFinishRequest;
 
   // 解密战斗数据（失败时不影响主流程，按失败处理）
   let battleData: any;
@@ -288,7 +315,7 @@ router.post("/battleFinish", async (req, res) => {
       isNewRecord: false,
       trap: [],
       ...player.delta,
-    });
+    } satisfies ClimbTowerBattleFinishResponse);
     return;
   }
 
@@ -358,7 +385,7 @@ router.post("/battleFinish", async (req, res) => {
     isNewRecord: false,
     trap,
     ...player.delta,
-  });
+  } satisfies ClimbTowerBattleFinishResponse);
 });
 
 /**
@@ -377,7 +404,7 @@ router.post("/battleFinish", async (req, res) => {
  */
 router.post("/recruit", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { charId, giveUp } = req.body;
+  const { charId, giveUp } = req.body as ClimbTowerHalftimeRecruitRequest;
 
   await player.update(async (draft) => {
     const current = draft.tower.current;
@@ -426,7 +453,7 @@ router.post("/recruit", async (req, res) => {
     current.halftime.candidate = buildRecruitCandidate(draft);
   });
 
-  res.send(player.delta);
+  res.send(player.delta satisfies ClimbTowerHalftimeRecruitResponse);
 });
 
 /**
@@ -440,14 +467,14 @@ router.post("/recruit", async (req, res) => {
  */
 router.post("/chooseSubGodCard", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { subGodCardId } = req.body;
+  const { subGodCardId } = req.body as ClimbTowerRecruitSubGodCardRequest;
 
   await player.update(async (draft) => {
     draft.tower.current.status.state = "STANDBY";
     draft.tower.current.godCard.subGodCardId = subGodCardId;
   });
 
-  res.send(player.delta);
+  res.send(player.delta satisfies ClimbTowerRecruitSubGodCardResponse);
 });
 
 /**
@@ -461,6 +488,7 @@ router.post("/chooseSubGodCard", async (req, res) => {
  */
 router.post("/settleGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as ClimbTowerSettleGameRequest;
 
   await player.update(async (draft) => {
     draft.tower.current.status = {
@@ -503,7 +531,7 @@ router.post("/settleGame", async (req, res) => {
     },
     ts: Math.round(now()),
     ...player.delta,
-  });
+  } satisfies ClimbTowerSettleGameResponse);
 });
 
 /**
@@ -515,6 +543,7 @@ router.post("/settleGame", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/layerReward", async (req, res) => {
+  req.body as ClimbTowerLayerFirstPassRewardRequest;
   res.sendStatus(202);
 });
 
@@ -527,6 +556,7 @@ router.post("/layerReward", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/seasonMissionsAward", async (req, res) => {
+  req.body as ClimbTowerSeasonMissionAwardRequest;
   res.sendStatus(202);
 });
 
@@ -539,6 +569,7 @@ router.post("/seasonMissionsAward", async (req, res) => {
  * @returns 空响应（202）
  */
 router.post("/sweepGame", async (req, res) => {
+  req.body as ClimbTowerSweepRequest;
   res.sendStatus(202);
 });
 

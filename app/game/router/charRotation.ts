@@ -7,6 +7,16 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import {
+  CharRotationCreatePresetRequest,
+  CharRotationCreatePresetResponse,
+  CharRotationDeletePresetRequest,
+  CharRotationDeletePresetResponse,
+  CharRotationSetCurrentPresetRequest,
+  CharRotationSetCurrentPresetResponse,
+  CharRotationUpdatePresetRequest,
+  CharRotationUpdatePresetResponse,
+} from "../model/protocol/charRotation";
 
 const router = Router();
 
@@ -18,8 +28,9 @@ const router = Router();
  */
 router.post("/setCurrent", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  await player.charRotation.setCurrent(req.body);
-  res.send(player.delta);
+  const body = req.body as CharRotationSetCurrentPresetRequest;
+  await player.charRotation.setCurrent(body);
+  res.send(player.delta satisfies CharRotationSetCurrentPresetResponse);
 });
 
 /**
@@ -29,8 +40,9 @@ router.post("/setCurrent", async (req, res) => {
  */
 router.post("/createPreset", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as CharRotationCreatePresetRequest;
   await player.charRotation.createPreset();
-  res.send(player.delta);
+  res.send(player.delta satisfies CharRotationCreatePresetResponse);
 });
 
 /**
@@ -41,8 +53,9 @@ router.post("/createPreset", async (req, res) => {
  */
 router.post("/deletePreset", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  await player.charRotation.deletePreset(req.body);
-  res.send(player.delta);
+  const body = req.body as CharRotationDeletePresetRequest;
+  await player.charRotation.deletePreset(body);
+  res.send(player.delta satisfies CharRotationDeletePresetResponse);
 });
 
 /**
@@ -54,8 +67,9 @@ router.post("/deletePreset", async (req, res) => {
  */
 router.post("/updatePreset", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  await player.charRotation.updatePreset(req.body);
-  res.send(player.delta);
+  const body = req.body as CharRotationUpdatePresetRequest;
+  await player.charRotation.updatePreset(body);
+  res.send(player.delta satisfies CharRotationUpdatePresetResponse);
 });
 
 export default router;

@@ -12,7 +12,16 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
-import { CommonStartBattleRequest } from "../model/battle";
+import {
+  CampaignConfirmBreakRewardRequest,
+  CampaignFinishBattleRequest,
+  CampaignFinishBattleResponse,
+  CampaignGetCommonMissionRewardRequest,
+  CampaignStartBattleRequest,
+  CampaignStartBattleResponse,
+  CampaignSweepRequest,
+  CampaignSweepResponse,
+} from "../model/protocol/campaignV2";
 
 const router = Router();
 
@@ -28,14 +37,13 @@ const router = Router();
  */
 router.post("/campaignV2/battleStart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const battleResult = await player.battle.start(
-    req.body as CommonStartBattleRequest,
-  );
+  const body = req.body as CampaignStartBattleRequest;
+  const battleResult = await player.battle.start(body);
 
   res.send({
     ...battleResult,
     ...player.delta,
-  });
+  } satisfies CampaignStartBattleResponse);
 });
 
 /**
@@ -50,12 +58,13 @@ router.post("/campaignV2/battleStart", async (req, res) => {
  */
 router.post("/campaignV2/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const finishResult = await player.battle.finish(req.body);
+  const body = req.body as CampaignFinishBattleRequest;
+  const finishResult = await player.battle.finish(body);
 
   res.send({
     ...finishResult,
     ...player.delta,
-  });
+  } satisfies CampaignFinishBattleResponse);
 });
 
 /**
@@ -70,6 +79,7 @@ router.post("/campaignV2/battleFinish", async (req, res) => {
  */
 router.post("/campaignV2/battleSweep", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as CampaignSweepRequest;
 
   res.send({
     ...player.delta,
@@ -85,7 +95,7 @@ router.post("/campaignV2/battleSweep", async (req, res) => {
     ],
     currentFeeBefore: 0,
     currentFeeAfter: 1,
-  });
+  } satisfies CampaignSweepResponse);
 });
 
 /**
@@ -99,6 +109,7 @@ router.post("/campaignV2/battleSweep", async (req, res) => {
  * @returns HTTP 202 状态码
  */
 router.post("/campaignV2/getBreakReward", async (req, res) => {
+  req.body as CampaignConfirmBreakRewardRequest;
   res.sendStatus(202);
 });
 
@@ -113,6 +124,7 @@ router.post("/campaignV2/getBreakReward", async (req, res) => {
  * @returns HTTP 202 状态码
  */
 router.post("/campaignV2/getExMissionReward", async (req, res) => {
+  req.body as CampaignGetCommonMissionRewardRequest;
   res.sendStatus(202);
 });
 

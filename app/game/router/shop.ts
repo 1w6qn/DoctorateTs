@@ -3,12 +3,75 @@
  *
  * 处理商店相关的 HTTP 请求，包括商品列表查询和各类商店的购买操作。
  * 路由层保持轻薄，业务逻辑委托给 ShopController / TroopManager 等 Manager 层处理。
+ * 请求/响应类型见 @game/model/protocol/shop（参考 CS 2.7.61 协议类）。
  */
 
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import excel from "@excel/excel";
+import {
+  BuyCashGoodRequest,
+  BuyCashGoodResponse,
+  BuyClassicGoodRequest,
+  BuyClassicGoodResponse,
+  BuyEPGSGoodRequest,
+  BuyEPGSGoodResponse,
+  BuyExtraGoodRequest,
+  BuyExtraGoodResponse,
+  BuyFurniGoodRequest,
+  BuyFurniGoodResponse,
+  BuyGoodWithTicketRequest,
+  BuyGoodWithTicketResponse,
+  BuyHighGoodRequest,
+  BuyHighGoodResponse,
+  BuyLMTGSGoodRequest,
+  BuyLMTGSGoodResponse,
+  BuyLowGoodRequest,
+  BuyLowGoodResponse,
+  BuyREPGoodRequest,
+  BuyREPGoodResponse,
+  BuySkinGoodRequest,
+  BuySkinGoodResponse,
+  CheckForbiddenRequest,
+  CheckForbiddenResponse,
+  DecomposeClassicPotentialItemRequest,
+  DecomposeClassicPotentialItemResponse,
+  DecomposePotentialItemRequest,
+  DecomposePotentialItemResponse,
+  GetCashGoodListRequest,
+  GetCashGoodListResponse,
+  GetCashGoodPurchaseResultRequest,
+  GetCashGoodPurchaseResultResponse,
+  GetClassicGoodListRequest,
+  GetClassicGoodListResponse,
+  GetEPGSGoodListRequest,
+  GetEPGSGoodListResponse,
+  GetExtraGoodListRequest,
+  GetExtraGoodListResponse,
+  GetFurniGoodListRequest,
+  GetFurniGoodListResponse,
+  GetGoodPurchaseStateRequest,
+  GetGoodPurchaseStateResponse,
+  GetGPGoodListRequest,
+  GetGPGoodListResponse,
+  GetHighGoodListRequest,
+  GetHighGoodListResponse,
+  GetLMTGSGoodListRequest,
+  GetLMTGSGoodListResponse,
+  GetLowGoodListRequest,
+  GetLowGoodListResponse,
+  GetREPGoodListRequest,
+  GetREPGoodListResponse,
+  GetSkinGoodListRequest,
+  GetSkinGoodListResponse,
+  GetSocialGoodListRequest,
+  GetSocialGoodListResponse,
+  GetVoucherSkinGoodListRequest,
+  GetVoucherSkinGoodListResponse,
+  UseVoucherSkinRequest,
+  UseVoucherSkinResponse,
+} from "../model/protocol/shop";
 
 const router = Router();
 
@@ -20,10 +83,11 @@ const router = Router();
  */
 router.post("/decomposePotentialItem", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as DecomposePotentialItemRequest;
   res.send({
-    items: await player.troop.decomposePotentialItem(req.body),
+    items: await player.troop.decomposePotentialItem(body),
     ...player.delta,
-  });
+  } satisfies DecomposePotentialItemResponse);
 });
 
 /**
@@ -34,10 +98,11 @@ router.post("/decomposePotentialItem", async (req, res) => {
  */
 router.post("/decomposeClassicPotentialItem", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as DecomposeClassicPotentialItemRequest;
   res.send({
-    items: await player.troop.decomposeClassicPotentialItem(req.body),
+    items: await player.troop.decomposeClassicPotentialItem(body),
     ...player.delta,
-  });
+  } satisfies DecomposeClassicPotentialItemResponse);
 });
 
 /**
@@ -50,6 +115,7 @@ router.post("/decomposeClassicPotentialItem", async (req, res) => {
  */
 router.post("/getGoodPurchaseState", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetGoodPurchaseStateRequest;
   // 汇总各商店的购买记录，供客户端判断限购状态
   const shopState = player._playerdata.shop;
   res.send({
@@ -65,7 +131,7 @@ router.post("/getGoodPurchaseState", async (req, res) => {
       SOCIAL: shopState.SOCIAL.info,
     },
     ...player.delta,
-  });
+  } satisfies GetGoodPurchaseStateResponse);
 });
 
 /**
@@ -75,10 +141,11 @@ router.post("/getGoodPurchaseState", async (req, res) => {
  */
 router.post("/getLowGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetLowGoodListRequest;
   res.send({
     ...excel.ShopTable.lowGoodList,
     ...player.delta,
-  });
+  } satisfies GetLowGoodListResponse);
 });
 
 /**
@@ -88,10 +155,11 @@ router.post("/getLowGoodList", async (req, res) => {
  */
 router.post("/getHighGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetHighGoodListRequest;
   res.send({
     ...excel.ShopTable.highGoodList,
     ...player.delta,
-  });
+  } satisfies GetHighGoodListResponse);
 });
 
 /**
@@ -101,10 +169,11 @@ router.post("/getHighGoodList", async (req, res) => {
  */
 router.post("/getClassicGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetClassicGoodListRequest;
   res.send({
     ...excel.ShopTable.classicGoodList,
     ...player.delta,
-  });
+  } satisfies GetClassicGoodListResponse);
 });
 
 /**
@@ -114,10 +183,11 @@ router.post("/getClassicGoodList", async (req, res) => {
  */
 router.post("/getEPGSGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetEPGSGoodListRequest;
   res.send({
     ...excel.ShopTable.EPGSGoodList,
     ...player.delta,
-  });
+  } satisfies GetEPGSGoodListResponse);
 });
 
 /**
@@ -127,10 +197,11 @@ router.post("/getEPGSGoodList", async (req, res) => {
  */
 router.post("/getLMTGSGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetLMTGSGoodListRequest;
   res.send({
     ...excel.ShopTable.LMTGSGoodList,
     ...player.delta,
-  });
+  } satisfies GetLMTGSGoodListResponse);
 });
 
 /**
@@ -140,10 +211,11 @@ router.post("/getLMTGSGoodList", async (req, res) => {
  */
 router.post("/getExtraGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetExtraGoodListRequest;
   res.send({
     ...excel.ShopTable.extraGoodList,
     ...player.delta,
-  });
+  } satisfies GetExtraGoodListResponse);
 });
 
 /**
@@ -153,10 +225,11 @@ router.post("/getExtraGoodList", async (req, res) => {
  */
 router.post("/getREPGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetREPGoodListRequest;
   res.send({
     ...excel.ShopTable.REPGoodList,
     ...player.delta,
-  });
+  } satisfies GetREPGoodListResponse);
 });
 
 /**
@@ -166,10 +239,11 @@ router.post("/getREPGoodList", async (req, res) => {
  */
 router.post("/getSkinGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetSkinGoodListRequest;
   res.send({
     ...excel.ShopTable.skinGoodList,
     ...player.delta,
-  });
+  } satisfies GetSkinGoodListResponse);
 });
 
 /**
@@ -179,10 +253,11 @@ router.post("/getSkinGoodList", async (req, res) => {
  */
 router.post("/getCashGoodList", (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetCashGoodListRequest;
   res.send({
     ...excel.ShopTable.cashGoodList,
     ...player.delta,
-  });
+  } satisfies GetCashGoodListResponse);
 });
 
 /**
@@ -192,10 +267,11 @@ router.post("/getCashGoodList", (req, res) => {
  */
 router.post("/getGPGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetGPGoodListRequest;
   res.send({
     ...excel.ShopTable.GPGoodList,
     ...player.delta,
-  });
+  } satisfies GetGPGoodListResponse);
 });
 
 /**
@@ -205,10 +281,11 @@ router.post("/getGPGoodList", async (req, res) => {
  */
 router.post("/getSocialGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetSocialGoodListRequest;
   res.send({
     ...player.shop.socialGoodList,
     ...player.delta,
-  });
+  } satisfies GetSocialGoodListResponse);
 });
 
 /**
@@ -218,10 +295,11 @@ router.post("/getSocialGoodList", async (req, res) => {
  */
 router.post("/getFurniGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetFurniGoodListRequest;
   res.send({
     ...excel.ShopTable.furniGoodList,
     ...player.delta,
-  });
+  } satisfies GetFurniGoodListResponse);
 });
 
 /**
@@ -232,11 +310,12 @@ router.post("/getFurniGoodList", async (req, res) => {
  */
 router.post("/buyLowGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as BuyLowGoodRequest;
   res.send({
     result: 0,
-    items: await player.shop.buyLowGood(req.body),
+    items: await player.shop.buyLowGood(body),
     ...player.delta,
-  });
+  } satisfies BuyLowGoodResponse);
 });
 
 /**
@@ -247,11 +326,12 @@ router.post("/buyLowGood", async (req, res) => {
  */
 router.post("/buyHighGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as BuyHighGoodRequest;
   res.send({
     result: 0,
-    items: await player.shop.buyHighGood(req.body),
+    items: await player.shop.buyHighGood(body),
     ...player.delta,
-  });
+  } satisfies BuyHighGoodResponse);
 });
 
 /**
@@ -262,11 +342,12 @@ router.post("/buyHighGood", async (req, res) => {
  */
 router.post("/buyExtraGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as BuyExtraGoodRequest;
   res.send({
     result: 0,
-    items: await player.shop.buyExtraGood(req.body),
+    items: await player.shop.buyExtraGood(body),
     ...player.delta,
-  });
+  } satisfies BuyExtraGoodResponse);
 });
 
 /**
@@ -279,11 +360,12 @@ router.post("/buyExtraGood", async (req, res) => {
  */
 router.post("/buyCashGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as BuyCashGoodRequest;
   res.send({
     result: 0,
-    items: await player.shop.buyCashGood(req.body),
+    items: await player.shop.buyCashGood(body),
     ...player.delta,
-  });
+  } satisfies BuyCashGoodResponse);
 });
 
 /**
@@ -294,11 +376,12 @@ router.post("/buyCashGood", async (req, res) => {
  */
 router.post("/buyEPGSGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as BuyEPGSGoodRequest;
   res.send({
     result: 0,
-    items: await player.shop.buyEPGSGood(req.body),
+    items: await player.shop.buyEPGSGood(body),
     ...player.delta,
-  });
+  } satisfies BuyEPGSGoodResponse);
 });
 
 /**
@@ -309,11 +392,12 @@ router.post("/buyEPGSGood", async (req, res) => {
  */
 router.post("/buyREPGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as BuyREPGoodRequest;
   res.send({
     result: 0,
-    items: await player.shop.buyREPGood(req.body),
+    items: await player.shop.buyREPGood(body),
     ...player.delta,
-  });
+  } satisfies BuyREPGoodResponse);
 });
 
 /**
@@ -324,11 +408,12 @@ router.post("/buyREPGood", async (req, res) => {
  */
 router.post("/buyClassicGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as BuyClassicGoodRequest;
   res.send({
     result: 0,
-    items: await player.shop.buyClassicGood(req.body),
+    items: await player.shop.buyClassicGood(body),
     ...player.delta,
-  });
+  } satisfies BuyClassicGoodResponse);
 });
 
 /**
@@ -339,11 +424,12 @@ router.post("/buyClassicGood", async (req, res) => {
  */
 router.post("/buyLMTGSGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as BuyLMTGSGoodRequest;
   res.send({
     result: 0,
-    items: await player.shop.buyLMTGSGood(req.body),
+    items: await player.shop.buyLMTGSGood(body),
     ...player.delta,
-  });
+  } satisfies BuyLMTGSGoodResponse);
 });
 
 /**
@@ -354,11 +440,12 @@ router.post("/buyLMTGSGood", async (req, res) => {
  */
 router.post("/buyFurniGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as BuyFurniGoodRequest;
   res.send({
     result: 0,
-    items: await player.shop.buyFurniGood(req.body),
+    items: await player.shop.buyFurniGood(body),
     ...player.delta,
-  });
+  } satisfies BuyFurniGoodResponse);
 });
 
 /**
@@ -369,10 +456,9 @@ router.post("/buyFurniGood", async (req, res) => {
  */
 router.post("/buySkinGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  await player.shop.buySkinGood(req.body);
-  res.send({
-    ...player.delta,
-  });
+  const body = req.body as BuySkinGoodRequest;
+  await player.shop.buySkinGood(body);
+  res.send({ ...player.delta } satisfies BuySkinGoodResponse);
 });
 
 /**
@@ -387,11 +473,12 @@ router.post("/buySkinGood", async (req, res) => {
  */
 router.post("/buyGoodWithTicket", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as BuyGoodWithTicketRequest;
   res.send({
     result: 0,
-    items: await player.shop.buyGoodWithTicket(req.body),
+    items: await player.shop.buyGoodWithTicket(body),
     ...player.delta,
-  });
+  } satisfies BuyGoodWithTicketResponse);
 });
 
 /**
@@ -404,10 +491,11 @@ router.post("/buyGoodWithTicket", async (req, res) => {
  */
 router.post("/getCashGoodPurchaseResult", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetCashGoodPurchaseResultRequest;
   res.send({
     result: await player.shop.getCashGoodPurchaseResult(),
     ...player.delta,
-  });
+  } satisfies GetCashGoodPurchaseResultResponse);
 });
 
 /**
@@ -420,10 +508,11 @@ router.post("/getCashGoodPurchaseResult", async (req, res) => {
  */
 router.post("/getVoucherSkinGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetVoucherSkinGoodListRequest;
   res.send({
     ...player.shop.getVoucherSkinGoodList(),
     ...player.delta,
-  });
+  } satisfies GetVoucherSkinGoodListResponse);
 });
 
 /**
@@ -436,10 +525,9 @@ router.post("/getVoucherSkinGoodList", async (req, res) => {
  */
 router.post("/useVoucherSkin", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  await player.shop.useVoucherSkin(req.body);
-  res.send({
-    ...player.delta,
-  });
+  const body = req.body as UseVoucherSkinRequest;
+  await player.shop.useVoucherSkin(body);
+  res.send({ ...player.delta } satisfies UseVoucherSkinResponse);
 });
 
 /**
@@ -452,10 +540,11 @@ router.post("/useVoucherSkin", async (req, res) => {
  */
 router.post("/checkForbidden", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as CheckForbiddenRequest;
   res.send({
     ...player.shop.checkForbidden(),
     ...player.delta,
-  });
+  } satisfies CheckForbiddenResponse);
 });
 
 export default router;

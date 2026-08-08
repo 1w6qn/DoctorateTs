@@ -10,6 +10,46 @@ import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
+import {
+  ActCheckinvsSignRequest,
+  ActCheckinvsSignResponse,
+  AutoConfirmMissionsRequest,
+  AutoConfirmMissionsResponse,
+  ChangeFestivalCharRequest,
+  ChangeFestivalCharResponse,
+  ConfirmActivityMissionGroupRequest,
+  ConfirmActivityMissionGroupResponse,
+  ConfirmActivityMissionListRequest,
+  ConfirmActivityMissionListResponse,
+  ConfirmActivityMissionRequest,
+  ConfirmActivityMissionResponse,
+  ExchangeActivityShopItemRequest,
+  ExchangeActivityShopItemResponse,
+  GetActivityCheckInRewardRequest,
+  GetActivityCheckInRewardResponse,
+  GetActivityCollectionRewardRequest,
+  GetActivityCollectionRewardResponse,
+  GetActivityShopInfoRequest,
+  GetActivityShopInfoResponse,
+  GetChainLogInFinalRewardsRequest,
+  GetChainLogInFinalRewardsResponse,
+  GetChainLogInRewardRequest,
+  GetChainLogInRewardResponse,
+  GetCheckInRewardRequest,
+  GetCheckInRewardResponse,
+  GetOpenServerCheckInRewardRequest,
+  GetOpenServerCheckInRewardResponse,
+  GetSwitchOnlyRewardRequest,
+  GetSwitchOnlyRewardResponse,
+  RecycleCharmsRequest,
+  RecycleCharmsResponse,
+  RewardAllMilestoneRequest,
+  RewardAllMilestoneResponse,
+  RewardMilestoneRequest,
+  RewardMilestoneResponse,
+  TryGetCharmFirstRewardRequest,
+  TryGetCharmFirstRewardResponse,
+} from "../model/protocol/activity";
 
 const router = Router();
 
@@ -21,10 +61,11 @@ const router = Router();
  */
 router.post("/getChainLogInReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as GetChainLogInRewardRequest;
   res.send({
-    reward: await player.openServer.getChainLogInReward(req.body),
+    reward: await player.openServer.getChainLogInReward(body),
     ...player.delta,
-  });
+  } satisfies GetChainLogInRewardResponse);
 });
 
 /**
@@ -34,10 +75,11 @@ router.post("/getChainLogInReward", async (req, res) => {
  */
 router.post("/getChainLogInFinalRewards", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetChainLogInFinalRewardsRequest;
   res.send({
     reward: await player.openServer.getChainLogInFinalRewards(),
     ...player.delta,
-  });
+  } satisfies GetChainLogInFinalRewardsResponse);
 });
 
 /**
@@ -48,10 +90,11 @@ router.post("/getChainLogInFinalRewards", async (req, res) => {
  */
 router.post("/getOpenServerCheckInReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as GetOpenServerCheckInRewardRequest;
   res.send({
-    reward: await player.openServer.getCheckInReward(req.body),
+    reward: await player.openServer.getCheckInReward(body),
     ...player.delta,
-  });
+  } satisfies GetOpenServerCheckInRewardResponse);
 });
 
 /**
@@ -63,7 +106,7 @@ router.post("/getOpenServerCheckInReward", async (req, res) => {
  */
 router.post("/getActivityCheckInReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { activityId: string; index: number };
+  const body = req.body as GetActivityCheckInRewardRequest;
 
   await player.update(async (draft) => {
     const activityId = body.activityId;
@@ -81,7 +124,7 @@ router.post("/getActivityCheckInReward", async (req, res) => {
   res.send({
     ...player.delta,
     items: [],
-  });
+  } satisfies GetActivityCheckInRewardResponse);
 });
 
 /**
@@ -93,7 +136,7 @@ router.post("/getActivityCheckInReward", async (req, res) => {
  */
 router.post("/actCheckinvs/sign", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { actId: string; tasteChoice: number };
+  const body = req.body as ActCheckinvsSignRequest;
 
   await player.update(async (draft) => {
     const actId = body.actId;
@@ -128,7 +171,7 @@ router.post("/actCheckinvs/sign", async (req, res) => {
       { type: "AP_SUPPLY", id: "ap_supply_lt_120", count: 1 },
       { type: "GOLD", id: "4001", count: 30000 },
     ],
-  });
+  } satisfies ActCheckinvsSignResponse);
 });
 
 /**
@@ -140,7 +183,7 @@ router.post("/actCheckinvs/sign", async (req, res) => {
  */
 router.post("/getSwitchOnlyReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { activityId: string; reward: string };
+  const body = req.body as GetSwitchOnlyRewardRequest;
 
   await player.update(async (draft) => {
     const activityId = body.activityId;
@@ -153,7 +196,7 @@ router.post("/getSwitchOnlyReward", async (req, res) => {
     switchData[activityId][rewardId] = 0;
   });
 
-  res.send(player.delta);
+  res.send(player.delta satisfies GetSwitchOnlyRewardResponse);
 });
 
 /**
@@ -168,7 +211,7 @@ router.post("/getSwitchOnlyReward", async (req, res) => {
  */
 router.post("/getCheckInReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { activityId: string };
+  const body = req.body as GetCheckInRewardRequest;
 
   const activityId = body.activityId;
 
@@ -191,7 +234,7 @@ router.post("/getCheckInReward", async (req, res) => {
         { type: "AP_SUPPLY", id: "ap_supply_lt_80", count: 1 },
         { type: "DIAMOND_SHD", id: "4003", count: 200 },
       ],
-    });
+    } satisfies GetCheckInRewardResponse);
   } else if (activityId.endsWith("blessing")) {
     await player.update(async (draft) => {
       const blessData = draft.activity.BLESS_ONLY as any;
@@ -203,12 +246,12 @@ router.post("/getCheckInReward", async (req, res) => {
     res.send({
       ...player.delta,
       items: [],
-    });
+    } satisfies GetCheckInRewardResponse);
   } else {
     res.send({
       ...player.delta,
       items: [],
-    });
+    } satisfies GetCheckInRewardResponse);
   }
 });
 
@@ -225,7 +268,7 @@ router.post("/getCheckInReward", async (req, res) => {
  */
 router.post("/changeFestivalChar", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { activityId: string; index: number; newChar: string };
+  const body = req.body as ChangeFestivalCharRequest;
 
   await player.update(async (draft) => {
     const blessData = draft.activity.BLESS_ONLY as any;
@@ -243,7 +286,7 @@ router.post("/changeFestivalChar", async (req, res) => {
     }
   });
 
-  res.send(player.delta);
+  res.send(player.delta satisfies ChangeFestivalCharResponse);
 });
 
 /**
@@ -258,7 +301,7 @@ router.post("/changeFestivalChar", async (req, res) => {
  */
 router.post("/rewardMilestone", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { activityId: string; milestoneId?: string };
+  const body = req.body as RewardMilestoneRequest;
   const rewards: ItemBundle[] = [];
 
   await player.update(async (draft) => {
@@ -284,7 +327,7 @@ router.post("/rewardMilestone", async (req, res) => {
   res.send({
     ...player.delta,
     item: rewards,
-  });
+  } satisfies RewardMilestoneResponse);
 });
 
 /**
@@ -297,7 +340,7 @@ router.post("/rewardMilestone", async (req, res) => {
  */
 router.post("/rewardAllMilestone", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { activityId: string };
+  const body = req.body as RewardAllMilestoneRequest;
   const rewards: ItemBundle[] = [];
 
   await player.update(async (draft) => {
@@ -320,7 +363,7 @@ router.post("/rewardAllMilestone", async (req, res) => {
   res.send({
     ...player.delta,
     item: rewards,
-  });
+  } satisfies RewardAllMilestoneResponse);
 });
 
 /**
@@ -334,7 +377,7 @@ router.post("/rewardAllMilestone", async (req, res) => {
  */
 router.post("/confirmActivityMission", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { missionId: string };
+  const body = req.body as ConfirmActivityMissionRequest;
   const rewards: ItemBundle[] = [];
 
   // 优先尝试调用 mission manager（兼容部分活动任务在 MissionTable 中的情况）
@@ -367,7 +410,7 @@ router.post("/confirmActivityMission", async (req, res) => {
   res.send({
     ...player.delta,
     rewards,
-  });
+  } satisfies ConfirmActivityMissionResponse);
 });
 
 /**
@@ -380,7 +423,7 @@ router.post("/confirmActivityMission", async (req, res) => {
  */
 router.post("/confirmActivityMissionList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { missionIdList: string[] };
+  const body = req.body as ConfirmActivityMissionListRequest;
   const allRewards: ItemBundle[] = [];
 
   const missionIdList = body.missionIdList || [];
@@ -418,7 +461,7 @@ router.post("/confirmActivityMissionList", async (req, res) => {
   res.send({
     ...player.delta,
     rewards: allRewards,
-  });
+  } satisfies ConfirmActivityMissionListResponse);
 });
 
 /**
@@ -432,7 +475,7 @@ router.post("/confirmActivityMissionList", async (req, res) => {
  */
 router.post("/confirmActivityMissionGroup", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { missionGroupId: string };
+  const body = req.body as ConfirmActivityMissionGroupRequest;
   let rewards: ItemBundle[] = [];
 
   try {
@@ -458,7 +501,7 @@ router.post("/confirmActivityMissionGroup", async (req, res) => {
   res.send({
     ...player.delta,
     rewards,
-  });
+  } satisfies ConfirmActivityMissionGroupResponse);
 });
 
 /**
@@ -472,7 +515,7 @@ router.post("/confirmActivityMissionGroup", async (req, res) => {
  */
 router.post("/autoConfirmMissions", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { type: string };
+  const body = req.body as AutoConfirmMissionsRequest;
   const allRewards: ItemBundle[] = [];
 
   try {
@@ -515,7 +558,7 @@ router.post("/autoConfirmMissions", async (req, res) => {
   res.send({
     ...player.delta,
     items: allRewards,
-  });
+  } satisfies AutoConfirmMissionsResponse);
 });
 
 /**
@@ -531,7 +574,7 @@ router.post("/autoConfirmMissions", async (req, res) => {
  */
 router.post("/exchangeActivityShopItem", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { shopId: string; goodId: string; count: number };
+  const body = req.body as ExchangeActivityShopItemRequest;
   const count = body.count || 1;
   let rewardItem: ItemBundle | null = null;
 
@@ -561,7 +604,7 @@ router.post("/exchangeActivityShopItem", async (req, res) => {
   res.send({
     ...player.delta,
     items: rewardItem ? [rewardItem] : [],
-  });
+  } satisfies ExchangeActivityShopItemResponse);
 });
 
 /**
@@ -576,7 +619,7 @@ router.post("/exchangeActivityShopItem", async (req, res) => {
  */
 router.post("/getActivityCollectionReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { activityId: string; collectionId?: number };
+  const body = req.body as GetActivityCollectionRewardRequest;
   const rewards: ItemBundle[] = [];
 
   await player.update(async (draft) => {
@@ -616,7 +659,7 @@ router.post("/getActivityCollectionReward", async (req, res) => {
   res.send({
     ...player.delta,
     item: rewards,
-  });
+  } satisfies GetActivityCollectionRewardResponse);
 });
 
 /**
@@ -629,7 +672,7 @@ router.post("/getActivityCollectionReward", async (req, res) => {
  */
 router.post("/getActivityShopInfo", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { shopId: string };
+  const body = req.body as GetActivityShopInfoRequest;
 
   const playerData = player._playerdata as any;
   const tshop = playerData.tshop || {};
@@ -638,7 +681,7 @@ router.post("/getActivityShopInfo", async (req, res) => {
   res.send({
     ...player.delta,
     shopInfo,
-  });
+  } satisfies GetActivityShopInfoResponse);
 });
 
 /**
@@ -651,7 +694,7 @@ router.post("/getActivityShopInfo", async (req, res) => {
  */
 router.post("/recycleCharms", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { charmIds: string[] };
+  const body = req.body as RecycleCharmsRequest;
   const charmIds = body.charmIds || [];
   let recycleNum = 0;
 
@@ -675,7 +718,7 @@ router.post("/recycleCharms", async (req, res) => {
     ...player.delta,
     result: 0,
     recycleNum,
-  });
+  } satisfies RecycleCharmsResponse);
 });
 
 /**
@@ -688,7 +731,7 @@ router.post("/recycleCharms", async (req, res) => {
  */
 router.post("/tryGetCharmFirstReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as { charmId: string };
+  const body = req.body as TryGetCharmFirstRewardRequest;
   let isFirst = false;
   const rewards: ItemBundle[] = [];
 
@@ -717,7 +760,7 @@ router.post("/tryGetCharmFirstReward", async (req, res) => {
     ...player.delta,
     isFirst,
     reward: rewards,
-  });
+  } satisfies TryGetCharmFirstRewardResponse);
 });
 
 export default router;

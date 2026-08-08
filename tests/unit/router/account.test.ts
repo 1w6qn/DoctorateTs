@@ -130,10 +130,12 @@ describe("account 路由", () => {
     );
   });
 
-  it("syncPushMessage 应返回 delta", async () => {
+  it("syncPushMessage 应返回 now/next 与 delta（对齐官服 now/next 字段）", async () => {
     const res = mockRes();
     await call({ method: "POST", url: "/syncPushMessage" }, res);
     expect(res.send).toHaveBeenCalledWith({
+      now: 1234567890,
+      next: 1234567950,
       playerDataDelta: { modified: { pushFlags: { status: 1234567890 } }, deleted: {} },
     });
   });

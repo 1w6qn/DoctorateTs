@@ -7,8 +7,21 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import excel from "@excel/excel";
 
 const router = Router();
+
+/** gachaRuleType → 玩家数据 gacha 子结构名（参考 OBS bp_gacha.GACHA_RULE_TYPE_DICT） */
+const GACHA_RULE_TYPE: { [rule: string]: string } = {
+  NORMAL: "normal",
+  ATTAIN: "attain",
+  LIMITED: "limit",
+  SINGLE: "single",
+  CLASSIC: "classic",
+  DOUBLE: "double",
+  NEWBEE: "newbee",
+  LINKAGE: "linkage",
+};
 
 /**
  * 同步普通招募状态
@@ -143,6 +156,36 @@ router.post("/tenAdvancedGacha", async (req, res) => {
     gachaResultList: await player.gacha.tenAdvancedGacha(req.body),
     ...player.delta,
   });
+});
+
+/**
+ * 选择高级抽卡 UP 角色
+ * @route POST /gacha/choosePoolUp
+ * @param req.body - { poolId, chooseChar }
+ * @returns result 和玩家增量数据
+ */
+router.post("/choosePoolUp", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { poolId, chooseChar } = req.body;
+  await player.update(async (draft) => {
+    // 参考 OBS bp_gacha.gacha_choosePoolUp：gacha[gachaType][poolId].upChar = chooseChar
+    const pool = excel.GachaTable.gachaPoolClient.find((p) => p.gachaPoolId === poolId);
+    const gachaType = pool ? GACHA_RULE_TYPE[pool.gachaRuleType] ?? "single" : "single";
+    (draft as any).gacha[gachaType][poolId].upChar = chooseChar;
+  });
+  res.send({ result: 0, ...player.delta });
+});
+
+/**
+ * 获取免费干员
+ * @route POST /gacha/getFreeChar
+ * @param req.body - 抽卡参数
+ * @returns result 和玩家增量数据
+ */
+router.post("/getFreeChar", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  // 参考 OBS bp_gacha.gacha_getFreeChar（空操作），仅返回 result
+  res.send({ result: 0, ...player.delta });
 });
 
 export default router;

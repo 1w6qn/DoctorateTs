@@ -1383,6 +1383,44 @@ OAuth2 授权
 | GET  | `/admin/api/config` | 查看配置（只读） |
 | GET  | `/admin/dashboard` | Dashboard 管理页面（免认证，登录在页面内完成） |
 
+---
+
+## OBS 移植端点（2026-08-08）
+
+以下端点从 `reference/OpenBachelorS-master` 移植，参考对应 bp 蓝图实现（响应体以 OBS 为基准，简化为私服可用形式）。
+
+### 修正（原有契约对齐）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/gacha/cancelNormalGacha` | 取消公开招募（原 `cancleNormalGacha` 拼写错误已修正） |
+| POST | `/mail/listMailBox` | 获取邮件列表（路由名大小写对齐；Express 匹配大小写不敏感，行为不变） |
+
+### 新增端点
+
+| 方法 | 路径 | 说明 | 参考 |
+|------|------|------|------|
+| POST | `/quest/battleContinue` | 继续战斗 stub（`result:1` + 固定 battleId） | bp_quest.py |
+| POST | `/quest/finishStoryStage` | 剧情关卡结算（委托 BattleManager.finishStoryStage） | bp_quest.py |
+| POST | `/quest/editStageSixStarTag` | 六星标签选择（写 `dungeon.sixStar.stages[].tagSelected`） | bp_quest.py |
+| POST | `/gacha/choosePoolUp` | 选择 UP 角色（写 `gacha[gachaType][poolId].upChar`，gachaRuleType 反查） | bp_gacha.py |
+| POST | `/gacha/getFreeChar` | 获取免费干员（空操作） | bp_gacha.py |
+| POST | `/charBuild/changeSkinSpState` | 特勤皮肤状态（写 `skin.skinSp[skinId]`） | bp_charBuild.py |
+| POST | `/social/setStarFriendList` | 星标好友列表（空实现） | bp_social.py |
+| POST | `/mailCollection/getList` | 邮件收藏列表（`display_meta_table.mailArchiveData`） | bp_mail.py |
+| POST | `/medal/setCustomData` | 勋章自定义数据（写 `medal.custom.customs["1"]`） | misc_bp.py |
+| POST | `/gallery/saveDiyMagazineV2` | 保存自定义杂志 V2（与 V1 同 leafMap 逻辑） | misc_bp.py |
+| POST | `/retro/typeAct20side/competitionStart` | 悖论模拟竞赛开始 stub | misc_bp.py |
+| POST | `/retro/typeAct20side/competitionFinish` | 悖论模拟竞赛结算（固定评价结构） | misc_bp.py |
+| POST | `/firework/savePlateSlots` | 烟花盘面保存（写 `firework.plate.slots`） | misc_bp.py |
+| POST | `/firework/changeAnimal` | 烟花动物选择（写 `firework.animal.select`） | misc_bp.py |
+| POST | `/car/confirmBattleCar` | 确认战车（写 `car.battleCar`） | misc_bp.py |
+| POST | `/templateTrap/setTrapSquad` | 陷阱阵容设置（写 `templateTrap.domains[].squad`） | misc_bp.py |
+| POST | `/troop/pinSpecialOperator` | 置顶特殊干员（写 `mission.pinnedSpecialOperator`） | misc_bp.py |
+| POST | `/u8/user/auth/v1/agreement_version` | 用户协议版本（POST 备选调用，响应同 GET） | bp_u8.py |
+
+> 注：`/retro/*`、`/campaignV2/*`、`/vecbreak/*` 路由沿用 DTS 既有「挂载前缀 + 路由自带前缀」设计（如 `/retro/retro/typeAct20side/competitionStart`），冒烟验证双前缀 200、单前缀 404，属既有约定。
+
 **示例（发放物品）**:
 ```bash
 curl -X POST http://localhost:8443/admin/api/users/1/grant \

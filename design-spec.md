@@ -1163,3 +1163,35 @@ mitmproxy map remote 设置 URL 时会同步改写 Host 头为 `127.0.0.1:8443`�
 ### 22.4 注意
 - **版本与资源需同步更新**：单独跑 syncGameVersion 会得到新版本号但本地 excel/assets 仍是旧数据（客户端请求新资源会 404）——正确做法是完整 `npm run update`（数据+版本一起）
 - 版本更新后需重启服务器生效（config 启动时读取）
+
+---
+
+## 23. OBS 缺失 API 移植记录（2026-08-08）
+
+### 23.1 背景
+以 `reference/OpenBachelorS-master`（EN 版 FastAPI 私服）为参考，补齐 DoctorateTs 缺失/拼错的 API。对比工具：`scripts/_diff-routes.py`（挂载感知路由 diff，140 条 OBS 路由未覆盖 → 122 条，P1 全部覆盖）。
+
+### 23.2 修正（P0，api.md 契约）
+- `/gacha/cancleNormalGacha` → `/gacha/cancelNormalGacha`（拼写）
+- `/mail/listMailbox` → `/mail/listMailBox`（大小写；Express 匹配大小写不敏感，行为等价）
+
+### 23.3 新增端点（P1，参考 OBS bp 蓝图）
+quest: battleContinue / finishStoryStage（委托 BattleManager.finishStoryStage）/ editStageSixStarTag
+gacha: choosePoolUp（gachaRuleType 反查池类型，写 `gacha[type][poolId].upChar`）/ getFreeChar（空操作）
+charBuild: changeSkinSpState（`skin.skinSp[skinId]`）
+social: setStarFriendList（空实现）
+mailCollection: getList（新 router，挂 `/mailCollection`，读 `DisplayMetaTable.mailArchiveData`）
+medal: setCustomData（`medal.custom.customs["1"]`）
+gallery: saveDiyMagazineV2（与 V1 共用 saveDiyMagazine 逻辑）
+retro: typeAct20side/competitionStart + competitionFinish（固定 stub）
+home: firework savePlateSlots/changeAnimal、car confirmBattleCar、templateTrap setTrapSquad、troop pinSpecialOperator
+auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
+
+完整清单见 `api.md`「OBS 移植端点」附录。
+
+### 23.4 冒烟验证结论
+- 新端点：mailCollection/getList、quest/battleContinue、car/confirmBattleCar、retro/vecbreak 双前缀均 200
+- **双前缀为既有设计**：`/retro/*`、`/campaignV2/*`、`/vecbreak/*` 的 router 自带前缀 + app.ts 挂载前缀（如 `/retro/retro/typeAct20side/competitionStart`），实测双前缀 200、单前缀 404——新端点沿用此约定
+- **已知问题（非本次引入）**：`POST /gacha/cancelNormalGacha` 对 uid=1 满级号返回 500（recruit.cancel 内部异常，路由命中正常），待单独排查
+- **P2 未做**：活动战斗批量包（bossRush/enemyDuel/football/act24side/act25side/arkodc/trainingGround/aprilFool 等约 40 条，均为战斗 Start/Finish stub），用户确认后按模块追加
+- **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用

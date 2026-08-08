@@ -55,6 +55,14 @@ GAME_MOUNTS = [
     ("/", "game/router/user.ts"),
     ("/", "auth/auth.ts"),
 ]
+# activity 模块的根级路由（act25side/act29side/act36side/actcheckinvs 等客户端无 /activity 前缀的接口）
+ROOT_MOUNTS += [("/", "game/router/activity.ts#rootRouter")]
+# 客户端将 roguelike/interlock/vecBreakV2 挂在 /activity 前缀下（router 自带 /roguelike|/interlock|/vecBreakV2 路径）
+GAME_MOUNTS += [
+    ("/activity", "game/router/roguelike.ts"),
+    ("/activity", "game/router/interlock.ts"),
+    ("/activity", "game/router/vecbreak.ts"),
+]
 
 # 既有双前缀设计：以下 router 自带模块前缀，app.ts 挂载前缀 + 模块内前缀 → 双前缀
 DOUBLE_PREFIX = ["retro", "campaignV2", "vecbreak", "interlock", "roguelike", "aprilFool"]
@@ -70,14 +78,20 @@ def read(p):
 def dts_routes():
     routes = {}
     for prefix, fn in ROOT_MOUNTS + GAME_MOUNTS:
-        src = read(os.path.join(DTS, fn))
+        if "#" in fn:
+            # 同一文件导出的多个 router（activity.ts 的 rootRouter），按导出名读取对应块
+            src = read(os.path.join(DTS, fn.split("#")[0]))
+            block = src.split(f"export const {fn.split('#')[1]} = Router();", 1)
+            src = block[1] if len(block) > 1 else ""
+        else:
+            src = read(os.path.join(DTS, fn))
         for m in TS_ROUTER.finditer(src):
             if m.group(2) == "use":
                 continue
             path = m.group(3)
             if not path.startswith("/"):
                 continue
-            module = fn.split("/")[-1].replace(".ts", "")
+            module = fn.split("/")[-1].replace(".ts", "").split("#")[0]
             if prefix != "/" and module in DOUBLE_PREFIX and not path.startswith(prefix):
                 # 双前缀设计：/retro/retro/xxx、/campaignV2/campaignV2/xxx
                 full = prefix + prefix + path

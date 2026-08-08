@@ -106,6 +106,13 @@ export async function setup(app: express.Application) {
   app.use("/", (await import("./router/home")).default);
   // 挂载 user 模块的根级路由（gallery/cg/medal/mainlineClue/server_time 等非 /user 前缀接口）
   app.use("/", (await import("./router/user")).rootRouter);
+  // 挂载 activity 模块的根级路由（act25side/act29side/act36side 等客户端无 /activity 前缀的接口）
+  app.use("/", (await import("./router/activity")).rootRouter);
+  // 客户端将 roguelike/interlock/vecBreakV2 挂在 /activity 前缀下（/activity/roguelike/* 等），
+  // 复用既有 router（其自带 /roguelike/*、/interlock/*、/vecBreakV2/* 路径），补 /activity 挂载别名
+  app.use("/activity", (await import("./router/roguelike")).default);
+  app.use("/activity", (await import("./router/interlock")).default);
+  app.use("/activity", (await import("./router/vecbreak")).default);
   // 统一错误处理：异步 handler 抛错（Express 5 自动捕获）→ JSON 而非 HTML 500。
   // 例：single 模式社交自请求（不能加自己为好友）等业务校验错误，客户端收到可解析 JSON
   app.use(gameErrorHandler);

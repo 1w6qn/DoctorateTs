@@ -73,4 +73,12 @@ describe("social 路由", () => {
     expect(mockPlayer.social.receiveSocialPoint).toHaveBeenCalled();
     expect(res.send).toHaveBeenCalledWith({ modified: {} });
   });
+
+  it("setStarFriendList 应返回 newIdList 与 delta（OBS 空实现）", async () => {
+    const res = mockRes();
+    await call({ method: "POST", url: "/setStarFriendList", body: { idList: ["2"] } }, res);
+    expect(res.send).toHaveBeenCalledWith(
+      expect.objectContaining({ result: 0, newIdList: [], modified: {} }),
+    );
+  });
 });

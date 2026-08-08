@@ -70,4 +70,9 @@ router.post("/setCardShowMedal", async (req, res) => {
   await player.social.setCardShowMedal(req.body);
   res.send(player.delta);
 });
+router.post("/setStarFriendList", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  // 参考 OBS bp_social.setStarFriendList：空实现返回固定结构
+  res.send({ result: 0, newIdList: [], ...player.delta });
+});
 export default router;

@@ -14,7 +14,7 @@ describe("playerdata-server-adapt", () => {
   it("rename 字段（客户端名 → 服务端 key）", () => {
     const out = applyServerAdapt([cls("PlayerDataModel", { campaign: "PlayerCampaign", arkOdc: "PlayerArkOdc" })]);
     const pdm = out.find(c => c.name === "PlayerDataModel")!;
-    expect(pdm.fields.map(f => f.name)).toEqual(["campaignsV2", "arkodc", "deleted"]);
+    expect(pdm.fields.map(f => f.name)).toEqual(["campaignsV2", "arkodc", "deleted", "checkMeta"]);
     expect(pdm.fields[0].type).toBe("PlayerCampaign");
   });
 

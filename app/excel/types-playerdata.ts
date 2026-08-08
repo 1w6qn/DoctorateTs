@@ -329,11 +329,11 @@ export interface PlayerCarousel {
 }
 
 export interface PlayerCheckIn_PlayerNewbiePackage {
-    isOpen: boolean;
+    open: boolean;
     groupId: string;
     checkInHistory: number[];
-    checkinFinTs: number;
-    stopSaleTs: number;
+    finish: number;
+    stopSale: number;
 }
 
 export interface PlayerCheckIn_PlayerNewbieChoosePackage {
@@ -381,6 +381,7 @@ export interface PlayerCharacter {
     voiceLan: string;
     currentEquip: string;
     equip: { [key: string]: PlayerCharEquipInfo };
+    master: object;
 }
 
 export interface PlayerCharPatch {
@@ -1886,13 +1887,14 @@ export interface PlayerCampaign_StageOpenInfo {
     permanent: string[];
     training: string[];
     rotate: string;
-    rotateGroup: string;
-    trainingGroup: string;
-    trainingAllOpenGroup: string;
+    rGroup: string;
+    tGroup: string;
+    tAllOpen: string;
 }
 
 export interface PlayerCampaign_Stage {
     maxKills: number;
+    rewardStatus: number[];
 }
 
 export interface PlayerCampaign {
@@ -1903,6 +1905,7 @@ export interface PlayerCampaign {
     missions: { [key: string]: PlayerCampaign_MissionState };
     instances: { [key: string]: PlayerCampaign_Stage };
     sweepMaxKills: { [key: string]: number };
+    lastRefreshTs: number;
 }
 
 export interface PlayerRecruit_NormalModel_SlotModel {
@@ -1911,6 +1914,8 @@ export interface PlayerRecruit_NormalModel_SlotModel {
     maxFinishTs: string;
     realFinishTs: string;
     durationInSec: number;
+    tags: number[];
+    selectTags: number[];
 }
 
 export interface PlayerRecruit_NormalModel {
@@ -1989,7 +1994,7 @@ export interface PlayerMedalBoard {
     type: NameCardMedalType;
     custom: string;
     template: string;
-    templateMedalList: { [key: string]: object };
+    templateMedalList: object[];
 }
 
 export interface PlayerSocialReward {
@@ -2100,7 +2105,7 @@ export interface PlayerTemplateShop {
     progressInfo: { [key: string]: PlayerGoodProgressData };
 }
 
-export type PlayerShop = { [shopType: string]: object };
+export type PlayerShop = { LS: PlayerLowQCShopProgressData; HS: PlayerHighQCShopProgressData; ES: PlayerCommonShopProgressData; CASH: PlayerCashProgressData; GP: PlayerGiftProgressData; FURNI: PlayerFurnitureShopData; SOCIAL: PlayerSocialShopData; EPGS: PlayerEPGSProgressData; REP: PlayerEPGSProgressData; CLASSIC: PlayerClassicQCShopProgressData; SKIN: PlayerSkinShopData };
 
 export interface PlayerInviteInfo {
     uid: string;
@@ -2148,6 +2153,7 @@ export interface PlayerBuildingLabor {
 
 export interface PlayerBuildingWorkshopStatus {
     bonus: { [key: string]: number[] };
+    bonusActive: number;
 }
 
 export interface PlayerBuildingStatus {
@@ -2157,12 +2163,14 @@ export interface PlayerBuildingStatus {
 
 export interface PlayerBuildingCharBubble {
     add: number;
+    ts: number;
 }
 
 export interface PlayerBuildingChar_BubbleContainer {
     normal: PlayerBuildingCharBubble;
     assist: PlayerBuildingCharBubble;
     privateBubble: PlayerBuildingCharBubble;
+    private: object;
 }
 
 export interface PlayerBuildingChar {
@@ -2174,6 +2182,8 @@ export interface PlayerBuildingChar {
     changeScale: number;
     bubble: PlayerBuildingChar_BubbleContainer;
     skinIdInVisit: string;
+    workTime: number;
+    privateRooms: string[];
 }
 
 export interface PlayerBuildingRoomSlot {
@@ -2181,6 +2191,7 @@ export interface PlayerBuildingRoomSlot {
     state: PlayerRoomSlotState;
     roomId: BuildingData_RoomType;
     completeConstructTime: string;
+    charInstIds: number[];
 }
 
 export interface PlayerBuildingFurnitureInfo {
@@ -2196,11 +2207,14 @@ export interface PlayerEnemyHandBook {
 export interface PlayerFormulaUnlockRecord {
     manufacture: { [key: string]: number };
     workshop: { [key: string]: number };
+    shop: object;
 }
 
 export interface PlayerDexNav {
     enemy: PlayerEnemyHandBook;
     formula: PlayerFormulaUnlockRecord;
+    character: object;
+    teamV2: object;
 }
 
 export interface PlayerSkins {
@@ -2214,6 +2228,7 @@ export interface PlayerPerMedal {
     fts: number;
     rts: number;
     reward: string;
+    val: number;
 }
 
 export interface PlayerMedalCustomLayoutItem {
@@ -2240,6 +2255,8 @@ export interface PlayerRetro {
     block: { [key: string]: PlayerRetroBlock };
     trail: { [key: string]: { [key: string]: boolean } };
     rewardPerm: string[];
+    lst: number;
+    nst: number;
 }
 
 export interface PlayerRetroBlock {
@@ -2294,6 +2311,7 @@ export interface PlayerBuildingManufacture {
 export interface BuildingBuffDisplay {
     baseBuff: number;
     buff: number;
+    base: number;
 }
 
 export interface PlayerBuildingShopOutputItem {
@@ -2307,6 +2325,9 @@ export interface PlayerBuildingShop {
 
 export interface PlayerBuildingPowerBuff {
     laborSpeed: number;
+    apCost: object;
+    global: object;
+    manufacture: object;
 }
 
 export interface PlayerBuildingPower {
@@ -2316,16 +2337,27 @@ export interface PlayerBuildingPower {
 
 export interface PlayerBuildingControlBuff_Global {
     apCost: number;
+    roomCnt: number;
 }
 
 export interface PlayerBuildingControlBuff {
     global: PlayerBuildingControlBuff_Global;
+    manufacture: object;
+    trading: object;
+    meeting: object;
+    apCost: object;
+    point: object;
+    hire: object;
+    power: object;
+    dormitory: object;
+    training: object;
 }
 
 export interface PlayerBuildingControl {
     buff: PlayerBuildingControlBuff;
     apCost: number;
     presetQueue: number[][];
+    lastUpdateTime: number;
 }
 
 export interface PlayerBuildingWorkshopBuff_Cost {
@@ -2371,16 +2403,21 @@ export interface PlayerBuildingWorkshopBuff {
     costFormula: PlayerBuildingWorkshopBuff_CostFormula;
     costForce: PlayerBuildingWorkshopBuff_CostForce;
     costDevide: PlayerBuildingWorkshopBuff_CostDevide;
+    recovery: object;
+    fFix: object;
+    activeBonus: object;
 }
 
 export interface PlayerBuildingWorkshop {
     buff: PlayerBuildingWorkshopBuff;
+    statistic: object;
 }
 
 export interface PlayerBuildingMeetingClueChar {
     charId: string;
     level: number;
     evolvePhase: number;
+    skin: string;
 }
 
 export interface PlayerBuildingMeetingClue {
@@ -2407,6 +2444,11 @@ export interface PlayerBuildingMeetingInfoShareState {
 
 export interface PlayerBuildingMeetingBuff {
     speed: number;
+    weight: object;
+    flag: object;
+    apCost: object;
+    notOwned: object;
+    owned: object;
 }
 
 export interface PlayerBuildingMessageLeaveSP {
@@ -2441,10 +2483,19 @@ export interface PlayerBuildingMeeting {
     presetQueue: number[][];
     messageLeave: PlayerBuildingMessageLeave;
     diySolution: PlayerBuildingDIYSolution;
+    expiredReward: number;
+    mfc: number;
+    completeWorkTime: number;
+    startApCounter: number;
+    mustgetClue: number;
 }
 
 export interface PlayerBuildingHireBuff {
     speed: number;
+    meeting: object;
+    stack: object;
+    point: object;
+    apCost: object;
 }
 
 export interface PlayerBuildingHire {
@@ -2470,11 +2521,22 @@ export interface PlayerBuildingTradingOrder {
     gain: ItemBundle;
     extraCost: boolean;
     specGoldTag: PlayerBuildingTradingOrder_TradingGoldTag;
+    delivery: object;
+    buff: object;
 }
 
 export interface PlayerBuildingTradingBuff {
     speed: number;
     limit: number;
+    apCost: object;
+    rate: object;
+    tgw: object[];
+    point: object;
+    manuLines: object;
+    orderBuff: object[];
+    violatedInfo: object;
+    orderWtBuff: object[];
+    speGoldOrder: object;
 }
 
 export interface PlayerBuildingTradingNext {
@@ -2495,6 +2557,7 @@ export interface PlayerBuildingTrading {
     next: PlayerBuildingTradingNext;
     display: BuildingBuffDisplay;
     presetQueue: number[][];
+    completeWorkTime: number;
 }
 
 export interface PlayerBuildingGridPosition {
@@ -2563,11 +2626,17 @@ export interface PlayerBuildingTrainee {
 export interface PlayerBuildingTrainingReduceTimeBd {
     activated: boolean;
     cnt: number;
+    fulltime: object;
+    reset: object;
 }
 
 export interface PlayerBuildingTrainingBuff {
     speed: number;
     reduceTimeBd: PlayerBuildingTrainingReduceTimeBd;
+    lvEx: object;
+    lvCost: object;
+    reduce: object;
+    apCost: object;
 }
 
 export interface PlayerBuildingTraining {
@@ -2576,6 +2645,7 @@ export interface PlayerBuildingTraining {
     trainer: PlayerBuildingTrainer;
     trainee: PlayerBuildingTrainee;
     completeWorkTime: string;
+    state: number;
 }
 
 export interface PlayerBuildingRoom {
@@ -2600,6 +2670,7 @@ export interface BuildingMusic {
 
 export interface BuildingMusicState {
     unlock: boolean;
+    progress: number;
 }
 
 export interface PlayerBuilding_PlayerBuildingSolution {
@@ -2611,7 +2682,7 @@ export interface PlayerBuilding {
     chars: { [key: string]: PlayerBuildingChar };
     assist: number[];
     roomSlots: { [key: string]: PlayerBuildingRoomSlot };
-    rooms: PlayerBuildingRoom;
+    rooms: { [roomType: string]: { [slotId: string]: object } };
     furniture: { [key: string]: PlayerBuildingFurnitureInfo };
     diyPresetSolutions: { [key: string]: PlayerBuildingDIYPreset };
     solution: PlayerBuilding_PlayerBuildingSolution;
@@ -2648,6 +2719,9 @@ export interface PlayerCrisisShop {
 export interface PlayerCrisisSeason {
     coin: number;
     tCoin: number;
+    permanent: object;
+    temporary: object;
+    sInfo: object;
 }
 
 export interface PlayerCrisisSocialInfo_AssistChar {
@@ -2683,6 +2757,10 @@ export interface PlayerCrisisV2Season_PermanentMapInfo {
     exRunes: { [key: string]: PlayerCrisisV2Season_RuneState };
     runePack: { [key: string]: PlayerCrisisV2Season_BagState };
     reward: { [key: string]: PlayerCrisisV2Season_RewardInfo };
+    state: number;
+    scoreTotal: number;
+    rune: object;
+    challenge: object;
 }
 
 export interface PlayerCrisisV2Season_BasicMapInfo {
@@ -2722,6 +2800,7 @@ export interface PlayerRecalRuneStage {
     state: PlayerRecalRuneStage_State;
     record: number;
     passedRunes: string[];
+    runes: object;
 }
 
 export interface PlayerRecalRuneReward {
@@ -3299,6 +3378,7 @@ export interface PlayerRoguelikeV2_CurrentData {
     troop: PlayerRoguelikeV2_CurrentData_Troop;
     buff: PlayerRoguelikeV2_CurrentData_Buff;
     module: PlayerRoguelikeV2_CurrentData_Module;
+    record: object;
 }
 
 export interface PlayerRoguelikeV2_OuterData_Record_History {
@@ -3319,6 +3399,8 @@ export interface PlayerRoguelikeV2_OuterData_Record {
     bandGrade: { [key: string]: { [key: string]: number } };
     history: PlayerRoguelikeV2_OuterData_Record_History[];
     legacy: string[];
+    modeCnt: number;
+    endingCnt: number;
 }
 
 export interface PlayerRoguelikeV2_OuterData_BattlePass {
@@ -3337,6 +3419,7 @@ export interface PlayerRoguelikeV2_OuterData_Mission_MissionItem {
     state: number;
     target: number;
     value: number;
+    tmpl: object;
 }
 
 export interface PlayerRoguelikeV2_OuterData_Mission {
@@ -3362,6 +3445,7 @@ export interface PlayerRoguelikeV2_OuterData_Collection_WeatherCollection {
 
 export interface PlayerRoguelikeV2_OuterData_Collection_DifficultyUnlockInfo {
     state: PlayerRoguelikeDifficultyStatus;
+    progress: number;
 }
 
 export interface PlayerRoguelikeV2_OuterData_Collection {
@@ -3375,7 +3459,7 @@ export interface PlayerRoguelikeV2_OuterData_Collection {
     bgm: { [key: string]: number };
     pic: { [key: string]: number };
     chatV2: { [key: string]: string[] };
-    endbook: { [key: string]: PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo };
+    endBook: { [key: string]: PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo };
     buff: { [key: string]: PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo };
     totem: PlayerRoguelikeV2_OuterData_TotemCollection;
     chaos: { [key: string]: PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo };
@@ -3386,6 +3470,7 @@ export interface PlayerRoguelikeV2_OuterData_Collection {
     wrath: { [key: string]: PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo };
     scrap: { [key: string]: PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo };
     weather: PlayerRoguelikeV2_OuterData_Collection_WeatherCollection;
+    chat: object;
 }
 
 export interface PlayerRoguelikeV2_OuterData_Bank {
@@ -3400,11 +3485,13 @@ export interface PlayerRoguelikeV2_OuterData_Buff {
     pointOwned: number;
     pointCost: number;
     unlocked: { [key: string]: number };
+    score: number;
 }
 
 export interface PlayerRoguelikeV2_OuterData_MonthTeam {
     reward: { [key: string]: number };
     mission: { [key: string]: number[] };
+    valid: boolean;
 }
 
 export interface PlayerRoguelikeV2_OuterData_ChallengeCollection {
@@ -3415,6 +3502,7 @@ export interface PlayerRoguelikeV2_OuterData_Challenge {
     reward: { [key: string]: number };
     grade: { [key: string]: PlayerRoguelikeChallengeStatus };
     collect: PlayerRoguelikeV2_OuterData_ChallengeCollection;
+    highScore: number;
 }
 
 export interface PlayerRoguelikeV2_OuterData_NodeUpgradeInfo {
@@ -3907,14 +3995,14 @@ export interface PlayerTower {
 }
 
 export interface TowerTactical {
-    pioneer: string;
-    warrior: string;
-    tank: string;
-    sniper: string;
-    caster: string;
-    support: string;
-    medic: string;
-    special: string;
+    PIONEER: string;
+    WARRIOR: string;
+    TANK: string;
+    SNIPER: string;
+    CASTER: string;
+    SUPPORT: string;
+    MEDIC: string;
+    SPECIAL: string;
 }
 
 export interface TowerCurrent_Status {
@@ -3924,11 +4012,14 @@ export interface TowerCurrent_Status {
     tactical: TowerTactical;
     start: number;
     isHard: boolean;
+    tower: object;
+    strategy: object;
 }
 
 export interface TowerCurrent_TowerGodCard {
     godCardId: string;
     subGodCardId: string;
+    id: string;
 }
 
 export interface TowerCurrent_TowerGameLayer {
@@ -3951,6 +4042,7 @@ export interface TowerCurrent_HalftimeRecruit {
     remainCount: number;
     candidate: TowerCurrent_HalftimeCandidateGroup[];
     canGiveUp: boolean;
+    count: number;
 }
 
 export interface TowerCurrent_HalftimeCandidateGroup {
@@ -3975,6 +4067,7 @@ export interface TowerOuter_TowerData {
     hardBest: number;
     canSweep: boolean;
     canSweepHard: boolean;
+    unlockHard: boolean;
 }
 
 export interface TowerOuter {
@@ -3983,6 +4076,8 @@ export interface TowerOuter {
     hasTowerPass: number;
     tactical: TowerTactical;
     strategy: TowerGameStrategy;
+    pickedGodCard: object;
+    squad: object;
 }
 
 export interface TowerSeason_TowerSeasonMission {
@@ -3996,6 +4091,8 @@ export interface TowerSeason_TowerSeasonPeriod {
     items: { [key: string]: number };
     periodCurr: number;
     periodCount: number;
+    cur: number;
+    len: number;
 }
 
 export interface TowerSeason {
@@ -4003,17 +4100,22 @@ export interface TowerSeason {
     finishTs: number;
     missions: { [key: string]: TowerSeason_TowerSeasonMission };
     period: TowerSeason_TowerSeasonPeriod;
+    passWithGodCard: object;
+    slots: object;
 }
 
 export interface PlayerHomeUnlockStatus {
     unlockTime: number;
     conditions: { [key: string]: PlayerHomeConditionProgress };
+    unlock: boolean;
 }
 
 export interface PlayerHomeConditionProgress {
     curProgress: number;
     total: number;
     DEFAULT: PlayerHomeConditionProgress;
+    v: number;
+    t: number;
 }
 
 export interface PlayerHomeBackground {
@@ -4030,6 +4132,7 @@ export interface PlayerHomeTheme {
 
 export interface PlayerSetting {
     settingPerf: PlayerSettingPerf;
+    perf: { lowPower: number };
 }
 
 export interface PlayerSettingPerf {
@@ -4037,11 +4140,11 @@ export interface PlayerSettingPerf {
 }
 
 export interface PlayerAprilFool {
-    actFun3: PlayerActFun3;
-    actFun4: PlayerActFun4;
-    actFun5: PlayerActFun5;
-    actFun6: PlayerActFun6;
-    actFun7: PlayerActFun7;
+    act3fun: PlayerActFun3;
+    act4fun: PlayerActFun4;
+    act5fun: PlayerActFun5;
+    act6fun: PlayerActFun6;
+    act7fun: PlayerActFun7;
 }
 
 export interface PlayerActFun3 {
@@ -4060,6 +4163,8 @@ export interface PlayerActFun4 {
     fansNum: number;
     posts: number;
     missions: { [key: string]: PlayerActFun4Mission };
+    cameraLv: number;
+    fans: number;
 }
 
 export interface PlayerActFun4Stage {
@@ -4082,7 +4187,7 @@ export interface PlayerActFun5 {
 export interface PlayerActFun6Stage {
     stageId: string;
     achievements: { [key: string]: number };
-    speedRunning: number;
+    speedrunning: number;
     state: PlayerStageState;
 }
 
@@ -5231,11 +5336,15 @@ export interface PlayerSandboxV3Summary {
 export interface PlayerSandboxPerm_PlayerSandboxTemplateData {
     sandboxV2TemplateData: { [key: string]: PlayerSandboxV2 };
     sandboxV3TemplateData: { [key: string]: PlayerSandboxV3 };
+    SANDBOX_V2: object;
+    SANDBOX_V3: object;
 }
 
 export interface PlayerSandboxPerm_PlayerSandboxSummaryData {
     sandboxV2SummaryData: { [key: string]: PlayerSandboxV2Summary };
     sandboxV3SummaryData: { [key: string]: PlayerSandboxV3Summary };
+    SANDBOX_V2: object;
+    SANDBOX_V3: object;
 }
 
 export interface PlayerSandboxPerm {
@@ -5305,11 +5414,12 @@ export interface PlayerCharRotationPreset {
     profile: string;
     profileSp: boolean;
     slots: PlayerCharRotationSlot[];
+    profileInst: number;
 }
 
 export interface PlayerCharRotation {
-    currentPresetId: string;
-    presets: { [key: string]: PlayerCharRotationPreset };
+    current: string;
+    preset: { [key: string]: PlayerCharRotationPreset };
 }
 
 export interface PlayerGallery {
@@ -5324,6 +5434,9 @@ export interface PlayerGallery {
 export interface PlayerArtMagazineLeafData {
     getTs: number;
     version: number;
+    leafId: string;
+    charSkin: string;
+    decorList: string[];
 }
 
 export interface PlayerArkOdc {
@@ -5397,7 +5510,7 @@ export interface PlayerDataModel {
     background: PlayerHomeBackground;
     homeTheme: PlayerHomeTheme;
     nameCardStyle: PlayerNameCardStyle;
-    playerSetting: PlayerSetting;
+    setting: PlayerSetting;
     aprilFool: PlayerAprilFool;
     npcAudio: { [key: string]: PlayerNpcWithAudio };
     charRotation: PlayerCharRotation;
@@ -5407,6 +5520,7 @@ export interface PlayerDataModel {
     limitedBuff: PlayerLimitedDropBuff;
     performanceStory: PlayerPerformanceStory;
     deleted: { [key: string]: object };
+    checkMeta: { version: number; ts: number };
 }
 
 export interface FireworkData_PlateSlotData {

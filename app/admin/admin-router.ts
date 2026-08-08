@@ -288,6 +288,67 @@ router.post("/api/game-proxy", async (req: Request, res: Response) => {
   }
 });
 
+/** 卡池清单 */
+router.get("/api/pools", (_req: Request, res: Response) => {
+  res.json(adminService.listPools());
+});
+
+/** 卡池详情（UP/可用干员 + 概率） */
+router.get("/api/pools/:poolId", (req: Request, res: Response) => {
+  const detail = adminService.poolDetail(String(req.params.poolId));
+  if (!detail) {
+    res.status(404).json({ error: `卡池不存在: ${req.params.poolId}` });
+    return;
+  }
+  res.json(detail);
+});
+
+/** 玩家卡池状态（UP 选择 + 保底计数） */
+router.get("/api/users/:uid/pools/:poolId", async (req: Request, res: Response) => {
+  try {
+    res.json(
+      await adminService.getPlayerPoolState(
+        String(req.params.uid),
+        String(req.params.poolId),
+      ),
+    );
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 设置玩家卡池 UP 选择（charIds 空数组清除） */
+router.post("/api/users/:uid/pools/:poolId/up", async (req: Request, res: Response) => {
+  try {
+    const { charIds } = req.body ?? {};
+    res.json(
+      await adminService.setPlayerPoolUp(
+        String(req.params.uid),
+        String(req.params.poolId),
+        Array.isArray(charIds) ? charIds : [],
+      ),
+    );
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 设置玩家保底计数 */
+router.post("/api/users/:uid/pity", async (req: Request, res: Response) => {
+  try {
+    const { ruleType, count } = req.body ?? {};
+    res.json(
+      await adminService.setPlayerPity(
+        String(req.params.uid),
+        String(ruleType),
+        Number(count),
+      ),
+    );
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 /** 配置（只读） */
 router.get("/api/config", (_req: Request, res: Response) => {
   res.json(config);

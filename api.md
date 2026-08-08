@@ -1398,6 +1398,11 @@ OAuth2 授权
 | GET  | `/admin/api/stats` | 统计聚合（等级/注册分布、资源合计） |
 | GET  | `/admin/api/logs?limit=N` | 管理操作审计日志（默认 50 条） |
 | GET  | `/admin/api/common-items` | 常用物品别名表 |
+| GET  | `/admin/api/pools` | 卡池清单（poolId/名称/规则类型/开闭池/保底） |
+| GET  | `/admin/api/pools/:poolId` | 卡池详情（UP/可用干员 + 概率） |
+| GET  | `/admin/api/users/:uid/pools/:poolId` | 玩家卡池状态（UP 选择 + 保底计数） |
+| POST | `/admin/api/users/:uid/pools/:poolId/up` | 设置玩家 UP `{charIds}`（空数组清除；支持中文名） |
+| POST | `/admin/api/users/:uid/pity` | 设置玩家保底 `{ruleType, count}`（保底按 gachaRuleType 存账号配置） |
 | GET  | `/admin/api/spec` | 管理 API 端点规范清单（Dashboard「接口」控制台数据源） |
 | POST | `/admin/api/game-proxy` | 游戏协议代理：`{uid, path, method?, body?}` 以玩家 secret 调用游戏端点，返回 `{status, data, uid}`（供 Dashboard 协议调试） |
 | GET  | `/admin/api/config` | 查看配置（只读） |

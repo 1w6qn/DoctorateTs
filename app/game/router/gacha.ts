@@ -8,6 +8,7 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { GACHA_RULE_TYPE } from "../model/gacha";
 import excel from "@excel/excel";
 import {
   AdvancedGachaRequest,
@@ -37,18 +38,6 @@ import {
 } from "../model/protocol/gacha";
 
 const router = Router();
-
-/** gachaRuleType → 玩家数据 gacha 子结构名（参考 OBS bp_gacha.GACHA_RULE_TYPE_DICT） */
-const GACHA_RULE_TYPE: { [rule: string]: string } = {
-  NORMAL: "normal",
-  ATTAIN: "attain",
-  LIMITED: "limit",
-  SINGLE: "single",
-  CLASSIC: "classic",
-  DOUBLE: "double",
-  NEWBEE: "newbee",
-  LINKAGE: "linkage",
-};
 
 /**
  * 同步普通招募状态

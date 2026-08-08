@@ -151,12 +151,14 @@
         <div class="tab active" data-tab="overview">概览</div>
         <div class="tab" data-tab="chars">干员</div>
         <div class="tab" data-tab="mails">邮件</div>
+        <div class="tab" data-tab="pools">卡池</div>
         <div class="tab" data-tab="api">接口</div>
         <div class="tab" data-tab="raw">数据</div>
       </div>
       <div class="tab-pane active" id="pane-overview"></div>
       <div class="tab-pane" id="pane-chars"></div>
       <div class="tab-pane" id="pane-mails"></div>
+      <div class="tab-pane" id="pane-pools"></div>
       <div class="tab-pane" id="pane-api"></div>
       <div class="tab-pane" id="pane-raw"></div>
     </div>
@@ -254,6 +256,7 @@
   var API = "/admin/api";
   var token = localStorage.getItem("adminToken") || "";
   var selectedUid = null;
+  var selectedPoolId = null;
   var currentTab = "overview";
 
   function api(path, options) {
@@ -388,6 +391,7 @@
     if (tab === "overview") loadOverview(uid);
     else if (tab === "chars") loadChars(uid);
     else if (tab === "mails") loadMails(uid);
+    else if (tab === "pools") loadPoolsPane();
     else if (tab === "api") loadApiPane();
     else if (tab === "raw") loadRaw(uid);
   }
@@ -849,6 +853,111 @@
   });
   $("skin-cancel").addEventListener("click", function () { hideModal("modal-skin"); });
 
+  /* ---------- 卡池 Tab ---------- */
+
+  function loadPoolsPane() {
+    var pane = $("pane-pools");
+    pane.innerHTML =
+      '<div class="console">' +
+      '<div><input id="pool-filter" placeholder="过滤卡池...">' +
+      '<div class="api-list" id="pool-list"></div></div>' +
+      '<div id="pool-detail" style="color:var(--muted);padding:10px 0;">点击左侧卡池查看详情</div></div>';
+    api("/pools").then(function (pools) {
+      renderPoolList(pools, "");
+      $("pool-filter").addEventListener("input", function () {
+        renderPoolList(pools, this.value);
+      });
+      if (selectedPoolId) selectPool(selectedPoolId);
+    }).catch(function () {});
+  }
+
+  function renderPoolList(pools, filter) {
+    var box = $("pool-list");
+    var kw = filter.toLowerCase();
+    var items = pools.filter(function (p) {
+      return (p.poolId + " " + p.name).toLowerCase().indexOf(kw) !== -1;
+    });
+    box.innerHTML = items.map(function (p) {
+      return '<div class="api-item" data-id="' + p.poolId + '">' +
+        '<span class="p">' + escapeHtml(p.poolId) + "</span> " + escapeHtml(p.name) + "<br>" +
+        '<span class="s">[' + escapeHtml(p.ruleType) + "] 保底 " + p.guarantee5Count +
+        " | " + fmtTs(p.openTime) + " ~ " + fmtTs(p.endTime) + "</span></div>";
+    }).join("") || '<div style="padding:10px;color:var(--muted);">无匹配卡池</div>';
+    document.querySelectorAll("#pool-list .api-item").forEach(function (el) {
+      el.addEventListener("click", function () {
+        var id = el.getAttribute("data-id");
+        selectedPoolId = id;
+        selectPool(id);
+        document.querySelectorAll("#pool-list .api-item").forEach(function (x) {
+          x.classList.remove("active");
+        });
+        el.classList.add("active");
+      });
+    });
+  }
+
+  function selectPool(poolId) {
+    api("/pools/" + encodeURIComponent(poolId)).then(function (d) {
+      var upHtml = d.upChars.length
+        ? d.upChars.map(function (c) { return escapeHtml(c.name) + "(" + escapeHtml(c.charId) + ") " + c.percent + "%"; }).join("<br>")
+        : "（无）";
+      $("pool-detail").innerHTML =
+        "<h4 style=\"color:var(--gold);\">" + escapeHtml(d.name) +
+        " <span style=\"color:var(--muted);font-size:12px;\">" + escapeHtml(d.poolId) + " [" + escapeHtml(d.ruleType) + "]</span></h4>" +
+        "<p style=\"color:var(--muted);font-size:12px;\">保底 " + d.guarantee5Count + " | 开池 " + fmtTs(d.openTime) + " ~ " + fmtTs(d.endTime) + "</p>" +
+        "<table>" +
+        "<tr><td>UP 干员</td><td>" + upHtml + "</td></tr>" +
+        "<tr><td>可用干员</td><td>" + d.availChars.length + " 名</td></tr>" +
+        "<tr><td>限时干员</td><td>" + d.limitedChars.length + " 名</td></tr>" +
+        "</table>" +
+        '<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">' +
+        (selectedUid
+          ? '<label>玩家 <b style="color:var(--text);">' + escapeHtml(selectedUid) + "</b> 的卡池状态</label><div id=\"pool-state\"></div>"
+          : '<p style="color:var(--muted);">← 先在左侧用户列表选择用户，可管理其卡池状态</p>') +
+        "</div>";
+      if (selectedUid) loadPoolState(selectedUid, poolId);
+    }).catch(function () {});
+  }
+
+  function loadPoolState(uid, poolId) {
+    api("/users/" + encodeURIComponent(uid) + "/pools/" + encodeURIComponent(poolId)).then(function (st) {
+      $("pool-state").innerHTML =
+        '<div class="row" style="align-items:center;margin:8px 0;"><span style="color:var(--muted);font-size:12px;">当前 UP: ' +
+        (st.upChars.length ? st.upChars.map(function (c) { return escapeHtml(c.name); }).join(", ") : "（未选择）") +
+        " | 保底: " + st.beforeNonHitCnt + " / " + st.guarantee5Count + "</span></div>" +
+        "<label>设置 UP（干员 ID 或中文名，逗号分隔；留空清除）</label>" +
+        '<input id="pool-up-input" placeholder="char_002_amiya, 阿米娅" value="' + escapeHtml(st.upCharIds.join(", ")) + '">' +
+        '<div class="row">' +
+        '<input id="pool-pity-rule" placeholder="规则类型" value="' + escapeHtml(st.ruleType) + '" style="flex:0 0 120px;">' +
+        '<input id="pool-pity-count" type="number" placeholder="保底计数" value="' + st.beforeNonHitCnt + '" min="0"></div>' +
+        '<div class="row"><button id="pool-up-save" class="primary">保存 UP</button>' +
+        '<button id="pool-pity-save">保存保底</button></div>';
+      $("pool-up-save").addEventListener("click", function () {
+        var charIds = ($("pool-up-input").value || "").split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+        api("/users/" + encodeURIComponent(uid) + "/pools/" + encodeURIComponent(poolId) + "/up", {
+          method: "POST", body: JSON.stringify({ charIds: charIds }),
+        }).then(function () {
+          alert("UP 已更新");
+          selectPool(poolId);
+          refreshLogs();
+        }).catch(function (e) { alert("设置失败：" + e.message); });
+      });
+      $("pool-pity-save").addEventListener("click", function () {
+        api("/users/" + encodeURIComponent(uid) + "/pity", {
+          method: "POST",
+          body: JSON.stringify({
+            ruleType: $("pool-pity-rule").value.trim(),
+            count: Number($("pool-pity-count").value),
+          }),
+        }).then(function () {
+          alert("保底已更新");
+          selectPool(poolId);
+          refreshLogs();
+        }).catch(function (e) { alert("设置失败：" + e.message); });
+      });
+    }).catch(function () {});
+  }
+
   /* ---------- 登录 ---------- */
 
   function showLogin() { $("login").style.display = "flex"; }
@@ -872,6 +981,7 @@
     token = "";
     localStorage.removeItem("adminToken");
     selectedUid = null;
+    selectedPoolId = null;
     currentTab = "overview";
     showLogin();
   });

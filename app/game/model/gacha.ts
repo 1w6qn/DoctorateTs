@@ -23,3 +23,18 @@ export enum GachaType {
     classicTenSingleTicket = 8,
     CombineTenTicket = 9
 }
+
+/**
+ * gachaRuleType → 玩家数据 gacha 子结构名
+ * （参考 OBS bp_gacha.GACHA_RULE_TYPE_DICT；gacha 路由与管理后台共用）
+ */
+export const GACHA_RULE_TYPE: { [rule: string]: string } = {
+    NORMAL: "normal",
+    ATTAIN: "attain",
+    LIMITED: "limit",
+    SINGLE: "single",
+    CLASSIC: "classic",
+    DOUBLE: "double",
+    NEWBEE: "newbee",
+    LINKAGE: "linkage",
+};

@@ -48,6 +48,11 @@ npm run admin -- server status                  # 服务器状态与数据文件
 npm run admin -- server refresh 1               # 触发每日/每周刷新（理智/任务重置）
 npm run admin -- server save 1                  # 立即保存存档（缺省全部用户）
 npm run admin -- logs show --last 20            # 查看管理操作审计日志
+npm run admin -- gacha pools                    # 列出全部卡池
+npm run admin -- gacha pool NORMAL_0_1          # 卡池详情（UP/可用干员+概率）
+npm run admin -- gacha state 1 NORMAL_0_1       # 玩家卡池状态（UP 选择+保底计数）
+npm run admin -- gacha up 1 NORMAL_0_1 阿米娅   # 设置玩家 UP（支持中文名；空=清除）
+npm run admin -- gacha pity 1 NORMAL 50         # 设置玩家保底计数（按规则类型）
 npm run admin -- config show                    # 查看配置
 npm run admin -- config set admin.token mytoken # 修改配置（重启后生效）
 ```
@@ -64,6 +69,7 @@ npm run admin -- config set admin.token mytoken # 修改配置（重启后生效
    - **概览**：用户详情、资源/背包中文名、一键满配、基建满级、每日刷新、保存、备份/恢复
    - **干员**：干员列表 + 行内编辑（等级/精二/潜能/技能）
    - **邮件**：邮件列表/删除，弹窗支持群发（全部用户）
+   - **卡池**：卡池清单/详情（UP 干员+概率），管理选中玩家的卡池 UP 选择与保底计数
    - **接口**：REST API 控制台 —— 管理 API 端点浏览/调用（迷你 Postman）+ 游戏协议调试器（带玩家 secret 调真实游戏端点，如 /user/info、/gacha/advancedGacha）
    - **数据**：完整玩家数据 JSON 只读查看
    - **统计**：等级分布 / 注册分布 / 资源合计（顶部区块）

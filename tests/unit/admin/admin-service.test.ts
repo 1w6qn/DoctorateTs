@@ -33,6 +33,37 @@ vi.mock("@excel/excel", () => ({
     },
     UniequipTable: { charEquip: { char_002_amiya: [] } },
     BuildingData: { rooms: { room_1: { phases: [{}, {}, {}] } } },
+    GachaTable: {
+      gachaPoolClient: [
+        {
+          gachaPoolId: "NORMAL_0_1",
+          gachaPoolName: "测试卡池",
+          gachaRuleType: "NORMAL",
+          openTime: 0,
+          endTime: 9999999999,
+          guarantee5Count: 10,
+          guarantee5Avail: 1,
+          gachaPoolSummary: "test",
+        },
+      ],
+    },
+    GachaDetailTable: {
+      details: {
+        NORMAL_0_1: {
+          upCharInfo: {
+            perCharList: [
+              { rarityRank: 5, charIdList: ["char_002_amiya"], percent: 2, count: 1 },
+            ],
+          },
+          availCharInfo: {
+            perAvailList: [
+              { rarityRank: 4, charIdList: ["char_002_amiya"], totalPercent: 50 },
+            ],
+          },
+          limitedChar: [],
+        },
+      },
+    },
   },
 }));
 
@@ -88,6 +119,7 @@ function makeFullPd() {
     inventory: {},
     consumable: {},
     skin: { characterSkins: {}, skinTs: {} } as any,
+    gacha: { normal: {}, limit: {} } as any,
     building: {
       roomSlots: {
         slot_1: { level: 1, state: 1, roomId: "room_1", charInstIds: [], completeConstructTime: 0 },
@@ -534,6 +566,95 @@ describe("AdminService 游戏协议代理", () => {
     const result = await service.gameProxy("1", "/user/info");
     expect(result.status).toBe(500);
     expect(result.data).toBe("<html>err</html>");
+  });
+});
+
+describe("AdminService 卡池管理", () => {
+  let service: AdminService;
+  let pd: any;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    service = new AdminService();
+    pd = makeFullPd();
+    stubAccounts(pd);
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.mocked(appendFile).mockResolvedValue(undefined);
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+  });
+
+  it("listPools 应返回卡池清单并映射 gachaType", () => {
+    const pools = service.listPools();
+    expect(pools).toHaveLength(1);
+    expect(pools[0]).toMatchObject({
+      poolId: "NORMAL_0_1",
+      name: "测试卡池",
+      ruleType: "NORMAL",
+      gachaType: "normal",
+      guarantee5Count: 10,
+    });
+  });
+
+  it("poolDetail 应返回 UP/可用干员中文名与概率", () => {
+    const detail = service.poolDetail("NORMAL_0_1");
+    expect(detail!.upChars).toEqual([
+      { charId: "char_002_amiya", name: "阿米娅", percent: 2, count: 1, rarityRank: 5 },
+    ]);
+    expect(detail!.availChars).toHaveLength(1);
+    expect(detail!.limitedChars).toEqual([]);
+  });
+
+  it("poolDetail 对不存在卡池应返回 null", () => {
+    expect(service.poolDetail("NO_SUCH")).toBeNull();
+  });
+
+  it("getPlayerPoolState 应返回 UP 选择与保底计数", async () => {
+    (pd._playerdata.gacha as any).normal["NORMAL_0_1"] = { upChar: ["char_002_amiya"] };
+    const st = await service.getPlayerPoolState("1", "NORMAL_0_1");
+    expect(st.upCharIds).toEqual(["char_002_amiya"]);
+    expect(st.upChars).toEqual([{ charId: "char_002_amiya", name: "阿米娅" }]);
+    expect(st.beforeNonHitCnt).toBe(0);
+    expect(st.guarantee5Count).toBe(10);
+  });
+
+  it("setPlayerPoolUp 应写入 gacha[gachaType][poolId].upChar 并支持中文名", async () => {
+    await service.setPlayerPoolUp("1", "NORMAL_0_1", ["阿米娅"]);
+    expect((pd._playerdata.gacha as any).normal["NORMAL_0_1"].upChar).toEqual([
+      "char_002_amiya",
+    ]);
+    expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
+  });
+
+  it("setPlayerPoolUp 空数组应清除 UP", async () => {
+    (pd._playerdata.gacha as any).normal["NORMAL_0_1"] = { upChar: ["char_002_amiya"] };
+    await service.setPlayerPoolUp("1", "NORMAL_0_1", []);
+    expect((pd._playerdata.gacha as any).normal["NORMAL_0_1"].upChar).toEqual([]);
+  });
+
+  it("setPlayerPoolUp 对不存在卡池应抛错", async () => {
+    await expect(service.setPlayerPoolUp("1", "NO_SUCH", ["char_002_amiya"])).rejects.toThrow(
+      /卡池不存在/,
+    );
+  });
+
+  it("setPlayerPity 应写入账号配置并落盘", async () => {
+    const r = await service.setPlayerPity("1", "normal", 42);
+    expect(r).toEqual({ uid: "1", ruleType: "NORMAL", beforeNonHitCnt: 42 });
+    expect((accountManager as any).configs["1"].gacha.NORMAL.beforeNonHitCnt).toBe(42);
+    expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
+  });
+
+  it("setPlayerPity 对负数应抛错", async () => {
+    await expect(service.setPlayerPity("1", "NORMAL", -1)).rejects.toThrow(/非负整数/);
+  });
+
+  it("getPlayerPity / listPlayerPity 应读取保底", async () => {
+    (accountManager as any).configs["1"].gacha = { NORMAL: { beforeNonHitCnt: 5 } };
+    expect((await service.getPlayerPity("1", "NORMAL")).beforeNonHitCnt).toBe(5);
+    expect(await service.listPlayerPity("1")).toEqual([
+      { ruleType: "NORMAL", beforeNonHitCnt: 5 },
+    ]);
   });
 });
 

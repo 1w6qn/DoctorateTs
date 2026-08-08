@@ -10,6 +10,7 @@ import { appendFile, copyFile, mkdir, readFile, readdir } from "fs/promises";
 import excel from "@excel/excel";
 import { getRoomPhase } from "@excel/building_excel";
 import { buildMaxedSkills, buildMaxedEquip } from "@game/maxout";
+import { GACHA_RULE_TYPE } from "@game/model/gacha";
 import { accountManager } from "@game/manager/AccountManger";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { PlayerDataModel } from "@game/model/playerdata";
@@ -22,6 +23,7 @@ import {
   charName,
   skinName,
   resolveItemRef,
+  resolveCharRef,
   COMMON_ITEMS,
 } from "./admin-names";
 import config from "../config";
@@ -127,6 +129,47 @@ export interface AuditLogEntry {
   action: string;
   uid: string;
   detail: string;
+}
+
+/** 卡池摘要 */
+export interface PoolSummary {
+  poolId: string;
+  name: string;
+  ruleType: string;
+  gachaType: string;
+  openTime: number;
+  endTime: number;
+  guarantee5Count: number;
+  guarantee5Avail: number;
+  summary: string;
+}
+
+/** 卡池干员（UP/可用） */
+export interface PoolCharInfo {
+  charId: string;
+  name: string;
+  percent?: number;
+  count?: number;
+  rarityRank?: number;
+}
+
+/** 卡池详情 */
+export interface PoolDetail extends PoolSummary {
+  upChars: PoolCharInfo[];
+  availChars: PoolCharInfo[];
+  limitedChars: string[];
+}
+
+/** 玩家卡池状态（UP 选择 + 保底计数） */
+export interface PlayerPoolState {
+  poolId: string;
+  name: string;
+  ruleType: string;
+  gachaType: string;
+  upCharIds: string[];
+  upChars: { charId: string; name: string }[];
+  beforeNonHitCnt: number;
+  guarantee5Count: number;
 }
 
 /** 从玩家数据提取列表摘要 */
@@ -242,10 +285,8 @@ export class AdminService {
    * @param charId - 干员ID（如 char_002_amiya）或中文名
    */
   async grantChar(uid: string, charId: string): Promise<{ isNew: number; name: string }> {
-    const resolved = (excel.CharacterTable as Record<string, any>)[charId]
-      ? charId
-      : this.resolveCharByName(charId);
-    if (!resolved) {
+    const resolved = resolveCharRef(charId);
+    if (!(excel.CharacterTable as Record<string, any>)?.[resolved]) {
       throw new Error(`未知干员: ${charId}`);
     }
     const pd = await this.getPlayer(uid);
@@ -254,14 +295,6 @@ export class AdminService {
     await this.savePlayer(uid);
     await this._audit("grantChar", uid, `${resolved}(${charName(resolved)})`);
     return { isNew: res?.isNew ?? 0, name: charName(resolved) };
-  }
-
-  /** 按中文名反查干员 ID（精确匹配；无结果返回空串） */
-  private resolveCharByName(name: string): string {
-    for (const [charId, info] of Object.entries(excel.CharacterTable as Record<string, any>)) {
-      if (info?.name === name) return charId;
-    }
-    return "";
   }
 
   /**
@@ -674,6 +707,167 @@ export class AdminService {
       // 非 JSON 响应（如错误页）原样返回文本
     }
     return { status: res.status, data, uid };
+  }
+
+  /** 卡池清单（excel.GachaTable.gachaPoolClient） */
+  listPools(): PoolSummary[] {
+    return (excel.GachaTable?.gachaPoolClient ?? []).map((p) => ({
+      poolId: p.gachaPoolId,
+      name: p.gachaPoolName,
+      ruleType: p.gachaRuleType,
+      gachaType: GACHA_RULE_TYPE[p.gachaRuleType] ?? "single",
+      openTime: p.openTime,
+      endTime: p.endTime,
+      guarantee5Count: p.guarantee5Count,
+      guarantee5Avail: p.guarantee5Avail,
+      summary: p.gachaPoolSummary ?? "",
+    }));
+  }
+
+  /** 卡池详情（UP/可用干员 + 概率；不存在返回 null） */
+  poolDetail(poolId: string): PoolDetail | null {
+    const pool = (excel.GachaTable?.gachaPoolClient ?? []).find(
+      (p) => p.gachaPoolId === poolId,
+    );
+    if (!pool) return null;
+    const detail = excel.GachaDetailTable?.details?.[poolId];
+    const mapList = (
+      list?: { charIdList: string[]; percent?: number; count?: number; rarityRank?: number }[],
+    ): PoolCharInfo[] =>
+      (list ?? []).flatMap((per) =>
+        per.charIdList.map((charId) => ({
+          charId,
+          name: charName(charId),
+          percent: per.percent,
+          count: per.count,
+          rarityRank: per.rarityRank,
+        })),
+      );
+    return {
+      poolId,
+      name: pool.gachaPoolName,
+      ruleType: pool.gachaRuleType,
+      gachaType: GACHA_RULE_TYPE[pool.gachaRuleType] ?? "single",
+      openTime: pool.openTime,
+      endTime: pool.endTime,
+      guarantee5Count: pool.guarantee5Count,
+      guarantee5Avail: pool.guarantee5Avail,
+      summary: pool.gachaPoolSummary ?? "",
+      upChars: mapList(detail?.upCharInfo?.perCharList),
+      availChars: mapList(detail?.availCharInfo?.perAvailList),
+      limitedChars: detail?.limitedChar ?? [],
+    };
+  }
+
+  /** 玩家卡池状态（UP 选择 + 保底计数） */
+  async getPlayerPoolState(uid: string, poolId: string): Promise<PlayerPoolState> {
+    const pool = (excel.GachaTable?.gachaPoolClient ?? []).find(
+      (p) => p.gachaPoolId === poolId,
+    );
+    if (!pool) {
+      throw new Error(`卡池不存在: ${poolId}`);
+    }
+    const pd = await this.getPlayer(uid);
+    const gachaType = GACHA_RULE_TYPE[pool.gachaRuleType] ?? "single";
+    const poolData = (pd._playerdata.gacha as any)?.[gachaType]?.[poolId];
+    const upCharIds: string[] = Array.isArray(poolData?.upChar) ? poolData.upChar : [];
+    const beforeNonHitCnt = await accountManager.getBeforeNonHitCnt(
+      uid,
+      pool.gachaRuleType,
+    );
+    return {
+      poolId,
+      name: pool.gachaPoolName,
+      ruleType: pool.gachaRuleType,
+      gachaType,
+      upCharIds,
+      upChars: upCharIds.map((id) => ({ charId: id, name: charName(id) })),
+      beforeNonHitCnt,
+      guarantee5Count: pool.guarantee5Count,
+    };
+  }
+
+  /**
+   * 设置玩家卡池 UP 选择（空数组清除；与 choosePoolUp 写入同一位置 gacha[gachaType][poolId].upChar）
+   * @returns 更新后的玩家卡池状态
+   */
+  async setPlayerPoolUp(
+    uid: string,
+    poolId: string,
+    charIds: string[],
+  ): Promise<PlayerPoolState> {
+    const pool = (excel.GachaTable?.gachaPoolClient ?? []).find(
+      (p) => p.gachaPoolId === poolId,
+    );
+    if (!pool) {
+      throw new Error(`卡池不存在: ${poolId}`);
+    }
+    const clean = charIds.map(String).map(resolveCharRef).filter(Boolean);
+    const pd = await this.getPlayer(uid);
+    const gachaType = GACHA_RULE_TYPE[pool.gachaRuleType] ?? "single";
+    await pd.update(async (draft) => {
+      const gacha = (draft as any).gacha;
+      if (!gacha[gachaType]) gacha[gachaType] = {};
+      if (!gacha[gachaType][poolId]) gacha[gachaType][poolId] = {};
+      gacha[gachaType][poolId].upChar = clean;
+    });
+    await this.savePlayer(uid);
+    await this._audit(
+      "setPoolUp",
+      uid,
+      `${poolId} → ${clean.join(",") || "（清除）"}`,
+    );
+    return this.getPlayerPoolState(uid, poolId);
+  }
+
+  /**
+   * 设置玩家保底计数（保底按 gachaRuleType 存于账号配置，如 NORMAL/LIMITED/CLASSIC）
+   * @returns 更新后的保底计数
+   */
+  async setPlayerPity(
+    uid: string,
+    ruleType: string,
+    count: number,
+  ): Promise<{ uid: string; ruleType: string; beforeNonHitCnt: number }> {
+    if (!Number.isInteger(count) || count < 0) {
+      throw new Error(`保底计数必须为非负整数: ${count}`);
+    }
+    await this.getPlayer(uid);
+    const key = String(ruleType).toUpperCase();
+    await accountManager.saveBeforeNonHitCnt(uid, key, count);
+    await this.savePlayer(uid);
+    await this._audit("setPity", uid, `${key} → ${count}`);
+    return {
+      uid,
+      ruleType: key,
+      beforeNonHitCnt: await accountManager.getBeforeNonHitCnt(uid, key),
+    };
+  }
+
+  /** 查看玩家某规则类型保底计数 */
+  async getPlayerPity(
+    uid: string,
+    ruleType: string,
+  ): Promise<{ uid: string; ruleType: string; beforeNonHitCnt: number }> {
+    await this.getPlayer(uid);
+    const key = String(ruleType).toUpperCase();
+    return {
+      uid,
+      ruleType: key,
+      beforeNonHitCnt: await accountManager.getBeforeNonHitCnt(uid, key),
+    };
+  }
+
+  /** 列出玩家全部规则类型的保底计数 */
+  async listPlayerPity(
+    uid: string,
+  ): Promise<{ ruleType: string; beforeNonHitCnt: number }[]> {
+    await this.getPlayer(uid);
+    const gacha = accountManager.configs[uid]?.gacha ?? {};
+    return Object.entries(gacha).map(([ruleType, v]) => ({
+      ruleType,
+      beforeNonHitCnt: v?.beforeNonHitCnt ?? 0,
+    }));
   }
 
   /** 统计聚合（等级分布/注册分布/资源合计） */

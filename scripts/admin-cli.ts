@@ -40,6 +40,13 @@
  * 日志:
  *   logs show [--last N] [--json]                      查看管理操作审计日志
  *
+ * 卡池管理:
+ *   gacha pools [--json]                               列出全部卡池
+ *   gacha pool <poolId> [--json]                       卡池详情（UP/可用干员+概率）
+ *   gacha state <uid> <poolId> [--json]                玩家卡池状态（UP 选择+保底计数）
+ *   gacha up <uid> <poolId> [charId...]                设置玩家 UP（空=清除）
+ *   gacha pity <uid> [ruleType] [count]                查看/设置玩家保底计数
+ *
  * 其他:
  *   help / exit                                        帮助 / 退出交互模式
  *
@@ -139,6 +146,13 @@ export function printHelp(): void {
 
 日志:
   logs show [--last N] [--json]                     查看审计日志
+
+卡池管理:
+  gacha pools [--json]                              列出全部卡池
+  gacha pool <poolId> [--json]                      卡池详情（UP/可用干员+概率）
+  gacha state <uid> <poolId> [--json]               玩家卡池状态（UP 选择+保底计数）
+  gacha up <uid> <poolId> [charId...]               设置玩家 UP（空=清除）
+  gacha pity <uid> [ruleType] [count]               查看/设置玩家保底计数
 
 其他:
   help / exit                                       帮助 / 退出`);
@@ -574,6 +588,142 @@ async function runLogs(args: string[], flags: { [key: string]: string }): Promis
   );
 }
 
+/** gacha 子命令（卡池管理） */
+async function runGacha(args: string[], flags: { [key: string]: string }): Promise<void> {
+  const sub = args[0];
+  if (sub === "pools") {
+    const pools = adminService.listPools();
+    if (flags.json) {
+      output(pools, flags);
+      return;
+    }
+    if (!pools.length) {
+      console.log("暂无卡池数据");
+      return;
+    }
+    console.table(
+      pools.map((p) => ({
+        poolId: p.poolId,
+        名称: p.name,
+        规则: p.ruleType,
+        保底: p.guarantee5Count,
+        开池: new Date(p.openTime * 1000).toLocaleDateString(),
+        关池: new Date(p.endTime * 1000).toLocaleDateString(),
+      })),
+    );
+    return;
+  }
+  if (sub === "pool") {
+    const poolId = args[1];
+    if (!poolId) {
+      console.error("用法: gacha pool <poolId> [--json]");
+      process.exitCode = 1;
+      return;
+    }
+    const detail = adminService.poolDetail(poolId);
+    if (!detail) {
+      console.error(`卡池不存在: ${poolId}`);
+      process.exitCode = 1;
+      return;
+    }
+    if (flags.json) {
+      output(detail, flags);
+      return;
+    }
+    console.log(`卡池 ${detail.name}(${detail.poolId}) [${detail.ruleType}] 保底 ${detail.guarantee5Count}`);
+    if (detail.upChars.length) {
+      console.log("  UP 干员:");
+      for (const c of detail.upChars) {
+        console.log(`    ${c.name}(${c.charId}) ${c.percent}%`);
+      }
+    } else {
+      console.log("  UP 干员:（无）");
+    }
+    console.log(`  可用干员 ${detail.availChars.length} 名 | 限时干员 ${detail.limitedChars.length} 名`);
+    return;
+  }
+  if (sub === "state") {
+    const uid = args[1];
+    const poolId = args[2];
+    if (!uid || !poolId) {
+      console.error("用法: gacha state <uid> <poolId> [--json]");
+      process.exitCode = 1;
+      return;
+    }
+    const st = await adminService.getPlayerPoolState(uid, poolId);
+    if (flags.json) {
+      output(st, flags);
+      return;
+    }
+    console.log(`玩家 ${uid} 卡池「${st.name}」(${st.poolId}) [${st.ruleType}]`);
+    console.log(
+      `  UP 选择: ${st.upChars.map((c) => `${c.name}(${c.charId})`).join(", ") || "（未选择）"}`,
+    );
+    console.log(`  保底计数: ${st.beforeNonHitCnt} / ${st.guarantee5Count}`);
+    return;
+  }
+  if (sub === "up") {
+    const uid = args[1];
+    const poolId = args[2];
+    const charIds = args.slice(3);
+    if (!uid || !poolId) {
+      console.error("用法: gacha up <uid> <poolId> [charId...]（空 = 清除 UP）");
+      process.exitCode = 1;
+      return;
+    }
+    const st = await adminService.setPlayerPoolUp(uid, poolId, charIds);
+    console.log(
+      `已设置玩家 ${uid} 卡池 ${poolId} UP: ${st.upChars.map((c) => c.name).join(", ") || "（清除）"}`,
+    );
+    return;
+  }
+  if (sub === "pity") {
+    const uid = args[1];
+    const ruleType = args[2];
+    const countStr = args[3];
+    if (!uid) {
+      console.error("用法: gacha pity <uid> [ruleType] [count]（无 count 查看，有则设置）");
+      process.exitCode = 1;
+      return;
+    }
+    if (ruleType && countStr !== undefined) {
+      const count = Number(countStr);
+      if (!Number.isInteger(count) || count < 0) {
+        console.error("保底计数必须为非负整数");
+        process.exitCode = 1;
+        return;
+      }
+      const r = await adminService.setPlayerPity(uid, ruleType, count);
+      console.log(`已设置玩家 ${uid} ${r.ruleType} 保底计数 = ${r.beforeNonHitCnt}`);
+      return;
+    }
+    if (ruleType) {
+      const r = await adminService.getPlayerPity(uid, ruleType);
+      if (flags.json) {
+        output(r, flags);
+        return;
+      }
+      console.log(`玩家 ${uid} ${r.ruleType} 保底计数 = ${r.beforeNonHitCnt}`);
+      return;
+    }
+    const list = await adminService.listPlayerPity(uid);
+    if (flags.json) {
+      output(list, flags);
+      return;
+    }
+    if (!list.length) {
+      console.log(`玩家 ${uid} 暂无保底记录`);
+      return;
+    }
+    console.table(
+      list.map((r) => ({ 规则: r.ruleType, 保底计数: r.beforeNonHitCnt })),
+    );
+    return;
+  }
+  console.error("用法: gacha pools | pool <poolId> | state <uid> <poolId> | up <uid> <poolId> [charId...] | pity <uid> [ruleType] [count]");
+  process.exitCode = 1;
+}
+
 /** 命令分发（main 与交互模式共用） */
 export async function dispatch(
   command: string,
@@ -595,6 +745,9 @@ export async function dispatch(
       break;
     case "logs":
       await runLogs(args, flags);
+      break;
+    case "gacha":
+      await runGacha(args, flags);
       break;
     case "help":
     case "-h":

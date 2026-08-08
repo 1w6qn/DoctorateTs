@@ -28,6 +28,11 @@ vi.mock("../../../app/admin/AdminService", () => ({
     logs: vi.fn().mockResolvedValue([{ ts: 1, action: "grantItem", uid: "1", detail: "x" }]),
     getCommonItems: vi.fn().mockResolvedValue([{ name: "龙门币", id: "4001" }]),
     gameProxy: vi.fn().mockResolvedValue({ status: 200, data: {}, uid: "1" }),
+    listPools: vi.fn().mockResolvedValue([{ poolId: "NORMAL_0_1", name: "测试卡池" }]),
+    poolDetail: vi.fn().mockReturnValue(null),
+    getPlayerPoolState: vi.fn().mockResolvedValue({ poolId: "NORMAL_0_1", upCharIds: [], beforeNonHitCnt: 0 }),
+    setPlayerPoolUp: vi.fn().mockResolvedValue({ poolId: "NORMAL_0_1", upCharIds: ["char_002_amiya"] }),
+    setPlayerPity: vi.fn().mockResolvedValue({ uid: "1", ruleType: "NORMAL", beforeNonHitCnt: 42 }),
   },
 }));
 vi.mock("../../../app/admin/admin-auth", () => ({
@@ -266,5 +271,44 @@ describe("admin 路由（扩展能力）", () => {
       res,
     );
     expect(adminService.gameProxy).toHaveBeenCalledWith("1", "/user/info", "GET", undefined);
+  });
+
+  it("卡池相关端点应透传（list/pool/玩家状态/UP/保底）", async () => {
+    const res1 = mockRes();
+    await call({ method: "GET", url: "/api/pools" }, res1);
+    expect(adminService.listPools).toHaveBeenCalled();
+
+    // 卡池详情：不存在应 404
+    const res2 = mockRes();
+    await call({ method: "GET", url: "/api/pools/NO_SUCH", params: { poolId: "NO_SUCH" } }, res2);
+    expect(adminService.poolDetail).toHaveBeenCalledWith("NO_SUCH");
+    expect(res2.status).toHaveBeenCalledWith(404);
+
+    const res3 = mockRes();
+    await call(
+      { method: "GET", url: "/api/users/1/pools/NORMAL_0_1", params: { uid: "1", poolId: "NORMAL_0_1" } },
+      res3,
+    );
+    expect(adminService.getPlayerPoolState).toHaveBeenCalledWith("1", "NORMAL_0_1");
+
+    const res4 = mockRes();
+    await call(
+      {
+        method: "POST",
+        url: "/api/users/1/pools/NORMAL_0_1/up",
+        params: { uid: "1", poolId: "NORMAL_0_1" },
+        body: { charIds: ["char_002_amiya"] },
+      },
+      res4,
+    );
+    expect(adminService.setPlayerPoolUp).toHaveBeenCalledWith("1", "NORMAL_0_1", ["char_002_amiya"]);
+
+    const res5 = mockRes();
+    await call(
+      { method: "POST", url: "/api/users/1/pity", params: { uid: "1" }, body: { ruleType: "NORMAL", count: 42 } },
+      res5,
+    );
+    expect(adminService.setPlayerPity).toHaveBeenCalledWith("1", "NORMAL", 42);
+    expect(res5.json).toHaveBeenCalledWith({ uid: "1", ruleType: "NORMAL", beforeNonHitCnt: 42 });
   });
 });

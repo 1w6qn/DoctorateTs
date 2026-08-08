@@ -60,3 +60,21 @@ export function resolveItemRef(ref: string): string | null {
   }
   return null;
 }
+
+/**
+ * 把干员 ID/中文名解析为干员 ID：
+ * - 已存在于 CharacterTable → 原样返回
+ * - 精确匹配干员中文名 → 该 charId
+ * - 其余 → 原样返回（由调用方校验/展示错误）
+ */
+export function resolveCharRef(ref: string): string {
+  const id = ref.trim();
+  const table = excel.CharacterTable as Record<string, any> | undefined;
+  if (table?.[id]) return id;
+  if (table) {
+    for (const [charId, info] of Object.entries(table)) {
+      if (info?.name === id) return charId;
+    }
+  }
+  return id;
+}

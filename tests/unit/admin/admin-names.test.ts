@@ -4,6 +4,7 @@ import {
   charName,
   skinName,
   resolveItemRef,
+  resolveCharRef,
   COMMON_ITEMS,
 } from "../../../app/admin/admin-names";
 
@@ -62,5 +63,19 @@ describe("admin-names resolveItemRef", () => {
 
   it("未知输入应返回 null", () => {
     expect(resolveItemRef("不存在的东西")).toBeNull();
+  });
+});
+
+describe("admin-names resolveCharRef", () => {
+  it("干员 ID 应原样返回", () => {
+    expect(resolveCharRef("char_002_amiya")).toBe("char_002_amiya");
+  });
+
+  it("中文名应解析为干员 ID", () => {
+    expect(resolveCharRef("阿米娅")).toBe("char_002_amiya");
+  });
+
+  it("未知输入应原样返回", () => {
+    expect(resolveCharRef("不存在的人")).toBe("不存在的人");
   });
 });

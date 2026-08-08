@@ -122,6 +122,26 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   { method: "GET", path: "/api/stats", summary: "统计聚合（等级/注册分布、资源合计）" },
   { method: "GET", path: "/api/logs", summary: "管理操作审计日志", params: [{ name: "limit", type: "number", desc: "条数（默认 50）" }] },
   { method: "GET", path: "/api/common-items", summary: "常用物品别名表" },
+  { method: "GET", path: "/api/pools", summary: "卡池清单（poolId/名称/规则/开闭池/保底）" },
+  { method: "GET", path: "/api/pools/:poolId", summary: "卡池详情（UP/可用干员 + 概率）" },
+  { method: "GET", path: "/api/users/:uid/pools/:poolId", summary: "玩家卡池状态（UP 选择 + 保底计数）" },
+  {
+    method: "POST",
+    path: "/api/users/:uid/pools/:poolId/up",
+    summary: "设置玩家卡池 UP 选择（charIds 空数组清除）",
+    params: [{ name: "charIds", type: "object", desc: "UP 干员 ID 数组，如 [\"char_002_amiya\"]" }],
+    body: '{"charIds":["char_002_amiya"]}',
+  },
+  {
+    method: "POST",
+    path: "/api/users/:uid/pity",
+    summary: "设置玩家保底计数（按 gachaRuleType，如 NORMAL/LIMITED/CLASSIC）",
+    params: [
+      { name: "ruleType", type: "string", required: true, desc: "抽卡规则类型（NORMAL/LIMITED/CLASSIC/ATTAIN/LINKAGE…）" },
+      { name: "count", type: "number", required: true, desc: "非负整数（距离保底的抽数）" },
+    ],
+    body: '{"ruleType":"NORMAL","count":50}',
+  },
   { method: "GET", path: "/api/config", summary: "查看配置（只读）" },
   {
     method: "POST",

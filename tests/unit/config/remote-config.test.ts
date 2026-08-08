@@ -73,11 +73,12 @@ describe("remoteConfigRouter", () => {
     expect(arg.configVer).toBeDefined();
   });
 
-  it("remote_config 应返回功能开关配置", async () => {
+  it("remote_config 应返回空对象（2026-08-08 起路由固定返回 {}，buildRemoteConfig 函数保留）", async () => {
     const res = mockRes();
     await call("/1/prod/default/Windows/remote_config", res);
     const arg = res.send.mock.calls[0][0];
-    expect(arg.fapv2).toBe(1);
-    expect(arg.HGDownload_1).toBe(10000);
+    expect(arg).toEqual({});
+    // 否定旧行为：不再返回默认功能开关（防回归）
+    expect(arg.fapv2).toBeUndefined();
   });
 });

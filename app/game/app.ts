@@ -8,6 +8,9 @@ import httpContext from "express-http-context2";
 import express from "express";
 import bodyParser from "body-parser";
 import { accountManager } from "./manager/AccountManger";
+import { PlayerDataManager } from "./manager/PlayerDataManager";
+import { acquireLock } from "@utils/mutex";
+import { logger } from "@utils/logger";
 import config from "../config";
 
 /** Express 应用实例 */
@@ -44,6 +47,19 @@ export const authMiddleware: express.RequestHandler = async (req, res, next) => 
 };
 
 app.use(authMiddleware);
+
+/** 每账号请求互斥：同一 uid 的请求串行执行（防止并发 update() 丢变更） */
+app.use(async (req, res, next) => {
+  const player = httpContext.get<PlayerDataManager>("playerData");
+  if (!player) {
+    next();
+    return;
+  }
+  const release = await acquireLock(player.uid);
+  res.on("finish", release);
+  res.on("close", release);
+  next();
+});
 
 /**
  * 设置游戏应用路由
@@ -88,6 +104,29 @@ export async function setup(app: express.Application) {
   app.use("/", (await import("./router/home")).default);
   // 挂载 user 模块的根级路由（gallery/cg/medal/mainlineClue/server_time 等非 /user 前缀接口）
   app.use("/", (await import("./router/user")).rootRouter);
+  // 统一错误处理：异步 handler 抛错（Express 5 自动捕获）→ JSON 而非 HTML 500。
+  // 例：single 模式社交自请求（不能加自己为好友）等业务校验错误，客户端收到可解析 JSON
+  app.use(gameErrorHandler);
+}
+
+/**
+ * 游戏路由统一错误处理中间件
+ *
+ * 无此中间件时 Express 默认返回 HTML 500，客户端 JSON 解析失败。
+ * @param err - 抛出的错误
+ */
+export function gameErrorHandler(
+  err: unknown,
+  _req: express.Request,
+  res: express.Response,
+  _next: express.NextFunction,
+): void {
+  logger.error("game", (err as Error)?.message || String(err));
+  res.status(500).json({
+    status: 1,
+    msg: "服务器内部错误",
+    code: "INTERNAL_ERROR",
+  });
 }
 
 export default app;

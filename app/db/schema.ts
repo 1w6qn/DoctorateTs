@@ -37,4 +37,13 @@ CREATE TABLE IF NOT EXISTS users (
   data       TEXT NOT NULL,
   updated_ts INTEGER NOT NULL
 );
+
+-- 战斗回放（独立于用户配置存储——大字符串不再塞进 users 表 JSON，避免每次配置保存全量重写）
+CREATE TABLE IF NOT EXISTS replays (
+  uid        TEXT NOT NULL,
+  stage_id   TEXT NOT NULL,
+  replay     TEXT NOT NULL,
+  updated_ts INTEGER NOT NULL,
+  PRIMARY KEY (uid, stage_id)
+);
 `;

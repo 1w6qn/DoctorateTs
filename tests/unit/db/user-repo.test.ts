@@ -43,8 +43,43 @@ describe("UserRepository", () => {
       rlv2: {},
     } as any;
     repo.upsert("1", conf);
-    expect(repo.getAll()["1"]).toEqual(conf);
+    const persisted = repo.getAll()["1"];
+    // 社交字段不入库（social.db 为唯一事实源——R3）
+    const { social: _social, ...expected } = conf;
+    expect(persisted).toEqual(expected);
+    expect((persisted as any).social).toBeUndefined();
     expect(repo.count()).toBe(1);
+  });
+
+  it("upsertAll 默认剔除 social（社交单事实源）", () => {
+    repo.upsertAll({
+      "1": {
+        uid: "1",
+        password: "p",
+        social: { friends: [{ uid: "2", alias: "" }], friendRequests: [], visited: [] },
+      } as any,
+    });
+    const persisted = repo.getAll()["1"] as any;
+    expect(persisted.social).toBeUndefined();
+    expect(persisted.uid).toBe("1");
+  });
+
+  it("upsertAll keepSocial=true 保留 social（首次种子迁移 → social.db 的桥）", () => {
+    repo.upsertAll(
+      {
+        "1": {
+          uid: "1",
+          social: { friends: [{ uid: "2", alias: "" }], friendRequests: [], visited: [] },
+        } as any,
+      },
+      true,
+    );
+    const persisted = repo.getAll()["1"] as any;
+    expect(persisted.social).toEqual({
+      friends: [{ uid: "2", alias: "" }],
+      friendRequests: [],
+      visited: [],
+    });
   });
 
   it("upsertAll 应事务全量覆盖（旧 uid 不残留）", () => {

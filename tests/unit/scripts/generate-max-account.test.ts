@@ -85,18 +85,32 @@ describe("generateMaxedAccount 满配账号生成（single 唯一实例）", () 
     });
   });
 
-  it("应以 player_data.json 为基底覆盖玩家数据并标记版本（不逐字段 excel 生成）", async () => {
+  it("应以 player_data.json 刷新内容字段并保留进度字段（合并式刷新，不覆盖进度）", async () => {
+    player = mockPlayerData({
+      status: { uid: 1, maxAp: 135, ap: 10, gold: 100, level: 100 } as any,
+      troop: { chars: { "1": { charId: "char_OLD", instId: 1 } } },
+      inventory: { "9001": 5 },
+      consumable: {},
+      mission: { missions: { DAILY: { "1": { state: 2 } } } }, // 进度字段
+      building: { roomSlots: { "1": { charInstId: 1 } } }, // 进度字段
+    });
     await generateMaxedAccount(player);
     const data = player._playerdata;
     expect(readJson).toHaveBeenCalledWith("./player_data.json");
-    // 基底数据直接生效（官服结构）
+    // 内容字段以 base 刷新（新版本干员/物品——官服结构直接生效）
     expect(data.troop.chars["1"].charId).toBe("char_001_test1");
     expect(data.troop.chars["1"].voiceLan).toBe("CN_MANDARIN");
     expect(data.troop.chars["1"].starMark).toBe(0);
     expect(data.inventory["2001"]).toBe(999);
-    // 保持 uid + 版本标记
+    // 进度字段保留（版本更新不再清空任务/基建等玩家进度）
+    expect(data.mission).toEqual({ missions: { DAILY: { "1": { state: 2 } } } });
+    expect(data.building).toEqual({ roomSlots: { "1": { charInstId: 1 } } });
+    // 保持 uid + 版本标记 + 满配资源（独立于保留的进度字段）
     expect(data.status.uid).toBe(1);
     expect(data.status.maxAccountResVersion).toBe("26-08-03-23-34-20_test");
+    expect(data.status.gold).toBe(99999999);
+    expect(data.status.level).toBe(120);
+    expect(data.status.ap).toBe(135);
   });
 
   it("player_data.json 缺失时回退 excel 逐干员生成（buildMaxedChar 结构）", async () => {

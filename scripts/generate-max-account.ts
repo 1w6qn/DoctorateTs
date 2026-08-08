@@ -84,11 +84,14 @@ export function buildMaxedChar(instId: number, charId: string): Record<string, u
 }
 
 /**
- * 生成满配账号（覆盖玩家数据）
+ * 生成满配账号（合并式刷新——保留玩家进度）
  *
  * single 模式唯一实例：以 player_data.json（官服满级号抓包——uid=1/453 干员/完整模块结构）为基底，
  * 不再逐字段 excel 生成（旧生成器 currentTmpl:null 结构是干员列表卡死根因）。
  * player_data.json 缺失时回退旧 excel 生成逻辑。
+ *
+ * 合并语义：内容类字段（troop/inventory/consumable/skin——干员与物品随版本新增）以 base 刷新，
+ * 其余字段（任务/剧情/基建/勋章/社交/推图等玩家进度）保留当前账号——版本更新不再清空进度。
  *
  * @param player - 目标玩家（单例模式为 uid=1）
  */
@@ -99,11 +102,26 @@ export async function generateMaxedAccount(player: PlayerDataManager): Promise<v
   const base = await readJson<any>("./player_data.json").catch(() => null);
   if (base && base.troop?.chars) {
     const uid = data.status?.uid;
+    // 合并式刷新：仅内容类字段以 base 覆盖；玩家进度字段保留
+    // （troop 假定 instId 映射与 base 一致——同一 player_data.json 基底派生的账号）
+    const REFRESH_KEYS = ["troop", "inventory", "consumable", "skin"];
+    const preserved: Record<string, unknown> = {};
+    for (const k of Object.keys(data)) {
+      if (!REFRESH_KEYS.includes(k)) preserved[k] = data[k];
+    }
     for (const k of Object.keys(data)) delete data[k];
     Object.assign(data, base);
-    // 保持当前账号 uid（single=1）；版本标记（启动时比较——版本变化重新生成）
+    for (const k of Object.keys(preserved)) data[k] = preserved[k];
+    // 保持当前账号 uid；版本标记（启动时比较——版本变化重新生成）
     data.status.uid = uid;
     data.status.maxAccountResVersion = config.version.resVersion;
+    // 满配资源（独立于保留的进度字段——每次刷新保持大额资源与满级）
+    data.status.gold = 99999999;
+    data.status.androidDiamond = 99999;
+    data.status.iosDiamond = 99999;
+    data.status.level = 120;
+    data.status.exp = 0;
+    if (data.status.maxAp) data.status.ap = data.status.maxAp;
     return;
   }
 

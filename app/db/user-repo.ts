@@ -13,6 +13,17 @@ function nowTs(): number {
   return Math.floor(Date.now() / 1000);
 }
 
+/**
+ * 持久化前剔除社交字段
+ *
+ * 社交数据（好友/申请/访问）以 social.db 为唯一事实源（运行时只写 social.db），
+ * users 表若继续存 social 只会残留过期快照——剔除后单事实源，消除双写不一致。
+ */
+function stripSocial(config: UserConfig): Omit<UserConfig, "social"> {
+  const { social: _social, ...rest } = config;
+  return rest;
+}
+
 export class UserRepository {
   constructor(private db: DatabaseSync) {}
 
@@ -34,18 +45,19 @@ export class UserRepository {
     return row ? (JSON.parse(row.data) as UserConfig) : undefined;
   }
 
-  /** 插入/覆盖单个用户配置 */
+  /** 插入/覆盖单个用户配置（社交字段不入库——social.db 为唯一事实源） */
   upsert(uid: string, config: UserConfig): void {
     this.db
       .prepare("INSERT OR REPLACE INTO users (uid, data, updated_ts) VALUES (?, ?, ?)")
-      .run(uid, JSON.stringify(config), nowTs());
+      .run(uid, JSON.stringify(stripSocial(config)), nowTs());
   }
 
   /**
    * 全量同步（事务——与传入 configs 完全一致：先清空再插入，部分失败回滚）
-   * 语义：saveUserConfig 保存的是内存 configs 完整集合，删除的账号不应在数据库残留
+   * 语义：saveUserConfig 保存的是内存 configs 完整集合，删除的账号不应在数据库残留。
+   * 社交字段默认不入库（social.db 唯一事实源）；keepSocial 仅首次种子迁移（users.json → social.db 的桥）时用。
    */
-  upsertAll(configs: { [uid: string]: UserConfig }): void {
+  upsertAll(configs: { [uid: string]: UserConfig }, keepSocial = false): void {
     const stmt = this.db.prepare(
       "INSERT OR REPLACE INTO users (uid, data, updated_ts) VALUES (?, ?, ?)",
     );
@@ -54,7 +66,7 @@ export class UserRepository {
     try {
       this.db.exec("DELETE FROM users");
       for (const [uid, config] of Object.entries(configs)) {
-        stmt.run(uid, JSON.stringify(config), ts);
+        stmt.run(uid, JSON.stringify(keepSocial ? config : stripSocial(config)), ts);
       }
       this.db.exec("COMMIT");
     } catch (e) {
@@ -87,6 +99,6 @@ export async function migrateUsersFromJsonFile(
   } catch {
     return 0;
   }
-  repo.upsertAll(json);
+  repo.upsertAll(json, true); // keepSocial：种子带 social，供首次 migrateFromUserConfigs 导入 social.db
   return Object.keys(json).length;
 }

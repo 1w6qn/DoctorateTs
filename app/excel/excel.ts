@@ -146,6 +146,7 @@ export class Excel {
    *
    * 从 data/excel/ 目录下批量并行加载所有 JSON 格式的数据表文件
    * （Promise.all 并发读文件 + parse，避免串行 IO），并初始化商店数据。
+   * 同一文件被多个 key 引用时先去重，仅读取/解析一次，各 key 共享同一对象引用。
    */
   async init(): Promise<void> {
     const loaders: [keyof Excel, string][] = [
@@ -210,9 +211,16 @@ export class Excel {
       ["RoguelikeConsts", "./data/rlv2.json"],
     ];
 
-    const results = await Promise.all(loaders.map(([, path]) => readJson(path)));
-    loaders.forEach(([key], i) => {
-      (this as any)[key] = results[i];
+    // 去重后的唯一路径：同一文件被多个 key 引用时只读取/解析一次，
+    // 各 key 共享同一对象引用（只读数据表，共享安全）。
+    const uniquePaths = [...new Set(loaders.map(([, path]) => path))];
+    const results = await Promise.all(uniquePaths.map((path) => readJson(path)));
+    const byPath = new Map<string, object>();
+    uniquePaths.forEach((path, i) => {
+      byPath.set(path, results[i]);
+    });
+    loaders.forEach(([key, path]) => {
+      (this as any)[key] = byPath.get(path);
     });
 
     // 归一化掉落信息（occPercent/dropType 字符串 → 数字档位，供 dropReward 使用）

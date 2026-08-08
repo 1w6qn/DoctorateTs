@@ -40,6 +40,7 @@ describe("account 路由", () => {
         await recipe(draft);
         mockPlayer._playerdata.pushFlags.status = draft.pushFlags.status;
       }),
+      toJSON: vi.fn(() => mockPlayer._playerdata),
       _playerdata: { pushFlags: { status: 0 } },
       _trigger: { emit: vi.fn().mockResolvedValue(undefined) },
     };
@@ -112,9 +113,17 @@ describe("account 路由", () => {
     expect(mockPlayer._playerdata.pushFlags.status).toBe(1234567890);
     // 保留 playerDataDelta（Immer patches 增量）
     const arg = res.send.mock.calls[0][0];
+    // 契约形状对齐官服抓包（reference/tmp/account_syncData_*.json）：{ result, ts, user, playerDataDelta }
+    expect(Object.keys(arg).sort()).toEqual([
+      "playerDataDelta",
+      "result",
+      "ts",
+      "user",
+    ]);
     expect(arg.result).toBe(0);
     expect(arg.ts).toBe(1234567890);
-    expect(arg.user).toBe(mockPlayer);
+    // user 字段 = player.toJSON()（序列化后的玩家数据）
+    expect(arg.user).toBe(mockPlayer._playerdata);
     expect(arg.playerDataDelta).toEqual({
       modified: { pushFlags: { status: 1234567890 } },
       deleted: {},

@@ -16,6 +16,7 @@ export class DungeonManager {
     await this.initStages();
   }
   async initStages() {
+    let changed = false;
     for (const stageId in excel.StageTable.stages) {
       if (!(stageId in this._player._playerdata.dungeon.stages)) {
         this._player._playerdata.dungeon.stages[stageId] = {
@@ -27,7 +28,12 @@ export class DungeonManager {
           startTimes: 1,
           state: 3,
         };
+        changed = true;
       }
+    }
+    // 绕过 update() 的原地补全不产生 Immer 补丁，显式标记脏以触发条件落盘
+    if (changed) {
+      this._player.markDirty();
     }
   }
 }

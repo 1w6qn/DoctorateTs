@@ -15,9 +15,12 @@ import { TypedEventEmitter } from "@game/model/events";
 import Emittery from "emittery";
 import { FriendRepository } from "../../db/friend-repo";
 import { openDatabase } from "../../db/database";
+import { ReplayRepository } from "../../db/replay-repo";
 import { UserRepository, migrateUsersFromJsonFile } from "../../db/user-repo";
 import config from "../../config";
 import { migrateFromUserConfigs } from "../../db/migrate";
+import { acquireLock } from "@utils/mutex";
+import { hashPassword, verifyPassword, isHashedPassword } from "@utils/crypt";
 import { logger } from "@utils/logger";
 
 export class AccountManager {
@@ -31,12 +34,19 @@ export class AccountManager {
   _friendRepo!: FriendRepository;
   /** 用户配置仓储（SQLite，init() 中初始化——users.json 仅首次迁移种子） */
   _userRepo!: UserRepository;
+  /** 战斗回放仓储（SQLite replays 表——回放独立于用户配置存储） */
+  _replayRepo!: ReplayRepository;
 
   constructor() {
     this.configs = {};
     this.data = {};
     this._trigger = new Emittery();
   }
+
+  /** secret→uid 索引（真实模式 getUidByToken 懒构建，避免每次请求线性扫描 configs） */
+  private _secretIndex: Map<string, string> | null = null;
+  /** 构建 _secretIndex 时的 configs 引用（检测 configs 被整体替换——init 重新加载/测试直接赋值时失效重建） */
+  private _secretIndexConfigs: { [key: string]: UserConfig } | null = null;
 
   /**
    * 初始化账户管理器
@@ -49,6 +59,7 @@ export class AccountManager {
     // 打开好友关系数据库（social.db 首次运行自动创建）
     this._friendRepo = new FriendRepository(openDatabase());
     this._userRepo = new UserRepository(openDatabase());
+    this._replayRepo = new ReplayRepository(openDatabase());
     // 用户配置：SQLite 唯一事实源；首次（表空）从 users.json 种子迁移
     this.configs = this._userRepo.getAll();
     if (Object.keys(this.configs).length === 0) {
@@ -60,10 +71,21 @@ export class AccountManager {
     });
     // 社交数据迁移：social.db 首次创建时从 users.json 导入，之后 SQLite 为唯一事实源
     migrateFromUserConfigs(openDatabase(), this.configs);
-    await this.saveUserConfig();
-    for (const uid in this.configs) {
-      await this._loadPlayer(uid);
+    // 回放迁移：旧 configs 内嵌回放 → replays 表（一次性；此后 users 表/内存均不再保留回放）
+    for (const [uid, conf] of Object.entries(this.configs)) {
+      const replays = (conf as any).battle?.replays;
+      if (replays && Object.keys(replays).length > 0) {
+        for (const [stageId, replay] of Object.entries<string>(replays)) {
+          this._replayRepo.upsert(uid, stageId, replay);
+        }
+        delete (conf as any).battle.replays;
+      }
     }
+    await this.saveUserConfig();
+    // 并行加载所有账号（_loadPlayer 有 data[uid] 守卫且各 uid 完全独立，并发安全）
+    await Promise.all(
+      Object.keys(this.configs).map((uid) => this._loadPlayer(uid)),
+    );
     logger.info(
       "AccountManager",
       `${Object.keys(this.configs).length} users loaded`,
@@ -71,17 +93,17 @@ export class AccountManager {
   }
 
   /**
-   * 获取战斗回放数据
+   * 获取战斗回放数据（replays 表独立存储）
    * @param uid - 用户ID
    * @param stageId - 关卡ID
    * @returns 战斗回放数据字符串
    */
   async getBattleReplay(uid: string, stageId: string): Promise<string> {
-    return this.configs[uid]?.battle.replays[stageId] || "";
+    return this._replayRepo?.get(uid, stageId) ?? "";
   }
 
   /**
-   * 保存战斗回放数据
+   * 保存战斗回放数据（replays 表独立存储——不再改写 users 表，避免大字符串全量重写配置）
    * @param uid - 用户ID
    * @param stageId - 关卡ID
    * @param replay - 战斗回放数据字符串
@@ -91,8 +113,7 @@ export class AccountManager {
     stageId: string,
     replay: string,
   ): Promise<void> {
-    this.configs[uid]!.battle.replays[stageId] = replay;
-    await this._trigger.emit("save", []);
+    this._replayRepo?.upsert(uid, stageId, replay);
   }
 
   /**
@@ -121,7 +142,8 @@ export class AccountManager {
    * @returns 战斗信息对象
    */
   async getBattleInfo(uid: string, battleId: string): Promise<BattleInfo> {
-    return this.configs[uid]!.battle.infos[battleId];
+    // 防御：uid 不在 configs / battleId 不存在时返回 undefined（调用方 `!` 或 `?.` 自行处理）
+    return this.configs[uid]?.battle?.infos?.[battleId] as BattleInfo;
   }
 
   /**
@@ -153,16 +175,37 @@ export class AccountManager {
 
   /**
    * 加载玩家数据到内存（文件读取 + 事件接线；init/ensureSingleUser/懒加载共用）
+   *
+   * 并发安全：进行中的加载以 promise 缓存（_loadingPlayers），并发请求共享同一次加载，
+   * 避免同一 uid 两个请求都过了 data[uid] 守卫、各建一个 PlayerDataManager 实例互踩。
    * @param uid - 用户ID
    * @param playerData - 可选：已有数据对象则跳过文件读取（ensureSingleUser 用）
    */
+  private _loadingPlayers: { [uid: string]: Promise<void> } = {};
+
   private async _loadPlayer(uid: string, playerData?: PlayerDataModel): Promise<void> {
     if (this.data[uid]) return;
+    if (!this._loadingPlayers[uid]) {
+      this._loadingPlayers[uid] = this._doLoadPlayer(uid, playerData).finally(() => {
+        delete this._loadingPlayers[uid];
+      });
+    }
+    await this._loadingPlayers[uid];
+  }
+
+  private async _doLoadPlayer(uid: string, playerData?: PlayerDataModel): Promise<void> {
     const data =
       playerData ??
       (await readJson<PlayerDataModel>(`./data/user/databases/${uid}.json`));
     this.data[uid] = new PlayerDataManager(data);
-    this.data[uid]._playerdata.status.uid = uid;
+    // 构造期子管理器可能原地初始化数据（如 rlv2 current 结构），标记脏使首个请求落盘一次
+    // （与条件落盘前"每次请求都落盘"的首请求行为保持一致）
+    this.data[uid].markDirty();
+    // 仅当文件里的 uid 与目录键不一致时才自愈写回（文件 uid 写错）；否则纯 no-op 不落盘
+    if (data.status.uid !== uid) {
+      this.data[uid]._playerdata.status.uid = uid;
+      void this.flushSave(uid);
+    }
     this.data[uid]._trigger.on("save", () => {
       // 防抖合并：500ms 内的多次变更只落盘一次
       this.scheduleSave(uid);
@@ -228,7 +271,7 @@ export class AccountManager {
   async savePlayerData(uid: string): Promise<void> {
     const finalPath = `./data/user/databases/${uid}.json`;
     const tmpPath = `${finalPath}.tmp`;
-    await writeFile(tmpPath, JSON.stringify(this.data[uid], null, 4));
+    await writeFile(tmpPath, JSON.stringify(this.data[uid]));
     await rename(tmpPath, finalPath);
   }
 
@@ -236,10 +279,14 @@ export class AccountManager {
    * 获取抽卡保底计数
    * @param uid - 用户ID
    * @param gachaType - 抽卡类型
-   * @returns 保底计数
+   * @returns 保底计数（未初始化时 0）
    */
   async getBeforeNonHitCnt(uid: string, gachaType: string): Promise<number> {
-    return this.configs[uid]!.gacha[gachaType].beforeNonHitCnt;
+    const config = this.configs[uid];
+    if (!config || !config.gacha[gachaType]) {
+      return 0;
+    }
+    return config.gacha[gachaType].beforeNonHitCnt;
   }
 
   /**
@@ -253,7 +300,11 @@ export class AccountManager {
     gachaType: string,
     cnt: number,
   ): Promise<void> {
-    this.configs[uid]!.gacha[gachaType].beforeNonHitCnt = cnt;
+    const config = this.configs[uid]!;
+    if (!config.gacha[gachaType]) {
+      config.gacha[gachaType] = { beforeNonHitCnt: 0 };
+    }
+    config.gacha[gachaType].beforeNonHitCnt = cnt;
     await this._trigger.emit("save", []);
   }
 
@@ -362,8 +413,9 @@ export class AccountManager {
       .filter(([uid, data]) => {
         return (
           keyword.includes(uid) ||
-          data.socialInfo.nickName == keyword ||
-          data.socialInfo.nickName + "#" + data.socialInfo.nickNumber == keyword
+          data._playerdata.status.nickName == keyword ||
+          data._playerdata.status.nickName + "#" + data._playerdata.status.nickNumber ==
+            keyword
         );
       })
       .map(([uid]) => uid);
@@ -381,11 +433,16 @@ export class AccountManager {
       return config.singleUid || "1";
     }
     const found = Object.entries(this.configs).find(([, conf]) => {
-      return conf.auth.phone == phone && conf.password == password;
+      return conf.auth.phone == phone && verifyPassword(conf.password, password);
     });
     if (found) {
       // 真实模式：返回账号 secret（参考 DoctoratePy——token=secret）
-      return found[1].secret || this.getTokenByUid(found[0]);
+      const [uid, conf] = found;
+      // 旧明文账号登录成功后惰性升级为哈希（之后不再明文存储）
+      if (!isHashedPassword(conf.password)) {
+        conf.password = hashPassword(password);
+      }
+      return conf.secret || this.getTokenByUid(uid);
     }
     // 账号不存在：自动注册（私服创建新用户），返回新 uid 作为 token
     const uid = await this.registerUser(phone, password);
@@ -395,69 +452,102 @@ export class AccountManager {
   /**
    * 创建新用户
    * 以 1 号用户数据库为模板复制，替换 uid/昵称/注册时间，写入文件并更新内存配置。
+   *
+   * - single 模式：不建号（注册收敛到固定账号——避免生成永远无法登录的垃圾账号污染 configs/users 表）
+   * - real 模式：并发注册以互斥锁串行化（newUid = max+1 分配，并发下会拿到相同 uid 互相覆盖）
    * @param phone - 登录手机号
    * @param password - 登录密码
    * @returns 新用户 uid
    */
   async registerUser(phone: string, password: string): Promise<string> {
-    const phoneStr = String(phone ?? "").trim();
-    if (!phoneStr) {
-      throw new Error(`手机号不能为空`);
+    if (config.authMode === "single") {
+      return config.singleUid || "1";
     }
-    if (Object.values(this.configs).some((c) => c.auth.phone === phoneStr)) {
-      throw new Error(`手机号已存在: ${phoneStr}`);
-    }
-    const uids = Object.keys(this.configs).map(Number);
-    const newUid = String((uids.length ? Math.max(...uids) : 0) + 1);
-
-    const templatePath = `./data/user/databases/1.json`;
-    let templateData: any;
+    const release = await acquireLock("account:register");
     try {
-      templateData = await readJson(templatePath);
-    } catch {
-      throw new Error(`找不到模板存档 ${templatePath}，无法创建用户`);
+      const phoneStr = String(phone ?? "").trim();
+      if (!phoneStr) {
+        throw new Error(`手机号不能为空`);
+      }
+      if (Object.values(this.configs).some((c) => c.auth.phone === phoneStr)) {
+        throw new Error(`手机号已存在: ${phoneStr}`);
+      }
+      const uids = Object.keys(this.configs).map(Number);
+      const newUid = String((uids.length ? Math.max(...uids) : 0) + 1);
+
+      const templatePath = `./data/user/databases/1.json`;
+      let templateData: any;
+      try {
+        templateData = await readJson(templatePath);
+      } catch {
+        throw new Error(`找不到模板存档 ${templatePath}，无法创建用户`);
+      }
+      const playerData = JSON.parse(JSON.stringify(templateData));
+      playerData.status.uid = newUid;
+      playerData.status.nickName = `博士${newUid}`;
+      playerData.status.nickNumber = "1";
+      playerData.status.registerTs = now();
+      playerData.status.lastOnlineTs = 0;
+
+      const userConfig: UserConfig = {
+        uid: newUid,
+        password: hashPassword(password), // 哈希存储（不落明文）
+        secret: generateSecret(phoneStr),
+        auth: {
+          hgId: newUid,
+          phone: phoneStr,
+          email: "",
+          identityNum: "doctorate",
+          identityName: "doctorate",
+          isMinor: false,
+          isLatestUserAgreement: true,
+        },
+        social: { friends: [], friendRequests: [], visited: [] },
+        battle: { stageId: "", infos: {} },
+        gacha: {},
+        rlv2: {},
+      };
+
+      // 原子写（.tmp + rename——与 savePlayerData 一致，避免写一半崩溃留坏档）
+      const finalPath = `./data/user/databases/${newUid}.json`;
+      const tmpPath = `${finalPath}.tmp`;
+      await writeFile(tmpPath, JSON.stringify(playerData));
+      await rename(tmpPath, finalPath);
+      this.configs[newUid] = userConfig;
+      this._secretIndex = null; // 新增账号：secret 索引失效，下次查询重建
+      await this.saveUserConfig();
+      // 注册后加载玩家数据（与 ensureSingleUser 一致——searchPlayer/getPlayerData 立即可用，免重启）
+      await this._loadPlayer(newUid, playerData as PlayerDataModel);
+      return newUid;
+    } finally {
+      release();
     }
-    const playerData = JSON.parse(JSON.stringify(templateData));
-    playerData.status.uid = newUid;
-    playerData.status.nickName = `博士${newUid}`;
-    playerData.status.nickNumber = "1";
-    playerData.status.registerTs = now();
-    playerData.status.lastOnlineTs = 0;
-
-    const userConfig: UserConfig = {
-      uid: newUid,
-      password,
-      secret: generateSecret(phoneStr),
-      auth: {
-        hgId: newUid,
-        phone: phoneStr,
-        email: "",
-        identityNum: "doctorate",
-        identityName: "doctorate",
-        isMinor: false,
-        isLatestUserAgreement: true,
-      },
-      social: { friends: [], friendRequests: [], visited: [] },
-      battle: { stageId: "", replays: {}, infos: {} },
-      gacha: {},
-      rlv2: {},
-    };
-
-    await writeFile(`./data/user/databases/${newUid}.json`, JSON.stringify(playerData));
-    this.configs[newUid] = userConfig;
-    await this.saveUserConfig();
-    return newUid;
   }
 
   /**
-   * 确保单例账号存在（不存在时以 1 号模板创建——干净账号）
+   * 确保单例账号存在（不存在时以模板创建——干净账号）
    * 单例模式固定账号（config.singleUid）可能不存在（如切到 2222 过渡）
+   *
+   * 模板优先级：1.json → player_data.json（官服满配基底）→ 报错。
+   * 1.json 缺失或结构过期时回退 player_data.json；随后 index.ts 的 generateMaxedAccount
+   * 会按版本刷新内容字段（S1 合并式刷新），故模板结构差异会被自动纠正。
    * @param uid - 单例账号 uid
    */
   async ensureSingleUser(uid: string): Promise<void> {
     if (this.configs[uid]) return;
     const templatePath = `./data/user/databases/1.json`;
-    const templateData = await readJson(templatePath);
+    let templateData: any;
+    try {
+      templateData = await readJson(templatePath);
+    } catch {
+      // 1.json 缺失：回退 player_data.json 官服基底（结构更完整）
+      templateData = await readJson<any>("./player_data.json").catch(() => null);
+      if (!templateData) {
+        throw new Error(
+          `找不到模板存档 ${templatePath}（player_data.json 亦缺失），无法创建账号`,
+        );
+      }
+    }
     const playerData = JSON.parse(JSON.stringify(templateData));
     playerData.status.uid = uid;
     playerData.status.nickName = `博士${uid}`;
@@ -467,7 +557,7 @@ export class AccountManager {
 
     const userConfig: UserConfig = {
       uid,
-      password: "single",
+      password: hashPassword("single"),
       secret: generateSecret(`single_${uid}`),
       auth: {
         hgId: uid,
@@ -479,13 +569,18 @@ export class AccountManager {
         isLatestUserAgreement: true,
       },
       social: { friends: [], friendRequests: [], visited: [] },
-      battle: { stageId: "", replays: {}, infos: {} },
+      battle: { stageId: "", infos: {} },
       gacha: {},
       rlv2: {},
     };
 
-    await writeFile(`./data/user/databases/${uid}.json`, JSON.stringify(playerData));
+    // 原子写（.tmp + rename——与 savePlayerData 一致，避免写一半崩溃留坏档）
+    const finalPath = `./data/user/databases/${uid}.json`;
+    const tmpPath = `${finalPath}.tmp`;
+    await writeFile(tmpPath, JSON.stringify(playerData));
+    await rename(tmpPath, finalPath);
     this.configs[uid] = userConfig;
+    this._secretIndex = null; // 新增账号：secret 索引失效，下次查询重建
     await this.saveUserConfig();
 
     // 加载玩家数据（与 init 一致——getPlayerData 可用；直接使用内存 playerData，避免重读文件）
@@ -508,17 +603,28 @@ export class AccountManager {
    */
   async getUidByToken(token: string): Promise<string> {
     if (config.authMode === "real") {
-      // 真实模式：token 匹配 uid 或账号 secret（参考 DoctoratePy query_account_by_secret）
-      if (this.configs[token]) return token;
-      const found = Object.entries(this.configs).find(([, c]) => c.secret === token);
-      return found ? found[0] : "";
+      // 真实模式：token 匹配账号 secret（参考 DoctoratePy query_account_by_secret）
+      // 收紧：有 secret 的账号必须以 secret 登录（防止 uid 数字直通枚举冒用）；
+      // 仅无 secret 的旧账号保留 uid 直通（兼容迁移前账号）
+      if (this.configs[token] && !this.configs[token].secret) return token;
+      // 懒构建 secret→uid 索引；configs 被整体替换（init/直接赋值）或新增账号（register/ensure）后失效重建
+      if (!this._secretIndex || this._secretIndexConfigs !== this.configs) {
+        this._secretIndexConfigs = this.configs;
+        this._secretIndex = new Map<string, string>();
+        for (const uid of Object.keys(this.configs)) {
+          const secret = this.configs[uid]?.secret;
+          if (secret && !this._secretIndex.has(secret)) {
+            this._secretIndex.set(secret, uid);
+          }
+        }
+      }
+      return this._secretIndex.get(token) ?? "";
     }
-    // 单例模式：任意 token 收敛到固定账号（oauth2/basic/u8 全流程返回单例 uid）
+    // 单例模式：任意 token 收敛到固定账号（oauth2/basic/u8 全流程返回单例 uid）。
+    // 语义契约：single 下 token=secret=uid 三者语义统一（middleware 会强制覆盖 secret header），
+    // real 下 token 为账号 secret（旧账号无 secret 回退 uid）。
     return config.singleUid || "1";
   }
-
-  /** 登出方法（预留） */
-  async loginout() {}
 }
 
 /**
@@ -569,7 +675,7 @@ export interface UserConfig {
   };
   battle: {
     stageId: string;
-    replays: { [key: string]: string };
+    // 回放独立存于 replays 表（R4）——configs 不再携带 replays
     infos: { [key: string]: BattleInfo };
   };
   gacha: {

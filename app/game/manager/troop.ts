@@ -179,5 +179,7 @@ export class TroopManager {
         char.currentEquip = char.currentEquip || Object.keys(char.equip)[0]!;
       }
     });
+    // 绕过 update() 的原地修复不产生 Immer 补丁，显式标记脏以触发条件落盘
+    this._player.markDirty();
   }
 }

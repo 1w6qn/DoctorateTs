@@ -38,11 +38,11 @@ describe("registerImportedUser", () => {
     const saveCall = writeFileMock.mock.calls.find((c) => String(c[0]).includes("databases"));
     expect(saveCall).toBeDefined();
     expect(JSON.parse(saveCall![1]).status.uid).toBe("2");
-    // SQLite 注册
+    // SQLite 注册（社交字段不入库——social.db 为唯一事实源 R3）
     const users = repo.getAll();
     expect(users["2"].auth.phone).toBe("13800000000");
     expect(users["2"].auth.hgId).toBe("10001");
-    expect(users["2"].social).toBeDefined();
+    expect((users["2"] as any).social).toBeUndefined();
   });
 
   it("连续注册应递增 uid（基于 SQLite 现有账号）", async () => {

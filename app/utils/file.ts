@@ -47,9 +47,7 @@ export async function readJson<T = object>(filePath: string): Promise<T> {
  * @returns 解析后的 JSON 对象
  */
 export function readJsonSync<T = object>(filePath: string): T {
-  console.time("[JSON][loaded][sync] " + filePath);
   const data = readFileSync(filePath, "utf-8");
-  console.timeEnd("[JSON][loaded][sync] " + filePath);
   return JSON.parse(data) as T;
 }
 
@@ -62,7 +60,5 @@ export function readJsonSync<T = object>(filePath: string): T {
  * @param data - 要写入的对象
  */
 export async function writeJson(filePath: string, data: object): Promise<void> {
-  console.time("[JSON][written] " + filePath);
   await writeFile(filePath, JSON.stringify(data, null, 4), "utf-8");
-  console.timeEnd("[JSON][written] " + filePath);
 }

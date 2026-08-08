@@ -2,9 +2,7 @@
   "Host": "http://127.0.0.1",
   "PORT": 8443,
   "offline": false,
-  "functions": {
-    "enableSingleton": false
-  },
+  "majorVersion": "446",
   "version": {
     "clientVersion": "2.7.61",
     "resVersion": "26-08-03-23-34-20_a745fc",

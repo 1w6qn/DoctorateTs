@@ -21,6 +21,7 @@ import { accountManager } from "../../../app/game/manager/AccountManger";
 import config from "../../../app/config";
 import { readJson } from "@utils/file";
 import { readFileSync } from "fs";
+import { writeFile, rename } from "fs/promises";
 
 describe("getUidByToken 认证模式", () => {
   beforeEach(() => {
@@ -83,6 +84,18 @@ describe("getUidByToken 认证模式", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
+  it("ensureSingleUser 在 1.json 缺失时回退 player_data.json 官服基底（S3）", async () => {
+    const spy = vi
+      .spyOn(accountManager, "saveUserConfig")
+      .mockResolvedValue(undefined as any);
+    (vi.mocked(readJson) as any)
+      .mockRejectedValueOnce(new Error("ENOENT")) // 1.json 缺失
+      .mockResolvedValueOnce(JSON.parse(readFileSync("./player_data.json", "utf8")));
+    await accountManager.ensureSingleUser("9999");
+    expect((accountManager as any).configs["9999"]).toBeDefined();
+    expect(spy).toHaveBeenCalled();
+  });
+
   it("real 模式：有效 uid 返回原样，无效 token 返回空串", async () => {
     (config as any).authMode = "real";
     expect(await accountManager.getUidByToken("2221")).toBe("2221");
@@ -100,7 +113,8 @@ describe("getUidByToken 认证模式", () => {
     expect(await accountManager.getUidByToken("unknown")).toBe("");
   });
 
-  it("registerUser 应生成账号 secret（MD5 密钥）", async () => {
+  it("registerUser 应生成账号 secret（MD5 密钥）——real 模式", async () => {
+    (config as any).authMode = "real";
     const uid = await accountManager.registerUser("13900009999", "pwd123456");
     const conf = (accountManager as any).configs[uid];
     expect(conf.secret).toBeDefined();
@@ -117,6 +131,8 @@ describe("getUidByToken 认证模式", () => {
       "1": { auth: { phone: "1" }, password: "p1", secret: "secret_1" },
     };
     expect(await accountManager.tokenByPhonePassword("1", "p1")).toBe("secret_1");
+    // 旧明文账号登录成功后惰性升级为哈希（R7——不再明文存储）
+    expect((accountManager as any).configs["1"].password).toMatch(/^sha256\$/);
   });
 
   it("getTokenByUid 应返回账号 secret（无 secret 旧账号回退 uid）", async () => {
@@ -137,5 +153,64 @@ describe("getUidByToken 认证模式", () => {
     const player = await accountManager.getPlayerData("7");
     expect(player).toBeDefined();
     expect((player as any)._playerdata.status.uid).toBe("7");
+  });
+
+  it("single 模式 registerUser 不建号（收敛固定账号，避免垃圾账号污染 configs/users）", async () => {
+    (config as any).authMode = "single";
+    (config as any).singleUid = undefined;
+    expect(await accountManager.registerUser("13900009999", "pwd123456")).toBe("1");
+    expect((accountManager as any).configs["13900009999"]).toBeUndefined();
+    // 指定 singleUid 时收敛到该账号
+    (config as any).singleUid = "2222";
+    expect(await accountManager.registerUser("13900009999", "pwd123456")).toBe("2222");
+  });
+
+  it("real 模式：有 secret 的账号拒绝 uid 数字直通（必须用 secret 登录）", async () => {
+    (config as any).authMode = "real";
+    (accountManager as any).configs = {
+      "1": { auth: { phone: "1" }, secret: "secret_1" },
+      "2221": { auth: { phone: "2221" }, secret: "secret_2221" },
+    };
+    expect(await accountManager.getUidByToken("2221")).toBe("");
+    expect(await accountManager.getUidByToken("1")).toBe("");
+    expect(await accountManager.getUidByToken("secret_2221")).toBe("2221");
+    expect(await accountManager.getUidByToken("secret_1")).toBe("1");
+  });
+
+  it("real 模式：无 secret 的旧账号保留 uid 直通（兼容迁移前账号）", async () => {
+    (config as any).authMode = "real";
+    (accountManager as any).configs = {
+      "1": { auth: { phone: "1" } },
+    };
+    expect(await accountManager.getUidByToken("1")).toBe("1");
+  });
+
+  it("registerUser 原子写（.tmp + rename，避免写一半崩溃留坏档）", async () => {
+    (config as any).authMode = "real";
+    const writeMock = vi.mocked(writeFile);
+    const renameMock = vi.mocked(rename);
+    writeMock.mockClear();
+    renameMock.mockClear();
+    await accountManager.registerUser("13900009999", "pwd123456");
+    const tmpWrite = writeMock.mock.calls.find((c: any) => String(c[0]).includes(".tmp"));
+    expect(tmpWrite).toBeDefined();
+    expect(renameMock).toHaveBeenCalledWith(
+      expect.stringContaining("2222.json.tmp"),
+      expect.stringContaining("2222.json"),
+    );
+  });
+
+  it("getPlayerData 并发：同一 uid 共享一次加载（不双实例互踩）", async () => {
+    (vi.mocked(readJson) as any).mockClear();
+    const raw = JSON.parse(readFileSync("./data/user/databases/1.json", "utf8"));
+    raw.status.uid = "8";
+    (vi.mocked(readJson) as any).mockResolvedValueOnce(raw);
+    (accountManager as any).data = {};
+    const [p1, p2] = await Promise.all([
+      accountManager.getPlayerData("8"),
+      accountManager.getPlayerData("8"),
+    ]);
+    expect(p1).toBe(p2);
+    expect(readJson).toHaveBeenCalledTimes(1);
   });
 });

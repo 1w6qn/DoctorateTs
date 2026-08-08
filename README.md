@@ -41,6 +41,31 @@ npm run admin -- config set admin.token mytoken    # 修改配置（重启后生
 
 > ⚠️ 管理接口默认关闭（安全默认）。开启后请使用强令牌，并仅在内网/本机暴露。
 
+## 账号系统与模式切换（single ↔ real）
+
+`data/config.json` 的 `authMode` 决定认证语义：
+
+| 模式 | 语义 | 数据位置 |
+|------|------|----------|
+| `single`（默认） | 单账号私服：任意 token/secret 收敛到 `singleUid`；`singleAutoMaxAccount` 随版本刷新满配账号（合并式刷新保留进度，S1） | `data/user/databases/{singleUid}.json` |
+| `real` | 多账号：token = 账号 secret（MD5(phone+固定key)）；有 secret 的账号拒绝 uid 数字直通（R1） | `data/user/databases/{uid}.json` + users 表 |
+
+账号配置统一存 SQLite `data/user/social.db`（首次由 `data/user/users.json` 种子迁移）。社交数据（好友/申请/访问）以 `social.db` 为唯一事实源（R3）；战斗回放独立存 `replays` 表（R4）；密码以 `sha256$` 哈希存储，旧明文账号登录后自动升级（R7）。
+
+**切换步骤**（修改 `authMode` 后重启生效）：
+
+1. `single → real`：已有账号（含 single 固定号）仍在 users 表与 databases/ 中，可直接按 secret 登录。
+2. `real → single`：所有账号数据保留不删，但只会访问 `singleUid` 指向的账号。
+3. 切换 `singleUid`（如 1 → 2222 过渡）：旧号文件保留；新 uid 不存在时 `ensureSingleUser` 按 1.json → player_data.json 顺序找模板自动创建（S3），随后按版本生成满配账号。
+4. **清理残留**：删除某账号 = 删 `data/user/databases/{uid}.json` + users 表行 + `social.db` 中该 uid 的 friends/requests/visited/replays 行。
+
+**已知取舍（设计决策，非缺陷）**：
+
+- **S4 多设备共享**：single 模式任意设备连上端口即同一账号——单机私服定位，无设备隔离；`config.Host` 控制暴露范围（`auto` 会绑定局域网 IP）。
+- **S5 社交自锁**：single 单账号无法与自己加好友（`sendFriendRequest` 显式拒绝），社交功能仅 real 多账号有意义。
+- **C1 syncData `user` 全量下发**：官方协议契约——`reference/tmp/account_syncData_response.00.json`、`account_syncData_res_1065.json` 两份官服抓包均为 `{ result, ts, user, playerDataDelta }`，`user` 是全量玩家数据（42-51 个顶层字段）；本服实现与官方一致，行为不改；契约已被 `tests/unit/router/account.test.ts` 锁定。
+- **C3 版本校验 YAGNI**：`majorVersion` 已配置化（`config.majorVersion`，默认 446），clientVersion 校验不拦截。
+
 ## 开发命令
 
 ```bash

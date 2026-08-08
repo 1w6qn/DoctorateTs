@@ -34,17 +34,26 @@ export class MedalManager implements PlayerMedal {
   medals: { [key: string]: MedalProgress };
   custom: PlayerMedalCustom;
   _trigger: TypedEventEmitter;
-  _playerdata: PlayerDataModel;
+  _player: PlayerDataManager;
+
+  /**
+   * 玩家数据（getter：实时读取 PlayerDataManager 当前状态。
+   * Immer finishDraft 会替换 _playerdata 引用，若构造时持有固定引用会读到旧对象——
+   * 直接写回 rts 等标量会丢失，故必须经 _player 动态取）
+   */
+  get _playerdata(): PlayerDataModel {
+    return this._player._playerdata;
+  }
 
   /**
    * 构造函数
-   * @param playerdata 玩家数据模型实例
+   * @param player 玩家数据管理器实例（动态取 _playerdata，避免 finishDraft 替换引用后读到旧对象）
    * @param _trigger 事件发射器实例
    */
-  constructor(playerdata: PlayerDataModel, _trigger: TypedEventEmitter) {
-    this._playerdata = playerdata;
+  constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
+    this._player = player;
     this.medals = {};
-    this.custom = playerdata.medal.custom;
+    this.custom = player._playerdata.medal.custom;
     this._trigger = _trigger;
     this._trigger.on("medal:complete", this.onMedalComplete.bind(this));
   }
@@ -101,6 +110,8 @@ export class MedalManager implements PlayerMedal {
     } else if (this._playerdata.medal.medals[args.medalId]) {
       this._playerdata.medal.medals[args.medalId].rts = rts;
     }
+    // 绕过 update() 的原地写回不产生 Immer 补丁，显式标记脏以触发条件落盘
+    this._player.markDirty();
     this._trigger.emit("items:get", [items]);
     return items;
   }
@@ -170,6 +181,7 @@ export class MedalProgress implements PlayerPerMedal {
    */
   constructor(item: PlayerPerMedal, _trigger: TypedEventEmitter) {
     this.id = item.id;
+    // scratch：init() 在此构建进度结构（[0, target]）；with-val 时末尾改绑存档数组，此结构丢弃
     this.val = [[]];
     this.rts = item.rts;
     this.fts = item.fts;
@@ -181,8 +193,16 @@ export class MedalProgress implements PlayerPerMedal {
     if (!this.fts || (target && this._v < target)) {
       this.init();
     }
-    // val 缺失的旧数据兜底为空进度（避免后续访问崩溃）
-    this.val = item.val ?? [[]];
+    // 持久态绑定：
+    // - with-val：共享存档数组（模板 update 原地写 this.val 即落入 _playerdata）
+    // - missing-val：把 init 构建的结构回填到 item.val 并共享引用（否则构建结果被丢弃、
+    //   进度更新断链丢失——旧数据勋章进度永不持久化）
+    const missingVal = !item.val;
+    if (missingVal) {
+      item.val = this.val;
+    } else {
+      this.val = item.val;
+    }
   }
 
   /**

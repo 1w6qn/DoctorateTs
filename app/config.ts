@@ -35,6 +35,8 @@ interface UserConfig {
   PORT: number;
   /** 是否完全离线模式启动（不进行任何网络操作，使用本地缓存数据） */
   offline?: boolean;
+  /** 登录响应主版本号（客户端校验用——去硬编码，缺省 "446"） */
+  majorVersion?: string;
   /** 版本信息 */
   version: {
     /** 资源版本 */

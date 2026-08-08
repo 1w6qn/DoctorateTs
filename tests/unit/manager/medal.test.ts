@@ -128,7 +128,7 @@ describe("MedalManager", () => {
   describe("constructor", () => {
     it("应该正确初始化 MedalManager 实例", () => {
       const manager = new MedalManager(
-        mockPlayer._playerdata as any,
+        mockPlayer as any,
         mockTrigger as any
       );
       expect(manager).toBeDefined();
@@ -139,7 +139,7 @@ describe("MedalManager", () => {
 
     it("应该注册 medal:complete 事件监听", () => {
       const onSpy = vi.spyOn(mockTrigger, "on");
-      new MedalManager(mockPlayer._playerdata as any, mockTrigger as any);
+      new MedalManager(mockPlayer as any, mockTrigger as any);
       expect(onSpy).toHaveBeenCalledWith(
         "medal:complete",
         expect.any(Function)
@@ -150,7 +150,7 @@ describe("MedalManager", () => {
   describe("init", () => {
     it("应该初始化勋章进度实例", async () => {
       const manager = new MedalManager(
-        mockPlayer._playerdata as any,
+        mockPlayer as any,
         mockTrigger as any
       );
 
@@ -180,7 +180,7 @@ describe("MedalManager", () => {
   describe("setCustomData", () => {
     it("应该设置自定义展示数据", () => {
       const manager = new MedalManager(
-        mockPlayer._playerdata as any,
+        mockPlayer as any,
         mockTrigger as any
       );
 
@@ -193,7 +193,7 @@ describe("MedalManager", () => {
 
     it("应该覆盖已存在的自定义数据", () => {
       const manager = new MedalManager(
-        mockPlayer._playerdata as any,
+        mockPlayer as any,
         mockTrigger as any
       );
 
@@ -206,7 +206,7 @@ describe("MedalManager", () => {
   describe("rewardMedal", () => {
     it("当勋章存在于 medals 中时应该设置 rts 并触发 items:get", () => {
       const manager = new MedalManager(
-        mockPlayer._playerdata as any,
+        mockPlayer as any,
         mockTrigger as any
       );
 
@@ -246,7 +246,7 @@ describe("MedalManager", () => {
 
     it("当勋章不在 medals 中时应该从 playerdata 设置 rts", () => {
       const manager = new MedalManager(
-        mockPlayer._playerdata as any,
+        mockPlayer as any,
         mockTrigger as any
       );
 
@@ -276,12 +276,29 @@ describe("MedalManager", () => {
         mockPlayer._playerdata.medal!.medals["medal_test_002"].rts
       ).toBeGreaterThan(0);
     });
+
+    it("勋章进度更新应经共享引用写入持久态（_playerdata.medal.medals[id].val）", async () => {
+      const manager = new MedalManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      await manager.init();
+      // beforeEach 的 medal_test_001 带 val:[[50,100]]——MedalProgress.val 与该数组共享引用
+      const progress = manager.medals["medal_test_001"] as any;
+      progress.param = ["50"];
+      progress.PlayerLevel({ level: 30 }, "update");
+      expect(progress.val[0][0]).toBe(30);
+      // 原地更新即写回持久态（服务端落盘/读取依赖此共享引用机制）
+      expect(
+        (manager as any)._playerdata.medal.medals["medal_test_001"].val[0][0]
+      ).toBe(30);
+    });
   });
 
   describe("onMedalComplete", () => {
     it("当勋章有奖励组时应该触发 rewardMedal", async () => {
       const manager = new MedalManager(
-        mockPlayer._playerdata as any,
+        mockPlayer as any,
         mockTrigger as any
       );
 
@@ -308,7 +325,7 @@ describe("MedalManager", () => {
 
     it("当勋章没有奖励组时不应该触发 rewardMedal", async () => {
       const manager = new MedalManager(
-        mockPlayer._playerdata as any,
+        mockPlayer as any,
         mockTrigger as any
       );
 
@@ -331,7 +348,7 @@ describe("MedalManager", () => {
   describe("toJSON", () => {
     it("应该序列化勋章数据", () => {
       const manager = new MedalManager(
-        mockPlayer._playerdata as any,
+        mockPlayer as any,
         mockTrigger as any
       );
 
@@ -647,14 +664,33 @@ describe("Medal 核心修复", () => {
     expect(onSpy).not.toHaveBeenCalled();
   });
 
-  it("val 缺失的勋章（旧数据）构造不应崩溃", () => {
+  it("val 缺失的勋章（旧数据）构造不应崩溃且回填持久态（共享引用防断链）", () => {
     const onSpy = vi.spyOn(mockTrigger, "on");
-    const progress = new MedalProgress(
-      { id: "medal_broken", fts: 0, rts: -1, reward: "" } as any,
-      mockTrigger as any,
-    );
-    expect(progress.val).toEqual([[]]);
+    const item: any = { id: "medal_broken", fts: 0, rts: -1, reward: "" };
+    const progress = new MedalProgress(item, mockTrigger as any);
+    // init 在共享引用上构建进度结构 [0, unlockParam]（unlockParam ["1"]）并回填 item.val
+    expect(progress.val[0][0]).toBe(0);
+    expect(progress.val[0][1]).toBe(1);
+    // 回填到持久态并共享同一引用——进度原地更新不再断链
+    expect(item.val).toBe(progress.val);
+    progress.PlayerLevel({ level: 5 }, "update");
+    expect(item.val[0][0]).toBe(5);
     expect(onSpy).toHaveBeenCalled();
+  });
+
+  it("val 缺失但有模板：init 构建的结构回填持久态（进度可持久化）", () => {
+    mockExcelRef.MedalTable.medalList = [
+      { medalId: "medal_a", template: "PlayerLevel", unlockParam: ["10"], medalRewardGroup: [] },
+    ];
+    const item: any = { id: "medal_a", fts: 0, rts: -1, reward: "" };
+    const progress = new MedalProgress(item, mockTrigger as any);
+    // init 在共享引用上构建 [0, target] 并回填 item.val
+    expect(item.val).toBe(progress.val);
+    expect(progress.val[0][0]).toBe(0);
+    expect(progress.val[0][1]).toBe(10);
+    // 更新进度 → 原地写共享引用 → 直接落入持久态
+    progress.PlayerLevel({ level: 5 }, "update");
+    expect(item.val[0][0]).toBe(5);
   });
 
   it("rewardMedal 已领取（rts != -1）不应重复发放", async () => {
@@ -673,7 +709,7 @@ describe("Medal 核心修复", () => {
       },
     });
     pd._trigger = mockTrigger;
-    const manager = new MedalManager(pd._playerdata as any, mockTrigger as any);
+    const manager = new MedalManager(pd as any, mockTrigger as any);
     await manager.init();
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     const items = await manager.rewardMedal({ medalId: "medal_lv_1", group: "g1" });
@@ -697,7 +733,7 @@ describe("Medal 核心修复", () => {
       },
     });
     pd._trigger = mockTrigger;
-    const manager = new MedalManager(pd._playerdata as any, mockTrigger as any);
+    const manager = new MedalManager(pd as any, mockTrigger as any);
     await manager.init();
     await manager.rewardMedal({ medalId: "medal_lv_1", group: "g1" });
     expect(pd._playerdata.medal.medals["medal_lv_1"].rts).not.toBe(-1);

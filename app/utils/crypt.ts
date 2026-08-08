@@ -101,3 +101,38 @@ export async function decryptBattleReplay(
   const zip = await new JSZip().loadAsync(data);
   return JSON.parse(await zip.files["default_entry"].async("string"));
 }
+
+/** 密码哈希前缀（sha256——私服账号存储；旧明文账号登录时惰性升级） */
+const PASSWORD_HASH_PREFIX = "sha256$";
+
+/**
+ * 密码哈希（不可逆——账号存储不落明文）
+ * @param password - 明文密码
+ * @returns 带前缀的哈希字符串
+ */
+export function hashPassword(password: string): string {
+  return `${PASSWORD_HASH_PREFIX}${crypto
+    .createHash("sha256")
+    .update(password)
+    .digest("hex")}`;
+}
+
+/**
+ * 校验密码（兼容旧明文账号）
+ * 存储值带 sha256$ 前缀则哈希比较；否则按旧明文比较（匹配后调用方应惰性升级为哈希）
+ * @param stored - 存储值（哈希或旧明文）
+ * @param input - 输入明文
+ * @returns 是否匹配
+ */
+export function verifyPassword(stored: string, input: string): boolean {
+  if (!stored) return false;
+  if (stored.startsWith(PASSWORD_HASH_PREFIX)) {
+    return stored === hashPassword(input);
+  }
+  return stored === input;
+}
+
+/** 是否为哈希存储（false = 旧明文，登录成功后应升级） */
+export function isHashedPassword(stored: string): boolean {
+  return !!stored && stored.startsWith(PASSWORD_HASH_PREFIX);
+}

@@ -3,11 +3,12 @@ import { AdminService } from "../../../app/admin/AdminService";
 import { accountManager } from "../../../app/game/manager/AccountManger";
 import { mailManager } from "../../../app/game/manager/mail";
 import { mockPlayerData } from "../../helpers";
+import config from "../../../app/config";
 
-// 拦截所有 fs/promises.writeFile，避免 createUser 写真实存档文件
+// 拦截所有 fs/promises.writeFile/rename（createUser 走 .tmp+rename 原子写，避免写真实存档文件）
 vi.mock("fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs/promises")>();
-  return { ...actual, writeFile: vi.fn().mockResolvedValue(undefined) };
+  return { ...actual, writeFile: vi.fn().mockResolvedValue(undefined), rename: vi.fn().mockResolvedValue(undefined) };
 });
 
 describe("AdminService 只读能力", () => {
@@ -122,6 +123,8 @@ describe("AdminService 邮件与建号", () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    // createUser 走 real 模式建号（single 模式下 registerUser 已短路为收敛固定账号）
+    (config as any).authMode = "real";
     service = new AdminService();
     const pd = mockPlayerData({
       status: {

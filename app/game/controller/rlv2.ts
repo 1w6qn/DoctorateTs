@@ -121,9 +121,17 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   async update<T>(
     recipe: (draft: WritableDraft<PlayerRoguelikeV2>) => Promise<T>,
   ): Promise<T> {
-    return await this._player.update(async (draft) => {
+    const result = await this._player.update(async (draft) => {
       return await recipe(draft.rlv2);
     });
+    // Immer finishDraft 替换 _playerdata：统一刷新本控制器引用。
+    // recipe 克隆过的子树（draft.outer/current/pinned 任一被写即整体克隆）会让
+    // this.outer/this.current 指向旧对象，后续 createGame/gameSettle 的直接写会落到孤儿对象（重启丢失）。
+    // 所有 rlv2 状态写都经本出口（含 disaster 等子管理器），在此统一刷新最稳妥。
+    this.outer = this._player._playerdata.rlv2.outer;
+    this.current = this._player._playerdata.rlv2.current;
+    this.pinned = this._player._playerdata.rlv2.pinned;
+    return result;
   }
 
   async setPinned(args: { id: string }): Promise<void> {
@@ -190,6 +198,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       hasExpeditionReturn: false,
     };
 
+    // 绕过 update() 的原地初始化不产生 Immer 补丁，显式标记脏以触发条件落盘
+    this._player.markDirty();
     await this._trigger.emit("rlv2:create", [this]);
   }
 
@@ -840,8 +850,6 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       db.pointCost = (db.pointCost || 0) + dev.tokenCost;
       db.unlocked = { ...(db.unlocked || {}), [buffId]: 1 };
     });
-    // Immer finishDraft 替换 _playerdata，刷新本控制器引用（否则 this.outer 读到旧对象）
-    this.outer = this._player._playerdata.rlv2.outer;
     return { success: true };
   }
 
@@ -935,8 +943,6 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       buff.score = (buff.score || 0) + exploreScore;
       buff.pointOwned = (buff.pointOwned || 0) + exploreScore;
     });
-    // Immer finishDraft 替换 _playerdata，刷新本控制器引用
-    this.outer = this._player._playerdata.rlv2.outer;
 
     await this._trigger.emit("rlv2:event:create", [
       "END_RESULT",

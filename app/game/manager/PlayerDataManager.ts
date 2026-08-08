@@ -31,6 +31,7 @@ import { createDraft, finishDraft, Patch, WritableDraft, setAutoFreeze } from "i
 // 禁用 Immer 自动冻结避免 push 操作崩溃
 setAutoFreeze(false);
 import { patchesToObject } from "@utils/delta";
+import { logger } from "@utils/logger";
 import { TypedEventEmitter } from "@game/model/events";
 import { CharRotationManager } from "@game/manager/charRotation";
 import { RetroManager } from "@game/manager/retro";
@@ -90,6 +91,8 @@ export class PlayerDataManager {
   _changes: Patch[][];
   /** 逆变更补丁列表（用于撤销） */
   _inverseChanges: Patch[][];
+  /** 直接变更脏标记（绕过 update() 的原地修改，如 medal/dungeon/rlv2 构造期初始化） */
+  _dirty: boolean;
 
   /**
    * 构造函数
@@ -99,6 +102,7 @@ export class PlayerDataManager {
     this._playerdata = playerdata;
     this._changes = [];
     this._inverseChanges = [];
+    this._dirty = false;
     this._trigger = new TypedEventEmitter();
     this.status = new StatusManager(this, this._trigger);
     this.inventory = new InventoryManager(this, this._trigger);
@@ -109,7 +113,7 @@ export class PlayerDataManager {
     this.checkIn = new CheckInManager(this, this._trigger);
     this.storyreview = new StoryreviewManager(this, this._trigger);
     this.mission = new MissionManager(this, this._trigger);
-    void this.mission.init();
+    void this.mission.init().catch((e) => logger.error("MissionManager", `init failed: ${(e as Error).message}`));
     this.shop = new ShopController(this, this._trigger);
     this.battle = new BattleManager(this, this._trigger);
     this.recruit = new RecruitManager(this, this._trigger);
@@ -121,8 +125,8 @@ export class PlayerDataManager {
     this.openServer = new OpenServerManager(this, this._trigger);
     this.retro = new RetroManager(this, this._trigger);
     this.char = new CharManager(this, this._trigger);
-    this.medal = new MedalManager(this._playerdata, this._trigger);
-    void this.medal.init();
+    this.medal = new MedalManager(this, this._trigger);
+    void this.medal.init().catch((e) => logger.error("MedalManager", `init failed: ${(e as Error).message}`));
     this.aprilFool = new AprilFoolManager(this, this._trigger);
     this._trigger.on(
       "save:battle",
@@ -143,8 +147,14 @@ export class PlayerDataManager {
       this._changes.reduce((pre, acc) => acc.concat(pre), []),
       this._playerdata,
     );
+    // 条件落盘：仅当存在变更（Immer 补丁或 markDirty 的直接变更）才触发保存，
+    // 纯读请求（syncStatus/syncPushMessage 等）不再触发全量落盘
+    const changed = this._changes.length > 0 || this._dirty;
     this._changes = [];
-    this._trigger.emit("save", []);
+    this._dirty = false;
+    if (changed) {
+      this._trigger.emit("save", []);
+    }
     return {
       playerDataDelta: delta,
     };
@@ -250,6 +260,15 @@ export class PlayerDataManager {
       medalBoard: medalBoard,
       nameCardStyle: this._playerdata.nameCardStyle,
     };
+  }
+
+  /**
+   * 标记直接变更（绕过 update() 的原地修改）
+   *
+   * 这类修改不产生 Immer 补丁，需显式标记脏，保证条件落盘仍会持久化。
+   */
+  markDirty(): void {
+    this._dirty = true;
   }
 
   /** 初始化方法（预留） */

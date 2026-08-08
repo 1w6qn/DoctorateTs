@@ -9,6 +9,7 @@ import { Router } from "express";
 import { now } from "@utils/time";
 import { readJson } from "@utils/file";
 import { logger } from "@utils/logger";
+import { verifyPassword } from "@utils/crypt";
 import { accountManager } from "@game/manager/AccountManger";
 import config from "../config";
 
@@ -255,7 +256,8 @@ router.post("/user/auth/v1/login", async (req, res) => {
     return res.send({ result: 4 });
   }
   const [uid, conf] = found;
-  if (conf.password !== password) {
+  // 密码校验（支持 sha256 哈希存储 + 旧明文兼容）
+  if (!verifyPassword(conf.password, password)) {
     return res.send({ result: 1 });
   }
   res.send({

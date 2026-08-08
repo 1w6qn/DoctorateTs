@@ -10,12 +10,14 @@ npm run update     # 拉取并生成游戏数据（离线环境用 npm run updat
 npm start          # 启动服务器（默认端口 8443，见 data/config.json）
 ```
 
+**一键启动（Windows）**：双击根目录 `start.cmd` —— 跳过联网更新快速启动，服务就绪后自动打开管理后台（`http://localhost:8443/admin/dashboard`）。等效命令：`npm run start:quick`（等价于 `tsx index.ts -s`）。
+
 三种启动模式：
 
 | 模式 | 触发方式 | 说明 |
 |------|----------|------|
 | 在线更新（默认） | `npm start` | 拉取远程数据，失败自动回退本地缓存 |
-| 跳过更新 | `--skip-update` / `-s` | 跳过 git，仍执行本地复制与类型生成 |
+| 跳过更新 | `--skip-update` / `-s`，或 `npm run start:quick` | 跳过 git，使用本地数据，快速启动 |
 | 完全离线 | `--offline` / `-o`，或 `data/config.json` 中 `"offline": true` | 零网络，启动前校验本地 66 个数据文件 |
 
 ## 管理功能

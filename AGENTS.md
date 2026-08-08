@@ -8,6 +8,8 @@ Arknights (明日方舟) private-server backend: Express 5 + TypeScript, JSON-fi
 npm start                # nodemon + tsx index.ts; runs data update first (git pulls 2 repos)
 npm start -- --offline   # zero-network start, verifies 66 local data files first
 npm start -- -s          # skip repo pulls, still copies data + regenerates types
+npm run start:quick      # quick local start: tsx index.ts -s (no network, use local data)
+start.cmd                # Windows one-click: quick start + auto-open admin dashboard
 npm run build            # tsc (typecheck)
 npm run test             # vitest run
 npx vitest run tests/unit/manager/char.test.ts   # single test file

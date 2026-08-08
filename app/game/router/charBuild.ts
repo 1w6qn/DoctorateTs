@@ -124,4 +124,13 @@ router.post("/setCharVoiceLan", async (req, res) => {
   await player.char.setCharVoiceLan(req.body);
   res.send(player.delta);
 });
+router.post("/changeSkinSpState", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { skinId, isSpecial } = req.body;
+  // 参考 OBS bp_charBuild.changeSkinSpState：skin.skinSp[skinId] = isSpecial
+  await player.update(async (draft) => {
+    (draft as any).skin.skinSp[skinId] = isSpecial;
+  });
+  res.send(player.delta);
+});
 export default router;

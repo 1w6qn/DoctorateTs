@@ -72,6 +72,23 @@
   .log-list b { color: var(--text); }
   .mini-input { width: 58px; padding: 4px 6px; margin: 2px; display: inline-block; }
   .hint { font-size: 11px; color: var(--muted); margin: -6px 0 10px; }
+  /* 接口控制台 */
+  .sub-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+  .console { display: grid; grid-template-columns: 300px 1fr; gap: 12px; }
+  .console .req-col { display: flex; flex-direction: column; gap: 4px; }
+  .api-list { max-height: 440px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; }
+  .api-item { padding: 6px 10px; cursor: pointer; font-size: 12px; border-bottom: 1px solid #26262a; }
+  .api-item:hover, .api-item.active { background: #26262a; }
+  .api-item .p { color: var(--gold); font-family: Consolas, monospace; }
+  .api-item .s { color: var(--muted); }
+  .m-chip { display: inline-block; min-width: 42px; text-align: center; padding: 1px 6px;
+            border-radius: 4px; font-size: 11px; margin-right: 6px; font-weight: bold; }
+  .m-GET { background: #1f3a2a; color: #7ec699; }
+  .m-POST { background: #3a2f1f; color: var(--gold); }
+  .m-DELETE { background: #3a1f1f; color: #e08b8b; }
+  .resp-box { background: #111; border: 1px solid var(--border); border-radius: 6px; padding: 10px;
+              font-size: 12px; max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-all;
+              font-family: Consolas, monospace; }
 </style>
 </head>
 <body>
@@ -134,11 +151,13 @@
         <div class="tab active" data-tab="overview">概览</div>
         <div class="tab" data-tab="chars">干员</div>
         <div class="tab" data-tab="mails">邮件</div>
+        <div class="tab" data-tab="api">接口</div>
         <div class="tab" data-tab="raw">数据</div>
       </div>
       <div class="tab-pane active" id="pane-overview"></div>
       <div class="tab-pane" id="pane-chars"></div>
       <div class="tab-pane" id="pane-mails"></div>
+      <div class="tab-pane" id="pane-api"></div>
       <div class="tab-pane" id="pane-raw"></div>
     </div>
   </section>
@@ -369,6 +388,7 @@
     if (tab === "overview") loadOverview(uid);
     else if (tab === "chars") loadChars(uid);
     else if (tab === "mails") loadMails(uid);
+    else if (tab === "api") loadApiPane();
     else if (tab === "raw") loadRaw(uid);
   }
 
@@ -531,6 +551,181 @@
       $("pane-raw").innerHTML = '<pre class="json">' +
         escapeHtml(JSON.stringify(data, null, 2)) + "</pre>";
     }).catch(function () {});
+  }
+
+  /* ---------- 接口 Tab：管理 API 控制台 + 游戏协议调试器 ---------- */
+
+  function chip(m) {
+    return '<span class="m-chip m-' + m + '">' + m + "</span>";
+  }
+
+  function loadApiPane() {
+    var pane = $("pane-api");
+    pane.innerHTML =
+      '<div class="sub-tabs">' +
+      '<div class="tab active" data-sub="admin">管理 API</div>' +
+      '<div class="tab" data-sub="game">游戏协议</div></div>' +
+      '<div class="console" id="sub-admin"></div>' +
+      '<div class="console" id="sub-game" style="display:none;"></div>';
+    document.querySelectorAll("#pane-api .tab[data-sub]").forEach(function (t) {
+      t.addEventListener("click", function () {
+        var sub = t.getAttribute("data-sub");
+        document.querySelectorAll("#pane-api .tab[data-sub]").forEach(function (x) {
+          x.classList.toggle("active", x === t);
+        });
+        $("sub-admin").style.display = sub === "admin" ? "grid" : "none";
+        $("sub-game").style.display = sub === "game" ? "grid" : "none";
+        if (sub === "game") renderGameConsole();
+      });
+    });
+    renderAdminConsole();
+  }
+
+  /* --- 管理 API 控制台 --- */
+
+  function renderAdminConsole() {
+    var box = $("sub-admin");
+    box.innerHTML =
+      '<div><input id="api-filter" placeholder="过滤端点...">' +
+      '<div class="api-list" id="api-list"></div></div>' +
+      '<div class="req-col">' +
+      '<div class="row">' +
+      '<select id="req-method" style="flex:0 0 96px;"><option>GET</option><option>POST</option><option>DELETE</option></select>' +
+      '<input id="req-path" placeholder="/api/status" class="req-path"></div>' +
+      "<label>请求体（JSON，可选；点击端点自动预填）</label>" +
+      '<textarea id="req-body" rows="5" placeholder="{}"></textarea>' +
+      '<div class="row"><button id="req-send" class="primary">发送</button>' +
+      '<button id="req-clear">清空</button></div>' +
+      '<div class="resp-box" id="req-resp">响应显示在此</div></div>';
+    api("/spec").then(function (spec) {
+      var endpoints = spec.endpoints || [];
+      renderApiList(endpoints, "");
+      $("api-filter").addEventListener("input", function () {
+        renderApiList(endpoints, this.value);
+      });
+    }).catch(function () {});
+    $("req-send").addEventListener("click", sendAdminReq);
+    $("req-clear").addEventListener("click", function () {
+      $("req-body").value = "";
+      $("req-resp").textContent = "";
+    });
+  }
+
+  function renderApiList(endpoints, filter) {
+    var box = $("api-list");
+    var kw = filter.toLowerCase();
+    var items = endpoints.filter(function (e) {
+      return (e.method + " " + e.path + " " + (e.summary || "")).toLowerCase().indexOf(kw) !== -1;
+    });
+    box.innerHTML = items.map(function (e) {
+      return '<div class="api-item" data-p="' + e.path + '">' + chip(e.method) +
+        '<span class="p">' + escapeHtml(e.path) + "</span><br>" +
+        '<span class="s">' + escapeHtml(e.summary || "") + "</span></div>";
+    }).join("") || '<div style="padding:10px;color:var(--muted);">无匹配端点</div>';
+    document.querySelectorAll("#api-list .api-item").forEach(function (el) {
+      el.addEventListener("click", function () {
+        var path = el.getAttribute("data-p");
+        var spec = endpoints.find(function (e) { return e.path === path; });
+        loadIntoBuilder(spec);
+        document.querySelectorAll("#api-list .api-item").forEach(function (x) {
+          x.classList.remove("active");
+        });
+        el.classList.add("active");
+      });
+    });
+  }
+
+  function loadIntoBuilder(spec) {
+    $("req-method").value = spec.method;
+    var path = spec.path;
+    // :uid 用当前选中用户预填，其余路径参数留给用户编辑
+    if (selectedUid && path.indexOf(":uid") !== -1) {
+      path = path.split(":uid").join(selectedUid);
+    }
+    $("req-path").value = path;
+    $("req-body").value = spec.body || "";
+    var hint = "";
+    if (spec.params && spec.params.length) {
+      hint = "参数：" + spec.params.map(function (p) {
+        return (p.required ? "*" : "") + p.name + "(" + p.type + ") " + p.desc;
+      }).join("；");
+    }
+    $("req-body").setAttribute("placeholder", hint || "{}");
+  }
+
+  function sendAdminReq() {
+    var method = $("req-method").value;
+    var path = $("req-path").value.trim();
+    if (!path) { alert("请填写路径"); return; }
+    var bodyRaw = $("req-body").value.trim();
+    var options = { method: method };
+    if (bodyRaw) {
+      try {
+        options.body = JSON.stringify(JSON.parse(bodyRaw));
+      } catch (e) {
+        alert("请求体不是合法 JSON"); return;
+      }
+    }
+    $("req-resp").textContent = "请求中...";
+    // 管理端点路径已含 /api 前缀（挂在 /admin 下）
+    fetch("/admin" + path, Object.assign({}, options, {
+      headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
+    }))
+      .then(function (res) {
+        return res.text().then(function (txt) {
+          var pretty;
+          try { pretty = JSON.stringify(JSON.parse(txt), null, 2); } catch (e) { pretty = txt; }
+          $("req-resp").textContent = "HTTP " + res.status + "\n" + pretty;
+        });
+      })
+      .catch(function (e) { $("req-resp").textContent = "请求失败: " + e.message; });
+  }
+
+  /* --- 游戏协议调试器 --- */
+
+  function renderGameConsole() {
+    var box = $("sub-game");
+    box.innerHTML =
+      '<div><div class="resp-box" style="min-height:120px;color:var(--muted);">游戏协议调试器：' +
+      "以选中玩家的 secret 调真实游戏端点，返回 playerDataDelta。<br>" +
+      "示例：GET /user/info、POST /gacha/advancedGacha（body 填 {\"poolId\":\"...\",\"useTkt\":0,\"itemId\":null}）</div></div>" +
+      '<div class="req-col">' +
+      '<label>目标玩家（取其 secret 认证）</label><select id="g-uid"></select>' +
+      '<div class="row">' +
+      '<select id="g-method" style="flex:0 0 96px;"><option>GET</option><option>POST</option><option>DELETE</option></select>' +
+      '<input id="g-path" placeholder="/user/info 或 /gacha/advancedGacha"></div>' +
+      "<label>请求体（JSON，可选）</label>" +
+      '<textarea id="g-body" rows="5" placeholder="{}"></textarea>' +
+      '<div class="row"><button id="g-send" class="primary">发送</button></div>' +
+      '<div class="resp-box" id="g-resp">响应显示在此</div></div>';
+    api("/users").then(function (users) {
+      $("g-uid").innerHTML = users.map(function (u) {
+        return '<option value="' + u.uid + '">' + escapeHtml(u.nickName) + " (uid " + u.uid + ")</option>";
+      }).join("");
+    }).catch(function () {});
+    $("g-send").addEventListener("click", sendGameReq);
+  }
+
+  function sendGameReq() {
+    var uid = $("g-uid").value;
+    var method = $("g-method").value;
+    var path = $("g-path").value.trim();
+    if (!path) { alert("请填写游戏端点路径"); return; }
+    var bodyRaw = $("g-body").value.trim();
+    var payload = { uid: uid, path: path, method: method };
+    if (bodyRaw) {
+      try {
+        payload.body = JSON.parse(bodyRaw);
+      } catch (e) {
+        alert("请求体不是合法 JSON"); return;
+      }
+    }
+    $("g-resp").textContent = "请求中...";
+    api("/game-proxy", { method: "POST", body: JSON.stringify(payload) })
+      .then(function (r) {
+        $("g-resp").textContent = "HTTP " + r.status + "\n" + JSON.stringify(r.data, null, 2);
+      })
+      .catch(function (e) { $("g-resp").textContent = "代理失败: " + e.message; });
   }
 
   /* ---------- 弹窗 ---------- */

@@ -455,6 +455,88 @@ describe("AdminService 服务器控制与数据导出", () => {
   });
 });
 
+describe("AdminService 游戏协议代理", () => {
+  let service: AdminService;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    service = new AdminService();
+    const pd = makeFullPd();
+    stubAccounts(pd);
+    vi.mocked(appendFile).mockResolvedValue(undefined);
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("gameProxy 应以玩家 secret 转发请求并返回解析后的 JSON", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      status: 200,
+      text: vi.fn().mockResolvedValue('{"playerDataDelta":{"modified":{}}}'),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await service.gameProxy("1", "/user/info", "GET");
+    expect(result).toMatchObject({ status: 200, uid: "1" });
+    expect(result.data).toEqual({ playerDataDelta: { modified: {} } });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/user/info"),
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({ secret: "1" }),
+      }),
+    );
+  });
+
+  it("gameProxy 应带 JSON body 转发 POST", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      status: 200,
+      text: vi.fn().mockResolvedValue("{}"),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await service.gameProxy("1", "/gacha/advancedGacha", "POST", {
+      poolId: "p1",
+      useTkt: 0,
+      itemId: null,
+    });
+    const [, opts] = fetchMock.mock.calls[0];
+    expect(JSON.parse(opts.body)).toEqual({ poolId: "p1", useTkt: 0, itemId: null });
+  });
+
+  it("gameProxy 应拒绝代理控制面路径", async () => {
+    await expect(service.gameProxy("1", "/admin/api/status")).rejects.toThrow(
+      /不允许代理控制面路径/,
+    );
+    await expect(service.gameProxy("1", "/auth/login")).rejects.toThrow(
+      /不允许代理控制面路径/,
+    );
+  });
+
+  it("gameProxy 对不以 / 开头的路径应抛错", async () => {
+    await expect(service.gameProxy("1", "user/info")).rejects.toThrow(/必须以 \//);
+  });
+
+  it("gameProxy 对服务器内部请求失败应抛明确错误", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")));
+    await expect(service.gameProxy("1", "/user/info")).rejects.toThrow(
+      /服务器内部请求失败/,
+    );
+  });
+
+  it("gameProxy 对非 JSON 响应应原样返回文本", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ status: 500, text: vi.fn().mockResolvedValue("<html>err</html>") }),
+    );
+    const result = await service.gameProxy("1", "/user/info");
+    expect(result.status).toBe(500);
+    expect(result.data).toBe("<html>err</html>");
+  });
+});
+
 describe("AdminService 统计", () => {
   let service: AdminService;
 

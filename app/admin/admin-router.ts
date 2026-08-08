@@ -8,6 +8,7 @@ import { Router, Request, Response } from "express";
 import path from "path";
 import { adminService } from "./AdminService";
 import { adminAuth } from "./admin-auth";
+import { ADMIN_ENDPOINTS } from "./api-spec";
 import config from "../config";
 
 const router = Router();
@@ -264,6 +265,27 @@ router.get("/api/logs", async (req: Request, res: Response) => {
 /** 常用物品别名（前端提示用） */
 router.get("/api/common-items", (_req: Request, res: Response) => {
   res.json(adminService.getCommonItems());
+});
+
+/** 管理 API 端点规范（Dashboard「接口」控制台数据源） */
+router.get("/api/spec", (_req: Request, res: Response) => {
+  res.json({ endpoints: ADMIN_ENDPOINTS });
+});
+
+/** 游戏协议代理（带玩家 secret 调用游戏端点） */
+router.post("/api/game-proxy", async (req: Request, res: Response) => {
+  try {
+    const { uid, path: gamePath, method, body } = req.body ?? {};
+    const result = await adminService.gameProxy(
+      String(uid),
+      String(gamePath),
+      (String(method ?? "GET").toUpperCase() as "GET" | "POST" | "DELETE"),
+      body,
+    );
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
 });
 
 /** 配置（只读） */

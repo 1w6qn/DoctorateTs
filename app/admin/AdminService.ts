@@ -629,6 +629,53 @@ export class AdminService {
     return pd.toJSON();
   }
 
+  /**
+   * 游戏协议代理：以目标玩家 secret 调用游戏端点（Dashboard「接口」协议调试用）
+   * @param uid - 目标玩家 uid（取其 secret 认证；single 模式强制固定账号不受影响）
+   * @param path - 游戏端点路径（须以 / 开头，禁止 /admin、/auth 控制面路径）
+   * @param method - HTTP 方法（默认 GET）
+   * @param body - 请求体 JSON
+   * @returns 内层 HTTP 状态码与响应体（JSON 解析失败原样返回文本）
+   */
+  async gameProxy(
+    uid: string,
+    path: string,
+    method: "GET" | "POST" | "DELETE" = "GET",
+    body?: unknown,
+  ): Promise<{ status: number; data: unknown; uid: string }> {
+    const p = String(path ?? "").trim();
+    if (!p.startsWith("/")) {
+      throw new Error(`路径必须以 / 开头: ${path}`);
+    }
+    if (p.startsWith("/admin") || p.startsWith("/auth")) {
+      throw new Error(`不允许代理控制面路径: ${path}`);
+    }
+    await this.getPlayer(uid);
+    const token = await accountManager.getTokenByUid(uid);
+    const url = `http://localhost:${config.PORT}${p}`;
+    let res: Awaited<ReturnType<typeof fetch>>;
+    try {
+      res = await fetch(url, {
+        method,
+        headers: {
+          secret: token,
+          "Content-Type": "application/json",
+        },
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+    } catch (e) {
+      throw new Error(`服务器内部请求失败: ${(e as Error).message}`);
+    }
+    const text = await res.text();
+    let data: unknown = text;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      // 非 JSON 响应（如错误页）原样返回文本
+    }
+    return { status: res.status, data, uid };
+  }
+
   /** 统计聚合（等级分布/注册分布/资源合计） */
   async stats(): Promise<AdminStats> {
     const users = await this.listUsers();

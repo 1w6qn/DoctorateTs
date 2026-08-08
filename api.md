@@ -1398,6 +1398,8 @@ OAuth2 授权
 | GET  | `/admin/api/stats` | 统计聚合（等级/注册分布、资源合计） |
 | GET  | `/admin/api/logs?limit=N` | 管理操作审计日志（默认 50 条） |
 | GET  | `/admin/api/common-items` | 常用物品别名表 |
+| GET  | `/admin/api/spec` | 管理 API 端点规范清单（Dashboard「接口」控制台数据源） |
+| POST | `/admin/api/game-proxy` | 游戏协议代理：`{uid, path, method?, body?}` 以玩家 secret 调用游戏端点，返回 `{status, data, uid}`（供 Dashboard 协议调试） |
 | GET  | `/admin/api/config` | 查看配置（只读） |
 | GET  | `/admin/dashboard` | Dashboard 管理页面（免认证，登录在页面内完成） |
 

@@ -51,7 +51,9 @@ app.use(authMiddleware);
 /** 每账号请求互斥：同一 uid 的请求串行执行（防止并发 update() 丢变更） */
 app.use(async (req, res, next) => {
   const player = httpContext.get<PlayerDataManager>("playerData");
-  if (!player) {
+  // /admin 管理接口属控制平面（含 game-proxy 自代理）：不占游戏锁，
+  // 否则 single 模式下外层的 admin 请求持有 singleUid 锁、内层代理等待同一把锁会死锁
+  if (!player || req.path.startsWith("/admin")) {
     next();
     return;
   }

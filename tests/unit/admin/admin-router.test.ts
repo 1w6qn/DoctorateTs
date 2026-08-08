@@ -27,6 +27,7 @@ vi.mock("../../../app/admin/AdminService", () => ({
     stats: vi.fn().mockResolvedValue({ userCount: 1, avgLevel: 60 }),
     logs: vi.fn().mockResolvedValue([{ ts: 1, action: "grantItem", uid: "1", detail: "x" }]),
     getCommonItems: vi.fn().mockResolvedValue([{ name: "龙门币", id: "4001" }]),
+    gameProxy: vi.fn().mockResolvedValue({ status: 200, data: {}, uid: "1" }),
   },
 }));
 vi.mock("../../../app/admin/admin-auth", () => ({
@@ -228,5 +229,42 @@ describe("admin 路由（扩展能力）", () => {
     const res3 = mockRes();
     await call({ method: "GET", url: "/api/common-items" }, res3);
     expect(adminService.getCommonItems).toHaveBeenCalled();
+  });
+
+  it("GET /api/spec 应返回端点规范清单", async () => {
+    const res = mockRes();
+    await call({ method: "GET", url: "/api/spec" }, res);
+    expect(res.json).toHaveBeenCalledWith({
+      endpoints: expect.any(Array),
+    });
+    const payload = res.json.mock.calls[0][0];
+    expect(payload.endpoints.length).toBeGreaterThan(10);
+    // 规范里应含游戏代理端点（供控制台使用）
+    expect(
+      payload.endpoints.some((e: any) => e.path === "/api/game-proxy"),
+    ).toBe(true);
+  });
+
+  it("POST /api/game-proxy 应透传 uid/path/method/body", async () => {
+    const res = mockRes();
+    await call(
+      {
+        method: "POST",
+        url: "/api/game-proxy",
+        body: { uid: "1", path: "/user/info", method: "get", body: { a: 1 } },
+      },
+      res,
+    );
+    expect(adminService.gameProxy).toHaveBeenCalledWith("1", "/user/info", "GET", { a: 1 });
+    expect(res.json).toHaveBeenCalledWith({ status: 200, data: {}, uid: "1" });
+  });
+
+  it("POST /api/game-proxy 方法缺省为 GET", async () => {
+    const res = mockRes();
+    await call(
+      { method: "POST", url: "/api/game-proxy", body: { uid: "1", path: "/user/info" } },
+      res,
+    );
+    expect(adminService.gameProxy).toHaveBeenCalledWith("1", "/user/info", "GET", undefined);
   });
 });

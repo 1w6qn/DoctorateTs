@@ -1,0 +1,139 @@
+/**
+ * 管理 REST API 端点规范
+ *
+ * Dashboard「接口」Tab 据此渲染管理 API 控制台（端点列表 + 请求构造器）。
+ * 与 admin-router.ts 保持同步维护：新增端点时在此登记 method/path/说明/参数示例。
+ */
+export interface AdminParamSpec {
+  name: string;
+  type: "string" | "number" | "boolean" | "object";
+  required?: boolean;
+  desc: string;
+}
+
+export interface AdminEndpointSpec {
+  method: "GET" | "POST" | "DELETE";
+  /** 路径模板，:param 为路径参数（控制台会尝试用选中 uid 预填 :uid） */
+  path: string;
+  summary: string;
+  params?: AdminParamSpec[];
+  /** JSON 请求体示例 */
+  body?: string;
+}
+
+export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
+  { method: "GET", path: "/api/status", summary: "服务器状态（端口/离线模式/版本/用户数/数据文件）" },
+  { method: "GET", path: "/api/users", summary: "用户列表" },
+  { method: "GET", path: "/api/users/:uid", summary: "用户详情（资源/道具中文名）" },
+  {
+    method: "POST",
+    path: "/api/users",
+    summary: "创建用户",
+    params: [
+      { name: "phone", type: "string", required: true, desc: "登录手机号" },
+      { name: "password", type: "string", desc: "密码（缺省同手机号）" },
+    ],
+    body: '{"phone":"13800000000","password":"123456"}',
+  },
+  {
+    method: "POST",
+    path: "/api/users/:uid/grant",
+    summary: "发放物品/资源（支持中文名/别名）",
+    params: [
+      { name: "itemId", type: "string", required: true, desc: "物品 ID 或中文名（如 4001 / 合成玉）" },
+      { name: "count", type: "number", required: true, desc: "数量（正整数）" },
+    ],
+    body: '{"itemId":"4001","count":100}',
+  },
+  {
+    method: "POST",
+    path: "/api/users/:uid/grantchar",
+    summary: "发放干员（重复按稀有度折算信物/凭证）",
+    params: [
+      { name: "charId", type: "string", required: true, desc: "干员 ID 或中文名（如 char_002_amiya / 阿米娅）" },
+    ],
+    body: '{"charId":"char_002_amiya"}',
+  },
+  {
+    method: "POST",
+    path: "/api/users/:uid/grantskin",
+    summary: "解锁皮肤",
+    params: [{ name: "skinId", type: "string", required: true, desc: "皮肤 ID（如 char_002_amiya#2）" }],
+    body: '{"skinId":"char_002_amiya#2"}',
+  },
+  { method: "GET", path: "/api/users/:uid/chars", summary: "干员列表（中文名/星级/最大等级）" },
+  {
+    method: "POST",
+    path: "/api/users/:uid/chars",
+    summary: "修改干员属性（免费路径，越界钳制）",
+    params: [
+      { name: "instId", type: "number", required: true, desc: "干员 instId" },
+      { name: "level", type: "number", desc: "等级（≤ 当前精二阶段 maxLevel）" },
+      { name: "evolvePhase", type: "number", desc: "精二阶段" },
+      { name: "potentialRank", type: "number", desc: "潜能" },
+      { name: "mainSkillLvl", type: "number", desc: "技能等级" },
+    ],
+    body: '{"instId":1,"level":90,"evolvePhase":2}',
+  },
+  { method: "POST", path: "/api/users/:uid/maxout", summary: "一键满配（资源/背包/干员/基建/皮肤，不覆盖阵容）", body: "{}" },
+  { method: "POST", path: "/api/users/:uid/building-max", summary: "基建满级", body: "{}" },
+  { method: "POST", path: "/api/users/:uid/backup", summary: "备份存档", body: "{}" },
+  { method: "GET", path: "/api/users/:uid/backups", summary: "备份列表（按时间倒序）" },
+  {
+    method: "POST",
+    path: "/api/users/:uid/restore",
+    summary: "从备份恢复（文件名白名单防路径穿越）",
+    params: [{ name: "backup", type: "string", required: true, desc: "备份文件名（users backups 查看）" }],
+    body: '{"backup":"1-20260808-181345.json"}',
+  },
+  { method: "GET", path: "/api/users/:uid/raw", summary: "完整玩家数据 JSON（只读）" },
+  { method: "GET", path: "/api/users/:uid/mails", summary: "用户邮件列表（附件中文名）" },
+  {
+    method: "DELETE",
+    path: "/api/users/:uid/mails/:mailId",
+    summary: "删除单封邮件",
+    params: [{ name: "mailId", type: "number", required: true, desc: "邮件 ID" }],
+  },
+  {
+    method: "POST",
+    path: "/api/mail",
+    summary: "发送邮件",
+    params: [
+      { name: "uid", type: "string", required: true, desc: "接收者 uid" },
+      { name: "subject", type: "string", required: true, desc: "标题" },
+      { name: "content", type: "string", desc: "正文" },
+      { name: "items", type: "object", desc: "附件 [{id, count}]" },
+    ],
+    body: '{"uid":"1","subject":"标题","content":"正文","items":[{"id":"4001","count":100}]}',
+  },
+  {
+    method: "POST",
+    path: "/api/mail/all",
+    summary: "群发邮件（全部用户）",
+    params: [
+      { name: "subject", type: "string", required: true, desc: "标题" },
+      { name: "content", type: "string", desc: "正文" },
+      { name: "items", type: "object", desc: "附件 [{id, count}]" },
+    ],
+    body: '{"subject":"公告","content":"","items":[{"id":"4001","count":100}]}',
+  },
+  { method: "POST", path: "/api/users/:uid/refresh", summary: "触发每日/每周刷新（理智/任务重置）", body: "{}" },
+  { method: "POST", path: "/api/users/:uid/save", summary: "立即保存存档", body: "{}" },
+  { method: "GET", path: "/api/stats", summary: "统计聚合（等级/注册分布、资源合计）" },
+  { method: "GET", path: "/api/logs", summary: "管理操作审计日志", params: [{ name: "limit", type: "number", desc: "条数（默认 50）" }] },
+  { method: "GET", path: "/api/common-items", summary: "常用物品别名表" },
+  { method: "GET", path: "/api/config", summary: "查看配置（只读）" },
+  {
+    method: "POST",
+    path: "/api/game-proxy",
+    summary: "游戏协议代理（带玩家 secret 调用游戏端点，返回 {status, data}）",
+    params: [
+      { name: "uid", type: "string", required: true, desc: "目标玩家 uid（取其 secret 认证）" },
+      { name: "path", type: "string", required: true, desc: "游戏端点路径（如 /user/info、/gacha/advancedGacha）" },
+      { name: "method", type: "string", desc: "GET/POST/DELETE（默认 GET）" },
+      { name: "body", type: "object", desc: "请求体 JSON" },
+    ],
+    body: '{"uid":"1","path":"/user/info","method":"GET"}',
+  },
+  { method: "GET", path: "/api/spec", summary: "本端点规范（Dashboard 接口控制台数据源）" },
+];

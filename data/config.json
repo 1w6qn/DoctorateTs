@@ -27,7 +27,7 @@
         "override": true,
         "network": {
           "gs": "{server}",
-          "as": "{server}/auth",
+          "as": "{server}",
           "u8": "{server}/auth/u8",
           "hu": "{server}/assetbundle/official",
           "hv": "{server}/config/prod/official/{0}/version",

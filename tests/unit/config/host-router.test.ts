@@ -6,21 +6,21 @@ function mockReq(host: string, url: string) {
 }
 
 describe("createHostRouter（子域名分发）", () => {
-  it("as.hypergryph.com 请求应加 /auth 前缀", () => {
+  it("as.hypergryph.com 请求应保持原样（auth 挂根直接命中登录）", () => {
     const handler = createHostRouter();
     const req = mockReq("as.hypergryph.com", "/user/auth/v1/token_by_phone_password");
     const next = vi.fn();
     handler(req, {} as any, next);
-    expect(req.url).toBe("/auth/user/auth/v1/token_by_phone_password");
+    expect(req.url).toBe("/user/auth/v1/token_by_phone_password");
     expect(next).toHaveBeenCalled();
   });
 
-  it("as.hypergryph.com u8 路径应加 /auth 前缀", () => {
+  it("as.hypergryph.com u8 路径应保持原样（auth 挂根直接命中 U8 渠道）", () => {
     const handler = createHostRouter();
     const req = mockReq("as.hypergryph.com", "/u8/user/v1/getToken");
     const next = vi.fn();
     handler(req, {} as any, next);
-    expect(req.url).toBe("/auth/u8/user/v1/getToken");
+    expect(req.url).toBe("/u8/user/v1/getToken");
   });
 
   it("ak-conf.hypergryph.com 配置路径不应重写", () => {

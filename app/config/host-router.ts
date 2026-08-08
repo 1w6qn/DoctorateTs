@@ -46,20 +46,20 @@ function applyPathFallback(req: { url: string }): void {
     req.url = url.slice("/game".length) || "/";
     return;
   }
-  // as 域（/auth 挂载点）路径兜底
-  for (const prefix of [
-    "/app",
-    "/u8",
-    "/user/auth",
-    "/user/info",
-    "/user/online",
-    "/user/oauth2",
-  ]) {
-    if (hasPathPrefix(url, prefix)) {
-      req.url = "/auth" + url;
-      return;
-    }
-  }
+  // as 域（auth 挂根后路径已与私服挂载一致，无需 /auth 前缀改写）
+  // for (const prefix of [
+  //   "/app",
+  //   "/u8",
+  //   "/user/auth",
+  //   "/user/info",
+  //   "/user/online",
+  //   "/user/oauth2",
+  // ]) {
+  //   if (hasPathPrefix(url, prefix)) {
+  //     req.url = "/auth" + url;
+  //     return;
+  //   }
+  // }
 }
 
 export function createHostRouter(): RequestHandler {
@@ -83,10 +83,7 @@ export function createHostRouter(): RequestHandler {
     }
 
     if (host.startsWith("as.")) {
-      // 账号系统：官方 as 域路径不带前缀，补上私服 /auth 挂载点；已带前缀则保持（幂等）
-      if (!hasPathPrefix(req.url, "/auth")) {
-        req.url = "/auth" + req.url;
-      }
+      // 账号系统：auth 已挂根路径（index.ts app.use("/", auth)），as 域请求路径与私服挂载一致，无需重写
     } else if (host.startsWith("ak-gs-")) {
       // 游戏服务器：私服游戏挂载在根路径，若客户端基址带 /game 前缀则去掉，映射回根
       if (hasPathPrefix(req.url, "/game")) {

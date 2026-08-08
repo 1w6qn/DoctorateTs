@@ -23,21 +23,48 @@ npm start          # 启动服务器（默认端口 8443，见 data/config.json�
 ### 命令行（无需启动服务器，完全离线可用）
 
 ```bash
-npm run admin -- users list                        # 列出所有用户
-npm run admin -- users info 1                      # 查看用户详情
+npm run admin                                   # 无参数进入交互模式（REPL）
+npm run admin -- users list [--json] [--csv]    # 列出所有用户（支持 JSON/CSV 输出）
+npm run admin -- users info 1                   # 查看用户详情（含中文物品名）
 npm run admin -- users create 13800000000 123456   # 创建用户（模板复制）
-npm run admin -- users grant 1 4001 100            # 发放物品（4001=金币，以游戏为准）
-npm run admin -- mail send 1 标题 内容 --items 4001:100,5001:10   # 发送邮件
-npm run admin -- server status                     # 服务器状态与数据文件
-npm run admin -- config show                       # 查看配置
-npm run admin -- config set admin.token mytoken    # 修改配置（重启后生效）
+npm run admin -- users grant 1 4001 100         # 发放物品（支持中文名/别名，如 "合成玉"）
+npm run admin -- users grantchar 1 阿米娅       # 发放干员（支持中文名；重复按稀有度折算信物）
+npm run admin -- users skin 1 char_002_amiya#2  # 解锁皮肤
+npm run admin -- users chars 1                  # 干员列表
+npm run admin -- users char 1 5 --level 90 --evolve 2 --potential 5 --skill 7   # 修改干员属性（免费）
+npm run admin -- users maxout 1                 # 一键满配（资源/背包/干员/基建/皮肤，不覆盖阵容）
+npm run admin -- users building 1 max           # 基建满级
+npm run admin -- users backup 1                 # 备份存档（data/user/backups/）
+npm run admin -- users backups 1                # 列出备份
+npm run admin -- users restore 1 1-20260808-181345.json   # 从备份恢复
+npm run admin -- users dump 1 [--pretty]        # 导出原始玩家数据 JSON
+npm run admin -- mail send 1 标题 内容 --items 4001:100,4003:10   # 发送邮件
+npm run admin -- mail send all 公告 内容 --items 4001:100         # 群发（全部用户）
+npm run admin -- mail list 1                    # 查看用户邮件
+npm run admin -- mail delete 1 1000000          # 删除单封邮件
+npm run admin -- server status                  # 服务器状态与数据文件
+npm run admin -- server refresh 1               # 触发每日/每周刷新（理智/任务重置）
+npm run admin -- server save 1                  # 立即保存存档（缺省全部用户）
+npm run admin -- logs show --last 20            # 查看管理操作审计日志
+npm run admin -- config show                    # 查看配置
+npm run admin -- config set admin.token mytoken # 修改配置（重启后生效）
 ```
+
+> 物品发放支持三种写法：数字 ID（`4001`）、中文名（`龙门币`）、别名（`合成玉`）。
+> 常用别名表见 `app/admin/admin-names.ts`（注意：**合成玉是 4003**，5001 是声望）。
+> 所有变更操作写入审计日志 `data/admin/logs.jsonl`。
 
 ### Web Dashboard
 
 1. 编辑 `data/config.json`：`"admin": { "enable": true, "token": "你的令牌" }`
 2. 启动服务器后访问 `http://localhost:8443/admin/dashboard`
-3. 输入管理令牌进入后台，可查看用户列表/详情、发放物品、发送邮件、创建用户（10 秒自动刷新）
+3. 输入管理令牌进入后台（10 秒自动刷新），支持：
+   - **概览**：用户详情、资源/背包中文名、一键满配、基建满级、每日刷新、保存、备份/恢复
+   - **干员**：干员列表 + 行内编辑（等级/精二/潜能/技能）
+   - **邮件**：邮件列表/删除，弹窗支持群发（全部用户）
+   - **数据**：完整玩家数据 JSON 只读查看
+   - **统计**：等级分布 / 注册分布 / 资源合计（顶部区块）
+   - **操作日志**：最近 50 条审计记录
 
 > ⚠️ 管理接口默认关闭（安全默认）。开启后请使用强令牌，并仅在内网/本机暴露。
 

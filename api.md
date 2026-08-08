@@ -1376,10 +1376,28 @@ OAuth2 授权
 |------|------|------|
 | GET  | `/admin/api/status` | 服务器状态（端口/离线模式/版本/用户数/数据文件） |
 | GET  | `/admin/api/users` | 用户列表（uid/昵称/等级/手机/最后在线） |
-| GET  | `/admin/api/users/:uid` | 用户详情（资源/道具摘要） |
+| GET  | `/admin/api/users/:uid` | 用户详情（资源/道具摘要，含中文名 `inventoryInfo`） |
 | POST | `/admin/api/users` | 创建用户 `{phone, password}` |
-| POST | `/admin/api/users/:uid/grant` | 发放物品 `{itemId, count}` |
+| POST | `/admin/api/users/:uid/grant` | 发放物品 `{itemId, count}`（支持中文名/别名） |
+| POST | `/admin/api/users/:uid/grantchar` | 发放干员 `{charId}`（支持中文名；重复按稀有度折算信物） |
+| POST | `/admin/api/users/:uid/grantskin` | 解锁皮肤 `{skinId}` |
+| GET  | `/admin/api/users/:uid/chars` | 干员列表（含中文名/星级/最大等级） |
+| POST | `/admin/api/users/:uid/chars` | 修改干员属性 `{instId, level?, evolvePhase?, potentialRank?, mainSkillLvl?}`（免费路径，越界钳制） |
+| POST | `/admin/api/users/:uid/maxout` | 一键满配（资源/背包/干员/基建/皮肤，不覆盖阵容） |
+| POST | `/admin/api/users/:uid/building-max` | 基建满级 |
+| POST | `/admin/api/users/:uid/backup` | 备份存档 → `{name, size}` |
+| GET  | `/admin/api/users/:uid/backups` | 备份列表（按时间倒序） |
+| POST | `/admin/api/users/:uid/restore` | 从备份恢复 `{backup}`（文件名白名单防路径穿越） |
+| GET  | `/admin/api/users/:uid/raw` | 完整玩家数据 JSON（只读） |
+| GET  | `/admin/api/users/:uid/mails` | 用户邮件列表（附件带中文名） |
+| DELETE | `/admin/api/users/:uid/mails/:mailId` | 删除单封邮件 |
 | POST | `/admin/api/mail` | 发送邮件 `{uid, subject, content, items:[{id, count}]}` |
+| POST | `/admin/api/mail/all` | 群发邮件（全部用户）`{subject, content, items}` |
+| POST | `/admin/api/users/:uid/refresh` | 触发每日/每周刷新（理智/任务重置） |
+| POST | `/admin/api/users/:uid/save` | 立即保存存档 |
+| GET  | `/admin/api/stats` | 统计聚合（等级/注册分布、资源合计） |
+| GET  | `/admin/api/logs?limit=N` | 管理操作审计日志（默认 50 条） |
+| GET  | `/admin/api/common-items` | 常用物品别名表 |
 | GET  | `/admin/api/config` | 查看配置（只读） |
 | GET  | `/admin/dashboard` | Dashboard 管理页面（免认证，登录在页面内完成） |
 

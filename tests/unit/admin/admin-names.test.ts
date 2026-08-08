@@ -1,0 +1,66 @@
+import { describe, it, expect, vi } from "vitest";
+import {
+  itemName,
+  charName,
+  skinName,
+  resolveItemRef,
+  COMMON_ITEMS,
+} from "../../../app/admin/admin-names";
+
+vi.mock("@excel/excel", () => ({
+  default: {
+    ItemTable: {
+      items: {
+        "4001": { name: "龙门币" },
+        "4003": { name: "合成玉" },
+      },
+    },
+    CharacterTable: {
+      char_002_amiya: { name: "阿米娅" },
+    },
+    SkinTable: {
+      charSkins: {
+        "char_002_amiya#2": { charId: "char_002_amiya", displaySkin: { skinName: "开初" } },
+      },
+    },
+  },
+}));
+
+describe("admin-names 名称解析", () => {
+  it("itemName 应返回物品中文名，未知原样返回 ID", () => {
+    expect(itemName("4001")).toBe("龙门币");
+    expect(itemName("no_such")).toBe("no_such");
+  });
+
+  it("charName 应返回干员中文名，未知原样返回 ID", () => {
+    expect(charName("char_002_amiya")).toBe("阿米娅");
+    expect(charName("char_999")).toBe("char_999");
+  });
+
+  it("skinName 应返回皮肤名，无 displaySkin 返回 null", () => {
+    expect(skinName("char_002_amiya#2")).toBe("开初");
+    expect(skinName("char_999#1")).toBeNull();
+  });
+});
+
+describe("admin-names resolveItemRef", () => {
+  it("纯数字应原样返回", () => {
+    expect(resolveItemRef("4001")).toBe("4001");
+    expect(resolveItemRef(" 4001 ")).toBe("4001");
+  });
+
+  it("别名应解析为物品 ID", () => {
+    expect(resolveItemRef("合成玉")).toBe("4003");
+  });
+
+  it("常用物品别名表应包含核心资源", () => {
+    expect(COMMON_ITEMS["龙门币"]).toBe("4001");
+    expect(COMMON_ITEMS["合成玉"]).toBe("4003");
+    expect(COMMON_ITEMS["至纯源石"]).toBe("4002");
+    expect(COMMON_ITEMS["寻访凭证"]).toBe("7003");
+  });
+
+  it("未知输入应返回 null", () => {
+    expect(resolveItemRef("不存在的东西")).toBeNull();
+  });
+});

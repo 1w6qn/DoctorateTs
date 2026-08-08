@@ -122,6 +122,47 @@ describe("MailManager", () => {
     expect(manager.database.user["10000"]).toHaveLength(3);
     expect(writeFile).toHaveBeenCalled();
   });
+
+  it("listAllMail 应返回某用户全部邮件（不做过滤）", () => {
+    const all = manager.listAllMail("10000");
+    expect(all).toHaveLength(2);
+    expect(all.map((m) => m.mailId)).toEqual([1000001, 1000002]);
+  });
+
+  it("listAllMail 对无邮件用户应返回空数组", () => {
+    expect(manager.listAllMail("99999")).toEqual([]);
+  });
+
+  it("deleteMail 应删除单封邮件并落盘", async () => {
+    const ok = await manager.deleteMail("10000", 1000001);
+    expect(ok).toBe(true);
+    expect(manager.database.user["10000"].map((m) => m.mailId)).toEqual([1000002]);
+    expect(writeFile).toHaveBeenCalled();
+  });
+
+  it("deleteMail 对不存在邮件应返回 false", async () => {
+    expect(await manager.deleteMail("10000", 999999)).toBe(false);
+  });
+
+  it("uid 无邮件时 getMetaInfoList 应返回空数组（不 500）", async () => {
+    const meta = await manager.getMetaInfoList("99999", { from: 0 });
+    expect(meta).toEqual([]);
+  });
+
+  it("uid 无邮件时 listMailbox / receiveAllMail 应返回空数组（不 500）", async () => {
+    const emptyArgs = { sysMailIdList: [], surveyMailIdList: [], mailIdList: [] };
+    await expect(manager.listMailbox("99999", emptyArgs)).resolves.toEqual([]);
+    await expect(manager.receiveAllMail("99999", emptyArgs)).resolves.toEqual([]);
+  });
+
+  it("uid 无邮件时 removeAllReceivedMail 不应抛错且不产生 undefined 键", async () => {
+    await manager.removeAllReceivedMail("99999", {
+      sysMailIdList: [],
+      surveyMailIdList: [],
+      mailIdList: [],
+    });
+    expect(manager.database.user["99999"]).toEqual([]);
+  });
 });
 
 describe("nextMailId / buildMailItem", () => {

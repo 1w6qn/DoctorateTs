@@ -5,32 +5,20 @@
  * "随版本更新"：生成时标记 resVersion，启动时版本变化则重新生成（新干员/新物品加入）。
  *
  * 参考：opendoctoratepy tools/生成背包物品.py（物品分类处理）
+ *
+ * 注意：buildMaxedSkills / buildMaxedEquip 已迁至 app/game/maxout.ts（供管理后台复用），
+ * 此处 re-export 保持公共 API 不变。
  */
 import excel from "@excel/excel";
 import config from "../app/config";
 import { readJson } from "@utils/file";
 import { PlayerDataManager } from "../app/game/manager/PlayerDataManager";
+import {
+  buildMaxedSkills,
+  buildMaxedEquip,
+} from "../app/game/maxout";
 
-/** 从 excel 干员数据生成满配技能列表（满解锁 + 满专精） */
-export function buildMaxedSkills(charData: any): { skillId: string; unlock: number; state: number; specializeLevel: number; completeUpgradeTime: number }[] {
-  return ((charData?.skills as any[]) || [])
-    .filter((s) => s?.skillId)
-    .map((s) => ({
-      skillId: s.skillId,
-      unlock: 1,
-      state: 0,
-      specializeLevel: 3,
-      completeUpgradeTime: -1,
-    }));
-}
-
-/** 从 excel 装备表生成满配装备字典（满级满解锁） */
-export function buildMaxedEquip(charId: string): { ids: string[]; equip: Record<string, unknown> } {
-  const ids: string[] = (excel as any).UniequipTable?.charEquip?.[charId] || [];
-  const equip: Record<string, unknown> = {};
-  for (const id of ids) equip[id] = { hide: 0, locked: 0, level: 3 };
-  return { ids, equip };
-}
+export { buildMaxedSkills, buildMaxedEquip } from "../app/game/maxout";
 
 /**
  * 满配干员结构（满潜/满级/精二/满信赖/满技能）

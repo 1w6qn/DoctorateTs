@@ -18,6 +18,7 @@
                  background: #2a2a2c; border: 1px solid var(--border); }
   .status-pill.online { color: #7ec699; border-color: #7ec699; }
   main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 24px; }
+  .full { grid-column: 1 / -1; }
   .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
@@ -27,20 +28,50 @@
   button { background: #333; color: var(--text); border: 1px solid var(--border);
            border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
   button.primary { background: var(--gold); color: #141414; border-color: var(--gold); font-weight: bold; }
+  button.danger { color: var(--danger); border-color: var(--danger); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-sm { padding: 2px 8px; font-size: 12px; }
   .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.6);
                 display: none; align-items: center; justify-content: center; z-index: 50; }
   .modal-mask.show { display: flex; }
   .modal { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
            padding: 20px; width: 420px; max-width: 92vw; }
   .modal h3 { margin-bottom: 14px; color: var(--gold); }
-  input, textarea { width: 100%; background: #111; color: var(--text); border: 1px solid var(--border);
+  input, textarea, select { width: 100%; background: #111; color: var(--text); border: 1px solid var(--border);
                     border-radius: 6px; padding: 8px 10px; margin: 6px 0 12px; font-size: 13px; }
   .row { display: flex; gap: 8px; }
   .row > * { flex: 1; }
+  .row.wrap { flex-wrap: wrap; }
   #login { position: fixed; inset: 0; background: var(--bg); z-index: 99;
            display: flex; align-items: center; justify-content: center; }
   #login .box { width: 340px; }
   label { font-size: 12px; color: var(--muted); }
+  /* Tab */
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .tab { padding: 7px 16px; cursor: pointer; border-radius: 6px 6px 0 0;
+         color: var(--muted); font-size: 13px; user-select: none; }
+  .tab.active { background: #26262a; color: var(--gold); border: 1px solid var(--border); border-bottom: none; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+  /* 统计 */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .stat-box { background: #1a1a1c; border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }
+  .stat-box .num { font-size: 20px; color: var(--gold); font-weight: bold; }
+  .stat-box .lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .dist-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 12px; }
+  .bar-row .k { width: 64px; color: var(--muted); text-align: right; }
+  .bar { background: #2a2a2c; height: 12px; border-radius: 4px; overflow: hidden; flex: 1; }
+  .bar > i { display: block; height: 100%; background: var(--gold); min-width: 2px; }
+  .bar-row .v { width: 36px; color: var(--muted); }
+  /* JSON / 日志 */
+  pre.json { background: #111; padding: 12px; border-radius: 6px; overflow: auto;
+             max-height: 460px; font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
+  .log-list { max-height: 220px; overflow: auto; font-size: 12px; color: var(--muted); }
+  .log-list div { padding: 4px 0; border-bottom: 1px solid #26262a; }
+  .log-list b { color: var(--text); }
+  .mini-input { width: 58px; padding: 4px 6px; margin: 2px; display: inline-block; }
+  .hint { font-size: 11px; color: var(--muted); margin: -6px 0 10px; }
 </style>
 </head>
 <body>
@@ -65,6 +96,22 @@
 </header>
 
 <main>
+  <!-- 统计 -->
+  <section class="card full">
+    <h3 style="color:var(--gold);margin-bottom:12px;">统计</h3>
+    <div class="stat-grid" id="stats-grid"></div>
+    <div class="dist-col" style="margin-top:14px;">
+      <div>
+        <label>等级分布</label>
+        <div id="stats-level-dist"></div>
+      </div>
+      <div>
+        <label>注册时间分布（按月）</label>
+        <div id="stats-register-dist"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- 左侧：用户列表 -->
   <section class="card">
     <div class="row" style="align-items:center;margin-bottom:10px;">
@@ -81,7 +128,28 @@
   <!-- 右侧：详情/操作 -->
   <section class="card" id="detail-card">
     <h3 style="color:var(--gold);" id="detail-title">用户详情</h3>
-    <div id="detail-body" style="color:var(--muted);padding:20px 0;text-align:center;">点击左侧用户查看详情</div>
+    <div id="detail-empty" style="color:var(--muted);padding:20px 0;text-align:center;">点击左侧用户查看详情</div>
+    <div id="detail-body" style="display:none;">
+      <div class="tabs">
+        <div class="tab active" data-tab="overview">概览</div>
+        <div class="tab" data-tab="chars">干员</div>
+        <div class="tab" data-tab="mails">邮件</div>
+        <div class="tab" data-tab="raw">数据</div>
+      </div>
+      <div class="tab-pane active" id="pane-overview"></div>
+      <div class="tab-pane" id="pane-chars"></div>
+      <div class="tab-pane" id="pane-mails"></div>
+      <div class="tab-pane" id="pane-raw"></div>
+    </div>
+  </section>
+
+  <!-- 操作日志 -->
+  <section class="card full">
+    <div class="row" style="align-items:center;margin-bottom:10px;">
+      <h3 style="color:var(--gold);">操作日志</h3>
+      <button id="btn-refresh-logs" class="btn-sm" style="margin-left:auto;">刷新</button>
+    </div>
+    <div class="log-list" id="logs-list"><span style="color:var(--muted);">暂无操作日志</span></div>
   </section>
 </main>
 
@@ -89,8 +157,8 @@
 <div class="modal-mask" id="modal-grant">
   <div class="modal">
     <h3>发放物品 — <span id="grant-uid"></span></h3>
-    <label>物品 ID（如 4001=金币、5001=合成玉，以游戏为准）</label>
-    <input id="grant-item" placeholder="4001">
+    <label>物品 ID 或中文名（如 4001=龙门币、4003=合成玉、"合成玉"）</label>
+    <input id="grant-item" placeholder="4001 或 合成玉">
     <label>数量</label>
     <input id="grant-count" type="number" value="1" min="1">
     <div class="row">
@@ -104,12 +172,13 @@
 <div class="modal-mask" id="modal-mail">
   <div class="modal">
     <h3>发送邮件 — <span id="mail-uid"></span></h3>
+    <label><input type="checkbox" id="mail-all" style="width:auto;margin:0 4px 0 0;vertical-align:middle;">发送给所有用户</label>
     <label>标题</label>
     <input id="mail-subject" placeholder="邮件标题">
     <label>内容</label>
     <textarea id="mail-content" rows="3" placeholder="邮件正文"></textarea>
-    <label>附件（id:count，逗号分隔，如 4001:100,5001:10）</label>
-    <input id="mail-items" placeholder="4001:100,5001:10">
+    <label>附件（id:count，逗号分隔，如 4001:100,4003:10）</label>
+    <input id="mail-items" placeholder="4001:100,4003:10">
     <div class="row">
       <button id="mail-cancel">取消</button>
       <button class="primary" id="mail-ok">发送</button>
@@ -132,6 +201,33 @@
   </div>
 </div>
 
+<!-- 弹窗：发放干员 -->
+<div class="modal-mask" id="modal-char">
+  <div class="modal">
+    <h3>发放干员 — <span id="char-uid"></span></h3>
+    <label>干员 ID 或中文名（如 char_002_amiya 或 阿米娅）</label>
+    <input id="char-id" placeholder="char_002_amiya">
+    <p class="hint">重复干员将按稀有度折算为信物与高级/资质凭证</p>
+    <div class="row">
+      <button id="char-cancel">取消</button>
+      <button class="primary" id="char-ok">发放</button>
+    </div>
+  </div>
+</div>
+
+<!-- 弹窗：解锁皮肤 -->
+<div class="modal-mask" id="modal-skin">
+  <div class="modal">
+    <h3>解锁皮肤 — <span id="skin-uid"></span></h3>
+    <label>皮肤 ID（如 char_002_amiya#2）</label>
+    <input id="skin-id" placeholder="char_002_amiya#2">
+    <div class="row">
+      <button id="skin-cancel">取消</button>
+      <button class="primary" id="skin-ok">解锁</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* DoctorateTs 管理后台交互逻辑（原生 JS，零依赖） */
 (function () {
@@ -139,6 +235,7 @@
   var API = "/admin/api";
   var token = localStorage.getItem("adminToken") || "";
   var selectedUid = null;
+  var currentTab = "overview";
 
   function api(path, options) {
     options = options || {};
@@ -159,6 +256,14 @@
 
   function fmtTs(ts) { return ts ? new Date(ts * 1000).toLocaleString() : "-"; }
   function $(id) { return document.getElementById(id); }
+
+  function escapeHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  /* ---------- 状态 / 用户列表 ---------- */
 
   function refreshStatus() {
     return api("/status").then(function (st) {
@@ -182,8 +287,8 @@
         tr.innerHTML =
           "<td>" + u.uid + "</td><td>" + escapeHtml(u.nickName) + "</td><td>" + u.level + "</td>" +
           "<td>" + escapeHtml(u.phone || "-") + "</td><td>" + fmtTs(u.lastOnlineTs) + "</td>" +
-          "<td><button data-grant=\"" + u.uid + "\" style=\"padding:2px 8px;\">发物品</button> " +
-          "<button data-mail=\"" + u.uid + "\" style=\"padding:2px 8px;\">发邮件</button></td>";
+          "<td><button data-grant=\"" + u.uid + "\" class=\"btn-sm\">发物品</button> " +
+          "<button data-mail=\"" + u.uid + "\" class=\"btn-sm\">发邮件</button></td>";
         tr.querySelector("[data-grant]").addEventListener("click", function (e) {
           e.stopPropagation();
           openGrant(u.uid);
@@ -198,36 +303,237 @@
     }).catch(function () {});
   }
 
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, function (c) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  /* ---------- 统计 / 日志 ---------- */
+
+  function refreshStats() {
+    return api("/stats").then(function (s) {
+      $("stats-grid").innerHTML =
+        statBox(s.userCount, "用户数") + statBox(s.totalChars, "干员总数") +
+        statBox(fmtNum(s.totalGold), "龙门币合计") + statBox(fmtNum(s.totalDiamond), "合成玉合计") +
+        statBox(s.avgLevel, "平均等级");
+      $("stats-level-dist").innerHTML = distBars(s.levelDist);
+      $("stats-register-dist").innerHTML = distBars(s.registerDist);
+    }).catch(function () {});
+  }
+
+  function statBox(num, lbl) {
+    return '<div class="stat-box"><div class="num">' + escapeHtml(num) + '</div>' +
+           '<div class="lbl">' + escapeHtml(lbl) + "</div></div>";
+  }
+
+  function fmtNum(n) {
+    return n >= 100000000 ? (n / 100000000).toFixed(1) + "亿" :
+           n >= 10000 ? (n / 10000).toFixed(1) + "万" : String(n);
+  }
+
+  function distBars(dist) {
+    var keys = Object.keys(dist || {}).sort();
+    if (!keys.length) return '<span style="color:var(--muted);">暂无数据</span>';
+    var max = Math.max.apply(null, keys.map(function (k) { return dist[k]; }));
+    return keys.map(function (k) {
+      var w = Math.max(2, Math.round(dist[k] / max * 100));
+      return '<div class="bar-row"><span class="k">' + escapeHtml(k) + "</span>" +
+             '<span class="bar"><i style="width:' + w + '%"></i></span>' +
+             '<span class="v">' + dist[k] + "</span></div>";
+    }).join("");
+  }
+
+  function refreshLogs() {
+    return api("/logs?limit=50").then(function (entries) {
+      var box = $("logs-list");
+      if (!entries.length) {
+        box.innerHTML = '<span style="color:var(--muted);">暂无操作日志</span>';
+        return;
+      }
+      box.innerHTML = entries.map(function (e) {
+        return "<div><b>[" + fmtTs(e.ts) + "]</b> " + escapeHtml(e.action) +
+               " uid=" + escapeHtml(e.uid || "-") + " — " + escapeHtml(e.detail) + "</div>";
+      }).join("");
+    }).catch(function () {});
+  }
+
+  /* ---------- 用户详情（Tab） ---------- */
+
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll("#detail-body .tab").forEach(function (t) {
+      t.classList.toggle("active", t.getAttribute("data-tab") === tab);
     });
+    document.querySelectorAll("#detail-body .tab-pane").forEach(function (p) {
+      p.classList.toggle("active", p.id === "pane-" + tab);
+    });
+    if (selectedUid) loadPane(tab, selectedUid);
+  }
+
+  function loadPane(tab, uid) {
+    if (tab === "overview") loadOverview(uid);
+    else if (tab === "chars") loadChars(uid);
+    else if (tab === "mails") loadMails(uid);
+    else if (tab === "raw") loadRaw(uid);
   }
 
   function selectUser(uid) {
     selectedUid = uid;
+    $("detail-title").textContent = "用户详情 — " + uid;
+    $("detail-empty").style.display = "none";
+    $("detail-body").style.display = "block";
     refreshUsers();
+    loadPane(currentTab, uid);
+  }
+
+  function loadOverview(uid) {
     api("/users/" + encodeURIComponent(uid)).then(function (info) {
-      var body = $("detail-body");
-      body.style.textAlign = "left";
-      var inv = Object.keys(info.inventory || {}).slice(0, 20)
-        .map(function (k) { return escapeHtml(k) + " x" + info.inventory[k]; })
+      var inv = (info.inventoryInfo || []).slice(0, 20)
+        .map(function (it) { return escapeHtml(it.name) + "(" + escapeHtml(it.id) + ") x" + it.count; })
         .join("<br>") || "（空）";
-      body.innerHTML =
+      $("pane-overview").innerHTML =
         "<p><b>" + escapeHtml(info.nickName) + "#" + escapeHtml(info.nickNumber) + "</b> Lv." + info.level + "</p>" +
         "<p style=\"color:var(--muted);margin-top:6px;\">UID " + info.uid + " | 注册 " + fmtTs(info.registerTs) +
         " | 最后在线 " + fmtTs(info.lastOnlineTs) + "</p>" +
-        "<hr style=\"border-color:var(--border);margin:12px 0;\">" +
+        '<div class="row wrap" style="gap:8px;margin:12px 0;">' +
+        '<button id="act-maxout" class="primary">一键满配</button>' +
+        '<button id="act-building">基建满级</button>' +
+        '<button id="act-refresh">每日刷新</button>' +
+        '<button id="act-save">保存</button>' +
+        '<button id="act-backup">备份</button>' +
+        '<button id="act-restore">恢复最近备份</button>' +
+        '<button id="btn-char">发干员</button>' +
+        '<button id="btn-skin">发皮肤</button></div>' +
         "<table>" +
-        "<tr><td>金币</td><td>" + info.gold + "</td><td>合成玉</td><td>" + info.androidDiamond + "</td></tr>" +
+        "<tr><td>龙门币</td><td>" + fmtNum(info.gold) + "</td><td>合成玉</td><td>" + fmtNum(info.androidDiamond) + "</td></tr>" +
         "<tr><td>寻访凭证</td><td>" + info.gachaTicket + "</td><td>招募许可</td><td>" + info.recruitLicense + "</td></tr>" +
         "<tr><td>演习券</td><td>" + info.practiceTicket + "</td><td>经验</td><td>" + info.exp + "</td></tr>" +
         "<tr><td>干员数</td><td>" + info.charCnt + "</td><td></td><td></td></tr>" +
         "</table>" +
         "<h4 style=\"color:var(--gold);margin:12px 0 6px;\">背包道具（前 20）</h4>" +
         "<div style=\"font-size:12px;color:var(--muted);max-height:220px;overflow:auto;\">" + inv + "</div>";
+      bindOverviewActions(uid);
     }).catch(function () {});
   }
+
+  function bindOverviewActions(uid) {
+    var act = {
+      "act-maxout": { path: "/maxout", label: "一键满配" },
+      "act-building": { path: "/building-max", label: "基建满级" },
+      "act-refresh": { path: "/refresh", label: "每日刷新" },
+      "act-save": { path: "/save", label: "保存" },
+      "act-backup": { path: "/backup", label: "备份" },
+    };
+    Object.keys(act).forEach(function (id) {
+      var el = $(id);
+      if (!el) return;
+      el.addEventListener("click", function () {
+        var conf = act[id];
+        el.disabled = true;
+        api("/users/" + encodeURIComponent(uid) + conf.path, { method: "POST", body: "{}" })
+          .then(function (r) {
+            var msg = id === "act-backup" ? "已备份：" + r.name : "操作成功" + (r.rooms != null ? "（" + r.rooms + " 间房间）" : "");
+            if (id === "act-maxout" && r.chars != null) msg = "满配完成：干员 " + r.chars + " | 物品 " + r.items + " | 皮肤 " + r.skins + " | 基建 " + r.rooms;
+            alert(conf.label + "成功 — " + msg);
+            loadOverview(uid);
+            refreshLogs();
+          })
+          .catch(function (e) { alert(conf.label + "失败：" + e.message); })
+          .finally(function () { el.disabled = false; });
+      });
+    });
+    var restoreBtn = $("act-restore");
+    if (restoreBtn) {
+      restoreBtn.addEventListener("click", function () {
+        api("/users/" + encodeURIComponent(uid) + "/backups").then(function (list) {
+          if (!list.length) { alert("暂无备份"); return; }
+          var b = list[0];
+          if (!confirm("将从 " + b.name + "（" + fmtTs(b.ts) + "）恢复，覆盖当前存档，确认？")) return;
+          api("/users/" + encodeURIComponent(uid) + "/restore", {
+            method: "POST", body: JSON.stringify({ backup: b.name }),
+          }).then(function () {
+            alert("已恢复：" + b.name);
+            loadOverview(uid);
+            refreshLogs();
+          }).catch(function (e) { alert("恢复失败：" + e.message); });
+        });
+      });
+    }
+    $("btn-char").addEventListener("click", function () { openChar(uid); });
+    $("btn-skin").addEventListener("click", function () { openSkin(uid); });
+  }
+
+  function loadChars(uid) {
+    api("/users/" + encodeURIComponent(uid) + "/chars").then(function (chars) {
+      if (!chars.length) {
+        $("pane-chars").innerHTML = '<p style="color:var(--muted);">暂无干员</p>';
+        return;
+      }
+      var rows = chars.map(function (c) {
+        return "<tr>" +
+          "<td>" + c.instId + "</td><td>" + escapeHtml(c.name) + "</td><td>" + (c.rarity + 1) + "★</td>" +
+          "<td><input class=\"mini-input\" data-f=\"level\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.level + "\" min=\"1\" max=\"" + c.maxLevel + "\"></td>" +
+          "<td><input class=\"mini-input\" data-f=\"evolvePhase\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.evolvePhase + "\" min=\"0\" max=\"2\"></td>" +
+          "<td><input class=\"mini-input\" data-f=\"potentialRank\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.potentialRank + "\" min=\"0\" max=\"5\"></td>" +
+          "<td><input class=\"mini-input\" data-f=\"mainSkillLvl\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.mainSkillLvl + "\" min=\"1\" max=\"7\"></td>" +
+          "<td><button class=\"btn-sm char-apply\" data-i=\"" + c.instId + "\">应用</button></td></tr>";
+      }).join("");
+      $("pane-chars").innerHTML =
+        "<table><thead><tr><th>instId</th><th>干员</th><th>星级</th><th>等级</th><th>精二</th><th>潜能</th><th>技能</th><th></th></tr></thead><tbody>" +
+        rows + "</tbody></table>";
+      document.querySelectorAll(".char-apply").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var instId = Number(btn.getAttribute("data-i"));
+          var attrs = {};
+          document.querySelectorAll("#pane-chars [data-i=\"" + instId + "\"]").forEach(function (inp) {
+            attrs[inp.getAttribute("data-f")] = Number(inp.value);
+          });
+          api("/users/" + encodeURIComponent(uid) + "/chars", {
+            method: "POST", body: JSON.stringify(Object.assign({ instId: instId }, attrs)),
+          }).then(function (r) {
+            alert("已应用：" + r.name + "（精二 " + r.evolvePhase + " | 等级 " + r.level + " | 潜能 " + r.potentialRank + " | 技能 " + r.mainSkillLvl + "）");
+            loadChars(uid);
+            refreshLogs();
+          }).catch(function (e) { alert("修改失败：" + e.message); });
+        });
+      });
+    }).catch(function () {});
+  }
+
+  function loadMails(uid) {
+    api("/users/" + encodeURIComponent(uid) + "/mails").then(function (mails) {
+      if (!mails.length) {
+        $("pane-mails").innerHTML = '<p style="color:var(--muted);">暂无邮件</p>';
+        return;
+      }
+      var rows = mails.map(function (m) {
+        var att = m.items.length ? m.items.map(function (it) {
+          return escapeHtml(it.name) + " x" + it.count;
+        }).join(", ") : "无";
+        return "<tr>" +
+          "<td>" + m.mailId + "</td><td>" + escapeHtml(m.subject) + "</td>" +
+          "<td>" + escapeHtml(m.content || "-") + "</td><td>" + att + "</td>" +
+          "<td>" + (m.receiveAt !== -1 ? "已领" : "未领") + "</td>" +
+          "<td><button class=\"btn-sm mail-del\" data-id=\"" + m.mailId + "\">删除</button></td></tr>";
+      }).join("");
+      $("pane-mails").innerHTML =
+        "<table><thead><tr><th>mailId</th><th>标题</th><th>内容</th><th>附件</th><th>状态</th><th></th></tr></thead><tbody>" +
+        rows + "</tbody></table>";
+      document.querySelectorAll(".mail-del").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var mailId = btn.getAttribute("data-id");
+          if (!confirm("删除邮件 mailId=" + mailId + "？")) return;
+          api("/users/" + encodeURIComponent(uid) + "/mails/" + mailId, { method: "DELETE" })
+            .then(function () { loadMails(uid); refreshLogs(); })
+            .catch(function (e) { alert("删除失败：" + e.message); });
+        });
+      });
+    }).catch(function () {});
+  }
+
+  function loadRaw(uid) {
+    api("/users/" + encodeURIComponent(uid) + "/raw").then(function (data) {
+      $("pane-raw").innerHTML = '<pre class="json">' +
+        escapeHtml(JSON.stringify(data, null, 2)) + "</pre>";
+    }).catch(function () {});
+  }
+
+  /* ---------- 弹窗 ---------- */
 
   function showModal(id) { $(id).classList.add("show"); }
   function hideModal(id) { $(id).classList.remove("show"); }
@@ -242,20 +548,22 @@
     var itemId = $("grant-item").value.trim();
     var count = Number($("grant-count").value);
     var uid = $("grant-uid").textContent;
-    if (!itemId) { alert("请填写物品 ID"); return; }
+    if (!itemId) { alert("请填写物品 ID 或名称"); return; }
     api("/users/" + encodeURIComponent(uid) + "/grant", {
       method: "POST",
       body: JSON.stringify({ itemId: itemId, count: count }),
     }).then(function () {
       hideModal("modal-grant");
       alert("发放成功：" + itemId + " x" + count);
-      selectUser(uid);
+      loadOverview(uid);
+      refreshLogs();
     }).catch(function (e) { alert("发放失败：" + e.message); });
   });
   $("grant-cancel").addEventListener("click", function () { hideModal("modal-grant"); });
 
   function openMail(uid) {
     $("mail-uid").textContent = uid;
+    $("mail-all").checked = false;
     $("mail-subject").value = "";
     $("mail-content").value = "";
     $("mail-items").value = "";
@@ -263,6 +571,7 @@
   }
   $("mail-ok").addEventListener("click", function () {
     var uid = $("mail-uid").textContent;
+    var toAll = $("mail-all").checked;
     var subject = $("mail-subject").value.trim();
     var content = $("mail-content").value;
     var items = ($("mail-items").value || "").split(",")
@@ -271,12 +580,15 @@
         return { id: p[0], count: Number(p[1] || 1) };
       });
     if (!subject) { alert("请填写标题"); return; }
-    api("/mail", {
-      method: "POST",
-      body: JSON.stringify({ uid: uid, subject: subject, content: content, items: items }),
-    }).then(function (r) {
+    var req = toAll
+      ? api("/mail/all", { method: "POST", body: JSON.stringify({ subject: subject, content: content, items: items }) })
+        .then(function (r) { return "已群发给 " + r.sent + " 个用户"; })
+      : api("/mail", { method: "POST", body: JSON.stringify({ uid: uid, subject: subject, content: content, items: items }) })
+        .then(function (r) { return "邮件已发送，mailId=" + r.mailId; });
+    req.then(function (msg) {
       hideModal("modal-mail");
-      alert("邮件已发送，mailId=" + r.mailId);
+      alert(msg);
+      refreshLogs();
     }).catch(function (e) { alert("发送失败：" + e.message); });
   });
   $("mail-cancel").addEventListener("click", function () { hideModal("modal-mail"); });
@@ -297,9 +609,52 @@
       hideModal("modal-create");
       alert("已创建用户 uid=" + r.uid);
       refreshUsers();
+      refreshStats();
+      refreshLogs();
     }).catch(function (e) { alert("创建失败：" + e.message); });
   });
   $("create-cancel").addEventListener("click", function () { hideModal("modal-create"); });
+
+  function openChar(uid) {
+    $("char-uid").textContent = uid;
+    $("char-id").value = "";
+    showModal("modal-char");
+  }
+  $("char-ok").addEventListener("click", function () {
+    var uid = $("char-uid").textContent;
+    var charId = $("char-id").value.trim();
+    if (!charId) { alert("请填写干员 ID 或名称"); return; }
+    api("/users/" + encodeURIComponent(uid) + "/grantchar", {
+      method: "POST", body: JSON.stringify({ charId: charId }),
+    }).then(function (r) {
+      hideModal("modal-char");
+      alert("干员发放成功：" + r.name + "（" + (r.isNew ? "新干员" : "重复") + "）");
+      loadOverview(uid);
+      refreshLogs();
+    }).catch(function (e) { alert("发放失败：" + e.message); });
+  });
+  $("char-cancel").addEventListener("click", function () { hideModal("modal-char"); });
+
+  function openSkin(uid) {
+    $("skin-uid").textContent = uid;
+    $("skin-id").value = "";
+    showModal("modal-skin");
+  }
+  $("skin-ok").addEventListener("click", function () {
+    var uid = $("skin-uid").textContent;
+    var skinId = $("skin-id").value.trim();
+    if (!skinId) { alert("请填写皮肤 ID"); return; }
+    api("/users/" + encodeURIComponent(uid) + "/grantskin", {
+      method: "POST", body: JSON.stringify({ skinId: skinId }),
+    }).then(function () {
+      hideModal("modal-skin");
+      alert("皮肤解锁成功：" + skinId);
+      refreshLogs();
+    }).catch(function (e) { alert("解锁失败：" + e.message); });
+  });
+  $("skin-cancel").addEventListener("click", function () { hideModal("modal-skin"); });
+
+  /* ---------- 登录 ---------- */
 
   function showLogin() { $("login").style.display = "flex"; }
   function hideLogin() { $("login").style.display = "none"; }
@@ -322,12 +677,24 @@
     token = "";
     localStorage.removeItem("adminToken");
     selectedUid = null;
+    currentTab = "overview";
     showLogin();
   });
+
+  /* ---------- Tab 切换 ---------- */
+
+  document.querySelectorAll("#detail-body .tab").forEach(function (t) {
+    t.addEventListener("click", function () { switchTab(t.getAttribute("data-tab")); });
+  });
+  $("btn-refresh-logs").addEventListener("click", refreshLogs);
+
+  /* ---------- 轮询 ---------- */
 
   function refreshAll() {
     refreshStatus();
     refreshUsers();
+    refreshStats();
+    refreshLogs();
   }
 
   refreshAll();

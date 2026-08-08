@@ -30,3 +30,6 @@ reference/
 .hermes/
 # SQLite runtime-generated (friend/social data, auto-created on first start)
 data/user/social.db
+# 管理后台运行时产物（操作审计日志 / 存档备份）
+data/admin/
+data/user/backups/

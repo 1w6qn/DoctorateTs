@@ -21,7 +21,7 @@ export class MailManager {
       mailIdList: number[];
     },
   ): Promise<MailItem[]> {
-    return this.database.user[uid].filter((mail) => {
+    return (this.database.user[uid] ?? []).filter((mail) => {
       return (
         args.sysMailIdList.includes(mail.mailId) ||
         args.surveyMailIdList.includes(mail.mailId.toString()) ||
@@ -34,7 +34,7 @@ export class MailManager {
     uid: string,
     args: { mailId: number; type: number },
   ): Promise<ItemBundle[]> {
-    const mail = this.database.user[uid].find(
+    const mail = (this.database.user[uid] ?? []).find(
       (mail) => mail.mailId === args.mailId && mail.type === args.type,
     );
     let items: ItemBundle[] = [];
@@ -48,11 +48,26 @@ export class MailManager {
     return items;
   }
 
+  /** 管理用：列出某用户全部邮件（不做任何过滤） */
+  listAllMail(uid: string): MailItem[] {
+    return this.database.user[uid] ?? [];
+  }
+
+  /** 管理用：删除某用户单封邮件，返回是否删除成功 */
+  async deleteMail(uid: string, mailId: number): Promise<boolean> {
+    const list = this.database.user[uid] ?? [];
+    const idx = list.findIndex((mail) => mail.mailId === mailId);
+    if (idx === -1) return false;
+    list.splice(idx, 1);
+    await this.saveDatabase();
+    return true;
+  }
+
   async getMetaInfoList(
     uid: string,
     args: { from: number },
   ): Promise<MailMetaInfo[]> {
-    return this.database.user[uid].map((mail) => {
+    return (this.database.user[uid] ?? []).map((mail) => {
       return {
         mailId: mail.mailId,
         createAt: mail.createAt,
@@ -71,7 +86,7 @@ export class MailManager {
       mailIdList: number[];
     },
   ): Promise<ItemBundle[]> {
-    const mailList = this.database.user[uid].filter((mail) => {
+    const mailList = (this.database.user[uid] ?? []).filter((mail) => {
       return (
         args.sysMailIdList.includes(mail.mailId) ||
         args.surveyMailIdList.includes(mail.mailId.toString()) ||
@@ -99,7 +114,7 @@ export class MailManager {
       mailIdList: number[];
     },
   ) {
-    this.database.user[uid] = this.database.user[uid].filter((mail) => {
+    this.database.user[uid] = (this.database.user[uid] ?? []).filter((mail) => {
       return !(
         args.sysMailIdList.includes(mail.mailId) ||
         args.surveyMailIdList.includes(mail.mailId.toString()) ||

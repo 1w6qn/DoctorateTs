@@ -37,7 +37,9 @@ describe("buildNetworkConfig（官方格式）", () => {
     const cfg = buildNetworkConfig();
     expect(cfg.configVer).toBeDefined();
     expect(cfg.gs).toMatch(/^http/);
-    expect(cfg.as).toContain("/auth");
+    // auth 路由已挂根路径：as 域保持原路径（裸服务器地址，无 /auth 前缀）
+    expect(cfg.as).toMatch(/^http/);
+    expect(cfg.as).not.toContain("/auth");
     expect(cfg.hu).toContain("/assetbundle");
     // 内部字段不暴露
     expect(cfg.secure).toBeUndefined();

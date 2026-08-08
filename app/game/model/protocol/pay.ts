@@ -2,9 +2,11 @@
  * 支付（Pay）协议类型
  *
  * 对应客户端 com.hypergryph.arknights_2.7.61.cs 中
- * Torappu.PayGetUnconfirmedOrderListResponse（CS 无对应请求类，请求体为空）；
- * 私服无真实支付，订单列表固定返回空。
+ * Torappu.PayGetUnconfirmedOrderListResponse / PayCreateOrderRequest /
+ * PayCreateOrderResponse / PayConfirmOrderRequest / PayConfirmOrderResponse；
+ * 私服无真实支付，订单列表固定返回空，createOrder/confirmOrder 模拟成功并发放商品。
  */
+import { ItemBundle } from "@excel/character_table";
 import { PlayerDeltaResponse } from "./common";
 
 /** 未确认订单列表请求（CS 无对应请求类，请求体为空） */
@@ -16,4 +18,45 @@ export interface PayGetUnconfirmedOrderListRequest {}
  */
 export interface PayGetUnconfirmedOrderListResponse extends PlayerDeltaResponse {
   orderIdList: string[];
+}
+
+/** 创建订单请求（CS: Torappu.PayCreateOrderRequest） */
+export interface PayCreateOrderRequest {
+  storeId: number;
+  goodId: string;
+}
+
+/**
+ * 创建订单响应（CS: Torappu.PayCreateOrderResponse : System.Object）
+ * extension 为 JSON 字符串（形状对齐抓包 tmp/pay_createOrder_res_1016.json：
+ * appCode/amount/productName/extension.appStoreProductId/uid/outOrderId/ts/platform/sign）；
+ * 服务端额外返回 playerDataDelta，此处以服务端输出为准
+ */
+export interface PayCreateOrderResponse extends PlayerDeltaResponse {
+  result: number;
+  orderId: string;
+  extension: string;
+  orderIdList?: string[];
+  alertMinor: number;
+  errMsg?: string;
+}
+
+/** 确认订单请求（CS: Torappu.PayConfirmOrderRequest） */
+export interface PayConfirmOrderRequest {
+  orderId: string;
+  enterTs: number;
+}
+
+/**
+ * 确认订单响应（CS: Torappu.PayConfirmOrderResponse : PlayerDeltaResponse）
+ * CS receiveItems 为 { items, checkInItems }（List<RewardItemModel>），
+ * 服务端以 ItemBundle[] 返回（同 storyreview 的 CS/服务端差异约定）
+ */
+export interface PayConfirmOrderResponse extends PlayerDeltaResponse {
+  result: number;
+  goodId: string;
+  receiveItems: {
+    items: ItemBundle[];
+    checkInItems: ItemBundle[];
+  };
 }

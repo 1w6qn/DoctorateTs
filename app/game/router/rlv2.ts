@@ -24,6 +24,8 @@ import {
   RoguelikeFinishBattleResponse,
   RoguelikeFinishEventRequest,
   RoguelikeFinishEventResponse,
+  RoguelikeSelectChoiceRequest,
+  RoguelikeSelectChoiceResponse,
   RoguelikeMoveToRequest,
   RoguelikeMoveToResponse,
   RoguelikePinTopicRequest,
@@ -108,6 +110,17 @@ router.post("/finishEvent", async (req, res) => {
   req.body as RoguelikeFinishEventRequest;
   await player.rlv2.finishEvent();
   res.send(player.delta satisfies RoguelikeFinishEventResponse);
+});
+
+/**
+ * 选择事件选项（CS: RoguelikeSelectChoiceRequest）
+ * 控制器 selectChoice 已实现（buff/遗物/下一场景构建），此前漏接线
+ */
+router.post("/selectChoice", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as RoguelikeSelectChoiceRequest;
+  await player.rlv2.selectChoice(body);
+  res.send(player.delta satisfies RoguelikeSelectChoiceResponse);
 });
 
 /** 移动（CS: RoguelikeMoveToRequest） */

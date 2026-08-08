@@ -24,6 +24,7 @@ describe("rlv2 路由", () => {
         useTotem: vi.fn().mockResolvedValue(undefined),
         confirmPredict: vi.fn().mockResolvedValue(undefined),
         closeRecruitTicket: vi.fn().mockResolvedValue(undefined),
+        selectChoice: vi.fn().mockResolvedValue(undefined),
       },
     };
     res = mockRes();
@@ -66,6 +67,12 @@ describe("rlv2 路由", () => {
   it("POST /closeRecruitTicket 应透传 id", async () => {
     await call("/closeRecruitTicket", { id: "t_1" });
     expect(player.rlv2.closeRecruitTicket).toHaveBeenCalledWith({ id: "t_1" });
+    expect(res.send).toHaveBeenCalledWith(player.delta);
+  });
+
+  it("POST /selectChoice 应调用控制器并透传 choice（抓包 body {choice}）", async () => {
+    await call("/selectChoice", { choice: "choice_leave" });
+    expect(player.rlv2.selectChoice).toHaveBeenCalledWith({ choice: "choice_leave" });
     expect(res.send).toHaveBeenCalledWith(player.delta);
   });
 });

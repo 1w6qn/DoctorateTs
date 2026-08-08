@@ -1193,5 +1193,7 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 - 新端点：mailCollection/getList、quest/battleContinue、car/confirmBattleCar、retro/vecbreak 双前缀均 200
 - **双前缀为既有设计**：`/retro/*`、`/campaignV2/*`、`/vecbreak/*` 的 router 自带前缀 + app.ts 挂载前缀（如 `/retro/retro/typeAct20side/competitionStart`），实测双前缀 200、单前缀 404——新端点沿用此约定
 - **已知问题（非本次引入）**：`POST /gacha/cancelNormalGacha` 对 uid=1 满级号返回 500（recruit.cancel 内部异常，路由命中正常），待单独排查
-- **P2 未做**：活动战斗批量包（bossRush/enemyDuel/football/act24side/act25side/arkodc/trainingGround/aprilFool 等约 40 条，均为战斗 Start/Finish stub），用户确认后按模块追加
+- **P2 部分完成（2026-08-08，参考 DoctoratePy/CS 2.7.61/抓包）**：bossRush（尖灭测试）模块已实现——`/activity/bossRush/battleStart|battleFinish|relicSelect|relicUpgrade`（battleStart/battleFinish 复用标准战斗结算 + 尖灭专属 wave/milestone/token/best 更新，掉落加值数据驱动），并修正 `/activity/rewardMilestone` 对 BOSS_RUSH 活动写入 `milestone.got`（对齐官服快照结构）。其余 P2（enemyDuel/football/act24side/act25side/arkodc/trainingGround/aprilFool 等）仍待按模块追加
+- **rlv2/selectChoice 接线修复（2026-08-08）**：控制器已实现（§16.5）但路由未暴露，已补 `POST /rlv2/selectChoice`（CS: RoguelikeSelectChoiceRequest，抓包 body `{choice}`）
+- **pay 补全（2026-08-08，参考 DoctoratePy + 抓包）**：新增 `/pay/createOrder`（返回对齐抓包形状的 extension JSON）与 `/pay/confirmOrder`（现金包 CS_ 复用 shop.buyCashGood 发放钻石，含首充双倍）；订单存内存 Map，重启即失效（私服可接受）
 - **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用

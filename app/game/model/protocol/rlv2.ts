@@ -51,6 +51,20 @@ export interface RoguelikeRecruitCharRequest {
 /** 结束事件请求（CS: RoguelikeFinishEventRequest，无字段） */
 export interface RoguelikeFinishEventRequest {}
 
+/**
+ * 选择事件选项请求（CS: RoguelikeSelectChoiceRequest）
+ * 抓包佐证：POST /rlv2/selectChoice body { "choice": "choice_leave" }
+ */
+export interface RoguelikeSelectChoiceRequest {
+  choice: string;
+}
+
+/**
+ * 选择事件选项响应（CS: RoguelikeSelectChoiceResponse : PlayerDeltaResponse
+ * { items: List<RoguelikeItemBundle> }；服务端奖励经 rlv2:get:items 事件发放，仅返回增量）
+ */
+export type RoguelikeSelectChoiceResponse = PlayerDeltaResponse;
+
 /** 移动请求（CS: RoguelikeMoveToRequest） */
 export interface RoguelikeMoveToRequest {
   to: RoguelikeNodePosition;

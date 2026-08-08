@@ -8,6 +8,7 @@
  * 部分接口（签到对决/开关活动/活动商店等）无直接 CS 类对应，标注为服务端自定义。
  */
 import { ItemBundle } from "@excel/character_table";
+import { PlayerSquad, SquadFriendData } from "../character";
 import { PlayerDeltaResponse } from "./common";
 
 /* ===== 签到类 ===== */
@@ -303,3 +304,84 @@ export interface TryGetCharmFirstRewardResponse extends PlayerDeltaResponse {
   isFirst: boolean;
   reward: ItemBundle[];
 }
+
+/* ===== 尖灭测试（bossRush）===== */
+
+/**
+ * 尖灭测试开始战斗请求（CS: Torappu.UI.BossRush.BossRushStartBattleRequest）
+ * 参考 DoctoratePy activityBossRushBattleStart / OBS misc_bp bossRush battleStart
+ */
+export interface BossRushStartBattleRequest {
+  activityId: string;
+  stageId: string;
+  teamId?: string;
+  ownSlots: PlayerSquad;
+  assistFriend: null | SquadFriendData;
+}
+
+/**
+ * 尖灭测试开始战斗响应（CS: BossRushStartBattleResponse : CommonStartBattleResponse）
+ * 与 quest battleStart 同形（result/battleId/apFailReturn/isApProtect/...）
+ */
+export interface BossRushStartBattleResponse extends PlayerDeltaResponse {
+  result: number;
+  battleId: string;
+  apFailReturn: number;
+  isApProtect: number;
+  inApProtectPeriod: boolean;
+  notifyPowerScoreNotEnoughIfFailed: boolean;
+}
+
+/**
+ * 尖灭测试战斗结算请求（CS: BossRushFinishBattleRequest : CommonFinishBattleRequest）
+ * CS 在 CommonFinishBattleRequest（data/battleData）基础上增加 activityId
+ */
+export interface BossRushFinishBattleRequest {
+  activityId: string;
+  data: string;
+  battleData: { isCheat: string; completeTime: number };
+}
+
+/**
+ * 尖灭测试战斗结算响应（CS: BossRushFinishBattleResponse : DefaultFinishBattleResponse）
+ * 基础字段同 quest battleFinish（可缺省），另加尖灭专属 6 字段
+ */
+export interface BossRushFinishBattleResponse extends PlayerDeltaResponse {
+  result?: number;
+  apFailReturn?: number;
+  expScale?: number;
+  goldScale?: number;
+  rewards?: ItemBundle[];
+  firstRewards?: ItemBundle[];
+  unlockStages?: string[];
+  unusualRewards?: ItemBundle[];
+  additionalRewards?: ItemBundle[];
+  furnitureRewards?: ItemBundle[];
+  alert?: unknown[];
+  suggestFriend?: boolean;
+  pryResult?: unknown[];
+  wave: number;
+  milestoneBefore: number;
+  milestoneAdd: number;
+  isMilestoneMax: boolean;
+  tokenAdd: number;
+  isTokenMax: boolean;
+}
+
+/** 尖灭测试密文选择请求（CS: BossRushRelicSelectRequest） */
+export interface BossRushRelicSelectRequest {
+  activityId: string;
+  relicId: string;
+}
+
+/** 尖灭测试密文选择响应（CS: BossRushRelicSelectResponse : PlayerDeltaResponse） */
+export type BossRushRelicSelectResponse = PlayerDeltaResponse;
+
+/** 尖灭测试密文升级请求（CS: BossRushRelicUpgradeRequest） */
+export interface BossRushRelicUpgradeRequest {
+  activityId: string;
+  relicId: string;
+}
+
+/** 尖灭测试密文升级响应（CS: BossRushRelicUpgradeResponse : PlayerDeltaResponse） */
+export type BossRushRelicUpgradeResponse = PlayerDeltaResponse;

@@ -1698,6 +1698,7 @@ router.post("/act1vhalfidle/recruitNormal", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as Act1vhalfidleRequest;
   const { poolId, count = 1 } = body as any;
+  let ticketCount = count;
   await player.update(async (draft) => {
     const data = ensureHalfIdleData(draft, body.activityId!);
     const actChars = data.troop.char;
@@ -1737,7 +1738,11 @@ router.post("/act1vhalfidle/recruitNormal", async (req, res) => {
       }
     }
   });
-  res.send(player.delta satisfies ActivityStubResponse);
+  // CS: Act1VHalfIdleRecruitNormalResponse { ticketCount }
+  res.send({
+    ticketCount,
+    ...player.delta,
+  } as any);
 });
 
 /** 定向招募（参考 ODPY recruitDirect） */
@@ -1770,34 +1775,73 @@ router.post("/act1vhalfidle/recruitDirect", async (req, res) => {
   res.send(player.delta satisfies ActivityStubResponse);
 });
 
-/** 升级/替换/助战（参考 ODPY 结构，简化：仅记录请求） */
-for (const act1vhalfidleRoute of ["upgradeChar", "upgradeSkill", "evolveChar", "replaceRate", "setAssistChar"]) {
-  router.post(`/act1vhalfidle/${act1vhalfidleRoute}`, async (req, res) => {
-    const player = httpContext.get<PlayerDataManager>("playerData")!;
-    const body = req.body as Act1vhalfidleRequest;
-    await player.update(async (draft) => {
-      const data = ensureHalfIdleData(draft, body.activityId!);
-      // 升级/进化：更新活动干员等级/技能
-      const instId = String((body as any).charInstId ?? "");
-      const actChar = data.troop.char[instId];
-      if (!actChar) return;
-      if (act1vhalfidleRoute === "upgradeChar" && (body as any).level) {
-        actChar.level = (body as any).level;
-      }
-      if (act1vhalfidleRoute === "evolveChar" && (body as any).evolvePhase != null) {
-        actChar.evolvePhase = (body as any).evolvePhase;
-        actChar.skillLvl = actChar.evolvePhase >= 2 ? 10 : 7;
-      }
-      if (act1vhalfidleRoute === "upgradeSkill" && (body as any).skillLvl) {
-        actChar.skillLvl = (body as any).skillLvl;
-      }
-      if (act1vhalfidleRoute === "setAssistChar") {
-        actChar.isAssist = true;
-      }
-    });
-    res.send(player.delta satisfies ActivityStubResponse);
+/** 升级/替换/助战（对齐 CS Response 字段：upgrade 返回 charId/currentLvl 等） */
+router.post("/act1vhalfidle/upgradeChar", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as Act1vhalfidleRequest;
+  let charId = "";
+  let currentLvl = 0;
+  await player.update(async (draft) => {
+    const data = ensureHalfIdleData(draft, body.activityId!);
+    const actChar = data.troop.char[String((body as any).charInstId ?? "")];
+    if (!actChar) return;
+    charId = actChar.charId;
+    if ((body as any).level) actChar.level = (body as any).level;
+    currentLvl = actChar.level;
   });
-}
+  // CS: Act1VHalfIdleCharUpgradeLevelResponse { charId, currentLvl }
+  res.send({ charId, currentLvl, ...player.delta } as any);
+});
+router.post("/act1vhalfidle/upgradeSkill", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as Act1vhalfidleRequest;
+  let charId = "";
+  let currentLvl = 0;
+  await player.update(async (draft) => {
+    const data = ensureHalfIdleData(draft, body.activityId!);
+    const actChar = data.troop.char[String((body as any).charInstId ?? "")];
+    if (!actChar) return;
+    charId = actChar.charId;
+    if ((body as any).skillLvl) actChar.skillLvl = (body as any).skillLvl;
+    currentLvl = actChar.skillLvl;
+  });
+  // CS: Act1VHalfIdleCharUpgradeSkillResponse { charId, currentLvl }
+  res.send({ charId, currentLvl, ...player.delta } as any);
+});
+router.post("/act1vhalfidle/evolveChar", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as Act1vhalfidleRequest;
+  let charId = "";
+  let currentEvolvePhase = 0;
+  await player.update(async (draft) => {
+    const data = ensureHalfIdleData(draft, body.activityId!);
+    const actChar = data.troop.char[String((body as any).charInstId ?? "")];
+    if (!actChar) return;
+    charId = actChar.charId;
+    if ((body as any).evolvePhase != null) {
+      actChar.evolvePhase = (body as any).evolvePhase;
+      actChar.skillLvl = actChar.evolvePhase >= 2 ? 10 : 7;
+    }
+    currentEvolvePhase = actChar.evolvePhase;
+  });
+  // CS: Act1VHalfIdleCharUpgradeEliteResponse { charId, currentEvolvePhase, item }
+  res.send({ charId, currentEvolvePhase, item: null, ...player.delta } as any);
+});
+router.post("/act1vhalfidle/replaceRate", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as Act1vhalfidleRequest;
+  res.send(player.delta satisfies ActivityStubResponse);
+});
+router.post("/act1vhalfidle/setAssistChar", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as Act1vhalfidleRequest;
+  await player.update(async (draft) => {
+    const data = ensureHalfIdleData(draft, body.activityId!);
+    const actChar = data.troop.char[String((body as any).charInstId ?? "")];
+    if (actChar) actChar.isAssist = true;
+  });
+  res.send(player.delta satisfies ActivityStubResponse);
+});
 
 // act13side（日任务）
 router.post("/act13side/clearFlag", async (req, res) => {

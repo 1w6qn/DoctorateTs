@@ -43,7 +43,8 @@ router.post("/vecBreakV2/getSeasonRecord", async (req, res) => {
   const stageInfo: Record<string, any> = {};
   for (const stageId of Object.keys(player._playerdata.dungeon.stages)) {
     if (stageId.startsWith("act1break_")) {
-      stageInfo[stageId] = { stageId, state: "COMPLETE" };
+      // CS: PlayerStageState 数值枚举（COMPLETE=3），非字符串
+      stageInfo[stageId] = { stageId, state: 3 };
     }
   }
   const vb = (player._playerdata.activity as any)?.VEC_BREAK_V2?.["act1break"];

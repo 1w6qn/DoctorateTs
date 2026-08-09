@@ -89,6 +89,14 @@
   .resp-box { background: #111; border: 1px solid var(--border); border-radius: 6px; padding: 10px;
               font-size: 12px; max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-all;
               font-family: Consolas, monospace; }
+  /* 全局功能 Tab：隐藏用户列表、详情卡全宽 */
+  main.global #user-list-card { display: none; }
+  main.global #detail-card { grid-column: 1 / -1; }
+  /* 资源网格卡片 */
+  .res-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin: 10px 0; }
+  .res-item { background: #1a1a1c; border: 1px solid var(--border); border-radius: 6px; padding: 8px; text-align: center; }
+  .res-item .num { font-size: 16px; color: var(--gold); font-weight: bold; }
+  .res-item .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
   /* 移动端适配：单列布局、控制台/弹窗不溢出 */
   @media (max-width: 900px) {
     main { grid-template-columns: 1fr; padding: 12px; }
@@ -135,25 +143,44 @@
   <button id="logout-btn">退出</button>
 </header>
 
-<main>
-  <!-- 统计 -->
+<main id="main">
+  <!-- 主导航（全局功能 Tab 与用户详情 Tab 同级） -->
+  <section class="card full" style="padding:8px 16px;">
+    <div class="tabs" style="border-bottom:none;margin-bottom:0;">
+      <div class="tab active" data-tab="overview">概览</div>
+      <div class="tab" data-tab="chars">干员</div>
+      <div class="tab" data-tab="mails">邮件</div>
+      <div class="tab" data-tab="pools">卡池</div>
+      <div class="tab" data-tab="api">接口</div>
+      <div class="tab" data-tab="migrate">迁移</div>
+      <div class="tab" data-tab="raw">数据</div>
+    </div>
+  </section>
+
+  <!-- 统计（默认折叠为摘要行） -->
   <section class="card full">
-    <h3 style="color:var(--gold);margin-bottom:12px;">统计</h3>
-    <div class="stat-grid" id="stats-grid"></div>
-    <div class="dist-col" style="margin-top:14px;">
-      <div>
-        <label>等级分布</label>
-        <div id="stats-level-dist"></div>
-      </div>
-      <div>
-        <label>注册时间分布（按月）</label>
-        <div id="stats-register-dist"></div>
+    <div class="row" style="align-items:center;margin-bottom:4px;">
+      <h3 style="color:var(--gold);">统计</h3>
+      <button id="stats-toggle" class="btn-sm" style="margin-left:auto;">展开</button>
+    </div>
+    <div id="stats-summary" style="font-size:12px;color:var(--muted);"></div>
+    <div id="stats-body" style="display:none;">
+      <div class="stat-grid" id="stats-grid"></div>
+      <div class="dist-col" style="margin-top:14px;">
+        <div>
+          <label>等级分布</label>
+          <div id="stats-level-dist"></div>
+        </div>
+        <div>
+          <label>注册时间分布（按月）</label>
+          <div id="stats-register-dist"></div>
+        </div>
       </div>
     </div>
   </section>
 
   <!-- 左侧：用户列表 -->
-  <section class="card">
+  <section class="card" id="user-list-card">
     <div class="row" style="align-items:center;margin-bottom:10px;">
       <h3 style="color:var(--gold);">用户列表</h3>
       <button class="primary" id="btn-create" style="margin-left:auto;">+ 创建用户</button>
@@ -171,15 +198,6 @@
     <h3 style="color:var(--gold);" id="detail-title">用户详情</h3>
     <div id="detail-empty" style="color:var(--muted);padding:20px 0;text-align:center;">点击左侧用户查看用户详情</div>
     <div id="detail-body">
-      <div class="tabs">
-        <div class="tab active" data-tab="overview">概览</div>
-        <div class="tab" data-tab="chars">干员</div>
-        <div class="tab" data-tab="mails">邮件</div>
-        <div class="tab" data-tab="pools">卡池</div>
-        <div class="tab" data-tab="api">接口</div>
-        <div class="tab" data-tab="migrate">迁移</div>
-        <div class="tab" data-tab="raw">数据</div>
-      </div>
       <div class="tab-pane active" id="pane-overview"></div>
       <div class="tab-pane" id="pane-chars"></div>
       <div class="tab-pane" id="pane-mails"></div>
@@ -370,6 +388,10 @@
       $("pill-port").textContent = st.port;
       $("pill-users").textContent = st.userCount;
       $("pill-uptime").textContent = "运行 " + Math.floor(st.uptime / 60) + " 分钟";
+      // 统计折叠摘要行
+      $("stats-summary").textContent = "用户 " + st.userCount +
+        " | 数据 " + (st.totalDataKB / 1024).toFixed(1) + "MB" +
+        " | 内存 " + (st.memoryMB || "-") + "MB";
     }).catch(function () {});
   }
 
@@ -424,6 +446,12 @@
            n >= 10000 ? (n / 10000).toFixed(1) + "万" : String(n);
   }
 
+  /** 资源网格卡片 */
+  function resItem(num, lbl) {
+    return '<div class="res-item"><div class="num">' + escapeHtml(String(num)) +
+      '</div><div class="lbl">' + escapeHtml(lbl) + "</div></div>";
+  }
+
   function distBars(dist) {
     var keys = Object.keys(dist || {}).sort();
     if (!keys.length) return '<span style="color:var(--muted);">暂无数据</span>';
@@ -452,14 +480,23 @@
 
   /* ---------- 用户详情（Tab） ---------- */
 
+  var TAB_LABELS = { overview: "概览", chars: "干员", mails: "邮件", pools: "卡池", api: "接口", migrate: "迁移", raw: "数据" };
+  /** 全局功能 Tab（不依赖选中用户，内容全宽） */
+  var GLOBAL_TABS = ["pools", "api", "migrate"];
+
   function switchTab(tab) {
     currentTab = tab;
-    document.querySelectorAll("#detail-body .tab").forEach(function (t) {
+    document.querySelectorAll(".main-nav .tab").forEach(function (t) {
       t.classList.toggle("active", t.getAttribute("data-tab") === tab);
     });
     document.querySelectorAll("#detail-body .tab-pane").forEach(function (p) {
       p.classList.toggle("active", p.id === "pane-" + tab);
     });
+    var isGlobal = GLOBAL_TABS.indexOf(tab) !== -1;
+    $("main").classList.toggle("global", isGlobal);
+    $("detail-title").textContent = isGlobal
+      ? TAB_LABELS[tab]
+      : selectedUid ? "用户详情 — " + selectedUid : "用户详情";
     loadPane(tab, selectedUid);
   }
 
@@ -510,15 +547,15 @@
         '<button id="btn-char">发干员</button>' +
         '<button id="btn-skin">发皮肤</button></div>' +
         '<div id="checkin-box" style="margin-bottom:10px;"></div>' +
-        "<table>" +
-        "<tr><td>龙门币</td><td>" + fmtNum(info.gold) + "</td><td>合成玉</td><td>" + fmtNum(info.androidDiamond) + "</td></tr>" +
-        "<tr><td>理智</td><td>" + (info.ap || 0) + " / " + (info.maxAp || "-") + "</td><td>寻访凭证</td><td>" + info.gachaTicket + "</td></tr>" +
-        "<tr><td>招募许可</td><td>" + info.recruitLicense + "</td><td>演习券</td><td>" + info.practiceTicket + "</td></tr>" +
-        "<tr><td>高级凭证</td><td>" + (info.hggShard || 0) + "</td><td>资质凭证</td><td>" + (info.lggShard || 0) + "</td></tr>" +
-        "<tr><td>社交点</td><td>" + (info.socialPoint || 0) + "</td><td>源石碎片</td><td>" + (info.diamondShard || 0) + "</td></tr>" +
-        "<tr><td>加急许可</td><td>" + (info.instantFinishTicket || 0) + "</td><td>十连券</td><td>" + (info.tenGachaTicket || 0) + "</td></tr>" +
-        "<tr><td>干员数</td><td>" + info.charCnt + "</td><td>经验</td><td>" + info.exp + "</td></tr>" +
-        "</table>" +
+        '<div class="res-grid">' +
+        resItem(fmtNum(info.gold), "龙门币") + resItem(fmtNum(info.androidDiamond), "合成玉") +
+        resItem((info.ap || 0) + "/" + (info.maxAp || "-"), "理智") + resItem(info.gachaTicket, "寻访凭证") +
+        resItem(info.recruitLicense, "招募许可") + resItem(info.practiceTicket, "演习券") +
+        resItem(info.hggShard || 0, "高级凭证") + resItem(info.lggShard || 0, "资质凭证") +
+        resItem(info.socialPoint || 0, "社交点") + resItem(info.diamondShard || 0, "源石碎片") +
+        resItem(info.instantFinishTicket || 0, "加急许可") + resItem(info.tenGachaTicket || 0, "十连券") +
+        resItem(info.charCnt, "干员数") + resItem(info.exp, "经验") +
+        "</div>" +
         "<h4 style=\"color:var(--gold);margin:12px 0 6px;\">背包道具（前 20）</h4>" +
         "<div style=\"font-size:12px;color:var(--muted);max-height:220px;overflow:auto;\">" + inv + "</div>";
       bindOverviewActions(uid);
@@ -1398,12 +1435,22 @@
     refreshUsers();
   });
 
-  /* ---------- Tab 切换 ---------- */
+  /* ---------- Tab 切换 / 统计折叠 ---------- */
 
-  document.querySelectorAll("#detail-body .tab").forEach(function (t) {
+  document.querySelectorAll(".main-nav .tab").forEach(function (t) {
     t.addEventListener("click", function () { switchTab(t.getAttribute("data-tab")); });
   });
   $("btn-refresh-logs").addEventListener("click", refreshLogs);
+  $("stats-toggle").addEventListener("click", function () {
+    var body = $("stats-body");
+    var open = body.style.display !== "none";
+    body.style.display = open ? "none" : "block";
+    this.textContent = open ? "展开" : "收起";
+    if (!open) {
+      refreshStats();
+      refreshLogs();
+    }
+  });
 
   /* ---------- 轮询（智能：不打断正在编辑的输入框） ---------- */
 

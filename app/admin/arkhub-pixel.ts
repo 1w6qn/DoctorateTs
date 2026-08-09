@@ -20,16 +20,19 @@ export const PIXEL_DATA_LEN = PIXEL_CANVAS_W * PIXEL_CANVAS_H * 3;
 /** 空白像素 RGB（透明/背景） */
 export const PIXEL_EMPTY: readonly [number, number, number] = [255, 255, 255];
 
-/** 默认 40 色调色板（HTML 颜色，编辑器选色用；官方热更数据可后续替换） */
+/**
+ * 官服 40 色调色板（display_meta_table.json → pixelMapData.paramMap.pixelMap1.htmlColors）
+ * 服务端校验每个像素颜色必须在此白名单内（否则 400 "invalid pixel color"）。
+ */
 export const PIXEL_PALETTE: readonly string[] = [
-  "#ffffff", "#cccccc", "#888888", "#444444", "#000000",
-  "#ff8888", "#ff4444", "#cc0000", "#880000", "#440000",
-  "#ffcc88", "#ff8800", "#cc6600", "#884400", "#442200",
-  "#ffee88", "#ffcc00", "#cc9900", "#886600", "#443300",
-  "#ccff88", "#88ff00", "#66cc00", "#448800", "#224400",
-  "#88ffcc", "#00ff88", "#00cc66", "#008844", "#004422",
-  "#88ffff", "#00cccc", "#009999", "#006666", "#003333",
-  "#8888ff", "#4444ff", "#0000cc", "#000088", "#4400cc",
+  "#222222", "#b4b4b4", "#eae7df", "#ffffff", "#d32f36",
+  "#9c0a00", "#d60c4a", "#e6968d", "#fe9875", "#f7d0c0",
+  "#fcefea", "#fbf6e8", "#dcd2c8", "#e2ceab", "#d56322",
+  "#d48c42", "#f29900", "#f9c933", "#fce499", "#b3b47a",
+  "#c2da72", "#6c6e00", "#b19155", "#a98f74", "#aa9228",
+  "#3f2b12", "#74491f", "#534658", "#2a2446", "#394599",
+  "#5a459d", "#baa3d7", "#b6bcdf", "#a9acbe", "#63abb9",
+  "#b4d2dc", "#91d8e6", "#47aea0", "#b6d3c8", "#273864",
 ];
 
 /**

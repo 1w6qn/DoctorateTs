@@ -145,6 +145,8 @@ export function printHelp(): void {
   users items <关键字> [limit] [--json]             按名称/ID 搜索物品（供发放用）
   users missions <uid> [--json]                     查看任务进度统计（只读）
   users medals <uid> [--json]                       查看勋章进度（只读）
+  users shop <uid> [--json]                         查看商店数据汇总（只读）
+  users checkin <uid> [--reset|--do]                查看/重置/代签签到
   users export <uid> [path]                         导出存档到 JSON（默认 ./exports/）
   users import <存档JSON> [uid]                     从 JSON 导入/替换存档
   users delete <uid> --yes                          删除用户（危险操作，需 --yes）
@@ -157,6 +159,8 @@ export function printHelp(): void {
   users items <关键字> [limit] [--json]             按名称/ID 搜索物品（供发放用）
   users missions <uid> [--json]                     查看任务进度统计（只读）
   users medals <uid> [--json]                       查看勋章进度（只读）
+  users shop <uid> [--json]                         查看商店数据汇总（只读）
+  users checkin <uid> [--reset|--do]                查看/重置/代签签到
   users export <uid> [path]                         导出存档到 JSON（默认 ./exports/）
   users import <存档JSON> [uid]                     从 JSON 导入/替换存档
   users delete <uid> --yes                          删除用户（危险操作，需 --yes）
@@ -657,6 +661,41 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
           st.types.map((t) => ({ 类型: t.type, 当前商店: t.curShopId ?? "-", 记录数: t.items })),
         );
       }
+      return;
+    }
+    case "checkin": {
+      const uid = args[1];
+      if (!uid) {
+        console.error("用法: users checkin <uid> [--reset|--do] [--json]");
+        process.exitCode = 1;
+        return;
+      }
+      if (flags.reset === "true") {
+        const st = await adminService.resetCheckIn(uid);
+        console.log(`已重置用户 ${uid} 签到（组 ${st.groupTitle}，档位 ${st.rewardIndex + 1}/${st.total}）`);
+        return;
+      }
+      if (flags.do === "true") {
+        const r = await adminService.doCheckIn(uid);
+        console.log(
+          r.rewards.length
+            ? `已代签用户 ${uid}：${r.rewards.map((x) => `${x.name}x${x.count}`).join(", ")}`
+            : `用户 ${uid} 当日已签（无奖励）`,
+        );
+        if (flags.json) {
+          output(r, flags);
+        }
+        return;
+      }
+      const st = await adminService.getCheckInState(uid);
+      if (flags.json) {
+        output(st, flags);
+        return;
+      }
+      console.log(`用户 ${uid} 签到状态：组「${st.groupTitle}」(${st.groupId})`);
+      console.log(
+        `  已签 ${st.rewardIndex >= 0 ? st.rewardIndex + 1 : 0}/${st.total} 档 | 今日可签 ${st.canCheckIn ? "是" : "否"}`,
+      );
       return;
     }
     default:

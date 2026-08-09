@@ -77,6 +77,19 @@ vi.mock("@excel/excel", () => ({
         "main_01-02": {},
       },
     },
+    CheckinTable: {
+      groups: {
+        group1: {
+          groupId: "group1",
+          title: "签到组",
+          signStartTime: 0,
+          signEndTime: 9999999999,
+          items: [{ itemId: "4001", itemType: "GOLD", count: 100 }],
+        },
+      },
+      currentMonthlySubId: "",
+      monthlySubItem: {},
+    },
   },
 }));
 
@@ -137,6 +150,13 @@ function makeFullPd() {
     mission: { missions: {}, missionRewards: {}, missionGroups: {} } as any,
     medal: { medals: {}, custom: {} } as any,
     shop: {} as any,
+    checkIn: {
+      canCheckIn: 1,
+      checkInGroupId: "group1",
+      checkInRewardIndex: 0,
+      checkInHistory: [],
+      newbiePackage: { open: false, groupId: "", finish: 0, stopSale: 0 },
+    } as any,
     building: {
       roomSlots: {
         slot_1: { level: 1, state: 1, roomId: "room_1", charInstIds: [], completeConstructTime: 0 },
@@ -980,6 +1000,54 @@ describe("AdminService checkData 干员校验", () => {
     const r = await service.checkData();
     expect(r.ok).toBe(false);
     expect(r.users[0].error).toContain("阿米娅");
+  });
+});
+
+describe("AdminService 签到", () => {
+  let service: AdminService;
+  let pd: any;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    service = new AdminService();
+    pd = makeFullPd();
+    stubAccounts(pd);
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.mocked(appendFile).mockResolvedValue(undefined);
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+  });
+
+  it("getCheckInState 应返回组/档位/总数", async () => {
+    const st = await service.getCheckInState("1");
+    expect(st).toMatchObject({
+      groupId: "group1",
+      groupTitle: "签到组",
+      canCheckIn: 1,
+      rewardIndex: 0,
+      historyCount: 0,
+      total: 1,
+    });
+  });
+
+  it("resetCheckIn 应调用月刷新并落盘", async () => {
+    pd.checkIn = { monthlyRefresh: vi.fn().mockResolvedValue(undefined) };
+    const st = await service.resetCheckIn("1");
+    expect(pd.checkIn.monthlyRefresh).toHaveBeenCalled();
+    expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
+    expect(st.total).toBe(1);
+  });
+
+  it("doCheckIn 应返回带中文名的奖励并落盘", async () => {
+    pd.checkIn = {
+      checkIn: vi.fn().mockResolvedValue({
+        signInRewards: [{ id: "4001", type: "GOLD", count: 100 }],
+        subscriptionRewards: [],
+      }),
+    };
+    const r = await service.doCheckIn("1");
+    expect(r.rewards).toEqual([{ id: "4001", name: "龙门币", count: 100 }]);
+    expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
   });
 });
 

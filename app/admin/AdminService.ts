@@ -198,6 +198,16 @@ export interface PlayerPoolState {
   guarantee5Count: number;
 }
 
+/** 玩家签到状态 */
+export interface CheckInState {
+  groupId: string;
+  groupTitle: string;
+  canCheckIn: number;
+  rewardIndex: number;
+  historyCount: number;
+  total: number;
+}
+
 /** 从玩家数据提取列表摘要 */
 export function toUserSummary(uid: string, pd: PlayerDataManager): UserSummary {
   const status = pd._playerdata.status;
@@ -1312,6 +1322,48 @@ export class AdminService {
     await this.savePlayer(uid);
     await this._audit("repairChars", uid, `${chars} 名干员 / ${fields} 个字段`);
     return { chars, fields };
+  }
+
+  /** 玩家签到状态（只读） */
+  async getCheckInState(uid: string): Promise<CheckInState> {
+    const pd = await this.getPlayer(uid);
+    const ci = pd._playerdata.checkIn;
+    const group = excel.CheckinTable?.groups?.[ci?.checkInGroupId];
+    return {
+      groupId: ci?.checkInGroupId ?? "",
+      groupTitle: group?.title ?? "",
+      canCheckIn: ci?.canCheckIn ?? 0,
+      rewardIndex: ci?.checkInRewardIndex ?? 0,
+      historyCount: (ci?.checkInHistory ?? []).length,
+      total: group?.items?.length ?? 0,
+    };
+  }
+
+  /** 重置签到（切到当前进行中的签到组，清空进度） */
+  async resetCheckIn(uid: string): Promise<CheckInState> {
+    const pd = await this.getPlayer(uid);
+    await pd.checkIn.monthlyRefresh();
+    await this.savePlayer(uid);
+    await this._audit("resetCheckIn", uid, "重置签到");
+    return this.getCheckInState(uid);
+  }
+
+  /** 代签（领取当前档位奖励；当日已签返回空奖励） */
+  async doCheckIn(
+    uid: string,
+  ): Promise<{ rewards: { id: string; name: string; count: number }[]; state: CheckInState }> {
+    const pd = await this.getPlayer(uid);
+    const res = await pd.checkIn.checkIn();
+    await this.savePlayer(uid);
+    const rewards = [...(res?.signInRewards ?? []), ...(res?.subscriptionRewards ?? [])].map(
+      (r) => ({ id: r.id, name: itemName(r.id), count: r.count }),
+    );
+    await this._audit(
+      "doCheckIn",
+      uid,
+      rewards.length ? `奖励 ${rewards.map((r) => `${r.name}x${r.count}`).join(",")}` : "当日已签",
+    );
+    return { rewards, state: await this.getCheckInState(uid) };
   }
 
   /**

@@ -64,6 +64,9 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   { method: "GET", path: "/api/users/:uid/chars", summary: "干员列表（中文名/星级/最大等级）" },
   { method: "GET", path: "/api/users/:uid/chars/:instId", summary: "单个干员详情（技能/专精/装备/语音/信赖）" },
   { method: "GET", path: "/api/users/:uid/shop", summary: "商店数据汇总（只读：各类型购买记录数）" },
+  { method: "GET", path: "/api/users/:uid/checkin", summary: "玩家签到状态（只读：组/已签/总档位）" },
+  { method: "POST", path: "/api/users/:uid/checkin/reset", summary: "重置签到（切到当前进行中签到组，清空进度）", body: "{}" },
+  { method: "POST", path: "/api/users/:uid/checkin/do", summary: "代签（领取当前档位奖励，当日已签返回空）", body: "{}" },
   {
     method: "POST",
     path: "/api/users/:uid/chars",

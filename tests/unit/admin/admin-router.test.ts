@@ -13,6 +13,9 @@ vi.mock("../../../app/admin/AdminService", () => ({
     listChars: vi.fn().mockResolvedValue([{ instId: 1, name: "阿米娅" }]),
     getCharDetail: vi.fn().mockResolvedValue(null),
     getShopSummary: vi.fn().mockResolvedValue({ types: [{ type: "LS", items: 1 }], total: 1 }),
+    getCheckInState: vi.fn().mockResolvedValue({ groupId: "group1", total: 1, rewardIndex: 0 }),
+    resetCheckIn: vi.fn().mockResolvedValue({ groupId: "group1", total: 1, rewardIndex: -1 }),
+    doCheckIn: vi.fn().mockResolvedValue({ rewards: [{ id: "4001", name: "龙门币", count: 100 }], state: {} }),
     setCharAttrs: vi.fn().mockResolvedValue({ instId: 1, name: "阿米娅", level: 90 }),
     maxOutAccount: vi.fn().mockResolvedValue({ chars: 1, items: 10, skins: 2, rooms: 1 }),
     buildingMax: vi.fn().mockResolvedValue({ rooms: 3 }),
@@ -167,6 +170,24 @@ describe("admin 路由（扩展能力）", () => {
     await call({ method: "GET", url: "/api/users/1/shop", params: { uid: "1" } }, res2);
     expect(adminService.getShopSummary).toHaveBeenCalledWith("1");
     expect(res2.json).toHaveBeenCalledWith({ types: [{ type: "LS", items: 1 }], total: 1 });
+  });
+
+  it("签到端点应透传（状态/重置/代签）", async () => {
+    const res1 = mockRes();
+    await call({ method: "GET", url: "/api/users/1/checkin", params: { uid: "1" } }, res1);
+    expect(adminService.getCheckInState).toHaveBeenCalledWith("1");
+
+    const res2 = mockRes();
+    await call({ method: "POST", url: "/api/users/1/checkin/reset", params: { uid: "1" }, body: {} }, res2);
+    expect(adminService.resetCheckIn).toHaveBeenCalledWith("1");
+
+    const res3 = mockRes();
+    await call({ method: "POST", url: "/api/users/1/checkin/do", params: { uid: "1" }, body: {} }, res3);
+    expect(adminService.doCheckIn).toHaveBeenCalledWith("1");
+    expect(res3.json).toHaveBeenCalledWith({
+      rewards: [{ id: "4001", name: "龙门币", count: 100 }],
+      state: {},
+    });
   });
 
   it("POST /api/users/:uid/chars 应修改干员属性", async () => {

@@ -455,6 +455,7 @@
         '<button id="act-restore">恢复最近备份</button>' +
         '<button id="btn-char">发干员</button>' +
         '<button id="btn-skin">发皮肤</button></div>' +
+        '<div id="checkin-box" style="margin-bottom:10px;"></div>' +
         "<table>" +
         "<tr><td>龙门币</td><td>" + fmtNum(info.gold) + "</td><td>合成玉</td><td>" + fmtNum(info.androidDiamond) + "</td></tr>" +
         "<tr><td>理智</td><td>" + (info.ap || 0) + " / " + (info.maxAp || "-") + "</td><td>寻访凭证</td><td>" + info.gachaTicket + "</td></tr>" +
@@ -467,7 +468,47 @@
         "<h4 style=\"color:var(--gold);margin:12px 0 6px;\">背包道具（前 20）</h4>" +
         "<div style=\"font-size:12px;color:var(--muted);max-height:220px;overflow:auto;\">" + inv + "</div>";
       bindOverviewActions(uid);
+      loadCheckIn(uid);
     }).catch(function () {});
+  }
+
+  /* 签到区：状态 + 重置/代签 */
+  function loadCheckIn(uid) {
+    var box = $("checkin-box");
+    if (!box) return;
+    box.innerHTML = '<span style="color:var(--muted);font-size:12px;">签到加载中...</span>';
+    api("/users/" + encodeURIComponent(uid) + "/checkin").then(function (st) {
+      box.innerHTML =
+        '<div class="row" style="align-items:center;gap:10px;background:#1a1a1c;border:1px solid var(--border);border-radius:6px;padding:8px 10px;">' +
+        '<span style="font-size:12px;">签到 <b style="color:var(--gold);">' +
+        (st.rewardIndex >= 0 ? st.rewardIndex + 1 : 0) + "/" + st.total + "</b> 档" +
+        (st.canCheckIn ? "（今日可签）" : "") + " <span style=\"color:var(--muted);\">" + escapeHtml(st.groupTitle || "") + "</span></span>" +
+        '<button id="checkin-do" class="btn-sm primary">代签</button>' +
+        '<button id="checkin-reset" class="btn-sm">重置</button></div>';
+      $("checkin-do").addEventListener("click", function () {
+        api("/users/" + encodeURIComponent(uid) + "/checkin/do", { method: "POST", body: "{}" })
+          .then(function (r) {
+            alert(r.rewards.length
+              ? "代签成功：" + r.rewards.map(function (x) { return x.name + " x" + x.count; }).join(", ")
+              : "当日已签（无奖励）");
+            loadCheckIn(uid);
+            refreshLogs();
+          })
+          .catch(function (e) { alert("代签失败：" + e.message); });
+      });
+      $("checkin-reset").addEventListener("click", function () {
+        if (!confirm("重置该用户签到进度（重新领一轮）？")) return;
+        api("/users/" + encodeURIComponent(uid) + "/checkin/reset", { method: "POST", body: "{}" })
+          .then(function () {
+            alert("已重置签到");
+            loadCheckIn(uid);
+            refreshLogs();
+          })
+          .catch(function (e) { alert("重置失败：" + e.message); });
+      });
+    }).catch(function () {
+      box.innerHTML = "";
+    });
   }
 
   function bindOverviewActions(uid) {
@@ -477,8 +518,7 @@
       "act-refresh": { path: "/refresh", label: "每日刷新" },
       "act-save": { path: "/save", label: "保存" },
       "act-backup": { path: "/backup", label: "备份" },
-    };
-    Object.keys(act).forEach(function (id) {
+    };    Object.keys(act).forEach(function (id) {
       var el = $(id);
       if (!el) return;
       el.addEventListener("click", function () {

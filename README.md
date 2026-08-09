@@ -42,6 +42,7 @@ npm run admin -- users chars 1                  # 干员列表
 npm run admin -- users char 1 5                 # 查看干员详情（技能/专精/装备/语音）
 npm run admin -- users char 1 5 --level 90 --evolve 2 --potential 5 --skill 7   # 修改干员属性（免费）
 npm run admin -- users shop 1 [--json]          # 查看商店数据汇总（只读）
+npm run admin -- users checkin 1 [--reset|--do] # 查看/重置/代签签到（Dashboard 概览同有签到区）
 npm run admin -- users maxout 1                 # 一键满配（资源/背包/干员/基建/皮肤，不覆盖阵容）
 npm run admin -- users building 1 max           # 基建满级
 npm run admin -- users backup 1                 # 备份存档（data/user/backups/）

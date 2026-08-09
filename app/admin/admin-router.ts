@@ -128,6 +128,33 @@ router.get("/api/users/:uid/shop", async (req: Request, res: Response) => {
   }
 });
 
+/** 玩家签到状态（只读） */
+router.get("/api/users/:uid/checkin", async (req: Request, res: Response) => {
+  try {
+    res.json(await adminService.getCheckInState(String(req.params.uid)));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 重置签到 */
+router.post("/api/users/:uid/checkin/reset", async (req: Request, res: Response) => {
+  try {
+    res.json(await adminService.resetCheckIn(String(req.params.uid)));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 代签（领取当前档位奖励） */
+router.post("/api/users/:uid/checkin/do", async (req: Request, res: Response) => {
+  try {
+    res.json(await adminService.doCheckIn(String(req.params.uid)));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 /** 修改干员属性 */
 router.post("/api/users/:uid/chars", async (req: Request, res: Response) => {
   try {

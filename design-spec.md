@@ -652,14 +652,20 @@ get socialInfo(): FriendDataWithNameCard {
 ## 9. 管理后台设计规范
 
 ### 9.1 功能定位
-管理后台面向服主，提供 CLI（`npm run admin`）与 Web Dashboard（`/admin/dashboard`）两套入口，
-覆盖用户管理（列表/详情/创建）、物品发放、邮件发送、服务器状态查看与基础配置修改。
+管理后台面向服主，提供 CLI（`npm run admin`，离线可用）与 Web Dashboard（`/admin/dashboard`）两套入口，
+覆盖用户全生命周期（建/查/改/批量/备份/导出导入/删除/修复）、物品/干员/皮肤发放、卡池管理、
+关卡/任务/勋章/商店只读、邮件（单发/群发/查看/删除）、官服账号迁移、接口调试、统计、审计与一键启动。
 
 ### 9.2 架构
-- 管理服务层 `app/admin/AdminService.ts`：纯逻辑层，CLI 与 HTTP 共用，复用 `AccountManager` / `mailManager` / `InventoryManager`。
-- CLI `scripts/admin-cli.ts`：直接操作本地数据，无需启动服务器，完全离线可用。
-- HTTP 管理 API `app/admin/admin-router.ts`：前缀 `/admin/api`，Bearer Token 认证（`admin-auth.ts`）。
-- Dashboard `app/admin/dashboard/index.html`：单文件静态页（内联 CSS/JS，零构建依赖），页面免认证、API 需令牌。
+- **共享服务层 `app/admin/AdminService.ts`**：纯逻辑层，CLI 与 HTTP 共用（`adminService` 单例）。
+  所有写操作统一 `pd.update`（Immer）+ `accountManager.flushSave(uid)` 落盘 + `_audit` 审计日志（`data/admin/logs.jsonl`）。
+- **CLI `scripts/admin-cli.ts`**：无参数进入 REPL（Tab 补全）；全局 `--quiet/-q` 抑制内部日志（`LOG_LEVEL=error`，logger 运行时求值）；
+  输出支持 `--json` / `--csv`。
+- **HTTP 管理 API `app/admin/admin-router.ts`**：前缀 `/admin/api`，Token 认证（`admin-auth.ts`，`X-Admin-Token` 头）。
+- **Dashboard `app/admin/dashboard/index.html`**：单文件静态页（内联 CSS/JS，零构建依赖），10s 轮询，全部注入走 `escapeHtml`。
+- **端点规范 `app/admin/api-spec.ts` + `openapi.ts`**：`ADMIN_ENDPOINTS` 一份清单同时驱动接口控制台与 `GET /admin/api/openapi.json`（OpenAPI 3.0 文档）。
+- **游戏协议代理 `AdminService.gameProxy`**：以玩家 secret 调用游戏端点（`game/app.ts` 锁中间件跳过 `/admin` 路径——
+  否则 single 模式外层 admin 请求持有 singleUid 锁、内层代理等待同一把锁会死锁）。
 
 ### 9.3 配置
 `data/config.json` 新增 `admin` 段：
@@ -668,21 +674,61 @@ get socialInfo(): FriendDataWithNameCard {
 
 ### 9.4 安全
 - 管理接口默认关闭；开启必须设置强 token。
-- 所有管理操作（发放物品/发邮件/建号）校验用户存在性与参数合法性（数量为正整数、手机号唯一）。
-- 建议仅在内网/本机暴露管理接口；Dashboard 页面免认证，但所有 API 请求必须携带令牌。
+- **危险操作双确认**：`users delete` 需 `--yes` + 服务端 `confirmWord="DELETE"`；`restore` 文件名白名单
+  `^{uid}-[\d-]+\.json$` 防路径穿越；`gameProxy` 拦截 `/admin`、`/auth` 控制面路径。
+- **审计日志**：所有变更操作（发放/邮件/建号/卡池/迁移/备份/删除/修复…）写入 `data/admin/logs.jsonl`，
+  CLI `logs show` / Dashboard「操作日志」区块可查。
+- 建议仅在内网/本机暴露；Dashboard 页面免认证，但所有 API 请求必须携带令牌。
 
 ### 9.5 数据一致性
-- 写操作统一走 `PlayerDataManager.update`（Immer 补丁）+ `accountManager.savePlayerData` / `saveUserConfig` 落盘。
-- 创建用户采用模板复制（以 uid=1 数据库为模板）保证 `PlayerDataModel` 字段完整，写入文件后由 `reloadUser` 热加载进内存。
-- `mailManager.sendMail` 为系统邮件唯一入口，`mailId` 全局自增（`nextMailId`，最小 1000000）。
+- 写操作统一 `pd.update` + `flushSave`（`savePlayerData` + `saveUserConfig`），删除账号依赖 `upsertAll` 全量同步语义清 SQLite。
+- 创建用户采用模板复制（uid=1 存档）保证字段完整，`reloadUser` 热加载进内存；官服迁移成功后逐个热加载。
+- 干员引用（ID/中文名）统一走 `admin-names.resolveCharRef`；星级用 `charRarity` 归一化
+  （character_table 的 rarity 为 `"TIER_5"` 字符串，`rarity + 1` 会变字符串拼接）。
+- `runMigration` 接收账号**内容文本**（CLI 读文件、Dashboard 粘贴共用）；scripts 模块被 app/ 引用后纳入 tsc 编译。
 
 ### 9.6 CLI 命令一览
 ```
-users list | users info <uid> | users create <phone> [password] | users grant <uid> <itemId> <count>
-mail send <uid> <subject> [content] [--items id:count,...]
-server status
+users list [--json|--csv] [--filter 关键字] | users info <uid>
+users create <phone> [password]
+users grant <uid[,uid...]> <itemId|名称> <count> | users grantall <uid> [count]
+users grantchar <uid> <charId|干员名> | users skin <uid> <skinId>
+users chars <uid> | users char <uid> <instId> [--level/--evolve/--potential/--skill]（无参数=详情）
+users maxout <uid> | users maxchars <uid> | users repairchars <uid>
+users stages <uid> | users unlock <uid> <stageId> | users unlockall <uid>
+users items <关键字> | users missions <uid> | users medals <uid> | users shop <uid>
+users backup <uid> | users backups <uid> | users restore <uid> <备份>
+users dump <uid> [--pretty] | users export <uid> [path] | users import <存档JSON> [uid]
+users delete <uid> --yes
+mail send <uid[,uid...]|all> <subject> [content] [--items id:count,...] | mail list <uid> | mail delete <uid> <mailId>
+server status | server refresh <uid> | server save [uid] | server check
 config show | config set <key> <value>
+gacha pools | gacha pool <poolId> | gacha state <uid> <poolId> | gacha up <uid> <poolId> [charId...] | gacha pity <uid> [ruleType] [count]
+official accounts <file> | official migrate <file> [--template uid]
+logs show [--last N] [--json]
+全局：--quiet/-q（抑制日志）；无参数进入 REPL（Tab 补全）
 ```
+
+### 9.7 REST API 一览（52 端点，前缀 /admin/api）
+- 服务器/配置：`status`、`config`、`check`、`logs`、`spec`、`openapi.json`、`common-items`、`items`（搜索）、`stats`
+- 用户：`users`（?filter=）、`users/:uid`、`users`（POST 建号）、`users/:uid/grant`、`grantchar`、`grantskin`、
+  `chars`、`chars/:instId`（详情）、`chars`（POST 编辑）、`maxout`、`maxchars`、`repair-chars`、`building-max`、
+  `grant-all`、`stages`、`stages/unlock`、`stages/unlock-all`、`missions`、`medals`、`shop`、`raw`、`mails`、`mails/:mailId`（DELETE）、
+  `pools/:poolId`（玩家状态）、`pools/:poolId/up`、`pity`、`backup`、`backups`、`restore`、`export`、`refresh`、`save`
+- 邮件/卡池/迁移：`mail`、`mail/all`、`pools`、`pools/:poolId`、`official/migrate`、`import`
+- 调试：`game-proxy`（带玩家 secret 调游戏端点）
+
+### 9.8 Dashboard 功能区块
+概览（资源中文名 + 一键满配/基建/刷新/保存/备份/恢复 + 发干员/发皮肤）| 干员（搜索/详情弹窗/行内编辑/全部满级/修复结构）|
+邮件（列表/删除/群发）| 卡池（清单/详情 + 玩家 UP/保底管理）| 接口（管理 API 控制台 + 游戏协议调试器 + OpenAPI 链接）|
+迁移（粘贴官服账号执行）| 数据（raw JSON 只读）| 统计（等级/注册分布）| 操作日志 | 用户列表搜索
+
+### 9.9 关键设计决策
+- **CLI 与 HTTP 共用 AdminService**：新增能力先在服务层实现 + 单测，再分别接 CLI / router / Dashboard，避免三端逻辑漂移。
+- **scripts 引用策略**：AdminService 直接 import scripts 模块（`migrate-official`、`generate-max-account`），
+  使其纳入 tsc 编译（曾暴露 `official-register` 潜在类型错误）；共享构建器（`buildMaxedSkills` 等）迁至 `app/game/maxout.ts`。
+- **parseArgs 吞值**：`--quiet users list` 会把 `users` 当 flag 值吞掉——全局 flag 解析前先从 argv 剔除。
+- **状态修复闭环**：`server check` 诊断（status/troop/干员字段/阿米娅 tmpl）→ `users repairchars` 修复 → 复检，形成闭环。
 
 ---
 

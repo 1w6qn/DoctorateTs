@@ -183,6 +183,7 @@ export function printHelp(): void {
 
 日志:
   logs show [--last N] [--json]                     查看审计日志
+  logs clear --yes                                 清空审计日志（危险操作）
 
 卡池管理:
   gacha pools [--json]                              列出全部卡池
@@ -276,11 +277,35 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
     }
     case "grant": {
       const uidArg = args[1];
+      const uids = String(uidArg ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+      if (!uids.length) {
+        console.error("用法: users grant <uid[,uid...]> <itemId|名称> <count> | users grant <uid[,uid...]> --items id:count,id:count");
+        process.exitCode = 1;
+        return;
+      }
+      // 多物品批量：--items id:count,id:count
+      if (flags.items && flags.items !== "true") {
+        const items = flags.items.split(",").map((pair: string) => {
+          const [id, cnt] = pair.split(":");
+          return { id, count: Number(cnt ?? 1) };
+        }).filter((it: any) => it.id && Number.isInteger(it.count) && it.count > 0);
+        if (!items.length) {
+          console.error("--items 格式: id:count,id:count（count 为正整数）");
+          process.exitCode = 1;
+          return;
+        }
+        for (const uid of uids) {
+          for (const it of items) {
+            await adminService.grantItem(uid, it.id, it.count);
+          }
+          console.log(`已向用户 ${uid} 批量发放 ${items.length} 种物品`);
+        }
+        return;
+      }
       const itemId = args[2];
       const countStr = args[3];
       const count = Number(countStr);
-      const uids = String(uidArg ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-      if (!uids.length || !itemId || !countStr || !Number.isInteger(count) || count <= 0) {
+      if (!itemId || !countStr || !Number.isInteger(count) || count <= 0) {
         console.error("用法: users grant <uid[,uid...]> <itemId|名称> <count>（count 为正整数；uid 支持逗号分隔批量）");
         process.exitCode = 1;
         return;
@@ -905,29 +930,39 @@ async function runConfig(args: string[]): Promise<void> {
 /** logs 子命令 */
 async function runLogs(args: string[], flags: { [key: string]: string }): Promise<void> {
   const sub = args[0];
-  if (sub !== "show") {
-    console.error("用法: logs show [--last N] [--json]");
-    process.exitCode = 1;
+  if (sub === "show") {
+    const last = Number(flags.last ?? 50);
+    const entries = await adminService.logs(Number.isFinite(last) ? last : 50);
+    if (flags.json) {
+      output(entries, flags);
+      return;
+    }
+    if (!entries.length) {
+      console.log("暂无操作日志");
+      return;
+    }
+    console.table(
+      entries.map((e) => ({
+        时间: new Date(e.ts * 1000).toLocaleString(),
+        操作: e.action,
+        用户: e.uid || "-",
+        详情: e.detail,
+      })),
+    );
     return;
   }
-  const last = Number(flags.last ?? 50);
-  const entries = await adminService.logs(Number.isFinite(last) ? last : 50);
-  if (flags.json) {
-    output(entries, flags);
+  if (sub === "clear") {
+    if (flags.yes !== "true") {
+      console.error("危险操作：清空全部审计日志请加 --yes");
+      process.exitCode = 1;
+      return;
+    }
+    const r = await adminService.clearLogs("CLEAR");
+    console.log(`已清空 ${r.cleared} 条审计日志`);
     return;
   }
-  if (!entries.length) {
-    console.log("暂无操作日志");
-    return;
-  }
-  console.table(
-    entries.map((e) => ({
-      时间: new Date(e.ts * 1000).toLocaleString(),
-      操作: e.action,
-      用户: e.uid || "-",
-      详情: e.detail,
-    })),
-  );
+  console.error("用法: logs show [--last N] [--json] | logs clear --yes");
+  process.exitCode = 1;
 }
 
 /** gacha 子命令（卡池管理） */

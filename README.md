@@ -30,6 +30,7 @@ npm run admin -- users list [--json] [--csv] [--filter 博士]   # 列出用户�
 npm run admin -- users info 1                   # 查看用户详情（含中文物品名）
 npm run admin -- users create 13800000000 123456   # 创建用户（模板复制）
 npm run admin -- users grant 1,2,3 4001 100     # 发放物品（uid 支持逗号分隔批量；支持中文名/别名）
+npm run admin -- users grant 1 --items 4001:100,4003:10   # 一次发放多种物品（--items id:count,...）
 npm run admin -- users medals 1 [--json]        # 查看勋章进度（只读）
 npm run admin -- users export 1 [path]          # 导出存档到 JSON（默认 ./exports/）
 npm run admin -- users import <存档JSON> [uid]  # 从 JSON 导入/替换存档
@@ -65,6 +66,7 @@ npm run admin -- server status                  # 服务器状态与数据文件
 npm run admin -- server refresh 1               # 触发每日/每周刷新（理智/任务重置）
 npm run admin -- server save 1                  # 立即保存存档（缺省全部用户）
 npm run admin -- logs show --last 20            # 查看管理操作审计日志
+npm run admin -- logs clear --yes               # 清空审计日志（危险操作）
 npm run admin -- gacha pools                    # 列出全部卡池
 npm run admin -- gacha pool NORMAL_0_1          # 卡池详情（UP/可用干员+概率）
 npm run admin -- gacha state 1 NORMAL_0_1       # 玩家卡池状态（UP 选择+保底计数）

@@ -6,7 +6,7 @@
  * 备份/回滚、邮件（单发/群发/查看/删除）、每日刷新、原始 JSON、统计与审计日志。
  * 所有数据操作均基于本地 JSON（AccountManager / mailManager），离线可用。
  */
-import { appendFile, copyFile, mkdir, readFile, readdir, rm } from "fs/promises";
+import { appendFile, copyFile, mkdir, readFile, readdir, rm, writeFile } from "fs/promises";
 import * as path from "path";
 import excel from "@excel/excel";
 import { getRoomPhase } from "@excel/building_excel";
@@ -1603,6 +1603,17 @@ export class AdminService {
       }
     }
     return entries.slice(-limit).reverse();
+  }
+
+  /** 清空审计日志（确认词保护，防误清） */
+  async clearLogs(confirmWord = ""): Promise<{ cleared: number }> {
+    if (confirmWord !== "CLEAR") {
+      throw new Error("危险操作：需传 confirmWord=\"CLEAR\" 确认");
+    }
+    const before = await this.logs(100000);
+    await writeFile(ADMIN_LOG_PATH, "", "utf8"); // JSONL 清空（空文件）
+    await this._audit("clearLogs", "", `清空 ${before.length} 条审计日志`);
+    return { cleared: before.length };
   }
 
   /** 常用物品别名（展示给服主参考） */

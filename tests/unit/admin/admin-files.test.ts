@@ -3,7 +3,7 @@ import { AdminService } from "../../../app/admin/AdminService";
 import { accountManager } from "../../../app/game/manager/AccountManger";
 import { PlayerDataManager } from "../../../app/game/manager/PlayerDataManager";
 import { exists, readJson, writeJson } from "@utils/file";
-import { copyFile, mkdir, readFile, readdir, appendFile, rm } from "fs/promises";
+import { copyFile, mkdir, readFile, readdir, appendFile, rm, writeFile } from "fs/promises";
 
 // 备份/恢复/审计日志：全部文件操作走 mock，不落盘、不读真实存档
 vi.mock("@utils/file", () => ({
@@ -25,6 +25,7 @@ vi.mock("fs/promises", () => ({
   readFile: vi.fn().mockRejectedValue({ code: "ENOENT" }),
   readdir: vi.fn().mockRejectedValue({ code: "ENOENT" }),
   rm: vi.fn().mockResolvedValue(undefined),
+  writeFile: vi.fn().mockResolvedValue(undefined),
 }));
 // restore 用 new PlayerDataManager 替换内存；mock 类避免真实构造副作用
 vi.mock("@game/manager/PlayerDataManager", () => ({
@@ -145,6 +146,17 @@ describe("AdminService 审计日志", () => {
 
   it("logs 无日志文件时应返回空数组", async () => {
     expect(await service.logs()).toEqual([]);
+  });
+
+  it("clearLogs 应清空日志文件并返回条数", async () => {
+    vi.mocked(readFile).mockResolvedValue('{"ts":1,"action":"a","uid":"1","detail":"x"}\n');
+    const r = await service.clearLogs("CLEAR");
+    expect(r.cleared).toBe(1);
+    expect(writeFile).toHaveBeenCalledWith("./data/admin/logs.jsonl", "", "utf8");
+  });
+
+  it("clearLogs 缺确认词应拒绝", async () => {
+    await expect(service.clearLogs()).rejects.toThrow(/CLEAR/);
   });
 });
 

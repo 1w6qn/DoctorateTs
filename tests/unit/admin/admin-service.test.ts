@@ -855,6 +855,68 @@ describe("AdminService 官服迁移", () => {
   });
 });
 
+describe("AdminService checkData 干员校验", () => {
+  let service: AdminService;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    service = new AdminService();
+  });
+
+  const validChar = {
+    instId: 1,
+    charId: "char_002_amiya",
+    level: 1,
+    evolvePhase: 0,
+    potentialRank: 0,
+    mainSkillLvl: 1,
+    favorPoint: 0,
+    gainTime: 0,
+    voiceLan: "CN_MANDARIN",
+  };
+
+  it("正常干员应通过（含阿米娅三形态结构）", async () => {
+    (accountManager as any).data = {
+      "1": {
+        _playerdata: {
+          status: { uid: "1" },
+          troop: { chars: { "1": { ...validChar, currentTmpl: "char_002_amiya", tmpl: {} } } },
+        },
+      },
+    };
+    const r = await service.checkData();
+    expect(r.ok).toBe(true);
+  });
+
+  it("干员缺字段应报错", async () => {
+    const { mainSkillLvl, ...noSkill } = validChar;
+    (accountManager as any).data = {
+      "1": { _playerdata: { status: { uid: "1" }, troop: { chars: { "1": noSkill as any } } } },
+    };
+    const r = await service.checkData();
+    expect(r.ok).toBe(false);
+    expect(r.users[0].error).toContain("缺少 mainSkillLvl");
+  });
+
+  it("干员不在 CharacterTable 应报错", async () => {
+    (accountManager as any).data = {
+      "1": { _playerdata: { status: { uid: "1" }, troop: { chars: { "1": { ...validChar, charId: "char_999" } } } } },
+    };
+    const r = await service.checkData();
+    expect(r.ok).toBe(false);
+    expect(r.users[0].error).toContain("不在 CharacterTable");
+  });
+
+  it("阿米娅缺 currentTmpl/tmpl 应报错", async () => {
+    (accountManager as any).data = {
+      "1": { _playerdata: { status: { uid: "1" }, troop: { chars: { "1": validChar } } } },
+    };
+    const r = await service.checkData();
+    expect(r.ok).toBe(false);
+    expect(r.users[0].error).toContain("阿米娅");
+  });
+});
+
 describe("AdminService 统计", () => {
   let service: AdminService;
 

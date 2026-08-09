@@ -3,7 +3,7 @@ import { AdminService } from "../../../app/admin/AdminService";
 import { accountManager } from "../../../app/game/manager/AccountManger";
 import { PlayerDataManager } from "../../../app/game/manager/PlayerDataManager";
 import { exists, readJson, writeJson } from "@utils/file";
-import { copyFile, mkdir, readFile, readdir, appendFile } from "fs/promises";
+import { copyFile, mkdir, readFile, readdir, appendFile, rm } from "fs/promises";
 
 // 备份/恢复/审计日志：全部文件操作走 mock，不落盘、不读真实存档
 vi.mock("@utils/file", () => ({
@@ -24,6 +24,7 @@ vi.mock("fs/promises", () => ({
   appendFile: vi.fn().mockResolvedValue(undefined),
   readFile: vi.fn().mockRejectedValue({ code: "ENOENT" }),
   readdir: vi.fn().mockRejectedValue({ code: "ENOENT" }),
+  rm: vi.fn().mockResolvedValue(undefined),
 }));
 // restore 用 new PlayerDataManager 替换内存；mock 类避免真实构造副作用
 vi.mock("@game/manager/PlayerDataManager", () => ({
@@ -205,5 +206,44 @@ describe("AdminService 存档导出/导入/校验", () => {
     expect(r.ok).toBe(false);
     expect(r.users.find((u: any) => u.uid === "2")!.ok).toBe(false);
     expect(r.users.find((u: any) => u.uid === "1")!.ok).toBe(true);
+  });
+});
+
+describe("AdminService 删除用户", () => {
+  let service: AdminService;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    service = new AdminService();
+    (accountManager as any).data = { "1": {}, "2": {} };
+    (accountManager as any).configs = {
+      "1": { uid: "1", auth: { phone: "" } },
+      "2": { uid: "2", auth: { phone: "" } },
+    };
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.mocked(appendFile).mockResolvedValue(undefined);
+    vi.mocked(exists).mockResolvedValue(true);
+    vi.mocked(rm).mockResolvedValue(undefined);
+  });
+
+  it("deleteUser 缺少确认词应拒绝", async () => {
+    await expect(service.deleteUser("2")).rejects.toThrow(/DELETE/);
+  });
+
+  it("deleteUser 对不存在用户应抛错", async () => {
+    await expect(service.deleteUser("999", "DELETE")).rejects.toThrow(/用户不存在/);
+  });
+
+  it("deleteUser 不能删除最后一个用户", async () => {
+    (accountManager as any).data = { "1": {} };
+    await expect(service.deleteUser("1", "DELETE")).rejects.toThrow(/最后一个用户/);
+  });
+
+  it("deleteUser 应删除存档并同步 configs/SQLite", async () => {
+    await service.deleteUser("2", "DELETE");
+    expect(rm).toHaveBeenCalledWith("./data/user/databases/2.json");
+    expect((accountManager as any).data["2"]).toBeUndefined();
+    expect((accountManager as any).configs["2"]).toBeUndefined();
+    expect(accountManager.saveUserConfig).toHaveBeenCalled();
   });
 });

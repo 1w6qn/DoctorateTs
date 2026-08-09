@@ -33,7 +33,9 @@ npm run admin -- users grant 1,2,3 4001 100     # 发放物品（uid 支持逗�
 npm run admin -- users medals 1 [--json]        # 查看勋章进度（只读）
 npm run admin -- users export 1 [path]          # 导出存档到 JSON（默认 ./exports/）
 npm run admin -- users import <存档JSON> [uid]  # 从 JSON 导入/替换存档
-npm run admin -- server check                   # 数据完整性校验
+npm run admin -- server check                   # 数据完整性校验（含干员结构）
+npm run admin -- users delete 1 --yes           # 删除用户（危险操作，需 --yes）
+npm run admin -- --quiet users list --json      # 全局 --quiet/-q：抑制内部日志（脚本化用）
 npm run admin -- users grantchar 1 阿米娅       # 发放干员（支持中文名；重复按稀有度折算信物）
 npm run admin -- users skin 1 char_002_amiya#2  # 解锁皮肤
 npm run admin -- users chars 1                  # 干员列表

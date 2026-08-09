@@ -24,8 +24,6 @@ function resolveLevel(): number {
   return LEVELS["info"];
 }
 
-const currentLevel = resolveLevel();
-
 const COLOR = {
   reset: "\x1b[0m",
   gray: "\x1b[90m",
@@ -49,7 +47,8 @@ function timestamp(): string {
 }
 
 function write(level: LogLevel, tag: string, args: unknown[]): void {
-  if (currentLevel > LEVELS[level]) return;
+  // 运行时求值（非模块加载缓存）：支持 CLI --quiet 等启动后动态设置 LOG_LEVEL
+  if (resolveLevel() > LEVELS[level]) return;
   const out: unknown[] = [
     `${COLOR.gray}[${timestamp()}]${COLOR.reset}`,
     `${LEVEL_COLOR[level]}[${level.toUpperCase()}]${COLOR.reset}`,

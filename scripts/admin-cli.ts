@@ -53,6 +53,7 @@
  *
  * 其他:
  *   help / exit                                        帮助 / 退出交互模式
+ *   全局 --quiet / -q：抑制内部 INFO 日志（便于脚本化）
  *
  * 说明：CLI 直接操作本地数据，无需启动服务器，完全离线可用。
  */
@@ -145,6 +146,7 @@ export function printHelp(): void {
   users medals <uid> [--json]                       查看勋章进度（只读）
   users export <uid> [path]                         导出存档到 JSON（默认 ./exports/）
   users import <存档JSON> [uid]                     从 JSON 导入/替换存档
+  users delete <uid> --yes                          删除用户（危险操作，需 --yes）
   users grantall <uid> [count]                      批量发放全部物品（默认 999）
   users maxchars <uid>                              批量拉满全部已有干员
   users stages <uid> [--json]                       查看玩家推图进度（只读）
@@ -155,6 +157,7 @@ export function printHelp(): void {
   users medals <uid> [--json]                       查看勋章进度（只读）
   users export <uid> [path]                         导出存档到 JSON（默认 ./exports/）
   users import <存档JSON> [uid]                     从 JSON 导入/替换存档
+  users delete <uid> --yes                          删除用户（危险操作，需 --yes）
 
 邮件:
   mail send <uid[,uid...]|all> <subject> [content] [--items id:count,...]  发送邮件（uid 支持逗号分隔批量）
@@ -579,6 +582,22 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
       }
       const r = await adminService.importUser(file, uid);
       console.log(`已导入存档到用户 ${r.uid}`);
+      return;
+    }
+    case "delete": {
+      const uid = args[1];
+      if (!uid) {
+        console.error("用法: users delete <uid> --yes（危险操作，删除存档与账号）");
+        process.exitCode = 1;
+        return;
+      }
+      if (flags.yes !== "true") {
+        console.error("危险操作：确认删除请加 --yes");
+        process.exitCode = 1;
+        return;
+      }
+      const r = await adminService.deleteUser(uid, "DELETE");
+      console.log(`已删除用户 ${r.uid}`);
       return;
     }
     default:
@@ -1070,7 +1089,14 @@ function runRepl(): void {
 
 /** 主入口 */
 export async function main(): Promise<void> {
-  const { command, args, flags } = parseArgs(process.argv.slice(2));
+  // 全局 --quiet/-q：抑制 CLI 内部 INFO 日志（便于脚本化）。
+  // 先剔除该 flag 再 parseArgs（parseArgs 会把 --quiet 后的下一个 token 当值吞掉）
+  const rawArgv = process.argv.slice(2);
+  if (rawArgv.includes("--quiet") || rawArgv.includes("-q")) {
+    process.env.LOG_LEVEL = "error";
+  }
+  const argv = rawArgv.filter((a) => a !== "--quiet" && a !== "-q");
+  const { command, args, flags } = parseArgs(argv);
   if (!command) {
     await cliInit();
     runRepl();

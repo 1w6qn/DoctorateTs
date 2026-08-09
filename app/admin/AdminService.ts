@@ -6,7 +6,7 @@
  * 备份/回滚、邮件（单发/群发/查看/删除）、每日刷新、原始 JSON、统计与审计日志。
  * 所有数据操作均基于本地 JSON（AccountManager / mailManager），离线可用。
  */
-import { appendFile, copyFile, mkdir, readFile, readdir } from "fs/promises";
+import { appendFile, copyFile, mkdir, readFile, readdir, rm } from "fs/promises";
 import * as path from "path";
 import excel from "@excel/excel";
 import { getRoomPhase } from "@excel/building_excel";
@@ -1124,6 +1124,21 @@ export class AdminService {
         if (!d?.status || !d?.troop) {
           throw new Error("缺少 status/troop");
         }
+        // 干员结构校验（历史问题：旧生成器 currentTmpl:null 卡死——逐字段检查）
+        const chars = d.troop?.chars ?? {};
+        for (const [instId, ch] of Object.entries(chars)) {
+          if (!ch?.charId || !excel.CharacterTable?.[ch.charId]) {
+            throw new Error(`干员 instId=${instId} 缺失 charId 或不在 CharacterTable`);
+          }
+          for (const f of ["level", "evolvePhase", "potentialRank", "mainSkillLvl", "favorPoint", "gainTime", "voiceLan"]) {
+            if ((ch as any)[f] === undefined) {
+              throw new Error(`干员 ${ch.charId}(instId=${instId}) 缺少 ${f}`);
+            }
+          }
+          if (ch.charId === "char_002_amiya" && (!ch.currentTmpl || !ch.tmpl)) {
+            throw new Error("阿米娅缺少 currentTmpl/tmpl（旧生成器结构问题）");
+          }
+        }
         JSON.stringify(d); // 可序列化检查
         users.push({ uid, ok: true });
       } catch (e) {
@@ -1131,6 +1146,33 @@ export class AdminService {
       }
     }
     return { ok: users.every((u) => u.ok), users };
+  }
+
+  /**
+   * 删除用户（危险操作：删除存档文件 + 从 configs/data 移除 + saveUserConfig 同步 SQLite）
+   * @param uid - 目标用户
+   * @param confirmWord - 确认词，必须为 "DELETE"（防误删）
+   */
+  async deleteUser(uid: string, confirmWord = ""): Promise<{ uid: string }> {
+    if (confirmWord !== "DELETE") {
+      throw new Error("危险操作：需传 confirmWord=\"DELETE\" 确认");
+    }
+    if (!accountManager.configs[uid] && !accountManager.data[uid]) {
+      throw new Error(`用户不存在: ${uid}`);
+    }
+    if (Object.keys(accountManager.data).length <= 1) {
+      throw new Error("不能删除最后一个用户");
+    }
+    const src = `./data/user/databases/${uid}.json`;
+    if (await exists(src)) {
+      await rm(src);
+    }
+    delete accountManager.data[uid];
+    delete accountManager.configs[uid];
+    // saveUserConfig → upsertAll 全量同步：删除的账号从 SQLite 清除
+    await accountManager.saveUserConfig();
+    await this._audit("deleteUser", uid, "已删除");
+    return { uid };
   }
 
   /**

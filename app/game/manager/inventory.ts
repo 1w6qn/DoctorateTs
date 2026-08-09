@@ -1,5 +1,6 @@
 import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
+import { logger } from "@utils/logger";
 import { now } from "@utils/time";
 import { PlayerDataModel } from "../model/playerdata";
 import { PlayerDataManager } from "./PlayerDataManager";
@@ -27,7 +28,15 @@ export class InventoryManager {
 
   async _useItem(item: ItemBundle): Promise<void> {
     if (!item.type) {
-      item.type = excel.ItemTable.items[item.id].itemType;
+      const def = excel.ItemTable.items[item.id];
+      if (!def) {
+        logger.warn(
+          "inventory",
+          `items:use 物品 ${item.id} 不在 ItemTable，跳过消耗`,
+        );
+        return;
+      }
+      item.type = def.itemType;
     }
     const consumableFunc = async (
       item: ItemBundle,
@@ -71,7 +80,15 @@ export class InventoryManager {
 
   async gainItem(item: ItemBundle, callback?: () => void): Promise<void> {
     if (!item.type) {
-      item.type = excel.ItemTable.items[item.id].itemType as string;
+      const def = excel.ItemTable.items[item.id];
+      if (!def) {
+        logger.warn(
+          "inventory",
+          `items:get 物品 ${item.id} 不在 ItemTable，跳过发放`,
+        );
+        return;
+      }
+      item.type = def.itemType as string;
     }
     const consumableFunc = async (
       item: ItemBundle,

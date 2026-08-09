@@ -377,5 +377,19 @@ describe("InventoryManager", () => {
       );
       expect(itemsGetCalls.length).toBeGreaterThan(0);
     });
+
+    it("无 type 且 ItemTable 不存在的物品应跳过（不 500）", async () => {
+      const manager = new InventoryManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      await expect(
+        manager._useItem({ id: "DIAMOND_SHD", count: 600 })
+      ).resolves.toBeUndefined();
+      await expect(
+        manager.gainItem({ id: "TKT_GACHA", count: 1 })
+      ).resolves.toBeUndefined();
+    });
   });
 });

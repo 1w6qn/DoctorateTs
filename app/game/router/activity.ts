@@ -2176,6 +2176,83 @@ rootRouter.post("/trainingGround/battleFinish", async (req, res) => {
   res.send(player.delta satisfies TrainingGroundBattleFinishResponse);
 });
 
+/* ===== 方舟枢纽（arkhub，客户端 /activity/arkhub/*；数据在 activity.ARK_HUB）===== */
+// 抓包形状：enterHall → gateway 地址；setSecretary/setSquad → 更新 ARK_HUB[act1arkhub]；
+// syncInfo → 空增量；getPixelArt → OSS 地址（私服空）；savePixelArt → 转发 gateway（私服记录）
+
+/** 方舟枢纽进入大厅（抓包：返回 gateway 端点 + 端口） */
+router.post("/arkhub/enterHall", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as ActivityStubRequest;
+  res.send({
+    result: 0,
+    endpoint: "arkhub-gateway.hypergryph.com",
+    port: 30000,
+    ...player.delta,
+  });
+});
+
+/** 方舟枢纽好友 UID 列表（私服返回空——无真实网关好友） */
+router.post("/arkhub/getFriendUidList", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as ActivityStubRequest;
+  res.send({
+    friendUidList: [],
+    ...player.delta,
+  });
+});
+
+/** 方舟枢纽像素画（私服无网关存储，返回空） */
+router.post("/arkhub/getPixelArt", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as ActivityStubRequest;
+  res.send({
+    pixelArts: {},
+    ...player.delta,
+  });
+});
+
+/** 方舟枢纽像素画上传（客户端 multipart → 网关；私服记录并返回空，客户端可继续流程） */
+router.post("/arkhub/savePixelArt", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as ActivityStubRequest;
+  res.send({
+    ...player.delta,
+  });
+});
+
+/** 方舟枢纽设置秘书（抓包：更新 ARK_HUB[act1arkhub].secretary/secretarySkinId） */
+router.post("/arkhub/setSecretary", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as { secretary?: string; secretarySkinId?: string };
+  await player.update(async (draft) => {
+    const hub = (draft.activity as any)?.ARK_HUB?.["act1arkhub"] as any;
+    if (!hub) return;
+    if (body.secretary) hub.secretary = body.secretary;
+    if (body.secretarySkinId) hub.secretarySkinId = body.secretarySkinId;
+  });
+  res.send(player.delta satisfies ActivityStubResponse);
+});
+
+/** 方舟枢纽设置队伍（抓包：更新 ARK_HUB[act1arkhub].squads） */
+router.post("/arkhub/setSquad", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as { squads?: unknown[] };
+  await player.update(async (draft) => {
+    const hub = (draft.activity as any)?.ARK_HUB?.["act1arkhub"] as any;
+    if (!hub) return;
+    if (Array.isArray(body.squads)) hub.squads = body.squads;
+  });
+  res.send(player.delta satisfies ActivityStubResponse);
+});
+
+/** 方舟枢纽同步（抓包：空增量） */
+router.post("/arkhub/syncInfo", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as ActivityStubRequest;
+  res.send(player.delta satisfies ActivityStubResponse);
+});
+
 export default router;
 
 /**

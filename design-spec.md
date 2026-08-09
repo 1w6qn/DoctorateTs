@@ -1347,4 +1347,6 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
   - battleStart 记录 topic（模块级）供 battleFinish 消费；restart 重置 varSeqs + position 并下发 deleted 列表
   - 实机：battleStart/triggerInteraction/restart 均 200，restart 正确返回 deleted varSeqs 列表
 
+- **arkhub（方舟枢纽）游戏路由实现（2026-08-09，用户报告 /activity/arkhub/syncInfo 404）**：客户端 7 条路由（enterHall/getFriendUidList/getPixelArt/savePixelArt/setSecretary/setSquad/syncInfo）原未实现。按抓包实现：enterHall 返回 gateway 端点+端口、setSecretary/setSquad 更新 activity.ARK_HUB[act1arkhub]、syncInfo 空增量、getPixelArt/savePixelArt 私服空（像素画走 admin 的 arkhub-gateway-client 与官服网关通信）。全部 200 且 setSecretary 正确持久化。
+
 - **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用（全量对齐后已补 stub，路径可达）

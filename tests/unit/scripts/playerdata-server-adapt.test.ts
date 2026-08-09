@@ -18,6 +18,12 @@ describe("playerdata-server-adapt", () => {
     expect(pdm.fields[0].type).toBe("PlayerCampaign");
   });
 
+  it("rename 种子模式活动字段（roguelikeActivitySeedModeDatas → SEED_MODE）", () => {
+    const out = applyServerAdapt([cls("PlayerRoguelikeV2_OuterData_PlayerRogueActivity", { roguelikeActivitySeedModeDatas: "{ [key: string]: object }" })]);
+    const act = out.find(c => c.name === "PlayerRoguelikeV2_OuterData_PlayerRogueActivity")!;
+    expect(act.fields.map(f => f.name)).toEqual(["SEED_MODE"]);
+  });
+
   it("add 服务端独有字段", () => {
     const out = applyServerAdapt([cls("PlayerStage", { stageId: "string" })]);
     const ps = out.find(c => c.name === "PlayerStage")!;

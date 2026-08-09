@@ -3520,7 +3520,7 @@ export interface PlayerRoguelikeV2_OuterData_PlayerRogueActivity_PlayerRogueActi
 }
 
 export interface PlayerRoguelikeV2_OuterData_PlayerRogueActivity {
-    roguelikeActivitySeedModeDatas: { [key: string]: PlayerRoguelikeV2_OuterData_PlayerRogueActivity_PlayerRoguelikeActivitySeedModeData };
+    SEED_MODE: { [key: string]: PlayerRoguelikeV2_OuterData_PlayerRogueActivity_PlayerRoguelikeActivitySeedModeData };
 }
 
 export interface PlayerRoguelikeV2_OuterData {

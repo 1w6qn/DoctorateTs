@@ -578,7 +578,7 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
 - 产物：纯闭包 802 类 / 113 枚举，含 2.7.61 新增 `arkOdc` 等 22 个类型；`ListDict<K,V>` 映射为字典 `{ [key: K]: V }`（与真实存档 JSON 一致）
 - 链路：`scripts/playerdata-parser.ts`（括号配对解析、完整枚举值、类型映射）→ `scripts/playerdata-builder.ts`（类型闭包、TS 生成、未定义引用自检）→ `scripts/playerdata-server-adapt.ts`（服务端协议适配）→ `scripts/generate-playerdata-types.ts`（CLI）
 - **服务端协议适配层**（`scripts/playerdata-server-adapt.ts`）：客户端 2.7.61 模型与服务端 JSON 序列化协议分叉（服务端保守旧 key + 超集，如 `PlayerCharacter` 的 skin/tmpl 双结构并存）。适配层三操作：`renameFields`（客户端字段名→服务端 key，如 campaign→campaignsV2、playerSetting→setting、actFun3→act3fun）、`addFields`（服务端独有字段，如 PlayerStage.startTimes/practiceTimes、PlayerStatus.uid）、`overrideFields`（结构差异，整接口转类型别名如 PlayerActivity 字典、字段级替换如 PlayerBuilding.rooms）；生成产物为「客户端闭包 + 服务端协议适配」视图
-- **校验闭环**：`npx tsx scripts/validate-playerdata-json.ts --input test.json --root user`（官服账号文件 test.json 的 user 根路径）——当前基线 **0 缺失 / 0 大小写差异 / 0 结构不匹配**（89,459 节点）；清单增量维护流程：校验报告 → 更新适配清单 → 重生成 → 再校验
+- **校验闭环**：`npx tsx scripts/validate-playerdata-json.ts --input test.json --root user`（官服账号文件 test.json 的 user 根路径）——当前基线 **0 缺失 / 0 大小写差异 / 0 结构不匹配**（89,459 节点）；`--input player_data.json`（官服大存档）同样 **0 缺失 / 0 大小写差异 / 0 结构不匹配**（107,069 节点）。清单增量维护流程：校验报告 → 更新适配清单 → 重生成 → 再校验
 - 注意：手写模型与生成类型字段命名不同（如 `campaignsV2` vs `campaign`、`event` vs `events`、`nameCardStyle` vs `playerNameCardStyle`）；对照补全手写模型时以生成类型为准
 
 ### 7.5 代码注释规范

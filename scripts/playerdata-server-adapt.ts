@@ -67,6 +67,9 @@ export const SERVER_RENAME_FIELDS: Record<string, Record<string, string>> = {
   PlayerRoguelikeV2_OuterData_Collection: {
     endbook: "endBook",
   },
+  PlayerRoguelikeV2_OuterData_PlayerRogueActivity: {
+    roguelikeActivitySeedModeDatas: "SEED_MODE", // 服务端 activity 字典键为 SEED_MODE（种子模式活动）
+  },
   PlayerActFun6Stage: {
     speedRunning: "speedrunning",
   },

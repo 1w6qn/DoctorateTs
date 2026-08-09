@@ -8,6 +8,15 @@
   :root {
     --bg: #141414; --panel: #1e1e20; --border: #333;
     --gold: #d9a441; --text: #e8e6e3; --muted: #9a978f; --danger: #c0504d;
+    --panel2: #1a1a1c; --hover: #26262a; --input: #111; --bar: #2a2a2c;
+    --ok: #7ec699; --warn: #d9a441; --err: #e08b8b; --star5: #b28ae0; --star4: #7ec699;
+  }
+  /* 浅色主题 */
+  [data-theme="light"] {
+    --bg: #f4f3f1; --panel: #ffffff; --border: #d9d7d2; --gold: #a67c00;
+    --text: #262626; --muted: #777; --danger: #c0392b;
+    --panel2: #f0efec; --hover: #e9e8e5; --input: #ffffff; --bar: #e3e1dc;
+    --ok: #2e8b57; --err: #c0392b; --star5: #7b4fc0; --star4: #2e8b57;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: "Microsoft YaHei", sans-serif; }
@@ -15,7 +24,7 @@
            background: var(--panel); border-bottom: 1px solid var(--border); }
   header h1 { font-size: 18px; letter-spacing: 2px; color: var(--gold); }
   .status-pill { font-size: 12px; padding: 4px 10px; border-radius: 999px;
-                 background: #2a2a2c; border: 1px solid var(--border); }
+                 background: var(--bar); border: 1px solid var(--border); }
   .status-pill.online { color: #7ec699; border-color: #7ec699; }
   main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 24px; }
   .full { grid-column: 1 / -1; }
@@ -24,7 +33,7 @@
   th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
   th { color: var(--muted); font-weight: normal; }
   tr.clickable { cursor: pointer; }
-  tr.clickable:hover, tr.active { background: #26262a; }
+  tr.clickable:hover, tr.active { background: var(--hover); }
   button { background: #333; color: var(--text); border: 1px solid var(--border);
            border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
   button.primary { background: var(--gold); color: #141414; border-color: var(--gold); font-weight: bold; }
@@ -37,7 +46,7 @@
   .modal { background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
            padding: 20px; width: 420px; max-width: 92vw; }
   .modal h3 { margin-bottom: 14px; color: var(--gold); }
-  input, textarea, select { width: 100%; background: #111; color: var(--text); border: 1px solid var(--border);
+  input, textarea, select { width: 100%; background: var(--input); color: var(--text); border: 1px solid var(--border);
                     border-radius: 6px; padding: 8px 10px; margin: 6px 0 12px; font-size: 13px; }
   .row { display: flex; gap: 8px; }
   .row > * { flex: 1; }
@@ -50,25 +59,25 @@
   .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
   .tab { padding: 7px 16px; cursor: pointer; border-radius: 6px 6px 0 0;
          color: var(--muted); font-size: 13px; user-select: none; }
-  .tab.active { background: #26262a; color: var(--gold); border: 1px solid var(--border); border-bottom: none; }
+  .tab.active { background: var(--hover); color: var(--gold); border: 1px solid var(--border); border-bottom: none; }
   .tab-pane { display: none; }
   .tab-pane.active { display: block; }
   /* 统计 */
   .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
-  .stat-box { background: #1a1a1c; border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }
+  .stat-box { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }
   .stat-box .num { font-size: 20px; color: var(--gold); font-weight: bold; }
   .stat-box .lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
   .dist-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .bar-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 12px; }
   .bar-row .k { width: 64px; color: var(--muted); text-align: right; }
-  .bar { background: #2a2a2c; height: 12px; border-radius: 4px; overflow: hidden; flex: 1; }
+  .bar { background: var(--bar); height: 12px; border-radius: 4px; overflow: hidden; flex: 1; }
   .bar > i { display: block; height: 100%; background: var(--gold); min-width: 2px; }
   .bar-row .v { width: 36px; color: var(--muted); }
   /* JSON / 日志 */
-  pre.json { background: #111; padding: 12px; border-radius: 6px; overflow: auto;
+  pre.json { background: var(--input); padding: 12px; border-radius: 6px; overflow: auto;
              max-height: 460px; font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
   .log-list { max-height: 220px; overflow: auto; font-size: 12px; color: var(--muted); }
-  .log-list div { padding: 4px 0; border-bottom: 1px solid #26262a; }
+  .log-list div { padding: 4px 0; border-bottom: 1px solid var(--hover); }
   .log-list b { color: var(--text); }
   .mini-input { width: 58px; padding: 4px 6px; margin: 2px; display: inline-block; }
   .hint { font-size: 11px; color: var(--muted); margin: -6px 0 10px; }
@@ -77,8 +86,8 @@
   .console { display: grid; grid-template-columns: 300px 1fr; gap: 12px; }
   .console .req-col { display: flex; flex-direction: column; gap: 4px; }
   .api-list { max-height: 440px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; }
-  .api-item { padding: 6px 10px; cursor: pointer; font-size: 12px; border-bottom: 1px solid #26262a; }
-  .api-item:hover, .api-item.active { background: #26262a; }
+  .api-item { padding: 6px 10px; cursor: pointer; font-size: 12px; border-bottom: 1px solid var(--hover); }
+  .api-item:hover, .api-item.active { background: var(--hover); }
   .api-item .p { color: var(--gold); font-family: Consolas, monospace; }
   .api-item .s { color: var(--muted); }
   .m-chip { display: inline-block; min-width: 42px; text-align: center; padding: 1px 6px;
@@ -86,7 +95,7 @@
   .m-GET { background: #1f3a2a; color: #7ec699; }
   .m-POST { background: #3a2f1f; color: var(--gold); }
   .m-DELETE { background: #3a1f1f; color: #e08b8b; }
-  .resp-box { background: #111; border: 1px solid var(--border); border-radius: 6px; padding: 10px;
+  .resp-box { background: var(--input); border: 1px solid var(--border); border-radius: 6px; padding: 10px;
               font-size: 12px; max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-all;
               font-family: Consolas, monospace; }
   /* 全局功能 Tab：隐藏用户列表、详情卡全宽 */
@@ -94,7 +103,7 @@
   main.global #detail-card { grid-column: 1 / -1; }
   /* 资源网格卡片 */
   .res-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin: 10px 0; }
-  .res-item { background: #1a1a1c; border: 1px solid var(--border); border-radius: 6px; padding: 8px; text-align: center; }
+  .res-item { background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; padding: 8px; text-align: center; }
   .res-item .num { font-size: 16px; color: var(--gold); font-weight: bold; }
   .res-item .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
   /* 移动端适配：单列布局、控制台/弹窗不溢出 */
@@ -120,6 +129,9 @@
   .toast.err { border-left-color: #e08b8b; }
   .toast.hide { opacity: 0; transform: translateX(12px); transition: all .3s; }
   @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  /* 骨架屏 */
+  .skeleton { color: var(--muted); padding: 20px; text-align: center; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: .4; } 50% { opacity: 1; } }
 </style>
 </head>
 <body>
@@ -140,6 +152,7 @@
   <span class="status-pill">端口 <span id="pill-port">-</span></span>
   <span class="status-pill">用户 <span id="pill-users">-</span></span>
   <span style="margin-left:auto;font-size:12px;color:var(--muted);" id="pill-uptime"></span>
+  <button id="theme-btn" class="btn-sm">浅色</button>
   <button id="logout-btn">退出</button>
 </header>
 
@@ -529,6 +542,7 @@
   }
 
   function loadOverview(uid) {
+    setSkeleton("pane-overview");
     api("/users/" + encodeURIComponent(uid)).then(function (info) {
       var inv = (info.inventoryInfo || []).slice(0, 20)
         .map(function (it) { return escapeHtml(it.name) + "(" + escapeHtml(it.id) + ") x" + it.count; })
@@ -570,7 +584,7 @@
     box.innerHTML = '<span style="color:var(--muted);font-size:12px;">签到加载中...</span>';
     api("/users/" + encodeURIComponent(uid) + "/checkin").then(function (st) {
       box.innerHTML =
-        '<div class="row" style="align-items:center;gap:10px;background:#1a1a1c;border:1px solid var(--border);border-radius:6px;padding:8px 10px;">' +
+        '<div class="row" style="align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;">' +
         '<span style="font-size:12px;">签到 <b style="color:var(--gold);">' +
         (st.rewardIndex >= 0 ? st.rewardIndex + 1 : 0) + "/" + st.total + "</b> 档" +
         (st.canCheckIn ? "（今日可签）" : "") + " <span style=\"color:var(--muted);\">" + escapeHtml(st.groupTitle || "") + "</span></span>" +
@@ -649,6 +663,7 @@
   }
 
   function loadChars(uid) {
+    setSkeleton("pane-chars");
     api("/users/" + encodeURIComponent(uid) + "/chars").then(function (chars) {
       if (!chars.length) {
         $("pane-chars").innerHTML = '<p style="color:var(--muted);">暂无干员</p>';
@@ -663,7 +678,7 @@
           return "<tr>" +
             "<td>" + c.instId + "</td>" +
             '<td><a class="cinfo-link" data-i="' + c.instId + '" style="color:var(--gold);cursor:pointer;text-decoration:underline;">' + escapeHtml(c.name) + "</a></td>" +
-            "<td>" + (c.rarity + 1) + "★</td>" +
+            "<td><span style=\"color:" + starColor(c.rarity) + "\">" + (c.rarity + 1) + "★</span></td>" +
             "<td><input class=\"mini-input\" data-f=\"level\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.level + "\" min=\"1\" max=\"" + c.maxLevel + "\"></td>" +
             "<td><input class=\"mini-input\" data-f=\"evolvePhase\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.evolvePhase + "\" min=\"0\" max=\"2\"></td>" +
             "<td><input class=\"mini-input\" data-f=\"potentialRank\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.potentialRank + "\" min=\"0\" max=\"5\"></td>" +
@@ -764,6 +779,7 @@
   $("charinfo-close").addEventListener("click", function () { hideModal("modal-charinfo"); });
 
   function loadMails(uid) {
+    setSkeleton("pane-mails");
     api("/users/" + encodeURIComponent(uid) + "/mails").then(function (mails) {
       if (!mails.length) {
         $("pane-mails").innerHTML = '<p style="color:var(--muted);">暂无邮件</p>';
@@ -776,7 +792,7 @@
         return "<tr>" +
           "<td>" + m.mailId + "</td><td>" + escapeHtml(m.subject) + "</td>" +
           "<td>" + escapeHtml(m.content || "-") + "</td><td>" + att + "</td>" +
-          "<td>" + (m.receiveAt !== -1 ? "已领" : "未领") + "</td>" +
+          "<td>" + (m.receiveAt !== -1 ? '<span style="color:var(--muted);">已领</span>' : '<span style="color:var(--ok);">未领</span>') + "</td>" +
           "<td><button class=\"btn-sm mail-del\" data-id=\"" + m.mailId + "\">删除</button></td></tr>";
       }).join("");
       $("pane-mails").innerHTML =
@@ -795,6 +811,7 @@
   }
 
   function loadRaw(uid) {
+    setSkeleton("pane-raw");
     api("/users/" + encodeURIComponent(uid) + "/raw").then(function (data) {
       var text = JSON.stringify(data, null, 2);
       $("pane-raw").innerHTML =
@@ -1523,6 +1540,32 @@
   function showResp(containerId, text) {
     $(containerId).textContent = text;
     attachCopy(containerId);
+  }
+
+  /* ---------- 主题切换 / 骨架屏 / 状态色 ---------- */
+
+  function applyTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    var btn = $("theme-btn");
+    if (btn) btn.textContent = t === "light" ? "深色" : "浅色";
+    localStorage.setItem("adminTheme", t);
+  }
+  var savedTheme = localStorage.getItem("adminTheme");
+  if (savedTheme) applyTheme(savedTheme);
+  $("theme-btn").addEventListener("click", function () {
+    var cur = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+    applyTheme(cur);
+  });
+
+  /** 内容区骨架占位 */
+  function setSkeleton(id) {
+    var el = $(id);
+    if (el) el.innerHTML = '<div class="skeleton">加载中...</div>';
+  }
+
+  /** 干员星级色 */
+  function starColor(r) {
+    return r >= 5 ? "var(--gold)" : r === 4 ? "var(--star5)" : r === 3 ? "var(--star4)" : "var(--muted)";
   }
 })();
 </script>

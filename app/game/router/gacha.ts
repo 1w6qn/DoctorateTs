@@ -61,6 +61,8 @@ router.post("/finishNormalGacha", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as FinishNormalGachaRequest;
   res.send({
+    // 修复：CS FinishNormalGachaResponse 要求 result: Int32——缺失时客户端提示异常
+    result: 0,
     charGet: await player.recruit.finish(body),
     ...player.delta,
   } satisfies FinishNormalGachaResponse);
@@ -106,7 +108,11 @@ router.post("/cancelNormalGacha", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as CancelNormalGachaRequest;
   await player.recruit.cancel(body);
-  res.send(player.delta satisfies CancelNormalGachaResponse);
+  // 修复：CS CancelNormalGachaResponse 要求 result: Int32——缺失时客户端提示异常
+  res.send({
+    result: 0,
+    ...player.delta,
+  } satisfies CancelNormalGachaResponse);
 });
 
 /**

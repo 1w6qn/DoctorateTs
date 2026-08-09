@@ -21,9 +21,9 @@ export interface FinishNormalGachaRequest {
   slotId: number;
 }
 
-/** 完成普通招募响应（CS: FinishNormalGachaResponse；服务端省略 result） */
+/** 完成普通招募响应（CS: FinishNormalGachaResponse { result: Int32, charGet }） */
 export interface FinishNormalGachaResponse extends PlayerDeltaResponse {
-  result?: number;
+  result: number;
   charGet: GachaResult;
 }
 
@@ -54,9 +54,9 @@ export interface CancelNormalGachaRequest {
   slotId: number;
 }
 
-/** 取消普通招募响应（CS: CancelNormalGachaResponse；服务端省略 result） */
+/** 取消普通招募响应（CS: CancelNormalGachaResponse { result: Int32 }） */
 export interface CancelNormalGachaResponse extends PlayerDeltaResponse {
-  result?: number;
+  result: number;
 }
 
 /** 购买招募槽位请求（CS: BuyRecruitSlotRequest） */

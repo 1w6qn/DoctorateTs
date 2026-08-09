@@ -41,7 +41,8 @@ describe("gacha 路由", () => {
     const res = mockRes();
     await call({ method: "POST", url: "/cancelNormalGacha", body: { tagList: [1] } }, res);
     expect(cancel).toHaveBeenCalledWith({ tagList: [1] });
-    expect(res.send).toHaveBeenCalledWith({ modified: {} });
+    // CS CancelNormalGachaResponse 要求 result（2026-08-09 修复）
+    expect(res.send).toHaveBeenCalledWith({ result: 0, modified: {} });
   });
 
   it("旧拼写 /cancleNormalGacha 不应再命中", async () => {

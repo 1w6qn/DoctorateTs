@@ -1319,4 +1319,6 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 
 - **charRotation/setCurrent 500 修复（2026-08-09，用户报告）**：满配号生成器重排 charInstId，预设 preset.profileInst（138/1）指向不存在的干员 → `draft.troop.chars[profileInst].charId` 崩溃。已加守卫：未知预设直接返回；profileInst 查不到时回退到 profile 字符串（"char_xxx#皮肤" → charId）。实测 preset 1 → secretary=char_1012_skadi2、未知预设 200。单测 2 条。
 
+- **招募结算响应缺 result 修复（2026-08-09，用户报告 finishNormalGacha 客户端提示异常）**：CS FinishNormalGachaResponse/CancelNormalGachaResponse 均要求 `result: Int32`，原实现缺失 → 客户端解析异常。已补 `result: 0` 并更新协议类型为必填；实机验证 finishNormalGacha/cancelNormalGacha 均返回 result: 0。单测 1 条更新。
+
 - **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用（全量对齐后已补 stub，路径可达）

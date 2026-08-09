@@ -243,6 +243,17 @@
   </div>
 </div>
 
+<!-- 弹窗：干员详情 -->
+<div class="modal-mask" id="modal-charinfo">
+  <div class="modal" style="width:520px;">
+    <h3 id="charinfo-title">干员详情</h3>
+    <div id="charinfo-body" style="font-size:12px;color:var(--muted);">加载中...</div>
+    <div class="row">
+      <button id="charinfo-close" style="margin-left:auto;">关闭</button>
+    </div>
+  </div>
+</div>
+
 <!-- 弹窗：解锁皮肤 -->
 <div class="modal-mask" id="modal-skin">
   <div class="modal">
@@ -504,7 +515,9 @@
         });
         var rows = list.map(function (c) {
           return "<tr>" +
-            "<td>" + c.instId + "</td><td>" + escapeHtml(c.name) + "</td><td>" + (c.rarity + 1) + "★</td>" +
+            "<td>" + c.instId + "</td>" +
+            '<td><a class="cinfo-link" data-i="' + c.instId + '" style="color:var(--gold);cursor:pointer;text-decoration:underline;">' + escapeHtml(c.name) + "</a></td>" +
+            "<td>" + (c.rarity + 1) + "★</td>" +
             "<td><input class=\"mini-input\" data-f=\"level\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.level + "\" min=\"1\" max=\"" + c.maxLevel + "\"></td>" +
             "<td><input class=\"mini-input\" data-f=\"evolvePhase\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.evolvePhase + "\" min=\"0\" max=\"2\"></td>" +
             "<td><input class=\"mini-input\" data-f=\"potentialRank\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.potentialRank + "\" min=\"0\" max=\"5\"></td>" +
@@ -564,10 +577,45 @@
             }).catch(function (e) { alert("修改失败：" + e.message); });
           });
         });
+        // 干员名点击 → 详情弹窗
+        document.querySelectorAll(".cinfo-link").forEach(function (el) {
+          el.addEventListener("click", function () {
+            openCharInfo(uid, Number(el.getAttribute("data-i")));
+          });
+        });
       };
       render("");
     }).catch(function () {});
   }
+
+  function openCharInfo(uid, instId) {
+    $("charinfo-title").textContent = "干员详情 instId=" + instId;
+    $("charinfo-body").innerHTML = "加载中...";
+    showModal("modal-charinfo");
+    api("/users/" + encodeURIComponent(uid) + "/chars/" + instId).then(function (d) {
+      var skills = (d.skills || []).map(function (s) {
+        return escapeHtml(s.skillId) + " [专精 " + s.specializeLevel + (s.unlock ? " | 已解锁" : "") + "]";
+      }).join("<br>") || "（无）";
+      var equips = Object.keys(d.equip || {}).map(function (k) {
+        var e = d.equip[k];
+        return escapeHtml(k) + " Lv." + (e && e.level != null ? e.level : "?");
+      }).join("<br>") || "（无）";
+      $("charinfo-body").innerHTML =
+        "<p><b style=\"color:var(--gold);\">" + escapeHtml(d.name) + "</b> " + (d.rarity + 1) + "★ <span style=\"color:var(--muted);\">" + escapeHtml(d.charId) + "</span></p>" +
+        "<table>" +
+        "<tr><td>等级</td><td>" + d.level + "/" + d.maxLevel + "</td><td>精二</td><td>" + d.evolvePhase + "</td></tr>" +
+        "<tr><td>潜能</td><td>" + d.potentialRank + "</td><td>技能</td><td>" + d.mainSkillLvl + "</td></tr>" +
+        "<tr><td>信赖</td><td>" + d.favorPoint + "</td><td>语音</td><td>" + escapeHtml(d.voiceLan || "-") + "</td></tr>" +
+        "<tr><td>皮肤</td><td colspan=\"3\">" + (d.skin ? escapeHtml(d.skinName || d.skin) + " (" + escapeHtml(d.skin) + ")" : "默认") + "</td></tr>" +
+        "</table>" +
+        "<h4 style=\"color:var(--gold);margin:10px 0 4px;\">技能（专精）</h4><div>" + skills + "</div>" +
+        "<h4 style=\"color:var(--gold);margin:10px 0 4px;\">装备</h4><div>" + equips + "</div>" +
+        "<p style=\"color:var(--muted);margin-top:8px;\">当前装备: " + escapeHtml(d.currentEquip || "无") + "</p>";
+    }).catch(function (e) {
+      $("charinfo-body").innerHTML = "加载失败: " + escapeHtml(e.message);
+    });
+  }
+  $("charinfo-close").addEventListener("click", function () { hideModal("modal-charinfo"); });
 
   function loadMails(uid) {
     api("/users/" + encodeURIComponent(uid) + "/mails").then(function (mails) {

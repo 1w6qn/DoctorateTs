@@ -745,7 +745,7 @@ async function runServer(args: string[]): Promise<void> {
     console.log(`DoctorateTs 服务器状态`);
     console.log(`  端口 ${st.port} | 离线模式 ${st.offline} | 运行时间 ${st.uptime}s`);
     console.log(`  客户端版本 ${st.clientVersion} | 资源版本 ${st.resVersion}`);
-    console.log(`  用户数 ${st.userCount}`);
+    console.log(`  用户数 ${st.userCount} | 数据总量 ${(st.totalDataKB / 1024).toFixed(1)}MB`);
     console.table(
       st.dataFiles.map((f) => ({
         文件: f.path,

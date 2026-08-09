@@ -204,6 +204,7 @@ describe("AdminService 只读能力", () => {
     expect(st.userCount).toBe(1);
     expect(typeof st.port).toBe("number");
     expect(st.dataFiles.length).toBeGreaterThan(0);
+    expect(typeof st.totalDataKB).toBe("number");
   });
 });
 

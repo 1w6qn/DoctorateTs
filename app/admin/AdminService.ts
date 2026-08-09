@@ -123,6 +123,8 @@ export interface ServerStatus {
   uptime: number;
   userCount: number;
   dataFiles: { path: string; exists: boolean; size: number }[];
+  /** 数据总量（用户存档 + 数据文件，KB） */
+  totalDataKB: number;
 }
 
 /** 统计聚合 */
@@ -1423,12 +1425,24 @@ export class AdminService {
       "./data/rlv2.json",
     ];
     const dataFiles: ServerStatus["dataFiles"] = [];
+    let totalBytes = 0;
     for (const path of files) {
-      dataFiles.push({
-        path,
-        exists: await exists(path),
-        size: (await exists(path)) ? await size(path) : 0,
-      });
+      const s = (await exists(path)) ? await size(path) : 0;
+      totalBytes += s;
+      dataFiles.push({ path, exists: s > 0, size: s });
+    }
+    // 用户存档目录总量
+    try {
+      const dbDir = "./data/user/databases";
+      if (await exists(dbDir)) {
+        for (const f of await readdir(dbDir)) {
+          if (f.endsWith(".json")) {
+            totalBytes += (await size(`${dbDir}/${f}`)).valueOf();
+          }
+        }
+      }
+    } catch {
+      // 目录不存在忽略
     }
     return {
       port: config.PORT,
@@ -1441,6 +1455,7 @@ export class AdminService {
       uptime: Math.floor(process.uptime()),
       userCount: Object.keys(accountManager.data).length,
       dataFiles,
+      totalDataKB: Math.round(totalBytes / 1024),
     };
   }
 }

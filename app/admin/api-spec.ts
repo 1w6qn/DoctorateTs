@@ -172,6 +172,24 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   { method: "GET", path: "/api/items", summary: "物品搜索（按 ID/中文名过滤 ItemTable，供发放选择）", params: [{ name: "q", type: "string", desc: "关键字（空返回前 50 条）" }, { name: "limit", type: "number", desc: "条数（默认 50）" }] },
   { method: "GET", path: "/api/users/:uid/missions", summary: "任务进度统计（只读：各组任务数/已完成数）" },
   { method: "GET", path: "/api/users/:uid/medals", summary: "勋章进度（只读：已解锁/总数）" },
+  {
+    method: "POST",
+    path: "/api/users/:uid/export",
+    summary: "导出用户存档到 JSON 文件（默认 ./exports/{uid}-{ts}.json）",
+    params: [{ name: "path", type: "string", desc: "目标路径（可选）" }],
+    body: '{"path":"./exports/1-backup.json"}',
+  },
+  {
+    method: "POST",
+    path: "/api/import",
+    summary: "从 JSON 文件导入存档（替换指定 uid；uid 缺省取文件内 status.uid）",
+    params: [
+      { name: "filePath", type: "string", required: true, desc: "存档 JSON 路径" },
+      { name: "uid", type: "string", desc: "目标 uid（缺省取文件内 status.uid）" },
+    ],
+    body: '{"filePath":"./exports/1-backup.json","uid":"1"}',
+  },
+  { method: "GET", path: "/api/check", summary: "数据完整性校验（已加载用户 status/troop/可序列化）" },
   { method: "GET", path: "/api/openapi.json", summary: "OpenAPI 3.0 规范（管理 API，供外部工具消费）" },
   { method: "GET", path: "/api/config", summary: "查看配置（只读）" },
   {

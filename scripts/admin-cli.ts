@@ -143,6 +143,8 @@ export function printHelp(): void {
   users items <关键字> [limit] [--json]             按名称/ID 搜索物品（供发放用）
   users missions <uid> [--json]                     查看任务进度统计（只读）
   users medals <uid> [--json]                       查看勋章进度（只读）
+  users export <uid> [path]                         导出存档到 JSON（默认 ./exports/）
+  users import <存档JSON> [uid]                     从 JSON 导入/替换存档
   users grantall <uid> [count]                      批量发放全部物品（默认 999）
   users maxchars <uid>                              批量拉满全部已有干员
   users stages <uid> [--json]                       查看玩家推图进度（只读）
@@ -151,6 +153,8 @@ export function printHelp(): void {
   users items <关键字> [limit] [--json]             按名称/ID 搜索物品（供发放用）
   users missions <uid> [--json]                     查看任务进度统计（只读）
   users medals <uid> [--json]                       查看勋章进度（只读）
+  users export <uid> [path]                         导出存档到 JSON（默认 ./exports/）
+  users import <存档JSON> [uid]                     从 JSON 导入/替换存档
 
 邮件:
   mail send <uid[,uid...]|all> <subject> [content] [--items id:count,...]  发送邮件（uid 支持逗号分隔批量）
@@ -161,6 +165,7 @@ export function printHelp(): void {
   server status                                     查看服务器状态
   server refresh <uid>                              触发每日/每周刷新
   server save [uid]                                 立即保存存档（缺省全部用户）
+  server check                                      数据完整性校验（status/troop/可序列化）
 
 配置:
   config show / config set <key> <value>
@@ -552,6 +557,30 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
       console.log(`用户 ${uid} 勋章进度：已解锁 ${st.unlocked}/${st.total}`);
       return;
     }
+    case "export": {
+      const uid = args[1];
+      const target = args[2];
+      if (!uid) {
+        console.error("用法: users export <uid> [path]（缺省 ./exports/{uid}-{ts}.json）");
+        process.exitCode = 1;
+        return;
+      }
+      const r = await adminService.exportUser(uid, target);
+      console.log(`已导出用户 ${uid} 存档 → ${r.path}（${(r.size / 1024).toFixed(1)}KB）`);
+      return;
+    }
+    case "import": {
+      const file = args[1];
+      const uid = args[2];
+      if (!file) {
+        console.error("用法: users import <存档JSON> [uid]（uid 缺省取文件内 status.uid）");
+        process.exitCode = 1;
+        return;
+      }
+      const r = await adminService.importUser(file, uid);
+      console.log(`已导入存档到用户 ${r.uid}`);
+      return;
+    }
     default:
       console.error(`未知 users 子命令: ${sub ?? ""}`);
       process.exitCode = 1;
@@ -680,7 +709,15 @@ async function runServer(args: string[]): Promise<void> {
     }
     return;
   }
-  console.error("用法: server status | server refresh <uid> | server save [uid]");
+  if (sub === "check") {
+    const r = await adminService.checkData();
+    console.log(`数据完整性校验：${r.ok ? "全部正常" : "存在异常"}`);
+    console.table(
+      r.users.map((u) => ({ uid: u.uid, 状态: u.ok ? "正常" : "异常", 详情: u.error ?? "-" })),
+    );
+    return;
+  }
+  console.error("用法: server status | server refresh <uid> | server save [uid] | server check");
   process.exitCode = 1;
 }
 
@@ -984,13 +1021,19 @@ export async function dispatch(
   }
 }
 
-/** 交互模式：逐行执行命令，help/exit 退出 */
+/** 交互模式：逐行执行命令，help/exit 退出（Tab 补全命令名） */
 function runRepl(): void {
-  console.log("DoctorateTs 管理交互模式（输入 help 查看命令，exit 退出）");
+  console.log("DoctorateTs 管理交互模式（输入 help 查看命令，exit 退出；Tab 补全）");
+  const COMMANDS = ["users", "mail", "server", "config", "gacha", "official", "logs", "help", "exit", "quit"];
+  const completer = (line: string): [string[], string] => {
+    const hits = COMMANDS.filter((c) => c.startsWith(line));
+    return [hits.length ? hits : COMMANDS, line];
+  };
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
     prompt: "admin> ",
+    completer,
   });
   let pending = 0;
   rl.prompt();

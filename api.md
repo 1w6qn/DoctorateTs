@@ -1412,6 +1412,9 @@ OAuth2 授权
 | GET  | `/admin/api/items?q=&limit=` | 物品搜索（按 ID/中文名过滤 ItemTable，供发放选择） |
 | GET  | `/admin/api/users/:uid/missions` | 任务进度统计（只读：各组任务数/已完成数） |
 | GET  | `/admin/api/users/:uid/medals` | 勋章进度（只读：已解锁/总数） |
+| POST | `/admin/api/users/:uid/export` | 导出存档 `{path?}`（默认 `./exports/{uid}-{ts}.json`） |
+| POST | `/admin/api/import` | 导入存档 `{filePath, uid?}`（替换指定 uid；uid 缺省取文件内 status.uid） |
+| GET  | `/admin/api/check` | 数据完整性校验（已加载用户 status/troop/可序列化） |
 | GET  | `/admin/api/openapi.json` | OpenAPI 3.0 规范（管理 API，供外部工具/Swagger 消费） |
 | GET  | `/admin/api/spec` | 管理 API 端点规范清单（Dashboard「接口」控制台数据源） |
 | POST | `/admin/api/game-proxy` | 游戏协议代理：`{uid, path, method?, body?}` 以玩家 secret 调用游戏端点，返回 `{status, data, uid}`（供 Dashboard 协议调试） |

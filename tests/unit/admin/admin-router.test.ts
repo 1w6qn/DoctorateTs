@@ -42,6 +42,9 @@ vi.mock("../../../app/admin/AdminService", () => ({
     searchItems: vi.fn().mockReturnValue([{ id: "4001", name: "龙门币", classifyType: "NORMAL" }]),
     listMissionStats: vi.fn().mockResolvedValue({ total: 10, done: 3, groups: [] }),
     listMedals: vi.fn().mockResolvedValue({ total: 5, unlocked: 2, medals: [] }),
+    exportUser: vi.fn().mockResolvedValue({ uid: "1", path: "./exports/1-x.json", size: 10 }),
+    importUser: vi.fn().mockResolvedValue({ uid: "1" }),
+    checkData: vi.fn().mockResolvedValue({ ok: true, users: [{ uid: "1", ok: true }] }),
   },
 }));
 vi.mock("../../../app/admin/admin-auth", () => ({
@@ -397,5 +400,26 @@ describe("admin 路由（扩展能力）", () => {
     await call({ method: "GET", url: "/api/users/1/medals", params: { uid: "1" } }, res5);
     expect(adminService.listMedals).toHaveBeenCalledWith("1");
     expect(res5.json).toHaveBeenCalledWith({ total: 5, unlocked: 2, medals: [] });
+  });
+
+  it("导出/导入/校验端点应透传", async () => {
+    const res1 = mockRes();
+    await call(
+      { method: "POST", url: "/api/users/1/export", params: { uid: "1" }, body: { path: "./tmp/out.json" } },
+      res1,
+    );
+    expect(adminService.exportUser).toHaveBeenCalledWith("1", "./tmp/out.json");
+
+    const res2 = mockRes();
+    await call(
+      { method: "POST", url: "/api/import", body: { filePath: "./tmp/in.json", uid: "1" } },
+      res2,
+    );
+    expect(adminService.importUser).toHaveBeenCalledWith("./tmp/in.json", "1");
+
+    const res3 = mockRes();
+    await call({ method: "GET", url: "/api/check" }, res3);
+    expect(adminService.checkData).toHaveBeenCalled();
+    expect(res3.json).toHaveBeenCalledWith({ ok: true, users: [{ uid: "1", ok: true }] });
   });
 });

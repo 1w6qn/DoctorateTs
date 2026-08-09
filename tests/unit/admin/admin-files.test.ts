@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { AdminService } from "../../../app/admin/AdminService";
 import { accountManager } from "../../../app/game/manager/AccountManger";
 import { PlayerDataManager } from "../../../app/game/manager/PlayerDataManager";
-import { exists, readJson } from "@utils/file";
+import { exists, readJson, writeJson } from "@utils/file";
 import { copyFile, mkdir, readFile, readdir, appendFile } from "fs/promises";
 
 // 备份/恢复/审计日志：全部文件操作走 mock，不落盘、不读真实存档
@@ -10,6 +10,7 @@ vi.mock("@utils/file", () => ({
   exists: vi.fn(),
   size: vi.fn(),
   readJson: vi.fn(),
+  writeJson: vi.fn(),
   // config.ts 模块加载时经 readJsonSync 读配置（返回合法对象避免加载崩溃）
   readJsonSync: vi.fn(() => ({
     Host: "http://127.0.0.1",
@@ -137,5 +138,72 @@ describe("AdminService 审计日志", () => {
 
   it("logs 无日志文件时应返回空数组", async () => {
     expect(await service.logs()).toEqual([]);
+  });
+});
+
+describe("AdminService 存档导出/导入/校验", () => {
+  let service: AdminService;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    service = new AdminService();
+    (accountManager as any).data = { "1": {} };
+    (accountManager as any).configs = { "1": { uid: "1", auth: { phone: "" } } };
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+    vi.mocked(appendFile).mockResolvedValue(undefined);
+    vi.mocked(readFile).mockResolvedValue(Buffer.from("{}"));
+    vi.mocked(exists).mockResolvedValue(true);
+    vi.mocked(writeJson).mockResolvedValue(undefined);
+  });
+
+  it("exportUser 应读存档并写入目标路径", async () => {
+    const data = { status: { uid: "1" } };
+    vi.mocked(readJson).mockResolvedValue(data as any);
+    const r = await service.exportUser("1", "./tmp/out.json");
+    expect(r.path).toBe("./tmp/out.json");
+    expect(r.size).toBe(2);
+    expect(writeJson).toHaveBeenCalledWith("./tmp/out.json", data);
+  });
+
+  it("exportUser 缺省路径应落在 ./exports/ 且带时间戳", async () => {
+    vi.mocked(readJson).mockResolvedValue({ status: { uid: "1" } } as any);
+    const r = await service.exportUser("1");
+    expect(r.path).toMatch(/^\.\/exports\/1-\d{8}-\d{6}\.json$/);
+  });
+
+  it("exportUser 对无存档用户应抛错", async () => {
+    vi.mocked(exists).mockResolvedValue(false);
+    await expect(service.exportUser("999")).rejects.toThrow(/用户不存在/);
+  });
+
+  it("importUser 应从文件读取并替换指定 uid", async () => {
+    const data = { status: { uid: "1" } };
+    vi.mocked(readJson).mockResolvedValue(data as any);
+    await service.importUser("./tmp/in.json", "1");
+    expect(PlayerDataManager).toHaveBeenCalledWith(data);
+    expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
+  });
+
+  it("importUser 缺省 uid 应取文件内 status.uid", async () => {
+    vi.mocked(readJson).mockResolvedValue({ status: { uid: "9" } } as any);
+    await service.importUser("./tmp/in.json");
+    expect(accountManager.savePlayerData).toHaveBeenCalledWith("9");
+  });
+
+  it("importUser 对缺少 status.uid 的存档应抛错", async () => {
+    vi.mocked(readJson).mockResolvedValue({ troop: {} } as any);
+    await expect(service.importUser("./tmp/bad.json")).rejects.toThrow(/status\.uid/);
+  });
+
+  it("checkData 应报告异常用户", async () => {
+    const good = { _playerdata: { status: { uid: "1" }, troop: {} } };
+    const bad = { _playerdata: { status: { uid: "2" } } }; // 缺 troop
+    (accountManager as any).data = { "1": good, "2": bad };
+    const r = await service.checkData();
+    expect(r.ok).toBe(false);
+    expect(r.users.find((u: any) => u.uid === "2")!.ok).toBe(false);
+    expect(r.users.find((u: any) => u.uid === "1")!.ok).toBe(true);
   });
 });

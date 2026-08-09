@@ -442,6 +442,33 @@ router.get("/api/users/:uid/medals", async (req: Request, res: Response) => {
   }
 });
 
+/** 导出用户存档 */
+router.post("/api/users/:uid/export", async (req: Request, res: Response) => {
+  try {
+    const { path: targetPath } = req.body ?? {};
+    res.json(
+      await adminService.exportUser(String(req.params.uid), targetPath ? String(targetPath) : undefined),
+    );
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 导入存档（替换指定 uid；uid 缺省取文件内 status.uid） */
+router.post("/api/import", async (req: Request, res: Response) => {
+  try {
+    const { filePath, uid } = req.body ?? {};
+    res.json(await adminService.importUser(String(filePath), uid ? String(uid) : undefined));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 数据完整性校验 */
+router.get("/api/check", async (_req: Request, res: Response) => {
+  res.json(await adminService.checkData());
+});
+
 /** OpenAPI 3.0 规范（管理 API） */
 router.get("/api/openapi.json", (_req: Request, res: Response) => {
   res.json(buildOpenApi());

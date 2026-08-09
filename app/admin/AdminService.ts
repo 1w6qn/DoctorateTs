@@ -7,6 +7,7 @@
  * 所有数据操作均基于本地 JSON（AccountManager / mailManager），离线可用。
  */
 import { appendFile, copyFile, mkdir, readFile, readdir } from "fs/promises";
+import * as path from "path";
 import excel from "@excel/excel";
 import { getRoomPhase } from "@excel/building_excel";
 import { buildMaxedSkills, buildMaxedEquip } from "@game/maxout";
@@ -16,7 +17,7 @@ import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { mailManager } from "@game/manager/mail";
 import { runMigration } from "../../scripts/migrate-official";
-import { exists, size, readJson } from "@utils/file";
+import { exists, size, readJson, writeJson } from "@utils/file";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";
 import {
@@ -1071,6 +1072,65 @@ export class AdminService {
       unlocked: list.filter((m) => m.unlocked).length,
       medals: list.slice(0, 500),
     };
+  }
+
+  /**
+   * 导出用户存档到 JSON 文件（默认 ./exports/{uid}-{ts}.json）
+   * @returns 导出路径与大小
+   */
+  async exportUser(
+    uid: string,
+    targetPath?: string,
+  ): Promise<{ uid: string; path: string; size: number }> {
+    const src = `./data/user/databases/${uid}.json`;
+    if (!(await exists(src))) {
+      throw new Error(`用户不存在: ${uid}（无存档文件）`);
+    }
+    const data = await readJson<PlayerDataModel>(src);
+    const out = targetPath ?? `./exports/${uid}-${formatTs(now())}.json`;
+    await mkdir(path.dirname(out), { recursive: true });
+    await writeJson(out, data as any);
+    const size = (await readFile(out)).length;
+    await this._audit("exportUser", uid, out);
+    return { uid, path: out, size };
+  }
+
+  /**
+   * 从 JSON 文件导入存档（替换指定 uid；uid 缺省取文件内 status.uid）
+   * @returns 目标 uid
+   */
+  async importUser(filePath: string, uid?: string): Promise<{ uid: string }> {
+    const data = await readJson<PlayerDataModel>(filePath);
+    if (!data?.status?.uid) {
+      throw new Error(`存档缺少 status.uid，无法导入: ${filePath}`);
+    }
+    const targetUid = uid ?? String(data.status.uid);
+    accountManager.data[targetUid] = new PlayerDataManager(data);
+    await this.savePlayer(targetUid);
+    await this._audit("importUser", targetUid, filePath);
+    return { uid: targetUid };
+  }
+
+  /** 数据完整性校验：遍历已加载用户，检查 status/troop 与 JSON 可序列化 */
+  async checkData(): Promise<{
+    ok: boolean;
+    users: { uid: string; ok: boolean; error?: string }[];
+  }> {
+    const uids = Object.keys(accountManager.data).sort((a, b) => Number(a) - Number(b));
+    const users: { uid: string; ok: boolean; error?: string }[] = [];
+    for (const uid of uids) {
+      try {
+        const d = accountManager.data[uid]._playerdata;
+        if (!d?.status || !d?.troop) {
+          throw new Error("缺少 status/troop");
+        }
+        JSON.stringify(d); // 可序列化检查
+        users.push({ uid, ok: true });
+      } catch (e) {
+        users.push({ uid, ok: false, error: (e as Error).message });
+      }
+    }
+    return { ok: users.every((u) => u.ok), users };
   }
 
   /**

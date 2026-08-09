@@ -1226,6 +1226,19 @@ async function runOfficial(
   }
   // 官服操作：status/signin/mails/receive/daily <phone> <pwd>
   const ACTIONS = ["status", "signin", "mails", "receive", "daily"];
+  if (sub === "backend") {
+    const b = adminService.getOfficialBackend();
+    if (flags.json) {
+      output(b, flags);
+      return;
+    }
+    console.log(`官服操作后端：${b.enabled ? "自定义" : "官方（默认）"}`);
+    console.log(`  游戏 ${b.game}`);
+    console.log(`  账号 ${b.account}`);
+    console.log(`  配置 ${b.conf}`);
+    console.log('  自定义：config set officialBackend.enabled true / config set officialBackend.game <url>（重启生效）');
+    return;
+  }
   if (ACTIONS.includes(sub)) {
     const phone = args[1];
     const pwd = args[2];

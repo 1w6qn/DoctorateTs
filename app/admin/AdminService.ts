@@ -18,6 +18,7 @@ import { PlayerDataModel } from "@game/model/playerdata";
 import { mailManager } from "@game/manager/mail";
 import { runMigration } from "../../scripts/migrate-official";
 import { buildMaxedChar } from "../../scripts/generate-max-account";
+import { GAME_API, ACCOUNT_API, CONF_API } from "../../scripts/official-api";
 import {
   runOfficialAction,
   runOfficialCall,
@@ -1670,6 +1671,21 @@ export class AdminService {
   /** 邮件模板列表（完整模板：供 CLI 展示与 Dashboard 填充用） */
   getMailTemplates(): { name: string; subject: string; content: string; items: { id: string; count: number }[] }[] {
     return MAIL_TEMPLATES;
+  }
+
+  /** 当前官服操作后端（自定义后端配置摘要） */
+  getOfficialBackend(): {
+    enabled: boolean;
+    game: string;
+    account: string;
+    conf: string;
+  } {
+    return {
+      enabled: config.officialBackend?.enabled === true,
+      game: GAME_API,
+      account: ACCOUNT_API,
+      conf: CONF_API,
+    };
   }
 
   /**

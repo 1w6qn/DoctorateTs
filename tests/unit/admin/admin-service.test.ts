@@ -223,6 +223,12 @@ describe("AdminService 只读能力", () => {
     expect(await service.getUserInfo("999")).toBeNull();
   });
 
+  it("getOfficialBackend 缺省应返回官方地址（自定义未启用）", () => {
+    const b = service.getOfficialBackend();
+    expect(b.enabled).toBe(false);
+    expect(b.game).toContain("ak-gs-gf.hypergryph.com");
+  });
+
   it("listUsers 应支持按昵称/手机号/uid 过滤", async () => {
     expect(await service.listUsers("阿米娅")).toHaveLength(1);
     expect(await service.listUsers("13800000000")).toHaveLength(1);

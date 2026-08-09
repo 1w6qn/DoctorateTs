@@ -128,6 +128,7 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   { method: "GET", path: "/api/logs", summary: "管理操作审计日志", params: [{ name: "limit", type: "number", desc: "条数（默认 50）" }] },
   { method: "GET", path: "/api/common-items", summary: "常用物品别名表" },
   { method: "GET", path: "/api/mail-templates", summary: "邮件模板列表（补偿/公告/欢迎，CLI mail send --template 用）" },
+  { method: "GET", path: "/api/official/backend", summary: "当前官服操作后端（enabled + game/account/conf 地址，config.officialBackend 配置）" },
   { method: "GET", path: "/api/pools", summary: "卡池清单（poolId/名称/规则/开闭池/保底）" },
   { method: "GET", path: "/api/pools/:poolId", summary: "卡池详情（UP/可用干员 + 概率）" },
   { method: "GET", path: "/api/users/:uid/pools/:poolId", summary: "玩家卡池状态（UP 选择 + 保底计数）" },

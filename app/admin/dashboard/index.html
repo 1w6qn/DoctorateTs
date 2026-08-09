@@ -1473,6 +1473,7 @@
       '<p style="color:var(--muted);font-size:12px;margin-bottom:12px;">官服工具库：以官服账号登录执行操作（无状态会话即用即弃，需公网访问官服；所有调用记录到 tmp/official/）。点击卡片标题展开/收起。</p>' +
       '<div class="tool-grid">' +
       toolCard("🔑", "官服账号", "各工具共用", 
+        '<div id="of-backend" style="font-size:11px;color:var(--muted);margin-bottom:8px;"></div>' +
         '<label>手机号</label><input id="of-phone" placeholder="官服手机号">' +
         '<label>密码</label><input id="of-pwd" type="password" placeholder="官服密码">', true) +
       toolCard("📊", "账号状态", "登录查看资源/签到",
@@ -1502,6 +1503,10 @@
         h.parentNode.classList.toggle("open");
       });
     });
+    // 当前后端显示
+    api("/official/backend").then(function (b) {
+      $("of-backend").textContent = "后端：" + (b.enabled ? "自定义" : "官方") + " | " + b.game;
+    }).catch(function () { $("of-backend").textContent = ""; });
     // 简单 action 工具
     bindOfficialTool("of-status", "status", "of-status-resp");
     bindOfficialTool("of-signin", "signin", "of-signin-resp");

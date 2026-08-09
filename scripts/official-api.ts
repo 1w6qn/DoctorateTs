@@ -10,10 +10,21 @@
  * 全部使用 Node 24 内置 fetch + node:crypto，零第三方依赖。
  */
 import crypto from "node:crypto";
+import config from "../app/config";
 
-export const GAME_API = "https://ak-gs-gf.hypergryph.com";
-export const ACCOUNT_API = "https://as.hypergryph.com";
-export const CONF_API = "https://ak-conf.hypergryph.com";
+/**
+ * 官服操作后端地址（支持自定义后端）
+ * config.officialBackend.enabled=true 时使用自定义地址（可指向 obs 观察服务器/自建代理），
+ * 否则使用官方地址。模块加载时读取（与 config set 重启生效语义一致）。
+ */
+const ob = config.officialBackend;
+const useCustom = ob?.enabled === true;
+export const GAME_API =
+  useCustom && ob.game ? ob.game : "https://ak-gs-gf.hypergryph.com";
+export const ACCOUNT_API =
+  useCustom && ob.account ? ob.account : "https://as.hypergryph.com";
+export const CONF_API =
+  useCustom && ob.conf ? ob.conf : "https://ak-conf.hypergryph.com";
 
 /** u8 签名密钥（官服 SDK 固定值） */
 const U8_SECRET = "91240f70c09a08a6bc72af1a5c8d4670";

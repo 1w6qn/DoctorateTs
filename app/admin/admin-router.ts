@@ -341,6 +341,11 @@ router.get("/api/mail-templates", (_req: Request, res: Response) => {
   res.json(adminService.getMailTemplates());
 });
 
+/** 当前官服操作后端（自定义后端配置摘要） */
+router.get("/api/official/backend", (_req: Request, res: Response) => {
+  res.json(adminService.getOfficialBackend());
+});
+
 /** 管理 API 端点规范（Dashboard「接口」控制台数据源） */
 router.get("/api/spec", (_req: Request, res: Response) => {
   res.json({ endpoints: ADMIN_ENDPOINTS });

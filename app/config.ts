@@ -84,6 +84,16 @@ interface UserConfig {
   };
   /** 认证模式：single（单例——secret 强制 1，任意 token 宽松）/ real（真实——多账号严格校验） */
   authMode?: "single" | "real";
+  /** 官服操作自定义后端（enabled=true 时官服工具库/操作走自定义地址，可指向 obs 观察服务器或自建代理） */
+  officialBackend?: {
+    enabled?: boolean;
+    /** 游戏服务器地址（缺省 https://ak-gs-gf.hypergryph.com） */
+    game?: string;
+    /** 账号服务器地址（缺省 https://as.hypergryph.com） */
+    account?: string;
+    /** 配置服务器地址（缺省 https://ak-conf.hypergryph.com） */
+    conf?: string;
+  };
   /** 单例模式固定账号 uid（默认 "1"——如某账号异常可切换过渡） */
   singleUid?: string;
   /** 单例模式是否自动生成满配账号（全干员/全物品，随版本刷新——默认开启） */

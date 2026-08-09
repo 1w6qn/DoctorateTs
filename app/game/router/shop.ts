@@ -115,21 +115,36 @@ router.post("/decomposeClassicPotentialItem", async (req, res) => {
  */
 router.post("/getGoodPurchaseState", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  req.body as GetGoodPurchaseStateRequest;
-  // 汇总各商店的购买记录，供客户端判断限购状态
-  const shopState = player._playerdata.shop;
+  const body = req.body as GetGoodPurchaseStateRequest;
+  // 修复：按客户端 goodIdMap 返回扁平 {goodId: 1|-1}（1=可购买/-1=已购买/限购），
+  // 对齐 CS GetGoodPurchaseStateResponse { result: Dictionary<string, int> } 与抓包形状；
+  // 原实现直接返回各商店原始 info 数组（41KB 且形状不符）
+  const goodIdMap = body.goodIdMap ?? {};
+  const shopState = player._playerdata.shop as any;
+  const result: { [goodId: string]: number } = {};
+  for (const [shopType, goodIds] of Object.entries(goodIdMap)) {
+    if (!Array.isArray(goodIds) || goodIds.length === 0) continue;
+    const purchased = new Set<string>();
+    const shopData: any = shopState?.[shopType];
+    if (shopData) {
+      if (Array.isArray(shopData.info)) {
+        // 常规商店：{ info: [{id, count}] }
+        for (const item of shopData.info) purchased.add(item.id);
+      } else {
+        // GP 等嵌套商店：{ subType: { info: [...] } }
+        for (const sub of Object.values(shopData)) {
+          if (sub && Array.isArray((sub as any).info)) {
+            for (const item of (sub as any).info) purchased.add(item.id);
+          }
+        }
+      }
+    }
+    for (const goodId of goodIds) {
+      result[goodId] = purchased.has(goodId) ? -1 : 1;
+    }
+  }
   res.send({
-    result: {
-      LS: shopState.LS.info,
-      HS: shopState.HS.info,
-      ES: shopState.ES.info,
-      CASH: shopState.CASH.info,
-      EPGS: shopState.EPGS.info,
-      REP: shopState.REP.info,
-      CLASSIC: shopState.CLASSIC.info,
-      FURNI: shopState.FURNI.info,
-      SOCIAL: shopState.SOCIAL.info,
-    },
+    result,
     ...player.delta,
   } satisfies GetGoodPurchaseStateResponse);
 });

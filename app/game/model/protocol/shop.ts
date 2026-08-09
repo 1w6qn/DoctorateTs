@@ -35,8 +35,13 @@ export interface DecomposeClassicPotentialItemRequest {
   charInstIdList: string[];
 }
 
-/** 获取商品购买状态请求（CS: GetGoodPurchaseStateRequest，无字段） */
-export interface GetGoodPurchaseStateRequest {}
+/**
+ * 获取商品购买状态请求（CS: GetGoodPurchaseStateRequest { goodIdMap: ShopPurchaseState }）
+ * goodIdMap：商店类型（LS/HS/ES/CASH/GP/SOCIAL/CLASSIC）→ 待查询 goodId 列表
+ */
+export interface GetGoodPurchaseStateRequest {
+  goodIdMap?: { [shopType: string]: string[] };
+}
 
 /** 获取低级商店商品列表请求（CS: GetLowGoodListRequest，无字段） */
 export interface GetLowGoodListRequest {}
@@ -167,19 +172,12 @@ export interface DecomposeClassicPotentialItemResponse extends PlayerDeltaRespon
   items: ItemBundle[];
 }
 
-/** 获取商品购买状态响应（CS: GetGoodPurchaseStateResponse；服务端返回结构化各商店购买记录） */
+/**
+ * 获取商品购买状态响应（CS: GetGoodPurchaseStateResponse { result: Dictionary<string, int> }）
+ * result：goodId → 1（可购买）/ -1（已购买/限购）
+ */
 export interface GetGoodPurchaseStateResponse extends PlayerDeltaResponse {
-  result: {
-    LS: Info[];
-    HS: Info[];
-    ES: Info[];
-    CASH: Info[];
-    EPGS: Info[];
-    REP: Info[];
-    CLASSIC: Info[];
-    FURNI: Info[];
-    SOCIAL: Info[];
-  };
+  result: { [goodId: string]: number };
 }
 
 /** 获取低级商店商品列表响应（CS: GetLowGoodListResponse） */

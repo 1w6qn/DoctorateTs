@@ -1315,4 +1315,6 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 
   - ruleType 缺失处理（续）：gachaPoolClient 中 DOUBLE(37)/CLASSIC_DOUBLE(31)/BACKFLOW(1)/SPECIAL(7) 共 76 个池的 ruleType 不在 funcs 映射 → funcs[ruleType] is not a function 500；补齐四类走通用 _handleGacha + 调用处防御回退 NORMAL。实测四类池抽卡均 200 且新干员入账
 
+- **getGoodPurchaseState 响应形状修复（2026-08-09，用户报告 41KB 响应异常）**：CS 协议（GetGoodPurchaseStateResponse { result: Dictionary<string, int> }）与抓包均要求扁平 `{goodId: 1|-1}`（1=可购买/-1=已购买），原实现直接返回各商店原始 info 数组（41KB 且形状不符，客户端无法解析限购状态）。已按客户端 goodIdMap 重写：常规商店读 `.info`、GP 嵌套结构展平；响应从 41KB 降到 306 字节。单测 2 条。
+
 - **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用（全量对齐后已补 stub，路径可达）

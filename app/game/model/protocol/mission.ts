@@ -50,3 +50,21 @@ export interface ExchangeMissionRewardsRequest {
 
 /** 兑换任务奖励响应（CS: ExchangeMissionRewardsResponse） */
 export type ExchangeMissionRewardsResponse = PlayerDeltaResponse;
+
+/** 批量确认任务请求（CS: ConfirmMissionListRequest { missionIds }） */
+export interface ConfirmMissionListRequest {
+  missionIds: string[];
+}
+
+/** 批量确认任务响应（服务端自定义，同 confirmMission 聚合 items） */
+export interface ConfirmMissionListResponse extends PlayerDeltaResponse {
+  items: ItemBundle[];
+}
+
+/** 批量确认多任务组请求（CS 无直接对应类，客户端字段为 missionGroupIds） */
+export interface ConfirmMultiGroupMissionListRequest {
+  missionGroupIds: string[];
+}
+
+/** 批量确认多任务组响应（服务端自定义） */
+export type ConfirmMultiGroupMissionListResponse = PlayerDeltaResponse;

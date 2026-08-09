@@ -83,6 +83,16 @@ router.post("/getFriendRequestList", async (req, res) => {
     ...player.delta,
   } satisfies GetFriendRequestResponse);
 });
+router.post("/getFriendAndRequestSendList", async (req, res) => {
+  // 好友+已发送请求合并列表（客户端路由；复用 getFriendList 结构）
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as GetFriendListRequest;
+  const result = await player.social.getFriendList(body);
+  res.send({
+    ...result,
+    ...player.delta,
+  } satisfies GetFriendListResponse);
+});
 router.post("/setAssistCharList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SetAssistCharListRequest;

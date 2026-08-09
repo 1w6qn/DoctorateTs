@@ -1156,4 +1156,19 @@ router.post("/racingSaveMark", async (req, res) => {
   res.sendStatus(202);
 });
 
+/** 沙盒 V2 竞速小游戏 stub（客户端 /sandboxPerm/sandboxV2/racing/*；参考 ODPY racing 未实现） */
+for (const racingRoute of [
+  "battleStart",
+  "battleFinish",
+  "learnTalent",
+  "register",
+  "release",
+  "saveMark",
+]) {
+  router.post(`/v2/racing/${racingRoute}`, async (req, res) => {
+    const player = httpContext.get<PlayerDataManager>("playerData")!;
+    res.send(player.delta satisfies { playerDataDelta: unknown });
+  });
+}
+
 export default router;

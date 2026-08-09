@@ -1191,11 +1191,18 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 
 ### 23.4 冒烟验证结论
 - 新端点：mailCollection/getList、quest/battleContinue、car/confirmBattleCar、retro/vecbreak 双前缀均 200
-- **双前缀为既有设计**：`/retro/*`、`/campaignV2/*`、`/vecbreak/*` 的 router 自带前缀 + app.ts 挂载前缀（如 `/retro/retro/typeAct20side/competitionStart`），实测双前缀 200、单前缀 404——新端点沿用此约定
+- **双前缀修正（2026-08-09）**：原记录「/retro/*、/campaignV2/* 双前缀为既有设计」经全量客户端路由核对确认为 bug——客户端调用单前缀（`/campaignV2/battleStart`、`/retro/unlockRetroBlock`），双前缀命中不到；已补根挂载使单前缀可用（双前缀仍兼容，见下节）。
 - **已知问题（非本次引入）**：`POST /gacha/cancelNormalGacha` 对 uid=1 满级号返回 500（recruit.cancel 内部异常，路由命中正常），待单独排查
 - **P2 部分完成（2026-08-08，参考 DoctoratePy/CS 2.7.61/抓包）**：bossRush（尖灭测试）模块已实现——`/activity/bossRush/battleStart|battleFinish|relicSelect|relicUpgrade`（battleStart/battleFinish 复用标准战斗结算 + 尖灭专属 wave/milestone/token/best 更新，掉落加值数据驱动），并修正 `/activity/rewardMilestone` 对 BOSS_RUSH 活动写入 `milestone.got`（对齐官服快照结构）。
 - **P2 补全（2026-08-08 续）**：enemyDuel（怪猎对决 8 路由，排行榜 NPC 填充）、act24side（怪猎 6 路由，合成抽奖数据驱动）、act25side（生息演算 6 路由）、football、act29side、act36side、trainingGround、aprilFool act3fun/act4fun/act6fun/act7fun 补全，以及 act13side/act1vhalfidle/act27side/act35side/act38side/act42d0/act42side/act44side/act45side/act46side/actBlessOnly/actCheckinAccess/loginOnly/prayOnly/year5General/teamQuest/typeAct3d0/typeAct4d0/typeAct5d0/typeAct5d1/typeAct9d0/typeAct20side/arcade/autochessSeason 约 110 条 stub（参考 ODPY 202 stub）。
 - **路由前缀修正（2026-08-08）**：客户端将 roguelike/interlock/vecBreakV2 挂在 `/activity` 前缀下（`/activity/roguelike/*` 等），但既有 router 自带 `/roguelike|/interlock|/vecBreakV2` 路径 —— 在 app.ts 补 `/activity` 挂载别名；act25side/act29side/act36side/trainingGround/actcheckinvs 为根路径路由，新增 activity 模块 `rootRouter`（同 user.ts 模式）挂载到 `/`，修复合签到 `actCheckinvs/sign`（客户端 `/actcheckinvs/sign` 根路径调不到）的隐藏缺口。
+- **全量客户端路由覆盖（2026-08-09，541 条客户端游戏路由逐一 curl 冒烟，404 清零）**：
+  - campaignV2/retro 的 router 自带模块前缀 + 既有 `/campaignV2|/retro` 挂载产生双前缀，客户端调用单前缀 —— 补根挂载（双前缀仍兼容）
+  - `/crisis/getInfo` 客户端路径别名（既有 `/getCrisisInfo` 客户端调不到）；`/crisisV2/*` 用 URL 重写中间件别名到 `/crisis/v2/*`
+  - `/sandboxPerm/sandboxV2|V3/*` + `/sandboxPerm/changeTopic|pinTopic` URL 重写别名到 sandbox router 的 `/v2|/v3|/changeTopic|/pinTopic`；补 6 条 racing stub
+  - `/activity/multiplayerV3/*` 补 /activity 挂载别名；`/rune/battleStart|battleFinish` 新 router（复用标准战斗）；`/vecBreakV2/getSeasonRecord` 根挂载
+  - rlv2 补 31 条缺失路由（buyGoods 接线控制器已实现方法 + bank/copper/gridZone/nodeMission 等 rogue_3/4/5 stub）；quest 补 getCowLevelReward/getMainlineRecordRewards/getMainlineCache/unlockStageFog/unlockHideStage；mission 补 confirmMissionList/confirmMultiGroupMissionList
+  - 杂项：shop/buyREPGoodWithTicket、social/getFriendAndRequestSendList、tower/seasonMissonsAward（客户端拼写）、gacha 裸 `/gacha`、autoChess/act1|act2autochess、audit/official/*（新 router）
 - **rlv2/selectChoice 接线修复（2026-08-08）**：控制器已实现（§16.5）但路由未暴露，已补 `POST /rlv2/selectChoice`（CS: RoguelikeSelectChoiceRequest，抓包 body `{choice}`）
 - **pay 补全（2026-08-08，参考 DoctoratePy + 抓包）**：新增 `/pay/createOrder`（返回对齐抓包形状的 extension JSON）与 `/pay/confirmOrder`（现金包 CS_ 复用 shop.buyCashGood 发放钻石，含首充双倍）；订单存内存 Map，重启即失效（私服可接受）
 - **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用

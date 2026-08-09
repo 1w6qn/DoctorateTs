@@ -1,6 +1,7 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { ItemBundle } from "@excel/character_table";
 import {
   BattleContinueRequest,
   BattleContinueResponse,
@@ -21,6 +22,16 @@ import {
   SaveBattleReplayResponse,
   SquadFormationRequest,
   SquadFormationResponse,
+  GetCowLevelRewardRequest,
+  GetCowLevelRewardResponse,
+  GetMainlineCacheRequest,
+  GetMainlineCacheResponse,
+  GetMainlineRecordRewardsRequest,
+  GetMainlineRecordRewardsResponse,
+  UnlockHideStageRequest,
+  UnlockHideStageResponse,
+  UnlockStageFogRequest,
+  UnlockStageFogResponse,
 } from "../model/protocol/quest";
 import { CommonStartBattleRequest } from "../model/battle";
 
@@ -119,4 +130,71 @@ router.post("/editStageSixStarTag", async (req, res) => {
   });
   res.send(player.delta satisfies EditStageSixStarTagResponse);
 });
+
+/** 获取特殊关卡（牛关）奖励（CS: SpecialStoryStageRewardRequest；标记已领取，奖励空） */
+router.post("/getCowLevelReward", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { stageId } = req.body as GetCowLevelRewardRequest;
+  const rewards: ItemBundle[] = [];
+  await player.update(async (draft) => {
+    const cowLevel = (draft as any).dungeon.cowLevel as
+      | { [stageId: string]: { val?: boolean[]; fts?: number } }
+      | undefined;
+    if (cowLevel?.[stageId]) {
+      // 标记奖励已领取（val 置 false 表示已领，参考官服结构）
+      if (Array.isArray(cowLevel[stageId].val)) {
+        cowLevel[stageId].val = cowLevel[stageId].val.map(() => false);
+      }
+    }
+  });
+  res.send({
+    rewards,
+    ...player.delta,
+  } satisfies GetCowLevelRewardResponse);
+});
+
+/** 获取主线记录奖励（CS: ZoneRecordRewardRequest { stageId[] }；私服返回空） */
+router.post("/getMainlineRecordRewards", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetMainlineRecordRewardsRequest;
+  res.send({
+    items: [],
+    ...player.delta,
+  } satisfies GetMainlineRecordRewardsResponse);
+});
+
+/** 获取主线缓存（CS: GetMainlineCacheRequest；私服返回空） */
+router.post("/getMainlineCache", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetMainlineCacheRequest;
+  res.send({
+    items: [],
+    ...player.delta,
+  } satisfies GetMainlineCacheResponse);
+});
+
+/** 解锁关卡迷雾（CS: UnlockStageFogResponse；仅返回增量） */
+router.post("/unlockStageFog", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as UnlockStageFogRequest;
+  res.send(player.delta satisfies UnlockStageFogResponse);
+});
+
+/** 解锁隐藏关卡（写 dungeon.hideStages[stageId].unlock） */
+router.post("/unlockHideStage", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { stageId } = req.body as UnlockHideStageRequest;
+  await player.update(async (draft) => {
+    const hideStages = (draft as any).dungeon.hideStages as
+      | { [stageId: string]: { unlock?: number } }
+      | undefined;
+    if (!hideStages?.[stageId]) {
+      (draft as any).dungeon.hideStages[stageId] = { unlock: 1 };
+    } else {
+      hideStages[stageId].unlock = 1;
+    }
+  });
+  res.send(player.delta satisfies UnlockHideStageResponse);
+});
+
 export default router;

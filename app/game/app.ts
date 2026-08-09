@@ -113,6 +113,42 @@ export async function setup(app: express.Application) {
   app.use("/activity", (await import("./router/roguelike")).default);
   app.use("/activity", (await import("./router/interlock")).default);
   app.use("/activity", (await import("./router/vecbreak")).default);
+  // 客户端将 multiplayerV3 挂在 /activity 前缀下（/activity/multiplayerV3/*）
+  app.use("/activity", (await import("./router/multiplayer")).default);
+  // campaignV2/retro 的 router 自带模块前缀（/campaignV2/*、/retro/*）：
+  // 客户端调用单前缀（/campaignV2/battleStart、/retro/unlockRetroBlock），
+  // 既有 /campaignV2、/retro 挂载产生双前缀，补根挂载对齐客户端路由
+  app.use("/", (await import("./router/campaignV2")).default);
+  app.use("/", (await import("./router/retro")).default);
+  // 客户端调用 /crisisV2/*（服务端既有路由为 /crisis/v2/*），URL 重写中间件挂载别名
+  app.use(
+    "/crisisV2",
+    (req, _res, next) => {
+      req.url = `/v2${req.url}`;
+      next();
+    },
+    (await import("./router/crisis")).default,
+  );
+  // 符文学徒试炼（/rune/battleStart|battleFinish，复用标准战斗）
+  app.use("/rune", (await import("./router/rune")).default);
+  // 沙盒：客户端路由为 /sandboxPerm/sandboxV2|V3/* 与 /sandboxPerm/changeTopic|pinTopic，
+  // 服务端 sandbox router 路径为 /v2|/v3|/changeTopic|/pinTopic —— URL 重写中间件挂载别名
+  app.use(
+    "/sandboxPerm",
+    (req, _res, next) => {
+      if (req.url.startsWith("/sandboxV2/")) {
+        req.url = `/v2${req.url.slice("/sandboxV2".length)}`;
+      } else if (req.url.startsWith("/sandboxV3/")) {
+        req.url = `/v3${req.url.slice("/sandboxV3".length)}`;
+      }
+      next();
+    },
+    (await import("./router/sandbox")).default,
+  );
+  // 客户端在根路径调用 /vecBreakV2/getSeasonRecord（router 自带 /vecBreakV2/* 路径），补根挂载
+  app.use("/", (await import("./router/vecbreak")).default);
+  // 资源版本审计（客户端 /audit/official/*，stub）
+  app.use("/audit", (await import("./router/audit")).default);
   // 统一错误处理：异步 handler 抛错（Express 5 自动捕获）→ JSON 而非 HTML 500。
   // 例：single 模式社交自请求（不能加自己为好友）等业务校验错误，客户端收到可解析 JSON
   app.use(gameErrorHandler);

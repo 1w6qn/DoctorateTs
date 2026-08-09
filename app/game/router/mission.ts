@@ -5,6 +5,7 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { ItemBundle } from "@excel/character_table";
 import {
   AutoConfirmMissionsRequest,
   AutoConfirmMissionsResponse,
@@ -12,6 +13,10 @@ import {
   ConfirmMissionGroupResponse,
   ConfirmMissionRequest,
   ConfirmMissionResponse,
+  ConfirmMissionListRequest,
+  ConfirmMissionListResponse,
+  ConfirmMultiGroupMissionListRequest,
+  ConfirmMultiGroupMissionListResponse,
   ExchangeMissionRewardsRequest,
   ExchangeMissionRewardsResponse,
 } from "../model/protocol/mission";
@@ -52,6 +57,38 @@ router.post("/exchangeMissionRewards", async (req, res) => {
   const body = req.body as ExchangeMissionRewardsRequest;
   await player.mission.exchangeMissionRewards(body);
   res.send({ ...player.delta } satisfies ExchangeMissionRewardsResponse);
+});
+
+/** 批量确认任务（CS: ConfirmMissionListRequest { missionIds }；逐条领取聚合奖励） */
+router.post("/confirmMissionList", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as ConfirmMissionListRequest;
+  const items: ItemBundle[] = [];
+  for (const missionId of body.missionIds ?? []) {
+    try {
+      items.push(...(await player.mission.confirmMission({ missionId })));
+    } catch {
+      // 单条失败不中断整批（任务未达成等）
+    }
+  }
+  res.send({
+    items,
+    ...player.delta,
+  } satisfies ConfirmMissionListResponse);
+});
+
+/** 批量确认多任务组（客户端字段 missionGroupIds；逐组领取） */
+router.post("/confirmMultiGroupMissionList", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as ConfirmMultiGroupMissionListRequest;
+  for (const missionGroupId of body.missionGroupIds ?? []) {
+    try {
+      await player.mission.confirmMissionGroup({ missionGroupId });
+    } catch {
+      // 单组失败不中断
+    }
+  }
+  res.send(player.delta satisfies ConfirmMultiGroupMissionListResponse);
 });
 
 export default router;

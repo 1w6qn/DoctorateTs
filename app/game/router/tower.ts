@@ -561,6 +561,15 @@ router.post("/seasonMissionsAward", async (req, res) => {
 });
 
 /**
+ * 赛季任务奖励（客户端拼写别名）
+ * 客户端实际调用 /tower/seasonMissonsAward（CS 类名同此拼写），既有 /seasonMissionsAward 命中不到
+ */
+router.post("/seasonMissonsAward", async (req, res) => {
+  req.body as ClimbTowerSeasonMissionAwardRequest;
+  res.sendStatus(202);
+});
+
+/**
  * 扫荡游戏
  *
  * 简化实现：参考 Python 实现直接返回 202，无实际扫荡逻辑。

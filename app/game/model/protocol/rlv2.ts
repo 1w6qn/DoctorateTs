@@ -214,3 +214,25 @@ export type RL03ConfirmPredictResponse = PlayerDeltaResponse;
 
 /** 关闭招募票响应（CS: RoguelikeCloseTicketResponse） */
 export type RoguelikeCloseTicketResponse = PlayerDeltaResponse;
+
+/* ===== rogue_3/4/5 机制 stub（控制器未实现，返回空增量）===== */
+
+/** 通用肉鸽 stub 请求（bank/copper/gridZone/nodeMission 等未实现机制；不读取 body） */
+export interface RoguelikeStubRequest {
+  id?: string;
+  index?: number;
+  sub?: number;
+}
+
+/** 通用肉鸽 stub 响应（仅增量） */
+export type RoguelikeStubResponse = PlayerDeltaResponse;
+
+/** 肉鸽商店购买请求（CS: RoguelikeShopActionRequest { action, goodsId }；服务端控制器读 select） */
+export interface RoguelikeBuyGoodsRequest {
+  select?: number;
+  action?: string;
+  goodsId?: string;
+}
+
+/** 肉鸽商店购买响应（服务端仅返回增量） */
+export type RoguelikeBuyGoodsResponse = PlayerDeltaResponse;

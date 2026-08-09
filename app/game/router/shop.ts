@@ -399,6 +399,16 @@ router.post("/buyREPGood", async (req, res) => {
     ...player.delta,
   } satisfies BuyREPGoodResponse);
 });
+/** 购买声望商店商品（门票版；客户端路由 /shop/buyREPGoodWithTicket，复用 buyREPGood 逻辑） */
+router.post("/buyREPGoodWithTicket", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as BuyREPGoodRequest;
+  res.send({
+    result: 0,
+    items: await player.shop.buyREPGood(body),
+    ...player.delta,
+  } satisfies BuyREPGoodResponse);
+});
 
 /**
  * 购买经典商店商品

@@ -42,6 +42,10 @@ import {
   RoguelikeShopActionResponse,
   RoguelikeShopRefreshRequest,
   RoguelikeShopRefreshResponse,
+  RoguelikeStubRequest,
+  RoguelikeStubResponse,
+  RoguelikeBuyGoodsRequest,
+  RoguelikeBuyGoodsResponse,
   RoguelikeStepMoveToAndStartBattleRequest,
   RoguelikeStepMoveToAndStartBattleResponse,
   RoguelikeTopicCreateGameRequest,
@@ -234,5 +238,61 @@ router.post("/closeRecruitTicket", async (req, res) => {
   await player.rlv2.closeRecruitTicket(body);
   res.send(player.delta satisfies RoguelikeCloseTicketResponse);
 });
+
+/** 商店购买（CS: RoguelikeShopActionRequest；控制器 buyGoods 已实现此前漏接线，同 selectChoice） */
+router.post("/buyGoods", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as RoguelikeBuyGoodsRequest;
+  await player.rlv2.buyGoods({ select: body.select ?? 0 });
+  res.send(player.delta satisfies RoguelikeBuyGoodsResponse);
+});
+
+/* ===== rogue_3/4/5 机制 stub（控制器未实现，返回空增量）===== */
+
+/** 商店操作（CS: RoguelikeShopActionRequest；客户端 buyGoods 之外的动作，stub） */
+router.post("/shopAction", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as RoguelikeStubRequest;
+  res.send(player.delta satisfies RoguelikeStubResponse);
+});
+
+// 银行/铜币/骰子/远征/节点任务/网格等未实现机制——统一空增量 stub
+const rlv2StubRoutes: string[] = [
+  "bankPut",
+  "bankWithdraw",
+  "battlePass/getReward",
+  "chooseInitialExploreTool",
+  "confirmTraderReturn",
+  "confirmZoneReward",
+  "copper/gild",
+  "copper/redraw",
+  "diceChoice",
+  "expeditionChoice",
+  "game/confirmExpeditonReturn",
+  "getTicketAssistList",
+  "gridZone/emptyStep",
+  "gridZone/moveAndBattleStart",
+  "gridZone/moveTo",
+  "gridZone/readStepZero",
+  "nodeMission/closeTip",
+  "nodeMission/confirm",
+  "nodeMission/giveUp",
+  "readEndingChange",
+  "recruitAssistChar",
+  "rerollNode",
+  "sacrificeChoice",
+  "shopBattleStart",
+  "specialZone/leave",
+  "stashRecruitTicket",
+  "upgradeNode",
+  "useStashedTicket",
+];
+for (const rlv2StubRoute of rlv2StubRoutes) {
+  router.post(`/${rlv2StubRoute}`, async (req, res) => {
+    const player = httpContext.get<PlayerDataManager>("playerData")!;
+    req.body as RoguelikeStubRequest;
+    res.send(player.delta satisfies RoguelikeStubResponse);
+  });
+}
 
 export default router;

@@ -214,4 +214,10 @@ router.post("/getFreeChar", async (req, res) => {
   res.send({ result: 0, ...player.delta } satisfies GetFreeCharResponse);
 });
 
+/** 抽卡会话状态（客户端 POST /gacha 裸路径；返回空增量 stub） */
+router.post("/", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  res.send(player.delta satisfies { playerDataDelta: unknown });
+});
+
 export default router;

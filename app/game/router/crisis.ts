@@ -388,14 +388,13 @@ const router = Router();
 
 /**
  * 获取危机合约信息
- * @route POST /crisis/getCrisisInfo
+ * @route POST /crisis/getCrisisInfo（另有 /getInfo 别名——客户端实际调用 /crisis/getInfo）
  * @returns 危机合约信息和玩家增量数据
  */
-router.post("/getCrisisInfo", async (req, res) => {
+async function handleCrisisGetInfo(_req: any, res: any) {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const currentTime = now();
   const nextDay = currentTime + ONE_DAY_SECONDS;
-  req.body as CrisisGetInfoRequest;
 
   try {
     const rune = await dataCache.getV1Data(DEFAULT_SELECTED_CRISIS);
@@ -439,6 +438,18 @@ router.post("/getCrisisInfo", async (req, res) => {
       },
     } satisfies CrisisGetInfoResponse);
   }
+}
+
+/** 危机合约信息（服务端既有路径 /getCrisisInfo） */
+router.post("/getCrisisInfo", async (req, res) => {
+  req.body as CrisisGetInfoRequest;
+  await handleCrisisGetInfo(req, res);
+});
+
+/** 危机合约信息（客户端实际调用 /crisis/getInfo） */
+router.post("/getInfo", async (req, res) => {
+  req.body as CrisisGetInfoRequest;
+  await handleCrisisGetInfo(req, res);
 });
 
 /**

@@ -147,3 +147,49 @@ export interface EditStageSixStarTagRequest {
 
 /** 编辑六星干员标记响应（CS: UI.Stage.EditStageSixStarTagResponse） */
 export type EditStageSixStarTagResponse = PlayerDeltaResponse;
+
+/* ===== 主线辅助接口（getCowLevelReward/getMainlineRecordRewards/getMainlineCache/unlockStageFog/unlockHideStage）===== */
+
+/** 获取特殊关卡（牛关）奖励请求（CS: SpecialStoryStageRewardRequest） */
+export interface GetCowLevelRewardRequest {
+  stageId: string;
+}
+
+/** 获取特殊关卡奖励响应（CS: SpecialStoryStageRewardResponse） */
+export interface GetCowLevelRewardResponse extends PlayerDeltaResponse {
+  rewards: ItemBundle[];
+}
+
+/** 获取主线记录奖励请求（CS: ZoneRecordRewardRequest { stageId: string[] }） */
+export interface GetMainlineRecordRewardsRequest {
+  stageId: string[];
+}
+
+/** 获取主线记录奖励响应（CS: ZoneRecordRewardResponse { items: List<ItemGet> }；服务端返回空） */
+export interface GetMainlineRecordRewardsResponse extends PlayerDeltaResponse {
+  items: ItemBundle[];
+}
+
+/** 获取主线缓存请求（CS: GetMainlineCacheRequest，无字段） */
+export interface GetMainlineCacheRequest {}
+
+/** 获取主线缓存响应（CS: GetMainlineCacheResponse { items }；服务端返回空） */
+export interface GetMainlineCacheResponse extends PlayerDeltaResponse {
+  items: ItemBundle[];
+}
+
+/** 解锁关卡迷雾请求（服务端自定义；CS 无请求类） */
+export interface UnlockStageFogRequest {
+  stageId: string;
+}
+
+/** 解锁关卡迷雾响应（CS: UnlockStageFogResponse） */
+export type UnlockStageFogResponse = PlayerDeltaResponse;
+
+/** 解锁隐藏关卡请求（服务端自定义；写 dungeon.hideStages[stageId].unlock） */
+export interface UnlockHideStageRequest {
+  stageId: string;
+}
+
+/** 解锁隐藏关卡响应（服务端自定义） */
+export type UnlockHideStageResponse = PlayerDeltaResponse;

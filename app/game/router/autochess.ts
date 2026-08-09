@@ -214,4 +214,12 @@ router.post("/autochessSeason/startGuideBattle", async (req, res) => {
   } satisfies AutoChessTrainingBattleStartResponse);
 });
 
+/** 自走棋赛季信息（客户端路由 /autoChess/act1autochess|act2autochess；stub 返回空增量） */
+for (const autoChessSeason of ["act1autochess", "act2autochess"]) {
+  router.post(`/${autoChessSeason}`, async (req, res) => {
+    const player = httpContext.get<PlayerDataManager>("playerData")!;
+    res.send(player.delta satisfies { playerDataDelta: unknown });
+  });
+}
+
 export default router;

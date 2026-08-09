@@ -150,6 +150,7 @@ export function printHelp(): void {
   users activity <uid> [--json]                     查看活动数据摘要（只读）
   users shop <uid> [--json]                         查看商店数据汇总（只读）
   users checkin <uid> [--reset|--do]                查看/重置/代签签到
+  users daily <uid>                               一键日常（每日刷新+代签）
   users export <uid> [path]                         导出存档到 JSON（默认 ./exports/）
   users import <存档JSON> [uid]                     从 JSON 导入/替换存档
   users delete <uid> --yes                          删除用户（危险操作，需 --yes）
@@ -165,6 +166,7 @@ export function printHelp(): void {
   users activity <uid> [--json]                     查看活动数据摘要（只读）
   users shop <uid> [--json]                         查看商店数据汇总（只读）
   users checkin <uid> [--reset|--do]                查看/重置/代签签到
+  users daily <uid>                               一键日常（每日刷新+代签）
   users export <uid> [path]                         导出存档到 JSON（默认 ./exports/）
   users import <存档JSON> [uid]                     从 JSON 导入/替换存档
   users delete <uid> --yes                          删除用户（危险操作，需 --yes）
@@ -752,6 +754,17 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
       );
       return;
     }
+    case "daily": {
+      const uid = args[1];
+      if (!uid) {
+        console.error("用法: users daily <uid>");
+        process.exitCode = 1;
+        return;
+      }
+      const r = await adminService.dailyRoutine(uid);
+      console.log(`已对用户 ${uid} 执行一键日常：刷新完成 + 签到「${r.checkin}」`);
+      return;
+    }
     default:
       console.error(`未知 users 子命令: ${sub ?? ""}`);
       process.exitCode = 1;
@@ -772,7 +785,7 @@ async function runMail(args: string[], flags: { [key: string]: string }): Promis
       return;
     }
     console.table(
-      list.map((t) => ({ 名称: t.name, 标题: t.subject, 附件种数: t.items })),
+      list.map((t) => ({ 名称: t.name, 标题: t.subject, 附件种数: t.items.length })),
     );
     return;
   }

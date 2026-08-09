@@ -272,6 +272,8 @@
   <div class="modal">
     <h3>发送邮件 — <span id="mail-uid"></span></h3>
     <label><input type="checkbox" id="mail-all" style="width:auto;margin:0 4px 0 0;vertical-align:middle;">发送给所有用户</label>
+    <label>模板（可选，选中自动填充）</label>
+    <select id="mail-template"><option value="">自定义</option></select>
     <label>标题</label>
     <input id="mail-subject" placeholder="邮件标题">
     <label>内容</label>
@@ -1186,8 +1188,34 @@
     $("mail-subject").value = "";
     $("mail-content").value = "";
     $("mail-items").value = "";
+    // 加载邮件模板下拉（补偿/公告/欢迎）
+    api("/mail-templates").then(function (templates) {
+      var sel = $("mail-template");
+      sel.innerHTML = '<option value="">自定义</option>' + templates.map(function (t) {
+        return '<option value="' + escapeHtml(t.name) + '">' + escapeHtml(t.name) + "（" + escapeHtml(t.subject) + "）</option>";
+      }).join("");
+    }).catch(function () {});
     showModal("modal-mail");
   }
+  // 选择模板自动填充标题/内容/附件（模板含完整 subject/content/items）
+  $("mail-template").addEventListener("change", function () {
+    var name = this.value;
+    if (!name) {
+      $("mail-subject").value = "";
+      $("mail-content").value = "";
+      $("mail-items").value = "";
+      return;
+    }
+    api("/mail-templates").then(function (templates) {
+      var t = templates.find(function (x) { return x.name === name; });
+      if (!t) return;
+      $("mail-subject").value = t.subject;
+      $("mail-content").value = t.content || "";
+      $("mail-items").value = (t.items || []).map(function (it) {
+        return it.id + ":" + it.count;
+      }).join(",");
+    }).catch(function () {});
+  });
   $("mail-ok").addEventListener("click", function () {
     var uid = $("mail-uid").textContent;
     var toAll = $("mail-all").checked;

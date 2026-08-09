@@ -1095,6 +1095,24 @@ describe("AdminService 签到", () => {
     expect(r.rewards).toEqual([{ id: "4001", name: "龙门币", count: 100 }]);
     expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
   });
+
+  it("dailyRoutine 应刷新+代签并落盘", async () => {
+    pd.status = { refreshTime: vi.fn().mockResolvedValue(undefined) };
+    pd.mission = { dailyRefresh: vi.fn().mockResolvedValue(undefined) };
+    pd.checkIn = { checkIn: vi.fn().mockResolvedValue({ signInRewards: [{ id: "4001", count: 1 }] }) };
+    const r = await service.dailyRoutine("1");
+    expect(r.checkin).toBe("已签");
+    expect(pd.status.refreshTime).toHaveBeenCalled();
+    expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
+  });
+
+  it("dailyRoutine 不可签应返回不可签且不报错", async () => {
+    pd.status = { refreshTime: vi.fn().mockResolvedValue(undefined) };
+    pd.mission = { dailyRefresh: vi.fn().mockResolvedValue(undefined) };
+    pd.checkIn = { checkIn: vi.fn().mockResolvedValue(undefined) };
+    const r = await service.dailyRoutine("1");
+    expect(r.checkin).toBe("不可签");
+  });
 });
 
 describe("AdminService 统计", () => {

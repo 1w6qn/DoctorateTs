@@ -758,6 +758,27 @@ export class AdminService {
     await this._audit("refreshUser", uid, "每日/每周刷新");
   }
 
+  /** 一键日常：每日/每周刷新 + 签到代签 + 落盘 */
+  async dailyRoutine(uid: string): Promise<{ refreshed: boolean; checkin: string }> {
+    const pd = await this.getPlayer(uid);
+    try {
+      await pd.status.refreshTime();
+      await pd.mission.dailyRefresh();
+    } catch (e) {
+      logger.warn("AdminService", `dailyRoutine 刷新失败: ${(e as Error).message}`);
+    }
+    let checkin = "不可签";
+    try {
+      const res = await pd.checkIn.checkIn();
+      if (res) checkin = "已签";
+    } catch {
+      checkin = "签到失败";
+    }
+    await this.savePlayer(uid);
+    await this._audit("dailyRoutine", uid, `刷新 + ${checkin}`);
+    return { refreshed: true, checkin };
+  }
+
   /** 立即保存用户存档 */
   async saveUser(uid: string): Promise<void> {
     await this.getPlayer(uid);
@@ -1622,13 +1643,9 @@ export class AdminService {
     return Object.entries(COMMON_ITEMS).map(([name, id]) => ({ name, id }));
   }
 
-  /** 邮件模板列表（供 CLI/接口控制台参考） */
-  getMailTemplates(): { name: string; subject: string; items: number }[] {
-    return MAIL_TEMPLATES.map((t) => ({
-      name: t.name,
-      subject: t.subject,
-      items: t.items.length,
-    }));
+  /** 邮件模板列表（完整模板：供 CLI 展示与 Dashboard 填充用） */
+  getMailTemplates(): { name: string; subject: string; content: string; items: { id: string; count: number }[] }[] {
+    return MAIL_TEMPLATES;
   }
 
   /**

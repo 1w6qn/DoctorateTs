@@ -22,7 +22,7 @@
  * 官服对双斜杠路径返回 404，endpoint 统一归一化去前导斜杠。
  */
 import { RequestHandler } from "express";
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, RawAxiosRequestHeaders } from "axios";
 import { logger } from "@utils/logger";
 import config from "../config";
 
@@ -158,13 +158,23 @@ export function createOfficialForwarder(): RequestHandler {
     // 官服对双斜杠路径返回 404：归一化去前导斜杠，保证拼出的转发 URL 无 //
     const endpoint = target.path.replace(/^\/+/, "");
 
+    // 转发头剥离 host/content-length/transfer-encoding：
+    // 客户端原始 body 可能带空白/换行（content-length 94B），express.json 解析后 axios
+    // 重序列化变短（74B）——透传 content-length 会让官服按声明长度等剩余字节而永久挂起，
+    // 去掉后由 axios 按实际发送的 body 重算；transfer-encoding 同理（axios 按 data 定 chunked/定长）。
+    const forwardedHeaders: RawAxiosRequestHeaders = { ...req.headers };
+    delete forwardedHeaders.host;
+    delete forwardedHeaders["content-length"];
+    delete forwardedHeaders["transfer-encoding"];
+
     try {
       const response = await axios({
         method: req.method,
         url: `${target.baseUrl}/${endpoint}`,
         data: req.method === "POST" ? req.body : undefined,
-        headers: { ...req.headers, Host: undefined },
-        params: req.query,
+        headers: forwardedHeaders,
+        // Express ParsedQs 与 axios params 类型不兼容，cast 兼容
+        params: req.query as any,
         // 官服返回 401/400 等状态属正常（未带有效 secret/参数），不抛异常，原样透传
         validateStatus: () => true,
       });

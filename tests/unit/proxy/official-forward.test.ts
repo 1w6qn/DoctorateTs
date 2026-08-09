@@ -1,9 +1,16 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("axios", () => ({ default: vi.fn() }));
+
+import axios from "axios";
 import {
   resolveForwardTarget,
+  createOfficialForwarder,
   OFFICIAL_AS_HOST,
   OFFICIAL_GS_HOST,
 } from "../../../app/proxy/official-forward";
+
+const mockAxios = axios as unknown as ReturnType<typeof vi.fn>;
 
 /**
  * capture 模式转发目标解析测试
@@ -143,6 +150,112 @@ describe("resolveForwardTarget（官服转发目标解析）", () => {
     it("前导多斜杠归一化为单斜杠（防官服 // 404）", () => {
       const t = resolveForwardTarget("POST", "//shop/getSkinGoodList", "127.0.0.1");
       expect(t?.path).toBe("/shop/getSkinGoodList");
+    });
+  });
+
+  describe("createOfficialForwarder（axios 转发）", () => {
+    beforeEach(() => {
+      mockAxios.mockReset();
+    });
+
+    it("转发命中时不 next()，原样透传官服状态与响应体", async () => {
+      mockAxios.mockResolvedValueOnce({ status: 200, data: { ok: true } });
+      const handler = createOfficialForwarder();
+      const req = {
+        method: "POST",
+        url: "/account/login",
+        headers: { host: "127.0.0.1:8443", "content-type": "application/json" },
+        body: { uid: "1" },
+        query: {},
+        originalUrl: "/account/login",
+      } as any;
+      const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+      const next = vi.fn();
+
+      await handler(req, res, next);
+
+      expect(next).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.send).toHaveBeenCalledWith({ ok: true });
+      expect(mockAxios).toHaveBeenCalledWith(
+        expect.objectContaining({
+          method: "POST",
+          url: `${OFFICIAL_GS_HOST}/account/login`,
+          data: { uid: "1" },
+        }),
+      );
+    });
+
+    it("剥离 host/content-length/transfer-encoding（防 content-length 透传导致官服挂起），其余头保留", async () => {
+      mockAxios.mockResolvedValueOnce({ status: 200, data: {} });
+      const handler = createOfficialForwarder();
+      const req = {
+        method: "POST",
+        url: "/user/oauth2/v2/grant",
+        headers: {
+          host: "127.0.0.1:8443",
+          "content-length": "94",
+          "transfer-encoding": "chunked",
+          "content-type": "application/json",
+          "x-deviceid": "06cfbdc4f24e55eea40ef8b5cab88b0c",
+        },
+        body: { token: "x", type: 0 },
+        query: {},
+        originalUrl: "/user/oauth2/v2/grant",
+      } as any;
+      const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+      const next = vi.fn();
+
+      await handler(req, res, next);
+
+      const [call] = mockAxios.mock.calls;
+      const headers = call[0].headers as Record<string, unknown>;
+      expect(headers["host"]).toBeUndefined();
+      expect(headers["content-length"]).toBeUndefined();
+      expect(headers["transfer-encoding"]).toBeUndefined();
+      // 其余业务头保留透传
+      expect(headers["content-type"]).toBe("application/json");
+      expect(headers["x-deviceid"]).toBe("06cfbdc4f24e55eea40ef8b5cab88b0c");
+    });
+
+    it("未命中转发目标时 next()，不改写响应", async () => {
+      const handler = createOfficialForwarder();
+      const req = {
+        method: "GET",
+        url: "/config/prod/official/network_config",
+        headers: { host: "127.0.0.1:8443" },
+        body: {},
+        query: {},
+        originalUrl: "/config/prod/official/network_config",
+      } as any;
+      const res = { status: vi.fn(), send: vi.fn() } as any;
+      const next = vi.fn();
+
+      await handler(req, res, next);
+
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(mockAxios).not.toHaveBeenCalled();
+      expect(res.send).not.toHaveBeenCalled();
+    });
+
+    it("网络层错误（官服不可达）返回 502", async () => {
+      mockAxios.mockRejectedValueOnce(new Error("ENOTFOUND"));
+      const handler = createOfficialForwarder();
+      const req = {
+        method: "POST",
+        url: "/account/login",
+        headers: { host: "127.0.0.1:8443" },
+        body: {},
+        query: {},
+        originalUrl: "/account/login",
+      } as any;
+      const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+      const next = vi.fn();
+
+      await handler(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(502);
+      expect(res.send).toHaveBeenCalledWith("Bad Gateway");
     });
   });
 });

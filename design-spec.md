@@ -1075,6 +1075,7 @@ mitmproxy map remote 设置 URL 时会同步改写 Host 头为 `127.0.0.1:8443`�
 - **Host 优先**：`as.*` → `as.hypergryph.com`（路径原样，官服无 /auth 前缀）；`ak-gs-*` → `ak-gs-gf.hypergryph.com`（剥 `/game` 基址前缀）；其余 `*.hypergryph.com`（ak-conf/game-config 等配置域）→ 不转发，保持本地
 - **路径级兜底**（Host 非官服：localhost/IP 直连 / mitmweb 重写）：as 前缀 `/user/auth|info|online|oauth2`、`/u8`（带 `/u8` 基址）、`/app`、`/general`、`/as`（剥路径化前缀）→ as 域；`/game/*` → gs 域（剥前缀）；**其余 POST** → gs 域根路径兜底（/account、/shop、/activity、/user/checkIn、/batch_event 等），但**排除本地挂载点** `/admin` `/assetbundle` `/pcSdk` `/config` `/api` `/audit` `/arkodc`（避免把管理/配置 POST 误转发官服）；GET 非 as 路径不转发（保持本地响应）
 - 官服对双斜杠路径返回 404，endpoint 统一归一化去前导斜杠；`validateStatus: () => true` 原样透传官服 401/400 等状态；网络层错误（官服不可达）返回 502
+- **content-length 剥离**（2026-08-09 修复）：客户端原始 body 可能带空白/换行（实测 oauth2/v2/grant 原始 94B、解析后重序列化 74B），透传 `content-length` 会让官服按声明长度等剩余字节而**永久挂起**（`POST /user/oauth2/v2/grant` 20s 无响应）。转发头剥离 `host`/`content-length`/`transfer-encoding`，由 axios 按实际 body 重算。test.ts 同步修复。
 
 **登录链路**：客户端经本地 network_config 连到本代理 → `/user/auth/*`、`/u8/*`、`/user/oauth2/*` 转发 as 域拿到**官服真实 token** → `/account/login` 等 gs 请求带真实 secret 转发 `ak-gs-gf` 由官服校验。转发命中后不 `next()`，私服 authMiddleware/游戏路由不参与，故不受单例 secret 强制影响。
 

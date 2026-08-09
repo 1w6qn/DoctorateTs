@@ -1,5 +1,5 @@
 import express from "express";
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, RawAxiosRequestHeaders } from "axios";
 import fs from "fs/promises";
 import path from "path";
 import morgan from "morgan";
@@ -66,11 +66,18 @@ const createProxyHandler = (baseUrl: string) => {
     };
 
     try {
+      // 转发头剥离 host/content-length/transfer-encoding：客户端原始 body 可能带空白（content-length
+      // 偏大），express.json 解析后 axios 重序列化变短——透传 content-length 会让官服按声明长度等
+      // 剩余字节而挂起（实测 POST /user/oauth2/v2/grant 20s 无响应），去掉后由 axios 按实际 body 重算。
+      const forwardedHeaders: RawAxiosRequestHeaders = { ...req.headers };
+      delete forwardedHeaders.host;
+      delete forwardedHeaders["content-length"];
+      delete forwardedHeaders["transfer-encoding"];
       const response = await axios({
         method: req.method,
         url: `${baseUrl}/${endpoint}`,
         data: req.method === "POST" ? req.body : undefined,
-        headers: { ...req.headers, Host: undefined },
+        headers: forwardedHeaders,
         params: req.query,
         // 官服返回 401/400 等状态属正常（未带有效 secret/参数），不抛异常，原样透传
         validateStatus: () => true,

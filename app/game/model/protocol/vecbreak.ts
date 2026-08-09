@@ -18,10 +18,10 @@ export interface VecBreakV2SeasonAchvInfo {
   stageInfo: { [key: string]: VecBreakV2StageInfo };
 }
 
-/** 赛季关卡信息（CS: VecBreakV2StageInfo） */
+/** 赛季关卡信息（CS: VecBreakV2StageInfo；参考 ODPY 用字符串状态 "COMPLETE"） */
 export interface VecBreakV2StageInfo {
   stageId: string;
-  state: number;
+  state: number | string;
 }
 
 /** 赛季最佳记录（CS: VecBreakV2SeasonBestRecordInfo） */
@@ -47,11 +47,11 @@ export interface VecBreakV2SeasonRecordCharInfo {
 }
 
 /**
- * 获取赛季记录响应（CS: VecBreakV2SeasonRecordResponse）
- * CS 字段名为 seasons，服务端返回 seasonRecord（当前实现为空对象）
+ * 获取赛季记录响应（CS: VecBreakV2SeasonRecordResponse { seasons }）
+ * 字段名为 seasons（对齐 CS 与 ODPY），structure 与 seasonRecord 一致
  */
 export interface VecBreakV2SeasonRecordResponse extends PlayerDeltaResponse {
-  seasonRecord: { [key: string]: VecBreakV2SeasonAchvInfo };
+  seasons: { [key: string]: VecBreakV2SeasonAchvInfo };
 }
 
 /** 更换增益列表请求（CS: VecBreakV2ChangeBuffRequest；服务端未读取请求体） */
@@ -97,10 +97,19 @@ export interface VecBreakV2FinishBattleRequest {
 }
 
 /**
- * 战斗结束响应（CS: VecBreakV2Offense/DefenseFinishBattleResponse : DefaultFinishBattleResponse；
- * 服务端仅返回增量）
+ * 战斗结束响应（CS: VecBreakV2Offense/DefenseFinishBattleResponse : DefaultFinishBattleResponse）
+ * 参考 ODPY：返回 result/msBefore/msAfter/finTs 等
  */
-export type VecBreakV2FinishBattleResponse = PlayerDeltaResponse;
+export interface VecBreakV2FinishBattleResponse extends PlayerDeltaResponse {
+  result: number;
+  apFailReturn: number;
+  goldScale: number;
+  expScale: number;
+  suggestFriend: boolean;
+  msBefore: number;
+  msAfter: number;
+  finTs: number;
+}
 
 /** 防守编队槽位（CS: VecBreakV2DefendSlot） */
 export interface VecBreakV2DefendSlot {

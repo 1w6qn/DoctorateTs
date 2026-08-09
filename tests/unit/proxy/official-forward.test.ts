@@ -260,5 +260,87 @@ describe("resolveForwardTarget（官服转发目标解析）", () => {
       expect(res.status).toHaveBeenCalledWith(502);
       expect(res.send).toHaveBeenCalledWith("Bad Gateway");
     });
+
+    it("arkhub enterHall 响应改写 endpoint/port 指向代理（网关转发器运行中）", async () => {
+      mockAxios.mockResolvedValueOnce({
+        status: 200,
+        data: {
+          result: 0,
+          endpoint: "arkhub-gateway.hypergryph.com",
+          port: 30000,
+          playerDataDelta: { modified: {}, deleted: {} },
+        },
+      });
+      const handler = createOfficialForwarder({
+        arkhubGateway: { endpoint: "127.0.0.1", port: 30000 },
+      });
+      const req = {
+        method: "POST",
+        url: "/activity/arkhub/enterHall",
+        headers: { host: "127.0.0.1:8443" },
+        body: { activityId: "act1arkhub", createHall: 0 },
+        query: {},
+        originalUrl: "/activity/arkhub/enterHall",
+      } as any;
+      const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+      const next = vi.fn();
+
+      await handler(req, res, next);
+
+      expect(res.send).toHaveBeenCalledWith({
+        result: 0,
+        endpoint: "127.0.0.1",
+        port: 30000,
+        playerDataDelta: { modified: {}, deleted: {} },
+      });
+    });
+
+    it("未传 arkhubGateway（转发器未启动）时 enterHall 响应不改写", async () => {
+      mockAxios.mockResolvedValueOnce({
+        status: 200,
+        data: { result: 0, endpoint: "arkhub-gateway.hypergryph.com", port: 30000, playerDataDelta: {} },
+      });
+      const handler = createOfficialForwarder(); // 无 arkhubGateway
+      const req = {
+        method: "POST",
+        url: "/activity/arkhub/enterHall",
+        headers: { host: "127.0.0.1:8443" },
+        body: { activityId: "act1arkhub", createHall: 0 },
+        query: {},
+        originalUrl: "/activity/arkhub/enterHall",
+      } as any;
+      const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+      const next = vi.fn();
+
+      await handler(req, res, next);
+
+      expect(res.send).toHaveBeenCalledWith({
+        result: 0,
+        endpoint: "arkhub-gateway.hypergryph.com",
+        port: 30000,
+        playerDataDelta: {},
+      });
+    });
+
+    it("非 enterHall 接口（syncInfo）即使传 arkhubGateway 也不改写", async () => {
+      mockAxios.mockResolvedValueOnce({ status: 200, data: { playerDataDelta: {} } });
+      const handler = createOfficialForwarder({
+        arkhubGateway: { endpoint: "127.0.0.1", port: 30000 },
+      });
+      const req = {
+        method: "POST",
+        url: "/activity/arkhub/syncInfo",
+        headers: { host: "127.0.0.1:8443" },
+        body: { activityId: "act1arkhub" },
+        query: {},
+        originalUrl: "/activity/arkhub/syncInfo",
+      } as any;
+      const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+      const next = vi.fn();
+
+      await handler(req, res, next);
+
+      expect(res.send).toHaveBeenCalledWith({ playerDataDelta: {} });
+    });
   });
 });

@@ -105,7 +105,18 @@ import { accountManager } from "./app/game/manager/AccountManger";
   // 抓包专用官服转发模式：as/gs 流量转发官服（config/launcher 保持本地——客户端才能被引导连到本代理）
   if (capture) {
     const { createOfficialForwarder } = await import("./app/proxy/official-forward");
-    app.use(createOfficialForwarder());
+    // arkhub 网关特殊适配：enterHall 返回官服网关地址，客户端随后 WebSocket 连网关——本代理
+    // 监听 gatewayPort（缺省 30000）透传官服网关并记录流量，enterHall 响应 endpoint 改写为本代理
+    const { startArkhubGatewayProxy } = await import("./app/proxy/arkhub-gateway");
+    const gatewayPort = config.capture?.gatewayPort ?? 30000;
+    const gateway = await startArkhubGatewayProxy({ port: gatewayPort });
+    app.use(
+      createOfficialForwarder({
+        arkhubGateway: gateway
+          ? { endpoint: String(config.Host).replace(/^https?:\/\//, ""), port: gatewayPort }
+          : null,
+      }),
+    );
     logger.info("index", "抓包官服转发模式已开启：as/gs 流量将转发到官服并记录 tmp/");
   }
   // auth 挂根路径：as 域接口（/user/*、/u8/*、/app/* 等）直接命中（用户最终决定，勿改回 /auth）

@@ -67,6 +67,8 @@ interface UserConfig {
     asHost?: string;
     /** 官服 gs 主机（缺省 https://ak-gs-gf.hypergryph.com） */
     gsHost?: string;
+    /** arkhub 网关本地转发器监听端口（缺省 30000，对齐官服网关端口） */
+    gatewayPort?: number;
   };
   /** 调试配置 */
   debug?: {

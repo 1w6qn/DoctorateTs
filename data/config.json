@@ -59,7 +59,8 @@
   "capture": {
     "enabled": false,
     "asHost": "https://as.hypergryph.com",
-    "gsHost": "https://ak-gs-gf.hypergryph.com"
+    "gsHost": "https://ak-gs-gf.hypergryph.com",
+    "gatewayPort": 30000
   },
   "singleAutoMaxAccount": true,
   "singleUid": "2222"

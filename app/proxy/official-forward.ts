@@ -25,6 +25,11 @@ import { RequestHandler } from "express";
 import axios, { AxiosError, RawAxiosRequestHeaders } from "axios";
 import { logger } from "@utils/logger";
 import config from "../config";
+import {
+  ArkhubGatewayInfo,
+  adaptArkhubEnterHallResponse,
+  isArkhubEnterHall,
+} from "./arkhub-gateway";
 
 /** 官服 as 主机（账号系统） */
 export const OFFICIAL_AS_HOST = "https://as.hypergryph.com";
@@ -136,6 +141,12 @@ export function resolveForwardTarget(
   return null;
 }
 
+/** 官服转发中间件选项 */
+export interface OfficialForwarderOptions {
+  /** arkhub 网关代理信息（capture 模式启动 30000 转发器后传入；缺省/null 时不改写 enterHall 响应） */
+  arkhubGateway?: ArkhubGatewayInfo | null;
+}
+
 /**
  * 创建官服转发中间件
  *
@@ -143,11 +154,13 @@ export function resolveForwardTarget(
  * 命中转发的请求直接 res 返回官服响应（不 next()），未命中的调用 next() 走本地路由。
  * 转发响应经外层 traffic-recorder 中间件自动落盘 tmp/（capture 模式已强制开启记录）。
  *
+ * @param opts - 转发选项（arkhub 网关代理信息）
  * @returns Express 中间件
  */
-export function createOfficialForwarder(): RequestHandler {
+export function createOfficialForwarder(opts: OfficialForwarderOptions = {}): RequestHandler {
   const asHost = config.capture?.asHost || OFFICIAL_AS_HOST;
   const gsHost = config.capture?.gsHost || OFFICIAL_GS_HOST;
+  const { arkhubGateway } = opts;
 
   return async (req, res, next) => {
     const target = resolveForwardTarget(req.method, req.url, req.headers.host || "", {
@@ -179,7 +192,13 @@ export function createOfficialForwarder(): RequestHandler {
         // 官服返回 401/400 等状态属正常（未带有效 secret/参数），不抛异常，原样透传
         validateStatus: () => true,
       });
-      res.status(response.status).send(response.data);
+      res.status(response.status).send(
+        // 特殊适配：arkhub enterHall 响应带官服网关 endpoint（arkhub-gateway.hypergryph.com:30000），
+        // 网关转发器运行中时改写为代理地址，客户端才会连到本代理、网关流量才经过代理被抓
+        arkhubGateway && isArkhubEnterHall(target.path)
+          ? adaptArkhubEnterHallResponse(response.data, arkhubGateway)
+          : response.data,
+      );
     } catch (error) {
       // 仅网络层错误（官方主机不可达）返回 502；有响应则已由 validateStatus 透传
       const axiosError = error as AxiosError;

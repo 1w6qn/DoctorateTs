@@ -33,4 +33,15 @@ data/user/social.db
 # 管理后台运行时产物（操作审计日志 / 存档备份）
 data/admin/
 data/user/backups/
+# 管理/维护操作生成的备份（admin-cli / AdminService 写 .bak）
+*.bak
+# 抓包/分析临时产物
+player_data.json
+test.json
+scripts/_extract-obs.py
+scripts/_extract-traffic.py
+scripts/_verify-mitmweb.ts
+# 工具运行时产物（计划、配置）
+.zcode/
+opencode.json
 exports/

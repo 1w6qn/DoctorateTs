@@ -571,15 +571,17 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
 
 ### 7.4 PlayerDataModel 类型生成
 
-`app/excel/types-playerdata.ts` 是从官服反编译文件自动提取的**存档结构权威参考类型**（PlayerDataModel 字段类型传递闭包），未被运行时 import（运行时存档模型为手写 `app/game/model/playerdata.ts`）。
+`app/excel/types-playerdata.ts` 是**运行时 PlayerDataModel 的唯一权威定义**——`app/game/model/playerdata.ts` 直接 `export *` 该文件（手写模型已全量替换删除），`app/game/model/character.ts` 等对生成模型重叠类型做桥接 re-export。由官服反编译自动生成（客户端闭包 + 服务端协议适配 + 线格式适配），线格式经真实官服存档标量+结构双维度校验。
 
 - 输入：`reference/com.hypergryph.arknights_2.7.61.cs`（官服反编译，`reference/` 已被 gitignore，不入库）
 - 命令：`npm run generate:playerdata`
 - 产物：纯闭包 802 类 / 113 枚举，含 2.7.61 新增 `arkOdc` 等 22 个类型；`ListDict<K,V>` 映射为字典 `{ [key: K]: V }`（与真实存档 JSON 一致）
-- 链路：`scripts/playerdata-parser.ts`（括号配对解析、完整枚举值、类型映射）→ `scripts/playerdata-builder.ts`（类型闭包、TS 生成、未定义引用自检）→ `scripts/playerdata-server-adapt.ts`（服务端协议适配）→ `scripts/generate-playerdata-types.ts`（CLI）
-- **服务端协议适配层**（`scripts/playerdata-server-adapt.ts`）：客户端 2.7.61 模型与服务端 JSON 序列化协议分叉（服务端保守旧 key + 超集，如 `PlayerCharacter` 的 skin/tmpl 双结构并存）。适配层三操作：`renameFields`（客户端字段名→服务端 key，如 campaign→campaignsV2、playerSetting→setting、actFun3→act3fun）、`addFields`（服务端独有字段，如 PlayerStage.startTimes/practiceTimes、PlayerStatus.uid）、`overrideFields`（结构差异，整接口转类型别名如 PlayerActivity 字典、字段级替换如 PlayerBuilding.rooms）；生成产物为「客户端闭包 + 服务端协议适配」视图
-- **校验闭环**：`npx tsx scripts/validate-playerdata-json.ts --input test.json --root user`（官服账号文件 test.json 的 user 根路径）——当前基线 **0 缺失 / 0 大小写差异 / 0 结构不匹配**（89,459 节点）；`--input player_data.json`（官服大存档）同样 **0 缺失 / 0 大小写差异 / 0 结构不匹配**（107,069 节点）。清单增量维护流程：校验报告 → 更新适配清单 → 重生成 → 再校验
-- 注意：手写模型与生成类型字段命名不同（如 `campaignsV2` vs `campaign`、`event` vs `events`、`nameCardStyle` vs `playerNameCardStyle`）；对照补全手写模型时以生成类型为准
+- 链路：`scripts/playerdata-parser.ts`（括号配对解析、完整枚举值、类型映射）→ `scripts/playerdata-builder.ts`（类型闭包、TS 生成、未定义引用自检）→ `scripts/playerdata-server-adapt.ts`（服务端协议适配 + 线格式适配）→ `scripts/generate-playerdata-types.ts`（CLI）
+- **服务端协议适配层**（`scripts/playerdata-server-adapt.ts`）：客户端 2.7.61 模型与服务端 JSON 序列化协议分叉（服务端保守旧 key + 超集，如 `PlayerCharacter` 的 skin/tmpl 双结构并存）。适配层三操作：`renameFields`（客户端字段名→服务端 key，如 campaign→campaignsV2、towerId→tower、godCardId→id）、`addFields`（服务端独有字段，如 PlayerStage.startTimes/practiceTimes、商店 curShopId/info、房间 buff 结构）、`overrideFields`（结构差异，整接口转类型别名如 PlayerActivity 字典、PlayerBuilding.rooms 具名 12 房间类型、MissionPlayerDataGroup 索引字典）
+- **线格式适配（wire pass）**：官服 JSON 把枚举/时间戳/布尔系统性降为数字——枚举字段→`number`（保留枚举定义作参考）、`System.DateTime`→`number`（unix ts）、布尔→`number`（0/1）；少数字符串序列化枚举（`roomId` "CONTROL"、`mode` "NORMAL"、`type` "CHAR" 等）与真实布尔（`avail`、`unlock` 等）经抓包标量审计反推的白名单保留
+- **校验闭环**：`npx tsx scripts/validate-playerdata-json.ts --input test.json --root user`（官服账号文件 test.json 的 user 根路径）——**0 缺失 / 0 大小写差异 / 0 结构不匹配 / 0 标量不匹配**（95,694 节点）；`--input player_data.json`（官服大存档）同样全 0（107,515 节点）；`--input tmp/official/account/syncData/2026-08-09T07-31-24-506Z.json --root user`（最新抓包）同样全 0（95,977 节点）。清单增量维护流程：校验报告 → 更新适配清单 → 重生成 → 再校验
+- 校验器含标量叶子类型比对（number/string/boolean/枚举字面量/基础类型联合）与 untyped 盲区报告（`object` 型字段路径）；已知线格式分歧（如 `flags` 官服 '1' 字符串 vs 运行时 number）在 `SCALAR_EXCEPTIONS` 文档化
+- 运行时替换：`app/game/model/playerdata.ts` 为生成模型 re-export；`character.ts` 保留生成模型不含的服务端社交/分享类型；rlv2 子系统（`model/rlv2.ts`）为功能实现内部模型，与生成模型在 controller 边界显式桥接
 
 ### 7.5 代码注释规范
 - 使用 JSDoc 格式注释

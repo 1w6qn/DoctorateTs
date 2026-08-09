@@ -70,9 +70,12 @@ describe("resolveForwardTarget（官服转发目标解析）", () => {
       expect(resolveForwardTarget("POST", "/user/oauth2/v2/grant", "127.0.0.1:8443")?.baseUrl).toBe(OFFICIAL_AS_HOST);
     });
 
-    it("/u8/* → as 域 /u8 基址", () => {
+    it("/u8/* → as 域，路径含 /u8 原样（baseUrl 不拼 /u8，避免双写）", () => {
       const t = resolveForwardTarget("POST", "/u8/user/v1/getToken", "127.0.0.1:8443");
-      expect(t).toEqual({ baseUrl: `${OFFICIAL_AS_HOST}/u8`, path: "/u8/user/v1/getToken" });
+      expect(t).toEqual({ baseUrl: OFFICIAL_AS_HOST, path: "/u8/user/v1/getToken" });
+      // 中间件最终转发 URL = baseUrl + "/" + path（去前导斜杠），验证不出现 //u8//u8 双写
+      const endpoint = t.path.replace(/^\/+/, "");
+      expect(`${t.baseUrl}/${endpoint}`).toBe(`${OFFICIAL_AS_HOST}/u8/user/v1/getToken`);
     });
 
     it("/app/*、/general/* → as 域", () => {

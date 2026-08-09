@@ -118,9 +118,10 @@ export function resolveForwardTarget(
   }
   for (const prefix of AS_PATH_PREFIXES) {
     if (hasPathPrefix(path, prefix)) {
-      // /u8/* 官服挂在 as 域 /u8 基址下（as.hypergryph.com/u8/...）
-      const base = prefix === "/u8" ? `${asHost}/u8` : asHost;
-      return { baseUrl: base, path };
+      // 注意：path 保留完整原路径（含 /u8），baseUrl 只给 as 域根地址——若 baseUrl 再拼 /u8 基址
+      // 会与 path 里的 /u8 双写（实测 as.hypergryph.com/u8/u8/user/v1/getToken → 404），
+      // 与 Host 分支（as.* → baseUrl=asHost + 全路径）保持一致
+      return { baseUrl: asHost, path };
     }
   }
   // gs 域路径化形式：/game/* 剥基址前缀

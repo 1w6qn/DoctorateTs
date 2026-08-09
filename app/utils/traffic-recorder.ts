@@ -53,11 +53,15 @@ export function createTrafficRecorder(
     if (!config.debug?.recordTraffic) return next();
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    // 非 JSON（multipart 等）请求体：index.ts capture 模式用 rawBody 捕获原始字节，
+    // base64 落盘供后续还原上传内容（如 arkhub savePixelArt 的像素画文件）
+    const rawBody = (req as unknown as { rawBody?: Buffer }).rawBody;
     const requestData = {
       method: req.method,
       url: req.originalUrl,
       headers: req.headers,
       body: req.body ?? {},
+      rawBody: rawBody && rawBody.length > 0 ? rawBody.toString("base64") : undefined,
       query: req.query,
       timestamp: new Date().toISOString(),
     };

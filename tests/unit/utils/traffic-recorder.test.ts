@@ -112,4 +112,37 @@ describe("createTrafficRecorder（调试请求/响应记录）", () => {
     const resp = JSON.parse(fs.readFileSync(path.join(RECORD_ROOT, "account", "login", files[0]), "utf8"));
     expect(resp).toEqual({ result: 0, uid: "1" });
   });
+
+  it("非 JSON 请求带 rawBody 时以 base64 落盘（multipart 像素画上传等）", async () => {
+    const handler = createTrafficRecorder(cfgOn, RECORD_ROOT);
+    const req = mockReq("/activity/arkhub/savePixelArt");
+    req.headers = { "content-type": 'multipart/form-data; boundary="C880D0B0"' };
+    req.body = undefined;
+    // 模拟 index.ts capture 模式捕获的原始 multipart 字节
+    req.rawBody = Buffer.from('--C880D0B0\r\nContent-Disposition: form-data; name="file"\r\n\r\nPNGDATA\r\n--C880D0B0--\r\n');
+    const res = mockRes();
+    handler(req, res, () => {});
+    res.send({ pixelArtId: 123 });
+    res.flush();
+    await new Promise((r) => setTimeout(r, 100));
+
+    const reqFiles = fs.readdirSync(path.join(RECORD_ROOT, "request_activity", "arkhub", "savePixelArt"));
+    const reqData = JSON.parse(fs.readFileSync(path.join(RECORD_ROOT, "request_activity", "arkhub", "savePixelArt", reqFiles[0]), "utf8"));
+    // rawBody 原样 base64 编码，可还原为原始字节
+    expect(reqData.rawBody).toBe(Buffer.from('--C880D0B0\r\nContent-Disposition: form-data; name="file"\r\n\r\nPNGDATA\r\n--C880D0B0--\r\n').toString("base64"));
+    expect(Buffer.from(reqData.rawBody, "base64").toString("utf8")).toContain("PNGDATA");
+  });
+
+  it("JSON 请求（无 rawBody）不写 rawBody 字段", async () => {
+    const handler = createTrafficRecorder(cfgOn, RECORD_ROOT);
+    const req = mockReq("/account/login");
+    const res = mockRes();
+    handler(req, res, () => {});
+    res.send({ result: 0 });
+    res.flush();
+    await new Promise((r) => setTimeout(r, 100));
+    const reqFiles = fs.readdirSync(path.join(RECORD_ROOT, "request_account", "login"));
+    const reqData = JSON.parse(fs.readFileSync(path.join(RECORD_ROOT, "request_account", "login", reqFiles[0]), "utf8"));
+    expect(reqData.rawBody).toBeUndefined();
+  });
 });

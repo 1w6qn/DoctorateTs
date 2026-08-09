@@ -1313,4 +1313,6 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
   - **char:get 订阅 bind 丢弃 bug（重大）**：`char.ts` 原 `this._trigger.on("char:get", () => { this.onCharGet.bind(this); })` 把 bind 结果丢弃，`onCharGet` 从未执行——**抽卡/招募的干员从未真正入账**（charGet 响应只有 logInfo、无 charInstId/charId/itemGet）。改为异步闭包调用后，抽卡完整返回 char 数据（潜能/兑换物正确发放）；onCharGet 签名兼容事件可选参数
   - 单测 2 条 + 实机验证：正常池与缺详情池十连均返回完整干员数据
 
+  - ruleType 缺失处理（续）：gachaPoolClient 中 DOUBLE(37)/CLASSIC_DOUBLE(31)/BACKFLOW(1)/SPECIAL(7) 共 76 个池的 ruleType 不在 funcs 映射 → funcs[ruleType] is not a function 500；补齐四类走通用 _handleGacha + 调用处防御回退 NORMAL。实测四类池抽卡均 200 且新干员入账
+
 - **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用（全量对齐后已补 stub，路径可达）

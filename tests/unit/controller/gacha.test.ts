@@ -3,7 +3,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@excel/excel", () => ({
   default: {
     GachaTable: {
-      gachaPoolClient: [{ gachaPoolId: "p_normal_1", gachaRuleType: "NORMAL" }],
+      gachaPoolClient: [
+        { gachaPoolId: "p_normal_1", gachaRuleType: "NORMAL" },
+        { gachaPoolId: "p_double_1", gachaRuleType: "DOUBLE" },
+      ],
     },
     GachaDetailTable: {
       details: {
@@ -174,6 +177,16 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
       // 只验证不抛错——真实行为由实机冒烟覆盖
       await expect(
         controller.doAdvancedGacha({ poolId: "LIMITED_76_0_1", useTkt: 0, itemId: "" }),
+      ).resolves.toBeDefined();
+    });
+  });
+
+  describe("ruleType 缺失处理（2026-08-09 修复）", () => {
+    it("DOUBLE/CLASSIC_DOUBLE/BACKFLOW/SPECIAL 池应走通用 _handleGacha 不 500", async () => {
+      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      // p_double_1 是 DOUBLE ruleType（此前 funcs 缺该键 → 500）
+      await expect(
+        controller.doAdvancedGacha({ poolId: "p_double_1", useTkt: 0, itemId: "" }),
       ).resolves.toBeDefined();
     });
   });

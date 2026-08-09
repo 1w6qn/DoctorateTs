@@ -224,6 +224,12 @@ export class GachaController {
 
     const funcs: { [key: string]: () => Promise<string> } = {
       NORMAL: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
+      // DOUBLE/CLASSIC_DOUBLE/BACKFLOW/SPECIAL：双 up/回归/特殊池——UP 干员由详情
+      // upCharInfo 处理，走通用 _handleGacha 即可（修复：原 funcs 缺这些键 → 500）
+      DOUBLE: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
+      CLASSIC_DOUBLE: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
+      BACKFLOW: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
+      SPECIAL: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
       LIMITED: async () => {
         extras.extraItem = {
           id: poolConfig?.LMTGSID ?? "",
@@ -258,7 +264,9 @@ export class GachaController {
         this._handleGacha(poolId, { beforeNonHitCnt }),
     };
 
-    const charId = await funcs[ruleType]();
+    // 防御：ruleType 仍不在 funcs 映射（未来新池类型）时回退 NORMAL，不 500
+    const gachaFn = funcs[ruleType] ?? funcs.NORMAL;
+    const charId = await gachaFn();
     beforeNonHitCnt = rank != 5 ? beforeNonHitCnt + 1 : 0;
     await accountManager.saveBeforeNonHitCnt(
       this.uid,

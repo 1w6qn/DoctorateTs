@@ -1340,4 +1340,11 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 
 - **ODPY 参考更新复核（2026-08-09）**：用户更新 opendoctoratepy-ex-public（663→668 条路由），重跑全量运行时扫描——**668 条全部覆盖，0 个 404**（新增 5 条路由均已被现有实现命中）。审计工具 `_audit-odpy-gaps.py` 复跑：已覆盖 261 / 设计跳过 2 / 需补充 0。
 
+- **arkodc 对齐 ODPY 更新（2026-08-09）**：用户更新 opendoctoratepy-ex-public（663→668，新增 5 条均为 arkodc API），参考实现含完整逻辑（依赖 arkvent_table）。已对齐：
+  - excel.ts 接入 `ArkventTable`（data/excel/arkvent_table.json，原未加载）
+  - triggerInteraction 完整实现：宝箱（awardId → rewards 标记 + odcDataMap.rewardGroups 物品 + q 后缀触发关联 actor varSeqs）、任务（avgId → actorData.actorShowCondition varSeqs 推进 + 黑名单/intro/trademan 特例）
+  - battleFinish：解密战斗数据判定完成（q001_logic_after_bat_p1 非中断/放弃，其余 completeState 2/3）→ actorData varSeqs 推进
+  - battleStart 记录 topic（模块级）供 battleFinish 消费；restart 重置 varSeqs + position 并下发 deleted 列表
+  - 实机：battleStart/triggerInteraction/restart 均 200，restart 正确返回 deleted varSeqs 列表
+
 - **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用（全量对齐后已补 stub，路径可达）

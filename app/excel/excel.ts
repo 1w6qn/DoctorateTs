@@ -138,6 +138,7 @@ export class Excel {
   StoryData!: StoryData;
   UniEquipData!: UniEquipData;
   ZoneTable!: ZoneTable;
+  ArkventTable!: any;
 
   constructor() {}
 
@@ -208,6 +209,7 @@ export class Excel {
       ["StoryData", "./data/excel/story_table.json"],
       ["UniEquipData", "./data/excel/uniequip_data.json"],
       ["ZoneTable", "./data/excel/zone_table.json"],
+      ["ArkventTable", "./data/excel/arkvent_table.json"],
       ["RoguelikeConsts", "./data/rlv2.json"],
     ];
 

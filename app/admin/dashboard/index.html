@@ -135,6 +135,7 @@
       <h3 style="color:var(--gold);">用户列表</h3>
       <button class="primary" id="btn-create" style="margin-left:auto;">+ 创建用户</button>
     </div>
+    <input id="user-filter" placeholder="搜索 uid/昵称/手机号..." style="margin:0 0 10px;">
     <table>
       <thead><tr><th>UID</th><th>昵称</th><th>等级</th><th>手机</th><th>最后在线</th><th></th></tr></thead>
       <tbody id="user-tbody"></tbody>
@@ -263,6 +264,7 @@
   var token = localStorage.getItem("adminToken") || "";
   var selectedUid = null;
   var selectedPoolId = null;
+  var userFilter = "";
   var currentTab = "overview";
 
   function api(path, options) {
@@ -304,7 +306,7 @@
   }
 
   function refreshUsers() {
-    return api("/users").then(function (users) {
+    return api("/users?filter=" + encodeURIComponent(userFilter)).then(function (users) {
       var tbody = $("user-tbody");
       tbody.innerHTML = "";
       $("user-empty").style.display = users.length ? "none" : "block";
@@ -1086,8 +1088,15 @@
     localStorage.removeItem("adminToken");
     selectedUid = null;
     selectedPoolId = null;
+    userFilter = "";
     currentTab = "overview";
     showLogin();
+  });
+
+  /* 用户搜索：输入即过滤，轮询保持 filter */
+  $("user-filter").addEventListener("input", function () {
+    userFilter = this.value.trim();
+    refreshUsers();
   });
 
   /* ---------- Tab 切换 ---------- */

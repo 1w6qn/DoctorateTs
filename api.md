@@ -1375,7 +1375,7 @@ OAuth2 授权
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET  | `/admin/api/status` | 服务器状态（端口/离线模式/版本/用户数/数据文件） |
-| GET  | `/admin/api/users` | 用户列表（uid/昵称/等级/手机/最后在线） |
+| GET  | `/admin/api/users?filter=` | 用户列表（`filter` 按 uid/昵称/手机号过滤） |
 | GET  | `/admin/api/users/:uid` | 用户详情（资源/道具摘要，含中文名 `inventoryInfo`） |
 | POST | `/admin/api/users` | 创建用户 `{phone, password}` |
 | POST | `/admin/api/users/:uid/grant` | 发放物品 `{itemId, count}`（支持中文名/别名） |
@@ -1411,6 +1411,7 @@ OAuth2 授权
 | POST | `/admin/api/users/:uid/stages/unlock-all` | 推图全解锁（遍历 StageTable，跳过已有进度） |
 | GET  | `/admin/api/items?q=&limit=` | 物品搜索（按 ID/中文名过滤 ItemTable，供发放选择） |
 | GET  | `/admin/api/users/:uid/missions` | 任务进度统计（只读：各组任务数/已完成数） |
+| GET  | `/admin/api/users/:uid/medals` | 勋章进度（只读：已解锁/总数） |
 | GET  | `/admin/api/openapi.json` | OpenAPI 3.0 规范（管理 API，供外部工具/Swagger 消费） |
 | GET  | `/admin/api/spec` | 管理 API 端点规范清单（Dashboard「接口」控制台数据源） |
 | POST | `/admin/api/game-proxy` | 游戏协议代理：`{uid, path, method?, body?}` 以玩家 secret 调用游戏端点，返回 `{status, data, uid}`（供 Dashboard 协议调试） |

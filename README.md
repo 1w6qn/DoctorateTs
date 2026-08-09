@@ -26,10 +26,11 @@ npm start          # 启动服务器（默认端口 8443，见 data/config.json�
 
 ```bash
 npm run admin                                   # 无参数进入交互模式（REPL）
-npm run admin -- users list [--json] [--csv]    # 列出所有用户（支持 JSON/CSV 输出）
+npm run admin -- users list [--json] [--csv] [--filter 博士]   # 列出用户（可过滤昵称/手机号）
 npm run admin -- users info 1                   # 查看用户详情（含中文物品名）
 npm run admin -- users create 13800000000 123456   # 创建用户（模板复制）
-npm run admin -- users grant 1 4001 100         # 发放物品（支持中文名/别名，如 "合成玉"）
+npm run admin -- users grant 1,2,3 4001 100     # 发放物品（uid 支持逗号分隔批量；支持中文名/别名）
+npm run admin -- users medals 1 [--json]        # 查看勋章进度（只读）
 npm run admin -- users grantchar 1 阿米娅       # 发放干员（支持中文名；重复按稀有度折算信物）
 npm run admin -- users skin 1 char_002_amiya#2  # 解锁皮肤
 npm run admin -- users chars 1                  # 干员列表
@@ -47,7 +48,7 @@ npm run admin -- users unlock 1 main_01-01      # 解锁指定关卡
 npm run admin -- users unlockall 1              # 推图全解锁
 npm run admin -- users items 合成玉             # 按名称/ID 搜索物品（供发放用）
 npm run admin -- users missions 1 [--json]      # 查看任务进度统计（只读）
-npm run admin -- mail send 1 标题 内容 --items 4001:100,4003:10   # 发送邮件
+npm run admin -- mail send 1 标题 内容 --items 4001:100,4003:10   # 发送邮件（uid 支持逗号分隔批量）
 npm run admin -- mail send all 公告 内容 --items 4001:100         # 群发（全部用户）
 npm run admin -- mail list 1                    # 查看用户邮件
 npm run admin -- mail delete 1 1000000          # 删除单封邮件

@@ -41,6 +41,7 @@ vi.mock("../../../app/admin/AdminService", () => ({
     unlockAllStages: vi.fn().mockResolvedValue({ stages: 5, total: 100 }),
     searchItems: vi.fn().mockReturnValue([{ id: "4001", name: "龙门币", classifyType: "NORMAL" }]),
     listMissionStats: vi.fn().mockResolvedValue({ total: 10, done: 3, groups: [] }),
+    listMedals: vi.fn().mockResolvedValue({ total: 5, unlocked: 2, medals: [] }),
   },
 }));
 vi.mock("../../../app/admin/admin-auth", () => ({
@@ -85,6 +86,12 @@ describe("admin 路由", () => {
     const res = mockRes();
     await call({ method: "GET", url: "/api/users" }, res);
     expect(res.json).toHaveBeenCalledWith([{ uid: "1" }]);
+  });
+
+  it("GET /api/users?filter= 应透传过滤关键字", async () => {
+    const res = mockRes();
+    await call({ method: "GET", url: "/api/users", query: { filter: "阿米娅" } }, res);
+    expect(adminService.listUsers).toHaveBeenCalledWith("阿米娅");
   });
 
   it("GET /api/users/:uid 用户不存在应返回 404", async () => {
@@ -385,5 +392,10 @@ describe("admin 路由（扩展能力）", () => {
     const res4 = mockRes();
     await call({ method: "GET", url: "/api/users/1/missions", params: { uid: "1" } }, res4);
     expect(adminService.listMissionStats).toHaveBeenCalledWith("1");
+
+    const res5 = mockRes();
+    await call({ method: "GET", url: "/api/users/1/medals", params: { uid: "1" } }, res5);
+    expect(adminService.listMedals).toHaveBeenCalledWith("1");
+    expect(res5.json).toHaveBeenCalledWith({ total: 5, unlocked: 2, medals: [] });
   });
 });

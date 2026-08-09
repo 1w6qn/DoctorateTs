@@ -23,7 +23,7 @@ export interface AdminEndpointSpec {
 
 export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   { method: "GET", path: "/api/status", summary: "服务器状态（端口/离线模式/版本/用户数/数据文件）" },
-  { method: "GET", path: "/api/users", summary: "用户列表" },
+  { method: "GET", path: "/api/users", summary: "用户列表（?filter= 按 uid/昵称/手机号过滤）", params: [{ name: "filter", type: "string", desc: "过滤关键字（匹配 uid/昵称/手机号）" }] },
   { method: "GET", path: "/api/users/:uid", summary: "用户详情（资源/道具中文名）" },
   {
     method: "POST",
@@ -171,6 +171,7 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   { method: "POST", path: "/api/users/:uid/stages/unlock-all", summary: "推图全解锁（遍历 StageTable，跳过已有进度）", body: "{}" },
   { method: "GET", path: "/api/items", summary: "物品搜索（按 ID/中文名过滤 ItemTable，供发放选择）", params: [{ name: "q", type: "string", desc: "关键字（空返回前 50 条）" }, { name: "limit", type: "number", desc: "条数（默认 50）" }] },
   { method: "GET", path: "/api/users/:uid/missions", summary: "任务进度统计（只读：各组任务数/已完成数）" },
+  { method: "GET", path: "/api/users/:uid/medals", summary: "勋章进度（只读：已解锁/总数）" },
   { method: "GET", path: "/api/openapi.json", summary: "OpenAPI 3.0 规范（管理 API，供外部工具消费）" },
   { method: "GET", path: "/api/config", summary: "查看配置（只读）" },
   {

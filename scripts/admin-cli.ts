@@ -24,7 +24,7 @@
  *   users dump <uid> [--pretty]                         导出原始玩家数据 JSON
  *
  * 邮件:
- *   mail send <uid|all> <subject> [content] [--items id:count,...]  发送邮件（uid=all 群发）
+ *   mail send <uid[,uid...]|all> <subject> [content] [--items id:count,...]  发送邮件（uid 支持逗号分隔批量）
  *   mail list <uid> [--json]                           查看用户邮件
  *   mail delete <uid> <mailId>                         删除单封邮件
  *
@@ -123,10 +123,10 @@ export function printHelp(): void {
 用法: npm run admin -- <command> [options]     （无参数进入交互模式）
 
 用户管理:
-  users list [--json] [--csv]                       列出所有用户
+  users list [--json] [--csv] [--filter 关键字]     列出所有用户（可过滤）
   users info <uid> [--json]                         查看用户详情
   users create <phone> [password]                   创建新用户
-  users grant <uid> <itemId|名称> <count>           发放物品（支持中文名/别名，如 "合成玉"）
+  users grant <uid[,uid...]> <itemId|名称> <count>  发放物品（uid 支持逗号分隔批量）
   users grantchar <uid> <charId|干员名>             发放干员
   users skin <uid> <skinId>                         解锁皮肤
   users chars <uid> [--json]                        干员列表
@@ -142,6 +142,7 @@ export function printHelp(): void {
   users unlockall <uid>                             推图全解锁
   users items <关键字> [limit] [--json]             按名称/ID 搜索物品（供发放用）
   users missions <uid> [--json]                     查看任务进度统计（只读）
+  users medals <uid> [--json]                       查看勋章进度（只读）
   users grantall <uid> [count]                      批量发放全部物品（默认 999）
   users maxchars <uid>                              批量拉满全部已有干员
   users stages <uid> [--json]                       查看玩家推图进度（只读）
@@ -149,9 +150,10 @@ export function printHelp(): void {
   users unlockall <uid>                             推图全解锁
   users items <关键字> [limit] [--json]             按名称/ID 搜索物品（供发放用）
   users missions <uid> [--json]                     查看任务进度统计（只读）
+  users medals <uid> [--json]                       查看勋章进度（只读）
 
 邮件:
-  mail send <uid|all> <subject> [content] [--items id:count,...]  发送邮件（uid=all 群发）
+  mail send <uid[,uid...]|all> <subject> [content] [--items id:count,...]  发送邮件（uid 支持逗号分隔批量）
   mail list <uid> [--json]                          查看用户邮件
   mail delete <uid> <mailId>                        删除单封邮件
 
@@ -186,7 +188,8 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
   const sub = args[0];
   switch (sub) {
     case "list": {
-      const users = await adminService.listUsers();
+      const filter = flags.filter ?? "";
+      const users = await adminService.listUsers(filter);
       if (flags.csv) {
         console.log("uid,nickName,level,phone,lastOnlineTs");
         for (const u of users) {
@@ -246,17 +249,20 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
       return;
     }
     case "grant": {
-      const uid = args[1];
+      const uidArg = args[1];
       const itemId = args[2];
       const countStr = args[3];
       const count = Number(countStr);
-      if (!uid || !itemId || !countStr || !Number.isInteger(count) || count <= 0) {
-        console.error("用法: users grant <uid> <itemId|名称> <count>（count 为正整数）");
+      const uids = String(uidArg ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+      if (!uids.length || !itemId || !countStr || !Number.isInteger(count) || count <= 0) {
+        console.error("用法: users grant <uid[,uid...]> <itemId|名称> <count>（count 为正整数；uid 支持逗号分隔批量）");
         process.exitCode = 1;
         return;
       }
-      await adminService.grantItem(uid, itemId, count);
-      console.log(`已向用户 ${uid} 发放 ${itemId} x${count}`);
+      for (const uid of uids) {
+        await adminService.grantItem(uid, itemId, count);
+        console.log(`已向用户 ${uid} 发放 ${itemId} x${count}`);
+      }
       return;
     }
     case "grantchar": {
@@ -531,6 +537,21 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
       }
       return;
     }
+    case "medals": {
+      const uid = args[1];
+      if (!uid) {
+        console.error("用法: users medals <uid> [--json]");
+        process.exitCode = 1;
+        return;
+      }
+      const st = await adminService.listMedals(uid);
+      if (flags.json) {
+        output(st, flags);
+        return;
+      }
+      console.log(`用户 ${uid} 勋章进度：已解锁 ${st.unlocked}/${st.total}`);
+      return;
+    }
     default:
       console.error(`未知 users 子命令: ${sub ?? ""}`);
       process.exitCode = 1;
@@ -545,7 +566,7 @@ async function runMail(args: string[], flags: { [key: string]: string }): Promis
     const subject = args[2];
     const content = args.slice(3).join(" ");
     if (!target || !subject) {
-      console.error("用法: mail send <uid|all> <subject> [content] [--items id:count,...]");
+      console.error("用法: mail send <uid[,uid...]|all> <subject> [content] [--items id:count,...]");
       process.exitCode = 1;
       return;
     }
@@ -560,8 +581,11 @@ async function runMail(args: string[], flags: { [key: string]: string }): Promis
       const result = await adminService.sendMailAll({ subject, content, items });
       console.log(`已向 ${result.sent} 个用户群发邮件「${subject}」（附件 ${items.length} 种）`);
     } else {
-      const mail = await adminService.sendMail(target, { subject, content, items });
-      console.log(`已向用户 ${target} 发送邮件 mailId=${mail.mailId}（附件 ${items.length} 种）`);
+      const uids = target.split(",").map((s) => s.trim()).filter(Boolean);
+      for (const uid of uids) {
+        const mail = await adminService.sendMail(uid, { subject, content, items });
+        console.log(`已向用户 ${uid} 发送邮件 mailId=${mail.mailId}（附件 ${items.length} 种）`);
+      }
     }
     return;
   }

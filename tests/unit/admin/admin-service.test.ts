@@ -135,6 +135,7 @@ function makeFullPd() {
     gacha: { normal: {}, limit: {} } as any,
     dungeon: { stages: {} } as any,
     mission: { missions: {}, missionRewards: {}, missionGroups: {} } as any,
+    medal: { medals: {}, custom: {} } as any,
     building: {
       roomSlots: {
         slot_1: { level: 1, state: 1, roomId: "room_1", charInstIds: [], completeConstructTime: 0 },
@@ -188,6 +189,13 @@ describe("AdminService 只读能力", () => {
 
   it("getUserInfo 对不存在用户应返回 null", async () => {
     expect(await service.getUserInfo("999")).toBeNull();
+  });
+
+  it("listUsers 应支持按昵称/手机号/uid 过滤", async () => {
+    expect(await service.listUsers("阿米娅")).toHaveLength(1);
+    expect(await service.listUsers("13800000000")).toHaveLength(1);
+    expect(await service.listUsers("99999")).toHaveLength(0);
+    expect(await service.listUsers("")).toHaveLength(1);
   });
 
   it("status 应返回用户数与端口信息", async () => {
@@ -780,6 +788,17 @@ describe("AdminService 关卡/物品/任务", () => {
     expect(st.total).toBe(2);
     expect(st.done).toBe(1);
     expect(st.groups).toEqual([{ group: "daily", total: 2, done: 1 }]);
+  });
+
+  it("listMedals 应统计已解锁勋章（fts>0）", async () => {
+    (pd._playerdata.medal as any).medals = {
+      medal_1: { id: "medal_1", val: [], fts: 100, rts: 0 },
+      medal_2: { id: "medal_2", val: [], fts: 0, rts: 0 },
+    };
+    const st = await service.listMedals("1");
+    expect(st.total).toBe(2);
+    expect(st.unlocked).toBe(1);
+    expect(st.medals[0]).toMatchObject({ id: "medal_1", unlocked: true });
   });
 });
 

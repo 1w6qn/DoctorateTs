@@ -226,11 +226,19 @@ export class AdminService {
     }
   }
 
-  /** 用户列表（按 uid 排序） */
-  async listUsers(): Promise<UserSummary[]> {
+  /** 用户列表（按 uid 排序；filter 匹配 uid/昵称/手机号，空返回全部） */
+  async listUsers(filter = ""): Promise<UserSummary[]> {
+    const kw = String(filter ?? "").trim().toLowerCase();
     return Object.keys(accountManager.data)
       .sort((a, b) => Number(a) - Number(b))
-      .map((uid) => toUserSummary(uid, accountManager.data[uid]));
+      .map((uid) => toUserSummary(uid, accountManager.data[uid]))
+      .filter(
+        (u) =>
+          !kw ||
+          u.uid.includes(kw) ||
+          u.nickName.toLowerCase().includes(kw) ||
+          u.phone.toLowerCase().includes(kw),
+      );
   }
 
   /** 用户详情 */
@@ -1046,6 +1054,22 @@ export class AdminService {
       total: groups.reduce((s, g) => s + g.total, 0),
       done: groups.reduce((s, g) => s + g.done, 0),
       groups,
+    };
+  }
+
+  /** 勋章进度（只读：已解锁/总数；fts>0 视为已解锁） */
+  async listMedals(
+    uid: string,
+  ): Promise<{ total: number; unlocked: number; medals: { id: string; unlocked: boolean; fts: number }[] }> {
+    const pd = await this.getPlayer(uid);
+    const medals = pd._playerdata.medal?.medals ?? {};
+    const list = Object.values(medals)
+      .map((m) => ({ id: m.id, unlocked: m.fts > 0, fts: m.fts }))
+      .sort((a, b) => a.id.localeCompare(b.id));
+    return {
+      total: list.length,
+      unlocked: list.filter((m) => m.unlocked).length,
+      medals: list.slice(0, 500),
     };
   }
 

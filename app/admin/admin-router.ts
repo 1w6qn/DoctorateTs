@@ -28,9 +28,10 @@ router.get("/api/status", async (_req: Request, res: Response) => {
   res.json(await adminService.status());
 });
 
-/** 用户列表 */
-router.get("/api/users", async (_req: Request, res: Response) => {
-  res.json(await adminService.listUsers());
+/** 用户列表（支持 ?filter= 按 uid/昵称/手机号过滤） */
+router.get("/api/users", async (req: Request, res: Response) => {
+  const q = (req.query ?? {}) as { filter?: string };
+  res.json(await adminService.listUsers(String(q.filter ?? "")));
 });
 
 /** 用户详情 */
@@ -427,6 +428,15 @@ router.get("/api/items", (req: Request, res: Response) => {
 router.get("/api/users/:uid/missions", async (req: Request, res: Response) => {
   try {
     res.json(await adminService.listMissionStats(String(req.params.uid)));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 勋章进度（只读） */
+router.get("/api/users/:uid/medals", async (req: Request, res: Response) => {
+  try {
+    res.json(await adminService.listMedals(String(req.params.uid)));
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }

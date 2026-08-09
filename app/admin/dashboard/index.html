@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DoctorateTs 管理后台</title>
+<link rel="manifest" href="/admin/manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="/admin/icon.svg">
 <style>
   :root {
     --bg: #141414; --panel: #1e1e20; --border: #333;
@@ -132,6 +134,18 @@
   /* 骨架屏 */
   .skeleton { color: var(--muted); padding: 20px; text-align: center; animation: pulse 1.2s infinite; }
   @keyframes pulse { 0%,100% { opacity: .4; } 50% { opacity: 1; } }
+  /* 打印：只保留详情内容 */
+  @media print {
+    header, .main-nav, #user-list-card, .log-list, #toast-box, .modal-mask, .res-grid,
+    .btn-sm, #btn-create, #logout-btn, #theme-btn, #user-pager, #stats-body,
+    #checkin-box, .row, button { display: none !important; }
+    body { background: #fff !important; color: #000 !important; }
+    main { display: block !important; padding: 0 !important; }
+    .card { border: none !important; background: #fff !important; padding: 4px 0 !important; }
+    .full { grid-column: auto !important; }
+    #detail-card { width: 100% !important; }
+    pre.json, .resp-box { max-height: none !important; white-space: pre-wrap !important; }
+  }
 </style>
 </head>
 <body>

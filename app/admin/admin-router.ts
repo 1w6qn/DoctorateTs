@@ -22,6 +22,18 @@ router.get("/dashboard", (_req: Request, res: Response) => {
   res.sendFile(path.join(process.cwd(), "app", "admin", "dashboard", "index.html"));
 });
 
+/** PWA manifest / 图标（可安装到主屏幕） */
+router.get("/manifest.webmanifest", (_req: Request, res: Response) => {
+  res.set("Content-Type", "application/manifest+json");
+  res.set("Cache-Control", "no-cache");
+  res.sendFile(path.join(process.cwd(), "app", "admin", "dashboard", "manifest.webmanifest"));
+});
+router.get("/icon.svg", (_req: Request, res: Response) => {
+  res.set("Content-Type", "image/svg+xml");
+  res.set("Cache-Control", "no-cache");
+  res.sendFile(path.join(process.cwd(), "app", "admin", "dashboard", "icon.svg"));
+});
+
 /** API 全部需要认证 */
 router.use("/api", adminAuth);
 

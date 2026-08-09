@@ -1,0 +1,17 @@
+{
+  "name": "DoctorateTs 管理后台",
+  "short_name": "DTS Admin",
+  "description": "DoctorateTs 私服管理后台（用户/卡池/接口/迁移等）",
+  "start_url": "/admin/dashboard",
+  "display": "standalone",
+  "background_color": "#141414",
+  "theme_color": "#141414",
+  "icons": [
+    {
+      "src": "/admin/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

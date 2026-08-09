@@ -101,6 +101,17 @@
     table { font-size: 12px; }
     th, td { padding: 6px 6px; }
   }
+  /* Toast 通知 */
+  #toast-box { position: fixed; right: 16px; bottom: 16px; z-index: 200;
+               display: flex; flex-direction: column; gap: 8px; max-width: 360px; }
+  .toast { background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--gold);
+           color: var(--text); padding: 10px 14px; border-radius: 6px; font-size: 13px;
+           box-shadow: 0 4px 16px rgba(0,0,0,.4); word-break: break-all; line-height: 1.5;
+           animation: toast-in .25s ease; }
+  .toast.ok { border-left-color: #7ec699; }
+  .toast.err { border-left-color: #e08b8b; }
+  .toast.hide { opacity: 0; transform: translateX(12px); transition: all .3s; }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 </style>
 </head>
 <body>
@@ -283,6 +294,40 @@
 /* DoctorateTs 管理后台交互逻辑（原生 JS，零依赖） */
 (function () {
   "use strict";
+
+  /* ---------- Toast 通知 ---------- */
+  function toast(msg, type) {
+    if (!type) {
+      type = /失败|错误|无效/.test(msg) ? "err" : /成功|已 |完成|更新|设置/.test(msg) ? "ok" : "info";
+    }
+    var box = $("toast-box");
+    if (!box) {
+      box = document.createElement("div");
+      box.id = "toast-box";
+      document.body.appendChild(box);
+    }
+    var el = document.createElement("div");
+    el.className = "toast " + type;
+    el.textContent = msg;
+    box.appendChild(el);
+    setTimeout(function () {
+      el.classList.add("hide");
+      setTimeout(function () { el.remove(); }, 320);
+    }, 3000);
+  }
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function () { toast("已复制到剪贴板", "ok"); });
+    }
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); toast("已复制到剪贴板", "ok"); } catch (e) { toast("复制失败", "err"); }
+    ta.remove();
+    return Promise.resolve();
+  }
+
   var API = "/admin/api";
   var token = localStorage.getItem("adminToken") || "";
   var selectedUid = null;
@@ -497,23 +542,23 @@
       $("checkin-do").addEventListener("click", function () {
         api("/users/" + encodeURIComponent(uid) + "/checkin/do", { method: "POST", body: "{}" })
           .then(function (r) {
-            alert(r.rewards.length
+            toast(r.rewards.length
               ? "代签成功：" + r.rewards.map(function (x) { return x.name + " x" + x.count; }).join(", ")
               : "当日已签（无奖励）");
             loadCheckIn(uid);
             refreshLogs();
           })
-          .catch(function (e) { alert("代签失败：" + e.message); });
+          .catch(function (e) { toast("代签失败：" + e.message); });
       });
       $("checkin-reset").addEventListener("click", function () {
         if (!confirm("重置该用户签到进度（重新领一轮）？")) return;
         api("/users/" + encodeURIComponent(uid) + "/checkin/reset", { method: "POST", body: "{}" })
           .then(function () {
-            alert("已重置签到");
+            toast("已重置签到");
             loadCheckIn(uid);
             refreshLogs();
           })
-          .catch(function (e) { alert("重置失败：" + e.message); });
+          .catch(function (e) { toast("重置失败：" + e.message); });
       });
     }).catch(function () {
       box.innerHTML = "";
@@ -537,11 +582,11 @@
           .then(function (r) {
             var msg = id === "act-backup" ? "已备份：" + r.name : "操作成功" + (r.rooms != null ? "（" + r.rooms + " 间房间）" : "");
             if (id === "act-maxout" && r.chars != null) msg = "满配完成：干员 " + r.chars + " | 物品 " + r.items + " | 皮肤 " + r.skins + " | 基建 " + r.rooms;
-            alert(conf.label + "成功 — " + msg);
+            toast(conf.label + "成功 — " + msg);
             loadOverview(uid);
             refreshLogs();
           })
-          .catch(function (e) { alert(conf.label + "失败：" + e.message); })
+          .catch(function (e) { toast(conf.label + "失败：" + e.message); })
           .finally(function () { el.disabled = false; });
       });
     });
@@ -549,16 +594,16 @@
     if (restoreBtn) {
       restoreBtn.addEventListener("click", function () {
         api("/users/" + encodeURIComponent(uid) + "/backups").then(function (list) {
-          if (!list.length) { alert("暂无备份"); return; }
+          if (!list.length) { toast("暂无备份"); return; }
           var b = list[0];
           if (!confirm("将从 " + b.name + "（" + fmtTs(b.ts) + "）恢复，覆盖当前存档，确认？")) return;
           api("/users/" + encodeURIComponent(uid) + "/restore", {
             method: "POST", body: JSON.stringify({ backup: b.name }),
           }).then(function () {
-            alert("已恢复：" + b.name);
+            toast("已恢复：" + b.name);
             loadOverview(uid);
             refreshLogs();
-          }).catch(function (e) { alert("恢复失败：" + e.message); });
+          }).catch(function (e) { toast("恢复失败：" + e.message); });
         });
       });
     }
@@ -606,11 +651,11 @@
             if (!confirm("批量拉满全部 " + chars.length + " 名干员？")) return;
             api("/users/" + encodeURIComponent(uid) + "/maxchars", { method: "POST", body: "{}" })
               .then(function (r) {
-                alert("已拉满 " + r.chars + " 名干员");
+                toast("已拉满 " + r.chars + " 名干员");
                 loadChars(uid);
                 refreshLogs();
               })
-              .catch(function (e) { alert("操作失败：" + e.message); });
+              .catch(function (e) { toast("操作失败：" + e.message); });
           });
         }
         var rc = $("repairchars-btn");
@@ -618,11 +663,11 @@
           rc.addEventListener("click", function () {
             api("/users/" + encodeURIComponent(uid) + "/repair-chars", { method: "POST", body: "{}" })
               .then(function (r) {
-                alert("已修复 " + r.chars + " 名干员 / " + r.fields + " 个字段");
+                toast("已修复 " + r.chars + " 名干员 / " + r.fields + " 个字段");
                 loadChars(uid);
                 refreshLogs();
               })
-              .catch(function (e) { alert("操作失败：" + e.message); });
+              .catch(function (e) { toast("操作失败：" + e.message); });
           });
         }
         document.querySelectorAll(".char-apply").forEach(function (btn) {
@@ -635,10 +680,10 @@
             api("/users/" + encodeURIComponent(uid) + "/chars", {
               method: "POST", body: JSON.stringify(Object.assign({ instId: instId }, attrs)),
             }).then(function (r) {
-              alert("已应用：" + r.name + "（精二 " + r.evolvePhase + " | 等级 " + r.level + " | 潜能 " + r.potentialRank + " | 技能 " + r.mainSkillLvl + "）");
+              toast("已应用：" + r.name + "（精二 " + r.evolvePhase + " | 等级 " + r.level + " | 潜能 " + r.potentialRank + " | 技能 " + r.mainSkillLvl + "）");
               loadChars(uid);
               refreshLogs();
-            }).catch(function (e) { alert("修改失败：" + e.message); });
+            }).catch(function (e) { toast("修改失败：" + e.message); });
           });
         });
         // 干员名点击 → 详情弹窗
@@ -706,7 +751,7 @@
           if (!confirm("删除邮件 mailId=" + mailId + "？")) return;
           api("/users/" + encodeURIComponent(uid) + "/mails/" + mailId, { method: "DELETE" })
             .then(function () { loadMails(uid); refreshLogs(); })
-            .catch(function (e) { alert("删除失败：" + e.message); });
+            .catch(function (e) { toast("删除失败：" + e.message); });
         });
       });
     }).catch(function () {});
@@ -714,8 +759,21 @@
 
   function loadRaw(uid) {
     api("/users/" + encodeURIComponent(uid) + "/raw").then(function (data) {
-      $("pane-raw").innerHTML = '<pre class="json">' +
-        escapeHtml(JSON.stringify(data, null, 2)) + "</pre>";
+      var text = JSON.stringify(data, null, 2);
+      $("pane-raw").innerHTML =
+        '<div class="row" style="justify-content:flex-end;margin-bottom:6px;">' +
+        '<button id="raw-copy" class="btn-sm">复制</button>' +
+        '<button id="raw-dl" class="btn-sm">下载 .json</button></div>' +
+        '<pre class="json">' + escapeHtml(text) + "</pre>";
+      $("raw-copy").addEventListener("click", function () { copyText(text); });
+      $("raw-dl").addEventListener("click", function () {
+        var blob = new Blob([text], { type: "application/json" });
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "player-" + uid + ".json";
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
     }).catch(function () {});
   }
 
@@ -775,7 +833,7 @@
     $("req-send").addEventListener("click", sendAdminReq);
     $("req-clear").addEventListener("click", function () {
       $("req-body").value = "";
-      $("req-resp").textContent = "";
+      showResp("req-resp", "");
     });
   }
 
@@ -832,17 +890,17 @@
   function sendAdminReq() {
     var method = $("req-method").value;
     var path = $("req-path").value.trim();
-    if (!path) { alert("请填写路径"); return; }
+    if (!path) { toast("请填写路径"); return; }
     var bodyRaw = $("req-body").value.trim();
     var options = { method: method };
     if (bodyRaw) {
       try {
         options.body = JSON.stringify(JSON.parse(bodyRaw));
       } catch (e) {
-        alert("请求体不是合法 JSON"); return;
+        toast("请求体不是合法 JSON"); return;
       }
     }
-    $("req-resp").textContent = "请求中...";
+    showResp("req-resp", "请求中...");
     // 管理端点路径已含 /api 前缀（挂在 /admin 下）
     fetch("/admin" + path, Object.assign({}, options, {
       headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
@@ -851,10 +909,10 @@
         return res.text().then(function (txt) {
           var pretty;
           try { pretty = JSON.stringify(JSON.parse(txt), null, 2); } catch (e) { pretty = txt; }
-          $("req-resp").textContent = "HTTP " + res.status + "\n" + pretty;
+          showResp("req-resp", "HTTP " + res.status + "\n" + pretty);
         });
       })
-      .catch(function (e) { $("req-resp").textContent = "请求失败: " + e.message; });
+      .catch(function (e) { showResp("req-resp", "请求失败: " + e.message); });
   }
 
   /* --- 游戏协议调试器 --- */
@@ -886,22 +944,22 @@
     var uid = $("g-uid").value;
     var method = $("g-method").value;
     var path = $("g-path").value.trim();
-    if (!path) { alert("请填写游戏端点路径"); return; }
+    if (!path) { toast("请填写游戏端点路径"); return; }
     var bodyRaw = $("g-body").value.trim();
     var payload = { uid: uid, path: path, method: method };
     if (bodyRaw) {
       try {
         payload.body = JSON.parse(bodyRaw);
       } catch (e) {
-        alert("请求体不是合法 JSON"); return;
+        toast("请求体不是合法 JSON"); return;
       }
     }
-    $("g-resp").textContent = "请求中...";
+    showResp("g-resp", "请求中...");
     api("/game-proxy", { method: "POST", body: JSON.stringify(payload) })
       .then(function (r) {
-        $("g-resp").textContent = "HTTP " + r.status + "\n" + JSON.stringify(r.data, null, 2);
+        showResp("g-resp", "HTTP " + r.status + "\n" + JSON.stringify(r.data, null, 2));
       })
-      .catch(function (e) { $("g-resp").textContent = "代理失败: " + e.message; });
+      .catch(function (e) { showResp("g-resp", "代理失败: " + e.message); });
   }
 
   /* ---------- 弹窗 ---------- */
@@ -945,16 +1003,16 @@
     var itemId = $("grant-item").value.trim();
     var count = Number($("grant-count").value);
     var uid = $("grant-uid").textContent;
-    if (!itemId) { alert("请填写物品 ID 或名称"); return; }
+    if (!itemId) { toast("请填写物品 ID 或名称"); return; }
     api("/users/" + encodeURIComponent(uid) + "/grant", {
       method: "POST",
       body: JSON.stringify({ itemId: itemId, count: count }),
     }).then(function () {
       hideModal("modal-grant");
-      alert("发放成功：" + itemId + " x" + count);
+      toast("发放成功：" + itemId + " x" + count);
       loadOverview(uid);
       refreshLogs();
-    }).catch(function (e) { alert("发放失败：" + e.message); });
+    }).catch(function (e) { toast("发放失败：" + e.message); });
   });
   $("grant-cancel").addEventListener("click", function () { hideModal("modal-grant"); });
   $("grant-all-btn").addEventListener("click", function () {
@@ -965,10 +1023,10 @@
       method: "POST", body: JSON.stringify({ count: count }),
     }).then(function (r) {
       hideModal("modal-grant");
-      alert("已批量发放 " + r.items + " 种物品 x" + count);
+      toast("已批量发放 " + r.items + " 种物品 x" + count);
       loadOverview(uid);
       refreshLogs();
-    }).catch(function (e) { alert("发放失败：" + e.message); });
+    }).catch(function (e) { toast("发放失败：" + e.message); });
   });
 
   function openMail(uid) {
@@ -989,7 +1047,7 @@
         var p = s.split(":");
         return { id: p[0], count: Number(p[1] || 1) };
       });
-    if (!subject) { alert("请填写标题"); return; }
+    if (!subject) { toast("请填写标题"); return; }
     var req = toAll
       ? api("/mail/all", { method: "POST", body: JSON.stringify({ subject: subject, content: content, items: items }) })
         .then(function (r) { return "已群发给 " + r.sent + " 个用户"; })
@@ -997,9 +1055,9 @@
         .then(function (r) { return "邮件已发送，mailId=" + r.mailId; });
     req.then(function (msg) {
       hideModal("modal-mail");
-      alert(msg);
+      toast(msg);
       refreshLogs();
-    }).catch(function (e) { alert("发送失败：" + e.message); });
+    }).catch(function (e) { toast("发送失败：" + e.message); });
   });
   $("mail-cancel").addEventListener("click", function () { hideModal("modal-mail"); });
 
@@ -1011,17 +1069,17 @@
   $("create-ok").addEventListener("click", function () {
     var phone = $("create-phone").value.trim();
     var password = $("create-password").value || phone;
-    if (!phone) { alert("请填写手机号"); return; }
+    if (!phone) { toast("请填写手机号"); return; }
     api("/users", {
       method: "POST",
       body: JSON.stringify({ phone: phone, password: password }),
     }).then(function (r) {
       hideModal("modal-create");
-      alert("已创建用户 uid=" + r.uid);
+      toast("已创建用户 uid=" + r.uid);
       refreshUsers();
       refreshStats();
       refreshLogs();
-    }).catch(function (e) { alert("创建失败：" + e.message); });
+    }).catch(function (e) { toast("创建失败：" + e.message); });
   });
   $("create-cancel").addEventListener("click", function () { hideModal("modal-create"); });
 
@@ -1033,15 +1091,15 @@
   $("char-ok").addEventListener("click", function () {
     var uid = $("char-uid").textContent;
     var charId = $("char-id").value.trim();
-    if (!charId) { alert("请填写干员 ID 或名称"); return; }
+    if (!charId) { toast("请填写干员 ID 或名称"); return; }
     api("/users/" + encodeURIComponent(uid) + "/grantchar", {
       method: "POST", body: JSON.stringify({ charId: charId }),
     }).then(function (r) {
       hideModal("modal-char");
-      alert("干员发放成功：" + r.name + "（" + (r.isNew ? "新干员" : "重复") + "）");
+      toast("干员发放成功：" + r.name + "（" + (r.isNew ? "新干员" : "重复") + "）");
       loadOverview(uid);
       refreshLogs();
-    }).catch(function (e) { alert("发放失败：" + e.message); });
+    }).catch(function (e) { toast("发放失败：" + e.message); });
   });
   $("char-cancel").addEventListener("click", function () { hideModal("modal-char"); });
 
@@ -1053,14 +1111,14 @@
   $("skin-ok").addEventListener("click", function () {
     var uid = $("skin-uid").textContent;
     var skinId = $("skin-id").value.trim();
-    if (!skinId) { alert("请填写皮肤 ID"); return; }
+    if (!skinId) { toast("请填写皮肤 ID"); return; }
     api("/users/" + encodeURIComponent(uid) + "/grantskin", {
       method: "POST", body: JSON.stringify({ skinId: skinId }),
     }).then(function () {
       hideModal("modal-skin");
-      alert("皮肤解锁成功：" + skinId);
+      toast("皮肤解锁成功：" + skinId);
       refreshLogs();
-    }).catch(function (e) { alert("解锁失败：" + e.message); });
+    }).catch(function (e) { toast("解锁失败：" + e.message); });
   });
   $("skin-cancel").addEventListener("click", function () { hideModal("modal-skin"); });
 
@@ -1148,10 +1206,10 @@
         api("/users/" + encodeURIComponent(uid) + "/pools/" + encodeURIComponent(poolId) + "/up", {
           method: "POST", body: JSON.stringify({ charIds: charIds }),
         }).then(function () {
-          alert("UP 已更新");
+          toast("UP 已更新");
           selectPool(poolId);
           refreshLogs();
-        }).catch(function (e) { alert("设置失败：" + e.message); });
+        }).catch(function (e) { toast("设置失败：" + e.message); });
       });
       $("pool-pity-save").addEventListener("click", function () {
         api("/users/" + encodeURIComponent(uid) + "/pity", {
@@ -1161,10 +1219,10 @@
             count: Number($("pool-pity-count").value),
           }),
         }).then(function () {
-          alert("保底已更新");
+          toast("保底已更新");
           selectPool(poolId);
           refreshLogs();
-        }).catch(function (e) { alert("设置失败：" + e.message); });
+        }).catch(function (e) { toast("设置失败：" + e.message); });
       });
     }).catch(function () {});
   }
@@ -1217,8 +1275,8 @@
   function runGachaSync() {
     var phone = $("gacha-phone").value.trim();
     var pwd = $("gacha-pwd").value.trim();
-    if (!phone || !pwd) { alert("请填写官服手机号与密码"); return; }
-    $("gacha-resp").textContent = "同步中...（登录官服逐个抓取卡池详情，本地 439 池约需数分钟，请耐心等待）";
+    if (!phone || !pwd) { toast("请填写官服手机号与密码"); return; }
+    showResp("gacha-resp", "同步中...（登录官服逐个抓取卡池详情，本地 439 池约需数分钟，请耐心等待）");
     api("/official/sync-gacha", {
       method: "POST",
       body: JSON.stringify({ phone: phone, pwd: pwd }),
@@ -1229,41 +1287,41 @@
         (lines.length ? "\n" + lines.join("\n") : "") +
         "\n已写入 data/gacha_detail_table.json（旧文件已备份 .bak；重启服务器后生效）";
       refreshLogs();
-    }).catch(function (e) { $("gacha-resp").textContent = "同步失败: " + e.message; });
+    }).catch(function (e) { showResp("gacha-resp", "同步失败: " + e.message); });
   }
 
   function runOfficialCall() {
     var phone = $("call-phone").value.trim();
     var pwd = $("call-pwd").value.trim();
     var cgi = $("call-cgi").value.trim();
-    if (!phone || !pwd || !cgi) { alert("请填写官服手机号、密码与接口路径"); return; }
+    if (!phone || !pwd || !cgi) { toast("请填写官服手机号、密码与接口路径"); return; }
     var payload = { phone: phone, pwd: pwd, cgi: cgi };
     var bodyRaw = $("call-body").value.trim();
     if (bodyRaw) {
       try { payload.body = JSON.parse(bodyRaw); }
-      catch (e) { alert("请求体不是合法 JSON"); return; }
+      catch (e) { toast("请求体不是合法 JSON"); return; }
     }
-    $("call-resp").textContent = "调用中...（登录官服并调用 " + cgi + "）";
+    showResp("call-resp", "调用中...（登录官服并调用 " + cgi + "）");
     api("/official/call", { method: "POST", body: JSON.stringify(payload) })
       .then(function (r) {
-        $("call-resp").textContent = "[" + r.cgi + "]\n" + JSON.stringify(r.result, null, 2);
+        showResp("call-resp", "[" + r.cgi + "]\n" + JSON.stringify(r.result, null, 2));
         refreshLogs();
       })
-      .catch(function (e) { $("call-resp").textContent = "调用失败: " + e.message; });
+      .catch(function (e) { showResp("call-resp", "调用失败: " + e.message); });
   }
 
   function runOfficialOp() {
     var phone = $("op-phone").value.trim();
     var pwd = $("op-pwd").value.trim();
     var action = $("op-action").value;
-    if (!phone || !pwd) { alert("请填写官服手机号与密码"); return; }
-    $("op-resp").textContent = "操作中...（登录官服并执行 " + action + "，请耐心等待）";
+    if (!phone || !pwd) { toast("请填写官服手机号与密码"); return; }
+    showResp("op-resp", "操作中...（登录官服并执行 " + action + "，请耐心等待）");
     api("/official/action", {
       method: "POST",
       body: JSON.stringify({ phone: phone, pwd: pwd, action: action }),
     }).then(function (r) {
       if (!r.ok) {
-        $("op-resp").textContent = "[" + action + "] 未执行：" + (r.reason || "");
+        showResp("op-resp", "[" + action + "] 未执行：" + (r.reason || ""));
         refreshLogs();
         return;
       }
@@ -1272,18 +1330,18 @@
           "\n理智 " + r.data.ap + "/" + r.data.maxAp + " | 龙门币 " + r.data.gold + " | 源石 " + r.data.androidDiamond +
           " | 绿票 " + r.data.lggShard + " | 黄票 " + r.data.hggShard + " | 今日可签 " + (r.data.canCheckIn ? "是" : "否")
         : "[" + action + "] 成功\n" + JSON.stringify(r.data, null, 2);
-      $("op-resp").textContent = text;
+      showResp("op-resp", text);
       refreshLogs();
     }).catch(function (e) {
-      $("op-resp").textContent = "操作失败: " + e.message;
+      showResp("op-resp", "操作失败: " + e.message);
     });
   }
 
   function runMigrate() {
     var accounts = $("migrate-accounts").value;
     var templateUid = $("migrate-template").value.trim() || "1";
-    if (!accounts.trim()) { alert("请粘贴账号内容"); return; }
-    $("migrate-resp").textContent = "迁移中...（需联网访问官服，逐账号执行，请耐心等待）";
+    if (!accounts.trim()) { toast("请粘贴账号内容"); return; }
+    showResp("migrate-resp", "迁移中...（需联网访问官服，逐账号执行，请耐心等待）");
     api("/official/migrate", {
       method: "POST",
       body: JSON.stringify({ accounts: accounts, templateUid: templateUid }),
@@ -1295,12 +1353,12 @@
           ? "[失败] " + x.phone + ": " + x.error
           : "[成功] " + x.phone + " → uid=" + x.uid + " 昵称=" + (x.nickName || "");
       });
-      $("migrate-resp").textContent = "迁移完成：" + ok + "/" + results.length + " 成功\n" + lines.join("\n");
+      showResp("migrate-resp", "迁移完成：" + ok + "/" + results.length + " 成功\n" + lines.join("\n"));
       refreshUsers();
       refreshStats();
       refreshLogs();
     }).catch(function (e) {
-      $("migrate-resp").textContent = "迁移失败: " + e.message;
+      showResp("migrate-resp", "迁移失败: " + e.message);
     });
   }
 
@@ -1347,17 +1405,78 @@
   });
   $("btn-refresh-logs").addEventListener("click", refreshLogs);
 
-  /* ---------- 轮询 ---------- */
+  /* ---------- 轮询（智能：不打断正在编辑的输入框） ---------- */
+
+  /** 是否有输入框正在编辑（轮询跳过，避免打断） */
+  function isEditing() {
+    var el = document.activeElement;
+    return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT");
+  }
 
   function refreshAll() {
     refreshStatus();
-    refreshUsers();
-    refreshStats();
-    refreshLogs();
+    // 用户列表轮询时若正在编辑输入框则跳过（不打断输入）
+    if (!isEditing()) refreshUsers();
   }
 
   refreshAll();
   setInterval(refreshAll, 10000);
+  // 统计/日志低频刷新（30s）
+  setInterval(function () {
+    refreshStats();
+    refreshLogs();
+  }, 30000);
+  setTimeout(function () {
+    refreshStats();
+    refreshLogs();
+  }, 500);
+
+  /* ---------- 全局快捷键 ---------- */
+  var SHORTCUT_TABS = ["overview", "chars", "mails", "pools", "api", "migrate", "raw"];
+  document.addEventListener("keydown", function (e) {
+    if (isEditing() || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "/" || e.key === "u") {
+      e.preventDefault();
+      var f = $("user-filter");
+      if (f) f.focus();
+      return;
+    }
+    if (e.key === "r") {
+      refreshAll();
+      toast("已刷新", "info");
+      return;
+    }
+    if (e.key >= "1" && e.key <= "7") {
+      var t = SHORTCUT_TABS[Number(e.key) - 1];
+      if (t && t !== currentTab) switchTab(t);
+    }
+  });
+
+  /* ---------- 响应区复制按钮 ---------- */
+
+  /** 给响应容器挂「复制」按钮（读取容器文本复制） */
+  function attachCopy(containerId) {
+    var box = $(containerId);
+    if (!box) return;
+    var wrap = box.parentNode;
+    wrap.style.position = "relative";
+    var old = wrap.querySelector(".copy-btn");
+    if (old) old.remove();
+    var btn = document.createElement("button");
+    btn.className = "btn-sm copy-btn";
+    btn.textContent = "复制";
+    btn.style.cssText = "position:absolute;top:6px;right:6px;z-index:5;";
+    wrap.insertBefore(btn, box);
+    btn.addEventListener("click", function () {
+      copyText(box.textContent);
+    });
+  }
+
+  /** 响应区统一展示（设置内容 + 挂复制按钮） */
+  function showResp(containerId, text) {
+    $(containerId).textContent = text;
+    attachCopy(containerId);
+  }
 })();
 </script>
 </body>

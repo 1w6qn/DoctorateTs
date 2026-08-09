@@ -1338,4 +1338,6 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 
 - **storyreview/readStory 500 修复（2026-08-09，用户报告）**：原实现把完整 storyId 当 group key 查（`groups["act6d5_level_act6d5_st02"]` undefined）→ `.stories` 崩溃；正确 group 应为 storyId 前缀（如 act6d5）。新增 `_groupKeyOf`：组 key 直接匹配 → 最长前缀匹配（兼容多下划线组名）→ DoctoratePy 首段+min→mini 兜底；unlockStoryByCoin/readStory/rewardGroup 全补守卫与去重。实测 readStory rc 正确递增、未知 group 200。单测更新 3 条。
 
+- **ODPY 参考更新复核（2026-08-09）**：用户更新 opendoctoratepy-ex-public（663→668 条路由），重跑全量运行时扫描——**668 条全部覆盖，0 个 404**（新增 5 条路由均已被现有实现命中）。审计工具 `_audit-odpy-gaps.py` 复跑：已覆盖 261 / 设计跳过 2 / 需补充 0。
+
 - **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用（全量对齐后已补 stub，路径可达）

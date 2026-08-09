@@ -16,12 +16,21 @@ export class CharRotationManager {
   async setCurrent(args: { instId: string }) {
     await this._player.update(async (draft) => {
       const { instId } = args;
-      draft.charRotation.current = instId;
       const preset = draft.charRotation.preset[instId];
+      // 防御：未知预设直接返回（不 500）
+      if (!preset) return;
+      draft.charRotation.current = instId;
       draft.background.selected = preset.background;
       draft.homeTheme.selected = preset.homeTheme;
       draft.status.secretarySkinId = preset.profile;
-      draft.status.secretary = draft.troop.chars[preset.profileInst].charId;
+      // 修复：profileInst 可能指向重编号后不存在的干员（满配号生成器重排 charInstId），
+      // 查不到时回退到 profile 字符串（"char_xxx#皮肤" → 取 # 前 charId）
+      const profileChar = draft.troop.chars[preset.profileInst];
+      if (profileChar?.charId) {
+        draft.status.secretary = profileChar.charId;
+      } else if (preset.profile) {
+        draft.status.secretary = String(preset.profile).split("#")[0];
+      }
     });
   }
 

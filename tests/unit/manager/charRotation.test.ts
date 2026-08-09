@@ -187,6 +187,36 @@ describe("CharRotationManager", () => {
     });
   });
 
+    it("profileInst 指向不存在干员时应回退 profile 字符串而非 500", async () => {
+      const manager = new CharRotationManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      // preset 1 的 profileInst=1 在 mock 中不存在（mock chars 键为 1001）→ 回退 profile
+      mockPlayer._playerdata.charRotation!.preset["1"] = {
+        name: "test",
+        background: "bg_rhodes_day",
+        homeTheme: "tm_rhodes_day",
+        profile: "char_1012_skadi2#1",
+        profileInst: 1,
+        slots: [],
+      };
+      await expect(
+        manager.setCurrent({ instId: "1" }),
+      ).resolves.not.toThrow();
+      expect(mockPlayer._playerdata.status!.secretary).toBe("char_1012_skadi2");
+    });
+
+    it("未知预设 instId 不应抛错（不再 500）", async () => {
+      const manager = new CharRotationManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      await expect(
+        manager.setCurrent({ instId: "999" }),
+      ).resolves.not.toThrow();
+    });
+
   describe("createPreset", () => {
     it("应该创建新预设并返回 instId", async () => {
       const manager = new CharRotationManager(

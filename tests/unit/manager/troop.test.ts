@@ -19,6 +19,19 @@ vi.mock("@excel/excel", () => {
             },
           ],
         },
+        char_002: {
+          charId: "char_002",
+          name: "字符串稀有度干员（真实数据格式）",
+          rarity: "TIER_5",
+          potentialItemId: "pot_001",
+          classicPotentialItemId: "pot_classic_001",
+          skills: [
+            {
+              skillId: "sk1",
+              unlockCond: { phase: 0, level: 1 },
+            },
+          ],
+        },
         char_002_amiya: {
           charId: "char_002_amiya",
           name: "阿米娅",
@@ -32,6 +45,7 @@ vi.mock("@excel/excel", () => {
         potentialMaterialConverter: {
           items: {
             5: { id: "shard_5", count: 10, type: "MATERIAL" },
+            4: { id: "shard_4", count: 5, type: "MATERIAL" },
           },
         },
         classicPotentialMaterialConverter: {
@@ -101,6 +115,23 @@ describe("TroopManager", () => {
             potentialRank: 0,
             mainSkillLvl: 1,
             skin: "char_001#1",
+            level: 1,
+            exp: 0,
+            evolvePhase: 0,
+            defaultSkillIndex: -1,
+            gainTime: 1234567890,
+            skills: [],
+            currentEquip: null,
+            equip: {},
+            voiceLan: "CN_MANDARIN",
+          },
+          1002: {
+            instId: 1002,
+            charId: "char_002",
+            favorPoint: 0,
+            potentialRank: 0,
+            mainSkillLvl: 1,
+            skin: "char_002#1",
             level: 1,
             exp: 0,
             evolvePhase: 0,
@@ -349,6 +380,32 @@ describe("TroopManager", () => {
       expect(char.equip!.equip_001).toBeDefined();
       expect(char.equip!.equip_001.hide).toBe(1);
       expect(char.equip!.equip_001.locked).toBe(1);
+    });
+  });
+
+  describe("decomposePotentialItem 字符串 rarity（2026-08-09 修复）", () => {
+    it('rarity 为 "TIER_5" 字符串时应转索引分解（原 items["TIER_5"] undefined 500）', async () => {
+      const manager = new TroopManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      // char_002 的 rarity 为字符串 "TIER_5"，items 表按数值键 5 —— 修复后应正确命中
+      const result = await manager.decomposePotentialItem({
+        charInstIdList: ["1002"],
+      });
+      // TIER_5 → 索引 4 → items[4] shard_4 count 5 × 3（pot_001 库存）= 15
+      expect(result).toEqual([{ id: "shard_4", count: 15 }]);
+    });
+
+    it("不存在的干员应跳过而非 500", async () => {
+      const manager = new TroopManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      const result = await manager.decomposePotentialItem({
+        charInstIdList: ["99999"],
+      });
+      expect(result).toEqual([]);
     });
   });
 });

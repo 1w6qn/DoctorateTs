@@ -3,6 +3,7 @@ import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 import { CharacterDataMainSkill } from "@excel/types_auto_gen";
 import { now } from "@utils/time";
+import { rarityToIndex } from "@utils/rarity";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 
@@ -44,12 +45,15 @@ export class TroopManager {
     const costs: ItemBundle[] = [];
     const items: ItemBundle[] = charInstIdList.reduce((acc, charInstId) => {
       const char = draft.troop.chars[charInstId];
-      const rarity = excel.CharacterTable[char.charId].rarity;
+      if (!char) return acc; // 防御：不存在的干员跳过
+      // 修复：CharacterTable.rarity 为字符串枚举 "TIER_N"，items 表按数值键（0~5）——转索引
+      const rarity = rarityToIndex(excel.CharacterTable[char.charId]?.rarity);
       const potentialItemId =
         excel.CharacterTable[char.charId].potentialItemId!;
       const count = draft.inventory[potentialItemId];
       costs.push({ id: potentialItemId, count: count });
       const item = excel.GachaTable.potentialMaterialConverter.items[rarity];
+      if (!item) return acc; // 防御：无对应分解配置跳过
       acc.push({ id: item.id, count: item.count * count });
       return acc;
     }, [] as ItemBundle[]);
@@ -66,13 +70,16 @@ export class TroopManager {
     const costs: ItemBundle[] = [];
     const items: ItemBundle[] = charInstIdList.reduce((acc, charInstId) => {
       const char = draft.troop.chars[charInstId];
-      const rarity = excel.CharacterTable[char.charId].rarity;
+      if (!char) return acc; // 防御：不存在的干员跳过
+      // 修复：rarity 字符串枚举转数值索引
+      const rarity = rarityToIndex(excel.CharacterTable[char.charId]?.rarity);
       const potentialItemId =
         excel.CharacterTable[char.charId].classicPotentialItemId!;
       const count = draft.inventory[potentialItemId];
       costs.push({ id: potentialItemId, count: count });
       const item =
         excel.GachaTable.classicPotentialMaterialConverter.items[rarity];
+      if (!item) return acc; // 防御：无对应分解配置跳过
       acc.push({ id: item.id, count: item.count * count });
       return acc;
     }, [] as ItemBundle[]);

@@ -1254,4 +1254,9 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 - **arkodc 模块（2026-08-09，参考 OBS misc_bp + CS ArkOdc 类 + ODPY arkodc 类）**：`/arkodc/battleStart|battleFinish`（战斗 stub）、`/arkodc/savePosition`（写 `arkodc.topics[topicId].position`）、`/arkodc/triggerInteraction`（awardId 标记 `rewards[awardId]=1`）、`/arkodc/restart` —— 根路径挂载
 - **稀有度索引修复（2026-08-09，实机冒烟发现的真实 bug）**：`CharacterTable.rarity` 为字符串枚举 `"TIER_N"`，但 char/recruit 多处按数值下标/比较使用（`maxLevel[rarity]`、`evolveGoldCost[rarity]`、`data.rarity === 5`、`charsList[rarity]` 字符串键 vs 数值键）→ upgradeChar/evolveChar 500、公共招募星级分组/高星 tag 失效、rlv2 招募免费稀有度升级失效。新增 `@utils/rarity`（`rarityToIndex` TIER_N→N-1）并全量修复 char.ts/recruit.ts/rlv2 recruit.ts；upgradeChar/evolveChar 补 maxLevel/evolveCost 防御钳制。验证：实机 upgradeChar（char 2 正常升级）、evolveChar（含 null evolveCost 的预备干员）均 200。
 - **ODPY 缺失清单逐条核对（2026-08-09，`scripts/_audit-odpy-gaps.py`）**：ODPY 663 条路由中 DoctorateTs 未覆盖 260 条，逐条 curl 冒烟标注——**已覆盖 174**（HTTP 200/202/500 路由命中，含 sandboxPerm 72 条、crisisV2 7 条、campaignV2/retro 5+5、rlv2 28、aprilFool 11 等）+ **设计跳过 68**（单账号 auth 19、yostar 4、支付变体 9、admin 5、遥测/埋点 8、config/remote_config 变体 8、GET 覆盖 5、ODPY 独有 3 等）+ **需补充 16 全部分类为已覆盖**（remote_config 4 条为 GET 覆盖、shop `<string:shop_type>` 模板 3 条由具体路由覆盖、静态资源 gallery/jpg + announce/images + assetbundle 302 等路径参数路由为设计跳过/静态资源）
+- **既存未决项处理（2026-08-09）**：
+  - `gacha/cancelNormalGacha` 满级号 500 已修复——根因是客户端请求未初始化的招募槽位（满级号仅 4 槽但客户端发 slotId 4/5），recruit.cancel 补缺失槽位初始化守卫（不再 500）
+  - `gallery/jpg`、`announce/images` 静态图片路由已补齐——私服无素材文件，返回 1x1 透明 PNG 占位图（客户端不再收 HTML 404）
+  - **syncData 对齐决策（用户确认）**：保持现状（Immer 单点 patch + 刷新 pushFlags，客户端实测可用）；移除 delta.ts 未接线的 `buildSyncDataDelta`/`SYNC_DATA_DELTA_KEYS` 死代码与 account.ts 未使用 import
+  - **目标完成边界（用户确认）**：参考项目全量对齐（ODPY 663 条全量覆盖，含此前标注的设计跳过项）
 - **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用

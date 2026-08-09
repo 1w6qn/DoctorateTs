@@ -55,6 +55,13 @@ import {
   UseRenameCardResponse,
 } from "../model/protocol/user";
 
+
+/** 1x1 透明 PNG（静态图片占位） */
+const PLACEHOLDER_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "base64",
+);
+
 const router = Router();
 
 /** 更换秘书干员（CS: ChangeSecretaryRequest） */
@@ -383,6 +390,18 @@ function ensureGallery(draft: any): any {
  * 路径：POST /gallery/getFirstRewards
  * @returns playerDataDelta（包含 gallery 的变更）
  */
+/** 画廊杂志图片（客户端 /gallery/jpg/<name>；私服无素材文件，返回 1x1 透明占位图避免客户端报错） */
+/** 公告图片（客户端 /announce/images/<subpath>；私服无素材文件，返回 1x1 占位图） */
+rootRouter.get("/announce/images/:subpath", async (_req, res) => {
+  res.type("png").send(PLACEHOLDER_PNG);
+});
+rootRouter.get("/gallery/jpg/:jpgName", async (_req, res) => {
+  res.type("png").send(PLACEHOLDER_PNG);
+});
+rootRouter.get("/gallery/jpg/:jpgName.png", async (_req, res) => {
+  res.type("png").send(PLACEHOLDER_PNG);
+});
+
 rootRouter.post("/gallery/getFirstRewards", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetFirstRewardsRequest;

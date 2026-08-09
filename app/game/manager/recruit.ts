@@ -54,7 +54,21 @@ export class RecruitManager {
   async cancel(args: { slotId: number }) {
     await this._player.update(async (draft) => {
       const { slotId } = args;
+      // 防御：客户端可能请求未初始化的槽位（如满级号仅 4 槽但客户端发 4/5），
+      // 缺失时按空槽重置而非 500（fix: cancelNormalGacha 满级号 500）
       const slot = draft.recruit.normal.slots[slotId];
+      if (!slot) {
+        draft.recruit.normal.slots[slotId] = {
+          state: 1,
+          selectTags: [],
+          startTs: -1,
+          maxFinishTs: -1,
+          realFinishTs: -1,
+          durationInSec: -1,
+          tags: await RecruitTools.refreshTagList(),
+        };
+        return;
+      }
       slot.state = 1;
       slot.selectTags = [];
       slot.startTs = -1;

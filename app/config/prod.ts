@@ -63,4 +63,12 @@ router.get(
     res.send(await readJson("./data/announce/preannouncement.meta.json"));
   },
 );
+
+/** 1x1 透明 PNG（静态图片占位） */
+const PLACEHOLDER_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+
 export default router;

@@ -3,7 +3,6 @@ import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { accountManager } from "../manager/AccountManger";
 import { now } from "@utils/time";
-import { buildSyncDataDelta } from "@utils/delta";
 import config from "../../config";
 import {
   LoginRequest,

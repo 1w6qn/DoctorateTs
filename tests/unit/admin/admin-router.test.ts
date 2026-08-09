@@ -39,6 +39,7 @@ vi.mock("../../../app/admin/AdminService", () => ({
     setPlayerPoolUp: vi.fn().mockResolvedValue({ poolId: "NORMAL_0_1", upCharIds: ["char_002_amiya"] }),
     setPlayerPity: vi.fn().mockResolvedValue({ uid: "1", ruleType: "NORMAL", beforeNonHitCnt: 42 }),
     migrateOfficial: vi.fn().mockResolvedValue([{ phone: "13800000000", uid: "2", nickName: "A" }]),
+    officialAction: vi.fn().mockResolvedValue({ action: "signin", ok: true, data: "签到成功" }),
     grantAllItems: vi.fn().mockResolvedValue({ items: 4 }),
     maxAllChars: vi.fn().mockResolvedValue({ chars: 10 }),
     repairChars: vi.fn().mockResolvedValue({ chars: 3, fields: 8 }),
@@ -381,6 +382,20 @@ describe("admin 路由（扩展能力）", () => {
     expect(res.json).toHaveBeenCalledWith({
       results: [{ phone: "13800000000", uid: "2", nickName: "A" }],
     });
+  });
+
+  it("POST /api/official/action 应透传手机号/密码/操作", async () => {
+    const res = mockRes();
+    await call(
+      {
+        method: "POST",
+        url: "/api/official/action",
+        body: { phone: "13800000000", pwd: "pwd", action: "signin" },
+      },
+      res,
+    );
+    expect(adminService.officialAction).toHaveBeenCalledWith("13800000000", "pwd", "signin");
+    expect(res.json).toHaveBeenCalledWith({ action: "signin", ok: true, data: "签到成功" });
   });
 
   it("批量工具端点应透传（grant-all/maxchars/stages）", async () => {

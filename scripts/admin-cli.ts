@@ -192,6 +192,7 @@ export function printHelp(): void {
 官服迁移:
   official accounts <file> [--json]                 预览账号文件解析结果
   official migrate <file> [--template uid]          官服账号迁移（联网拉取→注册私服账号）
+  official <status|signin|mails|receive|daily> <phone> <pwd>   官服操作（登录官服签到/邮件等）
 
 其他:
   help / exit                                       帮助 / 退出`);
@@ -1094,7 +1095,41 @@ async function runOfficial(
     console.log(`迁移完成：${ok}/${results.length} 成功`);
     return;
   }
-  console.error("用法: official migrate <accounts文件> [--template uid] | official accounts <file> [--json]");
+  // 官服操作：status/signin/mails/receive/daily <phone> <pwd>
+  const ACTIONS = ["status", "signin", "mails", "receive", "daily"];
+  if (ACTIONS.includes(sub)) {
+    const phone = args[1];
+    const pwd = args[2];
+    if (!phone || !pwd) {
+      console.error(`用法: official ${sub} <phone> <pwd>`);
+      process.exitCode = 1;
+      return;
+    }
+    console.log(`正在登录官服并执行「${sub}」...（需公网访问官服）`);
+    const r = await adminService.officialAction(phone, pwd, sub as any);
+    if (flags.json) {
+      output(r, flags);
+      return;
+    }
+    if (!r.ok) {
+      console.log(`[未执行] ${r.reason ?? "失败"}`);
+      return;
+    }
+    if (sub === "status") {
+      const d = r.data;
+      console.log(`官服账号 ${d.nickName}#${d.nickNumber}（uid=${d.uid}）Lv.${d.level}`);
+      console.log(`  理智 ${d.ap}/${d.maxAp} | 龙门币 ${d.gold} | 源石 ${d.androidDiamond} | 社交点 ${d.socialPoint}`);
+      console.log(`  绿票 ${d.lggShard} | 黄票 ${d.hggShard} | 今日可签 ${d.canCheckIn ? "是" : "否"}`);
+      return;
+    }
+    if (sub === "mails") {
+      console.log(`官服邮件：共 ${r.data.count} 封（未读 ${r.data.unread}）`);
+      return;
+    }
+    console.log(`[成功] ${JSON.stringify(r.data ?? "")}`);
+    return;
+  }
+  console.error("用法: official migrate <accounts文件> [--template uid] | official accounts <file> [--json] | official <status|signin|mails|receive|daily> <phone> <pwd>");
   process.exitCode = 1;
 }
 

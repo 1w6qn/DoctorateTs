@@ -1163,8 +1163,47 @@
       '<div class="row">' +
       '<input id="migrate-template" placeholder="模板 uid" value="1" style="flex:0 0 140px;">' +
       '<button id="migrate-run" class="primary">执行迁移</button></div>' +
-      '<div class="resp-box" id="migrate-resp" style="margin-top:10px;">结果显示在此</div>';
+      '<div class="resp-box" id="migrate-resp" style="margin-top:10px;">结果显示在此</div>' +
+      '<hr style="border-color:var(--border);margin:14px 0;">' +
+      '<p style="color:var(--muted);font-size:12px;">官服操作：以官服账号登录，执行签到/邮件等（无状态会话，即用即弃；需公网访问官服）。</p>' +
+      '<div class="row">' +
+      '<input id="op-phone" placeholder="官服手机号" style="flex:1;">' +
+      '<input id="op-pwd" type="password" placeholder="官服密码" style="flex:1;">' +
+      '<select id="op-action" style="flex:0 0 120px;">' +
+      '<option value="status">状态</option><option value="signin">签到</option>' +
+      '<option value="mails">邮件列表</option><option value="receive">领邮件</option>' +
+      '<option value="daily">一键日常</option></select>' +
+      '<button id="op-run" class="primary">执行</button></div>' +
+      '<div class="resp-box" id="op-resp" style="margin-top:10px;">官服操作结果显示在此</div>';
     $("migrate-run").addEventListener("click", runMigrate);
+    $("op-run").addEventListener("click", runOfficialOp);
+  }
+
+  function runOfficialOp() {
+    var phone = $("op-phone").value.trim();
+    var pwd = $("op-pwd").value.trim();
+    var action = $("op-action").value;
+    if (!phone || !pwd) { alert("请填写官服手机号与密码"); return; }
+    $("op-resp").textContent = "操作中...（登录官服并执行 " + action + "，请耐心等待）";
+    api("/official/action", {
+      method: "POST",
+      body: JSON.stringify({ phone: phone, pwd: pwd, action: action }),
+    }).then(function (r) {
+      if (!r.ok) {
+        $("op-resp").textContent = "[" + action + "] 未执行：" + (r.reason || "");
+        refreshLogs();
+        return;
+      }
+      var text = action === "status"
+        ? "官服账号 " + r.data.nickName + "#" + r.data.nickNumber + "（uid=" + r.data.uid + "）Lv." + r.data.level +
+          "\n理智 " + r.data.ap + "/" + r.data.maxAp + " | 龙门币 " + r.data.gold + " | 源石 " + r.data.androidDiamond +
+          " | 绿票 " + r.data.lggShard + " | 黄票 " + r.data.hggShard + " | 今日可签 " + (r.data.canCheckIn ? "是" : "否")
+        : "[" + action + "] 成功\n" + JSON.stringify(r.data, null, 2);
+      $("op-resp").textContent = text;
+      refreshLogs();
+    }).catch(function (e) {
+      $("op-resp").textContent = "操作失败: " + e.message;
+    });
   }
 
   function runMigrate() {

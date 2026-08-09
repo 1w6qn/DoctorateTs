@@ -72,6 +72,8 @@ npm run admin -- gacha up 1 NORMAL_0_1 阿米娅   # 设置玩家 UP（支持中
 npm run admin -- gacha pity 1 NORMAL 50         # 设置玩家保底计数（按规则类型）
 npm run admin -- official accounts accounts.txt # 预览官服账号文件解析结果
 npm run admin -- official migrate accounts.txt  # 官服账号迁移（联网拉取→注册私服账号）
+npm run admin -- official status 18005767005 密码  # 官服账号状态（登录官服只读）
+npm run admin -- official daily 18005767005 密码   # 官服一键日常（签到+领邮件）
 npm run admin -- config show                    # 查看配置
 npm run admin -- config set admin.token mytoken # 修改配置（重启后生效）
 ```

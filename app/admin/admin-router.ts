@@ -418,6 +418,21 @@ router.post("/api/official/migrate", async (req: Request, res: Response) => {
   }
 });
 
+/** 官服操作（登录官服执行签到/邮件等；无状态会话即用即弃） */
+router.post("/api/official/action", async (req: Request, res: Response) => {
+  try {
+    const { phone, pwd, action } = req.body ?? {};
+    const result = await adminService.officialAction(
+      String(phone),
+      String(pwd),
+      String(action) as any,
+    );
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 /** 批量发放全部物品 */
 router.post("/api/users/:uid/grant-all", async (req: Request, res: Response) => {
   try {

@@ -6,11 +6,16 @@ import { mockPlayerData } from "../../helpers";
 import config from "../../../app/config";
 import { appendFile, mkdir } from "fs/promises";
 import { runMigration } from "../../../scripts/migrate-official";
+import { runOfficialAction } from "../../../app/admin/official-ops";
 
 // 官服迁移 mock（不真实联网/写库）
 vi.mock("../../../scripts/migrate-official", () => ({
   runMigration: vi.fn(),
   parseAccounts: vi.fn(),
+}));
+// 官服操作 mock（不真实联网）
+vi.mock("../../../app/admin/official-ops", () => ({
+  runOfficialAction: vi.fn(),
 }));
 
 // excel 表桩（名称解析/物品校验/满配/干员属性共用）
@@ -938,6 +943,22 @@ describe("AdminService 官服迁移", () => {
     const results = await service.migrateOfficial("13800000000 pwd", "1");
     expect(results).toHaveLength(1);
     expect(results[0].uid).toBe("2");
+  });
+
+  it("officialAction 应透传手机号/密码/操作并审计", async () => {
+    vi.mocked(runOfficialAction).mockResolvedValue({
+      action: "signin",
+      ok: true,
+      data: "签到成功",
+    });
+    const r = await service.officialAction("13800000000", "pwd", "signin");
+    expect(runOfficialAction).toHaveBeenCalledWith("13800000000", "pwd", "signin");
+    expect(r.ok).toBe(true);
+    expect(appendFile).toHaveBeenCalled();
+  });
+
+  it("officialAction 缺手机号或密码应抛错", async () => {
+    await expect(service.officialAction("", "pwd", "signin")).rejects.toThrow(/手机号与密码/);
   });
 });
 

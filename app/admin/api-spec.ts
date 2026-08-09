@@ -159,6 +159,17 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   },
   {
     method: "POST",
+    path: "/api/official/action",
+    summary: "官服操作（登录官服执行签到/邮件等；status/signin/mails/receive/daily，无状态会话即用即弃）",
+    params: [
+      { name: "phone", type: "string", required: true, desc: "官服手机号" },
+      { name: "pwd", type: "string", required: true, desc: "官服密码" },
+      { name: "action", type: "string", required: true, desc: "status/signin/mails/receive/daily" },
+    ],
+    body: '{"phone":"13800000000","pwd":"password123","action":"signin"}',
+  },
+  {
+    method: "POST",
     path: "/api/users/:uid/grant-all",
     summary: "批量发放全部 ItemTable 物品（sortId>0；CONSUME→consumable，其余→inventory）",
     params: [{ name: "count", type: "number", desc: "每样数量（默认 999）" }],

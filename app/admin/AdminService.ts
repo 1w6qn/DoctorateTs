@@ -18,6 +18,7 @@ import { PlayerDataModel } from "@game/model/playerdata";
 import { mailManager } from "@game/manager/mail";
 import { runMigration } from "../../scripts/migrate-official";
 import { buildMaxedChar } from "../../scripts/generate-max-account";
+import { runOfficialAction, OfficialAction } from "./official-ops";
 import { exists, size, readJson, writeJson } from "@utils/file";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";
@@ -1402,6 +1403,30 @@ export class AdminService {
       }
     }
     return results;
+  }
+
+  /**
+   * 官服操作（无状态会话：登录官服 → 执行签到/邮件等 → 即弃）
+   * @param phone - 官服手机号
+   * @param pwd - 官服密码
+   * @param action - status/signin/mails/receive/daily
+   * @returns 操作结果（失败抛错由路由层返回 400）
+   */
+  async officialAction(
+    phone: string,
+    pwd: string,
+    action: OfficialAction,
+  ): Promise<{ action: string; ok: boolean; data?: any; reason?: string }> {
+    if (!phone || !pwd) {
+      throw new Error("需提供官服手机号与密码");
+    }
+    const result = await runOfficialAction(String(phone), String(pwd), action);
+    await this._audit(
+      "officialAction",
+      "",
+      `${phone} → ${action}（${result.ok ? "成功" : result.reason ?? "失败"}）`,
+    );
+    return result;
   }
 
   /** 统计聚合（等级分布/注册分布/资源合计） */

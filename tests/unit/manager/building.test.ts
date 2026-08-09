@@ -1252,4 +1252,80 @@ describe("BuildingManager 房间建造与升级（Excel 驱动）", () => {
     expect(mockPlayer._playerdata.building!.status.labor.value).toBe(80); // 100 - 20
     expect(mockPlayer._playerdata.building!.roomSlots.slot_5.level).toBe(2);
   });
+
+  /* ===== 2026-08-09 基建修复验证 ===== */
+
+  it("制造站生产随时间累积（sync 推进 processPoint → 产出，buff/时间不再脱钩）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    // capacity 54、costPoint 2700 → 100 秒累积 5400 → 产出 2 批
+    (mockPlayer._playerdata.building!.rooms.MANUFACTURE as any)["slot_m1"] = {
+      buff: {},
+      state: 1,
+      formulaId: "1",
+      remainSolutionCnt: 10,
+      outputSolutionCnt: 0,
+      processPoint: 0,
+      capacity: 54,
+      lastUpdateTime: 1234567890 - 100,
+      completeWorkTime: -1,
+    };
+    await manager.sync();
+    const room = (mockPlayer._playerdata.building!.rooms.MANUFACTURE as any)["slot_m1"];
+    expect(room.outputSolutionCnt).toBe(2); // 5400/2700
+    expect(room.remainSolutionCnt).toBe(8);
+    expect(room.processPoint).toBe(0);
+  });
+
+  it("changeManufactureSolution 应从 0 开始累积而非立即满产", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    (mockPlayer._playerdata.building!.rooms.MANUFACTURE as any)["slot_m1"] = {
+      buff: {}, state: 0, formulaId: "", remainSolutionCnt: 0,
+      outputSolutionCnt: 0, processPoint: 0, capacity: 54, lastUpdateTime: 0,
+    };
+    await manager.changeManufactureSolution({ roomSlotId: "slot_m1", targetFormulaId: "1", solutionCount: 10 } as any);
+    const room = (mockPlayer._playerdata.building!.rooms.MANUFACTURE as any)["slot_m1"];
+    expect(room.remainSolutionCnt).toBe(10);
+    expect(room.outputSolutionCnt).toBe(0);
+    expect(room.state).toBe(1);
+  });
+
+  it("贸易站订单补充：stock 为空时 sync 补 2 单（delivery 3003 → gain 金币）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    (mockPlayer._playerdata.building!.rooms.TRADING as any)["slot_t1"] = {
+      buff: {}, state: 1, stock: [], lastUpdateTime: 0,
+    };
+    await manager.sync();
+    const stock = (mockPlayer._playerdata.building!.rooms.TRADING as any)["slot_t1"].stock;
+    expect(stock.length).toBe(2);
+    for (const order of stock) {
+      expect(order.delivery[0].id).toBe("3003");
+      expect(order.gain.type).toBe("GOLD");
+      expect(order.gain.count).toBe(order.delivery[0].count * 500);
+    }
+  });
+
+  it("deliveryOrder 按客户端指定 instId 结算（不再总是队首）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    (mockPlayer._playerdata.building!.rooms.TRADING as any)["slot_t1"] = {
+      buff: {}, state: 1,
+      stock: [
+        { instId: 1, delivery: [{ id: "3003", type: "MATERIAL", count: 1 }], type: "O_GOLD", gain: { id: "4001", type: "GOLD", count: 500 }, buff: [] },
+        { instId: 2, delivery: [{ id: "3003", type: "MATERIAL", count: 2 }], type: "O_GOLD", gain: { id: "4001", type: "GOLD", count: 1000 }, buff: [] },
+      ],
+      lastUpdateTime: 0,
+    };
+    const goldBefore = mockPlayer._playerdata.status!.gold ?? 0;
+    await manager.deliveryOrder({ slotId: "slot_t1", orderId: "2" } as any);
+    const stock = (mockPlayer._playerdata.building!.rooms.TRADING as any)["slot_t1"].stock;
+    expect(stock.length).toBe(1); // 只剩 instId 1
+    expect(stock[0].instId).toBe(1);
+    expect(mockPlayer._playerdata.status!.gold).toBe(goldBefore + 1000); // 结算的是 instId 2
+  });
+
+  it("settleManufacture 非法 roomSlotId 不应抛错（不再 500）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await expect(
+      manager.settleManufacture({ roomSlotId: "slot_nonexist" } as any),
+    ).resolves.not.toThrow();
+  });
 });

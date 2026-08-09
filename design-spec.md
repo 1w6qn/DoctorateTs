@@ -1297,4 +1297,14 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
   - **syncData 对齐决策（用户确认）**：保持现状（Immer 单点 patch + 刷新 pushFlags，客户端实测可用）；移除 delta.ts 未接线的 `buildSyncDataDelta`/`SYNC_DATA_DELTA_KEYS` 死代码与 account.ts 未使用 import
   - **目标完成边界（用户确认）**：参考项目全量对齐（ODPY 663 条全量覆盖，含此前标注的设计跳过项）
 - **参考项目全量对齐（2026-08-09，用户确认边界后实施）**：ODPY 260 条缺失清单 → **已覆盖 256 / 设计跳过 2（/arknights 子域名转发、/api/game/<subpath> catch-all 已补）/ 需补充 0**；OBS 105 条缺失运行时复核 **0 个 404**；DoctoratePy 36 条缺失全部补齐（pay alipay/wechat/success、/login、shop/buyFurniGroup、quest/changeSquadName2 别名、旧版 auth 路径 11 条 URL 重写别名）。新增 `router/misc-alignment`（遥测/pay 变体/api 端点/yostar/common EN stub 约 30 条）、launcher catch-all、building/getMessageBoardContent、config prod b/network_config、remote_config bilibili/101 变体。
+
+- **基建系统修复（2026-08-09，审计发现 7 项问题后修复 5 项核心）**：
+  - 制造站生产随时间累积：`sync()` 新增 `_accrueManufacture`（房间 capacity × 流逝时间 → processPoint，每满 formula.costPoint 产 1 批，remainSolutionCnt 递减/outputSolutionCnt 递增）；`changeManufactureSolution` 改为从 0 开始累积（remainSolutionCnt=目标，outputSolutionCnt=0）而非立即满产——生产速度 buff 与时间挂钩
+  - 贸易站订单补充：`sync()` 新增 `_refreshTradingOrders`（工作时间 stock < 2 单时按 3003×汇率生成金币订单，结构与官服样本一致）——原实现无生成逻辑，交付完即枯竭
+  - 余额校验：制造结算/加工合成按可承担次数部分结算，避免负库存/负金币
+  - `deliveryOrder` 按客户端指定 instId 结算（原忽略 orderId 总结算队首）
+  - 非法 roomSlotId 守卫：settleManufacture 等不再 500
+  - 训练室 `_accrueTraining`：trainee.processPoint 随时间累积（进度显示一致；完成仍由客户端 completeUpgradeSpecialization 驱动）
+  - 单测 5 条 + 实机冒烟（settle slot_999 200、清空 stock 后 sync 补 2 单、8 秒产出 processPoint=486 与 54×9s 吻合）
+
 - **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用（全量对齐后已补 stub，路径可达）

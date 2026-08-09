@@ -6,7 +6,7 @@ import { WritableDraft } from "immer";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { PlayerBuildingMeetingClue } from "@game/model/playerdata";
 import { accountManager } from "./AccountManger";
-import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase } from "@excel/building_excel";
+import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate } from "@excel/building_excel";
 
 /**
  * 基建管理器类
@@ -97,9 +97,75 @@ export class BuildingManager {
   async sync() {
     return await this._player.update(async (draft) => {
       this._recoverLabor(draft);
+      // 修复：制造站生产随时间累积（进度/产出不再与时间脱钩）
+      for (const roomSlotId of Object.keys(draft.building.rooms.MANUFACTURE)) {
+        this._accrueManufacture(draft, roomSlotId);
+      }
+      // 修复：贸易站订单补充（原实现无生成逻辑，交付完即永久为空）
+      this._refreshTradingOrders(draft);
+      // 训练室进度推进（trainee.processPoint 随时间累积，客户端进度显示一致；
+      // 完成仍由客户端计时驱动 completeUpgradeSpecialization）
+      this._accrueTraining(draft);
       draft.event.building = now() + 5000;
       return now();
     });
+  }
+
+  /**
+   * 内部方法：训练室进度推进
+   * trainee.processPoint += 流逝时间 × trainee.speed（与官方模型一致）
+   * @param draft - Immer 可写草稿
+   */
+  private _accrueTraining(draft: WritableDraft<PlayerDataModel>): void {
+    const trainingRoom = draft.building.rooms.TRAINING;
+    for (const roomSlotId of Object.keys(trainingRoom)) {
+      const room = trainingRoom[roomSlotId];
+      const trainee = room?.trainee;
+      if (!trainee || trainee.charInstId <= 0 || trainee.state !== 3) continue;
+      const ts = now();
+      const elapsed = ts - (room.lastUpdateTime || ts);
+      if (elapsed <= 0) continue;
+      room.lastUpdateTime = ts;
+      trainee.processPoint =
+        (trainee.processPoint ?? 0) + elapsed * (trainee.speed ?? 1);
+    }
+  }
+
+  /**
+   * 内部方法：贸易站订单补充
+   *
+   * 修复：服务端无订单生成逻辑——stock 由账号生成器静态填充，交付完即枯竭。
+   * 简单机制：工作时间（state=1）且 stock 不足 2 单时按 3003（贸易凭证）× 汇率
+   * 生成金币订单（结构与官服样本一致：delivery 3003 → gain GOLD）。
+   *
+   * @param draft - Immer 可写草稿
+   */
+  private _refreshTradingOrders(
+    draft: WritableDraft<PlayerDataModel>,
+  ): void {
+    const rate = getGoldRate();
+    for (const slotId of Object.keys(draft.building.rooms.TRADING)) {
+      const room = draft.building.rooms.TRADING[slotId];
+      if (!room || room.state !== 1) continue;
+      if (!Array.isArray(room.stock)) room.stock = [];
+      const target = 2;
+      if (room.stock.length >= target) continue;
+      let maxInstId = room.stock.reduce((m, s) => Math.max(m, s?.instId ?? 0), 0);
+      const missing = target - room.stock.length;
+      for (let i = 0; i < missing; i++) {
+        // 1~4 张贸易凭证 → count×rate 金币（参考官服 O_GOLD 订单结构）
+        const count = 1 + Math.floor(Math.random() * 4);
+        maxInstId += 1;
+        room.stock.push({
+          instId: maxInstId,
+          delivery: [{ id: "3003", type: "MATERIAL", count }],
+          type: "O_GOLD",
+          gain: { id: "4001", type: "GOLD", count: count * rate },
+          buff: [],
+          isViolated: false,
+        });
+      }
+    }
   }
 
   /**
@@ -541,16 +607,21 @@ export class BuildingManager {
    * @param args - 包含 slotId 和 orderId 的参数对象
    */
   async deliveryOrder(args: { slotId: string; orderId: string }) {
-    const { slotId } = args;
+    const { slotId, orderId } = args;
     return await this._player.update(async (draft) => {
       const tradingRoom = draft.building.rooms.TRADING[slotId];
-      if (
-        tradingRoom &&
-        Array.isArray(tradingRoom.stock) &&
-        tradingRoom.stock.length > 0
-      ) {
-        this._settleOrderInternal(draft, tradingRoom.stock[0]);
-        tradingRoom.stock.shift();
+      if (tradingRoom && Array.isArray(tradingRoom.stock)) {
+        // 修复：按客户端指定 orderId（instId）结算，缺省回退队首——与 deliveryBatchOrder 一致
+        const idx =
+          orderId != null
+            ? tradingRoom.stock.findIndex(
+                (s: any) => String(s.instId) === String(orderId),
+              )
+            : 0;
+        if (idx !== -1 && tradingRoom.stock[idx]) {
+          this._settleOrderInternal(draft, tradingRoom.stock[idx]);
+          tradingRoom.stock.splice(idx, 1);
+        }
       }
     });
   }
@@ -595,6 +666,44 @@ export class BuildingManager {
   }
 
   /**
+   * 内部方法：推进制造站生产（随时间累积 processPoint → 产出方案）
+   *
+   * 修复：基建生产不随时间累积、生产速度 buff 无效的问题。
+   * 官方模型：房间 capacity（生产力/秒）× 流逝时间 → processPoint，
+   * 每满 formula.costPoint 产出 1 方案（remainSolutionCnt 递减、outputSolutionCnt 递增）。
+   * 用房间自维护的 lastUpdateTime 计算流逝（生成器的 saveTime/tailTime 为相对值，不可用）。
+   *
+   * @param draft - Immer 可写草稿
+   * @param roomSlotId - 制造站房间槽位 ID
+   */
+  private _accrueManufacture(
+    draft: WritableDraft<PlayerDataModel>,
+    roomSlotId: string,
+  ): void {
+    const room = draft.building.rooms.MANUFACTURE[roomSlotId];
+    if (!room || room.state !== 1) return;
+    const formula = getManufactFormula(room.formulaId);
+    if (!formula) return;
+    const costPoint = formula.costPoint ?? 0;
+    const capacity = room.capacity ?? 0;
+    if (costPoint <= 0 || capacity <= 0) return;
+    const ts = now();
+    const elapsed = ts - (room.lastUpdateTime || ts);
+    if (elapsed <= 0) return;
+    room.lastUpdateTime = ts;
+    room.processPoint = (room.processPoint ?? 0) + elapsed * capacity;
+    let produced = Math.floor(room.processPoint / costPoint);
+    if (produced <= 0) return;
+    room.processPoint -= produced * costPoint;
+    // 未设目标时（remainSolutionCnt 无效）按公式无限产出；否则受剩余目标限制
+    if ((room.remainSolutionCnt ?? 0) > 0) {
+      produced = Math.min(produced, room.remainSolutionCnt);
+      room.remainSolutionCnt -= produced;
+    }
+    room.outputSolutionCnt = (room.outputSolutionCnt ?? 0) + produced;
+  }
+
+  /**
    * 制造站结算
    * 参考实现：根据配方将产出物品加入背包，并消耗对应材料，重置制造站状态
    * @param args - 包含 roomSlotId 的参数对象
@@ -602,15 +711,19 @@ export class BuildingManager {
   async settleManufacture(args: { roomSlotId: string }) {
     const { roomSlotId } = args;
     return await this._player.update(async (draft) => {
+      // 先推进时间累积的产出再结算
+      this._accrueManufacture(draft, roomSlotId);
       this._settleManufactureInternal(draft, roomSlotId);
-      // 重置制造站状态
+      // 重置制造站状态（防御：非法 roomSlotId 直接返回不 500）
       const room = draft.building.rooms.MANUFACTURE[roomSlotId];
+      if (!room) return;
       room.state = 0;
       room.formulaId = "";
       room.lastUpdateTime = now();
       room.completeWorkTime = -1;
       room.remainSolutionCnt = 0;
       room.outputSolutionCnt = 0;
+      room.processPoint = 0;
     });
   }
 
@@ -638,12 +751,41 @@ export class BuildingManager {
       (draft.inventory[formula.itemId] || 0) + gainCount;
 
     // 消耗：costs（MATERIAL 扣 inventory / GOLD 扣 status.gold）
+    // 修复：余额校验——材料/金币不足时按比例只结算可承担部分，避免负库存/负金币
+    let affordable = outputSolutionCnt;
+    for (const cost of formula.costs ?? []) {
+      const per = cost.count ?? 0;
+      if (per <= 0) continue;
+      const need = per * outputSolutionCnt;
+      const have =
+        cost.type === "GOLD"
+          ? draft.status.gold
+          : draft.inventory[cost.id] || 0;
+      if (need > 0 && have < need) {
+        affordable = Math.min(affordable, Math.floor(have / per));
+      }
+    }
+    if (affordable <= 0) {
+      // 材料不足：回退产出，仅保留已加的物品（下轮 settle 再补扣）
+      draft.inventory[formula.itemId] =
+        (draft.inventory[formula.itemId] || 0) - gainCount;
+      return;
+    }
+    const settleCount = Math.min(outputSolutionCnt, affordable);
+    if (settleCount !== outputSolutionCnt) {
+      // 部分结算：产出与消耗都按可承担数
+      draft.inventory[formula.itemId] =
+        (draft.inventory[formula.itemId] || 0) -
+        (gainCount - (formula.count ?? 1) * settleCount);
+      room.outputSolutionCnt = outputSolutionCnt - settleCount;
+      room.remainSolutionCnt = (room.remainSolutionCnt ?? 0) + (outputSolutionCnt - settleCount);
+    }
     for (const cost of formula.costs ?? []) {
       if (cost.type === "GOLD") {
-        draft.status.gold -= cost.count * outputSolutionCnt;
+        draft.status.gold -= cost.count * settleCount;
       } else {
         draft.inventory[cost.id] =
-          (draft.inventory[cost.id] || 0) - cost.count * outputSolutionCnt;
+          (draft.inventory[cost.id] || 0) - cost.count * settleCount;
       }
     }
   }
@@ -678,16 +820,20 @@ export class BuildingManager {
   }) {
     const { roomSlotId, targetFormulaId, solutionCount } = args;
     return await this._player.update(async (draft) => {
-      // 先结算当前已产出的方案
+      // 先推进并结算当前已产出的方案
+      this._accrueManufacture(draft, roomSlotId);
       this._settleManufactureInternal(draft, roomSlotId);
-      // 切换到新配方
+      // 切换到新配方（修复：产出随时间累积而非立即满产——
+      // remainSolutionCnt 为目标批次数，outputSolutionCnt 从 0 开始由 _accrueManufacture 推进）
       const room = draft.building.rooms.MANUFACTURE[roomSlotId];
+      if (!room) return;
       room.state = 1;
       room.formulaId = targetFormulaId;
       room.lastUpdateTime = now();
       room.completeWorkTime = -1;
-      room.remainSolutionCnt = 0;
-      room.outputSolutionCnt = solutionCount;
+      room.remainSolutionCnt = Math.max(0, solutionCount ?? 0);
+      room.outputSolutionCnt = 0;
+      room.processPoint = 0;
     });
   }
 
@@ -754,22 +900,41 @@ export class BuildingManager {
       const formula = getWorkshopFormula(roomFormulaId);
       if (!formula) return; // 配方不存在（数据版本错位/制造配方 ID）——容错跳过
 
+      // 修复：余额校验——材料/金币不足时按可承担次数合成，避免负库存/负金币
+      const totalGoldCost = (formula.goldCost ?? 0) * times;
+      let affordable = times;
+      for (const cost of formula.costs ?? []) {
+        const per = cost.count ?? 0;
+        if (per <= 0) continue;
+        const have =
+          cost.type === "GOLD"
+            ? draft.status.gold
+            : draft.inventory[cost.id] || 0;
+        if (have < per * times) {
+          affordable = Math.min(affordable, Math.floor(have / per));
+        }
+      }
+      if (totalGoldCost > 0 && draft.status.gold < totalGoldCost) {
+        affordable = Math.min(affordable, Math.floor(draft.status.gold / (formula.goldCost ?? 1)));
+      }
+      if (affordable <= 0) return;
+      const times2 = affordable;
       // 消耗：costs（MATERIAL 扣 inventory / GOLD 扣金币）
       for (const cost of formula.costs ?? []) {
         if (cost.type === "GOLD") {
-          draft.status.gold -= cost.count * times;
+          draft.status.gold -= cost.count * times2;
         } else {
           draft.inventory[cost.id] =
-            (draft.inventory[cost.id] || 0) - cost.count * times;
+            (draft.inventory[cost.id] || 0) - cost.count * times2;
         }
       }
       // 消耗：goldCost（合成手续费）
       if (formula.goldCost) {
-        draft.status.gold -= formula.goldCost * times;
+        draft.status.gold -= formula.goldCost * times2;
       }
       // 产出
       draft.inventory[formula.itemId] =
-        (draft.inventory[formula.itemId] || 0) + (formula.count ?? 1) * times;
+        (draft.inventory[formula.itemId] || 0) + (formula.count ?? 1) * times2;
       // 副产物（extraOutcomeRate 概率 + extraOutcomeGroup 加权随机）
       if (
         formula.extraOutcomeRate &&
@@ -787,7 +952,7 @@ export class BuildingManager {
           roll -= g.weight ?? 1;
           if (roll <= 0) {
             draft.inventory[g.itemId] =
-              (draft.inventory[g.itemId] || 0) + (g.itemCount ?? 1) * times;
+              (draft.inventory[g.itemId] || 0) + (g.itemCount ?? 1) * times2;
             break;
           }
         }
@@ -795,7 +960,7 @@ export class BuildingManager {
       resultItem = {
         type: "MATERIAL",
         id: formula.itemId,
-        count: times,
+        count: times2,
       };
     });
     return resultItem;

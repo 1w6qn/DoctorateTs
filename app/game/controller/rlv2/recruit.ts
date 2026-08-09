@@ -138,7 +138,7 @@ export class RoguelikeRecruitManager {
       const extraFreeRarity = ticketInfo.extraFreeRarity || [];
       for (const tier of extraFreeRarity) {
         const tierNum = tierMap[tier];
-        if (tierNum && charData.rarity === tierNum) {
+        if (tierNum && charData.rarity === tier) {
           freeCharIndexes.push(i);
           break;
         }

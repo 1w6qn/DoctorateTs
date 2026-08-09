@@ -6,6 +6,7 @@ import { GachaResult } from "@game/model/gacha";
 import { now } from "@utils/time";
 import { ceil } from "lodash";
 import { logger } from "@utils/logger";
+import { rarityToIndex } from "@utils/rarity";
 
 export class CharManager {
   _trigger: TypedEventEmitter;
@@ -21,12 +22,12 @@ export class CharManager {
       await this._player.update(async (draft) => {
         const char = draft.troop.chars[charId];
         const charInfo = excel.CharacterTable[char.charId];
-        if (charInfo.rarity <= 1 && char.level == 30) {
+        if (rarityToIndex(charInfo.rarity) <= 1 && char.level == 30) {
           //unlock addonStage
           //unlock addonStory
           //unlock buildingSkill
         }
-        if (charInfo.rarity <= 2 && char.level == 55) {
+        if (rarityToIndex(charInfo.rarity) <= 2 && char.level == 55) {
           //unlock addonStage
           //unlock addonStory
           //unlock buildingSkill
@@ -49,7 +50,7 @@ export class CharManager {
       const info = excel.CharacterTable[charId];
       logger.info(
         "CharManager",
-        `获得${info.rarity + 1}星干员 ${info.name} ${isNew ? "新" : "重复"} ${from}`,
+        `获得${rarityToIndex(info.rarity) + 1}星干员 ${info.name} ${isNew ? "新" : "重复"} ${from}`,
       );
       if (isNew) {
         draft.dexNav.character[charId] = {
@@ -73,7 +74,7 @@ export class CharManager {
         items.push({ id: potentId, count: 1, type: "MATERIAL" });
         const mul: number = dexInfo.count > 6 ? 1.5 : 1;
         if (from == "CLASSIC") {
-          switch (excel.CharacterTable[charId].rarity) {
+          switch (rarityToIndex(excel.CharacterTable[charId].rarity)) {
             case 5:
               items.push({ id: "classic_normal_ticket", count: 100 });
               break;
@@ -90,7 +91,7 @@ export class CharManager {
               break;
           }
         } else {
-          switch (excel.CharacterTable[charId].rarity) {
+          switch (rarityToIndex(excel.CharacterTable[charId].rarity)) {
             case 5:
               items.push({ id: "4004", count: ceil(10 * mul) });
               break;
@@ -167,8 +168,11 @@ export class CharManager {
         gold = 0;
       const charId = char.charId;
       const evolvePhase = char.evolvePhase;
-      const rarity = excel.CharacterTable[charId].rarity;
-      const maxLevel = excel.GameDataConst.maxLevel[rarity][evolvePhase];
+      const rarity = rarityToIndex(excel.CharacterTable[charId].rarity);
+      // 防御：稀有度/精二阶段超界（如 1 星机器人被满配生成器置为 phase 2）时钳制到有效档位
+      const maxLevelArr = excel.GameDataConst.maxLevel[rarity] ?? [];
+      const maxLevel =
+        maxLevelArr[evolvePhase] ?? maxLevelArr[maxLevelArr.length - 1] ?? 0;
       for (let i = 0; i < expMats.length; i++) {
         expTotal += expItems[expMats[i].id].gainExp * expMats[i].count;
       }
@@ -200,12 +204,14 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, destEvolvePhase } = args;
       const char = draft.troop.chars[charInstId];
-      const evolveCost = excel.CharacterTable[char.charId].phases[
+      const phaseConfig = excel.CharacterTable[char.charId].phases[
         destEvolvePhase
-      ].evolveCost as ItemBundle[];
-      const rarity = excel.CharacterTable[char.charId].rarity;
+      ] as { evolveCost?: ItemBundle[] | null } | undefined;
+      // 防御：部分特殊干员（预备干员等）无精二配置（evolveCost 为 null），跳过消耗直接升阶
+      const evolveCost = phaseConfig?.evolveCost ?? [];
+      const rarity = rarityToIndex(excel.CharacterTable[char.charId].rarity);
       const goldCost =
-        excel.GameDataConst.evolveGoldCost[rarity][destEvolvePhase];
+        excel.GameDataConst.evolveGoldCost[rarity][destEvolvePhase] ?? 0;
       await this._trigger.emit("items:use", [
         evolveCost.concat([{ id: "4001", count: goldCost } as ItemBundle]),
       ]);
@@ -456,7 +462,7 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, itemId, instId } = args;
       const char = draft.troop.chars[charInstId];
-      const rarity = excel.CharacterTable[char.charId].rarity;
+      const rarity = rarityToIndex(excel.CharacterTable[char.charId].rarity);
       char.level = excel.GameDataConst.maxLevel[rarity][2];
       char.exp = 0;
       await this._trigger.emit("items:use", [

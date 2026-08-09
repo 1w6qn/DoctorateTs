@@ -85,6 +85,19 @@ def dts_routes():
             src = block[1] if len(block) > 1 else ""
         else:
             src = read(os.path.join(DTS, fn))
+        # 展开 for (const X of ["a","b"]) { router.post(`/prefix/${X}`, ...) } 循环注册的路由
+        for lm in re.finditer(
+            r'for \((?:const|let) [A-Za-z_][A-Za-z0-9_]* of \[([^\]]+)\]\) \{[^}]*?\.(get|post|put|delete|patch)\(`(/[^`$]*)\$\{[A-Za-z_][A-Za-z0-9_]*\}([^`]*)`',
+            src,
+            re.S,
+        ):
+            items = [x.strip().strip("'\"") for x in lm.group(1).split(",")]
+            for item in items:
+                full = lm.group(3) + item + lm.group(4)
+                if full.startswith("/") and prefix != "/":
+                    full = prefix.rstrip("/") + full
+                if full.startswith("/"):
+                    routes.setdefault(full, set()).add(lm.group(2).upper())
         for m in TS_ROUTER.finditer(src):
             if m.group(2) == "use":
                 continue

@@ -115,6 +115,8 @@ export async function setup(app: express.Application) {
   app.use("/activity", (await import("./router/vecbreak")).default);
   // 客户端将 multiplayerV3 挂在 /activity 前缀下（/activity/multiplayerV3/*）
   app.use("/activity", (await import("./router/multiplayer")).default);
+  // 客户端在根路径调用 /invite/*（好友邀请），multiplayer router 自带 /invite/* 路径，补根挂载
+  app.use("/", (await import("./router/multiplayer")).default);
   // campaignV2/retro 的 router 自带模块前缀（/campaignV2/*、/retro/*）：
   // 客户端调用单前缀（/campaignV2/battleStart、/retro/unlockRetroBlock），
   // 既有 /campaignV2、/retro 挂载产生双前缀，补根挂载对齐客户端路由
@@ -149,6 +151,8 @@ export async function setup(app: express.Application) {
   app.use("/", (await import("./router/vecbreak")).default);
   // 资源版本审计（客户端 /audit/official/*，stub）
   app.use("/audit", (await import("./router/audit")).default);
+  // 终末地 ODC（客户端 /arkodc/*，根路径）
+  app.use("/arkodc", (await import("./router/arkodc")).default);
   // 统一错误处理：异步 handler 抛错（Express 5 自动捕获）→ JSON 而非 HTML 500。
   // 例：single 模式社交自请求（不能加自己为好友）等业务校验错误，客户端收到可解析 JSON
   app.use(gameErrorHandler);

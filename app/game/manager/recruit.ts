@@ -9,6 +9,7 @@ import {
 import { now } from "@utils/time";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
+import { rarityToIndex } from "@utils/rarity";
 
 export class RecruitManager {
   _player: PlayerDataManager;
@@ -314,8 +315,8 @@ export class RecruitTools {
       };
 
       const tags = value.tagList.map((tag_name: string) => name2tag[tag_name]);
-      if (data.rarity === 5) tags.push(11);
-      else if (data.rarity === 4) tags.push(14);
+      if (rarityToIndex(data.rarity) === 5) tags.push(11);
+      else if (rarityToIndex(data.rarity) === 4) tags.push(14);
       if (value.position === "MELEE") tags.push(9);
       else if (value.position === "RANGED") tags.push(10);
       tags.push(profession2tag[value.profession]);
@@ -326,10 +327,11 @@ export class RecruitTools {
 
     for (const char of Object.keys(charData)) {
       if (char.startsWith("char_")) {
-        if (!charsList[charData[char].rarity]) {
-          charsList[charData[char].rarity] = [];
+        const rarityIdx = rarityToIndex(charData[char].rarity);
+        if (!charsList[rarityIdx]) {
+          charsList[rarityIdx] = [];
         }
-        charsList[charData[char].rarity].push(char);
+        charsList[rarityIdx].push(char);
       }
     }
 

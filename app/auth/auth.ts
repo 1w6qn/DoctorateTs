@@ -243,6 +243,22 @@ router.post("/user/online/v1/ping", async (req, res) => {
   });
 });
 
+/** 在线心跳（客户端根路径别名 /online/v1/ping，无 /user 前缀） */
+router.post("/online/v1/ping", async (req, res) => {
+  res.send({
+    alertTime: 600,
+    interval: 120,
+    message: "OK",
+    result: 0,
+    timeLeft: -1,
+  });
+});
+
+/** 用户登出（客户端根路径别名 /online/v1/loginout，无 /user 前缀） */
+router.post("/online/v1/loginout", async (req, res) => {
+  res.send({ result: 0 });
+});
+
 /**
  * 手机号密码登录（参考 DoctoratePy userLogin）
  * result: 0 成功 / 1 用户名或密码错误 / 4 该用户尚不存在

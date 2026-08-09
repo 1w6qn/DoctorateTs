@@ -86,7 +86,15 @@ router.get("/1/prod/default/Windows/network_config", async (_req, res) => {
  * 新版客户端启动时请求的远程功能配置（fapv2/HGDownload 等开关）
  */
 router.get("/1/prod/default/Windows/remote_config", async (_req, res) => {
-  res.send(buildRemoteConfig());
+  res.send({});
+});
+
+/** Android 平台别名（与 Windows 同响应，覆盖 Android 客户端启动请求） */
+router.get("/1/prod/default/Android/network_config", async (_req, res) => {
+  res.send(buildNetworkConfig());
+});
+router.get("/1/prod/default/Android/remote_config", async (_req, res) => {
+  res.send({});
 });
 
 export const remoteConfigRouter = router;

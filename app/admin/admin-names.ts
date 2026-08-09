@@ -78,3 +78,17 @@ export function resolveCharRef(ref: string): string {
   }
   return id;
 }
+
+/**
+ * 干员星级（0-5）：character_table 的 rarity 为 "TIER_5" 字符串（部分版本数字），统一归一为数字
+ */
+export function charRarity(charId: string): number {
+  const info = (excel.CharacterTable as Record<string, any>)?.[charId];
+  const r = info?.rarity;
+  if (typeof r === "number") return r;
+  if (typeof r === "string") {
+    const m = /(\d+)$/.exec(r);
+    if (m) return Number(m[1]);
+  }
+  return 0;
+}

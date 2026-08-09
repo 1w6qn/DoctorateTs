@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   itemName,
   charName,
+  charRarity,
   skinName,
   resolveItemRef,
   resolveCharRef,
@@ -17,7 +18,9 @@ vi.mock("@excel/excel", () => ({
       },
     },
     CharacterTable: {
-      char_002_amiya: { name: "阿米娅" },
+      char_002_amiya: { name: "阿米娅", rarity: "TIER_5" },
+      char_285_medic2: { name: "Lancet-2", rarity: "TIER_1" },
+      char_100_akafuyu: { name: "赤冬", rarity: 3 },
     },
     SkinTable: {
       charSkins: {
@@ -63,6 +66,24 @@ describe("admin-names resolveItemRef", () => {
 
   it("未知输入应返回 null", () => {
     expect(resolveItemRef("不存在的东西")).toBeNull();
+  });
+});
+
+describe("admin-names charRarity", () => {
+  it("TIER_5 字符串应归一为 5", () => {
+    expect(charRarity("char_002_amiya")).toBe(5);
+  });
+
+  it("TIER_1 应归一为 1", () => {
+    expect(charRarity("char_285_medic2")).toBe(1);
+  });
+
+  it("数字 rarity 应原样返回", () => {
+    expect(charRarity("char_100_akafuyu")).toBe(3);
+  });
+
+  it("未知干员应返回 0", () => {
+    expect(charRarity("char_999")).toBe(0);
   });
 });
 

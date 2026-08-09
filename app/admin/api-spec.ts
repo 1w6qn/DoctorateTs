@@ -62,6 +62,8 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
     body: '{"skinId":"char_002_amiya#2"}',
   },
   { method: "GET", path: "/api/users/:uid/chars", summary: "干员列表（中文名/星级/最大等级）" },
+  { method: "GET", path: "/api/users/:uid/chars/:instId", summary: "单个干员详情（技能/专精/装备/语音/信赖）" },
+  { method: "GET", path: "/api/users/:uid/shop", summary: "商店数据汇总（只读：各类型购买记录数）" },
   {
     method: "POST",
     path: "/api/users/:uid/chars",

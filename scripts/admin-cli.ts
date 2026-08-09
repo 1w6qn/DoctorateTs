@@ -342,9 +342,28 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
           attrs[key === "evolve" ? "evolvePhase" : key === "potential" ? "potentialRank" : key === "skill" ? "mainSkillLvl" : key] = n;
         }
       }
+      // 无编辑参数 → 显示干员详情
       if (Object.keys(attrs).length === 0) {
-        console.error("至少提供一个属性: --level/--evolve/--potential/--skill");
-        process.exitCode = 1;
+        const d = await adminService.getCharDetail(uid, instId);
+        if (!d) {
+          console.error(`干员不存在: instId=${instId}`);
+          process.exitCode = 1;
+          return;
+        }
+        if (flags.json) {
+          output(d, flags);
+          return;
+        }
+        console.log(`${d.name}(${d.charId}) ${d.rarity + 1}★ instId=${d.instId}`);
+        console.log(`  等级 ${d.level}/${d.maxLevel} | 精二 ${d.evolvePhase} | 潜能 ${d.potentialRank} | 技能 ${d.mainSkillLvl} | 信赖 ${d.favorPoint}`);
+        console.log(`  语音 ${d.voiceLan} | 皮肤 ${d.skin ? `${d.skinName ?? d.skin}(${d.skin})` : "默认"}`);
+        console.log(`  当前装备 ${d.currentEquip ?? "无"}`);
+        if (d.skills.length) {
+          console.log("  技能:");
+          for (const s of d.skills) {
+            console.log(`    ${s.skillId} [${s.unlock ? "解锁" : "未解锁"}] 专精 ${s.specializeLevel}`);
+          }
+        }
         return;
       }
       const result = await adminService.setCharAttrs(uid, instId, attrs);
@@ -611,6 +630,26 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
       }
       const r = await adminService.deleteUser(uid, "DELETE");
       console.log(`已删除用户 ${r.uid}`);
+      return;
+    }
+    case "shop": {
+      const uid = args[1];
+      if (!uid) {
+        console.error("用法: users shop <uid> [--json]");
+        process.exitCode = 1;
+        return;
+      }
+      const st = await adminService.getShopSummary(uid);
+      if (flags.json) {
+        output(st, flags);
+        return;
+      }
+      console.log(`用户 ${uid} 商店数据：共 ${st.total} 条购买记录`);
+      if (st.types.length) {
+        console.table(
+          st.types.map((t) => ({ 类型: t.type, 当前商店: t.curShopId ?? "-", 记录数: t.items })),
+        );
+      }
       return;
     }
     default:

@@ -11,6 +11,8 @@ vi.mock("../../../app/admin/AdminService", () => ({
     grantChar: vi.fn().mockResolvedValue({ isNew: 1, name: "阿米娅" }),
     grantSkin: vi.fn().mockResolvedValue(undefined),
     listChars: vi.fn().mockResolvedValue([{ instId: 1, name: "阿米娅" }]),
+    getCharDetail: vi.fn().mockResolvedValue(null),
+    getShopSummary: vi.fn().mockResolvedValue({ types: [{ type: "LS", items: 1 }], total: 1 }),
     setCharAttrs: vi.fn().mockResolvedValue({ instId: 1, name: "阿米娅", level: 90 }),
     maxOutAccount: vi.fn().mockResolvedValue({ chars: 1, items: 10, skins: 2, rooms: 1 }),
     buildingMax: vi.fn().mockResolvedValue({ rooms: 3 }),
@@ -152,6 +154,19 @@ describe("admin 路由（扩展能力）", () => {
     await call({ method: "GET", url: "/api/users/1/chars", params: { uid: "1" } }, res);
     expect(adminService.listChars).toHaveBeenCalledWith("1");
     expect(res.json).toHaveBeenCalledWith([{ instId: 1, name: "阿米娅" }]);
+  });
+
+  it("GET /api/users/:uid/chars/:instId 详情与商店汇总应透传", async () => {
+    // 干员详情：不存在应 404
+    const res1 = mockRes();
+    await call({ method: "GET", url: "/api/users/1/chars/99", params: { uid: "1", instId: "99" } }, res1);
+    expect(adminService.getCharDetail).toHaveBeenCalledWith("1", 99);
+    expect(res1.status).toHaveBeenCalledWith(404);
+
+    const res2 = mockRes();
+    await call({ method: "GET", url: "/api/users/1/shop", params: { uid: "1" } }, res2);
+    expect(adminService.getShopSummary).toHaveBeenCalledWith("1");
+    expect(res2.json).toHaveBeenCalledWith({ types: [{ type: "LS", items: 1 }], total: 1 });
   });
 
   it("POST /api/users/:uid/chars 应修改干员属性", async () => {

@@ -102,6 +102,32 @@ router.get("/api/users/:uid/chars", async (req: Request, res: Response) => {
   }
 });
 
+/** 单个干员详情 */
+router.get("/api/users/:uid/chars/:instId", async (req: Request, res: Response) => {
+  try {
+    const detail = await adminService.getCharDetail(
+      String(req.params.uid),
+      Number(req.params.instId),
+    );
+    if (!detail) {
+      res.status(404).json({ error: `干员不存在: ${req.params.instId}` });
+      return;
+    }
+    res.json(detail);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 商店数据汇总（只读） */
+router.get("/api/users/:uid/shop", async (req: Request, res: Response) => {
+  try {
+    res.json(await adminService.getShopSummary(String(req.params.uid)));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 /** 修改干员属性 */
 router.post("/api/users/:uid/chars", async (req: Request, res: Response) => {
   try {

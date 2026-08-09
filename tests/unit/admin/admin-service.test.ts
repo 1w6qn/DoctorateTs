@@ -136,6 +136,7 @@ function makeFullPd() {
     dungeon: { stages: {} } as any,
     mission: { missions: {}, missionRewards: {}, missionGroups: {} } as any,
     medal: { medals: {}, custom: {} } as any,
+    shop: {} as any,
     building: {
       roomSlots: {
         slot_1: { level: 1, state: 1, roomId: "room_1", charInstIds: [], completeConstructTime: 0 },
@@ -341,6 +342,36 @@ describe("AdminService 干员管理", () => {
       rarity: 4,
       level: 1,
       maxLevel: 30,
+    });
+  });
+
+  it("getCharDetail 应返回干员详情（技能/语音/装备）", async () => {
+    const d = await service.getCharDetail("1", 1);
+    expect(d).toMatchObject({
+      instId: 1,
+      name: "阿米娅",
+      rarity: 4,
+      voiceLan: "CN_MANDARIN",
+      maxLevel: 30,
+    });
+    expect(d!.skills).toHaveLength(1);
+    expect(d!.equip).toBeDefined();
+  });
+
+  it("getCharDetail 对不存在干员应返回 null", async () => {
+    expect(await service.getCharDetail("1", 99)).toBeNull();
+  });
+
+  it("getShopSummary 应汇总各商店类型购买记录数", async () => {
+    (pd._playerdata.shop as any) = {
+      LS: { curShopId: "shop1", info: [{ id: 1 }] },
+      SOCIAL: { curShopId: "shop2", info: [] },
+    };
+    const st = await service.getShopSummary("1");
+    expect(st.total).toBe(1);
+    expect(st.types.find((t) => t.type === "LS")).toMatchObject({
+      curShopId: "shop1",
+      items: 1,
     });
   });
 

@@ -24,6 +24,7 @@ import { logger } from "@utils/logger";
 import {
   itemName,
   charName,
+  charRarity,
   skinName,
   resolveItemRef,
   resolveCharRef,
@@ -74,6 +75,15 @@ export interface CharSummary {
   mainSkillLvl: number;
   skin: string | null;
   skinName: string | null;
+}
+
+/** 干员详情（含技能/专精/装备/语音） */
+export interface CharDetail extends CharSummary {
+  favorPoint: number;
+  voiceLan: string;
+  skills: { skillId: string; unlock: number; specializeLevel: number }[];
+  currentEquip: string | null;
+  equip: { [key: string]: unknown };
 }
 
 /** 干员属性修改参数（均可选，未传不修改） */
@@ -337,7 +347,7 @@ export class AdminService {
           instId: ch.instId,
           charId: ch.charId,
           name: charName(ch.charId),
-          rarity: info?.rarity ?? 0,
+          rarity: charRarity(ch.charId),
           level: ch.level,
           maxLevel,
           evolvePhase: ch.evolvePhase,
@@ -347,6 +357,56 @@ export class AdminService {
           skinName: ch.skin ? skinName(ch.skin) : null,
         };
       });
+  }
+
+  /** 单个干员详情（技能/专精/装备/信赖/语音等；不存在返回 null） */
+  async getCharDetail(
+    uid: string,
+    instId: number,
+  ): Promise<CharDetail | null> {
+    const pd = await this.getPlayer(uid);
+    const ch = pd._playerdata.troop?.chars?.[String(instId)];
+    if (!ch) return null;
+    const info = (excel.CharacterTable as Record<string, any>)?.[ch.charId];
+    return {
+      instId,
+      charId: ch.charId,
+      name: charName(ch.charId),
+      rarity: charRarity(ch.charId),
+      level: ch.level,
+      maxLevel: info?.phases?.[ch.evolvePhase]?.maxLevel ?? 90,
+      evolvePhase: ch.evolvePhase,
+      potentialRank: ch.potentialRank,
+      mainSkillLvl: ch.mainSkillLvl,
+      favorPoint: ch.favorPoint,
+      skin: ch.skin ?? null,
+      skinName: ch.skin ? skinName(ch.skin) : null,
+      voiceLan: ch.voiceLan,
+      skills: (ch.skills ?? []).map((s) => ({
+        skillId: s.skillId,
+        unlock: s.unlock,
+        specializeLevel: s.specializeLevel,
+      })),
+      currentEquip: ch.currentEquip ?? null,
+      equip: ch.equip ?? {},
+    };
+  }
+
+  /** 商店数据汇总（只读：各商店类型购买记录数） */
+  async getShopSummary(
+    uid: string,
+  ): Promise<{ types: { type: string; curShopId?: string; items: number }[]; total: number }> {
+    const pd = await this.getPlayer(uid);
+    const shop = (pd._playerdata.shop ?? {}) as Record<string, any>;
+    const types = Object.entries(shop).map(([type, v]) => ({
+      type,
+      curShopId: typeof v?.curShopId === "string" ? v.curShopId : undefined,
+      items: Array.isArray(v?.info) ? v.info.length : 0,
+    }));
+    return {
+      types,
+      total: types.reduce((s, t) => s + t.items, 0),
+    };
   }
 
   /**

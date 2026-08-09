@@ -719,11 +719,26 @@ logs show [--last N] [--json]
 - 调试：`game-proxy`（带玩家 secret 调游戏端点）
 
 ### 9.8 Dashboard 功能区块
-概览（资源中文名 + 一键满配/基建/刷新/保存/备份/恢复 + 发干员/发皮肤）| 干员（搜索/详情弹窗/行内编辑/全部满级/修复结构）|
+概览（资源中文名网格 + 签到区 + 一键满配/基建/刷新/保存/备份/恢复 + 发干员/发皮肤）| 干员（星级分布条/搜索/详情弹窗/行内编辑/全部满级/修复结构）|
 邮件（列表/删除/群发）| 卡池（清单/详情 + 玩家 UP/保底管理）| 接口（管理 API 控制台 + 游戏协议调试器 + OpenAPI 链接）|
-迁移（粘贴官服账号执行）| 数据（raw JSON 只读）| 统计（等级/注册分布）| 操作日志 | 用户列表搜索
+迁移（官服迁移 + 官服操作 + 通用调用 + 卡池同步）| 数据（raw JSON 复制/下载）| 统计（默认折叠摘要）| 操作日志 | 用户列表搜索/分页
 
-### 9.9 关键设计决策
+### 9.9 Dashboard 交互与视觉规范（2026-08 UI 升级）
+- **零依赖约束**：单文件 `index.html`（内联 CSS/JS）+ `manifest.webmanifest` + `icon.svg`，无构建链、无框架。
+- **主导航**：7 个 Tab 提升为全宽导航条；全局功能 Tab（接口/卡池/迁移）不依赖选中用户、隐藏用户列表内容全宽；
+  用户 Tab（概览/干员/邮件/数据）保持左列表右详情，未选用户时提示。
+- **通知**：Toast 系统替代 `alert`（内容自动着色 成功绿/失败红/信息金，3s 消失）；危险操作用自定义 `confirmDialog` 弹窗（统一主题）。
+- **轮询**：10s 只刷状态 + 用户列表（正在编辑输入框时跳过），统计/日志 30s 低频——不打断行内编辑与请求构造。
+- **主题**：CSS 变量 + `[data-theme=light]` 浅色覆盖（派生色 panel2/hover/input/bar 变量化），header 切换 + localStorage 记忆。
+- **状态色语义**：语义色变量 `--ok/--err/--star5/--star4` 统一干员星级（6 金/5 紫/4 绿）、邮件状态等。
+- **数据展示**：干员星级分布条（客户端按人数比例 + 图例）、用户/干员表分页（每页 50，过滤重置第一页）、骨架屏占位。
+- **多端**：`@media (max-width:900px)` 单列布局、main-nav 横向滚动；PWA manifest 可添加到主屏幕（不做 service worker——
+  与 no-cache 冲突）；`@media print` 只保留详情内容。
+- **缓存**：`/admin/dashboard` 与 manifest/icon 均 `no-cache`——单文件无版本号，禁止浏览器缓存旧版。
+- **快捷键**：`/` `u` 聚焦搜索、`r` 刷新、`1-7` 切 Tab（非输入框时生效）。
+- **代码质量**：内联 JS 用 `node --check` 语法校验（sed/批量改后必查括号配对），每批服务器页面冒烟。
+
+### 9.10 关键设计决策
 - **CLI 与 HTTP 共用 AdminService**：新增能力先在服务层实现 + 单测，再分别接 CLI / router / Dashboard，避免三端逻辑漂移。
 - **scripts 引用策略**：AdminService 直接 import scripts 模块（`migrate-official`、`generate-max-account`），
   使其纳入 tsc 编译（曾暴露 `official-register` 潜在类型错误）；共享构建器（`buildMaxedSkills` 等）迁至 `app/game/maxout.ts`。

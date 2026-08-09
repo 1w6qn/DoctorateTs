@@ -1349,4 +1349,6 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 
 - **arkhub（方舟枢纽）游戏路由实现（2026-08-09，用户报告 /activity/arkhub/syncInfo 404）**：客户端 7 条路由（enterHall/getFriendUidList/getPixelArt/savePixelArt/setSecretary/setSquad/syncInfo）原未实现。按抓包实现：enterHall 返回 gateway 端点+端口、setSecretary/setSquad 更新 activity.ARK_HUB[act1arkhub]、syncInfo 空增量、getPixelArt/savePixelArt 私服空（像素画走 admin 的 arkhub-gateway-client 与官服网关通信）。全部 200 且 setSecretary 正确持久化。
 
+- **templateShop 商店打不开修复（2026-08-09，用户报告奇象巡展/arkodc 商店）**：getGoodList 原返回空 data（商店无法打开）。已复制 ODPY 数据源 `data/shop/templateShop.json`（33 家商店含 sandbox_1/2、shop_act53side 巡展店），getGoodList 返回完整商店配置（32KB，含 shopGroup 商品）；buyGood 实现购买（扣货币→发物品→限购记录），修复 tshop 初始化崩溃。实机：getGoodList 完整返回、buyGood 无货币返回空列表不 500。
+
 - **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用（全量对齐后已补 stub，路径可达）

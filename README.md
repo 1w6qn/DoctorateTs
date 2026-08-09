@@ -48,6 +48,7 @@ npm run admin -- users restore 1 1-20260808-181345.json   # 从备份恢复
 npm run admin -- users dump 1 [--pretty]        # 导出原始玩家数据 JSON
 npm run admin -- users grantall 1 [count]       # 批量发放全部物品（默认 999）
 npm run admin -- users maxchars 1               # 批量拉满全部已有干员
+npm run admin -- users repairchars 1            # 修复干员结构（补齐 voiceLan/starMark/equip/skills）
 npm run admin -- users stages 1 [--json]        # 查看玩家推图进度（只读）
 npm run admin -- users unlock 1 main_01-01      # 解锁指定关卡
 npm run admin -- users unlockall 1              # 推图全解锁

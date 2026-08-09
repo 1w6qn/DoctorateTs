@@ -17,6 +17,7 @@ import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { mailManager } from "@game/manager/mail";
 import { runMigration } from "../../scripts/migrate-official";
+import { buildMaxedChar } from "../../scripts/generate-max-account";
 import { exists, size, readJson, writeJson } from "@utils/file";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";
@@ -1173,6 +1174,63 @@ export class AdminService {
     await accountManager.saveUserConfig();
     await this._audit("deleteUser", uid, "已删除");
     return { uid };
+  }
+
+  /**
+   * 修复干员结构（对应历史"旧生成器干员结构"问题，如 check 发现的缺 voiceLan）：
+   * 补齐 voiceLan/starMark/favorPoint/gainTime/skills/equip，阿米娅补 currentTmpl/tmpl 三形态。
+   * @returns 修复统计 {chars: 有缺口的干员数, fields: 补全字段数}
+   */
+  async repairChars(uid: string): Promise<{ chars: number; fields: number }> {
+    const pd = await this.getPlayer(uid);
+    let chars = 0;
+    let fields = 0;
+    await pd.update(async (draft) => {
+      for (const ch of Object.values(draft.troop?.chars ?? {})) {
+        let changed = false;
+        const patch = (cond: boolean, fn: () => void): void => {
+          if (cond) {
+            fn();
+            changed = true;
+            fields++;
+          }
+        };
+        patch(ch.voiceLan === undefined, () => {
+          ch.voiceLan = "CN_MANDARIN";
+        });
+        patch(ch.starMark === undefined, () => {
+          ch.starMark = 0;
+        });
+        patch(ch.favorPoint === undefined, () => {
+          ch.favorPoint = 0;
+        });
+        patch(ch.gainTime === undefined, () => {
+          ch.gainTime = now();
+        });
+        const charData = (excel.CharacterTable as Record<string, any>)?.[ch.charId];
+        patch(!ch.skills || !ch.skills.length, () => {
+          const skills = buildMaxedSkills(charData);
+          if (skills.length) {
+            ch.skills = skills;
+            ch.defaultSkillIndex = 0;
+          }
+        });
+        patch(ch.equip === undefined, () => {
+          const { ids: equipIds, equip } = buildMaxedEquip(ch.charId);
+          ch.currentEquip = equipIds[0] || null;
+          ch.equip = equip as any;
+        });
+        patch(ch.charId === "char_002_amiya" && (!ch.currentTmpl || !ch.tmpl), () => {
+          const full = buildMaxedChar(Number(ch.instId), "char_002_amiya");
+          ch.currentTmpl = "char_002_amiya";
+          ch.tmpl = full.tmpl as any;
+        });
+        if (changed) chars++;
+      }
+    });
+    await this.savePlayer(uid);
+    await this._audit("repairChars", uid, `${chars} 名干员 / ${fields} 个字段`);
+    return { chars, fields };
   }
 
   /**

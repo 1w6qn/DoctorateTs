@@ -160,6 +160,7 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
     body: '{"count":999}',
   },
   { method: "POST", path: "/api/users/:uid/maxchars", summary: "批量拉满全部已有干员（精二满级/满潜/满技能/专三/满信赖/装备）", body: "{}" },
+  { method: "POST", path: "/api/users/:uid/repair-chars", summary: "修复干员结构（补齐 voiceLan/starMark/equip/skills/阿米娅 tmpl）", body: "{}" },
   { method: "GET", path: "/api/users/:uid/stages", summary: "玩家推图进度（只读：已解锁/已完成关卡）" },
   {
     method: "POST",

@@ -386,6 +386,15 @@ router.post("/api/users/:uid/maxchars", async (req: Request, res: Response) => {
   }
 });
 
+/** 修复干员结构（补齐 voiceLan/starMark/equip/skills/阿米娅 tmpl） */
+router.post("/api/users/:uid/repair-chars", async (req: Request, res: Response) => {
+  try {
+    res.json(await adminService.repairChars(String(req.params.uid)));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 /** 玩家推图进度（只读） */
 router.get("/api/users/:uid/stages", async (req: Request, res: Response) => {
   try {

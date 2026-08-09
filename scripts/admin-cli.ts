@@ -138,6 +138,7 @@ export function printHelp(): void {
   users dump <uid> [--pretty]                       导出原始玩家数据 JSON
   users grantall <uid> [count]                      批量发放全部物品（默认 999）
   users maxchars <uid>                              批量拉满全部已有干员
+  users repairchars <uid>                           修复干员结构（补齐缺失字段）
   users stages <uid> [--json]                       查看玩家推图进度（只读）
   users unlock <uid> <stageId>                      解锁指定关卡
   users unlockall <uid>                             推图全解锁
@@ -149,6 +150,7 @@ export function printHelp(): void {
   users delete <uid> --yes                          删除用户（危险操作，需 --yes）
   users grantall <uid> [count]                      批量发放全部物品（默认 999）
   users maxchars <uid>                              批量拉满全部已有干员
+  users repairchars <uid>                           修复干员结构（补齐缺失字段）
   users stages <uid> [--json]                       查看玩家推图进度（只读）
   users unlock <uid> <stageId>                      解锁指定关卡
   users unlockall <uid>                             推图全解锁
@@ -458,6 +460,17 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
       }
       const result = await adminService.maxAllChars(uid);
       console.log(`已拉满用户 ${uid} 的 ${result.chars} 名干员`);
+      return;
+    }
+    case "repairchars": {
+      const uid = args[1];
+      if (!uid) {
+        console.error("用法: users repairchars <uid>");
+        process.exitCode = 1;
+        return;
+      }
+      const result = await adminService.repairChars(uid);
+      console.log(`已修复用户 ${uid} 干员结构：${result.chars} 名干员 / ${result.fields} 个字段`);
       return;
     }
     case "stages": {

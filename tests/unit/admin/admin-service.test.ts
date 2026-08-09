@@ -732,6 +732,37 @@ describe("AdminService 批量工具", () => {
     expect(st.done).toBe(1);
     expect(st.stages[0].stageId).toBe("main_01-01");
   });
+
+  it("repairChars 应补齐缺失字段与阿米娅 tmpl", async () => {
+    const ch = pd._playerdata.troop.chars["1"];
+    delete ch.voiceLan;
+    delete ch.skills;
+    // starMark/equip/currentEquip 本就不存在，阿米娅无 currentTmpl/tmpl
+    const r = await service.repairChars("1");
+    expect(r.chars).toBe(1);
+    expect(r.fields).toBeGreaterThanOrEqual(5);
+    const fixed = pd._playerdata.troop.chars["1"];
+    expect(fixed.voiceLan).toBe("CN_MANDARIN");
+    expect(fixed.starMark).toBe(0);
+    expect(fixed.skills!.length).toBeGreaterThan(0);
+    expect(fixed.currentTmpl).toBe("char_002_amiya");
+    expect(fixed.tmpl).toBeDefined();
+    expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
+  });
+
+  it("repairChars 对完整干员应无改动", async () => {
+    const ch = pd._playerdata.troop.chars["1"];
+    // 补齐 mock 干员自然缺失的字段，构成"完整"干员
+    ch.starMark = 0;
+    ch.currentEquip = null;
+    ch.equip = {};
+    ch.currentTmpl = "char_002_amiya";
+    ch.tmpl = {};
+    const before = JSON.stringify(ch);
+    const r = await service.repairChars("1");
+    expect(r.fields).toBe(0);
+    expect(JSON.stringify(pd._playerdata.troop.chars["1"])).toBe(before);
+  });
 });
 
 describe("AdminService 关卡/物品/任务", () => {

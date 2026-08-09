@@ -36,6 +36,7 @@ vi.mock("../../../app/admin/AdminService", () => ({
     migrateOfficial: vi.fn().mockResolvedValue([{ phone: "13800000000", uid: "2", nickName: "A" }]),
     grantAllItems: vi.fn().mockResolvedValue({ items: 4 }),
     maxAllChars: vi.fn().mockResolvedValue({ chars: 10 }),
+    repairChars: vi.fn().mockResolvedValue({ chars: 3, fields: 8 }),
     listStages: vi.fn().mockResolvedValue({ total: 2, done: 1, stages: [] }),
     unlockStage: vi.fn().mockResolvedValue({ stageId: "main_01-01" }),
     unlockAllStages: vi.fn().mockResolvedValue({ stages: 5, total: 100 }),
@@ -357,6 +358,11 @@ describe("admin 路由（扩展能力）", () => {
     const res2 = mockRes();
     await call({ method: "POST", url: "/api/users/1/maxchars", params: { uid: "1" }, body: {} }, res2);
     expect(adminService.maxAllChars).toHaveBeenCalledWith("1");
+
+    const res2b = mockRes();
+    await call({ method: "POST", url: "/api/users/1/repair-chars", params: { uid: "1" }, body: {} }, res2b);
+    expect(adminService.repairChars).toHaveBeenCalledWith("1");
+    expect(res2b.json).toHaveBeenCalledWith({ chars: 3, fields: 8 });
 
     const res3 = mockRes();
     await call({ method: "GET", url: "/api/users/1/stages", params: { uid: "1" } }, res3);

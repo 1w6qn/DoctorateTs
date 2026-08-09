@@ -497,50 +497,75 @@
         $("pane-chars").innerHTML = '<p style="color:var(--muted);">暂无干员</p>';
         return;
       }
-      var rows = chars.map(function (c) {
-        return "<tr>" +
-          "<td>" + c.instId + "</td><td>" + escapeHtml(c.name) + "</td><td>" + (c.rarity + 1) + "★</td>" +
-          "<td><input class=\"mini-input\" data-f=\"level\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.level + "\" min=\"1\" max=\"" + c.maxLevel + "\"></td>" +
-          "<td><input class=\"mini-input\" data-f=\"evolvePhase\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.evolvePhase + "\" min=\"0\" max=\"2\"></td>" +
-          "<td><input class=\"mini-input\" data-f=\"potentialRank\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.potentialRank + "\" min=\"0\" max=\"5\"></td>" +
-          "<td><input class=\"mini-input\" data-f=\"mainSkillLvl\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.mainSkillLvl + "\" min=\"1\" max=\"7\"></td>" +
-          "<td><button class=\"btn-sm char-apply\" data-i=\"" + c.instId + "\">应用</button></td></tr>";
-      }).join("");
-      $("pane-chars").innerHTML =
-        '<div class="row" style="align-items:center;margin-bottom:8px;">' +
-        '<button id="maxchars-btn">全部满级</button>' +
-        '<span style="color:var(--muted);font-size:12px;">共 ' + chars.length + " 名干员</span></div>" +
-        "<table><thead><tr><th>instId</th><th>干员</th><th>星级</th><th>等级</th><th>精二</th><th>潜能</th><th>技能</th><th></th></tr></thead><tbody>" +
-        rows + "</tbody></table>";
-      var mc = $("maxchars-btn");
-      if (mc) {
-        mc.addEventListener("click", function () {
-          if (!confirm("批量拉满全部 " + chars.length + " 名干员？")) return;
-          api("/users/" + encodeURIComponent(uid) + "/maxchars", { method: "POST", body: "{}" })
-            .then(function (r) {
-              alert("已拉满 " + r.chars + " 名干员");
+      var render = function (filter) {
+        var kw = filter.toLowerCase();
+        var list = chars.filter(function (c) {
+          return !kw || (c.name + c.charId + " " + c.instId).toLowerCase().indexOf(kw) !== -1;
+        });
+        var rows = list.map(function (c) {
+          return "<tr>" +
+            "<td>" + c.instId + "</td><td>" + escapeHtml(c.name) + "</td><td>" + (c.rarity + 1) + "★</td>" +
+            "<td><input class=\"mini-input\" data-f=\"level\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.level + "\" min=\"1\" max=\"" + c.maxLevel + "\"></td>" +
+            "<td><input class=\"mini-input\" data-f=\"evolvePhase\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.evolvePhase + "\" min=\"0\" max=\"2\"></td>" +
+            "<td><input class=\"mini-input\" data-f=\"potentialRank\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.potentialRank + "\" min=\"0\" max=\"5\"></td>" +
+            "<td><input class=\"mini-input\" data-f=\"mainSkillLvl\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.mainSkillLvl + "\" min=\"1\" max=\"7\"></td>" +
+            "<td><button class=\"btn-sm char-apply\" data-i=\"" + c.instId + "\">应用</button></td></tr>";
+        }).join("");
+        $("pane-chars").innerHTML =
+          '<input id="char-filter" placeholder="搜索干员（名称/ID/instId）..." style="margin:0 0 8px;">' +
+          '<div class="row" style="align-items:center;margin-bottom:8px;">' +
+          '<button id="maxchars-btn">全部满级</button>' +
+          '<button id="repairchars-btn">修复结构</button>' +
+          '<span style="color:var(--muted);font-size:12px;">共 ' + chars.length + " 名（显示 " + list.length + "）</span></div>" +
+          "<table><thead><tr><th>instId</th><th>干员</th><th>星级</th><th>等级</th><th>精二</th><th>潜能</th><th>技能</th><th></th></tr></thead><tbody>" +
+          (rows || '<tr><td colspan="8" style="color:var(--muted);">无匹配干员</td></tr>') +
+          "</tbody></table>";
+        $("char-filter").addEventListener("input", function () {
+          render(this.value.trim());
+        });
+        var mc = $("maxchars-btn");
+        if (mc) {
+          mc.addEventListener("click", function () {
+            if (!confirm("批量拉满全部 " + chars.length + " 名干员？")) return;
+            api("/users/" + encodeURIComponent(uid) + "/maxchars", { method: "POST", body: "{}" })
+              .then(function (r) {
+                alert("已拉满 " + r.chars + " 名干员");
+                loadChars(uid);
+                refreshLogs();
+              })
+              .catch(function (e) { alert("操作失败：" + e.message); });
+          });
+        }
+        var rc = $("repairchars-btn");
+        if (rc) {
+          rc.addEventListener("click", function () {
+            api("/users/" + encodeURIComponent(uid) + "/repair-chars", { method: "POST", body: "{}" })
+              .then(function (r) {
+                alert("已修复 " + r.chars + " 名干员 / " + r.fields + " 个字段");
+                loadChars(uid);
+                refreshLogs();
+              })
+              .catch(function (e) { alert("操作失败：" + e.message); });
+          });
+        }
+        document.querySelectorAll(".char-apply").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var instId = Number(btn.getAttribute("data-i"));
+            var attrs = {};
+            document.querySelectorAll("#pane-chars [data-i=\"" + instId + "\"]").forEach(function (inp) {
+              attrs[inp.getAttribute("data-f")] = Number(inp.value);
+            });
+            api("/users/" + encodeURIComponent(uid) + "/chars", {
+              method: "POST", body: JSON.stringify(Object.assign({ instId: instId }, attrs)),
+            }).then(function (r) {
+              alert("已应用：" + r.name + "（精二 " + r.evolvePhase + " | 等级 " + r.level + " | 潜能 " + r.potentialRank + " | 技能 " + r.mainSkillLvl + "）");
               loadChars(uid);
               refreshLogs();
-            })
-            .catch(function (e) { alert("操作失败：" + e.message); });
-        });
-      }
-      document.querySelectorAll(".char-apply").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var instId = Number(btn.getAttribute("data-i"));
-          var attrs = {};
-          document.querySelectorAll("#pane-chars [data-i=\"" + instId + "\"]").forEach(function (inp) {
-            attrs[inp.getAttribute("data-f")] = Number(inp.value);
+            }).catch(function (e) { alert("修改失败：" + e.message); });
           });
-          api("/users/" + encodeURIComponent(uid) + "/chars", {
-            method: "POST", body: JSON.stringify(Object.assign({ instId: instId }, attrs)),
-          }).then(function (r) {
-            alert("已应用：" + r.name + "（精二 " + r.evolvePhase + " | 等级 " + r.level + " | 潜能 " + r.potentialRank + " | 技能 " + r.mainSkillLvl + "）");
-            loadChars(uid);
-            refreshLogs();
-          }).catch(function (e) { alert("修改失败：" + e.message); });
         });
-      });
+      };
+      render("");
     }).catch(function () {});
   }
 

@@ -18,7 +18,7 @@ import { PlayerDataModel } from "@game/model/playerdata";
 import { mailManager } from "@game/manager/mail";
 import { runMigration } from "../../scripts/migrate-official";
 import { buildMaxedChar } from "../../scripts/generate-max-account";
-import { runOfficialAction, OfficialAction } from "./official-ops";
+import { runOfficialAction, runOfficialCall, OfficialAction } from "./official-ops";
 import { exists, size, readJson, writeJson } from "@utils/file";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";
@@ -1426,6 +1426,28 @@ export class AdminService {
       "",
       `${phone} → ${action}（${result.ok ? "成功" : result.reason ?? "失败"}）`,
     );
+    return result;
+  }
+
+  /**
+   * 官服通用 API 调用（登录后调用任意官方 cgi）
+   * @param phone - 官服手机号
+   * @param pwd - 官服密码
+   * @param cgi - 官服接口路径（如 /user/checkIn）
+   * @param body - 请求体（可选）
+   * @returns 官服完整响应
+   */
+  async officialCall(
+    phone: string,
+    pwd: string,
+    cgi: string,
+    body?: unknown,
+  ): Promise<{ cgi: string; result: any }> {
+    if (!phone || !pwd) {
+      throw new Error("需提供官服手机号与密码");
+    }
+    const result = await runOfficialCall(String(phone), String(pwd), String(cgi), body);
+    await this._audit("officialCall", "", `${phone} → ${result.cgi}`);
     return result;
   }
 

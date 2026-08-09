@@ -9,7 +9,12 @@ vi.mock("../../../scripts/official-api", () => ({
   getRandomDevices: vi.fn().mockReturnValue({ deviceId: "d1", deviceId2: "d2", deviceId3: "d3" }),
 }));
 
-import { OfficialSession, runOfficialAction } from "../../../app/admin/official-ops";
+import {
+  OfficialSession,
+  runOfficialAction,
+  runOfficialCall,
+  validateCgi,
+} from "../../../app/admin/official-ops";
 
 function fakeRes(body: any, seqnum: string | null = null) {
   return Promise.resolve({
@@ -119,6 +124,34 @@ describe("runOfficialAction", () => {
     const r = await runOfficialAction("13800000000", "pwd", "mails");
     expect(r.ok).toBe(true);
     expect(r.data).toMatchObject({ count: 2, unread: 1 });
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("validateCgi / runOfficialCall", () => {
+  it("validateCgi 应接受 /xxx/yyy 形式", () => {
+    expect(validateCgi("/user/checkIn")).toBe("/user/checkIn");
+    expect(validateCgi("/activity/loginOnly/getReward")).toBe("/activity/loginOnly/getReward");
+  });
+
+  it("validateCgi 应拒绝非法路径", () => {
+    expect(() => validateCgi("user/checkIn")).toThrow(/非法的官服接口路径/);
+    expect(() => validateCgi("/../etc/passwd")).toThrow(/非法的官服接口路径/);
+    expect(() => validateCgi("")).toThrow(/非法的官服接口路径/);
+  });
+
+  it("runOfficialCall 应登录后调用指定 cgi 并返回完整响应", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string) =>
+      url.includes("/mail/getMetaInfoList")
+        ? fakeRes({ result: [{ mailId: 1, hasItem: 1, state: 0 }] })
+        : fakeRes({ user: { status: {}, checkIn: { canCheckIn: 1 } } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const r = await runOfficialCall("13800000000", "pwd", "/mail/getMetaInfoList", { from: 0 });
+    expect(r.cgi).toBe("/mail/getMetaInfoList");
+    expect(r.result.result).toHaveLength(1);
+    const [, opts] = fetchMock.mock.calls.find((c: any) => c[0].includes("/mail/getMetaInfoList"))!;
+    expect(JSON.parse(opts.body)).toEqual({ from: 0 });
     vi.unstubAllGlobals();
   });
 });

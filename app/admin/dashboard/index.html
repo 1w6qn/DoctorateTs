@@ -1174,9 +1174,39 @@
       '<option value="mails">邮件列表</option><option value="receive">领邮件</option>' +
       '<option value="daily">一键日常</option></select>' +
       '<button id="op-run" class="primary">执行</button></div>' +
-      '<div class="resp-box" id="op-resp" style="margin-top:10px;">官服操作结果显示在此</div>';
+      '<div class="resp-box" id="op-resp" style="margin-top:10px;">官服操作结果显示在此</div>' +
+      '<p style="color:var(--muted);font-size:12px;margin-top:12px;">官服通用 API 调用：登录后调任意官方接口（如 /mail/getMetaInfoList、/user/checkIn）。</p>' +
+      '<div class="row">' +
+      '<input id="call-phone" placeholder="官服手机号" style="flex:1;">' +
+      '<input id="call-pwd" type="password" placeholder="官服密码" style="flex:1;">' +
+      '<input id="call-cgi" placeholder="/mail/getMetaInfoList" style="flex:1;"></div>' +
+      '<label>请求体（JSON，可选）</label>' +
+      '<textarea id="call-body" rows="3" placeholder=\'{"from":0}\'></textarea>' +
+      '<div class="row"><button id="call-run" class="primary">调用</button></div>' +
+      '<div class="resp-box" id="call-resp" style="margin-top:10px;">官服调用结果显示在此</div>';
     $("migrate-run").addEventListener("click", runMigrate);
     $("op-run").addEventListener("click", runOfficialOp);
+    $("call-run").addEventListener("click", runOfficialCall);
+  }
+
+  function runOfficialCall() {
+    var phone = $("call-phone").value.trim();
+    var pwd = $("call-pwd").value.trim();
+    var cgi = $("call-cgi").value.trim();
+    if (!phone || !pwd || !cgi) { alert("请填写官服手机号、密码与接口路径"); return; }
+    var payload = { phone: phone, pwd: pwd, cgi: cgi };
+    var bodyRaw = $("call-body").value.trim();
+    if (bodyRaw) {
+      try { payload.body = JSON.parse(bodyRaw); }
+      catch (e) { alert("请求体不是合法 JSON"); return; }
+    }
+    $("call-resp").textContent = "调用中...（登录官服并调用 " + cgi + "）";
+    api("/official/call", { method: "POST", body: JSON.stringify(payload) })
+      .then(function (r) {
+        $("call-resp").textContent = "[" + r.cgi + "]\n" + JSON.stringify(r.result, null, 2);
+        refreshLogs();
+      })
+      .catch(function (e) { $("call-resp").textContent = "调用失败: " + e.message; });
   }
 
   function runOfficialOp() {

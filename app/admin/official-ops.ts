@@ -26,6 +26,15 @@ export type OfficialAction =
   | "receive" // 领取全部邮件
   | "daily"; // 一键日常（签到 + 领邮件）
 
+/** 官服 cgi 路径校验：仅允许 /xxx/yyy 形式的官方接口路径 */
+export function validateCgi(cgi: string): string {
+  const p = String(cgi ?? "").trim();
+  if (!/^\/[A-Za-z0-9_/]+$/.test(p)) {
+    throw new Error(`非法的官服接口路径: ${cgi}（须为 /xxx/yyy 形式）`);
+  }
+  return p;
+}
+
 /** 官服会话（无状态操作使用，单次用完即弃） */
 export class OfficialSession {
   uid = "";
@@ -189,4 +198,26 @@ export async function runOfficialAction(
     default:
       throw new Error(`未知官服操作: ${action}`);
   }
+}
+
+/**
+ * 官服通用 API 调用（登录后调用任意官方 cgi）
+ * 无状态：每次调用新建会话登录，完成后即弃。
+ * @param phone - 官服手机号
+ * @param pwd - 官服密码
+ * @param cgi - 官服接口路径（如 /user/checkIn、/activity/loginOnly/getReward）
+ * @param body - 请求体（可选）
+ * @returns 官服完整响应（result/playerDataDelta 等）
+ */
+export async function runOfficialCall(
+  phone: string,
+  pwd: string,
+  cgi: string,
+  body?: any,
+): Promise<{ cgi: string; result: any }> {
+  const path = validateCgi(cgi);
+  const session = new OfficialSession();
+  await session.login(phone, pwd);
+  const result = await session.post(path, body ?? {});
+  return { cgi: path, result };
 }

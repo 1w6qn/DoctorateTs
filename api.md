@@ -1405,6 +1405,7 @@ OAuth2 授权
 | POST | `/admin/api/users/:uid/pity` | 设置玩家保底 `{ruleType, count}`（保底按 gachaRuleType 存账号配置） |
 | POST | `/admin/api/official/migrate` | 官服账号迁移 `{accounts, templateUid?}`（联网拉取官服数据→注册私服账号；成功自动热加载，逐账号返回结果） |
 | POST | `/admin/api/official/action` | 官服操作 `{phone, pwd, action}`：登录官服执行 status/signin/mails/receive/daily（无状态会话即用即弃） |
+| POST | `/admin/api/official/call` | 官服通用 API 调用 `{phone, pwd, cgi, body?}`：登录后调任意官方接口，返回完整响应 |
 | POST | `/admin/api/users/:uid/grant-all` | 批量发放全部 ItemTable 物品 `{count?}`（默认 999） |
 | POST | `/admin/api/users/:uid/maxchars` | 批量拉满全部已有干员（精二满级/满潜/满技能/专三/满信赖/装备） |
 | GET  | `/admin/api/users/:uid/stages` | 玩家推图进度（只读：已解锁/已完成关卡） |

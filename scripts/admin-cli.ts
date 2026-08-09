@@ -193,6 +193,7 @@ export function printHelp(): void {
   official accounts <file> [--json]                 预览账号文件解析结果
   official migrate <file> [--template uid]          官服账号迁移（联网拉取→注册私服账号）
   official <status|signin|mails|receive|daily> <phone> <pwd>   官服操作（登录官服签到/邮件等）
+  official call <phone> <pwd> <cgi> [--body json]              官服通用 API 调用（登录后任意 cgi）
 
 其他:
   help / exit                                       帮助 / 退出`);
@@ -1129,7 +1130,35 @@ async function runOfficial(
     console.log(`[成功] ${JSON.stringify(r.data ?? "")}`);
     return;
   }
-  console.error("用法: official migrate <accounts文件> [--template uid] | official accounts <file> [--json] | official <status|signin|mails|receive|daily> <phone> <pwd>");
+  if (sub === "call") {
+    const phone = args[1];
+    const pwd = args[2];
+    const cgi = args[3];
+    if (!phone || !pwd || !cgi) {
+      console.error('用法: official call <phone> <pwd> <cgi> [--body \'{"from":0}\']');
+      process.exitCode = 1;
+      return;
+    }
+    let body: any = {};
+    if (flags.body && flags.body !== "true") {
+      try {
+        body = JSON.parse(flags.body);
+      } catch {
+        console.error("--body 不是合法 JSON");
+        process.exitCode = 1;
+        return;
+      }
+    }
+    console.log(`正在登录官服并调用 ${cgi}...（需公网访问官服）`);
+    const r = await adminService.officialCall(phone, pwd, cgi, body);
+    if (flags.json) {
+      output(r, flags);
+      return;
+    }
+    console.log(`[${cgi}] ${JSON.stringify(r.result, null, 2)}`);
+    return;
+  }
+  console.error("用法: official migrate <accounts文件> [--template uid] | official accounts <file> [--json] | official <status|signin|mails|receive|daily> <phone> <pwd> | official call <phone> <pwd> <cgi> [--body]");
   process.exitCode = 1;
 }
 

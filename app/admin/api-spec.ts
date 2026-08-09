@@ -170,6 +170,18 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   },
   {
     method: "POST",
+    path: "/api/official/call",
+    summary: "官服通用 API 调用（登录后调用任意官方 cgi，如 /user/checkIn）",
+    params: [
+      { name: "phone", type: "string", required: true, desc: "官服手机号" },
+      { name: "pwd", type: "string", required: true, desc: "官服密码" },
+      { name: "cgi", type: "string", required: true, desc: "官服接口路径（/xxx/yyy 形式）" },
+      { name: "body", type: "object", desc: "请求体（可选）" },
+    ],
+    body: '{"phone":"13800000000","pwd":"password123","cgi":"/mail/getMetaInfoList","body":{"from":0}}',
+  },
+  {
+    method: "POST",
     path: "/api/users/:uid/grant-all",
     summary: "批量发放全部 ItemTable 物品（sortId>0；CONSUME→consumable，其余→inventory）",
     params: [{ name: "count", type: "number", desc: "每样数量（默认 999）" }],

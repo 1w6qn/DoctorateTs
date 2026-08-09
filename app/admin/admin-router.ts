@@ -433,6 +433,22 @@ router.post("/api/official/action", async (req: Request, res: Response) => {
   }
 });
 
+/** 官服通用 API 调用（登录后调用任意官方 cgi） */
+router.post("/api/official/call", async (req: Request, res: Response) => {
+  try {
+    const { phone, pwd, cgi, body } = req.body ?? {};
+    const result = await adminService.officialCall(
+      String(phone),
+      String(pwd),
+      String(cgi),
+      body,
+    );
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 /** 批量发放全部物品 */
 router.post("/api/users/:uid/grant-all", async (req: Request, res: Response) => {
   try {

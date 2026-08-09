@@ -6,7 +6,7 @@ import { mockPlayerData } from "../../helpers";
 import config from "../../../app/config";
 import { appendFile, mkdir } from "fs/promises";
 import { runMigration } from "../../../scripts/migrate-official";
-import { runOfficialAction } from "../../../app/admin/official-ops";
+import { runOfficialAction, runOfficialCall } from "../../../app/admin/official-ops";
 
 // 官服迁移 mock（不真实联网/写库）
 vi.mock("../../../scripts/migrate-official", () => ({
@@ -16,6 +16,8 @@ vi.mock("../../../scripts/migrate-official", () => ({
 // 官服操作 mock（不真实联网）
 vi.mock("../../../app/admin/official-ops", () => ({
   runOfficialAction: vi.fn(),
+  runOfficialCall: vi.fn(),
+  validateCgi: (cgi: string) => cgi,
 }));
 
 // excel 表桩（名称解析/物品校验/满配/干员属性共用）
@@ -959,6 +961,17 @@ describe("AdminService 官服迁移", () => {
 
   it("officialAction 缺手机号或密码应抛错", async () => {
     await expect(service.officialAction("", "pwd", "signin")).rejects.toThrow(/手机号与密码/);
+  });
+
+  it("officialCall 应透传 cgi/body 并审计", async () => {
+    vi.mocked(runOfficialCall).mockResolvedValue({
+      cgi: "/mail/getMetaInfoList",
+      result: { result: [] },
+    });
+    const r = await service.officialCall("13800000000", "pwd", "/mail/getMetaInfoList", { from: 0 });
+    expect(runOfficialCall).toHaveBeenCalledWith("13800000000", "pwd", "/mail/getMetaInfoList", { from: 0 });
+    expect(r.result).toEqual({ result: [] });
+    expect(appendFile).toHaveBeenCalled();
   });
 });
 

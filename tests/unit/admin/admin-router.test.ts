@@ -40,6 +40,7 @@ vi.mock("../../../app/admin/AdminService", () => ({
     setPlayerPity: vi.fn().mockResolvedValue({ uid: "1", ruleType: "NORMAL", beforeNonHitCnt: 42 }),
     migrateOfficial: vi.fn().mockResolvedValue([{ phone: "13800000000", uid: "2", nickName: "A" }]),
     officialAction: vi.fn().mockResolvedValue({ action: "signin", ok: true, data: "签到成功" }),
+    officialCall: vi.fn().mockResolvedValue({ cgi: "/mail/getMetaInfoList", result: {} }),
     grantAllItems: vi.fn().mockResolvedValue({ items: 4 }),
     maxAllChars: vi.fn().mockResolvedValue({ chars: 10 }),
     repairChars: vi.fn().mockResolvedValue({ chars: 3, fields: 8 }),
@@ -396,6 +397,20 @@ describe("admin 路由（扩展能力）", () => {
     );
     expect(adminService.officialAction).toHaveBeenCalledWith("13800000000", "pwd", "signin");
     expect(res.json).toHaveBeenCalledWith({ action: "signin", ok: true, data: "签到成功" });
+  });
+
+  it("POST /api/official/call 应透传手机号/密码/cgi/body", async () => {
+    const res = mockRes();
+    await call(
+      {
+        method: "POST",
+        url: "/api/official/call",
+        body: { phone: "13800000000", pwd: "pwd", cgi: "/mail/getMetaInfoList", body: { from: 0 } },
+      },
+      res,
+    );
+    expect(adminService.officialCall).toHaveBeenCalledWith("13800000000", "pwd", "/mail/getMetaInfoList", { from: 0 });
+    expect(res.json).toHaveBeenCalledWith({ cgi: "/mail/getMetaInfoList", result: {} });
   });
 
   it("批量工具端点应透传（grant-all/maxchars/stages）", async () => {

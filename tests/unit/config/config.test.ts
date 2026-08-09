@@ -5,7 +5,7 @@ vi.mock("os", () => ({
 }));
 
 import os from "os";
-import config, { detectLocalIp } from "../../../app/config";
+import config, { detectLocalIp, resolvePortOverride } from "../../../app/config";
 
 describe("config Host 处理", () => {
   beforeEach(() => {
@@ -40,5 +40,24 @@ describe("config Host 处理", () => {
     const host = "http://auto";
     const resolved = host.includes("auto") ? `http://${detectLocalIp()}` : host;
     expect(resolved).toBe("http://10.0.0.8");
+  });
+});
+
+describe("resolvePortOverride（端口覆盖：--port > PORT 环境变量 > config.json）", () => {
+  it("命令行 --port 优先于环境变量", () => {
+    expect(resolvePortOverride(["-s", "--port", "9001"], "9000")).toBe(9001);
+  });
+
+  it("无 --port 时使用环境变量 PORT", () => {
+    expect(resolvePortOverride(["-s"], "9000")).toBe(9000);
+  });
+
+  it("两者都无返回 null（用 config.json）", () => {
+    expect(resolvePortOverride(["-s"], undefined)).toBeNull();
+  });
+
+  it("非法值回退 null", () => {
+    expect(resolvePortOverride(["--port", "abc"], undefined)).toBeNull();
+    expect(resolvePortOverride([], "99999")).toBeNull();
   });
 });

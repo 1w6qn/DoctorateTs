@@ -21,6 +21,16 @@ const { spawn } = require("child_process");
 const noOpen = process.argv.includes("--no-open");
 
 function readPort() {
+  // 端口覆盖与 config.ts 一致：命令行 --port > 环境变量 PORT > config.json
+  const argIdx = process.argv.indexOf("--port");
+  if (argIdx !== -1 && process.argv[argIdx + 1] !== undefined) {
+    const p = Number(process.argv[argIdx + 1]);
+    if (Number.isInteger(p) && p > 0 && p < 65536) return p;
+  }
+  if (process.env.PORT !== undefined) {
+    const p = Number(process.env.PORT);
+    if (Number.isInteger(p) && p > 0 && p < 65536) return p;
+  }
   try {
     const config = JSON.parse(
       fs.readFileSync(path.join(__dirname, "..", "data", "config.json"), "utf8"),

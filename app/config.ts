@@ -96,4 +96,29 @@ if (String(config.Host).includes("auto")) {
   config.Host = `http://${detectLocalIp()}`;
 }
 
+/**
+ * 端口覆盖：命令行 --port <n> > 环境变量 PORT > config.json
+ * 支持不同端口启动：`PORT=9000 npm start` 或 `npm start -- --port 9000`
+ * （config.PORT 被 index.ts listen 与各 resolveServer 地址拼接共同消费，统一在此覆盖）
+ */
+export function resolvePortOverride(args?: string[], envPort?: string): number | null {
+  const argv = args ?? process.argv.slice(2);
+  const idx = argv.indexOf("--port");
+  if (idx !== -1 && argv[idx + 1] !== undefined) {
+    const p = Number(argv[idx + 1]);
+    if (Number.isInteger(p) && p > 0 && p < 65536) return p;
+  }
+  const env = envPort !== undefined ? envPort : process.env.PORT;
+  if (env !== undefined) {
+    const p = Number(env);
+    if (Number.isInteger(p) && p > 0 && p < 65536) return p;
+  }
+  return null;
+}
+
+const overridePort = resolvePortOverride();
+if (overridePort !== null) {
+  config.PORT = overridePort;
+}
+
 export default config;

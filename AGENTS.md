@@ -10,6 +10,8 @@ npm start -- --offline   # zero-network start, verifies 66 local data files firs
 npm start -- -s          # skip repo pulls, still copies data + regenerates types
 npm run start:quick      # quick local start: tsx index.ts -s (no network, use local data)
 npm run start:capture    # capture mode: tsx index.ts -s --capture (as/gs 转发官服并记录 tmp/)
+PORT=9000 npm run start:quick   # 不同端口启动（环境变量 PORT 覆盖 config.json 的 8443）
+npm run start:quick -- --port 9001  # 或命令行 --port（优先级高于 PORT 环境变量）
 start.cmd                # Windows one-click: quick start + auto-open admin dashboard
 npm run build            # tsc (typecheck)
 npm run test             # vitest run

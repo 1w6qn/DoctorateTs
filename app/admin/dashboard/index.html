@@ -158,8 +158,8 @@
   <!-- 右侧：详情/操作 -->
   <section class="card" id="detail-card">
     <h3 style="color:var(--gold);" id="detail-title">用户详情</h3>
-    <div id="detail-empty" style="color:var(--muted);padding:20px 0;text-align:center;">点击左侧用户查看详情</div>
-    <div id="detail-body" style="display:none;">
+    <div id="detail-empty" style="color:var(--muted);padding:20px 0;text-align:center;">点击左侧用户查看用户详情</div>
+    <div id="detail-body">
       <div class="tabs">
         <div class="tab active" data-tab="overview">概览</div>
         <div class="tab" data-tab="chars">干员</div>
@@ -415,16 +415,26 @@
     document.querySelectorAll("#detail-body .tab-pane").forEach(function (p) {
       p.classList.toggle("active", p.id === "pane-" + tab);
     });
-    if (selectedUid) loadPane(tab, selectedUid);
+    loadPane(tab, selectedUid);
   }
 
+  /** 用户相关 Tab（需选中用户） */
+  var USER_TABS = ["overview", "chars", "mails", "raw"];
+
   function loadPane(tab, uid) {
+    // 全局功能 Tab（接口/卡池/迁移）不依赖选中用户，未选用户也可用
+    if (tab === "pools") { loadPoolsPane(); return; }
+    if (tab === "api") { loadApiPane(); return; }
+    if (tab === "migrate") { loadMigratePane(); return; }
+    // 用户相关 Tab：未选用户时提示
+    if (!uid) {
+      var pane = $("pane-" + tab);
+      if (pane) pane.innerHTML = '<p style="color:var(--muted);padding:16px 0;text-align:center;">← 先在左侧用户列表选择用户</p>';
+      return;
+    }
     if (tab === "overview") loadOverview(uid);
     else if (tab === "chars") loadChars(uid);
     else if (tab === "mails") loadMails(uid);
-    else if (tab === "pools") loadPoolsPane();
-    else if (tab === "api") loadApiPane();
-    else if (tab === "migrate") loadMigratePane();
     else if (tab === "raw") loadRaw(uid);
   }
 
@@ -432,7 +442,6 @@
     selectedUid = uid;
     $("detail-title").textContent = "用户详情 — " + uid;
     $("detail-empty").style.display = "none";
-    $("detail-body").style.display = "block";
     refreshUsers();
     loadPane(currentTab, uid);
   }
@@ -1282,6 +1291,7 @@
       localStorage.setItem("adminToken", token);
       hideLogin();
       refreshAll();
+      loadPane(currentTab, selectedUid); // 初始化当前 Tab（未选用户时全局 Tab 可用/用户 Tab 提示）
     }).catch(function () {
       $("login-err").style.display = "block";
     });

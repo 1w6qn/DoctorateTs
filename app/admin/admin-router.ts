@@ -16,6 +16,8 @@ const router = Router();
 
 /** Dashboard 静态页面（免认证，页面内输入令牌后访问 API） */
 router.get("/dashboard", (_req: Request, res: Response) => {
+  // 单文件页面无版本号：禁止缓存，避免浏览器拿到旧版（新增功能不生效）
+  res.set("Cache-Control", "no-cache, no-store, must-revalidate");
   // 用 process.cwd() 而非 __dirname，兼容 ts-node 与 tsc build 产物
   res.sendFile(path.join(process.cwd(), "app", "admin", "dashboard", "index.html"));
 });

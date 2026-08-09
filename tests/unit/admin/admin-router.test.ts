@@ -70,6 +70,7 @@ function mockRes() {
     status: vi.fn().mockReturnThis(),
     json: vi.fn(),
     sendStatus: vi.fn(),
+    set: vi.fn().mockReturnThis(),
   };
 }
 

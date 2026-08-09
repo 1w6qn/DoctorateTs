@@ -203,6 +203,7 @@
       <thead><tr><th>UID</th><th>昵称</th><th>等级</th><th>手机</th><th>最后在线</th><th></th></tr></thead>
       <tbody id="user-tbody"></tbody>
     </table>
+    <div id="user-pager"></div>
     <p id="user-empty" style="color:var(--muted);text-align:center;padding:20px;">暂无用户</p>
   </section>
 
@@ -408,12 +409,18 @@
     }).catch(function () {});
   }
 
+  var USER_PAGE_SIZE = 50;
+  var userPage = 1;
+
   function refreshUsers() {
     return api("/users?filter=" + encodeURIComponent(userFilter)).then(function (users) {
+      var pages = Math.max(1, Math.ceil(users.length / USER_PAGE_SIZE));
+      if (userPage > pages) userPage = pages;
+      var pageUsers = users.slice((userPage - 1) * USER_PAGE_SIZE, userPage * USER_PAGE_SIZE);
       var tbody = $("user-tbody");
       tbody.innerHTML = "";
       $("user-empty").style.display = users.length ? "none" : "block";
-      users.forEach(function (u) {
+      pageUsers.forEach(function (u) {
         var tr = document.createElement("tr");
         tr.className = "clickable";
         if (u.uid === selectedUid) tr.classList.add("active");
@@ -433,6 +440,20 @@
         tr.addEventListener("click", function () { selectUser(u.uid); });
         tbody.appendChild(tr);
       });
+      // 分页控件
+      var pagerBox = $("user-pager");
+      if (pagerBox) {
+        pagerBox.innerHTML = pages > 1 ? pagerHtml(userPage, pages) : "";
+        document.querySelectorAll("#user-pager [data-page]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var p = Number(btn.getAttribute("data-page"));
+            if (p >= 1 && p <= pages) {
+              userPage = p;
+              refreshUsers();
+            }
+          });
+        });
+      }
     }).catch(function () {});
   }
 
@@ -463,6 +484,30 @@
   function resItem(num, lbl) {
     return '<div class="res-item"><div class="num">' + escapeHtml(String(num)) +
       '</div><div class="lbl">' + escapeHtml(lbl) + "</div></div>";
+  }
+
+  /** 分页控件 HTML */
+  function pagerHtml(page, pages) {
+    return '<div class="row" style="align-items:center;gap:8px;margin:8px 0;">' +
+      '<button class="btn-sm" data-page="' + (page - 1) + '"' + (page <= 1 ? " disabled" : "") + '>上一页</button>' +
+      '<span style="font-size:12px;color:var(--muted);">第 ' + page + "/" + pages + " 页</span>" +
+      '<button class="btn-sm" data-page="' + (page + 1) + '"' + (page >= pages ? " disabled" : "") + '>下一页</button></div>';
+  }
+
+  /** 干员星级分布条（客户端按 chars 统计） */
+  function starDistBar(chars) {
+    if (!chars || !chars.length) return "";
+    var dist = [0, 0, 0, 0, 0, 0];
+    chars.forEach(function (c) { dist[c.rarity]++; });
+    var segs = dist.map(function (n, r) {
+      return n ? '<div style="width:' + (n / chars.length * 100) + '%;background:' + starColor(r) + ';" title="' + (r + 1) + "★ x" + n + '"></div>' : "";
+    }).join("");
+    var legend = dist.map(function (n, r) {
+      return n ? '<span style="color:' + starColor(r) + ';">' + (r + 1) + "★" + n + "</span>" : "";
+    }).join(" ");
+    return '<div class="row" style="align-items:center;gap:8px;margin-bottom:8px;">' +
+      '<div style="flex:1;display:flex;height:10px;border-radius:4px;overflow:hidden;background:var(--bar);">' + segs + "</div>" +
+      '<span style="font-size:11px;color:var(--muted);white-space:nowrap;">' + legend + "</span></div>";
   }
 
   function distBars(dist) {
@@ -669,12 +714,17 @@
         $("pane-chars").innerHTML = '<p style="color:var(--muted);">暂无干员</p>';
         return;
       }
-      var render = function (filter) {
+      var CHAR_PAGE_SIZE = 50;
+      var render = function (filter, page) {
+        page = page || 1;
         var kw = filter.toLowerCase();
         var list = chars.filter(function (c) {
           return !kw || (c.name + c.charId + " " + c.instId).toLowerCase().indexOf(kw) !== -1;
         });
-        var rows = list.map(function (c) {
+        var pages = Math.max(1, Math.ceil(list.length / CHAR_PAGE_SIZE));
+        if (page > pages) page = pages;
+        var pageList = list.slice((page - 1) * CHAR_PAGE_SIZE, page * CHAR_PAGE_SIZE);
+        var rows = pageList.map(function (c) {
           return "<tr>" +
             "<td>" + c.instId + "</td>" +
             '<td><a class="cinfo-link" data-i="' + c.instId + '" style="color:var(--gold);cursor:pointer;text-decoration:underline;">' + escapeHtml(c.name) + "</a></td>" +
@@ -685,17 +735,27 @@
             "<td><input class=\"mini-input\" data-f=\"mainSkillLvl\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.mainSkillLvl + "\" min=\"1\" max=\"7\"></td>" +
             "<td><button class=\"btn-sm char-apply\" data-i=\"" + c.instId + "\">应用</button></td></tr>";
         }).join("");
+        var pager = list.length > CHAR_PAGE_SIZE ? pagerHtml(page, pages) : "";
         $("pane-chars").innerHTML =
+          starDistBar(list) +
           '<input id="char-filter" placeholder="搜索干员（名称/ID/instId）..." style="margin:0 0 8px;">' +
           '<div class="row" style="align-items:center;margin-bottom:8px;">' +
           '<button id="maxchars-btn">全部满级</button>' +
           '<button id="repairchars-btn">修复结构</button>' +
           '<span style="color:var(--muted);font-size:12px;">共 ' + chars.length + " 名（显示 " + list.length + "）</span></div>" +
+          pager +
           "<table><thead><tr><th>instId</th><th>干员</th><th>星级</th><th>等级</th><th>精二</th><th>潜能</th><th>技能</th><th></th></tr></thead><tbody>" +
           (rows || '<tr><td colspan="8" style="color:var(--muted);">无匹配干员</td></tr>') +
-          "</tbody></table>";
+          "</tbody></table>" +
+          pager;
+        document.querySelectorAll("#pane-chars [data-page]").forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var p = Number(btn.getAttribute("data-page"));
+            if (p >= 1 && p <= pages) render($("char-filter").value.trim(), p);
+          });
+        });
         $("char-filter").addEventListener("input", function () {
-          render(this.value.trim());
+          render(this.value.trim(), 1); // 过滤重置到第一页
         });
         var mc = $("maxchars-btn");
         if (mc) {
@@ -745,7 +805,7 @@
           });
         });
       };
-      render("");
+      render("", 1);
     }).catch(function () {});
   }
 

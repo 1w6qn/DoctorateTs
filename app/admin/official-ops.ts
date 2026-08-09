@@ -17,6 +17,51 @@ import {
   loginGame,
   getRandomDevices,
 } from "../../scripts/official-api";
+import { mkdir, writeFile } from "fs/promises";
+import * as path from "path";
+
+/** 官服调用记录根目录（对齐 traffic-recorder 的 tmp/{module}/{endpoint} 格式） */
+const OFFICIAL_RECORD_ROOT = "tmp";
+
+/** 当前时间戳（文件名用，对齐 traffic-recorder 格式） */
+function recordTs(): string {
+  return new Date().toISOString().replace(/[:.]/g, "-");
+}
+
+/**
+ * 记录一次官服调用请求/响应到 tmp/official/（请求头脱敏：去除 secret）
+ * 目录格式与 traffic-recorder 一致：tmp/official/{cgi}/ 响应 + tmp/request_official/{cgi}/ 请求
+ */
+async function recordOfficialCall(
+  cgi: string,
+  req: { body?: any; headers: Record<string, string> },
+  res: { status: number; body: any },
+): Promise<void> {
+  const ts = recordTs();
+  const endpoint = cgi.replace(/^\//, "").split("/").join("/");
+  const { secret: _secret, ...safeHeaders } = req.headers; // 脱敏：不落盘 secret
+  try {
+    await mkdir(path.join(OFFICIAL_RECORD_ROOT, "official", endpoint), { recursive: true });
+    await mkdir(path.join(OFFICIAL_RECORD_ROOT, "request_official", endpoint), { recursive: true });
+    await writeFile(
+      path.join(OFFICIAL_RECORD_ROOT, "official", endpoint, `${ts}.json`),
+      JSON.stringify(res.body, null, 2),
+      "utf8",
+    );
+    await writeFile(
+      path.join(OFFICIAL_RECORD_ROOT, "request_official", endpoint, `${ts}.json`),
+      JSON.stringify(
+        { cgi, headers: safeHeaders, body: req.body ?? {}, timestamp: new Date().toISOString() },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+  } catch (e) {
+    // 记录失败不影响官服调用
+    console.error("[official-ops] 记录失败:", (e as Error).message);
+  }
+}
 
 /** 支持的官服操作 */
 export type OfficialAction =
@@ -67,32 +112,45 @@ export class OfficialSession {
     return this.data;
   }
 
-  /** 官服 POST（带 secret/seqnum 头；seqnum 按响应头更新或自增） */
+  /** 官服 POST（带 secret/seqnum 头；seqnum 按响应头更新或自增；调用记录到 tmp/official） */
   async post(cgi: string, body?: any): Promise<any> {
-    const res = await fetch(GAME_API + cgi, {
-      method: "POST",
-      headers: {
-        uid: this.uid,
-        secret: this.secret,
-        seqnum: String(this.seqnum),
-        "Content-Type": "application/json",
-        "X-Unity-Version": "2017.4.39f1",
-        "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 6.0.1; X Build/V417IR)",
-        Connection: "Keep-Alive",
-      },
-      body: JSON.stringify(body ?? {}),
-    });
-    if (!res.ok) {
-      throw new Error(`官服 HTTP ${res.status} @ ${cgi}`);
+    const headers: Record<string, string> = {
+      uid: this.uid,
+      secret: this.secret,
+      seqnum: String(this.seqnum),
+      "Content-Type": "application/json",
+      "X-Unity-Version": "2017.4.39f1",
+      "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 6.0.1; X Build/V417IR)",
+      Connection: "Keep-Alive",
+    };
+    let status = 0;
+    let data: any = null;
+    try {
+      const res = await fetch(GAME_API + cgi, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body ?? {}),
+      });
+      status = res.status;
+      if (!res.ok) {
+        throw new Error(`官服 HTTP ${res.status} @ ${cgi}`);
+      }
+      const seqnumHeader = res.headers.get("seqnum");
+      this.seqnum =
+        seqnumHeader && !Number.isNaN(Number(seqnumHeader))
+          ? Number(seqnumHeader)
+          : this.seqnum + 1;
+      data = await res.json();
+      if (data?.user) this.data = data.user;
+      return data;
+    } finally {
+      // 无论成功失败都记录（请求脱敏去除 secret；响应含 status 与 body）
+      void recordOfficialCall(
+        cgi,
+        { body: body ?? {}, headers },
+        { status, body: { status, ...(data ?? { error: "请求失败" }) } },
+      );
     }
-    const seqnumHeader = res.headers.get("seqnum");
-    this.seqnum =
-      seqnumHeader && !Number.isNaN(Number(seqnumHeader))
-        ? Number(seqnumHeader)
-        : this.seqnum + 1;
-    const data = await res.json();
-    if (data?.user) this.data = data.user;
-    return data;
   }
 
   /** 官服签到 */

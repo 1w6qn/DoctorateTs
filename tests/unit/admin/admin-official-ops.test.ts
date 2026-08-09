@@ -8,6 +8,12 @@ vi.mock("../../../scripts/official-api", () => ({
   loginGame: vi.fn().mockResolvedValue({ secret: "s", seqnum: "1" }),
   getRandomDevices: vi.fn().mockReturnValue({ deviceId: "d1", deviceId2: "d2", deviceId3: "d3" }),
 }));
+// 官服调用记录：mock fs 避免测试写真实 tmp/
+const fsMocks = vi.hoisted(() => ({
+  mkdir: vi.fn().mockResolvedValue(undefined),
+  writeFile: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("fs/promises", () => fsMocks);
 
 import {
   OfficialSession,
@@ -62,6 +68,32 @@ describe("OfficialSession", () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation(() => fakeRes({})));
     await s.post("/user/checkIn", {});
     expect(s.seqnum).toBe(4);
+    vi.unstubAllGlobals();
+  });
+
+  it("post 应记录请求/响应到 tmp/official（请求脱敏 secret）", async () => {
+    fsMocks.mkdir.mockClear();
+    fsMocks.writeFile.mockClear();
+    const s = new OfficialSession();
+    s.uid = "1";
+    s.secret = "s";
+    s.seqnum = 1;
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => fakeRes({ result: 0 })));
+    await s.post("/user/checkIn", {});
+    // 记录为 fire-and-forget，等待落盘完成
+    await new Promise((r) => setTimeout(r, 20));
+    expect(fsMocks.writeFile).toHaveBeenCalledTimes(2);
+    const reqJson = fsMocks.writeFile.mock.calls.find((c: any) =>
+      String(c[0]).includes("request_official"),
+    )![1];
+    const parsed = JSON.parse(reqJson);
+    expect(parsed.cgi).toBe("/user/checkIn");
+    expect(parsed.headers.secret).toBeUndefined(); // 脱敏
+    expect(parsed.body).toEqual({});
+    const resJson = fsMocks.writeFile.mock.calls.find((c: any) =>
+      String(c[0]).replace(/\\/g, "/").includes("official/user/checkIn"),
+    )![1];
+    expect(JSON.parse(resJson).result).toBe(0);
     vi.unstubAllGlobals();
   });
 });

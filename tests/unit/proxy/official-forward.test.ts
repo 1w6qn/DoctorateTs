@@ -351,5 +351,33 @@ describe("resolveForwardTarget（官服转发目标解析）", () => {
 
       expect(res.send).toHaveBeenCalledWith({ playerDataDelta: {} });
     });
+
+    it("multipart（req.rawBody 存在）原样透传原始字节，不用空 req.body", async () => {
+      mockAxios.mockResolvedValueOnce({ status: 200, data: {} });
+      const handler = createOfficialForwarder();
+      const raw = Buffer.from('--C880D0B0\r\nContent-Disposition: form-data; name="test"\r\n\r\npixel-data\r\n--C880D0B0--\r\n');
+      const req = {
+        method: "POST",
+        url: "/activity/arkhub/savePixelArt",
+        headers: {
+          host: "127.0.0.1:8443",
+          "content-type": "multipart/form-data; boundary=\"C880D0B0\"",
+        },
+        body: {},
+        rawBody: raw,
+        query: {},
+        originalUrl: "/activity/arkhub/savePixelArt",
+      } as any;
+      const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+      const next = vi.fn();
+
+      await handler(req, res, next);
+
+      const [call] = mockAxios.mock.calls;
+      // 转发体是原始 Buffer（multipart 字节原样），而不是 {} 
+      expect(call[0].data).toBe(raw);
+      expect(call[0].data).not.toBe(req.body);
+      expect(call[0].headers["content-type"]).toBe('multipart/form-data; boundary="C880D0B0"');
+    });
   });
 });

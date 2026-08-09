@@ -71,6 +71,20 @@ import { accountManager } from "./app/game/manager/AccountManger";
   await excel.init();
   const app = express();
   app.use(bodyParser.json());
+  // capture 模式：捕获非 JSON 原始请求体（multipart 等），转发时原样透传字节——
+  // bodyParser.json 不解析 multipart，透传 req.body 会变成 {} 导致官服 400 "Invalid multipart payload format"
+  // （实测 POST /activity/arkhub/savePixelArt multipart 2106B → 转发 {} → 400）。JSON 已由 json() 消费，跳过。
+  if (capture) {
+    app.use((req, _res, next) => {
+      if (req.is("application/json")) return next();
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk: Buffer) => chunks.push(chunk));
+      req.on("end", () => {
+        (req as unknown as { rawBody: Buffer }).rawBody = Buffer.concat(chunks);
+        next();
+      });
+    });
+  }
   app.use(morgan("short"));
   // 调试记录：debug.recordTraffic=true 时保存 request/response 到 tmp/（对齐 test.ts 抓包目录）
   app.use(createTrafficRecorder(config));

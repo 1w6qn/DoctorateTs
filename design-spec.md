@@ -1077,6 +1077,7 @@ mitmproxy map remote 设置 URL 时会同步改写 Host 头为 `127.0.0.1:8443`�
 - 官服对双斜杠路径返回 404，endpoint 统一归一化去前导斜杠；`validateStatus: () => true` 原样透传官服 401/400 等状态；网络层错误（官服不可达）返回 502
 - **content-length 剥离**（2026-08-09 修复）：客户端原始 body 可能带空白/换行（实测 oauth2/v2/grant 原始 94B、解析后重序列化 74B），透传 `content-length` 会让官服按声明长度等剩余字节而**永久挂起**（`POST /user/oauth2/v2/grant` 20s 无响应）。转发头剥离 `host`/`content-length`/`transfer-encoding`，由 axios 按实际 body 重算。test.ts 同步修复。
 - **/u8 双写修复**（2026-08-09）：路径级兜底的 as 前缀 baseUrl 一律为 as 域根地址、path 保留完整原路径（含 `/u8`）——若 baseUrl 再拼 `/u8` 基址会与 path 里的 `/u8` 双写（实测 `as.hypergryph.com/u8/u8/user/v1/getToken` → Go 404，修复后 400 字段校验）。test.ts 的 `app.post("/u8/*endpoint", ...)` 通配符不含 `/u8` 前缀，无此问题。
+- **multipart 原始字节透传**（2026-08-09 修复）：非 JSON 请求（实测 `POST /activity/arkhub/savePixelArt` 为 multipart/form-data 2106B）`express.json` 不解析 → `req.body` 为空 `{}`，透传会让官服 400 `"Invalid multipart payload format"`。index.ts capture 块在 `bodyParser.json` 后挂非 JSON 原始体捕获中间件（`req.rawBody`），转发器 POST 时优先用 `rawBody` 原样透传字节（content-length 已剥离由 axios 重算）。test.ts 同步修复。
 
 **登录链路**：客户端经本地 network_config 连到本代理 → `/user/auth/*`、`/u8/*`、`/user/oauth2/*` 转发 as 域拿到**官服真实 token** → `/account/login` 等 gs 请求带真实 secret 转发 `ak-gs-gf` 由官服校验。转发命中后不 `next()`，私服 authMiddleware/游戏路由不参与，故不受单例 secret 强制影响。
 

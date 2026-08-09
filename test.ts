@@ -30,6 +30,17 @@ const BASE = `http://127.0.0.1:${PORT}`;
 
 const app = express();
 app.use(express.json());
+// 非 JSON 原始请求体捕获（multipart 等）：bodyParser.json 不解析 multipart，转发 req.body
+// 会变成 {} 导致官服 400 "Invalid multipart payload format"，这里按原字节透传
+app.use((req, _res, next) => {
+  if (req.is("application/json")) return next();
+  const chunks: Buffer[] = [];
+  req.on("data", (chunk: Buffer) => chunks.push(chunk));
+  req.on("end", () => {
+    (req as unknown as { rawBody: Buffer }).rawBody = Buffer.concat(chunks);
+    next();
+  });
+});
 app.use(
   morgan(":method :url :status :res[content-length] - :response-time ms"),
 );
@@ -73,10 +84,17 @@ const createProxyHandler = (baseUrl: string) => {
       delete forwardedHeaders.host;
       delete forwardedHeaders["content-length"];
       delete forwardedHeaders["transfer-encoding"];
+      const rawBody = (req as unknown as { rawBody?: Buffer }).rawBody;
+      const requestData =
+        req.method === "POST"
+          ? rawBody && rawBody.length > 0
+            ? rawBody
+            : req.body
+          : undefined;
       const response = await axios({
         method: req.method,
         url: `${baseUrl}/${endpoint}`,
-        data: req.method === "POST" ? req.body : undefined,
+        data: requestData,
         headers: forwardedHeaders,
         params: req.query,
         // 官服返回 401/400 等状态属正常（未带有效 secret/参数），不抛异常，原样透传

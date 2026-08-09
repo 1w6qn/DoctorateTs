@@ -93,6 +93,24 @@ describe("AdminService 备份/恢复", () => {
     expect(await service.listBackups("1")).toEqual([]);
   });
 
+  it("cleanBackups 应保留最近 N 个并删除旧备份", async () => {
+    vi.mocked(readdir).mockResolvedValue([
+      "1-20250101000000.json",
+      "1-20250102000000.json",
+      "1-20250103000000.json",
+    ]);
+    vi.mocked(readFile).mockResolvedValue(Buffer.from("{}"));
+    vi.mocked(rm).mockResolvedValue(undefined);
+    const r = await service.cleanBackups("1", 2);
+    expect(r).toEqual({ removed: 1, kept: 2 });
+    // 删除的是最旧的（20250101）
+    expect(rm).toHaveBeenCalledWith(expect.stringContaining("1-20250101000000.json"));
+  });
+
+  it("cleanBackups keep 非法应抛错", async () => {
+    await expect(service.cleanBackups("1", -1)).rejects.toThrow(/非负整数/);
+  });
+
   it("restore 应拒绝路径穿越文件名", async () => {
     await expect(service.restore("1", "../../etc/passwd")).rejects.toThrow(
       /非法的备份文件名/,

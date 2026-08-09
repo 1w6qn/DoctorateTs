@@ -6,7 +6,7 @@
  * 备份/回滚、邮件（单发/群发/查看/删除）、每日刷新、原始 JSON、统计与审计日志。
  * 所有数据操作均基于本地 JSON（AccountManager / mailManager），离线可用。
  */
-import { appendFile, copyFile, mkdir, readFile, readdir, rm, writeFile } from "fs/promises";
+import { appendFile, copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "fs/promises";
 import * as path from "path";
 import excel from "@excel/excel";
 import { getRoomPhase } from "@excel/building_excel";
@@ -254,7 +254,8 @@ export class AdminService {
     }
   }
 
-  /** 审计日志：追加一行 JSONL（失败不阻断业务操作） */
+  /** 审计日志：追加一行 JSONL（失败不阻断业务操作）；每 200 条检查一次大小，超 1MB 自动轮转保留最近 3000 行 */
+  private _auditCount = 0;
   private async _audit(action: string, uid: string, detail: string): Promise<void> {
     try {
       await mkdir("./data/admin", { recursive: true });
@@ -263,6 +264,15 @@ export class AdminService {
         JSON.stringify({ ts: now(), action, uid, detail }) + "\n",
         "utf8",
       );
+      this._auditCount++;
+      if (this._auditCount % 200 === 0) {
+        const st = await stat(ADMIN_LOG_PATH).catch(() => null);
+        if (st && st.size > 1024 * 1024) {
+          const entries = await this.logs(3000); // 最新在前
+          const kept = entries.reverse().map((e) => JSON.stringify(e)).join("\n") + "\n";
+          await writeFile(ADMIN_LOG_PATH, kept, "utf8");
+        }
+      }
     } catch (e) {
       logger.warn("AdminService", `审计日志写入失败: ${(e as Error).message}`);
     }
@@ -623,6 +633,20 @@ export class AdminService {
       }
     }
     return list.sort((a, b) => b.ts - a.ts);
+  }
+
+  /** 清理旧备份（保留最近 keep 个；按时间倒序） */
+  async cleanBackups(uid: string, keep = 10): Promise<{ removed: number; kept: number }> {
+    if (!Number.isInteger(keep) || keep < 0) {
+      throw new Error(`keep 必须为非负整数: ${keep}`);
+    }
+    const list = await this.listBackups(uid);
+    const remove = list.slice(keep);
+    for (const b of remove) {
+      await rm(`${BACKUP_DIR}/${b.name}`).catch(() => {});
+    }
+    await this._audit("cleanBackups", uid, `删除 ${remove.length} 个旧备份（保留 ${list.length - remove.length}）`);
+    return { removed: remove.length, kept: list.length - remove.length };
   }
 
   /** 备份文件信息（不存在返回 null） */

@@ -457,9 +457,21 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
     }
     case "backups": {
       const uid = args[1];
+      const sub = args[2];
       if (!uid) {
-        console.error("用法: users backups <uid> [--json]");
+        console.error("用法: users backups <uid> [--json] | users backups <uid> clean [--keep N]");
         process.exitCode = 1;
+        return;
+      }
+      if (sub === "clean") {
+        const keep = Number(args[3] ?? flags.keep ?? 10);
+        if (!Number.isInteger(keep) || keep < 0) {
+          console.error("keep 必须为非负整数（保留最近 N 个）");
+          process.exitCode = 1;
+          return;
+        }
+        const r = await adminService.cleanBackups(uid, keep);
+        console.log(`已清理用户 ${uid} 的 ${r.removed} 个旧备份（保留 ${r.kept} 个）`);
         return;
       }
       const list = await adminService.listBackups(uid);

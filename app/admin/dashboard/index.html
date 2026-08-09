@@ -59,6 +59,8 @@
   label { font-size: 12px; color: var(--muted); }
   /* Tab */
   .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .main-nav .tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .main-nav .tabs::-webkit-scrollbar { display: none; }
   .tab { padding: 7px 16px; cursor: pointer; border-radius: 6px 6px 0 0;
          color: var(--muted); font-size: 13px; user-select: none; }
   .tab.active { background: var(--hover); color: var(--gold); border: 1px solid var(--border); border-bottom: none; }
@@ -318,7 +320,20 @@
     <h3 id="charinfo-title">干员详情</h3>
     <div id="charinfo-body" style="font-size:12px;color:var(--muted);">加载中...</div>
     <div class="row">
+      <button id="charinfo-copy" class="btn-sm">复制</button>
       <button id="charinfo-close" style="margin-left:auto;">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 弹窗：自定义确认 -->
+<div class="modal-mask" id="modal-confirm">
+  <div class="modal" style="width:380px;">
+    <h3 id="confirm-title">确认操作</h3>
+    <div id="confirm-msg" style="color:var(--muted);font-size:13px;margin-bottom:14px;"></div>
+    <div class="row">
+      <button id="confirm-cancel">取消</button>
+      <button class="primary" id="confirm-ok">确认</button>
     </div>
   </div>
 </div>
@@ -661,14 +676,15 @@
           .catch(function (e) { toast("代签失败：" + e.message); });
       });
       $("checkin-reset").addEventListener("click", function () {
-        if (!confirm("重置该用户签到进度（重新领一轮）？")) return;
-        api("/users/" + encodeURIComponent(uid) + "/checkin/reset", { method: "POST", body: "{}" })
-          .then(function () {
-            toast("已重置签到");
-            loadCheckIn(uid);
-            refreshLogs();
-          })
-          .catch(function (e) { toast("重置失败：" + e.message); });
+        confirmDialog("重置该用户签到进度（重新领一轮）？", function () {
+          api("/users/" + encodeURIComponent(uid) + "/checkin/reset", { method: "POST", body: "{}" })
+            .then(function () {
+              toast("已重置签到");
+              loadCheckIn(uid);
+              refreshLogs();
+            })
+            .catch(function (e) { toast("重置失败：" + e.message); });
+        });
       });
     }).catch(function () {
       box.innerHTML = "";
@@ -706,14 +722,15 @@
         api("/users/" + encodeURIComponent(uid) + "/backups").then(function (list) {
           if (!list.length) { toast("暂无备份"); return; }
           var b = list[0];
-          if (!confirm("将从 " + b.name + "（" + fmtTs(b.ts) + "）恢复，覆盖当前存档，确认？")) return;
-          api("/users/" + encodeURIComponent(uid) + "/restore", {
-            method: "POST", body: JSON.stringify({ backup: b.name }),
-          }).then(function () {
-            toast("已恢复：" + b.name);
-            loadOverview(uid);
-            refreshLogs();
-          }).catch(function (e) { toast("恢复失败：" + e.message); });
+          confirmDialog("将从 " + b.name + "（" + fmtTs(b.ts) + "）恢复，覆盖当前存档，确认？", function () {
+            api("/users/" + encodeURIComponent(uid) + "/restore", {
+              method: "POST", body: JSON.stringify({ backup: b.name }),
+            }).then(function () {
+              toast("已恢复：" + b.name);
+              loadOverview(uid);
+              refreshLogs();
+            }).catch(function (e) { toast("恢复失败：" + e.message); });
+          });
         });
       });
     }
@@ -774,14 +791,15 @@
         var mc = $("maxchars-btn");
         if (mc) {
           mc.addEventListener("click", function () {
-            if (!confirm("批量拉满全部 " + chars.length + " 名干员？")) return;
-            api("/users/" + encodeURIComponent(uid) + "/maxchars", { method: "POST", body: "{}" })
-              .then(function (r) {
-                toast("已拉满 " + r.chars + " 名干员");
-                loadChars(uid);
-                refreshLogs();
-              })
-              .catch(function (e) { toast("操作失败：" + e.message); });
+            confirmDialog("批量拉满全部 " + chars.length + " 名干员？", function () {
+              api("/users/" + encodeURIComponent(uid) + "/maxchars", { method: "POST", body: "{}" })
+                .then(function (r) {
+                  toast("已拉满 " + r.chars + " 名干员");
+                  loadChars(uid);
+                  refreshLogs();
+                })
+                .catch(function (e) { toast("操作失败：" + e.message); });
+            });
           });
         }
         var rc = $("repairchars-btn");
@@ -851,6 +869,9 @@
     });
   }
   $("charinfo-close").addEventListener("click", function () { hideModal("modal-charinfo"); });
+  $("charinfo-copy").addEventListener("click", function () {
+    copyText($("charinfo-body").textContent);
+  });
 
   function loadMails(uid) {
     setSkeleton("pane-mails");
@@ -875,10 +896,11 @@
       document.querySelectorAll(".mail-del").forEach(function (btn) {
         btn.addEventListener("click", function () {
           var mailId = btn.getAttribute("data-id");
-          if (!confirm("删除邮件 mailId=" + mailId + "？")) return;
-          api("/users/" + encodeURIComponent(uid) + "/mails/" + mailId, { method: "DELETE" })
-            .then(function () { loadMails(uid); refreshLogs(); })
-            .catch(function (e) { toast("删除失败：" + e.message); });
+          confirmDialog("删除邮件 mailId=" + mailId + "？", function () {
+            api("/users/" + encodeURIComponent(uid) + "/mails/" + mailId, { method: "DELETE" })
+              .then(function () { loadMails(uid); refreshLogs(); })
+              .catch(function (e) { toast("删除失败：" + e.message); });
+          });
         });
       });
     }).catch(function () {});
@@ -1146,15 +1168,16 @@
   $("grant-all-btn").addEventListener("click", function () {
     var uid = $("grant-uid").textContent;
     var count = Number($("grant-count").value) || 999;
-    if (!confirm("向用户 " + uid + " 批量发放全部物品 x" + count + "？")) return;
-    api("/users/" + encodeURIComponent(uid) + "/grant-all", {
-      method: "POST", body: JSON.stringify({ count: count }),
-    }).then(function (r) {
-      hideModal("modal-grant");
-      toast("已批量发放 " + r.items + " 种物品 x" + count);
-      loadOverview(uid);
-      refreshLogs();
-    }).catch(function (e) { toast("发放失败：" + e.message); });
+    confirmDialog("向用户 " + uid + " 批量发放全部物品 x" + count + "？", function () {
+      api("/users/" + encodeURIComponent(uid) + "/grant-all", {
+        method: "POST", body: JSON.stringify({ count: count }),
+      }).then(function (r) {
+        hideModal("modal-grant");
+        toast("已批量发放 " + r.items + " 种物品 x" + count);
+        loadOverview(uid);
+        refreshLogs();
+      }).catch(function (e) { toast("发放失败：" + e.message); });
+    });
   });
 
   function openMail(uid) {
@@ -1617,6 +1640,19 @@
   }
 
   /* ---------- 主题切换 / 骨架屏 / 状态色 ---------- */
+
+  /** 自定义确认弹窗（替换原生 confirm，统一主题；危险操作保留确认） */
+  function confirmDialog(msg, onOk, title) {
+    $("confirm-title").textContent = title || "确认操作";
+    $("confirm-msg").textContent = msg;
+    $("confirm-ok").onclick = function () {
+      hideModal("modal-confirm");
+      onOk();
+    };
+    $("confirm-cancel").onclick = function () { hideModal("modal-confirm"); };
+    showModal("modal-confirm");
+  }
+  $("confirm-cancel").addEventListener("click", function () { hideModal("modal-confirm"); });
 
   function applyTheme(t) {
     document.documentElement.setAttribute("data-theme", t);

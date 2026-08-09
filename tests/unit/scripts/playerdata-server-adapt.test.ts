@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyServerAdapt } from "../../../scripts/playerdata-server-adapt";
+import { applyServerAdapt, applyWireFormat } from "../../../scripts/playerdata-server-adapt";
 import type { ClassDef } from "../../../scripts/playerdata-parser";
 
 function cls(name: string, fields: Record<string, string>): ClassDef {
@@ -40,5 +40,40 @@ describe("playerdata-server-adapt", () => {
   it("不存在的接口/字段静默跳过", () => {
     const out = applyServerAdapt([cls("NotInList", { a: "string" })]);
     expect(out[0].fields.length).toBe(1);
+  });
+
+  it("wire pass 枚举与布尔字段 → number（白名单除外）", () => {
+    const out = applyWireFormat(
+      [
+        cls("PlayerStage", { state: "PlayerStageState", hasBattleReplay: "boolean" }),
+        cls("PlayerGacha_PlayerGachaPool", { avail: "boolean" }),
+        cls("PlayerSkins", { skinSp: "{ [key: string]: boolean }" }),
+      ],
+      new Set(["PlayerStageState"]),
+    );
+    const stage = out.find(c => c.name === "PlayerStage")!;
+    expect(stage.fields.find(f => f.name === "state")!.type).toBe("number");
+    expect(stage.fields.find(f => f.name === "hasBattleReplay")!.type).toBe("number");
+    const pool = out.find(c => c.name === "PlayerGacha_PlayerGachaPool")!;
+    expect(pool.fields.find(f => f.name === "avail")!.type).toBe("boolean"); // 白名单保留
+    const skins = out.find(c => c.name === "PlayerSkins")!;
+    expect(skins.fields.find(f => f.name === "skinSp")!.type).toBe("{ [key: string]: number }"); // 字典值递归改写
+  });
+
+  it("wire pass 字符串序列化枚举保留字面量联合 + 字段级类型覆盖", () => {
+    const out = applyWireFormat(
+      [
+        cls("PlayerBuildingRoomSlot", { roomId: "BuildingData_RoomType" }),
+        cls("PlayerBuildingMeetingClue", { uid: "number" }),
+        cls("PlayerCrisisSocialInfo", { maxPnt: "number" }),
+      ],
+      new Set(["BuildingData_RoomType"]),
+    );
+    const slot = out.find(c => c.name === "PlayerBuildingRoomSlot")!;
+    expect(slot.fields.find(f => f.name === "roomId")!.type).toBe("BuildingData_RoomType"); // 保留 union
+    const clue = out.find(c => c.name === "PlayerBuildingMeetingClue")!;
+    expect(clue.fields.find(f => f.name === "uid")!.type).toBe("string"); // override
+    const crisis = out.find(c => c.name === "PlayerCrisisSocialInfo")!;
+    expect(crisis.fields.find(f => f.name === "maxPnt")!.type).toBe("number | string"); // override
   });
 });

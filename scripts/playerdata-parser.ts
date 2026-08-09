@@ -25,7 +25,7 @@ export const CSHARP_TO_TS_TYPE_MAP: { [key: string]: string } = {
   "System.Int32": "number",
   "System.Int64": "number",
   "System.Boolean": "boolean",
-  "System.DateTime": "string",
+  "System.DateTime": "number", // 线格式：unix 时间戳（int），非 string
   "System.Double": "number",
   "System.Single": "number",
   "System.Byte": "number",

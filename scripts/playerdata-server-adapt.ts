@@ -246,6 +246,29 @@ export const SERVER_ADD_FIELDS: Record<string, Record<string, string>> = {
   PlayerSetting: { perf: "{ lowPower: number }" },
   PlayerCharRotationPreset: { profileInst: "number" },
   PlayerActFun4: { cameraLv: "number", fans: "number" },
+  // 房间 buff/结构（线格式具名，抓包标量审计反推）
+  PlayerBuildingManufactureBuff: {
+    apCost: "{ self: object; all: number }",
+    sSpeed: "number",
+    tSpeed: "object",
+    cSpeed: "number",
+    capFrom: "object",
+    maxSpeed: "number",
+    point: "object",
+    flag: "object",
+    skillExtend: "{ [key: string]: string[] }",
+  },
+  PlayerBuildingManufacture: { tailTime: "number" },
+  PlayerBuildingDormitory_Buff_APCost: { self: "object", exclude: "object" },
+  PlayerBuildingDormitory_Buff: { point: "object" },
+  PlayerBuildingDormitory: { lockQueue: "number[]" },
+  PlayerBuildingPrivate: { owners: "number[]" },
+  // 商店各品类服务端独有字段
+  PlayerLowQCShopProgressData: { curShopId: "string", info: "PlayerGoodItemData[]" },
+  PlayerHighQCShopProgressData: { curShopId: "string" },
+  PlayerCommonShopProgressData: { lastClick: "number" },
+  PlayerGiftProgressPerData: { curGroupId: "string" },
+  PlayerSocialShopData: { curShopId: "string", charPurchase: "{ [key: string]: number }" },
 };
 
 /** 结构差异覆盖：接口名 → { 字段名: 完整 TS 类型 }（"[server]" 表示整接口覆盖） */
@@ -263,8 +286,10 @@ export const SERVER_OVERRIDE_FIELDS: Record<string, Record<string, string>> = {
       "{ LS: PlayerLowQCShopProgressData; HS: PlayerHighQCShopProgressData; ES: PlayerCommonShopProgressData; CASH: PlayerCashProgressData; GP: PlayerGiftProgressData; FURNI: PlayerFurnitureShopData; SOCIAL: PlayerSocialShopData; EPGS: PlayerEPGSProgressData; REP: PlayerEPGSProgressData; CLASSIC: PlayerClassicQCShopProgressData; SKIN: PlayerSkinShopData }",
   },
   // 服务端 building.rooms = { [房间类型大写key]: { [slotId]: 房间 } }（客户端是具名类 PlayerBuildingRoom）
+  // 具名 12 房间类型（线格式键大写），值引用生成房间类——消除 object 盲区
   PlayerBuilding: {
-    rooms: "{ [roomType: string]: { [slotId: string]: object } }",
+    rooms:
+      "{ CONTROL: { [slotId: string]: PlayerBuildingControl }; ELEVATOR: { [slotId: string]: object }; POWER: { [slotId: string]: PlayerBuildingPower }; MANUFACTURE: { [slotId: string]: PlayerBuildingManufacture }; TRADING: { [slotId: string]: PlayerBuildingTrading }; CORRIDOR: { [slotId: string]: object }; WORKSHOP: { [slotId: string]: PlayerBuildingWorkshop }; DORMITORY: { [slotId: string]: PlayerBuildingDormitory }; MEETING: { [slotId: string]: PlayerBuildingMeeting }; HIRE: { [slotId: string]: PlayerBuildingHire }; TRAINING: { [slotId: string]: PlayerBuildingTraining }; PRIVATE: { [slotId: string]: PlayerBuildingPrivate } }",
   },
   // PlayerCartInfo.Cart 继承 Dictionary<CartAccessoryPos, string>（解析器生成空接口，实际是索引签名字典）
   PlayerCartInfo_Cart: {
@@ -317,5 +342,137 @@ export function applyServerAdapt(classes: ClassDef[]): ClassDef[] {
     }
 
     return { ...iface, fields };
+  });
+}
+
+// ---------- 线格式适配（wire format pass） ----------
+
+/**
+ * 官服 JSON 线格式把枚举/时间戳/布尔系统性降为数字：
+ *  - 枚举字段 → number（0/1/2…，客户端枚举名作参考保留在定义处）
+ *  - boolean 字段 → number（0/1），少数真正序列化为 true/false 的字段在白名单保留
+ *  - System.DateTime 已在解析器映射为 number（unix 时间戳）
+ *
+ * 白名单键格式 "IfaceName.fieldName"，由标量审计（validate-playerdata-json.ts）
+ * 报告 "期望 number，实际 boolean" 的字段反推填充。
+ */
+export const SERVER_BOOL_KEEP_AS_BOOLEAN: string[] = [
+  // 线格式真正序列化为 true/false 的字段（抓包标量审计反推）
+  "BuildingMusic.inUse",
+  "BuildingMusicState.unlock",
+  "OpenServerChainLogin.isAvailable",
+  "OpenServerCheckIn.isAvailable",
+  "OpenServerFullOpen.isAvailable",
+  "OpenServerFullOpen.today",
+  "PlayerActFun4Mission.finished",
+  "PlayerActFun4Mission.hasRecv",
+  "PlayerBuildingMessageLeave.inUse",
+  "PlayerBuildingTrainingReduceTimeBd.activated",
+  "PlayerCharRotationPreset.profileSp",
+  "PlayerCharRotationSlot.skinSp",
+  "PlayerCheckIn_PlayerNewbiePackage.open",
+  "PlayerFirework.unlock",
+  "PlayerGacha_PlayerFreeLimitGacha.recruitedFreeChar",
+  "PlayerGacha_PlayerGachaPool.avail",
+  "PlayerGacha_PlayerSingleGacha.singleEnsureUse",
+  "PlayerInviteData.closeAccept",
+  "PlayerInviteData.newInvite",
+  "PlayerMainlineClue.unlock",
+  "PlayerMainlineExplore_PlayerExploreOuterContext.isOpen",
+  "PlayerMainlineExplore_PlayerExploreOuterContextHistoryPath.success",
+  "PlayerNameCardMisc.showBirthday",
+  "PlayerNameCardMisc.showDetail",
+  "PlayerNameCardSkin_SkinState.unlock",
+  "PlayerReturnData.open",
+  "PlayerRoguelikeV2_CurrentData_PlayerStatus.chgEnding",
+  "PlayerRoguelikeV2_CurrentData_Troop.hasExpeditionReturn",
+  "PlayerRoguelikeV2_OuterData_Bank.show",
+  "PlayerSandboxPerm.isClose",
+  "PlayerStatus.secretarySkinSp",
+  "TowerCurrent_HalftimeRecruit.canGiveUp",
+  "TowerCurrent_Status.isHard",
+  "TowerOuter_TowerData.canSweep",
+  "TowerOuter_TowerData.canSweepHard",
+  "TowerOuter_TowerData.unlockHard",
+  "TowerSeason_TowerSeasonMission.hasRecv",
+];
+
+/** 字符串序列化枚举字段：保留枚举字面量联合（线格式为枚举名字符串，如 roomId "CONTROL"、mode "NORMAL"） */
+export const SERVER_ENUM_KEEP_AS_STRING: string[] = [
+  "AvatarInfo.type",
+  "ItemBundle.type",
+  "PlayerBuildingRoomSlot.roomId",
+  "PlayerBuildingTrading.strategy",
+  "PlayerBuildingTradingOrder.type",
+  "PlayerMedalBoard.type",
+  "PlayerRoguelikeV2_CurrentData_PlayerStatus.state",
+  "PlayerRoguelikeV2_OuterData_Mission_MissionItem.type",
+  "PlayerRoguelikeV2_OuterData_Mission_MissionSlot.type",
+  "PlayerRoguelikeV2_OuterData_Record_History.mode",
+  "PlayerStatus.globalVoiceLan",
+  "TowerCurrent_Status.state",
+  "TowerOuter.strategy",
+];
+
+/** 线格式字段类型覆盖（最高优先级，wire pass 后应用）："Iface.field" → TS 类型 */
+export const SERVER_FIELD_TYPE_OVERRIDES: Record<string, string> = {
+  // 服务端把 uid 序列化为字符串（如 "100566259"），客户端模型为数值
+  "PlayerBuildingMeetingClue.uid": "string",
+  // 服务端把社交分序列化为字符串数字（新官服 "300"），老存档为 number——两态并存
+  "PlayerCrisisSocialInfo.maxPnt": "number | string",
+};
+
+/** 字段类型递归改写：枚举/布尔 → number */
+function rewriteWireType(t: string, enumNames: Set<string>, fieldName: string, keepBool: boolean): string {
+  t = t.trim();
+  if (enumNames.has(t)) return "number";
+  if (t === "boolean") return keepBool ? t : "number";
+  const arr = t.match(/^(.+)\[\]$/);
+  if (arr) {
+    const inner = rewriteWireType(arr[1].trim(), enumNames, fieldName, keepBool);
+    return inner === arr[1] ? t : `${inner}[]`;
+  }
+  const idx = t.match(/^\{\s*\[([a-zA-Z_][a-zA-Z0-9_]*:\s*[^\]]+)\]:\s*(.+)\s*\}$/);
+  if (idx) {
+    const inner = rewriteWireType(idx[2].trim(), enumNames, fieldName, keepBool);
+    return inner === idx[2] ? t : `{ [${idx[1]}]: ${inner} }`;
+  }
+  return t;
+}
+
+/**
+ * 应用线格式适配（在 applyServerAdapt 之后调用）：
+ * 枚举字段与布尔字段（除白名单）改写为 number，使生成模型描述真实服务端 JSON。
+ * @param classes - 服务端协议适配后的类定义
+ * @param enumNames - 闭包内枚举类型名集合（用于识别枚举字段）
+ * @returns 线格式改写后的类定义（不修改入参）
+ */
+export function applyWireFormat(classes: ClassDef[], enumNames: Set<string>): ClassDef[] {
+  return classes.map(iface => {
+    const boolFields = new Set<string>();
+    const stringEnumFields = new Set<string>();
+    for (const k of SERVER_BOOL_KEEP_AS_BOOLEAN) {
+      const dot = k.indexOf(".");
+      if (dot > 0 && k.slice(0, dot) === iface.name) boolFields.add(k.slice(dot + 1));
+    }
+    for (const k of SERVER_ENUM_KEEP_AS_STRING) {
+      const dot = k.indexOf(".");
+      if (dot > 0 && k.slice(0, dot) === iface.name) stringEnumFields.add(k.slice(dot + 1));
+    }
+    return {
+      ...iface,
+      fields: iface.fields.map(f => {
+        let type = f.type;
+        // 字符串序列化枚举：跳过改写，保留字面量联合
+        const isStringEnum = enumNames.has(f.type) && stringEnumFields.has(f.name);
+        if (!isStringEnum) {
+          type = rewriteWireType(f.type, enumNames, f.name, boolFields.has(f.name));
+        }
+        // 字段级类型覆盖（最高优先级）
+        const override = SERVER_FIELD_TYPE_OVERRIDES[`${iface.name}.${f.name}`];
+        if (override) type = override;
+        return type === f.type ? f : { ...f, rawType: type, type };
+      }),
+    };
   });
 }

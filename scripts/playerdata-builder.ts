@@ -1,5 +1,5 @@
 import { parseFile, extractTypeNames, type ClassDef, type EnumDef } from "./playerdata-parser";
-import { applyServerAdapt } from "./playerdata-server-adapt";
+import { applyServerAdapt, applyWireFormat } from "./playerdata-server-adapt";
 
 /** PlayerDataModel 类型闭包（类），字段类型引用传递 */
 function buildClassClosure(classes: ClassDef[], rootName: string): Set<string> {
@@ -85,10 +85,14 @@ export function buildPlayerDataTypes(content: string): BuildResult {
   // 服务端协议适配（客户端字段名 → 服务端 JSON key，补充/覆盖服务端独有结构）
   const adaptedClasses = applyServerAdapt(filteredClasses);
 
+  // 线格式适配（枚举/布尔/DateTime → number，真实服务端 JSON 序列化格式）
+  const enumNames = new Set(filteredEnums.map(e => e.name));
+  const wireClasses = applyWireFormat(adaptedClasses, enumNames);
+
   let output = "/**\n";
   output += " * 自动生成的玩家数据类型定义文件\n";
   output += " * 从 reference/com.hypergryph.arknights_2.7.61.cs 反编译文件生成\n";
-  output += " * （客户端闭包 + 服务端协议适配，见 scripts/playerdata-server-adapt.ts）\n";
+  output += " * （客户端闭包 + 服务端协议适配 + 线格式适配，见 scripts/playerdata-server-adapt.ts）\n";
   output += " * 生成命令: npm run generate:playerdata\n";
   output += " * 请勿手动修改此文件\n";
   output += " */\n\n";
@@ -97,14 +101,14 @@ export function buildPlayerDataTypes(content: string): BuildResult {
     output += generateEnumCode(enumDef);
     output += "\n\n";
   });
-  adaptedClasses.forEach(classDef => {
+  wireClasses.forEach(classDef => {
     output += generateInterfaceCode(classDef);
     output += "\n\n";
   });
 
   return {
     output,
-    classes: adaptedClasses.map(c => c.name),
+    classes: wireClasses.map(c => c.name),
     enums: filteredEnums.map(e => e.name),
   };
 }

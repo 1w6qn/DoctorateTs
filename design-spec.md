@@ -1066,6 +1066,20 @@ mitmproxy map remote 设置 URL 时会同步改写 Host 头为 `127.0.0.1:8443`�
 - Node fetch 会覆盖自定义 Host 头——子域名验证需用 node http 或 curl（E2E 经验）
 - 旧版 `/config/prod/official/network_config`（{sign, content} 格式）保持兼容（prod.ts 复用 buildNetworkConfigContent）
 
+### 17.4 抓包专用官服转发模式（app/proxy/official-forward.ts，--capture）
+主服务器新增可切换的抓包专用官服转发模式：`npm run start:capture`（等价 `tsx index.ts -s --capture`）或 `data/config.json` 的 `capture.enabled: true` 开启。开启后 **as/gs 流量不再由私服响应，而是转发到官服**并记录响应到 `tmp/`（capture 模式强制 `debug.recordTraffic=true`，目录格式与 test.ts 抓包一致），用于与私服响应逐接口对比 / 协议逆向。
+
+**挂载位置**：index.ts 在 host-router + `/config/prod`、`/api/remote_config`、`/api/gate`、`/api/game`（launcher）之后、`/` auth 之前挂 `createOfficialForwarder()`。config/launcher 保持本地——客户端才能拿到指向本代理的 network_config 被引导连进来。
+
+**路由分发规则**（`resolveForwardTarget` 纯函数，与 test.ts / §17.1 路径级兜底一致）：
+- **Host 优先**：`as.*` → `as.hypergryph.com`（路径原样，官服无 /auth 前缀）；`ak-gs-*` → `ak-gs-gf.hypergryph.com`（剥 `/game` 基址前缀）；其余 `*.hypergryph.com`（ak-conf/game-config 等配置域）→ 不转发，保持本地
+- **路径级兜底**（Host 非官服：localhost/IP 直连 / mitmweb 重写）：as 前缀 `/user/auth|info|online|oauth2`、`/u8`（带 `/u8` 基址）、`/app`、`/general`、`/as`（剥路径化前缀）→ as 域；`/game/*` → gs 域（剥前缀）；**其余 POST** → gs 域根路径兜底（/account、/shop、/activity、/user/checkIn、/batch_event 等），但**排除本地挂载点** `/admin` `/assetbundle` `/pcSdk` `/config` `/api` `/audit` `/arkodc`（避免把管理/配置 POST 误转发官服）；GET 非 as 路径不转发（保持本地响应）
+- 官服对双斜杠路径返回 404，endpoint 统一归一化去前导斜杠；`validateStatus: () => true` 原样透传官服 401/400 等状态；网络层错误（官服不可达）返回 502
+
+**登录链路**：客户端经本地 network_config 连到本代理 → `/user/auth/*`、`/u8/*`、`/user/oauth2/*` 转发 as 域拿到**官服真实 token** → `/account/login` 等 gs 请求带真实 secret 转发 `ak-gs-gf` 由官服校验。转发命中后不 `next()`，私服 authMiddleware/游戏路由不参与，故不受单例 secret 强制影响。
+
+**与 test.ts 关系**：test.ts（`npm run ts`，8444）是独立纯转发抓包代理，规则同源但可独立运行；本模式把同一套规则并入主服务器（8443），免去另起进程。**账号说明**：capture 模式用官服账号登录（reference/checkin-master/accounts.txt），与私服账号体系互不相通。
+
 ---
 
 ## 18. 助战系统
@@ -1259,4 +1273,5 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
   - `gallery/jpg`、`announce/images` 静态图片路由已补齐——私服无素材文件，返回 1x1 透明 PNG 占位图（客户端不再收 HTML 404）
   - **syncData 对齐决策（用户确认）**：保持现状（Immer 单点 patch + 刷新 pushFlags，客户端实测可用）；移除 delta.ts 未接线的 `buildSyncDataDelta`/`SYNC_DATA_DELTA_KEYS` 死代码与 account.ts 未使用 import
   - **目标完成边界（用户确认）**：参考项目全量对齐（ODPY 663 条全量覆盖，含此前标注的设计跳过项）
-- **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用
+- **参考项目全量对齐（2026-08-09，用户确认边界后实施）**：ODPY 260 条缺失清单 → **已覆盖 256 / 设计跳过 2（/arknights 子域名转发、/api/game/<subpath> catch-all 已补）/ 需补充 0**；OBS 105 条缺失运行时复核 **0 个 404**；DoctoratePy 36 条缺失全部补齐（pay alipay/wechat/success、/login、shop/buyFurniGroup、quest/changeSquadName2 别名、旧版 auth 路径 11 条 URL 重写别名）。新增 `router/misc-alignment`（遥测/pay 变体/api 端点/yostar/common EN stub 约 30 条）、launcher catch-all、building/getMessageBoardContent、config prod b/network_config、remote_config bilibili/101 变体。
+- **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用（全量对齐后已补 stub，路径可达）

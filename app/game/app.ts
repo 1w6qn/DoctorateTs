@@ -153,6 +153,8 @@ export async function setup(app: express.Application) {
   app.use("/audit", (await import("./router/audit")).default);
   // 终末地 ODC（客户端 /arkodc/*，根路径）
   app.use("/arkodc", (await import("./router/arkodc")).default);
+  // 全量对齐杂项（telemetry/odpy-only/api 端点等 stub），见 router/misc-alignment
+  app.use("/", (await import("./router/misc-alignment")).default);
   // 统一错误处理：异步 handler 抛错（Express 5 自动捕获）→ JSON 而非 HTML 500。
   // 例：single 模式社交自请求（不能加自己为好友）等业务校验错误，客户端收到可解析 JSON
   app.use(gameErrorHandler);

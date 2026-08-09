@@ -448,6 +448,17 @@ router.post("/buyLMTGSGood", async (req, res) => {
  * @param req.body - 购买参数
  * @returns 购买结果和玩家增量数据
  */
+/** 购买家具组（DoctoratePy 路径对齐；委托 buyFurniGood 逻辑） */
+router.post("/buyFurniGroup", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as BuyFurniGoodRequest;
+  res.send({
+    result: 0,
+    items: await player.shop.buyFurniGood(body),
+    ...player.delta,
+  } satisfies BuyFurniGoodResponse);
+});
+
 router.post("/buyFurniGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyFurniGoodRequest;

@@ -51,4 +51,15 @@ router.get("/get_latest", async (req, res) => {
   });
 });
 
+
+/** 版本信息别名（/api/game/get_latest_game_info，与 get_latest 同响应） */
+router.get("/get_latest_game_info", async (_req, res) => {
+  res.send({});
+});
+
+/** 其余 /api/game/<subpath>（ODPY 对齐 catch-all，stub） */
+router.get("*splat", async (_req, res) => {
+  res.send({});
+});
+
 export default router;

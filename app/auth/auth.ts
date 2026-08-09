@@ -259,6 +259,20 @@ router.post("/online/v1/loginout", async (req, res) => {
   res.send({ result: 0 });
 });
 
+/** 用户登出（EN 客户端路径 /user/info/v1/logout，stub） */
+router.post("/user/info/v1/logout", async (_req, res) => {
+  res.send({ result: 0 });
+});
+
+/** 协议确认（/user/info/v1/update_agreement 与 /u8/user/auth/v1/update_agreement，stub） */
+router.post("/user/info/v1/update_agreement", async (_req, res) => {
+  res.send({ result: 0 });
+});
+router.post("/u8/user/auth/v1/update_agreement", async (_req, res) => {
+  res.send({ result: 0 });
+});
+
+
 /**
  * 手机号密码登录（参考 DoctoratePy userLogin）
  * result: 0 成功 / 1 用户名或密码错误 / 4 该用户尚不存在

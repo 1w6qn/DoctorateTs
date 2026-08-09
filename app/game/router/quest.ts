@@ -64,6 +64,12 @@ router.post("/changeSquadName", async (req, res) => {
   await player.troop.changeSquadName(body);
   res.send(player.delta satisfies ChangeSquadNameResponse);
 });
+router.post("/changeSquadName2", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as ChangeSquadNameRequest;
+  await player.troop.changeSquadName(body);
+  res.send(player.delta satisfies ChangeSquadNameResponse);
+});
 router.post("/getAssistList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetAssistListRequest;

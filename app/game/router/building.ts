@@ -628,6 +628,14 @@ router.post("/getRecentVisitors", async (req, res) => {
 });
 
 /** 获取他人留言板内容（简化实现） */
+/** 获取留言板内容（OBS 路径；委托 getOthersMessageBoardContent 逻辑） */
+router.post("/getMessageBoardContent", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as GetOthersMessageBoardContentRequest;
+  await player.building.getOthersMessageBoardContent(body);
+  res.status(202).send(player.delta satisfies GetOthersMessageBoardContentResponse);
+});
+
 router.post("/getOthersMessageBoardContent", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetOthersMessageBoardContentRequest;

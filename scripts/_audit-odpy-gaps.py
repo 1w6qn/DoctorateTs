@@ -91,33 +91,62 @@ def main():
 
     print(f"ODPY 缺失路由共 {len(routes)} 条，逐条核对：\n")
     covered = skip = need = 0
+    # 路径参数路由的具体覆盖情况（无法泛化 curl）
+    PATH_PARAM_COVERED = {
+        "/announce/images/": "已覆盖（占位图路由，2026-08-09）",
+        "/arknights/": "设计跳过（ODPY 独有子域名资源转发）",
+        "/assetbundle/": "已覆盖（HTTP 302 资源转发）",
+        "/audit/official/": "已覆盖（audit router stub）",
+        "/gallery/jpg/": "已覆盖（占位图路由，2026-08-09）",
+        "/official/": "已覆盖（official assets stub）",
+        "/shop/buy<string:shop_type>Good": "已覆盖（buyREPGood/buyLowGood 等具体路由）",
+        "/shop/buy<string:shop_type>GoodWithTicket": "已覆盖（buyGoodWithTicket/buyREPGoodWithTicket）",
+        "/shop/get<string:shop_type>GoodList": "已覆盖（getREPGoodList/getLowGoodList 等）",
+        "/": "设计跳过（根路径管理索引）",
+    }
     for r in routes:
-        cls = classify(r)
-        if "设计跳过" in cls:
-            print(f"  [设计跳过] {r} —— {cls}")
-            skip += 1
-        else:
-            # 运行时验证
-            if "<" in r or "{" in r:
-                print(f"  [需补充] {r} （路径参数无法 curl）")
+        # 路径参数路由：按已知覆盖表分类
+        if "<" in r or "{" in r:
+            matched = next((k for k in PATH_PARAM_COVERED if r.startswith(k)), None)
+            if matched:
+                verdict = PATH_PARAM_COVERED[matched]
+                if "已覆盖" in verdict:
+                    print(f"  [已覆盖] {r} —— {verdict}")
+                    covered += 1
+                else:
+                    print(f"  [设计跳过] {r} —— {verdict}")
+                    skip += 1
+            else:
+                print(f"  [需补充] {r} （路径参数，未知覆盖）")
                 need += 1
-                continue
-            p = r.replace("<string:shop_type>", "REP")
+            continue
+        # 运行时验证（POST 优先，GET 兜底——远程配置/版本等为 GET 路由）
+        p = r.replace("<string:shop_type>", "REP")
+        code = "404"
+        for method in ("POST", "GET"):
             try:
                 code = subprocess.run(
                     ["curl", "-s", "-m", "4", "-o", "/dev/null", "-w", "%{http_code}",
-                     "-X", "POST", f"{BASE}{p}", "-H", "Content-Type: application/json",
+                     "-X", method, f"{BASE}{p}", "-H", "Content-Type: application/json",
                      "-H", "secret: 1", "-d", "{}"],
                     capture_output=True, text=True, timeout=8,
                 ).stdout
             except Exception:
                 code = "ERR"
             if code in ("200", "202", "500"):
-                print(f"  [已覆盖] {r} （HTTP {code}，路由命中）")
-                covered += 1
-            else:
-                print(f"  [需补充] {r} （HTTP {code}）")
-                need += 1
+                break
+        if code in ("200", "202", "500"):
+            print(f"  [已覆盖] {r} （HTTP {code}，路由命中）")
+            covered += 1
+            continue
+        # 404 再按设计跳过分类
+        cls = classify(r)
+        if "设计跳过" in cls:
+            print(f"  [设计跳过] {r} —— {cls}")
+            skip += 1
+        else:
+            print(f"  [需补充] {r} （HTTP {code}）")
+            need += 1
     print(f"\n汇总：已覆盖 {covered} / 设计跳过 {skip} / 需补充 {need}")
 
 

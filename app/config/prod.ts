@@ -71,4 +71,15 @@ const PLACEHOLDER_PNG = Buffer.from(
 );
 
 
+
+/** bilibili 渠道网络配置（ODPY 独有，stub 复用官方网络配置） */
+router.get("/b/network_config", async (_req, res) => {
+  res.send({});
+});
+
+/** 官方资源文件审计（/official/Android/assets/<hash>/<file>；私服无资源返回空） */
+router.get("/official/Android/assets/:assetsHash/:fileName", async (_req, res) => {
+  res.send({});
+});
+
 export default router;

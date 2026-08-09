@@ -37,6 +37,12 @@ import { accountManager } from "./app/game/manager/AccountManger";
   const skipUpdate = args.includes("--skip-update") || args.includes("-s");
   // 完全离线模式：命令行参数 --offline/-o 或 data/config.json 中 offline: true
   const offline = args.includes("--offline") || args.includes("-o") || config.offline === true;
+  // 抓包专用官服转发模式：命令行 --capture 或 data/config.json 中 capture.enabled: true
+  const capture = args.includes("--capture") || config.capture?.enabled === true;
+  // capture 模式的核心用途就是抓包：强制开启流量落盘 tmp/（目录格式与 test.ts 抓包一致）
+  if (capture) {
+    config.debug = { ...config.debug, recordTraffic: true };
+  }
   
   if (offline) {
     logger.info("index", "完全离线模式：跳过所有网络操作，使用本地缓存数据");
@@ -75,6 +81,33 @@ import { accountManager } from "./app/game/manager/AccountManger";
   app.use("/api/gate", (await import("./app/config/gate")).default);
   // 启动器版本检查（/api/game/get_latest——action:0 空包，客户端无需更新直接启动）
   app.use("/api/game", (await import("./app/config/launcher")).default);
+  // 全量对齐（参考 ODPY 旧版路径）：/user/register 等别名到既有 /user/auth/v1/* 实现
+  app.use("/", (req, _res, next) => {
+    const OLD_AUTH_ALIASES: Record<string, string> = {
+      "/user/register": "/user/auth/v1/register",
+      "/user/login": "/user/auth/v1/login",
+      "/user/sendSmsCode": "/user/auth/v1/send_sms_code",
+      "/user/loginBySmsCode": "/user/auth/v1/login_by_smscode",
+      "/user/v1/guestLogin": "/user/auth/v1/guest_login",
+      "/user/changePassword": "/user/auth/v1/change_password",
+      "/user/changePhone": "/user/auth/v1/change_phone",
+      "/user/changePhoneCheck": "/user/auth/v1/change_phone_check",
+      "/user/checkIdCard": "/user/auth/v1/check_id_card",
+      "/user/authenticateUserIdentity": "/user/auth/v1/authenticate_user_identity",
+      "/user/updateAgreement": "/user/auth/v1/update_agreement",
+    };
+    const path = req.path;
+    if (OLD_AUTH_ALIASES[path]) {
+      req.url = OLD_AUTH_ALIASES[path];
+    }
+    next();
+  });
+  // 抓包专用官服转发模式：as/gs 流量转发官服（config/launcher 保持本地——客户端才能被引导连到本代理）
+  if (capture) {
+    const { createOfficialForwarder } = await import("./app/proxy/official-forward");
+    app.use(createOfficialForwarder());
+    logger.info("index", "抓包官服转发模式已开启：as/gs 流量将转发到官服并记录 tmp/");
+  }
   // auth 挂根路径：as 域接口（/user/*、/u8/*、/app/* 等）直接命中（用户最终决定，勿改回 /auth）
   app.use("/", auth);
   await setup(game);

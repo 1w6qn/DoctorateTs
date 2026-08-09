@@ -97,4 +97,16 @@ router.get("/1/prod/default/Android/remote_config", async (_req, res) => {
   res.send({});
 });
 
+
+/** bilibili/101 渠道变体（ODPY 对齐；客户端使用 default 渠道，此处 stub） */
+router.get("/1/prod/bilibili/Android/network_config", async (_req, res) => {
+  res.send(buildNetworkConfig());
+});
+router.get("/1/prod/bilibili/Windows/network_config", async (_req, res) => {
+  res.send(buildNetworkConfig());
+});
+router.get("/101/prod/default/Android/ak_sdk_config", async (_req, res) => {
+  res.send({});
+});
+
 export const remoteConfigRouter = router;

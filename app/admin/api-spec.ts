@@ -195,6 +195,17 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   },
   {
     method: "POST",
+    path: "/api/pixel/upload-official",
+    summary: "上传像素画到官服 arkhub（24×24×3 RGB → 网关申请 token → multipart savePixelArt → 保存确认）",
+    params: [
+      { name: "phone", type: "string", required: true, desc: "官服手机号" },
+      { name: "pwd", type: "string", required: true, desc: "官服密码" },
+      { name: "pixelData", type: "object", required: true, desc: "24×24×3 RGB（1728 长度数组，或 576 长度 {r,g,b} 数组）" },
+    ],
+    body: '{"phone":"13800000000","pwd":"password123","pixelData":[255,255,255,...]}',
+  },
+  {
+    method: "POST",
     path: "/api/users/:uid/grant-all",
     summary: "批量发放全部 ItemTable 物品（sortId>0；CONSUME→consumable，其余→inventory）",
     params: [{ name: "count", type: "number", desc: "每样数量（默认 999）" }],

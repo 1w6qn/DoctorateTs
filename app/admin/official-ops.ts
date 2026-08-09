@@ -19,6 +19,12 @@ import {
 } from "../../scripts/official-api";
 import { mkdir, writeFile } from "fs/promises";
 import * as path from "path";
+import { pixelDataMd5, validatePixelData } from "./arkhub-pixel";
+import {
+  GatewaySession,
+  requestPixelArtUploadToken,
+  randomGatewayDeviceId,
+} from "./arkhub-gateway-client";
 
 /** 官服调用记录根目录（对齐 traffic-recorder 的 tmp/{module}/{endpoint} 格式） */
 const OFFICIAL_RECORD_ROOT = "tmp";
@@ -156,6 +162,48 @@ export class OfficialSession {
   /** 官服签到 */
   async checkIn(): Promise<any> {
     return this.post("/user/checkIn", {});
+  }
+
+  /** 官服 multipart POST（复用 uid/secret/seqnum 头；用于 arkhub savePixelArt 二进制上传） */
+  async postMultipart(cgi: string, boundary: string, body: Buffer): Promise<any> {
+    const headers: Record<string, string> = {
+      uid: this.uid,
+      secret: this.secret,
+      seqnum: String(this.seqnum),
+      "Content-Type": `multipart/form-data; boundary="${boundary}"`,
+      "X-Unity-Version": "2017.4.39f1",
+      "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 6.0.1; X Build/V417IR)",
+      Connection: "Keep-Alive",
+      "Content-Length": String(body.length),
+    };
+    let status = 0;
+    let data: any = null;
+    try {
+      const res = await fetch(GAME_API + cgi, {
+        method: "POST",
+        headers,
+        // Buffer 运行时是合法 BodyInit，仅 TS 类型不认，cast 兼容
+        body: body as unknown as BodyInit,
+      });
+      status = res.status;
+      if (!res.ok) {
+        throw new Error(`官服 HTTP ${res.status} @ ${cgi}`);
+      }
+      const seqnumHeader = res.headers.get("seqnum");
+      this.seqnum =
+        seqnumHeader && !Number.isNaN(Number(seqnumHeader))
+          ? Number(seqnumHeader)
+          : this.seqnum + 1;
+      data = await res.json();
+      return data;
+    } finally {
+      // 请求体为二进制不落盘完整字节，只记长度
+      void recordOfficialCall(
+        cgi,
+        { body: `<multipart ${body.length}B>`, headers },
+        { status, body: { status, ...(data ?? { error: "请求失败" }) } },
+      );
+    }
   }
 
   /** 官服卡池详情（getPoolDetail） */
@@ -314,4 +362,65 @@ export async function runGachaSync(
     }
   }
   return results;
+}
+
+/**
+ * 上传像素画到官服 arkhub（完整流程）
+ *
+ * 1. 登录官服（HTTP 会话，拿 uid/secret）
+ * 2. 计算像素数据 md5
+ * 3. 网关申请上传 token（arkhub-gateway:30000，登录 + RequestPixelArtUploadTokenReq）
+ * 4. HTTP POST /activity/arkhub/savePixelArt（multipart：json part=brief{activityId,token} + pixelData part）
+ * 5. 网关保存确认（SavePixelArtReq）
+ *
+ * 注意：像素画会真实写入官服账号的 act1arkhub 活动。
+ * @param phone - 官服手机号
+ * @param pwd - 官服密码
+ * @param pixelData - 24×24×3 RGB 像素数据（1728 字节，自动校验）
+ * @returns { pixelArtId, uploadToken, httpResp }
+ */
+export async function uploadPixelArt(
+  phone: string,
+  pwd: string,
+  pixelData: Buffer,
+): Promise<{ pixelArtId: bigint; uploadToken: string; httpResp: any }> {
+  const pixels = validatePixelData(pixelData);
+  const md5 = pixelDataMd5(pixels);
+
+  const session = new OfficialSession();
+  await session.login(phone, pwd);
+
+  // 网关申请上传 token（网关登录凭据即 HTTP 会话的 uid/secret，实测可通）
+  const deviceId = randomGatewayDeviceId();
+  const cred = await requestPixelArtUploadToken(session.uid, session.secret, deviceId, md5);
+
+  // HTTP 上传（multipart 结构与真实客户端字节级一致：json part + pixelData part）
+  const boundary = "AKHUB" + Date.now().toString(16).toUpperCase();
+  const brief = JSON.stringify({ brief: { activityId: "act1arkhub", token: cred.uploadToken } });
+  const part = (name: string, filename: string, contentType: string, data: Buffer): Buffer =>
+    Buffer.concat([
+      Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${name}"; filename="${filename}"\r\n` +
+          `Content-Type: ${contentType}\r\nContent-Length: ${data.length}\r\n\r\n`,
+      ),
+      data,
+      Buffer.from("\r\n"),
+    ]);
+  const multipart = Buffer.concat([
+    part("json", "json_info", "application/json", Buffer.from(brief, "utf8")),
+    part("pixelData", "pixelDataFile", "multipart/form-data", pixels),
+    Buffer.from(`--${boundary}--\r\n`),
+  ]);
+  const httpResp = await session.postMultipart("/activity/arkhub/savePixelArt", boundary, multipart);
+
+  // 网关保存确认
+  const gw = new GatewaySession();
+  try {
+    await gw.connect(session.uid, session.secret, deviceId);
+    await gw.confirmSave(cred.pixelArtId, true, false);
+  } finally {
+    gw.close();
+  }
+
+  return { pixelArtId: cred.pixelArtId, uploadToken: cred.uploadToken, httpResp };
 }

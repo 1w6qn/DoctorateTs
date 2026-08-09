@@ -488,6 +488,17 @@ router.post("/api/official/sync-gacha", async (req: Request, res: Response) => {
   }
 });
 
+/** 像素画上传官服 arkhub（24×24 RGB → savePixelArt 完整流程：网关 token → multipart 上传 → 保存确认） */
+router.post("/api/pixel/upload-official", async (req: Request, res: Response) => {
+  try {
+    const { phone, pwd, pixelData } = req.body ?? {};
+    const result = await adminService.uploadPixelArt(String(phone), String(pwd), pixelData);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 /** 批量发放全部物品 */
 router.post("/api/users/:uid/grant-all", async (req: Request, res: Response) => {
   try {

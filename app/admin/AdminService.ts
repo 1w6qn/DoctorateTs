@@ -23,6 +23,7 @@ import {
   runOfficialAction,
   runOfficialCall,
   runGachaSync,
+  uploadPixelArt as uploadPixelArtToOfficial,
   OfficialAction,
 } from "./official-ops";
 import { MAIL_TEMPLATES } from "./mail-templates";
@@ -1544,6 +1545,32 @@ export class AdminService {
     const result = await runOfficialCall(String(phone), String(pwd), String(cgi), body);
     await this._audit("officialCall", "", `${phone} → ${result.cgi}`);
     return result;
+  }
+
+  /**
+   * 上传像素画到官服 arkhub（24×24 RGB → savePixelArt 完整流程：网关 token → multipart 上传 → 保存确认）
+   * @param phone - 官服手机号
+   * @param pwd - 官服密码
+   * @param pixelData - 24×24×3 RGB（数组/Buffer/对象数组，validatePixelData 归一化）
+   * @returns { pixelArtId, uploadToken, httpResp }
+   */
+  async uploadPixelArt(
+    phone: string,
+    pwd: string,
+    pixelData: unknown,
+  ): Promise<{ pixelArtId: string; uploadToken: string; httpResp: any }> {
+    if (!phone || !pwd) {
+      throw new Error("需提供官服手机号与密码");
+    }
+    const { validatePixelData } = await import("./arkhub-pixel");
+    const pixels = validatePixelData(pixelData);
+    const r = await uploadPixelArtToOfficial(String(phone), String(pwd), pixels);
+    await this._audit("pixelUpload", "", `${phone} → pixelArtId=${r.pixelArtId}`);
+    return {
+      pixelArtId: r.pixelArtId.toString(),
+      uploadToken: r.uploadToken,
+      httpResp: r.httpResp,
+    };
   }
 
   /**

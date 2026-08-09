@@ -196,6 +196,7 @@
       <div class="tab" data-tab="pools">卡池</div>
       <div class="tab" data-tab="api">接口</div>
       <div class="tab" data-tab="official">官服</div>
+      <div class="tab" data-tab="pixel">像素画</div>
       <div class="tab" data-tab="raw">数据</div>
     </div>
   </section>
@@ -248,6 +249,7 @@
       <div class="tab-pane" id="pane-pools"></div>
       <div class="tab-pane" id="pane-api"></div>
       <div class="tab-pane" id="pane-official"></div>
+      <div class="tab-pane" id="pane-pixel"></div>
       <div class="tab-pane" id="pane-raw"></div>
     </div>
   </section>
@@ -583,9 +585,9 @@
 
   /* ---------- 用户详情（Tab） ---------- */
 
-  var TAB_LABELS = { overview: "概览", chars: "干员", mails: "邮件", pools: "卡池", api: "接口", official: "官服", raw: "数据" };
+  var TAB_LABELS = { overview: "概览", chars: "干员", mails: "邮件", pools: "卡池", api: "接口", official: "官服", pixel: "像素画", raw: "数据" };
   /** 全局功能 Tab（不依赖选中用户，内容全宽） */
-  var GLOBAL_TABS = ["pools", "api", "official"];
+  var GLOBAL_TABS = ["pools", "api", "official", "pixel"];
 
   function switchTab(tab) {
     currentTab = tab;
@@ -607,10 +609,11 @@
   var USER_TABS = ["overview", "chars", "mails", "raw"];
 
   function loadPane(tab, uid) {
-    // 全局功能 Tab（接口/卡池/官服）不依赖选中用户，未选用户也可用
+    // 全局功能 Tab（接口/卡池/官服/像素画）不依赖选中用户，未选用户也可用
     if (tab === "pools") { loadPoolsPane(); return; }
     if (tab === "api") { loadApiPane(); return; }
     if (tab === "official") { loadOfficialPane(); return; }
+    if (tab === "pixel") { loadPixelPane(); return; }
     // 用户相关 Tab：未选用户时提示
     if (!uid) {
       var pane = $("pane-" + tab);
@@ -1577,6 +1580,171 @@
     });
   }
 
+  /* ---------- 像素画 Tab（24×24 编辑器 + 上传官服） ---------- */
+
+  function loadPixelPane() {
+    var pane = $("pane-pixel");
+    pane.innerHTML =
+      '<p style="color:var(--muted);font-size:12px;">阿卡狄亚像素画：24×24 画布、每像素 3 字节 RGB（共 1728B）。' +
+      '鼠标绘制 / 橡皮擦 / 清空；可下载 PNG 与像素数据，或上传到官服（完整 savePixelArt 流程：登录 → 网关申请 token → multipart 上传 → 保存确认）。</p>' +
+      '<div class="row" style="align-items:flex-start;gap:18px;flex-wrap:wrap;">' +
+      '<div>' +
+      '<canvas id="px-canvas" width="480" height="480" style="background:#fff;image-rendering:pixelated;border:1px solid var(--border);cursor:crosshair;touch-action:none;"></canvas>' +
+      '<div class="row" style="margin-top:8px;">' +
+      '<button id="px-clear" class="primary">清空</button>' +
+      '<button id="px-sample">示例</button>' +
+      '<button id="px-png">下载 PNG</button>' +
+      '<button id="px-data">下载像素数据</button>' +
+      "</div></div>" +
+      "<div>" +
+      '<p style="font-size:12px;color:var(--muted);margin:0 0 6px;">调色板（点击选色）</p>' +
+      '<div id="px-palette" style="display:grid;grid-template-columns:repeat(10,26px);gap:4px;"></div>' +
+      '<p style="font-size:12px;color:var(--muted);margin:10px 0 6px;">工具</p>' +
+      '<div class="row"><button id="px-eraser" class="primary">橡皮擦</button><span id="px-tool" style="font-size:12px;color:var(--gold);margin-left:8px;"></span></div>' +
+      '<p style="font-size:12px;color:var(--muted);margin:10px 0 6px;">上传官服（会真实写入该账号的 act1arkhub 活动）</p>' +
+      '<div class="row">' +
+      '<input id="px-phone" placeholder="官服手机号" style="flex:1;">' +
+      '<input id="px-pwd" type="password" placeholder="官服密码" style="flex:1;">' +
+      '<button id="px-upload" class="primary">上传</button></div>' +
+      '<div class="resp-box" id="px-resp" style="margin-top:10px;">上传结果显示在此</div>' +
+      "</div></div>";
+
+    var PALETTE = ["#ffffff","#cccccc","#888888","#444444","#000000","#ff8888","#ff4444","#cc0000","#880000","#440000","#ffcc88","#ff8800","#cc6600","#884400","#442200","#ffee88","#ffcc00","#cc9900","#886600","#443300","#ccff88","#88ff00","#66cc00","#448800","#224400","#88ffcc","#00ff88","#00cc66","#008844","#004422","#88ffff","#00cccc","#009999","#006666","#003333","#8888ff","#4444ff","#0000cc","#000088","#4400cc"];
+    var SIZE = 24;
+    var cell = 20;
+    var WHITE = [255, 255, 255];
+    var grid = [];
+    for (var i = 0; i < SIZE * SIZE; i++) grid.push(WHITE.slice());
+    var current = [0, 0, 0];
+    var eraser = false;
+
+    var canvas = $("px-canvas");
+    var ctx = canvas.getContext("2d");
+
+    function hexToRgb(h) {
+      return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+    }
+    function draw() {
+      ctx.fillStyle = "rgb(255,255,255)";
+      ctx.fillRect(0, 0, 480, 480);
+      for (var y = 0; y < SIZE; y++) {
+        for (var x = 0; x < SIZE; x++) {
+          var c = grid[y * SIZE + x];
+          ctx.fillStyle = "rgb(" + c[0] + "," + c[1] + "," + c[2] + ")";
+          ctx.fillRect(x * cell, y * cell, cell, cell);
+        }
+      }
+      ctx.strokeStyle = "rgba(0,0,0,0.12)";
+      ctx.lineWidth = 1;
+      for (var i = 0; i <= SIZE; i++) {
+        ctx.beginPath(); ctx.moveTo(i * cell, 0); ctx.lineTo(i * cell, 480); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i * cell); ctx.lineTo(480, i * cell); ctx.stroke();
+      }
+      updateTool();
+    }
+    function paintAt(e) {
+      var rect = canvas.getBoundingClientRect();
+      var x = Math.floor(((e.clientX - rect.left) * (480 / rect.width)) / cell);
+      var y = Math.floor(((e.clientY - rect.top) * (480 / rect.height)) / cell);
+      if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) return;
+      grid[y * SIZE + x] = eraser ? WHITE.slice() : current.slice();
+      draw();
+    }
+    var drawing = false;
+    canvas.addEventListener("mousedown", function (e) { drawing = true; paintAt(e); });
+    canvas.addEventListener("mousemove", function (e) { if (drawing) paintAt(e); });
+    window.addEventListener("mouseup", function () { drawing = false; });
+    canvas.addEventListener("touchstart", function (e) { e.preventDefault(); drawing = true; paintAt(e.touches[0]); }, { passive: false });
+    canvas.addEventListener("touchmove", function (e) { e.preventDefault(); if (drawing) paintAt(e.touches[0]); }, { passive: false });
+    canvas.addEventListener("touchend", function () { drawing = false; });
+
+    var palBox = $("px-palette");
+    PALETTE.forEach(function (h) {
+      var sw = document.createElement("div");
+      sw.style.cssText = "width:26px;height:26px;background:" + h + ";border:1px solid var(--border);border-radius:4px;cursor:pointer;";
+      sw.addEventListener("click", function () {
+        eraser = false;
+        current = hexToRgb(h);
+        updateTool();
+      });
+      palBox.appendChild(sw);
+    });
+    function updateTool() {
+      $("px-tool").textContent = eraser
+        ? "橡皮擦"
+        : "颜色 #" + current.map(function (n) { return n.toString(16).padStart(2, "0"); }).join("");
+    }
+
+    function flatPixels() {
+      var flat = [];
+      for (var i = 0; i < grid.length; i++) flat.push(grid[i][0], grid[i][1], grid[i][2]);
+      return flat;
+    }
+
+    $("px-eraser").addEventListener("click", function () { eraser = !eraser; updateTool(); });
+    $("px-clear").addEventListener("click", function () {
+      for (var i = 0; i < grid.length; i++) grid[i] = WHITE.slice();
+      draw();
+    });
+    $("px-sample").addEventListener("click", function () {
+      // 示例：用心形掩码填当前色
+      var heart = [
+        "....XXXX......XXXX....", "..XXXXXXXX..XXXXXXXX..",
+        ".XXXXXXXXXX.XXXXXXXXX.", ".XXXXXXXXXXXXXXXXXXXX.",
+        "XXXXXXXXXXXXXXXXXXXXXX", "XXXXXXXXXXXXXXXXXXXXXX",
+        ".XXXXXXXXXXXXXXXXXXXX.", "..XXXXXXXXXXXXXXXXXX..",
+        "...XXXXXXXXXXXXXXXX....", ".....XXXXXXXXXXXX......",
+        ".......XXXXXXXX........", ".........XXXX..........",
+        "...........XX..........", ".......................",
+        ".......................", ".......................",
+        ".......................", ".......................",
+        ".......................", ".......................",
+        ".......................", ".......................",
+        ".......................", ".......................",
+      ];
+      for (var y = 0; y < SIZE; y++) {
+        var row = heart[y] || "";
+        for (var x = 0; x < SIZE; x++) {
+          if (row[x] === "X") grid[y * SIZE + x] = current.slice();
+        }
+      }
+      draw();
+    });
+    $("px-png").addEventListener("click", function () {
+      var a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = "pixel-art.png";
+      a.click();
+    });
+    $("px-data").addEventListener("click", function () {
+      var blob = new Blob([JSON.stringify(flatPixels())], { type: "application/json" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "pixel-data.json";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    $("px-upload").addEventListener("click", function () {
+      var phone = $("px-phone").value.trim();
+      var pwd = $("px-pwd").value.trim();
+      if (!phone || !pwd) { toast("请填写官服手机号与密码"); return; }
+      $("px-resp").textContent = "上传中...（登录官服 → 网关申请 token → multipart 上传 → 保存确认，请耐心等待）";
+      api("/pixel/upload-official", {
+        method: "POST",
+        body: JSON.stringify({ phone: phone, pwd: pwd, pixelData: flatPixels() }),
+      })
+        .then(function (r) {
+          showResp("px-resp",
+            "上传成功\npixelArtId: " + r.pixelArtId + "\n上传 token: " + r.uploadToken +
+            "\n官服响应: " + JSON.stringify(r.httpResp, null, 2));
+          refreshLogs();
+        })
+        .catch(function (e) { showResp("px-resp", "上传失败: " + e.message); });
+    });
+
+    draw();
+  }
+
   /* ---------- 登录 ---------- */
 
   function showLogin() { $("login").style.display = "flex"; }
@@ -1657,7 +1825,7 @@
   }, 500);
 
   /* ---------- 全局快捷键 ---------- */
-  var SHORTCUT_TABS = ["overview", "chars", "mails", "pools", "api", "official", "raw"];
+  var SHORTCUT_TABS = ["overview", "chars", "mails", "pools", "api", "official", "pixel", "raw"];
   document.addEventListener("keydown", function (e) {
     if (isEditing() || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === "/" || e.key === "u") {

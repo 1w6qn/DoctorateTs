@@ -11,6 +11,7 @@
  * 客户端在游戏内重新保存一次像素画即可产生含 rawBody 的请求记录。
  */
 import fs from "fs";
+import { pixelDataToPng } from "../app/admin/arkhub-pixel";
 import path from "path";
 
 interface CapturedRequest {
@@ -108,16 +109,28 @@ function main(): void {
     console.log(`  - ${name}: ${data.length}B ${text ? "→ " + data.toString("utf8") : ""}`);
   }
 
-  const file = parts.get("file") || parts.get("pixel");
+  const file = parts.get("pixelData") || parts.get("file") || parts.get("pixel");
   if (!file) {
-    console.error("未找到 file/pixel part");
+    console.error("未找到 pixelData/file/pixel part");
     process.exit(1);
   }
-  console.log("\nfile 格式识别:", detectFormat(file));
+  console.log("\npixelData 格式识别:", detectFormat(file));
 
   const out = path.join(__dirname, "..", "tmp", `pixel-art-extracted.dat`);
   fs.writeFileSync(out, file);
   console.log("已保存:", out, `(${file.length}B)`);
+
+  // arkhub 像素画格式：24x24 画布，每像素 3 字节 RGB（1728 = 24*24*3），
+  // 空白像素 (255,255,255) 视为透明背景。解析后放大输出 PNG（复用 app/admin/arkhub-pixel）。
+  const scale = Number(process.env.PIXEL_SCALE || 10);
+  if (file.length === 24 * 24 * 3) {
+    const pngOut = path.join(__dirname, "..", "tmp", "pixel-art.png");
+    fs.writeFileSync(pngOut, pixelDataToPng(file, scale));
+    console.log(`已转 PNG（24x24 放大 ${scale} 倍，空白为透明）:`, pngOut);
+  } else {
+    console.log(`pixelData 不是 24x24 RGB 栅格（${file.length}B）——跳过 PNG 生成`);
+  }
 }
 
 main();
+

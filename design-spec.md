@@ -1103,6 +1103,19 @@ mitmproxy map remote 设置 URL 时会同步改写 Host 头为 `127.0.0.1:8443`�
 
 **与 test.ts 关系**：test.ts（`npm run ts`，8444）是独立纯转发抓包代理，规则同源但可独立运行；本模式把同一套规则并入主服务器（8443），免去另起进程。**账号说明**：capture 模式用官服账号登录（reference/checkin-master/accounts.txt），与私服账号体系互不相通。
 
+### 17.6 管理后台像素画工具 + 上传官服（2026-08-09）
+Dashboard 新增「像素画」Tab（app/admin/dashboard/index.html `loadPixelPane`）：24×24 画布编辑器（40 色调色板绘制/橡皮擦/清空/示例），下载 PNG / 像素数据，上传官服。
+
+**像素数据格式**（逆向确认）：24×24×3 RGB 共 1728 字节，空白 (255,255,255) 为透明背景；md5 即 1728 字节的 md5（`RequestPixelArtUploadTokenReq` 的 Md5 字段）。工具模块 `app/admin/arkhub-pixel.ts`（PIXEL_PALETTE 默认 40 色——官服热更 display_meta_table.pixelMapData.paramMap.htmlColors 本地为空，可替换）。
+
+**上传官服流程**（`official-ops.uploadPixelArt`，`/admin/api/pixel/upload-official`）：
+1. `OfficialSession.login`（HTTP 会话）→ uid/secret
+2. **网关**（app/admin/arkhub-gateway-client.ts）申请上传 token：帧 `[4B 大端总长含自身][4B mainID][8B subID][protobuf]`；UserLoginReq mainID=4 subID=0x0fa1（HTTP secret 可直接网关登录，code 100=OK、112=RelayLoginSuccess 表示账号已有活动会话）；RequestPixelArtUploadTokenReq mainID=8 subID=0x00029CE231D603B3，消息体 `[4B 递增序列前缀][field2=Md5]`，响应 subID=0x00029CE231D60CF6 `[前缀][Code][Credential{pixelArtId,uploadToken,expireTime}]`
+3. **HTTP multipart 上传** `POST /activity/arkhub/savePixelArt`（与真实客户端字节级一致）：`json` part（name="json" filename="json_info"，body=`{"brief":{"activityId":"act1arkhub","token":"<token>"}}`）+ `pixelData` part（name="pixelData" filename="pixelDataFile" Content-Type=multipart/form-data，1728B）
+4. **网关保存确认** SavePixelArtReq mainID=8 subID=0x00029CE231D674D5 `[PixelArtId][UploadSuccess=1][DoPublish=0]`
+
+**已知限制**：token 请求依赖网关"进入场景"状态（真实客户端登录后需先发场景进入/位置同步消息），合成会话未复刻该握手时服务器可能关闭连接；账号同时只允许一个活动网关会话（重复登录返回 112 中继）。失败时给出可操作错误（等待旧会话过期 / 先游戏内进入阿卡狄亚）。
+
 ---
 
 ## 18. 助战系统

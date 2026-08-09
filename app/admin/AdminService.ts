@@ -1246,6 +1246,49 @@ export class AdminService {
     return { ok: users.every((u) => u.ok), users };
   }
 
+  /** 存档文件级校验：遍历磁盘 data/user/databases/*.json（含未加载用户），检查可解析与基本结构 */
+  async checkDataFiles(): Promise<{
+    ok: boolean;
+    files: { uid: string; ok: boolean; error?: string }[];
+  }> {
+    let names: string[] = [];
+    try {
+      names = await readdir("./data/user/databases");
+    } catch {
+      return { ok: true, files: [] };
+    }
+    const files: { uid: string; ok: boolean; error?: string }[] = [];
+    for (const name of names.filter((n) => n.endsWith(".json"))) {
+      const uid = name.replace(/\.json$/, "");
+      try {
+        const d = await readJson<PlayerDataModel>(`./data/user/databases/${name}`);
+        if (!d?.status || !d?.troop) {
+          throw new Error("缺少 status/troop");
+        }
+        JSON.stringify(d);
+        files.push({ uid, ok: true });
+      } catch (e) {
+        files.push({ uid, ok: false, error: (e as Error).message });
+      }
+    }
+    return { ok: files.every((f) => f.ok), files };
+  }
+
+  /** 活动数据摘要（只读：各类型活动数） */
+  async getActivitySummary(
+    uid: string,
+  ): Promise<{ total: number; types: { type: string; activities: number }[] }> {
+    const pd = await this.getPlayer(uid);
+    const act = (pd._playerdata.activity ?? {}) as Record<string, any>;
+    const types = Object.entries(act)
+      .map(([type, v]) => ({
+        type,
+        activities: v && typeof v === "object" ? Object.keys(v).length : 0,
+      }))
+      .filter((t) => t.activities > 0);
+    return { total: types.reduce((s, t) => s + t.activities, 0), types };
+  }
+
   /**
    * 删除用户（危险操作：删除存档文件 + 从 configs/data 移除 + saveUserConfig 同步 SQLite）
    * @param uid - 目标用户

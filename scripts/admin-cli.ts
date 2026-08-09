@@ -145,6 +145,7 @@ export function printHelp(): void {
   users items <关键字> [limit] [--json]             按名称/ID 搜索物品（供发放用）
   users missions <uid> [--json]                     查看任务进度统计（只读）
   users medals <uid> [--json]                       查看勋章进度（只读）
+  users activity <uid> [--json]                     查看活动数据摘要（只读）
   users shop <uid> [--json]                         查看商店数据汇总（只读）
   users checkin <uid> [--reset|--do]                查看/重置/代签签到
   users export <uid> [path]                         导出存档到 JSON（默认 ./exports/）
@@ -159,6 +160,7 @@ export function printHelp(): void {
   users items <关键字> [limit] [--json]             按名称/ID 搜索物品（供发放用）
   users missions <uid> [--json]                     查看任务进度统计（只读）
   users medals <uid> [--json]                       查看勋章进度（只读）
+  users activity <uid> [--json]                     查看活动数据摘要（只读）
   users shop <uid> [--json]                         查看商店数据汇总（只读）
   users checkin <uid> [--reset|--do]                查看/重置/代签签到
   users export <uid> [path]                         导出存档到 JSON（默认 ./exports/）
@@ -174,7 +176,7 @@ export function printHelp(): void {
   server status                                     查看服务器状态
   server refresh <uid>                              触发每日/每周刷新
   server save [uid]                                 立即保存存档（缺省全部用户）
-  server check                                      数据完整性校验（status/troop/可序列化）
+  server check [--files]                              数据校验（--files 校验磁盘全部存档）（status/troop/可序列化）
 
 配置:
   config show / config set <key> <value>
@@ -606,6 +608,26 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
       console.log(`用户 ${uid} 勋章进度：已解锁 ${st.unlocked}/${st.total}`);
       return;
     }
+    case "activity": {
+      const uid = args[1];
+      if (!uid) {
+        console.error("用法: users activity <uid> [--json]");
+        process.exitCode = 1;
+        return;
+      }
+      const st = await adminService.getActivitySummary(uid);
+      if (flags.json) {
+        output(st, flags);
+        return;
+      }
+      console.log(`用户 ${uid} 活动数据：共 ${st.total} 个活动`);
+      if (st.types.length) {
+        console.table(
+          st.types.map((t) => ({ 类型: t.type, 活动数: t.activities })),
+        );
+      }
+      return;
+    }
     case "export": {
       const uid = args[1];
       const target = args[2];
@@ -787,7 +809,7 @@ async function runMail(args: string[], flags: { [key: string]: string }): Promis
 }
 
 /** server 子命令 */
-async function runServer(args: string[]): Promise<void> {
+async function runServer(args: string[], flags: { [key: string]: string }): Promise<void> {
   const sub = args[0];
   if (sub === "status") {
     const st = await adminService.status();
@@ -830,6 +852,14 @@ async function runServer(args: string[]): Promise<void> {
     return;
   }
   if (sub === "check") {
+    if (flags.files === "true") {
+      const r = await adminService.checkDataFiles();
+      console.log(`存档文件级校验：${r.files.length} 个文件 ${r.ok ? "全部正常" : "存在异常"}`);
+      console.table(
+        r.files.map((f) => ({ uid: f.uid, 状态: f.ok ? "正常" : "异常", 详情: f.error ?? "-" })),
+      );
+      return;
+    }
     const r = await adminService.checkData();
     console.log(`数据完整性校验：${r.ok ? "全部正常" : "存在异常"}`);
     console.table(
@@ -837,7 +867,7 @@ async function runServer(args: string[]): Promise<void> {
     );
     return;
   }
-  console.error("用法: server status | server refresh <uid> | server save [uid] | server check");
+  console.error("用法: server status | server refresh <uid> | server save [uid] | server check [--files]");
   process.exitCode = 1;
 }
 
@@ -1201,7 +1231,7 @@ export async function dispatch(
       await runMail(args, flags);
       break;
     case "server":
-      await runServer(args);
+      await runServer(args, flags);
       break;
     case "config":
       await runConfig(args);

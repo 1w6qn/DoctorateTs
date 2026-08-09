@@ -157,6 +157,7 @@ function makeFullPd() {
     mission: { missions: {}, missionRewards: {}, missionGroups: {} } as any,
     medal: { medals: {}, custom: {} } as any,
     shop: {} as any,
+    activity: {} as any,
     checkIn: {
       canCheckIn: 1,
       checkInGroupId: "group1",
@@ -892,6 +893,17 @@ describe("AdminService 关卡/物品/任务", () => {
     expect(st.total).toBe(2);
     expect(st.unlocked).toBe(1);
     expect(st.medals[0]).toMatchObject({ id: "medal_1", unlocked: true });
+  });
+
+  it("getActivitySummary 应统计各类型活动数", async () => {
+    (pd._playerdata.activity as any) = {
+      LOGIN_ONLY: { act1: {}, act2: {} },
+      MISSION_ONLY: { act3: {} },
+    };
+    const st = await service.getActivitySummary("1");
+    expect(st.total).toBe(3);
+    expect(st.types.find((t) => t.type === "LOGIN_ONLY")!.activities).toBe(2);
+    expect(st.types.find((t) => t.type === "MISSION_ONLY")!.activities).toBe(1);
   });
 });
 

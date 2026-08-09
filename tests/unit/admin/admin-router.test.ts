@@ -54,6 +54,8 @@ vi.mock("../../../app/admin/AdminService", () => ({
     exportUser: vi.fn().mockResolvedValue({ uid: "1", path: "./exports/1-x.json", size: 10 }),
     importUser: vi.fn().mockResolvedValue({ uid: "1" }),
     checkData: vi.fn().mockResolvedValue({ ok: true, users: [{ uid: "1", ok: true }] }),
+    checkDataFiles: vi.fn().mockResolvedValue({ ok: true, files: [{ uid: "1", ok: true }] }),
+    getActivitySummary: vi.fn().mockResolvedValue({ total: 3, types: [{ type: "LOGIN_ONLY", activities: 2 }] }),
   },
 }));
 vi.mock("../../../app/admin/admin-auth", () => ({
@@ -505,5 +507,16 @@ describe("admin 路由（扩展能力）", () => {
     await call({ method: "GET", url: "/api/check" }, res3);
     expect(adminService.checkData).toHaveBeenCalled();
     expect(res3.json).toHaveBeenCalledWith({ ok: true, users: [{ uid: "1", ok: true }] });
+  });
+
+  it("check-files / activity 端点应透传", async () => {
+    const res1 = mockRes();
+    await call({ method: "GET", url: "/api/check-files" }, res1);
+    expect(adminService.checkDataFiles).toHaveBeenCalled();
+
+    const res2 = mockRes();
+    await call({ method: "GET", url: "/api/users/1/activity", params: { uid: "1" } }, res2);
+    expect(adminService.getActivitySummary).toHaveBeenCalledWith("1");
+    expect(res2.json).toHaveBeenCalledWith({ total: 3, types: [{ type: "LOGIN_ONLY", activities: 2 }] });
   });
 });

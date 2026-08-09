@@ -211,6 +211,7 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   { method: "POST", path: "/api/users/:uid/stages/unlock-all", summary: "推图全解锁（遍历 StageTable，跳过已有进度）", body: "{}" },
   { method: "GET", path: "/api/items", summary: "物品搜索（按 ID/中文名过滤 ItemTable，供发放选择）", params: [{ name: "q", type: "string", desc: "关键字（空返回前 50 条）" }, { name: "limit", type: "number", desc: "条数（默认 50）" }] },
   { method: "GET", path: "/api/users/:uid/missions", summary: "任务进度统计（只读：各组任务数/已完成数）" },
+  { method: "GET", path: "/api/users/:uid/activity", summary: "活动数据摘要（只读：各类型活动数）" },
   { method: "GET", path: "/api/users/:uid/medals", summary: "勋章进度（只读：已解锁/总数）" },
   {
     method: "POST",
@@ -229,7 +230,8 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
     ],
     body: '{"filePath":"./exports/1-backup.json","uid":"1"}',
   },
-  { method: "GET", path: "/api/check", summary: "数据完整性校验（已加载用户 status/troop/可序列化）" },
+  { method: "GET", path: "/api/check", summary: "数据完整性校验（已加载用户 status/troop/干员结构/可序列化）" },
+  { method: "GET", path: "/api/check-files", summary: "存档文件级校验（磁盘全部 databases/*.json，含未加载用户）" },
   { method: "GET", path: "/api/openapi.json", summary: "OpenAPI 3.0 规范（管理 API，供外部工具消费）" },
   { method: "GET", path: "/api/config", summary: "查看配置（只读）" },
   {

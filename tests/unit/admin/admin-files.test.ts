@@ -213,6 +213,27 @@ describe("AdminService 存档导出/导入/校验", () => {
     expect(r.users.find((u: any) => u.uid === "2")!.ok).toBe(false);
     expect(r.users.find((u: any) => u.uid === "1")!.ok).toBe(true);
   });
+
+  it("checkDataFiles 应校验磁盘全部存档（含未加载/损坏文件）", async () => {
+    vi.mocked(readdir).mockResolvedValue(["1.json", "bad.json", "readme.txt"]);
+    vi.mocked(readJson).mockImplementation(async (p: string) => {
+      if (String(p).includes("bad.json")) return { troop: {} }; // 缺 status
+      return { status: { uid: "1" }, troop: {} };
+    });
+    const r = await service.checkDataFiles();
+    expect(r.files).toHaveLength(2); // 只算 .json
+    expect(r.files.find((f: any) => f.uid === "1")!.ok).toBe(true);
+    expect(r.files.find((f: any) => f.uid === "bad")!.ok).toBe(false);
+    expect(r.ok).toBe(false);
+  });
+
+  it("checkDataFiles 目录不存在应返回空", async () => {
+    // restoreAllMocks 不重置模块 mock 的 readdir，显式恢复默认（目录不存在）
+    vi.mocked(readdir).mockRejectedValue({ code: "ENOENT" });
+    const r = await service.checkDataFiles();
+    expect(r.files).toEqual([]);
+    expect(r.ok).toBe(true);
+  });
 });
 
 describe("AdminService 官服卡池同步", () => {

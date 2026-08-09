@@ -591,6 +591,20 @@ router.get("/api/check", async (_req: Request, res: Response) => {
   res.json(await adminService.checkData());
 });
 
+/** 存档文件级校验（磁盘全部，含未加载用户） */
+router.get("/api/check-files", async (_req: Request, res: Response) => {
+  res.json(await adminService.checkDataFiles());
+});
+
+/** 活动数据摘要（只读） */
+router.get("/api/users/:uid/activity", async (req: Request, res: Response) => {
+  try {
+    res.json(await adminService.getActivitySummary(String(req.params.uid)));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 /** OpenAPI 3.0 规范（管理 API） */
 router.get("/api/openapi.json", (_req: Request, res: Response) => {
   res.json(buildOpenApi());

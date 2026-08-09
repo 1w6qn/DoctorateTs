@@ -307,4 +307,26 @@ describe("CharManager", () => {
       );
     });
   });
+
+  describe("onCharGet 修复（2026-08-09）", () => {
+    it("新干员创建后 curCharInstId 应递增（避免 instId 冲突）", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.dexNav!.character = {};
+      mockPlayer._playerdata.troop!.curCharInstId = 0;
+      await manager.onCharGet(["char_001", { from: "NORMAL" }]);
+      // 新干员创建后 curCharInstId 0 → 1（此前从不递增导致后续新干员 instId 冲突）
+      expect(mockPlayer._playerdata.troop!.curCharInstId).toBe(1);
+      // 新干员的 instId 使用递增前的 curCharInstId（=0 时用 0 → dexNav 记录）
+      const dexChar = mockPlayer._playerdata.dexNav!.character["char_001"];
+      expect(dexChar.charInstId).toBe(0);
+    });
+
+    it("重复且未满潜干员应返回 potent {delta, now}", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      // char_001 已在 mock 中（potentialRank 0，maxPotentialLevel 5）
+      const result = await manager.onCharGet(["char_001", { from: "NORMAL" }]);
+      expect(result.isNew).toBe(0);
+      expect(result.potent).toEqual({ delta: 1, now: 1 });
+    });
+  });
 });

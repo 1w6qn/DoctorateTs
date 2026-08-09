@@ -45,6 +45,7 @@ export class CharManager {
   ]): Promise<GachaResult> {
     let isNew: number = 0;
     let charInstId: number = 0;
+    let potent: { delta: number; now: number } | undefined;
     const items: ItemBundle[] = [];
     await this._player.update(async (draft) => {
       const { from, extraItem } = args;
@@ -74,6 +75,12 @@ export class CharManager {
       if (!isNew) {
         const potentId = excel.CharacterTable[charId].potentialItemId!;
         items.push({ id: potentId, count: 1, type: "MATERIAL" });
+        // 修复：CS GachaResult.potent——未满潜的重复干员返回潜能提升信息（delta/now）
+        const maxPotential = excel.CharacterTable[charId].maxPotentialLevel ?? 5;
+        const repeatChar = draft.troop.chars[charInstId];
+        if (repeatChar && (repeatChar.potentialRank ?? 0) < maxPotential) {
+          potent = { delta: 1, now: (repeatChar.potentialRank ?? 0) + 1 };
+        }
         const mul: number = dexInfo.count > 6 ? 1.5 : 1;
         if (from == "CLASSIC") {
           switch (rarityToIndex(excel.CharacterTable[charId].rarity)) {
@@ -135,6 +142,8 @@ export class CharManager {
           voiceLan: "CN_MANDARIN",
         };
         await this._trigger.emit("char:init", [draft.troop.chars[charInstId]]);
+        // 修复：新干员创建后递增 curCharInstId，避免后续新干员 instId 冲突互相覆盖
+        draft.troop.curCharInstId += 1;
         if (from == "CLASSIC") {
           items.push({ id: "classic_normal_ticket", count: 10 });
         } else {
@@ -151,6 +160,7 @@ export class CharManager {
       charId: charId,
       isNew: isNew,
       itemGet: items,
+      ...(potent ? { potent } : {}),
     };
     callback?.(res);
     return res;

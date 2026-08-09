@@ -1351,4 +1351,9 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 
 - **templateShop 商店打不开修复（2026-08-09，用户报告奇象巡展/arkodc 商店）**：getGoodList 原返回空 data（商店无法打开）。已复制 ODPY 数据源 `data/shop/templateShop.json`（33 家商店含 sandbox_1/2、shop_act53side 巡展店），getGoodList 返回完整商店配置（32KB，含 shopGroup 商品）；buyGood 实现购买（扣货币→发物品→限购记录），修复 tshop 初始化崩溃。实机：getGoodList 完整返回、buyGood 无货币返回空列表不 500。
 
+- **抽卡 charGet 响应修复（2026-08-09，用户报告）**：
+  - curCharInstId 从不递增 bug：onCharGet 新干员用 `draft.troop.curCharInstId` 作为 instId 但从不 +1 → 后续新干员 instId 冲突互相覆盖。已在新干员创建后递增
+  - potent 字段缺失：CS GachaResult.potent（潜能提升信息），未满潜重复干员应返回 `{delta, now}`。已实现（potentialRank < maxPotentialLevel 时返回）
+  - 单测 2 条
+
 - **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用（全量对齐后已补 stub，路径可达）

@@ -26,6 +26,8 @@ export const GW_USER_LOGIN_RESP = BigInt(0x0fa2);
 export const GW_TOKEN_REQ = BigInt("0x00029ce231d603b3");
 export const GW_TOKEN_RESP = BigInt("0x00029ce231d60cf6");
 export const GW_SAVE_PIXEL_ART_REQ = BigInt("0x00029ce231d674d5");
+/** 场景 hello（登录后必发，否则 token 请求会失败——08-26 成功会话逆向确认） */
+export const GW_SCENE_HELLO = BigInt("0x00018fb64de29cdb");
 
 /** 网关返回码：100 = OK */
 export const GW_CODE_OK = 100;
@@ -153,7 +155,13 @@ export class GatewaySession {
     const code = fields.find((f) => f.field === 1)?.value ?? BigInt(-1);
     // 100=正常登录成功；112=RelayLoginSuccess（账号已有活动会话，中继登录——token 请求会
     // 报 "server node not found"，报错并引导用户先清理游戏内会话再重试）
-    if (code === BigInt(GW_CODE_OK)) return;
+    if (code === BigInt(GW_CODE_OK)) {
+      // 登录后必发场景 hello（08-26 成功会话逆向：缺它 token 请求会被服务器关连接）
+      this.sendFrame(8, GW_SCENE_HELLO, Buffer.from([0x08, 0x00]));
+      // 等服务端场景数据推送就绪（收到后 token 请求才可用）
+      await new Promise((r) => setTimeout(r, 1500));
+      return;
+    }
     if (code === BigInt(GW_CODE_RELAY_LOGIN)) {
       throw new Error(
         `官服网关会话被占用（RelayLogin code=112）：账号 ${uid} 已有活动网关会话。` +
@@ -209,9 +217,20 @@ export class GatewaySession {
     await new Promise((r) => setTimeout(r, 300));
   }
 
+  /** 登出并关闭连接（登出帧释放账号的网关会话绑定，否则下次登录会 112 中继） */
   close(): void {
     this.closed = true;
-    this.sock?.destroy();
+    try {
+      // 登出消息：mainID=8, subID=0x0002C89B38B3C3C9, proto=08 01（抓包中客户端断开前的最后一帧）
+      this.sendFrame(8, BigInt("0x0002c89b38b3c3c9"), Buffer.from([0x08, 0x01]));
+    } catch {
+      /* 连接已断则跳过登出 */
+    }
+    // 给网关处理登出留一点时间，再销毁连接
+    const sock = this.sock;
+    setTimeout(() => {
+      sock?.destroy();
+    }, 300);
     this.sock = null;
   }
 

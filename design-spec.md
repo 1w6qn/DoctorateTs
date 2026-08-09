@@ -1114,7 +1114,7 @@ Dashboard 新增「像素画」Tab（app/admin/dashboard/index.html `loadPixelPa
 3. **HTTP multipart 上传** `POST /activity/arkhub/savePixelArt`（与真实客户端字节级一致）：`json` part（name="json" filename="json_info"，body=`{"brief":{"activityId":"act1arkhub","token":"<token>"}}`）+ `pixelData` part（name="pixelData" filename="pixelDataFile" Content-Type=multipart/form-data，1728B）
 4. **网关保存确认** SavePixelArtReq mainID=8 subID=0x00029CE231D674D5 `[PixelArtId][UploadSuccess=1][DoPublish=0]`
 
-**已知限制**：token 请求依赖网关"进入场景"状态（真实客户端登录后需先发场景进入/位置同步消息），合成会话未复刻该握手时服务器可能关闭连接；账号同时只允许一个活动网关会话（重复登录返回 112 中继）。失败时给出可操作错误（等待旧会话过期 / 先游戏内进入阿卡狄亚）。
+**实现要点（2026-08-09 已端到端验证）**：登录后须发**场景 hello**（mainID=8 subID=0x00018FB64DE29CDB proto=`08 00`）并等约 1.5s 让场景数据就绪，token 请求才可用（缺 hello 时服务器关连接）；close 时发登出帧（subID=0x0002C89B38B3C3C9 proto=`08 01`）释放会话绑定。**限制**：账号同时只允许一个活动网关会话（重复登录返回 112 中继，RelayLoginSuccess），旧会话过期（约 1-3 分钟）后恢复；失败时给出可操作错误。已实测上传成功：pixelArtId 返回、getPixelArt 可查。
 
 ---
 

@@ -32,6 +32,7 @@ vi.mock("../../../app/admin/AdminService", () => ({
     stats: vi.fn().mockResolvedValue({ userCount: 1, avgLevel: 60 }),
     logs: vi.fn().mockResolvedValue([{ ts: 1, action: "grantItem", uid: "1", detail: "x" }]),
     getCommonItems: vi.fn().mockResolvedValue([{ name: "龙门币", id: "4001" }]),
+    getMailTemplates: vi.fn().mockReturnValue([{ name: "补偿", subject: "补偿发放", items: 2 }]),
     gameProxy: vi.fn().mockResolvedValue({ status: 200, data: {}, uid: "1" }),
     listPools: vi.fn().mockResolvedValue([{ poolId: "NORMAL_0_1", name: "测试卡池" }]),
     poolDetail: vi.fn().mockReturnValue(null),
@@ -295,6 +296,11 @@ describe("admin 路由（扩展能力）", () => {
     const res3 = mockRes();
     await call({ method: "GET", url: "/api/common-items" }, res3);
     expect(adminService.getCommonItems).toHaveBeenCalled();
+
+    const res4 = mockRes();
+    await call({ method: "GET", url: "/api/mail-templates" }, res4);
+    expect(adminService.getMailTemplates).toHaveBeenCalled();
+    expect(res4.json).toHaveBeenCalledWith([{ name: "补偿", subject: "补偿发放", items: 2 }]);
   });
 
   it("GET /api/spec 应返回端点规范清单", async () => {

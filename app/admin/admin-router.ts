@@ -336,6 +336,11 @@ router.get("/api/common-items", (_req: Request, res: Response) => {
   res.json(adminService.getCommonItems());
 });
 
+/** 邮件模板列表 */
+router.get("/api/mail-templates", (_req: Request, res: Response) => {
+  res.json(adminService.getMailTemplates());
+});
+
 /** 管理 API 端点规范（Dashboard「接口」控制台数据源） */
 router.get("/api/spec", (_req: Request, res: Response) => {
   res.json({ endpoints: ADMIN_ENDPOINTS });

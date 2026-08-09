@@ -24,6 +24,7 @@ import {
   runGachaSync,
   OfficialAction,
 } from "./official-ops";
+import { MAIL_TEMPLATES } from "./mail-templates";
 import { exists, size, readJson, writeJson } from "@utils/file";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";
@@ -1619,6 +1620,15 @@ export class AdminService {
   /** 常用物品别名（展示给服主参考） */
   getCommonItems(): { name: string; id: string }[] {
     return Object.entries(COMMON_ITEMS).map(([name, id]) => ({ name, id }));
+  }
+
+  /** 邮件模板列表（供 CLI/接口控制台参考） */
+  getMailTemplates(): { name: string; subject: string; items: number }[] {
+    return MAIL_TEMPLATES.map((t) => ({
+      name: t.name,
+      subject: t.subject,
+      items: t.items.length,
+    }));
   }
 
   /**

@@ -24,7 +24,9 @@
  *   users dump <uid> [--pretty]                         导出原始玩家数据 JSON
  *
  * 邮件:
- *   mail send <uid[,uid...]|all> <subject> [content] [--items id:count,...]  发送邮件（uid 支持逗号分隔批量）
+ *   mail send <uid[,uid...]|all> <subject> [content] [--items id:count,...]  发送邮件
+  mail send <uid|all> --template <名称>                模板发送（补偿/公告/欢迎）
+  mail templates [--json]                             查看邮件模板
  *   mail list <uid> [--json]                           查看用户邮件
  *   mail delete <uid> <mailId>                         删除单封邮件
  *
@@ -168,7 +170,9 @@ export function printHelp(): void {
   users delete <uid> --yes                          删除用户（危险操作，需 --yes）
 
 邮件:
-  mail send <uid[,uid...]|all> <subject> [content] [--items id:count,...]  发送邮件（uid 支持逗号分隔批量）
+  mail send <uid[,uid...]|all> <subject> [content] [--items id:count,...]  发送邮件
+  mail send <uid|all> --template <名称>                模板发送（补偿/公告/欢迎）
+  mail templates [--json]                             查看邮件模板
   mail list <uid> [--json]                          查看用户邮件
   mail delete <uid> <mailId>                        删除单封邮件
 
@@ -757,22 +761,55 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
 /** mail 子命令 */
 async function runMail(args: string[], flags: { [key: string]: string }): Promise<void> {
   const sub = args[0];
+  if (sub === "templates") {
+    const list = adminService.getMailTemplates();
+    if (flags.json) {
+      output(list, flags);
+      return;
+    }
+    if (!list.length) {
+      console.log("暂无邮件模板");
+      return;
+    }
+    console.table(
+      list.map((t) => ({ 名称: t.name, 标题: t.subject, 附件种数: t.items })),
+    );
+    return;
+  }
   if (sub === "send") {
     const target = args[1];
-    const subject = args[2];
-    const content = args.slice(3).join(" ");
+    let subject = args[2];
+    let content = args.slice(3).join(" ");
+    let items: { id: string; count: number }[] = [];
+    // 模板发送：--template 名称（支持 {date} 等占位符替换）
+    if (flags.template && flags.template !== "true") {
+      const { expandTemplate } = await import("../app/admin/mail-templates");
+      const t = expandTemplate(flags.template, {
+        date: new Date().toLocaleDateString(),
+      });
+      if (!t) {
+        console.error(`未知邮件模板: ${flags.template}（可用 mail templates 查看）`);
+        process.exitCode = 1;
+        return;
+      }
+      subject = t.subject;
+      content = t.content;
+      items = t.items;
+    }
     if (!target || !subject) {
-      console.error("用法: mail send <uid[,uid...]|all> <subject> [content] [--items id:count,...]");
+      console.error("用法: mail send <uid[,uid...]|all> <subject> [content] [--items id:count,...] | mail send <uid|all> --template <名称>");
       process.exitCode = 1;
       return;
     }
-    const items = (flags.items ?? "")
-      .split(",")
-      .filter(Boolean)
-      .map((pair) => {
-        const [id, cnt] = pair.split(":");
-        return { id, count: Number(cnt ?? 1) };
-      });
+    if (!items.length) {
+      items = (flags.items ?? "")
+        .split(",")
+        .filter(Boolean)
+        .map((pair) => {
+          const [id, cnt] = pair.split(":");
+          return { id, count: Number(cnt ?? 1) };
+        });
+    }
     if (target === "all") {
       const result = await adminService.sendMailAll({ subject, content, items });
       console.log(`已向 ${result.sent} 个用户群发邮件「${subject}」（附件 ${items.length} 种）`);

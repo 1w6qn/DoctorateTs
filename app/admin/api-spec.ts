@@ -161,6 +161,16 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   },
   { method: "POST", path: "/api/users/:uid/maxchars", summary: "批量拉满全部已有干员（精二满级/满潜/满技能/专三/满信赖/装备）", body: "{}" },
   { method: "GET", path: "/api/users/:uid/stages", summary: "玩家推图进度（只读：已解锁/已完成关卡）" },
+  {
+    method: "POST",
+    path: "/api/users/:uid/stages/unlock",
+    summary: "解锁指定关卡（标记已完成）",
+    params: [{ name: "stageId", type: "string", required: true, desc: "关卡 ID（如 main_01-01）" }],
+    body: '{"stageId":"main_01-01"}',
+  },
+  { method: "POST", path: "/api/users/:uid/stages/unlock-all", summary: "推图全解锁（遍历 StageTable，跳过已有进度）", body: "{}" },
+  { method: "GET", path: "/api/items", summary: "物品搜索（按 ID/中文名过滤 ItemTable，供发放选择）", params: [{ name: "q", type: "string", desc: "关键字（空返回前 50 条）" }, { name: "limit", type: "number", desc: "条数（默认 50）" }] },
+  { method: "GET", path: "/api/users/:uid/missions", summary: "任务进度统计（只读：各组任务数/已完成数）" },
   { method: "GET", path: "/api/openapi.json", summary: "OpenAPI 3.0 规范（管理 API，供外部工具消费）" },
   { method: "GET", path: "/api/config", summary: "查看配置（只读）" },
   {

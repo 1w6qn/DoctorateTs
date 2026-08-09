@@ -71,6 +71,12 @@ vi.mock("@excel/excel", () => ({
         },
       },
     },
+    StageTable: {
+      stages: {
+        "main_01-01": {},
+        "main_01-02": {},
+      },
+    },
   },
 }));
 
@@ -128,6 +134,7 @@ function makeFullPd() {
     skin: { characterSkins: {}, skinTs: {} } as any,
     gacha: { normal: {}, limit: {} } as any,
     dungeon: { stages: {} } as any,
+    mission: { missions: {}, missionRewards: {}, missionGroups: {} } as any,
     building: {
       roomSlots: {
         slot_1: { level: 1, state: 1, roomId: "room_1", charInstIds: [], completeConstructTime: 0 },
@@ -716,6 +723,63 @@ describe("AdminService 批量工具", () => {
     expect(st.total).toBe(2);
     expect(st.done).toBe(1);
     expect(st.stages[0].stageId).toBe("main_01-01");
+  });
+});
+
+describe("AdminService 关卡/物品/任务", () => {
+  let service: AdminService;
+  let pd: any;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    service = new AdminService();
+    pd = makeFullPd();
+    stubAccounts(pd);
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.mocked(appendFile).mockResolvedValue(undefined);
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+  });
+
+  it("unlockStage 应写入关卡完成状态", async () => {
+    const r = await service.unlockStage("1", "main_01-01");
+    expect(r).toEqual({ stageId: "main_01-01" });
+    const s = pd._playerdata.dungeon.stages["main_01-01"];
+    expect(s.state).toBe(3);
+    expect(s.completeTimes).toBe(1);
+    expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
+  });
+
+  it("unlockStage 对未知关卡应抛错", async () => {
+    await expect(service.unlockStage("1", "no_such_stage")).rejects.toThrow(/关卡不存在/);
+  });
+
+  it("unlockAllStages 应补全缺失关卡并跳过已有进度", async () => {
+    (pd._playerdata.dungeon as any).stages["main_01-01"] = { state: 3, completeTimes: 3 };
+    const r = await service.unlockAllStages("1");
+    expect(r).toEqual({ stages: 1, total: 2 });
+    expect(pd._playerdata.dungeon.stages["main_01-02"].state).toBe(3);
+    expect(pd._playerdata.dungeon.stages["main_01-01"].completeTimes).toBe(3);
+  });
+
+  it("searchItems 应按名称/ID 过滤", () => {
+    expect(service.searchItems("龙门币").map((i) => i.id)).toEqual(["4001"]);
+    expect(service.searchItems("4003").map((i) => i.id)).toEqual(["4003"]);
+    expect(service.searchItems("不存在")).toEqual([]);
+    expect(service.searchItems("").length).toBeGreaterThan(0);
+  });
+
+  it("listMissionStats 应统计各组完成数", async () => {
+    (pd._playerdata.mission as any).missions = {
+      daily: {
+        m1: { state: 2, progress: [] },
+        m2: { state: 0, progress: [] },
+      },
+    };
+    const st = await service.listMissionStats("1");
+    expect(st.total).toBe(2);
+    expect(st.done).toBe(1);
+    expect(st.groups).toEqual([{ group: "daily", total: 2, done: 1 }]);
   });
 });
 

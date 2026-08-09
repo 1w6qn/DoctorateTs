@@ -182,6 +182,9 @@
     <h3>发放物品 — <span id="grant-uid"></span></h3>
     <label>物品 ID 或中文名（如 4001=龙门币、4003=合成玉、"合成玉"）</label>
     <input id="grant-item" placeholder="4001 或 合成玉">
+    <label>搜索物品（按名称/ID，点击结果填入）</label>
+    <input id="grant-search" placeholder="输入关键字搜索...">
+    <div id="grant-search-results" style="max-height:130px;overflow:auto;font-size:12px;margin-bottom:6px;"></div>
     <label>数量</label>
     <input id="grant-count" type="number" value="1" min="1">
     <div class="row">
@@ -762,7 +765,33 @@
     $("grant-uid").textContent = uid;
     $("grant-item").value = "";
     $("grant-count").value = "1";
+    $("grant-search").value = "";
+    $("grant-search-results").innerHTML = "";
     showModal("modal-grant");
+    // 物品搜索：输入即查，点击结果填入物品框
+    var timer = null;
+    $("grant-search").oninput = function () {
+      clearTimeout(timer);
+      var q = this.value.trim();
+      timer = setTimeout(function () {
+        if (!q) { $("grant-search-results").innerHTML = ""; return; }
+        api("/items?q=" + encodeURIComponent(q) + "&limit=20").then(function (items) {
+          $("grant-search-results").innerHTML = items.length
+            ? items.map(function (it) {
+                return '<div class="api-item" data-id="' + escapeHtml(it.id) + '">' +
+                  escapeHtml(it.name) + " (" + escapeHtml(it.id) + ") <span style=\"color:var(--muted);\">" +
+                  escapeHtml(it.classifyType) + "</span></div>";
+              }).join("")
+            : '<div style="padding:6px;color:var(--muted);">无匹配物品</div>';
+          document.querySelectorAll("#grant-search-results .api-item").forEach(function (el) {
+            el.addEventListener("click", function () {
+              $("grant-item").value = el.getAttribute("data-id");
+              $("grant-search-results").innerHTML = "";
+            });
+          });
+        }).catch(function () {});
+      }, 200);
+    };
   }
   $("grant-ok").addEventListener("click", function () {
     var itemId = $("grant-item").value.trim();

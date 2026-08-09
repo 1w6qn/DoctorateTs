@@ -138,9 +138,17 @@ export function printHelp(): void {
   users grantall <uid> [count]                      批量发放全部物品（默认 999）
   users maxchars <uid>                              批量拉满全部已有干员
   users stages <uid> [--json]                       查看玩家推图进度（只读）
+  users unlock <uid> <stageId>                      解锁指定关卡
+  users unlockall <uid>                             推图全解锁
+  users items <关键字> [limit] [--json]             按名称/ID 搜索物品（供发放用）
+  users missions <uid> [--json]                     查看任务进度统计（只读）
   users grantall <uid> [count]                      批量发放全部物品（默认 999）
   users maxchars <uid>                              批量拉满全部已有干员
   users stages <uid> [--json]                       查看玩家推图进度（只读）
+  users unlock <uid> <stageId>                      解锁指定关卡
+  users unlockall <uid>                             推图全解锁
+  users items <关键字> [limit] [--json]             按名称/ID 搜索物品（供发放用）
+  users missions <uid> [--json]                     查看任务进度统计（只读）
 
 邮件:
   mail send <uid|all> <subject> [content] [--items id:count,...]  发送邮件（uid=all 群发）
@@ -459,6 +467,66 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
             状态: s.state,
             完成次数: s.completeTimes,
           })),
+        );
+      }
+      return;
+    }
+    case "unlock": {
+      const uid = args[1];
+      const stageId = args[2];
+      if (!uid || !stageId) {
+        console.error("用法: users unlock <uid> <stageId>");
+        process.exitCode = 1;
+        return;
+      }
+      const r = await adminService.unlockStage(uid, stageId);
+      console.log(`已解锁用户 ${uid} 的关卡 ${r.stageId}`);
+      return;
+    }
+    case "unlockall": {
+      const uid = args[1];
+      if (!uid) {
+        console.error("用法: users unlockall <uid>");
+        process.exitCode = 1;
+        return;
+      }
+      const r = await adminService.unlockAllStages(uid);
+      console.log(`已推图全解锁用户 ${uid}：新增 ${r.stages} 关（共 ${r.total} 关）`);
+      return;
+    }
+    case "items": {
+      const q = args[1] ?? "";
+      const limit = Number(args[2] ?? flags.limit ?? 50);
+      const list = adminService.searchItems(q, Number.isFinite(limit) ? limit : 50);
+      if (flags.json) {
+        output(list, flags);
+        return;
+      }
+      if (!list.length) {
+        console.log(`未找到匹配物品: ${q || "(空)"}`);
+        return;
+      }
+      console.table(
+        list.map((it) => ({ ID: it.id, 名称: it.name, 类型: it.classifyType })),
+      );
+      return;
+    }
+    case "missions": {
+      const uid = args[1];
+      if (!uid) {
+        console.error("用法: users missions <uid> [--json]");
+        process.exitCode = 1;
+        return;
+      }
+      const st = await adminService.listMissionStats(uid);
+      if (flags.json) {
+        output(st, flags);
+        return;
+      }
+      console.log(`用户 ${uid} 任务进度：已完成 ${st.done}/${st.total}`);
+      if (st.groups.length) {
+        console.table(
+          st.groups.map((g) => ({ 任务组: g.group, 完成: g.done, 总数: g.total })),
         );
       }
       return;

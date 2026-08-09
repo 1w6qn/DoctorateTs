@@ -43,6 +43,10 @@ npm run admin -- users dump 1 [--pretty]        # 导出原始玩家数据 JSON
 npm run admin -- users grantall 1 [count]       # 批量发放全部物品（默认 999）
 npm run admin -- users maxchars 1               # 批量拉满全部已有干员
 npm run admin -- users stages 1 [--json]        # 查看玩家推图进度（只读）
+npm run admin -- users unlock 1 main_01-01      # 解锁指定关卡
+npm run admin -- users unlockall 1              # 推图全解锁
+npm run admin -- users items 合成玉             # 按名称/ID 搜索物品（供发放用）
+npm run admin -- users missions 1 [--json]      # 查看任务进度统计（只读）
 npm run admin -- mail send 1 标题 内容 --items 4001:100,4003:10   # 发送邮件
 npm run admin -- mail send all 公告 内容 --items 4001:100         # 群发（全部用户）
 npm run admin -- mail list 1                    # 查看用户邮件

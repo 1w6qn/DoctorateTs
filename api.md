@@ -1407,6 +1407,10 @@ OAuth2 授权
 | POST | `/admin/api/users/:uid/grant-all` | 批量发放全部 ItemTable 物品 `{count?}`（默认 999） |
 | POST | `/admin/api/users/:uid/maxchars` | 批量拉满全部已有干员（精二满级/满潜/满技能/专三/满信赖/装备） |
 | GET  | `/admin/api/users/:uid/stages` | 玩家推图进度（只读：已解锁/已完成关卡） |
+| POST | `/admin/api/users/:uid/stages/unlock` | 解锁指定关卡 `{stageId}`（标记已完成） |
+| POST | `/admin/api/users/:uid/stages/unlock-all` | 推图全解锁（遍历 StageTable，跳过已有进度） |
+| GET  | `/admin/api/items?q=&limit=` | 物品搜索（按 ID/中文名过滤 ItemTable，供发放选择） |
+| GET  | `/admin/api/users/:uid/missions` | 任务进度统计（只读：各组任务数/已完成数） |
 | GET  | `/admin/api/openapi.json` | OpenAPI 3.0 规范（管理 API，供外部工具/Swagger 消费） |
 | GET  | `/admin/api/spec` | 管理 API 端点规范清单（Dashboard「接口」控制台数据源） |
 | POST | `/admin/api/game-proxy` | 游戏协议代理：`{uid, path, method?, body?}` 以玩家 secret 调用游戏端点，返回 `{status, data, uid}`（供 Dashboard 协议调试） |

@@ -37,6 +37,10 @@ vi.mock("../../../app/admin/AdminService", () => ({
     grantAllItems: vi.fn().mockResolvedValue({ items: 4 }),
     maxAllChars: vi.fn().mockResolvedValue({ chars: 10 }),
     listStages: vi.fn().mockResolvedValue({ total: 2, done: 1, stages: [] }),
+    unlockStage: vi.fn().mockResolvedValue({ stageId: "main_01-01" }),
+    unlockAllStages: vi.fn().mockResolvedValue({ stages: 5, total: 100 }),
+    searchItems: vi.fn().mockReturnValue([{ id: "4001", name: "龙门币", classifyType: "NORMAL" }]),
+    listMissionStats: vi.fn().mockResolvedValue({ total: 10, done: 3, groups: [] }),
   },
 }));
 vi.mock("../../../app/admin/admin-auth", () => ({
@@ -356,5 +360,30 @@ describe("admin 路由（扩展能力）", () => {
     const payload = res.json.mock.calls[0][0];
     expect(payload.openapi).toBe("3.0.3");
     expect(payload.paths["/api/users/{uid}"]).toBeDefined();
+  });
+
+  it("关卡解锁/物品搜索/任务统计端点应透传", async () => {
+    const res1 = mockRes();
+    await call(
+      { method: "POST", url: "/api/users/1/stages/unlock", params: { uid: "1" }, body: { stageId: "main_01-01" } },
+      res1,
+    );
+    expect(adminService.unlockStage).toHaveBeenCalledWith("1", "main_01-01");
+
+    const res2 = mockRes();
+    await call(
+      { method: "POST", url: "/api/users/1/stages/unlock-all", params: { uid: "1" }, body: {} },
+      res2,
+    );
+    expect(adminService.unlockAllStages).toHaveBeenCalledWith("1");
+
+    const res3 = mockRes();
+    await call({ method: "GET", url: "/api/items", query: { q: "龙门币" } }, res3);
+    expect(adminService.searchItems).toHaveBeenCalledWith("龙门币", 50);
+    expect(res3.json).toHaveBeenCalledWith([{ id: "4001", name: "龙门币", classifyType: "NORMAL" }]);
+
+    const res4 = mockRes();
+    await call({ method: "GET", url: "/api/users/1/missions", params: { uid: "1" } }, res4);
+    expect(adminService.listMissionStats).toHaveBeenCalledWith("1");
   });
 });

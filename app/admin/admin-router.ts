@@ -394,6 +394,44 @@ router.get("/api/users/:uid/stages", async (req: Request, res: Response) => {
   }
 });
 
+/** 解锁指定关卡 */
+router.post("/api/users/:uid/stages/unlock", async (req: Request, res: Response) => {
+  try {
+    const { stageId } = req.body ?? {};
+    res.json(
+      await adminService.unlockStage(String(req.params.uid), String(stageId)),
+    );
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 推图全解锁 */
+router.post("/api/users/:uid/stages/unlock-all", async (req: Request, res: Response) => {
+  try {
+    res.json(await adminService.unlockAllStages(String(req.params.uid)));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 物品搜索（按 ID/中文名过滤 ItemTable） */
+router.get("/api/items", (req: Request, res: Response) => {
+  const q = (req.query ?? {}) as { q?: string; limit?: string };
+  res.json(
+    adminService.searchItems(String(q.q ?? ""), Number(q.limit ?? 50)),
+  );
+});
+
+/** 任务进度统计（只读） */
+router.get("/api/users/:uid/missions", async (req: Request, res: Response) => {
+  try {
+    res.json(await adminService.listMissionStats(String(req.params.uid)));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 /** OpenAPI 3.0 规范（管理 API） */
 router.get("/api/openapi.json", (_req: Request, res: Response) => {
   res.json(buildOpenApi());

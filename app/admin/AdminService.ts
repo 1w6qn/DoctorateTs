@@ -958,6 +958,97 @@ export class AdminService {
     };
   }
 
+  /** 解锁指定关卡（标记已完成 state=3 + completeTimes=1） */
+  async unlockStage(uid: string, stageId: string): Promise<{ stageId: string }> {
+    if (!excel.StageTable?.stages?.[stageId]) {
+      throw new Error(`关卡不存在: ${stageId}`);
+    }
+    const pd = await this.getPlayer(uid);
+    await pd.update(async (draft) => {
+      draft.dungeon.stages[stageId] = {
+        stageId,
+        completeTimes: 1,
+        startTimes: 1,
+        practiceTimes: 0,
+        state: 3,
+        hasBattleReplay: 0,
+        noCostCnt: 0,
+      };
+    });
+    await this.savePlayer(uid);
+    await this._audit("unlockStage", uid, stageId);
+    return { stageId };
+  }
+
+  /** 推图全解锁（遍历 StageTable 全部关卡，跳过已有进度的） */
+  async unlockAllStages(uid: string): Promise<{ stages: number; total: number }> {
+    const pd = await this.getPlayer(uid);
+    const ids = Object.keys(excel.StageTable?.stages ?? {});
+    let n = 0;
+    await pd.update(async (draft) => {
+      for (const stageId of ids) {
+        if (draft.dungeon.stages[stageId]) continue;
+        draft.dungeon.stages[stageId] = {
+          stageId,
+          completeTimes: 1,
+          startTimes: 1,
+          practiceTimes: 0,
+          state: 3,
+          hasBattleReplay: 0,
+          noCostCnt: 0,
+        };
+        n++;
+      }
+    });
+    await this.savePlayer(uid);
+    await this._audit("unlockAllStages", uid, `新增 ${n} 关（共 ${ids.length} 关）`);
+    return { stages: n, total: ids.length };
+  }
+
+  /**
+   * 物品搜索（按 ID/中文名过滤 ItemTable；供发放弹窗选择）
+   * @param q - 关键字（空返回前 limit 条）
+   * @returns 匹配物品（id/name/classifyType）
+   */
+  searchItems(q: string, limit = 50): { id: string; name: string; classifyType: string }[] {
+    const kw = String(q ?? "").trim().toLowerCase();
+    const items = excel.ItemTable?.items ?? {};
+    const list: { id: string; name: string; classifyType: string }[] = [];
+    for (const [id, info] of Object.entries(items)) {
+      const name = info?.name ?? "";
+      if (!kw || id.toLowerCase().includes(kw) || name.toLowerCase().includes(kw)) {
+        list.push({ id, name, classifyType: info?.classifyType ?? "" });
+        if (list.length >= limit) break;
+      }
+    }
+    return list;
+  }
+
+  /** 任务进度统计（只读：各组任务数/已完成数；state≥2 视为已完成） */
+  async listMissionStats(
+    uid: string,
+  ): Promise<{
+    total: number;
+    done: number;
+    groups: { group: string; total: number; done: number }[];
+  }> {
+    const pd = await this.getPlayer(uid);
+    const missions = pd._playerdata.mission?.missions ?? {};
+    const groups = Object.entries(missions).map(([group, byId]) => {
+      const list = Object.values(byId ?? {});
+      return {
+        group,
+        total: list.length,
+        done: list.filter((m) => m.state >= 2).length,
+      };
+    });
+    return {
+      total: groups.reduce((s, g) => s + g.total, 0),
+      done: groups.reduce((s, g) => s + g.done, 0),
+      groups,
+    };
+  }
+
   /**
    * 官服账号迁移（联网拉取官服数据 → 转私服存档 → 注册账号）
    * 成功后热加载新用户到内存（服务器运行中可直接使用），并写审计日志。

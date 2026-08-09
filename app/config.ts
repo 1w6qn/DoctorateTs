@@ -59,6 +59,15 @@ interface UserConfig {
   NetworkConfig: object;
   /** 远程功能配置（新版 remote_config 接口响应，缺省使用官方默认值） */
   RemoteConfig?: Record<string, unknown>;
+  /** 抓包专用官服转发模式：as/gs 流量转发官服并记录（等价命令行 --capture） */
+  capture?: {
+    /** 是否开启官服转发（客户端连接私服，as/gs 请求转发官服；config/asset/admin 仍本地响应） */
+    enabled?: boolean;
+    /** 官服 as 主机（缺省 https://as.hypergryph.com） */
+    asHost?: string;
+    /** 官服 gs 主机（缺省 https://ak-gs-gf.hypergryph.com） */
+    gsHost?: string;
+  };
   /** 调试配置 */
   debug?: {
     /** 是否记录请求/响应到 tmp/（traffic-recorder 中间件） */

@@ -56,6 +56,11 @@
     "token": "doctorate-admin"
   },
   "authMode": "single",
+  "capture": {
+    "enabled": false,
+    "asHost": "https://as.hypergryph.com",
+    "gsHost": "https://ak-gs-gf.hypergryph.com"
+  },
   "singleAutoMaxAccount": true,
   "singleUid": "2222"
 }

@@ -30,6 +30,12 @@ vi.mock("fs/promises", () => ({
 vi.mock("@game/manager/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
+// 官服卡池同步 mock（不真实联网）
+vi.mock("../../../app/admin/official-ops", () => ({
+  runGachaSync: vi.fn(),
+}));
+
+import { runGachaSync } from "../../../app/admin/official-ops";
 
 describe("AdminService 备份/恢复", () => {
   let service: AdminService;
@@ -206,6 +212,57 @@ describe("AdminService 存档导出/导入/校验", () => {
     expect(r.ok).toBe(false);
     expect(r.users.find((u: any) => u.uid === "2")!.ok).toBe(false);
     expect(r.users.find((u: any) => u.uid === "1")!.ok).toBe(true);
+  });
+});
+
+describe("AdminService 官服卡池同步", () => {
+  let service: AdminService;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    service = new AdminService();
+    vi.mocked(exists).mockResolvedValue(true);
+    vi.mocked(readJson).mockImplementation(async (p: string) => {
+      if (String(p).includes("gacha_table")) {
+        return { gachaPoolClient: [{ gachaPoolId: "NORM_0_1_3" }, { gachaPoolId: "BAD" }] };
+      }
+      return { details: { "OLD_POOL": { upCharInfo: null } } };
+    });
+    vi.mocked(writeJson).mockResolvedValue(undefined);
+    vi.mocked(copyFile).mockResolvedValue(undefined);
+    vi.mocked(appendFile).mockResolvedValue(undefined);
+    vi.mocked(runGachaSync).mockResolvedValue([
+      { poolId: "NORM_0_1_3", detailInfo: { upCharInfo: { perCharList: [] }, gachaObjList: [] } },
+      { poolId: "BAD", error: "官服未返回 detailInfo" },
+    ]);
+  });
+
+  it("syncGachaPools 应备份旧文件、合并写回、保留未抓取池", async () => {
+    const r = await service.syncGachaPools("13800000000", "pwd");
+    expect(r).toMatchObject({ total: 2, ok: 1, updated: 1, failed: [{ poolId: "BAD" }] });
+    // 备份旧详情表
+    expect(copyFile).toHaveBeenCalledWith(
+      "./data/gacha_detail_table.json",
+      expect.stringContaining(".bak"),
+    );
+    // 合并写回：新池更新 + 旧池保留
+    const writeCall = (writeJson as any).mock.calls.find((c: any) => String(c[0]).includes("gacha_detail"));
+    expect(writeCall).toBeDefined();
+    const written = writeCall[1];
+    expect(written.details["NORM_0_1_3"]).toBeDefined();
+    expect(written.details["OLD_POOL"]).toBeDefined(); // 未抓取的旧池保留
+    expect(written.details["BAD"]).toBeUndefined(); // 失败的池不写入
+    // 审计
+    expect(appendFile).toHaveBeenCalled();
+  });
+
+  it("syncGachaPools 支持指定 poolIds（不读本地列表）", async () => {
+    await service.syncGachaPools("13800000000", "pwd", ["NORM_0_1_3"]);
+    expect(runGachaSync).toHaveBeenCalledWith("13800000000", "pwd", ["NORM_0_1_3"]);
+  });
+
+  it("syncGachaPools 缺手机号或密码应抛错", async () => {
+    await expect(service.syncGachaPools("", "pwd")).rejects.toThrow(/手机号与密码/);
   });
 });
 

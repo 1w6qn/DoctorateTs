@@ -1201,10 +1201,35 @@
       '<label>请求体（JSON，可选）</label>' +
       '<textarea id="call-body" rows="3" placeholder=\'{"from":0}\'></textarea>' +
       '<div class="row"><button id="call-run" class="primary">调用</button></div>' +
-      '<div class="resp-box" id="call-resp" style="margin-top:10px;">官服调用结果显示在此</div>';
+      '<div class="resp-box" id="call-resp" style="margin-top:10px;">官服调用结果显示在此</div>' +
+      '<p style="color:var(--muted);font-size:12px;margin-top:12px;">从官服同步卡池详情：登录后逐个抓取 getPoolDetail，写入 data/gacha_detail_table.json（备份 .bak，重启服务器后生效）。</p>' +
+      '<div class="row">' +
+      '<input id="gacha-phone" placeholder="官服手机号" style="flex:1;">' +
+      '<input id="gacha-pwd" type="password" placeholder="官服密码" style="flex:1;">' +
+      '<button id="gacha-sync" class="primary">同步卡池</button></div>' +
+      '<div class="resp-box" id="gacha-resp" style="margin-top:10px;">卡池同步结果显示在此</div>';
     $("migrate-run").addEventListener("click", runMigrate);
     $("op-run").addEventListener("click", runOfficialOp);
     $("call-run").addEventListener("click", runOfficialCall);
+    $("gacha-sync").addEventListener("click", runGachaSync);
+  }
+
+  function runGachaSync() {
+    var phone = $("gacha-phone").value.trim();
+    var pwd = $("gacha-pwd").value.trim();
+    if (!phone || !pwd) { alert("请填写官服手机号与密码"); return; }
+    $("gacha-resp").textContent = "同步中...（登录官服逐个抓取卡池详情，本地 439 池约需数分钟，请耐心等待）";
+    api("/official/sync-gacha", {
+      method: "POST",
+      body: JSON.stringify({ phone: phone, pwd: pwd }),
+    }).then(function (r) {
+      var lines = r.failed.map(function (f) { return "[失败] " + f.poolId + ": " + f.error; });
+      $("gacha-resp").textContent =
+        "卡池同步完成：成功 " + r.ok + "/" + r.total + " | 失败 " + r.failed.length +
+        (lines.length ? "\n" + lines.join("\n") : "") +
+        "\n已写入 data/gacha_detail_table.json（旧文件已备份 .bak；重启服务器后生效）";
+      refreshLogs();
+    }).catch(function (e) { $("gacha-resp").textContent = "同步失败: " + e.message; });
   }
 
   function runOfficialCall() {

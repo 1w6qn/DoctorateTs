@@ -19,6 +19,7 @@ import {
   OfficialSession,
   runOfficialAction,
   runOfficialCall,
+  runGachaSync,
   validateCgi,
 } from "../../../app/admin/official-ops";
 
@@ -184,6 +185,28 @@ describe("validateCgi / runOfficialCall", () => {
     expect(r.result.result).toHaveLength(1);
     const [, opts] = fetchMock.mock.calls.find((c: any) => c[0].includes("/mail/getMetaInfoList"))!;
     expect(JSON.parse(opts.body)).toEqual({ from: 0 });
+    vi.unstubAllGlobals();
+  });
+
+  it("runGachaSync 应逐个抓取卡池详情，单个失败不中断", async () => {
+    let gachaCalls = 0;
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.includes("/gacha/getPoolDetail")) {
+        gachaCalls++;
+        // 第 2 个池模拟失败（404）
+        return gachaCalls === 2
+          ? Promise.resolve({ ok: false, status: 404, headers: { get: () => null }, json: vi.fn() })
+          : fakeRes({ detailInfo: { upCharInfo: { perCharList: [] }, gachaObjList: [] } });
+      }
+      return fakeRes({ user: { status: {} } });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const results = await runGachaSync("13800000000", "pwd", ["NORM_0_1_3", "BAD"]);
+    expect(results).toHaveLength(2);
+    expect(results[0].poolId).toBe("NORM_0_1_3");
+    expect(results[0].detailInfo).toBeDefined();
+    expect(results[1].poolId).toBe("BAD");
+    expect(results[1].error).toBeDefined();
     vi.unstubAllGlobals();
   });
 });

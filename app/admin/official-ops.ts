@@ -158,6 +158,12 @@ export class OfficialSession {
     return this.post("/user/checkIn", {});
   }
 
+  /** 官服卡池详情（getPoolDetail） */
+  async getPoolDetail(poolId: string): Promise<any> {
+    const res = await this.post("/gacha/getPoolDetail", { poolId, gachaObjGroupType: 0 });
+    return res?.detailInfo ?? null;
+  }
+
   /** 官服邮件元信息列表 */
   async listMails(): Promise<any[]> {
     const res = await this.post("/mail/getMetaInfoList", { from: 0 });
@@ -278,4 +284,34 @@ export async function runOfficialCall(
   await session.login(phone, pwd);
   const result = await session.post(path, body ?? {});
   return { cgi: path, result };
+}
+
+/**
+ * 从官服同步卡池详情（逐个调 getPoolDetail）
+ * 无状态：登录一次、遍历 poolIds 抓取，完成后即弃。
+ * @param phone - 官服手机号
+ * @param pwd - 官服密码
+ * @param poolIds - 目标卡池 poolId 列表
+ * @returns 每个池的抓取结果（成功含 detailInfo；单个失败不中断）
+ */
+export async function runGachaSync(
+  phone: string,
+  pwd: string,
+  poolIds: string[],
+): Promise<{ poolId: string; detailInfo?: any; error?: string }[]> {
+  const session = new OfficialSession();
+  await session.login(phone, pwd);
+  const results: { poolId: string; detailInfo?: any; error?: string }[] = [];
+  for (const poolId of poolIds) {
+    try {
+      const detailInfo = await session.getPoolDetail(poolId);
+      if (!detailInfo) {
+        throw new Error("官服未返回 detailInfo（卡池可能不存在）");
+      }
+      results.push({ poolId, detailInfo });
+    } catch (e) {
+      results.push({ poolId, error: (e as Error).message });
+    }
+  }
+  return results;
 }

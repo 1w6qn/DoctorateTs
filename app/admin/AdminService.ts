@@ -18,7 +18,12 @@ import { PlayerDataModel } from "@game/model/playerdata";
 import { mailManager } from "@game/manager/mail";
 import { runMigration } from "../../scripts/migrate-official";
 import { buildMaxedChar } from "../../scripts/generate-max-account";
-import { runOfficialAction, runOfficialCall, OfficialAction } from "./official-ops";
+import {
+  runOfficialAction,
+  runOfficialCall,
+  runGachaSync,
+  OfficialAction,
+} from "./official-ops";
 import { exists, size, readJson, writeJson } from "@utils/file";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";
@@ -1449,6 +1454,60 @@ export class AdminService {
     const result = await runOfficialCall(String(phone), String(pwd), String(cgi), body);
     await this._audit("officialCall", "", `${phone} → ${result.cgi}`);
     return result;
+  }
+
+  /**
+   * 从官服同步卡池详情到 data/gacha_detail_table.json
+   * @param phone - 官服手机号
+   * @param pwd - 官服密码
+   * @param poolIds - 目标池列表（缺省读 data/excel/gacha_table.json 的 gachaPoolClient 全部）
+   * @returns 同步统计（成功合并写回，旧文件备份 .bak；重启后服务器生效）
+   */
+  async syncGachaPools(
+    phone: string,
+    pwd: string,
+    poolIds?: string[],
+  ): Promise<{
+    total: number;
+    ok: number;
+    failed: { poolId: string; error: string }[];
+    updated: number;
+  }> {
+    if (!phone || !pwd) {
+      throw new Error("需提供官服手机号与密码");
+    }
+    // 缺省池列表：读本地 gacha_table（不依赖 excel.init）
+    let targets = poolIds?.map(String).filter(Boolean) ?? [];
+    if (!targets.length) {
+      const table = await readJson<any>("./data/excel/gacha_table.json");
+      targets = (table?.gachaPoolClient ?? []).map((p: any) => p.gachaPoolId);
+    }
+    if (!targets.length) {
+      throw new Error("未提供 poolId 且本地 gachaPoolClient 为空");
+    }
+    const results = await runGachaSync(phone, pwd, targets);
+    const ok = results.filter((r) => r.detailInfo);
+    const failed = results
+      .filter((r) => r.error)
+      .map((r) => ({ poolId: r.poolId, error: r.error! }));
+
+    // 备份旧详情表 + 合并写回（保留未抓取的池）
+    const target = "./data/gacha_detail_table.json";
+    if (await exists(target)) {
+      await copyFile(target, `${target}.${formatTs(now())}.bak`);
+    }
+    const current = (await readJson<any>(target).catch(() => ({}))) ?? {};
+    const details = current.details ?? {};
+    for (const r of ok) {
+      details[r.poolId] = r.detailInfo;
+    }
+    await writeJson(target, { details });
+    await this._audit(
+      "syncGachaPools",
+      "",
+      `${phone} → ${ok.length}/${results.length} 池（失败 ${failed.length}）`,
+    );
+    return { total: results.length, ok: ok.length, failed, updated: ok.length };
   }
 
   /** 统计聚合（等级分布/注册分布/资源合计） */

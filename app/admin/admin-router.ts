@@ -451,6 +451,21 @@ router.post("/api/official/call", async (req: Request, res: Response) => {
   }
 });
 
+/** 从官服同步卡池详情 */
+router.post("/api/official/sync-gacha", async (req: Request, res: Response) => {
+  try {
+    const { phone, pwd, poolIds } = req.body ?? {};
+    const result = await adminService.syncGachaPools(
+      String(phone),
+      String(pwd),
+      Array.isArray(poolIds) ? poolIds : undefined,
+    );
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 /** 批量发放全部物品 */
 router.post("/api/users/:uid/grant-all", async (req: Request, res: Response) => {
   try {

@@ -194,6 +194,7 @@ export function printHelp(): void {
   official migrate <file> [--template uid]          官服账号迁移（联网拉取→注册私服账号）
   official <status|signin|mails|receive|daily> <phone> <pwd>   官服操作（登录官服签到/邮件等）
   official call <phone> <pwd> <cgi> [--body json]              官服通用 API 调用（登录后任意 cgi）
+  official gacha-sync <phone> <pwd> [--pools a,b]              从官服同步卡池详情（缺省本地全部）
 
 其他:
   help / exit                                       帮助 / 退出`);
@@ -1158,7 +1159,31 @@ async function runOfficial(
     console.log(`[${cgi}] ${JSON.stringify(r.result, null, 2)}`);
     return;
   }
-  console.error("用法: official migrate <accounts文件> [--template uid] | official accounts <file> [--json] | official <status|signin|mails|receive|daily> <phone> <pwd> | official call <phone> <pwd> <cgi> [--body]");
+  if (sub === "gacha-sync") {
+    const phone = args[1];
+    const pwd = args[2];
+    if (!phone || !pwd) {
+      console.error("用法: official gacha-sync <phone> <pwd> [--pools poolId,poolId...]");
+      process.exitCode = 1;
+      return;
+    }
+    const poolIds = flags.pools && flags.pools !== "true"
+      ? flags.pools.split(",").map((s: string) => s.trim()).filter(Boolean)
+      : undefined;
+    console.log(`正在登录官服并同步卡池详情...（需公网；目标 ${poolIds ? poolIds.length : "本地全部"} 池）`);
+    const r = await adminService.syncGachaPools(phone, pwd, poolIds);
+    if (flags.json) {
+      output(r, flags);
+      return;
+    }
+    console.log(`卡池同步完成：成功 ${r.ok}/${r.total} | 更新 ${r.updated} | 失败 ${r.failed.length}`);
+    for (const f of r.failed) {
+      console.log(`  [失败] ${f.poolId}: ${f.error}`);
+    }
+    console.log("已写入 data/gacha_detail_table.json（旧文件已备份 .bak；重启服务器后生效）");
+    return;
+  }
+  console.error("用法: official migrate <accounts文件> [--template uid] | official accounts <file> [--json] | official <status|signin|mails|receive|daily> <phone> <pwd> | official call <phone> <pwd> <cgi> [--body] | official gacha-sync <phone> <pwd> [--pools ...]");
   process.exitCode = 1;
 }
 

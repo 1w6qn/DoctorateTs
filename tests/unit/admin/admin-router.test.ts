@@ -41,6 +41,7 @@ vi.mock("../../../app/admin/AdminService", () => ({
     migrateOfficial: vi.fn().mockResolvedValue([{ phone: "13800000000", uid: "2", nickName: "A" }]),
     officialAction: vi.fn().mockResolvedValue({ action: "signin", ok: true, data: "签到成功" }),
     officialCall: vi.fn().mockResolvedValue({ cgi: "/mail/getMetaInfoList", result: {} }),
+    syncGachaPools: vi.fn().mockResolvedValue({ total: 2, ok: 1, failed: [], updated: 1 }),
     grantAllItems: vi.fn().mockResolvedValue({ items: 4 }),
     maxAllChars: vi.fn().mockResolvedValue({ chars: 10 }),
     repairChars: vi.fn().mockResolvedValue({ chars: 3, fields: 8 }),
@@ -412,6 +413,16 @@ describe("admin 路由（扩展能力）", () => {
     );
     expect(adminService.officialCall).toHaveBeenCalledWith("13800000000", "pwd", "/mail/getMetaInfoList", { from: 0 });
     expect(res.json).toHaveBeenCalledWith({ cgi: "/mail/getMetaInfoList", result: {} });
+  });
+
+  it("POST /api/official/sync-gacha 应透传（缺省池列表）", async () => {
+    const res = mockRes();
+    await call(
+      { method: "POST", url: "/api/official/sync-gacha", body: { phone: "13800000000", pwd: "pwd" } },
+      res,
+    );
+    expect(adminService.syncGachaPools).toHaveBeenCalledWith("13800000000", "pwd", undefined);
+    expect(res.json).toHaveBeenCalledWith({ total: 2, ok: 1, failed: [], updated: 1 });
   });
 
   it("批量工具端点应透传（grant-all/maxchars/stages）", async () => {

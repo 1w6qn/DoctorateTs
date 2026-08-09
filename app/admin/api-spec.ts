@@ -182,6 +182,17 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   },
   {
     method: "POST",
+    path: "/api/official/sync-gacha",
+    summary: "从官服同步卡池详情（登录后逐个调 getPoolDetail → 写 data/gacha_detail_table.json，备份旧文件，重启生效）",
+    params: [
+      { name: "phone", type: "string", required: true, desc: "官服手机号" },
+      { name: "pwd", type: "string", required: true, desc: "官服密码" },
+      { name: "poolIds", type: "object", desc: "目标池列表（缺省读本地 gachaPoolClient 全部）" },
+    ],
+    body: '{"phone":"13800000000","pwd":"password123","poolIds":["NORM_0_1_3"]}',
+  },
+  {
+    method: "POST",
     path: "/api/users/:uid/grant-all",
     summary: "批量发放全部 ItemTable 物品（sortId>0；CONSUME→consumable，其余→inventory）",
     params: [{ name: "count", type: "number", desc: "每样数量（默认 999）" }],

@@ -75,6 +75,7 @@ npm run admin -- official migrate accounts.txt  # 官服账号迁移（联网拉
 npm run admin -- official status 18005767005 密码  # 官服账号状态（登录官服只读）
 npm run admin -- official daily 18005767005 密码   # 官服一键日常（签到+领邮件）
 npm run admin -- official call 18005767005 密码 /mail/getMetaInfoList --body '{"from":0}'  # 官服通用 API 调用
+npm run admin -- official gacha-sync 18005767005 密码 [--pools a,b]  # 从官服同步卡池详情（缺省本地全部）
 npm run admin -- config show                    # 查看配置
 npm run admin -- config set admin.token mytoken # 修改配置（重启后生效）
 ```

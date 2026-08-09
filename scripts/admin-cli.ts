@@ -135,6 +135,12 @@ export function printHelp(): void {
   users building <uid> max                          基建满级
   users backup <uid> / users backups <uid> / users restore <uid> <备份名>   备份/列出/恢复
   users dump <uid> [--pretty]                       导出原始玩家数据 JSON
+  users grantall <uid> [count]                      批量发放全部物品（默认 999）
+  users maxchars <uid>                              批量拉满全部已有干员
+  users stages <uid> [--json]                       查看玩家推图进度（只读）
+  users grantall <uid> [count]                      批量发放全部物品（默认 999）
+  users maxchars <uid>                              批量拉满全部已有干员
+  users stages <uid> [--json]                       查看玩家推图进度（只读）
 
 邮件:
   mail send <uid|all> <subject> [content] [--items id:count,...]  发送邮件（uid=all 群发）
@@ -407,6 +413,54 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
       console.log(
         JSON.stringify(data, null, flags.pretty === "true" || flags.pretty ? 2 : 0),
       );
+      return;
+    }
+    case "grantall": {
+      const uid = args[1];
+      const count = Number(args[2] ?? 999);
+      if (!uid || !Number.isInteger(count) || count <= 0) {
+        console.error("用法: users grantall <uid> [count]（count 为正整数，默认 999）");
+        process.exitCode = 1;
+        return;
+      }
+      const result = await adminService.grantAllItems(uid, count);
+      console.log(`已向用户 ${uid} 批量发放 ${result.items} 种物品 x${count}`);
+      return;
+    }
+    case "maxchars": {
+      const uid = args[1];
+      if (!uid) {
+        console.error("用法: users maxchars <uid>");
+        process.exitCode = 1;
+        return;
+      }
+      const result = await adminService.maxAllChars(uid);
+      console.log(`已拉满用户 ${uid} 的 ${result.chars} 名干员`);
+      return;
+    }
+    case "stages": {
+      const uid = args[1];
+      if (!uid) {
+        console.error("用法: users stages <uid> [--json]");
+        process.exitCode = 1;
+        return;
+      }
+      const st = await adminService.listStages(uid);
+      if (flags.json) {
+        output(st, flags);
+        return;
+      }
+      console.log(`用户 ${uid} 推图进度：已解锁 ${st.total} 关 | 已完成 ${st.done} 关`);
+      const top = st.stages.slice(0, 30);
+      if (top.length) {
+        console.table(
+          top.map((s) => ({
+            关卡: s.stageId,
+            状态: s.state,
+            完成次数: s.completeTimes,
+          })),
+        );
+      }
       return;
     }
     default:

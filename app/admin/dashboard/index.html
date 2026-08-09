@@ -187,6 +187,7 @@
     <div class="row">
       <button id="grant-cancel">取消</button>
       <button class="primary" id="grant-ok">发放</button>
+      <button id="grant-all-btn">全部物品</button>
     </div>
   </div>
 </div>
@@ -501,8 +502,24 @@
           "<td><button class=\"btn-sm char-apply\" data-i=\"" + c.instId + "\">应用</button></td></tr>";
       }).join("");
       $("pane-chars").innerHTML =
+        '<div class="row" style="align-items:center;margin-bottom:8px;">' +
+        '<button id="maxchars-btn">全部满级</button>' +
+        '<span style="color:var(--muted);font-size:12px;">共 ' + chars.length + " 名干员</span></div>" +
         "<table><thead><tr><th>instId</th><th>干员</th><th>星级</th><th>等级</th><th>精二</th><th>潜能</th><th>技能</th><th></th></tr></thead><tbody>" +
         rows + "</tbody></table>";
+      var mc = $("maxchars-btn");
+      if (mc) {
+        mc.addEventListener("click", function () {
+          if (!confirm("批量拉满全部 " + chars.length + " 名干员？")) return;
+          api("/users/" + encodeURIComponent(uid) + "/maxchars", { method: "POST", body: "{}" })
+            .then(function (r) {
+              alert("已拉满 " + r.chars + " 名干员");
+              loadChars(uid);
+              refreshLogs();
+            })
+            .catch(function (e) { alert("操作失败：" + e.message); });
+        });
+      }
       document.querySelectorAll(".char-apply").forEach(function (btn) {
         btn.addEventListener("click", function () {
           var instId = Number(btn.getAttribute("data-i"));
@@ -594,6 +611,7 @@
     var box = $("sub-admin");
     box.innerHTML =
       '<div><input id="api-filter" placeholder="过滤端点...">' +
+      '<a href="/admin/api/openapi.json" target="_blank" style="font-size:11px;color:var(--muted);display:block;margin:6px 0;">OpenAPI 3.0 规范（JSON，供外部工具）</a>' +
       '<div class="api-list" id="api-list"></div></div>' +
       '<div class="req-col">' +
       '<div class="row">' +
@@ -762,6 +780,19 @@
     }).catch(function (e) { alert("发放失败：" + e.message); });
   });
   $("grant-cancel").addEventListener("click", function () { hideModal("modal-grant"); });
+  $("grant-all-btn").addEventListener("click", function () {
+    var uid = $("grant-uid").textContent;
+    var count = Number($("grant-count").value) || 999;
+    if (!confirm("向用户 " + uid + " 批量发放全部物品 x" + count + "？")) return;
+    api("/users/" + encodeURIComponent(uid) + "/grant-all", {
+      method: "POST", body: JSON.stringify({ count: count }),
+    }).then(function (r) {
+      hideModal("modal-grant");
+      alert("已批量发放 " + r.items + " 种物品 x" + count);
+      loadOverview(uid);
+      refreshLogs();
+    }).catch(function (e) { alert("发放失败：" + e.message); });
+  });
 
   function openMail(uid) {
     $("mail-uid").textContent = uid;

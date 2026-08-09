@@ -1404,6 +1404,10 @@ OAuth2 授权
 | POST | `/admin/api/users/:uid/pools/:poolId/up` | 设置玩家 UP `{charIds}`（空数组清除；支持中文名） |
 | POST | `/admin/api/users/:uid/pity` | 设置玩家保底 `{ruleType, count}`（保底按 gachaRuleType 存账号配置） |
 | POST | `/admin/api/official/migrate` | 官服账号迁移 `{accounts, templateUid?}`（联网拉取官服数据→注册私服账号；成功自动热加载，逐账号返回结果） |
+| POST | `/admin/api/users/:uid/grant-all` | 批量发放全部 ItemTable 物品 `{count?}`（默认 999） |
+| POST | `/admin/api/users/:uid/maxchars` | 批量拉满全部已有干员（精二满级/满潜/满技能/专三/满信赖/装备） |
+| GET  | `/admin/api/users/:uid/stages` | 玩家推图进度（只读：已解锁/已完成关卡） |
+| GET  | `/admin/api/openapi.json` | OpenAPI 3.0 规范（管理 API，供外部工具/Swagger 消费） |
 | GET  | `/admin/api/spec` | 管理 API 端点规范清单（Dashboard「接口」控制台数据源） |
 | POST | `/admin/api/game-proxy` | 游戏协议代理：`{uid, path, method?, body?}` 以玩家 secret 调用游戏端点，返回 `{status, data, uid}`（供 Dashboard 协议调试） |
 | GET  | `/admin/api/config` | 查看配置（只读） |

@@ -40,6 +40,9 @@ npm run admin -- users backup 1                 # 备份存档（data/user/backu
 npm run admin -- users backups 1                # 列出备份
 npm run admin -- users restore 1 1-20260808-181345.json   # 从备份恢复
 npm run admin -- users dump 1 [--pretty]        # 导出原始玩家数据 JSON
+npm run admin -- users grantall 1 [count]       # 批量发放全部物品（默认 999）
+npm run admin -- users maxchars 1               # 批量拉满全部已有干员
+npm run admin -- users stages 1 [--json]        # 查看玩家推图进度（只读）
 npm run admin -- mail send 1 标题 内容 --items 4001:100,4003:10   # 发送邮件
 npm run admin -- mail send all 公告 内容 --items 4001:100         # 群发（全部用户）
 npm run admin -- mail list 1                    # 查看用户邮件
@@ -69,7 +72,7 @@ npm run admin -- config set admin.token mytoken # 修改配置（重启后生效
 2. 启动服务器后访问 `http://localhost:8443/admin/dashboard`
 3. 输入管理令牌进入后台（10 秒自动刷新），支持：
    - **概览**：用户详情、资源/背包中文名、一键满配、基建满级、每日刷新、保存、备份/恢复
-   - **干员**：干员列表 + 行内编辑（等级/精二/潜能/技能）
+   - **干员**：干员列表 + 行内编辑（等级/精二/潜能/技能）、一键全部满级
    - **邮件**：邮件列表/删除，弹窗支持群发（全部用户）
    - **卡池**：卡池清单/详情（UP 干员+概率），管理选中玩家的卡池 UP 选择与保底计数
    - **迁移**：官服账号转移 —— 粘贴账号（每行 手机号 密码）执行迁移，显示每账号结果（需联网访问官服）

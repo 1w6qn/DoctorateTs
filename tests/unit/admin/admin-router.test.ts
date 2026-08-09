@@ -34,6 +34,9 @@ vi.mock("../../../app/admin/AdminService", () => ({
     setPlayerPoolUp: vi.fn().mockResolvedValue({ poolId: "NORMAL_0_1", upCharIds: ["char_002_amiya"] }),
     setPlayerPity: vi.fn().mockResolvedValue({ uid: "1", ruleType: "NORMAL", beforeNonHitCnt: 42 }),
     migrateOfficial: vi.fn().mockResolvedValue([{ phone: "13800000000", uid: "2", nickName: "A" }]),
+    grantAllItems: vi.fn().mockResolvedValue({ items: 4 }),
+    maxAllChars: vi.fn().mockResolvedValue({ chars: 10 }),
+    listStages: vi.fn().mockResolvedValue({ total: 2, done: 1, stages: [] }),
   },
 }));
 vi.mock("../../../app/admin/admin-auth", () => ({
@@ -327,5 +330,31 @@ describe("admin 路由（扩展能力）", () => {
     expect(res.json).toHaveBeenCalledWith({
       results: [{ phone: "13800000000", uid: "2", nickName: "A" }],
     });
+  });
+
+  it("批量工具端点应透传（grant-all/maxchars/stages）", async () => {
+    const res1 = mockRes();
+    await call(
+      { method: "POST", url: "/api/users/1/grant-all", params: { uid: "1" }, body: { count: 5 } },
+      res1,
+    );
+    expect(adminService.grantAllItems).toHaveBeenCalledWith("1", 5);
+
+    const res2 = mockRes();
+    await call({ method: "POST", url: "/api/users/1/maxchars", params: { uid: "1" }, body: {} }, res2);
+    expect(adminService.maxAllChars).toHaveBeenCalledWith("1");
+
+    const res3 = mockRes();
+    await call({ method: "GET", url: "/api/users/1/stages", params: { uid: "1" } }, res3);
+    expect(adminService.listStages).toHaveBeenCalledWith("1");
+    expect(res3.json).toHaveBeenCalledWith({ total: 2, done: 1, stages: [] });
+  });
+
+  it("GET /api/openapi.json 应返回 OpenAPI 文档", async () => {
+    const res = mockRes();
+    await call({ method: "GET", url: "/api/openapi.json" }, res);
+    const payload = res.json.mock.calls[0][0];
+    expect(payload.openapi).toBe("3.0.3");
+    expect(payload.paths["/api/users/{uid}"]).toBeDefined();
   });
 });

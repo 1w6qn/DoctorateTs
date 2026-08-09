@@ -152,6 +152,16 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
     ],
     body: '{"accounts":"13800000000\\npassword123","templateUid":"1"}',
   },
+  {
+    method: "POST",
+    path: "/api/users/:uid/grant-all",
+    summary: "批量发放全部 ItemTable 物品（sortId>0；CONSUME→consumable，其余→inventory）",
+    params: [{ name: "count", type: "number", desc: "每样数量（默认 999）" }],
+    body: '{"count":999}',
+  },
+  { method: "POST", path: "/api/users/:uid/maxchars", summary: "批量拉满全部已有干员（精二满级/满潜/满技能/专三/满信赖/装备）", body: "{}" },
+  { method: "GET", path: "/api/users/:uid/stages", summary: "玩家推图进度（只读：已解锁/已完成关卡）" },
+  { method: "GET", path: "/api/openapi.json", summary: "OpenAPI 3.0 规范（管理 API，供外部工具消费）" },
   { method: "GET", path: "/api/config", summary: "查看配置（只读）" },
   {
     method: "POST",

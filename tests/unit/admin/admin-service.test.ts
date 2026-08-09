@@ -127,6 +127,7 @@ function makeFullPd() {
     consumable: {},
     skin: { characterSkins: {}, skinTs: {} } as any,
     gacha: { normal: {}, limit: {} } as any,
+    dungeon: { stages: {} } as any,
     building: {
       roomSlots: {
         slot_1: { level: 1, state: 1, roomId: "room_1", charInstIds: [], completeConstructTime: 0 },
@@ -662,6 +663,59 @@ describe("AdminService 卡池管理", () => {
     expect(await service.listPlayerPity("1")).toEqual([
       { ruleType: "NORMAL", beforeNonHitCnt: 5 },
     ]);
+  });
+});
+
+describe("AdminService 批量工具", () => {
+  let service: AdminService;
+  let pd: any;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    service = new AdminService();
+    pd = makeFullPd();
+    stubAccounts(pd);
+    vi.spyOn(accountManager, "savePlayerData").mockResolvedValue(undefined as any);
+    vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
+    vi.mocked(appendFile).mockResolvedValue(undefined);
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+  });
+
+  it("grantAllItems 应把全部物品写入背包/消耗品", async () => {
+    const r = await service.grantAllItems("1", 999);
+    expect(r).toEqual({ items: 4 }); // mock ItemTable: 3 个 NORMAL/MATERIAL + 1 个 CONSUME
+    const d = pd._playerdata;
+    expect(d.inventory["4001"]).toBe(999);
+    expect(d.inventory["4003"]).toBe(999);
+    expect(d.inventory["9999"]).toBe(999);
+    expect(d.consumable["consumable_x"]).toEqual({ "0": { ts: -1, count: 999 } });
+    expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
+  });
+
+  it("grantAllItems 数量非法应抛错", async () => {
+    await expect(service.grantAllItems("1", 0)).rejects.toThrow(/正整数/);
+  });
+
+  it("maxAllChars 应拉满全部已有干员", async () => {
+    const r = await service.maxAllChars("1");
+    expect(r).toEqual({ chars: 1 });
+    const ch = pd._playerdata.troop.chars["1"];
+    expect(ch.evolvePhase).toBe(2);
+    expect(ch.level).toBe(90);
+    expect(ch.potentialRank).toBe(5);
+    expect(ch.mainSkillLvl).toBe(7);
+    expect(ch.skills![0].specializeLevel).toBe(3);
+  });
+
+  it("listStages 应返回推图进度统计", async () => {
+    (pd._playerdata.dungeon as any).stages = {
+      "main_01-01": { stageId: "main_01-01", completeTimes: 3, startTimes: 3, practiceTimes: 0, state: 3, hasBattleReplay: 1, noCostCnt: 0 },
+      "main_01-02": { stageId: "main_01-02", completeTimes: 0, startTimes: 1, practiceTimes: 0, state: 1, hasBattleReplay: 0, noCostCnt: 0 },
+    };
+    const st = await service.listStages("1");
+    expect(st.total).toBe(2);
+    expect(st.done).toBe(1);
+    expect(st.stages[0].stageId).toBe("main_01-01");
   });
 });
 

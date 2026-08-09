@@ -9,6 +9,7 @@ import path from "path";
 import { adminService } from "./AdminService";
 import { adminAuth } from "./admin-auth";
 import { ADMIN_ENDPOINTS } from "./api-spec";
+import { buildOpenApi } from "./openapi";
 import config from "../config";
 
 const router = Router();
@@ -361,6 +362,41 @@ router.post("/api/official/migrate", async (req: Request, res: Response) => {
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }
+});
+
+/** 批量发放全部物品 */
+router.post("/api/users/:uid/grant-all", async (req: Request, res: Response) => {
+  try {
+    const { count } = req.body ?? {};
+    res.json(
+      await adminService.grantAllItems(String(req.params.uid), Number(count ?? 999)),
+    );
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 批量拉满全部已有干员 */
+router.post("/api/users/:uid/maxchars", async (req: Request, res: Response) => {
+  try {
+    res.json(await adminService.maxAllChars(String(req.params.uid)));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 玩家推图进度（只读） */
+router.get("/api/users/:uid/stages", async (req: Request, res: Response) => {
+  try {
+    res.json(await adminService.listStages(String(req.params.uid)));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** OpenAPI 3.0 规范（管理 API） */
+router.get("/api/openapi.json", (_req: Request, res: Response) => {
+  res.json(buildOpenApi());
 });
 
 /** 配置（只读） */

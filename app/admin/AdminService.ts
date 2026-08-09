@@ -872,6 +872,93 @@ export class AdminService {
   }
 
   /**
+   * 批量发放全部 ItemTable 物品（sortId>0；CONSUME → consumable，其余 → inventory）
+   * @returns 发放物品种数
+   */
+  async grantAllItems(uid: string, count = 999): Promise<{ items: number }> {
+    if (!Number.isInteger(count) || count <= 0) {
+      throw new Error(`数量必须为正整数: ${count}`);
+    }
+    const pd = await this.getPlayer(uid);
+    let n = 0;
+    await pd.update(async (draft) => {
+      for (const [itemId, info] of Object.entries(excel.ItemTable?.items ?? {})) {
+        if (info.sortId <= 0) continue;
+        if (info.classifyType === "CONSUME") {
+          draft.consumable[itemId] = { "0": { ts: -1, count } };
+        } else if (info.classifyType === "NORMAL" || info.classifyType === "MATERIAL") {
+          draft.inventory[itemId] = count;
+        } else {
+          continue;
+        }
+        n++;
+      }
+    });
+    await this.savePlayer(uid);
+    await this._audit("grantAllItems", uid, `${n} 种物品 x${count}`);
+    return { items: n };
+  }
+
+  /**
+   * 批量拉满全部已有干员（精二满级/满潜/满技能/专三/满信赖/满专精装备；不含资源/背包）
+   * @returns 拉满干员数
+   */
+  async maxAllChars(uid: string): Promise<{ chars: number }> {
+    const pd = await this.getPlayer(uid);
+    let n = 0;
+    await pd.update(async (draft) => {
+      for (const ch of Object.values(draft.troop?.chars ?? {})) {
+        const charData = (excel.CharacterTable as Record<string, any>)?.[ch.charId];
+        const phases = charData?.phases as any[] | undefined;
+        const maxEvolve = phases?.length ? phases.length - 1 : 2;
+        ch.evolvePhase = maxEvolve;
+        ch.level = phases?.[maxEvolve]?.maxLevel ?? 90;
+        ch.exp = 0;
+        ch.potentialRank = 5;
+        ch.mainSkillLvl = 7;
+        ch.favorPoint = 25570;
+        const skills = buildMaxedSkills(charData);
+        if (skills.length) {
+          ch.skills = skills;
+          ch.defaultSkillIndex = ch.defaultSkillIndex ?? 0;
+        }
+        const { ids: equipIds, equip } = buildMaxedEquip(ch.charId);
+        ch.currentEquip = equipIds[0] || null;
+        // buildMaxedEquip 返回 Record<string, unknown>（excel 动态结构），与 PlayerCharEquipInfo 映射兼容
+        ch.equip = equip as any;
+        n++;
+      }
+    });
+    await this.savePlayer(uid);
+    await this._audit("maxAllChars", uid, `${n} 名干员`);
+    return { chars: n };
+  }
+
+  /** 玩家推图进度（只读：已解锁/已完成关卡） */
+  async listStages(
+    uid: string,
+  ): Promise<{
+    total: number;
+    done: number;
+    stages: { stageId: string; state: number; completeTimes: number }[];
+  }> {
+    const pd = await this.getPlayer(uid);
+    const stages = pd._playerdata.dungeon?.stages ?? {};
+    const list = Object.entries(stages)
+      .map(([stageId, s]) => ({
+        stageId,
+        state: s.state,
+        completeTimes: s.completeTimes,
+      }))
+      .sort((a, b) => a.stageId.localeCompare(b.stageId));
+    return {
+      total: list.length,
+      done: list.filter((s) => s.completeTimes > 0).length,
+      stages: list.slice(0, 500),
+    };
+  }
+
+  /**
    * 官服账号迁移（联网拉取官服数据 → 转私服存档 → 注册账号）
    * 成功后热加载新用户到内存（服务器运行中可直接使用），并写审计日志。
    * @param accountsText - 账号内容文本（每行「手机号 密码」或两行一组「手机号\n密码」）

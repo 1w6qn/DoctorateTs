@@ -154,7 +154,7 @@ describe("StoryreviewManager", () => {
       );
 
       const emitSpy = vi.spyOn(mockTrigger, "emit");
-      await manager.unlockStoryByCoin({ storyId: "act_group_001" });
+      await manager.unlockStoryByCoin({ storyId: "act_group_001_level_st99" });
 
       const stories =
         mockPlayer._playerdata.storyreview!.groups["act_group_001"].stories;
@@ -162,7 +162,7 @@ describe("StoryreviewManager", () => {
       expect(stories.length).toBe(2);
       // 新增的故事应包含 id、uts、rc 三个字段
       const newStory = stories[1];
-      expect(newStory.id).toBe("act_group_001");
+      expect(newStory.id).toBe("act_group_001_level_st99");
       expect(newStory.uts).toBe(1234567890);
       expect(newStory.rc).toBe(0);
       // 应触发 items:use 事件消耗 STORY_REVIEW_COIN

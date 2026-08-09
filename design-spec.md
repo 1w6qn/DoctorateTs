@@ -1323,4 +1323,6 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 
 - **shop/decomposePotentialItem 500 修复（2026-08-09，用户报告）**：`potentialMaterialConverter.items` 按数值键（0~5）索引，而 `CharacterTable.rarity` 为字符串枚举 "TIER_N"——`items["TIER_5"]` undefined → `item.id` 500。用 `rarityToIndex` 修复 troop.ts 两个分解方法（decomposePotentialItem/decomposeClassicPotentialItem）+ 不存在的干员/无配置防御。单测 3 条（含字符串 rarity 场景）。
 
+- **storyreview/readStory 500 修复（2026-08-09，用户报告）**：原实现把完整 storyId 当 group key 查（`groups["act6d5_level_act6d5_st02"]` undefined）→ `.stories` 崩溃；正确 group 应为 storyId 前缀（如 act6d5）。新增 `_groupKeyOf`：组 key 直接匹配 → 最长前缀匹配（兼容多下划线组名）→ DoctoratePy 首段+min→mini 兜底；unlockStoryByCoin/readStory/rewardGroup 全补守卫与去重。实测 readStory rc 正确递增、未知 group 200。单测更新 3 条。
+
 - **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用（全量对齐后已补 stub，路径可达）

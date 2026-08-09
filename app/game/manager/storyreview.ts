@@ -13,14 +13,36 @@ export class StoryreviewManager {
     this._trigger = _trigger;
   }
 
+  /**
+   * 由 storyId 推导所属 group key
+   * 1) storyId 本身是 group key（部分调用方传组 key）
+   * 2) 最长前缀匹配：storyId 以 "groupKey_" 开头 → groupKey（兼容多下划线组名）
+   * 3) 兜底参考 DoctoratePy：首段 + "min"→"mini" 特例
+   */
+  private _groupKeyOf(storyId: string, groups: Record<string, any>): string {
+    if (groups[storyId]) return storyId;
+    let best = "";
+    for (const gk of Object.keys(groups)) {
+      if (storyId.startsWith(gk + "_") && gk.length > best.length) {
+        best = gk;
+      }
+    }
+    if (best) return best;
+    let groupId = storyId.split("_")[0];
+    if (groupId.includes("min") && !groupId.includes("mini")) {
+      groupId += "i";
+    }
+    return groupId;
+  }
+
   async unlockStoryByCoin(args: { storyId: string }) {
     await this._player.update(async (draft) => {
       const { storyId } = args;
-      draft.storyreview.groups[storyId].stories.push({
-        id: storyId,
-        uts: now(),
-        rc: 0,
-      });
+      // 修复：group key 为 storyId 首段，而非完整 storyId（原实现 groups[storyId] undefined → 500）
+      const group = draft.storyreview.groups[this._groupKeyOf(storyId, draft.storyreview.groups)];
+      if (!group) return; // 防御：未知 group 跳过
+      if (group.stories.some((s) => s.id === storyId)) return; // 已解锁
+      group.stories.push({ id: storyId, uts: now(), rc: 0 });
       await this._trigger.emit("items:use", [
         [{ id: "STORY_REVIEW_COIN", count: 1 }],
       ]);
@@ -30,18 +52,23 @@ export class StoryreviewManager {
   async readStory(args: { storyId: string }) {
     await this._player.update(async (draft) => {
       const { storyId } = args;
-      draft.storyreview.groups[storyId].stories.find(
-        (story) => story.id == storyId,
-      )!.rc += 1;
+      // 修复：group key 为 storyId 首段（原实现 groups[storyId] undefined → 500）
+      const group = draft.storyreview.groups[this._groupKeyOf(storyId, draft.storyreview.groups)];
+      const story = group?.stories.find((s) => s.id == storyId);
+      if (story) story.rc += 1;
     });
   }
 
   async rewardGroup(args: { groupId: string }) {
     return await this._player.update(async (draft) => {
       const { groupId } = args;
-      draft.storyreview.groups[groupId].rts = now();
-      const items = excel.StoryReviewTable[groupId].rewards!;
-      await this._trigger.emit("items:get", [items]);
+      const group = draft.storyreview.groups[groupId];
+      if (!group) return []; // 防御：未知 group 跳过
+      group.rts = now();
+      const items = excel.StoryReviewTable[groupId]?.rewards ?? [];
+      if (items.length > 0) {
+        await this._trigger.emit("items:get", [items]);
+      }
       return items;
     });
   }

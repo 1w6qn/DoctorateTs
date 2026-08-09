@@ -32,8 +32,25 @@ export class BattleManager {
     const { stageId, usePracticeTicket, squad } = args;
     // 唯一 battleId（时间戳 + 随机数），避免多场战斗互相覆盖 battleInfo/replay
     const battleId = `${now()}_${Math.floor(Math.random() * 100000)}`;
-    const { zoneId, apCost, dangerLevel } = excel.StageTable.stages[stageId];
-    let { apFailReturn } = excel.StageTable.stages[stageId];
+    const stage = excel.StageTable.stages[stageId];
+    // 修复：未知关卡（数据版本错位/客户端请求未收录关卡）不 500——
+    // 记录缺失 stageId 并返回最小战斗响应，客户端仍可本地游玩（结算由 finish 容错）
+    if (!stage) {
+      logger.warn(
+        "battle",
+        `quest/battleStart 未知关卡 ${stageId}（StageTable 无此关卡），返回最小 battleId`,
+      );
+      return {
+        result: 0,
+        battleId,
+        apFailReturn: 0,
+        isApProtect: 0,
+        inApProtectPeriod: false,
+        notifyPowerScoreNotEnoughIfFailed: false,
+      };
+    }
+    const { zoneId, apCost, dangerLevel } = stage;
+    let { apFailReturn } = stage;
     let notifyPowerScoreNotEnoughIfFailed = false;
     
     // Check zoneInfo of apProtect
@@ -216,11 +233,34 @@ export class BattleManager {
     const unlockStages: string[] = [];
     const unlockStagesObject = [];
     const firstRewards: ItemBundle[] = [];
-    const { apCost, expGain, goldGain } =
-      excel.StageTable.stages[battleInfo.stageId];
     const { stageId, isPractice } = battleInfo;
+    const stage = excel.StageTable.stages[stageId];
+    // 修复：未知关卡（battleStart 已容错，battleInfo 里的 stageId 同样可能不在表内）——
+    // 返回最小结算响应，避免 500
+    if (!stage) {
+      logger.warn(
+        "battle",
+        `quest/battleFinish 未知关卡 ${stageId}，返回空结算`,
+      );
+      return {
+        result: 0,
+        apFailReturn: 0,
+        expScale: 0,
+        goldScale: 0,
+        rewards: [],
+        firstRewards: [],
+        unlockStages: [],
+        unusualRewards: [],
+        additionalRewards: [],
+        furnitureRewards: [],
+        alert: [],
+        suggestFriend,
+        pryResult: [],
+      };
+    }
+    const { apCost, expGain, goldGain } = stage;
     const displayDetailRewards =
-      excel.StageTable.stages[stageId].stageDropInfo.displayDetailRewards;
+      stage.stageDropInfo.displayDetailRewards;
     let [
       additionalRewards,
       unusualRewards,

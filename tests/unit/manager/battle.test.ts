@@ -666,4 +666,19 @@ describe("BattleManager", () => {
       expect((await lastSavedBattleInfo()).assistFriend).toBeUndefined();
     });
   });
+
+  describe("未知关卡守卫（2026-08-09 修复）", () => {
+    it("battleStart 未知关卡应返回最小 battleId 而非 500", async () => {
+      const manager = new BattleManager(mockPlayer as any, mockTrigger as any);
+      const result = await manager.start({
+        stageId: "act1arkhub_01",
+        usePracticeTicket: false,
+        squad: { slots: [] },
+      } as any);
+      expect(result).toBeDefined();
+      expect(result.result).toBe(0);
+      expect(result.battleId).toBeDefined();
+      expect(result.apFailReturn).toBe(0);
+    });
+  });
 });

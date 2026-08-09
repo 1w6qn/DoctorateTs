@@ -186,6 +186,9 @@ describe("AdminService 只读能力", () => {
       { id: "4001", name: "龙门币", count: 100 },
       { id: "9999", name: "未知材料", count: 5 },
     ]);
+    // 更多资源字段（makeFullPd status: ap 0 / maxAp 135）
+    expect(info!.ap).toBe(0);
+    expect(info!.maxAp).toBe(135);
   });
 
   it("getUserInfo 对不存在用户应返回 null", async () => {

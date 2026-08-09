@@ -60,6 +60,15 @@ export interface UserDetail extends UserSummary {
   inventory: { [key: string]: number };
   /** 带中文名的背包道具（按数量降序；Dashboard 展示用） */
   inventoryInfo: { id: string; name: string; count: number }[];
+  /** 更多资源（理智/凭证/信用等） */
+  ap: number;
+  maxAp: number;
+  hggShard: number;
+  lggShard: number;
+  socialPoint: number;
+  diamondShard: number;
+  instantFinishTicket: number;
+  tenGachaTicket: number;
 }
 
 /** 干员摘要 */
@@ -125,6 +134,8 @@ export interface ServerStatus {
   dataFiles: { path: string; exists: boolean; size: number }[];
   /** 数据总量（用户存档 + 数据文件，KB） */
   totalDataKB: number;
+  /** 进程内存（Node RSS，MB） */
+  memoryMB: number;
 }
 
 /** 统计聚合 */
@@ -276,6 +287,14 @@ export class AdminService {
       registerTs: status.registerTs,
       inventory,
       inventoryInfo,
+      ap: status.ap,
+      maxAp: status.maxAp,
+      hggShard: status.hggShard,
+      lggShard: status.lggShard,
+      socialPoint: status.socialPoint,
+      diamondShard: status.diamondShard,
+      instantFinishTicket: status.instantFinishTicket,
+      tenGachaTicket: status.tenGachaTicket,
     };
   }
 
@@ -1456,6 +1475,7 @@ export class AdminService {
       userCount: Object.keys(accountManager.data).length,
       dataFiles,
       totalDataKB: Math.round(totalBytes / 1024),
+      memoryMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
     };
   }
 }

@@ -212,7 +212,13 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
       output(
         users,
         flags,
-        (u: any) => ({ uid: u.uid, 昵称: u.nickName, 等级: u.level, 手机: u.phone }),
+        (u: any) => ({
+          uid: u.uid,
+          昵称: u.nickName,
+          等级: u.level,
+          手机: u.phone,
+          最后在线: u.lastOnlineTs ? new Date(u.lastOnlineTs * 1000).toLocaleDateString() : "-",
+        }),
       );
       return;
     }
@@ -235,7 +241,8 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
       }
       console.log(`用户 ${uid}（${info.nickName}#${info.nickNumber}） Lv.${info.level}`);
       console.log(`  龙门币 ${info.gold} | 合成玉 ${info.androidDiamond} | 寻访凭证 ${info.gachaTicket}`);
-      console.log(`  招募许可 ${info.recruitLicense} | 演习券 ${info.practiceTicket} | 经验 ${info.exp}`);
+      console.log(`  理智 ${info.ap}/${info.maxAp ?? "-"} | 招募许可 ${info.recruitLicense} | 演习券 ${info.practiceTicket}`);
+      console.log(`  高级凭证 ${info.hggShard ?? 0} | 资质凭证 ${info.lggShard ?? 0} | 社交点 ${info.socialPoint ?? 0} | 加急许可 ${info.instantFinishTicket ?? 0}`);
       console.log(`  干员数 ${info.charCnt} | 注册时间 ${new Date(info.registerTs * 1000).toLocaleString()}`);
       const top = info.inventoryInfo.slice(0, 15);
       if (top.length) {
@@ -745,7 +752,7 @@ async function runServer(args: string[]): Promise<void> {
     console.log(`DoctorateTs 服务器状态`);
     console.log(`  端口 ${st.port} | 离线模式 ${st.offline} | 运行时间 ${st.uptime}s`);
     console.log(`  客户端版本 ${st.clientVersion} | 资源版本 ${st.resVersion}`);
-    console.log(`  用户数 ${st.userCount} | 数据总量 ${(st.totalDataKB / 1024).toFixed(1)}MB`);
+    console.log(`  用户数 ${st.userCount} | 数据总量 ${(st.totalDataKB / 1024).toFixed(1)}MB | 内存 ${st.memoryMB ?? "-"}MB`);
     console.table(
       st.dataFiles.map((f) => ({
         文件: f.path,

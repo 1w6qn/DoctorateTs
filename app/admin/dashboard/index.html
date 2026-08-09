@@ -89,6 +89,18 @@
   .resp-box { background: #111; border: 1px solid var(--border); border-radius: 6px; padding: 10px;
               font-size: 12px; max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-all;
               font-family: Consolas, monospace; }
+  /* 移动端适配：单列布局、控制台/弹窗不溢出 */
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; padding: 12px; }
+    .console { grid-template-columns: 1fr; }
+    .api-list { max-height: 240px; }
+    header { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+    header h1 { font-size: 15px; }
+    .modal { width: 94vw; }
+    .dist-col { grid-template-columns: 1fr; }
+    table { font-size: 12px; }
+    th, td { padding: 6px 6px; }
+  }
 </style>
 </head>
 <body>
@@ -445,9 +457,12 @@
         '<button id="btn-skin">发皮肤</button></div>' +
         "<table>" +
         "<tr><td>龙门币</td><td>" + fmtNum(info.gold) + "</td><td>合成玉</td><td>" + fmtNum(info.androidDiamond) + "</td></tr>" +
-        "<tr><td>寻访凭证</td><td>" + info.gachaTicket + "</td><td>招募许可</td><td>" + info.recruitLicense + "</td></tr>" +
-        "<tr><td>演习券</td><td>" + info.practiceTicket + "</td><td>经验</td><td>" + info.exp + "</td></tr>" +
-        "<tr><td>干员数</td><td>" + info.charCnt + "</td><td></td><td></td></tr>" +
+        "<tr><td>理智</td><td>" + (info.ap || 0) + " / " + (info.maxAp || "-") + "</td><td>寻访凭证</td><td>" + info.gachaTicket + "</td></tr>" +
+        "<tr><td>招募许可</td><td>" + info.recruitLicense + "</td><td>演习券</td><td>" + info.practiceTicket + "</td></tr>" +
+        "<tr><td>高级凭证</td><td>" + (info.hggShard || 0) + "</td><td>资质凭证</td><td>" + (info.lggShard || 0) + "</td></tr>" +
+        "<tr><td>社交点</td><td>" + (info.socialPoint || 0) + "</td><td>源石碎片</td><td>" + (info.diamondShard || 0) + "</td></tr>" +
+        "<tr><td>加急许可</td><td>" + (info.instantFinishTicket || 0) + "</td><td>十连券</td><td>" + (info.tenGachaTicket || 0) + "</td></tr>" +
+        "<tr><td>干员数</td><td>" + info.charCnt + "</td><td>经验</td><td>" + info.exp + "</td></tr>" +
         "</table>" +
         "<h4 style=\"color:var(--gold);margin:12px 0 6px;\">背包道具（前 20）</h4>" +
         "<div style=\"font-size:12px;color:var(--muted);max-height:220px;overflow:auto;\">" + inv + "</div>";

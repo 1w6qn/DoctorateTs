@@ -59,8 +59,6 @@
   label { font-size: 12px; color: var(--muted); }
   /* Tab */
   .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
-  .main-nav .tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
-  .main-nav .tabs::-webkit-scrollbar { display: none; }
   .tab { padding: 7px 16px; cursor: pointer; border-radius: 6px 6px 0 0;
          color: var(--muted); font-size: 13px; user-select: none; }
   .tab.active { background: var(--hover); color: var(--gold); border: 1px solid var(--border); border-bottom: none; }
@@ -124,7 +122,7 @@
   .tool-card .tool-body label { display: block; margin-top: 6px; }
   .tool-card .tool-body input, .tool-card .tool-body textarea { width: 100%; margin: 4px 0 8px; }
   .tool-card .tool-body .resp-box { margin-top: 8px; max-height: 240px; }
-  /* 移动端适配：单列布局、控制台/弹窗不溢出 */
+  /* 移动端适配：单列布局、控制台/弹窗不溢出、导航横向滚动 */
   @media (max-width: 900px) {
     main { grid-template-columns: 1fr; padding: 12px; }
     .console { grid-template-columns: 1fr; }
@@ -135,6 +133,8 @@
     .dist-col { grid-template-columns: 1fr; }
     table { font-size: 12px; }
     th, td { padding: 6px 6px; }
+    .main-nav .tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+    .main-nav .tabs::-webkit-scrollbar { display: none; }
   }
   /* Toast 通知 */
   #toast-box { position: fixed; right: 16px; bottom: 16px; z-index: 200;
@@ -188,7 +188,7 @@
 
 <main id="main">
   <!-- 主导航（全局功能 Tab 与用户详情 Tab 同级） -->
-  <section class="card full" style="padding:8px 16px;">
+  <section class="card full main-nav" style="padding:8px 16px;">
     <div class="tabs" style="border-bottom:none;margin-bottom:0;">
       <div class="tab active" data-tab="overview">概览</div>
       <div class="tab" data-tab="chars">干员</div>

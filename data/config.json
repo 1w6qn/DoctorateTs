@@ -5,10 +5,10 @@
   "majorVersion": "446",
   "version": {
     "clientVersion": "2.7.61",
-    "resVersion": "26-08-03-23-34-20_a745fc",
+    "resVersion": "26-08-07-14-53-29_30b8f0",
     "windows": {
       "clientVersion": "2.7.61",
-      "resVersion": "26-08-03-23-35-52_3445f2"
+      "resVersion": "26-08-07-10-51-39_26e0fc"
     }
   },
   "assets": {
@@ -52,7 +52,7 @@
     "enemyBakeMuzzleEnableRate": 3000
   },
   "admin": {
-    "enable": false,
+    "enable": true,
     "token": "doctorate-admin"
   },
   "authMode": "single",

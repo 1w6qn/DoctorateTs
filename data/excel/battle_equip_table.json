@@ -172655,7 +172655,7 @@
                 },
                 {
                   "displayRangeId": false,
-                  "upgradeDescription": "受到过来自珊比伤害的敌人<$ba.dt.erosion2>侵蚀损伤</>爆发时，珊比获得13<@ba.talpu>（+3）</>点防御力和4点攻击力<@ba.talpu>（+1）</>（最多叠加30层），以及430<@ba.talpu>（+80）</>点<$ba.barrier>屏障</>（不超过最大生命值的300%）",
+                  "upgradeDescription": "受到过来自珊比伤害的敌人<$ba.dt.erosion2>侵蚀损伤</>爆发时，珊比获得13<@ba.talpu>（+3）</>点防御力和4<@ba.talpu>（+1）</>点攻击力（最多叠加30层），以及430<@ba.talpu>（+80）</>点<$ba.barrier>屏障</>（不超过最大生命值的300%）",
                   "talentIndex": 1,
                   "validModeIndices": null,
                   "unlockCondition": {
@@ -172807,7 +172807,7 @@
                 },
                 {
                   "displayRangeId": false,
-                  "upgradeDescription": "受到过来自珊比伤害的敌人<$ba.dt.erosion2>侵蚀损伤</>爆发时，珊比获得15<@ba.talpu>（+3）</>点防御力和6点攻击力<@ba.talpu>（+1）</>（最多叠加30层），以及480<@ba.talpu>（+80）</>点<$ba.barrier>屏障</>（不超过最大生命值的300%）",
+                  "upgradeDescription": "受到过来自珊比伤害的敌人<$ba.dt.erosion2>侵蚀损伤</>爆发时，珊比获得15<@ba.talpu>（+3）</>点防御力和6<@ba.talpu>（+1）</>点攻击力（最多叠加30层），以及480<@ba.talpu>（+80）</>点<$ba.barrier>屏障</>（不超过最大生命值的300%）",
                   "talentIndex": 1,
                   "validModeIndices": null,
                   "unlockCondition": {

@@ -1072,8 +1072,8 @@ mitmproxy map remote 设置 URL 时会同步改写 Host 头为 `127.0.0.1:8443`�
 **挂载位置**：index.ts 在 host-router + `/config/prod`、`/api/remote_config`、`/api/gate`、`/api/game`（launcher）之后、`/` auth 之前挂 `createOfficialForwarder()`。config/launcher 保持本地——客户端才能拿到指向本代理的 network_config 被引导连进来。
 
 **路由分发规则**（`resolveForwardTarget` 纯函数，与 test.ts / §17.1 路径级兜底一致）：
-- **Host 优先**：`as.*` → `as.hypergryph.com`（路径原样，官服无 /auth 前缀）；`ak-gs-*` → `ak-gs-gf.hypergryph.com`（剥 `/game` 基址前缀）；其余 `*.hypergryph.com`（ak-conf/game-config 等配置域）→ 不转发，保持本地
-- **路径级兜底**（Host 非官服：localhost/IP 直连 / mitmweb 重写）：as 前缀 `/user/auth|info|online|oauth2`、`/u8`、`/app`、`/general`、`/as`（剥路径化前缀）→ as 域；`/game/*` → gs 域（剥前缀）；**其余 POST** → gs 域根路径兜底（/account、/shop、/activity、/user/checkIn、/batch_event 等），但**排除本地挂载点** `/admin` `/assetbundle` `/pcSdk` `/config` `/api` `/audit` `/arkodc`（避免把管理/配置 POST 误转发官服）；GET 非 as 路径不转发（保持本地响应）
+- **Host 优先**：`as.*` → `as.hypergryph.com`（路径原样，官服无 /auth 前缀）；`ak-gs-*` → `ak-gs-gf.hypergryph.com`（剥 `/game` 基址前缀，本地挂载点同样排除）；其余 `*.hypergryph.com`（ak-conf/game-config 等配置域）→ 不转发，保持本地
+- **路径级兜底**（Host 非官服：localhost/IP 直连 / mitmweb 重写）：as 前缀 `/user/auth|info|online|oauth2`、`/u8`、`/app`、`/general`、`/as`（剥路径化前缀）→ as 域；`/game/*` → gs 域（剥前缀）；**其余 POST** → gs 域根路径兜底（/account、/shop、/activity、/user/checkIn 等），但**排除本地挂载点** `/admin` `/assetbundle` `/pcSdk` `/config` `/api` `/audit` `/arkodc` `/batch_event`（管理/配置/事件上报由私服响应——`/batch_event` 由 home.ts 返回 `{}`，转发官服只得 404 噪音，用户明确要求不转发；Host 级 ak-gs-* 分支同样排除）；GET 非 as 路径不转发（保持本地响应）
 - 官服对双斜杠路径返回 404，endpoint 统一归一化去前导斜杠；`validateStatus: () => true` 原样透传官服 401/400 等状态；网络层错误（官服不可达）返回 502
 - **content-length 剥离**（2026-08-09 修复）：客户端原始 body 可能带空白/换行（实测 oauth2/v2/grant 原始 94B、解析后重序列化 74B），透传 `content-length` 会让官服按声明长度等剩余字节而**永久挂起**（`POST /user/oauth2/v2/grant` 20s 无响应）。转发头剥离 `host`/`content-length`/`transfer-encoding`，由 axios 按实际 body 重算。test.ts 同步修复。
 - **/u8 双写修复**（2026-08-09）：路径级兜底的 as 前缀 baseUrl 一律为 as 域根地址、path 保留完整原路径（含 `/u8`）——若 baseUrl 再拼 `/u8` 基址会与 path 里的 `/u8` 双写（实测 `as.hypergryph.com/u8/u8/user/v1/getToken` → Go 404，修复后 400 字段校验）。test.ts 的 `app.post("/u8/*endpoint", ...)` 通配符不含 `/u8` 前缀，无此问题。

@@ -49,7 +49,11 @@ const AS_PATH_PREFIXES = [
   "/general",
 ] as const;
 
-/** 本地挂载点前缀：capture 模式的 gs 根路径 POST 兜底须排除，避免把管理/配置流量误转发官服 */
+/**
+ * 本地挂载点前缀：capture 模式须排除、不转发官服的路径——
+ * 管理/配置/资源等由私服响应；/batch_event 客户端事件上报由 home.ts 返回 {} 即可
+ * （转发官服只会得到 404 噪音，用户明确要求不转发）
+ */
 const LOCAL_ONLY_PREFIXES = [
   "/admin",
   "/assetbundle",
@@ -58,6 +62,7 @@ const LOCAL_ONLY_PREFIXES = [
   "/api",
   "/audit",
   "/arkodc",
+  "/batch_event",
 ] as const;
 
 /** 判断路径是否精确等于 prefix 或以 prefix/ 开头（避免误剥 /gamemode 之类路径） */
@@ -108,8 +113,12 @@ export function resolveForwardTarget(
       return { baseUrl: asHost, path };
     }
     if (h.startsWith("ak-gs-")) {
-      // gs 域：官服游戏路径无 /game 基址，若客户端带则剥掉
+      // gs 域：官服游戏路径无 /game 基址，若客户端带则剥掉；
+      // 本地挂载点（/batch_event 等）无论 Host 都不转发——事件上报由私服 home.ts 返回 {} 即可
       const p = hasPathPrefix(path, "/game") ? path.slice("/game".length) || "/" : path;
+      if (LOCAL_ONLY_PREFIXES.some((prefix) => hasPathPrefix(p, prefix))) {
+        return null;
+      }
       return { baseUrl: gsHost, path: p };
     }
     // ak-conf / game-config / 其余官方子域：配置与资源域，保持本地

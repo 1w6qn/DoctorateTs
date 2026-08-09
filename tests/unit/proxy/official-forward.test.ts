@@ -99,13 +99,22 @@ describe("resolveForwardTarget（官服转发目标解析）", () => {
       });
     });
 
-    it("根路径游戏域 POST 兜底：/account、/user/checkIn、/batch_event 等 → gs 域", () => {
+    it("根路径游戏域 POST 兜底：/account、/user/checkIn、/shop 等 → gs 域", () => {
       expect(resolveForwardTarget("POST", "/account/login", "127.0.0.1:8443")?.baseUrl).toBe(OFFICIAL_GS_HOST);
       expect(resolveForwardTarget("POST", "/user/checkIn", "127.0.0.1:8443")?.baseUrl).toBe(OFFICIAL_GS_HOST);
       expect(resolveForwardTarget("POST", "/shop/getSkinGoodList", "127.0.0.1:8443")?.baseUrl).toBe(OFFICIAL_GS_HOST);
-      expect(resolveForwardTarget("POST", "/batch_event", "127.0.0.1:8443")?.baseUrl).toBe(OFFICIAL_GS_HOST);
       // 裸根路径 POST 也兜底（对齐 test.ts 的 app.post("/*endpoint")）
       expect(resolveForwardTarget("POST", "/", "127.0.0.1:8443")?.baseUrl).toBe(OFFICIAL_GS_HOST);
+    });
+
+    it("/batch_event 不转发（用户明确要求：事件上报由私服 home.ts 返回 {} 即可），路径与 Host 两种模式都保持本地", () => {
+      // 路径级（network_config 直连：Host=127.0.0.1）
+      expect(resolveForwardTarget("POST", "/batch_event", "127.0.0.1:8443")).toBeNull();
+      // Host 级（hosts 重写：Host=ak-gs-gf.hypergryph.com）
+      expect(resolveForwardTarget("POST", "/batch_event", "ak-gs-gf.hypergryph.com")).toBeNull();
+      // 其它本地挂载点 Host 级同样不转发（回归：ak-gs-* Host 也应用排除）
+      expect(resolveForwardTarget("POST", "/admin/users", "ak-gs-gf.hypergryph.com")).toBeNull();
+      expect(resolveForwardTarget("POST", "/pcSdk/userInfo", "ak-gs-gf.hypergryph.com")).toBeNull();
     });
 
     it("本地挂载点 POST 不转发（/admin、/config、/api、/pcSdk、/assetbundle、/audit、/arkodc）", () => {

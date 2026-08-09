@@ -137,6 +137,8 @@ export class CharManager {
           defaultSkillIndex: -1,
           gainTime: now(),
           skills: [],
+          currentTmpl: charId,
+          tmpl: {},
           currentEquip: null,
           equip: {},
           voiceLan: "CN_MANDARIN",

@@ -71,8 +71,12 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   inventory!: RoguelikeInventoryManager | null;
 
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
-    this.outer = player._playerdata.rlv2.outer;
-    this.current = player._playerdata.rlv2.current;
+    // rlv2 内部模型（model/rlv2.ts）与生成模型（types-playerdata）为同一数据的两种视图：
+    // 内部模型为功能实现的类型契约，生成模型为线格式存储视图，边界处做显式桥接
+    this.outer = player._playerdata.rlv2.outer as unknown as {
+      [key: string]: PlayerRoguelikeV2.OuterData;
+    };
+    this.current = player._playerdata.rlv2.current as unknown as PlayerRoguelikeV2.CurrentData;
     this.pinned = player._playerdata.rlv2.pinned;
     this._player = player;
     this._trigger = _trigger;
@@ -122,14 +126,16 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     recipe: (draft: WritableDraft<PlayerRoguelikeV2>) => Promise<T>,
   ): Promise<T> {
     const result = await this._player.update(async (draft) => {
-      return await recipe(draft.rlv2);
+      return await recipe(draft.rlv2 as unknown as WritableDraft<PlayerRoguelikeV2>);
     });
     // Immer finishDraft 替换 _playerdata：统一刷新本控制器引用。
     // recipe 克隆过的子树（draft.outer/current/pinned 任一被写即整体克隆）会让
     // this.outer/this.current 指向旧对象，后续 createGame/gameSettle 的直接写会落到孤儿对象（重启丢失）。
     // 所有 rlv2 状态写都经本出口（含 disaster 等子管理器），在此统一刷新最稳妥。
-    this.outer = this._player._playerdata.rlv2.outer;
-    this.current = this._player._playerdata.rlv2.current;
+    this.outer = this._player._playerdata.rlv2.outer as unknown as {
+      [key: string]: PlayerRoguelikeV2.OuterData;
+    };
+    this.current = this._player._playerdata.rlv2.current as unknown as PlayerRoguelikeV2.CurrentData;
     this.pinned = this._player._playerdata.rlv2.pinned;
     return result;
   }

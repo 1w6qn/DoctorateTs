@@ -1,5 +1,5 @@
 import { AvatarInfo, SharedCharData } from './character';
-import { NameCardSkin, PlayerBirthday, PlayerMedalCustomLayout, PlayerNameCardStyle } from './playerdata';
+import { PlayerBirthday, PlayerMedalCustomLayout, PlayerNameCardSkin, PlayerNameCardStyle } from './playerdata';
 export interface FriendDataWithNameCard extends FriendData {
     registerTs:number,
     mainStageProgress:string|null,
@@ -20,7 +20,7 @@ export interface FriendData extends FriendCommonData{
     board:string[],
     infoShare:number,
     infoShareVisited?:number,
-    skin:NameCardSkin
+    skin:PlayerNameCardSkin
 }
 export interface FriendCommonData{
     nickName:string,

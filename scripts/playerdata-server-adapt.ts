@@ -83,6 +83,9 @@ export const SERVER_RENAME_FIELDS: Record<string, Record<string, string>> = {
     medic: "MEDIC",
     special: "SPECIAL",
   },
+  TowerCurrent_Status: {
+    towerId: "tower", // 服务端 key 为 tower（字符串 id）
+  },
 };
 
 /** 服务端独有字段补充：接口名 → { 字段名: TS 类型 } */
@@ -108,7 +111,7 @@ export const SERVER_ADD_FIELDS: Record<string, Record<string, string>> = {
     tipMonthlyCardExpireTs: "number",
   },
   PlayerTroop: {
-    charGroup: "{ [key: string]: object }",
+    charGroup: "{ [key: string]: { favorPoint: number } }",
   },
   PlayerCharPatch: {
     skills: "PlayerSkill[]",
@@ -126,7 +129,7 @@ export const SERVER_ADD_FIELDS: Record<string, Record<string, string>> = {
     startTime: "number",
   },
   PlayerMedalBoard: {
-    templateMedalList: "object[]",
+    templateMedalList: "string[]",
   },
   PlayerMainlineRecord: {
     version: "number",
@@ -144,9 +147,9 @@ export const SERVER_ADD_FIELDS: Record<string, Record<string, string>> = {
   PlayerCrisis: {
     lst: "number",
     nst: "number",
-    map: "object",
-    training: "object",
-    box: "object",
+    map: "{ [key: string]: { rank: number; confirmed: number } }",
+    training: "{ currentStage: string[]; stage: { [key: string]: { point: number } }; nst: number }",
+    box: "object[]",
   },
   PlayerCrisisV2: {
     current: "string",
@@ -161,14 +164,15 @@ export const SERVER_ADD_FIELDS: Record<string, Record<string, string>> = {
   PlayerCharacter: {
     skin: "string",
     defaultSkillIndex: "number",
-    skills: "object[]",
+    // 线格式 char.skills = [{ skillId, unlock, state, specializeLevel, completeUpgradeTime }]
+    skills: "{ skillId: string; unlock: number; state: number; specializeLevel: number; completeUpgradeTime: number }[]",
     voiceLan: "string",
     currentEquip: "string",
     equip: "{ [key: string]: PlayerCharEquipInfo }",
     master: "object",
   },
   PlayerCharPatch: {
-    skills: "object[]",
+    skills: "{ skillId: string; unlock: number; state: number; specializeLevel: number; completeUpgradeTime: number }[]",
   },
   PlayerBuildingWorkshopStatus: { bonusActive: "number" },
   PlayerBuildingCharBubble: { ts: "number" },
@@ -209,7 +213,10 @@ export const SERVER_ADD_FIELDS: Record<string, Record<string, string>> = {
   BuildingMusicState: { progress: "number" },
   // 其他散点
   PlayerArtMagazineLeafData: { leafId: "string", charSkin: "string", decorList: "string[]" },
-  PlayerDexNav: { character: "object", teamV2: "object" },
+  PlayerDexNav: {
+    character: "{ [key: string]: { charInstId: number; count: number; classicCount?: number } }",
+    teamV2: "{ [key: string]: object }",
+  },
   PlayerFormulaUnlockRecord: { shop: "object" },
   PlayerCrisisSeason: { permanent: "object", temporary: "object", sInfo: "object" },
   PlayerCrisisV2Season_PermanentMapInfo: {
@@ -227,11 +234,12 @@ export const SERVER_ADD_FIELDS: Record<string, Record<string, string>> = {
   PlayerRoguelikeV2_OuterData_Mission_MissionItem: { tmpl: "object" },
   PlayerRoguelikeV2_CurrentData: { record: "object" },
   // tower
-  TowerCurrent_Status: { tower: "object", strategy: "object" },
+  TowerCurrent_Status: { strategy: "string" }, // towerId 由 rename 处理；strategy 线格式字符串
   TowerCurrent_TowerGodCard: { id: "string" },
   TowerCurrent_HalftimeRecruit: { count: "number" },
   TowerOuter_TowerData: { unlockHard: "boolean" },
   TowerOuter: { pickedGodCard: "object", squad: "object" },
+  TowerCurrent: { reward: "{ high: number; low: number }" }, // 服务端内部战斗奖励计数
   TowerSeason: { passWithGodCard: "object", slots: "object" },
   TowerSeason_TowerSeasonPeriod: { cur: "number", len: "number" },
   // sandboxPerm
@@ -240,8 +248,8 @@ export const SERVER_ADD_FIELDS: Record<string, Record<string, string>> = {
   PlayerRecalRuneStage: { runes: "object" },
   PlayerCampaign: { lastRefreshTs: "number" },
   PlayerCampaign_Stage: { rewardStatus: "number[]" },
-  PlayerPerMedal: { val: "number" },
-  PlayerRecruit_NormalModel_SlotModel: { tags: "number[]", selectTags: "number[]" },
+  PlayerPerMedal: { val: "number[][]" },
+  PlayerRecruit_NormalModel_SlotModel: { tags: "number[]", selectTags: "{ tagId: number; pick: number }[]" },
   PlayerRetro: { lst: "number", nst: "number" },
   PlayerSetting: { perf: "{ lowPower: number }" },
   PlayerCharRotationPreset: { profileInst: "number" },
@@ -263,6 +271,10 @@ export const SERVER_ADD_FIELDS: Record<string, Record<string, string>> = {
   PlayerBuildingDormitory_Buff: { point: "object" },
   PlayerBuildingDormitory: { lockQueue: "number[]" },
   PlayerBuildingPrivate: { owners: "number[]" },
+  // 助战/编队槽位（客户端模型为空接口，线格式有实字段）
+  PlayerFriendAssist: { charInstId: "number", skillIndex: "number", currentEquip: "string", currentTmpl: "string" },
+  PlayerSquadItem: { charInstId: "number", skillIndex: "number", currentEquip: "string" },
+  PlayerSquad: { slots: "PlayerSquadItem[]" },
   // 商店各品类服务端独有字段
   PlayerLowQCShopProgressData: { curShopId: "string", info: "PlayerGoodItemData[]" },
   PlayerHighQCShopProgressData: { curShopId: "string" },
@@ -295,6 +307,31 @@ export const SERVER_OVERRIDE_FIELDS: Record<string, Record<string, string>> = {
   PlayerCartInfo_Cart: {
     "[server]": "{ [key: string]: string }",
   },
+  // 基建干员气泡：线格式只有 normal/assist/private（客户端多 privateBubble）
+  PlayerBuildingChar_BubbleContainer: {
+    "[server]": "{ normal: PlayerBuildingCharBubble; assist: PlayerBuildingCharBubble; private: PlayerBuildingCharBubble }",
+  },
+  // 贸易订单：线格式 { instId, delivery: ItemBundle[], type, gain, buff }（客户端多 extraCost/specGoldTag）
+  PlayerBuildingTradingOrder: {
+    "[server]": "{ instId: number; delivery: ItemBundle[]; type: BuildingData_OrderType; gain: ItemBundle; buff: object[] }",
+  },
+  // 塔神卡：线格式 { id, subGodCardId }（客户端多 godCardId，服务端已改名）
+  TowerCurrent_TowerGodCard: {
+    "[server]": "{ id: string; subGodCardId: string }",
+  },
+  // 塔卡牌：C# GameCard 继承 PlayerCharacter（parser 不支持继承，需整接口覆盖补全字段）
+  TowerCurrent_GameCard: {
+    "[server]":
+      "{ relation: string; type: TowerCurrent_TowerCardType; charId: string; currentEquip: string | null; defaultSkillIndex: number; equip: object; evolvePhase: number; favorPoint: number; instId: string; level: number; mainSkillLvl: number; potentialRank: number; skills: object[]; skin: string }",
+  },
+  // 任务分组：线格式 { [groupType]: { [missionId]: { state, progress } } }（客户端为 Dictionary 继承，解析为空接口）
+  MissionPlayerDataGroup: {
+    "[server]": "{ [groupType: string]: { [missionId: string]: { state: number; progress: MissionCalcState[] } } }",
+  },
+  // 背景/主题解锁状态：线格式仅 { unlock: number }；conditions/unlockTime 为运行时内部进度
+  PlayerHomeUnlockStatus: {
+    "[server]": "{ unlock: number; unlockTime?: number; conditions?: { [key: string]: PlayerHomeConditionProgress } }",
+  },
 };
 
 /** 应用整接口覆盖（"[server]" 键）：返回覆盖后的类型别名；无覆盖返回 null */
@@ -314,6 +351,7 @@ export function applyServerAdapt(classes: ClassDef[]): ClassDef[] {
   return classes.map(iface => {
     const rename = SERVER_RENAME_FIELDS[iface.name] ?? {};
     const add = SERVER_ADD_FIELDS[iface.name] ?? {};
+    const optional = SERVER_OPTIONAL_FIELDS[iface.name] ?? [];
 
     // 1. rename
     let fields = iface.fields.map(f => {
@@ -331,7 +369,7 @@ export function applyServerAdapt(classes: ClassDef[]): ClassDef[] {
     // 3. override（整接口覆盖优先：转为类型别名；字段级覆盖：替换类型）
     const aliasType = applyWholeOverride(iface);
     if (aliasType !== null) {
-      return { ...iface, fields: [], aliasType };
+      return { ...iface, fields: [], aliasType, optionalFields: optional };
     }
     const override = SERVER_OVERRIDE_FIELDS[iface.name];
     if (override) {
@@ -341,7 +379,7 @@ export function applyServerAdapt(classes: ClassDef[]): ClassDef[] {
       });
     }
 
-    return { ...iface, fields };
+    return { ...iface, fields, optionalFields: optional };
   });
 }
 
@@ -410,6 +448,7 @@ export const SERVER_ENUM_KEEP_AS_STRING: string[] = [
   "PlayerRoguelikeV2_OuterData_Mission_MissionSlot.type",
   "PlayerRoguelikeV2_OuterData_Record_History.mode",
   "PlayerStatus.globalVoiceLan",
+  "TowerCurrent_GameCard.type", // 线格式 "CHAR" 等字符串
   "TowerCurrent_Status.state",
   "TowerOuter.strategy",
 ];
@@ -420,6 +459,44 @@ export const SERVER_FIELD_TYPE_OVERRIDES: Record<string, string> = {
   "PlayerBuildingMeetingClue.uid": "string",
   // 服务端把社交分序列化为字符串数字（新官服 "300"），老存档为 number——两态并存
   "PlayerCrisisSocialInfo.maxPnt": "number | string",
+  // 勋章板 custom 线格式为 null（客户端模型 string）
+  "PlayerMedalBoard.custom": "string | null",
+  // 编队 squadId 线格式为字符串（"0"）
+  "PlayerSquad.squadId": "string",
+  // 未装备干员/槽位的 currentEquip 可为 null（线格式与运行时并存）
+  "PlayerCharacter.currentEquip": "string | null",
+  "PlayerCharPatch.currentEquip": "string | null",
+  "PlayerSquadItem.currentEquip": "string | null",
+  "PlayerFriendAssist.currentEquip": "string | null",
+  // 名片皮肤解锁进度线格式可为 null（老皮肤无进度）
+  "PlayerNameCardSkin_SkinState.progress": "number[][] | null",
+};
+
+/** 可选字段（线格式服务端常省略）：接口名 → 字段名数组；生成时输出 name?: type */
+export const SERVER_OPTIONAL_FIELDS: Record<string, string[]> = {
+  // 单抽池：线格式不含基础池字段 cnt/maxCnt/avail（客户端模型继承自 PlayerGachaPool）
+  PlayerGacha_PlayerSingleGacha: ["cnt", "maxCnt", "avail"],
+  // 线索：线格式不含 ts（管理器创建时才写入）
+  PlayerBuildingMeetingClue: ["ts"],
+  // 塔：reward 为服务端内部战斗奖励计数（线格式不含）
+  TowerCurrent: ["reward"],
+  // 塔中场招募：线格式不含 remainCount（客户端模型字段）
+  TowerCurrent_HalftimeRecruit: ["remainCount"],
+  // 任务进度项：线格式不含 compare（客户端模型字段）
+  MissionCalcState: ["compare"],
+  // 助战干员：线格式不含 currentTmpl（部分条目缺失）
+  PlayerFriendAssist: ["currentTmpl"],
+  PlayerSquadItem: ["currentTmpl"],
+  // 干员：线格式不含 starMark/master（客户端模型字段）
+  PlayerCharacter: ["starMark", "master"],
+  // 名片皮肤：线格式不含 tmpl（客户端模型字段）
+  PlayerNameCardSkin: ["tmpl"],
+  // 名片皮肤解锁进度：线格式部分条目不含 unlockTs（老皮肤）
+  PlayerNameCardSkin_SkinState: ["unlockTs"],
+  // 勋章：线格式不含 reward（客户端模型字段）
+  PlayerPerMedal: ["reward"],
+  // 基建干员：线格式不含 skinIdInVisit（客户端模型字段）
+  PlayerBuildingChar: ["skinIdInVisit"],
 };
 
 /** 字段类型递归改写：枚举/布尔 → number */
@@ -461,6 +538,7 @@ export function applyWireFormat(classes: ClassDef[], enumNames: Set<string>): Cl
     }
     return {
       ...iface,
+      optionalFields: iface.optionalFields,
       fields: iface.fields.map(f => {
         let type = f.type;
         // 字符串序列化枚举：跳过改写，保留字面量联合

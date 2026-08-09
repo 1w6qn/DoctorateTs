@@ -5,7 +5,7 @@
  * ClimbTowerXxxRequest / ClimbTowerXxxResponse 类；字段以 CS 类为准。
  * 协议层 Boolean 按 0/1 数字处理（如 isHard/giveUp），playerData 内的 bool 仍为 boolean。
  */
-import { StatusTactical } from "../playerdata";
+import { TowerTactical } from "../playerdata";
 import { PlayerDeltaResponse } from "./common";
 
 /* ===== 请求类型 ===== */
@@ -27,7 +27,7 @@ export interface ClimbTowerInitGodCardRequest {
  */
 export interface ClimbTowerInitGameRequest {
   strategy: string;
-  tactical: StatusTactical;
+  tactical: TowerTactical;
 }
 
 /** 爬塔初始卡组槽位（对应 CS RequestSquadSlot 的序列化子集） */

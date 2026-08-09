@@ -305,13 +305,23 @@ export interface AvatarInfo {
     id: string;
 }
 
-export interface PlayerSquadItem {}
+export interface PlayerSquadItem {
+    charInstId: number;
+    skillIndex: number;
+    currentEquip: string | null;
+}
 
-export interface PlayerFriendAssist {}
+export interface PlayerFriendAssist {
+    charInstId: number;
+    skillIndex: number;
+    currentEquip: string | null;
+    currentTmpl?: string;
+}
 
 export interface PlayerSquad {
-    squadId: number;
+    squadId: string;
     name: string;
+    slots: PlayerSquadItem[];
 }
 
 export interface PlayerBirthday {
@@ -372,24 +382,24 @@ export interface PlayerCharacter {
     favorPoint: number;
     mainSkillLvl: number;
     gainTime: number;
-    starMark: number;
+    starMark?: number;
     currentTmpl: string;
     tmpl: { [key: string]: PlayerCharPatch };
     skin: string;
     defaultSkillIndex: number;
-    skills: object[];
+    skills: { skillId: string; unlock: number; state: number; specializeLevel: number; completeUpgradeTime: number }[];
     voiceLan: string;
-    currentEquip: string;
+    currentEquip: string | null;
     equip: { [key: string]: PlayerCharEquipInfo };
-    master: object;
+    master?: object;
 }
 
 export interface PlayerCharPatch {
     skinId: string;
     defaultSkillIndex: number;
-    currentEquip: string;
+    currentEquip: string | null;
     equip: { [key: string]: PlayerCharEquipInfo };
-    skills: object[];
+    skills: { skillId: string; unlock: number; state: number; specializeLevel: number; completeUpgradeTime: number }[];
 }
 
 export interface PlayerNpcWithAudio {
@@ -1915,7 +1925,7 @@ export interface PlayerRecruit_NormalModel_SlotModel {
     realFinishTs: number;
     durationInSec: number;
     tags: number[];
-    selectTags: number[];
+    selectTags: { tagId: number; pick: number }[];
 }
 
 export interface PlayerRecruit_NormalModel {
@@ -1950,9 +1960,9 @@ export interface PlayerGacha_PlayerAttainGacha {
 }
 
 export interface PlayerGacha_PlayerSingleGacha {
-    cnt: number;
-    maxCnt: number;
-    avail: number;
+    cnt?: number;
+    maxCnt?: number;
+    avail?: number;
     singleEnsureCnt: number;
     singleEnsureUse: boolean;
     singleEnsureChar: string;
@@ -1992,9 +2002,9 @@ export interface PlayerGacha {
 
 export interface PlayerMedalBoard {
     type: NameCardMedalType;
-    custom: string;
+    custom: string | null;
     template: string;
-    templateMedalList: object[];
+    templateMedalList: string[];
 }
 
 export interface PlayerSocialReward {
@@ -2022,7 +2032,7 @@ export interface PlayerTroop {
     addon: { [key: string]: PlayerHandBookAddon };
     charMission: { [key: string]: { [key: string]: number } };
     spOperator: { [key: string]: { [key: string]: { [key: string]: PlayerSpecialOperatorNode } } };
-    charGroup: { [key: string]: object };
+    charGroup: { [key: string]: { favorPoint: number } };
 }
 
 export interface PlayerGoodItemData {
@@ -2173,12 +2183,7 @@ export interface PlayerBuildingCharBubble {
     ts: number;
 }
 
-export interface PlayerBuildingChar_BubbleContainer {
-    normal: PlayerBuildingCharBubble;
-    assist: PlayerBuildingCharBubble;
-    privateBubble: PlayerBuildingCharBubble;
-    private: object;
-}
+export type PlayerBuildingChar_BubbleContainer = { normal: PlayerBuildingCharBubble; assist: PlayerBuildingCharBubble; private: PlayerBuildingCharBubble };
 
 export interface PlayerBuildingChar {
     charId: string;
@@ -2188,7 +2193,7 @@ export interface PlayerBuildingChar {
     index: number;
     changeScale: number;
     bubble: PlayerBuildingChar_BubbleContainer;
-    skinIdInVisit: string;
+    skinIdInVisit?: string;
     workTime: number;
     privateRooms: string[];
 }
@@ -2220,8 +2225,8 @@ export interface PlayerFormulaUnlockRecord {
 export interface PlayerDexNav {
     enemy: PlayerEnemyHandBook;
     formula: PlayerFormulaUnlockRecord;
-    character: object;
-    teamV2: object;
+    character: { [key: string]: { charInstId: number; count: number; classicCount?: number } };
+    teamV2: { [key: string]: object };
 }
 
 export interface PlayerSkins {
@@ -2234,8 +2239,8 @@ export interface PlayerPerMedal {
     id: string;
     fts: number;
     rts: number;
-    reward: string;
-    val: number;
+    reward?: string;
+    val: number[][];
 }
 
 export interface PlayerMedalCustomLayoutItem {
@@ -2446,7 +2451,7 @@ export interface PlayerBuildingMeetingClue {
     name: string;
     chars: PlayerBuildingMeetingClueChar[];
     inUse: number;
-    ts: number;
+    ts?: number;
 }
 
 export interface PlayerBuildingMeetingSocialReward {
@@ -2532,15 +2537,7 @@ export interface PlayerBuildingTradingOrder_TradingGoldTag {
     from: string;
 }
 
-export interface PlayerBuildingTradingOrder {
-    instId: number;
-    type: BuildingData_OrderType;
-    gain: ItemBundle;
-    extraCost: number;
-    specGoldTag: PlayerBuildingTradingOrder_TradingGoldTag;
-    delivery: object;
-    buff: object;
-}
+export type PlayerBuildingTradingOrder = { instId: number; delivery: ItemBundle[]; type: BuildingData_OrderType; gain: ItemBundle; buff: object[] };
 
 export interface PlayerBuildingTradingBuff {
     speed: number;
@@ -2714,7 +2711,7 @@ export interface PlayerBuilding {
 export interface MissionCalcState {
     target: number;
     value: number;
-    compare: string;
+    compare?: string;
 }
 
 export interface MissionDailyRewards {
@@ -2723,7 +2720,7 @@ export interface MissionDailyRewards {
     rewards: { [key: string]: { [key: string]: number } };
 }
 
-export interface MissionPlayerDataGroup {}
+export type MissionPlayerDataGroup = { [groupType: string]: { [missionId: string]: { state: number; progress: MissionCalcState[] } } };
 
 export interface MissionPlayerData {
     missions: MissionPlayerDataGroup;
@@ -2763,9 +2760,9 @@ export interface PlayerCrisis {
     season: { [key: string]: PlayerCrisisSeason };
     lst: number;
     nst: number;
-    map: object;
-    training: object;
-    box: object;
+    map: { [key: string]: { rank: number; confirmed: number } };
+    training: { currentStage: string[]; stage: { [key: string]: { point: number } }; nst: number };
+    box: object[];
 }
 
 export interface PlayerCrisisV2Season_RewardInfo {
@@ -4029,20 +4026,15 @@ export interface TowerTactical {
 
 export interface TowerCurrent_Status {
     state: TowerCurrent_TowerGameState;
-    towerId: string;
+    tower: string;
     coord: number;
     tactical: TowerTactical;
     start: number;
     isHard: boolean;
-    tower: object;
-    strategy: object;
+    strategy: string;
 }
 
-export interface TowerCurrent_TowerGodCard {
-    godCardId: string;
-    subGodCardId: string;
-    id: string;
-}
+export type TowerCurrent_TowerGodCard = { id: string; subGodCardId: string };
 
 export interface TowerCurrent_TowerGameLayer {
     id: string;
@@ -4050,10 +4042,7 @@ export interface TowerCurrent_TowerGameLayer {
     pass: number;
 }
 
-export interface TowerCurrent_GameCard {
-    relation: string;
-    type: number;
-}
+export type TowerCurrent_GameCard = { relation: string; type: TowerCurrent_TowerCardType; charId: string; currentEquip: string | null; defaultSkillIndex: number; equip: object; evolvePhase: number; favorPoint: number; instId: string; level: number; mainSkillLvl: number; potentialRank: number; skills: object[]; skin: string };
 
 export interface TowerCurrent_TowerTrapInfo {
     id: string;
@@ -4061,7 +4050,7 @@ export interface TowerCurrent_TowerTrapInfo {
 }
 
 export interface TowerCurrent_HalftimeRecruit {
-    remainCount: number;
+    remainCount?: number;
     candidate: TowerCurrent_HalftimeCandidateGroup[];
     canGiveUp: boolean;
     count: number;
@@ -4080,6 +4069,7 @@ export interface TowerCurrent {
     cards: { [key: string]: TowerCurrent_GameCard };
     trap: TowerCurrent_TowerTrapInfo[];
     halftime: TowerCurrent_HalftimeRecruit;
+    reward?: { high: number; low: number };
 }
 
 export interface TowerOuter_TowerData {
@@ -4126,11 +4116,7 @@ export interface TowerSeason {
     slots: object;
 }
 
-export interface PlayerHomeUnlockStatus {
-    unlockTime: number;
-    conditions: { [key: string]: PlayerHomeConditionProgress };
-    unlock: number;
-}
+export type PlayerHomeUnlockStatus = { unlock: number; unlockTime?: number; conditions?: { [key: string]: PlayerHomeConditionProgress } };
 
 export interface PlayerHomeConditionProgress {
     curProgress: number;
@@ -5392,14 +5378,14 @@ export interface PlayerEmoticon {
 
 export interface PlayerNameCardSkin_SkinState {
     unlock: boolean;
-    progress: number[][];
-    unlockTs: number;
+    progress: number[][] | null;
+    unlockTs?: number;
 }
 
 export interface PlayerNameCardSkin {
     selected: string;
     state: { [key: string]: PlayerNameCardSkin_SkinState };
-    tmpl: { [key: string]: number };
+    tmpl?: { [key: string]: number };
 }
 
 export interface PlayerNameCardMisc {

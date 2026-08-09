@@ -117,8 +117,8 @@ router.post("/createGame", async (req, res) => {
   // 构造层数列表，每层初始尝试次数为 0 且未通过
   const layer = levels.map((level: string) => ({
     id: level,
-    try: 0,
-    pass: false,
+    tryNum: 0,
+    pass: 0,
   }));
 
   await player.update(async (draft) => {
@@ -276,7 +276,7 @@ router.post("/battleStart", async (req, res) => {
     // 增加当前关卡的尝试次数
     for (const stage of draft.tower.current.layer) {
       if (stage.id === stageId) {
-        stage.try += 1;
+        stage.tryNum += 1;
         break;
       }
     }
@@ -328,7 +328,7 @@ router.post("/battleFinish", async (req, res) => {
     if (battleData.completeState === 1) {
       // 战斗失败：仅增加当前层的尝试次数
       if (current.layer[coord]) {
-        current.layer[coord].try += 1;
+        current.layer[coord].tryNum += 1;
       }
       return;
     }
@@ -369,7 +369,7 @@ router.post("/battleFinish", async (req, res) => {
     // 增加当前层尝试次数
     for (const stage of current.layer) {
       if (stage.id === currentStage) {
-        stage.try += 1;
+        stage.tryNum += 1;
         break;
       }
     }

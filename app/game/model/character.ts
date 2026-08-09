@@ -1,30 +1,35 @@
-export interface PlayerCharacter {
-  instId: number;
-  charId: string;
-  level: number;
-  exp: number;
-  evolvePhase: number; //EvolvePhase
-  potentialRank: number;
-  favorPoint: number;
-  mainSkillLvl: number;
-  gainTime: number;
-  voiceLan: string;
-  starMark?: number;
-  currentTmpl?: string;
-  tmpl?: { [key: string]: PlayerCharPatch };
-  skin?: string;
-  defaultSkillIndex?: number;
-  skills?: PlayerCharSkill[];
-  currentEquip?: string | null;
-  equip?: { [key: string]: PlayerCharEquipInfo } | null;
-}
-export interface PlayerCharPatch {
-  skinId: string;
-  defaultSkillIndex: number;
-  skills: PlayerCharSkill[];
-  currentEquip: string;
-  equip: { [key: string]: PlayerCharEquipInfo };
-}
+/**
+ * 干员相关类型
+ *
+ * 与生成模型（@excel/types-playerdata.ts，经 app/game/model/playerdata.ts 导出）
+ * 重叠的类型一律以生成版为准（单一权威定义）；本文件仅保留生成模型不含的
+ * 服务端社交/分享专用类型与技能类型。
+ */
+import {
+  AvatarInfo,
+  PlayerCharEquipInfo,
+  PlayerCharPatch,
+  PlayerCharacter,
+  PlayerFriendAssist,
+  PlayerHandBookAddon,
+  PlayerSquad,
+  PlayerSquadItem,
+  PlayerTroop,
+} from "./playerdata";
+
+export {
+  AvatarInfo,
+  PlayerCharEquipInfo,
+  PlayerCharPatch,
+  PlayerCharacter,
+  PlayerFriendAssist,
+  PlayerHandBookAddon,
+  PlayerSquad,
+  PlayerSquadItem,
+  PlayerTroop,
+} from "./playerdata";
+
+/** 干员技能状态（客户端模型类，生成闭包外） */
 export interface PlayerCharSkill {
   unlock: number;
   skillId: string;
@@ -32,11 +37,7 @@ export interface PlayerCharSkill {
   specializeLevel: number;
   completeUpgradeTime: number;
 }
-export interface PlayerCharEquipInfo {
-  locked: number;
-  level: number;
-  hide: number;
-}
+
 export interface SharedCharData {
   charId: string;
   potentialRank: number;
@@ -65,41 +66,6 @@ export interface CharEquipInfo {
   level: number;
 }
 
-export interface PlayerTroop {
-  curCharInstId: number;
-  curSquadCount: number;
-  squads: { [key: string]: PlayerSquad };
-  chars: { [key: string]: PlayerCharacter };
-  addon: { [key: string]: PlayerHandBookAddon };
-  charGroup: { [key: string]: { favorPoint: number } };
-  charMission: { [key: string]: { [key: string]: number } };
-}
-export interface PlayerHandBookAddon {
-  stage?: { [key: string]: PlayerHandBookAddon.GetInfo };
-  story?: { [key: string]: PlayerHandBookAddon.GetInfo };
-}
-export namespace PlayerHandBookAddon {
-  export interface GetInfo {
-    fts?: number;
-    rts?: number;
-  }
-}
-
-export interface PlayerSquad {
-  squadId: string | null;
-  name: string | null;
-  slots: Array<PlayerSquadItem | null>;
-}
-
-export interface PlayerSquadItem {
-  charInstId: number;
-  skillIndex: number;
-  currentEquip: null | string;
-  currentTmpl?: null | string;
-}
-
-export type PlayerFriendAssist = PlayerSquadItem;
-
 export interface OrigChar extends FriendCommonData {
   assistSlotIndex: number;
   aliasName: string;
@@ -118,10 +84,7 @@ export interface FriendCommonData {
   recentVisited: boolean;
   avatar: AvatarInfo;
 }
-export interface AvatarInfo {
-  type: string; //PlayerAvatarType
-  id: string;
-}
+
 export interface SquadFriendData extends FriendCommonData {
   assistChar: SharedCharData[];
   assistSlotIndex: number;

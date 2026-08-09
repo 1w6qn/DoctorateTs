@@ -8,7 +8,7 @@
  * 设置名片展示勋章（SetCardShowMedal）相关类型见协议 social.ts。
  */
 import { FriendDataWithNameCard } from "../social";
-import { NameCardMisc } from "../playerdata";
+import { PlayerNameCardMisc } from "../playerdata";
 import { PlayerDeltaResponse } from "./common";
 
 /** 更换名片皮肤请求（CS: ChangeNameCardSkinRequest） */
@@ -34,7 +34,7 @@ export type ChangeNameCardComponentResponse = PlayerDeltaResponse;
 export interface EditNameCardContent {
   skinId?: string;
   component?: string[];
-  misc?: NameCardMisc;
+  misc?: PlayerNameCardMisc;
 }
 
 /**

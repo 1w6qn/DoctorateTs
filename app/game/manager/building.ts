@@ -5,6 +5,7 @@ import { TypedEventEmitter } from "@game/model/events";
 import { WritableDraft } from "immer";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { PlayerBuildingMeetingClue } from "@game/model/playerdata";
+import { BuildingData_OrderType, BuildingData_RoomType } from "@game/model/playerdata";
 import { accountManager } from "./AccountManger";
 import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate } from "@excel/building_excel";
 
@@ -47,8 +48,13 @@ export class BuildingManager {
                 add: -1,
                 ts: 0,
               },
+              private: {
+                add: -1,
+                ts: 0,
+              },
             },
             workTime: 0,
+            privateRooms: [],
           };
         });
       },
@@ -162,7 +168,6 @@ export class BuildingManager {
           type: "O_GOLD",
           gain: { id: "4001", type: "GOLD", count: count * rate },
           buff: [],
-          isViolated: false,
         });
       }
     }
@@ -247,7 +252,7 @@ export class BuildingManager {
       if (!phase) return; // 房间类型未知——容错跳过
       this._applyBuildCost(draft, phase.buildCost);
       slot.state = 1;
-      slot.roomId = roomId;
+      slot.roomId = roomId as BuildingData_RoomType;
       slot.completeConstructTime = now() + 1;
     });
   }
@@ -849,7 +854,7 @@ export class BuildingManager {
     return await this._player.update(async (draft) => {
       const room = draft.building.rooms.TRADING[slotId];
       if (room) {
-        if (solution.strategy) room.strategy = solution.strategy;
+        if (solution.strategy) room.strategy = solution.strategy as BuildingData_OrderType;
         if (solution.stockLimit != null) room.stockLimit = solution.stockLimit;
       }
     });
@@ -1310,7 +1315,7 @@ export class BuildingManager {
     return await this._player.update(async (draft) => {
       const tradingRoom = draft.building.rooms.TRADING[slotId];
       if (tradingRoom) {
-        tradingRoom.strategy = strategy;
+        tradingRoom.strategy = strategy as BuildingData_OrderType;
       }
     });
   }

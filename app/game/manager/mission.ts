@@ -12,7 +12,7 @@
  * 2. 完成任务可获得任务点数，累计点数可兑换奖励
  * 3. 每日/每周任务到期自动重置进度
  */
-import { BaseProgress } from "../model/playerdata";
+import { MissionCalcState } from "../model/playerdata";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 import { PlayerCharacter } from "../model/character";
@@ -254,7 +254,7 @@ export class MissionManager {
  * - 任务完成后自动解锁下一任务
  */
 export class MissionProgress {
-  progress: BaseProgress[];
+  progress: MissionCalcState[];
   missionId: string;
   _trigger: TypedEventEmitter;
   _player: PlayerDataManager;
@@ -493,7 +493,7 @@ export class MissionProgress {
  */
 export interface MissionInfo {
   value: number;
-  progress: BaseProgress[];
+  progress: MissionCalcState[];
   param: string[];
 }
 

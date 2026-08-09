@@ -56,7 +56,7 @@ describe("CharRotationManager", () => {
             profile: "char_002_amiya#1",
             profileInst: 1001,
             slots: [
-              { charId: "char_002_amiya", skinId: "char_002_amiya#1" },
+              { charId: "char_002_amiya", skinId: "char_002_amiya#1", skinSp: false },
             ],
           },
         },
@@ -236,7 +236,7 @@ describe("CharRotationManager", () => {
       expect(preset.profile).toBe("char_002_amiya#1");
       expect(preset.profileInst).toBe(1);
       expect(preset.slots).toEqual([
-        { charId: "char_002_amiya", skinId: "char_002_amiya#1" },
+        { charId: "char_002_amiya", skinId: "char_002_amiya#1", skinSp: false },
       ]);
     });
   });

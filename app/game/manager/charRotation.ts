@@ -43,10 +43,12 @@ export class CharRotationManager {
         homeTheme: "tm_rhodes_day",
         profile: "char_002_amiya#1",
         profileInst: 1,
+        profileSp: false,
         slots: [
           {
             charId: "char_002_amiya",
             skinId: "char_002_amiya#1",
+            skinSp: false,
           },
         ],
       };

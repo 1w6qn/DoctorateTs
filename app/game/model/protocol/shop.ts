@@ -20,7 +20,6 @@ import {
   SkinGoodList,
   SocialGoodList,
 } from "@excel/shop";
-import { Info } from "../playerdata";
 import { PlayerDeltaResponse } from "./common";
 
 /* ===== 请求类型 ===== */

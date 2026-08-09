@@ -34,7 +34,10 @@ function generateInterfaceCode(classDef: ClassDef): string {
     return `export type ${classDef.name} = ${classDef.aliasType};`;
   }
   if (classDef.fields.length === 0) return `export interface ${classDef.name} {}`;
-  const fields = classDef.fields.map(f => `    ${f.name}: ${f.type};`).join("\n");
+  const optional = new Set(classDef.optionalFields ?? []);
+  const fields = classDef.fields
+    .map(f => `    ${f.name}${optional.has(f.name) ? "?" : ""}: ${f.type};`)
+    .join("\n");
   return `export interface ${classDef.name} {\n${fields}\n}`;
 }
 

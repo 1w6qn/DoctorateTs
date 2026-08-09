@@ -1,10 +1,10 @@
-import { PlayerFriendAssist } from "@game/model/character";
+import { PlayerFriendAssist } from "@game/model/playerdata";
 import { accountManager } from "./AccountManger";
 import { pick } from "lodash";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 import excel from "@excel/excel";
-import { NameCardMisc } from "@game/model/playerdata";
+import { NameCardMedalType, PlayerNameCardMisc } from "@game/model/playerdata";
 
 enum FriendServiceType {
   SEARCH_FRIEND = 0,
@@ -127,11 +127,11 @@ export class SocialManager {
     const { type, customIndex, templateGroup } = args;
     await this._player.update(async (draft) => {
       const medalBoard = draft.social.medalBoard;
-      medalBoard.type = type;
+      medalBoard.type = type as NameCardMedalType;
       if (type === "CUSTOM") {
         medalBoard.custom = customIndex;
-        medalBoard.template = null;
-        medalBoard.templateMedalList = null;
+        medalBoard.template = "";
+        medalBoard.templateMedalList = [];
       } else if (type === "TEMPLATE") {
         medalBoard.custom = null;
         medalBoard.template = templateGroup;
@@ -159,8 +159,8 @@ export class SocialManager {
         );
       } else {
         medalBoard.custom = null;
-        medalBoard.template = null;
-        medalBoard.templateMedalList = null;
+        medalBoard.template = "";
+        medalBoard.templateMedalList = [];
       }
     });
   }
@@ -183,7 +183,7 @@ export class SocialManager {
   }
   async editNameCard(args: {
     flag: number;
-    content: { skinId?: string; component?: string[]; misc?: NameCardMisc };
+    content: { skinId?: string; component?: string[]; misc?: PlayerNameCardMisc };
   }) {
     const { flag, content } = args;
     await this._player.update(async (draft) => {

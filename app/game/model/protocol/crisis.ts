@@ -6,7 +6,7 @@
  * 老版危机合约 V1 的 Request/Response 在 CS 2.7.61 中已移除，以服务端实现为准；
  * 本服务端部分响应体直接构造 playerDataDelta 对象（非 player.delta 展开）。
  */
-import { CrisisShop, Info } from "../playerdata";
+import { PlayerCrisisShop, PlayerGoodItemData } from "../playerdata";
 import { PlayerDeltaResponse } from "./common";
 
 /* ===== 危机合约 V1 请求 ===== */
@@ -141,8 +141,8 @@ export interface CrisisV1BattleFinishResponse extends PlayerDeltaResponse {
 
 /** 获取危机合约V1商品列表响应（CS: CrisisCommonGetShopDataResponse；服务端返回玩家商店数据） */
 export interface CrisisGetGoodListResponse extends PlayerDeltaResponse {
-  goodList: Info[];
-  shop: CrisisShop;
+  goodList: PlayerGoodItemData[];
+  shop: PlayerCrisisShop;
 }
 
 /** 购买危机合约V1商品响应（CS: CrisisBuyShopResponse 含 items；服务端返回固定空 items） */
@@ -167,7 +167,7 @@ export interface CrisisChallengeRewardAllResponse extends PlayerDeltaResponse {
 
 /** 获取危机合约所有物品响应（服务端自定义，返回 shop/box 与增量） */
 export interface CrisisGetAllItemsResponse extends PlayerDeltaResponse {
-  shop: CrisisShop;
+  shop: PlayerCrisisShop;
   box: unknown[];
 }
 
@@ -217,8 +217,8 @@ export interface CrisisV2GetSnapshotResponse extends PlayerDeltaResponse {
 
 /** 获取危机合约V2商品列表响应（CS: CrisisCommonGetShopDataResponse；服务端返回玩家商店数据） */
 export interface CrisisV2GetGoodListResponse extends PlayerDeltaResponse {
-  goodList: Info[];
-  shop: CrisisShop;
+  goodList: PlayerGoodItemData[];
+  shop: PlayerCrisisShop;
 }
 
 /** 确认危机合约V2任务响应（服务端自定义，返回固定空 pushMessage） */

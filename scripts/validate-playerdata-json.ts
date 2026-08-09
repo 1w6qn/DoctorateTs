@@ -29,7 +29,7 @@ function parseInterfaces(content: string): Map<string, FieldMap> {
     const fields: FieldMap = {};
     const body = m[2];
     for (const line of body.split("\n")) {
-      const fm = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*):\s*(.+?);?\s*$/);
+      const fm = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\??:\s*(.+?);?\s*$/);
       if (!fm) continue;
       let type = fm[2].trim();
       if (type.endsWith(";")) type = type.slice(0, -1).trim();
@@ -256,7 +256,7 @@ function walk(
       for (const part of t.literal!.split(";")) {
         const idx = part.indexOf(":");
         if (idx === -1) continue;
-        const name = part.slice(0, idx).trim();
+        const name = part.slice(0, idx).trim().replace(/\?$/, "");
         const type = part.slice(idx + 1).trim();
         if (name) fields[name] = type;
       }

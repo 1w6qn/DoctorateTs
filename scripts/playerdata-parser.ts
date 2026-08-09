@@ -12,6 +12,8 @@ export interface ClassDef {
   fields: FieldDef[];
   /** 整接口覆盖为类型别名时使用（如服务端字典结构）：输出 export type X = aliasType; */
   aliasType?: string;
+  /** 可选字段名（线格式中服务端常省略，如单抽池基础字段）；生成时输出 name?: type */
+  optionalFields?: string[];
 }
 
 export interface EnumDef {

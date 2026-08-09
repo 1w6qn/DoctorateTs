@@ -9,7 +9,7 @@
  * 部分接口（事件上报/战车确认/特殊干员置顶等）无 CS 类对应，标注为服务端自定义。
  */
 import { ItemBundle } from "@excel/character_table";
-import { Cart } from "../playerdata";
+import { PlayerCartInfo_Cart } from "../playerdata";
 import { PlayerDeltaResponse } from "./common";
 
 /* ===== 主题与背景 ===== */
@@ -131,7 +131,7 @@ export interface FireworkChangeAnimalResponse extends PlayerDeltaResponse {
 
 /** 确认出战战车请求（服务端自定义，无 CS 对应类；car 结构见 PlayerCartInfo.battleCar） */
 export interface ConfirmBattleCarRequest {
-  car: Cart;
+  car: PlayerCartInfo_Cart;
 }
 
 /** 确认出战战车响应（服务端自定义；仅增量） */

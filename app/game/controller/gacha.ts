@@ -16,6 +16,7 @@ import excel from "@excel/excel";
 import { accountManager } from "../manager/AccountManger";
 import { ItemBundle } from "@excel/character_table";
 import { randomChoice, randomChoices } from "@utils/random";
+import { logger } from "@utils/logger";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 
@@ -26,6 +27,8 @@ export class GachaController {
   _player: PlayerDataManager;
   /** 事件触发器 */
   _trigger: TypedEventEmitter;
+  /** 缺详情卡池的回退详情（首个结构完整的卡池，去掉 UP 干员走通用池） */
+  private _fallbackDetail: GachaDetailData | null = null;
 
   /**
    * 构造函数
@@ -36,6 +39,35 @@ export class GachaController {
     this._table = excel.GachaDetailTable;
     this._player = player;
     this._trigger = _trigger;
+  }
+
+  /**
+   * 安全获取卡池详情
+   *
+   * 修复：gachaPoolClient 中有但 gacha_detail_table.details 缺失的卡池
+   * （如 LIMITED_76_0_1/SINGLE_75_0_3 等新池未合并详情）会导致
+   * detail.availCharInfo 解引用 500。缺详情时回退到首个结构完整的卡池详情
+   * （upCharInfo 置空走通用池），并记录 WARN 便于补数据。
+   */
+  private _poolDetail(poolId: string): GachaDetailData {
+    const d = this._table.details[poolId];
+    if (d) return d;
+    if (!this._fallbackDetail) {
+      const first = Object.values(this._table.details).find(
+        (x) => x?.availCharInfo?.perAvailList?.length,
+      );
+      this._fallbackDetail = first
+        ? ({ ...first, upCharInfo: { perCharList: [] } } as GachaDetailData)
+        : ({
+            upCharInfo: { perCharList: [] },
+            availCharInfo: { perAvailList: [] },
+          } as unknown as GachaDetailData);
+    }
+    logger.warn(
+      "gacha",
+      `卡池 ${poolId} 无详情数据（gacha_detail_table 缺失），回退通用池`,
+    );
+    return this._fallbackDetail;
   }
 
   /**
@@ -175,13 +207,15 @@ export class GachaController {
       }
     });
 
-    const ruleType = excel.GachaTable.gachaPoolClient.find(
+    // 修复：池不在 gachaPoolClient 时回退 NORMAL（不 500）
+    const poolConfig = excel.GachaTable.gachaPoolClient.find(
       (g) => g.gachaPoolId === poolId,
-    )!.gachaRuleType;
+    );
+    const ruleType = poolConfig?.gachaRuleType ?? "NORMAL";
     const extras: { [key: string]: object | string; from: string } = {
       from: ruleType,
     };
-    const detail = this._table.details[poolId];
+    const detail = this._poolDetail(poolId);
     let beforeNonHitCnt = await accountManager.getBeforeNonHitCnt(
       this.uid,
       ruleType,
@@ -192,9 +226,7 @@ export class GachaController {
       NORMAL: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
       LIMITED: async () => {
         extras.extraItem = {
-          id: excel.GachaTable.gachaPoolClient.find(
-            (g) => g.gachaPoolId === poolId,
-          )!.LMTGSID,
+          id: poolConfig?.LMTGSID ?? "",
           count: 1,
         };
         return this._handleGacha(poolId, { beforeNonHitCnt });
@@ -283,7 +315,7 @@ export class GachaController {
     args: { ensure?: string },
   ): Promise<string> {
     let charId: string;
-    const detail = this._table.details[poolId];
+    const detail = this._poolDetail(poolId);
     const perChar = detail.upCharInfo!.perCharList.find(
       (c) => c.rarityRank === rank,
     ) as GachaPerChar;
@@ -328,18 +360,25 @@ export class GachaController {
     poolId: string,
     args: { beforeNonHitCnt: number },
   ): Promise<number> {
-    const detail = this._table.details[poolId];
-    let per6 = detail.availCharInfo.perAvailList.find(
-      (c) => c.rarityRank === 5,
-    )!.totalPercent;
+    const detail = this._poolDetail(poolId);
+    const perAvailList = detail.availCharInfo.perAvailList;
+    // 防御：详情缺失/为空时回退固定概率（2% 六星，否则四星），不 500
+    if (!perAvailList?.length) {
+      const fallbackRank = Math.random() <= 0.02 ? 5 : 4;
+      await this._player.update(async (draft) => {
+        draft.gacha.normal[poolId].cnt += 1;
+        if (draft.gacha.normal[poolId].avail && fallbackRank >= 4) {
+          draft.gacha.normal[poolId].avail = false;
+        }
+      });
+      return fallbackRank;
+    }
+    let per6 = perAvailList.find((c) => c.rarityRank === 5)?.totalPercent ?? 2;
     let rank: number;
     per6 += args.beforeNonHitCnt < 50 ? 0 : (args.beforeNonHitCnt - 50) * 0.02;
     if (Math.random() <= per6) {
       rank = 5;
     } else {
-      const perAvailList = detail.availCharInfo.perAvailList.filter(
-        (c) => c.rarityRank != 5,
-      );
       const ranks = perAvailList.map((c) => c.rarityRank);
       const weights = perAvailList.map((r) => r.totalPercent);
       rank = randomChoices(ranks, weights, 1)[0];
@@ -368,6 +407,6 @@ export class GachaController {
    * @returns 抽卡池详情数据
    */
   async getPoolDetail(args: { poolId: string }): Promise<GachaDetailData> {
-    return this._table.details[args.poolId];
+    return this._poolDetail(args.poolId);
   }
 }

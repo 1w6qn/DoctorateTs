@@ -15,8 +15,10 @@ export class CharManager {
   constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = trigger;
-    this._trigger.on("char:get", () => {
-      this.onCharGet.bind(this);
+    // 修复：原订阅丢弃了 onCharGet.bind() 结果（抽卡/招募干员从未入账）；
+    // 改为异步闭包调用（事件处理器要求 void 返回）
+    this._trigger.on("char:get", async (data) => {
+      await this.onCharGet(data);
     });
     this._trigger.on("char:levelUp", async ([{ charId, level }]) => {
       await this._player.update(async (draft) => {
@@ -38,7 +40,7 @@ export class CharManager {
 
   async onCharGet([charId, args = { from: "NORMAL" }, callback]: [
     string,
-    { from: string; extraItem?: ItemBundle },
+    ({ from: string; extraItem?: ItemBundle } | undefined)?,
     ((res: GachaResult) => void)?,
   ]): Promise<GachaResult> {
     let isNew: number = 0;

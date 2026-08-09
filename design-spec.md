@@ -1307,4 +1307,10 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
   - 训练室 `_accrueTraining`：trainee.processPoint 随时间累积（进度显示一致；完成仍由客户端 completeUpgradeSpecialization 驱动）
   - 单测 5 条 + 实机冒烟（settle slot_999 200、清空 stock 后 sync 补 2 单、8 秒产出 processPoint=486 与 54×9s 吻合）
 
+
+- **抽卡系统修复（2026-08-09，用户报告 tenAdvancedGacha 500）**：
+  - 缺详情卡池回退：`gachaPoolClient` 有但 `gacha_detail_table.details` 缺失的 5 个池（LIMITED_76_0_1/SINGLE_75_0_3/DOUBLE_75_0_4/CLASSIC_DOUBLE_75_0_1/CLASSIC_DOUBLE_76_0_1）抽卡不再 500——`_poolDetail` 回退到首个结构完整池（去 UP 走通用池）+ WARN 记录；`gachaPoolClient.find()!` 补守卫（池完全缺失回退 NORMAL）；`_getRarityRank` 空 perAvailList 防御
+  - **char:get 订阅 bind 丢弃 bug（重大）**：`char.ts` 原 `this._trigger.on("char:get", () => { this.onCharGet.bind(this); })` 把 bind 结果丢弃，`onCharGet` 从未执行——**抽卡/招募的干员从未真正入账**（charGet 响应只有 logInfo、无 charInstId/charId/itemGet）。改为异步闭包调用后，抽卡完整返回 char 数据（潜能/兑换物正确发放）；onCharGet 签名兼容事件可选参数
+  - 单测 2 条 + 实机验证：正常池与缺详情池十连均返回完整干员数据
+
 - **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用（全量对齐后已补 stub，路径可达）

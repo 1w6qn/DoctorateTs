@@ -258,8 +258,19 @@
       <button class="primary" id="btn-create" style="margin-left:auto;">+ 创建用户</button>
     </div>
     <input id="user-filter" placeholder="搜索 uid/昵称/手机号..." style="margin:0 0 10px;">
+    <!-- 批量操作栏（勾选用户后显示） -->
+    <div id="batch-bar" class="row" style="align-items:center;display:none;background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;margin-bottom:8px;">
+      <span id="batch-count" style="font-size:12px;color:var(--gold);"></span>
+      <button id="batch-grant" class="btn-sm">发物品</button>
+      <button id="batch-mail" class="btn-sm">发邮件</button>
+      <button id="batch-maxout" class="btn-sm">一键满配</button>
+      <button id="batch-clear" class="btn-sm" style="margin-left:auto;">清空</button>
+    </div>
     <table>
-      <thead><tr><th>UID</th><th>昵称</th><th>等级</th><th>手机</th><th>最后在线</th><th></th></tr></thead>
+      <thead><tr>
+        <th style="width:30px;"><input type="checkbox" id="u-check-all" title="全选本页"></th>
+        <th>UID</th><th>昵称</th><th>等级</th><th>手机</th><th>最后在线</th><th></th>
+      </tr></thead>
       <tbody id="user-tbody"></tbody>
     </table>
     <div id="user-pager"></div>
@@ -498,6 +509,17 @@
 
   var USER_PAGE_SIZE = 50;
   var userPage = 1;
+  /** 批量选中用户（多选操作） */
+  var selectedUids = [];
+
+  function updateBatchBar() {
+    var bar = $("batch-bar");
+    if (!bar) return;
+    bar.style.display = selectedUids.length ? "flex" : "none";
+    $("batch-count").textContent = "已选 " + selectedUids.length + " 人";
+    var all = $("u-check-all");
+    if (all) all.checked = selectedUids.length > 0;
+  }
 
   function refreshUsers() {
     return api("/users?filter=" + encodeURIComponent(userFilter)).then(function (users) {
@@ -511,11 +533,17 @@
         var tr = document.createElement("tr");
         tr.className = "clickable";
         if (u.uid === selectedUid) tr.classList.add("active");
+        var checked = selectedUids.indexOf(u.uid) !== -1 ? " checked" : "";
         tr.innerHTML =
+          '<td><input type="checkbox" class="u-check" data-uid="' + u.uid + '"' + checked + '></td>' +
           "<td>" + u.uid + "</td><td>" + escapeHtml(u.nickName) + "</td><td>" + u.level + "</td>" +
           "<td>" + escapeHtml(u.phone || "-") + "</td><td title=\"" + fmtTs(u.lastOnlineTs) + "\">" + fmtRel(u.lastOnlineTs) + "</td>" +
           "<td><button data-grant=\"" + u.uid + "\" class=\"btn-sm\">发物品</button> " +
           "<button data-mail=\"" + u.uid + "\" class=\"btn-sm\">发邮件</button></td>";
+        tr.querySelector(".u-check").addEventListener("change", function (e) {
+          e.stopPropagation();
+          toggleSelect(u.uid, this.checked);
+        });
         tr.querySelector("[data-grant]").addEventListener("click", function (e) {
           e.stopPropagation();
           openGrant(u.uid);
@@ -527,6 +555,7 @@
         tr.addEventListener("click", function () { selectUser(u.uid); });
         tbody.appendChild(tr);
       });
+      updateBatchBar();
       // 分页控件
       var pagerBox = $("user-pager");
       if (pagerBox) {
@@ -1242,15 +1271,22 @@
     var count = Number($("grant-count").value);
     var uid = $("grant-uid").textContent;
     if (!itemId) { toast("请填写物品 ID 或名称"); return; }
-    api("/users/" + encodeURIComponent(uid) + "/grant", {
-      method: "POST",
-      body: JSON.stringify({ itemId: itemId, count: count }),
-    }).then(function () {
-      hideModal("modal-grant");
-      toast("发放成功：" + itemId + " x" + count);
-      loadOverview(uid);
-      refreshLogs();
-    }).catch(function (e) { toast("发放失败：" + e.message); });
+    var targets = uid.indexOf("批量") !== -1 ? batchUids.slice() : [uid];
+    var done = 0;
+    targets.forEach(function (u) {
+      api("/users/" + encodeURIComponent(u) + "/grant", {
+        method: "POST",
+        body: JSON.stringify({ itemId: itemId, count: count }),
+      }).then(function () {
+        done++;
+        if (done === targets.length) {
+          hideModal("modal-grant");
+          toast("发放成功：" + itemId + " x" + count + "（" + targets.length + "人）");
+          loadOverview(targets[0]);
+          refreshLogs();
+        }
+      }).catch(function (e) { toast(u + " 发放失败：" + e.message); done++; });
+    });
   });
   $("grant-cancel").addEventListener("click", function () { hideModal("modal-grant"); });
   $("grant-all-btn").addEventListener("click", function () {
@@ -1313,11 +1349,29 @@
         return { id: p[0], count: Number(p[1] || 1) };
       });
     if (!subject) { toast("请填写标题"); return; }
-    var req = toAll
-      ? api("/mail/all", { method: "POST", body: JSON.stringify({ subject: subject, content: content, items: items }) })
-        .then(function (r) { return "已群发给 " + r.sent + " 个用户"; })
-      : api("/mail", { method: "POST", body: JSON.stringify({ uid: uid, subject: subject, content: content, items: items }) })
+    var batch = uid.indexOf("批量") !== -1;
+    var req;
+    if (toAll) {
+      req = api("/mail/all", { method: "POST", body: JSON.stringify({ subject: subject, content: content, items: items }) })
+        .then(function (r) { return "已群发给 " + r.sent + " 个用户"; });
+    } else if (batch) {
+      // 批量发送到勾选用户
+      var targets = batchUids.slice();
+      var done = 0;
+      req = new Promise(function (resolve, reject) {
+        targets.forEach(function (u) {
+          api("/mail", { method: "POST", body: JSON.stringify({ uid: u, subject: subject, content: content, items: items }) })
+            .then(function () {
+              done++;
+              if (done === targets.length) resolve("已发送给 " + targets.length + " 个用户");
+            })
+            .catch(function (e) { reject(e); });
+        });
+      });
+    } else {
+      req = api("/mail", { method: "POST", body: JSON.stringify({ uid: uid, subject: subject, content: content, items: items }) })
         .then(function (r) { return "邮件已发送，mailId=" + r.mailId; });
+    }
     req.then(function (msg) {
       hideModal("modal-mail");
       toast(msg);
@@ -1855,6 +1909,70 @@
   $("user-filter").addEventListener("input", function () {
     userFilter = this.value.trim();
     refreshUsers();
+  });
+
+  /* ---------- 批量多选操作 ---------- */
+  var batchUids = [];
+
+  function toggleSelect(uid, checked) {
+    var idx = selectedUids.indexOf(uid);
+    if (checked && idx === -1) selectedUids.push(uid);
+    if (!checked && idx !== -1) selectedUids.splice(idx, 1);
+    updateBatchBar();
+  }
+
+  $("u-check-all").addEventListener("change", function () {
+    var checked = this.checked;
+    document.querySelectorAll(".u-check").forEach(function (c) {
+      c.checked = checked;
+      toggleSelect(c.getAttribute("data-uid"), checked);
+    });
+  });
+
+  $("batch-clear").addEventListener("click", function () {
+    selectedUids = [];
+    refreshUsers();
+  });
+
+  $("batch-grant").addEventListener("click", function () {
+    if (!selectedUids.length) return;
+    batchUids = selectedUids.slice();
+    $("grant-uid").textContent = "批量(" + batchUids.length + "人)";
+    $("grant-item").value = "";
+    $("grant-count").value = "1";
+    $("grant-search").value = "";
+    $("grant-search-results").innerHTML = "";
+    showModal("modal-grant");
+  });
+
+  $("batch-mail").addEventListener("click", function () {
+    if (!selectedUids.length) return;
+    batchUids = selectedUids.slice();
+    $("mail-uid").textContent = "批量(" + batchUids.length + "人)";
+    $("mail-all").checked = false;
+    $("mail-subject").value = "";
+    $("mail-content").value = "";
+    $("mail-items").value = "";
+    showModal("modal-mail");
+  });
+
+  $("batch-maxout").addEventListener("click", function () {
+    var uids = selectedUids.slice();
+    if (!uids.length) return;
+    confirmDialog("批量一键满配 " + uids.length + " 个用户（资源/干员/基建/皮肤）？", function () {
+      var done = 0;
+      uids.forEach(function (u) {
+        api("/users/" + encodeURIComponent(u) + "/maxout", { method: "POST", body: "{}" })
+          .then(function () {
+            done++;
+            if (done === uids.length) {
+              toast("已满配 " + uids.length + " 个用户", "ok");
+              refreshLogs();
+            }
+          })
+          .catch(function (e) { toast(u + " 满配失败：" + e.message, "err"); done++; });
+      });
+    }, null, "warn");
   });
 
   /* ---------- 首次使用引导 ---------- */

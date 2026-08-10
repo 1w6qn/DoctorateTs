@@ -91,7 +91,7 @@ vi.mock("@excel/stage_table", () => ({
   DisplayDetailRewards: {},
   ConditionDesc: {},
 }));
-vi.mock("@excel/types_auto_gen", () => ({}));
+
 vi.mock("@utils/crypt", () => ({
   decryptBattleData: vi.fn().mockResolvedValue({
     battleId: "1",

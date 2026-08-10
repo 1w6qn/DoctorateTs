@@ -15,7 +15,7 @@ vi.mock("@utils/time", () => ({
 }));
 
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
-vi.mock("@excel/types_auto_gen", () => ({}));
+
 
 // Mock lodash:maxBy 返回固定值,便于断言 createPreset 的 instId 取值
 vi.mock("lodash", () => ({

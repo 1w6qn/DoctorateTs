@@ -585,9 +585,9 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
 
 ### 7.4.1 excel 表类型生成（从 cs）
 
-`app/excel/types_excel_gen.ts` 从 cs 反编译生成 **47 个 excel 表的权威类型**（1480+ 类 / 349+ 枚举），`app/excel/excel.ts` 的 55 个表类型引用从 FBS 版 `types_auto_gen.ts` 切换过来（FBS 版保留给 troop/mission/mailCollection 等直接引用方）。以 `data/excel/*.json` 全量校验 **0 缺失 / 0 大小写 / 0 结构 / 0 标量**（3.29M 节点）。
+`app/excel/types_excel_gen.ts` 从 cs 反编译生成 **47 个 excel 表的权威类型**（1480+ 类 / 349+ 枚举），`app/excel/excel.ts` 的 55 个表类型引用与 troop/mission/mailCollection/mockExcel 等直接引用方均已从 FBS 版 `types_auto_gen.ts` 切换过来（FBS 版已删除，不再依赖 OpenArknightsFBS）。以 `data/excel/*.json` 全量校验 **0 缺失 / 0 大小写 / 0 结构 / 0 标量**（3.29M 节点）。
 
-- 命令：`npm run generate:excel`；链路：`scripts/playerdata-parser.ts`（增强：C# 数组 `X[]`、泛型 `Undefinable<T>`/`KeyFrames<T>`、类继承字段合并、`abstract class`、List 继承 → 数组别名）→ `scripts/excel-types-builder.ts`（多根闭包）→ `scripts/excel-server-adapt.ts`（表根映射 + rename/add/override/optional/枚举补充/字段覆盖/索引签名）→ `scripts/generate-excel-types.ts`（CLI）
+- 命令：`npm run generate:excel`；链路：`scripts/types-builder.ts`（统一构建器：C# 数组 `X[]`、泛型 `Undefinable<T>`/`KeyFrames<T>`、类继承字段合并、`abstract class`、List 继承 → 数组别名，多根闭包）→ `scripts/excel-server-adapt.ts`（表根映射 + rename/add/override/optional/枚举补充/字段覆盖/索引签名）→ `scripts/generate-types.ts --excel`（CLI，统一生成器）
 - **表根映射** `EXCEL_TABLE_ROOTS`：表键 → cs 根类（包装类如 StageTable/ZoneTable/ActivityTable，元素类如 CharacterData/SkillDataBundle，多根表如 enemy_handbook_table 按 key 映射）；由 JSON 顶层结构 × cs 类字段匹配自动反推
 - **excel 线格式与 playerdata 不同**：枚举为字符串（`position:"RANGED"`）、bool 为 true/false、时间戳为 number——**无需 enum→number wire pass**；个别数值/字符串混合字段（spType/professionMask/direction）用 `number | string` 字段覆盖
 - **校验闭环** `scripts/validate-excel-json.ts`：复用 playerdata 校验器 walk 逻辑，字典表/包装表/多根表三模式；`--tables t1,t2` 子集迭代，`--full` 输出聚合报告
@@ -618,7 +618,7 @@ get socialInfo(): FriendDataWithNameCard {
 
 | 模式 | 触发方式 | 网络行为 | 适用场景 |
 |------|----------|----------|----------|
-| 在线更新（默认） | 直接启动 / `npm start` | git pull/clone 拉取 OpenArknightsFBS、ArknightsGameData，随后复制数据、生成类型、合并 gacha；失败自动回退本地缓存 | 首次部署、需要更新游戏数据 |
+| 在线更新（默认） | 直接启动 / `npm start` | git pull/clone 拉取 ArknightsGameData，随后复制数据、生成类型（CS 反编译源）、合并 gacha；失败自动回退本地缓存 | 首次部署、需要更新游戏数据 |
 | 跳过更新 | `--skip-update` / `-s` | 跳过仓库拉取，仍执行本地复制、类型生成（npx）、gacha 合并 | 本地数据完整、希望快速启动 |
 | 完全离线 | `--offline` / `-o`，或 `data/config.json` 中 `"offline": true` | **零网络操作**：不执行 git、不调用 npx、不复制、不合并 | 无网络 / 内网 / 演示环境 |
 
@@ -769,7 +769,7 @@ logs show [--last N] [--json]
 ### A. 常用类型定义位置
 | 类型来源 | 文件路径 | 说明 |
 |----------|----------|------|
-| FBS自动生成 | `app/excel/types_auto_gen.ts` | 355个enum，1621个interface |
+| CS自动生成 | `app/excel/types_excel_gen.ts` | excel 表权威类型（1470+ 类 / 347+ 枚举，原 FBS 版 types_auto_gen 已删除） |
 | PlayerDataModel | `app/excel/types-playerdata.ts` | 796个接口，1065个枚举 |
 | Excel数据表 | `app/excel/excel.ts` | 统一管理所有数据表 |
 
@@ -787,10 +787,10 @@ logs show [--last N] [--json]
 ### C. 数据更新流程
 ```
 1. 启动时执行 update-data.ts
-2. 拉取 OpenArknightsFBS 和 ArknightsGameData
+2. 拉取 ArknightsGameData
 3. 复制数据文件到 data/excel/
 4. 合并 gacha 文件
-5. 生成 types_auto_gen.ts
+5. 生成 types_excel_gen.ts（CS 反编译源，不再依赖 OpenArknightsFBS）
 6. 加载 Excel 数据表
 7. 启动服务器
 ```
@@ -1264,9 +1264,9 @@ Dashboard 新增「像素画」Tab（app/admin/dashboard/index.html `loadPixelPa
 - 离线模式跳过（不联网）
 
 ### 22.2 更新流程（scripts/update-data.ts main）
-1. **仓库更新**：git pull/clone `OpenArknightsFBS` + `ArknightsGameData`
+1. **仓库更新**：git pull/clone `ArknightsGameData`（OpenArknightsFBS 依赖已移除，类型改由 CS 反编译源生成）
 2. **数据复制**：excel JSON（zh_CN/gamedata/excel + battle + levels）→ `data/excel/`
-3. **类型生成**：`generate-types.ts`（377 enums / 1684 tables）
+3. **类型生成**：`generate-types.ts`（统一 CS 反编译源生成器 → `types-playerdata.ts` + `types_excel_gen.ts`，原 FBS 版 generate-types.ts 已删除）
 4. **gacha 合并**：`data/gacha/` → `gacha_detail_table.json`
 5. **版本同步**（`syncGameVersion`）：调官服 `ak-conf.hypergryph.com/config/prod/official/Android/version`（复用 `scripts/official-api.ts` 的 `getResVersion`）→ 更新 `data/config.json` 的 `version`（clientVersion/resVersion）——客户端版本接口/热更新列表据此工作
 

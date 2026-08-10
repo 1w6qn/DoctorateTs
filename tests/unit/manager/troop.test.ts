@@ -79,7 +79,7 @@ vi.mock("@utils/time", () => ({
 }));
 
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
-vi.mock("@excel/types_auto_gen", () => ({}));
+
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import { TroopManager } from "@game/manager/troop";

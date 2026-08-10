@@ -7,17 +7,11 @@ interface RepositoryConfig {
   name: string;
   url: string;
   localPath: string;
-  /** git 默认分支（ArknightsGameData 为 master，OpenArknightsFBS 为 main） */
+  /** git 默认分支（ArknightsGameData 为 master） */
   branch: string;
 }
 
 const REPOS: RepositoryConfig[] = [
-  {
-    name: "OpenArknightsFBS",
-    url: "https://github.com/MooncellWiki/OpenArknightsFBS.git",
-    localPath: path.join(__dirname, "../OpenArknightsFBS"),
-    branch: "main",
-  },
   {
     name: "ArknightsGameData",
     url: "https://github.com/Kengxxiao/ArknightsGameData.git",
@@ -157,7 +151,7 @@ function cloneRepository(repo: RepositoryConfig): boolean {
 
 function pullRepository(repo: RepositoryConfig): boolean {
   log(`更新仓库 ${repo.name}...`);
-  // 修复：各仓库默认分支不同（ArknightsGameData=master/OpenArknightsFBS=main），
+  // 修复：各仓库默认分支可能不是 main（ArknightsGameData=master），按仓库配置拉取
   // 原硬编码 `git pull origin main` 对 master 仓库报 "couldn't find remote ref main"
   return executeCommand(`git pull origin ${repo.branch}`, repo.localPath);
 }
@@ -239,7 +233,8 @@ function copyExcelFiles(): boolean {
 
 function generateTypes(): boolean {
   log(`生成 TypeScript 类型...`);
-  // TS7 后 ts-node 不可用，改用 tsx 执行器
+  // 类型生成已切换到 CS 反编译源（reference/com.hypergryph.arknights_2.7.61.cs），
+  // 统一生成器同时产出 types-playerdata.ts 与 types_excel_gen.ts
   return executeCommand("npx tsx scripts/generate-types.ts", path.join(__dirname, ".."));
 }
 

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@excel/excel", () => ({ default: {} }));
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
-vi.mock("@excel/types_auto_gen", () => ({}));
+
 
 vi.mock("@utils/time", () => ({
   now: () => 1234567890,

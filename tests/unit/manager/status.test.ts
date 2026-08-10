@@ -44,7 +44,7 @@ vi.mock("moment", () => ({
 }));
 
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
-vi.mock("@excel/types_auto_gen", () => ({}));
+
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import { StatusManager } from "@game/manager/status";

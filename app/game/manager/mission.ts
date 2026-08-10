@@ -19,7 +19,7 @@ import { PlayerCharacter } from "../model/character";
 import { BattleData } from "../model/battle";
 import { checkBetween, now } from "@utils/time";
 import { EventMap, TypedEventEmitter } from "@game/model/events";
-import { MissionData } from "@excel/types_auto_gen";
+import { MissionData } from "@excel/types_excel_gen";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { logger } from "@utils/logger";
 

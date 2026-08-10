@@ -27,7 +27,7 @@ vi.mock("@excel/excel", () => ({
 }));
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 vi.mock("@excel/gacha_detail_table", () => ({}));
-vi.mock("@excel/types_auto_gen", () => ({}));
+
 vi.mock("@game/manager/AccountManger", () => ({
   accountManager: {
     getBeforeNonHitCnt: vi.fn().mockResolvedValue(0),

@@ -18,7 +18,7 @@ vi.mock("@excel/excel", () => ({
   },
 }));
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
-vi.mock("@excel/types_auto_gen", () => ({}));
+
 vi.mock("@utils/time", () => ({ now: () => 1234567890, checkBetween: () => true }));
 vi.mock("moment", () => ({ default: () => ({ diff: () => 0 }) }));
 

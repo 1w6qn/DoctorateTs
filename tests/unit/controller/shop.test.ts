@@ -20,7 +20,7 @@ vi.mock("@excel/excel", () => ({
 }));
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 vi.mock("@excel/shop", () => ({}));
-vi.mock("@excel/types_auto_gen", () => ({}));
+
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import { ShopController } from "@game/controller/shop";

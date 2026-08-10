@@ -1,7 +1,7 @@
 import { PlayerSquad, PlayerSquadItem } from "../model/character";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
-import { CharacterDataMainSkill } from "@excel/types_auto_gen";
+import { CharacterData_MainSkill as CharacterDataMainSkill } from "@excel/types_excel_gen";
 import { now } from "@utils/time";
 import { rarityToIndex } from "@utils/rarity";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";

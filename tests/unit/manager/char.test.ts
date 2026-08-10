@@ -111,7 +111,7 @@ vi.mock("@utils/time", () => ({
 }));
 
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
-vi.mock("@excel/types_auto_gen", () => ({}));
+
 vi.mock("lodash", () => ({
   ceil: (n: number) => Math.ceil(n),
 }));

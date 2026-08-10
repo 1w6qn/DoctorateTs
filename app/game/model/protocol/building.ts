@@ -172,8 +172,11 @@ export type GainIntimacyResponse = PlayerDeltaResponse;
 /** 获得全部信赖请求（CS: BuildingGainAllIntimacyRequest，无字段） */
 export interface GainAllIntimacyRequest {}
 
-/** 获得全部信赖响应（CS: BuildingGainAllIntimacyResponse；服务端仅返回增量） */
-export type GainAllIntimacyResponse = PlayerDeltaResponse;
+/** 获得全部信赖响应（CS: BuildingGainAllIntimacyResponse { normal: Int32, assist: Int32 }） */
+export interface GainAllIntimacyResponse extends PlayerDeltaResponse {
+  normal: number;
+  assist: number;
+}
 
 /** 获得助战信赖请求（CS: CharBuildIncAssistIntimacyRequest） */
 export interface GainAssistIntimacyRequest {
@@ -263,18 +266,16 @@ export interface DeleteOrderRequest {
 /** 删除订单响应（CS: BuildingTradingDeleteOrderResponse） */
 export type DeleteOrderResponse = PlayerDeltaResponse;
 
-/**
- * 制造站结算请求（CS: BuildingSettleManufactRequest）
- * CS 字段为 roomSlotIdList/supplement，服务端读取 roomSlotId（以服务端为准）
- */
+/** 制造站结算请求（CS: BuildingSettleManufactRequest { roomSlotIdList, supplement }） */
 export interface SettleManufactureRequest {
   roomSlotIdList?: string[];
   supplement?: number;
-  roomSlotId: string;
 }
 
-/** 制造站结算响应（CS: BuildingSettleManufactResponse；服务端仅返回增量） */
-export type SettleManufactureResponse = PlayerDeltaResponse;
+/** 制造站结算响应（CS: BuildingSettleManufactResponse { supplement: Int32 }） */
+export interface SettleManufactureResponse extends PlayerDeltaResponse {
+  supplement: number;
+}
 
 /**
  * 贸易站结算请求（CS: BuildingSettleSaleRequest）

@@ -722,7 +722,7 @@ describe("BuildingManager 制造站（Excel 驱动）", () => {
 
   it("settleManufacture F_GOLD（formulaId 4）应产出 3003×outputSolutionCnt 并重置状态", async () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
-    await manager.settleManufacture({ roomSlotId: "slot_5" } as any);
+    await manager.settleManufacture({ roomSlotIdList: ["slot_5"] } as any);
     expect(mockPlayer._playerdata.inventory!["3003"]).toBe(2);
     expect(mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5.state).toBe(0);
     expect(mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5.formulaId).toBe("");
@@ -732,7 +732,7 @@ describe("BuildingManager 制造站（Excel 驱动）", () => {
     mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.formulaId = "1";
     mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.outputSolutionCnt = 3;
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
-    await manager.settleManufacture({ roomSlotId: "slot_5" } as any);
+    await manager.settleManufacture({ roomSlotIdList: ["slot_5"] } as any);
     expect(mockPlayer._playerdata.inventory!["2001"]).toBe(3);
   });
 
@@ -740,7 +740,7 @@ describe("BuildingManager 制造站（Excel 驱动）", () => {
     mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.formulaId = "5";
     mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.outputSolutionCnt = 1;
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
-    await manager.settleManufacture({ roomSlotId: "slot_5" } as any);
+    await manager.settleManufacture({ roomSlotIdList: ["slot_5"] } as any);
     expect(mockPlayer._playerdata.inventory!["3213"]).toBe(1);
     expect(mockPlayer._playerdata.inventory!["3212"]).toBe(8);
     expect(mockPlayer._playerdata.inventory!["32001"]).toBe(4);
@@ -750,7 +750,7 @@ describe("BuildingManager 制造站（Excel 驱动）", () => {
     mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.formulaId = "13";
     mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.outputSolutionCnt = 1;
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
-    await manager.settleManufacture({ roomSlotId: "slot_5" } as any);
+    await manager.settleManufacture({ roomSlotIdList: ["slot_5"] } as any);
     expect(mockPlayer._playerdata.inventory!["3141"]).toBe(1);
     expect(mockPlayer._playerdata.inventory!["30012"]).toBe(8);
     expect(mockPlayer._playerdata.status!.gold).toBe(8400);
@@ -759,7 +759,7 @@ describe("BuildingManager 制造站（Excel 驱动）", () => {
   it("settleManufacture 未知配方应跳过（不崩溃）", async () => {
     mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.formulaId = "999";
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
-    await manager.settleManufacture({ roomSlotId: "slot_5" } as any);
+    await manager.settleManufacture({ roomSlotIdList: ["slot_5"] } as any);
     expect(mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5.state).toBe(0);
   });
 });

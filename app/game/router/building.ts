@@ -274,8 +274,13 @@ router.post("/gainIntimacy", async (req, res) => {
 router.post("/gainAllIntimacy", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GainAllIntimacyRequest;
-  await player.building.gainAllIntimacy(body);
-  res.status(202).send(player.delta satisfies GainAllIntimacyResponse);
+  // 修复：响应含 normal/assist 计数（CS BuildingGainAllIntimacyResponse）
+  const { normal, assist } = await player.building.gainAllIntimacy(body);
+  res.status(202).send({
+    normal,
+    assist,
+    ...player.delta,
+  } satisfies GainAllIntimacyResponse);
 });
 
 /** 获得助战信赖（简化实现） */
@@ -340,8 +345,12 @@ router.post("/deleteOrder", async (req, res) => {
 router.post("/settleManufacture", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SettleManufactureRequest;
-  await player.building.settleManufacture(body);
-  res.send(player.delta satisfies SettleManufactureResponse);
+  // 修复：响应含 supplement（结算房间数，CS BuildingSettleManufactResponse）
+  const supplement = await player.building.settleManufacture(body);
+  res.send({
+    supplement,
+    ...player.delta,
+  } satisfies SettleManufactureResponse);
 });
 
 /** 贸易站结算（简化实现） */

@@ -517,18 +517,22 @@ export class BuildingManager {
    * 获得全部信赖（所有在岗干员）
    * @param args - 请求体参数
    */
-  async gainAllIntimacy(args: any) {
-    return await this._player.update(async (draft) => {
+  async gainAllIntimacy(args: any): Promise<{ normal: number; assist: number }> {
+    // 修复：响应需含 normal/assist 计数（CS BuildingGainAllIntimacyResponse）
+    let normal = 0;
+    await this._player.update(async (draft) => {
       const seen = new Set<number>();
       for (const slotKey in draft.building.roomSlots) {
         for (const instId of draft.building.roomSlots[slotKey].charInstIds) {
           if (instId > 0 && !seen.has(instId)) {
             seen.add(instId);
             this._addFavor(draft, instId, this._intimacyGain);
+            normal++;
           }
         }
       }
     });
+    return { normal, assist: 0 };
   }
 
   /**
@@ -723,23 +727,29 @@ export class BuildingManager {
    * 参考实现：根据配方将产出物品加入背包，并消耗对应材料，重置制造站状态
    * @param args - 包含 roomSlotId 的参数对象
    */
-  async settleManufacture(args: { roomSlotId: string }) {
-    const { roomSlotId } = args;
-    return await this._player.update(async (draft) => {
-      // 先推进时间累积的产出再结算
-      this._accrueManufacture(draft, roomSlotId);
-      this._settleManufactureInternal(draft, roomSlotId);
-      // 重置制造站状态（防御：非法 roomSlotId 直接返回不 500）
-      const room = draft.building.rooms.MANUFACTURE[roomSlotId];
-      if (!room) return;
-      room.state = 0;
-      room.formulaId = "";
-      room.lastUpdateTime = now();
-      room.completeWorkTime = -1;
-      room.remainSolutionCnt = 0;
-      room.outputSolutionCnt = 0;
-      room.processPoint = 0;
+  async settleManufacture(args: { roomSlotIdList?: string[]; supplement?: number }) {
+    // 修复：官方字段为 roomSlotIdList（数组），原实现读取单值 roomSlotId →
+    // 客户端请求解构不到 → 空 delta → 客户端"无法更新制造站状态"
+    const list = args.roomSlotIdList ?? [];
+    await this._player.update(async (draft) => {
+      for (const roomSlotId of list) {
+        // 先推进时间累积的产出再结算
+        this._accrueManufacture(draft, roomSlotId);
+        this._settleManufactureInternal(draft, roomSlotId);
+        // 重置制造站状态（防御：非法 roomSlotId 直接跳过不 500）
+        const room = draft.building.rooms.MANUFACTURE[roomSlotId];
+        if (!room) continue;
+        room.state = 0;
+        room.formulaId = "";
+        room.lastUpdateTime = now();
+        room.completeWorkTime = -1;
+        room.remainSolutionCnt = 0;
+        room.outputSolutionCnt = 0;
+        room.processPoint = 0;
+      }
     });
+    // 返回结算的房间数（CS BuildingSettleManufactResponse.supplement）
+    return list.length;
   }
 
   /**

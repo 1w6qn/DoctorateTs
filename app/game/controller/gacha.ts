@@ -70,24 +70,39 @@ export class GachaController {
    * （upCharInfo 置空走通用池），并记录 WARN 便于补数据。
    */
   private _poolDetail(poolId: string): GachaDetailData {
-    const d = this._table.details[poolId];
-    if (d) return d;
-    if (!this._fallbackDetail) {
-      const first = Object.values(this._table.details).find(
-        (x) => x?.availCharInfo?.perAvailList?.length,
+    let d = this._table.details[poolId];
+    if (!d) {
+      if (!this._fallbackDetail) {
+        const first = Object.values(this._table.details).find(
+          (x) => x?.availCharInfo?.perAvailList?.length,
+        );
+        this._fallbackDetail = first
+          ? ({
+              ...first,
+              upCharInfo: { perCharList: [] },
+              // 修复：回退详情不携带首个池的限定/加权干员（内容属于别的池，展示会错）
+              limitedChar: [],
+              weightUpCharInfoList: [],
+              gachaObjGroups: null,
+            } as GachaDetailData)
+          : ({
+              upCharInfo: { perCharList: [] },
+              availCharInfo: { perAvailList: [] },
+              gachaObjGroups: null,
+            } as unknown as GachaDetailData);
+      }
+      logger.warn(
+        "gacha",
+        `卡池 ${poolId} 无详情数据（gacha_detail_table 缺失），回退通用池`,
       );
-      this._fallbackDetail = first
-        ? ({ ...first, upCharInfo: { perCharList: [] } } as GachaDetailData)
-        : ({
-            upCharInfo: { perCharList: [] },
-            availCharInfo: { perAvailList: [] },
-          } as unknown as GachaDetailData);
+      d = this._fallbackDetail;
     }
-    logger.warn(
-      "gacha",
-      `卡池 ${poolId} 无详情数据（gacha_detail_table 缺失），回退通用池`,
-    );
-    return this._fallbackDetail;
+    // 格式归一：CS GachaDetailData.gachaObjGroups 为客户端解析必需字段——
+    // 缺失（旧格式详情/回退详情）时客户端报"疑似格式错误"，统一补 null
+    if (d && !("gachaObjGroups" in d)) {
+      (d as any).gachaObjGroups = null;
+    }
+    return d;
   }
 
   /**

@@ -1116,7 +1116,7 @@ mitmproxy map remote 设置 URL 时会同步改写 Host 头为 `127.0.0.1:8443`�
 ### 17.5 arkhub 网关特殊适配（app/proxy/arkhub-gateway.ts）
 阿卡狄亚（arkhub）是独立实时网关玩法：`POST /activity/arkhub/enterHall` 响应返回 `{ result, endpoint: "arkhub-gateway.hypergryph.com", port: 30000 }`，客户端随后用 BestHTTP WebSocket 连该网关（私有协议，明文 TCP；TLS 握手被直接断开、明文 WS 握手无响应）。capture 模式两项适配（2026-08-09）：
 1. **enterHall 响应改写**：`createOfficialForwarder` 收到 `arkhubGateway` 选项且路径为 `/activity/arkhub/enterHall` 时，把 `endpoint` 改写为 `config.Host` 去 scheme、`port` 保持网关端口——否则客户端直连官服网关（hosts 重写时连 127.0.0.1:30000 无监听而失败，且网关流量不经过代理）。非网关形状响应（如 401）原样透传。
-2. **30000 TCP 转发器**：`startArkhubGatewayProxy` 监听 `config.capture.gatewayPort`（缺省 30000），每个连接建立到官服网关的透传管道（纯 TCP pipe，不做协议解析——客户端自带上层握手/鉴权），双向字节流落盘 `tmp/arkhub-gateway/{connectionId}/`（up.bin=客户端→官服、down.bin=官服→客户端、meta.json）。端口被占用时返回 null → 启动日志提示、enterHall 响应不改写（客户端直连官服网关）。
+2. **30000 TCP 转发器**：`startArkhubGatewayProxy` 监听 `config.capture.gatewayPort`（缺省 30000），每个连接建立到官服网关的透传管道（纯 TCP pipe，不做协议解析——客户端自带上层握手/鉴权），双向字节流落盘 `tmp/arkhub-gateway/{connectionId}/`（up.bin=客户端→官服、down.bin=官服→客户端、meta.json）。返回 `{ server, portBusy }`：**端口被另一实例的转发器占用（portBusy=true）时仍改写 enterHall**——实测多实例并存（旧实例先占 30000）时若不改写，客户端直连官服网关、网关流量不经任何代理导致无法进入；改写后客户端连 127.0.0.1:gatewayPort 经占用方转发器透传官服。
 
 **与 test.ts 关系**：test.ts（`npm run ts`，8444）是独立纯转发抓包代理，规则同源但可独立运行；本模式把同一套规则并入主服务器（8443），免去另起进程。**账号说明**：capture 模式用官服账号登录（reference/checkin-master/accounts.txt），与私服账号体系互不相通。
 

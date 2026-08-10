@@ -1,4 +1,5 @@
 import { PlayerCharacter } from "@game/model/character";
+import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
@@ -649,25 +650,35 @@ export class BuildingManager {
    * 批量完成订单（对 orderId 数组中的每个订单按 instId 结算）
    * @param args - 包含 slotId 和 orderId 列表的参数对象
    */
-  async deliveryBatchOrder(args: { slotId: string; orderId: string[] }) {
-    const { slotId, orderId } = args;
-    return await this._player.update(async (draft) => {
-      const tradingRoom = draft.building.rooms.TRADING[slotId];
-      if (
-        tradingRoom &&
-        Array.isArray(tradingRoom.stock) &&
-        tradingRoom.stock.length > 0
-      ) {
-        for (const oid of orderId) {
-          const stockIdx = tradingRoom.stock.findIndex(
-            (s: any) => String(s.instId) === String(oid),
-          );
-          if (stockIdx === -1) continue;
-          this._settleOrderInternal(draft, tradingRoom.stock[stockIdx]);
-          tradingRoom.stock.splice(stockIdx, 1);
+  async deliveryBatchOrder(args: { slotList?: string[] }): Promise<{
+    [slotId: string]: ItemBundle[];
+  }> {
+    // 修复：官方字段为 slotList（CS BuildingDeliveryBatchOrderRequest { slotList }，
+    // 结算每个贸易站的全部库存订单）；原实现读 slotId/orderId → 客户端请求解构不到
+    // → 空 delta。响应 delivered: { slotId: [收益物品] } 对齐 CS/抓包。
+    const delivered: { [slotId: string]: ItemBundle[] } = {};
+    await this._player.update(async (draft) => {
+      for (const slotId of args.slotList ?? []) {
+        const room = draft.building.rooms.TRADING[slotId];
+        if (!room || !Array.isArray(room.stock) || room.stock.length === 0) {
+          delivered[slotId] = [];
+          continue;
         }
+        const gains: ItemBundle[] = [];
+        // 倒序移除，避免索引错位
+        for (let i = room.stock.length - 1; i >= 0; i--) {
+          const stock = room.stock[i];
+          const gain = stock?.gain;
+          if (gain) {
+            gains.push({ id: gain.id, type: gain.type, count: gain.count });
+          }
+          this._settleOrderInternal(draft, stock);
+          room.stock.splice(i, 1);
+        }
+        delivered[slotId] = gains;
       }
     });
+    return delivered;
   }
 
   /**

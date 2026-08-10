@@ -329,8 +329,12 @@ router.post("/deliveryOrder", async (req, res) => {
 router.post("/deliveryBatchOrder", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as DeliveryBatchOrderRequest;
-  await player.building.deliveryBatchOrder(body);
-  res.send(player.delta satisfies DeliveryBatchOrderResponse);
+  // 修复：官方字段为 slotList（结算每个贸易站全部库存订单），响应 delivered 对齐 CS
+  const delivered = await player.building.deliveryBatchOrder(body);
+  res.send({
+    delivered,
+    ...player.delta,
+  } satisfies DeliveryBatchOrderResponse);
 });
 
 /** 删除订单（简化实现） */

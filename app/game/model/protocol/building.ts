@@ -242,17 +242,17 @@ export interface DeliveryOrderRequest {
 export type DeliveryOrderResponse = PlayerDeltaResponse;
 
 /**
- * 批量完成订单请求（CS: BuildingDeliveryBatchOrderRequest）
- * CS 字段为 slotList，服务端读取 slotId/orderId（以服务端为准）
+ * 批量完成订单请求（CS: BuildingDeliveryBatchOrderRequest { slotList }——
+ * 结算每个贸易站的全部库存订单）
  */
 export interface DeliveryBatchOrderRequest {
   slotList?: string[];
-  slotId: string;
-  orderId: string[];
 }
 
-/** 批量完成订单响应（CS: BuildingDeliveryBatchOrderResponse；服务端仅返回增量） */
-export type DeliveryBatchOrderResponse = PlayerDeltaResponse;
+/** 批量完成订单响应（CS: BuildingDeliveryBatchOrderResponse { delivered: Dictionary<String,List<ItemBundle>> }） */
+export interface DeliveryBatchOrderResponse extends PlayerDeltaResponse {
+  delivered: { [slotId: string]: ItemBundle[] };
+}
 
 /**
  * 删除订单请求（CS: BuildingTradingDeleteOrderRequest）

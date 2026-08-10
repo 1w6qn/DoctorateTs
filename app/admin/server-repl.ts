@@ -8,6 +8,7 @@
  */
 import * as readline from "readline";
 import { cliExec } from "./cli-exec";
+import { printHelp } from "../../scripts/admin-cli";
 
 /** 启动服务器内嵌命令行 REPL（非 TTY 直接返回） */
 export function startServerRepl(): void {
@@ -31,7 +32,9 @@ export function startServerRepl(): void {
       return;
     }
     if (t === "help") {
-      console.log("[cli] 服务器内命令行：输入管理 CLI 命令（users/gacha/mail/server/config/official/logs…），exit 退出");
+      // 完整命令帮助（复用 admin-cli printHelp）
+      printHelp();
+      console.log("[cli] exit 退出命令行（服务器继续运行）");
       rl.prompt();
       return;
     }

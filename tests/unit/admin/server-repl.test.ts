@@ -2,7 +2,11 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 
 // mock cli-exec 与 admin-cli，避免加载完整 AdminService 依赖链
 vi.mock("../../../app/admin/cli-exec", () => ({ cliExec: vi.fn() }));
-vi.mock("../../../scripts/admin-cli", () => ({ parseArgs: vi.fn(), dispatch: vi.fn() }));
+vi.mock("../../../scripts/admin-cli", () => ({
+  parseArgs: vi.fn(),
+  dispatch: vi.fn(),
+  printHelp: vi.fn(),
+}));
 // mock readline 模块（ESM 命名空间不可 spy，用模块级 mock）
 const rlMock = vi.hoisted(() => ({
   createInterface: vi.fn(),
@@ -10,6 +14,7 @@ const rlMock = vi.hoisted(() => ({
 vi.mock("readline", () => rlMock);
 
 import { startServerRepl } from "../../../app/admin/server-repl";
+import { printHelp } from "../../../scripts/admin-cli";
 
 describe("startServerRepl（服务器内嵌命令行）", () => {
   const origTTY = process.stdin.isTTY;
@@ -37,5 +42,17 @@ describe("startServerRepl（服务器内嵌命令行）", () => {
     expect(rlMock.createInterface).toHaveBeenCalled();
     expect(rl.prompt).toHaveBeenCalled();
     expect(rl.on).toHaveBeenCalledWith("line", expect.any(Function));
+  });
+
+  it("line handler 收到 help 应打印完整命令帮助", async () => {
+    process.stdin.isTTY = true;
+    const rl = { prompt: vi.fn(), close: vi.fn(), on: vi.fn() };
+    rlMock.createInterface.mockReturnValue(rl as any);
+    startServerRepl();
+    // 取出 line handler 并模拟输入 help
+    const lineHandler = rl.on.mock.calls.find((c) => c[0] === "line")![1];
+    await lineHandler("help");
+    expect(printHelp).toHaveBeenCalled();
+    expect(rl.prompt).toHaveBeenCalled();
   });
 });

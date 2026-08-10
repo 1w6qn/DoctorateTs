@@ -583,6 +583,16 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
 - 校验器含标量叶子类型比对（number/string/boolean/枚举字面量/基础类型联合）与 untyped 盲区报告（`object` 型字段路径）；已知线格式分歧（如 `flags` 官服 '1' 字符串 vs 运行时 number）在 `SCALAR_EXCEPTIONS` 文档化
 - 运行时替换：`app/game/model/playerdata.ts` 为生成模型 re-export；`character.ts` 保留生成模型不含的服务端社交/分享类型；rlv2 子系统（`model/rlv2.ts`）为功能实现内部模型，与生成模型在 controller 边界显式桥接
 
+### 7.4.1 excel 表类型生成（从 cs）
+
+`app/excel/types_excel_gen.ts` 从 cs 反编译生成 **47 个 excel 表的权威类型**（1480+ 类 / 349+ 枚举），`app/excel/excel.ts` 的 55 个表类型引用从 FBS 版 `types_auto_gen.ts` 切换过来（FBS 版保留给 troop/mission/mailCollection 等直接引用方）。以 `data/excel/*.json` 全量校验 **0 缺失 / 0 大小写 / 0 结构 / 0 标量**（3.29M 节点）。
+
+- 命令：`npm run generate:excel`；链路：`scripts/playerdata-parser.ts`（增强：C# 数组 `X[]`、泛型 `Undefinable<T>`/`KeyFrames<T>`、类继承字段合并、`abstract class`、List 继承 → 数组别名）→ `scripts/excel-types-builder.ts`（多根闭包）→ `scripts/excel-server-adapt.ts`（表根映射 + rename/add/override/optional/枚举补充/字段覆盖/索引签名）→ `scripts/generate-excel-types.ts`（CLI）
+- **表根映射** `EXCEL_TABLE_ROOTS`：表键 → cs 根类（包装类如 StageTable/ZoneTable/ActivityTable，元素类如 CharacterData/SkillDataBundle，多根表如 enemy_handbook_table 按 key 映射）；由 JSON 顶层结构 × cs 类字段匹配自动反推
+- **excel 线格式与 playerdata 不同**：枚举为字符串（`position:"RANGED"`）、bool 为 true/false、时间戳为 number——**无需 enum→number wire pass**；个别数值/字符串混合字段（spType/professionMask/direction）用 `number | string` 字段覆盖
+- **校验闭环** `scripts/validate-excel-json.ts`：复用 playerdata 校验器 walk 逻辑，字典表/包装表/多根表三模式；`--tables t1,t2` 子集迭代，`--full` 输出聚合报告
+- 已知结构分叉的适配实例：`StageData_DisplayDetailRewards`（JSON 为 DisplayRewards 基类字段 + occPercent）、`CharacterData_MainSkill`（JSON 用旧字段名 levelUpCostCond/unlockCond）、`TowerCurrent_GameCard`（C# 继承 PlayerCharacter，整接口覆盖补全）、`PlayerBuildingChar_BubbleContainer` 等
+
 ### 7.5 代码注释规范
 - 使用 JSDoc 格式注释
 - 每个类和函数都必须有注释

@@ -1220,16 +1220,17 @@ export const MissionTemplates: {
         if (args.favorPoint == excel.FavorTable.maxFavor) {
           percent = 200;
         } else {
-          percent = excel.FavorTable.favorFrames.find((_f, idx, table) => {
-            return (
-              args.favorPoint >= table[idx].level &&
-              args.favorPoint < table[idx + 1].level
-            );
-          })!.data.percent;
+          percent = (
+            excel.FavorTable.favorFrames.find((_f, idx, table) => {
+              return (
+                args.favorPoint >= table[idx].level &&
+                args.favorPoint < table[idx + 1].level
+              );
+            })!.data as { percent: number }
+          ).percent;
         }
         if (percent >= parseInt(mission.param[2])) {
-          mission.progress[0].value += 1;
-        }
+          mission.progress[0].value += 1;        }
       },
     },
   },

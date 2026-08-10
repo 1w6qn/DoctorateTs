@@ -221,9 +221,9 @@ function walk(
 /** 字典表（JSON 顶层 { id: 元素 }，逐元素 walk 根类型）；其余为包装表（整表 walk 根类型） */
 const DICT_TABLES = new Set([
   "character_table", "skill_table", "story_table", "chapter_table",
-  "story_review_table", "char_master_table", "open_server_table",
-  "range_table", "gamedata_const",
-  "uniequip_data", "roguelike_table", "ep_breakbuff_table", "battle_equip_table",
+  "story_review_table", "char_master_table",
+  "range_table",
+  "uniequip_data", "ep_breakbuff_table", "battle_equip_table", "replicate_table",
 ]);
 
 function walkTable(
@@ -297,6 +297,7 @@ function main(): void {
     console.log(`${table.padEnd(28)} 缺失/大小写/结构/标量: ${status}  (节点 ${report.totalNodes})`);
     if (report.missing.length + report.caseDiff.length + report.typeMismatch.length + report.scalarMismatch.length > 0) {
       fullReport.push(`\n=== ${table} ===`);
+      if (args.includes("--raw")) report.missing.slice(0, 30).forEach(m => fullReport.push(`  RAWMISS ${m}`));
       const agg = new Map<string, number>();
       report.missing.forEach(m => {
         // 缺失消息: <path>: 类型 <Iface> 未声明该字段 ...；取缺失字段名（path 最后一段）

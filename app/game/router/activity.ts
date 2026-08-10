@@ -743,10 +743,12 @@ router.post("/getActivityCollectionReward", async (req, res) => {
     }
     // 从配置表查找收集奖励
     const collectionConfig =
-      excel.ActivityTable.activity.COLLECTION[body.activityId];
+      (excel.ActivityTable.activity as { COLLECTION: { [key: string]: { collections?: { id: string; itemId: string; itemCnt: number }[] } } }).COLLECTION[
+        body.activityId
+      ];
     if (collectionConfig && collectionConfig.collections && body.collectionId != null) {
       const collectionInfo = collectionConfig.collections.find(
-        (c) => c.id === body.collectionId,
+        (c) => c.id === String(body.collectionId),
       );
       if (collectionInfo) {
         rewards.push({
@@ -2366,7 +2368,9 @@ rootRouter.post("/actcheckinvs/sign", async (req, res) => {
     actData.todayVoteState = 2;
   });
 
-  const signReward = excel.ActivityTable.activity.CHECKIN_VS[body.actId] as any;
+  const signReward = (
+    excel.ActivityTable.activity as { [key: string]: { [key: string]: any } }
+  ).CHECKIN_VS[body.actId] as any;
   const rewards: ItemBundle[] = [];
   if (signReward?.signedReward) {
     for (const reward of signReward.signedReward) {

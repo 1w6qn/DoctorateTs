@@ -27,7 +27,7 @@ export const EXCEL_TABLE_ROOTS: Record<string, string | Record<string, string>> 
   uniequip_table: "UniEquipTable",
   favor_table: "FavorTable",
   chapter_table: "ChapterData",
-  open_server_table: "OpenServerScheduleItem",
+  open_server_table: "OpenServerSchedule",
   char_master_table: "CharMasterBasicData",
   char_patch_table: "CharPatchData",
   charword_table: "CharWordTable",
@@ -51,13 +51,15 @@ export const EXCEL_TABLE_ROOTS: Record<string, string | Record<string, string>> 
   shop_client_table: "ShopClientData",
   special_operator_table: "SpecialOperatorTable",
   story_review_table: "StoryReviewGroupClientData",
-  story_review_meta_table: "MiniActTrialData",
+  story_review_meta_table: "StoryReviewMetaTable",
   arkvent_table: "ArkOdcTable",
   gamedata_const: "GameDataConsts",
   handbook_info_table: "HandbookInfoTable",
   checkin_table: "CheckInTable",
   activity_table: "ActivityTable",
   battle_equip_table: "BattleEquipPack",
+  char_meta_table: "CharMetaTable",
+  crisis_v2_table: "CrisisV2SharedData",
   sandbox_perm_table: "SandboxPermTable",
   climb_tower_table: "ClimbTowerTable",
   roguelike_topic_table: "RoguelikeTopicTable",
@@ -147,6 +149,21 @@ export const EXCEL_ADD_FIELDS: Record<string, Record<string, string>> = {
     hiddenMedal: "object",
   },
   // 开服活动条目
+
+  CharMasterBasicData: { candidates: "object[]" },
+  CharPatchData_PatchInfo: { default: "object" },
+  NameCardV2RemovableModuleData: { id: "string", type: "string" },
+  GameDataConsts: { TSO: "number" },
+  ActivityTable_ActivityExtraData: { MAINLINE_BP: "object" },
+  // 战斗日志分类（JSON 顶层按固定 key 分键）
+  ExtraBattleLogData: {
+    SELECTOR: "object",
+    DEATHDETAIL: "object",
+    PROJECTILEBORN: "object",
+    OUTPUT_DAMAGE_TOTAL: "object",
+  },
+  RecruitPool: { recruitConstants: "object" },
+  // 开服活动条目
   OpenServerScheduleItem: {
     constData: "object",
     openseverTaskGroup1: "object",
@@ -162,33 +179,23 @@ export const EXCEL_ADD_FIELDS: Record<string, Record<string, string>> = {
     groupDataMap: "object",
     onceDataMap: "object",
     checkinDataMap: "object",
-  },
-  CharMasterBasicData: { candidates: "object[]" },
-  CharPatchData_PatchInfo: { default: "object" },
-  NameCardV2RemovableModuleData: { id: "string", type: "string" },
-  // 战斗日志分类（JSON 顶层按固定 key 分键）
-  ExtraBattleLogData: {
-    SELECTOR: "object",
-    DEATHDETAIL: "object",
-    PROJECTILEBORN: "object",
-    OUTPUT_DAMAGE_TOTAL: "object",
-  },
-  RecruitPool: { recruitConstants: "object" },
-  // 开服活动条目（补充）
-  OpenServerScheduleItem: {
     priceDataMap: "object",
     missionDataMap: "object",
     checkinGpData: "object",
     newsDataMap: "object",
     giftPackagePicDataMap: "object",
+    openStyleData: "object",
+    groupList: "object",
   },
-  // 故事回顾元数据
-  MiniActTrialData: {
-    miniActTrialData: "object",
+  // 故事回顾元数据（包装类）
+  StoryReviewMetaTable: {
+    miniActTrialData: "MiniActTrialData",
     actArchiveResData: "object",
     actArchiveData: "object",
     trainingCampData: "object",
   },
+  // 肉鸽道具 value（FBS 兼容：JSON 含 value）
+  RoguelikeGameItemData: { value: "number" },
   // 沙盒权限详情（按模式分键）
   SandboxPermDetailData: { SANDBOX_V2: "object", SANDBOX_V3: "object" },
   // 商店客户端：低阶/高阶商店缩写 key（线格式字典）
@@ -205,8 +212,21 @@ export const EXCEL_ADD_FIELDS: Record<string, Record<string, string>> = {
   },
   // 热更图片条目（JSON 有视频字段）
   HotUpdateMetaPicData: { videoId: "string", videoPath: "string" },
-  // 阵营手册数据（JSON 按阵营分键）
-  HandbookTeamData: { none: "object", rhodes: "object", yan: "object", lungmen: "object", egir: "object", kjerag: "object", siracusa: "object", sami: "object" },
+  // 肉鸽常量表补充
+  RoguelikeTable: {
+    shopTicketDialogs: "object",
+    mimicEnemyIds: "string[]",
+    clearZoneScores: "object",
+    moveToNodeScore: "number",
+    clearNormalBattleScore: "number",
+    clearEliteBattleScore: "number",
+    clearBossBattleScore: "number",
+    upgradeRarityScore: "number",
+    collectEndingScore: "number",
+    eventTypeIcons: "object",
+    choiceScenes: "object",
+  },
+
 };
 
 export const EXCEL_OVERRIDE_FIELDS: Record<string, Record<string, string>> = {
@@ -216,6 +236,22 @@ export const EXCEL_OVERRIDE_FIELDS: Record<string, Record<string, string>> = {
   },
   // 活动自定义数据：JSON 按活动类型分键
   ActivityCustomData: {
+    "[server]": "{ [key: string]: object }",
+  },
+  // 阵营手册数据（JSON 按阵营分键）
+  HandbookTeamData: {
+    "[server]": "{ [key: string]: object }",
+  },
+  // 活动详情（JSON 按活动类型分键）
+  ActivityTable_ActivityDetailTable: {
+    "[server]": "{ [key: string]: object }",
+  },
+  // 肉鸽活动（JSON 含 SEED_MODE 等活动类型键）
+  RoguelikeActivityTable: {
+    "[server]": "{ [key: string]: object }",
+  },
+  // 肉鸽主题自定义数据（JSON 按主题分键）
+  RoguelikeTopicCustomizeData: {
     "[server]": "{ [key: string]: object }",
   },
 };
@@ -232,8 +268,26 @@ export const EXCEL_FIELD_TYPE_OVERRIDES: Record<string, string> = {
   // 技能 spType 线格式混合：多数为字符串枚举名，1760 处为数值（8）
   "SpData.spType": "SpType | number",
   // 攻击范围方向：JSON 为数值枚举（1/2/4/8）
-  "RangeData.direction": "number",
+  "RangeData.direction": "number | string",
+  // 符文职业掩码：JSON 为数值位掩码（58/581/1023），非字符串枚举
+  "RuneData_Selector.professionMask": "number | ProfessionCategory",
+  // 肉鸽表数值/字符串枚举混合
+  "RoguelikeConstTable_CharUpgradeData.evolvePhase": "number | string",
+  "RoguelikeRecruitTicketFeature.profession": "number | string",
+  "RoguelikeRecruitTicketFeature.rarity": "number | string",
+  "RoguelikeRecruitTicketFeature.rarityList": "(number | string)[]",
+  "RoguelikeRecruitTicketFeature.extraFreeRarity": "(number | string)[]",
+  "RoguelikeGameRecruitTicketData.profession": "number | string",
+  "RoguelikeGameRecruitTicketData.rarity": "number | string",
+  "RoguelikeUpgradeTicketFeature.profession": "number | string",
+  "RoguelikeUpgradeTicketFeature.rarity": "number | string",
+  "RoguelikeUpgradeTicketFeature.rarityList": "(number | string)[]",
+  "RoguelikeGameUpgradeTicketData.profession": "number | string",
+  "RoguelikeGameUpgradeTicketData.rarity": "number | string",
 };
+
+/** 附加索引签名的接口（运行时以 dict 键访问，如 CharacterTable[charId]） */
+export const EXCEL_INDEX_SIGNATURES: string[] = ["CharacterData", "StoryReviewGroupClientData"];
 
 /** 应用整接口覆盖（"[server]" 键）：返回覆盖后的类型别名；无覆盖返回 null */
 function applyWholeOverride(iface: ClassDef): string | null {

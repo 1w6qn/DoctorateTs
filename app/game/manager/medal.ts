@@ -466,7 +466,7 @@ export class MedalProgress implements PlayerPerMedal {
               args.favorPoint < (table[idx + 1]?.level || Infinity)
             );
           });
-          percent = frame?.data.percent || 0;
+          percent = (frame?.data as { percent?: number })?.percent || 0;
         }
         if (percent >= parseInt(this.param[1] || "200")) {
           this.val[0][0] += 1;

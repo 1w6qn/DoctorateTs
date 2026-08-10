@@ -272,6 +272,8 @@ export type CharacterData_PotentialRank_TypeEnum = "BUFF" | "CUSTOM";
 
 export type CharmRarity = "NONE" | "LOW" | "MEDIUM" | "HIGH";
 
+export type SpCharMissionCondType = "NONE" | "EVOLVE_PHASE";
+
 export type CharMasterType = "NONE" | "SYSTEM" | "BATTLE";
 
 export type CharWordShowType = "HOME_SHOW" | "HOME_PLACE" | "HOME_WAIT" | "GACHA" | "EVOLVE_ONE" | "EVOLVE_TWO" | "FOUR_STAR" | "THREE_STAR" | "TWO_STAR" | "LOSE" | "LEVEL_UP" | "SQUAD" | "SQUAD_FIRST" | "BATTLE_START" | "BATTLE_FACE_ENEMY" | "BATTLE_SELECT" | "BATTLE_PLACE" | "BATTLE_SKILL_1" | "BATTLE_SKILL_2" | "BATTLE_SKILL_3" | "BATTLE_SKILL_4" | "BUILDING_PLACE" | "BUILDING_DRAGGING" | "BUILDING_FAVOR_BUBBLE" | "BUILDING_TOUCHING" | "LOADING_PANEL" | "BIRTHDAY" | "NEW_YEAR" | "VALENT_DAY" | "DRAGON_BOAT_FESTIVAL" | "HALLOWEEN_DAY" | "CHRISMATS_DAY" | "GREETING" | "ANNIVERSARY" | "UNUSED" | "E_ALL";
@@ -287,6 +289,8 @@ export type ClimbTowerTaticalBuffType = "A" | "B";
 export type ClimbTowerTowerType = "TRAINING" | "NORMAL";
 
 export type ClimbTowerCardType = "SEASON" | "TOWER";
+
+export type CrisisV2AppraiseType = "RANK_D" | "RANK_C" | "RANK_B" | "RANK_A" | "RANK_S" | "RANK_SS" | "RANK_SSS";
 
 export type HomeMultiFormChangeRule = "NONE" | "TIME";
 
@@ -367,6 +371,14 @@ export type TemplateMissionTitleType = "COMMON" | "CUSTOM";
 export type TemplateMissionCoinInfoType = "COMMON" | "CUSTOM";
 
 export type RetroType = "SIDESTORY" | "BRANCHLINE";
+
+export type ReturnMissionGroupType = "DAILY" | "NORMAL" | "DIFF";
+
+export type ReturnJumpType = "NONE" | "ZONE_GROUP" | "ROGUE" | "CLIMB_TOWER" | "CAMPAIGN" | "BUILDING" | "RECRUIT_BUILD" | "DAILY_MISSION" | "SANDBOX" | "MAIN_SS";
+
+export type ReturnNewsType = "NONE" | "MAIN_SS" | "ROGUE" | "SANDBOX";
+
+export type ReturnAllOpenType = "RESOURCE" | "CAMP";
 
 export type RoguelikeActivityType = "NONE" | "SEED_MODE";
 
@@ -624,7 +636,11 @@ export type StoryReviewEntryType = "NONE" | "ACTIVITY" | "MINI_ACTIVITY" | "MAIN
 
 export type MiniActTrialData_RuleType = "NONE" | "TITLE" | "CONTENT";
 
+export type ActArchiveResData_ArchiveNewsLineType = "TextContent" | "ImageContent";
+
 export type ActArchiveType = "NONE" | "TIMELINE" | "MUSIC" | "PIC" | "AVG" | "STORY" | "NEWS" | "BUFF" | "RELIC" | "CAPSULE" | "TRAP" | "CHAT" | "LANDMARK" | "LOG" | "ACTIVITY_ENTRY" | "DYNAMIC_MUSIC" | "DYNAMIC_PIC" | "ENDBOOK" | "DYNAMIC_STORY" | "TOTEM" | "CHAOS" | "CHALLENGE_BOOK" | "ACHIEVEMENT" | "QUEST" | "FRAGMENT" | "DISASTER" | "COPPER" | "WRATH" | "SCRAP" | "WEATHER";
+
+export type ActArchivePicType = "IMAGE" | "BACKGROUND" | "ENDING_IMAGE" | "ROGUE_IMAGE";
 
 export type TipData_Category = "NONE" | "BATTLE" | "UI" | "BUILDING" | "GACHA" | "MISC" | "ALL";
 
@@ -737,6 +753,15 @@ export interface GridPosition {
     col: number;
 }
 
+export interface ActArchiveAvgData {
+    avgs: { [key: string]: ActArchiveAvgItemData };
+}
+
+export interface ActArchiveAvgItemData {
+    avgId: string;
+    avgSortId: number;
+}
+
 export interface ActArchiveBuffData {
     buff: { [key: string]: ActArchiveBuffItemData };
 }
@@ -761,6 +786,15 @@ export interface ActArchiveCapsuleItemData {
     capsuleSortId: number;
     englishName: string;
     enrollId: string;
+}
+
+export interface ActArchiveChallengeBookItemData {
+    storyId: string;
+    sortId: number;
+}
+
+export interface ActArchiveChallengeBookData {
+    stories: { [key: string]: ActArchiveChallengeBookItemData };
 }
 
 export interface ActArchiveChaosItemData {
@@ -876,6 +910,46 @@ export interface ActArchiveFragmentItemData {
     enrollConditionId: string;
 }
 
+export interface ActArchiveLandmarkItemData {
+    landmarkId: string;
+    landmarkSortId: number;
+}
+
+export interface ActArchiveChapterLogData {
+    chapterName: string;
+    displayId: string;
+    unlockDes: string;
+    logs: string[];
+    chapterIcon: Act17sideData_ChapterIconType;
+}
+
+export interface ActArchiveMusicData {
+    musics: { [key: string]: ActArchiveMusicItemData };
+}
+
+export interface ActArchiveMusicItemData {
+    musicId: string;
+    musicSortId: number;
+}
+
+export interface ActArchiveNewsData {
+    news: { [key: string]: ActArchiveNewsItemData };
+}
+
+export interface ActArchiveNewsItemData {
+    newsId: string;
+    newsSortId: number;
+}
+
+export interface ActArchivePicData {
+    pics: { [key: string]: ActArchivePicItemData };
+}
+
+export interface ActArchivePicItemData {
+    picId: string;
+    picSortId: number;
+}
+
 export interface ActArchiveRelicData {
     relic: { [key: string]: ActArchiveRelicItemData };
 }
@@ -897,6 +971,31 @@ export interface ActArchiveScrapItemData {
     scrapId: string;
     sortId: number;
     enrollConditionId: string;
+}
+
+export interface ActArchiveStoryData {
+    stories: { [key: string]: ActArchiveStoryItemData };
+}
+
+export interface ActArchiveStoryItemData {
+    storyId: string;
+    storySortId: number;
+}
+
+export interface ActArchiveTimelineData {
+    timelineList: ActArchiveTimelineItemData[];
+}
+
+export interface ActArchiveTimelineItemData {
+    timelineId: string;
+    timelineSortId: number;
+    timelineTitle: string;
+    timelineDes: string;
+    picIdList: string[];
+    audioIdList: string[];
+    avgIdList: string[];
+    storyIdList: string[];
+    newsIdList: string[];
 }
 
 export interface ActArchiveTotemData {
@@ -5723,58 +5822,11 @@ export interface ActivityTable_CustomUnlockCond {
     stageId: string;
 }
 
-export interface ActivityTable_ActivityDetailTable {
-    defaultActivityData: { [key: string]: DefaultFirstData };
-    defaultCheckinData: { [key: string]: DefaultCheckInData };
-    allPlayerCheckinData: { [key: string]: AllPlayerCheckinData };
-    versusCheckInData: { [key: string]: VersusCheckInData };
-    typeAct3d0Data: { [key: string]: Act3D0Data };
-    typeAct4d0Data: { [key: string]: Act4D0Data };
-    typeAct5d0Data: { [key: string]: Act5D0Data };
-    typeAct5d1Data: { [key: string]: Act5D1Data };
-    defaultCollectionData: { [key: string]: ActivityCollectionData };
-    typeAct9d0Data: { [key: string]: Act9D0Data };
-    typeAct12SideData: { [key: string]: Act12SideData };
-    typeAct13SideData: { [key: string]: Act13SideData };
-    typeAct17sideData: { [key: string]: Act17sideData };
-    typeAct20SideData: { [key: string]: Act20SideData };
-    typeAct21SideData: { [key: string]: Act21SideData };
-    defaultLoginData: { [key: string]: ActivityLoginData };
-    switchCheckinData: { [key: string]: ActivitySwitchCheckinData };
-    defaultMiniStoryData: { [key: string]: ActivityMiniStoryData };
-    defaultRoguelikeData: { [key: string]: ActivityRoguelikeData };
-    defaultInterlockData: { [key: string]: ActivityInterlockData };
-    defaultBossRushData: { [key: string]: ActivityBossRushData };
-    floatParadeData: { [key: string]: ActivityFloatParadeData };
-    mainlineBuffData: { [key: string]: ActivityMainlineBuffData };
-    typeAct24SideData: { [key: string]: Act24SideData };
-    typeAct25SideData: { [key: string]: Act25SideData };
-    typeAct27SideData: { [key: string]: Act27SideData };
-    typeAct42D0Data: { [key: string]: Act42D0Data };
-    typeAct29SideData: { [key: string]: Act29SideData };
-    year5GeneralData: { [key: string]: ActivityYear5GeneralData };
-    typeAct35SideData: { [key: string]: Act35SideData };
-    typeActVecBreakV2Data: { [key: string]: ActVecBreakV2Data };
-    typeAct36SideData: { [key: string]: Act36SideData };
-    typeAct38SideData: { [key: string]: Act38SideData };
-    typeActArcadeData: { [key: string]: ActArcadeData };
-    typeActMultiV3Data: { [key: string]: ActMultiV3Data };
-    typeActMainSSData: { [key: string]: ActMainSSData };
-    typeActEnemyDuelData: { [key: string]: ActivityEnemyDuelData };
-    typeAct42SideData: { [key: string]: Act42SideData };
-    typeAct44SideData: { [key: string]: Act44SideData };
-    typeAct1VHalfIdleData: { [key: string]: Act1VHalfIdleData };
-    typeAct45SideData: { [key: string]: Act45SideData };
-    recruitOnlyData: { [key: string]: ActRecruitOnlyData };
-    typeAct46SideData: { [key: string]: Act46SideData };
-    defaultAutoChessData: { [key: string]: ActAutoChessData };
-    actFootballData: { [key: string]: ActFootballData };
-    typeActArkHubData: { [key: string]: ActArkHubData };
-    typeAct53SideData: { [key: string]: Act53SideData };
-}
+export type ActivityTable_ActivityDetailTable = { [key: string]: object };
 
 export interface ActivityTable_ActivityExtraData {
     typeMainlineBpData: { [key: string]: ActMainlineBpExtraData };
+    MAINLINE_BP: object;
 }
 
 export interface ActivityTable_ActivityHiddenAreaData {
@@ -7433,6 +7485,7 @@ export interface CharacterData {
     potentialRanks: CharacterData_PotentialRank[];
     favorKeyFrames: CharacterData_AttributesDeltaKeyFrame;
     allSkillLvlup: CharacterData_SkillLevelCost[];
+    [key: string]: any;
 }
 
 export interface CharmItemData {
@@ -7457,6 +7510,15 @@ export interface CharmData {
     charmList: CharmItemData[];
 }
 
+export interface SpCharMissionData {
+    charId: string;
+    missionId: string;
+    sortId: number;
+    condType: SpCharMissionCondType;
+    param: string[];
+    rewards: ItemBundle[];
+}
+
 export interface CharMasterLevelData {
     level: number;
     name: string;
@@ -7471,6 +7533,14 @@ export interface CharMasterBasicData {
     masterType: CharMasterType;
     levelList: CharMasterLevelData[];
     candidates: object[];
+}
+
+export interface CharMetaTable {
+    spCharGroups: { [key: string]: string[] };
+    spCharMissions: { [key: string]: { [key: string]: SpCharMissionData } };
+    spCharVoucherSkinTime: { [key: string]: number };
+    charIdMasterListMap: { [key: string]: string[] };
+    charMasterDataMap: { [key: string]: CharMasterBasicData };
 }
 
 export interface CharPatchData_PatchInfo {
@@ -7811,6 +7881,46 @@ export interface CrisisClientData {
     voiceGrade: number;
     crisisRuneCoinUnlockItemTitle: string;
     crisisRuneCoinUnlockItemDesc: string;
+}
+
+export interface CrisisV2AppraiseWrap {
+    appraiseType: CrisisV2AppraiseType;
+}
+
+export interface CrisisV2SeasonInfo {
+    seasonId: string;
+    name: string;
+    startTs: number;
+    endTs: number;
+    medalGroupId: string;
+    medalId: string;
+    themeColor1: string;
+    themeColor2: string;
+    themeColor3: string;
+    seasonBgm: string;
+    seasonBgmChallenge: string;
+    crisisV2SeasonCode: string;
+}
+
+export interface CrisisV2ConstData {
+    sysStartTime: number;
+    blackScoreThreshold: number;
+    redScoreThreshold: number;
+    detailBkgRedThreshold: number;
+    voiceGrade: number;
+    seasonButtonUnlockInfo: number;
+    shopCoinId: string;
+    hardBgmSwitchScore: number;
+    stageId: string;
+    hideTodoWhenStageFinish: boolean;
+}
+
+export interface CrisisV2SharedData {
+    seasonInfoDataMap: { [key: string]: CrisisV2SeasonInfo };
+    scoreLevelToAppraiseDataMap: { [key: number]: CrisisV2AppraiseWrap };
+    constData: CrisisV2ConstData;
+    battleCommentRuneData: { [key: string]: RuneData[] };
+    recalRuneData: RecalRuneSharedData;
 }
 
 export interface CrossDayTrackData {
@@ -8885,6 +8995,7 @@ export interface GameDataConsts {
     isBirthdayFuncEnabled: boolean;
     isSoCharEnabled: boolean;
     avgReaderModeDefaultSetting: GameDataConsts_AVGReaderModeDefaultSetting;
+    TSO: number;
 }
 
 export interface HandbookUnlockParam {
@@ -8982,24 +9093,7 @@ export interface HandbookInfoTable {
     handbookStageTime: HandbookStageTimeData[];
 }
 
-export interface HandbookTeamData {
-    powerId: string;
-    orderNum: number;
-    powerLevel: number;
-    powerName: string;
-    powerCode: string;
-    color: string;
-    isLimited: boolean;
-    isRaw: boolean;
-    none: object;
-    rhodes: object;
-    yan: object;
-    lungmen: object;
-    egir: object;
-    kjerag: object;
-    siracusa: object;
-    sami: object;
-}
+export type HandbookTeamData = { [key: string]: object };
 
 export interface HotUpdateMetaMovieData {
     videoId: string;
@@ -9155,6 +9249,30 @@ export interface LevelData_EnemyData_ESpData {
     maxSp: number;
     initSp: number;
     increment: number;
+}
+
+export interface LongTermCheckInGroupData {
+    groupId: string;
+    sortId: number;
+    startTs: number;
+    level: number;
+    days: number;
+    bkgImgId: string;
+    titleImgId: string;
+    tipText: string;
+    bottomText: string;
+    rewardList: ItemBundle[];
+}
+
+export interface LongTermCheckInConstData {
+    startTs: number;
+    detailTitle: string;
+    detailDesc: string;
+}
+
+export interface LongTermCheckInData {
+    groupList: LongTermCheckInGroupData[];
+    constData: LongTermCheckInConstData;
 }
 
 export interface MedalRewardGroupData {
@@ -9487,6 +9605,34 @@ export interface NPCData {
     unlockDict: { [key: string]: NPCUnlock };
 }
 
+export interface OpenServerItemData {
+    itemId: string;
+    itemType: ItemType;
+    count: number;
+    name: string;
+}
+
+export interface ChainLoginData {
+    order: number;
+    item: OpenServerItemData;
+    colorId: number;
+}
+
+export interface TotalCheckinData {
+    order: number;
+    item: OpenServerItemData;
+    colorId: number;
+}
+
+export interface OpenServerData {
+    openServerMissionGroup: MissionGroup;
+    openServerMissionData: MissionData[];
+    checkInData: TotalCheckinData[];
+    chainLoginData: ChainLoginData[];
+    totalCheckinCharData: string[];
+    chainLoginCharData: string[];
+}
+
 export interface OpenServerScheduleItem {
     id: string;
     versionId: string;
@@ -9495,22 +9641,132 @@ export interface OpenServerScheduleItem {
     totalCheckinDescption: string;
     chainLoginDescription: string;
     charImg: string;
+    constData: object;
+    openseverTaskGroup1: object;
+    openseverTaskGroup2: object;
+    firstDiamondShardMailCount: number;
+    initApMailEndTs: number;
+    resFullOpenUnlockStageId: string;
+    resFullOpenDuration: number;
+    resFullOpenTitle: string;
+    resFullOpenDesc: string;
+    resFullOpenGuideGroupThreshold: number;
+    resFullOpenStartTime: number;
+    groupDataMap: object;
+    onceDataMap: object;
+    checkinDataMap: object;
     priceDataMap: object;
     missionDataMap: object;
     checkinGpData: object;
     newsDataMap: object;
     giftPackagePicDataMap: object;
+    openStyleData: object;
+    groupList: object;
+}
+
+export interface OpenServerConst {
+    firstDiamondShardMailCount: number;
+    initApMailEndTs: number;
+    resFullOpenUnlockStageId: string;
+    resFullOpenDuration: number;
+    resFullOpenTitle: string;
+    resFullOpenDesc: string;
+    resFullOpenGuideGroupThreshold: string;
+    resFullOpenStartTime: number;
+}
+
+export interface NewbieCheckInPackageData {
+    groupId: string;
+    startTime: number;
+    endTime: number;
+    bindGPGoodId: string;
+    checkInDuration: number;
+    compensateEndDay: number;
+    totalCheckInDay: number;
+    iconId: string;
+    checkInRewardDict: { [key: number]: NewbieCheckInPackageRewardData[] };
+    trigStartTime: number;
+    trigEndTime: number;
+}
+
+export interface NewbieCheckInPackageRewardData {
+    orderNum: number;
+    itemBundle: ItemBundle;
+}
+
+export interface OpenServerSchedule {
+    schedule: OpenServerScheduleItem[];
+    dataMap: { [key: string]: OpenServerData };
+    constant: OpenServerConst;
+    playerReturn: ReturnData;
+    newbieCheckInPackageList: NewbieCheckInPackageData[];
+    longTermCheckInData: LongTermCheckInData;
 }
 
 export interface RangeData {
     RANGE_STANDARD_DIRECTION: SharedConsts_Direction;
     id: string;
-    direction: number;
+    direction: number | string;
     grids: GridPosition[];
     boundingBoxes: ObscuredRect[];
 }
 
 export interface ObscuredRect {}
+
+export interface RecalRuneSharedData {
+    seasons: { [key: string]: RecalRuneSeasonData };
+    constData: RecalRuneConstData;
+}
+
+export interface RecalRuneSeasonData {
+    seasonId: string;
+    sortId: number;
+    startTs: number;
+    seasonCode: string;
+    juniorReward: ItemBundle;
+    seniorReward: ItemBundle;
+    seniorRewardHint: string;
+    mainMedalId: string;
+    picId: string;
+    stages: { [key: string]: RecalRuneStageData };
+}
+
+export interface RecalRuneStageData {
+    stageId: string;
+    levelId: string;
+    juniorMedalId: string;
+    seniorMedalId: string;
+    juniorMedalScore: number;
+    seniorMedalScore: number;
+    runes: { [key: string]: RecalRuneRuneData };
+    sourceName: string;
+    sourceType: string;
+    useName: boolean;
+    levelName: string;
+    levelCode: string;
+    levelDesc: string;
+    fixedRuneSeriesName: string;
+    logoId: string;
+    mainPicId: string;
+    loadingPicId: string;
+}
+
+export interface RecalRuneRuneData {
+    runeId: string;
+    score: number;
+    sortId: number;
+    essential: boolean;
+    exclusiveGroupId: string;
+    runeIcon: string;
+    packedRune: RuneTable_PackedRuneData;
+}
+
+export interface RecalRuneConstData {
+    stageCountPerSeason: number;
+    juniorRewardMedalCount: number;
+    seniorRewardMedalCount: number;
+    unlockLevelIds: string[];
+}
 
 export interface ReplicateTable {
     replicateList: ReplicateData[];
@@ -9592,6 +9848,140 @@ export interface RetroStageTable {
     retroPreShowTime: number;
 }
 
+export interface ReturnData {
+    groupDataMap: { [key: string]: ReturnGroupData };
+    onceDataMap: { [key: string]: ReturnOnceRewardData };
+    checkinDataMap: { [key: string]: ReturnCheckinGroupData };
+    priceDataMap: { [key: string]: ReturnPriceGroupData };
+    missionDataMap: { [key: string]: ReturnMissionGroupData };
+    checkinGpData: { [key: string]: ReturnCheckinGpRewardData };
+    newsDataMap: { [key: string]: ReturnNewsData };
+    giftPackagePicDataMap: { [key: string]: ReturnGiftPackagePicData };
+    openStyleData: { [key: string]: ReturnOpenStyleData };
+    constData: ReturnConstData;
+}
+
+export interface ReturnGroupData {
+    groupId: string;
+    taskDays: number;
+    onceGroupId: string;
+    missionGroupId: string[];
+    checkinGroupId: string;
+    priceGroupId: string;
+    newsGroupId: string[];
+    giftPackageIdList: string[];
+    checkinGpId: string;
+    gachaPoolId: string;
+    allOpenDays: number;
+    campAllOpenDays: number;
+    allOpenData: ReturnOpenData[];
+}
+
+export interface ReturnOnceRewardData {
+    groupId: string;
+    rewardList: ReturnItemData[];
+}
+
+export interface ReturnItemData {
+    id: string;
+    count: number;
+    type: ItemType;
+    sortId: number;
+}
+
+export interface ReturnCheckinGroupData {
+    groupId: string;
+    checkinItemList: ReturnCheckinItemData[];
+}
+
+export interface ReturnCheckinItemData {
+    order: number;
+    isKeyItem: boolean;
+    rewardList: ItemBundle[];
+}
+
+export interface ReturnPriceGroupData {
+    groupId: string;
+    content: ReturnPriceItemData[];
+}
+
+export interface ReturnPriceItemData {
+    contentId: string;
+    sortId: number;
+    pointRequire: number;
+    desc: string;
+    displayReward: ReturnItemData;
+    rewardList: ReturnItemData[];
+}
+
+export interface ReturnMissionGroupData {
+    groupId: string;
+    sortId: number;
+    type: ReturnMissionGroupType;
+    missionList: ReturnMissionItemData[];
+}
+
+export interface ReturnMissionItemData {
+    missionId: string;
+    sortId: number;
+    uncompleteBgIcon: string;
+    completeBgIcon: string;
+    desc: string;
+    jumpType: ReturnJumpType;
+    jumpPlace: string;
+    rewardList: ItemBundle[];
+}
+
+export interface ReturnCheckinGpRewardData {
+    groupId: string;
+    getTime: number;
+    bindGPGoodId: string;
+    totalCheckInDay: number;
+    iconId: string;
+    rewardDict: { [key: number]: ReturnItemData[] };
+}
+
+export interface ReturnNewsData {
+    groupId: string;
+    sortId: number;
+    tabTitle: string;
+    tabIcon: string;
+    title: string;
+    desc: string;
+    imgId: string;
+    iconId: string;
+    jumpType: ReturnNewsType;
+    jumpPlace: string;
+}
+
+export interface ReturnOpenData {
+    allOpenType: ReturnAllOpenType;
+    allOpenTime: number;
+    desc: string;
+}
+
+export interface ReturnOpenStyleData {
+    sortId: number;
+    imgBkgId: string;
+    imgEntryId: string;
+    imgIconId: string;
+    pauseDesc: string;
+    title: string;
+    name: string;
+}
+
+export interface ReturnConstData {
+    pointItemId: string;
+    returnPriceDesc: string;
+    oldReturnGroupId: string;
+}
+
+export interface ReturnGiftPackagePicData {
+    giftPackageId: string;
+    giftPackagePic: string;
+    sortId: number;
+}
+
 export interface RoguelikeActivityData {
     basicDatas: { [key: string]: RoguelikeActivityBasicData };
     activityTable: RoguelikeActivityTable;
@@ -9607,9 +9997,7 @@ export interface RoguelikeActivityBasicData {
     validMode: RoguelikeTopicMode;
 }
 
-export interface RoguelikeActivityTable {
-    seedModeDict: { [key: string]: RoguelikeActivitySeedModeData };
-}
+export type RoguelikeActivityTable = { [key: string]: object };
 
 export interface RoguelikeActivitySeedModeData_RoguelikeActivityOfficialSeedData {
     seed: string;
@@ -9648,13 +10036,16 @@ export interface RoguelikeTable {
     modes: { [key: string]: RoguelikeModeData };
     endings: { [key: string]: RoguelikeEndingData };
     outBuffs: { [key: string]: RoguelikeOutBuffData };
-    playerLevelTable: object;
-    recruitPopulationTable: object;
-    charUpgradeTable: object;
-    eventTypeTable: object;
-    shopDialogs: object;
-    shopRelicDialogs: object;
-    eventTypeDialogs: object;
+    shopTicketDialogs: object;
+    mimicEnemyIds: string[];
+    clearZoneScores: object;
+    moveToNodeScore: number;
+    clearNormalBattleScore: number;
+    clearEliteBattleScore: number;
+    clearBossBattleScore: number;
+    upgradeRarityScore: number;
+    collectEndingScore: number;
+    eventTypeIcons: object;
 }
 
 export interface RoguelikeConstTable_PlayerLevelData {
@@ -9670,7 +10061,7 @@ export interface RoguelikeConstTable_RecruitData {
 }
 
 export interface RoguelikeConstTable_CharUpgradeData {
-    evolvePhase: EvolvePhase;
+    evolvePhase: number | string;
     skillLevel: number;
     skillSpecializeLevel: number;
 }
@@ -9732,21 +10123,21 @@ export interface RelicStableUnlockParam {
 
 export interface RoguelikeRecruitTicketFeature {
     id: string;
-    profession: ProfessionCategory;
-    rarity: RarityRankMask;
+    profession: number | string;
+    rarity: number | string;
     professionList: ProfessionID[];
-    rarityList: RarityRank[];
+    rarityList: (number | string)[];
     extraEliteNum: number;
-    extraFreeRarity: RarityRank[];
+    extraFreeRarity: (number | string)[];
     extraCharIds: string[];
 }
 
 export interface RoguelikeUpgradeTicketFeature {
     id: string;
-    profession: ProfessionCategory;
-    rarity: RarityRankMask;
+    profession: number | string;
+    rarity: number | string;
     professionList: ProfessionID[];
-    rarityList: RarityRank[];
+    rarityList: (number | string)[];
 }
 
 export interface RoguelikeRelicFeature {
@@ -10449,14 +10840,7 @@ export interface RoguelikeTopicDetail {
     activity: RoguelikeActivityData;
 }
 
-export interface RoguelikeTopicCustomizeData {
-    rl01: RL01CustomizeData;
-    rl02: RL02CustomizeData;
-    rl03: RL03CustomizeData;
-    rl04: RL04CustomizeData;
-    rl05: RL05CustomizeData;
-    rl06: RL06CustomizeData;
-}
+export type RoguelikeTopicCustomizeData = { [key: string]: object };
 
 export interface RL01CustomizeData {
     developments: { [key: string]: RoguelikeTopicDev };
@@ -11204,6 +11588,7 @@ export interface RoguelikeGameItemData {
     tinyIconColor: string;
     unlockCondDesc: string;
     shortUsage: string;
+    value: number;
 }
 
 export interface RoguelikeBandRefData {
@@ -11214,8 +11599,8 @@ export interface RoguelikeBandRefData {
 
 export interface RoguelikeGameRecruitTicketData {
     id: string;
-    profession: ProfessionCategory;
-    rarity: RarityRankMask;
+    profession: number | string;
+    rarity: number | string;
     professionList: ProfessionID[];
     rarityList: RarityRank[];
     extraEliteNum: number;
@@ -11225,8 +11610,8 @@ export interface RoguelikeGameRecruitTicketData {
 
 export interface RoguelikeGameUpgradeTicketData {
     id: string;
-    profession: ProfessionCategory;
-    rarity: RarityRankMask;
+    profession: number | string;
+    rarity: number | string;
     professionList: ProfessionID[];
     rarityList: RarityRank[];
 }
@@ -11555,7 +11940,7 @@ export interface LegacyInLevelRuneData {
 }
 
 export interface RuneData_Selector {
-    professionMask: ProfessionCategory;
+    professionMask: number | ProfessionCategory;
     buildableMask: BuildableType;
     playerSideMask: PlayerSideMask;
     sideType: Battle_SideType;
@@ -14332,6 +14717,44 @@ export interface StoryReviewGroupClientData {
     storyCompleteMedalId: string;
     rewards: ItemBundle[];
     infoUnlockDatas: StoryReviewInfoClientData[];
+    [key: string]: any;
+}
+
+export interface StoryReviewMetaTable {
+    miniActTrialData: MiniActTrialData;
+    actArchiveResData: ActArchiveResData;
+    actArchiveData: ActArchiveComponentTable;
+    trainingCampData: TrainingCampData;
+}
+
+export interface TrainingCampConsts {
+    unlockStageId: string;
+    updateDesc: string;
+    rewardItem: ItemBundle;
+}
+
+export interface TrainingCampStageData {
+    stageId: string;
+    stageIconId: string;
+    sortId: number;
+    levelId: string;
+    code: string;
+    name: string;
+    loadingPicId: string;
+    description: string;
+    endCharId: string;
+    updateTs: number;
+}
+
+export interface TrainingCampData {
+    stageData: { [key: string]: TrainingCampStageData };
+    newTrainingCampStages: NewTrainingCampStageData[];
+    consts: TrainingCampConsts;
+}
+
+export interface NewTrainingCampStageData {
+    updateTs: number;
+    stages: string[];
 }
 
 export interface MiniActTrialData_RuleData {
@@ -14358,10 +14781,114 @@ export interface MiniActTrialData {
     preShowDays: number;
     ruleDataList: MiniActTrialData_RuleData[];
     miniActTrialDataMap: { [key: string]: MiniActTrialData_MiniActTrialSingleData };
-    miniActTrialData: object;
-    actArchiveResData: object;
-    actArchiveData: object;
-    trainingCampData: object;
+}
+
+export interface ActArchiveResData_PicArchiveResItemData {
+    id: string;
+    desc: string;
+    assetPath: string;
+    type: ActArchivePicType;
+    subType: string;
+    picDescription: string;
+    kvId: string;
+}
+
+export interface ActArchiveResData_AudioArchiveResItemData {
+    id: string;
+    desc: string;
+    name: string;
+}
+
+export interface ActArchiveResData_AvgArchiveResItemData {
+    id: string;
+    desc: string;
+    breifPath: string;
+    contentPath: string;
+    imagePath: string;
+    rawBrief: string;
+    titleIconPath: string;
+}
+
+export interface ActArchiveResData_StoryArchiveResItemData {
+    id: string;
+    desc: string;
+    date: string;
+    pic: string;
+    text: string;
+    titlePic: string;
+}
+
+export interface ActArchiveResData_NewsArchiveResItemData {
+    id: string;
+    desc: string;
+    newsType: string;
+    newsFormat: ActArchiveResData_NewsFormatData;
+    newsText: string;
+    newsAuthor: string;
+    paramP0: number;
+    paramK: number;
+    paramR: number;
+    newsLines: ActArchiveResData_ActivityNewsLine[];
+}
+
+export interface ActArchiveResData_NewsFormatData {
+    typeId: string;
+    typeName: string;
+    typeLogo: string;
+    typeMainLogo: string;
+    typeMainSealing: string;
+}
+
+export interface ActArchiveResData_ActivityNewsLine {
+    lineType: ActArchiveResData_ArchiveNewsLineType;
+    content: string;
+}
+
+export interface ActArchiveResData_LandmarkArchiveResItemData {
+    landmarkId: string;
+    landmarkName: string;
+    landmarkPic: string;
+    landmarkDesc: string;
+    landmarkEngName: string;
+}
+
+export interface ActArchiveResData_LogArchiveResItemData {
+    logId: string;
+    logDesc: string;
+}
+
+export interface ActArchiveResData_ChallengeBookArchiveResItemData {
+    storyId: string;
+    titleName: string;
+    storyName: string;
+    textId: string;
+}
+
+export interface ActArchiveResData {
+    pics: { [key: string]: ActArchiveResData_PicArchiveResItemData };
+    audios: { [key: string]: ActArchiveResData_AudioArchiveResItemData };
+    avgs: { [key: string]: ActArchiveResData_AvgArchiveResItemData };
+    stories: { [key: string]: ActArchiveResData_StoryArchiveResItemData };
+    news: { [key: string]: ActArchiveResData_NewsArchiveResItemData };
+    landmarks: { [key: string]: ActArchiveResData_LandmarkArchiveResItemData };
+    logs: { [key: string]: ActArchiveResData_LogArchiveResItemData };
+    challengeBooks: { [key: string]: ActArchiveResData_ChallengeBookArchiveResItemData };
+}
+
+export interface ActArchiveComponentTable {
+    components: { [key: string]: ActArchiveComponentData };
+}
+
+export interface ActArchiveComponentData {
+    timeline: ActArchiveTimelineData;
+    music: ActArchiveMusicData;
+    pic: ActArchivePicData;
+    story: ActArchiveStoryData;
+    avg: ActArchiveAvgData;
+    news: ActArchiveNewsData;
+    landmark: { [key: string]: ActArchiveLandmarkItemData };
+    log: { [key: string]: ActArchiveChapterLogData };
+    challengeBook: ActArchiveChallengeBookData;
 }
 
 export interface TalentData {

@@ -12,6 +12,9 @@ import { divmod, randomChoice, randomChoices } from "@utils/random";
 import { pick } from "lodash";
 import { logger } from "@utils/logger";
 
+/** 解锁条件完成度（PlayerBattleRank 字符串）→ 关卡 state 数值档位 */
+const completeStateRank: Record<string, number> = { FAIL: 1, PASS: 2, COMPLETE: 3 };
+
 export class BattleManager {
   _player: PlayerDataManager;
   _trigger: TypedEventEmitter;
@@ -146,7 +149,7 @@ export class BattleManager {
         const unlock_list: { [key: string]: ConditionDesc[] } = {};
         const stage_data = excel.StageTable.stages;
         for (const item of Object.keys(stage_data)) {
-          unlock_list[item] = stage_data[item].unlockCondition;
+          unlock_list[item] = stage_data[item].unlockCondition as unknown as ConditionDesc[];
         }
 
         for (const item of Object.keys(unlock_list)) {
@@ -169,13 +172,13 @@ export class BattleManager {
               if (condition.stageId in Object.keys(draft.dungeon.stages)) {
                 if (
                   draft.dungeon.stages[condition.stageId].state >=
-                  condition.completeState
+                  completeStateRank[condition.completeState]
                 ) {
                   passCondition += 1;
                 }
               }
               if (stageId == condition.stageId) {
-                if (3 >= condition.completeState) {
+                if (3 >= completeStateRank[condition.completeState]) {
                   passCondition += 1;
                 }
               }
@@ -343,7 +346,7 @@ export class BattleManager {
           //unlock stage
           const unlockList: { [key: string]: ConditionDesc[] } = {};
           for (const item of Object.keys(excel.StageTable.stages)) {
-            unlockList[item] = excel.StageTable.stages[item].unlockCondition;
+            unlockList[item] = excel.StageTable.stages[item].unlockCondition as unknown as ConditionDesc[];
           }
           for (const item of Object.keys(unlockList)) {
             let passCondition = 0;
@@ -412,7 +415,7 @@ export class BattleManager {
         }
         if (firstClear) {
           for (const item of displayDetailRewards) {
-            if ([1, 8].includes(item.dropType)) {
+            if ([1, 8].includes(item.dropType as unknown as number)) {
               firstRewards.push({
                 type: item.type,
                 id: item.id,
@@ -448,7 +451,7 @@ export class BattleManager {
         }
         [additionalRewards, unusualRewards, furnitureRewards, rewards] =
           await this.dropReward(
-            displayDetailRewards,
+            displayDetailRewards as unknown as DisplayDetailRewards[],
             battleData.completeState,
             stageId,
           );

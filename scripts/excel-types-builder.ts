@@ -1,5 +1,5 @@
 import { parseFile, extractTypeNames, type ClassDef, type EnumDef } from "./playerdata-parser";
-import { applyExcelAdapt, allTableRoots, EXCEL_ENUM_ADDITIONS } from "./excel-server-adapt";
+import { applyExcelAdapt, allTableRoots, EXCEL_ENUM_ADDITIONS, EXCEL_INDEX_SIGNATURES } from "./excel-server-adapt";
 
 /** PlayerDataModel 类型闭包（类），字段类型引用传递——多根版本 */
 function buildClassClosure(classes: ClassDef[], roots: string[]): Set<string> {
@@ -45,12 +45,13 @@ function generateInterfaceCode(classDef: ClassDef): string {
   if (classDef.arrayOfType !== undefined) {
     return `export type ${classDef.name} = ${classDef.arrayOfType}[];`;
   }
-  if (classDef.fields.length === 0) return `export interface ${classDef.name} {}`;
+  if (classDef.fields.length === 0 && !EXCEL_INDEX_SIGNATURES.includes(classDef.name)) return `export interface ${classDef.name} {}`;
   const optional = new Set(classDef.optionalFields ?? []);
   const fields = classDef.fields
     .map(f => `    ${f.name}${optional.has(f.name) ? "?" : ""}: ${f.type};`)
     .join("\n");
-  return `export interface ${classDef.name} {\n${fields}\n}`;
+  const indexSig = EXCEL_INDEX_SIGNATURES.includes(classDef.name) ? "\n    [key: string]: any;" : "";
+  return `export interface ${classDef.name} {\n${fields}${indexSig}\n}`;
 }
 
 export interface BuildResult {

@@ -16,12 +16,12 @@ vi.mock("@excel/excel", () => {
             trailStartTime: 0,
             trailRewardList: [
               {
-                trailRewardID: "trail_reward_001",
+                trailRewardId: "trail_reward_001",
                 starCount: 1,
                 rewardItem: { id: "retro_item_001", count: 5, type: "MATERIAL" },
               },
               {
-                trailRewardID: "trail_reward_002",
+                trailRewardId: "trail_reward_002",
                 starCount: 3,
                 rewardItem: { id: "retro_item_002", count: 10, type: "MATERIAL" },
               },

@@ -25,7 +25,7 @@ export class RetroManager {
       const { retroId, rewardId } = args;
       const reward = excel.RetroTable.retroTrailList[
         retroId
-      ].trailRewardList.find((v) => v.trailRewardID === rewardId)!.rewardItem;
+      ].trailRewardList.find((v) => v.trailRewardId === rewardId)!.rewardItem;
       draft.retro.trail[retroId][rewardId] = 1;
       await this._trigger.emit("items:get", [[reward]]);
       return [reward];

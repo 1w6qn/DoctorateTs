@@ -444,6 +444,17 @@
   }
 
   function fmtTs(ts) { return ts ? new Date(ts * 1000).toLocaleString() : "-"; }
+  /** 相对时间：刚刚 / N 分钟前 / N 小时前 / 昨天 / N 天前 / 日期 */
+  function fmtRel(ts) {
+    if (!ts) return "-";
+    var diff = Math.floor(Date.now() / 1000) - ts;
+    if (diff < 60) return "刚刚";
+    if (diff < 3600) return Math.floor(diff / 60) + " 分钟前";
+    if (diff < 86400) return Math.floor(diff / 3600) + " 小时前";
+    if (diff < 172800) return "昨天";
+    if (diff < 86400 * 30) return Math.floor(diff / 86400) + " 天前";
+    return new Date(ts * 1000).toLocaleDateString();
+  }
   function $(id) { return document.getElementById(id); }
 
   function escapeHtml(s) {
@@ -485,7 +496,7 @@
         if (u.uid === selectedUid) tr.classList.add("active");
         tr.innerHTML =
           "<td>" + u.uid + "</td><td>" + escapeHtml(u.nickName) + "</td><td>" + u.level + "</td>" +
-          "<td>" + escapeHtml(u.phone || "-") + "</td><td>" + fmtTs(u.lastOnlineTs) + "</td>" +
+          "<td>" + escapeHtml(u.phone || "-") + "</td><td title=\"" + fmtTs(u.lastOnlineTs) + "\">" + fmtRel(u.lastOnlineTs) + "</td>" +
           "<td><button data-grant=\"" + u.uid + "\" class=\"btn-sm\">发物品</button> " +
           "<button data-mail=\"" + u.uid + "\" class=\"btn-sm\">发邮件</button></td>";
         tr.querySelector("[data-grant]").addEventListener("click", function (e) {
@@ -615,7 +626,14 @@
       ? TAB_LABELS[tab]
       : selectedUid ? "用户详情 — " + selectedUid : "用户详情";
     loadPane(tab, selectedUid);
+    // URL hash 同步（支持前进/后退/直达链接）
+    if (location.hash !== "#" + tab) location.hash = tab;
   }
+  // URL hash 变化（浏览器前进/后退/手动改地址）→ 切换 Tab
+  window.addEventListener("hashchange", function () {
+    var t = location.hash.replace("#", "");
+    if (SHORTCUT_TABS.indexOf(t) !== -1 && t !== currentTab) switchTab(t);
+  });
 
   /** 用户相关 Tab（需选中用户） */
   var USER_TABS = ["overview", "chars", "mails", "raw"];
@@ -654,8 +672,8 @@
         .join("<br>") || "（空）";
       $("pane-overview").innerHTML =
         "<p><b>" + escapeHtml(info.nickName) + "#" + escapeHtml(info.nickNumber) + "</b> Lv." + info.level + "</p>" +
-        "<p style=\"color:var(--muted);margin-top:6px;\">UID " + info.uid + " | 注册 " + fmtTs(info.registerTs) +
-        " | 最后在线 " + fmtTs(info.lastOnlineTs) + "</p>" +
+        "<p style=\"color:var(--muted);margin-top:6px;\">UID " + info.uid + " | 注册 " + fmtRel(info.registerTs) +
+        " | 最后在线 " + fmtRel(info.lastOnlineTs) + "</p>" +
         '<div class="row wrap" style="gap:8px;margin:12px 0;">' +
         '<button id="act-maxout" class="primary">一键满配</button>' +
         '<button id="act-building">基建满级</button>' +
@@ -1768,8 +1786,11 @@
     api("/status").then(function () {
       localStorage.setItem("adminToken", token);
       hideLogin();
+      // URL hash 定位 Tab（如 /admin/dashboard#pools 直达卡池）
+      var initTab = location.hash.replace("#", "");
+      if (SHORTCUT_TABS.indexOf(initTab) !== -1 && initTab !== currentTab) currentTab = initTab;
+      switchTab(currentTab);
       refreshAll();
-      loadPane(currentTab, selectedUid); // 初始化当前 Tab（未选用户时全局 Tab 可用/用户 Tab 提示）
     }).catch(function () {
       $("login-err").style.display = "block";
     });
@@ -1904,8 +1925,16 @@
     if (btn) btn.textContent = t === "light" ? "深色" : "浅色";
     localStorage.setItem("adminTheme", t);
   }
+  /** 系统主题偏好（prefers-color-scheme） */
+  function systemTheme() {
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches
+      ? "light"
+      : "dark";
+  }
+  // 主题初始化：手动选择优先，否则跟随系统浅色（系统深色即默认暗色，无需显式设置）
   var savedTheme = localStorage.getItem("adminTheme");
   if (savedTheme) applyTheme(savedTheme);
+  else if (systemTheme() === "light") applyTheme("light");
   $("theme-btn").addEventListener("click", function () {
     var cur = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
     applyTheme(cur);

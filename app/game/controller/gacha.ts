@@ -12,7 +12,7 @@ import {
   GachaDetailTable,
   GachaPerChar,
 } from "@excel/gacha_detail_table";
-import { GachaPoolClientData } from "@excel/types_auto_gen";
+import { GachaPoolClientData } from "@excel/types_excel_gen";
 import excel from "@excel/excel";
 import { accountManager } from "../manager/AccountManger";
 import { ItemBundle } from "@excel/character_table";

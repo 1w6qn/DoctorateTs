@@ -40,7 +40,8 @@
     "update": "tsx scripts/update-data.ts",
     "update:skip": "tsx scripts/update-data.ts --skip-update",
     "generate:playerdata": "tsx scripts/generate-playerdata-types.ts",
-    "migrate:official": "tsx scripts/migrate-official.ts"
+    "migrate:official": "tsx scripts/migrate-official.ts",
+    "postinstall": "node scripts/patch-immer.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.10.0",

@@ -103,7 +103,7 @@ export async function cliInit(): Promise<void> {
 function output(
   data: unknown,
   flags: { [key: string]: string },
-  table?: (row: any) => string[] | null,
+  table?: (row: any) => any,
 ): void {
   if (flags.json) {
     console.log(JSON.stringify(data, null, 2));

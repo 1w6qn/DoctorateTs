@@ -7,7 +7,7 @@
 ```bash
 npm install
 npm run update     # 拉取并生成游戏数据（离线环境用 npm run update:skip 或 --offline）
-npm start          # 启动服务器（默认端口 8443，见 data/config.json）
+npm start          # 启动服务器（默认端口 8443，见 data/config.json）；终端可同时输入管理 CLI 命令（如 users list --json，exit 退出命令行）
 ```
 
 **一键启动（Windows）**：双击根目录 `start.cmd` —— 跳过联网更新快速启动，服务就绪后自动打开管理后台（`http://localhost:8443/admin/dashboard`）。等效命令：`npm run start:quick`（等价于 `tsx index.ts -s`）。

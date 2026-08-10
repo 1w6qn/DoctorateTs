@@ -193,5 +193,8 @@ process.on("uncaughtException", (err) => {
   app.listen(config.PORT, () => {
     logger.info("index", `--------------DoctorateTs--------------`);
     logger.info("index", `running at http://localhost:${config.PORT}`);
+    logger.info("index", `命令行已就绪：终端输入管理 CLI 命令（如 users list --json），exit 退出命令行`);
+    // 服务器内嵌命令行 REPL（日志与命令行共存；非 TTY 自动跳过）
+    import("./app/admin/server-repl").then((m) => m.startServerRepl());
   });
 })();

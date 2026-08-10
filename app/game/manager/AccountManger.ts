@@ -22,6 +22,7 @@ import { migrateFromUserConfigs } from "../../db/migrate";
 import { acquireLock } from "@utils/mutex";
 import { hashPassword, verifyPassword, isHashedPassword } from "@utils/crypt";
 import { logger } from "@utils/logger";
+import { checkAndRepairSave, logSaveRepair } from "../util/save-health";
 
 export class AccountManager {
   /** 玩家数据管理器映射，key为uid */
@@ -197,7 +198,19 @@ export class AccountManager {
     const data =
       playerData ??
       (await readJson<PlayerDataModel>(`./data/user/databases/${uid}.json`));
+    // 存档健康检查与自动修复（结构性损坏——如 PRIVATE.owners 含 null——幂等修复）
+    const loadIssues = checkAndRepairSave(data as any);
+    const fixed = loadIssues.filter((i) => i.fixed);
+    if (fixed.length > 0) {
+      logSaveRepair(uid, loadIssues);
+      // 修复后标记脏，使首个请求落盘时写回修复结果
+      (data as any)._repairMarked = true;
+    }
     this.data[uid] = new PlayerDataManager(data);
+    if ((data as any)._repairMarked) {
+      this.data[uid].markDirty();
+      delete (data as any)._repairMarked;
+    }
     // 构造期子管理器可能原地初始化数据（如 rlv2 current 结构），标记脏使首个请求落盘一次
     // （与条件落盘前"每次请求都落盘"的首请求行为保持一致）
     this.data[uid].markDirty();
@@ -271,6 +284,12 @@ export class AccountManager {
   async savePlayerData(uid: string): Promise<void> {
     const finalPath = `./data/user/databases/${uid}.json`;
     const tmpPath = `${finalPath}.tmp`;
+    // 写盘前健康校验：发现可修复损坏时修复（避免把坏数据落盘）
+    const saveIssues = checkAndRepairSave(this.data[uid] as any);
+    const saveFixed = saveIssues.filter((i) => i.fixed);
+    if (saveFixed.length > 0) {
+      logSaveRepair(uid, saveIssues);
+    }
     await writeFile(tmpPath, JSON.stringify(this.data[uid]));
     await rename(tmpPath, finalPath);
   }

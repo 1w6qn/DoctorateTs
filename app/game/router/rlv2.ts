@@ -508,8 +508,8 @@ router.post("/sacrificeChoice", async (req, res) => {
 /** 铜币镀金（CS: RoguelikeGildRequest { choice, leave }） */
 router.post("/copper/gild", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  req.body as RoguelikeGildRequest;
-  await player.rlv2.copperGild({});
+  const body = req.body as RoguelikeGildRequest;
+  await player.rlv2.copperGild(body);
   res.send(rlv2Response(player) satisfies RoguelikeGildResponse);
 });
 
@@ -588,8 +588,8 @@ router.post("/scrap", async (req, res) => {
 /** 废品换乘（rogue_6 SCRAP MOVE 型） */
 router.post("/scrap/changeVehicle", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  req.body as RoguelikeScrapChangeVehicleRequest;
-  await player.rlv2.scrapChangeVehicle();
+  const body = req.body as RoguelikeScrapChangeVehicleRequest;
+  await player.rlv2.scrapChangeVehicle(body);
   res.send(
     rlv2Response(player) satisfies RoguelikeScrapChangeVehicleResponse,
   );

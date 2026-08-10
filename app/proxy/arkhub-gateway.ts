@@ -73,6 +73,14 @@ export interface ArkhubGatewayProxyOptions {
   recordRoot?: string;
 }
 
+/** 网关转发器启动结果 */
+export interface ArkhubGatewayProxyResult {
+  /** 监听成功的 net.Server；失败为 null */
+  server: net.Server | null;
+  /** 是否因端口被占而失败（该端口上很可能已有另一实例的网关转发器在跑） */
+  portBusy: boolean;
+}
+
 /**
  * 启动 arkhub 网关 TCP 转发器
  *
@@ -80,11 +88,12 @@ export interface ArkhubGatewayProxyOptions {
  * `tmp/arkhub-gateway/{connectionId}/`（up.bin=客户端→官服、down.bin=官服→客户端、meta.json）。
  *
  * @param opts - 监听/目标/记录配置
- * @returns 监听成功返回 net.Server（端口被占返回 null——调用方应禁用 enterHall 响应改写）
+ * @returns 启动结果：{ server } 监听成功；{ server: null, portBusy: true } 端口被占；
+ *          { server: null, portBusy: false } 其它错误
  */
 export function startArkhubGatewayProxy(
   opts: ArkhubGatewayProxyOptions = {},
-): Promise<net.Server | null> {
+): Promise<ArkhubGatewayProxyResult> {
   const {
     port = OFFICIAL_ARKHUB_GATEWAY_PORT,
     targetHost = OFFICIAL_ARKHUB_GATEWAY_HOST,
@@ -178,16 +187,18 @@ export function startArkhubGatewayProxy(
   return new Promise((resolve) => {
     server.once("error", (e: NodeJS.ErrnoException) => {
       if (e.code === "EADDRINUSE") {
-        logger.warn("capture", `arkhub 网关端口 ${port} 被占用——enterHall 响应将不改写（客户端直连官服网关）`);
-        resolve(null);
+        // 端口被占（多半是另一实例的网关转发器）：返回 portBusy=true，调用方仍改写 enterHall
+        // endpoint 指向该端口——否则客户端直连官服网关、网关流量不经过任何代理（实测无法进入）
+        logger.warn("capture", `arkhub 网关端口 ${port} 被占用（可能为另一实例的转发器）——enterHall 响应仍改写指向本代理，客户端网关流量经占用该端口的转发器`);
+        resolve({ server: null, portBusy: true });
       } else {
         logger.error("capture", `arkhub 网关转发器启动失败: ${e.message}`);
-        resolve(null);
+        resolve({ server: null, portBusy: false });
       }
     });
     server.listen(port, () => {
       logger.info("capture", `arkhub 网关转发器已启动：监听 :${port} → ${targetHost}:${targetPort}（流量记录 ${recordRoot}）`);
-      resolve(server);
+      resolve({ server, portBusy: false });
     });
   });
 }

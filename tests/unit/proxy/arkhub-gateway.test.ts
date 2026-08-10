@@ -77,14 +77,16 @@ describe("startArkhubGatewayProxy（30000 TCP 转发器）", () => {
     const echoPort = (echo.address() as net.AddressInfo).port;
 
     const recordRoot = path.join(os.tmpdir(), `arkhub-gw-test-${Date.now()}`);
-    const server = await startArkhubGatewayProxy({
+    const result = await startArkhubGatewayProxy({
       port: 0, // 随机端口
       targetHost: "127.0.0.1",
       targetPort: echoPort,
       recordRoot,
     });
-    expect(server).not.toBeNull();
-    const proxyPort = (server!.address() as net.AddressInfo).port;
+    expect(result.portBusy).toBe(false);
+    expect(result.server).not.toBeNull();
+    const server = result.server!;
+    const proxyPort = (server.address() as net.AddressInfo).port;
 
     try {
       // 客户端 → 代理 → echo → 代理 → 客户端
@@ -103,13 +105,13 @@ describe("startArkhubGatewayProxy（30000 TCP 转发器）", () => {
       expect(meta.downBytes).toBe(6);
       expect(meta.targetAddr).toBe("127.0.0.1:" + echoPort);
     } finally {
-      server!.close();
+      server.close();
       echo.close();
       fs.rmSync(recordRoot, { recursive: true, force: true });
     }
   });
 
-  it("端口被占用时返回 null（调用方应禁用 enterHall 改写）", async () => {
+  it("端口被占用时返回 { server: null, portBusy: true }（调用方可据此仍改写 enterHall）", async () => {
     const recordRoot = path.join(os.tmpdir(), "arkhub-gw-busy");
     // 两次启动都用相同的 listen 语义（server.listen(port) 双栈绑定），第二次必然 EADDRINUSE
     const first = await startArkhubGatewayProxy({
@@ -118,8 +120,8 @@ describe("startArkhubGatewayProxy（30000 TCP 转发器）", () => {
       targetPort: 1,
       recordRoot,
     });
-    expect(first).not.toBeNull();
-    const usedPort = (first!.address() as net.AddressInfo).port;
+    expect(first.server).not.toBeNull();
+    const usedPort = (first.server!.address() as net.AddressInfo).port;
     try {
       const second = await startArkhubGatewayProxy({
         port: usedPort,
@@ -127,9 +129,10 @@ describe("startArkhubGatewayProxy（30000 TCP 转发器）", () => {
         targetPort: 1,
         recordRoot,
       });
-      expect(second).toBeNull();
+      expect(second.server).toBeNull();
+      expect(second.portBusy).toBe(true);
     } finally {
-      first!.close();
+      first.server!.close();
     }
   });
 });

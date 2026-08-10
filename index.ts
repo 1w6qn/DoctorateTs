@@ -137,12 +137,16 @@ process.on("uncaughtException", (err) => {
     // 监听 gatewayPort（缺省 30000）透传官服网关并记录流量，enterHall 响应 endpoint 改写为本代理
     const { startArkhubGatewayProxy } = await import("./app/proxy/arkhub-gateway");
     const gatewayPort = config.capture?.gatewayPort ?? 30000;
-    const gateway = await startArkhubGatewayProxy({ port: gatewayPort });
+    const gw = await startArkhubGatewayProxy({ port: gatewayPort });
+    // 转发器就绪（或端口被其它实例的转发器占用）时都改写 enterHall endpoint 指向本代理：
+    // 端口被占多半是另一实例的转发器在跑（实测 30000 被旧实例占用 → 不改写 → 客户端直连官服网关无法进入），
+    // 改写后客户端连 127.0.0.1:gatewayPort，流量经占用该端口的转发器透传官服
+    const proxyHost = String(config.Host).replace(/^https?:\/\//, "");
+    const arkhubGateway =
+      gw.server || gw.portBusy ? { endpoint: proxyHost, port: gatewayPort } : null;
     app.use(
       createOfficialForwarder({
-        arkhubGateway: gateway
-          ? { endpoint: String(config.Host).replace(/^https?:\/\//, ""), port: gatewayPort }
-          : null,
+        arkhubGateway,
       }),
     );
     logger.info("index", "抓包官服转发模式已开启：as/gs 流量将转发到官服并记录 tmp/");

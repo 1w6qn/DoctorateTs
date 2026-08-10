@@ -1731,7 +1731,13 @@
       '<button id="px-sample">示例</button>' +
       '<button id="px-png">下载 PNG</button>' +
       '<button id="px-data">下载像素数据</button>' +
-      "</div></div>" +
+      "</div>" +
+      '<div class="row" style="margin-top:8px;">' +
+      '<input type="file" id="px-file" accept="image/*" style="flex:1;font-size:12px;color:var(--muted);">' +
+      '<button id="px-convert">转像素画</button>' +
+      "</div>" +
+      '<p style="font-size:11px;color:var(--muted);margin-top:4px;">上传图片 → 缩放到 24×24 → 量化到官服 40 色调色板（官服校验像素颜色必须在此白名单内）</p>' +
+      "</div>" +
       "<div>" +
       '<p style="font-size:12px;color:var(--muted);margin:0 0 6px;">调色板（点击选色）</p>' +
       '<div id="px-palette" style="display:grid;grid-template-columns:repeat(10,26px);gap:4px;"></div>' +
@@ -1845,6 +1851,45 @@
         }
       }
       draw();
+    });
+    // 图片 → 像素画（缩放 24×24，量化到官服 40 色调色板）
+    var PALETTE_RGB = PALETTE.map(hexToRgb);
+    function nearestPalette(r, g, b) {
+      var best = PALETTE_RGB[0], bestD = Infinity;
+      for (var i = 0; i < PALETTE_RGB.length; i++) {
+        var p = PALETTE_RGB[i];
+        var d = (p[0] - r) * (p[0] - r) + (p[1] - g) * (p[1] - g) + (p[2] - b) * (p[2] - b);
+        if (d < bestD) { bestD = d; best = p; }
+      }
+      return best.slice();
+    }
+    $("px-convert").addEventListener("click", function () {
+      var file = $("px-file").files && $("px-file").files[0];
+      if (!file) { toast("请先选择图片文件"); return; }
+      var reader = new FileReader();
+      reader.onload = function (ev) {
+        var img = new Image();
+        img.onload = function () {
+          var oc = document.createElement("canvas");
+          oc.width = SIZE;
+          oc.height = SIZE;
+          var octx = oc.getContext("2d");
+          octx.imageSmoothingEnabled = false;
+          octx.drawImage(img, 0, 0, SIZE, SIZE);
+          var data = octx.getImageData(0, 0, SIZE, SIZE).data;
+          for (var y = 0; y < SIZE; y++) {
+            for (var x = 0; x < SIZE; x++) {
+              var idx = (y * SIZE + x) * 4;
+              grid[y * SIZE + x] = nearestPalette(data[idx], data[idx + 1], data[idx + 2]);
+            }
+          }
+          draw();
+          toast("已转换为 24×24 像素画（官服 40 色调色板）——可微调后下载/上传");
+        };
+        img.onerror = function () { toast("图片读取失败", "err"); };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
     });
     $("px-png").addEventListener("click", function () {
       var a = document.createElement("a");

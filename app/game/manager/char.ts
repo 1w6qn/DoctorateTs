@@ -46,6 +46,8 @@ export class CharManager {
     let isNew: number = 0;
     let charInstId: number = 0;
     let potent: { delta: number; now: number } | undefined;
+    /** 新干员 instId（recipe 结束后统一 emit char:init） */
+    let createdCharInstId: number | undefined;
     const items: ItemBundle[] = [];
     await this._player.update(async (draft) => {
       const { from, extraItem } = args;
@@ -77,7 +79,10 @@ export class CharManager {
         items.push({ id: potentId, count: 1, type: "MATERIAL" });
         // 修复：CS GachaResult.potent——未满潜的重复干员返回潜能提升信息（delta/now）
         const maxPotential = excel.CharacterTable[charId].maxPotentialLevel ?? 5;
-        const repeatChar = draft.troop.chars[charInstId];
+        // 性能：从实时对象读（不经 draft 代理 troop.chars——只读子树被代理后
+        // unfinalizedDrafts_ 永不归零，Immer finalize 全树遍历每次 update ~90ms）
+        const repeatChar =
+          this._player._playerdata.troop.chars[charInstId];
         if (repeatChar && (repeatChar.potentialRank ?? 0) < maxPotential) {
           potent = { delta: 1, now: (repeatChar.potentialRank ?? 0) + 1 };
         }
@@ -143,20 +148,33 @@ export class CharManager {
           equip: {},
           voiceLan: "CN_MANDARIN",
         };
-        await this._trigger.emit("char:init", [draft.troop.chars[charInstId]]);
         // 修复：新干员创建后递增 curCharInstId，避免后续新干员 instId 冲突互相覆盖
         draft.troop.curCharInstId += 1;
+        createdCharInstId = charInstId;
         if (from == "CLASSIC") {
           items.push({ id: "classic_normal_ticket", count: 10 });
         } else {
           items.push({ id: "4004", count: 1, type: "HGG_SHD" });
         }
-        if (extraItem) {
-          items.push(extraItem);
-        }
       }
-      await this._trigger.emit("items:get", [items]);
+      // 修复：extraItem（如限定池 LMTGSID 凭证）每抽发放，与是否新干员无关
+      //（原实现只在 isNew 分支内发放 → 重复干员抽不到限定凭证）
+      if (extraItem) {
+        items.push(extraItem);
+      }
     });
+    // 优化+修复：items:get / char:init 移到 recipe 之后触发。
+    // 原实现在 recipe 内 await emit("items:get") → gainItem 对同一 base 嵌套 update
+    //（外层 draft 未关闭）→ Immer 无法增量 diff，每次 update 全树对比（十连每抽
+    // ~250ms）；且内层 finishDraft 先替换 _playerdata、外层 finishDraft 再按旧 base
+    // 覆盖 → 发放物品从存档丢失（数据一致性 bug）。移出后每次 update 只 diff 实际
+    // 变更路径，入账物品也在干员落定后独立 update。
+    if (createdCharInstId != null) {
+      await this._trigger.emit("char:init", [
+        this._player._playerdata.troop.chars[createdCharInstId],
+      ]);
+    }
+    await this._trigger.emit("items:get", [items]);
     const res = {
       charInstId: charInstId,
       charId: charId,

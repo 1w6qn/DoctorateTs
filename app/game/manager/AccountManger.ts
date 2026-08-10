@@ -24,6 +24,46 @@ import { hashPassword, verifyPassword, isHashedPassword } from "@utils/crypt";
 import { logger } from "@utils/logger";
 import { checkAndRepairSave, logSaveRepair } from "../util/save-health";
 
+/**
+ * 热路径顶层键（放最前）
+ *
+ * 性能背景：Immer autoFreeze 被全局关闭（PlayerDataManager）后，finishDraft 的
+ * finalize 会对「最后一个已修改 draft 之前」的全部顶层子树做深遍历（键序靠后 +
+ * 只读访问大子树时 unfinalizedDrafts_ 永不归零 → 每次 update 全树遍历）。
+ * 把高频率写路径（gacha/inventory/dexNav 等）前置后，前缀遍历极小，更新开销从
+ * 每次 ~60-90ms 降到亚毫秒级。仅改变对象键序（JSON 语义不变），保存格式随之变化。
+ */
+const HOT_FIRST_KEYS = [
+  "inventory",
+  "dexNav",
+  "gacha",
+  "consumable",
+  "status",
+  "mission",
+  "medal",
+  "troop",
+  "building",
+  "rlv2",
+];
+
+/**
+ * 重排存档顶层键序（热路径前置，其余保持原序）
+ * @param data - 玩家数据对象
+ * @returns 键序重排后的新对象（原对象不被修改）
+ */
+function reorderRootKeys<T>(data: T): T {
+  const src = data as Record<string, unknown>;
+  if (!src || typeof src !== "object" || Array.isArray(src)) return data;
+  const ordered: Record<string, unknown> = {};
+  for (const k of HOT_FIRST_KEYS) {
+    if (k in src) ordered[k] = src[k];
+  }
+  for (const k of Object.keys(src)) {
+    if (!(k in ordered)) ordered[k] = src[k];
+  }
+  return ordered as T;
+}
+
 export class AccountManager {
   /** 玩家数据管理器映射，key为uid */
   data: { [key: string]: PlayerDataManager };
@@ -197,7 +237,9 @@ export class AccountManager {
   private async _doLoadPlayer(uid: string, playerData?: PlayerDataModel): Promise<void> {
     const data =
       playerData ??
-      (await readJson<PlayerDataModel>(`./data/user/databases/${uid}.json`));
+      reorderRootKeys(
+        await readJson<PlayerDataModel>(`./data/user/databases/${uid}.json`),
+      );
     // 存档健康检查与自动修复（结构性损坏——如 PRIVATE.owners 含 null——幂等修复）
     const loadIssues = checkAndRepairSave(data as any);
     const fixed = loadIssues.filter((i) => i.fixed);

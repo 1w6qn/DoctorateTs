@@ -40,8 +40,8 @@ export type EventMap = {
   "refresh:daily": [number];
   /** 关卡更新事件 - 关卡进度更新 */
   "stage:update": [];
-  /** 角色获取事件 - 获取新角色 */
-  "char:get": [string, { from: string }?, ((res: GachaResult) => void)?];
+  /** 角色获取事件 - 获取新角色（from 标记来源，extraItem 如限定池 LMTGSID 凭证） */
+  "char:get": [string, { from: string; extraItem?: ItemBundle }?, ((res: GachaResult) => void)?];
   /** 干员升级事件 - 干员等级提升 */
   "char:levelUp": [{ charId: string; level: number }];
   /** 干员精英化事件 - 干员精英化 */

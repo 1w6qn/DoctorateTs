@@ -12,6 +12,7 @@ import {
   GachaDetailTable,
   GachaPerChar,
 } from "@excel/gacha_detail_table";
+import { GachaPoolClientData } from "@excel/types_auto_gen";
 import excel from "@excel/excel";
 import { accountManager } from "../manager/AccountManger";
 import { ItemBundle } from "@excel/character_table";
@@ -29,6 +30,11 @@ export class GachaController {
   _trigger: TypedEventEmitter;
   /** 缺详情卡池的回退详情（首个结构完整的卡池，去掉 UP 干员走通用池） */
   private _fallbackDetail: GachaDetailData | null = null;
+  /**
+   * gachaPoolClient 的 O(1) 索引（poolId → 池配置），懒构建。
+   * 优化：439 个卡池的线性 find 在每抽/十连逐抽都会执行，改 Map 后查找 O(1)。
+   */
+  private _poolMap: Map<string, GachaPoolClientData> | null = null;
 
   /**
    * 构造函数
@@ -39,6 +45,20 @@ export class GachaController {
     this._table = excel.GachaDetailTable;
     this._player = player;
     this._trigger = _trigger;
+  }
+
+  /**
+   * O(1) 获取卡池客户端配置（懒构建 poolId → config 索引，替代逐抽线性 find）
+   * @param poolId - 抽卡池ID
+   * @returns 卡池配置（未收录时 undefined，调用方回退 NORMAL）
+   */
+  private _getPoolConfig(poolId: string): GachaPoolClientData | undefined {
+    if (!this._poolMap) {
+      this._poolMap = new Map(
+        excel.GachaTable.gachaPoolClient.map((g) => [g.gachaPoolId, g]),
+      );
+    }
+    return this._poolMap.get(poolId);
   }
 
   /**
@@ -173,9 +193,23 @@ export class GachaController {
         break;
     }
     const res: (GachaResult & { logInfo: { beforeNonHitCnt: number } })[] = [];
+    // 优化：保底计数只在十连结束统一落盘一次（原每抽 saveBeforeNonHitCnt →
+    // emit("save") → users 表全量重写，十连 = 10 次 SQLite 写盘；现读一次、循环内存
+    // 累积、最后写一次 = 1 次写盘）
+    const ruleType = this._getPoolConfig(poolId)?.gachaRuleType ?? "NORMAL";
+    let beforeNonHitCnt = await accountManager.getBeforeNonHitCnt(
+      this.uid,
+      ruleType,
+    );
     for (let i = 0; i < 10; i++) {
-      res.push(await this.doAdvancedGacha({poolId,useTkt,itemId:""}));
+      const { charId, beforeNonHitCnt: next, extras } = await this._pullOnce({
+        poolId,
+        beforeNonHitCnt,
+      });
+      beforeNonHitCnt = next;
+      res.push(await this._resolveGachaResult(charId, extras, beforeNonHitCnt));
     }
+    await accountManager.saveBeforeNonHitCnt(this.uid, ruleType, beforeNonHitCnt);
     await this._trigger.emit("items:use", [costs]);
     return res;
   }
@@ -196,6 +230,39 @@ export class GachaController {
     itemId: string | null;
   }): Promise<GachaResult & { logInfo: { beforeNonHitCnt: number } }> {
     const { poolId } = args;
+    const ruleType = this._getPoolConfig(poolId)?.gachaRuleType ?? "NORMAL";
+    const beforeNonHitCnt = await accountManager.getBeforeNonHitCnt(
+      this.uid,
+      ruleType,
+    );
+    const { charId, beforeNonHitCnt: next, extras } = await this._pullOnce({
+      poolId,
+      beforeNonHitCnt,
+    });
+    await accountManager.saveBeforeNonHitCnt(this.uid, ruleType, next);
+    return this._resolveGachaResult(charId, extras, next);
+  }
+
+  /**
+   * 单抽核心（不持久化保底计数——单抽由 doAdvancedGacha 落盘，十连由
+   * tenAdvancedGacha 统一累积后落盘一次，避免每抽一次 users 表全量重写）
+   *
+   * 按抽卡池规则类型执行不同的抽卡策略，计算稀有度，获取随机角色，
+   * 并返回更新后的保底计数。
+   * @param args - 抽卡参数
+   * @param args.poolId - 抽卡池ID
+   * @param args.beforeNonHitCnt - 抽前保底计数
+   * @returns 角色ID、更新后保底计数、char:get 事件参数（from/extraItem）
+   */
+  private async _pullOnce(args: {
+    poolId: string;
+    beforeNonHitCnt: number;
+  }): Promise<{
+    charId: string;
+    beforeNonHitCnt: number;
+    extras: { from: string; extraItem?: ItemBundle };
+  }> {
+    const { poolId, beforeNonHitCnt } = args;
     await this._player.update(async (draft) => {
       if (!(poolId in draft.gacha.normal)) {
         draft.gacha.normal[poolId] = {
@@ -208,21 +275,12 @@ export class GachaController {
     });
 
     // 修复：池不在 gachaPoolClient 时回退 NORMAL（不 500）
-    const poolConfig = excel.GachaTable.gachaPoolClient.find(
-      (g) => g.gachaPoolId === poolId,
-    );
+    const poolConfig = this._getPoolConfig(poolId);
     const ruleType = poolConfig?.gachaRuleType ?? "NORMAL";
-    const extras: { [key: string]: object | string; from: string } = {
-      from: ruleType,
-    };
+    const extras: { from: string; extraItem?: ItemBundle } = { from: ruleType };
     const detail = this._poolDetail(poolId);
-    let beforeNonHitCnt = await accountManager.getBeforeNonHitCnt(
-      this.uid,
-      ruleType,
-    );
-    const rank: number = 0;
 
-    const funcs: { [key: string]: () => Promise<string> } = {
+    const funcs: { [key: string]: () => Promise<{ charId: string; rank: number }> } = {
       NORMAL: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
       // DOUBLE/CLASSIC_DOUBLE/BACKFLOW/SPECIAL：双 up/回归/特殊池——UP 干员由详情
       // upCharInfo 处理，走通用 _handleGacha 即可（修复：原 funcs 缺这些键 → 500）
@@ -266,17 +324,32 @@ export class GachaController {
 
     // 防御：ruleType 仍不在 funcs 映射（未来新池类型）时回退 NORMAL，不 500
     const gachaFn = funcs[ruleType] ?? funcs.NORMAL;
-    const charId = await gachaFn();
-    beforeNonHitCnt = rank != 5 ? beforeNonHitCnt + 1 : 0;
-    await accountManager.saveBeforeNonHitCnt(
-      this.uid,
-      ruleType,
-      beforeNonHitCnt,
-    );
+    const { charId, rank } = await gachaFn();
+    // 修复：原 `const rank = 0` 恒等判断 → 保底计数六星命中后从未重置（无限增长，
+    // 超 100 抽后六星概率溢出 >100%）；改为真实稀有度（5 = 六星）命中即清零
+    const nextNonHitCnt = rank !== 5 ? beforeNonHitCnt + 1 : 0;
+    return { charId, beforeNonHitCnt: nextNonHitCnt, extras };
+  }
+
+  /**
+   * 通过 char:get 事件入账干员并解析抽卡结果
+   *
+   * 修复：原 emit 固定传 { from: "NORMAL" } 导致 extras 成为死代码——CLASSIC 池
+   * classicCount/经典票、LIMITED 池 LMTGSID 凭证从未生效；改为透传 ruleType/extraItem。
+   * @param charId - 抽中角色ID
+   * @param extras - char:get 事件参数（from + 可选 extraItem）
+   * @param beforeNonHitCnt - 抽后保底计数
+   * @returns 抽卡结果与保底计数日志
+   */
+  private async _resolveGachaResult(
+    charId: string,
+    extras: { from: string; extraItem?: ItemBundle },
+    beforeNonHitCnt: number,
+  ): Promise<GachaResult & { logInfo: { beforeNonHitCnt: number } }> {
     let result!: GachaResult;
     await this._trigger.emit("char:get", [
       charId,
-      { from: "NORMAL" },
+      extras,
       (res: GachaResult) => {
         result = res;
       },
@@ -291,20 +364,21 @@ export class GachaController {
 
   /**
    * 处理抽卡逻辑
-   * 
+   *
    * 根据保底计数和确保角色，计算稀有度并获取随机角色。
    * @param poolId - 抽卡池ID
    * @param args - 参数
    * @param args.beforeNonHitCnt - 保底计数
    * @param args.ensure - 确保获取的角色ID（可选）
-   * @returns 角色ID
+   * @returns 角色ID与稀有度（5 = 六星，供保底计数重置）
    */
   async _handleGacha(
     poolId: string,
     args: { beforeNonHitCnt: number; ensure?: string },
-  ): Promise<string> {
+  ): Promise<{ charId: string; rank: number }> {
     const rank = await this._getRarityRank(poolId, args);
-    return this._getRandomChar(poolId, rank, args);
+    const charId = await this._getRandomChar(poolId, rank, args);
+    return { charId, rank };
   }
 
   /**
@@ -332,12 +406,15 @@ export class GachaController {
       if (rr < perChar.percent * perChar.count) {
         charId = randomChoice(perChar.charIdList);
       } else {
-        const charList = detail.availCharInfo.perAvailList.find(
+        // 修复：weightUp 扩权不再原地修改共享 perAvailList.charIdList
+        //（原实现每抽 append 4 份到详情表共享数组 → 概率被污染 + 数组无限膨胀拖慢随机）
+        const avail = detail.availCharInfo.perAvailList.find(
           (c) => c.rarityRank === rank,
-        )!.charIdList;
+        )!;
+        let charList = avail.charIdList;
         detail.weightUpCharInfoList?.forEach((c) => {
           if (c.rarityRank === rank) {
-            charList.push(...new Array(4).fill(c.charId));
+            charList = [...charList, ...new Array(4).fill(c.charId)];
           }
         });
         charId = randomChoice(

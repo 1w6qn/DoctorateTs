@@ -18,7 +18,12 @@ export class InventoryManager {
       await Promise.all(items.map((item) => this._useItem(item)));
     });
     this._trigger.on("items:get", async ([items]: [ItemBundle[]]) => {
-      await Promise.all(items.map((item) => this.gainItem(item)));
+      // 串行发放：Promise.all 并发 gainItem 会在同一 _playerdata 上并发
+      // createDraft/finishDraft（后一个 finishDraft 覆盖前一个结果 → 物品丢失 +
+      // Immer 全树 diff 慢）；逐个 update 语义等价且每个只 diff 实际变更路径
+      for (const item of items) {
+        await this.gainItem(item);
+      }
     });
   }
 
@@ -97,8 +102,13 @@ export class InventoryManager {
       let consumableId = item?.instId;
       if (!consumableId) {
         const consumable_set = new Set<number>();
-        for (const item of Object.values(draft.consumable)) {
-          const keys = Object.keys(item);
+        // 性能：从实时对象遍历（经 draft 代理遍历会对每个 consumable 条目创建
+        // Proxy——100+ 条时每次发放 ~100ms 且随条目增长；本扫描发生在任何
+        // consumable 写入之前，实时对象与 draft 基值一致）
+        for (const entry of Object.values(
+          this._player._playerdata.consumable,
+        )) {
+          const keys = Object.keys(entry);
           if (keys.length > 0) {
             consumable_set.add(parseInt(keys[0], 10));
           }

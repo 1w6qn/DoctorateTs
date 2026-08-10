@@ -6,6 +6,7 @@ vi.mock("@excel/excel", () => ({
       gachaPoolClient: [
         { gachaPoolId: "p_normal_1", gachaRuleType: "NORMAL" },
         { gachaPoolId: "p_double_1", gachaRuleType: "DOUBLE" },
+        { gachaPoolId: "p_limited_1", gachaRuleType: "LIMITED", LMTGSID: "LMTGS_COIN_TEST" },
       ],
     },
     GachaDetailTable: {
@@ -37,6 +38,10 @@ vi.mock("@game/manager/AccountManger", () => ({
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import { GachaController } from "@game/controller/gacha";
 import { GachaType } from "@game/model/gacha";
+import { accountManager } from "@game/manager/AccountManger";
+
+/** accountManager 模块 mock 的 saveBeforeNonHitCnt（vi.fn()，调用历史跨测试保留需手动 clear） */
+const saveSpy = vi.mocked(accountManager.saveBeforeNonHitCnt);
 
 describe("GachaController 抽卡扣费 costs 构造", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
@@ -44,6 +49,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    saveSpy.mockClear();
     mockTrigger = mockTypedEventEmitter();
     mockPlayer = mockPlayerData({
       gacha: {
@@ -130,12 +136,10 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
   it("Diamond 十连应只扣 6000 合成玉", async () => {
     const controller = new GachaController(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
-    vi.spyOn(controller, "doAdvancedGacha").mockResolvedValue({
-      charInstId: 1,
+    vi.spyOn(controller, "_pullOnce").mockResolvedValue({
       charId: "char_001",
-      isNew: 0,
-      itemGet: [],
-      logInfo: { beforeNonHitCnt: 0 },
+      beforeNonHitCnt: 1,
+      extras: { from: "NORMAL" },
     } as any);
     await controller.tenAdvancedGacha({ poolId: "p_normal_1", useTkt: GachaType.Diamond, itemList: [] });
     expect(emitSpy).toHaveBeenCalledWith("items:use", [
@@ -146,12 +150,10 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
   it("CombineTenTicket 十连应消耗客户端 itemList 且不叠加其他费用", async () => {
     const controller = new GachaController(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
-    vi.spyOn(controller, "doAdvancedGacha").mockResolvedValue({
-      charInstId: 1,
+    vi.spyOn(controller, "_pullOnce").mockResolvedValue({
       charId: "char_001",
-      isNew: 0,
-      itemGet: [],
-      logInfo: { beforeNonHitCnt: 0 },
+      beforeNonHitCnt: 1,
+      extras: { from: "NORMAL" },
     } as any);
     await controller.tenAdvancedGacha({
       poolId: "p_normal_1",
@@ -159,6 +161,55 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
       itemList: [{ id: "4005", count: 10 }],
     });
     expect(emitSpy).toHaveBeenCalledWith("items:use", [[{ id: "4005", count: 10 }]]);
+  });
+
+  describe("保底计数批量落盘（2026-08-10 速度优化）", () => {
+    it("十连应只调用 saveBeforeNonHitCnt 一次（原每抽一次 SQLite 全表重写）", async () => {
+      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      vi.spyOn(controller, "_pullOnce").mockImplementation(async ({ beforeNonHitCnt }) => ({
+        charId: "char_001",
+        beforeNonHitCnt: beforeNonHitCnt + 1,
+        extras: { from: "NORMAL" },
+      }) as any);
+      await controller.tenAdvancedGacha({
+        poolId: "p_normal_1",
+        useTkt: GachaType.Diamond,
+        itemList: [],
+      });
+      expect(saveSpy).toHaveBeenCalledTimes(1);
+      // 10 抽全部未中六星 → 最终计数 = 10
+      expect(saveSpy).toHaveBeenCalledWith(10000, "NORMAL", 10);
+    });
+
+    it("单抽 doAdvancedGacha 仍按次落盘且计数 +1", async () => {
+      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      // 强制稀有度 4（非六星）→ 保底计数 +1
+      vi.spyOn(controller, "_getRarityRank").mockResolvedValue(4);
+      await controller.doAdvancedGacha({ poolId: "p_normal_1", useTkt: 0, itemId: "" });
+      expect(saveSpy).toHaveBeenCalledWith(10000, "NORMAL", 1);
+    });
+
+    it("六星命中（rank 5）应重置保底计数为 0（修复 rank 恒 0 死值）", async () => {
+      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      vi.spyOn(controller, "_getRarityRank").mockResolvedValue(5);
+      await controller.doAdvancedGacha({ poolId: "p_normal_1", useTkt: 0, itemId: "" });
+      expect(saveSpy).toHaveBeenCalledWith(10000, "NORMAL", 0);
+    });
+
+    it("十连中途中六星应重置计数后继续累积（rank 4,4,5 后清零，7 次未中 → 7）", async () => {
+      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const ranks = [4, 4, 5, 4, 4, 4, 4, 4, 4, 4];
+      vi.spyOn(controller, "_getRarityRank").mockImplementation(
+        () => Promise.resolve(ranks.shift()!),
+      );
+      await controller.tenAdvancedGacha({
+        poolId: "p_normal_1",
+        useTkt: GachaType.Diamond,
+        itemList: [],
+      });
+      expect(saveSpy).toHaveBeenCalledTimes(1);
+      expect(saveSpy).toHaveBeenCalledWith(10000, "NORMAL", 7);
+    });
   });
 
   describe("缺详情卡池回退（2026-08-09 修复）", () => {
@@ -188,6 +239,29 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
       await expect(
         controller.doAdvancedGacha({ poolId: "p_double_1", useTkt: 0, itemId: "" }),
       ).resolves.toBeDefined();
+    });
+  });
+
+  describe("LIMITED 池 extraItem 接线（2026-08-10 修复：原 extras 死代码）", () => {
+    it("LIMITED 池应透传 { from: LIMITED, extraItem: LMTGS 凭证 } 到 char:get", async () => {
+      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const emitSpy = vi.spyOn(mockTrigger, "emit");
+      await controller.doAdvancedGacha({ poolId: "p_limited_1", useTkt: 0, itemId: "" });
+      // emit 调用形如 emit("char:get", [charId, extras, callback])——extras 含 from/extraItem
+      const charGetCall = emitSpy.mock.calls.find((c) => c[0] === "char:get");
+      expect(charGetCall).toBeDefined();
+      expect(charGetCall![1][1]).toEqual({
+        from: "LIMITED",
+        extraItem: { id: "LMTGS_COIN_TEST", count: 1 },
+      });
+    });
+
+    it("普通池不携带 extraItem", async () => {
+      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const emitSpy = vi.spyOn(mockTrigger, "emit");
+      await controller.doAdvancedGacha({ poolId: "p_normal_1", useTkt: 0, itemId: "" });
+      const charGetCall = emitSpy.mock.calls.find((c) => c[0] === "char:get");
+      expect(charGetCall![1][1]).toEqual({ from: "NORMAL" });
     });
   });
 });

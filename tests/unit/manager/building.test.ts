@@ -274,6 +274,25 @@ describe("BuildingManager", () => {
     });
   });
 
+    it("客户端发送 CS 字段名 charInsId 时应正确写入（不再写 null 破坏存档）", async () => {
+      const manager = new BuildingManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      await manager.setPrivateDormOwner({
+        slotId: "slot_001",
+        charInsId: 1001, // CS: BuildingPayloadSetPrivateDormOwnerRequest.charInsId
+      });
+      expect(
+        mockPlayer._playerdata.building!.rooms.PRIVATE["slot_001"].owners
+      ).toEqual([1001]);
+      // 无干员时不应写 null
+      await manager.setPrivateDormOwner({ slotId: "slot_001" } as any);
+      expect(
+        mockPlayer._playerdata.building!.rooms.PRIVATE["slot_001"].owners
+      ).toEqual([1001]);
+    });
+
   describe("setBuildingAssist", () => {
     it("应该设置指定协助位置的干员", async () => {
       const manager = new BuildingManager(

@@ -32,6 +32,20 @@ import { accountManager } from "./app/game/manager/AccountManger";
  * 6. 注册路由（配置、认证、游戏、资源）
  * 7. 启动服务器监听
  */
+// 全局错误兜底（修复：未处理 Promise 拒绝/异常会导致 Node 24 进程直接终止——
+// 记录错误栈便于定位，并保持服务器存活）
+process.on("unhandledRejection", (reason) => {
+  logger.error(
+    "process",
+    `unhandledRejection: ${
+      reason instanceof Error ? reason.stack ?? reason.message : String(reason)
+    }`,
+  );
+});
+process.on("uncaughtException", (err) => {
+  logger.error("process", `uncaughtException: ${err.stack ?? err.message}`);
+});
+
 (async () => {
   const args = process.argv.slice(2);
   const skipUpdate = args.includes("--skip-update") || args.includes("-s");

@@ -5,6 +5,7 @@ import {
 } from "../model/rlv2";
 import excel from "@excel/excel";
 import { readFileSync } from "fs";
+import { logger } from "@utils/logger";
 import { RoguelikeInventoryManager } from "./rlv2/inventory";
 import { TroopManager } from "../manager/troop";
 import { RoguelikeBuffManager } from "./rlv2/buff";
@@ -299,7 +300,10 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     if (!this.isZoneEnd()) return false;
     const zone = this._status.cursor.zone;
     if (zone >= this.maxZone) {
-      void this.gameSettle();
+      // 修复：fire-and-forget 未捕获拒绝会导致 Node 进程终止（gameSettle 内部 game 可能为 null）
+      void this.gameSettle().catch((e) =>
+        logger.error("rlv2", `gameSettle failed: ${(e as Error).message}`),
+      );
       return true;
     }
     this._status.cursor.zone += 1;

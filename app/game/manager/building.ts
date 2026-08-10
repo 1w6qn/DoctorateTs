@@ -188,10 +188,20 @@ export class BuildingManager {
    * 设置私人宿舍归属
    * @param args - 包含 slotId 和 charInstId 的参数对象
    */
-  async setPrivateDormOwner(args: { slotId: string; charInstId: number }) {
-    const { slotId, charInstId } = args;
+  async setPrivateDormOwner(args: {
+    slotId: string;
+    charInstId?: number;
+    charInsId?: number;
+  }) {
+    const { slotId } = args;
+    // 修复：CS 字段名为 charInsId（大 S），客户端发送 charInsId——
+    // 原实现读 charInstId → undefined 写入 owners:[null] 破坏存档
+    const charInstId = args.charInstId ?? args.charInsId;
+    if (charInstId == null) return;
     return await this._player.update(async (draft) => {
-      draft.building.rooms.PRIVATE[slotId].owners = [charInstId];
+      const room = draft.building.rooms.PRIVATE[slotId];
+      if (!room) return; // 防御：非法 slotId
+      room.owners = [charInstId];
     });
   }
 

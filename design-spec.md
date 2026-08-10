@@ -1358,4 +1358,7 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
   - potent 字段缺失：CS GachaResult.potent（潜能提升信息），未满潜重复干员应返回 `{delta, now}`。已实现（potentialRank < maxPotentialLevel 时返回）
   - 单测 2 条
 
+- **building/setPrivateDormOwner 破坏存档修复（2026-08-09，用户报告）**：CS 字段名为 `charInsId`（大 S），原实现读 `charInstId` → undefined 被 JSON 序列化为 null → `owners:[null]` 写入存档。已改读 `charInsId ?? charInstId` 并加 null/非法 slotId 防御；实测 charInsId 正确写入数字。单测 1 条。
+- **进程自动退出防护（2026-08-09，用户报告程序可能自动结束）**：Node 24 未处理 Promise 拒绝默认终止进程——`rlv2.checkZoneEnd` 的 `void this.gameSettle()` 在无进行中游戏（game 为 null）时崩溃。已加 `.catch()` 记录；index.ts 增加全局 `unhandledRejection`/`uncaughtException` 处理器（记录错误栈 + 保持进程存活）。
+
 - **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用（全量对齐后已补 stub，路径可达）

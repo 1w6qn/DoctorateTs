@@ -60,7 +60,7 @@
     "enabled": false,
     "asHost": "https://as.hypergryph.com",
     "gsHost": "https://ak-gs-gf.hypergryph.com",
-    "gatewayPort": 30000
+    "gatewayPort": 30001
   },
   "singleAutoMaxAccount": true,
   "singleUid": "2222"

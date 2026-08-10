@@ -33,6 +33,8 @@ import {
   BuyREPGoodResponse,
   BuySkinGoodRequest,
   BuySkinGoodResponse,
+  BuySocialGoodRequest,
+  BuySocialGoodResponse,
   CheckForbiddenRequest,
   CheckForbiddenResponse,
   DecomposeClassicPotentialItemRequest,
@@ -306,10 +308,22 @@ router.post("/getGPGoodList", async (req, res) => {
 router.post("/getSocialGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetSocialGoodListRequest;
+  // 信用商店：按当天日期自动生成（goodId = SOCIAL<YYYYMMDD>_...）
   res.send({
-    ...player.shop.socialGoodList,
+    ...player.shop.buildSocialGoodList(),
     ...player.delta,
   } satisfies GetSocialGoodListResponse);
+});
+
+/** 购买信用商店商品（信用 = status.socialPoint） */
+router.post("/buySocialGood", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as BuySocialGoodRequest;
+  res.send({
+    result: 0,
+    items: await player.shop.buySocialGood(body),
+    ...player.delta,
+  } satisfies BuySocialGoodResponse);
 });
 
 /**

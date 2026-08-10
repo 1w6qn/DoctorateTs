@@ -212,6 +212,18 @@ export type GetGPGoodListResponse = GPGoodList & PlayerDeltaResponse;
 /** 获取社交商店商品列表响应（CS: GetSocialGoodListResponse） */
 export type GetSocialGoodListResponse = SocialGoodList & PlayerDeltaResponse;
 
+/** 购买信用商店商品请求（CS: BuySocialGoodRequest；goodId + count） */
+export interface BuySocialGoodRequest {
+  goodId: string;
+  count: number;
+}
+
+/** 购买信用商店商品响应（CS: BuySocialGoodResponse { items }） */
+export interface BuySocialGoodResponse extends PlayerDeltaResponse {
+  result: number;
+  items: ItemBundle[];
+}
+
 /** 获取家具商店商品列表响应（CS: BuildingGetFurnitureGoodListResponse） */
 export type GetFurniGoodListResponse = FurniGoodList & PlayerDeltaResponse;
 

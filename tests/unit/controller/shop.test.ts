@@ -187,3 +187,82 @@ describe("buildLMTGSGoodList 自动生成限定商店", () => {
     ]);
   });
 });
+
+describe("buildSocialGoodList / buySocialGood 信用商店", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({
+      shop: { SOCIAL: { curShopId: "", info: [], charPurchase: {} } },
+      status: { socialPoint: 500 },
+    });
+  });
+
+  it("buildSocialGoodList 应按当天日期重定 goodId 前缀", async () => {
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    controller.socialGoodList = {
+      goodList: [
+        {
+          goodId: "SOCIAL20211106_T1_recruit_1_1",
+          displayName: "招聘许可",
+          originPrice: 160,
+          price: 40,
+          discount: 0.75,
+          slotId: 1,
+          availCount: 1,
+          item: { id: "7001", count: 1, type: "TKT_RECRUIT" },
+        },
+      ],
+      charPurchase: {},
+    };
+    const list = controller.buildSocialGoodList();
+    expect(list.goodList[0].goodId).toMatch(/^SOCIAL\d{8}_T1_recruit_1_1$/);
+    // 日期前缀 = 当天
+    const t = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    expect(list.goodList[0].goodId.startsWith(`SOCIAL${t.getFullYear()}${p(t.getMonth() + 1)}${p(t.getDate())}`)).toBe(true);
+  });
+
+  it("buySocialGood 应扣 socialPoint 并记录购买 + 发放", async () => {
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    controller.socialGoodList = {
+      goodList: [
+        {
+          goodId: "SOCIAL20211106_T1_recruit_1_1",
+          displayName: "招聘许可",
+          originPrice: 160,
+          price: 40,
+          discount: 0.75,
+          slotId: 1,
+          availCount: 1,
+          item: { id: "7001", count: 1, type: "TKT_RECRUIT" },
+        },
+      ],
+      charPurchase: {},
+    };
+    const emitSpy = vi.spyOn(mockTrigger, "emit");
+    // 客户端回传的是 buildSocialGoodList 重定日期后的 goodId
+    const goodId = controller.buildSocialGoodList().goodList[0].goodId;
+    const items = await controller.buySocialGood({ goodId, count: 1 });
+    expect(items).toEqual([{ id: "7001", count: 1, type: "TKT_RECRUIT" }]);
+    // 信用扣除 + 发放
+    const status = mockPlayer._playerdata.status as any;
+    expect(status.socialPoint).toBe(460);
+    expect(emitSpy).toHaveBeenCalledWith("items:get", [
+      [{ id: "7001", count: 1, type: "TKT_RECRUIT" }],
+    ]);
+    // 购买记录
+    const social = (mockPlayer._playerdata.shop as any).SOCIAL;
+    expect(social.info).toContainEqual({ id: goodId, count: 1 });
+  });
+
+  it("buySocialGood 未知商品应返回空（不 500）", async () => {
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    controller.socialGoodList = { goodList: [], charPurchase: {} };
+    const items = await controller.buySocialGood({ goodId: "NOPE", count: 1 });
+    expect(items).toEqual([]);
+  });
+});

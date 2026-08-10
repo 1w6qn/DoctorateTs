@@ -7,6 +7,7 @@
 
 import { ItemBundle } from "@excel/character_table";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { readJson } from "@utils/file";
 import {
   ChooseGPItem,
   GPGoodList,
@@ -45,6 +46,12 @@ export class ShopController {
       goodList: [],
       charPurchase: {},
     };
+    // 信用商店商品基座（静态配置；buildSocialGoodList 按当天日期重新生成）
+    void readJson<SocialGoodList>("./data/shop/SocialGoodList.json")
+      .then((d) => {
+        this.socialGoodList = d;
+      })
+      .catch(() => {});
   }
 
   /**
@@ -53,7 +60,88 @@ export class ShopController {
   async dailyRefresh() {
     await this._player.update(async (draft) => {
       draft.shop.LS.info = [];
+      // 信用商店按当天日期重置（curShopId 对齐 buildSocialGoodList 的 goodId 前缀）
+      if (draft.shop.SOCIAL) {
+        draft.shop.SOCIAL.curShopId = this.todaySocialShopId();
+        draft.shop.SOCIAL.info = [];
+      }
     });
+  }
+
+  /** 当天信用商店 ID（SOCIAL<YYYYMMDD>，与 buildSocialGoodList 的 goodId 前缀一致） */
+  todaySocialShopId(): string {
+    const t = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `SOCIAL${t.getFullYear()}${p(t.getMonth() + 1)}${p(t.getDate())}`;
+  }
+
+  /**
+   * 自动生成当天信用商店商品（信用商店 = 社交商店，客户端 /shop/getSocialGoodList）
+   *
+   * 修复：socialGoodList 构造期置空从未加载 → 信用商店空列表。基座数据在构造期异步
+   * 载入 data/shop/SocialGoodList.json，此处把 goodId 日期前缀重定为当天
+   * （SOCIAL<YYYYMMDD>_T<N>_<type>_<M>_<slot>，与玩家 shop.SOCIAL.info 记录对齐）。
+   *
+   * @returns 当天信用商店商品列表
+   */
+  buildSocialGoodList(): SocialGoodList {
+    const base = this.socialGoodList;
+    if (!base?.goodList?.length) return { goodList: [], charPurchase: {} };
+    const prefix = this.todaySocialShopId();
+    const goodList = base.goodList.map((g) =>
+      g.goodId.startsWith(prefix)
+        ? g
+        : { ...g, goodId: g.goodId.replace(/^SOCIAL\d+/, prefix) },
+    );
+    return { goodList, charPurchase: base.charPurchase ?? {} };
+  }
+
+  /**
+   * 购买信用商店商品（信用 = status.socialPoint）
+   * @param args - 购买参数
+   * @param args.goodId - 商品ID
+   * @param args.count - 购买数量
+   * @returns 获取的物品列表
+   */
+  async buySocialGood(args: {
+    goodId: string;
+    count: number;
+  }): Promise<ItemBundle[]> {
+    const { goodId, count } = args;
+    const good = this.buildSocialGoodList().goodList.find(
+      (g) => g.goodId === goodId,
+    );
+    // 防御：未知商品不 500
+    if (!good) return [];
+    const price = (good.price ?? 0) * count;
+    await this._player.update(async (draft) => {
+      // 扣信用（socialPoint）
+      draft.status.socialPoint = (draft.status.socialPoint ?? 0) - price;
+      // 记录购买（对齐官服 shop.SOCIAL.info [{id, count}]）
+      if (!draft.shop.SOCIAL) {
+        draft.shop.SOCIAL = {
+          curShopId: "",
+          info: [],
+          charPurchase: {},
+        };
+      }
+      draft.shop.SOCIAL.curShopId = this.todaySocialShopId();
+      const info = draft.shop.SOCIAL.info ?? [];
+      const existing = info.find((i) => i.id === goodId);
+      if (existing) {
+        existing.count += count;
+      } else {
+        info.push({ id: goodId, count });
+      }
+    });
+    // 带 type 发放（TKT_RECRUIT/MATERIAL/CARD_EXP 等走 items:get）
+    const item: ItemBundle = {
+      id: good.item.id,
+      count: good.item.count * count,
+      type: good.item.type,
+    };
+    await this._trigger.emit("items:get", [[item]]);
+    return [item];
   }
 
   /**

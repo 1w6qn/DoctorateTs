@@ -22,9 +22,15 @@ export class RoguelikeNodeUpgradeManager {
 
   init() {
     const theme = this._player.current.game!.theme;
-    const nodeUpgradeInfo = this._player.outer[theme].collect.nodeUpgrade;
-    const tempMap =
-      excel.RoguelikeTopicTable.modules[theme].nodeUpgrade!.nodeUpgradeDataMap;
+    // 防御：跨主题残留管理器（上一局其他主题的 manager 仍订阅 module:init）
+    // 当前主题无 nodeUpgrade 数据时直接跳过，避免 null 解引用
+    const nodeUpgradeInfo = this._player.outer[theme]?.collect?.nodeUpgrade;
+    const tempMap = (excel.RoguelikeTopicTable.modules[theme] as any)
+      ?.nodeUpgrade?.nodeUpgradeDataMap;
+    if (!nodeUpgradeInfo || !tempMap) {
+      this._nodeTypeInfoMap = {};
+      return;
+    }
     this._nodeTypeInfoMap = Object.fromEntries(
       Object.entries(nodeUpgradeInfo).map(([k, v]) => {
         const upgradeList = v.unlockList;
@@ -35,7 +41,11 @@ export class RoguelikeNodeUpgradeManager {
             tempUpgrade:
               upgradeList.length < 5
                 ? ""
-                : randomChoice(tempList.map((item) => item.upgradeId)),
+                : randomChoice(
+                    tempList.map(
+                      (item: { upgradeId: string }) => item.upgradeId,
+                    ),
+                  ),
             upgradeList: upgradeList,
             currUpgradeIndex: upgradeList.length - 1,
           },

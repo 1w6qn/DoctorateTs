@@ -68,4 +68,13 @@ export class RoguelikeDisasterManager {
     const buff: RoguelikeBuff[] = [];
     return buff;
   }
+
+  /** 线格式：{ curDisasterId, disperseStep }（types-playerdata；内部字段为 curDisaster） */
+  toJSON(): { curDisasterId: string | null; disperseStep: number } {
+    return {
+      curDisasterId: this._player.current.module?.disaster?.curDisaster ?? null,
+      disperseStep:
+        this._player.current.module?.disaster?.disperseStep ?? 0,
+    };
+  }
 }

@@ -185,13 +185,14 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   {
     method: "POST",
     path: "/api/official/sync-gacha",
-    summary: "从官服同步卡池详情（登录后逐个调 getPoolDetail → 写 data/gacha_detail_table.json，备份旧文件，重启生效）",
+    summary: "从官服同步卡池详情（补全模式：跳过本地已有池，只抓缺失新池；refresh=true 全量刷新；写 gacha_detail_table.json，备份 .bak，重启生效）",
     params: [
       { name: "phone", type: "string", required: true, desc: "官服手机号" },
       { name: "pwd", type: "string", required: true, desc: "官服密码" },
       { name: "poolIds", type: "object", desc: "目标池列表（缺省读本地 gachaPoolClient 全部）" },
+      { name: "refresh", type: "boolean", desc: "true = 全量刷新（不跳过已有），缺省补全模式" },
     ],
-    body: '{"phone":"13800000000","pwd":"password123","poolIds":["NORM_0_1_3"]}',
+    body: '{"phone":"13800000000","pwd":"password123","poolIds":["NORM_0_1_3"],"refresh":false}',
   },
   {
     method: "POST",

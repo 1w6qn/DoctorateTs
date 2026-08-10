@@ -476,11 +476,12 @@ router.post("/api/official/call", async (req: Request, res: Response) => {
 /** 从官服同步卡池详情 */
 router.post("/api/official/sync-gacha", async (req: Request, res: Response) => {
   try {
-    const { phone, pwd, poolIds } = req.body ?? {};
+    const { phone, pwd, poolIds, refresh } = req.body ?? {};
     const result = await adminService.syncGachaPools(
       String(phone),
       String(pwd),
       Array.isArray(poolIds) ? poolIds : undefined,
+      { refresh: refresh === true },
     );
     res.json(result);
   } catch (err) {

@@ -290,7 +290,7 @@ describe("AdminService 官服卡池同步", () => {
 
   it("syncGachaPools 应备份旧文件、合并写回、保留未抓取池", async () => {
     const r = await service.syncGachaPools("13800000000", "pwd");
-    expect(r).toMatchObject({ total: 2, ok: 1, updated: 1, failed: [{ poolId: "BAD" }] });
+    expect(r).toMatchObject({ total: 2, ok: 1, skipped: 0, updated: 1, failed: [{ poolId: "BAD" }] });
     // 备份旧详情表
     expect(copyFile).toHaveBeenCalledWith(
       "./data/gacha_detail_table.json",
@@ -309,6 +309,36 @@ describe("AdminService 官服卡池同步", () => {
 
   it("syncGachaPools 支持指定 poolIds（不读本地列表）", async () => {
     await service.syncGachaPools("13800000000", "pwd", ["NORM_0_1_3"]);
+    expect(runGachaSync).toHaveBeenCalledWith("13800000000", "pwd", ["NORM_0_1_3"]);
+  });
+
+  it("syncGachaPools 补全模式应跳过本地已有池", async () => {
+    vi.mocked(readJson).mockImplementation(async (p: string) => {
+      if (String(p).includes("gacha_table")) {
+        return { gachaPoolClient: [{ gachaPoolId: "NORM_0_1_3" }, { gachaPoolId: "NORM_0_1_4" }] };
+      }
+      return { details: { "NORM_0_1_3": { upCharInfo: null } } };
+    });
+    vi.mocked(runGachaSync).mockResolvedValue([
+      { poolId: "NORM_0_1_4", detailInfo: { upCharInfo: {} } },
+    ]);
+    const r = await service.syncGachaPools("13800000000", "pwd");
+    expect(r.skipped).toBe(1); // NORM_0_1_3 已存在跳过
+    expect(runGachaSync).toHaveBeenCalledWith("13800000000", "pwd", ["NORM_0_1_4"]);
+  });
+
+  it("syncGachaPools refresh=true 应全量不跳过", async () => {
+    vi.mocked(readJson).mockImplementation(async (p: string) => {
+      if (String(p).includes("gacha_table")) {
+        return { gachaPoolClient: [{ gachaPoolId: "NORM_0_1_3" }] };
+      }
+      return { details: { "NORM_0_1_3": { upCharInfo: null } } };
+    });
+    vi.mocked(runGachaSync).mockResolvedValue([
+      { poolId: "NORM_0_1_3", detailInfo: { upCharInfo: {} } },
+    ]);
+    const r = await service.syncGachaPools("13800000000", "pwd", undefined, { refresh: true });
+    expect(r.skipped).toBe(0);
     expect(runGachaSync).toHaveBeenCalledWith("13800000000", "pwd", ["NORM_0_1_3"]);
   });
 

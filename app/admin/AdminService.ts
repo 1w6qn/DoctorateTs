@@ -1584,9 +1584,11 @@ export class AdminService {
     phone: string,
     pwd: string,
     poolIds?: string[],
+    opts?: { refresh?: boolean },
   ): Promise<{
     total: number;
     ok: number;
+    skipped: number;
     failed: { poolId: string; error: string }[];
     updated: number;
   }> {
@@ -1602,7 +1604,14 @@ export class AdminService {
     if (!targets.length) {
       throw new Error("未提供 poolId 且本地 gachaPoolClient 为空");
     }
-    const results = await runGachaSync(phone, pwd, targets);
+    // 补全模式（默认）：跳过本地已有的卡池，只抓缺失的新池；--refresh 全量刷新
+    const current = (await readJson<any>("./data/gacha_detail_table.json").catch(() => ({}))) ?? {};
+    const existingKeys = new Set(Object.keys(current.details ?? {}));
+    const refresh = opts?.refresh === true;
+    const toSync = refresh ? targets : targets.filter((p) => !existingKeys.has(p));
+    const skipped = targets.length - toSync.length;
+
+    const results = await runGachaSync(phone, pwd, toSync);
     const ok = results.filter((r) => r.detailInfo);
     const failed = results
       .filter((r) => r.error)
@@ -1613,7 +1622,6 @@ export class AdminService {
     if (await exists(target)) {
       await copyFile(target, `${target}.${formatTs(now())}.bak`);
     }
-    const current = (await readJson<any>(target).catch(() => ({}))) ?? {};
     const details = current.details ?? {};
     for (const r of ok) {
       details[r.poolId] = r.detailInfo;
@@ -1622,9 +1630,15 @@ export class AdminService {
     await this._audit(
       "syncGachaPools",
       "",
-      `${phone} → ${ok.length}/${results.length} 池（失败 ${failed.length}）`,
+      `${phone} → ${ok.length}/${toSync.length} 池（跳过 ${skipped}，失败 ${failed.length}）${refresh ? "，全量刷新" : ""}`,
     );
-    return { total: results.length, ok: ok.length, failed, updated: ok.length };
+    return {
+      total: targets.length,
+      ok: ok.length,
+      skipped,
+      failed,
+      updated: ok.length,
+    };
   }
 
   /** 统计聚合（等级分布/注册分布/资源合计） */

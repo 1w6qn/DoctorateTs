@@ -1628,7 +1628,7 @@
         '<input id="of-cgi" placeholder="/mail/getMetaInfoList">' +
         '<label>请求体（JSON，可选）</label><textarea id="of-cgi-body" rows="2" placeholder="{from:0}"></textarea>' +
         '<button id="of-call" class="primary">调用</button><div class="resp-box" id="of-call-resp"></div>') +
-      toolCard("🎴", "卡池同步", "抓取官服卡池到私服",
+      toolCard("🎴", "卡池同步", "补全缺失池（跳过已有）",
         '<label>poolIds（逗号分隔，缺省本地全部）</label><input id="of-pools" placeholder="NORM_0_1_3,LIMITED_58_0_1">' +
         '<button id="of-gacha" class="primary">同步卡池</button><div class="resp-box" id="of-gacha-resp"></div>') +
       toolCard("📦", "账号迁移", "官服数据迁移到私服",
@@ -1680,7 +1680,7 @@
       if (pools) {
         payload.poolIds = pools.split(",").map(function (s) { return s.trim(); }).filter(Boolean);
       }
-      $("of-gacha-resp").textContent = "同步中...（逐个抓取，请耐心等待）";
+      $("of-gacha-resp").textContent = "同步中...（补全模式：跳过本地已有池，请耐心等待）";
       api("/official/sync-gacha", { method: "POST", body: JSON.stringify(payload) })
         .then(function (r) {
           var lines = r.failed.map(function (f) { return "[失败] " + f.poolId + ": " + f.error; });

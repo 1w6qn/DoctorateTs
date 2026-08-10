@@ -429,7 +429,7 @@ describe("admin 路由（扩展能力）", () => {
       { method: "POST", url: "/api/official/sync-gacha", body: { phone: "13800000000", pwd: "pwd" } },
       res,
     );
-    expect(adminService.syncGachaPools).toHaveBeenCalledWith("13800000000", "pwd", undefined);
+    expect(adminService.syncGachaPools).toHaveBeenCalledWith("13800000000", "pwd", undefined, { refresh: false });
     expect(res.json).toHaveBeenCalledWith({ total: 2, ok: 1, failed: [], updated: 1 });
   });
 

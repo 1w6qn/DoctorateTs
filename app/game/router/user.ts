@@ -5,6 +5,7 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
 import {
@@ -30,6 +31,8 @@ import {
   ExchangeDiamondShardResponse,
   GetCgCollectionRequest,
   GetCgCollectionResponse,
+  GetCollectionRewardsRequest,
+  GetCollectionRewardsResponse,
   GetFirstRewardsRequest,
   GetFirstRewardsResponse,
   GetThumbnailUrlRequest,
@@ -549,12 +552,43 @@ rootRouter.post("/medal/setCustomData", async (req, res) => {
 /**
  * 领取画廊收集奖励
  *
- * 参考实现中为占位接口（返回 {}, 202）。
+ * 按 collectionSets[setId].missionList[missionId].rewardList 发放奖励并标记已领取
+ * （CS: ArtMagazineGetCollectionRewardsRequest/Response { setId, missionId, rewards }）。
+ * 修复：原占位实现 res.sendStatus(202) 返回文本 "Accepted"，客户端按 JSON 解析失败。
  *
  * 路径：POST /gallery/getCollectionRewards
  */
 rootRouter.post("/gallery/getCollectionRewards", async (req, res) => {
-  res.sendStatus(202);
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as GetCollectionRewardsRequest;
+  const rewards: ItemBundle[] = [];
+  const set = excel.DisplayMetaTable?.artGalleryCollectData?.collectionSets?.[
+    body.setId ?? ""
+  ];
+  const mission = set?.missionList?.[body.missionId ?? ""];
+  if (mission?.rewardList?.length) {
+    rewards.push(...mission.rewardList);
+    let granted = false;
+    await player.update(async (draft) => {
+      const gallery = ensureGallery(draft);
+      if (!gallery.collectionRewards) gallery.collectionRewards = {};
+      // 幂等：已领取不重复发放
+      if (gallery.collectionRewards[body.missionId!] == null) {
+        gallery.collectionRewards[body.missionId!] = 1;
+        granted = true;
+      }
+    });
+    // 发放移到 recipe 外（避免嵌套 update → revoked proxy/慢）
+    if (granted) {
+      await player._trigger.emit("items:get", [rewards]);
+    } else {
+      rewards.length = 0;
+    }
+  }
+  res.status(202).send({
+    rewards,
+    ...player.delta,
+  } satisfies GetCollectionRewardsResponse);
 });
 
 /**

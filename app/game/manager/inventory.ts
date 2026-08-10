@@ -326,10 +326,31 @@ export class InventoryManager {
       },
       EXCLUSIVE_TKT_GACHA: consumableFunc,
       EXCLUSIVE_TKT_GACHA_10: consumableFunc,
+      MAGAZINE_LEAF: async (item, draft) => {
+        // 画廊收集奖励：杂志页入 leafMap（对齐 OBS gallery.leafMap 结构；
+        // charSkin 线格式可为 null，生成类型未标可选故 as any）
+        if (!draft.gallery) (draft as any).gallery = {};
+        if (!draft.gallery.leafMap) draft.gallery.leafMap = {};
+        if (!draft.gallery.leafMap[item.id]) {
+          draft.gallery.leafMap[item.id] = {
+            leafId: item.id,
+            charSkin: null,
+            decorList: [],
+            getTs: now(),
+            version: 0,
+          } as any;
+        }
+      },
     };
     callback?.();
     await this._player.update(async (draft) => {
-      await funcs[item.type!](item, draft);
+      const fn = funcs[item.type!];
+      // 防御：未知物品类型不 500（WARN + 跳过，避免画廊等新奖励类型炸接口）
+      if (typeof fn !== "function") {
+        logger.warn("inventory", `items:get 未知物品类型 ${item.type}（${item.id}），跳过发放`);
+        return;
+      }
+      await fn(item, draft);
     });
   }
 }

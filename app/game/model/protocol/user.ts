@@ -112,6 +112,12 @@ export interface RemoveCgCollectionRequest {
 /** 获取画廊首通奖励请求（服务端自定义，无 CS 对应类） */
 export interface GetFirstRewardsRequest {}
 
+/** 获取画廊收集奖励请求（CS: ArtMagazineGetCollectionRewardsRequest { setId, missionId }） */
+export interface GetCollectionRewardsRequest {
+  setId?: string;
+  missionId?: string;
+}
+
 /** 获取杂志缩略图 URL 请求（服务端自定义，无 CS 对应类） */
 export interface GetThumbnailUrlRequest {
   idList: string[];
@@ -207,6 +213,11 @@ export type RemoveCgCollectionResponse = GetCgCollectionResponse;
 
 /** 获取画廊首通奖励响应（服务端自定义） */
 export type GetFirstRewardsResponse = PlayerDeltaResponse;
+
+/** 获取画廊收集奖励响应（CS: ArtMagazineGetCollectionRewardsResponse { rewards }） */
+export interface GetCollectionRewardsResponse extends PlayerDeltaResponse {
+  rewards: ItemBundle[];
+}
 
 /** 获取杂志缩略图 URL 响应（服务端自定义） */
 export interface GetThumbnailUrlResponse extends PlayerDeltaResponse {

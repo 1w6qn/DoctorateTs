@@ -661,11 +661,32 @@ describe("BuildingManager 贸易站", () => {
     expect(mockPlayer._playerdata.status!.gold).toBe(2500); // 1000 + 1500
   });
 
-  it("accelerateSolution 应结算全部库存订单", async () => {
+  it("accelerateSolution 应加速制造站方案（扣费用 + 产出 1 个方案）", async () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
-    await manager.accelerateSolution({ slotId: "slot_6" } as any);
-    expect(mockPlayer._playerdata.building!.rooms.TRADING.slot_6.stock).toEqual([]);
-    expect(mockPlayer._playerdata.status!.gold).toBe(4500);
+    // 给 mock 加一个开工的制造站
+    (mockPlayer._playerdata.building!.rooms as any).MANUFACTURE["slot_25"] = {
+      state: 1,
+      formulaId: "4",
+      remainSolutionCnt: 5,
+      outputSolutionCnt: 0,
+      processPoint: 0,
+      lastUpdateTime: 0,
+      completeWorkTime: 0,
+      capacity: 1,
+    };
+    (mockPlayer._playerdata.status as any).diamondShard = 1000;
+    await manager.accelerateSolution({ slotId: "slot_25", cost: 145 } as any);
+    const room = (mockPlayer._playerdata.building!.rooms as any).MANUFACTURE["slot_25"];
+    expect(room.outputSolutionCnt).toBe(1);
+    expect(room.remainSolutionCnt).toBe(4);
+    expect(mockPlayer._playerdata.status!.diamondShard).toBe(855);
+  });
+
+  it("accelerateSolution 无可加速方案（未开工）不应扣费", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    (mockPlayer._playerdata.status as any).diamondShard = 1000;
+    await manager.accelerateSolution({ slotId: "slot_25", cost: 145 } as any);
+    expect(mockPlayer._playerdata.status!.diamondShard).toBe(1000);
   });
 });
 

@@ -615,11 +615,31 @@ export class BuildingManager {
   }
 
   /**
-   * 加速方案（立即结算全部库存订单）
-   * @param args - 包含 slotId 的参数对象
+   * 加速方案（制造站——立即完成当前生产方案并扣除加速费用）
+   * 修复：原实现委托 settleSale 查 TRADING 房间，而客户端传的是制造站 slotId
+   * （抓包 {"slotId":"slot_15","cost":145}）→ 空 delta。改为扣 diamondShard
+   * 费用 + 立即产出当前方案 1 个（受剩余目标限制）。
+   * @param args - 包含 slotId（制造站槽位）和 cost（加速费用）的参数对象
    */
-  async accelerateSolution(args: { slotId: string }) {
-    return this.settleSale(args);
+  async accelerateSolution(args: { slotId: string; cost?: number }) {
+    await this._player.update(async (draft) => {
+      const room = draft.building.rooms.MANUFACTURE[args.slotId];
+      // 无可加速方案（房间不存在/未开工/无配方）——不扣费不 500
+      if (!room || !room.formulaId || room.state !== 1) return;
+      const formula = getManufactFormula(String(room.formulaId));
+      if (!formula) return;
+      const costPoint = formula.costPoint ?? 0;
+      if (costPoint <= 0) return;
+      if (args.cost) {
+        draft.status.diamondShard = (draft.status.diamondShard ?? 0) - args.cost;
+      }
+      // 立即完成当前生产方案：产出 1 个方案
+      if ((room.remainSolutionCnt ?? 0) > 0) room.remainSolutionCnt -= 1;
+      room.outputSolutionCnt = (room.outputSolutionCnt ?? 0) + 1;
+      room.processPoint = 0;
+      room.lastUpdateTime = now();
+      room.completeWorkTime = now();
+    });
   }
 
   /**

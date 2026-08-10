@@ -64,6 +64,30 @@ function reorderRootKeys<T>(data: T): T {
   return ordered as T;
 }
 
+/**
+ * 递归冻结对象（跳过已冻结节点，幂等）
+ */
+function deepFreeze(obj: any): void {
+  if (!obj || typeof obj !== "object" || Object.isFrozen(obj)) return;
+  Object.freeze(obj);
+  for (const key of Object.keys(obj)) {
+    deepFreeze(obj[key]);
+  }
+}
+
+/**
+ * 深冻结存档顶层子树（排除指定键——直接改 _playerdata 的子树必须保持可变）
+ * @param data - 玩家数据对象（原地冻结其顶层子树）
+ * @param except - 不冻结的顶层键（rlv2/medal/dungeon/status）
+ */
+function deepFreezeExcept(data: any, except: string[]): void {
+  if (!data || typeof data !== "object") return;
+  for (const key of Object.keys(data)) {
+    if (except.includes(key)) continue;
+    deepFreeze(data[key]);
+  }
+}
+
 export class AccountManager {
   /** 玩家数据管理器映射，key为uid */
   data: { [key: string]: PlayerDataManager };
@@ -261,6 +285,11 @@ export class AccountManager {
       this.data[uid]._playerdata.status.uid = uid;
       void this.flushSave(uid);
     }
+    // 性能：深冻结大子树（排除直接改 _playerdata 的 rlv2/medal/dungeon/status，以及
+    // 构造后异步 init 原地补结构的 mission）。Immer autoFreeze 关闭时 finalize 会遍历
+    // 变更路径前的全部顶层子树；冻结后 finalize 对冻结子树 O(1) 跳过（isFrozen 短路），
+    // 只有实际修改的路径被遍历。冻结子树在会话内不可变 → 不会产生新损坏。
+    deepFreezeExcept(data as any, ["rlv2", "medal", "dungeon", "status", "mission"]);
     this.data[uid]._trigger.on("save", () => {
       // 防抖合并：500ms 内的多次变更只落盘一次
       this.scheduleSave(uid);

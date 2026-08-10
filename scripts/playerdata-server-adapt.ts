@@ -468,6 +468,10 @@ export const SERVER_FIELD_TYPE_OVERRIDES: Record<string, string> = {
   "PlayerCharPatch.currentEquip": "string | null",
   "PlayerSquadItem.currentEquip": "string | null",
   "PlayerFriendAssist.currentEquip": "string | null",
+  // 干员技能：线格式 skills = [{ skillId, unlock, state, specializeLevel, completeUpgradeTime }]
+  // （字段级覆盖，客户端 PlayerCharSkill 缺 state/completeUpgradeTime）
+  "PlayerCharacter.skills": "{ skillId: string; unlock: number; state: number; specializeLevel: number; completeUpgradeTime: number }[]",
+  "PlayerCharPatch.skills": "{ skillId: string; unlock: number; state: number; specializeLevel: number; completeUpgradeTime: number }[]",
   // 名片皮肤解锁进度线格式可为 null（老皮肤无进度）
   "PlayerNameCardSkin_SkinState.progress": "number[][] | null",
 };

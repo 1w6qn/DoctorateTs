@@ -1,9 +1,18 @@
 import { describe, it, expect } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
-import { buildPlayerDataTypes } from "../../../scripts/playerdata-builder";
+import { buildTypes } from "../../../scripts/types-builder";
+import { applyServerAdapt, applyWireFormat } from "../../../scripts/playerdata-server-adapt";
 
 const fixture = fs.readFileSync(path.join(__dirname, "../../fixtures/playerdata-sample.cs"), "utf-8");
+
+function buildPlayerDataTypes(content: string) {
+  return buildTypes(content, {
+    roots: ["PlayerDataModel"],
+    adapt: (classes, enumNames) => applyWireFormat(applyServerAdapt(classes), enumNames),
+    headerLines: [],
+  });
+}
 
 describe("playerdata-builder", () => {
   it("闭包包含 PlayerDataModel 可达类型，排除无关类", () => {

@@ -1,8 +1,14 @@
 import { parseFile, extractTypeNames, type ClassDef, type EnumDef } from "./playerdata-parser";
-import { applyExcelAdapt, allTableRoots, EXCEL_ENUM_ADDITIONS, EXCEL_INDEX_SIGNATURES } from "./excel-server-adapt";
 
-/** PlayerDataModel 类型闭包（类），字段类型引用传递——多根版本 */
-function buildClassClosure(classes: ClassDef[], roots: string[]): Set<string> {
+/**
+ * 类型闭包构建共用模块（playerdata / excel 两个域共用）
+ *
+ * 从 C# 反编译内容构建「根类闭包」的 TS 类型定义：多根闭包、枚举补充、
+ * 索引签名、未定义引用自检。各域只提供 roots/adapt/输出配置。
+ */
+
+/** 类型闭包（类），字段类型引用传递——多根版本 */
+export function buildClassClosure(classes: ClassDef[], roots: string[]): Set<string> {
   const included = new Set<string>(roots);
   let changed = true;
   while (changed) {
@@ -28,16 +34,34 @@ function buildClassClosure(classes: ClassDef[], roots: string[]): Set<string> {
   return included;
 }
 
-function generateEnumCode(enumDef: EnumDef): string {
-  const additions = EXCEL_ENUM_ADDITIONS[enumDef.name] ?? [];
+export interface TypesBuildConfig {
+  /** 根类名（闭包起点，多根） */
+  roots: string[];
+  /** 域适配函数（playerdata：服务端协议 + wire pass；excel：表结构适配）；第二个参数为闭包枚举名 */
+  adapt: (classes: ClassDef[], enumNames: Set<string>) => ClassDef[];
+  /** 枚举值补充（JSON 含客户端枚举未定义的新值） */
+  enumAdditions?: Record<string, string[]>;
+  /** 附加索引签名的接口（运行时以 dict 键访问） */
+  indexSignatures?: string[];
+  /** 输出头注行 */
+  headerLines: string[];
+}
+
+export interface BuildResult {
+  output: string;
+  classes: string[];
+  enums: string[];
+}
+
+export function generateEnumCode(enumDef: EnumDef, additions: string[] = []): string {
   const values = [...new Set([...enumDef.values, ...additions])];
   if (values.length === 0) return `export type ${enumDef.name} = string;`;
   const joined = values.map(v => `"${v}"`).join(" | ");
   return `export type ${enumDef.name} = ${joined};`;
 }
 
-function generateInterfaceCode(classDef: ClassDef): string {
-  // 整接口覆盖为类型别名（excel 适配层用，如继承类补全）
+export function generateInterfaceCode(classDef: ClassDef, indexSignatures: string[] = []): string {
+  // 整接口覆盖为类型别名（服务端字典结构/继承类补全）
   if (classDef.aliasType !== undefined) {
     return `export type ${classDef.name} = ${classDef.aliasType};`;
   }
@@ -45,38 +69,31 @@ function generateInterfaceCode(classDef: ClassDef): string {
   if (classDef.arrayOfType !== undefined) {
     return `export type ${classDef.name} = ${classDef.arrayOfType}[];`;
   }
-  if (classDef.fields.length === 0 && !EXCEL_INDEX_SIGNATURES.includes(classDef.name)) return `export interface ${classDef.name} {}`;
+  if (classDef.fields.length === 0 && !indexSignatures.includes(classDef.name)) {
+    return `export interface ${classDef.name} {}`;
+  }
   const optional = new Set(classDef.optionalFields ?? []);
   const fields = classDef.fields
     .map(f => `    ${f.name}${optional.has(f.name) ? "?" : ""}: ${f.type};`)
     .join("\n");
-  const indexSig = EXCEL_INDEX_SIGNATURES.includes(classDef.name) ? "\n    [key: string]: any;" : "";
+  const indexSig = indexSignatures.includes(classDef.name) ? "\n    [key: string]: any;" : "";
   return `export interface ${classDef.name} {\n${fields}${indexSig}\n}`;
 }
 
-export interface BuildResult {
-  output: string;
-  classes: string[];
-  enums: string[];
-  missingRoots: string[];
-}
-
 /**
- * 从 C# 反编译内容构建 excel 表类型定义。
- * 多根闭包：所有表根类的字段类型传递可达的类与枚举。
+ * 从 C# 反编译内容构建类型闭包定义。
  * 自检：字段引用的 Torappu 类型必须全部已定义，否则抛错。
  */
-export function buildExcelTypes(content: string): BuildResult {
+export function buildTypes(content: string, config: TypesBuildConfig): BuildResult {
   const { classes, enums } = parseFile(content);
   const classByName = new Map(classes.map(c => [c.name, c]));
 
-  const missingRoots = allTableRoots().filter(r => !classByName.has(r));
+  const missingRoots = config.roots.filter(r => !classByName.has(r));
   if (missingRoots.length > 0) {
-    throw new Error(`excel 表根类在 cs 中不存在: ${missingRoots.join(", ")}`);
+    throw new Error(`类型根类在 cs 中不存在: ${missingRoots.join(", ")}`);
   }
 
-  const roots = allTableRoots();
-  const classClosure = buildClassClosure(classes, roots);
+  const classClosure = buildClassClosure(classes, config.roots);
   const filteredClasses = classes.filter(c => classClosure.has(c.name));
 
   // 闭包枚举：闭包类的字段所引用的枚举
@@ -103,26 +120,25 @@ export function buildExcelTypes(content: string): BuildResult {
     });
   });
   if (missing.size > 0) {
-    throw new Error(`excel 类型闭包存在未定义引用: ${[...missing].join(", ")}`);
+    throw new Error(`类型闭包存在未定义引用: ${[...missing].join(", ")}`);
   }
 
-  // excel 服务端协议适配（表结构修正，数据驱动）
-  const adaptedClasses = applyExcelAdapt(filteredClasses);
+  // 域适配（服务端协议 / 表结构修正），传入闭包枚举名（wire pass 需要）
+  const adaptedClasses = config.adapt(filteredClasses, new Set(filteredEnums.map(e => e.name)));
+  const enumAdditions = config.enumAdditions ?? {};
+  const indexSignatures = config.indexSignatures ?? [];
 
   let output = "/**\n";
-  output += " * 自动生成的 excel 表类型定义文件\n";
-  output += " * 从 reference/com.hypergryph.arknights_2.7.61.cs 反编译文件生成\n";
-  output += " * （客户端表类闭包 + excel 协议适配，见 scripts/excel-server-adapt.ts）\n";
-  output += " * 生成命令: npm run generate:excel\n";
+  for (const line of config.headerLines) output += ` * ${line}\n`;
   output += " * 请勿手动修改此文件\n";
   output += " */\n\n";
 
   filteredEnums.forEach(enumDef => {
-    output += generateEnumCode(enumDef);
+    output += generateEnumCode(enumDef, enumAdditions[enumDef.name]);
     output += "\n\n";
   });
   adaptedClasses.forEach(classDef => {
-    output += generateInterfaceCode(classDef);
+    output += generateInterfaceCode(classDef, indexSignatures);
     output += "\n\n";
   });
 
@@ -130,6 +146,5 @@ export function buildExcelTypes(content: string): BuildResult {
     output,
     classes: adaptedClasses.map(c => c.name),
     enums: filteredEnums.map(e => e.name),
-    missingRoots,
   };
 }

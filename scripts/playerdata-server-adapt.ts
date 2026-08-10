@@ -1,4 +1,5 @@
 import type { ClassDef } from "./playerdata-parser";
+import { applyAdaptOps } from "./types-adapt";
 
 /**
  * 服务端协议适配层
@@ -334,52 +335,18 @@ export const SERVER_OVERRIDE_FIELDS: Record<string, Record<string, string>> = {
   },
 };
 
-/** 应用整接口覆盖（"[server]" 键）：返回覆盖后的类型别名；无覆盖返回 null */
-function applyWholeOverride(iface: ClassDef): string | null {
-  const override = SERVER_OVERRIDE_FIELDS[iface.name];
-  if (!override) return null;
-  const whole = override["[server]"];
-  return whole === undefined ? null : whole;
-}
-
 /**
- * 应用服务端协议适配：rename → add → override（按序）
+ * 应用服务端协议适配：rename → add → override → 字段覆盖（共享应用逻辑）
  * @param classes - 客户端闭包类定义
  * @returns 适配后的类定义列表（不修改入参）
  */
 export function applyServerAdapt(classes: ClassDef[]): ClassDef[] {
-  return classes.map(iface => {
-    const rename = SERVER_RENAME_FIELDS[iface.name] ?? {};
-    const add = SERVER_ADD_FIELDS[iface.name] ?? {};
-    const optional = SERVER_OPTIONAL_FIELDS[iface.name] ?? [];
-
-    // 1. rename
-    let fields = iface.fields.map(f => {
-      const target = rename[f.name];
-      return target ? { ...f, name: target } : { ...f };
-    });
-
-    // 2. add（不重复）
-    for (const [name, type] of Object.entries(add)) {
-      if (!fields.some(f => f.name === name)) {
-        fields.push({ name, rawType: type, type });
-      }
-    }
-
-    // 3. override（整接口覆盖优先：转为类型别名；字段级覆盖：替换类型）
-    const aliasType = applyWholeOverride(iface);
-    if (aliasType !== null) {
-      return { ...iface, fields: [], aliasType, optionalFields: optional };
-    }
-    const override = SERVER_OVERRIDE_FIELDS[iface.name];
-    if (override) {
-      fields = fields.map(f => {
-        const target = override[f.name];
-        return target ? { ...f, rawType: target, type: target } : f;
-      });
-    }
-
-    return { ...iface, fields, optionalFields: optional };
+  // 字段级类型覆盖由 applyWireFormat 最后应用（保持原顺序）
+  return applyAdaptOps(classes, {
+    rename: SERVER_RENAME_FIELDS,
+    add: SERVER_ADD_FIELDS,
+    override: SERVER_OVERRIDE_FIELDS,
+    optional: SERVER_OPTIONAL_FIELDS,
   });
 }
 

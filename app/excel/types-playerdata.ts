@@ -307,17 +307,25 @@ export interface AvatarInfo {
     id: string;
 }
 
+export interface PlayerSquadTmpl {
+    skillIndex: number;
+    currentEquip: string;
+}
+
 export interface PlayerSquadItem {
     charInstId: number;
+    currentTmpl?: string;
+    tmpl: { [key: string]: PlayerSquadTmpl };
     skillIndex: number;
     currentEquip: string | null;
 }
 
 export interface PlayerFriendAssist {
     charInstId: number;
+    currentTmpl?: string;
+    tmpl: { [key: string]: PlayerSquadTmpl };
     skillIndex: number;
     currentEquip: string | null;
-    currentTmpl?: string;
 }
 
 export interface PlayerSquad {
@@ -593,6 +601,9 @@ export interface PlayerActivity_PlayerMultiplayActivity {
 }
 
 export interface PlayerActivity_PlayerMultiplayV2Activity_PlayerMultiplayV2SquadItem {
+    charInstId: number;
+    currentTmpl: string;
+    tmpl: { [key: string]: PlayerSquadTmpl };
     instId: number;
 }
 
@@ -718,6 +729,9 @@ export interface PlayerActivity_PlayerMultiV3Activity_Squad {
 }
 
 export interface PlayerActivity_PlayerMultiV3Activity_SquadItem {
+    charInstId: number;
+    currentTmpl: string;
+    tmpl: { [key: string]: PlayerSquadTmpl };
     innerInstId: number;
 }
 
@@ -1438,9 +1452,16 @@ export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChes
     price: number;
 }
 
-export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessTrap {}
+export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessTrap {
+    instId: number;
+    chessId: string;
+    overrideChessId: string;
+}
 
 export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessChar {
+    instId: number;
+    chessId: string;
+    overrideChessId: string;
     equip: { [key: number]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessTrap };
     damage: number;
 }
@@ -2092,10 +2113,10 @@ export interface PlayerCommonShopProgressData {
 }
 
 export interface PlayerLowQCShopProgressData {
-    curGroupId: string;
-    lggCostTotal: number;
     curShopId: string;
     info: PlayerGoodItemData[];
+    curGroupId: string;
+    lggCostTotal: number;
 }
 
 export interface PlayerHighQCShopProgressData {
@@ -2829,15 +2850,15 @@ export interface PlayerCrisisV2Season_RewardInfo {
 }
 
 export interface PlayerCrisisV2Season_PermanentMapInfo {
+    state: number;
+    scoreTotal: number[];
+    rune: { [key: string]: number };
+    challenge: { [key: string]: number };
     scoreSingle: number[];
     comment: string[];
     exRunes: { [key: string]: number };
     runePack: { [key: string]: number };
     reward: { [key: string]: PlayerCrisisV2Season_RewardInfo };
-    state: number;
-    scoreTotal: number;
-    rune: object;
-    challenge: object;
 }
 
 export interface PlayerCrisisV2Season_BasicMapInfo {
@@ -2946,6 +2967,18 @@ export interface PlayerRoguelikeItem {
 }
 
 export interface PlayerRoguelikeCharacter {
+    instId: number;
+    charId: string;
+    level: number;
+    exp: number;
+    evolvePhase: number;
+    potentialRank: number;
+    favorPoint: number;
+    mainSkillLvl: number;
+    gainTime: number;
+    starMark: number;
+    currentTmpl: string;
+    tmpl: { [key: string]: PlayerCharPatch };
     upgradePhase: number;
     upgradeLimited: number;
     isAddition: number;
@@ -3133,6 +3166,18 @@ export interface PlayerRoguelikeV2_CurrentData_PlayerStatus {
 }
 
 export interface PlayerRoguelikeV2_CurrentData_Char {
+    instId: number;
+    charId: string;
+    level: number;
+    exp: number;
+    evolvePhase: number;
+    potentialRank: number;
+    favorPoint: number;
+    mainSkillLvl: number;
+    gainTime: number;
+    starMark: number;
+    currentTmpl: string;
+    tmpl: { [key: string]: PlayerCharPatch };
     upgradePhase: number;
     upgradeLimited: number;
     type: number;
@@ -3140,6 +3185,18 @@ export interface PlayerRoguelikeV2_CurrentData_Char {
 }
 
 export interface PlayerRoguelikeV2_CurrentData_RecruitChar {
+    instId: number;
+    charId: string;
+    level: number;
+    exp: number;
+    evolvePhase: number;
+    potentialRank: number;
+    favorPoint: number;
+    mainSkillLvl: number;
+    gainTime: number;
+    starMark: number;
+    currentTmpl: string;
+    tmpl: { [key: string]: PlayerCharPatch };
     type: number;
     upgradePhase: number;
     upgradeLimited: number;
@@ -3195,6 +3252,17 @@ export interface PlayerRoguelikeV2_CurrentData_ExploreTool {
 }
 
 export interface PlayerRoguelikeV2_CurrentData_Recruit_OrigChar {
+    nickName: string;
+    uid: string;
+    serverName: string;
+    nickNumber: string;
+    level: number;
+    lastOnlineTime: number;
+    recentVisited: number;
+    avatar: AvatarInfo;
+    secretary: string;
+    secretarySkinId: string;
+    secretarySkinSp: number;
     assistSlotIndex: number;
     aliasName: string;
     assistCharList: SharedCharData[];
@@ -4562,25 +4630,62 @@ export interface PlayerSandboxV2_Dungeon_ReportSettle {
     detail: PlayerSandboxV2_Dungeon_ReportDetail;
 }
 
-export interface PlayerSandboxV2_Dungeon_BaseInfo {}
+export interface PlayerSandboxV2_Dungeon_BaseInfo {
+    key: string;
+    pos: number[];
+    isDead: number;
+    hpRatio: number;
+}
 
-export interface PlayerSandboxV2_Dungeon_Portable {}
+export interface PlayerSandboxV2_Dungeon_Portable {
+    key: string;
+    pos: number[];
+    isDead: number;
+    hpRatio: number;
+}
 
-export interface PlayerSandboxV2_Dungeon_Nest {}
+export interface PlayerSandboxV2_Dungeon_Nest {
+    key: string;
+    pos: number[];
+    isDead: number;
+    hpRatio: number;
+}
 
 export interface PlayerSandboxV2_Dungeon_Cave {
+    key: string;
+    pos: number[];
+    isDead: number;
+    hpRatio: number;
     extraParam: number;
 }
 
-export interface PlayerSandboxV2_Dungeon_Gate {}
+export interface PlayerSandboxV2_Dungeon_Gate {
+    key: string;
+    pos: number[];
+    isDead: number;
+    hpRatio: number;
+}
 
-export interface PlayerSandboxV2_Dungeon_Mine {}
+export interface PlayerSandboxV2_Dungeon_Mine {
+    key: string;
+    pos: number[];
+    isDead: number;
+    hpRatio: number;
+}
 
 export interface PlayerSandboxV2_Dungeon_Selection {
+    key: string;
+    pos: number[];
+    isDead: number;
+    hpRatio: number;
     count: number[];
 }
 
 export interface PlayerSandboxV2_Dungeon_Collect {
+    key: string;
+    pos: number[];
+    isDead: number;
+    hpRatio: number;
     count: number[];
     extraParam: number;
 }
@@ -4590,7 +4695,12 @@ export interface PlayerSandboxV2_Dungeon_Hunt {
     count: number[];
 }
 
-export interface PlayerSandboxV2_Dungeon_Trap {}
+export interface PlayerSandboxV2_Dungeon_Trap {
+    key: string;
+    pos: number[];
+    isDead: number;
+    hpRatio: number;
+}
 
 export interface PlayerSandboxV2_Dungeon_Building {
     key: string;
@@ -4922,19 +5032,37 @@ export interface PlayerSandboxV2_Racing_RacerName {
     suffix: string;
 }
 
-export interface PlayerSandboxV2_Racing_TempRacerInfo {}
+export interface PlayerSandboxV2_Racing_RacerTalent {
+    born: string;
+    learned: string;
+}
+
+export interface PlayerSandboxV2_Racing_TempRacerInfo {
+    racerId: string;
+    inst: number;
+    level: number;
+    attribute: number[];
+    talent: PlayerSandboxV2_Racing_RacerTalent;
+}
 
 export interface PlayerSandboxV2_Racing_RacerInfo {
+    racerId: string;
+    inst: number;
+    level: number;
+    attribute: number[];
+    talent: PlayerSandboxV2_Racing_RacerTalent;
     name: PlayerSandboxV2_Racing_RacerName;
     mark: number;
     medal: string[];
 }
 
 export interface PlayerSandboxV2_Racing_TempRacerBag {
+    capacity: number;
     racer: { [key: string]: PlayerSandboxV2_Racing_TempRacerInfo };
 }
 
 export interface PlayerSandboxV2_Racing_RacerBag {
+    capacity: number;
     racer: { [key: string]: PlayerSandboxV2_Racing_RacerInfo };
 }
 
@@ -5191,6 +5319,18 @@ export interface PlayerSandboxV3CurrentEvent {
 }
 
 export interface PlayerSandboxV3CurrentChar {
+    instId: number;
+    charId: string;
+    level: number;
+    exp: number;
+    evolvePhase: number;
+    potentialRank: number;
+    favorPoint: number;
+    mainSkillLvl: number;
+    gainTime: number;
+    starMark: number;
+    currentTmpl: string;
+    tmpl: { [key: string]: PlayerCharPatch };
     charType: number;
 }
 
@@ -5546,11 +5686,11 @@ export interface PlayerGallery {
 }
 
 export interface PlayerArtMagazineLeafData {
+    leafId: string;
+    decorList: ArtMagazineLeafElementData[];
+    charSkin: ArtMagazineLeafElementData;
     getTs: number;
     version: number;
-    leafId: string;
-    charSkin: string;
-    decorList: string[];
 }
 
 export interface PlayerArkOdc {
@@ -5650,6 +5790,38 @@ export interface Blackboard_DataPair {
 
 export type Blackboard = Blackboard_DataPair[];
 
+export interface CharacterData_UniqueEquipPair {
+    key: string;
+    level: number;
+}
+
+export interface CharacterData_MasterInfo {
+    masterId: string;
+    level: number;
+}
+
+export interface CharacterInst_Metadata {
+    characterKey: string;
+    level: number;
+    phase: number;
+    favorBattlePhase: number;
+    potentialRank: number;
+    playerInstId: number;
+}
+
+export interface CharacterInst_TalentInst {
+    prefabKey: string;
+    blackboard: Blackboard;
+}
+
+export interface ArtMagazineLeafElementData {
+    id: string;
+    type: number;
+    sub: number;
+    pos: number[];
+    scale: number;
+}
+
 export interface SharedCharData_SharedCharSkillData {
     skillId: string;
     specializeLevel: number;
@@ -5692,11 +5864,35 @@ export interface ItemBundle {
 }
 
 export interface LevelData_PredefinedData_PredefinedCharacter {
+    inst: CharacterInst_Metadata;
+    skillIndex: number;
+    mainSkillLvl: number;
+    skinId: string;
+    tmplId: string;
+    overrideSkillBlackboard: Blackboard;
+    overrideTalents: CharacterInst_TalentInst[];
+    uniEquipIds: CharacterData_UniqueEquipPair[];
+    showSpIllust: number;
+    masterInfos: CharacterData_MasterInfo[];
+    hidden: number;
+    alias: string;
     position: GridPosition;
     direction: number;
 }
 
 export interface RoguelikeRecruitUpgradeCharacter {
+    instId: number;
+    charId: string;
+    level: number;
+    exp: number;
+    evolvePhase: number;
+    potentialRank: number;
+    favorPoint: number;
+    mainSkillLvl: number;
+    gainTime: number;
+    starMark: number;
+    currentTmpl: string;
+    tmpl: { [key: string]: PlayerCharPatch };
     population: number;
     isAddition: number;
     isElite: number;

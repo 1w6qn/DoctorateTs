@@ -2,7 +2,7 @@
  * 自动生成的 excel 表类型定义文件
  * 从 reference/com.hypergryph.arknights_2.7.61.cs 反编译文件生成
  * （客户端表类闭包 + excel 协议适配，见 scripts/excel-server-adapt.ts）
- * 生成命令: npm run generate:excel
+ * 生成命令: npm run generate:types
  * 请勿手动修改此文件
  */
 

@@ -1,4 +1,5 @@
 import type { ClassDef } from "./playerdata-parser";
+import { applyAdaptOps } from "./types-adapt";
 
 /**
  * excel 表根类映射（数据驱动）
@@ -289,57 +290,17 @@ export const EXCEL_FIELD_TYPE_OVERRIDES: Record<string, string> = {
 /** 附加索引签名的接口（运行时以 dict 键访问，如 CharacterTable[charId]） */
 export const EXCEL_INDEX_SIGNATURES: string[] = ["CharacterData", "StoryReviewGroupClientData"];
 
-/** 应用整接口覆盖（"[server]" 键）：返回覆盖后的类型别名；无覆盖返回 null */
-function applyWholeOverride(iface: ClassDef): string | null {
-  const override = EXCEL_OVERRIDE_FIELDS[iface.name];
-  if (!override) return null;
-  const whole = override["[server]"];
-  return whole === undefined ? null : whole;
-}
-
 /**
- * 应用 excel 协议适配：rename → add → override（按序）
+ * 应用 excel 协议适配：rename → add → override → 字段覆盖（共享应用逻辑）
  * @param classes - 客户端闭包类定义
  * @returns 适配后的类定义列表（不修改入参）
  */
 export function applyExcelAdapt(classes: ClassDef[]): ClassDef[] {
-  return classes.map(iface => {
-    const rename = EXCEL_RENAME_FIELDS[iface.name] ?? {};
-    const add = EXCEL_ADD_FIELDS[iface.name] ?? {};
-    const optional = EXCEL_OPTIONAL_FIELDS[iface.name] ?? [];
-
-    // 1. rename
-    let fields = iface.fields.map(f => {
-      const target = rename[f.name];
-      return target ? { ...f, name: target } : { ...f };
-    });
-
-    // 2. add（不重复）
-    for (const [name, type] of Object.entries(add)) {
-      if (!fields.some(f => f.name === name)) {
-        fields.push({ name, rawType: type, type });
-      }
-    }
-
-    // 3. override（整接口覆盖优先：转为类型别名；字段级覆盖：替换类型）
-    const aliasType = applyWholeOverride(iface);
-    if (aliasType !== null) {
-      return { ...iface, fields: [], aliasType, optionalFields: optional };
-    }
-    const override = EXCEL_OVERRIDE_FIELDS[iface.name];
-    if (override) {
-      fields = fields.map(f => {
-        const target = override[f.name];
-        return target ? { ...f, rawType: target, type: target } : f;
-      });
-    }
-
-    // 4. 字段类型覆盖（最高优先级）
-    fields = fields.map(f => {
-      const target = EXCEL_FIELD_TYPE_OVERRIDES[`${iface.name}.${f.name}`];
-      return target ? { ...f, rawType: target, type: target } : f;
-    });
-
-    return { ...iface, fields, optionalFields: optional };
+  return applyAdaptOps(classes, {
+    rename: EXCEL_RENAME_FIELDS,
+    add: EXCEL_ADD_FIELDS,
+    override: EXCEL_OVERRIDE_FIELDS,
+    optional: EXCEL_OPTIONAL_FIELDS,
+    fieldTypeOverrides: EXCEL_FIELD_TYPE_OVERRIDES,
   });
 }

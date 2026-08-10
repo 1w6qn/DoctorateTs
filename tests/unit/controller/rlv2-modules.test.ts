@@ -42,7 +42,7 @@ vi.mock("@excel/excel", () => ({
           },
         },
         rogue_5: {
-          moduleTypes: ["COPPER"],
+          moduleTypes: ["COPPER", "WRATH", "SKY"],
           copper: {
             copperData: {
               rogue_5_copper_P_01: { id: "rogue_5_copper_P_01" },
@@ -50,6 +50,9 @@ vi.mock("@excel/excel", () => ({
               rogue_5_copper_F_01: { id: "rogue_5_copper_F_01" },
             },
           },
+        },
+        rogue_3: {
+          moduleTypes: ["CHAOS", "VISION", "TOTEMBUFF"],
         },
         rogue_2: {
           stages: {},
@@ -196,5 +199,44 @@ describe("rlv2 主题模块管理器（2026-08-10）", () => {
       expect(moduleJson.san).toEqual({ sanity: 100 });
       expect(moduleJson.dice).toEqual({ id: "", count: 1 });
     });
+  });
+});
+
+describe("CHAOS / VISION（rogue_3）", () => {
+  it("gainChaos 应累积坍缩值并在达到上限时升层挂坍缩", async () => {
+    const player = await createModules(makePlayer("rogue_3"));
+    const c = (player.rlv2 as any)._module.chaos;
+    expect(c).toBeTruthy();
+    // 累积到上限（4）触发升层
+    c.gainChaos(4);
+    const json = c.toJSON();
+    expect(json.level).toBe(1);
+    expect(json.value).toBe(0);
+    expect(json.deltaChaos.afterLevel).toBe(1);
+  });
+
+  it("vision 应输出 value/isMax", async () => {
+    const player = await createModules(makePlayer("rogue_3"));
+    const v = (player.rlv2 as any)._module.vision;
+    expect(v).toBeTruthy();
+    expect(v.toJSON()).toEqual({ value: 0, isMax: 0 });
+  });
+});
+
+describe("WRATH / SKY（rogue_5）", () => {
+  it("wrath gain 应收集怒气", async () => {
+    const player = await createModules(makePlayer("rogue_5"));
+    const w = (player.rlv2 as any)._module.wrath;
+    expect(w).toBeTruthy();
+    w.gain(["rogue_5_wrath_1"]);
+    expect(w.toJSON().wraths).toEqual(["rogue_5_wrath_1"]);
+    expect(w.toJSON().newWrath).toBe(0);
+  });
+
+  it("sky 应输出 zones", async () => {
+    const player = await createModules(makePlayer("rogue_5"));
+    const s = (player.rlv2 as any)._module.sky;
+    expect(s).toBeTruthy();
+    expect(s.toJSON()).toEqual({ zones: {} });
   });
 });

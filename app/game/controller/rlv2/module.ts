@@ -10,6 +10,14 @@ import { RoguelikeWeatherManager } from "./modules/weather";
 import { RoguelikeScrapManager } from "./modules/scrap";
 import { RoguelikeDiceManager, RoguelikeSanManager } from "./modules/dice";
 import { RoguelikeCopperManager } from "./modules/copper";
+import {
+  RoguelikeChaosManager,
+  RoguelikeVisionManager,
+} from "./modules/chaos";
+import {
+  RoguelikeSkyManager,
+  RoguelikeWrathManager,
+} from "./modules/wrath_sky";
 import { toCamelCase } from "@utils/string";
 import { TypedEventEmitter } from "@game/model/events";
 
@@ -46,6 +54,10 @@ export class RoguelikeModuleManager {
       SANCHECK: () => new RoguelikeSanManager(this._player, this._trigger),
       DICE: () => new RoguelikeDiceManager(this._player, this._trigger),
       COPPER: () => new RoguelikeCopperManager(this._player, this._trigger),
+      CHAOS: () => new RoguelikeChaosManager(this._player, this._trigger),
+      VISION: () => new RoguelikeVisionManager(this._player, this._trigger),
+      WRATH: () => new RoguelikeWrathManager(this._player, this._trigger),
+      SKY: () => new RoguelikeSkyManager(this._player, this._trigger),
     };
 
     const moduleTypes = excel.RoguelikeTopicTable.modules[theme]?.moduleTypes || [];
@@ -102,6 +114,26 @@ export class RoguelikeModuleManager {
   /** 铜币管理器访问器（rogue_5 COPPER） */
   get copper(): any {
     return this._modules["COPPER"];
+  }
+
+  /** 坍缩管理器访问器（rogue_3 CHAOS） */
+  get chaos(): any {
+    return this._modules["CHAOS"];
+  }
+
+  /** 视域管理器访问器（rogue_3 VISION） */
+  get vision(): any {
+    return this._modules["VISION"];
+  }
+
+  /** 怒气管理器访问器（rogue_5 WRATH） */
+  get wrath(): any {
+    return this._modules["WRATH"];
+  }
+
+  /** 天空管理器访问器（rogue_5 SKY） */
+  get sky(): any {
+    return this._modules["SKY"];
   }
 
   toJSON(): PlayerRoguelikeV2.CurrentData.Module {

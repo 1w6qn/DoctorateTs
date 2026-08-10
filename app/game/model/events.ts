@@ -170,6 +170,8 @@ export type EventMap = {
   "rlv2:scrap:gain": [string];
   /** 肉鸽V2铜币开局抽牌事件（rogue_5 COPPER） */
   "rlv2:copper:init": [];
+  /** 肉鸽V2怒气获得事件（rogue_5 WRATH） */
+  "rlv2:wrath:gain": [string];
   /** 肉鸽V2游戏结束事件 */
   "rlv2:game:end": [{ score: number; rank: string }];
   /** 肉鸽V2碎片获取事件 */

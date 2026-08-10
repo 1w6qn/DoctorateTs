@@ -114,6 +114,9 @@ export class RoguelikeBattleManager {
     };
 
     if ((decryptResult as any)?.completeState === 1) {
+      // 战斗胜利：rogue_3 CHAOS 模块累积坍缩值（每次胜利 +1，达到上限升层）
+      const chaosMgr = this._player._module._modules["CHAOS"];
+      chaosMgr?.gainChaos(1);
       const finalHp = (decryptResult as any).finalHp || 0;
       const maxHp = this._player._status.property.hp.max;
       earn.damage = maxHp - finalHp;

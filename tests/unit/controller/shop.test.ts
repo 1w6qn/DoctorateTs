@@ -108,3 +108,82 @@ describe("ShopController 购买", () => {
     expect(mockPlayer._playerdata.shop!.HS.info).toContainEqual({ id: "HS_1", count: 1 });
   });
 });
+
+describe("buildLMTGSGoodList 自动生成限定商店", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+
+  beforeEach(async () => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({ shop: {} });
+    // 扩展 excel mock：两个限定池（当前池 + 旧池）
+    const excelMock = (await import("@excel/excel")).default as any;
+    excelMock.GachaTable = {
+      gachaPoolClient: [
+        { gachaPoolId: "LIMITED_23_0_1", gachaRuleType: "LIMITED", gachaIndex: 5, LMTGSID: "LMTGS_COIN_2301", openTime: 1630000000, endTime: 1639999999 },
+        { gachaPoolId: "LIMITED_76_0_1", gachaRuleType: "LIMITED", gachaIndex: 10, LMTGSID: "LMTGS_COIN_7601", openTime: 1700000000, endTime: 1799999999 },
+      ],
+    };
+    excelMock.GachaDetailTable = {
+      details: {
+        "LIMITED_76_0_1": {
+          upCharInfo: {
+            perCharList: [
+              { rarityRank: 5, charIdList: ["char_1015_aglna2"] },
+              { rarityRank: 4, charIdList: ["char_4237_jcinta"] },
+            ],
+          },
+        },
+        "LIMITED_23_0_1": {
+          upCharInfo: {
+            perCharList: [{ rarityRank: 5, charIdList: ["char_1014_nearl2"] }],
+          },
+        },
+      },
+    };
+  });
+
+  it("应为当前限定池生成商品（限定六星 300/新五星 75/往期限定 300）", async () => {
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const goods = controller.buildLMTGSGoodList();
+    const cur = goods.filter((g) => g.goodId.startsWith("LIMITED_76_0_1"));
+    // 本池 UP 六星 → 300 本池凭证
+    expect(
+      cur.some(
+        (g) =>
+          g.item.id === "char_1015_aglna2" &&
+          g.price.id === "LMTGS_COIN_7601" &&
+          g.price.count === 300,
+      ),
+    ).toBe(true);
+    // 本池新五星 → 75
+    expect(
+      cur.some((g) => g.item.id === "char_4237_jcinta" && g.price.count === 75),
+    ).toBe(true);
+    // 往期限定六星（LIMITED_23_0_1 的 UP）→ 300，进入 76 池商店
+    expect(
+      cur.some(
+        (g) =>
+          g.item.id === "char_1014_nearl2" &&
+          g.price.id === "LMTGS_COIN_7601" &&
+          g.price.count === 300,
+      ),
+    ).toBe(true);
+  });
+
+  it("buyLMTGSGood 应扣对应池凭证并带 type 发放（CHAR → char:get）", async () => {
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const emitSpy = vi.spyOn(mockTrigger, "emit");
+    const items = await controller.buyLMTGSGood({ goodId: "LIMITED_76_0_1_1", count: 1 });
+    expect(items).toEqual([{ id: "char_1015_aglna2", count: 1, type: "CHAR" }]);
+    // 扣 LMTGS_COIN_7601（原硬编码 LMTGS_COIN 扣错货币）
+    expect(emitSpy).toHaveBeenCalledWith("items:use", [
+      [{ id: "LMTGS_COIN_7601", count: 300, type: "LMTGS_COIN" }],
+    ]);
+    // 带 type 发放（CHAR → char:get 入账干员）
+    expect(emitSpy).toHaveBeenCalledWith("items:get", [
+      [{ id: "char_1015_aglna2", count: 1, type: "CHAR" }],
+    ]);
+  });
+});

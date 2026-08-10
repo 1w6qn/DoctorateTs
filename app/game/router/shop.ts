@@ -213,8 +213,17 @@ router.post("/getEPGSGoodList", async (req, res) => {
 router.post("/getLMTGSGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetLMTGSGoodListRequest;
+  // 自动生成 + 静态合并：新限定池无需手动补 LMTGSGoodList.json
+  const auto = player.shop.buildLMTGSGoodList();
+  const staticList = excel.ShopTable.LMTGSGoodList;
+  const autoIds = new Set(auto.map((g) => g.goodId));
+  const goodList = [
+    ...auto,
+    ...staticList.goodList.filter((g) => !autoIds.has(g.goodId)),
+  ];
   res.send({
-    ...excel.ShopTable.LMTGSGoodList,
+    goodList,
+    newFlag: [],
     ...player.delta,
   } satisfies GetLMTGSGoodListResponse);
 });

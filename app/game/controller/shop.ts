@@ -11,6 +11,7 @@ import {
   ChooseGPItem,
   GPGoodList,
   LevelGPItem,
+  LMTGSGood,
   MonthlySubItem,
   NormalGPItem,
   PeriodicityGroup,
@@ -18,6 +19,7 @@ import {
   SocialGoodList,
 } from "@excel/shop";
 import excel from "@excel/excel";
+import { GachaPerChar } from "@excel/gacha_detail_table";
 import { now } from "@utils/time";
 import { TypedEventEmitter } from "@game/model/events";
 
@@ -372,15 +374,103 @@ export class ShopController {
     count: number;
   }): Promise<ItemBundle[]> {
     const { goodId, count } = args;
-    const good = excel.ShopTable.LMTGSGoodList.goodList.find(
-      (g) => g.goodId === goodId,
-    );
-    const item = { id: good!.item.id, count: good!.item.count * count };
+    // 修复：查找范围含自动生成商品（当前池商品不在静态 LMTGSGoodList.json）
+    const good =
+      excel.ShopTable.LMTGSGoodList?.goodList.find(
+        (g) => g.goodId === goodId,
+      ) ?? this.buildLMTGSGoodList().find((g) => g.goodId === goodId);
+    // 防御：未知商品不 500
+    if (!good) return [];
+    // 修复：扣对应池的寻访数据契约（price.id = LMTGS_COIN_<poolId>；原硬编码
+    // "LMTGS_COIN" 通用 id 扣不到玩家手里的具体凭证）
     await this._trigger.emit("items:use", [
-      [{ id: "LMTGS_COIN", count: good!.price.count * count }],
+      [{ id: good.price.id, count: good.price.count * count, type: good.price.type }],
     ]);
+    // 带 type 发放（CHAR → char:get 入账干员；原缺 type → gainItem 查不到 ItemTable 跳过）
+    const item: ItemBundle = {
+      id: good.item.id,
+      count: good.item.count * count,
+      type: good.item.type,
+    };
     await this._trigger.emit("items:get", [[item]]);
     return [item];
+  }
+
+  /** 自动生成的限定商店商品（懒构建，一次生成缓存） */
+  private _autoLMTGSGoods: LMTGSGood[] | null = null;
+
+  /**
+   * 自动生成限定商店商品（运行时——新限定池无需手动补 LMTGSGoodList.json）
+   *
+   * 每个 LIMITED 池生成：本池 UP 六星（300 凭证）+ 本池新五星（75 凭证）+
+   * 历史限定六星（300 凭证，最多 4 个，排除本池已含）。goodId = `${poolId}_${seq}`
+   * 稳定（客户端按 getLMTGSGoodList 拿到的 goodId 回传 buyLMTGSGood）。
+   * 与静态 LMTGSGoodList.json 合并（静态保留特殊商品，按 goodId 去重、自动优先）。
+   *
+   * @returns 自动生成的全部限定商品（跨池，客户端按当前池 LMTGSID 过滤）
+   */
+  buildLMTGSGoodList(): LMTGSGood[] {
+    if (this._autoLMTGSGoods) return this._autoLMTGSGoods;
+    const pools = excel.GachaTable.gachaPoolClient
+      .filter((p) => p.gachaRuleType === "LIMITED")
+      .sort((a, b) => a.gachaIndex - b.gachaIndex);
+    // 历史限定六星：全部 LIMITED 池的 UP 六星（去重、按池序收集）
+    const historical: string[] = [];
+    for (const p of pools) {
+      const detail = excel.GachaDetailTable.details[p.gachaPoolId];
+      const up6 =
+        (detail?.upCharInfo?.perCharList ?? []).filter(
+          (c: GachaPerChar) => c.rarityRank === 5,
+        );
+      for (const c of up6) {
+        for (const id of c.charIdList) {
+          if (!historical.includes(id)) historical.push(id);
+        }
+      }
+    }
+    const goods: LMTGSGood[] = [];
+    for (const p of pools) {
+      const detail = excel.GachaDetailTable.details[p.gachaPoolId];
+      const up = detail?.upCharInfo?.perCharList ?? [];
+      const up6 = up.filter((c: GachaPerChar) => c.rarityRank === 5);
+      const up4 = up.find((c: GachaPerChar) => c.rarityRank === 4);
+      const token = p.LMTGSID || "LMTGS_COIN";
+      const start = p.openTime;
+      const end = p.endTime;
+      let seq = 0;
+      const push = (
+        item: ItemBundle,
+        price: number,
+      ): void => {
+        goods.push({
+          goodId: `${p.gachaPoolId}_${++seq}`,
+          startTime: start,
+          endTime: end,
+          availCount: -1,
+          item,
+          price: { id: token, count: price, type: "LMTGS_COIN" },
+          sortId: seq,
+        });
+      };
+      // 本池 UP 六星（含限定干员）→ 300 凭证
+      for (const c of up6) {
+        for (const id of c.charIdList) push({ id, count: 1, type: "CHAR" }, 300);
+      }
+      // 本池新五星 → 75 凭证
+      if (up4) {
+        for (const id of up4.charIdList) push({ id, count: 1, type: "CHAR" }, 75);
+      }
+      // 历史限定六星（最多 4 个，排除本池已含）→ 300 凭证
+      let added = 0;
+      for (const id of historical) {
+        if (added >= 4) break;
+        if (up6.some((c: GachaPerChar) => c.charIdList.includes(id))) continue;
+        push({ id, count: 1, type: "CHAR" }, 300);
+        added++;
+      }
+    }
+    this._autoLMTGSGoods = goods;
+    return goods;
   }
 
   /**

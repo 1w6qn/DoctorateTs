@@ -39,7 +39,9 @@
   button { background: #333; color: var(--text); border: 1px solid var(--border);
            border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
   button.primary { background: var(--gold); color: #141414; border-color: var(--gold); font-weight: bold; }
-  button.danger { color: var(--danger); border-color: var(--danger); }
+  button.danger { color: #fff; background: var(--err); border-color: var(--err); }
+  input.invalid, textarea.invalid { border-color: var(--err) !important; }
+  input.invalid:focus, textarea.invalid:focus { outline: 1px solid var(--err); }
   button:disabled { opacity: .5; cursor: not-allowed; }
   .btn-sm { padding: 2px 8px; font-size: 12px; }
   .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.6);
@@ -612,7 +614,28 @@
   /** 全局功能 Tab（不依赖选中用户，内容全宽） */
   var GLOBAL_TABS = ["pools", "api", "official", "pixel"];
 
+  /** Tab 输入状态缓存（切 Tab 回来恢复搜索/请求体/账号等） */
+  var tabState = {};
+
+  function savePaneInputs() {
+    var pane = $("pane-" + currentTab);
+    if (!pane) return;
+    tabState[currentTab] = {};
+    pane.querySelectorAll("input, textarea, select").forEach(function (el) {
+      if (el.id) tabState[currentTab][el.id] = el.value;
+    });
+  }
+
+  function restorePaneInputs(tab) {
+    if (!tabState[tab]) return;
+    Object.keys(tabState[tab]).forEach(function (id) {
+      var el = $(id);
+      if (el) el.value = tabState[tab][id];
+    });
+  }
+
   function switchTab(tab) {
+    savePaneInputs(); // 保存当前 pane 输入
     currentTab = tab;
     document.querySelectorAll(".main-nav .tab").forEach(function (t) {
       t.classList.toggle("active", t.getAttribute("data-tab") === tab);
@@ -626,6 +649,7 @@
       ? TAB_LABELS[tab]
       : selectedUid ? "用户详情 — " + selectedUid : "用户详情";
     loadPane(tab, selectedUid);
+    restorePaneInputs(tab); // 恢复目标 pane 输入
     // URL hash 同步（支持前进/后退/直达链接）
     if (location.hash !== "#" + tab) location.hash = tab;
   }
@@ -733,7 +757,7 @@
               refreshLogs();
             })
             .catch(function (e) { toast("重置失败：" + e.message); });
-        });
+        }, null, "warn");
       });
     }).catch(function () {
       box.innerHTML = "";
@@ -779,7 +803,7 @@
               loadOverview(uid);
               refreshLogs();
             }).catch(function (e) { toast("恢复失败：" + e.message); });
-          });
+          }, null, "danger");
         });
       });
     }
@@ -848,7 +872,7 @@
                   refreshLogs();
                 })
                 .catch(function (e) { toast("操作失败：" + e.message); });
-            });
+            }, null, "warn");
           });
         }
         var rc = $("repairchars-btn");
@@ -949,7 +973,7 @@
             api("/users/" + encodeURIComponent(uid) + "/mails/" + mailId, { method: "DELETE" })
               .then(function () { loadMails(uid); refreshLogs(); })
               .catch(function (e) { toast("删除失败：" + e.message); });
-          });
+          }, null, "danger");
         });
       });
     }).catch(function () {});
@@ -1226,7 +1250,7 @@
         loadOverview(uid);
         refreshLogs();
       }).catch(function (e) { toast("发放失败：" + e.message); });
-    });
+    }, null, "warn");
   });
 
   function openMail(uid) {
@@ -1906,10 +1930,12 @@
 
   /* ---------- 主题切换 / 骨架屏 / 状态色 ---------- */
 
-  /** 自定义确认弹窗（替换原生 confirm，统一主题；危险操作保留确认） */
-  function confirmDialog(msg, onOk, title) {
-    $("confirm-title").textContent = title || "确认操作";
+  /** 自定义确认弹窗（risk: warn 黄标 / danger 红标 + 危险图标） */
+  function confirmDialog(msg, onOk, title, risk) {
+    $("confirm-title").textContent = (risk === "danger" ? "⚠️ " : risk === "warn" ? "⚡ " : "") + (title || "确认操作");
+    $("confirm-title").style.color = risk === "danger" ? "var(--err)" : risk === "warn" ? "var(--warn)" : "var(--gold)";
     $("confirm-msg").textContent = msg;
+    $("confirm-ok").className = "primary" + (risk === "danger" ? " danger" : "");
     $("confirm-ok").onclick = function () {
       hideModal("modal-confirm");
       onOk();
@@ -1950,6 +1976,32 @@
   function starColor(r) {
     return r >= 5 ? "var(--gold)" : r === 4 ? "var(--star5)" : r === 3 ? "var(--star4)" : "var(--muted)";
   }
+
+  /** 即时输入校验：输入非法时加红框（validator 返回 false 即非法） */
+  function bindValidate(id, validator) {
+    var el = $(id);
+    if (!el) return;
+    el.addEventListener("input", function () {
+      el.classList.toggle("invalid", !validator(el.value));
+    });
+    // 初始校验一次
+    el.classList.toggle("invalid", !validator(el.value));
+  }
+  function isPosInt(v) { return /^\d+$/.test(String(v).trim()) && Number(v) > 0; }
+  function isJsonOrEmpty(v) {
+    var s = String(v).trim();
+    if (!s) return true;
+    try { JSON.parse(s); return true; } catch (e) { return false; }
+  }
+  // 即时输入校验（事件委托：动态渲染的输入框也生效）
+  document.addEventListener("input", function (e) {
+    var el = e.target;
+    if (!el || !el.id) return;
+    if (el.id === "grant-count") el.classList.toggle("invalid", !isPosInt(el.value));
+    if (el.id === "req-body" || el.id === "g-body" || el.id === "call-body" || el.id === "of-cgi-body") {
+      el.classList.toggle("invalid", !isJsonOrEmpty(el.value));
+    }
+  });
 })();
 </script>
 </body>

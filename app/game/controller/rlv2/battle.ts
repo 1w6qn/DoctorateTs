@@ -80,7 +80,12 @@ export class RoguelikeBattleManager {
   ]) {
     const battleId = "1";
     const loginTime = this._player._player.loginTime;
-    const decryptResult = await decryptBattleData(args.data, loginTime);
+    let decryptResult: any = null;
+    try {
+      decryptResult = await decryptBattleData(args.data, loginTime);
+    } catch {
+      // 无效/空战斗数据（模拟器/异常结算）：按战斗失败路径处理（WAIT_MOVE + 清空 pending）
+    }
     const info = this._player._player.getBattleInfo(battleId);
     const event = this._player._status.pending.shift();
     const theme = this._player.current.game!.theme;
@@ -108,7 +113,7 @@ export class RoguelikeBattleManager {
       maxHpUp: 0,
     };
 
-    if ((decryptResult as any).completeState === 1) {
+    if ((decryptResult as any)?.completeState === 1) {
       const finalHp = (decryptResult as any).finalHp || 0;
       const maxHp = this._player._status.property.hp.max;
       earn.damage = maxHp - finalHp;

@@ -185,9 +185,10 @@ export namespace PlayerRoguelikeV2 {
             }
             export interface NodeMission {
                 id: string
-                state: string//NodeMissionState
+                state: number//NodeMissionState
                 tip: boolean
                 progress: number[]
+                buff?: number
             }
             export interface ZoneRewardItem {
                 id: string
@@ -445,6 +446,7 @@ export namespace PlayerRoguelikeV2 {
             current: number
             record: number
             reward: { [key: string]: number }
+            totalPut?: number
         }
 
         export interface Buff {
@@ -542,6 +544,7 @@ export namespace PlayerRoguelikePendingEvent {
         sanity?: number
         boxInfo?: { [key: string]: number }
         isFailProtect?: boolean
+        addExcludeList?: string[]
     }
     export interface InitRecruitContent {
         step: number[]
@@ -604,6 +607,7 @@ export namespace PlayerRoguelikePendingEvent {
         id: string
         choices: { [key: string]: number }
         choiceAdditional?: { [key: string]: ChoiceAddition }
+        independent?: boolean
     }
     export interface Recruit {
         ticket:string

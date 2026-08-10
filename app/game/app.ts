@@ -173,6 +173,7 @@ export function gameErrorHandler(
   _next: express.NextFunction,
 ): void {
   logger.error("game", (err as Error)?.message || String(err));
+  logger.error("game", (err as Error)?.stack || String(err));
   res.status(500).json({
     status: 1,
     msg: "服务器内部错误",

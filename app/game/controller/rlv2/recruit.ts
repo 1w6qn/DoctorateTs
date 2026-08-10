@@ -3,6 +3,7 @@ import { TroopManager } from "../../manager/troop";
 import { PlayerRoguelikeV2 } from "../../model/rlv2";
 import { RoguelikeV2Controller } from "../rlv2";
 import { now } from "@utils/time";
+import { rarityToIndex } from "@utils/rarity";
 import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeRecruitManager {
@@ -19,9 +20,11 @@ export class RoguelikeRecruitManager {
     this._trigger = _trigger;
     this._trigger.on("rlv2:init", () => {
       this.tickets = {};
+      this._index = 0;
     });
     this._trigger.on("rlv2:create", () => {
       this.tickets = {};
+      this._index = 0;
     });
     this._trigger.on("rlv2:recruit:gain", async ([id, from, mustExtra]) => {
       await this.gain(id, from, mustExtra);
@@ -50,8 +53,11 @@ export class RoguelikeRecruitManager {
       excel.RoguelikeTopicTable.details[theme].recruitTickets[
         this.tickets[id].id
       ];
+    // 候选干员来自玩家主队伍（collection，312 干员），非 rlv2 对局内 troop（初始为空）
     const chars: PlayerRoguelikeV2.CurrentData.RecruitChar[] = Object.values(
-      this._player.troop.chars,
+      this._player._player._playerdata.troop.chars as {
+        [key: string]: any;
+      },
     ).reduce((acc, char) => {
       const data = excel.CharacterTable[char.charId];
 
@@ -63,8 +69,10 @@ export class RoguelikeRecruitManager {
       }
       let isUpgraded = false;
       const rarity = data.rarity;
+      // rarity 为字符串枚举（"TIER_N"）→ 统一转数值下标（0 基）
+      const rarityIdx = rarityToIndex(rarity);
       const popMap = [0, 0, 0, 2, 3, 6];
-      let population = popMap[rarity - 1];
+      let population = popMap[rarityIdx];
       for (const buff of this._player._buff.filterBuffs("recruit_cost")) {
         if (
           buff.blackboard[0].valueStr?.includes(data.rarity.toString()) &&
@@ -89,12 +97,12 @@ export class RoguelikeRecruitManager {
       }
       let levelPatch = {};
       if (char.evolvePhase == 2 && !isUpgraded) {
-        const maxLevel = excel.GameDataConst.maxLevel[rarity - 1][1];
+        const maxLevel = excel.GameDataConst.maxLevel[rarityIdx][1];
         levelPatch = {
           evolvePhase: 1,
           level: maxLevel,
           exp: 0,
-          skills: char.skills?.map((s) => {
+          skills: char.skills?.map((s: { specializeLevel?: number }) => {
             return Object.assign({}, s, { specializeLevel: 0 });
           }),
         };

@@ -15,6 +15,10 @@ export class RoguelikePlayerStatusManager
   status!: PlayerRoguelikeV2.CurrentData.PlayerStatus.Status;
   toEnding!: string;
   chgEnding!: boolean;
+  innerMission?: PlayerRoguelikeV2.CurrentData.PlayerStatus.InnerMission[];
+  nodeMission?: PlayerRoguelikeV2.CurrentData.PlayerStatus.NodeMission;
+  zoneReward?: { [key: string]: PlayerRoguelikeV2.CurrentData.PlayerStatus.ZoneRewardItem };
+  traderReturn?: { [key: string]: PlayerRoguelikeV2.CurrentData.PlayerStatus.ZoneRewardItem };
   _player: RoguelikeV2Controller;
   _trigger: TypedEventEmitter;
 
@@ -62,6 +66,10 @@ export class RoguelikePlayerStatusManager
     this.chgEnding = _status.chgEnding;
     this.toEnding = _status.toEnding;
     this.status = _status.status;
+    this.innerMission = undefined;
+    this.nodeMission = undefined;
+    this.zoneReward = undefined;
+    this.traderReturn = undefined;
   }
 
   async create() {
@@ -74,6 +82,9 @@ export class RoguelikePlayerStatusManager
         i.modeId == game.mode,
     )!;
     this.state = "INIT";
+    // 新对局重置游标/轨迹（上一局 finishEvent 推进过 zone；不重置会导致下一局 init 阶段判定失效）
+    this.cursor = { zone: 0, position: null };
+    this.trace = [];
     this.property.hp.current = init.initialHp;
     this.property.hp.max = init.initialHp;
     this.property.gold = init.initialGold;

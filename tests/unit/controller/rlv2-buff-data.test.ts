@@ -11,6 +11,18 @@ vi.mock("@excel/excel", () => ({
         rogue_3: {
           init: [{ modeGrade: 0, predefinedId: null, modeId: "NORMAL" }],
           recruitGrps: { recruit_group_1: ["ro3_ticket_a", "ro3_ticket_b"] },
+          recruitTickets: {
+            rogue_3_recruit_ticket_pioneer: {},
+            rogue_3_recruit_ticket_warrior: {},
+            rogue_3_recruit_ticket_tank: {},
+            rogue_3_recruit_ticket_sniper: {},
+            rogue_3_recruit_ticket_caster: {},
+            rogue_3_recruit_ticket_support: {},
+            rogue_3_recruit_ticket_medic: {},
+            rogue_3_recruit_ticket_special: {},
+            rogue_3_recruit_ticket_pioneer_sp: {},
+            rogue_3_recruit_ticket_all: {},
+          },
         },
       },
       modules: { rogue_3: {} },
@@ -104,7 +116,7 @@ describe("rlv2 局外buff/难度buff/招募组数据", () => {
   });
 
   describe("chooseInitialRecruitSet 招募组", () => {
-    it("应从 RoguelikeConsts 招募组发放初始招募票", async () => {
+    it("应从官方 recruitTickets 发放 3 张标准职业招募票", async () => {
       const emitSpy = vi.spyOn((player.rlv2 as any)._trigger, "emit");
       // 注入 GAME_INIT_RECRUIT 事件（chooseInitialRecruitSet 需要找到它）
       (player.rlv2 as any)._status._pending._pending.push(
@@ -116,8 +128,13 @@ describe("rlv2 局外buff/难度buff/招募组数据", () => {
       } as any;
       await (player.rlv2 as any).chooseInitialRecruitSet({ select: "recruit_group_1" });
       const recruitGainCalls = emitSpy.mock.calls.filter((c: any) => c[0] === "rlv2:recruit:gain");
-      expect(recruitGainCalls.length).toBe(1);
-      expect(recruitGainCalls[0][1][0]).toBe("ro3_ticket_a");
+      // 标准职业票发放 3 张（官方 recruitGrps 为元数据对象，无 ticket 映射 → 随机 3 职业票）
+      expect(recruitGainCalls.length).toBe(3);
+      for (const c of recruitGainCalls) {
+        const ticketId = c[1][0];
+        expect(ticketId).toMatch(/^rogue_3_recruit_ticket_(pioneer|warrior|tank|sniper|caster|support|medic|special)$/);
+        expect(c[1][1]).toBe("initial");
+      }
     });
   });
 });

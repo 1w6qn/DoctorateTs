@@ -17,8 +17,9 @@ describe("rlv2 路由", () => {
 
   beforeEach(async () => {
     player = {
-      delta: { modified: { status: { ap: 1 } }, deleted: {} },
+      delta: { playerDataDelta: { modified: { status: { ap: 1 } }, deleted: {} } },
       rlv2: {
+        toJSON: () => ({ outer: {}, current: {} }),
         refreshShop: vi.fn().mockResolvedValue(undefined),
         leaveShop: vi.fn().mockResolvedValue(undefined),
         useTotem: vi.fn().mockResolvedValue(undefined),
@@ -37,16 +38,26 @@ describe("rlv2 路由", () => {
     await new Promise((r) => setTimeout(r, 20));
   }
 
+  /**
+   * rlv2 统一响应约定：playerDataDelta.modified 含 Immer 增量 + 完整 rlv2 子树
+   * （官方抓包确认客户端按 modified.rlv2 整体替换自身状态）
+   */
+  function expectRlv2Response(calledWith: any) {
+    expect(calledWith.playerDataDelta).toBeTruthy();
+    expect(calledWith.playerDataDelta.modified.status).toEqual({ ap: 1 });
+    expect(calledWith.playerDataDelta.modified.rlv2).toEqual({ outer: {}, current: {} });
+  }
+
   it("POST /refreshShop 应调用控制器并返回 delta", async () => {
     await call("/refreshShop", {});
     expect(player.rlv2.refreshShop).toHaveBeenCalled();
-    expect(res.send).toHaveBeenCalledWith(player.delta);
+    expectRlv2Response(res.send.mock.calls[0][0]);
   });
 
   it("POST /leaveShop 应调用控制器并返回 delta", async () => {
     await call("/leaveShop", {});
     expect(player.rlv2.leaveShop).toHaveBeenCalled();
-    expect(res.send).toHaveBeenCalledWith(player.delta);
+    expectRlv2Response(res.send.mock.calls[0][0]);
   });
 
   it("POST /useTotem 应透传参数", async () => {
@@ -55,24 +66,24 @@ describe("rlv2 路由", () => {
       totemIndex: ["t_0", "t_1"],
       nodeIndex: ["1"],
     });
-    expect(res.send).toHaveBeenCalledWith(player.delta);
+    expectRlv2Response(res.send.mock.calls[0][0]);
   });
 
   it("POST /confirmPredict 应调用控制器并返回 delta", async () => {
     await call("/confirmPredict", {});
     expect(player.rlv2.confirmPredict).toHaveBeenCalled();
-    expect(res.send).toHaveBeenCalledWith(player.delta);
+    expectRlv2Response(res.send.mock.calls[0][0]);
   });
 
   it("POST /closeRecruitTicket 应透传 id", async () => {
     await call("/closeRecruitTicket", { id: "t_1" });
     expect(player.rlv2.closeRecruitTicket).toHaveBeenCalledWith({ id: "t_1" });
-    expect(res.send).toHaveBeenCalledWith(player.delta);
+    expectRlv2Response(res.send.mock.calls[0][0]);
   });
 
   it("POST /selectChoice 应调用控制器并透传 choice（抓包 body {choice}）", async () => {
     await call("/selectChoice", { choice: "choice_leave" });
     expect(player.rlv2.selectChoice).toHaveBeenCalledWith({ choice: "choice_leave" });
-    expect(res.send).toHaveBeenCalledWith(player.delta);
+    expectRlv2Response(res.send.mock.calls[0][0]);
   });
 });

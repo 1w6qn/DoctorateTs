@@ -19,6 +19,7 @@ interface GridNode {
   content: {
     savage?: { stageId: string };
     shop?: { goods: string[] };
+    kind?: number;
   };
   state: number; // 0 未访问 / 1 可访问 / 2 已访问
   show: number;
@@ -60,32 +61,73 @@ export class RoguelikeGridZoneManager {
       this._player.current.module?.gridZone?.needConfirmStepZero ?? 0;
   }
 
-  /** 生成当前层网格（简化：5 行 × 每行 2-3 节点，混合战斗/商店/事件） */
+  /** 生成当前层网格（按官方 zone 数据：portal zone 的 rollNodeData groups 定义允许节点类型） */
   generate([zoneId]: [number]): void {
     const theme = this._player.current.game!.theme;
-    const stages = Object.keys(
-      (excel.RoguelikeTopicTable.details[theme] as any)?.stages || {},
-    );
+    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+    const stages = Object.keys(detail?.stages || {});
     const roNum = theme.slice(-1);
+
+    // 官方 portal zone：本层的自由探索区域（zone_portal_normal_{zone}_N）
+    const zoneData = detail?.zones || {};
+    const portalIds = Object.keys(zoneData).filter((z) =>
+      z.startsWith(`zone_portal_normal_${zoneId}_`),
+    );
+    const portalZoneId =
+      portalIds[Math.floor(Math.random() * Math.max(portalIds.length, 1))] ||
+      `zone_portal_normal_${zoneId}_1`;
+
+    // rollNodeData：portal zone 允许的节点类型（INCIDENT/BATTLE_NORMAL/...）
+    const rollNodeData = detail?.rollNodeData || {};
+    const groups = rollNodeData[portalZoneId]?.groups || {};
+    const allowedTypes = Object.keys(groups).map(
+      (k) => (groups[k] as { nodeType: string }).nodeType,
+    );
+    const typeToCode: Record<string, number> = {
+      BATTLE_NORMAL: 1,
+      BATTLE_ELITE: 2,
+      BATTLE_BOSS: 4,
+      SHOP: 8,
+      REST: 16,
+      INCIDENT: 32,
+      TREASURE: 64,
+      ENTERTAINMENT: 128,
+      UNKNOWN: 256,
+      WISH: 512,
+      SACRIFICE: 1024,
+      EXPEDITION: 2048,
+      BATTLE_SHOP: 4096,
+    };
+
+    // 本层关卡优先，缺失回退全主题普通关卡
     const zoneStages = stages.filter((s) =>
       s.startsWith(`ro${roNum}_n_${zoneId}_`),
     );
-    const normalStages = stages.filter((s) => /^ro\d+_n_\d+_/.test(s));
-    const eliteStages = stages.filter((s) => /^ro\d+_e_\d+_/.test(s));
-    // 优先本层关卡，缺失回退全主题普通关卡
     const all =
       zoneStages.length > 0
         ? zoneStages
-        : [...normalStages, ...eliteStages];
+        : stages.filter(
+            (s) => /^ro\d+_[ne]_\d+_/.test(s),
+          );
 
     const nodes: { [key: string]: GridNode } = {};
-    // 简单网格：x 0..4，y 0..2（约 12-15 节点）
-    for (let x = 0; x < 5; x++) {
-      for (let y = 0; y < 3; y++) {
+    const gridX = 5;
+    const gridY = 3;
+    for (let x = 0; x < gridX; x++) {
+      for (let y = 0; y < gridY; y++) {
         const nodeId = `${x}${String(y).padStart(2, "0")}`;
-        const roll = Math.random();
-        if (roll < 0.45) {
-          // 战斗节点
+        // 节点类型：优先从官方允许类型池抽（战斗为主），缺失回退混合
+        const typeCodes =
+          allowedTypes.length > 0
+            ? allowedTypes
+                .map((t) => typeToCode[t])
+                .filter((c) => c !== undefined)
+            : [1, 1, 32, 4096, 512];
+        const roll = Math.floor(
+          Math.random() * Math.max(typeCodes.length, 1),
+        );
+        const type = typeCodes[roll] ?? 1;
+        if (type === 1 || type === 2 || type === 4) {
           const stageId =
             all[Math.floor(Math.random() * Math.max(all.length, 1))] || "";
           nodes[nodeId] = {
@@ -93,17 +135,15 @@ export class RoguelikeGridZoneManager {
             state: x === 0 ? 1 : 0,
             show: 1,
           };
-        } else if (roll < 0.6) {
-          // 商店节点
+        } else if (type === 8 || type === 4096) {
           nodes[nodeId] = {
             content: { shop: { goods: [] } },
             state: x === 0 ? 1 : 0,
             show: 1,
           };
         } else {
-          // 事件/空节点
           nodes[nodeId] = {
-            content: {},
+            content: { kind: typeToCode[type] ?? type },
             state: x === 0 ? 1 : 0,
             show: 1,
           };

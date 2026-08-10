@@ -45,11 +45,24 @@ export class RoguelikeChaosManager {
   init(): void {
     this.value = 0;
     this.level = 0;
-    this.curMaxValue = 4;
+    // 官方 levelInfoDict：当前层坍缩值上限（rule_1 level 0: 0-4 → curMaxValue 4）
+    this.curMaxValue = this.chaosLevelMax(0);
     this.chaosList = [];
     this.predict = "";
     this.deltaChaos = { dValue: 0, preLevel: 0, afterLevel: 0, dChaos: [] };
     this.lastBattleGain = 0;
+  }
+
+  /** 当前层坍缩值上限（官方 levelInfoDict rule_1：level N 的区间上界） */
+  private chaosLevelMax(level: number): number {
+    const theme = this._player.current.game!.theme;
+    const dict = (
+      excel.RoguelikeTopicTable.modules[theme] as any
+    )?.chaos?.levelInfoDict;
+    const rule = dict?.rule_1?.[level] as
+      | { chaosLevelEndNum?: number }
+      | undefined;
+    return rule?.chaosLevelEndNum ?? 4 + level * 4;
   }
 
   continue(): void {
@@ -77,7 +90,8 @@ export class RoguelikeChaosManager {
     while (this.value >= this.curMaxValue) {
       this.value -= this.curMaxValue;
       this.level += 1;
-      this.curMaxValue += 2;
+      // 每层上限按官方 levelInfoDict 提升
+      this.curMaxValue = this.chaosLevelMax(this.level);
       const chaos = this.pickChaos();
       if (chaos) {
         this.chaosList.push(chaos);

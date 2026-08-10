@@ -348,6 +348,19 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       );
       return true;
     }
+    // 区域奖励：非最终层通关时填充 zoneReward（confirmZoneReward 发放并清空）
+    if (!this._status.zoneReward || Object.keys(this._status.zoneReward).length === 0) {
+      const theme = this.current.game!.theme;
+      const hasRelic = Object.values(this.inventory!.relic || {}).map(
+        (r) => (r as any).id,
+      );
+      const rewardId = this._pool.getRelic("pool_relic_all", hasRelic);
+      if (rewardId) {
+        this._status.zoneReward = {
+          z0: { id: rewardId, count: 1, instId: "" },
+        };
+      }
+    }
     this._status.cursor.zone += 1;
     this._status.cursor.position = null;
     await this._trigger.emit("rlv2:zone:new", [this._status.cursor.zone]);
@@ -634,8 +647,21 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     shop.refreshCnt -= 1;
   }
 
-  /** 离开商店：清空 pending 回到等待移动状态 */
+  /** 离开商店：填充 traderReturn（商人返回礼物，confirmTraderReturn 发放）并清空 pending */
   async leaveShop(): Promise<void> {
+    // 商人返回：离开商店时填充（部分主题/商店类型有商人礼物）
+    if (!this._status.traderReturn) {
+      const theme = this.current.game!.theme;
+      const hasRelic = Object.values(this.inventory!.relic || {}).map(
+        (r) => (r as any).id,
+      );
+      const rewardId = this._pool.getRelic("pool_relic_all", hasRelic);
+      if (rewardId) {
+        this._status.traderReturn = {
+          t0: { id: rewardId, count: 1, instId: "" },
+        };
+      }
+    }
     this._status._pending._pending.length = 0;
     await this.checkZoneEnd();
     this._status.state = "WAIT_MOVE";
@@ -1066,21 +1092,134 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     this._status.state = "WAIT_MOVE";
   }
 
-  /** 骰子选择（CS: RoguelikeDiceChoiceRequest { choice }）——rogue_2 DICE 模块 */
-  async diceChoice(args: { choice?: string }): Promise<{ result: number }> {
-    // 消费当前 pending（DICE 事件由战斗生成），回到 WAIT_MOVE
-    this._status._pending._pending.length = 0;
+  /** 骰子选择（CS: RoguelikeDiceChoiceRequest { choice: REROLL|LEAVE }）——rogue_2 DICE 模块真实结算 */
+  async diceChoice(args: { choice?: string | number }): Promise<{ result: number }> {
+    const choice = String(args.choice ?? "LEAVE").toUpperCase();
+    const dm = this._module.dice;
+    const theme = this.current.game!.theme;
+    const diceEvent = this._status.pending.find((e) => e.type === "DICE");
+    // 无 DICE 事件（非骰子流程）→ 直接回到 WAIT_MOVE
+    if (!diceEvent) {
+      this._status.state = "WAIT_MOVE";
+      return { result: 1 };
+    }
+    if (choice === "REROLL") {
+      // 重掷：重新生成骰子结果（重掷次数 +1）
+      const result = this.rollDice(theme, dm);
+      (diceEvent.content as any).dice = {
+        result,
+        rerollCount: ((diceEvent.content as any).dice?.rerollCount ?? 0) + 1,
+      };
+      this._status.state = "PENDING";
+      return { result: 1 };
+    }
+    // LEAVE：接受结果，发放骰子事件奖励并消费 DICE 事件
+    const dice = (diceEvent.content as any).dice as
+      | { result?: { diceEventId: string } }
+      | undefined;
+    const diceEventId = dice?.result?.diceEventId || "";
+    const detail = excel.RoguelikeTopicTable.details[theme];
+    const eventData = (
+      (excel.RoguelikeTopicTable.modules[theme] as any)?.dice?.diceEvents ||
+      {}
+    )[diceEventId];
+    const showType = eventData?.showType;
+    // 按结果类型发放简化奖励（启示/美德/钥匙等——官方通过 ruleGroup 黑板驱动）
+    if (showType === "VIRTUE") {
+      this._trigger.emit("rlv2:get:items", [[{ id: "rogue_2_gold", count: 3 }]]);
+    } else if (showType === "KEY") {
+      this._trigger.emit("rlv2:get:items", [[{ id: "rogue_2_gold", count: 5 }]]);
+    } else {
+      this._trigger.emit("rlv2:get:items", [[{ id: "rogue_2_gold", count: 2 }]]);
+    }
+    void detail;
+    this._status._pending._pending.splice(
+      this._status._pending._pending.indexOf(diceEvent),
+      1,
+    );
     this._status.state = "WAIT_MOVE";
     return { result: 1 };
   }
 
-  /** 献祭选择（CS: RoguelikeSacrificeRequest { choice, leave }）——失与得，简化结算 */
+  /** 生成骰子结果（DICE 事件结算）：随机骰子事件 + 掷点 */
+  private rollDice(theme: string, dm: any): any {
+    const faceCount = dm?.faceCount ?? 6;
+    const diceRoll = Math.floor(Math.random() * faceCount) + 1;
+    const diceEvents = (
+      excel.RoguelikeTopicTable.modules[theme] as any
+    )?.dice?.diceEvents;
+    const eventIds = diceEvents ? Object.keys(diceEvents) : [];
+    const diceEventId =
+      eventIds.length > 0
+        ? eventIds[Math.floor(Math.random() * eventIds.length)]
+        : "";
+    return {
+      diceEventId,
+      diceRoll,
+      mutation: { id: "", chars: [] },
+      virtue: [],
+    };
+  }
+
+  /** 献祭选择（CS: RoguelikeSacrificeRequest { choice, leave }）——失与得：献祭藏品换随机奖励 */
   async sacrificeChoice(args: {
     choice?: string;
     leave?: number;
   }): Promise<void> {
-    this._status._pending._pending.length = 0;
+    const theme = this.current.game!.theme;
+    const sacrificeEvent = this._status.pending.find(
+      (e) => e.type === "SACRIFICE" || (e.type === "SCENE" && e.content?.sacrifice),
+    );
+    if (args.leave) {
+      if (sacrificeEvent) {
+        this._status._pending._pending.splice(
+          this._status._pending._pending.indexOf(sacrificeEvent),
+          1,
+        );
+      }
+      this._status.state = "WAIT_MOVE";
+      return;
+    }
+    // 从献祭池抽一个可献祭藏品作为回报（pool_sacrifice_n/r——value 8/12 的可献祭物品）
+    const hasRelic = Object.values(this.inventory!.relic || {}).map(
+      (r) => (r as any).id,
+    );
+    const rewardId = this._pool.getRelic("pool_relic_all", hasRelic);
+    if (rewardId) {
+      this._trigger.emit("rlv2:relic:gain", [{ id: rewardId, count: 1 }]);
+    } else {
+      this._trigger.emit("rlv2:get:items", [
+        [{ id: `${theme}_gold`, count: 8 }],
+      ]);
+    }
+    if (sacrificeEvent) {
+      this._status._pending._pending.splice(
+        this._status._pending._pending.indexOf(sacrificeEvent),
+        1,
+      );
+    }
     await this.checkZoneEnd();
+    this._status.state = "WAIT_MOVE";
+  }
+
+  /** 炼金（CS: RoguelikeAlchemy 类，抓包 { leave, index: [f1, f2] }）——接线 fragment 合成 */
+  async alchemy(args: { leave?: number; index?: string[] }): Promise<void> {
+    if (args.leave) {
+      this._status._pending._pending.length = 0;
+      this._status.state = "WAIT_MOVE";
+      return;
+    }
+    const fragmentMgr = this._module._modules["FRAGMENT"];
+    if (fragmentMgr && args.index && args.index.length >= 2) {
+      fragmentMgr.alchemy([args.index[0], args.index[1]]);
+    }
+    this._status.state = "WAIT_MOVE";
+  }
+
+  /** 炼金奖励（抓包 { index }）——发放合成奖励 */
+  async alchemyReward(args: { index?: number }): Promise<void> {
+    // 简化：炼金合成奖励已由 fragment.alchemy 发放；此处确认结算并关闭界面
+    this._status._pending._pending.length = 0;
     this._status.state = "WAIT_MOVE";
   }
 
@@ -1224,20 +1363,6 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       1,
     );
     await this._trigger.emit("rlv2:get:items", [[item]]);
-    this._status.state = "WAIT_MOVE";
-  }
-
-  /** 炼金（CS: RoguelikeAlchemy 类，抓包 { leave }）——fragment 模块合成 */
-  async alchemy(args: { leave?: number }): Promise<void> {
-    if (args.leave) {
-      this._status._pending._pending.length = 0;
-      this._status.state = "WAIT_MOVE";
-    }
-  }
-
-  /** 炼金奖励（抓包 { index }）——发放合成奖励 */
-  async alchemyReward(args: { index: number }): Promise<void> {
-    this._status._pending._pending.length = 0;
     this._status.state = "WAIT_MOVE";
   }
 

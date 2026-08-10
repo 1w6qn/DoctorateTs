@@ -45,7 +45,11 @@ export class RoguelikeCopperManager {
 
   init(): void {
     this.bag = {};
-    this.redrawCost = 2;
+    // 官方 moduleConsts：重抽费用（gold）、免费重抽次数
+    const consts = (
+      excel.RoguelikeTopicTable.modules[this._player.current.game!.theme] as any
+    )?.copper?.moduleConsts;
+    this.redrawCost = consts?.copperDrawFreezeCostCount?.[0] ?? 1;
     this.redrawFreeze = 3;
     this.redrawFreezeCnt = 0;
     this._index = 0;
@@ -90,8 +94,14 @@ export class RoguelikeCopperManager {
     item.isDrawn = 1;
   }
 
-  /** 重抽：清空已抽标记并重新抽 3 枚（copper/redraw）；冻结次数内免费 */
+  /** 重抽：清空已抽标记并重新抽 3 枚（copper/redraw）；扣 gold 重抽费用 */
   redraw(): { copper: string[]; divineEventId: string } {
+    const theme = this._player.current.game!.theme;
+    // 扣除重抽费用（gold）
+    const goldItem = `${theme}_gold`;
+    this._trigger.emit("rlv2:get:items", [
+      [{ id: goldItem, count: -this.redrawCost }],
+    ]);
     const drawn: string[] = [];
     for (const [key, item] of Object.entries(this.bag)) {
       if (item.isDrawn) {

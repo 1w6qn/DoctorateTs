@@ -18,6 +18,7 @@ vi.mock("@excel/excel", () => ({
         rogue_5: {
           stages: {},
           init: [{ modeGrade: 0, predefinedId: null, modeId: "NORMAL" }],
+          items: { rogue_5_gold: { id: "rogue_5_gold", type: "GOLD" } },
         },
       },
       modules: {

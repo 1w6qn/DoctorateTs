@@ -500,8 +500,8 @@ router.post("/diceChoice", async (req, res) => {
 /** 献祭选择（CS: RoguelikeSacrificeRequest { choice, leave }） */
 router.post("/sacrificeChoice", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  req.body as RoguelikeSacrificeRequest;
-  await player.rlv2.sacrificeChoice({});
+  const body = req.body as RoguelikeSacrificeRequest;
+  await player.rlv2.sacrificeChoice(body);
   res.send(rlv2Response(player) satisfies RoguelikeSacrificeResponse);
 });
 

@@ -20,11 +20,31 @@ vi.mock("@excel/excel", () => ({
             choice_ro3_taskreward1_1: { id: "choice_ro3_taskreward1_1", nextSceneId: null },
             choice_ro3_taskreward1_2: { id: "choice_ro3_taskreward1_2", nextSceneId: null },
           },
-          items: { rogue_3_gold: { type: "GOLD" } },
+          items: {
+            rogue_3_gold: { id: "rogue_3_gold", type: "GOLD", rarity: "NONE" },
+            rogue_3_relic_a01: { id: "rogue_3_relic_a01", type: "RELIC", rarity: "NORMAL", canSacrifice: true, value: 8 },
+            rogue_3_relic_a02: { id: "rogue_3_relic_a02", type: "RELIC", rarity: "NORMAL", canSacrifice: true, value: 8 },
+            rogue_3_relic_b01: { id: "rogue_3_relic_b01", type: "RELIC", rarity: "RARE", canSacrifice: true, value: 12 },
+          },
           recruitTickets: {},
         },
+        rogue_2: {
+          init: [{ modeGrade: 0, predefinedId: null, modeId: "NORMAL", initRelic: {}, initRecruit: {} }],
+          items: { rogue_2_gold: { id: "rogue_2_gold", type: "GOLD", rarity: "NONE" } },
+        },
       },
-      modules: { rogue_3: {} },
+      modules: {
+        rogue_3: {},
+        rogue_2: {
+          dice: {
+            dice: { rogue_2_dice_1: { diceFaceCount: 6 } },
+            diceEvents: {
+              rogue_2_diceEve_1: { showType: "VIRTUE" },
+              rogue_2_diceEve_2: { showType: "KEY" },
+            },
+          },
+        },
+      },
       customizeData: {},
     },
     CharacterTable: {},
@@ -233,6 +253,88 @@ describe("rlv2 完整机制（2026-08-10 补全）", () => {
       await (player.rlv2 as any).stashRecruitTicket({ index: "t_0" });
       expect(player.rlv2.inventory!.recruit["t_0"].state).toBe(3);
       expect(player.rlv2.inventory!.recruit["t_0"].list).toHaveLength(0);
+    });
+  });
+});
+
+describe("真实机制补全（2026-08-10 第二轮）", () => {
+  /** 等待构造期 rlv2:init（未 await）完成，避免异步重置状态 */
+  async function readyPlayer(theme: string) {
+    const player = makePlayer();
+    (player.rlv2 as any).current.game = { theme, mode: "NORMAL", modeGrade: 0 } as any;
+    await new Promise((r) => setTimeout(r, 0));
+    await (player.rlv2 as any)._pool.create();
+    return player;
+  }
+
+  describe("diceChoice 真实 DICE 结算", () => {
+    it("LEAVE 应发放奖励并消费 DICE 事件", async () => {
+      const player = await readyPlayer("rogue_2");
+      // 注入 DICE pending 事件
+      (player.rlv2 as any)._status._pending._pending.push({
+        type: "DICE",
+        content: { dice: { result: { diceEventId: "rogue_2_diceEve_1", diceRoll: 3 }, rerollCount: 0 } },
+      });
+      const emitSpy = vi.spyOn(player._trigger as any, "emit");
+      const ret = await (player.rlv2 as any).diceChoice({ choice: "LEAVE" });
+      expect(ret.result).toBe(1);
+      expect((player.rlv2 as any)._status.pending.length).toBe(0);
+      const items = emitSpy.mock.calls.filter((c: any) => c[0] === "rlv2:get:items");
+      expect(items.length).toBeGreaterThan(0);
+    });
+
+    it("REROLL 应重新生成骰子结果并保留 DICE 事件", async () => {
+      const player = await readyPlayer("rogue_2");
+      (player.rlv2 as any)._status._pending._pending.push({
+        type: "DICE",
+        content: { dice: { result: { diceEventId: "", diceRoll: 1 }, rerollCount: 0 } },
+      });
+      await (player.rlv2 as any).diceChoice({ choice: "REROLL" });
+      expect((player.rlv2 as any)._status.pending.length).toBe(1);
+      const dice = (player.rlv2 as any)._status.pending[0].content.dice;
+      expect(dice.rerollCount).toBe(1);
+      expect(dice.result.diceEventId).not.toBe("");
+    });
+  });
+
+  describe("sacrificeChoice 真实献祭", () => {
+    it("应发放献祭回报并关闭事件", async () => {
+      const player = await readyPlayer("rogue_3");
+      (player.rlv2 as any)._status._pending._pending.push({
+        type: "SACRIFICE",
+        content: { sacrifice: { type: 0 } },
+      });
+      const emitSpy = vi.spyOn(player._trigger as any, "emit");
+      await (player.rlv2 as any).sacrificeChoice({ choice: "1", leave: 0 });
+      expect((player.rlv2 as any)._status.pending.length).toBe(0);
+      const relicGain = emitSpy.mock.calls.filter((c: any) => c[0] === "rlv2:relic:gain");
+      // 池空时回退金币
+      expect(relicGain.length + emitSpy.mock.calls.filter((c: any) => c[0] === "rlv2:get:items").length).toBeGreaterThan(0);
+    });
+
+    it("leave 应直接关闭事件", async () => {
+      const player = await readyPlayer("rogue_3");
+      (player.rlv2 as any)._status._pending._pending.push({ type: "SACRIFICE", content: {} });
+      await (player.rlv2 as any).sacrificeChoice({ choice: "", leave: 1 });
+      expect((player.rlv2 as any)._status.pending.length).toBe(0);
+      expect((player.rlv2 as any)._status.state).toBe("WAIT_MOVE");
+    });
+  });
+
+  describe("zoneReward / traderReturn 实际填充", () => {
+    it("checkZoneEnd 推进层数时应填充 zoneReward", async () => {
+      const player = await readyPlayer("rogue_3");
+      (player.rlv2 as any)._status.cursor.zone = 1;
+      (player.rlv2 as any)._status.cursor.position = { x: 3, y: 0 };
+      (player.rlv2 as any)._map.zones[1] = { nodes: { "300": { zone_end: true } } } as any;
+      await (player.rlv2 as any).checkZoneEnd();
+      expect((player.rlv2 as any)._status.zoneReward).toBeTruthy();
+    });
+
+    it("leaveShop 应填充 traderReturn", async () => {
+      const player = await readyPlayer("rogue_3");
+      await (player.rlv2 as any).leaveShop();
+      expect((player.rlv2 as any)._status.traderReturn).toBeTruthy();
     });
   });
 });

@@ -235,6 +235,18 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
     };
   }
 
+  DICE(args: {
+    result: PlayerRoguelikePendingEvent.Dice.Result;
+    rerollCount: number;
+  }): PlayerRoguelikePendingEvent.Content {
+    return {
+      dice: {
+        result: args.result,
+        rerollCount: args.rerollCount,
+      },
+    };
+  }
+
   SCENE(args: {
     scene: {
       id: string;

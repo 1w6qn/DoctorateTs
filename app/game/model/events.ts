@@ -164,6 +164,12 @@ export type EventMap = {
   "rlv2:node:upgrade": [string];
   /** 肉鸽V2节点完成事件 */
   "rlv2:node:complete": [{ nodeId: string }];
+  /** 肉鸽V2网格区域步进事件（rogue_6 GRID_ZONE） */
+  "rlv2:grid:step": [];
+  /** 肉鸽V2废品获得事件（rogue_6 SCRAP） */
+  "rlv2:scrap:gain": [string];
+  /** 肉鸽V2铜币开局抽牌事件（rogue_5 COPPER） */
+  "rlv2:copper:init": [];
   /** 肉鸽V2游戏结束事件 */
   "rlv2:game:end": [{ score: number; rank: string }];
   /** 肉鸽V2碎片获取事件 */

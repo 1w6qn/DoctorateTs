@@ -282,6 +282,12 @@ export namespace PlayerRoguelikeV2 {
             fragment?: Module.Fragment
             disaster?: Module.Disaster
             nodeUpgrade?: Module.NodeUpgrade
+            copper?: Module.Copper
+            wrath?: Module.Wrath
+            sky?: Module.Sky
+            gridZone?: Module.GridMapData
+            scrap?: Module.GridZoneScrapInfo
+            weather?: Module.Weather
         }
         export namespace Module {
             export interface San {
@@ -358,6 +364,62 @@ export namespace PlayerRoguelikeV2 {
                 tempUpgrade: string,
                 upgradeList: string[]
                 currUpgradeIndex:number
+            }
+            export interface Copper {
+                bag: { [key: string]: InventoryCopper }
+                redrawCost: number
+                redrawFreeze: number
+                redrawFreezeCnt: number
+            }
+            export interface InventoryCopper {
+                id: string
+                isDrawn: number
+                layer: number
+                countDown: number
+                ts: number
+            }
+            export interface Wrath {
+                wraths: string[]
+                newWrath: number
+            }
+            export interface Sky {
+                zones: { [key: string]: any }
+            }
+            export interface GridMapData {
+                zones: { [key: string]: GridMapZoneData }
+                stepRemain: number
+                needConfirmStepZero: number
+            }
+            export interface GridMapZoneData {
+                nodes: { [key: string]: GridMapZoneNodeData }
+            }
+            export interface GridMapZoneNodeData {
+                content: GridMapZoneNodeContentData
+                state: number
+                show: number
+            }
+            export interface GridMapZoneNodeContentData {
+                savage?: { stageId: string }
+                shop?: { goods: string[] }
+            }
+            export interface GridZoneScrapInfo {
+                activeVehicle: { instId: string; isWalk: number }
+                inventory: { [key: string]: ScrapInventoryInfo }
+                limit: number
+            }
+            export interface ScrapInventoryInfo {
+                instId: string
+                id: string
+                value: number
+                useCnt: number
+                ts: number
+            }
+            export interface Weather {
+                currentMain: string
+                currentSub: string
+                eye: string
+                effectArea: { [key: string]: number }
+                weatherStep: number
             }
         }
 

@@ -828,8 +828,14 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     battleData: BattleData;
   }) {
     await this._trigger.emit("rlv2:battle:finish", [args]);
-    const pos = `${this._status.cursor.position!.x * 100 + this._status.cursor.position!.y}`;
-    this._map.zones[this._status.cursor.zone].nodes[pos].fts = now();
+    // 标准地图节点 fts 标记（网格区域用 gridZone 节点——标准地图可能无此节点，容错跳过）
+    const pos = this._status.cursor.position;
+    if (pos) {
+      const node = this._map.zones[this._status.cursor.zone]?.nodes[
+        `${pos.x * 100 + pos.y}`
+      ];
+      if (node) node.fts = now();
+    }
   }
 
   chooseBattleReward(args: { index: number; sub: number }) {
@@ -1060,8 +1066,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     this._status.state = "WAIT_MOVE";
   }
 
-  /** 骰子选择（CS: RoguelikeDiceChoiceRequest { choice }）——rogue_2 DICE 模块，简化结算 */
+  /** 骰子选择（CS: RoguelikeDiceChoiceRequest { choice }）——rogue_2 DICE 模块 */
   async diceChoice(args: { choice?: string }): Promise<{ result: number }> {
+    // 消费当前 pending（DICE 事件由战斗生成），回到 WAIT_MOVE
     this._status._pending._pending.length = 0;
     this._status.state = "WAIT_MOVE";
     return { result: 1 };
@@ -1077,17 +1084,25 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     this._status.state = "WAIT_MOVE";
   }
 
-  /** 铜币镀金（CS: RoguelikeGildRequest { choice, leave }）——rogue_5 COPPER，简化结算 */
+  /** 铜币镀金（CS: RoguelikeGildRequest { choice, leave }）——rogue_5 COPPER */
   async copperGild(args: { choice?: string; leave?: number }): Promise<void> {
-    this._status._pending._pending.length = 0;
+    if (args.leave) {
+      this._status._pending._pending.length = 0;
+      this._status.state = "WAIT_MOVE";
+      return;
+    }
+    const cm = this._module.copper;
+    // 镀金当前已抽铜币（choice 为袋键）
+    cm?.gild(args.choice || "");
     this._status.state = "WAIT_MOVE";
   }
 
-  /** 铜币重抽（COPPER 模块重抽）：清除已抽标记重新抽 3 枚 */
+  /** 铜币重抽（COPPER 模块）：重置已抽标记重新抽 3 枚 */
   async copperRedraw(): Promise<{ copper: string[]; divineEventId: string }> {
-    this._status._pending._pending.length = 0;
+    const cm = this._module.copper;
+    const ret = cm?.redraw() || { copper: [], divineEventId: "" };
     this._status.state = "WAIT_MOVE";
-    return { copper: [], divineEventId: "" };
+    return ret;
   }
 
   /** 商店战斗开始（CS: RoguelikeShopBattleRequest）：生成 BATTLE 事件（state 0 + addExcludeList） */
@@ -1238,27 +1253,49 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     this._trigger.emit("rlv2:fragment:use_inspiration", [args.fragmentIndex]);
   }
 
-  /* ===== rogue_6 GRID_ZONE / SCRAP 模块（抓包协议派生）===== */
+  /* ===== rogue_6 GRID_ZONE / SCRAP 模块（真实机制）===== */
 
-  /** 网格区域移动（抓包 { route: [nodeIndex] }）：沿 route 移动到末节点并触发节点事件 */
+  /** 网格区域移动（抓包 { route: [nodeIndex] }）：沿 route 移动并消耗行动力 */
   async gridZoneMoveTo(args: { route: string[] }): Promise<void> {
     const route = args.route || [];
     if (route.length === 0) return;
+    const gz = this._module.gridZone;
+    // 消耗行动力；耗尽则回到 WAIT_MOVE（行动力用尽离开网格区域）
+    this._trigger.emit("rlv2:grid:step", []);
+    const node = gz?.moveTo(route);
     const zone = this._status.cursor.zone;
     const last = route[route.length - 1];
-    const node = this._map.zones[zone]?.nodes[last];
-    this._status.state = "PENDING";
-    this._status.trace.push({
-      zone: this._status.cursor.zone,
-      position: { x: Math.floor(Number(last) / 100), y: Number(last) % 100 },
-    });
-    if (node) {
-      this.triggerNodeEvent(node.type);
+    const lastX = Math.floor(Number(last) / 100);
+    const lastY = Number(last) % 100;
+    this._status.trace.push({ zone, position: { x: lastX, y: lastY } });
+    this._status.cursor.position = { x: lastX, y: lastY };
+    if (node?.content?.savage?.stageId) {
+      // 战斗节点 → 战斗
+      this._status.state = "PENDING";
+      await this._trigger.emit("rlv2:battle:start", [
+        node.content.savage.stageId,
+      ]);
+      return;
     }
-    this._status.cursor.position = {
-      x: Math.floor(Number(last) / 100),
-      y: Number(last) % 100,
-    };
+    if (node?.content?.shop) {
+      this._status.state = "PENDING";
+      this._trigger.emit("rlv2:event:create", [
+        "BATTLE_SHOP",
+        {
+          bank: {
+            open: true,
+            canPut: true,
+            canWithdraw: true,
+            withdraw: 0,
+            cost: 1,
+            withdrawLimit: 20,
+          },
+        },
+      ]);
+      return;
+    }
+    // 空节点：网格区域自由移动，回到 WAIT_MOVE（客户端继续走）
+    this._status.state = "WAIT_MOVE";
   }
 
   /** 网格区域移动并开始战斗（抓包 { route, stageId, squad }） */
@@ -1267,27 +1304,41 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     stageId: string;
     squad: PlayerSquad;
   }): Promise<void> {
-    await this.gridZoneMoveTo({ route: args.route });
+    const gz = this._module.gridZone;
+    this._trigger.emit("rlv2:grid:step", []);
+    gz?.moveTo(args.route);
+    const zone = this._status.cursor.zone;
+    const last = args.route[args.route.length - 1];
+    const lastX = Math.floor(Number(last) / 100);
+    const lastY = Number(last) % 100;
+    this._status.trace.push({ zone, position: { x: lastX, y: lastY } });
+    this._status.cursor.position = { x: lastX, y: lastY };
+    this._status.state = "PENDING";
     await this._trigger.emit("rlv2:battle:start", [args.stageId]);
   }
 
-  /** 网格区域空步：无操作（GRID_ZONE 节点消耗） */
+  /** 网格区域空步：消耗一步行动力（不移动） */
   async gridZoneEmptyStep(): Promise<void> {
+    this._trigger.emit("rlv2:grid:step", []);
     this._status.state = "WAIT_MOVE";
   }
 
-  /** 网格区域读取第 0 步：无操作 */
+  /** 网格区域读取第 0 步：确认初始位置 */
   async gridZoneReadStepZero(): Promise<void> {
+    const gz = this._module.gridZone;
+    if (gz) gz.needConfirmStepZero = 0;
     this._status.state = "PENDING";
   }
 
-  /** 废品操作（rogue_6 SCRAP 模块，抓包派生）：简化——回到 WAIT_MOVE */
+  /** 废品操作（rogue_6 SCRAP 模块）：切换当前载具或保持步行 */
   async scrap(): Promise<void> {
     this._status.state = "WAIT_MOVE";
   }
 
-  /** 废品换乘（SCRAP MOVE 型）：移动位置并回到 WAIT_MOVE */
-  async scrapChangeVehicle(): Promise<void> {
+  /** 废品换乘（SCRAP MOVE 型）：切换载具 */
+  async scrapChangeVehicle(args: { scrapId?: string }): Promise<void> {
+    const sm = this._module.scrap;
+    sm?.changeVehicle(args.scrapId || "");
     this._status.state = "WAIT_MOVE";
   }
 

@@ -415,7 +415,7 @@
   "use strict";
 
   /* ---------- Toast 通知 ---------- */
-  function toast(msg, type) {
+  function toast(msg, type, detail) {
     if (!type) {
       type = /失败|错误|无效/.test(msg) ? "err" : /成功|已 |完成|更新|设置/.test(msg) ? "ok" : "info";
     }
@@ -428,6 +428,15 @@
     var el = document.createElement("div");
     el.className = "toast " + type;
     el.textContent = msg;
+    // 操作结果详情：带 detail 时提示可点击复制，点击把详情复制到剪贴板
+    if (detail) {
+      el.style.cursor = "pointer";
+      el.title = "点击复制详情";
+      el.appendChild(document.createTextNode(" ⓘ"));
+      el.addEventListener("click", function () {
+        copyText(detail);
+      });
+    }
     box.appendChild(el);
     setTimeout(function () {
       el.classList.add("hide");
@@ -824,8 +833,12 @@
         api("/users/" + encodeURIComponent(uid) + conf.path, { method: "POST", body: "{}" })
           .then(function (r) {
             var msg = id === "act-backup" ? "已备份：" + r.name : "操作成功" + (r.rooms != null ? "（" + r.rooms + " 间房间）" : "");
-            if (id === "act-maxout" && r.chars != null) msg = "满配完成：干员 " + r.chars + " | 物品 " + r.items + " | 皮肤 " + r.skins + " | 基建 " + r.rooms;
-            toast(conf.label + "成功 — " + msg);
+            var detail = null;
+            if (id === "act-maxout" && r.chars != null) {
+              msg = "满配完成：干员 " + r.chars + " | 物品 " + r.items + " | 皮肤 " + r.skins + " | 基建 " + r.rooms;
+              detail = JSON.stringify(r, null, 2);
+            }
+            toast(conf.label + "成功 — " + msg, "ok", detail);
             loadOverview(uid);
             refreshLogs();
           })
@@ -1961,12 +1974,14 @@
     if (!uids.length) return;
     confirmDialog("批量一键满配 " + uids.length + " 个用户（资源/干员/基建/皮肤）？", function () {
       var done = 0;
+      var results = [];
       uids.forEach(function (u) {
         api("/users/" + encodeURIComponent(u) + "/maxout", { method: "POST", body: "{}" })
-          .then(function () {
+          .then(function (r) {
+            results.push(u + ": 干员 " + r.chars + " | 物品 " + r.items + " | 基建 " + r.rooms);
             done++;
             if (done === uids.length) {
-              toast("已满配 " + uids.length + " 个用户", "ok");
+              toast("已满配 " + uids.length + " 个用户", "ok", results.join("\n"));
               refreshLogs();
             }
           })

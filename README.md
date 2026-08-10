@@ -96,7 +96,7 @@ npm run admin -- config set admin.token mytoken # 修改配置（重启后生效
    - **邮件**：邮件列表/删除，弹窗支持群发（全部用户）
    - **卡池**：卡池清单/详情（UP 干员+概率），管理选中玩家的卡池 UP 选择与保底计数
    - **迁移**：官服账号转移 —— 粘贴账号（每行 手机号 密码）执行迁移，显示每账号结果（需联网访问官服）
-   - **接口**：REST API 控制台 —— 管理 API 端点浏览/调用（迷你 Postman）+ 游戏协议调试器（带玩家 secret 调真实游戏端点，如 /user/info、/gacha/advancedGacha）
+   - **接口**：REST API 控制台 —— 管理 API 端点浏览/调用（迷你 Postman）+ 游戏协议调试器（带玩家 secret 调真实游戏端点，如 /user/info、/gacha/advancedGacha）+ **CLI 控制台**（服务器内执行管理 CLI 命令，如 users list --json）
    - **数据**：完整玩家数据 JSON 只读查看
    - **统计**：等级分布 / 注册分布 / 资源合计（顶部区块）
    - **操作日志**：最近 50 条审计记录

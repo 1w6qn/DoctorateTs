@@ -214,6 +214,21 @@
   </aside>
   <main id="main">
 
+  <!-- 首次使用引导（登录后一次性显示，可关闭） -->
+  <div id="welcome-card" class="card full" style="display:none;">
+    <div class="row" style="align-items:center;">
+      <h3 style="color:var(--gold);">🎉 欢迎使用 DoctorateTs 管理后台</h3>
+      <button id="welcome-close" class="btn-sm" style="margin-left:auto;">知道了</button>
+    </div>
+    <p style="color:var(--muted);font-size:12px;margin-top:8px;">快速开始（点击跳转）：</p>
+    <div class="row wrap" style="margin-top:6px;">
+      <button class="btn-sm" data-welcome="users">① 创建用户</button>
+      <button class="btn-sm" data-welcome="grant">② 发放物品 / 一键满配</button>
+      <button class="btn-sm" data-welcome="pools">③ 管理卡池</button>
+      <button class="btn-sm" data-welcome="official">④ 官服工具库</button>
+    </div>
+  </div>
+
   <!-- 统计（默认折叠为摘要行） -->
   <section class="card full">
     <div class="row" style="align-items:center;margin-bottom:4px;">
@@ -848,7 +863,7 @@
           '<button id="repairchars-btn">修复结构</button>' +
           '<span style="color:var(--muted);font-size:12px;">共 ' + chars.length + " 名（显示 " + list.length + "）</span></div>" +
           pager +
-          "<table><thead><tr><th>instId</th><th>干员</th><th>星级</th><th>等级</th><th>精二</th><th>潜能</th><th>技能</th><th></th></tr></thead><tbody>" +
+          "<table><thead><tr><th title=\"干员实例 ID（instId）\">instId</th><th>干员</th><th>星级</th><th>等级</th><th title=\"进化阶段（精一/精二）\">精二</th><th title=\"潜能等级 0-5\">潜能</th><th title=\"技能等级 1-7（专精在详情弹窗）\">技能</th><th></th></tr></thead><tbody>" +
           (rows || '<tr><td colspan="8" style="color:var(--muted);">无匹配干员</td></tr>') +
           "</tbody></table>" +
           pager;
@@ -1810,6 +1825,10 @@
     api("/status").then(function () {
       localStorage.setItem("adminToken", token);
       hideLogin();
+      // 首次使用引导（一次性显示）
+      if (!localStorage.getItem("dtsOnboarded")) {
+        $("welcome-card").style.display = "block";
+      }
       // URL hash 定位 Tab（如 /admin/dashboard#pools 直达卡池）
       var initTab = location.hash.replace("#", "");
       if (SHORTCUT_TABS.indexOf(initTab) !== -1 && initTab !== currentTab) currentTab = initTab;
@@ -1836,6 +1855,30 @@
   $("user-filter").addEventListener("input", function () {
     userFilter = this.value.trim();
     refreshUsers();
+  });
+
+  /* ---------- 首次使用引导 ---------- */
+  $("welcome-close").addEventListener("click", function () {
+    $("welcome-card").style.display = "none";
+    localStorage.setItem("dtsOnboarded", "1");
+  });
+  document.querySelectorAll("[data-welcome]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var step = btn.getAttribute("data-welcome");
+      $("welcome-card").style.display = "none";
+      localStorage.setItem("dtsOnboarded", "1");
+      if (step === "pools" || step === "official") {
+        switchTab(step);
+        return;
+      }
+      // 用户相关步骤：切到概览并提示选择用户
+      switchTab("overview");
+      if (step === "users") {
+        $("btn-create").click();
+      } else if (step === "grant") {
+        toast("先在左侧用户列表选择用户，即可发放物品/一键满配", "info");
+      }
+    });
   });
 
   /* ---------- Tab 切换 / 统计折叠 ---------- */

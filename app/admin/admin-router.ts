@@ -346,6 +346,22 @@ router.get("/api/official/backend", (_req: Request, res: Response) => {
   res.json(adminService.getOfficialBackend());
 });
 
+/** CLI 集成：服务器内执行 CLI 命令（复用 admin-cli dispatch，输出捕获返回） */
+router.post("/api/cli/exec", async (req: Request, res: Response) => {
+  try {
+    const { command } = req.body ?? {};
+    const { cliExec } = await import("./cli-exec");
+    const result = await cliExec(String(command ?? ""));
+    if (!result.ok) {
+      res.status(400).json({ ok: false, output: result.output, error: result.error });
+      return;
+    }
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 /** 管理 API 端点规范（Dashboard「接口」控制台数据源） */
 router.get("/api/spec", (_req: Request, res: Response) => {
   res.json({ endpoints: ADMIN_ENDPOINTS });

@@ -129,6 +129,13 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   { method: "GET", path: "/api/common-items", summary: "常用物品别名表" },
   { method: "GET", path: "/api/mail-templates", summary: "邮件模板列表（补偿/公告/欢迎，CLI mail send --template 用）" },
   { method: "GET", path: "/api/official/backend", summary: "当前官服操作后端（enabled + game/account/conf 地址，config.officialBackend 配置）" },
+  {
+    method: "POST",
+    path: "/api/cli/exec",
+    summary: "CLI 集成：服务器内执行 CLI 命令（复用 admin-cli dispatch，输出捕获返回）",
+    params: [{ name: "command", type: "string", required: true, desc: "CLI 命令文本（如 users list --json、gacha pools）" }],
+    body: '{"command":"users list --json"}',
+  },
   { method: "GET", path: "/api/pools", summary: "卡池清单（poolId/名称/规则/开闭池/保底）" },
   { method: "GET", path: "/api/pools/:poolId", summary: "卡池详情（UP/可用干员 + 概率）" },
   { method: "GET", path: "/api/users/:uid/pools/:poolId", summary: "玩家卡池状态（UP 选择 + 保底计数）" },

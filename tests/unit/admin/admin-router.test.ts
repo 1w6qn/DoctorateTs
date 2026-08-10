@@ -62,9 +62,13 @@ vi.mock("../../../app/admin/AdminService", () => ({
 vi.mock("../../../app/admin/admin-auth", () => ({
   adminAuth: vi.fn((_req: any, _res: any, next: any) => next()),
 }));
+vi.mock("../../../app/admin/cli-exec", () => ({
+  cliExec: vi.fn(),
+}));
 vi.mock("../../../app/config", () => ({ default: {} }));
 
 import adminRouter from "../../../app/admin/admin-router";
+import { cliExec } from "../../../app/admin/cli-exec";
 import { adminService } from "../../../app/admin/AdminService";
 
 function mockRes() {
@@ -407,6 +411,22 @@ describe("admin 路由（扩展能力）", () => {
     );
     expect(adminService.officialAction).toHaveBeenCalledWith("13800000000", "pwd", "signin");
     expect(res.json).toHaveBeenCalledWith({ action: "signin", ok: true, data: "签到成功" });
+  });
+
+  it("POST /api/cli/exec 应执行 CLI 命令并返回输出", async () => {
+    vi.mocked(cliExec).mockResolvedValue({ ok: true, output: "hello" });
+    const res = mockRes();
+    await call({ method: "POST", url: "/api/cli/exec", body: { command: "users list --json" } }, res);
+    expect(cliExec).toHaveBeenCalledWith("users list --json");
+    expect(res.json).toHaveBeenCalledWith({ ok: true, output: "hello" });
+  });
+
+  it("POST /api/cli/exec 命令失败应 400 并返回 error", async () => {
+    vi.mocked(cliExec).mockResolvedValue({ ok: false, output: "x", error: "boom" });
+    const res = mockRes();
+    await call({ method: "POST", url: "/api/cli/exec", body: { command: "users bad" } }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ ok: false, output: "x", error: "boom" });
   });
 
   it("POST /api/official/call 应透传手机号/密码/cgi/body", async () => {

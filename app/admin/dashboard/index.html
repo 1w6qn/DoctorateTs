@@ -1068,9 +1068,11 @@
     pane.innerHTML =
       '<div class="sub-tabs">' +
       '<div class="tab active" data-sub="admin">管理 API</div>' +
-      '<div class="tab" data-sub="game">游戏协议</div></div>' +
+      '<div class="tab" data-sub="game">游戏协议</div>' +
+      '<div class="tab" data-sub="cli">CLI</div></div>' +
       '<div class="console" id="sub-admin"></div>' +
-      '<div class="console" id="sub-game" style="display:none;"></div>';
+      '<div class="console" id="sub-game" style="display:none;"></div>' +
+      '<div id="sub-cli" style="display:none;"></div>';
     document.querySelectorAll("#pane-api .tab[data-sub]").forEach(function (t) {
       t.addEventListener("click", function () {
         var sub = t.getAttribute("data-sub");
@@ -1079,10 +1081,64 @@
         });
         $("sub-admin").style.display = sub === "admin" ? "grid" : "none";
         $("sub-game").style.display = sub === "game" ? "grid" : "none";
+        $("sub-cli").style.display = sub === "cli" ? "block" : "none";
         if (sub === "game") renderGameConsole();
+        if (sub === "cli") renderCliConsole();
       });
     });
     renderAdminConsole();
+  }
+
+  /* --- CLI 控制台（服务器内执行 CLI 命令） --- */
+  function renderCliConsole() {
+    var box = $("sub-cli");
+    box.innerHTML =
+      '<p style="color:var(--muted);font-size:12px;margin-bottom:8px;">CLI 控制台：在运行中的服务器内执行管理 CLI 命令（如 users list --json、gacha pools、server check）。支持 --json 的命令返回结构化输出。</p>' +
+      '<div class="row">' +
+      '<input id="cli-input" placeholder="users list --json" class="req-path">' +
+      '<button id="cli-run" class="primary">执行</button></div>' +
+      '<div class="resp-box" id="cli-resp" style="margin-top:10px;">输出显示在此</div>';
+    function runCli() {
+      var cmd = $("cli-input").value.trim();
+      if (!cmd) { toast("请输入 CLI 命令", "err"); return; }
+      $("cli-resp").textContent = "执行中...";
+      api("/cli/exec", { method: "POST", body: JSON.stringify({ command: cmd }) })
+        .then(function (r) {
+          showResp("cli-resp", r.output || "(无输出)");
+          refreshLogs();
+        })
+        .catch(function (e) {
+          // 命令失败（400）时响应含 output/error——绕过 api() 的抛错，直接解析
+          fetch("/admin/api/cli/exec", {
+            method: "POST",
+            headers: { "X-Admin-Token": token, "Content-Type": "application/json" },
+            body: JSON.stringify({ command: cmd }),
+          }).then(function (res) {
+            return res.json().then(function (d) {
+              showResp("cli-resp", (d.output || "") + (d.error ? "\\n[错误] " + d.error : ""));
+            });
+          }).catch(function () { showResp("cli-resp", "执行失败"); });
+        });
+    }
+    $("cli-run").addEventListener("click", runCli);
+    $("cli-input").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") runCli();
+    });
+    // 常用命令快捷按钮
+    var quick = ["users list --json", "server check --files", "gacha pools --json", "logs show --last 10"];
+    var qb = document.createElement("div");
+    qb.className = "row wrap";
+    qb.style.cssText = "gap:6px;margin-top:8px;";
+    qb.innerHTML = quick.map(function (c) {
+      return '<button class="btn-sm" data-q="' + c + '">' + escapeHtml(c.split(" ")[0]) + "</button>";
+    }).join("");
+    box.appendChild(qb);
+    document.querySelectorAll("#sub-cli [data-q]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        $("cli-input").value = b.getAttribute("data-q");
+        runCli();
+      });
+    });
   }
 
   /* --- 管理 API 控制台 --- */

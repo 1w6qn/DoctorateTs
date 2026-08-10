@@ -74,6 +74,22 @@ export class CharManager {
         dexInfo.count += 1;
       }
       charInstId = dexInfo.charInstId;
+      // 防御：dexNav.charInstId 悬空/错指（干员发放重建 roster 或导入损坏）时，
+      // 客户端按 charInstId 查 troop.chars 失败 → 抽卡结果"获取干员信息"报错。
+      // 按 charId 在 roster 找回正确 instId 并同步修正 dexNav（patch 随 delta 下发）。
+      if (!isNew) {
+        const liveChars = this._player._playerdata.troop.chars;
+        const rosterChar = liveChars[charInstId];
+        if (!rosterChar || rosterChar.charId !== charId) {
+          const found = Object.entries(liveChars).find(
+            ([, c]) => c.charId === charId,
+          );
+          if (found) {
+            charInstId = Number(found[0]);
+            dexInfo.charInstId = charInstId;
+          }
+        }
+      }
       if (!isNew) {
         const potentId = excel.CharacterTable[charId].potentialItemId!;
         items.push({ id: potentId, count: 1, type: "MATERIAL" });

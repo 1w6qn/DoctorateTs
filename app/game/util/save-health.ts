@@ -89,6 +89,45 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
     issues.push({ path: "status.uid", message: "uid 非字符串，转字符串", fixed: true });
   }
 
+  // 6. dexNav.character[charId].charInstId 与 troop.chars 一致性。
+  //    干员发放/满配重建 roster（instId 按 charId 编号）后，旧 dexNav 的 charInstId
+  //    悬空或错指其他干员 → 客户端按 charInstId 查 troop.chars 失败 → 抽卡/招募结果
+  //    "获取干员信息" 报错。修复：按 charId 在 roster 找回正确 instId 重指向；
+  //    charId 不在 roster（孤儿条目）则移除，使下次获得时按新干员正确建档。
+  const dexChars = data.dexNav?.character as
+    | Record<string, { charInstId?: number } | null>
+    | undefined;
+  const troopChars = data.troop?.chars as
+    | Record<string, { charId?: string }>
+    | undefined;
+  if (dexChars && troopChars) {
+    for (const [charId, entry] of Object.entries(dexChars)) {
+      const e = entry;
+      if (!e || typeof e !== "object") continue;
+      const cur = e.charInstId != null ? troopChars[e.charInstId] : undefined;
+      if (cur && cur.charId === charId) continue; // 指向正确
+      const found = Object.entries(troopChars).find(
+        ([, c]) => c && c.charId === charId,
+      );
+      if (found) {
+        const old = e.charInstId;
+        e.charInstId = Number(found[0]);
+        issues.push({
+          path: `dexNav.character[${charId}].charInstId`,
+          message: `悬空/错指（原 ${old ?? "无"}，roster[${old ?? "?"}]${cur ? ` 实为 ${cur.charId}` : " 不存在"}），重指向 ${found[0]}`,
+          fixed: true,
+        });
+      } else {
+        delete dexChars[charId];
+        issues.push({
+          path: `dexNav.character[${charId}]`,
+          message: "干员不在 troop.chars（孤儿条目），移除",
+          fixed: true,
+        });
+      }
+    }
+  }
+
   return issues;
 }
 

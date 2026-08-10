@@ -2,7 +2,7 @@
  * 自动生成的玩家数据类型定义文件
  * 从 reference/com.hypergryph.arknights_2.7.61.cs 反编译文件生成
  * （客户端闭包 + 服务端协议适配 + 线格式适配，见 scripts/playerdata-server-adapt.ts）
- * 生成命令: npm run generate:playerdata
+ * 生成命令: npm run generate:types
  * 请勿手动修改此文件
  */
 

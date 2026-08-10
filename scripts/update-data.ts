@@ -7,6 +7,8 @@ interface RepositoryConfig {
   name: string;
   url: string;
   localPath: string;
+  /** git 默认分支（ArknightsGameData 为 master，OpenArknightsFBS 为 main） */
+  branch: string;
 }
 
 const REPOS: RepositoryConfig[] = [
@@ -14,11 +16,13 @@ const REPOS: RepositoryConfig[] = [
     name: "OpenArknightsFBS",
     url: "https://github.com/MooncellWiki/OpenArknightsFBS.git",
     localPath: path.join(__dirname, "../OpenArknightsFBS"),
+    branch: "main",
   },
   {
     name: "ArknightsGameData",
     url: "https://github.com/Kengxxiao/ArknightsGameData.git",
     localPath: path.join(__dirname, "../ArknightsGameData"),
+    branch: "master",
   },
 ];
 
@@ -153,7 +157,9 @@ function cloneRepository(repo: RepositoryConfig): boolean {
 
 function pullRepository(repo: RepositoryConfig): boolean {
   log(`更新仓库 ${repo.name}...`);
-  return executeCommand("git pull origin main", repo.localPath);
+  // 修复：各仓库默认分支不同（ArknightsGameData=master/OpenArknightsFBS=main），
+  // 原硬编码 `git pull origin main` 对 master 仓库报 "couldn't find remote ref main"
+  return executeCommand(`git pull origin ${repo.branch}`, repo.localPath);
 }
 
 function updateRepository(repo: RepositoryConfig): boolean {

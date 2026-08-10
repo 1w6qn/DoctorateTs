@@ -278,7 +278,26 @@ router.post("/u8/user/auth/v1/update_agreement", async (_req, res) => {
  * result: 0 成功 / 1 用户名或密码错误 / 4 该用户尚不存在
  */
 router.post("/user/auth/v1/login", async (req, res) => {
-  const { account, password } = req.body ?? {};
+  const body = req.body ?? {};
+  // 官方客户端 SDK 登录形状：{ networkVersion, uid, token }（token 为 SDK 会话）
+  if (body.uid != null && body.token != null && body.account == null) {
+    // 宽松解析：按 token 找账号（未知 token 兜底默认账号），返回可用的 secret token
+    const uid = await accountManager.getUidByToken(String(body.token ?? ""));
+    const conf = accountManager.configs[uid];
+    if (!uid || !conf) {
+      return res.send({ result: 4 });
+    }
+    return res.send({
+      result: 0,
+      uid,
+      token: conf.secret || uid,
+      isAuthenticate: true,
+      isMinor: false,
+      needAuthenticate: false,
+      isLatestUserAgreement: true,
+    });
+  }
+  const { account, password } = body;
   const found = Object.entries(accountManager.configs).find(
     ([, c]) => c.auth?.phone == account,
   );

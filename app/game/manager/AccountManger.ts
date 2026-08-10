@@ -708,7 +708,16 @@ export class AccountManager {
           }
         }
       }
-      return this._secretIndex.get(token) ?? "";
+      const hit = this._secretIndex.get(token);
+      if (hit) return hit;
+      // 宽松兜底（对齐 ODPY——私服单机不卡客户端流程）：未知 token（非配置账号 key，
+      // 即客户端 SDK 会话 token）回退默认账号（singleUid 优先，其次第一个配置账号）。
+      // 配置账号 key 本身（uid 数字直通）仍拒绝——有 secret 的账号必须用 secret 登录。
+      if (token && !this.configs[token]) {
+        const fallback = config.singleUid || Object.keys(this.configs)[0];
+        if (fallback && this.configs[fallback]) return fallback;
+      }
+      return "";
     }
     // 单例模式：任意 token 收敛到固定账号（oauth2/basic/u8 全流程返回单例 uid）。
     // 语义契约：single 下 token=secret=uid 三者语义统一（middleware 会强制覆盖 secret header），

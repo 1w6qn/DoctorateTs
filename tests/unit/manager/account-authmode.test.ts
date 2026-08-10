@@ -96,10 +96,11 @@ describe("getUidByToken 认证模式", () => {
     expect(spy).toHaveBeenCalled();
   });
 
-  it("real 模式：有效 uid 返回原样，无效 token 返回空串", async () => {
+  it("real 模式：有效 uid 返回原样，未知 SDK token 兜底默认账号", async () => {
     (config as any).authMode = "real";
     expect(await accountManager.getUidByToken("2221")).toBe("2221");
-    expect(await accountManager.getUidByToken("aId1QCwRP8rVkxSYsG4bCzjQ")).toBe("");
+    // 宽松兜底（对齐 ODPY）：客户端 SDK 会话 token 回退第一个配置账号
+    expect(await accountManager.getUidByToken("aId1QCwRP8rVkxSYsG4bCzjQ")).toBe("1");
   });
 
   it("real 模式：token 匹配账号 secret 应返回对应 uid（参考 DoctoratePy query_account_by_secret）", async () => {
@@ -110,7 +111,8 @@ describe("getUidByToken 认证模式", () => {
     };
     expect(await accountManager.getUidByToken("secret_2221")).toBe("2221");
     expect(await accountManager.getUidByToken("secret_1")).toBe("1");
-    expect(await accountManager.getUidByToken("unknown")).toBe("");
+    // 未知 SDK token 兜底默认账号（非配置 key）
+    expect(await accountManager.getUidByToken("unknown")).toBe("1");
   });
 
   it("registerUser 应生成账号 secret（MD5 密钥）——real 模式", async () => {

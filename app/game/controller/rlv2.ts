@@ -207,10 +207,62 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       expeditionReturn: null,
       hasExpeditionReturn: false,
     };
+    // 首次游玩该主题：初始化 outer[theme] 基础结构（bank/bp/buff/collect/mission 等）
+    this.ensureOuterTheme(theme);
 
     // 绕过 update() 的原地初始化不产生 Immer 补丁，显式标记脏以触发条件落盘
     this._player.markDirty();
     await this._trigger.emit("rlv2:create", [this]);
+  }
+
+  /**
+   * 初始化主题局外数据（首次游玩）：collect.band 分队解锁状态等
+   * 客户端按 collect.band[id].state 决定开局分队可选性
+   */
+  private ensureOuterTheme(theme: string): void {
+    if (!this.outer[theme]) {
+      this.outer[theme] = {} as any;
+    }
+    const outer = this.outer[theme] as any;
+    if (!outer.collect) {
+      const detail = excel.RoguelikeTopicTable.details[theme];
+      // 分队全集：init.initialBandRelic（开局可选）+ bandRef 全部条目（含等级变体）
+      const init = detail.init.find(
+        (i: any) =>
+          i.modeGrade == this.current.game!.modeGrade &&
+          i.predefinedId == this.current.game!.predefined &&
+          i.modeId == this.current.game!.mode,
+      );
+      const initialBandIds: string[] = init?.initialBandRelic || [];
+      const bandRef = (detail.bandRef || {}) as Record<string, any>;
+      const allBandIds = [
+        ...new Set([...initialBandIds, ...Object.keys(bandRef)]),
+      ];
+      outer.collect = {
+        // 分队解锁状态（state 1 = 已解锁，含等级变体；基础分队开局可选）
+        band: Object.fromEntries(
+          allBandIds.map((id) => [id, { state: 1, progress: null }]),
+        ),
+        relic: {},
+        capsule: {},
+        activeTool: {},
+        mode: {},
+        recruitSet: {},
+        buff: {},
+        bgm: {},
+        pic: {},
+        chat: {},
+        endBook: {},
+        chatV2: {},
+      };
+    }
+    if (!outer.bank) outer.bank = { show: false, current: 0, record: 0, reward: {} };
+    if (!outer.bp) outer.bp = { point: 0, reward: {} };
+    if (!outer.buff) outer.buff = { pointOwned: 0, pointCost: 0, unlocked: {}, score: 0 };
+    if (!outer.mission) outer.mission = { updateId: "", refresh: 0, list: [] };
+    if (!outer.record) {
+      outer.record = { last: 0, stageCnt: {}, bandCnt: {}, bandGrade: {} };
+    }
   }
 
   async chooseInitialRelic(args: { select: string }) {

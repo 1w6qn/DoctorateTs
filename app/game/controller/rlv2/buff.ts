@@ -60,6 +60,21 @@ export class RoguelikeBuffManager {
         await this.item_cover_set(arg.blackboard);
       } else if (arg.key == "change_fragment_type_weight") {
         await this._trigger.emit("rlv2:fragment:change_type_weight", [arg]);
+      } else if (arg.key == "level_life_point_add") {
+        // 分队效果：生命上限/当前 +value（指挥分队等）
+        const value = arg.blackboard[0]?.value ?? 0;
+        this._status.property.hp.max += value;
+        this._status.property.hp.current += value;
+      } else if (arg.key == "level_char_limit_add") {
+        // 分队效果：可部署人数上限 +value（集群分队等）
+        const value = arg.blackboard[0]?.value ?? 0;
+        this._status.property.population.max += value;
+      } else if (arg.key == "immediate_recruit") {
+        // 分队效果：初始额外干员（immediate_recruit char_list）
+        const list = (arg.blackboard[0]?.valueStr || "").split(",").filter(Boolean);
+        for (const charId of list) {
+          await this._trigger.emit("rlv2:recruit:initial_char", [charId]);
+        }
       }
     }
     this._buffs.push(...args);

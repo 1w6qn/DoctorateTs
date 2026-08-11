@@ -32,9 +32,32 @@ vi.mock("@excel/excel", () => ({
           init: [{ modeGrade: 0, predefinedId: null, modeId: "NORMAL", initRelic: {}, initRecruit: {} }],
           items: { rogue_2_gold: { id: "rogue_2_gold", type: "GOLD", rarity: "NONE" } },
         },
+        rogue_1: {
+          init: [{ modeGrade: 0, predefinedId: null, modeId: "NORMAL", initRelic: {}, initRecruit: {}, initialBandRelic: ["rogue_1_band_1", "rogue_1_band_2"] }],
+          items: {
+            rogue_1_gold: { id: "rogue_1_gold", type: "GOLD", rarity: "NONE" },
+            rogue_1_hp: { id: "rogue_1_hp", type: "HP", rarity: "NONE" },
+            rogue_1_squad_capacity: { id: "rogue_1_squad_capacity", type: "SQUAD_CAPACITY", rarity: "NONE" },
+          },
+          relics: {
+            rogue_1_band_1: { id: "rogue_1_band_1", buffs: [{ key: "level_life_point_add", blackboard: [{ key: "value", value: 4 }] }] },
+            rogue_1_band_2: {
+              id: "rogue_1_band_2",
+              buffs: [
+                { key: "immediate_reward", blackboard: [{ key: "id", valueStr: "rogue_1_squad_capacity" }, { key: "count", value: 2 }] },
+                { key: "level_char_limit_add", blackboard: [{ key: "value", value: 2 }] },
+              ],
+            },
+          },
+          bandRef: {
+            rogue_1_band_1: { itemId: "rogue_1_band_1", bandLevel: 0, normalBandId: "rogue_1_band_1" },
+            rogue_1_band_2: { itemId: "rogue_1_band_2", bandLevel: 0, normalBandId: "rogue_1_band_2" },
+          },
+        },
       },
       modules: {
         rogue_3: {},
+        rogue_1: {},
         rogue_2: {
           dice: {
             dice: { rogue_2_dice_1: { diceFaceCount: 6 } },
@@ -257,16 +280,16 @@ describe("rlv2 完整机制（2026-08-10 补全）", () => {
   });
 });
 
-describe("真实机制补全（2026-08-10 第二轮）", () => {
-  /** 等待构造期 rlv2:init（未 await）完成，避免异步重置状态 */
-  async function readyPlayer(theme: string) {
-    const player = makePlayer();
-    (player.rlv2 as any).current.game = { theme, mode: "NORMAL", modeGrade: 0 } as any;
-    await new Promise((r) => setTimeout(r, 0));
-    await (player.rlv2 as any)._pool.create();
-    return player;
-  }
+/** 等待构造期 rlv2:init（未 await）完成，避免异步重置状态 */
+async function readyPlayer(theme: string) {
+  const player = makePlayer();
+  (player.rlv2 as any).current.game = { theme, mode: "NORMAL", modeGrade: 0 } as any;
+  await new Promise((r) => setTimeout(r, 0));
+  await (player.rlv2 as any)._pool.create();
+  return player;
+}
 
+describe("真实机制补全（2026-08-10 第二轮）", () => {
   describe("diceChoice 真实 DICE 结算", () => {
     it("LEAVE 应发放奖励并消费 DICE 事件", async () => {
       const player = await readyPlayer("rogue_2");
@@ -336,5 +359,44 @@ describe("真实机制补全（2026-08-10 第二轮）", () => {
       await (player.rlv2 as any).leaveShop();
       expect((player.rlv2 as any)._status.traderReturn).toBeTruthy();
     });
+  });
+});
+
+describe("分队机制（2026-08-11）", () => {
+  it("chooseInitialRelic 应应用分队生命加成（level_life_point_add）", async () => {
+    const player = await readyPlayer("rogue_1");
+    // 注入 GAME_INIT_RELIC 事件
+    (player.rlv2 as any)._status._pending._pending.push({
+      type: "GAME_INIT_RELIC",
+      content: { initRelic: { items: { "0": { id: "rogue_1_band_1", count: 1 } } } },
+    });
+    (player.rlv2 as any)._status.property.hp = { current: 4, max: 4 };
+    await (player.rlv2 as any).chooseInitialRelic({ select: "0" });
+    expect((player.rlv2 as any)._status.property.hp.max).toBe(8);
+    expect((player.rlv2 as any)._status.property.hp.current).toBe(8);
+  });
+
+  it("chooseInitialRelic 应应用分队可部署上限（level_char_limit_add）", async () => {
+    const player = await readyPlayer("rogue_1");
+    (player.rlv2 as any)._status._pending._pending.push({
+      type: "GAME_INIT_RELIC",
+      content: { initRelic: { items: { "0": { id: "rogue_1_band_2", count: 1 } } } },
+    });
+    (player.rlv2 as any)._status.property.population.max = 6;
+    await (player.rlv2 as any).chooseInitialRelic({ select: "0" });
+    expect((player.rlv2 as any)._status.property.population.max).toBe(8);
+  });
+
+  it("ensureOuterTheme 应初始化 collect.band 分队解锁状态", async () => {
+    const player = await readyPlayer("rogue_1");
+    // 新主题 outer 无 collect → createGame 路径初始化
+    delete (player.rlv2 as any).outer.rogue_1?.collect;
+    (player.rlv2 as any).current.game = { theme: "rogue_1", mode: "NORMAL", modeGrade: 0 } as any;
+    await (player.rlv2 as any).createGame({ theme: "rogue_1", mode: "NORMAL", modeGrade: 0, predefinedId: null });
+    const collect = (player.rlv2 as any).outer.rogue_1.collect;
+    expect(collect.band).toBeTruthy();
+    expect(Object.keys(collect.band).length).toBeGreaterThan(0);
+    // 开局可选分队应已解锁
+    expect(Object.values(collect.band).every((b: any) => b.state === 1)).toBe(true);
   });
 });

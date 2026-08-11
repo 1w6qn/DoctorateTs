@@ -35,9 +35,45 @@ export class RoguelikeRecruitManager {
     this._trigger.on("rlv2:recruit:done", async ([id, optionId]) => {
       await this.done(id, optionId);
     });
+    this._trigger.on("rlv2:recruit:initial_char", async ([charId]) => {
+      await this.initialChar(charId);
+    });
     this._trigger.on("rlv2:create", () => {
       this.tickets = {};
     });
+  }
+
+  /**
+   * 分队初始干员（immediate_recruit）：临时干员直接入队（TEMP 类型，不占招募票）
+   * @param charId 干员 id（如 char_504_rguard）
+   */
+  async initialChar(charId: string): Promise<void> {
+    const data = excel.CharacterTable[charId];
+    if (!data) return;
+    const rarity = rarityToIndex(data.rarity);
+    const popMap = [0, 0, 0, 2, 3, 6];
+    // 递增 troopInstId，避免多干员互相覆盖（getChar 按 troopInstId+1 定位 instId）
+    const troopInstId = Object.keys(this._player.troop.chars).length;
+    const char: PlayerRoguelikeV2.CurrentData.RecruitChar = {
+      instId: 0,
+      charId,
+      type: "TEMP",
+      upgradePhase: 0,
+      upgradeLimited: true,
+      population: popMap[rarity] || 0,
+      isUpgrade: false,
+      isCure: true,
+      charBuff: [],
+      troopInstId,
+      level: 1,
+      exp: 0,
+      evolvePhase: 0,
+      favorPoint: 0,
+      potentialRank: 0,
+      mainSkillLvl: 1,
+      skills: [],
+    } as any;
+    await this._trigger.emit("rlv2:char:get", [char]);
   }
 
   _index: number;

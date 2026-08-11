@@ -176,6 +176,8 @@ export type EventMap = {
   "rlv2:game:end": [{ score: number; rank: string }];
   /** 肉鸽V2碎片获取事件 */
   "rlv2:fragment:gain": [string];
+  /** 肉鸽V2分队初始干员事件（immediate_recruit：TEMP 干员入队） */
+  "rlv2:recruit:initial_char": [string];
   /** 肉鸽V2碎片设置队伍携带事件 */
   "rlv2:fragment:set_troop_carry": [string[]];
   /** 肉鸽V2碎片使用灵感事件 */

@@ -522,7 +522,9 @@ export class ShopController {
       const up = detail?.upCharInfo?.perCharList ?? [];
       const up6 = up.filter((c: GachaPerChar) => c.rarityRank === 5);
       const up4 = up.find((c: GachaPerChar) => c.rarityRank === 4);
-      const token = p.LMTGSID || "LMTGS_COIN";
+      // 寻访数据契约按池（JSON 键 lMTGSID，如 LMTGS_COIN_903）——旧实现读 LMTGSID
+      //（CS 反编译大小写）恒 undefined → 所有池都用通用 LMTGS_COIN
+      const token = (p as any).lMTGSID || "LMTGS_COIN";
       const start = p.openTime;
       const end = p.endTime;
       let seq = 0;

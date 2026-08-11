@@ -6,8 +6,8 @@ vi.mock("@excel/excel", () => ({
       gachaPoolClient: [
         { gachaPoolId: "p_normal_1", gachaRuleType: "NORMAL" },
         { gachaPoolId: "p_double_1", gachaRuleType: "DOUBLE" },
-        { gachaPoolId: "p_limited_1", gachaRuleType: "LIMITED", LMTGSID: "LMTGS_COIN_TEST" },
-        // 无 LMTGSID 的限定池 → 凭证回退 "LMTGS_COIN"
+        { gachaPoolId: "p_limited_1", gachaRuleType: "LIMITED", lMTGSID: "LMTGS_COIN_TEST" },
+        // 无 lMTGSID 的限定池 → 凭证回退 "LMTGS_COIN"
         { gachaPoolId: "p_limited_2", gachaRuleType: "LIMITED" },
       ],
     },

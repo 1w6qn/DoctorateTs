@@ -121,8 +121,8 @@ describe("buildLMTGSGoodList 自动生成限定商店", () => {
     const excelMock = (await import("@excel/excel")).default as any;
     excelMock.GachaTable = {
       gachaPoolClient: [
-        { gachaPoolId: "LIMITED_23_0_1", gachaRuleType: "LIMITED", gachaIndex: 5, LMTGSID: "LMTGS_COIN_2301", openTime: 1630000000, endTime: 1639999999 },
-        { gachaPoolId: "LIMITED_76_0_1", gachaRuleType: "LIMITED", gachaIndex: 10, LMTGSID: "LMTGS_COIN_7601", openTime: 1700000000, endTime: 1799999999 },
+        { gachaPoolId: "LIMITED_23_0_1", gachaRuleType: "LIMITED", gachaIndex: 5, lMTGSID: "LMTGS_COIN_2301", openTime: 1630000000, endTime: 1639999999 },
+        { gachaPoolId: "LIMITED_76_0_1", gachaRuleType: "LIMITED", gachaIndex: 10, lMTGSID: "LMTGS_COIN_7601", openTime: 1700000000, endTime: 1799999999 },
       ],
     };
     excelMock.GachaDetailTable = {

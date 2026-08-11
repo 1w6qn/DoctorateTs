@@ -38,7 +38,9 @@ export interface GachaPoolClientData {
     gachaPoolDetail: null | string;
     guarantee5Avail: number;
     guarantee5Count: number;
-    LMTGSID: null | string;
+    // 寻访数据契约（限定池凭证）——JSON 字段为 lMTGSID（小写 l 前缀；CS 反编译为
+    // LMTGSID 是大小写差异，运行时按 JSON 实际键读取）
+    lMTGSID: null | string;
     CDPrimColor: null | string;
     CDSecColor: null | string;
     freeBackColor: null | string;

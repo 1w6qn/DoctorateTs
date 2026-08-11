@@ -304,11 +304,11 @@ export class GachaController {
       BACKFLOW: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
       SPECIAL: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
       LIMITED: async () => {
-        // 修复：extraItem 缺 type + LMTGSID 缺失时空 id → gainItem 查 ItemTable[""]
-        // 警告跳过（限定凭证从未入账）；对齐寻访数据契约商店：id = LMTGSID 回退
-        // "LMTGS_COIN"、type = LMTGS_COIN（消费型入账 consumable）
+        // 修复：extraItem 补 type=LMTGS_COIN（消费型入账 consumable）+ id 读
+        // lMTGSID（JSON 实际键，CS 反编译为 LMTGSID 大小写不同——旧实现读不到
+        // → 空 id 警告跳过，限定凭证从未入账）；缺配置回退通用 "LMTGS_COIN"
         extras.extraItem = {
-          id: poolConfig?.LMTGSID || "LMTGS_COIN",
+          id: (poolConfig as any)?.lMTGSID || "LMTGS_COIN",
           count: 1,
           type: "LMTGS_COIN",
         };

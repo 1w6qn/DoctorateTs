@@ -133,8 +133,17 @@ def decode(dat):
         if o.type.name == 'TextAsset':
             t = o.read()
             script = t.m_Script.encode('utf-8', 'surrogateescape')
-            fbo = script[128:]
             base = re.sub(r'[0-9a-f]{6}$', '', t.m_Name)
+            fbo = script[128:]
+            # 部分表（range/avatar/roguelike/uniequip/handbook 等）是 AES-CBC 加密的 JSON，非 FBO
+            if len(fbo) >= 4:
+                import struct
+                root_off = struct.unpack('<I', fbo[:4])[0]
+                if not (0 < root_off < 4096):
+                    dic, _ = decode_aes_json(script)
+                    if dic is not None:
+                        return dic, base
+                    return None, f'{base} 非 FBO 且 AES 解密失败'
             schema = importlib.import_module(f'fbs.CN.{base}')
             _patch_schema_init_collision(schema)
             root = getattr(schema, 'ROOT_TYPE', None)
@@ -143,6 +152,28 @@ def decode(dat):
             dic = FBOHandler(bytearray(fbo), root).to_json_dict()
             return dic, base
     return None, '无 TextAsset'
+
+
+def decode_aes_json(script):
+    """AES-CBC 解密（官服 Mask）→ JSON 字典。
+    仅部分表使用（range_table / player_avatar_table / roguelike_table / uniequip_data /
+    handbook_table / tech_buff_table），解码结果即服务端格式（键名/枚举已对齐）。"""
+    try:
+        from Crypto.Cipher import AES
+        from Crypto.Util.Padding import unpad
+        mask = b"UITpAi82pHAWwnzqHRMCwPonJLIB3WCl"  # ArkAESLibrary.MASK_V2
+        data = script[128:]
+        key = mask[:16]
+        iv = bytearray(d ^ m for d, m in zip(data[:16], mask[16:]))
+        plain = unpad(AES.new(key, AES.MODE_CBC, iv).decrypt(data[16:]), AES.block_size)
+        try:
+            return json.loads(plain), 'json'
+        except Exception:
+            import bson
+            return bson.loads(plain), 'bson'
+    except Exception as e:
+        print(f'  [warn] AES 解密失败: {str(e)[:60]}')
+        return None, None
 
 
 def discover_bundles(hul):

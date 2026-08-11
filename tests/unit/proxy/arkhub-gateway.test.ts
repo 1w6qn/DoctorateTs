@@ -83,10 +83,11 @@ describe("startArkhubGatewayProxy（30000 TCP 转发器）", () => {
       targetPort: echoPort,
       recordRoot,
     });
-    expect(result.portBusy).toBe(false);
+    expect(result.adjusted).toBe(false);
+    expect(result.exhausted).toBe(false);
     expect(result.server).not.toBeNull();
     const server = result.server!;
-    const proxyPort = (server.address() as net.AddressInfo).port;
+    const proxyPort = result.port; // 实际监听端口 = server.address().port
 
     try {
       // 客户端 → 代理 → echo → 代理 → 客户端
@@ -111,9 +112,47 @@ describe("startArkhubGatewayProxy（30000 TCP 转发器）", () => {
     }
   });
 
-  it("端口被占用时返回 { server: null, portBusy: true }（调用方可据此仍改写 enterHall）", async () => {
-    const recordRoot = path.join(os.tmpdir(), "arkhub-gw-busy");
-    // 两次启动都用相同的 listen 语义（server.listen(port) 双栈绑定），第二次必然 EADDRINUSE
+  it("首选端口被占时自动避让到下一个空闲端口（adjusted=true，port=避让后端口）", async () => {
+    const recordRoot = path.join(os.tmpdir(), "arkhub-gw-auto");
+    // 真实 echo 服务器作目标（避免 ECONNRESET）
+    const echo = net.createServer((sock) => sock.pipe(sock));
+    await listen(echo);
+    const echoPort = (echo.address() as net.AddressInfo).port;
+    // 第一个实例占住端口 A（双栈 listen 语义一致）
+    const first = await startArkhubGatewayProxy({
+      port: 0,
+      targetHost: "127.0.0.1",
+      targetPort: echoPort,
+      recordRoot,
+    });
+    expect(first.server).not.toBeNull();
+    const usedPort = first.port;
+    let second: import("../../../app/proxy/arkhub-gateway").ArkhubGatewayProxyResult | undefined;
+    try {
+      // 第二个实例首选 usedPort 被占 → 自动避让到 usedPort+1
+      second = await startArkhubGatewayProxy({
+        port: usedPort,
+        targetHost: "127.0.0.1",
+        targetPort: echoPort,
+        recordRoot,
+      });
+      expect(second.server).not.toBeNull();
+      expect(second.adjusted).toBe(true);
+      expect(second.port).toBe(usedPort + 1);
+      // 避让后端口确实可连（转发器可用）
+      const received = await roundTrip(second.port, Buffer.from("auto-ok"));
+      expect(Buffer.concat(received).toString()).toBe("auto-ok");
+    } finally {
+      first.server!.close();
+      if (second?.server) second.server.close();
+      echo.close();
+      fs.rmSync(recordRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("首选端口及避让端口全部被占时返回 { server:null, exhausted:true }", async () => {
+    const recordRoot = path.join(os.tmpdir(), "arkhub-gw-exhaust");
+    // 第一个实例占 usedPort，blocker 再占 usedPort+1 → maxPortTries=2 两次都 EADDRINUSE → 耗尽
     const first = await startArkhubGatewayProxy({
       port: 0,
       targetHost: "127.0.0.1",
@@ -121,18 +160,25 @@ describe("startArkhubGatewayProxy（30000 TCP 转发器）", () => {
       recordRoot,
     });
     expect(first.server).not.toBeNull();
-    const usedPort = (first.server!.address() as net.AddressInfo).port;
+    const usedPort = first.port;
+    // blocker 用与代理相同的 listen 语义（无 host 双栈）占住避让目标端口
+    const blocker = net.createServer();
+    await new Promise<void>((r) => blocker.listen(usedPort + 1, () => r()));
     try {
-      const second = await startArkhubGatewayProxy({
+      const result = await startArkhubGatewayProxy({
         port: usedPort,
         targetHost: "127.0.0.1",
         targetPort: 1,
         recordRoot,
+        maxPortTries: 2,
       });
-      expect(second.server).toBeNull();
-      expect(second.portBusy).toBe(true);
+      expect(result.server).toBeNull();
+      expect(result.exhausted).toBe(true);
+      expect(result.port).toBe(usedPort); // 失败时 port=配置首选端口
     } finally {
       first.server!.close();
+      blocker.close();
+      fs.rmSync(recordRoot, { recursive: true, force: true });
     }
   });
 });

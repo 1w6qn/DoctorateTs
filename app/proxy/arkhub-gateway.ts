@@ -63,7 +63,7 @@ export function isArkhubEnterHall(pathname: string): boolean {
 
 /** TCP 转发器启动选项 */
 export interface ArkhubGatewayProxyOptions {
-  /** 本机监听端口（缺省 30000；config.capture.gatewayPort 可覆盖） */
+  /** 首选监听端口（缺省 30000；config.capture.gatewayPort 可覆盖）——被占时自动避让到下一个空闲端口 */
   port?: number;
   /** 目标官服网关主机（测试可覆写） */
   targetHost?: string;
@@ -71,25 +71,36 @@ export interface ArkhubGatewayProxyOptions {
   targetPort?: number;
   /** 记录根目录（测试传独立临时目录） */
   recordRoot?: string;
+  /** 自动避让最大尝试次数（缺省 50；测试可调小验证耗尽路径） */
+  maxPortTries?: number;
 }
 
 /** 网关转发器启动结果 */
 export interface ArkhubGatewayProxyResult {
   /** 监听成功的 net.Server；失败为 null */
   server: net.Server | null;
-  /** 是否因端口被占而失败（该端口上很可能已有另一实例的网关转发器在跑） */
-  portBusy: boolean;
+  /**
+   * 实际监听端口（成功时=避让后的端口，供 enterHall 响应改写使用；失败时=配置首选端口）
+   */
+  port: number;
+  /** 配置端口被占且自动避让的端口也全部耗尽（server 为 null 的原因——此时调用方可仍改写指向配置端口，其上大概率有另一实例转发器） */
+  exhausted: boolean;
+  /** 是否发生了自动避让（配置端口被占，实际监听在 port） */
+  adjusted: boolean;
 }
 
 /**
- * 启动 arkhub 网关 TCP 转发器
+ * 启动 arkhub 网关 TCP 转发器（端口自动避让）
  *
- * 监听本机端口，每个客户端连接建立到官服网关的透传管道，双向字节流落盘
- * `tmp/arkhub-gateway/{connectionId}/`（up.bin=客户端→官服、down.bin=官服→客户端、meta.json）。
+ * 监听首选端口，被占（多实例并存时另一实例的转发器已占用）时**自动尝试下一个端口**
+ * （port, port+1, ... 最多 maxPortTries 次），避免多实例冲突——每个实例各自拿到空闲端口，
+ * enterHall 响应改写用实际监听端口，客户端互不干扰。每个客户端连接建立到官服网关的透传管道，
+ * 双向字节流落盘 `tmp/arkhub-gateway/{connectionId}/`（up.bin=客户端→官服、down.bin=官服→客户端、meta.json）。
  *
  * @param opts - 监听/目标/记录配置
- * @returns 启动结果：{ server } 监听成功；{ server: null, portBusy: true } 端口被占；
- *          { server: null, portBusy: false } 其它错误
+ * @returns 启动结果：{ server, port, exhausted:false, adjusted } 监听成功（port=实际端口）；
+ *          { server:null, exhausted:true } 首选端口及全部避让端口被占；
+ *          { server:null, exhausted:false } 其它错误
  */
 export function startArkhubGatewayProxy(
   opts: ArkhubGatewayProxyOptions = {},
@@ -99,9 +110,11 @@ export function startArkhubGatewayProxy(
     targetHost = OFFICIAL_ARKHUB_GATEWAY_HOST,
     targetPort = OFFICIAL_ARKHUB_GATEWAY_PORT,
     recordRoot = DEFAULT_RECORD_ROOT,
+    maxPortTries = 50,
   } = opts;
 
-  const server = net.createServer((client) => {
+  // 单连接处理（每个尝试端口新建的 server 共用）：客户端 → 官服网关透传 + 双向字节流落盘
+  const handleConnection = (client: net.Socket): void => {
     const connectionId = new Date().toISOString().replace(/[:.]/g, "-");
     const upstream = net.connect({ host: targetHost, port: targetPort });
     let upBytes = 0;
@@ -182,23 +195,40 @@ export function startArkhubGatewayProxy(
       client.destroy();
       finish("closed");
     });
-  });
+  };
 
+  // 自动避让监听：首选端口被占 → 依次尝试 port, port+1, ...（多实例并存时各拿一个空闲端口）。
+  // 每次尝试新建 server（复用同一 server 重 listen 有回调错乱风险——实测 adjusted 结果错乱），
+  // 全部避让端口被占则返回 exhausted，调用方仍可改写 enterHall 指向配置端口（其上大概率有另一实例转发器）。
   return new Promise((resolve) => {
-    server.once("error", (e: NodeJS.ErrnoException) => {
-      if (e.code === "EADDRINUSE") {
-        // 端口被占（多半是另一实例的网关转发器）：返回 portBusy=true，调用方仍改写 enterHall
-        // endpoint 指向该端口——否则客户端直连官服网关、网关流量不经过任何代理（实测无法进入）
-        logger.warn("capture", `arkhub 网关端口 ${port} 被占用（可能为另一实例的转发器）——enterHall 响应仍改写指向本代理，客户端网关流量经占用该端口的转发器`);
-        resolve({ server: null, portBusy: true });
-      } else {
+    const tryListen = (p: number, attempt: number): void => {
+      const server = net.createServer(handleConnection);
+      server.once("error", (e: NodeJS.ErrnoException) => {
+        if (e.code === "EADDRINUSE" && attempt + 1 < maxPortTries) {
+          // 端口被占：避让到下一个端口重试
+          tryListen(p + 1, attempt + 1);
+          return;
+        }
+        if (e.code === "EADDRINUSE") {
+          // 首选端口及全部避让端口都被占（极罕见）：调用方仍可改写 enterHall 指向配置端口——
+          // 该端口上大概率有另一实例的转发器，客户端连上后经其透传官服
+          logger.warn("capture", `arkhub 网关端口 ${port}~${p} 均被占用（耗尽 ${maxPortTries} 次避让）——enterHall 响应仍改写指向 :${port}，客户端网关流量经占用该端口的转发器`);
+          resolve({ server: null, port, exhausted: true, adjusted: false });
+          return;
+        }
         logger.error("capture", `arkhub 网关转发器启动失败: ${e.message}`);
-        resolve({ server: null, portBusy: false });
-      }
-    });
-    server.listen(port, () => {
-      logger.info("capture", `arkhub 网关转发器已启动：监听 :${port} → ${targetHost}:${targetPort}（流量记录 ${recordRoot}）`);
-      resolve({ server, portBusy: false });
-    });
+        resolve({ server: null, port, exhausted: false, adjusted: false });
+      });
+      server.listen(p, () => {
+        const actualPort = (server.address() as net.AddressInfo).port;
+        if (attempt > 0) {
+          logger.warn("capture", `arkhub 网关端口 ${port} 被占用，自动避让到 :${actualPort} → ${targetHost}:${targetPort}（流量记录 ${recordRoot}）`);
+        } else {
+          logger.info("capture", `arkhub 网关转发器已启动：监听 :${actualPort} → ${targetHost}:${targetPort}（流量记录 ${recordRoot}）`);
+        }
+        resolve({ server, port: actualPort, exhausted: false, adjusted: attempt > 0 });
+      });
+    };
+    tryListen(port, 0);
   });
 }

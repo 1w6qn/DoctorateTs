@@ -167,13 +167,14 @@ process.on("exit", (code) => {
     // 监听 gatewayPort（缺省 30000）透传官服网关并记录流量，enterHall 响应 endpoint 改写为本代理
     const { startArkhubGatewayProxy } = await import("./app/proxy/arkhub-gateway");
     const gatewayPort = config.capture?.gatewayPort ?? 30000;
+    // 端口自动避让：多实例并存时首选端口被占会依次尝试下一个空闲端口（30000/30001/30002...），
+    // 每个实例各自拿到空闲端口，客户端互不干扰。改写用实际监听端口（gw.port）。
     const gw = await startArkhubGatewayProxy({ port: gatewayPort });
-    // 转发器就绪（或端口被其它实例的转发器占用）时都改写 enterHall endpoint 指向本代理：
-    // 端口被占多半是另一实例的转发器在跑（实测 30000 被旧实例占用 → 不改写 → 客户端直连官服网关无法进入），
-    // 改写后客户端连 127.0.0.1:gatewayPort，流量经占用该端口的转发器透传官服
     const proxyHost = String(config.Host).replace(/^https?:\/\//, "");
+    // 转发器就绪（或避让端口全部被占、配置端口上大概率有另一实例转发器）时都改写 enterHall
+    // endpoint 指向本代理——否则客户端直连官服网关、网关流量不经过任何代理（实测无法进入）
     const arkhubGateway =
-      gw.server || gw.portBusy ? { endpoint: proxyHost, port: gatewayPort } : null;
+      gw.server || gw.exhausted ? { endpoint: proxyHost, port: gw.port } : null;
     app.use(
       createOfficialForwarder({
         arkhubGateway,

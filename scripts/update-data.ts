@@ -3,27 +3,7 @@ import * as path from "path";
 import { execSync } from "child_process";
 import { getResVersion, CONF_API } from "./official-api";
 
-interface RepositoryConfig {
-  name: string;
-  url: string;
-  localPath: string;
-  /** git 默认分支（ArknightsGameData 为 master） */
-  branch: string;
-}
-
-const REPOS: RepositoryConfig[] = [
-  {
-    name: "ArknightsGameData",
-    url: "https://github.com/Kengxxiao/ArknightsGameData.git",
-    localPath: path.join(__dirname, "../ArknightsGameData"),
-    branch: "master",
-  },
-];
-
-const EXCEL_SOURCE_DIR = path.join(__dirname, "../ArknightsGameData/zh_CN/gamedata/excel");
 const EXCEL_TARGET_DIR = path.join(__dirname, "../data/excel");
-const BATTLE_SOURCE_DIR = path.join(__dirname, "../ArknightsGameData/zh_CN/gamedata/battle");
-const LEVELS_SOURCE_DIR = path.join(__dirname, "../ArknightsGameData/zh_CN/gamedata/levels/enemydata");
 const GACHA_SOURCE_DIR = path.join(__dirname, "../data/gacha");
 const GACHA_DETAIL_TARGET = path.join(__dirname, "../data/gacha_detail_table.json");
 
@@ -136,99 +116,18 @@ function executeCommand(command: string, cwd: string): boolean {
   }
 }
 
-function isGitRepository(dir: string): boolean {
-  return fs.existsSync(path.join(dir, ".git"));
-}
-
-function cloneRepository(repo: RepositoryConfig): boolean {
-  log(`克隆仓库 ${repo.name}...`);
-  const parentDir = path.dirname(repo.localPath);
-  if (!fs.existsSync(parentDir)) {
-    fs.mkdirSync(parentDir, { recursive: true });
-  }
-  return executeCommand(`git clone ${repo.url}`, parentDir);
-}
-
-function pullRepository(repo: RepositoryConfig): boolean {
-  log(`更新仓库 ${repo.name}...`);
-  // 修复：各仓库默认分支可能不是 main（ArknightsGameData=master），按仓库配置拉取
-  // 原硬编码 `git pull origin main` 对 master 仓库报 "couldn't find remote ref main"
-  return executeCommand(`git pull origin ${repo.branch}`, repo.localPath);
-}
-
-function updateRepository(repo: RepositoryConfig): boolean {
-  if (isGitRepository(repo.localPath)) {
-    return pullRepository(repo);
-  } else {
-    return cloneRepository(repo);
-  }
-}
-
-function copyExcelFiles(): boolean {
-  log(`复制游戏数据文件...`);
-  
-  if (!fs.existsSync(EXCEL_SOURCE_DIR)) {
-    logError(`源目录不存在: ${EXCEL_SOURCE_DIR}`);
-    return false;
-  }
-  
-  if (!fs.existsSync(EXCEL_TARGET_DIR)) {
-    fs.mkdirSync(EXCEL_TARGET_DIR, { recursive: true });
-  }
-  
-  let copiedCount = 0;
-  
-  try {
-    const files = fs.readdirSync(EXCEL_SOURCE_DIR);
-    
-    files.forEach((file) => {
-      const sourcePath = path.join(EXCEL_SOURCE_DIR, file);
-      const targetPath = path.join(EXCEL_TARGET_DIR, file);
-      
-      if (fs.statSync(sourcePath).isFile()) {
-        fs.copyFileSync(sourcePath, targetPath);
-        copiedCount++;
-      }
-    });
-  } catch (error) {
-    logError(`复制excel文件失败: ${(error as Error).message}`);
-    return false;
-  }
-  
-  try {
-    if (fs.existsSync(BATTLE_SOURCE_DIR)) {
-      const battleFiles = ["ep_breakbuff_table.json", "extra_battlelog_table.json"];
-      for (const file of battleFiles) {
-        const sourcePath = path.join(BATTLE_SOURCE_DIR, file);
-        const targetPath = path.join(EXCEL_TARGET_DIR, file);
-        if (fs.existsSync(sourcePath)) {
-          fs.copyFileSync(sourcePath, targetPath);
-          copiedCount++;
-        }
-      }
-    }
-  } catch (error) {
-    logError(`复制battle文件失败: ${(error as Error).message}`);
-  }
-  
-  try {
-    if (fs.existsSync(LEVELS_SOURCE_DIR)) {
-      const levelsFiles = ["enemy_database.json"];
-      for (const file of levelsFiles) {
-        const sourcePath = path.join(LEVELS_SOURCE_DIR, file);
-        const targetPath = path.join(EXCEL_TARGET_DIR, file);
-        if (fs.existsSync(sourcePath)) {
-          fs.copyFileSync(sourcePath, targetPath);
-          copiedCount++;
-        }
-      }
-    }
-  } catch (error) {
-    logError(`复制levels文件失败: ${(error as Error).message}`);
-  }
-  
-  log(`复制完成，总计 ${copiedCount} 个文件`);
-  return true;
+/**
+ * 官服热更管线生成 excel 数据（官方 CDN 数据源）：
+ * 下载 bundle → FBO 解码 → 服务端格式（camelCase + 枚举字符串）→ data/excel/
+ * 注：无 FBS schema 的表（range/player_avatar/roguelike/sandbox/uniequip_data 等）
+ * 保持 data/excel 现有快照不变（解码失败跳过）。
+ */
+function runOfficialExcelPipeline(): boolean {
+  log(`运行官服热更 excel 管线...`);
+  return executeCommand(
+    "python scripts/hotupdate-excel.py --download --decode --convert",
+    path.join(__dirname, ".."),
+  );
 }
 
 function generateTypes(): boolean {
@@ -288,18 +187,18 @@ function mergeGachaFiles(): boolean {
  * 数据更新入口
  *
  * 三种模式：
- * - 默认（在线更新）：拉取远端仓库并同步数据
- * - `skipUpdate=true`：跳过仓库拉取，仅执行本地复制/生成/合并
+ * - 默认（在线更新）：官方热更管线生成 excel + 类型生成 + gacha 合并
+ * - `skipUpdate=true`：跳过官服热更管线（excel 用本地缓存），仅执行类型生成/合并
  * - `offline=true`（完全离线）：不进行任何网络操作，仅校验本地数据完整性
  *
- * @param skipUpdate - 是否跳过仓库更新
+ * @param skipUpdate - 是否跳过官服热更管线
  * @param offline - 是否完全离线模式（优先级最高）
  * @returns 0 表示成功，1 表示失败
  */
 export async function main(skipUpdate: boolean = false, offline: boolean = false): Promise<number> {
   if (offline) {
     log("===== 完全离线模式 =====");
-    log("跳过仓库更新 / 数据复制 / 类型生成 / gacha 合并，不进行任何网络操作");
+    log("跳过数据管线 / 类型生成 / gacha 合并，不进行任何网络操作");
 
     const missing = verifyLocalData();
     if (missing.length > 0) {
@@ -319,20 +218,12 @@ export async function main(skipUpdate: boolean = false, offline: boolean = false
   log("===== 开始更新数据 =====");
   
   if (!skipUpdate) {
-    for (const repo of REPOS) {
-      log(`\n处理仓库: ${repo.name}`);
-      if (!updateRepository(repo)) {
-        logError(`仓库 ${repo.name} 更新失败，使用本地缓存数据`);
-      }
+    log("\n官服热更 excel 管线（下载/解码/转换）...");
+    if (!runOfficialExcelPipeline()) {
+      logError("官服热更 excel 管线失败，使用本地缓存数据");
     }
   } else {
-    log("跳过仓库更新");
-  }
-  
-  log("\n复制游戏数据...");
-  if (!copyExcelFiles()) {
-    logError("复制游戏数据失败");
-    return 1;
+    log("跳过官服热更管线（使用本地 excel 缓存）");
   }
   
   log("\n生成类型文件...");

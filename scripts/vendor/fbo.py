@@ -57,6 +57,18 @@ class FBOHandler:
         return FBOHandler._to_json_dict(obj)
 
     @staticmethod
+    def _is_pure_kv(obj: object) -> bool:
+        """对象是否仅含 Key/Value 数据字段（可折叠为 {key: value} 的纯键值对）。
+        Blackboard_DataPair 含 ValueStr 等额外字段 → 返回 False，须保留完整对象。"""
+        for n in dir(obj):
+            if n in ("Init", "Clear") or n.startswith(("_", "GetRootAs")) or n == "IsNone":
+                continue
+            base = n[:-6] if n.endswith(("IsNone", "Length")) else n
+            if base not in ("Key", "Value"):
+                return False
+        return True
+
+    @staticmethod
     def _to_json_dict(obj: object):
         if obj is None:
             return None
@@ -67,7 +79,7 @@ class FBOHandler:
         f_obj_value = getattr(obj, "Value", None)
         f_obj_value_len = getattr(obj, "ValueLength", None)
 
-        if f_obj_key and f_obj_value:
+        if f_obj_key and f_obj_value and FBOHandler._is_pure_kv(obj):
             # As key-value item:
             assert isinstance(f_obj_key, Callable) and isinstance(f_obj_value, Callable)
             if f_obj_value_len:
@@ -110,15 +122,15 @@ class FBOHandler:
                         # Value is table or array
                         field_len = f_field_len()
                         if field_len:
-                            if "Key" in dir(f_field(0)):
-                                # Value is table
+                            if FBOHandler._is_pure_kv(f_field(0)):
+                                # 纯键值对表数组 → 折叠为 dict
                                 value = {}
                                 for i in range(field_len):
                                     item = FBOHandler._to_json_dict(f_field(i))
                                     assert isinstance(item, dict)
                                     value.update(item)
                             else:
-                                # Value is array
+                                # 标量数组 / 表数组（含 DataPair 等带额外字段的对象）→ 保留为列表
                                 value = [FBOHandler._to_literal(f_field(i)) for i in range(field_len)]
                         else:
                             # TODO handle empty table

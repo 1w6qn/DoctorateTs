@@ -90,24 +90,27 @@ export class RoguelikeInventoryManager
         this._player._status.property.exp += item.count;
         const map =
           excel.RoguelikeTopicTable.details[theme].detailConst.playerLevelTable;
+        // 升级需求经验：map[N].exp 为达到 N 级所需经验（文档指挥等级表：Lv2=10/24/36/40/55/65/70/75/80）
+        // 注意：扣经验与升级效果均用「当前等级」map[level]，非 level+1（原实现 off-by-one 读到下一级）
         while (
+          map[this._player._status.property.level + 1] &&
           this._player._status.property.exp >=
-          map[this._player._status.property.level + 1].exp
+            map[this._player._status.property.level + 1].exp
         ) {
           this._player._status.property.level += 1;
-          this._player._status.property.exp -=
-            map[this._player._status.property.level + 1].exp;
+          const lv = map[this._player._status.property.level] ?? {};
+          this._player._status.property.exp -= lv.exp ?? 0;
           this._trigger.emit("rlv2:levelUp", [
             this._player._status.property.level,
           ]);
+          // 等级效果（文档：希望+4/+4… 数量+1）：populationUp→希望上限（客户端侧），
+          // squadCapacityUp→携带干员数量，maxHpUp→生命上限（rogue_2..5 有，其余缺省 0）
           this._player._status.property.population.max +=
-            map[this._player._status.property.level + 1].populationUp;
-          this._player._status.property.capacity +=
-            map[this._player._status.property.level + 1].squadCapacityUp;
-          this._player._status.property.hp.max +=
-            map[this._player._status.property.level + 1].maxHpUp;
-          this._player._status.property.hp.current +=
-            map[this._player._status.property.level + 1].populationUp;
+            lv.populationUp ?? 0;
+          this._player._status.property.capacity += lv.squadCapacityUp ?? 0;
+          const maxHpUp = lv.maxHpUp ?? 0;
+          this._player._status.property.hp.max += maxHpUp;
+          this._player._status.property.hp.current += maxHpUp;
         }
       },
       SQUAD_CAPACITY: (item: RoguelikeItemBundle) =>

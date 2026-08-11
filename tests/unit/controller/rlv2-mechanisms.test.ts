@@ -38,7 +38,9 @@ vi.mock("@excel/excel", () => ({
             rogue_1_gold: { id: "rogue_1_gold", type: "GOLD", rarity: "NONE" },
             rogue_1_hp: { id: "rogue_1_hp", type: "HP", rarity: "NONE" },
             rogue_1_squad_capacity: { id: "rogue_1_squad_capacity", type: "SQUAD_CAPACITY", rarity: "NONE" },
+            rogue_1_exp: { id: "rogue_1_exp", type: "EXP", rarity: "NONE" },
           },
+          detailConst: { playerLevelTable: { 2: { exp: 10, populationUp: 4 }, 3: { exp: 24, populationUp: 4 } } },
           relics: {
             rogue_1_band_1: { id: "rogue_1_band_1", buffs: [{ key: "level_life_point_add", blackboard: [{ key: "value", value: 4 }] }] },
             rogue_1_band_2: {
@@ -433,5 +435,44 @@ describe("结算（GAME_SETTLE）与藏品（2026-08-11）", () => {
     expect(keys[0]).toMatch(/^r_\d+$/);
     expect(relic[keys[0]].id).toBe("rogue_1_band_1");
     expect(relic[keys[0]].index).toBe(keys[0]);
+  });
+});
+
+describe("指挥等级/经验（2026-08-11 文档对齐）", () => {
+  it("战斗经验结算应升级并正确提升属性（无 NaN）", async () => {
+    const player = await readyPlayer("rogue_1");
+    (player.rlv2 as any)._status.property.exp = 0;
+    (player.rlv2 as any)._status.property.level = 1;
+    (player.rlv2 as any)._status.property.capacity = 6;
+    (player.rlv2 as any)._status.property.population.max = 6;
+    (player.rlv2 as any)._status.property.hp = { current: 10, max: 10 };
+    // 发 15 exp → 升到 2 级（需求 10，剩 5）
+    await (player.rlv2 as any)._trigger.emit("rlv2:get:items", [
+      [{ id: "rogue_1_exp", count: 15 }],
+    ]);
+    const p = (player.rlv2 as any)._status.property;
+    expect(p.level).toBe(2);
+    expect(p.exp).toBe(5);
+    // 2 级效果：希望+4（populationUp）→ population.max 10；数量+0（squadCapacityUp 缺省）
+    expect(p.population.max).toBe(10);
+    expect(p.capacity).toBe(6);
+    // rogue_1 无 maxHpUp → HP 不 NaN
+    expect(Number.isNaN(p.hp.max)).toBe(false);
+    expect(Number.isNaN(p.hp.current)).toBe(false);
+  });
+
+  it("finishBattleReward 应结算 earn.exp 战斗经验", async () => {
+    const player = await readyPlayer("rogue_1");
+    (player.rlv2 as any)._status.property.exp = 0;
+    (player.rlv2 as any)._status.property.level = 1;
+    // 注入 BATTLE_REWARD 事件（含 earn.exp 10）
+    (player.rlv2 as any)._status._pending._pending.push({
+      type: "BATTLE_REWARD",
+      content: { battleReward: { rewards: [], earn: { exp: 10, hp: 0 }, show: "1", state: 0, isPerfect: 0 } },
+    });
+    await (player.rlv2 as any).finishBattleReward({});
+    // 10 exp → 升到 2 级
+    expect((player.rlv2 as any)._status.property.level).toBe(2);
+    expect((player.rlv2 as any)._status.pending.length).toBe(0);
   });
 });

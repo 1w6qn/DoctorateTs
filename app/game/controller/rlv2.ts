@@ -924,6 +924,15 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }
 
   async finishBattleReward(args: {}) {
+    // 指挥等级经验结算（文档：战斗胜利后结算战斗经验——earn.exp 从战斗结果带入）
+    const rewardEvent = this._status.pending[0];
+    const earnExp = rewardEvent?.content?.battleReward?.earn?.exp;
+    if (earnExp) {
+      const theme = this.current.game!.theme;
+      this._trigger.emit("rlv2:get:items", [
+        [{ id: `${theme}_exp`, count: earnExp }],
+      ]);
+    }
     this._status.pending.shift();
     await this.checkZoneEnd();
     this._status.state = "WAIT_MOVE";

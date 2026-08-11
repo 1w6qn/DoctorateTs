@@ -41,7 +41,7 @@ router.get(
       if (rangeHeader) forwardHeaders.Range = rangeHeader;
       const resp = await fetch(
         `https://ak.hycdn.cn/assetbundle/official/${cdnPlatform}/assets/${version}/${fileName}`,
-        { headers: forwardHeaders },
+        { headers: forwardHeaders, signal: AbortSignal.timeout(CDN_TIMEOUT) },
       );
       const body = Buffer.from(await resp.arrayBuffer());
       res.status(resp.status);
@@ -126,9 +126,15 @@ let MODS_LIST: ModsList = {
 
 const downloadingFiles: { [key: string]: EventEmitter } = {};
 
+/** CDN 下载超时（毫秒）——官服 CDN 不可达时快速失败（5xx），避免客户端请求挂起致界面卡死 */
+const CDN_TIMEOUT = 10000;
+
 async function downloadFile(url: string, filePath: string): Promise<void> {
   logger.info("Asset", `Download ${filePath.split("/").pop()}`);
-  const response = await axios.get(url, { responseType: "arraybuffer" });
+  const response = await axios.get(url, {
+    responseType: "arraybuffer",
+    timeout: CDN_TIMEOUT,
+  });
   await writeFile(filePath, response.data);
 }
 
@@ -145,7 +151,7 @@ async function exportFile(
     if (await exists(filePath)) {
       hotUpdateList = JSON.parse(await readFile(filePath, "utf-8"));
     } else {
-      const response = await axios.get(url);
+      const response = await axios.get(url, { timeout: CDN_TIMEOUT });
       hotUpdateList = response.data;
       await writeFile(filePath, JSON.stringify(hotUpdateList));
     }

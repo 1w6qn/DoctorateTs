@@ -13,7 +13,7 @@
   },
   "assets": {
     "enableMods": false,
-    "downloadLocally": false,
+    "downloadLocally": true,
     "downloadPeoxy": false,
     "autoUpdate": true
   },
@@ -55,13 +55,13 @@
     "enable": true,
     "token": "doctorate-admin"
   },
-  "authMode": "single",
+  "authMode": "real",
   "capture": {
     "enabled": false,
     "asHost": "https://as.hypergryph.com",
     "gsHost": "https://ak-gs-gf.hypergryph.com",
     "gatewayPort": 30001
   },
-  "singleAutoMaxAccount": true,
+  "singleAutoMaxAccount": false,
   "singleUid": "2222"
 }

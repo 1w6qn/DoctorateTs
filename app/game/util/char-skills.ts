@@ -1,20 +1,13 @@
 /**
  * 干员技能解锁工具（等级/精英化驱动）
  *
- * 官方规则（test.json 全量 378/378 验证）：技能 i 的解锁条件 =
- * CharacterTable[charId].allSkillLvlup[i].unlockCond（{phase, level}）——
- * 干员 evolvePhase > cond.phase 或（== 且 level >= cond.level）时解锁该技能。
- *
- * ⚠️ 注意：CharacterData_MainSkill 顶层 unlockCond 是另一组数据（主技能等级解锁），
- * 与技能解锁条件不同（两者 1504 处差异，误用会 187/378 不匹配——troop.fix() 历史地雷）。
+ * 官方标准规则：技能1 默认解锁；技能2 精1（evolvePhase>=1）解锁；
+ * 技能3 精2（evolvePhase>=2）解锁（如有）。
+ * ⚠️ 勿用 allSkillLvlup[i].unlockCond / skills[i].unlockCond 作为技能解锁条件——
+ * 前者是主技能等级升级条件（所有技能恒为 PHASE_0/l1），后者是专精解锁条件；
+ * 两者都与技能解锁无关（test.json 为官服导入快照，技能状态不一致，不可作基准）。
  */
 import excel from "@excel/excel";
-
-const PHASE_NUM: Record<string, number> = {
-  PHASE_0: 0,
-  PHASE_1: 1,
-  PHASE_2: 2,
-};
 
 /** 干员技能条目（存档线格式） */
 export interface CharSkillEntry {
@@ -35,10 +28,10 @@ export interface CharSkillsLike {
 }
 
 /**
- * 计算干员当前应解锁的技能 ID 列表（按官方 allSkillLvlup 规则）
+ * 计算干员当前应解锁的技能 ID 列表（标准规则：精1→技能2、精2→技能3）
  * @param charId - 干员ID（char_002_amiya 技能在 tmpl，返回空）
  * @param evolvePhase - 精英化阶段（0/1/2）
- * @param level - 等级
+ * @param level - 等级（标准规则不依赖等级，保留参数以兼容调用方）
  * @returns 应解锁的技能 ID 数组（无技能干员/阿米娅返回空）
  */
 export function unlockedSkillIds(
@@ -53,39 +46,46 @@ export function unlockedSkillIds(
   if (!skills || !skills.length) return [];
   const out: string[] = [];
   for (let i = 0; i < skills.length; i++) {
-    const cond = info.allSkillLvlup?.[i]?.unlockCond;
-    if (!cond) {
-      out.push(skills[i].skillId);
-      continue;
-    }
-    const condPhase = PHASE_NUM[cond.phase] ?? 0;
-    if (
-      evolvePhase > condPhase ||
-      (evolvePhase === condPhase && level >= (cond.level ?? 1))
-    ) {
-      out.push(skills[i].skillId);
+    if (i === 0) {
+      out.push(skills[i].skillId); // 技能1 默认
+    } else if (i === 1 && evolvePhase >= 1) {
+      out.push(skills[i].skillId); // 技能2 精1解锁
+    } else if (i >= 2 && evolvePhase >= 2) {
+      out.push(skills[i].skillId); // 技能3 精2解锁（如有）
     }
   }
   return out;
 }
 
 /**
- * 按当前等级/精英化重组干员 skills：追加新解锁技能（保留已有条目的
- * state/specializeLevel/completeUpgradeTime，unlock 置 1），校正
- * defaultSkillIndex（有技能且 -1/越界/缺失 → 0；无技能且 dsi 异常 → -1）。
+ * 按当前精英化重组干员 skills：追加新解锁技能（保留已有条目的
+ * state/specializeLevel/completeUpgradeTime，unlock 置 1），移除当前阶段未解锁
+ * 且无投入的技能（标准规则：精1→技能2、精2→技能3——旧规则曾多发放技能2/3），
+ * 校正 defaultSkillIndex（有技能且 -1/越界/缺失 → 0；无技能且 dsi 异常 → -1）。
  *
- * 幂等：对已合规干员无副作用。只追加不回收（等级/精英化只会更易解锁）。
+ * 幂等：对已合规干员无副作用。移除仅在技能无专精/训练投入时进行（有投入保留，
+ * 不破坏数据）。
  * @param char - 干员对象（原地修改）
  * @returns 是否发生变更
  */
 export function reconcileCharSkills(char: CharSkillsLike): boolean {
   let changed = false;
   const skills: CharSkillEntry[] = char.skills ?? (char.skills = []);
-  for (const skillId of unlockedSkillIds(
-    char.charId,
-    char.evolvePhase,
-    char.level,
-  )) {
+  const unlocked = unlockedSkillIds(char.charId, char.evolvePhase, char.level);
+  // 移除当前阶段未解锁且无投入的技能（倒序遍历避免索引错位）
+  for (let i = skills.length - 1; i >= 0; i--) {
+    const s = skills[i];
+    if (!s || !s.skillId) continue;
+    if (
+      !unlocked.includes(s.skillId) &&
+      (s.specializeLevel ?? 0) === 0 &&
+      s.state !== 1
+    ) {
+      skills.splice(i, 1);
+      changed = true;
+    }
+  }
+  for (const skillId of unlocked) {
     const existing = skills.find((s) => s && s.skillId === skillId);
     if (!existing) {
       skills.push({

@@ -175,10 +175,10 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
     }
   }
 
-  // 8. troop.chars 技能回填：按等级/精英化解锁相应技能。
+  // 8. troop.chars 技能回填：按精英化解锁相应技能。
   //    历史 onCharGet 建档 skills 恒为空 → 客户端干员详情无技能可看（新干员/发放）。
-  //    官方规则 allSkillLvlup[i].unlockCond（test.json 378/378 验证）；幂等回填，
-  //    阿米娅（技能在 tmpl）/无技能干员自动跳过。
+  //    标准规则：技能1 默认、精1→技能2、精2→技能3；幂等回填，阿米娅（技能在
+  //    tmpl）/无技能干员自动跳过。
   if (chars && typeof chars === "object") {
     for (const [instId, ch] of Object.entries(chars)) {
       const c = ch as any;

@@ -78,7 +78,18 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
   it("合规存档应零修复（幂等）", () => {
     const data = {
       status: { uid: "1" },
-      troop: { chars: { "1": { instId: 1, charId: "char_001" } } },
+      troop: {
+        chars: {
+          "1": {
+            instId: 1,
+            charId: "char_001",
+            level: 1,
+            evolvePhase: 0,
+            defaultSkillIndex: 0,
+            skills: [{ skillId: "skchr_test_1", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 }],
+          },
+        },
+      },
       dungeon: {},
       activity: {},
       building: { rooms: { PRIVATE: { slot_1: { owners: [1] } } } },
@@ -212,7 +223,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
     expect(issues.filter((i) => i.fixed && i.path.includes("troop.chars"))).toHaveLength(0);
   });
 
-  it("空 skills 干员应按等级/精英化回填技能（历史 onCharGet 建档）", () => {
+  it("空 skills 干员应按精英化回填技能（精1→技能2、精2→技能3）", () => {
     const data = {
       status: { uid: "1" },
       troop: {
@@ -225,6 +236,14 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
             defaultSkillIndex: -1,
             skills: [],
           },
+          "381": {
+            instId: 381,
+            charId: "char_001",
+            level: 1,
+            evolvePhase: 1, // 精1 → 技能1+2
+            defaultSkillIndex: -1,
+            skills: [],
+          },
         },
       },
       dungeon: {},
@@ -232,14 +251,16 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       building: {},
     };
     const issues = checkAndRepairSave(data as any);
-    const ch = data.troop.chars["380"];
-    // 技能1（PHASE_0/1）与技能2（PHASE_0/2，level 2 达成）都应解锁
-    expect(ch.skills.map((s: any) => s.skillId)).toEqual([
+    // E0：仅技能1（标准规则：技能2 需精1）
+    expect(data.troop.chars["380"].skills.map((s: any) => s.skillId)).toEqual([
+      "skchr_test_1",
+    ]);
+    expect(data.troop.chars["380"].defaultSkillIndex).toBe(0);
+    // E1：技能1+2
+    expect(data.troop.chars["381"].skills.map((s: any) => s.skillId)).toEqual([
       "skchr_test_1",
       "skchr_test_2",
     ]);
-    expect(ch.skills.every((s: any) => s.unlock === 1)).toBe(true);
-    expect(ch.defaultSkillIndex).toBe(0);
     expect(issues.some((i) => i.path === "troop.chars[380].skills" && i.fixed)).toBe(true);
   });
 
@@ -264,6 +285,66 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
     };
     const issues = checkAndRepairSave(data as any);
     expect(issues.filter((i) => i.path.includes("troop.chars[2].skills"))).toHaveLength(0);
+  });
+
+  it("E0 干员带技能2/3（旧规则多发放）应移除（无投入）", () => {
+    const data = {
+      status: { uid: "1" },
+      troop: {
+        chars: {
+          "380": {
+            instId: 380,
+            charId: "char_001",
+            level: 1,
+            evolvePhase: 0,
+            defaultSkillIndex: 0,
+            skills: [
+              { skillId: "skchr_test_1", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 },
+              { skillId: "skchr_test_2", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 },
+            ],
+          },
+        },
+      },
+      dungeon: {},
+      activity: {},
+      building: {},
+    };
+    const issues = checkAndRepairSave(data as any);
+    // E0 仅技能1（技能2 需精1）；无投入 → 移除
+    expect(data.troop.chars["380"].skills.map((s: any) => s.skillId)).toEqual([
+      "skchr_test_1",
+    ]);
+    expect(issues.some((i) => i.path.includes("troop.chars[380].skills") && i.fixed)).toBe(true);
+  });
+
+  it("有专精投入的技能即使当前阶段未解锁也应保留（不破坏数据）", () => {
+    const data = {
+      status: { uid: "1" },
+      troop: {
+        chars: {
+          "380": {
+            instId: 380,
+            charId: "char_001",
+            level: 1,
+            evolvePhase: 0,
+            defaultSkillIndex: 1,
+            skills: [
+              { skillId: "skchr_test_1", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 },
+              { skillId: "skchr_test_2", unlock: 1, state: 0, specializeLevel: 2, completeUpgradeTime: -1 },
+            ],
+          },
+        },
+      },
+      dungeon: {},
+      activity: {},
+      building: {},
+    };
+    checkAndRepairSave(data as any);
+    // 技能2 有专精 2 → 保留
+    expect(data.troop.chars["380"].skills.map((s: any) => s.skillId)).toEqual([
+      "skchr_test_1",
+      "skchr_test_2",
+    ]);
   });
 
   it("训练室 trainee 为 null（旧结算残留）应修复为空对象", () => {

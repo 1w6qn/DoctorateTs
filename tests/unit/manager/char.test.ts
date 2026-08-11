@@ -96,11 +96,17 @@ vi.mock("@excel/excel", () => {
             { evolveCost: [{ id: "mat_001", count: 5 }] },
             { evolveCost: [{ id: "mat_002", count: 10 }] },
           ],
-          skills: [{ skillId: "skchr_test_2_1" }, { skillId: "skchr_test_2_2" }],
+          skills: [
+            { skillId: "skchr_test_2_1" },
+            { skillId: "skchr_test_2_2" },
+            { skillId: "skchr_test_2_3" },
+          ],
           allSkillLvlup: [
             { unlockCond: { phase: "PHASE_0", level: 1 }, lvlUpCost: [{ id: "skill_mat", count: 1 }] },
             // 技能2 需精英一解锁（E1）
             { unlockCond: { phase: "PHASE_1", level: 1 }, lvlUpCost: [{ id: "skill_mat", count: 1 }] },
+            // 技能3 需精英二解锁（E2）
+            { unlockCond: { phase: "PHASE_2", level: 1 }, lvlUpCost: [{ id: "skill_mat", count: 1 }] },
           ],
         },
         // 2 星干员：无技能（excel 无 skills/allSkillLvlup）
@@ -398,7 +404,7 @@ describe("CharManager", () => {
       expect(ch.defaultSkillIndex).toBe(-1);
     });
 
-    it("精英化应解锁对应技能并保留已有技能状态", async () => {
+    it("精英化应解锁对应技能并保留已有技能状态（精1→技能2、精2→技能3）", async () => {
       const manager = new CharManager(mockPlayer as any, mockTrigger as any);
       mockPlayer._playerdata.dexNav!.character = {};
       mockPlayer._playerdata.troop!.curCharInstId = 0;
@@ -409,32 +415,45 @@ describe("CharManager", () => {
       const chBefore = mockPlayer._playerdata.troop!.chars[charInstId];
       expect(chBefore.skills[0].specializeLevel).toBe(2);
       await manager.evolveChar({ charInstId, destEvolvePhase: 1 });
-      const ch = mockPlayer._playerdata.troop!.chars[charInstId];
+      let ch = mockPlayer._playerdata.troop!.chars[charInstId];
       expect(ch.evolvePhase).toBe(1);
-      // 技能2（PHASE_1/level1）随精英一解锁；技能1 专精状态保留
+      // 精1 解锁技能2；技能1 专精状态保留
       expect(ch.skills.map((s) => s.skillId)).toEqual([
         "skchr_test_2_1",
         "skchr_test_2_2",
       ]);
       expect(ch.skills[0].specializeLevel).toBe(2);
       expect(ch.skills[1].unlock).toBe(1);
+      // 精2 解锁技能3
+      await manager.evolveChar({ charInstId, destEvolvePhase: 2 });
+      ch = mockPlayer._playerdata.troop!.chars[charInstId];
+      expect(ch.skills.map((s) => s.skillId)).toEqual([
+        "skchr_test_2_1",
+        "skchr_test_2_2",
+        "skchr_test_2_3",
+      ]);
+      expect(ch.skills[2].unlock).toBe(1);
     });
 
-    it("等级提升应解锁对应技能（如 40/55 级解锁技能2）", async () => {
+    it("等级提升不解锁技能2（标准规则：仅精英化解锁）", async () => {
       const manager = new CharManager(mockPlayer as any, mockTrigger as any);
-      // instId 1001 = char_001（level 1，技能2 条件 PHASE_0/level2）
+      // instId 1001 = char_001（level 1，E0）
       await manager.upgradeChar({
         charInstId: 1001,
         expMats: [{ id: "exp_mat", count: 1 }], // 50 exp → level 2
       });
       const ch = mockPlayer._playerdata.troop!.chars[1001];
       expect(ch.level).toBe(2);
-      expect(ch.skills.map((s) => s.skillId)).toEqual([
+      // E0 等级提升不追加技能2（技能2 需精1）
+      expect(ch.skills.map((s) => s.skillId)).toEqual(["skchr_test_1"]);
+      expect(ch.defaultSkillIndex).toBe(0);
+      // 精1 后解锁技能2
+      await manager.evolveChar({ charInstId: 1001, destEvolvePhase: 1 });
+      const ch1 = mockPlayer._playerdata.troop!.chars[1001];
+      expect(ch1.skills.map((s) => s.skillId)).toEqual([
         "skchr_test_1",
         "skchr_test_2",
       ]);
-      expect(ch.skills[1].unlock).toBe(1);
-      expect(ch.defaultSkillIndex).toBe(0);
     });
   });
 });

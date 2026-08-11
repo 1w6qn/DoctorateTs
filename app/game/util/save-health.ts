@@ -8,11 +8,13 @@
  * 4. status.uid 类型错误
  * 5. dexNav.character[].charInstId 与 troop.chars 一致性（roster 重建后悬空重指向）
  * 6. troop.chars 干员模板字段归一化（自引用空 currentTmpl/旧 null 结构 → 移除）
+ * 7. troop.chars 技能回填（按等级/精英化解锁——历史新干员建档空 skills）
  *
  * 修复为幂等（对合规结构无副作用）且保守（不做破坏性重建）——结构性损坏可安全修复，
  * 非法 JSON 无法自动修复（由加载层记录并备份）。
  */
 import { logger } from "@utils/logger";
+import { reconcileCharSkills, unlockedSkillIds } from "@game/util/char-skills";
 
 /** 存档问题记录 */
 export interface SaveIssue {
@@ -166,6 +168,29 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
         issues.push({
           path: `troop.chars[${instId}]`,
           message: "currentTmpl 指向 tmpl 中不存在的形态，移除 currentTmpl",
+          fixed: true,
+        });
+      }
+    }
+  }
+
+  // 8. troop.chars 技能回填：按等级/精英化解锁相应技能。
+  //    历史 onCharGet 建档 skills 恒为空 → 客户端干员详情无技能可看（新干员/发放）。
+  //    官方规则 allSkillLvlup[i].unlockCond（test.json 378/378 验证）；幂等回填，
+  //    阿米娅（技能在 tmpl）/无技能干员自动跳过。
+  if (chars && typeof chars === "object") {
+    for (const [instId, ch] of Object.entries(chars)) {
+      const c = ch as any;
+      if (!c || typeof c !== "object" || !c.charId) continue;
+      if (reconcileCharSkills(c)) {
+        const unlocked = unlockedSkillIds(
+          c.charId,
+          c.evolvePhase,
+          c.level,
+        );
+        issues.push({
+          path: `troop.chars[${instId}].skills`,
+          message: `技能按等级/精英化回填（解锁 ${unlocked.join(",") || "(无)"}）`,
           fixed: true,
         });
       }

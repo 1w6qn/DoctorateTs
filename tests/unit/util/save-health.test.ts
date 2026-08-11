@@ -1,5 +1,23 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { checkAndRepairSave, hasRepairableIssues } from "../../../app/game/util/save-health";
+
+vi.mock("@excel/excel", () => ({
+  default: {
+    CharacterTable: {
+      char_001: {
+        skills: [{ skillId: "skchr_test_1" }, { skillId: "skchr_test_2" }],
+        allSkillLvlup: [
+          { unlockCond: { phase: "PHASE_0", level: 1 } },
+          { unlockCond: { phase: "PHASE_0", level: 2 } },
+        ],
+      },
+      char_002: {
+        skills: [{ skillId: "skchr_2_1" }],
+        allSkillLvlup: [{ unlockCond: { phase: "PHASE_0", level: 1 } }],
+      },
+    },
+  },
+}));
 
 describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
   it("PRIVATE.owners 含 null 条目应过滤（setPrivateDormOwner 字段名 bug 残留）", () => {
@@ -192,5 +210,59 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
     expect(data.troop.chars["1"].currentTmpl).toBe("char_1037_amiya3");
     expect(Object.keys(data.troop.chars["1"].tmpl)).toHaveLength(3);
     expect(issues.filter((i) => i.fixed && i.path.includes("troop.chars"))).toHaveLength(0);
+  });
+
+  it("空 skills 干员应按等级/精英化回填技能（历史 onCharGet 建档）", () => {
+    const data = {
+      status: { uid: "1" },
+      troop: {
+        chars: {
+          "380": {
+            instId: 380,
+            charId: "char_001",
+            level: 2,
+            evolvePhase: 0,
+            defaultSkillIndex: -1,
+            skills: [],
+          },
+        },
+      },
+      dungeon: {},
+      activity: {},
+      building: {},
+    };
+    const issues = checkAndRepairSave(data as any);
+    const ch = data.troop.chars["380"];
+    // 技能1（PHASE_0/1）与技能2（PHASE_0/2，level 2 达成）都应解锁
+    expect(ch.skills.map((s: any) => s.skillId)).toEqual([
+      "skchr_test_1",
+      "skchr_test_2",
+    ]);
+    expect(ch.skills.every((s: any) => s.unlock === 1)).toBe(true);
+    expect(ch.defaultSkillIndex).toBe(0);
+    expect(issues.some((i) => i.path === "troop.chars[380].skills" && i.fixed)).toBe(true);
+  });
+
+  it("技能回填幂等：已合规干员不再修复", () => {
+    const data = {
+      status: { uid: "1" },
+      troop: {
+        chars: {
+          "2": {
+            instId: 2,
+            charId: "char_002",
+            level: 1,
+            evolvePhase: 0,
+            defaultSkillIndex: 0,
+            skills: [{ skillId: "skchr_2_1", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 }],
+          },
+        },
+      },
+      dungeon: {},
+      activity: {},
+      building: {},
+    };
+    const issues = checkAndRepairSave(data as any);
+    expect(issues.filter((i) => i.path.includes("troop.chars[2].skills"))).toHaveLength(0);
   });
 });

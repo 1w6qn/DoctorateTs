@@ -80,9 +80,36 @@ vi.mock("@excel/excel", () => {
             { evolveCost: [{ id: "mat_001", count: 5 }] },
             { evolveCost: [{ id: "mat_002", count: 10 }] },
           ],
+          skills: [{ skillId: "skchr_test_1" }, { skillId: "skchr_test_2" }],
           allSkillLvlup: [
-            { lvlUpCost: [{ id: "skill_mat", count: 1 }] },
+            { unlockCond: { phase: "PHASE_0", level: 1 }, lvlUpCost: [{ id: "skill_mat", count: 1 }] },
+            { unlockCond: { phase: "PHASE_0", level: 2 }, lvlUpCost: [{ id: "skill_mat", count: 1 }] },
           ],
+        },
+        char_002: {
+          charId: "char_002",
+          name: "测试干员二",
+          rarity: 5,
+          potentialItemId: "pot_002",
+          phases: [
+            { evolveCost: [] },
+            { evolveCost: [{ id: "mat_001", count: 5 }] },
+            { evolveCost: [{ id: "mat_002", count: 10 }] },
+          ],
+          skills: [{ skillId: "skchr_test_2_1" }, { skillId: "skchr_test_2_2" }],
+          allSkillLvlup: [
+            { unlockCond: { phase: "PHASE_0", level: 1 }, lvlUpCost: [{ id: "skill_mat", count: 1 }] },
+            // 技能2 需精英一解锁（E1）
+            { unlockCond: { phase: "PHASE_1", level: 1 }, lvlUpCost: [{ id: "skill_mat", count: 1 }] },
+          ],
+        },
+        // 2 星干员：无技能（excel 无 skills/allSkillLvlup）
+        char_502_nblade: {
+          charId: "char_502_nblade",
+          name: "测试二星",
+          rarity: 1,
+          potentialItemId: "pot_502",
+          phases: [{ evolveCost: [] }, { evolveCost: [] }, { evolveCost: [] }],
         },
       },
       ItemTable: {
@@ -343,6 +370,71 @@ describe("CharManager", () => {
       expect(ch.tmpl).toBeUndefined();
       expect(ch.charId).toBe("char_001");
       expect(ch.voiceLan).toBe("CN_MANDARIN");
+    });
+  });
+
+  describe("技能解锁（等级/精英化驱动，官方 allSkillLvlup 规则）", () => {
+    it("新干员建档应填充已解锁技能并设 defaultSkillIndex=0（原 skills 恒空）", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.dexNav!.character = {};
+      mockPlayer._playerdata.troop!.curCharInstId = 0;
+      const result = await manager.onCharGet(["char_002", { from: "NORMAL" }]);
+      expect(result.isNew).toBe(1);
+      const ch = mockPlayer._playerdata.troop!.chars[result.charInstId as number];
+      // char_002 技能1 条件 PHASE_0/level1 → 建档即解锁；技能2 需 E1
+      expect(ch.skills.map((s) => s.skillId)).toEqual(["skchr_test_2_1"]);
+      expect(ch.skills[0].unlock).toBe(1);
+      expect(ch.defaultSkillIndex).toBe(0);
+    });
+
+    it("无技能干员（如 2 星）保持空 skills 且 defaultSkillIndex=-1", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.dexNav!.character = {};
+      mockPlayer._playerdata.troop!.curCharInstId = 0;
+      const result = await manager.onCharGet(["char_502_nblade", { from: "NORMAL" }]);
+      expect(result.isNew).toBe(1);
+      const ch = mockPlayer._playerdata.troop!.chars[result.charInstId as number];
+      expect(ch.skills).toEqual([]);
+      expect(ch.defaultSkillIndex).toBe(-1);
+    });
+
+    it("精英化应解锁对应技能并保留已有技能状态", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.dexNav!.character = {};
+      mockPlayer._playerdata.troop!.curCharInstId = 0;
+      const result = await manager.onCharGet(["char_002", { from: "NORMAL" }]);
+      const charInstId = result.charInstId as number;
+      // 已有技能1 设置专精状态，验证精英化后不被覆盖
+      await manager.upgradeSpecialization({ charInstId, skillIndex: 0, targetLevel: 2 });
+      const chBefore = mockPlayer._playerdata.troop!.chars[charInstId];
+      expect(chBefore.skills[0].specializeLevel).toBe(2);
+      await manager.evolveChar({ charInstId, destEvolvePhase: 1 });
+      const ch = mockPlayer._playerdata.troop!.chars[charInstId];
+      expect(ch.evolvePhase).toBe(1);
+      // 技能2（PHASE_1/level1）随精英一解锁；技能1 专精状态保留
+      expect(ch.skills.map((s) => s.skillId)).toEqual([
+        "skchr_test_2_1",
+        "skchr_test_2_2",
+      ]);
+      expect(ch.skills[0].specializeLevel).toBe(2);
+      expect(ch.skills[1].unlock).toBe(1);
+    });
+
+    it("等级提升应解锁对应技能（如 40/55 级解锁技能2）", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      // instId 1001 = char_001（level 1，技能2 条件 PHASE_0/level2）
+      await manager.upgradeChar({
+        charInstId: 1001,
+        expMats: [{ id: "exp_mat", count: 1 }], // 50 exp → level 2
+      });
+      const ch = mockPlayer._playerdata.troop!.chars[1001];
+      expect(ch.level).toBe(2);
+      expect(ch.skills.map((s) => s.skillId)).toEqual([
+        "skchr_test_1",
+        "skchr_test_2",
+      ]);
+      expect(ch.skills[1].unlock).toBe(1);
+      expect(ch.defaultSkillIndex).toBe(0);
     });
   });
 });

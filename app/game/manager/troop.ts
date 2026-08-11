@@ -1,9 +1,9 @@
 import { PlayerSquad, PlayerSquadItem } from "../model/character";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
-import { CharacterData_MainSkill as CharacterDataMainSkill } from "@excel/types_excel_gen";
 import { now } from "@utils/time";
 import { rarityToIndex } from "@utils/rarity";
+import { reconcileCharSkills } from "@game/util/char-skills";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 
@@ -91,6 +91,11 @@ export class TroopManager {
   async addonStoryUnlock(args: { charId: string; storyId: string }) {
     const { charId, storyId } = args;
     await this._player.update(async (draft) => {
+      // 防御：addon 条目缺失（新干员/发放干员无密录基座）时先初始化，避免 500
+      draft.troop.addon[charId] = draft.troop.addon[charId] ?? {
+        story: {},
+        stage: {},
+      };
       draft.troop.addon[charId].story = Object.assign(
         draft.troop.addon[charId].story || {},
         { [storyId]: { fts: now(), rts: now() } },
@@ -142,35 +147,9 @@ export class TroopManager {
       if (char.charId == "char_002_amiya") {
         return;
       }
-      const skills = excel.CharacterTable[char.charId].skills;
-      skills.forEach((skill: CharacterDataMainSkill) => {
-        if (!char.skills?.some((s) => s.skillId == skill.skillId)) {
-          char.skills?.push({
-            skillId: skill.skillId!,
-            unlock:
-              char.evolvePhase >=
-                parseInt(skill.unlockCond.phase.toString().slice(-1)) &&
-              char.level >= skill.unlockCond.level
-                ? 1
-                : 0,
-            state: 0,
-            specializeLevel: 0,
-            completeUpgradeTime: -1,
-          });
-        } else {
-          char.skills!.find((s) => s.skillId == skill.skillId)!.unlock =
-            char.evolvePhase >=
-              parseInt(skill.unlockCond.phase.toString().slice(-1)) &&
-            char.level >= skill.unlockCond.level
-              ? 1
-              : 0;
-        }
-      });
-      char.defaultSkillIndex = skills
-        ? char.defaultSkillIndex != -1
-          ? char.defaultSkillIndex
-          : 0
-        : -1;
+      // 技能按官方规则回填/解锁（allSkillLvlup[i].unlockCond——test.json 378/378 验证；
+      // ⚠️ 勿用 skill.unlockCond 顶层字段：与解锁条件 1504 处不同，历史地雷）
+      reconcileCharSkills(char);
       const equips = excel.UniequipTable.equipDict;
       Object.values(equips)
         .filter((equip) => equip.charId == char.charId)

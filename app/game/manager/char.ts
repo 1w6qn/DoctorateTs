@@ -7,6 +7,7 @@ import { now } from "@utils/time";
 import { ceil } from "lodash";
 import { logger } from "@utils/logger";
 import { rarityToIndex } from "@utils/rarity";
+import { reconcileCharSkills } from "@game/util/char-skills";
 
 export class CharManager {
   _trigger: TypedEventEmitter;
@@ -166,6 +167,9 @@ export class CharManager {
           equip: {},
           voiceLan: "CN_MANDARIN",
         };
+        // 修复：新干员按等级/精英化填充技能（官方规则 allSkillLvlup[i].unlockCond；
+        // 原实现 skills 恒为空 → 客户端干员详情无技能可看）+ defaultSkillIndex
+        reconcileCharSkills(draft.troop.chars[charInstId]);
         // 修复：新干员创建后递增 curCharInstId，避免后续新干员 instId 冲突互相覆盖
         draft.troop.curCharInstId += 1;
         createdCharInstId = charInstId;
@@ -242,6 +246,8 @@ export class CharManager {
         }
       }
       expMats.push({ id: "4001", count: gold });
+      // 技能解锁：等级提升解锁对应技能（如 40/55 级解锁技能2），保留已有技能状态
+      reconcileCharSkills(char);
       await this._trigger.emit("items:use", [expMats]);
       await this._trigger.emit("UpgradeChar", [{ char, exp: expTotal }]);
     });
@@ -268,6 +274,8 @@ export class CharManager {
       char.evolvePhase = destEvolvePhase;
       char.level = 1;
       char.exp = 0;
+      // 技能解锁：精英化解锁对应技能（如 E1 解锁技能2、E2 解锁技能3），保留已有技能状态
+      reconcileCharSkills(char);
       if (destEvolvePhase >= 2) {
         char.skin = char.charId + "#2";
       }

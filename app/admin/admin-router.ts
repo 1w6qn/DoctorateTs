@@ -160,6 +160,15 @@ router.post("/api/users/:uid/checkin/reset", async (req: Request, res: Response)
   }
 });
 
+/** 发放推送信息（设置玩家 pushFlags——红点/通知；body 传 hasGifts/hasFriendRequest/hasClues/hasFreeLevelGP，0=清除） */
+router.post("/api/users/:uid/push", async (req: Request, res: Response) => {
+  try {
+    res.json(await adminService.pushMessage(String(req.params.uid), req.body ?? {}));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 /** 代签（领取当前档位奖励） */
 router.post("/api/users/:uid/checkin/do", async (req: Request, res: Response) => {
   try {

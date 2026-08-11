@@ -1445,6 +1445,42 @@ export class AdminService {
     return this.getCheckInState(uid);
   }
 
+  /**
+   * 发放推送信息（设置玩家 pushFlags——客户端 syncData/syncPushMessage 增量下发红点/通知）
+   *
+   * pushFlags 语义（客户端读取显示红点）：
+   *   hasGifts=1 有未领取礼物；hasFriendRequest=1 有好友申请；
+   *   hasClues=1 有线索待处理；hasFreeLevelGP=1 有免费等级礼包
+   * @param uid - 目标用户 uid
+   * @param flags - 要设置的推送标记（只更新传入的键；传 0 清除）
+   * @returns 更新后的 pushFlags
+   */
+  async pushMessage(
+    uid: string,
+    flags: {
+      hasGifts?: number;
+      hasFriendRequest?: number;
+      hasClues?: number;
+      hasFreeLevelGP?: number;
+    },
+  ): Promise<Record<string, number>> {
+    const pd = await this.getPlayer(uid);
+    await pd.update(async (draft) => {
+      if (flags.hasGifts != null) draft.pushFlags.hasGifts = flags.hasGifts;
+      if (flags.hasFriendRequest != null)
+        draft.pushFlags.hasFriendRequest = flags.hasFriendRequest;
+      if (flags.hasClues != null) draft.pushFlags.hasClues = flags.hasClues;
+      if (flags.hasFreeLevelGP != null)
+        draft.pushFlags.hasFreeLevelGP = flags.hasFreeLevelGP;
+    });
+    await this.savePlayer(uid);
+    const changed = Object.keys(flags)
+      .filter((k) => (flags as any)[k] != null)
+      .join(",");
+    await this._audit("pushMessage", uid, `发放推送信息: ${changed}`);
+    return { ...pd._playerdata.pushFlags };
+  }
+
   /** 代签（领取当前档位奖励；当日已签返回空奖励） */
   async doCheckIn(
     uid: string,

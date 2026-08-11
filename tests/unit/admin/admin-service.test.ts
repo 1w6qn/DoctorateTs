@@ -1207,3 +1207,31 @@ describe("AdminService 邮件与建号", () => {
     await expect(service.createUser("", "pw123")).rejects.toThrow(/手机号/);
   });
 });
+
+describe("pushMessage 发放推送信息", () => {
+  it("应设置指定 pushFlags 并返回更新后的标记", async () => {
+    const service = new AdminService();
+    const pd = mockPlayerData({
+      status: { uid: "1" },
+      pushFlags: { hasGifts: 0, hasFriendRequest: 0, hasClues: 0, hasFreeLevelGP: 0, status: 0 },
+    } as any);
+    vi.spyOn(accountManager, "data" as any, "get").mockReturnValue({ "1": pd });
+    const result = await service.pushMessage("1", { hasGifts: 1, hasClues: 1 });
+    expect(result.hasGifts).toBe(1);
+    expect(result.hasClues).toBe(1);
+    expect(result.hasFriendRequest).toBe(0);
+    expect(pd._playerdata.pushFlags.hasGifts).toBe(1);
+  });
+
+  it("传 0 应清除指定推送标记", async () => {
+    const service = new AdminService();
+    const pd = mockPlayerData({
+      status: { uid: "1" },
+      pushFlags: { hasGifts: 1, hasFriendRequest: 0, hasClues: 1, hasFreeLevelGP: 0, status: 0 },
+    } as any);
+    vi.spyOn(accountManager, "data" as any, "get").mockReturnValue({ "1": pd });
+    const result = await service.pushMessage("1", { hasGifts: 0 });
+    expect(result.hasGifts).toBe(0);
+    expect(result.hasClues).toBe(1); // 未传的键不变
+  });
+});

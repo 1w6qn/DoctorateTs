@@ -1081,6 +1081,8 @@ export class BuildingManager {
       };
       room.ownStock.push(clue);
       room.dailyReward = clue;
+      // 推送：新线索可处理 → 客户端会客室红点
+      draft.pushFlags.hasClues = 1;
     });
   }
 
@@ -1098,6 +1100,10 @@ export class BuildingManager {
       const clue = room.ownStock.splice(idx, 1)[0];
       clue.uid = String(friendId);
       room.receiveStock.push(clue);
+      // 推送：线索已处理且无待处理线索 → 清除会客室红点
+      if (room.ownStock.length === 0 && room.receiveStock.length === 0) {
+        draft.pushFlags.hasClues = 0;
+      }
     });
   }
 

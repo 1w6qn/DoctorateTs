@@ -957,6 +957,7 @@ describe("BuildingManager 线索系统", () => {
         music: { selected: "bgm_default" },
       } as any,
       status: { uid: "1", nickName: "A", nickNumber: "1" } as any,
+      pushFlags: { hasGifts: 0, hasFriendRequest: 0, hasClues: 0, hasFreeLevelGP: 0, status: 0 },
       event: { building: 0 },
     });
     mockPlayer._trigger = mockTrigger;

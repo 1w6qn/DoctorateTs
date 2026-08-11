@@ -48,6 +48,27 @@ def get_textasset_name(dat):
         pass
     return None
 
+def _patch_schema_init_collision(schema):
+    """flatbuffers 表类的 Init 若被同名字段访问器遮蔽（签名 (self, j)），恢复构造方法。
+    Arknights schema 存在字段名 init 与 flatbuffers Init 构造方法冲突的生成 bug。"""
+    import inspect
+    import flatbuffers
+    patched = 0
+    for n in dir(schema):
+        cls = getattr(schema, n)
+        if isinstance(cls, type) and 'Init' in getattr(cls, '__dict__', {}):
+            try:
+                sig = inspect.signature(cls.Init)
+                if len(sig.parameters) == 2:
+                    cls._field_init = cls.Init
+                    cls.Init = lambda self, buf, pos: setattr(self, '_tab', flatbuffers.table.Table(buf, pos))
+                    patched += 1
+            except (ValueError, TypeError):
+                pass
+    if patched:
+        print(f'  [patch] {schema.__name__} 修复 {patched} 个 Init 遮蔽')
+    return patched
+
 def decode(dat):
     """解包 UnityFS bundle → 去 128 字节 RSA 头 → FlatBuffers 解码"""
     with zipfile.ZipFile(dat) as z:
@@ -60,6 +81,7 @@ def decode(dat):
             fbo = script[128:]
             base = re.sub(r'[0-9a-f]{6}$', '', t.m_Name)
             schema = importlib.import_module(f'src.fbs.CN.{base}')
+            _patch_schema_init_collision(schema)
             root = getattr(schema, 'ROOT_TYPE', None)
             if root is None:
                 return None, f'{base} 无 schema ROOT_TYPE'

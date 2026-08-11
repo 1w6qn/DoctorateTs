@@ -117,15 +117,13 @@ function executeCommand(command: string, cwd: string): boolean {
 }
 
 /**
- * 官服热更管线生成 excel 数据（官方 CDN 数据源）：
- * 下载 bundle → FBO 解码 → 服务端格式（camelCase + 枚举字符串）→ data/excel/
- * 注：无 FBS schema 的表（range/player_avatar/roguelike/sandbox/uniequip_data 等）
- * 保持 data/excel 现有快照不变（解码失败跳过）。
+ * 官服热更管线生成 excel 数据（TS 实现，零 Python 依赖）：
+ * 下载 bundle → UnityFS 解包 → FBO/AES 解码 → 服务端格式（camelCase + 枚举字符串）→ data/excel/
  */
 function runOfficialExcelPipeline(): boolean {
   log(`运行官服热更 excel 管线...`);
   return executeCommand(
-    "python scripts/hotupdate-excel.py --download --decode --convert",
+    "npx tsx scripts/official-excel.ts --download --decode --convert",
     path.join(__dirname, ".."),
   );
 }

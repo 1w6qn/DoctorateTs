@@ -17,9 +17,22 @@ vi.mock("@excel/excel", () => ({
             ro6_e_5_1: { id: "ro6_e_5_1" },
           },
           init: [{ modeGrade: 0, predefinedId: null, modeId: "NORMAL" }],
+          items: {
+            rogue_6_scrap_G_07: { id: "rogue_6_scrap_G_07", type: "SCRAP", rarity: "RARE" },
+            rogue_6_legacy_01: { id: "rogue_6_legacy_01", type: "LEGACY", rarity: "NORMAL" },
+            char_508_aguard: { id: "char_508_aguard", type: "CHARACTER", rarity: "NORMAL" },
+            rogue_6_ap: { id: "rogue_6_ap", type: "SPECIAL_ZONE_AP", rarity: "NONE" },
+            rogue_6_stash_recruit: { id: "rogue_6_stash_recruit", type: "STASH_RECRUIT_LIMIT", rarity: "NONE" },
+            rogue_6_bubble_01: { id: "rogue_6_bubble_01", type: "NODE_BUOY", rarity: "NONE" },
+          },
         },
       },
-      modules: { rogue_6: { moduleTypes: ["GRID_ZONE"] } },
+      modules: {
+        rogue_6: {
+          moduleTypes: ["GRID_ZONE", "SCRAP"],
+          scrap: { scrapItemToType: { rogue_6_scrap_G_07: "GOODS" } },
+        },
+      },
       consts: {},
     },
     CharacterTable: {},
@@ -128,6 +141,41 @@ describe("GRID_ZONE 官服结构对齐（构造模板）", () => {
         const d = dist.get(id);
         expect(d, `zone5 ${id} 距离`).toBeGreaterThanOrEqual(1);
       }
+    });
+  });
+});
+
+describe("GRID_ZONE 物品发放类型兜底（fix funcs[type] 崩溃）", () => {
+  it("rogue_6 各物品类型 getItem 不抛错（SCRAP/LEGACY/NODE_BUOY/CHARACTER 等）", async () => {
+    await withFixedRandom(async () => {
+      const player = makePlayer();
+      await (player.rlv2 as any)._module.create();
+      const inv = (player.rlv2 as any).inventory;
+      // 触发 immediate_reward 同路径：rlv2:get:items → inventory.getItem
+      await (player.rlv2 as any)._trigger.emit("rlv2:get:items", [[
+        { id: "rogue_6_scrap_G_07", count: 1, sub: 0 },
+        { id: "rogue_6_legacy_01", count: 1, sub: 0 },
+        { id: "rogue_6_ap", count: 1, sub: 0 },
+        { id: "rogue_6_stash_recruit", count: 1, sub: 0 },
+        { id: "rogue_6_bubble_01", count: 1, sub: 0 },
+      ]]);
+      // 各类型 getItem 不再抛错（修复 funcs[type] is not a function 500）
+      // SCRAP 型应进入 SCRAP 模块库存
+      const scrapInv = (player.rlv2 as any)._module.scrap?.inventory || {};
+      expect(Object.keys(scrapInv).length).toBeGreaterThan(0);
+    });
+  });
+
+  it("CHARACTER 型干员应触发招募（rlv2:recruit:initial_char）", async () => {
+    await withFixedRandom(async () => {
+      const player = makePlayer();
+      await (player.rlv2 as any)._module.create();
+      const recv: string[] = [];
+      (player.rlv2 as any)._trigger.on("rlv2:recruit:initial_char", ([id]: [string]) => recv.push(id));
+      await (player.rlv2 as any)._trigger.emit("rlv2:get:items", [[
+        { id: "char_508_aguard", count: 1, sub: 0 },
+      ]]);
+      expect(recv).toContain("char_508_aguard");
     });
   });
 });

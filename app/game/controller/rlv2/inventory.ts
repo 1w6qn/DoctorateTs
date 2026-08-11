@@ -180,6 +180,24 @@ export class RoguelikeInventoryManager
       CHAOS: (item: RoguelikeItemBundle) => {},
       CHAOS_PURIFY: (item: RoguelikeItemBundle) => {},
       CHAOS_LEVEL: (item: RoguelikeItemBundle) => {},
+      // rogue_6 废品（SCRAP 型）：转入 SCRAP 模块库存（载具/零件）
+      SCRAP: (item: RoguelikeItemBundle) => {
+        this._trigger.emit("rlv2:scrap:gain", [item.id]);
+      },
+      // rogue_6 传承（LEGACY 型）：下次探索开局加成（本局无持续效果）
+      LEGACY: (item: RoguelikeItemBundle) => {},
+      // rogue_6 流窜“居民”节点标记（NODE_BUOY 型）：地图层节点机制，无库存表现
+      NODE_BUOY: (item: RoguelikeItemBundle) => {},
+      // rogue_6 行动力（SPECIAL_ZONE_AP 型）：机制物品，消耗于地图移动
+      SPECIAL_ZONE_AP: (item: RoguelikeItemBundle) => {},
+      // rogue_6 存券数量（STASH_RECRUIT_LIMIT 型）：机制数值，无库存表现
+      STASH_RECRUIT_LIMIT: (item: RoguelikeItemBundle) => {},
+      // rogue_6 干员（CHARACTER 型）：佣兵招募固定干员（如 Sharp/Stormeye/Pith）
+      CHARACTER: (item: RoguelikeItemBundle) => {
+        if (item.id.startsWith("char_")) {
+          void this._trigger.emit("rlv2:recruit:initial_char", [item.id]);
+        }
+      },
       EXPLORE_TOOL: (item: RoguelikeItemBundle) => {},
       FRAGMENT: (item: RoguelikeItemBundle) => {
         this._trigger.emit("rlv2:fragment:gain", [item.id]);

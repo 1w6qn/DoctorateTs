@@ -63,6 +63,17 @@ vi.mock("@excel/excel", () => {
           },
         },
       },
+      // 勋章表:提供干员密录勋章（CharStoryUnlock 模板）配置
+      MedalTable: {
+        medalList: [
+          {
+            medalId: "medal_story_char_001",
+            template: "CharStoryUnlock",
+            unlockParam: ["char_001", "story_001"],
+          },
+        ],
+        medalTypeData: {},
+      },
     },
   };
 });
@@ -283,6 +294,41 @@ describe("TroopManager", () => {
       expect(story!.story_001).toBeDefined();
       expect(story!.story_001.fts).toBe(1234567890);
       expect(story!.story_001.rts).toBe(1234567890);
+    });
+
+    it("应该同步发放密录对应勋章并返回勋章 ID（对照官服抓包）", async () => {
+      const manager = new TroopManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      const medalId = await manager.addonStoryUnlock({
+        charId: "char_001",
+        storyId: "story_001",
+      });
+
+      expect(medalId).toBe("medal_story_char_001");
+      const medal = mockPlayer._playerdata.medal!.medals.medal_story_char_001;
+      expect(medal).toBeDefined();
+      expect(medal.id).toBe("medal_story_char_001");
+      expect(medal.val).toEqual([]);
+      expect(medal.fts).toBe(1234567890);
+      expect(medal.rts).toBe(-1);
+    });
+
+    it("无对应勋章配置时返回 null 且不写勋章", async () => {
+      const manager = new TroopManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      const medalId = await manager.addonStoryUnlock({
+        charId: "char_unknown",
+        storyId: "story_unknown",
+      });
+
+      expect(medalId).toBeNull();
+      expect(mockPlayer._playerdata.medal).toBeUndefined();
     });
   });
 

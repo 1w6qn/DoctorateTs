@@ -48,7 +48,7 @@ export interface RetroCarCompetitionStartRequest {}
  * 复刻战车竞速开始响应
  * CS: Activity.Act20side.RetroCarCompetitionStartResponse : DefaultStartBattleResponse
  * （含 isApProtect/apFailReturn/notifyPowerScoreNotEnoughIfFailed/inApProtectPeriod），
- * 服务端仅返回 result/battleId，其余字段省略标为可选
+ * 服务端仅返回 result/battleId（battleId 为真实随机 UUID），其余字段省略标为可选
  */
 export interface RetroCarCompetitionStartResponse extends PlayerDeltaResponse {
   result: number;

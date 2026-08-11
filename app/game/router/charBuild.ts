@@ -151,8 +151,15 @@ router.post("/upgradeSpecializedSkillUseItem", async (req, res) => {
 router.post("/addonStory/unlock", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as AddonStoryUnlockRequest;
-  await player.troop.addonStoryUnlock(body);
-  res.send(player.delta satisfies AddonStoryUnlockResponse);
+  const medalId = await player.troop.addonStoryUnlock(body);
+  res.send({
+    rewards: null,
+    // 对齐官服响应：解锁密录发放勋章时推送 medalFinish（无勋章配置则省略）
+    ...(medalId
+      ? { pushMessage: [{ path: "medalFinish", payload: { idList: [medalId] } }] }
+      : {}),
+    ...player.delta,
+  } satisfies AddonStoryUnlockResponse);
 });
 router.post("/addonStage/battleStart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;

@@ -88,8 +88,21 @@ export class TroopManager {
     return items;
   }
 
-  async addonStoryUnlock(args: { charId: string; storyId: string }) {
+  /**
+   * 解锁干员密录剧情（附加故事）
+   * 对照官服抓包（tmp/charBuild_addonStory_unlock_res_1107.json）：
+   * 写入 addon.story + 同步发放对应勋章（medal_story_x，CharStoryUnlock 模板）。
+   *
+   * @param args.charId - 干员 ID
+   * @param args.storyId - 密录剧情 ID
+   * @returns 发放的勋章 ID（无对应勋章配置时返回 null，供 router 组装 medalFinish pushMessage）
+   */
+  async addonStoryUnlock(args: {
+    charId: string;
+    storyId: string;
+  }): Promise<string | null> {
     const { charId, storyId } = args;
+    let medalId: string | null = null;
     await this._player.update(async (draft) => {
       // 防御：addon 条目缺失（新干员/发放干员无密录基座）时先初始化，避免 500
       draft.troop.addon[charId] = draft.troop.addon[charId] ?? {
@@ -100,7 +113,29 @@ export class TroopManager {
         draft.troop.addon[charId].story || {},
         { [storyId]: { fts: now(), rts: now() } },
       );
+      // 对照官服抓包：解锁密录同步发放对应勋章
+      // （medal_story_x，template CharStoryUnlock + unlockParam=[charId, storyId]，val 空数组、rts=-1）
+      const medal = excel.MedalTable?.medalList?.find(
+        (m) =>
+          m.template === "CharStoryUnlock" &&
+          m.unlockParam[0] === charId &&
+          m.unlockParam[1] === storyId,
+      );
+      if (medal) {
+        medalId = medal.medalId;
+        draft.medal ??= {
+          medals: {},
+          custom: { currentIndex: "", customs: {} },
+        };
+        draft.medal.medals[medal.medalId] = {
+          id: medal.medalId,
+          val: [],
+          fts: now(),
+          rts: -1,
+        };
+      }
     });
+    return medalId;
   }
 
   async addonStageBattleStart(args: {

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
+import { randomUUID } from "node:crypto";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import {
   RetroCarCompetitionFinishRequest,
@@ -39,12 +40,13 @@ router.post("/retro/getRetroPassReward", async (req, res) => {
   } satisfies RetroGetPassRewardResponse);
 });
 router.post("/retro/typeAct20side/competitionStart", async (req, res) => {
-  // 参考 OBS misc_bp.retro_typeAct20side_competitionStart：固定 stub
+  // 参考 OBS misc_bp.retro_typeAct20side_competitionStart：战车竞速非标准战斗，
+  // 不校验 body，返回 result 0 + 真实随机 battleId（客户端按 DefaultStartBattleResponse 解析）
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as RetroCarCompetitionStartRequest;
   res.send({
     result: 0,
-    battleId: "00000000-0000-0000-0000-000000000000",
+    battleId: randomUUID(),
     ...player.delta,
   } satisfies RetroCarCompetitionStartResponse);
 });

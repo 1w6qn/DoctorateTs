@@ -25,13 +25,16 @@ describe("retro 路由（OBS 移植端点）", () => {
     });
   });
 
-  it("typeAct20side/competitionStart 应返回 result 0 与 battleId（对齐 OBS misc_bp）", async () => {
+  it("typeAct20side/competitionStart 应返回 result 0 与真实随机 battleId（对齐 OBS misc_bp）", async () => {
     const res = mockRes();
     await call({ method: "POST", url: "/retro/typeAct20side/competitionStart", body: {} }, res);
     expect(res.send).toHaveBeenCalledWith(
       expect.objectContaining({
         result: 0,
-        battleId: "00000000-0000-0000-0000-000000000000",
+        // 真实随机 UUID（对齐官服 DefaultStartBattleResponse，非固定 stub）
+        battleId: expect.stringMatching(
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+        ),
         modified: {},
       }),
     );

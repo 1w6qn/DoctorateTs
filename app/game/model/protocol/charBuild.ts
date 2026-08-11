@@ -186,8 +186,21 @@ export interface AddonStoryUnlockRequest {
   storyId: string;
 }
 
-/** 解锁干员密录剧情响应（服务端自定义；仅增量） */
-export type AddonStoryUnlockResponse = PlayerDeltaResponse;
+/** 勋章完成推送消息（对齐官服 addonStory/unlock 响应的 pushMessage[0]） */
+export interface MedalFinishPushMessage {
+  path: "medalFinish";
+  payload: { idList: string[] };
+}
+
+/**
+ * 解锁干员密录剧情响应（服务端自定义）
+ * 对照官服抓包（tmp/charBuild_addonStory_unlock_res_1107.json）：
+ * 响应含 rewards:null + 增量 + pushMessage medalFinish（解锁密录发放勋章时推送）
+ */
+export interface AddonStoryUnlockResponse extends PlayerDeltaResponse {
+  rewards: null;
+  pushMessage?: MedalFinishPushMessage[];
+}
 
 /** 干员密录关卡开始请求（CS: HandBookAddonStageBattleStartRequest） */
 export interface AddonStageBattleStartRequest {

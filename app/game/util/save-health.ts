@@ -6,6 +6,8 @@
  * 2. troop.chars 内非法干员（非对象/缺 charId）
  * 3. building.rooms.PRIVATE[].owners 含 null 条目（setPrivateDormOwner 字段名 bug 残留）
  * 4. status.uid 类型错误
+ * 5. dexNav.character[].charInstId 与 troop.chars 一致性（roster 重建后悬空重指向）
+ * 6. troop.chars 干员模板字段归一化（自引用空 currentTmpl/旧 null 结构 → 移除）
  *
  * 修复为幂等（对合规结构无副作用）且保守（不做破坏性重建）——结构性损坏可安全修复，
  * 非法 JSON 无法自动修复（由加载层记录并备份）。
@@ -122,6 +124,48 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
         issues.push({
           path: `dexNav.character[${charId}]`,
           message: "干员不在 troop.chars（孤儿条目），移除",
+          fixed: true,
+        });
+      }
+    }
+  }
+
+  // 7. troop.chars 干员模板字段（currentTmpl/tmpl）归一化。
+  //    官方参考（test.json 379 干员仅 char_002_amiya 带 currentTmpl/tmpl，且
+  //    currentTmpl 指向 tmpl 内异格形态）——普通干员不应有模板字段。历史 onCharGet
+  //    发放 `currentTmpl:charId + tmpl:{}` 自引用空模板（客户端干员详情按 currentTmpl
+  //    查 tmpl 得 undefined → 结构破坏/卡死）；旧生成器 currentTmpl:null 同样卡死。
+  //    修复：currentTmpl 无有效模板映射即移除；阿米娅合法多形态模板保留。
+  if (chars && typeof chars === "object") {
+    for (const [instId, ch] of Object.entries(chars)) {
+      const c = ch as any;
+      if (!c || typeof c !== "object") continue;
+      const tmpl = c.tmpl;
+      const hasFilledTmpl =
+        tmpl && typeof tmpl === "object" && Object.keys(tmpl).length > 0;
+      const cur = c.currentTmpl; // undefined / null / string
+      if (cur !== undefined && cur !== null && !hasFilledTmpl) {
+        delete c.currentTmpl;
+        delete c.tmpl;
+        issues.push({
+          path: `troop.chars[${instId}]`,
+          message: "currentTmpl 无有效模板映射（自引用空模板/旧结构），移除模板字段",
+          fixed: true,
+        });
+      } else if (cur === null) {
+        // 旧生成器 currentTmpl:null → 客户端干员列表卡死根因；移除（tmpl 若有填充保留）
+        delete c.currentTmpl;
+        if (!hasFilledTmpl) delete c.tmpl;
+        issues.push({
+          path: `troop.chars[${instId}]`,
+          message: "currentTmpl 为 null（旧生成器结构），移除模板字段",
+          fixed: true,
+        });
+      } else if (cur !== undefined && hasFilledTmpl && !tmpl[cur]) {
+        delete c.currentTmpl;
+        issues.push({
+          path: `troop.chars[${instId}]`,
+          message: "currentTmpl 指向 tmpl 中不存在的形态，移除 currentTmpl",
           fixed: true,
         });
       }

@@ -328,5 +328,21 @@ describe("CharManager", () => {
       expect(result.isNew).toBe(0);
       expect(result.potent).toEqual({ delta: 1, now: 1 });
     });
+
+    it("新干员结构应对齐官方参考：不带 currentTmpl/tmpl（官方仅阿米娅带模板字段）", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.dexNav!.character = {};
+      mockPlayer._playerdata.troop!.curCharInstId = 0;
+      const result = await manager.onCharGet(["char_001", { from: "NORMAL" }]);
+      expect(result.isNew).toBe(1);
+      const ch = mockPlayer._playerdata.troop!.chars[result.charInstId as number];
+      // 官方参考（test.json 379 干员仅 char_002_amiya 带 currentTmpl/tmpl）：
+      // 普通干员不应有模板字段（旧实现 currentTmpl:charId + tmpl:{} 自引用空模板
+      // → 客户端按 currentTmpl 查 tmpl 得 undefined，破坏存档结构）
+      expect(ch.currentTmpl).toBeUndefined();
+      expect(ch.tmpl).toBeUndefined();
+      expect(ch.charId).toBe("char_001");
+      expect(ch.voiceLan).toBe("CN_MANDARIN");
+    });
   });
 });

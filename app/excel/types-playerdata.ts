@@ -399,8 +399,8 @@ export interface PlayerCharacter {
     mainSkillLvl: number;
     gainTime: number;
     starMark?: number;
-    currentTmpl: string;
-    tmpl: { [key: string]: PlayerCharPatch };
+    currentTmpl?: string;
+    tmpl?: { [key: string]: PlayerCharPatch };
     skin: string;
     defaultSkillIndex: number;
     skills: { skillId: string; unlock: number; state: number; specializeLevel: number; completeUpgradeTime: number }[];

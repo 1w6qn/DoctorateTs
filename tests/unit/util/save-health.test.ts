@@ -115,4 +115,82 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
     expect(data.dexNav.character.char_ghost).toBeUndefined();
     expect(data.dexNav.character.char_002).toBeDefined();
   });
+
+  it("currentTmpl 自引用且 tmpl 为空（onCharGet 旧发放结构）应移除模板字段", () => {
+    const data = {
+      status: { uid: "1" },
+      troop: {
+        chars: {
+          "380": { instId: 380, charId: "char_4178_alanna", currentTmpl: "char_4178_alanna", tmpl: {} },
+          "381": { instId: 381, charId: "char_4026_vulpis" },
+        },
+      },
+      dungeon: {},
+      activity: {},
+      building: {},
+    };
+    const issues = checkAndRepairSave(data as any);
+    expect(data.troop.chars["380"].currentTmpl).toBeUndefined();
+    expect(data.troop.chars["380"].tmpl).toBeUndefined();
+    // 合规干员（无模板字段）不受影响
+    expect(data.troop.chars["381"].currentTmpl).toBeUndefined();
+    expect(issues.some((i) => i.path === "troop.chars[380]" && i.fixed)).toBe(true);
+  });
+
+  it("currentTmpl 为 null（旧生成器结构）应移除", () => {
+    const data = {
+      status: { uid: "1" },
+      troop: { chars: { "1": { instId: 1, charId: "char_001", currentTmpl: null } } },
+      dungeon: {},
+      activity: {},
+      building: {},
+    };
+    checkAndRepairSave(data as any);
+    expect(data.troop.chars["1"].currentTmpl).toBeUndefined();
+  });
+
+  it("currentTmpl 指向 tmpl 中不存在的形态应移除 currentTmpl（保留 tmpl）", () => {
+    const data = {
+      status: { uid: "1" },
+      troop: {
+        chars: {
+          "7": {
+            instId: 7,
+            charId: "char_007",
+            currentTmpl: "char_007_x",
+            tmpl: { char_007: { skinId: null, skills: [] } },
+          },
+        },
+      },
+      dungeon: {},
+      activity: {},
+      building: {},
+    };
+    checkAndRepairSave(data as any);
+    expect(data.troop.chars["7"].currentTmpl).toBeUndefined();
+    expect(data.troop.chars["7"].tmpl.char_007).toBeDefined();
+  });
+
+  it("阿米娅合法多形态模板（currentTmpl 指向 tmpl 内形态）应保留", () => {
+    const data = {
+      status: { uid: "1" },
+      troop: {
+        chars: {
+          "1": {
+            instId: 1,
+            charId: "char_002_amiya",
+            currentTmpl: "char_1037_amiya3",
+            tmpl: { char_002_amiya: { skinId: null }, char_1001_amiya2: {}, char_1037_amiya3: {} },
+          },
+        },
+      },
+      dungeon: {},
+      activity: {},
+      building: {},
+    };
+    const issues = checkAndRepairSave(data as any);
+    expect(data.troop.chars["1"].currentTmpl).toBe("char_1037_amiya3");
+    expect(Object.keys(data.troop.chars["1"].tmpl)).toHaveLength(3);
+    expect(issues.filter((i) => i.fixed && i.path.includes("troop.chars"))).toHaveLength(0);
+  });
 });

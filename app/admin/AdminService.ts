@@ -363,6 +363,18 @@ export class AdminService {
     const pd = await this.getPlayer(uid);
     // 直接调用 onCharGet（char:get 事件监听为无操作，见 char.ts 构造器）
     const res = await pd.char.onCharGet([resolved, { from: "ADMIN" }]);
+    // 阿米娅特殊：升变多形态模板（currentTmpl 指向异格形态 + 完整 tmpl 映射）。
+    // onCharGet 新干员已不写 currentTmpl/tmpl，此处按官方结构补全（checkData 亦依赖）。
+    if (resolved === "char_002_amiya" && res?.isNew) {
+      await pd.update(async (draft) => {
+        const ch = draft.troop.chars[res.charInstId as number];
+        if (ch) {
+          const full = buildMaxedChar(ch.instId, "char_002_amiya");
+          ch.currentTmpl = (full as any).currentTmpl as string;
+          ch.tmpl = (full as any).tmpl as any;
+        }
+      });
+    }
     await this.savePlayer(uid);
     await this._audit("grantChar", uid, `${resolved}(${charName(resolved)})`);
     return { isNew: res?.isNew ?? 0, name: charName(resolved) };

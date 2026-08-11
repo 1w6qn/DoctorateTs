@@ -158,8 +158,10 @@ export class CharManager {
           defaultSkillIndex: -1,
           gainTime: now(),
           skills: [],
-          currentTmpl: charId,
-          tmpl: {},
+          // 修复：新干员不写 currentTmpl/tmpl —— 官方参考（test.json 379 干员仅
+          // char_002_amiya 有 currentTmpl/tmpl，且指向异格形态并带完整 tmpl 映射）。
+          // 原实现 currentTmpl:charId + tmpl:{} 为自引用空模板 → 破坏存档结构
+          //（客户端干员详情按 currentTmpl 查 tmpl 得 undefined）。
           currentEquip: null,
           equip: {},
           voiceLan: "CN_MANDARIN",

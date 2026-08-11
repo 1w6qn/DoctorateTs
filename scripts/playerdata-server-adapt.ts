@@ -458,8 +458,10 @@ export const SERVER_OPTIONAL_FIELDS: Record<string, string[]> = {
   // 助战干员：线格式不含 currentTmpl（部分条目缺失）
   PlayerFriendAssist: ["currentTmpl"],
   PlayerSquadItem: ["currentTmpl"],
-  // 干员：线格式不含 starMark/master（客户端模型字段）
-  PlayerCharacter: ["starMark", "master"],
+  // 干员：线格式不含 starMark/master（客户端模型字段）；currentTmpl/tmpl 亦常省略
+  //（官方 test.json 379 干员仅 char_002_amiya 带模板字段——普通干员发放/建档不含，
+  // 旧实现自引用空模板破坏存档结构）
+  PlayerCharacter: ["starMark", "master", "currentTmpl", "tmpl"],
   // 名片皮肤：线格式不含 tmpl（客户端模型字段）
   PlayerNameCardSkin: ["tmpl"],
   // 名片皮肤解锁进度：线格式部分条目不含 unlockTs（老皮肤）

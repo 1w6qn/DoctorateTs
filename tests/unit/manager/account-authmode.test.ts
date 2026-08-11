@@ -207,13 +207,19 @@ describe("getUidByToken 认证模式", () => {
     const raw = JSON.parse(readFileSync("./data/user/databases/1.json", "utf8"));
     raw.status.uid = "8";
     (vi.mocked(readJson) as any).mockResolvedValueOnce(raw);
+    // ShopController 构造时会异步读信用商店静态配置（SocialGoodList.json），一并给值
+    (vi.mocked(readJson) as any).mockResolvedValueOnce({ goodList: [], charPurchase: {} });
     (accountManager as any).data = {};
     const [p1, p2] = await Promise.all([
       accountManager.getPlayerData("8"),
       accountManager.getPlayerData("8"),
     ]);
     expect(p1).toBe(p2);
-    expect(readJson).toHaveBeenCalledTimes(1);
+    // 玩家数据只加载一次（第二次 readJson 为 ShopController 读 SocialGoodList 静态配置）
+    const playerLoads = (vi.mocked(readJson) as any).mock.calls.filter(
+      (c: any) => String(c[0]).includes("databases/8.json"),
+    );
+    expect(playerLoads).toHaveLength(1);
   });
 });
 

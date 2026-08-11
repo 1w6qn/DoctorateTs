@@ -266,3 +266,53 @@ describe("buildSocialGoodList / buySocialGood 信用商店", () => {
     expect(items).toEqual([]);
   });
 });
+
+describe("buyFurniGroup 整组购买家具", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+
+  beforeEach(async () => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({ shop: { FURNI: { info: [], groupInfo: {} } } });
+    const excelMock = (await import("@excel/excel")).default as any;
+    excelMock.ShopTable.furniGoodList = {
+      goods: [
+        { goodId: "s1_01_1", furniId: "furni_s1_bed_01", priceCoin: 250, priceDia: 0 },
+        { goodId: "cafe_01_1", furniId: "furni_cafe_table_01", priceCoin: 100, priceDia: 0 },
+      ],
+      groups: [],
+    };
+  });
+
+  it("应结算组内每个家具（扣家具币 + 发放 + 记录）并跳过未知商品", async () => {
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const emitSpy = vi.spyOn(mockTrigger, "emit");
+    const items = await controller.buyFurniGroup({
+      groupId: "test_group",
+      goods: [
+        { id: "s1_01_1", count: 1 },
+        { id: "cafe_01_1", count: 2 },
+        { id: "unknown_good", count: 1 }, // 数据版本错位 → 跳过不 500
+      ],
+    });
+    expect(items).toEqual([
+      { id: "furni_s1_bed_01", type: "FURN", count: 1 },
+      { id: "furni_cafe_table_01", type: "FURN", count: 2 },
+    ]);
+    // 扣家具币（逐件扣：250×1 + 100×2）
+    expect(emitSpy).toHaveBeenCalledWith("items:use", [[{ id: "3401", count: 250 }]]);
+    expect(emitSpy).toHaveBeenCalledWith("items:use", [[{ id: "3401", count: 200 }]]);
+    // 记录 shop.FURNI.info
+    const furni = (mockPlayer._playerdata.shop as any).FURNI;
+    expect(furni.info).toContainEqual({ id: "s1_01_1", count: 1 });
+    expect(furni.info).toContainEqual({ id: "cafe_01_1", count: 2 });
+    expect(furni.info.some((i: any) => i.id === "unknown_good")).toBe(false);
+  });
+
+  it("空商品列表应返回空", async () => {
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const items = await controller.buyFurniGroup({ groupId: "g", goods: [] });
+    expect(items).toEqual([]);
+  });
+});

@@ -132,6 +132,12 @@ export interface BuyFurniGoodRequest {
   costType: string;
 }
 
+/** 购买家具组请求（客户端整组购买：{ groupId, goods: [{id, count}] }） */
+export interface BuyFurniGroupRequest {
+  groupId?: string;
+  goods?: { id: string; count: number }[];
+}
+
 /** 购买皮肤商店商品请求（CS: BuySkinGoodRequest；服务端仅读取 goodId） */
 export interface BuySkinGoodRequest {
   goodId: string;

@@ -577,7 +577,9 @@ export class ShopController {
     const { goodId, buyCount, costType } = args;
     const good = excel.ShopTable.furniGoodList.goods.find(
       (g) => g.goodId === goodId,
-    )!;
+    );
+    // 防御：未知商品不 500（数据版本错位）
+    if (!good) return [];
     if (costType === "COIN_FURN") {
       await this._trigger.emit("items:use", [
         [{ id: "3401", count: good.priceCoin * buyCount }],
@@ -598,6 +600,46 @@ export class ShopController {
     const item = { id: good.furniId, type: "FURN", count: buyCount };
     await this._trigger.emit("items:get", [[item]]);
     return [item];
+  }
+
+  /**
+   * 购买家具组（客户端 body: { groupId, goods: [{id, count}] }——整组购买）
+   *
+   * 修复：原 buyFurniGroup 路由把组请求体透传给 buyFurniGood（单商品逻辑）→
+   * goodId 解构不到 → 500。此处逐个结算组内家具：扣家具币 priceCoin、发放 FURN、
+   * 记录 shop.FURNI.info；未知商品（数据版本错位）跳过不 500。
+   * @param args - 购买参数
+   * @returns 发放的家具物品列表
+   */
+  async buyFurniGroup(args: {
+    groupId?: string;
+    goods?: { id: string; count: number }[];
+  }): Promise<ItemBundle[]> {
+    const items: ItemBundle[] = [];
+    for (const g of args.goods ?? []) {
+      const good = excel.ShopTable.furniGoodList.goods.find(
+        (x) => x.goodId === g.id,
+      );
+      if (!good) continue; // 未知家具（数据版本错位）跳过
+      const count = g.count ?? 1;
+      await this._trigger.emit("items:use", [
+        [{ id: "3401", count: (good.priceCoin ?? 0) * count }],
+      ]);
+      await this._player.update(async (draft) => {
+        if (!draft.shop.FURNI) {
+          draft.shop.FURNI = { info: [], groupInfo: {} };
+        }
+        const existing = draft.shop.FURNI.info.find((i) => i.id === g.id);
+        if (existing) {
+          existing.count += count;
+        } else {
+          draft.shop.FURNI.info.push({ id: g.id, count });
+        }
+      });
+      items.push({ id: good.furniId, type: "FURN", count });
+    }
+    await this._trigger.emit("items:get", [items]);
+    return items;
   }
 
   /**

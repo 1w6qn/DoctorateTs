@@ -76,6 +76,7 @@ import {
   GetDailyClueResponse,
   GetInfoShareVisitorsNumRequest,
   GetInfoShareVisitorsNumResponse,
+  GetMessageBoardContentResponse,
   GetMeetingroomRewardRequest,
   GetMeetingroomRewardResponse,
   GetOthersMessageBoardContentRequest,
@@ -612,12 +613,15 @@ router.post("/cleanRoomSlot", async (req, res) => {
   res.send(player.delta satisfies CleanRoomSlotResponse);
 });
 
-/** 确认留言板奖励（简化实现） */
+/** 确认留言板奖励（会客室留言板：领取上周社交点 → reward 返回 SOCIAL_PT） */
 router.post("/confirmMessageBoardReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ConfirmMessageBoardRewardRequest;
-  await player.building.confirmMessageBoardReward(body);
-  res.status(202).send(player.delta satisfies ConfirmMessageBoardRewardResponse);
+  const reward = await player.building.confirmMessageBoardReward(body);
+  res.send({
+    reward,
+    ...player.delta,
+  } satisfies ConfirmMessageBoardRewardResponse);
 });
 
 /** 获取协助报告 */
@@ -653,13 +657,15 @@ router.post("/getRecentVisitors", async (req, res) => {
   } satisfies GetRecentVisitorsResponse);
 });
 
-/** 获取他人留言板内容（简化实现） */
-/** 获取留言板内容（OBS 路径；委托 getOthersMessageBoardContent 逻辑） */
+/** 获取留言板内容（会客室留言板；CS BuildingPayloadGetMessageBoardContentResponse） */
 router.post("/getMessageBoardContent", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetOthersMessageBoardContentRequest;
-  await player.building.getOthersMessageBoardContent(body);
-  res.status(202).send(player.delta satisfies GetOthersMessageBoardContentResponse);
+  const result = await player.building.getMessageBoardContent(body);
+  res.send({
+    ...result,
+    ...player.delta,
+  } satisfies GetMessageBoardContentResponse);
 });
 
 router.post("/getOthersMessageBoardContent", async (req, res) => {

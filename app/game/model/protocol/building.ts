@@ -655,8 +655,11 @@ export type BuyLaborResponse = PlayerDeltaResponse;
  */
 export interface ConfirmMessageBoardRewardRequest {}
 
-/** 确认留言板奖励响应（CS: BuildingPayloadConfirmMessageBoardRewardResponse；服务端仅返回增量） */
-export type ConfirmMessageBoardRewardResponse = PlayerDeltaResponse;
+/** 确认留言板奖励响应（CS: BuildingPayloadConfirmMessageBoardRewardResponse { reward: List<ItemBundle> }） */
+export interface ConfirmMessageBoardRewardResponse extends PlayerDeltaResponse {
+  /** 领取的社交点（SOCIAL_PT 信用） */
+  reward?: { id: string; count: number; type: string }[];
+}
 
 /** 获取协助报告请求（CS: BuildingAssistReportRequest，无字段） */
 export interface GetAssistReportRequest {}
@@ -707,6 +710,31 @@ export interface GetRecentVisitorsResponse extends PlayerDeltaResponse {
  */
 export interface GetOthersMessageBoardContentRequest {
   uid: string;
+}
+
+/** 留言板访客（CS: BuildingPayloadGetMessageBoardContentResponse.PayloadMessageBoardVisitor） */
+export interface MessageBoardVisitor {
+  uid: string;
+  nickName: string;
+  nickNumber: string;
+  avatar?: unknown;
+  secretarySkinId?: string;
+  secretary?: string;
+  lastVisitTs?: number;
+}
+
+/**
+ * 获取留言板内容响应（CS: BuildingPayloadGetMessageBoardContentResponse）
+ * thisWeekVisitors/lastWeekVisitors + 访问统计 + lastWeekSpReward（上周可领取社交点）
+ */
+export interface GetMessageBoardContentResponse extends PlayerDeltaResponse {
+  thisWeekVisitors: MessageBoardVisitor[];
+  lastWeekVisitors: MessageBoardVisitor[];
+  todayVisit: number;
+  weeklyVisit: number;
+  lastWeekVisit: number;
+  lastWeekSpReward: number;
+  lastShowTs: number;
 }
 
 /** 获取他人留言板内容响应（CS: BuildingPayloadGetOthersMessageBoardContentResponse；服务端仅返回增量） */

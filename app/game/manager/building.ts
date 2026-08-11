@@ -1496,18 +1496,80 @@ export class BuildingManager {
   }
 
   /**
-   * 确认留言板奖励
-   * 发放信用点（socialReward.daily + search），标记已领取
-   * @param args - 请求体参数
+   * 确认留言板奖励（会客室留言板）
+   * 领取 messageLeave.sp.lastWeek 社交点（信用）→ status.socialPoint；累计 lastWeekSum。
+   * 参考 CS BuildingPayloadConfirmMessageBoardRewardResponse { reward: List<ItemBundle> }
+   * @param args - 请求体参数（无字段）
+   * @returns 领取的社交点奖励（SOCIAL_PT 信用 ItemBundle 数组；无可领返回空）
    */
-  async confirmMessageBoardReward(args: any) {
-    return await this._player.update(async (draft) => {
+  async confirmMessageBoardReward(args: any): Promise<
+    { id: string; count: number; type: string }[]
+  > {
+    let reward = 0;
+    await this._player.update(async (draft) => {
       const room = Object.values(draft.building.rooms.MEETING)[0];
-      if (!room || room.received) return;
-      const reward = room.socialReward.daily + room.socialReward.search;
-      draft.inventory["3003"] = (draft.inventory["3003"] || 0) + reward;
-      room.received = 1;
+      const leave = room?.messageLeave;
+      if (!leave) return;
+      reward = leave.sp?.lastWeek ?? 0;
+      if (reward <= 0) return;
+      draft.status.socialPoint = (draft.status.socialPoint ?? 0) + reward;
+      leave.sp.lastWeekSum = (leave.sp.lastWeekSum ?? 0) + reward;
+      leave.sp.lastWeek = 0;
+      leave.lastUpdateSpTs = now();
     });
+    return reward > 0 ? [{ id: "SOCIAL_PT", count: reward, type: "SOCIAL_PT" }] : [];
+  }
+
+  /**
+   * 获取留言板内容（会客室留言板）
+   * 返回 CS BuildingPayloadGetMessageBoardContentResponse 形状：
+   * 访客列表（无社交数据返回空）+ 访问统计 + lastWeekSpReward（上周可领取社交点）。
+   * 修复：原实现透传请求体（202 空响应，客户端留言板空白）；现按 messageLeave 状态返回。
+   * @param args - 请求体参数（无字段）
+   * @returns 留言板内容
+   */
+  async getMessageBoardContent(args: any): Promise<{
+    thisWeekVisitors: { uid: string; nickName: string; nickNumber: string }[];
+    lastWeekVisitors: { uid: string; nickName: string; nickNumber: string }[];
+    todayVisit: number;
+    weeklyVisit: number;
+    lastWeekVisit: number;
+    lastWeekSpReward: number;
+    lastShowTs: number;
+  }> {
+    let board = {
+      thisWeekVisitors: [] as { uid: string; nickName: string; nickNumber: string }[],
+      lastWeekVisitors: [] as { uid: string; nickName: string; nickNumber: string }[],
+      todayVisit: 0,
+      weeklyVisit: 0,
+      lastWeekVisit: 0,
+      lastWeekSpReward: 0,
+      lastShowTs: now(),
+    };
+    await this._player.update(async (draft) => {
+      const room = Object.values(draft.building.rooms.MEETING)[0];
+      if (!room) return;
+      // 懒初始化 messageLeave（旧存档缺失）
+      room.messageLeave = room.messageLeave ?? {
+        inUse: false,
+        lastVisitTs: 0,
+        lastShowTs: 0,
+        lastUpdateSpTs: 0,
+        sp: { lastWeek: 0, lastWeekSum: 0, thisWeek: 0, thisWeekSum: 0 },
+      };
+      const leave = room.messageLeave;
+      leave.lastShowTs = now();
+      board = {
+        thisWeekVisitors: [],
+        lastWeekVisitors: [],
+        todayVisit: 0,
+        weeklyVisit: leave.sp?.thisWeek ?? 0,
+        lastWeekVisit: leave.sp?.lastWeekSum ?? 0,
+        lastWeekSpReward: leave.sp?.lastWeek ?? 0,
+        lastShowTs: leave.lastShowTs,
+      };
+    });
+    return board;
   }
 
   /**

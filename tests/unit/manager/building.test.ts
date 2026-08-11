@@ -1170,6 +1170,13 @@ describe("BuildingManager 劳动力与留言板奖励", () => {
               board: { clue_001: "clue_001" },
               socialReward: { daily: 10, search: 5 },
               received: 0,
+              messageLeave: {
+                inUse: true,
+                lastVisitTs: 0,
+                lastShowTs: 0,
+                lastUpdateSpTs: 0,
+                sp: { lastWeek: 300, lastWeekSum: 0, thisWeek: 90, thisWeekSum: 0 },
+              },
             } as any,
           }, HIRE: {},
           TRAINING: {}, PRIVATE: {},
@@ -1180,7 +1187,7 @@ describe("BuildingManager 劳动力与留言板奖励", () => {
         solution: { furnitureTs: {} },
         music: { selected: "bgm_default" },
       } as any,
-      status: { gold: 1000, androidDiamond: 100 } as any,
+      status: { gold: 1000, androidDiamond: 100, socialPoint: 38 } as any,
       inventory: {} as any,
       event: { building: 0 },
     });
@@ -1222,19 +1229,31 @@ describe("BuildingManager 劳动力与留言板奖励", () => {
     expect(mockPlayer._playerdata.building!.status.labor.value).toBe(225); // 封顶
   });
 
-  it("confirmMessageBoardReward 应发放信用点并标记已领取", async () => {
+  it("confirmMessageBoardReward 应领取 messageLeave.sp.lastWeek 社交点（SOCIAL_PT）", async () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
-    await manager.confirmMessageBoardReward({} as any);
-    const room = mockPlayer._playerdata.building!.rooms.MEETING.room_001;
-    expect(room.received).toBe(1);
-    expect(mockPlayer._playerdata.inventory!["3003"]).toBe(15);
+    const reward = await manager.confirmMessageBoardReward({} as any);
+    expect(reward).toEqual([{ id: "SOCIAL_PT", count: 300, type: "SOCIAL_PT" }]);
+    expect(mockPlayer._playerdata.status!.socialPoint).toBe(38 + 300);
+    const leave = (mockPlayer._playerdata.building!.rooms.MEETING as any).room_001.messageLeave;
+    expect(leave.sp.lastWeek).toBe(0); // 已领取清零
+    expect(leave.sp.lastWeekSum).toBe(300); // 累计
   });
 
-  it("confirmMessageBoardReward 重复领取不应重复发放", async () => {
+  it("confirmMessageBoardReward 无可领时返回空 reward（不重复发放）", async () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.confirmMessageBoardReward({} as any);
-    await manager.confirmMessageBoardReward({} as any);
-    expect(mockPlayer._playerdata.inventory!["3003"]).toBe(15);
+    const second = await manager.confirmMessageBoardReward({} as any);
+    expect(second).toEqual([]);
+    expect(mockPlayer._playerdata.status!.socialPoint).toBe(38 + 300); // 未重复发放
+  });
+
+  it("getMessageBoardContent 应返回留言板内容（访客/统计/上周可领社交点）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const board = await manager.getMessageBoardContent({} as any);
+    expect(board.thisWeekVisitors).toEqual([]);
+    expect(board.lastWeekSpReward).toBe(300); // sp.lastWeek
+    expect(board.weeklyVisit).toBe(90); // sp.thisWeek
+    expect(board.lastShowTs).toBeGreaterThan(0);
   });
 });
 

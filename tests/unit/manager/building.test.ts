@@ -1393,6 +1393,8 @@ describe("训练室专精结算 / 批量换班（修复）", () => {
           TRAINING: {
             slot_13: {
               trainee: { charInstId: 377, state: 2, targetSkill: 2, processPoint: 100, speed: 1 },
+              trainer: { charInstId: 210, state: 2 },
+              lastUpdateTime: 0,
             },
           },
           PRIVATE: {},
@@ -1438,8 +1440,12 @@ describe("训练室专精结算 / 批量换班（修复）", () => {
     const char = (mockPlayer._playerdata.troop as any).chars["377"];
     expect(char.skills[2].specializeLevel).toBe(3); // 2 → 3
     expect(char.skills[2].state).toBe(0);
+    // 官方线格式 trainee 恒为对象（置 null 会让客户端读 trainee.charInstId 崩溃 → 存档破坏）
     const trainee = (mockPlayer._playerdata.building as any).rooms.TRAINING.slot_13.trainee;
-    expect(trainee).toBeNull(); // 结算完成清空
+    expect(trainee).not.toBeNull();
+    expect(trainee.state).toBe(3); // WAITING 待下一次专精
+    expect(trainee.targetSkill).toBe(-1);
+    expect(trainee.charInstId).toBe(377); // 干员保留
   });
 
   it("completeUpgradeSpecialization 越界 targetSkill 应保留 trainee（不丢训练进度/不破坏存档）", async () => {
@@ -1453,6 +1459,29 @@ describe("训练室专精结算 / 批量换班（修复）", () => {
     expect(trainee).not.toBeNull(); // 训练进度保留
     const char = (mockPlayer._playerdata.troop as any).chars["377"];
     expect(char.skills[5]).toBeUndefined();
+  });
+
+  it("upgradeSpecialization 应把专精目标写入训练室 trainee（否则空 body 结算读不到）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.upgradeSpecialization({ charInstId: 377, targetSkill: 0 } as any);
+    const trainee = (mockPlayer._playerdata.building as any).rooms.TRAINING.slot_13.trainee;
+    // 关键修复：旧实现只改 skill.state，不写 trainee → 完成时（body={}）读 targetSkill=-1 无法结算
+    expect(trainee.charInstId).toBe(377);
+    expect(trainee.targetSkill).toBe(0);
+    expect(trainee.state).toBe(1); // TRAINING
+  });
+
+  it("升级→完成后 trainee 保留为 WAITING 对象（循环可用，不置 null）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.upgradeSpecialization({ charInstId: 377, targetSkill: 0 } as any);
+    await manager.completeUpgradeSpecialization({} as any);
+    const trainee = (mockPlayer._playerdata.building as any).rooms.TRAINING.slot_13.trainee;
+    const char = (mockPlayer._playerdata.troop as any).chars["377"];
+    expect(char.skills[0].specializeLevel).toBe(1); // 0 → 1
+    expect(trainee).not.toBeNull();
+    expect(trainee.state).toBe(3); // WAITING
+    expect(trainee.targetSkill).toBe(-1);
+    expect(trainee.charInstId).toBe(377);
   });
 
   it("batchChangeWorkChar 空请求体不 500（CS 无字段 body={}）", async () => {

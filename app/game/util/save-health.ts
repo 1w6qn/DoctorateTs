@@ -9,6 +9,7 @@
  * 5. dexNav.character[].charInstId 与 troop.chars 一致性（roster 重建后悬空重指向）
  * 6. troop.chars 干员模板字段归一化（自引用空 currentTmpl/旧 null 结构 → 移除）
  * 7. troop.chars 技能回填（按等级/精英化解锁——历史新干员建档空 skills）
+ * 8. building.rooms.TRAINING[].trainee/trainer 空对象修复（旧结算 trainee=null 残留）
  *
  * 修复为幂等（对合规结构无副作用）且保守（不做破坏性重建）——结构性损坏可安全修复，
  * 非法 JSON 无法自动修复（由加载层记录并备份）。
@@ -191,6 +192,41 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
         issues.push({
           path: `troop.chars[${instId}].skills`,
           message: `技能按等级/精英化回填（解锁 ${unlocked.join(",") || "(无)"}）`,
+          fixed: true,
+        });
+      }
+    }
+  }
+
+  // 9. building.rooms.TRAINING[].trainee/trainer 必须为对象（官方线格式恒为对象——
+  //    旧实现结算后 trainee=null → 客户端读 trainee.charInstId 崩溃 → 存档破坏）。
+  //    修复为官方空态（4.json 官服快照）：trainee {charInstId:-1,state:0,targetSkill:-1,
+  //    processPoint:-1,speed:1}、trainer {charInstId:-1,state:0}。
+  const trainingRooms = data.building?.rooms?.TRAINING;
+  if (trainingRooms && typeof trainingRooms === "object") {
+    for (const [slotId, room] of Object.entries(trainingRooms)) {
+      const r = room as any;
+      if (!r || typeof r !== "object") continue;
+      const EMPTY_TRAINEE = {
+        charInstId: -1,
+        state: 0,
+        targetSkill: -1,
+        processPoint: -1,
+        speed: 1,
+      };
+      if (r.trainee == null || typeof r.trainee !== "object") {
+        r.trainee = { ...EMPTY_TRAINEE };
+        issues.push({
+          path: `building.rooms.TRAINING[${slotId}].trainee`,
+          message: "trainee 为 null/非法（旧结算残留），重置为空对象",
+          fixed: true,
+        });
+      }
+      if (r.trainer == null || typeof r.trainer !== "object") {
+        r.trainer = { charInstId: -1, state: 0 };
+        issues.push({
+          path: `building.rooms.TRAINING[${slotId}].trainer`,
+          message: "trainer 为 null/非法，重置为空对象",
           fixed: true,
         });
       }

@@ -330,7 +330,8 @@ export class BuildingManager {
   }
 
   /**
-   * 专精升级
+   * 专精升级（开始训练）
+   * 记录训练目标到训练室 trainee（官方 CS 枚举：TRAINING=1/OUTOFDATE=2/WAITING=3/EMPTY=0），
    * 将目标技能置为专精中（state=1），完成时由 completeUpgradeSpecialization 提升等级
    * @param args - 包含 charInstId 和 targetSkill（技能索引）的参数对象
    */
@@ -345,12 +346,37 @@ export class BuildingManager {
       if (char && char.skills && char.skills[targetSkill]) {
         char.skills[targetSkill].state = 1; // 专精中
       }
+      // 训练室状态同步：找到该干员的训练室（或首个空训练槽），记录训练目标。
+      // 旧实现只改 skill.state，不写 trainee.targetSkill → 完成时（body 为空）读不到
+      // 目标技能 → 专精永远无法结算。
+      const rooms = Object.values(draft.building.rooms.TRAINING);
+      const room =
+        rooms.find((r) => r.trainee?.charInstId === charInstId) ??
+        rooms.find((r) => !r.trainee || r.trainee.state === 0 || r.trainee.charInstId === -1) ??
+        rooms[0];
+      if (!room) return;
+      if (room.trainee?.charInstId !== charInstId) {
+        room.trainee = {
+          charInstId,
+          state: 1,
+          targetSkill,
+          processPoint: 0,
+          speed: 1000,
+        };
+      } else {
+        room.trainee.targetSkill = targetSkill;
+        room.trainee.state = 1; // TRAINING
+      }
+      room.trainer = room.trainer ?? { charInstId: -1, state: 0 };
+      room.trainer.state = 1; // TRAINING
+      room.lastUpdateTime = now();
     });
   }
 
   /**
-   * 完成专精升级
-   * 提升目标技能 specializeLevel 并复位状态
+   * 完成专精升级（领取）
+   * 提升目标技能 specializeLevel 并复位状态；trainee 复位为 WAITING（保留对象——官方
+   * 线格式 trainee 恒为对象，置 null 会让客户端读 trainee.charInstId 崩溃 → 存档破坏）
    * @param args - 包含 charInstId 和 targetSkill（技能索引）的参数对象
    */
   async completeUpgradeSpecialization(args: {
@@ -361,15 +387,17 @@ export class BuildingManager {
       // 客户端请求体为空（抓包 body={}）——从训练室 trainee 读取待结算对象
       let charInstId = args.charInstId;
       let targetSkill = args.targetSkill;
-      const room = Object.values(draft.building.rooms.TRAINING)[0];
-      if ((charInstId == null || targetSkill == null) && room?.trainee) {
-        const t = room.trainee;
-        if (t.state >= 2) {
-          charInstId = t.charInstId;
-          targetSkill = t.targetSkill;
-        }
-      }
-      if (charInstId == null || targetSkill == null) return;
+      const rooms = Object.values(draft.building.rooms.TRAINING);
+      const room =
+        (charInstId != null
+          ? rooms.find((r) => r.trainee?.charInstId === charInstId)
+          : undefined) ??
+        rooms.find(
+          (r) => r.trainee && r.trainee.charInstId > 0 && r.trainee.targetSkill >= 0,
+        );
+      if (charInstId == null) charInstId = room?.trainee?.charInstId;
+      if (targetSkill == null) targetSkill = room?.trainee?.targetSkill;
+      if (charInstId == null || targetSkill == null || targetSkill < 0) return;
       const char = draft.troop.chars[String(charInstId)];
       let settled = false;
       if (char && char.skills && char.skills[targetSkill]) {
@@ -378,10 +406,16 @@ export class BuildingManager {
         char.skills[targetSkill].completeUpgradeTime = -1;
         settled = true;
       }
-      // 仅结算成功时清空 trainee——targetSkill 越界/干员 skills 为空时保留训练进度，
+      // 仅结算成功时复位 trainee——targetSkill 越界/干员 skills 为空时保留训练进度，
       // 避免"专精未发放但训练被清空"的存档破坏（训练成果丢失）
       if (settled && room?.trainee?.charInstId === charInstId) {
-        (room as any).trainee = null;
+        // 官方线格式 trainee 恒为对象（LocalArknight 参考：完成后 state=WAITING、
+        // targetSkill=-1，干员保留待下一次专精；置 null 会让客户端读 trainee.charInstId
+        // 崩溃 → 存档破坏）
+        room.trainee.state = 3; // WAITING
+        room.trainee.targetSkill = -1;
+        if (room.trainer) room.trainer.state = 3; // WAITING
+        room.lastUpdateTime = now();
       }
     });
   }

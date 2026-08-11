@@ -265,4 +265,35 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
     const issues = checkAndRepairSave(data as any);
     expect(issues.filter((i) => i.path.includes("troop.chars[2].skills"))).toHaveLength(0);
   });
+
+  it("训练室 trainee 为 null（旧结算残留）应修复为空对象", () => {
+    const data = {
+      status: { uid: "1" },
+      troop: { chars: {} },
+      dungeon: {},
+      activity: {},
+      building: {
+        rooms: {
+          TRAINING: {
+            slot_13: {
+              buff: {},
+              state: 0,
+              lastUpdateTime: 0,
+              trainee: null,
+              trainer: { charInstId: 210, state: 3 },
+            },
+          },
+        },
+      },
+    };
+    const issues = checkAndRepairSave(data as any);
+    const trainee = data.building.rooms.TRAINING.slot_13.trainee;
+    expect(trainee).not.toBeNull();
+    expect(trainee.charInstId).toBe(-1);
+    expect(trainee.state).toBe(0); // EMPTY 官方空态
+    expect(trainee.targetSkill).toBe(-1);
+    expect(issues.some((i) => i.path.includes("trainee") && i.fixed)).toBe(true);
+    // 合规 trainer 不受影响
+    expect(data.building.rooms.TRAINING.slot_13.trainer.charInstId).toBe(210);
+  });
 });

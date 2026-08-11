@@ -468,6 +468,27 @@ export interface GetClueFriendListResponse extends PlayerDeltaResponse {
   starFriendList?: string[];
 }
 
+/** 获取会客室情报分享奖励请求（CS: BuildingMeetingClueReceiveInfoShareRewardRequest，无字段） */
+export interface GetInfoShareRewardRequest {}
+
+/** 会客室访客条目（CS: BuildingMeetingClueReceiveInfoShareRewardResponse.VisitorInfo） */
+export interface InfoShareVisitorInfo {
+  uid: string;
+  nickName: string;
+  nickNumber: string;
+  level: number;
+  alias: string | null;
+  ts: number;
+  avatar: { type: string; id: string };
+  secretary: string;
+  secretarySkinId: string;
+}
+
+/** 获取会客室情报分享奖励响应（CS: BuildingMeetingClueReceiveInfoShareRewardResponse { list }） */
+export interface GetInfoShareRewardResponse extends PlayerDeltaResponse {
+  list: InfoShareVisitorInfo[];
+}
+
 /**
  * 获取会议室奖励请求（CS: BuildingMeetingClueGetMeetingRoomRewardRequest）
  * CS 字段为 type 列表，服务端未读取请求体

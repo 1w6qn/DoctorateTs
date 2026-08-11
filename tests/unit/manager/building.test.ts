@@ -745,8 +745,11 @@ describe("BuildingManager 制造站（Excel 驱动）", () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.settleManufacture({ roomSlotIdList: ["slot_5"] } as any);
     expect(mockPlayer._playerdata.inventory!["3003"]).toBe(2);
-    expect(mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5.state).toBe(0);
-    expect(mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5.formulaId).toBe("");
+    // lastUpdateTime=0 → (0 || ts)=ts → elapsed 0 → 无累积产出；已产出 2 收获后
+    // 计划未耗尽（remain 仍 73 > 0）→ 保留配方继续生产（修复"清空当前计划"）
+    expect(mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5.state).toBe(1);
+    expect(mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5.formulaId).toBe("4");
+    expect(mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5.remainSolutionCnt).toBe(73);
   });
 
   it("settleManufacture F_EXP（formulaId 1）应产出 2001", async () => {
@@ -781,7 +784,8 @@ describe("BuildingManager 制造站（Excel 驱动）", () => {
     mockPlayer._playerdata.building.rooms.MANUFACTURE.slot_5.formulaId = "999";
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.settleManufacture({ roomSlotIdList: ["slot_5"] } as any);
-    expect(mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5.state).toBe(0);
+    // 未知配方跳过 → 计划未耗尽保留（不崩溃）
+    expect(mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5.state).toBe(1);
   });
 });
 
@@ -1368,5 +1372,79 @@ describe("BuildingManager 房间建造与升级（Excel 驱动）", () => {
     await expect(
       manager.settleManufacture({ roomSlotId: "slot_nonexist" } as any),
     ).resolves.not.toThrow();
+  });
+});
+
+describe("训练室专精结算 / 批量换班（修复）", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+
+  beforeEach(async () => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({
+      building: {
+        status: { labor: { buffSpeed: 0, processPoint: 0, value: 100, lastUpdateTime: 0, maxValue: 100 }, workshop: { bonusActive: 0, bonus: {} } },
+        chars: {},
+        roomSlots: {},
+        rooms: {
+          CONTROL: {}, ELEVATOR: {}, POWER: {}, TRADING: {}, MANUFACTURE: {},
+          CORRIDOR: {}, WORKSHOP: {}, DORMITORY: {}, MEETING: {}, HIRE: {},
+          TRAINING: {
+            slot_13: {
+              trainee: { charInstId: 377, state: 2, targetSkill: 2, processPoint: 100, speed: 1 },
+            },
+          },
+          PRIVATE: {},
+        },
+        furniture: {},
+        diyPresetSolutions: {},
+        assist: [-1, -1, -1],
+        solution: { furnitureTs: {} },
+        music: { selected: "bgm_default" },
+      } as any,
+      status: { uid: "1" } as any,
+      troop: {
+        chars: {
+          "377": {
+            instId: 377, charId: "char_1015_aglna2", level: 1,
+            skills: [
+              { skillId: "skchr_aglna2_1", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 },
+              { skillId: "skchr_aglna2_2", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 },
+              { skillId: "skchr_aglna2_3", unlock: 1, state: 0, specializeLevel: 2, completeUpgradeTime: -1 },
+            ],
+          },
+        },
+      },
+      pushFlags: { hasGifts: 0, hasFriendRequest: 0, hasClues: 0, hasFreeLevelGP: 0, status: 0 },
+      event: { building: 0 },
+    });
+    mockPlayer._trigger = mockTrigger;
+    mockPlayer.update = vi
+      .fn()
+      .mockImplementation(
+        async (recipe: (draft: any) => Promise<any> | any) => {
+          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+          const result = await recipe(draft);
+          Object.assign(mockPlayer._playerdata, draft);
+          return result;
+        }
+      );
+  });
+
+  it("completeUpgradeSpecialization 空请求体应从训练室 trainee 结算（专精+1）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.completeUpgradeSpecialization({} as any);
+    const char = (mockPlayer._playerdata.troop as any).chars["377"];
+    expect(char.skills[2].specializeLevel).toBe(3); // 2 → 3
+    expect(char.skills[2].state).toBe(0);
+    const trainee = (mockPlayer._playerdata.building as any).rooms.TRAINING.slot_13.trainee;
+    expect(trainee).toBeNull(); // 结算完成清空
+  });
+
+  it("batchChangeWorkChar 空请求体不 500（CS 无字段 body={}）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    // 不抛错即修复（空 body 不再 500）
+    await manager.batchChangeWorkChar({} as any);
   });
 });

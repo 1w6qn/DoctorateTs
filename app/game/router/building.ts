@@ -70,6 +70,8 @@ import {
   GetClueBoxResponse,
   GetClueFriendListRequest,
   GetClueFriendListResponse,
+  GetInfoShareRewardRequest,
+  GetInfoShareRewardResponse,
   GetDailyClueRequest,
   GetDailyClueResponse,
   GetInfoShareVisitorsNumRequest,
@@ -494,6 +496,17 @@ router.post("/getClueFriendList", async (req, res) => {
     ...result,
     ...player.delta,
   } satisfies GetClueFriendListResponse);
+});
+
+/** 获取会客室情报分享奖励（访客列表） */
+router.post("/getInfoShareReward", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as GetInfoShareRewardRequest;
+  const result = await player.building.getInfoShareReward();
+  res.send({
+    ...result,
+    ...player.delta,
+  } satisfies GetInfoShareRewardResponse);
 });
 
 /** 获取会议室奖励 */

@@ -354,16 +354,31 @@ export class BuildingManager {
    * @param args - 包含 charInstId 和 targetSkill（技能索引）的参数对象
    */
   async completeUpgradeSpecialization(args: {
-    charInstId: number;
-    targetSkill: number;
+    charInstId?: number;
+    targetSkill?: number;
   }) {
-    const { charInstId, targetSkill } = args;
     return await this._player.update(async (draft) => {
+      // 客户端请求体为空（抓包 body={}）——从训练室 trainee 读取待结算对象
+      let charInstId = args.charInstId;
+      let targetSkill = args.targetSkill;
+      const room = Object.values(draft.building.rooms.TRAINING)[0];
+      if ((charInstId == null || targetSkill == null) && room?.trainee) {
+        const t = room.trainee;
+        if (t.state >= 2) {
+          charInstId = t.charInstId;
+          targetSkill = t.targetSkill;
+        }
+      }
+      if (charInstId == null || targetSkill == null) return;
       const char = draft.troop.chars[String(charInstId)];
       if (char && char.skills && char.skills[targetSkill]) {
         char.skills[targetSkill].specializeLevel += 1;
         char.skills[targetSkill].state = 0;
         char.skills[targetSkill].completeUpgradeTime = -1;
+      }
+      // 结算完成：清空训练室 trainee（生成类型未标可选，线格式可为 null → as any）
+      if (room?.trainee?.charInstId === charInstId) {
+        (room as any).trainee = null;
       }
     });
   }
@@ -432,6 +447,9 @@ export class BuildingManager {
   }) {
     const { roomSlotId, charInstIdList } = args;
     return await this._player.update(async (draft) => {
+      // 防御：客户端请求体为空（CS BuildingBatchChangeWorkCharRequest 无字段，
+      // 实测 body={}）时不改任何分配，仅返回当前状态（不 500）
+      if (!charInstIdList || !roomSlotId) return;
       // 清空这些干员在其他房间的占用
       for (const slotKey in draft.building.roomSlots) {
         if (slotKey === roomSlotId) continue;
@@ -608,7 +626,9 @@ export class BuildingManager {
         const idx = room.stock.findIndex((s: any) => s.instId === orderId);
         if (idx !== -1) {
           this._settleOrderInternal(draft, room.stock[idx]);
-          room.stock.splice(idx, 1);
+          // 修复：splice 产生 DELETE patch（客户端删 stock 属性而非替换 → UI 残留）；
+          // 用 filter 生成 replace patch（modified）
+          room.stock = room.stock.filter((x: any) => x !== room.stock[idx]);
         }
       }
     });
@@ -660,7 +680,10 @@ export class BuildingManager {
             : 0;
         if (idx !== -1 && tradingRoom.stock[idx]) {
           this._settleOrderInternal(draft, tradingRoom.stock[idx]);
-          tradingRoom.stock.splice(idx, 1);
+          // 修复：splice → DELETE patch 客户端残留 → filter 替换
+          tradingRoom.stock = tradingRoom.stock.filter(
+            (x: any) => x !== tradingRoom.stock[idx],
+          );
         }
       }
     });
@@ -693,7 +716,8 @@ export class BuildingManager {
             gains.push({ id: gain.id, type: gain.type, count: gain.count });
           }
           this._settleOrderInternal(draft, stock);
-          room.stock.splice(i, 1);
+          // 修复：splice 产生 DELETE patch（客户端 UI 残留旧订单）→ filter 替换
+          room.stock = room.stock.filter((x: any) => x !== stock);
         }
         delivered[slotId] = gains;
       }
@@ -767,16 +791,25 @@ export class BuildingManager {
         // 先推进时间累积的产出再结算
         this._accrueManufacture(draft, roomSlotId);
         this._settleManufactureInternal(draft, roomSlotId);
-        // 重置制造站状态（防御：非法 roomSlotId 直接跳过不 500）
+        // 收获后状态（防御：非法 roomSlotId 直接跳过不 500）
         const room = draft.building.rooms.MANUFACTURE[roomSlotId];
         if (!room) continue;
-        room.state = 0;
-        room.formulaId = "";
-        room.lastUpdateTime = now();
-        room.completeWorkTime = -1;
-        room.remainSolutionCnt = 0;
-        room.outputSolutionCnt = 0;
-        room.processPoint = 0;
+        if ((room.remainSolutionCnt ?? 0) > 0) {
+          // 修复：计划未耗尽时保留配方继续生产（原实现清空 state/formulaId →
+          // 客户端"会清空当前计划"）；仅重置已收获的产出与进度
+          room.outputSolutionCnt = 0;
+          room.processPoint = 0;
+          room.lastUpdateTime = now();
+        } else {
+          // 计划耗尽：停止生产并清空
+          room.state = 0;
+          room.formulaId = "";
+          room.lastUpdateTime = now();
+          room.completeWorkTime = -1;
+          room.remainSolutionCnt = 0;
+          room.outputSolutionCnt = 0;
+          room.processPoint = 0;
+        }
       }
     });
     // 返回结算的房间数（CS BuildingSettleManufactResponse.supplement）
@@ -1223,6 +1256,37 @@ export class BuildingManager {
       }),
     );
     return { result };
+  }
+
+  /**
+   * 获取会客室情报分享奖励（访客列表——友方访问 + 可领取的信用）
+   *
+   * CS: BuildingMeetingClueReceiveInfoShareRewardResponse { list: [VisitorInfo] }，
+   * VisitorInfo = { uid, nickName, nickNumber, level, avatar, ts, alias, secretary, secretarySkinId }。
+   * 私服：访客 = 好友列表（无真实访问记录，ts 用最近在线时间）。
+   *
+   * @returns 访客列表
+   */
+  async getInfoShareReward() {
+    const uid = String(this._player._playerdata.status.uid);
+    const social = await accountManager.getSocial(uid);
+    const list = await Promise.all(
+      social.friends.map(async (f) => {
+        const info = await accountManager.getPlayerFriendInfo(f.uid);
+        return {
+          uid: f.uid,
+          nickName: info.nickName,
+          nickNumber: info.nickNumber,
+          level: info.level,
+          alias: null,
+          ts: info.registerTs ?? 0,
+          avatar: { type: "ASSISTANT", id: `${info.secretary ?? ""}#1` },
+          secretary: info.secretary ?? "",
+          secretarySkinId: info.secretarySkinId ?? "",
+        };
+      }),
+    );
+    return { list };
   }
 
   /**

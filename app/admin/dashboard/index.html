@@ -71,6 +71,8 @@
   .sidebar .tabs { flex-direction: column; border-bottom: none; margin-bottom: 0; gap: 2px; }
   .sidebar .tab { border-radius: 6px; border: 1px solid transparent; text-align: left; }
   .sidebar .tab.active { background: var(--hover); color: var(--gold); border-color: var(--border); }
+  .side-group { margin-bottom: 10px; }
+  .side-label { font-size: 10px; color: var(--muted); padding: 2px 10px; margin-bottom: 2px; letter-spacing: 2px; }
   main { flex: 1; min-width: 0; }
   .tab { padding: 7px 16px; cursor: pointer; border-radius: 6px 6px 0 0;
          color: var(--muted); font-size: 13px; user-select: none; }
@@ -205,15 +207,28 @@
 <div class="layout">
   <!-- 左侧垂直导航（全局 Tab） -->
   <aside class="sidebar main-nav">
-    <div class="tabs">
-      <div class="tab active" data-tab="overview">概览</div>
-      <div class="tab" data-tab="chars">干员</div>
-      <div class="tab" data-tab="mails">邮件</div>
-      <div class="tab" data-tab="pools">卡池</div>
-      <div class="tab" data-tab="api">接口</div>
-      <div class="tab" data-tab="official">官服</div>
-      <div class="tab" data-tab="pixel">像素画</div>
-      <div class="tab" data-tab="raw">数据</div>
+    <div class="side-group">
+      <div class="side-label">用户</div>
+      <div class="tabs">
+        <div class="tab active" data-tab="overview">🏠 概览</div>
+        <div class="tab" data-tab="chars">👤 干员</div>
+        <div class="tab" data-tab="mails">✉️ 邮件</div>
+        <div class="tab" data-tab="raw">📊 数据</div>
+      </div>
+    </div>
+    <div class="side-group">
+      <div class="side-label">内容</div>
+      <div class="tabs">
+        <div class="tab" data-tab="pools">🎴 卡池</div>
+      </div>
+    </div>
+    <div class="side-group">
+      <div class="side-label">工具</div>
+      <div class="tabs">
+        <div class="tab" data-tab="api">🔧 接口</div>
+        <div class="tab" data-tab="official">🛰️ 官服</div>
+        <div class="tab" data-tab="pixel">🖼️ 像素画</div>
+      </div>
     </div>
   </aside>
   <main id="main">
@@ -278,7 +293,7 @@
       <tbody id="user-tbody"></tbody>
     </table>
     <div id="user-pager"></div>
-    <p id="user-empty" style="color:var(--muted);text-align:center;padding:20px;">暂无用户</p>
+    <p id="user-empty" style="color:var(--muted);text-align:center;padding:20px;">暂无用户 —— 点击右上角「+ 创建用户」开始</p>
   </section>
 
   <!-- 右侧：详情/操作 -->
@@ -897,7 +912,10 @@
     setSkeleton("pane-chars");
     api("/users/" + encodeURIComponent(uid) + "/chars").then(function (chars) {
       if (!chars.length) {
-        $("pane-chars").innerHTML = '<p style="color:var(--muted);">暂无干员</p>';
+        $("pane-chars").innerHTML =
+          '<div style="text-align:center;padding:24px 0;">' +
+          '<p style="color:var(--muted);">暂无干员</p>' +
+          '<p style="color:var(--muted);font-size:12px;margin-top:6px;">可先用「发干员」添加，或用「一键满配」生成完整阵容</p></div>';
         return;
       }
       var CHAR_PAGE_SIZE = 50;
@@ -1069,7 +1087,10 @@
     setSkeleton("pane-mails");
     api("/users/" + encodeURIComponent(uid) + "/mails").then(function (mails) {
       if (!mails.length) {
-        $("pane-mails").innerHTML = '<p style="color:var(--muted);">暂无邮件</p>';
+        $("pane-mails").innerHTML =
+          '<div style="text-align:center;padding:24px 0;">' +
+          '<p style="color:var(--muted);">暂无邮件</p>' +
+          '<p style="color:var(--muted);font-size:12px;margin-top:6px;">可返回概览用「发邮件」或模板发送系统邮件</p></div>';
         return;
       }
       var rows = mails.map(function (m) {
@@ -1626,7 +1647,7 @@
         '<span class="p">' + escapeHtml(p.poolId) + "</span> " + escapeHtml(p.name) + "<br>" +
         '<span class="s">[' + escapeHtml(p.ruleType) + "] 保底 " + p.guarantee5Count +
         " | " + fmtTs(p.openTime) + " ~ " + fmtTs(p.endTime) + "</span></div>";
-    }).join("") || '<div style="padding:10px;color:var(--muted);">无匹配卡池</div>';
+    }).join("") || '<div style="padding:10px;color:var(--muted);text-align:center;">无卡池数据 —— 可在「官服」工具库同步卡池</div>';
     document.querySelectorAll("#pool-list .api-item").forEach(function (el) {
       el.addEventListener("click", function () {
         var id = el.getAttribute("data-id");

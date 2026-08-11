@@ -23,6 +23,8 @@ vi.mock("@game/manager/AccountManger", () => {
       getUserConfig: vi.fn().mockResolvedValue({ auth: { phone: "13800000001" } }),
       getTokenByUid: vi.fn().mockResolvedValue("10000"),
       registerUser: vi.fn().mockResolvedValue("20000"),
+      updatePassword: vi.fn().mockResolvedValue(true),
+      updatePhone: vi.fn().mockResolvedValue(true),
     },
   };
 });

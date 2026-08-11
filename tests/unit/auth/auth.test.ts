@@ -158,3 +158,70 @@ describe("auth 路由", () => {
     expect(res.send).toHaveBeenCalledWith({ version: "1", appVersion: "1.0" });
   });
 });
+
+describe("real 模式用户管理闭环（change_password/change_phone）", () => {
+  // 扩展 mock：configs + updatePassword/updatePhone
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    (accountManager as any).configs = {
+      "10000": {
+        auth: { phone: "13800000000" },
+        password: "sha256$old",
+        secret: "secret_10000",
+      },
+    };
+    (accountManager as any).updatePassword = vi.fn().mockResolvedValue(true);
+    (accountManager as any).updatePhone = vi.fn().mockResolvedValue(true);
+    (accountManager as any).getUidByToken = vi
+      .fn()
+      .mockImplementation(async (t: string) =>
+        t === "secret_10000" ? "10000" : "",
+      );
+  });
+
+  it("change_password 应校验格式并调用 updatePassword", async () => {
+    const res = mockRes();
+    await call(
+      authRouter,
+      { method: "POST", url: "/user/auth/v1/change_password", body: { token: "secret_10000", newPassword: "NewPass123" } },
+      res,
+    );
+    expect(res.send).toHaveBeenCalledWith({ result: 0 });
+    expect(accountManager.updatePassword).toHaveBeenCalledWith("10000", "NewPass123");
+  });
+
+  it("change_password 密码格式错误应返回 result 1", async () => {
+    const res = mockRes();
+    await call(
+      authRouter,
+      { method: "POST", url: "/user/auth/v1/change_password", body: { token: "secret_10000", newPassword: "short" } },
+      res,
+    );
+    expect(res.send).toHaveBeenCalledWith({ result: 1 });
+  });
+
+  it("change_phone 应调用 updatePhone（新手机未被占用）", async () => {
+    const res = mockRes();
+    await call(
+      authRouter,
+      { method: "POST", url: "/user/auth/v1/change_phone", body: { token: "secret_10000", newPhone: "13899998888" } },
+      res,
+    );
+    expect(res.send).toHaveBeenCalledWith({ result: 0 });
+    expect(accountManager.updatePhone).toHaveBeenCalledWith("10000", "13899998888");
+  });
+
+  it("change_phone 新手机已被占用应返回 result 8", async () => {
+    (accountManager as any).configs["20000"] = {
+      auth: { phone: "13899998888" },
+      secret: "secret_20000",
+    };
+    const res = mockRes();
+    await call(
+      authRouter,
+      { method: "POST", url: "/user/auth/v1/change_phone", body: { token: "secret_10000", newPhone: "13899998888" } },
+      res,
+    );
+    expect(res.send).toHaveBeenCalledWith({ result: 8 });
+  });
+});

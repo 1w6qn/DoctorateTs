@@ -615,6 +615,36 @@ export class AccountManager {
   }
 
   /**
+   * 修改账号密码（real 模式用户管理闭环）
+   * @param uid - 用户 uid
+   * @param newPassword - 新密码（明文，内部哈希存储）
+   * @returns 是否成功（账号不存在返回 false）
+   */
+  async updatePassword(uid: string, newPassword: string): Promise<boolean> {
+    const conf = this.configs[uid];
+    if (!conf) return false;
+    conf.password = hashPassword(newPassword);
+    await this.saveUserConfig();
+    return true;
+  }
+
+  /**
+   * 换绑手机号（real 模式用户管理闭环——同步刷新 secret，旧 token 失效需重新登录）
+   * @param uid - 用户 uid
+   * @param newPhone - 新手机号
+   * @returns 是否成功（账号不存在返回 false）
+   */
+  async updatePhone(uid: string, newPhone: string): Promise<boolean> {
+    const conf = this.configs[uid];
+    if (!conf) return false;
+    conf.auth.phone = newPhone;
+    conf.secret = generateSecret(newPhone);
+    this._secretIndex = null; // secret 变化：索引失效，下次查询重建
+    await this.saveUserConfig();
+    return true;
+  }
+
+  /**
    * 确保单例账号存在（不存在时以模板创建——干净账号）
    * 单例模式固定账号（config.singleUid）可能不存在（如切到 2222 过渡）
    *

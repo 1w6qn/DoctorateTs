@@ -216,3 +216,38 @@ describe("getUidByToken 认证模式", () => {
     expect(readJson).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("updatePassword / updatePhone（real 模式用户管理闭环）", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    configMock.default.authMode = "real";
+    (accountManager as any).configs = {
+      "1": { auth: { phone: "1" }, secret: "secret_1" },
+    };
+  });
+
+  it("updatePassword 应哈希存储新密码", async () => {
+    const ok = await accountManager.updatePassword("1", "NewPwd123");
+    expect(ok).toBe(true);
+    const conf = (accountManager as any).configs["1"];
+    expect(conf.password.startsWith("sha256$")).toBe(true);
+    // 新密码可验证
+    const { verifyPassword } = await import("@utils/crypt");
+    expect(verifyPassword(conf.password, "NewPwd123")).toBe(true);
+  });
+
+  it("updatePassword 账号不存在返回 false", async () => {
+    expect(await accountManager.updatePassword("999", "NewPwd123")).toBe(false);
+  });
+
+  it("updatePhone 应更新手机并刷新 secret", async () => {
+    const ok = await accountManager.updatePhone("1", "13812345678");
+    expect(ok).toBe(true);
+    const conf = (accountManager as any).configs["1"];
+    expect(conf.auth.phone).toBe("13812345678");
+    expect(conf.secret).not.toBe("secret_1");
+    expect(conf.secret).toBe(
+      (await import("crypto")).createHash("md5").update("13812345678" + "7318def77669979d").digest("hex"),
+    );
+  });
+});

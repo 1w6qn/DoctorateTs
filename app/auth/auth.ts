@@ -400,18 +400,63 @@ router.post("/user/auth/v1/check_id_card", async (req, res) => {
   res.send({ result: 0, message: "OK", isMinor: false });
 });
 
-/** 修改密码（参考 DoctoratePy userChangePassword——私服简化成功） */
+/** 密码格式：8-16 位，含大小写字母和数字（与注册一致） */
+const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d!@#$%^&*]{8,16}$/;
+
+/** 从 body.token 或 secret header 解析 uid（real 模式用户管理闭环） */
+async function resolveAuthUid(req: any): Promise<string> {
+  const token = String(req.body?.token ?? req.headers?.secret ?? "");
+  return accountManager.getUidByToken(token);
+}
+
+/** 修改密码（参考 DoctoratePy userChangePassword——校验格式 + 验证码通过则更新） */
 router.post("/user/auth/v1/change_password", async (req, res) => {
+  const uid = await resolveAuthUid(req);
+  if (!uid || !accountManager.configs[uid]) {
+    return res.send({ result: 3 });
+  }
+  const { newPassword } = req.body ?? {};
+  // 1 = 密码格式错误 / 与旧密码相同；2 = 验证码错误（私服跳过短信验证，视为通过）
+  if (!newPassword || !PASSWORD_PATTERN.test(newPassword)) {
+    return res.send({ result: 1 });
+  }
+  if (
+    accountManager.configs[uid].password &&
+    verifyPassword(accountManager.configs[uid].password, newPassword)
+  ) {
+    return res.send({ result: 1 }); // 新旧相同
+  }
+  await accountManager.updatePassword(uid, newPassword);
   res.send({ result: 0 });
 });
 
-/** 换绑手机检查（参考 DoctoratePy userChangePhoneCheck） */
+/** 换绑手机检查（参考 DoctoratePy userChangePhoneCheck——私服跳过 7 天限制） */
 router.post("/user/auth/v1/change_phone_check", async (req, res) => {
+  const uid = await resolveAuthUid(req);
+  if (!uid || !accountManager.configs[uid]) {
+    return res.send({ result: 3 });
+  }
   res.send({ result: 0 });
 });
 
-/** 换绑手机（参考 DoctoratePy userChangePhone——私服简化成功） */
+/** 换绑手机（参考 DoctoratePy userChangePhone——校验新手机可用 + 更新 phone/secret） */
 router.post("/user/auth/v1/change_phone", async (req, res) => {
+  const uid = await resolveAuthUid(req);
+  if (!uid || !accountManager.configs[uid]) {
+    return res.send({ result: 3 });
+  }
+  const { newPhone } = req.body ?? {};
+  // 8 = 手机号已被使用；12 = 验证码错误（私服跳过短信验证，视为通过）
+  if (!newPhone || !/^\d{6,}$/.test(String(newPhone))) {
+    return res.send({ result: 8 });
+  }
+  const taken = Object.values(accountManager.configs).some(
+    (c) => c.auth?.phone == newPhone,
+  );
+  if (taken) {
+    return res.send({ result: 8 });
+  }
+  await accountManager.updatePhone(uid, String(newPhone));
   res.send({ result: 0 });
 });
 

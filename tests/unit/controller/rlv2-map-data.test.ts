@@ -137,7 +137,7 @@ describe("rlv2 地图生成数据与区域推进", () => {
       expect((player.rlv2 as any)._status.cursor.zone).toBe(1);
     });
 
-    it("最终层 zone_end 应触发游戏结算（END_RESULT）", async () => {
+    it("最终层 zone_end 应触发游戏结算（GAME_SETTLE）", async () => {
       (player.rlv2 as any)._map.zones[6] = {
         id: "zone_6",
         nodes: {
@@ -157,7 +157,7 @@ describe("rlv2 地图生成数据与区域推进", () => {
       // gameSettle 为异步（含 update 写 outer），等待其微任务完成
       await new Promise((r) => setTimeout(r, 0));
       const pending = (player.rlv2 as any)._status.pending;
-      const endEvent = pending.find((e: any) => e.type === "END_RESULT");
+      const endEvent = pending.find((e: any) => e.type === "GAME_SETTLE");
       expect(endEvent).toBeDefined();
     });
   });

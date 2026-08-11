@@ -17,9 +17,11 @@ export class RoguelikeRelicManager {
     this._trigger.on("rlv2:relic:gain", this.gain.bind(this));
     this._trigger.on("rlv2:init", () => {
       this.relics = {};
+      this._index = 0;
     });
     this._trigger.on("rlv2:create", () => {
       this.relics = {};
+      this._index = 0;
     });
   }
 
@@ -36,13 +38,28 @@ export class RoguelikeRelicManager {
     const buffs =
       excel.RoguelikeTopicTable.details[theme].relics[relic.id].buffs;
     await this._trigger.emit("rlv2:buff:apply", [[...buffs]]);
-    this.relics[relic.id] = {
+    // 官方线格式：relic 库存以 index（r_N）为键，非 relic id
+    this.relics[this.index] = {
       index: this.index,
       id: relic.id,
       count: relic.count,
       ts: now(),
     };
     this._index++;
+    // 收藏记录：collect.relic[id].state = 2（已获得），客户端图鉴展示
+    const collect = this._player.outer[theme]?.collect as
+      | { relic?: { [key: string]: { state: number; progress: unknown } } }
+      | undefined;
+    if (collect?.relic) {
+      const prev = collect.relic[relic.id];
+      if (!prev || prev.state < 2) {
+        collect.relic[relic.id] = {
+          state: 2,
+          progress: prev?.progress ?? null,
+        };
+        this._player._player.markDirty();
+      }
+    }
   }
 
   toJSON(): { [key: string]: PlayerRoguelikeV2.CurrentData.Relic } {

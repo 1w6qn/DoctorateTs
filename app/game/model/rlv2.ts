@@ -581,6 +581,7 @@ export namespace PlayerRoguelikePendingEvent {
         dice?: Dice
         shop?: ShopContent
         result?: EndingResult
+        success?: number
         battleShop?: ShopContent
         sacrifice?: SacrificeContent
         detailStr?: string

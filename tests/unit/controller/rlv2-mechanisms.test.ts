@@ -400,3 +400,38 @@ describe("分队机制（2026-08-11）", () => {
     expect(Object.values(collect.band).every((b: any) => b.state === 1)).toBe(true);
   });
 });
+
+describe("结算（GAME_SETTLE）与藏品（2026-08-11）", () => {
+  it("giveUpGame 应生成 GAME_SETTLE 结算事件", async () => {
+    const player = await readyPlayer("rogue_1");
+    (player.rlv2 as any)._status.state = "PENDING";
+    (player.rlv2 as any)._status.cursor.zone = 1;
+    (player.rlv2 as any)._bandId = "rogue_1_band_1";
+    await (player.rlv2 as any).giveUpGame();
+    const pend = (player.rlv2 as any)._status.pending;
+    const settle = pend.find((e: any) => e.type === "GAME_SETTLE");
+    expect(settle).toBeDefined();
+    const content = settle.content;
+    expect(content.success).toBe(0);
+    const brief = content.result.brief;
+    expect(brief.over).toBe(true);
+    expect(brief.band).toBe("rogue_1_band_1");
+    expect(brief.endZoneId).toBe("zone_1");
+    expect(brief.endProperty).toBeDefined();
+    expect(content.result.record.cntArrivedNode).toBeDefined();
+  });
+
+  it("藏品库存应以 index（r_N）为键", async () => {
+    const player = await readyPlayer("rogue_1");
+    (player.rlv2 as any)._status._pending._pending.push({
+      type: "GAME_INIT_RELIC",
+      content: { initRelic: { items: { "0": { id: "rogue_1_band_1", count: 1 } } } },
+    });
+    await (player.rlv2 as any).chooseInitialRelic({ select: "0" });
+    const relic = (player.rlv2 as any).inventory.relic;
+    const keys = Object.keys(relic);
+    expect(keys[0]).toMatch(/^r_\d+$/);
+    expect(relic[keys[0]].id).toBe("rogue_1_band_1");
+    expect(relic[keys[0]].index).toBe(keys[0]);
+  });
+});

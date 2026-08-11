@@ -150,7 +150,7 @@ function rlv2Response<T extends object>(player: PlayerDataManager, extra?: T) {
 router.post("/giveUpGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as RoguelikeTopicGiveUpGameRequest;
-  player.rlv2.giveUpGame();
+  await player.rlv2.giveUpGame();
   res.send(rlv2Response(player) satisfies RoguelikeTopicGiveUpGameResponse);
 });
 

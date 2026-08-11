@@ -71,6 +71,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   _player: PlayerDataManager;
   _trigger: TypedEventEmitter;
   inventory!: RoguelikeInventoryManager | null;
+  /** 本次对局所选分队（开局 chooseInitialRelic 记录，结算 brief.band 用） */
+  _bandId = "";
 
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     // rlv2 内部模型（model/rlv2.ts）与生成模型（types-playerdata）为同一数据的两种视图：
@@ -150,27 +152,18 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }
 
   async giveUpGame(): Promise<void> {
-    await this.update(async (draft) => {
-      draft.current.game = {
-        mode: "NONE",
-        predefined: "",
-        theme: "",
-        outer: {
-          support: false,
-        },
-        start: -1,
-        modeGrade: 0,
-        equivalentGrade: 0,
-      };
-      draft.current.buff = {
-        tmpHP: 0,
-        capsule: null,
-        squadBuff: [],
-      };
-      draft.current.record = { brief: null };
-    });
-
-    await this._trigger.emit("rlv2:init", [this]);
+    // 放弃结算：生成 GAME_SETTLE 事件（客户端展示放弃结算页），保留游戏态直至 gameSettle 确认
+    const { brief, record } = this.buildSettlement(true, 0, "");
+    this.current.record = { brief, record };
+    await this._trigger.emit("rlv2:event:create", [
+      "GAME_SETTLE",
+      {
+        success: 0,
+        result: { brief, record },
+        popReport: false,
+      },
+    ]);
+    this._status.state = "PENDING";
   }
 
   async createGame(args: {
@@ -268,6 +261,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   async chooseInitialRelic(args: { select: string }) {
     const event = this._status.pending.shift()!;
     const relic = event.content.initRelic!.items[args.select];
+    // 记录所选分队（结算 brief.band）
+    this._bandId = relic.id;
     await this.inventory!._relic.gain([relic]);
   }
 
@@ -1243,7 +1238,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     const choiceIdx = parseInt(args.choice ?? "0", 10) || 0;
     const offered = sacrificable[choiceIdx] || sacrificable[0];
     if (offered) {
-      delete relicMap[(offered as any).id];
+      // relic 库存以 index（r_N）为键，按条目键删除
+      delete relicMap[(offered as any).index];
     }
     // 发放回报：随机未拥有藏品（池空回退金币）
     const hasRelic = Object.values(relicMap).map((r) => (r as any).id);
@@ -1644,46 +1640,122 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     return { success: true };
   }
 
-  async gameSettle(): Promise<void> {
+  /**
+   * 构建结算数据（GAME_SETTLE 事件 + current.record）
+   * 线格式对照官方抓包（giveUpGame_res / gameSettle_res）：
+   *   brief = { level, over, success, ending, theme, mode, predefined, band,
+   *             startTs, endTs, endZoneId, endProperty, innerMission,
+   *             innerMissionProcess, modeGrade }
+   *   record = { cntZone, cntBattleNormal/Elite/Boss, cntArrivedNode, cntRecruitChar,
+   *              cntUpgradeChar, cntKillEnemy, cntShopBuy, cntPerfectBattle, ...
+   *              relicList, capsuleList, activeToolList, zones, squadBuff, charBuff }
+   */
+  private buildSettlement(
+    over: boolean,
+    success: number,
+    ending: string,
+  ): { brief: any; record: any } {
     const game = this.current.game!;
     const theme = game.theme;
     const endTs = Date.now();
-    const startTs = game.start || Date.now();
+    const startTs = game.start || endTs;
+    const property = this._status.property;
+
+    // 战斗/招募计数（trace 节点类型统计）
+    let cntBattleNormal = 0;
+    let cntBattleElite = 0;
+    let cntBattleBoss = 0;
+    let cntArrivedNode = this._status.trace.length;
+    const cntArrivedNodeType: { [key: number]: number } = {};
+    for (const t of this._status.trace) {
+      const node = this._map.zones[t.zone]?.nodes[
+        `${(t.position?.x ?? 0) * 100 + (t.position?.y ?? 0)}`
+      ];
+      const type = node?.type ?? 0;
+      cntArrivedNodeType[type] = (cntArrivedNodeType[type] ?? 0) + 1;
+      if (type === 1) cntBattleNormal++;
+      else if (type === 2) cntBattleElite++;
+      else if (type === 4) cntBattleBoss++;
+    }
+    const recruitChars = Object.values(this.inventory!.recruit || {}).filter(
+      (t) => (t as any).result,
+    );
+    const cntRecruitChar = recruitChars.length;
+    const troopChars = Object.values(this.troop.chars).map((c) => {
+      const char: any = { ...(c as any) };
+      return {
+        instId: String(char.instId),
+        charId: char.charId,
+        type: char.type || "NORMAL",
+        upgradePhase: char.upgradePhase ?? 0,
+        evolvePhase: char.evolvePhase ?? 0,
+        level: char.level ?? 1,
+        potentialRank: char.potentialRank ?? 0,
+        mainSkillLvl: char.mainSkillLvl ?? 1,
+      };
+    });
 
     const brief = {
-      level: this._status.property.level,
-      success: this._status.toEnding === "normal" ? 1 : 0,
-      ending: this._status.toEnding,
-      theme: theme,
+      level: property.level,
+      over,
+      success,
+      ending,
+      theme,
       mode: game.mode,
       predefined: game.predefined || "",
-      band: "",
-      startTs: startTs,
-      endTs: endTs,
-      endZoneId: `${this._status.cursor.zone}`,
+      band: this._bandId || "",
+      startTs,
+      endTs,
+      endZoneId: `zone_${this._status.cursor.zone}`,
+      endProperty: {
+        hp: property.hp?.current ?? 0,
+        gold: property.gold ?? 0,
+        populationCost: property.population?.cost ?? 0,
+        populationMax: property.population?.max ?? 0,
+        san: 0,
+      },
+      innerMission: false,
+      innerMissionProcess: null,
       modeGrade: game.modeGrade,
     };
 
     const record = {
       cntZone: Object.keys(this._map.zones).length,
-      relicList: Object.values(this.inventory!.relic).map((r) => (r as any).id),
+      cntBattleNormal,
+      cntBattleElite,
+      cntBattleBoss,
+      cntArrivedNode,
+      cntRecruitChar,
+      cntUpgradeChar: 0,
+      cntKillEnemy: 0,
+      cntShopBuy: 0,
+      cntPerfectBattle: property.conPerfectBattle ?? 0,
+      cntProtectBox: 0,
+      cntRecruitFree: 0,
+      cntRecruitAssist: 0,
+      cntRecruitNpc: 0,
+      cntRecruitProfession: {},
+      troopChars,
+      cntArrivedNodeType,
+      relicList: Object.values(this.inventory!.relic || {}).map(
+        (r) => (r as any).id,
+      ),
       capsuleList: [],
       activeToolList: Object.values(this.inventory?.exploreTool || {}).map(
         (t) => (t as any).id,
       ),
-      charBuff: [],
+      zones: Object.keys(this._map.zones).length,
+      nodeMission: [],
       squadBuff: this.current.buff?.squadBuff || [],
-      totemList: [],
-      exploreToolList: [],
-      fragmentList: [],
+      charBuff: [],
     };
 
-    this.current.record = {
-      brief: brief,
-      record: record,
-    };
+    return { brief, record };
+  }
 
-    // 探索分数（官方公式，用户提供 2026-08：萨卡兹方式，各主题一致）
+  /** 探索分数（官方公式，用户提供 2026-08：萨卡兹方式，各主题一致） */
+  private exploreScore(): number {
+    const theme = this.current.game!.theme;
     // 层数档位 0/30/80/150/270/400/550/650（>7 按 7）+ 步数×1 + 普通战×10 + 招募×2
     // + 物品×5（收藏品+战术道具，不含思绪）+ 领袖战×30 + 精英战×20，求和 × 难度倍率
     const ZONE_SCORES = [0, 30, 80, 150, 270, 400, 550, 650];
@@ -1706,7 +1778,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       (t) => (t as any).result,
     ).length;
     const itemCount =
-      (record.relicList?.length || 0) + (record.activeToolList?.length || 0);
+      Object.keys(this.inventory!.relic || {}).length +
+      Object.keys(this.inventory?.exploreTool || {}).length;
     const raw =
       zoneScore +
       steps +
@@ -1716,11 +1789,21 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       leaderBattles * 30 +
       eliteBattles * 20;
     const difficulty = excel.RoguelikeTopicTable.details[theme].difficulties?.find(
-      (d) => d.modeDifficulty === game.mode && d.grade === game.modeGrade,
+      (d) => d.modeDifficulty === this.current.game!.mode && d.grade === this.current.game!.modeGrade,
     );
     const scoreFactor = difficulty?.scoreFactor ?? 1;
-    const exploreScore = Math.floor(raw * scoreFactor);
-    // 分数转换魂灵书签效率 1:1（历史重构提升暂不做，YAGNI）
+    return Math.floor(raw * scoreFactor);
+  }
+
+  async gameSettle(): Promise<void> {
+    const theme = this.current.game!.theme;
+    const ending = this._status.toEnding || "";
+    const success = ending === "normal" || this._status.chgEnding ? 1 : 0;
+    const { brief, record } = this.buildSettlement(true, success, ending);
+    this.current.record = { brief, record };
+
+    // 探索分数 → 魂灵书签（1:1）
+    const exploreScore = this.exploreScore();
     await this.update(async (draft) => {
       const outerTheme = draft.outer[theme] ?? (draft.outer[theme] = {} as any);
       const buff =
@@ -1736,12 +1819,11 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     });
 
     await this._trigger.emit("rlv2:event:create", [
-      "END_RESULT",
+      "GAME_SETTLE",
       {
-        result: {
-          brief: brief,
-          record: record,
-        },
+        success,
+        result: { brief, record },
+        popReport: false,
       },
     ]);
 

@@ -275,6 +275,21 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
     };
   }
 
+  /** 游戏结算（官方 giveUpGame/gameSettle 用 GAME_SETTLE：success + result + detailStr + popReport） */
+  GAME_SETTLE(args: {
+    success: number;
+    result: PlayerRoguelikePendingEvent.EndingResult;
+    detailStr?: string;
+    popReport?: boolean;
+  }): PlayerRoguelikePendingEvent.Content {
+    return {
+      success: args.success,
+      result: args.result,
+      detailStr: args.detailStr,
+      popReport: args.popReport,
+    };
+  }
+
   toJSON(): PlayerRoguelikePendingEvent {
     return {
       index: this.index,

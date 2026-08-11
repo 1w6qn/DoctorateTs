@@ -14,7 +14,7 @@ if not exist node_modules (
 )
 
 echo Starting server (skip network update, use local data)...
-start "DoctorateTs Server" cmd /k "npm run start:quick"
+start "DoctorateTs Server" cmd /k "npm run watch"
 echo Waiting for server and opening admin dashboard...
 node scripts/open-dashboard.js
 if errorlevel 1 (

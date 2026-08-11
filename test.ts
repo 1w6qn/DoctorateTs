@@ -1,8 +1,14 @@
 import express from "express";
 import axios, { AxiosError, RawAxiosRequestHeaders } from "axios";
+import http from "http";
+import https from "https";
 import fs from "fs/promises";
 import path from "path";
 import morgan from "morgan";
+
+/** 官服连接复用池（与主服务器 official-forward 同配置）：避免每请求 TLS 握手 */
+const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 64 });
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 64, keepAliveMsecs: 30000 });
 
 /**
  * 官服抓包代理：客户端（network_config 指向本代理）→ 本代理 → 按官服路由规则分发到官方主机。
@@ -97,6 +103,9 @@ const createProxyHandler = (baseUrl: string) => {
         data: requestData,
         headers: forwardedHeaders,
         params: req.query,
+        // 复用 keep-alive 连接池：避免每请求 TLS 握手（首请求冷启动 ~100ms，复用后仅官服 RTT）
+        httpAgent: httpAgent,
+        httpsAgent: httpsAgent,
         // 官服返回 401/400 等状态属正常（未带有效 secret/参数），不抛异常，原样透传
         validateStatus: () => true,
       });

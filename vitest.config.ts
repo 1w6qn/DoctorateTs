@@ -5,6 +5,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // 测试期间日志落盘到 tmp/（gitignored），避免污染 logs/
+    env: { LOG_DIR: 'tmp/test-logs' },
     include: ['tests/**/*.test.ts'],
     coverage: {
       provider: 'v8',

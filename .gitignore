@@ -45,3 +45,6 @@ scripts/_verify-mitmweb.ts
 .zcode/
 opencode.json
 exports/
+
+# 运行时日志 / V8 report / 看门狗日记（按天轮转，不入库）
+logs/

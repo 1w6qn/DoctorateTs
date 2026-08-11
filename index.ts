@@ -5,6 +5,7 @@
  */
 
 import express from "express";
+import * as path from "path";
 import config from "./app/config";
 import { logger } from "./app/utils/logger";
 import { createTrafficRecorder } from "./app/utils/traffic-recorder";
@@ -44,6 +45,29 @@ process.on("unhandledRejection", (reason) => {
 });
 process.on("uncaughtException", (err) => {
   logger.error("process", `uncaughtException: ${err.stack ?? err.message}`);
+});
+
+// 进程级诊断（防"静默退出无提示"）：
+// 1) V8 致命错误（OOM/原生崩溃）落盘 report 文件——stderr 可能随终端/重定向丢失。
+//    文件名启动时计算（<date>/<pid> 占位符在当前 Node 构建不可用，errno 22）
+const now = new Date();
+const pad = (n: number) => String(n).padStart(2, "0");
+process.report.reportOnFatalError = true;
+process.report.directory = path.resolve(__dirname, "logs");
+process.report.filename = `report-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.json`;
+
+// 2) 信号退出留痕（Ctrl+C 行为不变，仅先记录再按约定码退出）
+for (const sig of ["SIGINT", "SIGTERM", "SIGBREAK"] as const) {
+  process.on(sig, () => {
+    logger.warn("process", `收到 ${sig}，进程退出`);
+    process.exit(sig === "SIGTERM" ? 143 : 130);
+  });
+}
+
+// 3) 任何退出都记录退出码（看门狗依据 code≠0/130 判断是否自动重启）
+process.on("exit", (code) => {
+  // 同步落盘：appendFileLog 为 appendFileSync，exit 阶段可安全写入
+  logger.info("process", `进程退出: code=${code}`);
 });
 
 (async () => {
@@ -132,7 +156,13 @@ process.on("uncaughtException", (err) => {
   });
   // 抓包专用官服转发模式：as/gs 流量转发官服（config/launcher 保持本地——客户端才能被引导连到本代理）
   if (capture) {
-    const { createOfficialForwarder } = await import("./app/proxy/official-forward");
+    const { createOfficialForwarder, warmUpOfficialConnections } = await import(
+      "./app/proxy/official-forward"
+    );
+    // 预热官服连接（共享 keep-alive 池）：客户端首个请求（登录 getToken 等）免付 TLS 冷启动延迟
+    const asHost = config.capture?.asHost ?? "https://as.hypergryph.com";
+    const gsHost = config.capture?.gsHost ?? "https://ak-gs-gf.hypergryph.com";
+    await warmUpOfficialConnections(asHost, gsHost).catch(() => undefined);
     // arkhub 网关特殊适配：enterHall 返回官服网关地址，客户端随后 WebSocket 连网关——本代理
     // 监听 gatewayPort（缺省 30000）透传官服网关并记录流量，enterHall 响应 endpoint 改写为本代理
     const { startArkhubGatewayProxy } = await import("./app/proxy/arkhub-gateway");
@@ -190,11 +220,21 @@ process.on("uncaughtException", (err) => {
   }
 
   app.use("/admin", (await import("./app/admin/admin-router")).default);
-  app.listen(config.PORT, () => {
+  const server = app.listen(config.PORT, () => {
     logger.info("index", `--------------DoctorateTs--------------`);
     logger.info("index", `running at http://localhost:${config.PORT}`);
     logger.info("index", `命令行已就绪：终端输入管理 CLI 命令（如 users list --json），exit 退出命令行`);
     // 服务器内嵌命令行 REPL（日志与命令行共存；非 TTY 自动跳过）
     import("./app/admin/server-repl").then((m) => m.startServerRepl());
+  });
+  // 端口被占用等监听失败：明确报错并退出（替代默认 uncaughtException 兜底的"无声挂起"）
+  server.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EADDRINUSE") {
+      logger.error("index", `端口 ${config.PORT} 被占用，无法启动——可能已有实例在运行。`);
+      logger.error("index", `排查：netstat -ano | findstr :${config.PORT}，结束占用进程或换端口启动。`);
+    } else {
+      logger.error("index", `监听失败: ${err.message}`);
+    }
+    process.exit(1);
   });
 })();

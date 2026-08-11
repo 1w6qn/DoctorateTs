@@ -9,6 +9,7 @@
 import * as readline from "readline";
 import { cliExec } from "./cli-exec";
 import { printHelp } from "../../scripts/admin-cli";
+import { logger } from "@utils/logger";
 
 /** 启动服务器内嵌命令行 REPL（非 TTY 直接返回） */
 export function startServerRepl(): void {
@@ -42,5 +43,9 @@ export function startServerRepl(): void {
     if (result.output) console.log(result.output);
     if (!result.ok) console.log("[cli] 命令失败: " + (result.error || ""));
     rl.prompt();
+  });
+  // stdin 关闭（终端断开/重定向结束）留痕——服务器继续运行
+  rl.on("close", () => {
+    logger.warn("server-repl", "stdin 已关闭（终端断开？），命令行不可用，服务器继续运行");
   });
 }

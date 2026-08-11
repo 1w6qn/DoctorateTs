@@ -23,6 +23,8 @@
  */
 import { RequestHandler } from "express";
 import axios, { AxiosError, RawAxiosRequestHeaders } from "axios";
+import http from "http";
+import https from "https";
 import { logger } from "@utils/logger";
 import config from "../config";
 import {
@@ -30,6 +32,54 @@ import {
   adaptArkhubEnterHallResponse,
   isArkhubEnterHall,
 } from "./arkhub-gateway";
+
+/**
+ * 官服连接复用 agent（模块级共享）：所有转发请求复用同一连接池——
+ * 避免每请求重新 TLS 握手（首请求冷启动实测 ~100-170ms，复用后 ~60ms 官服 RTT）。
+ * Node 24 全局 agent 默认已 keep-alive，这里显式建池保证跨版本行为一致且可调。
+ */
+export const officialHttpAgent = new http.Agent({ keepAlive: true, maxSockets: 64 });
+export const officialHttpsAgent = new https.Agent({
+  keepAlive: true,
+  maxSockets: 64,
+  keepAliveMsecs: 30000,
+});
+
+/**
+ * 预热官服连接（capture 启动时调用）
+ *
+ * 用共享 agent 向 as/gs 各发一个轻量请求，提前建立 TLS 连接——客户端首个请求
+ * （登录 getToken/oauth2 等）不再付 TLS 冷启动延迟（实测首个请求 171ms vs 之后 58-61ms）。
+ * 轻量端点：as 用 /general/v1/server_time（GET 快返回），gs 用 /account/login（空 body 400 快返回）。
+ *
+ * @param asHost - 官服 as 主机
+ * @param gsHost - 官服 gs 主机
+ */
+export async function warmUpOfficialConnections(
+  asHost: string,
+  gsHost: string,
+): Promise<void> {
+  await Promise.allSettled([
+    axios({
+      method: "GET",
+      url: `${asHost}/general/v1/server_time`,
+      httpAgent: officialHttpAgent,
+      httpsAgent: officialHttpsAgent,
+      validateStatus: () => true,
+      timeout: 5000,
+    }),
+    axios({
+      method: "POST",
+      url: `${gsHost}/account/login`,
+      data: {},
+      headers: { "content-type": "application/json" },
+      httpAgent: officialHttpAgent,
+      httpsAgent: officialHttpsAgent,
+      validateStatus: () => true,
+      timeout: 5000,
+    }),
+  ]);
+}
 
 /** 官服 as 主机（账号系统） */
 export const OFFICIAL_AS_HOST = "https://as.hypergryph.com";
@@ -207,6 +257,9 @@ export function createOfficialForwarder(opts: OfficialForwarderOptions = {}): Re
         url: `${target.baseUrl}/${endpoint}`,
         data: requestData,
         headers: forwardedHeaders,
+        // 复用共享连接池（避免每请求 TLS 握手）
+        httpAgent: officialHttpAgent,
+        httpsAgent: officialHttpsAgent,
         // Express ParsedQs 与 axios params 类型不兼容，cast 兼容
         params: req.query as any,
         // 官服返回 401/400 等状态属正常（未带有效 secret/参数），不抛异常，原样透传

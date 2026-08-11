@@ -43,7 +43,8 @@
     "generate:playerdata": "tsx scripts/generate-types.ts --playerdata",
     "generate:excel": "tsx scripts/generate-types.ts --excel",
     "migrate:official": "tsx scripts/migrate-official.ts",
-    "postinstall": "node scripts/patch-immer.mjs"
+    "postinstall": "node scripts/patch-immer.mjs",
+    "watch": "node scripts/watchdog.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.10.0",

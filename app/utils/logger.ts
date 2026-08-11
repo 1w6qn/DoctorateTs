@@ -18,6 +18,53 @@ const LEVELS: Record<LogLevel, number> = {
   error: 40,
 };
 
+import * as fs from "fs";
+import * as path from "path";
+
+/**
+ * 文件日志目录（LOG_DIR 环境变量可覆盖——测试注入临时目录用）。
+ * 运行时求值：日志落盘目录不缓存，测试可动态设置后再调用。
+ */
+function logDir(): string {
+  return process.env.LOG_DIR ?? "logs";
+}
+
+/** 当天日志文件名：server-YYYYMMDD.log（按天轮转） */
+function logFilePath(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return path.join(
+    logDir(),
+    `server-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}.log`,
+  );
+}
+
+/** 参数序列化：Error 优先 stack，对象 JSON 兜底 String()（与 console 显示保持一致） */
+function formatArg(arg: unknown): string {
+  if (arg instanceof Error) return arg.stack ?? arg.message;
+  if (typeof arg === "string") return arg;
+  try {
+    const s = JSON.stringify(arg);
+    return s === undefined ? String(arg) : s;
+  } catch {
+    return String(arg);
+  }
+}
+
+/**
+ * 同步追加一行纯文本到当天日志文件（去 ANSI 色码）。
+ * 失败静默——文件日志不能影响控制台输出与服务器运行（磁盘满/权限等只丢文件日志）。
+ * 用 appendFileSync 保证进程被杀死/崩溃前已写入的日志不丢失（异步流缓冲会丢尾部）。
+ */
+function appendFileLog(line: string): void {
+  try {
+    fs.mkdirSync(logDir(), { recursive: true });
+    fs.appendFileSync(logFilePath(), line + "\n", "utf-8");
+  } catch {
+    /* 文件日志失败不影响服务器运行 */
+  }
+}
+
 function resolveLevel(): number {
   const env = process.env.LOG_LEVEL?.toLowerCase();
   if (env && env in LEVELS) return LEVELS[env as LogLevel];
@@ -49,12 +96,17 @@ function timestamp(): string {
 function write(level: LogLevel, tag: string, args: unknown[]): void {
   // 运行时求值（非模块加载缓存）：支持 CLI --quiet 等启动后动态设置 LOG_LEVEL
   if (resolveLevel() > LEVELS[level]) return;
+  const ts = timestamp();
   const out: unknown[] = [
-    `${COLOR.gray}[${timestamp()}]${COLOR.reset}`,
+    `${COLOR.gray}[${ts}]${COLOR.reset}`,
     `${LEVEL_COLOR[level]}[${level.toUpperCase()}]${COLOR.reset}`,
     `${COLOR.cyan}[${tag}]${COLOR.reset}`,
     ...args,
   ];
+  // 同步落盘（纯文本、去色码）——控制台输出保持原样
+  appendFileLog(
+    `${ts} [${level.toUpperCase()}] [${tag}] ${args.map(formatArg).join(" ")}`,
+  );
   switch (level) {
     case "error":
       console.error(...out);

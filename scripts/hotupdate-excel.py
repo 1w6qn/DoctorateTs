@@ -123,3 +123,79 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+def convert_enums(dec_path, loc_path, out_path, table):
+    """枚举转换：解码 FBO(数值) → 本地格式(字符串)
+    策略：本地 JSON 数据引导（对已有条目精确）+ FBS/cs 枚举兜底（对新条目）"""
+    import importlib
+    dec = json.load(open(dec_path, encoding='utf-8'))
+    loc = json.load(open(loc_path, encoding='utf-8')) if os.path.exists(loc_path) else None
+
+    def norm_key(k):
+        k = k[0].lower()+k[1:] if k and k[0].isupper() else k
+        return k[:-1] if k.endswith('_') else k
+    def norm(d):
+        if isinstance(d, dict): return {norm_key(k): norm(v) for k, v in d.items() if not k.endswith('AsNumpy')}
+        if isinstance(d, list): return [norm(x) for x in d]
+        return d
+    def strip_idx(p): return re.sub(r'\[\d+\]', '', p)
+
+    # FBS 枚举
+    enum_maps = {}
+    for f in os.listdir(os.path.join(ROOT, 'reference/Ark-Unpacker-5.x/src/fbs/CN')):
+        if not f.endswith('.py') or f.startswith('__'): continue
+        try: m = importlib.import_module(f'src.fbs.CN.{f[:-3]}')
+        except: continue
+        for n in dir(m):
+            if n.startswith('enum__'):
+                cls = getattr(m, n)
+                vmap = {getattr(cls, a): a for a in dir(cls) if a.isupper() and isinstance(getattr(cls, a), int)}
+                if vmap: enum_maps[f'{f[:-3]}.{n}'] = vmap
+    # cs 枚举兜底
+    cs_enums = {}
+    cs_path = os.path.join(ROOT, 'reference/com.hypergryph.arknights_2.7.61.cs')
+    if os.path.exists(cs_path):
+        cs = open(cs_path, encoding='utf-8').read()
+        for m in re.finditer(r'public enum (Torappu\.[A-Za-z0-9_.]+)\s*:[^\{]*\{([^}]*)\}', cs):
+            vals = re.findall(r'\b([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(-?\d+)', m.group(2))
+            cs_enums.setdefault(m.group(1).split('.')[-1], {}).update({int(v): k for k, v in vals})
+    all_enums = list(enum_maps.values()) + list(cs_enums.values())
+
+    dec = norm(dec)
+    loc = norm(loc) if loc else None
+    # 容器解包
+    def unwrap(d, l=None):
+        if isinstance(d, dict) and len(d) == 1 and l and isinstance(l, dict) and len(l) != 1:
+            return next(iter(d.values())), l
+        if isinstance(d, dict) and len(d) == 1 and not l:
+            return next(iter(d.values())), None
+        return d, l
+    dec, loc = unwrap(dec, loc)
+
+    # 1. 关联（本地数据引导）
+    value_map = {}  # norm_path -> {value: name}
+    if loc:
+        def walk_pairs(d, l, path):
+            if isinstance(d, dict) and isinstance(l, dict):
+                for k in d.keys() & l.keys(): walk_pairs(d[k], l[k], f'{path}.{k}')
+            elif isinstance(d, list) and isinstance(l, list):
+                for i in range(min(len(d), len(l))): walk_pairs(d[i], l[i], f'{path}[{i}]')
+            elif isinstance(d, int) and isinstance(l, str) and not isinstance(d, bool):
+                value_map.setdefault(strip_idx(path), {})[d] = l
+        for k in list(loc.keys())[:2000]:
+            walk_pairs(dec.get(k, {}), loc[k], table)
+
+    # 2. 转换（逐条目标对象转换，路径基准为 table 名）
+    def convert(d, path=''):
+        if isinstance(d, dict): return {k: convert(v, f'{path}.{k}') for k, v in d.items()}
+        if isinstance(d, list): return [convert(x, f'{path}[{i}]') for i, x in enumerate(d)]
+        if isinstance(d, int) and not isinstance(d, bool):
+            ep = strip_idx(path)
+            vm = value_map.get(ep, {})
+            if d in vm: return vm[d]  # 本地引导（精确）
+            for e in all_enums:  # 枚举兜底
+                if e.get(d) is not None: return e[d]
+        return d
+    if isinstance(dec, dict):
+        return {k: convert(v, table) for k, v in dec.items()}
+    return convert(dec, table)

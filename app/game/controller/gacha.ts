@@ -305,10 +305,10 @@ export class GachaController {
       SPECIAL: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
       LIMITED: async () => {
         // 修复：extraItem 补 type=LMTGS_COIN（消费型入账 consumable）+ id 读
-        // lMTGSID（JSON 实际键，CS 反编译为 LMTGSID 大小写不同——旧实现读不到
-        // → 空 id 警告跳过，限定凭证从未入账）；缺配置回退通用 "LMTGS_COIN"
+        // lMTGSID（JSON 实际键，生成器按 JSON 键对照修正；缺配置回退通用
+        // "LMTGS_COIN"——旧实现读 CS 名 LMTGSID 恒 undefined → 空 id 警告跳过）
         extras.extraItem = {
-          id: (poolConfig as any)?.lMTGSID || "LMTGS_COIN",
+          id: poolConfig?.lMTGSID || "LMTGS_COIN",
           count: 1,
           type: "LMTGS_COIN",
         };

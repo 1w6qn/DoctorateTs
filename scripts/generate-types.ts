@@ -8,6 +8,7 @@ import {
   EXCEL_INDEX_SIGNATURES,
   EXCEL_ENUM_ADDITIONS,
 } from "./excel-server-adapt";
+import { reconcileExcelJsonKeys } from "./excel-json-keys";
 
 /**
  * 统一类型生成器
@@ -38,13 +39,15 @@ function buildPlayerdataTypes(content: string): string {
 function buildExcelTypes(content: string): string {
   const result = buildTypes(content, {
     roots: allTableRoots(),
-    adapt: applyExcelAdapt,
+    // excel 协议适配 + JSON 实际键对照（CS 字段名与 JSON 键大小写不一致时以 JSON 为准）
+    adapt: (classes, enumNames) =>
+      reconcileExcelJsonKeys(applyExcelAdapt(classes, enumNames)),
     enumAdditions: EXCEL_ENUM_ADDITIONS,
     indexSignatures: EXCEL_INDEX_SIGNATURES,
     headerLines: [
       "自动生成的 excel 表类型定义文件",
       "从 reference/com.hypergryph.arknights_2.7.61.cs 反编译文件生成",
-      "（客户端表类闭包 + excel 协议适配，见 scripts/excel-server-adapt.ts）",
+      "（客户端表类闭包 + excel 协议适配 + JSON 实际键对照，见 scripts/excel-server-adapt.ts / excel-json-keys.ts）",
       "生成命令: npm run generate:types",
     ],
   });

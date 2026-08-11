@@ -1,7 +1,7 @@
 /**
  * 自动生成的 excel 表类型定义文件
  * 从 reference/com.hypergryph.arknights_2.7.61.cs 反编译文件生成
- * （客户端表类闭包 + excel 协议适配，见 scripts/excel-server-adapt.ts）
+ * （客户端表类闭包 + excel 协议适配 + JSON 实际键对照，见 scripts/excel-server-adapt.ts / excel-json-keys.ts）
  * 生成命令: npm run generate:types
  * 请勿手动修改此文件
  */
@@ -727,10 +727,10 @@ export interface ExtraBattleLogDataKey {
 
 export interface ExtraBattleLogData {
     data: ExtraBattleLogDataKey[];
-    SELECTOR: object;
-    DEATHDETAIL: object;
-    PROJECTILEBORN: object;
-    OUTPUT_DAMAGE_TOTAL: object;
+    sELECTOR: object;
+    dEATHDETAIL: object;
+    pROJECTILEBORN: object;
+    oUTPUT_DAMAGE_TOTAL: object;
 }
 
 export interface GridPosition {
@@ -5826,7 +5826,7 @@ export type ActivityTable_ActivityDetailTable = { [key: string]: object };
 
 export interface ActivityTable_ActivityExtraData {
     typeMainlineBpData: { [key: string]: ActMainlineBpExtraData };
-    MAINLINE_BP: object;
+    mAINLINE_BP: object;
 }
 
 export interface ActivityTable_ActivityHiddenAreaData {
@@ -8730,9 +8730,9 @@ export interface GachaPoolClientData {
     guaranteeName: string;
     guarantee5Avail: number;
     guarantee5Count: number;
-    LMTGSID: string;
-    CDPrimColor: string;
-    CDSecColor: string;
+    lMTGSID: string;
+    cDPrimColor: string;
+    cDSecColor: string;
     freeBackColor: string;
     gachaRuleType: GachaRuleType;
     dynMeta: object;
@@ -8853,8 +8853,8 @@ export interface GachaData {
 }
 
 export interface GameDataConsts_CharAssistRefreshTimeState {
-    Hour: number;
-    Minute: number;
+    hour: number;
+    minute: number;
 }
 
 export interface GameDataConsts_FeverGameData {
@@ -8892,7 +8892,7 @@ export interface GameDataConsts {
     hpMax: number;
     reMax: number;
     diamondToShdRate: number;
-    requestSameFriendCD: number;
+    requestSameFriendCd: number;
     baseMaxFriendNum: number;
     maxStarFriendNum: number;
     maxSquadAssistDisplayNum: number;
@@ -8916,11 +8916,11 @@ export interface GameDataConsts {
     oneDiamondAp: number;
     charRotationPresetMaxCnt: number;
     charRotationSkinListMaxCnt: number;
-    defaultCRPresetCharId: string;
-    defaultCRPresetCharSkinId: string;
-    defaultCRPresetBGId: string;
-    defaultCRPresetThemeId: string;
-    defaultCRPresetName: string;
+    defaultCrpresetCharId: string;
+    defaultCrpresetCharSkinId: string;
+    defaultCrpresetBgid: string;
+    defaultCrpresetThemeId: string;
+    defaultCrpresetName: string;
     charRotationPresetTrackTs: number;
     uniequipArchiveSysTrackTs: number;
     manufactPromptTime: number;
@@ -8936,7 +8936,7 @@ export interface GameDataConsts {
     v006RecruitTimeStep2Check: number;
     v006RecruitTimeStep2Flush: number;
     buyApTimeNoLimitFlag: boolean;
-    isLMGTSEnabled: boolean;
+    isLmgtsenabled: boolean;
     legacyTime: number;
     legacyItemList: ItemBundle[];
     useAssistSocialPt: number;
@@ -8948,20 +8948,20 @@ export interface GameDataConsts {
     pullForces: number[];
     pullForceZeroIndex: number;
     multiInComeByRank: string[];
-    LMTGSToEPGSRatio: number;
-    newBeeGiftEPGS: number;
-    lMTGSDescConstOne: string;
-    lMTGSDescConstTwo: string;
-    defCDPrimColor: string;
-    defCDSecColor: string;
+    lmtgstoEpgsratio: number;
+    newBeeGiftEpgs: number;
+    lMtgsdescConstOne: string;
+    lMtgsdescConstTwo: string;
+    defCdprimColor: string;
+    defCdsecColor: string;
     mailBannerType: string[];
     monthlySubWarningTime: number;
-    UnlimitSkinOutOfTime: number;
+    unlimitSkinOutOfTime: number;
     replicateShopStartTime: number;
     operatorRecordsStartTime: number;
     isDynIllustEnabled: boolean;
     isDynIllustStartEnabled: boolean;
-    isClassicQCShopEnabled: boolean;
+    isClassicQcshopEnabled: boolean;
     isRoguelikeTopicFuncEnabled: boolean;
     isSandboxPermFuncEnabled: boolean;
     isRoguelikeAvgAchieveFuncEnabled: boolean;
@@ -8995,7 +8995,7 @@ export interface GameDataConsts {
     isBirthdayFuncEnabled: boolean;
     isSoCharEnabled: boolean;
     avgReaderModeDefaultSetting: GameDataConsts_AVGReaderModeDefaultSetting;
-    TSO: number;
+    tso: number;
 }
 
 export interface HandbookUnlockParam {
@@ -9006,7 +9006,7 @@ export interface HandbookUnlockParam {
 }
 
 export interface HandbookStoryStageData {
-    charId: string;
+    charID: string;
     stageId: string;
     levelId: string;
     zoneId: string;
@@ -9037,7 +9037,7 @@ export interface HandbookAvgGroupData {
     rewardItem: ItemBundle[];
     unlockParam: HandbookUnlockParam[];
     avgList: HandbookAvgData[];
-    charId: string;
+    charID: string;
 }
 
 export interface HandBookStoryViewData_StoryText {
@@ -9079,7 +9079,7 @@ export interface HandbookStageTimeData {
 }
 
 export interface HandbookDisplayCondition {
-    charId: string;
+    charID: string;
     conditionCharId: string;
     type: HandbookDisplayCondition_DisplayType;
 }
@@ -10996,7 +10996,7 @@ export interface RoguelikeTopicMilestoneUpdateData {
 }
 
 export interface RoguelikeTopicCapsule {
-    itemId: string;
+    itemID: string;
     maskType: RoguelikeEventType;
     innerColor: string;
 }
@@ -11437,7 +11437,7 @@ export interface RoguelikeChoiceDisplayData {
     costHintType: RoguelikeChoiceHintType;
     effectHintType: RoguelikeChoiceHintType;
     funcIconId: string;
-    itemId: string;
+    itemID: string;
     difficultyUpgradeRelicGroupId: string;
     taskId: string;
     instId: string;
@@ -11561,7 +11561,7 @@ export interface RoguelikeTaskData {
 }
 
 export interface RoguelikeGameTrapData {
-    itemId: string;
+    itemID: string;
     trapId: string;
     trapDesc: string;
 }
@@ -13777,8 +13777,8 @@ export interface SandboxPermBasicData {
 export interface SandboxPermDetailData {
     sandboxV2TemplateData: { [key: string]: SandboxV2Data };
     sandboxV3TemplateData: { [key: string]: SandboxV3Data };
-    SANDBOX_V2: object;
-    SANDBOX_V3: object;
+    sANDBOX_V2: object;
+    sANDBOX_V3: object;
 }
 
 export interface SandboxPermTable {
@@ -13805,9 +13805,9 @@ export interface ShopClientData {
     chooseShopRelations: ChooseShopRelation[];
     chooseOptionToGoodDict: { [key: string]: string };
     shopUnlockDict: { [key: string]: ShopUnlockType };
-    extraQCShopRule: string[];
-    repQCShopRule: string[];
-    shopGPDataDict: { [key: string]: ShopClientGPData };
+    extraQcshopRule: string[];
+    repQcshopRule: string[];
+    shopGpdataDict: { [key: string]: ShopClientGPData };
     tabDisplayData: { [key: string]: ShopGPTabDisplayData };
     shopMonthlySubGoodId: string;
     limitedShopSchedule: LMTGSShopSchedule[];
@@ -15065,7 +15065,7 @@ export interface WeeklyZoneData {
 }
 
 export interface MainlineZoneData {
-    zoneId: string;
+    zoneID: string;
     chapterId: string;
     preposedZoneId: string;
     zoneIndex: number;
@@ -15098,14 +15098,14 @@ export interface ZoneTable {
 }
 
 export interface ZoneRecordGroupData {
-    zoneId: string;
+    zoneID: string;
     records: ZoneRecordData[];
     unlockData: ZoneRecordUnlockData;
 }
 
 export interface ZoneRecordData {
     recordId: string;
-    zoneId: string;
+    zoneID: string;
     recordTitleName: string;
     preRecordId: string;
     nodeTitle1: string;
@@ -15130,7 +15130,7 @@ export interface RecordRewardServerData {
 
 export interface ZoneRecordUnlockData {
     noteId: string;
-    zoneId: string;
+    zoneID: string;
     initialName: string;
     finalName: string;
     accordingExposeId: string;
@@ -15140,7 +15140,7 @@ export interface ZoneRecordUnlockData {
 }
 
 export interface ZoneMetaData {
-    ZoneRecordMissionData: { [key: string]: ZoneRecordMissionData };
+    zoneRecordMissionData: { [key: string]: ZoneRecordMissionData };
 }
 
 export interface ZoneRecordMissionData {

@@ -151,7 +151,7 @@ export async function setup(app: express.Application) {
   app.use("/", (await import("./router/vecbreak")).default);
   // 资源版本审计（客户端 /audit/official/*，stub）
   app.use("/audit", (await import("./router/audit")).default);
-  // 终末地 ODC（客户端 /arkodc/*，根路径）
+  // 奇象巡展 ODC（客户端 /arkodc/*，根路径）
   app.use("/arkodc", (await import("./router/arkodc")).default);
   // 全量对齐杂项（telemetry/odpy-only/api 端点等 stub），见 router/misc-alignment
   app.use("/", (await import("./router/misc-alignment")).default);

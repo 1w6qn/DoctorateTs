@@ -42,6 +42,9 @@
   button.danger { color: #fff; background: var(--err); border-color: var(--err); }
   input.invalid, textarea.invalid { border-color: var(--err) !important; }
   input.invalid:focus, textarea.invalid:focus { outline: 1px solid var(--err); }
+  /* 干员行内编辑未保存标记 */
+  tr.dirty { background: rgba(217, 164, 65, 0.06) !important; }
+  tr.dirty td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
   button:disabled { opacity: .5; cursor: not-allowed; }
   .btn-sm { padding: 2px 8px; font-size: 12px; }
   .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.6);
@@ -194,6 +197,7 @@
   <span class="status-pill">端口 <span id="pill-port">-</span></span>
   <span class="status-pill">用户 <span id="pill-users">-</span></span>
   <span style="margin-left:auto;font-size:12px;color:var(--muted);" id="pill-uptime"></span>
+  <span id="req-ind" class="status-pill" style="display:none;">⟳ <span id="req-count">0</span></span>
   <button id="theme-btn" class="btn-sm">浅色</button>
   <button id="logout-btn">退出</button>
 </header>
@@ -463,11 +467,21 @@
   var userFilter = "";
   var currentTab = "overview";
 
+  var pendingReqs = 0;
+  /** 全局请求指示器：有请求进行中时显示（CLI/接口/官服操作耗时场景的可见反馈） */
+  function setReqInd() {
+    var el = $("req-ind");
+    if (!el) return;
+    el.style.display = pendingReqs > 0 ? "inline-flex" : "none";
+    $("req-count").textContent = pendingReqs;
+  }
   function api(path, options) {
     options = options || {};
     var headers = { "X-Admin-Token": token };
     if (options.headers) Object.assign(headers, options.headers);
     if (options.body) headers["Content-Type"] = "application/json";
+    pendingReqs++;
+    setReqInd();
     return fetch(API + path, Object.assign({}, options, { headers: headers }))
       .then(function (res) {
         if (res.status === 401 || res.status === 403) {
@@ -477,6 +491,10 @@
           if (!res.ok) throw new Error(data.error || "请求失败(" + res.status + ")");
           return data;
         });
+      })
+      .finally(function () {
+        pendingReqs = Math.max(0, pendingReqs - 1);
+        setReqInd();
       });
   }
 
@@ -890,8 +908,8 @@
             "<td>" + c.instId + "</td>" +
             '<td><a class="cinfo-link" data-i="' + c.instId + '" style="color:var(--gold);cursor:pointer;text-decoration:underline;">' + escapeHtml(c.name) + "</a></td>" +
             "<td><span style=\"color:" + starColor(c.rarity) + "\">" + (c.rarity + 1) + "★</span></td>" +
-            "<td><input class=\"mini-input\" data-f=\"level\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.level + "\" min=\"1\" max=\"" + c.maxLevel + "\"></td>" +
-            "<td><input class=\"mini-input\" data-f=\"evolvePhase\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.evolvePhase + "\" min=\"0\" max=\"2\"></td>" +
+            "<td><input class=\"mini-input\" data-f=\"level\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.level + "\" min=\"1\" max=\"" + c.maxLevel + "\" data-orig=\"" + c.level + "\"></td>" +
+            "<td><input class=\"mini-input\" data-f=\"evolvePhase\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.evolvePhase + "\" min=\"0\" max=\"2\" data-orig=\"" + c.evolvePhase + "\"></td>" +
             "<td><input class=\"mini-input\" data-f=\"potentialRank\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.potentialRank + "\" min=\"0\" max=\"5\"></td>" +
             "<td><input class=\"mini-input\" data-f=\"mainSkillLvl\" data-i=\"" + c.instId + "\" type=\"number\" value=\"" + c.mainSkillLvl + "\" min=\"1\" max=\"7\"></td>" +
             "<td><button class=\"btn-sm char-apply\" data-i=\"" + c.instId + "\">应用</button></td></tr>";
@@ -944,6 +962,17 @@
               .catch(function (e) { toast("操作失败：" + e.message); });
           });
         }
+        // 行内编辑脏标记：值改过未应用 → 行高亮「未保存」
+        document.querySelectorAll("#pane-chars .mini-input").forEach(function (inp) {
+          inp.addEventListener("input", function () {
+            var row = inp.closest("tr");
+            var dirty = false;
+            row.querySelectorAll(".mini-input").forEach(function (i2) {
+              if (String(i2.value) !== String(i2.getAttribute("data-orig"))) dirty = true;
+            });
+            row.classList.toggle("dirty", dirty);
+          });
+        });
         document.querySelectorAll(".char-apply").forEach(function (btn) {
           btn.addEventListener("click", function () {
             var instId = Number(btn.getAttribute("data-i"));
@@ -1117,7 +1146,7 @@
             return res.json().then(function (d) {
               showResp("cli-resp", (d.output || "") + (d.error ? "\\n[错误] " + d.error : ""));
             });
-          }).catch(function () { showResp("cli-resp", "执行失败"); });
+          }).catch(function () { showResp("cli-resp", "执行失败", runCli); });
         });
     }
     $("cli-run").addEventListener("click", runCli);
@@ -1248,7 +1277,7 @@
           showResp("req-resp", "HTTP " + res.status + "\n" + pretty);
         });
       })
-      .catch(function (e) { showResp("req-resp", "请求失败: " + e.message); });
+      .catch(function (e) { showResp("req-resp", "请求失败: " + e.message, sendAdminReq); });
   }
 
   /* --- 游戏协议调试器 --- */
@@ -1295,7 +1324,7 @@
       .then(function (r) {
         showResp("g-resp", "HTTP " + r.status + "\n" + JSON.stringify(r.data, null, 2));
       })
-      .catch(function (e) { showResp("g-resp", "代理失败: " + e.message); });
+      .catch(function (e) { showResp("g-resp", "代理失败: " + e.message, sendGameReq); });
   }
 
   /* ---------- 弹窗 ---------- */
@@ -2359,10 +2388,24 @@
     });
   }
 
-  /** 响应区统一展示（设置内容 + 挂复制按钮） */
-  function showResp(containerId, text) {
+  /** 响应区统一展示（设置内容 + 复制按钮 + 可选重试） */
+  function showResp(containerId, text, retryFn) {
     $(containerId).textContent = text;
     attachCopy(containerId);
+    var wrap = $(containerId).parentNode;
+    var oldRetry = wrap.querySelector(".retry-btn");
+    if (oldRetry) oldRetry.remove();
+    if (retryFn) {
+      var btn = document.createElement("button");
+      btn.className = "btn-sm retry-btn";
+      btn.textContent = "重试";
+      btn.style.cssText = "position:absolute;top:6px;left:6px;z-index:5;";
+      wrap.insertBefore(btn, $(containerId));
+      btn.addEventListener("click", function () {
+        btn.remove();
+        retryFn();
+      });
+    }
   }
 
   /* ---------- 主题切换 / 骨架屏 / 状态色 ---------- */

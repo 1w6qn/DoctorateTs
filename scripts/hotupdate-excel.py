@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
 """
 从官服热更清单下载并解码全部 excel 数据表（明日方舟）
-链路：ark_assets.py 的下载 URL 转换 + Ark-Unpacker-5.x 的 lz4ak/FBO 解码
+链路：ark_assets.py 的下载 URL 转换 + scripts/vendor 的 lz4ak/FBO/FBS 解码（已集成，无外部仓库依赖）
 用法: python scripts/hotupdate-excel.py [--download] [--decode] [--table name]
 """
 import sys, os, re, io, json, zipfile, subprocess, importlib, argparse
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, "reference/Ark-Unpacker-5.x"))
+sys.path.insert(0, os.path.join(ROOT, "scripts/vendor"))
 
-from src.lz4ak.Block import decompress_lz4ak
+from lz4ak.Block import decompress_lz4ak
 from UnityPy.enums.BundleFile import CompressionFlags
 from UnityPy.helpers import CompressionHelper
 CompressionHelper.DECOMPRESSION_MAP[CompressionFlags.LZHAM] = decompress_lz4ak
 CompressionHelper.DECOMPRESSION_MAP[CompressionFlags.LZMA] = decompress_lz4ak
 import UnityPy
-from src.DecodeTextAsset import FBOHandler
+from fbo import FBOHandler
 
 HU = "https://ak.hycdn.cn/assetbundle/official"
 HUL_FILE = os.path.join(ROOT, "reference/hotupdate/hot_update_list_26-08-07-10-51-39.json")
@@ -80,7 +80,7 @@ def decode(dat):
             script = t.m_Script.encode('utf-8', 'surrogateescape')
             fbo = script[128:]
             base = re.sub(r'[0-9a-f]{6}$', '', t.m_Name)
-            schema = importlib.import_module(f'src.fbs.CN.{base}')
+            schema = importlib.import_module(f'fbs.CN.{base}')
             _patch_schema_init_collision(schema)
             root = getattr(schema, 'ROOT_TYPE', None)
             if root is None:
@@ -164,9 +164,9 @@ def convert_enums(dec_path, loc_path, out_path, table):
 
     # FBS 枚举
     enum_maps = {}
-    for f in os.listdir(os.path.join(ROOT, 'reference/Ark-Unpacker-5.x/src/fbs/CN')):
+    for f in os.listdir(os.path.join(ROOT, 'scripts/vendor/fbs/CN')):
         if not f.endswith('.py') or f.startswith('__'): continue
-        try: m = importlib.import_module(f'src.fbs.CN.{f[:-3]}')
+        try: m = importlib.import_module(f'fbs.CN.{f[:-3]}')
         except: continue
         for n in dir(m):
             if n.startswith('enum__'):

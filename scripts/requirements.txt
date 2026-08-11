@@ -1,0 +1,8 @@
+# scripts/hotupdate-excel.py 运行依赖（Python 3.10+）
+UnityPy>=1.19
+flatbuffers>=23.5
+numpy>=1.24
+pycryptodome>=3.19   # 仅 convert_enums 的 AES 兜底/历史格式
+lz4>=4.3
+pymongo>=4.6         # 提供 bson（bson 包在 Python 3.14 上无法构建）
+requests>=2.31

@@ -45,7 +45,11 @@ function parseModule(src: string): { tables: Map<string, FieldInfo[]>; enums: Ma
       const name = am[1];
       const slot = parseInt(am[2]);
       const code = am[3];
-      if (name.endsWith("Length") || name.endsWith("IsNone") || name === "Init") continue;
+      // 注意：不跳过 "Init"——flatbuffers 构造方法签名 (self, buf, pos) 不匹配
+      // accRe 的 (self, j)，而字段访问器 def Init(self, j) 是真实 init 字段
+      // （roguelike_topic_table.details.*.init——CS 类 RoguelikeTopicDetail.init）。
+      // 此前跳过导致 init 数据缺失（客户端开局分队/初始数值全丢）。
+      if (name.endsWith("Length") || name.endsWith("IsNone")) continue;
       if (code.includes("self._tab.Vector(o)")) {
         // 向量：先判断元素类型
         const objM = code.match(/obj\s*=\s*(\w+)\(\)/);

@@ -77,7 +77,7 @@ export class RoguelikePlayerStatusManager
     const theme = game.theme;
     const init = excel.RoguelikeTopicTable.details[theme].init.find(
       (i) =>
-        i.modeGrade == game.modeGrade &&
+        (i.modeGrade ?? 0) == (game.modeGrade ?? 0) &&
         i.predefinedId == game.predefined &&
         i.modeId == game.mode,
     )!;
@@ -85,14 +85,15 @@ export class RoguelikePlayerStatusManager
     // 新对局重置游标/轨迹（上一局 finishEvent 推进过 zone；不重置会导致下一局 init 阶段判定失效）
     this.cursor = { zone: 0, position: null };
     this.trace = [];
-    this.property.hp.current = init.initialHp;
-    this.property.hp.max = init.initialHp;
-    this.property.gold = init.initialGold;
-    this.property.capacity = init.initialSquadCapacity;
-    this.property.population.max = init.initialPopulation;
+    // FBO 对默认值 0 的 int 字段编码为缺省 → undefined，按 0 处理
+    this.property.hp.current = init.initialHp ?? 0;
+    this.property.hp.max = init.initialHp ?? 0;
+    this.property.gold = init.initialGold ?? 0;
+    this.property.capacity = init.initialSquadCapacity ?? 0;
+    this.property.population.max = init.initialPopulation ?? 0;
     this.property.population.cost = 0;
     this.property.conPerfectBattle = 0;
-    this.property.shield = init.initialShield;
+    this.property.shield = init.initialShield ?? 0;
     this.property.maxLevel = 10;
     this.toEnding = `ro${game.theme.slice(-1)}_ending_1`;
   }

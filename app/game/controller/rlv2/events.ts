@@ -121,7 +121,7 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
     return {
       initRelic: {
         step: args.step,
-        items: initConfig.initialBandRelic.reduce((acc, cur, idx) => {
+        items: (initConfig.initialBandRelic || []).reduce((acc, cur, idx) => {
           return { ...acc, [idx.toString()]: { id: cur, count: 1 } };
         }, {}),
       },
@@ -165,7 +165,7 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
     return {
       initRecruitSet: {
         step: args.step,
-        option: initConfig.initialRecruitGroup!,
+        option: initConfig.initialRecruitGroup || [],
       },
     };
   }

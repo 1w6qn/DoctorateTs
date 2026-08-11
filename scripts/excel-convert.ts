@@ -9,6 +9,37 @@ const ROOT = path.join(__dirname, "..");
 const CS_PATH = path.join(ROOT, "reference/com.hypergryph.arknights_2.7.61.cs");
 const FBS_SCHEMA_DIR = path.join(ROOT, "scripts/vendor/fbs-schemas");
 
+/**
+ * 路径级枚举覆盖：唯一值兜底对多义值（同一数值在多个枚举中重复）弃转，
+ * 但这些字段由 CS 类明确类型化（如 roguelike_topic_table.details.*.init.modeId——
+ * RoguelikeTopicMode：0 NONE / 1 EASY / 2 NORMAL / 3 HARD / 4 NORML_END / 5 MONTH_TEAM / 6 CHALLENGE）。
+ * 路径为 stripIdx 后的 casefold 键（details.rogue_1.init.modeid），* 匹配任意主题。
+ */
+const PATH_ENUM_OVERRIDES: { pattern: string[]; map: Record<number, string> }[] = [
+  {
+    // 顶层多键表（Details/Modules...）的路径不含 "details" 段：...rogue_1.init.modeid
+    pattern: ["*", "init", "modeid"],
+    map: { 0: "NONE", 1: "EASY", 2: "NORMAL", 3: "HARD", 4: "NORML_END", 5: "MONTH_TEAM", 6: "CHALLENGE" },
+  },
+];
+
+function pathEnumOverride(pathStr: string): Record<number, string> | undefined {
+  const p = pathStr.split(".").slice(1); // 去掉表名
+  for (const { pattern, map } of PATH_ENUM_OVERRIDES) {
+    if (pattern.length !== p.length) continue;
+    let ok = true;
+    for (let i = 0; i < pattern.length; i++) {
+      if (pattern[i] === "*") continue;
+      if (pattern[i] !== p[i]) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return map;
+  }
+  return undefined;
+}
+
 const PY_KEYWORDS = new Set([
   "and", "as", "assert", "async", "await", "break", "class", "continue", "def", "del",
   "elif", "else", "except", "finally", "for", "from", "global", "if", "import", "in",
@@ -17,6 +48,9 @@ const PY_KEYWORDS = new Set([
 ]);
 
 function normKey(k: string): string {
+  // 全大写+下划线键（枚举值，如 REST/BATTLE_SHOP/ALCHEMY）保持原样——camelCase 会
+  // 破坏枚举键（REST→rEST），导致 tempMap["REST"] 等键查找失败
+  if (k && k === k.toUpperCase() && /[A-Z_]/.test(k)) return k;
   let out = k && k[0].toUpperCase() !== k[0] ? k : k.length ? k[0].toLowerCase() + k.slice(1) : k;
   if (out.endsWith("_") && PY_KEYWORDS.has(out.slice(0, -1))) out = out.slice(0, -1);
   return out;
@@ -164,7 +198,10 @@ export function convertTable(
     if (d && typeof d === "object" && !Array.isArray(d)) {
       const out: any = {};
       for (const [k, v] of Object.entries(d)) {
-        const nk = renameMap.get(k.toLowerCase()) ?? k;
+        // 全大写+下划线键（枚举值，REST/BATTLE_SHOP 等）跳过 renameMap——本地脏种子
+        // （此前 camelCase 损坏的 rEST）会污染 renameMap 导致枚举键二次破坏
+        const isEnumKey = k && k === k.toUpperCase() && /[A-Z_]/.test(k);
+        const nk = isEnumKey ? k : (renameMap.get(k.toLowerCase()) ?? k);
         out[nk] = convert(v, `${p}.${k.toLowerCase()}`);
       }
       return out;
@@ -179,6 +216,10 @@ export function convertTable(
     if (typeof d === "number" && Number.isInteger(d)) {
       const vm = valueMap.get(stripIdx(p));
       if (vm && vm.has(d)) return vm.get(d)!;
+      // 路径级枚举覆盖：唯一值兜底对多义值（同一数值在多个枚举中重复）弃转，
+      // 但这些字段由 CS 类明确类型化（如 roguelike_topic_table.details.*.init.modeId）
+      const pe = pathEnumOverride(stripIdx(p));
+      if (pe && d in pe) return pe[d];
       const u = uniqueName.get(d);
       if (u !== undefined && u !== null) return u;
     }

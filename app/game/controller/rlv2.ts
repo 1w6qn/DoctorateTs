@@ -120,7 +120,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     const game = this.current.game!;
     return excel.RoguelikeTopicTable.details[game.theme].init.find(
       (i) =>
-        i.modeGrade == game.modeGrade &&
+        // FBO 对默认值 0 的 int 字段（modeGrade 等）编码为缺省 → undefined，按 0 处理
+        (i.modeGrade ?? 0) == (game.modeGrade ?? 0) &&
         i.predefinedId == game.predefined &&
         i.modeId == game.mode,
     )!;

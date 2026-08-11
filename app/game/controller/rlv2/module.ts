@@ -41,6 +41,8 @@ export class RoguelikeModuleManager {
 
   async create() {
     const theme = this._player.current.game!.theme;
+    // 新对局先清空旧主题残留管理器（giveUpGame 已不触发 rlv2:init 清空）
+    this._modules = {};
     const moduleHandler: { [key: string]: () => any } = {
       FRAGMENT: () => new RoguelikeFragmentManager(this._player, this._trigger),
       DISASTER: () => new RoguelikeDisasterManager(this._player, this._trigger),

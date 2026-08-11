@@ -1442,6 +1442,19 @@ describe("训练室专精结算 / 批量换班（修复）", () => {
     expect(trainee).toBeNull(); // 结算完成清空
   });
 
+  it("completeUpgradeSpecialization 越界 targetSkill 应保留 trainee（不丢训练进度/不破坏存档）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    // targetSkill=5 但干员 skills 只有 3 个 → 无法结算 → trainee 保留
+    (mockPlayer._playerdata.building as any).rooms.TRAINING.slot_13.trainee = {
+      charInstId: 377, state: 2, targetSkill: 5, processPoint: 100, speed: 1,
+    };
+    await manager.completeUpgradeSpecialization({} as any);
+    const trainee = (mockPlayer._playerdata.building as any).rooms.TRAINING.slot_13.trainee;
+    expect(trainee).not.toBeNull(); // 训练进度保留
+    const char = (mockPlayer._playerdata.troop as any).chars["377"];
+    expect(char.skills[5]).toBeUndefined();
+  });
+
   it("batchChangeWorkChar 空请求体不 500（CS 无字段 body={}）", async () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     // 不抛错即修复（空 body 不再 500）

@@ -371,13 +371,16 @@ export class BuildingManager {
       }
       if (charInstId == null || targetSkill == null) return;
       const char = draft.troop.chars[String(charInstId)];
+      let settled = false;
       if (char && char.skills && char.skills[targetSkill]) {
         char.skills[targetSkill].specializeLevel += 1;
         char.skills[targetSkill].state = 0;
         char.skills[targetSkill].completeUpgradeTime = -1;
+        settled = true;
       }
-      // 结算完成：清空训练室 trainee（生成类型未标可选，线格式可为 null → as any）
-      if (room?.trainee?.charInstId === charInstId) {
+      // 仅结算成功时清空 trainee——targetSkill 越界/干员 skills 为空时保留训练进度，
+      // 避免"专精未发放但训练被清空"的存档破坏（训练成果丢失）
+      if (settled && room?.trainee?.charInstId === charInstId) {
         (room as any).trainee = null;
       }
     });

@@ -1302,9 +1302,17 @@ export class BuildingManager {
    * VisitorInfo = { uid, nickName, nickNumber, level, avatar, ts, alias, secretary, secretarySkinId }。
    * 私服：访客 = 好友列表（无真实访问记录，ts 用最近在线时间）。
    *
+   * 修复：官方响应 delta 必含会客室干员体力累积（building.chars[].ap/lastApAddTime，
+   * 见抓包 building_getInfoShareReward_res_1074）——客户端会客室会话按该增量推进
+   * 情报分享状态；原实现不推进 → delta 为空 → 客户端死循环重拉。
+   *
    * @returns 访客列表
    */
   async getInfoShareReward() {
+    // 会客室干员体力（AP）随时间累积（changeScale>0 恢复；上限 8640000）
+    await this._player.update(async (draft) => {
+      this._accrueCharAp(draft);
+    });
     const uid = String(this._player._playerdata.status.uid);
     const social = await accountManager.getSocial(uid);
     const list = await Promise.all(
@@ -1324,6 +1332,25 @@ export class BuildingManager {
       }),
     );
     return { list };
+  }
+
+  /**
+   * 会客室干员体力（AP）随时间累积
+   * 官方模型：building.chars[].ap += 流逝时间 × changeScale（会客室干员 changeScale>0
+   * 恢复体力；工作干员 changeScale<0 消耗）；clamp 到 [0, 8640000]，更新 lastApAddTime。
+   * 官方每次基建请求都会推进并下发该增量——见抓包 startInfoShare/getInfoShareReward 响应。
+   * @param draft - Immer 可写草稿
+   */
+  private _accrueCharAp(draft: WritableDraft<PlayerDataModel>): void {
+    const ts = now();
+    for (const ch of Object.values(draft.building.chars ?? {})) {
+      const scale = ch.changeScale ?? 0;
+      if (!scale) continue;
+      const elapsed = ts - (ch.lastApAddTime || ts);
+      if (elapsed <= 0) continue;
+      ch.lastApAddTime = ts;
+      ch.ap = Math.min(Math.max((ch.ap ?? 0) + elapsed * scale, 0), 8640000);
+    }
   }
 
   /**

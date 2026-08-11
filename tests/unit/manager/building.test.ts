@@ -1017,6 +1017,31 @@ describe("BuildingManager 线索系统", () => {
     expect(room.receiveStock).toHaveLength(1);
   });
 
+  it("getInfoShareReward 应推进会客室干员体力累积（官方响应 delta 必含 building.chars）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    (mockPlayer._playerdata.building as any).chars = {
+      1001: {
+        charId: "char_001", lastApAddTime: 1234567890 - 100, ap: 0,
+        roomSlotId: "slot_36", index: 0, changeScale: 100,
+        bubble: {}, workTime: 0, privateRooms: [],
+      },
+      // changeScale=0 的干员不推进（空闲/未在会客室）
+      1002: {
+        charId: "char_002", lastApAddTime: 1234567890 - 100, ap: 100,
+        roomSlotId: "", index: -1, changeScale: 0,
+        bubble: {}, workTime: 0, privateRooms: [],
+      },
+    };
+    const result = await manager.getInfoShareReward({} as any);
+    expect(result.list).toEqual([]); // 无好友
+    const ch1 = (mockPlayer._playerdata.building as any).chars["1001"];
+    expect(ch1.ap).toBe(100 * 100); // 100 秒 × 100 scale
+    expect(ch1.lastApAddTime).toBe(1234567890);
+    // changeScale=0 干员 ap 不变
+    const ch2 = (mockPlayer._playerdata.building as any).chars["1002"];
+    expect(ch2.ap).toBe(100);
+  });
+
   it("receiveClueToStock 应将接收的线索转入库存", async () => {
     mockPlayer._playerdata.building!.rooms.MEETING.room_001.receiveStock = [
       { id: "clue_001", type: "clue_1", number: 1, uid: "2", name: "B", nickNum: "1", chars: [], inUse: 0 },

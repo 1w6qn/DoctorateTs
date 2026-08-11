@@ -304,9 +304,13 @@ export class GachaController {
       BACKFLOW: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
       SPECIAL: async () => this._handleGacha(poolId, { beforeNonHitCnt }),
       LIMITED: async () => {
+        // 修复：extraItem 缺 type + LMTGSID 缺失时空 id → gainItem 查 ItemTable[""]
+        // 警告跳过（限定凭证从未入账）；对齐寻访数据契约商店：id = LMTGSID 回退
+        // "LMTGS_COIN"、type = LMTGS_COIN（消费型入账 consumable）
         extras.extraItem = {
-          id: poolConfig?.LMTGSID ?? "",
+          id: poolConfig?.LMTGSID || "LMTGS_COIN",
           count: 1,
+          type: "LMTGS_COIN",
         };
         return this._handleGacha(poolId, { beforeNonHitCnt });
       },

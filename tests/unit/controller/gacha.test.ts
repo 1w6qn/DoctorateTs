@@ -7,6 +7,8 @@ vi.mock("@excel/excel", () => ({
         { gachaPoolId: "p_normal_1", gachaRuleType: "NORMAL" },
         { gachaPoolId: "p_double_1", gachaRuleType: "DOUBLE" },
         { gachaPoolId: "p_limited_1", gachaRuleType: "LIMITED", LMTGSID: "LMTGS_COIN_TEST" },
+        // 无 LMTGSID 的限定池 → 凭证回退 "LMTGS_COIN"
+        { gachaPoolId: "p_limited_2", gachaRuleType: "LIMITED" },
       ],
     },
     GachaDetailTable: {
@@ -250,9 +252,23 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
       // emit 调用形如 emit("char:get", [charId, extras, callback])——extras 含 from/extraItem
       const charGetCall = emitSpy.mock.calls.find((c) => c[0] === "char:get");
       expect(charGetCall).toBeDefined();
+      // 修复：extraItem 带 type=LMTGS_COIN（消费型入账 consumable）——旧实现缺 type
+      // + LMTGSID 缺失时空 id → gainItem 查 ItemTable[""] 警告跳过（凭证从未入账）
       expect(charGetCall![1][1]).toEqual({
         from: "LIMITED",
-        extraItem: { id: "LMTGS_COIN_TEST", count: 1 },
+        extraItem: { id: "LMTGS_COIN_TEST", count: 1, type: "LMTGS_COIN" },
+      });
+    });
+
+    it("LIMITED 池缺 LMTGSID 时应回退 LMTGS_COIN 凭证（不再空 id 警告跳过）", async () => {
+      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const emitSpy = vi.spyOn(mockTrigger, "emit");
+      // p_limited_2 无 LMTGSID → 回退 "LMTGS_COIN"
+      await controller.doAdvancedGacha({ poolId: "p_limited_2", useTkt: 0, itemId: "" });
+      const charGetCall = emitSpy.mock.calls.find((c) => c[0] === "char:get");
+      expect(charGetCall![1][1]).toEqual({
+        from: "LIMITED",
+        extraItem: { id: "LMTGS_COIN", count: 1, type: "LMTGS_COIN" },
       });
     });
 

@@ -455,5 +455,16 @@ describe("CharManager", () => {
         "skchr_test_2",
       ]);
     });
+
+    it("空 id 的 extraItem 不应发放（防御：避免 gainItem 查 ItemTable[''] 警告）", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      const emitSpy = vi.spyOn(mockTrigger, "emit");
+      // 限定池 LMTGSID 缺失时旧实现 extraItem.id = "" → items:get 警告跳过
+      await manager.onCharGet(["char_001", { from: "LIMITED", extraItem: { id: "", count: 1 } }]);
+      const itemsGetCalls = emitSpy.mock.calls.filter((c) => c[0] === "items:get");
+      // 空 id extraItem 被过滤（不进入 items:get 发放）
+      const granted = itemsGetCalls.flatMap((c: any) => c[1][0]);
+      expect(granted.some((i: any) => i.id === "")).toBe(false);
+    });
   });
 });

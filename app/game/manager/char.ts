@@ -181,7 +181,8 @@ export class CharManager {
       }
       // 修复：extraItem（如限定池 LMTGSID 凭证）每抽发放，与是否新干员无关
       //（原实现只在 isNew 分支内发放 → 重复干员抽不到限定凭证）
-      if (extraItem) {
+      // 防御：空 id 的 extraItem 不发放（避免 gainItem 查 ItemTable[""] 警告跳过）
+      if (extraItem && extraItem.id) {
         items.push(extraItem);
       }
     });

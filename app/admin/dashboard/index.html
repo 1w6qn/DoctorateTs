@@ -138,11 +138,16 @@
   .tool-card .tool-body input, .tool-card .tool-body textarea { width: 100%; margin: 4px 0 8px; }
   .tool-card .tool-body .resp-box { margin-top: 8px; max-height: 240px; }
   /* 移动端适配：单列布局、控制台/弹窗不溢出、导航横排可滚动 */
+  /* 移动端汉堡抽屉 */
+  #side-mask { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 35; }
   @media (max-width: 900px) {
     .layout { flex-direction: column; }
-    .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); padding: 8px; }
-    .sidebar .tabs { flex-direction: row; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
-    .sidebar .tabs::-webkit-scrollbar { display: none; }
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 40; width: 200px;
+               border-right: 1px solid var(--border); transform: translateX(-105%);
+               transition: transform .25s ease; padding: 12px 8px; }
+    .sidebar.open { transform: none; }
+    .sidebar .tabs { flex-direction: column; overflow: visible; }
+    #menu-btn { display: inline-block; }
     main { grid-template-columns: 1fr; padding: 12px; }
     .console { grid-template-columns: 1fr; }
     .api-list { max-height: 240px; }
@@ -161,6 +166,11 @@
            box-shadow: 0 4px 16px rgba(0,0,0,.4); word-break: break-all; line-height: 1.5;
            animation: toast-in .25s ease; }
   .toast.ok { border-left-color: #7ec699; }
+  /* 键盘可达性：焦点可见 */
+  a:focus-visible, button:focus-visible, input:focus-visible,
+  textarea:focus-visible, select:focus-visible, .tab:focus-visible {
+    outline: 2px solid var(--gold); outline-offset: 2px; }
+  .tab:focus-visible { border-radius: 6px; }
   .toast.err { border-left-color: #e08b8b; }
   .toast.hide { opacity: 0; transform: translateX(12px); transition: all .3s; }
   @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -195,6 +205,7 @@
 
 <header>
   <h1>DOCTORATETS 管理后台</h1>
+  <button id="menu-btn" class="btn-sm" style="display:none;">☰</button>
   <span class="status-pill" id="pill-offline">离线模式</span>
   <span class="status-pill">端口 <span id="pill-port">-</span></span>
   <span class="status-pill">用户 <span id="pill-users">-</span></span>
@@ -231,6 +242,7 @@
       </div>
     </div>
   </aside>
+  <div id="side-mask" style="display:none;"></div>
   <main id="main">
 
   <!-- 首次使用引导（登录后一次性显示，可关闭） -->
@@ -444,6 +456,10 @@
       box.id = "toast-box";
       document.body.appendChild(box);
     }
+    if (!box.getAttribute("aria-live")) {
+      box.setAttribute("aria-live", "polite");
+      box.setAttribute("role", "status");
+    }
     var el = document.createElement("div");
     el.className = "toast " + type;
     el.textContent = msg;
@@ -640,9 +656,13 @@
            '<div class="lbl">' + escapeHtml(lbl) + "</div></div>";
   }
 
+  function fmtComma(n) {
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
   function fmtNum(n) {
-    return n >= 100000000 ? (n / 100000000).toFixed(1) + "亿" :
-           n >= 10000 ? (n / 10000).toFixed(1) + "万" : String(n);
+    if (n >= 100000000) return (n / 100000000).toFixed(1) + "亿";
+    if (n >= 10000) return (n / 10000).toFixed(1) + "万";
+    return fmtComma(n);
   }
 
   /** 资源网格卡片 */
@@ -2386,8 +2406,29 @@
   /* ---------- Tab 切换 / 统计折叠 ---------- */
 
   document.querySelectorAll(".main-nav .tab").forEach(function (t) {
+    t.setAttribute("tabindex", "0");
     t.addEventListener("click", function () { switchTab(t.getAttribute("data-tab")); });
+    // 键盘可达：Enter/空格触发
+    t.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        switchTab(t.getAttribute("data-tab"));
+      }
+    });
   });
+  // 移动端汉堡菜单：开合侧边栏 + 遮罩
+  var side = document.querySelector(".sidebar");
+  var sideMask = $("side-mask");
+  function toggleSide(open) {
+    side.classList.toggle("open", open);
+    if (sideMask) sideMask.style.display = open ? "block" : "none";
+  }
+  $("menu-btn").addEventListener("click", function () {
+    toggleSide(!side.classList.contains("open"));
+  });
+  if (sideMask) {
+    sideMask.addEventListener("click", function () { toggleSide(false); });
+  }
   $("btn-refresh-logs").addEventListener("click", refreshLogs);
   $("stats-toggle").addEventListener("click", function () {
     var body = $("stats-body");

@@ -220,7 +220,10 @@ async function main() {
       try {
         const dec = JSON.parse(fs.readFileSync(path.join(OUT_DIR, f), "utf-8"));
         const loc = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, "utf-8")) : null;
-        const result = convertTable(dec, loc, name);
+        // 从 schema JSON 计算记录级字段补齐（与 ArknightsGameData/OpenArknightsFBS 对齐）
+        const schemaPath = path.join(SCHEMA_DIR, f);
+        const completion = buildCompletion(schemaPath);
+        const result = convertTable(dec, loc, name, completion);
         fs.writeFileSync(out, JSON.stringify(result));
         ok++;
       } catch (e) {
@@ -230,6 +233,27 @@ async function main() {
     }
     console.log(`转换完成: ${ok} ok, ${fail} fail`);
   }
+}
+
+/** 从 schema JSON 推导记录级字段清单（OpenArknightsFBS 结构） */
+function buildCompletion(schemaPath: string): { fields: string[]; applyTo: "root" | "values"; schema?: any; recordType?: string } | undefined {
+  if (!fs.existsSync(schemaPath)) return undefined;
+  let schema: any;
+  try {
+    schema = JSON.parse(fs.readFileSync(schemaPath, "utf-8"));
+  } catch {
+    return undefined;
+  }
+  const root: string = schema.root || "";
+  let recordType = root;
+  let applyTo: "root" | "values" = "root";
+  if (root.startsWith("clz_Torappu_SimpleKVTable_")) {
+    recordType = root.slice("clz_Torappu_SimpleKVTable_".length);
+    applyTo = "values";
+  }
+  const fields = (schema.tables?.[recordType] || []).map((x: any) => x.name);
+  if (!fields.length) return undefined;
+  return { fields, applyTo, schema, recordType };
 }
 
 main().catch((e) => {

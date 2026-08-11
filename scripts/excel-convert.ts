@@ -71,10 +71,18 @@ function loadEnumMaps(): Map<number, string | null> {
   return unique;
 }
 
+export interface SchemaCompletion {
+  fields: string[]; // FBS 原始字段名（PascalCase），归一化后补充 null
+  applyTo: "root" | "values"; // values = SimpleKVTable 解包后的每个记录对象
+  schema?: any; // 完整 schema（递归补全嵌套层用）
+  recordType?: string; // 记录类型的 clz 名
+}
+
 export function convertTable(
   dec: any,
   loc: any, // 本地既有文件（枚举学习种子），可 null
   table: string,
+  completion?: SchemaCompletion,
 ): any {
   const norm = (d: any): any => {
     if (Array.isArray(d)) return d.map(norm);
@@ -180,7 +188,76 @@ export function convertTable(
   if (decN && typeof decN === "object" && !Array.isArray(decN)) {
     const out: any = {};
     for (const [k, v] of Object.entries(decN)) out[k] = convert(v, table);
+    // schema 字段补齐：与 ArknightsGameData/OpenArknightsFBS 对齐（缺省字段补 null）
+    if (completion) completeFields(out, completion, renameMap);
     return out;
   }
-  return convert(decN, table);
+  const result = convert(decN, table);
+  if (completion) completeFields(result, completion, renameMap);
+  return result;
+}
+
+function completeFields(
+  result: any,
+  completion: SchemaCompletion,
+  renameMap: Map<string, string>,
+): void {
+  const lowerFirst = (s: string) => (s ? s[0].toLowerCase() + s.slice(1) : s);
+  const targets: any[] =
+    completion.applyTo === "values" &&
+    result && typeof result === "object" && !Array.isArray(result)
+      ? Object.values(result)
+      : [result];
+  for (const obj of targets) {
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) continue;
+    for (const f of completion.fields) {
+      const nk = renameMap.get(f.toLowerCase()) ?? lowerFirst(f);
+      if (!(nk in obj)) obj[nk] = null;
+    }
+    // 递归补全嵌套层（与 OpenArknightsFBS 结构对齐）
+    if (completion.schema && completion.recordType) {
+      completeRecursive(obj, completion.recordType, completion.schema, renameMap);
+    }
+  }
+}
+
+/** 递归按 schema 类型补全缺失字段（null） */
+function completeRecursive(
+  obj: any,
+  typeName: string,
+  schema: any,
+  renameMap: Map<string, string>,
+): void {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return;
+  const fields = schema.tables?.[typeName];
+  if (!fields) return;
+  const lowerFirst = (s: string) => (s ? s[0].toLowerCase() + s.slice(1) : s);
+  for (const f of fields) {
+    const nk = renameMap.get(f.name.toLowerCase()) ?? lowerFirst(f.name);
+    if (!(nk in obj)) obj[nk] = null;
+    const val = obj[nk];
+    if (val === null || val === undefined) continue;
+    // 推导子类型：clz_/dict_/kvp_ 或 vec:X
+    const child = childTypeOf(f.type, schema);
+    if (!child) continue;
+    if (Array.isArray(val)) {
+      for (const item of val) completeRecursive(item, child, schema, renameMap);
+    } else if (typeof val === "object" && !Array.isArray(val)) {
+      completeRecursive(val, child, schema, renameMap);
+    }
+  }
+}
+
+/** 字段类型 → 子对象类型（dict__K__V → V 类型；vec:X → X） */
+function childTypeOf(type: string, schema: any): string | undefined {
+  let t = type;
+  if (t.startsWith("vec:")) t = t.slice(4);
+  if (t.startsWith("dict__") || t.startsWith("kvp__")) {
+    // dict__K__V / kvp__K__V：Value 字段类型
+    const parts = t.split("__");
+    const vt = parts[parts.length - 1];
+    return schema.tables?.[vt] ? vt : undefined;
+  }
+  if (t.startsWith("clz_") && schema.tables?.[t]) return t;
+  return undefined;
 }

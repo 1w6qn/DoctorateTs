@@ -64,7 +64,9 @@ export class MedalManager implements PlayerMedal {
    */
   async init() {
     for (const [id, item] of Object.entries(this._playerdata.medal.medals)) {
-      this.medals[id] = new MedalProgress(item, this._trigger);
+      this.medals[id] = new MedalProgress(item, this._trigger, () =>
+        this._player.markDirty(),
+      );
     }
   }
 
@@ -173,13 +175,22 @@ export class MedalProgress implements PlayerPerMedal {
   _trigger: TypedEventEmitter;
   _v: number;
   param!: string[];
+  /** 持久态勋章数据引用（_syncToPersist 显式写回用） */
+  _item?: PlayerPerMedal;
+  /** 进度更新脏标记回调（条件落盘） */
+  _markDirty?: () => void;
 
   /**
    * 构造函数
    * @param item 玩家勋章数据
    * @param _trigger 事件发射器实例
+   * @param _markDirty 进度更新后的脏标记回调（由 MedalManager 传入——进度绕过 update()，需显式标记条件落盘）
    */
-  constructor(item: PlayerPerMedal, _trigger: TypedEventEmitter) {
+  constructor(
+    item: PlayerPerMedal,
+    _trigger: TypedEventEmitter,
+    _markDirty?: () => void,
+  ) {
     this.id = item.id;
     // scratch：init() 在此构建进度结构（[0, target]）；with-val 时末尾改绑存档数组，此结构丢弃
     this.val = [[]];
@@ -188,6 +199,8 @@ export class MedalProgress implements PlayerPerMedal {
     this.reward = item.reward || "";
     this._v = item.val?.[0]?.[0] || 0;
     this._trigger = _trigger;
+    this._item = item;
+    this._markDirty = _markDirty;
     // 未完成（fts 未设或进度未满）的勋章注册进度监听，使既有存档也能继续追踪
     const target = item.val?.[0]?.[1];
     if (!this.fts || (target && this._v < target)) {
@@ -203,6 +216,21 @@ export class MedalProgress implements PlayerPerMedal {
     } else {
       this.val = item.val;
     }
+  }
+
+  /**
+   * 显式写回持久态并标记脏（A1）
+   *
+   * 进度更新绕过 update()（无 Immer 补丁），依赖共享引用隐式落盘——此方法显式重链接
+   * （自愈：即使共享引用被 Immer 克隆打断也重新指向）并触发条件落盘脏标记。
+   */
+  private _syncToPersist(): void {
+    if (this._item) {
+      this._item.val = this.val;
+      this._item.rts = this.rts;
+      this._item.fts = this.fts;
+    }
+    this._markDirty?.();
   }
 
   /**
@@ -242,6 +270,8 @@ export class MedalProgress implements PlayerPerMedal {
 
     const func = (args: any[]) => {
       (this as any)[template](args[0], "update");
+      // 进度更新显式写回持久态 + 标记脏（A1——不依赖共享引用隐式落盘）
+      this._syncToPersist();
       if (this.val[0][0] >= target) {
         logger.info("MedalManager", `${this.id} complete`);
         this._trigger.off(template as any, func);

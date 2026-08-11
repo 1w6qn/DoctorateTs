@@ -271,9 +271,6 @@ export class PlayerDataManager {
     this._dirty = true;
   }
 
-  /** 初始化方法（预留） */
-  async init() {}
-
   /**
    * 更新玩家数据（使用 Immer）
    * 

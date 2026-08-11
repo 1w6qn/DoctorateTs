@@ -14,10 +14,11 @@ export default defineConfig({
       include: ['app/**/*.ts'],
       exclude: ['app/excel/**', 'app/config/**', 'app/assets.ts', 'app/updater.ts'],
       thresholds: {
-        lines: 5,
-        functions: 5,
-        branches: 3,
-        statements: 5,
+        // 实测全局 ~51% 行 / 47% 函数 / 41% 分支——阈值低于现值留缓冲（D2）
+        lines: 40,
+        functions: 35,
+        branches: 25,
+        statements: 40,
       },
     },
   },

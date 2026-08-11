@@ -19,8 +19,13 @@ function nowTs(): number {
  * 社交数据（好友/申请/访问）以 social.db 为唯一事实源（运行时只写 social.db），
  * users 表若继续存 social 只会残留过期快照——剔除后单事实源，消除双写不一致。
  */
-function stripSocial(config: UserConfig): Omit<UserConfig, "social"> {
-  const { social: _social, ...rest } = config;
+function stripSocial(
+  config: UserConfig,
+): Omit<UserConfig, "social"> & { social?: never } {
+  // UserConfig 已无 social 字段；旧种子数据（users.json 解析）可能仍带 social，按 any 剔除
+  const { social: _social, ...rest } = config as UserConfig & {
+    social?: unknown;
+  };
   return rest;
 }
 

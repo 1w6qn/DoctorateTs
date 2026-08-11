@@ -44,8 +44,8 @@ export function buildUserEntry(
       isLatestUserAgreement: true,
     },
     uid: newUid,
-    social: { friends: [], friendRequests: [], visited: [] },
-    battle: { stageId: "", replays: {}, infos: {} },
+    // 社交（social.db 唯一事实源）与回放/结算信息（replays/battle_infos 表）均不入 configs（R3/R4/A3）
+    battle: { stageId: "" },
     gacha: {},
     rlv2: {},
   };

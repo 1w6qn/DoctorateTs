@@ -293,6 +293,31 @@ describe("MedalManager", () => {
         (manager as any)._playerdata.medal.medals["medal_test_001"].val[0][0]
       ).toBe(30);
     });
+
+    it("进度事件更新应显式写回持久态并标记脏（A1——不依赖共享引用隐式落盘）", async () => {
+      mockExcelRef.MedalTable.medalList = [
+        {
+          medalId: "medal_test_001",
+          template: "PlayerLevel",
+          unlockParam: ["50"],
+          medalRewardGroup: [],
+        },
+      ];
+      const markDirtySpy = vi.spyOn(mockPlayer, "markDirty");
+      const manager = new MedalManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      await manager.init();
+      // 真实 TypedEventEmitter（Emittery）：emit 会调用 init() 订阅的进度处理函数
+      await (mockTrigger as any).emit("PlayerLevel", [{ level: 30 }]);
+      // 显式写回：持久态 val 同步（即使引用断链也会重链接）
+      expect(
+        (manager as any)._playerdata.medal.medals["medal_test_001"].val[0][0]
+      ).toBe(30);
+      // 显式标记脏：条件落盘不会漏掉 medal 进度更新
+      expect(markDirtySpy).toHaveBeenCalled();
+    });
   });
 
   describe("onMedalComplete", () => {

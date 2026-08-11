@@ -12,6 +12,7 @@ import { createTrafficRecorder } from "./app/utils/traffic-recorder";
 import excel from "@excel/excel";
 import { enablePatches } from "immer";
 import morgan from "morgan";
+import compression from "compression";
 import prod from "./app/config/prod";
 import { remoteConfigRouter } from "./app/config/remote-config";
 import { createHostRouter } from "./app/config/host-router";
@@ -108,6 +109,9 @@ process.on("exit", (code) => {
   enablePatches();
   await excel.init();
   const app = express();
+  // 响应压缩（B1）：syncData 等大响应（user 全量数 MB）gzip 后传输大幅减小。
+  // 放 bodyParser 之前——压缩作用于响应，客户端带 Accept-Encoding: gzip 时生效
+  app.use(compression());
   app.use(bodyParser.json());
   // capture 模式：捕获非 JSON 原始请求体（multipart 等），转发时原样透传字节——
   // bodyParser.json 不解析 multipart，透传 req.body 会变成 {} 导致官服 400 "Invalid multipart payload format"

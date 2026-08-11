@@ -1379,3 +1379,25 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 - **存档健康检查与自动修复（2026-08-09）**：新增 `app/game/util/save-health.ts`——加载/保存时自动检测并修复常见损坏：必填顶层结构缺失（重建）、troop.chars 非法干员（移除）、`building.rooms.PRIVATE[].owners` 含 null 条目（setPrivateDormOwner 字段名 bug 残留，过滤）、status.uid 类型（转字符串）。幂等、保守（不做破坏性重建）；修复结果 WARN 记录。实机：2222 存档 slot_47.owners [null] 加载时自动修复并落盘。单测 6 条。
 
 - **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用（全量对齐后已补 stub，路径可达）
+
+## 24. 状态管理技术约定（2026-08-11 增补）
+
+### 24.1 共享引用与 Immer 克隆（A2）
+
+部分管理器持有 `_playerdata` 子对象的**直接引用**（非 Immer draft），并在 `update()` recipe 之外原地修改：
+
+| 模块 | 持有引用 | 持久化机制 | 保护措施 |
+|------|----------|------------|----------|
+| `RoguelikeV2Controller` | `this.outer/current/pinned` | 原地写 + 全量落盘捕获 | `update()` wrapper 末尾统一刷新三个引用（Immer finishDraft 克隆被写子树后引用会指向旧对象） |
+| `MedalProgress` | `this.val`（与 `_playerdata.medal.medals[id].val` 共享数组引用） | 共享引用原地写 | 构造器回填缺 val 旧数据 + `_syncToPersist()` 显式写回（自愈断链）+ `markDirty` 回调 |
+
+**约定**：`finishDraft` 会对 recipe 中**被修改的子树**做克隆——任何「在 recipe 外持子对象引用并原地写」的代码，在该子树被 recipe 克隆后都会写到孤儿对象。因此：
+- 引用刷新/显式写回必须在克隆点之后（rlv2 在 wrapper 末尾、medal 在进度更新事件里）；
+- 绕过 `update()` 的直接变更**必须**调 `player.markDirty()`（条件落盘只保存有变更的请求）；
+- 新增此类模式时优先走 `update()`，或严格按上表补齐刷新/写回。
+
+### 24.2 账号数据存储演进方向（B2，YAGNI 暂缓）
+
+现状：玩家账号为 JSON 全量落盘（`data/user/databases/{uid}.json`，满配号 ~5.4MB，已紧凑化 + 条件落盘降频）；账号配置/社交/回放/结算信息已 SQLite 化（social.db：users/friends/visited/replays/battle_infos 表）。
+
+**方向（未实施）**：玩家账号主体 SQLite 化或增量补丁日志，替代全量 JSON dump。当前 JSON 全量 dump 在条件落盘 + 紧凑化后成本已大幅下降，单账号私服场景足够；多账号/频繁落盘场景再迁移。

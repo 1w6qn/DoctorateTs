@@ -39,4 +39,19 @@ describe("AccountManager 回放独立存储", () => {
     // 不再触发全量配置保存（每次战斗回放不重写 users 表）
     expect(saveConfigSpy).not.toHaveBeenCalled();
   });
+
+  it("saveBattleInfo 写 battle_infos 表；configs 不携带结算信息（A3）", async () => {
+    const saveConfigSpy = vi
+      .spyOn(manager, "saveUserConfig")
+      .mockResolvedValue(undefined as any);
+    const info = { stageId: "st_01", isPractice: 0, squad: { slots: [] } };
+    await manager.saveBattleInfo("1", "battle_001", info);
+    // configs 不被改写
+    expect((manager as any).configs["1"]?.battle).toBeUndefined();
+    // 读回走 battle_infos 表
+    expect(await manager.getBattleInfo("1", "battle_001")).toEqual(info);
+    expect(await manager.getBattleInfo("1", "missing")).toBeUndefined();
+    // 不再触发全量配置保存（每次战斗结算不重写 users 表）
+    expect(saveConfigSpy).not.toHaveBeenCalled();
+  });
 });

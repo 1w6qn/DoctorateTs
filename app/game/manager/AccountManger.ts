@@ -145,6 +145,14 @@ export class AccountManager {
         }
         delete (conf as any).battle.replays;
       }
+      // 结算信息迁移：旧 configs 内嵌 infos → battle_infos 表（一次性）
+      const infos = (conf as any).battle?.infos;
+      if (infos && Object.keys(infos).length > 0) {
+        for (const [battleId, info] of Object.entries<BattleInfo>(infos)) {
+          this._replayRepo.upsertInfo(uid, battleId, info);
+        }
+        delete (conf as any).battle.infos;
+      }
     }
     await this.saveUserConfig();
     // 并行加载所有账号（_loadPlayer 有 data[uid] 守卫且各 uid 完全独立，并发安全）
@@ -206,13 +214,18 @@ export class AccountManager {
    * @param battleId - 战斗ID
    * @returns 战斗信息对象
    */
+  /**
+   * 获取战斗结算信息（battle_infos 表独立存储——A3）
+   * @param uid - 用户ID
+   * @param battleId - 战斗ID
+   * @returns 战斗信息（不存在返回 undefined，调用方 `!` 或 `?.` 自行处理）
+   */
   async getBattleInfo(uid: string, battleId: string): Promise<BattleInfo> {
-    // 防御：uid 不在 configs / battleId 不存在时返回 undefined（调用方 `!` 或 `?.` 自行处理）
-    return this.configs[uid]?.battle?.infos?.[battleId] as BattleInfo;
+    return this._replayRepo?.getInfo(uid, battleId) as BattleInfo;
   }
 
   /**
-   * 保存战斗信息
+   * 保存战斗结算信息（battle_infos 表独立存储——不再改写 users 表，避免每次结算全量重写配置）
    * @param uid - 用户ID
    * @param battleId - 战斗ID
    * @param info - 战斗信息对象
@@ -222,8 +235,7 @@ export class AccountManager {
     battleId: string,
     info: BattleInfo,
   ): Promise<void> {
-    this.configs[uid]!.battle.infos[battleId] = info;
-    await this._trigger.emit("save", []);
+    this._replayRepo?.upsertInfo(uid, battleId, info);
   }
 
   /**
@@ -595,8 +607,7 @@ export class AccountManager {
           isMinor: false,
           isLatestUserAgreement: true,
         },
-        social: { friends: [], friendRequests: [], visited: [] },
-        battle: { stageId: "", infos: {} },
+        battle: { stageId: "" },
         gacha: {},
         rlv2: {},
       };
@@ -691,8 +702,7 @@ export class AccountManager {
         isMinor: false,
         isLatestUserAgreement: true,
       },
-      social: { friends: [], friendRequests: [], visited: [] },
-      battle: { stageId: "", infos: {} },
+      battle: { stageId: "" },
       gacha: {},
       rlv2: {},
     };
@@ -800,15 +810,10 @@ export interface UserConfig {
     isMinor: false;
     isLatestUserAgreement: true;
   };
-  social: {
-    friends: { uid: string; alias: string }[];
-    friendRequests: string[];
-    visited: string[];
-  };
+  // 社交数据（好友/申请/访问）以 social.db 为唯一事实源（R3）——UserConfig 不再携带 social 字段
   battle: {
     stageId: string;
-    // 回放独立存于 replays 表（R4）——configs 不再携带 replays
-    infos: { [key: string]: BattleInfo };
+    // 回放独立存 replays 表（R4）、结算信息独立存 battle_infos 表（A3）——configs 均不再携带
   };
   gacha: {
     [key: string]: {

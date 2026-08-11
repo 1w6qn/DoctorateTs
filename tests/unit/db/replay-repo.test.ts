@@ -28,4 +28,15 @@ describe("ReplayRepository 战斗回放独立存储（R4）", () => {
     expect(repo.get("1", "st_02")).toBe("");
     expect(repo.get("2", "st_01")).toBe("");
   });
+
+  it("upsertInfo/getInfo 结算信息往返（A3——独立于用户配置）", () => {
+    expect(repo.getInfo("1", "battle_001")).toBeUndefined();
+    const info = { stageId: "st_01", isPractice: 0, squad: { slots: [] } };
+    repo.upsertInfo("1", "battle_001", info);
+    expect(repo.getInfo("1", "battle_001")).toEqual(info);
+    // 覆盖写 + uid/battleId 隔离
+    repo.upsertInfo("1", "battle_001", { stageId: "st_02", isPractice: 1 });
+    expect(repo.getInfo("1", "battle_001")).toEqual({ stageId: "st_02", isPractice: 1 });
+    expect(repo.getInfo("2", "battle_001")).toBeUndefined();
+  });
 });

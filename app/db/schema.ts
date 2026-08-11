@@ -46,4 +46,13 @@ CREATE TABLE IF NOT EXISTS replays (
   updated_ts INTEGER NOT NULL,
   PRIMARY KEY (uid, stage_id)
 );
+
+-- 战斗结算信息（独立于用户配置存储——避免每次战斗结算全量重写 users 表）
+CREATE TABLE IF NOT EXISTS battle_infos (
+  uid       TEXT NOT NULL,
+  battle_id TEXT NOT NULL,
+  info      TEXT NOT NULL,
+  updated_ts INTEGER NOT NULL,
+  PRIMARY KEY (uid, battle_id)
+);
 `;

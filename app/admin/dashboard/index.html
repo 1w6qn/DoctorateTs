@@ -545,7 +545,14 @@
     bar.style.display = selectedUids.length ? "flex" : "none";
     $("batch-count").textContent = "已选 " + selectedUids.length + " 人";
     var all = $("u-check-all");
-    if (all) all.checked = selectedUids.length > 0;
+    if (all) {
+      var pageChecks = document.querySelectorAll(".u-check");
+      var checked = 0;
+      pageChecks.forEach(function (c) { if (c.checked) checked++; });
+      // 全选显示三分态：本页部分选中 → 横线
+      all.indeterminate = checked > 0 && checked < pageChecks.length;
+      all.checked = pageChecks.length > 0 && checked === pageChecks.length;
+    }
   }
 
   function refreshUsers() {
@@ -894,12 +901,23 @@
         return;
       }
       var CHAR_PAGE_SIZE = 50;
+      var sortKey = null;
+      var sortDir = 1;
       var render = function (filter, page) {
         page = page || 1;
         var kw = filter.toLowerCase();
         var list = chars.filter(function (c) {
           return !kw || (c.name + c.charId + " " + c.instId).toLowerCase().indexOf(kw) !== -1;
         });
+        // 表头排序（instId/name/rarity/level/evolvePhase/potentialRank/mainSkillLvl）
+        if (sortKey) {
+          list.sort(function (a, b) {
+            var av = a[sortKey], bv = b[sortKey];
+            if (av < bv) return -sortDir;
+            if (av > bv) return sortDir;
+            return 0;
+          });
+        }
         var pages = Math.max(1, Math.ceil(list.length / CHAR_PAGE_SIZE));
         if (page > pages) page = pages;
         var pageList = list.slice((page - 1) * CHAR_PAGE_SIZE, page * CHAR_PAGE_SIZE);
@@ -923,7 +941,12 @@
           '<button id="repairchars-btn">修复结构</button>' +
           '<span style="color:var(--muted);font-size:12px;">共 ' + chars.length + " 名（显示 " + list.length + "）</span></div>" +
           pager +
-          "<table><thead><tr><th title=\"干员实例 ID（instId）\">instId</th><th>干员</th><th>星级</th><th>等级</th><th title=\"进化阶段（精一/精二）\">精二</th><th title=\"潜能等级 0-5\">潜能</th><th title=\"技能等级 1-7（专精在详情弹窗）\">技能</th><th></th></tr></thead><tbody>" +
+          "<table><thead><tr>" +
+          '<th data-sort="instId" title="干员实例 ID（instId）">instId</th>' +
+          '<th data-sort="name">干员</th><th data-sort="rarity">星级</th>' +
+          '<th data-sort="level">等级</th><th data-sort="evolvePhase" title="进化阶段（精一/精二）">精二</th>' +
+          '<th data-sort="potentialRank" title="潜能等级 0-5">潜能</th>' +
+          '<th data-sort="mainSkillLvl" title="技能等级 1-7（专精在详情弹窗）">技能</th><th></th></tr></thead><tbody>' +
           (rows || '<tr><td colspan="8" style="color:var(--muted);">无匹配干员</td></tr>') +
           "</tbody></table>" +
           pager;
@@ -962,6 +985,16 @@
               .catch(function (e) { toast("操作失败：" + e.message); });
           });
         }
+        // 表头点击排序（升/降切换）
+        document.querySelectorAll("#pane-chars th[data-sort]").forEach(function (th) {
+          th.style.cursor = "pointer";
+          th.addEventListener("click", function () {
+            var key = th.getAttribute("data-sort");
+            if (sortKey === key) sortDir = -sortDir;
+            else { sortKey = key; sortDir = 1; }
+            render($("char-filter").value.trim(), 1);
+          });
+        });
         // 行内编辑脏标记：值改过未应用 → 行高亮「未保存」
         document.querySelectorAll("#pane-chars .mini-input").forEach(function (inp) {
           inp.addEventListener("input", function () {
@@ -1119,6 +1152,8 @@
   }
 
   /* --- CLI 控制台（服务器内执行 CLI 命令） --- */
+  var cliHistory = [];
+  var cliHistIdx = -1;
   function renderCliConsole() {
     var box = $("sub-cli");
     box.innerHTML =
@@ -1151,7 +1186,30 @@
     }
     $("cli-run").addEventListener("click", runCli);
     $("cli-input").addEventListener("keydown", function (e) {
-      if (e.key === "Enter") runCli();
+      if (e.key === "Enter") {
+        var cmd = this.value.trim();
+        if (cmd && cliHistory[cliHistory.length - 1] !== cmd) cliHistory.push(cmd);
+        cliHistIdx = -1;
+        runCli();
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (cliHistory.length) {
+          if (cliHistIdx < 0) cliHistIdx = cliHistory.length - 1;
+          else if (cliHistIdx > 0) cliHistIdx--;
+          this.value = cliHistory[cliHistIdx];
+        }
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (cliHistIdx >= 0 && cliHistIdx < cliHistory.length - 1) {
+          cliHistIdx++;
+          this.value = cliHistory[cliHistIdx];
+        } else {
+          cliHistIdx = -1;
+          this.value = "";
+        }
+      }
     });
     // 常用命令快捷按钮
     var quick = ["users list --json", "server check --files", "gacha pools --json", "logs show --last 10"];

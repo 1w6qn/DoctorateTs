@@ -490,11 +490,20 @@ export interface RoguelikeScrapRequest {
 /** 废品操作响应 */
 export type RoguelikeScrapResponse = PlayerDeltaResponse;
 
-/** 废品换乘请求（rogue_6 SCRAP MOVE 型，抓包派生） */
+/** 废品换乘请求（rogue_6 SCRAP MOVE 型，抓包 { scrapInstId, toWalk }） */
 export interface RoguelikeScrapChangeVehicleRequest {
   scrapId?: string;
-  nodeIndex?: string;
+  scrapInstId?: string;
+  toWalk?: number;
 }
 
 /** 废品换乘响应 */
 export type RoguelikeScrapChangeVehicleResponse = PlayerDeltaResponse;
+
+/** 丢弃废品请求（rogue_6 SCRAP 模块，抓包 { instId }） */
+export interface RoguelikeScrapLoseRequest {
+  instId: string;
+}
+
+/** 丢弃废品响应 */
+export type RoguelikeScrapLoseResponse = PlayerDeltaResponse;

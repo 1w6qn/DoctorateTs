@@ -85,6 +85,8 @@ import {
   RoguelikeSacrificeResponse,
   RoguelikeScrapChangeVehicleRequest,
   RoguelikeScrapChangeVehicleResponse,
+  RoguelikeScrapLoseRequest,
+  RoguelikeScrapLoseResponse,
   RoguelikeScrapRequest,
   RoguelikeScrapResponse,
   RoguelikeSelectChoiceRequest,
@@ -585,7 +587,7 @@ router.post("/scrap", async (req, res) => {
   res.send(rlv2Response(player) satisfies RoguelikeScrapResponse);
 });
 
-/** 废品换乘（rogue_6 SCRAP MOVE 型） */
+/** 废品换乘（rogue_6 SCRAP MOVE 型；客户端 body { scrapInstId, toWalk }） */
 router.post("/scrap/changeVehicle", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeScrapChangeVehicleRequest;
@@ -593,6 +595,14 @@ router.post("/scrap/changeVehicle", async (req, res) => {
   res.send(
     rlv2Response(player) satisfies RoguelikeScrapChangeVehicleResponse,
   );
+});
+
+/** 丢弃废品（rogue_6 SCRAP 模块；客户端 body { instId }） */
+router.post("/scrap/loseScrap", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as RoguelikeScrapLoseRequest;
+  await player.rlv2.loseScrap(body);
+  res.send(rlv2Response(player) satisfies RoguelikeScrapLoseResponse);
 });
 
 /* ===== rogue_6 GRID_ZONE 网格区域 ===== */

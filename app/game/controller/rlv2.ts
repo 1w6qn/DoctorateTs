@@ -1439,16 +1439,22 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
 
   /* ===== rogue_6 GRID_ZONE / SCRAP 模块（真实机制）===== */
 
-  /** 网格区域移动（抓包 { route: [nodeIndex] }）：沿 route 移动并消耗行动力 */
+  /** 网格区域移动（抓包 { route: [nodeIndex] }）：沿 route 路径逐节点移动并消耗行动力 */
   async gridZoneMoveTo(args: { route: string[] }): Promise<void> {
     const route = args.route || [];
     if (route.length === 0) return;
     const gz = this._module.gridZone;
-    // 消耗行动力；耗尽则回到 WAIT_MOVE（行动力用尽离开网格区域）
-    this._trigger.emit("rlv2:grid:step", []);
-    const node = gz?.moveTo(route);
-    const zone = this._status.cursor.zone;
+    // 路径中每个节点消耗一步（含末节点）
+    for (const _nodeId of route) {
+      this._trigger.emit("rlv2:grid:step", []);
+    }
+    // 沿路径标记各节点已访问
     const last = route[route.length - 1];
+    for (const nodeId of route) {
+      gz?.moveTo([nodeId]);
+    }
+    const node = gz?.moveTo([last]);
+    const zone = this._status.cursor.zone;
     const lastX = Math.floor(Number(last) / 100);
     const lastY = Number(last) % 100;
     this._status.trace.push({ zone, position: { x: lastX, y: lastY } });
@@ -1489,8 +1495,14 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     squad: PlayerSquad;
   }): Promise<void> {
     const gz = this._module.gridZone;
-    this._trigger.emit("rlv2:grid:step", []);
-    gz?.moveTo(args.route);
+    // 路径每节点消耗一步
+    for (const _nodeId of args.route) {
+      this._trigger.emit("rlv2:grid:step", []);
+    }
+    for (const nodeId of args.route) {
+      gz?.moveTo([nodeId]);
+    }
+    gz?.moveTo([args.route[args.route.length - 1]]);
     const zone = this._status.cursor.zone;
     const last = args.route[args.route.length - 1];
     const lastX = Math.floor(Number(last) / 100);
@@ -1519,10 +1531,37 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     this._status.state = "WAIT_MOVE";
   }
 
-  /** 废品换乘（SCRAP MOVE 型）：切换载具 */
-  async scrapChangeVehicle(args: { scrapId?: string }): Promise<void> {
+  /** 废品换乘（SCRAP MOVE 型）：切换载具（客户端 body { scrapInstId, toWalk }） */
+  async scrapChangeVehicle(args: {
+    scrapId?: string;
+    scrapInstId?: string;
+    toWalk?: number;
+  }): Promise<void> {
     const sm = this._module.scrap;
-    sm?.changeVehicle(args.scrapId || "");
+    const instId = args.scrapInstId || args.scrapId || "";
+    if (args.toWalk || instId === "") {
+      sm?.changeVehicle("");
+    } else {
+      sm?.changeVehicle(instId);
+    }
+    this._status.state = "WAIT_MOVE";
+  }
+
+  /** 丢弃废品（SCRAP 模块，客户端 body { instId }）：从库存移除 */
+  async loseScrap(args: { instId: string }): Promise<void> {
+    const sm = this._module.scrap;
+    if (!sm) {
+      this._status.state = "WAIT_MOVE";
+      return;
+    }
+    const inventory = sm.inventory;
+    if (args.instId in inventory) {
+      delete inventory[args.instId];
+      // 若丢弃的是当前载具，切回步行
+      if (sm.activeVehicle?.instId === args.instId) {
+        sm.activeVehicle = { instId: "", isWalk: 1 };
+      }
+    }
     this._status.state = "WAIT_MOVE";
   }
 

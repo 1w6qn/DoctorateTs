@@ -355,8 +355,11 @@ export class AccountManager {
   async savePlayerData(uid: string): Promise<void> {
     const finalPath = `./data/user/databases/${uid}.json`;
     const tmpPath = `${finalPath}.tmp`;
-    // 写盘前健康校验：发现可修复损坏时修复（避免把坏数据落盘）
-    const saveIssues = checkAndRepairSave(this.data[uid] as any);
+    // 写盘前健康校验：发现可修复损坏时修复（避免把坏数据落盘）。
+    // 修复：原对 PlayerDataManager 实例做校验（无 activity 等字段 → 误报
+    // "activity 缺失" 并往管理器上塞垃圾字段）；改为校验真实存档 _playerdata。
+    // 冻结子树（troop 等）在加载时已修复且会话内不可变，此处修复为 no-op 安全。
+    const saveIssues = checkAndRepairSave(this.data[uid]._playerdata as any);
     const saveFixed = saveIssues.filter((i) => i.fixed);
     if (saveFixed.length > 0) {
       logSaveRepair(uid, saveIssues);

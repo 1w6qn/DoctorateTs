@@ -1180,10 +1180,21 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       this._status.state = "WAIT_MOVE";
       return;
     }
-    // 从献祭池抽一个可献祭藏品作为回报（pool_sacrifice_n/r——value 8/12 的可献祭物品）
-    const hasRelic = Object.values(this.inventory!.relic || {}).map(
-      (r) => (r as any).id,
-    );
+    // 可献祭藏品：玩家拥有的、官方 canSacrifice 且 value 8/12 的遗物（pool_sacrifice_n/r）
+    const detail = excel.RoguelikeTopicTable.details[theme];
+    const relicMap = this.inventory!.relic || {};
+    const sacrificable = Object.values(relicMap).filter((r) => {
+      const item = (detail.items as any)?.[(r as any).id];
+      return item?.canSacrifice && (item?.value === 8 || item?.value === 12);
+    });
+    // 扣除献祭代价（choice 为选项序号；默认第一个可献祭藏品）
+    const choiceIdx = parseInt(args.choice ?? "0", 10) || 0;
+    const offered = sacrificable[choiceIdx] || sacrificable[0];
+    if (offered) {
+      delete relicMap[(offered as any).id];
+    }
+    // 发放回报：随机未拥有藏品（池空回退金币）
+    const hasRelic = Object.values(relicMap).map((r) => (r as any).id);
     const rewardId = this._pool.getRelic("pool_relic_all", hasRelic);
     if (rewardId) {
       this._trigger.emit("rlv2:relic:gain", [{ id: rewardId, count: 1 }]);

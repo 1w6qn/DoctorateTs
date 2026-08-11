@@ -30,6 +30,9 @@ export class RoguelikeWeatherManager {
     this._trigger.on("rlv2:module:init", this.init.bind(this));
     this._trigger.on("rlv2:continue", this.continue.bind(this));
     this._trigger.on("rlv2:zone:new", this.onZoneNew.bind(this));
+    // 天气步数：每次移动/网格步进推进（天气随步数阶段性变化）
+    this._trigger.on("rlv2:move", this.onStep.bind(this));
+    this._trigger.on("rlv2:grid:step", this.onStep.bind(this));
   }
 
   init(): void {
@@ -81,6 +84,11 @@ export class RoguelikeWeatherManager {
     this.eye = "";
     this.effectArea = {};
     this.weatherStep = 0;
+  }
+
+  /** 移动/网格步进：天气步数 +1（官方 weatherStep 追踪天气阶段） */
+  onStep(): void {
+    this.weatherStep += 1;
   }
 
   toJSON(): {

@@ -31,6 +31,8 @@ export function openDatabase(path: string = DEFAULT_DB_PATH): DatabaseSync {
     }
   }
   const db = new DatabaseSync(path);
+  // WAL 模式：回放/结算/社交高频写时不阻塞读（内存库自动回退 memory 模式，无副作用）
+  db.exec("PRAGMA journal_mode = WAL");
   db.exec(SCHEMA_SQL);
   _db = db;
   return db;

@@ -1401,3 +1401,8 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 现状：玩家账号为 JSON 全量落盘（`data/user/databases/{uid}.json`，满配号 ~5.4MB，已紧凑化 + 条件落盘降频）；账号配置/社交/回放/结算信息已 SQLite 化（social.db：users/friends/visited/replays/battle_infos 表）。
 
 **方向（未实施）**：玩家账号主体 SQLite 化或增量补丁日志，替代全量 JSON dump。当前 JSON 全量 dump 在条件落盘 + 紧凑化后成本已大幅下降，单账号私服场景足够；多账号/频繁落盘场景再迁移。
+
+### 24.3 待评估（C-2/D-4，需客户端验证或专项）
+
+- **C-2 运行时散文件 SQLite 化**：`data/` 根下 `mails.json`/`building.json`/`battleReplays.json`/`user.json`/`rlv2.json` 等仍是 JSON 文件存储（非玩家账号主体，属各管理器独立状态）——社交/回放/结算已入 social.db，其余可逐步收编，按需迁移。
+- **D-4 业务校验错误响应**：游戏路由统一 JSON 500（gameErrorHandler）——业务校验失败（如社交自请求）也走 500。若客户端只处理业务码（result/status 字段）不处理 HTTP 500，需实测确认；确认前不改为 200 + 业务码。

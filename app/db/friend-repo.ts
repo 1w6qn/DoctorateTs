@@ -105,4 +105,17 @@ export class FriendRepository {
       .all(uid) as { visited_uid: string }[];
     return rows.map((r) => r.visited_uid);
   }
+
+  /** 删除账号的社交数据（B-2：好友双向关系 + 申请 + 访问记录） */
+  deleteUser(uid: string): void {
+    this.db
+      .prepare("DELETE FROM friends WHERE uid = ? OR friend_uid = ?")
+      .run(uid, uid);
+    this.db
+      .prepare("DELETE FROM friend_requests WHERE from_uid = ? OR to_uid = ?")
+      .run(uid, uid);
+    this.db
+      .prepare("DELETE FROM visited WHERE uid = ? OR visited_uid = ?")
+      .run(uid, uid);
+  }
 }

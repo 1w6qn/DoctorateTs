@@ -9,13 +9,15 @@ import { PlayerDataModel } from "../model/playerdata";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { readJson } from "@utils/file";
 import { now } from "@utils/time";
-import { writeFile, rename } from "fs/promises";
+import { writeFile, rename, rm } from "fs/promises";
 import { createHash } from "crypto";
 import { TypedEventEmitter } from "@game/model/events";
 import Emittery from "emittery";
 import { FriendRepository } from "../../db/friend-repo";
 import { openDatabase } from "../../db/database";
 import { ReplayRepository } from "../../db/replay-repo";
+import { BattleStore } from "./BattleStore";
+import { SocialService } from "./SocialService";
 import { UserRepository, migrateUsersFromJsonFile } from "../../db/user-repo";
 import config from "../../config";
 import { migrateFromUserConfigs } from "../../db/migrate";
@@ -101,11 +103,16 @@ export class AccountManager {
   _userRepo!: UserRepository;
   /** 战斗回放仓储（SQLite replays 表——回放独立于用户配置存储） */
   _replayRepo!: ReplayRepository;
+  /** 战斗数据存储（B-1：回放/结算——BattleStore 委托） */
+  _battleStore!: BattleStore;
+  /** 社交服务（B-1：好友/申请/访问——SocialService 委托） */
+  _socialService!: SocialService;
 
   constructor() {
     this.configs = {};
     this.data = {};
     this._trigger = new Emittery();
+    this._socialService = new SocialService(this);
   }
 
   /** secret→uid 索引（真实模式 getUidByToken 懒构建，避免每次请求线性扫描 configs） */
@@ -125,6 +132,7 @@ export class AccountManager {
     this._friendRepo = new FriendRepository(openDatabase());
     this._userRepo = new UserRepository(openDatabase());
     this._replayRepo = new ReplayRepository(openDatabase());
+    this._battleStore = new BattleStore(this._replayRepo);
     // 用户配置：SQLite 唯一事实源；首次（表空）从 users.json 种子迁移
     this.configs = this._userRepo.getAll();
     if (Object.keys(this.configs).length === 0) {
@@ -166,17 +174,17 @@ export class AccountManager {
   }
 
   /**
-   * 获取战斗回放数据（replays 表独立存储）
+   * 获取战斗回放数据（BattleStore 委托——replays 表独立存储）
    * @param uid - 用户ID
    * @param stageId - 关卡ID
    * @returns 战斗回放数据字符串
    */
   async getBattleReplay(uid: string, stageId: string): Promise<string> {
-    return this._replayRepo?.get(uid, stageId) ?? "";
+    return this._battleStore?.getReplay(uid, stageId) ?? "";
   }
 
   /**
-   * 保存战斗回放数据（replays 表独立存储——不再改写 users 表，避免大字符串全量重写配置）
+   * 保存战斗回放数据（BattleStore 委托——不再改写 users 表，避免大字符串全量重写配置）
    * @param uid - 用户ID
    * @param stageId - 关卡ID
    * @param replay - 战斗回放数据字符串
@@ -186,7 +194,7 @@ export class AccountManager {
     stageId: string,
     replay: string,
   ): Promise<void> {
-    this._replayRepo?.upsert(uid, stageId, replay);
+    this._battleStore?.saveReplay(uid, stageId, replay);
   }
 
   /**
@@ -221,11 +229,11 @@ export class AccountManager {
    * @returns 战斗信息（不存在返回 undefined，调用方 `!` 或 `?.` 自行处理）
    */
   async getBattleInfo(uid: string, battleId: string): Promise<BattleInfo> {
-    return this._replayRepo?.getInfo(uid, battleId) as BattleInfo;
+    return this._battleStore?.getInfo(uid, battleId) as BattleInfo;
   }
 
   /**
-   * 保存战斗结算信息（battle_infos 表独立存储——不再改写 users 表，避免每次结算全量重写配置）
+   * 保存战斗结算信息（BattleStore 委托——不再改写 users 表，避免每次结算全量重写配置）
    * @param uid - 用户ID
    * @param battleId - 战斗ID
    * @param info - 战斗信息对象
@@ -235,7 +243,7 @@ export class AccountManager {
     battleId: string,
     info: BattleInfo,
   ): Promise<void> {
-    this._replayRepo?.upsertInfo(uid, battleId, info);
+    this._battleStore?.saveInfo(uid, battleId, info);
   }
 
   /**
@@ -423,11 +431,7 @@ export class AccountManager {
     friendRequests: string[];
     visited: string[];
   }> {
-    return {
-      friends: this._friendRepo.getFriendList(uid),
-      friendRequests: this._friendRepo.getFriendRequests(uid),
-      visited: this._friendRepo.getVisited(uid),
-    };
+    return this._socialService.getSocial(uid);
   }
 
   /**
@@ -436,9 +440,7 @@ export class AccountManager {
    * @param friendUid - 好友用户ID
    */
   async deleteFriend(uid: string, friendUid: string): Promise<void> {
-    this._friendRepo.deleteFriend(uid, friendUid);
-    this._friendRepo.deleteFriend(friendUid, uid);
-    await this._trigger.emit("save", []);
+    await this._socialService.deleteFriend(uid, friendUid);
   }
 
   /**
@@ -447,8 +449,7 @@ export class AccountManager {
    * @param friendUid - 好友用户ID
    */
   async addFriend(uid: string, friendUid: string): Promise<void> {
-    this._friendRepo.addFriend(uid, friendUid);
-    await this._trigger.emit("save", []);
+    await this._socialService.addFriend(uid, friendUid);
   }
 
   /**
@@ -457,21 +458,7 @@ export class AccountManager {
    * @param to - 接收请求的用户ID
    */
   async sendFriendRequest(from: string, to: string): Promise<void> {
-    if (from === to) {
-      throw new Error("不能向自己发送好友请求");
-    }
-    if (this._friendRepo.hasFriend(from, to)) {
-      throw new Error("对方已是你的好友");
-    }
-    if (this._friendRepo.hasFriendRequest(to, from)) {
-      throw new Error("好友请求已发送，请勿重复发送");
-    }
-    this._friendRepo.sendFriendRequest(from, to);
-    const friendData = await this.getPlayerData(to);
-    await friendData.update(async (draft) => {
-      draft.pushFlags.hasFriendRequest = 1;
-    });
-    await this._trigger.emit("save", []);
+    await this._socialService.sendFriendRequest(from, to);
   }
 
   /**
@@ -480,8 +467,7 @@ export class AccountManager {
    * @param friendId - 发起请求的用户ID
    */
   async deleteFriendRequest(uid: string, friendId: string): Promise<void> {
-    this._friendRepo.deleteFriendRequest(uid, friendId);
-    await this._trigger.emit("save", []);
+    await this._socialService.deleteFriendRequest(uid, friendId);
   }
 
   /**
@@ -495,8 +481,7 @@ export class AccountManager {
     friendId: string,
     alias: string,
   ): Promise<void> {
-    this._friendRepo.setFriendAlias(uid, friendId, alias);
-    await this._trigger.emit("save", []);
+    await this._socialService.setFriendAlias(uid, friendId, alias);
   }
 
   /**
@@ -505,7 +490,7 @@ export class AccountManager {
    * @returns 好友请求用户ID列表
    */
   async getFriendRequests(uid: string): Promise<string[]> {
-    return this._friendRepo.getFriendRequests(uid);
+    return this._socialService.getFriendRequests(uid);
   }
 
   /**
@@ -514,16 +499,7 @@ export class AccountManager {
    * @returns 匹配的用户ID列表
    */
   async searchPlayer(keyword: string): Promise<string[]> {
-    return Object.entries(this.data)
-      .filter(([uid, data]) => {
-        return (
-          keyword.includes(uid) ||
-          data._playerdata.status.nickName == keyword ||
-          data._playerdata.status.nickName + "#" + data._playerdata.status.nickNumber ==
-            keyword
-        );
-      })
-      .map(([uid]) => uid);
+    return this._socialService.searchPlayer(keyword);
   }
 
   /**
@@ -718,6 +694,23 @@ export class AccountManager {
 
     // 加载玩家数据（与 init 一致——getPlayerData 可用；直接使用内存 playerData，避免重读文件）
     await this._loadPlayer(uid, playerData as PlayerDataModel);
+  }
+
+  /**
+   * 删除账号（B-2 统一清理入口）
+   *
+   * 清理范围：内存 configs/data + SQLite（users 行 + 社交 + 回放/结算）+ 存档文件。
+   * 调用方需确认——不可恢复（备份可用 admin users backup）。
+   * @param uid - 用户ID
+   */
+  async deleteAccount(uid: string): Promise<void> {
+    delete this.configs[uid];
+    delete this.data[uid];
+    this._secretIndex = null;
+    this._friendRepo?.deleteUser(uid);
+    this._replayRepo?.deleteUser(uid);
+    await rm(`./data/user/databases/${uid}.json`, { force: true });
+    await this.saveUserConfig();
   }
 
   /**

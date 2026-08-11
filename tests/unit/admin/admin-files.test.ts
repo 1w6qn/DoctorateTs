@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { AdminService } from "../../../app/admin/AdminService";
-import { accountManager } from "../../../app/game/manager/AccountManger";
+import { accountManager } from "../../../app/game/manager/AccountManager";
 import { PlayerDataManager } from "../../../app/game/manager/PlayerDataManager";
 import { exists, readJson, writeJson } from "@utils/file";
 import { copyFile, mkdir, readFile, readdir, appendFile, rm, writeFile } from "fs/promises";
@@ -361,7 +361,7 @@ describe("AdminService 删除用户", () => {
     vi.spyOn(accountManager, "saveUserConfig").mockResolvedValue(undefined as any);
     vi.mocked(appendFile).mockResolvedValue(undefined);
     vi.mocked(exists).mockResolvedValue(true);
-    vi.mocked(rm).mockResolvedValue(undefined);
+    vi.mocked(rm).mockClear().mockResolvedValue(undefined);
   });
 
   it("deleteUser 缺少确认词应拒绝", async () => {
@@ -379,7 +379,8 @@ describe("AdminService 删除用户", () => {
 
   it("deleteUser 应删除存档并同步 configs/SQLite", async () => {
     await service.deleteUser("2", "DELETE");
-    expect(rm).toHaveBeenCalledWith("./data/user/databases/2.json");
+    // deleteAccount（B-2 统一清理）以 force 选项删除存档
+    expect(rm).toHaveBeenCalledWith("./data/user/databases/2.json", { force: true });
     expect((accountManager as any).data["2"]).toBeUndefined();
     expect((accountManager as any).configs["2"]).toBeUndefined();
     expect(accountManager.saveUserConfig).toHaveBeenCalled();

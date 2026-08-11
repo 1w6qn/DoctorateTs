@@ -1,4 +1,4 @@
-import { accountManager } from "../manager/AccountManger";
+import { accountManager } from "../manager/AccountManager";
 
 import excel from "@excel/excel";
 import { decryptBattleData } from "@utils/crypt";

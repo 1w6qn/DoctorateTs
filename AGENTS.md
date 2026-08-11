@@ -20,7 +20,7 @@ npx vitest run tests/unit/manager/char.test.ts   # single test file
 npm run admin -- users list                       # CLI admin (no server needed)
 npm run migrate:official -- --accounts <file>     # import official-server account data
 npm run hook              # frida-compile for hook/main.ts (excluded from tsc)
-npm run ts                # test.ts = proxy harness, NOT the vitest suite
+npm run ts                # tools/proxy-harness.ts = 官服代理抓包 harness, NOT the vitest suite
 ```
 
 No lint script exists. Verification order: `npx tsc --noEmit` then `npx vitest run`.
@@ -52,7 +52,7 @@ Game-data update (`scripts/update-data.ts`) 调用官方热更管线 `scripts/of
 
 ## Tests
 
-- Vitest, globals on, node env. `tests/unit/**` mirrors `app/` layout. **Do not add tests under `test/`** (`test/` is gitignored, `test.ts` is the proxy harness).
+- Vitest, globals on, node env. `tests/unit/**` mirrors `app/` layout. **Do not add tests under `test/`** (`test/` is gitignored, `tools/proxy-harness.ts` 是官服代理抓包 harness).
 - Helpers in `tests/helpers/`: `mockPlayerData`, `mockExcel`, `mockEventBus`, `mocks` — use these instead of loading real excel/user data.
 
 ## Known constraints (documented in design-spec.md)

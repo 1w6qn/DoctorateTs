@@ -81,4 +81,16 @@ describe("FriendRepository", () => {
     repo.addVisit("1", "2");
     expect(repo.getVisited("1")).toEqual(["2"]);
   });
+
+  it("deleteUser 应清理账号社交数据（B-2：双向好友/申请/访问）", () => {
+    repo.addFriend("1", "2", "");
+    repo.addFriend("2", "1", ""); // 反向关系
+    repo.sendFriendRequest("3", "1");
+    repo.addVisit("1", "5");
+    repo.deleteUser("1");
+    expect(repo.getFriendList("1")).toEqual([]);
+    expect(repo.getFriendList("2")).toEqual([]); // 反向关系一并删除
+    expect(repo.getFriendRequests("1")).toEqual([]);
+    expect(repo.getVisited("1")).toEqual([]);
+  });
 });

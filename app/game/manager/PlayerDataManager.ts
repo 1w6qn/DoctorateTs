@@ -19,7 +19,7 @@ import { RecruitManager } from "./recruit";
 import { RoguelikeV2Controller } from "../controller/rlv2";
 import { BattleManager } from "./battle";
 import { GachaController } from "../controller/gacha";
-import { accountManager, BattleInfo } from "./AccountManger";
+import { accountManager, BattleInfo } from "./AccountManager";
 import { SocialManager } from "./social";
 import { DexNavManager } from "./dexnav";
 import { MedalManager } from "./medal";
@@ -169,8 +169,12 @@ export class PlayerDataManager {
   }
 
   /**
-   * 获取登录时间戳
-   * @returns 登录时间戳
+   * 会话时间戳（syncData 每次同步刷新为 now()）
+   *
+   * 用作战斗数据加解密（decryptBattleData/encryptBattleData）的密钥种子——
+   * 客户端以会话锚点时间戳加密战斗数据，服务端用同一时间戳解密。
+   * 语义上即"客户端登录会话的锚点时间"（D-3 澄清）。
+   * @returns 会话锚点时间戳
    */
   get loginTime() {
     return this._playerdata.pushFlags.status;

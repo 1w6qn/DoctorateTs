@@ -14,7 +14,7 @@ import {
 } from "@excel/gacha_detail_table";
 import { GachaPoolClientData } from "@excel/types_excel_gen";
 import excel from "@excel/excel";
-import { accountManager } from "../manager/AccountManger";
+import { accountManager } from "../manager/AccountManager";
 import { ItemBundle } from "@excel/character_table";
 import { randomChoice, randomChoices } from "@utils/random";
 import { logger } from "@utils/logger";

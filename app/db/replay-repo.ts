@@ -5,7 +5,7 @@
  * users 表 JSON，避免每次保存配置时全量重写（R4 + A3）。
  */
 import { DatabaseSync } from "node:sqlite";
-import type { BattleInfo } from "@game/manager/AccountManger";
+import type { BattleInfo } from "@game/manager/AccountManager";
 
 /** 当前时间戳（秒） */
 function nowTs(): number {
@@ -47,5 +47,11 @@ export class ReplayRepository {
         "INSERT OR REPLACE INTO battle_infos (uid, battle_id, info, updated_ts) VALUES (?, ?, ?, ?)",
       )
       .run(uid, battleId, JSON.stringify(info), nowTs());
+  }
+
+  /** 删除账号的战斗数据（B-2：回放 + 结算信息） */
+  deleteUser(uid: string): void {
+    this.db.prepare("DELETE FROM replays WHERE uid = ?").run(uid);
+    this.db.prepare("DELETE FROM battle_infos WHERE uid = ?").run(uid);
   }
 }

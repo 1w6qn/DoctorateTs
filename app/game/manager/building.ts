@@ -7,7 +7,7 @@ import { WritableDraft } from "immer";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { PlayerBuildingMeetingClue } from "@game/model/playerdata";
 import { BuildingData_OrderType, BuildingData_RoomType } from "@game/model/playerdata";
-import { accountManager } from "./AccountManger";
+import { accountManager } from "./AccountManager";
 import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate } from "@excel/building_excel";
 
 /**

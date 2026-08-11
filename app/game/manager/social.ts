@@ -1,5 +1,5 @@
 import { PlayerFriendAssist } from "@game/model/playerdata";
-import { accountManager } from "./AccountManger";
+import { accountManager } from "./AccountManager";
 import { pick } from "lodash";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";

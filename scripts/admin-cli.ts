@@ -63,7 +63,7 @@ import { enablePatches } from "immer";
 import * as readline from "readline";
 import { readFileSync } from "fs";
 import excel from "@excel/excel";
-import { accountManager } from "@game/manager/AccountManger";
+import { accountManager } from "@game/manager/AccountManager";
 import { adminService } from "../app/admin/AdminService";
 import config from "../app/config";
 import { writeJson, readJsonSync } from "@utils/file";
@@ -515,6 +515,18 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
       console.log(
         JSON.stringify(data, null, flags.pretty === "true" || flags.pretty ? 2 : 0),
       );
+      return;
+    }
+    case "delete": {
+      const uid = args[1];
+      if (!uid) {
+        console.error("用法: users delete <uid>（不可恢复——先 users backup）");
+        process.exitCode = 1;
+        return;
+      }
+      // CLI 输入即意图，传入确认词通过 AdminService 的防误删守卫
+      await adminService.deleteUser(uid, "DELETE");
+      console.log(`已删除用户 ${uid}（configs/存档/SQLite 社交与战斗数据）`);
       return;
     }
     case "grantall": {
@@ -1164,6 +1176,24 @@ async function runGacha(args: string[], flags: { [key: string]: string }): Promi
 }
 
 /** official 子命令（官服账号迁移） */
+/**
+ * 手动触发 single 模式满配账号刷新（C-1）
+ *
+ * singleAutoMaxAccount 关闭后不再随版本自动刷新；此命令按需合并式刷新
+ * （内容字段以 player_data.json 基底刷新，进度字段保留——S1 语义）。
+ * @param args - [uid?]（缺省 singleUid）
+ */
+async function runMaxAccount(args: string[]): Promise<void> {
+  const { accountManager } = await import("@game/manager/AccountManager");
+  const config = (await import("../app/config")).default;
+  const uid = args[0] || (config as any).singleUid || "1";
+  const player = await accountManager.getPlayerData(uid);
+  const { generateMaxedAccount } = await import("../scripts/generate-max-account");
+  await generateMaxedAccount(player);
+  await accountManager.flushSave(uid);
+  console.log(`已按当前数据版本刷新满配账号 ${uid}（合并式刷新——进度字段保留）`);
+}
+
 async function runOfficial(
   args: string[],
   flags: { [key: string]: string },
@@ -1355,6 +1385,9 @@ export async function dispatch(
       break;
     case "official":
       await runOfficial(args, flags);
+      break;
+    case "max-account":
+      await runMaxAccount(args);
       break;
     case "help":
     case "-h":

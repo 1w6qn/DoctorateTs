@@ -39,4 +39,14 @@ describe("ReplayRepository 战斗回放独立存储（R4）", () => {
     expect(repo.getInfo("1", "battle_001")).toEqual({ stageId: "st_02", isPractice: 1 });
     expect(repo.getInfo("2", "battle_001")).toBeUndefined();
   });
+
+  it("deleteUser 应清理账号战斗数据（B-2：回放 + 结算信息）", () => {
+    repo.upsert("1", "st_01", "R1");
+    repo.upsert("2", "st_01", "R2");
+    repo.upsertInfo("1", "b_1", { stageId: "st_01", isPractice: 0 });
+    repo.deleteUser("1");
+    expect(repo.get("1", "st_01")).toBe("");
+    expect(repo.get("2", "st_01")).toBe("R2"); // 其他账号不受影响
+    expect(repo.getInfo("1", "b_1")).toBeUndefined();
+  });
 });

@@ -8,7 +8,7 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
-import { accountManager } from "../manager/AccountManger";
+import { accountManager } from "../manager/AccountManager";
 import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
 import { decryptBattleData } from "@utils/crypt";

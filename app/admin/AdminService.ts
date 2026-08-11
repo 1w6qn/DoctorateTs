@@ -12,7 +12,7 @@ import excel from "@excel/excel";
 import { getRoomPhase } from "@excel/building_excel";
 import { buildMaxedSkills, buildMaxedEquip } from "@game/maxout";
 import { GACHA_RULE_TYPE } from "@game/model/gacha";
-import { accountManager } from "@game/manager/AccountManger";
+import { accountManager } from "@game/manager/AccountManager";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { mailManager } from "@game/manager/mail";
@@ -1364,14 +1364,8 @@ export class AdminService {
     if (Object.keys(accountManager.data).length <= 1) {
       throw new Error("不能删除最后一个用户");
     }
-    const src = `./data/user/databases/${uid}.json`;
-    if (await exists(src)) {
-      await rm(src);
-    }
-    delete accountManager.data[uid];
-    delete accountManager.configs[uid];
-    // saveUserConfig → upsertAll 全量同步：删除的账号从 SQLite 清除
-    await accountManager.saveUserConfig();
+    // B-2 统一清理：存档文件 + configs/data + SQLite（users/社交/回放/结算）
+    await accountManager.deleteAccount(uid);
     await this._audit("deleteUser", uid, "已删除");
     return { uid };
   }

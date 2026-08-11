@@ -6,7 +6,7 @@
  */
 import { DatabaseSync } from "node:sqlite";
 import { readJson } from "@utils/file";
-import type { UserConfig } from "@game/manager/AccountManger";
+import type { UserConfig } from "@game/manager/AccountManager";
 
 /** 当前时间戳（秒） */
 function nowTs(): number {
@@ -58,20 +58,29 @@ export class UserRepository {
   }
 
   /**
-   * 全量同步（事务——与传入 configs 完全一致：先清空再插入，部分失败回滚）
+   * 全量同步（事务——结果与传入 configs 完全一致，增量执行）
    * 语义：saveUserConfig 保存的是内存 configs 完整集合，删除的账号不应在数据库残留。
+   * 实现（B-3）：逐行 INSERT OR REPLACE + 删除不在 configs 的 uid——不再清空整表重插，
+   * 账号多时避免表级锁竞争与全表写放大。
    * 社交字段默认不入库（social.db 唯一事实源）；keepSocial 仅首次种子迁移（users.json → social.db 的桥）时用。
    */
   upsertAll(configs: { [uid: string]: UserConfig }, keepSocial = false): void {
     const stmt = this.db.prepare(
       "INSERT OR REPLACE INTO users (uid, data, updated_ts) VALUES (?, ?, ?)",
     );
+    const delStmt = this.db.prepare("DELETE FROM users WHERE uid = ?");
+    const existing = (
+      this.db.prepare("SELECT uid FROM users").all() as { uid: string }[]
+    ).map((r) => r.uid);
+    const next = new Set(Object.keys(configs));
     const ts = nowTs();
     this.db.exec("BEGIN");
     try {
-      this.db.exec("DELETE FROM users");
       for (const [uid, config] of Object.entries(configs)) {
         stmt.run(uid, JSON.stringify(keepSocial ? config : stripSocial(config)), ts);
+      }
+      for (const uid of existing) {
+        if (!next.has(uid)) delStmt.run(uid);
       }
       this.db.exec("COMMIT");
     } catch (e) {

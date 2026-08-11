@@ -1,7 +1,7 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
-import { accountManager } from "../manager/AccountManger";
+import { accountManager } from "../manager/AccountManager";
 import { now } from "@utils/time";
 import config from "../../config";
 import {

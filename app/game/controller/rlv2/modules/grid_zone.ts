@@ -22,12 +22,51 @@ interface GridNode {
     kind?: number;
   };
   state: number; // 0 未访问 / 1 可访问 / 2 已访问
-  show: number;
+  show: number; // 视野：0 未点亮 / 1 可见
 }
 
 interface GridZone {
   nodes: { [key: string]: GridNode };
 }
+
+/** 黑流树海节点类型（官方 nodeTypeData 数值） */
+const ROGUE6_NODE = {
+  BATTLE_NORMAL: 1,
+  BATTLE_ELITE: 2,
+  BATTLE_BOSS: 4,
+  REST: 16,
+  INCIDENT: 32,
+  WISH: 512,
+  SACRIFICE: 1024,
+  EXPEDITION: 2048,
+  SHOP: 4096,
+  MIRAGE: 8192, // 误入奇境
+  PROPHECY: 32768, // 命运所指
+  FACE_OFF: 262144, // 狭路相逢
+  SECRET_SHOP: 2097152, // 秘境行商
+  TUNNEL: 4194304, // 曲折密道
+  VISIBLE_END: 8388608, // 险路尽头
+  VISIBLE_PATH: 16777216, // 险路小径
+  EMERGENCY_AID: 33554432, // 应急助力
+  RAIN_VIEW: 67108864, // 羽瞰点（照亮 1-2/1-3 曼哈顿距离）
+  RESIDENT: 134217728, // "居民"据点
+  GLADE: 268435456, // 林间空地
+};
+
+/**
+ * 各层可出现的节点类型（对照黑流树海机制解析视频）：
+ * 每层以 起点+林间空地 为基底；一层额外 作战/紧急/不期/得偿/秘境行商/险路小径；
+ * 二层起 先行一步/安全屋/羽瞰点/居民据点/应急助力；三层 +曲折密道/狭路相逢/误入奇境；
+ * 四层 +林间空地；五层 +命运所指/失与得；六层收敛（作战/紧急/得偿/不期/安全屋/诡秘行商）
+ */
+const LAYER_NODE_TYPES: { [layer: number]: number[] } = {
+  1: [ROGUE6_NODE.BATTLE_NORMAL, ROGUE6_NODE.BATTLE_ELITE, ROGUE6_NODE.INCIDENT, ROGUE6_NODE.WISH, ROGUE6_NODE.SECRET_SHOP, ROGUE6_NODE.VISIBLE_PATH],
+  2: [ROGUE6_NODE.BATTLE_NORMAL, ROGUE6_NODE.BATTLE_ELITE, ROGUE6_NODE.INCIDENT, ROGUE6_NODE.WISH, ROGUE6_NODE.EXPEDITION, ROGUE6_NODE.REST, ROGUE6_NODE.RAIN_VIEW, ROGUE6_NODE.RESIDENT, ROGUE6_NODE.EMERGENCY_AID],
+  3: [ROGUE6_NODE.BATTLE_NORMAL, ROGUE6_NODE.BATTLE_ELITE, ROGUE6_NODE.INCIDENT, ROGUE6_NODE.WISH, ROGUE6_NODE.EXPEDITION, ROGUE6_NODE.REST, ROGUE6_NODE.TUNNEL, ROGUE6_NODE.FACE_OFF, ROGUE6_NODE.MIRAGE, ROGUE6_NODE.EMERGENCY_AID],
+  4: [ROGUE6_NODE.BATTLE_NORMAL, ROGUE6_NODE.BATTLE_ELITE, ROGUE6_NODE.INCIDENT, ROGUE6_NODE.WISH, ROGUE6_NODE.EXPEDITION, ROGUE6_NODE.REST, ROGUE6_NODE.TUNNEL, ROGUE6_NODE.FACE_OFF, ROGUE6_NODE.GLADE, ROGUE6_NODE.EMERGENCY_AID],
+  5: [ROGUE6_NODE.BATTLE_NORMAL, ROGUE6_NODE.BATTLE_ELITE, ROGUE6_NODE.INCIDENT, ROGUE6_NODE.WISH, ROGUE6_NODE.SACRIFICE, ROGUE6_NODE.REST, ROGUE6_NODE.PROPHECY, ROGUE6_NODE.FACE_OFF, ROGUE6_NODE.EMERGENCY_AID],
+  6: [ROGUE6_NODE.BATTLE_NORMAL, ROGUE6_NODE.BATTLE_ELITE, ROGUE6_NODE.INCIDENT, ROGUE6_NODE.WISH, ROGUE6_NODE.REST, ROGUE6_NODE.SHOP],
+};
 
 export class RoguelikeGridZoneManager {
   zones: { [key: string]: GridZone };
@@ -61,43 +100,12 @@ export class RoguelikeGridZoneManager {
       this._player.current.module?.gridZone?.needConfirmStepZero ?? 0;
   }
 
-  /** 生成当前层网格（按官方 zone 数据：portal zone 的 rollNodeData groups 定义允许节点类型） */
+  /** 生成当前层网格（黑流树海：无相地图 + 视野机制） */
   generate([zoneId]: [number]): void {
     const theme = this._player.current.game!.theme;
     const detail = excel.RoguelikeTopicTable.details[theme] as any;
     const stages = Object.keys(detail?.stages || {});
     const roNum = theme.slice(-1);
-
-    // 官方 portal zone：本层的自由探索区域（zone_portal_normal_{zone}_N）
-    const zoneData = detail?.zones || {};
-    const portalIds = Object.keys(zoneData).filter((z) =>
-      z.startsWith(`zone_portal_normal_${zoneId}_`),
-    );
-    const portalZoneId =
-      portalIds[Math.floor(Math.random() * Math.max(portalIds.length, 1))] ||
-      `zone_portal_normal_${zoneId}_1`;
-
-    // rollNodeData：portal zone 允许的节点类型（INCIDENT/BATTLE_NORMAL/...）
-    const rollNodeData = detail?.rollNodeData || {};
-    const groups = rollNodeData[portalZoneId]?.groups || {};
-    const allowedTypes = Object.keys(groups).map(
-      (k) => (groups[k] as { nodeType: string }).nodeType,
-    );
-    const typeToCode: Record<string, number> = {
-      BATTLE_NORMAL: 1,
-      BATTLE_ELITE: 2,
-      BATTLE_BOSS: 4,
-      SHOP: 8,
-      REST: 16,
-      INCIDENT: 32,
-      TREASURE: 64,
-      ENTERTAINMENT: 128,
-      UNKNOWN: 256,
-      WISH: 512,
-      SACRIFICE: 1024,
-      EXPEDITION: 2048,
-      BATTLE_SHOP: 4096,
-    };
 
     // 本层关卡优先，缺失回退全主题普通关卡
     const zoneStages = stages.filter((s) =>
@@ -106,46 +114,63 @@ export class RoguelikeGridZoneManager {
     const all =
       zoneStages.length > 0
         ? zoneStages
-        : stages.filter(
-            (s) => /^ro\d+_[ne]_\d+_/.test(s),
-          );
+        : stages.filter((s) => /^ro\d+_[ne]_\d+_/.test(s));
+
+    // 本层可出节点类型（视频机制：层数限制）
+    const allowedTypes = LAYER_NODE_TYPES[zoneId] || LAYER_NODE_TYPES[1];
 
     const nodes: { [key: string]: GridNode } = {};
-    const gridX = 5;
-    const gridY = 3;
+    // 无相地图：起点（起始列）+ 林间空地（视野点亮基底）
+    const startX = 0;
+    const startY = 1;
+    const gridX = 6;
+    const gridY = 4;
     for (let x = 0; x < gridX; x++) {
       for (let y = 0; y < gridY; y++) {
         const nodeId = `${x}${String(y).padStart(2, "0")}`;
-        // 节点类型：优先从官方允许类型池抽（战斗为主），缺失回退混合
-        const typeCodes =
-          allowedTypes.length > 0
-            ? allowedTypes
-                .map((t) => typeToCode[t])
-                .filter((c) => c !== undefined)
-            : [1, 1, 32, 4096, 512];
-        const roll = Math.floor(
-          Math.random() * Math.max(typeCodes.length, 1),
-        );
-        const type = typeCodes[roll] ?? 1;
-        if (type === 1 || type === 2 || type === 4) {
+        const nodeX = Number(nodeId[0]);
+        const nodeY = Number(nodeId.slice(1));
+        // 起点：固定在最左列中央
+        if (nodeX === startX && nodeY === startY) {
+          nodes[nodeId] = {
+            content: { kind: ROGUE6_NODE.GLADE },
+            state: 1,
+            show: 1,
+          };
+          continue;
+        }
+        // 起点相邻的 林间空地（视野基底，起点同列其余/相邻列偶发）
+        const isGlade = Math.random() < 0.12;
+        if (isGlade) {
+          nodes[nodeId] = {
+            content: { kind: ROGUE6_NODE.GLADE },
+            state: 0,
+            show: 1,
+          };
+          continue;
+        }
+        // 随机从本层允许类型抽（战斗为主）
+        const type = allowedTypes[Math.floor(Math.random() * allowedTypes.length)];
+        if (type === ROGUE6_NODE.BATTLE_NORMAL || type === ROGUE6_NODE.BATTLE_ELITE || type === ROGUE6_NODE.BATTLE_BOSS) {
           const stageId =
             all[Math.floor(Math.random() * Math.max(all.length, 1))] || "";
           nodes[nodeId] = {
             content: { savage: { stageId } },
-            state: x === 0 ? 1 : 0,
-            show: 1,
+            state: 0,
+            // 视野：起点/林间空地可见，其余隐藏（移动/羽瞰点亮起）
+            show: nodeX <= 1 ? 1 : 0,
           };
-        } else if (type === 8 || type === 4096) {
+        } else if (type === ROGUE6_NODE.SHOP || type === ROGUE6_NODE.SECRET_SHOP) {
           nodes[nodeId] = {
             content: { shop: { goods: [] } },
-            state: x === 0 ? 1 : 0,
-            show: 1,
+            state: 0,
+            show: nodeX <= 1 ? 1 : 0,
           };
         } else {
           nodes[nodeId] = {
-            content: { kind: typeToCode[type] ?? type },
-            state: x === 0 ? 1 : 0,
-            show: 1,
+            content: { kind: type },
+            state: 0,
+            show: nodeX <= 1 ? 1 : 0,
           };
         }
       }
@@ -171,14 +196,18 @@ export class RoguelikeGridZoneManager {
     const node = zone.nodes[last];
     if (node) {
       node.state = 2;
-      // 相连节点置为可访问
+      // 视野：点亮当前节点曼哈顿距离 1 的可达节点（黑流树海视野机制——
+      // 自身视野照亮直接可达节点；羽瞰点照亮 1-2 格）
       const lastX = parseInt(last[0], 10);
       const lastY = parseInt(last.slice(1), 10);
+      const visionRange = node.content?.kind === ROGUE6_NODE.RAIN_VIEW ? 2 : 1;
       for (const [id, n] of Object.entries(zone.nodes)) {
         const nx = parseInt(id[0], 10);
         const ny = parseInt(id.slice(1), 10);
-        if (Math.abs(nx - lastX) + Math.abs(ny - lastY) === 1 && n.state === 0) {
-          n.state = 1;
+        const dist = Math.abs(nx - lastX) + Math.abs(ny - lastY);
+        if (dist <= visionRange) {
+          n.show = 1;
+          if (n.state === 0) n.state = 1;
         }
       }
     }

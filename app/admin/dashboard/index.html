@@ -1788,11 +1788,20 @@
       '<button id="px-png">下载 PNG</button>' +
       '<button id="px-data">下载像素数据</button>' +
       "</div>" +
-      '<div class="row" style="margin-top:8px;">' +
-      '<input type="file" id="px-file" accept="image/*" style="flex:1;font-size:12px;color:var(--muted);">' +
-      '<button id="px-convert">转像素画</button>' +
+      '<div style="margin-top:8px;">' +
+      '<input type="file" id="px-file" accept="image/*" style="font-size:12px;color:var(--muted);">' +
+      '<div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+      '<select id="px-scheme" style="font-size:12px;">' +
+      '<option value="nearest">直接采样（最近色）</option>' +
+      '<option value="average">区域均值</option>' +
+      '<option value="dither">Floyd 抖动</option>' +
+      '<option value="gray">灰度化</option>' +
+      "</select>" +
+      '<button id="px-convert" class="primary">转换</button>' +
       "</div>" +
-      '<p style="font-size:11px;color:var(--muted);margin-top:4px;">上传图片 → 缩放到 24×24 → 量化到官服 40 色调色板（官服校验像素颜色必须在此白名单内）</p>' +
+      '<canvas id="px-preview" width="240" height="240" style="border:1px solid var(--border);background:#1a1a1c;display:none;cursor:move;touch-action:none;margin-top:6px;"></canvas>' +
+      "</div>" +
+      '<p style="font-size:11px;color:var(--muted);margin-top:4px;">选图后在预览中拖动裁剪框 / 拖右下角调整大小（方形）；转换方案均量化到官服 40 色调色板（官服校验颜色白名单）。</p>' +
       "</div>" +
       "<div>" +
       '<p style="font-size:12px;color:var(--muted);margin:0 0 6px;">调色板（点击选色）</p>' +
@@ -1908,7 +1917,7 @@
       }
       draw();
     });
-    // 图片 → 像素画（缩放 24×24，量化到官服 40 色调色板）
+    // 图片 → 像素画（裁剪 + 多种转换方案 + 官服 40 色调色板量化）
     var PALETTE_RGB = PALETTE.map(hexToRgb);
     function nearestPalette(r, g, b) {
       var best = PALETTE_RGB[0], bestD = Infinity;
@@ -1919,33 +1928,184 @@
       }
       return best.slice();
     }
-    $("px-convert").addEventListener("click", function () {
-      var file = $("px-file").files && $("px-file").files[0];
-      if (!file) { toast("请先选择图片文件"); return; }
+    var srcImg = null;                       // 已加载源图
+    var preview = $("px-preview");
+    var pctx = preview.getContext("2d");
+    var crop = { x: 0, y: 0, s: 0 };         // 裁剪框（预览画布坐标，1:1 方形）
+    var drawRect = { x0: 0, y0: 0, w: 240, h: 240 }; // 图片 contain 适配后的绘制区域
+    var dragState = null;                    // 裁剪框拖拽状态
+
+    function drawPreview() {
+      if (!srcImg) return;
+      pctx.fillStyle = "#1a1a1c";
+      pctx.fillRect(0, 0, 240, 240);
+      var scale = Math.min(240 / srcImg.naturalWidth, 240 / srcImg.naturalHeight);
+      var w = srcImg.naturalWidth * scale, h = srcImg.naturalHeight * scale;
+      drawRect = { x0: (240 - w) / 2, y0: (240 - h) / 2, w: w, h: h };
+      pctx.drawImage(srcImg, drawRect.x0, drawRect.y0, w, h);
+      // 裁剪框外遮罩 + 金色边框 + 右下角手柄
+      pctx.fillStyle = "rgba(0,0,0,0.45)";
+      pctx.fillRect(0, 0, 240, crop.y);
+      pctx.fillRect(0, crop.y + crop.s, 240, 240 - crop.y - crop.s);
+      pctx.fillRect(0, crop.y, crop.x, crop.s);
+      pctx.fillRect(crop.x + crop.s, crop.y, 240 - crop.x - crop.s, crop.s);
+      pctx.strokeStyle = "#ffd700";
+      pctx.lineWidth = 2;
+      pctx.strokeRect(crop.x, crop.y, crop.s, crop.s);
+      pctx.fillStyle = "#ffd700";
+      pctx.fillRect(crop.x + crop.s - 8, crop.y + crop.s - 8, 8, 8);
+    }
+    function initCrop() {
+      crop.s = Math.max(24, Math.min(drawRect.w, drawRect.h));
+      crop.x = drawRect.x0 + (drawRect.w - crop.s) / 2;
+      crop.y = drawRect.y0 + (drawRect.h - crop.s) / 2;
+    }
+    function clampCrop() {
+      crop.s = Math.max(24, Math.min(crop.s, drawRect.w, drawRect.h));
+      crop.x = Math.max(drawRect.x0, Math.min(crop.x, drawRect.x0 + drawRect.w - crop.s));
+      crop.y = Math.max(drawRect.y0, Math.min(crop.y, drawRect.y0 + drawRect.h - crop.s));
+    }
+    function previewPos(e) {
+      var rect = preview.getBoundingClientRect();
+      return {
+        x: (e.clientX - rect.left) * (240 / rect.width),
+        y: (e.clientY - rect.top) * (240 / rect.height),
+      };
+    }
+    function cropHit(x, y) {
+      var hx = crop.x + crop.s, hy = crop.y + crop.s;
+      if (x >= hx - 12 && x <= hx + 4 && y >= hy - 12 && y <= hy + 4) return "resize";
+      if (x >= crop.x && x <= hx && y >= crop.y && y <= hy) return "move";
+      return null;
+    }
+    preview.addEventListener("mousedown", function (e) {
+      if (!srcImg) return;
+      var p = previewPos(e);
+      var mode = cropHit(p.x, p.y);
+      if (mode) { e.preventDefault(); dragState = { mode: mode, sx: p.x, sy: p.y, ox: crop.x, oy: crop.y, os: crop.s }; }
+    });
+    window.addEventListener("mousemove", function (e) {
+      if (!dragState || !srcImg) return;
+      var p = previewPos(e);
+      var dx = p.x - dragState.sx, dy = p.y - dragState.sy;
+      if (dragState.mode === "move") {
+        crop.x = dragState.ox + dx;
+        crop.y = dragState.oy + dy;
+      } else {
+        crop.s = dragState.os + Math.max(dx, dy);
+      }
+      clampCrop();
+      drawPreview();
+    });
+    window.addEventListener("mouseup", function () { dragState = null; });
+    // 触屏
+    preview.addEventListener("touchstart", function (e) {
+      if (!srcImg) return;
+      e.preventDefault();
+      var t = e.touches[0];
+      var p = previewPos(t);
+      var mode = cropHit(p.x, p.y);
+      if (mode) dragState = { mode: mode, sx: p.x, sy: p.y, ox: crop.x, oy: crop.y, os: crop.s };
+    }, { passive: false });
+    preview.addEventListener("touchmove", function (e) {
+      if (!dragState || !srcImg) return;
+      e.preventDefault();
+      var p = previewPos(e.touches[0]);
+      var dx = p.x - dragState.sx, dy = p.y - dragState.sy;
+      if (dragState.mode === "move") { crop.x = dragState.ox + dx; crop.y = dragState.oy + dy; }
+      else crop.s = dragState.os + Math.max(dx, dy);
+      clampCrop();
+      drawPreview();
+    }, { passive: false });
+    preview.addEventListener("touchend", function () { dragState = null; });
+
+    $("px-file").addEventListener("change", function () {
+      var file = this.files && this.files[0];
+      if (!file) return;
       var reader = new FileReader();
       reader.onload = function (ev) {
         var img = new Image();
         img.onload = function () {
-          var oc = document.createElement("canvas");
-          oc.width = SIZE;
-          oc.height = SIZE;
-          var octx = oc.getContext("2d");
-          octx.imageSmoothingEnabled = false;
-          octx.drawImage(img, 0, 0, SIZE, SIZE);
-          var data = octx.getImageData(0, 0, SIZE, SIZE).data;
-          for (var y = 0; y < SIZE; y++) {
-            for (var x = 0; x < SIZE; x++) {
-              var idx = (y * SIZE + x) * 4;
-              grid[y * SIZE + x] = nearestPalette(data[idx], data[idx + 1], data[idx + 2]);
-            }
-          }
-          draw();
-          toast("已转换为 24×24 像素画（官服 40 色调色板）——可微调后下载/上传");
+          srcImg = img;
+          preview.style.display = "block";
+          initCrop();
+          drawPreview();
+          toast("图片已加载——拖动裁剪框 / 调整大小，选择转换方案");
         };
         img.onerror = function () { toast("图片读取失败", "err"); };
         img.src = ev.target.result;
       };
       reader.readAsDataURL(file);
+    });
+
+    $("px-convert").addEventListener("click", function () {
+      if (!srcImg) { toast("请先选择图片文件"); return; }
+      var scheme = $("px-scheme").value;
+      // 裁剪区域 → 源图像素坐标
+      var scale = drawRect.w / srcImg.naturalWidth;
+      var sx = (crop.x - drawRect.x0) / scale;
+      var sy = (crop.y - drawRect.y0) / scale;
+      var sw = crop.s / scale;
+      // 1) 采样 24×24
+      var oc = document.createElement("canvas");
+      var octx = oc.getContext("2d");
+      var sampled = [];
+      if (scheme === "average") {
+        // 240×240 平滑采样 → 均值 10×10 块
+        oc.width = 240; oc.height = 240;
+        octx.imageSmoothingEnabled = true;
+        octx.drawImage(srcImg, sx, sy, sw, sw, 0, 0, 240, 240);
+        var big = octx.getImageData(0, 0, 240, 240).data;
+        for (var cy = 0; cy < SIZE; cy++) {
+          for (var cx = 0; cx < SIZE; cx++) {
+            var r = 0, g = 0, b = 0;
+            for (var by = 0; by < 10; by++) {
+              for (var bx = 0; bx < 10; bx++) {
+                var bi = ((cy * 10 + by) * 240 + (cx * 10 + bx)) * 4;
+                r += big[bi]; g += big[bi + 1]; b += big[bi + 2];
+              }
+            }
+            sampled.push([Math.round(r / 100), Math.round(g / 100), Math.round(b / 100)]);
+          }
+        }
+      } else {
+        // 直接 24×24 最近邻采样
+        oc.width = SIZE; oc.height = SIZE;
+        octx.imageSmoothingEnabled = false;
+        octx.drawImage(srcImg, sx, sy, sw, sw, 0, 0, SIZE, SIZE);
+        var small = octx.getImageData(0, 0, SIZE, SIZE).data;
+        for (var i = 0; i < SIZE * SIZE; i++) sampled.push([small[i * 4], small[i * 4 + 1], small[i * 4 + 2]]);
+      }
+      // 2) 灰度化（可选）
+      if (scheme === "gray") {
+        for (var i = 0; i < sampled.length; i++) {
+          var l = Math.round(0.299 * sampled[i][0] + 0.587 * sampled[i][1] + 0.114 * sampled[i][2]);
+          sampled[i] = [l, l, l];
+        }
+      }
+      // 3) 量化到官服 40 色调色板
+      if (scheme === "dither") {
+        // Floyd–Steinberg 误差扩散
+        var work = sampled.map(function (p) { return p.slice(); });
+        for (var y = 0; y < SIZE; y++) {
+          for (var x = 0; x < SIZE; x++) {
+            var old = work[y * SIZE + x];
+            var q = nearestPalette(old[0], old[1], old[2]);
+            grid[y * SIZE + x] = q.slice();
+            var er = old[0] - q[0], eg = old[1] - q[1], eb = old[2] - q[2];
+            function add(nx, ny, c) {
+              if (nx < 0 || nx >= SIZE || ny < 0 || ny >= SIZE) return;
+              var p = work[ny * SIZE + nx];
+              p[0] += er * c; p[1] += eg * c; p[2] += eb * c;
+            }
+            add(x + 1, y, 7 / 16); add(x - 1, y + 1, 3 / 16); add(x, y + 1, 5 / 16); add(x + 1, y + 1, 1 / 16);
+          }
+        }
+      } else {
+        for (var i = 0; i < sampled.length; i++) grid[i] = nearestPalette(sampled[i][0], sampled[i][1], sampled[i][2]);
+      }
+      draw();
+      toast("已转换（" + $("px-scheme").selectedOptions[0].text + "，官服 40 色调色板）——可微调后下载/上传");
     });
     $("px-png").addEventListener("click", function () {
       var a = document.createElement("a");

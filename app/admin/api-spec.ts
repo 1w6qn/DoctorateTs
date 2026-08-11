@@ -129,6 +129,7 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   { method: "GET", path: "/api/common-items", summary: "常用物品别名表" },
   { method: "GET", path: "/api/mail-templates", summary: "邮件模板列表（补偿/公告/欢迎，CLI mail send --template 用）" },
   { method: "GET", path: "/api/official/backend", summary: "当前官服操作后端（enabled + game/account/conf 地址，config.officialBackend 配置）" },
+  { method: "GET", path: "/api/mapviz-data", summary: "地图可视化数据（集成战略主题关卡池，供 dashboard 地图 tab；源 tools/map-visualizer/game-data.js）" },
   {
     method: "POST",
     path: "/api/cli/exec",

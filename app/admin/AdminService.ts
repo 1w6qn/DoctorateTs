@@ -1772,6 +1772,30 @@ export class AdminService {
   }
 
   /**
+   * 地图可视化数据（dashboard「地图」tab）
+   * 读取 tools/map-visualizer/game-data.js（generate-data.ts 的产物：window.MAPVIZ_DATA = {...}），
+   * 剥掉前缀/尾分号后 JSON.parse。文件缺失或解析失败返回 null（router 层转 404）。
+   */
+  async getMapvizData(): Promise<object | null> {
+    try {
+      const raw = await readFile(
+        path.join(process.cwd(), "tools", "map-visualizer", "game-data.js"),
+        "utf-8",
+      );
+      const start = raw.indexOf("=");
+      const end = raw.lastIndexOf(";");
+      if (start === -1 || end === -1 || end <= start) {
+        logger.warn("Mapviz", "game-data.js 格式异常（缺少 = 或 ;）");
+        return null;
+      }
+      return JSON.parse(raw.slice(start + 1, end)) as object;
+    } catch (e) {
+      logger.warn("Mapviz", `game-data.js 读取失败: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
    * 创建新用户
    * 以 1 号用户数据库为模板复制，替换 uid/昵称/注册时间，写入文件并更新内存配置。
    * @param phone - 登录手机号

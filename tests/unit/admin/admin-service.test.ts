@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { AdminService } from "../../../app/admin/AdminService";
-import { accountManager } from "../../../app/game/manager/AccountManger";
+import { accountManager } from "../../../app/game/manager/AccountManager";
 import { mailManager } from "../../../app/game/manager/mail";
 import { mockPlayerData } from "../../helpers";
 import config from "../../../app/config";
@@ -227,6 +227,32 @@ describe("AdminService 只读能力", () => {
     const b = service.getOfficialBackend();
     expect(b.enabled).toBe(false);
     expect(b.game).toContain("ak-gs-gf.hypergryph.com");
+  });
+
+  it("getMapvizData 应剥掉 game-data.js 前缀并解析 JSON", async () => {
+    const readFileSpy = vi
+      .spyOn(await import("fs/promises"), "readFile")
+      .mockResolvedValue(
+        `/* 自动生成 */\nwindow.MAPVIZ_DATA = {"rogue_1":{"normal":["ro1_n_1_1"],"elite":[],"boss":[],"zones":{}}};\n`,
+      );
+    const data = await service.getMapvizData();
+    expect(data).toEqual({ rogue_1: { normal: ["ro1_n_1_1"], elite: [], boss: [], zones: {} } });
+    expect(readFileSpy).toHaveBeenCalled();
+    readFileSpy.mockRestore();
+  });
+
+  it("getMapvizData 文件读取失败应返回 null", async () => {
+    vi.spyOn(await import("fs/promises"), "readFile").mockRejectedValue(
+      new Error("ENOENT"),
+    );
+    expect(await service.getMapvizData()).toBeNull();
+  });
+
+  it("getMapvizData 格式异常（缺 = 或 ;）应返回 null", async () => {
+    vi.spyOn(await import("fs/promises"), "readFile").mockResolvedValue(
+      "window.MAPVIZ_DATA 没有分号",
+    );
+    expect(await service.getMapvizData()).toBeNull();
   });
 
   it("listUsers 应支持按昵称/手机号/uid 过滤", async () => {

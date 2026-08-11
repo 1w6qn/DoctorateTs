@@ -355,6 +355,16 @@ router.get("/api/official/backend", (_req: Request, res: Response) => {
   res.json(adminService.getOfficialBackend());
 });
 
+/** 地图可视化数据（dashboard「地图」tab：tools/map-visualizer/game-data.js 的 MAPVIZ_DATA） */
+router.get("/api/mapviz-data", async (_req: Request, res: Response) => {
+  const data = await adminService.getMapvizData();
+  if (!data) {
+    res.status(404).json({ error: "地图数据缺失（tools/map-visualizer/game-data.js 未生成或格式异常，运行 npx tsx tools/map-visualizer/generate-data.ts 生成）" });
+    return;
+  }
+  res.json(data);
+});
+
 /** CLI 集成：服务器内执行 CLI 命令（复用 admin-cli dispatch，输出捕获返回） */
 router.post("/api/cli/exec", async (req: Request, res: Response) => {
   try {

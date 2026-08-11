@@ -137,6 +137,29 @@
   .tool-card .tool-body label { display: block; margin-top: 6px; }
   .tool-card .tool-body input, .tool-card .tool-body textarea { width: 100%; margin: 4px 0 8px; }
   .tool-card .tool-body .resp-box { margin-top: 8px; max-height: 240px; }
+  /* 地图可视化（map-visualizer 移植，类名 mv- 前缀防冲突） */
+  .mv-wrap { display: flex; gap: 14px; min-height: 480px; }
+  .mv-canvas { flex: 1; overflow: auto; padding: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+  .mv-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; font-size: 12px; align-items: center; }
+  .mv-legend .mv-item { display: flex; align-items: center; gap: 4px; }
+  .mv-legend .mv-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .mv-side { width: 280px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; overflow-y: auto; flex-shrink: 0; max-height: 560px; }
+  .mv-side h3 { font-size: 13px; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+  .mv-side .mv-empty { color: var(--muted); font-size: 12px; line-height: 1.8; }
+  .mv-side table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .mv-side td { padding: 4px 6px; border-bottom: 1px solid var(--border); }
+  .mv-side td:first-child { color: var(--muted); width: 70px; }
+  .mv-step { font-size: 12px; padding: 3px 0; color: var(--text); }
+  .mv-step b { color: var(--gold); }
+  .mv-node-circle { cursor: pointer; }
+  .mv-node-circle:hover { filter: brightness(1.3); }
+  .mv-node-label { font-size: 10px; fill: var(--muted); pointer-events: none; }
+  .mv-edge { stroke: #3a4156; stroke-width: 1.4; fill: none; }
+  .mv-edge-key { stroke: #d8a657; stroke-width: 2; stroke-dasharray: 4 3; fill: none; }
+  .mv-edge-path { stroke: var(--accent); stroke-width: 2.6; fill: none; }
+  .mv-zone-title { font-size: 14px; font-weight: 600; fill: var(--text); }
+  .mv-zone-end { font-size: 10px; fill: #e06c75; }
+  @media (max-width: 900px) { .mv-wrap { flex-direction: column; } .mv-side { width: auto; max-height: none; } }
   /* 移动端适配：单列布局、控制台/弹窗不溢出、导航横排可滚动 */
   /* 移动端汉堡抽屉 */
   #side-mask { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 35; }
@@ -239,6 +262,7 @@
         <div class="tab" data-tab="api">🔧 接口</div>
         <div class="tab" data-tab="official">🛰️ 官服</div>
         <div class="tab" data-tab="pixel">🖼️ 像素画</div>
+        <div class="tab" data-tab="map">🗺️ 地图</div>
       </div>
     </div>
   </aside>
@@ -320,6 +344,7 @@
       <div class="tab-pane" id="pane-api"></div>
       <div class="tab-pane" id="pane-official"></div>
       <div class="tab-pane" id="pane-pixel"></div>
+      <div class="tab-pane" id="pane-map"></div>
       <div class="tab-pane" id="pane-raw"></div>
     </div>
   </section>
@@ -723,9 +748,9 @@
 
   /* ---------- 用户详情（Tab） ---------- */
 
-  var TAB_LABELS = { overview: "概览", chars: "干员", mails: "邮件", pools: "卡池", api: "接口", official: "官服", pixel: "像素画", raw: "数据" };
+  var TAB_LABELS = { overview: "概览", chars: "干员", mails: "邮件", pools: "卡池", api: "接口", official: "官服", pixel: "像素画", map: "地图", raw: "数据" };
   /** 全局功能 Tab（不依赖选中用户，内容全宽） */
-  var GLOBAL_TABS = ["pools", "api", "official", "pixel"];
+  var GLOBAL_TABS = ["pools", "api", "official", "pixel", "map"];
 
   /** Tab 输入状态缓存（切 Tab 回来恢复搜索/请求体/账号等） */
   var tabState = {};
@@ -781,6 +806,7 @@
     if (tab === "api") { loadApiPane(); return; }
     if (tab === "official") { loadOfficialPane(); return; }
     if (tab === "pixel") { loadPixelPane(); return; }
+    if (tab === "map") { loadMapPane(); return; }
     // 用户相关 Tab：未选用户时提示
     if (!uid) {
       var pane = $("pane-" + tab);
@@ -2270,6 +2296,462 @@
     draw();
   }
 
+  /* ---------- 地图可视化 Tab（map-visualizer 移植，复现 map.ts generate()） ---------- */
+
+  /** MD5 种子哈希（与 map.ts randByKey 一致的 md5 实现，仅用于生成确定性随机） */
+  function mv_md5(s) {
+    var L = function (x, c) { return (x << c) | (x >>> (32 - c)); };
+    var V = function (x) { return (((x & 0xaaaaaaaa) >>> 1) | ((x & 0x55555555) << 1)) >>> 0; };
+    var G = function (x) { return (((x & 0xcccccccc) >>> 2) | ((x & 0x33333333) << 2)) >>> 0; };
+    var H = function (x) { return (((x & 0xf0f0f0f0) >>> 4) | ((x & 0x0f0f0f0f) << 4)) >>> 0; };
+    var I = function (x) { return (((x & 0xff00ff00) >>> 8) | ((x & 0x00ff00ff) << 8)) >>> 0; };
+    var J = function (x) { return ((x >>> 16) | (x << 16)) >>> 0; };
+    var K = function (a, b) { var c = (a & 0xffff) + (b & 0xffff); var d = ((a >>> 16) + (b >>> 16) + (c >>> 16)) << 16; return (d | (c & 0xffff)) >>> 0; };
+    var N = function (a, b, c, d, x, s, t) { return K(L(K(K(b, a), K(x, t)), d), s); };
+    var O = function (a, b, c, d, x, s, t) { return N((b & c) | (~b & d), a, b, x, s, t); };
+    var P = function (a, b, c, d, x, s, t) { return N((b & d) | (c & ~d), a, b, x, s, t); };
+    var Q = function (a, b, c, d, x, s, t) { return N(b ^ c ^ d, a, b, x, s, t); };
+    var R = function (a, b, c, d, x, s, t) { return N(c ^ (b | ~d), a, b, x, s, t); };
+    var n = s.length, m = [];
+    for (var i = 0; i < n; i++) m[i] = s.charCodeAt(i);
+    var b = (n + 8) >>> 6;
+    m[b * 16 + 14] = n * 8;
+    for (i = 0; i < b * 16; i++) if (m[i] === undefined) m[i] = 0;
+    var a2 = 1732584193, c2 = -271733879, d2 = -1732584194, e2 = 271733878;
+    var f = [7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21];
+    var g = [3614090360, 3905402710, 606105819, 3250441966, 4118548399, 1200080426, 2821735955, 4249261313, 1770035416, 2336552879, 4294925233, 2304563134, 1804603682, 4254626195, 2792965006, 1236535329, 4129170786, 3225465664, 643717713, 3921069994, 3593408605, 38016083, 3634488961, 3889429448, 568446438, 3275163606, 4107603335, 1163531501, 2850285829, 4243563512, 1735328473, 2368359562, 4294588738, 2272392833, 1839030562, 4259657740, 2763975236, 1272893353, 4139469664, 3200236656, 681279174, 3936430074, 3572445317, 76029189, 3654602809, 3873151461, 530742520, 3299628645, 4096336452, 1126891415, 2878612391, 4237533241, 1700485571, 2399980690, 4293915773, 2240044497, 1873313359, 4264355552, 2734768916, 1309151649, 4149444226, 3174756917, 718787259, 3951481745];
+    for (i = 0; i < b; i++) {
+      var t = a2, u = c2, v = d2, w = e2;
+      var k = a2;
+      a2 = O(a2, c2, d2, e2, m[i * 16 + 0], f[0], g[0]); e2 = O(e2, a2, c2, d2, m[i * 16 + 1], f[1], g[1]); d2 = O(d2, e2, a2, c2, m[i * 16 + 2], f[2], g[2]); c2 = O(c2, d2, e2, a2, m[i * 16 + 3], f[3], g[3]); a2 = O(a2, c2, d2, e2, m[i * 16 + 4], f[4], g[4]); e2 = O(e2, a2, c2, d2, m[i * 16 + 5], f[5], g[5]); d2 = O(d2, e2, a2, c2, m[i * 16 + 6], f[6], g[6]); c2 = O(c2, d2, e2, a2, m[i * 16 + 7], f[7], g[7]); a2 = O(a2, c2, d2, e2, m[i * 16 + 8], f[8], g[8]); e2 = O(e2, a2, c2, d2, m[i * 16 + 9], f[9], g[9]); d2 = O(d2, e2, a2, c2, m[i * 16 + 10], f[10], g[10]); c2 = O(c2, d2, e2, a2, m[i * 16 + 11], f[11], g[11]); a2 = O(a2, c2, d2, e2, m[i * 16 + 12], f[12], g[12]); e2 = O(e2, a2, c2, d2, m[i * 16 + 13], f[13], g[13]); d2 = O(d2, e2, a2, c2, m[i * 16 + 14], f[14], g[14]); c2 = O(c2, d2, e2, a2, m[i * 16 + 15], f[15], g[15]);
+      a2 = P(a2, c2, d2, e2, m[i * 16 + 1], f[16], g[16]); e2 = P(e2, a2, c2, d2, m[i * 16 + 6], f[17], g[17]); d2 = P(d2, e2, a2, c2, m[i * 16 + 11], f[18], g[18]); c2 = P(c2, d2, e2, a2, m[i * 16 + 0], f[19], g[19]); a2 = P(a2, c2, d2, e2, m[i * 16 + 5], f[20], g[20]); e2 = P(e2, a2, c2, d2, m[i * 16 + 10], f[21], g[21]); d2 = P(d2, e2, a2, c2, m[i * 16 + 15], f[22], g[22]); c2 = P(c2, d2, e2, a2, m[i * 16 + 4], f[23], g[23]); a2 = P(a2, c2, d2, e2, m[i * 16 + 9], f[24], g[24]); e2 = P(e2, a2, c2, d2, m[i * 16 + 14], f[25], g[25]); d2 = P(d2, e2, a2, c2, m[i * 16 + 3], f[26], g[26]); c2 = P(c2, d2, e2, a2, m[i * 16 + 8], f[27], g[27]); a2 = P(a2, c2, d2, e2, m[i * 16 + 13], f[28], g[28]); e2 = P(e2, a2, c2, d2, m[i * 16 + 2], f[29], g[29]); d2 = P(d2, e2, a2, c2, m[i * 16 + 7], f[30], g[30]); c2 = P(c2, d2, e2, a2, m[i * 16 + 12], f[31], g[31]);
+      a2 = Q(a2, c2, d2, e2, m[i * 16 + 5], f[32], g[32]); e2 = Q(e2, a2, c2, d2, m[i * 16 + 8], f[33], g[33]); d2 = Q(d2, e2, a2, c2, m[i * 16 + 11], f[34], g[34]); c2 = Q(c2, d2, e2, a2, m[i * 16 + 14], f[35], g[35]); a2 = Q(a2, c2, d2, e2, m[i * 16 + 1], f[36], g[36]); e2 = Q(e2, a2, c2, d2, m[i * 16 + 4], f[37], g[37]); d2 = Q(d2, e2, a2, c2, m[i * 16 + 7], f[38], g[38]); c2 = Q(c2, d2, e2, a2, m[i * 16 + 10], f[39], g[39]); a2 = Q(a2, c2, d2, e2, m[i * 16 + 13], f[40], g[40]); e2 = Q(e2, a2, c2, d2, m[i * 16 + 0], f[41], g[41]); d2 = Q(d2, e2, a2, c2, m[i * 16 + 3], f[42], g[42]); c2 = Q(c2, d2, e2, a2, m[i * 16 + 6], f[43], g[43]); a2 = Q(a2, c2, d2, e2, m[i * 16 + 9], f[44], g[44]); e2 = Q(e2, a2, c2, d2, m[i * 16 + 12], f[45], g[45]); d2 = Q(d2, e2, a2, c2, m[i * 16 + 15], f[46], g[46]); c2 = Q(c2, d2, e2, a2, m[i * 16 + 2], f[47], g[47]);
+      a2 = R(a2, c2, d2, e2, m[i * 16 + 0], f[48], g[48]); e2 = R(e2, a2, c2, d2, m[i * 16 + 7], f[49], g[49]); d2 = R(d2, e2, a2, c2, m[i * 16 + 14], f[50], g[50]); c2 = R(c2, d2, e2, a2, m[i * 16 + 5], f[51], g[51]); a2 = R(a2, c2, d2, e2, m[i * 16 + 12], f[52], g[52]); e2 = R(e2, a2, c2, d2, m[i * 16 + 3], f[53], g[53]); d2 = R(d2, e2, a2, c2, m[i * 16 + 10], f[54], g[54]); c2 = R(c2, d2, e2, a2, m[i * 16 + 1], f[55], g[55]); a2 = R(a2, c2, d2, e2, m[i * 16 + 8], f[56], g[56]); e2 = R(e2, a2, c2, d2, m[i * 16 + 15], f[57], g[57]); d2 = R(d2, e2, a2, c2, m[i * 16 + 6], f[58], g[58]); c2 = R(c2, d2, e2, a2, m[i * 16 + 13], f[59], g[59]); a2 = R(a2, c2, d2, e2, m[i * 16 + 4], f[60], g[60]); e2 = R(e2, a2, c2, d2, m[i * 16 + 11], f[61], g[61]); d2 = R(d2, e2, a2, c2, m[i * 16 + 2], f[62], g[62]); c2 = R(c2, d2, e2, a2, m[i * 16 + 9], f[63], g[63]);
+      a2 = K(a2, t); c2 = K(c2, u); d2 = K(d2, v); e2 = K(e2, w);
+    }
+    function hex(x) { var h = "0123456789abcdef", s = ""; for (var i2 = 0; i2 < 4; i2++) s += h.charAt((x >> (i2 * 8 + 4)) & 15) + h.charAt((x >> (i2 * 8)) & 15); return s; }
+    return hex(a2) + hex(c2) + hex(d2) + hex(e2);
+  }
+
+  var mv_ET = { NONE: 0, BATTLE_NORMAL: 1, BATTLE_ELITE: 2, BATTLE_BOSS: 4, SHOP: 8, REST: 16, INCIDENT: 32, TREASURE: 64, ENTERTAINMENT: 128, UNKNOWN: 256, WISH: 512, SACRIFICE: 1024, EXPEDITION: 2048, BATTLE_SHOP: 4096 };
+  var mv_TYPE_NAMES = {};
+  for (var mv_k in mv_ET) mv_TYPE_NAMES[mv_ET[mv_k]] = mv_k;
+
+  function mv_randByKey(seed) {
+    var keys = Array.prototype.slice.call(arguments, 1);
+    return parseInt(mv_md5(seed + "_" + keys.join("_")), 16);
+  }
+
+  /** 复现 map.ts generate([id]) 核心逻辑：主题/区块 → 节点图（权重类型、连线、连通性修正、zone_end） */
+  function mv_generateMap(theme, zone, data) {
+    var roNum = parseInt(theme.split("_")[1]);
+    var yMax = [0, 2, 3, 4, 4, 4, 4, 4, 4];
+    var nodeInfo = data.zones ? data.zones[String(zone)] : null;
+    var normalList = (nodeInfo && nodeInfo.Normal && nodeInfo.Normal.length) ? nodeInfo.Normal : data.normal.filter(function (s) { return s.indexOf("ro" + roNum + "_n_" + zone + "_") === 0; });
+    var eliteList = (nodeInfo && nodeInfo.Emergency && nodeInfo.Emergency.length) ? nodeInfo.Emergency : data.elite.filter(function (s) { return s.indexOf("ro" + roNum + "_e_" + zone + "_") === 0; });
+    var bossList = (nodeInfo && nodeInfo.Boss && nodeInfo.Boss.length) ? nodeInfo.Boss : data.boss;
+    var shopType = theme !== "rogue_1" ? 4096 : 8;
+    var wishType = theme !== "rogue_1" ? 512 : 64;
+    var typeWeights = [
+      { type: mv_ET.BATTLE_NORMAL, weight: 60 },
+      { type: mv_ET.BATTLE_ELITE, weight: 15 },
+      { type: mv_ET.INCIDENT, weight: 20 },
+      { type: wishType, weight: 20 },
+    ];
+    if (zone > 1) {
+      typeWeights.push({ type: mv_ET.REST, weight: 20 });
+      switch (roNum) {
+        case 1: typeWeights.push({ type: mv_ET.BATTLE_BOSS, weight: 10 }, { type: shopType, weight: 10 }, { type: mv_ET.TREASURE, weight: 10 }, { type: mv_ET.ENTERTAINMENT, weight: 10 }, { type: mv_ET.UNKNOWN, weight: 10 }); break;
+        case 2: typeWeights.push({ type: mv_ET.BATTLE_BOSS, weight: 10 }, { type: mv_ET.SACRIFICE, weight: 10 }, { type: mv_ET.EXPEDITION, weight: 10 }, { type: 4096, weight: 10 }, { type: 8192, weight: 10 }, { type: 16384, weight: 10 }); break;
+        case 3: typeWeights.push({ type: mv_ET.BATTLE_BOSS, weight: 10 }, { type: mv_ET.SACRIFICE, weight: 10 }, { type: mv_ET.EXPEDITION, weight: 10 }, { type: 4096, weight: 10 }, { type: 8192, weight: 10 }, { type: 65536, weight: 10 }); break;
+        case 4: typeWeights.push({ type: mv_ET.BATTLE_BOSS, weight: 10 }, { type: mv_ET.ENTERTAINMENT, weight: 10 }, { type: mv_ET.UNKNOWN, weight: 10 }, { type: mv_ET.SACRIFICE, weight: 10 }, { type: mv_ET.EXPEDITION, weight: 10 }, { type: 4096, weight: 10 }, { type: 8192, weight: 10 }, { type: 131072, weight: 10 }, { type: 262144, weight: 10 }); break;
+        case 5: typeWeights.push({ type: mv_ET.BATTLE_BOSS, weight: 10 }, { type: mv_ET.SACRIFICE, weight: 10 }, { type: mv_ET.EXPEDITION, weight: 10 }, { type: 4096, weight: 10 }, { type: 8192, weight: 10 }, { type: 262144, weight: 10 }, { type: 524288, weight: 10 }); break;
+      }
+    }
+    var nodesByX = {};
+    var canAddShop = true;
+    var isZone1 = zone === 1;
+    var nodes = {};
+    var maxX = isZone1 ? 3 : zone * 2;
+    for (var x = 0; x <= maxX; x++) {
+      nodesByX[x] = [];
+      var isEndCol = !isZone1 && x === maxX;
+      if (isEndCol) {
+        var endType = 0, endCount = 0;
+        switch (zone) {
+          case 2: endType = 512; endCount = 2; break;
+          case 3: endType = 4; endCount = 1; break;
+          default: endType = shopType; endCount = 1;
+        }
+        for (var y = 0; y < endCount; y++) {
+          var nodeIndex = x * 100 + y;
+          var node = { index: String(nodeIndex), pos: { x: x, y: y }, next: [], type: endType, zone_end: true, refresh: { usedCount: 0, count: 99, cost: 1 } };
+          if (endType === mv_ET.BATTLE_BOSS && bossList.length > 0) {
+            node.stage = bossList[mv_randByKey("boss_stage", zone) % bossList.length];
+          }
+          nodes[String(nodeIndex)] = node;
+          nodesByX[x].push(y);
+        }
+        continue;
+      }
+      if (isZone1 && x >= 2) continue;
+      // clamp：yMax 仅定义到 zone 8（原版 map.ts 同），超界按 8 处理避免 NaN 崩溃
+      var zoneCap = Math.min(zone, yMax.length - 1);
+      var ySize = (mv_randByKey("y_size", zone, x) % yMax[zoneCap]) + 1;
+      var currentTypeWeights = typeWeights.slice();
+      if (canAddShop && x > 0) {
+        currentTypeWeights.push({ type: shopType, weight: 10 });
+        canAddShop = false;
+      }
+      for (y = 0; y < ySize; y++) {
+        nodeIndex = x * 100 + y;
+        var nodeType = mv_weightedRandom(currentTypeWeights);
+        node = { index: String(nodeIndex), pos: { x: x, y: y }, next: [], type: nodeType, refresh: { usedCount: 0, count: 99, cost: 1 } };
+        if (nodeType === mv_ET.BATTLE_NORMAL && normalList.length > 0) {
+          node.stage = normalList[mv_randByKey("normal_stage", zone, x, y) % normalList.length];
+        } else if (nodeType === mv_ET.BATTLE_ELITE && eliteList.length > 0) {
+          node.stage = eliteList[mv_randByKey("elite_stage", zone, x, y) % eliteList.length];
+        }
+        nodes[String(nodeIndex)] = node;
+        nodesByX[x].push(y);
+      }
+    }
+    if (isZone1) {
+      var z1NodeType = roNum === 5 ? shopType : mv_ET.INCIDENT;
+      var endType1 = roNum === 5 ? 1048576 : shopType;
+      var z1nodes = {
+        "200": { index: "200", pos: { x: 2, y: 0 }, next: [{ x: 3, y: 0 }], type: z1NodeType, refresh: { usedCount: 0, count: 99, cost: 1 } },
+        "201": { index: "201", pos: { x: 2, y: 1 }, next: [{ x: 3, y: 0 }], type: z1NodeType, refresh: { usedCount: 0, count: 99, cost: 1 } },
+        "300": { index: "300", pos: { x: 3, y: 0 }, next: [], type: endType1, zone_end: true, refresh: { usedCount: 0, count: 99, cost: 1 } },
+      };
+      for (var zk in z1nodes) nodes[zk] = z1nodes[zk];
+      nodesByX[2] = [0, 1];
+      nodesByX[3] = [0];
+    }
+    /* 连线 */
+    for (var idx in nodes) {
+      var nd = nodes[idx];
+      var nx = nd.pos.x, ny = nd.pos.y;
+      if (isZone1 && nx >= 2) continue;
+      nd.next = [];
+      if ((nx + 1) in nodesByX) {
+        var candidates = [];
+        var nyCands = [ny - 1, ny, ny + 1];
+        for (var nyc = 0; nyc < nyCands.length; nyc++) {
+          if (nodesByX[nx + 1].indexOf(nyCands[nyc]) !== -1) candidates.push({ x: nx + 1, y: nyCands[nyc] });
+        }
+        if (candidates.length > 0) {
+          var kk = Math.min(2, candidates.length);
+          var shuffled = candidates.slice().sort(function () { return Math.random() - 0.5; });
+          nd.next.push.apply(nd.next, shuffled.slice(0, kk));
+        }
+      }
+      if (nx !== 0) {
+        var nyCands2 = [ny - 1, ny + 1];
+        for (var nyc2 = 0; nyc2 < nyCands2.length; nyc2++) {
+          if (nodesByX[nx].indexOf(nyCands2[nyc2]) !== -1) {
+            if (Math.random() < 0.3) {
+              var edge = { x: nx, y: nyCands2[nyc2] };
+              if (Math.random() < 0.5) edge.key = true;
+              nd.next.push(edge);
+            }
+          }
+        }
+      }
+    }
+    /* 连通性修正 */
+    var incoming = {};
+    for (var i2 in nodes) incoming[i2] = false;
+    for (var srcIdx in nodes) {
+      var src = nodes[srcIdx];
+      var sx = src.pos.x;
+      for (var ei = 0; ei < src.next.length; ei++) {
+        var e = src.next[ei];
+        if (e.x === sx + 1) {
+          var tidx = String(e.x * 100 + e.y);
+          if (tidx in incoming) incoming[tidx] = true;
+        }
+      }
+    }
+    var hasOutgoing = function (nd2) { return nd2.next.some(function (e) { return e.x === nd2.pos.x + 1; }); };
+    var xLast = Math.max.apply(null, Object.keys(nodesByX).map(function (v) { return Number(v); }));
+    for (idx in nodes) {
+      nd = nodes[idx];
+      nx = nd.pos.x; ny = nd.pos.y;
+      if (isZone1 && nx >= 2) continue;
+      var inOk = incoming[idx];
+      var outOk = hasOutgoing(nd);
+      if (nx === 0) {
+        if (outOk) continue;
+        var ny1 = nodesByX[nx + 1].reduce(function (prev, curr) { return Math.abs(curr - ny) < Math.abs(prev - ny) ? curr : prev; });
+        nd.next.push({ x: nx + 1, y: ny1 });
+        continue;
+      }
+      if (nx === xLast) {
+        if (inOk) continue;
+        var py = nodesByX[nx - 1].reduce(function (prev, curr) { return Math.abs(curr - ny) < Math.abs(prev - ny) ? curr : prev; });
+        var prevIdx = String((nx - 1) * 100 + py);
+        nodes[prevIdx].next.push({ x: nx, y: ny });
+        continue;
+      }
+      if (!inOk) {
+        py = nodesByX[nx - 1].reduce(function (prev, curr) { return Math.abs(curr - ny) < Math.abs(prev - ny) ? curr : prev; });
+        prevIdx = String((nx - 1) * 100 + py);
+        nodes[prevIdx].next.push({ x: nx, y: ny });
+      }
+      if (!outOk) {
+        ny1 = nodesByX[nx + 1].reduce(function (prev, curr) { return Math.abs(curr - ny) < Math.abs(prev - ny) ? curr : prev; });
+        nd.next.push({ x: nx + 1, y: ny1 });
+      }
+    }
+    for (var ndk in nodes) {
+      var ndv = nodes[ndk];
+      if (ndv.next) ndv.next.sort(function (a, b) { return (a.x !== b.x ? a.x - b.x : a.y - b.y); });
+    }
+    return nodes;
+  }
+
+  function mv_weightedRandom(weights) {
+    var totalWeight = 0;
+    for (var i = 0; i < weights.length; i++) totalWeight += weights[i].weight;
+    var random = mv_randByKey("map_rand", Math.random().toString(36).substring(7));
+    var randomValue = random % totalWeight;
+    for (i = 0; i < weights.length; i++) {
+      if (randomValue < weights[i].weight) return weights[i].type;
+      randomValue -= weights[i].weight;
+    }
+    return weights[weights.length - 1].type;
+  }
+
+  var mv_state = { theme: "rogue_1", zone: 1, nodes: {}, path: [], data: null };
+  var mv_selected = null;
+  var mv_TYPE_COLORS = { 1: "#5b8def", 2: "#a06ee0", 4: "#e06c75", 8: "#e5c07b", 16: "#98c379", 32: "#d19a66", 64: "#56b6c2", 128: "#e06c9f", 256: "#6b7280", 512: "#f0c674", 1024: "#be5046", 2048: "#4db6ac", 8192: "#c678dd", 131072: "#61afef", 262144: "#d19a66", 524288: "#98c379", 1048576: "#e06c75", 65536: "#56b6c2" };
+
+  function mv_typeColor(t) { return mv_TYPE_COLORS[t] || "#6b7280"; }
+  function mv_typeAbbr(t) {
+    var map = { 1: "战", 2: "急", 4: "BOSS", 8: "店", 16: "休", 32: "遇", 64: "藏", 128: "兴", 256: "迷", 512: "愿", 1024: "失", 2048: "先", 4096: "商", 8192: "奇" };
+    return map[t] || "?";
+  }
+
+  function mv_render() {
+    var svg = $("mv-map");
+    if (!svg) return;
+    var NS = "http://www.w3.org/2000/svg";
+    svg.innerHTML = "";
+    var nodes = mv_state.nodes;
+    var entries = [];
+    for (var key in nodes) entries.push([key, nodes[key]]);
+    var maxX = 0, maxY = 0;
+    for (var i = 0; i < entries.length; i++) {
+      if (entries[i][1].pos.x > maxX) maxX = entries[i][1].pos.x;
+      if (entries[i][1].pos.y > maxY) maxY = entries[i][1].pos.y;
+    }
+    var COLS = 180, ROWS = 64, R = 15, PAD_X = 60, PAD_Y = 40;
+    var w = PAD_X * 2 + maxX * COLS + 40;
+    var h = PAD_Y * 2 + maxY * ROWS + 60;
+    svg.setAttribute("width", w);
+    svg.setAttribute("height", h);
+    var posOf = function (n) { return { x: PAD_X + n.pos.x * COLS, y: PAD_Y + n.pos.y * ROWS }; };
+    var title = document.createElementNS(NS, "text");
+    title.setAttribute("x", PAD_X);
+    title.setAttribute("y", 18);
+    title.setAttribute("class", "mv-zone-title");
+    title.textContent = "zone_" + mv_state.zone + " · " + mv_state.theme;
+    svg.appendChild(title);
+    var edges = [];
+    for (i = 0; i < entries.length; i++) {
+      var n = entries[i][1];
+      for (var ej = 0; ej < n.next.length; ej++) {
+        var e = n.next[ej];
+        var t = nodes[String(e.x * 100 + e.y)];
+        if (!t) continue;
+        edges.push({ from: posOf(n), to: posOf(t), key: e.key });
+      }
+    }
+    var pathSet = {};
+    for (i = 0; i + 1 < mv_state.path.length; i++) {
+      pathSet[mv_state.path[i].x + "," + mv_state.path[i].y + "->" + mv_state.path[i + 1].x + "," + mv_state.path[i + 1].y] = true;
+    }
+    for (i = 0; i < edges.length; i++) {
+      var line = document.createElementNS(NS, "line");
+      line.setAttribute("x1", edges[i].from.x); line.setAttribute("y1", edges[i].from.y);
+      line.setAttribute("x2", edges[i].to.x); line.setAttribute("y2", edges[i].to.y);
+      line.setAttribute("class", edges[i].key ? "mv-edge-key" : "mv-edge");
+      svg.appendChild(line);
+    }
+    for (i = 0; i + 1 < mv_state.path.length; i++) {
+      var a = mv_state.path[i], b = mv_state.path[i + 1];
+      var na = nodes[String(a.x * 100 + a.y)], nb = nodes[String(b.x * 100 + b.y)];
+      if (!na || !nb) continue;
+      line = document.createElementNS(NS, "line");
+      line.setAttribute("x1", posOf(na).x); line.setAttribute("y1", posOf(na).y);
+      line.setAttribute("x2", posOf(nb).x); line.setAttribute("y2", posOf(nb).y);
+      line.setAttribute("class", "mv-edge-path");
+      svg.appendChild(line);
+    }
+    for (i = 0; i < entries.length; i++) {
+      var ni = entries[i][0], nn = entries[i][1];
+      var p = posOf(nn);
+      var g = document.createElementNS(NS, "g");
+      g.setAttribute("class", "mv-node-group");
+      g.style.cursor = "pointer";
+      var circle = document.createElementNS(NS, "circle");
+      circle.setAttribute("cx", p.x); circle.setAttribute("cy", p.y);
+      circle.setAttribute("r", R);
+      circle.setAttribute("fill", mv_typeColor(nn.type));
+      circle.setAttribute("stroke", nn.zone_end ? "#f0c674" : "#1b1e27");
+      circle.setAttribute("stroke-width", nn.zone_end ? 2.5 : 1.5);
+      circle.setAttribute("class", "mv-node-circle");
+      if (nn.type === 4) circle.setAttribute("stroke", "#e06c75");
+      g.appendChild(circle);
+      var label = document.createElementNS(NS, "text");
+      label.setAttribute("x", p.x); label.setAttribute("y", p.y + 3.5);
+      label.setAttribute("text-anchor", "middle");
+      label.setAttribute("class", "mv-node-label");
+      label.style.fill = "#fff";
+      label.style.fontSize = "8px";
+      label.textContent = mv_typeAbbr(nn.type);
+      g.appendChild(label);
+      if (nn.stage) {
+        var st = document.createElementNS(NS, "text");
+        st.setAttribute("x", p.x); st.setAttribute("y", p.y + R + 12);
+        st.setAttribute("text-anchor", "middle");
+        st.setAttribute("class", "mv-node-label");
+        st.textContent = nn.stage.replace("ro" + mv_state.theme.slice(-1) + "_", "").replace(/_/g, ".");
+        g.appendChild(st);
+      }
+      if (nn.zone_end) {
+        var ze = document.createElementNS(NS, "text");
+        ze.setAttribute("x", p.x); ze.setAttribute("y", p.y - R - 6);
+        ze.setAttribute("text-anchor", "middle");
+        ze.setAttribute("class", "mv-zone-end");
+        ze.textContent = "终点";
+        g.appendChild(ze);
+      }
+      g.dataset.idx = ni;
+      g.addEventListener("click", function () { mv_onNodeClick(this.dataset.idx); });
+      svg.appendChild(g);
+    }
+  }
+
+  function mv_generateAndRender() {
+    mv_state.nodes = mv_generateMap(mv_state.theme, mv_state.zone, mv_state.data);
+    mv_state.path = [];
+    mv_selected = null;
+    $("mv-zone-badge").textContent = "zone " + mv_state.zone;
+    $("mv-node-detail").innerHTML = '<div class="mv-empty">点击地图节点查看详情。</div>';
+    $("mv-path-info").innerHTML = '<div class="mv-empty">点击起点节点，沿连线逐步推进。</div>';
+    mv_render();
+  }
+
+  function mv_onNodeClick(idx) {
+    var n = mv_state.nodes[idx];
+    if (!n) return;
+    mv_selected = n;
+    var detail = $("mv-node-detail");
+    var zoneEndMark = n.zone_end ? ' <span style="color:#e06c75">(zone_end)</span>' : "";
+    var nextHtml = n.next.length ? n.next.map(function (e) { return "(" + e.x + "," + e.y + ")" + (e.key ? "🔑" : ""); }).join(" ") : "—";
+    detail.innerHTML =
+      "<table>" +
+      "<tr><td>索引</td><td><b>" + n.index + "</b>" + zoneEndMark + "</td></tr>" +
+      "<tr><td>类型</td><td>" + (mv_TYPE_NAMES[n.type] || n.type) + "（" + n.type + "）</td></tr>" +
+      "<tr><td>坐标</td><td>(" + n.pos.x + ", " + n.pos.y + ")</td></tr>" +
+      "<tr><td>关卡</td><td>" + (n.stage || "—") + "</td></tr>" +
+      "<tr><td>下一节点</td><td>" + nextHtml + "</td></tr>" +
+      "<tr><td>刷新</td><td>" + (n.refresh ? n.refresh.count : "—") + " 次</td></tr>" +
+      "</table>" +
+      '<div style="margin-top:8px;font-size:11px;color:var(--muted)">点击「推进下一层」或选择下一个可到达节点模拟移动。</div>';
+    var pathInfo = $("mv-path-info");
+    var last = mv_state.path[mv_state.path.length - 1];
+    if (mv_state.path.length === 0) {
+      mv_state.path.push({ x: n.pos.x, y: n.pos.y });
+      pathInfo.innerHTML = '<div class="mv-step">起点：(' + n.pos.x + ", " + n.pos.y + ') <b>' + (mv_TYPE_NAMES[n.type] || n.type) + "</b></div>";
+    } else if (last && n.pos.x === last.x && n.pos.y === last.y) {
+      pathInfo.innerHTML += '<div class="mv-step" style="color:var(--muted)">已在该节点</div>';
+    } else {
+      var canReach = false;
+      var cur = mv_state.nodes[String(last.x * 100 + last.y)];
+      if (cur && cur.next) {
+        for (var i = 0; i < cur.next.length; i++) {
+          if (cur.next[i].x === n.pos.x && cur.next[i].y === n.pos.y) { canReach = true; break; }
+        }
+      }
+      if (canReach) {
+        mv_state.path.push({ x: n.pos.x, y: n.pos.y });
+        var stageMark = n.stage ? ' <span style="color:var(--muted)">[' + n.stage + "]</span>" : "";
+        var endMark = n.zone_end ? ' <span style="color:#e06c75">[到达终点]</span>' : "";
+        pathInfo.innerHTML += '<div class="mv-step">→ (' + n.pos.x + ", " + n.pos.y + ') <b>' + (mv_TYPE_NAMES[n.type] || n.type) + "</b>" + stageMark + endMark + "</div>";
+      } else {
+        pathInfo.innerHTML += '<div class="mv-step" style="color:#e06c75">✗ (' + n.pos.x + ", " + n.pos.y + ") 不可达（不在当前节点 next 中）</div>";
+      }
+    }
+    mv_render();
+  }
+
+  /** 地图 Tab：注入 HTML + 拉取数据 + 渲染（map-visualizer 移植） */
+  function loadMapPane() {
+    var pane = $("pane-map");
+    pane.innerHTML =
+      '<p style="color:var(--muted);font-size:12px;margin-bottom:10px;">集成战略地图生成节点可视化：复现 ' +
+      'app/game/controller/rlv2/map.ts 的 generate() 逻辑（md5 种子随机、权重节点类型、同列/跨列连线、zone_end 终点）。' +
+      '数据源 tools/map-visualizer/game-data.js（generate-data.ts 从官方 excel + nodesInfo 提取）。</p>' +
+      '<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px;">' +
+      "<label style='align-self:center;'>主题</label>" +
+      '<select id="mv-theme" style="width:auto;"></select>' +
+      '<span id="mv-zone-badge" class="zone-badge" style="align-self:center;">zone 1</span>' +
+      '<button id="mv-gen" class="primary">重新生成</button>' +
+      '<button id="mv-next">推进下一层 →</button>' +
+      '<button id="mv-prev">← 返回上层</button>' +
+      "</div>" +
+      '<div class="mv-wrap">' +
+      '<div class="mv-canvas">' +
+      '<div class="mv-legend" id="mv-legend"></div>' +
+      '<svg id="mv-map" width="900" height="480"></svg>' +
+      "</div>" +
+      '<div class="mv-side">' +
+      "<h3>节点详情</h3>" +
+      '<div id="mv-node-detail" class="mv-empty">点击地图节点查看详情。<br><br>绿色连线 = 普通路径；<br>黄色虚线 = 需要钥匙的 key 路径；<br>蓝色高亮 = 模拟移动路径。</div>' +
+      '<h3 style="margin-top:16px;">模拟移动路径</h3>' +
+      '<div id="mv-path-info" class="mv-empty">点击起点节点，沿 next 连线点击下一个节点逐步推进。</div>' +
+      "</div></div>";
+
+    var legendEntries = [
+      [1, "普通作战"], [2, "紧急作战"], [4, "险路恶敌"], [8, "商店"], [16, "安全的角落"],
+      [32, "不期而遇"], [64, "古堡馈赠"], [128, "兴致盎然"], [256, "迷雾重重"], [512, "得偿所愿"],
+      [1024, "失与得"], [2048, "先行一步"], [4096, "诡意行商"], [8192, "误入奇境"],
+    ];
+    var legendHtml = "";
+    for (var i = 0; i < legendEntries.length; i++) {
+      legendHtml += '<span class="mv-item"><span class="mv-dot" style="background:' + mv_typeColor(legendEntries[i][0]) + '"></span>' + legendEntries[i][1] + "</span>";
+    }
+    legendHtml += '<span class="mv-item"><span class="mv-dot" style="background:transparent;border:1px solid #d8a657;border-radius:50%;"></span>zone_end</span>';
+    legendHtml += '<span class="mv-item"><span style="display:inline-block;width:14px;border-top:2px dashed #d8a657;"></span>key 路径</span>';
+    $("mv-legend").innerHTML = legendHtml;
+
+    api("/mapviz-data")
+      .then(function (data) {
+        mv_state.data = data;
+        var sel = $("mv-theme");
+        var themes = [];
+        for (var t in data) themes.push(t);
+        sel.innerHTML = themes.map(function (t) {
+          var d = data[t];
+          return '<option value="' + t + '">' + t + "（" + d.normal.length + " 普通 / " + d.elite.length + " 紧急 / " + d.boss.length + " boss）</option>";
+        }).join("");
+        sel.value = mv_state.theme;
+        $("mv-gen").addEventListener("click", function () { mv_generateAndRender(); });
+        $("mv-next").addEventListener("click", function () { mv_state.zone += 1; mv_generateAndRender(); });
+        $("mv-prev").addEventListener("click", function () { if (mv_state.zone > 1) { mv_state.zone -= 1; mv_generateAndRender(); } });
+        sel.addEventListener("change", function () { mv_state.theme = sel.value; mv_state.zone = 1; mv_generateAndRender(); });
+        mv_generateAndRender();
+      })
+      .catch(function (e) {
+        $("mv-zone-badge").textContent = "数据缺失";
+        $("mv-node-detail").innerHTML = '<div class="mv-empty" style="color:#e06c75;">地图数据加载失败：' + e.message +
+          "<br><br>请运行 <b>npx tsx tools/map-visualizer/generate-data.ts</b> 生成 game-data.js 后刷新。</div>";
+      });
+  }
+
   /* ---------- 登录 ---------- */
 
   function showLogin() { $("login").style.display = "flex"; }
@@ -2468,7 +2950,7 @@
   }, 500);
 
   /* ---------- 全局快捷键 ---------- */
-  var SHORTCUT_TABS = ["overview", "chars", "mails", "pools", "api", "official", "pixel", "raw"];
+  var SHORTCUT_TABS = ["overview", "chars", "mails", "pools", "api", "official", "pixel", "map", "raw"];
   document.addEventListener("keydown", function (e) {
     if (isEditing() || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === "/" || e.key === "u") {

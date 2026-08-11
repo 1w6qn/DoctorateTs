@@ -1,8 +1,78 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@excel/excel", () => ({ default: {} }));
+// 公招数据 mock（参考 data/excel/gacha_table.json 结构）
+const excelMock = vi.hoisted(() => ({
+  default: {
+    GachaTable: {
+      gachaTags: [
+        { tagGroup: 1, tagId: 1, tagName: "近卫干员" },
+        { tagGroup: 2, tagId: 2, tagName: "狙击干员" },
+        { tagGroup: 3, tagId: 3, tagName: "重装干员" },
+        { tagGroup: 4, tagId: 4, tagName: "医疗干员" },
+        { tagGroup: 5, tagId: 5, tagName: "辅助干员" },
+        { tagGroup: 6, tagId: 6, tagName: "术师干员" },
+        { tagGroup: 7, tagId: 7, tagName: "特种干员" },
+        { tagGroup: 8, tagId: 8, tagName: "先锋干员" },
+        { tagGroup: 9, tagId: 9, tagName: "近战位" },
+        { tagGroup: 10, tagId: 10, tagName: "远程位" },
+        { tagGroup: 11, tagId: 11, tagName: "高级资深干员" },
+        { tagGroup: 12, tagId: 12, tagName: "资深干员" },
+        { tagGroup: 13, tagId: 13, tagName: "控场" },
+        { tagGroup: 14, tagId: 14, tagName: "爆发" },
+        { tagGroup: 15, tagId: 15, tagName: "输出" },
+        { tagGroup: 16, tagId: 16, tagName: "治疗" },
+        { tagGroup: 17, tagId: 17, tagName: "支援" },
+        { tagGroup: 18, tagId: 18, tagName: "费用回复" },
+        { tagGroup: 19, tagId: 19, tagName: "生存" },
+        { tagGroup: 20, tagId: 20, tagName: "防护" },
+        { tagGroup: 21, tagId: 21, tagName: "减速" },
+        { tagGroup: 22, tagId: 22, tagName: "削弱" },
+        { tagGroup: 23, tagId: 23, tagName: "位移" },
+        { tagGroup: 24, tagId: 24, tagName: "召唤" },
+        { tagGroup: 25, tagId: 25, tagName: "快速复活" },
+        { tagGroup: 26, tagId: 26, tagName: "新手" },
+        { tagGroup: 27, tagId: 27, tagName: "输出干员" },
+        { tagGroup: 28, tagId: 28, tagName: "元素" },
+        { tagGroup: 29, tagId: 29, tagName: "支援机械" },
+        { tagGroup: 1012, tagId: 1012, tagName: "男性干员" },
+        { tagGroup: 1013, tagId: 1013, tagName: "女性干员" },
+      ],
+      recruitRarityTable: {
+        "230": { rarityStart: 0, rarityEnd: 3 },
+        "460": { rarityStart: 2, rarityEnd: 4 },
+        "540": { rarityStart: 2, rarityEnd: 4 },
+      },
+      specialTagRarityTable: [
+        { key: 11, value: [5] },
+        { key: 14, value: [4] },
+      ],
+      recruitDetail:
+        "★\\n1星A/1星B\n-★★\\n2星A\n-★★★\\n3星A\n-★★★★\\n4星A\n-★★★★★\\n5星A\n-★★★★★★\\n6星A",
+    },
+    CharacterTable: {
+      char_001: { name: "1星A", rarity: "TIER_1", position: "MELEE", profession: "PIONEER", tagList: ["近战位", "费用回复"] },
+      char_002: { name: "1星B", rarity: "TIER_1", position: "MELEE", profession: "PIONEER", tagList: ["近战位"] },
+      char_003: { name: "2星A", rarity: "TIER_2", position: "MELEE", profession: "PIONEER", tagList: ["近战位"] },
+      char_004: { name: "3星A", rarity: "TIER_3", position: "MELEE", profession: "WARRIOR", tagList: ["近卫干员", "输出"] },
+      char_005: { name: "4星A", rarity: "TIER_4", position: "RANGED", profession: "SNIPER", tagList: ["狙击干员", "输出"] },
+      char_006: { name: "5星A", rarity: "TIER_5", position: "RANGED", profession: "SUPPORT", tagList: ["辅助干员"] },
+      char_007: { name: "6星A", rarity: "TIER_6", position: "MELEE", profession: "WARRIOR", tagList: ["近卫干员", "输出"] },
+      // tagList 缺失（undefined）——修复前 generateRecruitableData 崩溃 500 的干员
+      char_008: { name: "无标签干员", rarity: "TIER_6", position: "MELEE", profession: "WARRIOR" },
+    },
+  },
+}));
+
+vi.mock("@excel/excel", () => excelMock);
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
+// 控制随机性：randomInt=1（选 1 个标签）、randomSample 取前 n 个、randomChoice 取第一个
+vi.mock("@utils/random", () => ({
+  randomInt: vi.fn(() => 1),
+  randomSample: vi.fn((arr: any[], n: number) => arr.slice(0, n)),
+  randomChoice: vi.fn((arr: any[]) => arr[0]),
+  randomChoices: vi.fn((a: any[], _w: any[], n: number) => Array(n).fill(a[0])),
+}));
 
 vi.mock("@utils/time", () => ({
   now: () => 1234567890,
@@ -145,5 +215,48 @@ describe("RecruitManager 核心方法", () => {
     await manager.boost({ slotId: 0, buy: 0 });
     expect(mockPlayer._playerdata.recruit!.normal.slots["0"].realFinishTs).toBe(1234567890);
     expect(emitSpy).toHaveBeenCalledWith("BoostNormalGacha", []);
+  });
+});
+
+describe("RecruitTools 数据驱动公招逻辑（参考 ArkGachaService gacha_table.json）", () => {
+  it("generateRecruitableData 不应因 tagList undefined 崩溃（修复 500）", async () => {
+    const { RecruitTools } = await import("@game/manager/recruit");
+    // char_008 的 tagList 为 undefined——修复前 line 331 value.tagList.map 崩溃
+    const [charsList, charData] = await RecruitTools.generateRecruitableData();
+    expect(Object.keys(charData).length).toBeGreaterThan(0);
+    // 6 星干员带高级资深标签(11)、5 星带资深(14)
+    expect(charData["char_007"].tags).toContain(11);
+    expect(charData["char_006"].tags).toContain(14);
+    // 稀有度为数字索引（修复前存字符串导致与 charRange 比较恒 false）
+    expect(charData["char_007"].rarity).toBe(5);
+    expect(charData["char_005"].rarity).toBe(3);
+    // 按稀有度分组
+    expect(charsList[5]).toContain("char_007");
+  });
+
+  it("9 小时 + 高级资深干员(11) 必出 6 星（specialTagRarityTable 强制稀有度）", async () => {
+    const { RecruitTools } = await import("@game/manager/recruit");
+    const [charId, filterTags] = await RecruitTools.generateValidTags(32400, [11, 1]);
+    // selectedTags = [11]（randomSample 取前 1）；charRange=[5,5] → 只有 6 星匹配
+    expect(charId).toBe("char_007");
+    // 标签 11 命中干员 → 不进入 filterTags（pick=1）
+    expect(filterTags).not.toContain(11);
+  });
+
+  it("3:50 短时招募稀有度范围由 recruitRarityTable[230] 决定（1-4 星）", async () => {
+    const { RecruitTools } = await import("@game/manager/recruit");
+    const [charId] = await RecruitTools.generateValidTags(13800, [1, 2, 3]);
+    // selectedTags = [1]；charRange=[0,3] → 结果干员稀有度索引 ≤ 3
+    const charData = (await RecruitTools.generateRecruitableData())[1];
+    expect(charData[charId].rarity).toBeLessThanOrEqual(3);
+  });
+
+  it("9 小时无特殊标签 → 基础范围 [2,4]（3-5 星）", async () => {
+    const { RecruitTools } = await import("@game/manager/recruit");
+    const [charId] = await RecruitTools.generateValidTags(32400, [1]);
+    const charData = (await RecruitTools.generateRecruitableData())[1];
+    const r = charData[charId].rarity;
+    expect(r).toBeGreaterThanOrEqual(2);
+    expect(r).toBeLessThanOrEqual(4);
   });
 });

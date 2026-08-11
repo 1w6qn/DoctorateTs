@@ -189,18 +189,30 @@ export class RecruitTools {
   ): Promise<[string, number[]]> {
     const [charList, charData] = await this.generateRecruitableData();
     const selectedTags = randomSample(tagList, randomInt(0, 3));
-    let charRange: [number, number];
-    if (duration <= 13800) {
-      charRange = [0, 3];
-    } else if (duration <= 27000) {
-      charRange = [1, 4];
-    } else {
-      if (selectedTags.includes(11)) {
-        charRange = [5, 5];
-      } else if (selectedTags.includes(14)) {
-        charRange = [4, 4];
-      } else {
-        charRange = [2, 4];
+    // 数据驱动稀有度范围（参考 ArkGachaService gacha_table.json）：
+    // recruitRarityTable[时长/60]——3:50→230、7:40→460、9:00→540（key 为分钟）
+    const gachaTable = excel.GachaTable as any;
+    const durationMinutes = Math.round(duration / 60);
+    const range =
+      gachaTable?.recruitRarityTable?.[durationMinutes] ??
+      gachaTable?.recruitRarityTable?.[540] ??
+      { rarityStart: 0, rarityEnd: 3 };
+    let charRange: [number, number] = [
+      range.rarityStart ?? 0,
+      range.rarityEnd ?? 3,
+    ];
+    // 特殊标签强制稀有度（specialTagRarityTable：11 高级资深干员→6星、14 资深干员→5星）；
+    // 仅 9 小时（540 分钟）生效——短时招募特殊标签不保证稀有度（客户端标记为无效标签）
+    if (durationMinutes >= 540) {
+      const specialRaw = gachaTable?.specialTagRarityTable;
+      const specialMap: Record<string, number[]> = Array.isArray(specialRaw)
+        ? Object.fromEntries(specialRaw.map((s: any) => [s.key, s.value]))
+        : (specialRaw ?? {});
+      for (const [tag, rarities] of Object.entries(specialMap)) {
+        if (selectedTags.includes(Number(tag))) {
+          charRange = [rarities[0], rarities[rarities.length - 1]];
+          break;
+        }
       }
     }
 
@@ -319,21 +331,27 @@ export class RecruitTools {
     );
 
     for (const [charId, value] of Object.entries(excel.CharacterTable)) {
-      if (value.tagList === null || !recruitable.has(value.name)) {
+      // 修复：tagList 可能为 undefined（部分干员缺字段）——旧守卫仅判 === null
+      // → generateRecruitableData 崩溃 500（finishNormalGacha）
+      if (value.tagList == null || !recruitable.has(value.name)) {
         continue;
       }
       const data = {
         name: value.name,
-        rarity: value.rarity,
+        rarity: rarityToIndex(value.rarity), // 数字稀有度索引（0-5）——旧实现存字符串，
+        // 与 charRange 数值比较恒 false → 招募永远匹配不到干员
         tags: [] as number[],
       };
 
-      const tags = value.tagList.map((tag_name: string) => name2tag[tag_name]);
-      if (rarityToIndex(data.rarity) === 5) tags.push(11);
-      else if (rarityToIndex(data.rarity) === 4) tags.push(14);
+      const tags = value.tagList
+        .map((tag_name: string) => name2tag[tag_name])
+        .filter((t: number | undefined): t is number => t !== undefined);
+      if (data.rarity === 5) tags.push(11);
+      else if (data.rarity === 4) tags.push(14);
       if (value.position === "MELEE") tags.push(9);
       else if (value.position === "RANGED") tags.push(10);
-      tags.push(profession2tag[value.profession]);
+      const profTag = profession2tag[value.profession];
+      if (profTag !== undefined) tags.push(profTag);
 
       data.tags = tags;
       charData[charId] = data;

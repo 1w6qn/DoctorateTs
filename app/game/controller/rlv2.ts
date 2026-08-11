@@ -228,14 +228,21 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
           i.modeId == this.current.game!.mode,
       );
       const initialBandIds: string[] = init?.initialBandRelic || [];
-      const bandRef = (detail.bandRef || {}) as Record<string, any>;
+      const bandRef = (detail.bandRef || {}) as Record<
+        string,
+        { bandLevel?: number; normalBandId?: string }
+      >;
       const allBandIds = [
         ...new Set([...initialBandIds, ...Object.keys(bandRef)]),
       ];
       outer.collect = {
-        // 分队解锁状态（state 1 = 已解锁，含等级变体；基础分队开局可选）
+        // 分队解锁状态：基础分队（bandLevel 0）state 1 可开局选择；
+        // 升级变体（bandLevel > 0）state 0 隐藏（按科技树/进度解锁，避免开局直接出高级分队）
         band: Object.fromEntries(
-          allBandIds.map((id) => [id, { state: 1, progress: null }]),
+          allBandIds.map((id) => {
+            const lv = bandRef[id]?.bandLevel ?? 0;
+            return [id, { state: lv === 0 ? 1 : 0, progress: null }];
+          }),
         ),
         relic: {},
         capsule: {},
@@ -330,10 +337,15 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     if (this._status.cursor.zone === 0) {
       // 初始阶段：RELIC/SUPPORT/RECRUIT_SET 由各自专用接口消费
       // （chooseInitialRelic/selectChoice/chooseInitialRecruitSet），finishEvent 仅消费
-      // GAME_INIT_RECRUIT（开局招募完成）——客户端抓包：开局招募完成后调 finishEvent 结束初始阶段。
+      // GAME_INIT_GIFT（开局礼物确认——发放礼物物品）与 GAME_INIT_RECRUIT（开局招募完成），
       // 全部 GAME_INIT_* 消费完才生成第一层地图。
       const top = this._status.pending[0];
-      if (top && top.type === "GAME_INIT_RECRUIT") {
+      if (top && top.type === "GAME_INIT_GIFT") {
+        // 发放开局礼物（rogue_6 岁主题：金 +10 / 人口 +1）
+        const items = top.content.initGift?.items || [];
+        await this._trigger.emit("rlv2:get:items", [items]);
+        this._status.pending.shift();
+      } else if (top && top.type === "GAME_INIT_RECRUIT") {
         this._status.pending.shift();
       }
       const hasInit = this._status.pending.some((e) =>
@@ -427,7 +439,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     // 客户端抓包（rogue_6）：chooseInitialRelic → finishEvent → selectChoice(choice_roX_startbuff_N)
     const top = this._status.pending[0];
     if (top && top.type === "GAME_INIT_SUPPORT") {
-      const itemId = (choiceConfig?.displayData as any)?.itemId;
+      // 官方 displayData.itemID（PascalCase ID）——startbuff_2/3 有 itemID；startbuff_1 无（发随机收藏品）
+      const dd = (choiceConfig?.displayData as any) || {};
+      const itemId = dd.itemID ?? dd.itemId;
       if (itemId) {
         // 奖励数量：description 含 <@roX.get>N</>（如"获得<@ro6.get>8</>源石锭"）
         const m = (choiceConfig?.description || "").match(
@@ -435,6 +449,22 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         );
         const count = m ? parseInt(m[1], 10) : 1;
         this._trigger.emit("rlv2:get:items", [[{ id: itemId, count }]]);
+      } else {
+        // 无 itemId：startbuff_1"获得1件普通收藏品" → 随机未拥有藏品
+        const theme = this.current.game!.theme;
+        const hasRelic = Object.values(this.inventory!.relic || {}).map(
+          (r) => (r as any).id,
+        );
+        const rewardId = this._pool.getRelic("pool_relic_all", hasRelic);
+        if (rewardId) {
+          this._trigger.emit("rlv2:relic:gain", [
+            { id: rewardId, count: 1 },
+          ]);
+        } else {
+          this._trigger.emit("rlv2:get:items", [
+            [{ id: `${theme}_gold`, count: 5 }],
+          ]);
+        }
       }
       this._status.pending.shift();
       this._status.state = "WAIT_MOVE";
@@ -547,11 +577,17 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
           }
         }
 
-        // 官方选项效果：displayData.itemId（REST 回血/进阶券/希望等节点特有效果）
-        const officialItem = (choiceConfig?.displayData as any)?.itemId;
+        // 官方选项效果：displayData.itemID（PascalCase ID；rogue_6 数据如此）+ 描述 GET 数量
+        // （REST 回血/进阶券/希望等节点特有效果；rogue_6 无 event_choices 效果表，由此派生）
+        const dd = (choiceConfig?.displayData as any) || {};
+        const officialItem = dd.itemID ?? dd.itemId;
         if (officialItem) {
+          const m = (choiceConfig?.description || "").match(
+            /<@ro\d+\.get>(\d+)<\/>/,
+          );
+          const count = m ? parseInt(m[1], 10) : 1;
           this._trigger.emit("rlv2:get:items", [
-            [{ id: officialItem, count: 1 }],
+            [{ id: officialItem, count }],
           ]);
         }
 

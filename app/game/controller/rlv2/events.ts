@@ -48,20 +48,27 @@ export class RoguelikeEventManager {
     const initConfig = this._player.initConfig;
 
     const supportEnabled = game.outer.support || false;
-    const totalStep = supportEnabled ? 4 : 3;
+    // rogue_6（岁主题）额外有 GAME_INIT_GIFT 开局礼物（抓包 07-45：金 +10 / 人口 +1）
+    const giftEnabled = theme === "rogue_6";
+    const totalStep = (supportEnabled ? 4 : 3) + (giftEnabled ? 1 : 0);
 
     this._trigger.emit("rlv2:event:create", [
       "GAME_INIT_RELIC",
-      {
-        step: [1, totalStep],
-      },
+      { step: [1, totalStep] },
     ]);
+
+    if (giftEnabled) {
+      this._trigger.emit("rlv2:event:create", [
+        "GAME_INIT_GIFT",
+        { step: [2, totalStep] },
+      ]);
+    }
 
     if (supportEnabled) {
       this._trigger.emit("rlv2:event:create", [
         "GAME_INIT_SUPPORT",
         {
-          step: [2, totalStep],
+          step: [giftEnabled ? 3 : 2, totalStep],
           id: "",
         },
       ]);
@@ -70,7 +77,10 @@ export class RoguelikeEventManager {
     this._trigger.emit("rlv2:event:create", [
       "GAME_INIT_RECRUIT_SET",
       {
-        step: [supportEnabled ? 3 : 2, totalStep],
+        step: [
+          supportEnabled ? (giftEnabled ? 4 : 3) : giftEnabled ? 3 : 2,
+          totalStep,
+        ],
       },
     ]);
 
@@ -124,6 +134,22 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
         items: (initConfig.initialBandRelic || []).reduce((acc, cur, idx) => {
           return { ...acc, [idx.toString()]: { id: cur, count: 1 } };
         }, {}),
+      },
+    };
+  }
+
+  /** 开局礼物（rogue_6 岁主题；抓包 07-45：金 +10 / 人口 +1） */
+  GAME_INIT_GIFT(args: {
+    step: [number, number];
+  }): PlayerRoguelikePendingEvent.Content {
+    const theme = this._player.current.game!.theme;
+    return {
+      initGift: {
+        step: args.step,
+        items: [
+          { id: `${theme}_gold`, count: 10 },
+          { id: `${theme}_population`, count: 1 },
+        ],
       },
     };
   }

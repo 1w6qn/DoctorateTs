@@ -50,7 +50,7 @@ export interface PlayerRoguelikeNode {
     shop?: RoguelikeShop
     scenes?: PlayerRoguelikePendingEvent.SceneContent
     stage?: string
-    visibility?: string//PlayerNodeForesightType
+    visibility?: number//PlayerNodeForesightType（线格式 0/1/2）
     refresh?: PlayerNodeRollInfo
     zone_end?:boolean
 }
@@ -571,6 +571,7 @@ export namespace PlayerRoguelikePendingEvent {
         initRecruit?: InitRecruitContent
         battle?: BattleContent
         initRelic?: InitRelicContent
+        initGift?: InitGiftContent
         initRecruitSet?: InitRecruitSetContent
         initModeRelic?: InitModeRelic
         initTeam?: InitTeam
@@ -629,6 +630,11 @@ export namespace PlayerRoguelikePendingEvent {
     export interface InitRelicContent {
         step: number[]
         items: {[key:string]:RoguelikeItemBundle}
+    }
+
+    export interface InitGiftContent {
+        step: number[]
+        items: RoguelikeItemBundle[]
     }
     
 

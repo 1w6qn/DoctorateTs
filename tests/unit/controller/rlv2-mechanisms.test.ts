@@ -7,6 +7,38 @@ vi.mock("@excel/excel", () => ({
   default: {
     RoguelikeTopicTable: {
       details: {
+        rogue_4: {
+          init: [{ modeGrade: 0, predefinedId: null, modeId: "NORMAL", initialBandRelic: ["rogue_4_band_1", "rogue_4_band_2"] }],
+          items: {},
+          relics: { rogue_4_band_1: { id: "rogue_4_band_1", buffs: [] }, rogue_4_band_2: { id: "rogue_4_band_2", buffs: [] } },
+          bandRef: {
+            rogue_4_band_1: { itemId: "rogue_4_band_1", bandLevel: 0, normalBandId: "rogue_4_band_1" },
+            rogue_4_band_2: { itemId: "rogue_4_band_2", bandLevel: 1, normalBandId: "rogue_4_band_1" },
+          },
+        },
+        rogue_6: {
+          init: [{ modeGrade: 0, predefinedId: null, modeId: "NORMAL", initialBandRelic: ["rogue_6_band_1", "rogue_6_band_3"] }],
+          items: {
+            rogue_6_gold: { id: "rogue_6_gold", type: "GOLD", rarity: "NONE" },
+            rogue_6_population: { id: "rogue_6_population", type: "POPULATION", rarity: "NONE" },
+            rogue_6_exp: { id: "rogue_6_exp", type: "EXP", rarity: "NONE" },
+            rogue_6_hpmax: { id: "rogue_6_hpmax", type: "HPMAX", rarity: "NONE" },
+          },
+          relics: {
+            rogue_6_band_1: { id: "rogue_6_band_1", buffs: [{ key: "immediate_reward", blackboard: [{ key: "id", valueStr: "rogue_6_hpmax" }, { key: "count", value: 2 }] }] },
+            rogue_6_band_3: { id: "rogue_6_band_3", buffs: [] },
+          },
+          bandRef: {
+            rogue_6_band_1: { itemId: "rogue_6_band_1", bandLevel: 0, normalBandId: "rogue_6_band_1" },
+            rogue_6_band_3: { itemId: "rogue_6_band_3", bandLevel: 0, normalBandId: "rogue_6_band_3" },
+          },
+          choices: {
+            choice_ro6_startbuff_1: { id: "choice_ro6_startbuff_1", displayData: { type: "NORMAL" }, description: "获得1件普通收藏品" },
+            choice_ro6_startbuff_2: { id: "choice_ro6_startbuff_2", displayData: { type: "NORMAL", itemID: "rogue_6_gold" }, description: "获得<@ro6.get>8</>源石锭" },
+          },
+          detailConst: { playerLevelTable: { 2: { exp: 10, populationUp: 4 } } },
+          recruitTickets: {},
+        },
         rogue_3: {
           init: [{ modeGrade: 0, predefinedId: null, modeId: "NORMAL", initRelic: {}, initRecruit: {} }],
           milestones: [
@@ -68,6 +100,15 @@ vi.mock("@excel/excel", () => ({
               rogue_2_diceEve_2: { showType: "KEY" },
             },
           },
+        },
+        rogue_4: { moduleTypes: ["FRAGMENT", "DISASTER", "NODE_UPGRADE"] },
+        rogue_6: {
+          moduleTypes: ["GRID_ZONE", "WEATHER", "SCRAP"],
+          weather: {
+            mainWeatherData: { rogue_6_weather_1_a: { id: "rogue_6_weather_1_a", level: 1 } },
+            subWeatherData: { rogue_6_subweather_1: { id: "rogue_6_subweather_1" } },
+          },
+          scrap: { scrapItemToType: {} },
         },
       },
       customizeData: {},
@@ -474,5 +515,47 @@ describe("指挥等级/经验（2026-08-11 文档对齐）", () => {
     // 10 exp → 升到 2 级
     expect((player.rlv2 as any)._status.property.level).toBe(2);
     expect((player.rlv2 as any)._status.pending.length).toBe(0);
+  });
+});
+
+describe("rogue_6 开局礼物/分队隐藏/选项效果（2026-08-11）", () => {
+  it("rogue_6 createGame 应包含 GAME_INIT_GIFT 且 finishEvent 发放礼物", async () => {
+    const player = await readyPlayer("rogue_6");
+    await (player.rlv2 as any).createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 0, predefinedId: null });
+    const pend = (player.rlv2 as any)._status.pending;
+    const gift = pend.find((e: any) => e.type === "GAME_INIT_GIFT");
+    expect(gift).toBeDefined();
+    expect(gift.content.initGift.items.length).toBe(2);
+    // 先消费 RELIC（chooseInitialRelic），再 finishEvent 应发放礼物（金 +10 / 人口 +1）
+    await (player.rlv2 as any).chooseInitialRelic({ select: "0" });
+    (player.rlv2 as any)._status.property.gold = 8;
+    (player.rlv2 as any)._status.property.population.max = 6;
+    await (player.rlv2 as any).finishEvent();
+    expect((player.rlv2 as any)._status.property.gold).toBe(18);
+    expect((player.rlv2 as any)._status.property.population.max).toBe(7);
+    expect((player.rlv2 as any)._status.pending.find((e: any) => e.type === "GAME_INIT_GIFT")).toBeUndefined();
+  });
+
+  it("collect.band 升级变体应 state 0 隐藏（bandLevel > 0）", async () => {
+    const player = await readyPlayer("rogue_4");
+    (player.rlv2 as any).current.game = { theme: "rogue_4", mode: "NORMAL", modeGrade: 0 } as any;
+    (player.rlv2 as any).ensureOuterTheme("rogue_4");
+    const band = (player.rlv2 as any).outer.rogue_4.collect.band;
+    // band_1 是基础（level 0），band_2 是 band_1 的 level 1 变体
+    expect(band["rogue_4_band_1"].state).toBe(1);
+    expect(band["rogue_4_band_2"].state).toBe(0);
+  });
+
+  it("selectChoice startbuff 应读取 displayData.itemID（PascalCase）", async () => {
+    const player = await readyPlayer("rogue_6");
+    await (player.rlv2 as any).createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 0, predefinedId: null });
+    (player.rlv2 as any)._status.pending.splice(0);
+    (player.rlv2 as any)._status._pending._pending.push({
+      type: "GAME_INIT_SUPPORT",
+      content: { initSupport: { step: [2, 5], scene: { id: "scene_ro6_startbuff_enter", choices: {} } } },
+    });
+    (player.rlv2 as any)._status.property.gold = 0;
+    await (player.rlv2 as any).selectChoice({ choice: "choice_ro6_startbuff_2" });
+    expect((player.rlv2 as any)._status.property.gold).toBe(8);
   });
 });

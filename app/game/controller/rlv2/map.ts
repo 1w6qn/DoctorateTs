@@ -215,6 +215,7 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
             next: [],
             type: endType,
             zone_end: true,
+            visibility: 0,
             refresh: { usedCount: 0, count: 99, cost: 1 },
           };
 
@@ -248,7 +249,8 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
           pos: { x, y },
           next: [],
           type: nodeType,
-          refresh: { usedCount: 0, count: 99, cost: 1 },
+          visibility: 0,
+            refresh: { usedCount: 0, count: 99, cost: 1 },
         };
 
         if (nodeType === TorappuRoguelikeEventType.BATTLE_NORMAL && normalList.length > 0) {
@@ -274,14 +276,16 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
           pos: { x: 2, y: 0 },
           next: [{ x: 3, y: 0 }],
           type: z1NodeType,
-          refresh: { usedCount: 0, count: 99, cost: 1 },
+          visibility: 0,
+            refresh: { usedCount: 0, count: 99, cost: 1 },
         },
         "201": {
           index: "201",
           pos: { x: 2, y: 1 },
           next: [{ x: 3, y: 0 }],
           type: z1NodeType,
-          refresh: { usedCount: 0, count: 99, cost: 1 },
+          visibility: 0,
+            refresh: { usedCount: 0, count: 99, cost: 1 },
         },
         "300": {
           index: "300",
@@ -289,7 +293,8 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
           next: [],
           type: endType,
           zone_end: true,
-          refresh: { usedCount: 0, count: 99, cost: 1 },
+          visibility: 0,
+            refresh: { usedCount: 0, count: 99, cost: 1 },
         },
       };
 

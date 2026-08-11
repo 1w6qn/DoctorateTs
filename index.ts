@@ -7,7 +7,7 @@
 import express from "express";
 import * as path from "path";
 import config from "./app/config";
-import { logger } from "./app/utils/logger";
+import { logger, flush as flushLogs } from "./app/utils/logger";
 import { createTrafficRecorder } from "./app/utils/traffic-recorder";
 import excel from "@excel/excel";
 import { enablePatches } from "immer";
@@ -20,7 +20,7 @@ import auth from "./app/auth/auth";
 import asset from "./app/asset";
 import game, { setup } from "./app/game/app";
 import bodyParser from "body-parser";
-import { accountManager } from "./app/game/manager/AccountManger";
+import { accountManager } from "./app/game/manager/AccountManager";
 
 /**
  * 应用启动入口函数
@@ -67,8 +67,9 @@ for (const sig of ["SIGINT", "SIGTERM", "SIGBREAK"] as const) {
 
 // 3) 任何退出都记录退出码（看门狗依据 code≠0/130 判断是否自动重启）
 process.on("exit", (code) => {
-  // 同步落盘：appendFileLog 为 appendFileSync，exit 阶段可安全写入
+  // 退出日志入缓冲后显式 flush（logger 批量落盘——确保退出码与最后日志都写入文件）
   logger.info("process", `进程退出: code=${code}`);
+  flushLogs();
 });
 
 (async () => {

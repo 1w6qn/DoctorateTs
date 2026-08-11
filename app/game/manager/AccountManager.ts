@@ -171,6 +171,8 @@ export class AccountManager {
       "AccountManager",
       `${Object.keys(this.configs).length} users loaded`,
     );
+    // D-1：real 模式启动空闲账号清扫（单例模式不启用）
+    this.startIdleSweep();
   }
 
   /**
@@ -255,7 +257,49 @@ export class AccountManager {
     if (!this.data[uid]) {
       await this._loadPlayer(uid);
     }
+    this._lastAccess[uid] = Date.now(); // D-1 空闲卸载：请求访问即刷新
     return this.data[uid];
+  }
+
+  /** 最近访问时间戳（D-1 空闲卸载用） */
+  private _lastAccess: { [uid: string]: number } = {};
+  /** 空闲卸载清扫定时器 */
+  private _idleSweepTimer: NodeJS.Timeout | null = null;
+  /** 空闲卸载阈值（30 分钟无请求） */
+  private _idleUnloadMs = 30 * 60 * 1000;
+  /** 清扫间隔（1 分钟） */
+  private _idleSweepIntervalMs = 60 * 1000;
+
+  /**
+   * 启动空闲账号清扫（D-1：real 模式多账号内存优化）
+   * 仅 real 模式启动；单例模式单账号卸载会抖动，不启用。
+   */
+  private startIdleSweep(): void {
+    if (this._idleSweepTimer || config.authMode !== "real") return;
+    this._idleSweepTimer = setInterval(() => {
+      void this.sweepIdleAccounts();
+    }, this._idleSweepIntervalMs);
+  }
+
+  /**
+   * 卸载超时未访问的账号（先落盘再卸载——防抖窗口内变更不丢）
+   * 守卫：singleUid 不卸载；有进行中请求的账号不卸载（_lastAccess 在 getPlayerData 已刷新）
+   */
+  async sweepIdleAccounts(): Promise<void> {
+    const now = Date.now();
+    const singleUid = config.singleUid || "1";
+    for (const [uid, last] of Object.entries(this._lastAccess)) {
+      if (uid === singleUid) continue;
+      if (now - last < this._idleUnloadMs) continue;
+      if (!this.data[uid]) {
+        delete this._lastAccess[uid];
+        continue;
+      }
+      await this.flushSave(uid);
+      delete this.data[uid];
+      delete this._lastAccess[uid];
+      logger.info("AccountManager", `空闲账号卸载 ${uid}（下次请求自动重载）`);
+    }
   }
 
   /**
@@ -384,8 +428,11 @@ export class AccountManager {
     if (saveFixed.length > 0) {
       logSaveRepair(uid, saveIssues);
     }
+    const t0 = Date.now();
     await writeFile(tmpPath, JSON.stringify(this.data[uid]));
     await rename(tmpPath, finalPath);
+    // 耗时可观测（A-2）：序列化大存档约 9ms/5.4MB 对象——防抖后离请求路径，暂不 worker 化
+    logger.debug("AccountManager", `savePlayerData ${uid}`, `${Date.now() - t0}ms`);
   }
 
   /**

@@ -5,7 +5,7 @@
  * 所有数据表在服务器启动时加载，运行时只读访问。
  */
 
-import { readJson } from "@utils/file";
+import { readJson, readJsonSync } from "@utils/file";
 import { logger } from "@utils/logger";
 import { normalizeStageDropInfo } from "./stage_table";
 import {
@@ -78,7 +78,6 @@ export class Excel {
   GameDataConst!: GameDataConsts;
   ItemTable!: ServerItemTable;
   StageTable!: StageTable;
-  HandbookInfoTable!: HandbookInfoTable;
   CheckinTable!: CheckInTable;
   StoryReviewMetaTable!: StoryReviewMetaTable;
   GachaTable!: GachaData;
@@ -100,18 +99,13 @@ export class Excel {
   ChapterTable!: { [key: string]: ChapterData };
   CharMasterTable!: { [key: string]: CharMasterBasicData };
   CharPatchTable!: CharPatchData;
-  CharWordTable!: CharWordTable;
   CharmTable!: CharmData;
   ClimbTowerTable!: ClimbTowerTable;
   CrisisTable!: CrisisClientData;
   CrisisV2SharedData!: CrisisV2SharedData;
   DisplayMetaTable!: DisplayMetaData;
-  EnemyDatabase!: EnemyDatabase;
-  EnemyHandbookLevelInfoTable!: EnemyHandbookLevelInfoData;
-  EnemyHandbookRaceTable!: EnemyHandbookRaceData;
   EpBreakBuffData!: EPBreakBuffData;
   ExtraBattleLogData!: ExtraBattleLogData;
-  HandbookTeamTable!: HandbookTeamData;
   HotUpdateMetaTable!: HotUpdateMetaTable;
   MetaUIDisplayTable!: MetaUIDisplayTable;
   PlayerAvatarTable!: PlayerAvatarData;
@@ -123,12 +117,67 @@ export class Excel {
   SandboxPermTable!: SandboxPermTable;
   SandboxTable!: { [key: string]: SandboxPermItemData };
   ShopClientTable!: ShopClientData;
-  SkillDataBundle!: SkillDataBundle;
   SpecialOperatorTable!: SpecialOperatorTable;
   StoryData!: StoryData;
   UniEquipData!: UniEquipData;
   ZoneTable!: ZoneTable;
   ArkventTable!: any;
+
+  /**
+   * 懒加载大表（B-1 性能优化）
+   *
+   * 以下为启动期不触碰、请求期才用的大表（合计 ~30MB JSON）——从 init() 的
+   * 全量加载移出，首次访问时同步 parse（单次 ~100ms，摊到首个用到该表的请求）。
+   * 启动解析时间与常驻内存下降；访问模式与字段完全一致（getter 透明）。
+   */
+  private _handbookInfoTable?: HandbookInfoTable;
+  get HandbookInfoTable(): HandbookInfoTable {
+    return (this._handbookInfoTable ??= readJsonSync<HandbookInfoTable>(
+      "./data/excel/handbook_info_table.json",
+    ));
+  }
+
+  private _charWordTable?: CharWordTable;
+  get CharWordTable(): CharWordTable {
+    return (this._charWordTable ??= readJsonSync<CharWordTable>(
+      "./data/excel/charword_table.json",
+    ));
+  }
+
+  private _enemyDatabase?: EnemyDatabase;
+  get EnemyDatabase(): EnemyDatabase {
+    return (this._enemyDatabase ??= readJsonSync<EnemyDatabase>(
+      "./data/excel/enemy_database.json",
+    ));
+  }
+
+  private _enemyHandbookLevelInfoTable?: EnemyHandbookLevelInfoData;
+  get EnemyHandbookLevelInfoTable(): EnemyHandbookLevelInfoData {
+    return (this._enemyHandbookLevelInfoTable ??= readJsonSync<EnemyHandbookLevelInfoData>(
+      "./data/excel/enemy_handbook_table.json",
+    ));
+  }
+
+  private _enemyHandbookRaceTable?: EnemyHandbookRaceData;
+  get EnemyHandbookRaceTable(): EnemyHandbookRaceData {
+    return (this._enemyHandbookRaceTable ??= readJsonSync<EnemyHandbookRaceData>(
+      "./data/excel/enemy_handbook_table.json",
+    ));
+  }
+
+  private _handbookTeamTable?: HandbookTeamData;
+  get HandbookTeamTable(): HandbookTeamData {
+    return (this._handbookTeamTable ??= readJsonSync<HandbookTeamData>(
+      "./data/excel/handbook_team_table.json",
+    ));
+  }
+
+  private _skillDataBundle?: SkillDataBundle;
+  get SkillDataBundle(): SkillDataBundle {
+    return (this._skillDataBundle ??= readJsonSync<SkillDataBundle>(
+      "./data/excel/skill_table.json",
+    ));
+  }
 
   constructor() {}
 
@@ -148,7 +197,6 @@ export class Excel {
       ["GameDataConst", "./data/excel/gamedata_const.json"],
       ["ItemTable", "./data/excel/item_table.json"],
       ["StageTable", "./data/excel/stage_table.json"],
-      ["HandbookInfoTable", "./data/excel/handbook_info_table.json"],
       ["CheckinTable", "./data/excel/checkin_table.json"],
       ["StoryReviewMetaTable", "./data/excel/story_review_meta_table.json"],
       ["GachaTable", "./data/excel/gacha_table.json"],
@@ -167,18 +215,13 @@ export class Excel {
       ["ChapterTable", "./data/excel/chapter_table.json"],
       ["CharMasterTable", "./data/excel/char_master_table.json"],
       ["CharPatchTable", "./data/excel/char_patch_table.json"],
-      ["CharWordTable", "./data/excel/charword_table.json"],
       ["CharmTable", "./data/excel/charm_table.json"],
       ["ClimbTowerTable", "./data/excel/climb_tower_table.json"],
       ["CrisisTable", "./data/excel/crisis_table.json"],
       ["CrisisV2SharedData", "./data/excel/crisis_v2_table.json"],
       ["DisplayMetaTable", "./data/excel/display_meta_table.json"],
-      ["EnemyDatabase", "./data/excel/enemy_database.json"],
-      ["EnemyHandbookLevelInfoTable", "./data/excel/enemy_handbook_table.json"],
-      ["EnemyHandbookRaceTable", "./data/excel/enemy_handbook_table.json"],
       ["EpBreakBuffData", "./data/excel/ep_breakbuff_table.json"],
       ["ExtraBattleLogData", "./data/excel/extra_battlelog_table.json"],
-      ["HandbookTeamTable", "./data/excel/handbook_team_table.json"],
       ["HotUpdateMetaTable", "./data/excel/hotupdate_meta_table.json"],
       ["MetaUIDisplayTable", "./data/excel/meta_ui_table.json"],
       ["PlayerAvatarTable", "./data/excel/player_avatar_table.json"],
@@ -189,7 +232,6 @@ export class Excel {
       ["SandboxPermTable", "./data/excel/sandbox_perm_table.json"],
       ["SandboxTable", "./data/excel/sandbox_table.json"],
       ["ShopClientTable", "./data/excel/shop_client_table.json"],
-      ["SkillDataBundle", "./data/excel/skill_table.json"],
       ["SpecialOperatorTable", "./data/excel/special_operator_table.json"],
       ["StoryData", "./data/excel/story_table.json"],
       ["UniEquipData", "./data/excel/uniequip_data.json"],

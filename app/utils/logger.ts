@@ -52,17 +52,59 @@ function formatArg(arg: unknown): string {
 }
 
 /**
- * 同步追加一行纯文本到当天日志文件（去 ANSI 色码）。
- * 失败静默——文件日志不能影响控制台输出与服务器运行（磁盘满/权限等只丢文件日志）。
- * 用 appendFileSync 保证进程被杀死/崩溃前已写入的日志不丢失（异步流缓冲会丢尾部）。
+ * 待落盘缓冲（按行记录文件路径——跨天轮转边界安全）。
+ * 每条日志不再立即同步写盘（appendFileSync 阻塞事件循环），
+ * 而是 200ms 批量合并为一次 appendFile（A-1 性能优化）。
  */
-function appendFileLog(line: string): void {
-  try {
-    fs.mkdirSync(logDir(), { recursive: true });
-    fs.appendFileSync(logFilePath(), line + "\n", "utf-8");
-  } catch {
-    /* 文件日志失败不影响服务器运行 */
+const logBuffer: { file: string; line: string }[] = [];
+let flushTimer: NodeJS.Timeout | null = null;
+/** 批量 flush 间隔（毫秒） */
+const FLUSH_INTERVAL_MS = 200;
+
+/** 调度一次批量落盘（200ms 窗口内的多条日志合并为一次磁盘写） */
+function scheduleFlush(): void {
+  if (flushTimer) return;
+  flushTimer = setTimeout(() => {
+    flushTimer = null;
+    flushLogBuffer();
+  }, FLUSH_INTERVAL_MS);
+}
+
+/** 同步批量落盘（按文件分组，每个文件一次 appendFile；定时器/显式 flush/进程退出调用） */
+function flushLogBuffer(): void {
+  if (logBuffer.length === 0) return;
+  const pending = logBuffer.splice(0);
+  const byFile = new Map<string, string[]>();
+  for (const { file, line } of pending) {
+    const lines = byFile.get(file) ?? [];
+    lines.push(line);
+    byFile.set(file, lines);
   }
+  for (const [file, lines] of byFile) {
+    try {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.appendFileSync(file, lines.join("\n") + "\n", "utf-8");
+    } catch {
+      /* 文件日志失败不影响服务器运行 */
+    }
+  }
+}
+
+// 进程退出时同步 flush 兜底（保留"已写日志不丢"语义——优雅退出路径；
+// index.ts 的退出钩子在记完退出日志后也会显式 flush()）
+process.on("exit", () => {
+  flushLogBuffer();
+});
+
+/**
+ * 显式 flush 待落盘日志（进程退出/测试断言前调用）
+ */
+export function flush(): void {
+  if (flushTimer) {
+    clearTimeout(flushTimer);
+    flushTimer = null;
+  }
+  flushLogBuffer();
 }
 
 function resolveLevel(): number {
@@ -103,10 +145,12 @@ function write(level: LogLevel, tag: string, args: unknown[]): void {
     `${COLOR.cyan}[${tag}]${COLOR.reset}`,
     ...args,
   ];
-  // 同步落盘（纯文本、去色码）——控制台输出保持原样
-  appendFileLog(
-    `${ts} [${level.toUpperCase()}] [${tag}] ${args.map(formatArg).join(" ")}`,
-  );
+  // 批量落盘（纯文本、去色码；200ms 窗口合并为一次磁盘写——A-1）——控制台输出保持原样
+  logBuffer.push({
+    file: logFilePath(),
+    line: `${ts} [${level.toUpperCase()}] [${tag}] ${args.map(formatArg).join(" ")}`,
+  });
+  scheduleFlush();
   switch (level) {
     case "error":
       console.error(...out);

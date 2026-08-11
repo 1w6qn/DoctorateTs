@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { logger, text2color } from "@utils/logger";
+import { logger, flush, text2color } from "@utils/logger";
 
 const tempDirs: string[] = [];
 
@@ -29,6 +29,7 @@ describe("logger", () => {
 
     logger.warn("test-tag", "file-line-1", { a: 1 });
     logger.info("test-tag", "plain message", 42);
+    flush(); // 批量缓冲落盘——断言前显式 flush（A-1）
 
     const d = new Date();
     const p = (n: number) => String(n).padStart(2, "0");
@@ -56,6 +57,7 @@ describe("logger", () => {
     process.env.LOG_DIR = dir;
 
     logger.error("test-tag", new Error("boom"));
+    flush(); // 批量缓冲落盘——断言前显式 flush（A-1）
 
     const d = new Date();
     const p = (n: number) => String(n).padStart(2, "0");

@@ -17,7 +17,7 @@ vi.mock("@utils/file", async (importOriginal) => {
   return { ...actual, readJson: vi.fn(actual.readJson) };
 });
 
-import { accountManager } from "../../../app/game/manager/AccountManger";
+import { accountManager } from "../../../app/game/manager/AccountManager";
 import config from "../../../app/config";
 import { readJson } from "@utils/file";
 import { readFileSync } from "fs";
@@ -220,6 +220,23 @@ describe("getUidByToken 认证模式", () => {
       (c: any) => String(c[0]).includes("databases/8.json"),
     );
     expect(playerLoads).toHaveLength(1);
+  });
+
+  it("空闲账号清扫应卸载超时账号（先落盘；fresh 与 singleUid 保留）——D-1", async () => {
+    (config as any).singleUid = "1";
+    const manager = accountManager;
+    (manager as any).data = { "1": {}, "2": {} };
+    (manager as any)._lastAccess = {
+      "1": Date.now(),
+      "2": Date.now() - 40 * 60 * 1000, // 40 分钟前——超 30 分钟阈值
+    };
+    const flushSpy = vi
+      .spyOn(manager, "flushSave")
+      .mockResolvedValue(undefined as any);
+    await (manager as any).sweepIdleAccounts();
+    expect((manager as any).data["2"]).toBeUndefined();
+    expect((manager as any).data["1"]).toBeDefined();
+    expect(flushSpy).toHaveBeenCalledWith("2");
   });
 });
 

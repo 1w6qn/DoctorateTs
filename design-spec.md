@@ -1406,3 +1406,11 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 
 - **C-2 运行时散文件 SQLite 化**：`data/` 根下 `mails.json`/`building.json`/`battleReplays.json`/`user.json`/`rlv2.json` 等仍是 JSON 文件存储（非玩家账号主体，属各管理器独立状态）——社交/回放/结算已入 social.db，其余可逐步收编，按需迁移。
 - **D-4 业务校验错误响应**：游戏路由统一 JSON 500（gameErrorHandler）——业务校验失败（如社交自请求）也走 500。若客户端只处理业务码（result/status 字段）不处理 HTTP 500，需实测确认；确认前不改为 200 + 业务码。
+
+### 24.4 性能优化记录（2026-08-11）
+
+- **A-1 logger 批量落盘**：文件日志从"每行 appendFileSync"改为 200ms 批量合并（`logBuffer` + 定时 flush + 进程退出同步 flush 兜底），`logger.flush()` 可显式落盘。事件循环不再被每条日志的同步磁盘写阻塞。
+- **B-1 excel 懒加载**：`handbook_info/charword/enemy_database/enemy_handbook×2/handbook_team/skill_table` 7 张启动期不触碰的大表（合计 ~30MB JSON）改为首次访问时同步 parse（getter 透明，访问模式不变）；启动解析时间与常驻内存下降，首请求摊付单表 parse（~100ms）。
+- **D-1 空闲账号卸载**：real 模式 30 分钟无请求的账号先落盘后从内存卸载（`data[uid]` 删除），下次请求自动重载；singleUid 与 fresh 账号保留。单例模式不启用（单账号卸载会抖动）。
+- **A-2 savePlayerData 序列化**：实测 `JSON.stringify` 5.4MB 对象 ~9ms，已防抖离请求路径 + 紧凑输出（1.7MB）——`savePlayerData` 增加耗时 debug 日志；worker_threads 序列化收益低（9ms 可接受）暂缓（YAGNI）。
+- **D-2 excel 内存**：82MB 源 JSON 全量解析后驻留内存较大；懒加载已缓解内容表，核心表（character/stage/item/skill）仍常驻——多账号/大内存压力场景再评估分表卸载。

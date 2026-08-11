@@ -69,6 +69,7 @@ vi.mock("@excel/excel", () => ({
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { mockPlayerData } from "../../helpers";
+import { BLACKSTREAM_CONSTRUCTIONS } from "@game/controller/rlv2/modules/blackstream-data";
 
 function makePlayer(theme: string) {
   const pd: any = mockPlayerData({
@@ -122,6 +123,39 @@ describe("rlv2 主题模块管理器（2026-08-10）", () => {
       expect(node).toBeTruthy();
       expect(node.state).toBe(2);
       expect(gz.toJSON().zones["1"].nodes[nodeId].state).toBe(2);
+    });
+
+    it("generate 应按构造模板放置节点且距离规则生效（黑流树海）", async () => {
+      // 固定 Math.random=0：generate 取第一张 L1 模板（floor-1-single-exit，startSlot [1,1]）
+      const rand = vi.spyOn(Math, "random").mockReturnValue(0);
+      try {
+        const player = await createModules(makePlayer("rogue_6"));
+        const gz = (player.rlv2 as any)._module.gridZone;
+        gz.generate([1]);
+        const nodes = gz.toJSON().zones["1"].nodes;
+        // 起点 = 模板 startSlot（官服 ID = x*100+y）→ [1,1] = "101"，为林间空地且可见可访问
+        expect(nodes["101"].content.kind).toBe(268435456); // GLADE
+        expect(nodes["101"].state).toBe(1);
+        expect(nodes["101"].show).toBe(1);
+        // 起点相邻格（沿模板 edges 距离 1）一二层必为作战（官服 is={0:"combat",1:"combat"}）
+        const template = BLACKSTREAM_CONSTRUCTIONS.find((c) => c.layerIndex === 0)!;
+        const dist = gz.edgeDistances(template);
+        for (const [id, n] of Object.entries(nodes) as [string, any][]) {
+          if (dist.get(id) === 1 && id !== "101") {
+            expect(n.content.savage, `起点相邻节点 ${id} 应为作战`).toBeTruthy();
+          }
+        }
+        // 地图节点数 > 0、存在战斗节点
+        expect(Object.keys(nodes).length).toBeGreaterThan(5);
+        const battleNode = Object.values(nodes).find((n: any) => n.content.savage);
+        expect(battleNode).toBeTruthy();
+        // 同步 map.zones：与 module.gridZone 节点 ID 一致
+        const mapNodes = (player.rlv2 as any)._map.zones[1]?.nodes;
+        expect(mapNodes).toBeTruthy();
+        expect(Object.keys(mapNodes).length).toBe(Object.keys(nodes).length);
+      } finally {
+        rand.mockRestore();
+      }
     });
 
     it("step 应消耗行动力", async () => {

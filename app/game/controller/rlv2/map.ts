@@ -94,6 +94,9 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
     });
 
     const theme = this._player.current.game!.theme;
+    // rogue_6 无相地图：地图由 GRID_ZONE 模块按官方构造模板生成（syncMapZones 写入本管理器），
+    // 此处跳过标准网格生成，避免覆盖（rlv2:zone:new 两个监听器先后触发）。
+    if (theme === "rogue_6") return;
     const roNum = parseInt(theme.split("_")[1]);
     const zone = id;
 

@@ -194,6 +194,13 @@ export class OfficialSession {
           ? Number(seqnumHeader)
           : this.seqnum + 1;
       data = await res.json();
+      // 官服业务状态码校验：savePixelArt 等接口 HTTP 200 但 body.statusCode 非 0/200
+      // 表示业务失败（如 "Invalid multipart payload format"）——不校验会被当成功，
+      // 该张实际未保存导致批量上传缺一张、官服展示错位
+      const bizCode = (data as any)?.statusCode ?? (data as any)?.code;
+      if (bizCode !== undefined && bizCode !== 0 && bizCode !== 200) {
+        throw new Error(`官服业务失败 statusCode=${bizCode} @ ${cgi}: ${JSON.stringify(data).slice(0, 200)}`);
+      }
       return data;
     } finally {
       // 请求体为二进制不落盘完整字节，只记长度

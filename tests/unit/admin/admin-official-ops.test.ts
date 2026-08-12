@@ -297,4 +297,18 @@ describe("uploadPixelArtBatch（复用登录 + 网关连接）", () => {
     expect(r.uploadToken).toBe("tok");
     vi.unstubAllGlobals();
   });
+
+  it("postMultipart 业务 statusCode 非 0/200 应判失败（防止缺张错位）", async () => {
+    // HTTP 200 但业务 statusCode 400（savePixelArt "Invalid multipart payload format"）
+    const fetchMock = vi.fn().mockImplementation(() =>
+      fakeRes({ statusCode: 400, error: "Bad Request", message: "Invalid multipart payload format" }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    gwMocks.requestUploadToken.mockReset();
+    gwMocks.requestUploadToken.mockResolvedValue({ pixelArtId: 1001n, uploadToken: "tok", expireTime: 0 });
+    const results = await uploadPixelArtBatch("13800000000", "pwd", [Buffer.alloc(1728)]);
+    expect(results[0].ok).toBe(false);
+    expect(results[0].error).toContain("官服业务失败 statusCode=400");
+    vi.unstubAllGlobals();
+  });
 });

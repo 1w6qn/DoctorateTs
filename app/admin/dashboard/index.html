@@ -1931,16 +1931,34 @@
   function loadPixelPane() {
     var pane = $("pane-pixel");
     pane.innerHTML =
-      '<p style="color:var(--muted);font-size:12px;">阿卡狄亚像素画：24×24 画布、每像素 3 字节 RGB（共 1728B）。' +
-      '鼠标绘制 / 橡皮擦 / 清空；可下载 PNG 与像素数据，或上传到官服（完整 savePixelArt 流程：登录 → 网关申请 token → multipart 上传 → 保存确认）。</p>' +
+      '<p style="color:var(--muted);font-size:12px;">阿卡狄亚像素画：任意尺寸大画布，内部按 24×24 块管理（不足块白色填充）。' +
+      '左侧总览预览整幅大图（点击选块），右侧精编 24×24 当前块；可下载大图 PNG / 逐块导出 / 批量上传官服（每张独立 savePixelArt）。</p>' +
+      '<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px;">' +
+      "<label style='align-self:center;'>画布尺寸</label>" +
+      '<input id="px-w" type="number" min="1" max="480" value="96" style="width:64px;" title="宽（像素）">' +
+      '<span style="color:var(--muted);font-size:12px;align-self:center;">×</span>' +
+      '<input id="px-h" type="number" min="1" max="480" value="96" style="width:64px;" title="高（像素）">' +
+      '<button id="px-resize" class="primary">设置尺寸</button>' +
+      '<span id="px-summary" style="font-size:12px;color:var(--gold);align-self:center;"></span>' +
+      "</div>" +
       '<div class="row" style="align-items:flex-start;gap:18px;flex-wrap:wrap;">' +
-      '<div>' +
+      "<div>" +
+      '<p style="font-size:12px;color:var(--muted);margin:0 0 6px;">总览（点击选块）</p>' +
+      '<canvas id="px-overview" width="480" height="480" style="background:#fff;image-rendering:pixelated;border:1px solid var(--border);cursor:crosshair;"></canvas>' +
+      '<div class="row" style="margin-top:6px;">' +
+      '<button id="px-prev-block">← 上一块</button>' +
+      '<span id="px-block-badge" style="font-size:12px;color:var(--gold);margin:0 8px;align-self:center;"></span>' +
+      '<button id="px-next-block">下一块 →</button>' +
+      "</div>" +
+      "</div>" +
+      "<div>" +
+      '<p style="font-size:12px;color:var(--muted);margin:0 0 6px;">精编当前块（24×24）</p>' +
       '<canvas id="px-canvas" width="480" height="480" style="background:#fff;image-rendering:pixelated;border:1px solid var(--border);cursor:crosshair;touch-action:none;"></canvas>' +
       '<div class="row" style="margin-top:8px;">' +
-      '<button id="px-clear" class="primary">清空</button>' +
+      '<button id="px-clear" class="primary">清空块</button>' +
       '<button id="px-sample">示例</button>' +
-      '<button id="px-png">下载 PNG</button>' +
-      '<button id="px-data">下载像素数据</button>' +
+      '<button id="px-eraser" class="primary">橡皮擦</button>' +
+      '<span id="px-tool" style="font-size:12px;color:var(--gold);margin-left:8px;"></span>' +
       "</div>" +
       '<div style="margin-top:8px;">' +
       '<input type="file" id="px-file" accept="image/*" style="font-size:12px;color:var(--muted);">' +
@@ -1951,65 +1969,140 @@
       '<option value="dither">Floyd 抖动</option>' +
       '<option value="gray">灰度化</option>' +
       "</select>" +
-      '<button id="px-convert" class="primary">转换</button>' +
+      '<button id="px-convert" class="primary">转换到整幅</button>' +
       "</div>" +
       '<canvas id="px-preview" width="240" height="240" style="border:1px solid var(--border);background:#1a1a1c;display:none;cursor:move;touch-action:none;margin-top:6px;"></canvas>' +
       "</div>" +
-      '<p style="font-size:11px;color:var(--muted);margin-top:4px;">选图后在预览中拖动裁剪框 / 拖右下角调整大小（方形）；转换方案均量化到官服 40 色调色板（官服校验颜色白名单）。</p>' +
+      '<p style="font-size:11px;color:var(--muted);margin-top:4px;">选图后在预览中拖动裁剪框 / 拖右下角调整大小（方形）；转换方案均量化到官服 40 色调色板。</p>' +
       "</div>" +
       "<div>" +
       '<p style="font-size:12px;color:var(--muted);margin:0 0 6px;">调色板（点击选色）</p>' +
       '<div id="px-palette" style="display:grid;grid-template-columns:repeat(10,26px);gap:4px;"></div>' +
-      '<p style="font-size:12px;color:var(--muted);margin:10px 0 6px;">工具</p>' +
-      '<div class="row"><button id="px-eraser" class="primary">橡皮擦</button><span id="px-tool" style="font-size:12px;color:var(--gold);margin-left:8px;"></span></div>' +
-      '<p style="font-size:12px;color:var(--muted);margin:10px 0 6px;">上传官服（会真实写入该账号的 act1arkhub 活动）</p>' +
+      '<p style="font-size:12px;color:var(--muted);margin:10px 0 6px;">导出</p>' +
+      '<div class="row wrap" style="gap:6px;">' +
+      '<button id="px-png" class="primary">下载大图 PNG</button>' +
+      '<label style="font-size:11px;color:var(--muted);align-self:center;"><input type="checkbox" id="px-gridline" checked> 网格线</label>' +
+      '<button id="px-block-png">导出当前块 PNG</button>' +
+      '<button id="px-block-data">导出当前块数据</button>' +
+      '<button id="px-all-json">导出全部块 JSON</button>' +
+      "</div>" +
+      '<p style="font-size:12px;color:var(--muted);margin:10px 0 6px;">上传官服（批量：全部块逐张上传，会真实写入该账号 act1arkhub）</p>' +
       '<div class="row">' +
       '<input id="px-phone" placeholder="官服手机号" style="flex:1;">' +
       '<input id="px-pwd" type="password" placeholder="官服密码" style="flex:1;">' +
-      '<button id="px-upload" class="primary">上传</button></div>' +
+      '<button id="px-upload" class="primary">批量上传</button></div>' +
       '<div class="resp-box" id="px-resp" style="margin-top:10px;">上传结果显示在此</div>' +
       "</div></div>";
 
     var PALETTE = ["#222222","#b4b4b4","#eae7df","#ffffff","#d32f36","#9c0a00","#d60c4a","#e6968d","#fe9875","#f7d0c0","#fcefea","#fbf6e8","#dcd2c8","#e2ceab","#d56322","#d48c42","#f29900","#f9c933","#fce499","#b3b47a","#c2da72","#6c6e00","#b19155","#a98f74","#aa9228","#3f2b12","#74491f","#534658","#2a2446","#394599","#5a459d","#baa3d7","#b6bcdf","#a9acbe","#63abb9","#b4d2dc","#91d8e6","#47aea0","#b6d3c8","#273864"];
-    var SIZE = 24;
+    var TILE = 24;
     var cell = 20;
     var WHITE = [255, 255, 255];
+    var bigW = 96, bigH = 96;
+    var big = [];
+    var cols = 4, rows = 4;
+    var curBlock = { bx: 0, by: 0 };
     var grid = [];
-    for (var i = 0; i < SIZE * SIZE; i++) grid.push(WHITE.slice());
     var current = [0, 0, 0];
     var eraser = false;
-
-    var canvas = $("px-canvas");
-    var ctx = canvas.getContext("2d");
 
     function hexToRgb(h) {
       return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
     }
+    function initBig(w, h) {
+      bigW = Math.max(1, Math.min(480, Math.floor(w) || 96));
+      bigH = Math.max(1, Math.min(480, Math.floor(h) || 96));
+      big = [];
+      for (var i = 0; i < bigW * bigH; i++) big.push(WHITE.slice());
+      cols = Math.ceil(bigW / TILE);
+      rows = Math.ceil(bigH / TILE);
+      curBlock = { bx: 0, by: 0 };
+      $("px-w").value = bigW;
+      $("px-h").value = bigH;
+      updateSummary();
+      loadBlock();
+      drawOverview();
+    }
+    function updateSummary() {
+      $("px-summary").textContent = bigW + "×" + bigH + " = " + cols + "×" + rows + " 块 = " + (cols * rows) + " 张 24×24";
+    }
+    function loadBlock() {
+      grid = [];
+      for (var ly = 0; ly < TILE; ly++) {
+        for (var lx = 0; lx < TILE; lx++) {
+          var gx = curBlock.bx * TILE + lx;
+          var gy = curBlock.by * TILE + ly;
+          grid.push(gx < bigW && gy < bigH ? big[gy * bigW + gx].slice() : WHITE.slice());
+        }
+      }
+      $("px-block-badge").textContent = "块 (" + curBlock.bx + "," + curBlock.by + ") / (" + (cols - 1) + "," + (rows - 1) + ")";
+      draw();
+      drawOverview();
+    }
+    function paintBack(lx, ly) {
+      var gx = curBlock.bx * TILE + lx;
+      var gy = curBlock.by * TILE + ly;
+      if (gx < bigW && gy < bigH) big[gy * bigW + gx] = grid[ly * TILE + lx].slice();
+    }
+
+    var canvas = $("px-canvas");
+    var ctx = canvas.getContext("2d");
+    var overview = $("px-overview");
+    var octx = overview.getContext("2d");
+
     function draw() {
       ctx.fillStyle = "rgb(255,255,255)";
       ctx.fillRect(0, 0, 480, 480);
-      for (var y = 0; y < SIZE; y++) {
-        for (var x = 0; x < SIZE; x++) {
-          var c = grid[y * SIZE + x];
+      for (var y = 0; y < TILE; y++) {
+        for (var x = 0; x < TILE; x++) {
+          var c = grid[y * TILE + x];
           ctx.fillStyle = "rgb(" + c[0] + "," + c[1] + "," + c[2] + ")";
           ctx.fillRect(x * cell, y * cell, cell, cell);
         }
       }
       ctx.strokeStyle = "rgba(0,0,0,0.12)";
       ctx.lineWidth = 1;
-      for (var i = 0; i <= SIZE; i++) {
+      for (var i = 0; i <= TILE; i++) {
         ctx.beginPath(); ctx.moveTo(i * cell, 0); ctx.lineTo(i * cell, 480); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(0, i * cell); ctx.lineTo(480, i * cell); ctx.stroke();
       }
       updateTool();
     }
+    function drawOverview() {
+      octx.fillStyle = "#fff";
+      octx.fillRect(0, 0, 480, 480);
+      var s = Math.min(480 / bigW, 480 / bigH);
+      var ox = (480 - bigW * s) / 2, oy = (480 - bigH * s) / 2;
+      for (var y = 0; y < bigH; y++) {
+        for (var x = 0; x < bigW; x++) {
+          var c = big[y * bigW + x];
+          octx.fillStyle = "rgb(" + c[0] + "," + c[1] + "," + c[2] + ")";
+          octx.fillRect(ox + x * s, oy + y * s, Math.ceil(s), Math.ceil(s));
+        }
+      }
+      octx.strokeStyle = "rgba(0,0,0,0.25)";
+      octx.lineWidth = 1;
+      for (var bx = 0; bx <= cols; bx++) {
+        var gx = ox + bx * TILE * s;
+        octx.beginPath(); octx.moveTo(gx, oy); octx.lineTo(gx, oy + bigH * s); octx.stroke();
+      }
+      for (var by = 0; by <= rows; by++) {
+        var gy = oy + by * TILE * s;
+        octx.beginPath(); octx.moveTo(ox, gy); octx.lineTo(ox + bigW * s, gy); octx.stroke();
+      }
+      octx.strokeStyle = "#ffd700";
+      octx.lineWidth = 3;
+      octx.strokeRect(ox + curBlock.bx * TILE * s, oy + curBlock.by * TILE * s, TILE * s, TILE * s);
+    }
     function paintAt(e) {
       var rect = canvas.getBoundingClientRect();
       var x = Math.floor(((e.clientX - rect.left) * (480 / rect.width)) / cell);
       var y = Math.floor(((e.clientY - rect.top) * (480 / rect.height)) / cell);
-      if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) return;
-      grid[y * SIZE + x] = eraser ? WHITE.slice() : current.slice();
+      if (x < 0 || x >= TILE || y < 0 || y >= TILE) return;
+      grid[y * TILE + x] = eraser ? WHITE.slice() : current.slice();
+      paintBack(x, y);
       draw();
+      drawOverview();
     }
     var drawing = false;
     canvas.addEventListener("mousedown", function (e) { drawing = true; paintAt(e); });
@@ -2018,6 +2111,19 @@
     canvas.addEventListener("touchstart", function (e) { e.preventDefault(); drawing = true; paintAt(e.touches[0]); }, { passive: false });
     canvas.addEventListener("touchmove", function (e) { e.preventDefault(); if (drawing) paintAt(e.touches[0]); }, { passive: false });
     canvas.addEventListener("touchend", function () { drawing = false; });
+
+    overview.addEventListener("click", function (e) {
+      var rect = overview.getBoundingClientRect();
+      var px = (e.clientX - rect.left) * (480 / rect.width);
+      var py = (e.clientY - rect.top) * (480 / rect.height);
+      var s = Math.min(480 / bigW, 480 / bigH);
+      var ox = (480 - bigW * s) / 2, oy = (480 - bigH * s) / 2;
+      var bx = Math.floor((px - ox) / (TILE * s));
+      var by = Math.floor((py - oy) / (TILE * s));
+      if (bx < 0 || bx >= cols || by < 0 || by >= rows) return;
+      curBlock = { bx: bx, by: by };
+      loadBlock();
+    });
 
     var palBox = $("px-palette");
     PALETTE.forEach(function (h) {
@@ -2035,43 +2141,58 @@
         ? "橡皮擦"
         : "颜色 #" + current.map(function (n) { return n.toString(16).padStart(2, "0"); }).join("");
     }
-
-    function flatPixels() {
+    function flatBlock(bx, by) {
       var flat = [];
-      for (var i = 0; i < grid.length; i++) flat.push(grid[i][0], grid[i][1], grid[i][2]);
+      for (var ly = 0; ly < TILE; ly++) {
+        for (var lx = 0; lx < TILE; lx++) {
+          var gx = bx * TILE + lx, gy = by * TILE + ly;
+          var c = (gx < bigW && gy < bigH) ? big[gy * bigW + gx] : WHITE;
+          flat.push(c[0], c[1], c[2]);
+        }
+      }
       return flat;
+    }
+    function allBlocks() {
+      var list = [];
+      for (var by = 0; by < rows; by++) {
+        for (var bx = 0; bx < cols; bx++) list.push(flatBlock(bx, by));
+      }
+      return list;
     }
 
     $("px-eraser").addEventListener("click", function () { eraser = !eraser; updateTool(); });
     $("px-clear").addEventListener("click", function () {
-      for (var i = 0; i < grid.length; i++) grid[i] = WHITE.slice();
-      draw();
+      for (var i = 0; i < grid.length; i++) { grid[i] = WHITE.slice(); paintBack(i % TILE, Math.floor(i / TILE)); }
+      draw(); drawOverview();
+    });
+    $("px-resize").addEventListener("click", function () {
+      initBig(parseInt($("px-w").value, 10), parseInt($("px-h").value, 10));
+      toast("已设置画布 " + bigW + "×" + bigH + "（" + (cols * rows) + " 块）");
+    });
+    $("px-prev-block").addEventListener("click", function () {
+      var idx = curBlock.by * cols + curBlock.bx - 1;
+      if (idx < 0) idx = cols * rows - 1;
+      curBlock = { bx: idx % cols, by: Math.floor(idx / cols) };
+      loadBlock();
+    });
+    $("px-next-block").addEventListener("click", function () {
+      var idx = curBlock.by * cols + curBlock.bx + 1;
+      if (idx >= cols * rows) idx = 0;
+      curBlock = { bx: idx % cols, by: Math.floor(idx / cols) };
+      loadBlock();
     });
     $("px-sample").addEventListener("click", function () {
-      // 示例：用心形掩码填当前色
-      var heart = [
-        "....XXXX......XXXX....", "..XXXXXXXX..XXXXXXXX..",
-        ".XXXXXXXXXX.XXXXXXXXX.", ".XXXXXXXXXXXXXXXXXXXX.",
-        "XXXXXXXXXXXXXXXXXXXXXX", "XXXXXXXXXXXXXXXXXXXXXX",
-        ".XXXXXXXXXXXXXXXXXXXX.", "..XXXXXXXXXXXXXXXXXX..",
-        "...XXXXXXXXXXXXXXXX....", ".....XXXXXXXXXXXX......",
-        ".......XXXXXXXX........", ".........XXXX..........",
-        "...........XX..........", ".......................",
-        ".......................", ".......................",
-        ".......................", ".......................",
-        ".......................", ".......................",
-        ".......................", ".......................",
-        ".......................", ".......................",
-      ];
-      for (var y = 0; y < SIZE; y++) {
-        var row = heart[y] || "";
-        for (var x = 0; x < SIZE; x++) {
-          if (row[x] === "X") grid[y * SIZE + x] = current.slice();
+      for (var y = 0; y < bigH; y++) {
+        for (var x = 0; x < bigW; x++) {
+          var nx = x / bigW, ny = y / bigH;
+          var heart = Math.pow(nx * 2 - 1, 2) + Math.pow(ny * 1.8 - 0.75, 2) - 0.35;
+          if (heart < 0.12 && Math.abs(nx - 0.5) + Math.abs(ny - 0.4) < 0.9) big[y * bigW + x] = current.slice();
         }
       }
-      draw();
+      loadBlock();
+      toast("已画心形示例");
     });
-    // 图片 → 像素画（裁剪 + 多种转换方案 + 官服 40 色调色板量化）
+
     var PALETTE_RGB = PALETTE.map(hexToRgb);
     function nearestPalette(r, g, b) {
       var best = PALETTE_RGB[0], bestD = Infinity;
@@ -2082,12 +2203,12 @@
       }
       return best.slice();
     }
-    var srcImg = null;                       // 已加载源图
+    var srcImg = null;
     var preview = $("px-preview");
     var pctx = preview.getContext("2d");
-    var crop = { x: 0, y: 0, s: 0 };         // 裁剪框（预览画布坐标，1:1 方形）
-    var drawRect = { x0: 0, y0: 0, w: 240, h: 240 }; // 图片 contain 适配后的绘制区域
-    var dragState = null;                    // 裁剪框拖拽状态
+    var crop = { x: 0, y: 0, s: 0 };
+    var drawRect = { x0: 0, y0: 0, w: 240, h: 240 };
+    var dragState = null;
 
     function drawPreview() {
       if (!srcImg) return;
@@ -2097,7 +2218,6 @@
       var w = srcImg.naturalWidth * scale, h = srcImg.naturalHeight * scale;
       drawRect = { x0: (240 - w) / 2, y0: (240 - h) / 2, w: w, h: h };
       pctx.drawImage(srcImg, drawRect.x0, drawRect.y0, w, h);
-      // 裁剪框外遮罩 + 金色边框 + 右下角手柄
       pctx.fillStyle = "rgba(0,0,0,0.45)";
       pctx.fillRect(0, 0, 240, crop.y);
       pctx.fillRect(0, crop.y + crop.s, 240, 240 - crop.y - crop.s);
@@ -2142,17 +2262,12 @@
       if (!dragState || !srcImg) return;
       var p = previewPos(e);
       var dx = p.x - dragState.sx, dy = p.y - dragState.sy;
-      if (dragState.mode === "move") {
-        crop.x = dragState.ox + dx;
-        crop.y = dragState.oy + dy;
-      } else {
-        crop.s = dragState.os + Math.max(dx, dy);
-      }
+      if (dragState.mode === "move") { crop.x = dragState.ox + dx; crop.y = dragState.oy + dy; }
+      else crop.s = dragState.os + Math.max(dx, dy);
       clampCrop();
       drawPreview();
     });
     window.addEventListener("mouseup", function () { dragState = null; });
-    // 触屏
     preview.addEventListener("touchstart", function (e) {
       if (!srcImg) return;
       e.preventDefault();
@@ -2195,105 +2310,134 @@
     $("px-convert").addEventListener("click", function () {
       if (!srcImg) { toast("请先选择图片文件"); return; }
       var scheme = $("px-scheme").value;
-      // 裁剪区域 → 源图像素坐标
       var scale = drawRect.w / srcImg.naturalWidth;
       var sx = (crop.x - drawRect.x0) / scale;
       var sy = (crop.y - drawRect.y0) / scale;
       var sw = crop.s / scale;
-      // 1) 采样 24×24
       var oc = document.createElement("canvas");
-      var octx = oc.getContext("2d");
+      var octx2 = oc.getContext("2d");
       var sampled = [];
+      oc.width = bigW; oc.height = bigH;
       if (scheme === "average") {
-        // 240×240 平滑采样 → 均值 10×10 块
-        oc.width = 240; oc.height = 240;
-        octx.imageSmoothingEnabled = true;
-        octx.drawImage(srcImg, sx, sy, sw, sw, 0, 0, 240, 240);
-        var big = octx.getImageData(0, 0, 240, 240).data;
-        for (var cy = 0; cy < SIZE; cy++) {
-          for (var cx = 0; cx < SIZE; cx++) {
-            var r = 0, g = 0, b = 0;
-            for (var by = 0; by < 10; by++) {
-              for (var bx = 0; bx < 10; bx++) {
-                var bi = ((cy * 10 + by) * 240 + (cx * 10 + bx)) * 4;
-                r += big[bi]; g += big[bi + 1]; b += big[bi + 2];
-              }
-            }
-            sampled.push([Math.round(r / 100), Math.round(g / 100), Math.round(b / 100)]);
-          }
-        }
+        octx2.imageSmoothingEnabled = true;
       } else {
-        // 直接 24×24 最近邻采样
-        oc.width = SIZE; oc.height = SIZE;
-        octx.imageSmoothingEnabled = false;
-        octx.drawImage(srcImg, sx, sy, sw, sw, 0, 0, SIZE, SIZE);
-        var small = octx.getImageData(0, 0, SIZE, SIZE).data;
-        for (var i = 0; i < SIZE * SIZE; i++) sampled.push([small[i * 4], small[i * 4 + 1], small[i * 4 + 2]]);
+        octx2.imageSmoothingEnabled = false;
       }
-      // 2) 灰度化（可选）
+      octx2.drawImage(srcImg, sx, sy, sw, sw, 0, 0, bigW, bigH);
+      var imgd = octx2.getImageData(0, 0, bigW, bigH).data;
+      for (var i = 0; i < bigW * bigH; i++) sampled.push([imgd[i * 4], imgd[i * 4 + 1], imgd[i * 4 + 2]]);
       if (scheme === "gray") {
         for (var i = 0; i < sampled.length; i++) {
           var l = Math.round(0.299 * sampled[i][0] + 0.587 * sampled[i][1] + 0.114 * sampled[i][2]);
           sampled[i] = [l, l, l];
         }
       }
-      // 3) 量化到官服 40 色调色板
       if (scheme === "dither") {
-        // Floyd–Steinberg 误差扩散
         var work = sampled.map(function (p) { return p.slice(); });
-        for (var y = 0; y < SIZE; y++) {
-          for (var x = 0; x < SIZE; x++) {
-            var old = work[y * SIZE + x];
+        for (var y = 0; y < bigH; y++) {
+          for (var x = 0; x < bigW; x++) {
+            var old = work[y * bigW + x];
             var q = nearestPalette(old[0], old[1], old[2]);
-            grid[y * SIZE + x] = q.slice();
+            big[y * bigW + x] = q.slice();
             var er = old[0] - q[0], eg = old[1] - q[1], eb = old[2] - q[2];
             function add(nx, ny, c) {
-              if (nx < 0 || nx >= SIZE || ny < 0 || ny >= SIZE) return;
-              var p = work[ny * SIZE + nx];
+              if (nx < 0 || nx >= bigW || ny < 0 || ny >= bigH) return;
+              var p = work[ny * bigW + nx];
               p[0] += er * c; p[1] += eg * c; p[2] += eb * c;
             }
             add(x + 1, y, 7 / 16); add(x - 1, y + 1, 3 / 16); add(x, y + 1, 5 / 16); add(x + 1, y + 1, 1 / 16);
           }
         }
       } else {
-        for (var i = 0; i < sampled.length; i++) grid[i] = nearestPalette(sampled[i][0], sampled[i][1], sampled[i][2]);
+        for (var i = 0; i < sampled.length; i++) big[i] = nearestPalette(sampled[i][0], sampled[i][1], sampled[i][2]);
       }
-      draw();
-      toast("已转换（" + $("px-scheme").selectedOptions[0].text + "，官服 40 色调色板）——可微调后下载/上传");
+      loadBlock();
+      toast("已转换（" + $("px-scheme").selectedOptions[0].text + "，官服 40 色调色板）");
     });
+
+    function bigToCanvas(gridline) {
+      var c = document.createElement("canvas");
+      c.width = bigW; c.height = bigH;
+      var cx = c.getContext("2d");
+      for (var y = 0; y < bigH; y++) {
+        for (var x = 0; x < bigW; x++) {
+          var col = big[y * bigW + x];
+          cx.fillStyle = "rgb(" + col[0] + "," + col[1] + "," + col[2] + ")";
+          cx.fillRect(x, y, 1, 1);
+        }
+      }
+      if (gridline) {
+        cx.strokeStyle = "rgba(0,0,0,0.3)";
+        cx.lineWidth = 1;
+        for (var bx = 1; bx < cols; bx++) {
+          cx.beginPath(); cx.moveTo(bx * TILE, 0); cx.lineTo(bx * TILE, bigH); cx.stroke();
+        }
+        for (var by = 1; by < rows; by++) {
+          cx.beginPath(); cx.moveTo(0, by * TILE); cx.lineTo(bigW, by * TILE); cx.stroke();
+        }
+      }
+      return c;
+    }
+    function download(name, url) {
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      a.click();
+    }
     $("px-png").addEventListener("click", function () {
-      var a = document.createElement("a");
-      a.href = canvas.toDataURL("image/png");
-      a.download = "pixel-art.png";
-      a.click();
+      download("pixel-art-" + bigW + "x" + bigH + ".png", bigToCanvas($("px-gridline").checked).toDataURL("image/png"));
     });
-    $("px-data").addEventListener("click", function () {
-      var blob = new Blob([JSON.stringify(flatPixels())], { type: "application/json" });
-      var a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "pixel-data.json";
-      a.click();
-      URL.revokeObjectURL(a.href);
+    $("px-block-png").addEventListener("click", function () {
+      var c = document.createElement("canvas");
+      c.width = TILE; c.height = TILE;
+      var cx = c.getContext("2d");
+      for (var y = 0; y < TILE; y++) {
+        for (var x = 0; x < TILE; x++) {
+          var col = grid[y * TILE + x];
+          cx.fillStyle = "rgb(" + col[0] + "," + col[1] + "," + col[2] + ")";
+          cx.fillRect(x, y, 1, 1);
+        }
+      }
+      download("pixel-block-" + curBlock.bx + "-" + curBlock.by + ".png", c.toDataURL("image/png"));
     });
+    $("px-block-data").addEventListener("click", function () {
+      var blob = new Blob([JSON.stringify(flatBlock(curBlock.bx, curBlock.by))], { type: "application/json" });
+      download("pixel-block-" + curBlock.bx + "-" + curBlock.by + ".json", URL.createObjectURL(blob));
+    });
+    $("px-all-json").addEventListener("click", function () {
+      var blocks = [];
+      for (var by = 0; by < rows; by++) {
+        for (var bx = 0; bx < cols; bx++) {
+          blocks.push({ bx: bx, by: by, flatPixels: flatBlock(bx, by) });
+        }
+      }
+      var blob = new Blob([JSON.stringify({ width: bigW, height: bigH, cols: cols, rows: rows, blocks: blocks })], { type: "application/json" });
+      download("pixel-all-" + bigW + "x" + bigH + ".json", URL.createObjectURL(blob));
+    });
+
     $("px-upload").addEventListener("click", function () {
       var phone = $("px-phone").value.trim();
       var pwd = $("px-pwd").value.trim();
       if (!phone || !pwd) { toast("请填写官服手机号与密码"); return; }
-      $("px-resp").textContent = "上传中...（登录官服 → 网关申请 token → multipart 上传 → 保存确认，请耐心等待）";
-      api("/pixel/upload-official", {
+      var blocks = allBlocks();
+      $("px-resp").textContent = "批量上传 " + blocks.length + " 张...（每张独立登录官服 → 网关 token → multipart 上传 → 保存确认，耗时较长请耐心等待）";
+      api("/pixel/upload-batch", {
         method: "POST",
-        body: JSON.stringify({ phone: phone, pwd: pwd, pixelData: flatPixels() }),
+        body: JSON.stringify({ phone: phone, pwd: pwd, pixelDataList: blocks }),
       })
-        .then(function (r) {
-          showResp("px-resp",
-            "上传成功\npixelArtId: " + r.pixelArtId + "\n上传 token: " + r.uploadToken +
-            "\n官服响应: " + JSON.stringify(r.httpResp, null, 2));
+        .then(function (results) {
+          var ok = results.filter(function (r) { return r.ok; }).length;
+          var lines = results.map(function (r) {
+            return "块#" + r.index + " " + (r.ok ? "✓ pixelArtId=" + r.pixelArtId : "✗ " + r.error);
+          }).join("\\n");
+          showResp("px-resp", "批量上传完成：成功 " + ok + " / " + results.length + "\\n" + lines);
           refreshLogs();
         })
-        .catch(function (e) { showResp("px-resp", "上传失败: " + e.message); });
+        .catch(function (e) { showResp("px-resp", "批量上传失败: " + e.message); });
     });
 
-    draw();
+    initBig(96, 96);
+    updateSummary();
   }
 
   /* ---------- 地图可视化 Tab（map-visualizer 移植，复现 map.ts generate()） ---------- */

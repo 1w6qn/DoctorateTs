@@ -595,6 +595,21 @@ router.post("/api/pixel/upload-official", async (req: Request, res: Response) =>
   }
 });
 
+/** 批量上传像素画到官服 arkhub（大图拆分为多张 24×24 逐张上传，逐张返回结果） */
+router.post("/api/pixel/upload-batch", async (req: Request, res: Response) => {
+  try {
+    const { phone, pwd, pixelDataList } = req.body ?? {};
+    const result = await adminService.uploadPixelArtBatch(
+      String(phone),
+      String(pwd),
+      Array.isArray(pixelDataList) ? pixelDataList : [],
+    );
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 /** 批量发放全部物品 */
 router.post("/api/users/:uid/grant-all", async (req: Request, res: Response) => {
   try {

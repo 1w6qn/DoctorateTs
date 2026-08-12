@@ -61,6 +61,8 @@ vi.mock("../../../app/admin/AdminService", () => ({
     rogueSimAuto: vi.fn().mockResolvedValue({ ok: true, steps: [{ step: 1, action: "createGame", zone: 0, state: "INIT" }], final: { current: { player: { state: "END" } } } }),
     rogueSimStep: vi.fn().mockResolvedValue({ ok: true, state: { current: { player: { state: "WAIT_MOVE" } } } }),
     rogueSimState: vi.fn().mockResolvedValue({ current: { player: { state: "NONE" } } }),
+    uploadPixelArt: vi.fn().mockResolvedValue({ pixelArtId: "1001", uploadToken: "t", httpResp: {} }),
+    uploadPixelArtBatch: vi.fn().mockResolvedValue([{ index: 0, ok: true, pixelArtId: "1001" }, { index: 1, ok: true, pixelArtId: "1002" }]),
   },
 }));
 vi.mock("../../../app/admin/admin-auth", () => ({
@@ -362,6 +364,19 @@ describe("admin 路由（扩展能力）", () => {
     await call({ method: "GET", url: "/api/rogue/state?uid=1" }, res);
     expect(adminService.rogueSimState).toHaveBeenCalledWith("1");
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ current: expect.any(Object) }));
+  });
+
+  it("POST /api/pixel/upload-batch 应透传 pixelDataList 并返回逐张结果", async () => {
+    const res = mockRes();
+    await call({ method: "POST", url: "/api/pixel/upload-batch", body: { phone: "13800000000", pwd: "pwd", pixelDataList: [new Array(1728).fill(255)] } }, res);
+    expect(adminService.uploadPixelArtBatch).toHaveBeenCalledWith("13800000000", "pwd", [expect.any(Array)]);
+    expect(res.json).toHaveBeenCalledWith(expect.any(Array));
+  });
+
+  it("POST /api/pixel/upload-batch 非数组 pixelDataList 应传空数组", async () => {
+    const res = mockRes();
+    await call({ method: "POST", url: "/api/pixel/upload-batch", body: { phone: "1", pwd: "2", pixelDataList: null } }, res);
+    expect(adminService.uploadPixelArtBatch).toHaveBeenCalledWith("1", "2", []);
   });
 
   it("GET /api/spec 应返回端点规范清单", async () => {

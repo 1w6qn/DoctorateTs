@@ -6,7 +6,7 @@ import { mockPlayerData } from "../../helpers";
 import config from "../../../app/config";
 import { appendFile, mkdir } from "fs/promises";
 import { runMigration } from "../../../scripts/migrate-official";
-import { runOfficialAction, runOfficialCall } from "../../../app/admin/official-ops";
+import { runOfficialAction, runOfficialCall, uploadPixelArt as uploadPixelArtMock } from "../../../app/admin/official-ops";
 
 // 官服迁移 mock（不真实联网/写库）
 vi.mock("../../../scripts/migrate-official", () => ({
@@ -18,6 +18,7 @@ vi.mock("../../../app/admin/official-ops", () => ({
   runOfficialAction: vi.fn(),
   runOfficialCall: vi.fn(),
   validateCgi: (cgi: string) => cgi,
+  uploadPixelArt: vi.fn(),
 }));
 
 // excel 表桩（名称解析/物品校验/满配/干员属性共用）
@@ -780,6 +781,40 @@ describe("AdminService 游戏协议代理", () => {
     const state = await service.rogueSimState("1");
     expect((state as any).current.player.state).toBe("NONE");
     expect(spy).toHaveBeenCalledWith("1");
+  });
+
+  it("uploadPixelArtBatch 应逐张上传并返回逐张结果", async () => {
+    const mock = vi.mocked(uploadPixelArtMock);
+    mock.mockResolvedValueOnce({ pixelArtId: 1001n, uploadToken: "t1", httpResp: {} })
+      .mockResolvedValueOnce({ pixelArtId: 1002n, uploadToken: "t2", httpResp: {} });
+    // 1728 字节 RGB 数组（全白）
+    const px1 = new Array(1728).fill(255);
+    const px2 = new Array(1728).fill(255);
+    const r = await service.uploadPixelArtBatch("13800000000", "pwd", [px1, px2]);
+    expect(r).toEqual([
+      { index: 0, ok: true, pixelArtId: "1001" },
+      { index: 1, ok: true, pixelArtId: "1002" },
+    ]);
+    expect(mock).toHaveBeenCalledTimes(2);
+  });
+
+  it("uploadPixelArtBatch 单张失败不中断后续", async () => {
+    const mock = vi.mocked(uploadPixelArtMock);
+    mock.mockRejectedValueOnce(new Error("登录失败"))
+      .mockResolvedValueOnce({ pixelArtId: 2001n, uploadToken: "t", httpResp: {} });
+    const r = await service.uploadPixelArtBatch("13800000000", "pwd", [new Array(1728).fill(0), new Array(1728).fill(0)]);
+    expect(r[0]).toMatchObject({ index: 0, ok: false });
+    expect(r[0].error).toContain("登录失败");
+    expect(r[1]).toMatchObject({ index: 1, ok: true, pixelArtId: "2001" });
+  });
+
+  it("uploadPixelArtBatch 空列表应返回空数组", async () => {
+    const r = await service.uploadPixelArtBatch("13800000000", "pwd", []);
+    expect(r).toEqual([]);
+  });
+
+  it("uploadPixelArtBatch 缺手机号/密码应抛错", async () => {
+    await expect(service.uploadPixelArtBatch("", "", [new Array(1728).fill(0)])).rejects.toThrow(/手机号与密码/);
   });
 });
 

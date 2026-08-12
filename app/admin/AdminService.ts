@@ -1983,6 +1983,39 @@ export class AdminService {
   }
 
   /**
+   * 批量上传像素画到官服 arkhub（大图拆分为多张 24×24 逐张上传）
+   * 每张独立走完整 savePixelArt 流程（登录 → 网关 token → multipart → 确认）；
+   * 单张失败不中断后续，结果逐条返回。
+   *
+   * @param phone - 官服手机号
+   * @param pwd - 官服密码
+   * @param pixelDataList - 多张 24×24×3 RGB 数据（每项经 validatePixelData 归一化）
+   * @returns 逐张结果（index/ok/pixelArtId/error）
+   */
+  async uploadPixelArtBatch(
+    phone: string,
+    pwd: string,
+    pixelDataList: unknown[],
+  ): Promise<{ index: number; ok: boolean; pixelArtId?: string; error?: string }[]> {
+    if (!phone || !pwd) {
+      throw new Error("需提供官服手机号与密码");
+    }
+    const { validatePixelData } = await import("./arkhub-pixel");
+    const results: { index: number; ok: boolean; pixelArtId?: string; error?: string }[] = [];
+    for (let i = 0; i < (pixelDataList ?? []).length; i++) {
+      try {
+        const pixels = validatePixelData(pixelDataList[i]);
+        const r = await uploadPixelArtToOfficial(String(phone), String(pwd), pixels);
+        results.push({ index: i, ok: true, pixelArtId: r.pixelArtId.toString() });
+      } catch (e) {
+        results.push({ index: i, ok: false, error: (e as Error).message });
+      }
+    }
+    await this._audit("pixelUploadBatch", "", `${phone} → ${results.length} 张（成功 ${results.filter((r) => r.ok).length}）`);
+    return results;
+  }
+
+  /**
    * 从官服同步卡池详情到 data/gacha_detail_table.json
    * @param phone - 官服手机号
    * @param pwd - 官服密码

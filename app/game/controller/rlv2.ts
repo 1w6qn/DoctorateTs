@@ -607,7 +607,12 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         }
       }
       this._status.pending.shift();
-      this._status.state = "WAIT_MOVE";
+      // 开局阶段后续仍有 GAME_INIT_RECRUIT_SET/RECRUIT → 保持 INIT（官方 selectChoice 响应 state=INIT），
+      // 全部消费完才进入 WAIT_MOVE（finishEvent 消费 GAME_INIT_RECRUIT 时切换）
+      const hasInit = this._status.pending.some((e) =>
+        (e.type || "").startsWith("GAME_INIT_"),
+      );
+      this._status.state = hasInit ? "INIT" : "WAIT_MOVE";
       return;
     }
 

@@ -166,6 +166,24 @@ describe("支援选项门槛（上一把到 3 层）", () => {
     const scene = ev.content.initSupport!.scene;
     expect(Object.keys(scene.choices)).toHaveLength(3);
   });
+
+  it("selectChoice 消费 GAME_INIT_SUPPORT 后应保持 INIT（非 WAIT_MOVE）", async () => {
+    const player = makePlayer("rogue_1");
+    const events = (player.rlv2 as any)._status._pending;
+    await (player.rlv2 as any)._status._pending.init();
+    const trigger = (player.rlv2 as any)._trigger;
+    const emit = (type: string, args: any) => trigger.emit("rlv2:event:create", [type, args]);
+    await emit("GAME_INIT_SUPPORT", { step: [2, 3], id: "" });
+    await emit("GAME_INIT_RECRUIT_SET", { step: [3, 3] });
+    await emit("GAME_INIT_RECRUIT", { step: [3, 3] });
+    (player.rlv2 as any)._status.state = "INIT";
+    // 消费 SUPPORT（selectChoice）
+    await (player.rlv2 as any).selectChoice({ choice: "choice_startbuff_1" });
+    // 官方响应：仍有 GAME_INIT_RECRUIT_SET 待处理 → state 保持 INIT
+    expect((player.rlv2 as any)._status.state).toBe("INIT");
+    const remaining = events._pending.filter((e: any) => (e.type || "").startsWith("GAME_INIT_"));
+    expect(remaining.length).toBe(2);
+  });
 });
 
 describe("襁褓类藏品（下一局增益）", () => {

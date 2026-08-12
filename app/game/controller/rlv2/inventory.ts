@@ -12,6 +12,9 @@ export class RoguelikeInventoryManager
   trap: null;
   consumable: {};
   exploreTool: {};
+  /** 黑流树海：已暂存（留存）的招募券（_candle 变体 id 列表）——"放弃招募券"= 留存券 */
+  stashRecruit: string[];
+  stashRecruitLimit: number;
   _player: RoguelikeV2Controller;
   _trigger: TypedEventEmitter;
 
@@ -21,6 +24,8 @@ export class RoguelikeInventoryManager
     this.trap = null;
     this.consumable = {};
     this.exploreTool = {};
+    this.stashRecruit = [];
+    this.stashRecruitLimit = 3; // 招募券留存上限（官方初始值）
     this._player = player;
     this._trigger = _trigger;
     this._trigger.on("rlv2:init", this.init.bind(this));
@@ -46,12 +51,16 @@ export class RoguelikeInventoryManager
     this.trap = null;
     this.consumable = {};
     this.exploreTool = {};
+    this.stashRecruit = [];
+    this.stashRecruitLimit = 3;
   }
 
   create() {
     this.trap = null;
     this.consumable = {};
     this.exploreTool = {};
+    this.stashRecruit = [];
+    this.stashRecruitLimit = 3;
   }
 
   getItem(item: RoguelikeItemBundle) {
@@ -221,6 +230,8 @@ export class RoguelikeInventoryManager
       trap: this.trap,
       consumable: this.consumable,
       exploreTool: this.exploreTool,
-    };
+      stashRecruit: this.stashRecruit,
+      stashRecruitLimit: this.stashRecruitLimit,
+    } as any;
   }
 }

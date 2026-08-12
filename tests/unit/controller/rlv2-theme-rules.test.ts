@@ -316,3 +316,41 @@ describe("难度解锁/初始值/随心所欲", () => {
     expect(ids).toContain("rogue_6_recruit_ticket_quad_ranged");
   });
 });
+
+describe("暂存/放弃招募券（stashRecruitTicket）", () => {
+  it("stash 后 inventory.stashRecruit 记录 _candle 变体且票 state=3", async () => {
+    const player = makePlayer("rogue_6");
+    await (player.rlv2 as any)._module.create();
+    const rlv2 = player.rlv2 as any;
+    // 构造一张招募票
+    rlv2.inventory._recruit.gain("rogue_6_recruit_ticket_pioneer", "battle", 0);
+    // gain 用内部 _index 创建票（t_0）；读回票 index
+    const idx = Object.keys(rlv2.inventory.recruit)[0];
+    await rlv2.stashRecruitTicket({ index: idx });
+    const ticket = rlv2.inventory.recruit[idx];
+    expect(ticket.state).toBe(3);
+    expect(rlv2.inventory.stashRecruit).toContain("rogue_6_recruit_ticket_pioneer_candle");
+  });
+
+  it("留存超过上限（3）时不再接受", async () => {
+    const player = makePlayer("rogue_6");
+    await (player.rlv2 as any)._module.create();
+    const rlv2 = player.rlv2 as any;
+    rlv2.inventory.stashRecruit = ["a", "b", "c"];
+    rlv2.inventory._recruit.gain("rogue_6_recruit_ticket_warrior", "battle", 0);
+    const idx = rlv2.inventory._recruit.index;
+    await rlv2.stashRecruitTicket({ index: idx });
+    expect(rlv2.inventory.stashRecruit).toHaveLength(3);
+  });
+
+  it("useStashedTicket 从留存列表取回", async () => {
+    const player = makePlayer("rogue_6");
+    await (player.rlv2 as any)._module.create();
+    const rlv2 = player.rlv2 as any;
+    rlv2.inventory._recruit.gain("rogue_6_recruit_ticket_pioneer", "battle", 0);
+    const idx = Object.keys(rlv2.inventory.recruit)[0];
+    await rlv2.stashRecruitTicket({ index: idx });
+    await rlv2.useStashedTicket({ id: idx });
+    expect(rlv2.inventory.stashRecruit.length).toBe(0);
+  });
+});

@@ -1653,18 +1653,32 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     await this._trigger.emit("rlv2:node:upgrade", [args.nodeType]);
   }
 
-  /** 暂存招募票（CS: RoguelikeStashTicketRequest { index }） */
+  /** 暂存招募票（CS: RoguelikeStashTicketRequest { index }）——黑流树海"放弃招募券"= 留存 */
   async stashRecruitTicket(args: { index: string }): Promise<void> {
     const ticket = this.inventory!.recruit[args.index];
     if (!ticket) return;
-    // 暂存：state=3 且移出候选（简化——客户端展示暂存票由 stash 数据驱动）
+    const inv = this.inventory! as any;
+    // 留存上限（官方 stashRecruitLimit=3）
+    if ((inv.stashRecruit || []).length >= (inv.stashRecruitLimit ?? 3)) return;
+    // 转 _candle 变体（stashableTickets 映射），留存列表记录 id（官方 inventory.stashRecruit）
+    const theme = this.current.game!.theme;
+    const stashable = (excel.RoguelikeTopicTable.details[theme] as any)?.stashableTickets || {};
+    const stashedId = stashable[ticket.id]?.stashedTicketId || `${ticket.id}_candle`;
+    inv.stashRecruit = [...new Set([...(inv.stashRecruit || []), stashedId])];
     ticket.state = 3;
     ticket.list = [];
   }
 
-  /** 使用暂存票（CS: RoguelikeStashedTicketUseRequest { id }） */
+  /** 使用暂存票（CS: RoguelikeStashedTicketUseRequest { id }）——从留存列表取回 */
   async useStashedTicket(args: { id: string }): Promise<void> {
     const ticket = this.inventory!.recruit[args.id];
+    const inv = this.inventory! as any;
+    // 从留存列表移除（取回）
+    if (inv.stashRecruit) {
+      inv.stashRecruit = (inv.stashRecruit as string[]).filter(
+        (sid) => !sid.includes(ticket?.id ?? "") && sid !== args.id,
+      );
+    }
     if (!ticket) return;
     ticket.state = 0;
     this._trigger.emit("rlv2:recruit:active", [args.id]);

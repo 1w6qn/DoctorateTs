@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import { openDatabase, SCHEMA_SQL } from "../../../app/db/database";
 import { ReplayRepository } from "../../../app/db/replay-repo";
-import { AccountManager } from "../../../app/game/manager/AccountManger";
+import { AccountManager } from "../../../app/game/manager/AccountManager";
+import { BattleStore } from "../../../app/game/manager/BattleStore";
 
 /**
  * AccountManager 战斗回放独立存储（R4）
@@ -19,7 +20,7 @@ describe("AccountManager 回放独立存储", () => {
     db = openDatabase(":memory:");
     db.exec(SCHEMA_SQL);
     manager = new AccountManager();
-    (manager as any)._replayRepo = new ReplayRepository(db);
+    (manager as any)._battleStore = new BattleStore(new ReplayRepository(db));
     (manager as any).configs = { "1": { uid: "1", password: "p" } };
   });
 

@@ -169,6 +169,7 @@ export class RoguelikeRecruitManager {
           {},
           char,
           {
+            // 官服 instId/troopInstId 为字符串（troop 角色 instId）；候选列表内 instId 为序号
             instId: acc.length,
             type: "NORMAL",
             upgradePhase: isUpgraded ? 1 : 0,
@@ -235,8 +236,15 @@ export class RoguelikeRecruitManager {
   async done(id: string, optionId: string) {
     this.tickets[id].state = 2;
     this.tickets[id].result = this.tickets[id].list.find(
-      (item) => item.instId == parseInt(optionId),
+      (item) => String(item.instId) === String(optionId),
     ) as PlayerRoguelikeV2.CurrentData.RecruitChar;
+    // 官服 recruit.result：instId/troopInstId 为字符串（troop 干员 instId），非序号
+    if (this.tickets[id].result) {
+      this.tickets[id].result = Object.assign({}, this.tickets[id].result, {
+        instId: String(this.tickets[id].result.instId),
+        troopInstId: String(this.tickets[id].result.troopInstId),
+      }) as any;
+    }
 
     await this._trigger.emit("rlv2:char:get", [this.tickets[id].result!]);
     await this._trigger.emit("rlv2:get:items", [

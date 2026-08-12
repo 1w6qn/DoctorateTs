@@ -10,7 +10,7 @@ vi.mock("express-http-context2", () => ({
 }));
 
 // mock accountManager（PlayerDataManager 构造依赖）
-vi.mock("@game/manager/AccountManger", () => ({
+vi.mock("@game/manager/AccountManager", () => ({
   accountManager: {
     init: vi.fn().mockResolvedValue(undefined),
     getBattleInfo: vi.fn().mockResolvedValue({}),

@@ -37,6 +37,7 @@ export interface PlayerRoguelikeV2Zone {
     index:number
     nodes: { [key: string]: PlayerRoguelikeNode }
     variation: string[]
+    type?: number
 }
 
 export interface PlayerRoguelikeNode {

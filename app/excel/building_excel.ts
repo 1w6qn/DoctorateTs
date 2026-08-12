@@ -35,6 +35,20 @@ export function getGoldRate(): number {
   return excel.BuildingData?.goldItems?.["3003"] ?? 500;
 }
 
+/** 制造站相位（level 从 1 起；outputCapacity = 基础容量） */
+export function getManufactPhase(
+  level: number,
+): { speed?: number; outputCapacity?: number } | undefined {
+  return excel.BuildingData?.manufactData?.phases?.[level - 1];
+}
+
+/** 宿舍相位（level 从 1 起；manpowerRecover 为心情恢复数值——注意个别相位是占位字符串） */
+export function getDormPhase(
+  level: number,
+): { manpowerRecover?: number | string } | undefined {
+  return excel.BuildingData?.dormData?.phases?.[level - 1];
+}
+
 /** 读取 BuildingData 顶层常量（laborRecoverTime/basicFavorPerDay/apToLaborRatio 等） */
 export function getBuildingConstant<T = number>(key: string): T | undefined {
   return (excel.BuildingData as any)?.[key] as T | undefined;

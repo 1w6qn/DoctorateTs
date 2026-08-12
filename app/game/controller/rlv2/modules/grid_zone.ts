@@ -304,12 +304,13 @@ export class RoguelikeGridZoneManager {
       if (isTerminal) node.zone_end = true;
       fullNodes[id] = node;
     }
-    // 官服 map.zones 键 = 区域索引（zone_1 → 1000），非层号
+    // 官服 map.zones 键 = 区域索引（zone_1 → 1000），非层号；zone 带 variation + type
     map.zones[String(1000 + zoneId - 1)] = {
       id: `zone_${zoneId}`,
       index: 1000 + zoneId - 1,
       nodes: fullNodes,
       variation: [],
+      type: 0,
     };
   }
 
@@ -531,11 +532,11 @@ export class RoguelikeGridZoneManager {
     stepRemain: number;
     needConfirmStepZero: boolean;
   } {
-    // 官方 gridZone 节点 content 仅 savage/shop（无 kind）；kind 为内部类型标记，
-    // 序列化时剥离（客户端节点类型从 map.zones.type 读取，多出 kind 字段会导致解析异常）
+    // 官方 gridZone 节点 content：地图生成（finishEvent）时全为 {}——战斗信息由 map.zones 提供；
+    // 商店节点进入后 content 变为 { shop: { goods } }。savage/kind 为内部标记（战斗触发用），
+    // 序列化时剥离（客户端不识别 savage/kind，多余字段解析异常；shop 保留）
     const strip = (n: GridNode): GridNode => {
       const c: any = {};
-      if (n.content?.savage) c.savage = n.content.savage;
       if (n.content?.shop) c.shop = n.content.shop;
       return { content: c, state: n.state, show: n.show };
     };

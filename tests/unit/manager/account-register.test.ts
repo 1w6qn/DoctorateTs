@@ -6,7 +6,7 @@ enablePatches();
 const configMock = vi.hoisted(() => ({ default: { authMode: "real" } }));
 vi.mock("../../../app/config", () => configMock);
 
-import { accountManager } from "../../../app/game/manager/AccountManger";
+import { accountManager } from "../../../app/game/manager/AccountManager";
 import { mockPlayerData } from "../../helpers";
 import { hashPassword, verifyPassword } from "@utils/crypt";
 

@@ -8,7 +8,14 @@ import { PlayerDataModel } from "@game/model/playerdata";
 import { PlayerBuildingMeetingClue } from "@game/model/playerdata";
 import { BuildingData_OrderType, BuildingData_RoomType } from "@game/model/playerdata";
 import { accountManager } from "./AccountManager";
-import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate } from "@excel/building_excel";
+import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase } from "@excel/building_excel";
+import {
+  CharBuffSource,
+  roomSpeedBonus,
+  controlGlobalBonus,
+  dormRecoveryBonus,
+  charMoodCost,
+} from "@game/building/buff";
 
 /**
  * 基建管理器类
@@ -99,11 +106,17 @@ export class BuildingManager {
 
   /**
    * 同步基建数据
+   * 时间驱动：劳动力恢复 → 干员心情档位重算（岗位/技能）→ 心情随时间累积 →
+   * 制造站生产累积 → 贸易站订单补充 → 训练室进度推进。
    * @returns 当前时间戳
    */
   async sync() {
     return await this._player.update(async (draft) => {
       this._recoverLabor(draft);
+      // 干员心情档位（changeScale）按当前岗位 + 干员技能重算——换班后无需等客户端
+      this._recomputeCharScales(draft);
+      // 干员心情随时间累积（工作消耗/宿舍恢复）
+      this._accrueCharAp(draft);
       // 修复：制造站生产随时间累积（进度/产出不再与时间脱钩）
       for (const roomSlotId of Object.keys(draft.building.rooms.MANUFACTURE)) {
         this._accrueManufacture(draft, roomSlotId);
@@ -120,7 +133,7 @@ export class BuildingManager {
 
   /**
    * 内部方法：训练室进度推进
-   * trainee.processPoint += 流逝时间 × trainee.speed（与官方模型一致）
+   * trainee.processPoint += 流逝时间 × trainee.speed × (1 + 教官训练 buff 加成)（与官方模型一致）
    * @param draft - Immer 可写草稿
    */
   private _accrueTraining(draft: WritableDraft<PlayerDataModel>): void {
@@ -129,12 +142,23 @@ export class BuildingManager {
       const room = trainingRoom[roomSlotId];
       const trainee = room?.trainee;
       if (!trainee || trainee.charInstId <= 0 || trainee.state !== 3) continue;
+      // 教官（slot charInstIds[0] 或 room.trainer）的 train_* buff 加速训练
+      const slot = draft.building.roomSlots[roomSlotId];
+      const trainerId =
+        room.trainer?.charInstId ?? slot?.charInstIds?.[0] ?? -1;
+      const trainerSrc = trainerId > 0 ? this._charSource(draft, trainerId) : null;
+      const trainBonus = roomSpeedBonus(
+        trainerSrc ? [trainerSrc] : [],
+        "TRAINING",
+        [],
+      );
       const ts = now();
       const elapsed = ts - (room.lastUpdateTime || ts);
       if (elapsed <= 0) continue;
       room.lastUpdateTime = ts;
       trainee.processPoint =
-        (trainee.processPoint ?? 0) + elapsed * (trainee.speed ?? 1);
+        (trainee.processPoint ?? 0) +
+        elapsed * (trainee.speed ?? 1) * (1 + trainBonus);
     }
   }
 
@@ -244,6 +268,168 @@ export class BuildingManager {
           ids[i] = -1;
         }
       }
+    }
+  }
+
+  // ==================== 干员技能（buff）计算 ====================
+
+  /** 干员 buff 激活所需信息（charId/level/evolvePhase），缺失返回 null */
+  private _charSource(
+    draft: WritableDraft<PlayerDataModel>,
+    instId: number,
+  ): CharBuffSource | null {
+    const char = draft.troop?.chars?.[String(instId)];
+    if (!char?.charId) return null;
+    return {
+      charId: char.charId,
+      level: char.level ?? 0,
+      evolvePhase: char.evolvePhase ?? 0,
+    };
+  }
+
+  /** 指定房间进驻干员的 buff 源列表（过滤无效干员） */
+  private _roomCharSources(
+    draft: WritableDraft<PlayerDataModel>,
+    slot: { charInstIds?: number[] } | null | undefined,
+  ): CharBuffSource[] {
+    return (slot?.charInstIds ?? [])
+      .filter((i) => i > 0)
+      .map((i) => this._charSource(draft, i))
+      .filter((c): c is CharBuffSource => c != null);
+  }
+
+  /** 控制中枢进驻干员的全局 buff（按目标房间类型，乘法系数） */
+  private _controlGlobalFor(
+    draft: WritableDraft<PlayerDataModel>,
+  ): Record<string, number> {
+    const ctlSlot = Object.values(draft.building.roomSlots).find(
+      (s) => s.roomId === "CONTROL",
+    );
+    return controlGlobalBonus(this._roomCharSources(draft, ctlSlot ?? null));
+  }
+
+  /** 制造站基础容量（房间等级 phase.outputCapacity；缺数据回退房间存储值） */
+  private _manufactBaseCapacity(
+    draft: WritableDraft<PlayerDataModel>,
+    roomSlotId: string,
+    room: any,
+  ): number {
+    const slot = draft.building.roomSlots[roomSlotId];
+    const phase = getManufactPhase(slot?.level ?? 1);
+    return phase?.outputCapacity ?? room?.capacity ?? 0;
+  }
+
+  /**
+   * 制造站有效容量（基础容量 × (1 + 干员技能加成 + 控制中枢全局加成)）。
+   * 官方线格式约定：room.capacity = 基础容量（相位 outputCapacity），buff.speed = 加成系数
+   * ——服务端生产按有效容量随时间累积，并回写 buff.speed 供客户端计时显示一致。
+   */
+  private _roomCapacity(
+    draft: WritableDraft<PlayerDataModel>,
+    roomSlotId: string,
+    formula: any,
+  ): number {
+    const slot = draft.building.roomSlots[roomSlotId];
+    const room = draft.building.rooms.MANUFACTURE[roomSlotId];
+    const base = this._manufactBaseCapacity(draft, roomSlotId, room);
+    const chars = this._roomCharSources(draft, slot);
+    // targets 过滤：buff.targets 非空时仅对配方类型（F_GOLD/F_EXP/…）生效
+    const targets = formula?.formulaType ? [formula.formulaType] : [];
+    const bonus =
+      roomSpeedBonus(chars, "MANUFACTURE", targets) +
+      (this._controlGlobalFor(draft).MANUFACTURE ?? 0);
+    if (room) {
+      room.capacity = base;
+      const roomBuff = (room.buff as any) ?? {};
+      roomBuff.speed = bonus;
+      room.buff = roomBuff;
+    }
+    return Math.max(1, Math.round(base * (1 + bonus)));
+  }
+
+  /**
+   * 宿舍等级基础心情恢复（点/小时）：phase.manpowerRecover / 160（1 级 = 1.0 点/小时）。
+   * 数据版本部分相位为占位字符串（YOSTAR_SDK_DELETE_ACCOUNT 等）→ 按等差回退（160 + (lv-1)×10）。
+   */
+  private _dormPhaseRecovery(level: number): number {
+    const raw = getDormPhase(level)?.manpowerRecover;
+    if (typeof raw === "number" && raw > 0) return raw;
+    return 160 + (level - 1) * 10;
+  }
+
+  /**
+   * 宿舍心情恢复档位（changeScale，AP/秒）：
+   * (基础 + 舒适度 + 进驻干员 dorm_* buff + 控制中枢 control_dorm_* 全局) × 100
+   * 单位校准：1 点/小时 = 100 AP/秒（真实存档：5 级 5000 舒适 → 405，与公式吻合）。
+   */
+  private _dormRecoveryPerSec(
+    draft: WritableDraft<PlayerDataModel>,
+    slotId: string,
+  ): number {
+    const slot = draft.building.roomSlots[slotId];
+    const room = draft.building.rooms.DORMITORY?.[slotId];
+    const level = slot?.level ?? 1;
+    const comfort = (room as any)?.comfort ?? 0;
+    const basePerHour = this._dormPhaseRecovery(level) / 160;
+    const comfortPerHour = (comfort / 1000) * 0.55; // 校准：5000 舒适 ≈ +2.75 点/小时
+    const buffPerHour = dormRecoveryBonus(this._roomCharSources(draft, slot));
+    const controlPerHour = this._controlGlobalFor(draft).DORMITORY ?? 0;
+    return Math.round(
+      (basePerHour + comfortPerHour + buffPerHour + controlPerHour) * 100,
+    );
+  }
+
+  /** 输出类房间基础心情消耗（AP/秒，真实存档校准：制造/贸易 -55、会客/人力/发电 -65） */
+  private _workBaseScale(roomType: string): number {
+    switch (roomType) {
+      case "MANUFACTURE":
+      case "TRADING":
+      case "WORKSHOP":
+        return -55;
+      case "MEETING":
+      case "HIRE":
+      case "POWER":
+        return -65;
+      default:
+        return 0; // CONTROL/TRAINING/其他不消耗
+    }
+  }
+
+  /**
+   * 重算所有干员心情档位（changeScale）：
+   * - 未进驻 → 0；宿舍 → 该宿舍恢复量；输出房间 → 基础消耗 - 技能附加消耗（charMoodCost）
+   * 换班/休息后立即生效，随后 _accrueCharAp 按新档位随时间累积。
+   */
+  private _recomputeCharScales(draft: WritableDraft<PlayerDataModel>): void {
+    const roomTypeOf = new Map<number, string>();
+    for (const slot of Object.values(draft.building.roomSlots)) {
+      for (const instId of slot?.charInstIds ?? []) {
+        if (instId > 0) roomTypeOf.set(instId, slot.roomId);
+      }
+    }
+    // 宿舍恢复按宿舍房间分别计算（干员 → 所在宿舍恢复档位）
+    const dormScale = new Map<number, number>();
+    for (const [slotId, slot] of Object.entries(draft.building.roomSlots)) {
+      if (slot.roomId !== "DORMITORY") continue;
+      const scale = this._dormRecoveryPerSec(draft, slotId);
+      for (const instId of slot.charInstIds ?? []) {
+        if (instId > 0) dormScale.set(instId, scale);
+      }
+    }
+    for (const [instIdStr, ch] of Object.entries(draft.building.chars ?? {})) {
+      const instId = Number(instIdStr);
+      const roomType = roomTypeOf.get(instId);
+      let scale: number;
+      if (roomType === "DORMITORY") {
+        scale = dormScale.get(instId) ?? 0;
+      } else if (!roomType) {
+        scale = 0;
+      } else {
+        scale = this._workBaseScale(roomType);
+        const src = this._charSource(draft, instId);
+        if (src) scale -= charMoodCost(src, roomType);
+      }
+      ch.changeScale = scale;
     }
   }
 
@@ -470,6 +656,8 @@ export class BuildingManager {
           trainingRoom.trainer.state = trainer === -1 ? 0 : 3;
         }
       }
+      // 换班后立即按新岗位重算心情档位（下次 sync 按新档位随时间累积）
+      this._recomputeCharScales(draft);
     });
   }
 
@@ -498,6 +686,8 @@ export class BuildingManager {
         }
       }
       draft.building.roomSlots[roomSlotId].charInstIds = charInstIdList;
+      // 换班后立即按新岗位重算心情档位
+      this._recomputeCharScales(draft);
     });
   }
 
@@ -517,6 +707,8 @@ export class BuildingManager {
           }
         }
       }
+      // 休息后立即恢复空闲心情档位（0）
+      this._recomputeCharScales(draft);
     });
   }
 
@@ -780,8 +972,8 @@ export class BuildingManager {
    * 内部方法：推进制造站生产（随时间累积 processPoint → 产出方案）
    *
    * 修复：基建生产不随时间累积、生产速度 buff 无效的问题。
-   * 官方模型：房间 capacity（生产力/秒）× 流逝时间 → processPoint，
-   * 每满 formula.costPoint 产出 1 方案（remainSolutionCnt 递减、outputSolutionCnt 递增）。
+   * 官方模型：房间有效容量（基础容量 × (1 + 干员技能加成 + 控制中枢全局加成)）× 流逝时间
+   * → processPoint，每满 formula.costPoint 产出 1 方案（remainSolutionCnt 递减、outputSolutionCnt 递增）。
    * 用房间自维护的 lastUpdateTime 计算流逝（生成器的 saveTime/tailTime 为相对值，不可用）。
    *
    * @param draft - Immer 可写草稿
@@ -796,7 +988,8 @@ export class BuildingManager {
     const formula = getManufactFormula(room.formulaId);
     if (!formula) return;
     const costPoint = formula.costPoint ?? 0;
-    const capacity = room.capacity ?? 0;
+    // 有效容量受进驻干员技能/控制中枢全局加成驱动（而非存档静态值）
+    const capacity = this._roomCapacity(draft, roomSlotId, formula);
     if (costPoint <= 0 || capacity <= 0) return;
     const ts = now();
     const elapsed = ts - (room.lastUpdateTime || ts);

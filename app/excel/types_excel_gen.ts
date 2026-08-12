@@ -727,10 +727,10 @@ export interface ExtraBattleLogDataKey {
 
 export interface ExtraBattleLogData {
     data: ExtraBattleLogDataKey[];
-    sELECTOR: object;
-    dEATHDETAIL: object;
-    pROJECTILEBORN: object;
-    oUTPUT_DAMAGE_TOTAL: object;
+    SELECTOR: object;
+    DEATHDETAIL: object;
+    PROJECTILEBORN: object;
+    OUTPUT_DAMAGE_TOTAL: object;
 }
 
 export interface GridPosition {
@@ -6012,7 +6012,7 @@ export interface AprilFoolStageData {
     name: string;
     appearanceStyle: AppearanceStyle;
     loadingPicId: string;
-    difficulty: LevelData_Difficulty;
+    dIFFICULTY: LevelData_Difficulty;
     unlockCondition: StageData_ConditionDesc[];
     stageDropInfo: ItemBundle[];
 }
@@ -9037,7 +9037,7 @@ export interface HandbookAvgGroupData {
     rewardItem: ItemBundle[];
     unlockParam: HandbookUnlockParam[];
     avgList: HandbookAvgData[];
-    charID: string;
+    charId: string;
 }
 
 export interface HandBookStoryViewData_StoryText {
@@ -10901,17 +10901,17 @@ export interface RoguelikeModule {
     dice: RoguelikeDiceModuleData;
     chaos: RoguelikeChaosModuleData;
     totemBuff: RoguelikeTotemBuffModuleData;
-    vision: RoguelikeVisionModuleData;
+    vISION: RoguelikeVisionModuleData;
     fragment: RoguelikeFragmentModuleData;
     disaster: RoguelikeDisasterModuleData;
     nodeUpgrade: RoguelikeNodeUpgradeModuleData;
-    copper: RoguelikeCopperModuleData;
+    cOPPER: RoguelikeCopperModuleData;
     wrath: RoguelikeWrathModuleData;
     candle: RoguelikeCandleModuleData;
     sky: RoguelikeSkyModuleData;
     weather: RoguelikeWeatherModuleData;
     gridZone: RoguelikeGridZoneModuleData;
-    scrap: RoguelikeScrapModuleData;
+    sCRAP: RoguelikeScrapModuleData;
 }
 
 export interface RoguelikeTopicDetailConst_PlayerLevelData {
@@ -10996,7 +10996,7 @@ export interface RoguelikeTopicMilestoneUpdateData {
 }
 
 export interface RoguelikeTopicCapsule {
-    itemID: string;
+    itemId: string;
     maskType: RoguelikeEventType;
     innerColor: string;
 }
@@ -11437,7 +11437,7 @@ export interface RoguelikeChoiceDisplayData {
     costHintType: RoguelikeChoiceHintType;
     effectHintType: RoguelikeChoiceHintType;
     funcIconId: string;
-    itemID: string;
+    itemId: string;
     difficultyUpgradeRelicGroupId: string;
     taskId: string;
     instId: string;
@@ -11561,7 +11561,7 @@ export interface RoguelikeTaskData {
 }
 
 export interface RoguelikeGameTrapData {
-    itemID: string;
+    itemId: string;
     trapId: string;
     trapDesc: string;
 }
@@ -15105,7 +15105,7 @@ export interface ZoneRecordGroupData {
 
 export interface ZoneRecordData {
     recordId: string;
-    zoneID: string;
+    zoneId: string;
     recordTitleName: string;
     preRecordId: string;
     nodeTitle1: string;
@@ -15130,7 +15130,7 @@ export interface RecordRewardServerData {
 
 export interface ZoneRecordUnlockData {
     noteId: string;
-    zoneID: string;
+    zoneId: string;
     initialName: string;
     finalName: string;
     accordingExposeId: string;

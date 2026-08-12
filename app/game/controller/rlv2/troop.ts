@@ -52,7 +52,7 @@ export class RoguelikeTroopManager
       "population",
       "troopInstId",
     ]) as PlayerRoguelikeV2.CurrentData.Char;
-    c.instId = char.troopInstId + 1;
+    c.instId = Number(char.troopInstId) + 1;
     this.chars[c.instId] = c;
   }
 

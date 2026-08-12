@@ -863,8 +863,24 @@ BuildingManager（app/game/manager/building.ts）已实现完整基建玩法：
 ### 11.3 简化项（YAGNI）
 - 社交展示类接口（getRecentVisitors / getInfoShareVisitorsNum / sendEmoji / visitBuilding 等）返回空
 - 加速不消耗道具（私服友好）；buyLabor 1 源石/次 +10 劳动力（apToLaborRatio=2 为 AP→劳动力比例，未接入）
-- 干员基建 buff（chars.buffChar + buffs 表 747 个）**未应用**（服务端不重算，存档已有 buff 字段；客户端自行计算显示）
 - 加工体力消耗（workshopFormulas.apCost）、制造心情消耗（costPoint）未接入（单位未确认）
+
+### 11.4 干员基建技能（buff）引擎（2026-08-12 新增）
+干员技能**服务端生效**：`app/game/building/buff.ts`（纯函数引擎）+ BuildingManager 集成——不再是"客户端自行计算显示"。
+
+- **数据源**：`BuildingData.buffs`（760 个）数值字段 `efficiency`（百分比整数，15=15%）；无 efficiency 的 buff（控制中枢/宿舍/心情类）数值嵌在描述 `<@cc.vup>/<@cc.vdown>` 富文本标签内
+- **激活条件**：`chars[charId].buffChar[].buffData[] = {buffId, cond:{level,phase}}`——干员 level ≥ cond.level、evolvePhase ≥ cond.phase；buff.roomType === 进驻房间
+- **数值解析**：`efficiency>0` → /100；否则描述 vup 带 `%` → /100、宿舍（DORMITORY）无 `%` → 原值（点/小时）、其余无 `%`（机器人/阈值等）→ 0 不贡献（避免误读）；多 vup 标签优先取带 `%` 的（"每16个机器人+4%"→4）
+- **叠加规则**：输出型（MANUFACTURE/TRADING/…）跨干员累加、同一技能（buffId 去 `[]` 后缀）取最高档（槽位多档 = 同一技能不同解锁）；控制中枢/宿舍"同种效果取最高"（与描述标注一致）
+- **控制中枢全局**：`control_prod_*→MANUFACTURE / control_tra_*→TRADING / control_dorm_*→DORMITORY / control_meeting*→MEETING / control_hire_*→HIRE`，同组跨干员取最高
+
+**集成点（时间驱动，sync/换班入口）**：
+- 制造站容量 = 房间等级 `manufactData.phases[level-1].outputCapacity`（24/36/54）× (1 + 进驻干员技能加成 + 控制中枢全局加成)，回写 `room.capacity`/`room.buff.speed`——生产随时间累积受技能驱动；buff.targets（F_GOLD/F_EXP/…）按配方类型过滤
+- 训练室：trainee 进度 × (1 + 教官 train_* buff)
+- 心情档位（`building.chars[i].changeScale`）重算：输出房间基础消耗（制造/贸易/加工 -55、会客/人力/发电 -65，AP/秒，真实存档校准）− 技能附加消耗（描述"消耗"语境 `<@cc.vdown>/<@cc.vup>` 数值 ×100，正=消耗/负=减免）；宿舍恢复 = (基础 `manpowerRecover/160` + 舒适度 `comfort/1000×0.55` + dorm_* buff + control_dorm_* 全局) × 100——5 级 5000 舒适 + 技能 ≈ 405，与真实存档吻合；未进驻 0
+- 换班（assignChar/batchChangeWorkChar/batchRestChar）后立即重算档位，下次 sync 按新档位累积
+
+**简化（未建模）**：输出型无 efficiency 的计数类技能（每 N 机器人/技能数/随时间爬升等）仅取其描述百分比基值或按 0；control_mp_*（心情/费用类）不参与生产
 
 ---
 

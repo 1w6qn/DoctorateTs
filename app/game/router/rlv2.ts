@@ -131,18 +131,49 @@ import {
 const router = Router();
 
 /**
- * rlv2 统一响应：在 Immer 增量之外并入控制器 toJSON 全量 rlv2 子树。
- * 官方抓包（createGame/readEndingChange/gameSettle 等）确认客户端按
- * modified.rlv2 整体替换自身状态——缺失即表现为"点了没反应"。
+ * 官方各路由响应包含的 current 节（抓包 2026-08-11 统计）。
+ * 核心节 player/inventory/record/buff 几乎总是出现；map/module 仅在生成/变化时出现；
+ * game/troop 仅 createGame/gameSettle/recruitChar 等变更时出现。
  */
-function rlv2Response<T extends object>(player: PlayerDataManager, extra?: T) {
+const SEC = {
+  ALL: undefined, // 全量
+  CORE: ["player", "inventory", "record", "buff"],
+  CORE_MAP: ["player", "inventory", "record", "buff", "map"],
+  CORE_MODULE: ["player", "inventory", "record", "buff", "module"],
+  CORE_MAP_MODULE: ["player", "inventory", "record", "buff", "map", "module"],
+  RECRUIT: ["player", "inventory", "record", "troop"],
+  PLAYER: ["player"],
+} as const;
+
+/**
+ * rlv2 统一响应：并入控制器 toJSON 的 rlv2 子树。
+ * 官方抓包确认：客户端按 modified.rlv2 合并状态，但每路由只发送"发生变化"的
+ * current 节（createGame/gameSettle 全量；其余为增量节）——多发的 game/troop 等
+ * 节会破坏客户端状态合并导致崩溃。rlv2Response 按 sections 过滤 current。
+ */
+function rlv2Response<T extends object>(
+  player: PlayerDataManager,
+  extra?: T,
+  sections?: readonly string[],
+) {
   const base = player.delta;
+  const full = player.rlv2.toJSON();
+  const current = full.current as any;
+  const currentOut: any = {};
+  if (sections) {
+    for (const s of sections) {
+      if (s in current) currentOut[s] = current[s];
+    }
+  } else {
+    Object.assign(currentOut, current);
+  }
+  const rlv2 = { ...full, current: currentOut };
   return {
     ...(extra ?? ({} as T)),
     playerDataDelta: {
       modified: {
         ...base.playerDataDelta.modified,
-        rlv2: player.rlv2.toJSON(),
+        rlv2,
       },
       deleted: base.playerDataDelta.deleted,
     },
@@ -155,7 +186,7 @@ router.post("/giveUpGame", async (req, res) => {
   req.body as RoguelikeTopicGiveUpGameRequest;
   await player.rlv2.giveUpGame();
   res.send(
-    rlv2Response(player, { result: "ok" } as any) satisfies RoguelikeTopicGiveUpGameResponse,
+    rlv2Response(player, { result: "ok" } as any, SEC.ALL) satisfies RoguelikeTopicGiveUpGameResponse,
   );
 });
 
@@ -164,7 +195,7 @@ router.post("/createGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeTopicCreateGameRequest;
   await player.rlv2.createGame(body);
-  res.send(rlv2Response(player) satisfies RoguelikeTopicCreateGameResponse);
+  res.send(rlv2Response(player, undefined, SEC.ALL) satisfies RoguelikeTopicCreateGameResponse);
 });
 
 /** 游戏结算（抓包 POST /rlv2/gameSettle，body {}；响应带 game/outer 结算数据） */
@@ -173,7 +204,7 @@ router.post("/gameSettle", async (req, res) => {
   req.body as RoguelikeGameSettleRequest;
   await player.rlv2.gameSettle();
   res.send(
-    rlv2Response(player, player.rlv2.buildSettleResponse() as any) satisfies RoguelikeGameSettleResponse,
+    rlv2Response(player, player.rlv2.buildSettleResponse() as any, SEC.ALL) satisfies RoguelikeGameSettleResponse,
   );
 });
 
@@ -182,7 +213,7 @@ router.post("/chooseInitialRelic", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeSelectInitialRelicRequest;
   await player.rlv2.chooseInitialRelic(body);
-  res.send(rlv2Response(player) satisfies RoguelikeSelectInitialRelicResponse);
+  res.send(rlv2Response(player, undefined, SEC.CORE) satisfies RoguelikeSelectInitialRelicResponse);
 });
 
 /** 选择初始招募组（CS: RoguelikeSelectInitialRecruitSetRequest） */
@@ -191,7 +222,7 @@ router.post("/chooseInitialRecruitSet", async (req, res) => {
   const body = req.body as RoguelikeSelectInitialRecruitSetRequest;
   await player.rlv2.chooseInitialRecruitSet(body);
   res.send(
-    rlv2Response(player) satisfies RoguelikeSelectInitialRecruitSetResponse,
+    rlv2Response(player, undefined, SEC.CORE) satisfies RoguelikeSelectInitialRecruitSetResponse,
   );
 });
 
@@ -210,7 +241,7 @@ router.post("/activeRecruitTicket", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeActivateTicketRequest;
   await player.rlv2.activeRecruitTicket(body);
-  res.send(rlv2Response(player) satisfies RoguelikeActivateTicketResponse);
+  res.send(rlv2Response(player, undefined, SEC.CORE) satisfies RoguelikeActivateTicketResponse);
 });
 
 /** 招募干员（CS: RoguelikeRecruitCharRequest） */

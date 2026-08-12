@@ -74,7 +74,7 @@ vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import { BuildingManager } from "@game/manager/building";
-import { accountManager } from "@game/manager/AccountManger";
+import { accountManager } from "@game/manager/AccountManager";
 
 /**
  * BuildingManager 单元测试

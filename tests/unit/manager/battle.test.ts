@@ -102,7 +102,7 @@ vi.mock("@utils/crypt", () => ({
   }),
 }));
 
-vi.mock("@game/manager/AccountManger", () => {
+vi.mock("@game/manager/AccountManager", () => {
   const mockAccountConfigs: any = {
     "10000": {
       battle: {
@@ -633,7 +633,7 @@ describe("BattleManager", () => {
 
   describe("start 保存助战好友信息", () => {
     async function lastSavedBattleInfo() {
-      const { accountManager } = await import("@game/manager/AccountManger");
+      const { accountManager } = await import("@game/manager/AccountManager");
       const calls = vi.mocked(accountManager.saveBattleInfo).mock.calls;
       return calls[calls.length - 1][2];
     }

@@ -133,6 +133,25 @@ router.get("/api/users/:uid/chars/:instId", async (req: Request, res: Response) 
   }
 });
 
+/** 干员模组操作：unlock / upgrade / set（body: { equipId, templateId?, targetLevel? }） */
+router.post(
+  "/api/users/:uid/chars/:instId/module/:action",
+  async (req: Request, res: Response) => {
+    try {
+      const action = String(req.params.action) as "unlock" | "upgrade" | "set";
+      const result = await adminService.operateCharModule(
+        String(req.params.uid),
+        Number(req.params.instId),
+        action,
+        req.body ?? {},
+      );
+      res.json(result);
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message });
+    }
+  },
+);
+
 /** 商店数据汇总（只读） */
 router.get("/api/users/:uid/shop", async (req: Request, res: Response) => {
   try {
@@ -363,6 +382,47 @@ router.get("/api/mapviz-data", async (_req: Request, res: Response) => {
     return;
   }
   res.json(data);
+});
+
+/** 肉鸽流程模拟：自动一键跑完整流程（不含战斗） */
+router.post("/api/rogue/sim-auto", async (req: Request, res: Response) => {
+  try {
+    const { uid, theme, maxZone } = req.body ?? {};
+    const result = await adminService.rogueSimAuto(String(uid), String(theme), maxZone ? Number(maxZone) : undefined);
+    if (!result.ok) {
+      res.status(400).json({ ok: false, error: result.error });
+      return;
+    }
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 肉鸽流程分步模拟：单步执行（白名单 action） */
+router.post("/api/rogue/sim-step", async (req: Request, res: Response) => {
+  try {
+    const { uid, action, body } = req.body ?? {};
+    const result = await adminService.rogueSimStep(String(uid), String(action), body ?? {});
+    if (!result.ok) {
+      res.status(400).json({ ok: false, error: result.error });
+      return;
+    }
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 肉鸽流程当前状态快照（分步模式初始/刷新） */
+router.get("/api/rogue/state", async (req: Request, res: Response) => {
+  try {
+    const q = (req.query ?? {}) as { uid?: string };
+    const state = await adminService.rogueSimState(String(q.uid ?? "1"));
+    res.json(state);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
 });
 
 /** CLI 集成：服务器内执行 CLI 命令（复用 admin-cli dispatch，输出捕获返回） */

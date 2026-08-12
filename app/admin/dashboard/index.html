@@ -2974,6 +2974,41 @@
       '<div id="mv-node-detail" class="mv-empty">点击地图节点查看详情。<br><br>绿色连线 = 普通路径；<br>黄色虚线 = 需要钥匙的 key 路径；<br>蓝色高亮 = 模拟移动路径。</div>' +
       '<h3 style="margin-top:16px;">模拟移动路径</h3>' +
       '<div id="mv-path-info" class="mv-empty">点击起点节点，沿 next 连线点击下一个节点逐步推进。</div>' +
+      "</div></div>" +
+      /* 流程模拟面板（真实 rlv2 控制器，经 /api/rogue/* 代理） */
+      '<div class="card" style="margin-top:14px;">' +
+      '<div class="row" style="align-items:center;margin-bottom:8px;">' +
+      '<h3 style="color:var(--gold);margin:0;">🔀 肉鸽流程模拟</h3>' +
+      '<span style="font-size:11px;color:var(--muted);margin-left:10px;">经 /rlv2 真实控制器逐步推进（不含战斗：战斗节点空 battleData 跳过）。</span>' +
+      "</div>" +
+      '<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:8px;">' +
+      "<label style='align-self:center;'>uid</label>" +
+      '<input id="rogue-uid" placeholder="玩家 uid（缺省选中用户）" style="width:120px;">' +
+      "<label style='align-self:center;'>主题</label>" +
+      '<select id="rogue-theme" style="width:auto;">' +
+      '<option value="rogue_1">rogue_1（傀影）</option>' +
+      '<option value="rogue_2">rogue_2（水月）</option>' +
+      '<option value="rogue_3">rogue_3（偃松）</option>' +
+      '<option value="rogue_4">rogue_4（萨米）</option>' +
+      '<option value="rogue_5">rogue_5（空想花庭）</option>' +
+      '<option value="rogue_6">rogue_6（黑流树海）</option>' +
+      "</select>" +
+      '<button id="rogue-auto" class="primary">▶ 自动模拟到底</button>' +
+      '<input id="rogue-maxzone" placeholder="到第 N 层" style="width:70px;">' +
+      '<button id="rogue-auto-n">自动到 N 层</button>' +
+      '<button id="rogue-step">👣 单步</button>' +
+      '<button id="rogue-refresh">⟳ 刷新状态</button>' +
+      '<button id="rogue-newgame">🆕 开局</button>' +
+      "</div>" +
+      '<div class="row" style="gap:14px;align-items:flex-start;flex-wrap:wrap;">' +
+      '<div style="flex:1;min-width:280px;">' +
+      "<h3 style='font-size:13px;color:var(--muted);margin:0 0 6px;'>核心状态</h3>" +
+      '<div class="resp-box" id="rogue-state" style="min-height:60px;">未开局（点击「开局」或「自动模拟」）</div>' +
+      "</div>" +
+      '<div style="flex:1.2;min-width:300px;">' +
+      "<h3 style='font-size:13px;color:var(--muted);margin:0 0 6px;'>步骤日志 / 结算报告</h3>" +
+      '<div class="resp-box" id="rogue-steps" style="max-height:260px;min-height:60px;">—</div>' +
+      "</div>" +
       "</div></div>";
 
     var legendEntries = [
@@ -3012,6 +3047,205 @@
         $("mv-node-detail").innerHTML = '<div class="mv-empty" style="color:#e06c75;">地图数据加载失败：' + e.message +
           "<br><br>请运行 <b>npx tsx tools/map-visualizer/generate-data.ts</b> 生成 game-data.js 后刷新。</div>";
       });
+
+    bindRogueSim();
+  }
+
+  /* ---------- 肉鸽流程模拟（经 /api/rogue/* 代理真实 rlv2 控制器） ---------- */
+
+  var rogueSimState = null;
+
+  /** 当前模拟 uid（缺省选中用户；未选中回退 1） */
+  function rogueUid() {
+    var v = $("rogue-uid") ? $("rogue-uid").value.trim() : "";
+    return v || (selectedUid ? String(selectedUid) : "1");
+  }
+
+  function rogueTheme() {
+    return $("rogue-theme") ? $("rogue-theme").value : "rogue_1";
+  }
+
+  /** 渲染核心状态面板（state 徽章 + zone + property + pending + 库存摘要） */
+  function renderRogueState(snap) {
+    if (!snap) return;
+    var cur = snap.current || {};
+    var st = cur.player || {};
+    var prop = st.property || {};
+    var stateColors = { INIT: "#5b8def", WAIT_MOVE: "#98c379", PENDING: "#d19a66", END: "#e06c75", NONE: "#6b7280" };
+    var c = stateColors[st.state] || "#6b7280";
+    var pos = st.cursor && st.cursor.position;
+    var posText = pos ? "(" + pos.x + ", " + pos.y + ")" : "—";
+    var pending = (st.pending || []).map(function (e) { return e.type; }).join(", ") || "—";
+    var inv = cur.inventory || {};
+    var relics = inv.relic ? Object.keys(inv.relic) : [];
+    var recruits = inv.recruit ? Object.keys(inv.recruit) : [];
+    var chars = inv.char ? Object.keys(inv.char) : [];
+    var record = cur.record && cur.record.record;
+    var html =
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">' +
+      '<span style="background:' + c + ';color:#fff;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:bold;">' + escapeHtml(String(st.state || "?")) + "</span>" +
+      '<span style="font-size:12px;color:var(--text);">zone <b>' + (st.cursor ? st.cursor.zone : 0) + "</b> · pos " + posText + "</span>" +
+      '<span style="font-size:12px;color:var(--muted);">生命 ' + prop.hp.current + "/" + prop.hp.max +
+      " · 金币 " + prop.gold + " · 盾 " + prop.shield + " · 人口 " + prop.population.max +
+      " · Lv." + prop.level + "</span></div>" +
+      '<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">pending 事件：<span style="color:var(--text);">' + escapeHtml(pending) + "</span></div>" +
+      '<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">收藏品 <b>' + relics.length + "</b> · 招募券 <b>" + recruits.length +
+      "</b> · 干员 <b>" + chars.length + "</b></div>" +
+      (record
+        ? '<div style="font-size:12px;color:var(--gold);margin-top:4px;">结算：到达 ' + (record.cntArrivedNode || 0) + " 节点 · " + (record.cntZone || 0) +
+          " 层 · 招募 " + (record.cntRecruitChar || 0) + " · 战斗 " + (record.cntBattleNormal || 0) + "/" + (record.cntBattleElite || 0) + "/" + (record.cntBattleBoss || 0) +
+          " · 收藏品 " + ((record.relicList || []).length) + "</div>"
+        : "");
+    $("rogue-state").innerHTML = html;
+    return st.state;
+  }
+
+  /** 渲染步骤日志/结算报告 */
+  function renderRogueSteps(steps, finalSnap, err) {
+    var box = $("rogue-steps");
+    if (err) { box.innerHTML = '<span style="color:#e06c75;">' + escapeHtml(err) + "</span>"; return; }
+    var lines = (steps || []).map(function (s) {
+      return '<div style="font-size:11px;color:var(--muted);padding:1px 0;">' +
+        "<b>" + s.step + "</b> " + escapeHtml(s.action) + " · zone " + s.zone + " · " + escapeHtml(s.state) + "</div>";
+    });
+    var rec = "";
+    if (finalSnap && finalSnap.current && finalSnap.current.record && finalSnap.current.record.record) {
+      var r = finalSnap.current.record.record;
+      var relics = (r.relicList || []).map(function (x) {
+        return typeof x === "string" ? x : (x.id || "");
+      });
+      rec = '<div style="font-size:12px;color:var(--gold);margin-top:8px;border-top:1px solid var(--border);padding-top:6px;">' +
+        "🏁 结算报告：到达 " + (r.cntArrivedNode || 0) + " 节点 · 探索 " + (r.cntZone || 0) + " 层 · 招募 " + (r.cntRecruitChar || 0) + " 干员" +
+        " · 普通战斗 " + (r.cntBattleNormal || 0) + " / 紧急 " + (r.cntBattleElite || 0) + " / 险路恶敌 " + (r.cntBattleBoss || 0) +
+        " · 收藏品 " + relics.length + " 件：" + escapeHtml(relics.slice(0, 12).join(", ") + (relics.length > 12 ? " …" : "")) +
+        "</div>";
+    }
+    box.innerHTML = (steps && steps.length ? lines.join("") : '<div style="color:var(--muted);font-size:12px;">—</div>') + rec;
+    box.scrollTop = box.scrollHeight;
+  }
+
+  /** 自动模拟（到底或到 N 层） */
+  function rogueSimAuto(maxZone) {
+    var uid = rogueUid();
+    var theme = rogueTheme();
+    $("rogue-state").textContent = "模拟中…（" + theme + "，uid=" + uid + "，经真实 rlv2 控制器）";
+    $("rogue-steps").innerHTML = '<div style="color:var(--muted);font-size:12px;">执行中…</div>';
+    var body = { uid: uid, theme: theme };
+    if (maxZone) body.maxZone = maxZone;
+    api("/rogue/sim-auto", { method: "POST", body: JSON.stringify(body) })
+      .then(function (r) {
+        renderRogueSteps(r.steps, r.final);
+        rogueSimState = r.final;
+        renderRogueState(r.final);
+        refreshLogs();
+      })
+      .catch(function (e) { renderRogueSteps(null, null, e.message); });
+  }
+
+  /** 分步单步：按当前 state 推断动作 */
+  function rogueSimStepOnce() {
+    var uid = rogueUid();
+    if (!rogueSimState) {
+      // 未开局：先 createGame
+      api("/rogue/sim-step", { method: "POST", body: JSON.stringify({ uid: uid, action: "createGame", body: { theme: rogueTheme(), mode: "NORMAL", modeGrade: 0, predefinedId: null } }) })
+        .then(function (r) { applyStepResult(r); })
+        .catch(function (e) { renderRogueSteps(null, null, e.message); });
+      return;
+    }
+    var st = (rogueSimState.current || {}).player || {};
+    var state = st.state;
+    var pending = st.pending || [];
+    var topType = pending[0] ? pending[0].type : "";
+    var action, body = {};
+    if (state === "INIT") {
+      if (topType === "GAME_INIT_RELIC") { action = "chooseInitialRelic"; body = { select: "0" }; }
+      else if (topType === "GAME_INIT_RECRUIT_SET") { action = "chooseInitialRecruitSet"; body = { select: "0" }; }
+      else if (topType === "GAME_INIT_SUPPORT") {
+        action = "selectChoice";
+        var chs = Object.keys((pending[0].content || {}).initSupport?.scene?.choices || {});
+        body = { choice: chs[0] || "" };
+      } else { action = "finishEvent"; }
+    } else if (state === "PENDING") {
+      if (topType === "BATTLE_SHOP") { action = "leaveShop"; }
+      else if (topType === "SCENE") {
+        action = "selectChoice";
+        var sc = Object.keys((pending[0].content || {}).scene?.choices || {});
+        body = { choice: sc.find(function (c) { return c !== "choice_leave"; }) || sc[0] || "" };
+      } else if (topType === "BATTLE") { action = "battleFinish"; body = { data: "", battleData: { isCheat: "0", completeTime: 0 } }; }
+      else if (topType === "GAME_SETTLE") { action = "gameSettle"; }
+      else { action = "finishEvent"; }
+    } else if (state === "WAIT_MOVE") {
+      // 移动到本层可达节点（简化为首个可访问非当前节点；或直接提示手动选）
+      var zone = st.cursor.zone;
+      var zones = (rogueSimState.current.map || {}).zones || {};
+      var nodes = (zones[String(zone)] || {}).nodes || {};
+      var keys = Object.keys(nodes);
+      var pos = st.cursor.position;
+      var target = null;
+      for (var i = 0; i < keys.length; i++) {
+        var n = nodes[keys[i]];
+        if (!n || n.zone_end) continue;
+        if (pos && n.pos.x === pos.x && n.pos.y === pos.y) continue;
+        target = { x: n.pos.x, y: n.pos.y };
+        break;
+      }
+      if (target) { action = "moveTo"; body = { to: target }; }
+      else { action = "finishEvent"; }
+    } else if (state === "END") {
+      action = "gameSettle";
+    } else {
+      action = "finishEvent";
+    }
+    api("/rogue/sim-step", { method: "POST", body: JSON.stringify({ uid: uid, action: action, body: body }) })
+      .then(function (r) { applyStepResult(r); })
+      .catch(function (e) { renderRogueSteps(null, null, e.message); });
+  }
+
+  function applyStepResult(r) {
+    rogueSimState = r.state;
+    var st = renderRogueState(r.state);
+    var actionHint = "";
+    var top = (r.state && r.state.current && r.state.current.player && r.state.current.player.pending || [])[0];
+    if (st === "INIT") actionHint = "（开局阶段：单步将自动选择分队/招募/开局 buff）";
+    else if (st === "WAIT_MOVE") actionHint = "（等待移动：单步自动移动到本层首个可访问节点）";
+    else if (st === "PENDING") actionHint = top ? "（事件 " + top.type + "：单步自动消费）" : "";
+    else if (st === "END") actionHint = "（已结算）";
+    renderRogueSteps([{ step: 1, action: "step", zone: (r.state && r.state.current && r.state.current.player && r.state.current.player.cursor ? r.state.current.player.cursor.zone : 0), state: st || "?" }], null, null);
+    refreshLogs();
+  }
+
+  /** 刷新当前状态（纯读） */
+  function rogueRefresh() {
+    api("/rogue/state?uid=" + encodeURIComponent(rogueUid()))
+      .then(function (r) {
+        rogueSimState = r;
+        renderRogueState(r);
+      })
+      .catch(function (e) {
+        $("rogue-state").innerHTML = '<span style="color:#e06c75;">' + escapeHtml(e.message) + "</span>";
+      });
+  }
+
+  /** 绑定流程模拟按钮 */
+  function bindRogueSim() {
+    var auto = $("rogue-auto");
+    if (!auto) return;
+    auto.addEventListener("click", function () { rogueSimAuto(null); });
+    $("rogue-auto-n").addEventListener("click", function () {
+      var n = parseInt($("rogue-maxzone").value, 10);
+      rogueSimAuto(Number.isFinite(n) && n > 0 ? n : null);
+    });
+    $("rogue-step").addEventListener("click", function () { rogueSimStepOnce(); });
+    $("rogue-refresh").addEventListener("click", function () { rogueRefresh(); });
+    $("rogue-newgame").addEventListener("click", function () {
+      var uid = rogueUid();
+      api("/rogue/sim-step", { method: "POST", body: JSON.stringify({ uid: uid, action: "createGame", body: { theme: rogueTheme(), mode: "NORMAL", modeGrade: 0, predefinedId: null } }) })
+        .then(function (r) { applyStepResult(r); })
+        .catch(function (e) { renderRogueSteps(null, null, e.message); });
+    });
+    // 初始主题下拉与地图预览同步
+    var mvt = $("mv-theme");
+    if (mvt) $("rogue-theme").value = mvt.value;
   }
 
   /* ---------- 登录 ---------- */

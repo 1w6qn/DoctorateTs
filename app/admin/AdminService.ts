@@ -467,6 +467,51 @@ export class AdminService {
     };
   }
 
+  /**
+   * 干员模组操作（委托 char manager——解锁/升级/装备）
+   * @param action - unlock / upgrade / set
+   * @param body - { equipId, templateId?, targetLevel? }
+   */
+  async operateCharModule(
+    uid: string,
+    instId: number,
+    action: "unlock" | "upgrade" | "set",
+    body: { equipId?: string; templateId?: string; targetLevel?: number } = {},
+  ): Promise<{ ok: true; equipId: string; level?: number }> {
+    const pd = await this.getPlayer(uid);
+    const ch = pd._playerdata.troop?.chars?.[String(instId)];
+    if (!ch) {
+      throw new Error(`干员不存在: ${instId}`);
+    }
+    const { equipId, templateId = "", targetLevel } = body;
+    if (!equipId) {
+      throw new Error(`缺少 equipId`);
+    }
+    if (!excel.UniequipTable?.equipDict?.[equipId]) {
+      throw new Error(`未知模组: ${equipId}`);
+    }
+    if (action === "unlock") {
+      await pd.char.unlockEquipment({ charInstId: instId, templateId, equipId });
+    } else if (action === "upgrade") {
+      await pd.char.upgradeEquipment({
+        charInstId: instId,
+        templateId,
+        equipId,
+        targetLevel: Number(targetLevel ?? 1),
+      });
+    } else if (action === "set") {
+      await pd.char.setEquipment({ charInstId: instId, templateId, equipId });
+    } else {
+      throw new Error(`未知操作: ${action}`);
+    }
+    await this.savePlayer(uid);
+    await this._audit("operateCharModule", uid, `${action} ${instId} ${equipId}`);
+    const level = templateId
+      ? pd._playerdata.troop.chars[String(instId)]?.tmpl?.[templateId]?.equip?.[equipId]?.level
+      : pd._playerdata.troop.chars[String(instId)]?.equip?.[equipId]?.level;
+    return { ok: true, equipId, level };
+  }
+
   /** 商店数据汇总（只读：各商店类型购买记录数） */
   async getShopSummary(
     uid: string,
@@ -890,6 +935,313 @@ export class AdminService {
       // 非 JSON 响应（如错误页）原样返回文本
     }
     return { status: res.status, data, uid };
+  }
+
+  /**
+   * 肉鸽流程模拟：自动一键跑完整流程（不含战斗，战斗节点传空 battleData 跳过）
+   *
+   * 复用 gameProxy（HTTP 自代理 → /rlv2/*），逐步推进状态机：
+   *   INIT → 开局链（选分队/招募组/开局 buff）→ WAIT_MOVE → 逐层 BFS 路径走到 zone_end
+   *   → 消费节点事件（SCENE/BATTLE_SHOP，战斗节点跳过）→ 下一层 …→ 最终层 gameSettle → END
+   *
+   * @param uid - 目标玩家 uid
+   * @param theme - 集成战略主题（rogue_1..6）
+   * @param maxZone - 模拟到第几层为止（缺省模拟到底直至结算）
+   * @returns 步骤日志 + 最终 rlv2 快照（含结算报告 current.record）
+   */
+  async rogueSimAuto(
+    uid: string,
+    theme: string,
+    maxZone?: number,
+  ): Promise<{
+    ok: boolean;
+    steps: { step: number; action: string; zone: number; state: string }[];
+    final: unknown;
+    error?: string;
+  }> {
+    const steps: { step: number; action: string; zone: number; state: string }[] = [];
+    const log = (action: string, snap: any) => {
+      steps.push({
+        step: steps.length + 1,
+        action,
+        zone: snap?.current?.player?.cursor?.zone ?? 0,
+        state: snap?.current?.player?.state ?? "?",
+      });
+    };
+    const call = async (path: string, body?: unknown): Promise<any> => {
+      const res = await this.gameProxy(uid, `/rlv2/${path}`, "POST", body ?? {});
+      if (res.status >= 400) {
+        throw new Error(`rlv2/${path} 失败(${res.status}): ${JSON.stringify(res.data).slice(0, 300)}`);
+      }
+      // 响应 data: { playerDataDelta: { modified: { rlv2: {...} } } }
+      return (res.data as any)?.playerDataDelta?.modified?.rlv2 ?? null;
+    };
+
+    try {
+      // 开局
+      await call("createGame", { theme, mode: "NORMAL", modeGrade: 0, predefinedId: null });
+      // createGame 后状态为 INIT；第一次 finishEvent 触发 GAME_INIT_* 事件生成
+      let snap = await call("finishEvent");
+      log("createGame", snap);
+
+      // 开局链：INIT 状态消费 GAME_INIT_* 事件（按 pending 顶部选择专用接口，至 zone=1 生成地图）
+      let guard = 0;
+      while (guard++ < 30) {
+        const state = snap?.current?.player?.state;
+        const zone = snap?.current?.player?.cursor?.zone;
+        if (state === "WAIT_MOVE" && zone >= 1) break;
+        if (state !== "INIT" && state !== "WAIT_MOVE") break;
+        // pending 顶部按类型消费（INIT 阶段专用接口：RELIC/RECRUIT_SET/SUPPORT 各司其职，其余走 finishEvent）
+        const pending = snap?.current?.player?.pending ?? [];
+        const topType = pending[0]?.type ?? "";
+        if (topType === "GAME_INIT_RELIC") {
+          await call("chooseInitialRelic", { select: "0" });
+          log("chooseInitialRelic", snap);
+        } else if (topType === "GAME_INIT_RECRUIT_SET") {
+          await call("chooseInitialRecruitSet", { select: "0" });
+          log("chooseInitialRecruitSet", snap);
+        } else if (topType === "GAME_INIT_SUPPORT") {
+          const choices = Object.keys(pending[0]?.content?.initSupport?.scene?.choices ?? {});
+          await call("selectChoice", { choice: choices[0] ?? "" });
+          log("selectChoice(startbuff)", snap);
+        } else {
+          log("finishEvent(init)", snap);
+        }
+        snap = await call("finishEvent");
+      }
+      log("开局完成", snap);
+
+      // 主流程：逐层走到 zone_end → 消费事件 → 推进（至 END 或达到 maxZone）
+      let guard2 = 0;
+      while (guard2++ < 200) {
+        snap = await call("finishEvent");
+        const state = snap?.current?.player?.state;
+        const zone = snap?.current?.player?.cursor?.zone ?? 0;
+        if (state === "END") break;
+        if (maxZone !== undefined && zone > maxZone) break;
+        if (state !== "WAIT_MOVE" && state !== "PENDING") break;
+
+        // 当前层地图节点（标准地图 zones[zone].nodes；rogue_6 为 gridZone 结构不同，走 route 路径）
+        const zones = snap?.current?.map?.zones ?? {};
+        const zoneNodes = zones[String(zone)]?.nodes ?? {};
+        const nodeIds = Object.keys(zoneNodes);
+        if (nodeIds.length === 0) {
+          // 网格区域（rogue_6）：route 沿连通路径走到终点
+          await this.rogueGridZoneAuto(uid, snap, call, log);
+          continue;
+        }
+
+        // BFS 找当前节点（或起点）到 zone_end 的最短路径
+        const curPos = snap?.current?.player?.cursor?.position;
+        const startKey = curPos ? `${curPos.x * 100 + curPos.y}` : null;
+        const startIds = startKey && zoneNodes[startKey]
+          ? [startKey]
+          : nodeIds.filter((id) => {
+              const n = zoneNodes[id];
+              return n && !n.zone_end && (n.pos?.x ?? 0) <= 1;
+            });
+        const startId = startIds[0] ?? nodeIds[0];
+        const path = this.bfsToZoneEnd(startId, zoneNodes);
+        if (path.length === 0) {
+          // 无可达终点：直接 finishEvent 尝试推进（防御）
+          log("finishEvent(no path)", snap);
+          continue;
+        }
+        // 沿路径逐节点移动 + 消费事件（战斗节点跳过）
+        for (const nid of path) {
+          const node = zoneNodes[nid];
+          if (!node) continue;
+          const x = node.pos?.x, y = node.pos?.y;
+          if (x === undefined || y === undefined) continue;
+          const isBattle = node.type === 1 || node.type === 2 || node.type === 4;
+          await call("moveTo", { to: { x, y } });
+          log("moveTo", snap);
+          // 消费该节点产生的 PENDING 事件
+          snap = await this.consumePending(uid, call, log);
+          if (isBattle) {
+            // 战斗节点：moveTo 不产生事件（type 1/2/4 无场景），空 battleData 跳过
+            await call("battleFinish", { data: "", battleData: { isCheat: "0", completeTime: 0 } });
+            log("battleFinish(skip)", snap);
+          }
+          if (node.zone_end) {
+            // 到达终点：finishEvent 触发 checkZoneEnd 推进下一层（最终层结算）
+            await call("finishEvent");
+            log("zone_end→next", snap);
+          }
+          const st2 = snap?.current?.player?.state;
+          if (st2 === "END") break;
+          const zn = snap?.current?.player?.cursor?.zone;
+          if (zn !== zone) break; // 已推进到下一层
+        }
+      }
+      const finalSnap = await call("gameSettle").catch(() => null) ?? snap;
+      log("END", finalSnap);
+      return { ok: true, steps, final: finalSnap };
+    } catch (e) {
+      return { ok: false, steps, final: null, error: (e as Error).message };
+    }
+  }
+
+  /** 消费当前 PENDING 事件（SCENE→selectChoice 首选项；BATTLE_SHOP→leaveShop；BATTLE→跳过） */
+  private async consumePending(
+    uid: string,
+    call: (path: string, body?: unknown) => Promise<any>,
+    log: (action: string, snap: any) => void,
+  ): Promise<any> {
+    let snap = null;
+    let guard = 0;
+    while (guard++ < 10) {
+      snap = await call("finishEvent");
+      const state = snap?.current?.player?.state;
+      const pending = snap?.current?.player?.pending ?? [];
+      if (state === "WAIT_MOVE" && pending.length === 0) break;
+      if (pending.length === 0) break;
+      const topType = pending[0]?.type ?? "";
+      if (topType === "BATTLE_SHOP") {
+        await call("leaveShop");
+        log("leaveShop", snap);
+      } else if (topType === "SCENE") {
+        const choices = Object.keys(pending[0]?.content?.scene?.choices ?? {});
+        const choice = choices.find((c) => c !== "choice_leave") ?? choices[0];
+        await call("selectChoice", { choice: choice ?? "" });
+        log("selectChoice(scene)", snap);
+      } else if (topType === "BATTLE") {
+        await call("battleFinish", { data: "", battleData: { isCheat: "0", completeTime: 0 } });
+        log("battleFinish(skip)", snap);
+      } else if (topType === "GAME_SETTLE" || topType === "END_RESULT") {
+        break;
+      } else {
+        log(`finishEvent(${topType})`, snap);
+      }
+    }
+    return snap;
+  }
+
+  /** rogue_6 网格区域：沿构造模板连通路径（node.next）BFS 到终点，逐节点 route 移动 */
+  private async rogueGridZoneAuto(
+    uid: string,
+    snap: any,
+    call: (path: string, body?: unknown) => Promise<any>,
+    log: (action: string, snap: any) => void,
+  ): Promise<void> {
+    const zone = snap?.current?.player?.cursor?.zone ?? 0;
+    const gz = snap?.current?.module?.gridZone?.zones?.[String(zone)];
+    const nodes = gz?.nodes ?? {};
+    const ids = Object.keys(nodes);
+    if (ids.length === 0) return;
+    // 起点：state/show 可见且距其他节点无入边的根节点（简单取第一个 GLADE 或任意）
+    const startId = ids.find((id) => nodes[id]?.content?.kind === 268435456) ?? ids[0];
+    // BFS 沿 nodes[id].next（gridZone 节点无 next——用 map.zones 邻接或直接全连）
+    const curPos = snap?.current?.player?.cursor?.position;
+    const startKey = curPos ? `${curPos.x * 100 + curPos.y}` : startId;
+    const path = this.bfsGridToEnd(startKey, nodes);
+    if (path.length === 0) return;
+    await call("gridZoneMoveTo", { route: path });
+    log("gridZoneMoveTo", snap);
+    // 消费终点事件（商店/战斗跳过/空节点回 WAIT_MOVE）
+    snap = await this.consumePending(uid, call, log);
+    const lastNode = nodes[path[path.length - 1]];
+    if (lastNode?.content?.savage?.stageId) {
+      await call("battleFinish", { data: "", battleData: { isCheat: "0", completeTime: 0 } });
+      log("battleFinish(skip r6)", snap);
+    } else if (lastNode?.content?.shop) {
+      await call("leaveShop");
+      log("leaveShop(r6)", snap);
+    }
+    await call("finishEvent");
+    log("r6 zone_end→next", snap);
+  }
+
+  /** BFS：标准地图 nodes 中从 startId 到 zone_end 节点的最短路径（节点 id 列表，含起点终点） */
+  private bfsToZoneEnd(startId: string, nodes: Record<string, any>): string[] {
+    if (!nodes[startId]) return [];
+    const prev: Record<string, string | null> = { [startId]: null };
+    const queue: string[] = [startId];
+    let endId: string | null = null;
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+      const node = nodes[cur];
+      if (node?.zone_end) { endId = cur; break; }
+      const nexts = node?.next ?? [];
+      for (const nx of nexts) {
+        const nid = `${nx.x * 100 + nx.y}`;
+        if (prev[nid] === undefined && nodes[nid]) {
+          prev[nid] = cur;
+          queue.push(nid);
+        }
+      }
+    }
+    if (!endId) return [];
+    const path: string[] = [];
+    let cur: string | null = endId;
+    while (cur !== null) {
+      path.unshift(cur);
+      cur = prev[cur];
+    }
+    return path;
+  }
+
+  /** BFS：rogue_6 网格节点（无 next 字段，用 map.zones 邻接或全连）到终点 */
+  private bfsGridToEnd(startId: string, nodes: Record<string, any>): string[] {
+    if (!nodes[startId]) return [];
+    const ids = Object.keys(nodes);
+    const prev: Record<string, string | null> = { [startId]: null };
+    const queue: string[] = [startId];
+    let endId: string | null = null;
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+      // gridZone 节点无 next：终点为 zone_end 或 content.kind 为险路尽头/险路恶敌
+      const kind = nodes[cur]?.content?.kind;
+      if (nodes[cur]?.zone_end || kind === 8388608 || kind === 4) { endId = cur; break; }
+      // 无 next 邻接：退化为所有未访问节点依次相连（网格自由移动）
+      for (const nid of ids) {
+        if (prev[nid] === undefined && nid !== cur) {
+          prev[nid] = cur;
+          queue.push(nid);
+        }
+      }
+    }
+    if (!endId) return [];
+    const path: string[] = [];
+    let cur: string | null = endId;
+    while (cur !== null) {
+      path.unshift(cur);
+      cur = prev[cur];
+    }
+    return path;
+  }
+
+  /** 肉鸽流程分步模拟：白名单单步执行（经 gameProxy），返回 rlv2 快照 */
+  async rogueSimStep(
+    uid: string,
+    action: string,
+    body?: unknown,
+  ): Promise<{ ok: boolean; state: unknown; error?: string }> {
+    const WHITELIST = [
+      "createGame", "chooseInitialRelic", "chooseInitialRecruitSet",
+      "finishEvent", "selectChoice", "moveTo", "moveAndBattleStart",
+      "battleFinish", "leaveShop", "confirmZoneReward", "confirmTraderReturn",
+      "gameSettle", "gridZoneMoveTo", "giveUpGame", "specialZoneLeave",
+    ];
+    if (!WHITELIST.includes(action)) {
+      return { ok: false, state: null, error: `非法操作: ${action}（白名单: ${WHITELIST.join("/")}）` };
+    }
+    try {
+      const res = await this.gameProxy(uid, `/rlv2/${action}`, "POST", body ?? {});
+      if (res.status >= 400) {
+        return { ok: false, state: null, error: `rlv2/${action} 失败(${res.status}): ${JSON.stringify(res.data).slice(0, 300)}` };
+      }
+      const snap = (res.data as any)?.playerDataDelta?.modified?.rlv2 ?? null;
+      return { ok: true, state: snap };
+    } catch (e) {
+      return { ok: false, state: null, error: (e as Error).message };
+    }
+  }
+
+  /** 肉鸽流程分步：当前 rlv2 状态快照（纯读，无副作用） */
+  async rogueSimState(uid: string): Promise<unknown> {
+    const pd = await this.getPlayer(uid);
+    return pd.rlv2.toJSON();
   }
 
   /** 卡池清单（excel.GachaTable.gachaPoolClient） */

@@ -689,6 +689,98 @@ describe("AdminService 游戏协议代理", () => {
     expect(result.status).toBe(500);
     expect(result.data).toBe("<html>err</html>");
   });
+
+  it("rogueSimStep 白名单外 action 应返回错误", async () => {
+    const r = await service.rogueSimStep("1", "hack", {});
+    expect(r.ok).toBe(false);
+    expect(r.error).toContain("非法操作");
+  });
+
+  it("rogueSimStep 白名单 action 应经 gameProxy 透传并返回 rlv2 快照", async () => {
+    const spy = vi.spyOn(service, "gameProxy").mockResolvedValue({
+      status: 200,
+      uid: "1",
+      data: { playerDataDelta: { modified: { rlv2: { current: { player: { state: "WAIT_MOVE" } } } } } },
+    });
+    const r = await service.rogueSimStep("1", "moveTo", { to: { x: 0, y: 0 } });
+    expect(r.ok).toBe(true);
+    expect((r.state as any).current.player.state).toBe("WAIT_MOVE");
+    expect(spy).toHaveBeenCalledWith("1", "/rlv2/moveTo", "POST", { to: { x: 0, y: 0 } });
+  });
+
+  it("rogueSimAuto 应编排开局链并推进至 END（mock gameProxy 响应序列）", async () => {
+    // 伪造 rlv2 快照序列：INIT 开局 → WAIT_MOVE zone1 → PENDING SCENE → END
+    const snap = (state: string, zone: number, pending: any[] = [], zoneEndPos: any = null) => ({
+      current: {
+        player: { state, cursor: { zone, position: zoneEndPos }, pending, property: { hp: { current: 10, max: 10 }, gold: 10 } },
+        map: {
+          zones: {
+            "1": {
+              nodes: {
+                "0": { pos: { x: 0, y: 0 }, type: 32, next: [{ x: 1, y: 0 }] },
+                "100": { pos: { x: 1, y: 0 }, type: 8, next: [], zone_end: true },
+              },
+            },
+          },
+        },
+        record: { record: { cntZone: 1, cntArrivedNode: 2, cntRecruitChar: 0, cntBattleNormal: 0, cntBattleElite: 0, cntBattleBoss: 0, relicList: [] } },
+      },
+    });
+    const responses = [
+      // createGame
+      { status: 200, uid: "1", data: { playerDataDelta: { modified: { rlv2: snap("INIT", 0, [{ type: "GAME_INIT_RELIC" }]) } } } },
+      // finishEvent（触发事件生成）→ 仍 INIT 带 RELIC
+      { status: 200, uid: "1", data: { playerDataDelta: { modified: { rlv2: snap("INIT", 0, [{ type: "GAME_INIT_RELIC" }]) } } } },
+      // chooseInitialRelic → 仍 INIT 带 RECRUIT_SET
+      { status: 200, uid: "1", data: { playerDataDelta: { modified: { rlv2: snap("INIT", 0, [{ type: "GAME_INIT_RECRUIT_SET" }]) } } } },
+      // chooseInitialRecruitSet → INIT 空 pending
+      { status: 200, uid: "1", data: { playerDataDelta: { modified: { rlv2: snap("INIT", 0, []) } } } },
+      // finishEvent → WAIT_MOVE zone1
+      { status: 200, uid: "1", data: { playerDataDelta: { modified: { rlv2: snap("WAIT_MOVE", 1, [], null) } } } },
+      // 主循环 finishEvent → WAIT_MOVE（起点可访问）
+      { status: 200, uid: "1", data: { playerDataDelta: { modified: { rlv2: snap("WAIT_MOVE", 1, [], null) } } } },
+      // moveTo(0,0) → PENDING SCENE
+      { status: 200, uid: "1", data: { playerDataDelta: { modified: { rlv2: snap("PENDING", 1, [{ type: "SCENE", content: { scene: { choices: { choice_1: 1 } } } }], { x: 0, y: 0 }) } } } },
+      // consumePending: finishEvent → SCENE → selectChoice → WAIT_MOVE
+      { status: 200, uid: "1", data: { playerDataDelta: { modified: { rlv2: snap("WAIT_MOVE", 1, [], { x: 0, y: 0 }) } } } },
+      // moveTo(1,0) zone_end → PENDING
+      { status: 200, uid: "1", data: { playerDataDelta: { modified: { rlv2: snap("PENDING", 1, [], { x: 1, y: 0 }) } } } },
+      // finishEvent zone_end → END（最终层结算）
+      { status: 200, uid: "1", data: { playerDataDelta: { modified: { rlv2: snap("END", 1, [], { x: 1, y: 0 }) } } } },
+      // 主循环检查 state=END 前还有一次 finishEvent
+      { status: 200, uid: "1", data: { playerDataDelta: { modified: { rlv2: snap("END", 1, [], { x: 1, y: 0 }) } } } },
+      // gameSettle
+      { status: 200, uid: "1", data: { playerDataDelta: { modified: { rlv2: snap("END", 1, []) } } } },
+    ];
+    const spy = vi.spyOn(service, "gameProxy").mockImplementation(async () => responses.shift()!);
+    const r = await service.rogueSimAuto("1", "rogue_1");
+    expect(r.ok).toBe(true);
+    expect(r.steps.length).toBeGreaterThan(0);
+    expect((r.final as any).current.player.state).toBe("END");
+    // 应调用过开局链 + moveTo + gameSettle
+    const paths = spy.mock.calls.map((c) => c[1]);
+    expect(paths).toContain("/rlv2/createGame");
+    expect(paths).toContain("/rlv2/chooseInitialRelic");
+    expect(paths).toContain("/rlv2/moveTo");
+    expect(paths).toContain("/rlv2/gameSettle");
+  });
+
+  it("rogueSimAuto 服务器错误应返回 ok:false", async () => {
+    vi.spyOn(service, "gameProxy").mockResolvedValue({ status: 500, uid: "1", data: "boom" });
+    const r = await service.rogueSimAuto("1", "rogue_1");
+    expect(r.ok).toBe(false);
+    expect(r.error).toBeDefined();
+  });
+
+  it("rogueSimState 应返回当前 rlv2 toJSON 快照", async () => {
+    const pd = makeFullPd();
+    stubAccounts(pd);
+    const spy = vi.spyOn(service, "getPlayer").mockResolvedValue(pd as any);
+    (pd as any).rlv2 = { toJSON: () => ({ current: { player: { state: "NONE" } } }) };
+    const state = await service.rogueSimState("1");
+    expect((state as any).current.player.state).toBe("NONE");
+    expect(spy).toHaveBeenCalledWith("1");
+  });
 });
 
 describe("AdminService 卡池管理", () => {

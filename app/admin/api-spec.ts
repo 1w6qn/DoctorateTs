@@ -132,6 +132,28 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   { method: "GET", path: "/api/mapviz-data", summary: "地图可视化数据（主题关卡池 + rogue_6 gridzone 构造模板/规则，供 dashboard 地图 tab）" },
   {
     method: "POST",
+    path: "/api/rogue/sim-auto",
+    summary: "肉鸽流程自动模拟（开局→逐层→结算，不含战斗）",
+    params: [
+      { name: "uid", type: "string", required: true, desc: "目标玩家 uid" },
+      { name: "theme", type: "string", required: true, desc: "主题（rogue_1..6）" },
+      { name: "maxZone", type: "number", desc: "模拟到第几层为止（缺省到底）" },
+    ],
+    body: '{"uid":"1","theme":"rogue_1","maxZone":3}',
+  },
+  {
+    method: "POST",
+    path: "/api/rogue/sim-step",
+    summary: "肉鸽流程分步模拟（白名单单步，经 /rlv2 代理）",
+    params: [
+      { name: "uid", type: "string", required: true, desc: "目标玩家 uid" },
+      { name: "action", type: "string", required: true, desc: "rlv2 端点名（createGame/finishEvent/moveTo/selectChoice/gameSettle 等）" },
+    ],
+    body: '{"uid":"1","action":"moveTo","body":{"to":{"x":0,"y":0}}}',
+  },
+  { method: "GET", path: "/api/rogue/state", summary: "肉鸽流程当前状态快照（rlv2.toJSON，分步模式用）", params: [{ name: "uid", type: "string", desc: "目标玩家 uid" }] },
+  {
+    method: "POST",
     path: "/api/cli/exec",
     summary: "CLI 集成：服务器内执行 CLI 命令（复用 admin-cli dispatch，输出捕获返回）",
     params: [{ name: "command", type: "string", required: true, desc: "CLI 命令文本（如 users list --json、gacha pools）" }],

@@ -58,6 +58,9 @@ vi.mock("../../../app/admin/AdminService", () => ({
     checkDataFiles: vi.fn().mockResolvedValue({ ok: true, files: [{ uid: "1", ok: true }] }),
     getActivitySummary: vi.fn().mockResolvedValue({ total: 3, types: [{ type: "LOGIN_ONLY", activities: 2 }] }),
     getMapvizData: vi.fn().mockResolvedValue({ themes: { rogue_1: { normal: ["ro1_n_1_1"], elite: [], boss: [], zones: {} } }, grid: { constructions: [{ layerIndex: 0 }], distanceRules: [], countRules: [], layerTypes: [] } }),
+    rogueSimAuto: vi.fn().mockResolvedValue({ ok: true, steps: [{ step: 1, action: "createGame", zone: 0, state: "INIT" }], final: { current: { player: { state: "END" } } } }),
+    rogueSimStep: vi.fn().mockResolvedValue({ ok: true, state: { current: { player: { state: "WAIT_MOVE" } } } }),
+    rogueSimState: vi.fn().mockResolvedValue({ current: { player: { state: "NONE" } } }),
   },
 }));
 vi.mock("../../../app/admin/admin-auth", () => ({
@@ -324,6 +327,41 @@ describe("admin 路由（扩展能力）", () => {
     const res2 = mockRes();
     await call({ method: "GET", url: "/api/mapviz-data" }, res2);
     expect(res2.status).toHaveBeenCalledWith(404);
+  });
+
+  it("POST /api/rogue/sim-auto 应透传 uid/theme 并返回步骤与最终快照", async () => {
+    const res = mockRes();
+    await call({ method: "POST", url: "/api/rogue/sim-auto", body: { uid: "1", theme: "rogue_1", maxZone: 3 } }, res);
+    expect(adminService.rogueSimAuto).toHaveBeenCalledWith("1", "rogue_1", 3);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ ok: true, steps: expect.any(Array) }),
+    );
+
+    // 模拟失败 → 400
+    (adminService.rogueSimAuto as any).mockResolvedValueOnce({ ok: false, error: "rlv2 失败" });
+    const res2 = mockRes();
+    await call({ method: "POST", url: "/api/rogue/sim-auto", body: { uid: "1", theme: "rogue_1" } }, res2);
+    expect(res2.status).toHaveBeenCalledWith(400);
+  });
+
+  it("POST /api/rogue/sim-step 应透传 action/body 并返回快照", async () => {
+    const res = mockRes();
+    await call({ method: "POST", url: "/api/rogue/sim-step", body: { uid: "1", action: "moveTo", body: { to: { x: 0, y: 0 } } } }, res);
+    expect(adminService.rogueSimStep).toHaveBeenCalledWith("1", "moveTo", { to: { x: 0, y: 0 } });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true, state: expect.any(Object) }));
+
+    // 非法 action → 400
+    (adminService.rogueSimStep as any).mockResolvedValueOnce({ ok: false, error: "非法操作: hack" });
+    const res2 = mockRes();
+    await call({ method: "POST", url: "/api/rogue/sim-step", body: { uid: "1", action: "hack" } }, res2);
+    expect(res2.status).toHaveBeenCalledWith(400);
+  });
+
+  it("GET /api/rogue/state 应返回当前 rlv2 快照", async () => {
+    const res = mockRes();
+    await call({ method: "GET", url: "/api/rogue/state?uid=1" }, res);
+    expect(adminService.rogueSimState).toHaveBeenCalledWith("1");
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ current: expect.any(Object) }));
   });
 
   it("GET /api/spec 应返回端点规范清单", async () => {

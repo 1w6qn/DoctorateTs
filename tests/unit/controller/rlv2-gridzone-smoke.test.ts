@@ -3,9 +3,8 @@ import { enablePatches } from "immer";
 
 enablePatches();
 
-vi.mock("@excel/excel", () => ({
-  default: {
-    RoguelikeTopicTable: {
+const excelMock = vi.hoisted(() => ({
+  RoguelikeTopicTable: {
       details: {
         rogue_6: {
           stages: {
@@ -33,12 +32,13 @@ vi.mock("@excel/excel", () => ({
           scrap: { scrapItemToType: { rogue_6_scrap_G_07: "GOODS" } },
         },
       },
-      consts: {},
-    },
-    CharacterTable: {},
-    GameDataConst: { maxLevel: [[], [], [], [], [], []] },
+    consts: {},
   },
+  CharacterTable: {},
+  GameDataConst: { maxLevel: [[], [], [], [], [], []] },
 }));
+
+vi.mock("@excel/excel", () => ({ default: excelMock }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { mockPlayerData } from "../../helpers";
@@ -78,8 +78,8 @@ describe("GRID_ZONE 官服结构对齐（构造模板）", () => {
 
       for (const zone of [1, 2, 3, 4, 5]) {
         gz.generate([zone]);
-        const light = gz.toJSON().zones[String(zone)].nodes;
-        const mapNodes = (player.rlv2 as any)._map.zones[zone]?.nodes;
+        const light = gz.toJSON().zones[`zone_${zone}`].nodes;
+        const mapNodes = (player.rlv2 as any)._map.zones[String(1000 + zone - 1)]?.nodes;
         expect(mapNodes, `zone ${zone} map.zones`).toBeTruthy();
         expect(Object.keys(mapNodes).length).toBe(Object.keys(light).length);
         for (const id of Object.keys(light)) {
@@ -112,7 +112,7 @@ describe("GRID_ZONE 官服结构对齐（构造模板）", () => {
       const gz = (player.rlv2 as any)._module.gridZone;
       for (const zone of [1, 2]) {
         gz.generate([zone]);
-        const light = gz.toJSON().zones[String(zone)].nodes;
+        const light = gz.toJSON().zones[`zone_${zone}`].nodes;
         const t = BLACKSTREAM_CONSTRUCTIONS.find((c) => c.layerIndex === zone - 1)!;
         const dist = gz.edgeDistances(t);
         const startId = Object.entries(light).find(([, n]: any) => n.state === 1)![0];
@@ -131,7 +131,7 @@ describe("GRID_ZONE 官服结构对齐（构造模板）", () => {
       await (player.rlv2 as any)._module.create();
       const gz = (player.rlv2 as any)._module.gridZone;
       gz.generate([5]);
-      const light = gz.toJSON().zones["5"].nodes;
+      const light = gz.toJSON().zones["zone_5"].nodes;
       const t5 = BLACKSTREAM_CONSTRUCTIONS.find((c) => c.layerIndex === 4)!;
       const dist = gz.edgeDistances(t5);
       // 起点
@@ -177,5 +177,14 @@ describe("GRID_ZONE 物品发放类型兜底（fix funcs[type] 崩溃）", () =>
       ]]);
       expect(recv).toContain("char_508_aguard");
     });
+  });
+});
+
+describe("rogue_6 战斗奖励（零件/收藏品）", () => {
+  it("rogue_6 主题 scrapItemToType 零件池非空（战斗奖励可产出零件）", async () => {
+    // mock 中 rogue_6 modules.scrap.scrapItemToType 已配置 → 验证零件奖励数据源存在
+    const modules = excelMock.RoguelikeTopicTable.modules.rogue_6;
+    expect(modules.scrap.scrapItemToType).toBeTruthy();
+    expect(Object.keys(modules.scrap.scrapItemToType).length).toBeGreaterThan(0);
   });
 });

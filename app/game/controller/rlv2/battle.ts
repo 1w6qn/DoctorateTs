@@ -159,10 +159,13 @@ export class RoguelikeBattleManager {
       // 随机收藏品掉落（参考 Dorothinights generateBaseBattleRewards：
       // 收藏品池过滤已拥有，boss 战必掉 2 个）
       const pos = this._player._status.cursor.position;
+      // 兼容黑流树海（map.zones 键为区域索引 1000+）与标准主题（层号键）
+      const mapZones = this._player._map.zones;
+      const zoneKey = mapZones[this._player._status.cursor.zone]
+        ? this._player._status.cursor.zone
+        : String(1000 + this._player._status.cursor.zone - 1);
       const node = pos
-        ? this._player._map.zones[this._player._status.cursor.zone]?.nodes[
-            pos.x * 100 + pos.y
-          ]
+        ? mapZones[zoneKey]?.nodes[pos.x * 100 + pos.y]
         : undefined;
       const curStageId = (node as any)?.stage || "";
       const isBoss = curStageId.includes("_b_");
@@ -181,6 +184,24 @@ export class RoguelikeBattleManager {
         }
         if (relicItems.length > 0) {
           rewards.push({ index: rewards.length, items: relicItems, done: 0 });
+        }
+      }
+
+      // 黑流树海（rogue_6）：战斗奖励含零件（废品）组——官方抓包 battleFinish rewards 含
+      // rogue_6_scrap_P_01/P_02 等。从主题 scrapItemToType 池随机 1-2 件。
+      if (theme === "rogue_6") {
+        const scrapPool = Object.keys(
+          (excel.RoguelikeTopicTable.modules as any)?.[theme]?.scrap?.scrapItemToType || {},
+        );
+        const scrapRewards: any[] = [];
+        const scrapCount = isBoss ? 2 : Math.random() < 0.5 ? 1 : 0;
+        for (let i = 0; i < scrapCount && scrapPool.length > 0; i++) {
+          const pick =
+            scrapPool[Math.floor(Math.random() * scrapPool.length)];
+          scrapRewards.push({ sub: i, id: pick, count: 1 });
+        }
+        if (scrapRewards.length > 0) {
+          rewards.push({ index: rewards.length, items: scrapRewards, done: 0 });
         }
       }
 

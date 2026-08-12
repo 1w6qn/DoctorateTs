@@ -65,6 +65,9 @@ vi.mock("@excel/excel", () => ({
           relics: {},
           choices: {},
           bandRef: {},
+          recruitTickets: {
+            rogue_6_recruit_ticket_pioneer: { id: "rogue_6_recruit_ticket_pioneer", professionList: ["PIONEER"], rarityList: ["TIER_1", "TIER_2", "TIER_3", "TIER_4", "TIER_5", "TIER_6"] },
+          },
           detailConst: { playerLevelTable: { 2: { exp: 10 } } },
         },
       },
@@ -225,5 +228,23 @@ describe("exploreScore 容错（theme 缺失不 500）", () => {
       score = rlv2.exploreScore();
     }).not.toThrow();
     expect(score).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("黑流树海四星希望=0", () => {
+  it("rogue_6 populationFor：4 星 0、5 星 2、6 星 4", async () => {
+    const player = makePlayer("rogue_6", { lastZone: 3 });
+    const recruit = (player.rlv2 as any).inventory._recruit;
+    expect(recruit.populationFor(3)).toBe(0); // TIER_4
+    expect(recruit.populationFor(4)).toBe(2); // TIER_5
+    expect(recruit.populationFor(5)).toBe(4); // TIER_6
+  });
+
+  it("rogue_1 populationFor：4 星 2、5 星 3、6 星 6（常规曲线）", async () => {
+    const player = makePlayer("rogue_1");
+    const recruit = (player.rlv2 as any).inventory._recruit;
+    expect(recruit.populationFor(3)).toBe(2); // TIER_4
+    expect(recruit.populationFor(4)).toBe(3); // TIER_5
+    expect(recruit.populationFor(5)).toBe(6); // TIER_6
   });
 });

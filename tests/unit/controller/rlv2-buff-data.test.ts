@@ -128,12 +128,29 @@ describe("rlv2 局外buff/难度buff/招募组数据", () => {
       } as any;
       await (player.rlv2 as any).chooseInitialRecruitSet({ select: "recruit_group_1" });
       const recruitGainCalls = emitSpy.mock.calls.filter((c: any) => c[0] === "rlv2:recruit:gain");
-      // 标准职业票发放 3 张（官方 recruitGrps 为元数据对象，无 ticket 映射 → 随机 3 职业票）
+      // 先手必胜组（recruit_group_1）→ 先锋、狙击、特种券各一张（官方组合映射）
+      expect(recruitGainCalls.length).toBe(3);
+      const ticketIds = recruitGainCalls.map((c: any) => c[1][0]).sort();
+      expect(ticketIds).toEqual([
+        "rogue_3_recruit_ticket_pioneer",
+        "rogue_3_recruit_ticket_sniper",
+        "rogue_3_recruit_ticket_special",
+      ].sort());
+      for (const c of recruitGainCalls) expect(c[1][1]).toBe("initial");
+    });
+
+    it("recruit_group_random 应发放 3 张随机标准职业票", async () => {
+      const emitSpy = vi.spyOn((player.rlv2 as any)._trigger, "emit");
+      (player.rlv2 as any)._status._pending._pending.push(
+        { type: "GAME_INIT_RECRUIT_SET", content: { initRecruitSet: { option: "recruit_group_random" } } },
+        { type: "GAME_INIT_RECRUIT", content: { initRecruit: { tickets: [], showChar: [], team: null } } },
+      );
+      player.rlv2.inventory = { recruit: {} } as any;
+      await (player.rlv2 as any).chooseInitialRecruitSet({ select: "recruit_group_random" });
+      const recruitGainCalls = emitSpy.mock.calls.filter((c: any) => c[0] === "rlv2:recruit:gain");
       expect(recruitGainCalls.length).toBe(3);
       for (const c of recruitGainCalls) {
-        const ticketId = c[1][0];
-        expect(ticketId).toMatch(/^rogue_3_recruit_ticket_(pioneer|warrior|tank|sniper|caster|support|medic|special)$/);
-        expect(c[1][1]).toBe("initial");
+        expect(c[1][0]).toMatch(/^rogue_3_recruit_ticket_(pioneer|warrior|tank|sniper|caster|support|medic|special)$/);
       }
     });
   });

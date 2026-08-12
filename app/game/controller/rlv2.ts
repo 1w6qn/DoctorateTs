@@ -390,9 +390,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       (e) => e.type === "GAME_INIT_RECRUIT",
     );
 
-    // 招募组数据源：官方 recruitGrps 为元数据对象（id/iconId/name/desc，无 ticket 映射）
-    // → 退化为发放 3 张随机职业招募券（参考 ODPY rlv2ChooseInitialRecruitSet addTicket ×3）。
-    // 只取 8 大职业标准票（排除 _sp/_vip/_candle/_double 等变体，变体职业列表为空导致空候选）
+    // 招募组 → 具体职业券映射（官方 recruitGrps 仅带 desc 文本"XX、YY、ZZ招募券各一张"，
+    // 按 desc 中职业顺序映射到标准职业券；group_random 抽 3 张随机标准票）
     const PROFESSIONS = [
       "pioneer",
       "warrior",
@@ -403,16 +402,36 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       "medic",
       "special",
     ];
-    const tickets = Object.keys(
-      (excel.RoguelikeTopicTable.details[theme] as any)?.recruitTickets || {},
-    ).filter((t) => {
-      const roNum = theme.slice(-1);
-      return PROFESSIONS.some(
-        (p) => t === `rogue_${roNum}_recruit_ticket_${p}`,
-      );
-    });
-    const shuffled = [...tickets].sort(() => Math.random() - 0.5);
-    for (const r of shuffled.slice(0, 3)) {
+    const roNum = theme.slice(-1);
+    const GROUP_PROFESSIONS: { [key: string]: string[] } = {
+      recruit_group_1: ["pioneer", "sniper", "special"], // 先手必胜：先锋、狙击、特种
+      recruit_group_2: ["tank", "caster", "sniper"], // 稳扎稳打：重装、术师、狙击
+      recruit_group_3: ["warrior", "support", "medic"], // 取长补短：近卫、辅助、医疗
+      recruit_group_4: ["pioneer", "support", "special"], // 灵活部署：先锋、辅助、特种
+      recruit_group_5: ["tank", "caster", "medic"], // 坚不可摧：重装、术师、医疗
+    };
+    const groupProfs =
+      GROUP_PROFESSIONS[args.select] || GROUP_PROFESSIONS["recruit_group_random"];
+    const pool = PROFESSIONS.map((p) => `rogue_${roNum}_recruit_ticket_${p}`).filter(
+      (t) => (excel.RoguelikeTopicTable.details[theme] as any)?.recruitTickets?.[t],
+    );
+    let picked: string[];
+    if (args.select === "recruit_group_random" || !groupProfs) {
+      const shuffled = [...pool].sort(() => Math.random() - 0.5);
+      picked = shuffled.slice(0, 3);
+    } else {
+      // 按组合职业顺序取对应标准券（"先锋、狙击、特种招募券各一张"）
+      picked = groupProfs
+        .map((p) => `rogue_${roNum}_recruit_ticket_${p}`)
+        .filter((t) => pool.includes(t));
+      // 保底：组合职业券缺失时用随机补足 3 张
+      while (picked.length < 3) {
+        const rest = pool.filter((t) => !picked.includes(t));
+        if (rest.length === 0) break;
+        picked.push(rest[Math.floor(Math.random() * rest.length)]);
+      }
+    }
+    for (const r of picked) {
       await this._trigger.emit("rlv2:recruit:gain", [r, "initial", 0]);
     }
 
@@ -521,11 +540,22 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     return Math.min(max || 6, 5);
   }
 
+  /**
+   * map.zones 键解析：标准主题（rogue_1..5）用层号（1,2,3…）；黑流树海（rogue_6 无相地图）
+   * 由 GRID_ZONE 模块按官服格式写入区域索引键（zone_1 → "1000"）。按存在性兼容两种键。
+   */
+  private zoneKey(zone: number): string | number {
+    const zones = this._map.zones;
+    if (zones[zone]) return zone;
+    if (zones[String(1000 + zone - 1)]) return String(1000 + zone - 1);
+    return zone;
+  }
+
   /** 当前节点是否为本层终点（zone_end） */
   private isZoneEnd(): boolean {
     const pos = this._status.cursor.position;
     if (!pos) return false;
-    const node = this._map.zones[this._status.cursor.zone]?.nodes[
+    const node = this._map.zones[this.zoneKey(this._status.cursor.zone)]?.nodes[
       pos.x * 100 + pos.y
     ];
     return !!node?.zone_end;
@@ -1946,7 +1976,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     let cntArrivedNode = this._status.trace.length;
     const cntArrivedNodeType: { [key: number]: number } = {};
     for (const t of this._status.trace) {
-      const node = this._map.zones[t.zone]?.nodes[
+      const node = this._map.zones[this.zoneKey(t.zone)]?.nodes[
         `${(t.position?.x ?? 0) * 100 + (t.position?.y ?? 0)}`
       ];
       const type = node?.type ?? 0;
@@ -2044,7 +2074,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     let eliteBattles = 0;
     let leaderBattles = 0;
     for (const t of this._status.trace) {
-      const node = this._map.zones[t.zone]?.nodes[
+      const node = this._map.zones[this.zoneKey(t.zone)]?.nodes[
         `${(t.position?.x ?? 0) * 100 + (t.position?.y ?? 0)}`
       ];
       const type = node?.type ?? 0;
@@ -2109,6 +2139,23 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         });
       if (legacy.length > 0) {
         rec.legacy = [...new Set([...(rec.legacy || []), ...legacy])];
+      }
+      // 分队升级隐藏（使用分队通关解锁其升级变体）：本把所选分队（_bandId）若有升级变体
+      // （bandRef bandLevel>0 且 normalBandId == _bandId）→ 升级变体 state 1、旧分队隐藏。
+      const usedBand = this._bandId;
+      const bandRef = (excel.RoguelikeTopicTable.details[theme] as any)?.bandRef || {};
+      const collectBand = outerTheme.collect?.band;
+      if (usedBand && collectBand && typeof collectBand === "object") {
+        const upgradeVariant = Object.entries(bandRef).find(
+          ([, r]: any) =>
+            (r.bandLevel ?? 0) > 0 && (r.normalBandId ?? r.itemID) === usedBand,
+        );
+        if (upgradeVariant) {
+          const [upgradeId, ref] = upgradeVariant;
+          collectBand[upgradeId] = { state: 1, progress: null } as any;
+          const baseId = (ref as any).normalBandId || (ref as any).itemID;
+          if (baseId && collectBand[baseId]) collectBand[baseId].state = 0;
+        }
       }
     });
 

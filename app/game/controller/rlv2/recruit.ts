@@ -44,6 +44,18 @@ export class RoguelikeRecruitManager {
   }
 
   /**
+   * 各主题招募希望消耗表（索引 = rarityIdx，TIER_1..6 → 0..5）：
+   * 黑流树海（rogue_6）：4 星 0 希望、5 星 2、6 星 4（官方机制，初始希望 6）
+   * 其余主题：3 星 0、4 星 2、5 星 3、6 星 6（常规曲线）
+   */
+  private populationFor(rarityIdx: number): number {
+    const theme = this._player.current.game?.theme || "";
+    const map =
+      theme === "rogue_6" ? [0, 0, 0, 0, 2, 4] : [0, 0, 0, 2, 3, 6];
+    return map[rarityIdx] || 0;
+  }
+
+  /**
    * 分队初始干员（immediate_recruit）：临时干员直接入队（TEMP 类型，不占招募票）
    * @param charId 干员 id（如 char_504_rguard）
    */
@@ -107,8 +119,7 @@ export class RoguelikeRecruitManager {
       const rarity = data.rarity;
       // rarity 为字符串枚举（"TIER_N"）→ 统一转数值下标（0 基）
       const rarityIdx = rarityToIndex(rarity);
-      const popMap = [0, 0, 0, 2, 3, 6];
-      let population = popMap[rarityIdx];
+      let population = this.populationFor(rarityIdx);
       for (const buff of this._player._buff.filterBuffs("recruit_cost")) {
         if (
           buff.blackboard[0].valueStr?.includes(data.rarity.toString()) &&

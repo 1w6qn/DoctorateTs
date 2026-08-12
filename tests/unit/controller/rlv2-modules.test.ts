@@ -107,9 +107,9 @@ describe("rlv2 主题模块管理器（2026-08-10）", () => {
       const json = gz.toJSON();
       expect(json.stepRemain).toBe(20);
       expect(json.needConfirmStepZero).toBe(1);
-      expect(Object.keys(json.zones["1"].nodes).length).toBeGreaterThan(0);
+      expect(Object.keys(json.zones["zone_1"].nodes).length).toBeGreaterThan(0);
       // 战斗节点应有 savage.stageId
-      const nodes = Object.values(json.zones["1"].nodes) as any[];
+      const nodes = Object.values(json.zones["zone_1"].nodes) as any[];
       expect(nodes.some((n) => n.content.savage?.stageId)).toBe(true);
     });
 
@@ -122,7 +122,7 @@ describe("rlv2 主题模块管理器（2026-08-10）", () => {
       const node = gz.moveTo([nodeId]);
       expect(node).toBeTruthy();
       expect(node.state).toBe(2);
-      expect(gz.toJSON().zones["1"].nodes[nodeId].state).toBe(2);
+      expect(gz.toJSON().zones["zone_1"].nodes[nodeId].state).toBe(2);
     });
 
     it("generate 应按构造模板放置节点且距离规则生效（黑流树海）", async () => {
@@ -132,7 +132,7 @@ describe("rlv2 主题模块管理器（2026-08-10）", () => {
         const player = await createModules(makePlayer("rogue_6"));
         const gz = (player.rlv2 as any)._module.gridZone;
         gz.generate([1]);
-        const nodes = gz.toJSON().zones["1"].nodes;
+        const nodes = gz.toJSON().zones["zone_1"].nodes;
         // 起点 = 模板 startSlot（官服 ID = x*100+y）→ [1,1] = "101"，为林间空地且可见可访问
         expect(nodes["101"].content.kind).toBe(268435456); // GLADE
         expect(nodes["101"].state).toBe(1);
@@ -150,7 +150,7 @@ describe("rlv2 主题模块管理器（2026-08-10）", () => {
         const battleNode = Object.values(nodes).find((n: any) => n.content.savage);
         expect(battleNode).toBeTruthy();
         // 同步 map.zones：与 module.gridZone 节点 ID 一致
-        const mapNodes = (player.rlv2 as any)._map.zones[1]?.nodes;
+        const mapNodes = (player.rlv2 as any)._map.zones["1000"]?.nodes;
         expect(mapNodes).toBeTruthy();
         expect(Object.keys(mapNodes).length).toBe(Object.keys(nodes).length);
       } finally {

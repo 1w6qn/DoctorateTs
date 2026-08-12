@@ -257,7 +257,7 @@ export class RoguelikeGridZoneManager {
       );
     }
 
-    this.zones[String(zoneId)] = { nodes };
+    this.zones[`zone_${zoneId}`] = { nodes };
     // 同步官服 map.zones 全量结构（客户端地图渲染读 map.zones：index/pos/next/type/stage/visibility）
     this.syncMapZones(zoneId, template, nodes);
     this.stepRemain = 20;
@@ -304,9 +304,10 @@ export class RoguelikeGridZoneManager {
       if (isTerminal) node.zone_end = true;
       fullNodes[id] = node;
     }
-    map.zones[Number(zoneId)] = {
+    // 官服 map.zones 键 = 区域索引（zone_1 → 1000），非层号
+    map.zones[String(1000 + zoneId - 1)] = {
       id: `zone_${zoneId}`,
-      index: Number(zoneId),
+      index: 1000 + zoneId - 1,
       nodes: fullNodes,
       variation: [],
     };
@@ -500,7 +501,7 @@ export class RoguelikeGridZoneManager {
 
   /** 移动到指定节点（route 末节点）；标记节点已访问并返回节点 */
   moveTo(route: string[]): GridNode | undefined {
-    const zoneId = String(this._player._status.cursor.zone);
+    const zoneId = `zone_${this._player._status.cursor.zone}`;
     const zone = this.zones[zoneId];
     if (!zone || !route || route.length === 0) return undefined;
     const last = route[route.length - 1];

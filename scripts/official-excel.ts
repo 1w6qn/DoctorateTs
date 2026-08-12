@@ -22,6 +22,7 @@ const OUT_DIR = path.join(ROOT, "reference/hotupdate/excel_json");
 const DATA_EXCEL_DIR = path.join(ROOT, "data/excel");
 const SCHEMA_DIR = path.join(ROOT, "scripts/vendor/fbs-schemas");
 const HUL_SNAPSHOT = path.join(HUL_DIR, "hot_update_list_26-08-07-10-51-39.json");
+const NAME_CACHE = path.join(HUL_DIR, "textasset-names.json");
 
 // 服务端加载的全部 excel 表
 const TABLE_WHITELIST = new Set([
@@ -85,6 +86,32 @@ async function readTextAssetName(dat: string): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+// TextAsset 名缓存（key=bundle 文件名，value={name, mtime}）——避免每次启动全量解包 63 个 bundle
+let nameCache: Record<string, { name: string; mtime: number }> = {};
+try {
+  nameCache = JSON.parse(fs.readFileSync(NAME_CACHE, "utf-8"));
+} catch { /* 无缓存 */ }
+
+async function readTextAssetNameCached(dat: string): Promise<string | null> {
+  const key = path.basename(dat);
+  try {
+    const st = fs.statSync(dat);
+    const hit = nameCache[key];
+    if (hit && hit.mtime === st.mtimeMs) return hit.name; // 文件未变 → 用缓存
+    const name = await readTextAssetName(dat);
+    nameCache[key] = { name: name ?? "", mtime: st.mtimeMs };
+    return name;
+  } catch {
+    return null;
+  }
+}
+
+function saveNameCache(): void {
+  try {
+    fs.writeFileSync(NAME_CACHE, JSON.stringify(nameCache));
+  } catch { /* 缓存写入失败不影响主流程 */ }
 }
 
 function aesDecrypt(script: Uint8Array): { json?: any; bson?: any } {
@@ -163,11 +190,12 @@ async function main() {
       if (!ab.name.startsWith("anon/")) continue;
       const dat = path.join(DL_DIR, transName(ab.name));
       if (!fs.existsSync(dat)) continue;
-      const name = await readTextAssetName(dat);
+      const name = await readTextAssetNameCached(dat);
       if (!name) continue;
       const base = name.replace(/[0-9a-f]{6}$/, "");
       if (TABLE_WHITELIST.has(base)) bundleMap.set(base, dat);
     }
+    saveNameCache();
     if (tableArg && bundleMap.has(tableArg)) {
       for (const k of bundleMap.keys()) {
         if (k !== tableArg) bundleMap.delete(k);
@@ -212,16 +240,30 @@ async function main() {
   }
 
   if (doConvert) {
-    let ok = 0, fail = 0;
+    let ok = 0, fail = 0, skipped = 0;
     for (const f of fs.readdirSync(OUT_DIR).filter((x) => x.endsWith(".json")).sort()) {
       const name = f.slice(0, -5);
       if (tableArg && name !== tableArg) continue;
       const out = path.join(DATA_EXCEL_DIR, f);
+      const schemaPath = path.join(SCHEMA_DIR, f);
+      // 增量：原始解码 + schema 均未变 → 输出已是最新，跳过（启动提速关键）
+      try {
+        const decStat = fs.statSync(path.join(OUT_DIR, f));
+        const outStat = fs.existsSync(out) ? fs.statSync(out) : null;
+        const schemaStat = fs.existsSync(schemaPath) ? fs.statSync(schemaPath) : null;
+        if (
+          outStat &&
+          decStat.mtimeMs <= outStat.mtimeMs &&
+          (!schemaStat || schemaStat.mtimeMs <= outStat.mtimeMs)
+        ) {
+          skipped++;
+          continue;
+        }
+      } catch { /* stat 失败则照常转换 */ }
       try {
         const dec = JSON.parse(fs.readFileSync(path.join(OUT_DIR, f), "utf-8"));
         const loc = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, "utf-8")) : null;
         // 从 schema JSON 计算记录级字段补齐（与 ArknightsGameData/OpenArknightsFBS 对齐）
-        const schemaPath = path.join(SCHEMA_DIR, f);
         const completion = buildCompletion(schemaPath);
         const result = convertTable(dec, loc, name, completion);
         fs.writeFileSync(out, JSON.stringify(result));
@@ -231,7 +273,7 @@ async function main() {
         console.log(`  转换失败 ${name}: ${(e as Error).message.slice(0, 60)}`);
       }
     }
-    console.log(`转换完成: ${ok} ok, ${fail} fail`);
+    console.log(`转换完成: ${ok} ok, ${fail} fail${skipped ? `（跳过 ${skipped} 张未变更表）` : ""}`);
   }
 }
 

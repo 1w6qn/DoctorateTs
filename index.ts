@@ -95,13 +95,31 @@ process.on("exit", (code) => {
     }
     logger.info("index", "本地数据校验通过，继续启动...");
   } else if (!skipUpdate) {
-    logger.info("index", "开始更新游戏数据...");
-    try {
-      const updateModule = await import("./scripts/update-data");
-      await updateModule.main(false);
-      logger.info("index", "游戏数据更新完成");
-    } catch (error) {
-      logger.error("index", "游戏数据更新失败，使用本地缓存数据:", (error as Error).message);
+    if (args.includes("--background-update")) {
+      // 后台异步更新：先起服（本地数据），更新完成后热重载 excel——启动秒就绪
+      logger.info("index", "后台异步更新模式：立即起服，数据更新完成后热重载");
+      void (async () => {
+        try {
+          const updateModule = await import("./scripts/update-data");
+          const code = await updateModule.main(false);
+          logger.info("index", `后台数据更新完成（code=${code}），热重载 excel 数据`);
+          if (code === 0) {
+            await excel.init(); // 重新加载新数据（Excel/Shop 全量重读）
+            logger.info("index", "excel 数据已热重载");
+          }
+        } catch (error) {
+          logger.error("index", "后台数据更新失败，使用本地缓存数据:", (error as Error).message);
+        }
+      })();
+    } else {
+      logger.info("index", "开始更新游戏数据...");
+      try {
+        const updateModule = await import("./scripts/update-data");
+        await updateModule.main(false);
+        logger.info("index", "游戏数据更新完成");
+      } catch (error) {
+        logger.error("index", "游戏数据更新失败，使用本地缓存数据:", (error as Error).message);
+      }
     }
   } else {
     logger.info("index", "跳过游戏数据更新，使用本地缓存数据");

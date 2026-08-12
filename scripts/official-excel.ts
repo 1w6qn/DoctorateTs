@@ -7,6 +7,7 @@
  */
 import * as fs from "fs";
 import * as path from "path";
+import * as os from "os";
 import JSZip from "jszip";
 import { createCipheriv, createDecipheriv, createHash } from "crypto";
 import { extractTextAsset } from "./vendor/unityfs";
@@ -241,36 +242,71 @@ async function main() {
 
   if (doConvert) {
     let ok = 0, fail = 0, skipped = 0;
-    for (const f of fs.readdirSync(OUT_DIR).filter((x) => x.endsWith(".json")).sort()) {
-      const name = f.slice(0, -5);
-      if (tableArg && name !== tableArg) continue;
+    const allTables = fs.readdirSync(OUT_DIR).filter((x) => x.endsWith(".json")).map((x) => x.slice(0, -5)).sort();
+    const targets = tableArg ? allTables.filter((n) => n === tableArg) : allTables;
+    // 并行转换：需转换的表数较多时用 worker_threads（首次/新版本全量）；否则内联
+    const needConvert = targets.filter((name) => {
+      const f = `${name}.json`;
       const out = path.join(DATA_EXCEL_DIR, f);
       const schemaPath = path.join(SCHEMA_DIR, f);
-      // 增量：原始解码 + schema 均未变 → 输出已是最新，跳过（启动提速关键）
       try {
         const decStat = fs.statSync(path.join(OUT_DIR, f));
         const outStat = fs.existsSync(out) ? fs.statSync(out) : null;
         const schemaStat = fs.existsSync(schemaPath) ? fs.statSync(schemaPath) : null;
-        if (
+        return !(
           outStat &&
           decStat.mtimeMs <= outStat.mtimeMs &&
           (!schemaStat || schemaStat.mtimeMs <= outStat.mtimeMs)
-        ) {
-          skipped++;
-          continue;
+        );
+      } catch {
+        return true;
+      }
+    });
+    skipped = targets.length - needConvert.length;
+
+    if (needConvert.length === 0) {
+      // 全部最新
+    } else if (needConvert.length >= 4 && !tableArg) {
+      // worker 并行（worker_threads 独立进程，避开单线程 CPU 瓶颈）
+      const { Worker } = await import("worker_threads");
+      const workerPath = path.join(__dirname, "convert-worker.ts");
+      const workers = Math.min(4, Math.max(1, Math.floor((os.cpus().length || 4) / 2)));
+      const chunks: string[][] = Array.from({ length: workers }, () => []);
+      needConvert.forEach((n, i) => chunks[i % workers].push(n));
+      const results = await Promise.all(
+        chunks.map(
+          (tables) =>
+            new Promise<void>((resolve) => {
+              const w = new Worker(workerPath, {
+                workerData: { tables, outDir: OUT_DIR, dataDir: DATA_EXCEL_DIR, schemaDir: SCHEMA_DIR },
+              });
+              w.on("message", (m: any) => {
+                if (m.done) { w.terminate(); resolve(); }
+                else if (m.status === "ok") ok++;
+                else if (m.status === "fail") { fail++; console.log(`  转换失败 ${m.name}: ${m.error}`); }
+              });
+              w.on("error", () => resolve());
+            }),
+        ),
+      );
+      void results;
+    } else {
+      // 内联转换（少量表）
+      for (const name of needConvert) {
+        const f = `${name}.json`;
+        const out = path.join(DATA_EXCEL_DIR, f);
+        const schemaPath = path.join(SCHEMA_DIR, f);
+        try {
+          const dec = JSON.parse(fs.readFileSync(path.join(OUT_DIR, f), "utf-8"));
+          const loc = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, "utf-8")) : null;
+          const completion = buildCompletion(schemaPath);
+          const result = convertTable(dec, loc, name, completion);
+          fs.writeFileSync(out, JSON.stringify(result));
+          ok++;
+        } catch (e) {
+          fail++;
+          console.log(`  转换失败 ${name}: ${(e as Error).message.slice(0, 60)}`);
         }
-      } catch { /* stat 失败则照常转换 */ }
-      try {
-        const dec = JSON.parse(fs.readFileSync(path.join(OUT_DIR, f), "utf-8"));
-        const loc = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, "utf-8")) : null;
-        // 从 schema JSON 计算记录级字段补齐（与 ArknightsGameData/OpenArknightsFBS 对齐）
-        const completion = buildCompletion(schemaPath);
-        const result = convertTable(dec, loc, name, completion);
-        fs.writeFileSync(out, JSON.stringify(result));
-        ok++;
-      } catch (e) {
-        fail++;
-        console.log(`  转换失败 ${name}: ${(e as Error).message.slice(0, 60)}`);
       }
     }
     console.log(`转换完成: ${ok} ok, ${fail} fail${skipped ? `（跳过 ${skipped} 张未变更表）` : ""}`);

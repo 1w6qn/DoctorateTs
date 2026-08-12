@@ -143,7 +143,21 @@ function mergeGachaFiles(): boolean {
     return false;
   }
   
+  // 增量：所有 gacha 源文件均不新于输出 → 已是最新，跳过合并（启动提速）
   const SKIP_FILES = ["gacha.json", "normalGacha.json", "DEFAULT.json"];
+  const targetStat = fs.existsSync(GACHA_DETAIL_TARGET) ? fs.statSync(GACHA_DETAIL_TARGET) : null;
+  if (targetStat) {
+    const newestSrc = fs
+      .readdirSync(GACHA_SOURCE_DIR)
+      .filter((f) => f.endsWith(".json") && !SKIP_FILES.includes(f))
+      .map((f) => fs.statSync(path.join(GACHA_SOURCE_DIR, f)).mtimeMs)
+      .reduce((m, t) => Math.max(m, t), 0);
+    if (newestSrc <= targetStat.mtimeMs) {
+      log(`gacha 源未变更，跳过合并（输出已最新）`);
+      return true;
+    }
+  }
+
   const result: { [key: string]: any } = { details: {} };
   let mergedCount = 0;
   
@@ -256,6 +270,14 @@ export async function syncGameVersion(): Promise<boolean> {
     const configData = JSON.parse(fs.readFileSync(configPath, "utf8"));
     const old = `${configData.version?.clientVersion}/${configData.version?.resVersion}`;
 
+    // TTL 缓存：1 小时内同步过且版本未变 → 跳过网络（启动提速）
+    const TTL_MS = 60 * 60 * 1000;
+    const lastSync = configData._lastVersionSyncTs ?? 0;
+    if (Date.now() - lastSync < TTL_MS) {
+      log(`版本同步 TTL 未过期（${Math.round((TTL_MS - (Date.now() - lastSync)) / 60000)} 分钟内已同步），跳过网络请求`);
+      return true;
+    }
+
     // 1. Android 版本（默认）
     const android = await getResVersion();
 
@@ -304,6 +326,7 @@ export async function syncGameVersion(): Promise<boolean> {
     if (windows) {
       configData.version.windows = windows;
     }
+    configData._lastVersionSyncTs = Date.now(); // TTL 缓存标记
     fs.writeFileSync(configPath, JSON.stringify(configData, null, 2) + "\n");
 
     const next = `${android.clientVersion}/${android.resVersion}`;

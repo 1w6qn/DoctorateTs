@@ -30,7 +30,7 @@
     "start": "tsx index.ts",
     "start:quick": "tsx index.ts -s",
     "start:capture": "tsx index.ts -s --capture",
-    "start:dev": "nodemon --exec tsx index.ts --ext ts",
+    "start:dev": "nodemon --exec tsx index.ts --ext ts --watch index.ts --watch app --watch config",
     "build": "tsc",
     "hook": "frida-compile hook/main.ts -o _arknights.js -c",
     "test": "vitest run",

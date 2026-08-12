@@ -276,6 +276,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         capsule: {},
         activeTool: {},
         mode: {},
+        modeGrade: this.initModeGradeStates(theme),
         recruitSet: {},
         buff: {},
         bgm: {},
@@ -284,6 +285,10 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         endBook: {},
         chatV2: {},
       };
+    }
+    // 历史存档缺失 modeGrade 时补齐（难度解锁状态）
+    if (!outer.collect?.modeGrade) {
+      outer.collect.modeGrade = this.initModeGradeStates(theme);
     }
     if (!outer.bank) outer.bank = { show: false, current: 0, record: 0, reward: {} };
     if (!outer.bp) outer.bp = { point: 0, reward: {} };
@@ -302,6 +307,20 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     if (band && typeof band === "object") {
       for (const buffId of Object.keys(unlocked)) {
         this.applyBandUpgradeVisibility(theme, buffId, band);
+      }
+      // 调查者增益（生灵的溯游）：难度 ≥3/6/9 时若已点亮 分裂/卵生/胎生 节点（科技树解锁），
+      // 对应分队升级（指挥/后勤/矛头分队）自动生效
+      const grade = this.current.game?.modeGrade ?? 0;
+      const lit = new Set(Object.keys(unlocked));
+      const THRESHOLDS: { node: string; minGrade: number }[] = [
+        { node: "rogue_6_difficulty_1", minGrade: 3 }, // 分裂（指挥分队升级）
+        { node: "rogue_6_difficulty_2", minGrade: 6 }, // 卵生（后勤分队升级）
+        { node: "rogue_6_difficulty_3", minGrade: 9 }, // 胎生（矛头分队升级）
+      ];
+      for (const { node, minGrade } of THRESHOLDS) {
+        if (grade >= minGrade && lit.has(node)) {
+          this.applyBandUpgradeVisibility(theme, node, band);
+        }
       }
     }
   }
@@ -410,31 +429,53 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       recruit_group_4: ["pioneer", "support", "special"], // 灵活部署：先锋、辅助、特种
       recruit_group_5: ["tank", "caster", "medic"], // 坚不可摧：重装、术师、医疗
     };
-    const groupProfs =
-      GROUP_PROFESSIONS[args.select] || GROUP_PROFESSIONS["recruit_group_random"];
+    // 随心所欲：第 1 张 5 星临时招募券（含 5 星）、第 2 张近战四职业（近卫/先锋/重装/特种）、
+    // 第 3 张远程四职业（狙击/术师/医疗/辅助）
+    const GROUP_TICKETS: { [key: string]: string[] } = {
+      recruit_group_random: [
+        `${theme}_recruit_ticket_5star`,
+        `${theme}_recruit_ticket_quad_melee`,
+        `${theme}_recruit_ticket_quad_ranged`,
+      ],
+    };
     const pool = PROFESSIONS.map((p) => `rogue_${roNum}_recruit_ticket_${p}`).filter(
       (t) => (excel.RoguelikeTopicTable.details[theme] as any)?.recruitTickets?.[t],
     );
     let picked: string[];
-    if (args.select === "recruit_group_random" || !groupProfs) {
-      const shuffled = [...pool].sort(() => Math.random() - 0.5);
-      picked = shuffled.slice(0, 3);
+    const groupTickets = GROUP_TICKETS[args.select] || [];
+    if (groupTickets.length > 0) {
+      // 随心所欲专用券（5star/quad_melee/quad_ranged）——校验存在，缺失回退随机
+      const valid = groupTickets.filter(
+        (t) => (excel.RoguelikeTopicTable.details[theme] as any)?.recruitTickets?.[t],
+      );
+      if (valid.length === 3) {
+        picked = valid;
+      } else {
+        const shuffled = [...pool].sort(() => Math.random() - 0.5);
+        picked = shuffled.slice(0, 3);
+      }
     } else {
-      // 按组合职业顺序取对应标准券（"先锋、狙击、特种招募券各一张"）
-      picked = groupProfs
-        .map((p) => `rogue_${roNum}_recruit_ticket_${p}`)
-        .filter((t) => pool.includes(t));
-      // 保底：组合职业券缺失时用随机补足 3 张
-      while (picked.length < 3) {
-        const rest = pool.filter((t) => !picked.includes(t));
-        if (rest.length === 0) break;
-        picked.push(rest[Math.floor(Math.random() * rest.length)]);
+      const groupProfs =
+        GROUP_PROFESSIONS[args.select] || GROUP_PROFESSIONS["recruit_group_random"];
+      if (args.select === "recruit_group_random" || !groupProfs) {
+        const shuffled = [...pool].sort(() => Math.random() - 0.5);
+        picked = shuffled.slice(0, 3);
+      } else {
+        // 按组合职业顺序取对应标准券（"先锋、狙击、特种招募券各一张"）
+        picked = groupProfs
+          .map((p) => `rogue_${roNum}_recruit_ticket_${p}`)
+          .filter((t) => pool.includes(t));
+        // 保底：组合职业券缺失时用随机补足 3 张
+        while (picked.length < 3) {
+          const rest = pool.filter((t) => !picked.includes(t));
+          if (rest.length === 0) break;
+          picked.push(rest[Math.floor(Math.random() * rest.length)]);
+        }
       }
     }
     for (const r of picked) {
       await this._trigger.emit("rlv2:recruit:gain", [r, "initial", 0]);
     }
-
     if (recruitEvt) {
       recruitEvt.content.initRecruit!.tickets = Object.values(
         this.inventory!.recruit,
@@ -1958,6 +1999,50 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
    *              cntUpgradeChar, cntKillEnemy, cntShopBuy, cntPerfectBattle, ...
    *              relicList, capsuleList, activeToolList, zones, squadBuff, charBuff }
    */
+
+  /**
+   * 难度解锁状态（collect.modeGrade）：进阶式扩展难度——通关 grade N 解锁 grade N+1。
+   * grade 0 默认解锁（state 2）；grade N（>=1）仅当上一级已通关（record.modeGrade 含 N-1 通关记录）才 state 2，
+   * 否则 state 1（可见未解锁）。客户端按 state 决定难度可选性。
+   */
+  private initModeGradeStates(theme: string): {
+    [mode: string]: { [grade: string]: { state: number; progress: number[] | null } };
+  } {
+    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+    const difficulties: any[] = (detail?.difficulties || []).filter(
+      (x: any) => (x.modeDifficulty ?? "NORMAL") === "NORMAL",
+    );
+    const states: {
+      [grade: string]: { state: number; progress: number[] | null };
+    } = {};
+    // 已通关难度（record.modeGrade[mode] 各难度通关计数 > 0）
+    const rec = (this.outer?.[theme]?.record as any) || {};
+    const cleared = new Set<number>();
+    const mode = this.current.game?.mode || "NORMAL";
+    const clearedGrades = (rec.modeGrade?.[mode] || {}) as { [g: string]: number };
+    for (const [g, cnt] of Object.entries(clearedGrades)) {
+      if (cnt > 0) cleared.add(parseInt(g, 10));
+    }
+    for (const diff of difficulties) {
+      const g = diff.grade ?? 0;
+      const isCleared = g === 0 || cleared.has(g) || cleared.has(g - 1) || g <= this.maxClearedGrade(cleared);
+      states[String(g)] = {
+        state: isCleared ? 2 : 1,
+        progress: null,
+      };
+    }
+    return { [mode]: states };
+  }
+
+  /** 已通关的最高连续难度（进阶式：通关 N-1 才解锁 N） */
+  private maxClearedGrade(cleared: Set<number>): number {
+    let max = 0;
+    for (let g = 1; ; g++) {
+      if (cleared.has(g)) max = g;
+      else break;
+    }
+    return max;
+  }
   private buildSettlement(
     over: boolean,
     success: number,
@@ -2130,6 +2215,21 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       const rec = (outerTheme.record ?? (outerTheme.record = {} as any)) as any;
       rec.lastZone = Math.max(rec.lastZone ?? 0, this._status.cursor.zone);
       rec.last = Date.now();
+      // 难度通关记录（进阶式解锁：通关 grade N 解锁 N+1）——record.modeGrade[mode][grade]++
+      const mode = this.current.game?.mode || "NORMAL";
+      const grade = this.current.game?.modeGrade ?? 0;
+      const recMode = (rec.modeGrade ?? (rec.modeGrade = {} as any)) as any;
+      const recGrades = (recMode[mode] ?? (recMode[mode] = {} as any)) as any;
+      recGrades[grade] = (recGrades[grade] || 0) + 1;
+      // 同步 collect.modeGrade 解锁状态（当前难度 + 下一级可解锁）
+      const collect = outerTheme.collect as any;
+      if (collect?.modeGrade?.[mode]) {
+        collect.modeGrade[mode][String(grade)] = { state: 2, progress: null };
+        const next = String(grade + 1);
+        if (collect.modeGrade[mode][next]) {
+          collect.modeGrade[mode][next] = { state: 2, progress: null };
+        }
+      }
       // 黑流树海襁褓类藏品（LEGACY 型：局内获得 → 下一局增益）持久化到 record.legacy
       const legacy = Object.values(this.inventory?.relic || {})
         .map((r) => (r as any).id)

@@ -42,7 +42,24 @@ vi.mock("@excel/excel", () => ({
           detailConst: { playerLevelTable: { 2: { exp: 10 } } },
         },
         rogue_6: {
-          init: [{ modeGrade: 15, predefinedId: null, modeId: "NORMAL" }],
+          init: [
+            { modeGrade: 0, predefinedId: null, modeId: "NORMAL", initialHp: 8, initialGold: 8, initialPopulation: 6, initialSquadCapacity: 6, initialBandRelic: ["rogue_6_band_1"] },
+            { modeGrade: 3, predefinedId: null, modeId: "NORMAL", initialHp: 6, initialGold: 8, initialPopulation: 6, initialSquadCapacity: 6, initialBandRelic: ["rogue_6_band_1"] },
+            { modeGrade: 15, predefinedId: null, modeId: "NORMAL", initialHp: 4, initialGold: 8, initialPopulation: 6, initialSquadCapacity: 6, initialBandRelic: ["rogue_6_band_1"] },
+          ],
+          difficulties: [
+            { modeDifficulty: "NORMAL", grade: 0, scoreFactor: 1, name: "保密等级" },
+            { modeDifficulty: "NORMAL", grade: 1, scoreFactor: 1.05, name: "保密等级·1", unlockText: "通过<保密等级>" },
+            { modeDifficulty: "NORMAL", grade: 3, scoreFactor: 1.15, name: "保密等级·3", unlockText: "通过<保密等级·2>" },
+            { modeDifficulty: "NORMAL", grade: 4, scoreFactor: 1.2, name: "保密等级·4", unlockText: "通过<保密等级·3>" },
+            { modeDifficulty: "NORMAL", grade: 15, scoreFactor: 1.5, name: "保密等级·15", unlockText: "通过<保密等级·14>" },
+          ],
+          recruitTickets: {
+            rogue_6_recruit_ticket_5star: { id: "rogue_6_recruit_ticket_5star", professionList: ["WARRIOR","SNIPER","TANK","MEDIC","SUPPORT","CASTER","SPECIAL","PIONEER"], rarityList: ["TIER_5"] },
+            rogue_6_recruit_ticket_quad_melee: { id: "rogue_6_recruit_ticket_quad_melee", professionList: ["WARRIOR","TANK","SPECIAL","PIONEER"], rarityList: ["ALL"] },
+            rogue_6_recruit_ticket_quad_ranged: { id: "rogue_6_recruit_ticket_quad_ranged", professionList: ["SNIPER","MEDIC","SUPPORT","CASTER"], rarityList: ["ALL"] },
+            rogue_6_recruit_ticket_pioneer: { id: "rogue_6_recruit_ticket_pioneer", professionList: ["PIONEER"], rarityList: ["TIER_1", "TIER_2", "TIER_3", "TIER_4", "TIER_5", "TIER_6"] },
+          },
           stages: {
             ro6_n_1_1: { id: "ro6_n_1_1" },
             ro6_n_2_1: { id: "ro6_n_2_1" },
@@ -65,13 +82,10 @@ vi.mock("@excel/excel", () => ({
           relics: {},
           choices: {},
           bandRef: {},
-          recruitTickets: {
-            rogue_6_recruit_ticket_pioneer: { id: "rogue_6_recruit_ticket_pioneer", professionList: ["PIONEER"], rarityList: ["TIER_1", "TIER_2", "TIER_3", "TIER_4", "TIER_5", "TIER_6"] },
-          },
           detailConst: { playerLevelTable: { 2: { exp: 10 } } },
         },
       },
-      modules: { rogue_1: { moduleTypes: [] }, rogue_6: { moduleTypes: [] } },
+      modules: { rogue_1: { moduleTypes: [] }, rogue_6: { moduleTypes: ["SCRAP"], scrap: { scrapItemToType: {} } } },
       consts: {},
     },
     CharacterTable: {},
@@ -246,5 +260,59 @@ describe("黑流树海四星希望=0", () => {
     expect(recruit.populationFor(3)).toBe(2); // TIER_4
     expect(recruit.populationFor(4)).toBe(3); // TIER_5
     expect(recruit.populationFor(5)).toBe(6); // TIER_6
+  });
+});
+
+describe("难度解锁/初始值/随心所欲", () => {
+  it("难度 0 默认解锁，通关 N 解锁 N+1", async () => {
+    const player = makePlayer("rogue_6");
+    await (player.rlv2 as any).createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
+    const mg = (player.rlv2 as any).outer["rogue_6"].collect.modeGrade.NORMAL;
+    expect(mg["0"].state).toBe(2); // 默认解锁
+    // 首次游玩（无通关记录）→ 仅 grade 0 解锁，grade 1 未解锁
+    expect(mg["1"].state).toBe(1);
+    // 上一把通关 grade 0 → record.modeGrade 记录 → 重新初始化时 grade 1 解锁
+    const player2 = makePlayer("rogue_6");
+    player2.rlv2.outer["rogue_6"].record.modeGrade = { NORMAL: { 0: 1 } };
+    await (player2.rlv2 as any).createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 0, predefinedId: null });
+    const mg2 = (player2.rlv2 as any).outer["rogue_6"].collect.modeGrade.NORMAL;
+    expect(mg2["0"].state).toBe(2);
+    expect(mg2["1"].state).toBe(2); // 通关 0 解锁 1
+  });
+
+  it("上一把通关难度 N 后 record.modeGrade 记录 + collect 解锁下一级", async () => {
+    const player = makePlayer("rogue_6");
+    await (player.rlv2 as any).createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 3, predefinedId: null });
+    (player.rlv2 as any)._status.cursor.zone = 5;
+    (player.rlv2 as any)._status.toEnding = "ro6_ending_1";
+    await (player.rlv2 as any).gameSettle();
+    const rec = (player.rlv2 as any).outer["rogue_6"].record;
+    expect(rec.modeGrade.NORMAL["3"]).toBeGreaterThan(0);
+    const mg = (player.rlv2 as any).outer["rogue_6"].collect.modeGrade.NORMAL;
+    expect(mg["3"].state).toBe(2);
+    expect(mg["4"].state).toBe(2); // 下一级解锁
+  });
+
+  it("零件箱容量默认 10", async () => {
+    const player = makePlayer("rogue_6");
+    await (player.rlv2 as any)._module.create();
+    const scrap = (player.rlv2 as any)._module.scrap;
+    expect(scrap.limit).toBe(10);
+  });
+
+  it("随心所欲组（recruit_group_random）含 5 星临时 + 近战四职业 + 远程四职业券", async () => {
+    const player = makePlayer("rogue_6");
+    await (player.rlv2 as any)._module.create();
+    const events = (player.rlv2 as any)._status._pending;
+    await (player.rlv2 as any)._status._pending.init();
+    const trigger = (player.rlv2 as any)._trigger;
+    await trigger.emit("rlv2:event:create", ["GAME_INIT_RECRUIT_SET", { step: [4, 5] }]);
+    await trigger.emit("rlv2:event:create", ["GAME_INIT_RECRUIT", { step: [5, 5] }]);
+    await (player.rlv2 as any).chooseInitialRecruitSet({ select: "recruit_group_random" });
+    const rec = Object.values((player.rlv2 as any).inventory.recruit);
+    const ids = rec.map((r: any) => r.id).sort();
+    expect(ids).toContain("rogue_6_recruit_ticket_5star");
+    expect(ids).toContain("rogue_6_recruit_ticket_quad_melee");
+    expect(ids).toContain("rogue_6_recruit_ticket_quad_ranged");
   });
 });

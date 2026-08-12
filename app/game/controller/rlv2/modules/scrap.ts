@@ -34,7 +34,7 @@ export class RoguelikeScrapManager {
     this._trigger = _trigger;
     this.activeVehicle = { instId: "", isWalk: 1 };
     this.inventory = {};
-    this.limit = 6;
+    this.limit = 10; // 零件箱容量 10（官方初始值）
     this._index = 0;
     this._trigger.on("rlv2:module:init", this.init.bind(this));
     this._trigger.on("rlv2:continue", this.continue.bind(this));
@@ -44,7 +44,7 @@ export class RoguelikeScrapManager {
   init(): void {
     this.activeVehicle = { instId: "", isWalk: 1 };
     this.inventory = {};
-    this.limit = 6;
+    this.limit = 10; // 零件箱容量 10（官方初始值）
     this._index = 0;
   }
 
@@ -52,7 +52,7 @@ export class RoguelikeScrapManager {
     const s = this._player.current.module?.scrap;
     this.activeVehicle = s?.activeVehicle || { instId: "", isWalk: 1 };
     this.inventory = s?.inventory || {};
-    this.limit = s?.limit || 6;
+    this.limit = s?.limit ?? 10;
     this._index = Object.keys(this.inventory).length;
   }
 

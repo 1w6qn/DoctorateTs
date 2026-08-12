@@ -165,15 +165,25 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
     // rogue_1 无 ro 前缀（scene_startbuff_enter / choice_startbuff_N），其余为 scene_roX_startbuff_enter / choice_roX_startbuff_N
     const sceneId =
       roNum === "1" ? "scene_startbuff_enter" : `scene_ro${roNum}_startbuff_enter`;
-    const choiceKeys = Object.keys(
+    const allChoiceKeys = Object.keys(
       excel.RoguelikeTopicTable.details[theme]?.choices || {},
     ).filter((k) =>
       roNum === "1"
         ? k.startsWith("choice_startbuff_")
         : k.startsWith(`choice_ro${roNum}_startbuff_`),
     );
-    // 支援选项 3 选 1（官方机制：上一把到 3 层后，下一把提供 3 个随机支援选项）
-    const shuffled = [...choiceKeys].sort(() => Math.random() - 0.5);
+    // 基础行动奖励 6 选 3（官方：6 个基础选项随机出 3 个；襁褓生灵可额外增加选项）。
+    // 黑流树海基础选项为 startbuff_1..6，襁褓类（7..12）仅当持有对应襁褓时追加。
+    const baseKeys =
+      roNum === "6"
+        ? allChoiceKeys.filter((k) => {
+            const n = parseInt(k.replace(/^.*startbuff_/, ""), 10);
+            return n >= 1 && n <= 6;
+          })
+        : allChoiceKeys;
+    const shuffled = [...(baseKeys.length > 0 ? baseKeys : allChoiceKeys)].sort(
+      () => Math.random() - 0.5,
+    );
     const picked = shuffled.slice(0, 3);
     const choices = picked.reduce((acc, key) => ({ ...acc, [key]: 1 }), {});
     return {

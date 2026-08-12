@@ -2152,10 +2152,32 @@
       }
       return flat;
     }
+    /** 垂直翻转 24×24 块（官服像素数据底部行在前——直接上传会上下颠倒） */
+    function flipBlock(flat) {
+      var out = [];
+      for (var r = TILE - 1; r >= 0; r--) {
+        for (var c = 0; c < TILE; c++) {
+          var i = (r * TILE + c) * 3;
+          out.push(flat[i], flat[i + 1], flat[i + 2]);
+        }
+      }
+      return out;
+    }
     function allBlocks() {
       var list = [];
       for (var by = 0; by < rows; by++) {
         for (var bx = 0; bx < cols; bx++) list.push(flatBlock(bx, by));
+      }
+      return list;
+    }
+    /** 上传块列表：官服展示从新到旧、一行 4 个——按大图块序号倒序生成（第一块最后传 =
+     *  最新显示在左上角，展示网格逐行拼回正确大图），且每块垂直翻转（官服数据底部行在前） */
+    function uploadBlocks() {
+      var list = [];
+      for (var by = rows - 1; by >= 0; by--) {
+        for (var bx = cols - 1; bx >= 0; bx--) {
+          list.push(flipBlock(flatBlock(bx, by)));
+        }
       }
       return list;
     }
@@ -2419,8 +2441,13 @@
       var phone = $("px-phone").value.trim();
       var pwd = $("px-pwd").value.trim();
       if (!phone || !pwd) { toast("请填写官服手机号与密码"); return; }
-      var blocks = allBlocks();
-      $("px-resp").textContent = "批量上传 " + blocks.length + " 张...（每张独立登录官服 → 网关 token → multipart 上传 → 保存确认，耗时较长请耐心等待）";
+      // 上传顺序：大图块序号倒序（官服从新到旧展示，第一块最后传=左上角）+ 每块垂直翻转
+      var uploadMeta = [];
+      for (var by = rows - 1; by >= 0; by--) {
+        for (var bx = cols - 1; bx >= 0; bx--) uploadMeta.push({ bx: bx, by: by });
+      }
+      var blocks = uploadBlocks();
+      $("px-resp").textContent = "批量上传 " + blocks.length + " 张...（按官服展示顺序：从新到旧、一行 4 个；每张登录 → 网关 token → multipart → 确认，耗时较长请耐心等待）";
       api("/pixel/upload-batch", {
         method: "POST",
         body: JSON.stringify({ phone: phone, pwd: pwd, pixelDataList: blocks }),
@@ -2428,9 +2455,10 @@
         .then(function (results) {
           var ok = results.filter(function (r) { return r.ok; }).length;
           var lines = results.map(function (r) {
-            return "块#" + r.index + " " + (r.ok ? "✓ pixelArtId=" + r.pixelArtId : "✗ " + r.error);
+            var m = uploadMeta[r.index] || {};
+            return "块(" + m.bx + "," + m.by + ") " + (r.ok ? "✓ pixelArtId=" + r.pixelArtId : "✗ " + r.error);
           }).join("\\n");
-          showResp("px-resp", "批量上传完成：成功 " + ok + " / " + results.length + "\\n" + lines);
+          showResp("px-resp", "批量上传完成：成功 " + ok + " / " + results.length + "（展示顺序：从新到旧、一行 4 个）\\n" + lines);
           refreshLogs();
         })
         .catch(function (e) { showResp("px-resp", "批量上传失败: " + e.message); });

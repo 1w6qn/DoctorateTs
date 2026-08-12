@@ -30,7 +30,7 @@ interface GridNode {
     kind?: number;
   };
   state: number; // 0 未访问 / 1 可访问 / 2 已访问
-  show: number; // 视野：0 未点亮 / 1 可见
+  show: boolean; // 视野：false 未点亮 / true 可见
 }
 
 interface GridZone {
@@ -123,7 +123,7 @@ function countColumnForLayer(layer: number): number {
 export class RoguelikeGridZoneManager {
   zones: { [key: string]: GridZone };
   stepRemain: number;
-  needConfirmStepZero: number;
+  needConfirmStepZero: boolean;
   _player: RoguelikeV2Controller;
   _trigger: TypedEventEmitter;
 
@@ -132,7 +132,7 @@ export class RoguelikeGridZoneManager {
     this._trigger = _trigger;
     this.zones = {};
     this.stepRemain = 20;
-    this.needConfirmStepZero = 0;
+    this.needConfirmStepZero = false;
     this._trigger.on("rlv2:module:init", this.init.bind(this));
     this._trigger.on("rlv2:continue", this.continue.bind(this));
     this._trigger.on("rlv2:zone:new", this.generate.bind(this));
@@ -142,14 +142,14 @@ export class RoguelikeGridZoneManager {
   init(): void {
     this.zones = {};
     this.stepRemain = 20;
-    this.needConfirmStepZero = 0;
+    this.needConfirmStepZero = false;
   }
 
   continue(): void {
     this.zones = this._player.current.module?.gridZone?.zones || {};
     this.stepRemain = this._player.current.module?.gridZone?.stepRemain ?? 20;
     this.needConfirmStepZero =
-      this._player.current.module?.gridZone?.needConfirmStepZero ?? 0;
+      this._player.current.module?.gridZone?.needConfirmStepZero ?? false;
   }
 
   /** 官服节点 ID：x*100+y（抓包 route ["602","300"] 确认） */
@@ -202,7 +202,7 @@ export class RoguelikeGridZoneManager {
     nodes[this.nodeId(sx, sy)] = {
       content: { kind: ROGUE6_NODE.GLADE },
       state: 1,
-      show: 1,
+      show: true,
     };
 
     // 终点（险路尽头/险路恶敌）——固定节点/终点状态可见
@@ -261,7 +261,7 @@ export class RoguelikeGridZoneManager {
     // 同步官服 map.zones 全量结构（客户端地图渲染读 map.zones：index/pos/next/type/stage/visibility）
     this.syncMapZones(zoneId, template, nodes);
     this.stepRemain = 20;
-    this.needConfirmStepZero = 1;
+    this.needConfirmStepZero = true;
   }
 
   /**
@@ -484,12 +484,12 @@ export class RoguelikeGridZoneManager {
     if (type === ROGUE6_NODE.BATTLE_NORMAL || type === ROGUE6_NODE.BATTLE_ELITE || type === ROGUE6_NODE.BATTLE_BOSS) {
       const pool = zoneStages.length > 0 ? zoneStages : allStages;
       const stageId = pool[Math.floor(Math.random() * Math.max(pool.length, 1))] || "";
-      return { content: { savage: { stageId }, kind: type }, state: 0, show: 1 };
+      return { content: { savage: { stageId }, kind: type }, state: 0, show: true };
     }
     if (type === ROGUE6_NODE.SHOP || type === ROGUE6_NODE.SECRET_SHOP) {
-      return { content: { shop: { goods: [] }, kind: type }, state: 0, show: 1 };
+      return { content: { shop: { goods: [] }, kind: type }, state: 0, show: true };
     }
-    return { content: { kind: type }, state: 0, show: 1 };
+    return { content: { kind: type }, state: 0, show: true };
   }
 
   /** 消耗一步行动力（rlv2:grid:step 事件处理器） */
@@ -518,7 +518,7 @@ export class RoguelikeGridZoneManager {
         const ny = Number(id) % 100;
         const dist = Math.abs(nx - lastX) + Math.abs(ny - lastY);
         if (dist <= visionRange) {
-          n.show = 1;
+          n.show = true;
           if (n.state === 0) n.state = 1;
         }
       }
@@ -529,10 +529,26 @@ export class RoguelikeGridZoneManager {
   toJSON(): {
     zones: { [key: string]: GridZone };
     stepRemain: number;
-    needConfirmStepZero: number;
+    needConfirmStepZero: boolean;
   } {
+    // 官方 gridZone 节点 content 仅 savage/shop（无 kind）；kind 为内部类型标记，
+    // 序列化时剥离（客户端节点类型从 map.zones.type 读取，多出 kind 字段会导致解析异常）
+    const strip = (n: GridNode): GridNode => {
+      const c: any = {};
+      if (n.content?.savage) c.savage = n.content.savage;
+      if (n.content?.shop) c.shop = n.content.shop;
+      return { content: c, state: n.state, show: n.show };
+    };
+    const zones: { [key: string]: GridZone } = {};
+    for (const [k, z] of Object.entries(this.zones)) {
+      const nodes: { [key: string]: GridNode } = {};
+      for (const [id, n] of Object.entries(z.nodes)) {
+        nodes[id] = strip(n);
+      }
+      zones[k] = { nodes };
+    }
     return {
-      zones: this.zones,
+      zones,
       stepRemain: this.stepRemain,
       needConfirmStepZero: this.needConfirmStepZero,
     };

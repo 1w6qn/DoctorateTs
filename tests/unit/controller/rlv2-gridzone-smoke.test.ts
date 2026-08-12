@@ -91,7 +91,7 @@ describe("GRID_ZONE 官服结构对齐（构造模板）", () => {
         // 起点（唯一 state 1）为 GLADE
         const start = Object.entries(light).find(([, n]: any) => n.state === 1);
         expect(start, `zone ${zone} 起点`).toBeTruthy();
-        expect((start![1] as any).content.kind).toBe(268435456);
+        expect((start![1] as any).content).toEqual({}); // 起点 content 空（官方线格式）
         // 终点 zone_end ≥1 且 type 为 VISIBLE_END/BATTLE_BOSS
         const ends = Object.values(mapNodes).filter((n: any) => n.zone_end);
         expect(ends.length, `zone ${zone} 终点`).toBeGreaterThan(0);

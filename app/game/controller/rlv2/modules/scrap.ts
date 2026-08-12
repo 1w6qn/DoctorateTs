@@ -22,7 +22,7 @@ export interface ScrapItem {
 }
 
 export class RoguelikeScrapManager {
-  activeVehicle: { instId: string; isWalk: number };
+  activeVehicle: { instId: string; isWalk: boolean };
   inventory: { [key: string]: ScrapItem };
   limit: number;
   _index: number;
@@ -32,7 +32,7 @@ export class RoguelikeScrapManager {
   constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
-    this.activeVehicle = { instId: "", isWalk: 1 };
+    this.activeVehicle = { instId: "", isWalk: true };
     this.inventory = {};
     this.limit = 10; // 零件箱容量 10（官方初始值）
     this._index = 0;
@@ -42,15 +42,15 @@ export class RoguelikeScrapManager {
   }
 
   init(): void {
-    this.activeVehicle = { instId: "", isWalk: 1 };
+    this.activeVehicle = { instId: "", isWalk: true };
     this.inventory = {};
     this.limit = 10; // 零件箱容量 10（官方初始值）
     this._index = 0;
   }
 
   continue(): void {
-    const s = this._player.current.module?.scrap;
-    this.activeVehicle = s?.activeVehicle || { instId: "", isWalk: 1 };
+    const s = this._player.current.module?.scrap as any;
+    this.activeVehicle = s?.activeVehicle || { instId: "", isWalk: true };
     this.inventory = s?.inventory || {};
     this.limit = s?.limit ?? 10;
     this._index = Object.keys(this.inventory).length;
@@ -73,10 +73,10 @@ export class RoguelikeScrapManager {
     };
     this._index += 1;
     // MOVE 型废品自动装备为载具（首个）
-    if (type === "MOVE" && this.activeVehicle.isWalk === 1) {
+    if (type === "MOVE" && this.activeVehicle.isWalk) {
       this.activeVehicle = {
         instId: `s_${this._index - 1}`,
-        isWalk: 0,
+        isWalk: false,
       };
     }
   }
@@ -85,15 +85,15 @@ export class RoguelikeScrapManager {
   changeVehicle(instId: string): void {
     const item = this.inventory[instId];
     if (instId === "") {
-      this.activeVehicle = { instId: "", isWalk: 1 };
+      this.activeVehicle = { instId: "", isWalk: true };
       return;
     }
     if (!item) return;
-    this.activeVehicle = { instId, isWalk: 0 };
+    this.activeVehicle = { instId, isWalk: false };
   }
 
   toJSON(): {
-    activeVehicle: { instId: string; isWalk: number };
+    activeVehicle: { instId: string; isWalk: boolean };
     inventory: { [key: string]: ScrapItem };
     limit: number;
   } {

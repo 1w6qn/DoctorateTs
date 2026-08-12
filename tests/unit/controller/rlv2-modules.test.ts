@@ -106,7 +106,7 @@ describe("rlv2 主题模块管理器（2026-08-10）", () => {
       gz.generate([1]);
       const json = gz.toJSON();
       expect(json.stepRemain).toBe(20);
-      expect(json.needConfirmStepZero).toBe(1);
+      expect(json.needConfirmStepZero).toBe(true);
       expect(Object.keys(json.zones["zone_1"].nodes).length).toBeGreaterThan(0);
       // 战斗节点应有 savage.stageId
       const nodes = Object.values(json.zones["zone_1"].nodes) as any[];
@@ -134,9 +134,10 @@ describe("rlv2 主题模块管理器（2026-08-10）", () => {
         gz.generate([1]);
         const nodes = gz.toJSON().zones["zone_1"].nodes;
         // 起点 = 模板 startSlot（官服 ID = x*100+y）→ [1,1] = "101"，为林间空地且可见可访问
-        expect(nodes["101"].content.kind).toBe(268435456); // GLADE
+        // 官方 gridZone content 无 kind（节点类型在 map.zones.type）；起点为空 content
+        expect(nodes["101"].content).toEqual({}); // GLADE 起点无 content
         expect(nodes["101"].state).toBe(1);
-        expect(nodes["101"].show).toBe(1);
+        expect(nodes["101"].show).toBe(true);
         // 起点相邻格（沿模板 edges 距离 1）一二层必为作战（官服 is={0:"combat",1:"combat"}）
         const template = BLACKSTREAM_CONSTRUCTIONS.find((c) => c.layerIndex === 0)!;
         const dist = gz.edgeDistances(template);
@@ -185,7 +186,7 @@ describe("rlv2 主题模块管理器（2026-08-10）", () => {
       s.gain(["rogue_6_scrap_M_01"]);
       const json = s.toJSON();
       expect(Object.keys(json.inventory)).toHaveLength(1);
-      expect(json.activeVehicle.isWalk).toBe(0);
+      expect(json.activeVehicle.isWalk).toBe(false);
       expect(json.activeVehicle.instId).toMatch(/^s_\d+$/);
     });
 
@@ -194,7 +195,7 @@ describe("rlv2 主题模块管理器（2026-08-10）", () => {
       const s = (player.rlv2 as any)._module.scrap;
       s.gain(["rogue_6_scrap_M_01"]);
       s.changeVehicle("");
-      expect(s.toJSON().activeVehicle.isWalk).toBe(1);
+      expect(s.toJSON().activeVehicle.isWalk).toBe(true);
     });
   });
 

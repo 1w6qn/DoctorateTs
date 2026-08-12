@@ -388,7 +388,7 @@ export namespace PlayerRoguelikeV2 {
             export interface GridMapData {
                 zones: { [key: string]: GridMapZoneData }
                 stepRemain: number
-                needConfirmStepZero: number
+                needConfirmStepZero: boolean
             }
             export interface GridMapZoneData {
                 nodes: { [key: string]: GridMapZoneNodeData }
@@ -396,7 +396,7 @@ export namespace PlayerRoguelikeV2 {
             export interface GridMapZoneNodeData {
                 content: GridMapZoneNodeContentData
                 state: number
-                show: number
+                show: boolean
             }
             export interface GridMapZoneNodeContentData {
                 savage?: { stageId: string }

@@ -22,7 +22,7 @@ export interface ScrapItem {
 }
 
 export class RoguelikeScrapManager {
-  activeVehicle: { instId: string; isWalk: boolean };
+  activeVehicle: { instId?: string; isWalk: boolean };
   inventory: { [key: string]: ScrapItem };
   limit: number;
   _index: number;
@@ -32,36 +32,50 @@ export class RoguelikeScrapManager {
   constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
-    this.activeVehicle = { instId: "", isWalk: true };
+    // 官服 createGame scrap：activeVehicle 仅 { isWalk: true }（步行无 instId）、
+    // 开局 2 个初始废品（s_1/s_2 = G_01，value 2）、零件箱容量 8（抓包确认）
+    this.activeVehicle = { isWalk: true };
     this.inventory = {};
-    this.limit = 10; // 零件箱容量 10（官方初始值）
+    this.limit = 8;
     this._index = 0;
+    this.seedInitial();
     this._trigger.on("rlv2:module:init", this.init.bind(this));
     this._trigger.on("rlv2:continue", this.continue.bind(this));
     this._trigger.on("rlv2:scrap:gain", this.gain.bind(this));
   }
 
   init(): void {
-    this.activeVehicle = { instId: "", isWalk: true };
+    this.activeVehicle = { isWalk: true };
     this.inventory = {};
-    this.limit = 10; // 零件箱容量 10（官方初始值）
+    this.limit = 8;
     this._index = 0;
+    this.seedInitial();
+  }
+
+  /** 官服开局废品：s_1/s_2 = rogue_6_scrap_G_01（value 2）——初始零件箱自带 2 件 */
+  private seedInitial(): void {
+    const theme = this._player.current.game?.theme || "";
+    if (theme !== "rogue_6") return;
+    const tpl = { id: "rogue_6_scrap_G_01", value: 2, useCnt: 0, ts: now() };
+    this.inventory["s_1"] = { instId: "s_1", ...tpl };
+    this.inventory["s_2"] = { instId: "s_2", ...tpl };
+    this._index = 3; // 下个废品 s_3（不覆盖 s_1/s_2）
   }
 
   continue(): void {
     const s = this._player.current.module?.scrap as any;
-    this.activeVehicle = s?.activeVehicle || { instId: "", isWalk: true };
+    this.activeVehicle = s?.activeVehicle || { isWalk: true };
     this.inventory = s?.inventory || {};
-    this.limit = s?.limit ?? 10;
+    this.limit = s?.limit ?? 8;
     this._index = Object.keys(this.inventory).length;
   }
 
   /** 获得废品（战斗/事件奖励） */
   gain([id]: [string]): void {
     const theme = this._player.current.game!.theme;
-    const type = (
-      excel.RoguelikeTopicTable.modules[theme] as any
-    )?.scrap?.scrapItemToType?.[id];
+    const scrapMod = (excel.RoguelikeTopicTable.modules[theme] as any) || {};
+    const type =
+      (scrapMod.scrap ?? scrapMod.sCRAP)?.scrapItemToType?.[id];
     if (!type) return;
     if (Object.keys(this.inventory).length >= this.limit) return;
     this.inventory[`s_${this._index}`] = {
@@ -85,7 +99,7 @@ export class RoguelikeScrapManager {
   changeVehicle(instId: string): void {
     const item = this.inventory[instId];
     if (instId === "") {
-      this.activeVehicle = { instId: "", isWalk: true };
+      this.activeVehicle = { isWalk: true };
       return;
     }
     if (!item) return;
@@ -93,7 +107,7 @@ export class RoguelikeScrapManager {
   }
 
   toJSON(): {
-    activeVehicle: { instId: string; isWalk: boolean };
+    activeVehicle: { instId?: string; isWalk: boolean };
     inventory: { [key: string]: ScrapItem };
     limit: number;
   } {

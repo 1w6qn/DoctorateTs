@@ -1835,7 +1835,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       delete inventory[args.instId];
       // 若丢弃的是当前载具，切回步行
       if (sm.activeVehicle?.instId === args.instId) {
-        sm.activeVehicle = { instId: "", isWalk: true };
+        sm.activeVehicle = { isWalk: true };
       }
     }
     this._status.state = "WAIT_MOVE";

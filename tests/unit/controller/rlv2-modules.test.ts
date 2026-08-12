@@ -180,12 +180,14 @@ describe("rlv2 主题模块管理器（2026-08-10）", () => {
   });
 
   describe("SCRAP（rogue_6）", () => {
-    it("gain MOVE 型废品应自动装备为载具", async () => {
+    it("gain MOVE 型废品应自动装备为载具（开局自带 s_1/s_2）", async () => {
       const player = await createModules(makePlayer("rogue_6"));
       const s = (player.rlv2 as any)._module.scrap;
+      // 官服开局 2 件初始废品（s_1/s_2 = G_01）
+      expect(Object.keys(s.inventory)).toHaveLength(2);
       s.gain(["rogue_6_scrap_M_01"]);
       const json = s.toJSON();
-      expect(Object.keys(json.inventory)).toHaveLength(1);
+      expect(Object.keys(json.inventory)).toHaveLength(3); // 2 初始 + 1 MOVE
       expect(json.activeVehicle.isWalk).toBe(false);
       expect(json.activeVehicle.instId).toMatch(/^s_\d+$/);
     });

@@ -128,10 +128,19 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
     step: [number, number];
   }): PlayerRoguelikePendingEvent.Content {
     const initConfig = this._player.initConfig;
+    // 分队可选列表：按 collect.band 解锁状态过滤（state 1 = 已解锁可开局选择）。
+    // 官服 createGame 只给已解锁分队（升级变体解锁后旧分队隐藏——如 band_2 解锁则 band_1 不出现）。
+    const theme = this._player.current.game!.theme;
+    const bandStates = (this._player.outer as any)?.[theme]?.collect?.band || {};
+    const bands = (initConfig.initialBandRelic || []).filter((id: string) => {
+      const st = bandStates[id]?.state;
+      // 未初始化（首玩）时全给；否则只给 state 1
+      return st === undefined ? true : st === 1;
+    });
     return {
       initRelic: {
         step: args.step,
-        items: (initConfig.initialBandRelic || []).reduce((acc, cur, idx) => {
+        items: bands.reduce((acc: any, cur: string, idx: number) => {
           return { ...acc, [idx.toString()]: { id: cur, count: 1 } };
         }, {}),
       },

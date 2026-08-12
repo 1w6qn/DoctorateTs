@@ -293,11 +293,13 @@ describe("难度解锁/初始值/随心所欲", () => {
     expect(mg["4"].state).toBe(2); // 下一级解锁
   });
 
-  it("零件箱容量默认 10", async () => {
+  it("零件箱容量默认 8（官服抓包）且开局 2 件废品", async () => {
     const player = makePlayer("rogue_6");
     await (player.rlv2 as any)._module.create();
     const scrap = (player.rlv2 as any)._module.scrap;
-    expect(scrap.limit).toBe(10);
+    expect(scrap.limit).toBe(8);
+    expect(Object.keys(scrap.inventory).length).toBe(2); // s_1/s_2
+    expect(scrap.activeVehicle).toEqual({ isWalk: true }); // 步行无 instId
   });
 
   it("随心所欲组（recruit_group_random）含 5 星临时 + 近战四职业 + 远程四职业券", async () => {

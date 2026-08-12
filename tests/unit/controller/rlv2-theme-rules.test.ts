@@ -52,7 +52,8 @@ vi.mock("@excel/excel", () => ({
             { modeDifficulty: "NORMAL", grade: 1, scoreFactor: 1.05, name: "保密等级·1", unlockText: "通过<保密等级>" },
             { modeDifficulty: "NORMAL", grade: 3, scoreFactor: 1.15, name: "保密等级·3", unlockText: "通过<保密等级·2>" },
             { modeDifficulty: "NORMAL", grade: 4, scoreFactor: 1.2, name: "保密等级·4", unlockText: "通过<保密等级·3>" },
-            { modeDifficulty: "NORMAL", grade: 15, scoreFactor: 1.5, name: "保密等级·15", unlockText: "通过<保密等级·14>" },
+            { modeDifficulty: "NORMAL", grade: 7, scoreFactor: 1.35, name: "保密等级·7", ruleDesc: "零件箱的初始容量-2", unlockText: "通过<保密等级·6>" },
+            { modeDifficulty: "NORMAL", grade: 15, scoreFactor: 1.5, name: "保密等级·15", ruleDesc: "非初始招募六星干员的希望+1", unlockText: "通过<保密等级·14>" },
           ],
           recruitTickets: {
             rogue_6_recruit_ticket_5star: { id: "rogue_6_recruit_ticket_5star", professionList: ["WARRIOR","SNIPER","TANK","MEDIC","SUPPORT","CASTER","SPECIAL","PIONEER"], rarityList: ["TIER_5"] },
@@ -293,13 +294,18 @@ describe("难度解锁/初始值/随心所欲", () => {
     expect(mg["4"].state).toBe(2); // 下一级解锁
   });
 
-  it("零件箱容量默认 8（官服抓包）且开局 2 件废品", async () => {
+  it("零件箱容量默认 10，N7+ 难度叠加后 -2（官服抓包 N15=8）", async () => {
     const player = makePlayer("rogue_6");
     await (player.rlv2 as any)._module.create();
     const scrap = (player.rlv2 as any)._module.scrap;
-    expect(scrap.limit).toBe(8);
-    expect(Object.keys(scrap.inventory).length).toBe(2); // s_1/s_2
+    expect(scrap.limit).toBe(10); // 基础容量 10
+    expect(Object.keys(scrap.inventory).length).toBe(2); // s_1/s_2 开局废品
     expect(scrap.activeVehicle).toEqual({ isWalk: true }); // 步行无 instId
+    // 难度7 "零件箱容量-2" 叠加：应用难度 buff 后 limit=8（官服 N15 抓包）
+    await (player.rlv2 as any)._buff.applyBuffs([
+      (player.rlv2 as any)._buff.difficultyBuffs("rogue_6", 15),
+    ]);
+    expect(scrap.limit).toBe(8);
   });
 
   it("随心所欲组（recruit_group_random）含 5 星临时 + 近战四职业 + 远程四职业券", async () => {

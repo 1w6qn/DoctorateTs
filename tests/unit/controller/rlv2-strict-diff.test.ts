@@ -150,7 +150,11 @@ describe("官服抓包严格结构 diff（2026-08-11 rogue_6）", () => {
     const rlv2 = player.rlv2 as any;
     const all: string[][] = [];
 
-    all.push(await replayStep(rlv2, () => rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null }), "createGame", "2026-08-11T07-45-24-344Z", "createGame"));
+    await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
+    // 进阶式难度：N15 叠加难度7"零件箱容量-2" → 基础 10 - 2 = 8（官服抓包确认）
+    const scrapLimit15 = JSON.parse(JSON.stringify(rlv2.toJSON())).current.module.scrap.limit;
+    expect(scrapLimit15).toBe(8);
+    all.push(await replayStep(rlv2, () => Promise.resolve(), "createGame", "2026-08-11T07-45-24-344Z", "createGame"));
     all.push(await replayStep(rlv2, () => rlv2.chooseInitialRelic({ select: "0" }), "chooseInitialRelic", "2026-08-11T07-45-29-912Z", "chooseInitialRelic"));
     all.push(await replayStep(rlv2, () => rlv2.finishEvent(), "finishEvent", "2026-08-11T07-45-32-446Z", "finishEvent(GIFT)"));
     all.push(await replayStep(rlv2, () => rlv2.selectChoice({ choice: "choice_ro6_startbuff_1" }), "selectChoice", "2026-08-11T07-45-47-290Z", "selectChoice(SUPPORT)"));

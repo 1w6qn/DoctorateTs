@@ -216,10 +216,11 @@ describe("难度描述 → buff 生成（difficultyBuffs）", () => {
     // 手工构造状态（create 全流程会重置为 init 数值）
     (player.rlv2 as any)._status.property.hp = { current: 10, max: 10 };
     (player.rlv2 as any)._status.property.capacity = 6;
+    // 进阶式累积：N10 应用 grade 1..10（grade1 生命-2 + grade10 生命-2 = -4；grade10 部署-1）
     await buff.applyBuffs([buff.difficultyBuffs("rogue_6", 10)]);
-    expect((player.rlv2 as any)._status.property.hp.max).toBe(8);
-    expect((player.rlv2 as any)._status.property.capacity).toBe(5);
-    // 废品上限
+    expect((player.rlv2 as any)._status.property.hp.max).toBe(6); // 10 - 2(grade1) - 2(grade10)
+    expect((player.rlv2 as any)._status.property.capacity).toBe(5); // 6 - 1(grade10)
+    // 废品上限：N7 应用 grade 1..7（grade7 零件箱-2；grade1 生命-2 不影响）
     const player7 = makePlayer("rogue_6", 7);
     await (player7.rlv2 as any)._module.create();
     const scrap = (player7.rlv2 as any)._module.scrap;
@@ -227,6 +228,6 @@ describe("难度描述 → buff 生成（difficultyBuffs）", () => {
     await (player7.rlv2 as any)._buff.applyBuffs([
       (player7.rlv2 as any)._buff.difficultyBuffs("rogue_6", 7),
     ]);
-    expect(scrap.limit).toBe(4);
+    expect(scrap.limit).toBe(4); // 6 - 2(grade7)
   });
 });

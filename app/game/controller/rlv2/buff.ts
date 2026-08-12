@@ -54,13 +54,12 @@ export class RoguelikeBuffManager {
     if (modebuff) {
       await this.applyBuffs([[...modebuff]]);
     }
-    // 难度 buff：data/rlv2.json modebuff 多数主题缺失（rogue_6 为空）→ 按官方难度描述
-    // （difficulties[].ruleDesc/addDesc）解析生成，官方无结构化难度 buff 数据
-    await this.applyBuffs([this.difficultyBuffs(theme, modeGrade)]);
+    // 难度 buff 由 createGame 在 rlv2:create（模块初始化完成）之后统一应用：
+    // scrap_limit_add 等需要 SCRAP 模块实例已创建（此处模块可能尚未就绪）
   }
 
   /**
-   * 根据难度描述（ruleDesc/addDesc 文本）生成难度 buff。
+   * 根据难度描述（ruleDesc/addDesc 文本）生成难度 buff（进阶式累积：选 N 难度时 1..N 全部生效）。
    * 官服 difficulty 仅带人类可读描述，无结构化数据；此处解析出服务端可生效的条目：
    * - 初始目标生命上限-N → level_life_point_add -N（生命上限/当前）
    * - 可同时部署人数-N → deploy_limit_add -N（可部署干员上限）
@@ -74,16 +73,26 @@ export class RoguelikeBuffManager {
     const game = this._player.current.game;
     if (!game) return [];
     const detail = excel.RoguelikeTopicTable.details[theme];
-    const difficulty = (detail.difficulties || []).find(
-      (d: any) =>
+    // 进阶式难度：选 N 难度时 grade 1..N 全部生效（每个难度的 ruleDesc/addDesc 独立解析，
+    // 累积叠加——如 N15 含难度7的"零件箱容量-2"、难度10的"部署-1/生命-2"）
+    const difficulties = ((detail.difficulties || []) as any[]).filter(
+      (d) =>
         (d.modeDifficulty ?? "NORMAL") === (game.mode ?? "NORMAL") &&
-        (d.grade ?? 0) === (modeGrade ?? 0),
+        (d.grade ?? 0) >= 1 &&
+        (d.grade ?? 0) <= (modeGrade ?? 0),
     );
-    if (!difficulty) return [];
-    const texts = [difficulty.ruleDesc, difficulty.addDesc]
-      .filter(Boolean)
-      .join(" ");
     const buffs: RoguelikeBuff[] = [];
+    for (const difficulty of difficulties) {
+      const texts = [difficulty.ruleDesc, difficulty.addDesc]
+        .filter(Boolean)
+        .join(" ");
+      this.parseDifficultyText(theme, texts, buffs);
+    }
+    return buffs;
+  }
+
+  /** 解析单个难度描述文本 → 追加到 buffs */
+  private parseDifficultyText(theme: string, texts: string, buffs: RoguelikeBuff[]): void {
     const bb = (key: string, value: number) => ({
       key,
       blackboard: [{ key: "value", value }] as Blackboard,
@@ -130,8 +139,6 @@ export class RoguelikeBuffManager {
     // 初始灯火-N（rogue_2；描述自带符号）
     const light = texts.match(/初始灯火\s*([+-]?\d+)/);
     if (light) buffs.push(bb("light_add", parseInt(light[1], 10)));
-
-    return buffs;
   }
 
   async applyBuffs([[...args]]: [RoguelikeBuff[]]) {

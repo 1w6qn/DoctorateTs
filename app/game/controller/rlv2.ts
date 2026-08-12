@@ -235,6 +235,12 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       this._status.toEnding = `ro${theme.slice(-1)}_ending_2`;
       this._status.chgEnding = true;
     }
+
+    // 难度 buff（进阶式累积）在 rlv2:create（模块初始化完成）之后应用——
+    // scrap_limit_add 等需要 SCRAP 模块实例已创建，buff.create 阶段模块可能未就绪
+    await this._buff.applyBuffs([
+      this._buff.difficultyBuffs(theme, this.current.game!.modeGrade),
+    ]);
   }
 
   /**

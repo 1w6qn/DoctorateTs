@@ -36,7 +36,7 @@ export class RoguelikeScrapManager {
     // 开局 2 个初始废品（s_1/s_2 = G_01，value 2）、零件箱容量 8（抓包确认）
     this.activeVehicle = { isWalk: true };
     this.inventory = {};
-    this.limit = 8;
+    this.limit = 10; // 零件箱基础容量 10（难度 buff 叠加后为 8）
     this._index = 0;
     this.seedInitial();
     this._trigger.on("rlv2:module:init", this.init.bind(this));
@@ -47,7 +47,7 @@ export class RoguelikeScrapManager {
   init(): void {
     this.activeVehicle = { isWalk: true };
     this.inventory = {};
-    this.limit = 8;
+    this.limit = 10; // 零件箱基础容量 10（难度 buff 叠加后为 8）
     this._index = 0;
     this.seedInitial();
   }
@@ -66,7 +66,7 @@ export class RoguelikeScrapManager {
     const s = this._player.current.module?.scrap as any;
     this.activeVehicle = s?.activeVehicle || { isWalk: true };
     this.inventory = s?.inventory || {};
-    this.limit = s?.limit ?? 8;
+    this.limit = s?.limit ?? 10;
     this._index = Object.keys(this.inventory).length;
   }
 

@@ -421,6 +421,12 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         };
       }
     }
+    // 难度效果：进入下一区域损失 N% 源石锭（difficulty zone_gold_loss_percent）
+    const goldLossPct = this._buff?._zoneGoldLossPercent ?? 0;
+    if (goldLossPct > 0) {
+      const lost = Math.floor((this._status.property.gold * goldLossPct) / 100);
+      this._status.property.gold -= lost;
+    }
     this._status.cursor.zone += 1;
     this._status.cursor.position = null;
     await this._trigger.emit("rlv2:zone:new", [this._status.cursor.zone]);

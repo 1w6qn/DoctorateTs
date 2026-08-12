@@ -117,6 +117,15 @@ export class RoguelikeRecruitManager {
           population += buff.blackboard[2].value!;
         }
       }
+      // 难度效果：招募 N 星及以上干员希望消耗 +cost（recruit_hop_cost，blackboard min_star/cost）
+      for (const buff of this._player._buff.filterBuffs("recruit_hop_cost")) {
+        const minStar = buff.blackboard[0]?.value ?? 0;
+        const cost = buff.blackboard[1]?.value ?? 0;
+        // rarityIdx 0 基：TIER_3→2 / TIER_4→3 / TIER_5→4 / TIER_6→5，与星级（3/4/5/6）差 1
+        if (minStar > 0 && rarityIdx + 1 >= minStar) {
+          population += cost;
+        }
+      }
       for (const buff of this._player._buff.filterBuffs(
         "limited_direct_upgrade",
       )) {

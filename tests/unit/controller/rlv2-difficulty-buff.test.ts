@@ -1,0 +1,232 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { enablePatches } from "immer";
+
+enablePatches();
+
+// 官方 excel mock：difficulties 带 ruleDesc/addDesc（难度描述）
+vi.mock("@excel/excel", () => ({
+  default: {
+    RoguelikeTopicTable: {
+      details: {
+        rogue_6: {
+          init: [{ modeGrade: 0, predefinedId: null, modeId: "NORMAL" }],
+          difficulties: [
+            { modeDifficulty: "NORMAL", grade: 1, ruleDesc: "初始目标生命上限-2" },
+            { modeDifficulty: "NORMAL", grade: 5, ruleDesc: "所有敌人最大生命+30%" },
+            { modeDifficulty: "NORMAL", grade: 7, ruleDesc: "零件箱的初始容量-2" },
+            {
+              modeDifficulty: "NORMAL",
+              grade: 9,
+              ruleDesc: "进入下一区域时损失10%的源石锭",
+            },
+            {
+              modeDifficulty: "NORMAL",
+              grade: 10,
+              ruleDesc: "可同时部署人数-1，初始目标生命上限-2",
+            },
+            {
+              modeDifficulty: "NORMAL",
+              grade: 13,
+              ruleDesc: "非初始招募五星干员的希望+1",
+            },
+            {
+              modeDifficulty: "NORMAL",
+              grade: 15,
+              ruleDesc: "非初始招募六星干员的希望+1",
+            },
+          ],
+          items: {},
+          relics: {},
+          detailConst: { playerLevelTable: { 2: { exp: 10 } } },
+        },
+        rogue_3: {
+          init: [{ modeGrade: 0, predefinedId: null, modeId: "NORMAL" }],
+          difficulties: [
+            { modeDifficulty: "NORMAL", grade: 2, ruleDesc: "初始目标生命上限-4" },
+            {
+              modeDifficulty: "NORMAL",
+              grade: 6,
+              ruleDesc: "招募4星及以上干员时希望消耗+1",
+            },
+            { modeDifficulty: "NORMAL", grade: 9, ruleDesc: "可同时部署人数-1" },
+          ],
+          items: {},
+          relics: {},
+          detailConst: { playerLevelTable: { 2: { exp: 10 } } },
+        },
+        rogue_2: {
+          init: [{ modeGrade: 0, predefinedId: null, modeId: "NORMAL" }],
+          difficulties: [
+            {
+              modeDifficulty: "NORMAL",
+              grade: 4,
+              ruleDesc: "招募3星及以上干员时希望消耗+1",
+              addDesc: "每进入新的区域，所有敌人攻击力和生命值额外+4%",
+            },
+            { modeDifficulty: "NORMAL", grade: 14, ruleDesc: "可同时部署人数-1" },
+          ],
+          items: {},
+          relics: {},
+          detailConst: { playerLevelTable: { 2: { exp: 10 } } },
+        },
+      },
+      modules: {
+        rogue_6: { moduleTypes: ["SCRAP"], scrap: { scrapItemToType: {} } },
+        rogue_3: { moduleTypes: [] },
+        rogue_2: { moduleTypes: ["SANCHECK", "DICE"] },
+      },
+      consts: {},
+    },
+    CharacterTable: {},
+    RoguelikeConsts: { rogue_6: { modebuff: {} } },
+  },
+}));
+
+import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { mockPlayerData } from "../../helpers";
+
+function makePlayer(theme: string, modeGrade: number) {
+  const pd: any = mockPlayerData({
+    pushFlags: { status: 123456 } as any,
+    rlv2: {
+      outer: { [theme]: {} } as any,
+      current: {},
+      pinned: {},
+    } as any,
+    medal: { medals: {}, custom: { currentIndex: "0", customs: {} } } as any,
+    mission: { missions: { DAILY: {}, ACTIVITY: {} }, missionRewards: { dailyPoint: 0, weeklyPoint: 0, rewards: {} } } as any,
+  });
+  const player = new PlayerDataManager(pd._playerdata);
+  (player.rlv2 as any).current.game = {
+    theme,
+    mode: "NORMAL",
+    modeGrade,
+  } as any;
+  return player;
+}
+
+describe("难度描述 → buff 生成（difficultyBuffs）", () => {
+  it("rogue_6 难度 1：目标生命上限-2", async () => {
+    const player = makePlayer("rogue_6", 1);
+    await (player.rlv2 as any)._module.create();
+    await (player.rlv2 as any)._buff.create();
+    const buffs = (player.rlv2 as any)._buff.difficultyBuffs("rogue_6", 1);
+    expect(buffs).toContainEqual({
+      key: "level_life_point_add",
+      blackboard: [{ key: "value", value: -2 }],
+    });
+  });
+
+  it("rogue_6 难度 7：零件箱容量-2", async () => {
+    const player = makePlayer("rogue_6", 7);
+    await (player.rlv2 as any)._module.create();
+    const buffs = (player.rlv2 as any)._buff.difficultyBuffs("rogue_6", 7);
+    expect(buffs).toContainEqual({
+      key: "scrap_limit_add",
+      blackboard: [{ key: "value", value: -2 }],
+    });
+  });
+
+  it("rogue_6 难度 9：区域损失 10% 源石锭", async () => {
+    const player = makePlayer("rogue_6", 9);
+    await (player.rlv2 as any)._module.create();
+    const buffs = (player.rlv2 as any)._buff.difficultyBuffs("rogue_6", 9);
+    expect(buffs).toContainEqual({
+      key: "zone_gold_loss_percent",
+      blackboard: [{ key: "value", value: 10 }],
+    });
+  });
+
+  it("rogue_6 难度 10：部署人数-1 + 生命上限-2", async () => {
+    const player = makePlayer("rogue_6", 10);
+    await (player.rlv2 as any)._module.create();
+    const buffs = (player.rlv2 as any)._buff.difficultyBuffs("rogue_6", 10);
+    expect(buffs).toContainEqual({
+      key: "deploy_limit_add",
+      blackboard: [{ key: "value", value: -1 }],
+    });
+    expect(buffs).toContainEqual({
+      key: "level_life_point_add",
+      blackboard: [{ key: "value", value: -2 }],
+    });
+  });
+
+  it("rogue_6 难度 13/15：五星/六星干员希望+1（中文数字）", async () => {
+    const player13 = makePlayer("rogue_6", 13);
+    await (player13.rlv2 as any)._module.create();
+    const b13 = (player13.rlv2 as any)._buff.difficultyBuffs("rogue_6", 13);
+    expect(b13).toContainEqual({
+      key: "recruit_hop_cost",
+      blackboard: [
+        { key: "min_star", value: 5 },
+        { key: "cost", value: 1 },
+      ],
+    });
+    const player15 = makePlayer("rogue_6", 15);
+    await (player15.rlv2 as any)._module.create();
+    const b15 = (player15.rlv2 as any)._buff.difficultyBuffs("rogue_6", 15);
+    expect(b15).toContainEqual({
+      key: "recruit_hop_cost",
+      blackboard: [
+        { key: "min_star", value: 6 },
+        { key: "cost", value: 1 },
+      ],
+    });
+  });
+
+  it("rogue_3 难度 2/6/9：生命上限-4 / 4星+希望+1 / 部署-1", async () => {
+    const player = makePlayer("rogue_3", 2);
+    await (player.rlv2 as any)._module.create();
+    expect((player.rlv2 as any)._buff.difficultyBuffs("rogue_3", 2)).toContainEqual({
+      key: "level_life_point_add",
+      blackboard: [{ key: "value", value: -4 }],
+    });
+    expect((player.rlv2 as any)._buff.difficultyBuffs("rogue_3", 6)).toContainEqual({
+      key: "recruit_hop_cost",
+      blackboard: [
+        { key: "min_star", value: 4 },
+        { key: "cost", value: 1 },
+      ],
+    });
+    expect((player.rlv2 as any)._buff.difficultyBuffs("rogue_3", 9)).toContainEqual({
+      key: "deploy_limit_add",
+      blackboard: [{ key: "value", value: -1 }],
+    });
+  });
+
+  it("rogue_2 难度 4：3星及以上干员希望+1（含 addDesc 干扰不误匹配）", async () => {
+    const player = makePlayer("rogue_2", 4);
+    await (player.rlv2 as any)._module.create();
+    const buffs = (player.rlv2 as any)._buff.difficultyBuffs("rogue_2", 4);
+    expect(buffs).toContainEqual({
+      key: "recruit_hop_cost",
+      blackboard: [
+        { key: "min_star", value: 3 },
+        { key: "cost", value: 1 },
+      ],
+    });
+    // addDesc 中"敌人攻击力和生命值额外+4%"不产生服务端 buff
+    expect(buffs.some((b: any) => b.key === "level_life_point_add")).toBe(false);
+  });
+
+  it("applyBuffs 实际应用：难度 1 生命-2、难度 7 废品上限-2、难度 10 部署-1", async () => {
+    const player = makePlayer("rogue_6", 10);
+    await (player.rlv2 as any)._module.create();
+    const buff = (player.rlv2 as any)._buff;
+    // 手工构造状态（create 全流程会重置为 init 数值）
+    (player.rlv2 as any)._status.property.hp = { current: 10, max: 10 };
+    (player.rlv2 as any)._status.property.capacity = 6;
+    await buff.applyBuffs([buff.difficultyBuffs("rogue_6", 10)]);
+    expect((player.rlv2 as any)._status.property.hp.max).toBe(8);
+    expect((player.rlv2 as any)._status.property.capacity).toBe(5);
+    // 废品上限
+    const player7 = makePlayer("rogue_6", 7);
+    await (player7.rlv2 as any)._module.create();
+    const scrap = (player7.rlv2 as any)._module.scrap;
+    scrap.limit = 6;
+    await (player7.rlv2 as any)._buff.applyBuffs([
+      (player7.rlv2 as any)._buff.difficultyBuffs("rogue_6", 7),
+    ]);
+    expect(scrap.limit).toBe(4);
+  });
+});

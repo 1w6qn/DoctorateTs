@@ -248,6 +248,28 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   },
   {
     method: "POST",
+    path: "/api/pixel/list-official",
+    summary: "读取官服已上传像素画（HTTP getPixelArt + OSS .dat 下载解析，返回缩略像素数组）",
+    params: [
+      { name: "phone", type: "string", required: true, desc: "官服手机号" },
+      { name: "pwd", type: "string", required: true, desc: "官服密码" },
+      { name: "pixelArtIds", type: "object", desc: "像素画 ID 列表（缺省读全部）" },
+    ],
+    body: '{"phone":"13800000000","pwd":"password123","pixelArtIds":[1001,1002]}',
+  },
+  {
+    method: "POST",
+    path: "/api/pixel/delete-official",
+    summary: "撤销（删除）官服已上传像素画（网关 DeletePixelArtReq）",
+    params: [
+      { name: "phone", type: "string", required: true, desc: "官服手机号" },
+      { name: "pwd", type: "string", required: true, desc: "官服密码" },
+      { name: "pixelArtIds", type: "object", required: true, desc: "要删除的像素画 ID 列表" },
+    ],
+    body: '{"phone":"13800000000","pwd":"password123","pixelArtIds":[1001,1002]}',
+  },
+  {
+    method: "POST",
     path: "/api/users/:uid/grant-all",
     summary: "批量发放全部 ItemTable 物品（sortId>0；CONSUME→consumable，其余→inventory）",
     params: [{ name: "count", type: "number", desc: "每样数量（默认 999）" }],

@@ -610,6 +610,36 @@ router.post("/api/pixel/upload-batch", async (req: Request, res: Response) => {
   }
 });
 
+/** 读取官服已上传像素画（HTTP getPixelArt + OSS .dat 下载解析，返回缩略像素数组） */
+router.post("/api/pixel/list-official", async (req: Request, res: Response) => {
+  try {
+    const { phone, pwd, pixelArtIds } = req.body ?? {};
+    const result = await adminService.getPixelArtList(
+      String(phone),
+      String(pwd),
+      Array.isArray(pixelArtIds) ? pixelArtIds : undefined,
+    );
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 撤销（删除）官服已上传像素画（网关 DeletePixelArtReq） */
+router.post("/api/pixel/delete-official", async (req: Request, res: Response) => {
+  try {
+    const { phone, pwd, pixelArtIds } = req.body ?? {};
+    const result = await adminService.deletePixelArt(
+      String(phone),
+      String(pwd),
+      Array.isArray(pixelArtIds) ? pixelArtIds : [],
+    );
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 /** 批量发放全部物品 */
 router.post("/api/users/:uid/grant-all", async (req: Request, res: Response) => {
   try {

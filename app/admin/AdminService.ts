@@ -2029,6 +2029,44 @@ export class AdminService {
   }
 
   /**
+   * 从官服读取已上传像素画（getPixelArtList：HTTP 拉取列表 + OSS .dat 下载解析）
+   * @param phone - 官服手机号
+   * @param pwd - 官服密码
+   * @param pixelArtIds - 像素画 ID 列表（缺省读全部）
+   * @returns 逐张 { id, url, isBanned, pixels }
+   */
+  async getPixelArtList(
+    phone: string,
+    pwd: string,
+    pixelArtIds?: (number | bigint)[],
+  ): Promise<{ id: string; url: string; isBanned: boolean; pixels: number[] | null }[]> {
+    if (!phone || !pwd) throw new Error("需提供官服手机号与密码");
+    const { getPixelArtList: getList } = await import("./official-ops");
+    const list = await getList(String(phone), String(pwd), pixelArtIds);
+    await this._audit("pixelList", "", `${phone} → ${list.length} 张`);
+    return list;
+  }
+
+  /**
+   * 撤销（删除）已上传像素画（网关 DeletePixelArtReq）
+   * @param phone - 官服手机号
+   * @param pwd - 官服密码
+   * @param pixelArtIds - 要删除的像素画 ID 列表
+   * @returns 逐张结果
+   */
+  async deletePixelArt(
+    phone: string,
+    pwd: string,
+    pixelArtIds: (number | bigint)[],
+  ): Promise<{ id: string; ok: boolean; error?: string }[]> {
+    if (!phone || !pwd) throw new Error("需提供官服手机号与密码");
+    const { deletePixelArt: del } = await import("./official-ops");
+    const results = await del(String(phone), String(pwd), pixelArtIds ?? []);
+    await this._audit("pixelDelete", "", `${phone} → ${results.filter((r) => r.ok).length}/${results.length} 张`);
+    return results;
+  }
+
+  /**
    * 从官服同步卡池详情到 data/gacha_detail_table.json
    * @param phone - 官服手机号
    * @param pwd - 官服密码

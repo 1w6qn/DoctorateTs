@@ -6,7 +6,7 @@ import { mockPlayerData } from "../../helpers";
 import config from "../../../app/config";
 import { appendFile, mkdir } from "fs/promises";
 import { runMigration } from "../../../scripts/migrate-official";
-import { runOfficialAction, runOfficialCall, uploadPixelArtBatch as uploadPixelArtBatchMock } from "../../../app/admin/official-ops";
+import { runOfficialAction, runOfficialCall, uploadPixelArtBatch as uploadPixelArtBatchMock, getPixelArtList as getPixelArtListMock, deletePixelArt as deletePixelArtMock } from "../../../app/admin/official-ops";
 
 // 官服迁移 mock（不真实联网/写库）
 vi.mock("../../../scripts/migrate-official", () => ({
@@ -20,6 +20,8 @@ vi.mock("../../../app/admin/official-ops", () => ({
   validateCgi: (cgi: string) => cgi,
   uploadPixelArt: vi.fn(),
   uploadPixelArtBatch: vi.fn(),
+  getPixelArtList: vi.fn(),
+  deletePixelArt: vi.fn(),
 }));
 
 // excel 表桩（名称解析/物品校验/满配/干员属性共用）
@@ -843,6 +845,31 @@ describe("AdminService 游戏协议代理", () => {
 
   it("uploadPixelArtBatch 缺手机号/密码应抛错", async () => {
     await expect(service.uploadPixelArtBatch("", "", [new Array(1728).fill(0)])).rejects.toThrow(/手机号与密码/);
+  });
+
+  it("getPixelArtList 应透传 phone/pwd 并返回像素列表", async () => {
+    vi.mocked(getPixelArtListMock).mockResolvedValue([
+      { id: "1001", url: "https://x/y.dat", isBanned: false, pixels: new Array(1728).fill(0) },
+    ]);
+    const r = await service.getPixelArtList("13800000000", "pwd");
+    expect(r).toHaveLength(1);
+    expect(r[0].id).toBe("1001");
+    expect(vi.mocked(getPixelArtListMock)).toHaveBeenCalledWith("13800000000", "pwd", undefined);
+  });
+
+  it("getPixelArtList 缺手机号应抛错", async () => {
+    await expect(service.getPixelArtList("", "pwd")).rejects.toThrow(/手机号与密码/);
+  });
+
+  it("deletePixelArt 应透传并返回逐张结果", async () => {
+    vi.mocked(deletePixelArtMock).mockResolvedValue([
+      { id: "1001", ok: true },
+      { id: "1002", ok: false, error: "code=403" },
+    ]);
+    const r = await service.deletePixelArt("13800000000", "pwd", [1001, 1002]);
+    expect(r).toHaveLength(2);
+    expect(r[1].error).toContain("code=403");
+    expect(vi.mocked(deletePixelArtMock)).toHaveBeenCalledWith("13800000000", "pwd", [1001, 1002]);
   });
 });
 

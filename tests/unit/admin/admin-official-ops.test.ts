@@ -20,6 +20,7 @@ const gwMocks = vi.hoisted(() => ({
   connect: vi.fn().mockResolvedValue(undefined),
   requestUploadToken: vi.fn(),
   confirmSave: vi.fn().mockResolvedValue(undefined),
+  deletePixelArt: vi.fn().mockResolvedValue(undefined),
   close: vi.fn(),
   GatewaySession: vi.fn(),
   randomGatewayDeviceId: vi.fn().mockReturnValue("device-1"),
@@ -33,6 +34,7 @@ gwMocks.GatewaySession.mockImplementation(function () {
     connect: gwMocks.connect,
     requestUploadToken: gwMocks.requestUploadToken,
     confirmSave: gwMocks.confirmSave,
+    deletePixelArt: gwMocks.deletePixelArt,
     close: gwMocks.close,
   };
 });
@@ -44,6 +46,8 @@ import {
   runGachaSync,
   uploadPixelArt,
   uploadPixelArtBatch,
+  getPixelArtList,
+  deletePixelArt,
   validateCgi,
 } from "../../../app/admin/official-ops";
 
@@ -310,5 +314,68 @@ describe("uploadPixelArtBatch（复用登录 + 网关连接）", () => {
     expect(results[0].ok).toBe(false);
     expect(results[0].error).toContain("官服业务失败 statusCode=400");
     vi.unstubAllGlobals();
+  });
+});
+
+describe("getPixelArtList / deletePixelArt", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("getPixelArtList 应从官服读取像素画并下载 .dat 解析", async () => {
+    // 1728 字节像素数据（第 0 像素红色）
+    const dat = Buffer.alloc(1728);
+    dat[0] = 255; dat[1] = 0; dat[2] = 0;
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (String(url).includes("/account/syncData")) return fakeRes({ user: { activity: { ARK_HUB: { act1arkhub: { pixelArts: [{ pixelArtId: 1001 }] } } } } });
+      if (String(url).includes("getPixelArt")) return fakeRes({ pixelArts: { "1001": { url: "https://oss.example/pixel_art_prod_1001.dat", isBanned: false } } });
+      return Promise.resolve({ ok: true, status: 200, arrayBuffer: vi.fn().mockResolvedValue(dat) });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const list = await getPixelArtList("13800000000", "pwd");
+    expect(list).toHaveLength(1);
+    expect(list[0].id).toBe("1001");
+    expect(list[0].isBanned).toBe(false);
+    expect(list[0].pixels).toHaveLength(1728);
+    expect(list[0].pixels![0]).toBe(255);
+    vi.unstubAllGlobals();
+  });
+
+  it("getPixelArtList 无已上传像素画应返回空数组", async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      fakeRes({ user: { activity: { ARK_HUB: { act1arkhub: { pixelArts: [] } } } } }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const list = await getPixelArtList("13800000000", "pwd");
+    expect(list).toEqual([]);
+    vi.unstubAllGlobals();
+  });
+
+  it("deletePixelArt 应经网关删除并返回逐张结果", async () => {
+    gwMocks.deletePixelArt.mockResolvedValue(undefined);
+    const results = await deletePixelArt("13800000000", "pwd", [1001, 1002]);
+    expect(results).toEqual([
+      { id: "1001", ok: true },
+      { id: "1002", ok: true },
+    ]);
+    expect(gwMocks.deletePixelArt).toHaveBeenCalledTimes(2);
+    expect(gwMocks.deletePixelArt).toHaveBeenCalledWith(1001n);
+    expect(gwMocks.connect).toHaveBeenCalledTimes(1);
+    expect(gwMocks.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("deletePixelArt 单张失败不中断", async () => {
+    gwMocks.deletePixelArt
+      .mockRejectedValueOnce(new Error("code=403"))
+      .mockResolvedValueOnce(undefined);
+    const results = await deletePixelArt("13800000000", "pwd", [1001, 1002]);
+    expect(results[0]).toMatchObject({ id: "1001", ok: false });
+    expect(results[0].error).toContain("code=403");
+    expect(results[1]).toMatchObject({ id: "1002", ok: true });
+  });
+
+  it("deletePixelArt 空列表应返回空数组", async () => {
+    const results = await deletePixelArt("13800000000", "pwd", []);
+    expect(results).toEqual([]);
   });
 });

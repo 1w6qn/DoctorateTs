@@ -63,6 +63,8 @@ vi.mock("../../../app/admin/AdminService", () => ({
     rogueSimState: vi.fn().mockResolvedValue({ current: { player: { state: "NONE" } } }),
     uploadPixelArt: vi.fn().mockResolvedValue({ pixelArtId: "1001", uploadToken: "t", httpResp: {} }),
     uploadPixelArtBatch: vi.fn().mockResolvedValue([{ index: 0, ok: true, pixelArtId: "1001" }, { index: 1, ok: true, pixelArtId: "1002" }]),
+    getPixelArtList: vi.fn().mockResolvedValue([{ id: "1001", url: "https://x/y.dat", isBanned: false, pixels: [] }]),
+    deletePixelArt: vi.fn().mockResolvedValue([{ id: "1001", ok: true }]),
   },
 }));
 vi.mock("../../../app/admin/admin-auth", () => ({
@@ -377,6 +379,20 @@ describe("admin 路由（扩展能力）", () => {
     const res = mockRes();
     await call({ method: "POST", url: "/api/pixel/upload-batch", body: { phone: "1", pwd: "2", pixelDataList: null } }, res);
     expect(adminService.uploadPixelArtBatch).toHaveBeenCalledWith("1", "2", []);
+  });
+
+  it("POST /api/pixel/list-official 应透传并返回像素列表", async () => {
+    const res = mockRes();
+    await call({ method: "POST", url: "/api/pixel/list-official", body: { phone: "1", pwd: "2", pixelArtIds: [1001] } }, res);
+    expect(adminService.getPixelArtList).toHaveBeenCalledWith("1", "2", [1001]);
+    expect(res.json).toHaveBeenCalledWith(expect.any(Array));
+  });
+
+  it("POST /api/pixel/delete-official 应透传并返回逐张结果", async () => {
+    const res = mockRes();
+    await call({ method: "POST", url: "/api/pixel/delete-official", body: { phone: "1", pwd: "2", pixelArtIds: [1001] } }, res);
+    expect(adminService.deletePixelArt).toHaveBeenCalledWith("1", "2", [1001]);
+    expect(res.json).toHaveBeenCalledWith(expect.any(Array));
   });
 
   it("GET /api/spec 应返回端点规范清单", async () => {

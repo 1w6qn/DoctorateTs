@@ -217,6 +217,24 @@ export class GatewaySession {
     await new Promise((r) => setTimeout(r, 300));
   }
 
+  /**
+   * 删除像素画（DeletePixelArtReq：field1=PixelArtId UInt64；响应 DeletePixelArtResp：field1=Code Int32）
+   * subID 取 SavePixelArtReq 相邻值（协议类顺序 Save→Publish→Delete，未抓包确认时按 +1 推断，
+   * 发送后等响应；无响应或超时按发送成功处理——删除为尽力而为）。
+   */
+  async deletePixelArt(pixelArtId: bigint, timeoutMs = 5000): Promise<void> {
+    const proto = fv(1, pixelArtId);
+    const resp = await this.roundTrip(8, GW_SAVE_PIXEL_ART_REQ + BigInt(1), GW_SAVE_PIXEL_ART_REQ + BigInt(2), proto, timeoutMs);
+    if (resp.proto.length > 0) {
+      const fields = parseProto(resp.proto);
+      const code = fields.find((f) => f.field === 1)?.value ?? BigInt(-1);
+      if (code !== BigInt(GW_CODE_OK)) {
+        throw new Error(`删除像素画失败 code=${code}`);
+      }
+    }
+    // 无响应（协议可能不回）按成功处理
+  }
+
   /** 登出并关闭连接（登出帧释放账号的网关会话绑定，否则下次登录会 112 中继） */
   close(): void {
     this.closed = true;

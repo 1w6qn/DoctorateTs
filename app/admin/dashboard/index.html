@@ -1990,8 +1990,12 @@
       '<div class="row">' +
       '<input id="px-phone" placeholder="官服手机号" style="flex:1;">' +
       '<input id="px-pwd" type="password" placeholder="官服密码" style="flex:1;">' +
-      '<button id="px-upload" class="primary">批量上传</button></div>' +
+      '<button id="px-upload" class="primary">批量上传</button>' +
+      '<button id="px-refresh" title="从官服读取已上传像素画">⟳ 读取</button></div>' +
       '<div class="resp-box" id="px-resp" style="margin-top:10px;">上传结果显示在此</div>' +
+      '<p style="font-size:12px;color:var(--muted);margin:10px 0 6px;">官服已上传（从新到旧展示，点击「撤销」删除该张）</p>' +
+      '<div id="px-gallery" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:6px;">' +
+      '<span style="color:var(--muted);font-size:11px;grid-column:1/-1;">尚未读取（点击「⟳ 读取」或上传后自动展示）</span></div>' +
       "</div></div>";
 
     var PALETTE = ["#222222","#b4b4b4","#eae7df","#ffffff","#d32f36","#9c0a00","#d60c4a","#e6968d","#fe9875","#f7d0c0","#fcefea","#fbf6e8","#dcd2c8","#e2ceab","#d56322","#d48c42","#f29900","#f9c933","#fce499","#b3b47a","#c2da72","#6c6e00","#b19155","#a98f74","#aa9228","#3f2b12","#74491f","#534658","#2a2446","#394599","#5a459d","#baa3d7","#b6bcdf","#a9acbe","#63abb9","#b4d2dc","#91d8e6","#47aea0","#b6d3c8","#273864"];
@@ -2437,6 +2441,78 @@
       download("pixel-all-" + bigW + "x" + bigH + ".json", URL.createObjectURL(blob));
     });
 
+    /** 渲染官服已上传像素画画廊（1728 字节 → 24×24 缩略图 + 撤销按钮） */
+    function renderPixelGallery(list) {
+      var box = $("px-gallery");
+      if (!list || list.length === 0) {
+        box.innerHTML = '<span style="color:var(--muted);font-size:11px;grid-column:1/-1;">暂无已上传像素画</span>';
+        return;
+      }
+      box.innerHTML = "";
+      list.forEach(function (item) {
+        var wrap = document.createElement("div");
+        wrap.style.cssText = "text-align:center;";
+        var idText = String(item.id);
+        var badge = item.isBanned ? ' <span style="color:#e06c75;font-size:9px;">封禁</span>' : "";
+        var label = document.createElement("div");
+        label.style.cssText = "font-size:9px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+        label.textContent = idText + badge;
+        var c = document.createElement("canvas");
+        c.width = 24; c.height = 24;
+        c.style.cssText = "width:48px;height:48px;image-rendering:pixelated;border:1px solid var(--border);background:#fff;";
+        var cx = c.getContext("2d");
+        if (item.pixels && item.pixels.length === 1728) {
+          for (var y = 0; y < 24; y++) {
+            for (var x = 0; x < 24; x++) {
+              var i = (y * 24 + x) * 3;
+              cx.fillStyle = "rgb(" + item.pixels[i] + "," + item.pixels[i + 1] + "," + item.pixels[i + 2] + ")";
+              cx.fillRect(x, y, 1, 1);
+            }
+          }
+        } else {
+          cx.fillStyle = "#ddd";
+          cx.fillRect(0, 0, 24, 24);
+        }
+        var del = document.createElement("button");
+        del.textContent = "撤销";
+        del.style.cssText = "font-size:10px;margin-top:2px;padding:1px 6px;";
+        del.addEventListener("click", function () {
+          var phone = $("px-phone").value.trim();
+          var pwd = $("px-pwd").value.trim();
+          if (!phone || !pwd) { toast("请填写官服手机号与密码"); return; }
+          api("/pixel/delete-official", {
+            method: "POST",
+            body: JSON.stringify({ phone: phone, pwd: pwd, pixelArtIds: [Number(item.id)] }),
+          })
+            .then(function (r) {
+              var ok2 = r[0] && r[0].ok;
+              toast(ok2 ? "已撤销 " + idText : "撤销失败：" + (r[0] ? r[0].error : "未知"), ok2 ? "info" : "err");
+              if (ok2) { refreshPixelGallery(); refreshLogs(); }
+            })
+            .catch(function (e) { toast("撤销失败: " + e.message, "err"); });
+        });
+        wrap.appendChild(c);
+        wrap.appendChild(label);
+        wrap.appendChild(del);
+        box.appendChild(wrap);
+      });
+    }
+
+    /** 从官服读取已上传像素画并渲染画廊 */
+    function refreshPixelGallery() {
+      var phone = $("px-phone").value.trim();
+      var pwd = $("px-pwd").value.trim();
+      if (!phone || !pwd) { toast("请填写官服手机号与密码"); return; }
+      api("/pixel/list-official", {
+        method: "POST",
+        body: JSON.stringify({ phone: phone, pwd: pwd }),
+      })
+        .then(function (list) { renderPixelGallery(list); refreshLogs(); })
+        .catch(function (e) { showResp("px-resp", "读取失败: " + e.message); });
+    }
+
+    $("px-refresh").addEventListener("click", function () { refreshPixelGallery(); });
+
     $("px-upload").addEventListener("click", function () {
       var phone = $("px-phone").value.trim();
       var pwd = $("px-pwd").value.trim();
@@ -2460,6 +2536,8 @@
           }).join("\\n");
           showResp("px-resp", "批量上传完成：成功 " + ok + " / " + results.length + "（展示顺序：从新到旧、一行 4 个）\\n" + lines);
           refreshLogs();
+          // 上传成功后从官服读取结果展示（缩略图 + 撤销按钮）
+          if (ok > 0) refreshPixelGallery();
         })
         .catch(function (e) { showResp("px-resp", "批量上传失败: " + e.message); });
     });

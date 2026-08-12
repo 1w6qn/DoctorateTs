@@ -490,3 +490,97 @@ export async function uploadPixelArtBatch(
   }
   return results;
 }
+
+/**
+ * 从官服读取已上传像素画列表（HTTP getPixelArt）
+ *
+ * 登录官服后 POST /activity/arkhub/getPixelArt（body { activityId, pixelArtIds }），
+ * 响应 pixelArts[id] = { url, isBanned }（OSS .dat 文件地址）。随后逐个下载 .dat
+ * （24×24×3 = 1728 字节 RGB），解析为像素数组返回。
+ *
+ * @param phone - 官服手机号
+ * @param pwd - 官服密码
+ * @param pixelArtIds - 像素画 ID 列表（缺省读全部已上传）
+ * @returns 每张 { id, url, isBanned, pixels?（1728 字节，下载失败为 null） }
+ */
+export async function getPixelArtList(
+  phone: string,
+  pwd: string,
+  pixelArtIds?: (number | bigint)[],
+): Promise<{ id: string; url: string; isBanned: boolean; pixels: number[] | null }[]> {
+  const session = new OfficialSession();
+  await session.login(phone, pwd);
+  // 读取已上传像素画 ID：先调 syncData 拿玩家 ARK_HUB 数据（含 pixelArts）——若无则空
+  const sync = await session.sync();
+  let ids: (number | bigint)[] = pixelArtIds ?? [];
+  if (ids.length === 0) {
+    const hub = sync?.activity?.ARK_HUB?.["act1arkhub"];
+    const pixelList: any[] = hub?.pixelArts ?? hub?.pixelArtList ?? [];
+    ids = pixelList.map((p: any) => (typeof p === "object" ? (p.pixelArtId ?? p.id) : p));
+  }
+  if (ids.length === 0) return [];
+
+  const resp = await session.post("/activity/arkhub/getPixelArt", {
+    activityId: "act1arkhub",
+    pixelArtIds: ids.map((x) => Number(x)),
+  });
+  const pixelArts = resp?.pixelArts ?? {};
+  const results: { id: string; url: string; isBanned: boolean; pixels: number[] | null }[] = [];
+  for (const id of Object.keys(pixelArts)) {
+    const info = pixelArts[id] ?? {};
+    let pixels: number[] | null = null;
+    try {
+      const url = info.url as string;
+      if (url) {
+        const res = await fetch(url);
+        if (res.ok) {
+          const buf = Buffer.from(await res.arrayBuffer());
+          if (buf.length === 1728) pixels = Array.from(buf);
+        }
+      }
+    } catch {
+      /* 单个下载失败保持 null */
+    }
+    results.push({ id, url: info.url ?? "", isBanned: !!info.isBanned, pixels });
+  }
+  return results;
+}
+
+/**
+ * 撤销（删除）已上传像素画（网关 DeletePixelArtReq，subID 按 Save 推断）
+ *
+ * 网关连接一次，逐个发送删除帧。subID 未从抓包确认（协议类顺序 Save→Publish→Delete），
+ * 按 SavePixelArtReq+1 推断；发送后等待响应，无响应视为成功（尽力而为）。
+ *
+ * @param phone - 官服手机号
+ * @param pwd - 官服密码
+ * @param pixelArtIds - 要删除的像素画 ID 列表
+ * @returns 逐张结果
+ */
+export async function deletePixelArt(
+  phone: string,
+  pwd: string,
+  pixelArtIds: (number | bigint)[],
+): Promise<{ id: string; ok: boolean; error?: string }[]> {
+  const results: { id: string; ok: boolean; error?: string }[] = [];
+  if (pixelArtIds.length === 0) return results;
+
+  const session = new OfficialSession();
+  await session.login(phone, pwd);
+  const deviceId = randomGatewayDeviceId();
+  const gw = new GatewaySession();
+  await gw.connect(session.uid, session.secret, deviceId);
+  try {
+    for (const id of pixelArtIds) {
+      try {
+        await gw.deletePixelArt(BigInt(id));
+        results.push({ id: String(id), ok: true });
+      } catch (e) {
+        results.push({ id: String(id), ok: false, error: (e as Error).message });
+      }
+    }
+  } finally {
+    gw.close();
+  }
+  return results;
+}

@@ -130,6 +130,13 @@ function generateTypes(): boolean {
   log(`生成 TypeScript 类型...`);
   // 类型生成已切换到 CS 反编译源（reference/com.hypergryph.arknights_2.7.61.cs），
   // 统一生成器同时产出 types-playerdata.ts 与 types_excel_gen.ts
+  const csFile = path.join(__dirname, "../reference/com.hypergryph.arknights_2.7.61.cs");
+  if (!fs.existsSync(csFile)) {
+    // 新 clone 场景：reference/ 被 gitignore，类型文件已跟踪——跳过再生成而非失败
+    // （excel 版本更新后类型可能滞后，但不阻断服务器运行）
+    log(`跳过类型生成：缺少 ${csFile}（类型文件已随仓库跟踪；放回反编译源后可重新生成）`);
+    return true;
+  }
   return executeCommand("npx tsx scripts/generate-types.ts", path.join(__dirname, ".."));
 }
 

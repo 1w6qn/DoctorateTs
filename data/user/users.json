@@ -42,14 +42,14 @@
         "password": "2221",
         "auth": {
             "hgId": "2221",
-            "phone": "1",
-            "email": "1",
+            "phone": "2221",
+            "email": "2221",
             "identityNum": "doctorate",
             "identityName": "doctorate",
             "isMinor": false,
             "isLatestUserAgreement": true
         },
-        "uid": "1",
+        "uid": "2221",
         "social": {
             "friends": [],
             "friendRequests": [],

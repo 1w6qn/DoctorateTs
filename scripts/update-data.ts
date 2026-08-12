@@ -4,8 +4,6 @@ import { execSync } from "child_process";
 import { getResVersion, CONF_API } from "./official-api";
 
 const EXCEL_TARGET_DIR = path.join(__dirname, "../data/excel");
-const GACHA_SOURCE_DIR = path.join(__dirname, "../data/gacha");
-const GACHA_DETAIL_TARGET = path.join(__dirname, "../data/gacha_detail_table.json");
 
 /**
  * 完全离线模式启动所需的本地数据文件（相对项目根目录）。
@@ -135,73 +133,16 @@ function generateTypes(): boolean {
   return executeCommand("npx tsx scripts/generate-types.ts", path.join(__dirname, ".."));
 }
 
-function mergeGachaFiles(): boolean {
-  log(`合并 gacha 文件...`);
-  
-  if (!fs.existsSync(GACHA_SOURCE_DIR)) {
-    logError(`gacha 源目录不存在: ${GACHA_SOURCE_DIR}`);
-    return false;
-  }
-  
-  // 增量：所有 gacha 源文件均不新于输出 → 已是最新，跳过合并（启动提速）
-  const SKIP_FILES = ["gacha.json", "normalGacha.json", "DEFAULT.json"];
-  const targetStat = fs.existsSync(GACHA_DETAIL_TARGET) ? fs.statSync(GACHA_DETAIL_TARGET) : null;
-  if (targetStat) {
-    const newestSrc = fs
-      .readdirSync(GACHA_SOURCE_DIR)
-      .filter((f) => f.endsWith(".json") && !SKIP_FILES.includes(f))
-      .map((f) => fs.statSync(path.join(GACHA_SOURCE_DIR, f)).mtimeMs)
-      .reduce((m, t) => Math.max(m, t), 0);
-    if (newestSrc <= targetStat.mtimeMs) {
-      log(`gacha 源未变更，跳过合并（输出已最新）`);
-      return true;
-    }
-  }
-
-  const result: { [key: string]: any } = { details: {} };
-  let mergedCount = 0;
-  
-  try {
-    const files = fs.readdirSync(GACHA_SOURCE_DIR);
-    
-    for (const file of files) {
-      if (!file.endsWith(".json")) continue;
-      if (SKIP_FILES.includes(file)) continue;
-      
-      const sourcePath = path.join(GACHA_SOURCE_DIR, file);
-      if (!fs.statSync(sourcePath).isFile()) continue;
-      
-      const content = fs.readFileSync(sourcePath, "utf-8");
-      let data: any;
-      try {
-        data = JSON.parse(content);
-      } catch {
-        continue;
-      }
-      
-      if (data.detailInfo) {
-        const gachaId = file.replace(".json", "");
-        result.details[gachaId] = data.detailInfo;
-        mergedCount++;
-      }
-    }
-    
-    fs.writeFileSync(GACHA_DETAIL_TARGET, JSON.stringify(result, null, 4));
-    log(`合并完成，总计 ${mergedCount} 个卡池`);
-    return true;
-  } catch (error) {
-    logError(`合并 gacha 文件失败: ${(error as Error).message}`);
-    return false;
-  }
-}
-
 /**
  * 数据更新入口
  *
  * 三种模式：
- * - 默认（在线更新）：官方热更管线生成 excel + 类型生成 + gacha 合并
- * - `skipUpdate=true`：跳过官服热更管线（excel 用本地缓存），仅执行类型生成/合并
+ * - 默认（在线更新）：官方热更管线生成 excel + 类型生成
+ * - `skipUpdate=true`：跳过官服热更管线（excel 用本地缓存），仅执行类型生成
  * - `offline=true`（完全离线）：不进行任何网络操作，仅校验本地数据完整性
+ *
+ * 注：gacha 卡池详情（data/gacha_detail_table.json）已不在此管线合并生成
+ * （data/gacha/ 源目录已移除）——由 admin `gacha sync` 从官服同步。
  *
  * @param skipUpdate - 是否跳过官服热更管线
  * @param offline - 是否完全离线模式（优先级最高）
@@ -210,7 +151,7 @@ function mergeGachaFiles(): boolean {
 export async function main(skipUpdate: boolean = false, offline: boolean = false): Promise<number> {
   if (offline) {
     log("===== 完全离线模式 =====");
-    log("跳过数据管线 / 类型生成 / gacha 合并，不进行任何网络操作");
+    log("跳过数据管线 / 类型生成，不进行任何网络操作");
 
     const missing = verifyLocalData();
     if (missing.length > 0) {
@@ -241,12 +182,6 @@ export async function main(skipUpdate: boolean = false, offline: boolean = false
   log("\n生成类型文件...");
   if (!generateTypes()) {
     logError("生成类型文件失败");
-    return 1;
-  }
-  
-  log("\n合并 gacha 文件...");
-  if (!mergeGachaFiles()) {
-    logError("合并 gacha 文件失败");
     return 1;
   }
 

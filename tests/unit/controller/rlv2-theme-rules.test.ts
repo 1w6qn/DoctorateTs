@@ -211,3 +211,19 @@ describe("结局变更藏品", () => {
     expect((player.rlv2 as any)._status.chgEnding).toBe(true);
   });
 });
+
+describe("exploreScore 容错（theme 缺失不 500）", () => {
+  it("details[theme] 不存在时 exploreScore 应回退 scoreFactor=1 不抛错", async () => {
+    const player = makePlayer("rogue_1");
+    const rlv2 = player.rlv2 as any;
+    rlv2.current.game.theme = "rogue_unknown_theme";
+    rlv2._status.cursor.zone = 2;
+    rlv2._status.trace = [{ zone: 1, position: { x: 1, y: 0 } }];
+    rlv2._map.zones = { 1: { nodes: { "100": { type: 1, pos: { x: 1, y: 0 } } } } };
+    let score: number | null = null;
+    expect(() => {
+      score = rlv2.exploreScore();
+    }).not.toThrow();
+    expect(score).toBeGreaterThanOrEqual(0);
+  });
+});

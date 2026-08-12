@@ -2066,8 +2066,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       itemCount * 5 +
       leaderBattles * 30 +
       eliteBattles * 20;
-    const difficulty = excel.RoguelikeTopicTable.details[theme].difficulties?.find(
-      (d) => d.modeDifficulty === this.current.game!.mode && d.grade === this.current.game!.modeGrade,
+    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+    const difficulty = detail?.difficulties?.find(
+      (d: any) => d.modeDifficulty === this.current.game!.mode && d.grade === this.current.game!.modeGrade,
     );
     const scoreFactor = difficulty?.scoreFactor ?? 1;
     return Math.floor(raw * scoreFactor);

@@ -75,6 +75,8 @@ process.on("exit", (code) => {
 (async () => {
   const args = process.argv.slice(2);
   const skipUpdate = args.includes("--skip-update") || args.includes("-s");
+  // 激进：默认不跑数据更新（config.autoUpdate=false），仅显式 --auto-update / npm run update
+  const autoUpdate = args.includes("--auto-update") || config.autoUpdate === true;
   // 完全离线模式：命令行参数 --offline/-o 或 data/config.json 中 offline: true
   const offline = args.includes("--offline") || args.includes("-o") || config.offline === true;
   // 抓包专用官服转发模式：命令行 --capture 或 data/config.json 中 capture.enabled: true
@@ -94,7 +96,7 @@ process.on("exit", (code) => {
       process.exit(1);
     }
     logger.info("index", "本地数据校验通过，继续启动...");
-  } else if (!skipUpdate) {
+  } else if (!skipUpdate && autoUpdate) {
     if (args.includes("--background-update")) {
       // 后台异步更新：先起服（本地数据），更新完成后热重载 excel——启动秒就绪
       logger.info("index", "后台异步更新模式：立即起服，数据更新完成后热重载");
@@ -250,7 +252,32 @@ process.on("exit", (code) => {
     logger.info("index", `命令行已就绪：终端输入管理 CLI 命令（如 users list --json），exit 退出命令行`);
     // 服务器内嵌命令行 REPL（日志与命令行共存；非 TTY 自动跳过）
     import("./app/admin/server-repl").then((m) => m.startServerRepl());
+    // 后台版本检测提示（非阻塞）：本地数据较旧时提醒 npm run update（默认已跳过自动更新）
+    if (!offline && !autoUpdate) {
+      checkRemoteVersionHint().catch(() => undefined);
+    }
   });
+/**
+ * 后台检测官服最新数据版本（非阻塞）：本地数据较旧时提示 npm run update。
+ * 仅提示不更新——默认启动已跳过自动更新（config.autoUpdate=false）。
+ */
+async function checkRemoteVersionHint(): Promise<void> {
+  try {
+    const res = await fetch("https://ak-conf.hypergryph.com/config/prod/official/Windows/version", {
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return;
+    const data: any = await res.json();
+    const remote = String(data.resVersion ?? "").split("_")[0];
+    const local = (config.version?.windows?.resVersion ?? config.version?.resVersion ?? "").split("_")[0];
+    if (remote && local && remote !== local) {
+      logger.warn("index", `检测到新版本数据（本地 ${local} → 官服 ${remote}），运行 \`npm run update\` 更新`);
+    }
+  } catch {
+    // 网络失败静默（离线/无网环境）
+  }
+}
+
   // 端口被占用等监听失败：明确报错并退出（替代默认 uncaughtException 兜底的"无声挂起"）
   server.on("error", (err: NodeJS.ErrnoException) => {
     if (err.code === "EADDRINUSE") {

@@ -63,5 +63,7 @@
     "gatewayPort": 30001
   },
   "singleAutoMaxAccount": false,
-  "singleUid": "2222"
+  "singleUid": "2222",
+  "_lastVersionSyncTs": 1786501723605,
+  "autoUpdate": false
 }

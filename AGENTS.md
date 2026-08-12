@@ -5,9 +5,11 @@ Arknights (明日方舟) private-server backend: Express 5 + TypeScript, JSON-fi
 ## Commands
 
 ```bash
-npm start                # nodemon + tsx index.ts; runs data update first (git pulls 2 repos)
+npm start                # 默认跳过数据更新（config.autoUpdate=false），2s 起服；后台检测新版本并提示
+npm run update           # 显式更新数据（官方热更管线 + 类型 + gacha + 版本同步）
+npm start -- --auto-update  # 启动时先更新再起服（旧行为）
+npm start -- --background-update  # 先起服，更新完成后热重载 excel
 npm start -- --offline   # zero-network start, verifies 66 local data files first
-npm start -- -s          # skip repo pulls, still copies data + regenerates types
 npm run start:quick      # quick local start: tsx index.ts -s (no network, use local data)
 npm run start:capture    # capture mode: tsx index.ts -s --capture (as/gs 转发官服并记录 tmp/)
 PORT=9000 npm run start:quick   # 不同端口启动（环境变量 PORT 覆盖 config.json 的 8443）

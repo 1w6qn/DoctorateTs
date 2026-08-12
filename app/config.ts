@@ -35,6 +35,8 @@ interface UserConfig {
   PORT: number;
   /** 是否完全离线模式启动（不进行任何网络操作，使用本地缓存数据） */
   offline?: boolean;
+  /** 是否启动时自动更新数据（缺省 false——激进默认：仅 npm run update / --auto-update 更新） */
+  autoUpdate?: boolean;
   /** 登录响应主版本号（客户端校验用——去硬编码，缺省 "446"） */
   majorVersion?: string;
   /** 版本信息 */
@@ -43,6 +45,8 @@ interface UserConfig {
     resVersion: string;
     /** 客户端版本 */
     clientVersion: string;
+    /** Windows 独立资源版本（可选；缺省回退 resVersion） */
+    windows?: { resVersion: string; clientVersion: string };
   };
   /** 资源配置 */
   assets: {

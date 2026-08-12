@@ -1984,8 +1984,7 @@ export class AdminService {
 
   /**
    * 批量上传像素画到官服 arkhub（大图拆分为多张 24×24 逐张上传）
-   * 每张独立走完整 savePixelArt 流程（登录 → 网关 token → multipart → 确认）；
-   * 单张失败不中断后续，结果逐条返回。
+   * 速度优化：复用 official-ops 的 uploadPixelArtBatch——登录一次 + 网关连接一次循环全部块。
    *
    * @param phone - 官服手机号
    * @param pwd - 官服密码
@@ -2001,18 +2000,32 @@ export class AdminService {
       throw new Error("需提供官服手机号与密码");
     }
     const { validatePixelData } = await import("./arkhub-pixel");
-    const results: { index: number; ok: boolean; pixelArtId?: string; error?: string }[] = [];
+    const { uploadPixelArtBatch: batchUploadToOfficial } = await import("./official-ops");
+    // 逐张校验 + 归一化为 Buffer，交给批量函数（登录/网关连接各一次）
+    const buffers: Buffer[] = [];
+    const errors: { index: number; ok: boolean; error: string }[] = [];
     for (let i = 0; i < (pixelDataList ?? []).length; i++) {
       try {
-        const pixels = validatePixelData(pixelDataList[i]);
-        const r = await uploadPixelArtToOfficial(String(phone), String(pwd), pixels);
-        results.push({ index: i, ok: true, pixelArtId: r.pixelArtId.toString() });
+        buffers.push(validatePixelData(pixelDataList[i]));
       } catch (e) {
-        results.push({ index: i, ok: false, error: (e as Error).message });
+        errors.push({ index: i, ok: false, error: (e as Error).message });
       }
     }
-    await this._audit("pixelUploadBatch", "", `${phone} → ${results.length} 张（成功 ${results.filter((r) => r.ok).length}）`);
-    return results;
+    const results = await batchUploadToOfficial(String(phone), String(pwd), buffers);
+    // 合并：校验失败项（未进 buffers，结果按原索引回填）+ 批量上传结果
+    const all: { index: number; ok: boolean; pixelArtId?: string; error?: string }[] = [];
+    let resIdx = 0;
+    for (let i = 0; i < (pixelDataList ?? []).length; i++) {
+      const err = errors.find((e) => e.index === i);
+      if (err) {
+        all.push(err);
+        continue;
+      }
+      const r = results[resIdx++];
+      all.push(r ? { index: i, ok: r.ok, pixelArtId: r.pixelArtId?.toString(), error: r.error } : { index: i, ok: false, error: "缺少上传结果" });
+    }
+    await this._audit("pixelUploadBatch", "", `${phone} → ${all.length} 张（成功 ${all.filter((r) => r.ok).length}）`);
+    return all;
   }
 
   /**

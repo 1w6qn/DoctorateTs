@@ -15,11 +15,35 @@ const fsMocks = vi.hoisted(() => ({
 }));
 vi.mock("fs/promises", () => fsMocks);
 
+// 网关 mock（不真实 TCP 连接；记录 connect/requestUploadToken/confirmSave 次数验证连接复用）
+const gwMocks = vi.hoisted(() => ({
+  connect: vi.fn().mockResolvedValue(undefined),
+  requestUploadToken: vi.fn(),
+  confirmSave: vi.fn().mockResolvedValue(undefined),
+  close: vi.fn(),
+  GatewaySession: vi.fn(),
+  randomGatewayDeviceId: vi.fn().mockReturnValue("device-1"),
+}));
+vi.mock("../../../app/admin/arkhub-gateway-client", () => ({
+  GatewaySession: gwMocks.GatewaySession,
+  randomGatewayDeviceId: gwMocks.randomGatewayDeviceId,
+}));
+gwMocks.GatewaySession.mockImplementation(function () {
+  return {
+    connect: gwMocks.connect,
+    requestUploadToken: gwMocks.requestUploadToken,
+    confirmSave: gwMocks.confirmSave,
+    close: gwMocks.close,
+  };
+});
+
 import {
   OfficialSession,
   runOfficialAction,
   runOfficialCall,
   runGachaSync,
+  uploadPixelArt,
+  uploadPixelArtBatch,
   validateCgi,
 } from "../../../app/admin/official-ops";
 
@@ -207,6 +231,70 @@ describe("validateCgi / runOfficialCall", () => {
     expect(results[0].detailInfo).toBeDefined();
     expect(results[1].poolId).toBe("BAD");
     expect(results[1].error).toBeDefined();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("uploadPixelArtBatch（复用登录 + 网关连接）", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    gwMocks.requestUploadToken.mockReset();
+    gwMocks.requestUploadToken
+      .mockResolvedValueOnce({ pixelArtId: 1001n, uploadToken: "tok1", expireTime: 0 })
+      .mockResolvedValueOnce({ pixelArtId: 1002n, uploadToken: "tok2", expireTime: 0 });
+  });
+
+  it("批量应登录一次 + 网关连接一次并逐张上传", async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      fakeRes({ status: 200, pixelArtId: 1001 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const pixels = new Array(1728).fill(255);
+    const results = await uploadPixelArtBatch("13800000000", "pwd", [Buffer.from(pixels), Buffer.from(pixels)]);
+    expect(results).toHaveLength(2);
+    expect(results[0]).toMatchObject({ index: 0, ok: true, pixelArtId: 1001n });
+    expect(results[1]).toMatchObject({ index: 1, ok: true, pixelArtId: 1002n });
+    // 网关连接只建一次（复用）
+    expect(gwMocks.connect).toHaveBeenCalledTimes(1);
+    expect(gwMocks.requestUploadToken).toHaveBeenCalledTimes(2);
+    expect(gwMocks.confirmSave).toHaveBeenCalledTimes(2);
+    expect(gwMocks.close).toHaveBeenCalledTimes(1);
+    // HTTP 上传 2 次（multipart）
+    const uploadCalls = fetchMock.mock.calls.filter((c: any[]) => String(c[0]).includes("savePixelArt"));
+    expect(uploadCalls).toHaveLength(2);
+    vi.unstubAllGlobals();
+  });
+
+  it("空列表应直接返回空数组且不建网关连接", async () => {
+    const results = await uploadPixelArtBatch("13800000000", "pwd", []);
+    expect(results).toEqual([]);
+    expect(gwMocks.connect).not.toHaveBeenCalled();
+  });
+
+  it("单张失败不中断后续", async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve({ ok: false, status: 500, headers: { get: () => null }, json: vi.fn() }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const results = await uploadPixelArtBatch("13800000000", "pwd", [Buffer.alloc(1728), Buffer.alloc(1728)]);
+    expect(results[0].ok).toBe(false);
+    expect(results[0].error).toContain("官服 HTTP 500");
+    expect(results[1].ok).toBe(false);
+    // 即使 HTTP 失败仍逐张尝试（token 已申请），连接复用于全部
+    expect(gwMocks.connect).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+  });
+
+  it("单张 uploadPixelArt 应透传批量结果", async () => {
+    const fetchMock = vi.fn().mockImplementation(() =>
+      fakeRes({ status: 200, pixelArtId: 1001 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    gwMocks.requestUploadToken.mockReset();
+    gwMocks.requestUploadToken.mockResolvedValue({ pixelArtId: 1001n, uploadToken: "tok", expireTime: 0 });
+    const r = await uploadPixelArt("13800000000", "pwd", Buffer.alloc(1728));
+    expect(r.pixelArtId).toBe(1001n);
+    expect(r.uploadToken).toBe("tok");
     vi.unstubAllGlobals();
   });
 });

@@ -6,7 +6,7 @@ import { mockPlayerData } from "../../helpers";
 import config from "../../../app/config";
 import { appendFile, mkdir } from "fs/promises";
 import { runMigration } from "../../../scripts/migrate-official";
-import { runOfficialAction, runOfficialCall, uploadPixelArt as uploadPixelArtMock } from "../../../app/admin/official-ops";
+import { runOfficialAction, runOfficialCall, uploadPixelArtBatch as uploadPixelArtBatchMock } from "../../../app/admin/official-ops";
 
 // 官服迁移 mock（不真实联网/写库）
 vi.mock("../../../scripts/migrate-official", () => ({
@@ -19,6 +19,7 @@ vi.mock("../../../app/admin/official-ops", () => ({
   runOfficialCall: vi.fn(),
   validateCgi: (cgi: string) => cgi,
   uploadPixelArt: vi.fn(),
+  uploadPixelArtBatch: vi.fn(),
 }));
 
 // excel 表桩（名称解析/物品校验/满配/干员属性共用）
@@ -783,10 +784,12 @@ describe("AdminService 游戏协议代理", () => {
     expect(spy).toHaveBeenCalledWith("1");
   });
 
-  it("uploadPixelArtBatch 应逐张上传并返回逐张结果", async () => {
-    const mock = vi.mocked(uploadPixelArtMock);
-    mock.mockResolvedValueOnce({ pixelArtId: 1001n, uploadToken: "t1", httpResp: {} })
-      .mockResolvedValueOnce({ pixelArtId: 1002n, uploadToken: "t2", httpResp: {} });
+  it("uploadPixelArtBatch 应一次批量上传并返回逐张结果（登录/网关连接各一次）", async () => {
+    const mock = vi.mocked(uploadPixelArtBatchMock);
+    mock.mockResolvedValue([
+      { index: 0, ok: true, pixelArtId: 1001n, uploadToken: "t1", httpResp: {} },
+      { index: 1, ok: true, pixelArtId: 1002n, uploadToken: "t2", httpResp: {} },
+    ]);
     // 1728 字节 RGB 数组（全白）
     const px1 = new Array(1728).fill(255);
     const px2 = new Array(1728).fill(255);
@@ -795,17 +798,42 @@ describe("AdminService 游戏协议代理", () => {
       { index: 0, ok: true, pixelArtId: "1001" },
       { index: 1, ok: true, pixelArtId: "1002" },
     ]);
-    expect(mock).toHaveBeenCalledTimes(2);
+    // 只调一次批量函数（内部登录/网关连接各一次）
+    expect(mock).toHaveBeenCalledTimes(1);
+    const [phone, , buffers] = mock.mock.calls[0];
+    expect(phone).toBe("13800000000");
+    expect(buffers).toHaveLength(2);
   });
 
-  it("uploadPixelArtBatch 单张失败不中断后续", async () => {
-    const mock = vi.mocked(uploadPixelArtMock);
-    mock.mockRejectedValueOnce(new Error("登录失败"))
-      .mockResolvedValueOnce({ pixelArtId: 2001n, uploadToken: "t", httpResp: {} });
-    const r = await service.uploadPixelArtBatch("13800000000", "pwd", [new Array(1728).fill(0), new Array(1728).fill(0)]);
+  it("uploadPixelArtBatch 单张校验失败不中断后续且索引保持", async () => {
+    const mock = vi.mocked(uploadPixelArtBatchMock);
+    mock.mockResolvedValue([
+      { index: 0, ok: true, pixelArtId: 2001n, uploadToken: "t", httpResp: {} },
+      { index: 1, ok: true, pixelArtId: 2002n, uploadToken: "t", httpResp: {} },
+    ]);
+    // 第 1 张合法、第 2 张长度非法（校验失败，不进入批量）、第 3 张合法
+    const r = await service.uploadPixelArtBatch("13800000000", "pwd", [
+      new Array(1728).fill(0),
+      [1, 2, 3],
+      new Array(1728).fill(0),
+    ]);
+    expect(r[0]).toMatchObject({ index: 0, ok: true, pixelArtId: "2001" });
+    expect(r[1]).toMatchObject({ index: 1, ok: false });
+    expect(r[1].error).toContain("长度非法");
+    expect(r[2]).toMatchObject({ index: 2, ok: true, pixelArtId: "2002" });
+    // 校验失败项不进批量，批量只收 2 张合法数据
+    const buffers = mock.mock.calls[0][2];
+    expect(buffers).toHaveLength(2);
+  });
+
+  it("uploadPixelArtBatch 批量函数单张失败返回 error", async () => {
+    const mock = vi.mocked(uploadPixelArtBatchMock);
+    mock.mockResolvedValue([
+      { index: 0, ok: false, error: "官服 HTTP 500 @ /activity/arkhub/savePixelArt" },
+    ]);
+    const r = await service.uploadPixelArtBatch("13800000000", "pwd", [new Array(1728).fill(0)]);
     expect(r[0]).toMatchObject({ index: 0, ok: false });
-    expect(r[0].error).toContain("登录失败");
-    expect(r[1]).toMatchObject({ index: 1, ok: true, pixelArtId: "2001" });
+    expect(r[0].error).toContain("官服 HTTP 500");
   });
 
   it("uploadPixelArtBatch 空列表应返回空数组", async () => {

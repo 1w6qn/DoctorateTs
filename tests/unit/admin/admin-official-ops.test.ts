@@ -322,17 +322,16 @@ describe("getPixelArtList / deletePixelArt", () => {
     vi.clearAllMocks();
   });
 
-  it("getPixelArtList 应从官服读取像素画并下载 .dat 解析", async () => {
+  it("getPixelArtList 应从官服读取像素画并下载 .dat 解析（显式传 ID）", async () => {
     // 1728 字节像素数据（第 0 像素红色）
     const dat = Buffer.alloc(1728);
     dat[0] = 255; dat[1] = 0; dat[2] = 0;
     const fetchMock = vi.fn().mockImplementation((url: string) => {
-      if (String(url).includes("/account/syncData")) return fakeRes({ user: { activity: { ARK_HUB: { act1arkhub: { pixelArts: [{ pixelArtId: 1001 }] } } } } });
       if (String(url).includes("getPixelArt")) return fakeRes({ pixelArts: { "1001": { url: "https://oss.example/pixel_art_prod_1001.dat", isBanned: false } } });
       return Promise.resolve({ ok: true, status: 200, arrayBuffer: vi.fn().mockResolvedValue(dat) });
     });
     vi.stubGlobal("fetch", fetchMock);
-    const list = await getPixelArtList("13800000000", "pwd");
+    const list = await getPixelArtList("13800000000", "pwd", [1001]);
     expect(list).toHaveLength(1);
     expect(list[0].id).toBe("1001");
     expect(list[0].isBanned).toBe(false);
@@ -341,13 +340,12 @@ describe("getPixelArtList / deletePixelArt", () => {
     vi.unstubAllGlobals();
   });
 
-  it("getPixelArtList 无已上传像素画应返回空数组", async () => {
-    const fetchMock = vi.fn().mockImplementation(() =>
-      fakeRes({ user: { activity: { ARK_HUB: { act1arkhub: { pixelArts: [] } } } } }),
-    );
+  it("getPixelArtList 缺省 ID 应返回空数组（官服无列表接口，ID 须显式传入）", async () => {
+    const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const list = await getPixelArtList("13800000000", "pwd");
     expect(list).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
 

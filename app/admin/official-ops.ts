@@ -498,9 +498,13 @@ export async function uploadPixelArtBatch(
  * 响应 pixelArts[id] = { url, isBanned }（OSS .dat 文件地址）。随后逐个下载 .dat
  * （24×24×3 = 1728 字节 RGB），解析为像素数组返回。
  *
+ * 注意：官服 syncData 的 ARK_HUB 不含已上传像素画 ID 列表（仅 coin/secretary/squads），
+ * ID 只能来自上传时返回（savePixelArt 的 pixelArtId）——调用方需显式传入 pixelArtIds
+ * （dashboard 用 localStorage 保存上传记录）。
+ *
  * @param phone - 官服手机号
  * @param pwd - 官服密码
- * @param pixelArtIds - 像素画 ID 列表（缺省读全部已上传）
+ * @param pixelArtIds - 像素画 ID 列表（缺省返回空数组——无法枚举官服全部）
  * @returns 每张 { id, url, isBanned, pixels?（1728 字节，下载失败为 null） }
  */
 export async function getPixelArtList(
@@ -508,17 +512,10 @@ export async function getPixelArtList(
   pwd: string,
   pixelArtIds?: (number | bigint)[],
 ): Promise<{ id: string; url: string; isBanned: boolean; pixels: number[] | null }[]> {
+  const ids: (number | bigint)[] = pixelArtIds ?? [];
+  if (ids.length === 0) return [];
   const session = new OfficialSession();
   await session.login(phone, pwd);
-  // 读取已上传像素画 ID：先调 syncData 拿玩家 ARK_HUB 数据（含 pixelArts）——若无则空
-  const sync = await session.sync();
-  let ids: (number | bigint)[] = pixelArtIds ?? [];
-  if (ids.length === 0) {
-    const hub = sync?.activity?.ARK_HUB?.["act1arkhub"];
-    const pixelList: any[] = hub?.pixelArts ?? hub?.pixelArtList ?? [];
-    ids = pixelList.map((p: any) => (typeof p === "object" ? (p.pixelArtId ?? p.id) : p));
-  }
-  if (ids.length === 0) return [];
 
   const resp = await session.post("/activity/arkhub/getPixelArt", {
     activityId: "act1arkhub",

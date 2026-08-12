@@ -2445,7 +2445,7 @@
     function renderPixelGallery(list) {
       var box = $("px-gallery");
       if (!list || list.length === 0) {
-        box.innerHTML = '<span style="color:var(--muted);font-size:11px;grid-column:1/-1;">暂无已上传像素画</span>';
+        box.innerHTML = '<span style="color:var(--muted);font-size:11px;grid-column:1/-1;">暂无记录（上传后自动记录 pixelArtId；官服无列表接口，需先在左侧上传）</span>';
         return;
       }
       box.innerHTML = "";
@@ -2487,7 +2487,7 @@
             .then(function (r) {
               var ok2 = r[0] && r[0].ok;
               toast(ok2 ? "已撤销 " + idText : "撤销失败：" + (r[0] ? r[0].error : "未知"), ok2 ? "info" : "err");
-              if (ok2) { refreshPixelGallery(); refreshLogs(); }
+              if (ok2) { pixelStoreRemove(phone, item.id); refreshPixelGallery(); refreshLogs(); }
             })
             .catch(function (e) { toast("撤销失败: " + e.message, "err"); });
         });
@@ -2498,14 +2498,42 @@
       });
     }
 
-    /** 从官服读取已上传像素画并渲染画廊 */
+    /** 上传记录存取（localStorage：官服 syncData 不含像素画 ID 列表，靠本地上传记录追踪） */
+    function pixelStore() {
+      try { return JSON.parse(localStorage.getItem("dtsPixelArts") || "{}"); } catch { return {}; }
+    }
+    function pixelStoreSave(map) { try { localStorage.setItem("dtsPixelArts", JSON.stringify(map)); } catch {} }
+    /** 追加上传记录：key=手机号 → pixelArtId 数组（新 ID 在前，对应官服从新到旧） */
+    function pixelStoreAdd(phone, ids) {
+      var store = pixelStore();
+      var list = store[phone] || [];
+      ids.forEach(function (id) {
+        if (list.indexOf(String(id)) === -1) list.unshift(String(id));
+      });
+      store[phone] = list;
+      pixelStoreSave(store);
+    }
+    /** 移除上传记录（撤销后） */
+    function pixelStoreRemove(phone, id) {
+      var store = pixelStore();
+      var list = (store[phone] || []).filter(function (x) { return x !== String(id); });
+      store[phone] = list;
+      pixelStoreSave(store);
+    }
+
+    /** 从官服读取已上传像素画并渲染画廊（ID 来自本地上传记录） */
     function refreshPixelGallery() {
       var phone = $("px-phone").value.trim();
       var pwd = $("px-pwd").value.trim();
       if (!phone || !pwd) { toast("请填写官服手机号与密码"); return; }
+      var ids = (pixelStore()[phone] || []).map(Number);
+      if (ids.length === 0) {
+        renderPixelGallery(null);
+        return;
+      }
       api("/pixel/list-official", {
         method: "POST",
-        body: JSON.stringify({ phone: phone, pwd: pwd }),
+        body: JSON.stringify({ phone: phone, pwd: pwd, pixelArtIds: ids }),
       })
         .then(function (list) { renderPixelGallery(list); refreshLogs(); })
         .catch(function (e) { showResp("px-resp", "读取失败: " + e.message); });
@@ -2536,8 +2564,9 @@
           }).join("\\n");
           showResp("px-resp", "批量上传完成：成功 " + ok + " / " + results.length + "（展示顺序：从新到旧、一行 4 个）\\n" + lines);
           refreshLogs();
-          // 上传成功后从官服读取结果展示（缩略图 + 撤销按钮）
-          if (ok > 0) refreshPixelGallery();
+          // 保存上传记录（ID 列表）并读取展示
+          var okIds = results.filter(function (r) { return r.ok; }).map(function (r) { return r.pixelArtId; });
+          if (okIds.length > 0) { pixelStoreAdd(phone, okIds); refreshPixelGallery(); }
         })
         .catch(function (e) { showResp("px-resp", "批量上传失败: " + e.message); });
     });

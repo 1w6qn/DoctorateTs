@@ -93,6 +93,10 @@ export class PlayerDataManager {
   _inverseChanges: Patch[][];
   /** 直接变更脏标记（绕过 update() 的原地修改，如 medal/dungeon/rlv2 构造期初始化） */
   _dirty: boolean;
+  /** 状态版本号（update() 递增，用于 toJSONString 缓存失效） */
+  _stateVersion = 0;
+  /** toJSONString 序列化缓存 */
+  private _toJsonStringCache: { version: number; value: string } | null = null;
 
   /**
    * 构造函数
@@ -291,6 +295,7 @@ export class PlayerDataManager {
       this._changes.push(patches);
       this._inverseChanges.push(inversePatches);
     });
+    this._stateVersion++; // 使 toJSONString 缓存失效
     return result;
   }
 
@@ -309,5 +314,17 @@ export class PlayerDataManager {
    */
   toJSON() {
     return this._playerdata;
+  }
+
+  /**
+   * 预序列化 JSON 字符串（B4 响应缓存）：update() 后失效，重连/重复 syncData 复用，
+   * 避免每次全量 JSON.stringify（1.3MB 级）重复计算。
+   * 注意：_dirty 绕过 update() 的原地修改不触发版本号——构造期置脏不影响序列化结果。
+   */
+  toJSONString(): string {
+    if (!this._toJsonStringCache || this._toJsonStringCache.version !== this._stateVersion) {
+      this._toJsonStringCache = { version: this._stateVersion, value: JSON.stringify(this._playerdata) };
+    }
+    return this._toJsonStringCache.value;
   }
 }

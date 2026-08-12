@@ -51,12 +51,11 @@ router.post("/syncData", async (req, res) => {
   await player.update(async (draft) => {
     draft.pushFlags.status = now();
   });
-  res.send({
-    result: 0,
-    ts: now(),
-    user: player.toJSON(),
-    ...player.delta,
-  } satisfies SyncDataResponse);
+  // B4：预序列化响应（user 全量 1.3MB 级 JSON.stringify 缓存，update 后失效）
+  const userJson = player.toJSONString();
+  const deltaJson = JSON.stringify(player.delta);
+  const body = `{"result":0,"ts":${now()},"user":${userJson}${deltaJson !== "{}" ? "," + deltaJson.slice(1, -1) : ""}}`;
+  res.type("json").send(body);
 });
 
 router.post("/syncStatus", async (req, res) => {

@@ -455,6 +455,9 @@ export async function uploadPixelArtBatch(
   try {
     for (let i = 0; i < pixelDataList.length; i++) {
       try {
+        // 每张之间短暂等待，保证官服按上传顺序记录（展示从新到旧依赖上传完成顺序；
+        // 连续提交官服可能按处理完成时间排序导致乱序）
+        if (i > 0) await new Promise((r) => setTimeout(r, 400));
         const pixels = validatePixelData(pixelDataList[i]);
         const md5 = pixelDataMd5(pixels);
         // 网关申请上传 token（复用已连接网关会话）

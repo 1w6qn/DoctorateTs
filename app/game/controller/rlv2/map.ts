@@ -194,20 +194,23 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
       const isEndCol = !isZone1 && x === maxX;
 
       if (isEndCol) {
+        // 层尾规则（官方）：黑流树海前主题 1 层尾=商店、3/5 层尾=boss（奇数层含 1 为商店特例）；
+        // 2/4 层尾=得偿所愿(512)/商店 视主题。奇数层（除 1）必 boss。
+        const isOdd = zone % 2 === 1;
         let endType: number;
         let endCount: number;
-        switch (zone) {
-          case 2:
-            endType = 512;
-            endCount = 2;
-            break;
-          case 3:
-            endType = 4;
-            endCount = 1;
-            break;
-          default:
-            endType = shopType;
-            endCount = 1;
+        if (zone === 1) {
+          endType = shopType; // 1 层尾必为商店（黑流树海前主题）
+          endCount = 1;
+        } else if (isOdd) {
+          endType = TorappuRoguelikeEventType.BATTLE_BOSS; // 3、5 层尾必 boss
+          endCount = 1;
+        } else if (zone === 2) {
+          endType = 512;
+          endCount = 2;
+        } else {
+          endType = shopType;
+          endCount = 1;
         }
 
         for (let y = 0; y < endCount; y++) {
@@ -270,8 +273,8 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
     }
 
     if (isZone1) {
-      const z1NodeType = roNum === 5 ? shopType : TorappuRoguelikeEventType.INCIDENT;
-      const endType = roNum === 5 ? 1048576 : shopType;
+      const z1NodeType = TorappuRoguelikeEventType.INCIDENT;
+      const endType = shopType; // 1 层尾必为商店（黑流树海前主题统一）
 
       const zone1Nodes: { [key: string]: PlayerRoguelikeNode } = {
         "200": {

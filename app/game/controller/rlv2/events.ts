@@ -172,7 +172,10 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
         ? k.startsWith("choice_startbuff_")
         : k.startsWith(`choice_ro${roNum}_startbuff_`),
     );
-    const choices = choiceKeys.reduce((acc, key) => ({ ...acc, [key]: 1 }), {});
+    // 支援选项 3 选 1（官方机制：上一把到 3 层后，下一把提供 3 个随机支援选项）
+    const shuffled = [...choiceKeys].sort(() => Math.random() - 0.5);
+    const picked = shuffled.slice(0, 3);
+    const choices = picked.reduce((acc, key) => ({ ...acc, [key]: 1 }), {});
     return {
       initSupport: {
         step: args.step,

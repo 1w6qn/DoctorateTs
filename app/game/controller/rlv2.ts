@@ -179,9 +179,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       predefined: args.predefinedId,
       theme: theme,
       outer: {
-        // 开局支持阶段（GAME_INIT_SUPPORT/startbuff 选择）——客户端抓包（rogue_6 modeGrade 15）
-        // 在 chooseInitialRelic 后调用 finishEvent + selectChoice(choice_roX_startbuff_N)
-        support: true,
+        // 支援选项（GAME_INIT_SUPPORT/startbuff 3 选 1）：仅当上一把到达第 3 层（zone>=3）才出现。
+        // 官方机制：所有主题上一把到 3 层 → 下一把加入支援选项。
+        support: (this.outer?.[theme]?.record as any)?.lastZone >= 3,
       },
       start: now(),
       modeGrade: args.modeGrade,
@@ -207,6 +207,34 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     // 绕过 update() 的原地初始化不产生 Immer 补丁，显式标记脏以触发条件落盘
     this._player.markDirty();
     await this._trigger.emit("rlv2:create", [this]);
+
+    // 开局增益在 rlv2:create（status.create 重置初始值）之后应用：
+    // 黑流树海襁褓类藏品（上一把获得并持久化到 record.legacy）——襁褓中的猫 +5 源石锭 / 狗 +1 希望
+    const legacyList: string[] = (this.outer?.[theme]?.record as any)?.legacy || [];
+    for (const legacyId of legacyList) {
+      const def = (excel.RoguelikeTopicTable.details[theme] as any)?.items?.[legacyId];
+      const usage = def?.usage || "";
+      if (usage.includes("5源石锭")) {
+        this._status.property.gold += 5;
+      } else if (usage.includes("1点希望")) {
+        this._status.property.population.max += 1;
+      }
+    }
+
+    // "让探索走向不同的结局"藏品：改变结局走向（附加层由 maxZone 处理，此处切换 toEnding 为 2 号结局）。
+    // 官方此类藏品（残破的玩偶/恍悟/初幕、决心/观望/犹疑/深蓝之心 等）触发 2 结局路线。
+    const detail2 = excel.RoguelikeTopicTable.details[theme] as any;
+    const hasEndingChangeRelic = Object.values(this.inventory?.relic || {}).some(
+      (r) => {
+        const id = (r as any).id;
+        const usage = detail2?.items?.[id]?.usage || "";
+        return usage.includes("让探索走向不同的结局") || usage.includes("不同结局");
+      },
+    );
+    if (hasEndingChangeRelic) {
+      this._status.toEnding = `ro${theme.slice(-1)}_ending_2`;
+      this._status.chgEnding = true;
+    }
   }
 
   /**
@@ -264,6 +292,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     if (!outer.record) {
       outer.record = { last: 0, stageCnt: {}, bandCnt: {}, bandGrade: {} };
     }
+    // 上一把到达层数（支援选项门槛）
+    if (outer.record.lastZone === undefined) outer.record.lastZone = 0;
+    if (!Array.isArray(outer.record.legacy)) outer.record.legacy = [];
     // 分队升级可见性对齐：已有科技树解锁（如 分裂→指挥分队 band_2）时升级分队 state 1、
     // 旧分队隐藏（修复历史存档升级后旧分队未隐藏）
     const band = outer.collect?.band;
@@ -459,7 +490,11 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     this._status.state = "WAIT_MOVE";
   }
 
-  /** 主流程最大层数（取有普通/紧急关卡的 zone 最大值） */
+  /**
+   * 主流程最大层数：所有主题默认 5 层（1 层尾商店、3/5 层尾 boss）。
+   * 持有"让探索走向不同的结局"藏品（如 rogue_1 残破的玩偶/恍悟/初幕、rogue_2 决/观望/犹疑/深蓝之心）
+   * 时可能出现附加层（6 层结局层），最多到该主题 stages 实际层数。
+   */
   get maxZone(): number {
     const theme = this.current.game!.theme;
     const stages = Object.keys(
@@ -470,7 +505,20 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       const m = s.match(/^ro\d+_[ne]_(\d+)_/);
       if (m) max = Math.max(max, parseInt(m[1], 10));
     }
-    return max || 6;
+    // 附加层条件：持有改变结局走向的藏品 → 允许到 6 层（官方结局层）；否则默认 5 层
+    if (max >= 6) {
+      const relicIds = Object.values(this.inventory?.relic || {}).map(
+        (r) => (r as any).id,
+      );
+      const detail = excel.RoguelikeTopicTable.details[theme] as any;
+      const hasEndingChange = relicIds.some(
+        (id) =>
+          (detail?.items?.[id]?.usage || "").includes("让探索走向不同的结局") ||
+          (detail?.items?.[id]?.usage || "").includes("不同结局"),
+      );
+      if (hasEndingChange) return max;
+    }
+    return Math.min(max || 6, 5);
   }
 
   /** 当前节点是否为本层终点（zone_end） */
@@ -2041,6 +2089,21 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         } as any);
       buff.score = (buff.score || 0) + exploreScore;
       buff.pointOwned = (buff.pointOwned || 0) + exploreScore;
+
+      // 记录本把到达的最深层（支持选项门槛：上一把到 3 层 → 下一把支援 3 选 1）
+      const rec = (outerTheme.record ?? (outerTheme.record = {} as any)) as any;
+      rec.lastZone = Math.max(rec.lastZone ?? 0, this._status.cursor.zone);
+      rec.last = Date.now();
+      // 黑流树海襁褓类藏品（LEGACY 型：局内获得 → 下一局增益）持久化到 record.legacy
+      const legacy = Object.values(this.inventory?.relic || {})
+        .map((r) => (r as any).id)
+        .filter((id) => {
+          const def = (excel.RoguelikeTopicTable.details[theme] as any)?.items?.[id];
+          return def?.type === "LEGACY" || id.includes("legacy");
+        });
+      if (legacy.length > 0) {
+        rec.legacy = [...new Set([...(rec.legacy || []), ...legacy])];
+      }
     });
 
     await this._trigger.emit("rlv2:event:create", [

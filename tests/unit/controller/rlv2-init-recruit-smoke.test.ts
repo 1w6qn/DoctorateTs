@@ -94,6 +94,9 @@ async function runInitFlow(player: PlayerDataManager) {
 
 describe("初始招募流程（GAME_INIT_RECRUIT）", () => {
   it("chooseInitialRecruitSet 后 tickets 非空，activeRecruitTicket 生成 RECRUIT 事件", async () => {
+    // 固定 Math.random：chooseInitialRecruitSet 洗牌取前 3 张票、active 候选稳定（避免跨文件 random 抖动）
+    const rand = vi.spyOn(Math, "random").mockReturnValue(0.1);
+    try {
     const player = makePlayer();
     await runInitFlow(player);
     const events = (player.rlv2 as any)._status._pending;
@@ -116,6 +119,9 @@ describe("初始招募流程（GAME_INIT_RECRUIT）", () => {
     // 候选列表非空（主队伍干员 + 票职业匹配）
     const ticket = (player.rlv2 as any).inventory.recruit[ticketIndex];
     expect(ticket.list.length).toBeGreaterThan(0);
+    } finally {
+      rand.mockRestore();
+    }
   });
 
   it("3 张票逐张招募后 finishEvent 应进入 WAIT_MOVE", async () => {

@@ -88,10 +88,13 @@ describe("rlv2 开局 buff 选择数据", () => {
       );
       const scene = ev.content.initSupport!.scene;
       expect(scene.id).toBe("scene_startbuff_enter");
-      expect(Object.keys(scene.choices).sort()).toEqual([
-        "choice_startbuff_1", "choice_startbuff_2", "choice_startbuff_3",
-        "choice_startbuff_4", "choice_startbuff_5", "choice_startbuff_6",
-      ]);
+      // 支援选项 3 选 1（官方机制：上一把到 3 层后下一把提供 3 个随机支援选项）
+      const keys = Object.keys(scene.choices);
+      expect(keys).toHaveLength(3);
+      for (const k of keys) {
+        expect(k).toMatch(/^choice_startbuff_\d+$/);
+        expect(scene.choices[k]).toBe(1);
+      }
     });
 
     it("rogue_4 应生成 choice_ro4_startbuff_1..7", () => {
@@ -105,9 +108,13 @@ describe("rlv2 开局 buff 选择数据", () => {
       );
       const scene = ev.content.initSupport!.scene;
       expect(scene.id).toBe("scene_ro4_startbuff_enter");
-      expect(Object.keys(scene.choices)).toHaveLength(7);
-      expect(scene.choices["choice_ro4_startbuff_1"]).toBe(1);
-      expect(scene.choices["choice_ro4_startbuff_7"]).toBe(1);
+      // 支援选项 3 选 1（随机 3 个）
+      const keys = Object.keys(scene.choices);
+      expect(keys).toHaveLength(3);
+      for (const k of keys) {
+        expect(k).toMatch(/^choice_ro4_startbuff_\d+$/);
+        expect(scene.choices[k]).toBe(1);
+      }
     });
 
     it("rogue_6 应生成 12 个选项", () => {
@@ -121,7 +128,13 @@ describe("rlv2 开局 buff 选择数据", () => {
       );
       const scene = ev.content.initSupport!.scene;
       expect(scene.id).toBe("scene_ro6_startbuff_enter");
-      expect(Object.keys(scene.choices)).toHaveLength(12);
+      // 支援选项 3 选 1（随机 3 个，从 12 个池中抽）
+      const keys = Object.keys(scene.choices);
+      expect(keys).toHaveLength(3);
+      for (const k of keys) {
+        expect(k).toMatch(/^choice_ro6_startbuff_\d+$/);
+        expect(scene.choices[k]).toBe(1);
+      }
     });
   });
 });

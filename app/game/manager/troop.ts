@@ -1,4 +1,4 @@
-import { PlayerSquad, PlayerSquadItem } from "../model/character";
+import { PlayerSquad, PlayerSquadItem, PlayerCharEquipInfo } from "../model/character";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
@@ -178,6 +178,22 @@ export class TroopManager {
   }
 
   async fix(): Promise<void> {
+    // 模组回填：按归属干员（base 或 tmpl 变体各自 charId）补缺失条目
+    const backfillOwner = (
+      ownerId: string,
+      dict: { [key: string]: PlayerCharEquipInfo },
+    ) => {
+      Object.values(excel.UniequipTable.equipDict)
+        // 防御：equipDict 含 null 占位条目（26/924）
+        .filter((equip) => equip && equip.charId === ownerId)
+        .forEach((equip) => {
+          dict[equip.uniEquipId] = dict[equip.uniEquipId] || {
+            hide: 1,
+            locked: 1,
+            level: 1,
+          };
+        });
+    };
     Object.values(this._player._playerdata.troop.chars).forEach((char) => {
       if (char.charId == "char_002_amiya") {
         return;
@@ -185,17 +201,15 @@ export class TroopManager {
       // 技能按官方规则回填/解锁（allSkillLvlup[i].unlockCond——test.json 378/378 验证；
       // ⚠️ 勿用 skill.unlockCond 顶层字段：与解锁条件 1504 处不同，历史地雷）
       reconcileCharSkills(char);
-      const equips = excel.UniequipTable.equipDict;
-      Object.values(equips)
-        .filter((equip) => equip.charId == char.charId)
-        .forEach((equip) => {
-          char.equip = char.equip || {};
-          char.equip[equip.uniEquipId] = char.equip[equip.uniEquipId] || {
-            hide: 1,
-            locked: 1,
-            level: 1,
-          };
+      char.equip = char.equip || {};
+      backfillOwner(char.charId, char.equip);
+      // 模板变体回填（tmpl 各形态按各自 charId 归属）
+      if (char.tmpl) {
+        Object.entries(char.tmpl).forEach(([tmplId, patch]) => {
+          patch.equip = patch.equip || {};
+          backfillOwner(tmplId, patch.equip);
         });
+      }
       if (char.evolvePhase == 2 && char.equip) {
         char.currentEquip = char.currentEquip || Object.keys(char.equip)[0]!;
       }

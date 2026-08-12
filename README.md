@@ -128,6 +128,32 @@ npm run admin -- config set admin.token mytoken # 修改配置（重启后生效
 - **C1 syncData `user` 全量下发**：官方协议契约——`reference/tmp/account_syncData_response.00.json`、`account_syncData_res_1065.json` 两份官服抓包均为 `{ result, ts, user, playerDataDelta }`，`user` 是全量玩家数据（42-51 个顶层字段）；本服实现与官方一致，行为不改；契约已被 `tests/unit/router/account.test.ts` 锁定。
 - **C3 版本校验 YAGNI**：`majorVersion` 已配置化（`config.majorVersion`，默认 446），clientVersion 校验不拦截。
 
+## mod 资源包（客户端热更替换）
+
+服务端支持向客户端下发自定义资源 mod（替换/新增场景、音频、活动等 assetbundle），链路：
+`mods/*.dat`（zip 包）→ 注入 `hot_update_list.json` 热更清单 → 客户端按新 `resVersion` 拉取 mod 文件。
+
+### 启用
+
+1. 用 ArkUnpacker 解包目标资源（获得 `.ab` 等文件目录）。
+2. 打包为 mod 资源包（每个文件一个 `.dat`，zip 内条目名 = 相对目录的 posix 路径）：
+
+   ```bash
+   npm run pack:mod -- --dir <ArkUnpacker 解包目录>     # 输出到 mods/
+   npm run pack:mod -- --dir <目录> --out <自定义目录>    # 自定义输出目录
+   npm run pack:mod -- --dir <目录> --clean              # 打包前清空旧 .dat
+   ```
+
+3. 将 `data/config.json` 的 `assets.enableMods` 置 `true`（缺省 `false`），重启服务。
+4. 客户端重新登录即自动热更拉取 mod 资源（mod 不变时 `resVersion` 稳定，不会反复全量重下）。
+
+### 说明
+
+- `mods/` 与 `mods.json`（mod 指纹缓存）已被 `.gitignore` 忽略，仅 `mods/.placeholder` 入 git 保留目录。
+- mod 指纹缓存自动失效重建（目录/内容变化后无需手动清理）。
+- 兜底：`mods/` 目录不存在或 `.dat` 损坏时自动跳过，不影响正常资源服务（启用 mod 亦安全）。
+- 游戏内干员「模组」（uniequip）系统与本文所述客户端资源 mod 无关，见 `api.md` 模组章节。
+
 ## 开发命令
 
 ```bash

@@ -8,6 +8,8 @@ import { ceil } from "lodash";
 import { logger } from "@utils/logger";
 import { rarityToIndex } from "@utils/rarity";
 import { reconcileCharSkills } from "@game/util/char-skills";
+import { PlayerCharacter, PlayerCharPatch } from "@game/model/character";
+import { UniEquipData } from "@excel/types_excel_gen";
 
 export class CharManager {
   _trigger: TypedEventEmitter;
@@ -343,6 +345,13 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, templateId } = args;
       const char = draft.troop.chars[charInstId];
+      if (!templateId || templateId === char.charId) {
+        // 切回基础形态：清除 currentTmpl（避免自引用空模板破坏干员详情——
+        // 原实现 currentTmpl:charId + tmpl:{} 使客户端按 currentTmpl 查 tmpl 得 undefined）
+        char.currentTmpl = undefined;
+        return;
+      }
+      this._ensureTmplPatch(char, templateId);
       char.currentTmpl = templateId;
     });
   }
@@ -366,6 +375,104 @@ export class CharManager {
     });
   }
 
+  // ===== 模组（uniequip）内部工具 =====
+
+  /** 取模组配置（equipDict 含 null 占位条目——防御） */
+  private _getEquipData(equipId: string): UniEquipData {
+    const data = excel.UniequipTable.equipDict[equipId];
+    if (!data) {
+      throw new Error(`模组不存在: ${equipId}`);
+    }
+    return data;
+  }
+
+  /** EvolvePhase 枚举字符串 → 数值档位（"PHASE_2" → 2；缺省/未知 → 0） */
+  private _phaseRank(phase: unknown): number {
+    const m = typeof phase === "string" ? /^PHASE_(\d)$/.exec(phase) : null;
+    return m ? Number(m[1]) : 0;
+  }
+
+  /** 校验模组归属（equipId 属于该干员或其模板变体） */
+  private _assertEquipOwned(
+    char: PlayerCharacter,
+    equip: UniEquipData,
+    templateId: string,
+  ): void {
+    const owner = templateId || char.charId;
+    if (equip.charId !== owner && equip.charId !== char.charId) {
+      throw new Error(`模组 ${equip.uniEquipId} 不属于干员 ${owner}`);
+    }
+  }
+
+  /** 解锁/升级条件校验：精二阶段/等级/信赖（unlockFavors 值 null 表示不要求） */
+  private _assertEquipCondition(
+    char: PlayerCharacter,
+    equip: UniEquipData,
+    level: number,
+  ): void {
+    const phaseNeed = this._phaseRank(equip.unlockEvolvePhase);
+    if (char.evolvePhase < phaseNeed) {
+      throw new Error(
+        `模组 ${equip.uniEquipId} 需精英化${phaseNeed}才能解锁（当前精${char.evolvePhase}）`,
+      );
+    }
+    if (char.level < (equip.unlockLevel ?? 0)) {
+      throw new Error(
+        `模组 ${equip.uniEquipId} 需等级 ${equip.unlockLevel} 才能解锁（当前 ${char.level}）`,
+      );
+    }
+    const favorNeed = equip.unlockFavors?.[String(level)];
+    if (typeof favorNeed === "number" && (char.favorPoint ?? 0) < favorNeed) {
+      throw new Error(
+        `模组 ${equip.uniEquipId} 需信赖 ${favorNeed}（当前 ${char.favorPoint}）`,
+      );
+    }
+  }
+
+  /** 模组最高等级（itemCost 键的最大档位，缺省 1） */
+  private _maxEquipLevel(equip: UniEquipData): number {
+    const keys = Object.keys(equip.itemCost ?? {});
+    return keys.length ? Math.max(...keys.map((k) => Number(k))) : 1;
+  }
+
+  /** 确保干员模板补丁存在（缺失时按基础形态初始化——皮肤/技能/模组状态拷贝） */
+  private _ensureTmplPatch(
+    char: PlayerCharacter,
+    templateId: string,
+  ): PlayerCharPatch {
+    if (!char.tmpl) char.tmpl = {};
+    if (!char.tmpl[templateId]) {
+      char.tmpl[templateId] = {
+        skinId: char.skin,
+        defaultSkillIndex: char.defaultSkillIndex,
+        skills: char.skills?.map((s) => ({ ...s })) ?? [],
+        currentEquip: char.currentEquip,
+        equip: { ...(char.equip ?? {}) },
+      };
+    }
+    return char.tmpl[templateId];
+  }
+
+  /** 解析模组操作目标（base 或 tmpl 变体），并确保 equip 字典存在 */
+  private _resolveEquipTarget(
+    char: PlayerCharacter,
+    templateId: string,
+  ): PlayerCharacter | PlayerCharPatch {
+    if (templateId) return this._ensureTmplPatch(char, templateId);
+    if (!char.equip) char.equip = {};
+    return char;
+  }
+
+  /** 特殊模组任务目标值（paramList 首个数值，缺省 1）——任务直接播种完成态 */
+  private _missionTarget(missionId: string): number {
+    const mission = excel.UniequipTable.missionList[missionId];
+    for (const raw of mission?.paramList ?? []) {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+    return 1;
+  }
+
   async setEquipment(args: {
     charInstId: number;
     templateId: string;
@@ -374,11 +481,14 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, templateId, equipId } = args;
       const char = draft.troop.chars[charInstId];
-      if (templateId) {
-        char.tmpl![templateId].currentEquip = equipId;
-      } else {
-        char.currentEquip = equipId;
+      const equipData = this._getEquipData(equipId);
+      this._assertEquipOwned(char, equipData, templateId);
+      const target = this._resolveEquipTarget(char, templateId);
+      const entry = (target.equip[equipId] ??= { hide: 1, locked: 1, level: 1 });
+      if (entry.locked) {
+        throw new Error(`模组 ${equipId} 尚未解锁，无法装备`);
       }
+      target.currentEquip = equipId;
     });
   }
 
@@ -390,16 +500,32 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, templateId, equipId } = args;
       const char = draft.troop.chars[charInstId];
-      if (templateId) {
-        char.tmpl![templateId].equip[equipId].hide = 0;
-        char.tmpl![templateId].equip[equipId].locked = 0;
-      } else {
-        char.equip![equipId].hide = 0;
-        char.equip![equipId].locked = 0;
+      const equipData = this._getEquipData(equipId);
+      this._assertEquipOwned(char, equipData, templateId);
+      // 解锁条件：精二/等级/信赖（unlockFavors["1"] 数值时校验）
+      this._assertEquipCondition(char, equipData, 1);
+      const target = this._resolveEquipTarget(char, templateId);
+      const entry = (target.equip[equipId] ??= { hide: 1, locked: 1, level: 1 });
+      if (!entry.locked) {
+        throw new Error(`模组 ${equipId} 已解锁`);
       }
-      await this._trigger.emit("items:use", [
-        excel.UniequipTable.equipDict[equipId].itemCost!["1"],
-      ]);
+      entry.hide = 0;
+      entry.locked = 0;
+      // 特殊模组解锁任务：播种完成态（私服无任务结算端点——客户端模组 UI 按
+      // playerdata.equipment.missions 显示进度，直接完成可正常解锁/装备）
+      if (equipData.missionList?.length) {
+        if (!draft.equipment) draft.equipment = { missions: {} };
+        if (!draft.equipment.missions) draft.equipment.missions = {};
+        for (const missionId of equipData.missionList) {
+          if (draft.equipment.missions[missionId]) continue;
+          const targetValue = this._missionTarget(missionId);
+          draft.equipment.missions[missionId] = {
+            value: targetValue,
+            target: targetValue,
+          };
+        }
+      }
+      await this._trigger.emit("items:use", [equipData.itemCost?.[1] ?? []]);
       await this._trigger.emit("HasEquipment", [{ char }]);
     });
   }
@@ -413,15 +539,30 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, templateId, equipId, targetLevel } = args;
       const char = draft.troop.chars[charInstId];
+      const equipData = this._getEquipData(equipId);
+      this._assertEquipOwned(char, equipData, templateId);
+      const target = this._resolveEquipTarget(char, templateId);
+      const entry = (target.equip[equipId] ??= { hide: 1, locked: 1, level: 1 });
+      if (entry.locked) {
+        throw new Error(`模组 ${equipId} 尚未解锁，无法升级`);
+      }
+      // 修复：先快照旧等级再算扣费（原实现先置 level 再按已更新等级循环——
+      // 只扣了目标档一级，且 tmpl 变体误读 base 等级）
+      const oldLevel = entry.level;
+      if (targetLevel <= oldLevel) {
+        throw new Error(`目标等级 ${targetLevel} 不高于当前等级 ${oldLevel}`);
+      }
+      const maxLevel = this._maxEquipLevel(equipData);
+      if (targetLevel > maxLevel) {
+        throw new Error(`模组 ${equipId} 最高等级为 ${maxLevel}`);
+      }
+      // 信赖门槛：unlockFavors[targetLevel] 数值时校验（如 2732/10070 信赖点）
+      this._assertEquipCondition(char, equipData, targetLevel);
       const items: ItemBundle[] = [];
-      if (templateId) {
-        char.tmpl![templateId].equip[equipId].level = targetLevel;
-      } else {
-        char.equip![equipId].level = targetLevel;
+      for (let i = oldLevel + 1; i <= targetLevel; i++) {
+        items.push(...(equipData.itemCost?.[i] ?? []));
       }
-      for (let i = char.equip![equipId].level; i < targetLevel + 1; i++) {
-        items.push(...excel.UniequipTable.equipDict[equipId].itemCost![i]);
-      }
+      entry.level = targetLevel;
       await this._trigger.emit("items:use", [items]);
       await this._trigger.emit("HasEquipment", [{ char }]);
     });
@@ -487,11 +628,36 @@ export class CharManager {
   }): Promise<ItemBundle[]> {
     return await this._player.update(async (draft) => {
       const { charId, missionId } = args;
-      const items =
-        excel.CharMetaTable.spCharMissions[charId][missionId].rewards;
+      const mission = excel.CharMetaTable?.spCharMissions?.[charId]?.[missionId];
+      if (!mission) {
+        throw new Error(`异格干员任务不存在: ${charId}/${missionId}`);
+      }
+      // 加固：charMission 缺省初始化（新干员/导入存档可能无此键）
+      if (!draft.troop.charMission) draft.troop.charMission = {};
+      draft.troop.charMission[charId] = draft.troop.charMission[charId] || {};
+      if (draft.troop.charMission[charId][missionId] === 2) {
+        throw new Error(`任务奖励已领取: ${missionId}`);
+      }
+      // 资格校验：condType 数值 1 = EVOLVE_PHASE（JSON 数值与 TS 字符串枚举
+      // 不一致——按数值/字符串双判断；param = [精二阶段, 等级]）
+      const condType = mission.condType as unknown;
+      if (condType === 1 || condType === "EVOLVE_PHASE") {
+        const [phaseReq, levelReq] = (mission.param ?? []).map((p) => Number(p));
+        const char = Object.values(draft.troop.chars).find(
+          (c) => c.charId === charId,
+        );
+        if (!char) {
+          throw new Error(`干员不存在: ${charId}`);
+        }
+        if (char.evolvePhase < phaseReq || char.level < levelReq) {
+          throw new Error(
+            `未满足异格干员任务条件（需精${phaseReq} 级${levelReq}）: ${missionId}`,
+          );
+        }
+      }
       draft.troop.charMission[charId][missionId] = 2;
-      await this._trigger.emit("items:get", [items]);
-      return items;
+      await this._trigger.emit("items:get", [mission.rewards]);
+      return mission.rewards;
     });
   }
 

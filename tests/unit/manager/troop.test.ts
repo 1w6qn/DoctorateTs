@@ -61,6 +61,11 @@ vi.mock("@excel/excel", () => {
             uniEquipId: "equip_001",
             charId: "char_001",
           },
+          // tmpl 变体专属模组（fix 应对 tmpl 各形态按各自 charId 回填）
+          equip_tmpl_001: {
+            uniEquipId: "equip_tmpl_001",
+            charId: "char_001_alt",
+          },
         },
       },
       // 勋章表:提供干员密录勋章（CharStoryUnlock 模板）配置
@@ -426,6 +431,32 @@ describe("TroopManager", () => {
       expect(char.equip!.equip_001).toBeDefined();
       expect(char.equip!.equip_001.hide).toBe(1);
       expect(char.equip!.equip_001.locked).toBe(1);
+    });
+
+    it("tmpl 变体按各自 charId 回填 equip", async () => {
+      mockPlayer._playerdata.troop!.chars[1001].tmpl = {
+        char_001_alt: {
+          skinId: "char_001_alt#1",
+          defaultSkillIndex: 0,
+          skills: [],
+          currentEquip: null,
+          equip: {},
+        },
+      };
+      const manager = new TroopManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      await manager.fix();
+
+      const patch = mockPlayer._playerdata.troop!.chars[1001].tmpl!
+        .char_001_alt as any;
+      // 归属 char_001_alt 的模组被回填；归属 char_001 的 base 模组不进 tmpl
+      expect(patch.equip.equip_tmpl_001).toBeDefined();
+      expect(patch.equip.equip_tmpl_001.hide).toBe(1);
+      expect(patch.equip.equip_tmpl_001.locked).toBe(1);
+      expect(patch.equip.equip_001).toBeUndefined();
     });
   });
 

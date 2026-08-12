@@ -2,6 +2,7 @@ import { Router } from "express";
 import config from "../config";
 import { readJson } from "@utils/file";
 import { buildNetworkConfigContent } from "./remote-config";
+import { ensureModsLoaded, getModVersionSuffix } from "../asset";
 
 const router = Router();
 // Windows 平台独立版本（odpy 参考：config.version.windows；无则回退单版本）
@@ -12,9 +13,10 @@ router.get("/official/Windows/version", async (req, res) => {
 router.get("/official/Android/version", async (req, res) => {
   let modPatch = {};
   if (config.assets.enableMods) {
-    modPatch = {
-      resVersion: config.version.resVersion + Math.floor(Math.random() * 100),
-    };
+    await ensureModsLoaded();
+    const suffix = getModVersionSuffix();
+    // 确定性后缀：mod 不变则版本稳定（避免随机 +0..99 每次启动全量重下），mod 变更才变
+    if (suffix) modPatch = { resVersion: config.version.resVersion + suffix };
   }
   res.send(Object.assign({}, config.version, modPatch));
 });
@@ -22,9 +24,9 @@ router.get("/official/Android/version", async (req, res) => {
 router.get("/official/:version/version", async (req, res) => {
   let modPatch = {};
   if (config.assets.enableMods) {
-    modPatch = {
-      resVersion: config.version.resVersion + Math.floor(Math.random() * 100),
-    };
+    await ensureModsLoaded();
+    const suffix = getModVersionSuffix();
+    if (suffix) modPatch = { resVersion: config.version.resVersion + suffix };
   }
   res.send(Object.assign({}, config.version, modPatch));
 });

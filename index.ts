@@ -130,6 +130,11 @@ process.on("exit", (code) => {
   
   enablePatches();
   await excel.init();
+  // 启用 mod 时启动预热加载（避免首个热更清单请求卡在扫描、mod 文件请求早于清单时列表为空）
+  if (config.assets.enableMods) {
+    const { initMods } = await import("./app/asset");
+    await initMods();
+  }
   const app = express();
   // 响应压缩（B1）：syncData 等大响应（user 全量数 MB）gzip 后传输大幅减小。
   // 放 bodyParser 之前——压缩作用于响应，客户端带 Accept-Encoding: gzip 时生效

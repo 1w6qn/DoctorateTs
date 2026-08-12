@@ -572,9 +572,17 @@ OAuth2 授权
 ```json
 {
   "charInstId": 123,
+  "templateId": "string",
   "equipId": "string"
 }
 ```
+
+**说明**:
+- 校验解锁条件：精二阶段（`unlockEvolvePhase`）、等级（`unlockLevel`）、信赖（`unlockFavors` 对应档位）。
+- 消耗 `itemCost[1]` 材料；特殊模组（`hasUnlockMission`）自动播种 `playerdata.equipment.missions`
+  完成态（私服无任务结算端点，任务直接完成）。
+- `templateId` 空/缺省作用于基础形态，否则作用于对应模板变体（缺失自动按基础形态初始化）。
+- 重复解锁 / 条件不满足返回 500（错误消息见响应体）。
 
 ### POST /charBuild/upgradeEquipment
 升级模组
@@ -583,9 +591,16 @@ OAuth2 授权
 ```json
 {
   "charInstId": 123,
-  "equipId": "string"
+  "templateId": "string",
+  "equipId": "string",
+  "targetLevel": 2
 }
 ```
+
+**说明**:
+- 校验模组已解锁、目标等级合法（不高于当前等级拒绝；最高等级取 `itemCost` 键最大档位，通常 3）。
+- 消耗 `itemCost[当前等级+1 .. targetLevel]` 的累计材料（跳级升级正确累计多档费用）。
+- 信赖门槛：升级到目标档位时校验 `unlockFavors[targetLevel]`（数值时）。
 
 ### POST /charBuild/setEquipment
 装备模组
@@ -594,9 +609,12 @@ OAuth2 授权
 ```json
 {
   "charInstId": 123,
+  "templateId": "string",
   "equipId": "string"
 }
 ```
+
+**说明**: 仅可装备已解锁（`locked == 0`）且属于该干员的模组；未解锁拒绝。
 
 ### POST /charBuild/setCharVoiceLan
 设置角色语音语言
@@ -1353,6 +1371,15 @@ OAuth2 授权
 - `fileName`: 文件名
 
 **响应**: 返回资源文件二进制数据
+
+**mod 资源下发**（`config.assets.enableMods: true` 时生效）:
+- `mods/*.dat`（zip 包，条目名 = mod 名，如 `activity/[uc]act5fun.ab`）在
+  `GET /assetbundle/.../hot_update_list.json` 时被解析并注入 `abInfos`（新增 mod 条目），
+  客户端按清单拉取对应 `.dat`（`/`→`_`、`#`→`__`、去扩展名 + `.dat` 的命名约定）。
+- 版本接口（`/config/prod/official/{Android|:version}/version`）在启用 mod 时返回带
+  确定性后缀的 `resVersion`（mod 集合指纹，不变则稳定），触发热更清单重新拉取。
+- mods 目录缺失/`.dat` 损坏自动跳过，不影响正常资源服务。
+- 打包工具：`npm run pack:mod -- --dir <ArkUnpacker 解包目录>`。
 
 ---
 

@@ -1,0 +1,6 @@
+# mods/ 资源包目录（git 保留占位）
+
+将打包好的 mod 资源包（*.dat，zip 格式）放入本目录，并把 data/config.json 的
+assets.enableMods 置为 true，服务端会自动把 mod 注入热更清单并下发到客户端。
+
+打包工具：npm run pack:mod -- --dir <ArkUnpacker 解包目录>

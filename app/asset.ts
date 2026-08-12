@@ -24,7 +24,16 @@ router.get(
     let basePath = join(__dirname, "..", "assets", version, "redirect");
 
     if (fileName === "hot_update_list.json" && config.assets.enableMods) {
-      MODS_LIST = await loadMods();
+      try {
+        MODS_LIST = await loadMods();
+      } catch (error) {
+        // 容错：mod 扫描异常（权限/损坏）不阻断清单服务——记录并置空
+        logger.error("Asset", `mod 列表刷新失败: ${(error as Error).message}`);
+        MODS_LIST = emptyModsList();
+      }
+    } else if (config.assets.enableMods && !MODS_LOADED) {
+      // 容错：mod 文件请求早于热更清单（客户端缓存清单直连下载）——补齐初始加载
+      await ensureModsLoaded();
     }
 
     // odpy 代理模式（downloadPeoxy）：直接转发官服 CDN（支持 Range 断点续传，不落盘）
@@ -72,12 +81,15 @@ router.get(
     let wrongSize = false;
     if (fileName !== "hot_update_list.json") {
       const tempHotUpdatePath = join(basePath, "hot_update_list.json");
-      const hotUpdate = JSON.parse(await readFile(tempHotUpdatePath, "utf-8"));
-      if (await exists(filePath)) {
-        for (const pack of hotUpdate.packInfos) {
-          if (pack.name === fileName.split(".")[0]) {
-            wrongSize = (await size(filePath)) !== pack.totalSize;
-            break;
+      // 容错：版本目录缺 hot_update_list（客户端直连 .dat 等）时跳过尺寸校验——防 ENOENT 500
+      if (await exists(tempHotUpdatePath)) {
+        const hotUpdate = JSON.parse(await readFile(tempHotUpdatePath, "utf-8"));
+        if (await exists(filePath)) {
+          for (const pack of hotUpdate.packInfos) {
+            if (pack.name === fileName.split(".")[0]) {
+              wrongSize = (await size(filePath)) !== pack.totalSize;
+              break;
+            }
           }
         }
       }
@@ -117,12 +129,56 @@ interface ModsList {
   download: string[];
 }
 
-let MODS_LIST: ModsList = {
-  mods: [],
-  name: [],
-  path: [],
-  download: [],
-};
+function emptyModsList(): ModsList {
+  return { mods: [], name: [], path: [], download: [] };
+}
+
+/** mods 目录（.gitignore；仅 mods/.placeholder 入 git 保留目录） */
+const MODS_DIR = join(__dirname, "..", "mods");
+
+let MODS_LIST: ModsList = emptyModsList();
+
+/** mod 列表是否已尝试加载（ensureModsLoaded 幂等用——避免空 mods 目录时每请求重复扫描） */
+let MODS_LOADED = false;
+
+/**
+ * 加载 mod 列表（启动预热/缺省加载用）。失败不阻塞——记录错误并置空列表
+ */
+export async function initMods(): Promise<void> {
+  if (MODS_LOADED) return;
+  MODS_LOADED = true;
+  try {
+    MODS_LIST = await loadMods();
+    logger.info(
+      "Asset",
+      `mod 加载完成：${MODS_LIST.mods.length} 个（enableMods=${config.assets.enableMods}）`,
+    );
+  } catch (error) {
+    logger.error("Asset", `mod 加载失败: ${(error as Error).message}`);
+    MODS_LIST = emptyModsList();
+  }
+}
+
+export function getModsList(): ModsList {
+  return MODS_LIST;
+}
+
+export async function ensureModsLoaded(): Promise<void> {
+  if (!MODS_LOADED) await initMods();
+}
+
+/**
+ * 确定性 resVersion 后缀：mod 集合不变 → 后缀不变（客户端不重复全量重下）；
+ * mod 变更 → 后缀变化（触发热更清单重新拉取）。无 mod 时返回 ""（保持原版行为）
+ */
+export function getModVersionSuffix(): string {
+  if (MODS_LIST.mods.length === 0) return "";
+  const sig = MODS_LIST.mods
+    .map((m) => `${(m as { name: string }).name}|${(m as { totalSize: number }).totalSize}`)
+    .sort()
+    .join(",");
+  return "-m" + createHash("md5").update(sig).digest("hex").slice(0, 6);
+}
 
 const downloadingFiles: { [key: string]: EventEmitter } = {};
 
@@ -220,58 +276,95 @@ async function exportFile(
 
 async function loadMods(): Promise<ModsList> {
   const fileList: string[] = [];
-  const loadedModList: ModsList = {
-    mods: [],
-    name: [],
-    path: [],
-    download: [],
-  };
+  const loadedModList: ModsList = emptyModsList();
+  const modsDir = MODS_DIR;
 
-  for (const file of await readdir(join(__dirname, "..", "mods"))) {
+  // 容错：mods 目录不存在（未创建/未启用）时返回空列表——避免 readdir ENOENT 使清单请求 500
+  let dirEntries: string[];
+  try {
+    dirEntries = await readdir(modsDir);
+  } catch (error) {
+    logger.warn(
+      "Asset",
+      `mods 目录不存在（${modsDir}），跳过 mod 加载: ${(error as Error).message}`,
+    );
+    return loadedModList;
+  }
+  for (const file of dirEntries) {
     if (file !== ".placeholder" && file.endsWith(".dat")) {
-      fileList.push(join(__dirname, "..", "mods", file));
+      fileList.push(join(modsDir, file));
     }
   }
 
   const datFileInfos: { [key: string]: { size: number; crc32: number } } = {};
 
   for (const filePath of fileList) {
-    const fileContent = await readFile(filePath);
-    const fileSize = fileContent.length;
-    const fileCrc32 = crc32(fileContent);
-    datFileInfos[filePath] = {
-      size: fileSize,
-      crc32: fileCrc32,
-    };
+    // 容错：单个 .dat 读取失败（权限/占用）跳过，不阻断整体加载
+    try {
+      const fileContent = await readFile(filePath);
+      const fileSize = fileContent.length;
+      const fileCrc32 = crc32(fileContent);
+      datFileInfos[filePath] = {
+        size: fileSize,
+        crc32: fileCrc32,
+      };
+    } catch (error) {
+      logger.warn(
+        "Asset",
+        `${basename(filePath)} 读取失败，跳过: ${(error as Error).message}`,
+      );
+    }
   }
 
+  const modCachePath = join(__dirname, "..", "mods.json");
   let modCache = null;
 
-  if (await exists(join(__dirname, "..", "mods.json"))) {
-    modCache = JSON.parse(
-      await readFile(join(__dirname, "..", "mods.json"), "utf-8"),
-    );
+  if (await exists(modCachePath)) {
+    modCache = JSON.parse(await readFile(modCachePath, "utf-8"));
   }
 
   let modCacheValid = false;
 
   if (modCache) {
     const cachedDatFileInfos = modCache.file;
+    // 指纹比对：键为绝对路径——旧缓存（异地/旧项目路径）键不匹配 → 自动判失效重建
     if (JSON.stringify(datFileInfos) === JSON.stringify(cachedDatFileInfos)) {
-      modCacheValid = true;
+      // 新格式缓存 path 存相对文件名（可移植）；旧格式为绝对路径（含盘符/分隔符）→ 失效
+      const cachedPaths: unknown[] = modCache.mod?.path ?? [];
+      const isLegacyPath = cachedPaths.some(
+        (p) => typeof p !== "string" || p.includes(":") || p.includes("/") || p.includes("\\"),
+      );
+      if (!isLegacyPath) modCacheValid = true;
     }
   }
 
   if (modCacheValid && modCache) {
-    logger.info("Asset", `${fileList[0]} - Using Cached Mod...`);
-    return modCache.mod;
+    const cached = modCache.mod;
+    // 相对文件名 → 绝对路径（mods/ 目录整体迁移后仍正确指向新位置）
+    loadedModList.mods = cached.mods;
+    loadedModList.name = cached.name;
+    loadedModList.path = (cached.path as string[]).map((p) => join(modsDir, p));
+    loadedModList.download = cached.download;
+    logger.info("Asset", `${fileList[0] ?? "mods"} - Using Cached Mod...`);
+    return loadedModList;
   }
-  let modFile: yauzl.ZipFile;
+
+  const seenDownloads = new Set<string>();
   for (const filePath of fileList) {
     if ((await size(filePath)) === 0) {
       continue;
     }
-    modFile = await openZipFile(filePath);
+    let modFile: yauzl.ZipFile;
+    try {
+      modFile = await openZipFile(filePath);
+    } catch (error) {
+      // 容错：损坏/非 zip 的 .dat 跳过（不再 throw 炸进程）
+      logger.warn(
+        "Asset",
+        `${basename(filePath)} - mod 解析失败，跳过: ${(error as Error).message}`,
+      );
+      continue;
+    }
     modFile.readEntry();
     modFile.on("entry", (entry) => {
       if (!/\/$/.test(entry.fileName)) {
@@ -284,10 +377,36 @@ async function loadMods(): Promise<ModsList> {
           modFile.readEntry();
           return;
         }
+        const downloadName =
+          modName.replace(/\//g, "_").replace(/#/g, "__").split(".")[0] +
+          ".dat";
+        if (seenDownloads.has(downloadName)) {
+          logger.warn(
+            "Asset",
+            `${filePath} - ${modName} 与其它 mod 映射到同一下载名 ${downloadName}，跳过`,
+          );
+          modFile.readEntry();
+          return;
+        }
+        seenDownloads.add(downloadName);
         modFile.openReadStream(entry, (err, readStream) => {
-          if (err) throw err;
+          if (err) {
+            logger.warn(
+              "Asset",
+              `${filePath} - 读取条目失败: ${err.message}`,
+            );
+            modFile.readEntry();
+            return;
+          }
           const chunks: Buffer[] = [];
           readStream!.on("data", (chunk) => chunks.push(chunk));
+          readStream!.on("error", (streamErr) => {
+            logger.warn(
+              "Asset",
+              `${filePath} - 读取条目出错，跳过: ${streamErr.message}`,
+            );
+            modFile.readEntry();
+          });
           readStream!.on("end", async () => {
             const byteBuffer = Buffer.concat(chunks);
             const totalSize = byteBuffer.length;
@@ -309,17 +428,20 @@ async function loadMods(): Promise<ModsList> {
 
             loadedModList.mods.push(abInfo);
             loadedModList.name.push(modName);
-            loadedModList.path.push(filePath);
-            const downloadName =
-              modName.replace(/\//g, "_").replace(/#/g, "__").split(".")[0] +
-              ".dat";
+            // 运行时 path 为绝对路径；落盘缓存转存相对文件名（可移植）
+            loadedModList.path.push(join(modsDir, basename(filePath)));
             loadedModList.download.push(downloadName);
             await writeFile(
-              join(__dirname, "..", "mods.json"),
+              modCachePath,
               JSON.stringify(
                 {
                   file: datFileInfos,
-                  mod: loadedModList,
+                  mod: {
+                    mods: loadedModList.mods,
+                    name: loadedModList.name,
+                    path: loadedModList.path.map((p) => basename(p)),
+                    download: loadedModList.download,
+                  },
                 },
                 null,
                 4,

@@ -10,7 +10,8 @@ tmp/
 tmp1/
 test/
 assets/
-mods/
+mods/*
+!mods/.placeholder
 mods.json
 src/
 .idea

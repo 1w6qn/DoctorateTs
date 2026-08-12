@@ -56,10 +56,10 @@ export class RoguelikeInventoryManager
 
   getItem(item: RoguelikeItemBundle) {
     const theme = this._player.current.game!.theme;
-    const type =
-      item.type ||
-      excel.RoguelikeTopicTable.details[theme].items[item.id].type ||
-      "POOL";
+    // 类型解析：显式 type 优先，其次 excel items 表；两者都缺失（占位/机制空物品）回退 POOL，
+    // 不抛错（此前 items[item.id] undefined 直接 TypeError 500）
+    const itemDef = item.id ? excel.RoguelikeTopicTable.details[theme].items?.[item.id] : undefined;
+    const type = item.type || itemDef?.type || "POOL";
     logger.info("RLV2Inventory", `获得 ${item.id || item.type} * ${item.count}`);
     const funcs: { [key: string]: (item: RoguelikeItemBundle) => void } = {
       NONE: (item: RoguelikeItemBundle) => {},

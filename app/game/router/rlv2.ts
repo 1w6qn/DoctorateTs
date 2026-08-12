@@ -73,6 +73,7 @@ import {
   RoguelikePinTopicResponse,
   RoguelikeReadEndingChangeRequest,
   RoguelikeReadEndingChangeResponse,
+  RoguelikeTopicRefreshMissionResponse,
   RoguelikeReadMissionTipRequest,
   RoguelikeReadMissionTipResponse,
   RoguelikeRecruitAssistCharRequest,
@@ -148,12 +149,14 @@ function rlv2Response<T extends object>(player: PlayerDataManager, extra?: T) {
   };
 }
 
-/** 放弃游戏（CS: RoguelikeTopicGiveUpGameRequest） */
+/** 放弃游戏（CS: RoguelikeTopicGiveUpGameRequest）——官方响应带 result:"ok" */
 router.post("/giveUpGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as RoguelikeTopicGiveUpGameRequest;
   await player.rlv2.giveUpGame();
-  res.send(rlv2Response(player) satisfies RoguelikeTopicGiveUpGameResponse);
+  res.send(
+    rlv2Response(player, { result: "ok" } as any) satisfies RoguelikeTopicGiveUpGameResponse,
+  );
 });
 
 /** 创建游戏（CS: RoguelikeTopicCreateGameRequest） */
@@ -164,12 +167,14 @@ router.post("/createGame", async (req, res) => {
   res.send(rlv2Response(player) satisfies RoguelikeTopicCreateGameResponse);
 });
 
-/** 游戏结算（抓包 POST /rlv2/gameSettle，body {}；控制器 gameSettle 已实现此前 404） */
+/** 游戏结算（抓包 POST /rlv2/gameSettle，body {}；响应带 game/outer 结算数据） */
 router.post("/gameSettle", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as RoguelikeGameSettleRequest;
   await player.rlv2.gameSettle();
-  res.send(rlv2Response(player) satisfies RoguelikeGameSettleResponse);
+  res.send(
+    rlv2Response(player, player.rlv2.buildSettleResponse() as any) satisfies RoguelikeGameSettleResponse,
+  );
 });
 
 /** 选择初始密文（CS: RoguelikeSelectInitialRelicRequest） */
@@ -396,6 +401,14 @@ router.post("/readEndingChange", async (req, res) => {
   req.body as RoguelikeReadEndingChangeRequest;
   await player.rlv2.readEndingChange();
   res.send(rlv2Response(player) satisfies RoguelikeReadEndingChangeResponse);
+});
+
+/** 月度任务刷新（CS: RoguelikeTopicRefreshMissionRequest { theme, index }） */
+router.post("/normal/refreshMission", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as { theme?: string; index?: number };
+  player.rlv2.refreshMission(body);
+  res.send(rlv2Response(player) satisfies RoguelikeTopicRefreshMissionResponse);
 });
 
 /** 确认区域奖励（CS: RoguelikeZoneRewardRequest { itemType }） */

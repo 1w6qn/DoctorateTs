@@ -264,6 +264,80 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     if (!outer.record) {
       outer.record = { last: 0, stageCnt: {}, bandCnt: {}, bandGrade: {} };
     }
+    // 分队升级可见性对齐：已有科技树解锁（如 分裂→指挥分队 band_2）时升级分队 state 1、
+    // 旧分队隐藏（修复历史存档升级后旧分队未隐藏）
+    const band = outer.collect?.band;
+    const unlocked = outer.buff?.unlocked || {};
+    if (band && typeof band === "object") {
+      for (const buffId of Object.keys(unlocked)) {
+        this.applyBandUpgradeVisibility(theme, buffId, band);
+      }
+    }
+  }
+
+  /**
+   * 月度任务刷新（官方 POST /rlv2/normal/refreshMission，body { theme, index }）：
+   * 按更新期（updates[index]）从 monthMission 任务池随机抽取 4 个（1A+1B+2C），
+   * 写入 outer[theme].mission.list，响应并入 modified.rlv2（客户端 topic 页读取）。
+   */
+  refreshMission(args: { theme?: string; index?: number }): void {
+    const theme = args.theme || this.current.game?.theme || "";
+    if (!theme) return;
+    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+    const monthMission: any[] = detail?.monthMission || [];
+    if (monthMission.length === 0) return;
+    this.ensureOuterTheme(theme);
+    const outer = this.outer[theme] as any;
+
+    // 更新期（index 指向 updates 数组；缺省取最后一个）
+    const updates: any[] = detail?.updates || [];
+    const idx = args.index ?? Math.max(0, updates.length - 1);
+    const update = updates[idx] || updates[updates.length - 1];
+    const updateId = update?.updateId || "";
+
+    // 任务池按 class 分组（A/B/C），每组随机抽；tmpl 即 excel template
+    const poolByClass: { [key: string]: any[] } = { A: [], B: [], C: [] };
+    for (const t of monthMission) {
+      const cls = (t.taskClass || "C") as string;
+      if (poolByClass[cls]) poolByClass[cls].push(t);
+    }
+    // 每类抽取数量：A×1、B×1、C×2（官方月度任务 4 槽位）
+    const picks: { cls: string; task: any }[] = [];
+    for (const cls of ["A", "B", "C"]) {
+      const count = cls === "C" ? 2 : 1;
+      const copy = [...(poolByClass[cls] || [])];
+      for (let i = 0; i < count && copy.length > 0; i++) {
+        const task = copy.splice(Math.floor(Math.random() * copy.length), 1)[0];
+        picks.push({ cls, task });
+      }
+    }
+    // 保底：C 类不足时从 A/B 补足到 4 槽
+    while (picks.length < 4 && poolByClass.C.length > 0) {
+      const task = poolByClass.C[Math.floor(Math.random() * poolByClass.C.length)];
+      picks.push({ cls: "C", task });
+    }
+
+    const list = picks.map(({ cls, task }) => {
+      const target = parseInt(task.paramList?.[0] ?? "0", 10) || 1;
+      return {
+        type: cls,
+        mission: {
+          type: cls,
+          tmpl: task.template,
+          id: task.id,
+          state: 0,
+          target,
+          value: 0,
+        },
+      };
+    });
+
+    outer.mission = {
+      updateId,
+      refresh: (outer.mission?.refresh ?? 0) + 1,
+      list,
+    };
+    this._player.markDirty();
   }
 
   async chooseInitialRelic(args: { select: string }) {
@@ -321,7 +395,19 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }
 
   async activeRecruitTicket(args: { id: string }) {
+    // 官方抓包：activeRecruitTicket 激活票并生成 RECRUIT pending 事件（客户端据此弹招募 UI），
+    // 未生成事件 → 客户端无招募界面（"没有初始招募"）。激活后递归剩票无需再触发——客户端逐张激活。
     await this._trigger.emit("rlv2:recruit:active", [args.id]);
+    const ticket = this.inventory?.recruit?.[args.id];
+    if (ticket) {
+      // 候选列表已生成（recruit.active 填充 list）→ 创建 RECRUIT 事件供客户端展示
+      await this._trigger.emit("rlv2:event:create", [
+        "RECRUIT",
+        {
+          tickets: args.id,
+        },
+      ]);
+    }
   }
 
   async recruitChar(args: {
@@ -1727,8 +1813,56 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       db.pointOwned -= dev.tokenCost;
       db.pointCost = (db.pointCost || 0) + dev.tokenCost;
       db.unlocked = { ...(db.unlocked || {}), [buffId]: 1 };
+      // 分队升级隐藏：解锁科技树节点后，若该节点对应分队升级（bandRef bandLevel>0
+      // 的升级变体，如 分裂→指挥分队 band_2），升级分队 state 1、旧分队（normalBandId）state 0。
+      // 官方机制：升级分队解锁后旧分队隐藏（同分队只显示最高等级）。
+      const collectBand = (draft.outer[theme] as any)?.collect?.band;
+      if (collectBand && typeof collectBand === "object") {
+        this.applyBandUpgradeVisibility(theme, buffId, collectBand);
+      }
     });
     return { success: true };
+  }
+
+  /**
+   * 分队升级可见性同步（科技树解锁 → collect.band state）。
+   * 规则：bandRef 中 bandLevel>0 的升级变体（unlockCondDesc 提到科技树节点名，
+   * 如"激活分裂/卵生/胎生/顶冠/角/鳍"）解锁时，升级变体 state 1、其 normalBandId 旧分队 state 0。
+   * @param theme 主题
+   * @param buffId 刚解锁的科技树节点（buffId 或 buffName 匹配）
+   * @param collectBand collect.band 引用（原地修改）
+   */
+  private applyBandUpgradeVisibility(
+    theme: string,
+    buffId: string,
+    collectBand: { [key: string]: { state: number } },
+  ): void {
+    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+    const bandRef = (detail?.bandRef || {}) as Record<
+      string,
+      { bandLevel?: number; normalBandId?: string; itemID?: string }
+    >;
+    // 刚解锁节点名（buffName，用于匹配 unlockCondDesc 中的"激活XXX"）
+    const customize = (excel.RoguelikeTopicTable.customizeData as any)?.[theme];
+    const devs =
+      customize?.developments && !Array.isArray(customize.developments)
+        ? customize.developments
+        : customize?.commonDevelopment?.developments;
+    const devName = devs?.[buffId]?.buffName || "";
+    const upgradeVariants = Object.entries(bandRef).filter(
+      ([, r]) => (r.bandLevel ?? 0) > 0,
+    );
+    for (const [upgradeId, ref] of upgradeVariants) {
+      const cond = detail?.items?.[upgradeId]?.unlockCondDesc || "";
+      // 升级条件提到该节点名（分裂/卵生/胎生/顶冠/角/鳍）→ 该升级已解锁
+      const matched = devName !== "" && cond.includes(`“${devName}”`);
+      if (!matched) continue;
+      collectBand[upgradeId] = { state: 1, progress: null as any } as any;
+      const baseId = ref.normalBandId || ref.itemID;
+      if (baseId && baseId !== upgradeId && collectBand[baseId]) {
+        collectBand[baseId].state = 0;
+      }
+    }
   }
 
   /**
@@ -1919,5 +2053,54 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     ]);
 
     this._status.state = "END";
+  }
+
+  /**
+   * 结算响应顶层数据（gameSettle_res 官方抓包：{ game, outer }）：
+   * game = { brief, record, score }；outer = 局外结算快照（mission before/after、BP、解锁、spOperatorInfo）。
+   * 客户端在 gameSettle 响应里读取该结构渲染结算页；缺失即"点了放弃没反应"。
+   */
+  buildSettleResponse(): { game: any; outer: any } {
+    const theme = this.current.game!.theme;
+    const { brief, record } = this.current.record as any;
+    const score = this.exploreScore();
+    const outerTheme = (this.outer as any)[theme] ?? {};
+    const bp = (from: number) => ({ cnt: 0, from, to: from });
+    const missionList = Array.isArray(outerTheme.mission?.list)
+      ? outerTheme.mission.list
+      : [];
+    const mission = { before: missionList, after: missionList };
+    return {
+      game: {
+        brief: brief ?? {},
+        record: record ?? {},
+        score: {
+          detail: [],
+          scoreFactor: 1,
+          score,
+          buff: 1,
+          bp: bp(19000),
+          gp: 0,
+          gpChange: [score, score],
+          accumulation: [score, score],
+        },
+      },
+      outer: {
+        mission,
+        missionBp: bp(19000),
+        relicBp: bp(19000),
+        totemBp: bp(19000),
+        fragmentBp: bp(19000),
+        copperBp: bp(19000),
+        scrapBp: bp(19000),
+        relicUnlock: [],
+        totemUnlock: [],
+        fragmentUnlock: [],
+        copperUnlock: [],
+        scrapUnlock: [],
+        gp: 0,
+        spOperatorInfo: [],
+      },
+    };
   }
 }

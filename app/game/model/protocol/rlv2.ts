@@ -153,6 +153,9 @@ export interface RoguelikeCloseTicketRequest {
 /** 放弃游戏响应（CS: RoguelikeTopicGiveUpGameResponse） */
 export type RoguelikeTopicGiveUpGameResponse = PlayerDeltaResponse;
 
+/** 月度任务刷新响应（CS: RoguelikeTopicRefreshMissionResponse，body { theme, index }） */
+export type RoguelikeTopicRefreshMissionResponse = PlayerDeltaResponse;
+
 /** 创建游戏响应（CS: RoguelikeTopicCreateGameResponse） */
 export type RoguelikeTopicCreateGameResponse = PlayerDeltaResponse;
 

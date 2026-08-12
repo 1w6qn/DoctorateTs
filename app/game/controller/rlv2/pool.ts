@@ -99,9 +99,10 @@ export class RoguelikePoolManager {
   }
 
   get(id: string, putback = false): RoguelikeItemBundle {
-    const res = this._pools[id] ? randomChoice(this._pools[id]) : "";
-    if (!putback) {
-      this._pools[id].splice(this._pools[id].indexOf(res), 1);
+    const pool = this._pools[id] || [];
+    const res = pool.length > 0 ? randomChoice(pool) : "";
+    if (!putback && pool.length > 0) {
+      pool.splice(pool.indexOf(res), 1);
     }
     return { id: res, count: 1 };
   }

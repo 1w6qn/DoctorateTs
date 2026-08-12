@@ -68,11 +68,13 @@ function run() {
   });
   const startedAt = Date.now();
   log(`启动服务器子进程 pid=${child.pid}（tsx index.ts -s ${serverArgs.join(" ")}）`);
+  currentChild = child;
 
   child.on("exit", (code, signal) => {
     const uptime = Math.round((Date.now() - startedAt) / 1000);
     const reason = signal !== null ? `signal=${signal}` : `code=${code}`;
     log(`服务器进程退出：${reason}，运行 ${uptime}s`);
+    if (currentChild === child) currentChild = null;
     if (shuttingDown) return;
     if (once || code === 0 || code === 130) {
       log("本次运行结束，不再重启（--once 或手动退出）");
@@ -94,12 +96,37 @@ function run() {
   });
 }
 
-// Ctrl+C 终止看门狗（子进程继承控制台会同时收到 SIGINT 自行退出）
-process.on("SIGINT", () => {
+/** 当前服务器子进程（用于显式终止——控制台关闭时子进程可能收不到关闭事件，会变孤儿进程） */
+let currentChild = null;
+
+/**
+ * 看门狗退出前显式终止服务器子进程
+ *
+ * 修复"服务器未与命令行一同终止"：Windows 关闭控制台窗口时，子进程不保证收到
+ * SIGINT/SIGHUP（Node 控制台关闭事件传播不稳定），若只依赖"继承控制台同时收到信号"
+ * 的假设，服务器会以孤儿进程继续监听端口。此处显式 child.kill() 兜底。
+ * @param code 看门狗退出码
+ */
+function shutdown(code) {
   shuttingDown = true;
-  log("收到 Ctrl+C，看门狗退出");
-  process.exit(0);
-});
+  if (currentChild && !currentChild.killed) {
+    log(`显式终止服务器子进程 pid=${currentChild.pid}`);
+    try {
+      currentChild.kill();
+    } catch {
+      /* 进程已退出则忽略 */
+    }
+  }
+  process.exit(code);
+}
+
+// Ctrl+C / 关闭控制台 / 终止信号：显式终止服务器子进程后看门狗退出
+for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+  process.on(sig, () => {
+    log(`收到 ${sig}，看门狗退出并终止服务器子进程`);
+    shutdown(0);
+  });
+}
 
 if (!fs.existsSync(TSCLI)) {
   console.error("[watchdog] 找不到 tsx CLI：" + TSCLI);

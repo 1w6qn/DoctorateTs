@@ -58,7 +58,8 @@ process.report.directory = path.resolve(__dirname, "logs");
 process.report.filename = `report-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.json`;
 
 // 2) 信号退出留痕（Ctrl+C 行为不变，仅先记录再按约定码退出）
-for (const sig of ["SIGINT", "SIGTERM", "SIGBREAK"] as const) {
+// SIGHUP = 终端关闭（POSIX）；Windows 控制台关闭由看门狗显式终止子进程兜底
+for (const sig of ["SIGINT", "SIGTERM", "SIGBREAK", "SIGHUP"] as const) {
   process.on(sig, () => {
     logger.warn("process", `收到 ${sig}，进程退出`);
     process.exit(sig === "SIGTERM" ? 143 : 130);

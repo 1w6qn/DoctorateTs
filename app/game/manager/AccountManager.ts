@@ -16,6 +16,8 @@ import Emittery from "emittery";
 import { FriendRepository } from "../../db/friend-repo";
 import { openDatabase } from "../../db/database";
 import { ReplayRepository } from "../../db/replay-repo";
+import { PlayerDataRepository } from "../../db/player-data-repo";
+import * as fs from "fs";
 import { BattleStore } from "./BattleStore";
 import { SocialService } from "./SocialService";
 import { UserRepository, migrateUsersFromJsonFile } from "../../db/user-repo";
@@ -103,6 +105,8 @@ export class AccountManager {
   _userRepo!: UserRepository;
   /** 战斗回放仓储（SQLite replays 表——回放独立于用户配置存储） */
   _replayRepo!: ReplayRepository;
+  /** 玩家存档仓储（方案 A+C：SQLite gzip BLOB） */
+  _playerDataRepo?: PlayerDataRepository;
   /** 战斗数据存储（B-1：回放/结算——BattleStore 委托） */
   _battleStore!: BattleStore;
   /** 社交服务（B-1：好友/申请/访问——SocialService 委托） */
@@ -133,6 +137,7 @@ export class AccountManager {
     this._userRepo = new UserRepository(openDatabase());
     this._replayRepo = new ReplayRepository(openDatabase());
     this._battleStore = new BattleStore(this._replayRepo);
+    this._playerDataRepo = new PlayerDataRepository(openDatabase());
     // 用户配置：SQLite 唯一事实源；首次（表空）从 users.json 种子迁移
     this.configs = this._userRepo.getAll();
     if (Object.keys(this.configs).length === 0) {
@@ -163,13 +168,11 @@ export class AccountManager {
       }
     }
     await this.saveUserConfig();
-    // 并行加载所有账号（_loadPlayer 有 data[uid] 守卫且各 uid 完全独立，并发安全）
-    await Promise.all(
-      Object.keys(this.configs).map((uid) => this._loadPlayer(uid)),
-    );
+    // 存档懒加载（启动提速）：不再启动全量加载玩家数据——首个请求/登录时按需 _loadPlayer。
+    // 存档 → SQLite player_data 表（方案 A+C：gzip BLOB）迁移在首次 _doLoadPlayer 时惰性执行。
     logger.info(
       "AccountManager",
-      `${Object.keys(this.configs).length} users loaded`,
+      `${Object.keys(this.configs).length} users ready（存档懒加载）`,
     );
     // D-1：real 模式启动空闲账号清扫（单例模式不启用）
     this.startIdleSweep();
@@ -323,11 +326,37 @@ export class AccountManager {
   }
 
   private async _doLoadPlayer(uid: string, playerData?: PlayerDataModel): Promise<void> {
-    const data =
-      playerData ??
-      reorderRootKeys(
+    let data: PlayerDataModel;
+    if (playerData) {
+      data = playerData;
+    } else if (this._playerDataRepo) {
+      // 方案 A+C：优先 SQLite player_data（gzip BLOB）
+      const raw = this._playerDataRepo.get(uid);
+      if (raw !== null) {
+        data = reorderRootKeys(JSON.parse(raw));
+      } else {
+        // 惰性迁移：文件存档 → SQLite（导入后删除文件）
+        const filePath = `./data/user/databases/${uid}.json`;
+        if (fs.existsSync(filePath)) {
+          data = reorderRootKeys(
+            JSON.parse(fs.readFileSync(filePath, "utf-8")),
+          );
+          this._playerDataRepo.upsert(uid, JSON.stringify(data));
+          // 迁移完成删除旧文件（1.json 保留——新用户模板；后续 registerUser 也走 SQLite 优先）
+          if (uid !== "1") {
+            fs.rmSync(filePath, { force: true });
+          }
+        } else {
+          data = reorderRootKeys(
+            await readJson<PlayerDataModel>(filePath),
+          );
+        }
+      }
+    } else {
+      data = reorderRootKeys(
         await readJson<PlayerDataModel>(`./data/user/databases/${uid}.json`),
       );
+    }
     // 存档健康检查与自动修复（结构性损坏——如 PRIVATE.owners 含 null——幂等修复）
     const loadIssues = checkAndRepairSave(data as any);
     const fixed = loadIssues.filter((i) => i.fixed);
@@ -429,9 +458,18 @@ export class AccountManager {
       logSaveRepair(uid, saveIssues);
     }
     const t0 = Date.now();
-    await writeFile(tmpPath, JSON.stringify(this.data[uid]));
-    await rename(tmpPath, finalPath);
-    // 耗时可观测（A-2）：序列化大存档约 9ms/5.4MB 对象——防抖后离请求路径，暂不 worker 化
+    if (this._playerDataRepo) {
+      // 方案 A+C：SQLite player_data（gzip BLOB，事务原子）——替代文件 tmp+rename
+      this._playerDataRepo.upsert(uid, JSON.stringify(this.data[uid]));
+      // 迁移完成后清理旧文件（防抖写路径幂等）
+      if (fs.existsSync(finalPath) && uid !== "1") {
+        fs.rmSync(finalPath, { force: true });
+      }
+    } else {
+      await writeFile(tmpPath, JSON.stringify(this.data[uid]));
+      await rename(tmpPath, finalPath);
+    }
+    // 耗时可观测（A-2）：序列化大存档约 9ms/5.4MB 对象——防抖后离请求路径
     logger.debug("AccountManager", `savePlayerData ${uid}`, `${Date.now() - t0}ms`);
   }
 
@@ -606,7 +644,17 @@ export class AccountManager {
       const templatePath = `./data/user/databases/1.json`;
       let templateData: any;
       try {
-        templateData = await readJson(templatePath);
+        // 方案 A+C：模板优先从 SQLite player_data 读（文件迁移后已删除）
+        if (this._playerDataRepo) {
+          const raw = this._playerDataRepo.get("1");
+          if (raw !== null) templateData = JSON.parse(raw);
+        }
+        if (!templateData && fs.existsSync(templatePath)) {
+          templateData = await readJson(templatePath);
+        }
+        if (!templateData) {
+          throw new Error("模板存档不存在");
+        }
       } catch {
         throw new Error(`找不到模板存档 ${templatePath}，无法创建用户`);
       }
@@ -756,6 +804,7 @@ export class AccountManager {
     this._secretIndex = null;
     this._friendRepo?.deleteUser(uid);
     this._replayRepo?.deleteUser(uid);
+    this._playerDataRepo?.delete(uid); // 方案 A+C：SQLite 存档行
     await rm(`./data/user/databases/${uid}.json`, { force: true });
     await this.saveUserConfig();
   }

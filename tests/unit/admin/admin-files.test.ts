@@ -374,6 +374,7 @@ describe("AdminService 删除用户", () => {
 
   it("deleteUser 不能删除最后一个用户", async () => {
     (accountManager as any).data = { "1": {} };
+    (accountManager as any).configs = { "1": { uid: "1", auth: { phone: "" } } };
     await expect(service.deleteUser("1", "DELETE")).rejects.toThrow(/最后一个用户/);
   });
 

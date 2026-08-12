@@ -283,22 +283,35 @@ export class AdminService {
   /** 用户列表（按 uid 排序；filter 匹配 uid/昵称/手机号，空返回全部） */
   async listUsers(filter = ""): Promise<UserSummary[]> {
     const kw = String(filter ?? "").trim().toLowerCase();
-    return Object.keys(accountManager.data)
-      .sort((a, b) => Number(a) - Number(b))
-      .map((uid) => toUserSummary(uid, accountManager.data[uid]))
-      .filter(
-        (u) =>
-          !kw ||
-          u.uid.includes(kw) ||
-          u.nickName.toLowerCase().includes(kw) ||
-          u.phone.toLowerCase().includes(kw),
-      );
+    // 存档懒加载后 data 可能为空——从 configs 迭代，逐个惰性加载
+    const uids = Object.keys(accountManager.configs).sort((a, b) => Number(a) - Number(b));
+    const summaries = await Promise.all(
+      uids.map(async (uid) => {
+        try {
+          const pd = await accountManager.getPlayerData(uid);
+          return toUserSummary(uid, pd);
+        } catch {
+          return toUserSummary(uid, undefined as any);
+        }
+      }),
+    );
+    return summaries.filter(
+      (u) =>
+        !kw ||
+        u.uid.includes(kw) ||
+        u.nickName.toLowerCase().includes(kw) ||
+        u.phone.toLowerCase().includes(kw),
+    );
   }
 
   /** 用户详情 */
   async getUserInfo(uid: string): Promise<UserDetail | null> {
-    const pd = accountManager.data[uid];
-    if (!pd) return null;
+    let pd: PlayerDataManager;
+    try {
+      pd = await accountManager.getPlayerData(uid);
+    } catch {
+      return null;
+    }
     const status = pd._playerdata.status;
     const inventory = pd._playerdata.inventory ?? {};
     const inventoryInfo = Object.entries(inventory)
@@ -717,7 +730,9 @@ export class AdminService {
     uid: string,
     args: { subject: string; content: string; items: { id: string; count: number }[] },
   ) {
-    if (!accountManager.data[uid]) {
+    try {
+      await accountManager.getPlayerData(uid);
+    } catch {
       throw new Error(`用户不存在: ${uid}`);
     }
     const items = args.items.map((it) => ({ id: it.id, count: it.count }));
@@ -1278,7 +1293,7 @@ export class AdminService {
     const users: { uid: string; ok: boolean; error?: string }[] = [];
     for (const uid of uids) {
       try {
-        const d = accountManager.data[uid]._playerdata;
+        const d = (await accountManager.getPlayerData(uid))._playerdata;
         if (!d?.status || !d?.troop) {
           throw new Error("缺少 status/troop");
         }
@@ -1361,7 +1376,7 @@ export class AdminService {
     if (!accountManager.configs[uid] && !accountManager.data[uid]) {
       throw new Error(`用户不存在: ${uid}`);
     }
-    if (Object.keys(accountManager.data).length <= 1) {
+    if (Object.keys(accountManager.configs).length <= 1) {
       throw new Error("不能删除最后一个用户");
     }
     // B-2 统一清理：存档文件 + configs/data + SQLite（users/社交/回放/结算）

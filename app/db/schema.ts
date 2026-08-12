@@ -55,4 +55,12 @@ CREATE TABLE IF NOT EXISTS battle_infos (
   updated_ts INTEGER NOT NULL,
   PRIMARY KEY (uid, battle_id)
 );
+
+-- 玩家存档（方案 A+C：gzip BLOB 文档存储，替代 data/user/databases/*.json）
+CREATE TABLE IF NOT EXISTS player_data (
+  uid       TEXT PRIMARY KEY,
+  data      BLOB NOT NULL,          -- gzip(JSON)
+  updated_ts INTEGER NOT NULL
+);
 `;
+

@@ -1175,6 +1175,7 @@ describe("AdminService 统计", () => {
 
   it("stats 对空用户表应返回零值", async () => {
     (accountManager as any).data = {};
+    (accountManager as any).configs = {};
     const s = await service.stats();
     expect(s.userCount).toBe(0);
     expect(s.avgLevel).toBe(0);

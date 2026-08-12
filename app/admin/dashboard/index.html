@@ -2635,7 +2635,9 @@
   }
 
   function mv_generateAndRender() {
-    mv_state.nodes = mv_generateMap(mv_state.theme, mv_state.zone, mv_state.data);
+    // 注意：mv_generateMap 第三个参数是「当前主题」的数据块（含 normal/elite/boss/zones），
+    // 不是整个 MAPVIZ_DATA——传错会 data.normal 为 undefined 导致 .filter 崩溃
+    mv_state.nodes = mv_generateMap(mv_state.theme, mv_state.zone, mv_state.data[mv_state.theme]);
     mv_state.path = [];
     mv_selected = null;
     $("mv-zone-badge").textContent = "zone " + mv_state.zone;

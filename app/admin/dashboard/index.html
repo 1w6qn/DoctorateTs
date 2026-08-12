@@ -2336,6 +2336,12 @@
   var mv_ET = { NONE: 0, BATTLE_NORMAL: 1, BATTLE_ELITE: 2, BATTLE_BOSS: 4, SHOP: 8, REST: 16, INCIDENT: 32, TREASURE: 64, ENTERTAINMENT: 128, UNKNOWN: 256, WISH: 512, SACRIFICE: 1024, EXPEDITION: 2048, BATTLE_SHOP: 4096 };
   var mv_TYPE_NAMES = {};
   for (var mv_k in mv_ET) mv_TYPE_NAMES[mv_ET[mv_k]] = mv_k;
+  // rogue_6 黑流树海节点类型名（gridzone）
+  mv_TYPE_NAMES[32768] = "命运所指"; mv_TYPE_NAMES[262144] = "狭路相逢";
+  mv_TYPE_NAMES[2097152] = "秘境行商"; mv_TYPE_NAMES[4194304] = "曲折密道";
+  mv_TYPE_NAMES[8388608] = "险路尽头"; mv_TYPE_NAMES[16777216] = "险路小径";
+  mv_TYPE_NAMES[33554432] = "应急助力"; mv_TYPE_NAMES[67108864] = "羽瞰点";
+  mv_TYPE_NAMES[134217728] = "“居民”据点"; mv_TYPE_NAMES[268435456] = "林间空地";
 
   function mv_randByKey(seed) {
     var keys = Array.prototype.slice.call(arguments, 1);
@@ -2344,6 +2350,9 @@
 
   /** 复现 map.ts generate([id]) 核心逻辑：主题/区块 → 节点图（权重类型、连线、连通性修正、zone_end） */
   function mv_generateMap(theme, zone, data) {
+    // 所有主题最多 7 层（zone 1-7）；超出按 7 处理（map.ts 原版 zone_end 仅 zone 3 有 boss，
+    // 本预览按游戏设定扩展：险路恶敌位于第 3/5/6/7 层结尾，共 4 个 boss 层）
+    zone = Math.min(zone, 7);
     var roNum = parseInt(theme.split("_")[1]);
     var yMax = [0, 2, 3, 4, 4, 4, 4, 4, 4];
     var nodeInfo = data.zones ? data.zones[String(zone)] : null;
@@ -2378,9 +2387,14 @@
       var isEndCol = !isZone1 && x === maxX;
       if (isEndCol) {
         var endType = 0, endCount = 0;
+        // 险路恶敌（BATTLE_BOSS）位于第 3/5/6/7 层结尾（最多 4 个 boss 层）；
+        // 第 2 层结尾为 2 个得偿所愿（WISH），其余层为商店
         switch (zone) {
           case 2: endType = 512; endCount = 2; break;
-          case 3: endType = 4; endCount = 1; break;
+          case 3:
+          case 5:
+          case 6:
+          case 7: endType = 4; endCount = 1; break;
           default: endType = shopType; endCount = 1;
         }
         for (var y = 0; y < endCount; y++) {
@@ -2523,13 +2537,249 @@
     return weights[weights.length - 1].type;
   }
 
-  var mv_state = { theme: "rogue_1", zone: 1, nodes: {}, path: [], data: null };
+  /* ---------- rogue_6 黑流树海：gridzone 无相地图（移植 GRID_ZONE 模块） ---------- */
+
+  /** 黑流树海节点类型数值（与 grid_zone.ts ROGUE6_NODE 一致） */
+  var mv_R6 = {
+    BATTLE_NORMAL: 1, BATTLE_ELITE: 2, BATTLE_BOSS: 4, REST: 16, INCIDENT: 32,
+    WISH: 512, SACRIFICE: 1024, EXPEDITION: 2048, SHOP: 4096, MIRAGE: 8192,
+    PROPHECY: 32768, FACE_OFF: 262144, SECRET_SHOP: 2097152, TUNNEL: 4194304,
+    VISIBLE_END: 8388608, VISIBLE_PATH: 16777216, EMERGENCY_AID: 33554432,
+    RAIN_VIEW: 67108864, RESIDENT: 134217728, GLADE: 268435456,
+  };
+  /** 构造模板 type 字符串 → 节点数值 */
+  var mv_R6_TYPE = {
+    start: 268435456, combat: 1, "emergency-combat": 2, "danger-enemy": 4,
+    "safe-corner": 16, encounter: 32, wish: 512, "gain-loss": 1024,
+    "first-step": 2048, "rogue-trader": 4096, "wrong-turn": 8192,
+    "fate-choice": 32768, "narrow-meet": 262144, "secret-trader": 2097152,
+    "winding-path": 4194304, "danger-end": 8388608, "danger-path": 16777216,
+    "emergency-aid": 33554432, overlook: 67108864, settlement: 134217728,
+    glade: 268435456,
+  };
+  /** 层类型中文标签 → 节点数值（layerTypeSet） */
+  var mv_R6_LABEL = {
+    "起点": 268435456, "林间空地": 268435456, "作战": 1, "紧急作战": 2,
+    "险路恶敌": 4, "安全的角落": 16, "不期而遇": 32, "得偿所愿": 512,
+    "失与得": 1024, "先行一步": 2048, "诡意行商": 4096, "误入奇境": 8192,
+    "命运所指": 32768, "狭路相逢": 262144, "秘境行商": 2097152,
+    "曲折密道": 4194304, "险路尽头": 8388608, "险路小径": 16777216,
+    "应急助力": 33554432, "羽瞰点": 67108864, "“居民”据点": 134217728,
+    "流窜“居民”": 134217728,
+  };
+
+  /** 层索引（0 起）→ 距离规则列；层（1 起）→ 数量规则列（与 grid_zone.ts 一致） */
+  function mv_r6DistCol(layer) { if (layer <= 3) return layer - 1; if (layer === 4) return 3; return 5; }
+  function mv_r6CountCol(layer) { return Math.min(4, layer - 1); }
+
+  /** BFS 距起点沿模板 edges 的最短步数；未连通占位格回退曼哈顿距离 */
+  function mv_r6EdgeDistances(template) {
+    var dist = {};
+    var startId = String(template.startSlot[0] * 100 + template.startSlot[1]);
+    dist[startId] = 0;
+    var adj = {};
+    function addEdge(a, b) { (adj[a] = adj[a] || []).push(b); (adj[b] = adj[b] || []).push(a); }
+    for (var i = 0; i < template.edges.length; i++) {
+      var e = template.edges[i];
+      addEdge(String(e[0][0] * 100 + e[0][1]), String(e[1][0] * 100 + e[1][1]));
+    }
+    var queue = [startId];
+    while (queue.length > 0) {
+      var cur = queue.shift();
+      var nxt = adj[cur] || [];
+      for (var j = 0; j < nxt.length; j++) {
+        if (dist[nxt[j]] === undefined) {
+          dist[nxt[j]] = dist[cur] + 1;
+          queue.push(nxt[j]);
+        }
+      }
+    }
+    for (var k = 0; k < template.occupiedSlots.length; k++) {
+      var s = template.occupiedSlots[k];
+      var id = String(s[0] * 100 + s[1]);
+      if (dist[id] === undefined) {
+        dist[id] = Math.abs(s[0] - template.startSlot[0]) + Math.abs(s[1] - template.startSlot[1]);
+      }
+    }
+    return dist;
+  }
+
+  /** 本层各类型已占用计数（起点 + 终点 + 固定节点） */
+  function mv_r6TypeCounts(template) {
+    var counts = {};
+    function count(t) { counts[t] = (counts[t] || 0) + 1; }
+    count(mv_R6.GLADE);
+    var termType = mv_R6_TYPE[template.terminalType] || mv_R6.VISIBLE_END;
+    for (var i = 0; i < template.terminalSlots.length; i++) count(termType);
+    var fixed = template.fixedNodes || [];
+    for (var j = 0; j < fixed.length; j++) count(mv_R6_TYPE[fixed[j].type] || mv_R6.INCIDENT);
+    return counts;
+  }
+
+  /** 层类型中文标签集合 → 节点数值集合 */
+  function mv_r6LayerTypeSet(labels) {
+    var set = {};
+    for (var i = 0; i < labels.length; i++) {
+      var t = mv_R6_LABEL[labels[i]];
+      if (t !== undefined) set[t] = true;
+    }
+    if (labels.indexOf("林间空地") !== -1 || labels.indexOf("起点") !== -1) set[mv_R6.GLADE] = true;
+    return set;
+  }
+
+  /** 按距离规则 + 数量规则选节点类型（移植 GRID_ZONE.pickTypeByRules） */
+  function mv_r6PickType(layer, distance, counts, grid) {
+    var dCol = mv_r6DistCol(layer);
+    var cCol = mv_r6CountCol(layer);
+    var allowed = {};
+    var distRules = grid.distanceRules;
+    for (var i = 0; i < distRules.length; i++) {
+      var rule = distRules[i];
+      var t = rule.nodeType ? mv_R6_TYPE[rule.nodeType] : undefined;
+      if (t === undefined) continue;
+      var v = rule.values[dCol];
+      if (!v || v === "unknown") continue;
+      if (v.length !== undefined) {
+        var min = v[0], max = v[1];
+        if (min !== null && distance >= min && (max === null || distance <= max)) allowed[t] = true;
+      } else if (v.set) {
+        for (var s = 0; s < v.set.length; s++) {
+          if (v.set[s] === distance) { allowed[t] = true; break; }
+        }
+      }
+    }
+    var layerTypes = (grid.layerTypes[layer - 1] || []);
+    var layerSet = mv_r6LayerTypeSet(layerTypes);
+    var candidates = [];
+    for (var at in allowed) if (layerSet[at]) candidates.push(Number(at));
+    var underLimit = [];
+    for (var c = 0; c < candidates.length; c++) {
+      var cand = candidates[c];
+      var rule2 = null;
+      var countRules = grid.countRules;
+      for (var r = 0; r < countRules.length; r++) {
+        var cr = countRules[r];
+        var num = cr.nodeType === "start" ? mv_R6.GLADE : (cr.nodeType ? mv_R6_TYPE[cr.nodeType] : undefined);
+        if (num === cand) { rule2 = cr; break; }
+      }
+      if (!rule2) { underLimit.push(cand); continue; }
+      var v2 = rule2.values[cCol];
+      if (!v2) { underLimit.push(cand); continue; }
+      var max = null;
+      if (v2.length !== undefined) {
+        max = v2[1];
+      } else if (v2.set) {
+        var nums = [];
+        for (var n2 = 0; n2 < v2.set.length; n2++) if (v2.set[n2] !== null) nums.push(v2.set[n2]);
+        max = nums.length > 0 ? Math.max.apply(null, nums) : null;
+      }
+      if (max === null || (counts[cand] || 0) < max) underLimit.push(cand);
+    }
+    var pool = underLimit.length > 0 ? underLimit : candidates;
+    if (pool.length === 0) return mv_R6.GLADE;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  /** 构造 GridNode 内容（战斗带 stage、商店空货架、其余 kind） */
+  function mv_r6MakeNode(type, allStages, zoneStages) {
+    if (type === mv_R6.BATTLE_NORMAL || type === mv_R6.BATTLE_ELITE || type === mv_R6.BATTLE_BOSS) {
+      var pool = zoneStages.length > 0 ? zoneStages : allStages;
+      var stageId = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : "";
+      return { content: { savage: { stageId: stageId }, kind: type }, type: type, stage: stageId };
+    }
+    return { content: { kind: type }, type: type };
+  }
+
+  /**
+   * rogue_6 黑流树海：按官方构造模板生成无相地图（移植 GRID_ZONE.generate）
+   * 返回与标准 mv_generateMap 同构的 nodes（index/pos/next/type/stage/zone_end）
+   */
+  function mv_generateGridZone(zone, themeData, grid) {
+    var stages = themeData.normal.concat(themeData.elite);
+    var roNum = parseInt(themeData._roNum || "6");
+    var zoneStages = [];
+    for (var i = 0; i < stages.length; i++) {
+      if (stages[i].indexOf("ro" + roNum + "_n_" + zone + "_") === 0) zoneStages.push(stages[i]);
+    }
+    if (zoneStages.length === 0) zoneStages = stages;
+    var layerIndex = Math.min(zone - 1, 5);
+    var pool = [];
+    for (var p = 0; p < grid.constructions.length; p++) {
+      if (grid.constructions[p].layerIndex === layerIndex) pool.push(grid.constructions[p]);
+    }
+    var template = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : grid.constructions[0];
+    var dist = mv_r6EdgeDistances(template);
+    var nodes = {};
+    // 起点（林间空地，可见可访问）
+    var sx = template.startSlot[0], sy = template.startSlot[1];
+    nodes[String(sx * 100 + sy)] = { index: String(sx * 100 + sy), pos: { x: sx, y: sy }, next: [], type: mv_R6.GLADE, visibility: 0 };
+    // 终点（险路尽头/险路恶敌）
+    var terminalType = mv_R6_TYPE[template.terminalType] || mv_R6.VISIBLE_END;
+    for (var t = 0; t < template.terminalSlots.length; t++) {
+      var ts = template.terminalSlots[t];
+      var tid = String(ts[0] * 100 + ts[1]);
+      var tnode = mv_r6MakeNode(terminalType, stages, zoneStages);
+      nodes[tid] = { index: tid, pos: { x: ts[0], y: ts[1] }, next: [], type: tnode.type, zone_end: true };
+      if (tnode.stage) nodes[tid].stage = tnode.stage;
+    }
+    // 固定节点
+    var fixed = template.fixedNodes || [];
+    for (var f = 0; f < fixed.length; f++) {
+      var fslot = fixed[f].slot;
+      var fid = String(fslot[0] * 100 + fslot[1]);
+      var ftype = mv_R6_TYPE[fixed[f].type] || mv_R6.INCIDENT;
+      var fnode = mv_r6MakeNode(ftype, stages, zoneStages);
+      nodes[fid] = { index: fid, pos: { x: fslot[0], y: fslot[1] }, next: [], type: fnode.type };
+      if (fnode.stage) nodes[fid].stage = fnode.stage;
+    }
+    // 其余占位格：距离规则 + 数量规则
+    var occupied = {};
+    for (var o = 0; o < template.occupiedSlots.length; o++) occupied[String(template.occupiedSlots[o][0] * 100 + template.occupiedSlots[o][1])] = true;
+    var remaining = [];
+    for (var rr = 0; rr < template.occupiedSlots.length; rr++) {
+      var rid = String(template.occupiedSlots[rr][0] * 100 + template.occupiedSlots[rr][1]);
+      if (!nodes[rid]) remaining.push(template.occupiedSlots[rr]);
+    }
+    var startAdjacentCombat = layerIndex <= 1;
+    var counts = mv_r6TypeCounts(template);
+    for (var m = 0; m < remaining.length; m++) {
+      var slot = remaining[m];
+      var id2 = String(slot[0] * 100 + slot[1]);
+      var d = dist[id2] !== undefined ? dist[id2] : 1;
+      var isStartAdjacent = d === 1;
+      var type2;
+      if (startAdjacentCombat && isStartAdjacent) {
+        type2 = mv_R6.BATTLE_NORMAL;
+      } else {
+        type2 = mv_r6PickType(zone, d, counts, grid);
+      }
+      counts[type2] = (counts[type2] || 0) + 1;
+      var mnode = mv_r6MakeNode(type2, stages, zoneStages);
+      nodes[id2] = { index: id2, pos: { x: slot[0], y: slot[1] }, next: [], type: mnode.type };
+      if (mnode.stage) nodes[id2].stage = mnode.stage;
+    }
+    // 邻接表（template.edges → next，按 x,y 排序）
+    var adj = {};
+    for (var e2 = 0; e2 < template.edges.length; e2++) {
+      var ea = template.edges[e2][0], eb = template.edges[e2][1];
+      var ia = String(ea[0] * 100 + ea[1]), ib = String(eb[0] * 100 + eb[1]);
+      (adj[ia] = adj[ia] || []).push({ x: eb[0], y: eb[1] });
+      (adj[ib] = adj[ib] || []).push({ x: ea[0], y: ea[1] });
+    }
+    for (var nid in nodes) {
+      var lst = (adj[nid] || []).slice().sort(function (a, b) { return a.x - b.x || a.y - b.y; });
+      nodes[nid].next = lst;
+    }
+    return nodes;
+  }
+
+  var mv_state = { theme: "rogue_1", zone: 1, nodes: {}, path: [], data: null, grid: null };
   var mv_selected = null;
-  var mv_TYPE_COLORS = { 1: "#5b8def", 2: "#a06ee0", 4: "#e06c75", 8: "#e5c07b", 16: "#98c379", 32: "#d19a66", 64: "#56b6c2", 128: "#e06c9f", 256: "#6b7280", 512: "#f0c674", 1024: "#be5046", 2048: "#4db6ac", 8192: "#c678dd", 131072: "#61afef", 262144: "#d19a66", 524288: "#98c379", 1048576: "#e06c75", 65536: "#56b6c2" };
+  var mv_TYPE_COLORS = { 1: "#5b8def", 2: "#a06ee0", 4: "#e06c75", 8: "#e5c07b", 16: "#98c379", 32: "#d19a66", 64: "#56b6c2", 128: "#e06c9f", 256: "#6b7280", 512: "#f0c674", 1024: "#be5046", 2048: "#4db6ac", 8192: "#c678dd", 131072: "#61afef", 262144: "#d19a66", 524288: "#98c379", 1048576: "#e06c75", 65536: "#56b6c2", 32768: "#e06c9f", 2097152: "#e5c07b", 4194304: "#61afef", 8388608: "#e06c75", 16777216: "#c678dd", 33554432: "#98c379", 67108864: "#56b6c2", 134217728: "#d19a66", 268435456: "#4db6ac" };
 
   function mv_typeColor(t) { return mv_TYPE_COLORS[t] || "#6b7280"; }
   function mv_typeAbbr(t) {
-    var map = { 1: "战", 2: "急", 4: "BOSS", 8: "店", 16: "休", 32: "遇", 64: "藏", 128: "兴", 256: "迷", 512: "愿", 1024: "失", 2048: "先", 4096: "商", 8192: "奇" };
+    var map = { 1: "战", 2: "急", 4: "BOSS", 8: "店", 16: "休", 32: "遇", 64: "藏", 128: "兴", 256: "迷", 512: "愿", 1024: "失", 2048: "先", 4096: "商", 8192: "奇", 32768: "命", 262144: "狭", 2097152: "秘", 4194304: "密", 8388608: "尽", 16777216: "径", 33554432: "助", 67108864: "羽", 134217728: "居", 268435456: "起" };
     return map[t] || "?";
   }
 
@@ -2637,12 +2887,20 @@
   function mv_generateAndRender() {
     // 注意：mv_generateMap 第三个参数是「当前主题」的数据块（含 normal/elite/boss/zones），
     // 不是整个 MAPVIZ_DATA——传错会 data.normal 为 undefined 导致 .filter 崩溃
-    mv_state.nodes = mv_generateMap(mv_state.theme, mv_state.zone, mv_state.data[mv_state.theme]);
+    // rogue_6 黑流树海为无相地图：按官方构造模板生成（gridzone），不走标准网格算法
+    if (mv_state.theme === "rogue_6") {
+      mv_state.nodes = mv_generateGridZone(mv_state.zone, mv_state.data[mv_state.theme], mv_state.grid);
+    } else {
+      mv_state.nodes = mv_generateMap(mv_state.theme, mv_state.zone, mv_state.data[mv_state.theme]);
+    }
     mv_state.path = [];
     mv_selected = null;
-    $("mv-zone-badge").textContent = "zone " + mv_state.zone;
+    $("mv-zone-badge").textContent = "zone " + mv_state.zone + " / 7";
     $("mv-node-detail").innerHTML = '<div class="mv-empty">点击地图节点查看详情。</div>';
     $("mv-path-info").innerHTML = '<div class="mv-empty">点击起点节点，沿连线逐步推进。</div>';
+    // 所有主题最多 7 层：到达第 7 层后禁用「推进下一层」
+    var nextBtn = $("mv-next");
+    if (nextBtn) nextBtn.disabled = mv_state.zone >= 7;
     mv_render();
   }
 
@@ -2696,7 +2954,8 @@
     pane.innerHTML =
       '<p style="color:var(--muted);font-size:12px;margin-bottom:10px;">集成战略地图生成节点可视化：复现 ' +
       'app/game/controller/rlv2/map.ts 的 generate() 逻辑（md5 种子随机、权重节点类型、同列/跨列连线、zone_end 终点）。' +
-      '数据源 tools/map-visualizer/game-data.js（generate-data.ts 从官方 excel + nodesInfo 提取）。</p>' +
+      '所有主题最多 7 层，险路恶敌位于第 3/5/6/7 层结尾；rogue_6 黑流树海为无相地图，按官方构造模板（gridzone）生成。' +
+      '数据源 tools/map-visualizer/game-data.js + 黑流树海构造数据。</p>' +
       '<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px;">' +
       "<label style='align-self:center;'>主题</label>" +
       '<select id="mv-theme" style="width:auto;"></select>' +
@@ -2732,17 +2991,18 @@
 
     api("/mapviz-data")
       .then(function (data) {
-        mv_state.data = data;
+        mv_state.data = data.themes;
+        mv_state.grid = data.grid;
         var sel = $("mv-theme");
         var themes = [];
-        for (var t in data) themes.push(t);
+        for (var t in data.themes) themes.push(t);
         sel.innerHTML = themes.map(function (t) {
-          var d = data[t];
+          var d = data.themes[t];
           return '<option value="' + t + '">' + t + "（" + d.normal.length + " 普通 / " + d.elite.length + " 紧急 / " + d.boss.length + " boss）</option>";
         }).join("");
         sel.value = mv_state.theme;
         $("mv-gen").addEventListener("click", function () { mv_generateAndRender(); });
-        $("mv-next").addEventListener("click", function () { mv_state.zone += 1; mv_generateAndRender(); });
+        $("mv-next").addEventListener("click", function () { if (mv_state.zone < 7) { mv_state.zone += 1; mv_generateAndRender(); } });
         $("mv-prev").addEventListener("click", function () { if (mv_state.zone > 1) { mv_state.zone -= 1; mv_generateAndRender(); } });
         sel.addEventListener("change", function () { mv_state.theme = sel.value; mv_state.zone = 1; mv_generateAndRender(); });
         mv_generateAndRender();

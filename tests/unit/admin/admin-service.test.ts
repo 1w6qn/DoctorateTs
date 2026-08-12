@@ -229,14 +229,18 @@ describe("AdminService 只读能力", () => {
     expect(b.game).toContain("ak-gs-gf.hypergryph.com");
   });
 
-  it("getMapvizData 应剥掉 game-data.js 前缀并解析 JSON", async () => {
+  it("getMapvizData 应剥掉 game-data.js 前缀并解析 JSON，附加 gridzone 构造数据", async () => {
     const readFileSpy = vi
       .spyOn(await import("fs/promises"), "readFile")
       .mockResolvedValue(
         `/* 自动生成 */\nwindow.MAPVIZ_DATA = {"rogue_1":{"normal":["ro1_n_1_1"],"elite":[],"boss":[],"zones":{}}};\n`,
       );
     const data = await service.getMapvizData();
-    expect(data).toEqual({ rogue_1: { normal: ["ro1_n_1_1"], elite: [], boss: [], zones: {} } });
+    expect(data?.themes).toEqual({ rogue_1: { normal: ["ro1_n_1_1"], elite: [], boss: [], zones: {} } });
+    // gridzone 构造数据（黑流树海 rogue_6 无相地图）
+    expect((data as any)?.grid?.constructions?.length).toBeGreaterThan(0);
+    expect((data as any)?.grid?.distanceRules?.length).toBeGreaterThan(0);
+    expect((data as any)?.grid?.countRules?.length).toBeGreaterThan(0);
     expect(readFileSpy).toHaveBeenCalled();
     readFileSpy.mockRestore();
   });

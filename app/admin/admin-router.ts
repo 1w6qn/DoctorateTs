@@ -355,7 +355,7 @@ router.get("/api/official/backend", (_req: Request, res: Response) => {
   res.json(adminService.getOfficialBackend());
 });
 
-/** 地图可视化数据（dashboard「地图」tab：tools/map-visualizer/game-data.js 的 MAPVIZ_DATA） */
+/** 地图可视化数据（dashboard「地图」tab：MAPVIZ_DATA 主题关卡池 + rogue_6 gridzone 构造数据） */
 router.get("/api/mapviz-data", async (_req: Request, res: Response) => {
   const data = await adminService.getMapvizData();
   if (!data) {

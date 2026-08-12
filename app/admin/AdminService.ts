@@ -1774,9 +1774,14 @@ export class AdminService {
   /**
    * 地图可视化数据（dashboard「地图」tab）
    * 读取 tools/map-visualizer/game-data.js（generate-data.ts 的产物：window.MAPVIZ_DATA = {...}），
-   * 剥掉前缀/尾分号后 JSON.parse。文件缺失或解析失败返回 null（router 层转 404）。
+   * 剥掉前缀/尾分号后 JSON.parse；附加黑流树海（rogue_6）gridzone 构造数据
+   * （BLACKSTREAM 构造模板/距离规则/数量规则/层类型，供 dashboard 按无相地图模板生成）。
+   * 文件缺失或解析失败返回 null（router 层转 404）。
    */
-  async getMapvizData(): Promise<object | null> {
+  async getMapvizData(): Promise<{
+    themes: object;
+    grid: object;
+  } | null> {
     try {
       const raw = await readFile(
         path.join(process.cwd(), "tools", "map-visualizer", "game-data.js"),
@@ -1788,9 +1793,22 @@ export class AdminService {
         logger.warn("Mapviz", "game-data.js 格式异常（缺少 = 或 ;）");
         return null;
       }
-      return JSON.parse(raw.slice(start + 1, end)) as object;
+      const themes = JSON.parse(raw.slice(start + 1, end)) as object;
+      // rogue_6 无相地图：构造模板等由黑流树海数据模块提供（并行 GRID_ZONE 同源）
+      const { BLACKSTREAM_CONSTRUCTIONS, BLACKSTREAM_DISTANCE_RULES, BLACKSTREAM_COUNT_RULES, BLACKSTREAM_LAYER_TYPES } = await import(
+        "../game/controller/rlv2/modules/blackstream-data"
+      );
+      return {
+        themes,
+        grid: {
+          constructions: BLACKSTREAM_CONSTRUCTIONS,
+          distanceRules: BLACKSTREAM_DISTANCE_RULES,
+          countRules: BLACKSTREAM_COUNT_RULES,
+          layerTypes: BLACKSTREAM_LAYER_TYPES,
+        },
+      };
     } catch (e) {
-      logger.warn("Mapviz", `game-data.js 读取失败: ${(e as Error).message}`);
+      logger.warn("Mapviz", `地图数据读取失败: ${(e as Error).message}`);
       return null;
     }
   }

@@ -57,7 +57,7 @@ vi.mock("../../../app/admin/AdminService", () => ({
     checkData: vi.fn().mockResolvedValue({ ok: true, users: [{ uid: "1", ok: true }] }),
     checkDataFiles: vi.fn().mockResolvedValue({ ok: true, files: [{ uid: "1", ok: true }] }),
     getActivitySummary: vi.fn().mockResolvedValue({ total: 3, types: [{ type: "LOGIN_ONLY", activities: 2 }] }),
-    getMapvizData: vi.fn().mockResolvedValue({ rogue_1: { normal: ["ro1_n_1_1"], elite: [], boss: [], zones: {} } }),
+    getMapvizData: vi.fn().mockResolvedValue({ themes: { rogue_1: { normal: ["ro1_n_1_1"], elite: [], boss: [], zones: {} } }, grid: { constructions: [{ layerIndex: 0 }], distanceRules: [], countRules: [], layerTypes: [] } }),
   },
 }));
 vi.mock("../../../app/admin/admin-auth", () => ({
@@ -308,12 +308,15 @@ describe("admin 路由（扩展能力）", () => {
     expect(res4.json).toHaveBeenCalledWith([{ name: "补偿", subject: "补偿发放", items: 2 }]);
   });
 
-  it("GET /api/mapviz-data 应返回地图数据，缺失时 404", async () => {
+  it("GET /api/mapviz-data 应返回主题 + gridzone 构造数据，缺失时 404", async () => {
     const res1 = mockRes();
     await call({ method: "GET", url: "/api/mapviz-data" }, res1);
     expect(adminService.getMapvizData).toHaveBeenCalled();
     expect(res1.json).toHaveBeenCalledWith(
-      expect.objectContaining({ rogue_1: expect.any(Object) }),
+      expect.objectContaining({
+        themes: expect.objectContaining({ rogue_1: expect.any(Object) }),
+        grid: expect.any(Object),
+      }),
     );
 
     // 数据缺失 → 404

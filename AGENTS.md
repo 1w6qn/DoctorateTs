@@ -23,6 +23,7 @@ npm run admin -- users list                       # CLI admin (no server needed)
 npm run migrate:official -- --accounts <file>     # import official-server account data
 npm run hook              # frida-compile for hook/main.ts (excluded from tsc)
 npm run ts                # tools/proxy-harness.ts = 官服代理抓包 harness, NOT the vitest suite
+npm run decompile         # 官服客户端反编译工作流（Cpp2IL→ilspycmd→dump-cs-signature.py），产出 reference/arknights-<版本>-csharp/（含方法体的 C# 源码）+ reference/com.hypergryph.arknights_<版本>.cs（签名文件，供 generate:types 再生类型；均 gitignored）
 ```
 
 No lint script exists. Verification order: `npx tsc --noEmit` then `npx vitest run`.

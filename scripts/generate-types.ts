@@ -13,12 +13,31 @@ import { reconcileExcelJsonKeys } from "./excel-json-keys";
 /**
  * 统一类型生成器
  *
- * 从 reference/com.hypergryph.arknights_2.7.61.cs 生成两类类型文件：
+ * 从 reference/com.hypergryph.arknights_*.cs 生成两类类型文件：
  *  - --playerdata：PlayerDataModel 运行时类型（app/excel/types-playerdata.ts）
  *  - --excel：excel 表类型（app/excel/types_excel_gen.ts）
  * 无参数 = 全部生成。命令: npm run generate:types
+ * 输入文件：默认自动选 reference/ 下最新的 com.hypergryph.arknights_*.cs，
+ * 也可用 --cs <路径> 或环境变量 GENERATE_CS 显式指定（配合 scripts/decompile-client.sh 一键再生）。
  */
-const CS_FILE = path.join(__dirname, "../reference/com.hypergryph.arknights_2.7.61.cs");
+const args = process.argv.slice(2);
+
+function resolveCsFile(): string {
+  const flagIdx = args.indexOf("--cs");
+  if (flagIdx >= 0 && args[flagIdx + 1]) return args[flagIdx + 1];
+  if (process.env.GENERATE_CS) return process.env.GENERATE_CS;
+  const dir = path.join(__dirname, "../reference");
+  if (fs.existsSync(dir)) {
+    const candidates = fs
+      .readdirSync(dir)
+      .filter((f) => /^com\.hypergryph\.arknights_.+\.cs$/.test(f))
+      .sort();
+    if (candidates.length > 0) return path.join(dir, candidates[candidates.length - 1]);
+  }
+  return path.join(dir, "com.hypergryph.arknights_2.7.61.cs");
+}
+
+const CS_FILE = resolveCsFile();
 const PLAYERDATA_OUT = path.join(__dirname, "../app/excel/types-playerdata.ts");
 const EXCEL_OUT = path.join(__dirname, "../app/excel/types_excel_gen.ts");
 
@@ -55,9 +74,10 @@ function buildExcelTypes(content: string): string {
 }
 
 function main(): void {
-  const args = process.argv.slice(2);
-  const doPlayerdata = args.length === 0 || args.includes("--playerdata");
-  const doExcel = args.length === 0 || args.includes("--excel");
+  // 无 --playerdata/--excel 指定时默认全部生成（--cs/--force 等参数不影响该默认值）
+  const hasDomainFlag = args.includes("--playerdata") || args.includes("--excel");
+  const doPlayerdata = !hasDomainFlag || args.includes("--playerdata");
+  const doExcel = !hasDomainFlag || args.includes("--excel");
   const force = args.includes("--force");
 
   if (!fs.existsSync(CS_FILE)) {

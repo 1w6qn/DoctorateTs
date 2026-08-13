@@ -73,16 +73,40 @@ describe("arkhub 本地网关应答器", () => {
     expect(resp.length).toBe(16 + 16);
   });
 
-  it("场景 hello 应返回最小场景帧（main=8 sub=0x2c89b38b37d3d）", async () => {
+  it("场景 hello 应返回合法 EnterSceneNotify（main=8 sub=0x2c89b38b37d3d）", async () => {
     const port = await startServer();
+    // 先登录（记录 uid），再发场景 hello——场景帧应含自己的 PlayerSyncData（field1=uid）
+    const login = Buffer.concat([
+      Buffer.from([0x0a, 0x01]),
+      Buffer.from("1"),
+      Buffer.from([0x12, 0x01]),
+      Buffer.from("x"),
+      Buffer.from([0x18, 0x01]),
+    ]);
+    await roundTrip(port, frame(4, BigInt(0x0fa1), login));
     const resp = await roundTrip(
       port,
       frame(8, BigInt("0x18fb64de29cdb"), Buffer.from([0x08, 0x01])),
     );
     expect(resp.readUInt32BE(4)).toBe(8);
     expect(resp.readBigUInt64BE(8)).toBe(BigInt("0x2c89b38b37d3d"));
-    // 场景 body 非空（含 field1 时间结构 + 空玩家列表）
-    expect(resp.length).toBeGreaterThan(16 + 10);
+    // 场景 body 非空（含 HallInfo + PlayerSyncData + PlayerHallBrief）
+    expect(resp.length).toBeGreaterThan(16 + 40);
+    // 顶层 3 个 length-delimited 字段（field1/2/3）
+    const body = resp.subarray(16);
+    expect(body[0] >> 3).toBe(1);
+    expect(body[0] & 7).toBe(2);
+    expect(body[1]).toBeGreaterThan(0);
+  });
+
+  it("场景 hello 未登录时也返回合法帧（uid 空回退）", async () => {
+    const port = await startServer();
+    const resp = await roundTrip(
+      port,
+      frame(8, BigInt("0x18fb64de29cdb"), Buffer.from([0x08, 0x01])),
+    );
+    expect(resp.readUInt32BE(4)).toBe(8);
+    expect(resp.length).toBeGreaterThan(16 + 40);
   });
 
   it("启动后 isArkhubLocalGatewayActive 为 true（enterHall 据此指向本服）", async () => {

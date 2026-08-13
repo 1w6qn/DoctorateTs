@@ -1046,6 +1046,15 @@ export interface ActArchiveWrathItemData {
     isSp: boolean;
 }
 
+export interface Act12SideData {
+    constData: Act12SideData_ConstData;
+    zoneAdditionDataList: Act12SideData_ZoneAdditionData[];
+    missionDescList: { [key: string]: Act12SideData_MissionDescInfo };
+    mileStoneInfoList: Act12SideData_MileStoneInfo[];
+    photoList: { [key: string]: Act12SideData_PhotoInfo };
+    recycleDialogDict: { [key: string]: Act12SideData_RecycleDialogData[] };
+}
+
 export interface Act12SideData_ZoneAdditionData {
     zoneId: string;
     unlockText: string;
@@ -1096,13 +1105,16 @@ export interface Act12SideData_RecycleDialogData {
     dialogExpress: Act12SideData_RecycleAnimationState;
 }
 
-export interface Act12SideData {
-    constData: Act12SideData_ConstData;
-    zoneAdditionDataList: Act12SideData_ZoneAdditionData[];
-    missionDescList: { [key: string]: Act12SideData_MissionDescInfo };
-    mileStoneInfoList: Act12SideData_MileStoneInfo[];
-    photoList: { [key: string]: Act12SideData_PhotoInfo };
-    recycleDialogDict: { [key: string]: Act12SideData_RecycleDialogData[] };
+export interface Act13SideData {
+    constData: Act13SideData_ConstData;
+    orgDataMap: { [key: string]: Act13SideData_OrgData };
+    principalDataMap: { [key: string]: Act13SideData_PrincipalData };
+    longTermMissionDataMap: { [key: string]: Act13SideData_LongTermMissionData };
+    dailyMissionDataList: Act13SideData_DailyMissionData[];
+    dailyRewardGroupDataMap: { [key: string]: Act13SideData_DailyMissionRewardGroupData };
+    archiveItemUnlockData: { [key: string]: Act13SideData_ArchiveItemUnlockData };
+    hiddenAreaData: { [key: string]: ActivityTable_ActivityHiddenAreaData };
+    zoneAddtionDataMap: { [key: string]: Act13SideData_ZoneAdditionData };
 }
 
 export interface Act13SideData_ZoneAdditionData {
@@ -1205,16 +1217,24 @@ export interface Act13SideData_ArchiveItemUnlockData {
     param2: string;
 }
 
-export interface Act13SideData {
-    constData: Act13SideData_ConstData;
-    orgDataMap: { [key: string]: Act13SideData_OrgData };
-    principalDataMap: { [key: string]: Act13SideData_PrincipalData };
-    longTermMissionDataMap: { [key: string]: Act13SideData_LongTermMissionData };
-    dailyMissionDataList: Act13SideData_DailyMissionData[];
-    dailyRewardGroupDataMap: { [key: string]: Act13SideData_DailyMissionRewardGroupData };
-    archiveItemUnlockData: { [key: string]: Act13SideData_ArchiveItemUnlockData };
-    hiddenAreaData: { [key: string]: ActivityTable_ActivityHiddenAreaData };
-    zoneAddtionDataMap: { [key: string]: Act13SideData_ZoneAdditionData };
+export interface Act17sideData {
+    placeDataMap: { [key: string]: Act17sideData_PlaceData };
+    nodeInfoDataMap: { [key: string]: Act17sideData_NodeInfoData };
+    landmarkNodeDataMap: { [key: string]: Act17sideData_LandmarkNodeData };
+    storyNodeDataMap: { [key: string]: Act17sideData_StoryNodeData };
+    battleNodeDataMap: { [key: string]: Act17sideData_BattleNodeData };
+    treasureNodeDataMap: { [key: string]: Act17sideData_TreasureNodeData };
+    eventNodeDataMap: { [key: string]: Act17sideData_EventNodeData };
+    techNodeDataMap: { [key: string]: Act17sideData_TechNodeData };
+    choiceNodeDataMap: { [key: string]: Act17sideData_ChoiceNodeData };
+    eventDataMap: { [key: string]: Act17sideData_EventData };
+    archiveItemUnlockDataMap: { [key: string]: Act17sideData_ArchiveItemUnlockData };
+    techTreeDataMap: { [key: string]: Act17sideData_TechTreeData };
+    techTreeBranchDataMap: { [key: string]: Act17sideData_TechTreeBranchData };
+    mainlineChapterDataMap: { [key: string]: Act17sideData_MainlineChapterData };
+    mainlineDataMap: { [key: string]: Act17sideData_MainlineData };
+    zoneDataList: Act17sideData_ZoneData[];
+    constData: Act17sideData_ConstData;
 }
 
 export interface Act17sideData_PlaceData {
@@ -1377,26 +1397,6 @@ export interface Act17sideData_ConstData {
     techTreeUnlockEventId: string;
 }
 
-export interface Act17sideData {
-    placeDataMap: { [key: string]: Act17sideData_PlaceData };
-    nodeInfoDataMap: { [key: string]: Act17sideData_NodeInfoData };
-    landmarkNodeDataMap: { [key: string]: Act17sideData_LandmarkNodeData };
-    storyNodeDataMap: { [key: string]: Act17sideData_StoryNodeData };
-    battleNodeDataMap: { [key: string]: Act17sideData_BattleNodeData };
-    treasureNodeDataMap: { [key: string]: Act17sideData_TreasureNodeData };
-    eventNodeDataMap: { [key: string]: Act17sideData_EventNodeData };
-    techNodeDataMap: { [key: string]: Act17sideData_TechNodeData };
-    choiceNodeDataMap: { [key: string]: Act17sideData_ChoiceNodeData };
-    eventDataMap: { [key: string]: Act17sideData_EventData };
-    archiveItemUnlockDataMap: { [key: string]: Act17sideData_ArchiveItemUnlockData };
-    techTreeDataMap: { [key: string]: Act17sideData_TechTreeData };
-    techTreeBranchDataMap: { [key: string]: Act17sideData_TechTreeBranchData };
-    mainlineChapterDataMap: { [key: string]: Act17sideData_MainlineChapterData };
-    mainlineDataMap: { [key: string]: Act17sideData_MainlineData };
-    zoneDataList: Act17sideData_ZoneData[];
-    constData: Act17sideData_ConstData;
-}
-
 export interface Act1VHalfIdleItemData {
     actId: string;
     itemId: string;
@@ -1410,11 +1410,6 @@ export interface Act1VHalfIdleItemData {
     showInInventory: boolean;
 }
 
-export interface Act1VHalfIdleGachaPoolData_ConsumeData {
-    gachaTimes: number;
-    consume: number;
-}
-
 export interface Act1VHalfIdleGachaPoolData {
     poolId: string;
     itemId: string;
@@ -1423,6 +1418,11 @@ export interface Act1VHalfIdleGachaPoolData {
     name: string;
     charData: string[];
     consumeData: Act1VHalfIdleGachaPoolData_ConsumeData[];
+}
+
+export interface Act1VHalfIdleGachaPoolData_ConsumeData {
+    gachaTimes: number;
+    consume: number;
 }
 
 export interface Act1VHalfIdleGachaCharData {
@@ -1434,21 +1434,6 @@ export interface Act1VHalfIdlePlotTypeData {
     plotType: Act1VHalfIdlePlotType;
     typeName: string;
     plotSquadLimit: { [key: string]: number[] };
-}
-
-export interface Act1VHalfIdlePlotData_ItemDropData {
-    itemId: string;
-    itemDropDesc: string;
-}
-
-export interface Act1VHalfIdlePlotData_PlotCombineData_CombineItemData {
-    plotId: string;
-    plotCount: number;
-}
-
-export interface Act1VHalfIdlePlotData_PlotCombineData {
-    combineType: Act1VHalfIdlePlotCombineType;
-    plots: Act1VHalfIdlePlotData_PlotCombineData_CombineItemData[];
 }
 
 export interface Act1VHalfIdlePlotData {
@@ -1471,11 +1456,19 @@ export interface Act1VHalfIdlePlotData {
     derivedPlots: string[];
 }
 
-export interface Act1VHalfIdleStageProductionData_ItemProductionData {
+export interface Act1VHalfIdlePlotData_ItemDropData {
     itemId: string;
-    efficiencyMax: number;
-    isFixed: boolean;
-    maxDropValue: number;
+    itemDropDesc: string;
+}
+
+export interface Act1VHalfIdlePlotData_PlotCombineData {
+    combineType: Act1VHalfIdlePlotCombineType;
+    plots: Act1VHalfIdlePlotData_PlotCombineData_CombineItemData[];
+}
+
+export interface Act1VHalfIdlePlotData_PlotCombineData_CombineItemData {
+    plotId: string;
+    plotCount: number;
 }
 
 export interface Act1VHalfIdleStageProductionData {
@@ -1484,15 +1477,27 @@ export interface Act1VHalfIdleStageProductionData {
     productionData: { [key: string]: Act1VHalfIdleStageProductionData_ItemProductionData };
 }
 
+export interface Act1VHalfIdleStageProductionData_ItemProductionData {
+    itemId: string;
+    efficiencyMax: number;
+    isFixed: boolean;
+    maxDropValue: number;
+}
+
+export interface Act1VHalfIdleCharRankData {
+    evolvePhase: EvolvePhase;
+    expData: Act1VHalfIdleCharRankData_CharRankData[];
+}
+
 export interface Act1VHalfIdleCharRankData_CharRankData {
     level: number;
     accumulatedExp: number;
     exp: number;
 }
 
-export interface Act1VHalfIdleCharRankData {
-    evolvePhase: EvolvePhase;
-    expData: Act1VHalfIdleCharRankData_CharRankData[];
+export interface Act1VHalfIdleCharEvolveData {
+    rarity: RarityRank;
+    professionEvolveData: { [key: string]: Act1VHalfIdleCharEvolveData_ProfessionCharEvolveData };
 }
 
 export interface Act1VHalfIdleCharEvolveData_EvolveData {
@@ -1508,9 +1513,10 @@ export interface Act1VHalfIdleCharEvolveData_ProfessionCharEvolveData {
     evolveData: { [key: string]: Act1VHalfIdleCharEvolveData_EvolveData };
 }
 
-export interface Act1VHalfIdleCharEvolveData {
+export interface Act1VHalfIdleCharMaxRankData {
     rarity: RarityRank;
-    professionEvolveData: { [key: string]: Act1VHalfIdleCharEvolveData_ProfessionCharEvolveData };
+    maxRankData: { [key: string]: Act1VHalfIdleCharMaxRankData_MaxRankData };
+    maxEvolvePhase: EvolvePhase;
 }
 
 export interface Act1VHalfIdleCharMaxRankData_MaxRankData {
@@ -1519,26 +1525,15 @@ export interface Act1VHalfIdleCharMaxRankData_MaxRankData {
     maxSkillRank: number;
 }
 
-export interface Act1VHalfIdleCharMaxRankData {
+export interface Act1VHalfIdleCharSkillRankData {
     rarity: RarityRank;
-    maxRankData: { [key: string]: Act1VHalfIdleCharMaxRankData_MaxRankData };
-    maxEvolvePhase: EvolvePhase;
+    skillRankData: Act1VHalfIdleCharSkillRankData_SkillRankData[];
 }
 
 export interface Act1VHalfIdleCharSkillRankData_SkillRankData {
     skillLevel: number;
     cost: number;
     accumulatedCost: number;
-}
-
-export interface Act1VHalfIdleCharSkillRankData {
-    rarity: RarityRank;
-    skillRankData: Act1VHalfIdleCharSkillRankData_SkillRankData[];
-}
-
-export interface Act1VHalfIdleConstData_ProfessionDesc {
-    profession: ProfessionCategory;
-    desc: string;
 }
 
 export interface Act1VHalfIdleConstData {
@@ -1590,6 +1585,11 @@ export interface Act1VHalfIdleConstData {
     trapDropWeightStep: number;
     unlockSpecialPlot: string[];
     bossEnterBgmKey: string;
+}
+
+export interface Act1VHalfIdleConstData_ProfessionDesc {
+    profession: ProfessionCategory;
+    desc: string;
 }
 
 export interface Act1VHalfIdleEnemyPreloadMeta {
@@ -1645,6 +1645,15 @@ export interface Act1VHalfIdleWeightedBattleEquip {
     alias: string;
 }
 
+export interface Act1VHalfIdleDiagramData {
+    width: number;
+    height: number;
+    pointPosDataMap: { [key: string]: Act1VHalfIdleDiagramData_PointPosData };
+    linePosDataMap: { [key: string]: Act1VHalfIdleDiagramData_LinePosData };
+    lineRelationDataMap: { [key: string]: Act1VHalfIdleDiagramData_LineRelationData };
+    nodePointDataMap: { [key: string]: Act1VHalfIdleDiagramData_NodePointData };
+}
+
 export interface Act1VHalfIdleDiagramData_PointPosData {
     pos: object;
 }
@@ -1663,22 +1672,6 @@ export interface Act1VHalfIdleDiagramData_NodePointData {
     nodeId: string;
 }
 
-export interface Act1VHalfIdleDiagramData {
-    width: number;
-    height: number;
-    pointPosDataMap: { [key: string]: Act1VHalfIdleDiagramData_PointPosData };
-    linePosDataMap: { [key: string]: Act1VHalfIdleDiagramData_LinePosData };
-    lineRelationDataMap: { [key: string]: Act1VHalfIdleDiagramData_LineRelationData };
-    nodePointDataMap: { [key: string]: Act1VHalfIdleDiagramData_NodePointData };
-}
-
-export interface Act1VHalfIdleTechTreeData_Effect {
-    desc: string;
-    title: string;
-    iconId: string;
-    runeDatas: RuneTable_PackedRuneData[];
-}
-
 export interface Act1VHalfIdleTechTreeData {
     nodeId: string;
     nodeType: Act1VHalfIdleTechTreeNodeType;
@@ -1688,6 +1681,13 @@ export interface Act1VHalfIdleTechTreeData {
     iconId: string;
     showPrevLockTips: boolean;
     effect: Act1VHalfIdleTechTreeData_Effect[];
+}
+
+export interface Act1VHalfIdleTechTreeData_Effect {
+    desc: string;
+    title: string;
+    iconId: string;
+    runeDatas: RuneTable_PackedRuneData[];
 }
 
 export interface Act1VHalfIdleMilestoneItemData {
@@ -1750,6 +1750,13 @@ export interface HalfIdleData {
     itemData: { [key: string]: Act1VHalfIdleItemData };
 }
 
+export interface CartData {
+    carDict: { [key: string]: CartComponents };
+    runeDataDict: { [key: string]: RuneTable_PackedRuneData };
+    cartStages: string[];
+    constData: CartData_CartConstData;
+}
+
 export interface CartData_CartConstData {
     carItemUnlockStageId: string;
     carItemUnlockDesc: string;
@@ -1757,13 +1764,6 @@ export interface CartData_CartConstData {
     mileStoneBaseInterval: number;
     spStageIds: string[];
     carFrameDefaultColor: string;
-}
-
-export interface CartData {
-    carDict: { [key: string]: CartComponents };
-    runeDataDict: { [key: string]: RuneTable_PackedRuneData };
-    cartStages: string[];
-    constData: CartData_CartConstData;
 }
 
 export interface CartComponents {
@@ -1786,13 +1786,32 @@ export interface CartComponents {
     additiveColor: string;
 }
 
+export interface Act20SideData {
+    zoneAdditionDataMap: { [key: string]: string };
+    residentCartDatas: { [key: string]: Act20SideData_ResidentCartData };
+}
+
 export interface Act20SideData_ResidentCartData {
     residentPic: string;
 }
 
-export interface Act20SideData {
-    zoneAdditionDataMap: { [key: string]: string };
-    residentCartDatas: { [key: string]: Act20SideData_ResidentCartData };
+export interface SiracusaData {
+    areaDataMap: { [key: string]: SiracusaData_AreaData };
+    pointDataMap: { [key: string]: SiracusaData_PointData };
+    charCardMap: { [key: string]: SiracusaData_CharCardData };
+    taskRingMap: { [key: string]: SiracusaData_TaskRingData };
+    taskInfoMap: { [key: string]: SiracusaData_TaskBasicInfoData };
+    battleTaskMap: { [key: string]: SiracusaData_BattleTaskData };
+    avgTaskMap: { [key: string]: SiracusaData_AVGTaskData };
+    itemInfoMap: { [key: string]: SiracusaData_ItemInfoData };
+    itemCardInfoMap: { [key: string]: SiracusaData_ItemCardInfoData };
+    navigationInfoMap: { [key: string]: SiracusaData_NavigationInfoData };
+    optionInfoMap: { [key: string]: SiracusaData_OptionInfoData };
+    stagePointList: SiracusaData_StagePointInfoData[];
+    storyBriefInfoDataMap: { [key: string]: SiracusaData_StoryBriefInfoData };
+    operaInfoMap: { [key: string]: SiracusaData_OperaInfoData };
+    operaCommentInfoMap: { [key: string]: SiracusaData_OperaCommentInfoData };
+    constData: SiracusaData_ConstData;
 }
 
 export interface SiracusaData_ConstData {
@@ -1938,23 +1957,9 @@ export interface SiracusaData_OperaCommentInfoData {
     commentCharId: string;
 }
 
-export interface SiracusaData {
-    areaDataMap: { [key: string]: SiracusaData_AreaData };
-    pointDataMap: { [key: string]: SiracusaData_PointData };
-    charCardMap: { [key: string]: SiracusaData_CharCardData };
-    taskRingMap: { [key: string]: SiracusaData_TaskRingData };
-    taskInfoMap: { [key: string]: SiracusaData_TaskBasicInfoData };
-    battleTaskMap: { [key: string]: SiracusaData_BattleTaskData };
-    avgTaskMap: { [key: string]: SiracusaData_AVGTaskData };
-    itemInfoMap: { [key: string]: SiracusaData_ItemInfoData };
-    itemCardInfoMap: { [key: string]: SiracusaData_ItemCardInfoData };
-    navigationInfoMap: { [key: string]: SiracusaData_NavigationInfoData };
-    optionInfoMap: { [key: string]: SiracusaData_OptionInfoData };
-    stagePointList: SiracusaData_StagePointInfoData[];
-    storyBriefInfoDataMap: { [key: string]: SiracusaData_StoryBriefInfoData };
-    operaInfoMap: { [key: string]: SiracusaData_OperaInfoData };
-    operaCommentInfoMap: { [key: string]: SiracusaData_OperaCommentInfoData };
-    constData: SiracusaData_ConstData;
+export interface Act21SideData {
+    zoneAdditionDataMap: { [key: string]: Act21SideData_ZoneAddtionData };
+    constData: Act21SideData_ConstData;
 }
 
 export interface Act21SideData_ZoneAddtionData {
@@ -1968,17 +1973,29 @@ export interface Act21SideData_ConstData {
     lineConnectZone: string;
 }
 
-export interface Act21SideData {
-    zoneAdditionDataMap: { [key: string]: Act21SideData_ZoneAddtionData };
-    constData: Act21SideData_ConstData;
-}
-
 export interface QuestStageData {
     stageId: string;
     stageRank: number;
     sortId: number;
     isUrgentStage: boolean;
     isDragonStage: boolean;
+}
+
+export interface Act24SideData {
+    toolDataList: { [key: string]: Act24SideData_ToolData };
+    mealDataList: { [key: string]: Act24SideData_MealData };
+    meldingDict: { [key: string]: Act24SideData_MeldingItemData };
+    meldingGachaBoxDataList: { [key: string]: Act24SideData_MeldingGachaBoxData };
+    meldingGachaBoxGoodDataMap: { [key: string]: Act24SideData_MeldingGachaBoxGoodData[] };
+    mealWelcomeTxtDataMap: { [key: string]: string };
+    zoneAdditionDataMap: { [key: string]: Act24SideData_ZoneAdditionData };
+    questStageList: QuestStageData[];
+    missionDataList: { [key: string]: Act24SideData_MissionExtraData };
+    meldingDropDict: { [key: string]: StageData_StageDropInfo };
+    stageMapPreviewDict: { [key: string]: string[] };
+    huntDatabaseDict: { [key: string]: Act24SideData_HuntDatabaseData };
+    stageIdToUnlockItemIdDict: { [key: string]: string };
+    constData: Act24SideData_ConstData;
 }
 
 export interface Act24SideData_MeldingItemData {
@@ -2091,21 +2108,18 @@ export interface Act24SideData_MissionExtraData {
     taskClientDesc: string;
 }
 
-export interface Act24SideData {
-    toolDataList: { [key: string]: Act24SideData_ToolData };
-    mealDataList: { [key: string]: Act24SideData_MealData };
-    meldingDict: { [key: string]: Act24SideData_MeldingItemData };
-    meldingGachaBoxDataList: { [key: string]: Act24SideData_MeldingGachaBoxData };
-    meldingGachaBoxGoodDataMap: { [key: string]: Act24SideData_MeldingGachaBoxGoodData[] };
-    mealWelcomeTxtDataMap: { [key: string]: string };
-    zoneAdditionDataMap: { [key: string]: Act24SideData_ZoneAdditionData };
-    questStageList: QuestStageData[];
-    missionDataList: { [key: string]: Act24SideData_MissionExtraData };
-    meldingDropDict: { [key: string]: StageData_StageDropInfo };
-    stageMapPreviewDict: { [key: string]: string[] };
-    huntDatabaseDict: { [key: string]: Act24SideData_HuntDatabaseData };
-    stageIdToUnlockItemIdDict: { [key: string]: string };
-    constData: Act24SideData_ConstData;
+export interface Act25SideData {
+    tokenItemId: string;
+    constData: Act25SideData_ConstData;
+    zoneDescList: { [key: string]: Act25SideData_ZoneDescInfo };
+    archiveItemData: { [key: string]: Act25SideData_ArchiveItemData };
+    arcMapInfoData: { [key: string]: Act25SideData_ArchiveMapInfoData };
+    areaInfoData: { [key: string]: Act25SideData_AreaInfoData };
+    areaMissionData: { [key: string]: Act25SideData_AreaMissionData };
+    battlePerformanceData: { [key: string]: Act25SideData_BattlePerformanceData };
+    keyData: { [key: string]: Act25SideData_KeyData };
+    fogUnlockData: { [key: string]: Act25SideData_FogUnlockData };
+    farmList: Act25SideData_DailyFarmData[];
 }
 
 export interface Act25SideData_ZoneDescInfo {
@@ -2210,18 +2224,15 @@ export interface Act25SideData_DailyFarmData {
     unitTime: number;
 }
 
-export interface Act25SideData {
-    tokenItemId: string;
-    constData: Act25SideData_ConstData;
-    zoneDescList: { [key: string]: Act25SideData_ZoneDescInfo };
-    archiveItemData: { [key: string]: Act25SideData_ArchiveItemData };
-    arcMapInfoData: { [key: string]: Act25SideData_ArchiveMapInfoData };
-    areaInfoData: { [key: string]: Act25SideData_AreaInfoData };
-    areaMissionData: { [key: string]: Act25SideData_AreaMissionData };
-    battlePerformanceData: { [key: string]: Act25SideData_BattlePerformanceData };
-    keyData: { [key: string]: Act25SideData_KeyData };
-    fogUnlockData: { [key: string]: Act25SideData_FogUnlockData };
-    farmList: Act25SideData_DailyFarmData[];
+export interface Act27SideData {
+    goodDataMap: { [key: string]: Act27SideData_Act27SideGoodData };
+    mileStoneList: Act27SideData_Act27SideMileStoneData[];
+    goodLaunchDataList: Act27SideData_Act27SideGoodLaunchData[];
+    shopDataMap: { [key: string]: Act27SideData_Act27SideShopData };
+    inquireDataList: Act27SideData_Act27SideInquireData[];
+    dynEntrySwitchData: Act27SideData_Act27SideDynEntrySwitchData[];
+    zoneAdditionDataMap: { [key: string]: Act27SideData_Act27sideZoneAdditionData };
+    constData: Act27SideData_Act27SideConstData;
 }
 
 export interface Act27SideData_Act27SideGoodData {
@@ -2301,15 +2312,19 @@ export interface Act27SideData_Act27sideZoneAdditionData {
     displayTime: string;
 }
 
-export interface Act27SideData {
-    goodDataMap: { [key: string]: Act27SideData_Act27SideGoodData };
-    mileStoneList: Act27SideData_Act27SideMileStoneData[];
-    goodLaunchDataList: Act27SideData_Act27SideGoodLaunchData[];
-    shopDataMap: { [key: string]: Act27SideData_Act27SideShopData };
-    inquireDataList: Act27SideData_Act27SideInquireData[];
-    dynEntrySwitchData: Act27SideData_Act27SideDynEntrySwitchData[];
-    zoneAdditionDataMap: { [key: string]: Act27SideData_Act27sideZoneAdditionData };
-    constData: Act27SideData_Act27SideConstData;
+export interface Act29SideData {
+    fragDataMap: { [key: string]: Act29SideData_Act29SideFragData };
+    orcheDataMap: { [key: string]: Act29SideData_Act29SideOrcheData };
+    productGroupDataMap: { [key: string]: Act29SideData_Act29SideProductGroupData };
+    productDataMap: { [key: string]: Act29SideData_Act29SideProductData };
+    formDataMap: { [key: string]: Act29SideData_Act29SideFormData };
+    investResultDataMap: { [key: string]: Act29SideData_Act29SideInvestResultData };
+    investDataMap: { [key: string]: Act29SideData_Act29SideInvestData };
+    majorInvestIdList: string[];
+    rareInvestIdList: string[];
+    constData: Act29SideData_Act29SideConstData;
+    zoneAdditionDataMap: { [key: string]: Act29SideData_Act29SideZoneAdditionData };
+    musicDataMap: Act29SideData_Act29SideMusicData[];
 }
 
 export interface Act29SideData_Act29SideFragData {
@@ -2425,19 +2440,16 @@ export interface Act29SideData_Act29SideMusicData {
     musicId: string;
 }
 
-export interface Act29SideData {
-    fragDataMap: { [key: string]: Act29SideData_Act29SideFragData };
-    orcheDataMap: { [key: string]: Act29SideData_Act29SideOrcheData };
-    productGroupDataMap: { [key: string]: Act29SideData_Act29SideProductGroupData };
-    productDataMap: { [key: string]: Act29SideData_Act29SideProductData };
-    formDataMap: { [key: string]: Act29SideData_Act29SideFormData };
-    investResultDataMap: { [key: string]: Act29SideData_Act29SideInvestResultData };
-    investDataMap: { [key: string]: Act29SideData_Act29SideInvestData };
-    majorInvestIdList: string[];
-    rareInvestIdList: string[];
-    constData: Act29SideData_Act29SideConstData;
-    zoneAdditionDataMap: { [key: string]: Act29SideData_Act29SideZoneAdditionData };
-    musicDataMap: Act29SideData_Act29SideMusicData[];
+export interface Act35SideData {
+    challengeDataMap: { [key: string]: Act35SideData_Act35SideChallengeData };
+    roundDataMap: { [key: string]: Act35SideData_Act35SideRoundData };
+    taskDataMap: { [key: string]: Act35SideData_Act35SideChallengeTaskData };
+    cardDataMap: { [key: string]: Act35SideData_Act35SideCardData };
+    materialDataMap: { [key: string]: Act35SideData_Act35SideMaterialData };
+    dialogueGroupDataMap: { [key: string]: Act35SideData_Act35SideDialogueGroupData };
+    constData: Act35SideData_Act35SideConstData;
+    mileStoneList: Act35SideData_Act35SideMileStoneData[];
+    zoneAdditionDataMap: { [key: string]: Act35SideData_Act35SideZoneAdditionData };
 }
 
 export interface Act35SideData_Act35SideChallengeData {
@@ -2551,16 +2563,11 @@ export interface Act35SideData_Act35SideDialogueData {
     bgType: Act35SideData_DialogueNameBgType;
 }
 
-export interface Act35SideData {
-    challengeDataMap: { [key: string]: Act35SideData_Act35SideChallengeData };
-    roundDataMap: { [key: string]: Act35SideData_Act35SideRoundData };
-    taskDataMap: { [key: string]: Act35SideData_Act35SideChallengeTaskData };
-    cardDataMap: { [key: string]: Act35SideData_Act35SideCardData };
-    materialDataMap: { [key: string]: Act35SideData_Act35SideMaterialData };
-    dialogueGroupDataMap: { [key: string]: Act35SideData_Act35SideDialogueGroupData };
-    constData: Act35SideData_Act35SideConstData;
-    mileStoneList: Act35SideData_Act35SideMileStoneData[];
-    zoneAdditionDataMap: { [key: string]: Act35SideData_Act35SideZoneAdditionData };
+export interface Act36SideData {
+    zoneAdditionData: { [key: string]: Act36SideData_Act36SideZoneAdditionData };
+    enemyHandbookData: { [key: string]: Act36SideData_Act36SideEnemyHandbookData };
+    tokenHandbookData: { [key: string]: Act36SideData_Act36SideTokenHandbookData };
+    constData: Act36SideData_Act36SideConstData;
 }
 
 export interface Act36SideData_Act36SideZoneAdditionData {
@@ -2591,11 +2598,12 @@ export interface Act36SideData_Act36SideConstData {
     rewardReceiveNumber: number;
 }
 
-export interface Act36SideData {
-    zoneAdditionData: { [key: string]: Act36SideData_Act36SideZoneAdditionData };
-    enemyHandbookData: { [key: string]: Act36SideData_Act36SideEnemyHandbookData };
-    tokenHandbookData: { [key: string]: Act36SideData_Act36SideTokenHandbookData };
-    constData: Act36SideData_Act36SideConstData;
+export interface Act38SideData {
+    zoneAdditionDataMap: { [key: string]: Act38SideData_Act38SideZoneAdditionData };
+    puzzleInfoMap: { [key: string]: Act38SideData_Act38SidePuzzleInfo };
+    npcDialogList: Act38SideData_Act38SideNpcDialogData[];
+    constData: Act38SideData_ConstData;
+    puzzleGroupFocusDataMap: { [key: string]: Act38SideData_Act38SidePuzzleGroupFocusData };
 }
 
 export interface Act38SideData_Act38SideZoneAdditionData {
@@ -2629,12 +2637,21 @@ export interface Act38SideData_ConstData {
     puzzleRewardNum: number;
 }
 
-export interface Act38SideData {
-    zoneAdditionDataMap: { [key: string]: Act38SideData_Act38SideZoneAdditionData };
-    puzzleInfoMap: { [key: string]: Act38SideData_Act38SidePuzzleInfo };
-    npcDialogList: Act38SideData_Act38SideNpcDialogData[];
-    constData: Act38SideData_ConstData;
-    puzzleGroupFocusDataMap: { [key: string]: Act38SideData_Act38SidePuzzleGroupFocusData };
+export interface Act3D0Data {
+    campBasicInfo: { [key: string]: Act3D0Data_CampBasicInfo };
+    limitedPoolList: { [key: string]: Act3D0Data_LimitedPoolDetailInfo };
+    infinitePoolList: { [key: string]: Act3D0Data_InfinitePoolDetailInfo };
+    infinitePercent: { [key: string]: Act3D0Data_InfinitePoolPercent };
+    campItemMapInfo: { [key: string]: Act3D0Data_CampItemMapInfo };
+    clueInfo: { [key: string]: Act3D0Data_ClueInfo };
+    mileStoneInfo: Act3D0Data_MileStoneInfo[];
+    mileStoneTokenId: string;
+    coinTokenId: string;
+    etTokenId: string;
+    gachaBoxInfo: Act3D0Data_GachaBoxInfo[];
+    campInfo: { [key: string]: Act3D0Data_CampInfo };
+    zoneDesc: { [key: string]: Act3D0Data_ZoneDescInfo };
+    favorUpList: { [key: string]: CommonFavorUpInfo };
 }
 
 export interface Act3D0Data_CampBasicInfo {
@@ -2642,6 +2659,11 @@ export interface Act3D0Data_CampBasicInfo {
     campName: string;
     campDesc: string;
     rewardDesc: string;
+}
+
+export interface Act3D0Data_InfinitePoolDetailInfo {
+    poolId: string;
+    poolItemInfo: Act3D0Data_InfinitePoolDetailInfo_PoolItemInfo[];
 }
 
 export interface Act3D0Data_InfinitePoolDetailInfo_PoolItemInfo {
@@ -2654,9 +2676,9 @@ export interface Act3D0Data_InfinitePoolDetailInfo_PoolItemInfo {
     orderId: number;
 }
 
-export interface Act3D0Data_InfinitePoolDetailInfo {
+export interface Act3D0Data_LimitedPoolDetailInfo {
     poolId: string;
-    poolItemInfo: Act3D0Data_InfinitePoolDetailInfo_PoolItemInfo[];
+    poolItemInfo: Act3D0Data_LimitedPoolDetailInfo_PoolItemInfo[];
 }
 
 export interface Act3D0Data_LimitedPoolDetailInfo_PoolItemInfo {
@@ -2668,11 +2690,6 @@ export interface Act3D0Data_LimitedPoolDetailInfo_PoolItemInfo {
     weight: number;
     type: string;
     orderId: number;
-}
-
-export interface Act3D0Data_LimitedPoolDetailInfo {
-    poolId: string;
-    poolItemInfo: Act3D0Data_LimitedPoolDetailInfo_PoolItemInfo[];
 }
 
 export interface Act3D0Data_InfinitePoolPercent {
@@ -2720,21 +2737,16 @@ export interface Act3D0Data_MileStoneInfo {
     tokenNum: number;
 }
 
-export interface Act3D0Data {
-    campBasicInfo: { [key: string]: Act3D0Data_CampBasicInfo };
-    limitedPoolList: { [key: string]: Act3D0Data_LimitedPoolDetailInfo };
-    infinitePoolList: { [key: string]: Act3D0Data_InfinitePoolDetailInfo };
-    infinitePercent: { [key: string]: Act3D0Data_InfinitePoolPercent };
-    campItemMapInfo: { [key: string]: Act3D0Data_CampItemMapInfo };
-    clueInfo: { [key: string]: Act3D0Data_ClueInfo };
-    mileStoneInfo: Act3D0Data_MileStoneInfo[];
-    mileStoneTokenId: string;
-    coinTokenId: string;
-    etTokenId: string;
-    gachaBoxInfo: Act3D0Data_GachaBoxInfo[];
-    campInfo: { [key: string]: Act3D0Data_CampInfo };
-    zoneDesc: { [key: string]: Act3D0Data_ZoneDescInfo };
-    favorUpList: { [key: string]: CommonFavorUpInfo };
+export interface Act42D0Data {
+    areaInfoData: { [key: string]: Act42D0Data_Act42D0AreaInfoData };
+    stageInfoData: { [key: string]: Act42D0Data_Act42D0StageInfoData };
+    effectGroupInfoData: { [key: string]: Act42D0Data_Act42D0EffectGroupInfoData };
+    effectInfoData: { [key: string]: Act42D0Data_Act42D0EffectInfoData };
+    challengeInfoData: { [key: string]: Act42D0Data_Act42D0ChallengeInfoData };
+    stageRatingInfoData: { [key: string]: Act42D0Data_Act42D0StageRatingInfoData };
+    milestoneData: Act42D0Data_Act42D0MilestoneData[];
+    constData: Act42D0Data_Act42D0ConstData;
+    trackPointPeriodData: number[];
 }
 
 export interface Act42D0Data_Act42D0AreaInfoData {
@@ -2833,16 +2845,14 @@ export interface Act42D0Data_Act42D0ConstData {
     traumaName: string;
 }
 
-export interface Act42D0Data {
-    areaInfoData: { [key: string]: Act42D0Data_Act42D0AreaInfoData };
-    stageInfoData: { [key: string]: Act42D0Data_Act42D0StageInfoData };
-    effectGroupInfoData: { [key: string]: Act42D0Data_Act42D0EffectGroupInfoData };
-    effectInfoData: { [key: string]: Act42D0Data_Act42D0EffectInfoData };
-    challengeInfoData: { [key: string]: Act42D0Data_Act42D0ChallengeInfoData };
-    stageRatingInfoData: { [key: string]: Act42D0Data_Act42D0StageRatingInfoData };
-    milestoneData: Act42D0Data_Act42D0MilestoneData[];
-    constData: Act42D0Data_Act42D0ConstData;
-    trackPointPeriodData: number[];
+export interface Act42SideData {
+    trustorData: { [key: string]: Act42SideData_Act42SideTrustorData };
+    taskData: { [key: string]: Act42SideData_Act42SideTaskData };
+    gunData: { [key: string]: Act42SideData_Act42SideGunData };
+    fileData: { [key: string]: Act42SideData_Act42SideFileData };
+    dailyRewardList: Act42SideData_Act42SideDailyRewardData[];
+    constData: Act42SideData_Act42SideConstData;
+    zoneAdditionDataMap: { [key: string]: Act42SideData_Act42SideZoneAdditionData };
 }
 
 export interface Act42SideData_Act42SideTrustorData {
@@ -2913,14 +2923,17 @@ export interface Act42SideData_Act42SideConstData {
     toastOuterUnlock: string;
 }
 
-export interface Act42SideData {
-    trustorData: { [key: string]: Act42SideData_Act42SideTrustorData };
-    taskData: { [key: string]: Act42SideData_Act42SideTaskData };
-    gunData: { [key: string]: Act42SideData_Act42SideGunData };
-    fileData: { [key: string]: Act42SideData_Act42SideFileData };
-    dailyRewardList: Act42SideData_Act42SideDailyRewardData[];
-    constData: Act42SideData_Act42SideConstData;
-    zoneAdditionDataMap: { [key: string]: Act42SideData_Act42SideZoneAdditionData };
+export interface Act44SideData {
+    zoneAdditionDataMap: { [key: string]: Act44SideData_Act44SideZoneAdditionData };
+    customerDataMap: { [key: string]: Act44SideData_Act44SideCustomerData };
+    tagDataMap: { [key: string]: Act44SideData_Act44SideTagData };
+    choiceDataMap: { [key: string]: Act44SideData_Act44SideChoiceData };
+    customerDialogMap: { [key: string]: string };
+    keeperDialogMap: { [key: string]: string };
+    newsDataMap: { [key: string]: Act44SideData_Act44SideNewsData };
+    insightDescMap: { [key: string]: Act44SideData_Act44SideInsightData };
+    mileStoneList: Act44SideData_Act44SideMileStoneData[];
+    constData: Act44SideData_Act44SideConstData;
 }
 
 export interface Act44SideData_Act44SideZoneAdditionData {
@@ -3000,17 +3013,11 @@ export interface Act44SideData_Act44SideConstData {
     customerTagFormat: string;
 }
 
-export interface Act44SideData {
-    zoneAdditionDataMap: { [key: string]: Act44SideData_Act44SideZoneAdditionData };
-    customerDataMap: { [key: string]: Act44SideData_Act44SideCustomerData };
-    tagDataMap: { [key: string]: Act44SideData_Act44SideTagData };
-    choiceDataMap: { [key: string]: Act44SideData_Act44SideChoiceData };
-    customerDialogMap: { [key: string]: string };
-    keeperDialogMap: { [key: string]: string };
-    newsDataMap: { [key: string]: Act44SideData_Act44SideNewsData };
-    insightDescMap: { [key: string]: Act44SideData_Act44SideInsightData };
-    mileStoneList: Act44SideData_Act44SideMileStoneData[];
-    constData: Act44SideData_Act44SideConstData;
+export interface Act45SideData {
+    charData: { [key: string]: Act45SideData_Act45SideCharData };
+    mailData: { [key: string]: Act45SideData_Act45SideMailData };
+    constData: Act45SideData_Act45SideConstData;
+    zoneAdditionDataMap: { [key: string]: Act45SideData_Act45SideZoneAdditionData };
 }
 
 export interface Act45SideData_Act45SideCharData {
@@ -3051,11 +3058,13 @@ export interface Act45SideData_Act45SideConstData {
     entryMusicId: string;
 }
 
-export interface Act45SideData {
-    charData: { [key: string]: Act45SideData_Act45SideCharData };
-    mailData: { [key: string]: Act45SideData_Act45SideMailData };
-    constData: Act45SideData_Act45SideConstData;
-    zoneAdditionDataMap: { [key: string]: Act45SideData_Act45SideZoneAdditionData };
+export interface Act46SideData {
+    zoneAdditionDataMap: { [key: string]: Act46SideData_Act46SideZoneAdditionData };
+    monopolyStageDataMap: { [key: string]: Act46SideData_Act46SideMonopolyStageData };
+    buffDataMap: { [key: string]: Act46SideData_Act46SideMonopolyBuffData };
+    settleDialogDataMap: { [key: string]: { [key: string]: Act46SideData_Act46SideSettleDialogData[] } };
+    constData: Act46SideData_Act46SideConstData;
+    resourceItemDataMap: { [key: string]: Act46SideData_Act46SideMonopolyResourceItemData };
 }
 
 export interface Act46SideData_Act46SideZoneAdditionData {
@@ -3104,13 +3113,15 @@ export interface Act46SideData_Act46SideMonopolyResourceItemData {
     sortId: number;
 }
 
-export interface Act46SideData {
-    zoneAdditionDataMap: { [key: string]: Act46SideData_Act46SideZoneAdditionData };
-    monopolyStageDataMap: { [key: string]: Act46SideData_Act46SideMonopolyStageData };
-    buffDataMap: { [key: string]: Act46SideData_Act46SideMonopolyBuffData };
-    settleDialogDataMap: { [key: string]: { [key: string]: Act46SideData_Act46SideSettleDialogData[] } };
-    constData: Act46SideData_Act46SideConstData;
-    resourceItemDataMap: { [key: string]: Act46SideData_Act46SideMonopolyResourceItemData };
+export interface Act4D0Data {
+    mileStoneItemList: Act4D0Data_MileStoneItemInfo[];
+    mileStoneStoryList: Act4D0Data_MileStoneStoryInfo[];
+    storyInfoList: Act4D0Data_StoryInfo[];
+    stageInfo: Act4D0Data_StageJumpInfo[];
+    tokenItem: ItemBundle;
+    charStoneId: string;
+    apSupplyOutOfDateDict: { [key: string]: number };
+    extraDropZones: string[];
 }
 
 export interface Act4D0Data_StageJumpInfo {
@@ -3145,15 +3156,10 @@ export interface Act4D0Data_StoryInfo {
     storyDesc: string;
 }
 
-export interface Act4D0Data {
-    mileStoneItemList: Act4D0Data_MileStoneItemInfo[];
-    mileStoneStoryList: Act4D0Data_MileStoneStoryInfo[];
-    storyInfoList: Act4D0Data_StoryInfo[];
-    stageInfo: Act4D0Data_StageJumpInfo[];
-    tokenItem: ItemBundle;
-    charStoneId: string;
-    apSupplyOutOfDateDict: { [key: string]: number };
-    extraDropZones: string[];
+export interface Act53SideData {
+    zoneAdditionDataMap: { [key: string]: Act53SideData_Act53SideZoneAdditionData };
+    actOdcStageIdList: string[];
+    constData: Act53SideData_Act53SideConstData;
 }
 
 export interface Act53SideData_Act53SideZoneAdditionData {
@@ -3171,10 +3177,12 @@ export interface Act53SideData_Act53SideConstData {
     coinItemId: string;
 }
 
-export interface Act53SideData {
-    zoneAdditionDataMap: { [key: string]: Act53SideData_Act53SideZoneAdditionData };
-    actOdcStageIdList: string[];
-    constData: Act53SideData_Act53SideConstData;
+export interface Act5D0Data {
+    mileStoneInfo: MileStoneInfo[];
+    mileStoneTokenId: string;
+    zoneDesc: { [key: string]: Act5D0Data_ZoneDescInfo };
+    missionExtraList: { [key: string]: Act5D0Data_MissionExtraInfo };
+    spReward: string;
 }
 
 export interface Act5D0Data_ZoneDescInfo {
@@ -3188,14 +3196,6 @@ export interface Act5D0Data_MissionExtraInfo {
     sortId: number;
 }
 
-export interface Act5D0Data {
-    mileStoneInfo: MileStoneInfo[];
-    mileStoneTokenId: string;
-    zoneDesc: { [key: string]: Act5D0Data_ZoneDescInfo };
-    missionExtraList: { [key: string]: Act5D0Data_MissionExtraInfo };
-    spReward: string;
-}
-
 export interface MileStoneInfo {
     mileStoneId: string;
     orderId: number;
@@ -3203,6 +3203,21 @@ export interface MileStoneInfo {
     mileStoneType: MileStoneInfo_GoodType;
     normalItem: ItemBundle;
     IsBonus: number;
+}
+
+export interface Act5D1Data {
+    stageCommonData: Act5D1Data_RuneStageData[];
+    runeStageData: Act5D1Data_RuneRecurrentStateData[];
+    runeUnlockDict: { [key: string]: Act5D1Data_RuneUnlockData[] };
+    runeReleaseData: Act5D1Data_RuneReleaseData[];
+    missionData: MissionData[];
+    missionGroup: MissionGroup[];
+    useBenefitMissionDict: { [key: string]: boolean };
+    shopData: Act5D1Data_ShopData;
+    coinItemId: string;
+    ptItemId: string;
+    stageRune: RuneTable_RuneStageExtraData[];
+    showRuneMissionList: string[];
 }
 
 export interface Act5D1Data_RuneStageData {
@@ -3265,19 +3280,17 @@ export interface Act5D1Data_ProgessGoodItem {
     item: ItemBundle;
 }
 
-export interface Act5D1Data {
-    stageCommonData: Act5D1Data_RuneStageData[];
-    runeStageData: Act5D1Data_RuneRecurrentStateData[];
-    runeUnlockDict: { [key: string]: Act5D1Data_RuneUnlockData[] };
-    runeReleaseData: Act5D1Data_RuneReleaseData[];
-    missionData: MissionData[];
-    missionGroup: MissionGroup[];
-    useBenefitMissionDict: { [key: string]: boolean };
-    shopData: Act5D1Data_ShopData;
-    coinItemId: string;
-    ptItemId: string;
-    stageRune: RuneTable_RuneStageExtraData[];
-    showRuneMissionList: string[];
+export interface Act9D0Data {
+    tokenItemId: string;
+    zoneDescList: { [key: string]: Act9D0Data_ZoneDescInfo };
+    favorUpList: { [key: string]: Act9D0Data_FavorUpInfo };
+    subMissionInfo: { [key: string]: Act9D0Data_SubMissionInfo };
+    hasSubMission: boolean;
+    apSupplyOutOfDateDict: { [key: string]: number };
+    newsInfoList: { [key: string]: Act9D0Data_ActivityNewsInfo };
+    newsServerInfoList: { [key: string]: Act9D0Data_ActivityNewsServerInfo };
+    miscHub: { [key: string]: string };
+    constData: Act9D0Data_Act9D0ConstData;
 }
 
 export interface Act9D0Data_ZoneDescInfo {
@@ -3337,17 +3350,14 @@ export interface Act9D0Data_Act9D0ConstData {
     campaignStageId: string;
 }
 
-export interface Act9D0Data {
-    tokenItemId: string;
-    zoneDescList: { [key: string]: Act9D0Data_ZoneDescInfo };
-    favorUpList: { [key: string]: Act9D0Data_FavorUpInfo };
-    subMissionInfo: { [key: string]: Act9D0Data_SubMissionInfo };
-    hasSubMission: boolean;
-    apSupplyOutOfDateDict: { [key: string]: number };
-    newsInfoList: { [key: string]: Act9D0Data_ActivityNewsInfo };
-    newsServerInfoList: { [key: string]: Act9D0Data_ActivityNewsServerInfo };
-    miscHub: { [key: string]: string };
-    constData: Act9D0Data_Act9D0ConstData;
+export interface ActArcadeData {
+    stageAdditionDataDict: { [key: string]: ActArcadeData_ArcadeStageAdditionalData };
+    zoneAdditionalDataDict: { [key: string]: ActArcadeData_ArcadeZoneAdditionalData };
+    badgeDataDict: { [key: string]: ActArcadeData_ArcadeBadgeData };
+    tireBadgeIdDict: { [key: string]: string };
+    badgeTypeDataDict: { [key: string]: ActArcadeData_ArcadeBadgeTypeData };
+    milestoneList: ActArcadeData_ArcadeMilestoneItemData[];
+    constData: ActArcadeData_ArcadeConstData;
 }
 
 export interface ActArcadeData_ArcadeZoneAdditionalData {
@@ -3440,16 +3450,6 @@ export interface ActArcadeData_ArcadeConstData {
     zoneUltiScoreDisplayLimit: number;
     enemyHudScore: string[];
     trapNotBuildableInRest: string[];
-}
-
-export interface ActArcadeData {
-    stageAdditionDataDict: { [key: string]: ActArcadeData_ArcadeStageAdditionalData };
-    zoneAdditionalDataDict: { [key: string]: ActArcadeData_ArcadeZoneAdditionalData };
-    badgeDataDict: { [key: string]: ActArcadeData_ArcadeBadgeData };
-    tireBadgeIdDict: { [key: string]: string };
-    badgeTypeDataDict: { [key: string]: ActArcadeData_ArcadeBadgeTypeData };
-    milestoneList: ActArcadeData_ArcadeMilestoneItemData[];
-    constData: ActArcadeData_ArcadeConstData;
 }
 
 export interface ArkdexModuleData {
@@ -3789,6 +3789,38 @@ export interface ArkhubData {
     itemData: { [key: string]: ActArkHubItemData };
 }
 
+export interface ActAutoChessData {
+    modeDataDict: { [key: string]: ActAutoChessData_ActAutoChessModeData };
+    baseRewardDataList: ActAutoChessData_ActAutoChessBaseRewardData[];
+    bandDataListDict: { [key: string]: ActAutoChessData_ActAutoChessBandData };
+    charChessDataDict: { [key: string]: ActAutoChessData_ActAutoChessCharChessData };
+    chessNormalIdLookupDict: { [key: string]: string };
+    diyChessDict: { [key: string]: RarityRank };
+    shopLevelDataDict: { [key: string]: { [key: number]: ActAutoChessData_ActAutoChessShopLevelData } };
+    shopLevelDisplayDataDict: { [key: number]: ActAutoChessData_ActAutoChessShopLevelDisplayData };
+    charShopChessDatas: { [key: string]: ActAutoChessData_ActAutoChessCharShopChessData };
+    trapChessDataDict: { [key: string]: ActAutoChessData_ActAutoChessTrapChessData };
+    trapShopChessDatas: { [key: string]: ActAutoChessData_ActAutoChessTrapShopChessData };
+    stageDatasDict: { [key: string]: ActAutoChessData_ActAutoChessStageData };
+    battleDataDict: { [key: string]: { [key: number]: ActAutoChessData_ActAutoChessBattleData[] } };
+    bondInfoDict: { [key: string]: ActAutoChessData_ActAutoChessBondInfo };
+    garrisonDataDict: { [key: string]: ActAutoChessData_ActAutoChessGarrisonData };
+    effectInfoDataDict: { [key: string]: ActAutoChessData_ActAutoChessEffectInfoData };
+    effectBuffInfoDataDict: { [key: string]: ActAutoChessData_ActAutoChessBuffInfoData[] };
+    effectChoiceInfoDict: { [key: string]: ActAutoChessData_ActAutoChessEffectChoiceInfoData };
+    bossInfoDict: { [key: string]: ActAutoChessData_ActAutochessBossEntry };
+    specialEnemyInfoDict: { [key: string]: ActAutoChessData_ActAutochessSpecialEnemyEntry };
+    enemyInfoDict: { [key: string]: string[] };
+    specialEnemyRandomTypeDict: { [key: string]: ActAutoChessData_ActAutochessSpecialEnemyTypeEntry };
+    trainingNpcList: ActAutoChessData_ActAutoChessTrainingNpcData[];
+    milestoneList: ActivityCommonMilestoneData[];
+    modeFactorInfo: { [key: string]: number };
+    difficultyFactorInfo: { [key: string]: number };
+    playerTitleDataDict: { [key: string]: ActAutoChessData_ActAutoChessPlayerTitleData };
+    shopCharChessInfoData: { [key: number]: ActAutoChessData_ActAutoChessShopCharChessInfoData[] };
+    constData: ActAutoChessData_ActAutoChessConstData;
+}
+
 export interface ActAutoChessData_ActAutoChessModeData {
     modeId: string;
     name: string;
@@ -4066,36 +4098,28 @@ export interface ActAutoChessData_ActAutoChessConstData {
     webBusType: string;
 }
 
-export interface ActAutoChessData {
-    modeDataDict: { [key: string]: ActAutoChessData_ActAutoChessModeData };
-    baseRewardDataList: ActAutoChessData_ActAutoChessBaseRewardData[];
-    bandDataListDict: { [key: string]: ActAutoChessData_ActAutoChessBandData };
-    charChessDataDict: { [key: string]: ActAutoChessData_ActAutoChessCharChessData };
-    chessNormalIdLookupDict: { [key: string]: string };
-    diyChessDict: { [key: string]: RarityRank };
-    shopLevelDataDict: { [key: string]: { [key: number]: ActAutoChessData_ActAutoChessShopLevelData } };
-    shopLevelDisplayDataDict: { [key: number]: ActAutoChessData_ActAutoChessShopLevelDisplayData };
-    charShopChessDatas: { [key: string]: ActAutoChessData_ActAutoChessCharShopChessData };
-    trapChessDataDict: { [key: string]: ActAutoChessData_ActAutoChessTrapChessData };
-    trapShopChessDatas: { [key: string]: ActAutoChessData_ActAutoChessTrapShopChessData };
-    stageDatasDict: { [key: string]: ActAutoChessData_ActAutoChessStageData };
-    battleDataDict: { [key: string]: { [key: number]: ActAutoChessData_ActAutoChessBattleData[] } };
-    bondInfoDict: { [key: string]: ActAutoChessData_ActAutoChessBondInfo };
-    garrisonDataDict: { [key: string]: ActAutoChessData_ActAutoChessGarrisonData };
-    effectInfoDataDict: { [key: string]: ActAutoChessData_ActAutoChessEffectInfoData };
-    effectBuffInfoDataDict: { [key: string]: ActAutoChessData_ActAutoChessBuffInfoData[] };
-    effectChoiceInfoDict: { [key: string]: ActAutoChessData_ActAutoChessEffectChoiceInfoData };
-    bossInfoDict: { [key: string]: ActAutoChessData_ActAutochessBossEntry };
-    specialEnemyInfoDict: { [key: string]: ActAutoChessData_ActAutochessSpecialEnemyEntry };
-    enemyInfoDict: { [key: string]: string[] };
-    specialEnemyRandomTypeDict: { [key: string]: ActAutoChessData_ActAutochessSpecialEnemyTypeEntry };
-    trainingNpcList: ActAutoChessData_ActAutoChessTrainingNpcData[];
-    milestoneList: ActivityCommonMilestoneData[];
-    modeFactorInfo: { [key: string]: number };
-    difficultyFactorInfo: { [key: string]: number };
-    playerTitleDataDict: { [key: string]: ActAutoChessData_ActAutoChessPlayerTitleData };
-    shopCharChessInfoData: { [key: number]: ActAutoChessData_ActAutoChessShopCharChessInfoData[] };
-    constData: ActAutoChessData_ActAutoChessConstData;
+export interface AutoChessData {
+    versionInfoDict: { [key: string]: AutoChessData_AutoChessVersionInfoData };
+    bandDataDict: { [key: string]: AutoChessData_AutoChessBandData };
+    cultivateEffectList: AutoChessData_AutoChessCultivateRelationData[];
+    effectTypeDataDict: { [key: string]: AutoChessData_AutoChessEffectTypeData };
+    bondInfoDict: { [key: string]: AutoChessData_AutoChessBondInfoData };
+    bossInfoDict: { [key: string]: AutoChessData_AutoChessBossInfoData };
+    enemyTypeDatas: { [key: string]: AutoChessData_AutoChessEnemyTypeData };
+    enterStepList: AutoChessData_AutoChessEnterStepData[];
+    shopStateTokenDict: { [key: string]: AutoChessData_AutoChessShopStateTokenData };
+    skillTriggerDataList: AutoChessData_AutoChessSkillTriggerData[];
+    skillRangeDict: { [key: string]: string };
+    prepareStateDict: { [key: string]: AutoChessData_AutoChessPrepareStateData };
+    randomEnemyAttributeDict: { [key: string]: AutoChessData_AutoChessRandomEnemyAttributeData };
+    enabledEmoticonThemeIdList: string[];
+    gameTipsList: AutoChessData_AutoChessGameTipData[];
+    medalDataList: AutoChessData_AutoChessMedalData[];
+    turnInfoDataDict: { [key: string]: { [key: number]: AutoChessData_AutoChessTurnInfoData } };
+    roundScoreDataList: AutoChessData_AutoChessRoundScoreData[];
+    reportPlayerDataList: CommonReportPlayerData[];
+    broadcastList: AutoChessData_AutoChessBroadcastData[];
+    constData: AutoChessData_AutoChessConstData;
 }
 
 export interface AutoChessData_AutoChessVersionInfoData {
@@ -4262,28 +4286,12 @@ export interface AutoChessData_AutoChessRoundScoreData {
     score: number;
 }
 
-export interface AutoChessData {
-    versionInfoDict: { [key: string]: AutoChessData_AutoChessVersionInfoData };
-    bandDataDict: { [key: string]: AutoChessData_AutoChessBandData };
-    cultivateEffectList: AutoChessData_AutoChessCultivateRelationData[];
-    effectTypeDataDict: { [key: string]: AutoChessData_AutoChessEffectTypeData };
-    bondInfoDict: { [key: string]: AutoChessData_AutoChessBondInfoData };
-    bossInfoDict: { [key: string]: AutoChessData_AutoChessBossInfoData };
-    enemyTypeDatas: { [key: string]: AutoChessData_AutoChessEnemyTypeData };
-    enterStepList: AutoChessData_AutoChessEnterStepData[];
-    shopStateTokenDict: { [key: string]: AutoChessData_AutoChessShopStateTokenData };
-    skillTriggerDataList: AutoChessData_AutoChessSkillTriggerData[];
-    skillRangeDict: { [key: string]: string };
-    prepareStateDict: { [key: string]: AutoChessData_AutoChessPrepareStateData };
-    randomEnemyAttributeDict: { [key: string]: AutoChessData_AutoChessRandomEnemyAttributeData };
-    enabledEmoticonThemeIdList: string[];
-    gameTipsList: AutoChessData_AutoChessGameTipData[];
-    medalDataList: AutoChessData_AutoChessMedalData[];
-    turnInfoDataDict: { [key: string]: { [key: number]: AutoChessData_AutoChessTurnInfoData } };
-    roundScoreDataList: AutoChessData_AutoChessRoundScoreData[];
-    reportPlayerDataList: CommonReportPlayerData[];
-    broadcastList: AutoChessData_AutoChessBroadcastData[];
-    constData: AutoChessData_AutoChessConstData;
+export interface ActFootballData {
+    zoneAdditionDataMap: { [key: string]: ActFootballData_ActFootballZoneAdditionData };
+    stageAdditionDataMap: { [key: string]: ActFootballData_ActFootballStageAdditionData };
+    milestoneList: ActFootballData_ActFootballMilestoneItemData[];
+    npcCharDataDict: { [key: number]: ActFootballData_ActFootballNPCCharData };
+    constData: ActFootballData_ActFootballConstData;
 }
 
 export interface ActFootballData_ActFootballZoneAdditionData {
@@ -4331,12 +4339,18 @@ export interface ActFootballData_ActFootballConstData {
     milestoneTrackId: string;
 }
 
-export interface ActFootballData {
-    zoneAdditionDataMap: { [key: string]: ActFootballData_ActFootballZoneAdditionData };
-    stageAdditionDataMap: { [key: string]: ActFootballData_ActFootballStageAdditionData };
-    milestoneList: ActFootballData_ActFootballMilestoneItemData[];
-    npcCharDataDict: { [key: number]: ActFootballData_ActFootballNPCCharData };
-    constData: ActFootballData_ActFootballConstData;
+export interface ActivityBossRushData {
+    zoneAdditionDataMap: { [key: string]: ActivityBossRushData_ZoneAdditionData };
+    stageGroupMap: { [key: string]: ActivityBossRushData_BossRushStageGroupData };
+    stageAdditionDataMap: { [key: string]: ActivityBossRushData_BossRushStageAdditionData };
+    stageDropDataMap: { [key: string]: { [key: number]: ActivityBossRushData_BossRushDropInfo } };
+    missionAdditionDataMap: { [key: string]: ActivityBossRushData_BossRushMissionAdditionData };
+    teamDataMap: { [key: string]: ActivityBossRushData_BossRushTeamData };
+    relicList: ActivityBossRushData_RelicData[];
+    relicLevelInfoDataMap: { [key: string]: ActivityBossRushData_RelicLevelInfoData };
+    mileStoneList: ActivityBossRushData_BossRushMileStoneData[];
+    bestWaveRuneList: RuneTable_PackedRuneData[];
+    constData: ActivityBossRushData_ConstData;
 }
 
 export interface ActivityBossRushData_ZoneAdditionData {
@@ -4432,18 +4446,11 @@ export interface ActivityBossRushData_ConstData {
     rewardSkinId: string;
 }
 
-export interface ActivityBossRushData {
-    zoneAdditionDataMap: { [key: string]: ActivityBossRushData_ZoneAdditionData };
-    stageGroupMap: { [key: string]: ActivityBossRushData_BossRushStageGroupData };
-    stageAdditionDataMap: { [key: string]: ActivityBossRushData_BossRushStageAdditionData };
-    stageDropDataMap: { [key: string]: { [key: number]: ActivityBossRushData_BossRushDropInfo } };
-    missionAdditionDataMap: { [key: string]: ActivityBossRushData_BossRushMissionAdditionData };
-    teamDataMap: { [key: string]: ActivityBossRushData_BossRushTeamData };
-    relicList: ActivityBossRushData_RelicData[];
-    relicLevelInfoDataMap: { [key: string]: ActivityBossRushData_RelicLevelInfoData };
-    mileStoneList: ActivityBossRushData_BossRushMileStoneData[];
-    bestWaveRuneList: RuneTable_PackedRuneData[];
-    constData: ActivityBossRushData_ConstData;
+export interface DefaultCheckInData {
+    checkInList: { [key: number]: DefaultCheckInData_CheckInDailyInfo };
+    apSupplyOutOfDateDict: { [key: string]: number };
+    dynCheckInData: DefaultCheckInData_DynamicCheckInData;
+    extraCheckinList: DefaultCheckInData_ExtraCheckinDailyInfo[];
 }
 
 export interface DefaultCheckInData_CheckInDailyInfo {
@@ -4497,11 +4504,14 @@ export interface DefaultCheckInData_DynamicCheckInConsts {
     firstQuestionConfirmDesc: string;
 }
 
-export interface DefaultCheckInData {
-    checkInList: { [key: number]: DefaultCheckInData_CheckInDailyInfo };
+export interface VersusCheckInData {
+    checkInDict: { [key: number]: VersusCheckInData_DailyInfo };
+    voteTasteList: VersusCheckInData_VoteData[];
+    tasteInfoDict: { [key: number]: VersusCheckInData_TasteInfoData };
+    tasteRewardDict: { [key: string]: VersusCheckInData_TasteRewardData };
     apSupplyOutOfDateDict: { [key: string]: number };
-    dynCheckInData: DefaultCheckInData_DynamicCheckInData;
-    extraCheckinList: DefaultCheckInData_ExtraCheckinDailyInfo[];
+    versusTotalDays: number;
+    ruleText: string;
 }
 
 export interface VersusCheckInData_DailyInfo {
@@ -4526,14 +4536,12 @@ export interface VersusCheckInData_TasteRewardData {
     rewardItem: ItemBundle;
 }
 
-export interface VersusCheckInData {
-    checkInDict: { [key: number]: VersusCheckInData_DailyInfo };
-    voteTasteList: VersusCheckInData_VoteData[];
-    tasteInfoDict: { [key: number]: VersusCheckInData_TasteInfoData };
-    tasteRewardDict: { [key: string]: VersusCheckInData_TasteRewardData };
+export interface AllPlayerCheckinData {
+    checkInList: { [key: number]: AllPlayerCheckinData_DailyInfo };
     apSupplyOutOfDateDict: { [key: string]: number };
-    versusTotalDays: number;
-    ruleText: string;
+    pubBhvs: { [key: string]: AllPlayerCheckinData_PublicBehaviour };
+    personalBhvs: { [key: string]: AllPlayerCheckinData_PersonalBehaviour };
+    constData: AllPlayerCheckinData_ConstData;
 }
 
 export interface AllPlayerCheckinData_DailyInfo {
@@ -4567,12 +4575,10 @@ export interface AllPlayerCheckinData_ConstData {
     skinName: string;
 }
 
-export interface AllPlayerCheckinData {
-    checkInList: { [key: number]: AllPlayerCheckinData_DailyInfo };
+export interface ActivityCollectionData {
+    collections: ActivityCollectionData_CollectionInfo[];
     apSupplyOutOfDateDict: { [key: string]: number };
-    pubBhvs: { [key: string]: AllPlayerCheckinData_PublicBehaviour };
-    personalBhvs: { [key: string]: AllPlayerCheckinData_PersonalBehaviour };
-    constData: AllPlayerCheckinData_ConstData;
+    consts: ActivityCollectionData_Consts;
 }
 
 export interface ActivityCollectionData_CollectionInfo {
@@ -4599,12 +4605,6 @@ export interface ActivityCollectionData_Consts {
     dailyTaskDisabled: boolean;
     dailyTaskStartTime: number;
     isSimpleMode: boolean;
-}
-
-export interface ActivityCollectionData {
-    collections: ActivityCollectionData_CollectionInfo[];
-    apSupplyOutOfDateDict: { [key: string]: number };
-    consts: ActivityCollectionData_Consts;
 }
 
 export interface ActivityEnemyDuelData {
@@ -4743,11 +4743,6 @@ export interface ActivityEnemyDuelSingleCommentData {
     commentText: string;
 }
 
-export interface ActivityEnemyDuelConstData_PingCond {
-    cond: number;
-    txt: string;
-}
-
 export interface ActivityEnemyDuelConstData {
     maxLoadingTime: number;
     maxRetryTimeInBattle: number;
@@ -4823,6 +4818,11 @@ export interface ActivityEnemyDuelConstData {
     titlePicId: string;
 }
 
+export interface ActivityEnemyDuelConstData_PingCond {
+    cond: number;
+    txt: string;
+}
+
 export interface ActivityEnemyDuelConstToastData {
     createRoomAliveFailed: string;
     joinRoomAliveFailed: string;
@@ -4869,6 +4869,14 @@ export interface DefaultFirstData {
     shopList: DefaultShopData[];
 }
 
+export interface ActivityFloatParadeData {
+    constData: ActivityFloatParadeData_ConstData;
+    dailyDataDic: ActivityFloatParadeData_DailyData[];
+    rewardPools: { [key: string]: { [key: string]: ActivityFloatParadeData_RewardPool } };
+    tacticList: ActivityFloatParadeData_Tactic[];
+    groupInfos: { [key: string]: ActivityFloatParadeData_GroupData };
+}
+
 export interface ActivityFloatParadeData_ConstData {
     cityName: string;
     cityNamePic: string;
@@ -4913,12 +4921,12 @@ export interface ActivityFloatParadeData_Tactic {
     rewardVar: { [key: string]: number };
 }
 
-export interface ActivityFloatParadeData {
-    constData: ActivityFloatParadeData_ConstData;
-    dailyDataDic: ActivityFloatParadeData_DailyData[];
-    rewardPools: { [key: string]: { [key: string]: ActivityFloatParadeData_RewardPool } };
-    tacticList: ActivityFloatParadeData_Tactic[];
-    groupInfos: { [key: string]: ActivityFloatParadeData_GroupData };
+export interface ActivityInterlockData {
+    stageAdditionInfoMap: { [key: string]: ActivityInterlockData_StageAdditionData };
+    treasureMonsterMap: { [key: string]: ActivityInterlockData_TreasureMonsterData };
+    specialAssistData: SharedCharData;
+    mileStoneItemList: ActivityInterlockData_MileStoneItemInfo[];
+    finalStageProgressMap: { [key: string]: ActivityInterlockData_FinalStageProgressData[] };
 }
 
 export interface ActivityInterlockData_StageAdditionData {
@@ -4952,18 +4960,17 @@ export interface ActivityInterlockData_FinalStageProgressData {
     gold: number;
 }
 
-export interface ActivityInterlockData {
-    stageAdditionInfoMap: { [key: string]: ActivityInterlockData_StageAdditionData };
-    treasureMonsterMap: { [key: string]: ActivityInterlockData_TreasureMonsterData };
-    specialAssistData: SharedCharData;
-    mileStoneItemList: ActivityInterlockData_MileStoneItemInfo[];
-    finalStageProgressMap: { [key: string]: ActivityInterlockData_FinalStageProgressData[] };
-}
-
 export interface ActivityLoginData {
     description: string;
     itemList: ItemBundle[];
     apSupplyOutOfDateDict: { [key: string]: number };
+}
+
+export interface ActivityMainlineBuffData {
+    missionGroupList: { [key: string]: ActivityMainlineBuffData_MissionGroupData };
+    periodDataList: ActivityMainlineBuffData_PeriodData[];
+    apSupplyOutOfDateDict: { [key: string]: number };
+    constData: ActivityMainlineBuffData_ConstData;
 }
 
 export interface ActivityMainlineBuffData_MissionGroupData {
@@ -4972,14 +4979,6 @@ export interface ActivityMainlineBuffData_MissionGroupData {
     sortId: number;
     zoneId: string;
     missionIdList: string[];
-}
-
-export interface ActivityMainlineBuffData_PeriodData_StepData {
-    isBlock: boolean;
-    favorUpDesc: string;
-    unlockDesc: string;
-    bindStageId: string;
-    blockDesc: string;
 }
 
 export interface ActivityMainlineBuffData_PeriodData {
@@ -4993,15 +4992,23 @@ export interface ActivityMainlineBuffData_PeriodData {
     stepDataList: ActivityMainlineBuffData_PeriodData_StepData[];
 }
 
+export interface ActivityMainlineBuffData_PeriodData_StepData {
+    isBlock: boolean;
+    favorUpDesc: string;
+    unlockDesc: string;
+    bindStageId: string;
+    blockDesc: string;
+}
+
 export interface ActivityMainlineBuffData_ConstData {
     favorUpStageRange: string;
 }
 
-export interface ActivityMainlineBuffData {
-    missionGroupList: { [key: string]: ActivityMainlineBuffData_MissionGroupData };
-    periodDataList: ActivityMainlineBuffData_PeriodData[];
-    apSupplyOutOfDateDict: { [key: string]: number };
-    constData: ActivityMainlineBuffData_ConstData;
+export interface ActivityMiniStoryData {
+    tokenItemId: string;
+    zoneDescList: { [key: string]: ActivityMiniStoryData_ZoneDescInfo };
+    favorUpList: { [key: string]: ActivityMiniStoryData_FavorUpInfo };
+    extraDropZoneList: string[];
 }
 
 export interface ActivityMiniStoryData_ZoneDescInfo {
@@ -5015,11 +5022,21 @@ export interface ActivityMiniStoryData_FavorUpInfo {
     displayEndTime: number;
 }
 
-export interface ActivityMiniStoryData {
-    tokenItemId: string;
-    zoneDescList: { [key: string]: ActivityMiniStoryData_ZoneDescInfo };
-    favorUpList: { [key: string]: ActivityMiniStoryData_FavorUpInfo };
-    extraDropZoneList: string[];
+export interface ActivityRoguelikeData {
+    outBuffInfos: { [key: string]: ActivityRoguelikeData_OuterBuffUnlockInfoData };
+    apSupplyOutOfDateDict: { [key: string]: number };
+    outerBuffToken: string;
+    shopToken: string;
+    relicUnlockTime: number;
+    milestoneTokenRatio: number;
+    outerBuffTokenRatio: number;
+    relicTokenRatio: number;
+    relicOuterBuffTokenRatio: number;
+    reOpenCoolDown: number;
+    tokenItem: ItemBundle;
+    charStoneId: string;
+    milestone: ActivityRoguelikeData_MileStoneItemInfo[];
+    unlockConds: ActivityTable_CustomUnlockCond[];
 }
 
 export interface ActivityRoguelikeData_OuterBuffUnlockInfoData {
@@ -5043,23 +5060,6 @@ export interface ActivityRoguelikeData_MileStoneItemInfo {
     orderId: number;
     tokenNum: number;
     item: ItemBundle;
-}
-
-export interface ActivityRoguelikeData {
-    outBuffInfos: { [key: string]: ActivityRoguelikeData_OuterBuffUnlockInfoData };
-    apSupplyOutOfDateDict: { [key: string]: number };
-    outerBuffToken: string;
-    shopToken: string;
-    relicUnlockTime: number;
-    milestoneTokenRatio: number;
-    outerBuffTokenRatio: number;
-    relicTokenRatio: number;
-    relicOuterBuffTokenRatio: number;
-    reOpenCoolDown: number;
-    tokenItem: ItemBundle;
-    charStoneId: string;
-    milestone: ActivityRoguelikeData_MileStoneItemInfo[];
-    unlockConds: ActivityTable_CustomUnlockCond[];
 }
 
 export interface ActivitySwitchCheckinData {
@@ -5118,14 +5118,14 @@ export interface ActivityYear5GeneralConstData {
     missionArchiveUnlockDesc: string;
 }
 
+export interface ActMainlineBpExtraData {
+    periodDataList: ActMainlineBpExtraData_ActMainlineBpExtraPeriodData[];
+}
+
 export interface ActMainlineBpExtraData_ActMainlineBpExtraPeriodData {
     periodId: string;
     startTs: number;
     endTs: number;
-}
-
-export interface ActMainlineBpExtraData {
-    periodDataList: ActMainlineBpExtraData_ActMainlineBpExtraPeriodData[];
 }
 
 export interface ActMainSSZoneAdditionData {
@@ -5190,12 +5190,6 @@ export interface ActMultiV3SquadInfoData {
     modeType: ActMultiV3MapModeType;
 }
 
-export interface ActMultiV3SquadEffectData_Token {
-    name: string;
-    desc: string;
-    iconId: string;
-}
-
 export interface ActMultiV3SquadEffectData {
     id: string;
     iconId: string;
@@ -5207,6 +5201,12 @@ export interface ActMultiV3SquadEffectData {
     token: ActMultiV3SquadEffectData_Token;
     runeData: RuneTable_PackedRuneData;
     isInitial: boolean;
+}
+
+export interface ActMultiV3SquadEffectData_Token {
+    name: string;
+    desc: string;
+    iconId: string;
 }
 
 export interface ActMultiV3TargetMissionData {
@@ -5404,11 +5404,6 @@ export interface ActMultiV3ConstToastData {
     stageListViewTimeLockToast: string;
 }
 
-export interface ActMultiV3ConstData_PingCond {
-    cond: number;
-    txt: string;
-}
-
 export interface ActMultiV3ConstData {
     milestoneId: string;
     roomNumCopyDesc: string;
@@ -5499,6 +5494,16 @@ export interface ActMultiV3ConstData {
     waterSpeedFactor: number;
 }
 
+export interface ActMultiV3ConstData_PingCond {
+    cond: number;
+    txt: string;
+}
+
+export interface ActRecruitOnlyData {
+    recruitData: ActRecruitOnlyData_RecruitOnlyItemData;
+    previewData: ActRecruitOnlyData_RecruitOnlyItemData;
+}
+
 export interface ActRecruitOnlyData_RecruitOnlyItemData {
     id: string;
     phaseNum: number;
@@ -5510,11 +5515,6 @@ export interface ActRecruitOnlyData_RecruitOnlyItemData {
     endTimeDesc: string;
     desc1: string;
     desc2: string;
-}
-
-export interface ActRecruitOnlyData {
-    recruitData: ActRecruitOnlyData_RecruitOnlyItemData;
-    previewData: ActRecruitOnlyData_RecruitOnlyItemData;
 }
 
 export interface ActVecBreakV2Data {
@@ -5609,17 +5609,17 @@ export interface ActVecBreakV2MilestoneItemData {
     availTime: number;
 }
 
-export interface ActVecBreakV2StageRewardData_LimitedRewardData {
-    startTs: number;
-    endTs: number;
-    rewardCnt: number;
-}
-
 export interface ActVecBreakV2StageRewardData {
     stageId: string;
     completeRewardCnt: number;
     normalRewardCnt: number;
     limitReward: ActVecBreakV2StageRewardData_LimitedRewardData;
+}
+
+export interface ActVecBreakV2StageRewardData_LimitedRewardData {
+    startTs: number;
+    endTs: number;
+    rewardCnt: number;
 }
 
 export interface ActVecBreakV2ConstData {
@@ -5652,6 +5652,13 @@ export interface ActVecBreakV2ConstData {
     milestoneTrackId: string;
     themeColor: string;
     subTitleName: string;
+}
+
+export interface FireworkData {
+    plateData: { [key: string]: FireworkData_PlateData };
+    animalData: { [key: string]: FireworkData_AnimalData };
+    levelData: { [key: string]: FireworkData_LevelData };
+    constData: FireworkData_ConstData;
 }
 
 export interface FireworkData_PlateContent {
@@ -5700,13 +5707,6 @@ export interface FireworkData_ConstData {
     dontDisplayFireworkPluginStageList: string[];
 }
 
-export interface FireworkData {
-    plateData: { [key: string]: FireworkData_PlateData };
-    animalData: { [key: string]: FireworkData_AnimalData };
-    levelData: { [key: string]: FireworkData_LevelData };
-    constData: FireworkData_ConstData;
-}
-
 export interface CommonFavorUpInfo {
     charId: string;
     displayStartTime: number;
@@ -5749,17 +5749,6 @@ export interface ActivityStageRewardData {
     stageRewardsDict: { [key: string]: StageData_DisplayDetailRewards[] };
 }
 
-export interface ActivityThemeData_TimeNode {
-    title: string;
-    ts: number;
-}
-
-export interface ActivityThemeData_PicGroup {
-    sortIndex: number;
-    picId: string;
-    availCheck: CommonAvailCheck;
-}
-
 export interface ActivityThemeData {
     id: string;
     type: ActivityThemeType;
@@ -5772,12 +5761,61 @@ export interface ActivityThemeData {
     startTs: number;
 }
 
+export interface ActivityThemeData_TimeNode {
+    title: string;
+    ts: number;
+}
+
+export interface ActivityThemeData_PicGroup {
+    sortIndex: number;
+    picId: string;
+    availCheck: CommonAvailCheck;
+}
+
 export interface ActivityCommonMilestoneData {
     milestoneId: string;
     milestoneLvl: number;
     tokenNum: number;
     rewardItem: ItemBundle;
     availableTime: number;
+}
+
+export interface ActivityTable {
+    basicInfo: { [key: string]: ActivityTable_BasicData };
+    homeActConfig: { [key: string]: ActivityTable_HomeActivityConfig };
+    zoneToActivity: { [key: string]: string };
+    actTimeTrackPoint: { [key: string]: number };
+    missionData: MissionData[];
+    missionGroup: MissionGroup[];
+    replicateMissions: { [key: string]: string };
+    activity: ActivityTable_ActivityDetailTable;
+    extraData: ActivityTable_ActivityExtraData;
+    activityItems: { [key: string]: string[] };
+    syncPoints: { [key: string]: number[] };
+    dynActs: { [key: string]: object };
+    stageRewardsData: { [key: string]: ActivityStageRewardData };
+    actThemes: ActivityThemeData[];
+    actFunData: AprilFoolTable;
+    carData: CartData;
+    siracusaData: SiracusaData;
+    fireworkData: FireworkData;
+    halfIdleData: HalfIdleData;
+    kvSwitchData: { [key: string]: ActivityKVSwitchData };
+    dynEntrySwitchData: { [key: string]: ActivityDynEntrySwitchData };
+    hiddenStageData: ActivityTable_ActivityHiddenStageData[];
+    missionArchives: { [key: string]: MissionArchiveData };
+    fifthAnnivExploreData: FifthAnnivExploreData;
+    anniv7thData: Anniv7thMainlineData;
+    autoChessData: AutoChessData;
+    arkhubData: ArkhubData;
+    stringRes: { [key: string]: { [key: string]: string } };
+    activityTraps: { [key: string]: ActivityTable_ActivityTrapsData };
+    activityTrapMissions: { [key: string]: ActivityTable_ActivityTrapMissionsData };
+    trapRuneDataDict: { [key: string]: RuneTable_PackedRuneData };
+    activityTemplateMissionStyles: { [key: string]: TemplateMissionStyleData };
+    activityCrossDayTrackTypeDataDict: { [key: string]: CrossDayTrackTypeData };
+    activityCrossDayTrackTypeMap: { [key: string]: string[] };
+    activityStoryReadTipsDatas: { [key: string]: StoryReadTipsData };
 }
 
 export interface ActivityTable_PicGroup {
@@ -5903,44 +5941,6 @@ export interface ActivityTable_ActivityTrapConstData {
     lockedToast: string;
     showBtnBack: boolean;
     useSpecialToast: boolean;
-}
-
-export interface ActivityTable {
-    basicInfo: { [key: string]: ActivityTable_BasicData };
-    homeActConfig: { [key: string]: ActivityTable_HomeActivityConfig };
-    zoneToActivity: { [key: string]: string };
-    actTimeTrackPoint: { [key: string]: number };
-    missionData: MissionData[];
-    missionGroup: MissionGroup[];
-    replicateMissions: { [key: string]: string };
-    activity: ActivityTable_ActivityDetailTable;
-    extraData: ActivityTable_ActivityExtraData;
-    activityItems: { [key: string]: string[] };
-    syncPoints: { [key: string]: number[] };
-    dynActs: { [key: string]: object };
-    stageRewardsData: { [key: string]: ActivityStageRewardData };
-    actThemes: ActivityThemeData[];
-    actFunData: AprilFoolTable;
-    carData: CartData;
-    siracusaData: SiracusaData;
-    fireworkData: FireworkData;
-    halfIdleData: HalfIdleData;
-    kvSwitchData: { [key: string]: ActivityKVSwitchData };
-    dynEntrySwitchData: { [key: string]: ActivityDynEntrySwitchData };
-    hiddenStageData: ActivityTable_ActivityHiddenStageData[];
-    missionArchives: { [key: string]: MissionArchiveData };
-    fifthAnnivExploreData: FifthAnnivExploreData;
-    anniv7thData: Anniv7thMainlineData;
-    autoChessData: AutoChessData;
-    arkhubData: ArkhubData;
-    stringRes: { [key: string]: { [key: string]: string } };
-    activityTraps: { [key: string]: ActivityTable_ActivityTrapsData };
-    activityTrapMissions: { [key: string]: ActivityTable_ActivityTrapMissionsData };
-    trapRuneDataDict: { [key: string]: RuneTable_PackedRuneData };
-    activityTemplateMissionStyles: { [key: string]: TemplateMissionStyleData };
-    activityCrossDayTrackTypeDataDict: { [key: string]: CrossDayTrackTypeData };
-    activityCrossDayTrackTypeMap: { [key: string]: string[] };
-    activityStoryReadTipsDatas: { [key: string]: StoryReadTipsData };
 }
 
 export interface Anniv7thClueGroupData {
@@ -6298,6 +6298,15 @@ export interface Act5FunSettleSuccessData {
     desc: string;
 }
 
+export interface Act5FunData {
+    battleData: Act5FunData_BattleData;
+    constData: Act5funBasicConst;
+    npcData: { [key: string]: Act5FunBasicNpcData };
+    ratingData: Act5FunSettleRatingData[];
+    streakData: Act5FunSettleStreakData[];
+    successData: Act5FunSettleSuccessData[];
+}
+
 export interface Act5FunData_BattleData {
     battleConstData: Act5funConst;
     roundData: { [key: string]: Act5FunRoundData };
@@ -6306,15 +6315,6 @@ export interface Act5FunData_BattleData {
     choiceRewardData: { [key: string]: Act5FunChoiceRewardData };
     enemyIdMappingData: { [key: string]: Act5FunEnemyIdMappingData };
     battleStreak: number[];
-}
-
-export interface Act5FunData {
-    battleData: Act5FunData_BattleData;
-    constData: Act5funBasicConst;
-    npcData: { [key: string]: Act5FunBasicNpcData };
-    ratingData: Act5FunSettleRatingData[];
-    streakData: Act5FunSettleStreakData[];
-    successData: Act5FunSettleSuccessData[];
 }
 
 export interface Act6FunStageAdditionData {
@@ -6640,14 +6640,6 @@ export interface ArkventMovePresetData {
     momentumTurnSpeedLow: number;
 }
 
-export interface AttributeModifierData_AttributeModifier {
-    attributeType: AttributeType;
-    formulaItem: AttributeModifierData_AttributeModifier_FormulaItemType;
-    value: number;
-    loadFromBlackboard: boolean;
-    fetchBaseValueFromSourceEntity: boolean;
-}
-
 export interface AttributeModifierData {
     abnormalFlags: AbnormalFlag[];
     abnormalImmunes: AbnormalFlag[];
@@ -6657,13 +6649,108 @@ export interface AttributeModifierData {
     attributeModifiers: AttributeModifierData_AttributeModifier[];
 }
 
+export interface AttributeModifierData_AttributeModifier {
+    attributeType: AttributeType;
+    formulaItem: AttributeModifierData_AttributeModifier_FormulaItemType;
+    value: number;
+    loadFromBlackboard: boolean;
+    fetchBaseValueFromSourceEntity: boolean;
+}
+
+export type Blackboard = Blackboard_DataPair[];
+
 export interface Blackboard_DataPair {
     key: string;
     value: number;
     valueStr: string;
 }
 
-export type Blackboard = Blackboard_DataPair[];
+export interface BuildingData {
+    CONTROL_STOREY_ID: string;
+    controlSlotId: string;
+    meetingSlotId: string;
+    initMaxLabor: number;
+    laborRecoverTime: number;
+    manufactInputCapacity: number;
+    shopCounterCapacity: number;
+    comfortLimit: number;
+    creditInitiativeLimit: number;
+    creditPassiveLimit: number;
+    creditComfortFactor: number;
+    creditGuaranteed: number;
+    creditCeiling: number;
+    manufactUnlockTips: string;
+    shopUnlockTips: string;
+    manufactStationBuff: number;
+    comfortManpowerRecoverFactor: number;
+    manpowerDisplayFactor: number;
+    shopOutputRatio: { [key: string]: number };
+    shopStackRatio: { [key: string]: number };
+    basicFavorPerDay: number;
+    humanResourceLimit: number;
+    tiredApThreshold: number;
+    processedCountRatio: number;
+    tradingStrategyUnlockLevel: number;
+    tradingReduceTimeUnit: number;
+    tradingLaborCostUnit: number;
+    manufactReduceTimeUnit: number;
+    manufactLaborCostUnit: number;
+    laborAssistUnlockLevel: number;
+    apToLaborUnlockLevel: number;
+    apToLaborRatio: number;
+    socialResourceLimit: number;
+    socialSlotNum: number;
+    furniDuplicationLimit: number;
+    assistFavorReport: number;
+    manufactManpowerCostByNum: number[];
+    tradingManpowerCostByNum: number[];
+    trainingBonusMax: number;
+    betaRemoveTime: number;
+    furniHighlightTime: number;
+    canNotVisitToast: string;
+    meetingMessageBoardEmoteTime: number;
+    musicPlayerOpenTime: number;
+    roomsWithoutRemoveStaff: string[];
+    privateFavorLevelThresholds: number[];
+    roomUnlockConds: { [key: string]: BuildingData_RoomUnlockCond };
+    rooms: { [key: string]: BuildingData_RoomData };
+    layouts: { [key: string]: BuildingData_LayoutData };
+    prefabs: { [key: string]: BuildingData_PrefabInfo };
+    controlData: BuildingData_ControlRoomBean;
+    manufactData: BuildingData_ManufactRoomBean;
+    shopData: BuildingData_RoomBean;
+    hireData: BuildingData_HireRoomBean;
+    dormData: BuildingData_RoomBean;
+    privateRoomData: BuildingData_RoomBean;
+    meetingData: BuildingData_MeetingRoomBean;
+    tradingData: BuildingData_TradingRoomBean;
+    workshopData: BuildingData_RoomBean;
+    trainingData: BuildingData_TrainingBean;
+    powerData: BuildingData_PowerRoomBean;
+    chars: { [key: string]: BuildingData_BuildingCharacter };
+    buffs: { [key: string]: BuildingData_BuildingBuff };
+    workshopBonus: { [key: string]: string[] };
+    customData: BuildingData_CustomData;
+    manufactFormulas: { [key: string]: BuildingData_ManufactFormula };
+    shopFormulas: { [key: string]: BuildingData_ShopFormula };
+    workshopFormulas: { [key: string]: BuildingData_WorkshopFormula };
+    creditFormula: BuildingData_CreditFormula;
+    goldItems: { [key: string]: number };
+    assistantUnlock: number[];
+    workshopRarities: BuildingData_WorkshopRarityInfo[];
+    todoItemSortPriorityDict: { [key: string]: number };
+    slotPrequeDatas: { [key: string]: BuildingData_SlotPrequeData };
+    dormitoryPrequeDatas: { [key: string]: BuildingData_DormitoryPrequeData };
+    workshopTargetDesDict: { [key: string]: string };
+    tradingOrderDesDict: { [key: string]: string };
+    stationManageConstData: BuildingData_StationManageConstData;
+    stationManageFilterInfos: { [key: number]: BuildingData_StationManageFilterInfo };
+    musicData: BuildingData_MusicData;
+    emojis: string[];
+    categoryNames: { [key: string]: string };
+    buffSortData: { [key: string]: BuildingData_BuildingRoomTypeBuffSortData };
+    tradingRoomInfoData: BuildingData_TradingRoomInfoData;
+}
 
 export interface BuildingData_PrefabInfo {
     id: string;
@@ -6674,15 +6761,27 @@ export interface BuildingData_PrefabInfo {
     obstacleId: string;
 }
 
+export interface BuildingData_RoomUnlockCond {
+    id: string;
+    number: { [key: number]: BuildingData_RoomUnlockCond_CondItem };
+}
+
 export interface BuildingData_RoomUnlockCond_CondItem {
     type: BuildingData_RoomType;
     level: number;
     count: number;
 }
 
-export interface BuildingData_RoomUnlockCond {
-    id: string;
-    number: { [key: number]: BuildingData_RoomUnlockCond_CondItem };
+export interface BuildingData_RoomData {
+    id: BuildingData_RoomType;
+    name: string;
+    description: string;
+    defaultPrefabId: string;
+    canLevelDown: boolean;
+    maxCount: number;
+    category: BuildingData_RoomCategory;
+    size: GridPosition;
+    phases: BuildingData_RoomData_PhaseData[];
 }
 
 export interface BuildingData_RoomData_BuildCost {
@@ -6701,16 +6800,12 @@ export interface BuildingData_RoomData_PhaseData {
     manpowerCost: number;
 }
 
-export interface BuildingData_RoomData {
-    id: BuildingData_RoomType;
-    name: string;
-    description: string;
-    defaultPrefabId: string;
-    canLevelDown: boolean;
-    maxCount: number;
-    category: BuildingData_RoomCategory;
-    size: GridPosition;
-    phases: BuildingData_RoomData_PhaseData[];
+export interface BuildingData_LayoutData {
+    DEFAULT_LAYOUT_ID: string;
+    id: string;
+    slots: { [key: string]: BuildingData_LayoutData_RoomSlot };
+    cleanCosts: { [key: string]: BuildingData_LayoutData_SlotCleanCost };
+    storeys: { [key: string]: BuildingData_LayoutData_StoreyData };
 }
 
 export interface BuildingData_LayoutData_RoomSlot {
@@ -6724,13 +6819,13 @@ export interface BuildingData_LayoutData_RoomSlot {
     storeyId: string;
 }
 
-export interface BuildingData_LayoutData_SlotCleanCost_CountCost {
-    items: ItemBundle[];
-}
-
 export interface BuildingData_LayoutData_SlotCleanCost {
     id: string;
     number: { [key: number]: BuildingData_LayoutData_SlotCleanCost_CountCost };
+}
+
+export interface BuildingData_LayoutData_SlotCleanCost_CountCost {
+    items: ItemBundle[];
 }
 
 export interface BuildingData_LayoutData_StoreyData {
@@ -6740,27 +6835,19 @@ export interface BuildingData_LayoutData_StoreyData {
     type: BuildingData_LayoutData_StoreyData_Type;
 }
 
-export interface BuildingData_LayoutData {
-    DEFAULT_LAYOUT_ID: string;
-    id: string;
-    slots: { [key: string]: BuildingData_LayoutData_RoomSlot };
-    cleanCosts: { [key: string]: BuildingData_LayoutData_SlotCleanCost };
-    storeys: { [key: string]: BuildingData_LayoutData_StoreyData };
-}
-
 export interface BuildingData_BuildingCharacter {
     charId: string;
     maxManpower: number;
     buffChar: BuildingData_BuildingBuffCharSlot[];
 }
 
+export interface BuildingData_BuildingBuffCharSlot {
+    buffData: BuildingData_BuildingBuffCharSlot_SlotItem[];
+}
+
 export interface BuildingData_BuildingBuffCharSlot_SlotItem {
     buffId: string;
     cond: CharacterData_UnlockCondition;
-}
-
-export interface BuildingData_BuildingBuffCharSlot {
-    buffData: BuildingData_BuildingBuffCharSlot_SlotItem[];
 }
 
 export interface BuildingData_BuildingBuff {
@@ -6779,15 +6866,15 @@ export interface BuildingData_BuildingBuff {
     targets: string[];
 }
 
-export interface BuildingData_BuildingRoomTypeBuffSortData_buffGroupInfo {
-    targets: string[];
-    sortId: number;
-}
-
 export interface BuildingData_BuildingRoomTypeBuffSortData {
     hasEfficiencySort: boolean;
     defaultGroupSortId: number;
     efficiencyTargetDict: { [key: string]: BuildingData_BuildingRoomTypeBuffSortData_buffGroupInfo };
+}
+
+export interface BuildingData_BuildingRoomTypeBuffSortData_buffGroupInfo {
+    targets: string[];
+    sortId: number;
 }
 
 export interface BuildingData_RoomBean {
@@ -6846,6 +6933,17 @@ export interface BuildingData_TrainingBean {
 export interface BuildingData_PowerRoomBean {
     phases: object[];
     basicSpeedBuff: number;
+}
+
+export interface BuildingData_CustomData {
+    furnitures: { [key: string]: BuildingData_CustomData_FurnitureData };
+    themes: { [key: string]: BuildingData_CustomData_ThemeData };
+    groups: { [key: string]: BuildingData_CustomData_GroupData };
+    types: { [key: string]: BuildingData_CustomData_FurnitureTypeData };
+    subTypes: { [key: string]: BuildingData_CustomData_FurnitureSubTypeData };
+    defaultFurnitures: { [key: string]: BuildingData_CustomData_DormitoryDefaultFurnitureItem[] };
+    interactGroups: { [key: string]: BuildingData_CustomData_InteractItem[] };
+    diyUISortTemplates: { [key: string]: { [key: string]: BuildingData_CustomData_DiyUISortTemplateListData } };
 }
 
 export interface BuildingData_CustomData_FurnitureData {
@@ -6936,13 +7034,6 @@ export interface BuildingData_CustomData_InteractItem {
     skinId: string;
 }
 
-export interface BuildingData_CustomData_DiyUISortTemplateListData_DiyUISortTemplateData {
-    name: string;
-    sequences: string[];
-    stableSequence: string;
-    stableSequenceOrder: BuildingData_DiyUISortOrder;
-}
-
 export interface BuildingData_CustomData_DiyUISortTemplateListData {
     diySortType: BuildingData_DiySortType;
     expandState: string;
@@ -6951,26 +7042,11 @@ export interface BuildingData_CustomData_DiyUISortTemplateListData {
     templates: BuildingData_CustomData_DiyUISortTemplateListData_DiyUISortTemplateData[];
 }
 
-export interface BuildingData_CustomData {
-    furnitures: { [key: string]: BuildingData_CustomData_FurnitureData };
-    themes: { [key: string]: BuildingData_CustomData_ThemeData };
-    groups: { [key: string]: BuildingData_CustomData_GroupData };
-    types: { [key: string]: BuildingData_CustomData_FurnitureTypeData };
-    subTypes: { [key: string]: BuildingData_CustomData_FurnitureSubTypeData };
-    defaultFurnitures: { [key: string]: BuildingData_CustomData_DormitoryDefaultFurnitureItem[] };
-    interactGroups: { [key: string]: BuildingData_CustomData_InteractItem[] };
-    diyUISortTemplates: { [key: string]: { [key: string]: BuildingData_CustomData_DiyUISortTemplateListData } };
-}
-
-export interface BuildingData_ManufactFormula_UnlockRoom {
-    roomId: BuildingData_RoomType;
-    roomLevel: number;
-    roomCount: number;
-}
-
-export interface BuildingData_ManufactFormula_UnlockStage {
-    stageId: string;
-    rank: number;
+export interface BuildingData_CustomData_DiyUISortTemplateListData_DiyUISortTemplateData {
+    name: string;
+    sequences: string[];
+    stableSequence: string;
+    stableSequenceOrder: BuildingData_DiyUISortOrder;
 }
 
 export interface BuildingData_ManufactFormula {
@@ -6986,21 +7062,21 @@ export interface BuildingData_ManufactFormula {
     requireStages: BuildingData_ManufactFormula_UnlockStage[];
 }
 
-export interface BuildingData_WorkshopExtraWeightItem {
-    weight: number;
-    itemId: string;
-    itemCount: number;
-}
-
-export interface BuildingData_WorkshopFormula_UnlockRoom {
+export interface BuildingData_ManufactFormula_UnlockRoom {
     roomId: BuildingData_RoomType;
     roomLevel: number;
     roomCount: number;
 }
 
-export interface BuildingData_WorkshopFormula_UnlockStage {
+export interface BuildingData_ManufactFormula_UnlockStage {
     stageId: string;
     rank: number;
+}
+
+export interface BuildingData_WorkshopExtraWeightItem {
+    weight: number;
+    itemId: string;
+    itemCount: number;
 }
 
 export interface BuildingData_WorkshopFormula {
@@ -7020,9 +7096,15 @@ export interface BuildingData_WorkshopFormula {
     requireStages: BuildingData_WorkshopFormula_UnlockStage[];
 }
 
-export interface BuildingData_ShopFormula_UnlockRoom {
+export interface BuildingData_WorkshopFormula_UnlockRoom {
     roomId: BuildingData_RoomType;
     roomLevel: number;
+    roomCount: number;
+}
+
+export interface BuildingData_WorkshopFormula_UnlockStage {
+    stageId: string;
+    rank: number;
 }
 
 export interface BuildingData_ShopFormula {
@@ -7034,14 +7116,19 @@ export interface BuildingData_ShopFormula {
     requireRooms: BuildingData_ShopFormula_UnlockRoom[];
 }
 
-export interface BuildingData_CreditFormula_ValueModel {
-    basic: number;
-    addition: number;
+export interface BuildingData_ShopFormula_UnlockRoom {
+    roomId: BuildingData_RoomType;
+    roomLevel: number;
 }
 
 export interface BuildingData_CreditFormula {
     initiative: { [key: number]: BuildingData_CreditFormula_ValueModel };
     passive: { [key: number]: BuildingData_CreditFormula_ValueModel };
+}
+
+export interface BuildingData_CreditFormula_ValueModel {
+    basic: number;
+    addition: number;
 }
 
 export interface BuildingData_SlotPrequeData {
@@ -7112,95 +7199,16 @@ export interface BuildingData_TradingRoomInfoData {
     tradingRoomSpecialOrderData: { [key: string]: BuildingData_TradingRoomSpecialOrderInfo };
 }
 
-export interface BuildingData {
-    CONTROL_STOREY_ID: string;
-    controlSlotId: string;
-    meetingSlotId: string;
-    initMaxLabor: number;
-    laborRecoverTime: number;
-    manufactInputCapacity: number;
-    shopCounterCapacity: number;
-    comfortLimit: number;
-    creditInitiativeLimit: number;
-    creditPassiveLimit: number;
-    creditComfortFactor: number;
-    creditGuaranteed: number;
-    creditCeiling: number;
-    manufactUnlockTips: string;
-    shopUnlockTips: string;
-    manufactStationBuff: number;
-    comfortManpowerRecoverFactor: number;
-    manpowerDisplayFactor: number;
-    shopOutputRatio: { [key: string]: number };
-    shopStackRatio: { [key: string]: number };
-    basicFavorPerDay: number;
-    humanResourceLimit: number;
-    tiredApThreshold: number;
-    processedCountRatio: number;
-    tradingStrategyUnlockLevel: number;
-    tradingReduceTimeUnit: number;
-    tradingLaborCostUnit: number;
-    manufactReduceTimeUnit: number;
-    manufactLaborCostUnit: number;
-    laborAssistUnlockLevel: number;
-    apToLaborUnlockLevel: number;
-    apToLaborRatio: number;
-    socialResourceLimit: number;
-    socialSlotNum: number;
-    furniDuplicationLimit: number;
-    assistFavorReport: number;
-    manufactManpowerCostByNum: number[];
-    tradingManpowerCostByNum: number[];
-    trainingBonusMax: number;
-    betaRemoveTime: number;
-    furniHighlightTime: number;
-    canNotVisitToast: string;
-    meetingMessageBoardEmoteTime: number;
-    musicPlayerOpenTime: number;
-    roomsWithoutRemoveStaff: string[];
-    privateFavorLevelThresholds: number[];
-    roomUnlockConds: { [key: string]: BuildingData_RoomUnlockCond };
-    rooms: { [key: string]: BuildingData_RoomData };
-    layouts: { [key: string]: BuildingData_LayoutData };
-    prefabs: { [key: string]: BuildingData_PrefabInfo };
-    controlData: BuildingData_ControlRoomBean;
-    manufactData: BuildingData_ManufactRoomBean;
-    shopData: BuildingData_RoomBean;
-    hireData: BuildingData_HireRoomBean;
-    dormData: BuildingData_RoomBean;
-    privateRoomData: BuildingData_RoomBean;
-    meetingData: BuildingData_MeetingRoomBean;
-    tradingData: BuildingData_TradingRoomBean;
-    workshopData: BuildingData_RoomBean;
-    trainingData: BuildingData_TrainingBean;
-    powerData: BuildingData_PowerRoomBean;
-    chars: { [key: string]: BuildingData_BuildingCharacter };
-    buffs: { [key: string]: BuildingData_BuildingBuff };
-    workshopBonus: { [key: string]: string[] };
-    customData: BuildingData_CustomData;
-    manufactFormulas: { [key: string]: BuildingData_ManufactFormula };
-    shopFormulas: { [key: string]: BuildingData_ShopFormula };
-    workshopFormulas: { [key: string]: BuildingData_WorkshopFormula };
-    creditFormula: BuildingData_CreditFormula;
-    goldItems: { [key: string]: number };
-    assistantUnlock: number[];
-    workshopRarities: BuildingData_WorkshopRarityInfo[];
-    todoItemSortPriorityDict: { [key: string]: number };
-    slotPrequeDatas: { [key: string]: BuildingData_SlotPrequeData };
-    dormitoryPrequeDatas: { [key: string]: BuildingData_DormitoryPrequeData };
-    workshopTargetDesDict: { [key: string]: string };
-    tradingOrderDesDict: { [key: string]: string };
-    stationManageConstData: BuildingData_StationManageConstData;
-    stationManageFilterInfos: { [key: number]: BuildingData_StationManageFilterInfo };
-    musicData: BuildingData_MusicData;
-    emojis: string[];
-    categoryNames: { [key: string]: string };
-    buffSortData: { [key: string]: BuildingData_BuildingRoomTypeBuffSortData };
-    tradingRoomInfoData: BuildingData_TradingRoomInfoData;
-}
-
 export interface CampaignStageMapData {
     position: object;
+}
+
+export interface CampaignData {
+    stageId: string;
+    isSmallScale: number;
+    breakLadders: CampaignData_BreakRewardLadder[];
+    isCustomized: boolean;
+    dropGains: { [key: string]: CampaignData_DropGainInfo };
 }
 
 export interface CampaignData_CampaignDropInfo {
@@ -7237,14 +7245,6 @@ export interface CampaignData_DropGainInfo {
     gainLadders: CampaignData_GainLadder[];
     displayRewards: StageData_DisplayRewards[];
     displayDetailRewards: StageData_DisplayDetailRewards[];
-}
-
-export interface CampaignData {
-    stageId: string;
-    isSmallScale: number;
-    breakLadders: CampaignData_BreakRewardLadder[];
-    isCustomized: boolean;
-    dropGains: { [key: string]: CampaignData_DropGainInfo };
 }
 
 export interface CampaignGroupData {
@@ -7364,6 +7364,46 @@ export interface ChapterData {
     chapterEndStageId: string;
 }
 
+export interface CharacterData {
+    name: string;
+    description: string;
+    sortIndex: number;
+    spTargetType: SpecialOperatorTargetType;
+    spTargetId: string;
+    canUseGeneralPotentialItem: boolean;
+    canUseActivityPotentialItem: boolean;
+    potentialItemId: string;
+    activityPotentialItemId: string;
+    classicPotentialItemId: string;
+    nationId: string;
+    groupId: string;
+    teamId: string;
+    mainPower: CharacterData_PowerData;
+    subPower: CharacterData_PowerData[];
+    displayNumber: string;
+    appellation: string;
+    position: BuildableType;
+    tagList: string[];
+    itemUsage: string;
+    itemDesc: string;
+    itemObtainApproach: string;
+    isNotObtainable: boolean;
+    isSpChar: boolean;
+    maxPotentialLevel: number;
+    rarity: RarityRank;
+    profession: ProfessionCategory;
+    subProfessionId: string;
+    trait: CharacterData_TraitDataBundle;
+    phases: CharacterData_PhaseData[];
+    skills: CharacterData_MainSkill[];
+    displayTokenDict: { [key: string]: boolean };
+    talents: CharacterData_TalentDataBundle[];
+    potentialRanks: CharacterData_PotentialRank[];
+    favorKeyFrames: CharacterData_AttributesDeltaKeyFrame;
+    allSkillLvlup: CharacterData_SkillLevelCost[];
+    [key: string]: any;
+}
+
 export type CharacterData_AttributesKeyFrame = KeyFrames_KeyFrame[];
 
 export type CharacterData_AttributesDeltaKeyFrame = KeyFrames_KeyFrame[];
@@ -7416,18 +7456,18 @@ export interface CharacterData_PhaseData {
     evolveCost: ItemBundle[];
 }
 
-export interface CharacterData_MainSkill_SpecializeLevelData {
-    unlockCond: CharacterData_UnlockCondition;
-    lvlUpTime: number;
-    levelUpCost: ItemBundle[];
-}
-
 export interface CharacterData_MainSkill {
     skillId: string;
     overridePrefabKey: string;
     overrideTokenKey: string;
     levelUpCostCond: CharacterData_MainSkill_SpecializeLevelData[];
     unlockCond: CharacterData_UnlockCondition;
+}
+
+export interface CharacterData_MainSkill_SpecializeLevelData {
+    unlockCond: CharacterData_UnlockCondition;
+    lvlUpTime: number;
+    levelUpCost: ItemBundle[];
 }
 
 export interface CharacterData_PotentialRank {
@@ -7446,46 +7486,6 @@ export interface CharacterData_PowerData {
     nationId: string;
     groupId: string;
     teamId: string;
-}
-
-export interface CharacterData {
-    name: string;
-    description: string;
-    sortIndex: number;
-    spTargetType: SpecialOperatorTargetType;
-    spTargetId: string;
-    canUseGeneralPotentialItem: boolean;
-    canUseActivityPotentialItem: boolean;
-    potentialItemId: string;
-    activityPotentialItemId: string;
-    classicPotentialItemId: string;
-    nationId: string;
-    groupId: string;
-    teamId: string;
-    mainPower: CharacterData_PowerData;
-    subPower: CharacterData_PowerData[];
-    displayNumber: string;
-    appellation: string;
-    position: BuildableType;
-    tagList: string[];
-    itemUsage: string;
-    itemDesc: string;
-    itemObtainApproach: string;
-    isNotObtainable: boolean;
-    isSpChar: boolean;
-    maxPotentialLevel: number;
-    rarity: RarityRank;
-    profession: ProfessionCategory;
-    subProfessionId: string;
-    trait: CharacterData_TraitDataBundle;
-    phases: CharacterData_PhaseData[];
-    skills: CharacterData_MainSkill[];
-    displayTokenDict: { [key: string]: boolean };
-    talents: CharacterData_TalentDataBundle[];
-    potentialRanks: CharacterData_PotentialRank[];
-    favorKeyFrames: CharacterData_AttributesDeltaKeyFrame;
-    allSkillLvlup: CharacterData_SkillLevelCost[];
-    [key: string]: any;
 }
 
 export interface CharmItemData {
@@ -7543,10 +7543,21 @@ export interface CharMetaTable {
     charMasterDataMap: { [key: string]: CharMasterBasicData };
 }
 
+export interface CharPatchData {
+    infos: { [key: string]: CharPatchData_PatchInfo };
+    patchChars: { [key: string]: CharacterData };
+    unlockConds: { [key: string]: CharPatchData_UnlockCond };
+    patchDetailInfoList: { [key: string]: CharPatchData_PatchDetailInfo };
+}
+
 export interface CharPatchData_PatchInfo {
     tmplIds: string[];
     defaultPatch: string;
     default: object;
+}
+
+export interface CharPatchData_UnlockCond {
+    conds: CharPatchData_UnlockCond_Item[];
 }
 
 export interface CharPatchData_UnlockCond_Item {
@@ -7555,22 +7566,11 @@ export interface CharPatchData_UnlockCond_Item {
     unlockTs: number;
 }
 
-export interface CharPatchData_UnlockCond {
-    conds: CharPatchData_UnlockCond_Item[];
-}
-
 export interface CharPatchData_PatchDetailInfo {
     patchId: string;
     sortId: number;
     infoParam: string;
     transSortId: number;
-}
-
-export interface CharPatchData {
-    infos: { [key: string]: CharPatchData_PatchInfo };
-    patchChars: { [key: string]: CharacterData };
-    unlockConds: { [key: string]: CharPatchData_UnlockCond };
-    patchDetailInfoList: { [key: string]: CharPatchData_PatchDetailInfo };
 }
 
 export interface CharWordTable {
@@ -7700,11 +7700,6 @@ export interface ClimbTowerTable {
     missionGroup: { [key: string]: MissionGroup };
 }
 
-export interface ClimbTowerSingleTowerData_ClimbTowerTaskRewardData {
-    levelNum: number;
-    rewards: ItemBundle[];
-}
-
 export interface ClimbTowerSingleTowerData {
     id: string;
     sortId: number;
@@ -7725,6 +7720,11 @@ export interface ClimbTowerSingleTowerData {
     curseCardIds: string[];
     dangerDesc: string;
     hardModeDesc: string;
+}
+
+export interface ClimbTowerSingleTowerData_ClimbTowerTaskRewardData {
+    levelNum: number;
+    rewards: ItemBundle[];
 }
 
 export interface ClimbTowerSingleLevelData {
@@ -7860,6 +7860,17 @@ export interface CommonReportPlayerData {
     desc: string;
 }
 
+export interface CrisisClientData {
+    seasonInfo: CrisisClientData_SeasonInfo[];
+    meta: string;
+    unlockCoinLv3: number;
+    hardPointPerm: number;
+    hardPointTemp: number;
+    voiceGrade: number;
+    crisisRuneCoinUnlockItemTitle: string;
+    crisisRuneCoinUnlockItemDesc: string;
+}
+
 export interface CrisisClientData_SeasonInfo {
     seasonId: string;
     startTs: number;
@@ -7870,17 +7881,6 @@ export interface CrisisClientData_SeasonInfo {
     medalGroupId: string;
     bgmHardPoint: number;
     permBgmHard: string;
-}
-
-export interface CrisisClientData {
-    seasonInfo: CrisisClientData_SeasonInfo[];
-    meta: string;
-    unlockCoinLv3: number;
-    hardPointPerm: number;
-    hardPointTemp: number;
-    voiceGrade: number;
-    crisisRuneCoinUnlockItemTitle: string;
-    crisisRuneCoinUnlockItemDesc: string;
 }
 
 export interface CrisisV2AppraiseWrap {
@@ -8210,6 +8210,13 @@ export interface MailSenderSingleInfo {
     avatarId: string;
 }
 
+export interface EmoticonData {
+    emojiDataDict: { [key: string]: EmoticonData_EmojiData };
+    emoticonThemeDataDict: { [key: string]: string[] };
+    emoticonThemeTypeDict: { [key: string]: EmoticonData_EmoticonThemeTypeData };
+    emoticonThemeReverseDict: { [key: string]: string[] };
+}
+
 export interface EmoticonData_EmojiData {
     id: string;
     type: EmojiSceneType;
@@ -8224,13 +8231,6 @@ export interface EmoticonData_EmoticonThemeTypeData {
     isBasic: boolean;
     isDyn: boolean;
     picSceneList: EmojiSceneType[];
-}
-
-export interface EmoticonData {
-    emojiDataDict: { [key: string]: EmoticonData_EmojiData };
-    emoticonThemeDataDict: { [key: string]: string[] };
-    emoticonThemeTypeDict: { [key: string]: EmoticonData_EmoticonThemeTypeData };
-    emoticonThemeReverseDict: { [key: string]: string[] };
 }
 
 export interface GuidebookGroupData {
@@ -8450,6 +8450,10 @@ export interface PixelMapConstData {
     uidWaterMark: boolean;
 }
 
+export interface EnemyDatabase {
+    enemies: { Key: string; Value: EnemyDatabase_EnemyLevel[] }[];
+}
+
 export interface EnemyDatabase_EnemyData {
     name: string;
     description: string;
@@ -8509,15 +8513,6 @@ export interface EnemyDatabase_AttributesData {
     groundBoundImmune: boolean;
 }
 
-export interface EnemyDatabase {
-    enemies: { Key: string; Value: EnemyDatabase_EnemyLevel[] }[];
-}
-
-export interface EnemyHandbookLevelInfoData_RangePair {
-    min: number;
-    max: number;
-}
-
 export interface EnemyHandbookLevelInfoData {
     classLevel: string;
     attack: EnemyHandbookLevelInfoData_RangePair;
@@ -8528,6 +8523,11 @@ export interface EnemyHandbookLevelInfoData {
     attackSpeed: EnemyHandbookLevelInfoData_RangePair;
     enemyDamageRes: EnemyHandbookLevelInfoData_RangePair;
     enemyRes: EnemyHandbookLevelInfoData_RangePair;
+}
+
+export interface EnemyHandbookLevelInfoData_RangePair {
+    min: number;
+    max: number;
 }
 
 export interface EnemyHandbookRaceData {
@@ -8678,6 +8678,21 @@ export interface FifthAnnivExploreData {
     missionData: { [key: string]: FifthAnnivExploreMissionData };
 }
 
+export interface SharedCharData {
+    charId: string;
+    potentialRank: number;
+    mainSkillLvl: number;
+    evolvePhase: number;
+    level: number;
+    favorPoint: number;
+    crisisRecord: { [key: string]: number };
+    crisisV2Record: { [key: string]: number };
+    currentTmpl: string;
+    tmpl: { [key: string]: SharedCharData_TmplData };
+    overrideSkillIndex: number;
+    overrideEquipId: string;
+}
+
 export interface SharedCharData_SharedCharSkillData {
     skillId: string;
     specializeLevel: number;
@@ -8696,21 +8711,6 @@ export interface SharedCharData_TmplData {
 export interface SharedCharData_CharEquipInfo {
     locked: boolean;
     level: number;
-}
-
-export interface SharedCharData {
-    charId: string;
-    potentialRank: number;
-    mainSkillLvl: number;
-    evolvePhase: number;
-    level: number;
-    favorPoint: number;
-    crisisRecord: { [key: string]: number };
-    crisisV2Record: { [key: string]: number };
-    currentTmpl: string;
-    tmpl: { [key: string]: SharedCharData_TmplData };
-    overrideSkillIndex: number;
-    overrideEquipId: string;
 }
 
 export interface GachaTag {
@@ -8756,20 +8756,14 @@ export interface BasedRecruitPool_RecruitConstants {
     maxRecruitTime: number;
 }
 
-export interface RecruitPool_RecruitTime {
-    timeLength: number;
-    recruitPrice: number;
-}
-
 export interface RecruitPool {
     recruitConstants: BasedRecruitPool_RecruitConstants;
     recruitTimeTable: RecruitPool_RecruitTime[];
 }
 
-export interface SpecialRecruitPool_SpecialRecruitCostData {
+export interface RecruitPool_RecruitTime {
     timeLength: number;
     recruitPrice: number;
-    itemCosts: ItemBundle[];
 }
 
 export interface SpecialRecruitPool {
@@ -8783,8 +8777,36 @@ export interface SpecialRecruitPool {
     recruitTimeTable: SpecialRecruitPool_SpecialRecruitCostData[];
 }
 
+export interface SpecialRecruitPool_SpecialRecruitCostData {
+    timeLength: number;
+    recruitPrice: number;
+    itemCosts: ItemBundle[];
+}
+
 export interface PotentialMaterialConverterConfig {
     items: { [key: number]: ItemBundle };
+}
+
+export interface GachaData {
+    gachaPoolClient: GachaPoolClientData[];
+    newbeeGachaPoolClient: NewbeeGachaPoolClientData[];
+    specialRecruitPool: SpecialRecruitPool[];
+    gachaTags: GachaTag[];
+    recruitPool: RecruitPool;
+    potentialMaterialConverter: PotentialMaterialConverterConfig;
+    classicPotentialMaterialConverter: PotentialMaterialConverterConfig;
+    recruitRarityTable: { [key: number]: GachaData_RecruitRange };
+    specialTagRarityTable: { [key: number]: number[] };
+    recruitDetail: string;
+    showGachaLogEntry: boolean;
+    carousel: GachaData_CarouselData[];
+    freeGacha: GachaData_FreeLimitGachaData[];
+    limitTenGachaItem: GachaData_LimitTenGachaTkt[];
+    linkageTenGachaItem: GachaData_LinkageTenGachaTkt[];
+    normalGachaItem: GachaData_NormalGachaTkt[];
+    fesGachaPoolRelateItem: { [key: string]: GachaData_FesGachaPoolRelateItem };
+    dicRecruit6StarHint: { [key: string]: string };
+    specialGachaPercentDict: { [key: number]: number };
 }
 
 export interface GachaData_RecruitRange {
@@ -8828,45 +8850,6 @@ export interface GachaData_NormalGachaTkt {
     endTime: number;
     gachaPoolId: string;
     isTen: boolean;
-}
-
-export interface GachaData {
-    gachaPoolClient: GachaPoolClientData[];
-    newbeeGachaPoolClient: NewbeeGachaPoolClientData[];
-    specialRecruitPool: SpecialRecruitPool[];
-    gachaTags: GachaTag[];
-    recruitPool: RecruitPool;
-    potentialMaterialConverter: PotentialMaterialConverterConfig;
-    classicPotentialMaterialConverter: PotentialMaterialConverterConfig;
-    recruitRarityTable: { [key: number]: GachaData_RecruitRange };
-    specialTagRarityTable: { [key: number]: number[] };
-    recruitDetail: string;
-    showGachaLogEntry: boolean;
-    carousel: GachaData_CarouselData[];
-    freeGacha: GachaData_FreeLimitGachaData[];
-    limitTenGachaItem: GachaData_LimitTenGachaTkt[];
-    linkageTenGachaItem: GachaData_LinkageTenGachaTkt[];
-    normalGachaItem: GachaData_NormalGachaTkt[];
-    fesGachaPoolRelateItem: { [key: string]: GachaData_FesGachaPoolRelateItem };
-    dicRecruit6StarHint: { [key: string]: string };
-    specialGachaPercentDict: { [key: number]: number };
-}
-
-export interface GameDataConsts_CharAssistRefreshTimeState {
-    hour: number;
-    minute: number;
-}
-
-export interface GameDataConsts_FeverGameData {
-    feverDuration: number;
-    feverNeed: number;
-}
-
-export interface GameDataConsts_AVGReaderModeDefaultSetting {
-    defaultReaderFontsize: number;
-    defaultReaderLinespace: number;
-    defaultReaderBackgroundAlpha: number;
-    defaultNameReaderFontsize: number;
 }
 
 export interface GameDataConsts {
@@ -8998,6 +8981,23 @@ export interface GameDataConsts {
     tso: number;
 }
 
+export interface GameDataConsts_CharAssistRefreshTimeState {
+    hour: number;
+    minute: number;
+}
+
+export interface GameDataConsts_FeverGameData {
+    feverDuration: number;
+    feverNeed: number;
+}
+
+export interface GameDataConsts_AVGReaderModeDefaultSetting {
+    defaultReaderFontsize: number;
+    defaultReaderLinespace: number;
+    defaultReaderBackgroundAlpha: number;
+    defaultNameReaderFontsize: number;
+}
+
 export interface HandbookUnlockParam {
     unlockType: DataUnlockType;
     unlockParam1: string;
@@ -9040,6 +9040,12 @@ export interface HandbookAvgGroupData {
     charId: string;
 }
 
+export interface HandBookStoryViewData {
+    stories: HandBookStoryViewData_StoryText[];
+    storyTitle: string;
+    unLockorNot: boolean;
+}
+
 export interface HandBookStoryViewData_StoryText {
     storyText: string;
     unLockType: DataUnlockType;
@@ -9048,12 +9054,6 @@ export interface HandBookStoryViewData_StoryText {
     showParam: string;
     unLockString: string;
     patchIdList: string[];
-}
-
-export interface HandBookStoryViewData {
-    stories: HandBookStoryViewData_StoryText[];
-    storyTitle: string;
-    unLockorNot: boolean;
 }
 
 export interface HandbookInfoData {
@@ -9162,6 +9162,26 @@ export interface FavorCharacterInfo {
     favorAddAmt: number;
 }
 
+export interface ItemData {
+    itemId: string;
+    name: string;
+    description: string;
+    rarity: ItemRarity;
+    iconId: string;
+    overrideBkg: string;
+    stackIconId: string;
+    sortId: number;
+    usage: string;
+    obtainApproach: string;
+    hideInItemGet: boolean;
+    classifyType: ItemClassifyType;
+    itemType: ItemType;
+    stageDropList: ItemData_StageDropInfo[];
+    buildingProductList: ItemData_BuildingProductInfo[];
+    voucherRelateList: ItemData_VoucherRelateInfo[];
+    shopRelateInfoList: ItemData_ShopRelateInfo[];
+}
+
 export interface ItemData_StageDropInfo {
     stageId: string;
     occPer: OccPer;
@@ -9183,26 +9203,6 @@ export interface ItemData_ShopRelateInfo {
     shopType: ItemDropShopType;
     shopGroup: number;
     startTs: number;
-}
-
-export interface ItemData {
-    itemId: string;
-    name: string;
-    description: string;
-    rarity: ItemRarity;
-    iconId: string;
-    overrideBkg: string;
-    stackIconId: string;
-    sortId: number;
-    usage: string;
-    obtainApproach: string;
-    hideInItemGet: boolean;
-    classifyType: ItemClassifyType;
-    itemType: ItemType;
-    stageDropList: ItemData_StageDropInfo[];
-    buildingProductList: ItemData_BuildingProductInfo[];
-    voucherRelateList: ItemData_VoucherRelateInfo[];
-    shopRelateInfoList: ItemData_ShopRelateInfo[];
 }
 
 export interface ItemBundle {
@@ -9479,17 +9479,17 @@ export interface MissionData {
     countEndTs: number;
 }
 
-export interface DailyMissionGroupInfo_periodInfo {
-    missionGroupId: string;
-    rewardGroupId: string;
-    period: number[];
-}
-
 export interface DailyMissionGroupInfo {
     startTime: number;
     endTime: number;
     tagState: string;
     periodList: DailyMissionGroupInfo_periodInfo[];
+}
+
+export interface DailyMissionGroupInfo_periodInfo {
+    missionGroupId: string;
+    rewardGroupId: string;
+    period: number[];
 }
 
 export interface GuideMissionGroupInfo {
@@ -9825,11 +9825,11 @@ export interface RetroTrailRuleData {
     desc: string[];
 }
 
+export type ActivityCustomData = { [key: string]: object };
+
 export interface ActivityCustomData_Act25sideCustomData {
     battlePerformanceData: { [key: string]: Act25SideData_BattlePerformanceData };
 }
-
-export type ActivityCustomData = { [key: string]: object };
 
 export interface RetroStageTable {
     zoneToRetro: { [key: string]: string };
@@ -9999,6 +9999,11 @@ export interface RoguelikeActivityBasicData {
 
 export type RoguelikeActivityTable = { [key: string]: object };
 
+export interface RoguelikeActivitySeedModeData {
+    officialSeedDataList: RoguelikeActivitySeedModeData_RoguelikeActivityOfficialSeedData[];
+    constData: RoguelikeActivitySeedModeData_RoguelikeActivitySeedModeConstData;
+}
+
 export interface RoguelikeActivitySeedModeData_RoguelikeActivityOfficialSeedData {
     seed: string;
     sortId: number;
@@ -10019,11 +10024,6 @@ export interface RoguelikeActivitySeedModeData_RoguelikeActivitySeedModeConstDat
     useSucceededTextHint: string;
     officialUseSucceededTextHint: string;
     seedModeLockedTextHint: string;
-}
-
-export interface RoguelikeActivitySeedModeData {
-    officialSeedDataList: RoguelikeActivitySeedModeData_RoguelikeActivityOfficialSeedData[];
-    constData: RoguelikeActivitySeedModeData_RoguelikeActivitySeedModeConstData;
 }
 
 export interface RoguelikeTable {
@@ -10048,6 +10048,27 @@ export interface RoguelikeTable {
     eventTypeIcons: object;
 }
 
+export interface RoguelikeConstTable {
+    playerLevelTable: { [key: number]: RoguelikeConstTable_PlayerLevelData };
+    recruitPopulationTable: { [key: number]: RoguelikeConstTable_RecruitData };
+    charUpgradeTable: { [key: number]: RoguelikeConstTable_CharUpgradeData };
+    eventTypeTable: { [key: string]: RoguelikeConstTable_EventTypeData };
+    shopDialogs: string[];
+    shopRelicDialogs: string[];
+    shopTicketDialogs: string[];
+    mimicEnemyIds: string[];
+    clearZoneScores: number[];
+    moveToNodeScore: number;
+    clearNormalBattleScore: number;
+    clearEliteBattleScore: number;
+    clearBossBattleScore: number;
+    gainRelicScore: number;
+    gainCharacterScore: number;
+    unlockRelicSpecialScore: number;
+    squadCapacityMax: number;
+    bossIds: string[];
+}
+
 export interface RoguelikeConstTable_PlayerLevelData {
     exp: number;
     populationUp: number;
@@ -10069,27 +10090,6 @@ export interface RoguelikeConstTable_CharUpgradeData {
 export interface RoguelikeConstTable_EventTypeData {
     name: string;
     description: string;
-}
-
-export interface RoguelikeConstTable {
-    playerLevelTable: { [key: number]: RoguelikeConstTable_PlayerLevelData };
-    recruitPopulationTable: { [key: number]: RoguelikeConstTable_RecruitData };
-    charUpgradeTable: { [key: number]: RoguelikeConstTable_CharUpgradeData };
-    eventTypeTable: { [key: string]: RoguelikeConstTable_EventTypeData };
-    shopDialogs: string[];
-    shopRelicDialogs: string[];
-    shopTicketDialogs: string[];
-    mimicEnemyIds: string[];
-    clearZoneScores: number[];
-    moveToNodeScore: number;
-    clearNormalBattleScore: number;
-    clearEliteBattleScore: number;
-    clearBossBattleScore: number;
-    gainRelicScore: number;
-    gainCharacterScore: number;
-    unlockRelicSpecialScore: number;
-    squadCapacityMax: number;
-    bossIds: string[];
 }
 
 export interface RoguelikeItemTable {
@@ -10369,15 +10369,15 @@ export interface RoguelikeTotemSubBuffData {
     info: string;
 }
 
-export interface RoguelikeVisionModuleData_VisionChoiceConfig {
-    value: number;
-    type: RoguelikeVisionModuleData_VisionChoiceCheckType;
-}
-
 export interface RoguelikeVisionModuleData {
     visionDatas: { [key: number]: RoguelikeVisionData };
     visionChoices: { [key: string]: RoguelikeVisionModuleData_VisionChoiceConfig };
     moduleConsts: RoguelikeVisionModuleConsts;
+}
+
+export interface RoguelikeVisionModuleData_VisionChoiceConfig {
+    value: number;
+    type: RoguelikeVisionModuleData_VisionChoiceCheckType;
 }
 
 export interface RoguelikeVisionData {
@@ -10732,13 +10732,6 @@ export interface RoguelikeTopicTable {
     customizeData: RoguelikeTopicCustomizeData;
 }
 
-export interface RoguelikeTopicBasicData_HomeEntryDisplayData {
-    topicId: string;
-    displayId: string;
-    startTs: number;
-    endTs: number;
-}
-
 export interface RoguelikeTopicBasicData {
     id: string;
     name: string;
@@ -10754,19 +10747,19 @@ export interface RoguelikeTopicBasicData {
     config: RoguelikeTopicConfig;
 }
 
+export interface RoguelikeTopicBasicData_HomeEntryDisplayData {
+    topicId: string;
+    displayId: string;
+    startTs: number;
+    endTs: number;
+}
+
 export interface RoguelikeTopicConfig {
     loadCharCardPlugin: boolean;
     webBusType: string;
     monthChatTrigType: RoguelikeMonthChatTrigType;
     loadRewardHpDecoPlugin: boolean;
     loadRewardExtraInfoPlugin: boolean;
-}
-
-export interface RoguelikeTopicConst_PredefinedChar {
-    charId: string;
-    canBeFree: boolean;
-    uniEquipId: string;
-    recruitType: RoguelikeCharState;
 }
 
 export interface RoguelikeTopicConst {
@@ -10781,6 +10774,13 @@ export interface RoguelikeTopicConst {
     monthlyTeamUncompletedTime: number;
     bpPurchaseSystemUnlockTime: number;
     predefinedChars: { [key: string]: RoguelikeTopicConst_PredefinedChar };
+}
+
+export interface RoguelikeTopicConst_PredefinedChar {
+    charId: string;
+    canBeFree: boolean;
+    uniEquipId: string;
+    recruitType: RoguelikeCharState;
 }
 
 export interface RoguelikeTopicDetail {
@@ -10914,24 +10914,6 @@ export interface RoguelikeModule {
     sCRAP: RoguelikeScrapModuleData;
 }
 
-export interface RoguelikeTopicDetailConst_PlayerLevelData {
-    exp: number;
-    populationUp: number;
-    squadCapacityUp: number;
-    battleCharLimitUp: number;
-    maxHpUp: number;
-}
-
-export interface RoguelikeTopicDetailConst_CharUpgradeData {
-    evolvePhase: EvolvePhase;
-    skillLevel: number;
-    skillSpecializeLevel: number;
-}
-
-export interface RoguelikeTopicDetailConst_PredefinedPlayerLevelData {
-    levels: { [key: number]: RoguelikeTopicDetailConst_PlayerLevelData };
-}
-
 export interface RoguelikeTopicDetailConst {
     playerLevelTable: { [key: number]: RoguelikeTopicDetailConst_PlayerLevelData };
     charUpgradeTable: { [key: number]: RoguelikeTopicDetailConst_CharUpgradeData };
@@ -10972,6 +10954,24 @@ export interface RoguelikeTopicDetailConst {
     historicalRecordsCount: number;
     historicalRecordsStartTime: number;
     historicalRecordsMode: RoguelikeTopicMode;
+}
+
+export interface RoguelikeTopicDetailConst_PlayerLevelData {
+    exp: number;
+    populationUp: number;
+    squadCapacityUp: number;
+    battleCharLimitUp: number;
+    maxHpUp: number;
+}
+
+export interface RoguelikeTopicDetailConst_CharUpgradeData {
+    evolvePhase: EvolvePhase;
+    skillLevel: number;
+    skillSpecializeLevel: number;
+}
+
+export interface RoguelikeTopicDetailConst_PredefinedPlayerLevelData {
+    levels: { [key: number]: RoguelikeTopicDetailConst_PlayerLevelData };
 }
 
 export interface RoguelikeTopicUpdate {
@@ -11151,11 +11151,6 @@ export interface RoguelikeTopicChallenge {
     challengeStoryId: string;
 }
 
-export interface RoguelikeTopicDifficulty_RuleDescReplacement {
-    enrollId: string;
-    ruleDesc: string;
-}
-
 export interface RoguelikeTopicDifficulty {
     modeDifficulty: RoguelikeTopicMode;
     grade: number;
@@ -11183,6 +11178,11 @@ export interface RoguelikeTopicDifficulty {
     displayIconId: string;
     hideEndingStory: boolean;
     haveLegacy: boolean;
+}
+
+export interface RoguelikeTopicDifficulty_RuleDescReplacement {
+    enrollId: string;
+    ruleDesc: string;
 }
 
 export interface RL01DifficultyExt {
@@ -11651,11 +11651,6 @@ export interface RoguelikeGameTreasureData {
     usage: string;
 }
 
-export interface RoguelikeGameEndingData_LevelIcon {
-    level: number;
-    iconId: string;
-}
-
 export interface RoguelikeGameEndingData {
     id: string;
     familyId: number;
@@ -11666,6 +11661,11 @@ export interface RoguelikeGameEndingData {
     priority: number;
     changeEndingDesc: string;
     bossIconId: string;
+}
+
+export interface RoguelikeGameEndingData_LevelIcon {
+    level: number;
+    iconId: string;
 }
 
 export interface RoguelikeGameFailEndingData {
@@ -11939,6 +11939,12 @@ export interface LegacyInLevelRuneData {
     blackboard: Blackboard;
 }
 
+export interface RuneData {
+    key: string;
+    selector: RuneData_Selector;
+    blackboard: Blackboard;
+}
+
 export interface RuneData_Selector {
     professionMask: number | ProfessionCategory;
     buildableMask: BuildableType;
@@ -11958,12 +11964,6 @@ export interface RuneData_Selector {
     subProfessionExcludeFilter: string[];
     mapTagFilter: string[];
     heightTypeMask: TileData_HeightTypeMask;
-}
-
-export interface RuneData {
-    key: string;
-    selector: RuneData_Selector;
-    blackboard: Blackboard;
 }
 
 export interface RuneTable_PackedRuneData {
@@ -12475,14 +12475,14 @@ export interface SandboxV2BattleRushEnemyGroupConfig {
     dynamicEnemy: string[];
 }
 
-export interface SandboxV2BattleRushEnemyData_RushEnemyDBRef {
-    id: string;
-    level: number;
-}
-
 export interface SandboxV2BattleRushEnemyData {
     rushEnemyGroupConfigs: { [key: string]: SandboxV2BattleRushEnemyGroupConfig[] };
     rushEnemyDbRef: SandboxV2BattleRushEnemyData_RushEnemyDBRef[];
+}
+
+export interface SandboxV2BattleRushEnemyData_RushEnemyDBRef {
+    id: string;
+    level: number;
 }
 
 export interface SandboxV2FloatIconData {
@@ -13464,15 +13464,15 @@ export interface SandboxV3RandomItemData {
     poolId: string;
 }
 
+export interface SandboxV3ItemRandomPoolData {
+    normalItemList: SandboxV3ItemRandomPoolData_Item[];
+    guaranteeItemList: SandboxV3ItemRandomPoolData_Item[];
+}
+
 export interface SandboxV3ItemRandomPoolData_Item {
     itemId: string;
     count: number;
     weight: number;
-}
-
-export interface SandboxV3ItemRandomPoolData {
-    normalItemList: SandboxV3ItemRandomPoolData_Item[];
-    guaranteeItemList: SandboxV3ItemRandomPoolData_Item[];
 }
 
 export interface SandboxV3ItemExtraData {
@@ -13750,13 +13750,6 @@ export interface SandboxPermEnrollPointData {
     enrollTime: number;
 }
 
-export interface SandboxPermBasicData_HomeEntryDisplayData {
-    displayId: string;
-    topicId: string;
-    startTs: number;
-    endTs: number;
-}
-
 export interface SandboxPermBasicData {
     topicId: string;
     topicTemplate: SandboxPermTemplateType;
@@ -13772,6 +13765,13 @@ export interface SandboxPermBasicData {
     showMedalId: string;
     description: string;
     enrollPoints: { [key: string]: SandboxPermEnrollPointData };
+}
+
+export interface SandboxPermBasicData_HomeEntryDisplayData {
+    displayId: string;
+    topicId: string;
+    startTs: number;
+    endTs: number;
 }
 
 export interface SandboxPermDetailData {
@@ -13792,11 +13792,6 @@ export interface ShopKeeperWord {
     text: string;
 }
 
-export interface ShopClientData_ShopKeeperData {
-    welcomeWords: ShopKeeperWord[];
-    clickWords: ShopKeeperWord[];
-}
-
 export interface ShopClientData {
     recommendList: ShopRecommendItem[];
     creditUnlockGroup: { [key: string]: ShopCreditUnlockGroup };
@@ -13814,6 +13809,11 @@ export interface ShopClientData {
     overlaySchedule: LMTGSShopOverlaySchedule[];
     ls: object;
     os: object;
+}
+
+export interface ShopClientData_ShopKeeperData {
+    welcomeWords: ShopKeeperWord[];
+    clickWords: ShopKeeperWord[];
 }
 
 export interface LMTGSShopOverlaySchedule {
@@ -13933,6 +13933,10 @@ export interface ChooseShopRelation {
     optionList: string[];
 }
 
+export interface ShopCarouselData {
+    items: ShopCarouselData_Item[];
+}
+
 export interface ShopCarouselData_Item {
     spriteId: string;
     startTime: number;
@@ -13941,10 +13945,6 @@ export interface ShopCarouselData_Item {
     param1: string;
     skinId: string;
     furniId: string;
-}
-
-export interface ShopCarouselData {
-    items: ShopCarouselData_Item[];
 }
 
 export interface ShopGPTabDisplayData {
@@ -13970,6 +13970,13 @@ export interface SpData {
     increment: number;
 }
 
+export interface SkillDataBundle {
+    skillId: string;
+    iconId: string;
+    hidden: boolean;
+    levels: SkillDataBundle_LevelData[];
+}
+
 export interface SkillDataBundle_LevelData {
     name: string;
     rangeId: string;
@@ -13982,11 +13989,28 @@ export interface SkillDataBundle_LevelData {
     blackboard: Blackboard;
 }
 
-export interface SkillDataBundle {
-    skillId: string;
-    iconId: string;
-    hidden: boolean;
-    levels: SkillDataBundle_LevelData[];
+export interface CharSkinData {
+    EMPTY: CharSkinData;
+    skinId: string;
+    charId: string;
+    tokenSkinMap: CharSkinData_TokenSkinInfo[];
+    tmplId: string;
+    voiceId: string;
+    voiceType: SkinVoiceType;
+    displaySkin: CharSkinData_DisplaySkin;
+    illustId: string;
+    spIllustId: string;
+    dynIllustId: string;
+    spDynIllustId: string;
+    avatarId: string;
+    spAvatarId: string;
+    portraitId: string;
+    spPortraitId: string;
+    dynPortraitId: string;
+    dynEntranceId: string;
+    buildingId: string;
+    battleSkin: string;
+    isBuySkin: boolean;
 }
 
 export interface CharSkinData_DisplaySkin {
@@ -14014,30 +14038,6 @@ export interface CharSkinData_DisplaySkin {
 export interface CharSkinData_TokenSkinInfo {
     tokenId: string;
     tokenSkinId: string;
-}
-
-export interface CharSkinData {
-    EMPTY: CharSkinData;
-    skinId: string;
-    charId: string;
-    tokenSkinMap: CharSkinData_TokenSkinInfo[];
-    tmplId: string;
-    voiceId: string;
-    voiceType: SkinVoiceType;
-    displaySkin: CharSkinData_DisplaySkin;
-    illustId: string;
-    spIllustId: string;
-    dynIllustId: string;
-    spDynIllustId: string;
-    avatarId: string;
-    spAvatarId: string;
-    portraitId: string;
-    spPortraitId: string;
-    dynPortraitId: string;
-    dynEntranceId: string;
-    buildingId: string;
-    battleSkin: string;
-    isBuySkin: boolean;
 }
 
 export interface CharSkinBrandInfo {
@@ -14246,48 +14246,6 @@ export interface StageFogInfo {
     preposedLockId: string;
 }
 
-export interface StageData_DisplayRewards {
-    type: ItemType;
-    id: string;
-    dropType: StageDropType;
-}
-
-export type StageData_DisplayDetailRewards = { occPercent: OccPer; type: ItemType; id: string; dropType: StageDropType };
-
-export interface StageData_StageDropInfo {
-    firstPassRewards: ItemBundle[];
-    firstCompleteRewards: ItemBundle[];
-    passRewards: WeightItemBundle[][];
-    completeRewards: WeightItemBundle[][];
-    displayRewards: StageData_DisplayRewards[];
-    displayDetailRewards: StageData_DisplayDetailRewards[];
-}
-
-export interface StageData_ConditionDesc {
-    stageId: string;
-    completeState: PlayerBattleRank;
-}
-
-export interface StageData_ExtraConditionDesc {
-    index: number;
-    template: string;
-    unlockParam: string[];
-}
-
-export interface StageData_SpecialStoryInfo {
-    stageId: string;
-    rewards: ItemBundle[];
-    progressInfo: StageData_SpecialProgressInfo;
-    imageId: string;
-    keyItemId: string;
-    unlockDesc: string;
-}
-
-export interface StageData_SpecialProgressInfo {
-    progressType: StageData_SpecialStageUnlockProgressType;
-    descList: { [key: number]: string };
-}
-
 export interface StageData {
     stageType: StageType;
     difficulty: LevelData_Difficulty;
@@ -14355,6 +14313,48 @@ export interface StageData {
     extraInfo: { stageId: string; rewards: ItemBundle[]; progressInfo: object; imageId: string; keyItemId: string; unlockDesc: string }[];
 }
 
+export interface StageData_DisplayRewards {
+    type: ItemType;
+    id: string;
+    dropType: StageDropType;
+}
+
+export type StageData_DisplayDetailRewards = { occPercent: OccPer; type: ItemType; id: string; dropType: StageDropType };
+
+export interface StageData_StageDropInfo {
+    firstPassRewards: ItemBundle[];
+    firstCompleteRewards: ItemBundle[];
+    passRewards: WeightItemBundle[][];
+    completeRewards: WeightItemBundle[][];
+    displayRewards: StageData_DisplayRewards[];
+    displayDetailRewards: StageData_DisplayDetailRewards[];
+}
+
+export interface StageData_ConditionDesc {
+    stageId: string;
+    completeState: PlayerBattleRank;
+}
+
+export interface StageData_ExtraConditionDesc {
+    index: number;
+    template: string;
+    unlockParam: string[];
+}
+
+export interface StageData_SpecialStoryInfo {
+    stageId: string;
+    rewards: ItemBundle[];
+    progressInfo: StageData_SpecialProgressInfo;
+    imageId: string;
+    keyItemId: string;
+    unlockDesc: string;
+}
+
+export interface StageData_SpecialProgressInfo {
+    progressType: StageData_SpecialStageUnlockProgressType;
+    descList: { [key: number]: string };
+}
+
 export interface OverrideUnlockInfo {
     groupId: string;
     startTime: number;
@@ -14396,16 +14396,16 @@ export interface TimelyDropInfo {
     dropInfo: { [key: string]: StageData_StageDropInfo };
 }
 
-export interface RuneStageGroupData_RuneStageInst {
-    stageId: string;
-    activePackedRuneIds: string[];
-}
-
 export interface RuneStageGroupData {
     groupId: string;
     activeRuneStages: RuneStageGroupData_RuneStageInst[];
     startTs: number;
     endTs: number;
+}
+
+export interface RuneStageGroupData_RuneStageInst {
+    stageId: string;
+    activePackedRuneIds: string[];
 }
 
 export interface MapThemeData {
@@ -14446,15 +14446,15 @@ export interface StoryStageShowGroup {
     diffGroup: StageDiffGroup;
 }
 
-export interface StageStartCond_RequireChar {
-    charId: string;
-    evolvePhase: EvolvePhase;
-}
-
 export interface StageStartCond {
     requireChars: StageStartCond_RequireChar[];
     excludeAssists: string[];
     isNotPass: boolean;
+}
+
+export interface StageStartCond_RequireChar {
+    charId: string;
+    evolvePhase: EvolvePhase;
 }
 
 export interface SpecialBattleFinishStageData {
@@ -14462,14 +14462,14 @@ export interface SpecialBattleFinishStageData {
     skipAccomplishPerform: boolean;
 }
 
-export interface ApProtectZoneInfo_TimeRange {
-    startTs: number;
-    endTs: number;
-}
-
 export interface ApProtectZoneInfo {
     zoneId: string;
     timeRanges: ApProtectZoneInfo_TimeRange[];
+}
+
+export interface ApProtectZoneInfo_TimeRange {
+    startTs: number;
+    endTs: number;
 }
 
 export interface ActCustomStageData {
@@ -14546,28 +14546,6 @@ export interface StageTable {
     conditionalDropInfo: { [key: string]: ConditionalDropInfo };
 }
 
-export interface StoryData_Trigger {
-    TRIGGER_TYPE_NUM: number;
-    type: StoryData_Trigger_TriggerType;
-    key: string;
-    useRegex: boolean;
-}
-
-export interface StoryData_Condition_StageCondition {
-    stageId: string;
-    minState: PlayerStageState;
-    maxState: PlayerStageState;
-}
-
-export interface StoryData_Condition {
-    minProgress: number;
-    maxProgress: number;
-    minPlayerLevel: number;
-    requiredFlags: string[];
-    excludedFlags: string[];
-    requiredStages: StoryData_Condition_StageCondition[];
-}
-
 export interface StoryData {
     id: string;
     needCommit: boolean;
@@ -14580,6 +14558,28 @@ export interface StoryData {
     setFlags: string[];
     completedRewards: ItemBundle[];
     forceOmitCommit: boolean;
+}
+
+export interface StoryData_Trigger {
+    TRIGGER_TYPE_NUM: number;
+    type: StoryData_Trigger_TriggerType;
+    key: string;
+    useRegex: boolean;
+}
+
+export interface StoryData_Condition {
+    minProgress: number;
+    maxProgress: number;
+    minPlayerLevel: number;
+    requiredFlags: string[];
+    excludedFlags: string[];
+    requiredStages: StoryData_Condition_StageCondition[];
+}
+
+export interface StoryData_Condition_StageCondition {
+    stageId: string;
+    minState: PlayerStageState;
+    maxState: PlayerStageState;
 }
 
 export interface StorylineData {
@@ -14757,6 +14757,12 @@ export interface NewTrainingCampStageData {
     stages: string[];
 }
 
+export interface MiniActTrialData {
+    preShowDays: number;
+    ruleDataList: MiniActTrialData_RuleData[];
+    miniActTrialDataMap: { [key: string]: MiniActTrialData_MiniActTrialSingleData };
+}
+
 export interface MiniActTrialData_RuleData {
     ruleType: MiniActTrialData_RuleType;
     ruleText: string;
@@ -14777,10 +14783,15 @@ export interface MiniActTrialData_MiniActTrialRewardData {
     item: ItemBundle;
 }
 
-export interface MiniActTrialData {
-    preShowDays: number;
-    ruleDataList: MiniActTrialData_RuleData[];
-    miniActTrialDataMap: { [key: string]: MiniActTrialData_MiniActTrialSingleData };
+export interface ActArchiveResData {
+    pics: { [key: string]: ActArchiveResData_PicArchiveResItemData };
+    audios: { [key: string]: ActArchiveResData_AudioArchiveResItemData };
+    avgs: { [key: string]: ActArchiveResData_AvgArchiveResItemData };
+    stories: { [key: string]: ActArchiveResData_StoryArchiveResItemData };
+    news: { [key: string]: ActArchiveResData_NewsArchiveResItemData };
+    landmarks: { [key: string]: ActArchiveResData_LandmarkArchiveResItemData };
+    logs: { [key: string]: ActArchiveResData_LogArchiveResItemData };
+    challengeBooks: { [key: string]: ActArchiveResData_ChallengeBookArchiveResItemData };
 }
 
 export interface ActArchiveResData_PicArchiveResItemData {
@@ -14862,17 +14873,6 @@ export interface ActArchiveResData_ChallengeBookArchiveResItemData {
     titleName: string;
     storyName: string;
     textId: string;
-}
-
-export interface ActArchiveResData {
-    pics: { [key: string]: ActArchiveResData_PicArchiveResItemData };
-    audios: { [key: string]: ActArchiveResData_AudioArchiveResItemData };
-    avgs: { [key: string]: ActArchiveResData_AvgArchiveResItemData };
-    stories: { [key: string]: ActArchiveResData_StoryArchiveResItemData };
-    news: { [key: string]: ActArchiveResData_NewsArchiveResItemData };
-    landmarks: { [key: string]: ActArchiveResData_LandmarkArchiveResItemData };
-    logs: { [key: string]: ActArchiveResData_LogArchiveResItemData };
-    challengeBooks: { [key: string]: ActArchiveResData_ChallengeBookArchiveResItemData };
 }
 
 export interface ActArchiveComponentTable {

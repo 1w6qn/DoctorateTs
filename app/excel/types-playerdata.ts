@@ -339,13 +339,24 @@ export interface PlayerBirthday {
     day: number;
 }
 
+export interface PlayerCarousel {
+    furnitureShop: PlayerCarousel_PlayerCarouselFurnitureShopData;
+}
+
 export interface PlayerCarousel_PlayerCarouselFurnitureShopData {
     goods: { [key: string]: number };
     groups: { [key: string]: number };
 }
 
-export interface PlayerCarousel {
-    furnitureShop: PlayerCarousel_PlayerCarouselFurnitureShopData;
+export interface PlayerCheckIn {
+    canCheckIn: number;
+    checkInGroupId: string;
+    checkInRewardIndex: number;
+    checkInHistory: number[];
+    newbiePackage: PlayerCheckIn_PlayerNewbiePackage;
+    newbieChooseGP: { [key: string]: PlayerCheckIn_PlayerNewbieChoosePackage };
+    showCount: number;
+    longTermRecvRecord: { [key: string]: number };
 }
 
 export interface PlayerCheckIn_PlayerNewbiePackage {
@@ -358,17 +369,6 @@ export interface PlayerCheckIn_PlayerNewbiePackage {
 
 export interface PlayerCheckIn_PlayerNewbieChoosePackage {
     stopSaleTs: number;
-}
-
-export interface PlayerCheckIn {
-    canCheckIn: number;
-    checkInGroupId: string;
-    checkInRewardIndex: number;
-    checkInHistory: number[];
-    newbiePackage: PlayerCheckIn_PlayerNewbiePackage;
-    newbieChooseGP: { [key: string]: PlayerCheckIn_PlayerNewbieChoosePackage };
-    showCount: number;
-    longTermRecvRecord: { [key: string]: number };
 }
 
 export interface PlayerMonthlySubPer {
@@ -423,14 +423,14 @@ export interface PlayerNpcWithAudio {
     npcShowAudioInfoFlag: string;
 }
 
-export interface MileStonePlayerInfo_MileStoneRewardTicketItem {
-    ts: number;
-    count: number;
-}
-
 export interface MileStonePlayerInfo {
     points: { [key: string]: number };
     rewards: { [key: string]: MileStonePlayerInfo_MileStoneRewardTicketItem };
+}
+
+export interface MileStonePlayerInfo_MileStoneRewardTicketItem {
+    ts: number;
+    count: number;
 }
 
 export interface PlayerOpenServer {
@@ -446,6 +446,11 @@ export interface OpenServerFullOpen {
     remain: number;
 }
 
+export interface PlayerHandBookAddon {
+    stage: { [key: string]: PlayerHandBookAddon_GetInfo };
+    story: { [key: string]: PlayerHandBookAddon_GetInfo };
+}
+
 export interface PlayerHandBookAddon_GetInfo {
     fts: number;
     rts: number;
@@ -455,16 +460,13 @@ export interface PlayerHandBookAddon_GetInfo {
     startTime: number;
 }
 
-export interface PlayerHandBookAddon {
-    stage: { [key: string]: PlayerHandBookAddon_GetInfo };
-    story: { [key: string]: PlayerHandBookAddon_GetInfo };
-}
-
 export interface PlayerSpecialOperatorNode {
     id: string;
     state: number;
     type: string;
 }
+
+export type PlayerActivity = { [typeKey: string]: { [actId: string]: object } };
 
 export interface PlayerActivity_PlayerDefaultActivity {
     coin: number;
@@ -503,13 +505,13 @@ export interface PlayerActivity_MilestoneInfo {
     got: string[];
 }
 
-export interface PlayerActivity_PlayerCollectionTypeActivity_PlayerCollectionInfo {
-    ts: string;
-}
-
 export interface PlayerActivity_PlayerCollectionTypeActivity {
     point: { [key: string]: number };
     history: { [key: string]: PlayerActivity_PlayerCollectionTypeActivity_PlayerCollectionInfo };
+}
+
+export interface PlayerActivity_PlayerCollectionTypeActivity_PlayerCollectionInfo {
+    ts: string;
 }
 
 export interface PlayerActivity_PlayerAVGOnlyTypeActivity {
@@ -525,6 +527,12 @@ export interface PlayerActivity_PlayerMiniStoryActivity {
     favorList: string[];
 }
 
+export interface PlayerActivity_PlayerRoguelikeActivity {
+    buffToken: number;
+    milestone: PlayerActivity_PlayerRoguelikeActivity_MileStone;
+    game: PlayerActivity_PlayerRoguelikeActivity_GameStatus;
+}
+
 export interface PlayerActivity_PlayerRoguelikeActivity_MileStone {
     token: number;
     rewards: { [key: string]: number };
@@ -532,17 +540,6 @@ export interface PlayerActivity_PlayerRoguelikeActivity_MileStone {
 
 export interface PlayerActivity_PlayerRoguelikeActivity_GameStatus {
     lastTs: number;
-}
-
-export interface PlayerActivity_PlayerRoguelikeActivity {
-    buffToken: number;
-    milestone: PlayerActivity_PlayerRoguelikeActivity_MileStone;
-    game: PlayerActivity_PlayerRoguelikeActivity_GameStatus;
-}
-
-export interface PlayerActivity_PlayerPrayOnlyActivity_RewardInfo {
-    index: number;
-    count: number;
 }
 
 export interface PlayerActivity_PlayerPrayOnlyActivity {
@@ -554,16 +551,13 @@ export interface PlayerActivity_PlayerPrayOnlyActivity {
     prayArray: PlayerActivity_PlayerPrayOnlyActivity_RewardInfo[];
 }
 
-export interface PlayerActivity_PlayerSwitchOnlyActivity {
-    rewards: { [key: string]: number };
+export interface PlayerActivity_PlayerPrayOnlyActivity_RewardInfo {
+    index: number;
+    count: number;
 }
 
-export interface PlayerActivity_PlayerFlipOnlyActivity_ActFlipItemBundle {
-    id: string;
-    type: string;
-    count: number;
-    ts: number;
-    prizeId: string;
+export interface PlayerActivity_PlayerSwitchOnlyActivity {
+    rewards: { [key: string]: number };
 }
 
 export interface PlayerActivity_PlayerFlipOnlyActivity {
@@ -575,6 +569,14 @@ export interface PlayerActivity_PlayerFlipOnlyActivity {
     grandStatus: number;
 }
 
+export interface PlayerActivity_PlayerFlipOnlyActivity_ActFlipItemBundle {
+    id: string;
+    type: string;
+    count: number;
+    ts: number;
+    prizeId: string;
+}
+
 export interface PlayerActivity_PlayerGridGachaActivity {
     lastDay: number;
     firstDay: number;
@@ -582,6 +584,11 @@ export interface PlayerActivity_PlayerGridGachaActivity {
     openedType: number;
     rewardCount: number;
     grandPositions: number[][];
+}
+
+export interface PlayerActivity_PlayerMultiplayActivity {
+    troop: { [key: string]: PlayerActivity_PlayerMultiplayActivity_Troop };
+    stages: { [key: string]: PlayerActivity_PlayerMultiplayActivity_Stage };
 }
 
 export interface PlayerActivity_PlayerMultiplayActivity_Troop {
@@ -595,9 +602,13 @@ export interface PlayerActivity_PlayerMultiplayActivity_Stage {
     completeTimes: number;
 }
 
-export interface PlayerActivity_PlayerMultiplayActivity {
-    troop: { [key: string]: PlayerActivity_PlayerMultiplayActivity_Troop };
-    stages: { [key: string]: PlayerActivity_PlayerMultiplayActivity_Stage };
+export interface PlayerActivity_PlayerMultiplayV2Activity {
+    squads: PlayerActivity_PlayerMultiplayV2Activity_Squads;
+    dailyMission: PlayerActivity_PlayerMultiplayV2Activity_DailyMission;
+    milestone: PlayerActivity_PlayerMultiplayV2Activity_MilestoneInfo;
+    stageInfoDict: { [key: string]: PlayerActivity_PlayerMultiplayV2Activity_StageInfo };
+    match: PlayerActivity_PlayerMultiplayV2Activity_Match;
+    globalBan: number;
 }
 
 export interface PlayerActivity_PlayerMultiplayV2Activity_PlayerMultiplayV2SquadItem {
@@ -636,12 +647,14 @@ export interface PlayerActivity_PlayerMultiplayV2Activity_MilestoneInfo {
     got: string[];
 }
 
-export interface PlayerActivity_PlayerMultiplayV2Activity {
-    squads: PlayerActivity_PlayerMultiplayV2Activity_Squads;
-    dailyMission: PlayerActivity_PlayerMultiplayV2Activity_DailyMission;
-    milestone: PlayerActivity_PlayerMultiplayV2Activity_MilestoneInfo;
-    stageInfoDict: { [key: string]: PlayerActivity_PlayerMultiplayV2Activity_StageInfo };
-    match: PlayerActivity_PlayerMultiplayV2Activity_Match;
+export interface PlayerActivity_PlayerMultiV3Activity {
+    collection: PlayerActivity_PlayerMultiV3Activity_Collection;
+    troop: PlayerActivity_PlayerMultiV3Activity_Troop;
+    match: PlayerActivity_PlayerMultiV3Activity_MatchInfo;
+    milestone: PlayerActivity_PlayerMultiV3Activity_Milestone;
+    daily: PlayerActivity_PlayerMultiV3Activity_Daily;
+    stage: { [key: string]: PlayerActivity_PlayerMultiV3Activity_StageInfo };
+    scene: PlayerActivity_PlayerMultiV3Activity_Scene;
     globalBan: number;
 }
 
@@ -764,22 +777,6 @@ export interface PlayerActivity_PlayerMultiV3Activity_Scene {
     lastMate: string[];
 }
 
-export interface PlayerActivity_PlayerMultiV3Activity {
-    collection: PlayerActivity_PlayerMultiV3Activity_Collection;
-    troop: PlayerActivity_PlayerMultiV3Activity_Troop;
-    match: PlayerActivity_PlayerMultiV3Activity_MatchInfo;
-    milestone: PlayerActivity_PlayerMultiV3Activity_Milestone;
-    daily: PlayerActivity_PlayerMultiV3Activity_Daily;
-    stage: { [key: string]: PlayerActivity_PlayerMultiV3Activity_StageInfo };
-    scene: PlayerActivity_PlayerMultiV3Activity_Scene;
-    globalBan: number;
-}
-
-export interface PlayerActivity_PlayerInterlockActivity_DefendCharData {
-    charInstId: number;
-    currentTmpl: string;
-}
-
 export interface PlayerActivity_PlayerInterlockActivity {
     milestoneCoin: number;
     milestoneGot: string[];
@@ -788,13 +785,9 @@ export interface PlayerActivity_PlayerInterlockActivity {
     squad: { [key: string]: PlayerSquadItem[] };
 }
 
-export interface PlayerActivity_PlayerAct3D0Activity_BoxState {
-    content: { [key: string]: number };
-}
-
-export interface PlayerActivity_PlayerAct3D0Activity_MileStone {
-    point: number;
-    rewards: { [key: string]: number };
+export interface PlayerActivity_PlayerInterlockActivity_DefendCharData {
+    charInstId: number;
+    currentTmpl: string;
 }
 
 export interface PlayerActivity_PlayerAct3D0Activity {
@@ -807,7 +800,11 @@ export interface PlayerActivity_PlayerAct3D0Activity {
     favorList: string[];
 }
 
-export interface PlayerActivity_PlayerAct4D0Activity_MileStone {
+export interface PlayerActivity_PlayerAct3D0Activity_BoxState {
+    content: { [key: string]: number };
+}
+
+export interface PlayerActivity_PlayerAct3D0Activity_MileStone {
     point: number;
     rewards: { [key: string]: number };
 }
@@ -817,25 +814,13 @@ export interface PlayerActivity_PlayerAct4D0Activity {
     milestone: PlayerActivity_PlayerAct4D0Activity_MileStone;
 }
 
+export interface PlayerActivity_PlayerAct4D0Activity_MileStone {
+    point: number;
+    rewards: { [key: string]: number };
+}
+
 export interface PlayerActivity_PlayerAct5D0Activity {
     milestone: MileStonePlayerInfo;
-}
-
-export interface PlayerActivity_PlayerAct5D1Activity_PlayerAct5D1Shop_ProgressInfo {
-    count: number;
-    order: number;
-}
-
-export interface PlayerActivity_PlayerAct5D1Activity_PlayerAct5D1Shop {
-    info: { [key: string]: number };
-    progressInfo: { [key: string]: PlayerActivity_PlayerAct5D1Activity_PlayerAct5D1Shop_ProgressInfo };
-}
-
-export interface PlayerActivity_PlayerAct5D1Activity_PlayerActRuneStage {
-    schedule: string;
-    available: number;
-    scores: number;
-    rune: { [key: string]: number };
 }
 
 export interface PlayerActivity_PlayerAct5D1Activity {
@@ -846,11 +831,36 @@ export interface PlayerActivity_PlayerAct5D1Activity {
     stageEnemy: { [key: string]: string[] };
 }
 
+export interface PlayerActivity_PlayerAct5D1Activity_PlayerAct5D1Shop {
+    info: { [key: string]: number };
+    progressInfo: { [key: string]: PlayerActivity_PlayerAct5D1Activity_PlayerAct5D1Shop_ProgressInfo };
+}
+
+export interface PlayerActivity_PlayerAct5D1Activity_PlayerAct5D1Shop_ProgressInfo {
+    count: number;
+    order: number;
+}
+
+export interface PlayerActivity_PlayerAct5D1Activity_PlayerActRuneStage {
+    schedule: string;
+    available: number;
+    scores: number;
+    rune: { [key: string]: number };
+}
+
 export interface PlayerActivity_PlayerAct9D0Activity {
     coin: number;
     favorList: string[];
     news: { [key: string]: number };
     campaignCnt: number;
+}
+
+export interface PlayerActivity_PlayerAct12sideActivity {
+    coin: number;
+    campaignCnt: number;
+    favorList: string[];
+    milestone: PlayerActivity_PlayerAct12sideActivity_MilestoneInfo;
+    charm: PlayerActivity_PlayerAct12sideActivity_CharmInfo;
 }
 
 export interface PlayerActivity_PlayerAct12sideActivity_MilestoneInfo {
@@ -863,12 +873,13 @@ export interface PlayerActivity_PlayerAct12sideActivity_CharmInfo {
     firstGotReward: string[];
 }
 
-export interface PlayerActivity_PlayerAct12sideActivity {
-    coin: number;
-    campaignCnt: number;
+export interface PlayerActivity_PlayerAct13sideActivity {
+    token: number;
     favorList: string[];
-    milestone: PlayerActivity_PlayerAct12sideActivity_MilestoneInfo;
-    charm: PlayerActivity_PlayerAct12sideActivity_CharmInfo;
+    milestone: PlayerActivity_PlayerAct13sideActivity_MilestoneInfo;
+    agenda: number;
+    flag: PlayerActivity_PlayerAct13sideActivity_Flag;
+    mission: PlayerActivity_PlayerAct13sideActivity_DailyMissionPoolData;
 }
 
 export interface PlayerActivity_PlayerAct13sideActivity_MilestoneInfo {
@@ -916,15 +927,6 @@ export interface PlayerActivity_PlayerAct13sideActivity_DailyMissionPoolData {
     board: PlayerActivity_PlayerAct13sideActivity_DailyMissionWithProgressData[];
 }
 
-export interface PlayerActivity_PlayerAct13sideActivity {
-    token: number;
-    favorList: string[];
-    milestone: PlayerActivity_PlayerAct13sideActivity_MilestoneInfo;
-    agenda: number;
-    flag: PlayerActivity_PlayerAct13sideActivity_Flag;
-    mission: PlayerActivity_PlayerAct13sideActivity_DailyMissionPoolData;
-}
-
 export interface PlayerActivity_PlayerAct17D7Activity {
     isOpen: number;
 }
@@ -937,6 +939,12 @@ export interface PlayerActivity_PlayerAct17SideActivity {
     isOpen: number;
     coin: number;
     favorList: string[];
+}
+
+export interface PlayerActivity_PlayerBossRushActivity {
+    milestone: PlayerActivity_PlayerBossRushActivity_MilestoneInfo;
+    relic: PlayerActivity_PlayerBossRushActivity_RelicInfo;
+    bestWaveDic: { [key: string]: number };
 }
 
 export interface PlayerActivity_PlayerBossRushActivity_MilestoneInfo {
@@ -955,10 +963,11 @@ export interface PlayerActivity_PlayerBossRushActivity_RelicInfo {
     selectingRelicId: string;
 }
 
-export interface PlayerActivity_PlayerBossRushActivity {
-    milestone: PlayerActivity_PlayerBossRushActivity_MilestoneInfo;
-    relic: PlayerActivity_PlayerBossRushActivity_RelicInfo;
-    bestWaveDic: { [key: string]: number };
+export interface PlayerActivity_PlayerEnemyDuelActivity {
+    milestone: PlayerActivity_PlayerEnemyDuelActivity_MilestoneInfo;
+    dailyMission: PlayerActivity_PlayerEnemyDuelActivity_DailyMission;
+    modeInfo: { [key: string]: PlayerActivity_PlayerEnemyDuelActivity_ModeInfo };
+    globalBan: number;
 }
 
 export interface PlayerActivity_PlayerEnemyDuelActivity_MilestoneInfo {
@@ -977,11 +986,10 @@ export interface PlayerActivity_PlayerEnemyDuelActivity_ModeInfo {
     isUnlock: number;
 }
 
-export interface PlayerActivity_PlayerEnemyDuelActivity {
-    milestone: PlayerActivity_PlayerEnemyDuelActivity_MilestoneInfo;
-    dailyMission: PlayerActivity_PlayerEnemyDuelActivity_DailyMission;
-    modeInfo: { [key: string]: PlayerActivity_PlayerEnemyDuelActivity_ModeInfo };
-    globalBan: number;
+export interface PlayerActivity_PlayerVecBreakV2 {
+    milestone: PlayerActivity_MilestoneInfo;
+    activatedBuff: string[];
+    defendStages: { [key: string]: PlayerActivity_PlayerVecBreakV2_DefendStageInfo };
 }
 
 export interface PlayerActivity_PlayerVecBreakV2_DefendCharInfo {
@@ -996,10 +1004,10 @@ export interface PlayerActivity_PlayerVecBreakV2_DefendStageInfo {
     recvNormal: number;
 }
 
-export interface PlayerActivity_PlayerVecBreakV2 {
-    milestone: PlayerActivity_MilestoneInfo;
-    activatedBuff: string[];
-    defendStages: { [key: string]: PlayerActivity_PlayerVecBreakV2_DefendStageInfo };
+export interface PlayerActivity_PlayerArcadeActivity {
+    milestone: PlayerActivity_PlayerArcadeActivity_MilestoneInfo;
+    badge: { [key: string]: PlayerActivity_PlayerArcadeActivity_BadgeInfo };
+    score: { [key: string]: { [key: string]: number } };
 }
 
 export interface PlayerActivity_PlayerArcadeActivity_MilestoneInfo {
@@ -1011,10 +1019,14 @@ export interface PlayerActivity_PlayerArcadeActivity_BadgeInfo {
     status: number;
 }
 
-export interface PlayerActivity_PlayerArcadeActivity {
-    milestone: PlayerActivity_PlayerArcadeActivity_MilestoneInfo;
-    badge: { [key: string]: PlayerActivity_PlayerArcadeActivity_BadgeInfo };
-    score: { [key: string]: { [key: string]: number } };
+export interface PlayerActivity_PlayerAct20SideActivity {
+    actBase: PlayerActivity_PlayerAct20SideActivity_ActBaseInfo;
+    dailyJudgeTimes: number;
+    entertainmentCompetition: { [key: string]: PlayerActivity_PlayerAct20SideActivity_EntertainCompBestRecord };
+    hotValue: PlayerActivity_PlayerAct20SideActivity_HotValueInfo;
+    hasJoinedExhibition: number;
+    campaignCnt: number;
+    favorList: string[];
 }
 
 export interface PlayerActivity_PlayerAct20SideActivity_ActBaseInfo {
@@ -1039,25 +1051,15 @@ export interface PlayerActivity_PlayerAct20SideActivity_EntertainCompBestRecord 
     level: number;
 }
 
-export interface PlayerActivity_PlayerAct20SideActivity {
-    actBase: PlayerActivity_PlayerAct20SideActivity_ActBaseInfo;
-    dailyJudgeTimes: number;
-    entertainmentCompetition: { [key: string]: PlayerActivity_PlayerAct20SideActivity_EntertainCompBestRecord };
-    hotValue: PlayerActivity_PlayerAct20SideActivity_HotValueInfo;
-    hasJoinedExhibition: number;
-    campaignCnt: number;
-    favorList: string[];
+export interface PlayerActivity_PlayerActFloatParadeActivity {
+    day: number;
+    canRaffle: number;
+    result: PlayerActivity_PlayerActFloatParadeActivity_Result;
 }
 
 export interface PlayerActivity_PlayerActFloatParadeActivity_Result {
     strategy: number;
     eventId: string;
-}
-
-export interface PlayerActivity_PlayerActFloatParadeActivity {
-    day: number;
-    canRaffle: number;
-    result: PlayerActivity_PlayerActFloatParadeActivity_Result;
 }
 
 export interface PlayerActivity_PlayerAct21SideActivity {
@@ -1068,6 +1070,16 @@ export interface PlayerActivity_PlayerAct21SideActivity {
 
 export interface PlayerActivity_PlayerActMainlineBuff {
     favorList: string[];
+}
+
+export interface PlayerActivity_PlayerAct24SideActivity {
+    meal: PlayerActivity_PlayerAct24SideActivity_Meal;
+    alchemy: PlayerActivity_PlayerAct24SideActivity_Alchemy;
+    tool: { [key: string]: number };
+    favorList: string[];
+    hunt: PlayerActivity_PlayerAct24SideActivity_Hunt;
+    unlockItemMap: { [key: string]: number };
+    globalBan: number;
 }
 
 export interface PlayerActivity_PlayerAct24SideActivity_Meal {
@@ -1088,14 +1100,15 @@ export interface PlayerActivity_PlayerAct24SideActivity_Hunt {
     collectRewards: number;
 }
 
-export interface PlayerActivity_PlayerAct24SideActivity {
-    meal: PlayerActivity_PlayerAct24SideActivity_Meal;
-    alchemy: PlayerActivity_PlayerAct24SideActivity_Alchemy;
-    tool: { [key: string]: number };
+export interface PlayerActivity_PlayerAct25SideActivity {
+    investigativeToken: number;
+    actCoin: number;
+    dailyTokenRefresh: number;
+    areas: { [key: string]: PlayerActivity_PlayerAct25SideActivity_Area };
     favorList: string[];
-    hunt: PlayerActivity_PlayerAct24SideActivity_Hunt;
-    unlockItemMap: { [key: string]: number };
-    globalBan: number;
+    incremenalGame: PlayerActivity_PlayerAct25SideActivity_DailyHarvest;
+    tokenRecvCnt: number;
+    buff: string[];
 }
 
 export interface PlayerActivity_PlayerAct25SideActivity_MissionProgress {
@@ -1122,15 +1135,17 @@ export interface PlayerActivity_PlayerAct25SideActivity_DailyHarvest {
     lastHarvenessTs: number;
 }
 
-export interface PlayerActivity_PlayerAct25SideActivity {
-    investigativeToken: number;
-    actCoin: number;
-    dailyTokenRefresh: number;
-    areas: { [key: string]: PlayerActivity_PlayerAct25SideActivity_Area };
+export interface PlayerActivity_PlayerAct27SideActivity {
+    day: number;
+    signedIn: number;
+    stock: { [key: string]: number };
+    reward: ItemBundle;
+    state: number;
+    sale: PlayerActivity_PlayerAct27SideActivity_Sale;
+    milestone: PlayerActivity_PlayerAct27SideActivity_MilestoneInfo;
     favorList: string[];
-    incremenalGame: PlayerActivity_PlayerAct25SideActivity_DailyHarvest;
-    tokenRecvCnt: number;
-    buff: string[];
+    coin: number;
+    campaignCnt: number;
 }
 
 export interface PlayerActivity_PlayerAct27SideActivity_InquireInfo {
@@ -1175,17 +1190,12 @@ export interface PlayerActivity_PlayerAct27SideActivity_MilestoneInfo {
     got: string[];
 }
 
-export interface PlayerActivity_PlayerAct27SideActivity {
-    day: number;
-    signedIn: number;
-    stock: { [key: string]: number };
-    reward: ItemBundle;
-    state: number;
-    sale: PlayerActivity_PlayerAct27SideActivity_Sale;
-    milestone: PlayerActivity_PlayerAct27SideActivity_MilestoneInfo;
-    favorList: string[];
-    coin: number;
-    campaignCnt: number;
+export interface PlayerActivity_PlayerAct42D0Activity {
+    milestone: number;
+    areas: { [key: string]: PlayerActivity_PlayerAct42D0Activity_AreaInfo };
+    spStages: { [key: string]: PlayerActivity_PlayerAct42D0Activity_ChallengeStageInfo };
+    milestoneRecv: string[];
+    theHardestStage: string;
 }
 
 export interface PlayerActivity_PlayerAct42D0Activity_AreaInfo {
@@ -1207,21 +1217,8 @@ export interface PlayerActivity_PlayerAct42D0Activity_ChallengeStageMissionInfo 
     state: number;
 }
 
-export interface PlayerActivity_PlayerAct42D0Activity {
-    milestone: number;
-    areas: { [key: string]: PlayerActivity_PlayerAct42D0Activity_AreaInfo };
-    spStages: { [key: string]: PlayerActivity_PlayerAct42D0Activity_ChallengeStageInfo };
-    milestoneRecv: string[];
-    theHardestStage: string;
-}
-
 export interface PlayerActivity_PlayerUniqueOnlyActivity {
     reward: number;
-}
-
-export interface PlayerActivity_PlayerBlessOnlyActivity_BlessOnlyFestival {
-    state: number;
-    charId: string;
 }
 
 export interface PlayerActivity_PlayerBlessOnlyActivity {
@@ -1230,8 +1227,27 @@ export interface PlayerActivity_PlayerBlessOnlyActivity {
     lastTs: number;
 }
 
+export interface PlayerActivity_PlayerBlessOnlyActivity_BlessOnlyFestival {
+    state: number;
+    charId: string;
+}
+
 export interface PlayerActivity_PlayerRecruitOnlyAct {
     used: number;
+}
+
+export interface PlayerActivity_PlayerAct29SideActivity {
+    actCoin: number;
+    accessToken: number;
+    favorList: string[];
+    rareMelodyMade: number;
+    majorNPC: PlayerActivity_PlayerAct29SideActivity_MajorNpcInfo;
+    hiddenNPC: PlayerActivity_PlayerAct29SideActivity_HiddenNpcInfo;
+    dailyNPC: PlayerActivity_PlayerAct29SideActivity_DailyNpcInfo;
+    fragmentBag: { [key: string]: number };
+    melodyBag: { [key: string]: number };
+    melodyNax: { [key: string]: number };
+    majorFinDic: { [key: string]: number };
 }
 
 export interface PlayerActivity_PlayerAct29SideActivity_NpcInfo {
@@ -1254,23 +1270,15 @@ export interface PlayerActivity_PlayerAct29SideActivity_DailyNpcInfo {
     slot: { [key: string]: PlayerActivity_PlayerAct29SideActivity_NpcInfo };
 }
 
-export interface PlayerActivity_PlayerAct29SideActivity {
-    actCoin: number;
-    accessToken: number;
-    favorList: string[];
-    rareMelodyMade: number;
-    majorNPC: PlayerActivity_PlayerAct29SideActivity_MajorNpcInfo;
-    hiddenNPC: PlayerActivity_PlayerAct29SideActivity_HiddenNpcInfo;
-    dailyNPC: PlayerActivity_PlayerAct29SideActivity_DailyNpcInfo;
-    fragmentBag: { [key: string]: number };
-    melodyBag: { [key: string]: number };
-    melodyNax: { [key: string]: number };
-    majorFinDic: { [key: string]: number };
-}
-
 export interface PlayerActivity_PlayerYear5GeneralActivity {
     unconfirmedPoints: number;
     nextRewardIndex: number;
+    coin: number;
+    favorList: string[];
+}
+
+export interface PlayerActivity_PlayerAct36SideActivity {
+    foodHandbookInfo: PlayerActivity_PlayerAct36SideActivity_FoodHandbookInfo;
     coin: number;
     favorList: string[];
 }
@@ -1281,9 +1289,13 @@ export interface PlayerActivity_PlayerAct36SideActivity_FoodHandbookInfo {
     rewardState: number;
 }
 
-export interface PlayerActivity_PlayerAct36SideActivity {
-    foodHandbookInfo: PlayerActivity_PlayerAct36SideActivity_FoodHandbookInfo;
+export interface PlayerActivity_PlayerAct35SideActivity {
+    carving: PlayerActivity_PlayerAct35SideActivity_PlayerAct35SideCarving;
+    unlock: { [key: string]: number };
+    record: { [key: string]: number };
+    milestone: PlayerActivity_PlayerAct35SideActivity_MilestoneState;
     coin: number;
+    campaignCnt: number;
     favorList: string[];
 }
 
@@ -1323,14 +1335,10 @@ export interface PlayerActivity_PlayerAct35SideActivity_MilestoneState {
     got: string[];
 }
 
-export interface PlayerActivity_PlayerAct35SideActivity {
-    carving: PlayerActivity_PlayerAct35SideActivity_PlayerAct35SideCarving;
-    unlock: { [key: string]: number };
-    record: { [key: string]: number };
-    milestone: PlayerActivity_PlayerAct35SideActivity_MilestoneState;
+export interface PlayerActivity_PlayerAct38SideActivity {
     coin: number;
-    campaignCnt: number;
     favorList: string[];
+    fireworkPuzzleDict: { [key: string]: PlayerActivity_PlayerAct38SideActivity_PlayerAct38SidePuzzle };
 }
 
 export interface PlayerActivity_PlayerAct38SideActivity_PlayerAct38SidePuzzle {
@@ -1338,10 +1346,14 @@ export interface PlayerActivity_PlayerAct38SideActivity_PlayerAct38SidePuzzle {
     solutionList: FireworkData_PlateSlotData[];
 }
 
-export interface PlayerActivity_PlayerAct38SideActivity {
-    coin: number;
-    favorList: string[];
-    fireworkPuzzleDict: { [key: string]: PlayerActivity_PlayerAct38SideActivity_PlayerAct38SidePuzzle };
+export interface PlayerActivity_PlayerAutoChessV1Activity {
+    chessPool: { [key: string]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessCharCard };
+    dailyMission: PlayerActivity_PlayerAutoChessV1Activity_DailyMission;
+    protectTs: number;
+    milestone: PlayerActivity_PlayerAutoChessV1Activity_Milestone;
+    game: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame;
+    band: { [key: string]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessBandUnlockInfo };
+    mode: { [key: string]: PlayerActivity_PlayerAutoChessV1Activity_ModeRecord };
 }
 
 export interface PlayerActivity_PlayerAutoChessV1Activity_ModeRecord {
@@ -1389,6 +1401,26 @@ export interface PlayerActivity_PlayerAutoChessV1Activity_DailyMission {
     state: number;
 }
 
+export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame {
+    startTs: string;
+    seed: number;
+    mode: string;
+    state: number;
+    bandId: string;
+    talent: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Effect[];
+    talentChoices: string[];
+    currForce: string;
+    allForces: { [key: string]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessForce };
+    rewardEnemyRound: number;
+    health: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Health;
+    turn: number;
+    roundId: string;
+    stageId: string;
+    store: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Store;
+    table: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Table;
+    buff: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Buff;
+}
+
 export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Effect {
     instId: number;
     effectId: string;
@@ -1411,6 +1443,14 @@ export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Store {
     trapGoods: { [key: number]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessTrapGoods };
 }
 
+export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Table {
+    chars: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessChar[];
+    trap: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessTrap[];
+    recruitCard: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Table_RecruitCard;
+    spellUsing: { [key: number]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Table_Spell };
+    gameInfo: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessGameInfo;
+}
+
 export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Table_RecruitCard {
     instId: number;
     effect: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessCharGoods[];
@@ -1423,12 +1463,8 @@ export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Table_Sp
     activated: number;
 }
 
-export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Table {
-    chars: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessChar[];
-    trap: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessTrap[];
-    recruitCard: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Table_RecruitCard;
-    spellUsing: { [key: number]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Table_Spell };
-    gameInfo: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessGameInfo;
+export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessGameInfo {
+    chessInstMap: { [key: number]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessGameInfo_BattleChessInstServer };
 }
 
 export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessGameInfo_BattleChessInstServer {
@@ -1436,10 +1472,6 @@ export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChes
     isToken: number;
     dir: number;
     buildSeq: number;
-}
-
-export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessGameInfo {
-    chessInstMap: { [key: number]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessGameInfo_BattleChessInstServer };
 }
 
 export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessCharGoods {
@@ -1473,6 +1505,17 @@ export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChes
     effect: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Effect[];
 }
 
+export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Buff {
+    gainCoinCounter: { [key: string]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Buff_GainCoinCounter };
+    killEnemyCounter: { [key: string]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Buff_EnemyCounter };
+    chessPurchase: { [key: string]: number };
+    specialRefresh: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Buff_SpecialRefresh;
+    battleLayers: { [key: string]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Buff_BattleLayerEffect[] };
+    equipCoinJar: { [key: number]: number };
+    slotAdd: number;
+    effectShow: { [key: number]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Buff_EffectShowItem };
+}
+
 export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Buff_SpecialRefresh {
     cnt: number;
 }
@@ -1497,60 +1540,9 @@ export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Buff_Bat
     count: number;
 }
 
-export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Buff {
-    gainCoinCounter: { [key: string]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Buff_GainCoinCounter };
-    killEnemyCounter: { [key: string]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Buff_EnemyCounter };
-    chessPurchase: { [key: string]: number };
-    specialRefresh: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Buff_SpecialRefresh;
-    battleLayers: { [key: string]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Buff_BattleLayerEffect[] };
-    equipCoinJar: { [key: number]: number };
-    slotAdd: number;
-    effectShow: { [key: number]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Buff_EffectShowItem };
-}
-
-export interface PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame {
-    startTs: string;
-    seed: number;
-    mode: string;
-    state: number;
-    bandId: string;
-    talent: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Effect[];
-    talentChoices: string[];
-    currForce: string;
-    allForces: { [key: string]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_AutoChessForce };
-    rewardEnemyRound: number;
-    health: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Health;
-    turn: number;
-    roundId: string;
-    stageId: string;
-    store: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Store;
-    table: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Table;
-    buff: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame_Buff;
-}
-
-export interface PlayerActivity_PlayerAutoChessV1Activity {
-    chessPool: { [key: string]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessCharCard };
-    dailyMission: PlayerActivity_PlayerAutoChessV1Activity_DailyMission;
-    protectTs: number;
-    milestone: PlayerActivity_PlayerAutoChessV1Activity_Milestone;
-    game: PlayerActivity_PlayerAutoChessV1Activity_AutoChessGame;
-    band: { [key: string]: PlayerActivity_PlayerAutoChessV1Activity_AutoChessBandUnlockInfo };
-    mode: { [key: string]: PlayerActivity_PlayerAutoChessV1Activity_ModeRecord };
-}
-
 export interface PlayerActivity_PlayerActMainSSActivity {
     favorList: string[];
     coin: number;
-}
-
-export interface PlayerActivity_PlayerAct42SideActivity_PlayerAct42sideTask {
-    state: number;
-}
-
-export interface PlayerActivity_PlayerAct42SideActivity_PlayerAct42sideTrustedItem {
-    has: number;
-    got: number;
-    dailyState: number;
 }
 
 export interface PlayerActivity_PlayerAct42SideActivity {
@@ -1564,12 +1556,36 @@ export interface PlayerActivity_PlayerAct42SideActivity {
     dailyRewardState: number;
 }
 
+export interface PlayerActivity_PlayerAct42SideActivity_PlayerAct42sideTask {
+    state: number;
+}
+
+export interface PlayerActivity_PlayerAct42SideActivity_PlayerAct42sideTrustedItem {
+    has: number;
+    got: number;
+    dailyState: number;
+}
+
 export interface PlayerActivity_PlayerAct45SideActivity {
     coin: number;
     favorList: string[];
     platformUnlock: number;
     charState: { [key: string]: number };
     mailState: { [key: string]: number };
+}
+
+export interface PlayerActivity_PlayerAct44SideActivity {
+    coin: number;
+    favorList: string[];
+    campaignCnt: number;
+    informantPt: number;
+    milestone: PlayerActivity_PlayerAct44SideActivity_Milestone;
+    businessDay: number;
+    unlockedCustomers: { [key: string]: number };
+    unlockedTags: { [key: string]: number };
+    isNew: number;
+    outerOpen: number;
+    informant: PlayerActivity_PlayerAct44SideActivity_PlayerInformant;
 }
 
 export interface PlayerActivity_PlayerAct44SideActivity_Milestone {
@@ -1621,18 +1637,17 @@ export interface PlayerActivity_PlayerAct44SideActivity_PlayerInformant {
     settle: PlayerActivity_PlayerAct44SideActivity_PlayerInformantSettle[];
 }
 
-export interface PlayerActivity_PlayerAct44SideActivity {
+export interface PlayerActivity_PlayerAct1VHalfIdleActivity {
     coin: number;
-    favorList: string[];
-    campaignCnt: number;
-    informantPt: number;
-    milestone: PlayerActivity_PlayerAct44SideActivity_Milestone;
-    businessDay: number;
-    unlockedCustomers: { [key: string]: number };
-    unlockedTags: { [key: string]: number };
-    isNew: number;
-    outerOpen: number;
-    informant: PlayerActivity_PlayerAct44SideActivity_PlayerInformant;
+    troop: PlayerActivity_PlayerAct1VHalfIdleActivity_Act1VHalfIdleTroop;
+    stage: { [key: string]: PlayerActivity_PlayerAct1VHalfIdleActivity_StageInfo };
+    settleInfo: PlayerActivity_PlayerAct1VHalfIdleActivity_SettleStageInfo;
+    production: PlayerActivity_PlayerAct1VHalfIdleActivity_ProductionInfo;
+    recruit: PlayerActivity_PlayerAct1VHalfIdleActivity_RecruitInfo;
+    milestone: PlayerActivity_PlayerAct1VHalfIdleActivity_Milestone;
+    inventory: { [key: string]: number };
+    tech: PlayerActivity_PlayerAct1VHalfIdleActivity_TechTree;
+    globalBan: number;
 }
 
 export interface PlayerActivity_PlayerAct1VHalfIdleActivity_StageInfo {
@@ -1687,22 +1702,22 @@ export interface PlayerActivity_PlayerAct1VHalfIdleActivity_TechTree {
     unlock: string[];
 }
 
-export interface PlayerActivity_PlayerAct1VHalfIdleActivity {
-    coin: number;
-    troop: PlayerActivity_PlayerAct1VHalfIdleActivity_Act1VHalfIdleTroop;
-    stage: { [key: string]: PlayerActivity_PlayerAct1VHalfIdleActivity_StageInfo };
-    settleInfo: PlayerActivity_PlayerAct1VHalfIdleActivity_SettleStageInfo;
-    production: PlayerActivity_PlayerAct1VHalfIdleActivity_ProductionInfo;
-    recruit: PlayerActivity_PlayerAct1VHalfIdleActivity_RecruitInfo;
-    milestone: PlayerActivity_PlayerAct1VHalfIdleActivity_Milestone;
-    inventory: { [key: string]: number };
-    tech: PlayerActivity_PlayerAct1VHalfIdleActivity_TechTree;
-    globalBan: number;
-}
-
 export interface PlayerActivity_PlayerCommonDailyMission {
     process: number;
     state: number;
+}
+
+export interface PlayerActivity_PlayerActAutoChessActivity {
+    mode: { [key: string]: PlayerActivity_PlayerActAutoChessActivity_Mode };
+    dailyMission: PlayerActivity_PlayerCommonDailyMission;
+    band: { [key: string]: PlayerActivity_PlayerActAutoChessActivity_BandElem };
+    protectTs: number;
+    trophyNum: number;
+    milestone: PlayerActivity_MilestoneInfo;
+    match: PlayerActivity_PlayerActAutoChessActivity_MatchInfo;
+    scene: PlayerActivity_PlayerActAutoChessActivity_Scene;
+    globalBan: number;
+    chessSquad: { [key: string]: PlayerActivity_PlayerActAutoChessActivity_AutoChessSquadSlot };
 }
 
 export interface PlayerActivity_PlayerActAutoChessActivity_Mode {
@@ -1750,17 +1765,12 @@ export interface PlayerActivity_PlayerActAutoChessActivity_Scene {
     lastMate: string[];
 }
 
-export interface PlayerActivity_PlayerActAutoChessActivity {
-    mode: { [key: string]: PlayerActivity_PlayerActAutoChessActivity_Mode };
-    dailyMission: PlayerActivity_PlayerCommonDailyMission;
-    band: { [key: string]: PlayerActivity_PlayerActAutoChessActivity_BandElem };
-    protectTs: number;
-    trophyNum: number;
-    milestone: PlayerActivity_MilestoneInfo;
-    match: PlayerActivity_PlayerActAutoChessActivity_MatchInfo;
-    scene: PlayerActivity_PlayerActAutoChessActivity_Scene;
-    globalBan: number;
-    chessSquad: { [key: string]: PlayerActivity_PlayerActAutoChessActivity_AutoChessSquadSlot };
+export interface PlayerActivity_PlayerAct46SideActivity {
+    coin: number;
+    favorList: string[];
+    outerOpen: number;
+    game: PlayerActivity_PlayerAct46SideActivity_PlayerMonopolyGame;
+    monoStages: { [key: string]: PlayerActivity_PlayerAct46SideActivity_PlayerMonopolyStage };
 }
 
 export interface PlayerActivity_PlayerAct46SideActivity_PlayerMonopolyGame {
@@ -1787,14 +1797,14 @@ export interface PlayerActivity_PlayerAct46SideActivity_PlayerMonopolyTask {
     process: PlayerActivity_PlayerAct46SideActivity_PlayerMonopolyTaskItemProcess[];
 }
 
-export interface PlayerActivity_PlayerAct46SideActivity_PlayerMonopolyBuff_BuffProcess {
-    value: number;
-    target: number;
-}
-
 export interface PlayerActivity_PlayerAct46SideActivity_PlayerMonopolyBuff {
     id: string;
     process: PlayerActivity_PlayerAct46SideActivity_PlayerMonopolyBuff_BuffProcess;
+}
+
+export interface PlayerActivity_PlayerAct46SideActivity_PlayerMonopolyBuff_BuffProcess {
+    value: number;
+    target: number;
 }
 
 export interface PlayerActivity_PlayerAct46SideActivity_PlayerMonopolyStage {
@@ -1816,12 +1826,10 @@ export interface PlayerActivity_PlayerAct46SideActivity_PlayerMonopolyTaskPanelI
     score: number;
 }
 
-export interface PlayerActivity_PlayerAct46SideActivity {
-    coin: number;
-    favorList: string[];
-    outerOpen: number;
-    game: PlayerActivity_PlayerAct46SideActivity_PlayerMonopolyGame;
-    monoStages: { [key: string]: PlayerActivity_PlayerAct46SideActivity_PlayerMonopolyStage };
+export interface PlayerActivity_PlayerActFootballActivity {
+    stage: { [key: string]: PlayerActivity_PlayerActFootballActivity_ScoreInfo };
+    milestone: PlayerActivity_PlayerActFootballActivity_MilestoneInfo;
+    isBuffUnlocked: number;
 }
 
 export interface PlayerActivity_PlayerActFootballActivity_ScoreInfo {
@@ -1832,16 +1840,6 @@ export interface PlayerActivity_PlayerActFootballActivity_ScoreInfo {
 export interface PlayerActivity_PlayerActFootballActivity_MilestoneInfo {
     point: number;
     got: string[];
-}
-
-export interface PlayerActivity_PlayerActFootballActivity {
-    stage: { [key: string]: PlayerActivity_PlayerActFootballActivity_ScoreInfo };
-    milestone: PlayerActivity_PlayerActFootballActivity_MilestoneInfo;
-    isBuffUnlocked: number;
-}
-
-export interface PlayerActivity_PlayerActArkhubActivity_Scene {
-    lastMate: string[];
 }
 
 export interface PlayerActivity_PlayerActArkhubActivity {
@@ -1855,13 +1853,19 @@ export interface PlayerActivity_PlayerActArkhubActivity {
     scene: PlayerActivity_PlayerActArkhubActivity_Scene;
 }
 
+export interface PlayerActivity_PlayerActArkhubActivity_Scene {
+    lastMate: string[];
+}
+
 export interface PlayerActivity_PlayerAct53SideActivity {
     actCoin: number;
     campaignCnt: number;
     favorList: string[];
 }
 
-export type PlayerActivity = { [typeKey: string]: { [actId: string]: object } };
+export interface PlayerTemplateTrap {
+    domains: { [key: string]: PlayerTemplateTrap_Domin };
+}
 
 export interface PlayerTemplateTrap_Trap {
     count: number;
@@ -1870,10 +1874,6 @@ export interface PlayerTemplateTrap_Trap {
 export interface PlayerTemplateTrap_Domin {
     traps: { [key: string]: PlayerTemplateTrap_Trap };
     squad: string[];
-}
-
-export interface PlayerTemplateTrap {
-    domains: { [key: string]: PlayerTemplateTrap_Domin };
 }
 
 export interface OpenServerChainLogin {
@@ -1949,6 +1949,17 @@ export interface PlayerAutoChessPerm {
     trainingModeFin: { [key: string]: number };
 }
 
+export interface PlayerCampaign {
+    campaignCurrentFee: number;
+    campaignTotalFee: number;
+    activeGroupId: string;
+    open: PlayerCampaign_StageOpenInfo;
+    missions: { [key: string]: number };
+    instances: { [key: string]: PlayerCampaign_Stage };
+    sweepMaxKills: { [key: string]: number };
+    lastRefreshTs: number;
+}
+
 export interface PlayerCampaign_StageOpenInfo {
     permanent: string[];
     training: string[];
@@ -1963,20 +1974,12 @@ export interface PlayerCampaign_Stage {
     rewardStatus: number[];
 }
 
-export interface PlayerCampaign {
-    campaignCurrentFee: number;
-    campaignTotalFee: number;
-    activeGroupId: string;
-    open: PlayerCampaign_StageOpenInfo;
-    missions: { [key: string]: number };
-    instances: { [key: string]: PlayerCampaign_Stage };
-    sweepMaxKills: { [key: string]: number };
-    lastRefreshTs: number;
+export interface PlayerRecruit {
+    normal: PlayerRecruit_NormalModel;
 }
 
-export interface PlayerRecruit_NormalModel_SlotModel_TagItem {
-    tagId: number;
-    pick: number;
+export interface PlayerRecruit_NormalModel {
+    slots: { [key: string]: PlayerRecruit_NormalModel_SlotModel };
 }
 
 export interface PlayerRecruit_NormalModel_SlotModel {
@@ -1989,12 +1992,23 @@ export interface PlayerRecruit_NormalModel_SlotModel {
     durationInSec: number;
 }
 
-export interface PlayerRecruit_NormalModel {
-    slots: { [key: string]: PlayerRecruit_NormalModel_SlotModel };
+export interface PlayerRecruit_NormalModel_SlotModel_TagItem {
+    tagId: number;
+    pick: number;
 }
 
-export interface PlayerRecruit {
-    normal: PlayerRecruit_NormalModel;
+export interface PlayerGacha {
+    newbee: PlayerGacha_PlayerNewbeeGachaPool;
+    normal: { [key: string]: PlayerGacha_PlayerGachaPool };
+    limit: { [key: string]: PlayerGacha_PlayerFreeLimitGacha };
+    linkage: { [key: string]: { [key: string]: object } };
+    attain: { [key: string]: PlayerGacha_PlayerAttainGacha };
+    single: { [key: string]: PlayerGacha_PlayerSingleGacha };
+    doubleGacha: { [key: string]: PlayerGacha_PlayerDoubleGacha };
+    fesClassic: { [key: string]: PlayerGacha_PlayerFesClassicGacha };
+    special: { [key: string]: PlayerGacha_PlayerSpecialGacha };
+    backflow: { [key: string]: PlayerGacha_PlayerReturnGacha };
+    double: object;
 }
 
 export interface PlayerGacha_PlayerNewbeeGachaPool {
@@ -2045,20 +2059,6 @@ export interface PlayerGacha_PlayerSpecialGacha {
 
 export interface PlayerGacha_PlayerReturnGacha {
     upChar: { [key: number]: string[] };
-}
-
-export interface PlayerGacha {
-    newbee: PlayerGacha_PlayerNewbeeGachaPool;
-    normal: { [key: string]: PlayerGacha_PlayerGachaPool };
-    limit: { [key: string]: PlayerGacha_PlayerFreeLimitGacha };
-    linkage: { [key: string]: { [key: string]: object } };
-    attain: { [key: string]: PlayerGacha_PlayerAttainGacha };
-    single: { [key: string]: PlayerGacha_PlayerSingleGacha };
-    doubleGacha: { [key: string]: PlayerGacha_PlayerDoubleGacha };
-    fesClassic: { [key: string]: PlayerGacha_PlayerFesClassicGacha };
-    special: { [key: string]: PlayerGacha_PlayerSpecialGacha };
-    backflow: { [key: string]: PlayerGacha_PlayerReturnGacha };
-    double: object;
 }
 
 export interface PlayerMedalBoard {
@@ -2244,8 +2244,6 @@ export interface PlayerBuildingCharBubble {
     ts: number;
 }
 
-export type PlayerBuildingChar_BubbleContainer = { normal: PlayerBuildingCharBubble; assist: PlayerBuildingCharBubble; private: PlayerBuildingCharBubble };
-
 export interface PlayerBuildingChar {
     charId: string;
     lastApAddTime: number;
@@ -2258,6 +2256,8 @@ export interface PlayerBuildingChar {
     workTime: number;
     privateRooms: string[];
 }
+
+export type PlayerBuildingChar_BubbleContainer = { normal: PlayerBuildingCharBubble; assist: PlayerBuildingCharBubble; private: PlayerBuildingCharBubble };
 
 export interface PlayerBuildingRoomSlot {
     level: number;
@@ -2431,11 +2431,6 @@ export interface PlayerBuildingPower {
     presetQueue: number[][];
 }
 
-export interface PlayerBuildingControlBuff_Global {
-    apCost: number;
-    roomCnt: number;
-}
-
 export interface PlayerBuildingControlBuff {
     global: PlayerBuildingControlBuff_Global;
     manufacture: object;
@@ -2449,11 +2444,31 @@ export interface PlayerBuildingControlBuff {
     training: object;
 }
 
+export interface PlayerBuildingControlBuff_Global {
+    apCost: number;
+    roomCnt: number;
+}
+
 export interface PlayerBuildingControl {
     buff: PlayerBuildingControlBuff;
     apCost: number;
     presetQueue: number[][];
     lastUpdateTime: number;
+}
+
+export interface PlayerBuildingWorkshopBuff {
+    rate: { [key: string]: number };
+    apRate: { [key: string]: { [key: string]: number } };
+    frate: PlayerBuildingWorkshopBuff_Frate[];
+    goldFree: { [key: string]: number };
+    cost: PlayerBuildingWorkshopBuff_Cost;
+    costRe: PlayerBuildingWorkshopBuff_CostRe;
+    costFormula: PlayerBuildingWorkshopBuff_CostFormula;
+    costForce: PlayerBuildingWorkshopBuff_CostForce;
+    costDevide: PlayerBuildingWorkshopBuff_CostDevide;
+    recovery: object;
+    fFix: object;
+    activeBonus: object;
 }
 
 export interface PlayerBuildingWorkshopBuff_Cost {
@@ -2487,21 +2502,6 @@ export interface PlayerBuildingWorkshopBuff_CostDevide {
 export interface PlayerBuildingWorkshopBuff_Frate {
     fid: string;
     rate: number;
-}
-
-export interface PlayerBuildingWorkshopBuff {
-    rate: { [key: string]: number };
-    apRate: { [key: string]: { [key: string]: number } };
-    frate: PlayerBuildingWorkshopBuff_Frate[];
-    goldFree: { [key: string]: number };
-    cost: PlayerBuildingWorkshopBuff_Cost;
-    costRe: PlayerBuildingWorkshopBuff_CostRe;
-    costFormula: PlayerBuildingWorkshopBuff_CostFormula;
-    costForce: PlayerBuildingWorkshopBuff_CostForce;
-    costDevide: PlayerBuildingWorkshopBuff_CostDevide;
-    recovery: object;
-    fFix: object;
-    activeBonus: object;
 }
 
 export interface PlayerBuildingWorkshop {
@@ -2606,6 +2606,8 @@ export interface PlayerBuildingHire {
     presetQueue: number[][];
 }
 
+export type PlayerBuildingTradingOrder = { instId: number; delivery: ItemBundle[]; type: BuildingData_OrderType; gain: ItemBundle; buff: object[] };
+
 export interface PlayerBuildingTradingOrder_TradingOrderBuff {
     from: string;
     param: number;
@@ -2615,8 +2617,6 @@ export interface PlayerBuildingTradingOrder_TradingGoldTag {
     activated: number;
     from: string;
 }
-
-export type PlayerBuildingTradingOrder = { instId: number; delivery: ItemBundle[]; type: BuildingData_OrderType; gain: ItemBundle; buff: object[] };
 
 export interface PlayerBuildingTradingBuff {
     speed: number;
@@ -2678,9 +2678,16 @@ export interface PlayerBuildingDIYPreset {
     thumbnail: string;
 }
 
-export interface PlayerBuildingDormitory_Buff_APCost_SingleTarget {
-    target: string;
-    value: number;
+export interface PlayerBuildingDormitory {
+    buff: PlayerBuildingDormitory_Buff;
+    comfort: number;
+    diySolution: PlayerBuildingDIYSolution;
+    lockQueue: number[];
+}
+
+export interface PlayerBuildingDormitory_Buff {
+    apCost: PlayerBuildingDormitory_Buff_APCost;
+    point: object;
 }
 
 export interface PlayerBuildingDormitory_Buff_APCost {
@@ -2690,16 +2697,9 @@ export interface PlayerBuildingDormitory_Buff_APCost {
     exclude: object;
 }
 
-export interface PlayerBuildingDormitory_Buff {
-    apCost: PlayerBuildingDormitory_Buff_APCost;
-    point: object;
-}
-
-export interface PlayerBuildingDormitory {
-    buff: PlayerBuildingDormitory_Buff;
-    comfort: number;
-    diySolution: PlayerBuildingDIYSolution;
-    lockQueue: number[];
+export interface PlayerBuildingDormitory_Buff_APCost_SingleTarget {
+    target: string;
+    value: number;
 }
 
 export interface PlayerBuildingPrivate {
@@ -2771,10 +2771,6 @@ export interface BuildingMusicState {
     unlock: boolean;
 }
 
-export interface PlayerBuilding_PlayerBuildingSolution {
-    furnitureTs: { [key: string]: number };
-}
-
 export interface PlayerBuilding {
     status: PlayerBuildingStatus;
     chars: { [key: string]: PlayerBuildingChar };
@@ -2785,6 +2781,10 @@ export interface PlayerBuilding {
     diyPresetSolutions: { [key: string]: PlayerBuildingDIYPreset };
     solution: PlayerBuilding_PlayerBuildingSolution;
     music: BuildingMusic;
+}
+
+export interface PlayerBuilding_PlayerBuildingSolution {
+    furnitureTs: { [key: string]: number };
 }
 
 export interface MissionCalcState {
@@ -2822,15 +2822,15 @@ export interface PlayerCrisisSeason {
     sInfo: object;
 }
 
-export interface PlayerCrisisSocialInfo_AssistChar {
-    charId: string;
-    cnt: number;
-}
-
 export interface PlayerCrisisSocialInfo {
     assistCnt: number;
     maxPnt: number | string;
     chars: PlayerCrisisSocialInfo_AssistChar[];
+}
+
+export interface PlayerCrisisSocialInfo_AssistChar {
+    charId: string;
+    cnt: number;
 }
 
 export interface PlayerCrisis {
@@ -2842,6 +2842,13 @@ export interface PlayerCrisis {
     map: { [key: string]: { rank: number; confirmed: number } };
     training: { currentStage: string[]; stage: { [key: string]: { point: number } }; nst: number };
     box: object[];
+}
+
+export interface PlayerCrisisV2Season {
+    coin: number;
+    permanent: PlayerCrisisV2Season_PermanentMapInfo;
+    temporary: { [key: string]: PlayerCrisisV2Season_BasicMapInfo };
+    social: PlayerCrisisSocialInfo;
 }
 
 export interface PlayerCrisisV2Season_RewardInfo {
@@ -2866,13 +2873,6 @@ export interface PlayerCrisisV2Season_BasicMapInfo {
     scoreTotal: number[];
     rune: { [key: string]: number };
     challenge: { [key: string]: number };
-}
-
-export interface PlayerCrisisV2Season {
-    coin: number;
-    permanent: PlayerCrisisV2Season_PermanentMapInfo;
-    temporary: { [key: string]: PlayerCrisisV2Season_BasicMapInfo };
-    social: PlayerCrisisSocialInfo;
 }
 
 export interface PlayerCrisisV2 {
@@ -2986,17 +2986,17 @@ export interface PlayerRoguelikeCharacter {
     isFree: number;
 }
 
-export interface PlayerNodeDetailContent_BattleShop {
-    hasShopBoss: number;
-    goods: string[];
-}
-
 export interface PlayerNodeDetailContent {
     scene: string;
     battleShop: PlayerNodeDetailContent_BattleShop;
     wish: string[];
     battle: string[];
     hasShopBoss: number;
+}
+
+export interface PlayerNodeDetailContent_BattleShop {
+    hasShopBoss: number;
+    goods: string[];
 }
 
 export interface PlayerNodeRollInfo {
@@ -3045,6 +3045,11 @@ export interface PlayerRoguelikeRecord {
     unlockMode: string[];
 }
 
+export interface PlayerRoguelike {
+    current: PlayerRoguelike_CurrentData;
+    stable: PlayerRoguelike_StableData;
+}
+
 export interface PlayerRoguelike_CurrentData {
     status: PlayerRoguelikeStatus;
     initialRewards: PlayerRoguelikeInitialReward;
@@ -3052,6 +3057,15 @@ export interface PlayerRoguelike_CurrentData {
     inventory: { [key: string]: PlayerRoguelikeItem };
     chars: { [key: string]: PlayerRoguelikeCharacter };
     record: PlayerRoguelikeRecord;
+}
+
+export interface PlayerRoguelike_StableData {
+    outBuff: { [key: string]: number };
+    relic: { [key: string]: PlayerRoguelike_StableData_RelicRecord };
+    stages: { [key: string]: PlayerRoguelike_StableData_StageRecord };
+    ending: { [key: string]: PlayerRoguelike_StableData_EndingRecord };
+    mode: { [key: string]: PlayerRoguelike_StableData_ModeRecord };
+    stats: PlayerRoguelike_StableData_StatsRecords;
 }
 
 export interface PlayerRoguelike_StableData_RelicRecord {
@@ -3086,28 +3100,36 @@ export interface PlayerRoguelike_StableData_StatsRecords {
     choice_count: { [key: string]: number };
 }
 
-export interface PlayerRoguelike_StableData {
-    outBuff: { [key: string]: number };
-    relic: { [key: string]: PlayerRoguelike_StableData_RelicRecord };
-    stages: { [key: string]: PlayerRoguelike_StableData_StageRecord };
-    ending: { [key: string]: PlayerRoguelike_StableData_EndingRecord };
-    mode: { [key: string]: PlayerRoguelike_StableData_ModeRecord };
-    stats: PlayerRoguelike_StableData_StatsRecords;
+export interface PlayerRoguelikeV2 {
+    current: PlayerRoguelikeV2_CurrentData;
+    outer: { [key: string]: PlayerRoguelikeV2_OuterData };
+    pinned: string;
 }
 
-export interface PlayerRoguelike {
-    current: PlayerRoguelike_CurrentData;
-    stable: PlayerRoguelike_StableData;
+export interface PlayerRoguelikeV2_CurrentData {
+    player: PlayerRoguelikeV2_CurrentData_PlayerStatus;
+    map: PlayerRoguelikeV2Dungeon;
+    inventory: PlayerRoguelikeV2_CurrentData_Inventory;
+    game: PlayerRoguelikeV2_CurrentData_Game;
+    troop: PlayerRoguelikeV2_CurrentData_Troop;
+    buff: PlayerRoguelikeV2_CurrentData_Buff;
+    module: PlayerRoguelikeV2_CurrentData_Module;
+    record: object;
 }
 
-export interface PlayerRoguelikeV2_CurrentData_PlayerStatus_Properties_Hp {
-    current: number;
-    max: number;
-}
-
-export interface PlayerRoguelikeV2_CurrentData_PlayerStatus_Properties_Population {
-    cost: number;
-    max: number;
+export interface PlayerRoguelikeV2_CurrentData_PlayerStatus {
+    state: PlayerRoguelikePlayerState;
+    property: PlayerRoguelikeV2_CurrentData_PlayerStatus_Properties;
+    cursor: PlayerRoguelikeV2_CurrentData_PlayerStatus_NodePosition;
+    pending: PlayerRoguelikePendingEvent[];
+    trace: PlayerRoguelikeV2_CurrentData_PlayerStatus_NodePosition[];
+    status: PlayerRoguelikeV2_CurrentData_PlayerStatus_Status;
+    toEnding: string;
+    chgEnding: boolean;
+    innerMission: PlayerRoguelikeV2_CurrentData_PlayerStatus_InnerMission[];
+    nodeMission: PlayerRoguelikeV2_CurrentData_PlayerStatus_NodeMission;
+    zoneReward: { [key: string]: PlayerRoguelikeV2_CurrentData_PlayerStatus_ZoneRewardItem[] };
+    traderReturn: { [key: string]: PlayerRoguelikeV2_CurrentData_PlayerStatus_ZoneRewardItem[] };
 }
 
 export interface PlayerRoguelikeV2_CurrentData_PlayerStatus_Properties {
@@ -3120,6 +3142,16 @@ export interface PlayerRoguelikeV2_CurrentData_PlayerStatus_Properties {
     capacity: number;
     population: PlayerRoguelikeV2_CurrentData_PlayerStatus_Properties_Population;
     conPerfectBattle: number;
+}
+
+export interface PlayerRoguelikeV2_CurrentData_PlayerStatus_Properties_Hp {
+    current: number;
+    max: number;
+}
+
+export interface PlayerRoguelikeV2_CurrentData_PlayerStatus_Properties_Population {
+    cost: number;
+    max: number;
 }
 
 export interface PlayerRoguelikeV2_CurrentData_PlayerStatus_NodePosition {
@@ -3148,21 +3180,6 @@ export interface PlayerRoguelikeV2_CurrentData_PlayerStatus_ZoneRewardItem {
     id: string;
     count: number;
     instId: string;
-}
-
-export interface PlayerRoguelikeV2_CurrentData_PlayerStatus {
-    state: PlayerRoguelikePlayerState;
-    property: PlayerRoguelikeV2_CurrentData_PlayerStatus_Properties;
-    cursor: PlayerRoguelikeV2_CurrentData_PlayerStatus_NodePosition;
-    pending: PlayerRoguelikePendingEvent[];
-    trace: PlayerRoguelikeV2_CurrentData_PlayerStatus_NodePosition[];
-    status: PlayerRoguelikeV2_CurrentData_PlayerStatus_Status;
-    toEnding: string;
-    chgEnding: boolean;
-    innerMission: PlayerRoguelikeV2_CurrentData_PlayerStatus_InnerMission[];
-    nodeMission: PlayerRoguelikeV2_CurrentData_PlayerStatus_NodeMission;
-    zoneReward: { [key: string]: PlayerRoguelikeV2_CurrentData_PlayerStatus_ZoneRewardItem[] };
-    traderReturn: { [key: string]: PlayerRoguelikeV2_CurrentData_PlayerStatus_ZoneRewardItem[] };
 }
 
 export interface PlayerRoguelikeV2_CurrentData_Char {
@@ -3206,6 +3223,11 @@ export interface PlayerRoguelikeV2_CurrentData_RecruitChar {
     charBuff: string[];
 }
 
+export interface PlayerRoguelikeV2_CurrentData_ExpeditionReturn {
+    charList: PlayerRoguelikeV2_CurrentData_ExpeditionReturn_Char[];
+    rewards: PlayerRoguelikeV2_CurrentData_ExpeditionReturn_Reward[];
+}
+
 export interface PlayerRoguelikeV2_CurrentData_ExpeditionReturn_Char {
     instId: string;
     isUpgrade: number;
@@ -3217,11 +3239,6 @@ export interface PlayerRoguelikeV2_CurrentData_ExpeditionReturn_Reward {
     id: string;
     count: number;
     instId: string;
-}
-
-export interface PlayerRoguelikeV2_CurrentData_ExpeditionReturn {
-    charList: PlayerRoguelikeV2_CurrentData_ExpeditionReturn_Char[];
-    rewards: PlayerRoguelikeV2_CurrentData_ExpeditionReturn_Reward[];
 }
 
 export interface PlayerRoguelikeV2_CurrentData_Troop {
@@ -3251,6 +3268,18 @@ export interface PlayerRoguelikeV2_CurrentData_ExploreTool {
     ts: number;
 }
 
+export interface PlayerRoguelikeV2_CurrentData_Recruit {
+    index: string;
+    id: string;
+    state: number;
+    list: PlayerRoguelikeV2_CurrentData_RecruitChar[];
+    result: PlayerRoguelikeV2_CurrentData_RecruitChar;
+    ts: number;
+    needAssist: number;
+    assistList: { [key: string]: PlayerRoguelikeV2_CurrentData_Recruit_FriendAssistData[] };
+    starFriendAssistList: { [key: string]: PlayerRoguelikeV2_CurrentData_Recruit_FriendAssistData[] };
+}
+
 export interface PlayerRoguelikeV2_CurrentData_Recruit_OrigChar {
     nickName: string;
     uid: string;
@@ -3276,18 +3305,6 @@ export interface PlayerRoguelikeV2_CurrentData_Recruit_FriendAssistData {
     recruit: PlayerRoguelikeV2_CurrentData_RecruitChar;
 }
 
-export interface PlayerRoguelikeV2_CurrentData_Recruit {
-    index: string;
-    id: string;
-    state: number;
-    list: PlayerRoguelikeV2_CurrentData_RecruitChar[];
-    result: PlayerRoguelikeV2_CurrentData_RecruitChar;
-    ts: number;
-    needAssist: number;
-    assistList: { [key: string]: PlayerRoguelikeV2_CurrentData_Recruit_FriendAssistData[] };
-    starFriendAssistList: { [key: string]: PlayerRoguelikeV2_CurrentData_Recruit_FriendAssistData[] };
-}
-
 export interface PlayerRoguelikeV2_CurrentData_Inventory {
     relic: { [key: string]: PlayerRoguelikeV2_CurrentData_Relic };
     recruit: { [key: string]: PlayerRoguelikeV2_CurrentData_Recruit };
@@ -3310,8 +3327,6 @@ export interface PlayerRoguelikeV2_CurrentData_Capsule {
     active: number;
 }
 
-export interface PlayerRoguelikeV2_CurrentData_Game_OuterBuff {}
-
 export interface PlayerRoguelikeV2_CurrentData_Game {
     uid: string;
     theme: string;
@@ -3323,6 +3338,25 @@ export interface PlayerRoguelikeV2_CurrentData_Game {
     outerBuff: PlayerRoguelikeV2_CurrentData_Game_OuterBuff;
     start: number;
     activity: string;
+}
+
+export interface PlayerRoguelikeV2_CurrentData_Game_OuterBuff {}
+
+export interface PlayerRoguelikeV2_CurrentData_Module {
+    san: PlayerRoguelikeV2_CurrentData_Module_San;
+    dice: PlayerRoguelikeV2_CurrentData_Module_Dice;
+    totem: PlayerRoguelikeV2_CurrentData_Module_Totem;
+    vision: PlayerRoguelikeV2_CurrentData_Module_Vision;
+    chaos: PlayerRoguelikeV2_CurrentData_Module_Chaos;
+    fragment: PlayerRoguelikeV2_CurrentData_Module_Fragment;
+    disaster: PlayerRoguelikeV2_CurrentData_Module_Disaster;
+    nodeUpgrade: PlayerRoguelikeV2_CurrentData_Module_NodeUpgrade;
+    copper: PlayerRoguelikeV2_CurrentData_Module_Copper;
+    wrath: PlayerRoguelikeV2_CurrentData_Module_Wrath;
+    sky: PlayerRoguelikeV2_CurrentData_Module_Sky;
+    gridZone: PlayerRoguelikeV2_CurrentData_Module_GridMapData;
+    scrap: PlayerRoguelikeV2_CurrentData_Module_GridZoneScrapInfo;
+    weather: PlayerRoguelikeV2_CurrentData_Module_Weather;
 }
 
 export interface PlayerRoguelikeV2_CurrentData_Module_San {
@@ -3513,43 +3547,16 @@ export interface PlayerRoguelikeV2_CurrentData_Module_Weather {
     weatherStep: number;
 }
 
-export interface PlayerRoguelikeV2_CurrentData_Module {
-    san: PlayerRoguelikeV2_CurrentData_Module_San;
-    dice: PlayerRoguelikeV2_CurrentData_Module_Dice;
-    totem: PlayerRoguelikeV2_CurrentData_Module_Totem;
-    vision: PlayerRoguelikeV2_CurrentData_Module_Vision;
-    chaos: PlayerRoguelikeV2_CurrentData_Module_Chaos;
-    fragment: PlayerRoguelikeV2_CurrentData_Module_Fragment;
-    disaster: PlayerRoguelikeV2_CurrentData_Module_Disaster;
-    nodeUpgrade: PlayerRoguelikeV2_CurrentData_Module_NodeUpgrade;
-    copper: PlayerRoguelikeV2_CurrentData_Module_Copper;
-    wrath: PlayerRoguelikeV2_CurrentData_Module_Wrath;
-    sky: PlayerRoguelikeV2_CurrentData_Module_Sky;
-    gridZone: PlayerRoguelikeV2_CurrentData_Module_GridMapData;
-    scrap: PlayerRoguelikeV2_CurrentData_Module_GridZoneScrapInfo;
-    weather: PlayerRoguelikeV2_CurrentData_Module_Weather;
-}
-
-export interface PlayerRoguelikeV2_CurrentData {
-    player: PlayerRoguelikeV2_CurrentData_PlayerStatus;
-    map: PlayerRoguelikeV2Dungeon;
-    inventory: PlayerRoguelikeV2_CurrentData_Inventory;
-    game: PlayerRoguelikeV2_CurrentData_Game;
-    troop: PlayerRoguelikeV2_CurrentData_Troop;
-    buff: PlayerRoguelikeV2_CurrentData_Buff;
-    module: PlayerRoguelikeV2_CurrentData_Module;
-    record: object;
-}
-
-export interface PlayerRoguelikeV2_OuterData_Record_History {
-    seed: string;
-    bandId: string;
-    mode: RoguelikeTopicMode;
-    modeGrade: number;
-    ending: string;
-    failEnding: string;
-    result: number;
-    endTs: number;
+export interface PlayerRoguelikeV2_OuterData {
+    bp: PlayerRoguelikeV2_OuterData_BattlePass;
+    buff: PlayerRoguelikeV2_OuterData_Buff;
+    mission: PlayerRoguelikeV2_OuterData_Mission;
+    collect: PlayerRoguelikeV2_OuterData_Collection;
+    bank: PlayerRoguelikeV2_OuterData_Bank;
+    record: PlayerRoguelikeV2_OuterData_Record;
+    monthTeam: PlayerRoguelikeV2_OuterData_MonthTeam;
+    challenge: PlayerRoguelikeV2_OuterData_Challenge;
+    activity: PlayerRoguelikeV2_OuterData_PlayerRogueActivity;
 }
 
 export interface PlayerRoguelikeV2_OuterData_Record {
@@ -3563,9 +3570,26 @@ export interface PlayerRoguelikeV2_OuterData_Record {
     endingCnt: number;
 }
 
+export interface PlayerRoguelikeV2_OuterData_Record_History {
+    seed: string;
+    bandId: string;
+    mode: RoguelikeTopicMode;
+    modeGrade: number;
+    ending: string;
+    failEnding: string;
+    result: number;
+    endTs: number;
+}
+
 export interface PlayerRoguelikeV2_OuterData_BattlePass {
     point: number;
     reward: { [key: string]: number };
+}
+
+export interface PlayerRoguelikeV2_OuterData_Mission {
+    updateId: string;
+    refresh: number;
+    list: PlayerRoguelikeV2_OuterData_Mission_MissionSlot[];
 }
 
 export interface PlayerRoguelikeV2_OuterData_Mission_MissionSlot {
@@ -3582,30 +3606,9 @@ export interface PlayerRoguelikeV2_OuterData_Mission_MissionItem {
     tmpl: object;
 }
 
-export interface PlayerRoguelikeV2_OuterData_Mission {
-    updateId: string;
-    refresh: number;
-    list: PlayerRoguelikeV2_OuterData_Mission_MissionSlot[];
-}
-
 export interface PlayerRoguelikeV2_OuterData_TotemCollection {
     totem: { [key: string]: PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo };
     affix: { [key: string]: PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo };
-}
-
-export interface PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo {
-    state: number;
-    progress: number[];
-}
-
-export interface PlayerRoguelikeV2_OuterData_Collection_WeatherCollection {
-    main: { [key: string]: PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo };
-    sub: { [key: string]: PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo };
-}
-
-export interface PlayerRoguelikeV2_OuterData_Collection_DifficultyUnlockInfo {
-    state: number;
-    progress: number;
 }
 
 export interface PlayerRoguelikeV2_OuterData_Collection {
@@ -3631,6 +3634,21 @@ export interface PlayerRoguelikeV2_OuterData_Collection {
     scrap: { [key: string]: PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo };
     weather: PlayerRoguelikeV2_OuterData_Collection_WeatherCollection;
     chat: object;
+}
+
+export interface PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo {
+    state: number;
+    progress: number[];
+}
+
+export interface PlayerRoguelikeV2_OuterData_Collection_WeatherCollection {
+    main: { [key: string]: PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo };
+    sub: { [key: string]: PlayerRoguelikeV2_OuterData_Collection_ItemUnlockInfo };
+}
+
+export interface PlayerRoguelikeV2_OuterData_Collection_DifficultyUnlockInfo {
+    state: number;
+    progress: number;
 }
 
 export interface PlayerRoguelikeV2_OuterData_Bank {
@@ -3669,6 +3687,10 @@ export interface PlayerRoguelikeV2_OuterData_NodeUpgradeInfo {
     unlockList: string[];
 }
 
+export interface PlayerRoguelikeV2_OuterData_PlayerRogueActivity {
+    SEED_MODE: { [key: string]: PlayerRoguelikeV2_OuterData_PlayerRogueActivity_PlayerRoguelikeActivitySeedModeData };
+}
+
 export interface PlayerRoguelikeV2_OuterData_PlayerRogueActivity_PlayerRoguelikeActivitySeedModeData {
     unlockState: PlayerRoguelikeV2_OuterData_PlayerRogueActivity_PlayerRogueActivityUnlockInfo;
     seed: string;
@@ -3679,26 +3701,11 @@ export interface PlayerRoguelikeV2_OuterData_PlayerRogueActivity_PlayerRogueActi
     progress: number[];
 }
 
-export interface PlayerRoguelikeV2_OuterData_PlayerRogueActivity {
-    SEED_MODE: { [key: string]: PlayerRoguelikeV2_OuterData_PlayerRogueActivity_PlayerRoguelikeActivitySeedModeData };
-}
-
-export interface PlayerRoguelikeV2_OuterData {
-    bp: PlayerRoguelikeV2_OuterData_BattlePass;
-    buff: PlayerRoguelikeV2_OuterData_Buff;
-    mission: PlayerRoguelikeV2_OuterData_Mission;
-    collect: PlayerRoguelikeV2_OuterData_Collection;
-    bank: PlayerRoguelikeV2_OuterData_Bank;
-    record: PlayerRoguelikeV2_OuterData_Record;
-    monthTeam: PlayerRoguelikeV2_OuterData_MonthTeam;
-    challenge: PlayerRoguelikeV2_OuterData_Challenge;
-    activity: PlayerRoguelikeV2_OuterData_PlayerRogueActivity;
-}
-
-export interface PlayerRoguelikeV2 {
-    current: PlayerRoguelikeV2_CurrentData;
-    outer: { [key: string]: PlayerRoguelikeV2_OuterData };
-    pinned: string;
+export interface PlayerReturnData {
+    open: boolean;
+    currentV2: PlayerReturnData_CurrentV2Data;
+    version: number;
+    current: object;
 }
 
 export interface PlayerReturnData_CurrentV2Data {
@@ -3770,13 +3777,6 @@ export interface PlayerReturnData_Gacha {
     endTs: number;
 }
 
-export interface PlayerReturnData {
-    open: boolean;
-    currentV2: PlayerReturnData_CurrentV2Data;
-    version: number;
-    current: object;
-}
-
 export interface PlayerRoguelikeV2Zone {
     id: string;
     nodes: { [key: number]: PlayerRoguelikeNode };
@@ -3787,6 +3787,12 @@ export interface PlayerRoguelikeV2Zone {
 export interface PlayerRoguelikeV2Dungeon {
     zones: { [key: number]: PlayerRoguelikeV2Zone };
     verticalCostDelta: number;
+}
+
+export interface PlayerRoguelikePendingEvent {
+    index: string;
+    type: number;
+    content: PlayerRoguelikePendingEvent_Content;
 }
 
 export interface PlayerRoguelikePendingEvent_BattleRewardContent {
@@ -3813,18 +3819,18 @@ export interface PlayerRoguelikePendingEvent_BattleContent {
     battleFailDisplay: number;
 }
 
-export interface PlayerRoguelikePendingEvent_InitRecruitContent_ShowChar {
-    charId: string;
-    tmplId: string;
-    uniEquipIdOfChar: string;
-    type: number;
-}
-
 export interface PlayerRoguelikePendingEvent_InitRecruitContent {
     step: number[];
     tickets: string[];
     showChar: PlayerRoguelikePendingEvent_InitRecruitContent_ShowChar[];
     team: string;
+}
+
+export interface PlayerRoguelikePendingEvent_InitRecruitContent_ShowChar {
+    charId: string;
+    tmplId: string;
+    uniEquipIdOfChar: string;
+    type: number;
 }
 
 export interface PlayerRoguelikePendingEvent_InitRecruitSetContent {
@@ -3847,17 +3853,17 @@ export interface PlayerRoguelikePendingEvent_InitModeRelic {
     items: string[];
 }
 
+export interface PlayerRoguelikePendingEvent_InitTeam {
+    step: number[];
+    chars: PlayerRoguelikePendingEvent_InitTeam_Char[];
+    team: string;
+}
+
 export interface PlayerRoguelikePendingEvent_InitTeam_Char {
     charId: string;
     tmplId: string;
     uniEquipIdOfChar: string;
     type: number;
-}
-
-export interface PlayerRoguelikePendingEvent_InitTeam {
-    step: number[];
-    chars: PlayerRoguelikePendingEvent_InitTeam_Char[];
-    team: string;
 }
 
 export interface PlayerRoguelikePendingEvent_InitSupport {
@@ -3875,6 +3881,11 @@ export interface PlayerRoguelikePendingEvent_InitExploreTool {
     items: { [key: string]: RoguelikeItemBundle };
 }
 
+export interface PlayerRoguelikePendingEvent_ChoiceAddition {
+    rewards: PlayerRoguelikePendingEvent_ChoiceAddition_Reward[];
+    costs: PlayerRoguelikePendingEvent_ChoiceAddition_Cost[];
+}
+
 export interface PlayerRoguelikePendingEvent_ChoiceAddition_Reward {
     id: string;
     type: number;
@@ -3884,11 +3895,6 @@ export interface PlayerRoguelikePendingEvent_ChoiceAddition_Cost {
     id: string;
     instId: string;
     type: number;
-}
-
-export interface PlayerRoguelikePendingEvent_ChoiceAddition {
-    rewards: PlayerRoguelikePendingEvent_ChoiceAddition_Reward[];
-    costs: PlayerRoguelikePendingEvent_ChoiceAddition_Cost[];
 }
 
 export interface PlayerRoguelikePendingEvent_SceneContent {
@@ -3907,6 +3913,11 @@ export interface PlayerRoguelikePendingEvent_Recruit {
     ticket: string;
 }
 
+export interface PlayerRoguelikePendingEvent_Dice {
+    result: PlayerRoguelikePendingEvent_Dice_Result;
+    rerollCount: number;
+}
+
 export interface PlayerRoguelikePendingEvent_Dice_Result {
     diceEventId: string;
     diceRoll: number;
@@ -3919,9 +3930,19 @@ export interface PlayerRoguelikePendingEvent_Dice_MutationResult {
     chars: string[];
 }
 
-export interface PlayerRoguelikePendingEvent_Dice {
-    result: PlayerRoguelikePendingEvent_Dice_Result;
-    rerollCount: number;
+export interface PlayerRoguelikePendingEvent_ShopContent {
+    bank: PlayerRoguelikePendingEvent_ShopContent_Bank;
+    id: string;
+    goods: PlayerRoguelikePendingEvent_ShopContent_Goods[];
+    canBattle: number;
+    hasBoss: number;
+    showRefresh: number;
+    refreshCnt: number;
+    refreshCost: number;
+    recycleGoods: PlayerRoguelikePendingEvent_ShopContent_Goods[];
+    recycleCount: number;
+    buyLimit: number;
+    hasBuyLimit: number;
 }
 
 export interface PlayerRoguelikePendingEvent_ShopContent_Bank {
@@ -3942,21 +3963,6 @@ export interface PlayerRoguelikePendingEvent_ShopContent_Goods {
     origCost: number;
     displayPriceChg: number;
     ban: number;
-}
-
-export interface PlayerRoguelikePendingEvent_ShopContent {
-    bank: PlayerRoguelikePendingEvent_ShopContent_Bank;
-    id: string;
-    goods: PlayerRoguelikePendingEvent_ShopContent_Goods[];
-    canBattle: number;
-    hasBoss: number;
-    showRefresh: number;
-    refreshCnt: number;
-    refreshCost: number;
-    recycleGoods: PlayerRoguelikePendingEvent_ShopContent_Goods[];
-    recycleCount: number;
-    buyLimit: number;
-    hasBuyLimit: number;
 }
 
 export interface PlayerRoguelikePendingEvent_SacrificeContent {
@@ -4078,22 +4084,9 @@ export interface PlayerRoguelikePendingEvent_Content {
     done: number;
 }
 
-export interface PlayerRoguelikePendingEvent {
-    index: string;
-    type: number;
-    content: PlayerRoguelikePendingEvent_Content;
-}
-
 export interface CharmStatus {
     charms: { [key: string]: number };
     squad: string[];
-}
-
-export type PlayerCartInfo_Cart = { [key: string]: string };
-
-export interface PlayerCartInfo_CompInfo {
-    id: string;
-    num: number;
 }
 
 export interface PlayerCartInfo {
@@ -4102,9 +4095,11 @@ export interface PlayerCartInfo {
     accessories: { [key: string]: PlayerCartInfo_CompInfo };
 }
 
-export interface PlayerDeepSea_TechData {
-    state: number;
-    branch: string;
+export type PlayerCartInfo_Cart = { [key: string]: string };
+
+export interface PlayerCartInfo_CompInfo {
+    id: string;
+    num: number;
 }
 
 export interface PlayerDeepSea {
@@ -4116,6 +4111,18 @@ export interface PlayerDeepSea {
     stories: { [key: string]: number };
     techTrees: { [key: string]: PlayerDeepSea_TechData };
     logs: { [key: string]: string[] };
+}
+
+export interface PlayerDeepSea_TechData {
+    state: number;
+    branch: string;
+}
+
+export interface PlayerSiracusaMap {
+    select: string;
+    card: { [key: string]: PlayerSiracusaMap_CharCard };
+    opera: PlayerSiracusaMap_Opera;
+    area: { [key: string]: number };
 }
 
 export interface PlayerSiracusaMap_BattleProgress {
@@ -4147,11 +4154,10 @@ export interface PlayerSiracusaMap_Opera {
     like: { [key: string]: string };
 }
 
-export interface PlayerSiracusaMap {
-    select: string;
-    card: { [key: string]: PlayerSiracusaMap_CharCard };
-    opera: PlayerSiracusaMap_Opera;
-    area: { [key: string]: number };
+export interface PlayerFirework {
+    unlock: boolean;
+    plate: PlayerFirework_PlayerPlate;
+    animal: PlayerFirework_PlayerAnimal;
 }
 
 export interface PlayerFirework_PlayerPlate {
@@ -4162,12 +4168,6 @@ export interface PlayerFirework_PlayerPlate {
 export interface PlayerFirework_PlayerAnimal {
     unlock: { [key: string]: number };
     select: string;
-}
-
-export interface PlayerFirework {
-    unlock: boolean;
-    plate: PlayerFirework_PlayerPlate;
-    animal: PlayerFirework_PlayerAnimal;
 }
 
 export interface PlayerTower {
@@ -4185,6 +4185,16 @@ export interface TowerTactical {
     SUPPORT: string;
     MEDIC: string;
     SPECIAL: string;
+}
+
+export interface TowerCurrent {
+    status: TowerCurrent_Status;
+    godCard: TowerCurrent_TowerGodCard;
+    layer: TowerCurrent_TowerGameLayer[];
+    cards: { [key: string]: TowerCurrent_GameCard };
+    trap: TowerCurrent_TowerTrapInfo[];
+    halftime: TowerCurrent_HalftimeRecruit;
+    reward?: { high: number; low: number };
 }
 
 export interface TowerCurrent_Status {
@@ -4225,14 +4235,15 @@ export interface TowerCurrent_HalftimeCandidateGroup {
     cards: TowerCurrent_GameCard[];
 }
 
-export interface TowerCurrent {
-    status: TowerCurrent_Status;
-    godCard: TowerCurrent_TowerGodCard;
-    layer: TowerCurrent_TowerGameLayer[];
-    cards: { [key: string]: TowerCurrent_GameCard };
-    trap: TowerCurrent_TowerTrapInfo[];
-    halftime: TowerCurrent_HalftimeRecruit;
-    reward?: { high: number; low: number };
+export interface TowerOuter {
+    training: { [key: string]: number };
+    towers: { [key: string]: TowerOuter_TowerData };
+    hasTowerPass: number;
+    pickedCardMap: { [key: string]: string[] };
+    tactical: TowerTactical;
+    strategy: TowerGameStrategy;
+    squad: PlayerSquadItem[];
+    pickedGodCard: object;
 }
 
 export interface TowerOuter_TowerData {
@@ -4245,15 +4256,14 @@ export interface TowerOuter_TowerData {
     unlockHard: boolean;
 }
 
-export interface TowerOuter {
-    training: { [key: string]: number };
-    towers: { [key: string]: TowerOuter_TowerData };
-    hasTowerPass: number;
-    pickedCardMap: { [key: string]: string[] };
-    tactical: TowerTactical;
-    strategy: TowerGameStrategy;
-    squad: PlayerSquadItem[];
-    pickedGodCard: object;
+export interface TowerSeason {
+    id: string;
+    finishTs: number;
+    missions: { [key: string]: TowerSeason_TowerSeasonMission };
+    passWithGodCard: { [key: string]: string[] };
+    towerSlotsMap: { [key: string]: TowerSeason_TowerSeasonCardSquad[] };
+    period: TowerSeason_TowerSeasonPeriod;
+    slots: object;
 }
 
 export interface TowerSeason_TowerSeasonMission {
@@ -4274,16 +4284,6 @@ export interface TowerSeason_TowerSeasonPeriod {
     periodCount: number;
     cur: number;
     len: number;
-}
-
-export interface TowerSeason {
-    id: string;
-    finishTs: number;
-    missions: { [key: string]: TowerSeason_TowerSeasonMission };
-    passWithGodCard: { [key: string]: string[] };
-    towerSlotsMap: { [key: string]: TowerSeason_TowerSeasonCardSquad[] };
-    period: TowerSeason_TowerSeasonPeriod;
-    slots: object;
 }
 
 export type PlayerHomeUnlockStatus = { unlock: number; unlockTime?: number; conditions?: { [key: string]: PlayerHomeConditionProgress } };
@@ -4389,6 +4389,11 @@ export interface PlayerMainlineRecord {
     charVoiceRecord: { [key: string]: object };
 }
 
+export interface PlayerMainlineExplore {
+    game: PlayerMainlineExplore_PlayerExploreGameContext;
+    outer: PlayerMainlineExplore_PlayerExploreOuterContext;
+}
+
 export interface PlayerMainlineExplore_PlayerExploreGameContext {
     state: PlayerMainlineExplore_PlayerExploreGameContextState;
     node: PlayerMainlineExplore_PlayerExploreGameContextNode;
@@ -4476,15 +4481,15 @@ export interface PlayerMainlineExplore_PlayerExploreOuterContextHistoryPath {
     path: PlayerMainlineExplore_PlayerExploreGameContextMapDisplay;
 }
 
-export interface PlayerMainlineExplore {
-    game: PlayerMainlineExplore_PlayerExploreGameContext;
-    outer: PlayerMainlineExplore_PlayerExploreOuterContext;
-}
-
 export interface PlayerMainlineClue {
     unlock: boolean;
     state: { [key: string]: number };
     reward: { [key: string]: number };
+}
+
+export interface PlayerLimitedDropBuff {
+    dailyUsage: { [key: string]: PlayerLimitedDropBuff_DailyUsage };
+    inventory: { [key: string]: PlayerLimitedDropBuff_LimitedBuffGroup };
 }
 
 export interface PlayerLimitedDropBuff_DailyUsage {
@@ -4495,11 +4500,6 @@ export interface PlayerLimitedDropBuff_DailyUsage {
 export interface PlayerLimitedDropBuff_LimitedBuffGroup {
     ts: number;
     count: number;
-}
-
-export interface PlayerLimitedDropBuff {
-    dailyUsage: { [key: string]: PlayerLimitedDropBuff_DailyUsage };
-    inventory: { [key: string]: PlayerLimitedDropBuff_LimitedBuffGroup };
 }
 
 export interface PlayerZoneRecordMissionData {
@@ -4516,6 +4516,30 @@ export interface PlayerMissionArchive {
     entryOpen: number;
     entryRewardClaimed: number;
     nodes: { [key: string]: number };
+}
+
+export interface PlayerSandboxV2 {
+    status: PlayerSandboxV2_Status;
+    baseInfo: PlayerSandboxV2_BaseInfo;
+    main: PlayerSandboxV2_Dungeon;
+    rift: PlayerSandboxV2_Dungeon;
+    quest: PlayerSandboxV2_QuestGroup;
+    expedition: PlayerSandboxV2_Expedition;
+    troop: PlayerSandboxV2_Troop;
+    cook: PlayerSandboxV2_Cook;
+    build: PlayerSandboxV2_Build;
+    bag: PlayerSandboxV2_Bag;
+    bank: PlayerSandboxV2_Bank;
+    shop: PlayerSandboxV2_Shop;
+    riftInfo: PlayerSandboxV2_RiftInfo;
+    supply: PlayerSandboxV2_Supply;
+    tech: PlayerSandboxV2_Tech;
+    month: PlayerSandboxV2_Month;
+    record: PlayerSandboxV2_Archive;
+    archive: PlayerSandboxV2_Collect;
+    buff: PlayerSandboxV2_Buff;
+    racing: PlayerSandboxV2_Racing;
+    challenge: PlayerSandboxV2_Challenge;
 }
 
 export interface PlayerSandboxV2_Status {
@@ -4535,6 +4559,16 @@ export interface PlayerSandboxV2_BaseInfo {
     upgradeProgress: number[][];
     repairDiscount: number;
     bossKill: string[];
+}
+
+export interface PlayerSandboxV2_Dungeon {
+    game: PlayerSandboxV2_Dungeon_Game;
+    map: PlayerSandboxV2_Dungeon_Map;
+    stage: PlayerSandboxV2_Dungeon_Stage;
+    enemy: PlayerSandboxV2_Dungeon_Enemy;
+    npc: PlayerSandboxV2_Dungeon_NpcGroup;
+    events: PlayerSandboxV2_Dungeon_EventGroup;
+    report: PlayerSandboxV2_Dungeon_Report;
 }
 
 export interface PlayerSandboxV2_Dungeon_Game {
@@ -4709,14 +4743,14 @@ export interface PlayerSandboxV2_Dungeon_Building {
     dir: number;
 }
 
-export interface PlayerSandboxV2_Dungeon_CatchAnimal_CatchAnimalInfo {
-    id: string;
-    count: number;
-}
-
 export interface PlayerSandboxV2_Dungeon_CatchAnimal {
     room: number;
     enemy: PlayerSandboxV2_Dungeon_CatchAnimal_CatchAnimalInfo[];
+}
+
+export interface PlayerSandboxV2_Dungeon_CatchAnimal_CatchAnimalInfo {
+    id: string;
+    count: number;
 }
 
 export interface PlayerSandboxV2_Dungeon_NodeStage {
@@ -4782,13 +4816,9 @@ export interface PlayerSandboxV2_Dungeon_Enemy {
     rareAnimal: { [key: string]: PlayerSandboxV2_Dungeon_RareAnimal };
 }
 
-export interface PlayerSandboxV2_Dungeon_NpcGroup_Npc_NpcMeta_GachaItemPair {
-    id: string;
-    count: number;
-}
-
-export interface PlayerSandboxV2_Dungeon_NpcGroup_Npc_NpcMeta {
-    gacha: PlayerSandboxV2_Dungeon_NpcGroup_Npc_NpcMeta_GachaItemPair[];
+export interface PlayerSandboxV2_Dungeon_NpcGroup {
+    node: { [key: string]: PlayerSandboxV2_Dungeon_NpcGroup_Npc[] };
+    favor: { [key: string]: number };
 }
 
 export interface PlayerSandboxV2_Dungeon_NpcGroup_Npc {
@@ -4801,15 +4831,24 @@ export interface PlayerSandboxV2_Dungeon_NpcGroup_Npc {
     src: PlayerSandboxV2_Dungeon_FloatSource;
 }
 
-export interface PlayerSandboxV2_Dungeon_NpcGroup {
-    node: { [key: string]: PlayerSandboxV2_Dungeon_NpcGroup_Npc[] };
-    favor: { [key: string]: number };
+export interface PlayerSandboxV2_Dungeon_NpcGroup_Npc_NpcMeta {
+    gacha: PlayerSandboxV2_Dungeon_NpcGroup_Npc_NpcMeta_GachaItemPair[];
+}
+
+export interface PlayerSandboxV2_Dungeon_NpcGroup_Npc_NpcMeta_GachaItemPair {
+    id: string;
+    count: number;
 }
 
 export interface PlayerSandboxV2_Dungeon_Effect {
     instId: number;
     id: string;
     day: number;
+}
+
+export interface PlayerSandboxV2_Dungeon_EventGroup {
+    node: { [key: string]: PlayerSandboxV2_Dungeon_EventGroup_Event[] };
+    effect: PlayerSandboxV2_Dungeon_Effect[];
 }
 
 export interface PlayerSandboxV2_Dungeon_EventGroup_Event {
@@ -4821,19 +4860,10 @@ export interface PlayerSandboxV2_Dungeon_EventGroup_Event {
     src: PlayerSandboxV2_Dungeon_FloatSource;
 }
 
-export interface PlayerSandboxV2_Dungeon_EventGroup {
-    node: { [key: string]: PlayerSandboxV2_Dungeon_EventGroup_Event[] };
-    effect: PlayerSandboxV2_Dungeon_Effect[];
-}
-
-export interface PlayerSandboxV2_Dungeon {
-    game: PlayerSandboxV2_Dungeon_Game;
-    map: PlayerSandboxV2_Dungeon_Map;
-    stage: PlayerSandboxV2_Dungeon_Stage;
-    enemy: PlayerSandboxV2_Dungeon_Enemy;
-    npc: PlayerSandboxV2_Dungeon_NpcGroup;
-    events: PlayerSandboxV2_Dungeon_EventGroup;
-    report: PlayerSandboxV2_Dungeon_Report;
+export interface PlayerSandboxV2_Troop {
+    food: { [key: number]: PlayerSandboxV2_Troop_CharFood };
+    squad: PlayerSandboxV2_Troop_Squad[];
+    usedChar: number[];
 }
 
 export interface PlayerSandboxV2_Troop_CharFood {
@@ -4847,23 +4877,17 @@ export interface PlayerSandboxV2_Troop_Squad {
     tools: string[];
 }
 
-export interface PlayerSandboxV2_Troop {
-    food: { [key: number]: PlayerSandboxV2_Troop_CharFood };
-    squad: PlayerSandboxV2_Troop_Squad[];
-    usedChar: number[];
+export interface PlayerSandboxV2_Cook {
+    drink: number;
+    extraDrink: number;
+    book: { [key: string]: number };
+    food: { [key: string]: PlayerSandboxV2_Cook_Food };
 }
 
 export interface PlayerSandboxV2_Cook_Food {
     id: string;
     sub: string[];
     count: number;
-}
-
-export interface PlayerSandboxV2_Cook {
-    drink: number;
-    extraDrink: number;
-    book: { [key: string]: number };
-    food: { [key: string]: PlayerSandboxV2_Cook_Food };
 }
 
 export interface PlayerSandboxV2_Build {
@@ -4889,21 +4913,15 @@ export interface PlayerSandboxV2_Tech {
     unlock: string[];
 }
 
-export interface PlayerSandboxV2_QuestGroup_Quest {
-    id: string;
-    completed: number;
-    progress: string[][];
-}
-
 export interface PlayerSandboxV2_QuestGroup {
     quests: PlayerSandboxV2_QuestGroup_Quest[];
     complete: string[];
 }
 
-export interface PlayerSandboxV2_Shop_ShopSlotData {
-    goodId: string;
-    count: number;
-    price: number;
+export interface PlayerSandboxV2_QuestGroup_Quest {
+    id: string;
+    completed: number;
+    progress: string[][];
 }
 
 export interface PlayerSandboxV2_Shop {
@@ -4912,8 +4930,26 @@ export interface PlayerSandboxV2_Shop {
     slots: PlayerSandboxV2_Shop_ShopSlotData[];
 }
 
+export interface PlayerSandboxV2_Shop_ShopSlotData {
+    goodId: string;
+    count: number;
+    price: number;
+}
+
 export interface PlayerSandboxV2_Month {
     rushPass: string[];
+}
+
+export interface PlayerSandboxV2_RiftInfo {
+    isUnlocked: number;
+    randomRemain: number;
+    reservedRifts: { [key: string]: number };
+    completedDifficultyLevel: { [key: string]: number };
+    teamLv: number;
+    fixFinish: string[];
+    reservation: PlayerSandboxV2_RiftInfo_Reservation;
+    gameInfo: PlayerSandboxV2_RiftInfo_GameInfo;
+    settleInfo: PlayerSandboxV2_RiftInfo_SettleInfo;
 }
 
 export interface PlayerSandboxV2_RiftInfo_RewardItem {
@@ -4935,18 +4971,18 @@ export interface PlayerSandboxV2_RiftInfo_Reservation {
     team: string;
 }
 
-export interface PlayerSandboxV2_RiftInfo_GameInfo_RiftFloat {
-    nodeId: string;
-    badge: number;
-    src: PlayerSandboxV2_Dungeon_FloatSource;
-}
-
 export interface PlayerSandboxV2_RiftInfo_GameInfo {
     status: number;
     mainProgress: number[];
     subProgress: number[];
     mainFail: number;
     pin: PlayerSandboxV2_RiftInfo_GameInfo_RiftFloat;
+}
+
+export interface PlayerSandboxV2_RiftInfo_GameInfo_RiftFloat {
+    nodeId: string;
+    badge: number;
+    src: PlayerSandboxV2_Dungeon_FloatSource;
 }
 
 export interface PlayerSandboxV2_RiftInfo_SettleReward {
@@ -4959,18 +4995,6 @@ export interface PlayerSandboxV2_RiftInfo_SettleInfo {
     portHp: number;
 }
 
-export interface PlayerSandboxV2_RiftInfo {
-    isUnlocked: number;
-    randomRemain: number;
-    reservedRifts: { [key: string]: number };
-    completedDifficultyLevel: { [key: string]: number };
-    teamLv: number;
-    fixFinish: string[];
-    reservation: PlayerSandboxV2_RiftInfo_Reservation;
-    gameInfo: PlayerSandboxV2_RiftInfo_GameInfo;
-    settleInfo: PlayerSandboxV2_RiftInfo_SettleInfo;
-}
-
 export interface PlayerSandboxV2_Supply {
     unlock: number;
     enable: number;
@@ -4978,14 +5002,14 @@ export interface PlayerSandboxV2_Supply {
     charInstList: number[];
 }
 
+export interface PlayerSandboxV2_Expedition {
+    squad: PlayerSandboxV2_Expedition_Squad[];
+}
+
 export interface PlayerSandboxV2_Expedition_Squad {
     id: string;
     day: number;
     charInstList: number[];
-}
-
-export interface PlayerSandboxV2_Expedition {
-    squad: PlayerSandboxV2_Expedition_Squad[];
 }
 
 export interface PlayerSandboxV2_Save {
@@ -5002,6 +5026,11 @@ export interface PlayerSandboxV2_Archive {
     daily: PlayerSandboxV2_Save;
 }
 
+export interface PlayerSandboxV2_Collect {
+    pending: PlayerSandboxV2_Collect_Pending;
+    complete: PlayerSandboxV2_Collect_Complete;
+}
+
 export interface PlayerSandboxV2_Collect_Pending {
     achievement: { [key: string]: number[] };
 }
@@ -5012,9 +5041,8 @@ export interface PlayerSandboxV2_Collect_Complete {
     music: string[];
 }
 
-export interface PlayerSandboxV2_Collect {
-    pending: PlayerSandboxV2_Collect_Pending;
-    complete: PlayerSandboxV2_Collect_Complete;
+export interface PlayerSandboxV2_Buff {
+    rune: PlayerSandboxV2_Buff_Runes;
 }
 
 export interface PlayerSandboxV2_Buff_Runes {
@@ -5023,8 +5051,11 @@ export interface PlayerSandboxV2_Buff_Runes {
     characters: { [key: string]: string[] };
 }
 
-export interface PlayerSandboxV2_Buff {
-    rune: PlayerSandboxV2_Buff_Runes;
+export interface PlayerSandboxV2_Racing {
+    unlock: number;
+    bag: PlayerSandboxV2_Racing_RacerBag;
+    bagTmp: PlayerSandboxV2_Racing_TempRacerBag;
+    token: number;
 }
 
 export interface PlayerSandboxV2_Racing_RacerName {
@@ -5066,11 +5097,15 @@ export interface PlayerSandboxV2_Racing_RacerBag {
     racer: { [key: string]: PlayerSandboxV2_Racing_RacerInfo };
 }
 
-export interface PlayerSandboxV2_Racing {
-    unlock: number;
-    bag: PlayerSandboxV2_Racing_RacerBag;
-    bagTmp: PlayerSandboxV2_Racing_TempRacerBag;
-    token: number;
+export interface PlayerSandboxV2_Challenge {
+    unlock: { [key: string]: number[] };
+    status: number;
+    cur: PlayerSandboxV2_Challenge_Current;
+    best: PlayerSandboxV2_Challenge_History;
+    last: PlayerSandboxV2_Challenge_History;
+    reward: { [key: string]: number };
+    challengeModeActivated: number;
+    hasEnteredOnce: number;
 }
 
 export interface PlayerSandboxV2_Challenge_Current {
@@ -5085,41 +5120,6 @@ export interface PlayerSandboxV2_Challenge_History {
     startLoadTimes: number;
     ts: number;
     day: number;
-}
-
-export interface PlayerSandboxV2_Challenge {
-    unlock: { [key: string]: number[] };
-    status: number;
-    cur: PlayerSandboxV2_Challenge_Current;
-    best: PlayerSandboxV2_Challenge_History;
-    last: PlayerSandboxV2_Challenge_History;
-    reward: { [key: string]: number };
-    challengeModeActivated: number;
-    hasEnteredOnce: number;
-}
-
-export interface PlayerSandboxV2 {
-    status: PlayerSandboxV2_Status;
-    baseInfo: PlayerSandboxV2_BaseInfo;
-    main: PlayerSandboxV2_Dungeon;
-    rift: PlayerSandboxV2_Dungeon;
-    quest: PlayerSandboxV2_QuestGroup;
-    expedition: PlayerSandboxV2_Expedition;
-    troop: PlayerSandboxV2_Troop;
-    cook: PlayerSandboxV2_Cook;
-    build: PlayerSandboxV2_Build;
-    bag: PlayerSandboxV2_Bag;
-    bank: PlayerSandboxV2_Bank;
-    shop: PlayerSandboxV2_Shop;
-    riftInfo: PlayerSandboxV2_RiftInfo;
-    supply: PlayerSandboxV2_Supply;
-    tech: PlayerSandboxV2_Tech;
-    month: PlayerSandboxV2_Month;
-    record: PlayerSandboxV2_Archive;
-    archive: PlayerSandboxV2_Collect;
-    buff: PlayerSandboxV2_Buff;
-    racing: PlayerSandboxV2_Racing;
-    challenge: PlayerSandboxV2_Challenge;
 }
 
 export interface PlayerSandboxV3 {
@@ -5145,17 +5145,22 @@ export interface PlayerSandboxV3Map {
     unlockNodes: { [key: string]: PlayerSandboxV3Node };
 }
 
+export interface PlayerSandboxV3Zone {
+    defend: PlayerSandboxV3Zone_Defend;
+}
+
 export interface PlayerSandboxV3Zone_Defend {
     main: number;
     sub: number[];
 }
 
-export interface PlayerSandboxV3Zone {
-    defend: PlayerSandboxV3Zone_Defend;
-}
-
 export interface PlayerSandboxV3Node {
     state: number;
+}
+
+export interface PlayerSandboxV3Npc {
+    normal: { [key: string]: PlayerSandboxV3Npc_Normal[] };
+    basement: PlayerSandboxV3Npc_Base;
 }
 
 export interface PlayerSandboxV3Npc_Normal {
@@ -5166,31 +5171,26 @@ export interface PlayerSandboxV3Npc_Normal {
     dialog: number[];
 }
 
+export interface PlayerSandboxV3Npc_Base {
+    trap: PlayerSandboxV3Npc_Base_Trap[];
+    enemy: string[];
+}
+
 export interface PlayerSandboxV3Npc_Base_Trap {
     instId: number;
     id: string;
     enable: number;
 }
 
-export interface PlayerSandboxV3Npc_Base {
-    trap: PlayerSandboxV3Npc_Base_Trap[];
-    enemy: string[];
-}
-
-export interface PlayerSandboxV3Npc {
-    normal: { [key: string]: PlayerSandboxV3Npc_Normal[] };
-    basement: PlayerSandboxV3Npc_Base;
+export interface PlayerSandboxV3QuestGroup {
+    quests: PlayerSandboxV3QuestGroup_Quest[];
+    complete: string[];
 }
 
 export interface PlayerSandboxV3QuestGroup_Quest {
     id: string;
     state: number;
     progress: number[][];
-}
-
-export interface PlayerSandboxV3QuestGroup {
-    quests: PlayerSandboxV3QuestGroup_Quest[];
-    complete: string[];
 }
 
 export interface PlayerSandboxV3Basement {
@@ -5269,6 +5269,15 @@ export interface PlayerSandboxV3CurrentBand {
     level: number;
 }
 
+export interface PlayerSandboxV3CurrentShop {
+    shopId: string;
+    slots: PlayerSandboxV3CurrentShop_Slot[];
+    recruit: PlayerSandboxV3CurrentShop_Recruit;
+    refreshPrice: number;
+    sellPrice: { [key: string]: number };
+    showBattleShop: number;
+}
+
 export interface PlayerSandboxV3CurrentShop_Slot {
     goodId: string;
     sortId: number;
@@ -5280,15 +5289,6 @@ export interface PlayerSandboxV3CurrentShop_Slot {
 export interface PlayerSandboxV3CurrentShop_Recruit {
     show: number;
     price: number;
-}
-
-export interface PlayerSandboxV3CurrentShop {
-    shopId: string;
-    slots: PlayerSandboxV3CurrentShop_Slot[];
-    recruit: PlayerSandboxV3CurrentShop_Recruit;
-    refreshPrice: number;
-    sellPrice: { [key: string]: number };
-    showBattleShop: number;
 }
 
 export interface PlayerSandboxV3CurrentDayPassSettlement {
@@ -5307,15 +5307,15 @@ export interface PlayerSandboxV3CurrentBag {
     trap: { [key: string]: number };
 }
 
-export interface PlayerSandboxV3CurrentEvent_RewardItem {
-    id: string;
-    count: number;
-}
-
 export interface PlayerSandboxV3CurrentEvent {
     id: string;
     scene: string;
     choiceReward: { [key: string]: PlayerSandboxV3CurrentEvent_RewardItem[] };
+}
+
+export interface PlayerSandboxV3CurrentEvent_RewardItem {
+    id: string;
+    count: number;
 }
 
 export interface PlayerSandboxV3CurrentChar {
@@ -5561,6 +5561,11 @@ export interface PlayerSandboxV3CurrentGame {
     save: PlayerSandboxV3CurrentSave;
 }
 
+export interface PlayerSandboxV3Collect {
+    pending: PlayerSandboxV3Collect_Pending;
+    complete: PlayerSandboxV3Collect_Complete;
+}
+
 export interface PlayerSandboxV3Collect_Pending {
     achievement: { [key: string]: number[] };
 }
@@ -5569,11 +5574,6 @@ export interface PlayerSandboxV3Collect_Complete {
     achievement: string[];
     quest: string[];
     music: string[];
-}
-
-export interface PlayerSandboxV3Collect {
-    pending: PlayerSandboxV3Collect_Pending;
-    complete: PlayerSandboxV3Collect_Complete;
 }
 
 export interface PlayerSandboxV2Summary {
@@ -5585,6 +5585,15 @@ export interface PlayerSandboxV2Summary {
 export interface PlayerSandboxV3Summary {
     baseLv: number;
     inCurrent: number;
+}
+
+export interface PlayerSandboxPerm {
+    topic: string;
+    template: PlayerSandboxPerm_PlayerSandboxTemplateData;
+    isClose: boolean;
+    loadTs: number;
+    pin: string;
+    summary: PlayerSandboxPerm_PlayerSandboxSummaryData;
 }
 
 export interface PlayerSandboxPerm_PlayerSandboxTemplateData {
@@ -5601,37 +5610,28 @@ export interface PlayerSandboxPerm_PlayerSandboxSummaryData {
     SANDBOX_V3: object;
 }
 
-export interface PlayerSandboxPerm {
-    topic: string;
-    template: PlayerSandboxPerm_PlayerSandboxTemplateData;
-    isClose: boolean;
-    loadTs: number;
-    pin: string;
-    summary: PlayerSandboxPerm_PlayerSandboxSummaryData;
+export interface PlayerCrossAppShare {
+    shareMissions: { [key: string]: PlayerCrossAppShare_ShareMissionData };
 }
 
 export interface PlayerCrossAppShare_ShareMissionData {
     counter: number;
 }
 
-export interface PlayerCrossAppShare {
-    shareMissions: { [key: string]: PlayerCrossAppShare_ShareMissionData };
-}
-
 export interface PlayerEmoticon {
     unlockTheme: string[];
-}
-
-export interface PlayerNameCardSkin_SkinState {
-    unlock: boolean;
-    progress: number[][] | null;
-    unlockTs?: number;
 }
 
 export interface PlayerNameCardSkin {
     selected: string;
     state: { [key: string]: PlayerNameCardSkin_SkinState };
     tmpl?: { [key: string]: number };
+}
+
+export interface PlayerNameCardSkin_SkinState {
+    unlock: boolean;
+    progress: number[][] | null;
+    unlockTs?: number;
 }
 
 export interface PlayerNameCardMisc {
@@ -5697,16 +5697,16 @@ export interface PlayerArkOdc {
     topics: { [key: string]: PlayerArkOdcTopic };
 }
 
-export interface PlayerArkOdcTopic_Position {
-    x: number;
-    y: number;
-    z: number;
-}
-
 export interface PlayerArkOdcTopic {
     varSeqs: { [key: string]: number };
     rewards: { [key: string]: number };
     position: PlayerArkOdcTopic_Position;
+}
+
+export interface PlayerArkOdcTopic_Position {
+    x: number;
+    y: number;
+    z: number;
 }
 
 export interface PlayerDataModel {
@@ -5782,13 +5782,13 @@ export interface FireworkData_PlateSlotData {
     idx: number;
 }
 
+export type Blackboard = Blackboard_DataPair[];
+
 export interface Blackboard_DataPair {
     key: string;
     value: number;
     valueStr: string;
 }
-
-export type Blackboard = Blackboard_DataPair[];
 
 export interface CharacterData_UniqueEquipPair {
     key: string;
@@ -5822,6 +5822,21 @@ export interface ArtMagazineLeafElementData {
     scale: number;
 }
 
+export interface SharedCharData {
+    charId: string;
+    potentialRank: number;
+    mainSkillLvl: number;
+    evolvePhase: number;
+    level: number;
+    favorPoint: number;
+    crisisRecord: { [key: string]: number };
+    crisisV2Record: { [key: string]: number };
+    currentTmpl: string;
+    tmpl: { [key: string]: SharedCharData_TmplData };
+    overrideSkillIndex: number;
+    overrideEquipId: string;
+}
+
 export interface SharedCharData_SharedCharSkillData {
     skillId: string;
     specializeLevel: number;
@@ -5840,21 +5855,6 @@ export interface SharedCharData_TmplData {
 export interface SharedCharData_CharEquipInfo {
     locked: number;
     level: number;
-}
-
-export interface SharedCharData {
-    charId: string;
-    potentialRank: number;
-    mainSkillLvl: number;
-    evolvePhase: number;
-    level: number;
-    favorPoint: number;
-    crisisRecord: { [key: string]: number };
-    crisisV2Record: { [key: string]: number };
-    currentTmpl: string;
-    tmpl: { [key: string]: SharedCharData_TmplData };
-    overrideSkillIndex: number;
-    overrideEquipId: string;
 }
 
 export interface ItemBundle {

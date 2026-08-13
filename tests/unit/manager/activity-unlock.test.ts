@@ -13,6 +13,14 @@ vi.mock("@excel/excel", () => {
             id: "act6bossrush", type: "BOSS_RUSH", name: "引航者试炼", displayType: "BOSS_RUSH",
             startTime: 1766692800, endTime: 1767902399, rewardEndTime: 1768161599,
           },
+          act1arkhub: {
+            id: "act1arkhub", type: "ARK_HUB", name: "奇象巡展", displayType: "ARK_HUB",
+            startTime: 1786176000, endTime: 1788465599, rewardEndTime: 1788724799,
+          },
+          act53side: {
+            id: "act53side", type: "TYPE_ACT53SIDE", name: "直到大地变成一颗酸橙",
+            startTime: 1785538800, endTime: 1787342399, rewardEndTime: 1787947199,
+          },
           // 已过期（rewardEndTime 早于测试冻结 ts）
           act_expired: {
             id: "act_expired", type: "TYPE_ACT", name: "过期活动",
@@ -33,6 +41,12 @@ vi.mock("@excel/excel", () => {
             act6bossrush: { relicList: [{ relicId: "act6bossrush_relic_01", sortId: 1 }] },
           },
           tYPE_ACT5D0: {},
+          aRK_HUB: {},
+          tYPE_ACT53SIDE: {
+            act53side: {
+              constData: { arkOdcTopicId: "ark_odc_act53side" },
+            },
+          },
         },
       },
       StageTable: {
@@ -156,5 +170,69 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
     };
     await unlockActivity(mockPlayer as any);
     expect(mockPlayer._playerdata.dungeon!.stages!.main_00_02).toBeDefined();
+  });
+
+  it("冻结到 ARK_HUB 窗口：播种奇象巡展方舟枢纽默认状态", async () => {
+    config.developer = { timestamp: 1786176000 };
+    await unlockActivity(mockPlayer as any);
+
+    const hub = mockPlayer._playerdata.activity?.ARK_HUB?.act1arkhub as any;
+    expect(hub).toBeDefined();
+    expect(hub.coin).toBe(0);
+    expect(hub.secretary).toBe("");
+    expect(hub.secretarySkinId).toBe("");
+    expect(hub.protectTs).toBe(-1);
+    expect(hub.globalBan).toBe(false);
+    // 4 个空队伍槽（客户端展示可用编队位）
+    expect(hub.squads).toHaveLength(4);
+    expect(hub.squads[0]).toEqual({ slots: [] });
+  });
+
+  it("冻结到 TYPE_ACT53SIDE 窗口：播种官方形状（actCoin/campaignCnt/favorList）", async () => {
+    config.developer = { timestamp: 1785538800 };
+    await unlockActivity(mockPlayer as any);
+
+    const act53 = mockPlayer._playerdata.activity?.TYPE_ACT53SIDE?.act53side as any;
+    expect(act53).toBeDefined();
+    // 官方形状：actCoin/campaignCnt/favorList（非通用 TYPE_ACT 的 coin/news）
+    expect(act53.actCoin).toBe(0);
+    expect(act53.campaignCnt).toBe(0);
+    expect(Array.isArray(act53.favorList)).toBe(true);
+    expect(act53.coin).toBeUndefined();
+  });
+
+  it("冻结到奇象巡展窗口：播种 arkodc 主题（ODC 地图状态）", async () => {
+    config.developer = { timestamp: 1785538800 };
+    await unlockActivity(mockPlayer as any);
+
+    const topic = mockPlayer._playerdata.arkodc?.topics?.["ark_odc_act53side"] as any;
+    expect(topic).toBeDefined();
+    expect(topic.varSeqs).toEqual({});
+    expect(topic.rewards).toEqual({});
+    expect(topic.position).toEqual({ x: 0, y: 0, z: 0 });
+  });
+
+  it("已播种的 ARK_HUB/arkodc 不覆盖（setdefault 语义）", async () => {
+    config.developer = { timestamp: 1786176000 };
+    mockPlayer._playerdata.activity!.ARK_HUB = {
+      act1arkhub: { coin: 25, secretary: "char_1012_skadi2", squads: [] } as any,
+    };
+    mockPlayer._playerdata.arkodc = {
+      topics: {
+        ark_odc_act53side: {
+          varSeqs: { q001_end: 1 },
+          rewards: { q001: 1 },
+          position: { x: 1, y: 2, z: 3 },
+        },
+      },
+    };
+    await unlockActivity(mockPlayer as any);
+
+    const hub = mockPlayer._playerdata.activity!.ARK_HUB!.act1arkhub as any;
+    expect(hub.coin).toBe(25);
+    expect(hub.secretary).toBe("char_1012_skadi2");
+    const topic = mockPlayer._playerdata.arkodc!.topics!["ark_odc_act53side"] as any;
+    expect(topic.varSeqs).toEqual({ q001_end: 1 });
+    expect(topic.position).toEqual({ x: 1, y: 2, z: 3 });
   });
 });

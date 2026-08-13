@@ -213,10 +213,17 @@ process.on("exit", (code) => {
     );
     logger.info("index", "抓包官服转发模式已开启：as/gs 流量将转发到官服并记录 tmp/");
   } else {
-    // 私服模式：启动 arkhub 本地网关应答器（登录 code=100 + 心跳 + 最小空广场），
+    // 私服模式：启动 arkhub 本地网关应答器（登录 code=100 + 心跳 + 合法 EnterSceneNotify），
     // enterHall 指向本服端口——客户端可进入空广场（不再连不可达的官服网关域名）
     const { startArkhubLocalGateway } = await import("./app/proxy/arkhub-gateway-local");
-    await startArkhubLocalGateway({ port: config.capture?.gatewayPort ?? 30000 });
+    await startArkhubLocalGateway({
+      port: config.capture?.gatewayPort ?? 30000,
+      // 场景 self 条目用玩家真实昵称（存档已加载则直读，否则回退 博士{uid}）
+      resolveNickname: (uid: string) => {
+        const player = accountManager.data[uid];
+        return player?._playerdata?.status?.nickName ?? `博士${uid || "1"}`;
+      },
+    });
   }
   // auth 挂根路径：as 域接口（/user/*、/u8/*、/app/* 等）直接命中（用户最终决定，勿改回 /auth）
   app.use("/", auth);

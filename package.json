@@ -44,6 +44,7 @@
     "generate:playerdata": "tsx scripts/generate-types.ts --playerdata",
     "generate:excel": "tsx scripts/generate-types.ts --excel",
     "migrate:official": "tsx scripts/migrate-official.ts",
+    "decompile": "bash scripts/decompile-client.sh",
     "pack:mod": "tsx scripts/pack-mod.ts",
     "postinstall": "node scripts/patch-immer.mjs",
     "watch": "node scripts/watchdog.mjs"

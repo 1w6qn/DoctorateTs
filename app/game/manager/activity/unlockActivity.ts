@@ -5,7 +5,8 @@
  * 按（可能冻结的）时间戳 ts：
  * - 修剪：`playerdata.activity[type][id]` 中 ts > rewardEndTime 的过期活动删除
  * - 播种：basicInfo 中 startTime <= ts <= rewardEndTime 的活动——
- *   BOSS_RUSH / TYPE_ACT* 默认状态、活动任务（ACTIVITY 任务组，可领取态）
+ *   BOSS_RUSH / TYPE_ACT* 默认状态、活动任务（ACTIVITY 任务组，可领取态）、
+ *   ARK_HUB（奇象巡展方舟枢纽）活动状态、arkodc 主题（ODC 地图 varSeqs/rewards/position）
  * - 关卡：unlockCondition 链扫描解锁可达关卡（仿 battle.finishStoryStage）
  *
  * 真实时间模式（timestamp 缺省/-1）不做任何改动，保持现有行为。
@@ -75,6 +76,56 @@ function unlockStages(draft: any): void {
     }
     if (pass && !dungeonStages[stageId]) {
       dungeonStages[stageId] = defaultStageState(stageId);
+    }
+  }
+}
+
+/** ARK_HUB 活动默认状态（奇象巡展方舟枢纽；参考官服 syncData 快照形状） */
+function defaultArkhubState(): object {
+  // 空队伍槽 ×4（客户端展示 4 个可用编队位，参考官服快照 squads 数组形状）
+  return {
+    coin: 0,
+    secretary: "",
+    secretarySkinId: "",
+    secretarySkinSp: false,
+    protectTs: -1,
+    squads: [
+      { slots: [] },
+      { slots: [] },
+      { slots: [] },
+      { slots: [] },
+    ],
+    globalBan: false,
+  };
+}
+
+/** TYPE_ACT53SIDE（奇象巡展主活动）默认状态（官方形状：actCoin/campaignCnt/favorList） */
+function defaultAct53SideState(startTime: number): object {
+  return {
+    actCoin: 0,
+    campaignCnt: 0,
+    favorList: favorListFor(startTime),
+  };
+}
+
+/**
+ * 播种 arkodc 主题（ODC 地图状态：topics[topicId].varSeqs/rewards/position）
+ * topicId 取自 activity.tYPE_ACT53SIDE[actId].constData.arkOdcTopicId
+ */
+function seedArkOdcTopics(draft: any): void {
+  const detail = excel.ActivityTable.activity?.tYPE_ACT53SIDE;
+  if (!detail) return;
+  for (const [actId, data] of Object.entries(detail) as [string, any][]) {
+    const topicId = data?.constData?.arkOdcTopicId;
+    if (!topicId) continue;
+    if (!draft.arkodc) draft.arkodc = {};
+    if (!draft.arkodc.topics) draft.arkodc.topics = {};
+    if (!draft.arkodc.topics[topicId]) {
+      draft.arkodc.topics[topicId] = {
+        varSeqs: {},
+        rewards: {},
+        position: { x: 0, y: 0, z: 0 },
+      };
     }
   }
 }
@@ -149,6 +200,12 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
           },
           bestWaveDic: {},
         };
+      } else if (type === "ARK_HUB" && !existing) {
+        // 奇象巡展方舟枢纽（官方形状：coin/secretary/squads/globalBan）
+        draft.activity[type][actId] = defaultArkhubState();
+      } else if (type === "TYPE_ACT53SIDE" && !existing) {
+        // 奇象巡展主活动（官方形状：actCoin/campaignCnt/favorList，与通用 TYPE_ACT 的 coin/news 不同）
+        draft.activity[type][actId] = defaultAct53SideState(info.startTime);
       } else if (type.startsWith("TYPE_ACT") && !existing) {
         draft.activity[type][actId] = {
           coin: 0,
@@ -171,6 +228,9 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
         }
       }
     }
+
+    // 奇象巡展 ODC 主题（playerdata.arkodc.topics[topicId]）——客户端据此渲染 ODC 地图状态
+    seedArkOdcTopics(draft);
 
     unlockStages(draft);
   });

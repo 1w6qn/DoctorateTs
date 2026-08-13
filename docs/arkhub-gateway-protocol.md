@@ -58,6 +58,22 @@
   = 移动中的玩家）。`decodeVector3` 自动识别解码。
 - 形态极多（up 151 / down 410 种）——位置与探针数据多变
 
+## 4.1 场景 hello 响应 = EnterSceneNotify（2026-08-13 修正，解决「前往广场网络状态异常」）
+
+**场景 hello（up subID `0x00018fb64de29cdb`）实为 EnterSceneReq**，服务端响应（down subID
+`0x0002c89b38b37d3d`）是 **EnterSceneNotify**（客户端 `_HandleEnterSceneNotify` → `selfUnitInfo.Fill`），
+顶层 3 个 length-delimited 字段：
+
+| 字段 | 类型 | 内容 |
+|---|---|---|
+| 1 | HallInfo | `{1:unique_id, 2:map_id, 3:scene_type, 5:attributes, 6:sync_interval}`——广场 map_id=**-1520665757**（activity.ARK_HUB.sceneTypeMap → TOWN）、scene_type=200、sync_interval=200 |
+| 2 | PlayerSyncData | `{1: PlayerBrief{1:uid,2:nickname,3:nicknumber}, 4: attrDoc{1:attributes[]}}`——**必须是自己的玩家条目**，缺失 → `selfUnitInfo.Fill` NPE → 30s 超时 → 客户端弹「网络状态异常」（ARKHUB_REQ_FAILED_CONTENT） |
+| 3 | PlayerHallBrief | `{1: unique_id(ulong), 2: pos(Vector3)}` |
+
+> 2026-08-13 修复（`app/proxy/arkhub-gateway-local.ts`）：原应答器场景帧 field2 为空、field3 形状错
+> （`{1:ts,2:""}`）、登录 uid 未追踪（恒传 `""`）→ 客户端无法识别自己 → 广场进不去。现改为
+> 按登录帧 field1 追踪 uid，构建合法 EnterSceneNotify；`index.ts` 传 `resolveNickname` 用玩家真实昵称。
+
 ## 5. down 登录后记录流（2026-08-11 完全破解）
 
 登录后 down 流**并非换帧格式**——是标准帧链中**间插了少量无长度前缀的 raw wrapper**：

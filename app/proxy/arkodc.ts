@@ -32,6 +32,31 @@ export const MSG_NAMES: Record<number, string> = {
   8: "NetProbeData",
 };
 
+/**
+ * 已确认的 protobuf schema（字段号 → 字段名，按声明顺序；由抓包实测值反推验证）：
+ *   msgId 4 up   = UserLoginReq   —— field1=uid、2=secret、3=loginChannel、4=deviceId、5=gameContext（实测 ✓）
+ *   msgId 4 down = UserLoginResp  —— field1=code、2=heartbeatInterval、3=reconnectToken、4=ip、5=port（实测 ✓）
+ * 其余网关消息的类名/字段名已从 .cs 提取，但 msgId 注册表在编译体内无法提取，待逐帧观测补充。
+ */
+export const MSG_SCHEMAS: Record<number, { name: string; up?: string[]; down?: string[] }> = {
+  4: {
+    name: "Login",
+    up: ["uid", "secret", "loginChannel", "deviceId", "gameContext"],
+    down: ["code", "heartbeatInterval", "reconnectToken", "ip", "port"],
+  },
+};
+
+/**
+ * 定长非 protobuf payload 的解释（msgId 1/2 等，按 4B 大端 uint32 分段）
+ */
+export function decodeFixedPayload(payload: Buffer): unknown[] {
+  const words: unknown[] = [];
+  for (let off = 0; off + 4 <= payload.length; off += 4) {
+    words.push(payload.readUInt32BE(off));
+  }
+  return words;
+}
+
 /** protobuf wire type 名称 */
 export const WIRE_NAMES: Record<number, string> = {
   0: "varint",
@@ -177,6 +202,35 @@ function toUtf8(buf: Buffer): string | undefined {
   }
 }
 
+/**
+ * 按字段名 schema 解码 protobuf 字段（字段号 i+1 → fieldNames[i]）
+ *
+ * 已知 schema（MSG_SCHEMAS）时把字段树转成 { 字段名: 值 } 的对象，值类型：
+ * varint/fixed32/fixed64 → number|string、length-delimited → 文本/hex/嵌套对象。
+ * 仅当字段号 ≤ fieldNames 长度且 wire 匹配时命名；否则保留通用结构。
+ */
+export function decodeWithSchema(fields: PbField[], fieldNames: string[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const f of fields) {
+    const name = f.field >= 1 && f.field <= fieldNames.length ? fieldNames[f.field - 1] : `field${f.field}`;
+    let value: unknown;
+    if (f.varint !== undefined) value = f.varint.toString();
+    else if (f.fixed64 !== undefined) value = f.fixed64.toString();
+    else if (f.fixed32 !== undefined) value = f.fixed32;
+    else if (f.str !== undefined) value = f.str;
+    else if (f.nested) value = decodeWithSchema(f.nested, []);
+    else if (f.bytes !== undefined) value = `0x${f.bytes}`;
+    else value = undefined;
+    // 重复字段 → 数组
+    if (name in out) {
+      out[name] = Array.isArray(out[name]) ? [...(out[name] as unknown[]), value] : [out[name], value];
+    } else {
+      out[name] = value;
+    }
+  }
+  return out;
+}
+
 /** 单帧解析结果 */
 export interface GatewayFrame {
   /** 帧总长（含帧头） */
@@ -193,6 +247,10 @@ export interface GatewayFrame {
   headerHex: string;
   /** protobuf 解码后的字段（空表示非 protobuf payload） */
   fields: PbField[];
+  /** 按 schema 命名的 payload（MSG_SCHEMAS 命中时） */
+  named?: Record<string, unknown>;
+  /** 定长二进制 payload 的解释（非 protobuf，如 msgId 1/2 按 4B uint32） */
+  fixed?: unknown[];
   /** 原始 payload（hex） */
   payloadHex: string;
 }
@@ -209,9 +267,10 @@ export interface GatewayStreamResult {
  * 按长度前缀切帧
  *
  * @param buffer - 完整字节流
- * @returns 帧数组 + 余量（断帧即停止解析，余量如实保留）
+ * @param direction - "up"/"down"（MSG_SCHEMAS 分方向命名用，缺省不命名）
+ * @returns 帧数组（断帧即停止解析，余量由 parseGatewayStream 保留）
  */
-export function splitGatewayFrames(buffer: Buffer): GatewayFrame[] {
+export function splitGatewayFrames(buffer: Buffer, direction?: "up" | "down"): GatewayFrame[] {
   const frames: GatewayFrame[] = [];
   let off = 0;
   while (off + 4 <= buffer.length) {
@@ -221,16 +280,26 @@ export function splitGatewayFrames(buffer: Buffer): GatewayFrame[] {
     const seq = buffer.readUInt32BE(off + 8);
     const flag = buffer.readUInt32BE(off + 12);
     const payload = buffer.subarray(off + GATEWAY_HEADER_SIZE, off + len);
-    frames.push({
+    const fields = decodeProtobuf(payload);
+    const frame: GatewayFrame = {
       len,
       msgId,
       name: MSG_NAMES[msgId] ?? `Msg${msgId}`,
       seq,
       flag,
       headerHex: buffer.subarray(off + 8, off + 16).toString("hex"),
-      fields: decodeProtobuf(payload),
+      fields,
       payloadHex: payload.toString("hex"),
-    });
+    };
+    // schema 命名（登录双向已确认）；定长二进制按 4B uint32 解释
+    const schema = MSG_SCHEMAS[msgId];
+    if (schema && direction && (direction === "up" ? schema.up : schema.down)) {
+      const names = direction === "up" ? schema.up! : schema.down!;
+      frame.named = decodeWithSchema(fields, names);
+    } else if (fields.length === 0 && payload.length > 0 && payload.length % 4 === 0) {
+      frame.fixed = decodeFixedPayload(payload);
+    }
+    frames.push(frame);
     off += len;
   }
   return frames;
@@ -244,7 +313,7 @@ export function splitGatewayFrames(buffer: Buffer): GatewayFrame[] {
  * @returns 解析结果
  */
 export function parseGatewayStream(buffer: Buffer, label: string): GatewayStreamResult {
-  const frames = splitGatewayFrames(buffer);
+  const frames = splitGatewayFrames(buffer, label === "up" ? "up" : "down");
   const consumed = frames.reduce((sum, f) => sum + f.len, 0);
   const remainder = buffer.subarray(consumed);
   if (remainder.length > 0) {
@@ -279,6 +348,8 @@ export function framesToJson(frames: GatewayFrame[]): unknown[] {
     seq: f.seq,
     flag: f.flag,
     headerHex: f.headerHex,
+    named: f.named,
+    fixed: f.fixed,
     payload: f.fields.length ? fieldsToJson(f.fields) : undefined,
   }));
 }

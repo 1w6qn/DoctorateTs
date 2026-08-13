@@ -4,7 +4,10 @@ import {
   splitGatewayFrames,
   parseGatewayStream,
   framesToJson,
+  decodeWithSchema,
+  decodeFixedPayload,
   MSG_NAMES,
+  MSG_SCHEMAS,
   GATEWAY_HEADER_SIZE,
 } from "../../../app/proxy/arkodc";
 
@@ -86,5 +89,44 @@ describe("splitGatewayFrames / parseGatewayStream（帧切分）", () => {
     expect(MSG_NAMES[1]).toBeDefined();
     expect(MSG_NAMES[4]).toBe("Login");
     expect(MSG_NAMES[8]).toBe("NetProbeData");
+  });
+});
+
+describe("命名解码（MSG_SCHEMAS → 正常游戏 JSON）", () => {
+  it("decodeWithSchema 按字段名映射（字段号 i+1 → fieldNames[i]）", () => {
+    const fields = decodeProtobuf(
+      Buffer.concat([Buffer.from([0x0a, 0x03]), Buffer.from("abc"), Buffer.from([0x10, 0x2a])]),
+    );
+    const named = decodeWithSchema(fields, ["name", "count"]);
+    expect(named).toEqual({ name: "abc", count: "42" });
+  });
+
+  it("splitGatewayFrames 带方向时 Login 帧命名解码（模拟真实 UserLoginReq）", () => {
+    const payload = Buffer.concat([
+      Buffer.from([0x0a, 0x09]), Buffer.from("100566259"), // field1 uid
+      Buffer.from([0x12, 0x04]), Buffer.from("tok!"),      // field2 secret
+      Buffer.from([0x18, 0x01]),                           // field3 loginChannel
+    ]);
+    const [f] = splitGatewayFrames(frame(4, payload), "up");
+    expect(f.name).toBe("Login");
+    expect(f.named).toMatchObject({ uid: "100566259", secret: "tok!", loginChannel: "1" });
+  });
+
+  it("未知 schema 的帧不产生 named 字段", () => {
+    const [f] = splitGatewayFrames(frame(8, Buffer.from([0x08, 0x00])), "up");
+    expect(f.named).toBeUndefined();
+  });
+
+  it("定长二进制 payload 按 4B uint32 解释", () => {
+    const payload = Buffer.alloc(8);
+    payload.writeUInt32BE(0, 0);
+    payload.writeUInt32BE(1590574, 4);
+    const [f] = splitGatewayFrames(frame(1, payload), "up");
+    expect(f.fixed).toEqual([0, 1590574]);
+  });
+
+  it("MSG_SCHEMAS 登录双向字段名齐全", () => {
+    expect(MSG_SCHEMAS[4].up).toEqual(["uid", "secret", "loginChannel", "deviceId", "gameContext"]);
+    expect(MSG_SCHEMAS[4].down).toEqual(["code", "heartbeatInterval", "reconnectToken", "ip", "port"]);
   });
 });

@@ -118,6 +118,15 @@ router.post("/confirmOrder", async (req, res) => {
   let items: ItemBundle[] = [];
   if (order.goodId.startsWith("CS_")) {
     items = await player.shop.buyCashGood({ goodId: order.goodId });
+  } else if (order.goodId.startsWith("GP_")) {
+    // 修复：GP_ 礼包（月卡/通行证等 362 款）无发放实现——原实现返回成功但不发任何
+    // 东西（客户端标记已购、玩家白花钱）；按参考实现返回失败，避免误标已购
+    return res.send({
+      result: 1,
+      goodId: order.goodId,
+      receiveItems: { items: [], checkInItems: [] },
+      ...player.delta,
+    } satisfies PayConfirmOrderResponse);
   }
   delete orderDataList[body.orderId];
   res.send({

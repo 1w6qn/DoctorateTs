@@ -64,6 +64,8 @@ export class StoryreviewManager {
       const { groupId } = args;
       const group = draft.storyreview.groups[groupId];
       if (!group) return []; // 防御：未知 group 跳过
+      // 修复：已领取过（rts 已设）不再发放——原实现只写 rts 从不读 → 无限刷
+      if (group.rts) return [];
       group.rts = now();
       const items = excel.StoryReviewTable[groupId]?.rewards ?? [];
       if (items.length > 0) {

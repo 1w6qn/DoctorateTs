@@ -132,19 +132,36 @@ router.post("/getSpCharMissionReward", async (req, res) => {
 router.post("/evolveCharUseItem", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as EvolveCharUseItemRequest;
-  await player.char.evolveCharUseItem(body);
+  // 修复：CS 字段为 charInsId/itemInsId——客户端按 CS 发，服务端读 charInstId/instId
+  //（原实现读不到 → undefined 干员 → 500）
+  await player.char.evolveCharUseItem({
+    charInstId: (body as any).charInstId ?? (body as any).charInsId,
+    itemId: body.itemId,
+    instId: (body as any).instId ?? (body as any).itemInsId,
+  });
   res.send(player.delta satisfies EvolveCharUseItemResponse);
 });
 router.post("/upgradeCharLevelMaxUseItem", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UpgradeCharLevelMaxUseItemRequest;
-  await player.char.upgradeCharLevelMaxUseItem(body);
+  // 修复：同上 CS 字段名归一化
+  await player.char.upgradeCharLevelMaxUseItem({
+    charInstId: (body as any).charInstId ?? (body as any).charInsId,
+    itemId: body.itemId,
+    instId: (body as any).instId ?? (body as any).itemInsId,
+  });
   res.send(player.delta satisfies UpgradeCharLevelMaxUseItemResponse);
 });
 router.post("/upgradeSpecializedSkillUseItem", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UpgradeSpecializedSkillUseItemRequest;
-  await player.char.upgradeSpecializedSkillUseItem(body);
+  // 修复：同上 CS 字段名归一化
+  await player.char.upgradeSpecializedSkillUseItem({
+    charInstId: (body as any).charInstId ?? (body as any).charInsId,
+    skillIndex: body.skillIndex,
+    itemId: body.itemId,
+    instId: (body as any).instId ?? (body as any).itemInsId,
+  });
   res.send(player.delta satisfies UpgradeSpecializedSkillUseItemResponse);
 });
 
@@ -209,7 +226,10 @@ router.post("/changeSkinSpState", async (req, res) => {
   const { skinId, isSpecial } = req.body as ChangeCharSkinSpStateRequest;
   // 参考 OBS bp_charBuild.changeSkinSpState：skin.skinSp[skinId] = isSpecial
   await player.update(async (draft) => {
-    (draft as any).skin.skinSp[skinId] = isSpecial;
+    const skin = draft.skin as any;
+    // 修复：skin.skinSp 从未初始化（新存档/模板均无此字段）→ 原实现直接写 undefined 500
+    if (!skin.skinSp) skin.skinSp = {};
+    skin.skinSp[skinId] = isSpecial;
   });
   res.send(player.delta satisfies ChangeCharSkinSpStateResponse);
 });

@@ -174,17 +174,19 @@ router.post("/exchangeDiamondShard", async (req, res) => {
   }
 });
 
-/** 使用单个物品（CS: UseItemRequest） */
+/** 使用单个物品（CS: UseItemRequest；字段名为 cnt，兼容 count） */
 router.post("/useItem", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UseItemRequest;
-  // 修复：负数 count 经 _useItem 取反 → 反向加物品（刷物品漏洞）；非法入参拒绝
-  if (typeof body?.count !== "number" || !Number.isInteger(body.count) || body.count <= 0) {
+  // 修复：客户端字段为 cnt（CS UseItemRequest 字段名）——原实现读 count 恒 undefined，
+  // 负数校验直接把所有单物品使用打成 400（AP 补给/凭证等全部无法消耗）
+  const count = body?.cnt ?? body?.count;
+  if (typeof count !== "number" || !Number.isInteger(count) || count <= 0) {
     return res.status(400).send({ status: 1, msg: "非法参数" });
   }
   const item = {
     id: body.itemId,
-    count: body.count,
+    count: count,
     instId: body.instId,
   } as ItemBundle;
   await player._trigger.emit("items:use", [[item]]);

@@ -171,8 +171,10 @@ router.post("/troop/pinSpecialOperator", async (req, res) => {
   const body = req.body as PinSpecialOperatorRequest;
   // 参考 OBS misc_bp.troop_pinSpecialOperator：mission.pinnedSpecialOperator = troop.chars[instId].charId
   await player.update(async (draft) => {
-    const charId = draft.troop.chars[body.instId].charId;
-    (draft as any).mission.pinnedSpecialOperator = charId;
+    // 修复：非法 instId（已删干员/乱传）不 500
+    const char = draft.troop.chars[body.instId];
+    if (!char) return;
+    (draft as any).mission.pinnedSpecialOperator = char.charId;
   });
   res.send(player.delta satisfies PinSpecialOperatorResponse);
 });

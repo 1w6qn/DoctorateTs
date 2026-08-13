@@ -256,9 +256,21 @@ export class CharManager {
       const maxLevel =
         maxLevelArr[evolvePhase] ?? maxLevelArr[maxLevelArr.length - 1] ?? 0;
       for (let i = 0; i < expMats.length; i++) {
-        expTotal += expItems[expMats[i].id].gainExp * expMats[i].count;
+        // 修复：部分经验卡 gainExp 为占位字符串（2001 = "EXCHANGE_CREATED"）——
+        // 字符串 × count = NaN → 污染 char.exp 与金币；非法值跳过
+        const gain = expItems[expMats[i].id]?.gainExp;
+        const gainNum =
+          typeof gain === "number" ? gain : parseInt(String(gain ?? "0"), 10);
+        if (!Number.isFinite(gainNum)) continue;
+        expTotal += gainNum * expMats[i].count;
       }
       char.exp += expTotal;
+      // 修复：已满级时不再升级（原实现 expMap[maxLevel-1] 哨兵 -1 触发一次循环 →
+      // 金币 -1 + 材料被消耗）；直接清 exp 返回，不扣任何材料
+      if (char.level >= maxLevel) {
+        char.exp = 0;
+        return;
+      }
       while (true) {
         if (char.exp >= expMap[evolvePhase][char.level - 1]) {
           char.exp -= expMap[evolvePhase][char.level - 1];
@@ -348,6 +360,8 @@ export class CharManager {
         info?.potentialItemId,
         info?.classicPotentialItemId,
         info?.activityPotentialItemId,
+        // 满潜能凭证（VOUCHER_FULL_POTENTIAL）为通用道具，任意干员可用
+        "VOUCHER_FULL_POTENTIAL",
       ].filter(Boolean) as string[];
       if (allowedItems.length > 0 && !allowedItems.includes(itemId)) {
         return; // 非法道具：拒绝（防消耗任意库存物品）
@@ -639,10 +653,14 @@ export class CharManager {
   async changeMarkStar(args: { chrIdDict: { [key: string]: number } }) {
     await this._player.update(async (draft) => {
       const { chrIdDict } = args;
-      Object.entries(chrIdDict).forEach(([charId, mark]) => {
-        const char = draft.troop.chars[charId];
-        char.starMark = mark;
-      });
+      // 修复：troop.chars 按 instId 键，客户端 chrIdDict 按 charId——
+      // 原实现 chars[charId] 恒 undefined → 500；改为按 charId 扫描匹配
+      for (const [charId, mark] of Object.entries(chrIdDict ?? {})) {
+        const char = Object.values(draft.troop.chars).find(
+          (c) => c.charId === charId,
+        );
+        if (char) char.starMark = mark;
+      }
     });
   }
 

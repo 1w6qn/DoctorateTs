@@ -568,7 +568,15 @@ export class MedalProgress implements PlayerPerMedal {
    */
   CharPotential(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => {
+        // 修复：param[0] 可能是分号分隔的干员列表（medal_growth_potential_*）——
+        // parseInt 得 NaN → 目标永不可达成；列表形式目标 = 列表长度
+        const p0 = String(this.param[0] ?? "");
+        const target = p0.includes(";")
+          ? p0.split(";").length
+          : parseInt(p0) || 0;
+        this.val[0].push(0, target);
+      },
       update: (args: { targetLevel: number }) => {
         if (args.targetLevel >= parseInt(this.param[1] || "6")) {
           this.val[0][0] += 1;

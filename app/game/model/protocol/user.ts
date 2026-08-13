@@ -57,11 +57,14 @@ export interface ExchangeDiamondShardRequest {
   count: number;
 }
 
-/** 使用单个物品请求（CS: UseItemRequest 字段名为 cnt；服务端按 count 读取） */
+/** 使用单个物品请求（CS: UseItemRequest 字段名为 cnt；服务端兼容 count） */
 export interface UseItemRequest {
   instId: number;
   itemId: string;
-  count: number;
+  /** CS 字段名（客户端实际发送） */
+  cnt?: number;
+  /** 兼容旧服务端命名 */
+  count?: number;
 }
 
 /** 使用多个物品请求（CS: UseItemsRequest） */

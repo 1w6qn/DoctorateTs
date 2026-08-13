@@ -90,8 +90,10 @@ export class StatusManager {
   async changeSecretary(args: { charInstId: number; skinId: string }) {
     const { charInstId, skinId } = args;
     await this._player.update(async (draft) => {
-      const charId = draft.troop.chars[charInstId].charId;
-      draft.status.secretary = charId;
+      // 修复：非法 charInstId（已删干员/乱传）不 500
+      const char = draft.troop.chars[charInstId];
+      if (!char) return;
+      draft.status.secretary = char.charId;
       draft.status.secretarySkinId = skinId;
     });
   }

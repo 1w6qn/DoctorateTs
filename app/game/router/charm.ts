@@ -22,16 +22,12 @@ router.post("/setSquad", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { squad } = req.body as CharmSetSquadRequest;
 
-  res.send({
-    playerDataDelta: {
-      deleted: {},
-      modified: {
-        charm: {
-          squad,
-        },
-      },
-    },
-  } satisfies CharmSetSquadResponse);
+  // 修复：原实现只返回假 delta 从不落盘（客户端显示已设置、刷新即回退）——
+  // 写入玩家数据（charm.squad 为客户端所需字段，类型未声明用 any）
+  await player.update(async (draft) => {
+    (draft as any).charm.squad = squad;
+  });
+  res.send(player.delta satisfies CharmSetSquadResponse);
 });
 
 export default router;

@@ -1588,16 +1588,30 @@ export class BuildingManager {
     const social = await accountManager.getSocial(uid);
     const result = await Promise.all(
       social.friends.map(async (f) => {
-        const info = await accountManager.getPlayerFriendInfo(f.uid);
-        return {
-          uid: f.uid,
-          nickName: info.nickName,
-          nickNumber: info.nickNumber,
-          level: info.level,
-        };
+        // 修复：好友账号存档缺失/加载失败时跳过（原实现 Promise.all 整体 500）
+        try {
+          const info = await accountManager.getPlayerFriendInfo(f.uid);
+          return {
+            uid: f.uid,
+            nickName: info.nickName,
+            nickNumber: info.nickNumber,
+            level: info.level,
+          };
+        } catch (e) {
+          logger.warn(
+            "building",
+            `getClueFriendList 好友 ${f.uid} 数据加载失败: ${(e as Error).message}`,
+          );
+          return null;
+        }
       }),
     );
-    return { result };
+    return {
+      result: result.filter(
+        (r): r is { uid: string; nickName: string; nickNumber: string; level: number } =>
+          r !== null,
+      ),
+    };
   }
 
   /**
@@ -1633,21 +1647,30 @@ export class BuildingManager {
     const social = await accountManager.getSocial(uid);
     const list = await Promise.all(
       social.friends.map(async (f) => {
-        const info = await accountManager.getPlayerFriendInfo(f.uid);
-        return {
-          uid: f.uid,
-          nickName: info.nickName,
-          nickNumber: info.nickNumber,
-          level: info.level,
-          alias: null,
-          ts: info.registerTs ?? 0,
-          avatar: { type: "ASSISTANT", id: `${info.secretary ?? ""}#1` },
-          secretary: info.secretary ?? "",
-          secretarySkinId: info.secretarySkinId ?? "",
-        };
+        // 修复：好友账号存档缺失/加载失败时跳过（原实现整体 500）
+        try {
+          const info = await accountManager.getPlayerFriendInfo(f.uid);
+          return {
+            uid: f.uid,
+            nickName: info.nickName,
+            nickNumber: info.nickNumber,
+            level: info.level,
+            alias: null,
+            ts: info.registerTs ?? 0,
+            avatar: { type: "ASSISTANT", id: `${info.secretary ?? ""}#1` },
+            secretary: info.secretary ?? "",
+            secretarySkinId: info.secretarySkinId ?? "",
+          };
+        } catch (e) {
+          logger.warn(
+            "building",
+            `getInfoShareReward 好友 ${f.uid} 数据加载失败: ${(e as Error).message}`,
+          );
+          return null;
+        }
       }),
     );
-    return { list };
+    return { list: list.filter((x): x is NonNullable<typeof x> => x !== null) };
   }
 
   /**

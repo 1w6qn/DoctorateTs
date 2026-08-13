@@ -15,9 +15,11 @@ import { ItemBundle } from "@excel/character_table";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import {
   CampaignConfirmBreakRewardRequest,
+  CampaignConfirmBreakRewardResponse,
   CampaignFinishBattleRequest,
   CampaignFinishBattleResponse,
   CampaignGetCommonMissionRewardRequest,
+  CampaignGetCommonMissionRewardResponse,
   CampaignStartBattleRequest,
   CampaignStartBattleResponse,
   CampaignSweepRequest,
@@ -114,8 +116,11 @@ router.post("/campaignV2/battleSweep", async (req, res) => {
  * @returns HTTP 202 状态码
  */
 router.post("/campaignV2/getBreakReward", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as CampaignConfirmBreakRewardRequest;
-  res.sendStatus(202);
+  // 修复：sendStatus(202) 返回文本 "Accepted"，客户端按 JSON 解析失败（同 gallery
+  // 修复模式）→ 返回 JSON 增量
+  res.send(player.delta satisfies CampaignConfirmBreakRewardResponse);
 });
 
 /**
@@ -129,8 +134,10 @@ router.post("/campaignV2/getBreakReward", async (req, res) => {
  * @returns HTTP 202 状态码
  */
 router.post("/campaignV2/getExMissionReward", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as CampaignGetCommonMissionRewardRequest;
-  res.sendStatus(202);
+  // 修复：同上——JSON 响应避免客户端解析失败
+  res.send(player.delta satisfies CampaignGetCommonMissionRewardResponse);
 });
 
 export default router;

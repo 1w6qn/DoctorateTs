@@ -43,16 +43,14 @@ router.post("/branch", async (req, res) => {
     };
   }
 
-  res.send({
-    playerDataDelta: {
-      deleted: {},
-      modified: {
-        deepSea: {
-          techTrees,
-        },
-      },
-    },
-  } satisfies DeepSeaChangeTechBranchResponse);
+  // 修复：原实现只返回假 delta 从不落盘（分支选择刷新即回退）——
+  // 与其他 deepsea 路由一致，写入玩家数据
+  await player.update(async (draft) => {
+    const ds = draft.deepSea as any;
+    if (!ds.techTrees) ds.techTrees = {};
+    Object.assign(ds.techTrees, techTrees);
+  });
+  res.send(player.delta satisfies DeepSeaChangeTechBranchResponse);
 });
 
 /**

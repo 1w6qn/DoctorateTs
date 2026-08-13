@@ -17,6 +17,7 @@ import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { readJsonSync } from "@utils/file";
 import { ItemBundle } from "@excel/character_table";
 import { randomChoice } from "@utils/random";
+import { logger } from "@utils/logger";
 import excel from "@excel/excel";
 import {
   BoostPotentialRequest,
@@ -264,6 +265,19 @@ router.post("/getMaterialVoucherDetail", async (req, res) => {
 router.post("/useCharGachaVoucher", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { itemId, instId } = req.body as UseCharGachaVoucherRequest;
+  // 修复：原实现只扣凭证不发干员（凭证消耗但无结果——数据丢失）。
+  // 有可发干员池（voucher.json itemList / voucherRelateList）时随机发一个；
+  // 无池数据时不消耗凭证（避免白扣），保持可重试
+  const voucherInfo = VoucherDataManager.getVoucher(itemId);
+  const pool =
+    voucherInfo?.itemList?.filter((i) => i.type === "CHAR") ?? [];
+  if (pool.length === 0) {
+    logger.warn(
+      "depot",
+      `useCharGachaVoucher ${itemId} 无干员池数据，跳过消耗（防凭证白扣）`,
+    );
+    return res.send({ ...player.delta } satisfies UseCharGachaVoucherResponse);
+  }
   // 消耗凭证物品（consumable 类型，需要 instId 定位具体实例）
   await player._trigger.emit("items:use", [
     [
@@ -274,6 +288,9 @@ router.post("/useCharGachaVoucher", async (req, res) => {
       } as ItemBundle,
     ],
   ]);
+  // 发放随机干员（CHAR → char:get 入账）
+  const chosen = randomChoice(pool);
+  await player._trigger.emit("items:get", [[chosen]]);
   res.send({
     ...player.delta,
   } satisfies UseCharGachaVoucherResponse);
@@ -344,17 +361,22 @@ router.post("/useFullPotentialItem", async (req, res) => {
   const { charInstId, itemId } = req.body as BoostPotentialRequest;
   // 获取干员信息以计算最大潜能等级
   const char = player._playerdata.troop.chars[charInstId];
+  // 修复：干员不存在/损坏存档不 500
+  if (!char) {
+    return res.send({ result: 1, ...player.delta } satisfies BoostPotentialResponse);
+  }
   const charInfo = excel.CharacterTable[char.charId];
   // maxPotentialLevel 通常为 6（潜能等级 1-6），potentialRank 为 0-5
-  const maxPotentialRank = charInfo.maxPotentialLevel - 1;
+  const maxPotentialRank = (charInfo?.maxPotentialLevel ?? 5) - 1;
   // 委托 CharManager 执行潜能提升（内部包含物品消耗逻辑）
   await player.char.boostPotential({
     charInstId: charInstId,
     itemId: itemId,
     targetRank: maxPotentialRank,
   });
+  // 修复：成功应为 result:0（原恒返回 1 → 客户端显示失败）
   res.send({
-    result: 1,
+    result: 0,
     ...player.delta,
   } satisfies BoostPotentialResponse);
 });

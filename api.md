@@ -1447,6 +1447,8 @@ OAuth2 授权
 | GET  | `/admin/api/openapi.json` | OpenAPI 3.0 规范（管理 API，供外部工具/Swagger 消费） |
 | GET  | `/admin/api/spec` | 管理 API 端点规范清单（Dashboard「接口」控制台数据源） |
 | POST | `/admin/api/game-proxy` | 游戏协议代理：`{uid, path, method?, body?}` 以玩家 secret 调用游戏端点，返回 `{status, data, uid}`（供 Dashboard 协议调试） |
+| GET  | `/admin/api/activity/list` | 活动列表 + 开关状态（当前冻结时间戳/生效时间戳/各活动窗口与 open，activity 切换用） |
+| POST | `/admin/api/activity/switch` | 切换活动：冻结客户端可见服务器时间戳 `{timestamp}`（-1 恢复真实时间；数值仅限过去时间，未来拒绝）；持久化 data/config.json 并重跑已加载玩家活动播种 |
 | GET  | `/admin/api/config` | 查看配置（只读） |
 | GET  | `/admin/dashboard` | Dashboard 管理页面（免认证，登录在页面内完成） |
 

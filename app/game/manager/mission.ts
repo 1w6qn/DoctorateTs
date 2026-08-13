@@ -25,6 +25,8 @@ import { logger } from "@utils/logger";
 
 export class MissionManager {
   missions: { [key: string]: MissionProgress[] };
+  /** init() 的 promise（构造期异步执行；AccountManager 加载后 await 它再播种活动任务） */
+  initPromise?: Promise<void>;
   _trigger: TypedEventEmitter;
   _player: PlayerDataManager;
 

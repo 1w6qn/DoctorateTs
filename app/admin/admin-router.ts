@@ -425,6 +425,26 @@ router.get("/api/rogue/state", async (req: Request, res: Response) => {
   }
 });
 
+/** 活动列表 + 开关状态（activity 切换，参考 DoctoratePy developer.timestamp） */
+router.get("/api/activity/list", async (_req: Request, res: Response) => {
+  try {
+    res.json(await adminService.listActivities());
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 切换活动：冻结客户端可见服务器时间戳（-1 恢复真实时间；数值仅限过去时间） */
+router.post("/api/activity/switch", async (req: Request, res: Response) => {
+  try {
+    const { timestamp } = req.body ?? {};
+    const result = await adminService.switchActivity(Number(timestamp));
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
 /** CLI 集成：服务器内执行 CLI 命令（复用 admin-cli dispatch，输出捕获返回） */
 router.post("/api/cli/exec", async (req: Request, res: Response) => {
   try {

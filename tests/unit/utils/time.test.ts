@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import moment from 'moment';
-import { now, checkBetween, checkNew } from '@utils/time';
+import { now, checkBetween, checkNew, userTimestamp } from '@utils/time';
+import config from '../../../app/config';
 
 describe('now', () => {
   it('应该返回当前时间戳（秒）', () => {
@@ -122,5 +123,36 @@ describe('checkNew', () => {
     const ts1 = 1738216849; // 2025-01-30T14:00:49+08:00
     const ts2 = 1738234449; // 2025-01-30T18:54:09+08:00（同日）
     expect(checkNew(ts1, ts2, 'day')).toBe(false);
+  });
+});
+
+describe('userTimestamp（activity 切换 developer.timestamp）', () => {
+  const original = config.developer;
+
+  afterEach(() => {
+    config.developer = original;
+  });
+
+  it('缺省（无 developer.timestamp）→ 真实时间', () => {
+    delete config.developer;
+    const ts = userTimestamp();
+    expect(Math.abs(ts - now())).toBeLessThan(5);
+  });
+
+  it('-1 → 真实时间', () => {
+    config.developer = { timestamp: -1 };
+    const ts = userTimestamp();
+    expect(Math.abs(ts - now())).toBeLessThan(5);
+  });
+
+  it('冻结到过去时间戳 → 返回冻结值', () => {
+    config.developer = { timestamp: 1597132800 };
+    expect(userTimestamp()).toBe(1597132800);
+  });
+
+  it('未来时间戳 → 回退真实时间（DoctoratePy 规则）', () => {
+    config.developer = { timestamp: now() + 999999 };
+    const ts = userTimestamp();
+    expect(Math.abs(ts - now())).toBeLessThan(5);
   });
 });

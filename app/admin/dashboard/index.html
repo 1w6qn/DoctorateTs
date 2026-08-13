@@ -263,6 +263,7 @@
         <div class="tab" data-tab="official">🛰️ 官服</div>
         <div class="tab" data-tab="pixel">🖼️ 像素画</div>
         <div class="tab" data-tab="map">🗺️ 地图</div>
+        <div class="tab" data-tab="activity">🎡 活动</div>
       </div>
     </div>
   </aside>
@@ -345,6 +346,7 @@
       <div class="tab-pane" id="pane-official"></div>
       <div class="tab-pane" id="pane-pixel"></div>
       <div class="tab-pane" id="pane-map"></div>
+      <div class="tab-pane" id="pane-activity"></div>
       <div class="tab-pane" id="pane-raw"></div>
     </div>
   </section>
@@ -807,6 +809,7 @@
     if (tab === "official") { loadOfficialPane(); return; }
     if (tab === "pixel") { loadPixelPane(); return; }
     if (tab === "map") { loadMapPane(); return; }
+    if (tab === "activity") { loadActivityPane(); return; }
     // 用户相关 Tab：未选用户时提示
     if (!uid) {
       var pane = $("pane-" + tab);
@@ -3525,6 +3528,114 @@
     // 初始主题下拉与地图预览同步
     var mvt = $("mv-theme");
     if (mvt) $("rogue-theme").value = mvt.value;
+  }
+
+  /* ---------- 活动切换（developer.timestamp 冻结，参考 DoctoratePy） ---------- */
+
+  function fmtTs(ts) {
+    if (!ts) return "-";
+    try { return new Date(ts * 1000).toLocaleString("zh-CN", { hour12: false }); }
+    catch (e) { return String(ts); }
+  }
+
+  function h(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function loadActivityPane() {
+    var pane = $("pane-activity");
+    pane.innerHTML =
+      '<div class="card" style="margin-top:0;">' +
+      '<div class="row" style="align-items:center;margin-bottom:8px;">' +
+      '<h3 style="color:var(--gold);margin:0;">🎡 活动切换</h3>' +
+      '<span style="font-size:11px;color:var(--muted);margin-left:10px;">冻结客户端可见服务器时间戳（data/config.json → developer.timestamp），客户端按 ts 判定活动开放（参考 DoctoratePy）。仅支持冻结到过去时间。</span>' +
+      "</div>" +
+      '<div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">' +
+      '<span id="act-ts-label" style="font-size:12px;color:var(--muted);">加载中…</span>' +
+      '<button id="act-reset" class="primary">⏰ 恢复真实时间</button>' +
+      '<input id="act-ts-input" placeholder="冻结时间戳（秒）" style="width:150px;">' +
+      '<button id="act-ts-apply">应用时间戳</button>' +
+      '<input id="act-filter" placeholder="搜索活动名/ID" style="width:170px;margin-left:6px;">' +
+      "</div>" +
+      '<div style="max-height:62vh;overflow:auto;border:1px solid var(--border,#333);border-radius:8px;">' +
+      '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+      "<thead><tr>" +
+      '<th style="text-align:left;padding:6px 8px;position:sticky;top:0;background:var(--bg,#141a24);">名称</th>' +
+      '<th style="text-align:left;padding:6px 8px;">ID</th>' +
+      '<th style="text-align:left;padding:6px 8px;">类型</th>' +
+      '<th style="text-align:left;padding:6px 8px;">时间窗（开始 ~ 结束）</th>' +
+      '<th style="text-align:left;padding:6px 8px;">状态</th>' +
+      '<th style="text-align:left;padding:6px 8px;">操作</th>' +
+      "</tr></thead><tbody id='act-rows'></tbody></table>" +
+      "</div></div>";
+    bindActivityPane();
+    refreshActivityList();
+  }
+
+  function refreshActivityList() {
+    api("/activity/list")
+      .then(function (data) {
+        var label = $("act-ts-label");
+        label.textContent =
+          "当前冻结: " + (data.usingOverride ? data.timestamp + "（" + fmtTs(data.timestamp) + "）" : "真实时间") +
+          " · 生效 ts: " + data.effectiveTs + "（" + fmtTs(data.effectiveTs) + "）" +
+          " · 窗口内开放活动 " + data.activities.filter(function (a) { return a.open; }).length + " 个";
+        var kw = ($("act-filter").value || "").trim().toLowerCase();
+        var rows = data.activities
+          .filter(function (a) {
+            return !kw ||
+              (a.name || "").toLowerCase().indexOf(kw) !== -1 ||
+              (a.id || "").toLowerCase().indexOf(kw) !== -1;
+          })
+          .map(function (a) {
+            return "<tr>" +
+              "<td style='padding:5px 8px;'>" + h(a.name) + "</td>" +
+              "<td style='padding:5px 8px;color:var(--muted);'>" + h(a.id) + "</td>" +
+              "<td style='padding:5px 8px;'>" + h(a.type) + "</td>" +
+              "<td style='padding:5px 8px;color:var(--muted);'>" + fmtTs(a.startTime) + " ~ " + fmtTs(a.endTime) + "</td>" +
+              '<td style="padding:5px 8px;">' + (a.open
+                ? '<span style="color:#7bd88f;">● 开放</span>'
+                : '<span style="color:var(--muted);">—</span>') + "</td>" +
+              '<td style="padding:5px 8px;"><button class="btn-sm act-open" data-start="' + a.startTime + '" ' +
+              (a.open ? "disabled" : "") + '>切到该活动</button></td>' +
+              "</tr>";
+          })
+          .join("");
+        $("act-rows").innerHTML = rows ||
+          '<tr><td colspan="6" style="padding:12px;color:var(--muted);text-align:center;">无匹配活动</td></tr>';
+        var btns = document.querySelectorAll("#act-rows .act-open");
+        for (var i = 0; i < btns.length; i++) {
+          btns[i].addEventListener("click", function () {
+            var st = parseInt(this.getAttribute("data-start"), 10);
+            api("/activity/switch", { method: "POST", body: JSON.stringify({ timestamp: st }) })
+              .then(function () { refreshActivityList(); })
+              .catch(function (e) { alert(e.message); });
+          });
+        }
+      })
+      .catch(function (e) {
+        $("act-rows").innerHTML =
+          '<tr><td colspan="6" style="padding:12px;color:#e07a7a;text-align:center;">' + h(e.message) + "</td></tr>";
+      });
+  }
+
+  function bindActivityPane() {
+    var reset = $("act-reset");
+    if (!reset) return;
+    reset.addEventListener("click", function () {
+      api("/activity/switch", { method: "POST", body: JSON.stringify({ timestamp: -1 }) })
+        .then(function () { refreshActivityList(); })
+        .catch(function (e) { alert(e.message); });
+    });
+    $("act-ts-apply").addEventListener("click", function () {
+      var ts = parseInt($("act-ts-input").value, 10);
+      if (!Number.isFinite(ts)) { alert("请输入有效时间戳（秒）"); return; }
+      api("/activity/switch", { method: "POST", body: JSON.stringify({ timestamp: ts }) })
+        .then(function () { refreshActivityList(); })
+        .catch(function (e) { alert(e.message); });
+    });
+    $("act-filter").addEventListener("input", function () { refreshActivityList(); });
   }
 
   /* ---------- 登录 ---------- */

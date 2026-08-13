@@ -6,7 +6,7 @@
  * - /api/gate/info/:platform —— 网关信息（启动链路早期请求，私服简化返回 code:0）
  */
 import { Router } from "express";
-import { now } from "@utils/time";
+import { userTimestamp } from "@utils/time";
 
 const router = Router();
 
@@ -16,7 +16,7 @@ router.get("/meta/:platform", async (req, res) => {
     code: 0,
     data: {
       platform: req.params.platform,
-      serverTime: now(),
+      serverTime: userTimestamp(),
       notice: null,
     },
   });
@@ -28,7 +28,7 @@ router.get("/info/:platform", async (req, res) => {
     code: 0,
     data: {
       platform: req.params.platform,
-      serverTime: now(),
+      serverTime: userTimestamp(),
     },
   });
 });

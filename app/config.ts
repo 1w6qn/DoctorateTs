@@ -102,6 +102,14 @@ interface UserConfig {
   singleUid?: string;
   /** 单例模式是否自动生成满配账号（全干员/全物品，随版本刷新——默认开启） */
   singleAutoMaxAccount?: boolean;
+  /** 开发者调试配置 */
+  developer?: {
+    /**
+     * 客户端可见服务器时间戳冻结（activity 切换用，参考 DoctoratePy）：
+     * -1（缺省）= 真实时间；数值 = 冻结到该时间戳（仅允许过去时间，未来值回退真实时间）
+     */
+    timestamp?: number;
+  };
 }
 
 /** 应用配置实例 */

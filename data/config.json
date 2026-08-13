@@ -64,6 +64,7 @@
   },
   "singleAutoMaxAccount": false,
   "singleUid": "2222",
-  "_lastVersionSyncTs": 1786501723605,
+  "developer": { "timestamp": -1 },
+  "_lastVersionSyncTs": 1786588031766,
   "autoUpdate": false
 }

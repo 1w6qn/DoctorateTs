@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
 }));
-vi.mock("@utils/time", () => ({ now: () => 1234567890 }));
+vi.mock("@utils/time", () => ({ now: () => 1234567890, userTimestamp: () => 1234567890 }));
 
 import payRouter from "../../../app/game/router/pay";
 import gateRouter from "../../../app/config/gate";

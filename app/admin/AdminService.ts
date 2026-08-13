@@ -27,9 +27,10 @@ import {
   OfficialAction,
 } from "./official-ops";
 import { MAIL_TEMPLATES } from "./mail-templates";
-import { exists, size, readJson, writeJson } from "@utils/file";
-import { now } from "@utils/time";
+import { exists, size, readJson, readJsonSync, writeJson } from "@utils/file";
+import { now, userTimestamp } from "@utils/time";
 import { logger } from "@utils/logger";
+import { unlockActivity } from "@game/manager/activity/unlockActivity";
 import {
   itemName,
   charName,
@@ -1714,6 +1715,92 @@ export class AdminService {
       }))
       .filter((t) => t.activities > 0);
     return { total: types.reduce((s, t) => s + t.activities, 0), types };
+  }
+
+  /**
+   * 活动列表 + 开关状态（activity 切换，参考 DoctoratePy developer.timestamp）
+   * @returns 当前冻结时间戳/生效时间戳 + 各活动窗口与 open 判定
+   */
+  async listActivities(): Promise<{
+    timestamp: number;
+    effectiveTs: number;
+    usingOverride: boolean;
+    activities: {
+      id: string;
+      name: string;
+      type: string;
+      displayType: string;
+      startTime: number;
+      endTime: number;
+      rewardEndTime: number;
+      open: boolean;
+    }[];
+  }> {
+    const frozen = config.developer?.timestamp ?? -1;
+    const effectiveTs = userTimestamp();
+    const basicInfo = (excel.ActivityTable?.basicInfo ?? {}) as Record<string, any>;
+    const activities = Object.values(basicInfo)
+      .sort((a, b) => (b.startTime ?? 0) - (a.startTime ?? 0))
+      .map((info) => ({
+        id: info.id,
+        name: info.name ?? "",
+        type: info.type ?? "",
+        displayType: info.displayType ?? "",
+        startTime: info.startTime ?? 0,
+        endTime: info.endTime ?? 0,
+        rewardEndTime: info.rewardEndTime ?? 0,
+        open: info.startTime <= effectiveTs && effectiveTs <= info.rewardEndTime,
+      }));
+    return {
+      timestamp: frozen,
+      effectiveTs,
+      usingOverride: frozen !== -1,
+      activities,
+    };
+  }
+
+  /**
+   * 切换活动（冻结客户端可见服务器时间戳，参考 DoctoratePy）
+   * @param timestamp - -1 恢复真实时间；数值冻结到该时间戳（仅允许过去时间，未来拒绝）
+   * @returns 生效时间戳 + 打开的活动数；并对已加载玩家重跑活动播种
+   */
+  async switchActivity(
+    timestamp: number,
+  ): Promise<{ ok: true; timestamp: number; effectiveTs: number; openCount: number }> {
+    if (timestamp !== -1) {
+      if (!Number.isFinite(timestamp)) {
+        throw new Error(`时间戳非法: ${timestamp}`);
+      }
+      const timeNow = now();
+      if (timestamp > timeNow) {
+        throw new Error(
+          `不能设置未来时间（${timestamp} > 当前 ${timeNow}）；仅支持冻结到过去时间`,
+        );
+      }
+    }
+    // 持久化 data/config.json（读-改-写，保留其它字段）
+    const cfg = readJsonSync<Record<string, any>>("./data/config.json");
+    cfg.developer = { timestamp };
+    await writeJson("./data/config.json", cfg);
+    // 内存 config 同步——userTimestamp/unlockActivity 立即读取新值，无需重启
+    config.developer = { timestamp };
+
+    // 对已加载玩家重跑活动播种（新玩家加载时 _doLoadPlayer 也会播种）
+    let openCount = 0;
+    for (const uid of Object.keys(accountManager.data)) {
+      try {
+        await unlockActivity(accountManager.data[uid]);
+      } catch (error) {
+        logger.warn("AdminService", `活动播种失败 ${uid}: ${(error as Error).message}`);
+      }
+    }
+    const effectiveTs = userTimestamp();
+    const basicInfo = (excel.ActivityTable?.basicInfo ?? {}) as Record<string, any>;
+    openCount = Object.values(basicInfo).filter(
+      (info) => info.startTime <= effectiveTs && effectiveTs <= info.rewardEndTime,
+    ).length;
+    await this._audit("switchActivity", "all", `timestamp=${timestamp}（有效 ${effectiveTs}）`);
+    return { ok: true, timestamp, effectiveTs, openCount };
   }
 
   /**

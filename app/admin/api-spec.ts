@@ -152,6 +152,14 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
     body: '{"uid":"1","action":"moveTo","body":{"to":{"x":0,"y":0}}}',
   },
   { method: "GET", path: "/api/rogue/state", summary: "肉鸽流程当前状态快照（rlv2.toJSON，分步模式用）", params: [{ name: "uid", type: "string", desc: "目标玩家 uid" }] },
+  { method: "GET", path: "/api/activity/list", summary: "活动列表 + 开关状态（activity 切换：当前冻结时间戳/生效时间戳/各活动窗口与 open）" },
+  {
+    method: "POST",
+    path: "/api/activity/switch",
+    summary: "切换活动：冻结客户端可见服务器时间戳（-1 恢复真实时间；数值仅限过去时间，未来拒绝）",
+    params: [{ name: "timestamp", type: "number", required: true, desc: "-1=真实时间；或活动窗口内的过去时间戳（建议取活动 startTime）" }],
+    body: '{"timestamp":1785538800}',
+  },
   {
     method: "POST",
     path: "/api/cli/exec",

@@ -2,7 +2,7 @@ import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { accountManager } from "../manager/AccountManager";
-import { now } from "@utils/time";
+import { userTimestamp } from "@utils/time";
 import config from "../../config";
 import {
   LoginRequest,
@@ -48,13 +48,17 @@ router.post("/syncData", async (req, res) => {
   }
   req.body as SyncDataRequest;
 
+  // activity 切换（developer.timestamp 冻结）：响应 ts 与 pushFlags.status 同取一次
+  const ts = userTimestamp();
   await player.update(async (draft) => {
-    draft.pushFlags.status = now();
+    // activity 切换（developer.timestamp 冻结）：pushFlags.status 作为战斗加密 key 与
+    // 响应 ts 必须一致——同取一次 userTimestamp（保证客户端加密/服务端解密一致）
+    draft.pushFlags.status = ts;
   });
   // B4：预序列化响应（user 全量 1.3MB 级 JSON.stringify 缓存，update 后失效）
   const userJson = player.toJSONString();
   const deltaJson = JSON.stringify(player.delta);
-  const body = `{"result":0,"ts":${now()},"user":${userJson}${deltaJson !== "{}" ? "," + deltaJson.slice(1, -1) : ""}}`;
+  const body = `{"result":0,"ts":${ts},"user":${userJson}${deltaJson !== "{}" ? "," + deltaJson.slice(1, -1) : ""}}`;
   res.type("json").send(body);
 });
 
@@ -66,7 +70,7 @@ router.post("/syncStatus", async (req, res) => {
   req.body as SyncStatusRequest;
   await player._trigger.emit("status:refresh:time", []);
   res.send({
-    ts: now(),
+    ts: userTimestamp(),
     result: {},
     ...player.delta,
   } satisfies SyncStatusResponse);
@@ -78,7 +82,7 @@ router.post("/syncPushMessage", async (req, res) => {
     return res.status(401).send({ status: 401, msg: "未登录（缺少 secret）" });
   }
   req.body as SyncPushMessageRequest;
-  const ts = now();
+  const ts = userTimestamp();
   res.send({
     now: ts,
     next: ts + 60,

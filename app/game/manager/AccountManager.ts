@@ -7,6 +7,7 @@
 
 import { PlayerDataModel } from "../model/playerdata";
 import { PlayerDataManager } from "./PlayerDataManager";
+import { unlockActivity } from "./activity/unlockActivity";
 import { readJson } from "@utils/file";
 import { now } from "@utils/time";
 import { writeFile, rename, rm } from "fs/promises";
@@ -373,6 +374,19 @@ export class AccountManager {
     // 构造期子管理器可能原地初始化数据（如 rlv2 current 结构），标记脏使首个请求落盘一次
     // （与条件落盘前"每次请求都落盘"的首请求行为保持一致）
     this.data[uid].markDirty();
+    // activity 切换（冻结模式）：等 mission.init 完成后播种活动状态/任务/关卡——
+    // 必须在其后执行，避免 MissionManager.init 的 missions["ACTIVITY"] = {} 清掉播种任务
+    try {
+      if (this.data[uid].mission.initPromise) {
+        await this.data[uid].mission.initPromise;
+      }
+      await unlockActivity(this.data[uid]);
+    } catch (error) {
+      logger.error(
+        "AccountManager",
+        `活动播种失败 ${uid}: ${(error as Error).message}`,
+      );
+    }
     // 仅当文件里的 uid 与目录键不一致时才自愈写回（文件 uid 写错）；否则纯 no-op 不落盘
     if (data.status.uid !== uid) {
       this.data[uid]._playerdata.status.uid = uid;

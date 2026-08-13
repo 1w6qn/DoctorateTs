@@ -5,6 +5,7 @@
  */
 
 import moment from "moment";
+import config from "../config";
 // 类型别名（Node 原生 transform-types 不支持 import= 语法）
 type StartOf = moment.unitOfTime.StartOf;
 
@@ -15,6 +16,22 @@ type StartOf = moment.unitOfTime.StartOf;
  */
 export function now(): number {
   return moment().unix();
+}
+
+/**
+ * 获取客户端可见服务器时间戳（秒）——activity 切换（DoctoratePy 移植）
+ *
+ * `config.developer.timestamp`：-1（缺省）= 真实时间；数值 = 冻结到该时间戳
+ * （仅允许过去时间——若值大于当前真实时间则回退真实时间，避免未来日期存档异常）。
+ * 用于 syncData/gate 等客户端可见时钟（活动按 server ts 判定开放）。
+ */
+export function userTimestamp(): number {
+  const nowTs = now();
+  const userTs = config.developer?.timestamp ?? -1;
+  if (userTs === -1 || userTs > nowTs) {
+    return nowTs;
+  }
+  return userTs;
 }
 
 /**

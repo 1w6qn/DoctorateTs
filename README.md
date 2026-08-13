@@ -154,6 +154,32 @@ npm run admin -- config set admin.token mytoken # 修改配置（重启后生效
 - 兜底：`mods/` 目录不存在或 `.dat` 损坏时自动跳过，不影响正常资源服务（启用 mod 亦安全）。
 - 游戏内干员「模组」（uniequip）系统与本文所述客户端资源 mod 无关，见 `api.md` 模组章节。
 
+## 活动切换（developer.timestamp 冻结，参考 DoctoratePy）
+
+客户端按服务器时间戳（syncData `ts` / gate `serverTime`）对比本地活动表判定活动开放。
+将服务器可见时间冻结到目标活动窗口内，即可随时玩旧活动（如愚人节 act5fun）。
+
+### 配置
+
+`data/config.json` → `"developer": { "timestamp": <值> }`：
+
+- `-1`（缺省）＝真实时间；
+- 数值＝冻结到该时间戳（**仅允许过去时间**——未来值自动回退真实时间）。
+
+### 操作方式
+
+- **admin API**：`GET /admin/api/activity/list`（活动窗口 + open 状态）、
+  `POST /admin/api/activity/switch` `{timestamp}`（-1 恢复真实时间；持久化配置并热生效，
+  对已加载玩家重跑活动播种，无需重启）。
+- **Dashboard**：「工具 → 🎡 活动」tab：搜索/查看活动，一键「切到该活动」（取活动 startTime 冻结）、
+  手动时间戳、恢复真实时间。
+
+### 冻结模式行为（登录/加载时）
+
+按冻结 ts 修剪过期活动、播种 `playerdata.activity` 默认状态（BOSS_RUSH 遗物/里程碑、
+TYPE_ACT 币/信赖列表）、初始化活动任务（ACTIVITY 任务组，可领取）、解锁可达关卡。
+真实时间模式零改动。
+
 ## 开发命令
 
 ```bash

@@ -117,7 +117,11 @@ export class PlayerDataManager {
     this.checkIn = new CheckInManager(this, this._trigger);
     this.storyreview = new StoryreviewManager(this, this._trigger);
     this.mission = new MissionManager(this, this._trigger);
-    void this.mission.init().catch((e) => logger.error("MissionManager", `init failed: ${(e as Error).message}`));
+    // init 的 promise 暴露给外部（AccountManager 加载后先 await 再播种活动任务，
+    // 避免 MissionManager.init 的 missions["ACTIVITY"] = {} 清掉已播种条目）
+    this.mission.initPromise = this.mission
+      .init()
+      .catch((e) => logger.error("MissionManager", `init failed: ${(e as Error).message}`));
     this.shop = new ShopController(this, this._trigger);
     this.battle = new BattleManager(this, this._trigger);
     this.recruit = new RecruitManager(this, this._trigger);

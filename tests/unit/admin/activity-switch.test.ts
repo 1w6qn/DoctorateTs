@@ -1,0 +1,122 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { AdminService } from "../../../app/admin/AdminService";
+import { accountManager } from "../../../app/game/manager/AccountManager";
+import { readJsonSync, writeJson } from "@utils/file";
+import config from "../../../app/config";
+import { mockPlayerData } from "../../helpers";
+
+// 配置读写走 mock（不落盘真实 data/config.json）
+vi.mock("@utils/file", () => ({
+  exists: vi.fn(),
+  size: vi.fn(),
+  readJson: vi.fn(),
+  writeJson: vi.fn().mockResolvedValue(undefined),
+  readJsonSync: vi.fn(() => ({
+    Host: "http://127.0.0.1",
+    PORT: 8443,
+    version: { resVersion: "test", clientVersion: "test" },
+  })),
+}));
+
+vi.mock("@excel/excel", () => ({
+  default: {
+    ActivityTable: {
+      basicInfo: {
+        act5d0: {
+          id: "act5d0", type: "TYPE_ACT5D0", name: "火蓝之心·复刻", displayType: "SIDESTORY",
+          startTime: 1597132800, endTime: 1597953599, rewardEndTime: 1598299199,
+        },
+        act6bossrush: {
+          id: "act6bossrush", type: "BOSS_RUSH", name: "引航者试炼", displayType: "BOSS_RUSH",
+          startTime: 1766692800, endTime: 1767902399, rewardEndTime: 1768161599,
+        },
+      },
+      missionGroup: [],
+      missionData: [],
+      activity: {},
+    },
+    StageTable: { stages: {} },
+  },
+}));
+
+vi.mock("@game/manager/PlayerDataManager", () => ({ PlayerDataManager: vi.fn() }));
+vi.mock("../../../app/admin/official-ops", () => ({ runGachaSync: vi.fn() }));
+vi.mock("fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("fs/promises")>();
+  return {
+    ...actual,
+    appendFile: vi.fn().mockResolvedValue(undefined),
+    mkdir: vi.fn().mockResolvedValue(undefined),
+  };
+});
+
+describe("AdminService 活动切换（activity switch）", () => {
+  let service: AdminService;
+  const original = config.developer;
+
+  afterEach(() => {
+    config.developer = original;
+  });
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    service = new AdminService();
+    (accountManager as any).data = { "1": mockPlayerData({ status: { uid: 1 } as any }) };
+    (accountManager as any).configs = { "1": { uid: "1", auth: { phone: "" } } };
+    vi.mocked(readJsonSync).mockReturnValue({
+      Host: "http://127.0.0.1",
+      PORT: 8443,
+      version: { resVersion: "test", clientVersion: "test" },
+    });
+    vi.mocked(writeJson).mockResolvedValue(undefined);
+  });
+
+  it("switchActivity(-1) 恢复真实时间：持久化配置并热生效", async () => {
+    const r = await service.switchActivity(-1);
+    expect(r.ok).toBe(true);
+    expect(r.effectiveTs).toBeCloseTo(Math.floor(Date.now() / 1000), 1);
+    // 持久化：writeJson 收到含 developer.timestamp=-1 的配置
+    expect(writeJson).toHaveBeenCalledWith(
+      "./data/config.json",
+      expect.objectContaining({ developer: { timestamp: -1 } }),
+    );
+    // 内存 config 同步（unlockActivity/userTimestamp 立即生效）
+    expect(config.developer).toEqual({ timestamp: -1 });
+  });
+
+  it("switchActivity(过去时间戳) 冻结并返回打开活动数", async () => {
+    const r = await service.switchActivity(1597132800);
+    expect(r.ok).toBe(true);
+    expect(r.effectiveTs).toBe(1597132800);
+    // act5d0 窗口内 → openCount 至少 1
+    expect(r.openCount).toBeGreaterThanOrEqual(1);
+    expect(config.developer).toEqual({ timestamp: 1597132800 });
+  });
+
+  it("switchActivity(未来时间戳) 拒绝", async () => {
+    await expect(service.switchActivity(Math.floor(Date.now() / 1000) + 99999)).rejects.toThrow(
+      "不能设置未来时间",
+    );
+  });
+
+  it("switchActivity 非法值拒绝", async () => {
+    await expect(service.switchActivity(NaN)).rejects.toThrow("时间戳非法");
+  });
+
+  it("listActivities 按生效时间戳判定 open，冻结模式标记 usingOverride", async () => {
+    config.developer = { timestamp: 1597132800 };
+    const list = await service.listActivities();
+    expect(list.usingOverride).toBe(true);
+    expect(list.effectiveTs).toBe(1597132800);
+    const act5d0 = list.activities.find((a) => a.id === "act5d0");
+    const boss = list.activities.find((a) => a.id === "act6bossrush");
+    expect(act5d0?.open).toBe(true);
+    expect(boss?.open).toBe(false);
+  });
+
+  it("listActivities 真实时间模式 usingOverride=false", async () => {
+    config.developer = { timestamp: -1 };
+    const list = await service.listActivities();
+    expect(list.usingOverride).toBe(false);
+  });
+});

@@ -876,6 +876,7 @@ BuildingManager（app/game/manager/building.ts）已实现完整基建玩法：
 
 **集成点（时间驱动，sync/换班入口）**：
 - 制造站容量 = 房间等级 `manufactData.phases[level-1].outputCapacity`（24/36/54）× (1 + 进驻干员技能加成 + 控制中枢全局加成)，回写 `room.capacity`/`room.buff.speed`——生产随时间累积受技能驱动；buff.targets（F_GOLD/F_EXP/…）按配方类型过滤
+- **计划耗尽即停（2026-08-13 修复赤金异常）**：`remainSolutionCnt ≤ 0` 时停止生产——原实现 remain=0 时跳过钳制 → 产出无上限累积（制造站赤金数量异常）；现在计划完成即停摆待收取（官方行为），结算后 state=0 清空配方
 - 训练室：trainee 进度 × (1 + 教官 train_* buff)
 - 心情档位（`building.chars[i].changeScale`）重算：输出房间基础消耗（制造/贸易/加工 -55、会客/人力/发电 -65，AP/秒，真实存档校准）− 技能附加消耗（描述"消耗"语境 `<@cc.vdown>/<@cc.vup>` 数值 ×100，正=消耗/负=减免）；宿舍恢复 = (基础 `manpowerRecover/160` + 舒适度 `comfort/1000×0.55` + dorm_* buff + control_dorm_* 全局) × 100——5 级 5000 舒适 + 技能 ≈ 405，与真实存档吻合；未进驻 0
 - 换班（assignChar/batchChangeWorkChar/batchRestChar）后立即重算档位，下次 sync 按新档位累积
@@ -1132,7 +1133,9 @@ mitmproxy map remote 设置 URL 时会同步改写 Host 头为 `127.0.0.1:8443`�
 ### 17.5 arkhub 网关特殊适配（app/proxy/arkhub-gateway.ts）
 阿卡狄亚（arkhub）是独立实时网关玩法：`POST /activity/arkhub/enterHall` 响应返回 `{ result, endpoint: "arkhub-gateway.hypergryph.com", port: 30000 }`，客户端随后用 BestHTTP WebSocket 连该网关（私有协议，明文 TCP；TLS 握手被直接断开、明文 WS 握手无响应）。capture 模式两项适配（2026-08-09）：
 1. **enterHall 响应改写**：`createOfficialForwarder` 收到 `arkhubGateway` 选项且路径为 `/activity/arkhub/enterHall` 时，把 `endpoint` 改写为 `config.Host` 去 scheme、`port` 保持网关端口——否则客户端直连官服网关（hosts 重写时连 127.0.0.1:30000 无监听而失败，且网关流量不经过代理）。非网关形状响应（如 401）原样透传。
-2. **TCP 转发器（端口自动避让）**：`startArkhubGatewayProxy` 首选 `config.capture.gatewayPort`（缺省 30000），被占时自动尝试下一个空闲端口（port, port+1, ... 最多 50 次）——多实例并存时每个实例各拿一个空闲端口（如 30000/30001/30002），enterHall 改写用**实际监听端口**，客户端互不干扰。返回 `{ server, port, exhausted, adjusted }`：全部避让端口被占（exhausted，极罕见）时仍改写指向配置端口（其上大概率有另一实例转发器）。每个连接建立到官服网关的透传管道（纯 TCP pipe，不做协议解析——客户端自带上层握手/鉴权），双向字节流落盘 `tmp/arkhub-gateway/{connectionId}/`（up.bin=客户端→官服、down.bin=官服→客户端、meta.json）。实现注意：每次尝试**新建 server**（复用同一 server 重 listen 有回调错乱问题，实测 adjusted 结果错乱）。
+2. **TCP 转发器（端口自动避让 + ODC 帧解析）**：`startArkhubGatewayProxy` 首选 `config.capture.gatewayPort`（缺省 30000），被占时自动尝试下一个空闲端口（port, port+1, ... 最多 50 次）——多实例并存时每个实例各拿一个空闲端口（如 30000/30001/30002），enterHall 改写用**实际监听端口**，客户端互不干扰。返回 `{ server, port, exhausted, adjusted }`：全部避让端口被占（exhausted，极罕见）时仍改写指向配置端口（其上大概率有另一实例转发器）。每个连接建立到官服网关的透传管道（纯 TCP pipe，客户端自带上层握手/鉴权），双向字节流落盘 `tmp/arkhub-gateway/{connectionId}/`（up.bin=客户端→官服、down.bin=官服→客户端、meta.json），连接关闭时按 **arkodc 帧协议**（见下）解析写 `parsed.json`。实现注意：每次尝试**新建 server**（复用同一 server 重 listen 有回调错乱问题，实测 adjusted 结果错乱）。
+
+**arkodc 网关帧协议**（app/proxy/arkodc.ts，2026-08-11）：帧 = `[4B 大端总长度][4B 大端消息 ID][8B 头字段（8-11 疑 seq、12-15 疑 flag/计数）][protobuf payload]`。`decodeProtobuf` 通用解码（varint/fixed64/length-delimited/fixed32 + 嵌套消息，嵌套启发式：首字段 wire 0/2 且非可读文本——避免 uid 等 ASCII 串误判）。MSG_NAMES 观测映射：1=MoveReq（8B 非 protobuf）、2=MoveNotify、4=Login（UserLoginReq up / UserLoginResp down）、8=NetProbeData（心跳 08 00 / 探针 10 80 02+15B / 玩家数据 0a 变体）。实测 up 流 3176 帧零断帧；**down 流部分会话登录后为连续 protobuf/自定义封装**（长度前缀不可切，余量 hex 如实记录——该变体仅在特定玩法触发，需进一步逆向）。离线重解析：`npx tsx scripts/parse-arkhub-gateway.ts [连接目录]`。
 
 **与 test.ts 关系**：test.ts（`npm run ts`，8444）是独立纯转发抓包代理，规则同源但可独立运行；本模式把同一套规则并入主服务器（8443），免去另起进程。**账号说明**：capture 模式用官服账号登录（reference/checkin-master/accounts.txt），与私服账号体系互不相通。
 

@@ -154,6 +154,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
 
   async giveUpGame(): Promise<void> {
     // 放弃结算：生成 GAME_SETTLE 事件（客户端展示放弃结算页），保留游戏态直至 gameSettle 确认
+    this._status.runResult = "giveup";
     const { brief, record } = this.buildSettlement(true, 0, "");
     this.current.record = { brief, record };
     await this._trigger.emit("rlv2:event:create", [
@@ -613,6 +614,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     if (!this.isZoneEnd()) return false;
     const zone = this._status.cursor.zone;
     if (zone >= this.maxZone) {
+      // 修复：通关到最终层终点 → 标记成功（原实现 toEnding 恒非 "normal" → 每次通关
+      // 结算都显示失败）；放弃路径由 giveUpGame 置 "giveup"
+      this._status.runResult = "success";
       // 修复：fire-and-forget 未捕获拒绝会导致 Node 进程终止（gameSettle 内部 game 可能为 null）
       void this.gameSettle().catch((e) =>
         logger.error("rlv2", `gameSettle failed: ${(e as Error).message}`),
@@ -2221,7 +2225,10 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   async gameSettle(): Promise<void> {
     const theme = this.current.game!.theme;
     const ending = this._status.toEnding || "";
-    const success = ending === "normal" || this._status.chgEnding ? 1 : 0;
+    // 修复：原实现 toEnding 恒为 "roX_ending_1/2"（非 "normal"）且 chgEnding 仅持有
+    // 结局变更藏品时为 true → 通关结算恒显示失败；改按本局结果标记判定
+    const success =
+      this._status.runResult === "success" || this._status.chgEnding ? 1 : 0;
     const { brief, record } = this.buildSettlement(true, success, ending);
     this.current.record = { brief, record };
 

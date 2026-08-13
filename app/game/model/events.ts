@@ -310,6 +310,14 @@ export type EventMap = {
   PassStageSome: [PlayerDataManager];
   /** 任务完成情况（勋章追踪） */
   MissionCompleteSome: [{ count: number }];
+  /** 干员精英化次数（勋章追踪，补声明——medal.ts CharEvolveCount 模板监听） */
+  CharEvolveCount: [{ char: PlayerCharacter }];
+  /** 干员信赖档位（勋章追踪，补声明——medal.ts CharFavorCount 模板监听） */
+  CharFavorCount: [{ favorPoint: number }];
+  /** 获得干员（勋章追踪，补声明——medal.ts GotChars 模板监听） */
+  GotChars: [{ char: PlayerCharacter }];
+  /** 累计签到次数（勋章追踪，补声明——medal.ts TotalCheckinCount 模板监听） */
+  TotalCheckinCount: [];
   /** 基建放置建筑（勋章追踪） */
   Sbv2PlaceBuilding: [];
   /** 基建通关裂隙（勋章追踪） */

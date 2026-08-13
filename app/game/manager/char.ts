@@ -219,6 +219,11 @@ export class CharManager {
     const liveChar = this._player._playerdata.troop.chars[charInstId];
     if (liveChar) {
       await this._trigger.emit("HasChar", [{ char: liveChar }]);
+      // 修复：勋章事件从未 emit → 干员数量/获得干员勋章永不推进
+      await this._trigger.emit("CharNum", [
+        { curCharInstId: this._player._playerdata.troop.curCharInstId },
+      ]);
+      await this._trigger.emit("GotChars", [{ char: liveChar }]);
     }
     const res = {
       charInstId: charInstId,
@@ -314,6 +319,8 @@ export class CharManager {
       char.evolvePhase = destEvolvePhase;
       char.level = 1;
       char.exp = 0;
+      // 修复：勋章 CharEvolveCount 事件从未 emit → 精英化勋章永不推进
+      await this._trigger.emit("CharEvolveCount", [{ char }]);
       // 技能解锁：精英化解锁对应技能（如 E1 解锁技能2、E2 解锁技能3），保留已有技能状态
       reconcileCharSkills(char);
       if (destEvolvePhase >= 2) {

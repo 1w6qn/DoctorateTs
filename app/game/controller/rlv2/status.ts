@@ -15,6 +15,8 @@ export class RoguelikePlayerStatusManager
   status!: PlayerRoguelikeV2.CurrentData.PlayerStatus.Status;
   toEnding!: string;
   chgEnding!: boolean;
+  /** 本局结果（"success"=通关到最终层终点 / "giveup"=放弃，供 gameSettle 判定成功） */
+  runResult!: string;
   innerMission?: PlayerRoguelikeV2.CurrentData.PlayerStatus.InnerMission[];
   nodeMission?: PlayerRoguelikeV2.CurrentData.PlayerStatus.NodeMission;
   zoneReward?: { [key: string]: PlayerRoguelikeV2.CurrentData.PlayerStatus.ZoneRewardItem };
@@ -58,6 +60,7 @@ export class RoguelikePlayerStatusManager
       status: { bankPut: 0 },
       toEnding: "",
       chgEnding: false,
+      runResult: "",
     };
     this.state = _status.state;
     this.property = _status.property;
@@ -65,6 +68,7 @@ export class RoguelikePlayerStatusManager
     this.trace = _status.trace;
     this.chgEnding = _status.chgEnding;
     this.toEnding = _status.toEnding;
+    this.runResult = _status.runResult;
     this.status = _status.status;
     this.innerMission = undefined;
     this.nodeMission = undefined;

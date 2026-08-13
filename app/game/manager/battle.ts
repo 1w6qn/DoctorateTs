@@ -460,6 +460,14 @@ export class BattleManager {
               if (char && draft.troop.chars[char.charInstId]) {
                 const target = draft.troop.chars[char.charInstId];
                 target.favorPoint = (target.favorPoint || 0) + 1;
+                // 修复：勋章 CharFavorCount 事件从未 emit → 干员信赖勋章永不推进
+                await this._trigger.emit("CharFavorCount", [
+                  { favorPoint: target.favorPoint },
+                ]);
+                // 修复：任务 CharIntimacy 事件从未 emit → 干员信赖任务永不推进
+                await this._trigger.emit("CharIntimacy", [
+                  { favorPoint: target.favorPoint },
+                ]);
               }
             }
           }
@@ -504,6 +512,8 @@ export class BattleManager {
         ]);
       }
       await this._trigger.emit("CostAp", [{ ap: apCost }]);
+      // 修复：勋章 PassStageSome 事件从未 emit → 通关特定关卡勋章永不推进
+      await this._trigger.emit("PassStageSome", [this._player]);
       const favorGained =
         battleInfo.squad?.slots?.filter(
           (s) => s && this._player._playerdata.troop.chars[s.charInstId],

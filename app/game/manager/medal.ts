@@ -28,6 +28,7 @@ import moment from "moment";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { EventMap, TypedEventEmitter } from "@game/model/events";
 import { PlayerCharacter } from "../model/character";
+import { rarityToIndex } from "@utils/rarity";
 import { logger } from "@utils/logger";
 
 export class MedalManager implements PlayerMedal {
@@ -340,7 +341,9 @@ export class MedalProgress implements PlayerPerMedal {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { curCharInstId: number }) => {
-        this.val[0][0] = args.curCharInstId;
+        // 修复：实际干员数 = curCharInstId - 1（instId 从 1 递增，与
+        // PlayerDataManager.socialInfo.charCnt 一致）——原实现多算 1
+        this.val[0][0] = Math.max(0, (args.curCharInstId ?? 1) - 1);
       },
     };
     funcs[mode](args);
@@ -528,10 +531,28 @@ export class MedalProgress implements PlayerPerMedal {
    */
   GotChars(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      init: (args: {}) => {
+        // 修复：param[0] 可能是分号分隔的干员列表（medal_growth_char_*）——
+        // parseInt 得 NaN → 目标永远无法达成；列表形式目标 = 列表长度
+        const p0 = String(this.param[0] ?? "");
+        const target = p0.includes(";")
+          ? p0.split(";").length
+          : parseInt(p0) || 0;
+        this.val[0].push(0, target);
+      },
       update: (args: { char: PlayerCharacter }) => {
         const data = excel.CharacterTable[args.char.charId];
-        if (data.rarity >= parseInt(this.param[1] || "5")) {
+        const p0 = String(this.param[0] ?? "");
+        if (p0.includes(";")) {
+          // 指定干员列表形式：命中列表内干员 +1
+          if (p0.split(";").includes(args.char.charId)) {
+            this.val[0][0] += 1;
+          }
+          return;
+        }
+        // 稀有度阈值形式：rarity 为 "TIER_N" 字符串——原 `"TIER_5" >= 5` 恒 false，
+        // 统一经 rarityToIndex 转 0~5 再比较
+        if (rarityToIndex(data?.rarity) >= parseInt(this.param[1] || "5")) {
           this.val[0][0] += 1;
         }
       },

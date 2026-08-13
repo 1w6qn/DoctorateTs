@@ -1363,6 +1363,8 @@ export class BuildingManager {
           if (roll <= 0) {
             draft.inventory[g.itemId] =
               (draft.inventory[g.itemId] || 0) + (g.itemCount ?? 1) * times2;
+            // 修复：WorkshopExBonus 任务事件从未 emit → 工坊副产物任务永不推进
+            await this._trigger.emit("WorkshopExBonus", []);
             break;
           }
         }
@@ -1452,7 +1454,8 @@ export class BuildingManager {
    */
   async sendClue(args: { id: string; friendId: string }) {
     const { id, friendId } = args;
-    return await this._player.update(async (draft) => {
+    let sent = false;
+    await this._player.update(async (draft) => {
       const room = Object.values(draft.building.rooms.MEETING)[0];
       if (!room) return;
       const idx = room.ownStock.findIndex((c) => c.id === id);
@@ -1460,11 +1463,16 @@ export class BuildingManager {
       const clue = room.ownStock.splice(idx, 1)[0];
       clue.uid = String(friendId);
       room.receiveStock.push(clue);
+      sent = true;
       // 推送：线索已处理且无待处理线索 → 清除会客室红点
       if (room.ownStock.length === 0 && room.receiveStock.length === 0) {
         draft.pushFlags.hasClues = 0;
       }
     });
+    // 修复：SendClue 任务事件从未 emit → 发送线索类任务永不推进
+    if (sent) {
+      await this._trigger.emit("SendClue", []);
+    }
   }
 
   /**

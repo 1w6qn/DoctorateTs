@@ -183,6 +183,10 @@ export class InventoryManager {
             await this._trigger.emit("UpgradePlayer", [
               { level: draft.status.level },
             ]);
+            // 修复：勋章 PlayerLevel 事件从未 emit → 玩家等级勋章永不推进
+            await this._trigger.emit("PlayerLevel", [
+              { level: draft.status.level },
+            ]);
           } else {
             break;
           }

@@ -132,6 +132,8 @@ export class RecruitManager {
           result = res;
         },
       ]);
+      // 修复：勋章 RecruitCount 事件从未 emit → 招募次数勋章永不推进
+      await this._trigger.emit("RecruitCount", []);
       return result;
     });
   }

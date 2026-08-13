@@ -204,6 +204,8 @@ export class ShopController {
       [{ id: "4005", count: good.price * count }],
     ]);
     await this._trigger.emit("items:get", [[item]]);
+    // 修复：BuyShopItem 任务事件从未 emit → 商店购买任务永不推进
+    await this._trigger.emit("BuyShopItem", [{ type: "LS", socialPoint: 0 }]);
     return [item];
   }
 
@@ -261,6 +263,8 @@ export class ShopController {
       [{ id: "4004", count: price * count }],
     ]);
     await this._trigger.emit("items:get", [[item]]);
+    // 修复：BuyShopItem 任务事件从未 emit → 商店购买任务永不推进
+    await this._trigger.emit("BuyShopItem", [{ type: "HS", socialPoint: 0 }]);
     return [item];
   }
 
@@ -294,6 +298,8 @@ export class ShopController {
       [{ id: "4006", count: good!.price * count }],
     ]);
     await this._trigger.emit("items:get", [[item]]);
+    // 修复：BuyShopItem 任务事件从未 emit → 商店购买任务永不推进
+    await this._trigger.emit("BuyShopItem", [{ type: "ES", socialPoint: 0 }]);
     return [item];
   }
 

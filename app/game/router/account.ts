@@ -55,6 +55,10 @@ router.post("/syncData", async (req, res) => {
     // 响应 ts 必须一致——同取一次 userTimestamp（保证客户端加密/服务端解密一致）
     draft.pushFlags.status = ts;
   });
+  // 修复：勋章 JoinGameDays 事件从未 emit → 加入游戏天数勋章永不推进（登录时刷新）
+  await player._trigger.emit("JoinGameDays", [
+    { registerTs: player._playerdata.status?.registerTs ?? 0 },
+  ]);
   // B4：预序列化响应（user 全量 1.3MB 级 JSON.stringify 缓存，update 后失效）
   const userJson = player.toJSONString();
   const deltaJson = JSON.stringify(player.delta);

@@ -85,6 +85,8 @@ export class CheckInManager {
       await this._trigger.emit("items:get", [
         subscriptionRewards.concat(signInRewards),
       ]);
+      // 修复：勋章 TotalCheckinCount 事件从未 emit → 累计签到勋章永不推进
+      await this._trigger.emit("TotalCheckinCount", []);
       return { signInRewards, subscriptionRewards };
     }))!;
   }

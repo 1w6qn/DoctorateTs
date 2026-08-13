@@ -29,6 +29,8 @@ router.post("/editNameCard", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as EditNameCardRequest;
   await player.social.editNameCard(body);
+  // 修复：EditBusinessCard 任务事件从未 emit → 编辑名片类任务永不推进
+  await player._trigger.emit("EditBusinessCard", []);
   res.send(player.delta satisfies EditNameCardResponse);
 });
 router.post("/getOtherPlayerNameCard", async (req, res) => {

@@ -566,7 +566,8 @@ describe("MedalManager", () => {
         mockTrigger as any
       );
       progress.CharNum({ curCharInstId: 8 }, "update");
-      expect(progress.val[0][0]).toBe(8);
+      // 修复：实际干员数 = curCharInstId - 1（instId 从 1 递增）——原实现多算 1
+      expect(progress.val[0][0]).toBe(7);
     });
 
     it("RecruitCount 模板应累加招募次数", () => {

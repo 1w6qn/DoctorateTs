@@ -117,14 +117,18 @@ describe("resolveForwardTarget（官服转发目标解析）", () => {
       expect(resolveForwardTarget("POST", "/pcSdk/userInfo", "ak-gs-gf.hypergryph.com")).toBeNull();
     });
 
-    it("本地挂载点 POST 不转发（/admin、/config、/api、/pcSdk、/assetbundle、/audit、/arkodc）", () => {
+    it("本地挂载点 POST 不转发（/admin、/config、/api、/pcSdk、/assetbundle、/audit）", () => {
       expect(resolveForwardTarget("POST", "/admin/users", "127.0.0.1:8443")).toBeNull();
       expect(resolveForwardTarget("POST", "/config/foo", "127.0.0.1:8443")).toBeNull();
       expect(resolveForwardTarget("POST", "/api/game/get_latest", "127.0.0.1:8443")).toBeNull();
       expect(resolveForwardTarget("POST", "/pcSdk/whatever", "127.0.0.1:8443")).toBeNull();
       expect(resolveForwardTarget("POST", "/assetbundle/upload", "127.0.0.1:8443")).toBeNull();
       expect(resolveForwardTarget("POST", "/audit/official/x", "127.0.0.1:8443")).toBeNull();
-      expect(resolveForwardTarget("POST", "/arkodc/odp", "127.0.0.1:8443")).toBeNull();
+    });
+
+    it("/arkodc（奇象巡展活动路由）转发官服 gs——OBS 路由即从官服逆向，须抓真实响应", () => {
+      expect(resolveForwardTarget("POST", "/arkodc/odp", "127.0.0.1:8443")?.baseUrl).toBe(OFFICIAL_GS_HOST);
+      expect(resolveForwardTarget("POST", "/arkodc/battleStart", "127.0.0.1:8443")?.baseUrl).toBe(OFFICIAL_GS_HOST);
     });
 
     it("GET 非 as 路径不转发（/pcSdk、游戏 GET 保持本地响应）", () => {

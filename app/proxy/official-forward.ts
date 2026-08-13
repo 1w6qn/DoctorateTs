@@ -102,7 +102,9 @@ const AS_PATH_PREFIXES = [
 /**
  * 本地挂载点前缀：capture 模式须排除、不转发官服的路径——
  * 管理/配置/资源等由私服响应；/batch_event 客户端事件上报由 home.ts 返回 {} 即可
- * （转发官服只会得到 404 噪音，用户明确要求不转发）
+ * （转发官服只会得到 404 噪音，用户明确要求不转发）。
+ * 注意：/arkodc（奇象巡展活动路由）是游戏域接口，官服在活动开启期间客户端会调用——
+ * OBS 的 arkodc 路由即从官服逆向而来，故**不在**排除列表、照常转发官服以抓真实响应。
  */
 const LOCAL_ONLY_PREFIXES = [
   "/admin",
@@ -111,7 +113,6 @@ const LOCAL_ONLY_PREFIXES = [
   "/config",
   "/api",
   "/audit",
-  "/arkodc",
   "/batch_event",
 ] as const;
 

@@ -119,12 +119,20 @@ describe("命名解码（MSG_SCHEMAS → 正常游戏 JSON）", () => {
     expect(f.named).toBeUndefined();
   });
 
-  it("定长二进制 payload 按 4B uint32 解释", () => {
+  it("未知定长二进制 payload 按 4B uint32 解释（fixed）", () => {
+    const payload = Buffer.alloc(8);
+    payload.writeUInt32BE(0, 0);
+    payload.writeUInt32BE(1590574, 4);
+    const [f] = splitGatewayFrames(frame(99, payload), "up");
+    expect(f.fixed).toEqual([0, 1590574]);
+  });
+
+  it("已知 FIXED_SCHEMAS 的定长 payload 输出 named（msgId1 = {type, param}）", () => {
     const payload = Buffer.alloc(8);
     payload.writeUInt32BE(0, 0);
     payload.writeUInt32BE(1590574, 4);
     const [f] = splitGatewayFrames(frame(1, payload), "up");
-    expect(f.fixed).toEqual([0, 1590574]);
+    expect(f.named).toEqual({ type: 0, param: 1590574 });
   });
 
   it("MSG_SCHEMAS 登录双向字段名齐全", () => {

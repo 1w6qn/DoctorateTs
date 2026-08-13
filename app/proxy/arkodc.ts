@@ -47,7 +47,9 @@ export const MSG_SCHEMAS: Record<number, { name: string; up?: string[]; down?: s
 };
 
 /**
- * 定长非 protobuf payload 的解释（msgId 1/2 等，按 4B 大端 uint32 分段）
+ * 定长二进制 payload 的解释（msgId 1/2 等，按 4B 大端 uint32 分段）。
+ * 实测 msgId 1（up 移动输入）与 msgId 2（down 位置广播）均为 [type:uint32][param:uint32]（+8B extra）；
+ * type 0-3 为四种输入/移动命令。
  */
 export function decodeFixedPayload(payload: Buffer): unknown[] {
   const words: unknown[] = [];
@@ -55,6 +57,27 @@ export function decodeFixedPayload(payload: Buffer): unknown[] {
     words.push(payload.readUInt32BE(off));
   }
   return words;
+}
+
+/**
+ * 已知的定长二进制 schema（非 protobuf，按字段名解释）：
+ *   msgId 1 = {type, param}      —— 移动输入命令（type 0-3；up 向）
+ *   msgId 2 = {type, param, extra1, extra2} —— 位置广播（down 向，type/param 与 up 输入一致 = 服务器回显广播）
+ */
+export const FIXED_SCHEMAS: Record<number, string[]> = {
+  1: ["type", "param"],
+  2: ["type", "param", "extra1", "extra2"],
+};
+
+/** 按 FIXED_SCHEMAS 命名定长二进制 payload */
+export function decodeFixedWithSchema(payload: Buffer, fieldNames: string[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (let off = 0; off + 4 <= payload.length; off += 4) {
+    const idx = off / 4;
+    const name = idx < fieldNames.length ? fieldNames[idx] : `word${idx}`;
+    out[name] = payload.readUInt32BE(off);
+  }
+  return out;
 }
 
 /** protobuf wire type 名称 */
@@ -376,13 +399,18 @@ export function splitGatewayFrames(buffer: Buffer, direction?: "up" | "down"): G
       fields,
       payloadHex: payload.toString("hex"),
     };
-    // schema 命名（登录双向已确认）；定长二进制按 4B uint32 解释
+    // schema 命名（登录双向已确认）；定长二进制按 4B 大端 uint32 解释（msgId 1/2 有命名 schema）
     const schema = MSG_SCHEMAS[msgId];
     if (schema && direction && (direction === "up" ? schema.up : schema.down)) {
       const names = direction === "up" ? schema.up! : schema.down!;
       frame.named = decodeWithSchema(fields, names);
     } else if (fields.length === 0 && payload.length > 0 && payload.length % 4 === 0) {
-      frame.fixed = decodeFixedPayload(payload);
+      const fixedNames = FIXED_SCHEMAS[msgId];
+      if (fixedNames) {
+        frame.named = decodeFixedWithSchema(payload, fixedNames);
+      } else {
+        frame.fixed = decodeFixedPayload(payload);
+      }
     }
     frames.push(frame);
     off += len;

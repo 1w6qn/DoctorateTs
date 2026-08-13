@@ -608,7 +608,15 @@ router.post("/buyLabor", async (req, res) => {
   res.status(202).send(player.delta satisfies BuyLaborResponse);
 });
 
-/** 清理房间槽位（简化实现） */
+/** 清理房间槽位（官方路由名：BuildingCleanRoomRequest → /cleanRoom） */
+router.post("/cleanRoom", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as CleanRoomSlotRequest;
+  await player.building.cleanRoomSlot(body);
+  res.send(player.delta satisfies CleanRoomSlotResponse);
+});
+
+/** 清理房间槽位（兼容旧路由名） */
 router.post("/cleanRoomSlot", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as CleanRoomSlotRequest;

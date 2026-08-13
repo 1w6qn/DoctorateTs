@@ -104,10 +104,29 @@ export class BuildingManager {
     }
   }
 
+  /** 会客室 infoShare 待领取奖励指示（官方 reward 为 0/1：socialReward 有未领取信用 → 1） */
+  private _infoShareReward(
+    sr: { daily?: number; search?: number } | undefined,
+  ): number {
+    return (sr?.daily ?? 0) + (sr?.search ?? 0) > 0 ? 1 : 0;
+  }
+
+  /**
+   * 更新会客室 infoShare 字段（惰性初始化 + reward 待领取指示）
+   * 官方 sync/基建请求响应 delta 含 infoShare（抓包 reward:1=有待领取，
+   * getInfoShareReward 处理后归 0）；不更新则客户端红点/领取状态不刷新。
+   */
+  private _refreshInfoShare(draft: WritableDraft<PlayerDataModel>): void {
+    const room = Object.values(draft.building.rooms.MEETING)[0];
+    if (!room) return;
+    const is = (room.infoShare ??= { ts: 0, reward: 0 });
+    is.reward = this._infoShareReward(room.socialReward);
+  }
+
   /**
    * 同步基建数据
    * 时间驱动：劳动力恢复 → 干员心情档位重算（岗位/技能）→ 制造站生产累积 →
-   * 贸易站订单补充 → 训练室进度推进。
+   * 贸易站订单补充 → 训练室进度推进 → 会客室 infoShare 待领取指示。
    *
    * 注：干员心情（building.chars[].ap）不在此推进——会客室会话（getInfoShareReward/
    * startInfoShare）按 building.chars 增量推进情报分享状态（抓包 res_1074），
@@ -129,6 +148,8 @@ export class BuildingManager {
       // 训练室进度推进（trainee.processPoint 随时间累积，客户端进度显示一致；
       // 完成仍由客户端计时驱动 completeUpgradeSpecialization）
       this._accrueTraining(draft);
+      // 会客室 infoShare.reward 待领取指示（官方 sync 响应含该字段）
+      this._refreshInfoShare(draft);
       draft.event.building = now() + 5000;
       return now();
     });
@@ -432,7 +453,9 @@ export class BuildingManager {
         const src = this._charSource(draft, instId);
         if (src) scale -= charMoodCost(src, roomType);
       }
-      ch.changeScale = scale;
+      if (ch.changeScale !== scale) {
+        ch.changeScale = scale;
+      }
     }
   }
 
@@ -669,15 +692,27 @@ export class BuildingManager {
    * 将指定房间的干员列表替换为 charInstIdList，同时清空这些干员在其他房间的占用
    * @param args - 包含 roomSlotId 和 charInstIdList 的参数对象
    */
+  /**
+   * 批量更换工作干员（客户端换班管理入口）
+   *
+   * 官方协议：CS BuildingBatchChangeWorkCharRequest 无字段（实测 body={}）——
+   * 客户端实际换班走 assignChar（每房间一条，含清人 assignChar [-1]）。
+   * 服务端兼容请求体字段名变体（roomSlotId/slotId、charInstIdList/charInstIds/list），
+   * 携带数据时立即生效；空请求体按官方行为返回当前状态（不 500、不改分配）。
+   * @param args - 请求体（roomSlotId/slotId + charInstIdList/charInstIds/list）
+   */
   async batchChangeWorkChar(args: {
-    roomSlotId: string;
-    charInstIdList: number[];
+    roomSlotId?: string;
+    slotId?: string;
+    charInstIdList?: number[];
+    charInstIds?: number[];
+    list?: number[];
   }) {
-    const { roomSlotId, charInstIdList } = args;
+    const roomSlotId = args.roomSlotId ?? args.slotId;
+    const charInstIdList = args.charInstIdList ?? args.charInstIds ?? args.list;
     return await this._player.update(async (draft) => {
-      // 防御：客户端请求体为空（CS BuildingBatchChangeWorkCharRequest 无字段，
-      // 实测 body={}）时不改任何分配，仅返回当前状态（不 500）
-      if (!charInstIdList || !roomSlotId) return;
+      // 空请求体（官方无字段）→ 不改分配，仅返回当前状态（不 500）
+      if (!Array.isArray(charInstIdList) || !roomSlotId) return;
       // 清空这些干员在其他房间的占用
       for (const slotKey in draft.building.roomSlots) {
         if (slotKey === roomSlotId) continue;
@@ -696,12 +731,19 @@ export class BuildingManager {
 
   /**
    * 批量休息干员
-   * 将指定干员从所有房间的工作位置移除（置为 -1）
-   * @param args - 包含 charInstIdList 的参数对象
+   * 将指定干员从所有房间的工作位置移除（置为 -1）。
+   * 官方 CS BuildingBatchChangeRestCharRequest 无字段（实际清人走 assignChar [-1]），
+   * 服务端兼容 charInstIdList/charInstIds/list 字段名变体；空请求体不改分配。
+   * @param args - 请求体（charInstIdList/charInstIds/list）
    */
-  async batchRestChar(args: { charInstIdList: number[] }) {
-    const { charInstIdList } = args;
+  async batchRestChar(args: {
+    charInstIdList?: number[];
+    charInstIds?: number[];
+    list?: number[];
+  }) {
+    const charInstIdList = args.charInstIdList ?? args.charInstIds ?? args.list;
     return await this._player.update(async (draft) => {
+      if (!Array.isArray(charInstIdList)) return;
       for (const slotKey in draft.building.roomSlots) {
         const ids = draft.building.roomSlots[slotKey].charInstIds;
         for (let i = 0; i < ids.length; i++) {
@@ -1506,12 +1548,23 @@ export class BuildingManager {
    * 见抓包 building_getInfoShareReward_res_1074）——客户端会客室会话按该增量推进
    * 情报分享状态；原实现不推进 → delta 为空 → 客户端死循环重拉。
    *
+   * 再修复：同时推进 infoShare 字段（infoShare.ts = now）——官方该响应 delta 含
+   * MEETING 房间完整状态（含 infoShare/socialPoint 信用发放）；不推进则同一批访客
+   * 每次都被视为"新访客" → 重复计信用 → 无限重复获取。
+   *
    * @returns 访客列表
    */
   async getInfoShareReward() {
-    // 会客室干员体力（AP）随时间累积（changeScale>0 恢复；上限 8640000）
+    // 会客室干员体力（AP）随时间累积（changeScale>0 恢复；上限 8640000）+ 会话推进
     await this._player.update(async (draft) => {
       this._accrueCharAp(draft);
+      const room = Object.values(draft.building.rooms.MEETING)[0];
+      if (room) {
+        // 惰性初始化 infoShare（旧存档缺失）；ts 推进（会话划分）+ reward 待领取指示
+        const is = (room.infoShare ??= { ts: 0, reward: 0 });
+        is.ts = now();
+        is.reward = this._infoShareReward(room.socialReward);
+      }
     });
     const uid = String(this._player._playerdata.status.uid);
     const social = await accountManager.getSocial(uid);
@@ -1538,18 +1591,25 @@ export class BuildingManager {
    * 会客室干员体力（AP）随时间累积
    * 官方模型：building.chars[].ap += 流逝时间 × changeScale（会客室干员 changeScale>0
    * 恢复体力；工作干员 changeScale<0 消耗）；clamp 到 [0, 8640000]，更新 lastApAddTime。
-   * 官方每次基建请求都会推进并下发该增量——见抓包 startInfoShare/getInfoShareReward 响应。
+   *
+   * lastApAddTime 写**浮点秒（毫秒精度）**：官方每次基建请求都下发 chars 增量
+   * （抓包 res_1074 含 308 chars）——秒级整型在客户端紧邻重拉（同一秒内多次调用）
+   * 时无法变化 → 空 delta → 会客室会话不推进 → 无限重复获取；
+   * 浮点秒保证任意两次调用（≥1ms 间隔）lastApAddTime 必变 → 增量恒在。
    * @param draft - Immer 可写草稿
    */
   private _accrueCharAp(draft: WritableDraft<PlayerDataModel>): void {
-    const ts = now();
+    const nowSec = Date.now() / 1000; // 浮点秒（毫秒精度）
     for (const ch of Object.values(draft.building.chars ?? {})) {
+      const last =
+        typeof ch.lastApAddTime === "number" ? ch.lastApAddTime : nowSec;
+      const elapsedSec = nowSec - last;
+      if (elapsedSec <= 0) continue;
+      ch.lastApAddTime = nowSec;
       const scale = ch.changeScale ?? 0;
-      if (!scale) continue;
-      const elapsed = ts - (ch.lastApAddTime || ts);
-      if (elapsed <= 0) continue;
-      ch.lastApAddTime = ts;
-      ch.ap = Math.min(Math.max((ch.ap ?? 0) + elapsed * scale, 0), 8640000);
+      if (scale !== 0) {
+        ch.ap = Math.min(Math.max((ch.ap ?? 0) + elapsedSec * scale, 0), 8640000);
+      }
     }
   }
 
@@ -1572,8 +1632,9 @@ export class BuildingManager {
       granted = (sr?.daily ?? 0) + (sr?.search ?? 0);
       if (granted <= 0) return;
       draft.status.socialPoint = (draft.status.socialPoint ?? 0) + granted;
-      // 领取后清零（一次性，避免重复领取）
+      // 领取后清零（一次性，避免重复领取）+ infoShare.reward 归 0（待领取指示）
       room.socialReward = { daily: 0, search: 0 };
+      this._refreshInfoShare(draft);
     });
     return {
       rewards:
@@ -1585,7 +1646,7 @@ export class BuildingManager {
 
   // ==================== 预设队列 ====================
 
-  /** 惰性获取预设队列容器（旧存档无该字段时初始化） */
+  /** 预设队列元数据（名称/锁定——官方线格式 room.presetQueue 仅为干员组数组，无名称） */
   private _presetQueues(draft: WritableDraft<PlayerDataModel>): any {
     const building = draft.building as any;
     if (!building.presetQueues) building.presetQueues = {};
@@ -1593,92 +1654,151 @@ export class BuildingManager {
   }
 
   /**
+   * 获取房间的预设队列数组（官方线格式：room.presetQueue = number[][]，按索引）。
+   * 含 presetQueue 字段的房间类型：MANUFACTURE/TRADING/POWER/CONTROL/MEETING/HIRE。
+   * @returns 房间队列数组（不存在该字段的房间返回 null）
+   */
+  private _roomPresetQueue(
+    draft: WritableDraft<PlayerDataModel>,
+    slotId: string,
+  ): number[][] | null {
+    const slot = draft.building.roomSlots[slotId];
+    if (!slot) return null;
+    const roomType = slot.roomId as keyof PlayerDataModel["building"]["rooms"];
+    const room = draft.building.rooms[roomType]?.[slotId] as any;
+    if (!room) return null;
+    if (!Array.isArray(room.presetQueue)) room.presetQueue = [];
+    return room.presetQueue;
+  }
+
+  /**
    * 添加预设队列
-   * @param args - 包含 roomSlotId、presetName、charInstIdList 的参数对象
+   * 对齐官方：CS BuildingAddPresetQueueRequest 仅 { slotId }——把房间当前排班
+   * （charInstIds）追加为新队列；兼容请求体显式携带 charInstIdList。
+   * @param args - { slotId }（或 roomSlotId）+ 可选 charInstIdList
    */
   async addPresetQueue(args: {
-    roomSlotId: string;
-    presetName: string;
-    charInstIdList: number[];
+    slotId?: string;
+    roomSlotId?: string;
+    charInstIdList?: number[];
+    presetName?: string;
   }) {
-    const { roomSlotId, presetName, charInstIdList } = args;
+    const slotId = args.slotId ?? args.roomSlotId;
+    if (!slotId) return;
     return await this._player.update(async (draft) => {
-      const queues = this._presetQueues(draft);
-      queues[roomSlotId] = {
-        name: presetName ?? "",
-        charInstIdList,
-        createTs: now(),
-      };
+      const queue = this._roomPresetQueue(draft, slotId);
+      if (!queue) return;
+      const charInstIdList =
+        args.charInstIdList ??
+        draft.building.roomSlots[slotId]?.charInstIds ??
+        [];
+      queue.push([...charInstIdList]);
     });
   }
 
   /**
-   * 删除预设队列
-   * @param args - 包含 roomSlotId 的参数对象
+   * 删除预设队列（按索引）
+   * 对齐官方：CS BuildingDeletePresetQueueRequest { slotId, index }。
+   * @param args - { slotId, index }
    */
-  async deletePresetQueue(args: { roomSlotId: string }) {
-    const { roomSlotId } = args;
+  async deletePresetQueue(args: {
+    slotId?: string;
+    roomSlotId?: string;
+    index?: number;
+  }) {
+    const slotId = args.slotId ?? args.roomSlotId;
+    if (!slotId) return;
     return await this._player.update(async (draft) => {
-      const queues = this._presetQueues(draft);
-      delete queues[roomSlotId];
+      const queue = this._roomPresetQueue(draft, slotId);
+      if (!queue) return;
+      const idx = args.index ?? 0;
+      if (idx >= 0 && idx < queue.length) queue.splice(idx, 1);
     });
   }
 
   /**
-   * 编辑预设队列
-   * @param args - 包含 roomSlotId、presetName、charInstIdList 的参数对象
+   * 编辑预设队列（按索引）
+   * 对齐官方：CS BuildingEditPresetQueueRequest { slotId, index, queue }。
+   * @param args - { slotId, index, queue }
    */
   async editPresetQueue(args: {
-    roomSlotId: string;
-    presetName?: string;
+    slotId?: string;
+    roomSlotId?: string;
+    index?: number;
+    queue?: number[];
     charInstIdList?: number[];
   }) {
-    const { roomSlotId, presetName, charInstIdList } = args;
+    const slotId = args.slotId ?? args.roomSlotId;
+    if (!slotId) return;
+    const queueList = args.queue ?? args.charInstIdList;
+    if (!Array.isArray(queueList)) return;
     return await this._player.update(async (draft) => {
-      const queues = this._presetQueues(draft);
-      const queue = queues[roomSlotId];
+      const queue = this._roomPresetQueue(draft, slotId);
       if (!queue) return;
-      if (presetName != null) queue.name = presetName;
-      if (charInstIdList != null) queue.charInstIdList = charInstIdList;
+      const idx = args.index ?? 0;
+      if (idx >= 0 && idx < queue.length) queue[idx] = [...queueList];
     });
   }
 
   /**
    * 使用预设队列（应用干员到房间，清空其他房间占用）
-   * @param args - 包含 roomSlotId 的参数对象
+   * 对齐官方：CS BuildingUsePresetQueueRequest { slotId, index }——应用 room.presetQueue[index]。
+   * @param args - { slotId, index }
    */
-  async usePresetQueue(args: { roomSlotId: string }) {
-    const { roomSlotId } = args;
+  async usePresetQueue(args: {
+    slotId?: string;
+    roomSlotId?: string;
+    index?: number;
+  }) {
+    const slotId = args.slotId ?? args.roomSlotId;
+    if (!slotId) return;
     return await this._player.update(async (draft) => {
-      const queues = this._presetQueues(draft);
-      const queue = queues[roomSlotId];
-      if (!queue) return;
+      const queue = this._roomPresetQueue(draft, slotId);
+      if (!queue || queue.length === 0) return;
+      const idx = Math.min(args.index ?? 0, queue.length - 1);
+      const charInstIdList = queue[idx];
+      if (!Array.isArray(charInstIdList)) return;
+      // 清空这些干员在其他房间的占用
       for (const slotKey in draft.building.roomSlots) {
-        if (slotKey === roomSlotId) continue;
+        if (slotKey === slotId) continue;
         const ids = draft.building.roomSlots[slotKey].charInstIds;
         for (let i = 0; i < ids.length; i++) {
-          if (queue.charInstIdList.includes(ids[i])) ids[i] = -1;
+          if (charInstIdList.includes(ids[i])) ids[i] = -1;
         }
       }
-      draft.building.roomSlots[roomSlotId].charInstIds = [...queue.charInstIdList];
+      draft.building.roomSlots[slotId].charInstIds = [...charInstIdList];
+      // 换班后立即按新岗位重算心情档位
+      this._recomputeCharScales(draft);
     });
   }
 
   /**
-   * 使用单个预设队列（单房间版，同 usePresetQueue）
-   * @param args - 包含 roomSlotId 的参数对象
+   * 使用单个预设队列（单房间版，应用首个队列）
+   * @param args - { slotId }（或 roomSlotId）
    */
-  async useOnePresetQueue(args: { roomSlotId: string }) {
-    return this.usePresetQueue(args);
+  async useOnePresetQueue(args: {
+    slotId?: string;
+    roomSlotId?: string;
+  }) {
+    return this.usePresetQueue({ ...args, index: 0 });
   }
 
   /**
-   * 修改预设名称
-   * @param args - 包含 roomSlotId 和 presetName 的参数对象
+   * 修改预设名称（私服扩展：名称存 building.presetQueues 元数据，官方线格式无名称）
+   * @param args - 包含 slotId/roomSlotId 和 presetName 的参数对象
    */
-  async changePresetName(args: { roomSlotId: string; presetName: string }) {
-    const { roomSlotId, presetName } = args;
-    return this.editPresetQueue({ roomSlotId, presetName });
+  async changePresetName(args: {
+    slotId?: string;
+    roomSlotId?: string;
+    presetName: string;
+  }) {
+    const slotId = args.slotId ?? args.roomSlotId;
+    if (!slotId) return;
+    return await this._player.update(async (draft) => {
+      const queues = this._presetQueues(draft);
+      const meta = (queues[slotId] ??= {});
+      meta.name = args.presetName ?? "";
+    });
   }
 
   /**
@@ -1693,15 +1813,16 @@ export class BuildingManager {
   }
 
   /**
-   * 编辑锁定队列（记录锁定状态）
-   * @param args - 包含 roomSlotId 和 locked 的参数对象
+   * 编辑锁定队列（记录锁定状态到元数据）
+   * @param args - 包含 slotId/roomSlotId 和 locked 的参数对象
    */
-  async editLockQueue(args: { roomSlotId: string; locked: boolean }) {
-    const { roomSlotId, locked } = args;
+  async editLockQueue(args: { slotId?: string; roomSlotId?: string; locked: boolean }) {
+    const slotId = args.slotId ?? args.roomSlotId;
+    if (!slotId) return;
     return await this._player.update(async (draft) => {
       const queues = this._presetQueues(draft);
-      const queue = queues[roomSlotId];
-      if (queue) queue.locked = locked;
+      const meta = (queues[slotId] ??= {});
+      meta.locked = args.locked;
     });
   }
 
@@ -1882,16 +2003,18 @@ export class BuildingManager {
    * 开始信息共享（会客室情报分享会话）
    * 对齐官方：记录会话开始时间 infoShare.ts = now——访客列表按会话划分，
    * 早于该时间的访客视为"已分享过"（客户端不再重复计信用）。
+   * 官方响应 delta 含会客室干员体力累积（抓包 res_1071）→ 同步推进 _accrueCharAp。
    * 修复：原实现透传请求体（202 不落状态）→ 会话永不推进 → 同一批访客
    * 每次都被视为新访客 → 无限信用点。
    * @param args - 请求体参数
    */
   async startInfoShare(args: any) {
     return await this._player.update(async (draft) => {
+      this._accrueCharAp(draft);
       const room = Object.values(draft.building.rooms.MEETING)[0];
       if (!room) return;
       room.infoShare.ts = now();
-      room.infoShare.reward = 0;
+      room.infoShare.reward = this._infoShareReward(room.socialReward);
     });
   }
 

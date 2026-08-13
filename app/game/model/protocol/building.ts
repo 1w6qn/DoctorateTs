@@ -515,41 +515,40 @@ export interface GetMeetingroomRewardResponse extends PlayerDeltaResponse {
 
 /**
  * 添加预设队列请求（CS: BuildingAddPresetQueueRequest）
- * CS 字段为 slotId，服务端读取 roomSlotId/presetName/charInstIdList（以服务端为准）
+ * 官方仅 { slotId }——服务端把房间当前排班追加为新队列；兼容显式 charInstIdList
  */
 export interface AddPresetQueueRequest {
   slotId?: string;
-  roomSlotId: string;
-  presetName: string;
-  charInstIdList: number[];
+  roomSlotId?: string;
+  charInstIdList?: number[];
+  presetName?: string;
 }
 
 /** 添加预设队列响应（CS: BuildingAddPresetQueueResponse） */
 export type AddPresetQueueResponse = PlayerDeltaResponse;
 
 /**
- * 删除预设队列请求（CS: BuildingDeletePresetQueueRequest）
- * CS 另有 index 字段，服务端未读取
+ * 删除预设队列请求（CS: BuildingDeletePresetQueueRequest { slotId, index }）
+ * 按索引删除 room.presetQueue[index]
  */
 export interface DeletePresetQueueRequest {
   slotId?: string;
   index?: number;
-  roomSlotId: string;
+  roomSlotId?: string;
 }
 
 /** 删除预设队列响应（CS: BuildingDeletePresetQueueResponse） */
 export type DeletePresetQueueResponse = PlayerDeltaResponse;
 
 /**
- * 编辑预设队列请求（CS: BuildingEditPresetQueueRequest）
- * CS 字段为 slotId/index/queue，服务端读取 roomSlotId/presetName/charInstIdList（以服务端为准）
+ * 编辑预设队列请求（CS: BuildingEditPresetQueueRequest { slotId, index, queue }）
+ * 按索引替换 room.presetQueue[index]
  */
 export interface EditPresetQueueRequest {
   slotId?: string;
   index?: number;
   queue?: number[];
-  roomSlotId: string;
-  presetName?: string;
+  roomSlotId?: string;
   charInstIdList?: number[];
 }
 
@@ -557,26 +556,24 @@ export interface EditPresetQueueRequest {
 export type EditPresetQueueResponse = PlayerDeltaResponse;
 
 /**
- * 使用预设队列请求（CS: BuildingUsePresetQueueRequest）
- * CS 另有 index 字段，服务端未读取
+ * 使用预设队列请求（CS: BuildingUsePresetQueueRequest { slotId, index }）
+ * 应用 room.presetQueue[index]
  */
 export interface UsePresetQueueRequest {
   slotId?: string;
   index?: number;
-  roomSlotId: string;
+  roomSlotId?: string;
 }
 
 /** 使用预设队列响应（CS: BuildingUsePresetQueueResponse） */
 export type UsePresetQueueResponse = PlayerDeltaResponse;
 
 /**
- * 使用单个预设队列请求（CS: BuildingUsePresetQueueRequest）
- * 服务端读取 roomSlotId
+ * 使用单个预设队列请求（私服扩展；应用房间首个预设队列）
  */
 export interface UseOnePresetQueueRequest {
   slotId?: string;
-  index?: number;
-  roomSlotId: string;
+  roomSlotId?: string;
 }
 
 /** 使用单个预设队列响应（CS: BuildingUsePresetQueueResponse） */
@@ -584,12 +581,13 @@ export type UseOnePresetQueueResponse = PlayerDeltaResponse;
 
 /**
  * 修改预设名称请求（CS: BuildingDIYRenamePresetSolutionRequest）
- * CS 字段为 solutionId/name，服务端读取 roomSlotId/presetName（以服务端为准）
+ * CS 字段为 solutionId/name，服务端读取 slotId/roomSlotId + presetName
  */
 export interface ChangePresetNameRequest {
   solutionId?: number;
   name?: string;
-  roomSlotId: string;
+  slotId?: string;
+  roomSlotId?: string;
   presetName: string;
 }
 

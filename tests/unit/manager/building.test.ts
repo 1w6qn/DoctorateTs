@@ -978,6 +978,8 @@ describe("BuildingManager 线索系统", () => {
     // getClueFriendList 依赖 accountManager
     vi.spyOn(accountManager, "getSocial").mockResolvedValue({ friends: [], friendRequests: [], visited: [] } as any);
     vi.spyOn(accountManager, "getPlayerFriendInfo").mockResolvedValue({ uid: "2", nickName: "B", nickNumber: "1", level: 1 } as any);
+    // _accrueCharAp 用 Date.now()（毫秒级 elapsed）→ 与 now() mock 对齐（1234567890s = 1234567890000ms）
+    vi.spyOn(Date, "now").mockReturnValue(1234567890000);
   });
 
   it("getDailyClue 应获得一条每日线索", async () => {
@@ -1113,7 +1115,19 @@ describe("BuildingManager 预设队列", () => {
           slot_5: { level: 3, state: 2, roomId: "MANUFACTURE", charInstIds: [-1, -1], completeConstructTime: 0 },
         },
         rooms: {
-          CONTROL: {}, ELEVATOR: {}, POWER: {}, MANUFACTURE: {}, TRADING: {},
+          CONTROL: {}, ELEVATOR: {}, POWER: {}, TRADING: {},
+          MANUFACTURE: {
+            slot_5: {
+              state: 1,
+              formulaId: "4",
+              remainSolutionCnt: 73,
+              outputSolutionCnt: 0,
+              lastUpdateTime: 0,
+              completeWorkTime: -1,
+              capacity: 54,
+              presetQueue: [[1001, 1002]],
+            } as any,
+          },
           CORRIDOR: {}, WORKSHOP: {}, DORMITORY: {}, MEETING: {}, HIRE: {},
           TRAINING: {}, PRIVATE: {},
         },
@@ -1138,38 +1152,47 @@ describe("BuildingManager 预设队列", () => {
       );
   });
 
-  it("addPresetQueue 应添加预设队列", async () => {
+  it("addPresetQueue 应把房间当前排班追加为预设队列（官方模型 room.presetQueue）", async () => {
+    (mockPlayer._playerdata.building!.roomSlots as any).slot_5.charInstIds = [1001, 1002];
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
-    await manager.addPresetQueue({
-      roomSlotId: "slot_5",
-      presetName: "金条班",
-      charInstIdList: [1001, 1002],
-    } as any);
-    const queues = (mockPlayer._playerdata.building! as any).presetQueues;
-    expect(Object.keys(queues)).toContain("slot_5");
-    expect(queues.slot_5.name).toBe("金条班");
-    expect(queues.slot_5.charInstIdList).toEqual([1001, 1002]);
+    await manager.addPresetQueue({ slotId: "slot_5" } as any);
+    const room = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
+    expect(room.presetQueue).toEqual([[1001, 1002], [1001, 1002]]);
   });
 
-  it("deletePresetQueue 应删除预设队列", async () => {
+  it("deletePresetQueue 应按索引删除", async () => {
+    const room = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
+    room.presetQueue = [[1001], [1002], [1003]];
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
-    await manager.addPresetQueue({ roomSlotId: "slot_5", presetName: "A", charInstIdList: [1001] } as any);
-    await manager.deletePresetQueue({ roomSlotId: "slot_5" } as any);
-    expect((mockPlayer._playerdata.building! as any).presetQueues.slot_5).toBeUndefined();
+    await manager.deletePresetQueue({ slotId: "slot_5", index: 1 } as any);
+    // update 替换 building 对象 → 重新读取
+    const after = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
+    expect(after.presetQueue).toEqual([[1001], [1003]]);
   });
 
-  it("usePresetQueue 应应用预设干员到房间", async () => {
+  it("usePresetQueue 应按索引应用预设干员到房间", async () => {
+    const room = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
+    room.presetQueue = [[1001, 1002], [2001, 2002]];
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
-    await manager.addPresetQueue({ roomSlotId: "slot_5", presetName: "A", charInstIdList: [1001, 1002] } as any);
-    await manager.usePresetQueue({ roomSlotId: "slot_5" } as any);
+    await manager.usePresetQueue({ slotId: "slot_5", index: 1 } as any);
+    // update 替换 building 对象 → 重新读取
+    const after = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
+    expect(after.presetQueue).toEqual([[1001, 1002], [2001, 2002]]);
+    expect(mockPlayer._playerdata.building!.roomSlots.slot_5.charInstIds).toEqual([2001, 2002]);
+  });
+
+  it("useOnePresetQueue 应应用房间首个预设队列（修复空 delta）", async () => {
+    const room = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
+    room.presetQueue = [[1001, 1002]];
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.useOnePresetQueue({ slotId: "slot_5" } as any);
     expect(mockPlayer._playerdata.building!.roomSlots.slot_5.charInstIds).toEqual([1001, 1002]);
   });
 
-  it("changePresetName 应修改预设名称", async () => {
+  it("changePresetName 应记录名称到元数据（官方线格式无名称）", async () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
-    await manager.addPresetQueue({ roomSlotId: "slot_5", presetName: "A", charInstIdList: [1001] } as any);
-    await manager.changePresetName({ roomSlotId: "slot_5", presetName: "新名字" } as any);
-    expect((mockPlayer._playerdata.building! as any).presetQueues.slot_5.name).toBe("新名字");
+    await manager.changePresetName({ slotId: "slot_5", presetName: "金条班" } as any);
+    expect((mockPlayer._playerdata.building! as any).presetQueues.slot_5.name).toBe("金条班");
   });
 });
 

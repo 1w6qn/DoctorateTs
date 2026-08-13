@@ -185,6 +185,8 @@ describe("BuildingManager 干员技能（buff）集成", () => {
     vi.restoreAllMocks();
     mockTrigger = mockTypedEventEmitter();
     timeMock.now = 1234567890;
+    // _accrueCharAp 用 Date.now()（毫秒级 elapsed）→ 与 timeMock.now（秒）对齐
+    vi.spyOn(Date, "now").mockReturnValue(timeMock.now * 1000);
 
     mockPlayer = mockPlayerData({
       building: {
@@ -411,6 +413,39 @@ describe("BuildingManager 干员技能（buff）集成", () => {
     expect(ch.lastApAddTime).toBe(timeMock.now);
   });
 
+  it("getInfoShareReward：同步推进 infoShare 字段（会话 ts 更新 + reward 待领取指示）", async () => {
+    const { accountManager } = await import("@game/manager/AccountManager");
+    vi.spyOn(accountManager, "getSocial").mockResolvedValue({ friends: [], friendRequests: [], visited: [] } as any);
+    vi.spyOn(accountManager, "getPlayerFriendInfo").mockResolvedValue({} as any);
+    (mockPlayer._playerdata.building!.rooms.MEETING as any).meeting_001 = {
+      infoShare: { ts: 100, reward: 0 },
+      socialReward: { daily: 0, search: 40 }, // 有未领取信用 → reward 指示 1
+      ownStock: [], receiveStock: [], board: {},
+      lastUpdateTime: 0,
+    };
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.getInfoShareReward();
+    const room = mockPlayer._playerdata.building!.rooms.MEETING.meeting_001 as any;
+    expect(room.infoShare.ts).toBe(timeMock.now);
+    expect(room.infoShare.reward).toBe(1); // 有待领取信用
+    // 领取后归 0
+    await manager.getMeetingroomReward();
+    expect((mockPlayer._playerdata.building!.rooms.MEETING.meeting_001 as any).infoShare.reward).toBe(0);
+  });
+
+  it("sync：刷新 infoShare.reward 待领取指示（有未领取信用 → 1）", async () => {
+    (mockPlayer._playerdata.building!.rooms.MEETING as any).meeting_001 = {
+      infoShare: { ts: 100, reward: 0 },
+      socialReward: { daily: 0, search: 40 },
+      ownStock: [], receiveStock: [], board: {},
+      lastUpdateTime: 0,
+    };
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.sync();
+    const room = mockPlayer._playerdata.building!.rooms.MEETING.meeting_001 as any;
+    expect(room.infoShare.reward).toBe(1);
+  });
+
   it("一键补货：收获耗尽计划后 changeManufactureSolution 重启同配方（返回 change:false 对齐官方）", async () => {
     const room = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
     room.state = 1;
@@ -437,5 +472,32 @@ describe("BuildingManager 干员技能（buff）集成", () => {
     expect(restocked.outputSolutionCnt).toBe(0);
     expect(restocked.processPoint).toBe(0);
     expect(restocked.lastUpdateTime).toBe(timeMock.now);
+  });
+
+  it("batchChangeWorkChar：兼容字段名变体（slotId/charInstIds）并立即生效；空请求体不改分配", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    // 字段名变体（客户端可能的批量换班请求形状）
+    await manager.batchChangeWorkChar({ slotId: "slot_5", charInstIds: [11, 12] } as any);
+    const slot = mockPlayer._playerdata.building!.roomSlots.slot_5 as any;
+    expect(slot.charInstIds).toEqual([11, 12]);
+    // 空请求体（官方无字段）→ 不改分配
+    await manager.batchChangeWorkChar({} as any);
+    expect(slot.charInstIds).toEqual([11, 12]);
+  });
+
+  it("batchRestChar：兼容 charInstIds/list 字段名变体", async () => {
+    (mockPlayer._playerdata.building!.roomSlots as any).slot_5.charInstIds = [11, 12, 13];
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.batchRestChar({ charInstIds: [12, 13] } as any);
+    const slot = mockPlayer._playerdata.building!.roomSlots.slot_5 as any;
+    expect(slot.charInstIds).toEqual([11, -1, -1]);
+  });
+
+  it("cleanRoomSlot：清空房间全部干员（置为 -1）", async () => {
+    (mockPlayer._playerdata.building!.roomSlots as any).slot_5.charInstIds = [11, 12, 13];
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.cleanRoomSlot({ roomSlotId: "slot_5" } as any);
+    const slot = mockPlayer._playerdata.building!.roomSlots.slot_5 as any;
+    expect(slot.charInstIds).toEqual([-1, -1, -1]);
   });
 });

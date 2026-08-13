@@ -1,0 +1,90 @@
+import { describe, it, expect } from "vitest";
+import {
+  decodeProtobuf,
+  splitGatewayFrames,
+  parseGatewayStream,
+  framesToJson,
+  MSG_NAMES,
+  GATEWAY_HEADER_SIZE,
+} from "../../../app/proxy/arkodc";
+
+/** 构造一帧：[4B大端总长][4B消息ID][8B头][payload] */
+function frame(msgId: number, payload: Buffer, seq = 0, flag = 0): Buffer {
+  const len = GATEWAY_HEADER_SIZE + payload.length;
+  const head = Buffer.alloc(16);
+  head.writeUInt32BE(len, 0);
+  head.writeUInt32BE(msgId, 4);
+  head.writeUInt32BE(seq, 8);
+  head.writeUInt32BE(flag, 12);
+  return Buffer.concat([head, payload]);
+}
+
+describe("decodeProtobuf（通用 protobuf 解码）", () => {
+  it("varint / length-delimited / fixed64 / fixed32", () => {
+    const buf = Buffer.concat([
+      Buffer.from([0x08, 0x64]),          // field1 varint 100
+      Buffer.from([0x12, 0x03]), Buffer.from("abc"), // field2 len 3
+      Buffer.from([0x19]), Buffer.alloc(8), // field3 fixed64 0
+      Buffer.from([0x2d]), Buffer.alloc(4), // field5 fixed32 0
+    ]);
+    const fields = decodeProtobuf(buf);
+    expect(fields[0]).toMatchObject({ field: 1, wire: 0, varint: 100n });
+    expect(fields[1]).toMatchObject({ field: 2, wire: 2, str: "abc" });
+    expect(fields[2]).toMatchObject({ field: 3, wire: 1 });
+    expect(fields[3]).toMatchObject({ field: 5, wire: 5 });
+  });
+
+  it("length-delimited 嵌套消息递归解码", () => {
+    // field2 内嵌 {field1: varint 1}：12 02 08 01
+    const fields = decodeProtobuf(Buffer.from([0x12, 0x02, 0x08, 0x01]));
+    const nested = fields.find((f) => f.field === 2);
+    expect(nested).toBeDefined();
+    expect(nested!.nested).toContainEqual(expect.objectContaining({ field: 1, varint: 1n }));
+  });
+
+  it("损坏输入（非法 wire type）停止解码不抛异常", () => {
+    const fields = decodeProtobuf(Buffer.from([0x0f, 0x01, 0x02])); // field1 wire7
+    expect(Array.isArray(fields)).toBe(true);
+  });
+});
+
+describe("splitGatewayFrames / parseGatewayStream（帧切分）", () => {
+  it("按长度前缀切帧，识别 msgId/seq/flag 并解码 payload", () => {
+    // 模拟真实 UserLoginReq：field1=uid "100566259", field2=token
+    const loginPayload = Buffer.concat([
+      Buffer.from([0x0a, 0x09]), Buffer.from("100566259"),
+      Buffer.from([0x12, 0x04]), Buffer.from("tok!"),
+    ]);
+    const stream = Buffer.concat([frame(4, loginPayload, 0, 4001), frame(8, Buffer.from([0x08, 0x00]), 5, 102326)]);
+    const result = parseGatewayStream(stream, "test");
+    expect(result.remainder.length).toBe(0);
+    expect(result.frames).toHaveLength(2);
+    expect(result.frames[0]).toMatchObject({ msgId: 4, name: "Login", seq: 0, flag: 4001 });
+    expect(result.frames[0].fields).toContainEqual(expect.objectContaining({ field: 1, str: "100566259" }));
+    expect(result.frames[1]).toMatchObject({ msgId: 8, name: "NetProbeData" });
+    // framesToJson 可序列化
+    const json = framesToJson(result.frames) as any[];
+    expect(json[0].payload[0]).toMatchObject({ field: 1, str: "100566259" });
+  });
+
+  it("未知 msgId 命名为 Msg<N>", () => {
+    const stream = frame(77, Buffer.from([0x08, 0x01]));
+    const [f] = splitGatewayFrames(stream);
+    expect(f.name).toBe("Msg77");
+  });
+
+  it("断帧（长度越界/过短）即停止，余量如实保留", () => {
+    // 合法帧 + 截断的半帧（长度声明 100 但实际只有 4 字节）
+    const good = frame(4, Buffer.from([0x08, 0x01]));
+    const trunc = Buffer.from([0x00, 0x00, 0x00, 0x64, 0x00]); // len=100, 但流在这里结束
+    const result = parseGatewayStream(Buffer.concat([good, trunc]), "test");
+    expect(result.frames).toHaveLength(1);
+    expect(result.remainder.length).toBe(5);
+  });
+
+  it("MSG_NAMES 覆盖已观测消息", () => {
+    expect(MSG_NAMES[1]).toBeDefined();
+    expect(MSG_NAMES[4]).toBe("Login");
+    expect(MSG_NAMES[8]).toBe("NetProbeData");
+  });
+});

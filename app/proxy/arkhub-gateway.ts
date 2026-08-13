@@ -16,6 +16,7 @@ import net from "net";
 import { mkdir, writeFile } from "fs/promises";
 import * as path from "path";
 import { logger } from "@utils/logger";
+import { parseGatewayStream, framesToJson } from "./arkodc";
 
 /** 官服 arkhub 网关主机 */
 export const OFFICIAL_ARKHUB_GATEWAY_HOST = "arkhub-gateway.hypergryph.com";
@@ -120,6 +121,8 @@ export function startArkhubGatewayProxy(
     let upBytes = 0;
     let downBytes = 0;
     let metaWritten = false;
+    const upBuf: Buffer[] = [];
+    const downBuf: Buffer[] = [];
 
     const record = (dir: string, file: string, chunk: Buffer): void => {
       // 先建目录（data 事件可能先于 meta.json 的 mkdir），再追加写
@@ -136,6 +139,7 @@ export function startArkhubGatewayProxy(
     // 客户端 → 官服
     client.on("data", (chunk: Buffer) => {
       upBytes += chunk.length;
+      upBuf.push(chunk);
       if (upstream.destroyed) return;
       upstream.write(chunk);
       record(path.join(recordRoot, connectionId), "up.bin", chunk);
@@ -143,6 +147,7 @@ export function startArkhubGatewayProxy(
     // 官服 → 客户端
     upstream.on("data", (chunk: Buffer) => {
       downBytes += chunk.length;
+      downBuf.push(chunk);
       if (client.destroyed) return;
       client.write(chunk);
       record(path.join(recordRoot, connectionId), "down.bin", chunk);
@@ -152,8 +157,8 @@ export function startArkhubGatewayProxy(
       if (metaWritten) return;
       metaWritten = true;
       void (async () => {
+        const dir = path.join(recordRoot, connectionId);
         try {
-          const dir = path.join(recordRoot, connectionId);
           await mkdir(dir, { recursive: true });
           await writeFile(
             path.join(dir, "meta.json"),
@@ -173,6 +178,30 @@ export function startArkhubGatewayProxy(
           );
         } catch {
           /* 元数据写失败不影响转发 */
+        }
+        // 解析网关协议帧（arkodc）并落盘 parsed.json——up 流零断帧，down 流登录后
+        // 可能为连续 protobuf/自定义封装，余量如实记录（upRemainder/downRemainderHex）
+        try {
+          const upResult = parseGatewayStream(Buffer.concat(upBuf), "up");
+          const downResult = parseGatewayStream(Buffer.concat(downBuf), "down");
+          await writeFile(
+            path.join(dir, "parsed.json"),
+            JSON.stringify(
+              {
+                up: framesToJson(upResult.frames),
+                down: framesToJson(downResult.frames),
+                upRemainderHex: upResult.remainder.toString("hex"),
+                downRemainderHex: downResult.remainder.toString("hex"),
+                upRemainderLen: upResult.remainder.length,
+                downRemainderLen: downResult.remainder.length,
+              },
+              null,
+              2,
+            ),
+            "utf-8",
+          );
+        } catch {
+          /* 解析失败不影响抓包 */
         }
       })();
     };

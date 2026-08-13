@@ -76,7 +76,8 @@
 
 ## 5.1 msgId 1/2 移动协议（2026-08-11 补全）
 
-- **msgId 1 (up)**：`[uint32 type][uint32 param]`——输入命令，type 0-4（≥5 种），param 每会话单调递增
+- **msgId 1 (up)**：`[uint32 type][uint32 param]`——输入命令，type 0-4（≥5 种）；
+  **param 单调递增 ≈20M/事件**（疑时间戳/序号；与 msgId8 位置弱相关，具体语义待确认）
 - **msgId 2 (down)**：`[uint32 type][uint32 param][uint32 extra1][uint32 extra2]`——
   位置广播，**type/param 与 up 一致 = 服务器对其他玩家回显移动广播**；
   extra1 恒定 415（疑标志），extra2 单调递增 ~2000/帧（疑序号/时间）

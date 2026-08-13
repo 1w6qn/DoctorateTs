@@ -1,6 +1,7 @@
 import { PlayerCharacter } from "@game/model/character";
 import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
+import { logger } from "@utils/logger";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 import { WritableDraft } from "immer";
@@ -1268,7 +1269,8 @@ export class BuildingManager {
    */
   async changeDiySolution(args: { roomSlotId: string; solution: any }) {
     const { roomSlotId, solution } = args;
-    return await this._player.update(async (draft) => {
+    let comfort = 0;
+    await this._player.update(async (draft) => {
       // 会客室（slot_36）单独处理
       if (roomSlotId === "slot_36") {
         (draft.building.rooms.MEETING[roomSlotId] as any).diySolution = solution;
@@ -1281,9 +1283,14 @@ export class BuildingManager {
         const room = draft.building.rooms[roomType];
         if (room && room[roomSlotId]) {
           (room[roomSlotId] as any).diySolution = solution;
+          comfort = (room[roomSlotId] as any)?.comfort ?? 0;
         }
       }
     });
+    // 修复：DiyComfort 任务事件从未 emit → DIY 舒适度任务永不推进
+    if (roomSlotId !== "slot_36" && comfort > 0) {
+      await this._trigger.emit("DiyComfort", [{ comfort }]);
+    }
   }
 
   /**
@@ -1656,6 +1663,7 @@ export class BuildingManager {
    */
   private _accrueCharAp(draft: WritableDraft<PlayerDataModel>): void {
     const nowSec = Date.now() / 1000; // 浮点秒（毫秒精度）
+    let recovered = 0;
     for (const ch of Object.values(draft.building.chars ?? {})) {
       const last =
         typeof ch.lastApAddTime === "number" ? ch.lastApAddTime : nowSec;
@@ -1664,8 +1672,15 @@ export class BuildingManager {
       ch.lastApAddTime = nowSec;
       const scale = ch.changeScale ?? 0;
       if (scale !== 0) {
+        const before = ch.ap ?? 0;
         ch.ap = Math.min(Math.max((ch.ap ?? 0) + elapsedSec * scale, 0), 8640000);
+        if (ch.ap > before) recovered += 1;
       }
+    }
+    // 修复：RecoverCharBaseAp 任务事件从未 emit → 恢复干员心情任务永不推进；
+    // 本次有干员恢复心情时计 1 次
+    if (recovered > 0) {
+      void this._trigger.emit("RecoverCharBaseAp", [{ count: recovered }]);
     }
   }
 
@@ -2085,11 +2100,29 @@ export class BuildingManager {
   }
 
   /**
-   * 访问基建
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
+   * 访问好友基建
+   * 修复：原为纯透传 stub——VisitBuilding 是每日任务（26 个），事件从不 emit 任务
+   * 永不推进；补事件 + 被访方发放社交点（align S5 社交点来源）
+   * @param args - 请求体参数（friendId）
    */
   async visitBuilding(args: any) {
+    const friendId = args?.friendId;
+    // 修复：VisitBuilding 任务事件从未 emit → 访问基建任务永不推进
+    await this._trigger.emit("VisitBuilding", []);
+    // 被访方社交点（访问基建给主人 +20，与助战同档）
+    if (friendId && String(friendId) !== String(this._player.uid)) {
+      try {
+        const owner = await accountManager.getPlayerData(String(friendId));
+        await owner.update(async (draft) => {
+          draft.status.socialPoint = (draft.status.socialPoint ?? 0) + 20;
+        });
+      } catch (e) {
+        logger.warn(
+          "building",
+          `访问基建 ${friendId} 社交点发放失败: ${(e as Error).message}`,
+        );
+      }
+    }
     return args;
   }
 }

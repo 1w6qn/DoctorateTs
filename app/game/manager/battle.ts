@@ -521,6 +521,61 @@ export class BattleManager {
       if (favorGained > 0) {
         await this._trigger.emit("GainIntimacy", [{ count: favorGained }]);
       }
+      // 修复：战斗击杀事件从未 emit → 击杀类任务永不推进（checkKilledCnt = 击杀总数）
+      const killCnt = battleData.battleData?.stats?.checkKilledCnt ?? 0;
+      await this._trigger.emit("EnemyKillInAnyStage", [
+        { ...battleData, killCnt },
+      ]);
+      await this._trigger.emit("StageWithEnemyKill", [
+        { ...battleData, stageId, killCnt },
+      ]);
+      await this._trigger.emit("BattleWithEnemyKill", [
+        { ...battleData, stageId, killCnt },
+      ]);
+      // 修复：助战通关 → 助战任务事件 + 社交点来源（使用助战方 +30/日上限1、
+      // 助战方 +20——原实现社交点无任何获取来源）
+      const assistUid = battleInfo.assistFriend?.uid;
+      if (assistUid) {
+        await this._trigger.emit("StageWithAssistChar", [
+          { ...battleData, assistFriend: battleInfo.assistFriend },
+        ]);
+        const usePt = excel.GameDataConst.useAssistSocialPt ?? 30;
+        const maxUse = excel.GameDataConst.useAssistSocialPtMaxCount ?? 1;
+        const todayKey = Math.floor(now() / 86400);
+        // 使用方社交点：每日上限 maxUse 次（status.assistUsedDay 为私服字段，类型未声明用 any）
+        const st = this._player._playerdata.status as any;
+        const usedToday =
+          st.assistUsedDay === todayKey ||
+          st.assistUsedCount >= maxUse;
+        if (!usedToday) {
+          await this._player.update(async (draft) => {
+            draft.status.socialPoint = (draft.status.socialPoint ?? 0) + usePt;
+            const ds = draft.status as any;
+            ds.assistUsedDay = todayKey;
+            ds.assistUsedCount = (ds.assistUsedCount ?? 0) + 1;
+          });
+          await this._trigger.emit("ReceiveSocialPoint", [
+            { socialPoint: usePt },
+          ]);
+        }
+        // 助战方社交点（assistBeUsedSocialPt 档位表，取 1 档）
+        const beUsedPt =
+          excel.GameDataConst.assistBeUsedSocialPt?.["1"] ?? 20;
+        if (assistUid !== this._player.uid) {
+          try {
+            const owner = await accountManager.getPlayerData(assistUid);
+            await owner.update(async (draft) => {
+              draft.status.socialPoint =
+                (draft.status.socialPoint ?? 0) + beUsedPt;
+            });
+          } catch (e) {
+            logger.warn(
+              "battle",
+              `助战方 ${assistUid} 社交点发放失败: ${(e as Error).message}`,
+            );
+          }
+        }
+      }
     }
     if (isPractice) {
       return {};

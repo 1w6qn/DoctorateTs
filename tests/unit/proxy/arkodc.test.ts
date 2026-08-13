@@ -6,6 +6,7 @@ import {
   framesToJson,
   decodeWithSchema,
   decodeFixedPayload,
+  decodeVector3,
   recoverProtobufRegion,
   recoverProtobufWithPrefixSkip,
   MSG_NAMES,
@@ -138,6 +139,25 @@ describe("命名解码（MSG_SCHEMAS → 正常游戏 JSON）", () => {
   it("MSG_SCHEMAS 登录双向字段名齐全", () => {
     expect(MSG_SCHEMAS[4].up).toEqual(["uid", "secret", "loginChannel", "deviceId", "gameContext"]);
     expect(MSG_SCHEMAS[4].down).toEqual(["code", "heartbeatInterval", "reconnectToken", "ip", "port"]);
+  });
+});
+
+describe("decodeVector3（15B 位置块）", () => {
+  it("解析 0x0d/0x15/0x1d + 3×f32 的 Vector3", () => {
+    // X=4.742 Y=0.007 Z=6.079（真实抓包样例）
+    const buf = Buffer.alloc(15);
+    buf[0] = 0x0d; buf.writeFloatLE(4.742, 1);
+    buf[5] = 0x15; buf.writeFloatLE(0.007, 6);
+    buf[10] = 0x1d; buf.writeFloatLE(6.079, 11);
+    const v = decodeVector3(buf);
+    expect(v).not.toBeNull();
+    expect(v!.x).toBeCloseTo(4.742, 2);
+    expect(v!.y).toBeCloseTo(0.007, 3);
+    expect(v!.z).toBeCloseTo(6.079, 2);
+  });
+  it("非 15B 或不匹配标签返回 null", () => {
+    expect(decodeVector3(Buffer.alloc(14))).toBeNull();
+    expect(decodeVector3(Buffer.alloc(15))).toBeNull();
   });
 });
 

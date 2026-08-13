@@ -110,6 +110,8 @@ export interface PbField {
   str?: string;
   /** length-delimited 若能再解为嵌套 protobuf 则给出子字段 */
   nested?: PbField[];
+  /** 15B Vector3 位置（field 匹配 0x0d/0x15/0x1d 三个 fixed32） */
+  vec3?: { x: number; y: number; z: number };
 }
 
 /**
@@ -165,6 +167,9 @@ function decodeProtobufWalk(buf: Buffer, start: number): { fields: PbField[]; en
         const bytes = buf.subarray(off, off + size);
         entry.bytes = bytes.toString("hex");
         entry.str = toUtf8(bytes);
+        // Vector3 位置块（msgId8 等：0x0d/0x15/0x1d + 3×f32）
+        const vec3 = decodeVector3(bytes);
+        if (vec3) entry.vec3 = vec3;
         // 尝试嵌套解码：仅当首个字段是 varint(0)/length-delimited(2) 且整体不是可读文本
         // （纯 ASCII 字符串如 "100566259" 会被 toUtf8 命中，判为文本而非嵌套消息）
         if (isPlausibleNestedStart(bytes)) {
@@ -221,7 +226,6 @@ export function recoverProtobufWithPrefixSkip(
   buffer: Buffer,
   maxScan = 512,
 ): { start: number; fields: PbField[]; end: number; prefixSkips: number } | null {
-  let best: { start: number; fields: PbField[]; end: number; prefixSkips: number } | null = null;
   const limit = Math.min(buffer.length, maxScan);
 
   const walk = (start: number): { fields: PbField[]; end: number; prefixSkips: number } => {
@@ -250,16 +254,21 @@ export function recoverProtobufWithPrefixSkip(
     return { fields, end: off, prefixSkips: skips };
   };
 
-  for (let s = 0; s < limit; s++) {
-    // 只从 0 或 4B 前缀边界（00 00 00 XX）起步——down 记录流是 [前缀][protobuf] 拼接，
-    // 从记录中间起步会把半个字段解成垃圾（实测 start=7 反而字段数更多但内容错乱）
-    if (s !== 0 && !(buffer[s] === 0 && buffer[s + 1] === 0 && buffer[s + 2] === 0)) continue;
-    const { fields, end, prefixSkips } = walk(s);
-    if (fields.length >= 4 && (!best || fields.length > best.fields.length)) {
-      best = { start: s, fields, end, prefixSkips };
+  // 先试前缀边界起步（记录流起点应在 [00 00 00 XX] 处），无结果再通用扫描兜底
+  const scan = (startFilter: (s: number) => boolean): { start: number; fields: PbField[]; end: number; prefixSkips: number } | null => {
+    let best: { start: number; fields: PbField[]; end: number; prefixSkips: number } | null = null;
+    for (let s = 0; s < limit; s++) {
+      if (!startFilter(s)) continue;
+      const { fields, end, prefixSkips } = walk(s);
+      // 起点须解出足够字段；同字段数取更早起点（避免垃圾中间点因"假字段"胜出）
+      if (fields.length >= 4 && (!best || fields.length > best.fields.length)) {
+        best = { start: s, fields, end, prefixSkips };
+      }
     }
-  }
-  return best;
+    return best;
+  };
+  const isBoundary = (s: number): boolean => s === 0 || (buffer[s] === 0 && buffer[s + 1] === 0 && buffer[s + 2] === 0);
+  return scan(isBoundary) ?? scan(() => true);
 }
 
 /** 读 varint，返回 { value, next }；超出边界或损坏返回 null */
@@ -335,6 +344,92 @@ export function decodeWithSchema(fields: PbField[], fieldNames: string[]): Recor
     }
   }
   return out;
+}
+
+/**
+ * 容错全流恢复（down 记录流最终武器）：
+ * 跳过 `00 00 00 XX` 前缀；可解 protobuf 段则收集并按消费偏移推进；
+ * 无效标签跳 1 字节重新同步（resyncs）。把整段余量能解的内容最大化恢复。
+ */
+export function recoverProtobufStream(
+  buffer: Buffer,
+  maxResyncs = 50000,
+): { fields: PbField[]; resyncs: number; prefixSkips: number; segments: number } {
+  const fields: PbField[] = [];
+  let off = 0;
+  let resyncs = 0;
+  let prefixSkips = 0;
+  let segments = 0;
+  while (off < buffer.length) {
+    // 4B 前缀 [00 00 00 XX]
+    if (
+      buffer[off] === 0 &&
+      buffer[off + 1] === 0 &&
+      buffer[off + 2] === 0 &&
+      off + 5 < buffer.length &&
+      (buffer[off + 4] & 7) <= 2
+    ) {
+      off += 4;
+      prefixSkips++;
+      continue;
+    }
+    const step = decodeProtobufWalk(buffer, off);
+    if (step.fields.length > 0) {
+      fields.push(...step.fields);
+      segments++;
+      if (step.end <= off) {
+        off++;
+        resyncs++;
+      } else {
+        off = step.end;
+      }
+      continue;
+    }
+    off++;
+    resyncs++;
+    if (resyncs > maxResyncs) break;
+  }
+  return { fields, resyncs, prefixSkips, segments };
+}
+
+/**
+ * 识别并解码 15B Vector3 protobuf（msgId 8 的位置块）
+ *
+ * 实测位置块 = `[0x0d][f32 X][0x15][f32 Y][0x1d][f32 Z]`——0x0d/0x15/0x1d 即
+ * protobuf field1/2/3 wire5(fixed32) 标签，三个 float32（大厅坐标：X∈[-3,12]、Y∈[-0.3,1.5]、Z∈[-7,9]）。
+ */
+export function decodeVector3(payload: Buffer): { x: number; y: number; z: number } | null {
+  if (payload.length !== 15) return null;
+  if (payload[0] !== 0x0d || payload[5] !== 0x15 || payload[10] !== 0x1d) return null;
+  return {
+    x: payload.readFloatLE(1),
+    y: payload.readFloatLE(6),
+    z: payload.readFloatLE(11),
+  };
+}
+
+/**
+ * 识别 PixelArtInfo 记录（down 记录流 field1 元素）
+ *
+ * 实测 down 登录后记录流的 field1 元素结构 `{1:id, 2:32hexMd5, 4:createTime, 5:updateTime, 7:revision}`
+ * 与客户端 `PixelArtInfo {Id, Md5, Status, CreateTime, UpdateTime, PublishTime, Revision, CollectedCount}`
+ * 完全吻合（14/14 样本匹配）——记录流即大厅展示的像素画列表同步。
+ */
+export function decodePixelArtInfo(fields: PbField[]): Record<string, unknown> | null {
+  const f = (n: number): PbField | undefined => fields.find((x) => x.field === n);
+  const id = f(1)?.varint;
+  const md5 = f(2)?.str ?? f(2)?.bytes;
+  const createTime = f(4)?.varint;
+  const updateTime = f(5)?.varint;
+  const revision = f(7)?.varint;
+  if (id === undefined || !md5 || createTime === undefined || updateTime === undefined) return null;
+  return {
+    id: id.toString(),
+    md5: typeof md5 === "string" && md5.length === 64 ? md5 : undefined,
+    createTime: Number(createTime),
+    updateTime: Number(updateTime),
+    revision: revision !== undefined ? Number(revision) : undefined,
+  };
 }
 
 /** 单帧解析结果 */
@@ -458,6 +553,7 @@ export function fieldsToJson(fields: PbField[]): unknown[] {
     fixed64: field.fixed64 !== undefined ? field.fixed64.toString() : undefined,
     fixed32: field.fixed32,
     str: field.str,
+    vec3: field.vec3,
     bytes: field.bytes,
     nested: field.nested ? fieldsToJson(field.nested) : undefined,
   }));

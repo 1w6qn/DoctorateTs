@@ -50,21 +50,34 @@
 
 ## 4. 位置/探针通道（msgId 8）
 
-- **up**：`field1`(varint)=1、`field2`(varint)=256/257（探针 ID）、`field3`(len 15)=位置块、`field4`(varint)≈200
+- **up**：`field1`(varint)=1、`field2`(varint)=256/257（探针 ID）、`field3`(len 15)=**Vector3 位置**、`field4`(varint)≈200
 - **down**：`field1`(nested，~34B)=位置/探针响应、余字段为广播数据
-- 15B 位置块样例：`0d 8e a4 62 40 15 0c e1 d7 3b 1d b1 f8 ce 40`——**具体浮点布局待逆向**（非简单 4B LE float）
+- **15B 位置块 = protobuf Vector3（2026-08-11 破解）**：`[0x0d][f32 X][0x15][f32 Y][0x1d][f32 Z]`——
+  0x0d/0x15/0x1d 即 field1/2/3 wire5(fixed32) 标签，三个 float32 为大厅坐标
+  （实测 X∈[-3,12] 均值 4.1、Y∈[-0.3,1.5] 均值 0.6、Z∈[-7,9] 均值 2.3；连续帧位置平滑移动
+  = 移动中的玩家）。`decodeVector3` 自动识别解码。
 - 形态极多（up 151 / down 410 种）——位置与探针数据多变
 
-## 5. down 登录后记录流（未完全破解）
+## 5. down 登录后记录流（帧边界未完全破解，内容已识别）
 
 登录后 down 流在热闹大厅场景变为**连续记录流**（无外层长度前缀）：
 ```
 [00 00 00 <type>][protobuf 记录]...
 ```
-- 每条记录：`field1`(varint)=ID、`field2`(len 32)=32hex 哈希、`field4/5`(varint)=时间戳（≈Unix 秒，如 1786526084）、`field7`(varint)=1
-- 另有 `field2`(string)=uid / 昵称 的嵌套消息（如 `"25866054"` + `"liataynat"`）
-- **恢复现状**：`recoverProtobufWithPrefixSkip` 从前缀边界起步部分恢复（会话 18-245 字段）；完整边界需客户端精确 schema
+- **记录内容 = PixelArtInfo（2026-08-11 识别，14/14 样本匹配）**：
+  `{1:id, 2:32hex Md5, 4:createTime, 5:updateTime, 7:revision}`——即大厅展示的像素画列表同步
+  （客户端 `PixelArtInfo {Id, Md5, Status, CreateTime, UpdateTime, PublishTime, Revision, CollectedCount}`）
+- 另有 `field2`(string)=uid / 昵称 的嵌套消息（如 `"25866054"` + `"liataynat"`）——玩家信息记录
+- **恢复现状**：`recoverProtobufWithPrefixSkip` 部分恢复（会话 18-245 字段，字段1 元素已命名 PixelArtInfo）；
+  完整帧边界（type 语义、消息自定界）仍需客户端精确 schema
 - **陷阱**：`00 00 00 XX` 在余量中出现 ~1.9 万次，但**大量是 protobuf 内部零字节假象**，不能全部当记录边界
+
+## 5.1 msgId 1/2 移动协议（2026-08-11 补全）
+
+- **msgId 1 (up)**：`[uint32 type][uint32 param]`——输入命令，type 0-4（≥5 种），param 每会话单调递增
+- **msgId 2 (down)**：`[uint32 type][uint32 param][uint32 extra1][uint32 extra2]`——
+  位置广播，**type/param 与 up 一致 = 服务器对其他玩家回显移动广播**；
+  extra1 恒定 415（疑标志），extra2 单调递增 ~2000/帧（疑序号/时间）
 
 ## 6. 已提取的网关消息类（字段名，来自 .cs）
 
@@ -74,12 +87,13 @@ PlayerSyncData、PlayerBrief、HallInfo、TaskData 等）——**但 msgId→消
 无法提取**（serializer 方法体仅签名，ProtoMember 属性仅类定义），字段号仅登录类由实测验证。
 补全方法：`npx tsx scripts/dump-gateway-dict.ts` 观测新帧 → 对照字段名声明顺序反推字段号。
 
-## 7. 剩余未知项（精确清单）
+## 7. 剩余未知项（精确清单，2026-08-11 已收敛）
 
-1. **msgId 8 的 15B 位置块布局**（浮点/定点编码待逆向）
-2. **down 登录后记录流的完整帧边界**（[00 00 00 type] 的 type 语义、消息自定界方式）
-3. **msgId 注册表**（msgId 1/2/8 之外的正式消息名，需客户端二进制/新观测）
-4. msgId 1 的 type 0-3 具体命令语义（疑移动输入分类）
+1. **down 登录后记录流的完整帧边界**——内容已识别为 PixelArtInfo/玩家记录，但 [00 00 00 type] 的 type 语义与消息自定界方式未确认（需客户端精确 schema 或活动重开后新抓包）
+2. **msgId 注册表**（msgId 1/2/8 之外的正式消息名，需客户端二进制/新观测）
+3. msgId 1 的 type 0-4 具体命令语义（疑 MoveReq Status/Shrink/Position/Time 对应，具体待确认）
+
+~~msgId 8 的 15B 位置块布局~~ —— **已破解：protobuf Vector3（field1/2/3 wire5 × f32）**
 
 ## 8. 工具用法
 

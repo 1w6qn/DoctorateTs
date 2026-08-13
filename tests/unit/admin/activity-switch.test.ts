@@ -30,6 +30,8 @@ vi.mock("@excel/excel", () => ({
           id: "act6bossrush", type: "BOSS_RUSH", name: "引航者试炼", displayType: "BOSS_RUSH",
           startTime: 1766692800, endTime: 1767902399, rewardEndTime: 1768161599,
         },
+        // null 占位条目（真实数据含 20/331）——list/switch 必须跳过不崩溃
+        __null__: null,
       },
       missionGroup: [],
       missionData: [],

@@ -23,6 +23,8 @@ vi.mock("@excel/excel", () => {
             id: "act_future", type: "TYPE_ACT", name: "未来活动",
             startTime: 1900000000, endTime: 1900001000, rewardEndTime: 1900001000,
           },
+          // null 占位条目（真实数据含 20/331）——播种/修剪必须跳过不崩溃
+          __null__: null,
         },
         missionGroup: [{ id: "act5d0", type: "SANDBOX_PERM", rewards: [], missionIds: ["act5d0_1", "act5d0_2"] }],
         missionData: [],

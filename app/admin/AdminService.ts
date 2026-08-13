@@ -1740,6 +1740,8 @@ export class AdminService {
     const effectiveTs = userTimestamp();
     const basicInfo = (excel.ActivityTable?.basicInfo ?? {}) as Record<string, any>;
     const activities = Object.values(basicInfo)
+      // 防御：basicInfo 含 null 占位条目（20/331）
+      .filter((info) => info && typeof info === "object")
       .sort((a, b) => (b.startTime ?? 0) - (a.startTime ?? 0))
       .map((info) => ({
         id: info.id,
@@ -1797,7 +1799,7 @@ export class AdminService {
     const effectiveTs = userTimestamp();
     const basicInfo = (excel.ActivityTable?.basicInfo ?? {}) as Record<string, any>;
     openCount = Object.values(basicInfo).filter(
-      (info) => info.startTime <= effectiveTs && effectiveTs <= info.rewardEndTime,
+      (info) => info && info.startTime <= effectiveTs && effectiveTs <= info.rewardEndTime,
     ).length;
     await this._audit("switchActivity", "all", `timestamp=${timestamp}（有效 ${effectiveTs}）`);
     return { ok: true, timestamp, effectiveTs, openCount };

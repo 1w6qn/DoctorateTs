@@ -131,6 +131,8 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
 
     // 播种：窗口内活动默认状态 + 活动任务 + 关卡
     for (const [actId, info] of Object.entries(basicInfo)) {
+      // 防御：basicInfo 含 null 占位条目（20/331）
+      if (!info || typeof info !== "object") continue;
       if (!(info.startTime <= ts && ts <= info.rewardEndTime)) continue;
       const type = info.type;
       draft.activity[type] = draft.activity[type] || {};

@@ -115,7 +115,7 @@ msgId = 段基 | 段内 SubID（Req/Resp 同 SubID 分方向）。
 **已实测确认**：
 | msgId | 消息 | 方向/说明 |
 |---|---|---|
-| 1 | MsgPing | up：`[u32 type][u32 param]`（type 0-4，param 单调递增 ≈20M/事件） |
+| 1 | MsgPing | up：`[u32 type][u32 param]`——type 0-4（ping 子类型），**param = 高分辨率单调时间戳**（递增 ≈20M/事件、抖动 0.065%） |
 | 2 | MsgPong | down：回显 ping 的 type/param + extra1=415 常量 + extra2 递增序号 |
 | 4 | Login | UserLoginReq up / UserLoginResp down（字段号实测验证） |
 | 8 | MoveReq | up：`{status, shrink, position(Vector3), time}` 全部命名解码 |
@@ -142,4 +142,5 @@ BuyItemReq/Resp、GetShopInfoReq/Resp
 MsgNetProbeReq/Resp
 
 > 注：段内 SubID 精确数值在编译体内（const 值被剥离），上表按声明序列出；已实测锚点（1/2/4/8）
-> 为确定性映射，其余待逐帧观测或客户端二进制补全。
+> 为确定性映射，其余待逐帧观测或客户端二进制补全。msgId 1 Ping 的 type 0-4 精确含义
+> （连接阶段/原因）待确认。

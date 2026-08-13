@@ -106,3 +106,40 @@ npx tsx scripts/parse-arkhub-gateway.ts                 # 重解析全部抓包 
 npx tsx scripts/parse-arkhub-gateway.ts <连接目录ID>     # 单会话
 npx tsx scripts/dump-gateway-dict.ts                    # 输出协议字典（msgId×方向×形态）
 ```
+
+## 9. 消息注册表（2026-08-11 由反编译 LongServiceProtocolTypeID / SubID<TData> 提取）
+
+**段基（TypeID，实测锚点）**：MsgPing=1、MsgPong=2、MsgNotGamePlay=4、MsgGamePlay=8、MsgProxyGame=16；
+msgId = 段基 | 段内 SubID（Req/Resp 同 SubID 分方向）。
+
+**已实测确认**：
+| msgId | 消息 | 方向/说明 |
+|---|---|---|
+| 1 | MsgPing | up：`[u32 type][u32 param]`（type 0-4，param 单调递增 ≈20M/事件） |
+| 2 | MsgPong | down：回显 ping 的 type/param + extra1=415 常量 + extra2 递增序号 |
+| 4 | Login | UserLoginReq up / UserLoginResp down（字段号实测验证） |
+| 8 | MoveReq | up：`{status, shrink, position(Vector3), time}` 全部命名解码 |
+
+**GamePlay 注册表（83 条，声明序）**：CheckVersionReq/Resp、**MoveReq**、ChangeSceneReq、
+LogoutSceneReq、InteractWithUnitReq/Resp、**ForceSetPositionNotify**、SyncEnterSceneResultNotify、
+LeaveSceneNotify、**SyncSceneNotify**、SyncStateNotify、SyncAlterDataNotify、OnReconnectNotify、
+OnRelayNotify、**DoRolePlayingReq、SubmitActorOpReq/Resp**、GetBusinessCardReq/Resp、
+UpdatePlayerSettingsReq/Resp、ChangeOutlookReq/Resp、ModifyPlayerActionReq、ReportPlayerActiveReq、
+NotifyErrorMessageNotify、NotifyToastMessageNotify、ExecGMCommandReq、DeleteCreatureReq、
+SetCreatureLikeReq、SetFollowingCreatureReq、SetCreatureSquadReq、CreatureAlterNotify、
+EncounterCreatureNotify、GetCaptureInfoReq/Resp、StartCaptureReq/Resp、EndCaptureReq/Resp、
+JoinDuelReq/Resp、CancelDuelReq、OnJoinDuelNotify、CreatureExchangeStateNotify、
+PresetCreatureExchangeReq、CreateCreatureExchangeReq、AnswerCreatureExchangeReq、
+GetAllCreatureExchangeInfoReq/Resp、EnterSceneReq、SyncClientLogoutNotify、StartDuelReq/Resp、
+LoadingFinishReq、RoundPrepareReq、DuelRoundResultReportReq、DuelStageChangeNotify、LeaveDuelReq、
+OnOtherPrepareChangeNotify、UploadBattleDataReq、**RequestPixelArtUploadTokenReq/Resp**、
+**SavePixelArtReq、PublishPixelArtReq/Resp、DeletePixelArtReq/Resp、CollectPixelArtReq**、
+DeletePixelArtCollectionReq/Resp、SetPixelArtAlbumDisplayReq、SetPixelArtDisplayReq、
+SetPixelArtNicknameVisibleReq、SetPixelArtShowDisplayReq、**PixelArtAlterNotify**、UseItemReq/Resp、
+BuyItemReq/Resp、GetShopInfoReq/Resp
+
+**NotGameplay 注册表（7 条）**：UserLoginReq/Resp、UserReconnectReq/Resp、KickOutNotify、
+MsgNetProbeReq/Resp
+
+> 注：段内 SubID 精确数值在编译体内（const 值被剥离），上表按声明序列出；已实测锚点（1/2/4/8）
+> 为确定性映射，其余待逐帧观测或客户端二进制补全。

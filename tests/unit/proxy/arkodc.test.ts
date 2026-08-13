@@ -68,7 +68,7 @@ describe("splitGatewayFrames / parseGatewayStream（帧切分）", () => {
     expect(result.frames).toHaveLength(2);
     expect(result.frames[0]).toMatchObject({ msgId: 4, name: "Login", seq: 0, flag: 4001 });
     expect(result.frames[0].fields).toContainEqual(expect.objectContaining({ field: 1, str: "100566259" }));
-    expect(result.frames[1]).toMatchObject({ msgId: 8, name: "NetProbeData" });
+    expect(result.frames[1]).toMatchObject({ msgId: 8, name: "MoveReq" });
     // framesToJson 可序列化
     const json = framesToJson(result.frames) as any[];
     expect(json[0].payload[0]).toMatchObject({ field: 1, str: "100566259" });
@@ -105,7 +105,7 @@ describe("splitGatewayFrames / parseGatewayStream（帧切分）", () => {
   it("MSG_NAMES 覆盖已观测消息", () => {
     expect(MSG_NAMES[1]).toBeDefined();
     expect(MSG_NAMES[4]).toBe("Login");
-    expect(MSG_NAMES[8]).toBe("NetProbeData");
+    expect(MSG_NAMES[8]).toBe("MoveReq");
   });
 });
 
@@ -130,7 +130,7 @@ describe("命名解码（MSG_SCHEMAS → 正常游戏 JSON）", () => {
   });
 
   it("未知 schema 的帧不产生 named 字段", () => {
-    const [f] = splitGatewayFrames(frame(8, Buffer.from([0x08, 0x00])), "up");
+    const [f] = splitGatewayFrames(frame(99, Buffer.from([0x08, 0x00])), "up");
     expect(f.named).toBeUndefined();
   });
 

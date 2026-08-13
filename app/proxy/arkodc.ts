@@ -19,17 +19,19 @@ import { logger } from "@utils/logger";
 export const GATEWAY_HEADER_SIZE = 16;
 
 /**
- * 观测到的消息 ID → 名称（best-effort，来自抓包 payload 字段 + 客户端协议列表）：
- *   1 — MoveReq（移动同步，payload 8B 非 protobuf：[0, 递增计数]，推测）
- *   2 — MoveNotify（位置广播，payload 16B，down 向，推测）
- *   4 — Login（UserLoginReq up 向：uid/token/设备；UserLoginResp down 向：code/token）
- *   8 — NetProbeData（心跳 08 00 / 网络探针 10 80 02 + 15B / 玩家数据通知 0a ... 多变体）
+ * 消息 ID → 名称（2026-08-11 由反编译注册表 LongServiceProtocolTypeID/SubID 确认）：
+ *   1 = MsgPing（up，[type, param]）
+ *   2 = MsgPong（down，回显 ping + 时间戳/序号）
+ *   4 = Login（UserLoginReq up / UserLoginResp down，同 ID 分方向）
+ *   8 = MoveReq（up：{Status, Shrink, Position(Vector3), Time}；down 为服务器广播变体）
+ * 其余 GamePlay 消息（CheckVersion/SyncScene/InteractWithUnit/DoRolePlaying/SubmitActorOp/
+ * PixelArt/Shop 系列等 83 条）见 docs/arkhub-gateway-protocol.md §9 注册表。
  */
 export const MSG_NAMES: Record<number, string> = {
-  1: "MoveReq",
-  2: "MoveNotify",
+  1: "Ping",
+  2: "Pong",
   4: "Login",
-  8: "NetProbeData",
+  8: "MoveReq",
 };
 
 /**
@@ -43,6 +45,11 @@ export const MSG_SCHEMAS: Record<number, { name: string; up?: string[]; down?: s
     name: "Login",
     up: ["uid", "secret", "loginChannel", "deviceId", "gameContext"],
     down: ["code", "heartbeatInterval", "reconnectToken", "ip", "port"],
+  },
+  8: {
+    name: "MoveReq",
+    // up 向：field3=Position（15B Vector3 自动解为 vec3）
+    up: ["status", "shrink", "position", "time"],
   },
 };
 
@@ -333,6 +340,7 @@ export function decodeWithSchema(fields: PbField[], fieldNames: string[]): Recor
     else if (f.fixed64 !== undefined) value = f.fixed64.toString();
     else if (f.fixed32 !== undefined) value = f.fixed32;
     else if (f.str !== undefined) value = f.str;
+    else if (f.vec3) value = f.vec3;
     else if (f.nested) value = decodeWithSchema(f.nested, []);
     else if (f.bytes !== undefined) value = `0x${f.bytes}`;
     else value = undefined;

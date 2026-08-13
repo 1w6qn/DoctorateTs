@@ -68,7 +68,9 @@ export class BattleManager {
     }
     let isApProtect = 0;
     await this._player.update(async (draft) => {
-      if (draft.dungeon.stages[stageId].noCostCnt == 1) {
+      // 修复：新关卡（不在存档模板/后加活动关卡）在下方创建之前读取会 500——
+      // 用可选链，创建块再按 guide 规则计算 noCostCnt
+      if (draft.dungeon.stages[stageId]?.noCostCnt == 1) {
         isApProtect = 1;
         apFailReturn = apCost;
       }
@@ -104,7 +106,10 @@ export class BattleManager {
         if (!dangerLevel || dangerLevel == "-") return;
         const { charInstId } = char;
         const stageLevel = parseInt(dangerLevel.slice(-2).replace(".", ""));
-        const { level: charLevel, evolvePhase } = draft.troop.chars[charInstId];
+        // 修复：编队引用不存在的干员（已删/损坏存档）时不 500
+        const charData = draft.troop.chars[charInstId];
+        if (!charData) return;
+        const { level: charLevel, evolvePhase } = charData;
         if (
           dangerLevel.startsWith("精英1") &&
           (evolvePhase < 1 || charLevel < stageLevel)

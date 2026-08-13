@@ -11,6 +11,7 @@
 
 import { Router } from "express";
 import httpContext from "express-http-context2";
+import { ItemBundle } from "@excel/character_table";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import {
   CampaignConfirmBreakRewardRequest,
@@ -81,6 +82,12 @@ router.post("/campaignV2/battleSweep", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as CampaignSweepRequest;
 
+  // 修复：展示的奖励入账（原实现只在响应里给 1 合成玉，从不 items:get → 不到账）
+  const diamondRewards: ItemBundle[] = [
+    { type: "DIAMOND_SHD", id: "4003", count: 1 },
+  ];
+  await player._trigger.emit("items:get", [diamondRewards]);
+
   res.send({
     ...player.delta,
     result: 0,
@@ -90,9 +97,7 @@ router.post("/campaignV2/battleSweep", async (req, res) => {
     unusualRewards: [],
     additionalRewards: [],
     furnitureRewards: [],
-    diamondMaterialRewards: [
-      { type: "DIAMOND_SHD", id: "4003", count: 1 },
-    ],
+    diamondMaterialRewards: diamondRewards,
     currentFeeBefore: 0,
     currentFeeAfter: 1,
   } satisfies CampaignSweepResponse);

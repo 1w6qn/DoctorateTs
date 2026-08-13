@@ -41,38 +41,52 @@ export class OpenServerManager {
 
   async getChainLogInReward(args: { index: number }): Promise<ItemBundle[]> {
     const { index } = args;
+    // 修复：schedule.find(...)! 在开服活动结束后（无匹配时间段）崩溃 → 防御返回空
     const schedule = excel.OpenServerTable.schedule.find((s) =>
       checkBetween(now(), s.startTs, s.endTs),
-    )!.id;
+    );
+    if (!schedule) return [];
     const item =
-      excel.OpenServerTable.dataMap[schedule].chainLoginData[index].item;
+      excel.OpenServerTable.dataMap[schedule.id].chainLoginData[index]?.item;
+    if (!item) return [];
     await this._player.update(async (draft) => {
       draft.openServer.chainLogin.history[index] = 0;
     });
-    return [{ id: item.itemId, count: item.count }];
+    // 修复：奖励入账（原实现只回显不入账 → 领了但不到账，刷新即消失）
+    const reward = [{ id: item.itemId, count: item.count }];
+    await this._trigger.emit("items:get", [reward]);
+    return reward;
   }
 
   async getChainLogInFinalRewards(): Promise<ItemBundle[]> {
+    // 修复：同上 schedule 防御
     const schedule = excel.OpenServerTable.schedule.find((s) =>
       checkBetween(now(), s.startTs, s.endTs),
-    )!.id;
+    );
+    if (!schedule) return [];
     let item!: OpenServerItemData;
     await this._player.update(async (draft) => {
-      item = excel.OpenServerTable.dataMap[schedule].chainLoginData[-1].item;
+      item = excel.OpenServerTable.dataMap[schedule.id].chainLoginData[-1].item;
       draft.openServer.chainLogin.isAvailable = false;
     });
 
-    return [{ id: item.itemId, count: item.count }];
+    if (!item) return [];
+    // 修复：奖励入账
+    const reward = [{ id: item.itemId, count: item.count }];
+    await this._trigger.emit("items:get", [reward]);
+    return reward;
   }
 
   async getCheckInReward(args: { index: number }): Promise<ItemBundle[]> {
     const { index } = args;
+    // 修复：同上 schedule 防御
     const schedule = excel.OpenServerTable.schedule.find((s) =>
       checkBetween(now(), s.startTs, s.endTs),
-    )!.id;
+    );
+    if (!schedule) return [];
     let item!: OpenServerItemData;
     await this._player.update(async (draft) => {
-      item = excel.OpenServerTable.dataMap[schedule].checkInData[index].item;
+      item = excel.OpenServerTable.dataMap[schedule.id].checkInData[index]?.item;
       draft.openServer.checkIn.history[index] = 0;
       if (
         draft.openServer.checkIn.history.length == 14 &&
@@ -81,6 +95,10 @@ export class OpenServerManager {
         draft.openServer.checkIn.isAvailable = false;
       }
     });
-    return [{ id: item.itemId, count: item.count }];
+    if (!item) return [];
+    // 修复：奖励入账
+    const reward = [{ id: item.itemId, count: item.count }];
+    await this._trigger.emit("items:get", [reward]);
+    return reward;
   }
 }

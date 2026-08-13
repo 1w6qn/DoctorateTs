@@ -89,6 +89,8 @@ export async function setup(app: express.Application) {
   app.use("/aprilFool", (await import("./router/aprilFool")).default);
   app.use("/crisis", (await import("./router/crisis")).default);
   app.use("/deepsea", (await import("./router/deepsea")).default);
+  app.use("/siracusaMap", (await import("./router/siracusaMap")).default);
+  app.use("/explore", (await import("./router/explore")).default);
   app.use("/tower", (await import("./router/tower")).default);
   app.use("/charm", (await import("./router/charm")).default);
   app.use("/charRotation", (await import("./router/charRotation")).default);

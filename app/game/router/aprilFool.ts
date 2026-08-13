@@ -193,4 +193,14 @@ router.post("/act7fun/battleFinish", async (req, res) => {
   } satisfies Act7FunBattleFinishResponse);
 });
 
+/**
+ * 领取 6 号愚人节活动奖励（CS: Act6FunReceiveRewardsRequest { rewardId }）
+ * 私服直接发放（返回空增量，奖励项后续可按 excel 补）
+ */
+router.post("/act6fun/recvReward", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as { rewardId?: string };
+  res.send(player.delta);
+});
+
 export default router;

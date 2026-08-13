@@ -607,4 +607,14 @@ router.post("/checkForbidden", async (req, res) => {
   } satisfies CheckForbiddenResponse);
 });
 
+/**
+ * 用票券购买 GP 商品（CS: ShopDetailGPState——/shop/buyGPGoodWithTicket）
+ * 私服返回空增量（GP 票券购买暂不核销）
+ */
+router.post("/buyGPGoodWithTicket", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as { goodsId?: string };
+  res.send(player.delta);
+});
+
 export default router;

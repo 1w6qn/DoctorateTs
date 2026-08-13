@@ -117,6 +117,38 @@ router.post("/user/info/v1/need_cloud_auth", async (req, res) => {
   res.send({ status: 0, msg: "OK" });
 });
 
+/** 云授权（SDK，参考 DoctoratePy——私服直接通过） */
+router.post("/user/info/v1/cloud_auth", async (req, res) => {
+  res.send({ status: 0, msg: "OK" });
+});
+
+/** 云授权结果验证（SDK——私服直接通过） */
+router.post("/user/info/v1/verify_cloud_auth_result", async (req, res) => {
+  res.send({ status: 0, msg: "OK" });
+});
+
+/** Token 换取用户状态（SDK /user/auth，参考 DoctoratePy userAuth） */
+router.post("/user/auth", async (req, res) => {
+  const token = String(req.body?.token ?? "");
+  const uid = await accountManager.getUidByToken(token);
+  if (!uid) {
+    return res.status(404).send({ status: 1, msg: "用户不存在" });
+  }
+  res.send({
+    uid,
+    isMinor: false,
+    isAuthenticate: true,
+    isGuest: false,
+    needAuthenticate: false,
+    isLatestUserAgreement: true,
+  });
+});
+
+/** 验证码注册（SDK，参考 DoctoratePy——私服直接通过） */
+router.post("/captcha/v1/register", async (req, res) => {
+  res.send({ status: 0, msg: "OK" });
+});
+
 /** 用户协议版本（客户端检查——私服固定最新版本；POST 为 U8 SDK 备选调用方式，响应同 GET；协议 URL 动态跟随服务器地址） */
 function agreementVersionBody(): Record<string, unknown> {
   const server = serverUrl();

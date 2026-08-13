@@ -34,3 +34,50 @@ export interface DeepSeaReadEventRequest {}
 
 /** 深海事件响应（CS: UI.DeepSeaRP.DeepSeaReadEventResponse） */
 export type DeepSeaReadEventResponse = PlayerDeltaResponse;
+
+// ---- 2026-08-13 补全：CS Torappu.UI.DeepSeaRP 其余路由类型 ----
+
+/** 发现地点（CS: DeepSeaDiscoverPlaceRequest { groupId, placeId }） */
+export interface DeepSeaDiscoverPlaceRequest {
+  groupId?: string;
+  placeId: string;
+}
+
+/** 激活节点（CS: DeepSeaActivateNodeRequest { groupId, placeId }） */
+export interface DeepSeaActivateNodeRequest {
+  groupId?: string;
+  placeId: string;
+}
+
+/** 完成剧情（CS: DeepSeaCompleteStoryRequest { groupId, placeId }） */
+export interface DeepSeaCompleteStoryRequest {
+  groupId?: string;
+  placeId: string;
+}
+
+/** 开启宝藏（CS: DeepSeaOpenTreasureRequest { groupId, placeId }） */
+export interface DeepSeaOpenTreasureRequest {
+  groupId?: string;
+  placeId: string;
+}
+
+/** 解锁科技树节点（CS: DeepSeaUnlockTechTreeRequest { groupId, placeId }） */
+export interface DeepSeaUnlockTechTreeRequest {
+  groupId?: string;
+  placeId: string;
+}
+
+/** 选择分支（CS: DeepSeaSelectChoiceRequest { groupId, placeId }） */
+export interface DeepSeaSelectChoiceRequest {
+  groupId?: string;
+  placeId: string;
+}
+
+/** 激活科技树（CS: DeepSeaActiveTechTreeRequest { groupId, techTreeId }） */
+export interface DeepSeaActiveTechTreeRequest {
+  groupId?: string;
+  techTreeId: string;
+}
+
+/** 通用增量响应（各 deepSea 路由返回 playerDataDelta） */
+export type DeepSeaDeltaResponse = PlayerDeltaResponse;

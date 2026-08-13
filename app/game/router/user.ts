@@ -307,6 +307,147 @@ rootRouter.post("/mainlineClue/unlockClue", async (req, res) => {
 });
 
 /**
+ * 领取长期签到奖励
+ *
+ * CS: Torappu.UI.LongTermCheckIn.ReceiveLongTermCheckInRewardRequest { groupId }
+ * 响应：PlayerDeltaResponse + rewards（RewardItemModel[]）。
+ * 私服不做长期签到活动时返回空奖励（客户端正常收包不崩溃）。
+ */
+rootRouter.post("/user/recvLongTermCheckInReward", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as { groupId?: string };
+  res.send({
+    ...player.delta,
+    rewards: [],
+  });
+});
+
+/**
+ * 进入角色语音记录并领取入口奖励
+ * CS: FifthAnnivService.MissionArchiveClaimEntryRewardRequest { topicId }
+ * 写 mainline.missionArchive[topicId].entryRewardClaimed
+ */
+rootRouter.post("/mainline/enterCharVoiceRecord", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { topicId } = req.body as { topicId: string };
+  await player.update(async (draft) => {
+    const archive = (draft.mainline as any).missionArchive;
+    archive[topicId] = archive[topicId] ?? { entryOpen: 0, entryRewardClaimed: 0, nodes: {} };
+    archive[topicId].entryOpen = 1;
+    archive[topicId].entryRewardClaimed = 1;
+  });
+  res.send(player.delta);
+});
+
+/**
+ * 领取语音记录节点奖励
+ * CS: FifthAnnivService.MissionArchiveClaimNodeRewardRequest { topicId, nodeId }
+ * 写 mainline.missionArchive[topicId].nodes[nodeId]
+ */
+rootRouter.post("/mainline/confirmCharVoiceRecordReward", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { topicId, nodeId } = req.body as { topicId: string; nodeId: string };
+  await player.update(async (draft) => {
+    const archive = (draft.mainline as any).missionArchive;
+    archive[topicId] = archive[topicId] ?? { entryOpen: 0, entryRewardClaimed: 0, nodes: {} };
+    archive[topicId].nodes[nodeId] = 2;
+  });
+  res.send(player.delta);
+});
+
+/**
+ * 阅读线索
+ * CS: Anniv7thService.READ_CLUE "/mainlineClue/readClue"
+ * 写 mainline.clue.state[id]（与 unlockClue 同结构）
+ */
+rootRouter.post("/mainlineClue/readClue", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { id } = req.body as { id: string };
+  await player.update(async (draft) => {
+    const mainline = draft.mainline as any;
+    if (!mainline.clue) {
+      mainline.clue = { unlock: false, state: {}, reward: {} };
+    }
+    mainline.clue.state[id] = 2;
+  });
+  res.send(player.delta);
+});
+
+/**
+ * 领取线索奖励
+ * CS: Anniv7thService.GET_REWARDS "/mainlineClue/getRewards"
+ * 写 mainline.clue.reward[id]
+ */
+rootRouter.post("/mainlineClue/getRewards", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { id } = req.body as { id: string };
+  await player.update(async (draft) => {
+    const mainline = draft.mainline as any;
+    if (!mainline.clue) {
+      mainline.clue = { unlock: false, state: {}, reward: {} };
+    }
+    mainline.clue.reward[id] = 1;
+  });
+  res.send(player.delta);
+});
+
+// ---- 2026-08-13 补全：客户端缺失路由（根路径）----
+
+/**
+ * 像素画审核（CS: ActArkhubReviewPixelArtRequest { uid, status, items }）
+ * 私服记录到 activity.ARK_HUB.pixelArts，返回空增量
+ */
+rootRouter.post("/pixelArt/review", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as { uid?: string; status?: number };
+  await player.update(async (draft) => {
+    const hub = (draft.activity as any)?.ARK_HUB?.["act1arkhub"] as any;
+    if (hub) hub.reviewedPixelArts = hub.reviewedPixelArts ?? {};
+  });
+  res.send(player.delta);
+});
+
+/** 演出剧情开始（CS: Torappu.Network.ServiceCode，/performanceStory/startStory）——空增量 */
+rootRouter.post("/performanceStory/startStory", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as { storyId?: string };
+  res.send(player.delta);
+});
+
+/**
+ * 确认分享任务（CS: ConfirmShareMissionRequest { shareMissionId }）
+ * 写 share 状态，返回空增量
+ */
+rootRouter.post("/share/confirmShareMission", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { shareMissionId } = req.body as { shareMissionId?: string };
+  await player.update(async (draft) => {
+    if (shareMissionId) {
+      draft.share = draft.share ?? {};
+      (draft.share as any)[shareMissionId] = 2;
+    }
+  });
+  res.send(player.delta);
+});
+
+/**
+ * 特勤干员解锁节点（CS: SpecialOperatorBoardUnlockNodeRequest { instId, nodeId }）
+ * 记录到 troop 特勤数据，返回空增量
+ */
+rootRouter.post("/troop/SpecialOperatorUnlockNode", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { instId, nodeId } = req.body as { instId?: string; nodeId?: string };
+  await player.update(async (draft) => {
+    const troop = draft.troop as any;
+    troop.specialOperator = troop.specialOperator ?? {};
+    const so = troop.specialOperator[instId ?? ""] ?? { unlockedNodes: {} };
+    if (nodeId) so.unlockedNodes[nodeId] = 1;
+    troop.specialOperator[instId ?? ""] = so;
+  });
+  res.send(player.delta);
+});
+
+/**
  * 获取 CG 收藏列表
  *
  * 返回当前服务器已收藏的 CG 列表。

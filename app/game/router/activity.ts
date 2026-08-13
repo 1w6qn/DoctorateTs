@@ -2493,6 +2493,26 @@ router.post("/arkhub/syncInfo", async (req, res) => {
   res.send(player.delta satisfies ActivityStubResponse);
 });
 
+/**
+ * 方舟枢纽上报（抓包：result 0 + 空增量）
+ * CS: Torappu.UI.ActArkhub.ActArkhubService（/activity/arkhub/report）
+ */
+router.post("/arkhub/report", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as ActivityStubRequest;
+  res.send({ result: 0, ...player.delta });
+});
+
+/**
+ * 锁链作战刷新队伍（CS: Torappu.Activity.Act1Lock.Act1LockRefreshSquadRequest）
+ * 私服单机无多人锁链，返回空增量
+ */
+router.post("/interlock/refreshSquad", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as ActivityStubRequest;
+  res.send(player.delta satisfies ActivityStubResponse);
+});
+
 export default router;
 
 /**

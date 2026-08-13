@@ -203,4 +203,23 @@ router.post("/unlockHideStage", async (req, res) => {
   res.send(player.delta satisfies UnlockHideStageResponse);
 });
 
+/**
+ * 确认六星奖励（CS: ConfirmSixStarRewardRequest { groupId, rewardIds }）
+ * 私服记录领取状态，返回空增量
+ */
+router.post("/confirmSixStarReward", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const { groupId, rewardIds = [] } = req.body as {
+    groupId?: string;
+    rewardIds?: string[];
+  };
+  await player.update(async (draft) => {
+    const troop = draft.troop as any;
+    troop.sixStarReward = troop.sixStarReward ?? {};
+    const g = (troop.sixStarReward[groupId ?? ""] = troop.sixStarReward[groupId ?? ""] ?? {});
+    for (const id of rewardIds) g[id] = 1;
+  });
+  res.send(player.delta);
+});
+
 export default router;

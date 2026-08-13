@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   decodeProtobuf,
   splitGatewayFrames,
+  splitGatewayFramesFull,
   parseGatewayStream,
   framesToJson,
   decodeWithSchema,
@@ -86,6 +87,19 @@ describe("splitGatewayFrames / parseGatewayStream（帧切分）", () => {
     const result = parseGatewayStream(Buffer.concat([good, trunc]), "test");
     expect(result.frames).toHaveLength(1);
     expect(result.remainder.length).toBe(5);
+  });
+
+  it("splitGatewayFramesFull 跨 raw wrapper 续链（标准帧 + 无长度前缀 wrapper + 标准帧）", () => {
+    // [帧1][raw wrapper 20B][帧2]
+    const f1 = frame(8, Buffer.from([0x08, 0x00]));
+    const wrapper = Buffer.from([0x00, 0x00, 0x00, 0x05, 0x0a, 0x03, 0x61, 0x62, 0x63, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+    const f2 = frame(8, Buffer.from([0x08, 0x01]));
+    const stream = Buffer.concat([f1, wrapper, f2]);
+    const r = splitGatewayFramesFull(stream, "down");
+    expect(r.frames).toHaveLength(2);
+    expect(r.wrappers).toHaveLength(1);
+    expect(r.wrappers[0].bytes.length).toBe(wrapper.length);
+    expect(r.tail.length).toBe(0);
   });
 
   it("MSG_NAMES 覆盖已观测消息", () => {

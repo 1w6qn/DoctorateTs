@@ -33,6 +33,14 @@ function parseConnection(dir: string): void {
         downRemainderHex: downResult.remainder.toString("hex"),
         upRemainderLen: upResult.remainder.length,
         downRemainderLen: downResult.remainder.length,
+        downWrappers: upResult.wrappers
+          ? upResult.wrappers.map((w) => ({
+              start: w.start,
+              end: w.end,
+              len: w.bytes.length,
+              fields: fieldsToJson(w.fields),
+            }))
+          : undefined,
         downRecovered: downResult.recovered
           ? {
               start: downResult.recovered.start,
@@ -51,6 +59,7 @@ function parseConnection(dir: string): void {
     downFrames: downResult.frames.length,
     upRemainder: upResult.remainder.length,
     downRemainder: downResult.remainder.length,
+    downWrappers: upResult.wrappers ? upResult.wrappers.map((w) => `${w.bytes.length}B`) : undefined,
     downRecovered: downResult.recovered ? `${downResult.recovered.fields.length}字段@${downResult.recovered.start}` : undefined,
     upBytes: up.length,
     downBytes: down.length,

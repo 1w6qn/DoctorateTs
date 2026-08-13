@@ -58,19 +58,21 @@
   = 移动中的玩家）。`decodeVector3` 自动识别解码。
 - 形态极多（up 151 / down 410 种）——位置与探针数据多变
 
-## 5. down 登录后记录流（帧边界未完全破解，内容已识别）
+## 5. down 登录后记录流（2026-08-11 完全破解）
 
-登录后 down 流在热闹大厅场景变为**连续记录流**（无外层长度前缀）：
+登录后 down 流**并非换帧格式**——是标准帧链中**间插了少量无长度前缀的 raw wrapper**：
 ```
-[00 00 00 <type>][protobuf 记录]...
+[标准帧×65][raw wrapper 2176B（PixelArtData 同步）][标准帧×6000+][raw wrapper 104B]...
 ```
-- **记录内容 = PixelArtInfo（2026-08-11 识别，14/14 样本匹配）**：
-  `{1:id, 2:32hex Md5, 4:createTime, 5:updateTime, 7:revision}`——即大厅展示的像素画列表同步
-  （客户端 `PixelArtInfo {Id, Md5, Status, CreateTime, UpdateTime, PublishTime, Revision, CollectedCount}`）
-- 另有 `field2`(string)=uid / 昵称 的嵌套消息（如 `"25866054"` + `"liataynat"`）——玩家信息记录
-- **恢复现状**：`recoverProtobufWithPrefixSkip` 部分恢复（会话 18-245 字段，字段1 元素已命名 PixelArtInfo）；
-  完整帧边界（type 语义、消息自定界）仍需客户端精确 schema
-- **陷阱**：`00 00 00 XX` 在余量中出现 ~1.9 万次，但**大量是 protobuf 内部零字节假象**，不能全部当记录边界
+- **完整解析**：`splitGatewayFramesFull` 跨 wrapper 续链——断点处扫描下一个合法标准帧头
+  （len 16-5000 + 已知 msgId + 可续链），断点与续链点之间作为 wrapper 原样保留
+- **实测**：12 个会话 down 流全部 `downRemainder: 0`（此前 10-01 会话 413255B 余量 → 现在
+  6073 帧 + 3 wrapper 全部切分）；msgId 分布 8×5189 / 2×883 / 4×1
+- **wrapper 内容 = PixelArtData 同步**：`{field2: md5, field4/5: ts, field7: 1,
+  field1: [PixelArtInfo×N]}`——`decodePixelArtInfo` 识别 field1 元素
+  （{id, 32hex Md5, createTime, updateTime, revision}，14/14 样本匹配客户端 PixelArtInfo）
+- 另含 `field7`(len 78) 内嵌 `{uid, nickname}` 的玩家信息记录
+- **陷阱**：`00 00 00 XX` 在 wrapper 中出现 ~1.9 万次是 protobuf 内部零字节假象，非记录边界
 
 ## 5.1 msgId 1/2 移动协议（2026-08-11 补全）
 
@@ -87,13 +89,14 @@ PlayerSyncData、PlayerBrief、HallInfo、TaskData 等）——**但 msgId→消
 无法提取**（serializer 方法体仅签名，ProtoMember 属性仅类定义），字段号仅登录类由实测验证。
 补全方法：`npx tsx scripts/dump-gateway-dict.ts` 观测新帧 → 对照字段名声明顺序反推字段号。
 
-## 7. 剩余未知项（精确清单，2026-08-11 已收敛）
+## 7. 剩余未知项（精确清单，2026-08-11 已收敛至 2 项）
 
-1. **down 登录后记录流的完整帧边界**——内容已识别为 PixelArtInfo/玩家记录，但 [00 00 00 type] 的 type 语义与消息自定界方式未确认（需客户端精确 schema 或活动重开后新抓包）
-2. **msgId 注册表**（msgId 1/2/8 之外的正式消息名，需客户端二进制/新观测）
-3. msgId 1 的 type 0-4 具体命令语义（疑 MoveReq Status/Shrink/Position/Time 对应，具体待确认）
+1. **msgId 注册表**（msgId 1/2/8 之外的正式消息名——3 大消息族已识别，其余需客户端二进制/新观测）
+2. msgId 1 的 type 0-4 具体命令语义（疑 MoveReq Status/Shrink/Position/Time 对应，具体待确认）
 
 ~~msgId 8 的 15B 位置块布局~~ —— **已破解：protobuf Vector3（field1/2/3 wire5 × f32）**
+~~down 登录后记录流完整帧边界~~ —— **已破解：标准帧链 + 少量 raw wrapper（PixelArtData 同步），
+splitGatewayFramesFull 跨 wrapper 续链，全部会话 downRemainder=0**
 
 ## 8. 工具用法
 

@@ -432,6 +432,82 @@ export function decodePixelArtInfo(fields: PbField[]): Record<string, unknown> |
   };
 }
 
+/**
+ * 跨 raw wrapper 续链切帧（down 流完整解析）
+ *
+ * down 流 = [标准帧×N][raw wrapper（无长度前缀的 PixelArtData 同步，如 2176B）][标准帧×N]...
+ * 标准帧链断点处：向前扫描下一个合法标准帧头（len 16-5000 + 已知 msgId + 可续链），
+ * 断点与续链起点之间的字节作为 wrapper 原样返回（调用方可做 protobuf 恢复）。
+ */
+export function splitGatewayFramesFull(buffer: Buffer, direction?: "up" | "down"): {
+  frames: GatewayFrame[];
+  /** raw wrapper 字节段（断点→续链点） */
+  wrappers: { start: number; end: number; bytes: Buffer }[];
+  /** 未能续链的尾部 */
+  tail: Buffer;
+} {
+  const KNOWN_MSGIDS = new Set([1, 2, 4, 8, 16, 32, 64, 128]);
+  const frames: GatewayFrame[] = [];
+  const wrappers: { start: number; end: number; bytes: Buffer }[] = [];
+  let off = 0;
+
+  const findResume = (from: number): number | null => {
+    for (let p = from; p + 8 <= buffer.length && p - from < 50000; p++) {
+      const len = buffer.readUInt32BE(p);
+      if (len < 16 || len > 5000 || p + len > buffer.length) continue;
+      const msgId = buffer.readUInt32BE(p + 4);
+      if (!KNOWN_MSGIDS.has(msgId)) continue;
+      // 续链帧自身的 payload 应可解（宽松：仅要求再下一帧头合法）
+      const next = p + len;
+      if (next + 8 <= buffer.length) {
+        const nextLen = buffer.readUInt32BE(next);
+        if (nextLen >= 16 && next + nextLen <= buffer.length) return p;
+      }
+      return p;
+    }
+    return null;
+  };
+
+  while (off + 4 <= buffer.length) {
+    const len = buffer.readUInt32BE(off);
+    if (len < GATEWAY_HEADER_SIZE || off + len > buffer.length) {
+      // 断点：尝试找续链点
+      const resume = findResume(off + 1);
+      if (resume === null) break;
+      wrappers.push({ start: off, end: resume, bytes: buffer.subarray(off, resume) });
+      off = resume;
+      continue;
+    }
+    const msgId = buffer.readUInt32BE(off + 4);
+    const seq = buffer.readUInt32BE(off + 8);
+    const flag = buffer.readUInt32BE(off + 12);
+    const payload = buffer.subarray(off + GATEWAY_HEADER_SIZE, off + len);
+    const fields = decodeProtobuf(payload);
+    const frame: GatewayFrame = {
+      len,
+      msgId,
+      name: MSG_NAMES[msgId] ?? `Msg${msgId}`,
+      seq,
+      flag,
+      headerHex: buffer.subarray(off + 8, off + 16).toString("hex"),
+      fields,
+      payloadHex: payload.toString("hex"),
+    };
+    const schema = MSG_SCHEMAS[msgId];
+    if (schema && direction && (direction === "up" ? schema.up : schema.down)) {
+      const names = direction === "up" ? schema.up! : schema.down!;
+      frame.named = decodeWithSchema(fields, names);
+    } else if (fields.length === 0 && payload.length > 0 && payload.length % 4 === 0) {
+      const fixedNames = FIXED_SCHEMAS[msgId];
+      if (fixedNames) frame.named = decodeFixedWithSchema(payload, fixedNames);
+      else frame.fixed = decodeFixedPayload(payload);
+    }
+    frames.push(frame);
+    off += len;
+  }
+  return { frames, wrappers, tail: buffer.subarray(off) };
+}
+
 /** 单帧解析结果 */
 export interface GatewayFrame {
   /** 帧总长（含帧头） */
@@ -462,6 +538,8 @@ export interface GatewayStreamResult {
   frames: GatewayFrame[];
   /** 剩余未解析字节（登录后 down 流等无法按长度前缀切分的部分） */
   remainder: Buffer;
+  /** raw wrapper 段（标准帧链断点→续链点；down 流为 PixelArtData 等无长度前缀的同步消息） */
+  wrappers?: { start: number; end: number; bytes: Buffer; fields: PbField[] }[];
   /** 余量 protobuf 恢复结果（down 登录后连续 protobuf 消息的部分解码） */
   recovered?: { start: number; fields: PbField[]; end: number; prefixSkips: number };
 }
@@ -521,12 +599,32 @@ export function splitGatewayFrames(buffer: Buffer, direction?: "up" | "down"): G
  * @returns 解析结果
  */
 export function parseGatewayStream(buffer: Buffer, label: string): GatewayStreamResult {
-  const frames = splitGatewayFrames(buffer, label === "up" ? "up" : "down");
-  const consumed = frames.reduce((sum, f) => sum + f.len, 0);
+  // 完整切分：标准帧链 + 跨 raw wrapper 续链（down 流的 PixelArtData 同步 wrapper）
+  const full = splitGatewayFramesFull(buffer, label === "up" ? "up" : "down");
+  const frames = full.frames;
+  const consumed = frames.reduce((sum, f) => sum + f.len, 0) +
+    full.wrappers.reduce((sum, w) => sum + w.bytes.length, 0);
   const remainder = buffer.subarray(consumed);
   const result: GatewayStreamResult = { frames, remainder };
+
+  if (full.wrappers.length > 0) {
+    // wrapper 是 raw protobuf（无长度前缀），解码其中可读部分
+    result.wrappers = full.wrappers.map((w) => {
+      const best = recoverProtobufWithPrefixSkip(w.bytes);
+      return {
+        start: w.start,
+        end: w.end,
+        bytes: w.bytes,
+        fields: best ? best.fields : [],
+      };
+    });
+    logger.info(
+      "arkodc",
+      `${label} 流：${frames.length} 帧 + ${full.wrappers.length} 个 raw wrapper（${full.wrappers.map((w) => w.bytes.length).join("/")}B）`,
+    );
+  }
+
   if (remainder.length > 0) {
-    // 尝试恢复：down 登录后是 [00 00 00 <type>][protobuf] 的连续记录，带前缀跳过恢复
     const recovered = recoverProtobufWithPrefixSkip(remainder);
     if (recovered && recovered.fields.length >= 2) {
       result.recovered = recovered;
@@ -537,7 +635,7 @@ export function parseGatewayStream(buffer: Buffer, label: string): GatewayStream
     } else {
       logger.warn(
         "arkodc",
-        `${label} 流解析 ${frames.length} 帧后余 ${remainder.length}B 无法按长度前缀切分（登录后 down 流可能为连续 protobuf/自定义封装，需进一步逆向）`,
+        `${label} 流解析 ${frames.length} 帧后余 ${remainder.length}B 无法按长度前缀切分`,
       );
     }
   }

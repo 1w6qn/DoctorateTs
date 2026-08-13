@@ -306,6 +306,11 @@ router.post("/getCheckInReward", async (req, res) => {
   const activityId = body.activityId;
 
   if (activityId.endsWith("access")) {
+    const REWARDS: ItemBundle[] = [
+      { type: "AP_SUPPLY", id: "ap_supply_lt_80", count: 1 },
+      { type: "DIAMOND_SHD", id: "4003", count: 200 },
+    ];
+    let already = false;
     await player.update(async (draft) => {
       if (!draft.activity.CHECKIN_ACCESS[activityId]) {
         draft.activity.CHECKIN_ACCESS[activityId] = {
@@ -314,16 +319,24 @@ router.post("/getCheckInReward", async (req, res) => {
           lastTs: 0,
         };
       }
-      (draft.activity as any).CHECKIN_ACCESS[activityId].rewardsCount++;
-      (draft.activity as any).CHECKIN_ACCESS[activityId].lastTs = Math.floor(Date.now() / 1000);
+      const data = (draft.activity as any).CHECKIN_ACCESS[activityId];
+      // 修复：每日限领一次（原实现 rewardsCount 无限累加、无任何限制）
+      const dayKey = Math.floor(Date.now() / 86400000);
+      if (Math.floor((data.lastTs || 0) / 86400000) === dayKey) {
+        already = true;
+        return;
+      }
+      data.rewardsCount++;
+      data.lastTs = Math.floor(Date.now() / 1000);
     });
 
+    // 修复：奖励入账（原实现只回显 items 从不 emit items:get → 领了但没到账）
+    if (!already) {
+      await player._trigger.emit("items:get", [REWARDS]);
+    }
     res.send({
       ...player.delta,
-      items: [
-        { type: "AP_SUPPLY", id: "ap_supply_lt_80", count: 1 },
-        { type: "DIAMOND_SHD", id: "4003", count: 200 },
-      ],
+      items: already ? [] : REWARDS,
     } satisfies GetCheckInRewardResponse);
   } else if (activityId.endsWith("blessing")) {
     await player.update(async (draft) => {

@@ -318,6 +318,10 @@ export type EventMap = {
   GotChars: [{ char: PlayerCharacter }];
   /** 累计签到次数（勋章追踪，补声明——medal.ts TotalCheckinCount 模板监听） */
   TotalCheckinCount: [];
+  /** 技能升级次数（勋章追踪，补声明——medal.ts CharSkillCount 模板监听） */
+  CharSkillCount: [{ targetLevel: number }];
+  /** 潜能提升次数（勋章追踪，补声明——medal.ts CharPotential 模板监听） */
+  CharPotential: [{ targetLevel: number }];
   /** 基建放置建筑（勋章追踪） */
   Sbv2PlaceBuilding: [];
   /** 基建通关裂隙（勋章追踪） */

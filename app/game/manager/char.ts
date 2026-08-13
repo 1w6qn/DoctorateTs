@@ -338,9 +338,25 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, itemId, targetRank } = args;
       const char = draft.troop.chars[charInstId];
-      char.potentialRank = targetRank;
+      if (!char) return;
+      const info = excel.CharacterTable[char.charId];
+      // 修复：targetRank 无钳制可写超上限（如 maxPotential 5 写 99）+ 无道具归属校验；
+      // 钳制到 [当前+1, maxPotential]，且只接受该干员潜能道具
+      const maxPotential = info?.maxPotentialLevel ?? 5;
+      const target = Math.min(Math.max(targetRank, (char.potentialRank ?? 0) + 1), maxPotential);
+      const allowedItems = [
+        info?.potentialItemId,
+        info?.classicPotentialItemId,
+        info?.activityPotentialItemId,
+      ].filter(Boolean) as string[];
+      if (allowedItems.length > 0 && !allowedItems.includes(itemId)) {
+        return; // 非法道具：拒绝（防消耗任意库存物品）
+      }
+      char.potentialRank = target;
       await this._trigger.emit("items:use", [[{ id: itemId, count: 1 }]]);
-      await this._trigger.emit("BoostPotential", [{ targetLevel: targetRank }]);
+      await this._trigger.emit("BoostPotential", [{ targetLevel: target }]);
+      // 修复：勋章 CharPotential 事件从未 emit → 潜能提升勋章永不推进
+      await this._trigger.emit("CharPotential", [{ targetLevel: target }]);
     });
   }
 
@@ -374,6 +390,8 @@ export class CharManager {
       // 修复：原实现发错事件 BoostPotential → 技能升级任务（监听 UpgradeSkill）永不推进；
       // 改为 UpgradeSkill
       await this._trigger.emit("UpgradeSkill", [{ targetLevel }]);
+      // 修复：勋章 CharSkillCount 事件从未 emit → 技能升级勋章永不推进
+      await this._trigger.emit("CharSkillCount", [{ targetLevel }]);
     });
   }
 

@@ -19,7 +19,11 @@ import {
 const router = Router();
 
 /** 驻防战斗上下文（defendBattleStart 记录 → defendBattleFinish 消费，参考 ODPY global battle_data） */
-let vecBreakBattleCtx: { activityId: string; stageId: string; squad: any } | null = null;
+// 修复：模块级单例在多账号下互相串扰（A 开战 B 结算用错队伍）→ 按 uid 存储
+const vecBreakBattleCtxs = new Map<
+  string,
+  { activityId: string; stageId: string; squad: any }
+>();
 
 /** 按需初始化 VEC_BREAK_V2 活动数据 */
 function ensureVecBreakData(draft: any, activityId: string): any {
@@ -80,7 +84,11 @@ router.post("/vecBreakV2/defendBattleStart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as VecBreakV2DefenseStartBattleRequest;
   // 参考 ODPY：记录战斗上下文并复用标准战斗开始
-  vecBreakBattleCtx = { activityId: body.activityId, stageId: body.stageId, squad: body.squad };
+  vecBreakBattleCtxs.set(player.uid, {
+    activityId: body.activityId,
+    stageId: body.stageId,
+    squad: body.squad,
+  });
   const start = await player.battle.start({
     stageId: body.stageId,
     squad: body.squad as any,
@@ -97,7 +105,7 @@ router.post("/vecBreakV2/defendBattleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as VecBreakV2FinishBattleRequest;
   // 参考 ODPY：通关后写入 defendStages + activatedBuff 追加 stageId
-  const ctx = vecBreakBattleCtx;
+  const ctx = vecBreakBattleCtxs.get(player.uid);
   let msBefore = 0;
   if (ctx) {
     await player.update(async (draft) => {
@@ -119,7 +127,7 @@ router.post("/vecBreakV2/defendBattleFinish", async (req, res) => {
       }
       msBefore = data.milestone?.point ?? 0;
     });
-    vecBreakBattleCtx = null;
+    vecBreakBattleCtxs.delete(player.uid);
   }
   const finishBody = {
     result: 0,

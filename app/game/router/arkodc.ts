@@ -19,7 +19,8 @@ import { PlayerDeltaResponse } from "../model/protocol/common";
 const router = Router();
 
 /** 当前 ODC 战斗 topic（battleStart 记录，battleFinish 消费；参考 ODPY global arkodc_topic） */
-let currentArkOdcTopic: string | null = null;
+// 修复：模块级单例多账号串扰 → 按 uid 存储
+const arkOdcTopics = new Map<string, string>();
 
 /**
  * 应用 varSeqList 到 arkodc 主题状态（参考 ODPY：bool/end/removed 置 1，其余累加）
@@ -40,6 +41,27 @@ function applyVarSeqList(
       arkodcTopic.varSeqs[varSeq] = (arkodcTopic.varSeqs[varSeq] ?? 0) + 1;
     }
   }
+}
+
+/**
+ * 惰性获取（并播种）arkodc 主题——draft.arkodc.topics[topicId] 不存在时创建默认结构。
+ * 奇象巡展主题未在解锁播种中创建（真实时间模式/旧存档）时，路由不再静默丢弃。
+ */
+function ensureArkOdcTopic(draft: any, topicId: string): any {
+  if (!draft.arkodc) draft.arkodc = {};
+  if (!draft.arkodc.topics) draft.arkodc.topics = {};
+  let topic = draft.arkodc.topics[topicId];
+  if (!topic) {
+    topic = draft.arkodc.topics[topicId] = {
+      varSeqs: {},
+      rewards: {},
+      position: { x: 0, y: 0, z: 0 },
+    };
+  }
+  if (!topic.varSeqs) topic.varSeqs = {};
+  if (!topic.rewards) topic.rewards = {};
+  if (!topic.position) topic.position = { x: 0, y: 0, z: 0 };
+  return topic;
 }
 
 /** 奇象巡展 ODC 开始战斗请求（CS: ArkOdcBattleStartRequest : DefaultStartBattleRequest） */
@@ -125,7 +147,7 @@ router.post("/battleStart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ArkOdcBattleStartRequest;
   // 参考 ODPY：记录 topic 供 battleFinish 使用
-  if (body.topicId) currentArkOdcTopic = body.topicId;
+  if (body.topicId) arkOdcTopics.set(player.uid, body.topicId);
   res.send({
     result: 0,
     battleId: "00000000-0000-0000-0000-000000000000",
@@ -191,21 +213,18 @@ router.post("/battleFinish", async (req, res) => {
   }
 
   // 完成后推进 actorData.actorShowCondition 的 varSeqs
-  const topicId = currentArkOdcTopic ?? "";
+  const topicId = arkOdcTopics.get(player.uid) ?? "";
   const arkvent = (excel as any).ArkventTable;
   const actorData = arkvent?.arkventDataMap?.[topicId]?.taskData?.actorData?.[actorId!];
   if (actorData?.actorShowCondition) {
     await player.update(async (draft) => {
-      const arkodc = (draft as any).arkodc as any;
-      const arkTopic = arkodc?.topics?.[topicId];
-      if (!arkTopic) return;
-      if (!arkTopic.varSeqs) arkTopic.varSeqs = {};
+      const arkTopic = ensureArkOdcTopic(draft, topicId);
       for (const condition of actorData.actorShowCondition) {
         applyVarSeqList(arkTopic, condition.varSeqList);
       }
     });
   }
-  currentArkOdcTopic = null;
+  arkOdcTopics.delete(player.uid);
 
   res.send({
     ...emptyResult,
@@ -221,10 +240,8 @@ router.post("/savePosition", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ArkOdcSavePositionRequest;
   await player.update(async (draft) => {
-    // PlayerDataModel 未声明 arkodc 字段（官服快照有），用 (draft as any) 访问
-    const arkodc = (draft as any).arkodc as any;
-    if (!arkodc?.topics?.[body.topicId]) return;
-    arkodc.topics[body.topicId].position = { x: body.x, y: body.y, z: body.z };
+    const arkTopic = ensureArkOdcTopic(draft, body.topicId);
+    arkTopic.position = { x: body.x, y: body.y, z: body.z };
   });
   res.send(player.delta satisfies ArkOdcSavePositionResponse);
 });
@@ -242,12 +259,7 @@ router.post("/triggerInteraction", async (req, res) => {
   let items: ItemBundle[] = [];
 
   await player.update(async (draft) => {
-    // PlayerDataModel 未声明 arkodc 字段（官服快照有），用 (draft as any) 访问
-    const arkodc = (draft as any).arkodc as any;
-    const arkTopic = arkodc?.topics?.[topicId!];
-    if (!arkTopic) return;
-    if (!arkTopic.varSeqs) arkTopic.varSeqs = {};
-    if (!arkTopic.rewards) arkTopic.rewards = {};
+    const arkTopic = ensureArkOdcTopic(draft, topicId!);
     // 宝箱部分（awardId 存在且无 avgId，参考 ODPY）
     if (awardId && !avgId) {
       arkTopic.rewards[awardId] = 1;
@@ -333,6 +345,11 @@ router.post("/triggerInteraction", async (req, res) => {
     }
   });
 
+  // 宝箱奖励真实发放（响应 items 仅客户端展示用，物品进背包经 items:get）
+  if (items.length > 0) {
+    await player._trigger.emit("items:get", [items]);
+  }
+
   res.send({
     items,
     ...player.delta,
@@ -348,9 +365,7 @@ router.post("/restart", async (req, res) => {
   const body = req.body as ArkOdcRestartRequest;
   let deletedKeys: string[] = [];
   await player.update(async (draft) => {
-    const arkodc = (draft as any).arkodc as any;
-    const arkTopic = arkodc?.topics?.[body.topicId!];
-    if (!arkTopic) return;
+    const arkTopic = ensureArkOdcTopic(draft, body.topicId!);
     deletedKeys = Object.keys(arkTopic.varSeqs ?? {});
     arkTopic.varSeqs = {};
     arkTopic.position = null;

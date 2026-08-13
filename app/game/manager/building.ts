@@ -260,13 +260,15 @@ export class BuildingManager {
    */
   async setBuildingAssist(args: { type: number; charInstId: number }) {
     const { type, charInstId } = args;
-    return await this._player.update(async (draft) => {
+    await this._player.update(async (draft) => {
       if (draft.building.assist.includes(charInstId)) {
         const index = draft.building.assist.indexOf(charInstId);
         draft.building.assist[index] = -1;
       }
       draft.building.assist[type] = charInstId;
     });
+    // 修复：SetBuildingAssist 任务事件从未 emit → 设置基建助手类任务永不推进
+    await this._trigger.emit("SetBuildingAssist", []);
   }
 
   // ==================== 内部工具方法 ====================
@@ -467,7 +469,7 @@ export class BuildingManager {
    */
   async buildRoom(args: { roomSlotId: string; roomId: string }) {
     const { roomSlotId, roomId } = args;
-    return await this._player.update(async (draft) => {
+    await this._player.update(async (draft) => {
       const slot = draft.building.roomSlots[roomSlotId];
       if (!slot) return;
       // 建造 = 1 级相位 buildCost（材料/金币/劳动力）
@@ -478,6 +480,11 @@ export class BuildingManager {
       slot.roomId = roomId as BuildingData_RoomType;
       slot.completeConstructTime = now() + 1;
     });
+    // 修复：HasRoom 任务事件从未 emit → 拥有房间类任务永不推进
+    const roomCount = Object.values(
+      this._player._playerdata.building.roomSlots,
+    ).filter((s: any) => s.roomId).length;
+    await this._trigger.emit("HasRoom", [{ roomCount }]);
   }
 
   /**
@@ -903,6 +910,8 @@ export class BuildingManager {
           // 修复：splice 产生 DELETE patch（客户端删 stock 属性而非替换 → UI 残留）；
           // 用 filter 生成 replace patch（modified）
           room.stock = room.stock.filter((x: any) => x !== room.stock[idx]);
+          // 修复：AccelerateOrder 任务事件从未 emit → 加速订单类任务永不推进
+          await this._trigger.emit("AccelerateOrder", []);
         }
       }
     });
@@ -948,7 +957,8 @@ export class BuildingManager {
    */
   async deliveryOrder(args: { slotId: string; orderId: string }) {
     const { slotId, orderId } = args;
-    return await this._player.update(async (draft) => {
+    let delivered = 0;
+    await this._player.update(async (draft) => {
       const tradingRoom = draft.building.rooms.TRADING[slotId];
       if (tradingRoom && Array.isArray(tradingRoom.stock)) {
         // 修复：按客户端指定 orderId（instId）结算，缺省回退队首——与 deliveryBatchOrder 一致
@@ -964,9 +974,14 @@ export class BuildingManager {
           tradingRoom.stock = tradingRoom.stock.filter(
             (x: any) => x !== tradingRoom.stock[idx],
           );
+          delivered = 1;
         }
       }
     });
+    // 修复：DeliveryOrder 任务事件从未 emit → 交付订单类任务永不推进
+    if (delivered > 0) {
+      await this._trigger.emit("DeliveryOrder", [{ count: delivered }]);
+    }
   }
 
   /**
@@ -980,6 +995,7 @@ export class BuildingManager {
     // 结算每个贸易站的全部库存订单）；原实现读 slotId/orderId → 客户端请求解构不到
     // → 空 delta。响应 delivered: { slotId: [收益物品] } 对齐 CS/抓包。
     const delivered: { [slotId: string]: ItemBundle[] } = {};
+    let totalDelivered = 0;
     await this._player.update(async (draft) => {
       for (const slotId of args.slotList ?? []) {
         const room = draft.building.rooms.TRADING[slotId];
@@ -998,10 +1014,15 @@ export class BuildingManager {
           this._settleOrderInternal(draft, stock);
           // 修复：splice 产生 DELETE patch（客户端 UI 残留旧订单）→ filter 替换
           room.stock = room.stock.filter((x: any) => x !== stock);
+          totalDelivered += 1;
         }
         delivered[slotId] = gains;
       }
     });
+    // 修复：DeliveryOrder 任务事件从未 emit → 批量交付同样不推进任务
+    if (totalDelivered > 0) {
+      await this._trigger.emit("DeliveryOrder", [{ count: totalDelivered }]);
+    }
     return delivered;
   }
 
@@ -1074,7 +1095,7 @@ export class BuildingManager {
       for (const roomSlotId of list) {
         // 先推进时间累积的产出再结算
         this._accrueManufacture(draft, roomSlotId);
-        this._settleManufactureInternal(draft, roomSlotId);
+        await this._settleManufactureInternal(draft, roomSlotId);
         // 收获后状态（防御：非法 roomSlotId 直接跳过不 500）
         const room = draft.building.rooms.MANUFACTURE[roomSlotId];
         if (!room) continue;
@@ -1106,7 +1127,7 @@ export class BuildingManager {
    * @param draft - Immer 可写草稿
    * @param roomSlotId - 房间槽位 ID
    */
-  private _settleManufactureInternal(
+  private async _settleManufactureInternal(
     draft: WritableDraft<PlayerDataModel>,
     roomSlotId: string,
   ) {
@@ -1122,6 +1143,11 @@ export class BuildingManager {
     const gainCount = (formula.count ?? 1) * outputSolutionCnt;
     draft.inventory[formula.itemId] =
       (draft.inventory[formula.itemId] || 0) + gainCount;
+    // 修复：ManufactureItem 任务事件从未 emit → 制造物品类任务永不推进
+    //（模板 0/2 读 item、模板 1 读 count，一并携带）
+    await this._trigger.emit("ManufactureItem", [
+      { item: { id: formula.itemId, count: gainCount }, count: gainCount },
+    ]);
 
     // 消耗：costs（MATERIAL 扣 inventory / GOLD 扣 status.gold）
     // 修复：余额校验——材料/金币不足时按比例只结算可承担部分，避免负库存/负金币
@@ -1346,6 +1372,12 @@ export class BuildingManager {
         id: formula.itemId,
         count: times2,
       };
+      // 修复：WorkshopSynthesis 任务事件从未 emit → 工坊合成类任务永不推进
+      await this._trigger.emit("WorkshopSynthesis", [
+        {
+          item: { id: formula.itemId, count: (formula.count ?? 1) * times2 },
+        },
+      ]);
     });
     return resultItem;
   }
@@ -2033,13 +2065,15 @@ export class BuildingManager {
    * @param args - 请求体参数
    */
   async startInfoShare(args: any) {
-    return await this._player.update(async (draft) => {
+    await this._player.update(async (draft) => {
       this._accrueCharAp(draft);
       const room = Object.values(draft.building.rooms.MEETING)[0];
       if (!room) return;
       room.infoShare.ts = now();
       room.infoShare.reward = this._infoShareReward(room.socialReward);
     });
+    // 修复：StartInfoShare 任务事件从未 emit → 开启信息分享类任务永不推进
+    await this._trigger.emit("StartInfoShare", []);
   }
 
   /**

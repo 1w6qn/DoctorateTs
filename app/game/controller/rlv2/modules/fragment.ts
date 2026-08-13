@@ -113,14 +113,26 @@ export class RoguelikeFragmentManager {
     );
   }
 
+  /**
+   * 解析碎片：按 id 键 或 index（f_N）寻址
+   *
+   * 修复：gain 以碎片 id 为键（this._fragments[id]），而客户端 loseFragment/
+   * useInspiration/alchemy 传的是 index（f_N）——原实现直接 this._fragments[index]
+   * → undefined（500/no-op）；兼容两种寻址
+   */
+  private _resolveFragment(key: string): PlayerRoguelikeV2.CurrentData.Module.InventoryFragment | undefined {
+    if (this._fragments[key]) return this._fragments[key];
+    return Object.values(this._fragments).find((f) => f.index === key);
+  }
+
   alchemy(fragmentIndex: [string, string]) {
     const [f1, f2] = fragmentIndex;
     const theme = this._player.current.game!.theme;
     const fragmentData = excel.RoguelikeTopicTable.modules[theme].fragment;
     const alchemyData = fragmentData?.alchemyData || {};
 
-    const fragment1 = this._fragments[f1];
-    const fragment2 = this._fragments[f2];
+    const fragment1 = this._resolveFragment(f1);
+    const fragment2 = this._resolveFragment(f2);
     if (!fragment1 || !fragment2 || fragment1.used || fragment2.used) {
       return;
     }
@@ -197,10 +209,12 @@ export class RoguelikeFragmentManager {
   }
 
   useInspiration([fragmentIndex]: [string]): void {
-    this._fragments[fragmentIndex].used = true;
+    const frag = this._resolveFragment(fragmentIndex);
+    if (!frag) return; // 防御：未知碎片不 500
+    frag.used = true;
     this._currInspiration = {
       instId: fragmentIndex,
-      id: this._fragments[fragmentIndex].id,
+      id: frag.id,
       ei: -1,
     };
   }
@@ -216,7 +230,9 @@ export class RoguelikeFragmentManager {
   }
 
   lose([fragmentIndex]: [string]): void {
-    this._fragments[fragmentIndex].used = true;
+    const frag = this._resolveFragment(fragmentIndex);
+    if (!frag) return; // 防御：未知碎片不 500
+    frag.used = true;
   }
 
   gain([id]: [string]): void {

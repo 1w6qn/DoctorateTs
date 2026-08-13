@@ -190,6 +190,29 @@ export class FBO {
         out.push(childPos + 4 <= this.buf.length ? truncateFloat(this.f32(childPos)) : null);
       } else if (elemType === "double") {
         out.push(childPos + 8 <= this.buf.length ? truncateFloat(this.f64(childPos)) : null);
+      } else if (elemType.startsWith("list_")) {
+        // 嵌套向量（vec:list_int / vec:list_float → 元素本身为向量，Indirect uoffset）
+        // 修复：原实现把 list_* 当子表解码 → 空对象 {}（gamedata_const 的
+        // characterExpMap/maxLevel/evolveGoldCost/characterUpgradeCostMap 全部解码成空数组）
+        const pos2 = childPos + this.u32(childPos);
+        if (pos2 < 4 || pos2 >= this.buf.length) {
+          out.push(null);
+          continue;
+        }
+        const innerLen = this.u32(pos2);
+        const innerBase = pos2 + 4;
+        const innerType = elemType.slice("list_".length); // int | float | long | double ...
+        const inner: number[] = [];
+        for (let j = 0; j < innerLen && innerBase + 4 * j + 4 <= this.buf.length; j++) {
+          if (innerType === "float") {
+            inner.push(truncateFloat(this.f32(innerBase + 4 * j)));
+          } else if (innerType === "long") {
+            inner.push(this.u32(innerBase + 4 * j) + this.u32(innerBase + 4 * j + 4) * 4294967296);
+          } else {
+            inner.push(this.i32(innerBase + 4 * j));
+          }
+        }
+        out.push(inner);
       } else {
         // 表元素（Indirect，4 字节 uoffset）
         const pos2 = childPos + this.u32(childPos);

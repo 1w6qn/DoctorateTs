@@ -97,11 +97,21 @@ export class RoguelikeCopperManager {
   /** 重抽：清空已抽标记并重新抽 3 枚（copper/redraw）；扣 gold 重抽费用 */
   redraw(): { copper: string[]; divineEventId: string } {
     const theme = this._player.current.game!.theme;
+    // 修复：冻结计数前置检查——原实现 redrawFreezeCnt 从不递增且检查在扣费之后，
+    // 冻结机制永不生效；达到冻结次数后直接拒绝
+    if (this.redrawFreezeCnt >= this.redrawFreeze) {
+      return { copper: [], divineEventId: "" };
+    }
+    // 修复：余额校验——不足时不扣费（原实现直接扣成负数金币）
+    if ((this._player._status.property.gold ?? 0) < this.redrawCost) {
+      return { copper: [], divineEventId: "" };
+    }
     // 扣除重抽费用（gold）
     const goldItem = `${theme}_gold`;
     this._trigger.emit("rlv2:get:items", [
       [{ id: goldItem, count: -this.redrawCost }],
     ]);
+    this.redrawFreezeCnt += 1;
     const drawn: string[] = [];
     for (const [key, item] of Object.entries(this.bag)) {
       if (item.isDrawn) {
@@ -115,9 +125,6 @@ export class RoguelikeCopperManager {
       if (!item) continue;
       item.isDrawn = 1;
       result.push(key);
-    }
-    if (this.redrawFreezeCnt >= this.redrawFreeze) {
-      // 冻结：不可再重抽
     }
     return { copper: result, divineEventId: "" };
   }

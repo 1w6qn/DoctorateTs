@@ -170,13 +170,26 @@ describe("rlv2 完整机制（2026-08-10 补全）", () => {
   });
 
   describe("bankPut / bankWithdraw（银行）", () => {
-    it("bankPut 应增加 current/totalPut 并刷新 record", async () => {
+    it("bankPut 应扣 1 金币并增加 current/totalPut 刷新 record", async () => {
+      // 修复：存钱需有 1 金币余额（原实现免费存 → 循环刷金币）
+      (player.rlv2 as any)._status.property.gold = 10;
+      const goldBefore = (player.rlv2 as any)._status.property.gold;
       await (player.rlv2 as any).bankPut();
       const bank = player._playerdata.rlv2.outer.rogue_3.bank;
       expect(bank.current).toBe(11);
       expect(bank.totalPut).toBe(11);
       expect(bank.record).toBe(11);
+      // 修复：存钱扣 1 金币（原实现免费存 → put/withdraw 循环刷金币）
+      expect((player.rlv2 as any)._status.property.gold).toBe(goldBefore - 1);
       expect((player.rlv2 as any)._status.status.bankPut).toBe(1);
+    });
+
+    it("bankPut 金币不足应拒绝（不增不扣）", async () => {
+      (player.rlv2 as any)._status.property.gold = 0;
+      await (player.rlv2 as any).bankPut();
+      const bank = player._playerdata.rlv2.outer.rogue_3.bank;
+      expect(bank.current).toBe(10);
+      expect((player.rlv2 as any)._status.property.gold).toBe(0);
     });
 
     it("bankWithdraw 应减少 current 并增加金币", async () => {

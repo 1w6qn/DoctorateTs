@@ -81,7 +81,9 @@ export class SocialService {
     return Object.entries(this._manager.data)
       .filter(([uid, data]) => {
         return (
-          keyword.includes(uid) ||
+          // 修复：原 `keyword.includes(uid)` 方向反了——昵称里含某 uid 数字就误匹配，
+          // 搜索结果混入无关账号；改为按 uid 部分匹配
+          uid.includes(keyword) ||
           data._playerdata.status.nickName == keyword ||
           data._playerdata.status.nickName + "#" + data._playerdata.status.nickNumber ==
             keyword

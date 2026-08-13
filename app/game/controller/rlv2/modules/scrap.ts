@@ -67,7 +67,14 @@ export class RoguelikeScrapManager {
     this.activeVehicle = s?.activeVehicle || { isWalk: true };
     this.inventory = s?.inventory || {};
     this.limit = s?.limit ?? 10;
-    this._index = Object.keys(this.inventory).length;
+    // 修复：原实现 _index = 键数——seedInitial 后 s_1/s_2 存在（键数 2），
+    // 续局 _index=2 → 下个废品写成 s_2 覆盖已播种项；改为 最大 instId 后缀 + 1
+    let maxN = 0;
+    for (const id of Object.keys(this.inventory)) {
+      const m = /_(\d+)$/.exec(id);
+      if (m) maxN = Math.max(maxN, parseInt(m[1], 10));
+    }
+    this._index = maxN + 1;
   }
 
   /** 获得废品（战斗/事件奖励） */

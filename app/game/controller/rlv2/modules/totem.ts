@@ -63,18 +63,19 @@ export class RoguelikeTotemManager {
         attachBuff.push(nodeType);
       }
     }
+    // 修复：upper 类型合并在循环外一次性完成——原实现放在循环内，后续节点
+    // 拿到的是累积后的 attachBuff（重复条目越滚越多）
+    if (extraEffect && upperBuffData?.linkedNodeTypeData?.effectiveNodeTypes) {
+      for (const nodeType of upperBuffData.linkedNodeTypeData.effectiveNodeTypes) {
+        if (!attachBuff.includes(nodeType)) {
+          attachBuff.push(nodeType);
+        }
+      }
+    }
 
     for (const nodePos of selectedNodePos) {
       const node = this._player._map.zones[zone]?.nodes[nodePos];
       if (!node) continue;
-
-      if (extraEffect && upperBuffData?.linkedNodeTypeData?.effectiveNodeTypes) {
-        for (const nodeType of upperBuffData.linkedNodeTypeData.effectiveNodeTypes) {
-          if (!attachBuff.includes(nodeType)) {
-            attachBuff.push(nodeType);
-          }
-        }
-      }
 
       if (attachBuff.length > 0) {
         if (!node.attach) {

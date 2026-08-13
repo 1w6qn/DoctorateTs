@@ -385,7 +385,8 @@ describe("CharManager 模组（uniequip）", () => {
         charId: "char_001",
         missionId: "mission_char_001_0",
       });
-      expect(items).toEqual([{ id: "2002", count: 25, type: 2 }]);
+      // 修复：spChar 奖励 type 为数字枚举（2=CARD_EXP），发放时统一转字符串类型
+      expect(items).toEqual([{ id: "2002", count: 25, type: "CARD_EXP" }]);
       expect(mockPlayer._playerdata.troop!.charMission!["char_001"]["mission_char_001_0"]).toBe(2);
     });
 

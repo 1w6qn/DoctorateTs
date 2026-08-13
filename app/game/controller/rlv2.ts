@@ -1174,8 +1174,14 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     const rewardGrp =
       this._status.pending[0].content.battleReward!.rewards.find(
         (r) => r.index == args.index,
-      )!;
-    const reward = rewardGrp.items.find((r) => r.sub == args.sub)!;
+      );
+    // 防御：未知奖励组不 500
+    if (!rewardGrp) return;
+    // 修复：done 未校验 → 同一奖励组的每个 sub 都能领一遍（boss 双遗物全拿）；
+    // 已选择过则拒绝
+    if (rewardGrp.done) return;
+    const reward = rewardGrp.items.find((r) => r.sub == args.sub);
+    if (!reward) return;
     this._trigger.emit("rlv2:get:items", [[reward]]);
 
     rewardGrp.done = 1;
@@ -1275,6 +1281,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   async bankPut(): Promise<void> {
     const theme = this.current.game!.theme;
     if (!this.outer[theme]?.bank) return;
+    // 修复：存钱应扣 1 金币——原实现不扣任何资源，可 put→withdraw 循环无限刷金币
+    if ((this._status.property.gold ?? 0) < 1) return;
+    this._status.property.gold -= 1;
     await this.update(async (draft) => {
       const bank = draft.outer[theme].bank;
       bank.current = (bank.current || 0) + 1;

@@ -35,6 +35,8 @@ export class TroopManager {
     await this._player.update(async (draft) => {
       draft.troop.squads[squadId].name = name;
     });
+    // 修复：ChangeSquadName 任务事件从未 emit → 改名类任务永不推进
+    await this._trigger.emit("ChangeSquadName", []);
   }
 
   async decomposePotentialItem(args: {

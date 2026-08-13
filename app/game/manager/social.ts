@@ -95,7 +95,9 @@ export class SocialManager {
       await accountManager.addFriend(args.friendId, this._uid);
       await accountManager.deleteFriendRequest(args.friendId, this._uid);
     }
-    if ((await accountManager.getFriendRequests(args.friendId)).length === 0) {
+    // 修复：红点应在我自己收件箱清空后消失——原实现查对方（args.friendId）的收件箱，
+    // 对方有其他待处理申请时我方红点永不消、我方清空后也仍亮
+    if ((await accountManager.getFriendRequests(this._uid)).length === 0) {
       await this._player.update(async (draft) => {
         draft.pushFlags.hasFriendRequest = 0;
       });
@@ -209,6 +211,8 @@ export class SocialManager {
     await this._player.update(async (draft) => {
       draft.social.assistCharList = assistCharList;
     });
+    // 修复：SetAssistCharList 任务事件从未 emit → 设置助战类任务永不推进
+    await this._trigger.emit("SetAssistCharList", []);
   }
 
   /**
@@ -296,15 +300,20 @@ export class SocialManager {
     const friendRequestList = await Promise.all(
       idList.map((id) => accountManager.getPlayerFriendInfo(id)),
     );
-    const friendStatusList = friendRequestList.map((id) => {
-      if (social.friends.some((friend) => friend.uid === id.uid)) {
-        return 2;
-      } else if (social.friendRequests.includes(id.uid)) {
-        return 1;
-      } else {
+    // 修复：status 1（已发送申请）应为"我向 TA 发过申请"——原实现查 social.friendRequests
+    //（我收到的申请）方向相反；改为查对方收到的申请里是否含我
+    const friendStatusList = await Promise.all(
+      friendRequestList.map(async (id) => {
+        if (social.friends.some((friend) => friend.uid === id.uid)) {
+          return 2;
+        }
+        const sentTo = await accountManager.getFriendRequests(id.uid);
+        if (sentTo.includes(this._uid)) {
+          return 1;
+        }
         return 0;
-      }
-    });
+      }),
+    );
     return {
       players: friendRequestList,
       resultIdList: idList,

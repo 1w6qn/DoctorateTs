@@ -61,25 +61,21 @@ export class RoguelikeNodeUpgradeManager {
 
   upgrade([nodeType]: [string]) {
     const theme = this._player.current.game!.theme;
+    const info = this._nodeTypeInfoMap[nodeType];
+    // 防御：未知节点类型不 500
+    if (!info) return;
     const tempMap =
       excel.RoguelikeTopicTable.modules[theme].nodeUpgrade!.nodeUpgradeDataMap;
-    if (this._nodeTypeInfoMap[nodeType].currUpgradeIndex == 4) {
-      const tempItem = tempMap[nodeType].tempItemList.find(
-        (item) => item.upgradeId == this._nodeTypeInfoMap[nodeType].tempUpgrade,
-      )!;
-      this._nodeTypeInfoMap[nodeType].upgradeList.push(tempItem.upgradeId);
-      this._trigger.emit("rlv2:fragment:use", [
-        tempItem.costItemId,
-        tempItem.costItemCount,
-      ]);
-    } else {
-      const permItem = tempMap[nodeType].permItemList.find(
-        (item) =>
-          item.nodeLevel ==
-          this._nodeTypeInfoMap[nodeType].currUpgradeIndex + 1,
-      )!;
-      this._nodeTypeInfoMap[nodeType].currUpgradeIndex += 1;
-      this._nodeTypeInfoMap[nodeType].upgradeList.push(permItem.upgradeId);
+    // 修复：原实现 temp 分支不递增 currUpgradeIndex → 同一临时升级无限重复（且
+    // 只 push 内存 upgradeList 不落盘）；tempUpgrade 为 "" 时 find(...)! 崩溃。
+    // 统一：<4 永久升级递增；==4 临时升级仅一次（置 5 完成）；>=5 无操作
+    if (info.currUpgradeIndex < 4) {
+      const permItem = tempMap[nodeType]?.permItemList?.find(
+        (item) => item.nodeLevel == info.currUpgradeIndex + 1,
+      );
+      if (!permItem) return; // 防御：配置缺失
+      info.currUpgradeIndex += 1;
+      info.upgradeList.push(permItem.upgradeId);
       this._player.outer[theme].collect.nodeUpgrade[nodeType].unlockList.push(
         permItem.upgradeId,
       );
@@ -87,7 +83,23 @@ export class RoguelikeNodeUpgradeManager {
         permItem.costItemId,
         permItem.costItemCount,
       ]);
+    } else if (info.currUpgradeIndex === 4) {
+      info.currUpgradeIndex = 5; // 临时升级只做一次，之后标记完成
+      if (!info.tempUpgrade) return; // 无临时升级配置（长度不足）——跳过不崩溃
+      const tempItem = tempMap[nodeType]?.tempItemList?.find(
+        (item) => item.upgradeId == info.tempUpgrade,
+      );
+      if (!tempItem) return; // 防御：配置缺失
+      info.upgradeList.push(tempItem.upgradeId);
+      this._player.outer[theme].collect.nodeUpgrade[nodeType].unlockList.push(
+        tempItem.upgradeId,
+      );
+      this._trigger.emit("rlv2:fragment:use", [
+        tempItem.costItemId,
+        tempItem.costItemCount,
+      ]);
     }
+    // currUpgradeIndex >= 5：已完成，无操作
   }
 
   toJSON(): PlayerRoguelikeV2.CurrentData.Module.NodeUpgrade {

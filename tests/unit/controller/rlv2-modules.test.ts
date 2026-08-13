@@ -225,6 +225,8 @@ describe("rlv2 主题模块管理器（2026-08-10）", () => {
     it("redraw 应重新抽牌", async () => {
       const player = await createModules(makePlayer("rogue_5"));
       const c = (player.rlv2 as any)._module.copper;
+      // 修复：redraw 需金币余额（原实现不校验直接扣成负数）
+      (player.rlv2 as any)._status.property.gold = 100;
       const ret = c.redraw();
       expect(ret.copper).toHaveLength(3);
     });

@@ -179,6 +179,10 @@ export class InventoryManager {
               ],
             ]);
             await this._trigger.emit("player:levelUp", [{ level: draft.status.level }]);
+            // 修复：UpgradePlayer 任务事件从未 emit → 玩家等级类任务永不推进
+            await this._trigger.emit("UpgradePlayer", [
+              { level: draft.status.level },
+            ]);
           } else {
             break;
           }

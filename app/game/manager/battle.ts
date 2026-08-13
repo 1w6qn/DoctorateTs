@@ -487,6 +487,31 @@ export class BattleManager {
         ...battleInfo,
       },
     ]);
+    // 修复：以下任务事件从未 emit → 相应任务模板永不推进；胜利结算统一补发。
+    // 入账顺位在 update 之后（干员信赖 favorPoint 已在 recipe 内 +1）
+    if (!isPractice && (battleData.completeState ?? 0) >= 2) {
+      const stType = excel.StageTable.stages[stageId]?.stageType ?? "";
+      await this._trigger.emit("CompleteAnyStage", [
+        { ...battleData, stageId },
+      ]);
+      if (stType === "MAIN") {
+        await this._trigger.emit("CompleteMainStage", [
+          { ...battleData, stageId },
+        ]);
+      } else if (stType === "CAMPAIGN" || stType === "ACTIVITY") {
+        await this._trigger.emit("CompleteCampaign", [
+          { ...battleData, stageId },
+        ]);
+      }
+      await this._trigger.emit("CostAp", [{ ap: apCost }]);
+      const favorGained =
+        battleInfo.squad?.slots?.filter(
+          (s) => s && this._player._playerdata.troop.chars[s.charInstId],
+        ).length ?? 0;
+      if (favorGained > 0) {
+        await this._trigger.emit("GainIntimacy", [{ count: favorGained }]);
+      }
+    }
     if (isPractice) {
       return {};
     }

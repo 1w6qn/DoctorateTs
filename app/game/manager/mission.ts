@@ -1535,7 +1535,11 @@ export const MissionTemplates: {
           target: parseInt(mission.param[1]),
         });
       },
-      update: () => {},
+      // 修复：原 update 为空操作（事件即使 emit 也不累计）→ 消耗理智类任务永不推进；
+      // 改为按实际消耗 AP 累计（emit 参数 {ap}）
+      update: (mission, args: { ap: number }) => {
+        mission.progress[0].value += args.ap;
+      },
     },
   },
 

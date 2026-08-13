@@ -11,6 +11,20 @@ import { reconcileCharSkills } from "@game/util/char-skills";
 import { PlayerCharacter, PlayerCharPatch } from "@game/model/character";
 import { UniEquipData } from "@excel/types_excel_gen";
 
+/** 物品类型数字枚举 → 字符串（spCharMissions 等表的 rewards.type 为数字枚举） */
+function itemTypeToString(itemType: number | string): string {
+  const key =
+    typeof itemType === "string" ? parseInt(itemType, 10) : itemType;
+  if (isNaN(key)) return String(itemType);
+  const map: { [key: number]: string } = {
+    0: "NONE", 1: "CHAR", 2: "CARD_EXP", 3: "MATERIAL", 4: "GOLD",
+    5: "EXP_PLAYER", 6: "TKT_TRY", 7: "TKT_RECRUIT", 8: "TKT_INST_FIN",
+    9: "TKT_GACHA", 10: "DIAMOND", 11: "DIAMOND_SHD", 12: "LGG_SHD",
+    13: "HGG_SHD", 14: "FURN", 15: "ACTIVITY_COIN", 16: "AP_GAMEPLAY",
+  };
+  return map[key] ?? String(itemType);
+}
+
 export class CharManager {
   _trigger: TypedEventEmitter;
   _player: PlayerDataManager;
@@ -200,6 +214,12 @@ export class CharManager {
       ]);
     }
     await this._trigger.emit("items:get", [items]);
+    // 修复：HasChar 任务事件从未 emit（模板已注册监听）→ 拥有干员类任务永不推进；
+    // 干员入账后补发（含新/重复干员）
+    const liveChar = this._player._playerdata.troop.chars[charInstId];
+    if (liveChar) {
+      await this._trigger.emit("HasChar", [{ char: liveChar }]);
+    }
     const res = {
       charInstId: charInstId,
       charId: charId,
@@ -266,14 +286,28 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, destEvolvePhase } = args;
       const char = draft.troop.chars[charInstId];
-      const phaseConfig = excel.CharacterTable[char.charId].phases[
-        destEvolvePhase
-      ] as { evolveCost?: ItemBundle[] | null } | undefined;
+      if (!char) return;
+      const info = excel.CharacterTable[char.charId];
+      const phases = info?.phases;
+      // 修复：目标相位必须存在且高于当前——原实现无校验，可升到不存在的相位/免费升阶/倒降级
+      if (
+        !phases ||
+        destEvolvePhase <= char.evolvePhase ||
+        !phases[destEvolvePhase]
+      ) {
+        return;
+      }
+      const phaseConfig = phases[destEvolvePhase] as {
+        evolveCost?: ItemBundle[] | null;
+      } | undefined;
       // 防御：部分特殊干员（预备干员等）无精二配置（evolveCost 为 null），跳过消耗直接升阶
       const evolveCost = phaseConfig?.evolveCost ?? [];
-      const rarity = rarityToIndex(excel.CharacterTable[char.charId].rarity);
+      const rarity = rarityToIndex(info.rarity);
+      // 修复：evolveGoldCost 中 -1 = 该稀有度无此相位（如 3 星无精二）——
+      // 原实现 goldCost=-1 → items:use 反向 +1 金币；不可用相位直接拒绝
       const goldCost =
-        excel.GameDataConst.evolveGoldCost[rarity][destEvolvePhase] ?? 0;
+        excel.GameDataConst.evolveGoldCost[rarity]?.[destEvolvePhase] ?? -1;
+      if (goldCost < 0) return;
       await this._trigger.emit("items:use", [
         evolveCost.concat([{ id: "4001", count: goldCost } as ItemBundle]),
       ]);
@@ -665,8 +699,16 @@ export class CharManager {
         }
       }
       draft.troop.charMission[charId][missionId] = 2;
-      await this._trigger.emit("items:get", [mission.rewards]);
-      return mission.rewards;
+      // 修复：spCharMissions.rewards 的 type 是数字枚举（2=CARD_EXP、4=GOLD）——
+      // gainItem 的 funcs 按字符串类型键（"CARD_EXP"/"GOLD"），数字 type 恒查不到
+      // → 奖励被跳过但任务已标记领取（奖励永久丢失）；统一转字符串类型
+      const rewards: ItemBundle[] = (mission.rewards ?? []).map((r: any) => ({
+        id: r.id,
+        count: r.count,
+        type: itemTypeToString(r.type),
+      }));
+      await this._trigger.emit("items:get", [rewards]);
+      return rewards;
     });
   }
 
@@ -697,7 +739,14 @@ export class CharManager {
       const { charInstId, itemId, instId } = args;
       const char = draft.troop.chars[charInstId];
       const rarity = rarityToIndex(excel.CharacterTable[char.charId].rarity);
-      char.level = excel.GameDataConst.maxLevel[rarity][2];
+      // 修复：原实现恒写 maxLevel[rarity][2]（精二满级）——maxLevel 数据为空桩时
+      // 写 undefined（等级字段从存档消失）；且无视当前相位（E0 干员被写成 E2 满级）。
+      // 按当前相位取对应上限：maxLevel[rarity][evolvePhase]
+      const phaseMax =
+        excel.GameDataConst.maxLevel[rarity]?.[char.evolvePhase] ??
+        excel.GameDataConst.maxLevel[rarity]?.[0] ??
+        1;
+      char.level = phaseMax;
       char.exp = 0;
       await this._trigger.emit("items:use", [
         [{ id: itemId, count: 1, instId }],

@@ -118,7 +118,8 @@ describe("GRID_ZONE 官服结构对齐（构造模板）", () => {
         const startId = Object.entries(light).find(([, n]: any) => n.state === 1)![0];
         for (const [id, n] of Object.entries(light) as [string, any][]) {
           if (dist.get(id) === 1 && id !== startId) {
-            expect(n.content.savage, `zone ${zone} 相邻 ${id}`).toBeTruthy();
+            const mapN = (player.rlv2 as any)._map.zones[String(1000 + zone - 1)]?.nodes?.[id];
+            expect(mapN?.type, `zone ${zone} 相邻 ${id}`).toBe(1);
           }
         }
       }

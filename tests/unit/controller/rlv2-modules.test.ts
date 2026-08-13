@@ -108,9 +108,9 @@ describe("rlv2 主题模块管理器（2026-08-10）", () => {
       expect(json.stepRemain).toBe(20);
       expect(json.needConfirmStepZero).toBe(true);
       expect(Object.keys(json.zones["zone_1"].nodes).length).toBeGreaterThan(0);
-      // 战斗节点应有 savage.stageId
-      const nodes = Object.values(json.zones["zone_1"].nodes) as any[];
-      expect(nodes.some((n) => n.content.savage?.stageId)).toBe(true);
+      // 战斗节点信息在 map.zones（gridZone content 为空，stage 由 map.zones 提供）
+      const mapNodes = (player.rlv2 as any)._map.zones["1000"]?.nodes || {};
+      expect(Object.values(mapNodes).some((n: any) => n.type === 1 && n.stage)).toBe(true);
     });
 
     it("moveTo 应标记节点已访问并开放相邻节点", async () => {
@@ -143,12 +143,14 @@ describe("rlv2 主题模块管理器（2026-08-10）", () => {
         const dist = gz.edgeDistances(template);
         for (const [id, n] of Object.entries(nodes) as [string, any][]) {
           if (dist.get(id) === 1 && id !== "101") {
-            expect(n.content.savage, `起点相邻节点 ${id} 应为作战`).toBeTruthy();
+            const mapN = (player.rlv2 as any)._map.zones["1000"]?.nodes?.[id];
+            expect(mapN?.type, `起点相邻节点 ${id} 应为作战`).toBe(1);
           }
         }
         // 地图节点数 > 0、存在战斗节点
         expect(Object.keys(nodes).length).toBeGreaterThan(5);
-        const battleNode = Object.values(nodes).find((n: any) => n.content.savage);
+        const mapNodes2 = (player.rlv2 as any)._map.zones["1000"]?.nodes || {};
+        const battleNode = Object.values(mapNodes2).find((n: any) => n.type === 1);
         expect(battleNode).toBeTruthy();
         // 同步 map.zones：与 module.gridZone 节点 ID 一致
         const mapNodes = (player.rlv2 as any)._map.zones["1000"]?.nodes;

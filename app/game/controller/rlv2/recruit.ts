@@ -169,7 +169,7 @@ export class RoguelikeRecruitManager {
           {},
           char,
           {
-            // 官服 instId/troopInstId 为字符串（troop 角色 instId）；候选列表内 instId 为序号
+            // instId 为候选列表序号（客户端 optionId 选择用）；troopInstId 为真实 troop 干员 instId
             instId: acc.length,
             type: "NORMAL",
             upgradePhase: isUpgraded ? 1 : 0,
@@ -178,7 +178,7 @@ export class RoguelikeRecruitManager {
             isCure: false,
             charBuff: [],
             isUpgrade: false,
-            troopInstId: Object.keys(this._player.troop.chars).length,
+            troopInstId: (char as any).instId ?? Object.keys(this._player.troop.chars).length,
           },
           levelPatch,
         ),

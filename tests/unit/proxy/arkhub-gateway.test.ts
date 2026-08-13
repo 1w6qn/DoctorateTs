@@ -138,7 +138,9 @@ describe("startArkhubGatewayProxy（30000 TCP 转发器）", () => {
       });
       expect(second.server).not.toBeNull();
       expect(second.adjusted).toBe(true);
-      expect(second.port).toBe(usedPort + 1);
+      // 避让到首个空闲端口（并行测试可能占住 usedPort+1，断言"更大端口"而非精确值）
+      expect(second.port).toBeGreaterThan(usedPort);
+      expect(second.port).not.toBe(usedPort);
       // 避让后端口确实可连（转发器可用）
       const received = await roundTrip(second.port, Buffer.from("auto-ok"));
       expect(Buffer.concat(received).toString()).toBe("auto-ok");

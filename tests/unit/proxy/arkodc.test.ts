@@ -6,6 +6,8 @@ import {
   framesToJson,
   decodeWithSchema,
   decodeFixedPayload,
+  recoverProtobufRegion,
+  recoverProtobufWithPrefixSkip,
   MSG_NAMES,
   MSG_SCHEMAS,
   GATEWAY_HEADER_SIZE,
@@ -128,5 +130,53 @@ describe("命名解码（MSG_SCHEMAS → 正常游戏 JSON）", () => {
   it("MSG_SCHEMAS 登录双向字段名齐全", () => {
     expect(MSG_SCHEMAS[4].up).toEqual(["uid", "secret", "loginChannel", "deviceId", "gameContext"]);
     expect(MSG_SCHEMAS[4].down).toEqual(["code", "heartbeatInterval", "reconnectToken", "ip", "port"]);
+  });
+});
+
+describe("余量恢复（down 登录后连续 protobuf）", () => {
+  it("recoverProtobufRegion 扫描最佳起点恢复字段", () => {
+    // 构造：3 字节垃圾 + 一段合法 protobuf（field1 varint + field2 len）
+    const data = Buffer.concat([
+      Buffer.from([0xff, 0xff, 0xff]),
+      Buffer.from([0x08, 0x2a]),                     // field1 = 42
+      Buffer.from([0x12, 0x03]), Buffer.from("abc"), // field2 = "abc"
+      Buffer.from([0x18, 0x01]),                     // field3 = 1
+    ]);
+    const rec = recoverProtobufRegion(data);
+    expect(rec).not.toBeNull();
+    expect(rec!.start).toBe(3);
+    expect(rec!.fields).toContainEqual(expect.objectContaining({ field: 1, varint: 42n }));
+  });
+
+  it("recoverProtobufWithPrefixSkip 跳过 4B 前缀继续解（down 记录流 [00 00 00 type][protobuf]）", () => {
+    const record = (uid: string) =>
+      Buffer.concat([
+        Buffer.from([0x00, 0x00, 0x00, 0x05]),      // 4B 前缀
+        Buffer.from([0x0a, uid.length]), Buffer.from(uid), // field1 uid
+        Buffer.from([0x10, 0x01]),                   // field2 varint
+      ]);
+    const data = Buffer.concat([record("10001"), record("10002"), record("10003")]);
+    const rec = recoverProtobufWithPrefixSkip(data);
+    expect(rec).not.toBeNull();
+    expect(rec!.prefixSkips).toBe(3); // 3 条记录 = 3 个前缀
+    const uids = rec!.fields.filter((f) => f.field === 1 && f.str).map((f) => f.str);
+    expect(uids).toEqual(["10001", "10002", "10003"]);
+  });
+
+  it("parseGatewayStream 余量含恢复结果", () => {
+    const good = frame(4, Buffer.from([0x08, 0x01]));
+    // 2 条记录（各 2 字段 = 4 字段 ≥ 阈值）
+    const record = (uid: string) =>
+      Buffer.concat([
+        Buffer.from([0x00, 0x00, 0x00, 0x05]),
+        Buffer.from([0x0a, uid.length]), Buffer.from(uid),
+        Buffer.from([0x10, 0x01]),
+      ]);
+    const remain = Buffer.concat([record("10001"), record("10002")]);
+    const result = parseGatewayStream(Buffer.concat([good, remain]), "down");
+    expect(result.frames).toHaveLength(1);
+    expect(result.recovered).toBeDefined();
+    const uids = result.recovered!.fields.filter((f) => f.field === 1 && f.str).map((f) => f.str);
+    expect(uids).toEqual(["10001", "10002"]);
   });
 });

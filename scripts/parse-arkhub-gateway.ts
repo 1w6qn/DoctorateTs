@@ -11,7 +11,7 @@
  */
 import fs from "fs";
 import path from "path";
-import { parseGatewayStream, framesToJson } from "../app/proxy/arkodc";
+import { parseGatewayStream, framesToJson, fieldsToJson } from "../app/proxy/arkodc";
 
 const ROOT = path.join(process.cwd(), "tmp", "arkhub-gateway");
 
@@ -33,6 +33,13 @@ function parseConnection(dir: string): void {
         downRemainderHex: downResult.remainder.toString("hex"),
         upRemainderLen: upResult.remainder.length,
         downRemainderLen: downResult.remainder.length,
+        downRecovered: downResult.recovered
+          ? {
+              start: downResult.recovered.start,
+              end: downResult.recovered.end,
+              fields: fieldsToJson(downResult.recovered.fields),
+            }
+          : undefined,
       },
       null,
       2,
@@ -44,6 +51,7 @@ function parseConnection(dir: string): void {
     downFrames: downResult.frames.length,
     upRemainder: upResult.remainder.length,
     downRemainder: downResult.remainder.length,
+    downRecovered: downResult.recovered ? `${downResult.recovered.fields.length}字段@${downResult.recovered.start}` : undefined,
     upBytes: up.length,
     downBytes: down.length,
   };

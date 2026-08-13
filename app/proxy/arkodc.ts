@@ -100,19 +100,24 @@ export interface PbField {
  * @returns 字段数组；首字节不是合法标签时返回空数组（调用方据此判断是否嵌套消息）
  */
 export function decodeProtobuf(buf: Buffer): PbField[] {
+  return decodeProtobufWalk(buf, 0).fields;
+}
+
+/** 内部：从 start 开始解码，返回字段数组 + 实际消费到的 end 偏移（用于余量恢复） */
+function decodeProtobufWalk(buf: Buffer, start: number): { fields: PbField[]; end: number } {
   const fields: PbField[] = [];
-  let off = 0;
+  let off = start;
   while (off < buf.length) {
     const tag = readVarint(buf, off);
     if (tag === null) break;
     const tagValue = tag.value;
-    off = tag.next;
     const field = Number(tagValue >> 3n);
     const wire = Number(tagValue & 7n);
     if (field === 0 || wire === 6 || wire === 7) {
-      // 非法标签：停止（余下字节视为无法解码）
+      // 非法标签：停止，off 停在标签起点（不推进——余量恢复要靠起点位置跳过 4B 前缀）
       break;
     }
+    off = tag.next;
     const entry: PbField = { field, wire, wireName: WIRE_NAMES[wire] ?? `wire${wire}` };
     switch (wire) {
       case 0: {
@@ -159,7 +164,79 @@ export function decodeProtobuf(buf: Buffer): PbField[] {
     }
     fields.push(entry);
   }
-  return fields;
+  return { fields, end: off };
+}
+
+/**
+ * 余量 protobuf 恢复（down 登录后为连续 protobuf 消息，无外层长度前缀）：
+ * 在前 maxScan 字节内扫描最佳干净起点（解码字段数最多），返回恢复的字段与消费区间。
+ */
+export function recoverProtobufRegion(
+  buffer: Buffer,
+  maxScan = 512,
+): { start: number; fields: PbField[]; end: number } | null {
+  let best: { start: number; fields: PbField[]; end: number } | null = null;
+  const limit = Math.min(buffer.length, maxScan);
+  for (let s = 0; s < limit; s++) {
+    const { fields, end } = decodeProtobufWalk(buffer, s);
+    // 起点须是合法 protobuf 标签且至少解出 2 个字段才考虑
+    if (fields.length >= 2 && (!best || fields.length > best.fields.length)) {
+      best = { start: s, fields, end };
+    }
+  }
+  return best;
+}
+
+/**
+ * 带 4B 前缀跳过的余量恢复（down 登录后专用）
+ *
+ * down 流登录后每条消息/记录形如 `[00 00 00 <type>][protobuf]`（实测余量中 18936 处该前缀），
+ * 解码器在 `00`（field 0 非法标签）处停止。此模式在遇到 `00 00 00 XX` 前缀时跳过 4 字节继续解，
+ * 可把登录后的玩家/单元记录（uid/昵称/哈希/时间戳）成片恢复。
+ */
+export function recoverProtobufWithPrefixSkip(
+  buffer: Buffer,
+  maxScan = 512,
+): { start: number; fields: PbField[]; end: number; prefixSkips: number } | null {
+  let best: { start: number; fields: PbField[]; end: number; prefixSkips: number } | null = null;
+  const limit = Math.min(buffer.length, maxScan);
+
+  const walk = (start: number): { fields: PbField[]; end: number; prefixSkips: number } => {
+    const fields: PbField[] = [];
+    let off = start;
+    let skips = 0;
+    while (off < buffer.length) {
+      // 4B 前缀跳过：00 00 00 XX + 后续合法标签
+      if (
+        buffer[off] === 0 &&
+        buffer[off + 1] === 0 &&
+        buffer[off + 2] === 0 &&
+        off + 5 < buffer.length &&
+        isPlausibleTag(buffer[off + 4])
+      ) {
+        off += 4;
+        skips++;
+        continue;
+      }
+      const step = decodeProtobufWalk(buffer, off);
+      if (step.fields.length === 0) break;
+      fields.push(...step.fields);
+      if (step.end <= off) break;
+      off = step.end;
+    }
+    return { fields, end: off, prefixSkips: skips };
+  };
+
+  for (let s = 0; s < limit; s++) {
+    // 只从 0 或 4B 前缀边界（00 00 00 XX）起步——down 记录流是 [前缀][protobuf] 拼接，
+    // 从记录中间起步会把半个字段解成垃圾（实测 start=7 反而字段数更多但内容错乱）
+    if (s !== 0 && !(buffer[s] === 0 && buffer[s + 1] === 0 && buffer[s + 2] === 0)) continue;
+    const { fields, end, prefixSkips } = walk(s);
+    if (fields.length >= 4 && (!best || fields.length > best.fields.length)) {
+      best = { start: s, fields, end, prefixSkips };
+    }
+  }
+  return best;
 }
 
 /** 读 varint，返回 { value, next }；超出边界或损坏返回 null */
@@ -186,6 +263,12 @@ function isPlausibleNestedStart(buf: Buffer): boolean {
   if (wire !== 0 && wire !== 2) return false;
   if (toUtf8(buf) !== undefined) return false;
   return true;
+}
+
+/** 首字节是否为合法 protobuf 标签（wire type 非保留值 6/7） */
+function isPlausibleTag(b: number): boolean {
+  const wire = b & 7;
+  return wire !== 6 && wire !== 7;
 }
 
 /** 尝试 UTF-8 解码（仅当全部字节可解码且无控制字符时给出） */
@@ -261,6 +344,8 @@ export interface GatewayStreamResult {
   frames: GatewayFrame[];
   /** 剩余未解析字节（登录后 down 流等无法按长度前缀切分的部分） */
   remainder: Buffer;
+  /** 余量 protobuf 恢复结果（down 登录后连续 protobuf 消息的部分解码） */
+  recovered?: { start: number; fields: PbField[]; end: number; prefixSkips: number };
 }
 
 /**
@@ -316,17 +401,28 @@ export function parseGatewayStream(buffer: Buffer, label: string): GatewayStream
   const frames = splitGatewayFrames(buffer, label === "up" ? "up" : "down");
   const consumed = frames.reduce((sum, f) => sum + f.len, 0);
   const remainder = buffer.subarray(consumed);
+  const result: GatewayStreamResult = { frames, remainder };
   if (remainder.length > 0) {
-    logger.warn(
-      "arkodc",
-      `${label} 流解析 ${frames.length} 帧后余 ${remainder.length}B 无法按长度前缀切分（登录后 down 流可能为连续 protobuf/自定义封装，需进一步逆向）`,
-    );
+    // 尝试恢复：down 登录后是 [00 00 00 <type>][protobuf] 的连续记录，带前缀跳过恢复
+    const recovered = recoverProtobufWithPrefixSkip(remainder);
+    if (recovered && recovered.fields.length >= 2) {
+      result.recovered = recovered;
+      logger.warn(
+        "arkodc",
+        `${label} 流余 ${remainder.length}B：已从偏移 ${recovered.start} 恢复 ${recovered.fields.length} 个字段（跳过 ${recovered.prefixSkips} 个 4B 前缀，消费 ${recovered.end}B）`,
+      );
+    } else {
+      logger.warn(
+        "arkodc",
+        `${label} 流解析 ${frames.length} 帧后余 ${remainder.length}B 无法按长度前缀切分（登录后 down 流可能为连续 protobuf/自定义封装，需进一步逆向）`,
+      );
+    }
   }
-  return { frames, remainder };
+  return result;
 }
 
 /** 将 protobuf 字段树序列化为 JSON 友好对象 */
-function fieldsToJson(fields: PbField[]): unknown[] {
+export function fieldsToJson(fields: PbField[]): unknown[] {
   return fields.map((field) => ({
     field: field.field,
     wire: field.wireName,

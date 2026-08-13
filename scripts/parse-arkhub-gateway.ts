@@ -11,7 +11,12 @@
  */
 import fs from "fs";
 import path from "path";
-import { parseGatewayStream, framesToJson, fieldsToJson } from "../app/proxy/arkodc";
+import {
+  parseGatewayStream,
+  framesToJson,
+  fieldsToJson,
+  gatewayTranscript,
+} from "../app/proxy/arkodc";
 
 const ROOT = path.join(process.cwd(), "tmp", "arkhub-gateway");
 
@@ -23,6 +28,11 @@ function parseConnection(dir: string): void {
   const down = fs.existsSync(downPath) ? fs.readFileSync(downPath) : Buffer.alloc(0);
   const upResult = parseGatewayStream(up, "up");
   const downResult = parseGatewayStream(down, "down");
+  // 真实可读的 request/response 记录
+  fs.writeFileSync(
+    path.join(dir, "messages.json"),
+    JSON.stringify(gatewayTranscript(upResult, downResult), null, 2),
+  );
   fs.writeFileSync(
     path.join(dir, "parsed.json"),
     JSON.stringify(

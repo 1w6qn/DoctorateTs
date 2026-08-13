@@ -679,3 +679,66 @@ export function framesToJson(frames: GatewayFrame[]): unknown[] {
     payload: f.fields.length ? fieldsToJson(f.fields) : undefined,
   }));
 }
+
+/** 可读消息记录（还原真实 request/response） */
+export interface GatewayMessage {
+  /** 方向：up=客户端请求、down=服务器响应/广播 */
+  dir: "up" | "down";
+  msgId: number;
+  name: string;
+  /** 会话 ID（帧头 8-11） */
+  seq: number;
+  /** 帧头 12-15 */
+  flag: number;
+  /** 还原的可读内容（named 优先；无 schema 时给字段树/hex） */
+  body: unknown;
+}
+
+/** 请求-响应配对（1:1 语义配对：Login、Ping/Pong 等） */
+export interface GatewayPair {
+  name: string;
+  request: GatewayMessage | null;
+  response: GatewayMessage | null;
+}
+
+/** 单方向帧 → 可读消息记录 */
+function toMessages(frames: GatewayFrame[], dir: "up" | "down"): GatewayMessage[] {
+  return frames.map((f) => ({
+    dir,
+    msgId: f.msgId,
+    name: f.name,
+    seq: f.seq,
+    flag: f.flag,
+    body: f.named ?? f.fixed ?? (f.fields.length ? fieldsToJson(f.fields) : `0x${f.payloadHex}`),
+  }));
+}
+
+/**
+ * 生成真实可读的 request/response 消息记录
+ *
+ * 把 up/down 帧按语义还原为可读消息（Login/MoveReq/Ping/Pong 命名解码），
+ * 并按 1:1 语义配对（Login Req→Resp、Ping→Pong）。seq 为会话 ID 非请求序号，
+ * 故配对仅限语义明确的请求-响应对。
+ *
+ * @param up - up 流解析结果
+ * @param down - down 流解析结果
+ * @returns { up, down, pairs }——可读消息列表 + 配对
+ */
+export function gatewayTranscript(
+  up: GatewayStreamResult,
+  down: GatewayStreamResult,
+): { up: GatewayMessage[]; down: GatewayMessage[]; pairs: GatewayPair[] } {
+  const upMsgs = toMessages(up.frames, "up");
+  const downMsgs = toMessages(down.frames, "down");
+  const pairs: GatewayPair[] = [];
+
+  const pair = (name: string, upMsgId: number, downMsgId: number): void => {
+    const req = upMsgs.find((m) => m.msgId === upMsgId);
+    const resp = downMsgs.find((m) => m.msgId === downMsgId);
+    if (req || resp) pairs.push({ name, request: req ?? null, response: resp ?? null });
+  };
+  pair("Login", 4, 4);
+  pair("Ping/Pong", 1, 2);
+
+  return { up: upMsgs, down: downMsgs, pairs };
+}

@@ -102,10 +102,17 @@ splitGatewayFramesFull 跨 wrapper 续链，全部会话 downRemainder=0**
 ## 8. 工具用法
 
 ```bash
-npx tsx scripts/parse-arkhub-gateway.ts                 # 重解析全部抓包 → parsed.json
+npx tsx scripts/parse-arkhub-gateway.ts                 # 重解析全部抓包 → parsed.json + messages.json
 npx tsx scripts/parse-arkhub-gateway.ts <连接目录ID>     # 单会话
 npx tsx scripts/dump-gateway-dict.ts                    # 输出协议字典（msgId×方向×形态）
 ```
+
+**真实可读 request/response（messages.json）**：`gatewayTranscript` 把 up/down 帧还原为
+可读消息（Login/MoveReq/Ping/Pong 命名解码），并按语义配对（Login Req→Resp、Ping→Pong）：
+```json
+{"name":"Login","request":{"dir":"up","msgId":4,"name":"Login","body":{"uid":"100566259","secret":"NHa9...","loginChannel":"1","deviceId":"6a38..."}},"response":{"dir":"down","msgId":4,"body":{"code":"100","heartbeatInterval":"2000","reconnectToken":"eyJ1dWlk..."}}}
+```
+注：帧头 8-11 为**会话 ID**（非请求序号，up/down 同值），配对仅限语义明确的 1:1 请求-响应对。
 
 ## 9. 消息注册表（2026-08-11 由反编译 LongServiceProtocolTypeID / SubID<TData> 提取）
 

@@ -16,7 +16,12 @@ import net from "net";
 import { mkdir, writeFile } from "fs/promises";
 import * as path from "path";
 import { logger } from "@utils/logger";
-import { parseGatewayStream, framesToJson } from "./arkodc";
+import {
+  parseGatewayStream,
+  framesToJson,
+  gatewayTranscript,
+  fieldsToJson,
+} from "./arkodc";
 
 /** 官服 arkhub 网关主机 */
 export const OFFICIAL_ARKHUB_GATEWAY_HOST = "arkhub-gateway.hypergryph.com";
@@ -179,8 +184,7 @@ export function startArkhubGatewayProxy(
         } catch {
           /* 元数据写失败不影响转发 */
         }
-        // 解析网关协议帧（arkodc）并落盘 parsed.json——up 流零断帧，down 流登录后
-        // 可能为连续 protobuf/自定义封装，余量如实记录（upRemainder/downRemainderHex）
+        // 解析网关协议帧（arkodc）并落盘 parsed.json + messages.json（真实可读 request/response）
         try {
           const upResult = parseGatewayStream(Buffer.concat(upBuf), "up");
           const downResult = parseGatewayStream(Buffer.concat(downBuf), "down");
@@ -194,10 +198,19 @@ export function startArkhubGatewayProxy(
                 downRemainderHex: downResult.remainder.toString("hex"),
                 upRemainderLen: upResult.remainder.length,
                 downRemainderLen: downResult.remainder.length,
+                downRecovered: downResult.recovered
+                  ? { start: downResult.recovered.start, end: downResult.recovered.end }
+                  : undefined,
               },
               null,
               2,
             ),
+            "utf-8",
+          );
+          // 真实可读的 request/response 记录（命名解码 + Login/Ping 语义配对）
+          await writeFile(
+            path.join(dir, "messages.json"),
+            JSON.stringify(gatewayTranscript(upResult, downResult), null, 2),
             "utf-8",
           );
         } catch {

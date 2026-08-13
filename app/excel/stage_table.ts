@@ -150,6 +150,11 @@ export function normalizeStageDropInfo(table: {
     for (const item of drops) {
       if (typeof item.occPercent === "string") {
         item.occPercent = OCC_PERCENT_NUMERIC[item.occPercent] ?? 0;
+      } else if (item.occPercent === undefined || item.occPercent === null) {
+        // 修复：无 occPercent 字段 = 必掉（官方协议缺省即 ALWAYS）——
+        // 原实现保持 undefined，handleOccPercent 全部分支不匹配 → 必掉物品（1-7 糖等）
+        // 从不发放
+        item.occPercent = 0;
       }
       if (typeof item.dropType === "string") {
         item.dropType = DROP_TYPE_NUMERIC[item.dropType] ?? 2;

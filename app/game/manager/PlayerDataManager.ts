@@ -93,6 +93,15 @@ export class PlayerDataManager {
   _inverseChanges: Patch[][];
   /** 直接变更脏标记（绕过 update() 的原地修改，如 medal/dungeon/rlv2 构造期初始化） */
   _dirty: boolean;
+  /**
+   * 当前激活的 Immer draft（供嵌套 update() 复用）
+   *
+   * 事件处理器在 recipe 内 await emit（如 items:get → gainItem → update）时，
+   * 若不复用则内层 createDraft 基于旧 base、finishDraft 先替换 _playerdata，
+   * 外层 finishDraft 再按旧 base 整体覆盖 → 嵌套变更从存档丢失（delta 却含补丁，
+   * 客户端"看到"奖励后下次同步消失）。复用同一 draft 后嵌套变更随外层一并提交。
+   */
+  private _activeDraft: WritableDraft<PlayerDataModel> | null = null;
   /** 状态版本号（update() 递增，用于 toJSONString 缓存失效） */
   _stateVersion = 0;
   /** toJSONString 序列化缓存 */
@@ -151,8 +160,10 @@ export class PlayerDataManager {
    * @returns 包含 playerDataDelta 的增量数据
    */
   get delta() {
+    // 补丁按发生顺序正序展开（acc.concat 为倒序——同一路径多次变更时倒序让最旧值
+    // 后写覆盖，客户端收到旧值、与服务器状态脱节，如十连后 cnt 收到 1 而非 10）
     const delta = patchesToObject(
-      this._changes.reduce((pre, acc) => acc.concat(pre), []),
+      this._changes.reduce((pre, acc) => pre.concat(acc), []),
       this._playerdata,
     );
     // 条件落盘：仅当存在变更（Immer 补丁或 markDirty 的直接变更）才触发保存，
@@ -287,20 +298,33 @@ export class PlayerDataManager {
    * 更新玩家数据（使用 Immer）
    * 
    * 通过传入的 recipe 函数修改数据，自动记录变更补丁。
+   * 嵌套 update()（recipe 内 await emit → 事件处理器再调 update，如
+   * items:get → gainItem）复用当前激活 draft：内层变更随外层 finishDraft
+   * 一并提交，避免内层先替换 _playerdata、外层再按旧 base 覆盖导致
+   * 嵌套变更从存档丢失（客户端 delta 含补丁、落盘却缺失的不一致）。
    * @param recipe - 数据修改函数
    * @returns recipe 函数的返回值
    */
   async update<T>(
     recipe: (draft: WritableDraft<PlayerDataModel>) => Promise<T>,
   ) {
+    // 已在 recipe 内（事件处理器嵌套调用）：直接复用当前 draft
+    if (this._activeDraft) {
+      return await recipe(this._activeDraft);
+    }
     const draft = createDraft(this._playerdata);
-    const result = await recipe(draft);
-    this._playerdata = finishDraft(draft, (patches, inversePatches) => {
-      this._changes.push(patches);
-      this._inverseChanges.push(inversePatches);
-    });
-    this._stateVersion++; // 使 toJSONString 缓存失效
-    return result;
+    this._activeDraft = draft;
+    try {
+      const result = await recipe(draft);
+      this._playerdata = finishDraft(draft, (patches, inversePatches) => {
+        this._changes.push(patches);
+        this._inverseChanges.push(inversePatches);
+      });
+      this._stateVersion++; // 使 toJSONString 缓存失效
+      return result;
+    } finally {
+      this._activeDraft = null;
+    }
   }
 
   /**

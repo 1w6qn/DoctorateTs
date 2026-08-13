@@ -489,11 +489,16 @@ router.post("/confirmActivityMission", async (req, res) => {
   const body = req.body as ConfirmActivityMissionRequest;
   const rewards: ItemBundle[] = [];
 
-  // 优先尝试调用 mission manager（兼容部分活动任务在 MissionTable 中的情况）
-  try {
-    const items = await player.mission.confirmMission({ missionId: body.missionId });
+  // 优先调用 mission manager（兼容部分活动任务在 MissionTable 中的情况）：
+  // 修复——原 try/catch 依赖 confirmMission 对未知任务抛错触发兜底，而 confirmMission
+  // 已改为未知任务静默返回 []，导致 ActivityTable 兜底分支死代码、活动任务奖励丢失；
+  // 改为按 MissionTable 归属分流
+  if (excel.MissionTable.missions[body.missionId]) {
+    const items = await player.mission.confirmMission({
+      missionId: body.missionId,
+    });
     rewards.push(...items);
-  } catch {
+  } else {
     // 兜底逻辑：从 ActivityTable.missionData 中查找任务奖励
     const missionInfo = excel.ActivityTable.missionData.find(
       (m) => m.id === body.missionId,
@@ -537,29 +542,34 @@ router.post("/confirmActivityMissionList", async (req, res) => {
 
   const missionIdList = body.missionIdList || [];
   for (const missionId of missionIdList) {
-    try {
-      const items = await player.mission.confirmMission({ missionId });
-      allRewards.push(...items);
-    } catch {
-      // 兜底逻辑：从 ActivityTable.missionData 中查找任务奖励
-      const missionInfo = excel.ActivityTable.missionData.find(
-        (m) => m.id === missionId,
-      );
-      if (missionInfo) {
-        for (const reward of missionInfo.rewards) {
-          allRewards.push({
-            id: reward.id,
-            count: reward.count,
-            type: ItemTypeToString(reward.type),
-          });
-        }
-        await player.update(async (draft) => {
-          const activityMissions = (draft.mission as any).missions["ACTIVITY"];
-          if (activityMissions && activityMissions[missionId]) {
-            activityMissions[missionId].state = 3;
-          }
+    // 修复：同 confirmActivityMission——按 MissionTable 归属分流，避免 ActivityTable 兜底死代码
+    if (excel.MissionTable.missions[missionId]) {
+      try {
+        const items = await player.mission.confirmMission({ missionId });
+        allRewards.push(...items);
+      } catch {
+        logger.warn("activity", `confirmMission ${missionId} 失败，跳过`);
+      }
+      continue;
+    }
+    // 兜底逻辑：从 ActivityTable.missionData 中查找任务奖励
+    const missionInfo = excel.ActivityTable.missionData.find(
+      (m) => m.id === missionId,
+    );
+    if (missionInfo) {
+      for (const reward of missionInfo.rewards) {
+        allRewards.push({
+          id: reward.id,
+          count: reward.count,
+          type: ItemTypeToString(reward.type),
         });
       }
+      await player.update(async (draft) => {
+        const activityMissions = (draft.mission as any).missions["ACTIVITY"];
+        if (activityMissions && activityMissions[missionId]) {
+          activityMissions[missionId].state = 3;
+        }
+      });
     }
   }
 
@@ -587,9 +597,20 @@ router.post("/confirmActivityMissionGroup", async (req, res) => {
   const body = req.body as ConfirmActivityMissionGroupRequest;
   let rewards: ItemBundle[] = [];
 
-  try {
-    await player.mission.confirmMissionGroup({ missionGroupId: body.missionGroupId });
-  } catch {
+  // 修复：同 confirmActivityMission——按 MissionTable.missionGroups 归属分流，
+  // 避免原 try/catch 依赖 confirmMissionGroup 抛错触发兜底（其已改为未知组静默返回）
+  if (excel.MissionTable.missionGroups[body.missionGroupId]) {
+    try {
+      await player.mission.confirmMissionGroup({
+        missionGroupId: body.missionGroupId,
+      });
+    } catch {
+      logger.warn(
+        "activity",
+        `confirmMissionGroup ${body.missionGroupId} 失败，跳过`,
+      );
+    }
+  } else {
     // 兜底逻辑：从 ActivityTable.missionGroup 中查找组奖励
     const groupInfo = excel.ActivityTable.missionGroup.find(
       (g) => g.id === body.missionGroupId,
@@ -627,13 +648,12 @@ router.post("/autoConfirmMissions", async (req, res) => {
   const body = req.body as AutoConfirmMissionsRequest;
   const allRewards: ItemBundle[] = [];
 
-  try {
-    const items = await player.mission.autoConfirmMissions({ type: body.type });
-    allRewards.push(...items);
-  } catch {
-    // 兜底逻辑：直接遍历玩家数据中的活动任务
+  // 活动任务（ACTIVITY）：MissionManager 不跟踪运行时播种的活动任务（无 MissionProgress
+  // 实例），且 confirmMission 对 state==2 的任务不发放 → 原 try 路径返回空且不抛错，
+  // catch 兜底死代码 → 活动任务自动领取失效；ACTIVITY 类型直接走手动遍历
+  if (body.type === "ACTIVITY") {
     await player.update(async (draft) => {
-      const missions = (draft.mission as any).missions[body.type];
+      const missions = (draft.mission as any).missions["ACTIVITY"];
       if (!missions) return;
       for (const [missionId, missionState] of Object.entries(missions) as any) {
         const isCompleted =
@@ -661,6 +681,45 @@ router.post("/autoConfirmMissions", async (req, res) => {
     });
     if (allRewards.length > 0) {
       await player._trigger.emit("items:get", [allRewards]);
+    }
+  } else {
+    try {
+      const items = await player.mission.autoConfirmMissions({
+        type: body.type,
+      });
+      allRewards.push(...items);
+    } catch {
+      // 兜底逻辑：直接遍历玩家数据中的任务
+      await player.update(async (draft) => {
+        const missions = (draft.mission as any).missions[body.type];
+        if (!missions) return;
+        for (const [missionId, missionState] of Object.entries(missions) as any) {
+          const isCompleted =
+            missionState.state === 2 &&
+            missionState.progress.length > 0 &&
+            missionState.progress[0].target != null &&
+            missionState.progress[0].value >= (missionState.progress[0].target as number);
+          if (isCompleted) {
+            missionState.state = 3;
+            // 查找任务奖励
+            const missionInfo = excel.ActivityTable.missionData.find(
+              (m) => m.id === missionId,
+            );
+            if (missionInfo) {
+              for (const reward of missionInfo.rewards) {
+                allRewards.push({
+                  id: reward.id,
+                  count: reward.count,
+                  type: ItemTypeToString(reward.type),
+                });
+              }
+            }
+          }
+        }
+      });
+      if (allRewards.length > 0) {
+        await player._trigger.emit("items:get", [allRewards]);
+      }
     }
   }
 
@@ -730,6 +789,7 @@ router.post("/getActivityCollectionReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetActivityCollectionRewardRequest;
   const rewards: ItemBundle[] = [];
+  let claimed = false;
 
   await player.update(async (draft) => {
     if (!(draft.activity as any).COLLECTION) {
@@ -741,12 +801,28 @@ router.post("/getActivityCollectionReward", async (req, res) => {
     if (!collectionData[body.activityId]) {
       collectionData[body.activityId] = {};
     }
+    // 修复：已领取过的收集奖励不再发放（原实现写标记但从不读 → 可重复领）
+    if (body.collectionId != null && collectionData[body.activityId][body.collectionId] !== undefined) {
+      claimed = true;
+      return;
+    }
     // 从配置表查找收集奖励
-    const collectionConfig =
-      (excel.ActivityTable.activity as { COLLECTION: { [key: string]: { collections?: { id: string; itemId: string; itemCnt: number }[] } } }).COLLECTION[
-        body.activityId
-      ];
-    if (collectionConfig && collectionConfig.collections && body.collectionId != null) {
+    // 修复：excel activity 字典键为首字母小写（cOLLECTION，见 unlockActivity.activityDetailKey）；
+    // 原用枚举大小写 COLLECTION → 恒 undefined → 奖励标记已领但从未发放
+    const collectionConfig = (
+      excel.ActivityTable.activity as {
+        cOLLECTION: {
+          [key: string]: {
+            collections?: { id: string; itemId: string; itemCnt: number }[];
+          };
+        };
+      }
+    ).cOLLECTION[body.activityId];
+    if (
+      collectionConfig &&
+      collectionConfig.collections &&
+      body.collectionId != null
+    ) {
       const collectionInfo = collectionConfig.collections.find(
         (c) => c.id === String(body.collectionId),
       );
@@ -763,7 +839,7 @@ router.post("/getActivityCollectionReward", async (req, res) => {
     }
   });
 
-  if (rewards.length > 0) {
+  if (!claimed && rewards.length > 0) {
     await player._trigger.emit("items:get", [rewards]);
   }
 
@@ -987,6 +1063,9 @@ router.post("/bossRush/battleFinish", async (req, res) => {
       bossRush.milestone.point = milestoneBefore + milestoneAdd;
     }
     if (tokenAdd !== 0 && bossRush.relic?.token) {
+      // 修复：current 也要累计——原实现只加 total，relicUpgrade 扣 current 恒为 0 → 免费升级
+      bossRush.relic.token.current =
+        (bossRush.relic.token.current ?? 0) + tokenAdd;
       bossRush.relic.token.total = (bossRush.relic.token.total ?? 0) + tokenAdd;
     }
     // 更新该关最高波次（best）
@@ -1054,6 +1133,10 @@ router.post("/bossRush/relicUpgrade", async (req, res) => {
       | undefined;
     if (!relic) return;
     if (!relic.level) relic.level = {};
+    // 修复：升级需 20 尖灭代币——原实现 current 恒 0 仍升级（免费无限升）+ 无余额校验
+    if ((relic.token?.current ?? 0) < 20) {
+      return;
+    }
     relic.level[body.relicId] = (relic.level[body.relicId] ?? 1) + 1;
     if (!relic.token) relic.token = { current: 0, total: 0 };
     relic.token.current = Math.max(0, (relic.token.current ?? 0) - 20);
@@ -1300,8 +1383,9 @@ router.post("/act24side/alchemy", async (req, res) => {
     act50melding_5: 20,
     act50melding_6: 200,
   };
+  // 修复：excel activity 字典键为首字母小写（tYPE_ACT24SIDE）——原枚举大小写恒 undefined
   const gachabox = (
-    (excel.ActivityTable as any)?.activity?.TYPE_ACT24SIDE?.[activityId]
+    (excel.ActivityTable as any)?.activity?.tYPE_ACT24SIDE?.[activityId]
       ?.meldingGachaBoxGoodDataMap?.[gachaBox] as
       | Array<{
           goodId: string;
@@ -2357,6 +2441,10 @@ rootRouter.post("/actcheckinvs/sign", async (req, res) => {
       };
     }
     const actData = vsData[actId];
+    // 修复：签到次数限制（availSignCnt 未校验 → 无限签到刷奖励）
+    if ((actData.signedCnt ?? 0) >= (actData.availSignCnt ?? 1)) {
+      return;
+    }
     // 投票计数
     if (tasteChoice === 1) {
       actData.sweetVote += 1;
@@ -2368,9 +2456,10 @@ rootRouter.post("/actcheckinvs/sign", async (req, res) => {
     actData.todayVoteState = 2;
   });
 
+  // 修复：excel activity 字典键为首字母小写（cHECKIN_VS）——原枚举大小写恒 undefined
   const signReward = (
     excel.ActivityTable.activity as { [key: string]: { [key: string]: any } }
-  ).CHECKIN_VS[body.actId] as any;
+  ).cHECKIN_VS?.[body.actId] as any;
   const rewards: ItemBundle[] = [];
   if (signReward?.signedReward) {
     for (const reward of signReward.signedReward) {
@@ -2466,8 +2555,17 @@ router.post("/arkhub/setSecretary", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as { secretary?: string; secretarySkinId?: string };
   await player.update(async (draft) => {
-    const hub = (draft.activity as any)?.ARK_HUB?.["act1arkhub"] as any;
-    if (!hub) return;
+    const act = draft.activity as any;
+    if (!act.ARK_HUB) act.ARK_HUB = {};
+    const hub = (act.ARK_HUB["act1arkhub"] = act.ARK_HUB["act1arkhub"] ?? {
+      coin: 0,
+      secretary: "",
+      secretarySkinId: "",
+      secretarySkinSp: false,
+      protectTs: -1,
+      squads: [],
+      globalBan: false,
+    });
     if (body.secretary) hub.secretary = body.secretary;
     if (body.secretarySkinId) hub.secretarySkinId = body.secretarySkinId;
   });
@@ -2479,8 +2577,17 @@ router.post("/arkhub/setSquad", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as { squads?: unknown[] };
   await player.update(async (draft) => {
-    const hub = (draft.activity as any)?.ARK_HUB?.["act1arkhub"] as any;
-    if (!hub) return;
+    const act = draft.activity as any;
+    if (!act.ARK_HUB) act.ARK_HUB = {};
+    const hub = (act.ARK_HUB["act1arkhub"] = act.ARK_HUB["act1arkhub"] ?? {
+      coin: 0,
+      secretary: "",
+      secretarySkinId: "",
+      secretarySkinSp: false,
+      protectTs: -1,
+      squads: [],
+      globalBan: false,
+    });
     if (Array.isArray(body.squads)) hub.squads = body.squads;
   });
   res.send(player.delta satisfies ActivityStubResponse);

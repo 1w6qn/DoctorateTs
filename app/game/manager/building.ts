@@ -924,9 +924,15 @@ export class BuildingManager {
       if (!formula) return;
       const costPoint = formula.costPoint ?? 0;
       if (costPoint <= 0) return;
-      if (args.cost) {
-        draft.status.diamondShard = (draft.status.diamondShard ?? 0) - args.cost;
+      const cost = args.cost ?? 0;
+      // 修复：负数 cost → diamondShard 反向入账（免费刷源石碎片）；非法/超额拒绝
+      if (typeof cost !== "number" || !Number.isInteger(cost) || cost <= 0) {
+        return;
       }
+      if ((draft.status.diamondShard ?? 0) < cost) {
+        return; // 余额不足不加速
+      }
+      draft.status.diamondShard -= cost;
       // 立即完成当前生产方案：产出 1 个方案
       if ((room.remainSolutionCnt ?? 0) > 0) room.remainSolutionCnt -= 1;
       room.outputSolutionCnt = (room.outputSolutionCnt ?? 0) + 1;
@@ -1047,8 +1053,10 @@ export class BuildingManager {
     room.processPoint = (room.processPoint ?? 0) + elapsed * capacity;
     let produced = Math.floor(room.processPoint / costPoint);
     if (produced <= 0) return;
-    room.processPoint -= produced * costPoint;
+    // 修复：先按 remain 钳制再扣进度——原实现先扣全部 produced 再钳制，
+    // 计划完成时超出部分的进度被整体销毁（如 produced=10、remain=3 → 7 方案进度蒸发）
     produced = Math.min(produced, remain);
+    room.processPoint -= produced * costPoint;
     room.remainSolutionCnt = remain - produced;
     room.outputSolutionCnt = (room.outputSolutionCnt ?? 0) + produced;
   }
@@ -1131,9 +1139,13 @@ export class BuildingManager {
       }
     }
     if (affordable <= 0) {
-      // 材料不足：回退产出，仅保留已加的物品（下轮 settle 再补扣）
+      // 材料不足：回退产出（下轮 settle 再补扣），并恢复已产出方案到 remain——
+      // 原实现只回退 inventory，outputSolutionCnt 残留被调用方清零 → 已产出货物丢失
       draft.inventory[formula.itemId] =
         (draft.inventory[formula.itemId] || 0) - gainCount;
+      room.remainSolutionCnt =
+        (room.remainSolutionCnt ?? 0) + room.outputSolutionCnt;
+      room.outputSolutionCnt = 0;
       return;
     }
     const settleCount = Math.min(outputSolutionCnt, affordable);
@@ -1261,6 +1273,10 @@ export class BuildingManager {
     formulaId?: string;
   }) {
     const { roomSlotId, times, formulaId } = args;
+    // 修复：times 必须为正整数——小数（0.5 等）会产出小数物品/半价合成，损坏库存
+    if (typeof times !== "number" || !Number.isInteger(times) || times <= 0) {
+      return null;
+    }
     let resultItem: { type: string; id: string; count: number } | null = null;
     await this._player.update(async (draft) => {
       const roomFormulaId =
@@ -1851,6 +1867,14 @@ export class BuildingManager {
    */
   async buyLabor(args: { buyCount: number }) {
     const { buyCount } = args;
+    // 修复：负数 buyCount 绕过余额守卫（androidDiamond -= 负数 → 免费源石）；非法入参直接拒绝
+    if (
+      typeof buyCount !== "number" ||
+      !Number.isInteger(buyCount) ||
+      buyCount <= 0
+    ) {
+      return;
+    }
     return await this._player.update(async (draft) => {
       const labor = draft.building.status.labor;
       const cost = 1;

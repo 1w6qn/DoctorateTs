@@ -76,4 +76,38 @@ describe("PlayerDataManager 条件落盘", () => {
     await flush();
     expect(saveCount).toBe(1);
   });
+
+  it("recipe 内嵌套 update 不丢变更（事件处理器再调 update 复用同一 draft）", async () => {
+    // 前置：status 需含 gold 字段（mockPlayerData 默认不含，NaN 干扰断言）
+    (player as any)._playerdata.status.gold = 0;
+    await settleBaseline();
+
+    // 模拟 items:get → gainItem → 事件处理器内再调 player.update（原实现内层
+    // finishDraft 先提交、外层 finishDraft 再按旧 base 覆盖 → 嵌套变更从存档丢失）
+    player._trigger.on("test:nested" as never, async () => {
+      await player.update(async (draft) => {
+        draft.status.gold += 100;
+      });
+    });
+    await player.update(async (draft) => {
+      draft.status.level = 5;
+      await player._trigger.emit("test:nested" as never, []);
+    });
+
+    expect((player as any)._playerdata.status.gold).toBe(100);
+    const delta = player.delta;
+    expect(delta.playerDataDelta.modified.status.gold).toBe(100);
+  });
+
+  it("同路径多次 update 时 delta 下发最新值（补丁正序，非反转）", async () => {
+    await settleBaseline();
+    await player.update(async (draft) => {
+      draft.status.nickName = "b";
+    });
+    await player.update(async (draft) => {
+      draft.status.nickName = "c";
+    });
+    const delta = player.delta;
+    expect(delta.playerDataDelta.modified.status.nickName).toBe("c");
+  });
 });

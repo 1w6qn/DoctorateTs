@@ -8,7 +8,8 @@ import { TypedEventEmitter } from "@game/model/events";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 import { ConditionDesc, DisplayDetailRewards } from "@excel/stage_table";
-import { divmod, randomChoice, randomChoices } from "@utils/random";
+import { randomChoice, randomChoices } from "@utils/random";
+import { rarityToIndex } from "@utils/rarity";
 import { pick } from "lodash";
 import { logger } from "@utils/logger";
 
@@ -155,7 +156,8 @@ export class BattleManager {
         for (const item of Object.keys(unlock_list)) {
           let passCondition = 0;
           if (unlock_list[item].length == 0) {
-            if (!(item in Object.keys(draft.dungeon.stages))) {
+            // 修复：`in Object.keys(...)` 恒 false → 无前置关卡每次把既有进度重置为 0
+            if (!(item in draft.dungeon.stages)) {
               draft.dungeon.stages[item] = {
                 stageId: item,
                 practiceTimes: 0,
@@ -169,7 +171,9 @@ export class BattleManager {
             }
           } else {
             for (const condition of unlock_list[item]) {
-              if (condition.stageId in Object.keys(draft.dungeon.stages)) {
+              // 修复：同上 in 数组 bug；completeState 字符串已映射（此分支原本正确用
+              // completeStateRank，但 173 行 in 数组恒 false 导致永不满足）
+              if (condition.stageId in draft.dungeon.stages) {
                 if (
                   draft.dungeon.stages[condition.stageId].state >=
                   completeStateRank[condition.completeState]
@@ -184,7 +188,7 @@ export class BattleManager {
               }
             }
             if (passCondition == unlock_list[item].length) {
-              if (!(item in Object.keys(draft.dungeon.stages))) {
+              if (!(item in draft.dungeon.stages)) {
                 draft.dungeon.stages[item] = {
                   stageId: item,
                   practiceTimes: 0,
@@ -277,25 +281,29 @@ export class BattleManager {
       goldScale = 1;
       expScale = 1;
     }
-    await this._trigger.emit("items:get", [
-      [
-        {
-          type: "AP_GAMEPLAY",
-          id: "",
-          count: -apCost,
-        },
-        {
-          type: "EXP_PLAYER",
-          id: "",
-          count: expGain * expScale,
-        },
-        {
-          type: "GOLD",
-          id: "4001",
-          count: goldGain * goldScale,
-        },
-      ],
-    ]);
+    // 修复：演习（isPractice）不扣理智、不发基础奖励——原实现把 AP/EXP/GOLD 发放
+    // 放在 isPractice 早退之前，演习既扣 AP 又发经验/金币
+    if (!isPractice) {
+      await this._trigger.emit("items:get", [
+        [
+          {
+            type: "AP_GAMEPLAY",
+            id: "",
+            count: -apCost,
+          },
+          {
+            type: "EXP_PLAYER",
+            id: "",
+            count: expGain * expScale,
+          },
+          {
+            type: "GOLD",
+            id: "4001",
+            count: goldGain * goldScale,
+          },
+        ],
+      ]);
+    }
     await this._player.update(async (draft) => {
       const playerStage = draft.dungeon.stages[stageId];
       if (isPractice) {
@@ -351,7 +359,9 @@ export class BattleManager {
           for (const item of Object.keys(unlockList)) {
             let passCondition = 0;
             if (unlockList[item].length == 0) {
-              if (!(item in Object.keys(draft.dungeon.stages))) {
+              // 修复：`item in Object.keys(...)` 恒 false（测数组下标）→ 无前置关卡每次
+              // 都把既有进度重置为 state 0；改为直接查对象键
+              if (!(item in draft.dungeon.stages)) {
                 draft.dungeon.stages[item] = {
                   stageId: item,
                   practiceTimes: 0,
@@ -365,16 +375,21 @@ export class BattleManager {
               }
             } else {
               for (const condition of unlockList[item]) {
-                if (condition.stageId in Object.keys(draft.dungeon.stages)) {
+                // 修复：同上 in 数组 bug + completeState 为 "PASS"/"COMPLETE" 字符串，
+                // 数字 >= 字符串 → NaN 恒 false → 条件关卡永不解锁；经 completeStateRank 映射
+                if (condition.stageId in draft.dungeon.stages) {
                   if (
                     draft.dungeon.stages[condition.stageId].state >=
-                    condition.completeState
+                    completeStateRank[condition.completeState]
                   ) {
                     passCondition += 1;
                   }
                 }
                 if (stageId == condition.stageId) {
-                  if (battleData.completeState >= condition.completeState) {
+                  if (
+                    battleData.completeState >=
+                    completeStateRank[condition.completeState]
+                  ) {
                     passCondition += 1;
                   }
                 }
@@ -510,10 +525,14 @@ export class BattleManager {
 
       if (completeState === 3) {
         if (reward_type !== "CHAR") {
-          reward_rarity =
+          // 修复：rarity 为字符串 "TIER_N"（或 FURN 数字）——原 switch 用数字匹配
+          // 恒进 default（addPercent=0），低稀有度 +count 加成永不生效；
+          // 统一经 rarityToIndex 转 0~5
+          const rawRarity =
             reward_type === "FURN"
-              ? excel.BuildingData.customData.furnitures[reward_id].rarity
-              : excel.ItemTable.items[reward_id].rarity;
+              ? excel.BuildingData.customData.furnitures[reward_id]?.rarity
+              : excel.ItemTable.items[reward_id]?.rarity;
+          reward_rarity = rarityToIndex(rawRarity);
 
           switch (reward_rarity) {
             case 0:
@@ -534,7 +553,9 @@ export class BattleManager {
         }
       } else if (completeState === 2) {
         if (reward_type !== "FURN" && reward_type !== "CHAR") {
-          reward_rarity = excel.ItemTable.items[reward_id].rarity;
+          reward_rarity = rarityToIndex(
+            excel.ItemTable.items[reward_id]?.rarity,
+          );
         }
 
         switch (reward_rarity) {
@@ -584,16 +605,14 @@ export class BattleManager {
               (parseInt(stageId.slice(-1)) > 3 && reward_id === "3113")
             )
               return;
-            const percent = Math.floor(divmod(j, 1)[1]);
-            const drop_array = randomChoices(
-              [0, 1],
-              [percent, 1 - percent],
-              1,
-            )[0];
-            let count = Math.floor(divmod(j, 1)[0]) + drop_array;
+            // 修复：原 percent=floor(小数) 恒 0 → randomChoices 权重 [0,1] 恒选 +1；
+            // 改为按小数部分概率 +1（数学期望 = 配置值 j）
+            const jInt = Math.floor(j);
+            const drop_array = Math.random() < j - jInt ? 1 : 0;
+            let count = jInt + drop_array;
 
             if (completeState === 3) {
-              if (reward_rarity === i + 1) {
+              if (reward_rarity === i) {
                 reward_count = count;
                 if (
                   reward_type === "MATERIAL" &&
@@ -654,14 +673,11 @@ export class BattleManager {
 
         if (stageId in TacticalDrill) {
           TacticalDrill[stageId].forEach((j, i) => {
-            const percent = Math.floor(divmod(j, 1)[1]);
-            const drop_array = randomChoices(
-              [0, 1],
-              [percent, 1 - percent],
-              1,
-            )[0];
-            const count = Math.floor(divmod(j, 1)[0]) + drop_array;
-            if (completeState === 3 && reward_rarity === i + 1) {
+            // 修复：同 divmod 概率恒 +1 / 权重反向问题；按小数部分概率 +1
+            const jInt = Math.floor(j);
+            const drop_array = Math.random() < j - jInt ? 1 : 0;
+            const count = jInt + drop_array;
+            if (completeState === 3 && reward_rarity === i) {
               reward_count = count;
             } else {
               reward_count = Math.round(count / (1.5 * 1.2));

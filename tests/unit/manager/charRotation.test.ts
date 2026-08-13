@@ -16,12 +16,6 @@ vi.mock("@utils/time", () => ({
 
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
-
-// Mock lodash:maxBy 返回固定值,便于断言 createPreset 的 instId 取值
-vi.mock("lodash", () => ({
-  maxBy: () => "3",
-}));
-
 // Mock immer:original 在源码中导入但未实际使用,提供空实现避免运行时错误
 vi.mock("immer", () => ({
   original: (x: any) => x,
@@ -224,11 +218,12 @@ describe("CharRotationManager", () => {
         mockTrigger as any
       );
 
-      // mock maxBy 返回 "3",新预设将以 "3" 为 key
+      // 修复：预设键为 {1} → 新预设 id = 最大数值 + 1 = "2"
+      //（原实现 maxBy 字典序比较会覆盖最高档而非新建）
       const result = await manager.createPreset();
 
-      expect(result).toBe("3");
-      const preset = mockPlayer._playerdata.charRotation!.preset["3"];
+      expect(result).toBe("2");
+      const preset = mockPlayer._playerdata.charRotation!.preset["2"];
       expect(preset).toBeDefined();
       expect(preset.name).toBe("未命名界面配置");
       expect(preset.background).toBe("bg_rhodes_day");

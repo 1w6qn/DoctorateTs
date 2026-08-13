@@ -33,10 +33,12 @@ router.post("/removeAllReceivedMail", async (req, res) => {
 router.post("/receiveAllMail", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ReceiveAllMailRequest;
-  res.send({
-    items: await mailManager.receiveAllMail(player.uid, body),
-    ...player.delta,
-  } satisfies ReceiveAllMailResponse);
+  const items = await mailManager.receiveAllMail(player.uid, body);
+  // 修复：附件发放（原实现只回显 items，从不入账 → 邮件奖励服务器端丢失）
+  if (items.length > 0) {
+    await player._trigger.emit("items:get", [items]);
+  }
+  res.send({ items, ...player.delta } satisfies ReceiveAllMailResponse);
 });
 
 /** 获取邮件元信息列表（CS: GetMetaInfoListRequest） */
@@ -53,11 +55,12 @@ router.post("/getMetaInfoList", async (req, res) => {
 router.post("/receiveMail", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ReceiveMailRequest;
-  res.send({
-    result: 0,
-    items: await mailManager.receiveMail(player.status.uid, body),
-    ...player.delta,
-  } satisfies ReceiveMailResponse);
+  const items = await mailManager.receiveMail(player.status.uid, body);
+  // 修复：附件发放（原实现只回显 items，从不入账 → 邮件奖励服务器端丢失）
+  if (items.length > 0) {
+    await player._trigger.emit("items:get", [items]);
+  }
+  res.send({ result: 0, items, ...player.delta } satisfies ReceiveMailResponse);
 });
 
 /** 获取邮件列表（CS: ListMailBoxRequest） */

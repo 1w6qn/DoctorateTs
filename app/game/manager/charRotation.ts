@@ -2,7 +2,6 @@ import { PlayerDataManager } from "./PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 import { PlayerCharRotationSlot } from "@game/model/playerdata";
 import { original } from "immer";
-import { maxBy } from "lodash";
 
 export class CharRotationManager {
   _player: PlayerDataManager;
@@ -36,7 +35,14 @@ export class CharRotationManager {
 
   async createPreset() {
     return await this._player.update(async (draft) => {
-      const instId = maxBy(Object.keys(draft.charRotation.preset))!;
+      // 修复：原实现 maxBy(Object.keys(...)) 对数字字符串键做字典序比较
+      //（"9" > "10"）→ 每次创建都覆盖最高档预设、预设永远建不上去；
+      // 改为取最大数值 id + 1 分配新 id
+      const maxId = Object.keys(draft.charRotation.preset).reduce(
+        (max, k) => Math.max(max, parseInt(k, 10) || 0),
+        0,
+      );
+      const instId = String(maxId + 1);
       draft.charRotation.preset[instId] = {
         name: "未命名界面配置",
         background: "bg_rhodes_day",

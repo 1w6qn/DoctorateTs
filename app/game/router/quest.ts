@@ -132,7 +132,15 @@ router.post("/editStageSixStarTag", async (req, res) => {
   const { stageId, selected } = req.body as EditStageSixStarTagRequest;
   // 手写 PlayerDataModel 未声明 dungeon.sixStar（生成参考类型 types-playerdata.ts 有），用 (draft as any) 访问
   await player.update(async (draft) => {
-    (draft as any).dungeon.sixStar.stages[stageId].tagSelected = selected;
+    const d = draft as any;
+    // 修复：存档 sixStar 为 null（模板如此）且从未初始化 → 原实现直接 .stages 崩溃 500
+    if (!d.dungeon.sixStar) {
+      d.dungeon.sixStar = { stages: {}, groups: {} };
+    }
+    if (!d.dungeon.sixStar.stages[stageId]) {
+      d.dungeon.sixStar.stages[stageId] = { tagFinish: 0, tagSelected: [] };
+    }
+    d.dungeon.sixStar.stages[stageId].tagSelected = selected;
   });
   res.send(player.delta satisfies EditStageSixStarTagResponse);
 });

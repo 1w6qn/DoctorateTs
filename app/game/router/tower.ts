@@ -326,10 +326,7 @@ router.post("/battleFinish", async (req, res) => {
     const coord = current.status.coord;
 
     if (battleData.completeState === 1) {
-      // 战斗失败：仅增加当前层的尝试次数
-      if (current.layer[coord]) {
-        current.layer[coord].tryNum += 1;
-      }
+      // 战斗失败：tryNum 已在 battleStart 计入（修复：原实现 start 与 finish 双计 → 2 倍）
       return;
     }
 
@@ -366,13 +363,8 @@ router.post("/battleFinish", async (req, res) => {
       current.status.state = "RECRUIT";
     }
 
-    // 增加当前层尝试次数
-    for (const stage of current.layer) {
-      if (stage.id === currentStage) {
-        stage.tryNum += 1;
-        break;
-      }
-    }
+    // 增加当前层尝试次数：已由 battleStart 计入（修复：原实现 start 与 finish 双计 → 2 倍）
+    // for (const stage of current.layer) { if (stage.id === currentStage) { stage.tryNum += 1; break; } }
 
     // 推进坐标与中场计数，并刷新招募候选
     current.status.coord += 1;

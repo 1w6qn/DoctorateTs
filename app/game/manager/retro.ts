@@ -23,9 +23,13 @@ export class RetroManager {
   async getRetroTrailReward(args: { retroId: string; rewardId: string }) {
     return await this._player.update(async (draft) => {
       const { retroId, rewardId } = args;
-      const reward = excel.RetroTable.retroTrailList[
-        retroId
-      ].trailRewardList.find((v) => v.trailRewardId === rewardId)!.rewardItem;
+      const trailList = excel.RetroTable.retroTrailList[retroId]?.trailRewardList;
+      const reward = trailList?.find((v) => v.trailRewardId === rewardId)
+        ?.rewardItem;
+      // 防御：未知 retro/奖励 id 不 500
+      if (!reward) return [];
+      // 修复：已领取过的不再发放（原实现无幂等 → 可无限刷）
+      if (draft.retro.trail[retroId]?.[rewardId]) return [];
       draft.retro.trail[retroId][rewardId] = 1;
       await this._trigger.emit("items:get", [[reward]]);
       return [reward];
@@ -34,6 +38,10 @@ export class RetroManager {
 
   async getRetroPassReward(args: { retroId: string; activityId: string }) {
     const { retroId } = args;
+    // 修复：幂等——已领取过的通行证奖励不再发放（原实现无任何记录 → 可无限刷）
+    if (this._player._playerdata.retro.rewardPerm?.includes(retroId)) {
+      return [];
+    }
     const rewards: ItemBundle[] = [];
     const retroActivities = excel.ActivityTable.activity;
     for (const [, activities] of Object.entries(retroActivities)) {
@@ -49,6 +57,14 @@ export class RetroManager {
         }
       }
     }
+    if (rewards.length === 0) return rewards;
+    // rewardPerm 未被业务使用，复用为已领取通行证奖励 id 记录
+    await this._player.update(async (draft) => {
+      if (!draft.retro.rewardPerm) draft.retro.rewardPerm = [];
+      if (!draft.retro.rewardPerm.includes(retroId)) {
+        draft.retro.rewardPerm.push(retroId);
+      }
+    });
     await this._trigger.emit("items:get", [rewards]);
     return rewards;
   }

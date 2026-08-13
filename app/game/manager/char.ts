@@ -237,8 +237,11 @@ export class CharManager {
       while (true) {
         if (char.exp >= expMap[evolvePhase][char.level - 1]) {
           char.exp -= expMap[evolvePhase][char.level - 1];
-          char.level += 1;
+          // 修复：先按当前等级累加本次升级费用，再提升等级——
+          // 原实现先 level += 1 再读 goldMap[level-1]，每级都多扣下一级费用
+          //（且升到 maxLevel 那一步会读越界档位的费用）
           gold += goldMap[evolvePhase][char.level - 1];
+          char.level += 1;
           if (char.level >= maxLevel) {
             char.level = maxLevel;
             char.exp = 0;
@@ -318,12 +321,18 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, targetLevel } = args;
       const char = draft.troop.chars[charInstId];
+      // 防御：targetLevel < 2 时 allSkillLvlup[-] 越界（客户端正常只发 >=2）
+      if (targetLevel < 2) {
+        throw new Error(`技能目标等级 ${targetLevel} 非法（最低 2）`);
+      }
       const targetLevelCost =
         excel.CharacterTable[char.charId].allSkillLvlup[targetLevel - 2]
           .lvlUpCost!;
       char.mainSkillLvl = targetLevel;
       await this._trigger.emit("items:use", [targetLevelCost]);
-      await this._trigger.emit("BoostPotential", [{ targetLevel }]);
+      // 修复：原实现发错事件 BoostPotential → 技能升级任务（监听 UpgradeSkill）永不推进；
+      // 改为 UpgradeSkill
+      await this._trigger.emit("UpgradeSkill", [{ targetLevel }]);
     });
   }
 

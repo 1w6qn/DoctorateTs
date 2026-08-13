@@ -34,6 +34,8 @@ describe("mail 路由", () => {
     (vi.mocked(httpContext.get) as any).mockReturnValue({
       uid: "10000",
       status: { uid: "10000" },
+      // receiveMail/receiveAllMail 领奖后经 _trigger.emit("items:get") 入账
+      _trigger: { emit: vi.fn().mockResolvedValue(undefined) },
       delta: { modified: {} },
     });
   });

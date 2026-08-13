@@ -97,11 +97,22 @@ export class MedalManager implements PlayerMedal {
     }
     const medalInfo = excel.MedalTable.medalList.find(
       (m) => m.medalId == args.medalId,
-    )!;
-    const medalRewardGroup = medalInfo.medalRewardGroup;
-    const items: ItemBundle[] = medalRewardGroup.find(
+    );
+    // 防御：未知勋章/未知奖励组不 500
+    if (!medalInfo?.medalRewardGroup) return [];
+    const medalRewardGroup = medalInfo.medalRewardGroup.find(
       (m) => m.groupId == args.group,
-    )!.itemList;
+    );
+    if (!medalRewardGroup?.itemList) return [];
+    // 修复：未完成的勋章不允许领取（原实现只查 rts → 任意勋章任意领）。
+    // 完成判定：首次获得时间戳（fts>0）或进度达标（val[0][0] >= val[0][1]）
+    const persisted = this._playerdata.medal.medals[args.medalId];
+    const progress = current?.val?.[0] ?? persisted?.val?.[0];
+    const completed =
+      (current?.fts ?? persisted?.fts) > 0 ||
+      (progress?.[1] != null && progress[0] >= progress[1]);
+    if (!completed) return [];
+    const items = medalRewardGroup.itemList;
     const rts = now();
     if (this.medals[args.medalId]) {
       this.medals[args.medalId].rts = rts;
@@ -274,6 +285,9 @@ export class MedalProgress implements PlayerPerMedal {
       this._syncToPersist();
       if (this.val[0][0] >= target) {
         logger.info("MedalManager", `${this.id} complete`);
+        // 修复：完成时记录首次获得时间戳（原实现从不设 fts，完成态判定仅靠进度）
+        this.fts = now();
+        this._syncToPersist();
         this._trigger.off(template as any, func);
         this._trigger.emit("medal:complete", [{ medalId: this.id }]);
       }

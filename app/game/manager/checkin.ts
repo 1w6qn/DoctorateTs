@@ -24,11 +24,14 @@ export class CheckInManager {
 
   async monthlyRefresh() {
     await this._player.update(async (draft) => {
-      draft.checkIn.checkInGroupId = Object.values(
-        excel.CheckinTable.groups,
-      ).find((t) =>
+      // 防御：当前时间无匹配签到组（数据缺失/时间跨度断档）时保持原组，不 500
+      const group = Object.values(excel.CheckinTable.groups).find((t) =>
         checkBetween(now(), t.signStartTime, t.signEndTime),
-      )!.groupId;
+      );
+      if (!group) {
+        return;
+      }
+      draft.checkIn.checkInGroupId = group.groupId;
       draft.checkIn.checkInHistory = [];
       draft.checkIn.checkInRewardIndex = -1;
     });
@@ -48,10 +51,17 @@ export class CheckInManager {
       if (draft.checkIn.checkInRewardIndex < 0) {
         draft.checkIn.checkInRewardIndex = 0;
       }
-      const item =
-        excel.CheckinTable.groups[draft.checkIn.checkInGroupId].items[
-          draft.checkIn.checkInRewardIndex
-        ];
+      const groupItems =
+        excel.CheckinTable.groups[draft.checkIn.checkInGroupId]?.items ?? [];
+      // 修复：奖励索引越界（组内物品数少于连续签到天数）时钳制到末位，不 500
+      const idx = Math.min(
+        draft.checkIn.checkInRewardIndex,
+        groupItems.length - 1,
+      );
+      const item = groupItems[idx];
+      if (!item) {
+        return;
+      }
       signInRewards.push({
         id: item.itemId,
         count: item.count,

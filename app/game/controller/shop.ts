@@ -55,6 +55,19 @@ export class ShopController {
   }
 
   /**
+   * 校验购买数量为正整数
+   *
+   * 修复：原各 buy* 方法对 count 无任何校验——负数 count 使价格/发放数量取反，
+   * items:use 经 _useItem 取反后反向入账（免费刷信用/凭证/钻石等货币）
+   * @param count - 购买数量
+   */
+  private _assertBuyCount(count: number): void {
+    if (typeof count !== "number" || !Number.isInteger(count) || count <= 0) {
+      throw new Error(`非法购买数量: ${count}`);
+    }
+  }
+
+  /**
    * 每日刷新处理：重置低级商店每日限购记录
    */
   async dailyRefresh() {
@@ -108,6 +121,8 @@ export class ShopController {
     count: number;
   }): Promise<ItemBundle[]> {
     const { goodId, count } = args;
+    // 修复：负数 count → 信用币反向入账（免费刷信用）；正整数校验
+    this._assertBuyCount(count);
     const good = this.buildSocialGoodList().goodList.find(
       (g) => g.goodId === goodId,
     );
@@ -171,6 +186,8 @@ export class ShopController {
     count: number;
   }): Promise<ItemBundle[]> {
     const { goodId, count } = args;
+    // 修复：负数 count → 价格/发放取反 → 免费刷货币；正整数校验
+    this._assertBuyCount(count);
     const good = excel.ShopTable.lowGoodList.goodList.find(
       (g) => g.goodId === goodId,
     )!;
@@ -202,6 +219,8 @@ export class ShopController {
     count: number;
   }): Promise<ItemBundle[]> {
     const { goodId, count } = args;
+    // 修复：负数 count → 免费刷高级凭证；正整数校验
+    this._assertBuyCount(count);
     const good = excel.ShopTable.highGoodList.goodList.find(
       (g) => g.goodId === goodId,
     )!;
@@ -257,6 +276,8 @@ export class ShopController {
     count: number;
   }): Promise<ItemBundle[]> {
     const { goodId, count } = args;
+    // 修复：负数 count → 免费刷黄票；正整数校验
+    this._assertBuyCount(count);
     const good = excel.ShopTable.extraGoodList.goodList.find(
       (g) => g.goodId === goodId,
     )!;
@@ -342,6 +363,8 @@ export class ShopController {
     count: number;
   }): Promise<ItemBundle[]> {
     const { goodId, count } = args;
+    // 修复：负数 count → 免费刷 EPGS 币；正整数校验
+    this._assertBuyCount(count);
     const good = excel.ShopTable.EPGSGoodList.goodList.find(
       (g) => g.goodId === goodId,
     )!;
@@ -373,6 +396,8 @@ export class ShopController {
     count: number;
   }): Promise<ItemBundle[]> {
     const { goodId, count } = args;
+    // 修复：负数 count → 免费刷声望币；正整数校验
+    this._assertBuyCount(count);
     const good = excel.ShopTable.REPGoodList.goodList.find(
       (g) => g.goodId === goodId,
     )!;
@@ -404,6 +429,8 @@ export class ShopController {
     count: number;
   }): Promise<ItemBundle[]> {
     const { goodId, count } = args;
+    // 修复：负数 count → 免费刷经典票/凭证；正整数校验
+    this._assertBuyCount(count);
     const good = excel.ShopTable.classicGoodList.goodList.find(
       (g) => g.goodId === goodId,
     )!;
@@ -582,6 +609,8 @@ export class ShopController {
     );
     // 防御：未知商品不 500（数据版本错位）
     if (!good) return [];
+    // 修复：负数 buyCount → 价格取反经 items:use 反向入账（免费刷家具/钻石）；正整数校验
+    this._assertBuyCount(buyCount);
     if (costType === "COIN_FURN") {
       await this._trigger.emit("items:use", [
         [{ id: "3401", count: good.priceCoin * buyCount }],
@@ -624,6 +653,8 @@ export class ShopController {
       );
       if (!good) continue; // 未知家具（数据版本错位）跳过
       const count = g.count ?? 1;
+      // 修复：负数 count → 价格取反 → 免费刷家具币；正整数校验
+      this._assertBuyCount(count);
       await this._trigger.emit("items:use", [
         [{ id: "3401", count: (good.priceCoin ?? 0) * count }],
       ]);

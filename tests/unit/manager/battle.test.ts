@@ -508,7 +508,8 @@ describe("BattleManager", () => {
 
       mockExcelRef.StageTable.stages["main_01-08"] = {
         stageId: "main_01-08",
-        unlockCondition: [{ stageId: "main_01-07", completeState: 3 }],
+        // 真实数据 unlockCondition[].completeState 为字符串枚举（"PASS"/"COMPLETE"）
+        unlockCondition: [{ stageId: "main_01-07", completeState: "COMPLETE" }],
       };
 
       const emitSpy = vi.spyOn(mockTrigger, "emit");
@@ -583,7 +584,8 @@ describe("BattleManager", () => {
       mockExcelRef.StageTable.stages["main_01-08"] = {
         stageId: "main_01-08",
         stageType: "MAIN",
-        unlockCondition: [{ stageId: "main_01-07", completeState: 3 }],
+        // 真实数据 unlockCondition[].completeState 为字符串枚举（"PASS"/"COMPLETE"）
+        unlockCondition: [{ stageId: "main_01-07", completeState: "COMPLETE" }],
       };
       const manager = new BattleManager(
         mockPlayer as any,

@@ -102,8 +102,10 @@ export class RoguelikeRecruitManager {
         this.tickets[id].id
       ];
     // 候选干员来自玩家主队伍（collection，312 干员），非 rlv2 对局内 troop（初始为空）
+    // 防御：troop 未初始化（构造/测试早期）时不崩
+    const troopChars = this._player._player._playerdata.troop?.chars ?? {};
     const chars: PlayerRoguelikeV2.CurrentData.RecruitChar[] = Object.values(
-      this._player._player._playerdata.troop.chars as {
+      troopChars as {
         [key: string]: any;
       },
     ).reduce((acc, char) => {

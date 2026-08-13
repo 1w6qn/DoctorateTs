@@ -4,12 +4,12 @@ vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
 }));
 
-// act24side 合成抽奖读取 excel TYPE_ACT24SIDE.meldingGachaBoxGoodDataMap
+// act24side 合成抽奖读取 excel tYPE_ACT24SIDE.meldingGachaBoxGoodDataMap（首字母小写，真实数据键）
 vi.mock("@excel/excel", () => ({
   default: {
     ActivityTable: {
       activity: {
-        TYPE_ACT24SIDE: {
+        tYPE_ACT24SIDE: {
           act50side: {
             meldingGachaBoxGoodDataMap: {
               gachabox1: [

@@ -37,6 +37,8 @@ const REQUIRED_DATA_FILES: string[] = [
   "data/excel/open_server_table.json",
   "data/excel/retro_table.json",
   "data/excel/activity_table.json",
+  // 修复：excel.init() 加载 ArkventTable 但离线校验遗漏该文件——缺失时 --offline 误报通过后启动即崩
+  "data/excel/arkvent_table.json",
   "data/excel/campaign_table.json",
   "data/excel/chapter_table.json",
   "data/excel/char_master_table.json",

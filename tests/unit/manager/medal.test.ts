@@ -225,7 +225,9 @@ describe("MedalManager", () => {
       manager.medals["medal_test_001"] = new MedalProgress(
         {
           id: "medal_test_001",
-          val: [[50, 100]],
+          // 修复：奖励领取需勋章已完成（进度达标）——原测试 val [[50,100]] 未完成，
+          // rewardMedal 修复后按完成态校验返回 []
+          val: [[100, 100]],
           rts: -1,
           fts: 0,
           reward: "",

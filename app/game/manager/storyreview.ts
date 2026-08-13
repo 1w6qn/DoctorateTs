@@ -89,12 +89,22 @@ export class StoryreviewManager {
         excel.StoryReviewMetaTable.miniActTrialData.miniActTrialDataMap[
           groupId
         ];
-      const rewardList = group.rewardList.filter((reward) =>
-        rewardIdList.includes(reward.trialRewardId),
+      const groupData = draft.storyreview.groups[groupId];
+      // 防御：未知 group 不 500
+      if (!group?.rewardList || !groupData) return [];
+      // 修复：已领取过的试炼奖励不再发放（原实现重复调用可无限刷）
+      const claimed = new Set(groupData.trailRewards ?? []);
+      const rewardList = group.rewardList.filter(
+        (reward) =>
+          rewardIdList.includes(reward.trialRewardId) &&
+          !claimed.has(reward.trialRewardId),
       );
       const items = rewardList.map((reward) => reward.item);
-      await this._trigger.emit("items:get", [items]);
-      draft.storyreview.groups[groupId].trailRewards?.push(...rewardIdList);
+      if (items.length > 0) {
+        await this._trigger.emit("items:get", [items]);
+        if (!groupData.trailRewards) groupData.trailRewards = [];
+        groupData.trailRewards.push(...rewardList.map((r) => r.trialRewardId));
+      }
       return items;
     });
   }

@@ -25,6 +25,12 @@ vi.mock("@excel/excel", () => ({
         },
       },
     },
+    // 抽卡 UseItem/CombineTenTicket 消耗走 ItemTable 解析类型（余额校验依赖）
+    ItemTable: {
+      items: {
+        "4005": { itemType: "LGG_SHD" },
+      },
+    },
   },
 }));
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));

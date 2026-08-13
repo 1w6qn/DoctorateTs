@@ -582,7 +582,8 @@ describe("MissionManager 刷新", () => {
       mission: {
         missions: {
           DAILY: { daily_r1: { state: 1, progress: [{ value: 0, target: 1 }] } },
-          WEEKLY: {},
+          // weeklyRefresh 重建时需数据中存在对应任务（修复后 init 校验数据缺失标记无效跳过）
+          WEEKLY: { weekly_r1: { state: 1, progress: [{ value: 0, target: 1 }] } },
           ACTIVITY: {},
           OPENSERVER: {},
         },

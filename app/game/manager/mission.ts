@@ -111,6 +111,10 @@ export class MissionManager {
    * 重置每日任务进度和奖励状态，加载新的每日任务列表
    */
   async dailyRefresh() {
+    // 修复：退订旧实例监听器（防泄漏 + 旧进度写回新任务）
+    for (const m of this.missions["DAILY"] ?? []) {
+      m.unsubscribe();
+    }
     await this._player.update(async (draft) => {
       draft.mission.missionRewards.dailyPoint = 0;
       draft.mission.missionRewards.rewards["DAILY"] = {};
@@ -124,11 +128,16 @@ export class MissionManager {
     });
     const missionIds =
       excel.MissionTable.missionGroups[this.dailyMissionPeriod].missionIds;
-    this.missions["DAILY"] = await Promise.all(
-      missionIds.map(
-        (missionId) => new MissionProgress(missionId, "DAILY", this._player),
-      ),
-    );
+    // 修复：原实现直接 new 不 init → progress 空/无监听器，刷新后任务系统失效；
+    // 逐实例 init（与 Manager.init 一致，无效任务跳过）
+    this.missions["DAILY"] = [];
+    for (const missionId of missionIds) {
+      const mission = new MissionProgress(missionId, "DAILY", this._player);
+      await mission.init();
+      if (mission.valid) {
+        this.missions["DAILY"].push(mission);
+      }
+    }
   }
 
   /**
@@ -136,17 +145,28 @@ export class MissionManager {
    * 重置每周任务进度和奖励状态，加载新的每周任务列表
    */
   async weeklyRefresh() {
+    // 修复：退订旧实例监听器（防泄漏 + 旧进度写回新任务）
+    for (const m of this.missions["WEEKLY"] ?? []) {
+      m.unsubscribe();
+    }
     await this._player.update(async (draft) => {
       draft.mission.missionRewards.weeklyPoint = 0;
       draft.mission.missionRewards.rewards["WEEKLY"] = {};
     });
+    // 修复：原实现 new 后不 init（progress 空/无监听器）；逐实例 init
     this.missions["WEEKLY"] = [];
     for (const mission of Object.values(excel.MissionTable.missions).filter(
       (m) => m.type == "WEEKLY",
     )) {
-      this.missions["WEEKLY"].push(
-        new MissionProgress(mission.id, "WEEKLY", this._player),
+      const instance = new MissionProgress(
+        mission.id,
+        "WEEKLY",
+        this._player,
       );
+      await instance.init();
+      if (instance.valid) {
+        this.missions["WEEKLY"].push(instance);
+      }
     }
   }
 
@@ -164,10 +184,18 @@ export class MissionManager {
   async confirmMission(args: { missionId: string }): Promise<ItemBundle[]> {
     const { missionId } = args;
     const items: ItemBundle[] = [];
-    (await this.getMissionById(missionId)).confirmed = true;
+    const missionInfo = excel.MissionTable.missions[missionId];
+    if (!missionInfo) return items; // 防御：未知任务跳过
+    const mission = await this.getMissionById(missionId);
+    if (!mission) return items;
+    // 修复：已完成（state==3，可领取）且本次会话未确认的任务才发放——
+    // 原实现无任何校验，可反复确认任意（含未完成/锁定的）任务刷周期点数与奖励
+    if (mission.confirmed) return items;
     await this._player.update(async (draft) => {
+      const data = draft.mission.missions[missionInfo.type]?.[missionId];
+      if (!data || data.state !== 3) return;
+      mission.confirmed = true;
       const missionRewards = draft.mission.missionRewards;
-      const missionInfo = excel.MissionTable.missions[missionId];
       switch (missionInfo.type) {
         case "DAILY":
           missionRewards.dailyPoint += missionInfo.periodicalPoint;
@@ -203,10 +231,13 @@ export class MissionManager {
    */
   async confirmMissionGroup(args: { missionGroupId: string }) {
     const { missionGroupId } = args;
-    const rewards = excel.MissionTable.missionGroups[missionGroupId].rewards;
-    if (rewards) {
-      await this._trigger.emit("items:get", [rewards]);
+    const group = excel.MissionTable.missionGroups[missionGroupId];
+    if (!group?.rewards) return;
+    // 修复：已领取过的任务组不再发放（原实现每次调用都发放组奖励 → 重复刷）
+    if (this._player._playerdata.mission.missionGroups[missionGroupId] === 1) {
+      return;
     }
+    await this._trigger.emit("items:get", [group.rewards]);
     await this._player.update(async (draft) => {
       draft.mission.missionGroups[missionGroupId] = 1;
     });
@@ -220,9 +251,13 @@ export class MissionManager {
   async autoConfirmMissions(args: { type: string }): Promise<ItemBundle[]> {
     const { type } = args;
     const items: ItemBundle[] = [];
-    const missions = this.missions[type];
+    const missions = this.missions[type] ?? [];
+    // 防御：progress 未初始化（刷新后新实例未 init）时不崩溃
     const completedMissions = missions.filter(
-      (m) => m.state == 2 && m.progress[0].value == m.progress[0].target,
+      (m) =>
+        m.state == 2 &&
+        m.progress?.[0] &&
+        m.progress[0].value == m.progress[0].target,
     );
     for (const mission of completedMissions) {
       items.push(
@@ -239,8 +274,29 @@ export class MissionManager {
    */
   async exchangeMissionRewards(args: { targetRewardsId: string }) {
     const { targetRewardsId } = args;
-    const rewards =
-      excel.MissionTable.periodicalRewards[targetRewardsId].rewards;
+    const periodicalReward = excel.MissionTable.periodicalRewards[targetRewardsId];
+    // 修复：原实现无已领校验、不扣点数 → 可无限刷奖励；
+    // 现校验已领取状态与点数余额，发放时扣点并标记已领
+    if (!periodicalReward?.rewards) return [];
+    const type = periodicalReward.type === "WEEKLY" ? "WEEKLY" : "DAILY";
+    const rewards: ItemBundle[] = [];
+    await this._player.update(async (draft) => {
+      const missionRewards = draft.mission.missionRewards;
+      const claimed = missionRewards.rewards[type]?.[targetRewardsId] ?? 0;
+      if (claimed !== 0) return;
+      const points =
+        type === "DAILY"
+          ? missionRewards.dailyPoint
+          : missionRewards.weeklyPoint;
+      if (points < periodicalReward.periodicalPointCost) return;
+      if (type === "DAILY") {
+        missionRewards.dailyPoint -= periodicalReward.periodicalPointCost;
+      } else {
+        missionRewards.weeklyPoint -= periodicalReward.periodicalPointCost;
+      }
+      missionRewards.rewards[type][targetRewardsId] = 1;
+      rewards.push(...periodicalReward.rewards);
+    });
     await this._trigger.emit("items:get", [rewards]);
     return rewards;
   }
@@ -267,6 +323,9 @@ export class MissionProgress {
   confirmed: boolean;
   /** 任务是否有效（数据表缺失/版本错位时为 false——init 时跳过） */
   valid = true;
+  /** 已注册的事件模板与监听器（供每日/每周刷新退订，防泄漏+旧进度写回） */
+  private _registeredTemplate: keyof typeof MissionTemplates | null = null;
+  private _registeredFunc: Function | null = null;
 
   /**
    * 构造函数
@@ -296,7 +355,8 @@ export class MissionProgress {
    * - 3: 已完成（可领取奖励）
    */
   async getState(): Promise<number> {
-    if (!("value" in this.progress[0])) {
+    // 防御：progress 未初始化（刷新后未 init 的实例）时不崩
+    if (!this.progress?.[0] || !("value" in this.progress[0])) {
       return 0;
     }
     if (this.progress[0].value >= this.progress[0].target! && this.confirmed) {
@@ -410,7 +470,12 @@ export class MissionProgress {
    */
   async init() {
     const missionInfo =
-      this._player._playerdata.mission.missions[this.type][this.missionId];
+      this._player._playerdata.mission.missions[this.type]?.[this.missionId];
+    // 防御：数据缺失（每日刷新后新组任务未播种等）标记无效，不 500
+    if (!missionInfo?.progress?.[0]) {
+      this.valid = false;
+      return;
+    }
     this.value = missionInfo.progress[0].value;
     this.progress = missionInfo.progress;
     this.state = missionInfo.state;
@@ -483,8 +548,27 @@ export class MissionProgress {
       }
     };
     if (this.progress[0].value < this.progress[0].target!) {
+      this._registeredTemplate = template;
+      this._registeredFunc = func;
       this._trigger.on(template, func);
       MissionTemplates[template]![this.param[0]].init(this);
+    }
+  }
+
+  /**
+   * 退订本任务注册的事件监听器
+   *
+   * 每日/每周刷新重建任务列表时调用——原实现旧实例监听器永不移除：
+   * 既泄漏（每次刷新叠加数百监听器），又会让旧实例把过期进度写回新任务。
+   */
+  unsubscribe(): void {
+    if (this._registeredTemplate && this._registeredFunc) {
+      this._trigger.off(
+        this._registeredTemplate,
+        this._registeredFunc as never,
+      );
+      this._registeredTemplate = null;
+      this._registeredFunc = null;
     }
   }
 }

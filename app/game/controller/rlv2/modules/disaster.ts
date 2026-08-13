@@ -12,13 +12,17 @@ export class RoguelikeDisasterManager {
     this._player = player;
     this._trigger = _trigger;
     this._trigger.on("rlv2:module:init", this.init.bind(this));
-    this._trigger.on("rlv2:disaster:generate", () => {
-      this.generate.bind(this);
+    // 修复：原实现 `this.generate.bind(this)` 结果被丢弃（空操作）→ 灾祸永不生成；
+    // 事件 args 为空元组，显式传默认 5 步
+    this._trigger.on("rlv2:disaster:generate", async () => {
+      await this.generate([5]);
     });
     this._trigger.on("rlv2:disaster:abstract", this.abstract.bind(this));
     this._trigger.on("rlv2:move", async () => {
       await this._player.update(async (draft) => {
-        const disaster = draft.current.module!.disaster!;
+        // 防御：module/disaster 未初始化（module:init 未跑或模块缺失）时不崩
+        const disaster = draft.current.module?.disaster;
+        if (!disaster) return;
         if (disaster.curDisaster) {
           disaster.disperseStep -= 1;
         } else if (Math.random() < 0.3) {

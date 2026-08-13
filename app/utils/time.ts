@@ -63,8 +63,11 @@ export function checkNew(
   type: StartOf,
   delta = 14400000,
 ): boolean {
-  // 兼容秒级（now() 返回 moment().unix()）与毫秒级时间戳：
-  // delta 语义为毫秒（默认 4 小时），统一换算为秒后比较，避免秒级时间戳被 moment 误解析
-  const deltaSec = delta / 1000;
-  return !moment(ts1 - deltaSec).isSame(moment(ts2 - deltaSec), type);
+  // 修复：时间戳可能是秒级（now() 返回 moment().unix()，~1.7e9）或毫秒级
+  //（moment().valueOf()，~1.7e12）。原实现把秒直接传给 moment(number)（按毫秒解析）
+  // → 相邻两天（86400s）被当作同一"天"，每日/每周/每月刷新永不触发。
+  // 按量级自动归一：> 1e11 视为毫秒，否则视为秒 ×1000；delta 语义为毫秒（默认 4h）。
+  const ms1 = ts1 > 1e11 ? ts1 - delta : ts1 * 1000 - delta;
+  const ms2 = ts2 > 1e11 ? ts2 - delta : ts2 * 1000 - delta;
+  return !moment(ms1).isSame(moment(ms2), type);
 }

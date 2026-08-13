@@ -2,6 +2,9 @@ import excel from "@excel/excel";
 import { PlayerRoguelikeV2, RoguelikeBuff } from "@game/model/rlv2";
 import { RoguelikeV2Controller } from "../../rlv2";
 import { now } from "@utils/time";
+import { randomChoice } from "@utils/random";
+import { rarityToIndex } from "@utils/rarity";
+import { logger } from "@utils/logger";
 import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeFragmentManager {
@@ -84,13 +87,15 @@ export class RoguelikeFragmentManager {
     return Object.fromEntries(
       Object.entries(chars).map(([k, v]) => {
         const data = excel.CharacterTable[v.charId];
-        const rarity = data.rarity;
+        // 修复：rarity 是 "TIER_N" 字符串——原 `rarity - 1` 得 NaN → 权重恒 undefined
+        //（limitWeight 全 NaN）；统一经 rarityToIndex 转 0~5 下标
+        const rarity = rarityToIndex(data?.rarity);
         let weight = [
           [2, 2, 2, 2, 3, 4],
           [-1, -1, -1, 4, 5, 6],
-        ][v.evolvePhase == 2 ? 1 : 0][rarity - 1];
+        ][v.evolvePhase == 2 ? 1 : 0][rarity] ?? 0;
         this._player._buff.filterBuffs("char_weight_rarity").forEach((b) => {
-          if (b.blackboard[0].value == rarity - 1) {
+          if (b.blackboard[0].value == rarity) {
             weight += b.blackboard[1].value!;
           }
         });
@@ -146,7 +151,21 @@ export class RoguelikeFragmentManager {
 
       const rand = Math.random();
       if (rand < (matchedRecipe as any).relicProp) {
-        this._trigger.emit("rlv2:get:items", [[{ id: `${theme}_relic_`, count: 1 }]]);
+        // 修复：原实现 emit 不存在的 `${theme}_relic_` → getItem 500（且多为
+        // fire-and-forget → unhandled rejection）；改为随机发一个真实 RELIC 物品
+        const relicIds = Object.entries(
+          excel.RoguelikeTopicTable.details[theme]?.items ?? {},
+        )
+          .filter(([, it]: any) => it?.type === "RELIC")
+          .map(([id]) => id);
+        if (relicIds.length > 0) {
+          this._trigger.emit(
+            "rlv2:get:items",
+            [[{ id: randomChoice(relicIds), count: 1 }]],
+          );
+        } else {
+          logger.warn("rlv2", `主题 ${theme} 无 RELIC 物品，炼金遗物奖励跳过`);
+        }
       } else if (rand < (matchedRecipe as any).relicProp + (matchedRecipe as any).shieldProp) {
         this._player._status.property.shield += 1000;
       } else if (rand < (matchedRecipe as any).relicProp + (matchedRecipe as any).shieldProp + (matchedRecipe as any).populationProp) {
@@ -187,11 +206,12 @@ export class RoguelikeFragmentManager {
   }
 
   use([id, count]: [string, number]) {
-    for (let i = 0; i < count; i++) {
-      const f = Object.values(this._fragments).filter(
-        (f) => f.id == id && !f.used,
-      )[i]!;
-      f.used = true;
+    const unused = Object.values(this._fragments).filter(
+      (f) => f.id == id && !f.used,
+    );
+    // 修复：count 超过可用碎片时原实现 [i]! 为 undefined → 崩溃；钳制到可用数量
+    for (let i = 0; i < Math.min(count, unused.length); i++) {
+      unused[i].used = true;
     }
   }
 
@@ -203,13 +223,18 @@ export class RoguelikeFragmentManager {
     const theme = this._player.current.game!.theme;
     const data =
       excel.RoguelikeTopicTable.modules[theme].fragment?.fragmentData[id];
+    // 防御：未知碎片 id 不崩（原 data! 解引用 → 500）
+    if (!data) {
+      logger.warn("rlv2", `碎片 ${id} 不在主题 ${theme} fragmentData，跳过发放`);
+      return;
+    }
     this._fragments[id] = {
       index: `f_${this.index}`,
       id: id,
       used: false,
       ts: now(),
-      weight: data!.weight,
-      value: data!.value,
+      weight: data.weight,
+      value: data.value,
       ei: -1,
     };
     this.index += 1;

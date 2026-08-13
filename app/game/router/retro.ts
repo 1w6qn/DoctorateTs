@@ -33,11 +33,9 @@ router.post("/retro/getRetroTrailReward", async (req, res) => {
 router.post("/retro/getRetroPassReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RetroGetPassRewardRequest;
-  await player.retro.getRetroPassReward(body);
-  res.send({
-    items: await player.retro.getRetroPassReward(body),
-    ...player.delta,
-  } satisfies RetroGetPassRewardResponse);
+  // 修复：原实现调用两次 getRetroPassReward → 每次请求双倍发放；改为单次调用
+  const items = await player.retro.getRetroPassReward(body);
+  res.send({ items, ...player.delta } satisfies RetroGetPassRewardResponse);
 });
 router.post("/retro/typeAct20side/competitionStart", async (req, res) => {
   // 参考 OBS misc_bp.retro_typeAct20side_competitionStart：战车竞速非标准战斗，

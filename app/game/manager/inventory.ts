@@ -47,7 +47,17 @@ export class InventoryManager {
       item: ItemBundle,
       draft: WritableDraft<PlayerDataModel>,
     ) => {
-      draft.consumable[item.id][item.instId!].count -= item.count;
+      // 防御：目标 consumable 条目不存在（客户端乱传 itemId/instId）时不 500，
+      // WARN 跳过——避免 useItem 假 instId 直接崩溃
+      const target = draft.consumable[item.id]?.[item.instId!];
+      if (!target) {
+        logger.warn(
+          "inventory",
+          `items:use ${item.id}#${item.instId} 不存在于 consumable，跳过消耗`,
+        );
+        return;
+      }
+      target.count -= item.count;
     };
     const funcs: {
       [key: string]: (

@@ -17,6 +17,7 @@ import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { mailManager } from "@game/manager/mail";
 import { runMigration } from "../../scripts/migrate-official";
+import { loadUsers } from "../../scripts/official-register";
 import { buildMaxedChar } from "../../scripts/generate-max-account";
 import { GAME_API, ACCOUNT_API, CONF_API } from "../../scripts/official-api";
 import {
@@ -1979,8 +1980,15 @@ export class AdminService {
       accounts: accountsText,
       templateUid,
     });
+    // 修复：迁移账号必须同步进内存 configs——否则下次 saveUserConfig → upsertAll
+    // 会删除不在 configs 的 uid（registerImportedUser 只写 SQLite/users，不更新 configs）
+    // → 迁移账号在下一次任何保存时从 users 表消失（账号丢失/重复注册）
+    const migrated = loadUsers();
     for (const r of results) {
       if (r.uid) {
+        if (migrated[r.uid]) {
+          accountManager.configs[r.uid] = migrated[r.uid];
+        }
         try {
           await this.reloadUser(r.uid); // 热加载到内存（服务器运行中创建后立即可用）
         } catch (e) {

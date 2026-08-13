@@ -12,4 +12,4 @@ export const VHALFIDLE_POOLS: { [poolId: string]: string[] } = {
 };
 
 /** 特殊干员（普通卡池排除） */
-export const VHALFIDLE_SPEC_CHAR: string[] = ["char_507_rsnipe", "char_513_apionr", "char_600_cpione", "char_510_amedic", "char_613_acmedc", "char_615_acspec", "char_614_acsupo", "char_612_accast", "char_511_asnipe", "char_509_acast", "char_606_csuppo", "char_609_acguad", "char_601_cguard", "char_607_cspec", "char_508_aguard", "char_611_acnipe", "char_514_rdfend", "char_608_acpion", "char_603_cpione", "char_602_cdfend", "char_605_cmedic", "char_505_rcast", "char_604_ccast", "char_610_acfend", "char_506_rmedic", "char_504_rguard"];
+export const VHALFIDLE_SPEC_CHAR: string[] = ["char_507_rsnipe", "char_513_apionr", "char_600_cpione", "char_510_amedic", "char_613_acmedc", "char_615_acspec", "char_614_acsupo", "char_612_accast", "char_511_asnipe", "char_509_acast", "char_606_csuppo", "char_609_acguad", "char_601_cguard", "char_607_cspec", "char_508_aguard", "char_611_acnipe", "char_514_rdfend", "char_608_acpion", "char_602_cdfend", "char_605_cmedic", "char_505_rcast", "char_604_ccast", "char_610_acfend", "char_506_rmedic", "char_504_rguard"];

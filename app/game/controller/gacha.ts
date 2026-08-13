@@ -131,6 +131,58 @@ export class GachaController {
    * @param args.itemId - 使用的物品ID（当useTkt为UseItem时）
    * @returns 抽卡结果和保底计数信息
    */
+  /**
+   * 校验抽卡消耗是否足够（修复：原实现无余额校验——扣费直接减、可扣成负数，
+   * 未知/空 itemId 还会被 _useItem 静默跳过 → 免费抽；不足或不可校验时拒绝）
+   */
+  private _verifyCost(costs: ItemBundle[]): boolean {
+    const p = this._player._playerdata;
+    for (const c of costs) {
+      const type =
+        c.type || excel.ItemTable?.items?.[c.id]?.itemType;
+      switch (type) {
+        case "DIAMOND_SHD":
+        case "DIAMOND":
+          if (p.status.androidDiamond < c.count) return false;
+          break;
+        case "LGG_SHD":
+          if (p.status.lggShard < c.count) return false;
+          break;
+        case "HGG_SHD":
+          if (p.status.hggShard < c.count) return false;
+          break;
+        case "CLASSIC_SHD":
+          if (p.status.classicShard < c.count) return false;
+          break;
+        case "TKT_GACHA":
+          if (p.status.gachaTicket < c.count) return false;
+          break;
+        case "TKT_GACHA_10":
+          if (p.status.tenGachaTicket < c.count) return false;
+          break;
+        case "CLASSIC_TKT_GACHA":
+          if (p.status.classicGachaTicket < c.count) return false;
+          break;
+        case "CLASSIC_TKT_GACHA_10":
+          if (p.status.classicTenGachaTicket < c.count) return false;
+          break;
+        case "LIMITED_FREE_GACHA":
+          break; // 免费抽，无消耗
+        default:
+          if (c.instId != null) {
+            const entry = p.consumable?.[c.id]?.[c.instId];
+            if (!entry || entry.count < c.count) return false;
+          } else if (type) {
+            if ((p.inventory?.[c.id] ?? 0) < c.count) return false;
+          } else {
+            // 无 type 且不在 ItemTable（如空 itemId）→ 无法扣费，拒绝防免费抽
+            return false;
+          }
+      }
+    }
+    return true;
+  }
+
   async advancedGacha(args: {
     poolId: string;
     useTkt: number;
@@ -158,6 +210,10 @@ export class GachaController {
       case GachaType.ClassicSingleTicket:
         costs.push({id:"CLASSIC_TKT_GACHA",type:"CLASSIC_TKT_GACHA",count:1})
         break;
+    }
+    // 修复：先校验余额再抽（原实现先扣费且可扣成负数）
+    if (!this._verifyCost(costs)) {
+      throw new Error("资源不足，无法抽卡");
     }
     await this._trigger.emit("items:use", [costs]);
     return await this.doAdvancedGacha(args);
@@ -206,6 +262,10 @@ export class GachaController {
       case GachaType.UseItem:
         costs.push(...itemList)
         break;
+    }
+    // 修复：先校验余额再抽（原实现十连先发干员后扣费且可扣成负数）
+    if (!this._verifyCost(costs)) {
+      throw new Error("资源不足，无法抽卡");
     }
     const res: (GachaResult & { logInfo: { beforeNonHitCnt: number } })[] = [];
     // 优化：保底计数只在十连结束统一落盘一次（原每抽 saveBeforeNonHitCnt →

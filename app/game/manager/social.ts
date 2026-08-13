@@ -146,10 +146,12 @@ export class SocialManager {
         const medalIdList = excel.MedalTable.medalTypeData[
           medalGroupId
         ].groupData.find((item) => item.groupId === templateGroup)!.medalId;
+        // 修复：`medal.medalId in medalIdList` 在数组上测的是下标（恒 false）→
+        // 进阶勋章永不加入模板；改为 includes 语义判断
         medalIdList.push(
           ...excel.MedalTable.medalList
             .filter(
-              (medal) => medal.medalId in medalIdList && medal.advancedMedal,
+              (medal) => medalIdList.includes(medal.medalId) && medal.advancedMedal,
             )
             .map((medal) => medal.advancedMedal!),
         );

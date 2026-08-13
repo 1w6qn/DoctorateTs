@@ -87,12 +87,11 @@ router.post("/changeAvatar", async (req, res) => {
 router.post("/changeResume", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ChangeResumeRequest;
-  if ((body?.resume as string).slice(0) == "@") {
-    // 动态事件名（resume 以 @ 开头时触发对应事件），绕过 EventMap 静态键检查
-    player._trigger.emit(body.resume.slice(1, body.resume.length) as any, []);
-  } else {
-    await player.status.changeResume(body);
-  }
+  // 修复：移除"resume 以 @ 开头触发任意内部事件"的后门——客户端可借此触发
+  // 任意事件（@refresh:daily/@char:get/@items:get 等）破坏状态或 500。
+  // 一律按普通简介文本处理；非字符串入参防御（避免 .slice 崩溃）
+  const resume = typeof body?.resume === "string" ? body.resume : "";
+  await player.status.changeResume({ resume } as ChangeResumeRequest);
   res.send(player.delta satisfies ChangeResumeResponse);
 });
 
@@ -160,6 +159,10 @@ router.post("/buyAp", async (req, res) => {
 router.post("/exchangeDiamondShard", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ExchangeDiamondShardRequest;
+  // 修复：负数 count 绕过余额守卫（_useItem 取反后反向入账 → 免费刷源石）；非法入参直接拒绝
+  if (typeof body?.count !== "number" || !Number.isInteger(body.count) || body.count <= 0) {
+    return res.status(400).send({ status: 1, msg: "非法参数" });
+  }
   if (player._playerdata.status.androidDiamond < body.count) {
     res.send({
       result: 1,
@@ -175,6 +178,10 @@ router.post("/exchangeDiamondShard", async (req, res) => {
 router.post("/useItem", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UseItemRequest;
+  // 修复：负数 count 经 _useItem 取反 → 反向加物品（刷物品漏洞）；非法入参拒绝
+  if (typeof body?.count !== "number" || !Number.isInteger(body.count) || body.count <= 0) {
+    return res.status(400).send({ status: 1, msg: "非法参数" });
+  }
   const item = {
     id: body.itemId,
     count: body.count,
@@ -188,6 +195,17 @@ router.post("/useItem", async (req, res) => {
 router.post("/useItems", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UseItemsRequest;
+  if (
+    !Array.isArray(body?.items) ||
+    body.items.some(
+      (item) =>
+        typeof item?.cnt !== "number" ||
+        !Number.isInteger(item.cnt) ||
+        item.cnt <= 0,
+    )
+  ) {
+    return res.status(400).send({ status: 1, msg: "非法参数" });
+  }
   const items: {
     itemId: string;
     cnt: number;
@@ -401,8 +419,10 @@ rootRouter.post("/pixelArt/review", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as { uid?: string; status?: number };
   await player.update(async (draft) => {
-    const hub = (draft.activity as any)?.ARK_HUB?.["act1arkhub"] as any;
-    if (hub) hub.reviewedPixelArts = hub.reviewedPixelArts ?? {};
+    const act = draft.activity as any;
+    if (!act.ARK_HUB) act.ARK_HUB = {};
+    const hub = (act.ARK_HUB["act1arkhub"] = act.ARK_HUB["act1arkhub"] ?? {});
+    hub.reviewedPixelArts = hub.reviewedPixelArts ?? {};
   });
   res.send(player.delta);
 });

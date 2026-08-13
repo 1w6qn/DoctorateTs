@@ -151,11 +151,19 @@ export class StatusManager {
 
   async receiveTeamCollectionReward(args: { rewardId: string }) {
     const { rewardId } = args;
+    const teamMission = excel.HandbookInfoTable.teamMissionList[rewardId];
+    // 防御：未知奖励 id 不 500
+    if (!teamMission?.item) return;
+    let claimed = false;
     await this._player.update(async (draft) => {
+      // 修复：已领取过的不再发放（原实现无幂等 → 可无限刷该奖励）
+      if (draft.collectionReward.team[rewardId]) {
+        claimed = true;
+        return;
+      }
       draft.collectionReward.team[rewardId] = 1;
     });
-    await this._trigger.emit("items:get", [
-      [excel.HandbookInfoTable.teamMissionList[rewardId].item],
-    ]);
+    if (claimed) return;
+    await this._trigger.emit("items:get", [[teamMission.item]]);
   }
 }

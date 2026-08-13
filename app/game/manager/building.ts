@@ -106,8 +106,13 @@ export class BuildingManager {
 
   /**
    * 同步基建数据
-   * 时间驱动：劳动力恢复 → 干员心情档位重算（岗位/技能）→ 心情随时间累积 →
-   * 制造站生产累积 → 贸易站订单补充 → 训练室进度推进。
+   * 时间驱动：劳动力恢复 → 干员心情档位重算（岗位/技能）→ 制造站生产累积 →
+   * 贸易站订单补充 → 训练室进度推进。
+   *
+   * 注：干员心情（building.chars[].ap）不在此推进——会客室会话（getInfoShareReward/
+   * startInfoShare）按 building.chars 增量推进情报分享状态（抓包 res_1074），
+   * 若 sync 抢先推进 lastApAddTime，紧邻的 getInfoShareReward 同一秒内 elapsed=0
+   * → 空 delta → 客户端死循环重拉（b1c673a 回归）。
    * @returns 当前时间戳
    */
   async sync() {
@@ -115,8 +120,6 @@ export class BuildingManager {
       this._recoverLabor(draft);
       // 干员心情档位（changeScale）按当前岗位 + 干员技能重算——换班后无需等客户端
       this._recomputeCharScales(draft);
-      // 干员心情随时间累积（工作消耗/宿舍恢复）
-      this._accrueCharAp(draft);
       // 修复：制造站生产随时间累积（进度/产出不再与时间脱钩）
       for (const roomSlotId of Object.keys(draft.building.rooms.MANUFACTURE)) {
         this._accrueManufacture(draft, roomSlotId);
@@ -991,6 +994,10 @@ export class BuildingManager {
     // 有效容量受进驻干员技能/控制中枢全局加成驱动（而非存档静态值）
     const capacity = this._roomCapacity(draft, roomSlotId, formula);
     if (costPoint <= 0 || capacity <= 0) return;
+    // 修复：计划已耗尽（remain ≤ 0）即停止生产——官方计划完成后房间停摆待收取；
+    // 原实现 remain=0 时跳过钳制 → 产出无上限累积（制造站赤金数量异常）
+    const remain = room.remainSolutionCnt ?? 0;
+    if (remain <= 0) return;
     const ts = now();
     const elapsed = ts - (room.lastUpdateTime || ts);
     if (elapsed <= 0) return;
@@ -999,11 +1006,8 @@ export class BuildingManager {
     let produced = Math.floor(room.processPoint / costPoint);
     if (produced <= 0) return;
     room.processPoint -= produced * costPoint;
-    // 未设目标时（remainSolutionCnt 无效）按公式无限产出；否则受剩余目标限制
-    if ((room.remainSolutionCnt ?? 0) > 0) {
-      produced = Math.min(produced, room.remainSolutionCnt);
-      room.remainSolutionCnt -= produced;
-    }
+    produced = Math.min(produced, remain);
+    room.remainSolutionCnt = remain - produced;
     room.outputSolutionCnt = (room.outputSolutionCnt ?? 0) + produced;
   }
 
@@ -1128,17 +1132,19 @@ export class BuildingManager {
   }
 
   /**
-   * 更换制造方案
-   * 参考实现：先结算当前产出，再切换到新配方
+   * 更换制造方案（客户端"收获后一键补货"入口）
+   * 先推进并结算当前已产出的方案，再切换到新配方。
+   * 返回 { change } 对齐官方 BuildingChangeManufactResponse（抓包 6 例均为 false——
+   * 该字段为服务端确认标识，补货/换配方一律 false；方案本身按请求生效）。
    * @param args - 包含 roomSlotId、targetFormulaId、solutionCount 的参数对象
    */
   async changeManufactureSolution(args: {
     roomSlotId: string;
     targetFormulaId: string;
     solutionCount: number;
-  }) {
+  }): Promise<{ change: boolean }> {
     const { roomSlotId, targetFormulaId, solutionCount } = args;
-    return await this._player.update(async (draft) => {
+    await this._player.update(async (draft) => {
       // 先推进并结算当前已产出的方案
       this._accrueManufacture(draft, roomSlotId);
       this._settleManufactureInternal(draft, roomSlotId);
@@ -1154,6 +1160,7 @@ export class BuildingManager {
       room.outputSolutionCnt = 0;
       room.processPoint = 0;
     });
+    return { change: false };
   }
 
   /**
@@ -1548,15 +1555,32 @@ export class BuildingManager {
 
   /**
    * 获取会议室奖励（信用点）
-   * @returns 包含 rewards 的对象
+   *
+   * 对齐官方（抓包 res_1044）：响应 rewards 为 ItemBundle 数组
+   * `[{id:"SOCIAL_PT", type:"SOCIAL_PT", count:N}]`，且**服务端发放后清零**——
+   * status.socialPoint += daily+search、socialReward 归零（一次性领取）。
+   * 修复：原实现只透传 socialReward.daily（格式错误且不发放/不清零）→
+   * 客户端每次领取同一份信用 → 无限信用点 + 会客室死循环。
+   * @returns 领取的信用点（SOCIAL_PT ItemBundle；无可领返回空数组）
    */
   async getMeetingroomReward() {
-    const room = this._meetingRoom();
-    const rewards: any[] = [];
-    if (room?.socialReward?.daily) {
-      rewards.push({ type: "credit", count: room.socialReward.daily });
-    }
-    return { rewards };
+    let granted = 0;
+    await this._player.update(async (draft) => {
+      const room = Object.values(draft.building.rooms.MEETING)[0];
+      if (!room) return;
+      const sr = room.socialReward;
+      granted = (sr?.daily ?? 0) + (sr?.search ?? 0);
+      if (granted <= 0) return;
+      draft.status.socialPoint = (draft.status.socialPoint ?? 0) + granted;
+      // 领取后清零（一次性，避免重复领取）
+      room.socialReward = { daily: 0, search: 0 };
+    });
+    return {
+      rewards:
+        granted > 0
+          ? [{ id: "SOCIAL_PT", type: "SOCIAL_PT", count: granted }]
+          : [],
+    };
   }
 
   // ==================== 预设队列 ====================
@@ -1855,12 +1879,20 @@ export class BuildingManager {
   }
 
   /**
-   * 开始信息共享
-   * 简化实现：参考 Python 实现返回 202，预留接口
+   * 开始信息共享（会客室情报分享会话）
+   * 对齐官方：记录会话开始时间 infoShare.ts = now——访客列表按会话划分，
+   * 早于该时间的访客视为"已分享过"（客户端不再重复计信用）。
+   * 修复：原实现透传请求体（202 不落状态）→ 会话永不推进 → 同一批访客
+   * 每次都被视为新访客 → 无限信用点。
    * @param args - 请求体参数
    */
   async startInfoShare(args: any) {
-    return args;
+    return await this._player.update(async (draft) => {
+      const room = Object.values(draft.building.rooms.MEETING)[0];
+      if (!room) return;
+      room.infoShare.ts = now();
+      room.infoShare.reward = 0;
+    });
   }
 
   /**

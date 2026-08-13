@@ -296,8 +296,11 @@ export interface ChangeManufactureSolutionRequest {
   solutionCount: number;
 }
 
-/** 更换制造方案响应（CS: BuildingChangeManufactResponse；服务端仅返回增量） */
-export type ChangeManufactureSolutionResponse = PlayerDeltaResponse;
+/** 更换制造方案响应（CS: BuildingChangeManufactResponse { change, playerDataDelta }） */
+export interface ChangeManufactureSolutionResponse extends PlayerDeltaResponse {
+  /** 服务端确认标识（抓包 6 例均 false——补货/换配方一律 false，方案按请求生效） */
+  change: boolean;
+}
 
 /**
  * 更换贸易方案请求（CS: BuildingChangeShopRequest）

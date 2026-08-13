@@ -241,6 +241,7 @@ describe("BuildingManager 干员技能（buff）集成", () => {
           "301": { charId: "char_ctrl", level: 1, evolvePhase: 0 },
         },
       } as any,
+      inventory: {} as any,
       event: { building: 0 },
     });
 
@@ -270,17 +271,18 @@ describe("BuildingManager 干员技能（buff）集成", () => {
     expect(room.remainSolutionCnt).toBe(73 - 64);
   });
 
-  it("sync：工作干员心情档位 = 基础消耗 - 技能附加（vdo），并按档位随时间消耗", async () => {
+  it("sync：工作干员心情档位 = 基础消耗 - 技能附加（vdown），换班后立即重算", async () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.sync();
     const chars = mockPlayer._playerdata.building!.chars as any;
     // char_001 无技能附加 → -55
     expect(chars["101"].changeScale).toBe(-55);
-    expect(chars["101"].ap).toBe(8640000 - 3600 * 55);
-    // char_003 带 manu_formula_spd&cost vdo=25（PHASE_2 激活）→ -55-25 = -80
+    // char_003 带 manu_formula_spd&cost vdown=+0.25（PHASE_2 激活，×100）→ -55-25 = -80
     expect(chars["102"].changeScale).toBe(-80);
     // 控制中枢干员不消耗
     expect(chars["301"].changeScale).toBe(0);
+    // 心情随时间累积由 getInfoShareReward 推进（会客室会话增量，避免 sync 抢占窗口）
+    expect(chars["101"].ap).toBe(8640000);
   });
 
   it("sync：宿舍恢复 = (基础 + 舒适度 + 宿舍 buff + 控制中枢 dorm 全局) × 100", async () => {
@@ -289,7 +291,8 @@ describe("BuildingManager 干员技能（buff）集成", () => {
     const ch = (mockPlayer._playerdata.building!.chars as any)["201"];
     // (200/160 基础 + 5000/1000×0.55 舒适 + 0.15 dorm_rec + 0.05 control_dorm_rec) × 100
     expect(ch.changeScale).toBe(Math.round((1.25 + 2.75 + 0.15 + 0.05) * 100));
-    expect(ch.ap).toBe(3600 * ch.changeScale);
+    // 宿舍恢复随时间的累积由 getInfoShareReward 推进
+    expect(ch.ap).toBe(0);
   });
 
   it("batchRestChar 后心情档位立即恢复空闲（0）", async () => {
@@ -327,5 +330,112 @@ describe("BuildingManager 干员技能（buff）集成", () => {
     // 进驻干员 buff targets 均不含 F_ASC → 不贡献；控制中枢 control_prod_spd 无 targets → 全局生效
     expect(room.capacity).toBe(54);
     expect(room.buff.speed).toBeCloseTo(0.02);
+  });
+
+  it("sync：计划耗尽（remain=0）后不再产出——修复制造站赤金无上限累积", async () => {
+    const room = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
+    room.remainSolutionCnt = 0;
+    room.outputSolutionCnt = 50;
+    room.processPoint = 100;
+    room.lastUpdateTime = timeMock.now - 7200; // 距上次同步 2 小时
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.sync();
+    // remain=0 → 停止生产：产出与进度都不再累积（原实现跳过钳制 → 每 50s +1 无上限）
+    expect(room.outputSolutionCnt).toBe(50);
+    expect(room.remainSolutionCnt).toBe(0);
+    expect(room.processPoint).toBe(100);
+  });
+
+  it("settleManufacture：计划完成的房间结算后停止（state=0、清空配方）", async () => {
+    const room = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
+    room.remainSolutionCnt = 0;
+    room.outputSolutionCnt = 99;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.settleManufacture({ roomSlotIdList: ["slot_5"] } as any);
+    expect(mockPlayer._playerdata.inventory!["3003"]).toBe(99);
+    // update 替换 building 对象 → 重新读取结算后的房间
+    const settled = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
+    expect(settled.state).toBe(0);
+    expect(settled.formulaId).toBe("");
+  });
+
+  it("getMeetingroomReward：发放 socialPoint 并清零 socialReward（一次性，修复无限信用点）", async () => {
+    const room = mockPlayer._playerdata.building!.rooms.MEETING as any;
+    room.meeting_001 = {
+      socialReward: { daily: 10, search: 30 },
+      infoShare: { ts: 0, reward: 0 },
+      ownStock: [], receiveStock: [], board: {},
+      lastUpdateTime: 0,
+    };
+    mockPlayer._playerdata.status = { ...(mockPlayer._playerdata.status as any), socialPoint: 100 } as any;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const res = await manager.getMeetingroomReward();
+    // 官方格式：SOCIAL_PT ItemBundle；领取后 socialReward 归零 → 再次领取为空
+    expect(res.rewards).toEqual([{ id: "SOCIAL_PT", type: "SOCIAL_PT", count: 40 }]);
+    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(140);
+    const room2 = mockPlayer._playerdata.building!.rooms.MEETING.meeting_001 as any;
+    expect(room2.socialReward).toEqual({ daily: 0, search: 0 });
+    const res2 = await manager.getMeetingroomReward();
+    expect(res2.rewards).toEqual([]);
+  });
+
+  it("startInfoShare：记录会话开始时间 infoShare.ts（访客不再重复计信用）", async () => {
+    const room = mockPlayer._playerdata.building!.rooms.MEETING as any;
+    room.meeting_001 = {
+      socialReward: { daily: 0, search: 0 },
+      infoShare: { ts: 123, reward: 0 },
+      ownStock: [], receiveStock: [], board: {},
+      lastUpdateTime: 0,
+    };
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.startInfoShare({} as any);
+    const room2 = mockPlayer._playerdata.building!.rooms.MEETING.meeting_001 as any;
+    expect(room2.infoShare.ts).toBe(timeMock.now);
+    expect(room2.infoShare.reward).toBe(0);
+  });
+
+  it("getInfoShareReward：按 changeScale 推进会客室干员体力（会话增量，避免空 delta 死循环）", async () => {
+    // accountManager 返回空好友 → list 为空；chars 体力按档位随时间累积
+    const { accountManager } = await import("@game/manager/AccountManager");
+    vi.spyOn(accountManager, "getSocial").mockResolvedValue({ friends: [], friendRequests: [], visited: [] } as any);
+    vi.spyOn(accountManager, "getPlayerFriendInfo").mockResolvedValue({} as any);
+    const chars = mockPlayer._playerdata.building!.chars as any;
+    chars["201"].changeScale = 100; // 会客室恢复档位
+    chars["201"].lastApAddTime = timeMock.now - 100;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const res = await manager.getInfoShareReward();
+    expect(res.list).toEqual([]);
+    // update 替换 building 对象 → 重新读取
+    const ch = (mockPlayer._playerdata.building!.chars as any)["201"];
+    expect(ch.ap).toBe(100 * 100);
+    expect(ch.lastApAddTime).toBe(timeMock.now);
+  });
+
+  it("一键补货：收获耗尽计划后 changeManufactureSolution 重启同配方（返回 change:false 对齐官方）", async () => {
+    const room = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
+    room.state = 1;
+    room.formulaId = "4";
+    room.remainSolutionCnt = 0; // 计划已耗尽
+    room.outputSolutionCnt = 99;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    // 收获
+    await manager.settleManufacture({ roomSlotIdList: ["slot_5"] } as any);
+    const afterHarvest = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
+    expect(afterHarvest.state).toBe(0);
+    expect(afterHarvest.formulaId).toBe("");
+    // 一键补货：同配方 + 补满数量
+    const res = await manager.changeManufactureSolution({
+      roomSlotId: "slot_5",
+      targetFormulaId: "4",
+      solutionCount: 99,
+    } as any);
+    expect(res).toEqual({ change: false });
+    const restocked = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
+    expect(restocked.state).toBe(1);
+    expect(restocked.formulaId).toBe("4");
+    expect(restocked.remainSolutionCnt).toBe(99);
+    expect(restocked.outputSolutionCnt).toBe(0);
+    expect(restocked.processPoint).toBe(0);
+    expect(restocked.lastUpdateTime).toBe(timeMock.now);
   });
 });

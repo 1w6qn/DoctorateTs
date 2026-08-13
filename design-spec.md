@@ -877,6 +877,8 @@ BuildingManager（app/game/manager/building.ts）已实现完整基建玩法：
 **集成点（时间驱动，sync/换班入口）**：
 - 制造站容量 = 房间等级 `manufactData.phases[level-1].outputCapacity`（24/36/54）× (1 + 进驻干员技能加成 + 控制中枢全局加成)，回写 `room.capacity`/`room.buff.speed`——生产随时间累积受技能驱动；buff.targets（F_GOLD/F_EXP/…）按配方类型过滤
 - **计划耗尽即停（2026-08-13 修复赤金异常）**：`remainSolutionCnt ≤ 0` 时停止生产——原实现 remain=0 时跳过钳制 → 产出无上限累积（制造站赤金数量异常）；现在计划完成即停摆待收取（官方行为），结算后 state=0 清空配方
+- **会客室死循环/无限信用修复（2026-08-13）**：① 干员心情（`building.chars[].ap`）累积**不进 sync**——会客室会话（getInfoShareReward/startInfoShare）按该增量推进情报分享状态，若 sync 抢先推进 lastApAddTime，紧邻调用同一秒 elapsed=0 → 空 delta → 客户端死循环重拉（58 字节响应）；② `getMeetingroomReward` 发放 `status.socialPoint += daily+search` 并清零 socialReward（一次性，官方格式 `{id:"SOCIAL_PT",...}`）——原实现只透传不发放/不清零 → 无限信用点；③ `startInfoShare` 记录 `infoShare.ts=now`（会话推进，访客不再重复计信用）
+- **收获后一键补货（2026-08-13）**：`changeManufactureSolution`（客户端收获后补货入口：settle → 同配方 + 补满数量）响应补 `change` 字段（官方 BuildingChangeManufactResponse，抓包 6 例均 false——服务端确认标识，方案按请求生效）；收获已耗尽计划后该接口重启同配方（state=1、remain=补货量、output/processPoint 归零、lastUpdateTime=now），链路真实存档验证通过
 - 训练室：trainee 进度 × (1 + 教官 train_* buff)
 - 心情档位（`building.chars[i].changeScale`）重算：输出房间基础消耗（制造/贸易/加工 -55、会客/人力/发电 -65，AP/秒，真实存档校准）− 技能附加消耗（描述"消耗"语境 `<@cc.vdown>/<@cc.vup>` 数值 ×100，正=消耗/负=减免）；宿舍恢复 = (基础 `manpowerRecover/160` + 舒适度 `comfort/1000×0.55` + dorm_* buff + control_dorm_* 全局) × 100——5 级 5000 舒适 + 技能 ≈ 405，与真实存档吻合；未进驻 0
 - 换班（assignChar/batchChangeWorkChar/batchRestChar）后立即重算档位，下次 sync 按新档位累积

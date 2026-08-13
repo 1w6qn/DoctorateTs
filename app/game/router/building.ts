@@ -368,12 +368,15 @@ router.post("/settleSale", async (req, res) => {
   res.status(202).send(player.delta satisfies SettleSaleResponse);
 });
 
-/** 更换制造方案 */
+/** 更换制造方案（收获后一键补货入口） */
 router.post("/changeManufactureSolution", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ChangeManufactureSolutionRequest;
-  await player.building.changeManufactureSolution(body);
-  res.send(player.delta satisfies ChangeManufactureSolutionResponse);
+  const { change } = await player.building.changeManufactureSolution(body);
+  res.send({
+    change,
+    ...player.delta,
+  } satisfies ChangeManufactureSolutionResponse);
 });
 
 /** 更换贸易方案（简化实现） */

@@ -1,5 +1,6 @@
 import { PlayerCharacter } from "@game/model/character";
 import { ItemBundle } from "@excel/character_table";
+import excel from "@excel/excel";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";
 import { PlayerDataManager } from "./PlayerDataManager";
@@ -9,7 +10,7 @@ import { PlayerDataModel } from "@game/model/playerdata";
 import { PlayerBuildingMeetingClue } from "@game/model/playerdata";
 import { BuildingData_OrderType, BuildingData_RoomType } from "@game/model/playerdata";
 import { accountManager } from "./AccountManager";
-import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase } from "@excel/building_excel";
+import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase } from "@excel/building_excel";
 import {
   CharBuffSource,
   roomSpeedBonus,
@@ -80,18 +81,72 @@ export class BuildingManager {
   }
 
   /**
-   * 每日刷新：重置会客室每日免费线索
+   * 每日刷新：重置会客室每日免费线索 + 留言板社交点周切 + 被动信用（好友访问）累积
    *
-   * 修复：getDailyClue 置位 room.dailyReward 后全库无清除逻辑（无每日重置）→
-   * 每日免费线索只能领取一次，会客室线索收集（7 阵营合成奖励）形同虚设；
-   * 每日刷新将 dailyReward 复位为 null（模板存档的"今日未领"合法值）。
+   * 修复：
+   * 1. getDailyClue 置位 room.dailyReward 后全库无清除逻辑（无每日重置）→
+   *    每日免费线索只能领取一次，会客室线索收集（7 阵营合成奖励）形同虚设；
+   *    每日刷新将 dailyReward 复位为 null（模板存档的"今日未领"合法值）。
+   * 2. messageLeave.sp 周切从未发生——lastWeek 恒 0，留言板"上周社交点"
+   *    永远领不到；按周一 4:00 边界滚动：lastWeek ← thisWeek、累计入账。
+   * 3. 被动信用（socialReward.daily）从不累积——模板初值领取一次后信用经济
+   *    枯竭；每日刷新模拟好友访问：daily += 好友数 × friendSlotInc（封顶
+   *    creditPassiveLimit），getMeetingroomReward 领取后清零重新累积。
    */
   async dailyRefresh() {
+    let friendCount = 0;
+    try {
+      const social = await accountManager.getSocial(
+        String(this._player._playerdata.status.uid),
+      );
+      friendCount = social.friends.length;
+    } catch (e) {
+      logger.warn(
+        "building",
+        `dailyRefresh 好友列表加载失败: ${(e as Error).message}`,
+      );
+    }
     await this._player.update(async (draft) => {
+      const ts = now();
       for (const room of Object.values(draft.building.rooms.MEETING ?? {})) {
         (room as any).dailyReward = null;
+        this._rolloverWeekSp(room as any, ts);
+        // 修复：被动信用每日模拟好友访问（封顶 creditPassiveLimit）
+        this._accumulateDailyCredit(draft, room, friendCount);
       }
     });
+  }
+
+  /**
+   * 内部方法：留言板社交点周切（周一 4:00 边界）
+   * sp = { lastWeek, lastWeekSum, thisWeek, thisWeekSum }：
+   * - 当前周已进入 → lastWeek ← thisWeek（上周可领）、thisWeek 归零重新累计
+   * - 跨多周（长时间未登录）→ 只滚动一次（避免累计失真）
+   */
+  private _rolloverWeekSp(room: any, ts: number): void {
+    const leave = room?.messageLeave;
+    if (!leave?.sp) return;
+    const lastTs = leave.lastUpdateSpTs ?? 0;
+    if (lastTs <= 0) {
+      leave.lastUpdateSpTs = ts;
+      return;
+    }
+    const weekStart = (t: number): number => {
+      const d = new Date(t * 1000);
+      // 周一为每周起点（getDay(): 0=周日）
+      const day = (d.getDay() + 6) % 7;
+      d.setDate(d.getDate() - day);
+      d.setHours(4, 0, 0, 0);
+      return Math.floor(d.getTime() / 1000);
+    };
+    if (weekStart(ts) <= weekStart(lastTs)) return; // 同一周
+    const sp = leave.sp;
+    // 上周累计入账 + 上周可领 ← 本周累计
+    sp.lastWeekSum = (sp.lastWeekSum ?? 0) + (sp.lastWeek ?? 0);
+    sp.lastWeek = sp.thisWeek ?? 0;
+    sp.thisWeekSum = (sp.thisWeekSum ?? 0) + (sp.thisWeek ?? 0);
+    sp.thisWeek = 0;
+    leave.lastUpdateSpTs = ts;
   }
 
   /** 获取信息共享时间戳 */
@@ -127,6 +182,61 @@ export class BuildingManager {
     sr: { daily?: number; search?: number } | undefined,
   ): number {
     return (sr?.daily ?? 0) + (sr?.search ?? 0) > 0 ? 1 : 0;
+  }
+
+  /**
+   * 内部方法：单次好友访问/情报分享的信用量（会客室相位 friendSlotInc，
+   * 保底 creditGuaranteed=10，兜底 35）——信用经济循环的每次入账量
+   */
+  private _meetingCreditPerVisit(draft: WritableDraft<PlayerDataModel>): number {
+    const guaranteed = getBuildingConstant<number>("creditGuaranteed") ?? 10;
+    for (const slot of Object.values(draft.building.roomSlots)) {
+      if (slot?.roomId !== "MEETING") continue;
+      const phase = getMeetingPhase(slot.level ?? 1);
+      if (typeof phase?.friendSlotInc === "number" && phase.friendSlotInc > 0) {
+        return phase.friendSlotInc;
+      }
+      return guaranteed;
+    }
+    return guaranteed;
+  }
+
+  /**
+   * 内部方法：被动信用（socialReward.daily）累积——好友访问会客室每次 +
+   * friendSlotInc，封顶 creditPassiveLimit（领取后清零重新累积）
+   */
+  private _accumulateDailyCredit(
+    draft: WritableDraft<PlayerDataModel>,
+    room: any,
+    visitCount: number,
+  ): void {
+    if (!room || visitCount <= 0) return;
+    const perVisit = this._meetingCreditPerVisit(draft);
+    const limit = getBuildingConstant<number>("creditPassiveLimit") ?? 100;
+    room.socialReward = room.socialReward ?? { daily: 0, search: 0 };
+    room.socialReward.daily = Math.min(
+      (room.socialReward.daily ?? 0) + visitCount * perVisit,
+      limit,
+    );
+  }
+
+  /**
+   * 内部方法：主动信用（socialReward.search）累积——情报分享每个访客 +
+   * friendSlotInc，封顶 creditInitiativeLimit
+   */
+  private _accumulateSearchCredit(
+    draft: WritableDraft<PlayerDataModel>,
+    room: any,
+    visitorCount: number,
+  ): void {
+    if (!room || visitorCount <= 0) return;
+    const perVisit = this._meetingCreditPerVisit(draft);
+    const limit = getBuildingConstant<number>("creditInitiativeLimit") ?? 100;
+    room.socialReward = room.socialReward ?? { daily: 0, search: 0 };
+    room.socialReward.search = Math.min(
+      (room.socialReward.search ?? 0) + visitorCount * perVisit,
+      limit,
+    );
   }
 
   /**
@@ -244,8 +354,11 @@ export class BuildingManager {
    * 内部方法：贸易站订单补充
    *
    * 修复：服务端无订单生成逻辑——stock 由账号生成器静态填充，交付完即枯竭。
-   * 简单机制：工作时间（state=1）且 stock 不足 2 单时按 3003（贸易凭证）× 汇率
-   * 生成金币订单（结构与官服样本一致：delivery 3003 → gain GOLD）。
+   * 简单机制：工作时间（state=1）且 stock 不足 stockLimit 时按 3003（贸易凭证）
+   * × 汇率生成金币订单（结构与官服样本一致：delivery 3003 → gain GOLD）。
+   *
+   * 再修复：原实现恒补到 2 单（忽略 room.stockLimit）——贸易站升级/策略调整后
+   * 库存上限形同虚设；现按 stockLimit 补单（缺省 2，防御 0/负数）。
    *
    * @param draft - Immer 可写草稿
    */
@@ -257,7 +370,7 @@ export class BuildingManager {
       const room = draft.building.rooms.TRADING[slotId];
       if (!room || room.state !== 1) continue;
       if (!Array.isArray(room.stock)) room.stock = [];
-      const target = 2;
+      const target = Math.max(1, room.stockLimit ?? 2);
       if (room.stock.length >= target) continue;
       let maxInstId = room.stock.reduce((m, s) => Math.max(m, s?.instId ?? 0), 0);
       const missing = target - room.stock.length;
@@ -283,12 +396,23 @@ export class BuildingManager {
   async changeBGM(args: { musicId: string }) {
     const { musicId } = args;
     return await this._player.update(async (draft) => {
-      draft.building.music.selected = musicId;
+      const music = draft.building.music;
+      music.selected = musicId;
+      // 修复：inUse 未同步——客户端按 inUse 判定是否启用 BGM 播放
+      music.inUse = !!musicId;
     });
   }
 
   /**
    * 设置私人宿舍归属
+   *
+   * 修复：
+   * 1. CS 字段名为 charInsId（大 S），客户端发送 charInsId——
+   *    原实现读 charInstId → undefined 写入 owners:[null] 破坏存档；
+   * 2. 双端同步——原实现只写 room.owners：旧 owner 的 chars[].privateRooms
+   *    残留旧宿舍、新 owner 若已在其他私人宿舍则两个宿舍同时挂 owner →
+   *    客户端"干员已在其他私人宿舍"校验不一致。现同步清理旧 owner、迁移新 owner。
+   *
    * @param args - 包含 slotId 和 charInstId 的参数对象
    */
   async setPrivateDormOwner(args: {
@@ -304,6 +428,34 @@ export class BuildingManager {
     return await this._player.update(async (draft) => {
       const room = draft.building.rooms.PRIVATE[slotId];
       if (!room) return; // 防御：非法 slotId
+      // 清理旧 owner：从该宿舍 owner 位置移除，并同步其 chars[].privateRooms
+      for (const oldId of room.owners ?? []) {
+        if (oldId > 0 && oldId !== charInstId) {
+          const oldChar = draft.building.chars[String(oldId)];
+          if (oldChar) {
+            oldChar.privateRooms = (oldChar.privateRooms ?? []).filter(
+              (r) => r !== slotId,
+            );
+          }
+        }
+      }
+      // 若新 owner 此前在别的私人宿舍 → 移除旧归属（一干员一私人宿舍）
+      const newChar = draft.building.chars[String(charInstId)];
+      if (newChar) {
+        for (const otherSlotId of newChar.privateRooms ?? []) {
+          if (otherSlotId === slotId) continue;
+          const otherRoom = draft.building.rooms.PRIVATE[otherSlotId];
+          if (otherRoom) {
+            otherRoom.owners = (otherRoom.owners ?? []).filter(
+              (id) => id !== charInstId,
+            );
+          }
+        }
+        newChar.privateRooms = [
+          ...(newChar.privateRooms ?? []).filter((r) => r !== slotId),
+          slotId,
+        ];
+      }
       room.owners = [charInstId];
     });
   }
@@ -519,6 +671,13 @@ export class BuildingManager {
 
   /**
    * 建造房间（Excel 驱动——按 rooms[roomId].phases[1].buildCost 扣材料/劳动力）
+   *
+   * 修复：
+   * 1. 建造前校验资源足额——原实现直接扣减，材料/金币不足时库存扣成负数；
+   * 2. 建造后确保 rooms[roomId][slotId] 房间对象存在——原实现只改 slot，
+   *    客户端按 roomId 查房间对象为空 → 房间"看不见"；
+   * 3. 建造完成时间按 buildCost.time 推进（原实现恒 now()+1）。
+   *
    * @param args - 包含 roomSlotId 和 roomId 的参数对象
    */
   async buildRoom(args: { roomSlotId: string; roomId: string }) {
@@ -529,10 +688,24 @@ export class BuildingManager {
       // 建造 = 1 级相位 buildCost（材料/金币/劳动力）
       const phase = getRoomPhase(roomId, 1);
       if (!phase) return; // 房间类型未知——容错跳过
+      // 修复：资源足额校验——不足时拒绝建造（避免负库存/负金币）
+      if (!this._canAfford(draft, phase.buildCost)) return;
+      // 电力校验：新房间耗电（或换建时替换原房间耗电）后余额不得为负——
+      // 官方行为：电力不足无法建造/升级，需先升级发电站
+      const oldElec = slot.roomId ? getRoomElectricity(slot.roomId, slot.level ?? 1) : 0;
+      const newElec = getRoomElectricity(roomId, 1);
+      if (this._powerBalance(draft) - oldElec + newElec < 0) return;
       this._applyBuildCost(draft, phase.buildCost);
-      slot.state = 1;
+      slot.state = 1; // 建造中（completeUpgradeRoom 完成后置 2）
       slot.roomId = roomId as BuildingData_RoomType;
-      slot.completeConstructTime = now() + 1;
+      slot.level = 1;
+      const buildTime = phase.buildCost?.time ?? 0;
+      slot.completeConstructTime = now() + Math.max(1, buildTime);
+      // 修复：确保 rooms[roomId][slotId] 房间对象存在（客户端按类型查房间）
+      const roomsByType = draft.building.rooms[roomId as keyof PlayerDataModel["building"]["rooms"]];
+      if (roomsByType && !roomsByType[roomSlotId]) {
+        (roomsByType as any)[roomSlotId] = { state: 1 };
+      }
     });
     // 修复：HasRoom 任务事件从未 emit → 拥有房间类任务永不推进
     const roomCount = Object.values(
@@ -541,8 +714,48 @@ export class BuildingManager {
     await this._trigger.emit("HasRoom", [{ roomCount }]);
   }
 
+  /** 内部方法：建造/升级资源足额校验（items 含 GOLD 按 status.gold、MATERIAL 按 inventory；labor 按劳动力） */
+  private _canAfford(
+    draft: WritableDraft<PlayerDataModel>,
+    buildCost?: {
+      items?: { id: string; count: number; type: string }[];
+      time?: number;
+      labor?: number;
+    },
+  ): boolean {
+    for (const item of buildCost?.items ?? []) {
+      const have =
+        item.type === "GOLD"
+          ? draft.status.gold
+          : draft.inventory[item.id] || 0;
+      if (have < (item.count ?? 0)) return false;
+    }
+    if (buildCost?.labor) {
+      if (draft.building.status.labor.value < buildCost.labor) return false;
+    }
+    return true;
+  }
+
+  /**
+   * 内部方法：当前电力余额（发电站供给 − 全部房间消耗，按相位 electricity 求和）。
+   * POWER 房间相位为正向（+60/+130/+270 发电），其余房间为负向（-10/-30/… 消耗）。
+   * 模板存档为满配布局，余额恰为 0——新建筑/升级需先升级发电站（官方行为）。
+   */
+  private _powerBalance(draft: WritableDraft<PlayerDataModel>): number {
+    let balance = 0;
+    for (const slot of Object.values(draft.building.roomSlots)) {
+      if (!slot?.roomId) continue;
+      balance += getRoomElectricity(slot.roomId, slot.level ?? 1);
+    }
+    return balance;
+  }
+
   /**
    * 升级房间等级（Excel 驱动——按目标等级相位 buildCost 扣资源）
+   *
+   * 修复：目标等级越界（超过 phases 上限）时按最高可用等级钳制——
+   * 原实现相位不存在时静默跳过（客户端升级按钮无反馈）。
+   *
    * @param args - 包含 roomSlotId 和 targetLevel 的参数对象
    */
   async upgradeRoom(args: { roomSlotId: string; targetLevel: number }) {
@@ -550,10 +763,58 @@ export class BuildingManager {
     return await this._player.update(async (draft) => {
       const slot = draft.building.roomSlots[roomSlotId];
       if (!slot) return;
-      const phase = getRoomPhase(slot.roomId, targetLevel);
+      const maxLevel = getRoomMaxLevel(slot.roomId);
+      const target = Math.max(1, Math.min(targetLevel || 1, maxLevel || 1));
+      if (target <= (slot.level ?? 1)) return; // 无升级空间
+      const phase = getRoomPhase(slot.roomId, target);
       if (!phase) return; // 相位不存在——容错跳过
+      // 修复：升级前资源足额校验——不足时拒绝（避免负库存）
+      if (!this._canAfford(draft, phase.buildCost)) return;
+      // 电力校验：升级后耗电增量不得使余额为负（如发电站升级供给更多电力）
+      const oldElec = getRoomElectricity(slot.roomId, slot.level ?? 1);
+      const newElec = getRoomElectricity(slot.roomId, target);
+      if (this._powerBalance(draft) - oldElec + newElec < 0) return;
       this._applyBuildCost(draft, phase.buildCost);
-      slot.level = targetLevel;
+      slot.level = target;
+      slot.state = 1; // 升级中（completeUpgradeRoom 完成后置 2，客户端进度一致）
+    });
+  }
+
+  /**
+   * 完成房间建造/升级
+   *
+   * 修复：原实现只刷新 event.building——buildRoom 置 state=1（建造中）后
+   * 永远无法完成 → 客户端"建造中"房间卡死。现扫描全部槽位，将
+   * state=1 且 completeConstructTime 已到的房间置为 state=2（已完成）。
+   */
+  async completeUpgradeRoom() {
+    return await this._player.update(async (draft) => {
+      const ts = now();
+      for (const slot of Object.values(draft.building.roomSlots)) {
+        if (slot.state === 1 && slot.completeConstructTime <= ts) {
+          slot.state = 2;
+        }
+      }
+      draft.event.building = this._nextBuildingEventTs(draft);
+    });
+  }
+
+  /**
+   * 降级房间
+   *
+   * 修复：等级下界钳制（原实现可降到 0 → 客户端房间等级非法）。
+   * 简化实现：不返还建造材料。
+   *
+   * @param args - 包含 roomSlotId 的参数对象
+   */
+  async degradeRoom(args: { roomSlotId: string }) {
+    const { roomSlotId } = args;
+    return await this._player.update(async (draft) => {
+      const slot = draft.building.roomSlots[roomSlotId];
+      if (slot && slot.level > 1) {
+        slot.level -= 1;
+        slot.state = 2;
+      }
     });
   }
 
@@ -575,31 +836,6 @@ export class BuildingManager {
         0,
       );
     }
-  }
-
-  /**
-   * 完成房间升级
-   * 简化实现：将房间状态置为已完成，参考 Python 实现返回 202
-   */
-  async completeUpgradeRoom() {
-    return await this._player.update(async (draft) => {
-      draft.event.building = this._nextBuildingEventTs(draft);
-    });
-  }
-
-  /**
-   * 降级房间
-   * 简化实现：降低房间等级
-   * @param args - 包含 roomSlotId 的参数对象
-   */
-  async degradeRoom(args: { roomSlotId: string }) {
-    const { roomSlotId } = args;
-    return await this._player.update(async (draft) => {
-      const slot = draft.building.roomSlots[roomSlotId];
-      if (slot && slot.level > 1) {
-        slot.level -= 1;
-      }
-    });
   }
 
   /**
@@ -656,7 +892,8 @@ export class BuildingManager {
     charInstId?: number;
     targetSkill?: number;
   }) {
-    return await this._player.update(async (draft) => {
+    let settledLevel = 0;
+    await this._player.update(async (draft) => {
       // 客户端请求体为空（抓包 body={}）——从训练室 trainee 读取待结算对象
       let charInstId = args.charInstId;
       let targetSkill = args.targetSkill;
@@ -675,6 +912,7 @@ export class BuildingManager {
       let settled = false;
       if (char && char.skills && char.skills[targetSkill]) {
         char.skills[targetSkill].specializeLevel += 1;
+        settledLevel = char.skills[targetSkill].specializeLevel;
         char.skills[targetSkill].state = 0;
         char.skills[targetSkill].completeUpgradeTime = -1;
         settled = true;
@@ -691,6 +929,13 @@ export class BuildingManager {
         room.lastUpdateTime = now();
       }
     });
+    // 修复：UpgradeSpecialization 任务事件从未 emit（建筑训练室路径）→ 专精任务永不推进；
+    // char.ts 的"Duplicated"直改路径会发，本路径（真实训练室结算）补齐
+    if (settledLevel > 0) {
+      await this._trigger.emit("UpgradeSpecialization", [
+        { targetLevel: settledLevel },
+      ]);
+    }
   }
 
   /**
@@ -708,7 +953,8 @@ export class BuildingManager {
   /**
    * 分配干员到房间
    * 参考 Python AssignChar 实现：将干员从原房间移除并分配到目标房间
-   * 对于训练室（slot_13）会特殊处理 trainer/trainee
+   * 对于训练室会特殊处理 trainer/trainee（修复：按房间类型定位训练室——
+   * 原实现硬编码 slot_13，房间布局不同时训练室状态不同步）
    * @param args - 包含 roomSlotId 和 charInstIdList 的参数对象
    */
   async assignChar(args: { roomSlotId: string; charInstIdList: number[] }) {
@@ -729,12 +975,17 @@ export class BuildingManager {
       // 将目标房间的干员列表替换为新列表
       draft.building.roomSlots[roomSlotId].charInstIds = charInstIdList;
 
-      // 训练室特殊处理
-      if (roomSlotId === "slot_13" && charInstIdList.length >= 2) {
+      // 训练室特殊处理：按房间类型定位（不硬编码 slot_13）
+      const slot = draft.building.roomSlots[roomSlotId];
+      if (slot?.roomId === "TRAINING" && charInstIdList.length >= 2) {
         const trainer = charInstIdList[0];
         const trainee = charInstIdList[1];
         const trainingRoom = draft.building.rooms.TRAINING[roomSlotId];
         if (trainingRoom) {
+          trainingRoom.trainee = trainingRoom.trainee ?? {
+            charInstId: -1, processPoint: 0, speed: 1000, state: 0, targetSkill: -1,
+          };
+          trainingRoom.trainer = trainingRoom.trainer ?? { charInstId: -1, state: 0 };
           trainingRoom.trainee.charInstId = trainee;
           trainingRoom.trainee.targetSkill = -1;
           trainingRoom.trainee.speed = 1000;
@@ -862,18 +1113,30 @@ export class BuildingManager {
    */
   async gainIntimacy(args: { charInstId: number }) {
     const { charInstId } = args;
-    return await this._player.update(async (draft) => {
+    let gained = 0;
+    await this._player.update(async (draft) => {
       this._addFavor(draft, charInstId, this._intimacyGain);
+      gained = this._intimacyGain;
     });
+    // 修复：GainIntimacy 任务事件从未 emit → 基建信赖类任务永不推进
+    if (gained > 0) {
+      await this._trigger.emit("GainIntimacy", [{ count: gained }]);
+    }
   }
 
   /**
-   * 获得全部信赖（所有在岗干员）
+   * 获得全部信赖（所有在岗 + 助战干员）
+   *
+   * 修复：CS BuildingGainAllIntimacyResponse 含 normal/assist 计数——原实现
+   * 只结算在岗干员且 assist 恒 0；现同步结算助战列表干员并返回真实计数。
+   *
    * @param args - 请求体参数
    */
   async gainAllIntimacy(args: any): Promise<{ normal: number; assist: number }> {
     // 修复：响应需含 normal/assist 计数（CS BuildingGainAllIntimacyResponse）
     let normal = 0;
+    let assist = 0;
+    let total = 0;
     await this._player.update(async (draft) => {
       const seen = new Set<number>();
       for (const slotKey in draft.building.roomSlots) {
@@ -885,8 +1148,21 @@ export class BuildingManager {
           }
         }
       }
+      // 修复：助战干员同步结算（与 gainAssistIntimacy 同源，客户端一键领取时计数正确）
+      for (const instId of draft.building.assist ?? []) {
+        if (instId > 0 && !seen.has(instId)) {
+          seen.add(instId);
+          this._addFavor(draft, instId, this._intimacyGain);
+          assist++;
+        }
+      }
+      total = normal + assist;
     });
-    return { normal, assist: 0 };
+    // 修复：GainIntimacy 任务事件从未 emit → 一键信赖不推进任务
+    if (total > 0) {
+      await this._trigger.emit("GainIntimacy", [{ count: total }]);
+    }
+    return { normal, assist };
   }
 
   /**
@@ -894,13 +1170,19 @@ export class BuildingManager {
    * @param args - 请求体参数
    */
   async gainAssistIntimacy(args: any) {
-    return await this._player.update(async (draft) => {
+    let gained = 0;
+    await this._player.update(async (draft) => {
       for (const instId of draft.building.assist) {
         if (instId > 0) {
           this._addFavor(draft, instId, this._intimacyGain);
+          gained += this._intimacyGain;
         }
       }
     });
+    // 修复：GainIntimacy 任务事件从未 emit → 助战信赖不推进任务
+    if (gained > 0) {
+      await this._trigger.emit("GainIntimacy", [{ count: gained }]);
+    }
   }
 
   /**
@@ -972,30 +1254,26 @@ export class BuildingManager {
   }
 
   /**
-   * 加速方案（制造站——立即完成当前生产方案并扣除加速费用）
-   * 修复：原实现委托 settleSale 查 TRADING 房间，而客户端传的是制造站 slotId
-   * （抓包 {"slotId":"slot_15","cost":145}）→ 空 delta。改为扣 diamondShard
-   * 费用 + 立即产出当前方案 1 个（受剩余目标限制）。
-   * @param args - 包含 slotId（制造站槽位）和 cost（加速费用）的参数对象
+   * 加速方案（制造站——立即完成当前生产方案 1 个）
+   *
+   * 修复（2026-08-14）：
+   * 1. 原实现委托 settleSale 查 TRADING 房间，而客户端传的是制造站 slotId
+   *    （抓包 {"slotId":"slot_15","cost":145}）→ 空 delta；改为按制造站槽位
+   *    立即产出当前方案 1 个（受剩余目标限制）；
+   * 2. 移除源石碎片（diamondShard）扣费——请求体 cost 为客户端本地消耗的
+   *    「加速无人机」数量（客户端存档无服务端无人机计数字段），且设计文档明确
+   *    「加速不消耗道具（私服友好）」；原实现把无人机数当源石碎片扣 → 玩家
+   *    源石碎片被无故消耗（与 accelerateOrder 免费行为不一致，疑似 bug）。
+   *
+   * @param args - 包含 slotId（制造站槽位）和 cost（客户端无人机数，服务端不消耗）的参数对象
    */
   async accelerateSolution(args: { slotId: string; cost?: number }) {
     await this._player.update(async (draft) => {
       const room = draft.building.rooms.MANUFACTURE[args.slotId];
-      // 无可加速方案（房间不存在/未开工/无配方）——不扣费不 500
+      // 无可加速方案（房间不存在/未开工/无配方）——不 500
       if (!room || !room.formulaId || room.state !== 1) return;
       const formula = getManufactFormula(String(room.formulaId));
       if (!formula) return;
-      const costPoint = formula.costPoint ?? 0;
-      if (costPoint <= 0) return;
-      const cost = args.cost ?? 0;
-      // 修复：负数 cost → diamondShard 反向入账（免费刷源石碎片）；非法/超额拒绝
-      if (typeof cost !== "number" || !Number.isInteger(cost) || cost <= 0) {
-        return;
-      }
-      if ((draft.status.diamondShard ?? 0) < cost) {
-        return; // 余额不足不加速
-      }
-      draft.status.diamondShard -= cost;
       // 立即完成当前生产方案：产出 1 个方案
       if ((room.remainSolutionCnt ?? 0) > 0) room.remainSolutionCnt -= 1;
       room.outputSolutionCnt = (room.outputSolutionCnt ?? 0) + 1;
@@ -1145,32 +1423,41 @@ export class BuildingManager {
     // 修复：官方字段为 roomSlotIdList（数组），原实现读取单值 roomSlotId →
     // 客户端请求解构不到 → 空 delta → 客户端"无法更新制造站状态"
     const list = args.roomSlotIdList ?? [];
+    let producedTotal = 0;
     await this._player.update(async (draft) => {
       for (const roomSlotId of list) {
         // 先推进时间累积的产出再结算
         this._accrueManufacture(draft, roomSlotId);
+        const room = draft.building.rooms.MANUFACTURE[roomSlotId];
+        producedTotal += room?.outputSolutionCnt ?? 0;
         await this._settleManufactureInternal(draft, roomSlotId);
         // 收获后状态（防御：非法 roomSlotId 直接跳过不 500）
-        const room = draft.building.rooms.MANUFACTURE[roomSlotId];
-        if (!room) continue;
-        if ((room.remainSolutionCnt ?? 0) > 0) {
+        const roomAfter = draft.building.rooms.MANUFACTURE[roomSlotId];
+        if (!roomAfter) continue;
+        if ((roomAfter.remainSolutionCnt ?? 0) > 0) {
           // 修复：计划未耗尽时保留配方继续生产（原实现清空 state/formulaId →
           // 客户端"会清空当前计划"）；仅重置已收获的产出与进度
-          room.outputSolutionCnt = 0;
-          room.processPoint = 0;
-          room.lastUpdateTime = now();
+          roomAfter.outputSolutionCnt = 0;
+          roomAfter.processPoint = 0;
+          roomAfter.lastUpdateTime = now();
         } else {
           // 计划耗尽：停止生产并清空
-          room.state = 0;
-          room.formulaId = "";
-          room.lastUpdateTime = now();
-          room.completeWorkTime = -1;
-          room.remainSolutionCnt = 0;
-          room.outputSolutionCnt = 0;
-          room.processPoint = 0;
+          roomAfter.state = 0;
+          roomAfter.formulaId = "";
+          roomAfter.lastUpdateTime = now();
+          roomAfter.completeWorkTime = -1;
+          roomAfter.remainSolutionCnt = 0;
+          roomAfter.outputSolutionCnt = 0;
+          roomAfter.processPoint = 0;
         }
       }
     });
+    // 修复：BuildingManufactureProductTimes 勋章事件从未 emit → 制造勋章永不推进
+    if (producedTotal > 0) {
+      await this._trigger.emit("BuildingManufactureProductTimes", [
+        { count: producedTotal },
+      ]);
+    }
     // 返回结算的房间数（CS BuildingSettleManufactResponse.supplement）
     return list.length;
   }
@@ -1250,17 +1537,28 @@ export class BuildingManager {
   /**
    * 贸易站结算
    * 结算全部库存订单：扣贸易凭证 3003，按 count×500 兑换金币
-   * @param args - 包含 slotId 的参数对象
+   *
+   * 修复：CS BuildingSettleSaleRequest 字段为 roomSlotIdList（数组）——
+   * 原实现读单值 slotId → 客户端请求解构不到 → 空 delta；现兼容两种形态。
+   *
+   * @param args - 包含 slotId（或 roomSlotIdList）的参数对象
    */
-  async settleSale(args: { slotId: string }) {
-    const { slotId } = args;
+  async settleSale(args: { slotId?: string; roomSlotIdList?: string[] }) {
+    const list = args.roomSlotIdList?.length
+      ? args.roomSlotIdList
+      : args.slotId
+        ? [args.slotId]
+        : [];
     return await this._player.update(async (draft) => {
-      const room = draft.building.rooms.TRADING[slotId];
-      if (room && Array.isArray(room.stock)) {
-        for (const item of room.stock) {
-          this._settleOrderInternal(draft, item);
+      for (const slotId of list) {
+        const room = draft.building.rooms.TRADING[slotId];
+        if (room && Array.isArray(room.stock)) {
+          for (const item of room.stock) {
+            this._settleOrderInternal(draft, item);
+          }
+          room.stock = [];
+          room.lastUpdateTime = now();
         }
-        room.stock = [];
       }
     });
   }
@@ -1299,25 +1597,41 @@ export class BuildingManager {
 
   /**
    * 更换贸易方案
-   * @param args - 包含 slotId 和 solution（strategy/stockLimit）的参数对象
+   *
+   * 修复：CS BuildingChangeShopRequest 字段为 roomSlotId/stockIndex/
+   * targetFormulaId/solutionCount——原实现读 slotId/solution（客户端不发）
+   * → 空 delta；现兼容两种形态：targetFormulaId→strategy（订单类型）、
+   * solutionCount→stockLimit（库存上限）。
+   *
+   * @param args - 包含 slotId（或 roomSlotId）+ strategy/stockLimit（或 CS 字段）的参数对象
    */
   async changeSaleSolution(args: {
-    slotId: string;
-    solution: { strategy: string; stockLimit: number };
+    slotId?: string;
+    roomSlotId?: string;
+    targetFormulaId?: string;
+    solutionCount?: number;
+    solution?: { strategy: string; stockLimit: number };
   }) {
-    const { slotId, solution } = args;
+    const slotId = args.slotId ?? args.roomSlotId;
+    const strategy = args.solution?.strategy ?? args.targetFormulaId;
+    const stockLimit = args.solution?.stockLimit ?? args.solutionCount;
+    if (!slotId) return;
     return await this._player.update(async (draft) => {
       const room = draft.building.rooms.TRADING[slotId];
       if (room) {
-        if (solution.strategy) room.strategy = solution.strategy as BuildingData_OrderType;
-        if (solution.stockLimit != null) room.stockLimit = solution.stockLimit;
+        if (strategy) room.strategy = strategy as BuildingData_OrderType;
+        if (stockLimit != null) room.stockLimit = stockLimit;
       }
     });
   }
 
   /**
    * 更换自定义方案
-   * 参考实现：根据 roomSlotId 找到对应房间类型，更新其 diySolution 字段
+   *
+   * 修复：舒适度由服务端按方案内家具 Excel 数据计算（BuildingData.customData
+   * .furnitures[].comfort 求和）——原实现读 room.comfort 静态值，客户端摆放
+   * 新家具后氛围不变（宿舍恢复/心情档位不受 DIY 影响）。
+   *
    * @param args - 包含 roomSlotId 和 solution 的参数对象
    */
   async changeDiySolution(args: { roomSlotId: string; solution: any }) {
@@ -1336,7 +1650,24 @@ export class BuildingManager {
         const room = draft.building.rooms[roomType];
         if (room && room[roomSlotId]) {
           (room[roomSlotId] as any).diySolution = solution;
-          comfort = (room[roomSlotId] as any)?.comfort ?? 0;
+          // 修复：舒适度服务端计算——墙纸/地板/地毯/其他家具 comfort 求和
+          const sol = solution as {
+            wallPaper?: string;
+            floor?: string;
+            carpet?: { id: string }[];
+            other?: { id: string }[];
+          };
+          const ids = [
+            sol?.wallPaper,
+            sol?.floor,
+            ...(sol?.carpet ?? []).map((f) => f?.id),
+            ...(sol?.other ?? []).map((f) => f?.id),
+          ].filter((id): id is string => !!id);
+          comfort = ids.reduce((sum, id) => {
+            const info = getFurnitureInfo(id);
+            return sum + (info?.comfort ?? 0);
+          }, 0);
+          (room[roomSlotId] as any).comfort = comfort;
         }
       }
     });
@@ -1348,8 +1679,17 @@ export class BuildingManager {
 
   /**
    * 加工站合成（Excel 驱动——查 workshopFormulas）
-   * 消耗 costs（MATERIAL 扣 inventory / GOLD 扣金币）+ goldCost，产出 itemId×count×times，
-   * extraOutcomeRate 概率触发 extraOutcomeGroup 加权副产物。
+   * 消耗 costs（MATERIAL 扣 inventory / GOLD 扣金币）+ goldCost + 干员心情（apCost），
+   * 产出 itemId×count×times；extraOutcomeRate 概率触发 extraOutcomeGroup 加权副产物。
+   *
+   * 修复（2026-08-14 经济系统补全）：
+   * 1. 干员心情消耗——公式 apCost 为每次合成的心情成本（1 心情点 = manpowerDisplayFactor
+   *    =360000 raw AP；模板公式 1 apCost=360000 = 1 点/次），从进驻加工站干员的
+   *    building.chars[].ap 扣减，心情不足时按可承担次数合成；
+   * 2. 工坊 bonus（ws_bonus）——进驻干员技能（如夜半「因果/业报」：累积 N 点必定产出
+   *    一次副产品）：status.workshop.bonus[bonusId]=[curPoint,totalPoint] 逐次合成推进，
+   *    满格后 bonusActive=1，下一次合成必定触发副产物并重置计数。
+   *
    * @param args - 包含 roomSlotId、times、formulaId（客户端传，缺失时回退房间 formulaId）的参数对象
    * @returns 合成结果对象（包含 type/id/count）
    */
@@ -1364,11 +1704,13 @@ export class BuildingManager {
       return null;
     }
     let resultItem: { type: string; id: string; count: number } | null = null;
+    let synGroup: string | undefined;
     await this._player.update(async (draft) => {
       const roomFormulaId =
         formulaId ?? (draft.building.rooms.MANUFACTURE as any)[roomSlotId]?.formulaId;
       const formula = getWorkshopFormula(roomFormulaId);
       if (!formula) return; // 配方不存在（数据版本错位/制造配方 ID）——容错跳过
+      synGroup = formula.formulaType as string | undefined;
 
       // 修复：余额校验——材料/金币不足时按可承担次数合成，避免负库存/负金币
       const totalGoldCost = (formula.goldCost ?? 0) * times;
@@ -1387,8 +1729,16 @@ export class BuildingManager {
       if (totalGoldCost > 0 && draft.status.gold < totalGoldCost) {
         affordable = Math.min(affordable, Math.floor(draft.status.gold / (formula.goldCost ?? 1)));
       }
+      // 干员心情（体力）余额：apCost 为每次合成的心情成本（raw AP），不足时按可承担次数
+      const workshopChar = this._workshopChar(draft);
+      const apCostPer = formula.apCost ?? 0;
+      if (workshopChar && apCostPer > 0) {
+        const charAp = workshopChar.ap ?? 0;
+        affordable = Math.min(affordable, Math.floor(charAp / apCostPer));
+      }
       if (affordable <= 0) return;
       const times2 = affordable;
+
       // 消耗：costs（MATERIAL 扣 inventory / GOLD 扣金币）
       for (const cost of formula.costs ?? []) {
         if (cost.type === "GOLD") {
@@ -1402,33 +1752,78 @@ export class BuildingManager {
       if (formula.goldCost) {
         draft.status.gold -= formula.goldCost * times2;
       }
-      // 产出
+      // 消耗：干员心情（按实际合成次数）
+      if (workshopChar && apCostPer > 0) {
+        workshopChar.ap = Math.max(0, (workshopChar.ap ?? 0) - apCostPer * times2);
+      }
+      // 产出（主产物）
       draft.inventory[formula.itemId] =
         (draft.inventory[formula.itemId] || 0) + (formula.count ?? 1) * times2;
-      // 副产物（extraOutcomeRate 概率 + extraOutcomeGroup 加权随机）
-      if (
-        formula.extraOutcomeRate &&
-        formula.extraOutcomeGroup?.length &&
-        Math.random() < formula.extraOutcomeRate
-      ) {
-        const pool = formula.extraOutcomeGroup as {
-          weight?: number;
-          itemId: string;
-          itemCount: number;
-        }[];
-        const total = pool.reduce((s, g) => s + (g.weight ?? 1), 0);
-        let roll = Math.random() * total;
-        for (const g of pool) {
-          roll -= g.weight ?? 1;
-          if (roll <= 0) {
-            draft.inventory[g.itemId] =
-              (draft.inventory[g.itemId] || 0) + (g.itemCount ?? 1) * times2;
-            // 修复：WorkshopExBonus 任务事件从未 emit → 工坊副产物任务永不推进
-            await this._trigger.emit("WorkshopExBonus", []);
-            break;
+
+      // 工坊 bonus（ws_bonus）：进驻干员技能累积"因果/业报"点数 → 必定副产物
+      const ws = (draft.building.status.workshop ??= {
+        bonusActive: 0,
+        bonus: {},
+      });
+      const wsBonusIds = this._workshopBonusIds(draft, workshopChar);
+      const formulaType = formula.formulaType as string | undefined;
+
+      // 副产物：逐次合成处理 ws_bonus 累计/触发 + 概率副产物
+      for (let i = 0; i < times2; i++) {
+        const charged = ws.bonusActive === 1;
+        let guaranteed = false;
+        for (const bonusId of wsBonusIds) {
+          if (formulaType && !this._wsBonusMatches(bonusId, formulaType)) continue;
+          const entry = ws.bonus[bonusId] ?? (ws.bonus[bonusId] = [0, this._wsBonusThreshold(bonusId)]);
+          const total = Math.max(1, entry[1] ?? 1);
+          const cur = entry[0] ?? 0;
+          if (charged) {
+            // 蓄力状态：本次合成必定出副产物；首个满格 bonus 重置计数
+            if (!guaranteed) {
+              guaranteed = true;
+              ws.bonus[bonusId] = [0, total];
+            } else {
+              ws.bonus[bonusId] = [cur + 1 >= total ? total : cur + 1, total];
+            }
+            ws.bonusActive = 0;
+          } else {
+            const next = cur + 1;
+            if (next >= total) {
+              // 满格蓄力：下一次合成必定副产物
+              ws.bonus[bonusId] = [total, total];
+              ws.bonusActive = 1;
+            } else {
+              ws.bonus[bonusId] = [next, total];
+            }
+          }
+        }
+        // 副产物（概率 or 蓄力必定）
+        if (formula.extraOutcomeGroup?.length) {
+          const shouldRoll =
+            guaranteed ||
+            (!!formula.extraOutcomeRate && Math.random() < formula.extraOutcomeRate);
+          if (shouldRoll) {
+            const pool = formula.extraOutcomeGroup as {
+              weight?: number;
+              itemId: string;
+              itemCount: number;
+            }[];
+            const total = pool.reduce((s, g) => s + (g.weight ?? 1), 0);
+            let roll = Math.random() * total;
+            for (const g of pool) {
+              roll -= g.weight ?? 1;
+              if (roll <= 0) {
+                draft.inventory[g.itemId] =
+                  (draft.inventory[g.itemId] || 0) + (g.itemCount ?? 1);
+                // 修复：WorkshopExBonus 任务事件从未 emit → 工坊副产物任务永不推进
+                await this._trigger.emit("WorkshopExBonus", []);
+                break;
+              }
+            }
           }
         }
       }
+
       resultItem = {
         type: "MATERIAL",
         id: formula.itemId,
@@ -1441,21 +1836,85 @@ export class BuildingManager {
         },
       ]);
     });
+    // 修复：BuildingWorkshopSynthesisGroupByID 勋章事件从未 emit →
+    // 工坊合成组勋章（F_EVOLVE 等）永不推进
+    if (synGroup) {
+      await this._trigger.emit("BuildingWorkshopSynthesisGroupByID", [
+        { groupId: synGroup },
+      ]);
+    }
     return resultItem;
+  }
+
+  /** 内部方法：加工站进驻干员（首个有效干员；未进驻返回 null） */
+  private _workshopChar(
+    draft: WritableDraft<PlayerDataModel>,
+  ): { ap?: number; charId: string } | null {
+    for (const slot of Object.values(draft.building.roomSlots)) {
+      if (slot?.roomId !== "WORKSHOP") continue;
+      for (const instId of slot.charInstIds ?? []) {
+        if (instId > 0) {
+          const ch = draft.building.chars?.[String(instId)];
+          if (ch?.charId) return ch as { ap?: number; charId: string };
+        }
+      }
+    }
+    return null;
+  }
+
+  /** 内部方法：进驻干员的工坊 bonus 列表（BuildingData.workshopBonus[charId]） */
+  private _workshopBonusIds(
+    draft: WritableDraft<PlayerDataModel>,
+    workshopChar: { charId: string } | null,
+  ): string[] {
+    if (!workshopChar?.charId) return [];
+    return (excel as any).BuildingData?.workshopBonus?.[workshopChar.charId] ?? [];
+  }
+
+  /** 内部方法：ws_bonus 阈值（存档条目缺失时按 id 解析：ws_bonus1_40 → 40） */
+  private _wsBonusThreshold(bonusId: string): number {
+    const m = /^ws_bonus\d+_(\d+)$/.exec(bonusId);
+    return m ? parseInt(m[1], 10) : 16;
+  }
+
+  /** 内部方法：ws_bonus 是否匹配配方类型（对齐 buff targets，如 F_BUILDING/F_EVOLVE…） */
+  private _wsBonusMatches(bonusId: string, formulaType: string): boolean {
+    const tier = /^ws_bonus(\d+)_/.exec(bonusId)?.[1];
+    if (!tier) return true;
+    const buff = (excel as any).BuildingData?.buffs?.[`workshop_formula_bonus${tier}[000]`];
+    const targets = buff?.targets;
+    if (!Array.isArray(targets) || targets.length === 0) return true;
+    return targets.includes(formulaType);
   }
 
   /**
    * 加工站分解
    * 分解家具为木材（30012），私服简化固定产出
-   * @param args - 包含 furnitureId 和 count 的参数对象
+   *
+   * 修复：CS BuildingWorkshopDecompositionRequest 字段为 furniId/times——
+   * 原实现读 furnitureId/count（客户端不发）→ 空 delta；现兼容两种形态。
+   *
+   * @param args - 包含 furnitureId（或 furniId）和 count（或 times）的参数对象
    */
-  async workshopDecomposition(args: { furnitureId: string; count: number }) {
-    const { furnitureId, count } = args;
+  async workshopDecomposition(args: {
+    furnitureId?: string;
+    furniId?: string;
+    count?: number;
+    times?: number;
+  }) {
+    const furnitureId = args.furnitureId ?? args.furniId;
+    const count = args.count ?? args.times;
+    if (!furnitureId || typeof count !== "number" || count <= 0) return;
     return await this._player.update(async (draft) => {
       const furn = draft.building.furniture[furnitureId];
       if (!furn || furn.count < count) return;
       furn.count -= count;
-      draft.inventory["30012"] = (draft.inventory["30012"] || 0) + count * 2;
+      // 修复：分解产物按家具 Excel 配置（processedProductId/processedProductCount）——
+      // 原实现恒产木材 30012×2，稀有家具分解产物错误
+      const info = getFurnitureInfo(furnitureId);
+      const productId = info?.processedProductId ?? "30012";
+      const productCount = (info?.processedProductCount ?? 2) * count;
+      draft.inventory[productId] = (draft.inventory[productId] || 0) + productCount;
     });
   }
 
@@ -1510,10 +1969,16 @@ export class BuildingManager {
 
   /**
    * 发送线索（ownStock → receiveStock，私服简化在同一玩家库存间流转）
-   * @param args - 包含 id 和 friendId 的参数对象
+   *
+   * 修复：CS BuildingMeetingClueSendClueRequest 字段为 clueId/friendId——
+   * 原实现读 id（客户端发 clueId）→ 空 delta；现兼容两种形态。
+   *
+   * @param args - 包含 id（或 clueId）和 friendId 的参数对象
    */
-  async sendClue(args: { id: string; friendId: string }) {
-    const { id, friendId } = args;
+  async sendClue(args: { id?: string; clueId?: string; friendId: string }) {
+    const id = args.id ?? args.clueId;
+    const { friendId } = args;
+    if (!id) return;
     let sent = false;
     await this._player.update(async (draft) => {
       const room = Object.values(draft.building.rooms.MEETING)[0];
@@ -1524,10 +1989,8 @@ export class BuildingManager {
       clue.uid = String(friendId);
       room.receiveStock.push(clue);
       sent = true;
-      // 推送：线索已处理且无待处理线索 → 清除会客室红点
-      if (room.ownStock.length === 0 && room.receiveStock.length === 0) {
-        draft.pushFlags.hasClues = 0;
-      }
+      // 推送：同步会客室红点（存在未上板线索 → 1）
+      this._refreshClueFlag(draft, room);
     });
     // 修复：SendClue 任务事件从未 emit → 发送线索类任务永不推进
     if (sent) {
@@ -1545,43 +2008,70 @@ export class BuildingManager {
       if (!room || room.ownStock.length === 0) return;
       const clue = room.ownStock.shift()!;
       room.receiveStock.push(clue);
+      // 修复：自动发送后同步红点（与 sendClue 一致）
+      this._refreshClueFlag(draft, room);
     });
   }
 
   /**
    * 接收线索到库存（receiveStock → ownStock）
-   * @param args - 包含 id 的参数对象
+   *
+   * 修复：CS BuildingMeetingClueReceiveClueToStockRequest 字段为 clues（列表）——
+   * 原实现读 id（客户端发 clues）→ 空 delta；现兼容两种形态。
+   *
+   * @param args - 包含 id（或 clues 列表）的参数对象
    */
-  async receiveClueToStock(args: { id: string }) {
-    const { id } = args;
+  async receiveClueToStock(args: { id?: string; clues?: string[] }) {
+    const ids = args.clues?.length ? args.clues : args.id ? [args.id] : [];
+    if (ids.length === 0) return;
     return await this._player.update(async (draft) => {
       const room = Object.values(draft.building.rooms.MEETING)[0];
       if (!room) return;
-      const idx = room.receiveStock.findIndex((c) => c.id === id);
-      if (idx === -1) return;
-      const clue = room.receiveStock.splice(idx, 1)[0];
-      room.ownStock.push(clue);
+      for (const id of ids) {
+        const idx = room.receiveStock.findIndex((c) => c.id === id);
+        if (idx === -1) continue;
+        const clue = room.receiveStock.splice(idx, 1)[0];
+        room.ownStock.push(clue);
+      }
+      this._refreshClueFlag(draft, room);
     });
   }
 
   /**
    * 放置线索到留言板
-   * @param args - 包含 id 的参数对象
+   *
+   * 修复（2026-08-14，官方存档格式校准）：
+   * 1. CS BuildingMeetingCluePutClueToTheBoardRequest 字段为 clueId——
+   *    原实现读 id（客户端发 clueId）→ 空 delta；现兼容两种形态；
+   * 2. **官方 board 格式为 {[阵营type]: clueId}**（key=阵营、value=线索 id，
+   *    见真实存档 2222：{"RHINE":"100566259#3490#...",...}）——原实现写成
+   *    {[clueId]: clueId}，客户端按阵营槽位读板 → 上板线索不可见；
+   * 3. **线索保留在 ownStock 中，以 inUse=1 标记上板**（官方存档中板线索
+   *    仍在库存）——原实现 splice 移除，取下时线索数据丢失。
+   *
+   * @param args - 包含 id（或 clueId）的参数对象
    */
-  async putClueToTheBoard(args: { id: string }) {
-    const { id } = args;
+  async putClueToTheBoard(args: { id?: string; clueId?: string }) {
+    const id = args.id ?? args.clueId;
+    if (!id) return;
     return await this._player.update(async (draft) => {
       const room = Object.values(draft.building.rooms.MEETING)[0];
       if (!room) return;
       const idx = room.ownStock.findIndex((c) => c.id === id);
       if (idx === -1) return;
-      const clue = room.ownStock.splice(idx, 1)[0];
-      room.board[id] = id;
+      const clue = room.ownStock[idx];
+      // 官方模型：board = {[阵营type]: clueId}；线索保留库存，inUse=1 标记上板
+      room.board[clue.type] = clue.id;
+      clue.inUse = 1;
+      this._refreshClueFlag(draft, room);
     });
   }
 
   /**
    * 自动放置线索到留言板（放置全部可放线索）
+   *
+   * 修复：同 putClueToTheBoard——board 按阵营索引、线索保留在 ownStock（inUse=1）。
+   *
    * @param args - 请求体参数
    */
   async putClueToTheBoardAuto(args: any) {
@@ -1589,36 +2079,110 @@ export class BuildingManager {
       const room = Object.values(draft.building.rooms.MEETING)[0];
       if (!room) return;
       for (const clue of room.ownStock) {
-        room.board[clue.id] = clue.id;
+        room.board[clue.type] = clue.id;
+        clue.inUse = 1;
       }
-      room.ownStock = [];
+      this._refreshClueFlag(draft, room);
+    });
+  }
+
+  /**
+   * 从留言板取回线索（CS BuildingMeetingClueTakeClueFromBoardRequest { type }，
+   * 客户端 UnequipClue 调用——按阵营取下该槽位线索回库存）
+   *
+   * 新增（2026-08-14 协议审计补齐）：此前无此端点，上板线索无法取下。
+   * 官方模型：board[type] = clueId，线索在库存中以 inUse=1 标记——取回即
+   * 删除 board 条目并复位 inUse=0。
+   *
+   * @param args - 包含 type（阵营，如 RHINE）的参数对象
+   */
+  async takeClueFromBoard(args: { type?: string }) {
+    const type = args?.type;
+    if (!type) return;
+    return await this._player.update(async (draft) => {
+      const room = Object.values(draft.building.rooms.MEETING)[0];
+      if (!room?.board) return;
+      const clueId = room.board[type];
+      if (!clueId) return;
+      delete room.board[type];
+      // 线索在库存中（inUse=1）→ 复位为未上板
+      const clue = [...(room.ownStock ?? []), ...(room.receiveStock ?? [])].find(
+        (c) => c.id === clueId,
+      );
+      if (clue) clue.inUse = 0;
+      this._refreshClueFlag(draft, room);
     });
   }
 
   /**
    * 删除自己持有的线索
-   * @param args - 包含 id 的参数对象
+   *
+   * 修复：CS BuildingMeetingClueDeleteOwnClueRequest 字段为 clueId——
+   * 原实现读 id（客户端发 clueId）→ 空 delta；现兼容两种形态；
+   * 同时清理指向该线索的留言板条目（上板线索被删除时不留孤儿索引）。
+   *
+   * @param args - 包含 id（或 clueId）的参数对象
    */
-  async deleteOwnClue(args: { id: string }) {
-    const { id } = args;
+  async deleteOwnClue(args: { id?: string; clueId?: string }) {
+    const id = args.id ?? args.clueId;
+    if (!id) return;
     return await this._player.update(async (draft) => {
       const room = Object.values(draft.building.rooms.MEETING)[0];
       if (!room) return;
       room.ownStock = room.ownStock.filter((c) => c.id !== id);
+      this._clearBoardEntry(draft, room, id);
+      this._refreshClueFlag(draft, room);
     });
   }
 
   /**
    * 删除接收到的线索
-   * @param args - 包含 id 的参数对象
+   *
+   * 修复：CS BuildingMeetingClueDeleteReceiveClueRequest 字段为 clueId——
+   * 原实现读 id（客户端发 clueId）→ 空 delta；现兼容两种形态；
+   * 同时清理指向该线索的留言板条目。
+   *
+   * @param args - 包含 id（或 clueId）的参数对象
    */
-  async deleteReceiveClue(args: { id: string }) {
-    const { id } = args;
+  async deleteReceiveClue(args: { id?: string; clueId?: string }) {
+    const id = args.id ?? args.clueId;
+    if (!id) return;
     return await this._player.update(async (draft) => {
       const room = Object.values(draft.building.rooms.MEETING)[0];
       if (!room) return;
       room.receiveStock = room.receiveStock.filter((c) => c.id !== id);
+      this._clearBoardEntry(draft, room, id);
+      this._refreshClueFlag(draft, room);
     });
+  }
+
+  /**
+   * 内部方法：清理留言板中指向指定线索 id 的条目（board = {[type]: clueId}）
+   */
+  private _clearBoardEntry(
+    draft: WritableDraft<PlayerDataModel>,
+    room: any,
+    clueId: string,
+  ): void {
+    if (!room?.board) return;
+    for (const [type, id] of Object.entries(room.board)) {
+      if (id === clueId) delete room.board[type];
+    }
+  }
+
+  /**
+   * 内部方法：刷新会客室红点（hasClues）——存在未上板（inUse=0）的线索 → 1
+   * 官方模型：上板线索保留在库存（inUse=1），不计入"待处理"红点
+   */
+  private _refreshClueFlag(
+    draft: WritableDraft<PlayerDataModel>,
+    room: any,
+  ): void {
+    const pending = [
+      ...(room?.ownStock ?? []),
+      ...(room?.receiveStock ?? []),
+    ].some((c) => (c?.inUse ?? 0) === 0);
+    (draft.pushFlags ??= {} as any).hasClues = pending ? 1 : 0;
   }
 
   /**
@@ -1682,20 +2246,13 @@ export class BuildingManager {
    * MEETING 房间完整状态（含 infoShare/socialPoint 信用发放）；不推进则同一批访客
    * 每次都被视为"新访客" → 重复计信用 → 无限重复获取。
    *
+   * 信用经济（2026-08-14 补全）：主动信用（socialReward.search）按本次有效访客数 ×
+   * friendSlotInc 累积（封顶 creditInitiativeLimit=100，领取后清零重新累积）——
+   * 原实现只推进会话从不计信用，模板 search=40 领一次后信用经济枯竭。
+   *
    * @returns 访客列表
    */
   async getInfoShareReward() {
-    // 会客室干员体力（AP）随时间累积（changeScale>0 恢复；上限 8640000）+ 会话推进
-    await this._player.update(async (draft) => {
-      this._accrueCharAp(draft);
-      const room = Object.values(draft.building.rooms.MEETING)[0];
-      if (room) {
-        // 惰性初始化 infoShare（旧存档缺失）；ts 推进（会话划分）+ reward 待领取指示
-        const is = (room.infoShare ??= { ts: 0, reward: 0 });
-        is.ts = now();
-        is.reward = this._infoShareReward(room.socialReward);
-      }
-    });
     const uid = String(this._player._playerdata.status.uid);
     const social = await accountManager.getSocial(uid);
     const list = await Promise.all(
@@ -1723,7 +2280,22 @@ export class BuildingManager {
         }
       }),
     );
-    return { list: list.filter((x): x is NonNullable<typeof x> => x !== null) };
+    const validList = list.filter((x): x is NonNullable<typeof x> => x !== null);
+    // 会客室干员体力（AP）随时间累积（changeScale>0 恢复；上限 8640000）+ 会话推进
+    // + 主动信用累积（按有效访客数封顶）
+    await this._player.update(async (draft) => {
+      this._accrueCharAp(draft);
+      const room = Object.values(draft.building.rooms.MEETING)[0];
+      if (room) {
+        // 惰性初始化 infoShare（旧存档缺失）；ts 推进（会话划分）+ reward 待领取指示
+        const is = (room.infoShare ??= { ts: 0, reward: 0 });
+        is.ts = now();
+        // 修复：主动信用（search）按访客累积（封顶 creditInitiativeLimit）
+        this._accumulateSearchCredit(draft, room, validList.length);
+        is.reward = this._infoShareReward(room.socialReward);
+      }
+    });
+    return { list: validList };
   }
 
   /**
@@ -1932,19 +2504,21 @@ export class BuildingManager {
 
   /**
    * 修改预设名称（私服扩展：名称存 building.presetQueues 元数据，官方线格式无名称）
-   * @param args - 包含 slotId/roomSlotId 和 presetName 的参数对象
+   * @param args - 包含 slotId/roomSlotId 和 presetName（或 name）的参数对象
    */
   async changePresetName(args: {
     slotId?: string;
     roomSlotId?: string;
-    presetName: string;
+    presetName?: string;
+    name?: string;
   }) {
     const slotId = args.slotId ?? args.roomSlotId;
+    const presetName = args.presetName ?? args.name;
     if (!slotId) return;
     return await this._player.update(async (draft) => {
       const queues = this._presetQueues(draft);
       const meta = (queues[slotId] ??= {});
-      meta.name = args.presetName ?? "";
+      meta.name = presetName ?? "";
     });
   }
 
@@ -2111,38 +2685,156 @@ export class BuildingManager {
 
   /**
    * 获取信息共享访客数
-   * 参考实现：返回 0 个访客
+   *
+   * 修复：原实现恒返回 0——客户端会客室"可访问人数"徽标恒空；
+   * 现按好友数返回（私服访客 = 好友列表，与 getInfoShareReward 同源）。
+   *
    * @returns 包含 num 字段的对象
    */
   async getInfoShareVisitorsNum() {
-    return { num: 0 };
+    const uid = String(this._player._playerdata.status.uid);
+    let num = 0;
+    try {
+      const social = await accountManager.getSocial(uid);
+      num = social.friends.length;
+    } catch (e) {
+      logger.warn(
+        "building",
+        `getInfoShareVisitorsNum 好友数据加载失败: ${(e as Error).message}`,
+      );
+    }
+    return { num };
   }
 
   /**
    * 获取最近访客
-   * 参考实现：返回空访客列表
+   *
+   * 修复：原实现恒空——客户端"最近来访"列表空白；私服访客 = 好友列表
+   * （无真实访问记录，ts 用注册时间），结构对齐 CS RecentVisitor。
+   *
    * @returns 包含 visitors 字段的对象
    */
-  async getRecentVisitors() {
-    return { visitors: [] };
+  async getRecentVisitors(): Promise<{
+    visitors: {
+      uid: string;
+      nickName: string;
+      nickNumber: string;
+      secretary: string;
+      secretarySkinId: string;
+      level: number;
+      ts: number;
+    }[];
+  }> {
+    const uid = String(this._player._playerdata.status.uid);
+    let visitors: {
+      uid: string;
+      nickName: string;
+      nickNumber: string;
+      secretary: string;
+      secretarySkinId: string;
+      level: number;
+      ts: number;
+    }[] = [];
+    try {
+      const social = await accountManager.getSocial(uid);
+      visitors = (
+        await Promise.all(
+          social.friends.map(async (f) => {
+            try {
+              const info = await accountManager.getPlayerFriendInfo(f.uid);
+              return {
+                uid: f.uid,
+                nickName: info.nickName,
+                nickNumber: info.nickNumber,
+                secretary: info.secretary ?? "",
+                secretarySkinId: info.secretarySkinId ?? "",
+                level: info.level,
+                ts: info.registerTs ?? 0,
+              };
+            } catch (err) {
+              logger.warn(
+                "building",
+                `getRecentVisitors 好友 ${f.uid} 数据加载失败: ${(err as Error).message}`,
+              );
+              return null;
+            }
+          }),
+        )
+      ).filter((v): v is NonNullable<typeof v> => v !== null);
+    } catch (e) {
+      logger.warn(
+        "building",
+        `getRecentVisitors 好友列表加载失败: ${(e as Error).message}`,
+      );
+    }
+    return { visitors };
   }
 
   /**
    * 获取他人留言板内容
-   * 简化实现：参考 Python 实现返回 202，预留接口
-   * @param args - 请求体参数
+   *
+   * 修复：原实现纯透传（客户端拿到空响应，访问好友基建留言板空白）；
+   * 现读取好友存档的会客室 messageLeave 状态返回（只读，不修改对方数据）。
+   *
+   * @param args - 请求体参数（uid）
+   * @returns 对方留言板内容（结构同 getMessageBoardContent）
    */
-  async getOthersMessageBoardContent(args: any) {
-    return args;
+  async getOthersMessageBoardContent(args: {
+    uid?: string;
+    friendId?: string;
+  }): Promise<{
+    thisWeekVisitors: { uid: string; nickName: string; nickNumber: string }[];
+    lastWeekVisitors: { uid: string; nickName: string; nickNumber: string }[];
+    todayVisit: number;
+    weeklyVisit: number;
+    lastWeekVisit: number;
+    lastWeekSpReward: number;
+    lastShowTs: number;
+  }> {
+    const emptyBoard = () => ({
+      thisWeekVisitors: [] as { uid: string; nickName: string; nickNumber: string }[],
+      lastWeekVisitors: [] as { uid: string; nickName: string; nickNumber: string }[],
+      todayVisit: 0,
+      weeklyVisit: 0,
+      lastWeekVisit: 0,
+      lastWeekSpReward: 0,
+      lastShowTs: now(),
+    });
+    const uid = String(args.uid ?? args.friendId ?? "");
+    if (!uid || uid === String(this._player._playerdata.status.uid)) {
+      return emptyBoard();
+    }
+    try {
+      const friend = await accountManager.getPlayerData(uid);
+      const room = Object.values(
+        friend._playerdata.building?.rooms?.MEETING ?? {},
+      )[0] as any;
+      const leave = room?.messageLeave;
+      return {
+        thisWeekVisitors: [],
+        lastWeekVisitors: [],
+        todayVisit: 0,
+        weeklyVisit: leave?.sp?.thisWeek ?? 0,
+        lastWeekVisit: leave?.sp?.lastWeekSum ?? 0,
+        lastWeekSpReward: leave?.sp?.lastWeek ?? 0,
+        lastShowTs: leave?.lastShowTs ?? 0,
+      };
+    } catch (e) {
+      logger.warn(
+        "building",
+        `getOthersMessageBoardContent 好友 ${uid} 数据加载失败: ${(e as Error).message}`,
+      );
+      return emptyBoard();
+    }
   }
 
   /**
    * 获取缩略图 URL
-   * 简化实现：参考 Python 实现返回 202，预留接口
+   * 简化实现：预留接口（私服无云端缩略图），返回空列表
    * @param args - 请求体参数
    */
   async getThumbnailUrl(args: any) {
-    return args;
+    return { list: [] };
   }
 
   /**
@@ -2179,23 +2871,30 @@ export class BuildingManager {
    * 访问好友基建
    * 修复：原为纯透传 stub——VisitBuilding 是每日任务（26 个），事件从不 emit 任务
    * 永不推进；补事件 + 被访方发放社交点（align S5 社交点来源）
+   *
+   * 再修复（2026-08-14 信用经济）：被访方社交点改为**被动信用**入账——
+   * socialReward.daily += friendSlotInc（封顶 creditPassiveLimit），经
+   * getMeetingroomReward 领取；原实现直接 +20 socialPoint（绕过信用循环）。
+   *
    * @param args - 请求体参数（friendId）
    */
   async visitBuilding(args: any) {
     const friendId = args?.friendId;
     // 修复：VisitBuilding 任务事件从未 emit → 访问基建任务永不推进
     await this._trigger.emit("VisitBuilding", []);
-    // 被访方社交点（访问基建给主人 +20，与助战同档）
+    // 被访方被动信用（访问基建给主人 friendSlotInc 信用 → 会客室待领）
     if (friendId && String(friendId) !== String(this._player.uid)) {
       try {
         const owner = await accountManager.getPlayerData(String(friendId));
         await owner.update(async (draft) => {
-          draft.status.socialPoint = (draft.status.socialPoint ?? 0) + 20;
+          const room = Object.values(draft.building?.rooms?.MEETING ?? {})[0];
+          if (!room) return;
+          this._accumulateDailyCredit(draft, room, 1);
         });
       } catch (e) {
         logger.warn(
           "building",
-          `访问基建 ${friendId} 社交点发放失败: ${(e as Error).message}`,
+          `访问基建 ${friendId} 信用发放失败: ${(e as Error).message}`,
         );
       }
     }

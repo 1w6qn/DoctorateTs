@@ -127,6 +127,8 @@ import {
   WorkshopSynthesisResponse,
   BuildingSyncRequest,
   BuildingSyncResponse,
+  TakeClueFromBoardRequest,
+  TakeClueFromBoardResponse,
 } from "../model/protocol/building";
 
 const router = Router();
@@ -624,6 +626,14 @@ router.post("/cleanRoomSlot", async (req, res) => {
   res.send(player.delta satisfies CleanRoomSlotResponse);
 });
 
+/** 从留言板取回线索（官方路由名：BuildingMeetingClueTakeClueFromBoardRequest → /takeClueFromBoard） */
+router.post("/takeClueFromBoard", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as TakeClueFromBoardRequest;
+  await player.building.takeClueFromBoard(body);
+  res.send(player.delta satisfies TakeClueFromBoardResponse);
+});
+
 /** 确认留言板奖励（会客室留言板：领取上周社交点 → reward 返回 SOCIAL_PT） */
 router.post("/confirmMessageBoardReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
@@ -682,16 +692,23 @@ router.post("/getMessageBoardContent", async (req, res) => {
 router.post("/getOthersMessageBoardContent", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetOthersMessageBoardContentRequest;
-  await player.building.getOthersMessageBoardContent(body);
-  res.status(202).send(player.delta satisfies GetOthersMessageBoardContentResponse);
+  // 修复：原实现丢弃返回值（客户端访问好友留言板空白）——现合并对方留言板内容
+  const result = await player.building.getOthersMessageBoardContent(body);
+  res.send({
+    ...result,
+    ...player.delta,
+  } satisfies GetOthersMessageBoardContentResponse);
 });
 
-/** 获取缩略图 URL（简化实现） */
+/** 获取缩略图 URL（简化实现：私服无云端缩略图，返回空列表） */
 router.post("/getThumbnailUrl", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetThumbnailUrlRequest;
-  await player.building.getThumbnailUrl(body);
-  res.status(202).send(player.delta satisfies GetThumbnailUrlResponse);
+  const result = await player.building.getThumbnailUrl(body);
+  res.send({
+    ...result,
+    ...player.delta,
+  } satisfies GetThumbnailUrlResponse);
 });
 
 /** 发送表情（简化实现） */

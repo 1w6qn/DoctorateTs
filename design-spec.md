@@ -863,7 +863,8 @@ BuildingManager（app/game/manager/building.ts）已实现完整基建玩法：
 ### 11.3 简化项（YAGNI）
 - 社交展示类接口（getRecentVisitors / getInfoShareVisitorsNum / sendEmoji / visitBuilding 等）返回空
 - 加速不消耗道具（私服友好）；buyLabor 1 源石/次 +10 劳动力（apToLaborRatio=2 为 AP→劳动力比例，未接入）
-- 加工体力消耗（workshopFormulas.apCost）、制造心情消耗（costPoint）未接入（单位未确认）
+- 制造站心情消耗通过 `changeScale` 持续扣减（已接入）；`costPoint` 作为生产进度阈值（已接入，非心情成本）
+- ~~加工体力消耗（apCost）~~已接入（2026-08-14，见 11.7——单位经 manpowerDisplayFactor=360000 确认）
 
 ### 11.4 干员基建技能（buff）引擎（2026-08-12 新增）
 干员技能**服务端生效**：`app/game/building/buff.ts`（纯函数引擎）+ BuildingManager 集成——不再是"客户端自行计算显示"。
@@ -887,7 +888,104 @@ BuildingManager（app/game/manager/building.ts）已实现完整基建玩法：
 - 心情档位（`building.chars[i].changeScale`）重算：输出房间基础消耗（制造/贸易/加工 -55、会客/人力/发电 -65，AP/秒，真实存档校准）− 技能附加消耗（描述"消耗"语境 `<@cc.vdown>/<@cc.vup>` 数值 ×100，正=消耗/负=减免）；宿舍恢复 = (基础 `manpowerRecover/160` + 舒适度 `comfort/1000×0.55` + dorm_* buff + control_dorm_* 全局) × 100——5 级 5000 舒适 + 技能 ≈ 405，与真实存档吻合；未进驻 0
 - 换班（assignChar/batchChangeWorkChar/batchRestChar）后立即重算档位，下次 sync 按新档位累积
 
-**简化（未建模）**：输出型无 efficiency 的计数类技能（每 N 机器人/技能数/随时间爬升等）仅取其描述百分比基值或按 0；control_mp_*（心情/费用类）不参与生产
+### 11.5 基建系统完整性修复（2026-08-14 审计）
+
+**协议字段别名（CS 字段名 → 服务端兼容，修复"客户端发 CS 字段 → 服务端读不到 → 空 delta/no-op"）**：
+- `settleSale`：CS `roomSlotIdList[]`（原读单值 slotId）——现兼容两种形态
+- `changeSaleSolution`：CS `roomSlotId/stockIndex/targetFormulaId/solutionCount`（原读 slotId/solution）——targetFormulaId→strategy、solutionCount→stockLimit
+- `workshopDecomposition`：CS `furniId/times`（原读 furnitureId/count）——现兼容两种形态
+- 线索系列：`sendClue`（clueId）/`receiveClueToStock`（clues[]）/`putClueToTheBoard`/`deleteOwnClue`/`deleteReceiveClue`（clueId）——全部兼容 CS 字段
+- `changePresetName`：兼容 `name`（CS BuildingDIYRenamePresetSolutionRequest.solutionId/name）
+
+**房间管理**：
+- `buildRoom`：① 建造前资源足额校验（不足拒绝，不再扣成负库存/负金币）；② 创建 `rooms[roomId][slotId]` 房间对象（客户端按类型查房间不为空）；③ 建造完成时间按 `buildCost.time` 推进
+- `completeUpgradeRoom`：实际完成建造——state=1 且 completeConstructTime 已到的槽位置 2（原实现只刷新 event.building → "建造中"卡死）
+- `upgradeRoom`/`degradeRoom`：等级边界（升级钳制到 phases 上限、降级不低于 1）+ 升级前资源校验
+
+**干员分配**：
+- `assignChar`：训练室按房间类型（roomId===TRAINING）定位，不再硬编码 slot_13
+- `setPrivateDormOwner`：双端同步——旧 owner 的 `chars[].privateRooms` 清除、新 owner 从其他私人宿舍迁移、`privateRooms` 写入
+
+**生产/贸易**：
+- `gainIntimacy`/`gainAllIntimacy`/`gainAssistIntimacy`：emit `GainIntimacy`（基建信赖任务推进）；`gainAllIntimacy` 同步结算助战干员并返回真实 normal/assist 计数（CS BuildingGainAllIntimacyResponse）
+- `_refreshTradingOrders`：按 `room.stockLimit` 补单（原恒补 2 单）
+- `changeDiySolution`：舒适度服务端计算（方案内家具 `customData.furnitures[].comfort` 求和，写回 `room.comfort`）——DIY 影响宿舍恢复
+- `workshopDecomposition`：分解产物按家具 Excel 配置（processedProductId/processedProductCount），不再恒产木材×2
+- `changeBGM`：同步 `music.inUse`
+
+**会客室/每日刷新**：
+- `sendClueAuto`/`putClueToTheBoardAuto`：同步 pushFlags.hasClues 红点
+- `dailyRefresh`：留言板 `messageLeave.sp` 周切（周一 4:00 边界：lastWeek ← thisWeek、累计入账）
+- `getInfoShareVisitorsNum`/`getRecentVisitors`：返回真实好友数据（原恒 0/空）
+- `getOthersMessageBoardContent`：读取对方会客室 messageLeave 返回（原纯透传）；路由合并结果（原丢弃返回值）
+- `getThumbnailUrl`：返回空列表（私服无云端缩略图）
+
+**事件接线（任务/勋章推进）**：
+- `completeUpgradeSpecialization`：emit `UpgradeSpecialization`（建筑训练室路径，char.ts 直改路径已发）
+- `settleManufacture`：emit `BuildingManufactureProductTimes`
+- `workshopSynthesis`：emit `BuildingWorkshopSynthesisGroupByID`（formulaType 分组）
+- inventory FURN 发放：emit `BuildingGotFurnitureThemeCount`（持有家具去重主题数）
+- medal.ts 三个 Building 模板从 JoinGameDays 复制 stub 修正为真实计数（主题数/制造次数/按组合成次数）
+
+**简化项（YAGNI，未建模）**：加速不消耗道具（私服友好）、发电站进驻干员对无人机充能速度的影响、制造心情消耗（costPoint）。电力系统/加工心情消耗/工坊 ws_bonus 已接入（见 11.7）。
+
+### 11.6 基建协议完整性审计 + 线索板格式校准（2026-08-14）
+
+**协议完整性审计（对照客户端 ServiceCode.cs 全量 60+ BUILDING_* 服务码）**：
+- 逐一比对 `app/game/router/building.ts`——**唯一缺失端点** `building/takeClueFromBoard`（CS BuildingMeetingClueTakeClueFromBoardRequest{type}，客户端 UnequipClue 按阵营取下留言板线索）已补
+- 家具商店端点 `shop/getFurniGoodList`/`shop/buyFurniGood`（CS BuildingGetFurnitureGoodListRequest/BuildingBuyFurnitureGoodRequest{goodId,buyCount,costType}）确认已存在于 shop 路由（非 building 命名空间）
+- 其余 60 端点全部命中现有路由（含别名/兼容字段）
+
+**线索板（MEETING board）格式校准（真实存档 2222 校准，此前实现两处错误）**：
+1. **board 键为阵营 type、值为线索 id**：真实存档 `{"RHINE":"100566259#3490#...","PENGUIN":"086186062#3369#..."}`——原实现写成 `{[clueId]: clueId}`，客户端按阵营槽位读板 → 上板线索不可见
+2. **线索保留在库存中，以 inUse=1 标记上板**：真实存档中板线索（6 条）全部仍在 ownStock/receiveStock（inUse 0/1 并存）——原实现 splice 移除 → 取下时线索数据丢失
+- 修复：`putClueToTheBoard`/`putClueToTheBoardAuto` 改写 `board[clue.type]=clue.id` + `clue.inUse=1`（不移除）；新增 `takeClueFromBoard({type})` 删除 board 条目并复位 inUse
+- 红点语义：`_refreshClueFlag`——存在未上板（inUse=0）线索 → hasClues=1；全部上板 → 0（原"两库存皆空才清"在保留模型下会红点常亮）
+- 删除线索时 `_clearBoardEntry` 清理指向该线索的板条目（不留孤儿索引）
+
+### 11.7 基建经济系统补全（2026-08-14）
+
+**电力系统（发电站供给/消耗，官方行为）**：
+- 数据：房间相位 `electricity`——POWER 正向（+60/+130/+270 发电），其余负向消耗（MANUFACTURE/TRADING/HIRE/MEETING/TRAINING -10/-30/-60、DORMITORY -10/-20/-30/-45/-65、WORKSHOP -10、CONTROL/PRIVATE/ELEVATOR/CORRIDOR 0）
+- `_powerBalance(draft)`：全部 roomSlots 按当前等级求和；模板存档（满配布局）余额恰为 **0**
+- `buildRoom`/`upgradeRoom`：目标房间耗电增量后余额 < 0 即拒绝（需先升级发电站）——客户端显示"电力不足"，服务端防越权
+- 发电量仅随房间等级（相位），进驻干员 `power_*` buff 影响无人机充能速度（未建模，YAGNI）
+
+**加工站干员心情（体力）消耗**：
+- 单位确认：`manpowerDisplayFactor = 360000`——1 心情点 = 360000 raw AP = 1 小时 -100 档消耗；公式 `apCost`（模板公式 1 = 360000 = 1 点/次）即每次合成的心情成本
+- `workshopSynthesis`：从进驻加工站（WORKSHOP 槽位）干员的 `building.chars[].ap` 扣减 `apCost × 次数`，心情不足时按可承担次数合成；未进驻干员不扣（私服友好）
+- 依据：客户端 `BuildingCharModel.RoundCharApToInt` 按 manpowerDisplayFactor 换算、`BuildingWorkshopModel.moodCost` 直读 `workshopFormula.apCost`
+
+**工坊 bonus（ws_bonus，进驻干员技能）**：
+- 语义确认（技能描述「进驻加工站时，累积 N 点因果/业报必定产出一次副产品」）：`status.workshop.bonus[bonusId]=[curPoint,totalPoint]`（模板 ws_bonus1_40=[16,40] = 16/40 进度），满格后 `bonusActive=1`，下一次合成必定产出副产物并重置计数
+- 干员-技能映射：`BuildingData.workshopBonus[charId]`（如 char_4019_ncdeer → [ws_bonus1_40, ws_bonus2_80]）；buff `workshop_formula_bonus{N}[000]` 的 targets 过滤配方类型（F_BUILDING/F_EVOLVE/F_SKILL/F_ASC）
+- `workshopSynthesis` 逐次合成推进计数：未蓄力 cur+1，满格置 bonusActive=1；已蓄力本次必定触发加权副产物（extraOutcomeGroup）并重置该 bonus
+- 阈值兜底：存档条目缺失时按 id 解析（`ws_bonus1_40` → 40）
+
+**加速不消耗道具（2026-08-14 修复代码-文档矛盾）**：
+- `accelerateSolution` 原实现把请求体 `cost`（客户端本地消耗的**加速无人机**数量，CS BuildingManufactLaborAccelRequest{cost}）误当源石碎片从 `status.diamondShard` 扣费 → 玩家源石碎片被无故消耗，且与 `accelerateOrder`（免费）及文档「加速不消耗道具（私服友好）」矛盾；现移除扣费，加速免费
+- 存档格式无服务端无人机计数字段（PlayerBuildingStatus={labor,workshop}、PlayerBuildingPower={buff,presetQueue}，反编译确认）——无人机为客户端本地时间显示（LaborAccelStateBean：remainPoint+lastUpdateTime+speed），服务端不建模
+
+**发电站 buff.laborSpeed（未建模）**：
+- 模板 POWER 房间带官方 laborSpeed 值（0.15/0.2/0.25，对应进驻干员 power_rec_spd 系列 buff）；客户端消费逻辑位于不可反编译的 hotfix/Lua 层，3 个数据点无法可靠推导公式 → 不回写（避免破坏客户端无人机充能显示），模板现值原样保留
+
+**简化（YAGNI，未建模）**：发电站进驻干员对无人机充能速度的影响、多个 bonus 同时蓄力时的归属判定（单 bonusActive 标志，重置首个满格 bonus）
+
+### 11.8 会客室信用（社交点）经济循环（2026-08-14）
+
+**背景**：`socialReward.daily/search` 只在模板初值（search=40）领一次后永不累积——信用经济枯竭，getMeetingroomReward 领取一次即空。
+
+**模型（封顶循环，无需日跟踪）**：
+- 单次信用量 = 会客室相位 `friendSlotInc`（lv1/2/3 = 10/20/35，保底 `creditGuaranteed`=10）
+- **被动信用 daily**：好友访问 → `daily += friendSlotInc`，封顶 `creditPassiveLimit`=100
+  - `dailyRefresh` 模拟好友访问（按好友数累积，私服单账号无真实访问源）
+  - `visitBuilding` 被访方：原 +20 socialPoint（绕过信用循环）→ 改为 `daily += friendSlotInc`
+- **主动信用 search**：情报分享 `getInfoShareReward` 按本次有效访客数 → `search += 访客数 × friendSlotInc`，封顶 `creditInitiativeLimit`=100（原实现只推进会客室会话从不计信用）
+- `getMeetingroomReward` 领取 daily+search → status.socialPoint，清零后重新累积（循环成立）
+
+**依据**：credit 常量（creditGuaranteed/creditPassiveLimit/creditInitiativeLimit/creditCeiling）+ meetingData.phases[].friendSlotInc 均来自 building_data.json；`creditFormula` 字典为空（客户端计算在不可反编译层），采用上述封顶模型并在存档格式内自洽。
+
+**简化（YAGNI）**：单账号私服无真实好友访问（模拟源为好友数）；creditComfortFactor=0 不产生舒适度附加信用。
 
 ---
 
@@ -1089,6 +1187,33 @@ pnpm run migrate:official -- --accounts <账号文件路径> --template 1
 求和 × 难度倍率（`details[theme].difficulties[].scoreFactor`，按 mode+modeGrade 匹配，MONTH_TEAM/CHALLENGE=0）= 探索分数；默认分数→魂灵书签转换效率 1:1（`score += 探索分数`、`pointOwned += 探索分数`）。历史重构提升转换效率暂未实现（YAGNI）。
 
 **注意**：createGame 把 MONTH_TEAM/CHALLENGE mode 转成 NORMAL（现有行为），实际结算按 NORMAL 倍率；若需 MONTH_TEAM=0 需改 createGame 保留 mode。
+
+### 16.8 商店系统修复与路由补全（2026-08-14）
+
+**商店（BATTLE_SHOP）原实现断裂**：
+- `events.ts BATTLE_SHOP()` 返回空 content（真实实现被注释）→ 商店节点无任何商品；
+- `buyGoods/refreshShop` 读 `content.shop`，官方线格式为 `content.battleShop`（抓包确认）→ 永远 no-op；
+- `generateShopGoods` 价格全 0（archiveComp.relic 池 + priceCount 0）→ 客户端商店不可用。
+
+**修复**（对照官方抓包 refreshShop/buyGoods/shopAction/leaveShop 线格式）：
+- `events.ts BATTLE_SHOP(args)` 透传 `{ battleShop: args }`；
+- 控制器新增 `buildShopContent(theme)`：`{ bank, id: zone_{层号}_shop, goods, canBattle, hasBoss, refreshCnt: 2, showRefresh, withdrawMethod: "fee_add", refreshMethod: "direct", _done, recycleGoods?, recycleCount? }`（FRAGMENT 模块主题附碎片回收，1 金币/件）；
+- `generateShopGoods` 重写：票 4 / 临时票 8 / 碎片 4 / 战术道具 8 / 藏品 NORMAL 8 / RARE 12 / SUPER_RARE 16，约 25% 商品打折（displayPriceChg=true 价减半）；藏品池过滤已拥有、按稀有度分层抽取；
+- `moveTo` SHOP 节点、`triggerNodeEvent` SHOP、`gridZoneMoveTo` 商店节点 → 生成真实 battleShop 事件；
+- `buyGoods`：读 `content.battleShop ?? content.shop`（兼容旧格式），金币不足拒绝，售出商品 count 置 0（官方保留列表非移除）；
+- `refreshShop`：重生成商品 + refreshCnt-1。
+
+**路由补全**（客户端路径与既有路由不一致，官方抓包确认）：
+- `/rlv2/battlePass_getReward`（下划线）——原仅 `/battlePass/getReward`（斜杠）；
+- `/rlv2/nodeMission_confirm|giveUp|closeTip`（下划线）——原仅 `/nodeMission/*`（斜杠）；
+- `/rlv2/scrap/identify`（缺失）——废品鉴定：控制器新增 `scrapIdentify({count})`，从 scrapItemToType 池抽 count 件入零件箱 + LEGACY 型部件，响应顶层 `{ scrap, legacy }`。
+
+**鲁棒性**：
+- `selectChoice`：pending[0] 为 GAME_INIT_GIFT（客户端先 selectChoice 后 finishEvent）时先消费礼物；
+- `chooseInitialRelic`：按类型查找而非盲目 shift（重复调用不 500）；
+- `rlv2/mission.ts`（0 字节空文件）、`rlv2/game.ts`（空壳类）零引用死代码已删除。
+
+**注意（既有竞态）**：`TypedEventEmitter.emit` 为异步（Emittery），控制器构造期 `emit("rlv2:init")` 的处理器（status/map/inventory init 重置）在微任务中执行——测试在构造后立即改 rlv2 状态需先 flush 微任务（`await new Promise(r => setTimeout(r, 0))`），否则会被异步 init 覆盖。
 
 ---
 

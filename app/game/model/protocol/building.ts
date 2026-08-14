@@ -218,8 +218,9 @@ export interface AccelerateOrderRequest {
 export type AccelerateOrderResponse = PlayerDeltaResponse;
 
 /**
- * 加速方案请求（CS: BuildingManufactLaborAccelRequest）
- * CS 另有 cost 字段，服务端未读取
+ * 加速方案请求（CS: BuildingManufactLaborAccelRequest { slotId, cost }）
+ * cost 为客户端本地消耗的「加速无人机」数量（服务端存档无无人机计数字段，
+ * 私服友好不消耗道具——原实现误把 cost 当源石碎片扣费，已修复）
  */
 export interface AccelerateSolutionRequest {
   slotId: string;
@@ -279,11 +280,11 @@ export interface SettleManufactureResponse extends PlayerDeltaResponse {
 
 /**
  * 贸易站结算请求（CS: BuildingSettleSaleRequest）
- * CS 字段为 roomSlotIdList，服务端读取 slotId（以服务端为准）
+ * CS 字段为 roomSlotIdList（数组）；服务端兼容 slotId 单值（以服务端为准）
  */
 export interface SettleSaleRequest {
   roomSlotIdList?: string[];
-  slotId: string;
+  slotId?: string;
 }
 
 /** 贸易站结算响应（CS: BuildingSettleSaleResponse） */
@@ -304,16 +305,16 @@ export interface ChangeManufactureSolutionResponse extends PlayerDeltaResponse {
 
 /**
  * 更换贸易方案请求（CS: BuildingChangeShopRequest）
- * CS 字段为 roomSlotId/stockIndex/targetFormulaId/solutionCount，
- * 服务端读取 slotId/solution（以服务端为准）
+ * CS 字段为 roomSlotId/stockIndex/targetFormulaId/solutionCount；
+ * 服务端兼容 slotId/solution（私服扩展形态），两种形态均可
  */
 export interface ChangeSaleSolutionRequest {
   roomSlotId?: string;
   stockIndex?: number;
   targetFormulaId?: string;
   solutionCount?: number;
-  slotId: string;
-  solution: { strategy: string; stockLimit: number };
+  slotId?: string;
+  solution?: { strategy: string; stockLimit: number };
 }
 
 /** 更换贸易方案响应（CS: BuildingChangeShopResponse；服务端仅返回增量） */
@@ -350,13 +351,13 @@ export interface WorkshopSynthesisResponse extends PlayerDeltaResponse {
 
 /**
  * 加工站分解请求（CS: BuildingWorkshopDecompositionRequest）
- * CS 字段为 furniId/times，服务端读取 furnitureId/count（以服务端为准）
+ * CS 字段为 furniId/times；服务端兼容 furnitureId/count（以服务端为准）
  */
 export interface WorkshopDecompositionRequest {
   furniId?: string;
   times?: number;
-  furnitureId: string;
-  count: number;
+  furnitureId?: string;
+  count?: number;
 }
 
 /** 加工站分解响应（CS: BuildingWorkshopDecompositionResponse；服务端仅返回增量） */
@@ -372,12 +373,12 @@ export type GetDailyClueResponse = PlayerDeltaResponse;
 
 /**
  * 发送线索请求（CS: BuildingMeetingClueSendClueRequest）
- * CS 字段为 friendId/clueId，服务端读取 id/friendId（以服务端为准）
+ * CS 字段为 friendId/clueId；服务端兼容 id（以服务端为准）
  */
 export interface SendClueRequest {
   friendId: string;
   clueId?: string;
-  id: string;
+  id?: string;
 }
 
 /** 发送线索响应（CS: BuildingMeetingClueSendClueResponse） */
@@ -391,11 +392,11 @@ export type SendClueAutoResponse = PlayerDeltaResponse;
 
 /**
  * 接收线索到库存请求（CS: BuildingMeetingClueReceiveClueToStockRequest）
- * CS 字段为 clues 列表，服务端读取 id（以服务端为准）
+ * CS 字段为 clues 列表；服务端兼容 id 单值（以服务端为准）
  */
 export interface ReceiveClueToStockRequest {
   clues?: string[];
-  id: string;
+  id?: string;
 }
 
 /** 接收线索到库存响应（CS: BuildingMeetingClueReceiveClueToStockResponse） */
@@ -403,11 +404,11 @@ export type ReceiveClueToStockResponse = PlayerDeltaResponse;
 
 /**
  * 放置线索到留言板请求（CS: BuildingMeetingCluePutClueToTheBoardRequest）
- * CS 字段为 clueId，服务端读取 id（以服务端为准）
+ * CS 字段为 clueId；服务端兼容 id（以服务端为准）
  */
 export interface PutClueToTheBoardRequest {
   clueId?: string;
-  id: string;
+  id?: string;
 }
 
 /** 放置线索到留言板响应（CS: BuildingMeetingCluePutClueToTheBoardResponse） */
@@ -421,11 +422,11 @@ export type PutClueToTheBoardAutoResponse = PlayerDeltaResponse;
 
 /**
  * 删除自己持有的线索请求（CS: BuildingMeetingClueDeleteOwnClueRequest）
- * CS 字段为 clueId，服务端读取 id（以服务端为准）
+ * CS 字段为 clueId；服务端兼容 id（以服务端为准）
  */
 export interface DeleteOwnClueRequest {
   clueId?: string;
-  id: string;
+  id?: string;
 }
 
 /** 删除自己持有的线索响应（CS: BuildingMeetingClueDeleteOwnClueResponse） */
@@ -433,15 +434,26 @@ export type DeleteOwnClueResponse = PlayerDeltaResponse;
 
 /**
  * 删除接收到的线索请求（CS: BuildingMeetingClueDeleteReceiveClueRequest）
- * CS 字段为 clueId，服务端读取 id（以服务端为准）
+ * CS 字段为 clueId；服务端兼容 id（以服务端为准）
  */
 export interface DeleteReceiveClueRequest {
   clueId?: string;
-  id: string;
+  id?: string;
 }
 
 /** 删除接收到的线索响应（CS: BuildingMeetingClueDeleteReceiveClueResponse） */
 export type DeleteReceiveClueResponse = PlayerDeltaResponse;
+
+/**
+ * 从留言板取回线索请求（CS: BuildingMeetingClueTakeClueFromBoardRequest { type }）
+ * type 为阵营（如 RHINE/PENGUIN…）——按阵营槽位取回该线索回库存
+ */
+export interface TakeClueFromBoardRequest {
+  type: string;
+}
+
+/** 从留言板取回线索响应（CS: BuildingMeetingClueTakeClueFromBoardResponse；服务端仅返回增量） */
+export type TakeClueFromBoardResponse = PlayerDeltaResponse;
 
 /** 获取线索盒请求（CS: BuildingMeetingClueUpdateWaitingClueRequest，无字段） */
 export interface GetClueBoxRequest {}
@@ -581,14 +593,14 @@ export type UseOnePresetQueueResponse = PlayerDeltaResponse;
 
 /**
  * 修改预设名称请求（CS: BuildingDIYRenamePresetSolutionRequest）
- * CS 字段为 solutionId/name，服务端读取 slotId/roomSlotId + presetName
+ * CS 字段为 solutionId/name；服务端兼容 slotId/roomSlotId + presetName/name
  */
 export interface ChangePresetNameRequest {
   solutionId?: number;
   name?: string;
   slotId?: string;
   roomSlotId?: string;
-  presetName: string;
+  presetName?: string;
 }
 
 /** 修改预设名称响应（CS: BuildingDIYRenamePresetSolutionResponse） */
@@ -707,10 +719,11 @@ export interface GetRecentVisitorsResponse extends PlayerDeltaResponse {
 
 /**
  * 获取他人留言板内容请求（CS: BuildingPayloadGetOthersMessageBoardContentRequest）
- * CS 字段为 uid，服务端透传请求体
+ * CS 字段为 uid；服务端兼容 friendId
  */
 export interface GetOthersMessageBoardContentRequest {
-  uid: string;
+  uid?: string;
+  friendId?: string;
 }
 
 /** 留言板访客（CS: BuildingPayloadGetMessageBoardContentResponse.PayloadMessageBoardVisitor） */
@@ -738,19 +751,32 @@ export interface GetMessageBoardContentResponse extends PlayerDeltaResponse {
   lastShowTs: number;
 }
 
-/** 获取他人留言板内容响应（CS: BuildingPayloadGetOthersMessageBoardContentResponse；服务端仅返回增量） */
-export type GetOthersMessageBoardContentResponse = PlayerDeltaResponse;
+/**
+ * 获取他人留言板内容响应（CS: BuildingPayloadGetOthersMessageBoardContentResponse）
+ * 服务端读取对方会客室 messageLeave 返回（结构同 GetMessageBoardContentResponse）
+ */
+export interface GetOthersMessageBoardContentResponse extends PlayerDeltaResponse {
+  thisWeekVisitors: MessageBoardVisitor[];
+  lastWeekVisitors: MessageBoardVisitor[];
+  todayVisit: number;
+  weeklyVisit: number;
+  lastWeekVisit: number;
+  lastWeekSpReward: number;
+  lastShowTs: number;
+}
 
 /**
  * 获取缩略图 URL 请求（CS: BuildingDIYGetPresetThumbnailUrlRequest）
- * CS 字段为 solutionId 列表，服务端透传请求体
+ * CS 字段为 solutionId 列表；私服无云端缩略图，响应返回空列表
  */
 export interface GetThumbnailUrlRequest {
   solutionId: number[];
 }
 
-/** 获取缩略图 URL 响应（CS: BuildingDIYGetPresetThumbnailUrlResponse；服务端仅返回增量） */
-export type GetThumbnailUrlResponse = PlayerDeltaResponse;
+/** 获取缩略图 URL 响应（CS: BuildingDIYGetPresetThumbnailUrlResponse；私服返回空列表） */
+export interface GetThumbnailUrlResponse extends PlayerDeltaResponse {
+  list: unknown[];
+}
 
 /**
  * 发送表情请求（CS: BuildingSendEmojiRequest）

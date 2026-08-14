@@ -26,7 +26,7 @@ export function getWorkshopFormula(
 export function getRoomPhase(
   roomId: string,
   level: number,
-): { buildCost?: { items?: { id: string; count: number; type: string }[]; time?: number; labor?: number }; maxStationedNum?: number } | undefined {
+): { buildCost?: { items?: { id: string; count: number; type: string }[]; time?: number; labor?: number }; maxStationedNum?: number; electricity?: number } | undefined {
   return excel.BuildingData?.rooms?.[roomId]?.phases?.[level - 1];
 }
 
@@ -52,4 +52,68 @@ export function getDormPhase(
 /** 读取 BuildingData 顶层常量（laborRecoverTime/basicFavorPerDay/apToLaborRatio 等） */
 export function getBuildingConstant<T = number>(key: string): T | undefined {
   return (excel.BuildingData as any)?.[key] as T | undefined;
+}
+
+/**
+ * 家具信息（BuildingData.customData.furnitures[家具id]——舒适度/主题/分解产物等）
+ * 未知家具返回 undefined（数据版本错位时容错跳过）
+ */
+export function getFurnitureInfo(
+  furnitureId: string | undefined | null,
+): { comfort?: number; themeId?: string; processedProductId?: string; processedProductCount?: number; name?: string } | undefined {
+  if (furnitureId == null) return undefined;
+  return excel.BuildingData?.customData?.furnitures?.[furnitureId];
+}
+
+/**
+ * 家具主题 ID（themeId，如 furni_set_warehouse）——勋章 BuildingGotFurnitureThemeCount
+ * 按主题去重计数；未知家具返回 undefined
+ */
+export function getFurnitureThemeId(furnitureId: string | undefined | null): string | undefined {
+  return getFurnitureInfo(furnitureId)?.themeId;
+}
+
+/**
+ * 房间最大等级（phases 数组长度；未知房间返回 0）
+ * 用于 upgradeRoom/degradeRoom 的等级边界校验
+ */
+export function getRoomMaxLevel(roomId: string | undefined | null): number {
+  return excel.BuildingData?.rooms?.[roomId ?? ""]?.phases?.length ?? 0;
+}
+
+/** 加工配方类型（formulaType，如 F_BUILDING/F_EVOLVE）——勋章 BuildingWorkshopSynthesisGroupByID 按组过滤 */
+export function getWorkshopFormulaType(
+  formulaId: string | number | undefined | null,
+): string | undefined {
+  return getWorkshopFormula(formulaId)?.formulaType as string | undefined;
+}
+
+/** 制造配方类型（formulaType，如 F_EXP/F_GOLD）——贸易站订单按制造产出类型匹配 */
+export function getManufactFormulaType(
+  formulaId: string | number | undefined | null,
+): string | undefined {
+  return getManufactFormula(formulaId)?.formulaType as string | undefined;
+}
+
+/**
+ * 房间电力（相位 electricity：POWER 正向发电、其余负向消耗；未知房间/相位返回 0）。
+ * 电力系统：全部房间按当前等级求和，发电站（POWER）供给其余房间消耗。
+ */
+export function getRoomElectricity(
+  roomId: string | undefined | null,
+  level: number,
+): number {
+  const phase = getRoomPhase(roomId ?? "", Math.max(1, level || 1));
+  return typeof phase?.electricity === "number" ? phase.electricity : 0;
+}
+
+/**
+ * 会客室相位（level 从 1 起；friendSlotInc = 每次好友访问/情报分享的信用量）
+ * 信用经济：socialReward.daily/search 按 friendSlotInc 累积（封顶 creditPassiveLimit/
+ * creditInitiativeLimit），getMeetingroomReward 领取后清零重新累积。
+ */
+export function getMeetingPhase(
+  level: number,
+): { friendSlotInc?: number; maxVisitorNum?: number; gatheringSpeed?: number } | undefined {
+  return excel.BuildingData?.meetingData?.phases?.[level - 1];
 }

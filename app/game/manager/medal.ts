@@ -926,43 +926,55 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
-  BuildingGotFurnitureThemeCount(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
+  /**
+   * 基建家具主题数量勋章模板
+   * 追踪玩家拥有的家具主题数量（按 furniture 去重主题计数）
+   * @param param[0] 目标主题数量
+   */
+  BuildingGotFurnitureThemeCount(args: { count?: number }, mode: string = "update") {
+    const funcs: { [key: string]: (args: { count?: number }) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      // 修复：原实现复制 JoinGameDays（按注册天数）——主题数恒为注册天数；
+      // 现按家具主题去重计数（args.count 由 inventory FURN 发放时下发）
+      update: (args: { count?: number }) => {
+        this.val[0][0] = Math.max(this.val[0][0], args.count ?? 0);
       },
     };
     funcs[mode](args);
   }
 
-  BuildingManufactureProductTimes(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
+  /**
+   * 基建制造产品次数勋章模板
+   * 追踪玩家制造站累计产出的方案数
+   * @param param[0] 目标制造次数
+   */
+  BuildingManufactureProductTimes(args: { count?: number }, mode: string = "update") {
+    const funcs: { [key: string]: (args: { count?: number }) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      // 修复：原实现复制 JoinGameDays——制造次数恒为注册天数；
+      // 现按 settleManufacture 实际产出方案数累加
+      update: (args: { count?: number }) => {
+        this.val[0][0] += args.count ?? 0;
       },
     };
     funcs[mode](args);
   }
 
-  BuildingWorkshopSynthesisGroupByID(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
+  /**
+   * 基建工坊合成（按组）勋章模板
+   * 追踪玩家加工站指定配方类型（param[1]，如 F_EVOLVE）的合成次数
+   * @param param[0] 目标合成次数
+   * @param param[1] 配方类型过滤（formulaType）
+   */
+  BuildingWorkshopSynthesisGroupByID(args: { groupId?: string }, mode: string = "update") {
+    const funcs: { [key: string]: (args: { groupId?: string }) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      // 修复：原实现复制 JoinGameDays——合成次数恒为注册天数；
+      // 现按 workshopSynthesis 配方类型匹配 param[1] 累加
+      update: (args: { groupId?: string }) => {
+        if (args.groupId && args.groupId === this.param[1]) {
+          this.val[0][0] += 1;
+        }
       },
     };
     funcs[mode](args);

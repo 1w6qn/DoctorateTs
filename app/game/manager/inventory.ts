@@ -2,6 +2,7 @@ import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
 import { now } from "@utils/time";
+import { getFurnitureThemeId } from "@excel/building_excel";
 import { PlayerDataModel } from "../model/playerdata";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { WritableDraft } from "immer";
@@ -229,6 +230,16 @@ export class InventoryManager {
           };
         }
         draft.building.solution.furnitureTs[item.id] = now();
+        // 修复：BuildingGotFurnitureThemeCount 勋章事件从未 emit → 家具主题勋章
+        // 永不推进；按持有家具去重主题数下发
+        const themes = new Set<string>();
+        for (const furnId of Object.keys(draft.building.furniture)) {
+          const themeId = getFurnitureThemeId(furnId);
+          if (themeId) themes.add(themeId);
+        }
+        await this._trigger.emit("BuildingGotFurnitureThemeCount", [
+          { count: themes.size },
+        ]);
       },
       AP_GAMEPLAY: async (item, draft) => {
         const addAp = Math.floor((now() - draft.status.lastApAddTime) / 360);

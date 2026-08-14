@@ -574,7 +574,15 @@ describe("BuildingManager 信赖系统", () => {
     await manager.gainAllIntimacy({} as any);
     expect(mockPlayer._playerdata.troop!.chars["1001"].favorPoint).toBeGreaterThan(100);
     expect(mockPlayer._playerdata.troop!.chars["1002"].favorPoint).toBeGreaterThan(200);
-    expect(mockPlayer._playerdata.troop!.chars["1003"].favorPoint).toBe(300);
+    // 修复：assist 干员同步结算（CS BuildingGainAllIntimacyResponse 含 assist 计数）
+    expect(mockPlayer._playerdata.troop!.chars["1003"].favorPoint).toBeGreaterThan(300);
+  });
+
+  it("gainAllIntimacy 应返回 normal/assist 计数（CS BuildingGainAllIntimacyResponse）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const { normal, assist } = await manager.gainAllIntimacy({} as any);
+    expect(normal).toBe(2); // slot_5 的 1001/1002
+    expect(assist).toBe(1); // assist 列表的 1003
   });
 
   it("gainAssistIntimacy 应给助战列表干员加信赖", async () => {
@@ -680,7 +688,7 @@ describe("BuildingManager 贸易站", () => {
     expect(mockPlayer._playerdata.status!.gold).toBe(2500); // 1000 + 1500
   });
 
-  it("accelerateSolution 应加速制造站方案（扣费用 + 产出 1 个方案）", async () => {
+  it("accelerateSolution 应加速制造站方案（不扣源石碎片——无人机为客户端本地资源）", async () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     // 给 mock 加一个开工的制造站
     (mockPlayer._playerdata.building!.rooms as any).MANUFACTURE["slot_25"] = {
@@ -698,10 +706,11 @@ describe("BuildingManager 贸易站", () => {
     const room = (mockPlayer._playerdata.building!.rooms as any).MANUFACTURE["slot_25"];
     expect(room.outputSolutionCnt).toBe(1);
     expect(room.remainSolutionCnt).toBe(4);
-    expect(mockPlayer._playerdata.status!.diamondShard).toBe(855);
+    // 修复：cost 为客户端无人机数，服务端不扣源石碎片（原实现 1000 → 855）
+    expect(mockPlayer._playerdata.status!.diamondShard).toBe(1000);
   });
 
-  it("accelerateSolution 无可加速方案（未开工）不应扣费", async () => {
+  it("accelerateSolution 无可加速方案（未开工）不应报错且不改状态", async () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     (mockPlayer._playerdata.status as any).diamondShard = 1000;
     await manager.accelerateSolution({ slotId: "slot_25", cost: 145 } as any);
@@ -1085,15 +1094,18 @@ describe("BuildingManager 线索系统", () => {
     expect(room.ownStock).toHaveLength(1);
   });
 
-  it("putClueToTheBoard 应放置线索到留言板", async () => {
+  it("putClueToTheBoard 应放置线索到留言板（官方 board={[阵营]:线索id}，线索保留库存 inUse=1）", async () => {
     mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock = [
-      { id: "clue_001", type: "clue_1", number: 1, uid: "1", name: "A", nickNum: "1", chars: [], inUse: 0 },
+      { id: "clue_001", type: "RHINE", number: 1, uid: "1", name: "A", nickNum: "1", chars: [], inUse: 0 },
     ] as any;
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.putClueToTheBoard({ id: "clue_001" } as any);
     const room = mockPlayer._playerdata.building!.rooms.MEETING.room_001;
-    expect(room.ownStock).toHaveLength(0);
-    expect(Object.keys(room.board)).toContain("clue_001");
+    // 修复：官方 board 键为阵营（原实现键为线索 id）
+    expect(room.board["RHINE"]).toBe("clue_001");
+    // 修复：线索保留在库存（inUse=1 标记上板，原实现 splice 移除）
+    expect(room.ownStock).toHaveLength(1);
+    expect(room.ownStock[0].inUse).toBe(1);
   });
 
   it("deleteOwnClue 应删除自己持有的线索", async () => {

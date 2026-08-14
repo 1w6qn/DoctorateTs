@@ -245,26 +245,13 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
     };
   }
 
-  BATTLE_SHOP(args: {}): PlayerRoguelikePendingEvent.Content {
-    return {};
-    /*
-            this._trigger.on("rlv2:bankPut", (broken:boolean)=>{
-                this.content.battleShop!.bank.canPut=broken
-            })
-            return {
-                
-    
-                battleShop: {
-                    bank:{
-                        open:true,
-                        canPut:true,
-                        canWithdraw:true,
-                        withdraw:0,
-                        cost:1,
-                        withdrawLimit:20
-                    },
-                }
-            }*/
+  /**
+   * 商店（官方 pending BATTLE_SHOP：content.battleShop = { bank, id, goods,
+   * canBattle, hasBoss, refreshCnt, showRefresh, withdrawMethod, refreshMethod,
+   * recycleGoods?, recycleCount? }，内容由控制器 buildShopContent 构建）
+   */
+  BATTLE_SHOP(args: any): PlayerRoguelikePendingEvent.Content {
+    return { battleShop: args };
   }
 
   BATTLE(

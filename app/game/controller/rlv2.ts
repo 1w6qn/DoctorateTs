@@ -1,5 +1,6 @@
 import {
   PlayerRoguelikeV2,
+  RoguelikeItemBundle,
   RoguelikeNodePosition,
   TorappuRoguelikeEventType,
 } from "../model/rlv2";
@@ -398,11 +399,17 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }
 
   async chooseInitialRelic(args: { select: string }) {
-    const event = this._status.pending.shift()!;
-    const relic = event.content.initRelic!.items[args.select];
+    // 防御：RELIC 事件可能已被消费（客户端重复调用/乱序）——按类型查找而非盲目 shift
+    const event = this._status.pending.find(
+      (e) => e.type === "GAME_INIT_RELIC",
+    );
+    if (!event) return;
+    const relic = event.content.initRelic?.items?.[args.select];
+    if (!relic) return;
     // 记录所选分队（结算 brief.band）
     this._bandId = relic.id;
     await this.inventory!._relic.gain([relic]);
+    this._status.pending.splice(this._status.pending.indexOf(event), 1);
   }
 
   async chooseInitialRecruitSet(args: { select: string }) {
@@ -658,7 +665,15 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
 
     // GAME_INIT_SUPPORT（开局 buff/行动奖励）：发放 displayData.itemId 奖励并消费 SUPPORT 事件。
     // 客户端抓包（rogue_6）：chooseInitialRelic → finishEvent → selectChoice(choice_roX_startbuff_N)
-    const top = this._status.pending[0];
+    // 防御：客户端先 selectChoice 后 finishEvent 时 pending[0] 可能是 GAME_INIT_GIFT（rogue_6
+    // 开局礼物）——先消费礼物再处理支援选择（与 finishEvent 的消费逻辑一致）
+    let top = this._status.pending[0];
+    if (top && top.type === "GAME_INIT_GIFT") {
+      const giftItems = top.content.initGift?.items || [];
+      this._trigger.emit("rlv2:get:items", [giftItems]);
+      this._status.pending.shift();
+      top = this._status.pending[0];
+    }
     if (top && top.type === "GAME_INIT_SUPPORT") {
       // 官方 displayData.itemID（PascalCase ID）——startbuff_2/3 有 itemID；startbuff_1 无（发随机收藏品）
       const dd = (choiceConfig?.displayData as any) || {};
@@ -852,71 +867,161 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     });
   }
 
+  /**
+   * 生成商店商品（对照官方抓包 2026-08：票/碎片/战术道具/藏品混合，价格按类型+稀有度：
+   * 招募票 4、临时票 8、碎片 4、战术道具 8、藏品 NORMAL 8 / RARE 12 / SUPER_RARE 16；
+   * 约 25% 商品打折（displayPriceChg=true，价减半，官方抓包确认）。
+   */
   generateShopGoods(theme: string): any[] {
-    const detail = excel.RoguelikeTopicTable.details[theme];
-    const ticket = `${theme}_recruit_ticket_all`;
+    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+    const items = detail?.items || {};
     const priceId = `${theme}_gold`;
-    
-    const goods: any[] = [{
-      index: "0",
-      itemId: ticket,
-      count: 1,
-      priceId: priceId,
-      priceCount: 0,
-      origCost: 0,
-      displayPriceChg: false,
-      _retainDiscount: 1,
-    }];
 
-    let i = 1;
-    const relicMap = detail.archiveComp?.relic?.relic || {};
-    for (const relicId of Object.keys(relicMap)) {
+    const priceOf = (itemId: string): number => {
+      const item = items[itemId];
+      if (!item) return 4;
+      if (item.type === "RECRUIT_TICKET") return itemId.includes("_temp_") ? 8 : 4;
+      if (item.type === "UPGRADE_TICKET") return 6;
+      if (item.type === "CUSTOM_TICKET") return 8;
+      if (item.type === "FRAGMENT") return 4;
+      if (item.type === "ACTIVE_TOOL") return 8;
+      if (item.type === "RELIC") {
+        if (item.rarity === "RARE") return 12;
+        if (item.rarity === "SUPER_RARE") return 16;
+        return 8;
+      }
+      return 8;
+    };
+
+    const shuffled = (arr: string[]) => [...arr].sort(() => Math.random() - 0.5);
+
+    // 藏品池过滤已拥有；按稀有度分层各抽 1 件再补齐到 4 件（避免全抽同档）
+    const hasRelic = Object.values(this.inventory?.relic || {}).map(
+      (r) => (r as any).id,
+    );
+    const relicPool = Object.keys(items).filter(
+      (id) => items[id]?.type === "RELIC" && !hasRelic.includes(id),
+    );
+    const tier = (id: string) =>
+      items[id]?.rarity === "RARE" ? 1 : items[id]?.rarity === "SUPER_RARE" ? 2 : 0;
+    const byTier: string[][] = [[], [], []];
+    for (const id of relicPool) byTier[tier(id)].push(id);
+    const relicPicks: string[] = [];
+    for (const t of [0, 1, 2]) {
+      const pool = shuffled(byTier[t]);
+      if (pool.length > 0) relicPicks.push(pool[0]);
+    }
+    while (relicPicks.length < 4) {
+      const rest = relicPool.filter((id) => !relicPicks.includes(id));
+      if (rest.length === 0) break;
+      relicPicks.push(shuffled(rest)[0]);
+    }
+
+    const ticketPool = Object.keys(detail?.recruitTickets || {}).filter(
+      (id) =>
+        !id.endsWith("_all") &&
+        !id.includes("_5star") &&
+        !id.includes("_quad_") &&
+        !id.includes("_special"),
+    );
+    const fragmentPool = Object.keys(items).filter(
+      (id) => items[id]?.type === "FRAGMENT",
+    );
+    const toolPool = Object.keys(items).filter(
+      (id) => items[id]?.type === "ACTIVE_TOOL",
+    );
+
+    const goods: any[] = [];
+    let i = 0;
+    const pushGood = (itemId: string) => {
+      const orig = priceOf(itemId);
+      const discount = Math.random() < 0.25;
+      const priceCount = discount ? Math.max(1, Math.round(orig * 0.5)) : orig;
       goods.push({
         index: `${i}`,
-        itemId: relicId,
+        itemId,
         count: 1,
-        priceId: priceId,
-        priceCount: 0,
-        origCost: 0,
-        displayPriceChg: false,
-        _retainDiscount: 1,
+        priceId,
+        priceCount,
+        origCost: orig,
+        displayPriceChg: discount,
+        _retainDiscount: discount ? priceCount / orig : 1,
       });
       i++;
-    }
+    };
 
-    const difficultyGroups = detail.difficultyUpgradeRelicGroups || {};
-    for (const group of Object.values(difficultyGroups)) {
-      const relicData = (group as any).relicData || [];
-      for (const relicItem of relicData) {
-        goods.push({
-          index: `${i}`,
-          itemId: relicItem.relicId,
-          count: 1,
-          priceId: priceId,
-          priceCount: 0,
-          origCost: 0,
-          displayPriceChg: false,
-          _retainDiscount: 1,
-        });
-        i++;
-      }
-    }
+    const tPool = shuffled(ticketPool);
+    if (tPool.length > 0) pushGood(tPool[0]);
+    if (fragmentPool.length > 0) pushGood(shuffled(fragmentPool)[0]);
+    if (toolPool.length > 0) pushGood(shuffled(toolPool)[0]);
+    for (const id of relicPicks) pushGood(id);
 
     return goods;
   }
 
+  /**
+   * 构建商店内容（battleShop，官方 pending BATTLE_SHOP 线格式）：
+   * bank/id/goods/canBattle/hasBoss/refreshCnt/showRefresh/withdrawMethod/refreshMethod；
+   * FRAGMENT 模块主题附 recycleGoods（碎片回收 1 金币/件，官方抓包确认）。
+   */
+  buildShopContent(theme: string): any {
+    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+    const zone = this._status.cursor.zone;
+    // 官服商店 id 用层号（cursor.zone 1000 起为网格区域索引——减 999 还原层号）
+    const layer = zone > 999 ? zone - 999 : zone;
+    const goods = this.generateShopGoods(theme);
+    const content: any = {
+      bank: {
+        open: true,
+        canPut: true,
+        canWithdraw: true,
+        withdraw: 0,
+        cost: 1,
+        withdrawLimit: 20,
+      },
+      id: `zone_${layer}_shop`,
+      goods,
+      canBattle: true,
+      hasBoss: true,
+      refreshCnt: 2,
+      showRefresh: true,
+      withdrawMethod: "fee_add",
+      refreshMethod: "direct",
+      _done: false,
+    };
+    const fragments = Object.keys(detail?.items || {}).filter(
+      (id) => detail.items[id]?.type === "FRAGMENT",
+    );
+    if (fragments.length > 0) {
+      content.recycleGoods = fragments.slice(0, 6).map((id, idx) => ({
+        index: `f_${idx + 1}`,
+        itemId: id,
+        count: 1,
+        priceId: `${theme}_gold`,
+        priceCount: 1,
+        origCost: 1,
+        displayPriceChg: false,
+      }));
+      content.recycleCount = content.recycleGoods.length;
+    }
+    return content;
+  }
+
   async buyGoods(args: { select: number }): Promise<void> {
     const { select } = args;
-    const shopEvent = this._status.pending[0];
-    if (!shopEvent || shopEvent.type !== "SHOP") return;
-    
-    const goods = shopEvent.content.shop?.goods || [];
+    // 兼容 BATTLE_SHOP（官方，content.battleShop）与旧格式 SHOP（content.shop）
+    const shopEvent = this._status.pending.find(
+      (e) => e.type === "BATTLE_SHOP" || e.type === "SHOP",
+    );
+    if (!shopEvent) return;
+    const shop = shopEvent.content.battleShop ?? shopEvent.content.shop;
+    if (!shop) return;
+
+    const goods = shop.goods || [];
     const selectedGood = goods[select];
-    if (!selectedGood) return;
+    if (!selectedGood || selectedGood.count <= 0) return;
 
-    const itemId = selectedGood.itemId;
     const priceCount = selectedGood.priceCount || 0;
-
     if (priceCount > 0 && this._status.property.gold < priceCount) {
       return;
     }
@@ -925,6 +1030,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       this._status.property.gold -= priceCount;
     }
 
+    const itemId = selectedGood.itemId;
     if (itemId.includes("_recruit_ticket_")) {
       this._trigger.emit("rlv2:recruit:gain", [itemId, "shop", 0]);
       const tickets = Object.values(this.inventory!.recruit);
@@ -935,23 +1041,27 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       }
     } else if (itemId.includes("_relic_")) {
       this._trigger.emit("rlv2:relic:gain", [{ id: itemId, count: 1 }]);
-    } else if (itemId.includes("_active_tool_")) {
+    } else if (
+      itemId.includes("_active_tool_") ||
+      itemId.includes("_explore_tool_")
+    ) {
       this._trigger.emit("rlv2:get:items", [[{ id: itemId, count: 1 }]]);
-    } else if (itemId.includes("_explore_tool_")) {
+    } else {
+      // 碎片/其他物品：通用发放（inventory.getItem 按类型分发）
       this._trigger.emit("rlv2:get:items", [[{ id: itemId, count: 1 }]]);
     }
 
-    goods.splice(select, 1);
-    for (let idx = select; idx < goods.length; idx++) {
-      goods[idx].index = `${idx}`;
-    }
+    // 官方：售出商品保留在列表但 count 置 0（已售罄标记，非移除）
+    selectedGood.count = 0;
   }
 
   /** 商店刷新：重生成当前商店商品并扣除刷新次数 */
   async refreshShop(): Promise<void> {
-    const shopEvent = this._status.pending[0];
-    if (!shopEvent || shopEvent.type !== "SHOP") return;
-    const shop = shopEvent.content.shop;
+    const shopEvent = this._status.pending.find(
+      (e) => e.type === "BATTLE_SHOP" || e.type === "SHOP",
+    );
+    if (!shopEvent) return;
+    const shop = shopEvent.content.battleShop ?? shopEvent.content.shop;
     if (!shop || (shop.refreshCnt ?? 0) <= 0) return;
     shop.goods = this.generateShopGoods(this.current.game!.theme);
     shop.refreshCnt -= 1;
@@ -1075,16 +1185,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         this._status.state = "PENDING";
         this._trigger.emit("rlv2:event:create", [
           "BATTLE_SHOP",
-          {
-            bank: {
-              open: true,
-              canPut: true,
-              canWithdraw: true,
-              withdraw: 0,
-              cost: 1,
-              withdrawLimit: 20,
-            },
-          },
+          this.buildShopContent(theme),
         ]);
         break;
       default: {
@@ -1766,16 +1867,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       this._status.state = "PENDING";
       this._trigger.emit("rlv2:event:create", [
         "BATTLE_SHOP",
-        {
-          bank: {
-            open: true,
-            canPut: true,
-            canWithdraw: true,
-            withdraw: 0,
-            cost: 1,
-            withdrawLimit: 20,
-          },
-        },
+        this.buildShopContent(this.current.game!.theme),
       ]);
       return;
     }
@@ -1861,6 +1953,44 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }
 
   /**
+   * 废品鉴定（rogue_6 SCRAP，官方 POST /rlv2/scrap/identify，body { count }）：
+   * 从废品池抽 count 件废品入零件箱（响应顶层 scrap），并附 legacy 部件（响应顶层 legacy）。
+   * 官方响应（抓包 2026-08-11）：{ scrap: [{id,count}], legacy: [{id,count}], playerDataDelta }。
+   */
+  async scrapIdentify(args: { count?: number }): Promise<{
+    scrap: RoguelikeItemBundle[];
+    legacy: RoguelikeItemBundle[];
+  }> {
+    const theme = this.current.game?.theme ?? "";
+    const scrapMod = (excel.RoguelikeTopicTable.modules as any)?.[theme];
+    // 兼容 sCRAP（CS 枚举污染）与 scrap 两种键名（同 battle.ts 处理）
+    const pool = Object.keys(
+      (scrapMod?.scrap ?? scrapMod?.sCRAP)?.scrapItemToType || {},
+    );
+    const count = Math.max(1, Math.min(args.count ?? 1, 3));
+    const scrap: RoguelikeItemBundle[] = [];
+    for (let i = 0; i < count && pool.length > 0; i++) {
+      const id = pool[Math.floor(Math.random() * pool.length)];
+      scrap.push({ id, count: 1 });
+      this._trigger.emit("rlv2:scrap:gain", [id]);
+    }
+    // legacy 部件：LEGACY 型物品（下次探索开局加成，本局无持续效果）
+    const items = (excel.RoguelikeTopicTable.details[theme] as any)?.items || {};
+    const legacyPool = Object.keys(items).filter(
+      (id) => items[id]?.type === "LEGACY",
+    );
+    const legacy: RoguelikeItemBundle[] = [];
+    const legacyCount = Math.floor(count / 2);
+    for (let i = 0; i < legacyCount && legacyPool.length > 0; i++) {
+      const id = legacyPool[Math.floor(Math.random() * legacyPool.length)];
+      legacy.push({ id, count: 1 });
+      this._trigger.emit("rlv2:get:items", [[{ id, count: 1 }]]);
+    }
+    this._status.state = "PENDING";
+    return { scrap, legacy };
+  }
+
+  /**
    * 节点事件触发（gridZone 移动落地）：复用 moveTo 的节点类型分发
    * @param nodeType TorappuRoguelikeEventType
    */
@@ -1899,16 +2029,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       case TorappuRoguelikeEventType.BATTLE_SHOP:
         this._trigger.emit("rlv2:event:create", [
           "BATTLE_SHOP",
-          {
-            bank: {
-              open: true,
-              canPut: true,
-              canWithdraw: true,
-              withdraw: 0,
-              cost: 1,
-              withdrawLimit: 20,
-            },
-          },
+          this.buildShopContent(theme),
         ]);
         break;
       default:

@@ -479,6 +479,19 @@ router.post("/battlePass/getReward", async (req, res) => {
   );
 });
 
+/** 战令领奖（客户端路径 /rlv2/battlePass_getReward，下划线风格——官方抓包确认） */
+router.post("/battlePass_getReward", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as RoguelikeBattlePassGetRewardRequest;
+  const { items } = await player.rlv2.battlePassGetReward(
+    body.theme,
+    body.rewards,
+  );
+  res.send(
+    rlv2Response(player, { items }) satisfies RoguelikeBattlePassGetRewardResponse,
+  );
+});
+
 /** 银行存钱（CS: RoguelikeBankInvestRequest） */
 router.post("/bankPut", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
@@ -513,6 +526,31 @@ router.post("/nodeMission/giveUp", async (req, res) => {
 
 /** 关闭节点任务提示（CS: RoguelikeReadMissionTipRequest） */
 router.post("/nodeMission/closeTip", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as RoguelikeReadMissionTipRequest;
+  await player.rlv2.nodeMissionCloseTip();
+  res.send(rlv2Response(player) satisfies RoguelikeReadMissionTipResponse);
+});
+
+/**
+ * 节点任务（客户端路径 /rlv2/nodeMission_confirm|giveUp|closeTip，下划线风格——
+ * 官方抓包确认；斜杠路径保留兼容）
+ */
+router.post("/nodeMission_confirm", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as RoguelikeConfirmNodeMissionRequest;
+  await player.rlv2.nodeMissionConfirm();
+  res.send(rlv2Response(player) satisfies RoguelikeConfirmNodeMissionResponse);
+});
+
+router.post("/nodeMission_giveUp", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  req.body as RoguelikeGiveUpNodeMissionRequest;
+  await player.rlv2.nodeMissionGiveUp();
+  res.send(rlv2Response(player) satisfies RoguelikeGiveUpNodeMissionResponse);
+});
+
+router.post("/nodeMission_closeTip", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as RoguelikeReadMissionTipRequest;
   await player.rlv2.nodeMissionCloseTip();
@@ -647,6 +685,19 @@ router.post("/scrap/loseScrap", async (req, res) => {
   const body = req.body as RoguelikeScrapLoseRequest;
   await player.rlv2.loseScrap(body);
   res.send(rlv2Response(player) satisfies RoguelikeScrapLoseResponse);
+});
+
+/** 废品鉴定（rogue_6 SCRAP 模块；抓包 body { count }，响应顶层 { scrap, legacy }） */
+router.post("/scrap/identify", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as { count?: number };
+  const ret = await player.rlv2.scrapIdentify({ count: body?.count });
+  res.send(
+    rlv2Response(player, {
+      scrap: ret.scrap,
+      legacy: ret.legacy,
+    }) as any,
+  );
 });
 
 /* ===== rogue_6 GRID_ZONE 网格区域 ===== */

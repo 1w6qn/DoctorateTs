@@ -26,6 +26,14 @@ describe("rlv2 路由", () => {
         confirmPredict: vi.fn().mockResolvedValue(undefined),
         closeRecruitTicket: vi.fn().mockResolvedValue(undefined),
         selectChoice: vi.fn().mockResolvedValue(undefined),
+        battlePassGetReward: vi.fn().mockResolvedValue({ items: [{ type: "GOLD", id: "4001", count: 1 }] }),
+        nodeMissionConfirm: vi.fn().mockResolvedValue(undefined),
+        nodeMissionGiveUp: vi.fn().mockResolvedValue(undefined),
+        nodeMissionCloseTip: vi.fn().mockResolvedValue(undefined),
+        scrapIdentify: vi.fn().mockResolvedValue({
+          scrap: [{ id: "rogue_6_scrap_G_05", count: 1 }],
+          legacy: [{ id: "rogue_6_legacy_02", count: 1 }],
+        }),
       },
     };
     res = mockRes();
@@ -85,5 +93,40 @@ describe("rlv2 路由", () => {
     await call("/selectChoice", { choice: "choice_leave" });
     expect(player.rlv2.selectChoice).toHaveBeenCalledWith({ choice: "choice_leave" });
     expectRlv2Response(res.send.mock.calls[0][0]);
+  });
+
+  it("POST /battlePass_getReward（下划线路径）应调用控制器并带 items", async () => {
+    await call("/battlePass_getReward", { theme: "rogue_2", rewards: ["bp_level_1"] });
+    expect(player.rlv2.battlePassGetReward).toHaveBeenCalledWith("rogue_2", ["bp_level_1"]);
+    const sent = res.send.mock.calls[0][0];
+    expect(sent.items).toEqual([{ type: "GOLD", id: "4001", count: 1 }]);
+    expectRlv2Response(sent);
+  });
+
+  it("POST /nodeMission_confirm（下划线路径）应调用控制器", async () => {
+    await call("/nodeMission_confirm", {});
+    expect(player.rlv2.nodeMissionConfirm).toHaveBeenCalled();
+    expectRlv2Response(res.send.mock.calls[0][0]);
+  });
+
+  it("POST /nodeMission_giveUp（下划线路径）应调用控制器", async () => {
+    await call("/nodeMission_giveUp", {});
+    expect(player.rlv2.nodeMissionGiveUp).toHaveBeenCalled();
+    expectRlv2Response(res.send.mock.calls[0][0]);
+  });
+
+  it("POST /nodeMission_closeTip（下划线路径）应调用控制器", async () => {
+    await call("/nodeMission_closeTip", {});
+    expect(player.rlv2.nodeMissionCloseTip).toHaveBeenCalled();
+    expectRlv2Response(res.send.mock.calls[0][0]);
+  });
+
+  it("POST /scrap/identify 应调用控制器并带 scrap/legacy", async () => {
+    await call("/scrap/identify", { count: 3 });
+    expect(player.rlv2.scrapIdentify).toHaveBeenCalledWith({ count: 3 });
+    const sent = res.send.mock.calls[0][0];
+    expect(sent.scrap).toEqual([{ id: "rogue_6_scrap_G_05", count: 1 }]);
+    expect(sent.legacy).toEqual([{ id: "rogue_6_legacy_02", count: 1 }]);
+    expectRlv2Response(sent);
   });
 });

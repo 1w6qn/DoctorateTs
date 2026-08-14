@@ -204,6 +204,22 @@ describe("CheckInManager", () => {
       // 当前时间在 group_001 的时间范围内
       expect(mockPlayer._playerdata.checkIn!.checkInGroupId).toBe("group_001");
     });
+
+    it("groups 含 null 伪键时 monthlyRefresh 不应 500", async () => {
+      // 数据表末尾字段名伪键（值 null）——修复前 Object.values 遍历到 null →
+      // t.signStartTime 崩溃（2026-08-14 数据更新后所有生成表均带该伪键）
+      const excel = await import("@excel/excel");
+      const groups = (excel.default as any).CheckinTable.groups;
+      groups["groupId"] = null;
+      groups["signStartTime"] = null;
+      const manager = new CheckInManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      await expect(manager.monthlyRefresh()).resolves.not.toThrow();
+      // 仍能匹配到正常签到组
+      expect(mockPlayer._playerdata.checkIn!.checkInGroupId).toBe("group_001");
+    });
   });
 
   describe("checkIn", () => {

@@ -271,6 +271,39 @@ describe("RetroManager", () => {
         trail_reward_002: 1,
       });
     });
+
+    it("trail 缺该 retro 条目/整体缺失时应惰性初始化而非 500", async () => {
+      // 修复前：trail[retroId] 为 undefined 时直接写 trail[retroId][rewardId] → TypeError
+      //（新 retro/旧存档——模板只预置已知 retro 条目）
+      const manager = new RetroManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      // 场景一：trail 存在但缺 retro_001 条目
+      mockPlayer._playerdata.retro!.trail = {};
+      let result = await manager.getRetroTrailReward({
+        retroId: "retro_001",
+        rewardId: "trail_reward_001",
+      });
+      expect(result).toEqual([
+        { id: "retro_item_001", count: 5, type: "MATERIAL" },
+      ]);
+      expect(mockPlayer._playerdata.retro!.trail["retro_001"]).toEqual({
+        trail_reward_001: 1,
+      });
+      // 场景二：trail 整体缺失（更旧存档）
+      delete (mockPlayer._playerdata.retro as any).trail;
+      result = await manager.getRetroTrailReward({
+        retroId: "retro_001",
+        rewardId: "trail_reward_002",
+      });
+      expect(result).toEqual([
+        { id: "retro_item_002", count: 10, type: "MATERIAL" },
+      ]);
+      expect(mockPlayer._playerdata.retro!.trail["retro_001"]).toEqual({
+        trail_reward_002: 1,
+      });
+    });
   });
 
   describe("getRetroPassReward", () => {

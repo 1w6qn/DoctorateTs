@@ -127,6 +127,15 @@ export class StatusManager {
   }
 
   async buyAp() {
+    // 修复：每日购买次数（buyApRemainTimes，dailyRefresh 重置为 10）从未校验/递减 →
+    // 可无限 1 源石换 135 理智；现按剩余次数拦截并扣减
+    const allowed = await this._player.update(async (draft) => {
+      // 旧存档缺失字段视为当日额度未用（dailyRefresh 每日重置为 10）
+      if ((draft.status.buyApRemainTimes ?? 10) <= 0) return false;
+      draft.status.buyApRemainTimes -= 1;
+      return true;
+    });
+    if (!allowed) return;
     await this._trigger.emit("items:use", [
       [{ id: "", type: "DIAMOND", count: 1 }],
     ]);

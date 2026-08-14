@@ -524,6 +524,30 @@ describe("BattleManager", () => {
         expect.any(Array)
       );
     });
+
+    it("stages 含 null 伪键时 finishStoryStage / finish 不应 500", async () => {
+      // 数据表末尾字段名伪键（值 null）——修复前 unlock 循环遍历到 null →
+      // stage.unlockCondition 崩溃（2026-08-14 数据更新后所有生成表均带该伪键）
+      mockExcelRef.StageTable.stages["stageType"] = null;
+      mockExcelRef.StageTable.stages["unlockCondition"] = null;
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      await expect(
+        manager.finishStoryStage({ stageId: "main_01-07" }),
+      ).resolves.not.toThrow();
+
+      // finish 胜利路径（state=1 触发解锁扫描）
+      mockPlayer._playerdata.dungeon!.stages["main_01-07"].state = 1;
+      await expect(
+        manager.finish({
+          data: "encrypted_battle_data",
+          battleData: { isCheat: "0", completeTime: 100 },
+        } as any),
+      ).resolves.not.toThrow();
+    });
   });
 
   describe("finish 后处理", () => {
@@ -598,6 +622,42 @@ describe("BattleManager", () => {
       } as any);
 
       expect(result.unlockStages).toContain("main_01-08");
+    });
+
+    it("胜利时不应覆盖已解锁/已通关的后续关卡（in Object.keys 数组 bug 修复）", async () => {
+      // 场景：main_01-08 已解锁且已通关（state=3, completeTimes=5），再通关
+      // main_01-07（state=1）触发全表解锁扫描——修复前
+      // `item in Object.keys(draft.dungeon.stages)` 对数组用 in 恒 false →
+      // main_01-08 被整体覆盖为 state:0/completeTimes:0（重新变锁定、通关次数清零）
+      mockPlayer._playerdata.dungeon!.stages["main_01-07"].state = 1;
+      mockPlayer._playerdata.dungeon!.stages["main_01-08"] = {
+        stageId: "main_01-08",
+        state: 3,
+        completeTimes: 5,
+        startTimes: 2,
+        practiceTimes: 0,
+        hasBattleReplay: 0,
+        noCostCnt: 0,
+      };
+      mockExcelRef.StageTable.stages["main_01-08"] = {
+        stageId: "main_01-08",
+        stageType: "MAIN",
+        unlockCondition: [{ stageId: "main_01-07", completeState: "COMPLETE" }],
+      };
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      await manager.finish({
+        data: "encrypted_battle_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      } as any);
+
+      const kept = mockPlayer._playerdata.dungeon!.stages["main_01-08"];
+      expect(kept.state).toBe(3);
+      expect(kept.completeTimes).toBe(5);
+      expect(kept.startTimes).toBe(2);
     });
 
     it("胜利时应给出战干员增加信赖", async () => {

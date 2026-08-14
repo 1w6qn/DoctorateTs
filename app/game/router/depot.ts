@@ -312,6 +312,19 @@ router.post("/useMaterialVoucher", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { itemId, instId, count } = req.body as UseMaterialVoucherRequest;
   const useCount = count || 1;
+  // 修复：材料池为空时不再消耗凭证（原实现先扣证后 findRelatedItems 可能为空 →
+  // 凭证白扣无发放，数据丢失；与 useCharGachaVoucher 的防白扣守卫一致）
+  const relatedItems = VoucherDataManager.findRelatedItems(itemId);
+  if (relatedItems.length === 0) {
+    logger.warn(
+      "depot",
+      `useMaterialVoucher ${itemId} 无材料池数据，跳过消耗（防凭证白扣）`,
+    );
+    return res.send({
+      itemGet: [],
+      ...player.delta,
+    } satisfies UseMaterialVoucherResponse);
+  }
   // 消耗凭证物品
   await player._trigger.emit("items:use", [
     [
@@ -323,20 +336,17 @@ router.post("/useMaterialVoucher", async (req, res) => {
     ],
   ]);
   // 从关联材料池中随机选取材料
-  const relatedItems = VoucherDataManager.findRelatedItems(itemId);
   const itemGet: ItemBundle[] = [];
-  if (relatedItems.length > 0) {
-    for (let i = 0; i < useCount; i++) {
-      const chosen = randomChoice(relatedItems);
-      itemGet.push({
-        id: chosen.itemId,
-        count: 1,
-        type: chosen.itemType,
-      });
-    }
-    // 发放选中的材料到玩家背包
-    await player._trigger.emit("items:get", [itemGet]);
+  for (let i = 0; i < useCount; i++) {
+    const chosen = randomChoice(relatedItems);
+    itemGet.push({
+      id: chosen.itemId,
+      count: 1,
+      type: chosen.itemType,
+    });
   }
+  // 发放选中的材料到玩家背包
+  await player._trigger.emit("items:get", [itemGet]);
   // 注意：VOUCHER_MGACHA 类型（如 randomMaterial_10）的材料池数据
   // 未存储在 item_table 的 voucherRelateList 中，itemGet 可能为空。
   // 完整实现需要从额外数据源获取材料池定义。
@@ -397,6 +407,38 @@ router.post("/useOptionVoucher", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { itemId, instId, choices, voucherCount } = req.body as UseOptionalVoucherRequest;
   const consumeCount = voucherCount || 1;
+  // 修复：choices 为客户端直接传参——原实现不校验直接 items:get 发放任意物品
+  //（可自选券刷任意道具/负数数量）；校验：数量为正整数，且（凭证可选列表可用时）
+  // 每个选择项必须在凭证 itemList 内
+  if (
+    !Array.isArray(choices) ||
+    choices.some(
+      (c) =>
+        !c ||
+        typeof c.id !== "string" ||
+        typeof c.count !== "number" ||
+        !Number.isInteger(c.count) ||
+        c.count <= 0,
+    )
+  ) {
+    logger.warn("depot", `useOptionVoucher ${itemId} 非法 choices，拒绝发放`);
+    return res.send({
+      itemGet: [],
+      ...player.delta,
+    } satisfies UseOptionalVoucherResponse);
+  }
+  const voucherInfo = VoucherDataManager.getVoucher(itemId);
+  const allowedIds = new Set((voucherInfo?.itemList ?? []).map((i) => i.id));
+  if (allowedIds.size > 0) {
+    const bad = choices.filter((c) => !allowedIds.has(c.id));
+    if (bad.length > 0) {
+      logger.warn("depot", `useOptionVoucher ${itemId} choices 含不在凭证列表的物品，拒绝发放`);
+      return res.send({
+        itemGet: [],
+        ...player.delta,
+      } satisfies UseOptionalVoucherResponse);
+    }
+  }
   // 消耗凭证物品
   await player._trigger.emit("items:use", [
     [
@@ -408,10 +450,8 @@ router.post("/useOptionVoucher", async (req, res) => {
     ],
   ]);
   // 发放玩家选择的物品
-  const itemGet: ItemBundle[] = choices || [];
-  if (itemGet.length > 0) {
-    await player._trigger.emit("items:get", [itemGet]);
-  }
+  const itemGet: ItemBundle[] = choices;
+  await player._trigger.emit("items:get", [itemGet]);
   res.send({
     itemGet: itemGet,
     ...player.delta,

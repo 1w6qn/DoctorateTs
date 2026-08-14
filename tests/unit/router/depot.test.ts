@@ -104,4 +104,63 @@ describe("depot 路由", () => {
     await call({ method: "POST", url: "/voucherGacha", body: {} }, res);
     expect(res.send).toHaveBeenCalledWith({ modified: {} });
   });
+
+  it("useMaterialVoucher 材料池为空时不应消耗凭证（防白扣）", async () => {
+    const emit = vi.fn();
+    (vi.mocked(httpContext.get) as any).mockReturnValue({ delta: {}, _trigger: { emit } });
+    const res = mockRes();
+    await call(
+      { method: "POST", url: "/useMaterialVoucher", body: { itemId: "no_pool_voucher", instId: 1, count: 1 } },
+      res,
+    );
+    expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ itemGet: [] }));
+    // 不消耗（无 items:use 调用）
+    expect(emit).not.toHaveBeenCalledWith("items:use", expect.anything());
+  });
+
+  it("useMaterialVoucher 有池时应扣凭证并发放材料", async () => {
+    const emit = vi.fn();
+    (vi.mocked(httpContext.get) as any).mockReturnValue({ delta: {}, _trigger: { emit } });
+    const res = mockRes();
+    await call(
+      { method: "POST", url: "/useMaterialVoucher", body: { itemId: "voucher_mat_1", instId: 1, count: 2 } },
+      res,
+    );
+    const arg = res.send.mock.calls[0][0];
+    expect(arg.itemGet).toHaveLength(2);
+    expect(emit).toHaveBeenCalledWith("items:use", [[{ id: "voucher_mat_1", count: 2, instId: 1 }]]);
+  });
+
+  it("useOptionVoucher 非法 choices（负数/不在凭证列表）应拒绝发放", async () => {
+    const emit = vi.fn();
+    (vi.mocked(httpContext.get) as any).mockReturnValue({ delta: {}, _trigger: { emit } });
+    const res = mockRes();
+    // 负数数量
+    await call(
+      { method: "POST", url: "/useOptionVoucher", body: { itemId: "voucher_pick_1", instId: 1, choices: [{ id: "char_001", count: -5 }] } },
+      res,
+    );
+    expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ itemGet: [] }));
+    // 不在凭证 itemList 的物品
+    await call(
+      { method: "POST", url: "/useOptionVoucher", body: { itemId: "voucher_pick_1", instId: 1, choices: [{ id: "char_999", count: 1 }] } },
+      res,
+    );
+    expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ itemGet: [] }));
+    // 全程无消耗、无发放
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it("useOptionVoucher 合法 choices 应消耗并发放", async () => {
+    const emit = vi.fn();
+    (vi.mocked(httpContext.get) as any).mockReturnValue({ delta: {}, _trigger: { emit } });
+    const res = mockRes();
+    await call(
+      { method: "POST", url: "/useOptionVoucher", body: { itemId: "voucher_pick_1", instId: 1, choices: [{ id: "char_001", count: 1 }] } },
+      res,
+    );
+    const arg = res.send.mock.calls[0][0];
+    expect(arg.itemGet).toEqual([{ id: "char_001", count: 1 }]);
+    expect(emit).toHaveBeenCalledWith("items:use", [[{ id: "voucher_pick_1", count: 1, instId: 1 }]]);
+  });
 });

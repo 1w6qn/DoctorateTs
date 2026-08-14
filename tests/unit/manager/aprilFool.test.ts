@@ -189,6 +189,24 @@ describe("AprilFoolManager", () => {
       expect(result.npcResult).toEqual({});
     });
 
+    it("stats.extraBattleInfo 缺失（异常/旧版战斗数据）时应返回空结果而非 500", async () => {
+      const manager = new AprilFoolManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      // 修复前：battleLog.battleData.stats.extraBattleInfo 解引用 undefined → TypeError
+      (decryptBattleData as ReturnType<typeof vi.fn>).mockResolvedValue({
+        battleId: "battle_001",
+        battleData: { isCheat: "0", completeTime: 100 },
+      });
+      const result = await manager.act5funBattleFinish({
+        data: "encrypted_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      });
+      expect(result.score).toBe(0);
+      expect(result.playerResult.totalWin).toBe(0);
+    });
+
     it("应该将玩家 pushFlags.status 作为 loginTime 传给 decryptBattleData", async () => {
       const manager = new AprilFoolManager(
         mockPlayer as any,

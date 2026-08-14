@@ -262,7 +262,8 @@ describe("StatusManager", () => {
   });
 
   describe("buyAp", () => {
-    it("应该触发 items:use 消耗钻石与 items:get 增加理智", async () => {
+    it("应扣减每日次数并触发 items:use 消耗钻石与 items:get 增加理智", async () => {
+      mockPlayer._playerdata.status!.buyApRemainTimes = 10;
       const manager = new StatusManager(
         mockPlayer as any,
         mockTrigger as any
@@ -271,6 +272,7 @@ describe("StatusManager", () => {
       const emitSpy = vi.spyOn(mockTrigger, "emit");
       await manager.buyAp();
 
+      expect(mockPlayer._playerdata.status!.buyApRemainTimes).toBe(9);
       expect(emitSpy).toHaveBeenCalledWith(
         "items:use",
         [[{ id: "", type: "DIAMOND", count: 1 }]]
@@ -279,6 +281,20 @@ describe("StatusManager", () => {
         "items:get",
         [[{ id: "", type: "AP_GAMEPLAY", count: 135 }]]
       );
+    });
+
+    it("每日次数耗尽后不应购买（修复：原无限制可无限 1 源石换理智）", async () => {
+      mockPlayer._playerdata.status!.buyApRemainTimes = 0;
+      const manager = new StatusManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      const emitSpy = vi.spyOn(mockTrigger, "emit");
+      await manager.buyAp();
+
+      expect(emitSpy).not.toHaveBeenCalled();
+      expect(mockPlayer._playerdata.status!.buyApRemainTimes).toBe(0);
     });
   });
 

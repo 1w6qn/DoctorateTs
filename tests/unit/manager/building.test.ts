@@ -229,7 +229,7 @@ describe("BuildingManager", () => {
   });
 
   describe("sync", () => {
-    it("应该设置 event.building 为 now()+5000 并返回当前时间戳", async () => {
+    it("应该设置 event.building 为真实下一事件时间（劳动力恢复）并返回当前时间戳", async () => {
       const manager = new BuildingManager(
         mockPlayer as any,
         mockTrigger as any
@@ -237,9 +237,22 @@ describe("BuildingManager", () => {
 
       const result = await manager.sync();
 
-      // now() mock 为 1234567890,event.building 应为 1234567890 + 5000
-      expect(mockPlayer._playerdata.event!.building).toBe(1234572890);
+      // 修复前：固定 now()+5000 → 客户端每 5 秒轮询 sync（频繁同步）。
+      // 修复后：按劳动力恢复时间（lastUpdateTime + laborRecoverTime）计算。
+      // now() mock 为 1234567890、laborRecoverTime=360、labor 未满 → 1234567890 + 360
+      expect(mockPlayer._playerdata.event!.building).toBe(1234568250);
       expect(result).toBe(1234567890);
+    });
+
+    it("劳动力已满且无制造任务时 event.building 应为 60s 兜底（不再 5s 轮询）", async () => {
+      mockPlayer._playerdata.building!.status.labor.value = 100;
+      mockPlayer._playerdata.building!.status.labor.maxValue = 100;
+      const manager = new BuildingManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      await manager.sync();
+      expect(mockPlayer._playerdata.event!.building).toBe(1234567890 + 60);
     });
   });
 
@@ -1006,6 +1019,17 @@ describe("BuildingManager 线索系统", () => {
     await manager.getDailyClue({} as any);
     await manager.getDailyClue({} as any);
     expect(mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock).toHaveLength(1);
+  });
+
+  it("dailyRefresh 应重置每日线索（dailyReward=null——修复后每日可再领）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.getDailyClue({} as any);
+    expect(mockPlayer._playerdata.building!.rooms.MEETING.room_001.dailyReward).not.toBeNull();
+    // 每日刷新 → dailyReward 复位 → 可再次领取
+    await manager.dailyRefresh();
+    expect(mockPlayer._playerdata.building!.rooms.MEETING.room_001.dailyReward).toBeNull();
+    await manager.getDailyClue({} as any);
+    expect(mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock).toHaveLength(2);
   });
 
   it("sendClue 应将线索从 ownStock 移到 receiveStock", async () => {

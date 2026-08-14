@@ -49,11 +49,14 @@ export class MissionManager {
    */
   get dailyMissionPeriod(): string {
     const ts = now();
+    // 修复：`getDay()+1` 把周日(0)→1、周五(5)→6，与配置表 1=周一..7=周日的
+    // 周期编号错位（周日匹配到工作日组、周五匹配到周末组）；先映射周日→7
+    const weekDay = new Date().getDay() === 0 ? 7 : new Date().getDay();
     const period = excel.MissionTable.dailyMissionPeriodInfo.find(
       (p) => p.startTime <= ts && p.endTime >= ts,
     )!;
     return period.periodList.find((p) =>
-      p.period.includes(new Date().getDay() + 1),
+      p.period.includes(weekDay),
     )!.missionGroupId;
   }
 
@@ -63,11 +66,13 @@ export class MissionManager {
    */
   get dailyMissionRewardPeriod(): string {
     const ts = now();
+    // 修复：同 dailyMissionPeriod——getDay()+1 星期错位，先映射周日→7
+    const weekDay = new Date().getDay() === 0 ? 7 : new Date().getDay();
     const period = excel.MissionTable.dailyMissionPeriodInfo.find(
       (p) => p.startTime <= ts && p.endTime >= ts,
     )!;
     return period.periodList.find((p) =>
-      p.period.includes(new Date().getDay() + 1),
+      p.period.includes(weekDay),
     )!.rewardGroupId;
   }
 
@@ -99,11 +104,16 @@ export class MissionManager {
   /**
    * 根据任务ID获取任务进度实例
    * @param missionId 任务ID
-   * @returns MissionProgress实例
+   * @returns MissionProgress实例（任务不在数据表/内存列表时返回 undefined，调用方自行判空）
    */
-  async getMissionById(missionId: string): Promise<MissionProgress> {
-    const type = excel.MissionTable.missions[missionId].type;
-    return this.missions[type].filter((m) => m.missionId == missionId)[0];
+  async getMissionById(
+    missionId: string,
+  ): Promise<MissionProgress | undefined> {
+    // 防御：数据表缺失（版本错位/下架任务）时 .type 解引用会 500
+    const missionInfo = excel.MissionTable.missions[missionId];
+    if (!missionInfo) return undefined;
+    const type = missionInfo.type;
+    return this.missions[type]?.filter((m) => m.missionId == missionId)[0];
   }
 
   /**
@@ -121,6 +131,9 @@ export class MissionManager {
       for (const reward of Object.values(
         excel.MissionTable.periodicalRewards,
       )) {
+        // 防御：数据表末尾混入字段名伪键（值 null 的转换产物，如 "groupId"/"id"）
+        // → reward.groupId 读 null 崩溃（2026-08-14 线上 daily refresh 500）
+        if (!reward || typeof reward !== "object") continue;
         if (reward.groupId == this.dailyMissionRewardPeriod) {
           draft.mission.missionRewards.rewards["DAILY"][reward.id] = 0;
         }
@@ -156,7 +169,8 @@ export class MissionManager {
     // 修复：原实现 new 后不 init（progress 空/无监听器）；逐实例 init
     this.missions["WEEKLY"] = [];
     for (const mission of Object.values(excel.MissionTable.missions).filter(
-      (m) => m.type == "WEEKLY",
+      // 防御：数据表末尾字段名伪键（值 null）——m.type 读 null 崩溃，跳过
+      (m): m is MissionData => !!m && typeof m === "object" && m.type == "WEEKLY",
     )) {
       const instance = new MissionProgress(
         mission.id,
@@ -368,7 +382,9 @@ export class MissionProgress {
         return 2;
       }
       for (const i of preMissionIds) {
-        if ((await this._player.mission.getMissionById(i)).state != 3) {
+        // 防御：前置任务不在数据表/内存列表（下架/无效跳过）时按未完成处理，不 500
+        const pre = await this._player.mission.getMissionById(i);
+        if (!pre || pre.state != 3) {
           return 1;
         }
       }
@@ -534,14 +550,18 @@ export class MissionProgress {
         this._trigger.off(template, func);
         await this._player.update(async (draft) => {
           draft.mission.missions[this.type][this.missionId].state = 3;
-          draft.mission.missions[this.type][this.missionId].progress =
-            this.progress;
+          // 修复：写回同一引用不产生 Immer patch → 进度值不进 delta，客户端进度条停滞；
+          // 复制为新数组使 Immer 生成 replace patch，进度随 delta 下发
+          draft.mission.missions[this.type][this.missionId].progress = [
+            ...this.progress,
+          ];
         });
         await this.unlockNextMission();
       } else {
         await this._player.update(async (draft) => {
-          draft.mission.missions[this.type][this.missionId].progress =
-            this.progress;
+          draft.mission.missions[this.type][this.missionId].progress = [
+            ...this.progress,
+          ];
           draft.mission.missions[this.type][this.missionId].state =
             await this.getState();
         });

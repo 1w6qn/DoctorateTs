@@ -193,6 +193,18 @@ describe("MissionManager", () => {
       const result = await manager.getMissionById("nonexistent");
       expect(result).toBeUndefined();
     });
+
+    it("任务不在数据表（版本错位/下架）时返回 undefined 而非 500", async () => {
+      // 修复前：excel.MissionTable.missions[missionId].type 解引用 undefined → TypeError
+      const manager = new MissionManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      manager.missions["DAILY"] = [];
+      // 不写入 mockExcelRef.MissionTable.missions —— 模拟数据表缺失
+      const result = await manager.getMissionById("removed_mission_1");
+      expect(result).toBeUndefined();
+    });
   });
 
   describe("confirmMission", () => {
@@ -637,5 +649,87 @@ describe("MissionManager 刷新", () => {
     const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
     await manager.init();
     expect(manager.missions["MAIN"]).toEqual([]);
+  });
+
+  it("periodicalRewards 含 null 伪键时 dailyRefresh 不应 500", async () => {
+    // 数据表末尾字段名伪键（值 null 的转换产物：groupId/id/type/...）——
+    // 修复前 Object.values 遍历到 null → reward.groupId 崩溃（2026-08-14 线上 500）
+    mockExcelRef.MissionTable.periodicalRewards["groupId"] = null;
+    mockExcelRef.MissionTable.periodicalRewards["id"] = null;
+    mockExcelRef.MissionTable.periodicalRewards["type"] = null;
+    const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
+    await expect(manager.dailyRefresh()).resolves.not.toThrow();
+    expect(manager.missions["DAILY"]).toHaveLength(1);
+  });
+
+  it("missions 含 null 伪键时 weeklyRefresh 不应 500", async () => {
+    mockExcelRef.MissionTable.missions["id"] = null;
+    mockExcelRef.MissionTable.missions["type"] = null;
+    mockExcelRef.MissionTable.missions["template"] = null;
+    const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
+    await expect(manager.weeklyRefresh()).resolves.not.toThrow();
+    expect(manager.missions["WEEKLY"]).toHaveLength(1);
+  });
+});
+
+describe("dailyMissionPeriod 星期映射（修复：getDay()+1 错位）", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+  let mockExcelRef: any;
+
+  beforeEach(async () => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockExcelRef = (vi.mocked(await import("@excel/excel")).default as any);
+    // 配置表周期编号 1=周一 .. 7=周日
+    mockExcelRef.MissionTable.dailyMissionPeriodInfo = [
+      {
+        startTime: 0,
+        endTime: 9999999999,
+        periodList: [
+          {
+            period: [1, 2, 3, 4, 5],
+            missionGroupId: "weekday_group",
+            rewardGroupId: "weekday_reward",
+          },
+          {
+            period: [6, 7],
+            missionGroupId: "weekend_group",
+            rewardGroupId: "weekend_reward",
+          },
+        ],
+      },
+    ];
+    mockPlayer = mockPlayerData({ mission: {} } as any);
+    mockPlayer._trigger = mockTrigger;
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const setDate = (y: number, m: number, d: number) =>
+    vi.setSystemTime(new Date(y, m - 1, d, 12, 0, 0));
+
+  it("周一(1)应匹配工作日组", async () => {
+    setDate(2024, 1, 1); // 2024-01-01 周一
+    const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
+    expect(manager.dailyMissionPeriod).toBe("weekday_group");
+    expect(manager.dailyMissionRewardPeriod).toBe("weekday_reward");
+  });
+
+  it("周五(5)应匹配工作日组（修复前 getDay()+1=6 错配周末组）", async () => {
+    setDate(2024, 1, 5); // 2024-01-05 周五
+    const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
+    expect(manager.dailyMissionPeriod).toBe("weekday_group");
+    expect(manager.dailyMissionRewardPeriod).toBe("weekday_reward");
+  });
+
+  it("周日(0)应匹配周末组（修复前 getDay()+1=1 错配工作日组）", async () => {
+    setDate(2024, 1, 7); // 2024-01-07 周日
+    const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
+    expect(manager.dailyMissionPeriod).toBe("weekend_group");
+    expect(manager.dailyMissionRewardPeriod).toBe("weekend_reward");
   });
 });

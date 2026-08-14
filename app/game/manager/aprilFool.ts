@@ -20,8 +20,10 @@ export class AprilFoolManager {
       let score = 0;
       let totalWin = 0;
       const battleLog = await decryptBattleData(data, draft.pushFlags.status);
-      Object.keys(battleLog.battleData.stats.extraBattleInfo).forEach(
-        (info: string) => {
+      // 防御：stats.extraBattleInfo 缺失（异常/旧版战斗数据）时不 500
+      const extra = battleLog?.battleData?.stats?.extraBattleInfo;
+      if (extra && typeof extra === "object") {
+        Object.keys(extra).forEach((info: string) => {
           const infoArr = info.split(",");
           if (infoArr[0] === "SIMPLE" && infoArr[1] === "money") {
             score = parseInt(infoArr[2]);
@@ -33,8 +35,8 @@ export class AprilFoolManager {
           ) {
             totalWin += 1;
           }
-        },
-      );
+        });
+      }
       return {
         result: 0,
         score: score,

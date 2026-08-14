@@ -81,11 +81,14 @@ export class CharRotationManager {
         draft.status.secretarySkinId = data.secretarySkinId;
       }
       if (data?.secretaryCharInstId) {
-        draft.charRotation.preset[instId].profileInst = parseInt(
-          data.secretaryCharInstId,
-        );
-        draft.status.secretary =
-          draft.troop.chars[data.secretaryCharInstId].charId;
+        // 防御：干员不存在（已删/损坏存档/乱传）时不 500
+        const char = draft.troop.chars[data.secretaryCharInstId];
+        if (char?.charId) {
+          draft.charRotation.preset[instId].profileInst = parseInt(
+            data.secretaryCharInstId,
+          );
+          draft.status.secretary = char.charId;
+        }
       }
       if (data?.slots) {
         draft.charRotation.preset[instId].slots = data.slots;

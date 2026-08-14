@@ -302,6 +302,27 @@ describe("CharRotationManager", () => {
       expect(preset.homeTheme).toBe(originalPreset.homeTheme);
       expect(preset.profile).toBe(originalPreset.profile);
     });
+
+    it("secretaryCharInstId 指向不存在干员时应跳过而非 500", async () => {
+      const manager = new CharRotationManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      // 修复前：draft.troop.chars["999"].charId 解引用 undefined → TypeError
+      await expect(
+        manager.updatePreset({
+          instId: "1",
+          flag: 0,
+          data: {
+            secretaryCharInstId: "999",
+          },
+        }),
+      ).resolves.not.toThrow();
+      // 预设与秘书配置均不被破坏
+      const preset = mockPlayer._playerdata.charRotation!.preset["1"];
+      expect(preset.profileInst).toBe(1001);
+      expect(mockPlayer._playerdata.status!.secretary).toBe("");
+    });
   });
 
   describe("deletePreset", () => {

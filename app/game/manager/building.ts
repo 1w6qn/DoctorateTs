@@ -37,6 +37,8 @@ export class BuildingManager {
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
+    // 每日刷新：会客室每日免费线索重置（dailyReward=null——"今日未领"合法值）
+    this._trigger.on("refresh:daily", this.dailyRefresh.bind(this));
     this._trigger.on(
       "building:char:init",
       async ([char]: [PlayerCharacter]) => {
@@ -75,6 +77,21 @@ export class BuildingManager {
     return Object.keys(
       Object.values(this._player._playerdata.building.rooms.MEETING)[0].board,
     );
+  }
+
+  /**
+   * 每日刷新：重置会客室每日免费线索
+   *
+   * 修复：getDailyClue 置位 room.dailyReward 后全库无清除逻辑（无每日重置）→
+   * 每日免费线索只能领取一次，会客室线索收集（7 阵营合成奖励）形同虚设；
+   * 每日刷新将 dailyReward 复位为 null（模板存档的"今日未领"合法值）。
+   */
+  async dailyRefresh() {
+    await this._player.update(async (draft) => {
+      for (const room of Object.values(draft.building.rooms.MEETING ?? {})) {
+        (room as any).dailyReward = null;
+      }
+    });
   }
 
   /** 获取信息共享时间戳 */
@@ -135,6 +152,42 @@ export class BuildingManager {
    * → 空 delta → 客户端死循环重拉（b1c673a 回归）。
    * @returns 当前时间戳
    */
+  /**
+   * 计算下一次基建事件时间（客户端据 event.building 调度下一次 /building/sync 轮询）
+   *
+   * 修复：原实现固定 event.building = now()+5000 → 客户端每 5 秒轮询一次 sync
+   * （频繁同步，且每次响应都含 event.building 变更、delta 恒非空）。
+   * 按真实事件时间取最小值：
+   * - 劳动力：下一次恢复点数时间（lastUpdateTime + laborRecoverTime，未满时）
+   * - 制造站：最早的房间下一方案产出完成时间（lastUpdateTime + (costPoint-processPoint)/capacity）
+   * 无事件时给 60s 兜底（低频轮询而非 5s 空转）。
+   */
+  private _nextBuildingEventTs(draft: WritableDraft<PlayerDataModel>): number {
+    const ts = now();
+    const candidates: number[] = [];
+    // 劳动力恢复（未满时下一次 +1 点的时间）
+    const labor = draft.building.status.labor;
+    const rate = getBuildingConstant<number>("laborRecoverTime") ?? 360;
+    if (rate > 0 && labor.value < labor.maxValue) {
+      candidates.push((labor.lastUpdateTime || ts) + rate);
+    }
+    // 制造站产出（每间在产房间的下一方案完成时间）
+    for (const roomSlotId of Object.keys(draft.building.rooms.MANUFACTURE)) {
+      const room = draft.building.rooms.MANUFACTURE[roomSlotId];
+      if (!room || room.state !== 1) continue;
+      const formula = getManufactFormula(room.formulaId);
+      if (!formula || (formula.costPoint ?? 0) <= 0) continue;
+      if ((room.remainSolutionCnt ?? 0) <= 0) continue;
+      const capacity = this._roomCapacity(draft, roomSlotId, formula);
+      if (capacity <= 0) continue;
+      const remain = (formula.costPoint ?? 0) - (room.processPoint ?? 0);
+      const secs = Math.ceil(remain / capacity);
+      candidates.push((room.lastUpdateTime || ts) + secs);
+    }
+    if (candidates.length === 0) return ts + 60;
+    return Math.min(...candidates);
+  }
+
   async sync() {
     return await this._player.update(async (draft) => {
       this._recoverLabor(draft);
@@ -151,7 +204,8 @@ export class BuildingManager {
       this._accrueTraining(draft);
       // 会客室 infoShare.reward 待领取指示（官方 sync 响应含该字段）
       this._refreshInfoShare(draft);
-      draft.event.building = now() + 5000;
+      // 修复：按真实下一事件时间写 event.building（原固定 now()+5000 → 客户端 5s 轮询）
+      draft.event.building = this._nextBuildingEventTs(draft);
       return now();
     });
   }
@@ -530,7 +584,7 @@ export class BuildingManager {
    */
   async completeUpgradeRoom() {
     return await this._player.update(async (draft) => {
-      draft.event.building = now() + 5000;
+      draft.event.building = this._nextBuildingEventTs(draft);
     });
   }
 
@@ -646,7 +700,7 @@ export class BuildingManager {
    */
   async upgradeDiyLevel() {
     return await this._player.update(async (draft) => {
-      draft.event.building = now() + 5000;
+      draft.event.building = this._nextBuildingEventTs(draft);
     });
   }
 

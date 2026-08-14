@@ -155,7 +155,10 @@ export class BattleManager {
         const unlock_list: { [key: string]: ConditionDesc[] } = {};
         const stage_data = excel.StageTable.stages;
         for (const item of Object.keys(stage_data)) {
-          unlock_list[item] = stage_data[item].unlockCondition as unknown as ConditionDesc[];
+          // 防御：数据表末尾字段名伪键（值 null）——stage.unlockCondition 读 null 崩溃
+          const stage = stage_data[item];
+          if (!stage || typeof stage !== "object") continue;
+          unlock_list[item] = stage.unlockCondition as unknown as ConditionDesc[];
         }
 
         for (const item of Object.keys(unlock_list)) {
@@ -359,7 +362,10 @@ export class BattleManager {
           //unlock stage
           const unlockList: { [key: string]: ConditionDesc[] } = {};
           for (const item of Object.keys(excel.StageTable.stages)) {
-            unlockList[item] = excel.StageTable.stages[item].unlockCondition as unknown as ConditionDesc[];
+            // 防御：数据表末尾字段名伪键（值 null）——stage.unlockCondition 读 null 崩溃
+            const stage = excel.StageTable.stages[item];
+            if (!stage || typeof stage !== "object") continue;
+            unlockList[item] = stage.unlockCondition as unknown as ConditionDesc[];
           }
           for (const item of Object.keys(unlockList)) {
             let passCondition = 0;
@@ -414,7 +420,11 @@ export class BattleManager {
                     unlockStage.noCostCnt = 0;
                   }
                 }
-                if (!(item in Object.keys(draft.dungeon.stages))) {
+                // 修复：原 `item in Object.keys(draft.dungeon.stages)` 对数组用 in
+                // 恒 false → 已存在的关卡（含已通关）每次被整体覆盖为 state 0，
+                // completeTimes/startTimes/noCostCnt 全被清零、关卡重新变锁定；
+                // 改为直接查对象键（与上方无前置条件分支同款修复）
+                if (!(item in draft.dungeon.stages)) {
                   if (
                     ["MAIN", "SUB"].includes(
                       excel.StageTable.stages[stageId].stageType,

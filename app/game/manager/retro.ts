@@ -28,9 +28,13 @@ export class RetroManager {
         ?.rewardItem;
       // 防御：未知 retro/奖励 id 不 500
       if (!reward) return [];
+      // 修复：trail 惰性初始化（新 retro/旧存档缺条目时直接写 trail[retroId][rewardId]
+      // 会 TypeError 500——模板只预置已知 retro，版本更新新增 retro 后必崩）
+      const trail = (draft.retro.trail ??= {});
+      if (!trail[retroId]) trail[retroId] = {};
       // 修复：已领取过的不再发放（原实现无幂等 → 可无限刷）
-      if (draft.retro.trail[retroId]?.[rewardId]) return [];
-      draft.retro.trail[retroId][rewardId] = 1;
+      if (trail[retroId][rewardId]) return [];
+      trail[retroId][rewardId] = 1;
       await this._trigger.emit("items:get", [[reward]]);
       return [reward];
     });

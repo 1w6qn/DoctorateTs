@@ -1,0 +1,1726 @@
+{
+  "playerDataDelta": {
+    "modified": {
+      "rlv2": {
+        "current": {
+          "inventory": {
+            "relic": {
+              "r_0": {
+                "index": "r_0",
+                "id": "rogue_6_band_9",
+                "count": 1,
+                "ts": 1786434416
+              },
+              "r_1": {
+                "index": "r_1",
+                "id": "rogue_6_start_2",
+                "count": 1,
+                "ts": 1786434434
+              }
+            },
+            "recruit": {
+              "t_2": {
+                "index": "t_2",
+                "id": "rogue_6_recruit_ticket_tank",
+                "state": 1,
+                "list": [
+                  {
+                    "instId": "0",
+                    "charId": "char_500_noirc",
+                    "type": "NORMAL",
+                    "favorPoint": 25570,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 1,
+                    "skin": "char_500_noirc#1",
+                    "level": 30,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [],
+                    "upgradeLimited": false,
+                    "upgradePhase": 0,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "1",
+                    "charId": "char_122_beagle",
+                    "type": "NORMAL",
+                    "favorPoint": 25570,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 7,
+                    "skin": "char_122_beagle@boc#1",
+                    "level": 55,
+                    "exp": 0,
+                    "evolvePhase": 1,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skcom_def_up[1]",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 0,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "2",
+                    "charId": "char_284_spot",
+                    "type": "NORMAL",
+                    "favorPoint": 25570,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 7,
+                    "skin": "char_284_spot@boc#3",
+                    "level": 55,
+                    "exp": 0,
+                    "evolvePhase": 1,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_spot_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 0,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "3",
+                    "charId": "char_209_ardign",
+                    "type": "NORMAL",
+                    "favorPoint": 25534,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 7,
+                    "skin": "char_209_ardign@epoque#26",
+                    "level": 55,
+                    "exp": 0,
+                    "evolvePhase": 1,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skcom_heal_self[1]",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 0,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "4",
+                    "charId": "char_514_rdfend",
+                    "type": "THIRD_LOW",
+                    "evolvePhase": 1,
+                    "level": 55,
+                    "exp": 0,
+                    "favorPoint": 25570,
+                    "potentialRank": 0,
+                    "mainSkillLvl": 7,
+                    "skills": [],
+                    "defaultSkillIndex": 0,
+                    "skin": "char_514_rdfend#1",
+                    "upgradeLimited": false,
+                    "upgradePhase": 0,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "5",
+                    "charId": "char_196_sunbr",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 25570,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 7,
+                    "skin": "char_196_sunbr#2",
+                    "level": 60,
+                    "exp": 114,
+                    "evolvePhase": 2,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_sunbr_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_sunbr_2",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {},
+                    "currentEquip": "uniequip_001_sunbr",
+                    "equip": {
+                      "uniequip_001_sunbr": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 1
+                      },
+                      "uniequip_002_sunbr": {
+                        "hide": 0,
+                        "locked": 1,
+                        "level": 1
+                      }
+                    }
+                  },
+                  {
+                    "instId": "6",
+                    "charId": "char_199_yak",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 14793,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 1,
+                    "skin": "char_199_yak#1",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_yak_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_yak_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "7",
+                    "charId": "char_260_durnar",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 25570,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 7,
+                    "skin": "char_260_durnar#1",
+                    "level": 60,
+                    "exp": 0,
+                    "evolvePhase": 1,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skcom_atk_up[2]",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_durnar_2",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "8",
+                    "charId": "char_4130_luton",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 0,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 1,
+                    "skin": "char_4130_luton#1",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_luton_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_luton_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "9",
+                    "charId": "char_150_snakek",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 25570,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 7,
+                    "skin": "char_150_snakek@wild#1",
+                    "level": 70,
+                    "exp": 0,
+                    "evolvePhase": 2,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skcom_def_up[2]",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_snakek_2",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {},
+                    "currentEquip": "uniequip_002_snakek",
+                    "equip": {
+                      "uniequip_001_snakek": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 1
+                      },
+                      "uniequip_002_snakek": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 3
+                      }
+                    }
+                  },
+                  {
+                    "instId": "10",
+                    "charId": "char_381_bubble",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 20507,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 1,
+                    "skin": "char_381_bubble#1",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skcom_def_up[2]",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_bubble_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "11",
+                    "charId": "char_4109_baslin",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 300,
+                    "potentialRank": 3,
+                    "mainSkillLvl": 1,
+                    "skin": "char_4109_baslin#1",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_baslin_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_baslin_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "12",
+                    "charId": "char_464_cement",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 300,
+                    "potentialRank": 1,
+                    "mainSkillLvl": 1,
+                    "skin": "char_464_cement#1",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_cement_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_cement_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "13",
+                    "charId": "char_201_moeshd",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 6800,
+                    "potentialRank": 2,
+                    "mainSkillLvl": 1,
+                    "skin": "char_201_moeshd#1",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_moeshd_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_moeshd_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "14",
+                    "charId": "char_325_bison",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 15467,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 1,
+                    "skin": "char_325_bison#1",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skcom_def_up[3]",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_bison_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "15",
+                    "charId": "char_304_zebra",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 18983,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 1,
+                    "skin": "char_304_zebra#1",
+                    "level": 50,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_zebra_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_zebra_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "16",
+                    "charId": "char_378_asbest",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 25570,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 1,
+                    "skin": "char_378_asbest@whirlwind#3",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_asbest_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_asbest_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "17",
+                    "charId": "char_107_liskam",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 25570,
+                    "potentialRank": 1,
+                    "mainSkillLvl": 1,
+                    "skin": "char_107_liskam#1",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_liskam_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_liskam_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "18",
+                    "charId": "char_4225_tanya",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 0,
+                    "potentialRank": 3,
+                    "mainSkillLvl": 1,
+                    "skin": "char_4225_tanya#1",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_tanya_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_tanya_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "19",
+                    "charId": "char_4047_pianst",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 2900,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 1,
+                    "skin": "char_4047_pianst#1",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_pianst_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_pianst_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "20",
+                    "charId": "char_148_nearl",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 25570,
+                    "potentialRank": 4,
+                    "mainSkillLvl": 7,
+                    "skin": "char_148_nearl#1",
+                    "level": 70,
+                    "exp": 0,
+                    "evolvePhase": 1,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_nearl_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_nearl_2",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "21",
+                    "charId": "char_163_hpsts",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 23771,
+                    "potentialRank": 3,
+                    "mainSkillLvl": 2,
+                    "skin": "char_163_hpsts#1",
+                    "level": 50,
+                    "exp": 18,
+                    "evolvePhase": 1,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_hpsts_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_hpsts_2",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "22",
+                    "charId": "char_4137_udflow",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 400,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 1,
+                    "skin": "char_4137_udflow#1",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_udflow_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_udflow_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "23",
+                    "charId": "char_226_hmau",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 6724,
+                    "potentialRank": 1,
+                    "mainSkillLvl": 1,
+                    "skin": "char_226_hmau#1",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_hmau_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_hmau_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "24",
+                    "charId": "char_493_firwhl",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 900,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 1,
+                    "skin": "char_493_firwhl#1",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_firwhl_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_firwhl_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "25",
+                    "charId": "char_4207_branch",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 0,
+                    "potentialRank": 0,
+                    "mainSkillLvl": 1,
+                    "skin": "char_4207_branch#1",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_branch_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_branch_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "26",
+                    "charId": "char_4143_sensi",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 0,
+                    "potentialRank": 0,
+                    "mainSkillLvl": 1,
+                    "skin": "char_4143_sensi#1",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_sensi_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_sensi_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "27",
+                    "charId": "char_4025_aprot2",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 2700,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 1,
+                    "skin": "char_4025_aprot2#1",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 1,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_aprot2_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_aprot2_2",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "28",
+                    "charId": "char_1044_hsgma2",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 25570,
+                    "potentialRank": 0,
+                    "mainSkillLvl": 7,
+                    "skin": "char_1044_hsgma2#2",
+                    "level": 80,
+                    "exp": 0,
+                    "evolvePhase": 2,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_hsgma2_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 3,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_hsgma2_2",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 3,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_hsgma2_3",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 3,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 4,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {},
+                    "currentEquip": "uniequip_002_hsgma2",
+                    "equip": {
+                      "uniequip_001_hsgma2": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 1
+                      },
+                      "uniequip_002_hsgma2": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 3
+                      }
+                    }
+                  },
+                  {
+                    "instId": "29",
+                    "charId": "char_4235_thumpy",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 1500,
+                    "potentialRank": 0,
+                    "mainSkillLvl": 7,
+                    "skin": "char_4235_thumpy#1",
+                    "level": 80,
+                    "exp": 0,
+                    "evolvePhase": 1,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_thumpy_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_thumpy_2",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_thumpy_3",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 4,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "30",
+                    "charId": "char_136_hsguma",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 25570,
+                    "potentialRank": 1,
+                    "mainSkillLvl": 7,
+                    "skin": "char_136_hsguma#2",
+                    "level": 60,
+                    "exp": 114,
+                    "evolvePhase": 2,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_hsguma_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_hsguma_2",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 2,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_hsguma_3",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 4,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {},
+                    "currentEquip": "uniequip_002_hsguma",
+                    "equip": {
+                      "uniequip_001_hsguma": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 1
+                      },
+                      "uniequip_002_hsguma": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 1
+                      },
+                      "uniequip_003_hsguma": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 2
+                      }
+                    }
+                  },
+                  {
+                    "instId": "31",
+                    "charId": "char_4194_rmixer",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 25570,
+                    "potentialRank": 1,
+                    "mainSkillLvl": 1,
+                    "skin": "char_4194_rmixer#1",
+                    "level": 1,
+                    "exp": 0,
+                    "evolvePhase": 0,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_rmixer_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_rmixer_2",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_rmixer_3",
+                        "unlock": 0,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 4,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {}
+                  },
+                  {
+                    "instId": "32",
+                    "charId": "char_311_mudrok",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 25570,
+                    "potentialRank": 0,
+                    "mainSkillLvl": 7,
+                    "skin": "char_311_mudrok@wild#10",
+                    "level": 60,
+                    "exp": 114,
+                    "evolvePhase": 2,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skcom_def_up[3]",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_mudrok_2",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 3,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_mudrok_3",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 2,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 4,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {},
+                    "currentEquip": "uniequip_002_mudrok",
+                    "equip": {
+                      "uniequip_001_mudrok": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 1
+                      },
+                      "uniequip_002_mudrok": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 3
+                      },
+                      "uniequip_003_mudrok": {
+                        "hide": 0,
+                        "locked": 1,
+                        "level": 1
+                      }
+                    }
+                  },
+                  {
+                    "instId": "33",
+                    "charId": "char_4039_horn",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 25570,
+                    "potentialRank": 0,
+                    "mainSkillLvl": 7,
+                    "skin": "char_4039_horn@epoque#24",
+                    "level": 60,
+                    "exp": 114,
+                    "evolvePhase": 2,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_horn_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 2,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_horn_2",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_horn_3",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 1,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 4,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {},
+                    "currentEquip": "uniequip_001_horn",
+                    "equip": {
+                      "uniequip_001_horn": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 1
+                      },
+                      "uniequip_002_horn": {
+                        "hide": 0,
+                        "locked": 1,
+                        "level": 1
+                      },
+                      "uniequip_003_horn": {
+                        "hide": 0,
+                        "locked": 1,
+                        "level": 1
+                      }
+                    }
+                  },
+                  {
+                    "instId": "34",
+                    "charId": "char_416_zumama",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 25570,
+                    "potentialRank": 2,
+                    "mainSkillLvl": 7,
+                    "skin": "char_416_zumama#2",
+                    "level": 60,
+                    "exp": 114,
+                    "evolvePhase": 2,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_zumama_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_zumama_2",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_zumama_3",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 4,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {},
+                    "currentEquip": "uniequip_004_zumama",
+                    "equip": {
+                      "uniequip_001_zumama": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 1
+                      },
+                      "uniequip_002_zumama": {
+                        "hide": 0,
+                        "locked": 1,
+                        "level": 1
+                      },
+                      "uniequip_003_zumama": {
+                        "hide": 0,
+                        "locked": 1,
+                        "level": 1
+                      },
+                      "uniequip_004_zumama": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 3
+                      }
+                    }
+                  },
+                  {
+                    "instId": "35",
+                    "charId": "char_4230_mcnist",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 375,
+                    "potentialRank": 5,
+                    "mainSkillLvl": 7,
+                    "skin": "char_4230_mcnist#2",
+                    "level": 90,
+                    "exp": 0,
+                    "evolvePhase": 2,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_mcnist_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 2,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_mcnist_2",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 2,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_mcnist_3",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 3,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 0,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {
+                      "master_mcnist_4": 3,
+                      "master_mcnist_6": 1,
+                      "master_mcnist_5": 1,
+                      "master_mcnist_1": 3,
+                      "master_mcnist_3": 3,
+                      "master_mcnist_2": 2
+                    },
+                    "currentEquip": "uniequip_002_mcnist",
+                    "equip": {
+                      "uniequip_001_mcnist": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 1
+                      },
+                      "uniequip_002_mcnist": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 3
+                      }
+                    }
+                  },
+                  {
+                    "instId": "36",
+                    "charId": "char_202_demkni",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 25570,
+                    "potentialRank": 1,
+                    "mainSkillLvl": 7,
+                    "skin": "char_202_demkni@test#1",
+                    "level": 60,
+                    "exp": 114,
+                    "evolvePhase": 2,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_demkni_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 3,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_demkni_2",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 2,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_demkni_3",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 3,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 4,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {},
+                    "currentEquip": "uniequip_003_demkni",
+                    "equip": {
+                      "uniequip_001_demkni": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 1
+                      },
+                      "uniequip_002_demkni": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 2
+                      },
+                      "uniequip_003_demkni": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 3
+                      }
+                    }
+                  },
+                  {
+                    "instId": "37",
+                    "charId": "char_423_blemsh",
+                    "type": "UPGRADE_BONUS",
+                    "favorPoint": 25490,
+                    "potentialRank": 1,
+                    "mainSkillLvl": 7,
+                    "skin": "char_423_blemsh@littlePony#1",
+                    "level": 60,
+                    "exp": 114,
+                    "evolvePhase": 2,
+                    "defaultSkillIndex": 0,
+                    "skills": [
+                      {
+                        "skillId": "skchr_blemsh_1",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_blemsh_2",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      },
+                      {
+                        "skillId": "skchr_blemsh_3",
+                        "unlock": 1,
+                        "state": 0,
+                        "specializeLevel": 0,
+                        "completeUpgradeTime": -1
+                      }
+                    ],
+                    "upgradeLimited": false,
+                    "upgradePhase": 1,
+                    "isUpgrade": false,
+                    "isCure": false,
+                    "population": 4,
+                    "charBuff": [],
+                    "troopInstId": "0",
+                    "master": {},
+                    "currentEquip": "uniequip_001_blemsh",
+                    "equip": {
+                      "uniequip_001_blemsh": {
+                        "hide": 0,
+                        "locked": 0,
+                        "level": 1
+                      },
+                      "uniequip_002_blemsh": {
+                        "hide": 0,
+                        "locked": 1,
+                        "level": 1
+                      },
+                      "uniequip_003_blemsh": {
+                        "hide": 0,
+                        "locked": 1,
+                        "level": 1
+                      }
+                    }
+                  }
+                ],
+                "result": null,
+                "ts": 1786434458,
+                "from": "initial",
+                "mustExtra": 0,
+                "needAssist": true
+              },
+              "t_3": {
+                "index": "t_3",
+                "id": "rogue_6_recruit_ticket_caster",
+                "state": 0,
+                "list": [],
+                "result": null,
+                "ts": 1786434458,
+                "from": "initial",
+                "mustExtra": 0,
+                "needAssist": true
+              },
+              "t_4": {
+                "index": "t_4",
+                "id": "rogue_6_recruit_ticket_medic",
+                "state": 0,
+                "list": [],
+                "result": null,
+                "ts": 1786434458,
+                "from": "initial",
+                "mustExtra": 0,
+                "needAssist": true
+              }
+            },
+            "trap": null,
+            "consumable": {},
+            "exploreTool": {},
+            "stashRecruit": [],
+            "stashRecruitLimit": 3
+          },
+          "player": {
+            "state": "INIT",
+            "property": {
+              "exp": 0,
+              "level": 1,
+              "maxLevel": 10,
+              "hp": {
+                "current": 4,
+                "max": 4
+              },
+              "gold": 30,
+              "shield": 2,
+              "capacity": 7,
+              "population": {
+                "cost": 0,
+                "max": 8
+              },
+              "conPerfectBattle": 0,
+              "hpShowState": "NORMAL"
+            },
+            "cursor": {
+              "zone": 0,
+              "position": null
+            },
+            "trace": [],
+            "pending": [
+              {
+                "index": "e_5",
+                "type": "RECRUIT",
+                "content": {
+                  "recruit": {
+                    "ticket": "t_2"
+                  }
+                }
+              },
+              {
+                "index": "e_4",
+                "type": "GAME_INIT_RECRUIT",
+                "content": {
+                  "initRecruit": {
+                    "step": [
+                      5,
+                      5
+                    ],
+                    "tickets": [
+                      "t_2",
+                      "t_3",
+                      "t_4"
+                    ],
+                    "showChar": [],
+                    "team": null
+                  }
+                }
+              }
+            ],
+            "status": {
+              "bankPut": 0
+            },
+            "toEnding": "ro6_ending_1",
+            "chgEnding": false
+          }
+        }
+      }
+    },
+    "deleted": {}
+  }
+}

@@ -73,11 +73,18 @@ interface UserConfig {
     gsHost?: string;
     /** arkhub 网关本地转发器监听端口（缺省 30000，对齐官服网关端口） */
     gatewayPort?: number;
+    /** 统一抓包存储根目录（缺省 tmp/capture；一般无需覆盖） */
+    root?: string;
   };
   /** 调试配置 */
   debug?: {
-    /** 是否记录请求/响应到 tmp/（traffic-recorder 中间件） */
+    /** 是否记录请求/响应到统一抓包存储 tmp/capture/（traffic-recorder 中间件） */
     recordTraffic?: boolean;
+    /**
+     * 抓包记录排除的路径前缀（覆盖默认列表；传空数组 [] = 全部记录）。
+     * 默认排除本地管理/资源/配置噪音：/admin /assetbundle /pcSdk /config /api /audit /batch_event
+     */
+    recordTrafficExclude?: string[];
   };
   /** 管理后台配置 */
   admin?: {

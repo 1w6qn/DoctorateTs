@@ -9,10 +9,11 @@ import * as path from "path";
 import config from "./app/config";
 import { logger, flush as flushLogs } from "./app/utils/logger";
 import { createTrafficRecorder } from "./app/utils/traffic-recorder";
+import { captureManager } from "./app/capture/capture-manager";
 import excel from "@excel/excel";
 import { enablePatches } from "immer";
 import morgan from "morgan";
-import compression from "compression";
+import compression, { filter as compressionFilter } from "compression";
 import prod from "./app/config/prod";
 import { remoteConfigRouter } from "./app/config/remote-config";
 import { createHostRouter } from "./app/config/host-router";
@@ -82,7 +83,7 @@ process.on("exit", (code) => {
   const offline = args.includes("--offline") || args.includes("-o") || config.offline === true;
   // 抓包专用官服转发模式：命令行 --capture 或 data/config.json 中 capture.enabled: true
   const capture = args.includes("--capture") || config.capture?.enabled === true;
-  // capture 模式的核心用途就是抓包：强制开启流量落盘 tmp/（目录格式与 test.ts 抓包一致）
+  // capture 模式的核心用途就是抓包：强制开启流量落盘（统一抓包存储 tmp/capture/）
   if (capture) {
     config.debug = { ...config.debug, recordTraffic: true };
   }
@@ -130,6 +131,11 @@ process.on("exit", (code) => {
   
   enablePatches();
   await excel.init();
+  // 统一抓包存储初始化（幂等）：Dashboard「抓包」Tab / CLI / 各抓包来源共用
+  if (config.capture?.root) {
+    captureManager.configure({ root: config.capture.root });
+  }
+  await captureManager.init().catch((e) => logger.warn("index", `抓包存储初始化失败: ${(e as Error).message}`));
   // 启用 mod 时启动预热加载（避免首个热更清单请求卡在扫描、mod 文件请求早于清单时列表为空）
   if (config.assets.enableMods) {
     const { initMods } = await import("./app/asset");
@@ -138,7 +144,15 @@ process.on("exit", (code) => {
   const app = express();
   // 响应压缩（B1）：syncData 等大响应（user 全量数 MB）gzip 后传输大幅减小。
   // 放 bodyParser 之前——压缩作用于响应，客户端带 Accept-Encoding: gzip 时生效
-  app.use(compression());
+  // SSE 实时流（/admin/api/*/stream）排除压缩：zlib 缓冲会破坏逐事件推送
+  app.use(
+    compression({
+      filter: (req, res) => {
+        if (String(req.url).includes("/stream")) return false;
+        return compressionFilter(req, res);
+      },
+    }),
+  );
   app.use(bodyParser.json());
   // capture 模式：捕获非 JSON 原始请求体（multipart 等），转发时原样透传字节——
   // bodyParser.json 不解析 multipart，透传 req.body 会变成 {} 导致官服 400 "Invalid multipart payload format"
@@ -155,8 +169,8 @@ process.on("exit", (code) => {
     });
   }
   app.use(morgan("short"));
-  // 调试记录：debug.recordTraffic=true 时保存 request/response 到 tmp/（对齐 test.ts 抓包目录）
-  app.use(createTrafficRecorder(config));
+  // 调试记录：debug.recordTraffic=true 时保存 request/response 到统一抓包存储 tmp/capture/
+  app.use(createTrafficRecorder(config, capture ? "official" : "private"));
   // 子域名分发：*.hypergryph.com 请求按官服子域名映射到私服路由
   app.use(createHostRouter());
   app.use("/config/prod", prod);
@@ -211,7 +225,7 @@ process.on("exit", (code) => {
         arkhubGateway,
       }),
     );
-    logger.info("index", "抓包官服转发模式已开启：as/gs 流量将转发到官服并记录 tmp/");
+    logger.info("index", "抓包官服转发模式已开启：as/gs 流量将转发到官服并记录到统一抓包存储 tmp/capture/");
   } else {
     // 私服模式：启动 arkhub 本地网关应答器（登录 code=100 + 心跳 + 合法 EnterSceneNotify），
     // enterHall 指向本服端口——客户端可进入空广场（不再连不可达的官服网关域名）

@@ -11,7 +11,9 @@
     "paths": {
       "@excel/*": ["./app/excel/*"],
       "@utils/*": ["./app/utils/*"],
-      "@game/*": ["./app/game/*"]
+      "@game/*": ["./app/game/*"],
+      "@capture/*": ["./app/capture/*"],
+      "@logs/*": ["./app/logs/*"]
     }
   },
   "include": ["app/**/*", "index.ts"],

@@ -1,16 +1,17 @@
 /**
  * 离线解析已抓取的 arkhub 网关 TCP 流量（arkodc 帧）
  *
- * 对 tmp/arkhub-gateway/{connectionId}/ 的 up.bin/down.bin 按网关帧格式
- * （4B 大端长度 + 4B 消息 ID + 8B 头 + protobuf）解析，输出 parsed.json；
- * 未按长度前缀切分的余量（登录后 down 流等）以 hex 记录。
+ * 从统一抓包存储（captureManager，tmp/capture/）读取 gateway-bidi 记录的
+ * up.bin/down.bin，按网关帧格式（4B 大端长度 + 4B 消息 ID + 8B 头 + protobuf）
+ * 解析输出 parsed.json；未按长度前缀切分的余量（登录后 down 流等）以 hex 记录。
  *
  * 用法：
- *   npx tsx scripts/parse-arkhub-gateway.ts                 # 解析全部连接目录
- *   npx tsx scripts/parse-arkhub-gateway.ts 2026-08-12T10-01-12-289Z   # 单个连接
+ *   npx tsx scripts/parse-arkhub-gateway.ts          # 解析全部网关记录
+ *   npx tsx scripts/parse-arkhub-gateway.ts <rid>    # 单条记录（rid 或数字 id）
  */
 import fs from "fs";
 import path from "path";
+import { captureManager } from "../app/capture/capture-manager";
 import {
   parseGatewayStream,
   framesToJson,
@@ -18,9 +19,7 @@ import {
   gatewayTranscript,
 } from "../app/proxy/arkodc";
 
-const ROOT = path.join(process.cwd(), "tmp", "arkhub-gateway");
-
-function parseConnection(dir: string): void {
+function parseConnection(dir: string, id: string): void {
   const upPath = path.join(dir, "up.bin");
   const downPath = path.join(dir, "down.bin");
   if (!fs.existsSync(upPath) && !fs.existsSync(downPath)) return;
@@ -64,7 +63,7 @@ function parseConnection(dir: string): void {
     ),
   );
   const summary = {
-    id: path.basename(dir),
+    id,
     upFrames: upResult.frames.length,
     downFrames: downResult.frames.length,
     upRemainder: upResult.remainder.length,
@@ -77,11 +76,29 @@ function parseConnection(dir: string): void {
   console.log(JSON.stringify(summary));
 }
 
-const args = process.argv.slice(2);
-if (args[0]) {
-  parseConnection(path.join(ROOT, args[0]));
-} else {
-  for (const name of fs.readdirSync(ROOT)) {
-    parseConnection(path.join(ROOT, name));
+async function main(): Promise<void> {
+  await captureManager.init();
+  const arg = process.argv[2];
+  if (arg) {
+    const rec = await captureManager.getRecord(arg);
+    if (!rec) {
+      console.error(`抓包记录不存在: ${arg}`);
+      process.exit(1);
+    }
+    parseConnection(path.join(captureManager.recordsDir(), rec.rid), rec.rid);
+    return;
+  }
+  const { items } = await captureManager.query({ direction: "gateway-bidi", limit: 1000 });
+  if (!items.length) {
+    console.log("无网关抓包记录（tmp/capture/records/ 下无 gateway-bidi 记录）");
+    return;
+  }
+  for (const rec of items) {
+    parseConnection(path.join(captureManager.recordsDir(), rec.rid), rec.rid);
   }
 }
+
+main().catch((e) => {
+  console.error("解析失败:", (e as Error).message);
+  process.exit(1);
+});

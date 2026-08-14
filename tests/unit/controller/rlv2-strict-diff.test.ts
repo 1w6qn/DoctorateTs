@@ -22,10 +22,11 @@ beforeAll(async () => {
   await excel.init();
 }, 120000);
 
-const CAPTURE_ROOT = path.resolve(__dirname, "../../../tmp");
+// 官服抓包 fixtures（tests/fixtures/rlv2-official/，从统一抓包存储提取归档——不依赖运行时 tmp/）
+const CAPTURE_ROOT = path.resolve(__dirname, "../../fixtures/rlv2-official");
 
 function readRes(route: string, ts: string) {
-  const f = path.join(CAPTURE_ROOT, "rlv2", route, `${ts}.json`);
+  const f = path.join(CAPTURE_ROOT, route, `${ts}.json`);
   return JSON.parse(fs.readFileSync(f, "utf8"));
 }
 

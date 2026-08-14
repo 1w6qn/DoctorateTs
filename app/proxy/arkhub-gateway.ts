@@ -7,15 +7,19 @@
  *   1. **改写 enterHall 响应**：endpoint 改为代理主机（config.Host 去 scheme）、port 保持 30000，
  *      否则客户端直连官服网关（hosts 重写时连 127.0.0.1:30000 无监听而失败，且网关流量不经过代理）
  *   2. **30000 端口 TCP 转发器**：监听本机端口，把客户端连接透传到官服网关
- *      `arkhub-gateway.hypergryph.com:30000`，双向字节流原样转发并落盘 tmp/arkhub-gateway/
+ *      `arkhub-gateway.hypergryph.com:30000`，双向字节流原样转发并落盘
+ *      `tmp/capture/records/{connectionId}/`（统一抓包存储的网关记录目录）。
  *
  * 网关为明文 TCP（官服 30000 可 TCP 连接；TLS 握手被直接断开、明文 WebSocket 握手无响应），
  * 因此转发器是纯 TCP pipe（不做协议解析）；客户端自带上层握手/鉴权，原样透传即可。
+ * 连接关闭时按 arkodc 帧协议解析出 parsed.json/messages.json，并提交一条
+ * direction=gateway-bidi 的抓包记录（source=gateway）到统一索引库，供 Dashboard 统一查看。
  */
 import net from "net";
 import { mkdir, writeFile } from "fs/promises";
 import * as path from "path";
 import { logger } from "@utils/logger";
+import { captureManager } from "@capture/capture-manager";
 import {
   parseGatewayStream,
   framesToJson,
@@ -27,8 +31,8 @@ import {
 export const OFFICIAL_ARKHUB_GATEWAY_HOST = "arkhub-gateway.hypergryph.com";
 /** 官服 arkhub 网关端口 */
 export const OFFICIAL_ARKHUB_GATEWAY_PORT = 30000;
-/** 默认记录根目录（与 traffic-recorder 的 tmp/ 一致） */
-const DEFAULT_RECORD_ROOT = "tmp/arkhub-gateway";
+/** 默认记录根目录（统一抓包存储的 records 目录；测试可传独立临时目录） */
+const DEFAULT_RECORD_ROOT = "tmp/capture/records";
 
 /** arkhub 网关代理信息（用于改写 enterHall 响应 + 启动转发器） */
 export interface ArkhubGatewayInfo {
@@ -101,7 +105,8 @@ export interface ArkhubGatewayProxyResult {
  * 监听首选端口，被占（多实例并存时另一实例的转发器已占用）时**自动尝试下一个端口**
  * （port, port+1, ... 最多 maxPortTries 次），避免多实例冲突——每个实例各自拿到空闲端口，
  * enterHall 响应改写用实际监听端口，客户端互不干扰。每个客户端连接建立到官服网关的透传管道，
- * 双向字节流落盘 `tmp/arkhub-gateway/{connectionId}/`（up.bin=客户端→官服、down.bin=官服→客户端、meta.json）。
+ * 双向字节流落盘 `{recordRoot}/{connectionId}/`（up.bin=客户端→官服、down.bin=官服→客户端、
+ * meta.json；关闭时另写 parsed.json/messages.json 并提交 gateway-bidi 抓包记录到统一索引库）。
  *
  * @param opts - 监听/目标/记录配置
  * @returns 启动结果：{ server, port, exhausted:false, adjusted } 监听成功（port=实际端口）；
@@ -122,6 +127,7 @@ export function startArkhubGatewayProxy(
   // 单连接处理（每个尝试端口新建的 server 共用）：客户端 → 官服网关透传 + 双向字节流落盘
   const handleConnection = (client: net.Socket): void => {
     const connectionId = new Date().toISOString().replace(/[:.]/g, "-");
+    const startedAt = Date.now();
     const upstream = net.connect({ host: targetHost, port: targetPort });
     let upBytes = 0;
     let downBytes = 0;
@@ -215,6 +221,35 @@ export function startArkhubGatewayProxy(
           );
         } catch {
           /* 解析失败不影响抓包 */
+        }
+        // 提交网关抓包记录到统一索引库（captureManager 未初始化时仅保留文件，不落库）
+        try {
+          if (captureManager.isReady()) {
+            await captureManager.commitRecord(
+              connectionId,
+              {
+                ts: startedAt,
+                path: "/arkhub/gateway",
+                source: "gateway",
+                direction: "gateway-bidi",
+                status: null,
+                latencyMs: Date.now() - startedAt,
+                reqSize: upBytes,
+                resSize: downBytes,
+                note: `arkhub 网关连接（${targetHost}:${targetPort}，${reason}）`,
+              },
+              dir,
+              {
+                targetAddr: `${targetHost}:${targetPort}`,
+                clientAddr: client.remoteAddress,
+                upBytes,
+                downBytes,
+                reason,
+              },
+            );
+          }
+        } catch (e) {
+          logger.debug("capture", "arkhub 网关记录索引失败:", (e as Error).message);
         }
       })();
     };

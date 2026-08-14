@@ -113,7 +113,8 @@ describe("startArkhubGatewayProxy（30000 TCP 转发器）", () => {
   });
 
   it("首选端口被占时自动避让到下一个空闲端口（adjusted=true，port=避让后端口）", async () => {
-    const recordRoot = path.join(os.tmpdir(), "arkhub-gw-auto");
+    // 唯一目录名（Windows 并行测试下固定名目录会被并发删除导致 EPERM）
+    const recordRoot = path.join(os.tmpdir(), `arkhub-gw-auto-${Date.now()}-${Math.floor(Math.random() * 1e5)}`);
     // 真实 echo 服务器作目标（避免 ECONNRESET）
     const echo = net.createServer((sock) => sock.pipe(sock));
     await listen(echo);
@@ -144,6 +145,8 @@ describe("startArkhubGatewayProxy（30000 TCP 转发器）", () => {
       // 避让后端口确实可连（转发器可用）
       const received = await roundTrip(second.port, Buffer.from("auto-ok"));
       expect(Buffer.concat(received).toString()).toBe("auto-ok");
+      // 等异步落盘完成再清理（Windows 下文件句柄未释放会 EPERM）
+      await new Promise((r) => setTimeout(r, 300));
     } finally {
       first.server!.close();
       if (second?.server) second.server.close();
@@ -153,7 +156,7 @@ describe("startArkhubGatewayProxy（30000 TCP 转发器）", () => {
   });
 
   it("首选端口及避让端口全部被占时返回 { server:null, exhausted:true }", async () => {
-    const recordRoot = path.join(os.tmpdir(), "arkhub-gw-exhaust");
+    const recordRoot = path.join(os.tmpdir(), `arkhub-gw-exhaust-${Date.now()}-${Math.floor(Math.random() * 1e5)}`);
     // 第一个实例占 usedPort，blocker 再占 usedPort+1 → maxPortTries=2 两次都 EADDRINUSE → 耗尽
     const first = await startArkhubGatewayProxy({
       port: 0,
@@ -177,6 +180,7 @@ describe("startArkhubGatewayProxy（30000 TCP 转发器）", () => {
       expect(result.server).toBeNull();
       expect(result.exhausted).toBe(true);
       expect(result.port).toBe(usedPort); // 失败时 port=配置首选端口
+      await new Promise((r) => setTimeout(r, 300)); // 等异步落盘完成再清理
     } finally {
       first.server!.close();
       blocker.close();

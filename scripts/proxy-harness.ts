@@ -2,16 +2,22 @@ import express from "express";
 import axios, { AxiosError, RawAxiosRequestHeaders } from "axios";
 import http from "http";
 import https from "https";
-import fs from "fs/promises";
-import path from "path";
 import morgan from "morgan";
-
-/** 官服连接复用池（与主服务器 official-forward 同配置）：避免每请求 TLS 握手 */
-const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 64 });
-const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 64, keepAliveMsecs: 30000 });
+import { logger } from "../app/utils/logger";
+import { captureManager } from "../app/capture/capture-manager";
 
 /**
- * 官服抓包代理：客户端（network_config 指向本代理）→ 本代理 → 按官服路由规则分发到官方主机。
+ * 官服独立抓包代理（npm run ts，端口 8444）
+ *
+ * 客户端（network_config 指向本代理）→ 本代理 → 按官服路由规则分发到官方主机。
+ * 与主服务器 --capture 模式规则同源（resolveForwardTarget 语义一致），可独立运行；
+ * 抓包记录写入统一抓包存储（captureManager → tmp/capture/，source=harness），
+ * 与主服务器抓包（source=official/private）同库，可统一在 Dashboard「抓包」Tab 查看。
+ *
+ * 用法：
+ *   npm run ts                          # 默认启动（自动会话）
+ *   npm run ts -- --session 登录链路      # 指定命名会话
+ *   npm run ts -- --quiet               # 抑制 INFO 日志
  *
  * 路由分发规则（路径前缀 → 官方主机，注册顺序即匹配优先级）：
  *   /config/*                      → ak-conf.hypergryph.com/config
@@ -23,16 +29,18 @@ const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 64, keepAliveM
  *   /api/gate/*                    → ak-webview.hypergryph.com/api/meta
  *   /api/*                         → game-config.hypergryph.com/api
  *   其余 POST（根路径游戏域）       → ak-gs-gf.hypergryph.com
- *     （/account、/shop、/activity、/user/checkIn、/batch_event 等）
- *
- * 修复说明：客户端在 gs/as 带尾斜杠配置下会发 /game//shop/getSkinGoodList 这类双斜杠路径，
- * 官服对 // 返回 404——createProxyHandler 已归一化 endpoint 去除前导斜杠；
- * 且当 gs 配置为裸地址（http://127.0.0.1:8444）时游戏路由以根路径到达（如 /shop/getSkinGoodList），
- * 由末尾的根路径游戏域兜底规则转发，解决 /game/activity/getActivityCheckInVideoReward、
- * /game/shop/getSkinGoodList 无法处理的问题。
  */
 const PORT = 8444;
 const BASE = `http://127.0.0.1:${PORT}`;
+
+/** 官服连接复用池（与主服务器 official-forward 同配置）：避免每请求 TLS 握手 */
+const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 64 });
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 64, keepAliveMsecs: 30000 });
+
+const args = process.argv.slice(2);
+const sessionArg = args[args.indexOf("--session") + 1];
+const quiet = args.includes("--quiet");
+if (quiet) process.env.LOG_LEVEL = "error";
 
 const app = express();
 app.use(express.json());
@@ -47,45 +55,35 @@ app.use((req, _res, next) => {
     next();
   });
 });
-app.use(
-  morgan(":method :url :status :res[content-length] - :response-time ms"),
-);
+app.use(morgan(":method :url :status :res[content-length] - :response-time ms"));
 
-const printJson = async (data: string, filepath: string): Promise<void> => {
-  const now = new Date();
-  const timestamp = now.toISOString().replace(/[:.]/g, "-");
-  const dirPath = path.join(__dirname, "tmp", filepath);
-  const filePath = path.join(dirPath, `${timestamp}.json`);
-
-  await fs.mkdir(dirPath, { recursive: true });
-  await fs.writeFile(
-    filePath,
-    JSON.stringify(typeof data === "string" ? JSON.parse(data) : data, null, 2),
-  );
-};
+/** 启动时初始化抓包存储；--session 指定时复用同名运行中会话，否则新建 */
+async function setupSession(): Promise<string | null> {
+  await captureManager.init();
+  if (!sessionArg) return null;
+  const sessions = await captureManager.listSessions();
+  const open = sessions.find((s) => s.name === sessionArg && s.endedAt === null);
+  if (open) {
+    logger.info("harness", `复用会话「${sessionArg}」(${open.id})`);
+    return open.id;
+  }
+  const s = await captureManager.startSession(sessionArg, "harness", "独立抓包代理（proxy-harness）");
+  logger.info("harness", `新建会话「${sessionArg}」(${s.id})`);
+  return s.id;
+}
 
 const createProxyHandler = (baseUrl: string) => {
   return async (req: express.Request, res: express.Response) => {
-    // 官服对双斜杠路径返回 404（已验证 //shop/getSkinGoodList → 404，/shop/getSkinGoodList → 401），
-    // 归一化去掉前导斜杠，保证拼出的转发 URL 无 //。
+    // 官服对双斜杠路径返回 404，归一化去掉前导斜杠，保证拼出的转发 URL 无 //
     const endpoint: string = (req.params.endpoint as unknown as string[])
       .join("/")
       .replace(/^\/+/, "");
-
-    // 保存请求数据的代码
-    const requestData = {
-      method: req.method,
-      url: req.originalUrl,
-      headers: req.headers,
-      body: req.body,
-      query: req.query,
-      timestamp: new Date().toISOString(),
-    };
+    const startedAt = Date.now();
 
     try {
       // 转发头剥离 host/content-length/transfer-encoding：客户端原始 body 可能带空白（content-length
       // 偏大），express.json 解析后 axios 重序列化变短——透传 content-length 会让官服按声明长度等
-      // 剩余字节而挂起（实测 POST /user/oauth2/v2/grant 20s 无响应），去掉后由 axios 按实际 body 重算。
+      // 剩余字节而挂起；去掉后由 axios 按实际 body 重算。
       const forwardedHeaders: RawAxiosRequestHeaders = { ...req.headers };
       delete forwardedHeaders.host;
       delete forwardedHeaders["content-length"];
@@ -110,22 +108,68 @@ const createProxyHandler = (baseUrl: string) => {
         validateStatus: () => true,
       });
       res.status(response.status).send(response.data);
-      await printJson(response.data, endpoint).catch(() => undefined); // 在这里调用 printJson
-
-      // 保存请求数据到文件
-      await printJson(JSON.stringify(requestData), `request_${endpoint}`).catch(
-        () => undefined,
-      );
+      await record(endpoint, req, response.status, response.data, startedAt);
     } catch (error) {
       const axiosError = error as AxiosError; // 类型断言
       // 仅网络层错误（官方主机不可达）返回 502；有响应则已由 validateStatus 透传
-      console.error(
-        `Error during request forwarding to ${baseUrl}/${endpoint}: ${axiosError.message}`,
+      logger.error(
+        "harness",
+        `转发失败 ${req.method} ${req.originalUrl} → ${baseUrl}/${endpoint}: ${axiosError.message}`,
       );
       res.status(502).send("Bad Gateway");
+      await record(endpoint, req, 502, { error: axiosError.message }, startedAt);
     }
   };
 };
+
+/** 记录一次转发（请求 + 响应）到统一抓包存储（source=harness） */
+async function record(
+  endpoint: string,
+  req: express.Request,
+  status: number,
+  resData: unknown,
+  startedAt: number,
+): Promise<void> {
+  try {
+    const rawBody = (req as unknown as { rawBody?: Buffer }).rawBody;
+    await captureManager.addRecord(
+      {
+        sessionId: sessionId,
+        ts: startedAt,
+        method: req.method,
+        path: req.originalUrl.split("?")[0],
+        query: req.originalUrl.includes("?") ? req.originalUrl.split("?")[1] : undefined,
+        status,
+        latencyMs: Date.now() - startedAt,
+        source: "harness",
+        reqHeaders: req.headers as Record<string, unknown>,
+        resHeaders: {
+          "content-type": typeof resData === "object" && !Buffer.isBuffer(resData) ? "application/json" : "application/octet-stream",
+        },
+        note: `转发 → ${endpoint}`,
+      },
+      {
+        req:
+          rawBody && rawBody.length > 0
+            ? { kind: "bin", data: rawBody }
+            : req.body !== undefined && req.body !== null
+              ? { kind: "json", data: req.body }
+              : undefined,
+        res:
+          typeof resData === "object" && !Buffer.isBuffer(resData)
+            ? { kind: "json", data: resData }
+            : resData !== undefined
+              ? { kind: "bin", data: resData }
+              : undefined,
+      },
+    );
+  } catch (e) {
+    logger.debug("harness", "抓包记录失败:", (e as Error).message);
+  }
+}
+
+/** 会话 id（setupSession 后填充；null=自动默认会话） */
+let sessionId: string | null = null;
 
 app.get("/config/prod/official/network_config", (req, res) => {
   const responseData = {
@@ -232,6 +276,14 @@ app.get(
 // /user/checkIn、/batch_event 等）。放在最后，as 域根路径规则优先匹配。
 app.post("/*endpoint", createProxyHandler("https://ak-gs-gf.hypergryph.com"));
 
-app.listen(PORT, () => {
-  console.log(`Server is running on http://0.0.0.0:${PORT}`);
+setupSession().then((sid) => {
+  sessionId = sid;
+  app.listen(PORT, () => {
+    logger.info("harness", `官服抓包代理已启动：http://0.0.0.0:${PORT}（抓包记录 tmp/capture/）`);
+  });
+}).catch((e) => {
+  logger.error("harness", `抓包存储初始化失败: ${(e as Error).message}——继续启动（不记录抓包）`);
+  app.listen(PORT, () => {
+    logger.info("harness", `官服抓包代理已启动：http://0.0.0.0:${PORT}（抓包记录不可用）`);
+  });
 });

@@ -107,6 +107,36 @@ export function flush(): void {
   flushLogBuffer();
 }
 
+/** 日志事件（实时订阅用——统一日志服务/SSE 尾随的数据源） */
+export interface LogEvent {
+  /** 落盘格式时间戳（YYYY-MM-DD HH:MM:SS） */
+  ts: string;
+  /** epoch 毫秒（过滤/排序用） */
+  tsMs: number;
+  level: LogLevel;
+  tag: string;
+  /** 参数拼接后的纯文本（与控制台/文件一致，去色码） */
+  text: string;
+}
+
+const logListeners = new Set<(e: LogEvent) => void>();
+
+/**
+ * 订阅日志事件（通过级别过滤的实时日志）
+ *
+ * 统一日志服务（app/logs/log-service.ts）与 Dashboard「日志」Tab 的 SSE 尾随依赖此订阅。
+ * 与文件/控制台输出并行，不影响既有行为。
+ *
+ * @param fn - 回调（每次 write 触发，参数为 LogEvent）
+ * @returns 退订函数
+ */
+export function subscribeLog(fn: (e: LogEvent) => void): () => void {
+  logListeners.add(fn);
+  return () => {
+    logListeners.delete(fn);
+  };
+}
+
 function resolveLevel(): number {
   const env = process.env.LOG_LEVEL?.toLowerCase();
   if (env && env in LEVELS) return LEVELS[env as LogLevel];
@@ -139,6 +169,7 @@ function write(level: LogLevel, tag: string, args: unknown[]): void {
   // 运行时求值（非模块加载缓存）：支持 CLI --quiet 等启动后动态设置 LOG_LEVEL
   if (resolveLevel() > LEVELS[level]) return;
   const ts = timestamp();
+  const text = args.map(formatArg).join(" ");
   const out: unknown[] = [
     `${COLOR.gray}[${ts}]${COLOR.reset}`,
     `${LEVEL_COLOR[level]}[${level.toUpperCase()}]${COLOR.reset}`,
@@ -148,9 +179,18 @@ function write(level: LogLevel, tag: string, args: unknown[]): void {
   // 批量落盘（纯文本、去色码；200ms 窗口合并为一次磁盘写——A-1）——控制台输出保持原样
   logBuffer.push({
     file: logFilePath(),
-    line: `${ts} [${level.toUpperCase()}] [${tag}] ${args.map(formatArg).join(" ")}`,
+    line: `${ts} [${level.toUpperCase()}] [${tag}] ${text}`,
   });
   scheduleFlush();
+  // 实时订阅广播（统一日志服务 / Dashboard「日志」SSE 尾随）
+  const event: LogEvent = { ts, tsMs: Date.now(), level, tag, text };
+  for (const fn of logListeners) {
+    try {
+      fn(event);
+    } catch {
+      /* 订阅者异常不影响日志输出 */
+    }
+  }
   switch (level) {
     case "error":
       console.error(...out);

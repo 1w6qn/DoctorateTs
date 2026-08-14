@@ -58,4 +58,21 @@ describe("adminAuth", () => {
     adminAuth({ headers: { "x-admin-token": "correct" } } as any, res, next);
     expect(next).toHaveBeenCalled();
   });
+
+  it("查询参数 ?token=（SSE EventSource 场景）正确时应放行", () => {
+    (getAdminConfig as any).mockReturnValue({ enable: true, token: "correct" });
+    const res = mockReqRes();
+    const next = vi.fn();
+    adminAuth({ headers: {}, query: { token: "correct" } } as any, res, next);
+    expect(next).toHaveBeenCalled();
+  });
+
+  it("查询参数 ?token= 错误时应 401", () => {
+    (getAdminConfig as any).mockReturnValue({ enable: true, token: "correct" });
+    const res = mockReqRes();
+    const next = vi.fn();
+    adminAuth({ headers: {}, query: { token: "wrong" } } as any, res, next);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
+  });
 });

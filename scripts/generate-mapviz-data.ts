@@ -1,13 +1,17 @@
 /**
- * 生成脚本：从官方 excel 提取各主题关卡数据，供地图可视化页面使用
- * 输出：tools/map-visualizer/game-data.js（window.MAPVIZ_DATA）
- * 运行：npx tsx tools/map-visualizer/generate-data.ts
+ * 生成脚本：从官方 excel 提取各主题关卡数据，供 Dashboard「地图」Tab 使用
+ * 输出：data/mapviz/game-data.js（window.MAPVIZ_DATA）
+ * 运行：npx tsx scripts/generate-mapviz-data.ts（或 npm run generate:mapviz）
  */
 import * as fs from "fs";
+import * as path from "path";
 
-const DATA = "D:/develop/DoctorateTs/data";
-const topic = JSON.parse(fs.readFileSync(`${DATA}/excel/roguelike_topic_table.json`, "utf8"));
-const nodesInfo = JSON.parse(fs.readFileSync(`${DATA}/rlv2/nodesInfo.json`, "utf8"));
+const ROOT = process.cwd();
+const DATA = path.join(ROOT, "data");
+const OUT_DIR = path.join(DATA, "mapviz");
+const OUT_FILE = path.join(OUT_DIR, "game-data.js");
+const topic = JSON.parse(fs.readFileSync(path.join(DATA, "excel/roguelike_topic_table.json"), "utf8"));
+const nodesInfo = JSON.parse(fs.readFileSync(path.join(DATA, "rlv2/nodesInfo.json"), "utf8"));
 
 const THEMES = ["rogue_1", "rogue_2", "rogue_3", "rogue_4", "rogue_5", "rogue_6"];
 
@@ -32,9 +36,9 @@ for (const theme of THEMES) {
 const out = `/* 自动生成：地图可视化数据（从官方 excel + nodesInfo 提取，勿手改） */
 window.MAPVIZ_DATA = ${JSON.stringify(themes)};
 `;
-fs.mkdirSync("D:/develop/DoctorateTs/tools/map-visualizer", { recursive: true });
-fs.writeFileSync("D:/develop/DoctorateTs/tools/map-visualizer/game-data.js", out);
-console.log("written tools/map-visualizer/game-data.js");
+fs.mkdirSync(OUT_DIR, { recursive: true });
+fs.writeFileSync(OUT_FILE, out);
+console.log(`written ${OUT_FILE}`);
 for (const th of THEMES) {
   const t = themes[th];
   console.log(th, `n:${t.normal.length} e:${t.elite.length} b:${t.boss.length} zones:${Object.keys(t.zones).length}`);

@@ -1122,11 +1122,11 @@ mitmproxy map remote 设置 URL 时会同步改写 Host 头为 `127.0.0.1:8443`�
 - 旧版 `/config/prod/official/network_config`（{sign, content} 格式）保持兼容（prod.ts 复用 buildNetworkConfigContent）
 
 ### 17.4 抓包专用官服转发模式（app/proxy/official-forward.ts，--capture）
-主服务器新增可切换的抓包专用官服转发模式：`npm run start:capture`（等价 `tsx index.ts -s --capture`）或 `data/config.json` 的 `capture.enabled: true` 开启。开启后 **as/gs 流量不再由私服响应，而是转发到官服**并记录响应到 `tmp/`（capture 模式强制 `debug.recordTraffic=true`，目录格式与 test.ts 抓包一致），用于与私服响应逐接口对比 / 协议逆向。
+主服务器新增可切换的抓包专用官服转发模式：`npm run start:capture`（等价 `tsx index.ts -s --capture`）或 `data/config.json` 的 `capture.enabled: true` 开启。开启后 **as/gs 流量不再由私服响应，而是转发到官服**并记录响应到统一抓包存储 `tmp/capture/`（capture 模式强制 `debug.recordTraffic=true`，source=official），用于与私服响应逐接口对比 / 协议逆向（§17.7）。
 
 **挂载位置**：index.ts 在 host-router + `/config/prod`、`/api/remote_config`、`/api/gate`、`/api/game`（launcher）之后、`/` auth 之前挂 `createOfficialForwarder()`。config/launcher 保持本地——客户端才能拿到指向本代理的 network_config 被引导连进来。
 
-**路由分发规则**（`resolveForwardTarget` 纯函数，与 test.ts / §17.1 路径级兜底一致）：
+**路由分发规则**（`resolveForwardTarget` 纯函数，与 scripts/proxy-harness.ts / §17.1 路径级兜底一致）：
 - **Host 优先**：`as.*` → `as.hypergryph.com`（路径原样，官服无 /auth 前缀）；`ak-gs-*` → `ak-gs-gf.hypergryph.com`（剥 `/game` 基址前缀，本地挂载点同样排除）；其余 `*.hypergryph.com`（ak-conf/game-config 等配置域）→ 不转发，保持本地
 - **路径级兜底**（Host 非官服：localhost/IP 直连 / mitmweb 重写）：as 前缀 `/user/auth|info|online|oauth2`、`/u8`、`/app`、`/general`、`/as`（剥路径化前缀）→ as 域；`/game/*` → gs 域（剥前缀）；**其余 POST** → gs 域根路径兜底（/account、/shop、/activity、/user/checkIn、**/arkodc**（奇象巡展活动路由——OBS 即从官服逆向，照常转发抓真实响应）等），但**排除本地挂载点** `/admin` `/assetbundle` `/pcSdk` `/config` `/api` `/audit` `/batch_event`（管理/配置/事件上报由私服响应——`/batch_event` 由 home.ts 返回 `{}`，转发官服只得 404 噪音，用户明确要求不转发；Host 级 ak-gs-* 分支同样排除）；GET 非 as 路径不转发（保持本地响应）
 - 官服对双斜杠路径返回 404，endpoint 统一归一化去前导斜杠；`validateStatus: () => true` 原样透传官服 401/400 等状态；网络层错误（官服不可达）返回 502
@@ -1139,13 +1139,13 @@ mitmproxy map remote 设置 URL 时会同步改写 Host 头为 `127.0.0.1:8443`�
 ### 17.5 arkhub 网关特殊适配（app/proxy/arkhub-gateway.ts）
 阿卡狄亚（arkhub）是独立实时网关玩法：`POST /activity/arkhub/enterHall` 响应返回 `{ result, endpoint: "arkhub-gateway.hypergryph.com", port: 30000 }`，客户端随后用 BestHTTP WebSocket 连该网关（私有协议，明文 TCP；TLS 握手被直接断开、明文 WS 握手无响应）。capture 模式两项适配（2026-08-09）：
 1. **enterHall 响应改写**：`createOfficialForwarder` 收到 `arkhubGateway` 选项且路径为 `/activity/arkhub/enterHall` 时，把 `endpoint` 改写为 `config.Host` 去 scheme、`port` 保持网关端口——否则客户端直连官服网关（hosts 重写时连 127.0.0.1:30000 无监听而失败，且网关流量不经过代理）。非网关形状响应（如 401）原样透传。
-2. **TCP 转发器（端口自动避让 + ODC 帧解析）**：`startArkhubGatewayProxy` 首选 `config.capture.gatewayPort`（缺省 30000），被占时自动尝试下一个空闲端口（port, port+1, ... 最多 50 次）——多实例并存时每个实例各拿一个空闲端口（如 30000/30001/30002），enterHall 改写用**实际监听端口**，客户端互不干扰。返回 `{ server, port, exhausted, adjusted }`：全部避让端口被占（exhausted，极罕见）时仍改写指向配置端口（其上大概率有另一实例转发器）。每个连接建立到官服网关的透传管道（纯 TCP pipe，客户端自带上层握手/鉴权），双向字节流落盘 `tmp/arkhub-gateway/{connectionId}/`（up.bin=客户端→官服、down.bin=官服→客户端、meta.json），连接关闭时按 **arkodc 帧协议**（见下）解析写 `parsed.json`。实现注意：每次尝试**新建 server**（复用同一 server 重 listen 有回调错乱问题，实测 adjusted 结果错乱）。
+2. **TCP 转发器（端口自动避让 + ODC 帧解析）**：`startArkhubGatewayProxy` 首选 `config.capture.gatewayPort`（缺省 30000），被占时自动尝试下一个空闲端口（port, port+1, ... 最多 50 次）——多实例并存时每个实例各拿一个空闲端口（如 30000/30001/30002），enterHall 改写用**实际监听端口**，客户端互不干扰。返回 `{ server, port, exhausted, adjusted }`：全部避让端口被占（exhausted，极罕见）时仍改写指向配置端口（其上大概率有另一实例转发器）。每个连接建立到官服网关的透传管道（纯 TCP pipe，客户端自带上层握手/鉴权），双向字节流落盘 `tmp/capture/records/{connectionId}/`（统一抓包存储的网关记录目录：up.bin=客户端→官服、down.bin=官服→客户端、meta.json；connectionId 即记录 rid），连接关闭时按 **arkodc 帧协议**（见下）解析写 `parsed.json`/`messages.json`，并提交一条 direction=gateway-bidi 的抓包记录（source=gateway）。实现注意：每次尝试**新建 server**（复用同一 server 重 listen 有回调错乱问题，实测 adjusted 结果错乱）。
 
-**arkodc 网关帧协议**（app/proxy/arkodc.ts，2026-08-11）：帧 = `[4B 大端总长度][4B 大端消息 ID][8B 头字段（8-11 疑 seq、12-15 疑 flag/会话ID）][protobuf payload]`。`decodeProtobuf` 通用解码（varint/fixed64/length-delimited/fixed32 + 嵌套消息，嵌套启发式：首字段 wire 0/2 且非可读文本——避免 uid 等 ASCII 串误判）。MSG_NAMES 观测映射：1=MoveReq（8B 非 protobuf）、2=MoveNotify、4=Login（UserLoginReq up / UserLoginResp down）、8=NetProbeData（心跳 08 00 / 探针 10 80 02+15B / 玩家数据 0a 变体）。实测 up 流 3176 帧零断帧；**down 流部分会话登录后为连续 protobuf/自定义封装**（长度前缀不可切，余量 hex 如实记录——该变体仅在特定玩法触发，需进一步逆向）。离线重解析：`npx tsx scripts/parse-arkhub-gateway.ts [连接目录]`。
+**arkodc 网关帧协议**（app/proxy/arkodc.ts，2026-08-11）：帧 = `[4B 大端总长度][4B 大端消息 ID][8B 头字段（8-11 疑 seq、12-15 疑 flag/会话ID）][protobuf payload]`。`decodeProtobuf` 通用解码（varint/fixed64/length-delimited/fixed32 + 嵌套消息，嵌套启发式：首字段 wire 0/2 且非可读文本——避免 uid 等 ASCII 串误判）。MSG_NAMES 观测映射：1=MoveReq（8B 非 protobuf）、2=MoveNotify、4=Login（UserLoginReq up / UserLoginResp down）、8=NetProbeData（心跳 08 00 / 探针 10 80 02+15B / 玩家数据 0a 变体）。实测 up 流 3176 帧零断帧；**down 流部分会话登录后为连续 protobuf/自定义封装**（长度前缀不可切，余量 hex 如实记录——该变体仅在特定玩法触发，需进一步逆向）。离线重解析：`npx tsx scripts/parse-arkhub-gateway.ts [rid]`（从统一抓包存储读取，缺省解析全部 gateway-bidi 记录）。
 
 **网关协议完全解析**（docs/arkhub-gateway-protocol.md，2026-08-11）：帧格式/消息族（msgId1/2=定长二进制 type+param 移动协议、msgId4=Login 双向字段号实测验证、msgId8=位置/探针通道）/down 记录流恢复/37 类消息字段名清单/剩余未知项精确定位（msgId8 位置块布局、记录流帧边界、msgId 注册表）。工具：`npx tsx scripts/dump-gateway-dict.ts` 输出协议字典。
 
-**与 test.ts 关系**：test.ts（`npm run ts`，8444）是独立纯转发抓包代理，规则同源但可独立运行；本模式把同一套规则并入主服务器（8443），免去另起进程。**账号说明**：capture 模式用官服账号登录（reference/checkin-master/accounts.txt），与私服账号体系互不相通。
+**与 scripts/proxy-harness.ts 关系**：`scripts/proxy-harness.ts`（`npm run ts`，8444）是独立纯转发抓包代理，规则同源、记录写入同一统一抓包存储（source=harness，支持 `--session <名称>` 命名会话）但可独立运行；本模式把同一套规则并入主服务器（8443），免去另起进程。**账号说明**：capture 模式用官服账号登录（reference/checkin-master/accounts.txt），与私服账号体系互不相通。
 
 ### 17.6 管理后台像素画工具 + 上传官服（2026-08-09）
 Dashboard 新增「像素画」Tab（app/admin/dashboard/index.html `loadPixelPane`）：24×24 画布编辑器（40 色调色板绘制/橡皮擦/清空/示例），下载 PNG / 像素数据，上传官服。
@@ -1159,6 +1159,47 @@ Dashboard 新增「像素画」Tab（app/admin/dashboard/index.html `loadPixelPa
 4. **网关保存确认** SavePixelArtReq mainID=8 subID=0x00029CE231D674D5 `[PixelArtId][UploadSuccess=1][DoPublish=0]`
 
 **实现要点（2026-08-09 已端到端验证）**：登录后须发**场景 hello**（mainID=8 subID=0x00018FB64DE29CDB proto=`08 00`）并等约 1.5s 让场景数据就绪，token 请求才可用（缺 hello 时服务器关连接）；close 时发登出帧（subID=0x0002C89B38B3C3C9 proto=`08 01`）释放会话绑定。**限制**：账号同时只允许一个活动网关会话（重复登录返回 112 中继，RelayLoginSuccess），旧会话过期（约 1-3 分钟）后恢复；失败时给出可操作错误。已实测上传成功：pixelArtId 返回、getPixelArt 可查。
+
+### 17.7 现代化抓包管理系统 + 统一日志管理（2026-08-14）
+
+把散落的抓包能力与日志来源统一为一个**有索引、可查询、可管理**的系统，并在管理后台新增「抓包」「日志」两个 Tab。
+
+**统一抓包存储**（`app/capture/capture-manager.ts` 单例 `captureManager` + `app/capture/capture-db.ts`，SQLite `node:sqlite`）：
+
+```
+tmp/capture/
+  index.db                  # 元数据索引：sessions（会话）+ records（记录）
+  records/{rid}/            # body 文件目录（rid = R-{ts}-{seq}）
+    req.json|req.bin        # 请求体（JSON→.json；原始字节/二进制→.bin）
+    res.json|res.bin        # 响应体
+    up.bin/down.bin         # 网关连接原始字节流（direction=gateway-bidi）
+    parsed.json/messages.json  # 网关 arkodc 解析产物（连接关闭时生成）
+    meta.json               # 完整元数据副本（导出/便携）
+  exports/                  # 会话导出 zip（jszip）
+```
+
+- **来源统一**（records.source）：`private`（私服 traffic-recorder）/ `official`（capture 官服转发）/ `harness`（独立代理 proxy-harness）/ `gateway`（arkhub 网关连接）/ `ops`（官服操作 official-ops）。无显式会话的记录自动归入「自动-{yyyyMMdd}」默认会话（每源每天一个，保持全量记录旧行为）。
+- **写入方改造**：`traffic-recorder.ts` 改为调 `captureManager.addRecordAsync`（中间件不落散文件；source 由 index.ts 传入）；**默认排除本地管理/资源/配置噪音**——`/admin`（管理页面 + API + 30s 轮询）、`/assetbundle`（资源大文件）、`/pcSdk`、`/config`、`/api`（launcher/remote_config）、`/audit`、`/batch_event`（事件上报）不记录（与 official-forward 的 LOCAL_ONLY_PREFIXES 对齐），可用 `debug.recordTrafficExclude` 覆盖（`[]` = 全部记录）；`scripts/proxy-harness.ts` 弃 console.*/printJson，改用 logger + captureManager（支持 `--session <名称>`）；`arkhub-gateway.ts` 连接关闭时提交 gateway-bidi 记录（记录目录即统一 records/ 子目录，rid=connectionId）；`official-ops.ts` 官服调用记录 source=ops（保留 secret 脱敏）。
+- **查询/管理**：`captureManager.query()`（sessionId/source/method/path/module/endpoint/status/direction/from/to/q + 分页 + total）、`getRecordDetail()`（JSON body 解析对象、bin body 返回 base64/hexPreview、缺失文件标记 missingFiles）、会话 start/stop/delete（级联删记录目录）、`clearAll(CLEAR)`、`exportSession(id)`/`exportRecord(id)`（jszip）、`stats()`（来源/状态码/按天）、`subscribe()`（新记录事件 → SSE 实时尾随）。
+- **旧格式迁移**：原 `tmp/{module}/{endpoint}/{ts}.json` 散文件格式废弃；`scripts/extract-arkhub-pixel.ts`（从 store 查最近 savePixelArt 记录读 req.bin）、`scripts/parse-arkhub-gateway.ts`、`scripts/dump-gateway-dict.ts`（从 store 读 gateway-bidi 记录）已迁移；测试真实抓包期望值归档 `tests/fixtures/rlv2-finishEvent.json`。**存量旧数据合并**：`npx tsx scripts/migrate-capture-legacy.ts [--dry-run] [--keep]` 把历史散文件（记录器目录格式 + 顶层扁平 `{模块}_{接口}_req|res_{id}.json` + official + arkhub-gateway 连接）合并进统一存储（归入「旧格式迁移」会话，note 记录源路径，成功即删源文件）——旧代理 req/res 序号存在 n↔n-1 偏移，扁平配对按此规则；无法还原路径的顶层旧文件（getAllProductList*/tokenpass*/v2grant* 等）跳过保留。
+- **测试**：`tests/unit/capture/capture-manager.test.ts`（11 用例：CRUD/过滤/会话/clear/导出/订阅/惰性 init，临时根目录注入，不碰真实 tmp/capture/）。
+
+**统一日志管理**（`app/logs/log-service.ts` 单例 `logService` + `app/utils/sse.ts`）：
+
+- **服务器日志** `logs/server-YYYYMMDD.log`：`listServerLogDates()` / `readServerLog({date,level,tag,q,limit,offset})`（行正则解析、倒序分页）/ `clearServerLogs(CLEAR)`。
+- **审计日志** `data/admin/logs.jsonl`：`readAuditLog({action,uid,q,limit})`（复用 AdminService）；`AdminService._audit` 广播 `logService.emitAudit` → 实时尾随数据源。
+- **看门狗日志** `logs/watchdog-*.log`：`readWatchdogLog()`。
+- **实时日志**：`logger.subscribeLog`（app/utils/logger.ts 新增订阅列表，write() 级别过滤后广播 `{ts,tsMs,level,tag,text}`，不影响文件/控制台输出）。
+- **SSE**（app/utils/sse.ts）：`createSse`（text/event-stream + 15s 心跳 + close 清理）+ `sseSend`；index.ts compression 已排除 `/stream` 路径（zlib 缓冲会破坏逐事件推送）；adminAuth 支持 `?token=` 查询参数（EventSource 无法自定义请求头）。
+
+**管理 REST API**（app/admin/admin-router.ts，全部登记进 api-spec.ts → OpenAPI 自动生成）：
+
+- 抓包：`GET/POST /api/capture/sessions`、`POST /api/capture/sessions/:id/stop`、`DELETE /api/capture/sessions/:id`、`GET /api/capture/records`（过滤+分页）、`GET|DELETE /api/capture/records/:id`、`POST /api/capture/clear`、`GET /api/capture/stats`、`GET /api/capture/sessions/:id/export`（zip 下载）、`GET /api/capture/records/:id/export`、`GET /api/capture/stream`（SSE）。
+- 日志：`GET /api/logs/server`、`GET /api/logs/server/dates`、`GET /api/logs/watchdog`、`GET /api/logs/audit`（兼容旧 `/api/logs`）、`POST /api/logs/server/clear`、`GET /api/logs/stream?kind=server|audit|capture`（SSE，回填 50 条后直播）。
+
+**Dashboard**（app/admin/dashboard/index.html）：侧边栏新增「系统」分组——「🕸️ 抓包」Tab（会话新建/停止/删除/导出、来源/方法/状态码/关键字过滤、3s 轮询或 SSE 直播、行点击查看请求/响应头 + 语法高亮 JSON + 二进制 base64、单条导出、**与基准记录逐接口 JSON diff 对比**（新增/删除/修改红绿高亮，支撑"官服 vs 私服"核心场景））与「📜 日志」Tab（服务器/审计/看门狗三个子页、级别/日期/关键字过滤、SSE 实时尾随、导出当前视图、清空（确认词））。全局 Tab 注册进 GLOBAL_TABS/TAB_LABELS/loadPane。
+
+**CLI**（scripts/admin-cli.ts dispatch，cli-exec.ts 自动继承）：`capture sessions|start|stop|records|show|stats|export|clear`、`logs server|watchdog|audit|clear|server-clear`。
 
 ---
 

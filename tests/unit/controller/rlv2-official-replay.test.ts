@@ -101,16 +101,17 @@ vi.mock("@utils/crypt", () => ({
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { mockPlayerData } from "../../helpers";
 
-const CAPTURE_ROOT = path.resolve(__dirname, "../../../tmp");
+// 官服抓包 fixtures（tests/fixtures/rlv2-official/，从统一抓包存储提取归档——不依赖运行时 tmp/）
+const CAPTURE_ROOT = path.resolve(__dirname, "../../fixtures/rlv2-official");
 
 function readReq(route: string, ts: string) {
-  const f = path.join(CAPTURE_ROOT, "request_rlv2", route, `${ts}.json`);
+  const f = path.join(CAPTURE_ROOT, route, `${ts}.json`);
   const d = JSON.parse(fs.readFileSync(f, "utf8"));
   return d.body;
 }
 
 function readRes(route: string, ts: string) {
-  const f = path.join(CAPTURE_ROOT, "rlv2", route, `${ts}.json`);
+  const f = path.join(CAPTURE_ROOT, route, `${ts}.json`);
   return JSON.parse(fs.readFileSync(f, "utf8"));
 }
 
@@ -364,7 +365,7 @@ describe("官服回放扩展：战斗/暂存/结算", () => {
     rlv2.inventory._recruit.gain("rogue_6_recruit_ticket_pioneer", "battle", 0);
     const idx = Object.keys(rlv2.inventory.recruit)[0];
     await rlv2.stashRecruitTicket({ index: idx });
-    const offStash = JSON.parse(fs.readFileSync(path.join(CAPTURE_ROOT, "rlv2/stashRecruitTicket/2026-08-11T07-50-50-630Z.json"), "utf8"));
+    const offStash = JSON.parse(fs.readFileSync(path.join(CAPTURE_ROOT, "stashRecruitTicket/2026-08-11T07-50-50-630Z.json"), "utf8"));
     const s = JSON.stringify(offStash);
     expect(s).toContain("stashRecruit");
     expect(s).toContain("stashRecruitLimit");

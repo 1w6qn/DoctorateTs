@@ -11,6 +11,9 @@ import { adminAuth } from "./admin-auth";
 import { ADMIN_ENDPOINTS } from "./api-spec";
 import { buildOpenApi } from "./openapi";
 import config from "../config";
+import { captureManager } from "@capture/capture-manager";
+import { logService } from "@logs/log-service";
+import { createSse, sseSend } from "@utils/sse";
 
 const router = Router();
 
@@ -378,7 +381,7 @@ router.get("/api/official/backend", (_req: Request, res: Response) => {
 router.get("/api/mapviz-data", async (_req: Request, res: Response) => {
   const data = await adminService.getMapvizData();
   if (!data) {
-    res.status(404).json({ error: "地图数据缺失（tools/map-visualizer/game-data.js 未生成或格式异常，运行 npx tsx tools/map-visualizer/generate-data.ts 生成）" });
+    res.status(404).json({ error: "地图数据缺失（data/mapviz/game-data.js 未生成或格式异常，运行 npx tsx scripts/generate-mapviz-data.ts 生成）" });
     return;
   }
   res.json(data);
@@ -790,6 +793,253 @@ router.get("/api/users/:uid/activity", async (req: Request, res: Response) => {
 /** OpenAPI 3.0 规范（管理 API） */
 router.get("/api/openapi.json", (_req: Request, res: Response) => {
   res.json(buildOpenApi());
+});
+
+/* ==================== 统一抓包管理（/admin/api/capture/*） ==================== */
+
+/** 抓包会话列表（含记录数；最新在前） */
+router.get("/api/capture/sessions", async (_req: Request, res: Response) => {
+  res.json(await captureManager.listSessions());
+});
+
+/** 新建抓包会话（body: { name, source?, note? }） */
+router.post("/api/capture/sessions", async (req: Request, res: Response) => {
+  try {
+    const { name, source, note } = req.body ?? {};
+    const s = await captureManager.startSession(
+      String(name ?? "未命名会话"),
+      (String(source ?? "private") as "private"),
+      String(note ?? ""),
+    );
+    res.status(201).json(s);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 停止抓包会话 */
+router.post("/api/capture/sessions/:id/stop", async (req: Request, res: Response) => {
+  const ok = await captureManager.stopSession(String(req.params.id));
+  if (!ok) {
+    res.status(404).json({ error: `会话不存在: ${req.params.id}` });
+    return;
+  }
+  res.json({ ok: true });
+});
+
+/** 删除抓包会话（级联删除其全部记录与 body 目录） */
+router.delete("/api/capture/sessions/:id", async (req: Request, res: Response) => {
+  const deleted = await captureManager.deleteSession(String(req.params.id));
+  res.json({ deleted });
+});
+
+/** 抓包记录列表（过滤：sessionId/source/method/path/module/endpoint/status/direction/from/to/q + 分页） */
+router.get("/api/capture/records", async (req: Request, res: Response) => {
+  try {
+    const q = req.query ?? {};
+    const str = (v: unknown) => (v === undefined || v === "" ? undefined : String(v));
+    const num = (v: unknown) => {
+      const n = v === undefined || v === "" ? undefined : Number(v);
+      return n !== undefined && Number.isFinite(n) ? n : undefined;
+    };
+    res.json(
+      await captureManager.query({
+        sessionId: str(q.sessionId),
+        source: str(q.source),
+        method: str(q.method),
+        path: str(q.path),
+        module: str(q.module),
+        endpoint: str(q.endpoint),
+        direction: str(q.direction),
+        status: num(q.status),
+        from: num(q.from),
+        to: num(q.to),
+        q: str(q.q),
+        limit: num(q.limit),
+        offset: num(q.offset),
+      }),
+    );
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 抓包记录详情（含请求/响应头与 body 内容） */
+router.get("/api/capture/records/:id", async (req: Request, res: Response) => {
+  const detail = await captureManager.getRecordDetail(String(req.params.id));
+  if (!detail) {
+    res.status(404).json({ error: `记录不存在: ${req.params.id}` });
+    return;
+  }
+  res.json(detail);
+});
+
+/** 删除单条抓包记录 */
+router.delete("/api/capture/records/:id", async (req: Request, res: Response) => {
+  const ok = await captureManager.deleteRecord(String(req.params.id));
+  if (!ok) {
+    res.status(404).json({ error: `记录不存在: ${req.params.id}` });
+    return;
+  }
+  res.json({ ok: true });
+});
+
+/** 清空全部抓包（confirmWord="CLEAR" 确认） */
+router.post("/api/capture/clear", async (req: Request, res: Response) => {
+  try {
+    res.json(await captureManager.clearAll(String((req.body ?? {}).confirmWord ?? "")));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 抓包统计（来源/状态码/按天） */
+router.get("/api/capture/stats", async (_req: Request, res: Response) => {
+  res.json(await captureManager.stats());
+});
+
+/** 导出会话 zip 下载 */
+router.get("/api/capture/sessions/:id/export", async (req: Request, res: Response) => {
+  try {
+    const out = await captureManager.exportSession(String(req.params.id));
+    res.set("Content-Type", "application/zip");
+    res.set("Content-Disposition", `attachment; filename="${path.basename(out.path)}"`);
+    res.sendFile(path.resolve(out.path));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 导出单条记录 zip 下载 */
+router.get("/api/capture/records/:id/export", async (req: Request, res: Response) => {
+  try {
+    const out = await captureManager.exportRecord(String(req.params.id));
+    res.set("Content-Type", "application/zip");
+    res.set("Content-Disposition", `attachment; filename="${path.basename(out.path)}"`);
+    res.sendFile(path.resolve(out.path));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 抓包实时流（SSE：?token= 认证；回填最近 50 条后直播新记录） */
+router.get("/api/capture/stream", (req: Request, res: Response) => {
+  createSse(req, res);
+  void captureManager
+    .query({ limit: 50 })
+    .then(({ items }) => {
+      for (const r of items) sseSend(res, "record", { type: "backfill", record: r });
+    })
+    .catch(() => undefined);
+  const unsub = captureManager.subscribe((r) => sseSend(res, "record", { type: "live", record: r }));
+  req.on("close", unsub);
+});
+
+/* ==================== 统一日志管理（/admin/api/logs/*） ==================== */
+
+/** 服务器日志（?date=YYYYMMDD&level=&tag=&q=&limit=&offset=） */
+router.get("/api/logs/server", async (req: Request, res: Response) => {
+  try {
+    const q = req.query ?? {};
+    const str = (v: unknown) => (v === undefined || v === "" ? undefined : String(v));
+    const num = (v: unknown) => {
+      const n = v === undefined || v === "" ? undefined : Number(v);
+      return n !== undefined && Number.isFinite(n) ? n : undefined;
+    };
+    res.json(
+      await logService.readServerLog({
+        date: str(q.date),
+        level: str(q.level),
+        tag: str(q.tag),
+        q: str(q.q),
+        limit: num(q.limit),
+        offset: num(q.offset),
+      }),
+    );
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 服务器日志可用日期列表 */
+router.get("/api/logs/server/dates", async (_req: Request, res: Response) => {
+  res.json(await logService.listServerLogDates());
+});
+
+/** 看门狗日志 */
+router.get("/api/logs/watchdog", async (_req: Request, res: Response) => {
+  res.json(await logService.readWatchdogLog());
+});
+
+/** 审计日志（?action=&uid=&q=&limit=；兼容旧 GET /api/logs） */
+router.get("/api/logs/audit", async (req: Request, res: Response) => {
+  try {
+    const q = req.query ?? {};
+    const str = (v: unknown) => (v === undefined || v === "" ? undefined : String(v));
+    const num = (v: unknown) => {
+      const n = v === undefined || v === "" ? undefined : Number(v);
+      return n !== undefined && Number.isFinite(n) ? n : undefined;
+    };
+    res.json(
+      await logService.readAuditLog({
+        action: str(q.action),
+        uid: str(q.uid),
+        q: str(q.q),
+        limit: num(q.limit),
+      }),
+    );
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 清空服务器日志（confirmWord="CLEAR"） */
+router.post("/api/logs/server/clear", async (req: Request, res: Response) => {
+  try {
+    res.json(await logService.clearServerLogs(String((req.body ?? {}).confirmWord ?? "")));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 日志实时流（SSE：?kind=server|audit|capture；回填最近 50 条后直播） */
+router.get("/api/logs/stream", (req: Request, res: Response) => {
+  const kind = String((req.query ?? {}).kind ?? "server");
+  createSse(req, res);
+
+  if (kind === "capture") {
+    void captureManager
+      .query({ limit: 50 })
+      .then(({ items }) => {
+        for (const r of items) sseSend(res, "record", { kind: "capture", type: "backfill", record: r });
+      })
+      .catch(() => undefined);
+    const unsub = captureManager.subscribe((r) => sseSend(res, "record", { kind: "capture", type: "live", record: r }));
+    req.on("close", unsub);
+    return;
+  }
+
+  if (kind === "audit") {
+    void logService
+      .readAuditLog({ limit: 50 })
+      .then((entries) => {
+        for (const e of entries) sseSend(res, "log", { kind: "audit", type: "backfill", entry: e });
+      })
+      .catch(() => undefined);
+    const unsub = logService.subscribeAudit((e) => sseSend(res, "log", { kind: "audit", type: "live", entry: e }));
+    req.on("close", unsub);
+    return;
+  }
+
+  // server（默认）
+  void logService
+    .readServerLog({ limit: 50 })
+    .then(({ items }) => {
+      for (const e of items) sseSend(res, "log", { kind: "server", type: "backfill", entry: e });
+    })
+    .catch(() => undefined);
+  const unsub = logService.subscribeServer((e) => sseSend(res, "log", { kind: "server", type: "live", entry: e }));
+  req.on("close", unsub);
 });
 
 /** 配置（只读） */

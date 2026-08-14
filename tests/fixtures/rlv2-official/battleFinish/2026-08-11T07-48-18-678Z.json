@@ -1,0 +1,379 @@
+{
+  "playerDataDelta": {
+    "modified": {
+      "rlv2": {
+        "current": {
+          "record": {
+            "brief": null
+          },
+          "player": {
+            "state": "PENDING",
+            "property": {
+              "exp": 3,
+              "level": 2,
+              "maxLevel": 10,
+              "hp": {
+                "current": 4,
+                "max": 4
+              },
+              "gold": 30,
+              "shield": 2,
+              "capacity": 7,
+              "population": {
+                "cost": 6,
+                "max": 12
+              },
+              "conPerfectBattle": 1,
+              "hpShowState": "NORMAL"
+            },
+            "cursor": {
+              "zone": 1000,
+              "position": {
+                "x": 1,
+                "y": 1
+              }
+            },
+            "trace": [
+              {
+                "zone": 1000,
+                "position": {
+                  "x": 0,
+                  "y": 1
+                }
+              },
+              {
+                "zone": 1000,
+                "position": {
+                  "x": 1,
+                  "y": 1
+                }
+              }
+            ],
+            "pending": [
+              {
+                "index": "e_9",
+                "type": "BATTLE_REWARD",
+                "content": {
+                  "battleReward": {
+                    "earn": {
+                      "damage": 0,
+                      "hp": 0,
+                      "shield": 0,
+                      "exp": 13,
+                      "populationMax": 4,
+                      "squadCapacity": 0,
+                      "maxHpUp": 0
+                    },
+                    "rewards": [
+                      {
+                        "index": 0,
+                        "items": [
+                          {
+                            "sub": 0,
+                            "id": "rogue_6_gold",
+                            "count": 2
+                          }
+                        ],
+                        "done": 0
+                      },
+                      {
+                        "index": 1,
+                        "items": [
+                          {
+                            "sub": 0,
+                            "id": "rogue_6_scrap_P_02",
+                            "count": 1
+                          },
+                          {
+                            "sub": 1,
+                            "id": "rogue_6_scrap_P_01",
+                            "count": 1
+                          }
+                        ],
+                        "done": 0
+                      },
+                      {
+                        "index": 2,
+                        "items": [
+                          {
+                            "sub": 0,
+                            "id": "rogue_6_recruit_ticket_sniper",
+                            "count": 1
+                          }
+                        ],
+                        "done": 0
+                      }
+                    ],
+                    "show": "2",
+                    "state": 0,
+                    "isPerfect": 1
+                  }
+                }
+              }
+            ],
+            "status": {
+              "bankPut": 0
+            },
+            "toEnding": "ro6_ending_1",
+            "chgEnding": false
+          },
+          "buff": {
+            "tmpHP": 0,
+            "capsule": null,
+            "squadBuff": []
+          },
+          "inventory": {
+            "relic": {
+              "r_0": {
+                "index": "r_0",
+                "id": "rogue_6_band_9",
+                "count": 1,
+                "ts": 1786434416
+              },
+              "r_1": {
+                "index": "r_1",
+                "id": "rogue_6_start_2",
+                "count": 1,
+                "ts": 1786434434
+              }
+            },
+            "recruit": {
+              "t_2": {
+                "index": "t_2",
+                "id": "rogue_6_recruit_ticket_tank",
+                "state": 2,
+                "list": [],
+                "result": {
+                  "instId": "35",
+                  "charId": "char_4230_mcnist",
+                  "type": "UPGRADE_BONUS",
+                  "favorPoint": 375,
+                  "potentialRank": 5,
+                  "mainSkillLvl": 7,
+                  "skin": "char_4230_mcnist#2",
+                  "level": 90,
+                  "exp": 0,
+                  "evolvePhase": 2,
+                  "defaultSkillIndex": 0,
+                  "skills": [
+                    {
+                      "skillId": "skchr_mcnist_1",
+                      "unlock": 1,
+                      "state": 0,
+                      "specializeLevel": 2,
+                      "completeUpgradeTime": -1
+                    },
+                    {
+                      "skillId": "skchr_mcnist_2",
+                      "unlock": 1,
+                      "state": 0,
+                      "specializeLevel": 2,
+                      "completeUpgradeTime": -1
+                    },
+                    {
+                      "skillId": "skchr_mcnist_3",
+                      "unlock": 1,
+                      "state": 0,
+                      "specializeLevel": 3,
+                      "completeUpgradeTime": -1
+                    }
+                  ],
+                  "upgradeLimited": false,
+                  "upgradePhase": 1,
+                  "isUpgrade": false,
+                  "isCure": false,
+                  "population": 0,
+                  "charBuff": [],
+                  "troopInstId": "1",
+                  "master": {
+                    "master_mcnist_4": 3,
+                    "master_mcnist_6": 1,
+                    "master_mcnist_5": 1,
+                    "master_mcnist_1": 3,
+                    "master_mcnist_3": 3,
+                    "master_mcnist_2": 2
+                  },
+                  "currentEquip": "uniequip_002_mcnist",
+                  "equip": {
+                    "uniequip_001_mcnist": {
+                      "hide": 0,
+                      "locked": 0,
+                      "level": 1
+                    },
+                    "uniequip_002_mcnist": {
+                      "hide": 0,
+                      "locked": 0,
+                      "level": 3
+                    }
+                  }
+                },
+                "ts": 1786434458,
+                "from": "initial",
+                "mustExtra": 0,
+                "needAssist": true
+              },
+              "t_3": {
+                "index": "t_3",
+                "id": "rogue_6_recruit_ticket_caster",
+                "state": 2,
+                "list": [],
+                "result": {
+                  "instId": "11",
+                  "charId": "char_328_cammou",
+                  "type": "NORMAL",
+                  "favorPoint": 24918,
+                  "potentialRank": 5,
+                  "mainSkillLvl": 7,
+                  "skin": "char_328_cammou@witch#2",
+                  "level": 60,
+                  "exp": 0,
+                  "evolvePhase": 1,
+                  "defaultSkillIndex": 0,
+                  "skills": [
+                    {
+                      "skillId": "skcom_atk_up[2]",
+                      "unlock": 1,
+                      "state": 0,
+                      "specializeLevel": 0,
+                      "completeUpgradeTime": -1
+                    },
+                    {
+                      "skillId": "skchr_cammou_2",
+                      "unlock": 1,
+                      "state": 0,
+                      "specializeLevel": 0,
+                      "completeUpgradeTime": -1
+                    }
+                  ],
+                  "upgradeLimited": true,
+                  "upgradePhase": 0,
+                  "isUpgrade": false,
+                  "isCure": false,
+                  "population": 0,
+                  "charBuff": [],
+                  "troopInstId": "3",
+                  "master": {},
+                  "currentEquip": "uniequip_001_cammou",
+                  "equip": {
+                    "uniequip_001_cammou": {
+                      "hide": 0,
+                      "locked": 0,
+                      "level": 1
+                    },
+                    "uniequip_002_cammou": {
+                      "hide": 0,
+                      "locked": 1,
+                      "level": 1
+                    }
+                  }
+                },
+                "ts": 1786434458,
+                "from": "initial",
+                "mustExtra": 0,
+                "needAssist": true
+              },
+              "t_4": {
+                "index": "t_4",
+                "id": "rogue_6_recruit_ticket_medic",
+                "state": 2,
+                "list": [],
+                "result": {
+                  "instId": "36",
+                  "charId": "char_1052_kalts2",
+                  "type": "NORMAL",
+                  "favorPoint": 25570,
+                  "potentialRank": 1,
+                  "mainSkillLvl": 7,
+                  "skin": "char_1052_kalts2#2",
+                  "level": 80,
+                  "exp": 0,
+                  "evolvePhase": 1,
+                  "defaultSkillIndex": 0,
+                  "skills": [
+                    {
+                      "skillId": "skchr_kalts2_1",
+                      "unlock": 1,
+                      "state": 0,
+                      "specializeLevel": 0,
+                      "completeUpgradeTime": -1
+                    },
+                    {
+                      "skillId": "skchr_kalts2_2",
+                      "unlock": 1,
+                      "state": 0,
+                      "specializeLevel": 0,
+                      "completeUpgradeTime": -1
+                    },
+                    {
+                      "skillId": "skchr_kalts2_3",
+                      "unlock": 0,
+                      "state": 0,
+                      "specializeLevel": 0,
+                      "completeUpgradeTime": -1
+                    }
+                  ],
+                  "upgradeLimited": true,
+                  "upgradePhase": 0,
+                  "isUpgrade": false,
+                  "isCure": false,
+                  "population": 6,
+                  "charBuff": [],
+                  "troopInstId": "2",
+                  "master": {}
+                },
+                "ts": 1786434458,
+                "from": "initial",
+                "mustExtra": 0,
+                "needAssist": true
+              }
+            },
+            "trap": null,
+            "consumable": {},
+            "exploreTool": {},
+            "stashRecruit": [],
+            "stashRecruitLimit": 3
+          }
+        }
+      },
+      "mission": {
+        "missions": {
+          "WEEKLY": {
+            "weekly_705": {
+              "progress": [
+                {
+                  "target": 75,
+                  "value": 67
+                }
+              ]
+            },
+            "weekly_706": {
+              "progress": [
+                {
+                  "target": 100,
+                  "value": 67
+                }
+              ]
+            },
+            "weekly_711": {
+              "progress": [
+                {
+                  "target": 4000,
+                  "value": 3236
+                }
+              ]
+            },
+            "weekly_712": {
+              "progress": [
+                {
+                  "target": 5000,
+                  "value": 3236
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "deleted": {}
+  }
+}

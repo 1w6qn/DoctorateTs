@@ -17,54 +17,47 @@ import {
   loginGame,
   getRandomDevices,
 } from "../../scripts/official-api";
-import { mkdir, writeFile } from "fs/promises";
-import * as path from "path";
 import { pixelDataMd5, validatePixelData } from "./arkhub-pixel";
+import { captureManager } from "@capture/capture-manager";
+import { logger } from "@utils/logger";
 import {
   GatewaySession,
   randomGatewayDeviceId,
 } from "./arkhub-gateway-client";
 
-/** 官服调用记录根目录（对齐 traffic-recorder 的 tmp/{module}/{endpoint} 格式） */
-const OFFICIAL_RECORD_ROOT = "tmp";
-
-/** 当前时间戳（文件名用，对齐 traffic-recorder 格式） */
-function recordTs(): string {
-  return new Date().toISOString().replace(/[:.]/g, "-");
-}
-
 /**
- * 记录一次官服调用请求/响应到 tmp/official/（请求头脱敏：去除 secret）
- * 目录格式与 traffic-recorder 一致：tmp/official/{cgi}/ 响应 + tmp/request_official/{cgi}/ 请求
+ * 记录一次官服调用请求/响应到统一抓包存储（source=ops，请求头脱敏：去除 secret）。
+ * 写入失败不影响官服调用（logger.debug 记录）。
  */
 async function recordOfficialCall(
   cgi: string,
   req: { body?: any; headers: Record<string, string> },
   res: { status: number; body: any },
 ): Promise<void> {
-  const ts = recordTs();
-  const endpoint = cgi.replace(/^\//, "").split("/").join("/");
   const { secret: _secret, ...safeHeaders } = req.headers; // 脱敏：不落盘 secret
   try {
-    await mkdir(path.join(OFFICIAL_RECORD_ROOT, "official", endpoint), { recursive: true });
-    await mkdir(path.join(OFFICIAL_RECORD_ROOT, "request_official", endpoint), { recursive: true });
-    await writeFile(
-      path.join(OFFICIAL_RECORD_ROOT, "official", endpoint, `${ts}.json`),
-      JSON.stringify(res.body, null, 2),
-      "utf8",
-    );
-    await writeFile(
-      path.join(OFFICIAL_RECORD_ROOT, "request_official", endpoint, `${ts}.json`),
-      JSON.stringify(
-        { cgi, headers: safeHeaders, body: req.body ?? {}, timestamp: new Date().toISOString() },
-        null,
-        2,
-      ),
-      "utf8",
+    await captureManager.addRecord(
+      {
+        ts: Date.now(),
+        method: "POST",
+        path: cgi,
+        status: res.status,
+        source: "ops",
+        reqHeaders: safeHeaders,
+        note: "官服操作（official-ops）",
+      },
+      {
+        req:
+          typeof req.body === "string"
+            ? { kind: "json", data: req.body }
+            : req.body !== undefined
+              ? { kind: "json", data: req.body }
+              : undefined,
+        res: { kind: "json", data: res.body },
+      },
     );
   } catch (e) {
-    // 记录失败不影响官服调用
-    console.error("[official-ops] 记录失败:", (e as Error).message);
+    logger.debug("official-ops", "抓包记录失败:", (e as Error).message);
   }
 }
 
@@ -117,7 +110,7 @@ export class OfficialSession {
     return this.data;
   }
 
-  /** 官服 POST（带 secret/seqnum 头；seqnum 按响应头更新或自增；调用记录到 tmp/official） */
+  /** 官服 POST（带 secret/seqnum 头；seqnum 按响应头更新或自增；调用记录到统一抓包存储） */
   async post(cgi: string, body?: any): Promise<any> {
     const headers: Record<string, string> = {
       uid: this.uid,

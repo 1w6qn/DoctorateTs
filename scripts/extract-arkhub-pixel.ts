@@ -1,26 +1,22 @@
 /**
  * arkhub 像素画提取工具：从抓包的 savePixelArt 请求里还原上传的 file 字节
  *
- * 用法：npx tsx scripts/extract-arkhub-pixel.ts [请求文件路径]
- * 缺省取 tmp/request_activity/arkhub/savePixelArt/ 下最新的一个。
+ * 从统一抓包存储（captureManager）读取最近一条 savePixelArt 请求记录
+ * （multipart 原始字节以 req.bin 落盘），提取 file part。
+ *
+ * 用法：npx tsx scripts/extract-arkhub-pixel.ts [rid]
+ * 缺省取最新一条 path=/activity/arkhub/savePixelArt 的记录。
  * 输出：
  *   - tmp/pixel-art-extracted.<ext> —— 提取的 file part 原始字节
  *   - 控制台打印 part 清单与魔数/尺寸识别，帮助判断图像格式
  *
- * 前置：capture 模式 + traffic-recorder（已支持 rawBody base64 落盘），
- * 客户端在游戏内重新保存一次像素画即可产生含 rawBody 的请求记录。
+ * 前置：capture 模式 + traffic-recorder（rawBody 以 req.bin 落盘），
+ * 客户端在游戏内重新保存一次像素画即可产生含原始字节的请求记录。
  */
 import fs from "fs";
 import { pixelDataToPng } from "../app/admin/arkhub-pixel";
 import path from "path";
-
-interface CapturedRequest {
-  headers?: Record<string, string>;
-  rawBody?: string;
-  body?: unknown;
-  url?: string;
-  timestamp?: string;
-}
+import { captureManager } from "../app/capture/capture-manager";
 
 /** 解析 multipart/form-data 原始字节，返回各 part（name → Buffer 或字符串） */
 function parseMultipart(raw: Buffer, boundary: string): Map<string, Buffer> {
@@ -66,40 +62,29 @@ function detectFormat(buf: Buffer): string {
   return `未知格式（前 16 字节 hex: ${hex}）`;
 }
 
-function main(): void {
-  const argFile = process.argv[2];
-  const reqDir = path.join(__dirname, "..", "tmp", "request_activity", "arkhub", "savePixelArt");
-  let reqPath: string;
-  if (argFile) {
-    reqPath = argFile;
-  } else {
-    if (!fs.existsSync(reqDir)) {
-      console.error(`无抓包目录 ${reqDir}——请先在 capture 模式下让客户端保存一次像素画`);
-      process.exit(1);
-    }
-    const files = fs.readdirSync(reqDir)
-      .filter((f) => f.endsWith(".json"))
-      .sort();
-    if (!files.length) {
-      console.error("savePixelArt 请求目录为空");
-      process.exit(1);
-    }
-    reqPath = path.join(reqDir, files[files.length - 1]);
+async function main(): Promise<void> {
+  await captureManager.init();
+  const arg = process.argv[2];
+  let rec = arg ? await captureManager.getRecord(arg) : null;
+  if (!rec) {
+    const { items } = await captureManager.query({ path: "/activity/arkhub/savePixelArt", limit: 1 });
+    rec = items[0] ?? null;
   }
-
-  const req = JSON.parse(fs.readFileSync(reqPath, "utf8")) as CapturedRequest;
-  console.log("请求文件:", reqPath);
-  console.log("时间:", req.timestamp, "URL:", req.url);
-
-  if (!req.rawBody) {
-    console.error("该记录没有 rawBody（multipart 原始字节）——需要 capture 模式重启后重新保存像素画。");
-    console.error("旧记录只存了 body={}（express.json 不解析 multipart），字节已丢失。");
+  if (!rec) {
+    console.error("未找到 savePixelArt 抓包记录——请先在 capture 模式下让客户端保存一次像素画（记录存入 tmp/capture/）");
     process.exit(1);
   }
-
-  const raw = Buffer.from(req.rawBody, "base64");
-  const contentType = req.headers?.["content-type"] || "";
+  const detail = await captureManager.getRecordDetail(rec.id);
+  if (!detail || detail.reqBodyType !== "bin" || !detail.reqBody || typeof detail.reqBody !== "object" || !("base64" in detail.reqBody)) {
+    console.error("该记录没有原始请求体（req.bin / multipart 字节）——需要 capture 模式重启后重新保存像素画。");
+    process.exit(1);
+  }
+  const raw = Buffer.from((detail.reqBody as { base64: string }).base64, "base64");
+  const reqHeaders =
+    typeof detail.reqHeaders === "string" ? (JSON.parse(detail.reqHeaders) as Record<string, string>) : {};
+  const contentType = reqHeaders["content-type"] || "";
   const boundary = /boundary="?([^";]+)"?/.exec(contentType)?.[1] || "C880D0B0";
+  console.log("记录:", rec.rid, "| 时间:", new Date(rec.ts).toISOString(), "| URL:", rec.path);
   console.log(`content-length: ${raw.length}B, boundary: ${boundary}`);
 
   const parts = parseMultipart(raw, boundary);
@@ -132,5 +117,7 @@ function main(): void {
   }
 }
 
-main();
-
+main().catch((e) => {
+  console.error("提取失败:", (e as Error).message);
+  process.exit(1);
+});

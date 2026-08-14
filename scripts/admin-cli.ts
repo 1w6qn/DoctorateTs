@@ -40,7 +40,17 @@
  *   config set <key> <value>                           修改配置（如 PORT 8443、offline false、admin.token xxx）
  *
  * 日志:
- *   logs show [--last N] [--json]                      查看管理操作审计日志
+ *   logs show|audit [--last N] [--action x] [--uid x] [--json]    查看管理操作审计日志
+ *   logs server [--date YYYYMMDD] [--level x] [--tag x] [--last N] [--json]  查看服务器日志
+ *   logs watchdog [--json]                                     查看看门狗日志
+ *
+ * 抓包管理:
+ *   capture sessions [--json]                                  抓包会话列表
+ *   capture start <名称> [--source x]                          新建抓包会话
+ *   capture stop <会话id>                                      停止抓包会话
+ *   capture records [--path x] [--status n] [--source x] [--limit n] [--json]  抓包记录列表
+ *   capture show <记录id|rid> [--json]                         查看单条记录（请求/响应）
+ *   capture stats [--json] / capture export <会话id> / capture clear --yes
  *
  * 卡池管理:
  *   gacha pools [--json]                               列出全部卡池
@@ -66,6 +76,8 @@ import excel from "@excel/excel";
 import { accountManager } from "@game/manager/AccountManager";
 import { adminService } from "../app/admin/AdminService";
 import config from "../app/config";
+import { captureManager } from "../app/capture/capture-manager";
+import { logService } from "../app/logs/log-service";
 import { writeJson, readJsonSync } from "@utils/file";
 
 /** 解析结果 */
@@ -188,8 +200,21 @@ export function printHelp(): void {
   config show / config set <key> <value>
 
 日志:
-  logs show [--last N] [--json]                     查看审计日志
-  logs clear --yes                                 清空审计日志（危险操作）
+  logs show|audit [--last N] [--action x] [--uid x] [--json]   查看审计日志
+  logs server [--date YYYYMMDD] [--level x] [--tag x] [--last N] [--json]  查看服务器日志
+  logs watchdog [--json]                                    查看看门狗日志
+  logs clear --yes                                          清空审计日志（危险操作）
+  logs server-clear --yes                                   清空服务器日志（危险操作）
+
+抓包管理:
+  capture sessions [--json]                                  抓包会话列表
+  capture start <名称> [--source x]                          新建抓包会话
+  capture stop <会话id>                                      停止抓包会话
+  capture records [--path x] [--status n] [--source x] [--session id] [--limit n] [--json]  抓包记录列表
+  capture show <记录id|rid> [--json]                         查看单条记录（请求/响应）
+  capture stats [--json]                                     抓包统计
+  capture export <会话id>                                    导出会话 zip
+  capture clear --yes                                        清空全部抓包（危险操作）
 
 卡池管理:
   gacha pools [--json]                              列出全部卡池
@@ -1001,12 +1026,18 @@ async function runConfig(args: string[]): Promise<void> {
   }
 }
 
-/** logs 子命令 */
+/** logs 子命令（统一日志管理：审计 / 服务器 / 看门狗） */
 async function runLogs(args: string[], flags: { [key: string]: string }): Promise<void> {
   const sub = args[0];
-  if (sub === "show") {
+  // 审计日志（sub=show 为旧命令别名）
+  if (sub === "show" || sub === "audit") {
     const last = Number(flags.last ?? 50);
-    const entries = await adminService.logs(Number.isFinite(last) ? last : 50);
+    const entries = await logService.readAuditLog({
+      action: flags.action,
+      uid: flags.uid,
+      q: flags.q,
+      limit: Number.isFinite(last) ? last : 50,
+    });
     if (flags.json) {
       output(entries, flags);
       return;
@@ -1035,7 +1066,195 @@ async function runLogs(args: string[], flags: { [key: string]: string }): Promis
     console.log(`已清空 ${r.cleared} 条审计日志`);
     return;
   }
-  console.error("用法: logs show [--last N] [--json] | logs clear --yes");
+  if (sub === "server") {
+    const last = Number(flags.last ?? 100);
+    const r = await logService.readServerLog({
+      date: flags.date,
+      level: flags.level,
+      tag: flags.tag,
+      q: flags.q,
+      limit: Number.isFinite(last) ? last : 100,
+    });
+    if (flags.json) {
+      output(r, flags);
+      return;
+    }
+    if (!r.items.length) {
+      console.log("无匹配的服务器日志");
+      return;
+    }
+    console.log(`共 ${r.total} 条（显示 ${r.items.length}）:`);
+    for (const e of r.items) {
+      console.log(`  ${e.ts} [${e.level}] [${e.tag}] ${e.text}`);
+    }
+    return;
+  }
+  if (sub === "watchdog") {
+    const r = await logService.readWatchdogLog();
+    if (flags.json) {
+      output(r, flags);
+      return;
+    }
+    if (!r.entries.length) {
+      console.log("暂无看门狗日志");
+      return;
+    }
+    for (const e of r.entries) {
+      console.log(`  ${e.file} | ${e.line}`);
+    }
+    return;
+  }
+  if (sub === "server-clear") {
+    if (flags.yes !== "true") {
+      console.error("危险操作：清空全部服务器日志请加 --yes");
+      process.exitCode = 1;
+      return;
+    }
+    const r = await logService.clearServerLogs("CLEAR");
+    console.log(`已清空 ${r.cleared} 个服务器日志文件`);
+    return;
+  }
+  console.error("用法: logs show|audit [--last N] [--action x] [--uid x] [--json] | logs server [--date YYYYMMDD] [--level x] [--tag x] [--last N] [--json] | logs watchdog [--json] | logs clear --yes | logs server-clear --yes");
+  process.exitCode = 1;
+}
+
+/** capture 子命令（统一抓包管理） */
+async function runCapture(args: string[], flags: { [key: string]: string }): Promise<void> {
+  await captureManager.init();
+  const sub = args[0];
+  if (sub === "sessions") {
+    const sessions = await captureManager.listSessions();
+    if (flags.json) {
+      output(sessions, flags);
+      return;
+    }
+    if (!sessions.length) {
+      console.log("暂无抓包会话（记录会自动归入「自动-日期」会话）");
+      return;
+    }
+    console.table(
+      sessions.map((s) => ({
+        id: s.id,
+        名称: s.name,
+        来源: s.source,
+        开始: new Date(s.startedAt).toLocaleString(),
+        状态: s.endedAt ? "已结束" : "运行中",
+        记录数: s.recordCount,
+      })),
+    );
+    return;
+  }
+  if (sub === "start") {
+    const name = args[1] ?? "未命名会话";
+    const source = (flags.source ?? "private") as "private";
+    const s = await captureManager.startSession(name, source, "CLI 新建会话");
+    console.log(`已新建会话「${s.name}」(${s.id}) [${s.source}]`);
+    return;
+  }
+  if (sub === "stop") {
+    const id = args[1];
+    if (!id) {
+      console.error("用法: capture stop <会话id>");
+      process.exitCode = 1;
+      return;
+    }
+    const ok = await captureManager.stopSession(id);
+    if (!ok) {
+      console.error(`会话不存在: ${id}`);
+      process.exitCode = 1;
+      return;
+    }
+    console.log(`已停止会话 ${id}`);
+    return;
+  }
+  if (sub === "records") {
+    const status = flags.status !== undefined ? Number(flags.status) : undefined;
+    const result = await captureManager.query({
+      sessionId: flags.session,
+      source: flags.source,
+      method: flags.method,
+      path: flags.path,
+      module: flags.module,
+      endpoint: flags.endpoint,
+      status: status !== undefined && Number.isFinite(status) ? status : undefined,
+      q: flags.q,
+      limit: Number(flags.limit ?? 50),
+    });
+    if (flags.json) {
+      output(result, flags);
+      return;
+    }
+    if (!result.items.length) {
+      console.log("暂无匹配的抓包记录");
+      return;
+    }
+    console.log(`共 ${result.total} 条（显示 ${result.items.length}）:`);
+    console.table(
+      result.items.map((r) => ({
+        id: r.id,
+        时间: new Date(r.ts).toLocaleString(),
+        方法: r.method,
+        路径: r.path,
+        状态: r.status ?? "-",
+        来源: r.source,
+        延迟: r.latencyMs !== null && r.latencyMs !== undefined ? `${r.latencyMs.toFixed(1)}ms` : "-",
+        响应: r.resSize ?? 0,
+      })),
+    );
+    return;
+  }
+  if (sub === "show") {
+    const id = args[1];
+    if (!id) {
+      console.error("用法: capture show <记录id|rid> [--json]");
+      process.exitCode = 1;
+      return;
+    }
+    const detail = await captureManager.getRecordDetail(id);
+    if (!detail) {
+      console.error(`记录不存在: ${id}`);
+      process.exitCode = 1;
+      return;
+    }
+    if (flags.json) {
+      output(detail, flags);
+      return;
+    }
+    console.log(`记录 ${detail.rid}（id=${detail.id}）[${detail.source}] ${detail.method ?? ""} ${detail.path ?? ""} → ${detail.status ?? "-"}`);
+    console.log(`  时间 ${new Date(detail.ts).toLocaleString()} | 延迟 ${detail.latencyMs?.toFixed(1) ?? "-"}ms`);
+    if (detail.reqHeaders) console.log(`  请求头 ${detail.reqHeaders}`);
+    if (detail.reqBody !== undefined) console.log("  请求体:", JSON.stringify(detail.reqBody, null, 2));
+    if (detail.resHeaders) console.log(`  响应头 ${detail.resHeaders}`);
+    if (detail.resBody !== undefined) console.log("  响应体:", JSON.stringify(detail.resBody, null, 2));
+    if (detail.missingFiles.length) console.log(`  ⚠ 缺失文件: ${detail.missingFiles.join(", ")}`);
+    return;
+  }
+  if (sub === "stats") {
+    output(await captureManager.stats(), flags);
+    return;
+  }
+  if (sub === "clear") {
+    if (flags.yes !== "true") {
+      console.error("危险操作：清空全部抓包记录请加 --yes");
+      process.exitCode = 1;
+      return;
+    }
+    const r = await captureManager.clearAll("CLEAR");
+    console.log(`已清空 ${r.cleared} 条抓包记录`);
+    return;
+  }
+  if (sub === "export") {
+    const id = args[1];
+    if (!id) {
+      console.error("用法: capture export <会话id>");
+      process.exitCode = 1;
+      return;
+    }
+    const out = await captureManager.exportSession(id);
+    console.log(`已导出 ${out.records} 条记录 → ${out.path} (${out.size}B)`);
+    return;
+  }
+  console.error("用法: capture sessions | start <名称> [--source x] | stop <会话id> | records [--path x] [--status n] [--source x] [--session id] [--limit n] [--json] | show <记录id|rid> [--json] | stats [--json] | export <会话id> | clear --yes");
   process.exitCode = 1;
 }
 
@@ -1380,6 +1599,9 @@ export async function dispatch(
     case "logs":
       await runLogs(args, flags);
       break;
+    case "capture":
+      await runCapture(args, flags);
+      break;
     case "gacha":
       await runGacha(args, flags);
       break;
@@ -1404,7 +1626,7 @@ export async function dispatch(
 /** 交互模式：逐行执行命令，help/exit 退出（Tab 补全命令名） */
 function runRepl(): void {
   console.log("DoctorateTs 管理交互模式（输入 help 查看命令，exit 退出；Tab 补全）");
-  const COMMANDS = ["users", "mail", "server", "config", "gacha", "official", "logs", "help", "exit", "quit"];
+  const COMMANDS = ["users", "mail", "server", "config", "gacha", "official", "logs", "capture", "help", "exit", "quit"];
   const completer = (line: string): [string[], string] => {
     const hits = COMMANDS.filter((c) => c.startsWith(line));
     return [hits.length ? hits : COMMANDS, line];

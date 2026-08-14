@@ -1,0 +1,122 @@
+{
+  "playerDataDelta": {
+    "modified": {
+      "rlv2": {
+        "current": {
+          "inventory": {
+            "relic": {
+              "r_0": {
+                "index": "r_0",
+                "id": "rogue_6_band_9",
+                "count": 1,
+                "ts": 1786434416
+              },
+              "r_1": {
+                "index": "r_1",
+                "id": "rogue_6_start_2",
+                "count": 1,
+                "ts": 1786434434
+              }
+            },
+            "recruit": {
+              "t_2": {
+                "index": "t_2",
+                "id": "rogue_6_recruit_ticket_tank",
+                "state": 0,
+                "list": [],
+                "result": null,
+                "ts": 1786434458,
+                "from": "initial",
+                "mustExtra": 0,
+                "needAssist": true
+              },
+              "t_3": {
+                "index": "t_3",
+                "id": "rogue_6_recruit_ticket_caster",
+                "state": 0,
+                "list": [],
+                "result": null,
+                "ts": 1786434458,
+                "from": "initial",
+                "mustExtra": 0,
+                "needAssist": true
+              },
+              "t_4": {
+                "index": "t_4",
+                "id": "rogue_6_recruit_ticket_medic",
+                "state": 0,
+                "list": [],
+                "result": null,
+                "ts": 1786434458,
+                "from": "initial",
+                "mustExtra": 0,
+                "needAssist": true
+              }
+            },
+            "trap": null,
+            "consumable": {},
+            "exploreTool": {},
+            "stashRecruit": [],
+            "stashRecruitLimit": 3
+          },
+          "record": {
+            "brief": null
+          },
+          "player": {
+            "state": "INIT",
+            "property": {
+              "exp": 0,
+              "level": 1,
+              "maxLevel": 10,
+              "hp": {
+                "current": 4,
+                "max": 4
+              },
+              "gold": 30,
+              "shield": 2,
+              "capacity": 7,
+              "population": {
+                "cost": 0,
+                "max": 8
+              },
+              "conPerfectBattle": 0,
+              "hpShowState": "NORMAL"
+            },
+            "cursor": {
+              "zone": 0,
+              "position": null
+            },
+            "trace": [],
+            "pending": [
+              {
+                "index": "e_4",
+                "type": "GAME_INIT_RECRUIT",
+                "content": {
+                  "initRecruit": {
+                    "step": [
+                      5,
+                      5
+                    ],
+                    "tickets": [
+                      "t_2",
+                      "t_3",
+                      "t_4"
+                    ],
+                    "showChar": [],
+                    "team": null
+                  }
+                }
+              }
+            ],
+            "status": {
+              "bankPut": 0
+            },
+            "toEnding": "ro6_ending_1",
+            "chgEnding": false
+          }
+        }
+      }
+    },
+    "deleted": {}
+  }
+}

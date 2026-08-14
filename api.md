@@ -1452,6 +1452,40 @@ OAuth2 授权
 | GET  | `/admin/api/config` | 查看配置（只读） |
 | GET  | `/admin/dashboard` | Dashboard 管理页面（免认证，登录在页面内完成） |
 
+### 统一抓包管理（/admin/api/capture/*）
+
+所有抓包来源（私服 / `--capture` 官服转发 / 独立代理 proxy-harness / arkhub 网关 / 官服操作 official-ops）统一写入 `tmp/capture/`（SQLite 索引 `index.db` + `records/{rid}/` body 文件），经以下 API 查询与管理（Dashboard「抓包」Tab 使用）。
+
+**认证**：同管理 API（`X-Admin-Token` 头或 `?token=` 查询参数——SSE EventSource 场景）。
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET  | `/admin/api/capture/sessions` | 抓包会话列表（含记录数；最新在前） |
+| POST | `/admin/api/capture/sessions` | 新建会话 `{name, source?, note?}`（source: private/official/harness/gateway/ops） |
+| POST | `/admin/api/capture/sessions/:id/stop` | 停止会话 |
+| DELETE | `/admin/api/capture/sessions/:id` | 删除会话（级联删除其全部记录与 body 目录） |
+| GET  | `/admin/api/capture/records?sessionId=&source=&method=&path=&module=&endpoint=&status=&direction=&from=&to=&q=&limit=&offset=` | 抓包记录列表（过滤 + 分页，倒序；`q` 搜路径/模块/接口） |
+| GET  | `/admin/api/capture/records/:id` | 记录详情（请求/响应头 + body：JSON 解析为对象，二进制为 `{base64, size, hexPreview}`；缺失文件列入 `missingFiles`） |
+| DELETE | `/admin/api/capture/records/:id` | 删除单条记录 |
+| POST | `/admin/api/capture/clear` | 清空全部 `{confirmWord:"CLEAR"}` |
+| GET  | `/admin/api/capture/stats` | 统计（总数/来源/状态码/按天） |
+| GET  | `/admin/api/capture/sessions/:id/export` | 导出会话 zip（index.json + 各记录 meta 与 body） |
+| GET  | `/admin/api/capture/records/:id/export` | 导出单条记录 zip |
+| GET  | `/admin/api/capture/stream?token=` | 抓包实时流（SSE：回填最近 50 条后直播新记录；`event: record`，`data: {type, record}`） |
+
+### 统一日志管理（/admin/api/logs/*）
+
+服务器日志（`logs/server-YYYYMMDD.log`）/ 审计日志（`data/admin/logs.jsonl`）/ 看门狗日志（`logs/watchdog-*.log`）统一查看与实时尾随（Dashboard「日志」Tab 使用）。
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET  | `/admin/api/logs/server?date=&level=&tag=&q=&limit=&offset=` | 服务器日志（倒序分页；date 为 YYYYMMDD，缺省当天；level: DEBUG/INFO/WARN/ERROR） |
+| GET  | `/admin/api/logs/server/dates` | 服务器日志可用日期列表（倒序） |
+| GET  | `/admin/api/logs/watchdog` | 看门狗日志（文件列表 + 行，最新在前） |
+| GET  | `/admin/api/logs/audit?action=&uid=&q=&limit=` | 审计日志（兼容旧 `GET /api/logs`） |
+| POST | `/admin/api/logs/server/clear` | 清空服务器日志 `{confirmWord:"CLEAR"}` |
+| GET  | `/admin/api/logs/stream?kind=server\|audit\|capture&token=` | 日志实时流（SSE：回填最近 50 条后直播；`event: log`/`event: record`） |
+
 ---
 
 ## OBS 移植端点（2026-08-08）

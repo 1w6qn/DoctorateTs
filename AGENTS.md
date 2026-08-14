@@ -11,7 +11,7 @@ npm start -- --auto-update  # 启动时先更新再起服（旧行为）
 npm start -- --background-update  # 先起服，更新完成后热重载 excel
 npm start -- --offline   # zero-network start, verifies 66 local data files first
 npm run start:quick      # quick local start: tsx index.ts -s (no network, use local data)
-npm run start:capture    # capture mode: tsx index.ts -s --capture (as/gs 转发官服并记录 tmp/)
+npm run start:capture    # capture mode: tsx index.ts -s --capture (as/gs 转发官服并记录 tmp/capture/ 统一抓包存储)
 PORT=9000 npm run start:quick   # 不同端口启动（环境变量 PORT 覆盖 config.json 的 8443）
 npm run start:quick -- --port 9001  # 或命令行 --port（优先级高于 PORT 环境变量）
 npm run start:capture -- --port 9002  # capture 模式同样支持端口覆盖（gs/as 地址同步使用新端口）
@@ -20,9 +20,12 @@ npm run build            # tsc (typecheck)
 npm run test             # vitest run
 npx vitest run tests/unit/manager/char.test.ts   # single test file
 npm run admin -- users list                       # CLI admin (no server needed)
+npm run admin -- capture records --json           # 统一抓包存储（capture sessions/records/show/stats/export/clear）
+npm run admin -- logs server --last 50 --json     # 统一日志（logs server|watchdog|audit）
 npm run migrate:official -- --accounts <file>     # import official-server account data
 npm run hook              # frida-compile for hook/main.ts (excluded from tsc)
-npm run ts                # tools/proxy-harness.ts = 官服代理抓包 harness, NOT the vitest suite
+npm run ts                # scripts/proxy-harness.ts = 官服代理抓包 harness（记录写入统一抓包存储 tmp/capture/，支持 --session <名称>）, NOT the vitest suite
+npm run generate:mapviz   # scripts/generate-mapviz-data.ts → data/mapviz/game-data.js（Dashboard 地图 Tab 数据源）
 npm run decompile         # 官服客户端反编译工作流（Cpp2IL→ilspycmd→dump-cs-signature.py），产出 reference/arknights-<版本>-csharp/（含方法体的 C# 源码）+ reference/com.hypergryph.arknights_<版本>.cs（签名文件，供 generate:types 再生类型；均 gitignored）
 ```
 
@@ -45,17 +48,19 @@ Game-data update (`scripts/update-data.ts`) 调用官方热更管线 `scripts/of
 - **State changes**: all through `player.update(recipe)` (Immer `createDraft`/`finishDraft`) which records patches. **Immer autoFreeze is globally disabled** (`setAutoFreeze(false)` in PlayerDataManager) — managers mutate arrays directly; do not re-enable.
 - **Response contract**: `res.send(player.delta)`. The `delta` getter returns `{ playerDataDelta }`, **clears `_changes` and triggers `save`** (persists to `data/user/databases/{uid}.json`). Never read `player.delta` twice in one request.
 - **Single-account private server**: `app/game/app.ts` middleware forces any `secret` header to `"1"` → every request is uid=1.
+- **统一抓包存储** (`app/capture/capture-manager.ts` 单例 `captureManager` + `capture-db.ts`): 所有抓包来源（私服 recorder / capture 官服转发 / 独立代理 proxy-harness / arkhub 网关 / 官服操作）统一写入 `tmp/capture/`（SQLite `index.db` 索引 + `records/{rid}/` body 文件，source 区分来源）。写入方经 `captureManager.addRecordAsync`（fire-and-forget，失败不阻断业务）。查询/会话/导出/订阅事件见 design-spec §17.7。
+- **统一日志服务** (`app/logs/log-service.ts` 单例 `logService` + `app/utils/sse.ts`): 聚合服务器日志/审计日志/看门狗日志；`logger.subscribeLog` 实时订阅 → Dashboard「日志」Tab SSE 尾随；`AdminService._audit` 广播 `logService.emitAudit`。
 
 ## Conventions
 
-- Imports use aliases `@game/*`, `@excel/*`, `@utils/*`. **Aliases are configured in both `tsconfig.json` and `vitest.config.ts`** — update both when adding one.
-- Logging: use `logger` from `@utils/logger` (`logger.info/debug/warn/error(tag, ...args)`). Never `console.*` in `app/`. Level is gated by `LOG_LEVEL` env (default `info`; `debug` shows battle drop traces).
+- Imports use aliases `@game/*`, `@excel/*`, `@utils/*`, `@capture/*` (统一抓包存储), `@logs/*` (统一日志服务). **Aliases are configured in both `tsconfig.json` and `vitest.config.ts`** — update both when adding one.
+- Logging: use `logger` from `@utils/logger` (`logger.info/debug/warn/error(tag, ...args)`). Never `console.*` in `app/`. Level is gated by `LOG_LEVEL` env (default `info`; `debug` shows battle drop traces). 实时日志订阅见 `subscribeLog`（统一日志服务 SSE 尾随的数据源）。
 - JSDoc on all classes/methods (design-spec §3); private fields prefixed `_`.
 - Commit messages: conventional prefixes with Chinese descriptions, e.g. `feat(offline): 完全离线模式数据校验`.
 
 ## Tests
 
-- Vitest, globals on, node env. `tests/unit/**` mirrors `app/` layout. **Do not add tests under `test/`** (`test/` is gitignored, `tools/proxy-harness.ts` 是官服代理抓包 harness).
+- Vitest, globals on, node env. `tests/unit/**` mirrors `app/` layout. **Do not add tests under `test/`** (`test/` is gitignored, `scripts/proxy-harness.ts` 是官服代理抓包 harness).
 - Helpers in `tests/helpers/`: `mockPlayerData`, `mockExcel`, `mockEventBus`, `mocks` — use these instead of loading real excel/user data.
 
 ## Known constraints (documented in design-spec.md)

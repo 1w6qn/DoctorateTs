@@ -31,6 +31,7 @@ import { MAIL_TEMPLATES } from "./mail-templates";
 import { exists, size, readJson, readJsonSync, writeJson } from "@utils/file";
 import { now, userTimestamp } from "@utils/time";
 import { logger } from "@utils/logger";
+import { logService } from "@logs/log-service";
 import { unlockActivity } from "@game/manager/activity/unlockActivity";
 import {
   itemName,
@@ -263,11 +264,14 @@ export class AdminService {
   private async _audit(action: string, uid: string, detail: string): Promise<void> {
     try {
       await mkdir("./data/admin", { recursive: true });
+      const entry = { ts: now(), action, uid, detail };
       await appendFile(
         ADMIN_LOG_PATH,
-        JSON.stringify({ ts: now(), action, uid, detail }) + "\n",
+        JSON.stringify(entry) + "\n",
         "utf8",
       );
+      // 实时广播（统一日志服务 → Dashboard「日志」Tab SSE 尾随）
+      logService.emitAudit(entry);
       this._auditCount++;
       if (this._auditCount % 200 === 0) {
         const st = await stat(ADMIN_LOG_PATH).catch(() => null);
@@ -2321,7 +2325,7 @@ export class AdminService {
 
   /**
    * 地图可视化数据（dashboard「地图」tab）
-   * 读取 tools/map-visualizer/game-data.js（generate-data.ts 的产物：window.MAPVIZ_DATA = {...}），
+   * 读取 data/mapviz/game-data.js（scripts/generate-mapviz-data.ts 的产物：window.MAPVIZ_DATA = {...}），
    * 剥掉前缀/尾分号后 JSON.parse；附加黑流树海（rogue_6）gridzone 构造数据
    * （BLACKSTREAM 构造模板/距离规则/数量规则/层类型，供 dashboard 按无相地图模板生成）。
    * 文件缺失或解析失败返回 null（router 层转 404）。
@@ -2332,7 +2336,7 @@ export class AdminService {
   } | null> {
     try {
       const raw = await readFile(
-        path.join(process.cwd(), "tools", "map-visualizer", "game-data.js"),
+        path.join(process.cwd(), "data", "mapviz", "game-data.js"),
         "utf-8",
       );
       const start = raw.indexOf("=");

@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { logger, flush, text2color } from "@utils/logger";
+import { logger, flush, subscribeLog, text2color } from "@utils/logger";
 
 const tempDirs: string[] = [];
 
@@ -68,6 +68,19 @@ describe("logger", () => {
     const content = fs.readFileSync(file, "utf-8");
     expect(content).toContain("Error: boom");
     expect(content).toContain("at ");
+  });
+
+  it("subscribeLog 实时订阅通过级别过滤的日志事件；退订后不再收到", () => {
+    const events: { level: string; tag: string; text: string }[] = [];
+    const unsub = subscribeLog((e) => events.push({ level: e.level, tag: e.tag, text: e.text }));
+    logger.info("evt-tag", "hello", { a: 1 });
+    logger.error("evt-tag", "boom");
+    expect(events.length).toBe(2);
+    expect(events[0]).toMatchObject({ level: "info", tag: "evt-tag", text: "hello {\"a\":1}" });
+    expect(events[1]).toMatchObject({ level: "error", tag: "evt-tag", text: "boom" });
+    unsub();
+    logger.info("evt-tag", "after-unsub");
+    expect(events.length).toBe(2);
   });
 });
 

@@ -51,4 +51,7 @@ exports/
 
 # 运行时日志 / V8 report / 看门狗日记（按天轮转，不入库）
 logs/
+# 例外：app/logs（统一日志服务）与 tests/unit/logs（测试）是源码，须入库
+!app/logs/
+!tests/unit/logs/
 reference/hotupdate/textasset-names.json

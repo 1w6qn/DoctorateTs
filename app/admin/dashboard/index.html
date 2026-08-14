@@ -266,6 +266,13 @@
         <div class="tab" data-tab="activity">🎡 活动</div>
       </div>
     </div>
+    <div class="side-group">
+      <div class="side-label">系统</div>
+      <div class="tabs">
+        <div class="tab" data-tab="capture">🕸️ 抓包</div>
+        <div class="tab" data-tab="logs">📜 日志</div>
+      </div>
+    </div>
   </aside>
   <div id="side-mask" style="display:none;"></div>
   <main id="main">
@@ -347,6 +354,8 @@
       <div class="tab-pane" id="pane-pixel"></div>
       <div class="tab-pane" id="pane-map"></div>
       <div class="tab-pane" id="pane-activity"></div>
+      <div class="tab-pane" id="pane-capture"></div>
+      <div class="tab-pane" id="pane-logs"></div>
       <div class="tab-pane" id="pane-raw"></div>
     </div>
   </section>
@@ -750,9 +759,9 @@
 
   /* ---------- 用户详情（Tab） ---------- */
 
-  var TAB_LABELS = { overview: "概览", chars: "干员", mails: "邮件", pools: "卡池", api: "接口", official: "官服", pixel: "像素画", map: "地图", raw: "数据" };
+  var TAB_LABELS = { overview: "概览", chars: "干员", mails: "邮件", pools: "卡池", api: "接口", official: "官服", pixel: "像素画", map: "地图", capture: "抓包", logs: "日志", raw: "数据" };
   /** 全局功能 Tab（不依赖选中用户，内容全宽） */
-  var GLOBAL_TABS = ["pools", "api", "official", "pixel", "map"];
+  var GLOBAL_TABS = ["pools", "api", "official", "pixel", "map", "capture", "logs"];
 
   /** Tab 输入状态缓存（切 Tab 回来恢复搜索/请求体/账号等） */
   var tabState = {};
@@ -810,6 +819,8 @@
     if (tab === "pixel") { loadPixelPane(); return; }
     if (tab === "map") { loadMapPane(); return; }
     if (tab === "activity") { loadActivityPane(); return; }
+    if (tab === "capture") { loadCapturePane(); return; }
+    if (tab === "logs") { loadLogsPane(); return; }
     // 用户相关 Tab：未选用户时提示
     if (!uid) {
       var pane = $("pane-" + tab);
@@ -3237,7 +3248,7 @@
       '<p style="color:var(--muted);font-size:12px;margin-bottom:10px;">集成战略地图生成节点可视化：复现 ' +
       'app/game/controller/rlv2/map.ts 的 generate() 逻辑（md5 种子随机、权重节点类型、同列/跨列连线、zone_end 终点）。' +
       '所有主题最多 7 层，险路恶敌位于第 3/5/6/7 层结尾；rogue_6 黑流树海为无相地图，按官方构造模板（gridzone）生成。' +
-      '数据源 tools/map-visualizer/game-data.js + 黑流树海构造数据。</p>' +
+      '数据源 data/mapviz/game-data.js + 黑流树海构造数据。</p>' +
       '<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px;">' +
       "<label style='align-self:center;'>主题</label>" +
       '<select id="mv-theme" style="width:auto;"></select>' +
@@ -3327,7 +3338,7 @@
       .catch(function (e) {
         $("mv-zone-badge").textContent = "数据缺失";
         $("mv-node-detail").innerHTML = '<div class="mv-empty" style="color:#e06c75;">地图数据加载失败：' + e.message +
-          "<br><br>请运行 <b>npx tsx tools/map-visualizer/generate-data.ts</b> 生成 game-data.js 后刷新。</div>";
+          "<br><br>请运行 <b>npx tsx scripts/generate-mapviz-data.ts</b> 生成 game-data.js 后刷新。</div>";
       });
 
     bindRogueSim();
@@ -3894,6 +3905,543 @@
         retryFn();
       });
     }
+  }
+
+  /* ---------- 统一抓包管理（pane-capture） ---------- */
+
+  var capES = null;
+  var capTimer = null;
+  var capDetailId = null;
+  var capCompareId = null;
+  var capLive = false;
+
+  function fmtMs(ms) {
+    if (!ms) return "-";
+    try { return new Date(ms).toLocaleString("zh-CN", { hour12: false }); }
+    catch (e) { return String(ms); }
+  }
+
+  function fmtSize(n) {
+    if (n == null) return "-";
+    if (n >= 1048576) return (n / 1048576).toFixed(1) + "MB";
+    if (n >= 1024) return (n / 1024).toFixed(1) + "KB";
+    return n + "B";
+  }
+
+  function loadCapturePane() {
+    closeCaptureStream();
+    var pane = $("pane-capture");
+    pane.innerHTML =
+      '<div class="card" style="margin-top:0;">' +
+      '<div class="row" style="align-items:center;margin-bottom:8px;">' +
+      '<h3 style="color:var(--gold);margin:0;">🕸️ 统一抓包管理</h3>' +
+      '<span style="font-size:11px;color:var(--muted);margin-left:10px;">所有来源（私服 / capture 官服转发 / 独立代理 / arkhub 网关 / 官服操作）统一入库 tmp/capture/，支持过滤查看请求/响应并与基准记录逐接口对比。</span>' +
+      '<button id="cap-live" class="btn-sm" style="margin-left:auto;">⚡ 实时</button>' +
+      "</div>" +
+      '<div class="row" style="gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">' +
+      '<select id="cap-session" style="width:190px;margin:0;"></select>' +
+      '<button id="cap-session-new" class="btn-sm">新建</button>' +
+      '<button id="cap-session-stop" class="btn-sm">停止</button>' +
+      '<button id="cap-session-del" class="btn-sm">删除</button>' +
+      '<button id="cap-export" class="btn-sm">导出会话</button>' +
+      '<span style="flex:1;"></span>' +
+      '<select id="cap-source" style="width:110px;margin:0;"><option value="">全部来源</option><option value="private">私服</option><option value="official">官服转发</option><option value="harness">独立代理</option><option value="gateway">网关</option><option value="ops">官服操作</option></select>' +
+      '<select id="cap-method" style="width:80px;margin:0;"><option value="">方法</option><option>GET</option><option>POST</option><option>DELETE</option></select>' +
+      '<input id="cap-status" placeholder="状态码" style="width:64px;margin:0;">' +
+      '<input id="cap-q" placeholder="路径/接口关键字" style="width:160px;margin:0;">' +
+      '<button id="cap-refresh" class="btn-sm primary">刷新</button>' +
+      '<button id="cap-clear" class="btn-sm danger">清空</button>' +
+      "</div>" +
+      '<div style="max-height:32vh;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;">' +
+      '<table style="font-size:12px;"><thead><tr>' +
+      '<th style="padding:5px 8px;">时间</th><th style="padding:5px 8px;">状态</th><th style="padding:5px 8px;">方法</th>' +
+      '<th style="padding:5px 8px;">路径</th><th style="padding:5px 8px;">来源</th><th style="padding:5px 8px;">延迟</th>' +
+      '<th style="padding:5px 8px;">响应</th></tr></thead><tbody id="cap-rows"></tbody></table>' +
+      "</div>" +
+      '<div id="cap-total" style="font-size:11px;color:var(--muted);margin-bottom:6px;"></div>' +
+      '<div id="cap-detail"></div>' +
+      "</div>";
+    bindCapturePane();
+    refreshCaptureSessions();
+    refreshCapture();
+    capTimer = setInterval(function () {
+      if (!capLive) refreshCapture(true);
+    }, 4000);
+  }
+
+  function closeCaptureStream() {
+    if (capES) { capES.close(); capES = null; }
+    if (capTimer) { clearInterval(capTimer); capTimer = null; }
+    capLive = false;
+    var b = $("cap-live");
+    if (b) { b.classList.remove("primary"); b.textContent = "⚡ 实时"; }
+  }
+
+  function bindCapturePane() {
+    $("cap-refresh").addEventListener("click", function () { refreshCapture(); });
+    $("cap-live").addEventListener("click", function () {
+      if (capES) { closeCaptureStream(); refreshCapture(); return; }
+      capLive = true;
+      var b = $("cap-live");
+      b.classList.add("primary");
+      b.textContent = "● 直播中";
+      capES = new EventSource(API + "/capture/stream?token=" + encodeURIComponent(token));
+      capES.addEventListener("record", function (ev) {
+        var d = JSON.parse(ev.data);
+        if (d.type === "live") prependCaptureRow(d.record);
+      });
+      capES.onerror = function () { /* EventSource 自动重连 */ };
+    });
+    $("cap-session-new").addEventListener("click", function () {
+      var name = prompt("会话名称（如 登录链路 / 商店对比）");
+      if (!name) return;
+      api("/capture/sessions", { method: "POST", body: JSON.stringify({ name: name, source: $("cap-source").value || "private" }) })
+        .then(function () { refreshCaptureSessions(); refreshCapture(); toast("已新建会话"); })
+        .catch(function (e) { toast("新建失败：" + e.message); });
+    });
+    $("cap-session-stop").addEventListener("click", function () {
+      var id = $("cap-session").value;
+      if (!id) { toast("先选择会话"); return; }
+      api("/capture/sessions/" + encodeURIComponent(id) + "/stop", { method: "POST", body: "{}" })
+        .then(function () { refreshCaptureSessions(); refreshCapture(); toast("已停止会话"); })
+        .catch(function (e) { toast(e.message); });
+    });
+    $("cap-session-del").addEventListener("click", function () {
+      var id = $("cap-session").value;
+      if (!id) { toast("先选择会话"); return; }
+      confirmDialog("删除该会话及其全部抓包记录？", function () {
+        api("/capture/sessions/" + encodeURIComponent(id), { method: "DELETE" })
+          .then(function () { refreshCaptureSessions(); refreshCapture(); toast("已删除会话"); })
+          .catch(function (e) { toast(e.message); });
+      }, "删除会话", "danger");
+    });
+    $("cap-export").addEventListener("click", function () {
+      var id = $("cap-session").value;
+      if (!id) { toast("先选择会话"); return; }
+      window.open(API + "/capture/sessions/" + encodeURIComponent(id) + "/export?token=" + encodeURIComponent(token), "_blank");
+    });
+    $("cap-clear").addEventListener("click", function () {
+      confirmDialog("清空全部抓包记录与会话？", function () {
+        api("/capture/clear", { method: "POST", body: JSON.stringify({ confirmWord: "CLEAR" }) })
+          .then(function (r) { toast("已清空 " + r.cleared + " 条"); refreshCaptureSessions(); refreshCapture(); })
+          .catch(function (e) { toast(e.message); });
+      }, "清空抓包", "danger");
+    });
+    $("cap-q").addEventListener("keydown", function (e) { if (e.key === "Enter") refreshCapture(); });
+    $("cap-status").addEventListener("keydown", function (e) { if (e.key === "Enter") refreshCapture(); });
+  }
+
+  function refreshCaptureSessions() {
+    api("/capture/sessions").then(function (sessions) {
+      var sel = $("cap-session");
+      if (!sel) return;
+      var cur = sel.value;
+      sel.innerHTML = '<option value="">（自动会话）</option>' +
+        sessions.map(function (s) {
+          return '<option value="' + s.id + '"' + (s.id === cur ? " selected" : "") + ">" +
+            h(s.name) + " [" + h(s.source) + "] " + (s.endedAt ? "已结束" : "运行中") + " · " + s.recordCount + " 条</option>";
+        }).join("");
+    }).catch(function () {});
+  }
+
+  function captureQuery() {
+    var q = {};
+    var sid = $("cap-session").value;
+    var src = $("cap-source").value;
+    var m = $("cap-method").value;
+    var st = $("cap-status").value.trim();
+    var kw = $("cap-q").value.trim();
+    if (sid) q.sessionId = sid;
+    if (src) q.source = src;
+    if (m) q.method = m;
+    if (st) q.status = st;
+    if (kw) q.q = kw;
+    q.limit = 200;
+    return q;
+  }
+
+  function refreshCapture(silent) {
+    var q = captureQuery();
+    var qs = Object.keys(q).map(function (k) { return k + "=" + encodeURIComponent(q[k]); }).join("&");
+    api("/capture/records" + (qs ? "?" + qs : "")).then(function (r) {
+      if (!silent) {
+        var t = $("cap-total");
+        if (t) t.textContent = "共 " + r.total + " 条记录" + (r.total > r.items.length ? "（显示前 " + r.items.length + " 条）" : "");
+      }
+      var tbody = $("cap-rows");
+      if (!tbody) return;
+      if (!r.items.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="padding:14px;color:var(--muted);text-align:center;">暂无抓包记录 —— 开启 debug.recordTraffic 或 --capture 模式后产生</td></tr>';
+        return;
+      }
+      tbody.innerHTML = r.items.map(captureRowHtml).join("");
+      bindCaptureRows(tbody);
+    }).catch(function () {});
+  }
+
+  function captureRowHtml(rec) {
+    var stColor = rec.status == null ? "var(--muted)" : rec.status >= 500 ? "var(--err)" : rec.status >= 400 ? "var(--warn)" : "var(--ok)";
+    return "<tr class=\"clickable cap-row\" data-id=\"" + rec.id + "\">" +
+      "<td style='padding:4px 8px;white-space:nowrap;'>" + fmtMs(rec.ts) + "</td>" +
+      '<td style="padding:4px 8px;color:' + stColor + ';font-weight:bold;">' + (rec.status ?? "-") + "</td>" +
+      "<td style='padding:4px 8px;'>" + h(rec.method || "-") + "</td>" +
+      '<td style="padding:4px 8px;font-family:Consolas,monospace;word-break:break-all;">' + h(rec.path || "-") + (rec.query ? "?" + h(rec.query) : "") + "</td>" +
+      '<td style="padding:4px 8px;color:var(--muted);">' + h(rec.source) + "</td>" +
+      "<td style='padding:4px 8px;color:var(--muted);'>" + (rec.latencyMs != null ? rec.latencyMs.toFixed(0) + "ms" : "-") + "</td>" +
+      "<td style='padding:4px 8px;color:var(--muted);'>" + fmtSize(rec.resSize) + "</td>" +
+      "</tr>";
+  }
+
+  function bindCaptureRows(tbody) {
+    var rows = tbody.querySelectorAll(".cap-row");
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].addEventListener("click", function () { showCaptureDetail(this.getAttribute("data-id")); });
+    }
+  }
+
+  function prependCaptureRow(rec) {
+    var q = captureQuery();
+    if (q.sessionId && rec.sessionId !== q.sessionId) return;
+    if (q.source && rec.source !== q.source) return;
+    if (q.method && rec.method !== q.method) return;
+    if (q.status && String(rec.status) !== String(q.status)) return;
+    if (q.q && (rec.path || "").indexOf(q.q) === -1 && (rec.module || "").indexOf(q.q) === -1) return;
+    var tbody = $("cap-rows");
+    if (!tbody) return;
+    if (tbody.querySelector("td[colspan]")) {
+      tbody.innerHTML = "";
+      var t = $("cap-total");
+      if (t) t.textContent = "";
+    }
+    var tr = document.createElement("tr");
+    tr.className = "clickable cap-row";
+    tr.setAttribute("data-id", rec.id);
+    tr.innerHTML = captureRowHtml(rec);
+    tr.addEventListener("click", function () { showCaptureDetail(rec.id); });
+    tbody.insertBefore(tr, tbody.firstChild);
+    while (tbody.children.length > 200) tbody.removeChild(tbody.lastChild);
+  }
+
+  function showCaptureDetail(id) {
+    capDetailId = id;
+    api("/capture/records/" + encodeURIComponent(id)).then(function (d) {
+      var box = $("cap-detail");
+      box.innerHTML =
+        '<div class="row" style="align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap;">' +
+        '<b style="color:var(--gold);">' + h(d.rid) + "</b>" +
+        '<span style="font-size:11px;color:var(--muted);">' + fmtMs(d.ts) + " · " + h(d.source) + " · " +
+        (d.latencyMs != null ? d.latencyMs.toFixed(0) + "ms" : "-") + "</span>" +
+        '<span style="flex:1;"></span>' +
+        '<button id="cap-cmp-base" class="btn-sm">设为对比基准</button>' +
+        '<button id="cap-cmp-run" class="btn-sm"' + (capCompareId ? "" : " disabled") + ">对比「" + h(capCompareId || "-") + "」</button>" +
+        '<button id="cap-export-rec" class="btn-sm">导出</button>' +
+        "</div>" +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+        '<div><label>请求 ' + h(d.method || "") + "</label>" + headersHtml(d.reqHeaders) + bodyHtml(formatCaptureBody(d.reqBody, d.reqBodyType)) + "</div>" +
+        '<div><label>响应 ' + (d.status ?? "") + "</label>" + headersHtml(d.resHeaders) + bodyHtml(formatCaptureBody(d.resBody, d.resBodyType)) + "</div>" +
+        "</div>" +
+        (d.missingFiles && d.missingFiles.length ? '<div style="color:var(--warn);font-size:11px;margin-top:6px;">⚠ 文件缺失: ' + h(d.missingFiles.join(", ")) + "</div>" : "");
+      var b = $("cap-cmp-base");
+      if (b) b.addEventListener("click", function () { capCompareId = id; toast("已设为对比基准：" + d.rid); });
+      var r = $("cap-cmp-run");
+      if (r) r.addEventListener("click", function () { runCaptureCompare(capCompareId, id); });
+      var e = $("cap-export-rec");
+      if (e) e.addEventListener("click", function () {
+        window.open(API + "/capture/records/" + encodeURIComponent(d.id) + "/export?token=" + encodeURIComponent(token), "_blank");
+      });
+    }).catch(function (e) {
+      var box = $("cap-detail");
+      if (box) box.innerHTML = '<span style="color:var(--err);font-size:12px;">' + h(e.message) + "</span>";
+    });
+  }
+
+  function headersHtml(hdrs) {
+    var obj = null;
+    try { obj = typeof hdrs === "string" ? JSON.parse(hdrs) : hdrs; } catch (e) { obj = hdrs; }
+    if (!obj) return "";
+    var keys = Object.keys(obj);
+    if (!keys.length) return "";
+    return '<div style="font-size:11px;color:var(--muted);font-family:Consolas,monospace;max-height:88px;overflow:auto;border:1px solid var(--border);border-radius:4px;padding:6px;margin-bottom:4px;">' +
+      keys.map(function (k) { return h(k) + ": " + h(String(obj[k])); }).join("<br>") + "</div>";
+  }
+
+  function bodyHtml(content) {
+    return '<pre class="json" style="max-height:300px;">' + content + "</pre>";
+  }
+
+  function formatCaptureBody(body, type) {
+    if (body === undefined || body === null) return '<span style="color:var(--muted);font-size:11px;">（无 body）</span>';
+    if (type === "bin") {
+      if (body && typeof body === "object" && body.base64 !== undefined) {
+        return '<span style="font-size:11px;color:var(--muted);">二进制 ' + fmtSize(body.size) + 'B · hex 前缀 ' + h(String(body.hexPreview || "")) +
+          '<br><textarea style="height:90px;font-size:11px;margin-top:4px;" readonly>' + h(body.base64) + "</textarea></span>";
+      }
+      return h(String(body));
+    }
+    if (typeof body === "string") {
+      try { body = JSON.parse(body); } catch (e) {}
+    }
+    return '<span style="font-size:11px;color:var(--ok);">JSON</span><br>' + syntaxHighlight(JSON.stringify(body, null, 2));
+  }
+
+  function syntaxHighlight(json) {
+    if (!json) return "";
+    json = escapeHtml(json);
+    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+      var cls = "num";
+      if (/^"/.test(match)) cls = /:$/.test(match) ? "key" : "str";
+      else if (/true|false/.test(match)) cls = "bool";
+      else if (/null/.test(match)) cls = "null";
+      return '<span style="color:' + (cls === "key" ? "var(--gold)" : cls === "str" ? "var(--ok)" : cls === "bool" ? "var(--star5)" : cls === "null" ? "var(--muted)" : "var(--warn)") + ';">' + match + "</span>";
+    });
+  }
+
+  /** 递归 diff 两个 JSON（a=基准，b=当前）：输出扁平变更列表 */
+  function jsonDiff(a, b, p, out) {
+    var ta = a === null ? "null" : Array.isArray(a) ? "array" : typeof a;
+    var tb = b === null ? "null" : Array.isArray(b) ? "array" : typeof b;
+    if (ta !== tb) { out.push({ p: p, t: "type", a: summarize(a), b: summarize(b) }); return; }
+    if (ta === "object") {
+      var miss = Object.keys(a).filter(function (k) { return !(k in b); });
+      var extra = Object.keys(b).filter(function (k) { return !(k in a); });
+      for (var i = 0; i < miss.length; i++) out.push({ p: p + "." + miss[i], t: "removed", a: summarize(a[miss[i]]), b: undefined });
+      for (var j = 0; j < extra.length; j++) out.push({ p: p + "." + extra[j], t: "added", a: undefined, b: summarize(b[extra[j]]) });
+      var keys = Object.keys(a);
+      for (var k = 0; k < keys.length; k++) if (keys[k] in b) jsonDiff(a[keys[k]], b[keys[k]], p + "." + keys[k], out);
+      return;
+    }
+    if (ta === "array") {
+      if (a.length !== b.length) out.push({ p: p, t: "len", a: a.length, b: b.length });
+      var n = Math.min(a.length, b.length);
+      for (var m = 0; m < n; m++) jsonDiff(a[m], b[m], p + "[" + m + "]", out);
+      return;
+    }
+    if (String(a) !== String(b)) out.push({ p: p, t: "changed", a: summarize(a), b: summarize(b) });
+  }
+  function summarize(v) {
+    if (v === undefined) return "undefined";
+    if (v === null) return "null";
+    if (typeof v === "object") {
+      var s = JSON.stringify(v);
+      return s.length > 80 ? s.slice(0, 80) + "…" : s;
+    }
+    return String(v);
+  }
+
+  function runCaptureCompare(baseId, otherId) {
+    Promise.all([
+      api("/capture/records/" + encodeURIComponent(baseId)),
+      api("/capture/records/" + encodeURIComponent(otherId)),
+    ]).then(function (rs) {
+      var a = rs[0], b = rs[1];
+      var out = [];
+      jsonDiff(a.resBody, b.resBody, "response", out);
+      var box = $("cap-detail");
+      var html = '<div style="margin-top:8px;border:1px solid var(--border);border-radius:6px;padding:8px;">' +
+        '<div class="row" style="align-items:center;gap:8px;">' +
+        '<b style="color:var(--gold);">🆚 响应对比</b>' +
+        '<span style="font-size:11px;color:var(--muted);">基准 ' + h(a.rid) + " vs 当前 " + h(b.rid) + "</span>" +
+        '<span style="flex:1;"></span><button id="cap-cmp-close" class="btn-sm">关闭</button></div>';
+      if (!out.length) {
+        html += '<div style="font-size:12px;color:var(--ok);margin-top:6px;">✓ 响应结构完全一致</div>';
+      } else {
+        html += '<div style="max-height:240px;overflow:auto;margin-top:6px;font-size:11px;font-family:Consolas,monospace;">' +
+          out.slice(0, 200).map(function (d) {
+            var color = d.t === "removed" ? "var(--err)" : d.t === "added" ? "var(--ok)" : "var(--warn)";
+            var txt = d.t === "removed" ? "− " + h(d.p) + " = " + h(d.a) + "（基准有，当前无）"
+              : d.t === "added" ? "+ " + h(d.p) + " = " + h(d.b) + "（当前有，基准无）"
+              : d.t === "type" ? "! " + h(d.p) + " 类型 " + h(d.a) + " → " + h(d.b)
+              : d.t === "len" ? "! " + h(d.p) + " 长度 " + h(d.a) + " → " + h(d.b)
+              : "~ " + h(d.p) + ": " + h(d.a) + " → " + h(d.b);
+            return '<div style="color:' + color + ';">' + txt + "</div>";
+          }).join("") + (out.length > 200 ? '<div style="color:var(--muted);">… 其余 ' + (out.length - 200) + " 条</div>" : "") +
+          "</div>";
+      }
+      html += "</div>";
+      box.insertAdjacentHTML("beforeend", html);
+      var close = $("cap-cmp-close");
+      if (close) close.addEventListener("click", function () {
+        var dd = $("cap-detail");
+        if (dd) { var saved = capDetailId; dd.innerHTML = ""; if (saved) showCaptureDetail(saved); }
+      });
+    }).catch(function (e) { toast("对比失败：" + e.message); });
+  }
+
+  /* ---------- 统一日志管理（pane-logs） ---------- */
+
+  var logsES = null;
+  var logsTimer = null;
+  var logsKind = "server";
+  var logsLive = false;
+
+  function loadLogsPane() {
+    closeLogsStream();
+    var pane = $("pane-logs");
+    pane.innerHTML =
+      '<div class="card" style="margin-top:0;">' +
+      '<div class="row" style="align-items:center;margin-bottom:8px;">' +
+      '<h3 style="color:var(--gold);margin:0;">📜 统一日志管理</h3>' +
+      '<span style="font-size:11px;color:var(--muted);margin-left:10px;">服务器日志 / 审计日志 / 看门狗日志 / 抓包记录统一查看与实时尾随。</span>' +
+      '<button id="logs-live" class="btn-sm" style="margin-left:auto;">⚡ 实时尾随</button>' +
+      "</div>" +
+      '<div class="row" style="gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">' +
+      '<div class="sub-tabs" style="margin:0;">' +
+      '<span class="tab logs-kind active" data-kind="server">服务器</span>' +
+      '<span class="tab logs-kind" data-kind="audit">审计</span>' +
+      '<span class="tab logs-kind" data-kind="watchdog">看门狗</span>' +
+      "</div>" +
+      '<span style="flex:1;"></span>' +
+      '<select id="logs-level" style="width:86px;margin:0;"><option value="">级别</option><option>DEBUG</option><option>INFO</option><option>WARN</option><option>ERROR</option></select>' +
+      '<select id="logs-date" style="width:118px;margin:0;"></select>' +
+      '<input id="logs-q" placeholder="关键字" style="width:150px;margin:0;">' +
+      '<button id="logs-refresh" class="btn-sm primary">刷新</button>' +
+      '<button id="logs-export" class="btn-sm">导出</button>' +
+      '<button id="logs-clear" class="btn-sm danger">清空</button>' +
+      "</div>" +
+      '<div id="logs-title" style="font-size:11px;color:var(--muted);margin-bottom:6px;"></div>' +
+      '<div id="logs-box" style="background:var(--input);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:12px;font-family:Consolas,monospace;max-height:60vh;overflow:auto;white-space:pre-wrap;word-break:break-all;"></div>' +
+      "</div>";
+    bindLogsPane();
+    refreshLogDates();
+    refreshLogsPane();
+    logsTimer = setInterval(function () { if (!logsLive) refreshLogsPane(true); }, 5000);
+  }
+
+  function closeLogsStream() {
+    if (logsES) { logsES.close(); logsES = null; }
+    if (logsTimer) { clearInterval(logsTimer); logsTimer = null; }
+    logsLive = false;
+    var b = $("logs-live");
+    if (b) { b.classList.remove("primary"); b.textContent = "⚡ 实时尾随"; }
+  }
+
+  function bindLogsPane() {
+    $("logs-refresh").addEventListener("click", function () { refreshLogsPane(); });
+    $("logs-live").addEventListener("click", function () {
+      if (logsES) { closeLogsStream(); refreshLogsPane(); return; }
+      logsLive = true;
+      var b = $("logs-live");
+      b.classList.add("primary");
+      b.textContent = "● 尾随中";
+      logsES = new EventSource(API + "/logs/stream?kind=" + logsKind + "&token=" + encodeURIComponent(token));
+      logsES.addEventListener("log", function (ev) {
+        var d = JSON.parse(ev.data);
+        if (d.type === "live") appendLogLine(d.entry);
+      });
+      logsES.addEventListener("record", function (ev) {
+        var d = JSON.parse(ev.data);
+        if (d.type === "live") {
+          appendLogLine({ ts: d.record.ts, level: "INFO", tag: "capture", text: (d.record.method || "") + " " + (d.record.path || "") + " → " + (d.record.status ?? "-") + " [" + d.record.source + "]" });
+        }
+      });
+      logsES.onerror = function () { /* EventSource 自动重连 */ };
+    });
+    $("logs-q").addEventListener("keydown", function (e) { if (e.key === "Enter") refreshLogsPane(); });
+    $("logs-export").addEventListener("click", function () {
+      var box = $("logs-box");
+      var blob = new Blob([box.innerText], { type: "text/plain;charset=utf-8" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "logs-" + logsKind + "-" + new Date().toISOString().slice(0, 10) + ".txt";
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    });
+    $("logs-clear").addEventListener("click", function () {
+      var isAudit = logsKind === "audit";
+      confirmDialog(isAudit ? "清空全部审计日志？" : "清空全部服务器日志文件？", function () {
+        var p = isAudit ? "/cli/exec" : "/logs/server/clear";
+        var body = isAudit ? JSON.stringify({ command: "logs clear --yes" }) : JSON.stringify({ confirmWord: "CLEAR" });
+        api(p, { method: "POST", body: body }).then(function () { toast("已清空"); refreshLogsPane(); }).catch(function (e) { toast(e.message); });
+      }, "清空日志", "danger");
+    });
+    var kinds = document.querySelectorAll(".logs-kind");
+    for (var i = 0; i < kinds.length; i++) {
+      kinds[i].addEventListener("click", function () {
+        logsKind = this.getAttribute("data-kind");
+        for (var j = 0; j < kinds.length; j++) kinds[j].classList.toggle("active", kinds[j] === this);
+        $("logs-date").style.display = logsKind === "server" ? "" : "none";
+        $("logs-level").style.display = logsKind === "server" ? "" : "none";
+        $("logs-clear").style.display = logsKind === "watchdog" ? "none" : "";
+        if (logsES) closeLogsStream();
+        refreshLogsPane();
+      });
+    }
+  }
+
+  function refreshLogDates() {
+    api("/logs/server/dates").then(function (dates) {
+      var sel = $("logs-date");
+      if (!sel) return;
+      var now = new Date();
+      var today = now.getFullYear() + ("0" + (now.getMonth() + 1)).slice(-2) + ("0" + now.getDate()).slice(-2);
+      sel.innerHTML = '<option value="">今天（' + today + "）</option>" +
+        dates.map(function (d) { return '<option value="' + d + '">' + d + "</option>"; }).join("");
+      // 今天无日志文件时默认最新一天
+      if (dates.length && dates.indexOf(today) === -1) sel.value = dates[0];
+    }).catch(function () {});
+  }
+
+  function refreshLogsPane(silent) {
+    var kw = ($("logs-q").value || "").trim();
+    var title = $("logs-title");
+    var box = $("logs-box");
+    if (!box) return;
+    if (logsKind === "server") {
+      var date = $("logs-date").value || "";
+      var level = $("logs-level").value;
+      var qs = "?limit=300";
+      if (date) qs += "&date=" + encodeURIComponent(date);
+      if (level) qs += "&level=" + encodeURIComponent(level);
+      if (kw) qs += "&q=" + encodeURIComponent(kw);
+      api("/logs/server" + qs).then(function (r) {
+        if (title && !silent) title.textContent = "服务器日志（" + (date || "今天") + "）共 " + r.total + " 条";
+        box.innerHTML = r.items.map(function (e) {
+          return logLineHtml(e.level, e.ts + " [" + e.level + "] [" + e.tag + "] " + e.text);
+        }).join("") || '<span style="color:var(--muted);">无匹配日志</span>';
+        box.scrollTop = 0;
+      }).catch(function () {});
+      return;
+    }
+    if (logsKind === "audit") {
+      var qs2 = "?limit=300" + (kw ? "&q=" + encodeURIComponent(kw) : "");
+      api("/logs/audit" + qs2).then(function (entries) {
+        if (title && !silent) title.textContent = "审计日志共 " + entries.length + " 条";
+        box.innerHTML = entries.map(function (e) {
+          return logLineHtml("INFO", fmtTs(e.ts) + " [" + e.action + "] uid=" + (e.uid || "-") + " — " + e.detail);
+        }).join("") || '<span style="color:var(--muted);">暂无审计日志</span>';
+        box.scrollTop = 0;
+      }).catch(function () {});
+      return;
+    }
+    // watchdog
+    api("/logs/watchdog").then(function (r) {
+      if (title && !silent) title.textContent = "看门狗日志（" + r.files.length + " 个文件）";
+      box.innerHTML = r.entries.map(function (e) {
+        return logLineHtml("INFO", e.line);
+      }).join("") || '<span style="color:var(--muted);">暂无看门狗日志</span>';
+      box.scrollTop = 0;
+    }).catch(function () {});
+  }
+
+  function logLineHtml(level, text) {
+    var color = level === "ERROR" ? "var(--err)" : level === "WARN" ? "var(--warn)" : level === "DEBUG" ? "var(--muted)" : "";
+    return '<div style="' + (color ? "color:" + color + ";" : "") + '">' + h(text) + "</div>";
+  }
+
+  function appendLogLine(entry) {
+    var box = $("logs-box");
+    if (!box) return;
+    var ts = entry.ts;
+    if (typeof ts === "number") {
+      ts = new Date(ts * 1000).toISOString().replace("T", " ").slice(0, 19);
+    }
+    var line = (ts || "") + " [" + (entry.level || "INFO") + "] [" + (entry.tag || "") + "] " + (entry.text || "");
+    var div = document.createElement("div");
+    div.style.color = entry.level === "ERROR" ? "var(--err)" : entry.level === "WARN" ? "var(--warn)" : "";
+    div.textContent = line;
+    box.appendChild(div);
+    while (box.children.length > 800) box.removeChild(box.firstChild);
+    box.scrollTop = box.scrollHeight;
   }
 
   /* ---------- 主题切换 / 骨架屏 / 状态色 ---------- */

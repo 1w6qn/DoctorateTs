@@ -27,6 +27,8 @@ export default defineConfig({
       '@game': path.resolve(__dirname, 'app/game'),
       '@excel': path.resolve(__dirname, 'app/excel'),
       '@utils': path.resolve(__dirname, 'app/utils'),
+      '@capture': path.resolve(__dirname, 'app/capture'),
+      '@logs': path.resolve(__dirname, 'app/logs'),
     },
   },
 });

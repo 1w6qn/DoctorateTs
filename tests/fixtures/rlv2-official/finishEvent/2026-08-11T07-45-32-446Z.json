@@ -1,0 +1,124 @@
+{
+  "playerDataDelta": {
+    "modified": {
+      "rlv2": {
+        "current": {
+          "record": {
+            "brief": null
+          },
+          "player": {
+            "state": "INIT",
+            "property": {
+              "exp": 0,
+              "level": 1,
+              "maxLevel": 10,
+              "hp": {
+                "current": 4,
+                "max": 4
+              },
+              "gold": 30,
+              "shield": 2,
+              "capacity": 7,
+              "population": {
+                "cost": 0,
+                "max": 7
+              },
+              "conPerfectBattle": 0,
+              "hpShowState": "NORMAL"
+            },
+            "cursor": {
+              "zone": 0,
+              "position": null
+            },
+            "trace": [],
+            "pending": [
+              {
+                "index": "e_2",
+                "type": "GAME_INIT_SUPPORT",
+                "content": {
+                  "initSupport": {
+                    "step": [
+                      3,
+                      5
+                    ],
+                    "scene": {
+                      "id": "scene_ro6_startbuff_enter",
+                      "choices": {
+                        "choice_ro6_startbuff_2": 1,
+                        "choice_ro6_startbuff_3": 1,
+                        "choice_ro6_startbuff_6": 1,
+                        "choice_ro6_startbuff_8": 1
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "index": "e_3",
+                "type": "GAME_INIT_RECRUIT_SET",
+                "content": {
+                  "initRecruitSet": {
+                    "step": [
+                      4,
+                      5
+                    ],
+                    "option": [
+                      "recruit_group_1",
+                      "recruit_group_2",
+                      "recruit_group_3",
+                      "recruit_group_4",
+                      "recruit_group_5",
+                      "recruit_group_random"
+                    ]
+                  }
+                }
+              },
+              {
+                "index": "e_4",
+                "type": "GAME_INIT_RECRUIT",
+                "content": {
+                  "initRecruit": {
+                    "step": [
+                      5,
+                      5
+                    ],
+                    "tickets": [],
+                    "showChar": [],
+                    "team": null
+                  }
+                }
+              }
+            ],
+            "status": {
+              "bankPut": 0
+            },
+            "toEnding": "ro6_ending_1",
+            "chgEnding": false
+          },
+          "buff": {
+            "tmpHP": 0,
+            "capsule": null,
+            "squadBuff": []
+          },
+          "inventory": {
+            "relic": {
+              "r_0": {
+                "index": "r_0",
+                "id": "rogue_6_band_9",
+                "count": 1,
+                "ts": 1786434416
+              }
+            },
+            "recruit": {},
+            "trap": null,
+            "consumable": {},
+            "exploreTool": {},
+            "stashRecruit": [],
+            "stashRecruitLimit": 3
+          }
+        }
+      }
+    },
+    "deleted": {}
+  }
+}

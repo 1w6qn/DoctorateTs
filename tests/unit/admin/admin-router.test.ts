@@ -74,10 +74,44 @@ vi.mock("../../../app/admin/cli-exec", () => ({
   cliExec: vi.fn(),
 }));
 vi.mock("../../../app/config", () => ({ default: {} }));
+vi.mock("@capture/capture-manager", () => ({
+  captureManager: {
+    listSessions: vi.fn().mockResolvedValue([{ id: "s-1", name: "登录链路", source: "official", recordCount: 3 }]),
+    startSession: vi.fn().mockResolvedValue({ id: "s-new", name: "x", source: "private", startedAt: 1, endedAt: null, note: null }),
+    stopSession: vi.fn().mockResolvedValue(true),
+    deleteSession: vi.fn().mockResolvedValue(2),
+    query: vi.fn().mockResolvedValue({ total: 1, offset: 0, limit: 100, items: [{ id: 1, rid: "R-1", path: "/a" }] }),
+    getRecordDetail: vi.fn().mockResolvedValue({ id: 1, rid: "R-1", reqBody: {}, resBody: {}, missingFiles: [] }),
+    deleteRecord: vi.fn().mockResolvedValue(true),
+    clearAll: vi.fn().mockResolvedValue({ cleared: 5 }),
+    stats: vi.fn().mockResolvedValue({ total: 5, sessions: 1, bySource: { private: 5 }, byStatus: {}, byDay: [] }),
+    exportSession: vi.fn().mockResolvedValue({ path: "tmp/capture/exports/x.zip", records: 3, size: 10 }),
+    exportRecord: vi.fn().mockResolvedValue({ path: "tmp/capture/exports/r.zip", records: 1, size: 10 }),
+    subscribe: vi.fn(() => () => {}),
+  },
+}));
+vi.mock("@logs/log-service", () => ({
+  logService: {
+    readServerLog: vi.fn().mockResolvedValue({ total: 1, offset: 0, limit: 100, items: [{ ts: "2026-01-01 10:00:00", level: "INFO", tag: "index", text: "hi", raw: "..." }] }),
+    listServerLogDates: vi.fn().mockResolvedValue(["20260814"]),
+    readWatchdogLog: vi.fn().mockResolvedValue({ files: ["watchdog-20260814.log"], entries: [{ file: "watchdog-20260814.log", line: "x" }] }),
+    readAuditLog: vi.fn().mockResolvedValue([{ ts: 1, action: "grantItem", uid: "1", detail: "x" }]),
+    clearServerLogs: vi.fn().mockResolvedValue({ cleared: 2 }),
+    subscribeServer: vi.fn(() => () => {}),
+    subscribeAudit: vi.fn(() => () => {}),
+  },
+}));
+vi.mock("@utils/sse", () => ({
+  createSse: vi.fn(() => () => {}),
+  sseSend: vi.fn(),
+}));
 
 import adminRouter from "../../../app/admin/admin-router";
 import { cliExec } from "../../../app/admin/cli-exec";
 import { adminService } from "../../../app/admin/AdminService";
+import { captureManager } from "@capture/capture-manager";
+import { logService } from "@logs/log-service";
+import { createSse, sseSend } from "@utils/sse";
 
 function mockRes() {
   return {
@@ -632,5 +666,145 @@ describe("admin 路由（扩展能力）", () => {
     await call({ method: "GET", url: "/api/users/1/activity", params: { uid: "1" } }, res2);
     expect(adminService.getActivitySummary).toHaveBeenCalledWith("1");
     expect(res2.json).toHaveBeenCalledWith({ total: 3, types: [{ type: "LOGIN_ONLY", activities: 2 }] });
+  });
+});
+
+describe("admin 路由（统一抓包管理）", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("GET /api/capture/sessions 应返回会话列表", async () => {
+    const res = mockRes();
+    await call({ method: "GET", url: "/api/capture/sessions" }, res);
+    expect(captureManager.listSessions).toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith([{ id: "s-1", name: "登录链路", source: "official", recordCount: 3 }]);
+  });
+
+  it("POST /api/capture/sessions 应新建会话（201）", async () => {
+    const res = mockRes();
+    await call(
+      { method: "POST", url: "/api/capture/sessions", body: { name: "商店对比", source: "official" } },
+      res,
+    );
+    expect(captureManager.startSession).toHaveBeenCalledWith("商店对比", "official", "");
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  it("POST /api/capture/sessions/:id/stop 与 DELETE 应透传", async () => {
+    const res1 = mockRes();
+    await call({ method: "POST", url: "/api/capture/sessions/s-1/stop", params: { id: "s-1" } }, res1);
+    expect(captureManager.stopSession).toHaveBeenCalledWith("s-1");
+
+    const res2 = mockRes();
+    await call({ method: "DELETE", url: "/api/capture/sessions/s-1", params: { id: "s-1" } }, res2);
+    expect(captureManager.deleteSession).toHaveBeenCalledWith("s-1");
+    expect(res2.json).toHaveBeenCalledWith({ deleted: 2 });
+  });
+
+  it("GET /api/capture/records 应透传过滤条件", async () => {
+    const res = mockRes();
+    await call(
+      {
+        method: "GET",
+        url: "/api/capture/records",
+        query: { source: "official", status: "200", path: "/account/", limit: "20", offset: "0" },
+      },
+      res,
+    );
+    expect(captureManager.query).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "official", status: 200, path: "/account/", limit: 20, offset: 0 }),
+    );
+  });
+
+  it("GET /api/capture/records/:id 详情与 DELETE 应透传", async () => {
+    const res1 = mockRes();
+    await call({ method: "GET", url: "/api/capture/records/R-1", params: { id: "R-1" } }, res1);
+    expect(captureManager.getRecordDetail).toHaveBeenCalledWith("R-1");
+    expect(res1.json).toHaveBeenCalledWith(expect.objectContaining({ rid: "R-1" }));
+
+    const res2 = mockRes();
+    await call({ method: "DELETE", url: "/api/capture/records/R-1", params: { id: "R-1" } }, res2);
+    expect(captureManager.deleteRecord).toHaveBeenCalledWith("R-1");
+    expect(res2.json).toHaveBeenCalledWith({ ok: true });
+  });
+
+  it("POST /api/capture/clear 与 GET /api/capture/stats 应透传", async () => {
+    const res1 = mockRes();
+    await call({ method: "POST", url: "/api/capture/clear", body: { confirmWord: "CLEAR" } }, res1);
+    expect(captureManager.clearAll).toHaveBeenCalledWith("CLEAR");
+    expect(res1.json).toHaveBeenCalledWith({ cleared: 5 });
+
+    const res2 = mockRes();
+    await call({ method: "GET", url: "/api/capture/stats" }, res2);
+    expect(captureManager.stats).toHaveBeenCalled();
+  });
+
+  it("GET /api/capture/sessions/:id/export 应触发 zip 下载", async () => {
+    const res = mockRes();
+    await call({ method: "GET", url: "/api/capture/sessions/s-1/export", params: { id: "s-1" } }, res);
+    expect(captureManager.exportSession).toHaveBeenCalledWith("s-1");
+    expect(res.sendFile).toHaveBeenCalled();
+  });
+
+  it("GET /api/capture/stream 应建立 SSE 并订阅", async () => {
+    const res = mockRes();
+    res.write = vi.fn();
+    res.flushHeaders = vi.fn();
+    await call({ method: "GET", url: "/api/capture/stream", on: vi.fn() }, res);
+    expect(createSse).toHaveBeenCalled();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(sseSend).toHaveBeenCalledWith(res, "record", expect.objectContaining({ type: "backfill" }));
+  });
+});
+
+describe("admin 路由（统一日志管理）", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("GET /api/logs/server 应透传过滤条件", async () => {
+    const res = mockRes();
+    await call(
+      { method: "GET", url: "/api/logs/server", query: { date: "20260101", level: "ERROR", q: "boom", limit: "50" } },
+      res,
+    );
+    expect(logService.readServerLog).toHaveBeenCalledWith(
+      expect.objectContaining({ date: "20260101", level: "ERROR", q: "boom", limit: 50 }),
+    );
+  });
+
+  it("GET /api/logs/server/dates 与 /api/logs/watchdog 应透传", async () => {
+    const res1 = mockRes();
+    await call({ method: "GET", url: "/api/logs/server/dates" }, res1);
+    expect(logService.listServerLogDates).toHaveBeenCalled();
+    expect(res1.json).toHaveBeenCalledWith(["20260814"]);
+
+    const res2 = mockRes();
+    await call({ method: "GET", url: "/api/logs/watchdog" }, res2);
+    expect(logService.readWatchdogLog).toHaveBeenCalled();
+  });
+
+  it("GET /api/logs/audit 应透传 action/uid 过滤", async () => {
+    const res = mockRes();
+    await call({ method: "GET", url: "/api/logs/audit", query: { action: "grantItem", uid: "1" } }, res);
+    expect(logService.readAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "grantItem", uid: "1" }));
+  });
+
+  it("POST /api/logs/server/clear 应透传确认词", async () => {
+    const res = mockRes();
+    await call({ method: "POST", url: "/api/logs/server/clear", body: { confirmWord: "CLEAR" } }, res);
+    expect(logService.clearServerLogs).toHaveBeenCalledWith("CLEAR");
+    expect(res.json).toHaveBeenCalledWith({ cleared: 2 });
+  });
+
+  it("GET /api/logs/stream?kind=server 应建立 SSE 并回填", async () => {
+    const res = mockRes();
+    res.write = vi.fn();
+    res.flushHeaders = vi.fn();
+    await call({ method: "GET", url: "/api/logs/stream", query: { kind: "server" }, on: vi.fn() }, res);
+    expect(createSse).toHaveBeenCalled();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(sseSend).toHaveBeenCalledWith(res, "log", expect.objectContaining({ kind: "server", type: "backfill" }));
   });
 });

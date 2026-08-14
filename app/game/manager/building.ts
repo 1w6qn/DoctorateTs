@@ -184,7 +184,12 @@ export class BuildingManager {
       const secs = Math.ceil(remain / capacity);
       candidates.push((room.lastUpdateTime || ts) + secs);
     }
-    if (candidates.length === 0) return ts + 60;
+    if (candidates.length === 0) {
+      // 无待办事件（劳动力已满、无在产制造站）：返回远未来时间戳——
+      // 客户端据此不再轮询 sync（修复：原 now()+60 让客户端永久每 60s 轮询，
+      // 即"基建无限同步"）；官方数据约定 4102343999 系"期末"时间，用同量级值
+      return 4102444799;
+    }
     return Math.min(...candidates);
   }
 

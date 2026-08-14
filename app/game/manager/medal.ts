@@ -280,7 +280,7 @@ export class MedalProgress implements PlayerPerMedal {
       return;
     }
 
-    const func = (args: any[]) => {
+    const func = async (args: any[]) => {
       (this as any)[template](args[0], "update");
       // 进度更新显式写回持久态 + 标记脏（A1——不依赖共享引用隐式落盘）
       this._syncToPersist();
@@ -290,7 +290,10 @@ export class MedalProgress implements PlayerPerMedal {
         this.fts = now();
         this._syncToPersist();
         this._trigger.off(template as any, func);
-        this._trigger.emit("medal:complete", [{ medalId: this.id }]);
+        // 修复：await 完成事件——Emittery.emit 并行执行监听器，原 fire-and-forget
+        // 的 medal:complete 与同批任务监听器的 update() 并发竞争共享 Immer draft，
+        // 可触发 "proxy revoked"（与 mission.ts 同源交错问题）
+        await this._trigger.emit("medal:complete", [{ medalId: this.id }]);
       }
     };
 

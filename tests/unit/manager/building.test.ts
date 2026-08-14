@@ -244,7 +244,7 @@ describe("BuildingManager", () => {
       expect(result).toBe(1234567890);
     });
 
-    it("劳动力已满且无制造任务时 event.building 应为 60s 兜底（不再 5s 轮询）", async () => {
+    it("劳动力已满且无制造任务时 event.building 应为远未来（不再周期性轮询 sync）", async () => {
       mockPlayer._playerdata.building!.status.labor.value = 100;
       mockPlayer._playerdata.building!.status.labor.maxValue = 100;
       const manager = new BuildingManager(
@@ -252,7 +252,8 @@ describe("BuildingManager", () => {
         mockTrigger as any
       );
       await manager.sync();
-      expect(mockPlayer._playerdata.event!.building).toBe(1234567890 + 60);
+      // 修复前：now()+60 → 客户端永久 60s 轮询（基建无限同步）；修复后：远未来
+      expect(mockPlayer._playerdata.event!.building).toBe(4102444799);
     });
   });
 

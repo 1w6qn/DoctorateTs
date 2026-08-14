@@ -138,6 +138,22 @@ export class MissionManager {
           draft.mission.missionRewards.rewards["DAILY"][reward.id] = 0;
         }
       }
+      // 修复：播种当前周期组任务到存档（原实现只重建内存列表——存档仍是创建时的旧组
+      // 任务，当前组 id 在存档缺失 → init 全部 invalid → DAILY 列表空 → confirmMission
+      // 拿不到实例返回空 → "任务无法确认"；且客户端仍显示旧组 state=3 任务，点确认无响应）。
+      // 官方每日重置即替换当日任务组：删旧组条目、补新组条目（progress:[] 由模板 init 构建）。
+      const currentIds =
+        excel.MissionTable.missionGroups[this.dailyMissionPeriod].missionIds ??
+        [];
+      const daily = (draft.mission.missions["DAILY"] ??= {});
+      for (const id of Object.keys(daily)) {
+        if (!currentIds.includes(id)) delete daily[id];
+      }
+      for (const id of currentIds) {
+        if (!daily[id]) {
+          daily[id] = { state: 1, progress: [] };
+        }
+      }
     });
     const missionIds =
       excel.MissionTable.missionGroups[this.dailyMissionPeriod].missionIds;
@@ -487,12 +503,14 @@ export class MissionProgress {
   async init() {
     const missionInfo =
       this._player._playerdata.mission.missions[this.type]?.[this.missionId];
-    // 防御：数据缺失（每日刷新后新组任务未播种等）标记无效，不 500
-    if (!missionInfo?.progress?.[0]) {
+    // 防御：数据缺失（每日刷新后新组任务未播种等）标记无效，不 500。
+    // 修复：允许空 progress 的播种条目（dailyRefresh 新组任务 progress:[] 由模板 init 构建）——
+    // 仅当整个条目缺失/非数组时无效
+    if (!missionInfo || !Array.isArray(missionInfo.progress)) {
       this.valid = false;
       return;
     }
-    this.value = missionInfo.progress[0].value;
+    this.value = missionInfo.progress[0]?.value ?? 0;
     this.progress = missionInfo.progress;
     this.state = missionInfo.state;
     let template: keyof typeof MissionTemplates;
@@ -558,20 +576,30 @@ export class MissionProgress {
         });
         await this.unlockNextMission();
       } else {
+        // 修复：getState 移出 recipe——Emittery.emit 并行执行所有监听器，多个同模板
+        // 任务同时推进时，各 update() 的 recipe 内 await getState() 产生交错：
+        // 一个 listener 的 finishDraft 撤销 draft 后，另一个 listener 的 recipe 继续
+        // 写已撤销代理 → "Cannot perform 'set' on a proxy that has been revoked"，
+        // 任务状态不落盘（无法完成/确认）。先算好 state，recipe 内不再 await。
+        const nextState = await this.getState();
         await this._player.update(async (draft) => {
           draft.mission.missions[this.type][this.missionId].progress = [
             ...this.progress,
           ];
-          draft.mission.missions[this.type][this.missionId].state =
-            await this.getState();
+          draft.mission.missions[this.type][this.missionId].state = nextState;
         });
       }
     };
-    if (this.progress[0].value < this.progress[0].target!) {
+    // 修复：模板 init 仅在进度为空时构建进度（原实现每次 init 都 push →
+    // 存档进度数组随每次刷新/加载重复累加，1.json 已出现 29 份重复条目、
+    // 且 getState 读 progress[0] 恒为旧值）；已有 progress[0] 时直接沿用存档进度
+    if (this.progress.length === 0) {
+      MissionTemplates[template]![this.param[0]].init(this);
+    }
+    if (this.progress[0] && this.progress[0].value < this.progress[0].target!) {
       this._registeredTemplate = template;
       this._registeredFunc = func;
       this._trigger.on(template, func);
-      MissionTemplates[template]![this.param[0]].init(this);
     }
   }
 

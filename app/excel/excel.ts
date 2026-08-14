@@ -127,8 +127,11 @@ export class Excel {
    * 懒加载大表（B-1 性能优化）
    *
    * 以下为启动期不触碰、请求期才用的大表（合计 ~30MB JSON）——从 init() 的
-   * 全量加载移出，首次访问时同步 parse（单次 ~100ms，摊到首个用到该表的请求）。
+   * 全量加载移出，首次访问时同步 parse（单次 ~30-65ms，摊到首个用到该表的请求）。
    * 启动解析时间与常驻内存下降；访问模式与字段完全一致（getter 透明）。
+   *
+   * 注意：热重载（index.ts 后台更新后再次 excel.init()）必须 resetLazyTables()
+   * 使缓存失效，否则重载后的懒加载表仍返回旧数据（陈旧数据 bug）。
    */
   private _handbookInfoTable?: HandbookInfoTable;
   get HandbookInfoTable(): HandbookInfoTable {
@@ -179,6 +182,41 @@ export class Excel {
     ));
   }
 
+  /**
+   * 失效懒加载大表缓存（热重载后调用，避免返回陈旧数据）
+   *
+   * init() 重载数据时清空私有缓存字段，使后续 getter 访问重新读盘。
+   */
+  resetLazyTables(): void {
+    this._handbookInfoTable = undefined;
+    this._charWordTable = undefined;
+    this._enemyDatabase = undefined;
+    this._enemyHandbookLevelInfoTable = undefined;
+    this._enemyHandbookRaceTable = undefined;
+    this._handbookTeamTable = undefined;
+    this._skillDataBundle = undefined;
+  }
+
+  /**
+   * 后台预热全部懒加载大表（B-5 性能优化）
+   *
+   * 首个请求触达大表（干员详情/档案/技能/敌人图鉴等）时同步 parse 30-65ms，
+   * 会卡住该请求。起服后（listen 回调）后台预热一次，把成本移到请求路径之外。
+   * 返回预热总耗时（毫秒）供日志观测；可重复调用（getter 已缓存，二次调用零成本）。
+   */
+  async warmupLazyTables(): Promise<number> {
+    const t0 = Date.now();
+    // 依次触碰所有懒加载 getter（同步 readJsonSync + parse）
+    void this.HandbookInfoTable;
+    void this.CharWordTable;
+    void this.EnemyDatabase;
+    void this.EnemyHandbookLevelInfoTable;
+    void this.EnemyHandbookRaceTable;
+    void this.HandbookTeamTable;
+    void this.SkillDataBundle;
+    return Date.now() - t0;
+  }
+
   constructor() {}
 
   /**
@@ -189,6 +227,8 @@ export class Excel {
    * 同一文件被多个 key 引用时先去重，仅读取/解析一次，各 key 共享同一对象引用。
    */
   async init(): Promise<void> {
+    // 热重载（后台更新后再次 init）时先失效懒加载大表缓存，避免返回陈旧数据
+    this.resetLazyTables();
     const loaders: [keyof Excel, string][] = [
       ["MissionTable", "./data/excel/mission_table.json"],
       ["BattleEquipTable", "./data/excel/battle_equip_table.json"],

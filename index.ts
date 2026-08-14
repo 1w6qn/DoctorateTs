@@ -109,6 +109,8 @@ process.on("exit", (code) => {
           logger.info("index", `后台数据更新完成（code=${code}），热重载 excel 数据`);
           if (code === 0) {
             await excel.init(); // 重新加载新数据（Excel/Shop 全量重读）
+            // 懒加载大表（handbook/charword/skill/enemy 等）后台重新预热
+            void excel.warmupLazyTables().catch(() => undefined);
             logger.info("index", "excel 数据已热重载");
           }
         } catch (error) {
@@ -145,8 +147,11 @@ process.on("exit", (code) => {
   // 响应压缩（B1）：syncData 等大响应（user 全量数 MB）gzip 后传输大幅减小。
   // 放 bodyParser 之前——压缩作用于响应，客户端带 Accept-Encoding: gzip 时生效
   // SSE 实时流（/admin/api/*/stream）排除压缩：zlib 缓冲会破坏逐事件推送
+  // level=1：gzip 快速档（CPU ~6ms vs 默认 L6 ~15ms，体积 187KB vs 154KB——LAN 私服带宽充裕，
+  // 事件循环时间是更稀缺资源；压缩在响应路径上阻塞主线程）
   app.use(
     compression({
+      level: 1,
       filter: (req, res) => {
         if (String(req.url).includes("/stream")) return false;
         return compressionFilter(req, res);
@@ -276,6 +281,11 @@ process.on("exit", (code) => {
   const server = app.listen(config.PORT, () => {
     logger.info("index", `--------------DoctorateTs--------------`);
     logger.info("index", `running at http://localhost:${config.PORT}`);
+    // B5：后台预热懒加载大表（消除首访 handbook/charword/skill/enemy 表 30-65ms 同步 parse 卡顿）
+    void excel
+      .warmupLazyTables()
+      .then((ms) => logger.info("Excel", `懒加载大表后台预热完成（${ms}ms，请求路径已无首访卡顿）`))
+      .catch(() => undefined);
     logger.info("index", `命令行已就绪：终端输入管理 CLI 命令（如 users list --json），exit 退出命令行`);
     // 服务器内嵌命令行 REPL（日志与命令行共存；非 TTY 自动跳过）
     import("./app/admin/server-repl").then((m) => m.startServerRepl());

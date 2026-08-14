@@ -24,7 +24,9 @@ export class PlayerDataRepository {
 
   /** 写存档（JSON 字符串 → gzip BLOB upsert，事务原子） */
   upsert(uid: string, json: string): void {
-    const blob = gzipSync(json);
+    // level=1：gzip 快速档——落盘 CPU 从 ~15ms 降到 ~6ms（BLOB 154KB→187KB，
+    // 事件循环时间是私服更稀缺的资源；存档体积差异可忽略）
+    const blob = gzipSync(json, { level: 1 });
     this.db
       .prepare(
         "INSERT OR REPLACE INTO player_data (uid, data, updated_ts) VALUES (?, ?, ?)",

@@ -283,8 +283,9 @@ describe("BuildingManager 干员技能（buff）集成", () => {
     expect(chars["102"].changeScale).toBe(-80);
     // 控制中枢干员不消耗
     expect(chars["301"].changeScale).toBe(0);
-    // 心情随时间累积由 getInfoShareReward 推进（会客室会话增量，避免 sync 抢占窗口）
-    expect(chars["101"].ap).toBe(8640000);
+    // 修复：sync 现在也推进心情累积（官方行为——每次 sync 下发 chars 增量，
+    // delta 恒非空，否则客户端空响应重试紧循环）；工作干员按 changeScale 消耗
+    expect(chars["101"].ap).toBe(8640000 - 55 * 3600);
   });
 
   it("sync：宿舍恢复 = (基础 + 舒适度 + 宿舍 buff + 控制中枢 dorm 全局) × 100", async () => {
@@ -293,8 +294,8 @@ describe("BuildingManager 干员技能（buff）集成", () => {
     const ch = (mockPlayer._playerdata.building!.chars as any)["201"];
     // (200/160 基础 + 5000/1000×0.55 舒适 + 0.15 dorm_rec + 0.05 control_dorm_rec) × 100
     expect(ch.changeScale).toBe(Math.round((1.25 + 2.75 + 0.15 + 0.05) * 100));
-    // 宿舍恢复随时间的累积由 getInfoShareReward 推进
-    expect(ch.ap).toBe(0);
+    // 修复：sync 推进心情累积（同官方）——宿舍干员按恢复档位累积
+    expect(ch.ap).toBe(Math.round((1.25 + 2.75 + 0.15 + 0.05) * 100) * 3600);
   });
 
   it("batchRestChar 后心情档位立即恢复空闲（0）", async () => {

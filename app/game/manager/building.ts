@@ -198,6 +198,12 @@ export class BuildingManager {
       this._recoverLabor(draft);
       // 干员心情档位（changeScale）按当前岗位 + 干员技能重算——换班后无需等客户端
       this._recomputeCharScales(draft);
+      // 修复：干员心情（building.chars[].ap/lastApAddTime）随时间累积——
+      // 官方每次 sync 都下发 chars 增量（抓包 res_1074 含 308 chars），delta 恒非空；
+      // 此前移除导致本服 sync 高频返回空 delta → 客户端空响应重试紧循环（无限同步）。
+      // lastApAddTime 写浮点秒（毫秒精度）：任意两次调用（≥1ms 间隔）必变 → 增量恒在，
+      // 同秒紧邻的 getInfoShareReward 也能正常推进（不会出现 b1c673a 的空 delta 回归）。
+      this._accrueCharAp(draft);
       // 修复：制造站生产随时间累积（进度/产出不再与时间脱钩）
       for (const roomSlotId of Object.keys(draft.building.rooms.MANUFACTURE)) {
         this._accrueManufacture(draft, roomSlotId);

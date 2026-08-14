@@ -217,14 +217,17 @@ export class MissionManager {
     const missionInfo = excel.MissionTable.missions[missionId];
     if (!missionInfo) return items; // 防御：未知任务跳过
     const mission = await this.getMissionById(missionId);
-    if (!mission) return items;
-    // 修复：已完成（state==3，可领取）且本次会话未确认的任务才发放——
-    // 原实现无任何校验，可反复确认任意（含未完成/锁定的）任务刷周期点数与奖励
-    if (mission.confirmed) return items;
+    // 修复：确认判定以存档 state 为准（内存列表可能因每日刷新重建/旧周期组为空——
+    // 客户端仍显示存档中已完成可领取的任务，此前 getMissionById 拿不到实例直接返回空
+    // → "无法领取奖励"）；持久化 confirmed 标记防重复（原仅内存实例标记，重启/列表
+    // 重建后丢失 → 可重复刷周期点数）
+    if (mission?.confirmed) return items;
     await this._player.update(async (draft) => {
       const data = draft.mission.missions[missionInfo.type]?.[missionId];
-      if (!data || data.state !== 3) return;
-      mission.confirmed = true;
+      // confirmed 为服务端持久化的防重复标记（官方结构无此字段，按 any 访问）
+      if (!data || data.state !== 3 || (data as any).confirmed) return;
+      (data as any).confirmed = 1;
+      if (mission) mission.confirmed = true;
       const missionRewards = draft.mission.missionRewards;
       switch (missionInfo.type) {
         case "DAILY":
@@ -281,18 +284,14 @@ export class MissionManager {
   async autoConfirmMissions(args: { type: string }): Promise<ItemBundle[]> {
     const { type } = args;
     const items: ItemBundle[] = [];
-    const missions = this.missions[type] ?? [];
-    // 防御：progress 未初始化（刷新后新实例未 init）时不崩溃
-    const completedMissions = missions.filter(
-      (m) =>
-        m.state == 2 &&
-        m.progress?.[0] &&
-        m.progress[0].value == m.progress[0].target,
-    );
-    for (const mission of completedMissions) {
-      items.push(
-        ...(await this.confirmMission({ missionId: mission.missionId })),
-      );
+    // 修复：遍历存档中该类型全部任务（原只遍历内存列表——每日刷新重建/旧周期组
+    // 导致列表为空时一键领取恒空；且过滤条件 state==2 应为 state==3 可领取态，
+    // 原条件对任何任务都不成立 → autoConfirmMissions 永远返回空）
+    const saveMissions =
+      this._player._playerdata.mission.missions[type] ?? {};
+    for (const [missionId, data] of Object.entries(saveMissions)) {
+      if (data.state !== 3 || (data as any).confirmed) continue;
+      items.push(...(await this.confirmMission({ missionId })));
     }
     return items;
   }

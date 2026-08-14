@@ -292,8 +292,8 @@
     </div>
   </div>
 
-  <!-- 统计（默认折叠为摘要行） -->
-  <section class="card full">
+  <!-- 统计（默认折叠为摘要行；仅「概览」页显示） -->
+  <section class="card full" id="stats-card">
     <div class="row" style="align-items:center;margin-bottom:4px;">
       <h3 style="color:var(--gold);">统计</h3>
       <button id="stats-toggle" class="btn-sm" style="margin-left:auto;">展开</button>
@@ -360,8 +360,8 @@
     </div>
   </section>
 
-  <!-- 操作日志 -->
-  <section class="card full">
+  <!-- 操作日志（仅「概览」页显示） -->
+  <section class="card full" id="logs-card">
     <div class="row" style="align-items:center;margin-bottom:10px;">
       <h3 style="color:var(--gold);">操作日志</h3>
       <button id="btn-refresh-logs" class="btn-sm" style="margin-left:auto;">刷新</button>
@@ -797,6 +797,12 @@
     $("detail-title").textContent = isGlobal
       ? TAB_LABELS[tab]
       : selectedUid ? "用户详情 — " + selectedUid : "用户详情";
+    // 统计与操作日志仅在「概览」首页显示，不随每个 Tab 出现
+    var showHome = tab === "overview";
+    var scEl = $("stats-card");
+    var lcEl = $("logs-card");
+    if (scEl) scEl.style.display = showHome ? "" : "none";
+    if (lcEl) lcEl.style.display = showHome ? "" : "none";
     loadPane(tab, selectedUid);
     restorePaneInputs(tab); // 恢复目标 pane 输入
     // URL hash 同步（支持前进/后退/直达链接）

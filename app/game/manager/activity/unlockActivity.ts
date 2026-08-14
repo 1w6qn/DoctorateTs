@@ -25,10 +25,27 @@ function activityDetailKey(type: string): string {
   return type.charAt(0).toLowerCase() + type.slice(1);
 }
 
+/**
+ * 从 excel ActivityTable.activity 字典按枚举名定位实际键
+ *
+ * 修复：excel activity 字典键随数据版本大小写多变（旧数据 dEFAULT/tYPE_ACT3D0 等
+ * 坏键、解码规范的 default/typeAct3D0），代码按 lowerFirst(枚举) 读取恒有错位风险；
+ * 改为大小写/下划线不敏感匹配——任意版本下都能命中实际键。
+ * @param type - basicInfo.type 枚举名（如 "TYPE_ACT3D0" / "COLLECTION"）
+ * @returns 字典实际键（未命中返回 undefined）
+ */
+export function activityDictKey(type: string): string | undefined {
+  const norm = type.replace(/_/g, "").toLowerCase();
+  const dict = (excel.ActivityTable.activity ?? {}) as Record<string, unknown>;
+  return Object.keys(dict).find(
+    (k) => k.replace(/_/g, "").toLowerCase() === norm,
+  );
+}
+
 /** BOSS_RUSH 默认遗物（relicList[0].relicId，缺省空） */
 function defaultRelic(activityType: string, actId: string): string {
   const detail = (excel.ActivityTable.activity as Record<string, any>)?.[
-    activityDetailKey(activityType)
+    activityDictKey(activityType) ?? activityDetailKey(activityType)
   ]?.[actId];
   return detail?.relicList?.[0]?.relicId ?? "";
 }
@@ -113,7 +130,10 @@ function defaultAct53SideState(startTime: number): object {
  * topicId 取自 activity.tYPE_ACT53SIDE[actId].constData.arkOdcTopicId
  */
 function seedArkOdcTopics(draft: any): void {
-  const detail = excel.ActivityTable.activity?.tYPE_ACT53SIDE;
+  // 修复：硬编码坏键 tYPE_ACT53SIDE → 动态查键（数据版本键名多变）
+  const detail = excel.ActivityTable.activity?.[
+    activityDictKey("TYPE_ACT53SIDE") ?? "tYPE_ACT53SIDE"
+  ];
   if (!detail) return;
   for (const [actId, data] of Object.entries(detail) as [string, any][]) {
     const topicId = data?.constData?.arkOdcTopicId;

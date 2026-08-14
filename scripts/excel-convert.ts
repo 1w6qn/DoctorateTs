@@ -186,6 +186,13 @@ export function convertTable(
   }
 
   if (locN && typeof locN === "object") {
+    // 修复：rename 学习不再传播"坏 camelCase"键（首字母小写+其余大写，如 rELIC/
+    // dEFAULT/tYPE_ACT3D0/cOLLECTION——旧管线 lowerFirst 全大写键的产物）。此类键
+    // 若被学进 renameMap，每次重生成都把解码的规范 PascalCase 键（Relic→relic、
+    // Default→default）污染回坏键，且 rlv2/活动代码读取被迫适配坏键。
+    // 例外清单：lMTGSID 等官方 JSON 实际键（小写 l 前缀，代码/文档依赖，见 gacha_table.ts）。
+    const BROKEN_KEY_RE = /^[a-z][A-Z]/;
+    const RENAME_ALLOWLIST = new Set(["lmtgsid"]);
     const walkPairs = (d: any, l: any, p: string) => {
       if (d && typeof d === "object" && !Array.isArray(d) && l && typeof l === "object" && !Array.isArray(l)) {
         const lm = new Map<string, string>();
@@ -196,7 +203,12 @@ export function convertTable(
         for (const lk of [...lm.keys()].sort()) {
           if (dm.has(lk)) {
             const dk = dm.get(lk)!, lkv = lm.get(lk)!;
-            if (dk !== lkv) renameMap.set(dk.toLowerCase(), lkv);
+            if (
+              dk !== lkv &&
+              (!BROKEN_KEY_RE.test(lkv) || RENAME_ALLOWLIST.has(lkv.toLowerCase()))
+            ) {
+              renameMap.set(dk.toLowerCase(), lkv);
+            }
             walkPairs(d[dk], l[lkv], `${p}.${dk.toLowerCase()}`);
             done.add(lk);
           }
@@ -205,8 +217,15 @@ export function convertTable(
           if (done.has(lk) || !lm.get(lk)!.includes("_")) continue;
           for (const dk of [...dm.keys()]) {
             if (normk2(dk) === normk2(lk)) {
-              if (dk !== lm.get(lk)) renameMap.set(dk.toLowerCase(), lm.get(lk)!);
-              walkPairs(d[dm.get(dk)!], l[lm.get(lk)!], `${p}.${dm.get(dk)!.toLowerCase()}`);
+              // 同第一个循环：坏 camelCase 键不学习（rELIC/dEFAULT/tYPE_ACT3D0 等）
+              const lkv = lm.get(lk)!;
+              if (
+                dk !== lkv &&
+                (!BROKEN_KEY_RE.test(lkv) || RENAME_ALLOWLIST.has(lkv.toLowerCase()))
+              ) {
+                renameMap.set(dk.toLowerCase(), lkv);
+              }
+              walkPairs(d[dm.get(dk)!], l[lkv], `${p}.${dm.get(dk)!.toLowerCase()}`);
               break;
             }
           }

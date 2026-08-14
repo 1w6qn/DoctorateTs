@@ -5864,7 +5864,7 @@ export type ActivityTable_ActivityDetailTable = { [key: string]: object };
 
 export interface ActivityTable_ActivityExtraData {
     typeMainlineBpData: { [key: string]: ActMainlineBpExtraData };
-    mAINLINE_BP: object;
+    MAINLINE_BP: object;
 }
 
 export interface ActivityTable_ActivityHiddenAreaData {
@@ -6012,7 +6012,7 @@ export interface AprilFoolStageData {
     name: string;
     appearanceStyle: AppearanceStyle;
     loadingPicId: string;
-    dIFFICULTY: LevelData_Difficulty;
+    difficulty: LevelData_Difficulty;
     unlockCondition: StageData_ConditionDesc[];
     stageDropInfo: ItemBundle[];
 }
@@ -8731,8 +8731,8 @@ export interface GachaPoolClientData {
     guarantee5Avail: number;
     guarantee5Count: number;
     lMTGSID: string;
-    cDPrimColor: string;
-    cDSecColor: string;
+    cdprimColor: string;
+    cdsecColor: string;
     freeBackColor: string;
     gachaRuleType: GachaRuleType;
     dynMeta: object;
@@ -10901,7 +10901,7 @@ export interface RoguelikeModule {
     dice: RoguelikeDiceModuleData;
     chaos: RoguelikeChaosModuleData;
     totemBuff: RoguelikeTotemBuffModuleData;
-    vISION: RoguelikeVisionModuleData;
+    vision: RoguelikeVisionModuleData;
     fragment: RoguelikeFragmentModuleData;
     disaster: RoguelikeDisasterModuleData;
     nodeUpgrade: RoguelikeNodeUpgradeModuleData;
@@ -13777,8 +13777,8 @@ export interface SandboxPermBasicData_HomeEntryDisplayData {
 export interface SandboxPermDetailData {
     sandboxV2TemplateData: { [key: string]: SandboxV2Data };
     sandboxV3TemplateData: { [key: string]: SandboxV3Data };
-    sANDBOX_V2: object;
-    sANDBOX_V3: object;
+    SANDBOX_V2: object;
+    SANDBOX_V3: object;
 }
 
 export interface SandboxPermTable {

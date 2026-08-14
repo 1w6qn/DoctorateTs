@@ -16,6 +16,7 @@ import { logger } from "@utils/logger";
 import { now } from "@utils/time";
 import { CommonStartBattleRequest } from "../model/battle";
 import config from "../../config";
+import { activityDictKey } from "../manager/activity/unlockActivity";
 import { VHALFIDLE_POOLS, VHALFIDLE_SPEC_CHAR } from "../data/vhalfidle";
 import {
   ActCheckinvsSignRequest,
@@ -820,17 +821,18 @@ router.post("/getActivityCollectionReward", async (req, res) => {
       return;
     }
     // 从配置表查找收集奖励
-    // 修复：excel activity 字典键为首字母小写（cOLLECTION，见 unlockActivity.activityDetailKey）；
-    // 原用枚举大小写 COLLECTION → 恒 undefined → 奖励标记已领但从未发放
+    // 修复：excel activity 字典键大小写随数据版本多变（cOLLECTION 旧坏键/collection 规范键）
+    // ——动态查键，不再依赖固定大小写
+    const collectionKey = activityDictKey("COLLECTION") ?? "cOLLECTION";
     const collectionConfig = (
       excel.ActivityTable.activity as {
-        cOLLECTION: {
+        [key: string]: {
           [key: string]: {
             collections?: { id: string; itemId: string; itemCnt: number }[];
           };
         };
       }
-    ).cOLLECTION[body.activityId];
+    )[collectionKey]?.[body.activityId];
     if (
       collectionConfig &&
       collectionConfig.collections &&
@@ -1398,7 +1400,9 @@ router.post("/act24side/alchemy", async (req, res) => {
   };
   // 修复：excel activity 字典键为首字母小写（tYPE_ACT24SIDE）——原枚举大小写恒 undefined
   const gachabox = (
-    (excel.ActivityTable as any)?.activity?.tYPE_ACT24SIDE?.[activityId]
+    (excel.ActivityTable as any)?.activity?.[
+      activityDictKey("TYPE_ACT24SIDE") ?? "tYPE_ACT24SIDE"
+    ]?.[activityId]
       ?.meldingGachaBoxGoodDataMap?.[gachaBox] as
       | Array<{
           goodId: string;
@@ -2469,10 +2473,12 @@ rootRouter.post("/actcheckinvs/sign", async (req, res) => {
     actData.todayVoteState = 2;
   });
 
-  // 修复：excel activity 字典键为首字母小写（cHECKIN_VS）——原枚举大小写恒 undefined
+  // 修复：excel activity 字典键大小写随数据版本多变（cHECKIN_VS 旧坏键/checkinVs 规范键）
+  // ——动态查键，不再依赖固定大小写
+  const checkinVsKey = activityDictKey("CHECKIN_VS") ?? "cHECKIN_VS";
   const signReward = (
     excel.ActivityTable.activity as { [key: string]: { [key: string]: any } }
-  ).cHECKIN_VS?.[body.actId] as any;
+  )[checkinVsKey]?.[body.actId] as any;
   const rewards: ItemBundle[] = [];
   if (signReward?.signedReward) {
     for (const reward of signReward.signedReward) {

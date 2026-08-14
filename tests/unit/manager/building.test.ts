@@ -229,7 +229,25 @@ describe("BuildingManager", () => {
   });
 
   describe("sync", () => {
-    it("应该设置 event.building 为真实下一事件时间（劳动力恢复）并返回当前时间戳", async () => {
+    /** 下一次 4:00/16:00 重置边界（对齐 DoctoratePy event.building 语义） */
+    function nextBoundary(): number {
+      const d = new Date();
+      const at = (h: number): Date => {
+        const x = new Date(d);
+        x.setHours(h, 0, 0, 0);
+        return x;
+      };
+      const nowMs = d.getTime();
+      const t4 = at(4).getTime();
+      const t16 = at(16).getTime();
+      const t4t = at(4);
+      t4t.setDate(t4t.getDate() + 1);
+      return Math.floor(
+        (nowMs <= t4 ? t4 : nowMs <= t16 ? t16 : t4t.getTime()) / 1000,
+      );
+    }
+
+    it("应该设置 event.building 为下一次 4:00/16:00 重置边界（对齐 DoctoratePy）并返回当前时间戳", async () => {
       const manager = new BuildingManager(
         mockPlayer as any,
         mockTrigger as any
@@ -237,23 +255,10 @@ describe("BuildingManager", () => {
 
       const result = await manager.sync();
 
-      // 修复前：固定 now()+5000 → 客户端每 5 秒轮询 sync（频繁同步）。
-      // 修复后：按劳动力恢复时间（lastUpdateTime + laborRecoverTime）计算。
-      // now() mock 为 1234567890、laborRecoverTime=360、labor 未满 → 1234567890 + 360
-      expect(mockPlayer._playerdata.event!.building).toBe(1234568250);
+      // 修复前：now()+5000 → 5s 轮询；真实事件时间/远未来 → 客户端沿用过期事件时间
+      // 空响应紧循环。修复后：event.building = 下一次 4:00/16:00 基建重置边界
+      expect(mockPlayer._playerdata.event!.building).toBe(nextBoundary());
       expect(result).toBe(1234567890);
-    });
-
-    it("劳动力已满且无制造任务时 event.building 应为远未来（不再周期性轮询 sync）", async () => {
-      mockPlayer._playerdata.building!.status.labor.value = 100;
-      mockPlayer._playerdata.building!.status.labor.maxValue = 100;
-      const manager = new BuildingManager(
-        mockPlayer as any,
-        mockTrigger as any
-      );
-      await manager.sync();
-      // 修复前：now()+60 → 客户端永久 60s 轮询（基建无限同步）；修复后：远未来
-      expect(mockPlayer._playerdata.event!.building).toBe(4102444799);
     });
   });
 

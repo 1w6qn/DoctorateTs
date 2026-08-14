@@ -217,15 +217,27 @@ export class MissionManager {
     const missionInfo = excel.MissionTable.missions[missionId];
     if (!missionInfo) return items; // 防御：未知任务跳过
     const mission = await this.getMissionById(missionId);
-    // 修复：确认判定以存档 state 为准（内存列表可能因每日刷新重建/旧周期组为空——
+    // 修复：确认判定以存档为准（内存列表可能因每日刷新重建/旧周期组为空——
     // 客户端仍显示存档中已完成可领取的任务，此前 getMissionById 拿不到实例直接返回空
     // → "无法领取奖励"）；持久化 confirmed 标记防重复（原仅内存实例标记，重启/列表
-    // 重建后丢失 → 可重复刷周期点数）
+    // 重建后丢失 → 可重复刷周期点数）。
+    // 再修复：按**进度**判定完成（对齐 opendoctoratepy-ex-public：所有 progress 项
+    // value>=target 即可领取并置 state=3），而非要求 state==3——state 可能因事件链
+    // 失败/旧存档未置 3（progress 已满但 state 仍为 2），仅查 state 会拒绝发放。
     if (mission?.confirmed) return items;
     await this._player.update(async (draft) => {
       const data = draft.mission.missions[missionInfo.type]?.[missionId];
+      if (
+        !data ||
+        !Array.isArray(data.progress) ||
+        data.progress.length === 0
+      ) {
+        return;
+      }
       // confirmed 为服务端持久化的防重复标记（官方结构无此字段，按 any 访问）
-      if (!data || data.state !== 3 || (data as any).confirmed) return;
+      const full = data.progress.every((p) => p.value >= p.target);
+      if (!full || (data as any).confirmed) return;
+      data.state = 3;
       (data as any).confirmed = 1;
       if (mission) mission.confirmed = true;
       const missionRewards = draft.mission.missionRewards;
@@ -284,13 +296,13 @@ export class MissionManager {
   async autoConfirmMissions(args: { type: string }): Promise<ItemBundle[]> {
     const { type } = args;
     const items: ItemBundle[] = [];
-    // 修复：遍历存档中该类型全部任务（原只遍历内存列表——每日刷新重建/旧周期组
-    // 导致列表为空时一键领取恒空；且过滤条件 state==2 应为 state==3 可领取态，
-    // 原条件对任何任务都不成立 → autoConfirmMissions 永远返回空）
+    // 对齐参考实现（opendoctoratepy-ex-public）：遍历存档该类型全部任务，由
+    // confirmMission 按进度（value>=target）+ confirmed 标记判定发放——原实现只
+    // 遍历内存列表（每日刷新/旧周期组导致为空）且过滤 state==2（恒不成立 →
+    // 一键领取永远为空）
     const saveMissions =
       this._player._playerdata.mission.missions[type] ?? {};
-    for (const [missionId, data] of Object.entries(saveMissions)) {
-      if (data.state !== 3 || (data as any).confirmed) continue;
+    for (const missionId of Object.keys(saveMissions)) {
       items.push(...(await this.confirmMission({ missionId })));
     }
     return items;

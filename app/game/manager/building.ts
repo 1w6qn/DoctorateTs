@@ -143,54 +143,34 @@ export class BuildingManager {
 
   /**
    * 同步基建数据
-   * 时间驱动：劳动力恢复 → 干员心情档位重算（岗位/技能）→ 制造站生产累积 →
-   * 贸易站订单补充 → 训练室进度推进 → 会客室 infoShare 待领取指示。
-   *
-   * 注：干员心情（building.chars[].ap）不在此推进——会客室会话（getInfoShareReward/
-   * startInfoShare）按 building.chars 增量推进情报分享状态（抓包 res_1074），
-   * 若 sync 抢先推进 lastApAddTime，紧邻的 getInfoShareReward 同一秒内 elapsed=0
-   * → 空 delta → 客户端死循环重拉（b1c673a 回归）。
+   * 时间驱动：劳动力恢复 → 干员心情档位重算（岗位/技能）→ 干员心情累积 →
+   * 制造站生产累积 → 贸易站订单补充 → 训练室进度推进 → 会客室 infoShare 待领取指示。
    * @returns 当前时间戳
    */
   /**
-   * 计算下一次基建事件时间（客户端据 event.building 调度下一次 /building/sync 轮询）
+   * 计算 event.building（对齐 DoctoratePy/官服语义）
    *
-   * 修复：原实现固定 event.building = now()+5000 → 客户端每 5 秒轮询一次 sync
-   * （频繁同步，且每次响应都含 event.building 变更、delta 恒非空）。
-   * 按真实事件时间取最小值：
-   * - 劳动力：下一次恢复点数时间（lastUpdateTime + laborRecoverTime，未满时）
-   * - 制造站：最早的房间下一方案产出完成时间（lastUpdateTime + (costPoint-processPoint)/capacity）
-   * 无事件时给 60s 兜底（低频轮询而非 5s 空转）。
+   * 官方：event.building = 下一次 4:00/16:00 重置边界（基建每日状态刷新点）——
+   * 客户端据此调度下一次 /building/sync（每日最多两次轮询，而非连续轮询）。
+   * 修复：原实现先后用过 now()+5000（5s 轮询）与真实下一事件时间/远未来
+   * （远未来值恒定 → delta 无 event 补丁 → 客户端沿用缓存的过期事件时间 →
+   * 空响应紧循环）。
    */
   private _nextBuildingEventTs(draft: WritableDraft<PlayerDataModel>): number {
-    const ts = now();
-    const candidates: number[] = [];
-    // 劳动力恢复（未满时下一次 +1 点的时间）
-    const labor = draft.building.status.labor;
-    const rate = getBuildingConstant<number>("laborRecoverTime") ?? 360;
-    if (rate > 0 && labor.value < labor.maxValue) {
-      candidates.push((labor.lastUpdateTime || ts) + rate);
-    }
-    // 制造站产出（每间在产房间的下一方案完成时间）
-    for (const roomSlotId of Object.keys(draft.building.rooms.MANUFACTURE)) {
-      const room = draft.building.rooms.MANUFACTURE[roomSlotId];
-      if (!room || room.state !== 1) continue;
-      const formula = getManufactFormula(room.formulaId);
-      if (!formula || (formula.costPoint ?? 0) <= 0) continue;
-      if ((room.remainSolutionCnt ?? 0) <= 0) continue;
-      const capacity = this._roomCapacity(draft, roomSlotId, formula);
-      if (capacity <= 0) continue;
-      const remain = (formula.costPoint ?? 0) - (room.processPoint ?? 0);
-      const secs = Math.ceil(remain / capacity);
-      candidates.push((room.lastUpdateTime || ts) + secs);
-    }
-    if (candidates.length === 0) {
-      // 无待办事件（劳动力已满、无在产制造站）：返回远未来时间戳——
-      // 客户端据此不再轮询 sync（修复：原 now()+60 让客户端永久每 60s 轮询，
-      // 即"基建无限同步"）；官方数据约定 4102343999 系"期末"时间，用同量级值
-      return 4102444799;
-    }
-    return Math.min(...candidates);
+    const nowDate = new Date();
+    const boundary = (h: number): Date => {
+      const x = new Date(nowDate);
+      x.setHours(h, 0, 0, 0);
+      return x;
+    };
+    const nowMs = nowDate.getTime();
+    const today4 = boundary(4).getTime();
+    const today16 = boundary(16).getTime();
+    const tomorrow4 = boundary(4);
+    tomorrow4.setDate(tomorrow4.getDate() + 1);
+    const target =
+      nowMs <= today4 ? today4 : nowMs <= today16 ? today16 : tomorrow4.getTime();
+    return Math.floor(target / 1000);
   }
 
   async sync() {
@@ -215,8 +195,16 @@ export class BuildingManager {
       this._accrueTraining(draft);
       // 会客室 infoShare.reward 待领取指示（官方 sync 响应含该字段）
       this._refreshInfoShare(draft);
-      // 修复：按真实下一事件时间写 event.building（原固定 now()+5000 → 客户端 5s 轮询）
-      draft.event.building = this._nextBuildingEventTs(draft);
+      // event.building = 下一次 4:00/16:00 重置边界（对齐 DoctoratePy 语义）
+      const nextEvent = this._nextBuildingEventTs(draft);
+      draft.event.building = nextEvent;
+      // 强制 event.building 每次进 delta（对齐 DoctoratePy 响应恒含 event）：
+      // Immer 对未变化的值不产生补丁，而客户端需用它调度下一次 sync——
+      // 缺失时沿用缓存旧值（过期边界）→ 立即重同步 → 紧循环。
+      // （mock player 无 _changes，可选链跳过）
+      (this._player as any)._changes?.push?.([
+        { op: "replace", path: ["event", "building"], value: nextEvent },
+      ]);
       return now();
     });
   }

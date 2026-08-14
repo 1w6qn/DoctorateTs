@@ -96,16 +96,21 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
     });
   });
 
-  it("真实时间模式（timestamp -1）不做任何改动", async () => {
+  it("真实时间模式（timestamp -1）按当前时间播种窗口内活动 + 修剪过期", async () => {
     config.developer = { timestamp: -1 };
     await unlockActivity(mockPlayer as any);
-    // 无播种：活动条目原样、无任务、无关卡
+    // 修复：原真实模式 no-op → 当前窗口活动（奇象巡展 TYPE_ACT53SIDE/ARK_HUB）永不
+    // 播种 → 客户端教程卡死；现 userTimestamp()=now()，按窗口播种
+    expect(mockPlayer._playerdata.activity?.TYPE_ACT53SIDE?.act53side).toBeDefined();
+    expect(mockPlayer._playerdata.activity?.ARK_HUB?.act1arkhub).toBeDefined();
+    // 过期活动被修剪（act_expired 窗口已过）
+    expect(Object.keys(mockPlayer._playerdata.activity?.TYPE_ACT5D0 ?? {})).toEqual([]);
+    // 未在 basicInfo 中的既有条目保持原样
     expect(mockPlayer._playerdata.activity?.TYPE_ACT9D0?.act40side).toEqual({
       coin: 131, favorList: [], news: {},
     });
-    expect(Object.keys(mockPlayer._playerdata.activity?.TYPE_ACT5D0 ?? {})).toEqual(["act_expired"]);
-    expect(mockPlayer._playerdata.mission?.missions?.ACTIVITY).toEqual({});
-    expect(Object.keys(mockPlayer._playerdata.dungeon?.stages ?? {})).toHaveLength(0);
+    // 无条件关卡播种（main_00_01 unlockCondition 为空）
+    expect(Object.keys(mockPlayer._playerdata.dungeon?.stages ?? {})).toContain("main_00_01");
   });
 
   it("冻结到 TYPE_ACT 窗口：播种默认状态 + 任务 + 修剪过期 + 解锁无条件关卡", async () => {

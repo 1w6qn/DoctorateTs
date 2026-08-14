@@ -1,7 +1,7 @@
 /**
  * activity 播种（DoctoratePy unlockActivity 移植）
  *
- * 仅在冻结模式（config.developer.timestamp != -1，即活动切换开启）时执行：
+ * 按（可能冻结的）时间戳 ts 播种/修剪（真实时间模式 ts = now()，同样执行）：
  * 按（可能冻结的）时间戳 ts：
  * - 修剪：`playerdata.activity[type][id]` 中 ts > rewardEndTime 的过期活动删除
  * - 播种：basicInfo 中 startTime <= ts <= rewardEndTime 的活动——
@@ -15,7 +15,6 @@ import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import excel from "@excel/excel";
 import { userTimestamp } from "@utils/time";
 import { logger } from "@utils/logger";
-import config from "../../../config";
 
 /** 解锁条件完成度（PlayerBattleRank 字符串）→ 关卡 state 数值档位（与 battle.ts 一致） */
 const completeStateRank: Record<string, number> = { FAIL: 1, PASS: 2, COMPLETE: 3 };
@@ -171,13 +170,14 @@ function defaultStageState(stageId: string): object {
 }
 
 /**
- * 活动播种入口（冻结模式执行；真实模式 no-op）
+ * 活动播种入口（冻结模式/真实时间模式均执行）
  * @param player - 目标玩家
  */
 export async function unlockActivity(player: PlayerDataManager): Promise<void> {
-  // 仅冻结模式（活动切换开启）执行——真实时间（-1/缺省）零改动
-  const frozen = config.developer?.timestamp;
-  if (frozen === undefined || frozen === -1) return;
+  // 修复：原仅冻结模式（活动切换开启）执行，真实时间（-1/缺省）为 no-op——
+  // 真实模式下 userTimestamp() = now()，窗口内活动（如 TYPE_ACT53SIDE 奇象巡展/
+  // ARK_HUB）从不播种 → 客户端活动状态缺失 → 奇象巡展新手教程卡死、无人物模型。
+  // 播种/修剪逻辑本身按 ts 窗口判定，真实模式即按当前时间正确播种当前活动。
   const ts = userTimestamp();
   await player.update(async (draft) => {
     const basicInfo = excel.ActivityTable.basicInfo;

@@ -106,10 +106,46 @@ export class FBO {
     const out: any = {};
     for (const f of fields) {
       const off = this.fieldOffset(pos, f.slot);
-      if (off === 0) continue; // 字段缺省 → null（不输出）
+      if (off === 0) {
+        // flatbuffers 缺省语义：官方序列化器对等于默认值的字段不写入
+        //（如 StageType=MAIN=0 → 所有主线关卡缺省该字段），缺失即默认值——
+        // 标量（int/enum/long/float/double）→ 0、bool → false、string/对象 → null。
+        // 修复：原实现直接跳过缺省字段 → 解码记录缺 30 字段（对齐 ArknightsGameData/
+        // OpenArknightsFBS 读取行为后 stageType/goldGain 等与 AGD 完全一致）。
+        const dv = this.defaultValue(f.type);
+        if (dv !== undefined) out[f.name] = dv;
+        continue;
+      }
       out[f.name] = this.readFieldValue(f, off);
     }
     return out;
+  }
+
+  /** 缺省字段的默认值（flatbuffers 标量 0/false；对象/字符串 null） */
+  private defaultValue(t: string): any {
+    switch (t) {
+      case "bool":
+        return false;
+      case "int":
+      case "enum":
+      case "long":
+      case "float":
+      case "double":
+        return 0;
+      case "string":
+        return null;
+      default:
+        // vec:/clz_/dict__/kvp_ 等对象字段缺省 → null
+        if (
+          t.startsWith("vec:") ||
+          t.startsWith("clz_") ||
+          t.startsWith("dict__") ||
+          t.startsWith("kvp__")
+        ) {
+          return null;
+        }
+        return undefined; // 未知类型：不输出
+    }
   }
 
   private readFieldValue(f: FieldInfo, off: number): any {
@@ -191,20 +227,37 @@ export class FBO {
       } else if (elemType === "double") {
         out.push(childPos + 8 <= this.buf.length ? truncateFloat(this.f64(childPos)) : null);
       } else if (elemType.startsWith("list_")) {
-        // 嵌套向量（vec:list_int / vec:list_float → 元素本身为向量，Indirect uoffset）
-        // 修复：原实现把 list_* 当子表解码 → 空对象 {}（gamedata_const 的
-        // characterExpMap/maxLevel/evolveGoldCost/characterUpgradeCostMap 全部解码成空数组）
-        const pos2 = childPos + this.u32(childPos);
+        // list_* 是 flatbuffers 的"列表表"（表类型，唯一字段 Data@4 = vec:<inner>）：
+        // 元素是 uoffset 指向该表对象，须读其 Data 字段（uoffset → 向量头 [len][元素...]）。
+        // 修复：原实现把 list 表位置当向量头直接读 len → 把 Data 字段的 uoffset 值当整数、
+        // 长度虚读（gamedata_const.characterExpMap/maxLevel 解码成垃圾长数组、sandbox_perm
+        // Triangles 99760 元素 → JSON.stringify 超限 OOM；旧缓存数据由更早正确解码器生成，
+        // 重解码后即暴露）。list_string 同样经 Data 字段读。
+        const pos2 = childPos + this.u32(childPos); // list 表位置
         if (pos2 < 4 || pos2 >= this.buf.length) {
           out.push(null);
           continue;
         }
-        const innerLen = this.u32(pos2);
-        const innerBase = pos2 + 4;
-        const innerType = elemType.slice("list_".length); // int | float | long | double ...
-        const inner: number[] = [];
+        const lvt = (pos2 - this.u32(pos2)) >>> 0;
+        const dataEntry = lvt + 4 < this.buf.length ? (this.buf[lvt + 4] | (this.buf[lvt + 5] << 8)) : 0;
+        if (!dataEntry) {
+          out.push([]);
+          continue;
+        }
+        const dataOff = pos2 + dataEntry; // Data 字段（uoffset）
+        const vecPos2 = dataOff + this.u32(dataOff);
+        if (vecPos2 < 4 || vecPos2 >= this.buf.length) {
+          out.push([]);
+          continue;
+        }
+        const innerLen = this.u32(vecPos2);
+        const innerBase = vecPos2 + 4;
+        const innerType = elemType.slice("list_".length); // string | int | float | long | double ...
+        const inner: any[] = [];
         for (let j = 0; j < innerLen && innerBase + 4 * j + 4 <= this.buf.length; j++) {
-          if (innerType === "float") {
+          if (innerType === "string") {
+            inner.push(this.readString(innerBase + 4 * j));
+          } else if (innerType === "float") {
             inner.push(truncateFloat(this.f32(innerBase + 4 * j)));
           } else if (innerType === "long") {
             inner.push(this.u32(innerBase + 4 * j) + this.u32(innerBase + 4 * j + 4) * 4294967296);

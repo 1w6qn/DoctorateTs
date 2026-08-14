@@ -21,6 +21,15 @@ const PATH_ENUM_OVERRIDES: { pattern: string[]; map: Record<number, string> }[] 
     pattern: ["*", "init", "modeid"],
     map: { 0: "NONE", 1: "EASY", 2: "NORMAL", 3: "HARD", 4: "NORML_END", 5: "MONTH_TEAM", 6: "CHALLENGE" },
   },
+  {
+    // stage_table.stages.<stageId>.stagetype：值 0 在多个 FBS 枚举中同为默认值（多义弃转），
+    // 但 0 对 StageType 即 MAIN（官方序列化器省略等于默认值的字段——全部主线关卡缺省，
+    // FBO 默认值解码补 0）；按路径强制转 StageType 枚举（对齐 ArknightsGameData）。
+    // 注：convert 顶层循环把子表键从路径中去掉（out[k] = convert(v, table)），
+    // 故真实路径为 stage_table.<stageId>.stagetype（2 段）。
+    pattern: ["*", "stagetype"],
+    map: { 0: "MAIN", 1: "DAILY", 2: "TRAINING", 3: "ACTIVITY", 4: "GUIDE", 5: "SUB", 6: "CAMPAIGN", 7: "SPECIAL_STORY", 8: "HANDBOOK_BATTLE", 9: "CLIMB_TOWER", 10: "ENUM" },
+  },
 ];
 
 function pathEnumOverride(pathStr: string): Record<number, string> | undefined {
@@ -81,7 +90,7 @@ function loadEnumMaps(): Map<number, string | null> {
     if (cur !== undefined && cur !== name) unique.set(v, null); // 多义 → 弃
     else if (cur === undefined) unique.set(v, name);
   };
-  // FBS schema JSON 中的枚举
+  // FBS schema JSON 中的枚举（数据格式的权威枚举来源）
   if (fs.existsSync(FBS_SCHEMA_DIR)) {
     for (const f of fs.readdirSync(FBS_SCHEMA_DIR).filter((x) => x.endsWith(".json"))) {
       try {
@@ -92,14 +101,23 @@ function loadEnumMaps(): Map<number, string | null> {
       } catch { /* 跳过 */ }
     }
   }
-  // cs 枚举
+  // cs 枚举：**仅补充 FBS 已有值的别名**，不引入新值——
+  // 修复：CS 含大量与 excel 数据无关的枚举（LogChannel EDITOR_PROFILE=151/168、
+  // 账号状态 AccountSuspended=128、NEITHER_FULL_NOR_EMPTY=-7 等），直接并入会把
+  // 数值型数据字段（blackboard.value、playerApMap、characterExpMap、坐标等）错误
+  // 转成枚举字符串（技能/AP 上限/经验曲线被破坏）。仅当值已存在于 FBS 枚举时才可能
+  // 是数据枚举，CS 同值提供补充命名；CS 独有值一律不转。
   if (fs.existsSync(CS_PATH)) {
     const cs = fs.readFileSync(CS_PATH, "utf-8");
     const re = /public enum (Torappu\.[A-Za-z0-9_.]+)\s*:[^\{]*\{([^}]*)\}/g;
     for (const m of cs.matchAll(re)) {
       const body = m[2];
       const vals = body.matchAll(/\b([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(-?\d+)/g);
-      for (const vm of vals) add(parseInt(vm[2]), vm[1]);
+      for (const vm of vals) {
+        const v = parseInt(vm[2]);
+        // 仅补充 FBS 已有值的名字（含多义置 null 语义）
+        if (unique.has(v)) add(v, vm[1]);
+      }
     }
   }
   return unique;
@@ -149,6 +167,23 @@ export function convertTable(
   const renameMap = new Map<string, string>(); // dec 键(casefold) → 本地键
   const emptyMap = new Map<string, "list" | "dict">(); // 路径 → 容器类型
   const normk2 = (k: string) => k.toLowerCase().replace(/_/g, "");
+  // FBS 枚举值→名字集合（loc 学习过滤依据：loc 字符串必须是对应值的 FBS 枚举名，
+  // 否则视为被 CS 枚举污染的脏数据——如 playerApMap 128→"AccountSuspended"、经验
+  // 曲线 151→"EDITOR_PROFILE"、blackboard -7→"NEITHER_FULL_NOR_EMPTY"）
+  const fbsNames = new Map<number, Set<string>>();
+  if (fs.existsSync(FBS_SCHEMA_DIR)) {
+    for (const f of fs.readdirSync(FBS_SCHEMA_DIR).filter((x) => x.endsWith(".json"))) {
+      try {
+        const schema = JSON.parse(fs.readFileSync(path.join(FBS_SCHEMA_DIR, f), "utf-8"));
+        for (const vmap of Object.values(schema.enums || {})) {
+          for (const [name, val] of Object.entries(vmap as Record<string, number>)) {
+            if (!fbsNames.has(val)) fbsNames.set(val, new Set());
+            fbsNames.get(val)!.add(name);
+          }
+        }
+      } catch { /* 跳过 */ }
+    }
+  }
 
   if (locN && typeof locN === "object") {
     const walkPairs = (d: any, l: any, p: string) => {
@@ -181,6 +216,12 @@ export function convertTable(
       } else if (d === null && (Array.isArray(l) || (l && typeof l === "object"))) {
         emptyMap.set(stripIdx(p), Array.isArray(l) ? "list" : "dict");
       } else if (typeof d === "number" && Number.isInteger(d) && typeof l === "string") {
+        // 修复：loc 学习只接受"值是 FBS 枚举值 且 loc 字符串是该值的 FBS 枚举名"——
+        // 本地旧数据可能含被 CS 枚举污染的错误字符串（playerApMap 128→
+        // "AccountSuspended"、blackboard -7→"NEITHER_FULL_NOR_EMPTY"、经验曲线
+        // 151→"EDITOR_PROFILE"），不匹配 FBS 枚举名则判定为污染，不学习
+        //（否则 valueMap 优先于 uniqueName 持续输出污染）
+        if (!fbsNames.get(d)?.has(l)) return;
         if (!valueMap.has(stripIdx(p))) valueMap.set(stripIdx(p), new Map());
         valueMap.get(stripIdx(p))!.set(d, l);
       }
@@ -278,15 +319,41 @@ function completeRecursive(
     if (!(nk in obj)) obj[nk] = null;
     const val = obj[nk];
     if (val === null || val === undefined) continue;
-    // 推导子类型：clz_/dict_/kvp_ 或 vec:X
     const child = childTypeOf(f.type, schema);
     if (!child) continue;
+    const dict = isDictContainer(f.type);
+    // 修复：dict/kvp 容器（如 Missions = vec:dict__string__clz_Torappu_MissionData）的
+    // **值**才是记录对象——原实现把整个 dict 当单条记录递归补字段，导致记录字段名以
+    // null 键污染 dict 本身（periodicalRewards/missions/stages/groups 等表尾部出现
+    // groupId/id/type/... = null；2026-08-14 每日刷新崩溃根因，且与 ArknightsGameData
+    // 结构不符）。dict 类型统一逐值下钻。
     if (Array.isArray(val)) {
-      for (const item of val) completeRecursive(item, child, schema, renameMap);
-    } else if (typeof val === "object" && !Array.isArray(val)) {
-      completeRecursive(val, child, schema, renameMap);
+      for (const item of val) {
+        if (dict && item && typeof item === "object" && !Array.isArray(item)) {
+          for (const rec of Object.values(item)) {
+            completeRecursive(rec, child, schema, renameMap);
+          }
+        } else {
+          completeRecursive(item, child, schema, renameMap);
+        }
+      }
+    } else if (typeof val === "object") {
+      if (dict) {
+        for (const rec of Object.values(val)) {
+          completeRecursive(rec, child, schema, renameMap);
+        }
+      } else {
+        completeRecursive(val, child, schema, renameMap);
+      }
     }
   }
+}
+
+/** 字段类型是否为 dict/kvp 容器（vec: 前缀剥掉后判断） */
+function isDictContainer(type: string): boolean {
+  let t = type;
+  if (t.startsWith("vec:")) t = t.slice(4);
+  return t.startsWith("dict__") || t.startsWith("kvp__");
 }
 
 /** 字段类型 → 子对象类型（dict__K__V → V 类型；vec:X → X） */

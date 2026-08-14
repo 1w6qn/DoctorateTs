@@ -9,12 +9,12 @@ echo.
 
 if not exist node_modules (
   echo [first run] installing dependencies...
-  call npm install
+  call pnpm install
   if errorlevel 1 goto :err
 )
 
 echo Starting server (skip network update, use local data)...
-start "DoctorateTs Server" cmd /k "npm run watch"
+start "DoctorateTs Server" cmd /k "pnpm run watch"
 echo Waiting for server and opening admin dashboard...
 node scripts/open-dashboard.js
 if errorlevel 1 (

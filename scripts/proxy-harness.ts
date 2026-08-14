@@ -7,7 +7,7 @@ import { logger } from "../app/utils/logger";
 import { captureManager } from "../app/capture/capture-manager";
 
 /**
- * 官服独立抓包代理（npm run ts，端口 8444）
+ * 官服独立抓包代理（pnpm run ts，端口 8444）
  *
  * 客户端（network_config 指向本代理）→ 本代理 → 按官服路由规则分发到官方主机。
  * 与主服务器 --capture 模式规则同源（resolveForwardTarget 语义一致），可独立运行；
@@ -15,9 +15,9 @@ import { captureManager } from "../app/capture/capture-manager";
  * 与主服务器抓包（source=official/private）同库，可统一在 Dashboard「抓包」Tab 查看。
  *
  * 用法：
- *   npm run ts                          # 默认启动（自动会话）
- *   npm run ts -- --session 登录链路      # 指定命名会话
- *   npm run ts -- --quiet               # 抑制 INFO 日志
+ *   pnpm run ts                          # 默认启动（自动会话）
+ *   pnpm run ts -- --session 登录链路      # 指定命名会话
+ *   pnpm run ts -- --quiet               # 抑制 INFO 日志
  *
  * 路由分发规则（路径前缀 → 官方主机，注册顺序即匹配优先级）：
  *   /config/*                      → ak-conf.hypergryph.com/config

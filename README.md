@@ -5,19 +5,19 @@
 ## 快速开始
 
 ```bash
-npm install
-npm run update     # 拉取并生成游戏数据（离线环境用 npm run update:skip 或 --offline）
-npm start          # 启动服务器（默认端口 8443，见 data/config.json）；终端可同时输入管理 CLI 命令（如 users list --json，exit 退出命令行）
+pnpm install
+pnpm run update     # 拉取并生成游戏数据（离线环境用 pnpm run update:skip 或 --offline）
+pnpm start          # 启动服务器（默认端口 8443，见 data/config.json）；终端可同时输入管理 CLI 命令（如 users list --json，exit 退出命令行）
 ```
 
-**一键启动（Windows）**：双击根目录 `start.cmd` —— 跳过联网更新快速启动，服务就绪后自动打开管理后台（`http://localhost:8443/admin/dashboard`）。等效命令：`npm run start:quick`（等价于 `tsx index.ts -s`）。
+**一键启动（Windows）**：双击根目录 `start.cmd` —— 跳过联网更新快速启动，服务就绪后自动打开管理后台（`http://localhost:8443/admin/dashboard`）。等效命令：`pnpm run start:quick`（等价于 `tsx index.ts -s`）。
 
 三种启动模式：
 
 | 模式 | 触发方式 | 说明 |
 |------|----------|------|
-| 在线更新（默认） | `npm start` | 拉取远程数据，失败自动回退本地缓存 |
-| 跳过更新 | `--skip-update` / `-s`，或 `npm run start:quick` | 跳过 git，使用本地数据，快速启动 |
+| 在线更新（默认） | `pnpm start` | 拉取远程数据，失败自动回退本地缓存 |
+| 跳过更新 | `--skip-update` / `-s`，或 `pnpm run start:quick` | 跳过 git，使用本地数据，快速启动 |
 | 完全离线 | `--offline` / `-o`，或 `data/config.json` 中 `"offline": true` | 零网络，启动前校验本地 66 个数据文件 |
 
 ## 管理功能
@@ -25,61 +25,61 @@ npm start          # 启动服务器（默认端口 8443，见 data/config.json�
 ### 命令行（无需启动服务器，完全离线可用）
 
 ```bash
-npm run admin                                   # 无参数进入交互模式（REPL）
-npm run admin -- users list [--json] [--csv] [--filter 博士]   # 列出用户（可过滤昵称/手机号）
-npm run admin -- users info 1                   # 查看用户详情（含中文物品名）
-npm run admin -- users create 13800000000 123456   # 创建用户（模板复制）
-npm run admin -- users grant 1,2,3 4001 100     # 发放物品（uid 支持逗号分隔批量；支持中文名/别名）
-npm run admin -- users grant 1 --items 4001:100,4003:10   # 一次发放多种物品（--items id:count,...）
-npm run admin -- users medals 1 [--json]        # 查看勋章进度（只读）
-npm run admin -- users export 1 [path]          # 导出存档到 JSON（默认 ./exports/）
-npm run admin -- users import <存档JSON> [uid]  # 从 JSON 导入/替换存档
-npm run admin -- server check                   # 数据完整性校验（含干员结构）
-npm run admin -- users delete 1 --yes           # 删除用户（危险操作，需 --yes）
-npm run admin -- --quiet users list --json      # 全局 --quiet/-q：抑制内部日志（脚本化用）
-npm run admin -- users grantchar 1 阿米娅       # 发放干员（支持中文名；重复按稀有度折算信物）
-npm run admin -- users skin 1 char_002_amiya#2  # 解锁皮肤
-npm run admin -- users chars 1                  # 干员列表
-npm run admin -- users char 1 5                 # 查看干员详情（技能/专精/装备/语音）
-npm run admin -- users char 1 5 --level 90 --evolve 2 --potential 5 --skill 7   # 修改干员属性（免费）
-npm run admin -- users shop 1 [--json]          # 查看商店数据汇总（只读）
-npm run admin -- users checkin 1 [--reset|--do] # 查看/重置/代签签到（Dashboard 概览同有签到区）
-npm run admin -- users maxout 1                 # 一键满配（资源/背包/干员/基建/皮肤，不覆盖阵容）
-npm run admin -- users building 1 max           # 基建满级
-npm run admin -- users backup 1                 # 备份存档（data/user/backups/）
-npm run admin -- users backups 1                # 列出备份
-npm run admin -- users restore 1 1-20260808-181345.json   # 从备份恢复
-npm run admin -- users dump 1 [--pretty]        # 导出原始玩家数据 JSON
-npm run admin -- users grantall 1 [count]       # 批量发放全部物品（默认 999）
-npm run admin -- users maxchars 1               # 批量拉满全部已有干员
-npm run admin -- users repairchars 1            # 修复干员结构（补齐 voiceLan/starMark/equip/skills）
-npm run admin -- users stages 1 [--json]        # 查看玩家推图进度（只读）
-npm run admin -- users unlock 1 main_01-01      # 解锁指定关卡
-npm run admin -- users unlockall 1              # 推图全解锁
-npm run admin -- users items 合成玉             # 按名称/ID 搜索物品（供发放用）
-npm run admin -- users missions 1 [--json]      # 查看任务进度统计（只读）
-npm run admin -- mail send 1 标题 内容 --items 4001:100,4003:10   # 发送邮件（uid 支持逗号分隔批量）
-npm run admin -- mail send all 公告 内容 --items 4001:100         # 群发（全部用户）
-npm run admin -- mail list 1                    # 查看用户邮件
-npm run admin -- mail delete 1 1000000          # 删除单封邮件
-npm run admin -- server status                  # 服务器状态与数据文件
-npm run admin -- server refresh 1               # 触发每日/每周刷新（理智/任务重置）
-npm run admin -- server save 1                  # 立即保存存档（缺省全部用户）
-npm run admin -- logs show --last 20            # 查看管理操作审计日志
-npm run admin -- logs clear --yes               # 清空审计日志（危险操作）
-npm run admin -- gacha pools                    # 列出全部卡池
-npm run admin -- gacha pool NORMAL_0_1          # 卡池详情（UP/可用干员+概率）
-npm run admin -- gacha state 1 NORMAL_0_1       # 玩家卡池状态（UP 选择+保底计数）
-npm run admin -- gacha up 1 NORMAL_0_1 阿米娅   # 设置玩家 UP（支持中文名；空=清除）
-npm run admin -- gacha pity 1 NORMAL 50         # 设置玩家保底计数（按规则类型）
-npm run admin -- official accounts accounts.txt # 预览官服账号文件解析结果
-npm run admin -- official migrate accounts.txt  # 官服账号迁移（联网拉取→注册私服账号）
-npm run admin -- official status 18005767005 密码  # 官服账号状态（登录官服只读）
-npm run admin -- official daily 18005767005 密码   # 官服一键日常（签到+领邮件）
-npm run admin -- official call 18005767005 密码 /mail/getMetaInfoList --body '{"from":0}'  # 官服通用 API 调用
-npm run admin -- official gacha-sync 18005767005 密码 [--pools a,b]  # 从官服同步卡池详情（缺省本地全部）
-npm run admin -- config show                    # 查看配置
-npm run admin -- config set admin.token mytoken # 修改配置（重启后生效）
+pnpm run admin                                   # 无参数进入交互模式（REPL）
+pnpm run admin -- users list [--json] [--csv] [--filter 博士]   # 列出用户（可过滤昵称/手机号）
+pnpm run admin -- users info 1                   # 查看用户详情（含中文物品名）
+pnpm run admin -- users create 13800000000 123456   # 创建用户（模板复制）
+pnpm run admin -- users grant 1,2,3 4001 100     # 发放物品（uid 支持逗号分隔批量；支持中文名/别名）
+pnpm run admin -- users grant 1 --items 4001:100,4003:10   # 一次发放多种物品（--items id:count,...）
+pnpm run admin -- users medals 1 [--json]        # 查看勋章进度（只读）
+pnpm run admin -- users export 1 [path]          # 导出存档到 JSON（默认 ./exports/）
+pnpm run admin -- users import <存档JSON> [uid]  # 从 JSON 导入/替换存档
+pnpm run admin -- server check                   # 数据完整性校验（含干员结构）
+pnpm run admin -- users delete 1 --yes           # 删除用户（危险操作，需 --yes）
+pnpm run admin -- --quiet users list --json      # 全局 --quiet/-q：抑制内部日志（脚本化用）
+pnpm run admin -- users grantchar 1 阿米娅       # 发放干员（支持中文名；重复按稀有度折算信物）
+pnpm run admin -- users skin 1 char_002_amiya#2  # 解锁皮肤
+pnpm run admin -- users chars 1                  # 干员列表
+pnpm run admin -- users char 1 5                 # 查看干员详情（技能/专精/装备/语音）
+pnpm run admin -- users char 1 5 --level 90 --evolve 2 --potential 5 --skill 7   # 修改干员属性（免费）
+pnpm run admin -- users shop 1 [--json]          # 查看商店数据汇总（只读）
+pnpm run admin -- users checkin 1 [--reset|--do] # 查看/重置/代签签到（Dashboard 概览同有签到区）
+pnpm run admin -- users maxout 1                 # 一键满配（资源/背包/干员/基建/皮肤，不覆盖阵容）
+pnpm run admin -- users building 1 max           # 基建满级
+pnpm run admin -- users backup 1                 # 备份存档（data/user/backups/）
+pnpm run admin -- users backups 1                # 列出备份
+pnpm run admin -- users restore 1 1-20260808-181345.json   # 从备份恢复
+pnpm run admin -- users dump 1 [--pretty]        # 导出原始玩家数据 JSON
+pnpm run admin -- users grantall 1 [count]       # 批量发放全部物品（默认 999）
+pnpm run admin -- users maxchars 1               # 批量拉满全部已有干员
+pnpm run admin -- users repairchars 1            # 修复干员结构（补齐 voiceLan/starMark/equip/skills）
+pnpm run admin -- users stages 1 [--json]        # 查看玩家推图进度（只读）
+pnpm run admin -- users unlock 1 main_01-01      # 解锁指定关卡
+pnpm run admin -- users unlockall 1              # 推图全解锁
+pnpm run admin -- users items 合成玉             # 按名称/ID 搜索物品（供发放用）
+pnpm run admin -- users missions 1 [--json]      # 查看任务进度统计（只读）
+pnpm run admin -- mail send 1 标题 内容 --items 4001:100,4003:10   # 发送邮件（uid 支持逗号分隔批量）
+pnpm run admin -- mail send all 公告 内容 --items 4001:100         # 群发（全部用户）
+pnpm run admin -- mail list 1                    # 查看用户邮件
+pnpm run admin -- mail delete 1 1000000          # 删除单封邮件
+pnpm run admin -- server status                  # 服务器状态与数据文件
+pnpm run admin -- server refresh 1               # 触发每日/每周刷新（理智/任务重置）
+pnpm run admin -- server save 1                  # 立即保存存档（缺省全部用户）
+pnpm run admin -- logs show --last 20            # 查看管理操作审计日志
+pnpm run admin -- logs clear --yes               # 清空审计日志（危险操作）
+pnpm run admin -- gacha pools                    # 列出全部卡池
+pnpm run admin -- gacha pool NORMAL_0_1          # 卡池详情（UP/可用干员+概率）
+pnpm run admin -- gacha state 1 NORMAL_0_1       # 玩家卡池状态（UP 选择+保底计数）
+pnpm run admin -- gacha up 1 NORMAL_0_1 阿米娅   # 设置玩家 UP（支持中文名；空=清除）
+pnpm run admin -- gacha pity 1 NORMAL 50         # 设置玩家保底计数（按规则类型）
+pnpm run admin -- official accounts accounts.txt # 预览官服账号文件解析结果
+pnpm run admin -- official migrate accounts.txt  # 官服账号迁移（联网拉取→注册私服账号）
+pnpm run admin -- official status 18005767005 密码  # 官服账号状态（登录官服只读）
+pnpm run admin -- official daily 18005767005 密码   # 官服一键日常（签到+领邮件）
+pnpm run admin -- official call 18005767005 密码 /mail/getMetaInfoList --body '{"from":0}'  # 官服通用 API 调用
+pnpm run admin -- official gacha-sync 18005767005 密码 [--pools a,b]  # 从官服同步卡池详情（缺省本地全部）
+pnpm run admin -- config show                    # 查看配置
+pnpm run admin -- config set admin.token mytoken # 修改配置（重启后生效）
 ```
 
 > 物品发放支持三种写法：数字 ID（`4001`）、中文名（`龙门币`）、别名（`合成玉`）。
@@ -139,9 +139,9 @@ npm run admin -- config set admin.token mytoken # 修改配置（重启后生效
 2. 打包为 mod 资源包（每个文件一个 `.dat`，zip 内条目名 = 相对目录的 posix 路径）：
 
    ```bash
-   npm run pack:mod -- --dir <ArkUnpacker 解包目录>     # 输出到 mods/
-   npm run pack:mod -- --dir <目录> --out <自定义目录>    # 自定义输出目录
-   npm run pack:mod -- --dir <目录> --clean              # 打包前清空旧 .dat
+   pnpm run pack:mod -- --dir <ArkUnpacker 解包目录>     # 输出到 mods/
+   pnpm run pack:mod -- --dir <目录> --out <自定义目录>    # 自定义输出目录
+   pnpm run pack:mod -- --dir <目录> --clean              # 打包前清空旧 .dat
    ```
 
 3. 将 `data/config.json` 的 `assets.enableMods` 置 `true`（缺省 `false`），重启服务。
@@ -183,9 +183,9 @@ TYPE_ACT 币/信赖列表）、初始化活动任务（ACTIVITY 任务组，可�
 ## 开发命令
 
 ```bash
-npm run test        # vitest 单元测试
-npm run build       # tsc 编译
-npm run hook        # frida-compile 编译 hook 脚本
+pnpm run test        # vitest 单元测试
+pnpm run build       # tsc 编译
+pnpm run hook        # frida-compile 编译 hook 脚本
 ```
 
 ## 文档

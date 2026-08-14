@@ -1,7 +1,7 @@
 /**
  * 从 vendored flatbuffers Python schema（scripts/vendor/fbs/CN/*.py）提取 JSON 描述。
  * 一次性生成 → 提交 JSON（源 .py 已移除，仅当重新接入新 schema 时用）。输出：scripts/vendor/fbs-schemas/*.json
- * 用法: npx tsx scripts/schema-gen.ts
+ * 用法: pnpm exec tsx scripts/schema-gen.ts
  */
 import * as fs from "fs";
 import * as path from "path";

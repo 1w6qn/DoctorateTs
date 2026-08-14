@@ -104,7 +104,7 @@
 InteractionActionReq、RolePlayingReq、SubmitAVGParam、SubmitActorOpParam、PixelArtData、
 PlayerSyncData、PlayerBrief、HallInfo、TaskData 等）——**但 msgId→消息类型注册表在编译体内
 无法提取**（serializer 方法体仅签名，ProtoMember 属性仅类定义），字段号仅登录类由实测验证。
-补全方法：`npx tsx scripts/dump-gateway-dict.ts` 观测新帧 → 对照字段名声明顺序反推字段号。
+补全方法：`pnpm exec tsx scripts/dump-gateway-dict.ts` 观测新帧 → 对照字段名声明顺序反推字段号。
 
 ## 7. 剩余未知项（精确清单，2026-08-11 已收敛至 2 项）
 
@@ -118,9 +118,9 @@ splitGatewayFramesFull 跨 wrapper 续链，全部会话 downRemainder=0**
 ## 8. 工具用法
 
 ```bash
-npx tsx scripts/parse-arkhub-gateway.ts                 # 重解析全部抓包 → parsed.json + messages.json
-npx tsx scripts/parse-arkhub-gateway.ts <连接目录ID>     # 单会话
-npx tsx scripts/dump-gateway-dict.ts                    # 输出协议字典（msgId×方向×形态）
+pnpm exec tsx scripts/parse-arkhub-gateway.ts                 # 重解析全部抓包 → parsed.json + messages.json
+pnpm exec tsx scripts/parse-arkhub-gateway.ts <连接目录ID>     # 单会话
+pnpm exec tsx scripts/dump-gateway-dict.ts                    # 输出协议字典（msgId×方向×形态）
 ```
 
 **真实可读 request/response（messages.json）**：`gatewayTranscript` 把 up/down 帧还原为

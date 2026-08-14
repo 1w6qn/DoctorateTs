@@ -77,7 +77,7 @@ process.on("exit", (code) => {
 (async () => {
   const args = process.argv.slice(2);
   const skipUpdate = args.includes("--skip-update") || args.includes("-s");
-  // 激进：默认不跑数据更新（config.autoUpdate=false），仅显式 --auto-update / npm run update
+  // 激进：默认不跑数据更新（config.autoUpdate=false），仅显式 --auto-update / pnpm run update
   const autoUpdate = args.includes("--auto-update") || config.autoUpdate === true;
   // 完全离线模式：命令行参数 --offline/-o 或 data/config.json 中 offline: true
   const offline = args.includes("--offline") || args.includes("-o") || config.offline === true;
@@ -93,7 +93,7 @@ process.on("exit", (code) => {
     const updateModule = await import("./scripts/update-data");
     const code = await updateModule.main(false, true);
     if (code !== 0) {
-      logger.error("index", "本地数据不完整，无法离线启动。请先联网执行 `npm run update` 初始化数据，");
+      logger.error("index", "本地数据不完整，无法离线启动。请先联网执行 `pnpm run update` 初始化数据，");
       logger.error("index", "或去掉 --offline 参数以在线模式启动（会自动回退到本地缓存）。");
       process.exit(1);
     }
@@ -279,13 +279,13 @@ process.on("exit", (code) => {
     logger.info("index", `命令行已就绪：终端输入管理 CLI 命令（如 users list --json），exit 退出命令行`);
     // 服务器内嵌命令行 REPL（日志与命令行共存；非 TTY 自动跳过）
     import("./app/admin/server-repl").then((m) => m.startServerRepl());
-    // 后台版本检测提示（非阻塞）：本地数据较旧时提醒 npm run update（默认已跳过自动更新）
+    // 后台版本检测提示（非阻塞）：本地数据较旧时提醒 pnpm run update（默认已跳过自动更新）
     if (!offline && !autoUpdate) {
       checkRemoteVersionHint().catch(() => undefined);
     }
   });
 /**
- * 后台检测官服最新数据版本（非阻塞）：本地数据较旧时提示 npm run update。
+ * 后台检测官服最新数据版本（非阻塞）：本地数据较旧时提示 pnpm run update。
  * 仅提示不更新——默认启动已跳过自动更新（config.autoUpdate=false）。
  */
 async function checkRemoteVersionHint(): Promise<void> {
@@ -298,7 +298,7 @@ async function checkRemoteVersionHint(): Promise<void> {
     const remote = String(data.resVersion ?? "").split("_")[0];
     const local = (config.version?.windows?.resVersion ?? config.version?.resVersion ?? "").split("_")[0];
     if (remote && local && remote !== local) {
-      logger.warn("index", `检测到新版本数据（本地 ${local} → 官服 ${remote}），运行 \`npm run update\` 更新`);
+      logger.warn("index", `检测到新版本数据（本地 ${local} → 官服 ${remote}），运行 \`pnpm run update\` 更新`);
     }
   } catch {
     // 网络失败静默（离线/无网环境）

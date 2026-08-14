@@ -3,7 +3,7 @@
  *   --download  拉取热更清单 + 下载 excel bundle
  *   --decode    UnityFS 解包 → FBO/AES 解码 → reference/hotupdate/excel_json/
  *   --convert   原始结果 → 服务端格式（camelCase + 枚举）→ data/excel/
- * 用法: npx tsx scripts/official-excel.ts --download --decode --convert [--offline] [--table X]
+ * 用法: pnpm exec tsx scripts/official-excel.ts --download --decode --convert [--offline] [--table X]
  */
 import * as fs from "fs";
 import * as path from "path";

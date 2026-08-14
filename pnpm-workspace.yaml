@@ -1,0 +1,4 @@
+# pnpm 构建脚本审批（pnpm 10+ 安全默认：仅显式批准才运行依赖的 postinstall）
+# esbuild 需要 postinstall 安装/校验平台二进制（vitest/tsx/vite 依赖链）
+allowBuilds:
+  esbuild: true

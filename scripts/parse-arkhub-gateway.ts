@@ -6,8 +6,8 @@
  * 解析输出 parsed.json；未按长度前缀切分的余量（登录后 down 流等）以 hex 记录。
  *
  * 用法：
- *   npx tsx scripts/parse-arkhub-gateway.ts          # 解析全部网关记录
- *   npx tsx scripts/parse-arkhub-gateway.ts <rid>    # 单条记录（rid 或数字 id）
+ *   pnpm exec tsx scripts/parse-arkhub-gateway.ts          # 解析全部网关记录
+ *   pnpm exec tsx scripts/parse-arkhub-gateway.ts <rid>    # 单条记录（rid 或数字 id）
  */
 import fs from "fs";
 import path from "path";

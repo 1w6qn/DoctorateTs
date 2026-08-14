@@ -5,7 +5,7 @@
  * 与 app/asset.ts loadMods 的约定一致（zip 条目名即 mod 名，如 "activity/[uc]act5fun.ab"）。
  *
  * 用法：
- *   npm run pack:mod -- --dir <ArkUnpacker 解包目录> [--out <mods 目录>] [--clean]
+ *   pnpm run pack:mod -- --dir <ArkUnpacker 解包目录> [--out <mods 目录>] [--clean]
  *   --dir    必填，源目录（递归）
  *   --out    输出目录（缺省 <项目根>/mods）
  *   --clean  打包前清空输出目录内的 *.dat（移除源中已删除的旧 mod）
@@ -32,7 +32,7 @@ function parseArgs(argv: string[]): CliArgs {
     else if (arg === "--clean") args.clean = true;
     else if (arg === "--help" || arg === "-h") {
       console.log(
-        "用法: npm run pack:mod -- --dir <解包目录> [--out <mods目录>] [--clean]",
+        "用法: pnpm run pack:mod -- --dir <解包目录> [--out <mods目录>] [--clean]",
       );
       process.exit(0);
     }

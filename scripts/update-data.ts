@@ -123,7 +123,7 @@ function executeCommand(command: string, cwd: string): boolean {
 function runOfficialExcelPipeline(): boolean {
   log(`运行官服热更 excel 管线...`);
   return executeCommand(
-    "npx tsx scripts/official-excel.ts --download --decode --convert",
+    "pnpm exec tsx scripts/official-excel.ts --download --decode --convert",
     path.join(__dirname, ".."),
   );
 }
@@ -139,7 +139,7 @@ function generateTypes(): boolean {
     log(`跳过类型生成：缺少 ${csFile}（类型文件已随仓库跟踪；放回反编译源后可重新生成）`);
     return true;
   }
-  return executeCommand("npx tsx scripts/generate-types.ts", path.join(__dirname, ".."));
+  return executeCommand("pnpm exec tsx scripts/generate-types.ts", path.join(__dirname, ".."));
 }
 
 /**
@@ -168,7 +168,7 @@ export async function main(skipUpdate: boolean = false, offline: boolean = false
       for (const file of missing) {
         logError(`  缺少: ${file}`);
       }
-      logError("请先在有网络的环境执行 `npm run update` 完成数据初始化，");
+      logError("请先在有网络的环境执行 `pnpm run update` 完成数据初始化，");
       logError("或去掉 --offline 参数以在线模式启动（会自动回退到本地缓存）。");
       return 1;
     }

@@ -9,7 +9,7 @@
 #               -> reference/arknights-<版本>-csharp/
 #
 # 用法：
-#   npm run decompile                                     # 使用默认游戏路径
+#   pnpm run decompile                                     # 使用默认游戏路径
 #   bash scripts/decompile-client.sh "E:\Games\...\Arknights Game"   # 指定路径
 #   GAME_PATH="E:\Games\..." bash scripts/decompile-client.sh        # 或用环境变量
 #   环境变量：CPP2IL_VERSION / ILSPY_VERSION 可换版本，DECOMPILE_WORKDIR 可换工作目录
@@ -168,7 +168,7 @@ if [ ! -f "$REF_DIR/README.md" ]; then
 - 类型/字段/接口/枚举完整还原；少量方法体为 ILSpy 占位（体内有错误说明）
 - 项目不可编译，仅作协议/逻辑研究参考
 
-复现：\`npm run decompile\`（详见 \`scripts/decompile-client.sh\` 头部注释与 \`reference/com.hypergryph.arknights_$GAME_VERSION.cs\` 对照）
+复现：\`pnpm run decompile\`（详见 \`scripts/decompile-client.sh\` 头部注释与 \`reference/com.hypergryph.arknights_$GAME_VERSION.cs\` 对照）
 EOF
 fi
 
@@ -182,6 +182,6 @@ log "====== 完成 ======"
 log "C# 源码:  $REF_DIR"
 log "文件数:   $total 个 .cs（含失败方法体 $failed 个，占 $(python -c "print(f'{$failed/$total*100:.1f}' if $total else 'n/a')")%）"
 [ -n "$rate" ] && log "分析方法: $rate"
-log "签名文件: $SIG_FILE（Torappu 类/结构体 $sig_cls 个，枚举 $sig_enum 个；随后可 npm run generate:types 再生类型）"
+log "签名文件: $SIG_FILE（Torappu 类/结构体 $sig_cls 个，枚举 $sig_enum 个；随后可 pnpm run generate:types 再生类型）"
 log "分析文件: $CPP2IL_OUT/types/**/*_metadata.txt（$(find "$CPP2IL_OUT/types" -name '*_metadata.txt' 2>/dev/null | wc -l) 个）"
 log "工具缓存: $TOOLS"

@@ -562,11 +562,11 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
 - 遵循推荐规则
 
 ### 7.3 脚本命令
-- `npm start`: 启动开发服务器（nodemon）
-- `npm run build`: 编译 TypeScript
-- `npm run update`: 更新游戏数据并生成类型
-- `npm run test`: 运行测试
-- `npm run update -- --offline`: 以完全离线模式校验本地数据完整性（不联网）
+- `pnpm start`: 启动开发服务器（nodemon）
+- `pnpm run build`: 编译 TypeScript
+- `pnpm run update`: 更新游戏数据并生成类型
+- `pnpm run test`: 运行测试
+- `pnpm run update -- --offline`: 以完全离线模式校验本地数据完整性（不联网）
 - 启动参数：`--offline` / `-o`（完全离线模式）、`--skip-update` / `-s`（跳过更新）
 
 ### 7.4 PlayerDataModel 类型生成
@@ -574,12 +574,12 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
 `app/excel/types-playerdata.ts` 是**运行时 PlayerDataModel 的唯一权威定义**——`app/game/model/playerdata.ts` 直接 `export *` 该文件（手写模型已全量替换删除），`app/game/model/character.ts` 等对生成模型重叠类型做桥接 re-export。由官服反编译自动生成（客户端闭包 + 服务端协议适配 + 线格式适配），线格式经真实官服存档标量+结构双维度校验。
 
 - 输入：`reference/com.hypergryph.arknights_2.7.61.cs`（官服反编译，`reference/` 已被 gitignore，不入库）
-- 命令：`npm run generate:playerdata`
+- 命令：`pnpm run generate:playerdata`
 - 产物：纯闭包 802 类 / 113 枚举，含 2.7.61 新增 `arkOdc` 等 22 个类型；`ListDict<K,V>` 映射为字典 `{ [key: K]: V }`（与真实存档 JSON 一致）
 - 链路：`scripts/playerdata-parser.ts`（括号配对解析、完整枚举值、类型映射）→ `scripts/playerdata-builder.ts`（类型闭包、TS 生成、未定义引用自检）→ `scripts/playerdata-server-adapt.ts`（服务端协议适配 + 线格式适配）→ `scripts/generate-playerdata-types.ts`（CLI）
 - **服务端协议适配层**（`scripts/playerdata-server-adapt.ts`）：客户端 2.7.61 模型与服务端 JSON 序列化协议分叉（服务端保守旧 key + 超集，如 `PlayerCharacter` 的 skin/tmpl 双结构并存）。适配层三操作：`renameFields`（客户端字段名→服务端 key，如 campaign→campaignsV2、towerId→tower、godCardId→id）、`addFields`（服务端独有字段，如 PlayerStage.startTimes/practiceTimes、商店 curShopId/info、房间 buff 结构）、`overrideFields`（结构差异，整接口转类型别名如 PlayerActivity 字典、PlayerBuilding.rooms 具名 12 房间类型、MissionPlayerDataGroup 索引字典）
 - **线格式适配（wire pass）**：官服 JSON 把枚举/时间戳/布尔系统性降为数字——枚举字段→`number`（保留枚举定义作参考）、`System.DateTime`→`number`（unix ts）、布尔→`number`（0/1）；少数字符串序列化枚举（`roomId` "CONTROL"、`mode` "NORMAL"、`type` "CHAR" 等）与真实布尔（`avail`、`unlock` 等）经抓包标量审计反推的白名单保留
-- **校验闭环**：`npx tsx scripts/validate-playerdata-json.ts --input test.json --root user`（官服账号文件 test.json 的 user 根路径）——**0 缺失 / 0 大小写差异 / 0 结构不匹配 / 0 标量不匹配**（95,694 节点）；`--input player_data.json`（官服大存档）同样全 0（107,515 节点）；`--input tmp/official/account/syncData/2026-08-09T07-31-24-506Z.json --root user`（最新抓包）同样全 0（95,977 节点）。清单增量维护流程：校验报告 → 更新适配清单 → 重生成 → 再校验
+- **校验闭环**：`pnpm exec tsx scripts/validate-playerdata-json.ts --input test.json --root user`（官服账号文件 test.json 的 user 根路径）——**0 缺失 / 0 大小写差异 / 0 结构不匹配 / 0 标量不匹配**（95,694 节点）；`--input player_data.json`（官服大存档）同样全 0（107,515 节点）；`--input tmp/official/account/syncData/2026-08-09T07-31-24-506Z.json --root user`（最新抓包）同样全 0（95,977 节点）。清单增量维护流程：校验报告 → 更新适配清单 → 重生成 → 再校验
 - 校验器含标量叶子类型比对（number/string/boolean/枚举字面量/基础类型联合）与 untyped 盲区报告（`object` 型字段路径）；已知线格式分歧（如 `flags` 官服 '1' 字符串 vs 运行时 number）在 `SCALAR_EXCEPTIONS` 文档化
 - 运行时替换：`app/game/model/playerdata.ts` 为生成模型 re-export；`character.ts` 保留生成模型不含的服务端社交/分享类型；rlv2 子系统（`model/rlv2.ts`）为功能实现内部模型，与生成模型在 controller 边界显式桥接
 
@@ -587,7 +587,7 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
 
 `app/excel/types_excel_gen.ts` 从 cs 反编译生成 **47 个 excel 表的权威类型**（1480+ 类 / 349+ 枚举），`app/excel/excel.ts` 的 55 个表类型引用与 troop/mission/mailCollection/mockExcel 等直接引用方均已从 FBS 版 `types_auto_gen.ts` 切换过来（FBS 版已删除，不再依赖 OpenArknightsFBS）。以 `data/excel/*.json` 全量校验 **0 缺失 / 0 大小写 / 0 结构 / 0 标量**（3.29M 节点）。
 
-- 命令：`npm run generate:excel`；链路：`scripts/types-builder.ts`（统一构建器：C# 数组 `X[]`、泛型 `Undefinable<T>`/`KeyFrames<T>`、类继承字段合并、`abstract class`、List 继承 → 数组别名，多根闭包）→ `scripts/excel-server-adapt.ts`（表根映射 + rename/add/override/optional/枚举补充/字段覆盖/索引签名）→ `scripts/generate-types.ts --excel`（CLI，统一生成器）
+- 命令：`pnpm run generate:excel`；链路：`scripts/types-builder.ts`（统一构建器：C# 数组 `X[]`、泛型 `Undefinable<T>`/`KeyFrames<T>`、类继承字段合并、`abstract class`、List 继承 → 数组别名，多根闭包）→ `scripts/excel-server-adapt.ts`（表根映射 + rename/add/override/optional/枚举补充/字段覆盖/索引签名）→ `scripts/generate-types.ts --excel`（CLI，统一生成器）
 - **表根映射** `EXCEL_TABLE_ROOTS`：表键 → cs 根类（包装类如 StageTable/ZoneTable/ActivityTable，元素类如 CharacterData/SkillDataBundle，多根表如 enemy_handbook_table 按 key 映射）；由 JSON 顶层结构 × cs 类字段匹配自动反推
 - **excel 线格式与 playerdata 不同**：枚举为字符串（`position:"RANGED"`）、bool 为 true/false、时间戳为 number——**无需 enum→number wire pass**；个别数值/字符串混合字段（spType/professionMask/direction）用 `number | string` 字段覆盖
 - **校验闭环** `scripts/validate-excel-json.ts`：复用 playerdata 校验器 walk 逻辑，字典表/包装表/多根表三模式；`--tables t1,t2` 子集迭代，`--full` 输出聚合报告
@@ -618,13 +618,13 @@ get socialInfo(): FriendDataWithNameCard {
 
 | 模式 | 触发方式 | 网络行为 | 适用场景 |
 |------|----------|----------|----------|
-| 在线更新（默认） | 直接启动 / `npm start` | git pull/clone 拉取 ArknightsGameData，随后复制数据、生成类型（CS 反编译源）、合并 gacha；失败自动回退本地缓存 | 首次部署、需要更新游戏数据 |
+| 在线更新（默认） | 直接启动 / `pnpm start` | git pull/clone 拉取 ArknightsGameData，随后复制数据、生成类型（CS 反编译源）、合并 gacha；失败自动回退本地缓存 | 首次部署、需要更新游戏数据 |
 | 跳过更新 | `--skip-update` / `-s` | 跳过仓库拉取，仍执行本地复制、类型生成（npx）、gacha 合并 | 本地数据完整、希望快速启动 |
 | 完全离线 | `--offline` / `-o`，或 `data/config.json` 中 `"offline": true` | **零网络操作**：不执行 git、不调用 npx、不复制、不合并 | 无网络 / 内网 / 演示环境 |
 
 ### 8.2 完全离线模式设计原则
 
-1. **零网络访问**：不执行任何 git 命令（`clone`/`pull`），不通过 npx 启动子进程，从根源上杜绝网络请求和长时间超时等待。
+1. **零网络访问**：不执行任何 git 命令（`clone`/`pull`），不通过 pnpm exec 启动子进程，从根源上杜绝网络请求和长时间超时等待。
 2. **启动前校验**：在加载数据表之前，对本地必需数据文件清单（`REQUIRED_DATA_FILES`，共 66 个文件）做完整性检查。
 3. **快速失败**：数据缺失时立即退出（exit code 1），列出缺失文件清单并给出解决指引，绝不带病启动。
 
@@ -664,7 +664,7 @@ get socialInfo(): FriendDataWithNameCard {
 ## 9. 管理后台设计规范
 
 ### 9.1 功能定位
-管理后台面向服主，提供 CLI（`npm run admin`，离线可用）与 Web Dashboard（`/admin/dashboard`）两套入口，
+管理后台面向服主，提供 CLI（`pnpm run admin`，离线可用）与 Web Dashboard（`/admin/dashboard`）两套入口，
 覆盖用户全生命周期（建/查/改/批量/备份/导出导入/删除/修复）、物品/干员/皮肤发放、卡池管理、
 关卡/任务/勋章/商店只读、邮件（单发/群发/查看/删除）、官服账号迁移、接口调试、统计、审计与一键启动。
 
@@ -795,7 +795,7 @@ logs show [--last N] [--json]
 7. 启动服务器
 ```
 
-> 完全离线模式（`--offline`）跳过步骤 2-5，仅校验本地数据完整性（`verifyLocalData`）后直接进入步骤 6；数据缺失时退出并提示先联网执行 `npm run update`。
+> 完全离线模式（`--offline`）跳过步骤 2-5，仅校验本地数据完整性（`verifyLocalData`）后直接进入步骤 6；数据缺失时退出并提示先联网执行 `pnpm run update`。
 
 ---
 
@@ -976,7 +976,7 @@ BattleManager（app/game/manager/battle.ts）的战斗结束（finish）后处�
 
 ### 15.2 使用方式
 ```bash
-npm run migrate:official -- --accounts <账号文件路径> --template 1
+pnpm run migrate:official -- --accounts <账号文件路径> --template 1
 ```
 - `--accounts`：账号文件（每行「手机号 密码」或两行一组「手机号\n密码」，忽略备注），默认 `reference/checkin-master/accounts.txt`
 - `--template`：私服模板存档 uid（兜底字段来源），默认 1
@@ -1122,7 +1122,7 @@ mitmproxy map remote 设置 URL 时会同步改写 Host 头为 `127.0.0.1:8443`�
 - 旧版 `/config/prod/official/network_config`（{sign, content} 格式）保持兼容（prod.ts 复用 buildNetworkConfigContent）
 
 ### 17.4 抓包专用官服转发模式（app/proxy/official-forward.ts，--capture）
-主服务器新增可切换的抓包专用官服转发模式：`npm run start:capture`（等价 `tsx index.ts -s --capture`）或 `data/config.json` 的 `capture.enabled: true` 开启。开启后 **as/gs 流量不再由私服响应，而是转发到官服**并记录响应到统一抓包存储 `tmp/capture/`（capture 模式强制 `debug.recordTraffic=true`，source=official），用于与私服响应逐接口对比 / 协议逆向（§17.7）。
+主服务器新增可切换的抓包专用官服转发模式：`pnpm run start:capture`（等价 `tsx index.ts -s --capture`）或 `data/config.json` 的 `capture.enabled: true` 开启。开启后 **as/gs 流量不再由私服响应，而是转发到官服**并记录响应到统一抓包存储 `tmp/capture/`（capture 模式强制 `debug.recordTraffic=true`，source=official），用于与私服响应逐接口对比 / 协议逆向（§17.7）。
 
 **挂载位置**：index.ts 在 host-router + `/config/prod`、`/api/remote_config`、`/api/gate`、`/api/game`（launcher）之后、`/` auth 之前挂 `createOfficialForwarder()`。config/launcher 保持本地——客户端才能拿到指向本代理的 network_config 被引导连进来。
 
@@ -1141,11 +1141,11 @@ mitmproxy map remote 设置 URL 时会同步改写 Host 头为 `127.0.0.1:8443`�
 1. **enterHall 响应改写**：`createOfficialForwarder` 收到 `arkhubGateway` 选项且路径为 `/activity/arkhub/enterHall` 时，把 `endpoint` 改写为 `config.Host` 去 scheme、`port` 保持网关端口——否则客户端直连官服网关（hosts 重写时连 127.0.0.1:30000 无监听而失败，且网关流量不经过代理）。非网关形状响应（如 401）原样透传。
 2. **TCP 转发器（端口自动避让 + ODC 帧解析）**：`startArkhubGatewayProxy` 首选 `config.capture.gatewayPort`（缺省 30000），被占时自动尝试下一个空闲端口（port, port+1, ... 最多 50 次）——多实例并存时每个实例各拿一个空闲端口（如 30000/30001/30002），enterHall 改写用**实际监听端口**，客户端互不干扰。返回 `{ server, port, exhausted, adjusted }`：全部避让端口被占（exhausted，极罕见）时仍改写指向配置端口（其上大概率有另一实例转发器）。每个连接建立到官服网关的透传管道（纯 TCP pipe，客户端自带上层握手/鉴权），双向字节流落盘 `tmp/capture/records/{connectionId}/`（统一抓包存储的网关记录目录：up.bin=客户端→官服、down.bin=官服→客户端、meta.json；connectionId 即记录 rid），连接关闭时按 **arkodc 帧协议**（见下）解析写 `parsed.json`/`messages.json`，并提交一条 direction=gateway-bidi 的抓包记录（source=gateway）。实现注意：每次尝试**新建 server**（复用同一 server 重 listen 有回调错乱问题，实测 adjusted 结果错乱）。
 
-**arkodc 网关帧协议**（app/proxy/arkodc.ts，2026-08-11）：帧 = `[4B 大端总长度][4B 大端消息 ID][8B 头字段（8-11 疑 seq、12-15 疑 flag/会话ID）][protobuf payload]`。`decodeProtobuf` 通用解码（varint/fixed64/length-delimited/fixed32 + 嵌套消息，嵌套启发式：首字段 wire 0/2 且非可读文本——避免 uid 等 ASCII 串误判）。MSG_NAMES 观测映射：1=MoveReq（8B 非 protobuf）、2=MoveNotify、4=Login（UserLoginReq up / UserLoginResp down）、8=NetProbeData（心跳 08 00 / 探针 10 80 02+15B / 玩家数据 0a 变体）。实测 up 流 3176 帧零断帧；**down 流部分会话登录后为连续 protobuf/自定义封装**（长度前缀不可切，余量 hex 如实记录——该变体仅在特定玩法触发，需进一步逆向）。离线重解析：`npx tsx scripts/parse-arkhub-gateway.ts [rid]`（从统一抓包存储读取，缺省解析全部 gateway-bidi 记录）。
+**arkodc 网关帧协议**（app/proxy/arkodc.ts，2026-08-11）：帧 = `[4B 大端总长度][4B 大端消息 ID][8B 头字段（8-11 疑 seq、12-15 疑 flag/会话ID）][protobuf payload]`。`decodeProtobuf` 通用解码（varint/fixed64/length-delimited/fixed32 + 嵌套消息，嵌套启发式：首字段 wire 0/2 且非可读文本——避免 uid 等 ASCII 串误判）。MSG_NAMES 观测映射：1=MoveReq（8B 非 protobuf）、2=MoveNotify、4=Login（UserLoginReq up / UserLoginResp down）、8=NetProbeData（心跳 08 00 / 探针 10 80 02+15B / 玩家数据 0a 变体）。实测 up 流 3176 帧零断帧；**down 流部分会话登录后为连续 protobuf/自定义封装**（长度前缀不可切，余量 hex 如实记录——该变体仅在特定玩法触发，需进一步逆向）。离线重解析：`pnpm exec tsx scripts/parse-arkhub-gateway.ts [rid]`（从统一抓包存储读取，缺省解析全部 gateway-bidi 记录）。
 
-**网关协议完全解析**（docs/arkhub-gateway-protocol.md，2026-08-11）：帧格式/消息族（msgId1/2=定长二进制 type+param 移动协议、msgId4=Login 双向字段号实测验证、msgId8=位置/探针通道）/down 记录流恢复/37 类消息字段名清单/剩余未知项精确定位（msgId8 位置块布局、记录流帧边界、msgId 注册表）。工具：`npx tsx scripts/dump-gateway-dict.ts` 输出协议字典。
+**网关协议完全解析**（docs/arkhub-gateway-protocol.md，2026-08-11）：帧格式/消息族（msgId1/2=定长二进制 type+param 移动协议、msgId4=Login 双向字段号实测验证、msgId8=位置/探针通道）/down 记录流恢复/37 类消息字段名清单/剩余未知项精确定位（msgId8 位置块布局、记录流帧边界、msgId 注册表）。工具：`pnpm exec tsx scripts/dump-gateway-dict.ts` 输出协议字典。
 
-**与 scripts/proxy-harness.ts 关系**：`scripts/proxy-harness.ts`（`npm run ts`，8444）是独立纯转发抓包代理，规则同源、记录写入同一统一抓包存储（source=harness，支持 `--session <名称>` 命名会话）但可独立运行；本模式把同一套规则并入主服务器（8443），免去另起进程。**账号说明**：capture 模式用官服账号登录（reference/checkin-master/accounts.txt），与私服账号体系互不相通。
+**与 scripts/proxy-harness.ts 关系**：`scripts/proxy-harness.ts`（`pnpm run ts`，8444）是独立纯转发抓包代理，规则同源、记录写入同一统一抓包存储（source=harness，支持 `--session <名称>` 命名会话）但可独立运行；本模式把同一套规则并入主服务器（8443），免去另起进程。**账号说明**：capture 模式用官服账号登录（reference/checkin-master/accounts.txt），与私服账号体系互不相通。
 
 ### 17.6 管理后台像素画工具 + 上传官服（2026-08-09）
 Dashboard 新增「像素画」Tab（app/admin/dashboard/index.html `loadPixelPane`）：24×24 画布编辑器（40 色调色板绘制/橡皮擦/清空/示例），下载 PNG / 像素数据，上传官服。
@@ -1181,7 +1181,7 @@ tmp/capture/
 - **来源统一**（records.source）：`private`（私服 traffic-recorder）/ `official`（capture 官服转发）/ `harness`（独立代理 proxy-harness）/ `gateway`（arkhub 网关连接）/ `ops`（官服操作 official-ops）。无显式会话的记录自动归入「自动-{yyyyMMdd}」默认会话（每源每天一个，保持全量记录旧行为）。
 - **写入方改造**：`traffic-recorder.ts` 改为调 `captureManager.addRecordAsync`（中间件不落散文件；source 由 index.ts 传入）；**默认排除本地管理/资源/配置噪音**——`/admin`（管理页面 + API + 30s 轮询）、`/assetbundle`（资源大文件）、`/pcSdk`、`/config`、`/api`（launcher/remote_config）、`/audit`、`/batch_event`（事件上报）不记录（与 official-forward 的 LOCAL_ONLY_PREFIXES 对齐），可用 `debug.recordTrafficExclude` 覆盖（`[]` = 全部记录）；`scripts/proxy-harness.ts` 弃 console.*/printJson，改用 logger + captureManager（支持 `--session <名称>`）；`arkhub-gateway.ts` 连接关闭时提交 gateway-bidi 记录（记录目录即统一 records/ 子目录，rid=connectionId）；`official-ops.ts` 官服调用记录 source=ops（保留 secret 脱敏）。
 - **查询/管理**：`captureManager.query()`（sessionId/source/method/path/module/endpoint/status/direction/from/to/q + 分页 + total）、`getRecordDetail()`（JSON body 解析对象、bin body 返回 base64/hexPreview、缺失文件标记 missingFiles）、会话 start/stop/delete（级联删记录目录）、`clearAll(CLEAR)`、`exportSession(id)`/`exportRecord(id)`（jszip）、`stats()`（来源/状态码/按天）、`subscribe()`（新记录事件 → SSE 实时尾随）。
-- **旧格式迁移**：原 `tmp/{module}/{endpoint}/{ts}.json` 散文件格式废弃；`scripts/extract-arkhub-pixel.ts`（从 store 查最近 savePixelArt 记录读 req.bin）、`scripts/parse-arkhub-gateway.ts`、`scripts/dump-gateway-dict.ts`（从 store 读 gateway-bidi 记录）已迁移；测试真实抓包期望值归档 `tests/fixtures/rlv2-finishEvent.json`。**存量旧数据合并**：`npx tsx scripts/migrate-capture-legacy.ts [--dry-run] [--keep]` 把历史散文件（记录器目录格式 + 顶层扁平 `{模块}_{接口}_req|res_{id}.json` + official + arkhub-gateway 连接）合并进统一存储（归入「旧格式迁移」会话，note 记录源路径，成功即删源文件）——旧代理 req/res 序号存在 n↔n-1 偏移，扁平配对按此规则；无法还原路径的顶层旧文件（getAllProductList*/tokenpass*/v2grant* 等）跳过保留。
+- **旧格式迁移**：原 `tmp/{module}/{endpoint}/{ts}.json` 散文件格式废弃；`scripts/extract-arkhub-pixel.ts`（从 store 查最近 savePixelArt 记录读 req.bin）、`scripts/parse-arkhub-gateway.ts`、`scripts/dump-gateway-dict.ts`（从 store 读 gateway-bidi 记录）已迁移；测试真实抓包期望值归档 `tests/fixtures/rlv2-finishEvent.json`。**存量旧数据合并**：`pnpm exec tsx scripts/migrate-capture-legacy.ts [--dry-run] [--keep]` 把历史散文件（记录器目录格式 + 顶层扁平 `{模块}_{接口}_req|res_{id}.json` + official + arkhub-gateway 连接）合并进统一存储（归入「旧格式迁移」会话，note 记录源路径，成功即删源文件）——旧代理 req/res 序号存在 n↔n-1 偏移，扁平配对按此规则；无法还原路径的顶层旧文件（getAllProductList*/tokenpass*/v2grant* 等）跳过保留。
 - **测试**：`tests/unit/capture/capture-manager.test.ts`（11 用例：CRUD/过滤/会话/clear/导出/订阅/惰性 init，临时根目录注入，不碰真实 tmp/capture/）。
 
 **统一日志管理**（`app/logs/log-service.ts` 单例 `logService` + `app/utils/sse.ts`）：
@@ -1235,7 +1235,7 @@ tmp/capture/
 | 入口 | 说明 |
 |------|------|
 | `POST /auth/user/auth/v1/token_by_phone_password` | **登录自动注册**：手机号+密码不存在时自动创建用户并返回 token（新 uid） |
-| `npm run admin -- users create <phone> [password]` | 管理后台 CLI 创建 |
+| `pnpm run admin -- users create <phone> [password]` | 管理后台 CLI 创建 |
 | Dashboard「+ 创建用户」 | Web 管理界面创建 |
 
 ### 19.2 实现（AccountManager.registerUser）
@@ -1327,7 +1327,7 @@ tmp/capture/
 ## 22. 资源与版本自动同步
 
 ### 22.1 触发时机
-- `npm run update`（CLI 手动）
+- `pnpm run update`（CLI 手动）
 - 服务器**在线模式**启动（index.ts 自动调 `updateModule.main(false)`）
 - 离线模式跳过（不联网）
 
@@ -1342,7 +1342,7 @@ tmp/capture/
 `syncGameVersion` 真实拉取：`2.5.60/25-05-20-12-36-22_4803e1 → 2.7.61/26-08-03-23-34-20_a745fc`（版本无变化时跳过写盘）。
 
 ### 22.4 注意
-- **版本与资源需同步更新**：单独跑 syncGameVersion 会得到新版本号但本地 excel/assets 仍是旧数据（客户端请求新资源会 404）——正确做法是完整 `npm run update`（数据+版本一起）
+- **版本与资源需同步更新**：单独跑 syncGameVersion 会得到新版本号但本地 excel/assets 仍是旧数据（客户端请求新资源会 404）——正确做法是完整 `pnpm run update`（数据+版本一起）
 - 版本更新后需重启服务器生效（config 启动时读取）
 
 ---

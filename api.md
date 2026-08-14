@@ -1379,7 +1379,7 @@ OAuth2 授权
 - 版本接口（`/config/prod/official/{Android|:version}/version`）在启用 mod 时返回带
   确定性后缀的 `resVersion`（mod 集合指纹，不变则稳定），触发热更清单重新拉取。
 - mods 目录缺失/`.dat` 损坏自动跳过，不影响正常资源服务。
-- 打包工具：`npm run pack:mod -- --dir <ArkUnpacker 解包目录>`。
+- 打包工具：`pnpm run pack:mod -- --dir <ArkUnpacker 解包目录>`。
 
 ---
 

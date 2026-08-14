@@ -13,7 +13,7 @@
  * 顶层 _* 临时脚本与 pixel-art 等）一律不触碰；无法识别的顶层文件跳过并在报告列出。
  *
  * 用法：
- *   npx tsx scripts/migrate-capture-legacy.ts [--dry-run] [--keep]
+ *   pnpm exec tsx scripts/migrate-capture-legacy.ts [--dry-run] [--keep]
  *   --dry-run   只统计将合并的内容，不写存储不删文件
  *   --keep      合并后保留旧文件（默认合并成功后删除源文件）
  *

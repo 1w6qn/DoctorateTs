@@ -4,7 +4,7 @@
  * 从统一抓包存储（captureManager）读取最近一条 savePixelArt 请求记录
  * （multipart 原始字节以 req.bin 落盘），提取 file part。
  *
- * 用法：npx tsx scripts/extract-arkhub-pixel.ts [rid]
+ * 用法：pnpm exec tsx scripts/extract-arkhub-pixel.ts [rid]
  * 缺省取最新一条 path=/activity/arkhub/savePixelArt 的记录。
  * 输出：
  *   - tmp/pixel-art-extracted.<ext> —— 提取的 file part 原始字节

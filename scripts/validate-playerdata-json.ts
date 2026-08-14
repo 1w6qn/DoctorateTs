@@ -7,7 +7,7 @@ import * as path from "path";
  * 用官服真实玩家存档校验 app/excel/types-playerdata.ts 的 PlayerDataModel
  * 类型闭包是否完整描述真实数据结构（"toJson 输出与原输入一致"）。
  *
- * 用法: npx tsx scripts/validate-playerdata-json.ts [--input <json>] [--types <ts>] [--root <path>]
+ * 用法: pnpm exec tsx scripts/validate-playerdata-json.ts [--input <json>] [--types <ts>] [--root <path>]
  * 默认输入: reference/OpenBachelorS-master/tmp/player_data.json
  * 默认类型: app/excel/types-playerdata.ts
  * --root: JSON 内玩家数据根路径（如官服账号文件 test.json 的 "user"）

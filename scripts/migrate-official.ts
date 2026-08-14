@@ -1,7 +1,7 @@
 /**
  * 官服数据迁移 CLI
  *
- * 用法：npm run migrate:official -- --accounts <path> --template <uid>
+ * 用法：pnpm run migrate:official -- --accounts <path> --template <uid>
  * - --accounts：账号文件路径（每行「手机号 密码」或「手机号\n密码」），默认 reference/checkin-master/accounts.txt
  * - --template：私服模板存档 uid（兜底字段来源），默认 1
  *

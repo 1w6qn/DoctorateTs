@@ -381,7 +381,7 @@ router.get("/api/official/backend", (_req: Request, res: Response) => {
 router.get("/api/mapviz-data", async (_req: Request, res: Response) => {
   const data = await adminService.getMapvizData();
   if (!data) {
-    res.status(404).json({ error: "地图数据缺失（data/mapviz/game-data.js 未生成或格式异常，运行 npx tsx scripts/generate-mapviz-data.ts 生成）" });
+    res.status(404).json({ error: "地图数据缺失（data/mapviz/game-data.js 未生成或格式异常，运行 pnpm exec tsx scripts/generate-mapviz-data.ts 生成）" });
     return;
   }
   res.json(data);

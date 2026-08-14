@@ -1,7 +1,7 @@
 /**
  * 生成脚本：从官方 excel 提取各主题关卡数据，供 Dashboard「地图」Tab 使用
  * 输出：data/mapviz/game-data.js（window.MAPVIZ_DATA）
- * 运行：npx tsx scripts/generate-mapviz-data.ts（或 npm run generate:mapviz）
+ * 运行：pnpm exec tsx scripts/generate-mapviz-data.ts（或 pnpm run generate:mapviz）
  */
 import * as fs from "fs";
 import * as path from "path";

@@ -2,7 +2,7 @@
  * 服务器内嵌命令行 REPL
  *
  * 服务器运行的同时，在同一终端使用管理 CLI 命令（日志与命令行共存）：
- * - stdin 为 TTY 时启用（`npm start` 交互终端）；非 TTY（日志重定向/守护进程）自动跳过
+ * - stdin 为 TTY 时启用（`pnpm start` 交互终端）；非 TTY（日志重定向/守护进程）自动跳过
  * - 命令复用 cliExec（dispatch 同一命令集 + 输出捕获 + exitCode 恢复，不污染服务器进程）
  * - 输入 exit/quit 退出命令行，服务器继续运行
  */

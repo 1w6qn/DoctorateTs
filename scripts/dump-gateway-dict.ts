@@ -5,7 +5,7 @@
  * 输出每个 msgId 在各方向的帧数、payload 形态数与样例、解码字段——
  * 用于逆向确认 msgId→消息类型映射（MSG_NAMES/MSG_SCHEMAS 的观测依据）。
  *
- * 用法：npx tsx scripts/dump-gateway-dict.ts [rid]
+ * 用法：pnpm exec tsx scripts/dump-gateway-dict.ts [rid]
  */
 import fs from "fs";
 import path from "path";

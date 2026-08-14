@@ -8,7 +8,7 @@ import { EXCEL_TABLE_ROOTS } from "./excel-server-adapt";
  * 用真实 excel 数据校验 app/excel/types_excel_gen.ts 的类型闭包是否完整描述
  * 各表结构（缺字段/大小写/结构/标量 四维）。
  *
- * 用法: npx tsx scripts/validate-excel-json.ts [--tables t1,t2] [--full <file>]
+ * 用法: pnpm exec tsx scripts/validate-excel-json.ts [--tables t1,t2] [--full <file>]
  * 默认全表；--tables 指定子集（逗号分隔）；--full 输出完整报告到文件。
  */
 

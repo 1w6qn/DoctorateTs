@@ -3,8 +3,8 @@
  * DoctorateTs 管理命令行工具
  *
  * 用法：
- *   npm run admin -- <command> [options]    单命令执行
- *   npm run admin                           进入交互模式（REPL）
+ *   pnpm run admin -- <command> [options]    单命令执行
+ *   pnpm run admin                           进入交互模式（REPL）
  *
  * 命令：
  * 用户:
@@ -135,7 +135,7 @@ function output(
 /** 打印帮助 */
 export function printHelp(): void {
   console.log(`DoctorateTs 管理命令行工具
-用法: npm run admin -- <command> [options]     （无参数进入交互模式）
+用法: pnpm run admin -- <command> [options]     （无参数进入交互模式）
 
 用户管理:
   users list [--json] [--csv] [--filter 关键字]     列出所有用户（可过滤）

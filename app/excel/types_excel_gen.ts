@@ -2,7 +2,7 @@
  * 自动生成的 excel 表类型定义文件
  * 从 reference/com.hypergryph.arknights_2.7.61.cs 反编译文件生成
  * （客户端表类闭包 + excel 协议适配 + JSON 实际键对照，见 scripts/excel-server-adapt.ts / excel-json-keys.ts）
- * 生成命令: npm run generate:types
+ * 生成命令: pnpm run generate:types
  * 请勿手动修改此文件
  */
 
@@ -9037,7 +9037,7 @@ export interface HandbookAvgGroupData {
     rewardItem: ItemBundle[];
     unlockParam: HandbookUnlockParam[];
     avgList: HandbookAvgData[];
-    charId: string;
+    charID: string;
 }
 
 export interface HandBookStoryViewData {
@@ -10905,13 +10905,13 @@ export interface RoguelikeModule {
     fragment: RoguelikeFragmentModuleData;
     disaster: RoguelikeDisasterModuleData;
     nodeUpgrade: RoguelikeNodeUpgradeModuleData;
-    cOPPER: RoguelikeCopperModuleData;
+    copper: RoguelikeCopperModuleData;
     wrath: RoguelikeWrathModuleData;
     candle: RoguelikeCandleModuleData;
     sky: RoguelikeSkyModuleData;
     weather: RoguelikeWeatherModuleData;
     gridZone: RoguelikeGridZoneModuleData;
-    sCRAP: RoguelikeScrapModuleData;
+    scrap: RoguelikeScrapModuleData;
 }
 
 export interface RoguelikeTopicDetailConst {
@@ -10996,7 +10996,7 @@ export interface RoguelikeTopicMilestoneUpdateData {
 }
 
 export interface RoguelikeTopicCapsule {
-    itemId: string;
+    itemID: string;
     maskType: RoguelikeEventType;
     innerColor: string;
 }
@@ -11437,7 +11437,7 @@ export interface RoguelikeChoiceDisplayData {
     costHintType: RoguelikeChoiceHintType;
     effectHintType: RoguelikeChoiceHintType;
     funcIconId: string;
-    itemId: string;
+    itemID: string;
     difficultyUpgradeRelicGroupId: string;
     taskId: string;
     instId: string;
@@ -11561,7 +11561,7 @@ export interface RoguelikeTaskData {
 }
 
 export interface RoguelikeGameTrapData {
-    itemId: string;
+    itemID: string;
     trapId: string;
     trapDesc: string;
 }
@@ -15105,7 +15105,7 @@ export interface ZoneRecordGroupData {
 
 export interface ZoneRecordData {
     recordId: string;
-    zoneId: string;
+    zoneID: string;
     recordTitleName: string;
     preRecordId: string;
     nodeTitle1: string;
@@ -15130,7 +15130,7 @@ export interface RecordRewardServerData {
 
 export interface ZoneRecordUnlockData {
     noteId: string;
-    zoneId: string;
+    zoneID: string;
     initialName: string;
     finalName: string;
     accordingExposeId: string;

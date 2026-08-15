@@ -8,26 +8,15 @@ import { join } from "path";
 import { mkdir } from "fs/promises";
 import { exists, readJson, writeJson } from "@utils/file";
 import { logger } from "@utils/logger";
+import { loadPluginCatalog, type PluginCatalogEntry } from "./plugin-catalog";
 
 /** 插件目录（相对项目根） */
 const PLUGIN_DIR = join(__dirname, "..", "..", "data", "plugin");
 /** 配置文件路径 */
 const PLUGIN_CONFIG_PATH = join(PLUGIN_DIR, "config.json");
 
-/** 插件定义（与 lua/plugin/PluginDefs.lua 保持一致） */
-export interface PluginDefinition {
-  id: string;
-  name: string;
-  desc: string;
-}
-
-/** 插件定义目录 */
-export const PLUGIN_CATALOG: readonly PluginDefinition[] = Object.freeze([
-  { id: "enemy_hp", name: "敌人血量显示", desc: "在敌人血条旁显示具体血量数值" },
-  { id: "enemy_info", name: "敌人属性面板", desc: "战斗中长按并点击敌人查看属性与路线" },
-  { id: "battle_assist", name: "战斗辅助", desc: "战斗时间轴 / 倍速 / TAS 暂停帧" },
-  { id: "plugin_panel", name: "插件管理面板", desc: "现代化插件启停管理面板" },
-]);
+/** 插件定义（与 lua/plugin/PluginDefs.lua 保持一致，由单一数据源解析） */
+export type PluginDefinition = PluginCatalogEntry;
 
 /** 持久化配置结构 */
 interface PluginConfig {
@@ -37,10 +26,13 @@ interface PluginConfig {
 /**
  * 插件配置服务单例。
  * 负责读写插件启用状态，读写异常时回退全启用默认值，保证不阻断管理接口。
+ * 插件目录来自 lua/plugin/PluginDefs.lua（单一数据源），见 ./plugin-catalog。
  */
 export class PluginConfigService {
   private readonly configPath: string;
   private cache: PluginConfig | null = null;
+  /** 插件目录（懒加载） */
+  private catalog: PluginDefinition[] | null = null;
 
   /**
    * 构造服务实例。
@@ -51,10 +43,22 @@ export class PluginConfigService {
   }
 
   /**
+   * 返回插件目录（懒加载，解析失败回退内置目录）。
+   * @returns 插件目录条目
+   */
+  private getCatalog(): PluginDefinition[] {
+    if (this.catalog === null) {
+      this.catalog = loadPluginCatalog();
+    }
+    return this.catalog;
+  }
+
+  /**
    * 清空内存缓存（供测试重置或配置热更新后重建）。
    */
   reset(): void {
     this.cache = null;
+    this.catalog = null;
   }
 
   /**
@@ -64,14 +68,14 @@ export class PluginConfigService {
   private async load(): Promise<PluginConfig> {
     if (this.cache) return this.cache;
     const defaults: PluginConfig = { enabled: {} };
-    for (const def of PLUGIN_CATALOG) {
+    for (const def of this.getCatalog()) {
       defaults.enabled[def.id] = true;
     }
     try {
       if (await exists(this.configPath)) {
         const raw = await readJson<Partial<PluginConfig>>(this.configPath);
         if (raw && raw.enabled && typeof raw.enabled === "object") {
-          for (const def of PLUGIN_CATALOG) {
+          for (const def of this.getCatalog()) {
             if (typeof raw.enabled[def.id] === "boolean") {
               defaults.enabled[def.id] = raw.enabled[def.id];
             }
@@ -101,7 +105,7 @@ export class PluginConfigService {
    */
   async getAll(): Promise<(PluginDefinition & { enabled: boolean })[]> {
     const config = await this.load();
-    return PLUGIN_CATALOG.map((def) => ({
+    return this.getCatalog().map((def) => ({
       ...def,
       enabled: config.enabled[def.id] === true,
     }));
@@ -123,7 +127,7 @@ export class PluginConfigService {
    * @returns 存在返回 true
    */
   has(id: string): boolean {
-    return PLUGIN_CATALOG.some((def) => def.id === id);
+    return this.getCatalog().some((def) => def.id === id);
   }
 
   /**

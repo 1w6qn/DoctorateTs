@@ -12,7 +12,7 @@
     }
   },
   "assets": {
-    "enableMods": false,
+    "enableMods": true,
     "downloadLocally": true,
     "downloadPeoxy": false,
     "autoUpdate": true

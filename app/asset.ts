@@ -15,12 +15,15 @@ const router = Router();
 router.get(
   "/official/:platform/assets/:assetsHash/:fileName",
   async (req, res) => {
-    const { assetsHash } = req.params;
+    const { assetsHash, platform } = req.params;
     let { fileName } = req.params;
     // 资源版本跟随客户端请求路径（资源按版本存储——客户端从 hv 拿到 resVersion 拼路径）；
-    // Windows 客户端资源与 Android 通用（官服 Windows 版复用 Android 资源包）——统一 Android CDN
+    // CDN 平台跟随客户端请求的 platform（Windows/Android 资源各自独立 CDN 目录，
+    // 版本号不同——Windows 版本仅在 Windows CDN 可下载，Android 版本仅在 Android CDN 可下载）
     const version = assetsHash;
-    const cdnPlatform = "Android";
+    const cdnPlatform = platform ?? "Android";
+    // CDN 下载用去 mod 后缀的原始版本（官方 CDN 无 mod 版本；后缀仅用于本地缓存目录区分）
+    const cdnVersion = stripModSuffix(version);
     let basePath = join(__dirname, "..", "assets", version, "redirect");
 
     if (fileName === "hot_update_list.json" && config.assets.enableMods) {
@@ -49,7 +52,7 @@ router.get(
       const rangeHeader = req.headers.range as string | undefined;
       if (rangeHeader) forwardHeaders.Range = rangeHeader;
       const resp = await fetch(
-        `https://ak.hycdn.cn/assetbundle/official/${cdnPlatform}/assets/${version}/${fileName}`,
+        `https://ak.hycdn.cn/assetbundle/official/${cdnPlatform}/assets/${cdnVersion}/${fileName}`,
         { headers: forwardHeaders, signal: AbortSignal.timeout(CDN_TIMEOUT) },
       );
       const body = Buffer.from(await resp.arrayBuffer());
@@ -110,7 +113,7 @@ router.get(
       }
     }
     const fp = await exportFile(
-      `https://ak.hycdn.cn/assetbundle/official/${cdnPlatform}/assets/${version}/${fileName}`,
+      `https://ak.hycdn.cn/assetbundle/official/${cdnPlatform}/assets/${cdnVersion}/${fileName}`,
       basePath,
       fileName,
       filePath,
@@ -178,6 +181,15 @@ export function getModVersionSuffix(): string {
     .sort()
     .join(",");
   return "-m" + createHash("md5").update(sig).digest("hex").slice(0, 6);
+}
+
+/**
+ * 去除资源版本号的 mod 后缀（`-m{6位hex}`）。
+ * 客户端从 hv 拿到带 mod 后缀的 resVersion 拼资源路径；官方 CDN 无 mod 版本，
+ * 下载官方资源时须用去后缀的原始版本。无后缀时原样返回。
+ */
+export function stripModSuffix(version: string): string {
+  return version.replace(/-m[0-9a-fA-F]{6}$/, "");
 }
 
 const downloadingFiles: { [key: string]: EventEmitter } = {};
@@ -409,7 +421,10 @@ async function loadMods(): Promise<ModsList> {
           });
           readStream!.on("end", async () => {
             const byteBuffer = Buffer.concat(chunks);
-            const totalSize = byteBuffer.length;
+            // 官方语义：totalSize = 可下载的 .dat(zip) 实际大小（客户端按此判定下载完成），
+            // abSize = 解压后 bundle 大小（客户端一致性校验 fileInfo.Length==abSize）。
+            // 曾错把两者都设成 bundle 大小 → 客户端按更大的 totalSize 等待下载，实际收不到 → "下载失败"
+            const totalSize = datFileInfos[filePath]?.size ?? byteBuffer.length;
             const abSize = byteBuffer.length;
             const modMd5 = createHash("md5").update(byteBuffer).digest("hex");
 

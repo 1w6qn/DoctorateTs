@@ -5,7 +5,7 @@
  * users 表 JSON，避免每次保存配置时全量重写（R4 + A3）。
  */
 import { DatabaseSync } from "node:sqlite";
-import type { BattleInfo } from "@game/manager/AccountManager";
+import type { BattleInfo } from "@game/manager/BattleInfoStore";
 
 /** 当前时间戳（秒） */
 function nowTs(): number {

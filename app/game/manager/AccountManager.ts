@@ -7,6 +7,7 @@
 
 import { PlayerDataModel } from "../model/playerdata";
 import { PlayerDataManager } from "./PlayerDataManager";
+import { BattleInfo, BattleInfoStore } from "./BattleInfoStore";
 import { unlockActivity } from "./activity/unlockActivity";
 import { readJson } from "@utils/file";
 import { now } from "@utils/time";
@@ -93,7 +94,7 @@ function deepFreezeExcept(data: any, except: string[]): void {
   }
 }
 
-export class AccountManager {
+export class AccountManager implements BattleInfoStore {
   /** 玩家数据管理器映射，key为uid */
   data: { [key: string]: PlayerDataManager };
   /** 用户配置数据映射，key为uid */
@@ -129,7 +130,7 @@ export class AccountManager {
    * 初始化账户管理器
    * 
    * 从 SQLite（users 表）加载用户配置（首次表空时从 users.json 种子迁移），
-   * 从 data/user/databases/ 加载玩家数据。设置保存事件监听器。
+   * 玩家存档以 SQLite player_data 表为唯一数据源（gzip BLOB，懒加载）。设置保存事件监听器。
    */
   async init() {
     logger.info("AccountManager", "loading users...");
@@ -366,7 +367,7 @@ export class AccountManager {
       // 修复后标记脏，使首个请求落盘时写回修复结果
       (data as any)._repairMarked = true;
     }
-    this.data[uid] = new PlayerDataManager(data);
+    this.data[uid] = new PlayerDataManager(data, this);
     if ((data as any)._repairMarked) {
       this.data[uid].markDirty();
       delete (data as any)._repairMarked;
@@ -401,6 +402,55 @@ export class AccountManager {
       // 防抖合并：500ms 内的多次变更只落盘一次
       this.scheduleSave(uid);
     });
+  }
+
+  /**
+   * 加载新账号模板存档（方案 A+C：SQLite 单一数据源）
+   *
+   * 优先从 SQLite player_data 表的 uid=1 模板行读取（1.json 已迁移入表）；
+   * 模板行尚不存在（首次运行/测试未 init 等无 repo 场景）时回退 JSON 文件：
+   * 1.json（历史模板）→ player_data.json（官服满配基底）。
+   * @returns 模板存档对象（深拷贝由调用方负责）
+   * @throws 模板均不可用时抛错
+   */
+  private async _loadTemplate(): Promise<any> {
+    // 方案 A+C：优先 SQLite player_data 表 uid=1 模板行
+    if (this._playerDataRepo) {
+      const raw = this._playerDataRepo.get("1");
+      if (raw !== null) return JSON.parse(raw);
+    }
+    // 回退 JSON 文件模板（迁移过渡/无 repo 防御路径）
+    const templatePath = `./data/user/databases/1.json`;
+    try {
+      return await readJson(templatePath);
+    } catch {
+      const official = await readJson<any>("./player_data.json").catch(() => null);
+      if (!official) {
+        throw new Error(
+          `找不到模板存档 ${templatePath}（player_data.json 亦缺失），无法创建账号`,
+        );
+      }
+      return official;
+    }
+  }
+
+  /**
+   * 持久化玩家存档（方案 A+C：SQLite 单一数据源）
+   *
+   * 有 SQLite 仓储（生产/init 后）时仅写入 player_data 表（事务原子）；
+   * 无仓储（测试/未 init 的防御路径）回退原子文件写（.tmp + rename）。
+   * @param uid - 用户ID
+   * @param data - 玩家数据对象
+   */
+  private async _writePlayerData(uid: string, data: any): Promise<void> {
+    if (this._playerDataRepo) {
+      this._playerDataRepo.upsert(uid, JSON.stringify(data));
+    } else {
+      const finalPath = `./data/user/databases/${uid}.json`;
+      const tmpPath = `${finalPath}.tmp`;
+      await writeFile(tmpPath, JSON.stringify(data));
+      await rename(tmpPath, finalPath);
+    }
   }
 
   /**
@@ -456,12 +506,11 @@ export class AccountManager {
   }
 
   /**
-   * 保存玩家数据到文件（原子写：临时文件 + rename，避免写盘中断损坏存档）
+   * 保存玩家数据（方案 A+C：存档仅写入 SQLite player_data 表，事务原子）
    * @param uid - 用户ID
    */
   async savePlayerData(uid: string): Promise<void> {
     const finalPath = `./data/user/databases/${uid}.json`;
-    const tmpPath = `${finalPath}.tmp`;
     // 写盘前健康校验：发现可修复损坏时修复（避免把坏数据落盘）。
     // 修复：原对 PlayerDataManager 实例做校验（无 activity 等字段 → 误报
     // "activity 缺失" 并往管理器上塞垃圾字段）；改为校验真实存档 _playerdata。
@@ -472,16 +521,11 @@ export class AccountManager {
       logSaveRepair(uid, saveIssues);
     }
     const t0 = Date.now();
-    if (this._playerDataRepo) {
-      // 方案 A+C：SQLite player_data（gzip BLOB，事务原子）——替代文件 tmp+rename
-      this._playerDataRepo.upsert(uid, JSON.stringify(this.data[uid]));
-      // 迁移完成后清理旧文件（防抖写路径幂等）
-      if (fs.existsSync(finalPath) && uid !== "1") {
-        fs.rmSync(finalPath, { force: true });
-      }
-    } else {
-      await writeFile(tmpPath, JSON.stringify(this.data[uid]));
-      await rename(tmpPath, finalPath);
+    // 方案 A+C：存档仅写入 SQLite player_data 表（gzip BLOB，事务原子）——替代文件 tmp+rename
+    await this._writePlayerData(uid, this.data[uid]);
+    // 迁移收尾：SQLite 落盘后清理遗留 JSON 文件（1.json 模板保留）
+    if (this._playerDataRepo && fs.existsSync(finalPath) && uid !== "1") {
+      fs.rmSync(finalPath, { force: true });
     }
     // 耗时可观测（A-2）：序列化大存档约 9ms/5.4MB 对象——防抖后离请求路径
     logger.debug("AccountManager", `savePlayerData ${uid}`, `${Date.now() - t0}ms`);
@@ -655,23 +699,8 @@ export class AccountManager {
       const uids = Object.keys(this.configs).map(Number);
       const newUid = String((uids.length ? Math.max(...uids) : 0) + 1);
 
-      const templatePath = `./data/user/databases/1.json`;
-      let templateData: any;
-      try {
-        // 方案 A+C：模板优先从 SQLite player_data 读（文件迁移后已删除）
-        if (this._playerDataRepo) {
-          const raw = this._playerDataRepo.get("1");
-          if (raw !== null) templateData = JSON.parse(raw);
-        }
-        if (!templateData && fs.existsSync(templatePath)) {
-          templateData = await readJson(templatePath);
-        }
-        if (!templateData) {
-          throw new Error("模板存档不存在");
-        }
-      } catch {
-        throw new Error(`找不到模板存档 ${templatePath}，无法创建用户`);
-      }
+      // 方案 A+C：新账号模板从 SQLite player_data 表 uid=1 模板行读取（无 repo 回退 JSON 文件）
+      const templateData = await this._loadTemplate();
       const playerData = JSON.parse(JSON.stringify(templateData));
       playerData.status.uid = newUid;
       playerData.status.nickName = `博士${newUid}`;
@@ -697,11 +726,8 @@ export class AccountManager {
         rlv2: {},
       };
 
-      // 原子写（.tmp + rename——与 savePlayerData 一致，避免写一半崩溃留坏档）
-      const finalPath = `./data/user/databases/${newUid}.json`;
-      const tmpPath = `${finalPath}.tmp`;
-      await writeFile(tmpPath, JSON.stringify(playerData));
-      await rename(tmpPath, finalPath);
+      // 方案 A+C：新账号存档写入 SQLite player_data 表（事务原子；无 repo 回退文件写）
+      await this._writePlayerData(newUid, playerData);
       this.configs[newUid] = userConfig;
       this._secretIndex = null; // 新增账号：secret 索引失效，下次查询重建
       await this.saveUserConfig();
@@ -747,26 +773,15 @@ export class AccountManager {
    * 确保单例账号存在（不存在时以模板创建——干净账号）
    * 单例模式固定账号（config.singleUid）可能不存在（如切到 2222 过渡）
    *
-   * 模板优先级：1.json → player_data.json（官服满配基底）→ 报错。
-   * 1.json 缺失或结构过期时回退 player_data.json；随后 index.ts 的 generateMaxedAccount
+   * 模板来源（方案 A+C）：优先 SQLite player_data 表 uid=1 模板行；无 repo/模板行缺失时
+   * 回退 1.json → player_data.json（官服满配基底）。随后 index.ts 的 generateMaxedAccount
    * 会按版本刷新内容字段（S1 合并式刷新），故模板结构差异会被自动纠正。
    * @param uid - 单例账号 uid
    */
   async ensureSingleUser(uid: string): Promise<void> {
     if (this.configs[uid]) return;
-    const templatePath = `./data/user/databases/1.json`;
-    let templateData: any;
-    try {
-      templateData = await readJson(templatePath);
-    } catch {
-      // 1.json 缺失：回退 player_data.json 官服基底（结构更完整）
-      templateData = await readJson<any>("./player_data.json").catch(() => null);
-      if (!templateData) {
-        throw new Error(
-          `找不到模板存档 ${templatePath}（player_data.json 亦缺失），无法创建账号`,
-        );
-      }
-    }
+    // 方案 A+C：模板优先从 SQLite player_data 表 uid=1 模板行读取（无 repo 回退 1.json/player_data.json）
+    const templateData = await this._loadTemplate();
     const playerData = JSON.parse(JSON.stringify(templateData));
     playerData.status.uid = uid;
     playerData.status.nickName = `博士${uid}`;
@@ -792,11 +807,8 @@ export class AccountManager {
       rlv2: {},
     };
 
-    // 原子写（.tmp + rename——与 savePlayerData 一致，避免写一半崩溃留坏档）
-    const finalPath = `./data/user/databases/${uid}.json`;
-    const tmpPath = `${finalPath}.tmp`;
-    await writeFile(tmpPath, JSON.stringify(playerData));
-    await rename(tmpPath, finalPath);
+    // 方案 A+C：新账号存档写入 SQLite player_data 表（事务原子；无 repo 回退文件写）
+    await this._writePlayerData(uid, playerData);
     this.configs[uid] = userConfig;
     this._secretIndex = null; // 新增账号：secret 索引失效，下次查询重建
     await this.saveUserConfig();
@@ -927,21 +939,9 @@ export interface UserConfig {
 }
 
 /**
- * 战斗信息接口
+ * 战斗信息接口（从 BattleInfoStore 重导出，保持向后兼容）
  */
-export interface BattleInfo {
-  stageId: string;
-  isPractice: number;
-  /** 出战编队（用于结算信赖等后处理） */
-  squad?: { slots: ({ charInstId: number } | null)[] };
-  /** 助战好友信息（编队借用好友干员） */
-  assistFriend?: {
-    uid: string;
-    nickName: string;
-    assistChar: { charId: string; level?: number }[];
-    assistSlotIndex: number;
-  } | null;
-}
+export type { BattleInfo } from "./BattleInfoStore";
 
 /** 账户管理器全局实例 */
 export const accountManager = new AccountManager();

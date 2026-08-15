@@ -132,17 +132,27 @@ process.on("exit", (code) => {
   }
   
   enablePatches();
-  await excel.init();
-  // 统一抓包存储初始化（幂等）：Dashboard「抓包」Tab / CLI / 各抓包来源共用
-  if (config.capture?.root) {
-    captureManager.configure({ root: config.capture.root });
-  }
-  await captureManager.init().catch((e) => logger.warn("index", `抓包存储初始化失败: ${(e as Error).message}`));
-  // 启用 mod 时启动预热加载（避免首个热更清单请求卡在扫描、mod 文件请求早于清单时列表为空）
-  if (config.assets.enableMods) {
-    const { initMods } = await import("./app/asset");
-    await initMods();
-  }
+  // 独立初始化并行：Excel 数据表 + 统一抓包存储 + mod 预热（互不依赖，均不依赖 Express）——
+  // 原串行三段（ excel.init → captureManager.init → initMods ）改为并行，缩短启动关键路径。
+  const [excelInitPromise, captureInitPromise, modInitPromise] = [
+    excel.init(),
+    (async () => {
+      // 统一抓包存储初始化（幂等）：Dashboard「抓包」Tab / CLI / 各抓包来源共用
+      if (config.capture?.root) {
+        captureManager.configure({ root: config.capture.root });
+      }
+      await captureManager
+        .init()
+        .catch((e) =>
+          logger.warn("index", `抓包存储初始化失败: ${(e as Error).message}`),
+        );
+    })(),
+    // 启用 mod 时启动预热加载（避免首个热更清单请求卡在扫描、mod 文件请求早于清单时列表为空）
+    config.assets.enableMods
+      ? (await import("./app/asset")).initMods()
+      : Promise.resolve(),
+  ];
+  await Promise.all([excelInitPromise, captureInitPromise, modInitPromise]);
   const app = express();
   // 响应压缩（B1）：syncData 等大响应（user 全量数 MB）gzip 后传输大幅减小。
   // 放 bodyParser 之前——压缩作用于响应，客户端带 Accept-Encoding: gzip 时生效

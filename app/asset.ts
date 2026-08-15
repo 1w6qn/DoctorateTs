@@ -101,19 +101,18 @@ router.get(
       }
     }
 
-    if (config.assets.enableMods && MODS_LIST.name.includes(fileName)) {
-      // 客户端按清单 name（含子路径，如 anon/xxx.bin）请求 mod；name 与 path 按下标一一对应
-      for (const [mod, path] of MODS_LIST.name.map((m, i) => [
-        m,
-        MODS_LIST.path[i],
-      ])) {
-        if (fileName === mod && (await exists(path))) {
-          logger.debug("Asset", "use mod file", mod, path);
-          wrongSize = false;
-          filePath = path;
-          basePath = join(__dirname, "..", "mods");
-          fileName = basename(filePath);
-        }
+    if (config.assets.enableMods) {
+      // 客户端把清单 name（含子路径 anon/xxx.bin）扁平化为下载名（anon_xxx.dat，/→_、去后缀加.dat）
+      // 请求路径即 download 名；个别场景也可能直接请求原始 name（含子路径），两者都兼容。
+      // download/name/path 按下标一一对应。
+      const idx = MODS_LIST.download.indexOf(fileName);
+      const modPath = idx >= 0 ? MODS_LIST.path[idx] : MODS_LIST.name.indexOf(fileName) >= 0 ? MODS_LIST.path[MODS_LIST.name.indexOf(fileName)] : undefined;
+      if (modPath && (await exists(modPath))) {
+        logger.debug("Asset", "use mod file", fileName, modPath);
+        wrongSize = false;
+        filePath = modPath;
+        basePath = join(__dirname, "..", "mods");
+        fileName = basename(filePath);
       }
     }
     const fp = await exportFile(

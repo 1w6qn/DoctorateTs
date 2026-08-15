@@ -52,6 +52,9 @@
     "migrate:official": "tsx scripts/migrate-official.ts",
     "decompile": "bash scripts/decompile-client.sh",
     "pack:mod": "tsx scripts/pack-mod.ts",
+    "pack:lua-plugins": "tsx scripts/pack-lua-plugins.ts",
+    "repack:lua": "tsx scripts/repack-lua-bundle.ts",
+    "extract:lua": "tsx scripts/extract-lua-bundle.ts",
     "watch": "node scripts/watchdog.mjs"
   },
   "devDependencies": {

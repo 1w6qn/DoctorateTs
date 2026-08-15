@@ -118,7 +118,93 @@ export function extractTextAsset(unityfs: Uint8Array): TextAssetData | null {
   // ---- SerializedFile（取第一个节点，即 CAB 序列化文件）----
   const node = nodes[0];
   const sf = cab.subarray(node.offset, node.offset + node.size);
-  return parseSerializedFile(sf);
+  const assets = parseSerializedFiles(sf);
+  return assets.length > 0 ? assets[0] : null;
+}
+
+/**
+ * 解析 UnityFS bundle → 提取全部 TextAsset（m_Name / m_Script）。
+ * 用于多 TextAsset 插件 bundle 的打包回读验证。
+ * @param unityfs - 解包后的 UnityFS bundle 字节
+ */
+export function extractTextAssets(unityfs: Uint8Array): TextAssetData[] {
+  // ---- UnityFS 头（大端）----
+  let off = 0;
+  const sig = cstr(unityfs, off);
+  if (sig.s !== "UnityFS") throw new Error(`非 UnityFS bundle: ${sig.s}`);
+  off = sig.off;
+  const version = u32be(unityfs, off); off += 4;
+  const vp = cstr(unityfs, off); off = vp.off;
+  const ve = cstr(unityfs, off); off = ve.off;
+  i64be(unityfs, off); off += 8; // size（忽略）
+  const cSize = u32be(unityfs, off); off += 4;
+  const uSize = u32be(unityfs, off); off += 4;
+  const flags = u32be(unityfs, off); off += 4;
+
+  if (version >= 7) {
+    while (off % 16 !== 0) off++;
+  }
+
+  let biBytes: Uint8Array;
+  if (flags & 0x80) {
+    biBytes = unityfs.subarray(unityfs.length - cSize);
+  } else {
+    biBytes = unityfs.subarray(off, off + cSize);
+  }
+  const infoMode = flags & 0x3f;
+  let bi: Uint8Array;
+  if (infoMode === 0) {
+    bi = biBytes;
+  } else if (infoMode === 3 || infoMode === 2) {
+    bi = lz4BlockDecompress(biBytes, uSize);
+  } else {
+    throw new Error(`块信息压缩模式不支持: ${infoMode}`);
+  }
+
+  let o = 16;
+  const blockCount = u32be(bi, o); o += 4;
+  const blocks: { u: number; c: number; mode: number }[] = [];
+  for (let i = 0; i < blockCount; i++) {
+    const u = u32be(bi, o); o += 4;
+    const c = u32be(bi, o); o += 4;
+    const fl = (bi[o] << 8) | bi[o + 1]; o += 2;
+    blocks.push({ u, c, mode: fl & 0x3f });
+  }
+  const nodeCount = u32be(bi, o); o += 4;
+  const nodes: { offset: number; size: number; path: string }[] = [];
+  for (let i = 0; i < nodeCount; i++) {
+    const offset = i64be(bi, o); o += 8;
+    const size = i64be(bi, o); o += 8;
+    o += 4; // flags
+    const name = cstr(bi, o); o = name.off;
+    nodes.push({ offset, size, path: name.s });
+  }
+
+  let dataOff = off + cSize;
+  if (flags & 0x200) {
+    while (dataOff % 16 !== 0) dataOff++;
+  }
+  let blocksStart = dataOff;
+  const parts: Uint8Array[] = [];
+  for (const blk of blocks) {
+    const raw = unityfs.subarray(blocksStart, blocksStart + blk.c);
+    blocksStart += blk.c;
+    if (blk.mode === 0) {
+      parts.push(raw);
+    } else if (blk.mode === 2 || blk.mode === 3) {
+      parts.push(lz4BlockDecompress(raw, blk.u));
+    } else if (blk.mode === 4) {
+      parts.push(decompressLz4ak(raw, blk.u));
+    } else {
+      throw new Error(`数据块压缩模式不支持: ${blk.mode}`);
+    }
+  }
+  const cab = concatBytes(parts);
+  if (nodes.length === 0) return [];
+
+  const node = nodes[0];
+  const sf = cab.subarray(node.offset, node.offset + node.size);
+  return parseSerializedFiles(sf);
 }
 
 function concatBytes(parts: Uint8Array[]): Uint8Array {
@@ -133,10 +219,10 @@ function concatBytes(parts: Uint8Array[]): Uint8Array {
 }
 
 /**
- * SerializedFile v22 → 提取 TextAsset 对象。
+ * SerializedFile v22 → 提取全部 TextAsset 对象。
  * 对象数据布局（TextAsset 固定字段序）：m_Name(AlignedString) → m_Script(ByteArray) → m_PathName。
  */
-function parseSerializedFile(sf: Uint8Array): TextAssetData | null {
+function parseSerializedFiles(sf: Uint8Array): TextAssetData[] {
   // 头（大端）：初始 4 u32（v22 后按 64 位重读）+ endian u8 + reserved 3
   let o = 0;
   const version = u32be(sf, 8); // 初始头的 version 字段
@@ -200,12 +286,14 @@ function parseSerializedFile(sf: Uint8Array): TextAssetData | null {
 
   // TextAsset ClassID = 49；对象 typeId 是类型数组下标
   const taTypeIdx = classIds.indexOf(49);
-  const textAsset = taTypeIdx >= 0 ? objs.find((x) => x.typeId === taTypeIdx) : null;
-  if (!textAsset) return null;
+  if (taTypeIdx < 0) return [];
+  const textAssets = objs.filter((x) => x.typeId === taTypeIdx);
+  if (textAssets.length === 0) return [];
 
   // 对象数据在 SF 内的 byteStart（相对 sf 起点）
-  const obj = sf.subarray(textAsset.start, textAsset.start + textAsset.size);
-  return parseTextAsset(obj);
+  return textAssets.map((ta) =>
+    parseTextAsset(sf.subarray(ta.start, ta.start + ta.size)),
+  );
 }
 
 function readI64(buf: Uint8Array, off: number): bigint {

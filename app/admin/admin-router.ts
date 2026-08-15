@@ -14,6 +14,7 @@ import config from "../config";
 import { captureManager } from "@capture/capture-manager";
 import { logService } from "@logs/log-service";
 import { createSse, sseSend } from "@utils/sse";
+import { pluginConfigService } from "@plugin/index";
 
 const router = Router();
 
@@ -1045,6 +1046,31 @@ router.get("/api/logs/stream", (req: Request, res: Response) => {
 /** 配置（只读） */
 router.get("/api/config", (_req: Request, res: Response) => {
   res.json(config);
+});
+
+/** 插件列表（含启用状态） */
+router.get("/api/plugin", async (_req: Request, res: Response) => {
+  res.json({ plugins: await pluginConfigService.getAll() });
+});
+
+/** 启用插件 */
+router.post("/api/plugin/:id/enable", async (req: Request, res: Response) => {
+  try {
+    const enabled = await pluginConfigService.setEnabled(String(req.params.id), true);
+    res.json({ ok: true, id: req.params.id, enabled });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 停用插件 */
+router.post("/api/plugin/:id/disable", async (req: Request, res: Response) => {
+  try {
+    const enabled = await pluginConfigService.setEnabled(String(req.params.id), false);
+    res.json({ ok: true, id: req.params.id, enabled });
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
 });
 
 export default router;

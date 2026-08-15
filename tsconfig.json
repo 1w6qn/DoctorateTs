@@ -13,7 +13,8 @@
       "@utils/*": ["./app/utils/*"],
       "@game/*": ["./app/game/*"],
       "@capture/*": ["./app/capture/*"],
-      "@logs/*": ["./app/logs/*"]
+      "@logs/*": ["./app/logs/*"],
+      "@plugin/*": ["./app/plugin/*"]
     }
   },
   "include": ["app/**/*", "index.ts"],

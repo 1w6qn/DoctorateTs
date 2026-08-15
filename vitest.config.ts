@@ -29,6 +29,7 @@ export default defineConfig({
       '@utils': path.resolve(__dirname, 'app/utils'),
       '@capture': path.resolve(__dirname, 'app/capture'),
       '@logs': path.resolve(__dirname, 'app/logs'),
+      '@plugin': path.resolve(__dirname, 'app/plugin'),
     },
   },
 });

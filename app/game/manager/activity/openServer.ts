@@ -64,9 +64,14 @@ export class OpenServerManager {
       checkBetween(now(), s.startTs, s.endTs),
     );
     if (!schedule) return [];
+    // 修复：chainLoginData[-1]（最终奖励）可能缺失（当前 schedule 未配置），
+    // 直接访问 .item 会抛 TypeError → 500；缺失时返回空奖励。
+    const chainData = excel.OpenServerTable.dataMap[schedule.id];
+    const finalReward = chainData?.chainLoginData?.[-1];
+    if (!finalReward) return [];
     let item!: OpenServerItemData;
     await this._player.update(async (draft) => {
-      item = excel.OpenServerTable.dataMap[schedule.id].chainLoginData[-1].item;
+      item = finalReward.item;
       draft.openServer.chainLogin.isAvailable = false;
     });
 

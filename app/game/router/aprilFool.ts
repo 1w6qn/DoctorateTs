@@ -61,6 +61,10 @@ router.post("/act5fun/battleStart", async (req, res) => {
 router.post("/act5fun/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as Act3FunBattleFinishRequest;
+  if (body.data == null || body.battleData == null) {
+    res.send({ result: 1, ...player.delta } as Act3FunBattleFinishResponse);
+    return;
+  }
   res.send({
     ...(await player.aprilFool.act5funBattleFinish(body)),
     ...player.delta,

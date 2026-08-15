@@ -62,6 +62,11 @@ router.post("/campaignV2/battleStart", async (req, res) => {
 router.post("/campaignV2/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as CampaignFinishBattleRequest;
+  // 缺参校验：data/battleData 缺失时返回业务错误，避免 undefined 传入 battle.finish 抛 500
+  if (body.data == null || body.battleData == null) {
+    res.send({ result: 1, ...player.delta } satisfies CampaignFinishBattleResponse);
+    return;
+  }
   const finishResult = await player.battle.finish(body);
 
   res.send({

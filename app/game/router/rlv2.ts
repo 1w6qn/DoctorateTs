@@ -180,6 +180,14 @@ function rlv2Response<T extends object>(
   };
 }
 
+/**
+ * 缺参校验辅助：必填字段缺失时返回业务错误（HTTP 200 + result≠0），
+ * 避免 undefined 传入控制器抛 TypeError → 全局 500。响应结构同正常 rlv2。
+ */
+function rlv2MissingParam(player: PlayerDataManager): any {
+  return rlv2Response(player, { result: 1 } as any, SEC.ALL);
+}
+
 /** 放弃游戏（CS: RoguelikeTopicGiveUpGameRequest）——官方响应带 result:"ok" */
 router.post("/giveUpGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
@@ -194,6 +202,10 @@ router.post("/giveUpGame", async (req, res) => {
 router.post("/createGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeTopicCreateGameRequest;
+  if (body.theme == null || body.mode == null || body.modeGrade == null) {
+    res.send(rlv2MissingParam(player));
+    return;
+  }
   await player.rlv2.createGame(body);
   res.send(rlv2Response(player, undefined, SEC.ALL) satisfies RoguelikeTopicCreateGameResponse);
 });
@@ -240,6 +252,10 @@ router.post("/chooseInitialExploreTool", async (req, res) => {
 router.post("/activeRecruitTicket", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeActivateTicketRequest;
+  if (body.id == null) {
+    res.send(rlv2MissingParam(player));
+    return;
+  }
   await player.rlv2.activeRecruitTicket(body);
   res.send(rlv2Response(player, undefined, SEC.CORE) satisfies RoguelikeActivateTicketResponse);
 });
@@ -248,6 +264,10 @@ router.post("/activeRecruitTicket", async (req, res) => {
 router.post("/recruitChar", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeRecruitCharRequest;
+  if (body.ticketIndex == null || body.optionId == null) {
+    res.send(rlv2MissingParam(player));
+    return;
+  }
   res.send(
     rlv2Response(player, {
       chars: await player.rlv2.recruitChar(body),
@@ -277,6 +297,13 @@ router.post("/recruitAssistChar", async (req, res) => {
 router.post("/finishEvent", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as RoguelikeFinishEventRequest;
+  // 修复：无进行中游戏（或游戏主题无效）时返回业务错误，避免状态机在空态下异常调用崩溃
+  //（如冒烟空 body 探测触发 zone:new → 地图生成读取 undefined game.theme → details[undefined].stages → 500）
+  const game = player.rlv2.current?.game;
+  if (!game || !game.theme) {
+    res.send(rlv2MissingParam(player));
+    return;
+  }
   await player.rlv2.finishEvent();
   res.send(rlv2Response(player) satisfies RoguelikeFinishEventResponse);
 });
@@ -288,6 +315,10 @@ router.post("/finishEvent", async (req, res) => {
 router.post("/selectChoice", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeSelectChoiceRequest;
+  if (body.choice == null) {
+    res.send(rlv2MissingParam(player));
+    return;
+  }
   await player.rlv2.selectChoice(body);
   res.send(rlv2Response(player) satisfies RoguelikeSelectChoiceResponse);
 });
@@ -296,6 +327,10 @@ router.post("/selectChoice", async (req, res) => {
 router.post("/moveTo", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeMoveToRequest;
+  if (!body.to || body.to.x == null || body.to.y == null) {
+    res.send(rlv2MissingParam(player));
+    return;
+  }
   await player.rlv2.moveTo(body);
   res.send(rlv2Response(player) satisfies RoguelikeMoveToResponse);
 });
@@ -304,6 +339,10 @@ router.post("/moveTo", async (req, res) => {
 router.post("/moveAndBattleStart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeStepMoveToAndStartBattleRequest;
+  if (!body.to || body.to.x == null || body.to.y == null || body.stageId == null) {
+    res.send(rlv2MissingParam(player));
+    return;
+  }
   await player.rlv2.moveAndBattleStart(body);
   res.send(
     rlv2Response(player) satisfies RoguelikeStepMoveToAndStartBattleResponse,
@@ -322,6 +361,10 @@ router.post("/battleFinish", async (req, res) => {
 router.post("/chooseBattleReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeSelectRewardRequest;
+  if (body.index == null || body.sub == null) {
+    res.send(rlv2MissingParam(player));
+    return;
+  }
   player.rlv2.chooseBattleReward(body);
   res.send(rlv2Response(player) satisfies RoguelikeSelectRewardResponse);
 });
@@ -406,6 +449,10 @@ router.post("/shopAction", async (req, res) => {
 router.post("/useTotem", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RL03UseTotemRequest;
+  if (!body.totemIndex || !body.nodeIndex) {
+    res.send(rlv2MissingParam(player));
+    return;
+  }
   await player.rlv2.useTotem(body);
   res.send(rlv2Response(player) satisfies RL03UseTotemResponse);
 });
@@ -438,7 +485,7 @@ router.post("/readEndingChange", async (req, res) => {
 router.post("/normal/refreshMission", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as { theme?: string; index?: number };
-  player.rlv2.refreshMission(body);
+  await player.rlv2.refreshMission(body);
   res.send(rlv2Response(player) satisfies RoguelikeTopicRefreshMissionResponse);
 });
 
@@ -470,6 +517,10 @@ router.post("/specialZone/leave", async (req, res) => {
 router.post("/battlePass/getReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeBattlePassGetRewardRequest;
+  if (body.theme == null) {
+    res.send(rlv2MissingParam(player));
+    return;
+  }
   const { items } = await player.rlv2.battlePassGetReward(
     body.theme,
     body.rewards,
@@ -483,6 +534,10 @@ router.post("/battlePass/getReward", async (req, res) => {
 router.post("/battlePass_getReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeBattlePassGetRewardRequest;
+  if (body.theme == null) {
+    res.send(rlv2MissingParam(player));
+    return;
+  }
   const { items } = await player.rlv2.battlePassGetReward(
     body.theme,
     body.rewards,
@@ -714,6 +769,10 @@ router.post("/gridZone/moveTo", async (req, res) => {
 router.post("/gridZone/moveAndBattleStart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeGridZoneMoveAndBattleStartRequest;
+  if (!Array.isArray(body.route) || body.route.length === 0 || body.stageId == null) {
+    res.send(rlv2MissingParam(player));
+    return;
+  }
   await player.rlv2.gridZoneMoveAndBattleStart(body);
   res.send(
     rlv2Response(player) satisfies RoguelikeGridZoneMoveAndBattleStartResponse,

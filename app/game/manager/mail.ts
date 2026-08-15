@@ -13,6 +13,26 @@ export class MailManager {
     );
   }
 
+  /**
+   * 归一化邮件列表过滤参数（缺省为空数组）
+   *
+   * 修复：客户端可能省略部分字段（尤其初始化时传空对象），若直接使用
+   * args.sysMailIdList.includes 会对 undefined 抛错导致 500。统一默认空数组。
+   * @param args - 请求中的过滤参数（可缺省）
+   * @returns 归一化后的过滤参数
+   */
+  private normalizeListArgs(args?: {
+    sysMailIdList?: number[];
+    surveyMailIdList?: string[];
+    mailIdList?: number[];
+  }): { sysMailIdList: number[]; surveyMailIdList: string[]; mailIdList: number[] } {
+    return {
+      sysMailIdList: args?.sysMailIdList ?? [],
+      surveyMailIdList: args?.surveyMailIdList ?? [],
+      mailIdList: args?.mailIdList ?? [],
+    };
+  }
+
   async listMailbox(
     uid: string,
     args: {
@@ -21,11 +41,13 @@ export class MailManager {
       mailIdList: number[];
     },
   ): Promise<MailItem[]> {
+    const { sysMailIdList, surveyMailIdList, mailIdList } =
+      this.normalizeListArgs(args);
     return (this.database.user[uid] ?? []).filter((mail) => {
       return (
-        args.sysMailIdList.includes(mail.mailId) ||
-        args.surveyMailIdList.includes(mail.mailId.toString()) ||
-        args.mailIdList.includes(mail.mailId)
+        sysMailIdList.includes(mail.mailId) ||
+        surveyMailIdList.includes(mail.mailId.toString()) ||
+        mailIdList.includes(mail.mailId)
       );
     });
   }
@@ -86,11 +108,13 @@ export class MailManager {
       mailIdList: number[];
     },
   ): Promise<ItemBundle[]> {
+    const { sysMailIdList, surveyMailIdList, mailIdList } =
+      this.normalizeListArgs(args);
     const mailList = (this.database.user[uid] ?? []).filter((mail) => {
       return (
-        args.sysMailIdList.includes(mail.mailId) ||
-        args.surveyMailIdList.includes(mail.mailId.toString()) ||
-        args.mailIdList.includes(mail.mailId)
+        sysMailIdList.includes(mail.mailId) ||
+        surveyMailIdList.includes(mail.mailId.toString()) ||
+        mailIdList.includes(mail.mailId)
       );
     });
     const items: ItemBundle[] = [];
@@ -114,11 +138,13 @@ export class MailManager {
       mailIdList: number[];
     },
   ) {
+    const { sysMailIdList, surveyMailIdList, mailIdList } =
+      this.normalizeListArgs(args);
     this.database.user[uid] = (this.database.user[uid] ?? []).filter((mail) => {
       return !(
-        args.sysMailIdList.includes(mail.mailId) ||
-        args.surveyMailIdList.includes(mail.mailId.toString()) ||
-        args.mailIdList.includes(mail.mailId)
+        sysMailIdList.includes(mail.mailId) ||
+        surveyMailIdList.includes(mail.mailId.toString()) ||
+        mailIdList.includes(mail.mailId)
       );
     });
     await this.saveDatabase();

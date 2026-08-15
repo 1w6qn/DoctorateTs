@@ -100,6 +100,10 @@ router.post("/bindNickName", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BindNickNameRequest;
   const nickName = body.nickName;
+  // 修复：缺 nickName 必填参数时返回业务错误，而非 500
+  if (typeof nickName !== "string" || nickName.length === 0) {
+    return res.send({ result: 1 } satisfies BindNickNameResponse);
+  }
   let result = 0;
   const specialChars = "~!@#$%^&*()_+{}|:\"<>?[]\\;',./";
   if (nickName.length > 16) {
@@ -350,6 +354,10 @@ rootRouter.post("/user/recvLongTermCheckInReward", async (req, res) => {
 rootRouter.post("/mainline/enterCharVoiceRecord", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { topicId } = req.body as { topicId: string };
+  // 修复：缺 topicId 必填参数时返回业务错误，而非 500
+  if (typeof topicId !== "string" || topicId === "") {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.update(async (draft) => {
     const archive = (draft.mainline as any).missionArchive;
     archive[topicId] = archive[topicId] ?? { entryOpen: 0, entryRewardClaimed: 0, nodes: {} };
@@ -367,6 +375,15 @@ rootRouter.post("/mainline/enterCharVoiceRecord", async (req, res) => {
 rootRouter.post("/mainline/confirmCharVoiceRecordReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { topicId, nodeId } = req.body as { topicId: string; nodeId: string };
+  // 修复：缺 topicId/nodeId 必填参数时返回业务错误，而非 500
+  if (
+    typeof topicId !== "string" ||
+    topicId === "" ||
+    typeof nodeId !== "string" ||
+    nodeId === ""
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.update(async (draft) => {
     const archive = (draft.mainline as any).missionArchive;
     archive[topicId] = archive[topicId] ?? { entryOpen: 0, entryRewardClaimed: 0, nodes: {} };

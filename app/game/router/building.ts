@@ -177,6 +177,10 @@ router.post("/setPrivateDormOwner", async (req, res) => {
 router.post("/setBuildingAssist", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SetBuildingAssistRequest;
+  // 修复：缺 type/charInstId 必填参数时返回业务错误，而非 500
+  if (typeof body?.type !== "number" || typeof body?.charInstId !== "number") {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.building.setBuildingAssist(body);
   res.send({
     ...player.delta,
@@ -247,6 +251,10 @@ router.post("/upgradeDiyLevel", async (req, res) => {
 router.post("/assignChar", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as AssignCharRequest;
+  // 修复：缺 roomSlotId/charInstIdList 必填参数时返回业务错误，而非 500
+  if (typeof body?.roomSlotId !== "string" || !Array.isArray(body?.charInstIdList)) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.building.assignChar(body);
   res.send(player.delta satisfies AssignCharResponse);
 });

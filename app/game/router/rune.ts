@@ -74,6 +74,11 @@ router.post("/battleStart", async (req, res) => {
 router.post("/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RuneFinishBattleRequest;
+  // 缺参校验：data/battleData 缺失时返回业务错误，避免 undefined 传入 battle.finish 抛 500
+  if (body.data == null || body.battleData == null) {
+    res.send({ result: 1, ...player.delta });
+    return;
+  }
   const result = await player.battle.finish({
     data: body.data,
     battleData: body.battleData,

@@ -27,8 +27,13 @@ const vecBreakBattleCtxs = new Map<
 
 /** 按需初始化 VEC_BREAK_V2 活动数据 */
 function ensureVecBreakData(draft: any, activityId: string): any {
-  const vb = (draft.activity as any).VEC_BREAK_V2 as any;
-  if (!vb) (draft.activity as any).VEC_BREAK_V2 = {};
+  // 修复：draft.activity / VEC_BREAK_V2 缺失时可能为 undefined，先兜底再重读引用，
+  // 避免赋值后本地变量仍为 undefined，导致 vb[activityId] 抛「reading 'undefined'」500。
+  if (!draft.activity) draft.activity = {};
+  if (!draft.activity.VEC_BREAK_V2) {
+    draft.activity.VEC_BREAK_V2 = {};
+  }
+  const vb = draft.activity.VEC_BREAK_V2;
   if (!vb[activityId]) {
     vb[activityId] = {
       activatedBuff: [],
@@ -72,6 +77,7 @@ router.post("/vecBreakV2/getSeasonRecord", async (req, res) => {
 router.post("/vecBreakV2/changeBuffList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as VecBreakV2ChangeBuffRequest;
+  if (!body.activityId) return res.send({ result: 1, ...player.delta });
   // 参考 ODPY：写入 activity.VEC_BREAK_V2[activityId].activatedBuff
   await player.update(async (draft) => {
     const data = ensureVecBreakData(draft, body.activityId);
@@ -107,7 +113,7 @@ router.post("/vecBreakV2/defendBattleFinish", async (req, res) => {
   // 参考 ODPY：通关后写入 defendStages + activatedBuff 追加 stageId
   const ctx = vecBreakBattleCtxs.get(player.uid);
   let msBefore = 0;
-  if (ctx) {
+  if (ctx && ctx.activityId) {
     await player.update(async (draft) => {
       const data = ensureVecBreakData(draft, ctx.activityId);
       const defend = data.defendStages[ctx.stageId];
@@ -146,6 +152,7 @@ router.post("/vecBreakV2/defendBattleFinish", async (req, res) => {
 router.post("/vecBreakV2/setDefend", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as VecBreakV2SetDefendRequest;
+  if (!body.activityId) return res.send({ result: 1, ...player.delta });
   // 参考 ODPY：写入 defendStages[stageId].defendSquad
   await player.update(async (draft) => {
     const data = ensureVecBreakData(draft, body.activityId);

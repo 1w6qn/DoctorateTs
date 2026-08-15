@@ -679,7 +679,7 @@ OAuth2 授权
 **请求参数**:
 ```json
 {
-  "keyword": "string"
+  "idList": ["string"]
 }
 ```
 
@@ -687,6 +687,8 @@ OAuth2 授权
 ```json
 {
   "players": [...],
+  "resultIdList": [...],
+  "friendStatusList": [...],
   "playerDataDelta": { ... }
 }
 ```

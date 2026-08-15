@@ -182,6 +182,10 @@ router.post("/getChainLogInFinalRewards", async (req, res) => {
 router.post("/getOpenServerCheckInReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetOpenServerCheckInRewardRequest;
+  // 读类缺参校验：index 为必填，缺失时返回业务错误
+  if (body.index == null) {
+    return res.send({ result: 1, ...player.delta });
+  }
   res.send({
     reward: await player.openServer.getCheckInReward(body),
     ...player.delta,
@@ -198,6 +202,10 @@ router.post("/getOpenServerCheckInReward", async (req, res) => {
 router.post("/getActivityCheckInReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetActivityCheckInRewardRequest;
+  // 缺参校验：activityId/index 为必填，缺失时返回业务错误
+  if (body.activityId == null || body.index == null) {
+    return res.send({ result: 1, ...player.delta });
+  }
 
   await player.update(async (draft) => {
     const activityId = body.activityId;
@@ -305,6 +313,10 @@ router.post("/getCheckInReward", async (req, res) => {
   const body = req.body as GetCheckInRewardRequest;
 
   const activityId = body.activityId;
+  // 缺参校验：activityId 为必填，缺失时返回业务错误（避免 activityId.endsWith 抛 TypeError → 500）
+  if (activityId == null) {
+    return res.send({ result: 1, ...player.delta });
+  }
 
   if (activityId.endsWith("access")) {
     const REWARDS: ItemBundle[] = [
@@ -373,6 +385,10 @@ router.post("/getCheckInReward", async (req, res) => {
 router.post("/changeFestivalChar", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ChangeFestivalCharRequest;
+  // 缺参校验：activityId/index/newChar 缺失时返回业务错误
+  if (body.activityId == null || body.index == null || body.newChar == null) {
+    return res.send({ result: 1, ...player.delta });
+  }
 
   await player.update(async (draft) => {
     const blessData = draft.activity.BLESS_ONLY as any;
@@ -1012,6 +1028,10 @@ router.post("/bossRush/battleStart", async (req, res) => {
 router.post("/bossRush/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BossRushFinishBattleRequest;
+  // 缺参校验：battle data 缺失时返回业务错误，避免 decryptBattleData 抛 TypeError → 500
+  if (body.data == null) {
+    return res.send({ result: 1, ...player.delta });
+  }
 
   // 标准战斗结算
   const result = await player.battle.finish({
@@ -1518,6 +1538,10 @@ router.post("/act24side/battleStart", async (req, res) => {
 router.post("/act24side/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as Act24sideBattleFinishRequest;
+  // 缺参校验：battle data 缺失时返回业务错误
+  if (body.data == null) {
+    return res.send({ result: 1, ...player.delta });
+  }
   const result = await player.battle.finish({
     data: body.data,
     battleData: body.battleData,
@@ -1724,8 +1748,13 @@ router.post("/act1vhalfidle/battleFinish", async (req, res) => {
 
 /** 按需初始化 HALFIDLE_VERIFY1 活动数据 */
 function ensureHalfIdleData(draft: any, activityId: string): any {
-  const hf = (draft.activity as any).HALFIDLE_VERIFY1 as any;
-  if (!hf) (draft.activity as any).HALFIDLE_VERIFY1 = {};
+  // 修复：draft.activity / HALFIDLE_VERIFY1 缺失时可能为 undefined，先兜底再重读引用，
+  // 避免赋值后本地变量仍为 undefined，导致 hf[activityId] 抛「reading 'undefined'」500。
+  if (!draft.activity) draft.activity = {};
+  if (!draft.activity.HALFIDLE_VERIFY1) {
+    draft.activity.HALFIDLE_VERIFY1 = {};
+  }
+  const hf = draft.activity.HALFIDLE_VERIFY1;
   if (!hf[activityId]) {
     hf[activityId] = {
       production: { rate: {}, product: {}, harvestTs: now(), refreshTs: now() },
@@ -1742,6 +1771,7 @@ function ensureHalfIdleData(draft: any, activityId: string): any {
 router.post("/act1vhalfidle/refreshProduct", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as Act1vhalfidleRequest;
+  if (!body.activityId) return res.send({ result: 1, ...player.delta });
   await player.update(async (draft) => {
     const data = ensureHalfIdleData(draft, body.activityId!);
     const production = data.production;
@@ -1760,6 +1790,7 @@ router.post("/act1vhalfidle/refreshProduct", async (req, res) => {
 router.post("/act1vhalfidle/harvest", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as Act1vhalfidleRequest;
+  if (!body.activityId) return res.send({ result: 1, ...player.delta });
   let milestoneAdd = 0;
   const items: { itemId: string; count: number }[] = [];
   await player.update(async (draft) => {
@@ -1787,6 +1818,7 @@ router.post("/act1vhalfidle/harvest", async (req, res) => {
 router.post("/act1vhalfidle/unlockTech", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as Act1vhalfidleRequest;
+  if (!body.activityId) return res.send({ result: 1, ...player.delta });
   await player.update(async (draft) => {
     const data = ensureHalfIdleData(draft, body.activityId!);
     if (body.techId && !data.tech.unlock.includes(body.techId)) {
@@ -1800,6 +1832,7 @@ router.post("/act1vhalfidle/unlockTech", async (req, res) => {
 router.post("/act1vhalfidle/recruitNormal", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as Act1vhalfidleRequest;
+  if (!body.activityId) return res.send({ result: 1, ...player.delta });
   const { poolId, count = 1 } = body as any;
   let ticketCount = count;
   await player.update(async (draft) => {
@@ -1852,6 +1885,7 @@ router.post("/act1vhalfidle/recruitNormal", async (req, res) => {
 router.post("/act1vhalfidle/recruitDirect", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as Act1vhalfidleRequest;
+  if (!body.activityId) return res.send({ result: 1, ...player.delta });
   await player.update(async (draft) => {
     const data = ensureHalfIdleData(draft, body.activityId!);
     const actChars = data.troop.char;
@@ -1882,6 +1916,7 @@ router.post("/act1vhalfidle/recruitDirect", async (req, res) => {
 router.post("/act1vhalfidle/upgradeChar", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as Act1vhalfidleRequest;
+  if (!body.activityId) return res.send({ result: 1, ...player.delta });
   let charId = "";
   let currentLvl = 0;
   await player.update(async (draft) => {
@@ -1898,6 +1933,7 @@ router.post("/act1vhalfidle/upgradeChar", async (req, res) => {
 router.post("/act1vhalfidle/upgradeSkill", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as Act1vhalfidleRequest;
+  if (!body.activityId) return res.send({ result: 1, ...player.delta });
   let charId = "";
   let currentLvl = 0;
   await player.update(async (draft) => {
@@ -1914,6 +1950,7 @@ router.post("/act1vhalfidle/upgradeSkill", async (req, res) => {
 router.post("/act1vhalfidle/evolveChar", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as Act1vhalfidleRequest;
+  if (!body.activityId) return res.send({ result: 1, ...player.delta });
   let charId = "";
   let currentEvolvePhase = 0;
   await player.update(async (draft) => {
@@ -1938,6 +1975,7 @@ router.post("/act1vhalfidle/replaceRate", async (req, res) => {
 router.post("/act1vhalfidle/setAssistChar", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as Act1vhalfidleRequest;
+  if (!body.activityId) return res.send({ result: 1, ...player.delta });
   await player.update(async (draft) => {
     const data = ensureHalfIdleData(draft, body.activityId!);
     const actChar = data.troop.char[String((body as any).charInstId ?? "")];
@@ -2332,6 +2370,10 @@ rootRouter.post("/act25side/battleStart", async (req, res) => {
 rootRouter.post("/act25side/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as Act25sideBattleFinishRequest;
+  // 缺参校验：battle data 缺失时返回业务错误
+  if (body.data == null) {
+    return res.send({ result: 1, ...player.delta });
+  }
   const result = await player.battle.finish({
     data: body.data,
     battleData: body.battleData,

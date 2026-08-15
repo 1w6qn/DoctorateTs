@@ -33,12 +33,20 @@ router.post("/rewardGroup", async (req, res) => {
 router.post("/readStory", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ReadStoryRequest;
+  // 修复：缺 storyId 必填参数时返回业务错误，而非 500
+  if (typeof body?.storyId !== "string" || body.storyId === "") {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.storyreview.readStory(body);
   res.send(player.delta satisfies ReadStoryResponse);
 });
 router.post("/unlockStoryByCoin", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UnlockStoryByCoinRequest;
+  // 修复：缺 storyId 必填参数时返回业务错误，而非 500
+  if (typeof body?.storyId !== "string" || body.storyId === "") {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.storyreview.unlockStoryByCoin(body);
   res.send({
     unlockTs: now(),

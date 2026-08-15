@@ -32,18 +32,30 @@ const router = Router();
 router.post("/deleteFriend", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as DeleteFriendRequest;
+  // 修复：缺 id 必填参数时返回业务错误，而非 500
+  if (typeof body?.id !== "string" || body.id === "") {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.social.deleteFriend(body);
   res.send(player.delta satisfies DeleteFriendResponse);
 });
 router.post("/sendFriendRequest", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SendFriendRequest;
+  // 修复：缺 friendId 必填参数时返回业务错误，而非 500
+  if (typeof body?.friendId !== "string" || body.friendId === "") {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.social.sendFriendRequest(body);
   res.send(player.delta satisfies SendFriendResponse);
 });
 router.post("/processFriendRequest", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ProcessFriendRequest;
+  // 修复：缺 friendId/action 必填参数时返回业务错误，而非 500
+  if (typeof body?.friendId !== "string" || typeof body?.action !== "number") {
+    return res.send({ result: 1, ...player.delta });
+  }
   res.send({
     ...(await player.social.processFriendRequest(body)),
     ...player.delta,
@@ -102,6 +114,10 @@ router.post("/setAssistCharList", async (req, res) => {
 router.post("/setFriendAlias", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SetFriendAliasRequest;
+  // 修复：缺 friendId/alias 必填参数时返回业务错误，而非 500
+  if (typeof body?.friendId !== "string" || typeof body?.alias !== "string") {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.social.setFriendAlias(body);
   res.send(player.delta satisfies SetFriendAliasResponse);
 });

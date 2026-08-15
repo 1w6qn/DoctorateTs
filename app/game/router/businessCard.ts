@@ -36,6 +36,10 @@ router.post("/editNameCard", async (req, res) => {
 router.post("/getOtherPlayerNameCard", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetOtherPlayerNameCardRequest;
+  // 修复：缺必填 uid 参数时返回业务错误，而非 500
+  if (typeof body?.uid !== "string" || body.uid === "") {
+    return res.send({ result: 1, ...player.delta });
+  }
   res.send({
     nameCard: await player.social.getOtherPlayerNameCard(body),
     ...player.delta,

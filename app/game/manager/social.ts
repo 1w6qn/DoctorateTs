@@ -59,8 +59,8 @@ export class SocialManager {
     }
   }
 
-  async getFriendList(args: { idList: string[] }) {
-    const { idList } = args;
+  async getFriendList(args: { idList?: string[] }) {
+    const idList = args?.idList ?? [];
     const friends = await Promise.all(
       idList.map((friend) => accountManager.getPlayerFriendInfo(friend)),
     );
@@ -294,8 +294,8 @@ export class SocialManager {
     await accountManager.setFriendAlias(this._uid, friendId, alias);
   }
 
-  async searchPlayer(args: { idList: string[] }) {
-    const { idList } = args;
+  async searchPlayer(args: { idList?: string[] }) {
+    const idList = args?.idList ?? [];
     const social = await accountManager.getSocial(this._uid);
     const friendRequestList = await Promise.all(
       idList.map((id) => accountManager.getPlayerFriendInfo(id)),
@@ -321,8 +321,8 @@ export class SocialManager {
     };
   }
 
-  async getFriendRequestList(args: { idList: string[] }) {
-    const { idList } = args;
+  async getFriendRequestList(args: { idList?: string[] }) {
+    const idList = args?.idList ?? [];
     const friendRequestList = idList.map((id) =>
       accountManager.getPlayerFriendInfo(id),
     );

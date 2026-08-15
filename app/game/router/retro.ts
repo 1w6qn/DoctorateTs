@@ -19,6 +19,10 @@ const router = Router();
 router.post("/retro/unlockRetroBlock", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RetroUnlockRetroBlockRequest;
+  if (body.retroId == null) {
+    res.send({ result: 1, ...player.delta } satisfies RetroUnlockRetroBlockResponse);
+    return;
+  }
   await player.retro.unlockRetroBlock(body);
   res.send(player.delta satisfies RetroUnlockRetroBlockResponse);
 });

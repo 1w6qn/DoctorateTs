@@ -109,6 +109,12 @@ router.post("/createGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { tower, isHard } = req.body as ClimbTowerCreateGameRequest;
 
+  // 缺参校验：tower 为必填字段
+  if (tower == null) {
+    res.send({ result: 1, ...player.delta } as ClimbTowerCreateGameResponse);
+    return;
+  }
+
   // 从塔表中读取对应模式（普通/困难）的关卡列表
   const towerData = excel.ClimbTowerTable.towers[tower];
   const levels =
@@ -220,6 +226,12 @@ router.post("/initGame", async (req, res) => {
 router.post("/initCard", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { slots } = req.body as ClimbTowerInitSquadRequest;
+
+  // 缺参校验：slots 必须为非空数组
+  if (!Array.isArray(slots) || slots.length === 0) {
+    res.send({ result: 1, ...player.delta } as ClimbTowerInitSquadResponse);
+    return;
+  }
 
   await player.update(async (draft) => {
     draft.tower.current.status.state = "STANDBY";

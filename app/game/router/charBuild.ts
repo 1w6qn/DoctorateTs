@@ -56,12 +56,26 @@ const router = Router();
 router.post("/setDefaultSkill", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SetDefaultSkillRequest;
+  // 缺参校验：空 body 或缺 charInstId/defaultSkillIndex 时返回业务错误（避免 500）
+  if (
+    typeof body?.charInstId !== "number" ||
+    typeof body?.defaultSkillIndex !== "number"
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.char.setDefaultSkill(body);
   res.send(player.delta satisfies SetDefaultSkillResponse);
 });
 router.post("/upgradeChar", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UpgradeCharRequest;
+  // 缺参校验：空 body 或缺 charInstId/expMats 时返回业务错误（避免 500）
+  if (
+    typeof body?.charInstId !== "number" ||
+    !Array.isArray(body?.expMats)
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.char.upgradeChar(body);
   res.send(player.delta satisfies UpgradeCharResponse);
 });
@@ -74,12 +88,20 @@ router.post("/evolveChar", async (req, res) => {
 router.post("/lockChar", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as LockCharRequest;
+  // 缺参校验：空 body 或缺 charInstIdList 时返回业务错误（避免空操作误判）
+  if (!Array.isArray(body?.charInstIdList)) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.char.lockChar(body);
   res.send(player.delta satisfies LockCharResponse);
 });
 router.post("/sellChar", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SellCharRequest;
+  // 缺参校验：空 body 或缺 charInstIdList 时返回业务错误（避免空操作误判）
+  if (!Array.isArray(body?.charInstIdList)) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.char.sellChar(body);
   res.send(player.delta satisfies SellCharResponse);
 });
@@ -96,36 +118,80 @@ router.post("/boostPotential", async (req, res) => {
 router.post("/upgradeSkill", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UpgradeSkillRequest;
+  // 缺参校验：空 body 或缺 charInstId/targetLevel 时返回业务错误（避免 500）
+  if (
+    typeof body?.charInstId !== "number" ||
+    typeof body?.targetLevel !== "number"
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.char.upgradeSkill(body);
   res.send(player.delta satisfies UpgradeSkillResponse);
 });
 router.post("/upgradeSpecialization", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UpgradeSpecializationRequest;
+  // 缺参校验：空 body 或缺 charInstId/skillIndex/targetLevel 时返回业务错误（避免 500）
+  if (
+    typeof body?.charInstId !== "number" ||
+    typeof body?.skillIndex !== "number" ||
+    typeof body?.targetLevel !== "number"
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.char.upgradeSpecialization(body);
   res.send(player.delta satisfies UpgradeSpecializationResponse);
 });
 router.post("/completeUpgradeSpecialization", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as CompleteUpgradeSpecializationRequest;
+  // 缺参校验：空 body 或缺 charInstId/skillIndex/targetLevel 时返回业务错误（避免 500）
+  if (
+    typeof body?.charInstId !== "number" ||
+    typeof body?.skillIndex !== "number" ||
+    typeof body?.targetLevel !== "number"
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.char.completeUpgradeSpecialization(body);
   res.send(player.delta satisfies CompleteUpgradeSpecializationResponse);
 });
 router.post("/changeCharSkin", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ChangeCharSkinRequest;
+  // 缺参校验：空 body 或缺 charInstId/skinId 时返回业务错误（避免 500）
+  if (
+    typeof body?.charInstId !== "number" ||
+    typeof body?.skinId !== "string"
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.char.changeCharSkin(body);
   res.send(player.delta satisfies ChangeCharSkinResponse);
 });
 router.post("/changeCharTemplate", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ChangeCharTemplateRequest;
+  // 缺参校验：空 body 或缺 charInstId/templateId 时返回业务错误（避免 500）
+  if (
+    typeof body?.charInstId !== "number" ||
+    typeof body?.templateId !== "string"
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.char.changeCharTemplate(body);
   res.send(player.delta satisfies ChangeCharTemplateResponse);
 });
 router.post("/getSpCharMissionReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetSpCharMissionRewardRequest;
+  // 缺参校验：读类端点但确实需要必填字段 charId/missionId，缺参时返回业务错误（避免 500）
+  if (
+    typeof body?.charId !== "string" ||
+    typeof body?.missionId !== "string"
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.char.getSpCharMissionReward(body);
   res.send(player.delta satisfies GetSpCharMissionRewardResponse);
 });
@@ -134,33 +200,56 @@ router.post("/evolveCharUseItem", async (req, res) => {
   const body = req.body as EvolveCharUseItemRequest;
   // 修复：CS 字段为 charInsId/itemInsId——客户端按 CS 发，服务端读 charInstId/instId
   //（原实现读不到 → undefined 干员 → 500）
-  await player.char.evolveCharUseItem({
-    charInstId: (body as any).charInstId ?? (body as any).charInsId,
-    itemId: body.itemId,
-    instId: (body as any).instId ?? (body as any).itemInsId,
-  });
+  const charInstId = (body as any)?.charInstId ?? (body as any)?.charInsId;
+  const instId = (body as any)?.instId ?? (body as any)?.itemInsId;
+  // 缺参校验：空 body 或缺 charInstId/itemId/instId 时返回业务错误（避免 500）
+  if (
+    typeof charInstId !== "number" ||
+    typeof body?.itemId !== "string" ||
+    typeof instId !== "number"
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
+  await player.char.evolveCharUseItem({ charInstId, itemId: body.itemId, instId });
   res.send(player.delta satisfies EvolveCharUseItemResponse);
 });
 router.post("/upgradeCharLevelMaxUseItem", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UpgradeCharLevelMaxUseItemRequest;
   // 修复：同上 CS 字段名归一化
-  await player.char.upgradeCharLevelMaxUseItem({
-    charInstId: (body as any).charInstId ?? (body as any).charInsId,
-    itemId: body.itemId,
-    instId: (body as any).instId ?? (body as any).itemInsId,
-  });
+  const charInstId = (body as any)?.charInstId ?? (body as any)?.charInsId;
+  const instId = (body as any)?.instId ?? (body as any)?.itemInsId;
+  // 缺参校验：空 body 或缺 charInstId/itemId/instId 时返回业务错误（避免 500）
+  if (
+    typeof charInstId !== "number" ||
+    typeof body?.itemId !== "string" ||
+    typeof instId !== "number"
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
+  await player.char.upgradeCharLevelMaxUseItem({ charInstId, itemId: body.itemId, instId });
   res.send(player.delta satisfies UpgradeCharLevelMaxUseItemResponse);
 });
 router.post("/upgradeSpecializedSkillUseItem", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UpgradeSpecializedSkillUseItemRequest;
   // 修复：同上 CS 字段名归一化
+  const charInstId = (body as any)?.charInstId ?? (body as any)?.charInsId;
+  const instId = (body as any)?.instId ?? (body as any)?.itemInsId;
+  // 缺参校验：空 body 或缺 charInstId/skillIndex/itemId/instId 时返回业务错误（避免 500）
+  if (
+    typeof charInstId !== "number" ||
+    typeof body?.skillIndex !== "number" ||
+    typeof body?.itemId !== "string" ||
+    typeof instId !== "number"
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.char.upgradeSpecializedSkillUseItem({
-    charInstId: (body as any).charInstId ?? (body as any).charInsId,
+    charInstId,
     skillIndex: body.skillIndex,
     itemId: body.itemId,
-    instId: (body as any).instId ?? (body as any).itemInsId,
+    instId,
   });
   res.send(player.delta satisfies UpgradeSpecializedSkillUseItemResponse);
 });
@@ -187,24 +276,54 @@ router.post("/addonStage/battleStart", async (req, res) => {
 router.post("/addonStage/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as AddonStageBattleFinishRequest;
+  // 缺参校验：空 body 或缺 data/battleData 时返回业务错误（避免 battle:finish 读 undefined 崩溃）
+  if (
+    typeof body?.data !== "string" ||
+    !body?.battleData ||
+    typeof body.battleData.completeTime !== "number"
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
   const result = await player.troop.addonStageBattleFinish(body);
   res.send({ ...(result as object), ...player.delta } satisfies AddonStageBattleFinishResponse);
 });
 router.post("/unlockEquipment", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UnlockEquipmentRequest;
+  // 缺参校验：空 body 或缺 charInstId/equipId 时返回业务错误（避免 500）
+  if (
+    typeof body?.charInstId !== "number" ||
+    typeof body?.equipId !== "string"
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.char.unlockEquipment(body);
   res.send(player.delta satisfies UnlockEquipmentResponse);
 });
 router.post("/upgradeEquipment", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UpgradeEquipmentRequest;
+  // 缺参校验：空 body 或缺 charInstId/equipId/targetLevel 时返回业务错误（避免 500）
+  if (
+    typeof body?.charInstId !== "number" ||
+    typeof body?.equipId !== "string" ||
+    typeof body?.targetLevel !== "number"
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.char.upgradeEquipment(body);
   res.send(player.delta satisfies UpgradeEquipmentResponse);
 });
 router.post("/setEquipment", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SetEquipmentRequest;
+  // 缺参校验：空 body 或缺 charInstId/equipId 时返回业务错误（避免 500）
+  if (
+    typeof body?.charInstId !== "number" ||
+    typeof body?.equipId !== "string"
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.char.setEquipment(body);
   res.send(player.delta satisfies SetEquipmentResponse);
 });
@@ -218,6 +337,13 @@ router.post("/batchSetCharVoiceLan", async (req, res) => {
 router.post("/setCharVoiceLan", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SetCharVoiceLanRequest;
+  // 缺参校验：空 body 或缺 charList/voiceLan 时返回业务错误（避免 forEach undefined 崩溃）
+  if (
+    !Array.isArray(body?.charList) ||
+    typeof body?.voiceLan !== "string"
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.char.setCharVoiceLan(body);
   res.send(player.delta satisfies SetCharVoiceLanResponse);
 });

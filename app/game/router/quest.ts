@@ -55,18 +55,30 @@ const router = Router();
 router.post("/squadFormation", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SquadFormationRequest;
+  // 缺参校验：squadId/slots 缺失时返回业务错误，避免 manager 内 undefined 崩溃 → 500
+  if (body.squadId == null || !Array.isArray(body.slots)) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.troop.squadFormation(body);
   res.send(player.delta satisfies SquadFormationResponse);
 });
 router.post("/changeSquadName", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ChangeSquadNameRequest;
+  // 缺参校验：squadId/name 缺失时返回业务错误
+  if (body.squadId == null || typeof body.name !== "string") {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.troop.changeSquadName(body);
   res.send(player.delta satisfies ChangeSquadNameResponse);
 });
 router.post("/changeSquadName2", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ChangeSquadNameRequest;
+  // 缺参校验：squadId/name 缺失时返回业务错误
+  if (body.squadId == null || typeof body.name !== "string") {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.troop.changeSquadName(body);
   res.send(player.delta satisfies ChangeSquadNameResponse);
 });
@@ -89,6 +101,10 @@ router.post("/battleStart", async (req, res) => {
 router.post("/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as QuestBattleFinishRequest;
+  // 缺参校验：battle data 缺失时返回业务错误，避免 decryptBattleData 抛 TypeError → 500
+  if (body.data == null) {
+    return res.send({ result: 1, ...player.delta });
+  }
   res.send({
     ...(await player.battle.finish(body)),
     ...player.delta,
@@ -97,6 +113,10 @@ router.post("/battleFinish", async (req, res) => {
 router.post("/getBattleReplay", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetBattleReplayRequest;
+  // 读类缺参校验：stageId 为必填，缺失时返回业务错误
+  if (body.stageId == null) {
+    return res.send({ result: 1, ...player.delta });
+  }
   res.send({
     battleReplay:await player.battle.loadReplay(body),
     ...player.delta,
@@ -105,6 +125,10 @@ router.post("/getBattleReplay", async (req, res) => {
 router.post("/saveBattleReplay", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SaveBattleReplayRequest;
+  // 缺参校验：battleId/battleReplay 缺失时返回业务错误
+  if (body.battleId == null || body.battleReplay == null) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.battle.saveReplay(body);
   res.send(player.delta satisfies SaveBattleReplayResponse);
 });
@@ -122,6 +146,10 @@ router.post("/battleContinue", async (req, res) => {
 router.post("/finishStoryStage", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as FinishStoryStageRequest;
+  // 缺参校验：stageId 缺失时返回业务错误，避免 manager 内 undefined 崩溃 → 500
+  if (body.stageId == null) {
+    return res.send({ result: 1, ...player.delta });
+  }
   res.send({
     ...(await player.battle.finishStoryStage(body)),
     ...player.delta,

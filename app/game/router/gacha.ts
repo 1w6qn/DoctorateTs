@@ -77,6 +77,14 @@ router.post("/finishNormalGacha", async (req, res) => {
 router.post("/normalGacha", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as NormalGachaRequest;
+  // 修复：缺 slotId/tagList/duration 必填参数时返回业务错误，而非 500
+  if (
+    typeof body?.slotId !== "number" ||
+    !Array.isArray(body?.tagList) ||
+    typeof body?.duration !== "number"
+  ) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.recruit.normalGacha(body);
   // 参考 CS NormalGachaResponse（无 charGet 字段）与官方抓包：仅返回增量数据
   res.send(player.delta satisfies NormalGachaResponse);
@@ -197,7 +205,12 @@ router.post("/tenAdvancedGacha", async (req, res) => {
  */
 router.post("/choosePoolUp", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const { poolId, chooseChar } = req.body as ChoosePoolUpRequest;
+  const body = req.body as ChoosePoolUpRequest;
+  const { poolId, chooseChar } = body;
+  // 修复：缺 poolId/chooseChar 必填参数时返回业务错误，而非 500
+  if (typeof poolId !== "string" || !chooseChar) {
+    return res.send({ result: 1, ...player.delta });
+  }
   await player.update(async (draft) => {
     // 参考 OBS bp_gacha.gacha_choosePoolUp：gacha[gachaType][poolId].upChar = chooseChar
     const pool = excel.GachaTable.gachaPoolClient.find((p) => p.gachaPoolId === poolId);

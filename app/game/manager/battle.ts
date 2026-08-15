@@ -16,6 +16,16 @@ import { logger } from "@utils/logger";
 /** 解锁条件完成度（PlayerBattleRank 字符串）→ 关卡 state 数值档位 */
 const completeStateRank: Record<string, number> = { FAIL: 1, PASS: 2, COMPLETE: 3 };
 
+/**
+ * 各账号最近一次 battleStart 时的战斗加密锚点（pushFlags.status 快照）
+ *
+ * 客户端以「开始战斗时」的会话锚点时间戳加密战斗数据，而 pushFlags.status 会被每次
+ * syncData 刷新为新的 now()——若战斗中途 syncData 推进了 status，battleFinish 直接用
+ * 当前 status 解密会 key 漂移抛 bad decrypt。battleStart 快照后，finish 优先用存值解密。
+ * 单账号私服场景下 uid 做 key 足够（覆盖最近一场战斗）。
+ */
+const battleLoginTimes = new Map<string, number>();
+
 export class BattleManager {
   _player: PlayerDataManager;
   _trigger: TypedEventEmitter;
@@ -124,6 +134,9 @@ export class BattleManager {
           return;
         }
       });
+      // 战斗加密锚点快照：客户端用「开始战斗时」的 pushFlags.status 加密，finish 用存值解密，
+      // 避免中途 syncData 刷新 status 导致 key 漂移（bad decrypt）
+      battleLoginTimes.set(draft.status.uid, draft.pushFlags.status);
       await accountManager.saveBattleInfo(draft.status.uid, battleId, {
         stageId,
         isPractice: usePracticeTicket,
@@ -233,10 +246,11 @@ export class BattleManager {
     battleData: { isCheat: string; completeTime: number };
   }) {
     const { data } = args;
-    const battleData = await decryptBattleData(
-      data,
-      this._player._playerdata.pushFlags.status,
-    );
+    // 解密锚点优先用 battleStart 快照（客户端用「开始战斗时」的锚点加密），
+    // 防止战斗中途 syncData 刷新 pushFlags.status 导致 key 漂移（bad decrypt）
+    const loginTime =
+      battleLoginTimes.get(this._player.uid) ?? this._player._playerdata.pushFlags.status;
+    const battleData = await decryptBattleData(data, loginTime);
     const battleInfo = await accountManager.getBattleInfo(
       this._player.uid,
       battleData.battleId,

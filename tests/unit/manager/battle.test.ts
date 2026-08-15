@@ -400,6 +400,44 @@ describe("BattleManager", () => {
         expect.any(Object)
       );
     });
+
+    it("finish 用 battleStart 快照的 loginTime 解密（而非当前 pushFlags.status）", async () => {
+      // 模拟：battleStart 时 pushFlags.status=锚点A；随后 syncData 把它推进为锚点B。
+      // finish 必须用锚点A（客户端实际加密用值）解密，避免 key 漂移 bad decrypt。
+      (mockPlayer._playerdata.pushFlags as any).status = "anchorA";
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      const squad = { slots: [{ charInstId: 1001 }, null] };
+
+      const started = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad,
+      } as any);
+
+      // battleStart 后 syncData 推进锚点
+      (mockPlayer._playerdata.pushFlags as any).status = "anchorB";
+
+      const crypt = await import("@utils/crypt");
+      vi.mocked(crypt.decryptBattleData).mockResolvedValue({
+        battleId: started.battleId,
+        battleData: { stats: { enemyList: {}, autoReplayCancelled: false } },
+        completeState: 3,
+      } as any);
+
+      await manager.finish({
+        data: "encrypted_battle_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      } as any);
+
+      // 解密必须用 battleStart 快照的锚点A，而非推进后的 anchorB
+      expect(crypt.decryptBattleData).toHaveBeenCalledWith(
+        "encrypted_battle_data",
+        "anchorA",
+      );
+    });
   });
 
   describe("loadReplay", () => {

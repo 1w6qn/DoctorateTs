@@ -55,6 +55,7 @@
     "pack:lua-plugins": "tsx scripts/pack-lua-plugins.ts",
     "repack:lua": "tsx scripts/repack-lua-bundle.ts",
     "extract:lua": "tsx scripts/extract-lua-bundle.ts",
+    "watch:lua": "tsx scripts/watch-lua-plugins.ts",
     "watch": "node scripts/watchdog.mjs"
   },
   "devDependencies": {

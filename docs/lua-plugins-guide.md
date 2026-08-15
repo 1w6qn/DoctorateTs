@@ -45,6 +45,28 @@ pnpm run repack:lua -- --bundle <内置bundle.dat|.bin>   # 或：pnpm run repac
 > - 单独的 `pnpm run pack:lua-plugins`（产出 `mods/plugin_lua.dat`）仅用于**独立开发/调试**，不能单独替代内置 bundle（否则客户端会丢失全部内置 Lua）。
 > - 若 `DefinedFix.lua` 锚点不匹配（版本漂移），脚本会报「未找到 … 锚点」，需人工校准锚点后重跑。
 
+### 2.1 插件热重载（开发迭代）
+
+改一个插件 Lua 无需手动重打包。运行：
+
+```powershell
+pnpm run watch:lua            # 监听 lua/plugin/*.lua 变更 → 自动重打包 → 使 mods.json 缓存失效
+pnpm run watch:lua -- --once  # 只重打包一次后退出（CI / 手动触发用）
+```
+
+- 变更后自动重建 `mods/anon_7d91430e114d86fef7d3b3511151e12d.dat` 并删除 `mods.json` 指纹缓存。
+- 客户端下次拉取 `hot_update_list.json` 时 `app/asset.ts` 重扫 mods/ 拿到新指纹 → 重新下载覆盖 → 生效。
+- `--debounce <ms>` 调整保存防抖（缺省 300ms）。
+
+### 2.2 插件补丁模式（BasePlugin）
+
+每个插件继承 `BasePlugin`，在 `OnLoad` 里打补丁，`OnUnload` 由基类统一 `HotfixBase.Dispose` 还原。两种补丁模式：
+
+- `Fix_ex(cls, method, fixFunc)`：**完整替换**，`fixFunc(self, ...)` 取代原方法（内部 `xlua.util.hotfix_ex`），适合不依赖原逻辑的场景（少用）。
+- `Hotfix(cls, method, fixFunc)`：**包装模式**，`fixFunc(self, orig, ...)` 可调 `orig(self, ...)` 保留原行为，适合「在原逻辑前后加功能」（如 `UIController.Awake`、`BattleController.Update`）。
+
+> 注意：`Fix_ex` 是完整替换，`fixFunc` 里**不会**传 `orig`；若要调用原方法请改用 `Hotfix`。官方 hotfixer 也遵循此约定（`HotfixBase.Fix_ex` 内部 `hotfix_ex`）。
+
 ## 3. 启用流程（服务端）
 
 - admin 端点（需 `adminAuth` 令牌，默认 `doctorate-admin`）：
@@ -52,6 +74,8 @@ pnpm run repack:lua -- --bundle <内置bundle.dat|.bin>   # 或：pnpm run repac
   - `POST /admin/api/plugin/<id>/enable`  → 启用
   - `POST /admin/api/plugin/<id>/disable` → 停用
 - 配置持久化于 `data/plugin/config.json`（`{ "enabled": { "<id>": bool } }`）。
+- **单一数据源**：服务端插件目录由 `app/plugin/plugin-catalog.ts` 从 `lua/plugin/PluginDefs.lua` 动态解析（无需在 TS 侧重复维护清单）；解析失败回退内置目录。新增插件只需改 `PluginDefs.lua` 并重打包即可，admin API 自动反映。
+- **加载容错**：单个插件 require/实例化/初始化失败不拖垮系统——`PluginManager` 记录错误，其余插件照常加载；游戏内面板会把失败插件标为红色 `ERR` 并显示错误摘要（`ON/OFF` 按钮禁用）。
 
 ## 4. 真机手动验证步骤
 

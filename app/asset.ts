@@ -13,10 +13,13 @@ import { logger } from "@utils/logger";
 const router = Router();
 
 router.get(
-  "/official/:platform/assets/:assetsHash/:fileName",
+  // fileName 用通配捕获多段：mod 清单 name 含子路径（如 anon/7d91430e114d86fef7d3b3511151e12d.bin），
+  // 客户端按清单 name 构造下载路径，需能匹配 assets/.../<子路径>（path-to-regexp v8 命名通配 *name）
+  "/official/:platform/assets/:assetsHash/*fileName",
   async (req, res) => {
     const { assetsHash, platform } = req.params;
-    let { fileName } = req.params;
+    // 通配段（命名通配 *fileName 捕获为 string[]，含斜杠子路径）；空数组兜底（仅 assets/<hash>/ 无文件名）
+    let fileName = (req.params.fileName as string[] | undefined ?? []).join("/" );
     // 资源版本跟随客户端请求路径（资源按版本存储——客户端从 hv 拿到 resVersion 拼路径）；
     // CDN 平台跟随客户端请求的 platform（Windows/Android 资源各自独立 CDN 目录，
     // 版本号不同——Windows 版本仅在 Windows CDN 可下载，Android 版本仅在 Android CDN 可下载）
@@ -98,8 +101,9 @@ router.get(
       }
     }
 
-    if (config.assets.enableMods && MODS_LIST.download.includes(fileName)) {
-      for (const [mod, path] of MODS_LIST.download.map((m, i) => [
+    if (config.assets.enableMods && MODS_LIST.name.includes(fileName)) {
+      // 客户端按清单 name（含子路径，如 anon/xxx.bin）请求 mod；name 与 path 按下标一一对应
+      for (const [mod, path] of MODS_LIST.name.map((m, i) => [
         m,
         MODS_LIST.path[i],
       ])) {

@@ -179,8 +179,10 @@ export async function ensureModsLoaded(): Promise<void> {
  */
 export function getModVersionSuffix(): string {
   if (MODS_LIST.mods.length === 0) return "";
+  // 签名含内容指纹（md5）：插件/内置 bundle 内容变更必然改变 md5 → 后缀变化 → 客户端重新拉取热更清单并下载。
+  // 仅用 name|totalSize 时，repack 后 totalSize 未必变（zip 压缩后尺寸巧合相等），客户端会因后缀未变而误用本地缓存旧 bundle。
   const sig = MODS_LIST.mods
-    .map((m) => `${(m as { name: string }).name}|${(m as { totalSize: number }).totalSize}`)
+    .map((m) => `${(m as { name: string }).name}|${(m as { md5: string }).md5}`)
     .sort()
     .join(",");
   return "-m" + createHash("md5").update(sig).digest("hex").slice(0, 6);

@@ -155,6 +155,18 @@ describe("客户端请求链集成（auth → 路由 → delta）", () => {
     expect(accountMock.accountManager.getPlayerData).not.toHaveBeenCalled();
   });
 
+  it("real 模式：未携带 secret 的请求匿名放行（登录/控制路径不 401）", async () => {
+    configMock.default.authMode = "real";
+    // 匿名请求解析失败 → 放行进入 stub 路由（misc-alignment，不依赖 playerData），不注入 playerData
+    const res = await fetch(`${baseUrl}/analytics/collect`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    expect(accountMock.accountManager.getPlayerData).not.toHaveBeenCalled();
+  });
+
   it("stub 端点：遥测路径返回空但不 500", async () => {
     const res = await fetch(`${baseUrl}/analytics/collect`, {
       method: "POST",

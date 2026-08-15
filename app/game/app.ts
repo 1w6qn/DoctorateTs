@@ -46,14 +46,21 @@ function getAuthStrategy(): AuthStrategy {
 /**
  * 认证中间件：通过认证策略解析 secret 并注入玩家数据上下文
  * - single（单例）：策略固定返回 uid=1（单账号私服，任意 secret 都映射到固定账号）
- * - real（真实）：策略校验 secret 为有效 uid 或账号 token，无效返回 401
+ * - real（真实）：策略校验 secret 为有效 uid 或账号 token。
+ *   仅当请求「携带了 secret 但无效」才 401；未携带 secret 视为匿名请求放行
+ *   （登录前 /account/login、/batch_event、/admin 等控制/登录路径不依赖 secret）。
  */
 export const authMiddleware: express.RequestHandler = async (req, res, next) => {
   const strategy = getAuthStrategy();
   const uid = await strategy.resolveUid(req);
   if (uid === undefined) {
-    // real 模式：secret 缺失或无效 → 401
-    return res.status(401).send({ status: 401, msg: "无效的 secret" });
+    // real 模式：未携带 secret → 匿名放行（不注入 playerData，业务路由自行处理）；
+    // 携带了 secret 但解析失败 → 401
+    if (req.headers?.secret) {
+      return res.status(401).send({ status: 401, msg: "无效的 secret" });
+    }
+    next();
+    return;
   }
   if (strategy.forceSecretHeader) {
     // single 模式：任意/缺失 secret 强制归一为固定账号

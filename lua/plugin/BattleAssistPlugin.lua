@@ -38,11 +38,13 @@ function BattleAssistPlugin:OnLoad()
   self._paused = false
   self._frameCount = 0
 
-  -- 在战斗 UI 创建时挂时间轴文本
-  self:Fix_ex(CS.Torappu.Battle.UI.UIController, "Awake", function(selfCtrl)
-    local groupStatic = selfCtrl:get_groupStatic()
+  -- 在战斗 UI 创建时挂时间轴文本（UIController.Awake，包装保留原逻辑）
+  self:Hotfix(CS.Torappu.Battle.UI.UIController, "Awake", function(selfCtrl, orig)
+    orig(selfCtrl)
+    local ok, groupStatic = pcall(function() return selfCtrl:get_groupStatic() end)
+    if not ok or groupStatic == nil then return end
     self._timeText = _CreateHudText(groupStatic, "BattleTime(Clone)", UnityEngine.Vector3(-560, 300, 0), 24)
-  end, nil)
+  end)
 
   -- 每帧执行辅助逻辑
   self:Hotfix(CS.Torappu.Battle.BattleController, "Update", function(selfCtrl, orig)

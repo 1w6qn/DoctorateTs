@@ -3,6 +3,13 @@
   封装插件生命周期（Load/Unload）与 HotfixBase 统一打补丁入口，
   子类实现 OnLoad/OnUnload 完成具体功能。所有异常用 xpcall 兜底并记日志。
   须在 Base/BaseModule（提供 Class / HotfixBase）之后加载。
+
+  补丁模式：
+    - Fix_ex(cls, method, fixFunc)：完整替换，fixFunc(self, ...) 取代原方法
+      （内部用 xlua.util.hotfix_ex，不自带 orig 传递）。
+    - Hotfix(cls, method, fixFunc)：包装模式，fixFunc(self, orig, ...)，
+      orig 为原方法，可调 orig(self, ...) 保留原行为。
+  两种模式均通过同一 HotfixBase 实例录制，Unload 时统一 Dispose 还原。
 --]]
 local BasePlugin = Class("BasePlugin")
 local eutil = CS.Torappu.Lua.Util
@@ -19,7 +26,6 @@ function BasePlugin:ctor(id, name, desc)
   self.desc = desc
   self.enabled = false      -- 当前是否启用
   self._hotfixer = nil      -- 懒加载的 HotfixBase 实例，用于还原补丁
-  self._rawFixes = {}       -- 需保留原方法的补丁记录 { class, method }
 end
 
 --[[
@@ -34,10 +40,12 @@ function BasePlugin:_EnsureHotfixer()
 end
 
 --[[
-  统一的打补丁入口：把补丁注册进 HotfixBase，Dispose 时统一还原。
-  @param cls     C# 类型（如 CS.Torappu.Battle.UI.UIUnitHUD）
-  @param method  方法名（字符串）
-  @param fixFunc 替换实现（Lua 函数）
+  完整替换模式：fixFunc 取代原方法，不保留原调用。
+  fixFunc 签名 = function(self, ...)，与 C# 方法签名一致。
+  内部用 xlua.util.hotfix_ex，由 xlua 管理链式还原。
+  @param cls     C# 类型
+  @param method  方法名
+  @param fixFunc 替换实现
 --]]
 function BasePlugin:Fix_ex(cls, method, fixFunc)
   local hf = self:_EnsureHotfixer()
@@ -50,19 +58,20 @@ function BasePlugin:Fix_ex(cls, method, fixFunc)
 end
 
 --[[
-  需要保留并调用原方法的补丁：先捕获原方法，替换实现里可经 orig 调用之。
-  记录到 _rawFixes，Unload 时统一 xlua.hotfix(cls, method, nil) 还原。
+  包装模式：fixFunc 经 orig 调用原方法。
+  fixFunc 签名 = function(self, orig, ...)，orig 为原方法包装。
+  内部用 xlua.hotfix + 手动捕获 orig，通过 HotfixBase 录制统一还原。
   @param cls     C# 类型
-  @param method  方法名（字符串）
-  @param fixFunc 替换实现（function(self, orig, ...)），orig 为原方法包装
+  @param method  方法名
+  @param fixFunc 包装实现（function(self, orig, ...)）
 --]]
 function BasePlugin:Hotfix(cls, method, fixFunc)
-  local orig = cls[method]
+  local hf = self:_EnsureHotfixer()
   local ok, err = xpcall(function()
-    xlua.hotfix(cls, method, function(self, ...)
+    local orig = cls[method]
+    hf:Fix(cls, method, function(self, ...)
       return fixFunc(self, orig, ...)
     end)
-    self._rawFixes[#self._rawFixes + 1] = { class = cls, method = method }
   end, debug.traceback)
   if not ok then
     eutil.LogHotfixError("[BasePlugin] " .. self.id .. " Hotfix(" .. method .. ") 失败: " .. err)
@@ -93,11 +102,6 @@ function BasePlugin:Unload()
     xpcall(function() self._hotfixer:Dispose() end, debug.traceback)
     self._hotfixer = nil
   end
-  -- 还原保留原方法的补丁
-  for _, fix in ipairs(self._rawFixes) do
-    xpcall(function() xlua.hotfix(fix.class, fix.method, nil) end, debug.traceback)
-  end
-  self._rawFixes = {}
   if not ok then
     eutil.LogHotfixError("[BasePlugin] " .. self.id .. " OnUnload 失败: " .. err)
   end

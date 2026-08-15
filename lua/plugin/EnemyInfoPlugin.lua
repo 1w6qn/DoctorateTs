@@ -67,9 +67,11 @@ function EnemyInfoPlugin:OnLoad()
   self._lastEnemy = nil
   self._visible = false
 
-  -- 尝试在战斗 UI 创建时挂接面板（UIController.Awake）
-  self:Fix_ex(CS.Torappu.Battle.UI.UIController, "Awake", function(selfCtrl)
-    local groupStatic = selfCtrl:get_groupStatic()
+  -- 尝试在战斗 UI 创建时挂接面板（UIController.Awake，包装保留原逻辑）
+  self:Hotfix(CS.Torappu.Battle.UI.UIController, "Awake", function(selfCtrl, orig)
+    orig(selfCtrl)
+    local ok, groupStatic = pcall(function() return selfCtrl:get_groupStatic() end)
+    if not ok or groupStatic == nil then return end
     local root, group = _CreatePanel(groupStatic)
     self._panel = root
     self._group = group
@@ -77,7 +79,7 @@ function EnemyInfoPlugin:OnLoad()
     self._idText = _CreateText(root.transform, "EnemyID", UnityEngine.Vector3(0, 55, 0), UnityEngine.Vector2(300, 20), 14, UnityEngine.Color(0.6, 0.6, 0.6, 1))
     self._blackboardText = _CreateText(root.transform, "EnemyBB", UnityEngine.Vector3(0, -20, 0), UnityEngine.Vector2(520, 200), 16, UnityEngine.Color(1, 1, 1, 1))
     self._panel:SetActive(false)
-  end, nil)
+  end)
 
   -- 每帧更新：检测按键+点击选敌并刷新面板数据
   self:Hotfix(CS.Torappu.Battle.BattleController, "Update", function(selfCtrl, orig)

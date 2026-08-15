@@ -128,31 +128,42 @@ function PanelPlugin:Refresh()
   for i = trans.childCount - 1, 0, -1 do
     UnityEngine.Object.Destroy(trans:GetChild(i).gameObject)
   end
-  -- 逐插件渲染行
-  local plugins = PluginManager.me:GetAll()
+  -- 逐插件渲染行（遍历 PluginDefs 以覆盖加载失败的插件）
+  local mgr = PluginManager.me
   local y = 140
-  for _, plugin in ipairs(plugins) do
+  for _, def in ipairs(PluginDefs) do
+    local plugin = mgr:GetPlugin(def.id)
+    local err = mgr:GetError(def.id)
     local rowBg, _ = _CreateImage(trans, "Row", UnityEngine.Vector3(0, y, 0), UnityEngine.Vector2(420, 64), UnityEngine.Color(0.2, 0.2, 0.25, 0.6))
     local nameText = _CreateText(rowBg.transform, "Name", UnityEngine.Vector3(-150, 18, 0), UnityEngine.Vector2(260, 24), 20, UnityEngine.Color(1, 1, 1, 1))
-    nameText.text = plugin.name
+    nameText.text = def.name
     local descText = _CreateText(rowBg.transform, "Desc", UnityEngine.Vector3(-150, -8, 0), UnityEngine.Vector2(260, 20), 13, UnityEngine.Color(0.7, 0.7, 0.7, 1))
-    descText.text = plugin.desc
+    descText.text = err ~= nil and err or def.desc
+    descText.color = err ~= nil and UnityEngine.Color(1, 0.5, 0.5, 1) or UnityEngine.Color(0.7, 0.7, 0.7, 1)
+    -- 状态/错误标记
     local state = _CreateText(rowBg.transform, "State", UnityEngine.Vector3(150, 18, 0), UnityEngine.Vector2(70, 24), 16, UnityEngine.Color(0.4, 1, 0.4, 1))
     state.alignment = UnityEngine.TextAnchor.MiddleCenter
-    state.text = plugin.enabled and "ON" or "OFF"
-    state.color = plugin.enabled and UnityEngine.Color(0.4, 1, 0.4, 1) or UnityEngine.Color(1, 0.4, 0.4, 1)
-    -- 开关按钮
-    local btnObj, _ = _CreateImage(rowBg.transform, "Toggle", UnityEngine.Vector3(150, -8, 0), UnityEngine.Vector2(64, 28), UnityEngine.Color(0.3, 0.6, 1, 1))
+    if plugin == nil then
+      state.text = "ERR"
+      state.color = UnityEngine.Color(1, 0.3, 0.3, 1)
+    else
+      state.text = plugin.enabled and "ON" or "OFF"
+      state.color = plugin.enabled and UnityEngine.Color(0.4, 1, 0.4, 1) or UnityEngine.Color(1, 0.4, 0.4, 1)
+    end
+    -- 开关按钮（加载失败的插件无可启停对象，禁用）
+    local btnObj, _ = _CreateImage(rowBg.transform, "Toggle", UnityEngine.Vector3(150, -8, 0), UnityEngine.Vector2(64, 28), plugin == nil and UnityEngine.Color(0.4, 0.4, 0.4, 1) or UnityEngine.Color(0.3, 0.6, 1, 1))
     local btnText = _CreateText(btnObj.transform, "Text", UnityEngine.Vector3.zero, UnityEngine.Vector2(64, 28), 14, UnityEngine.Color(1, 1, 1, 1))
     btnText.alignment = UnityEngine.TextAnchor.MiddleCenter
     btnText.text = "切换"
-    local btn = btnObj:AddComponent(typeof(UGUI.Button))
-    local pluginId = plugin.id
-    local selfRef = self
-    btn.onClick:AddListener(function()
-      PluginManager.me:SetEnabled(pluginId, not plugin.enabled)
-      selfRef:Refresh()
-    end)
+    if plugin ~= nil then
+      local btn = btnObj:AddComponent(typeof(UGUI.Button))
+      local pluginId = def.id
+      local selfRef = self
+      btn.onClick:AddListener(function()
+        PluginManager.me:SetEnabled(pluginId, not plugin.enabled)
+        selfRef:Refresh()
+      end)
+    end
     y = y - 78
   end
 end

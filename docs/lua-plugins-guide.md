@@ -20,14 +20,20 @@ lua/plugin/                    ← 插件明文源码
 
 ## 2. 打包与下发（方案 A：重打包内置 Lua bundle）
 
-客户端 Lua 由一个**内置主 bundle**（`anon/7d91430e114d86fef7d3b3511151e12d.bin`）承载，客户端启动时按其加载 `entry.lua`。要让插件生效，需把插件 merge 进该 bundle 并 patch `entry.lua`：
+客户端 Lua 由一个**内置主 bundle**（`anon/7d91430e114d86fef7d3b3511151e12d.bin`）承载，客户端启动时按其加载 `entry.lua`。要让插件生效，需把插件 merge 进该 bundle 并 patch `DefinedFix.lua`（经游戏原生 hotfix 管线引导）：
+
+> ⚠️ 关于「从官方 hot_update_list 提取」：该内置 Lua bundle 是**客户端 base 资产**，**不在**官方 `hot_update_list.json` 的 abInfos 中（清单仅含可热更增量资产；当前 2.7.61 清单 14981 条无此 hash，CDN 各版本路径亦 404）。bundle 哈希由官方 `resource_manifest_idx.json`（ArknightsGameData）确认：全部 `gamedata/[uc]lua/*` 资产的 `bundleIndex=2246` → `bundles[2246].name = anon/7d91430e114d86fef7d3b3511151e12d.bin`。取数源只能是已装客户端内的该 bundle。
 
 ```powershell
 # 1) 从已装客户端提取内置 bundle（ArkUnpacker 解包后定位该 .bin，或直接取 .dat）
 #    得到 <内置bundle>.dat 或 .bin
 
-# 2) 重打包：merge lua/plugin/ + patch entry.lua → mods/anon_7d91430e114d86fef7d3b3511151e12d.dat
-pnpm run repack:lua -- --bundle <内置bundle.dat|.bin>
+# 1b)（可选）把内置 bundle 的明文 Lua 提取到参考目录，之后可用 --from-ref 免客户端重建：
+pnpm run extract:lua -- --bundle <内置bundle.dat|.bin>
+#    → 写入 reference/ArknightsGameData/zh_CN/gamedata/[uc]lua/（跳过 plugin/*，还原 DefinedFix 注入标记）
+
+# 2) 重打包：merge lua/plugin/ + patch DefinedFix → mods/anon_7d91430e114d86fef7d3b3511151e12d.dat
+pnpm run repack:lua -- --bundle <内置bundle.dat|.bin>   # 或：pnpm run repack:lua -- --from-ref
 
 # 3) 脚本会自动打开 data/config.json 的 assets.enableMods
 # 4) 重启服务，客户端热更拉取覆盖内置 bundle → 客户端启动即加载插件

@@ -212,27 +212,30 @@ export class TroopManager {
           };
         });
     };
-    Object.values(this._player._playerdata.troop.chars).forEach((char) => {
-      if (char.charId == "char_002_amiya") {
-        return;
-      }
-      // 技能按官方规则回填/解锁（allSkillLvlup[i].unlockCond——test.json 378/378 验证；
-      // ⚠️ 勿用 skill.unlockCond 顶层字段：与解锁条件 1504 处不同，历史地雷）
-      reconcileCharSkills(char);
-      char.equip = char.equip || {};
-      backfillOwner(char.charId, char.equip);
-      // 模板变体回填（tmpl 各形态按各自 charId 归属）
-      if (char.tmpl) {
-        Object.entries(char.tmpl).forEach(([tmplId, patch]) => {
-          patch.equip = patch.equip || {};
-          backfillOwner(tmplId, patch.equip);
-        });
-      }
-      if (char.evolvePhase == 2 && char.equip) {
-        char.currentEquip = char.currentEquip || Object.keys(char.equip)[0]!;
-      }
+    // 迁移：进度修复移入 update() 配方——配方内 mutate draft（可变代理，
+    // push/splice/赋值均安全）会记录 Immer 补丁，无需再 markDirty
+    await this._player.update((draft) => {
+      Object.values(draft.troop.chars).forEach((char) => {
+        if (char.charId == "char_002_amiya") {
+          return;
+        }
+        // 技能按官方规则回填/解锁（allSkillLvlup[i].unlockCond——test.json 378/378 验证；
+        // ⚠️ 勿用 skill.unlockCond 顶层字段：与解锁条件 1504 处不同，历史地雷）
+        reconcileCharSkills(char);
+        char.equip = char.equip || {};
+        backfillOwner(char.charId, char.equip);
+        // 模板变体回填（tmpl 各形态按各自 charId 归属）
+        if (char.tmpl) {
+          Object.entries(char.tmpl).forEach(([tmplId, patch]) => {
+            patch.equip = patch.equip || {};
+            backfillOwner(tmplId, patch.equip);
+          });
+        }
+        if (char.evolvePhase == 2 && char.equip) {
+          char.currentEquip = char.currentEquip || Object.keys(char.equip)[0]!;
+        }
+      });
+      return Promise.resolve();
     });
-    // 绕过 update() 的原地修复不产生 Immer 补丁，显式标记脏以触发条件落盘
-    this._player.markDirty();
   }
 }

@@ -1,7 +1,7 @@
 import { PlayerDataManager } from "./PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 import { PlayerCharRotationSlot } from "@game/model/playerdata";
-import { original } from "immer";
+import { original } from "mutative";
 
 export class CharRotationManager {
   _player: PlayerDataManager;

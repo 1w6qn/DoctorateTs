@@ -5,7 +5,7 @@ import { now } from "@utils/time";
 import { logger } from "@utils/logger";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
-import { WritableDraft } from "immer";
+import { Draft } from "mutative";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { PlayerBuildingMeetingClue } from "@game/model/playerdata";
 import { BuildingData_OrderType, BuildingData_RoomType } from "@game/model/playerdata";
@@ -164,7 +164,7 @@ export class BuildingManager {
    * 按 laborRecoverTime（秒/点）自动恢复劳动力（sync 等入口调用）
    * 例：laborRecoverTime=360 → 6 分钟恢复 1 点，封顶 maxValue
    */
-  private _recoverLabor(draft: WritableDraft<PlayerDataModel>): void {
+  private _recoverLabor(draft: Draft<PlayerDataModel>): void {
     const labor = draft.building.status.labor;
     const rate = getBuildingConstant<number>("laborRecoverTime") ?? 360;
     const ts = now();
@@ -188,7 +188,7 @@ export class BuildingManager {
    * 内部方法：单次好友访问/情报分享的信用量（会客室相位 friendSlotInc，
    * 保底 creditGuaranteed=10，兜底 35）——信用经济循环的每次入账量
    */
-  private _meetingCreditPerVisit(draft: WritableDraft<PlayerDataModel>): number {
+  private _meetingCreditPerVisit(draft: Draft<PlayerDataModel>): number {
     const guaranteed = getBuildingConstant<number>("creditGuaranteed") ?? 10;
     for (const slot of Object.values(draft.building.roomSlots)) {
       if (slot?.roomId !== "MEETING") continue;
@@ -206,7 +206,7 @@ export class BuildingManager {
    * friendSlotInc，封顶 creditPassiveLimit（领取后清零重新累积）
    */
   private _accumulateDailyCredit(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
     room: any,
     visitCount: number,
   ): void {
@@ -225,7 +225,7 @@ export class BuildingManager {
    * friendSlotInc，封顶 creditInitiativeLimit
    */
   private _accumulateSearchCredit(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
     room: any,
     visitorCount: number,
   ): void {
@@ -244,7 +244,7 @@ export class BuildingManager {
    * 官方 sync/基建请求响应 delta 含 infoShare（抓包 reward:1=有待领取，
    * getInfoShareReward 处理后归 0）；不更新则客户端红点/领取状态不刷新。
    */
-  private _refreshInfoShare(draft: WritableDraft<PlayerDataModel>): void {
+  private _refreshInfoShare(draft: Draft<PlayerDataModel>): void {
     const room = Object.values(draft.building.rooms.MEETING)[0];
     if (!room) return;
     const is = (room.infoShare ??= { ts: 0, reward: 0 });
@@ -266,7 +266,7 @@ export class BuildingManager {
    * （远未来值恒定 → delta 无 event 补丁 → 客户端沿用缓存的过期事件时间 →
    * 空响应紧循环）。
    */
-  private _nextBuildingEventTs(draft: WritableDraft<PlayerDataModel>): number {
+  private _nextBuildingEventTs(draft: Draft<PlayerDataModel>): number {
     const nowDate = new Date();
     const boundary = (h: number): Date => {
       const x = new Date(nowDate);
@@ -311,10 +311,8 @@ export class BuildingManager {
       // 强制 event.building 每次进 delta（对齐 DoctoratePy 响应恒含 event）：
       // Immer 对未变化的值不产生补丁，而客户端需用它调度下一次 sync——
       // 缺失时沿用缓存旧值（过期边界）→ 立即重同步 → 紧循环。
-      // （mock player 无 _changes，可选链跳过）
-      (this._player as any)._changes?.push?.([
-        { op: "replace", path: ["event", "building"], value: nextEvent },
-      ]);
+      // 经 PlayerDataManager.forcePatch 注入（不回写 _playerdata，仅进 delta）
+      this._player.forcePatch(["event", "building"], nextEvent);
       return now();
     });
   }
@@ -324,7 +322,7 @@ export class BuildingManager {
    * trainee.processPoint += 流逝时间 × trainee.speed × (1 + 教官训练 buff 加成)（与官方模型一致）
    * @param draft - Immer 可写草稿
    */
-  private _accrueTraining(draft: WritableDraft<PlayerDataModel>): void {
+  private _accrueTraining(draft: Draft<PlayerDataModel>): void {
     const trainingRoom = draft.building.rooms.TRAINING;
     for (const roomSlotId of Object.keys(trainingRoom)) {
       const room = trainingRoom[roomSlotId];
@@ -363,7 +361,7 @@ export class BuildingManager {
    * @param draft - Immer 可写草稿
    */
   private _refreshTradingOrders(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
   ): void {
     const rate = getGoldRate();
     for (const slotId of Object.keys(draft.building.rooms.TRADING)) {
@@ -507,7 +505,7 @@ export class BuildingManager {
 
   /** 干员 buff 激活所需信息（charId/level/evolvePhase），缺失返回 null */
   private _charSource(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
     instId: number,
   ): CharBuffSource | null {
     const char = draft.troop?.chars?.[String(instId)];
@@ -521,7 +519,7 @@ export class BuildingManager {
 
   /** 指定房间进驻干员的 buff 源列表（过滤无效干员） */
   private _roomCharSources(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
     slot: { charInstIds?: number[] } | null | undefined,
   ): CharBuffSource[] {
     return (slot?.charInstIds ?? [])
@@ -532,7 +530,7 @@ export class BuildingManager {
 
   /** 控制中枢进驻干员的全局 buff（按目标房间类型，乘法系数） */
   private _controlGlobalFor(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
   ): Record<string, number> {
     const ctlSlot = Object.values(draft.building.roomSlots).find(
       (s) => s.roomId === "CONTROL",
@@ -542,7 +540,7 @@ export class BuildingManager {
 
   /** 制造站基础容量（房间等级 phase.outputCapacity；缺数据回退房间存储值） */
   private _manufactBaseCapacity(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
     roomSlotId: string,
     room: any,
   ): number {
@@ -557,7 +555,7 @@ export class BuildingManager {
    * ——服务端生产按有效容量随时间累积，并回写 buff.speed 供客户端计时显示一致。
    */
   private _roomCapacity(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
     roomSlotId: string,
     formula: any,
   ): number {
@@ -595,7 +593,7 @@ export class BuildingManager {
    * 单位校准：1 点/小时 = 100 AP/秒（真实存档：5 级 5000 舒适 → 405，与公式吻合）。
    */
   private _dormRecoveryPerSec(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
     slotId: string,
   ): number {
     const slot = draft.building.roomSlots[slotId];
@@ -632,7 +630,7 @@ export class BuildingManager {
    * - 未进驻 → 0；宿舍 → 该宿舍恢复量；输出房间 → 基础消耗 - 技能附加消耗（charMoodCost）
    * 换班/休息后立即生效，随后 _accrueCharAp 按新档位随时间累积。
    */
-  private _recomputeCharScales(draft: WritableDraft<PlayerDataModel>): void {
+  private _recomputeCharScales(draft: Draft<PlayerDataModel>): void {
     const roomTypeOf = new Map<number, string>();
     for (const slot of Object.values(draft.building.roomSlots)) {
       for (const instId of slot?.charInstIds ?? []) {
@@ -716,7 +714,7 @@ export class BuildingManager {
 
   /** 内部方法：建造/升级资源足额校验（items 含 GOLD 按 status.gold、MATERIAL 按 inventory；labor 按劳动力） */
   private _canAfford(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
     buildCost?: {
       items?: { id: string; count: number; type: string }[];
       time?: number;
@@ -741,7 +739,7 @@ export class BuildingManager {
    * POWER 房间相位为正向（+60/+130/+270 发电），其余房间为负向（-10/-30/… 消耗）。
    * 模板存档为满配布局，余额恰为 0——新建筑/升级需先升级发电站（官方行为）。
    */
-  private _powerBalance(draft: WritableDraft<PlayerDataModel>): number {
+  private _powerBalance(draft: Draft<PlayerDataModel>): number {
     let balance = 0;
     for (const slot of Object.values(draft.building.roomSlots)) {
       if (!slot?.roomId) continue;
@@ -820,7 +818,7 @@ export class BuildingManager {
 
   /** 内部方法：应用建造/升级消耗（items 扣 inventory/金币、labor 扣劳动力） */
   private _applyBuildCost(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
     buildCost?: { items?: { id: string; count: number; type: string }[]; time?: number; labor?: number },
   ): void {
     for (const item of buildCost?.items ?? []) {
@@ -1095,7 +1093,7 @@ export class BuildingManager {
 
   /** 给单个干员增加信赖（同步更新 troop.chars 与 charGroup） */
   private _addFavor(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
     charInstId: number,
     gain: number,
   ): void {
@@ -1214,7 +1212,7 @@ export class BuildingManager {
    * 例：delivery=[{3003×3}]、gain={4001(金币)×1500} → 扣 3003×3、加金币 1500
    */
   private _settleOrderInternal(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
     stockItem: any,
   ): void {
     for (const d of stockItem?.delivery ?? []) {
@@ -1384,7 +1382,7 @@ export class BuildingManager {
    * @param roomSlotId - 制造站房间槽位 ID
    */
   private _accrueManufacture(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
     roomSlotId: string,
   ): void {
     const room = draft.building.rooms.MANUFACTURE[roomSlotId];
@@ -1469,7 +1467,7 @@ export class BuildingManager {
    * @param roomSlotId - 房间槽位 ID
    */
   private async _settleManufactureInternal(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
     roomSlotId: string,
   ) {
     const room = draft.building.rooms.MANUFACTURE[roomSlotId];
@@ -1848,7 +1846,7 @@ export class BuildingManager {
 
   /** 内部方法：加工站进驻干员（首个有效干员；未进驻返回 null） */
   private _workshopChar(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
   ): { ap?: number; charId: string } | null {
     for (const slot of Object.values(draft.building.roomSlots)) {
       if (slot?.roomId !== "WORKSHOP") continue;
@@ -1864,7 +1862,7 @@ export class BuildingManager {
 
   /** 内部方法：进驻干员的工坊 bonus 列表（BuildingData.workshopBonus[charId]） */
   private _workshopBonusIds(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
     workshopChar: { charId: string } | null,
   ): string[] {
     if (!workshopChar?.charId) return [];
@@ -2160,7 +2158,7 @@ export class BuildingManager {
    * 内部方法：清理留言板中指向指定线索 id 的条目（board = {[type]: clueId}）
    */
   private _clearBoardEntry(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
     room: any,
     clueId: string,
   ): void {
@@ -2175,7 +2173,7 @@ export class BuildingManager {
    * 官方模型：上板线索保留在库存（inUse=1），不计入"待处理"红点
    */
   private _refreshClueFlag(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
     room: any,
   ): void {
     const pending = [
@@ -2309,7 +2307,7 @@ export class BuildingManager {
    * 浮点秒保证任意两次调用（≥1ms 间隔）lastApAddTime 必变 → 增量恒在。
    * @param draft - Immer 可写草稿
    */
-  private _accrueCharAp(draft: WritableDraft<PlayerDataModel>): void {
+  private _accrueCharAp(draft: Draft<PlayerDataModel>): void {
     const nowSec = Date.now() / 1000; // 浮点秒（毫秒精度）
     let recovered = 0;
     for (const ch of Object.values(draft.building.chars ?? {})) {
@@ -2366,7 +2364,7 @@ export class BuildingManager {
   // ==================== 预设队列 ====================
 
   /** 预设队列元数据（名称/锁定——官方线格式 room.presetQueue 仅为干员组数组，无名称） */
-  private _presetQueues(draft: WritableDraft<PlayerDataModel>): any {
+  private _presetQueues(draft: Draft<PlayerDataModel>): any {
     const building = draft.building as any;
     if (!building.presetQueues) building.presetQueues = {};
     return building.presetQueues;
@@ -2378,7 +2376,7 @@ export class BuildingManager {
    * @returns 房间队列数组（不存在该字段的房间返回 null）
    */
   private _roomPresetQueue(
-    draft: WritableDraft<PlayerDataModel>,
+    draft: Draft<PlayerDataModel>,
     slotId: string,
   ): number[][] | null {
     const slot = draft.building.roomSlots[slotId];

@@ -78,8 +78,11 @@ describe("PlayerDataManager 条件落盘", () => {
   });
 
   it("recipe 内嵌套 update 不丢变更（事件处理器再调 update 复用同一 draft）", async () => {
-    // 前置：status 需含 gold 字段（mockPlayerData 默认不含，NaN 干扰断言）
-    (player as any)._playerdata.status.gold = 0;
+    // 前置：status 需含 gold 字段（mockPlayerData 默认不含，NaN 干扰断言）。
+    // 经 update() 配方设置，兼容 setAutoFreeze(true)（直接改冻结对象会抛错）。
+    await player.update(async (draft) => {
+      draft.status.gold = 0;
+    });
     await settleBaseline();
 
     // 模拟 items:get → gainItem → 事件处理器内再调 player.update（原实现内层

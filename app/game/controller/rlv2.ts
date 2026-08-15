@@ -18,11 +18,12 @@ import { RoguelikeMapManager } from "./rlv2/map";
 import { PlayerSquad } from "@game/model/character";
 import { RoguelikeBattleManager } from "./rlv2/battle";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { PlayerDataModel } from "@game/model/playerdata";
 import { BattleData } from "@game/model/battle";
 import { RoguelikePoolManager } from "./rlv2/pool";
 import { RoguelikeGameInitData } from "@excel/roguelike_topic_table";
 import { TypedEventEmitter } from "@game/model/events";
-import { WritableDraft } from "immer";
+import { Draft } from "mutative";
 import { ItemBundle } from "@excel/character_table";
 
 export class RoguelikeV2Config {
@@ -57,9 +58,30 @@ export class RoguelikeV2Config {
 }
 
 export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
-  pinned?: string;
-  outer: { [key: string]: PlayerRoguelikeV2.OuterData };
-  current: PlayerRoguelikeV2.CurrentData;
+  /**
+   * 本控制器对 _playerdata.rlv2 的读视图（outer/current/pinned 恒为 live 引用）。
+   *
+   * autoFreeze=true 下 PlayerStatus.update() 在 finishDraft 后会把 rlv2 子树替换为深可变
+   * 副本（见 PlayerStatus._ensureMutableRlv2），因此这里用 getter 每次读取 _playerdata.rlv2，
+   * 避免控制器持有对旧冻结对象的陈旧引用（非 rlv2 的 update 会原地冻结旧 rlv2 引用）。
+   * getter 天然保证 this.outer/current/pinned 与 _playerdata.rlv2 引用别名一致
+   * （rlv2-ref-sync 测试依赖），且无需 update() wrapper 末尾手动刷新。
+   */
+  get pinned(): string | undefined {
+    return this._player._playerdata.rlv2.pinned;
+  }
+  get outer(): { [key: string]: PlayerRoguelikeV2.OuterData } {
+    const rlv2 = this._player._playerdata.rlv2;
+    if (!rlv2.outer) rlv2.outer = {} as any;
+    return rlv2.outer as unknown as {
+      [key: string]: PlayerRoguelikeV2.OuterData;
+    };
+  }
+  get current(): PlayerRoguelikeV2.CurrentData {
+    const rlv2 = this._player._playerdata.rlv2;
+    if (!rlv2.current) rlv2.current = {} as any;
+    return rlv2.current as unknown as PlayerRoguelikeV2.CurrentData;
+  }
   troop: RoguelikeTroopManager;
   _map!: RoguelikeMapManager;
   _status!: RoguelikePlayerStatusManager;
@@ -78,14 +100,13 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     // rlv2 内部模型（model/rlv2.ts）与生成模型（types-playerdata）为同一数据的两种视图：
     // 内部模型为功能实现的类型契约，生成模型为线格式存储视图，边界处做显式桥接
-    this.outer = player._playerdata.rlv2.outer as unknown as {
-      [key: string]: PlayerRoguelikeV2.OuterData;
-    };
-    this.current = player._playerdata.rlv2.current as unknown as PlayerRoguelikeV2.CurrentData;
-    this.pinned = player._playerdata.rlv2.pinned;
     this._player = player;
     this._trigger = _trigger;
     this._data = new RoguelikeV2Config();
+    // 规范化持久态为可写（autoFreeze 兼容）：构造期同步填充 current.game/buff/record
+    // 缺失字段，若 _playerdata.rlv2 已被 Immer 冻结（autoFreeze=true 下 finishDraft 冻结
+    // 整个 _playerdata），则以深可变副本替换 rlv2 子树，避免构造期原地写抛错。
+    this._normalizeMutablePlayerdata();
     this._troop = player.troop;
     this.current.game = {
       mode: "NONE",
@@ -129,21 +150,40 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }
 
   async update<T>(
-    recipe: (draft: WritableDraft<PlayerRoguelikeV2>) => Promise<T>,
+    recipe: (draft: Draft<PlayerRoguelikeV2>) => Promise<T>,
   ): Promise<T> {
-    const result = await this._player.update(async (draft) => {
-      return await recipe(draft.rlv2 as unknown as WritableDraft<PlayerRoguelikeV2>);
+    // finishDraft 后 PlayerStatus 已把 rlv2 子树替换为深可变副本（autoFreeze 兼容）；
+    // this.outer/current/pinned 为 live getter，每次读取 _playerdata.rlv2，天然与持久态
+    // 同步，无需在此手动刷新（避免持有对旧冻结对象的陈旧引用）。
+    return await this._player.update(async (draft) => {
+      return await recipe(draft.rlv2 as unknown as Draft<PlayerRoguelikeV2>);
     });
-    // Immer finishDraft 替换 _playerdata：统一刷新本控制器引用。
-    // recipe 克隆过的子树（draft.outer/current/pinned 任一被写即整体克隆）会让
-    // this.outer/this.current 指向旧对象，后续 createGame/gameSettle 的直接写会落到孤儿对象（重启丢失）。
-    // 所有 rlv2 状态写都经本出口（含 disaster 等子管理器），在此统一刷新最稳妥。
-    this.outer = this._player._playerdata.rlv2.outer as unknown as {
-      [key: string]: PlayerRoguelikeV2.OuterData;
-    };
-    this.current = this._player._playerdata.rlv2.current as unknown as PlayerRoguelikeV2.CurrentData;
-    this.pinned = this._player._playerdata.rlv2.pinned;
-    return result;
+  }
+
+  /**
+   * 规范化 rlv2 持久态为可写（autoFreeze 兼容）
+   *
+   * Immer finishDraft 在 autoFreeze=true 下会冻结整个 _playerdata（含 rlv2 子树的
+   * current/outer）。JS 无法解冻已冻结对象 → 用深可变副本替换 _playerdata.rlv2 并重建
+   * 顶层 _playerdata（其余子树保持 finishDraft 冻结，仅 rlv2 可写孤岛解锁，与
+   * AccountManager.deepFreezeExcept 排除 rlv2 的约定一致）。
+   *
+   * autoFreeze=false 下 rlv2 未冻结，原样返回（零开销，且维持 this.outer/current 与
+   * _playerdata.rlv2 的引用别名——rlv2-ref-sync 测试依赖该别名）。
+   *
+   * @returns 规范化后的 _playerdata（rlv2 子树可写）
+   */
+  private _normalizeMutablePlayerdata(): PlayerDataModel {
+    const st = this._player.playerStatus;
+    const pd = st._playerdata;
+    const rlv2 = pd.rlv2;
+    // 未冻结（autoFreeze=false 或构造期首帧）：保持引用别名，零开销
+    if (!rlv2 || !Object.isFrozen(rlv2)) return pd;
+    // 已冻结：深可变副本替换 rlv2 子树并重建顶层 _playerdata
+    const mutableRlv2 = JSON.parse(JSON.stringify(rlv2)) as typeof rlv2;
+    const newPd = { ...pd, rlv2: mutableRlv2 };
+    st._playerdata = newPd;
+    return newPd;
   }
 
   async setPinned(args: { id: string }): Promise<void> {
@@ -157,7 +197,10 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     // 放弃结算：生成 GAME_SETTLE 事件（客户端展示放弃结算页），保留游戏态直至 gameSettle 确认
     this._status.runResult = "giveup";
     const { brief, record } = this.buildSettlement(true, 0, "");
-    this.current.record = { brief, record };
+    // current.record 为 _playerdata.rlv2 引用（update() 后冻结），写入须放入配方
+    await this.update(async (draft) => {
+      draft.current.record = { brief, record };
+    });
     await this._trigger.emit("rlv2:event:create", [
       "GAME_SETTLE",
       {
@@ -176,37 +219,42 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     predefinedId: string | null;
   }): Promise<void> {
     const theme = args.theme;
-    this.current.game = {
-      mode: args.mode === "MONTH_TEAM" || args.mode === "CHALLENGE" ? "NORMAL" : args.mode,
-      predefined: args.predefinedId,
-      theme: theme,
-      outer: {
-        // 支援选项（GAME_INIT_SUPPORT/startbuff 3 选 1）：仅当上一把到达第 3 层（zone>=3）才出现。
-        // 官方机制：所有主题上一把到 3 层 → 下一把加入支援选项。
-        support: (this.outer?.[theme]?.record as any)?.lastZone >= 3,
-      },
-      start: now(),
-      modeGrade: args.modeGrade,
-      equivalentGrade: args.modeGrade,
-    };
-    this.current.buff = {
-      tmpHP: 0,
-      capsule: null,
-      squadBuff: [],
-    };
-    this.current.record = { brief: null };
-    this.current.map = { zones: {} };
-    this.current.troop = {
-      chars: {},
-      expedition: [],
-      expeditionDetails: {},
-      expeditionReturn: null,
-      hasExpeditionReturn: false,
-    };
-    // 首次游玩该主题：初始化 outer[theme] 基础结构（bank/bp/buff/collect/mission 等）
-    this.ensureOuterTheme(theme);
+    // 迁移：current.* 与 outer[theme] 都是 _playerdata.rlv2 的引用，update() 后会被
+    // Immer autoFreeze 冻结，配方外原地写会抛错 → 全部放入 update() 配方内，经 finishDraft
+    // 统一刷新 this.outer/this.current 引用（后续代码用 this.xxx 读安全）。
+    await this.update(async (draft) => {
+      draft.current.game = {
+        mode: args.mode === "MONTH_TEAM" || args.mode === "CHALLENGE" ? "NORMAL" : args.mode,
+        predefined: args.predefinedId,
+        theme: theme,
+        outer: {
+          // 支援选项（GAME_INIT_SUPPORT/startbuff 3 选 1）：仅当上一把到达第 3 层（zone>=3）才出现。
+          // 官方机制：所有主题上一把到 3 层 → 下一把加入支援选项。
+          support: (draft.outer?.[theme]?.record as any)?.lastZone >= 3,
+        },
+        start: now(),
+        modeGrade: args.modeGrade,
+        equivalentGrade: args.modeGrade,
+      };
+      draft.current.buff = {
+        tmpHP: 0,
+        capsule: null,
+        squadBuff: [],
+      };
+      draft.current.record = { brief: null };
+      draft.current.map = { zones: {} };
+      draft.current.troop = {
+        chars: {},
+        expedition: [],
+        expeditionDetails: {},
+        expeditionReturn: null,
+        hasExpeditionReturn: false,
+      };
+      // 首次游玩该主题：初始化 outer[theme] 基础结构（bank/bp/buff/collect/mission 等）
+      this.ensureOuterTheme(theme, draft.outer, draft.current.game);
+    });
 
-    // 绕过 update() 的原地初始化不产生 Immer 补丁，显式标记脏以触发条件落盘
+    // 供 rlv2:create 事件处理器读取（其内部经 update() 写，正常）
     this._player.markDirty();
     await this._trigger.emit("rlv2:create", [this]);
 
@@ -248,20 +296,24 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   /**
    * 初始化主题局外数据（首次游玩）：collect.band 分队解锁状态等
    * 客户端按 collect.band[id].state 决定开局分队可选性
+   * @param outerMap 局外数据字典（配方内传 draft.outer；配方外传 this.outer）
+   * @param game     当前游戏态（配方内传 draft.current.game；配方外传 this.current.game）
    */
-  private ensureOuterTheme(theme: string): void {
-    if (!this.outer[theme]) {
-      this.outer[theme] = {} as any;
+  private ensureOuterTheme(theme: string, outerMap?: any, game?: any): void {
+    const map = outerMap ?? this.outer;
+    const gameRef = game ?? this.current.game;
+    if (!map[theme]) {
+      map[theme] = {} as any;
     }
-    const outer = this.outer[theme] as any;
-    if (!outer.collect) {
+    const target = map[theme] as any;
+    if (!target.collect) {
       const detail = excel.RoguelikeTopicTable.details[theme];
       // 分队全集：init.initialBandRelic（开局可选）+ bandRef 全部条目（含等级变体）
       const init = detail.init.find(
         (i: any) =>
-          i.modeGrade == this.current.game!.modeGrade &&
-          i.predefinedId == this.current.game!.predefined &&
-          i.modeId == this.current.game!.mode,
+          i.modeGrade == gameRef!.modeGrade &&
+          i.predefinedId == gameRef!.predefined &&
+          i.modeId == gameRef!.mode,
       );
       const initialBandIds: string[] = init?.initialBandRelic || [];
       const bandRef = (detail.bandRef || {}) as Record<
@@ -271,7 +323,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       const allBandIds = [
         ...new Set([...initialBandIds, ...Object.keys(bandRef)]),
       ];
-      outer.collect = {
+      target.collect = {
         // 分队解锁状态：基础分队（bandLevel 0）state 1 可开局选择；
         // 升级变体（bandLevel > 0）state 0 隐藏（按科技树/进度解锁，避免开局直接出高级分队）
         band: Object.fromEntries(
@@ -284,7 +336,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         capsule: {},
         activeTool: {},
         mode: {},
-        modeGrade: this.initModeGradeStates(theme),
+        modeGrade: this.initModeGradeStates(theme, map, gameRef),
         recruitSet: {},
         buff: {},
         bgm: {},
@@ -295,30 +347,30 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       };
     }
     // 历史存档缺失 modeGrade 时补齐（难度解锁状态）
-    if (!outer.collect?.modeGrade) {
-      outer.collect.modeGrade = this.initModeGradeStates(theme);
+    if (!target.collect?.modeGrade) {
+      target.collect.modeGrade = this.initModeGradeStates(theme, map, gameRef);
     }
-    if (!outer.bank) outer.bank = { show: false, current: 0, record: 0, reward: {} };
-    if (!outer.bp) outer.bp = { point: 0, reward: {} };
-    if (!outer.buff) outer.buff = { pointOwned: 0, pointCost: 0, unlocked: {}, score: 0 };
-    if (!outer.mission) outer.mission = { updateId: "", refresh: 0, list: [] };
-    if (!outer.record) {
-      outer.record = { last: 0, stageCnt: {}, bandCnt: {}, bandGrade: {} };
+    if (!target.bank) target.bank = { show: false, current: 0, record: 0, reward: {} };
+    if (!target.bp) target.bp = { point: 0, reward: {} };
+    if (!target.buff) target.buff = { pointOwned: 0, pointCost: 0, unlocked: {}, score: 0 };
+    if (!target.mission) target.mission = { updateId: "", refresh: 0, list: [] };
+    if (!target.record) {
+      target.record = { last: 0, stageCnt: {}, bandCnt: {}, bandGrade: {} };
     }
     // 上一把到达层数（支援选项门槛）
-    if (outer.record.lastZone === undefined) outer.record.lastZone = 0;
-    if (!Array.isArray(outer.record.legacy)) outer.record.legacy = [];
+    if (target.record.lastZone === undefined) target.record.lastZone = 0;
+    if (!Array.isArray(target.record.legacy)) target.record.legacy = [];
     // 分队升级可见性对齐：已有科技树解锁（如 分裂→指挥分队 band_2）时升级分队 state 1、
     // 旧分队隐藏（修复历史存档升级后旧分队未隐藏）
-    const band = outer.collect?.band;
-    const unlocked = outer.buff?.unlocked || {};
+    const band = target.collect?.band;
+    const unlocked = target.buff?.unlocked || {};
     if (band && typeof band === "object") {
       for (const buffId of Object.keys(unlocked)) {
         this.applyBandUpgradeVisibility(theme, buffId, band);
       }
       // 调查者增益（生灵的溯游）：难度 ≥3/6/9 时若已点亮 分裂/卵生/胎生 节点（科技树解锁），
       // 对应分队升级（指挥/后勤/矛头分队）自动生效
-      const grade = this.current.game?.modeGrade ?? 0;
+      const grade = gameRef?.modeGrade ?? 0;
       const lit = new Set(Object.keys(unlocked));
       const THRESHOLDS: { node: string; minGrade: number }[] = [
         { node: "rogue_6_difficulty_1", minGrade: 3 }, // 分裂（指挥分队升级）
@@ -338,14 +390,12 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
    * 按更新期（updates[index]）从 monthMission 任务池随机抽取 4 个（1A+1B+2C），
    * 写入 outer[theme].mission.list，响应并入 modified.rlv2（客户端 topic 页读取）。
    */
-  refreshMission(args: { theme?: string; index?: number }): void {
+  async refreshMission(args: { theme?: string; index?: number }): Promise<void> {
     const theme = args.theme || this.current.game?.theme || "";
     if (!theme) return;
     const detail = excel.RoguelikeTopicTable.details[theme] as any;
     const monthMission: any[] = detail?.monthMission || [];
     if (monthMission.length === 0) return;
-    this.ensureOuterTheme(theme);
-    const outer = this.outer[theme] as any;
 
     // 更新期（index 指向 updates 数组；缺省取最后一个）
     const updates: any[] = detail?.updates || [];
@@ -390,12 +440,16 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       };
     });
 
-    outer.mission = {
-      updateId,
-      refresh: (outer.mission?.refresh ?? 0) + 1,
-      list,
-    };
-    this._player.markDirty();
+    // outer[theme] 为 _playerdata.rlv2 引用（update() 后冻结），写入须放入配方
+    await this.update(async (draft) => {
+      this.ensureOuterTheme(theme, draft.outer, draft.current.game);
+      const outer = draft.outer[theme] as any;
+      outer.mission = {
+        updateId,
+        refresh: (outer.mission?.refresh ?? 0) + 1,
+        list,
+      };
+    });
   }
 
   async chooseInitialRelic(args: { select: string }) {
@@ -2159,7 +2213,11 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
    * grade 0 默认解锁（state 2）；grade N（>=1）仅当上一级已通关（record.modeGrade 含 N-1 通关记录）才 state 2，
    * 否则 state 1（可见未解锁）。客户端按 state 决定难度可选性。
    */
-  private initModeGradeStates(theme: string): {
+  private initModeGradeStates(
+    theme: string,
+    map?: any,
+    game?: any,
+  ): {
     [mode: string]: { [grade: string]: { state: number; progress: number[] | null } };
   } {
     const detail = excel.RoguelikeTopicTable.details[theme] as any;
@@ -2170,9 +2228,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       [grade: string]: { state: number; progress: number[] | null };
     } = {};
     // 已通关难度（record.modeGrade[mode] 各难度通关计数 > 0）
-    const rec = (this.outer?.[theme]?.record as any) || {};
+    const rec = ((map ?? this.outer)?.[theme]?.record as any) || {};
     const cleared = new Set<number>();
-    const mode = this.current.game?.mode || "NORMAL";
+    const mode = (game ?? this.current.game)?.mode || "NORMAL";
     const clearedGrades = (rec.modeGrade?.[mode] || {}) as { [g: string]: number };
     for (const [g, cnt] of Object.entries(clearedGrades)) {
       if (cnt > 0) cleared.add(parseInt(g, 10));
@@ -2351,11 +2409,10 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     const success =
       this._status.runResult === "success" || this._status.chgEnding ? 1 : 0;
     const { brief, record } = this.buildSettlement(true, success, ending);
-    this.current.record = { brief, record };
-
-    // 探索分数 → 魂灵书签（1:1）
+    // current.record 为 _playerdata.rlv2 引用（update() 后冻结），写入放入下方 update() 配方
     const exploreScore = this.exploreScore();
     await this.update(async (draft) => {
+      draft.current.record = { brief, record };
       const outerTheme = draft.outer[theme] ?? (draft.outer[theme] = {} as any);
       const buff =
         outerTheme.buff ??

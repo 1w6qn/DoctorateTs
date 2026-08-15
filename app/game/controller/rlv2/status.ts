@@ -107,7 +107,10 @@ export class RoguelikePlayerStatusManager
     const succeed = Math.random() <= 0.5;
     if (succeed && this._player.outer[theme].bank.current <= 999) {
       this.status.bankPut += 1;
-      this._player.outer[theme].bank.current += 1;
+      // outer 为 _playerdata.rlv2 引用（update() 后冻结），写入须放入配方
+      await this._player.update(async (draft) => {
+        draft.outer[theme].bank.current += 1;
+      });
       await this._trigger.emit("rlv2:bankPut", [succeed]);
     }
   }

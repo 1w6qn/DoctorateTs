@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Arknights (明日方舟) private-server backend: Express 5 + TypeScript, JSON-file storage, Immer state. Requires **Node 24** (uses built-in `node:sqlite` and `fetch`).
+Arknights (明日方舟) private-server backend: Express 5 + TypeScript, JSON-file storage, mutative state. Requires **Node 24** (uses built-in `node:sqlite` and `fetch`).
 
 ## Commands
 
@@ -45,7 +45,7 @@ Game-data update (`scripts/update-data.ts`) 调用官方热更管线 `scripts/of
 
 - **Flow**: router → `PlayerDataManager` (via `httpContext`, key `playerData`) → composed sub-managers (inventory, char, battle, mission, medal, building, …). Wiring lives in `PlayerDataManager` constructor; routers are lazy-registered in `app/game/app.ts` (`app.use("/path", (await import("./router/x")).default)`) — **register new routers there**.
 - **Event-driven**: managers subscribe in constructors via `this._trigger.on(...)`. Event names/types are declared in `EventMap` in `app/game/model/events.ts` — extend it for new events.
-- **State changes**: all through `player.update(recipe)` (Immer `createDraft`/`finishDraft`) which records patches. **Immer autoFreeze is globally disabled** (`setAutoFreeze(false)` in PlayerDataManager) — managers mutate arrays directly; do not re-enable.
+- **State changes**: all through `player.update(recipe)` (mutative two-phase `create(base,{enablePatches})` → `[draft, finish()]` in `PlayerStatus`) which records patches. mutative `enableAutoFreeze` is off — managers mutate arrays directly; do not re-enable freezing.
 - **Response contract**: `res.send(player.delta)`. The `delta` getter returns `{ playerDataDelta }`, **clears `_changes` and triggers `save`** (persists to `data/user/databases/{uid}.json`). Never read `player.delta` twice in one request.
 - **Single-account private server**: `app/game/app.ts` middleware forces any `secret` header to `"1"` → every request is uid=1.
 - **统一抓包存储** (`app/capture/capture-manager.ts` 单例 `captureManager` + `capture-db.ts`): 所有抓包来源（私服 recorder / capture 官服转发 / 独立代理 proxy-harness / arkhub 网关 / 官服操作）统一写入 `tmp/capture/`（SQLite `index.db` 索引 + `records/{rid}/` body 文件，source 区分来源）。写入方经 `captureManager.addRecordAsync`（fire-and-forget，失败不阻断业务）。查询/会话/导出/订阅事件见 design-spec §17.7。

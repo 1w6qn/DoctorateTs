@@ -189,7 +189,15 @@ export class MedalProgress implements PlayerPerMedal {
   param!: string[];
   /** 持久态勋章数据引用（_syncToPersist 显式写回用） */
   _item?: PlayerPerMedal;
-  /** 进度更新脏标记回调（条件落盘） */
+  /**
+   * 进度更新脏标记回调（条件落盘）
+   *
+   * 保留说明：MedalProgress 采用「共享引用」模型——模板 update 直接原地写 this.val，
+   * 且 this.val 与 _playerdata.medal.medals[id].val 为同一数组（构造时重链接，见
+   * tests/unit/manager/medal.test.ts L282~L322/L695~L722 断言）。单一勋章进度更新
+   * 体量极小，若迁入 update() 配方需按 draft.medal.medals[id] 定位重写全部模板方法并
+   * 破坏共享引用契约，故事件处理器内保留直改 + 显式 markDirty（迁移前需先重构引用模型）。
+   */
   _markDirty?: () => void;
 
   /**

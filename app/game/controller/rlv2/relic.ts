@@ -47,17 +47,21 @@ export class RoguelikeRelicManager {
     };
     this._index++;
     // 收藏记录：collect.relic[id].state = 2（已获得），客户端图鉴展示
+    // outer 为 _playerdata.rlv2 引用（update() 后冻结），写入须放入配方
     const collect = this._player.outer[theme]?.collect as
       | { relic?: { [key: string]: { state: number; progress: unknown } } }
       | undefined;
     if (collect?.relic) {
       const prev = collect.relic[relic.id];
       if (!prev || prev.state < 2) {
-        collect.relic[relic.id] = {
-          state: 2,
-          progress: prev?.progress ?? null,
-        };
-        this._player._player.markDirty();
+        await this._player.update(async (draft) => {
+          const draftCollect = (draft.outer[theme] as any)?.collect;
+          if (!draftCollect?.relic || draftCollect.relic[relic.id]?.state >= 2) return;
+          draftCollect.relic[relic.id] = {
+            state: 2,
+            progress: draftCollect.relic[relic.id]?.progress ?? null,
+          };
+        });
       }
     }
   }

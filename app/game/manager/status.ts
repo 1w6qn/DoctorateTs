@@ -4,7 +4,7 @@ import moment from "moment";
 import { AvatarInfo } from "@game/model/character";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
-import { WritableDraft } from "immer";
+import { Draft } from "mutative";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { logger } from "@utils/logger";
 
@@ -76,7 +76,7 @@ export class StatusManager {
    * 每 6 分钟恢复 1 点（与 inventory AP_GAMEPLAY 逻辑一致），上限 maxAp
    * @param draft - Immer 可写草稿
    */
-  private _refreshAp(draft: WritableDraft<PlayerDataModel>) {
+  private _refreshAp(draft: Draft<PlayerDataModel>) {
     const addAp = Math.floor((now() - draft.status.lastApAddTime) / 360);
     if (draft.status.ap < draft.status.maxAp) {
       draft.status.ap = Math.min(

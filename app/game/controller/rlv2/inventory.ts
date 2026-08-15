@@ -30,9 +30,11 @@ export class RoguelikeInventoryManager
     this._trigger = _trigger;
     this._trigger.on("rlv2:init", this.init.bind(this));
     this._trigger.on("rlv2:create", this.create.bind(this));
-    this._trigger.on("rlv2:get:items", ([items]: [RoguelikeItemBundle[]]) =>
-      items.forEach((item) => this.getItem(item)),
-    );
+    this._trigger.on("rlv2:get:items", async ([items]: [RoguelikeItemBundle[]]) => {
+      for (const item of items) {
+        await this.getItem(item);
+      }
+    });
   }
 
   _relic: RoguelikeRelicManager;
@@ -63,14 +65,14 @@ export class RoguelikeInventoryManager
     this.stashRecruitLimit = 3;
   }
 
-  getItem(item: RoguelikeItemBundle) {
+  async getItem(item: RoguelikeItemBundle) {
     const theme = this._player.current.game!.theme;
     // 类型解析：显式 type 优先，其次 excel items 表；两者都缺失（占位/机制空物品）回退 POOL，
     // 不抛错（此前 items[item.id] undefined 直接 TypeError 500）
     const itemDef = item.id ? excel.RoguelikeTopicTable.details[theme].items?.[item.id] : undefined;
     const type = item.type || itemDef?.type || "POOL";
     logger.info("RLV2Inventory", `获得 ${item.id || item.type} * ${item.count}`);
-    const funcs: { [key: string]: (item: RoguelikeItemBundle) => void } = {
+    const funcs: { [key: string]: (item: RoguelikeItemBundle) => void | Promise<void> } = {
       NONE: (item: RoguelikeItemBundle) => {},
       HP: (item: RoguelikeItemBundle) => {
         this._player._status.property.hp.current += item.count;
@@ -86,8 +88,9 @@ export class RoguelikeInventoryManager
         this._player._status.property.hp.current += item.count;
         this._player._status.property.hp.max += item.count;
       },
-      GOLD: (item: RoguelikeItemBundle) =>
-        (this._player._status.property.gold += item.count),
+      GOLD: (item: RoguelikeItemBundle) => {
+        this._player._status.property.gold += item.count;
+      },
       POPULATION: (item: RoguelikeItemBundle) => {
         if (item.count >= 0) {
           this._player._status.property.population.max += item.count;
@@ -122,8 +125,9 @@ export class RoguelikeInventoryManager
           this._player._status.property.hp.current += maxHpUp;
         }
       },
-      SQUAD_CAPACITY: (item: RoguelikeItemBundle) =>
-        (this._player._status.property.capacity += item.count),
+      SQUAD_CAPACITY: (item: RoguelikeItemBundle) => {
+        this._player._status.property.capacity += item.count;
+      },
       RECRUIT_TICKET: (item: RoguelikeItemBundle) => {
         this._trigger.emit("rlv2:recruit:gain", [item.id, "battle", 0]);
         const ticket = Object.values(this.recruit).slice(-1)[0].index;
@@ -149,14 +153,18 @@ export class RoguelikeInventoryManager
       RELIC: (item: RoguelikeItemBundle) => {
         this._trigger.emit("rlv2:relic:gain", [item]);
       },
-      BP_POINT: (item: RoguelikeItemBundle) => {
+      BP_POINT: async (item: RoguelikeItemBundle) => {
         const theme = this._player.current.game!.theme;
-        this._player.outer[theme].bp.point += item.count;
-        const maxNum =
-          excel.RoguelikeTopicTable.details[theme].milestones.at(-1)!.tokenNum;
-        if (this._player.outer[theme].bp.point > maxNum) {
-          this._player.outer[theme].bp.point = maxNum;
-        }
+        // outer 为 _playerdata.rlv2 引用（update() 后冻结），写入须放入配方
+        await this._player.update(async (draft) => {
+          const bp = draft.outer[theme].bp;
+          bp.point += item.count;
+          const maxNum =
+            excel.RoguelikeTopicTable.details[theme].milestones.at(-1)!.tokenNum;
+          if (bp.point > maxNum) {
+            bp.point = maxNum;
+          }
+        });
       },
       GROW_POINT: (item: RoguelikeItemBundle) => {
         const theme = this._player.current.game!.theme;
@@ -178,8 +186,9 @@ export class RoguelikeInventoryManager
       SAN_POINT: (item: RoguelikeItemBundle) => {},
       DICE_POINT: (item: RoguelikeItemBundle) => {},
       DICE_TYPE: (item: RoguelikeItemBundle) => {},
-      SHIELD: (item: RoguelikeItemBundle) =>
-        (this._player._status.property.shield += item.count),
+      SHIELD: (item: RoguelikeItemBundle) => {
+        this._player._status.property.shield += item.count;
+      },
       LOCKED_TREASURE: (item: RoguelikeItemBundle) => {},
       CUSTOM_TICKET: (item: RoguelikeItemBundle) => {},
       TOTEM: (item: RoguelikeItemBundle) => {},
@@ -220,7 +229,7 @@ export class RoguelikeInventoryManager
         this._trigger.emit("rlv2:disaster:abstract", []);
       },
     };
-    funcs[type](item);
+    await funcs[type](item);
   }
 
   toJSON(): PlayerRoguelikeV2.CurrentData.Inventory {

@@ -1,8 +1,9 @@
 /**
  * 玩家数据管理器类
- * 
+ *
  * 作为单个玩家数据的核心管理类，负责协调玩家的所有子系统（背包、队伍、地牢、基建等）。
- * 使用 Immer 进行状态管理，支持增量更新和撤销操作。
+ * 状态引擎（Immer draft 生命周期、patch 聚合、序列化）已拆分至 PlayerStatus，
+ * 本类退化为组合根：持有子管理器、事件总线与序列化入口，并委托状态操作。
  */
 
 import { PlayerDataModel } from "../model/playerdata";
@@ -19,18 +20,15 @@ import { RecruitManager } from "./recruit";
 import { RoguelikeV2Controller } from "../controller/rlv2";
 import { BattleManager } from "./battle";
 import { GachaController } from "../controller/gacha";
-import { accountManager, BattleInfo } from "./AccountManager";
 import { SocialManager } from "./social";
 import { DexNavManager } from "./dexnav";
 import { MedalManager } from "./medal";
 import { BuildingManager } from "./building";
 import { FriendDataWithNameCard, FriendMedalBoard } from "@game/model/social";
 import { OpenServerManager } from "@game/manager/activity/openServer";
-import { createDraft, finishDraft, Patch, WritableDraft, setAutoFreeze } from "immer";
-// 私服场景管理器（MedalProgress/MissionProgress）直接修改玩家数据数组，
-// 禁用 Immer 自动冻结避免 push 操作崩溃
-setAutoFreeze(false);
-import { patchesToObject } from "@utils/delta";
+import { PlayerStatus } from "./PlayerStatus";
+import { BattleInfo, BattleInfoStore } from "./BattleInfoStore";
+import { Draft } from "mutative";
 import { logger } from "@utils/logger";
 import { TypedEventEmitter } from "@game/model/events";
 import { CharRotationManager } from "@game/manager/charRotation";
@@ -39,6 +37,8 @@ import { CharManager } from "@game/manager/char";
 import { AprilFoolManager } from "@game/manager/aprilFool";
 
 export class PlayerDataManager {
+  /** 状态引擎（Immer 状态管理、patch 聚合、序列化） */
+  playerStatus: PlayerStatus;
   /** 地牢管理器 */
   dungeon: DungeonManager;
   /** 背包管理器 */
@@ -85,37 +85,20 @@ export class PlayerDataManager {
   battle!: BattleManager;
   /** 事件触发器 */
   _trigger: TypedEventEmitter;
-  /** 玩家原始数据模型 */
-  _playerdata: PlayerDataModel;
-  /** 变更补丁列表 */
-  _changes: Patch[][];
-  /** 逆变更补丁列表（用于撤销） */
-  _inverseChanges: Patch[][];
-  /** 直接变更脏标记（绕过 update() 的原地修改，如 medal/dungeon/rlv2 构造期初始化） */
-  _dirty: boolean;
-  /**
-   * 当前激活的 Immer draft（供嵌套 update() 复用）
-   *
-   * 事件处理器在 recipe 内 await emit（如 items:get → gainItem → update）时，
-   * 若不复用则内层 createDraft 基于旧 base、finishDraft 先替换 _playerdata，
-   * 外层 finishDraft 再按旧 base 整体覆盖 → 嵌套变更从存档丢失（delta 却含补丁，
-   * 客户端"看到"奖励后下次同步消失）。复用同一 draft 后嵌套变更随外层一并提交。
-   */
-  private _activeDraft: WritableDraft<PlayerDataModel> | null = null;
-  /** 状态版本号（update() 递增，用于 toJSONString 缓存失效） */
-  _stateVersion = 0;
-  /** toJSONString 序列化缓存 */
-  private _toJsonStringCache: { version: number; value: string } | null = null;
+  /** 战斗信息存储（构造器注入，解耦 AccountManager） */
+  private _battleStore: BattleInfoStore;
 
   /**
    * 构造函数
    * @param playerdata - 玩家数据模型
+   * @param battleStore - 战斗信息存储（默认 no-op，由 AccountManager 注入）
    */
-  constructor(playerdata: PlayerDataModel) {
-    this._playerdata = playerdata;
-    this._changes = [];
-    this._inverseChanges = [];
-    this._dirty = false;
+  constructor(playerdata: PlayerDataModel, battleStore?: BattleInfoStore) {
+    this.playerStatus = new PlayerStatus(playerdata);
+    this._battleStore = battleStore ?? {
+      getBattleInfo: async () => undefined as unknown as BattleInfo,
+      saveBattleInfo: async () => {},
+    };
     this._trigger = new TypedEventEmitter();
     this.status = new StatusManager(this, this._trigger);
     this.inventory = new InventoryManager(this, this._trigger);
@@ -148,34 +131,33 @@ export class PlayerDataManager {
     this._trigger.on(
       "save:battle",
       async ([battleId, info]: [string, BattleInfo]) => {
-        await accountManager.saveBattleInfo(this.uid, battleId, info);
+        await this._battleStore.saveBattleInfo(this.uid, battleId, info);
       },
     );
   }
 
   /**
+   * 获取玩家原始数据模型（只读 getter，委托状态引擎）
+   *
+   * 供子管理器与序列化读取；状态变更一律通过 update()/markDirty()。
+   */
+  get _playerdata(): PlayerDataModel {
+    return this.playerStatus._playerdata;
+  }
+
+  /**
    * 获取增量更新数据
-   * 
-   * 将所有变更补丁转换为对象形式，用于客户端同步。
+   *
+   * 委托 PlayerStatus 计算增量并清空变更，仅当有变更时触发保存事件。
    * @returns 包含 playerDataDelta 的增量数据
    */
   get delta() {
-    // 补丁按发生顺序正序展开（acc.concat 为倒序——同一路径多次变更时倒序让最旧值
-    // 后写覆盖，客户端收到旧值、与服务器状态脱节，如十连后 cnt 收到 1 而非 10）
-    const delta = patchesToObject(
-      this._changes.reduce((pre, acc) => pre.concat(acc), []),
-      this._playerdata,
-    );
-    // 条件落盘：仅当存在变更（Immer 补丁或 markDirty 的直接变更）才触发保存，
-    // 纯读请求（syncStatus/syncPushMessage 等）不再触发全量落盘
-    const changed = this._changes.length > 0 || this._dirty;
-    this._changes = [];
-    this._dirty = false;
+    const { playerDataDelta, changed } = this.playerStatus.delta;
     if (changed) {
       this._trigger.emit("save", []);
     }
     return {
-      playerDataDelta: delta,
+      playerDataDelta,
     };
   }
 
@@ -183,148 +165,132 @@ export class PlayerDataManager {
    * 获取用户ID
    * @returns 用户ID
    */
-  get uid() {
-    return this._playerdata.status.uid;
+  get uid(): string {
+    return this.playerStatus.uid;
   }
 
   /**
    * 会话时间戳（syncData 每次同步刷新为 now()）
    *
-   * 用作战斗数据加解密（decryptBattleData/encryptBattleData）的密钥种子——
-   * 客户端以会话锚点时间戳加密战斗数据，服务端用同一时间戳解密。
-   * 语义上即"客户端登录会话的锚点时间"（D-3 澄清）。
+   * 用作战斗数据加解密（decryptBattleData/encryptBattleData）的密钥种子。
    * @returns 会话锚点时间戳
    */
-  get loginTime() {
-    return this._playerdata.pushFlags.status;
+  get loginTime(): number {
+    return this.playerStatus.loginTime;
   }
 
   /**
    * 获取玩家社交信息（用于好友展示）
-   * 
+   *
    * 包含昵称、等级、助战角色、勋章板等信息。
    * @returns 玩家社交信息对象
    */
   get socialInfo(): FriendDataWithNameCard {
+    const pd = this.playerStatus._playerdata;
     let medalBoard: FriendMedalBoard;
-    if (this._playerdata.social.medalBoard.custom) {
+    if (pd.social.medalBoard.custom) {
       medalBoard = {
-        custom:
-          this._playerdata.medal.custom.customs[
-            this._playerdata.social.medalBoard.custom
-          ],
-        type: this._playerdata.social.medalBoard.type,
+        custom: pd.medal.custom.customs[pd.social.medalBoard.custom],
+        type: pd.social.medalBoard.type,
         template: null,
       };
     } else {
       medalBoard = {
         custom: null,
-        type: this._playerdata.social.medalBoard.type,
+        type: pd.social.medalBoard.type,
         template: {
-          groupId: this._playerdata.social.medalBoard.template!,
-          medalList: this._playerdata.social.medalBoard.templateMedalList!,
+          groupId: pd.social.medalBoard.template!,
+          medalList: pd.social.medalBoard.templateMedalList!,
         },
       };
     }
-    const assistCharList = this._playerdata.social.assistCharList.map(
-      (char) => {
-        const charInfo = this._playerdata.troop.chars[char.charInstId];
-        const res = {
-          charId: charInfo.charId,
-          skinId: charInfo.skin,
-          skills: charInfo.skills,
-          mainSkillLvl: charInfo.mainSkillLvl,
-          skillIndex: char.skillIndex,
-          evolvePhase: charInfo.evolvePhase,
-          favorPoint: charInfo.favorPoint,
-          potentialRank: charInfo.potentialRank,
-          level: charInfo.level,
-          crisisRecord: {},
-          crisisV2Record: {},
-          currentEquip: char.currentEquip,
-          equip: charInfo.equip,
-        };
-        if (char?.currentTmpl) {
-          return Object.assign({}, res, {
-            currentTmpl: char.currentTmpl,
-            tmpl: charInfo.tmpl!,
-          });
-        } else {
-          return res;
-        }
-      },
-    );
+    const assistCharList = pd.social.assistCharList.map((char) => {
+      const charInfo = pd.troop.chars[char.charInstId];
+      const res = {
+        charId: charInfo.charId,
+        skinId: charInfo.skin,
+        skills: charInfo.skills,
+        mainSkillLvl: charInfo.mainSkillLvl,
+        skillIndex: char.skillIndex,
+        evolvePhase: charInfo.evolvePhase,
+        favorPoint: charInfo.favorPoint,
+        potentialRank: charInfo.potentialRank,
+        level: charInfo.level,
+        crisisRecord: {},
+        crisisV2Record: {},
+        currentEquip: char.currentEquip,
+        equip: charInfo.equip,
+      };
+      if (char?.currentTmpl) {
+        return Object.assign({}, res, {
+          currentTmpl: char.currentTmpl,
+          tmpl: charInfo.tmpl!,
+        });
+      } else {
+        return res;
+      }
+    });
     return {
-      nickName: this._playerdata.status.nickName,
-      nickNumber: this._playerdata.status.nickNumber,
+      nickName: pd.status.nickName,
+      nickNumber: pd.status.nickNumber,
       uid: this.uid,
-      registerTs: this._playerdata.status.registerTs,
-      mainStageProgress: this._playerdata.status.mainStageProgress,
-      charCnt: this._playerdata.troop.curCharInstId - 1,
+      registerTs: pd.status.registerTs,
+      mainStageProgress: pd.status.mainStageProgress,
+      charCnt: pd.troop.curCharInstId - 1,
       furnCnt: this.building.furnCnt,
       skinCnt: this.inventory.skinCnt,
-      secretary: this._playerdata.status.secretary,
-      secretarySkinId: this._playerdata.status.secretarySkinId,
-      resume: this._playerdata.status.resume,
+      secretary: pd.status.secretary,
+      secretarySkinId: pd.status.secretarySkinId,
+      resume: pd.status.resume,
       teamV2: this.dexNav.teamV2Info,
-      serverName: this._playerdata.status.serverName,
-      level: this._playerdata.status.level,
-      avatar: this._playerdata.status.avatar,
+      serverName: pd.status.serverName,
+      level: pd.status.level,
+      avatar: pd.status.avatar,
       assistCharList: assistCharList,
-      lastOnlineTime: this._playerdata.status.lastOnlineTs,
+      lastOnlineTime: pd.status.lastOnlineTs,
       board: this.building.boardInfo,
       infoShare: this.building.infoShare,
       recentVisited: 0,
       skin: {
-        selected: this._playerdata.nameCardStyle.skin.selected,
+        selected: pd.nameCardStyle.skin.selected,
         state: {},
       },
-      birthday: this._playerdata.status.birthday,
+      birthday: pd.status.birthday,
       medalBoard: medalBoard,
-      nameCardStyle: this._playerdata.nameCardStyle,
+      nameCardStyle: pd.nameCardStyle,
     };
   }
 
   /**
-   * 标记直接变更（绕过 update() 的原地修改）
-   *
-   * 这类修改不产生 Immer 补丁，需显式标记脏，保证条件落盘仍会持久化。
+   * 标记直接变更（绕过 update() 的原地修改，委托状态引擎）
    */
   markDirty(): void {
-    this._dirty = true;
+    this.playerStatus.markDirty();
   }
 
   /**
-   * 更新玩家数据（使用 Immer）
-   * 
-   * 通过传入的 recipe 函数修改数据，自动记录变更补丁。
-   * 嵌套 update()（recipe 内 await emit → 事件处理器再调 update，如
-   * items:get → gainItem）复用当前激活 draft：内层变更随外层 finishDraft
-   * 一并提交，避免内层先替换 _playerdata、外层再按旧 base 覆盖导致
-   * 嵌套变更从存档丢失（客户端 delta 含补丁、落盘却缺失的不一致）。
+   * 更新玩家数据（使用 mutative，委托状态引擎）
+   *
+   * 通过传入的 recipe 函数修改数据，自动记录变更补丁（嵌套 update 复用当前 draft）。
    * @param recipe - 数据修改函数
    * @returns recipe 函数的返回值
    */
   async update<T>(
-    recipe: (draft: WritableDraft<PlayerDataModel>) => Promise<T>,
-  ) {
-    // 已在 recipe 内（事件处理器嵌套调用）：直接复用当前 draft
-    if (this._activeDraft) {
-      return await recipe(this._activeDraft);
-    }
-    const draft = createDraft(this._playerdata);
-    this._activeDraft = draft;
-    try {
-      const result = await recipe(draft);
-      this._playerdata = finishDraft(draft, (patches, inversePatches) => {
-        this._changes.push(patches);
-        this._inverseChanges.push(inversePatches);
-      });
-      this._stateVersion++; // 使 toJSONString 缓存失效
-      return result;
-    } finally {
-      this._activeDraft = null;
-    }
+    recipe: (draft: Draft<PlayerDataModel>) => Promise<T>,
+  ): Promise<T> {
+    return this.playerStatus.update(recipe);
+  }
+
+  /**
+   * 追加一个强制补丁（委托状态引擎）
+   *
+   * 供 update() recipe 内主动注入 Immer 无法产生的增量（如 building.event），
+   * 避免子管理器直接访问已迁移的 _changes 私有字段。
+   * @param path - 补丁路径（如 ["event", "building"]）
+   * @param value - 补丁值
+   */
+  forcePatch(path: (string | number)[], value: unknown): void {
+    this.playerStatus.forcePatch(path, value);
   }
 
   /**
@@ -333,26 +299,21 @@ export class PlayerDataManager {
    * @returns 战斗信息对象
    */
   async getBattleInfo(battleId: string): Promise<BattleInfo> {
-    return (await accountManager.getBattleInfo(this.uid, battleId))!;
+    return (await this._battleStore.getBattleInfo(this.uid, battleId))!;
   }
 
   /**
-   * 序列化为JSON
+   * 序列化为JSON（委托状态引擎）
    * @returns 玩家数据模型对象
    */
-  toJSON() {
-    return this._playerdata;
+  toJSON(): PlayerDataModel {
+    return this.playerStatus.toJSON();
   }
 
   /**
-   * 预序列化 JSON 字符串（B4 响应缓存）：update() 后失效，重连/重复 syncData 复用，
-   * 避免每次全量 JSON.stringify（1.3MB 级）重复计算。
-   * 注意：_dirty 绕过 update() 的原地修改不触发版本号——构造期置脏不影响序列化结果。
+   * 预序列化 JSON 字符串（B4 响应缓存，委托状态引擎）
    */
   toJSONString(): string {
-    if (!this._toJsonStringCache || this._toJsonStringCache.version !== this._stateVersion) {
-      this._toJsonStringCache = { version: this._stateVersion, value: JSON.stringify(this._playerdata) };
-    }
-    return this._toJsonStringCache.value;
+    return this.playerStatus.toJSONString();
   }
 }

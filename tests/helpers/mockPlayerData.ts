@@ -6,6 +6,7 @@ export interface MockPlayerDataManager {
   get: ReturnType<typeof vi.fn>;
   toJSON: ReturnType<typeof vi.fn>;
   markDirty: ReturnType<typeof vi.fn>;
+  forcePatch: ReturnType<typeof vi.fn>;
   get delta(): any;
   get uid(): string;
   _playerdata: Partial<PlayerDataModel>;
@@ -44,6 +45,7 @@ export function mockPlayerData(
     get,
     toJSON,
     markDirty: vi.fn(),
+    forcePatch: vi.fn(),
     _playerdata,
     _trigger: {
       emit: vi.fn(),

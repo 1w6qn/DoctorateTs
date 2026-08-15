@@ -59,7 +59,7 @@ export class RoguelikeNodeUpgradeManager {
       this._player.current.module!.nodeUpgrade!.nodeTypeInfoMap;
   }
 
-  upgrade([nodeType]: [string]) {
+  async upgrade([nodeType]: [string]) {
     const theme = this._player.current.game!.theme;
     const info = this._nodeTypeInfoMap[nodeType];
     // 防御：未知节点类型不 500
@@ -76,9 +76,12 @@ export class RoguelikeNodeUpgradeManager {
       if (!permItem) return; // 防御：配置缺失
       info.currUpgradeIndex += 1;
       info.upgradeList.push(permItem.upgradeId);
-      this._player.outer[theme].collect.nodeUpgrade[nodeType].unlockList.push(
-        permItem.upgradeId,
-      );
+      // outer[theme].collect 为 _playerdata.rlv2 引用（update() 后冻结），写入须放入配方
+      await this._player.update(async (draft) => {
+        (draft.outer[theme] as any).collect.nodeUpgrade[nodeType].unlockList.push(
+          permItem.upgradeId,
+        );
+      });
       this._trigger.emit("rlv2:fragment:use", [
         permItem.costItemId,
         permItem.costItemCount,
@@ -91,9 +94,11 @@ export class RoguelikeNodeUpgradeManager {
       );
       if (!tempItem) return; // 防御：配置缺失
       info.upgradeList.push(tempItem.upgradeId);
-      this._player.outer[theme].collect.nodeUpgrade[nodeType].unlockList.push(
-        tempItem.upgradeId,
-      );
+      await this._player.update(async (draft) => {
+        (draft.outer[theme] as any).collect.nodeUpgrade[nodeType].unlockList.push(
+          tempItem.upgradeId,
+        );
+      });
       this._trigger.emit("rlv2:fragment:use", [
         tempItem.costItemId,
         tempItem.costItemCount,

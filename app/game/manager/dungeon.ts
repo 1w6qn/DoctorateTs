@@ -17,23 +17,24 @@ export class DungeonManager {
   }
   async initStages() {
     let changed = false;
-    for (const stageId in excel.StageTable.stages) {
-      if (!(stageId in this._player._playerdata.dungeon.stages)) {
-        this._player._playerdata.dungeon.stages[stageId] = {
-          completeTimes: 1,
-          hasBattleReplay: 0,
-          noCostCnt: 0,
-          practiceTimes: 0,
-          stageId: stageId,
-          startTimes: 1,
-          state: 3,
-        };
-        changed = true;
+    await this._player.update((draft) => {
+      for (const stageId in excel.StageTable.stages) {
+        if (!(stageId in draft.dungeon.stages)) {
+          draft.dungeon.stages[stageId] = {
+            completeTimes: 1,
+            hasBattleReplay: 0,
+            noCostCnt: 0,
+            practiceTimes: 0,
+            stageId: stageId,
+            startTimes: 1,
+            state: 3,
+          };
+          changed = true;
+        }
       }
-    }
-    // 绕过 update() 的原地补全不产生 Immer 补丁，显式标记脏以触发条件落盘
-    if (changed) {
-      this._player.markDirty();
-    }
+      return Promise.resolve();
+    });
+    // 配方内补全产生 Immer 补丁，无需 markDirty；changed 仅用于日志/短路
+    return changed;
   }
 }

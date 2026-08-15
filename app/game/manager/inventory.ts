@@ -5,7 +5,7 @@ import { now } from "@utils/time";
 import { getFurnitureThemeId } from "@excel/building_excel";
 import { PlayerDataModel } from "../model/playerdata";
 import { PlayerDataManager } from "./PlayerDataManager";
-import { WritableDraft } from "immer";
+import { Draft } from "mutative";
 import { TypedEventEmitter } from "@game/model/events";
 
 export class InventoryManager {
@@ -46,7 +46,7 @@ export class InventoryManager {
     }
     const consumableFunc = async (
       item: ItemBundle,
-      draft: WritableDraft<PlayerDataModel>,
+      draft: Draft<PlayerDataModel>,
     ) => {
       // 防御：目标 consumable 条目不存在（客户端乱传 itemId/instId）时不 500，
       // WARN 跳过——避免 useItem 假 instId 直接崩溃
@@ -63,7 +63,7 @@ export class InventoryManager {
     const funcs: {
       [key: string]: (
         item: ItemBundle,
-        draft: WritableDraft<PlayerDataModel>,
+        draft: Draft<PlayerDataModel>,
       ) => Promise<void>;
     } = {
       TKT_GACHA_PRSV: consumableFunc,
@@ -108,7 +108,7 @@ export class InventoryManager {
     }
     const consumableFunc = async (
       item: ItemBundle,
-      draft: WritableDraft<PlayerDataModel>,
+      draft: Draft<PlayerDataModel>,
     ) => {
       let consumableId = item?.instId;
       if (!consumableId) {
@@ -141,7 +141,7 @@ export class InventoryManager {
     const funcs: {
       [key: string]: (
         item: ItemBundle,
-        draft: WritableDraft<PlayerDataModel>,
+        draft: Draft<PlayerDataModel>,
       ) => Promise<void>;
     } = {
       NONE: async () => {},

@@ -291,9 +291,9 @@ function parseSerializedFiles(sf: Uint8Array): TextAssetData[] {
   if (textAssets.length === 0) return [];
 
   // 对象数据在 SF 内的 byteStart（相对 sf 起点）
-  return textAssets.map((ta) =>
-    parseTextAsset(sf.subarray(ta.start, ta.start + ta.size)),
-  );
+  return textAssets
+    .map((ta) => parseTextAsset(sf.subarray(ta.start, ta.start + ta.size)))
+    .filter((x): x is TextAssetData => x !== null);
 }
 
 function readI64(buf: Uint8Array, off: number): bigint {

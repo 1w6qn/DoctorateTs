@@ -1,7 +1,7 @@
 --[[
   PluginEntry.lua —— 插件系统入口
-  提供显式的 init()/dispose()，由重打包后的 entry.lua 在 InitFeature/DisposeFeature 中调用
-  （见 scripts/repack-lua-bundle.ts 对内置 bundle 的 entry.lua 补丁）。
+  提供显式的 init()/dispose()，由 PluginBootHotfixer（挂进 DefinedFix 清单、
+  经游戏原生 HotfixProcesser.Do 管线）在 OnInit 中调用。
   相比「包装 LuaEntry.Init」方案，直接调用更稳定，避免在 Init 执行期间重入。
 --]]
 local PluginEntry = {}

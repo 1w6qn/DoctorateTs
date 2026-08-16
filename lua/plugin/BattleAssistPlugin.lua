@@ -36,7 +36,7 @@ end
 function BattleAssistPlugin:OnLoad()
   self._timeText = nil
   self._paused = false
-  self._frameCount = 0
+  self._stepFrames = nil -- TAS 单帧步进计数（nil = 不在步进中）
 
   -- 在战斗 UI 创建时挂时间轴文本（UIController.Awake，包装保留原逻辑）
   self:Hotfix(CS.Torappu.Battle.UI.UIController, "Awake", function(selfCtrl, orig)
@@ -70,22 +70,28 @@ function BattleAssistPlugin:_Update(ctrl)
   -- 暂停/继续（X 键）
   if input:GetKeyDown(UnityEngine.KeyCode.X) then
     self:_SetPaused(ctrl, not self._paused)
+    if not self._paused then
+      -- 手动恢复运行时取消步进
+      self._stepFrames = nil
+    end
   end
-  -- 单帧（Alpha1）：暂停状态下每帧放行一帧
+  -- 单帧步进（Alpha1，TAS）：暂停状态下放行恰好一帧后回归暂停。
+  -- 步进计数从 -1 起步：按键所在帧不计数（暂停态切换要到下一帧才生效），
+  -- 下一帧即放行帧，计数到 1 时回归暂停。
   if input:GetKeyDown(UnityEngine.KeyCode.Alpha1) then
-    self:_SetPaused(ctrl, true)
-    self._frameCount = 0
+    self._stepFrames = -1
+    self:_SetPaused(ctrl, false)
   end
   -- 三倍速（Alpha3）
   if input:GetKeyDown(UnityEngine.KeyCode.Alpha3) then
     self:_SetSpeed(ctrl, "SUPER_FAST")
   end
-  -- 单帧放行逻辑
-  if self._paused and self._frameCount >= 0 then
-    self._frameCount = self._frameCount + 1
-    if self._frameCount >= 2 then -- 每 2 帧放行 1 次后回归暂停
-      self:_SetPaused(ctrl, false)
-      self._frameCount = -1
+  -- 步进计数：放行一帧后回归暂停
+  if self._stepFrames ~= nil then
+    self._stepFrames = self._stepFrames + 1
+    if self._stepFrames >= 1 then
+      self._stepFrames = nil
+      self:_SetPaused(ctrl, true)
     end
   end
 end
@@ -121,6 +127,7 @@ function BattleAssistPlugin:OnUnload()
   end
   self._timeText = nil
   self._paused = false
+  self._stepFrames = nil
   eutil.Log("[BattleAssistPlugin] 战斗辅助已停用")
 end
 

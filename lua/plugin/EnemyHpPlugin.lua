@@ -57,6 +57,22 @@ local function _CreateHpText(hp)
 end
 
 --[[
+  继承感知的类型判断：owner 是否为 t 或其子类（对应 C# `is` 语义）。
+  IsAssignableFrom 不可用（版本漂移）时回退精确类型比较。
+  @param owner 单位实例
+  @param t     C# 类型
+  @return owner 是 t 或其子类时为 true
+--]]
+local function _IsA(owner, t)
+  local ok, v = pcall(function() return t:IsAssignableFrom(owner:GetType()) end)
+  if ok and v ~= nil then
+    return v == true
+  end
+  local ok2, v2 = pcall(function() return owner:GetType() == t end)
+  return ok2 and v2 == true or false
+end
+
+--[[
   UIUnitHUD.Attach 的替换实现：为敌人附加血量文本后调用原 Attach。
   @param selfHud  UIUnitHUD 实例
   @param orig     原 Attach 方法
@@ -64,8 +80,9 @@ end
 --]]
 local function _AttachFix(selfHud, orig, owner)
   local ok, err = xpcall(function()
-    local isCharacter = owner:GetType() == typeof(CS.Torappu.Battle.Character)
-    local isToken = owner:GetType() == typeof(CS.Torappu.Battle.Token)
+    -- 继承匹配：Character/Token 的子类（干员/召唤物派生类型）也视为己方单位
+    local isCharacter = _IsA(owner, typeof(CS.Torappu.Battle.Character))
+    local isToken = _IsA(owner, typeof(CS.Torappu.Battle.Token))
     if not isCharacter and not isToken then
       local hp = selfHud._hpSlider
       if hp ~= nil and hp._text == nil then

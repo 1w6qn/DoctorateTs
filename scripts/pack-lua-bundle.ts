@@ -22,9 +22,16 @@ import * as path from "path";
 /** 引擎版本常量（对齐官方 bundle，客户端据此识别） */
 const UNITY_VERSION = "2021.3.39f1";
 
+/** 客户端 Lua 资产名前缀（对齐 resource_manifest_idx 约定：gamedata/[uc]lua/...） */
+const LUA_ASSET_PREFIX = "gamedata/[uc]lua/";
+
+/** zip 条目固定时间戳：内容不变时产物字节一致（md5 稳定，避免客户端重复全量下载） */
+const LUA_ZIP_DATE = new Date("2024-01-01T00:00:00.000Z");
+
 /** 字节写入器（小端为主，UnityFS 头例外用大端字段） */
 class ByteWriter {
-  private buf: Buffer;
+  /** 底层缓冲（buildSerializedFile 需直接按偏移写入，保持公开） */
+  buf: Buffer;
 
   constructor(size: number) {
     this.buf = Buffer.alloc(size);
@@ -126,7 +133,7 @@ export function buildSerializedFile(assets: LuaAsset[]): Uint8Array {
     return s;
   });
 
-  const unityVerStr = "5.x.x";
+  const unityVerStr = "2021.3.39f1"; // 与官方 SerializedFile 内部 unityVersion 一致（官方实测值）
 
   // ---- 构建 metadata 内容（从 offset 48 起，v22 扩展头结束于 48）----
   const typeEntry = (() => {
@@ -307,7 +314,7 @@ export function buildUnityFS(sf: Uint8Array): Uint8Array {
 export async function buildDat(unityfs: Uint8Array, bundlePath: string): Promise<Uint8Array> {
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
-  zip.file(bundlePath, Buffer.from(unityfs), { createFolders: false });
+  zip.file(bundlePath, Buffer.from(unityfs), { createFolders: false, date: LUA_ZIP_DATE });
   const buf = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
   return buf;
 }
@@ -373,7 +380,9 @@ async function main(): Promise<void> {
 }
 
 /**
- * 递归收集目录下所有 .lua 文件为 Lua 资产，m_Name = 相对 POSIX 路径。
+ * 递归收集目录下所有 .lua 文件为 Lua 资产，m_Name = gamedata/[uc]lua/<相对 POSIX 路径>。
+ * 前缀与客户端 loader 解析约定一致（repack-lua-bundle 的插件资产另有 Plugin/ 前缀，
+ * 见 scripts/repack-lua-bundle.ts）。
  * @param dir - 源目录
  * @returns Lua 资产列表
  */
@@ -386,7 +395,7 @@ function collectLuaAssets(dir: string): LuaAsset[] {
         walk(full);
       } else if (entry.name.endsWith(".lua")) {
         const rel = path.relative(dir, full).split(path.sep).join("/");
-        out.push({ name: rel, script: fs.readFileSync(full) });
+        out.push({ name: LUA_ASSET_PREFIX + rel, script: fs.readFileSync(full) });
       }
     }
   };

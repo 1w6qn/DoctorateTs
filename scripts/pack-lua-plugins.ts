@@ -23,6 +23,8 @@ const DEFAULT_OUT_DIR = path.join(__dirname, "..", "mods");
 const BUNDLE_NAME = "plugin_lua.bin";
 /** 产出 mod 文件名 */
 const MOD_NAME = "plugin_lua.dat";
+/** 插件资产名前缀（与 repack-lua-bundle 的插件资产一致：gamedata/[uc]lua/Plugin/） */
+const PLUGIN_ASSET_PREFIX = "gamedata/[uc]lua/Plugin/";
 
 interface CliArgs {
   dir: string;
@@ -45,7 +47,8 @@ function parseArgs(argv: string[]): CliArgs {
 }
 
 /**
- * 递归收集目录下所有 .lua 文件为 Lua 资产，m_Name = 相对 POSIX 路径。
+ * 递归收集目录下所有 .lua 文件为 Lua 资产，m_Name = gamedata/[uc]lua/Plugin/<相对 POSIX 路径>，
+ * 与 require 路径 "Plugin/…" 及 repack-lua-bundle 的插件资产命名约定一致。
  * @param dir - Lua 插件源码根目录
  * @returns Lua 资产列表（按名排序）
  */
@@ -58,7 +61,7 @@ function collectLuaAssets(dir: string): LuaAsset[] {
         walk(full);
       } else if (entry.name.endsWith(".lua")) {
         const rel = path.relative(dir, full).split(path.sep).join("/");
-        out.push({ name: rel, script: fs.readFileSync(full) });
+        out.push({ name: PLUGIN_ASSET_PREFIX + rel, script: fs.readFileSync(full) });
       }
     }
   };

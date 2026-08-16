@@ -53,19 +53,22 @@ describe("pack-lua-plugins 打包工具", () => {
 
     const result = await packLuaPlugins(src, out);
 
-    // 名字相对路径 + 排序
-    expect(result.assets.map((a) => a.name)).toEqual(["BasePlugin.lua", "EnemyHpPlugin.lua"]);
+    // 资产名带 gamedata/[uc]lua/Plugin/ 前缀（与 require 路径及 repack 插件资产一致）+ 排序
+    expect(result.assets.map((a) => a.name)).toEqual([
+      "gamedata/[uc]lua/Plugin/BasePlugin.lua",
+      "gamedata/[uc]lua/Plugin/EnemyHpPlugin.lua",
+    ]);
     expect(result.dat.endsWith("plugin_lua.dat")).toBe(true);
 
     // zip 单条目，条目名 = bundle 名
     const entries = await readZip(result.dat);
     expect(entries.map((e) => e.entryName)).toEqual(["plugin_lua.bin"]);
 
-    // .dat 内为 UnityFS bundle，可解回全部 Lua
+    // .dat 内为 UnityFS bundle，可解回全部 Lua（名称带前缀）
     const list = extractTextAssets(new Uint8Array(entries[0].content));
     expect(list).toHaveLength(2);
-    expect(list[0].name).toBe("BasePlugin.lua");
-    expect(list[1].name).toBe("EnemyHpPlugin.lua");
+    expect(list[0].name).toBe("gamedata/[uc]lua/Plugin/BasePlugin.lua");
+    expect(list[1].name).toBe("gamedata/[uc]lua/Plugin/EnemyHpPlugin.lua");
   });
 
   it("空目录抛错", async () => {

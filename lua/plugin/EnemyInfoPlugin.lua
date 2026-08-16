@@ -96,6 +96,7 @@ end
 function EnemyInfoPlugin:_Update(ctrl)
   if self._panel == nil then return end
   local input = UnityEngine.Input
+  -- 触摸输入（移动端/模拟器触摸）：触摸按下 + 按住 Z
   if input.touchCount > 0 then
     local touch = input:GetTouch(0)
     if touch.m_Phase:ToString() == "Began" and input:GetKey(UnityEngine.KeyCode.Z) then
@@ -103,6 +104,14 @@ function EnemyInfoPlugin:_Update(ctrl)
       if enemy ~= nil then
         self:_ShowEnemy(enemy)
       end
+    end
+  end
+  -- 鼠标输入（Windows 客户端）：按住 Z + 左键点击
+  if input:GetKey(UnityEngine.KeyCode.Z) and input:GetMouseButtonDown(0) then
+    local mp = input.mousePosition
+    local enemy = self:_PickEnemyNear(ctrl, UnityEngine.Vector2(mp.x, mp.y))
+    if enemy ~= nil then
+      self:_ShowEnemy(enemy)
     end
   end
   if self._lastEnemy ~= nil and self._visible then

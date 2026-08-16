@@ -55,7 +55,7 @@ vi.mock("yauzl", () => ({
 }));
 
 import assetRouter from "../../app/asset";
-import { getModsList, getModVersionSuffix, refreshModsIfChanged } from "../../app/asset";
+import { getModsList, getModVersionSuffix, refreshModsIfChanged, nextModBaseCid } from "../../app/asset";
 import { exists, size } from "@utils/file";
 import { readdir, readFile, stat } from "fs/promises";
 
@@ -210,8 +210,74 @@ describe("asset mod（enableMods=true）", () => {
     expect(getModsList("Android").mods).toHaveLength(0);
   });
 
-  it("refreshModsIfChanged：mod 文件指纹变化时触发重载，未变化时跳过（运行时重打包热更新）", async () => {
-    // loadMods 走 zip 解析（yauzl mock 失败 → 空列表）；仅验证指纹驱动的重载触发
+  it("nextModBaseCid：mod cid 越过 abInfos 与 packInfos 的最大值（防撞号回归）", () => {
+    // 官方实测：abInfos cid 1..14981，packInfos cid 14982..15062
+    const abInfos = Array.from({ length: 14981 }, (_, i) => ({ cid: i + 1 }));
+    const packInfos = Array.from({ length: 81 }, (_, i) => ({ cid: 14982 + i }));
+    expect(nextModBaseCid(abInfos, packInfos)).toBe(15063);
+    // packInfos 缺省时退化为 abInfos 之后
+    expect(nextModBaseCid(abInfos, [])).toBe(14982);
+    // 空清单
+    expect(nextModBaseCid([], [])).toBe(1);
+  });
+
+  it("平台专属目录 mod（mods/windows/）下发返回真实子目录路径（回归：曾被拼接为根路径 404）", async () => {
+    vi.mocked(readdir).mockImplementation(async (d: string) => {
+      const p = String(d).replace(/\\/g, "/");
+      if (p.endsWith("/mods/windows")) return ["skinpack_char_4064_mlynar.dat"] as any;
+      return [] as any; // 根目录无 mod → 平台目录唯一来源
+    });
+    vi.mocked(readFile).mockImplementation(async (p: string) => {
+      const s = String(p);
+      if (s.endsWith("mods.Windows.json")) {
+        return JSON.stringify({
+          file: {
+            [join(modsDir, "windows", "skinpack_char_4064_mlynar.dat")]: { size: 100, crc32: crc32(Buffer.alloc(100)) },
+          },
+          mod: {
+            mods: [{ name: "skinpack/char_4064_mlynar.ab", hash: "h", md5: "h", totalSize: 100, abSize: 200 }],
+            name: ["skinpack/char_4064_mlynar.ab"],
+            path: ["windows/skinpack_char_4064_mlynar.dat"],
+            download: ["skinpack_char_4064_mlynar.dat"],
+          },
+        });
+      }
+      if (s.endsWith("skinpack_char_4064_mlynar.dat")) return Buffer.alloc(100) as any;
+      return undefined as any;
+    });
+    vi.mocked(exists).mockImplementation(async (p: string) => {
+      const s = String(p).replace(/\\/g, "/");
+      return (
+        s.endsWith("mods.Windows.json") ||
+        s.endsWith("mods/windows/skinpack_char_4064_mlynar.dat")
+      );
+    });
+    vi.mocked(size).mockResolvedValue(100);
+
+    const req = {
+      method: "GET",
+      url: "/official/Windows/assets/26-08-07-10-51-39_26e0fc-8ddfbe/skinpack_char_4064_mlynar.dat",
+      params: {
+        platform: "Windows",
+        assetsHash: "26-08-07-10-51-39_26e0fc-8ddfbe",
+        fileName: "skinpack_char_4064_mlynar.dat",
+      },
+    } as any;
+    const res = mockRes();
+    await assetRouter(req, res, () => {});
+    await new Promise((r) => setTimeout(r, 30));
+
+    // 回归断言：sendFile 必须是 mods/windows/ 下的真实路径（旧代码拼成 mods/ 根 → ENOENT 404）
+    expect(res.sendFile).toHaveBeenCalledWith(
+      join(modsDir, "windows", "skinpack_char_4064_mlynar.dat"),
+    );
+    // 且不应误用根目录路径
+    expect(res.sendFile).not.toHaveBeenCalledWith(
+      join(modsDir, "skinpack_char_4064_mlynar.dat"),
+    );
+  });
+
+  it("refreshModsIfChanged：mod 文件指纹变化时触发重载，未变化时跳过（运行时重打包热更新）", async () => {    // loadMods 走 zip 解析（yauzl mock 失败 → 空列表）；仅验证指纹驱动的重载触发
     let mtime = 1000;
     vi.mocked(readdir).mockImplementation(async (d: string) => {
       if (isPlatformSubdir(String(d))) throw new Error("ENOENT");

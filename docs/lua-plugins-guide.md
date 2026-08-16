@@ -8,14 +8,16 @@
 ```
 lua/plugin/                    ← 插件明文源码
 ├── BasePlugin.lua             ← 插件基类（Load/Unload/OnLoad/OnUnload + Hotfix/Fix_ex）
+├── PluginHotfix.lua           ← 共享 hotfix 注册表（多插件 hook 同方法互不覆盖）
 ├── PluginDefs.lua             ← 插件清单（id/name/desc/module）
 ├── PluginManager.lua          ← 注册表：加载/启停/配置持久化
 ├── PluginEntry.lua            ← 入口：init()/dispose()，由 PluginBootHotfixer 调用
 ├── PluginBootHotfixer.lua     ← 引导 hotfixer（挂进 DefinedFix，经游戏原生管线加载插件）
+├── PluginHeartbeat.lua        ← 生效确认心跳 + 服务端启停状态同步
 ├── EnemyHpPlugin.lua          ← 敌人血量显示（UIUnitHUD.Attach）
-├── EnemyInfoPlugin.lua        ← 敌人属性面板（动态 UnityEngine.UI）
-├── BattleAssistPlugin.lua     ← 战斗辅助（时间轴/倍速/TAS）
-└── PanelPlugin.lua            ← 插件管理面板（浮动按钮 + 列表开关）
+├── EnemyInfoPlugin.lua        ← 敌人属性面板（动态 UnityEngine.UI，触摸 + 鼠标）
+├── BattleAssistPlugin.lua     ← 战斗辅助（时间轴/倍速/TAS 单帧步进）
+└── PanelPlugin.lua            ← 插件管理面板（浮动按钮 + 列表开关，延迟挂载）
 ```
 
 ## 2. 打包与下发（方案 A：重打包内置 Lua bundle）
@@ -34,10 +36,22 @@ pnpm run extract:lua -- --bundle <内置bundle.dat|.bin>
 
 # 2) 重打包：merge lua/plugin/ + patch DefinedFix → mods/anon_7d91430e114d86fef7d3b3511151e12d.dat
 pnpm run repack:lua -- --bundle <内置bundle.dat|.bin>   # 或：pnpm run repack:lua -- --from-ref
+#    （可选）指定目标平台，输出到平台专属 mods/<platform>/ 目录，避免单份 repack 同时下发两平台：
+pnpm run repack:lua -- --bundle <内置bundle.dat|.bin> --platform windows
+pnpm run repack:lua -- --bundle <内置bundle.dat|.bin> --platform android
 
 # 3) 脚本会自动打开 data/config.json 的 assets.enableMods
 # 4) 重启服务，客户端热更拉取覆盖内置 bundle → 客户端启动即加载插件
 ```
+
+> **启动自动构建（推荐）**：`assets.enableMods=true` 后，服务启动会自动检测
+> `mods/anon_7d91430e114d86fef7d3b3511151e12d.dat` 是否缺失或过期（`lua/plugin/` 有更新），
+> 是则自动重打包——优先 `reference/.../[uc]lua/` 明文目录，回退以现有 mod 自举
+> （解包 → 剔除旧插件/剥离注入 → 合并当前插件，幂等）。日常改插件**无需手动 repack:lua**，
+> 重启服务即生效；可用 `data/config.json` 的 `assets.autoBuildLuaMod=false` 关闭。
+> 产物为确定性输出（zip 固定时间戳），插件内容不变时 md5 稳定，不会触发客户端重复全量下载。
+> 首次运行仍需提供数据源：客户端内置 bundle 经 `pnpm run extract:lua` 生成参考目录，
+> 或放置一个现有 mod 作为自举源（二者皆无时启动会 warn 跳过）。
 
 > 说明：
 > - `scripts/repack-lua-bundle.ts` 会 **merge** 内置 Lua 资产与 `lua/plugin/*.lua`，并向 `DefinedFix.lua` 清单注入引导 hotfixer `Plugin/PluginBootHotfixer`，经游戏原生 `HotfixProcesser.Do` 管线引导插件加载。
@@ -60,12 +74,17 @@ pnpm run watch:lua -- --once  # 只重打包一次后退出（CI / 手动触发�
 
 ### 2.2 插件补丁模式（BasePlugin）
 
-每个插件继承 `BasePlugin`，在 `OnLoad` 里打补丁，`OnUnload` 由基类统一 `HotfixBase.Dispose` 还原。两种补丁模式：
+每个插件继承 `BasePlugin`，在 `OnLoad` 里打补丁，`OnUnload` 由基类统一注销。两种补丁模式：
 
-- `Fix_ex(cls, method, fixFunc)`：**完整替换**，`fixFunc(self, ...)` 取代原方法（内部 `xlua.util.hotfix_ex`），适合不依赖原逻辑的场景（少用）。
-- `Hotfix(cls, method, fixFunc)`：**包装模式**，`fixFunc(self, orig, ...)` 可调 `orig(self, ...)` 保留原行为，适合「在原逻辑前后加功能」（如 `UIController.Awake`、`BattleController.Update`）。
+- `Fix_ex(cls, method, fixFunc)`：**完整替换**，`fixFunc(self, ...)` 取代原方法（少用）。
+- `Hotfix(cls, method, fixFunc)`：**包装模式**，`fixFunc(self, orig, ...)` 可调 `orig(self, ...)` 保留原行为。
 
-> 注意：`Fix_ex` 是完整替换，`fixFunc` 里**不会**传 `orig`；若要调用原方法请改用 `Hotfix`。官方 hotfixer 也遵循此约定（`HotfixBase.Fix_ex` 内部 `hotfix_ex`）。
+> 补丁经共享注册表 `Plugin/PluginHotfix` 落地：多个插件 hook 同一 C# 方法（如
+> `UIController.Awake` / `BattleController.Update` 同时被敌人面板、战斗辅助、管理面板使用）时
+> 只安装一个 `xlua.hotfix` 包装器并链式组合，单独启停任一插件不会破坏其它插件的 hook；
+> 全部处理函数注销后才还原原方法。
+> `Fix_ex` 是完整替换，`fixFunc` 里**不会**传 `orig`；若要调用原方法请改用 `Hotfix`。
+> `Load` 失败（OnLoad 中途抛错）时已注册补丁会被自动回滚，不会残留半应用 hook。
 
 ## 3. 启用流程（服务端）
 
@@ -75,6 +94,7 @@ pnpm run watch:lua -- --once  # 只重打包一次后退出（CI / 手动触发�
   - `POST /admin/api/plugin/<id>/disable` → 停用
 - 配置持久化于 `data/plugin/config.json`（`{ "enabled": { "<id>": bool } }`）。
 - **单一数据源**：服务端插件目录由 `app/plugin/plugin-catalog.ts` 从 `lua/plugin/PluginDefs.lua` 动态解析（无需在 TS 侧重复维护清单）；解析失败回退内置目录。新增插件只需改 `PluginDefs.lua` 并重打包即可，admin API 自动反映。
+- **启停状态双向同步**：游戏内面板切换插件 → 客户端持久化本地 `plugin_config.json`，并经 `PluginHeartbeat.PushState` 推送 `GET /plugin/config/<id>/<0|1>` 到服务端 `data/plugin/config.json`；管理端 enable/disable 写入同一配置源，客户端在心跳响应（best-effort 回调，真机需按 UISender 回调约定校准）中应用服务端状态。管理端与面板最终收敛到同一状态。
 - **加载容错**：单个插件 require/实例化/初始化失败不拖垮系统——`PluginManager` 记录错误，其余插件照常加载；游戏内面板会把失败插件标为红色 `ERR` 并显示错误摘要（`ON/OFF` 按钮禁用）。
 
 ## 4. 真机手动验证步骤
@@ -95,8 +115,8 @@ pnpm run watch:lua -- --once  # 只重打包一次后退出（CI / 手动触发�
 - 战斗中按 `X` 暂停/继续；`Alpha1` 单帧；`Alpha3` 三倍速。
 
 ### 4.4 插件管理面板
-- 右下角出现「插件」浮动按钮，点击开合管理面板。
-- 面板列出各插件，点「切换」实时启停，并持久化到客户端 `persistentDataPath/plugin_config.json`。
+- 登录后主界面出现右下角「插件」浮动按钮（面板在引导阶段延迟挂载：Canvas 就绪或首次进入战斗后出现），点击开合管理面板。
+- 面板列出各插件，点「切换」实时启停，并持久化到客户端 `persistentDataPath/plugin_config.json`，同时推送服务端 `data/plugin/config.json`。
 
 ## 5. 版本漂移校准
 
@@ -104,7 +124,7 @@ pnpm run watch:lua -- --once  # 只重打包一次后退出（CI / 手动触发�
 
 1. 用 Frida dump 客户端 il2cpp：`Il2Cpp.dump("d.cs")`（见 `hook/main.ts`）。
 2. 搜索目标类（如 `Torappu.Battle.UI.UIUnitHUD`），核对字段/方法名（`_hpSlider`、`Attach`、`get_groupStatic` 等）。
-3. 修正 `lua/plugin/*.lua` 中的类名/方法名后重新 `pnpm run pack:lua-plugins` 下发。
+3. 修正 `lua/plugin/*.lua` 中的类名/方法名后重新 `pnpm run repack:lua`（或 `watch:lua`）下发。
 
 所有 hotfix 均经 `xpcall` 兜底，单点失败不会崩溃，仅记 `LogHotfixError`。
 

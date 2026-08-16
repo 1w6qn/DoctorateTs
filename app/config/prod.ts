@@ -4,6 +4,17 @@ import { readJson } from "@utils/file";
 import { buildNetworkConfigContent } from "./remote-config";
 import { ensureModsLoaded, getModVersionSuffix, refreshModsIfChanged } from "../asset";
 
+/**
+ * 拼接带 mod 签名的 resVersion：替换 hash 部分而非追加后缀，保持官方格式
+ * `YYYY-MM-DD-HH-MM-SS_<6位hash>`——追加 `-m` 会破坏客户端 versionId 解析，
+ * 导致客户端静默跳过热更（mod 永不下载，见 app/asset.ts getModVersionSuffix 注释）。
+ * @param base - 官方 resVersion（如 26-08-07-10-51-39_26e0fc）
+ * @param sig  - 6 位 mod 签名（空则不修改版本）
+ */
+function withModSig(base: string, sig: string): string {
+  return base.slice(0, 18) + sig;
+}
+
 const router = Router();
 // Windows 平台独立版本（odpy 参考：config.version.windows；无则回退单版本）
 router.get("/official/Windows/version", async (req, res) => {
@@ -11,11 +22,11 @@ router.get("/official/Windows/version", async (req, res) => {
   let modPatch = {};
   if (config.assets.enableMods) {
     await ensureModsLoaded("Windows");
-    // 运行时检测 mod 变更（重打包后无需重启即可让 resVersion 后缀变化 → 客户端重新拉取下载）
+    // 运行时检测 mod 变更（重打包后无需重启即可让 resVersion 变化 → 客户端重新拉取下载）
     await refreshModsIfChanged("Windows");
-    const suffix = getModVersionSuffix("Windows");
-    // Windows 与 Android 均需各自平台 mod 后缀：resVersion 变更才能触发客户端重新拉取热更清单
-    if (suffix) modPatch = { resVersion: (win?.resVersion || config.version.resVersion) + suffix };
+    const sig = getModVersionSuffix("Windows");
+    // Windows 与 Android 均需各自平台 mod 签名：resVersion 变更才能触发客户端重新拉取热更清单
+    if (sig) modPatch = { resVersion: withModSig(win?.resVersion || config.version.resVersion, sig) };
   }
   res.send(Object.assign({}, win || config.version, modPatch));
 });
@@ -23,11 +34,11 @@ router.get("/official/Android/version", async (req, res) => {
   let modPatch = {};
   if (config.assets.enableMods) {
     await ensureModsLoaded("Android");
-    // 运行时检测 mod 变更（重打包后无需重启即可让 resVersion 后缀变化 → 客户端重新拉取下载）
+    // 运行时检测 mod 变更（重打包后无需重启即可让 resVersion 变化 → 客户端重新拉取下载）
     await refreshModsIfChanged("Android");
-    const suffix = getModVersionSuffix("Android");
-    // 确定性后缀：mod 不变则版本稳定（避免随机 +0..99 每次启动全量重下），mod 变更才变
-    if (suffix) modPatch = { resVersion: config.version.resVersion + suffix };
+    const sig = getModVersionSuffix("Android");
+    // 确定性签名：mod 不变则版本稳定（避免随机 +0..99 每次启动全量重下），mod 变更才变
+    if (sig) modPatch = { resVersion: withModSig(config.version.resVersion, sig) };
   }
   res.send(Object.assign({}, config.version, modPatch));
 });
@@ -37,10 +48,10 @@ router.get("/official/:version/version", async (req, res) => {
   if (config.assets.enableMods) {
     // 通用版本端点无法判定平台，回退 Android mod 集
     await ensureModsLoaded("Android");
-    // 运行时检测 mod 变更（重打包后无需重启即可让 resVersion 后缀变化 → 客户端重新拉取下载）
+    // 运行时检测 mod 变更（重打包后无需重启即可让 resVersion 变化 → 客户端重新拉取下载）
     await refreshModsIfChanged("Android");
-    const suffix = getModVersionSuffix("Android");
-    if (suffix) modPatch = { resVersion: config.version.resVersion + suffix };
+    const sig = getModVersionSuffix("Android");
+    if (sig) modPatch = { resVersion: withModSig(config.version.resVersion, sig) };
   }
   res.send(Object.assign({}, config.version, modPatch));
 });

@@ -6,8 +6,35 @@
 --]]
 local PluginManager = Class("PluginManager")
 local eutil = CS.Torappu.Lua.Util
-local rapidjson = require("rapidjson")
-local SystemIO = CS.System.IO.File
+
+-- 顶层不再 require rapidjson / CS.System.IO.File：引导阶段可能不可用，
+-- 若顶层 require 失败会拖垮整个插件系统。改为惰性获取 + pcall 兜底。
+local _jsonMod = nil
+local _fileType = nil
+
+--[[
+  惰性获取 rapidjson 模块（失败缓存 false，避免每次重试）。
+  @return rapidjson 模块或 nil
+--]]
+local function _Json()
+  if _jsonMod == nil then
+    local ok, mod = pcall(function() return require("rapidjson") end)
+    _jsonMod = ok and mod or false
+  end
+  return _jsonMod or nil
+end
+
+--[[
+  惰性获取 System.IO.File 类型（失败缓存 false）。
+  @return File 类型或 nil
+--]]
+local function _File()
+  if _fileType == nil then
+    local ok, f = pcall(function() return CS.System.IO.File end)
+    _fileType = ok and f or false
+  end
+  return _fileType or nil
+end
 
 -- 单例
 PluginManager.me = nil
@@ -35,7 +62,7 @@ function PluginManager:_GetConfigPath()
 end
 
 --[[
-  读取持久化的启用态配置；文件不存在或解析失败时返回全启用默认值。
+  读取持久化的启用态配置；文件不存在、依赖不可用或解析失败时返回全启用默认值。
   @return table：[id] = bool
 --]]
 function PluginManager:_ReadConfig()
@@ -44,14 +71,20 @@ function PluginManager:_ReadConfig()
     enabled[def.id] = true -- 默认全部启用
   end
   local path = self:_GetConfigPath()
-  local okPath, exists = pcall(function() return SystemIO.Exists(path) end)
-  if okPath and exists then
-    local okRead, text = pcall(function() return SystemIO.ReadAllText(path) end)
-    if okRead then
-      local okParse, cfg = pcall(function() return rapidjson.decode(text) end)
-      if okParse and type(cfg) == "table" and type(cfg.enabled) == "table" then
-        for id, v in pairs(cfg.enabled) do
-          enabled[id] = (v == true)
+  local file = _File()
+  if file ~= nil then
+    local okPath, exists = pcall(function() return file.Exists(path) end)
+    if okPath and exists then
+      local okRead, text = pcall(function() return file.ReadAllText(path) end)
+      if okRead then
+        local json = _Json()
+        if json ~= nil then
+          local okParse, cfg = pcall(function() return json.decode(text) end)
+          if okParse and type(cfg) == "table" and type(cfg.enabled) == "table" then
+            for id, v in pairs(cfg.enabled) do
+              enabled[id] = (v == true)
+            end
+          end
         end
       end
     end
@@ -60,17 +93,27 @@ function PluginManager:_ReadConfig()
 end
 
 --[[
-  把启用态配置写入磁盘（幂等；写入失败仅记日志，不阻断业务）。
+  把启用态配置写入磁盘（幂等；依赖不可用或写入失败仅静默，不阻断业务）。
+  全量持久化：先并入既有配置（含加载失败插件的历史状态），再覆盖当前插件状态，
+  避免加载失败插件的状态被误重置。
 --]]
 function PluginManager:_SaveConfig()
   local payload = { enabled = {} }
+  -- 并入既有配置（含加载失败插件的历史启停状态）
+  local prev = self:_ReadConfig()
+  for id, v in pairs(prev) do
+    payload.enabled[id] = v
+  end
+  -- 覆盖当前已加载插件的实际状态
   for defId, plugin in pairs(self._plugins) do
     payload.enabled[defId] = plugin.enabled
   end
-  local ok, json = pcall(function() return rapidjson.encode(payload) end)
+  local json = _Json()
+  if json == nil then return end
+  local ok, text = pcall(function() return json.encode(payload) end)
   if not ok then return end
   xpcall(function()
-    CS.Torappu.FileUtil.WriteToFile(json, self:_GetConfigPath(), false)
+    CS.Torappu.FileUtil.WriteToFile(text, self:_GetConfigPath(), false)
   end, debug.traceback)
 end
 
@@ -161,7 +204,8 @@ function PluginManager:GetAll()
 end
 
 --[[
-  启停指定插件并持久化配置。
+  启停指定插件并持久化配置，随后 best-effort 同步到服务端
+  （经 PluginHeartbeat.PushState，路径编码 GET，见 Plugin/PluginHeartbeat）。
   @param id    插件标识
   @param value true 启用 / false 停用
 --]]
@@ -174,6 +218,9 @@ function PluginManager:SetEnabled(id, value)
     plugin:Unload()
   end
   self:_SaveConfig()
+  if PluginHeartbeat ~= nil and PluginHeartbeat.PushState ~= nil then
+    PluginHeartbeat.PushState(id, value)
+  end
 end
 
 -- 创建单例

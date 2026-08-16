@@ -27,8 +27,9 @@ router.get(
     // 版本号不同——Windows 版本仅在 Windows CDN 可下载，Android 版本仅在 Android CDN 可下载）
     const version = assetsHash;
     const cdnPlatform = platform;
-    // CDN 下载用去 mod 后缀的原始版本（官方 CDN 无 mod 版本；后缀仅用于本地缓存目录区分）
-    const cdnVersion = stripModSuffix(version);
+    // CDN 下载用官方原始版本（客户端请求的 assetsHash 是替换过 hash 的 mod 版本；
+    // 官方 CDN 无 mod 版本，须按平台还原官方 resVersion）
+    const cdnVersion = officialResVersion(platform);
     let basePath = join(__dirname, "..", "assets", version, "redirect");
 
     if (fileName === "hot_update_list.json" && config.assets.enableMods) {
@@ -109,9 +110,24 @@ router.get(
       // 请求路径即 download 名；个别场景也可能直接请求原始 name（含子路径），两者都兼容。
       // download/name/path 按下标一一对应。
       const idx = mods.download.indexOf(fileName);
-      const modPath = idx >= 0 ? mods.path[idx] : mods.name.indexOf(fileName) >= 0 ? mods.path[mods.name.indexOf(fileName)] : undefined;
-      if (modPath && (await exists(modPath))) {
-        logger.debug("Asset", "use mod file", fileName, modPath);
+      const isModName = idx >= 0 || mods.name.includes(fileName);
+      const modPath =
+        idx >= 0
+          ? mods.path[idx]
+          : isModName
+            ? mods.path[mods.name.indexOf(fileName)]
+            : undefined;
+      if (isModName) {
+        // 这是 mod 下载请求：文件缺失时显式 404 报错，绝不静默回退官方 CDN——
+        // base 资产（如内置 Lua bundle）在 CDN 上必 404，回退只会让客户端误记
+        // "下载失败"并拉黑该资源（12:20 客户端曾因缓存路径失效被 404 污染，之后不再重试）。
+        if (!modPath || !(await exists(modPath))) {
+          logger.warn("Asset", `mod 文件缺失，显式 404: ${fileName}（path=${modPath ?? "无"}）`);
+          res.status(404).json({ status: 404, msg: `mod 文件缺失: ${fileName}` });
+          return;
+        }
+        // INFO 级：便于观测客户端是否请求了 mod 下载（真实客户端会话可据此确认）
+        logger.info("Asset", "serve mod file", fileName, modPath);
         wrongSize = false;
         filePath = modPath;
         basePath = join(__dirname, "..", "mods");
@@ -266,26 +282,53 @@ export async function ensureModsLoaded(platform: string): Promise<void> {
 }
 
 /**
- * 确定性 resVersion 后缀：mod 集合不变 → 后缀不变（客户端不重复全量重下）；
- * mod 变更 → 后缀变化（触发热更清单重新拉取）。无 mod 时返回 ""（保持原版行为）。
- * @param platform - 平台键（Windows/Android），后缀按平台独立计算
+ * 计算 mod 条目的起始 cid：官方 cid 是 abInfos(1..N) 与 packInfos(N+1..) 共用的
+ * 全局唯一序号，mod 必须从两者最大值之后续起——否则与 pack 撞号会让客户端按 code
+ * 管理下载任务时出现"大小不一致"（实测 14982/14983 撞 lpack_init1/2 致更新中止）。
+ * @param abInfos   - 官方 abInfos（含 cid）
+ * @param packInfos - 官方 packInfos（含 cid，可缺省）
+ * @returns mod 起始 cid
+ */
+export function nextModBaseCid(abInfos: { cid?: number }[], packInfos: { cid?: number }[]): number {
+  return [...abInfos, ...packInfos].reduce((max, a) => Math.max(max, a.cid ?? 0), 0) + 1;
+}
+
+/**
+ * 确定性 resVersion 变更签名：mod 集合不变 → 签名不变（客户端不重复全量重下）；
+ * mod 变更 → 签名变化（触发热更清单重新拉取）。无 mod 时返回 ""（保持原版行为）。
+ *
+ * 返回 6 位 hex 签名（对齐官方 hash 格式）。调用方用它**替换** resVersion 的 hash 部分
+ * （见 app/config/prod.ts：`resVersion.slice(0, 18) + sig`），保持官方
+ * `YYYY-MM-DD-HH-MM-SS_<6位hash>` 格式——追加 `-m` 后缀会破坏客户端 versionId 解析，
+ * 导致客户端静默跳过整个热更流程（mod 永不下载）。
+ * @param platform - 平台键（Windows/Android），签名按平台独立计算
  */
 export function getModVersionSuffix(platform: string): string {
   const list = stateFor(platform).list;
   if (list.mods.length === 0) return "";
-  // 签名含内容指纹（md5）：插件/内置 bundle 内容变更必然改变 md5 → 后缀变化 → 客户端重新拉取热更清单并下载。
-  // 仅用 name|totalSize 时，repack 后 totalSize 未必变（zip 压缩后尺寸巧合相等），客户端会因后缀未变而误用本地缓存旧 bundle。
+  // 签名含内容指纹（md5）：插件/内置 bundle 内容变更必然改变 md5 → 签名变化 → 客户端重新拉取热更清单并下载。
+  // 仅用 name|totalSize 时，repack 后 totalSize 未必变（zip 压缩后尺寸巧合相等），客户端会因版本未变而误用本地缓存旧 bundle。
   const sig = list.mods
     .map((m) => `${(m as { name: string }).name}|${(m as { md5: string }).md5}`)
     .sort()
     .join(",");
-  return "-m" + createHash("md5").update(sig).digest("hex").slice(0, 6);
+  return createHash("md5").update(sig).digest("hex").slice(0, 6);
 }
 
 /**
- * 去除资源版本号的 mod 后缀（`-m{6位hex}`）。
- * 客户端从 hv 拿到带 mod 后缀的 resVersion 拼资源路径；官方 CDN 无 mod 版本，
- * 下载官方资源时须用去后缀的原始版本。无后缀时原样返回。
+ * 官方（无 mod 签名）资源版本：按平台取 config 中登记的官方 resVersion（CDN 下载用）。
+ * 客户端请求的 assetsHash 是替换过 hash 的 mod 版本，需还原官方版本才能命中官方 CDN。
+ * @param platform - 平台键（Windows/Android），未知平台回退默认版本
+ */
+export function officialResVersion(platform: string): string {
+  const win = (config.version as any).windows;
+  return platform === "Windows" && win?.resVersion ? win.resVersion : config.version.resVersion;
+}
+
+/**
+ * 去除资源版本号的 mod 后缀（`-m{6位hex}`，历史格式）。
+ * @deprecated 新格式为「替换 hash 部分」（见 getModVersionSuffix / officialResVersion），
+ * CDN 下载改用 officialResVersion(platform) 还原官方版本；本函数仅保留兼容旧调用。
  */
 export function stripModSuffix(version: string): string {
   return version.replace(/-m[0-9a-fA-F]{6}$/, "");
@@ -342,8 +385,16 @@ async function exportFile(
     }
 
     if (config.assets.enableMods) {
-      for (const mod of mods!.mods) {
-        newAbInfos.push(mod);
+      // 官方 cid 是 abInfos(1..N) 与 packInfos(N+1..) 共用的全局唯一序号；
+      // mod 条目必须从两者最大值之后续起——否则与 pack 撞号会让客户端
+      // 按 code 管理下载任务时出现"大小不一致"（实测：mod 分配 14982/14983
+      // 撞上 lpack_init1/2 的 14982/14983，导致整个更新中止）。
+      const baseCid = nextModBaseCid(
+        abInfoList as { cid?: number }[],
+        (hotUpdateList.packInfos ?? []) as { cid?: number }[],
+      );
+      for (let i = 0; i < mods!.mods.length; i++) {
+        newAbInfos.push({ ...(mods!.mods[i] as object), cid: baseCid + i });
       }
     }
 
@@ -383,7 +434,12 @@ async function exportFile(
     }
   }
 
-  return join(basePath, fileName);
+  // 返回真实文件路径（而非 join(basePath, fileName)）：
+  // 常规资源 filePath 本就是 basePath/fileName，等价；但平台专属 mod
+  // （mods/windows|android/xxx.dat）的 filePath 在子目录，若按 basePath(硬编码 mods/)
+  // + basename 拼接会得到不存在的路径 → sendFile ENOENT → 客户端 404
+  // （实测：皮肤包 mod 在 mods/windows/ 下被 404，而根目录的 anon mod 正常）。
+  return filePath;
 }
 
 async function loadMods(platform: string): Promise<ModsList> {
@@ -542,7 +598,9 @@ async function loadMods(platform: string): Promise<ModsList> {
 
             loadedModList.mods.push(abInfo);
             loadedModList.name.push(modName);
-            // 运行时 path 为绝对路径；落盘缓存转存相对 MODS_DIR 的路径（含平台子目录，可移植）
+            // 运行时 path 为绝对路径；落盘缓存转存相对 MODS_DIR 的路径（含平台子目录，可移植）。
+            // 注意：此处 relative 结果已是相对 MODS_DIR 的路径，落盘时不可再 relative——
+            // 二次 relative 会把相对路径当相对 cwd 解析，生成错误的 `..\` 前缀（bug 修复）。
             loadedModList.path.push(relative(MODS_DIR, filePath));
             loadedModList.download.push(downloadName);
             await writeFile(
@@ -553,7 +611,7 @@ async function loadMods(platform: string): Promise<ModsList> {
                   mod: {
                     mods: loadedModList.mods,
                     name: loadedModList.name,
-                    path: loadedModList.path.map((p) => relative(MODS_DIR, p)),
+                    path: loadedModList.path, // 已是相对 MODS_DIR 的路径，直接落盘
                     download: loadedModList.download,
                   },
                 },

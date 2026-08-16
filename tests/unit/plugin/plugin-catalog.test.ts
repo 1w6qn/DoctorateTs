@@ -30,6 +30,36 @@ describe("plugin-catalog 插件目录单一数据源", () => {
     expect(parsed).toEqual([{ id: "a", name: "A", desc: "", module: "Plugin/A" }]);
   });
 
+  it("parsePluginDefs 字段顺序无关 + 空白宽容 + 单引号字符串", () => {
+    const content = [
+      "local PluginDefs = {",
+      "  { module = 'Plugin/EnemyHpPlugin',  id   =   'enemy_hp', desc='血量数值', name = '敌人血量显示' },",
+      '  {id="battle_assist", module="Plugin/BattleAssistPlugin"},',
+      "}",
+      "",
+    ].join("\n");
+    const parsed = parsePluginDefs(content);
+    expect(parsed).toEqual([
+      { id: "enemy_hp", name: "敌人血量显示", desc: "血量数值", module: "Plugin/EnemyHpPlugin" },
+      { id: "battle_assist", name: "battle_assist", desc: "", module: "Plugin/BattleAssistPlugin" },
+    ]);
+  });
+
+  it("parsePluginDefs 忽略注释中的假条目", () => {
+    const content = [
+      "local PluginDefs = {",
+      '  { id = "enemy_hp", name = "敌人血量显示", desc = "", module = "Plugin/EnemyHpPlugin" },',
+      '  --[[ { id = "fake", name = "注释插件", desc = "", module = "Plugin/Fake" } ]]',
+      '  -- { id = "fake2", name = "注释插件2", desc = "", module = "Plugin/Fake2" }',
+      "}",
+      "",
+    ].join("\n");
+    const parsed = parsePluginDefs(content);
+    expect(parsed).toEqual([
+      { id: "enemy_hp", name: "敌人血量显示", desc: "", module: "Plugin/EnemyHpPlugin" },
+    ]);
+  });
+
   it("loadPluginCatalog 从真实 PluginDefs.lua 加载（含全部 4 个插件）", () => {
     const catalog = loadPluginCatalog();
     expect(catalog.length).toBeGreaterThanOrEqual(4);

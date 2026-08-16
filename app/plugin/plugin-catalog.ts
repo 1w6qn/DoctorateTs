@@ -4,11 +4,8 @@
  * 以 lua/plugin/PluginDefs.lua 为唯一来源，解析插件目录（id/name/desc/module），
  * 供 PluginConfigService 使用，消除服务端 PLUGIN_CATALOG 与 Lua 侧清单的双份硬编码漂移。
  *
- * PluginDefs.lua 格式（字段顺序固定：id → name → desc → module）：
- *   local PluginDefs = {
- *     { id = "enemy_hp", name = "敌人血量显示", desc = "...", module = "Plugin/EnemyHpPlugin" },
- *     ...
- *   }
+ * 解析策略：按「条目块」提取，字段顺序无关、空白宽容，并先剔除 Lua 注释
+ * （避免注释中的假条目被解析）。要求 id 与 module 存在，其余字段缺省回退。
  */
 import * as fs from "fs";
 import * as path from "path";
@@ -31,23 +28,47 @@ export const FALLBACK_CATALOG: readonly PluginCatalogEntry[] = Object.freeze([
   { id: "plugin_panel", name: "插件管理面板", desc: "现代化插件启停管理面板", module: "Plugin/PanelPlugin" },
 ]);
 
-/** PluginDefs.lua 中单个条目块的正则（id → name → desc → module，顺序固定） */
-const ENTRY_RE =
-  /id\s*=\s*"([^"]*)"\s*,\s*name\s*=\s*"([^"]*)"\s*,\s*desc\s*=\s*"([^"]*)"\s*,\s*module\s*=\s*"([^"]*)"/g;
+/**
+ * 剔除 Lua 注释（块注释 --[[...]] 与行注释 --...），避免注释中的假条目被解析。
+ * PluginDefs 为纯数据表，字符串值不含 "--"，此简化处理安全。
+ * @param content - PluginDefs.lua 源码文本
+ * @returns 剔除注释后的文本
+ */
+function stripLuaComments(content: string): string {
+  return content
+    .replace(/--\[\[[\s\S]*?\]\]/g, " ")
+    .replace(/--[^\r\n]*/g, " ");
+}
+
+/** 单个条目块：{ ... }（插件清单为扁平表，条目内不含嵌套花括号） */
+const BLOCK_RE = /\{\s*((?:[^{}])*?)\s*\}/g;
+
+/** 条目内字段：key = "value" 或 key = 'value'（顺序无关） */
+const FIELD_RE = /([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(["'])(.*?)\2/g;
 
 /**
- * 从 PluginDefs.lua 文本解析插件目录。
+ * 从 PluginDefs.lua 文本解析插件目录（字段顺序无关；id/module 缺失的条目跳过）。
  * @param content - PluginDefs.lua 源码文本
  * @returns 插件目录条目列表（按出现顺序）
  */
 export function parsePluginDefs(content: string): PluginCatalogEntry[] {
   const out: PluginCatalogEntry[] = [];
-  ENTRY_RE.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = ENTRY_RE.exec(content)) !== null) {
-    const [, id, name, desc, module] = m;
+  const clean = stripLuaComments(content);
+  BLOCK_RE.lastIndex = 0;
+  let bm: RegExpExecArray | null;
+  while ((bm = BLOCK_RE.exec(clean)) !== null) {
+    const block = bm[1];
+    const fields: Record<string, string> = {};
+    FIELD_RE.lastIndex = 0;
+    let fm: RegExpExecArray | null;
+    while ((fm = FIELD_RE.exec(block)) !== null) {
+      // fm[1]=key, fm[2]=引号, fm[3]=值
+      fields[fm[1]] = fm[3];
+    }
+    const id = fields.id;
+    const module = fields.module;
     if (!id || !module) continue;
-    out.push({ id, name: name || id, desc: desc || "", module });
+    out.push({ id, name: fields.name || id, desc: fields.desc || "", module });
   }
   return out;
 }

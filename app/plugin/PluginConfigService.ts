@@ -112,7 +112,7 @@ export class PluginConfigService {
   }
 
   /**
-   * 查询插件是否启用；未知插件视为启用。
+   * 查询插件是否启用；未配置（含目录外的未知 id）返回 false。
    * @param id - 插件标识
    * @returns 是否启用
    */

@@ -2,7 +2,8 @@
  * 内置 Lua bundle 重打包器（方案 A）
  *
  * 目标：把客户端内置 Lua 主 bundle（anon/7d91430e114d86fef7d3b3511151e12d.bin）重打包，
- * 将 lua/plugin/ 插件脚本 merge 进去，并 patch entry.lua 使其 require "Plugin/PluginEntry"，
+ * 将 lua/plugin/ 插件脚本 merge 进去，并 patch DefinedFix.lua 注入引导 hotfixer
+ * （Plugin/PluginBootHotfixer，经游戏原生 HotfixProcesser.Do 管线加载插件），
  * 最后覆盖下发为 mods/anon_7d91430e114d86fef7d3b3511151e12d.dat，客户端热更即加载插件。
  *
  * 输入：内置 bundle（.bin UnityFS 或 .dat zip 单条目）。
@@ -12,6 +13,9 @@
  * 用法：
  *   pnpm run repack:lua -- --bundle <内置bundle.dat|.bin>
  *   --bundle  必填，内置 Lua bundle 路径
+ *   --from-ref 从官方明文 Lua 参考目录重建（需先 pnpm run extract:lua 生成本地参考）
+ *   --platform <windows|android>  输出到 mods/<platform>/ 平台专属目录（缺省输出到 mods/ 根，
+ *              Windows/Android 同时生效；不同平台 base 内置 bundle 可能不同，建议指定平台）
  *   --out     输出 mods 目录（缺省 <项目根>/mods）
  */
 import * as fs from "fs";
@@ -24,6 +28,11 @@ import { extractTextAssets } from "./vendor/unityfs";
 const BUILTIN_BUNDLE_NAME = "anon/7d91430e114d86fef7d3b3511151e12d.bin";
 /** 对应 mod 下载名 */
 const BUILTIN_MOD_NAME = "anon_7d91430e114d86fef7d3b3511151e12d.dat";
+/**
+ * zip 条目固定时间戳：保证插件内容不变时重打包产物字节一致（md5 稳定，
+ * 客户端不会因每次启动自动重建而重复全量下载）。
+ */
+const LUA_ZIP_DATE = new Date("2024-01-01T00:00:00.000Z");
 /** 插件源码根目录 */
 const PLUGIN_DIR = path.join(__dirname, "..", "lua", "plugin");
 /** 插件资产名前缀（大写 Plugin 与 patch 进 DefinedFix 的 require 路径 "Plugin/…" 严格一致） */
@@ -40,7 +49,7 @@ const REF_LUA_DIR = path.join(
 );
 
 /**
- * 读取内置 bundle 字节：.dat 解 zip 取单条目，.bin 直读。
+ * 读取内置 bundle 字节：.dat 解 zip（优先匹配内置 bundle 名条目，否则取首条目），.bin 直读。
  * @param input - 内置 bundle 路径（.dat 或 .bin）
  * @returns UnityFS bundle 字节
  */
@@ -55,7 +64,8 @@ async function readBuiltinBundle(input: string): Promise<Uint8Array> {
   if (names.length === 0) {
     throw new Error(`内置 bundle .dat 内无条目: ${input}`);
   }
-  const entry = zip.files[names[0]];
+  const preferred = names.find((n) => n === BUILTIN_BUNDLE_NAME);
+  const entry = zip.files[preferred ?? names[0]];
   const bytes = await entry.async("uint8array");
   return new Uint8Array(bytes);
 }
@@ -112,29 +122,46 @@ export function collectReferenceLua(refDir: string): LuaAsset[] {
 
 /**
  * 在 DefinedFix.lua 清单中注入引导 hotfixer：把 "Plugin/PluginBootHotfixer" 插到首个条目之前。
+ * 幂等：先剔除已注入的引导条目（避免对已重打包 bundle 二次注入），再按
+ * 大小写不敏感锚点（"HotFixes/..." 或 "Hotfixes/..."）插入。
  * 使用游戏原生 hotfix 管线（HotfixProcesser.Do）引导插件加载，比 patch entry.lua 更稳。
  * @param script - 原始 DefinedFix.lua 文本
  * @returns 补丁后的 DefinedFix.lua 文本
  */
 export function patchDefinedFix(script: string): string {
-  const marker = '"HotFixes/';
-  const idx = script.indexOf(marker);
-  if (idx < 0) {
+  // 剔除已注入的引导条目（独立行精确匹配，避免误删内容中的同名引用）
+  const stripped = script
+    .split(/\r?\n/)
+    .filter((line) => {
+      const t = line.trim();
+      return !(t === '"Plugin/PluginBootHotfixer",' || t === '"Plugin/PluginBootHotfixer"');
+    })
+    .join("\n");
+  const markerRe = /["']\s*[Hh]ot[Ff]ixes?\//;
+  const m = markerRe.exec(stripped);
+  if (!m) {
     throw new Error("DefinedFix 补丁失败：未找到 hotfixer 条目（版本漂移？）");
   }
+  const idx = m.index;
   // 在首个条目前插入新条目（新条目带逗号，原首个条目及其逗号保留，Lua 5.1 语法合法）
-  return script.slice(0, idx) + '  "Plugin/PluginBootHotfixer",\n' + script.slice(idx);
+  return stripped.slice(0, idx) + '  "Plugin/PluginBootHotfixer",\n' + stripped.slice(idx);
 }
 
 /**
  * 合并内置 Lua 资产与插件资产，并 patch DefinedFix 以引导插件加载。
+ * 内置 bundle 中已存在的插件资产（gamedata/[uc]lua/Plugin/...）会被剔除——
+ * 构建期由 lua/plugin/ 重新合并，避免对已重打包 bundle 二次处理产生重名 TextAsset。
  * @param builtin - 内置 bundle 的全部 Lua 资产
  * @param pluginDir - 插件源码目录
  * @returns 合并后的资产列表（含补丁后的 DefinedFix）
  */
 export function mergeAndPatch(builtin: LuaAsset[], pluginDir: string): LuaAsset[] {
   const plugins = collectPluginAssets(pluginDir);
-  const merged = builtin.map((a) => ({ ...a }));
+  // 剔除内置资产中的插件资产（大小写不敏感，兼容 --from-ref 全小写命名）
+  const builtinOnly = builtin.filter(
+    (a) => !a.name.toLowerCase().startsWith(PLUGIN_ASSET_PREFIX.toLowerCase()),
+  );
+  const merged = builtinOnly.map((a) => ({ ...a }));
   let patched = false;
   for (const a of merged) {
     if (a.name.toLowerCase().endsWith("definedfix.lua")) {
@@ -170,7 +197,7 @@ export async function repackBuiltinLua(
 
   const uf = packLuaBundle(merged);
   const zip = new JSZip();
-  zip.file(BUILTIN_BUNDLE_NAME, Buffer.from(uf), { createFolders: false });
+  zip.file(BUILTIN_BUNDLE_NAME, Buffer.from(uf), { createFolders: false, date: LUA_ZIP_DATE });
   const dat = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 
   fs.mkdirSync(outModsDir, { recursive: true });
@@ -209,7 +236,7 @@ async function writeModDat(
 ): Promise<{ dat: string; bundle: Uint8Array; assetCount: number }> {
   const uf = packLuaBundle(merged);
   const zip = new JSZip();
-  zip.file(BUILTIN_BUNDLE_NAME, Buffer.from(uf), { createFolders: false });
+  zip.file(BUILTIN_BUNDLE_NAME, Buffer.from(uf), { createFolders: false, date: LUA_ZIP_DATE });
   const dat = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 
   fs.mkdirSync(outModsDir, { recursive: true });
@@ -224,9 +251,15 @@ async function main(): Promise<void> {
   const bundleIdx = args.indexOf("--bundle");
   const refIdx = args.indexOf("--from-ref");
   const outIdx = args.indexOf("--out");
+  const platformIdx = args.indexOf("--platform");
   const builtinPath = bundleIdx >= 0 ? args[bundleIdx + 1] : "";
   const fromRef = refIdx >= 0;
-  const outModsDir = outIdx >= 0 ? args[outIdx + 1] : path.join(__dirname, "..", "mods");
+  const platform = platformIdx >= 0 ? (args[platformIdx + 1] ?? "").toLowerCase() : "";
+  let outModsDir = outIdx >= 0 ? args[outIdx + 1] : path.join(__dirname, "..", "mods");
+  if (outIdx < 0 && (platform === "windows" || platform === "android")) {
+    // 平台专属目录（mods/windows|android），避免单份 repack 同时下发两平台
+    outModsDir = path.join(outModsDir, platform);
+  }
 
   let result;
   if (fromRef) {
@@ -236,8 +269,8 @@ async function main(): Promise<void> {
     result = await repackBuiltinLua(builtinPath, PLUGIN_DIR, outModsDir);
   } else {
     console.error(
-      "用法: pnpm run repack:lua -- --from-ref [--out <mods目录>]\n" +
-        "  或: pnpm run repack:lua -- --bundle <内置bundle.dat|.bin> [--out <mods目录>]",
+      "用法: pnpm run repack:lua -- --from-ref [--platform <windows|android>] [--out <mods目录>]\n" +
+        "  或: pnpm run repack:lua -- --bundle <内置bundle.dat|.bin> [--platform <windows|android>] [--out <mods目录>]",
     );
     process.exit(1);
   }

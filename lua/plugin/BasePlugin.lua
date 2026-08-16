@@ -1,18 +1,20 @@
 --[[
   BasePlugin.lua —— 插件基类
-  封装插件生命周期（Load/Unload）与 HotfixBase 统一打补丁入口，
-  子类实现 OnLoad/OnUnload 完成具体功能。所有异常用 xpcall 兜底并记日志。
-  须在 Base/BaseModule（提供 Class / HotfixBase）之后加载。
+  封装插件生命周期（Load/Unload）与统一打补丁入口，子类实现 OnLoad/OnUnload
+  完成具体功能。所有异常用 xpcall 兜底并记日志。
 
-  补丁模式：
-    - Fix_ex(cls, method, fixFunc)：完整替换，fixFunc(self, ...) 取代原方法
-      （内部用 xlua.util.hotfix_ex，不自带 orig 传递）。
+  补丁机制（经 PluginHotfix 共享注册表，见 Plugin/PluginHotfix）：
+    - 多插件 hook 同一 C# 方法时共享一个 xlua.hotfix 包装器，卸载互不干扰；
+    - Fix_ex(cls, method, fixFunc)：完整替换，fixFunc(self, ...) 取代原方法；
     - Hotfix(cls, method, fixFunc)：包装模式，fixFunc(self, orig, ...)，
-      orig 为原方法，可调 orig(self, ...) 保留原行为。
-  两种模式均通过同一 HotfixBase 实例录制，Unload 时统一 Dispose 还原。
+      orig 为链上下一段实现，可调 orig(self, ...) 保留原行为。
+  两种模式均按 (cls, method) 注册到共享注册表，Unload / Load 失败时统一注销。
+
+  须在 Base/BaseModule（提供 Class）之后加载。
 --]]
 local BasePlugin = Class("BasePlugin")
 local eutil = CS.Torappu.Lua.Util
+local PluginHotfix = require("Plugin/PluginHotfix")
 
 --[[
   构造插件实例。
@@ -25,32 +27,22 @@ function BasePlugin:ctor(id, name, desc)
   self.name = name
   self.desc = desc
   self.enabled = false      -- 当前是否启用
-  self._hotfixer = nil      -- 懒加载的 HotfixBase 实例，用于还原补丁
-end
-
---[[
-  懒加载并返回 HotfixBase 实例（首次调用创建）。
-  @return HotfixBase 实例
---]]
-function BasePlugin:_EnsureHotfixer()
-  if self._hotfixer == nil then
-    self._hotfixer = HotfixBase.new()
-  end
-  return self._hotfixer
+  self._fixes = {}          -- 已注册补丁记录（{cls, method}），卸载/回滚时注销
 end
 
 --[[
   完整替换模式：fixFunc 取代原方法，不保留原调用。
   fixFunc 签名 = function(self, ...)，与 C# 方法签名一致。
-  内部用 xlua.util.hotfix_ex，由 xlua 管理链式还原。
   @param cls     C# 类型
   @param method  方法名
   @param fixFunc 替换实现
 --]]
 function BasePlugin:Fix_ex(cls, method, fixFunc)
-  local hf = self:_EnsureHotfixer()
   local ok, err = xpcall(function()
-    hf:Fix_ex(cls, method, fixFunc)
+    if not PluginHotfix.FixEx(cls, method, self, fixFunc) then
+      error("目标方法不存在（版本漂移?）: " .. tostring(method))
+    end
+    self._fixes[#self._fixes + 1] = { cls = cls, method = method }
   end, debug.traceback)
   if not ok then
     eutil.LogHotfixError("[BasePlugin] " .. self.id .. " Fix_ex(" .. method .. ") 失败: " .. err)
@@ -59,19 +51,17 @@ end
 
 --[[
   包装模式：fixFunc 经 orig 调用原方法。
-  fixFunc 签名 = function(self, orig, ...)，orig 为原方法包装。
-  内部用 xlua.hotfix + 手动捕获 orig，通过 HotfixBase 录制统一还原。
+  fixFunc 签名 = function(self, orig, ...)，orig 为链上下一段实现。
   @param cls     C# 类型
   @param method  方法名
   @param fixFunc 包装实现（function(self, orig, ...)）
 --]]
 function BasePlugin:Hotfix(cls, method, fixFunc)
-  local hf = self:_EnsureHotfixer()
   local ok, err = xpcall(function()
-    local orig = cls[method]
-    hf:Fix(cls, method, function(self, ...)
-      return fixFunc(self, orig, ...)
-    end)
+    if not PluginHotfix.Hotfix(cls, method, self, fixFunc) then
+      error("目标方法不存在（版本漂移?）: " .. tostring(method))
+    end
+    self._fixes[#self._fixes + 1] = { cls = cls, method = method }
   end, debug.traceback)
   if not ok then
     eutil.LogHotfixError("[BasePlugin] " .. self.id .. " Hotfix(" .. method .. ") 失败: " .. err)
@@ -79,7 +69,19 @@ function BasePlugin:Hotfix(cls, method, fixFunc)
 end
 
 --[[
-  启用插件：置 enabled 并调用 OnLoad。失败则回滚 enabled 并记日志。
+  注销本插件注册的全部补丁（幂等）。共享注册表会移除本插件的处理函数；
+  仅当无其它插件使用同一方法时才还原原方法，因此不会破坏其它插件的 hook。
+--]]
+function BasePlugin:_UnregisterAll()
+  for _, fix in ipairs(self._fixes) do
+    xpcall(function() PluginHotfix.Unfix(fix.cls, fix.method, self) end, debug.traceback)
+  end
+  self._fixes = {}
+end
+
+--[[
+  启用插件：置 enabled 并调用 OnLoad。失败则回滚 enabled 并注销已注册补丁
+  （避免 OnLoad 中途失败留下半应用的 hook）。
 --]]
 function BasePlugin:Load()
   if self.enabled then return end
@@ -87,21 +89,23 @@ function BasePlugin:Load()
   local ok, err = xpcall(function() self:OnLoad() end, debug.traceback)
   if not ok then
     self.enabled = false
+    self:_UnregisterAll()
     eutil.LogHotfixError("[BasePlugin] " .. self.id .. " OnLoad 失败: " .. err)
   end
 end
 
 --[[
-  停用插件：调用 OnUnload 并还原所有已经注册的 hotfix 补丁。
+  停用插件：调用 OnUnload 并注销全部已注册补丁。
+  即使处于停用态也会清理残留补丁（防御 Load 失败等异常路径）。
 --]]
 function BasePlugin:Unload()
-  if not self.enabled then return end
+  if not self.enabled then
+    self:_UnregisterAll()
+    return
+  end
   local ok, err = xpcall(function() self:OnUnload() end, debug.traceback)
   self.enabled = false
-  if self._hotfixer ~= nil then
-    xpcall(function() self._hotfixer:Dispose() end, debug.traceback)
-    self._hotfixer = nil
-  end
+  self:_UnregisterAll()
   if not ok then
     eutil.LogHotfixError("[BasePlugin] " .. self.id .. " OnUnload 失败: " .. err)
   end

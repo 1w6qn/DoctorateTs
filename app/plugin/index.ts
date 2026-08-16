@@ -9,3 +9,10 @@ export {
   type PluginDefinition,
 } from "./PluginConfigService";
 export { loadPluginCatalog, parsePluginDefs, FALLBACK_CATALOG, type PluginCatalogEntry } from "./plugin-catalog";
+export {
+  ensureLuaModBuilt,
+  isLuaModStale,
+  BUILTIN_LUA_MOD_NAME,
+  type LuaModBuildResult,
+  type LuaModBuildOptions,
+} from "./lua-mod-builder";

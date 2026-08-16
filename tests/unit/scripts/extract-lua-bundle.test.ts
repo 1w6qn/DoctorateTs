@@ -54,10 +54,12 @@ describe("extract-lua-bundle 内置 Lua bundle 提取", () => {
 
     const result = await extractLuaBundle(bin, out);
 
-    // 统计：7 条总资产，写入 4 条（跳过 2 插件 + 1 非 Lua）
+    // 统计：7 条总资产，写入 4 条（跳过 2 插件 + 1 非 Lua）；
+    // DefinedFix 曾含注入标记（已还原），不计入 unchanged（官方原版数）
     expect(result.total).toBe(7);
     expect(result.written).toBe(4);
     expect(result.skipped).toBe(3);
+    expect(result.unchanged).toBe(0);
 
     // entry.lua 与子目录文件已写出
     expect(await readFile(join(out, "entry.lua"), "utf8")).toBe("-- entry\n");

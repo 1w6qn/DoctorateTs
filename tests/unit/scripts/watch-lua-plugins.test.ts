@@ -38,18 +38,25 @@ async function writeRefLua(ref: string): Promise<void> {
 }
 
 describe("watch-lua-plugins 插件热重载", () => {
-  it("rebuildOnce 重打包内置 bundle 并删除 mods.json 缓存", async () => {
+  it("rebuildOnce 重打包内置 bundle 并删除平台 mods 缓存", async () => {
     const { ref, plugin, out } = await makeTempDirs();
     await writeRefLua(ref);
 
     // 假插件目录
     await writeFile(join(plugin, "EnemyHpPlugin.lua"), enc.encode("-- hp\n"));
 
-    // 预置一个 mods.json 缓存（模拟服务端已缓存旧指纹）
-    const modsJson = join(out, "mods.json");
-    await writeFile(modsJson, enc.encode('{"file":{}}'));
+    // 预置平台 mods 缓存（模拟服务端已缓存旧指纹：mods.Android.json / mods.Windows.json，
+    // 兼容历史 mods.json）
+    const caches = [
+      join(out, "mods.json"),
+      join(out, "mods.Android.json"),
+      join(out, "mods.Windows.json"),
+    ];
+    for (const c of caches) {
+      await writeFile(c, enc.encode('{"file":{}}'));
+    }
 
-    const result = await rebuildOnce(ref, plugin, out, modsJson);
+    const result = await rebuildOnce(ref, plugin, out, caches);
 
     // 重打包产物存在且含插件 + DefinedFix
     expect(result.assetCount).toBeGreaterThan(0);
@@ -57,17 +64,18 @@ describe("watch-lua-plugins 插件热重载", () => {
     expect(datPath.endsWith("anon_7d91430e114d86fef7d3b3511151e12d.dat")).toBe(true);
     await expect(access(datPath)).resolves.toBeUndefined();
 
-    // mods.json 缓存被删除
-    await expect(access(modsJson)).rejects.toThrow();
+    // 平台 mods 缓存均被删除
+    for (const c of caches) {
+      await expect(access(c)).rejects.toThrow();
+    }
   });
 
-  it("mods.json 不存在时重打包不报错", async () => {
+  it("mods 缓存不存在时重打包不报错", async () => {
     const { ref, plugin, out } = await makeTempDirs();
     await writeRefLua(ref);
     await writeFile(join(plugin, "A.lua"), enc.encode("-- a\n"));
 
-    const modsJson = join(out, "mods.json"); // 不存在
-    const result = await rebuildOnce(ref, plugin, out, modsJson);
+    const result = await rebuildOnce(ref, plugin, out, []);
     expect(result.assetCount).toBeGreaterThan(0);
   });
 
@@ -76,7 +84,7 @@ describe("watch-lua-plugins 插件热重载", () => {
     await writeRefLua(ref);
     await writeFile(join(plugin, "PluginBootHotfixer.lua"), enc.encode("-- boot\n"));
 
-    const { bundle } = await rebuildOnce(ref, plugin, out, join(out, "mods.json"));
+    const { bundle } = await rebuildOnce(ref, plugin, out, []);
     const assets = extractTextAssets(bundle);
     const names = assets.map((a) => a.name.toLowerCase());
     // 插件资产已并入

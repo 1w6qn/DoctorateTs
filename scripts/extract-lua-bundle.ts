@@ -29,6 +29,8 @@ const LUA_PREFIX = "gamedata/[uc]lua/";
 const PLUGIN_SUBDIR = "plugin/";
 /** 引导 hotfixer 条目（构建期由 patchDefinedFix 注入，提取时需还原） */
 const BOOT_ENTRY = '"Plugin/PluginBootHotfixer"';
+/** 内置 Lua 主 bundle 名（.dat 多条目时优先匹配该条目） */
+const BUILTIN_BUNDLE_NAME = "anon/7d91430e114d86fef7d3b3511151e12d.bin";
 
 /** 默认参考输出目录（相对项目根） */
 function defaultRefDir(): string {
@@ -36,7 +38,7 @@ function defaultRefDir(): string {
 }
 
 /**
- * 读取内置 bundle 字节：.dat 解 zip 取单条目，.bin 直读。
+ * 读取内置 bundle 字节：.dat 解 zip（优先匹配内置 bundle 名条目，否则取首条目），.bin 直读。
  * @param input - 内置 bundle 路径（.dat 或 .bin）
  * @returns UnityFS bundle 字节
  */
@@ -50,7 +52,8 @@ async function readBuiltinBundle(input: string): Promise<Uint8Array> {
   if (names.length === 0) {
     throw new Error(`内置 bundle .dat 内无条目: ${input}`);
   }
-  const entry = zip.files[names[0]];
+  const preferred = names.find((n) => n === BUILTIN_BUNDLE_NAME);
+  const entry = zip.files[preferred ?? names[0]];
   return new Uint8Array(await entry.async("uint8array"));
 }
 
@@ -108,12 +111,17 @@ export async function extractLuaBundle(
       continue;
     }
     let script = asset.script;
-    // 还原 DefinedFix 的注入标记
-    if (rel.toLowerCase().endsWith("definedfix.lua")) {
-      const restored = stripBootInjection(new TextDecoder().decode(script));
-      script = Buffer.from(restored, "utf8");
-      if (!restored.includes(BOOT_ENTRY)) unchanged.push(rel);
+    // 还原 DefinedFix 的注入标记；unchanged 仅统计「DefinedFix 未含注入标记（官方原版）」的数量
+    const isDefinedFix = rel.toLowerCase().endsWith("definedfix.lua");
+    let injected = false;
+    if (isDefinedFix) {
+      const text = new TextDecoder().decode(script);
+      injected = text.includes(BOOT_ENTRY);
+      if (injected) {
+        script = Buffer.from(stripBootInjection(text), "utf8");
+      }
     }
+    if (isDefinedFix && !injected) unchanged.push(rel);
 
     const outPath = path.join(outDir, rel);
     fs.mkdirSync(path.dirname(outPath), { recursive: true });

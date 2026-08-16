@@ -2,12 +2,24 @@
   PanelPlugin.lua —— 插件管理面板插件
   动态构建一个现代化管理面板：浮动开关按钮 + 插件列表（名称/描述/启停开关），
   通过 PluginManager:SetEnabled 实时启停插件。面板用 UnityEngine.UI 动态构建。
+
+  时序说明：插件系统在 DefinedFix 引导阶段初始化（早于登录与主 UI 创建），
+  此时 Canvas 尚不存在。因此 OnLoad 不直接构建，而是：
+    - 立即尝试一次；
+    - TimerModel 可用时按间隔重试（上限 _MAX_RETRY 次）；
+    - 兜底 hook UIController.Awake（进入战斗 UI，必然晚于主界面）时再尝试。
+  面板构建成功（或重建）后均会重新挂载，场景切换导致 Canvas 销毁时也能自愈。
 --]]
 local PanelPlugin = Class("PanelPlugin", require("Plugin/BasePlugin"))
 local eutil = CS.Torappu.Lua.Util
+local PluginHeartbeat = require("Plugin/PluginHeartbeat")
 
 local UnityEngine = CS.UnityEngine
 local UGUI = CS.UnityEngine.UI
+
+-- 重试上限与间隔（TimerModel 可用时）
+local _MAX_RETRY = 20
+local _RETRY_DELAY_SEC = 3
 
 --[[
   创建带背景的 UI 对象。
@@ -54,28 +66,69 @@ local function _CreateText(parent, name, pos, size, fontSize, color)
 end
 
 --[[
-  插件启用：找到常驻 UI 根节点，构建面板与浮动开关。
+  插件启用：尝试构建面板；失败则延迟重试 + 战斗 UI 兜底。
 --]]
 function PanelPlugin:OnLoad()
   self._open = false
   self._root = nil
+  self._floatBtn = nil
   self._canvas = nil
+  self._retryCount = 0
 
-  -- 找主 UI 画布（LuaUIRoot 或场景主 Canvas）
+  self:_EnsureCanvasAndBuild()
+
+  -- 兜底：进入战斗 UI（必然晚于登录与主界面）时再次尝试构建
+  self:Hotfix(CS.Torappu.Battle.UI.UIController, "Awake", function(selfCtrl, orig)
+    orig(selfCtrl)
+    self:_EnsureCanvasAndBuild()
+  end)
+  eutil.Log("[PanelPlugin] 插件管理面板已启用")
+end
+
+--[[
+  确保面板已构建：查找 Canvas，缺失则调度重试；已构建则无操作。
+  根节点/按钮被销毁（场景切换）时自动重建。
+--]]
+function PanelPlugin:_EnsureCanvasAndBuild()
+  if self._root ~= nil and self._floatBtn ~= nil then return end
   self:_FindCanvas()
   if self._canvas == nil then
-    eutil.LogHotfixError("[PanelPlugin] 未找到 UI Canvas，面板无法构建")
+    self:_ScheduleRetry()
     return
   end
-  self:_BuildFloatingButton()
-  self:_BuildPanel()
-  eutil.Log("[PanelPlugin] 插件管理面板已启用")
+  if self._floatBtn == nil then
+    self:_BuildFloatingButton()
+  end
+  if self._root == nil then
+    self:_BuildPanel()
+  end
+end
+
+--[[
+  调度延迟重试（TimerModel 可用时）。引导阶段 TimerModel 未就绪时静默，
+  由 UIController.Awake 兜底触发。
+--]]
+function PanelPlugin:_ScheduleRetry()
+  if self._retryCount >= _MAX_RETRY then return end
+  self._retryCount = self._retryCount + 1
+  local ok, tm = pcall(function()
+    if TimerModel ~= nil and TimerModel.me ~= nil then return TimerModel.me end
+    return nil
+  end)
+  if not ok or tm == nil then
+    return
+  end
+  tm:Delay(_RETRY_DELAY_SEC, function()
+    if not self.enabled then return end
+    self:_EnsureCanvasAndBuild()
+  end)
 end
 
 --[[
   定位主 UI Canvas（优先 LuaUIRoot，其次场景内 Canvas）。
 --]]
 function PanelPlugin:_FindCanvas()
+  self._canvas = nil
   local ok, luaRoot = pcall(function()
     return UnityEngine.GameObject.Find("UI/Main/LuaUIRoot")
   end)
@@ -92,7 +145,8 @@ function PanelPlugin:_FindCanvas()
 end
 
 --[[
-  构建右下角浮动开关按钮（点击开合面板）。
+  构建右下角浮动开关按钮（点击开合面板）。按钮对象保存到 self._floatBtn，
+  供 OnUnload 销毁（避免停用后按钮残留）。
 --]]
 function PanelPlugin:_BuildFloatingButton()
   local btnObj, _ = _CreateImage(self._canvas, "PluginToggle(Clone)", UnityEngine.Vector3(-300, -160, 0), UnityEngine.Vector2(120, 60), UnityEngine.Color(0.1, 0.1, 0.1, 0.8))
@@ -103,6 +157,7 @@ function PanelPlugin:_BuildFloatingButton()
   btn.onClick:AddListener(function()
     self:TogglePanel()
   end)
+  self._floatBtn = btnObj
 end
 
 --[[
@@ -169,13 +224,22 @@ function PanelPlugin:Refresh()
 end
 
 --[[
-  开合面板。
+  开合面板（面板未构建时先尝试构建，失败则静默返回）。
 --]]
 function PanelPlugin:TogglePanel()
+  if self._root == nil then
+    self:_EnsureCanvasAndBuild()
+    if self._root == nil then
+      eutil.LogHotfixError("[PanelPlugin] 面板未构建，无法开合（Canvas 尚不可用）")
+      return
+    end
+  end
   self._open = not self._open
-  if self._root ~= nil then
-    self._root:SetActive(self._open)
-    if self._open then self:Refresh() end
+  self._root:SetActive(self._open)
+  if self._open then
+    self:Refresh()
+    -- 面板打开（登录后、网络就绪）时再次发送插件生效确认，作为可复现的服务端日志依据
+    PluginHeartbeat.Send()
   end
 end
 
@@ -186,7 +250,12 @@ function PanelPlugin:OnUnload()
   if self._root ~= nil then
     UnityEngine.Object.Destroy(self._root)
   end
+  if self._floatBtn ~= nil then
+    UnityEngine.Object.Destroy(self._floatBtn)
+  end
   self._root = nil
+  self._floatBtn = nil
+  self._canvas = nil
   self._open = false
   eutil.Log("[PanelPlugin] 插件管理面板已停用")
 end

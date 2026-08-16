@@ -1,7 +1,7 @@
 /**
  * Lua 插件热重载脚本
  *
- * 监听 lua/plugin/*.lua 变更 → 自动重打包内置 Lua bundle mod → 使 mods.json 缓存失效，
+ * 监听 lua/plugin/*.lua 变更 → 自动重打包内置 Lua bundle mod → 使平台 mods 指纹缓存失效，
  * 客户端下次拉取 hot_update_list.json 时 app/asset.ts 会重扫 mods/ 拿到新指纹并重新下载覆盖。
  * 目标：改一个插件 Lua 免手动重打包，提升插件开发迭代体验。
  *
@@ -30,28 +30,47 @@ const REF_LUA_DIR = path.join(
 );
 /** 输出 mods 目录 */
 const OUT_MODS_DIR = path.join(__dirname, "..", "mods");
-/** mods.json 缓存路径（asset.ts 指纹缓存，重打包后需删除以强制重建） */
-const MODS_JSON = path.join(__dirname, "..", "mods.json");
+/**
+ * mods 指纹缓存路径集合：asset.ts 实际缓存为 mods.<platform>.json
+ * （见 app/asset.ts loadMods，平台隔离缓存），另兼容历史单文件 mods.json。
+ * 重打包后需删除以强制重建（asset.ts 的 refreshModsIfChanged 指纹检测是主要重载路径，
+ * 此处为双保险）。
+ */
+const MODS_CACHE_PATHS = [
+  path.join(__dirname, "..", "mods.json"),
+  path.join(__dirname, "..", "mods.Android.json"),
+  path.join(__dirname, "..", "mods.Windows.json"),
+];
 
 /**
- * 执行一次重打包：重建内置 Lua bundle mod 并删除 mods.json 缓存。
+ * 执行一次重打包：重建内置 Lua bundle mod 并删除平台 mods 指纹缓存。
  * 删除缓存的目的是让 asset.ts 重新指纹比对（bundle 内容已变 → md5/crc32 变 → 客户端重新下载）。
- * @param refDir    明文 Lua 参考目录
- * @param pluginDir 插件源码目录
- * @param outModsDir 输出 mods 目录
- * @param modsJson   mods.json 缓存路径
+ * @param refDir        明文 Lua 参考目录
+ * @param pluginDir     插件源码目录
+ * @param outModsDir    输出 mods 目录
+ * @param modsCacheFiles 待删除的 mods 指纹缓存路径列表
  * @returns 重打包结果（dat 路径、bundle 字节、资产数）
  */
 export async function rebuildOnce(
   refDir: string,
   pluginDir: string,
   outModsDir: string,
-  modsJson: string,
+  modsCacheFiles: string[],
 ): Promise<{ dat: string; bundle: Uint8Array; assetCount: number }> {
   const result = await repackBuiltinFromRef(refDir, pluginDir, outModsDir);
-  // 使 mods.json 指纹缓存失效（下次 hot_update_list 请求时 asset.ts 重扫）
-  if (fs.existsSync(modsJson)) {
-    fs.rmSync(modsJson, { force: true });
+  // 使 mods.<platform>.json 指纹缓存失效（下次 hot_update_list 请求时 asset.ts 重扫）
+  for (const cachePath of modsCacheFiles) {
+    try {
+      if (fs.existsSync(cachePath)) {
+        fs.rmSync(cachePath, { force: true });
+        console.log(`[watch:lua] 已删除 mods 缓存: ${cachePath}`);
+      }
+    } catch (error) {
+      console.warn(
+        `[watch:lua] 删除 mods 缓存失败（忽略）: ${cachePath}`,
+        error instanceof Error ? error.message : error,
+      );
+    }
   }
   console.log(
     `[watch:lua] ${new Date().toLocaleTimeString()} 重打包完成: ${result.dat} ` +
@@ -93,7 +112,7 @@ async function main(): Promise<void> {
   }
 
   // 首次构建
-  await rebuildOnce(REF_LUA_DIR, PLUGIN_DIR, OUT_MODS_DIR, MODS_JSON);
+  await rebuildOnce(REF_LUA_DIR, PLUGIN_DIR, OUT_MODS_DIR, MODS_CACHE_PATHS);
 
   if (once) {
     console.log("[watch:lua] --once 模式：已构建一次，退出。");
@@ -108,7 +127,7 @@ async function main(): Promise<void> {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
-      void rebuildOnce(REF_LUA_DIR, PLUGIN_DIR, OUT_MODS_DIR, MODS_JSON);
+      void rebuildOnce(REF_LUA_DIR, PLUGIN_DIR, OUT_MODS_DIR, MODS_CACHE_PATHS);
     }, debounce);
   });
 

@@ -77,13 +77,37 @@ describe("repack-lua-bundle 内置 bundle 重打包（DefinedFix 引导）", () 
     expect(() => patchDefinedFix("local x = 1\n")).toThrow(/未找到/);
   });
 
+  it("patchDefinedFix 锚点大小写不敏感（Hotfixes/ 小写 x 也能命中）", () => {
+    const lower = [
+      "local list = {",
+      '  "Hotfixes/TestStubHotfixer",',
+      "};",
+      "",
+    ].join("\n");
+    const patched = patchDefinedFix(lower);
+    expect(patched).toContain('  "Plugin/PluginBootHotfixer",');
+    expect(patched.indexOf("Plugin/PluginBootHotfixer")).toBeLessThan(
+      patched.indexOf("Hotfixes/TestStubHotfixer"),
+    );
+  });
+
+  it("patchDefinedFix 幂等：已注入的 bundle 只保留一条引导条目", () => {
+    const once = patchDefinedFix(fakeDefinedFix());
+    const twice = patchDefinedFix(once);
+    expect(twice).toContain('  "Plugin/PluginBootHotfixer",');
+    const bootCount = twice.split(/\r?\n/).filter((l) => l.trim() === '"Plugin/PluginBootHotfixer",').length;
+    expect(bootCount).toBe(1);
+    expect(twice).toContain('"HotFixes/TestStubHotfixer",');
+  });
+
   it("端到端：重打包 → 覆盖 mod 含插件(Plugin 前缀) + 补丁后的 DefinedFix", async () => {
     const { src, out } = await makeTempDirs();
 
-    // 假内置 bundle（含 DefinedFix.lua 与一个普通 lua）
+    // 假内置 bundle（含 DefinedFix.lua、普通 lua、以及模拟已重打包残留的旧插件资产）
     const builtinAssets = [
       { name: "gamedata/[uc]lua/Hotfixes/DefinedFix.lua", script: enc.encode(fakeDefinedFix()) },
       { name: "gamedata/[uc]lua/base/BaseModule.lua", script: enc.encode("-- base module\n") },
+      { name: "gamedata/[uc]lua/Plugin/OldPlugin.lua", script: enc.encode("-- old\n") },
     ];
     const builtinBytes = packLuaBundle(builtinAssets);
     const builtinBin = join(src, "anon_7d91430e114d86fef7d3b3511151e12d.bin");
@@ -106,6 +130,8 @@ describe("repack-lua-bundle 内置 bundle 重打包（DefinedFix 引导）", () 
     // 插件资产用 Plugin 大写前缀（与 require 路径一致）
     expect(names).toContain("gamedata/[uc]lua/Plugin/PluginBootHotfixer.lua");
     expect(names).toContain("gamedata/[uc]lua/Plugin/EnemyHpPlugin.lua");
+    // 内置 bundle 中残留的旧插件资产被剔除（构建期由 lua/plugin/ 重新合并）
+    expect(names).not.toContain("gamedata/[uc]lua/Plugin/OldPlugin.lua");
     const df = list.find((a) => a.name.toLowerCase().endsWith("definedfix.lua"))!;
     expect(dec.decode(df.script)).toContain('"Plugin/PluginBootHotfixer",');
   });

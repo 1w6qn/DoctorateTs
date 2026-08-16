@@ -58,6 +58,8 @@ interface UserConfig {
     autoUpdate: boolean;
     /** 代理模式（odpy 参考）：直接转发官服 CDN，不落盘 */
     downloadPeoxy?: boolean;
+    /** 是否启动时自动重打包内置 Lua bundle mod（缺省 true；false 关闭自动构建） */
+    autoBuildLuaMod?: boolean;
   };
   /** 网络配置 */
   NetworkConfig: object;
@@ -65,7 +67,8 @@ interface UserConfig {
   RemoteConfig?: Record<string, unknown>;
   /** 抓包专用官服转发模式：as/gs 流量转发官服并记录（等价命令行 --capture） */
   capture?: {
-    /** 是否开启官服转发（客户端连接私服，as/gs 请求转发官服；config/asset/admin 仍本地响应） */
+    /** 是否开启官服转发（客户端连接私服，as/gs 请求转发官服；config/asset/admin 仍本地响应）。
+     *  开启时强制禁用 assets.enableMods——抓包须还原官服原生资源，mod 污染抓包流量 */
     enabled?: boolean;
     /** 官服 as 主机（缺省 https://as.hypergryph.com） */
     asHost?: string;

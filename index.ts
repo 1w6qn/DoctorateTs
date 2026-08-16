@@ -86,6 +86,14 @@ process.on("exit", (code) => {
   // capture 模式的核心用途就是抓包：强制开启流量落盘（统一抓包存储 tmp/capture/）
   if (capture) {
     config.debug = { ...config.debug, recordTraffic: true };
+    // capture 模式禁用 mod：抓包须还原官服原生行为——mod 会改写热更清单/resVersion 并下发替换资源，
+    // 混入 mod 数据会污染抓包对比与协议逆向（客户端行为/资源 hash 均与官服不一致）。
+    // 仅运行时关闭（不改写 data/config.json），mod 加载（lua 自动重打包/initMods）与
+    // 清单生成（asset.ts 热更清单注入、prod.ts resVersion 签名）随之全部跳过。
+    if (config.assets.enableMods) {
+      config.assets.enableMods = false;
+      logger.info("index", "capture 模式：已禁用 mod（assets.enableMods=false），还原官服原生资源");
+    }
   }
   
   if (offline) {
@@ -149,7 +157,14 @@ process.on("exit", (code) => {
     })(),
     // 启用 mod 时启动预热加载（避免首个热更清单请求卡在扫描、mod 文件请求早于清单时列表为空）
     config.assets.enableMods
-      ? (await import("./app/asset")).initMods()
+      ? (async () => {
+          // 自动重打包内置 Lua bundle mod：插件源码变更后无需手动 pnpm run repack:lua
+          // （缺省开启，可用 data/config.json 的 assets.autoBuildLuaMod=false 关闭）
+          if (config.assets.autoBuildLuaMod !== false) {
+            await (await import("./app/plugin/lua-mod-builder")).ensureLuaModBuilt();
+          }
+          await (await import("./app/asset")).initMods();
+        })()
       : Promise.resolve(),
   ];
   await Promise.all([excelInitPromise, captureInitPromise, modInitPromise]);
@@ -247,10 +262,22 @@ process.on("exit", (code) => {
     const { startArkhubLocalGateway } = await import("./app/proxy/arkhub-gateway-local");
     await startArkhubLocalGateway({
       port: config.capture?.gatewayPort ?? 30000,
-      // 场景 self 条目用玩家真实昵称（存档已加载则直读，否则回退 博士{uid}）
+      // 场景 self 条目用玩家真实昵称/秘书干员（存档已加载则直读，否则回退默认）
       resolveNickname: (uid: string) => {
         const player = accountManager.data[uid];
         return player?._playerdata?.status?.nickName ?? `博士${uid || "1"}`;
+      },
+      resolvePlayerProfile: (uid: string) => {
+        const status = accountManager.data[uid]?._playerdata?.status;
+        if (!status) return {};
+        return {
+          nickname: status.nickName,
+          level: status.level,
+          // 广场玩家模型 = 主界面秘书干员（与官服网关 PlayerBrief.charId/skinId 一致）
+          charId: status.secretary ?? "",
+          skinId: status.secretarySkinId ?? "",
+          avatarId: status.avatar?.id,
+        };
       },
     });
   }

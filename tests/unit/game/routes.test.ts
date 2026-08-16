@@ -48,6 +48,7 @@ const expectedPrefixes: Array<[string, string]> = [
   ["/interlock", "./router/interlock"],
   ["/autochess", "./router/autochess"],
   ["/pay", "./router/pay"],
+  ["/plugin", "./router/plugin-heartbeat"],
   ["/rune", "./router/rune"],
   ["/audit", "./router/audit"],
   ["/arkodc", "./router/arkodc"],

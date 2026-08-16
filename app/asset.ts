@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { basename, join } from "path";
+import { basename, join, relative } from "path";
 import { createHash } from "crypto";
 import { crc32 } from "crc";
 import axios from "axios";
@@ -17,36 +17,39 @@ router.get(
   // 客户端按清单 name 构造下载路径，需能匹配 assets/.../<子路径>（path-to-regexp v8 命名通配 *name）
   "/official/:platform/assets/:assetsHash/*fileName",
   async (req, res) => {
-    const { assetsHash, platform } = req.params;
+    const { assetsHash, platform: platformParam } = req.params;
+    // 平台决定用哪套 mod（Windows/Android 各自独立；未知平台回退 Android）
+    const platform = platformParam ?? "Android";
     // 通配段（命名通配 *fileName 捕获为 string[]，含斜杠子路径）；空数组兜底（仅 assets/<hash>/ 无文件名）
     let fileName = (req.params.fileName as string[] | undefined ?? []).join("/" );
     // 资源版本跟随客户端请求路径（资源按版本存储——客户端从 hv 拿到 resVersion 拼路径）；
     // CDN 平台跟随客户端请求的 platform（Windows/Android 资源各自独立 CDN 目录，
     // 版本号不同——Windows 版本仅在 Windows CDN 可下载，Android 版本仅在 Android CDN 可下载）
     const version = assetsHash;
-    const cdnPlatform = platform ?? "Android";
+    const cdnPlatform = platform;
     // CDN 下载用去 mod 后缀的原始版本（官方 CDN 无 mod 版本；后缀仅用于本地缓存目录区分）
     const cdnVersion = stripModSuffix(version);
     let basePath = join(__dirname, "..", "assets", version, "redirect");
 
     if (fileName === "hot_update_list.json" && config.assets.enableMods) {
       try {
-        MODS_LIST = await loadMods();
+        stateFor(platform).list = await loadMods(platform);
       } catch (error) {
         // 容错：mod 扫描异常（权限/损坏）不阻断清单服务——记录并置空
         logger.error("Asset", `mod 列表刷新失败: ${(error as Error).message}`);
-        MODS_LIST = emptyModsList();
+        stateFor(platform).list = emptyModsList();
       }
-    } else if (config.assets.enableMods && !MODS_LOADED) {
+    } else if (config.assets.enableMods && !stateFor(platform).loaded) {
       // 容错：mod 文件请求早于热更清单（客户端缓存清单直连下载）——补齐初始加载
-      await ensureModsLoaded();
+      await ensureModsLoaded(platform);
     }
+    const mods = getModsList(platform);
 
     // odpy 代理模式（downloadPeoxy）：直接转发官服 CDN（支持 Range 断点续传，不落盘）
     if (
       (config.assets as any).downloadPeoxy &&
       fileName !== "hot_update_list.json" &&
-      !MODS_LIST.download.includes(fileName)
+      !mods.download.includes(fileName)
     ) {
       const forwardHeaders: Record<string, string> = {
         "User-Agent":
@@ -71,7 +74,7 @@ router.get(
       basePath = join(__dirname, "..", "assets", version);
       if (
         fileName !== "hot_update_list.json" &&
-        !MODS_LIST.download.includes(fileName)
+        !mods.download.includes(fileName)
       ) {
         return res.redirect(
           `https://ak.hycdn.cn/assetbundle/official/${cdnPlatform}/assets/${version}/${fileName}`,
@@ -105,8 +108,8 @@ router.get(
       // 客户端把清单 name（含子路径 anon/xxx.bin）扁平化为下载名（anon_xxx.dat，/→_、去后缀加.dat）
       // 请求路径即 download 名；个别场景也可能直接请求原始 name（含子路径），两者都兼容。
       // download/name/path 按下标一一对应。
-      const idx = MODS_LIST.download.indexOf(fileName);
-      const modPath = idx >= 0 ? MODS_LIST.path[idx] : MODS_LIST.name.indexOf(fileName) >= 0 ? MODS_LIST.path[MODS_LIST.name.indexOf(fileName)] : undefined;
+      const idx = mods.download.indexOf(fileName);
+      const modPath = idx >= 0 ? mods.path[idx] : mods.name.indexOf(fileName) >= 0 ? mods.path[mods.name.indexOf(fileName)] : undefined;
       if (modPath && (await exists(modPath))) {
         logger.debug("Asset", "use mod file", fileName, modPath);
         wrongSize = false;
@@ -122,6 +125,7 @@ router.get(
       filePath,
       assetsHash,
       wrongSize,
+      mods,
     );
     logger.debug("Asset", "serve", fp);
     res.sendFile(fp);
@@ -139,37 +143,62 @@ function emptyModsList(): ModsList {
   return { mods: [], name: [], path: [], download: [] };
 }
 
-/** mods 目录（.gitignore；仅 mods/.placeholder 入 git 保留目录） */
+/** mods 目录（.gitignore；仅 mods/.placeholder 与平台子目录占位入 git） */
 const MODS_DIR = join(__dirname, "..", "mods");
 
-let MODS_LIST: ModsList = emptyModsList();
+/** 平台 → 专属 mod 子目录（小写）；未知平台无专属目录（仅共享根目录） */
+const PLATFORM_DIRS: Record<string, string> = { Windows: "windows", Android: "android" };
 
-/** mod 列表是否已尝试加载（ensureModsLoaded 幂等用——避免空 mods 目录时每请求重复扫描） */
-let MODS_LOADED = false;
+/** 单平台 mod 状态 */
+interface ModsState {
+  list: ModsList;
+  loaded: boolean;
+  fingerprint: string;
+}
 
-/** mods 目录最后一次已知指纹（mtimeMs|size），用于运行时热更新检测（重打包/增删 mod 后触发重载） */
-let modsFingerprint = "";
+/** 各平台 mod 状态（懒初始化；未知平台回退 Android） */
+const MODS_STATES: Record<string, ModsState> = {};
+
+function stateFor(platform: string): ModsState {
+  const key = platform || "Android";
+  if (!MODS_STATES[key]) {
+    MODS_STATES[key] = { list: emptyModsList(), loaded: false, fingerprint: "" };
+  }
+  return MODS_STATES[key];
+}
+
+/** 某平台加载的 mod 目录：平台专属目录优先，共享根目录回退（既支持平台 mod 也兼容历史根目录 mod） */
+function platformModDirs(platform: string): string[] {
+  const dirs: string[] = [];
+  const sub = PLATFORM_DIRS[platform];
+  if (sub) dirs.push(join(MODS_DIR, sub));
+  dirs.push(MODS_DIR);
+  return dirs;
+}
 
 /**
- * 轻量扫描 mods 目录的 .dat 文件指纹（仅 stat，不读内容）。
+ * 轻量扫描某平台 mod 目录的 .dat 文件指纹（仅 stat，不读内容）。
  * 用于版本端点检测资源变更：避免每次请求全量读 .dat 重算 md5。
- * @returns 指纹串（mtimeMs|size，按文件名排序）；目录不存在/IO 异常返回 ""
+ * @param platform - 平台键（Windows/Android）
+ * @returns 指纹串（path|mtimeMs|size，按路径排序）；目录不存在/IO 异常跳过对应目录
  */
-async function computeModsFingerprint(): Promise<string> {
-  let entries: string[];
-  try {
-    entries = await readdir(MODS_DIR);
-  } catch {
-    return "";
-  }
+async function computeModsFingerprint(platform: string): Promise<string> {
   const parts: string[] = [];
-  for (const f of entries) {
-    if (!f.endsWith(".dat")) continue;
+  for (const dir of platformModDirs(platform)) {
+    let entries: string[];
     try {
-      const st = await stat(join(MODS_DIR, f));
-      parts.push(`${f}:${st.mtimeMs}:${st.size}`);
+      entries = await readdir(dir);
     } catch {
-      parts.push(`${f}:missing`);
+      continue;
+    }
+    for (const f of entries) {
+      if (!f.endsWith(".dat")) continue;
+      try {
+        const st = await stat(join(dir, f));
+        parts.push(`${dir}/${f}:${st.mtimeMs}:${st.size}`);
+      } catch {
+        parts.push(`${dir}/${f}:missing`);
+      }
     }
   }
   parts.sort();
@@ -177,66 +206,76 @@ async function computeModsFingerprint(): Promise<string> {
 }
 
 /**
- * 运行时 mod 变更检测：mods 目录指纹变化时重载 MODS_LIST。
- * 重打包 Lua 资源（替换/新增 .dat）后，无需重启服务即可让 resVersion 后缀变化，
+ * 运行时 mod 变更检测：某平台 mod 目录指纹变化时重载其列表。
+ * 重打包 Lua 资源（替换/新增 .dat）后，无需重启服务即可让该平台 resVersion 后缀变化，
  * 从而提示客户端重新拉取热更清单并下载新资源。
+ * @param platform - 平台键（Windows/Android）
  * @returns 本次是否发生了重载
  */
-export async function refreshModsIfChanged(): Promise<boolean> {
+export async function refreshModsIfChanged(platform: string): Promise<boolean> {
   if (!config.assets.enableMods) return false;
-  const fp = await computeModsFingerprint();
-  if (fp === modsFingerprint) return false;
-  modsFingerprint = fp;
+  const state = stateFor(platform);
+  const fp = await computeModsFingerprint(platform);
+  if (fp === state.fingerprint) return false;
+  state.fingerprint = fp;
   try {
-    MODS_LIST = await loadMods();
+    state.list = await loadMods(platform);
     logger.info(
       "Asset",
-      `mod 变更检测到，已重载：${MODS_LIST.mods.length} 个`,
+      `[${platform}] mod 变更检测到，已重载：${state.list.mods.length} 个`,
     );
   } catch (error) {
-    logger.error("Asset", `mod 变更重载失败: ${(error as Error).message}`);
-    MODS_LIST = emptyModsList();
+    logger.error("Asset", `[${platform}] mod 变更重载失败: ${(error as Error).message}`);
+    state.list = emptyModsList();
   }
   return true;
 }
 
 /**
- * 加载 mod 列表（启动预热/缺省加载用）。失败不阻塞——记录错误并置空列表
+ * 加载某平台 mod 列表（启动预热/缺省加载用）。失败不阻塞——记录错误并置空列表。
+ * @param platform - 平台键；缺省时预热全部已知平台
  */
-export async function initMods(): Promise<void> {
-  if (MODS_LOADED) return;
-  MODS_LOADED = true;
-  try {
-    MODS_LIST = await loadMods();
-    // 同步指纹基线，避免启动后首个版本请求触发一次无意义的重复重载
-    modsFingerprint = await computeModsFingerprint();
-    logger.info(
-      "Asset",
-      `mod 加载完成：${MODS_LIST.mods.length} 个（enableMods=${config.assets.enableMods}）`,
-    );
-  } catch (error) {
-    logger.error("Asset", `mod 加载失败: ${(error as Error).message}`);
-    MODS_LIST = emptyModsList();
+export async function initMods(platform?: string): Promise<void> {
+  const keys = platform ? [platform] : Object.keys(PLATFORM_DIRS);
+  for (const p of keys) {
+    const state = stateFor(p);
+    if (state.loaded) continue;
+    state.loaded = true;
+    try {
+      state.list = await loadMods(p);
+      // 同步指纹基线，避免启动后首个版本请求触发一次无意义的重复重载
+      state.fingerprint = await computeModsFingerprint(p);
+      logger.info(
+        "Asset",
+        `[${p}] mod 加载完成：${state.list.mods.length} 个（enableMods=${config.assets.enableMods}）`,
+      );
+    } catch (error) {
+      logger.error("Asset", `[${p}] mod 加载失败: ${(error as Error).message}`);
+      state.list = emptyModsList();
+    }
   }
 }
 
-export function getModsList(): ModsList {
-  return MODS_LIST;
+export function getModsList(platform: string): ModsList {
+  return stateFor(platform).list;
 }
 
-export async function ensureModsLoaded(): Promise<void> {
-  if (!MODS_LOADED) await initMods();
+export async function ensureModsLoaded(platform: string): Promise<void> {
+  const state = stateFor(platform);
+  if (!state.loaded) await initMods(platform);
 }
 
 /**
  * 确定性 resVersion 后缀：mod 集合不变 → 后缀不变（客户端不重复全量重下）；
- * mod 变更 → 后缀变化（触发热更清单重新拉取）。无 mod 时返回 ""（保持原版行为）
+ * mod 变更 → 后缀变化（触发热更清单重新拉取）。无 mod 时返回 ""（保持原版行为）。
+ * @param platform - 平台键（Windows/Android），后缀按平台独立计算
  */
-export function getModVersionSuffix(): string {
-  if (MODS_LIST.mods.length === 0) return "";
+export function getModVersionSuffix(platform: string): string {
+  const list = stateFor(platform).list;
+  if (list.mods.length === 0) return "";
   // 签名含内容指纹（md5）：插件/内置 bundle 内容变更必然改变 md5 → 后缀变化 → 客户端重新拉取热更清单并下载。
   // 仅用 name|totalSize 时，repack 后 totalSize 未必变（zip 压缩后尺寸巧合相等），客户端会因后缀未变而误用本地缓存旧 bundle。
-  const sig = MODS_LIST.mods
+  const sig = list.mods
     .map((m) => `${(m as { name: string }).name}|${(m as { md5: string }).md5}`)
     .sort()
     .join(",");
@@ -273,6 +312,7 @@ async function exportFile(
   filePath: string,
   assetsHash: string,
   reDownload = false,
+  mods?: ModsList,
 ): Promise<string> {
   if (basename(filePath) === "hot_update_list.json") {
     let hotUpdateList;
@@ -293,7 +333,7 @@ async function exportFile(
         if (abInfo.hash.length === 24) {
           abInfo.hash = assetsHash;
         }
-        if (!MODS_LIST.name.includes(abInfo.name)) {
+        if (!mods!.name.includes(abInfo.name)) {
           newAbInfos.push(abInfo);
         }
       } else {
@@ -302,7 +342,7 @@ async function exportFile(
     }
 
     if (config.assets.enableMods) {
-      for (const mod of MODS_LIST.mods) {
+      for (const mod of mods!.mods) {
         newAbInfos.push(mod);
       }
     }
@@ -346,27 +386,30 @@ async function exportFile(
   return join(basePath, fileName);
 }
 
-async function loadMods(): Promise<ModsList> {
-  const fileList: string[] = [];
+async function loadMods(platform: string): Promise<ModsList> {
   const loadedModList: ModsList = emptyModsList();
-  const modsDir = MODS_DIR;
 
-  // 容错：mods 目录不存在（未创建/未启用）时返回空列表——避免 readdir ENOENT 使清单请求 500
-  let dirEntries: string[];
-  try {
-    dirEntries = await readdir(modsDir);
-  } catch (error) {
-    logger.warn(
-      "Asset",
-      `mods 目录不存在（${modsDir}），跳过 mod 加载: ${(error as Error).message}`,
-    );
-    return loadedModList;
-  }
-  for (const file of dirEntries) {
-    if (file !== ".placeholder" && file.endsWith(".dat")) {
-      fileList.push(join(modsDir, file));
+  // 收集所有 .dat：平台专属目录在前（平台 mod 优先去重），共享根目录在后（回退）
+  const fileList: string[] = [];
+  for (const dir of platformModDirs(platform)) {
+    let dirEntries: string[];
+    try {
+      dirEntries = await readdir(dir);
+    } catch (error) {
+      // 容错：目录不存在（未创建/未启用）跳过——避免 readdir ENOENT 使清单请求 500
+      logger.warn(
+        "Asset",
+        `mods 目录不存在（${dir}），跳过: ${(error as Error).message}`,
+      );
+      continue;
+    }
+    for (const file of dirEntries) {
+      if (file !== ".placeholder" && file.endsWith(".dat")) {
+        fileList.push(join(dir, file));
+      }
     }
   }
+  if (fileList.length === 0) return loadedModList;
 
   const datFileInfos: { [key: string]: { size: number; crc32: number } } = {};
 
@@ -388,7 +431,8 @@ async function loadMods(): Promise<ModsList> {
     }
   }
 
-  const modCachePath = join(__dirname, "..", "mods.json");
+  // 平台隔离缓存文件（避免 Windows/Android 互踩覆盖）
+  const modCachePath = join(__dirname, "..", `mods.${platform}.json`);
   let modCache = null;
 
   if (await exists(modCachePath)) {
@@ -399,25 +443,20 @@ async function loadMods(): Promise<ModsList> {
 
   if (modCache) {
     const cachedDatFileInfos = modCache.file;
-    // 指纹比对：键为绝对路径——旧缓存（异地/旧项目路径）键不匹配 → 自动判失效重建
+    // 指纹比对：键为绝对路径（含平台子目录）——旧缓存（异地/旧项目路径/旧单一结构）键不匹配 → 自动判失效重建
     if (JSON.stringify(datFileInfos) === JSON.stringify(cachedDatFileInfos)) {
-      // 新格式缓存 path 存相对文件名（可移植）；旧格式为绝对路径（含盘符/分隔符）→ 失效
-      const cachedPaths: unknown[] = modCache.mod?.path ?? [];
-      const isLegacyPath = cachedPaths.some(
-        (p) => typeof p !== "string" || p.includes(":") || p.includes("/") || p.includes("\\"),
-      );
-      if (!isLegacyPath) modCacheValid = true;
+      modCacheValid = true;
     }
   }
 
   if (modCacheValid && modCache) {
     const cached = modCache.mod;
-    // 相对文件名 → 绝对路径（mods/ 目录整体迁移后仍正确指向新位置）
     loadedModList.mods = cached.mods;
     loadedModList.name = cached.name;
-    loadedModList.path = (cached.path as string[]).map((p) => join(modsDir, p));
+    // 缓存 path 相对 MODS_DIR（如 windows/foo.dat 或 foo.dat）→ 还原绝对路径
+    loadedModList.path = (cached.path as string[]).map((p) => join(MODS_DIR, p));
     loadedModList.download = cached.download;
-    logger.info("Asset", `${fileList[0] ?? "mods"} - Using Cached Mod...`);
+    logger.info("Asset", `[${platform}] ${fileList[0] ?? "mods"} - Using Cached Mod...`);
     return loadedModList;
   }
 
@@ -503,8 +542,8 @@ async function loadMods(): Promise<ModsList> {
 
             loadedModList.mods.push(abInfo);
             loadedModList.name.push(modName);
-            // 运行时 path 为绝对路径；落盘缓存转存相对文件名（可移植）
-            loadedModList.path.push(join(modsDir, basename(filePath)));
+            // 运行时 path 为绝对路径；落盘缓存转存相对 MODS_DIR 的路径（含平台子目录，可移植）
+            loadedModList.path.push(relative(MODS_DIR, filePath));
             loadedModList.download.push(downloadName);
             await writeFile(
               modCachePath,
@@ -514,7 +553,7 @@ async function loadMods(): Promise<ModsList> {
                   mod: {
                     mods: loadedModList.mods,
                     name: loadedModList.name,
-                    path: loadedModList.path.map((p) => basename(p)),
+                    path: loadedModList.path.map((p) => relative(MODS_DIR, p)),
                     download: loadedModList.download,
                   },
                 },

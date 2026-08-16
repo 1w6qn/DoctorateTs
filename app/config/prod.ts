@@ -10,11 +10,11 @@ router.get("/official/Windows/version", async (req, res) => {
   const win = (config.version as any).windows;
   let modPatch = {};
   if (config.assets.enableMods) {
-    await ensureModsLoaded();
+    await ensureModsLoaded("Windows");
     // 运行时检测 mod 变更（重打包后无需重启即可让 resVersion 后缀变化 → 客户端重新拉取下载）
-    await refreshModsIfChanged();
-    const suffix = getModVersionSuffix();
-    // Windows 与 Android 同需 mod 后缀：resVersion 变更才能触发客户端重新拉取热更清单
+    await refreshModsIfChanged("Windows");
+    const suffix = getModVersionSuffix("Windows");
+    // Windows 与 Android 均需各自平台 mod 后缀：resVersion 变更才能触发客户端重新拉取热更清单
     if (suffix) modPatch = { resVersion: (win?.resVersion || config.version.resVersion) + suffix };
   }
   res.send(Object.assign({}, win || config.version, modPatch));
@@ -22,10 +22,10 @@ router.get("/official/Windows/version", async (req, res) => {
 router.get("/official/Android/version", async (req, res) => {
   let modPatch = {};
   if (config.assets.enableMods) {
-    await ensureModsLoaded();
+    await ensureModsLoaded("Android");
     // 运行时检测 mod 变更（重打包后无需重启即可让 resVersion 后缀变化 → 客户端重新拉取下载）
-    await refreshModsIfChanged();
-    const suffix = getModVersionSuffix();
+    await refreshModsIfChanged("Android");
+    const suffix = getModVersionSuffix("Android");
     // 确定性后缀：mod 不变则版本稳定（避免随机 +0..99 每次启动全量重下），mod 变更才变
     if (suffix) modPatch = { resVersion: config.version.resVersion + suffix };
   }
@@ -35,10 +35,11 @@ router.get("/official/Android/version", async (req, res) => {
 router.get("/official/:version/version", async (req, res) => {
   let modPatch = {};
   if (config.assets.enableMods) {
-    await ensureModsLoaded();
+    // 通用版本端点无法判定平台，回退 Android mod 集
+    await ensureModsLoaded("Android");
     // 运行时检测 mod 变更（重打包后无需重启即可让 resVersion 后缀变化 → 客户端重新拉取下载）
-    await refreshModsIfChanged();
-    const suffix = getModVersionSuffix();
+    await refreshModsIfChanged("Android");
+    const suffix = getModVersionSuffix("Android");
     if (suffix) modPatch = { resVersion: config.version.resVersion + suffix };
   }
   res.send(Object.assign({}, config.version, modPatch));

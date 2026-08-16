@@ -12,6 +12,11 @@ test/
 assets/
 mods/*
 !mods/.placeholder
+# 平台专属 mod 子目录（保留占位入 git，.dat 仍忽略）
+!mods/windows/
+!mods/windows/.placeholder
+!mods/android/
+!mods/android/.placeholder
 mods.json
 src/
 .idea
@@ -45,6 +50,7 @@ scripts/_extract-obs.py
 scripts/_extract-traffic.py
 scripts/_verify-mitmweb.ts
 # 工具运行时产物（计划、配置）
+.archcore/
 .zcode/
 opencode.json
 exports/

@@ -5,7 +5,7 @@ import { crc32 } from "crc";
 import axios from "axios";
 import { EventEmitter } from "events";
 import yauzl, { ZipFile } from "yauzl";
-import { mkdir, readdir, readFile, writeFile } from "fs/promises";
+import { mkdir, readdir, readFile, writeFile, stat } from "fs/promises";
 import config from "./config";
 import { exists, size } from "@utils/file";
 import { logger } from "@utils/logger";
@@ -147,6 +147,59 @@ let MODS_LIST: ModsList = emptyModsList();
 /** mod 列表是否已尝试加载（ensureModsLoaded 幂等用——避免空 mods 目录时每请求重复扫描） */
 let MODS_LOADED = false;
 
+/** mods 目录最后一次已知指纹（mtimeMs|size），用于运行时热更新检测（重打包/增删 mod 后触发重载） */
+let modsFingerprint = "";
+
+/**
+ * 轻量扫描 mods 目录的 .dat 文件指纹（仅 stat，不读内容）。
+ * 用于版本端点检测资源变更：避免每次请求全量读 .dat 重算 md5。
+ * @returns 指纹串（mtimeMs|size，按文件名排序）；目录不存在/IO 异常返回 ""
+ */
+async function computeModsFingerprint(): Promise<string> {
+  let entries: string[];
+  try {
+    entries = await readdir(MODS_DIR);
+  } catch {
+    return "";
+  }
+  const parts: string[] = [];
+  for (const f of entries) {
+    if (!f.endsWith(".dat")) continue;
+    try {
+      const st = await stat(join(MODS_DIR, f));
+      parts.push(`${f}:${st.mtimeMs}:${st.size}`);
+    } catch {
+      parts.push(`${f}:missing`);
+    }
+  }
+  parts.sort();
+  return parts.join(",");
+}
+
+/**
+ * 运行时 mod 变更检测：mods 目录指纹变化时重载 MODS_LIST。
+ * 重打包 Lua 资源（替换/新增 .dat）后，无需重启服务即可让 resVersion 后缀变化，
+ * 从而提示客户端重新拉取热更清单并下载新资源。
+ * @returns 本次是否发生了重载
+ */
+export async function refreshModsIfChanged(): Promise<boolean> {
+  if (!config.assets.enableMods) return false;
+  const fp = await computeModsFingerprint();
+  if (fp === modsFingerprint) return false;
+  modsFingerprint = fp;
+  try {
+    MODS_LIST = await loadMods();
+    logger.info(
+      "Asset",
+      `mod 变更检测到，已重载：${MODS_LIST.mods.length} 个`,
+    );
+  } catch (error) {
+    logger.error("Asset", `mod 变更重载失败: ${(error as Error).message}`);
+    MODS_LIST = emptyModsList();
+  }
+  return true;
+}
+
 /**
  * 加载 mod 列表（启动预热/缺省加载用）。失败不阻塞——记录错误并置空列表
  */
@@ -155,6 +208,8 @@ export async function initMods(): Promise<void> {
   MODS_LOADED = true;
   try {
     MODS_LIST = await loadMods();
+    // 同步指纹基线，避免启动后首个版本请求触发一次无意义的重复重载
+    modsFingerprint = await computeModsFingerprint();
     logger.info(
       "Asset",
       `mod 加载完成：${MODS_LIST.mods.length} 个（enableMods=${config.assets.enableMods}）`,

@@ -2,7 +2,7 @@ import { Router } from "express";
 import config from "../config";
 import { readJson } from "@utils/file";
 import { buildNetworkConfigContent } from "./remote-config";
-import { ensureModsLoaded, getModVersionSuffix } from "../asset";
+import { ensureModsLoaded, getModVersionSuffix, refreshModsIfChanged } from "../asset";
 
 const router = Router();
 // Windows 平台独立版本（odpy 参考：config.version.windows；无则回退单版本）
@@ -11,6 +11,8 @@ router.get("/official/Windows/version", async (req, res) => {
   let modPatch = {};
   if (config.assets.enableMods) {
     await ensureModsLoaded();
+    // 运行时检测 mod 变更（重打包后无需重启即可让 resVersion 后缀变化 → 客户端重新拉取下载）
+    await refreshModsIfChanged();
     const suffix = getModVersionSuffix();
     // Windows 与 Android 同需 mod 后缀：resVersion 变更才能触发客户端重新拉取热更清单
     if (suffix) modPatch = { resVersion: (win?.resVersion || config.version.resVersion) + suffix };
@@ -21,6 +23,8 @@ router.get("/official/Android/version", async (req, res) => {
   let modPatch = {};
   if (config.assets.enableMods) {
     await ensureModsLoaded();
+    // 运行时检测 mod 变更（重打包后无需重启即可让 resVersion 后缀变化 → 客户端重新拉取下载）
+    await refreshModsIfChanged();
     const suffix = getModVersionSuffix();
     // 确定性后缀：mod 不变则版本稳定（避免随机 +0..99 每次启动全量重下），mod 变更才变
     if (suffix) modPatch = { resVersion: config.version.resVersion + suffix };
@@ -32,6 +36,8 @@ router.get("/official/:version/version", async (req, res) => {
   let modPatch = {};
   if (config.assets.enableMods) {
     await ensureModsLoaded();
+    // 运行时检测 mod 变更（重打包后无需重启即可让 resVersion 后缀变化 → 客户端重新拉取下载）
+    await refreshModsIfChanged();
     const suffix = getModVersionSuffix();
     if (suffix) modPatch = { resVersion: config.version.resVersion + suffix };
   }

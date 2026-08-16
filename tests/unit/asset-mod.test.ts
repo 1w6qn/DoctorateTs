@@ -36,6 +36,7 @@ vi.mock("fs/promises", async (importOriginal) => {
     readFile: vi.fn(),
     writeFile: vi.fn().mockResolvedValue(undefined),
     mkdir: vi.fn().mockResolvedValue(undefined),
+    stat: vi.fn(),
   };
 });
 
@@ -54,9 +55,9 @@ vi.mock("yauzl", () => ({
 }));
 
 import assetRouter from "../../app/asset";
-import { getModsList, getModVersionSuffix } from "../../app/asset";
+import { getModsList, getModVersionSuffix, refreshModsIfChanged } from "../../app/asset";
 import { exists, size } from "@utils/file";
-import { readdir, readFile } from "fs/promises";
+import { readdir, readFile, stat } from "fs/promises";
 
 /** asset.ts 的 mods 目录（app/.. / mods = 项目根 / mods） */
 const modsDir = join(__dirname, "..", "..", "mods");
@@ -196,5 +197,25 @@ describe("asset mod（enableMods=true）", () => {
 
     // 缓存未命中 → 走 zip 解析（yauzl mock 失败）→ 空列表（而非使用旧路径缓存）
     expect(getModsList().mods).toHaveLength(0);
+  });
+
+  it("refreshModsIfChanged：mod 文件指纹变化时触发重载，未变化时跳过（运行时重打包热更新）", async () => {
+    // loadMods 走 zip 解析（yauzl mock 失败 → 空列表）；仅验证指纹驱动的重载触发
+    let mtime = 1000;
+    vi.mocked(readdir).mockResolvedValue(["a.dat"] as any);
+    vi.mocked(stat).mockImplementation(async () => ({ mtimeMs: mtime, size: 10 }) as any);
+    vi.mocked(exists).mockResolvedValue(false); // mods.json 缓存不存在
+    vi.mocked(size).mockResolvedValue(10);
+    vi.mocked(readFile).mockResolvedValue(Buffer.from("not a zip") as any);
+
+    // 首次调用建立指纹基线 → 触发重载
+    expect(await refreshModsIfChanged()).toBe(true);
+    // 指纹未变 → 不重载（避免每次版本请求重复扫描）
+    expect(await refreshModsIfChanged()).toBe(false);
+    // mod 内容变更（mtime 变化）→ 再次触发重载
+    mtime = 2000;
+    expect(await refreshModsIfChanged()).toBe(true);
+    // 变更后趋于稳定 → 不再重载
+    expect(await refreshModsIfChanged()).toBe(false);
   });
 });

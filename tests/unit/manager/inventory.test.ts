@@ -68,6 +68,18 @@ vi.mock("@excel/excel", () => {
       },
       ShopClientTable: {},
       SkillDataBundle: {},
+      ActivityTable: {
+        basicInfo: {
+          act53side: { id: "act53side", type: "TYPE_ACT53SIDE", name: "直到大地变成一颗酸橙" },
+        },
+        activity: {
+          tYPE_ACT53SIDE: {
+            act53side: {
+              constData: { coinItemId: "act53side_token_photo" },
+            },
+          },
+        },
+      },
     },
   };
 });
@@ -390,6 +402,42 @@ describe("InventoryManager", () => {
       await expect(
         manager.gainItem({ id: "TKT_GACHA", count: 1 })
       ).resolves.toBeUndefined();
+    });
+  });
+
+  describe("TYPE_ACT53SIDE 活动币跟踪（奇象巡展 actCoin）", () => {
+    it("获得 coinItemId 物品时应累加 activity.TYPE_ACT53SIDE.actCoin", async () => {
+      mockPlayer._playerdata.activity = {
+        TYPE_ACT53SIDE: { act53side: { actCoin: 0, campaignCnt: 0, favorList: [] } },
+      };
+      const manager = new InventoryManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      await mockTrigger.emit("items:get", [[
+        { id: "act53side_token_photo", type: "ACTIVITY_ITEM", count: 3 },
+      ]]);
+
+      expect(
+        mockPlayer._playerdata.activity.TYPE_ACT53SIDE.act53side.actCoin
+      ).toBe(3);
+    });
+
+    it("非活动币物品不触碰 actCoin", async () => {
+      mockPlayer._playerdata.activity = {
+        TYPE_ACT53SIDE: { act53side: { actCoin: 5, campaignCnt: 0, favorList: [] } },
+      };
+      const manager = new InventoryManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      await manager.gainItem({ id: "mat_001", type: "MATERIAL", count: 1 });
+
+      expect(
+        mockPlayer._playerdata.activity.TYPE_ACT53SIDE.act53side.actCoin
+      ).toBe(5);
     });
   });
 });

@@ -1,11 +1,12 @@
 /**
  * 干员技能解锁工具（等级/精英化驱动）
  *
- * 官方标准规则：技能1 默认解锁；技能2 精1（evolvePhase>=1）解锁；
- * 技能3 精2（evolvePhase>=2）解锁（如有）。
- * ⚠️ 勿用 allSkillLvlup[i].unlockCond / skills[i].unlockCond 作为技能解锁条件——
- * 前者是主技能等级升级条件（所有技能恒为 PHASE_0/l1），后者是专精解锁条件；
- * 两者都与技能解锁无关（test.json 为官服导入快照，技能状态不一致，不可作基准）。
+ * 完全采用官服线格式：
+ * - 干员 skills 数组列出该干员 excel 中的全部技能（阿米娅除外，其技能在 tmpl 中）。
+ * - 每个技能用 unlock 表示当前是否解锁：1 = 已解锁，0 = 未解锁的官方锁定占位。
+ * - 解锁条件以 excel CharacterTable[charId].skills[i].unlockCond.phase 为准，
+ *   即当前 evolvePhase >= 所需 phase 时 unlock = 1，否则 unlock = 0。
+ * - 官服存档在未精一/未精二时仍会列出未来技能占位（unlock:0），修复/回填时不得删除。
  */
 import excel from "@excel/excel";
 
@@ -27,11 +28,47 @@ export interface CharSkillsLike {
   defaultSkillIndex?: number;
 }
 
+/** 单个技能在 excel 中的解锁信息 */
+interface ExcelSkillInfo {
+  skillId: string;
+  /** 解锁所需精英化阶段（0/1/2） */
+  phase: number;
+}
+
 /**
- * 计算干员当前应解锁的技能 ID 列表（标准规则：精1→技能2、精2→技能3）
+ * 将 excel 的 phase 字段（数字 0/1/2 或 "PHASE_0"/"PHASE_1"/"PHASE_2"）归一化为数字
+ */
+function normalizePhase(phase: unknown): number {
+  if (typeof phase === "number") return phase;
+  if (typeof phase === "string") {
+    const n = Number(phase.replace(/^PHASE_/, ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
+/**
+ * 获取干员在 excel 中的全部技能及解锁阶段（阿米娅/无技能干员返回空）
+ */
+function excelSkillInfos(charId: string): ExcelSkillInfo[] {
+  // 阿米娅：技能在升变 tmpl 三形态中，char.skills 恒为空（官方同）
+  if (charId === "char_002_amiya") return [];
+  const info = (excel.CharacterTable as Record<string, any>)?.[charId];
+  const skills = info?.skills;
+  if (!Array.isArray(skills) || skills.length === 0) return [];
+  return skills
+    .filter((s: any) => s?.skillId)
+    .map((s: any) => ({
+      skillId: s.skillId,
+      phase: normalizePhase(s?.unlockCond?.phase),
+    }));
+}
+
+/**
+ * 计算干员当前应解锁的技能 ID 列表（完全按 excel skills[i].unlockCond.phase）
  * @param charId - 干员ID（char_002_amiya 技能在 tmpl，返回空）
  * @param evolvePhase - 精英化阶段（0/1/2）
- * @param level - 等级（标准规则不依赖等级，保留参数以兼容调用方）
+ * @param level - 等级（官方解锁条件不依赖等级，保留参数以兼容调用方）
  * @returns 应解锁的技能 ID 数组（无技能干员/阿米娅返回空）
  */
 export function unlockedSkillIds(
@@ -39,45 +76,37 @@ export function unlockedSkillIds(
   evolvePhase: number,
   level: number,
 ): string[] {
-  // 阿米娅：技能在升变 tmpl 三形态中，char.skills 恒为空（官方同）
-  if (charId === "char_002_amiya") return [];
-  const info = (excel.CharacterTable as Record<string, any>)?.[charId];
-  const skills = info?.skills;
-  if (!skills || !skills.length) return [];
-  const out: string[] = [];
-  for (let i = 0; i < skills.length; i++) {
-    if (i === 0) {
-      out.push(skills[i].skillId); // 技能1 默认
-    } else if (i === 1 && evolvePhase >= 1) {
-      out.push(skills[i].skillId); // 技能2 精1解锁
-    } else if (i >= 2 && evolvePhase >= 2) {
-      out.push(skills[i].skillId); // 技能3 精2解锁（如有）
-    }
-  }
-  return out;
+  const phase = Number(evolvePhase) || 0;
+  return excelSkillInfos(charId)
+    .filter((s) => s.phase <= phase)
+    .map((s) => s.skillId);
 }
 
 /**
- * 按当前精英化重组干员 skills：追加新解锁技能（保留已有条目的
- * state/specializeLevel/completeUpgradeTime，unlock 置 1），移除当前阶段未解锁
- * 且无投入的技能（标准规则：精1→技能2、精2→技能3——旧规则曾多发放技能2/3），
- * 校正 defaultSkillIndex（有技能且 -1/越界/缺失 → 0；无技能且 dsi 异常 → -1）。
+ * 按官方线格式重组干员 skills：
+ * - 保留已有条目的 state/specializeLevel/completeUpgradeTime；
+ * - 按 excel skills[i].unlockCond.phase 校正 unlock（1=已解锁，0=锁定占位）；
+ * - 补齐缺失的全部官方技能（含未解锁占位），移除不在 excel 中且无投入的技能；
+ * - 校正 defaultSkillIndex（有技能时须指向已解锁技能；无技能且 dsi 异常 → -1）。
  *
- * 幂等：对已合规干员无副作用。移除仅在技能无专精/训练投入时进行（有投入保留，
- * 不破坏数据）。
+ * 幂等：对已合规官服存档无副作用。移除仅在技能不在 excel 且无专精/训练投入时进行
+ * （有投入保留，不破坏数据）。
  * @param char - 干员对象（原地修改）
  * @returns 是否发生变更
  */
 export function reconcileCharSkills(char: CharSkillsLike): boolean {
   let changed = false;
   const skills: CharSkillEntry[] = char.skills ?? (char.skills = []);
-  const unlocked = unlockedSkillIds(char.charId, char.evolvePhase, char.level);
-  // 移除当前阶段未解锁且无投入的技能（倒序遍历避免索引错位）
+  const officialSkills = excelSkillInfos(char.charId);
+  const officialIds = new Set(officialSkills.map((s) => s.skillId));
+  const evolvePhase = Number(char.evolvePhase) || 0;
+
+  // 1. 移除不在 excel 中且无投入的技能（倒序遍历避免索引错位）
   for (let i = skills.length - 1; i >= 0; i--) {
     const s = skills[i];
     if (!s || !s.skillId) continue;
     if (
-      !unlocked.includes(s.skillId) &&
+      !officialIds.has(s.skillId) &&
       (s.specializeLevel ?? 0) === 0 &&
       s.state !== 1
     ) {
@@ -85,31 +114,62 @@ export function reconcileCharSkills(char: CharSkillsLike): boolean {
       changed = true;
     }
   }
-  for (const skillId of unlocked) {
-    const existing = skills.find((s) => s && s.skillId === skillId);
-    if (!existing) {
-      skills.push({
-        skillId,
-        unlock: 1,
+
+  // 2. 按 excel 官方技能列表补齐/校正 unlock
+  const byId = new Map<string, CharSkillEntry>();
+  for (const s of skills) {
+    if (s && s.skillId && !byId.has(s.skillId)) byId.set(s.skillId, s);
+  }
+  for (const info of officialSkills) {
+    const expectedUnlock = info.phase <= evolvePhase ? 1 : 0;
+    let entry = byId.get(info.skillId);
+    if (!entry) {
+      entry = {
+        skillId: info.skillId,
+        unlock: expectedUnlock,
         state: 0,
         specializeLevel: 0,
         completeUpgradeTime: -1,
-      });
+      };
+      byId.set(info.skillId, entry);
       changed = true;
-    } else if (existing.unlock !== 1) {
-      existing.unlock = 1;
+    } else if (entry.unlock !== expectedUnlock) {
+      entry.unlock = expectedUnlock;
       changed = true;
     }
   }
-  // defaultSkillIndex 校正：有技能时 dsi 必须为合法索引（-1/越界/缺失 → 0）；
-  // 无技能时仅当 dsi 已定义且非 -1 才校正为 -1（旧数据 -1 已合规，缺失不动）
+
+  // 3. 按官方顺序重建数组；不在 excel 中但有投入的非官方技能保留在末尾
+  const ordered: CharSkillEntry[] = [];
+  for (const info of officialSkills) {
+    const entry = byId.get(info.skillId);
+    if (entry) ordered.push(entry);
+  }
+  for (const s of skills) {
+    if (s && s.skillId && !officialIds.has(s.skillId)) ordered.push(s);
+  }
+  if (
+    ordered.length !== skills.length ||
+    ordered.some((s, i) => s !== skills[i])
+  ) {
+    skills.length = 0;
+    skills.push(...ordered);
+    changed = true;
+  }
+
+  // 4. defaultSkillIndex 校正：有技能时必须指向已解锁技能（unlock === 1）；
+  //    无技能时仅当 dsi 已定义且非 -1 才校正为 -1（旧数据 -1 已合规，缺失不动）
   if (skills.length > 0) {
-    if (
-      char.defaultSkillIndex === undefined ||
-      char.defaultSkillIndex < 0 ||
-      char.defaultSkillIndex >= skills.length
-    ) {
-      char.defaultSkillIndex = 0;
+    const firstUnlocked = skills.findIndex((s) => s && s.unlock === 1);
+    const validDefault = firstUnlocked >= 0 ? firstUnlocked : 0;
+    const current = char.defaultSkillIndex;
+    const pointsToUnlocked =
+      current !== undefined &&
+      current >= 0 &&
+      current < skills.length &&
+      skills[current]?.unlock === 1;
+    if (!pointsToUnlocked) {
+      char.defaultSkillIndex = validDefault;
       changed = true;
     }
   } else if (

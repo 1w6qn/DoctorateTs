@@ -6,8 +6,12 @@
  * sandbox_1/2、shop_act53side 等）；请求/响应类型见
  * @game/model/protocol/templateShop（参考 CS 2.7.61 协议类）。
  *
- * 私服便利：各商店货币均为活动代币（如 act53side_token_photo），事件战斗未实现
- * → 玩家无法获取。getGoodList 打开商店时自动补足到可购全店一次的额度。
+ * 2026-08-16 官服抓包对齐（tmp/capture/records/R-1786877194008-0087/0088）：
+ * - getGoodList 响应含 allPriceDict（[{startTime, maxPrice}]，maxPrice=购全店总额）
+ * - buyGood 更新 playerdata.tshop.{shopId}.{coin, info:[{id,count}], progressInfo}（官服形状，
+ *   原实现写自创 (draft).templateShop 字段客户端不读）；CHAR_SKIN 商品走 items:get 入 skin
+ * - 枢纽店（shop_act1arkhub）货币 = activity.ARK_HUB.act1arkhub.coin（与 tshop 币同步）；
+ *   act53side 店货币 = activity.TYPE_ACT53SIDE.act53side.actCoin（与 tshop 币同步）
  */
 
 import { Router } from "express";
@@ -29,7 +33,8 @@ const templateShopData = readJsonSync<{
   [shopId: string]: {
     shopId: string;
     price: { id: string; count: number; type: string };
-    shopGroup: { [groupId: string]: { shopGood: { [goodId: string]: any } } };
+    startTime?: number;
+    shopGroup: { [groupId: string]: { shopGood: { [goodId: string]: any }; progressGoods?: any } };
   };
 }>("./data/shop/templateShop.json");
 
@@ -57,32 +62,79 @@ function shopPurchasePower(shop: any): number {
 }
 
 /**
+ * 商店货币引用（活动币计数——枢纽店/主活动店与 activity 状态同步，其余走 tshop.coin）
+ *
+ * 官服形状：shop_act1arkhub 币 = activity.ARK_HUB.act1arkhub.coin；
+ * shop_act53side 币 = activity.TYPE_ACT53SIDE.act53side.actCoin；
+ * 均与 playerdata.tshop.{shopId}.coin 镜像同步。buyGood 扣币、getGoodList 补足
+ * 都走这里，保证客户端显示的商店币与活动页币一致。
+ * @returns 硬币读写引用（draft 内使用）；无法确定返回 null
+ */
+function shopCoinRefs(
+  draft: any,
+  shopId: string,
+): { coin: number; set: (v: number) => void } | null {
+  if (shopId === "shop_act1arkhub") {
+    const hub = draft?.activity?.ARK_HUB?.act1arkhub;
+    return hub
+      ? { coin: hub.coin ?? 0, set: (v: number) => (hub.coin = v) }
+      : null;
+  }
+  if (shopId === "shop_act53side") {
+    const act = draft?.activity?.TYPE_ACT53SIDE?.act53side;
+    return act ? { coin: act.actCoin ?? 0, set: (v: number) => (act.actCoin = v) } : null;
+  }
+  return null;
+}
+
+/** 读取/创建 tshop 商店状态（playerdata.tshop.{shopId}.{coin, info, progressInfo}） */
+function ensureShopState(draft: any, shopId: string): any {
+  draft.tshop = draft.tshop ?? {};
+  const st = (draft.tshop[shopId] = draft.tshop[shopId] ?? {
+    coin: 0,
+    info: [],
+    progressInfo: {},
+  });
+  if (typeof st.coin !== "number") st.coin = 0;
+  if (!Array.isArray(st.info)) st.info = [];
+  if (!st.progressInfo || typeof st.progressInfo !== "object") st.progressInfo = {};
+  return st;
+}
+
+/**
  * 获取商品列表
  * @route POST /templateShop/getGoodList
  * @param req.body.shopId - 商店ID
- * @returns 商品数据、下次同步时间和玩家增量数据
+ * @returns 商品数据（含 allPriceDict）、下次同步时间和玩家增量数据
  *
  * 修复：原实现返回空 data（商店打不开）；现按 ODPY 读取
  * templateShop.json[shopId] 返回完整商店配置；并自动补足商店货币
- *（私服便利——活动代币无获取途径）
+ *（私服便利——活动代币无获取途径）。2026-08-16 对齐官服响应补 allPriceDict。
  */
 router.post("/getGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { shopId } = req.body as TemplateGetGoodListRequest;
   const data = templateShopData?.[shopId];
-  // 私服便利：货币不足购全店时补足（保持玩家已有余额；只补差）
+  // 私服便利：货币不足购全店时补足（保持玩家已有余额；只补差）——写活动币/tshop 币
+  // 而非库存物品（客户端商店币显示取自 tshop.coin）
   if (data?.price?.id) {
-    const currencyId = data.price.id;
     const total = shopPurchasePower(data);
     await player.update(async (draft) => {
-      const have = draft.inventory[currencyId] ?? 0;
-      if (have < total) {
-        draft.inventory[currencyId] = total;
+      const coinRef = shopCoinRefs(draft, shopId);
+      const st = ensureShopState(draft, shopId);
+      if (coinRef) {
+        if (coinRef.coin < total) coinRef.set(total);
+        if (st.coin < total) st.coin = total;
+      } else if (st.coin < total) {
+        st.coin = total;
       }
     });
   }
+  const allPriceDict = data?.startTime
+    ? [{ startTime: data.startTime, maxPrice: shopPurchasePower(data) }]
+    : [];
   res.send({
-    data: data ?? {},
+    data: { ...(data ?? {}), allPriceDict },
     nextSyncTime: -1,
     ...player.delta,
   } satisfies TemplateGetGoodListResponse);
@@ -97,6 +149,8 @@ router.post("/getGoodList", async (req, res) => {
  * 修复：原实现回显请求体（客户端拿不到 itemList/增量）；现按商店配置校验并发放
  * 商品（扣货币 → 发物品 → 记录购买次数）。PROGRESS 商品按 progressGoods 档位
  * 取价格与发放物（good.item 为 null、price 为 0——旧实现会错误发放 MATERIAL 占位）。
+ * 2026-08-16 对齐官服（buyGood 抓包）：购买记录写 playerdata.tshop.{shopId}.info
+ *（{id, count}），扣币写活动币/tshop.coin，响应增量含 tshop 状态。
  */
 router.post("/buyGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
@@ -120,15 +174,12 @@ router.post("/buyGood", async (req, res) => {
   const items: ItemBundle[] = [];
   if (good) {
     await player.update(async (draft) => {
-      // 购买记录（模板商店无独立字段，用 (draft as any).templateShop 记录）
-      let tshop = (draft as any).templateShop as any;
-      if (!tshop) {
-        (draft as any).templateShop = {};
-        tshop = (draft as any).templateShop;
-      }
-      if (!tshop[shopId]) tshop[shopId] = {};
+      const st = ensureShopState(draft, shopId);
+      const coinRef = shopCoinRefs(draft, shopId);
+      // 购买记录（官方 tshop.info）
+      const boughtRec = st.info.find((r: any) => r.id === goodId);
+      const bought = boughtRec?.count ?? 0;
       // 限购检查（availCount）
-      const bought = tshop[shopId][goodId] ?? 0;
       if (good.availCount && bought + count > good.availCount) {
         return;
       }
@@ -141,23 +192,19 @@ router.post("/buyGood", async (req, res) => {
         price = tier.price ?? 0;
         grant = tier.item;
       }
-      // 扣货币（商店 price 指定货币；不足则不发放）
-      const currencyId = shop?.price?.id;
-      const currencyType = shop?.price?.type;
-      if (currencyId && price > 0) {
-        const have =
-          currencyType === "GOLD"
-            ? draft.status.gold
-            : draft.inventory[currencyId] ?? 0;
-        if (have < price * count) return;
-        if (currencyType === "GOLD") {
-          draft.status.gold -= price * count;
-        } else {
-          draft.inventory[currencyId] = have - price * count;
-        }
+      // 扣货币（活动币引用优先，其余走 tshop.coin；不足则不发放）
+      const have = coinRef ? coinRef.coin : st.coin;
+      if (have < price * count) return;
+      const remain = have - price * count;
+      if (coinRef) coinRef.set(remain);
+      st.coin = remain;
+      // 记录购买
+      if (boughtRec) {
+        boughtRec.count = bought + count;
+      } else {
+        st.info.push({ id: goodId, count: bought + count });
       }
-      tshop[shopId][goodId] = bought + count;
-      // 发放商品
+      // 发放商品（CHAR_SKIN 等经 items:get 正确入账）
       if (grant) {
         items.push({
           id: grant.id ?? goodId,
@@ -168,7 +215,7 @@ router.post("/buyGood", async (req, res) => {
     });
   }
 
-  // 物品经 items:get 发放（干员走 char 入账，其余走 inventory）
+  // 物品经 items:get 发放（干员走 char 入账，皮肤走 skin，其余走 inventory）
   if (items.length > 0) {
     await player._trigger.emit("items:get", [items]);
   }

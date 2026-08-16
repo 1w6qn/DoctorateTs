@@ -161,6 +161,19 @@ export class BattleManager {
     const rewards: ItemBundle[] = [];
     const unlockStages: string[] = [];
     await this._player.update(async (draft) => {
+      // 修复：关卡未播种（如活动剧情关卡在播种前被客户端提交）时先补默认条目，
+      // 避免 `draft.dungeon.stages[stageId].state` 读 undefined 崩溃 → 500
+      if (!draft.dungeon.stages[stageId]) {
+        draft.dungeon.stages[stageId] = {
+          stageId,
+          practiceTimes: 0,
+          completeTimes: 0,
+          startTimes: 0,
+          state: 0,
+          hasBattleReplay: 0,
+          noCostCnt: 1,
+        };
+      }
       const stageState = draft.dungeon.stages[stageId].state;
       if (stageState !== 3) {
         draft.dungeon.stages[stageId].state = 3;
@@ -364,7 +377,11 @@ export class BattleManager {
         ) {
           firstClear = true;
         }
-        if (playerStage.state == 1 && [2, 3].includes(battleData.completeState)) {
+        // 修复：原 `playerStage.state == 1` 前置——state=1 仅在失败（completeState==1）后
+        // 置位，首通（state 0 → completeState 2/3）时解锁链被跳过 → 活动关卡链断裂
+        // （如 act53side_01 首通后 tr01 不解锁）。改为任意胜利（2/3）即执行解锁链，
+        // 幂等（已存在关卡不覆盖）
+        if ([2, 3].includes(battleData.completeState)) {
           if (stageId == "main_08-16") {
             //todo: amiya guard
           }
@@ -607,9 +624,10 @@ export class BattleManager {
       }
     }
     if (isPractice) {
-      return {};
+      return { result: 0 };
     }
     return {
+      result: 0,
       apFailReturn,
       expScale,
       goldScale,

@@ -39,7 +39,7 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import httpContext from "express-http-context2";
-import arkodcRouter from "../../../app/game/router/arkodc";
+import arkodcRouter, { finishArkOdcGuideStory } from "../../../app/game/router/arkodc";
 import { mockPlayerData } from "../../helpers";
 
 function mockRes() {
@@ -134,5 +134,20 @@ describe("arkodc（奇象巡展 ODC）路由", () => {
     });
     const topic = player._playerdata.arkodc?.topics?.["ark_odc_act53side"];
     expect(topic?.varSeqs).toBeUndefined();
+  });
+
+  it("finishArkOdcGuideStory：教程剧情提交后同步 varSeq bool_end_guide_done=1（topic 惰性创建）", async () => {
+    await finishArkOdcGuideStory(
+      player,
+      "activities/act53side/ark_odc_act53side_guide",
+    );
+    const topic = player._playerdata.arkodc?.topics?.["ark_odc_act53side"];
+    expect(topic).toBeDefined();
+    expect(topic.varSeqs.bool_end_guide_done).toBe(1);
+  });
+
+  it("finishArkOdcGuideStory：非 ODC 教程剧情不写入 varSeqs", async () => {
+    await finishArkOdcGuideStory(player, "activities/act53side/level_act53side_01_beg");
+    expect(player._playerdata.arkodc).toBeUndefined();
   });
 });

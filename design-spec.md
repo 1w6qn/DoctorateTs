@@ -1607,3 +1607,204 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 - **D-1 空闲账号卸载**：real 模式 30 分钟无请求的账号先落盘后从内存卸载（`data[uid]` 删除），下次请求自动重载；singleUid 与 fresh 账号保留。单例模式不启用（单账号卸载会抖动）。
 - **A-2 savePlayerData 序列化**：实测 `JSON.stringify` 5.4MB 对象 ~9ms，已防抖离请求路径 + 紧凑输出（1.7MB）——`savePlayerData` 增加耗时 debug 日志；worker_threads 序列化收益低（9ms 可接受）暂缓（YAGNI）。
 - **D-2 excel 内存**：82MB 源 JSON 全量解析后驻留内存较大；懒加载已缓解内容表，核心表（character/stage/item/skill）仍常驻——多账号/大内存压力场景再评估分表卸载。
+
+## 25. 奇象巡展 ODC 修复记录（2026-08-16）
+
+### 25.1 无限新手教程（bool_end_guide_done 缺失）
+
+**症状**：奇象巡展 ODC 地图每次进入都重放新手教程（`ark_odc_act53side_guide`）。
+
+**根因**（对比官服完成态快照 `tmp/capture/records/R-1786248128589.9783-0050`）：
+- 教程触发 actor `logic_game_end_p1` 的 `actorShowCondition` = `q003_prog==4 && bool_end_guide_done==0 && q003_banner_showed==1`，`actorTriggerType=AUTO_ONCE` → `PlayArkodcTutorial(ark_odc_act53side_guide)`。
+- 客户端提交教程剧情走 `/story/finishStory`（storyId `activities/act53side/ark_odc_act53side_guide`，story_table trigger=CUSTOM_OPERATION），原实现只写 `status.flags`，**从未把主题 varSeq `bool_end_guide_done` 置 1** → 条件恒真 → 每次进图重放教程。官服完成态含 `varSeqs.bool_end_guide_done=1`。
+
+**修复**：
+- `home.ts /story/finishStory`：提交 ODC 教程剧情后同步 `arkodc.topics[topicId].varSeqs.bool_end_guide_done=1`（helper `finishArkOdcGuideStory` 在 `arkodc.ts`，topicId 从 excel `TYPE_ACT53SIDE[].constData.arkOdcTopicId` 动态取）。
+- `unlockActivity.ts` 播种时回填：`status.flags[该教程剧情]` 已置 1 但 varSeq 缺失的旧存档补置（修复前漏洞账号无需重新提交即自愈；未提交过教程的账号保持待触发状态）。
+- 单测：unlockActivity 回填 ×2 + arkodc helper ×2；实机验证 2222 回填生效、2223 提交后 flag+varSeq 同步。
+
+### 25.2 人物模型不显示排查结论
+
+- ODC 地图 actor 显示由 `arkventDataMap[topicId].taskData.actorData[].actorShowCondition`（VARSEQ EQ 语义，缺失键=0）驱动；空 varSeqs（新账号播种）→ 初始 5 名 NPC（阿米娅/九色鹿/博士家/博士宿舍/森蚺）应显示，完成态 → 5 名 q003 角色（aosta/broca/firwhl/chiave/ray，均为默认皮肤）应显示——与官服行为一致，无服务端数据缺陷。
+- **方舟枢纽广场玩家模型缺失（实锤根因，2026-08-16 二次排查）**：对比官服网关真实抓包（`tmp/capture/records/2026-08-09T04-29-12-534Z/parsed.json`），官服 EnterSceneNotify 的 `PlayerSyncData.PlayerBrief` 含 `4:level、5:avatarId、6:charId、7:skinId`，本地应答器原实现只发 uid/nickname/nicknumber → 客户端**无法渲染广场玩家模型**（"不显示人物模型"）。另缺 `AvatarInfo`（f2）与 `GuideFlags`（f3，area_*_block/guard、arkhub_login 等 hub 区域/引导状态）→ 区域引导状态缺失。
+- **修复**（`arkhub-gateway-local.ts` + `index.ts`）：PlayerBrief 补 level/avatarId/charId/skinId（char/skin 取 `status.secretary`/`secretarySkinId`，即主界面秘书干员——与官服网关一致）；补 AvatarInfo；GuideFlags 一次性标记 hub 区域/引导全部完成（私服不模拟逐步解锁）；`enterHall` 回报实际监听端口（端口被占自动避让，仿转发器）。
+- 用户实机日志佐证：`logs/server-20260816.log` 16:19:36 客户端登录本地网关 + 场景 hello 后无后续动作（卡在枢纽场景）。
+
+### 25.2b 枢纽引导对话重复（GuideFlags 编码 bug，2026-08-16 第三轮）
+
+**症状**：进入枢纽广场每次重复播放引导对话（`arkhub_main_terminal_auto`，ENTER 触发，条件 `terminal_guide==0 && arkhub_login==0`）。
+
+**根因**：枢纽是独立 Arkvent 主题（`arkventDataMap.act1arkhub`），其 varSeq 状态（`terminal_guide`/`arkhub_login`/`capture_catch_guide_01/02`/`area_1_block` 等）**不由 playerdata 下发，而由网关 EnterSceneNotify 的 GuideFlags（f3）提供**（官服 27 份 playerdata 快照的 `arkodc.topics` 均无 `act1arkhub`）。本地网关原实现不下发 GuideFlags；第一轮修复（25.2）补发时**把 14 条 flag 全部包进同一个 field-1 载荷**（`fb(1, concat(entries))`），而正确形状是 **14 个重复的 field-1 条目**——客户端只解析到 1 条 → `terminal_guide/arkhub_login` 仍缺失 → 每次进图重放引导。
+
+**修复**：GuideFlags 改为 `...entries.map(e => fb(1, e))`（重复字段），实测探测（`tmp/probe-gateway.mjs` 直连网关解码）14 条 flag 全部下发，且 `arkhub_login=1`、`terminal_guide=1` 使引导条件不再成立。PlayerBrief charId/skinId 经同一探测确认已生效（`char_1012_skadi2#1`）。回归测试 +1（GuideFlags 重复条目逐条断言）。
+
+### 25.2c 枢纽第二步引导对话挂起（GuideFlags 取值 1 vs 2，2026-08-16 第四轮）
+
+**症状**：入口引导不再重复，但进入广场后卡在**另一段对话**。
+
+**根因**：GuideFlags 是**进度计数**而非纯布尔——官服完成态 `capture_catch_guide_01/02`、`arkdex_battle_guide` 取值 **2**（0=未开始 / 1=第二步引导播放中 / 2=完成）。上一轮全部取 1 反而**激活**了条件 `==1` 的 AUTO actor：
+- `arkhub_capture1_mmkabi_01b [AUTO]`（cond `capture_catch_guide_02==1`）→ `ReceiveArkhubReward{reward_guide_01}`
+- `arkhub_main_bryota_01c [AUTO]`（cond `arkdex_battle_guide==1`）→ `SubmitArkhubAVG`
+
+枢纽的奖励/AVG 提交走网关帧，本地网关对未知帧只回空 ACK → 客户端收不到真实响应 → **对话挂起**（日志无 HTTP 错误，与实机现象吻合）。
+
+**修复**：GuideFlags 取值改为官服完成态快照（进度类=2，布尔类=1）。修复后 14 条 flag 与官服逐一相等，`==1` 的 AUTO 引导不再触发，广场仅剩可交互 NPC。回归测试断言逐条取值；实机探测确认下发值与官服完成态完全一致。枢纽奖励/AVG 网关帧（ReceiveArkhubReward/SubmitArkhubAVG）的完整实现留待需要时补（当前"全部完成态"方案无需）。
+
+## 26. 奇象巡展全链路审计与修复（2026-08-16，官服数据对照）
+
+### 26.1 官服完成态快照比对
+
+以 `tmp/capture/records/R-1786248128589.9783-0050`（官服完成账号全量 playerdata）为基准，与本服 2222/2223 逐项对照：
+
+| 维度 | 官服完成态 | 本服现状 | 结论 |
+|---|---|---|---|
+| activity.TYPE_ACT53SIDE | actCoin=33, favorList 4 人 | actCoin 随掉落累计（修复前恒 0），favorList 一致 | **actCoin 缺跟踪（已修）** |
+| activity.ARK_HUB | coin=1200, secretary, 4×squads | 形状一致 | ✓ |
+| arkodc.topics.ark_odc_act53side | 34 varSeq + 10 rewards | 一致（修复后含 bool_end_guide_done） | ✓ |
+| dungeon.stages act53side | 01-09/st01-03/sp01-02/ex01-08(+#f#) | 一致（33 关） | ✓ |
+| status.flags act53side/arkhub | 19 条 | 19 条完全一致 | ✓ |
+| ACTIVITY 任务 | 53sideActivity_1..39 + 1arkhubActivity_1..22 | 62 条已播种（state 2 可领） | ✓ 可领取 |
+
+### 26.2 修复的三处功能缺口（全链路实测）
+
+1. **actCoin 不累计（inventory.ts）**：官服 actCoin 随活动币（`constData.coinItemId` = act53side_token_photo）获取累计——关卡掉落活动币时同步 `activity.TYPE_ACT53SIDE[actId].actCoin`。原实现只入背包、事件页硬币计数恒 0。新增 `_trackAct53SideCoin`（items:get 监听内，coinItemId→actId 惰性映射）。实测 actCoin 0→3。
+2. **关卡链首通断裂（battle.ts finish）**：解锁链前置 `playerStage.state == 1`——state=1 仅在失败（completeState==1）后置位，**首通（state 0→3）跳过解锁链** → 活动关卡链断裂（act53side_01 首通后 tr01 不解锁）。改为任意胜利（completeState 2/3）执行（幂等，已存在关卡不覆盖）。实测 act53side_02 首通解锁 act53side_03。
+3. **battleFinish 响应缺 result（battle.ts finish）**：官服/CS 响应含 `result`，原返回缺失 → 客户端解析异常风险。补 `result: 0`（含练习分支）。
+
+### 26.3 审计确认无缺口的链路
+
+- 活动任务：confirmActivityMission 走 ActivityTable.missionData 兜底，53sideActivity_* 可正常领取（实测发放 randomMaterial_act53side 等）
+- 商店：/templateShop getGoodList（参数 **shopId**，非 shopType）+ buyGood（扣活动币发物品 + 限购记录 + 开店自动补足购全店额度），shop_act53side 4 组商品实测可购
+- ODC 任务链：/arkodc/triggerInteraction avgId 分支推进 varSeq（q001_prog 0→1 实测）
+- 剧情：/story/finishStory + /quest/finishStoryStage（未播种关卡补条目修复于 §25.3）
+- 战斗：act53side 关卡 battleStart/battleFinish 完整结算（掉落 act53side_token_photo/材料/金币 + 首通奖励）
+- 单测：actCoin ×2、battle 首通解锁 + result ×1（共 1702 全绿）
+
+### 26.4 新号注册修复（SQLite 感知，2026-08-16 第二轮）
+
+**症状**：admin 创建新账号 → `reloadUser` ENOENT（`data/user/databases/{uid}.json` 不存在）——方案 A+C 下存档主体在 SQLite player_data 表（gzip BLOB），注册成功但玩家数据加载失败。
+
+**根因**：`AdminService.reloadUser/backup/exportUser` 直读 JSON 文件，库内账号无文件。
+
+**修复**：
+- `AccountManager` 新增 `readPlayerData(uid)`（内存已加载优先，否则 SQLite/文件回退）与 `reloadPlayer(uid)`（先落盘卸载再从库重载）
+- `AdminService.reloadUser/backup/exportUser` 改走 `readPlayerData`/`reloadPlayer`
+- 实测：新账号 2227/2228 注册成功、播种完整
+
+### 26.5 arkodc `topics["undefined"]` 残留（2026-08-16 第二轮）
+
+**症状**：新账号 `arkodc.topics` 出现 `"undefined"` 主题（position null）——早期会话对 uid=1 调 `/arkodc/restart` 缺 topicId 时 `ensureArkOdcTopic(undefined)` 写入，SQLite 模板继承给所有新账号。
+
+**修复（三层）**：
+1. 路由防呆：`savePosition/triggerInteraction/restart` 校验 topicId 缺失/空串 → 返回业务错误，不再写脏数据
+2. save-health 自愈：`arkodc.topics` 移除 `"undefined"`/空串键、position null 重置原点（幂等）
+3. 实测：新账号 2228 仅含 `ark_odc_act53side`；存量账号重启加载时自动剥离
+
+### 26.6 枢纽网关帧协议分析（ARKDUEL，留待完整实现）
+
+官服网关抓包（2026-08-09）解码：枢纽战斗走 TCP 网关帧，body = `[4B seq][protobuf]`：
+- 战斗开始：请求 sub=0xb7c267d7（f1 为 JSON：`{"squad":{...},"assistFriend":null}`）→ 响应 sub=0xb7c20f13（含奖励 id `act1arkhub_14` + 嵌套干员数据）
+- 战斗结算：请求 sub=0xb7c204e8（f1=`uid:ts` battleId）→ 响应 sub=0xb7c2b07e（`{f1:100, f2:battleId}`）
+- 结果帧：0xb7c26451 / 0xb7c2d119（干员状态/奖励明细）
+- 其它：位置同步 0x38b32a34→0x38b36462、0x31d603b3→0x31d60cf6（32 字节 hex token 帧）
+当前本地网关对未知帧回空 ACK（subID+1）——广场可正常进入/移动/交互，ARKDUEL 等深层玩法需按上述协议补齐（响应 subID 非 req+1，各类型映射不同；实现需更多抓包样本验证奖励/结算语义）。
+
+### 26.7 枢纽切场景（传送门）+ 网关完整日志（2026-08-16 第三轮）
+
+**症状**：无法传送至其他地图——枢纽传送门（ArkhubEnterScene → act1arkhub_capture_scene_1/2/3 捕抓区）走网关帧，本地网关不识别切场景请求 → 空 ACK → 客户端不加载新场景。
+
+**协议（官服抓包解码）**：
+- 切场景请求：`subID low32 = 0x38b3b60b`（高 32 位为会话/场景前缀，随场景变化），body = `{1:2, 2:<目标 map_id 有符号 varint>}`——**f2 即目标场景 map_id**（实测 CAPTURE1=-820616879）
+- 响应序列：先 ACK `0x38b3a5a8 {1:9}`，再发新场景 `EnterSceneNotify 0x38b37d3d`（HallInfo.map_id = 目标）
+- 场景 map_id（activity.sceneTypeMap）：TOWN=-1520665757，CAPTURE 1/2/3=-820616879/-820813487/-820747951
+
+**修复**（`arkhub-gateway-local.ts`）：
+- `buildEnterScene` 参数化 map_id；切场景请求按 low32 匹配、解析 f2 目标 map_id → 回 ACK + 新场景 EnterSceneNotify（TOWN/CAPTURE 双向均可）；场景状态按连接维护
+- **完整帧日志**：全部收发帧记录 `[arkhub-gateway]`（方向/mainID/subID/长度/hex 预览）；心跳与位置同步为高频噪音 → DEBUG，其余（登录/场景/交互/战斗）→ INFO
+- 回归测试：单连接全流程（登录→TOWN 场景→切场景→ACK+CAPTURE 场景），断言 TOWN/CAPTURE map_id varint 与官服一致
+
+### 26.8 枢纽设施锁定（扫描仪/道具箱/数据库/交换站/画像册，2026-08-16 第四轮）
+
+**症状**：捕抓区/广场的菜单设施（扫描仪=ARKDEX_CREATURE、道具箱=ARKDEX_ITEM、数据库=ARKDEX_ALBUM、交换站=ARKDEX_TRADE、画像册=ARKPIXEL，`activity.ARK_HUB.menuData`，`isPermanent:false`）全部锁定不可用。
+
+**根因**：设施解锁不由 playerdata（官服全量快照无任何 func/arkdex 字段）也不由场景单位（EnterSceneNotify f5 仅为玩家位置条目）携带，而是**客户端本地执行场景操作** `UnlockArkhubFunc{funcId:7}`（唯一来源：`pixel_unlock [AUTO]`，条件 `capture_catch_guide_02==1 && pixel_unlock_system==0`）。本地网关此前下发 `capture_catch_guide_02=2`（完成态）→ 该 AUTO 永不触发 → 客户端永不执行解锁 → 设施锁定。官服账号经引导链自然执行过该操作故已解锁。
+
+**修复**：GuideFlags 的 `capture_catch_guide_02` 改为 **1**（引导第二步进行态）→ `pixel_unlock [AUTO]` 触发 → 客户端执行 `UnlockArkhubFunc{funcId:7}` 解锁设施。代价：`arkhub_capture1_mmkabi_01b [AUTO]`（捕抓引导第二步 AVG+领奖，无 Submit 阻塞）会在进入捕抓区时播放一次；`arkdex_battle_guide` 保持 2（bryota_01c 的 SubmitArkhubAVG 会挂起，不触发）。若 mmkabi 领奖帧空 ACK 仍卡，需补 Reward 帧协议（当前抓包无样本）。
+
+**备注**：设施解锁为客户端本地状态（可能经 ArkOdcLocalCache 持久）——升级后若仍锁定，先清客户端缓存再进。
+
+### 26.9 传送出生点 + 引导对话完成 + 日志可读化（2026-08-16 第五轮）
+
+1. **传送后出生点错误**：原 EnterSceneNotify 所有场景统一用广场坐标 (4.38, 0.0065, 8.2)。官服抓包验证各场景出生点（PlayerHallBrief.pos）：TOWN=(4.742,-0.008,6.079)、CAPTURE1=(1.945,0.513,-6.85)。新增 `spawnPointFor(mapId)`（CAPTURE 1/2/3 用捕抓区坐标，缺样本沿用 CAPTURE1），切场景后按目标场景出生。
+2. **引导对话无法完成**：`capture_catch_guide_02=1` 后 mmkabi_01b 引导的 `ReceiveArkhubReward` 帧此前收空 ACK → 对话挂起。未知帧兜底改为回 **`{f1:100}` 业务成功码**（登录响应同款语义），奖励/交互帧可视为成功继续流程（`reward_guide_01`=arkdex_1_gold×50，见 activity.ARK_HUB rewardDataDict）。若仍卡需按日志抓实际领奖帧补精确响应。
+3. **日志可读化**：帧日志加语义名（登录/场景hello/场景数据/切场景/ARKDUEL*/位置同步/交互帧等）+ protobuf 轻解析字段摘要（`f1=2 f2=-820616879`），未知帧回退 hex 预览；心跳/位置同步仍 DEBUG。
+
+## 27. 小号首次进入枢纽的官服抓包分析（2026-08-16，source=official 实时抓包）
+
+官服实时抓包（`tmp/capture/records/R-1786876928580-0077` ~ `R-1786877206214-0089`，小号首次进入枢纽全流程）对齐实现：
+
+### 27.1 领取枢纽任务（confirmMultiGroupMissionList）
+
+- **请求形状**：客户端传 **`missionIds`**（任务 ID 列表）而非 missionGroupIds——原实现只读 missionGroupIds → 批量领取空转。路由两个字段都处理。
+- **confirmMission 兜底**：活动任务（ActivityTable.missionData，如 1arkhubActivity_*/53sideActivity_*）不在 MissionTable——原实现静默跳过。新增 `_confirmActivityTableMission`：发 missionData.rewards、置 state=3。
+- **枢纽币同步（官服形状）**：领取奖励含 act1arkhub_token_seal 的任务后，同步累加 `activity.ARK_HUB.act1arkhub.coin` 与 `tshop.shop_act1arkhub.coin`（抓包：领 5 个任务 → token_seal ×500、ARK_HUB.coin=500）。activity.ts confirmActivityMission 同步同款。
+
+### 27.2 syncInfo 返回枢纽进度
+
+原实现空增量。官服返回 `{mission.missions.ACTIVITY(1arkhubActivity_* 进度), medal.medals(枢纽勋章), activity.ARK_HUB(状态)}`——用 forcePatch 强制推送（纯读请求无 Immer 补丁）。
+
+### 27.3 模板商店对齐官服（templateShop）
+
+- **getGoodList**：响应补 `allPriceDict`（[{startTime, maxPrice=购全店总额}]）；补足货币改写活动币（ARK_HUB.coin / actCoin）与 `tshop.{shopId}.coin`（原写库存物品，客户端商店币不读）。
+- **buyGood**：改用官方 `playerdata.tshop.{shopId}.{coin, info:[{id,count}], progressInfo}`（原写自创 (draft).templateShop 字段客户端不读）；扣币走活动币引用（shop_act1arkhub→ARK_HUB.coin、shop_act53side→actCoin）+ tshop.coin；购买记录写 info；CHAR_SKIN 经 items:get 入 skin。
+- **数据补全**：templateShop.json 缺 `shop_act1arkhub`（枢纽兑换处，23 商品）——已从官服抓包 R-1786877194008-0087 提取补入（34 家店）。
+
+### 27.4 实机验证（2228 干净账号，全链路）
+
+领任务（token_seal + ARK_HUB.coin=200）→ syncInfo（任务进度+勋章+状态）→ getGoodList（allPriceDict+补足 coin=1780）→ buyGood act1arkhub_1（skin 发放 + ARK_HUB.coin 1780→1280 + tshop.info 记录）→ 复查一致。单测：templateShop 全量重写（7 条）+ 新购/限购/枢纽店扣币断言。
+
+## 28. 枢纽网关 TCP 帧协议补全（2026-08-16，官服抓包字节级对齐）
+
+解码官服网关完整会话（2026-08-09，328 up / 1221 down 帧）的全部请求→响应帧对，在本地网关实现：
+
+| 请求 subID | 语义 | 响应 subID | 响应结构（官服字节对齐） |
+|---|---|---|---|
+| 0x28f5ba6f | ARKDUEL 商店（道具价格表） | 0x28f5229c | `[seq] {1:100, 3:{1:ts, 2:[{1:序号,2:itemNumId,3:价格,4:库存}×7]}}`；道具 5004 标准诱引剂40/5005 专业60/5006 稀有250/5009 甜味60/5010 辣味60/5015 专业信息素60/5021 苦味60 |
+| 0x31d603b3 | 令牌刷新（诱引剂/宠物实体） | 0x31d60cf6 | `[seq] {1:100, 2:{1:实体id, 2:<新32位hex令牌>, 3:ts}}`——签发随机新令牌 |
+| 0xb7c267d7 | ARKDUEL 战斗开始（[4B seq]+squad JSON） | 0xb7c20f13 | `{1:[{2:19005,3:flag}×5], 2:"act1arkhub_14", 3:1}`（敌方单位+战斗标识，无 seq） |
+| 0xb7c204e8 | ARKDUEL 战斗结算（battleId） | 0xb7c2b07e | `[seq=战斗开始seq] {1:100, 2:<battleId回显>}` |
+| （服务端推送） | 战斗结果 | 0xb7c26451 / 0xb7c2d119 | `[seq] {1:{1:1,2:ts,3:单位×5}}` / `{1:[单位×5], 3:{1:19005,2:890,3:10}}` |
+
+- 响应 subID 前缀复用请求前缀（切场景 ACK 固定 0x2c89b3 除外）
+- 未知帧仍回 `{f1:100}`（0x38b3ab0c/0x38b39680/0x38b3c3c9 交互帧官服无响应，为 fire-and-forget）
+- 单测 +4（商店/令牌/战斗开始/结算+结果推送，TCP 实连字节断言）；实机探测与官服响应结构逐字段一致
+
+### 28.1 交互提交（0x38b3116d：{1:actorId, 2:operationId("get_reward")}）
+
+**协议来源**：2026-08-14 用户网关抓包（`arkhub_main_daily_task_02a` + `get_reward`）+ 实机日志（`arkhub_capture1_mmkabi_01b`）。
+
+**实现**：网关识别交互提交帧，按 actor 从奖励映射（activity.ARK_HUB.rewardDataDict）返回奖励（mmkabi_01b→reward_guide_01=arkdex_1_gold×50、daily_task_02a→reward_daily_task_01=×100），响应 `[seq]{1:100, 2:[奖励物品]}`（无官服样本，按战斗结算模式构造）。**mmkabi 捕抓引导领奖后 capture_catch_guide_02 1→2**（GuideFlags 改为按连接维护，下一次场景 hello 生效）——引导链完成、不再重放，设施解锁的 pixel_unlock 已在本会话触发。
+
+**日志修复**：
+- 心跳回显（main=2 sub=0）与位置同步降为 DEBUG（原误记为 INFO → "大量未知帧"刷屏）
+- 帧名补全：场景hello（low32 0de29cdb）/交互提交/交互响应；字符串字段完整显示（actorId/operationId 可见）
+- 单测 +1（交互提交：奖励响应 + 引导 02 推进断言）；实机探测：交互提交返回奖励、二次场景 hello 携带 02=2
+
+### 28.2 交互提交响应无官服样本 → 回退完成态（2026-08-16 第六轮）
+
+**症状**：mmkabi_01b 引导对话无法结束——客户端对 `0x38b3116d {1:actorId, 2:"get_reward"}` **每 9 秒超时重试**（seq 递增），响应（0x38b3116e 奖励载荷）未被认可。
+
+**排查**：官服无该帧响应样本（08-14 抓包会话在响应前断开；08-09 会话未做引导领奖）；客户端 C# 无网关帧逻辑（Lua 热更）。响应 subID（0x38b3 家族非 +1 映射）与 body 均无法从现有数据确定。
+
+**决策**：`capture_catch_guide_02` **回退完成态 2**——mmkabi_01b [AUTO]（条件 02==1）不再触发 → 重试循环与卡对话消失。设施解锁（pixel_unlock → UnlockArkhubFunc）已在 02=1 会话执行、客户端本地缓存保留（若重锁需清一次客户端缓存）。交互提交处理器保留（日常任务/其它 NPC 领奖仍可用）。位置 ACK（0x38b32a35）降 DEBUG。单测更新 02=2 期望，1710 全绿。
+
+### 25.3 会话日志暴露的其它缺陷（顺带修复）
+
+- **`/quest/finishStoryStage` 500（battle.ts 原 164 行）**：`draft.dungeon.stages[stageId].state` 对未播种关卡读 undefined 崩溃（08-15 日志 5 次）——现先补默认条目再置 state=3，并继续联动解锁。
+- **delta.ts `structuredClone` 兜底**：08-16 12:36 出现 "null could not be cloned" 500（`player.delta` 构建时克隆补丁值）——`cloneData` 加 try/catch，structuredClone 失败回退 JSON 深拷贝。
+- **`unlockActivity`/`activityDictKey` 防御性 `?.`**：excel ActivityTable 缺失时不再抛错（测试 mock 场景）。
+
+### 25.4 ODC 教程 varSeq 校正（2026-08-16 复核）
+
+复核官服 27 份含 `ark_odc_act53side` 主题的抓包：**完成态 varSeqs 为 34 键**（不含 `bool_end_guide_done`/`tre_*_got`），仅 1 份 40 键含之——`bool_end_guide_done` 是玩家实际完成末尾教程后由官服写入的**增量标记**，非必含字段；缺失时 `logic_game_end_p1`（q003_prog==4 && bool_end_guide_done==0 && q003_banner_showed==1，AUTO_ONCE → PlayArkodcTutorial）每次进图重放教程。25.1 的 finishStory 同步 + 播种回填仍为正确修复方向（与 40 键官服快照一致）。
+

@@ -219,8 +219,8 @@ export class TroopManager {
         if (char.charId == "char_002_amiya") {
           return;
         }
-        // 技能按官方规则回填/解锁（allSkillLvlup[i].unlockCond——test.json 378/378 验证；
-        // ⚠️ 勿用 skill.unlockCond 顶层字段：与解锁条件 1504 处不同，历史地雷）
+        // 技能按官服线格式回填/解锁（excel skills[i].unlockCond.phase；
+        // test.json 378/378 验证；未解锁技能以 unlock:0 占位保留）
         reconcileCharSkills(char);
         char.equip = char.equip || {};
         backfillOwner(char.charId, char.equip);

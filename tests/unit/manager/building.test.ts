@@ -229,9 +229,9 @@ describe("BuildingManager", () => {
   });
 
   describe("sync", () => {
-    /** 下一次 4:00/16:00 重置边界（对齐 DoctoratePy event.building 语义） */
-    function nextBoundary(): number {
-      const d = new Date();
+    /** 下一次 4:00/16:00 重置边界（与实现一致：基于 now()——mock 为 1234567890） */
+    function nextBoundary(tsSec: number): number {
+      const d = new Date(tsSec * 1000);
       const at = (h: number): Date => {
         const x = new Date(d);
         x.setHours(h, 0, 0, 0);
@@ -247,7 +247,7 @@ describe("BuildingManager", () => {
       );
     }
 
-    it("应该设置 event.building 为下一次 4:00/16:00 重置边界（对齐 DoctoratePy）并返回当前时间戳", async () => {
+    it("应该设置 event.building 为下一次最近事件时刻（无未来 completeWorkTime 时回到 4:00/16:00 重置边界）并返回当前时间戳", async () => {
       const manager = new BuildingManager(
         mockPlayer as any,
         mockTrigger as any
@@ -256,8 +256,11 @@ describe("BuildingManager", () => {
       const result = await manager.sync();
 
       // 修复前：now()+5000 → 5s 轮询；真实事件时间/远未来 → 客户端沿用过期事件时间
-      // 空响应紧循环。修复后：event.building = 下一次 4:00/16:00 基建重置边界
-      expect(mockPlayer._playerdata.event!.building).toBe(nextBoundary());
+      // 空响应紧循环。修复后：event.building = min(下一 4:00/16:00 重置边界, 最小未来
+      // completeWorkTime)——mock 无未来 cwt，故回到重置边界（对齐 DoctoratePy）。
+      expect(mockPlayer._playerdata.event!.building).toBe(
+        nextBoundary(1234567890),
+      );
       expect(result).toBe(1234567890);
     });
   });

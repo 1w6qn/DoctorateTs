@@ -183,8 +183,9 @@ export class CharManager {
           equip: {},
           voiceLan: "CN_MANDARIN",
         };
-        // 修复：新干员按等级/精英化填充技能（官方规则 allSkillLvlup[i].unlockCond；
-        // 原实现 skills 恒为空 → 客户端干员详情无技能可看）+ defaultSkillIndex
+        // 修复：新干员按官服线格式填充技能（excel skills[i].unlockCond.phase；
+        // 未解锁技能以 unlock:0 占位；原实现 skills 恒为空 → 客户端干员详情无技能可看）
+        // + defaultSkillIndex
         reconcileCharSkills(draft.troop.chars[charInstId]);
         // 修复：新干员创建后递增 curCharInstId，避免后续新干员 instId 冲突互相覆盖
         draft.troop.curCharInstId += 1;
@@ -289,7 +290,7 @@ export class CharManager {
         }
       }
       expMats.push({ id: "4001", count: gold });
-      // 技能解锁：等级提升解锁对应技能（如 40/55 级解锁技能2），保留已有技能状态
+      // 技能：按官服线格式校正 unlock（等级提升不会解锁技能），保留已有技能状态
       reconcileCharSkills(char);
       await this._trigger.emit("items:use", [expMats]);
       await this._trigger.emit("UpgradeChar", [{ char, exp: expTotal }]);
@@ -333,7 +334,7 @@ export class CharManager {
       char.exp = 0;
       // 修复：勋章 CharEvolveCount 事件从未 emit → 精英化勋章永不推进
       await this._trigger.emit("CharEvolveCount", [{ char }]);
-      // 技能解锁：精英化解锁对应技能（如 E1 解锁技能2、E2 解锁技能3），保留已有技能状态
+      // 技能：精英化后按官服线格式校正 unlock（如 E1 解锁技能2、E2 解锁技能3），保留已有技能状态
       reconcileCharSkills(char);
       if (destEvolvePhase >= 2) {
         char.skin = char.charId + "#2";

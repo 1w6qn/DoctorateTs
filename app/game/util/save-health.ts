@@ -175,10 +175,12 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
     }
   }
 
-  // 8. troop.chars 技能回填：按精英化解锁相应技能。
+  // 8. troop.chars 技能回填：完全采用官服线格式。
   //    历史 onCharGet 建档 skills 恒为空 → 客户端干员详情无技能可看（新干员/发放）。
-  //    标准规则：技能1 默认、精1→技能2、精2→技能3；幂等回填，阿米娅（技能在
-  //    tmpl）/无技能干员自动跳过。
+  //    按 excel skills[i].unlockCond.phase 补齐全部技能并校正 unlock（1=已解锁，
+  //    0=未解锁锁定占位）；阿米娅（技能在 tmpl）/无技能干员自动跳过。官方线格式的
+  //    unlock:0 锁定占位（未精一/未精二时仍列出的未来技能）会保留，不会被当作旧规则
+  //    多发放移除。
   if (chars && typeof chars === "object") {
     for (const [instId, ch] of Object.entries(chars)) {
       const c = ch as any;
@@ -191,7 +193,7 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
         );
         issues.push({
           path: `troop.chars[${instId}].skills`,
-          message: `技能按等级/精英化回填（解锁 ${unlocked.join(",") || "(无)"}）`,
+          message: `技能按官服线格式整理（解锁 ${unlocked.join(",") || "(无)"}）`,
           fixed: true,
         });
       }
@@ -227,6 +229,34 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
         issues.push({
           path: `building.rooms.TRAINING[${slotId}].trainer`,
           message: "trainer 为 null/非法，重置为空对象",
+          fixed: true,
+        });
+      }
+    }
+  }
+
+  // 9. arkodc 主题残留清理：
+  //    - topics["undefined"]（旧版 /arkodc/restart|savePosition 缺失 topicId 时写入的
+  //      JSON 键 "undefined" 脏数据，新账号从模板继承）
+  //    - position 为 null 的主题（restart 置空残留；客户端期望 {x,y,z}）
+  const arkTopics = data.arkodc?.topics;
+  if (arkTopics && typeof arkTopics === "object") {
+    for (const [tid, t] of Object.entries(arkTopics)) {
+      if (tid === "undefined" || (tid as string).length === 0) {
+        delete arkTopics[tid];
+        issues.push({
+          path: `arkodc.topics[${tid}]`,
+          message: "非法主题键（undefined/空串），移除",
+          fixed: true,
+        });
+        continue;
+      }
+      const topic = t as any;
+      if (topic && topic.position == null) {
+        topic.position = { x: 0, y: 0, z: 0 };
+        issues.push({
+          path: `arkodc.topics[${tid}].position`,
+          message: "position 为 null（restart 残留），重置为原点",
           fixed: true,
         });
       }

@@ -15,6 +15,7 @@ import excel from "@excel/excel";
 import { decryptBattleData } from "@utils/crypt";
 import { now } from "@utils/time";
 import { PlayerDeltaResponse } from "../model/protocol/common";
+import { activityDictKey } from "../manager/activity/unlockActivity";
 
 const router = Router();
 
@@ -62,6 +63,41 @@ function ensureArkOdcTopic(draft: any, topicId: string): any {
   if (!topic.rewards) topic.rewards = {};
   if (!topic.position) topic.position = { x: 0, y: 0, z: 0 };
   return topic;
+}
+
+/** 奇象巡展 ODC 新手教程剧情 id（客户端 /story/finishStory 提交；trigger CUSTOM_OPERATION=PlayArkodcTutorial） */
+export const ARK_ODC_GUIDE_STORY_ID = "activities/act53side/ark_odc_act53side_guide";
+
+/**
+ * 奇象巡展 ODC 新手教程完成同步（home.ts /story/finishStory 调用）
+ *
+ * 客户端教程（story ark_odc_act53side_guide）提交后，除 status.flags 标记外还需把
+ * 主题 varSeq `bool_end_guide_done` 置 1——logic_game_end_p1 的 actorShowCondition
+ * （q003_prog==4 && bool_end_guide_done==0 && q003_banner_showed==1）要求其为 0 才
+ * AUTO_ONCE 触发 PlayArkodcTutorial；缺失该 varSeq → 每次进图都重放新手教程。
+ * （官服完成态快照：varSeqs.bool_end_guide_done=1）
+ */
+export async function finishArkOdcGuideStory(
+  player: PlayerDataManager,
+  storyId: string,
+): Promise<void> {
+  if (storyId !== ARK_ODC_GUIDE_STORY_ID) return;
+  // topicId 从 excel 活动配置取（数据版本键名多变时 activityDictKey 动态命中）
+  const detail = (excel.ActivityTable?.activity as Record<string, any> | undefined)?.[
+    activityDictKey("TYPE_ACT53SIDE") ?? "tYPE_ACT53SIDE"
+  ];
+  let topicId = "ark_odc_act53side";
+  for (const data of Object.values(detail ?? {})) {
+    const candidate = (data as any)?.constData?.arkOdcTopicId;
+    if (candidate) {
+      topicId = candidate;
+      break;
+    }
+  }
+  await player.update(async (draft) => {
+    const topic = ensureArkOdcTopic(draft, topicId);
+    topic.varSeqs.bool_end_guide_done = 1;
+  });
 }
 
 /** 奇象巡展 ODC 开始战斗请求（CS: ArkOdcBattleStartRequest : DefaultStartBattleRequest） */
@@ -239,12 +275,27 @@ router.post("/battleFinish", async (req, res) => {
 router.post("/savePosition", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ArkOdcSavePositionRequest;
+  // 修复：缺失 topicId 时返回业务错误而非写入 topics["undefined"]
+  if (isInvalidTopicId(body.topicId)) {
+    return res.send(player.delta satisfies ArkOdcSavePositionResponse);
+  }
   await player.update(async (draft) => {
     const arkTopic = ensureArkOdcTopic(draft, body.topicId);
     arkTopic.position = { x: body.x, y: body.y, z: body.z };
   });
   res.send(player.delta satisfies ArkOdcSavePositionResponse);
 });
+
+/**
+ * 校验 ODC 主题 id（缺失/空串时返回业务错误）
+ *
+ * 修复：路由曾对缺失 topicId 直接 ensureArkOdcTopic(undefined) → 存档写入
+ * arkodc.topics["undefined"]（JSON 键 "undefined"），新账号从模板继承残留。
+ * 客户端正常必带 topicId；缺失时返回业务错误而非写脏数据。
+ */
+function isInvalidTopicId(topicId: string | undefined | null): boolean {
+  return typeof topicId !== "string" || topicId === "";
+}
 
 /**
  * 奇象巡展 ODC 触发互动（CS: ArkOdcTriggerActionRequest）
@@ -255,6 +306,9 @@ router.post("/triggerInteraction", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ArkOdcTriggerActionRequest;
   const { topicId, awardId, avgId, actorId } = body;
+  if (isInvalidTopicId(topicId)) {
+    return res.send({ items: [], ...player.delta } satisfies ArkOdcTriggerActionResponse);
+  }
   const arkvent = (excel as any).ArkventTable;
   let items: ItemBundle[] = [];
 
@@ -363,6 +417,12 @@ router.post("/triggerInteraction", async (req, res) => {
 router.post("/restart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ArkOdcRestartRequest;
+  // 修复：缺失 topicId 时返回业务错误而非写入 topics["undefined"]
+  if (isInvalidTopicId(body.topicId)) {
+    return res.send({
+      playerDataDelta: { modified: {}, deleted: {} },
+    } satisfies ArkOdcRestartResponse);
+  }
   let deletedKeys: string[] = [];
   await player.update(async (draft) => {
     const arkTopic = ensureArkOdcTopic(draft, body.topicId!);

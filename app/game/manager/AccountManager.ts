@@ -266,6 +266,45 @@ export class AccountManager implements BattleInfoStore {
     return this.data[uid];
   }
 
+  /**
+   * 读取玩家存档对象（SQLite 感知；内存已加载优先，否则从库/文件读取）
+   *
+   * admin 备份/导出/重载使用——方案 A+C 下存档主体在 SQLite player_data 表
+   * （gzip BLOB），直读 data/user/databases/{uid}.json 对库内账号必 ENOENT。
+   * @param uid - 用户ID
+   * @returns 存档 JSON 对象（不存在返回 null）
+   */
+  async readPlayerData(uid: string): Promise<PlayerDataModel | null> {
+    if (this.data[uid]) return this.data[uid]._playerdata;
+    if (this._playerDataRepo) {
+      const raw = this._playerDataRepo.get(uid);
+      if (raw !== null) return reorderRootKeys(JSON.parse(raw));
+    }
+    const filePath = `./data/user/databases/${uid}.json`;
+    if (fs.existsSync(filePath)) {
+      return reorderRootKeys(
+        JSON.parse(fs.readFileSync(filePath, "utf-8")),
+      );
+    }
+    return null;
+  }
+
+  /**
+   * 热重载玩家数据（admin 创建/修改账号后调用；SQLite 时代存档在库不在文件）
+   *
+   * 先落盘并卸载内存实例，再走 _loadPlayer 从 SQLite（方案 A+C）重新加载——
+   * 原 reloadUser 直读 JSON 文件，库内新账号无文件 → ENOENT。
+   * @param uid - 用户ID
+   */
+  async reloadPlayer(uid: string): Promise<void> {
+    if (this.data[uid]) {
+      await this.flushSave(uid);
+      delete this.data[uid];
+      delete this._lastAccess[uid];
+    }
+    await this._loadPlayer(uid);
+  }
+
   /** 最近访问时间戳（D-1 空闲卸载用） */
   private _lastAccess: { [uid: string]: number } = {};
   /** 空闲卸载清扫定时器 */

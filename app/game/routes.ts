@@ -120,6 +120,8 @@ export const routes: RouteRegistration[] = [
   { prefix: "/interlock", module: "./router/interlock" },
   { prefix: "/autochess", module: "./router/autochess" },
   { prefix: "/pay", module: "./router/pay" },
+  // 客户端 Lua 插件系统生效确认（PluginHeartbeat 心跳，见 lua/plugin/PluginHeartbeat.lua）
+  { prefix: "/plugin", module: "./router/plugin-heartbeat" },
   // —— 根级挂载：home 兜底 + user/activity rootRouter + 模块自带前缀对齐 ——
   { prefix: "/", module: "./router/home" },
   // user 模块根级路由（gallery/cg/medal/mainlineClue/server_time 等非 /user 前缀接口）

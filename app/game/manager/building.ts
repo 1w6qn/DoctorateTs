@@ -258,28 +258,109 @@ export class BuildingManager {
    * @returns 当前时间戳
    */
   /**
-   * 计算 event.building（对齐 DoctoratePy/官服语义）
+   * 内部方法：推进各生产房间 completeWorkTime 到未来（修复高频无限 sync）
    *
-   * 官方：event.building = 下一次 4:00/16:00 重置边界（基建每日状态刷新点）——
-   * 客户端据此调度下一次 /building/sync（每日最多两次轮询，而非连续轮询）。
-   * 修复：原实现先后用过 now()+5000（5s 轮询）与真实下一事件时间/远未来
-   * （远未来值恒定 → delta 无 event 补丁 → 客户端沿用缓存的过期事件时间 →
-   * 空响应紧循环）。
+   * 客户端基建界面依据每个房间的 completeWorkTime 设置倒计时，并在其到达时触发
+   * /building/sync 刷新。若 completeWorkTime 为过去值（含 0/缺失），客户端判定该房间
+   * "事件已到期待处理"→ 立即 sync → 服务端不推进 → 无限请求。官方存档中 completeWorkTime
+   * 恒为未来（下一次生产/订单/招募完成时刻）。此处按当前生产进度重算：
+   * - 制造站：now + (costPoint - processPoint) / capacity（下一方案完成）
+   * - 贸易站：now + (maxPoint - next.processPoint) / next.speed（下一订单刷新）
+   * - 会客室/招募：now + (phase 阶段点 - processPoint) / speed（下一线索/干员刷新）
+   * @param draft - mutative 可写草稿
    */
-  private _nextBuildingEventTs(draft: Draft<PlayerDataModel>): number {
-    const nowDate = new Date();
-    const boundary = (h: number): Date => {
-      const x = new Date(nowDate);
+  private _refreshRoomCompletionTimes(draft: Draft<PlayerDataModel>): void {
+    const ts = now();
+    const rooms = draft.building.rooms;
+    // 制造站：下一方案完成时刻
+    for (const [slotId, room] of Object.entries(rooms.MANUFACTURE ?? {})) {
+      if (!room || room.state !== 1) continue;
+      const formula = getManufactFormula(room.formulaId);
+      if (!formula) continue;
+      const costPoint = formula.costPoint ?? 0;
+      const capacity = this._roomCapacity(draft, slotId, formula);
+      if (costPoint <= 0 || capacity <= 0) continue;
+      const remain = room.remainSolutionCnt ?? 0;
+      if (remain > 0) {
+        // 计划未耗尽：下一方案完成时刻（未来）
+        const left = Math.max(0, costPoint - (room.processPoint ?? 0));
+        room.completeWorkTime = ts + Math.max(1, Math.ceil(left / capacity));
+      } else if (room.completeWorkTime == null || room.completeWorkTime < ts) {
+        // 计划已停摆（remain=0）：对齐官方置 -1（无倒计时，客户端据此显示"待收取"而非过期）
+        room.completeWorkTime = -1;
+      }
+    }
+    // 贸易站：下一订单生成/刷新时刻（next.processPoint → maxPoint）
+    for (const room of Object.values(rooms.TRADING ?? {})) {
+      if (!room || room.state !== 1) continue;
+      const next = (room as any).next;
+      if (next && typeof next.maxPoint === "number" && typeof next.processPoint === "number") {
+        const speed = next.speed && next.speed > 0 ? next.speed : 1;
+        const left = Math.max(0, next.maxPoint - next.processPoint);
+        const cwt = ts + Math.max(1, Math.ceil(left / speed));
+        // 参考官方：贸易站 completeWorkTime = 下一订单完成时刻（含 stock 补货）
+        if (room.completeWorkTime == null || room.completeWorkTime < ts) {
+          room.completeWorkTime = cwt;
+        }
+      }
+    }
+    // 会客室/招募：推进到下一重置边界（避免过去值导致无限 sync）
+    // 官方这些房间的 completeWorkTime 是"下一事件完成时刻"（分钟级）。私服存档
+    // processPoint 无精确阈值，直接推进到下一个 4:00/16:00 基建重置边界——
+    // 既保证恒为未来（客户端不会因过去值无限 sync），又避免秒级高频轮询。
+    for (const rtype of ["MEETING", "HIRE"] as const) {
+      for (const room of Object.values(rooms[rtype] ?? {})) {
+        if (!room || room.state !== 1) continue;
+        if (room.completeWorkTime == null || room.completeWorkTime < ts) {
+          room.completeWorkTime = this._nextDailyBoundary(ts);
+        }
+      }
+    }
+  }
+
+  /**
+   * 内部方法：刷新 event.building = 下一个最近事件时刻
+   *
+   * 官方语义：客户端在 event.building 到达时触发下一次 /building/sync。
+   * 取 min(下一 4:00/16:00 重置边界, 所有房间最小未来 completeWorkTime)——
+   * 既有即将完成的房间事件（订单/生产完成）时用事件时刻，否则回到重置边界
+   * （DoctoratePy 参考行为），保证 event.building 恒为未来、随 sync 动态推进。
+   * @param draft - mutative 可写草稿
+   */
+  private _refreshBuildingEventTs(draft: Draft<PlayerDataModel>): void {
+    const ts = now();
+    const boundary = this._nextDailyBoundary(ts);
+    let earliestCwt = Infinity;
+    for (const roomsByType of Object.values(draft.building.rooms)) {
+      for (const room of Object.values(roomsByType ?? {})) {
+        const cwt = (room as any)?.completeWorkTime;
+        if (typeof cwt === "number" && cwt > ts) {
+          earliestCwt = Math.min(earliestCwt, cwt);
+        }
+      }
+    }
+    const target = Math.min(boundary, earliestCwt);
+    draft.event.building = target;
+  }
+
+  /**
+   * 内部方法：下一次 4:00/16:00 基建重置边界（秒）
+   * @param ts - 当前时间戳（秒）
+   * @returns 下一个 4:00/16:00 边界（若已过今日 16:00 则取明日 4:00）
+   */
+  private _nextDailyBoundary(ts: number): number {
+    const d = new Date(ts * 1000);
+    const at = (h: number): Date => {
+      const x = new Date(d);
       x.setHours(h, 0, 0, 0);
       return x;
     };
-    const nowMs = nowDate.getTime();
-    const today4 = boundary(4).getTime();
-    const today16 = boundary(16).getTime();
-    const tomorrow4 = boundary(4);
-    tomorrow4.setDate(tomorrow4.getDate() + 1);
-    const target =
-      nowMs <= today4 ? today4 : nowMs <= today16 ? today16 : tomorrow4.getTime();
+    const t4 = at(4).getTime();
+    const t16 = at(16).getTime();
+    const t4Next = at(4);
+    t4Next.setDate(t4Next.getDate() + 1);
+    const ms = d.getTime();
+    const target = ms <= t4 ? t4 : ms <= t16 ? t16 : t4Next.getTime();
     return Math.floor(target / 1000);
   }
 
@@ -305,14 +386,22 @@ export class BuildingManager {
       this._accrueTraining(draft);
       // 会客室 infoShare.reward 待领取指示（官方 sync 响应含该字段）
       this._refreshInfoShare(draft);
-      // event.building = 下一次 4:00/16:00 重置边界（对齐 DoctoratePy 语义）
-      const nextEvent = this._nextBuildingEventTs(draft);
-      draft.event.building = nextEvent;
+      // 修复（高频无限 sync 根因）：客户端基建界面据各房间 completeWorkTime 调度倒计时
+      // 与下一次 sync——存档中 completeWorkTime 是过去值（2025）→ 客户端判定"事件已到期
+      // 待处理"→ 立即 sync → 服务端不推进 → 无限循环。此处按生产进度把制造站/贸易站/
+      // 会客室/招募的 completeWorkTime 推进到未来，客户端据此正常调度。
+      this._refreshRoomCompletionTimes(draft);
+      // event.building = 下一个最近事件时刻（min：下一 4:00/16:00 重置边界 / 最小未来
+      // completeWorkTime）——对齐官方：客户端在 event.building 时刻触发下一次 sync。
+      this._refreshBuildingEventTs(draft);
       // 强制 event.building 每次进 delta（对齐 DoctoratePy 响应恒含 event）：
       // Immer 对未变化的值不产生补丁，而客户端需用它调度下一次 sync——
       // 缺失时沿用缓存旧值（过期边界）→ 立即重同步 → 紧循环。
       // 经 PlayerDataManager.forcePatch 注入（不回写 _playerdata，仅进 delta）
-      this._player.forcePatch(["event", "building"], nextEvent);
+      this._player.forcePatch(
+        ["event", "building"],
+        draft.event.building as number,
+      );
       return now();
     });
   }
@@ -793,7 +882,7 @@ export class BuildingManager {
           slot.state = 2;
         }
       }
-      draft.event.building = this._nextBuildingEventTs(draft);
+      draft.event.building = this._nextDailyBoundary(now());
     });
   }
 
@@ -942,7 +1031,7 @@ export class BuildingManager {
    */
   async upgradeDiyLevel() {
     return await this._player.update(async (draft) => {
-      draft.event.building = this._nextBuildingEventTs(draft);
+      draft.event.building = this._nextDailyBoundary(now());
     });
   }
 

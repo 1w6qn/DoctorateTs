@@ -662,6 +662,30 @@ describe("BattleManager", () => {
       expect(result.unlockStages).toContain("main_01-08");
     });
 
+    it("首通（state=0 → completeState=3）胜利也应解锁后续关卡（原 state==1 前置断裂修复）", async () => {
+      // 修复：原 `playerStage.state == 1` 前置——state=1 仅在失败后置位，首通跳过
+      // 解锁链 → 活动关卡链断裂（如 act53side_01 首通后 tr01 不解锁）
+      mockPlayer._playerdata.dungeon!.stages["main_01-07"].state = 0;
+      mockExcelRef.StageTable.stages["main_01-08"] = {
+        stageId: "main_01-08",
+        stageType: "MAIN",
+        unlockCondition: [{ stageId: "main_01-07", completeState: "COMPLETE" }],
+      };
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      const result = await manager.finish({
+        data: "encrypted_battle_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      } as any);
+
+      expect(result.unlockStages).toContain("main_01-08");
+      // 响应含 result 字段（官服形状；修复前 undefined）
+      expect(result.result).toBe(0);
+    });
+
     it("胜利时不应覆盖已解锁/已通关的后续关卡（in Object.keys 数组 bug 修复）", async () => {
       // 场景：main_01-08 已解锁且已通关（state=3, completeTimes=5），再通关
       // main_01-07（state=1）触发全表解锁扫描——修复前

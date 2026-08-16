@@ -80,7 +80,10 @@ vi.mock("@excel/excel", () => {
             { evolveCost: [{ id: "mat_001", count: 5 }] },
             { evolveCost: [{ id: "mat_002", count: 10 }] },
           ],
-          skills: [{ skillId: "skchr_test_1" }, { skillId: "skchr_test_2" }],
+          skills: [
+            { skillId: "skchr_test_1", unlockCond: { phase: 0, level: 1 } },
+            { skillId: "skchr_test_2", unlockCond: { phase: "PHASE_1", level: 1 } },
+          ],
           allSkillLvlup: [
             { unlockCond: { phase: "PHASE_0", level: 1 }, lvlUpCost: [{ id: "skill_mat", count: 1 }] },
             { unlockCond: { phase: "PHASE_0", level: 2 }, lvlUpCost: [{ id: "skill_mat", count: 1 }] },
@@ -97,9 +100,9 @@ vi.mock("@excel/excel", () => {
             { evolveCost: [{ id: "mat_002", count: 10 }] },
           ],
           skills: [
-            { skillId: "skchr_test_2_1" },
-            { skillId: "skchr_test_2_2" },
-            { skillId: "skchr_test_2_3" },
+            { skillId: "skchr_test_2_1", unlockCond: { phase: "PHASE_0", level: 1 } },
+            { skillId: "skchr_test_2_2", unlockCond: { phase: "PHASE_1", level: 1 } },
+            { skillId: "skchr_test_2_3", unlockCond: { phase: "PHASE_2", level: 1 } },
           ],
           allSkillLvlup: [
             { unlockCond: { phase: "PHASE_0", level: 1 }, lvlUpCost: [{ id: "skill_mat", count: 1 }] },
@@ -379,17 +382,23 @@ describe("CharManager", () => {
     });
   });
 
-  describe("技能解锁（等级/精英化驱动，官方 allSkillLvlup 规则）", () => {
-    it("新干员建档应填充已解锁技能并设 defaultSkillIndex=0（原 skills 恒空）", async () => {
+  describe("技能解锁（等级/精英化驱动，官方 skills unlockCond 规则）", () => {
+    it("新干员建档应按官服线格式填充全部技能（未解锁为 unlock:0 占位）", async () => {
       const manager = new CharManager(mockPlayer as any, mockTrigger as any);
       mockPlayer._playerdata.dexNav!.character = {};
       mockPlayer._playerdata.troop!.curCharInstId = 0;
       const result = await manager.onCharGet(["char_002", { from: "NORMAL" }]);
       expect(result.isNew).toBe(1);
       const ch = mockPlayer._playerdata.troop!.chars[result.charInstId as number];
-      // char_002 技能1 条件 PHASE_0/level1 → 建档即解锁；技能2 需 E1
-      expect(ch.skills.map((s) => s.skillId)).toEqual(["skchr_test_2_1"]);
+      // char_002 技能1 条件 PHASE_0 → 建档即解锁；技能2/3 按官服线格式以 unlock:0 占位
+      expect(ch.skills.map((s) => s.skillId)).toEqual([
+        "skchr_test_2_1",
+        "skchr_test_2_2",
+        "skchr_test_2_3",
+      ]);
       expect(ch.skills[0].unlock).toBe(1);
+      expect(ch.skills[1].unlock).toBe(0);
+      expect(ch.skills[2].unlock).toBe(0);
       expect(ch.defaultSkillIndex).toBe(0);
     });
 
@@ -417,13 +426,15 @@ describe("CharManager", () => {
       await manager.evolveChar({ charInstId, destEvolvePhase: 1 });
       let ch = mockPlayer._playerdata.troop!.chars[charInstId];
       expect(ch.evolvePhase).toBe(1);
-      // 精1 解锁技能2；技能1 专精状态保留
+      // 精1 解锁技能2；技能1 专精状态保留；技能3 仍是 unlock:0 占位
       expect(ch.skills.map((s) => s.skillId)).toEqual([
         "skchr_test_2_1",
         "skchr_test_2_2",
+        "skchr_test_2_3",
       ]);
       expect(ch.skills[0].specializeLevel).toBe(2);
       expect(ch.skills[1].unlock).toBe(1);
+      expect(ch.skills[2].unlock).toBe(0);
       // 精2 解锁技能3
       await manager.evolveChar({ charInstId, destEvolvePhase: 2 });
       ch = mockPlayer._playerdata.troop!.chars[charInstId];
@@ -444,8 +455,12 @@ describe("CharManager", () => {
       });
       const ch = mockPlayer._playerdata.troop!.chars[1001];
       expect(ch.level).toBe(2);
-      // E0 等级提升不追加技能2（技能2 需精1）
-      expect(ch.skills.map((s) => s.skillId)).toEqual(["skchr_test_1"]);
+      // E0 已按官服线格式列出技能1+2，技能2 是 unlock:0 占位；等级提升不会解锁
+      expect(ch.skills.map((s) => s.skillId)).toEqual([
+        "skchr_test_1",
+        "skchr_test_2",
+      ]);
+      expect(ch.skills[1].unlock).toBe(0);
       expect(ch.defaultSkillIndex).toBe(0);
       // 精1 后解锁技能2
       await manager.evolveChar({ charInstId: 1001, destEvolvePhase: 1 });
@@ -454,6 +469,7 @@ describe("CharManager", () => {
         "skchr_test_1",
         "skchr_test_2",
       ]);
+      expect(ch1.skills[1].unlock).toBe(1);
     });
 
     it("空 id 的 extraItem 不应发放（防御：避免 gainItem 查 ItemTable[''] 警告）", async () => {

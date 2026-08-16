@@ -147,9 +147,21 @@ const router = Router();
 router.post("/sync", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as BuildingSyncRequest;
+  const ts = await player.building.sync();
+  const delta = player.delta;
+  // 修复（高频无限 sync）：官方/DoctoratePy 的 /building/sync 响应
+  // modified.building 是**完整 building 对象**（含 roomSlots/rooms/chars/status），
+  // 客户端基建界面据此渲染各房间倒计时（completeWorkTime）并调度下一次 sync。
+  // 本实现原为 mutative 增量 patch——制造站 remain=0 停摆后无 rooms 变更，
+  // 响应 building 仅含 chars/status，缺 rooms → 客户端拿不到各房间 completeWorkTime
+  // → 判定"状态未同步"→ 立即重试 → 无限请求。现强制注入完整 building 恒非空。
+  const fullBuilding = player._playerdata.building as any;
+  const d = delta.playerDataDelta as { modified: Record<string, unknown> };
+  d.modified ??= {};
+  d.modified.building = fullBuilding;
   res.send({
-    ts: await player.building.sync(),
-    ...player.delta,
+    ts,
+    ...delta,
   } satisfies BuildingSyncResponse);
 });
 

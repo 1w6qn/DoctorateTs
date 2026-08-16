@@ -5,14 +5,17 @@ vi.mock("@excel/excel", () => ({
   default: {
     CharacterTable: {
       char_001: {
-        skills: [{ skillId: "skchr_test_1" }, { skillId: "skchr_test_2" }],
+        skills: [
+          { skillId: "skchr_test_1", unlockCond: { phase: 0, level: 1 } },
+          { skillId: "skchr_test_2", unlockCond: { phase: "PHASE_1", level: 1 } },
+        ],
         allSkillLvlup: [
           { unlockCond: { phase: "PHASE_0", level: 1 } },
           { unlockCond: { phase: "PHASE_0", level: 2 } },
         ],
       },
       char_002: {
-        skills: [{ skillId: "skchr_2_1" }],
+        skills: [{ skillId: "skchr_2_1", unlockCond: { phase: "PHASE_0", level: 1 } }],
         allSkillLvlup: [{ unlockCond: { phase: "PHASE_0", level: 1 } }],
       },
     },
@@ -86,7 +89,10 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
             level: 1,
             evolvePhase: 0,
             defaultSkillIndex: 0,
-            skills: [{ skillId: "skchr_test_1", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 }],
+            skills: [
+              { skillId: "skchr_test_1", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 },
+              { skillId: "skchr_test_2", unlock: 0, state: 0, specializeLevel: 0, completeUpgradeTime: -1 },
+            ],
           },
         },
       },
@@ -223,7 +229,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
     expect(issues.filter((i) => i.fixed && i.path.includes("troop.chars"))).toHaveLength(0);
   });
 
-  it("空 skills 干员应按精英化回填技能（精1→技能2、精2→技能3）", () => {
+  it("空 skills 干员应按官服线格式回填全部技能（含 unlock:0 锁定占位）", () => {
     const data = {
       status: { uid: "1" },
       troop: {
@@ -240,7 +246,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
             instId: 381,
             charId: "char_001",
             level: 1,
-            evolvePhase: 1, // 精1 → 技能1+2
+            evolvePhase: 1, // 精1 → 技能1+2 均解锁
             defaultSkillIndex: -1,
             skills: [],
           },
@@ -251,16 +257,20 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       building: {},
     };
     const issues = checkAndRepairSave(data as any);
-    // E0：仅技能1（标准规则：技能2 需精1）
+    // E0：官方线格式仍列出全部技能，技能2 为 unlock:0 锁定占位
     expect(data.troop.chars["380"].skills.map((s: any) => s.skillId)).toEqual([
       "skchr_test_1",
+      "skchr_test_2",
     ]);
+    expect(data.troop.chars["380"].skills[0].unlock).toBe(1);
+    expect(data.troop.chars["380"].skills[1].unlock).toBe(0);
     expect(data.troop.chars["380"].defaultSkillIndex).toBe(0);
-    // E1：技能1+2
+    // E1：技能2 解锁，unlock 置 1
     expect(data.troop.chars["381"].skills.map((s: any) => s.skillId)).toEqual([
       "skchr_test_1",
       "skchr_test_2",
     ]);
+    expect(data.troop.chars["381"].skills[1].unlock).toBe(1);
     expect(issues.some((i) => i.path === "troop.chars[380].skills" && i.fixed)).toBe(true);
   });
 
@@ -287,7 +297,7 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
     expect(issues.filter((i) => i.path.includes("troop.chars[2].skills"))).toHaveLength(0);
   });
 
-  it("E0 干员带技能2/3（旧规则多发放）应移除（无投入）", () => {
+  it("E0 干员带技能2（旧规则多发放 unlock:1）应按官服策略改为锁定占位 unlock:0", () => {
     const data = {
       status: { uid: "1" },
       troop: {
@@ -310,11 +320,45 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       building: {},
     };
     const issues = checkAndRepairSave(data as any);
-    // E0 仅技能1（技能2 需精1）；无投入 → 移除
+    // 完全采用官服线格式：技能2 保留为 unlock:0 锁定占位，而不是删除
     expect(data.troop.chars["380"].skills.map((s: any) => s.skillId)).toEqual([
       "skchr_test_1",
+      "skchr_test_2",
     ]);
+    expect(data.troop.chars["380"].skills[1].unlock).toBe(0);
     expect(issues.some((i) => i.path.includes("troop.chars[380].skills") && i.fixed)).toBe(true);
+  });
+
+  it("官服存档带 unlock:0 锁定技能占位应保留（不触发技能修复）", () => {
+    const data = {
+      status: { uid: "2222" },
+      troop: {
+        chars: {
+          "380": {
+            instId: 380,
+            charId: "char_001",
+            level: 1,
+            evolvePhase: 0,
+            defaultSkillIndex: 0,
+            skills: [
+              { skillId: "skchr_test_1", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 },
+              { skillId: "skchr_test_2", unlock: 0, state: 0, specializeLevel: 0, completeUpgradeTime: -1 },
+            ],
+          },
+        },
+      },
+      dungeon: {},
+      activity: {},
+      building: {},
+    };
+    const issues = checkAndRepairSave(data as any);
+    // 官方线格式：未解锁技能以 unlock:0 占位，不应被健康检查移除
+    expect(data.troop.chars["380"].skills.map((s: any) => s.skillId)).toEqual([
+      "skchr_test_1",
+      "skchr_test_2",
+    ]);
+    expect(data.troop.chars["380"].skills[1].unlock).toBe(0);
+    expect(issues.some((i) => i.path.includes("skills") && i.fixed)).toBe(false);
   });
 
   it("有专精投入的技能即使当前阶段未解锁也应保留（不破坏数据）", () => {
@@ -340,11 +384,15 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
       building: {},
     };
     checkAndRepairSave(data as any);
-    // 技能2 有专精 2 → 保留
+    // 技能2 有专精 2 → 保留；按官服策略未精一时 unlock 校正为 0 占位
     expect(data.troop.chars["380"].skills.map((s: any) => s.skillId)).toEqual([
       "skchr_test_1",
       "skchr_test_2",
     ]);
+    expect(data.troop.chars["380"].skills[1].unlock).toBe(0);
+    expect(data.troop.chars["380"].skills[1].specializeLevel).toBe(2);
+    // 默认技能不能指向锁定占位，应校正到第一个已解锁技能
+    expect(data.troop.chars["380"].defaultSkillIndex).toBe(0);
   });
 
   it("训练室 trainee 为 null（旧结算残留）应修复为空对象", () => {
@@ -376,5 +424,27 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
     expect(issues.some((i) => i.path.includes("trainee") && i.fixed)).toBe(true);
     // 合规 trainer 不受影响
     expect(data.building.rooms.TRAINING.slot_13.trainer.charInstId).toBe(210);
+  });
+
+  it("arkodc.topics 含 undefined 键（旧 restart 缺 topicId 残留）应移除", () => {
+    const data = {
+      status: { uid: "1" },
+      troop: { chars: {} },
+      dungeon: {},
+      activity: {},
+      building: {},
+      arkodc: {
+        topics: {
+          "undefined": { varSeqs: {}, rewards: {}, position: null },
+          ark_odc_act53side: { varSeqs: {}, rewards: {}, position: null },
+        },
+      },
+    };
+    const issues = checkAndRepairSave(data as any);
+    expect(data.arkodc.topics["undefined"]).toBeUndefined();
+    // 合规主题保留，且 position null 重置为原点
+    expect(data.arkodc.topics["ark_odc_act53side"]).toBeDefined();
+    expect(data.arkodc.topics["ark_odc_act53side"].position).toEqual({ x: 0, y: 0, z: 0 });
+    expect(issues.some((i) => i.path.includes("undefined") && i.fixed)).toBe(true);
   });
 });

@@ -19,7 +19,17 @@ import { Patch } from "mutative";
  */
 const cloneData = <T>(value: T): T => {
   if (value === null || typeof value !== "object") return value;
-  return structuredClone(value) as T;
+  // 兜底：mutative 补丁值可能是 draft proxy/冻结对象等 structuredClone 拒绝的类型
+  // （历史出现 "null could not be cloned" 500）——克隆失败回退 JSON 深拷贝
+  try {
+    return structuredClone(value) as T;
+  } catch {
+    try {
+      return JSON.parse(JSON.stringify(value)) as T;
+    } catch {
+      return value;
+    }
+  }
 };
 
 /**

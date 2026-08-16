@@ -81,6 +81,16 @@ router.post("/confirmMissionList", async (req, res) => {
 router.post("/confirmMultiGroupMissionList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ConfirmMultiGroupMissionListRequest;
+  const items: ItemBundle[] = [];
+  // 官服抓包（R-1786877191677-0085）：客户端实际传 missionIds（任务 ID 列表）——
+  // 原实现只读 missionGroupIds → 批量领取空转；两个字段都处理
+  for (const missionId of body.missionIds ?? []) {
+    try {
+      items.push(...(await player.mission.confirmMission({ missionId })));
+    } catch {
+      // 单条失败不中断整批（任务未达成等）
+    }
+  }
   for (const missionGroupId of body.missionGroupIds ?? []) {
     try {
       await player.mission.confirmMissionGroup({ missionGroupId });
@@ -88,7 +98,10 @@ router.post("/confirmMultiGroupMissionList", async (req, res) => {
       // 单组失败不中断
     }
   }
-  res.send(player.delta satisfies ConfirmMultiGroupMissionListResponse);
+  res.send({
+    items,
+    ...player.delta,
+  } satisfies ConfirmMultiGroupMissionListResponse);
 });
 
 export default router;

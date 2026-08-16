@@ -61,10 +61,13 @@ export interface ConfirmMissionListResponse extends PlayerDeltaResponse {
   items: ItemBundle[];
 }
 
-/** 批量确认多任务组请求（CS 无直接对应类，客户端字段为 missionGroupIds） */
+/** 批量确认多任务组请求（CS 无直接对应类；官服抓包客户端传 missionIds，兼容 missionGroupIds） */
 export interface ConfirmMultiGroupMissionListRequest {
-  missionGroupIds: string[];
+  missionIds?: string[];
+  missionGroupIds?: string[];
 }
 
-/** 批量确认多任务组响应（服务端自定义） */
-export type ConfirmMultiGroupMissionListResponse = PlayerDeltaResponse;
+/** 批量确认多任务组响应（服务端自定义，同 confirmMissionList 聚合 items） */
+export interface ConfirmMultiGroupMissionListResponse extends PlayerDeltaResponse {
+  items?: ItemBundle[];
+}

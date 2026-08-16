@@ -213,10 +213,14 @@ export class MissionManager {
    */
   async confirmMission(args: { missionId: string }): Promise<ItemBundle[]> {
     const { missionId } = args;
-    const items: ItemBundle[] = [];
     const missionInfo = excel.MissionTable.missions[missionId];
-    if (!missionInfo) return items; // 防御：未知任务跳过
+    if (!missionInfo) {
+      // 活动任务（ActivityTable.missionData，如 1arkhubActivity_*/53sideActivity_*）
+      // 兜底领取——枢纽任务奖励同步 ARK_HUB.coin/tshop 币（官服形状）
+      return this._confirmActivityTableMission(missionId);
+    }
     const mission = await this.getMissionById(missionId);
+    const items: ItemBundle[] = [];
     // 修复：确认判定以存档为准（内存列表可能因每日刷新重建/旧周期组为空——
     // 客户端仍显示存档中已完成可领取的任务，此前 getMissionById 拿不到实例直接返回空
     // → "无法领取奖励"）；持久化 confirmed 标记防重复（原仅内存实例标记，重启/列表
@@ -265,6 +269,48 @@ export class MissionManager {
     });
 
     await this._trigger.emit("items:get", [items]);
+    return items;
+  }
+
+  /**
+   * 活动任务领取（ActivityTable.missionData，如 1arkhubActivity_* / 53sideActivity_*）
+   *
+   * 官服抓包对齐（R-1786877191677-0085 confirmMultiGroupMissionList）：领取后
+   * 发 missionData.rewards、置 state=3，且枢纽任务（奖励含 act1arkhub_token_seal）
+   * 同步累加 activity.ARK_HUB.act1arkhub.coin 与 tshop.shop_act1arkhub.coin。
+   * @param missionId - 活动任务 ID
+   * @returns 奖励物品列表（未知任务返回空）
+   */
+  private async _confirmActivityTableMission(
+    missionId: string,
+  ): Promise<ItemBundle[]> {
+    const missionInfo = (excel.ActivityTable as any)?.missionData?.find(
+      (m: any) => m.id === missionId,
+    );
+    if (!missionInfo) return [];
+    const items: ItemBundle[] = (missionInfo.rewards ?? []).map((r: any) => ({
+      id: r.id,
+      count: r.count,
+      type: String(r.type),
+    }));
+    await this._player.update(async (draft) => {
+      const activityMissions = (draft.mission as any)?.missions?.["ACTIVITY"];
+      const data = activityMissions?.[missionId];
+      if (data) data.state = 3;
+      // 枢纽任务奖励 → ARK_HUB.coin / tshop.shop_act1arkhub.coin 同步累加
+      const seal = (missionInfo.rewards ?? []).find(
+        (r: any) => r.id === "act1arkhub_token_seal",
+      );
+      if (seal?.count) {
+        const hub = (draft.activity as any)?.ARK_HUB?.act1arkhub;
+        if (hub) hub.coin = (hub.coin ?? 0) + seal.count;
+        const shop = (draft.tshop as any)?.["shop_act1arkhub"];
+        if (shop) shop.coin = (shop.coin ?? 0) + seal.count;
+      }
+    });
+    if (items.length > 0) {
+      await this._trigger.emit("items:get", [items]);
+    }
     return items;
   }
 

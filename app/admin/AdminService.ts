@@ -682,13 +682,14 @@ export class AdminService {
 
   /** 备份用户存档（data/user/backups/{uid}-{YYYYMMDD-HHmmss}.json） */
   async backup(uid: string): Promise<BackupInfo> {
-    const src = `./data/user/databases/${uid}.json`;
-    if (!(await exists(src))) {
-      throw new Error(`用户不存在: ${uid}（无存档文件）`);
+    // SQLite 感知：方案 A+C 下存档主体在库（gzip BLOB），直读文件对库内账号 ENOENT
+    const data = await accountManager.readPlayerData(uid);
+    if (!data) {
+      throw new Error(`用户不存在: ${uid}`);
     }
     await mkdir(BACKUP_DIR, { recursive: true });
     const name = `${uid}-${formatTs(now())}.json`;
-    await copyFile(src, `${BACKUP_DIR}/${name}`);
+    await writeFile(`${BACKUP_DIR}/${name}`, JSON.stringify(data));
     const st = await this.statBackup(name);
     await this._audit("backup", uid, name);
     return st;
@@ -1613,11 +1614,11 @@ export class AdminService {
     uid: string,
     targetPath?: string,
   ): Promise<{ uid: string; path: string; size: number }> {
-    const src = `./data/user/databases/${uid}.json`;
-    if (!(await exists(src))) {
-      throw new Error(`用户不存在: ${uid}（无存档文件）`);
+    // SQLite 感知：方案 A+C 下存档主体在库（gzip BLOB），直读文件对库内账号 ENOENT
+    const data = await accountManager.readPlayerData(uid);
+    if (!data) {
+      throw new Error(`用户不存在: ${uid}`);
     }
-    const data = await readJson<PlayerDataModel>(src);
     const out = targetPath ?? `./exports/${uid}-${formatTs(now())}.json`;
     await mkdir(path.dirname(out), { recursive: true });
     await writeJson(out, data as any);
@@ -2381,13 +2382,13 @@ export class AdminService {
 
   /**
    * 热加载用户到内存（服务器运行中创建用户后调用；CLI 场景无需）
+   *
+   * SQLite 感知：走 accountManager.reloadPlayer（先落盘卸载再从库重载）——
+   * 原直读 JSON 文件，方案 A+C 下库内新账号无文件 → ENOENT。
    * @param uid - 用户ID
    */
   async reloadUser(uid: string): Promise<void> {
-    const playerData = await readJson<PlayerDataModel>(
-      `./data/user/databases/${uid}.json`,
-    );
-    accountManager.data[uid] = new PlayerDataManager(playerData);
+    await accountManager.reloadPlayer(uid);
   }
 
   /** 服务器状态 */

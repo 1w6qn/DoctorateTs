@@ -7,6 +7,26 @@ import { PlayerDataModel } from "../model/playerdata";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { Draft } from "mutative";
 import { TypedEventEmitter } from "@game/model/events";
+import { activityDictKey } from "./activity/unlockActivity";
+
+/** TYPE_ACT53SIDE 活动币映射（coinItemId → actId，惰性构建；奇象巡展等事件共用） */
+let _act53CoinMap: Map<string, string> | null = null;
+function act53SideActIdByCoinItem(itemId: string): string | undefined {
+  if (!_act53CoinMap) {
+    _act53CoinMap = new Map();
+    const basic = (excel.ActivityTable as any)?.basicInfo ?? {};
+    for (const [actId, info] of Object.entries(basic)) {
+      const i = info as any;
+      if (i?.type !== "TYPE_ACT53SIDE") continue;
+      const detail = (excel.ActivityTable as any)?.activity?.[
+        activityDictKey("TYPE_ACT53SIDE") ?? "tYPE_ACT53SIDE"
+      ]?.[actId];
+      const coin = detail?.constData?.coinItemId;
+      if (coin) _act53CoinMap.set(coin, actId);
+    }
+  }
+  return _act53CoinMap.get(itemId);
+}
 
 export class InventoryManager {
   _player: PlayerDataManager;
@@ -24,12 +44,36 @@ export class InventoryManager {
       // Immer 全树 diff 慢）；逐个 update 语义等价且每个只 diff 实际变更路径
       for (const item of items) {
         await this.gainItem(item);
+        // 奇象巡展等 TYPE_ACT53SIDE 活动币跟踪：获得 coinItemId 物品时累加 actCoin
+        // （官服 activity.TYPE_ACT53SIDE[actId].actCoin 随活动币获取累计——关卡掉落
+        // act53side_token_photo 等；缺此逻辑事件页硬币计数恒 0）
+        await this._trackAct53SideCoin(item);
       }
     });
   }
 
   get skinCnt(): number {
     return Object.keys(this._player._playerdata.skin.characterSkins).length;
+  }
+
+  /**
+   * TYPE_ACT53SIDE 活动币累计（奇象巡展 actCoin）
+   *
+   * 获得活动币物品（constData.coinItemId，如 act53side_token_photo）时，
+   * 累加 activity.TYPE_ACT53SIDE[actId].actCoin——事件页硬币计数与官服一致
+   * （官服完成态快照 actCoin=33 随关卡掉落累计）。
+   * @param item - 已入账的物品
+   */
+  private async _trackAct53SideCoin(item: ItemBundle): Promise<void> {
+    if (!item.id || (item.count ?? 0) <= 0) return;
+    const actId = act53SideActIdByCoinItem(item.id);
+    if (!actId) return;
+    await this._player.update(async (draft) => {
+      const act = (draft.activity as any)?.TYPE_ACT53SIDE?.[actId];
+      if (act) {
+        act.actCoin = (act.actCoin ?? 0) + (item.count ?? 0);
+      }
+    });
   }
 
   async _useItem(item: ItemBundle): Promise<void> {

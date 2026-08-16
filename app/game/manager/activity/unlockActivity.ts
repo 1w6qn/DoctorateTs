@@ -35,7 +35,7 @@ function activityDetailKey(type: string): string {
  */
 export function activityDictKey(type: string): string | undefined {
   const norm = type.replace(/_/g, "").toLowerCase();
-  const dict = (excel.ActivityTable.activity ?? {}) as Record<string, unknown>;
+  const dict = (excel.ActivityTable?.activity ?? {}) as Record<string, unknown>;
   return Object.keys(dict).find(
     (k) => k.replace(/_/g, "").toLowerCase() === norm,
   );
@@ -180,7 +180,7 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
   // 播种/修剪逻辑本身按 ts 窗口判定，真实模式即按当前时间正确播种当前活动。
   const ts = userTimestamp();
   await player.update(async (draft) => {
-    const basicInfo = excel.ActivityTable.basicInfo;
+    const basicInfo = excel.ActivityTable?.basicInfo ?? {};
 
     // 修剪：过期活动删除（ts > rewardEndTime）
     if (draft.activity) {
@@ -251,6 +251,24 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
 
     // 奇象巡展 ODC 主题（playerdata.arkodc.topics[topicId]）——客户端据此渲染 ODC 地图状态
     seedArkOdcTopics(draft);
+
+    // 奇象巡展 ODC 教程状态回填：教程剧情已提交（status.flags 已置 1）但主题
+    // varSeq bool_end_guide_done 缺失的旧存档（finishStory 未同步 varSeq 时期的漏洞）——
+    // logic_game_end_p1（q003_prog==4 && bool_end_guide_done==0 && q003_banner_showed==1）
+    // 每次进图 AUTO_ONCE 重放新手教程，需补置为 1（官服完成态快照含 bool_end_guide_done=1）。
+    const odcGuideStoryId = "activities/act53side/ark_odc_act53side_guide";
+    if ((draft.status?.flags as Record<string, number> | undefined)?.[odcGuideStoryId] === 1) {
+      const detail = (excel.ActivityTable.activity as Record<string, any>)?.[
+        activityDictKey("TYPE_ACT53SIDE") ?? "tYPE_ACT53SIDE"
+      ];
+      for (const data of Object.values(detail ?? {}) as any[]) {
+        const topicId = data?.constData?.arkOdcTopicId;
+        const topic = topicId ? draft.arkodc?.topics?.[topicId] : undefined;
+        if (topic?.varSeqs) {
+          topic.varSeqs.bool_end_guide_done = 1;
+        }
+      }
+    }
 
     unlockStages(draft);
   });

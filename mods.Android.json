@@ -1,0 +1,28 @@
+{
+    "file": {
+        "D:\\develop\\DoctorateTs\\mods\\anon_7d91430e114d86fef7d3b3511151e12d.dat": {
+            "size": 278423,
+            "crc32": 2414583504
+        }
+    },
+    "mod": {
+        "mods": [
+            {
+                "name": "anon/7d91430e114d86fef7d3b3511151e12d.bin",
+                "hash": "b26e60c90ec85fa85fd5147f16d6d949",
+                "md5": "b26e60c90ec85fa85fd5147f16d6d949",
+                "totalSize": 278423,
+                "abSize": 1524179
+            }
+        ],
+        "name": [
+            "anon/7d91430e114d86fef7d3b3511151e12d.bin"
+        ],
+        "path": [
+            "anon_7d91430e114d86fef7d3b3511151e12d.dat"
+        ],
+        "download": [
+            "anon_7d91430e114d86fef7d3b3511151e12d.dat"
+        ]
+    }
+}

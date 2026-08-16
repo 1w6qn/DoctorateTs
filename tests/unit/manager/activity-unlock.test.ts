@@ -240,4 +240,45 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
     expect(topic.varSeqs).toEqual({ q001_end: 1 });
     expect(topic.position).toEqual({ x: 1, y: 2, z: 3 });
   });
+
+  it("教程剧情已提交（flags 标记）但 varSeq bool_end_guide_done 缺失的旧存档——回填为 1", async () => {
+    config.developer = { timestamp: 1785538800 };
+    // 修复前漏洞存档：finishStory 只写 status.flags，未同步主题 varSeq →
+    // logic_game_end_p1 每次进图重放新手教程（无限教程）
+    mockPlayer._playerdata.status!.flags = {
+      "activities/act53side/ark_odc_act53side_guide": 1,
+    };
+    mockPlayer._playerdata.arkodc = {
+      topics: {
+        ark_odc_act53side: {
+          varSeqs: { q003_prog: 4, q003_banner_showed: 1 },
+          rewards: {},
+          position: { x: 0, y: 0, z: 0 },
+        },
+      },
+    };
+    await unlockActivity(mockPlayer as any);
+
+    const topic = mockPlayer._playerdata.arkodc!.topics!["ark_odc_act53side"] as any;
+    expect(topic.varSeqs.bool_end_guide_done).toBe(1);
+    // 其他 varSeq 不被覆盖
+    expect(topic.varSeqs.q003_prog).toBe(4);
+  });
+
+  it("教程未提交（无 flags 标记）不回填 bool_end_guide_done（保持待触发状态）", async () => {
+    config.developer = { timestamp: 1785538800 };
+    mockPlayer._playerdata.arkodc = {
+      topics: {
+        ark_odc_act53side: {
+          varSeqs: { q003_prog: 4, q003_banner_showed: 1 },
+          rewards: {},
+          position: { x: 0, y: 0, z: 0 },
+        },
+      },
+    };
+    await unlockActivity(mockPlayer as any);
+
+    const topic = mockPlayer._playerdata.arkodc!.topics!["ark_odc_act53side"] as any;
+    expect(topic.varSeqs.bool_end_guide_done).toBeUndefined();
+  });
 });

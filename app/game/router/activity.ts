@@ -546,6 +546,17 @@ router.post("/confirmActivityMission", async (req, res) => {
         if (activityMissions && activityMissions[body.missionId]) {
           activityMissions[body.missionId].state = 3;
         }
+        // 枢纽任务奖励 → ARK_HUB.coin / tshop.shop_act1arkhub.coin 同步（官服形状，
+        // 与 mission manager 的 _confirmActivityTableMission 保持一致）
+        const seal = missionInfo.rewards.find(
+          (r) => r.id === "act1arkhub_token_seal",
+        );
+        if (seal?.count) {
+          const hub = (draft.activity as any)?.ARK_HUB?.act1arkhub;
+          if (hub) hub.coin = (hub.coin ?? 0) + seal.count;
+          const shop = (draft.tshop as any)?.["shop_act1arkhub"];
+          if (shop) shop.coin = (shop.coin ?? 0) + seal.count;
+        }
       });
       await player._trigger.emit("items:get", [rewards]);
     }
@@ -2565,14 +2576,15 @@ router.post("/arkhub/enterHall", async (req, res) => {
   req.body as ActivityStubRequest;
   // 私服模式：本地网关应答器启动后指向本服端口（客户端连本服进空广场），
   // 否则返回官服域名（官服网关不可达/账号凭据无效时客户端无法进入）
-  const { isArkhubLocalGatewayActive } = await import(
+  const { isArkhubLocalGatewayActive, getArkhubLocalGatewayPort } = await import(
     "../../proxy/arkhub-gateway-local"
   );
   const endpoint = isArkhubLocalGatewayActive()
     ? String(config.Host).replace(/^https?:\/\//, "")
     : "arkhub-gateway.hypergryph.com";
+  // 实际监听端口（本地网关端口被占自动避让后的真实端口；未启动回退配置端口）
   const port = isArkhubLocalGatewayActive()
-    ? config.capture?.gatewayPort ?? 30000
+    ? getArkhubLocalGatewayPort() || (config.capture?.gatewayPort ?? 30000)
     : 30000;
   res.send({
     result: 0,
@@ -2654,10 +2666,33 @@ router.post("/arkhub/setSquad", async (req, res) => {
   res.send(player.delta satisfies ActivityStubResponse);
 });
 
-/** 方舟枢纽同步（抓包：空增量） */
+/** 方舟枢纽同步（抓包：返回枢纽进度增量——活动任务进度 + 勋章 + 枢纽状态） */
 router.post("/arkhub/syncInfo", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActivityStubRequest;
+  // 官服抓包对齐（R-1786877177293-0081）：syncInfo 返回枢纽进度增量
+  // {mission.missions.ACTIVITY(1arkhubActivity_* 进度), medal.medals(枢纽勋章),
+  //  activity.ARK_HUB.act1arkhub(状态)}——客户端据此刷新枢纽进度页。
+  // 用 forcePatch 强制推送（纯读请求不产生 Immer 补丁，直接 res.delta 为空）。
+  const pd = player._playerdata as any;
+  await player.update(async (draft) => {
+    const actMissions = (draft.mission as any)?.missions?.["ACTIVITY"];
+    for (const id of Object.keys(actMissions ?? {})) {
+      if (!id.startsWith("1arkhubActivity_")) continue;
+      const m = actMissions[id];
+      if (m && !Array.isArray(m.progress)) {
+        m.progress = [{ value: 1, target: 1 }];
+      }
+    }
+  });
+  const actMissions = (pd.mission as any)?.missions?.["ACTIVITY"] ?? {};
+  const hubMissions: Record<string, unknown> = {};
+  for (const id of Object.keys(actMissions)) {
+    if (id.startsWith("1arkhubActivity_")) hubMissions[id] = actMissions[id];
+  }
+  player.forcePatch(["mission", "missions", "ACTIVITY"], hubMissions);
+  player.forcePatch(["medal", "medals"], pd.medal?.medals ?? {});
+  player.forcePatch(["activity", "ARK_HUB"], pd.activity?.ARK_HUB ?? {});
   res.send(player.delta satisfies ActivityStubResponse);
 });
 

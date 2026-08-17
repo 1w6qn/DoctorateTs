@@ -158,6 +158,12 @@ describe("rogue_6 分队专属逻辑", () => {
       const player = makePlayer();
       await (player.rlv2 as any)._module.create();
       await (player.rlv2 as any)._pool.create(); // 建加工品池（真机 createGame 会触发）
+      // spy pool.get：官方池成员（M_01 等 18 件）未在 mock excel 中定义，固定返回 mock 内零件
+      const pool = (player.rlv2 as any)._pool;
+      const getSpy = vi.spyOn(pool, "get").mockReturnValue({
+        id: "rogue_6_scrap_G_01",
+        count: 1,
+      });
       // 应用开拓者分队 buff（zone_into_reward 无区域限定）
       await (player.rlv2 as any)._trigger.emit("rlv2:relic:gain", [
         { id: "rogue_6_band_17", count: 1 },
@@ -167,7 +173,9 @@ describe("rogue_6 分队专属逻辑", () => {
       // 生成区域 → zone_into_reward 触发（blackboard 无区域限定 → 不崩且发放）
       await (player.rlv2 as any)._trigger.emit("rlv2:zone:new", [1]);
       await new Promise((r) => setTimeout(r, 0)); // 等 get:items 微任务链
+      expect(getSpy).toHaveBeenCalledWith("pool_scrap_6", false);
       expect(Object.keys(scrap.inventory).length).toBe(before + 1);
+      getSpy.mockRestore();
     });
   });
 
@@ -187,32 +195,61 @@ describe("rogue_6 分队专属逻辑", () => {
     });
   });
 
-  it("pool_scrap_3/6 池已建（GOODS 型加工品）", async () => {
+  it("pool_scrap_3/6 池已建（官方加权池：12/18 件 + 概率权重表）", async () => {
     const player = makePlayer();
     await (player.rlv2 as any)._module.create();
     await (player.rlv2 as any)._pool.create();
-    expect((player.rlv2 as any)._pool._pools["pool_scrap_6"].length).toBe(3);
-    expect((player.rlv2 as any)._pool._pools["pool_scrap_3"].length).toBe(3);
+    const pool = (player.rlv2 as any)._pool;
+    expect(pool._pools["pool_scrap_6"].length).toBe(18);
+    expect(pool._pools["pool_scrap_3"].length).toBe(12);
+    // 加权表存在（官方出现概率）
+    expect(pool._poolWeights["pool_scrap_3"]["rogue_6_scrap_M_01"]).toBe(21.64);
+    expect(pool._poolWeights["pool_scrap_6"]["rogue_6_scrap_P_01"]).toBe(10.02);
   });
 
-  it("官方池（路标档案馆 pools/rogue_6）：珍宝池/小礼物/零件池 7-9/额外掉落/Boss", async () => {
+  it("pool_scrap_3 加权抽取：random 0 → 权重首个（报废轮子 21.64%），random≈1 → 末位（简易遥控器 0.10%）", async () => {
+    const player = makePlayer();
+    await (player.rlv2 as any)._module.create();
+    await (player.rlv2 as any)._pool.create();
+    const pool = (player.rlv2 as any)._pool;
+    // random=0：加权命中首个成员（报废轮子 M_01）
+    const spy0 = vi.spyOn(Math, "random").mockReturnValue(0);
+    expect(pool.get("pool_scrap_3").id).toBe("rogue_6_scrap_M_01");
+    spy0.mockRestore();
+    // random≈1（0.9999）：累加权重直至末尾（"简易遥控器" M_12，权重 0.10%）
+    const spy1 = vi.spyOn(Math, "random").mockReturnValue(0.9999);
+    expect(pool.get("pool_scrap_3").id).toBe("rogue_6_scrap_M_12");
+    spy1.mockRestore();
+  });
+
+  it("官方池（路标档案馆 pools/rogue_6 精确成员）：珍宝池/小礼物/零件池 7-9/额外掉落/Boss", async () => {
     const player = makePlayer();
     await (player.rlv2 as any)._module.create();
     await (player.rlv2 as any)._pool.create();
     const pools = (player.rlv2 as any)._pool._pools;
-    // pool_treasure：PASSIVE 白模零件 + RARE/SUPER_RARE 珍宝藏品
-    expect(pools["pool_treasure"]).toContain("rogue_6_scrap_P_01");
-    expect(pools["pool_treasure"]).toContain("rogue_6_relic_fight_1");
-    expect(pools["pool_treasure"]).not.toContain("rogue_6_relic_cargo_7"); // NORMAL 不入珍宝
-    // pool_small_gift：古地树实
-    expect(pools["pool_small_gift"]).toEqual(["rogue_6_relic_legacy_50"]);
-    // pool_scrap_7/8/9：迷藏/囊中骨/林中小手
-    expect(pools["pool_scrap_7"]).toEqual(["rogue_6_relic_cargo_4"]);
-    expect(pools["pool_scrap_8"]).toEqual(["rogue_6_relic_cargo_7"]);
-    expect(pools["pool_scrap_9"]).toEqual(["rogue_6_relic_cargo_8"]);
-    // drop_extra_pool / pool_boss：珍宝藏品级
-    expect(pools["drop_extra_pool"]).toContain("rogue_6_relic_fight_1");
-    expect(pools["pool_boss"]).toContain("rogue_6_relic_fight_1");
+    // pool_treasure：官方 36 件珍宝藏品（legacy 系，含 NORMAL 囊中骨/林中小手——页面数据如此）
+    expect(pools["pool_treasure"].length).toBe(36);
+    expect(pools["pool_treasure"]).toContain("rogue_6_relic_legacy_2"); // 香草沙士汽水
+    expect(pools["pool_treasure"]).toContain("rogue_6_relic_cargo_7"); // 囊中骨（官方珍宝池含）
+    // pool_small_gift：官方 3 件小礼物（制式防暴用具/异铁小圆盾/悬丝傀儡）
+    expect(pools["pool_small_gift"]).toEqual([
+      "rogue_6_relic_legacy_8",
+      "rogue_6_relic_legacy_12",
+      "rogue_6_relic_legacy_114",
+    ]);
+    // pool_scrap_7/8/9：多成员零件池（板藤/恋家果/光彩松露；报废轮子等 6 件；血蕈等 6 件）
+    expect(pools["pool_scrap_7"]).toEqual([
+      "rogue_6_scrap_G_09",
+      "rogue_6_scrap_G_10",
+      "rogue_6_scrap_G_11",
+    ]);
+    expect(pools["pool_scrap_8"].length).toBe(6);
+    expect(pools["pool_scrap_9"]).toContain("rogue_6_scrap_G_02"); // 血蕈
+    // drop_extra_pool（51 件）/ pool_boss（35 件）：官方精确成员
+    expect(pools["drop_extra_pool"].length).toBe(51);
+    expect(pools["drop_extra_pool"]).toContain("rogue_6_relic_legacy_2");
+    expect(pools["pool_boss"].length).toBe(35);
+    expect(pools["pool_boss"]).toContain("rogue_6_relic_legacy_4"); // 迷梦香精
   });
 
   it("多边贸易（shop_recycle_reward）：同一行商节点卖出 3 件零件 → +8 源石锭（限 1 次）", async () => {
@@ -281,27 +318,30 @@ describe("rogue_6 分队专属逻辑", () => {
       const player = makePlayer();
       await (player.rlv2 as any)._module.create();
       await (player.rlv2 as any)._pool.create();
+      // spy pool.get：固定返回 mock 内存在的零件，隔离官方成员（36 件未在 mock 中定义）
+      const pool = (player.rlv2 as any)._pool;
+      const getSpy = vi.spyOn(pool, "get").mockReturnValue({
+        id: "rogue_6_scrap_G_01",
+        count: 1,
+      });
       // 获得襁褓巨龙（start_6，zone_into_reward pool_treasure ×3 zone_3）
       await (player.rlv2 as any)._trigger.emit("rlv2:relic:gain", [
         { id: "rogue_6_start_6", count: 1 },
       ]);
-      const gz = (player.rlv2 as any)._module.gridZone;
       const scrap = (player.rlv2 as any)._module.scrap;
       const scrapBefore = Object.keys(scrap.inventory).length;
       // 进入 zone_3（匹配 valueStr "zone_3"，zone:new → map.generate 发 pool_treasure ×3）
-      const relicBefore = Object.keys((player.rlv2 as any).inventory.relic).length;
       await (player.rlv2 as any)._trigger.emit("rlv2:zone:new", [3]);
       await new Promise((r) => setTimeout(r, 0));
-      // pool_treasure = 白模零件(P_01) + 珍宝藏品(cargo_4/legacy_50/fight_1) → 抽 3 件入库（scrap 或 relic）
-      const scrapGain = Object.keys(scrap.inventory).length - scrapBefore;
-      const relicGain = Object.keys((player.rlv2 as any).inventory.relic).length - relicBefore;
-      expect(scrapGain + relicGain).toBe(3);
+      // POOL 分支按 count=3 循环抽取发放 → 3 件零件入库
+      expect(getSpy).toHaveBeenCalledTimes(3);
+      expect(getSpy).toHaveBeenCalledWith("pool_treasure", false);
+      expect(Object.keys(scrap.inventory).length).toBe(scrapBefore + 3);
       // 进入 zone_2（不匹配 zone_3）→ 无奖励
-      const s2 = Object.keys(scrap.inventory).length + Object.keys((player.rlv2 as any).inventory.relic).length;
       await (player.rlv2 as any)._trigger.emit("rlv2:zone:new", [2]);
       await new Promise((r) => setTimeout(r, 0));
-      const s3 = Object.keys(scrap.inventory).length + Object.keys((player.rlv2 as any).inventory.relic).length;
-      expect(s3).toBe(s2);
+      expect(getSpy).toHaveBeenCalledTimes(3);
+      getSpy.mockRestore();
     });
   });
 });

@@ -1,24 +1,50 @@
 import excel from "@excel/excel";
+import { readFileSync } from "fs";
 import { RoguelikeItemBundle } from "../../model/rlv2";
 import { RoguelikeV2Controller } from "../rlv2";
 import { randomChoice } from "@utils/random";
 import { TypedEventEmitter } from "@game/model/events";
 import { logger } from "@utils/logger";
 
+/**
+ * 官方池定义（data/rlv2/pools.json）：成员清单来自路标档案馆 pools/rogue_6 页面
+ * （2026-08-17 抓取），比 excel 推断更精确：
+ * - pool_scrap_3/6 为加权池（成员 {id, weight}，官方出现概率）
+ * - pool_scrap_7/8/9 为多成员零件池（持有 迷藏/囊中骨/林中小手 时发放）
+ * - pool_small_gift 为多成员小礼物池（持有 古地树实 时发放）
+ * - pool_treasure / drop_extra_pool / pool_boss 为官方精确成员（非全 R/SR 超集）
+ */
+interface OfficialPoolDef {
+  hasWeight?: boolean;
+  members: string[] | { id: string; weight: number }[];
+}
+
 export class RoguelikePoolManager {
   _pools: { [id: string]: string[] };
+  /** 加权池：poolId → { memberId → 权重 }（官方出现概率） */
+  _poolWeights: { [id: string]: { [member: string]: number } };
+  /** 官方池定义（data/rlv2/pools.json，加载失败为 null 时回退推断实现） */
+  _official: { pools: { [id: string]: OfficialPoolDef } } | null;
 
   _player: RoguelikeV2Controller;
   _trigger: TypedEventEmitter;
 
   constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
     this._pools = {};
+    this._poolWeights = {};
     this._player = player;
     this._trigger = _trigger;
     this._trigger.on("rlv2:relic:recycle", this.recycle.bind(this));
     this._trigger.on("rlv2:relic:put", this.put.bind(this));
     this._trigger.on("rlv2:init", this.init.bind(this));
     this._trigger.on("rlv2:create", this.create.bind(this));
+    try {
+      this._official = JSON.parse(
+        readFileSync(`${__dirname}/../../../../data/rlv2/pools.json`, "utf-8"),
+      );
+    } catch {
+      this._official = null;
+    }
   }
 
   recycle([id]: [string]) {
@@ -52,27 +78,24 @@ export class RoguelikePoolManager {
     );
     this._pools["pool_scrap_3"] = [...goodsIds];
     this._pools["pool_scrap_6"] = [...goodsIds];
-    // 官方池（路标档案馆 pools/rogue_6 页 + buffs 引用）：
-    // pool_treasure 珍宝池（文明开化分队/startbuff_12 血色空脉 3 收藏品）=
-    // PASSIVE 白模零件（P_01..06）+ 珍宝藏品（RARE/SUPER_RARE RELIC）
-    const passiveIds = Object.keys(typeMap?.scrapItemToType || {}).filter(
-      (id) => typeMap.scrapItemToType[id] === "PASSIVE",
-    );
-    const treasureRelics = Object.entries(detail.items).filter(
-      ([, it]: any) =>
-        it.type === "RELIC" &&
-        (it.rarity === "RARE" || it.rarity === "SUPER_RARE"),
-    ).map(([id]) => id);
-    this._pools["pool_treasure"] = [...passiveIds, ...treasureRelics];
-    // pool_small_gift 小礼物池（古地树实 legacy_50）
-    this._pools["pool_small_gift"] = ["rogue_6_relic_legacy_50"];
-    // pool_scrap_7/8/9 零件池（迷藏/囊中骨/林中小手）
-    this._pools["pool_scrap_7"] = ["rogue_6_relic_cargo_4"];
-    this._pools["pool_scrap_8"] = ["rogue_6_relic_cargo_7"];
-    this._pools["pool_scrap_9"] = ["rogue_6_relic_cargo_8"];
-    // drop_extra_pool 额外掉落池（地质调查分队）/ pool_boss Boss 藏品池：珍宝藏品级
-    this._pools["drop_extra_pool"] = [...treasureRelics];
-    this._pools["pool_boss"] = [...treasureRelics];
+    // 官方池（路标档案馆 pools/rogue_6 页面精确成员，data/rlv2/pools.json）：
+    // 覆盖 pool_scrap_3/6/7/8/9、pool_small_gift、pool_treasure、drop_extra_pool、pool_boss
+    const official = this._official?.pools || {};
+    for (const [poolId, def] of Object.entries(official)) {
+      if (def.hasWeight) {
+        const members = def.members as { id: string; weight: number }[];
+        this._pools[poolId] = members.map((m) => m.id);
+        this._poolWeights[poolId] = {};
+        for (const m of members) this._poolWeights[poolId][m.id] = m.weight;
+      } else {
+        this._pools[poolId] = [...(def.members as string[])];
+      }
+    }
+    // 收藏品池：按稀有度分类（官方 items.rarity：NORMAL/RARE/SUPER_RARE/BORN）
+    this._pools["pool_relic_normal"] = [];
+    this._pools["pool_relic_rare"] = [];
+    this._pools["pool_relic_super_rare"] = [];
+    this._pools["pool_relic_all"] = [];
     const fragment = excel.RoguelikeTopicTable.modules[theme].fragment;
     if (fragment) {
       this._pools["pool_fragment_3"] = [];
@@ -130,7 +153,20 @@ export class RoguelikePoolManager {
 
   get(id: string, putback = false): RoguelikeItemBundle {
     const pool = this._pools[id] || [];
-    const res = pool.length > 0 ? randomChoice(pool) : "";
+    let res = "";
+    const weights = this._poolWeights[id];
+    if (weights && pool.length > 0) {
+      // 加权抽取（官方出现概率）：按权重累加命中
+      const total = pool.reduce((sum, m) => sum + (weights[m] ?? 1), 0);
+      let r = Math.random() * total;
+      for (const m of pool) {
+        r -= weights[m] ?? 1;
+        if (r <= 0) { res = m; break; }
+      }
+      if (!res) res = pool[pool.length - 1];
+    } else {
+      res = pool.length > 0 ? randomChoice(pool) : "";
+    }
     if (!putback && pool.length > 0) {
       pool.splice(pool.indexOf(res), 1);
     }

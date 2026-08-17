@@ -137,6 +137,14 @@ export function printHelp(): void {
   console.log(`DoctorateTs 管理命令行工具
 用法: pnpm run admin -- <command> [options]     （无参数进入交互模式）
 
+活动切换（自定义：时间冻结 + 强制开启 + 合约赛季 + 资产补全）:
+  activities list [--json]                                   列出活动与开关状态
+  activities switch <timestamp|-1> [--force id1,id2] [--crisisV1 ccN] [--crisisV2 ccN]   切换活动（-1 恢复真实时间；--force 逗号分隔活动id）
+  activities crisis [--v1 ccN] [--v2 ccN]                    仅切换危机合约赛季（V1: data/crisis/*.json，V2: data/crisisV2/*.json）
+  activities force [--ids id1,id2]                           仅设置强制开启活动列表（空=清空）
+  activities backfill <all|活动id|危机赛季id> [--platform x]  启动资产补全后台任务（补全过往活动缺失 asset）
+  activities backfill-status <任务id> [--json]               查询补全任务进度
+
 用户管理:
   users list [--json] [--csv] [--filter 关键字]     列出所有用户（可过滤）
   users info <uid> [--json]                         查看用户详情
@@ -1636,6 +1644,146 @@ async function runOfficial(
   process.exitCode = 1;
 }
 
+/** 活动管理（自定义活动切换：时间冻结 + 强制开启 + 合约赛季 + 资产补全） */
+async function runActivities(
+  args: string[],
+  flags: { [key: string]: string },
+): Promise<void> {
+  const sub = args[0];
+  const fmt = (ts: number) =>
+    ts ? new Date(ts * 1000).toLocaleString("zh-CN", { hour12: false }) : "-";
+  if (sub === "list" || !sub) {
+    const list = await adminService.listActivities();
+    if (flags.json) {
+      output(list, flags);
+      return;
+    }
+    console.log(
+      `时间: ${list.usingOverride ? `冻结 ${list.timestamp}（${fmt(list.timestamp)}）` : "真实时间"} · 生效 ${list.effectiveTs}（${fmt(list.effectiveTs)}）`,
+    );
+    console.log(
+      `合约赛季: V1=${list.crisisV1}（可用 ${list.crisisSeasons.v1.join(",")}）· V2=${list.crisisV2}（可用 ${list.crisisSeasons.v2.join(",")}）`,
+    );
+    console.log(
+      `强制开启: ${list.forceOpen.length ? list.forceOpen.join(",") : "（无）"} · 自动补全: ${list.autoBackfill ? "开" : "关"}`,
+    );
+    console.log(
+      `开放活动: 窗口内 ${list.activities.filter((a) => a.open).length} 个 + 强制 ${list.forceOpen.length} 个`,
+    );
+    const rows = list.activities
+      .filter((a) => a.forced || a.open)
+      .map((a) => ({
+        id: a.id,
+        name: a.name,
+        type: a.type,
+        状态: a.forced ? "强制开启" : a.open ? "开放" : "",
+        开始: fmt(a.startTime),
+        结束: fmt(a.rewardEndTime),
+      }));
+    if (rows.length) console.table(rows);
+    else console.log("当前无开放/强制活动");
+    return;
+  }
+  if (sub === "switch") {
+    const tsRaw = args[1];
+    let timestamp: number | undefined;
+    if (tsRaw === "-") timestamp = -1;
+    else if (tsRaw !== undefined) {
+      timestamp = Number(tsRaw);
+      if (!Number.isFinite(timestamp)) {
+        console.error(`时间戳非法: ${tsRaw}`);
+        process.exitCode = 1;
+        return;
+      }
+    }
+    const forceOpen =
+      flags.force && flags.force !== "true"
+        ? flags.force.split(",").map((s) => s.trim()).filter(Boolean)
+        : undefined;
+    const r = await adminService.switchActivity({
+      timestamp,
+      forceOpen,
+      crisisV1: flags.crisisV1 && flags.crisisV1 !== "true" ? flags.crisisV1 : undefined,
+      crisisV2: flags.crisisV2 && flags.crisisV2 !== "true" ? flags.crisisV2 : undefined,
+    });
+    console.log(
+      `已切换: 时间戳=${r.timestamp}（生效 ${r.effectiveTs}）· 合约 V1=${r.crisisV1} V2=${r.crisisV2} · 强制开启 ${r.forceOpen.length} 个 · 开放 ${r.openCount} 个`,
+    );
+    if (r.backfillTasks.length) {
+      console.log(`资产补全任务: ${r.backfillTasks.join(", ")}（activities backfill-status <id> 查看进度）`);
+    }
+    return;
+  }
+  if (sub === "crisis") {
+    // 仅切换合约赛季（不动时间戳）
+    const r = await adminService.switchActivity({
+      crisisV1: flags.v1 && flags.v1 !== "true" ? flags.v1 : undefined,
+      crisisV2: flags.v2 && flags.v2 !== "true" ? flags.v2 : undefined,
+    });
+    console.log(`合约赛季已切换: V1=${r.crisisV1} V2=${r.crisisV2}`);
+    return;
+  }
+  if (sub === "force") {
+    // 仅设置强制开启（不动时间戳）
+    const forceOpen =
+      flags.ids && flags.ids !== "true"
+        ? flags.ids.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
+    const r = await adminService.switchActivity({ forceOpen });
+    console.log(`强制开启已更新: ${r.forceOpen.length ? r.forceOpen.join(", ") : "（清空）"}`);
+    return;
+  }
+  if (sub === "backfill") {
+    const target = args[1];
+    if (!target) {
+      console.error("用法: activities backfill <all|活动id|危机赛季id> [--platform Windows|Android]");
+      process.exitCode = 1;
+      return;
+    }
+    const task = await adminService.backfillAssets(
+      target,
+      flags.platform && flags.platform !== "true" ? flags.platform : "Android",
+    );
+    console.log(`资产补全任务已启动: ${task.id}（target=${target}）`);
+    return;
+  }
+  if (sub === "backfill-status") {
+    const id = args[1];
+    if (!id) {
+      console.error("用法: activities backfill-status <任务id>");
+      process.exitCode = 1;
+      return;
+    }
+    const task = adminService.getBackfillTaskStatus(id);
+    if (!task) {
+      console.error(`任务不存在: ${id}`);
+      process.exitCode = 1;
+      return;
+    }
+    if (flags.json) {
+      output(task, flags);
+      return;
+    }
+    console.log(`任务 ${task.id}: ${task.status}（target=${task.target} platform=${task.platform}）`);
+    if (task.stats) {
+      console.log(
+        `候选 ${task.stats.candidates} · 已有 ${task.stats.local} · 补全 ${task.stats.downloaded} · 失败 ${task.stats.failed}`,
+      );
+      if (task.stats.files.length) {
+        console.log(
+          `补全文件(${task.stats.files.length}): ${task.stats.files.slice(0, 20).join(", ")}${task.stats.files.length > 20 ? " ..." : ""}`,
+        );
+      }
+    }
+    if (task.error) console.log(`错误: ${task.error}`);
+    return;
+  }
+  console.error(
+    "用法: activities list | activities switch <timestamp|-1> [--force id1,id2] [--crisisV1 ccN] [--crisisV2 ccN] | activities crisis [--v1 ccN] [--v2 ccN] | activities force [--ids id1,id2] | activities backfill <all|活动id|危机赛季id> [--platform x] | activities backfill-status <id>",
+  );
+  process.exitCode = 1;
+}
+
 /** 命令分发（main 与交互模式共用） */
 export async function dispatch(
   command: string,
@@ -1645,6 +1793,9 @@ export async function dispatch(
   switch (command) {
     case "users":
       await runUsers(args, flags);
+      break;
+    case "activities":
+      await runActivities(args, flags);
       break;
     case "mail":
       await runMail(args, flags);
@@ -1688,7 +1839,7 @@ export async function dispatch(
 /** 交互模式：逐行执行命令，help/exit 退出（Tab 补全命令名） */
 function runRepl(): void {
   console.log("DoctorateTs 管理交互模式（输入 help 查看命令，exit 退出；Tab 补全）");
-  const COMMANDS = ["users", "mail", "server", "config", "gacha", "pay", "official", "logs", "capture", "help", "exit", "quit"];
+  const COMMANDS = ["users", "mail", "server", "config", "gacha", "pay", "official", "logs", "capture", "activities", "help", "exit", "quit"];
   const completer = (line: string): [string[], string] => {
     const hits = COMMANDS.filter((c) => c.startsWith(line));
     return [hits.length ? hits : COMMANDS, line];

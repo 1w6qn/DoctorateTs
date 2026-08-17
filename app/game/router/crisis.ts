@@ -13,6 +13,8 @@ import { readJson } from "@utils/file";
 import { decryptBattleData } from "@utils/crypt";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
+import config from "../../config";
+import { readdir } from "fs/promises";
 import {
   CrisisBuyGoodsRequest,
   CrisisBuyGoodsResponse,
@@ -58,9 +60,9 @@ import {
 
 // ==================== 常量定义 ====================
 
-/** 默认选中的危机合约V1赛季文件名（对应 data/crisis/cc1.json） */
+/** 默认选中的危机合约V1赛季文件名（对应 data/crisis/cc1.json；被 config.activities.crisisV1 覆盖） */
 const DEFAULT_SELECTED_CRISIS = "cc1";
-/** 默认选中的危机合约V2赛季文件名（对应 data/crisisV2/cc1.json） */
+/** 默认选中的危机合约V2赛季文件名（对应 data/crisisV2/cc1.json；被 config.activities.crisisV2 覆盖） */
 const DEFAULT_SELECTED_CRISIS_V2 = "cc1";
 /** 危机合约V1数据文件基础路径 */
 const CRISIS_JSON_BASE_PATH = "./data/crisis/";
@@ -70,6 +72,68 @@ const CRISIS_V2_JSON_BASE_PATH = "./data/crisisV2/";
 const ONE_DAY_SECONDS = 86400;
 /** 固定战斗ID（与参考实现一致） */
 const BATTLE_ID = "abcdefgh-1234-5678-a1b2c3d4e5f6";
+
+// ==================== 赛季选择（自定义活动切换：config.activities.crisisV1/V2）====================
+
+/** 可用赛季文件列表缓存（静态资源，进程生命周期内不变） */
+let crisisSeasonsCache: { v1: string[]; v2: string[] } | null = null;
+
+/**
+ * 列出某目录下可用赛季文件名（去 .json 后缀；目录不存在返回空）
+ * @param dir - 数据目录
+ * @returns 赛季 id 列表
+ */
+async function listCrisisFiles(dir: string): Promise<string[]> {
+  try {
+    const names = await readdir(dir);
+    return names.filter((n) => n.endsWith(".json")).map((n) => n.replace(/\.json$/, ""));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 可用危机合约赛季列表
+ * @returns { v1: data/crisis/*.json 文件列表, v2: data/crisisV2/*.json 文件列表 }
+ */
+export async function listCrisisSeasons(): Promise<{ v1: string[]; v2: string[] }> {
+  if (!crisisSeasonsCache) {
+    const [v1, v2] = await Promise.all([
+      listCrisisFiles(CRISIS_JSON_BASE_PATH),
+      listCrisisFiles(CRISIS_V2_JSON_BASE_PATH),
+    ]);
+    crisisSeasonsCache = { v1, v2 };
+  }
+  return crisisSeasonsCache;
+}
+
+/**
+ * 选中危机合约V1赛季（config.activities.crisisV1；文件不存在时回退默认 cc1）
+ * @returns 赛季 id
+ */
+async function selectedCrisisV1(): Promise<string> {
+  const wanted = config.activities?.crisisV1 || DEFAULT_SELECTED_CRISIS;
+  const seasons = await listCrisisSeasons();
+  if (seasons.v1.includes(wanted)) return wanted;
+  if (wanted !== DEFAULT_SELECTED_CRISIS) {
+    logger.warn("crisis", `配置 crisisV1=${wanted} 不存在 data/crisis/ 目录，回退 ${DEFAULT_SELECTED_CRISIS}`);
+  }
+  return DEFAULT_SELECTED_CRISIS;
+}
+
+/**
+ * 选中危机合约V2赛季（config.activities.crisisV2；文件不存在时回退默认 cc1）
+ * @returns 赛季 id
+ */
+async function selectedCrisisV2(): Promise<string> {
+  const wanted = config.activities?.crisisV2 || DEFAULT_SELECTED_CRISIS_V2;
+  const seasons = await listCrisisSeasons();
+  if (seasons.v2.includes(wanted)) return wanted;
+  if (wanted !== DEFAULT_SELECTED_CRISIS_V2) {
+    logger.warn("crisis", `配置 crisisV2=${wanted} 不存在 data/crisisV2/ 目录，回退 ${DEFAULT_SELECTED_CRISIS_V2}`);
+  }
+  return DEFAULT_SELECTED_CRISIS_V2;
+}
 
 // ==================== 接口定义 ====================
 
@@ -397,7 +461,7 @@ async function handleCrisisGetInfo(_req: any, res: any) {
   const nextDay = currentTime + ONE_DAY_SECONDS;
 
   try {
-    const rune = await dataCache.getV1Data(DEFAULT_SELECTED_CRISIS);
+    const rune = await dataCache.getV1Data(await selectedCrisisV1());
 
     /** 更新时间戳 */
     rune.ts = currentTime;
@@ -465,7 +529,7 @@ router.post("/battleStart", async (req, res) => {
 
   let totalRisks = 0;
   try {
-    const crisisData = await dataCache.getV1Data(DEFAULT_SELECTED_CRISIS);
+    const crisisData = await dataCache.getV1Data(await selectedCrisisV1());
     const stageRune = crisisData?.data?.stageRune?.[stageId];
 
     /** 累加所有选中符文的风险点数 */
@@ -483,7 +547,7 @@ router.post("/battleStart", async (req, res) => {
 
   /** 保存战斗上下文，供 battleFinish 使用 */
   battleStore.setV1(player.uid, {
-    chosenCrisis: DEFAULT_SELECTED_CRISIS,
+    chosenCrisis: await selectedCrisisV1(),
     chosenRisks: runeList || [],
     totalRisks,
   });
@@ -744,7 +808,7 @@ router.post("/v2/getInfo", async (req, res) => {
   req.body as CrisisV2GetInfoRequest;
 
   try {
-    const rune = await dataCache.getV2Data(DEFAULT_SELECTED_CRISIS_V2);
+    const rune = await dataCache.getV2Data(await selectedCrisisV2());
     res.send(rune satisfies CrisisV2GetInfoResponse);
   } catch (err) {
     /** 数据文件加载失败时返回最小响应 */
@@ -805,7 +869,7 @@ router.post("/v2/battleFinish", async (req, res) => {
   let runeIds: string[] = [];
 
   try {
-    const rune = await dataCache.getV2Data(DEFAULT_SELECTED_CRISIS_V2);
+    const rune = await dataCache.getV2Data(await selectedCrisisV2());
     const result = computeV2BattleScore(rune, mapId, runeSlots);
     scoreCurrent = result.scoreCurrent;
     runeIds = result.runeIds;

@@ -438,12 +438,66 @@ router.get("/api/activity/list", async (_req: Request, res: Response) => {
   }
 });
 
-/** 切换活动：冻结客户端可见服务器时间戳（-1 恢复真实时间；数值仅限过去时间） */
+/** 切换活动（自定义活动切换：时间冻结 + 强制开启 + 合约赛季选择；兼容仅传 timestamp） */
 router.post("/api/activity/switch", async (req: Request, res: Response) => {
   try {
-    const { timestamp } = req.body ?? {};
-    const result = await adminService.switchActivity(Number(timestamp));
+    const body = (req.body ?? {}) as {
+      timestamp?: number;
+      forceOpen?: string[] | string;
+      crisisV1?: string;
+      crisisV2?: string;
+    };
+    // 兼容旧调用（仅 timestamp）与 Dashboard 新表单（JSON 数组或逗号分隔串）
+    const forceOpen = Array.isArray(body.forceOpen)
+      ? body.forceOpen
+      : typeof body.forceOpen === "string" && body.forceOpen.trim()
+        ? body.forceOpen.split(",").map((s) => s.trim()).filter(Boolean)
+        : undefined;
+    const result = await adminService.switchActivity({
+      timestamp: body.timestamp,
+      forceOpen,
+      crisisV1: body.crisisV1,
+      crisisV2: body.crisisV2,
+    });
     res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 启动资产补全后台任务（target=all|活动id|危机赛季id） */
+router.post("/api/asset/backfill", async (req: Request, res: Response) => {
+  try {
+    const { target, platform } = (req.body ?? {}) as { target?: string; platform?: string };
+    if (!target) {
+      res.status(400).json({ error: "缺少 target（all | 活动id | 危机赛季id）" });
+      return;
+    }
+    const task = await adminService.backfillAssets(String(target), String(platform ?? "Android"));
+    res.json(task);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 查询资产补全任务状态 */
+router.get("/api/asset/backfill/:id", async (req: Request, res: Response) => {
+  try {
+    const task = adminService.getBackfillTaskStatus(String(req.params.id));
+    if (!task) {
+      res.status(404).json({ error: `任务不存在: ${req.params.id}` });
+      return;
+    }
+    res.json(task);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 最近资产补全任务列表 */
+router.get("/api/asset/backfill", async (_req: Request, res: Response) => {
+  try {
+    res.json(adminService.listAssetBackfillTasks());
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }

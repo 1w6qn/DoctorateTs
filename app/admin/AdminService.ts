@@ -32,7 +32,15 @@ import { exists, size, readJson, readJsonSync, writeJson } from "@utils/file";
 import { now, userTimestamp } from "@utils/time";
 import { logger } from "@utils/logger";
 import { logService } from "@logs/log-service";
-import { unlockActivity } from "@game/manager/activity/unlockActivity";
+import { unlockActivity, forcedActivityIds } from "@game/manager/activity/unlockActivity";
+import { listCrisisSeasons } from "@game/router/crisis";
+import {
+  startBackfillTask,
+  getBackfillTask as getAssetBackfillTask,
+  listBackfillTasks as listAssetBackfillTasks,
+  autoBackfillAfterSwitch,
+  BackfillTask,
+} from "../asset-backfill";
 import {
   loadOrders as loadPayOrders,
   markPaid as markPayOrderPaid,
@@ -1767,13 +1775,18 @@ export class AdminService {
   }
 
   /**
-   * 活动列表 + 开关状态（activity 切换，参考 DoctoratePy developer.timestamp）
-   * @returns 当前冻结时间戳/生效时间戳 + 各活动窗口与 open 判定
+   * 活动列表 + 开关状态（activity 切换，参考 DoctoratePy developer.timestamp + 自定义强制开启）
+   * @returns 当前冻结时间戳/生效时间戳 + 各活动窗口与 open 判定 + 强制开启/合约赛季配置
    */
   async listActivities(): Promise<{
     timestamp: number;
     effectiveTs: number;
     usingOverride: boolean;
+    forceOpen: string[];
+    crisisV1: string;
+    crisisV2: string;
+    autoBackfill: boolean;
+    crisisSeasons: { v1: string[]; v2: string[] };
     activities: {
       id: string;
       name: string;
@@ -1783,10 +1796,12 @@ export class AdminService {
       endTime: number;
       rewardEndTime: number;
       open: boolean;
+      forced: boolean;
     }[];
   }> {
     const frozen = config.developer?.timestamp ?? -1;
     const effectiveTs = userTimestamp();
+    const forced = forcedActivityIds();
     const basicInfo = (excel.ActivityTable?.basicInfo ?? {}) as Record<string, any>;
     const activities = Object.values(basicInfo)
       // 防御：basicInfo 含 null 占位条目（20/331）
@@ -1801,23 +1816,50 @@ export class AdminService {
         endTime: info.endTime ?? 0,
         rewardEndTime: info.rewardEndTime ?? 0,
         open: info.startTime <= effectiveTs && effectiveTs <= info.rewardEndTime,
+        forced: forced.has(info.id),
       }));
+    const seasons = await listCrisisSeasons();
     return {
       timestamp: frozen,
       effectiveTs,
       usingOverride: frozen !== -1,
+      forceOpen: [...forced],
+      crisisV1: config.activities?.crisisV1 ?? "cc1",
+      crisisV2: config.activities?.crisisV2 ?? "cc1",
+      autoBackfill: config.activities?.autoBackfill !== false,
+      crisisSeasons: seasons,
       activities,
     };
   }
 
   /**
-   * 切换活动（冻结客户端可见服务器时间戳，参考 DoctoratePy）
-   * @param timestamp - -1 恢复真实时间；数值冻结到该时间戳（仅允许过去时间，未来拒绝）
-   * @returns 生效时间戳 + 打开的活动数；并对已加载玩家重跑活动播种
+   * 切换活动（自定义活动切换：时间冻结 + 强制开启 + 合约赛季选择）
+   *
+   * 兼容旧调用：传数字等价于 { timestamp: 数字 }。
+   * - timestamp: -1 恢复真实时间；数值冻结到该时间戳（仅允许过去时间，未来拒绝）
+   * - forceOpen: 强制开启的活动 ID 列表（basicInfo.id，忽略时间窗口播种且不修剪）
+   * - crisisV1/crisisV2: 危机合约赛季选择（data/crisis*.json 文件名，须存在）
+   * 生效后对已加载玩家重跑活动播种，并按 activities.autoBackfill 后台补全缺失 asset。
    */
   async switchActivity(
-    timestamp: number,
-  ): Promise<{ ok: true; timestamp: number; effectiveTs: number; openCount: number }> {
+    params: number | {
+      timestamp?: number;
+      forceOpen?: string[];
+      crisisV1?: string;
+      crisisV2?: string;
+    },
+  ): Promise<{
+    ok: true;
+    timestamp: number;
+    effectiveTs: number;
+    openCount: number;
+    forceOpen: string[];
+    crisisV1: string;
+    crisisV2: string;
+    backfillTasks: string[];
+  }> {
+    const p = typeof params === "number" ? { timestamp: params } : params;
+    const timestamp = p.timestamp ?? config.developer?.timestamp ?? -1;
     if (timestamp !== -1) {
       if (!Number.isFinite(timestamp)) {
         throw new Error(`时间戳非法: ${timestamp}`);
@@ -1829,15 +1871,47 @@ export class AdminService {
         );
       }
     }
+    const basicInfo = (excel.ActivityTable?.basicInfo ?? {}) as Record<string, any>;
+    const seasons = await listCrisisSeasons();
+    // 校验合约赛季存在（文件缺失时拒绝，避免客户端拿到空数据）
+    const crisisV1 = p.crisisV1 ?? config.activities?.crisisV1 ?? "cc1";
+    const crisisV2 = p.crisisV2 ?? config.activities?.crisisV2 ?? "cc1";
+    if (!seasons.v1.includes(crisisV1)) {
+      throw new Error(`危机合约V1赛季 ${crisisV1} 不存在（可用: ${seasons.v1.join(", ")}）`);
+    }
+    if (!seasons.v2.includes(crisisV2)) {
+      throw new Error(`危机合约V2赛季 ${crisisV2} 不存在（可用: ${seasons.v2.join(", ")}）`);
+    }
+    // 校验强制开启活动 ID 存在（大小写不敏感 + 前缀/包含近似提示）
+    const forceOpen = p.forceOpen ?? config.activities?.forceOpen ?? [];
+    for (const id of forceOpen) {
+      if (!basicInfo[id]) {
+        const keys = Object.keys(basicInfo);
+        const fuzzy =
+          keys.find((k) => k.toLowerCase() === id.toLowerCase()) ??
+          keys.find((k) => k.toLowerCase().startsWith(id.toLowerCase())) ??
+          keys.find((k) => id.toLowerCase().startsWith(k.toLowerCase())) ??
+          keys.find((k) => k.toLowerCase().includes(id.toLowerCase()));
+        throw new Error(
+          `强制开启活动 ${id} 不在 basicInfo（${fuzzy ? `疑似应为 ${fuzzy}` : "无近似匹配"}）`,
+        );
+      }
+    }
     // 持久化 data/config.json（读-改-写，保留其它字段）
     const cfg = readJsonSync<Record<string, any>>("./data/config.json");
     cfg.developer = { timestamp };
+    cfg.activities = {
+      ...(cfg.activities ?? {}),
+      forceOpen,
+      crisisV1,
+      crisisV2,
+    };
     await writeJson("./data/config.json", cfg);
-    // 内存 config 同步——userTimestamp/unlockActivity 立即读取新值，无需重启
+    // 内存 config 同步——userTimestamp/unlockActivity/crisis 立即读取新值，无需重启
     config.developer = { timestamp };
+    config.activities = cfg.activities ?? {};
 
     // 对已加载玩家重跑活动播种（新玩家加载时 _doLoadPlayer 也会播种）
-    let openCount = 0;
     for (const uid of Object.keys(accountManager.data)) {
       try {
         await unlockActivity(accountManager.data[uid]);
@@ -1846,12 +1920,59 @@ export class AdminService {
       }
     }
     const effectiveTs = userTimestamp();
-    const basicInfo = (excel.ActivityTable?.basicInfo ?? {}) as Record<string, any>;
-    openCount = Object.values(basicInfo).filter(
+    const windowOpen = Object.values(basicInfo).filter(
       (info) => info && info.startTime <= effectiveTs && effectiveTs <= info.rewardEndTime,
     ).length;
-    await this._audit("switchActivity", "all", `timestamp=${timestamp}（有效 ${effectiveTs}）`);
-    return { ok: true, timestamp, effectiveTs, openCount };
+    const openCount = windowOpen + forceOpen.length;
+    // 自动补全缺失 asset（后台任务；强制开启的活动 + 选中合约赛季）
+    const backfillTargets = [...new Set([...forceOpen, crisisV1, crisisV2])];
+    const backfillTasks: string[] = [];
+    if ((config.activities?.autoBackfill ?? true) !== false) {
+      for (const target of backfillTargets) {
+        const task = await autoBackfillAfterSwitch(target, "Android").catch((error) => {
+          logger.warn("AdminService", `活动 ${target} 自动补全启动失败: ${(error as Error).message}`);
+          return null;
+        });
+        if (task) backfillTasks.push(task.id);
+      }
+    }
+    await this._audit(
+      "switchActivity",
+      "all",
+      JSON.stringify({ timestamp, forceOpen, crisisV1, crisisV2, effectiveTs }),
+    );
+    return {
+      ok: true,
+      timestamp,
+      effectiveTs,
+      openCount,
+      forceOpen,
+      crisisV1,
+      crisisV2,
+      backfillTasks,
+    };
+  }
+
+  /**
+   * 启动资产补全后台任务（自动补全过往活动缺失的 asset）
+   * @param target   - all（全部关卡）| 活动 id | 危机赛季 id
+   * @param platform - 平台键（缺省 Android）
+   * @returns 后台任务对象（status=running，进度经 getBackfillTaskStatus 查询）
+   */
+  async backfillAssets(target: string, platform = "Android"): Promise<BackfillTask> {
+    const task = await startBackfillTask(target, platform);
+    await this._audit("backfillAssets", "all", `target=${target} platform=${platform} task=${task.id}`);
+    return task;
+  }
+
+  /** 查询资产补全后台任务 */
+  getBackfillTaskStatus(id: string): BackfillTask | undefined {
+    return getAssetBackfillTask(id);
+  }
+
+  /** 最近资产补全后台任务列表（新→旧） */
+  listAssetBackfillTasks(): BackfillTask[] {
+    return listAssetBackfillTasks();
   }
 
   /**

@@ -3547,7 +3547,7 @@
     if (mvt) $("rogue-theme").value = mvt.value;
   }
 
-  /* ---------- 活动切换（developer.timestamp 冻结，参考 DoctoratePy） ---------- */
+  /* ---------- 活动切换（时间冻结 + 强制开启 + 合约赛季 + 资产补全） ---------- */
 
   function fmtTs(ts) {
     if (!ts) return "-";
@@ -3560,13 +3560,18 @@
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
+  /** 最近一次后台补全任务 id（供轮询） */
+  var lastBfTask = null;
+  /** 补全任务轮询定时器 */
+  var bfPollTimer = null;
+
   function loadActivityPane() {
     var pane = $("pane-activity");
     pane.innerHTML =
       '<div class="card" style="margin-top:0;">' +
       '<div class="row" style="align-items:center;margin-bottom:8px;">' +
       '<h3 style="color:var(--gold);margin:0;">🎡 活动切换</h3>' +
-      '<span style="font-size:11px;color:var(--muted);margin-left:10px;">冻结客户端可见服务器时间戳（data/config.json → developer.timestamp），客户端按 ts 判定活动开放（参考 DoctoratePy）。仅支持冻结到过去时间。</span>' +
+      '<span style="font-size:11px;color:var(--muted);margin-left:10px;">时间冻结（developer.timestamp）+ 强制开启（忽略时间窗口）+ 合约赛季选择 + 自动补全缺失 asset（后台预取关卡 bundle）。仅支持冻结到过去时间。</span>' +
       "</div>" +
       '<div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">' +
       '<span id="act-ts-label" style="font-size:12px;color:var(--muted);">加载中…</span>' +
@@ -3575,7 +3580,19 @@
       '<button id="act-ts-apply">应用时间戳</button>' +
       '<input id="act-filter" placeholder="搜索活动名/ID" style="width:170px;margin-left:6px;">' +
       "</div>" +
-      '<div style="max-height:62vh;overflow:auto;border:1px solid var(--border,#333);border-radius:8px;">' +
+      '<div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">' +
+      '<span style="font-size:12px;color:var(--muted);">合约赛季</span>' +
+      '<select id="act-crisis-v1" style="width:110px;"></select>' +
+      '<select id="act-crisis-v2" style="width:110px;"></select>' +
+      '<button id="act-crisis-apply">应用赛季</button>' +
+      '<button id="act-crisis-bf" class="btn-sm">补全选中赛季</button>' +
+      '<span style="width:1px;height:18px;background:var(--border,#333);display:inline-block;"></span>' +
+      '<button id="act-force-apply">💾 保存强制开启</button>' +
+      '<button id="act-force-clear" class="btn-sm">清空强制</button>' +
+      '<button id="act-backfill-all" class="primary">⬇ 补全全部资产</button>' +
+      "</div>" +
+      '<div id="act-bf-status" style="font-size:11px;color:var(--muted);margin-bottom:8px;">—</div>' +
+      '<div style="max-height:60vh;overflow:auto;border:1px solid var(--border,#333);border-radius:8px;">' +
       '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
       "<thead><tr>" +
       '<th style="text-align:left;padding:6px 8px;position:sticky;top:0;background:var(--bg,#141a24);">名称</th>' +
@@ -3583,11 +3600,63 @@
       '<th style="text-align:left;padding:6px 8px;">类型</th>' +
       '<th style="text-align:left;padding:6px 8px;">时间窗（开始 ~ 结束）</th>' +
       '<th style="text-align:left;padding:6px 8px;">状态</th>' +
+      '<th style="text-align:left;padding:6px 8px;">强制</th>' +
       '<th style="text-align:left;padding:6px 8px;">操作</th>' +
       "</tr></thead><tbody id='act-rows'></tbody></table>" +
       "</div></div>";
     bindActivityPane();
     refreshActivityList();
+  }
+
+  /** 提交活动切换（forceOpen 仅传入勾选项；timestamp/crisis 缺省保持现状） */
+  function postSwitch(payload, done) {
+    api("/activity/switch", { method: "POST", body: JSON.stringify(payload) })
+      .then(function (r) {
+        if (done) done(r);
+        refreshActivityList();
+      })
+      .catch(function (e) { alert(e.message); });
+  }
+
+  /** 轮询补全任务直到结束，展示统计 */
+  function pollBackfillTask(taskId) {
+    if (bfPollTimer) { clearInterval(bfPollTimer); bfPollTimer = null; }
+    var el = $("act-bf-status");
+    var tries = 0;
+    bfPollTimer = setInterval(function () {
+      api("/asset/backfill/" + encodeURIComponent(taskId)).then(function (t) {
+        tries++;
+        if (t.status === "running") {
+          el.textContent = "⏳ 补全中 " + taskId + "（target=" + t.target + "）: 候选 " +
+            (t.stats ? t.stats.candidates : "?") + " · 已有 " + (t.stats ? t.stats.local : "?") +
+            " · 补全 " + (t.stats ? t.stats.downloaded : "?") + " · 失败 " + (t.stats ? t.stats.failed : "?");
+          return;
+        }
+        clearInterval(bfPollTimer); bfPollTimer = null;
+        if (t.status === "error") {
+          el.innerHTML = "<span style='color:#e07a7a;'>✗ 补全失败 " + taskId + ": " + h(t.error) + "</span>";
+          return;
+        }
+        var s = t.stats || {};
+        el.innerHTML = "<span style='color:#7bd88f;'>✓ 补全完成 " + taskId + "（target=" + h(t.target) + "）: 候选 " +
+          s.candidates + " · 已有 " + s.local + " · 补全 " + s.downloaded + " · 失败 " + s.failed +
+          (s.files && s.files.length ? " · 新增 " + s.files.length + " 个文件" : "") + "</span>";
+      }).catch(function (e) {
+        if (++tries > 4) {
+          clearInterval(bfPollTimer); bfPollTimer = null;
+          el.textContent = "任务状态查询失败: " + e.message;
+        }
+      });
+    }, 2000);
+  }
+
+  function startBackfill(target) {
+    api("/asset/backfill", { method: "POST", body: JSON.stringify({ target: target, platform: "Android" }) })
+      .then(function (t) {
+        lastBfTask = t.id;
+        pollBackfillTask(t.id);
+      })
+      .catch(function (e) { alert(e.message); });
   }
 
   function refreshActivityList() {
@@ -3597,7 +3666,18 @@
         label.textContent =
           "当前冻结: " + (data.usingOverride ? data.timestamp + "（" + fmtTs(data.timestamp) + "）" : "真实时间") +
           " · 生效 ts: " + data.effectiveTs + "（" + fmtTs(data.effectiveTs) + "）" +
-          " · 窗口内开放活动 " + data.activities.filter(function (a) { return a.open; }).length + " 个";
+          " · 开放 " + (data.activities.filter(function (a) { return a.open; }).length + data.forceOpen.length) + " 个" +
+          " · 合约 V1=" + data.crisisV1 + " V2=" + data.crisisV2 +
+          " · 自动补全 " + (data.autoBackfill ? "开" : "关");
+        // 合约赛季下拉（保持当前选择）
+        var v1 = $("act-crisis-v1"), v2 = $("act-crisis-v2");
+        var cur1 = v1.value || data.crisisV1, cur2 = v2.value || data.crisisV2;
+        v1.innerHTML = (data.crisisSeasons.v1 || []).map(function (s) {
+          return "<option value='" + h(s) + "'" + (s === cur1 ? " selected" : "") + ">V1 " + h(s) + "</option>";
+        }).join("");
+        v2.innerHTML = (data.crisisSeasons.v2 || []).map(function (s) {
+          return "<option value='" + h(s) + "'" + (s === cur2 ? " selected" : "") + ">V2 " + h(s) + "</option>";
+        }).join("");
         var kw = ($("act-filter").value || "").trim().toLowerCase();
         var rows = data.activities
           .filter(function (a) {
@@ -3606,34 +3686,46 @@
               (a.id || "").toLowerCase().indexOf(kw) !== -1;
           })
           .map(function (a) {
+            var forced = !!a.forced;
             return "<tr>" +
               "<td style='padding:5px 8px;'>" + h(a.name) + "</td>" +
               "<td style='padding:5px 8px;color:var(--muted);'>" + h(a.id) + "</td>" +
               "<td style='padding:5px 8px;'>" + h(a.type) + "</td>" +
               "<td style='padding:5px 8px;color:var(--muted);'>" + fmtTs(a.startTime) + " ~ " + fmtTs(a.endTime) + "</td>" +
-              '<td style="padding:5px 8px;">' + (a.open
-                ? '<span style="color:#7bd88f;">● 开放</span>'
-                : '<span style="color:var(--muted);">—</span>') + "</td>" +
-              '<td style="padding:5px 8px;"><button class="btn-sm act-open" data-start="' + a.startTime + '" ' +
-              (a.open ? "disabled" : "") + '>切到该活动</button></td>' +
+              '<td style="padding:5px 8px;">' + (forced
+                ? '<span style="color:#e0b64a;">● 强制开启</span>'
+                : a.open
+                  ? '<span style="color:#7bd88f;">● 开放</span>'
+                  : '<span style="color:var(--muted);">—</span>') + "</td>" +
+              '<td style="padding:5px 8px;text-align:center;">' +
+              '<input type="checkbox" class="act-force" data-id="' + h(a.id) + '"' + (forced ? " checked" : "") + "></td>" +
+              '<td style="padding:5px 8px;white-space:nowrap;">' +
+              '<button class="btn-sm act-open" data-start="' + a.startTime + '" ' +
+              (a.open && !forced ? "disabled" : "") + '>切到该活动</button> ' +
+              '<button class="btn-sm act-bf" data-id="' + h(a.id) + '">补全资产</button></td>' +
               "</tr>";
           })
           .join("");
         $("act-rows").innerHTML = rows ||
-          '<tr><td colspan="6" style="padding:12px;color:var(--muted);text-align:center;">无匹配活动</td></tr>';
+          '<tr><td colspan="7" style="padding:12px;color:var(--muted);text-align:center;">无匹配活动</td></tr>';
+        // 事件绑定：切到该活动 / 补全资产 / 强制勾选
         var btns = document.querySelectorAll("#act-rows .act-open");
         for (var i = 0; i < btns.length; i++) {
           btns[i].addEventListener("click", function () {
             var st = parseInt(this.getAttribute("data-start"), 10);
-            api("/activity/switch", { method: "POST", body: JSON.stringify({ timestamp: st }) })
-              .then(function () { refreshActivityList(); })
-              .catch(function (e) { alert(e.message); });
+            postSwitch({ timestamp: st });
+          });
+        }
+        var bfBtns = document.querySelectorAll("#act-rows .act-bf");
+        for (var j = 0; j < bfBtns.length; j++) {
+          bfBtns[j].addEventListener("click", function () {
+            startBackfill(this.getAttribute("data-id"));
           });
         }
       })
       .catch(function (e) {
         $("act-rows").innerHTML =
-          '<tr><td colspan="6" style="padding:12px;color:#e07a7a;text-align:center;">' + h(e.message) + "</td></tr>";
+          '<tr><td colspan="7" style="padding:12px;color:#e07a7a;text-align:center;">' + h(e.message) + "</td></tr>";
       });
   }
 
@@ -3641,18 +3733,37 @@
     var reset = $("act-reset");
     if (!reset) return;
     reset.addEventListener("click", function () {
-      api("/activity/switch", { method: "POST", body: JSON.stringify({ timestamp: -1 }) })
-        .then(function () { refreshActivityList(); })
-        .catch(function (e) { alert(e.message); });
+      postSwitch({ timestamp: -1 });
     });
     $("act-ts-apply").addEventListener("click", function () {
       var ts = parseInt($("act-ts-input").value, 10);
       if (!Number.isFinite(ts)) { alert("请输入有效时间戳（秒）"); return; }
-      api("/activity/switch", { method: "POST", body: JSON.stringify({ timestamp: ts }) })
-        .then(function () { refreshActivityList(); })
-        .catch(function (e) { alert(e.message); });
+      postSwitch({ timestamp: ts });
     });
     $("act-filter").addEventListener("input", function () { refreshActivityList(); });
+    // 合约赛季应用/补全
+    $("act-crisis-apply").addEventListener("click", function () {
+      postSwitch({ crisisV1: $("act-crisis-v1").value, crisisV2: $("act-crisis-v2").value });
+    });
+    $("act-crisis-bf").addEventListener("click", function () {
+      startBackfill($("act-crisis-v1").value);
+    });
+    // 强制开启保存/清空
+    $("act-force-apply").addEventListener("click", function () {
+      var ids = [];
+      var boxes = document.querySelectorAll("#act-rows .act-force");
+      for (var i = 0; i < boxes.length; i++) {
+        if (boxes[i].checked) ids.push(boxes[i].getAttribute("data-id"));
+      }
+      postSwitch({ forceOpen: ids });
+    });
+    $("act-force-clear").addEventListener("click", function () {
+      postSwitch({ forceOpen: [] });
+    });
+    // 补全全部
+    $("act-backfill-all").addEventListener("click", function () {
+      startBackfill("all");
+    });
   }
 
   /* ---------- 登录 ---------- */

@@ -9,6 +9,7 @@ import { mkdir, readdir, readFile, writeFile, stat } from "fs/promises";
 import config from "./config";
 import { exists, size } from "@utils/file";
 import { logger } from "@utils/logger";
+import { backfillFile } from "./asset-backfill";
 
 const router = Router();
 
@@ -132,6 +133,36 @@ router.get(
         filePath = modPath;
         basePath = join(__dirname, "..", "mods");
         fileName = basename(filePath);
+      } else {
+        // 非 mod 资源：本版本目录缺失时回退「官方版本目录」（assets/{官方版本}/redirect/）。
+        // asset-backfill 的预取/补全统一落官方版本目录，mod 签名版本与直连版本共享命中；
+        // 仅当官方版本目录与请求目录不同才回退，且不覆盖 wrongSize 校验（文件已存在判定）。
+        const canonicalPath = join(
+          join(__dirname, "..", "assets", cdnVersion, "redirect"),
+          fileName,
+        );
+        if (
+          canonicalPath !== filePath &&
+          !(await exists(filePath)) &&
+          (await exists(canonicalPath))
+        ) {
+          filePath = canonicalPath;
+        }
+      }
+    } else if (
+      // 未启用 mod 时同样支持官方版本目录回退（预取补全对直连版本生效）
+      fileName !== "hot_update_list.json"
+    ) {
+      const canonicalPath = join(
+        join(__dirname, "..", "assets", cdnVersion, "redirect"),
+        fileName,
+      );
+      if (
+        canonicalPath !== filePath &&
+        !(await exists(filePath)) &&
+        (await exists(canonicalPath))
+      ) {
+        filePath = canonicalPath;
       }
     }
     const fp = await exportFile(
@@ -142,6 +173,7 @@ router.get(
       assetsHash,
       wrongSize,
       mods,
+      cdnPlatform,
     );
     logger.debug("Asset", "serve", fp);
     res.sendFile(fp);
@@ -356,6 +388,7 @@ async function exportFile(
   assetsHash: string,
   reDownload = false,
   mods?: ModsList,
+  backfillPlatform?: string,
 ): Promise<string> {
   if (basename(filePath) === "hot_update_list.json") {
     let hotUpdateList;
@@ -423,15 +456,32 @@ async function exportFile(
     })();
   }
 
-  if (downloadingThread) {
-    await downloadingThread;
-    delete downloadingFiles[filePath];
-  } else {
-    if (downloadingFiles[filePath]) {
-      await new Promise((resolve) =>
-        downloadingFiles[filePath].once("downloaded", resolve),
-      );
+  try {
+    if (downloadingThread) {
+      await downloadingThread;
+      delete downloadingFiles[filePath];
+    } else {
+      if (downloadingFiles[filePath]) {
+        await new Promise((resolve) =>
+          downloadingFiles[filePath].once("downloaded", resolve),
+        );
+      }
     }
+  } catch (err) {
+    // 自动补全：当前版本 CDN 缺失（404/网络失败）→ asset-backfill 本地其它版本拷贝 /
+    // 官方 CDN 历史版本探测下载，统一落官方版本目录（mod 签名版本与直连版本共享命中）。
+    // 仅对常规资源生效（hot_update_list 已提前 return；mod 文件走 modPath 不进入此路径）。
+    const platform = backfillPlatform ?? "Android";
+    const canonicalPath = join(
+      join(__dirname, "..", "assets", officialResVersion(platform), "redirect"),
+      fileName,
+    );
+    if (await backfillFile(platform, fileName, canonicalPath)) {
+      logger.info("Asset", `自动补全 ${fileName} → ${canonicalPath}`);
+      return canonicalPath;
+    }
+    // 补全失败保持原错误行为（调用方/客户端可见 4xx-5xx）
+    throw err;
   }
 
   // 返回真实文件路径（而非 join(basePath, fileName)）：

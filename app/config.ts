@@ -60,6 +60,12 @@ interface UserConfig {
     downloadPeoxy?: boolean;
     /** 是否启动时自动重打包内置 Lua bundle mod（缺省 true；false 关闭自动构建） */
     autoBuildLuaMod?: boolean;
+    /**
+     * 资产补全的历史资源版本列表（asset-backfill 探测用，可缺省）。
+     * 缺省时自动收集 assets/ 目录下已知版本 + 当前官方版本；
+     * 手动补充官方 CDN 上存在但本地从未下载过的历史 resVersion 可提高补全命中率。
+     */
+    backfillVersions?: string[];
   };
   /** 网络配置 */
   NetworkConfig: object;
@@ -119,6 +125,23 @@ interface UserConfig {
      * -1（缺省）= 真实时间；数值 = 冻结到该时间戳（仅允许过去时间，未来值回退真实时间）
      */
     timestamp?: number;
+  };
+  /** 自定义活动切换（强制开启 + 合约赛季选择 + 资产补全） */
+  activities?: {
+    /**
+     * 强制开启的活动 ID 列表（ActivityTable.basicInfo.id，如 "act1arkhub"）。
+     * 忽略时间窗口无条件播种（含活动任务），修剪阶段也跳过这些 ID。缺省空数组。
+     */
+    forceOpen?: string[];
+    /** 危机合约V1赛季（data/crisis/<id>.json，如 "cc2"；缺省 "cc1"） */
+    crisisV1?: string;
+    /** 危机合约V2赛季（data/crisisV2/<id>.json，如 "cc3"；缺省 "cc1"） */
+    crisisV2?: string;
+    /**
+     * 活动切换后是否自动补全该活动缺失的 asset（后台预取关卡 bundle，缺省 true）。
+     * 仅当 assets.downloadLocally=true 时生效。
+     */
+    autoBackfill?: boolean;
   };
   /** 支付配置（pay 路由） */
   pay?: {

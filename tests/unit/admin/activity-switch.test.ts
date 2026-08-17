@@ -55,9 +55,11 @@ vi.mock("fs/promises", async (importOriginal) => {
 describe("AdminService 活动切换（activity switch）", () => {
   let service: AdminService;
   const original = config.developer;
+  const originalActivities = config.activities;
 
   afterEach(() => {
     config.developer = original;
+    config.activities = originalActivities;
   });
 
   beforeEach(() => {
@@ -120,5 +122,53 @@ describe("AdminService 活动切换（activity switch）", () => {
     config.developer = { timestamp: -1 };
     const list = await service.listActivities();
     expect(list.usingOverride).toBe(false);
+  });
+
+  it("switchActivity 对象参数：强制开启活动忽略时间窗口并计入 openCount", async () => {
+    const r = await service.switchActivity({ forceOpen: ["act6bossrush"] });
+    expect(r.ok).toBe(true);
+    expect(r.forceOpen).toEqual(["act6bossrush"]);
+    // act6bossrush 时间窗口未到（open=false），强制开启后计入 openCount
+    expect(r.openCount).toBeGreaterThanOrEqual(1);
+    // 持久化配置含 activities.forceOpen
+    expect(writeJson).toHaveBeenCalledWith(
+      "./data/config.json",
+      expect.objectContaining({
+        activities: expect.objectContaining({ forceOpen: ["act6bossrush"] }),
+      }),
+    );
+    // 内存同步
+    expect(config.activities?.forceOpen).toEqual(["act6bossrush"]);
+  });
+
+  it("switchActivity 强制开启不存在的活动拒绝（含近似提示）", async () => {
+    await expect(service.switchActivity({ forceOpen: ["act5d0x"] })).rejects.toThrow(
+      /疑似应为 act5d0/,
+    );
+  });
+
+  it("switchActivity 合约赛季文件不存在拒绝", async () => {
+    await expect(service.switchActivity({ crisisV1: "cc999" })).rejects.toThrow(
+      /危机合约V1赛季 cc999 不存在/,
+    );
+  });
+
+  it("switchActivity 清空强制开启（forceOpen: []）", async () => {
+    const r = await service.switchActivity({ forceOpen: [] });
+    expect(r.forceOpen).toEqual([]);
+  });
+
+  it("listActivities 返回强制开启标记与合约赛季配置", async () => {
+    config.developer = { timestamp: -1 };
+    config.activities = { forceOpen: ["act5d0"], crisisV1: "cc1", crisisV2: "cc1", autoBackfill: true };
+    const list = await service.listActivities();
+    const act5d0 = list.activities.find((a) => a.id === "act5d0");
+    expect(act5d0?.forced).toBe(true);
+    const boss = list.activities.find((a) => a.id === "act6bossrush");
+    expect(boss?.forced).toBe(false);
+    expect(list.forceOpen).toEqual(["act5d0"]);
+    expect(list.crisisV1).toBe("cc1");
+    expect(list.crisisSeasons.v1.length).toBeGreaterThan(0);
+    expect(list.autoBackfill).toBe(true);
   });
 });

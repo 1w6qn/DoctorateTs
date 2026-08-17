@@ -15,9 +15,18 @@ import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import excel from "@excel/excel";
 import { userTimestamp } from "@utils/time";
 import { logger } from "@utils/logger";
+import config from "../../../config";
 
 /** 解锁条件完成度（PlayerBattleRank 字符串）→ 关卡 state 数值档位（与 battle.ts 一致） */
 const completeStateRank: Record<string, number> = { FAIL: 1, PASS: 2, COMPLETE: 3 };
+
+/**
+ * 强制开启的活动 ID 集合（config.activities.forceOpen，忽略时间窗口无条件播种/不修剪）
+ * @returns 强制开启的 basicInfo.id 集合
+ */
+export function forcedActivityIds(): Set<string> {
+  return new Set((config.activities?.forceOpen ?? []).filter(Boolean));
+}
 
 /** excel activity 字典键：首字母小写（basicInfo.type 大写枚举 → activity 键 bOSS_RUSH） */
 function activityDetailKey(type: string): string {
@@ -217,6 +226,75 @@ function defaultStageState(stageId: string): object {
 }
 
 /**
+ * 播种单个活动（默认状态 + 活动任务），忽略时间窗口（强制开启与窗口内活动共用）
+ * @param draft - 玩家数据 draft
+ * @param actId - 活动 ID（basicInfo.id）
+ * @param info  - basicInfo 条目
+ * @param ts    - （可能冻结的）当前时间戳
+ */
+function seedActivityState(draft: any, actId: string, info: any, ts: number): void {
+  const type = info.type;
+  draft.activity[type] = draft.activity[type] || {};
+  const existing = draft.activity[type][actId];
+
+  if (type === "BOSS_RUSH" && !existing) {
+    const relic = defaultRelic(type, actId);
+    draft.activity[type][actId] = {
+      milestone: { point: 0, got: [] },
+      relic: {
+        token: { current: 0, total: 0 },
+        unlockedRelicLevelDic: relic ? { [relic]: 1 } : {},
+        selectingRelicId: "",
+      },
+      bestWaveDic: {},
+    };
+  } else if (type === "ARK_HUB" && !existing) {
+    // 奇象巡展方舟枢纽（官方形状：coin/secretary/squads/globalBan）
+    draft.activity[type][actId] = defaultArkhubState();
+  } else if (type === "TYPE_ACT53SIDE" && !existing) {
+    // 奇象巡展主活动（官方形状：actCoin/campaignCnt/favorList，与通用 TYPE_ACT 的 coin/news 不同）
+    draft.activity[type][actId] = defaultAct53SideState(info.startTime);
+  } else if (type.startsWith("TYPE_ACT") && !existing) {
+    draft.activity[type][actId] = {
+      coin: 0,
+      favorList: favorListFor(info.startTime),
+      news: {},
+    };
+  }
+
+  // 活动任务：missionGroup[id].missionIds → ACTIVITY 组播种。
+  // 奇象巡展（1arkhubActivity_*）：按 8 类模板播种真实进度（value:0 → 事件驱动），
+  // 引导任务（ArkhubMissionCompleted）因本服引导为完成态播种即完成（state:2+满进度，
+  // 与既有"可领取态"行为一致）；param 日期起点在未来的任务（8/18 更新后）锁定 state:0。
+  // 其余活动任务保持原行为（state:2 + value==target，可直接领取）。
+  const group = excel.ActivityTable.missionGroup.find((g) => g.id === actId);
+  if (group) {
+    draft.mission.missions["ACTIVITY"] = draft.mission.missions["ACTIVITY"] || {};
+    for (const missionId of group.missionIds) {
+      if (draft.mission.missions["ACTIVITY"][missionId]) continue;
+      const missionDef = (excel.ActivityTable as any)?.missionData?.find(
+        (m: any) => m.id === missionId,
+      );
+      const target = missionDef ? arkhubMissionTarget(missionDef) : null;
+      if (target !== null) {
+        const guide = missionDef.template === "ArkhubMissionCompleted";
+        const windowStart = arkhubMissionWindowStart(missionDef.param?.[2]);
+        const locked = windowStart !== null && ts < windowStart;
+        draft.mission.missions["ACTIVITY"][missionId] = {
+          state: locked ? 0 : 2,
+          progress: [{ value: guide ? target : 0, target }],
+        };
+      } else {
+        draft.mission.missions["ACTIVITY"][missionId] = {
+          state: 2,
+          progress: [{ value: 1, target: 1 }],
+        };
+      }
+    }
+  }
+}
+
+/**
  * 活动播种入口（冻结模式/真实时间模式均执行）
  * @param player - 目标玩家
  */
@@ -226,13 +304,16 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
   // ARK_HUB）从不播种 → 客户端活动状态缺失 → 奇象巡展新手教程卡死、无人物模型。
   // 播种/修剪逻辑本身按 ts 窗口判定，真实模式即按当前时间正确播种当前活动。
   const ts = userTimestamp();
+  // 强制开启的活动（config.activities.forceOpen）：忽略时间窗口播种且不修剪
+  const forced = forcedActivityIds();
   await player.update(async (draft) => {
     const basicInfo = excel.ActivityTable?.basicInfo ?? {};
 
-    // 修剪：过期活动删除（ts > rewardEndTime）
+    // 修剪：过期活动删除（ts > rewardEndTime）；强制开启的跳过（保持始终开放）
     if (draft.activity) {
       for (const type of Object.keys(draft.activity)) {
         for (const actId of Object.keys(draft.activity[type])) {
+          if (forced.has(actId)) continue;
           const info = basicInfo[actId];
           if (info && ts > info.rewardEndTime) {
             delete draft.activity[type][actId];
@@ -247,69 +328,22 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
     draft.mission = draft.mission || ({} as any);
     draft.mission.missions = draft.mission.missions || {};
 
-    // 播种：窗口内活动默认状态 + 活动任务 + 关卡
+    // 播种：窗口内活动 + 强制开启活动（默认状态 + 活动任务 + 关卡）
     for (const [actId, info] of Object.entries(basicInfo)) {
       // 防御：basicInfo 含 null 占位条目（20/331）
       if (!info || typeof info !== "object") continue;
-      if (!(info.startTime <= ts && ts <= info.rewardEndTime)) continue;
-      const type = info.type;
-      draft.activity[type] = draft.activity[type] || {};
-      const existing = draft.activity[type][actId];
-
-      if (type === "BOSS_RUSH" && !existing) {
-        const relic = defaultRelic(type, actId);
-        draft.activity[type][actId] = {
-          milestone: { point: 0, got: [] },
-          relic: {
-            token: { current: 0, total: 0 },
-            unlockedRelicLevelDic: relic ? { [relic]: 1 } : {},
-            selectingRelicId: "",
-          },
-          bestWaveDic: {},
-        };
-      } else if (type === "ARK_HUB" && !existing) {
-        // 奇象巡展方舟枢纽（官方形状：coin/secretary/squads/globalBan）
-        draft.activity[type][actId] = defaultArkhubState();
-      } else if (type === "TYPE_ACT53SIDE" && !existing) {
-        // 奇象巡展主活动（官方形状：actCoin/campaignCnt/favorList，与通用 TYPE_ACT 的 coin/news 不同）
-        draft.activity[type][actId] = defaultAct53SideState(info.startTime);
-      } else if (type.startsWith("TYPE_ACT") && !existing) {
-        draft.activity[type][actId] = {
-          coin: 0,
-          favorList: favorListFor(info.startTime),
-          news: {},
-        };
-      }
-
-      // 活动任务：missionGroup[id].missionIds → ACTIVITY 组播种。
-      // 奇象巡展（1arkhubActivity_*）：按 8 类模板播种真实进度（value:0 → 事件驱动），
-      // 引导任务（ArkhubMissionCompleted）因本服引导为完成态播种即完成（state:2+满进度，
-      // 与既有"可领取态"行为一致）；param 日期起点在未来的任务（8/18 更新后）锁定 state:0。
-      // 其余活动任务保持原行为（state:2 + value==target，可直接领取）。
-      const group = excel.ActivityTable.missionGroup.find((g) => g.id === actId);
-      if (group) {
-        draft.mission.missions["ACTIVITY"] = draft.mission.missions["ACTIVITY"] || {};
-        for (const missionId of group.missionIds) {
-          if (draft.mission.missions["ACTIVITY"][missionId]) continue;
-          const missionDef = (excel.ActivityTable as any)?.missionData?.find(
-            (m: any) => m.id === missionId,
-          );
-          const target = missionDef ? arkhubMissionTarget(missionDef) : null;
-          if (target !== null) {
-            const guide = missionDef.template === "ArkhubMissionCompleted";
-            const windowStart = arkhubMissionWindowStart(missionDef.param?.[2]);
-            const locked = windowStart !== null && ts < windowStart;
-            draft.mission.missions["ACTIVITY"][missionId] = {
-              state: locked ? 0 : 2,
-              progress: [{ value: guide ? target : 0, target }],
-            };
-          } else {
-            draft.mission.missions["ACTIVITY"][missionId] = {
-              state: 2,
-              progress: [{ value: 1, target: 1 }],
-            };
-          }
-        }
+      const isForced = forced.has(actId);
+      if (!isForced && !(info.startTime <= ts && ts <= info.rewardEndTime)) continue;
+      seedActivityState(draft, actId, info, ts);
+    }
+    // 强制开启但不在 basicInfo 中的 ID：无法播种，记录告警（大小写不敏感匹配常见笔误）
+    for (const id of forced) {
+      if (!basicInfo[id]) {
+        const fuzzy = Object.keys(basicInfo).find((k) => k.toLowerCase() === id.toLowerCase());
+        logger.warn(
+          "Activity",
+          `强制开启活动 ${id} 不在 basicInfo（${fuzzy ? `疑似应为 ${fuzzy}` : "无近似匹配"}），已忽略`,
+        );
       }
     }
 

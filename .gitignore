@@ -61,3 +61,10 @@ logs/
 !app/logs/
 !tests/unit/logs/
 reference/hotupdate/textasset-names.json
+
+# 会话内存 / 运行时订单
+.workbuddy/
+data/pay/
+# 运行时 mod 缓存（占位 .placeholder 保留）
+mods/android/*.dat
+mods/windows/*.dat

@@ -1,5 +1,9 @@
 {
     "file": {
+        "D:\\develop\\DoctorateTs\\mods\\android\\skinpack_char_4064_mlynar.dat": {
+            "size": 15802886,
+            "crc32": 324697302
+        },
         "D:\\develop\\DoctorateTs\\mods\\anon_7d91430e114d86fef7d3b3511151e12d.dat": {
             "size": 278423,
             "crc32": 2414583504
@@ -13,16 +17,26 @@
                 "md5": "b26e60c90ec85fa85fd5147f16d6d949",
                 "totalSize": 278423,
                 "abSize": 1524179
+            },
+            {
+                "name": "skinpack/char_4064_mlynar.ab",
+                "hash": "9449bbe3754bb681e24608dbfa859ad8",
+                "md5": "9449bbe3754bb681e24608dbfa859ad8",
+                "totalSize": 15802886,
+                "abSize": 19510146
             }
         ],
         "name": [
-            "anon/7d91430e114d86fef7d3b3511151e12d.bin"
+            "anon/7d91430e114d86fef7d3b3511151e12d.bin",
+            "skinpack/char_4064_mlynar.ab"
         ],
         "path": [
-            "anon_7d91430e114d86fef7d3b3511151e12d.dat"
+            "anon_7d91430e114d86fef7d3b3511151e12d.dat",
+            "android\\skinpack_char_4064_mlynar.dat"
         ],
         "download": [
-            "anon_7d91430e114d86fef7d3b3511151e12d.dat"
+            "anon_7d91430e114d86fef7d3b3511151e12d.dat",
+            "skinpack_char_4064_mlynar.dat"
         ]
     }
 }

@@ -244,6 +244,10 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, expMats } = args;
       const char = draft.troop.chars[charInstId];
+      // 防御：charInstId 悬空/错指时直接抛业务错误（原实现读 char.charId 500）
+      if (!char) {
+        throw new Error(`干员不存在: instId=${charInstId}`);
+      }
       const expMap = excel.GameDataConst.characterExpMap;
       const goldMap = excel.GameDataConst.characterUpgradeCostMap;
       const expItems = excel.ItemTable.expItems;
@@ -382,6 +386,21 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, defaultSkillIndex } = args;
       const char = draft.troop.chars[charInstId];
+      // 防御：干员不存在/技能索引越界/指向未解锁技能时拒绝（客户端按索引查技能崩溃）
+      if (!char) {
+        throw new Error(`干员不存在: instId=${charInstId}`);
+      }
+      const skills = char.skills ?? [];
+      const valid =
+        defaultSkillIndex === -1 ||
+        (defaultSkillIndex >= 0 &&
+          defaultSkillIndex < skills.length &&
+          skills[defaultSkillIndex]?.unlock === 1);
+      if (!valid) {
+        throw new Error(
+          `默认技能索引 ${defaultSkillIndex} 非法或技能未解锁（干员 ${char.charId}）`,
+        );
+      }
       char.defaultSkillIndex = defaultSkillIndex;
     });
   }
@@ -393,13 +412,33 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, targetLevel } = args;
       const char = draft.troop.chars[charInstId];
+      // 防御：干员不存在时抛业务错误（原实现读 char.charId 500）
+      if (!char) {
+        throw new Error(`干员不存在: instId=${charInstId}`);
+      }
       // 防御：targetLevel < 2 时 allSkillLvlup[-] 越界（客户端正常只发 >=2）
       if (targetLevel < 2) {
         throw new Error(`技能目标等级 ${targetLevel} 非法（最低 2）`);
       }
-      const targetLevelCost =
-        excel.CharacterTable[char.charId].allSkillLvlup[targetLevel - 2]
-          .lvlUpCost!;
+      const info = excel.CharacterTable[char.charId];
+      const allSkillLvlup = info?.allSkillLvlup;
+      // 防御：无技能干员（2 星等）或 targetLevel 超上限（官方最高 7）时拒绝
+      //（原实现 allSkillLvlup[targetLevel-2] 取 undefined 再读 .lvlUpCost 500）
+      if (!allSkillLvlup || targetLevel - 2 >= allSkillLvlup.length) {
+        throw new Error(
+          `技能目标等级 ${targetLevel} 超过上限 ${allSkillLvlup ? allSkillLvlup.length + 1 : 1}（干员 ${char.charId}）`,
+        );
+      }
+      const lvlUpCond = allSkillLvlup[targetLevel - 2];
+      // 修复：技能升级受精英化门槛约束（4/5/6 级需精一、7 级需精二）——
+      // 原实现不校验 unlockCond.phase，E0 干员可越级升满
+      const phaseNeed = this._phaseRank(lvlUpCond?.unlockCond?.phase);
+      if (char.evolvePhase < phaseNeed) {
+        throw new Error(
+          `技能升至 ${targetLevel} 需精英化${phaseNeed}（当前精${char.evolvePhase}）`,
+        );
+      }
+      const targetLevelCost = lvlUpCond.lvlUpCost ?? [];
       char.mainSkillLvl = targetLevel;
       await this._trigger.emit("items:use", [targetLevelCost]);
       // 修复：原实现发错事件 BoostPotential → 技能升级任务（监听 UpgradeSkill）永不推进；
@@ -556,6 +595,56 @@ export class CharManager {
     return 1;
   }
 
+  /**
+   * 技能专精配置（skills[i].levelUpCostCond[targetLevel-1]）
+   *
+   * levelUpCostCond 下标 0/1/2 对应专精 1/2/3（M1/M2/M3），每档含
+   * unlockCond.phase（解锁所需精英化阶段）、lvlUpTime（训练秒数）、
+   * levelUpCost（材料）。配置缺失返回 null（防御，由调用方抛业务错误）。
+   */
+  private _masterCond(
+    charId: string,
+    skillIndex: number,
+    targetLevel: number,
+  ): {
+    unlockCond?: { phase?: unknown };
+    lvlUpTime?: number;
+    levelUpCost?: ItemBundle[];
+  } | null {
+    const skill = (excel.CharacterTable as Record<string, any>)?.[charId]?.skills?.[skillIndex];
+    const cond = skill?.levelUpCostCond?.[targetLevel - 1];
+    return cond ?? null;
+  }
+
+  /** 直升券稀有度匹配：itemType 尾号（4/5/6）= 星级 → 稀有度索引（3/4/5） */
+  private _voucherRarityMatches(itemType: string, rarityIndex: number): boolean {
+    const m = /_(\d)$/.exec(itemType);
+    return m ? Number(m[1]) - 1 === rarityIndex : false;
+  }
+
+  /**
+   * 校验直升券道具（家族 + 稀有度匹配），不匹配抛业务错误
+   * @param itemId - 道具 ID（如 voucher_elite_II_6）
+   * @param familyPrefix - 期望的 itemType 前缀（如 "VOUCHER_ELITE_II_"）
+   * @param charRarityIndex - 干员稀有度索引（rarityToIndex 结果）
+   */
+  private _assertVoucher(
+    itemId: string,
+    familyPrefix: string,
+    charRarityIndex: number,
+  ): void {
+    const itemType = (excel.ItemTable?.items as Record<string, any>)?.[itemId]
+      ?.itemType as string | undefined;
+    if (!itemType || !itemType.startsWith(familyPrefix)) {
+      throw new Error(`道具 ${itemId} 不是 ${familyPrefix}* 直升券，无法使用`);
+    }
+    if (!this._voucherRarityMatches(itemType, charRarityIndex)) {
+      throw new Error(
+        `直升券 ${itemId} 稀有度与干员不匹配（干员为 ${charRarityIndex + 1}★）`,
+      );
+    }
+  }
+
   async setEquipment(args: {
     charInstId: number;
     templateId: string;
@@ -665,23 +754,54 @@ export class CharManager {
     });
   }
 
-  //Duplicated
+  /**
+   * 锁定干员（当前版本无锁定字段，安全空操作）
+   *
+   * 说明：2.7.61 客户端干员数据模型（PlayerCharacter）不含 locked 字段，
+   * 锁定功能已随旧版本下架。此处仅校验干员存在性（防悬空 instId 静默通过），
+   * 不做任何写入——避免引入客户端不认识的字段破坏存档结构。
+   */
   async lockChar(args: { charInstIdList: number[] }) {
-    await this._player.update(async () => {
+    await this._player.update(async (draft) => {
       const { charInstIdList } = args;
-      charInstIdList.forEach(() => {});
+      for (const charInstId of charInstIdList) {
+        if (!draft.troop.chars[charInstId]) {
+          logger.warn("CharManager", `lockChar 干员不存在: instId=${charInstId}`);
+        }
+      }
     });
   }
 
-  //Duplicated
+  /**
+   * 出售干员（官方已下架，安全空操作）
+   *
+   * 说明：官方自 2020 年下架干员出售功能；重复干员在获取时（onCharGet）已按
+   * 稀有度自动转化为资质凭证/高级凭证入账。直接删除 roster 会破坏编队/助战/
+   * 图鉴引用（dexNav.charInstId、squad、assist），故维持空操作——与官方现版本
+   * 行为一致。仅校验干员存在性。
+   */
   async sellChar(args: { charInstIdList: number[] }) {
-    await this._player.update(async () => {
+    await this._player.update(async (draft) => {
       const { charInstIdList } = args;
-      charInstIdList.forEach(() => {});
+      for (const charInstId of charInstIdList) {
+        if (!draft.troop.chars[charInstId]) {
+          logger.warn("CharManager", `sellChar 干员不存在: instId=${charInstId}`);
+        }
+      }
     });
   }
 
-  //Duplicated
+  /**
+   * 开始技能专精（M1/M2/M3，两阶段流程第一阶段）
+   *
+   * 官方流程：发起专精 → 扣材料（skills[i].levelUpCostCond[targetLevel-1].levelUpCost）、
+   * 写训练完成时间（now + lvlUpTime，客户端据此显示倒计时）、技能置训练中（state=1）；
+   * specializeLevel 在 completeUpgradeSpecialization 结算时提升（本方法不改等级）。
+   *
+   * 校验：干员存在、技能已解锁、主技能等级 ≥ 7、目标 ∈ [1,3] 且 = 当前 + 1（逐级提升）、
+   * 精英化阶段满足 levelUpCostCond 的 unlockCond.phase（通常要求精二）、
+   * 无进行中的专精训练（防重复扣材料）。
+   */
   async upgradeSpecialization(args: {
     charInstId: number;
     skillIndex: number;
@@ -690,11 +810,51 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, skillIndex, targetLevel } = args;
       const char = draft.troop.chars[charInstId];
-      char.skills![skillIndex].specializeLevel = targetLevel;
+      if (!char) throw new Error(`干员不存在: instId=${charInstId}`);
+      const skill = char.skills?.[skillIndex];
+      if (!skill) {
+        throw new Error(`技能索引 ${skillIndex} 越界（干员 ${char.charId}）`);
+      }
+      if (skill.unlock !== 1) {
+        throw new Error(`技能 ${skill.skillId} 未解锁，无法专精`);
+      }
+      if ((char.mainSkillLvl ?? 1) < 7) {
+        throw new Error(`主技能等级 ${char.mainSkillLvl} 未达 7，无法专精`);
+      }
+      const current = skill.specializeLevel ?? 0;
+      if (targetLevel < 1 || targetLevel > 3) {
+        throw new Error(`专精目标等级 ${targetLevel} 非法（1-3）`);
+      }
+      if (targetLevel !== current + 1) {
+        throw new Error(`专精需逐级提升（当前 ${current}，目标必须为 ${current + 1}）`);
+      }
+      if (skill.state === 1 && (skill.completeUpgradeTime ?? 0) > 0) {
+        throw new Error(`技能 ${skill.skillId} 正在专精训练中`);
+      }
+      const cond = this._masterCond(char.charId, skillIndex, targetLevel);
+      if (!cond) {
+        throw new Error(`缺少技能 ${skill.skillId} 专精 ${targetLevel} 配置`);
+      }
+      const phaseNeed = this._phaseRank(cond.unlockCond?.phase);
+      if (char.evolvePhase < phaseNeed) {
+        throw new Error(
+          `专精需要精英化${phaseNeed}（当前精${char.evolvePhase}）`,
+        );
+      }
+      await this._trigger.emit("items:use", [cond.levelUpCost ?? []]);
+      skill.state = 1;
+      skill.completeUpgradeTime = now() + (cond.lvlUpTime ?? 0);
     });
   }
 
-  //Duplicated
+  /**
+   * 完成技能专精（两阶段流程第二阶段）
+   *
+   * 结算条件：训练已发起（completeUpgradeTime > 0）、目标 = 当前 + 1；
+   * 结算后 specializeLevel = targetLevel、state = 0、completeUpgradeTime = -1。
+   * 私服不强制等待 lvlUpTime 到点（与基建训练室路径一致，可立即领取），
+   * 但必须先经 upgradeSpecialization 扣费后才能结算（防白嫖专精）。
+   */
   async completeUpgradeSpecialization(args: {
     charInstId: number;
     skillIndex: number;
@@ -703,9 +863,22 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, skillIndex, targetLevel } = args;
       const char = draft.troop.chars[charInstId];
-      char.skills![skillIndex].completeUpgradeTime = -1;
-      char.skills![skillIndex].specializeLevel = targetLevel;
-      await this._trigger.emit("UpgradeSpecialization", [args]);
+      if (!char) throw new Error(`干员不存在: instId=${charInstId}`);
+      const skill = char.skills?.[skillIndex];
+      if (!skill) {
+        throw new Error(`技能索引 ${skillIndex} 越界（干员 ${char.charId}）`);
+      }
+      if ((skill.completeUpgradeTime ?? -1) <= 0) {
+        throw new Error(`技能 ${skill.skillId} 未在专精训练中，无法结算`);
+      }
+      const current = skill.specializeLevel ?? 0;
+      if (targetLevel < 1 || targetLevel > 3 || targetLevel !== current + 1) {
+        throw new Error(`专精结算等级 ${targetLevel} 非法（应为 ${current + 1}）`);
+      }
+      skill.specializeLevel = targetLevel;
+      skill.state = 0;
+      skill.completeUpgradeTime = -1;
+      await this._trigger.emit("UpgradeSpecialization", [{ targetLevel }]);
     });
   }
 
@@ -756,6 +929,13 @@ export class CharManager {
     });
   }
 
+  /**
+   * 使用精二直升券（VOUCHER_ELITE_II_4/5/6）
+   *
+   * 校验道具家族与稀有度匹配（如 voucher_elite_II_6 仅限 6★），直接精二：
+   * evolvePhase=2、等级/经验重置、皮肤 #2、技能按精二解锁校正；扣消耗道具
+   * （items:use 按 instId 扣 consumable 条目）并推进精英化勋章/任务。
+   */
   async evolveCharUseItem(args: {
     charInstId: number;
     itemId: string;
@@ -764,16 +944,32 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, itemId, instId } = args;
       const char = draft.troop.chars[charInstId];
+      if (!char) throw new Error(`干员不存在: instId=${charInstId}`);
+      const rarity = rarityToIndex(excel.CharacterTable[char.charId].rarity);
+      this._assertVoucher(itemId, "VOUCHER_ELITE_II_", rarity);
+      if (char.evolvePhase >= 2) {
+        throw new Error(`干员 ${char.charId} 已精二，无需使用直升券`);
+      }
       char.evolvePhase = 2;
       char.level = 1;
       char.exp = 0;
       char.skin = char.charId + "#2";
+      // 精二解锁技能3（保留已有技能专精状态）
+      reconcileCharSkills(char);
       await this._trigger.emit("items:use", [
         [{ id: itemId, count: 1, instId }],
       ]);
+      await this._trigger.emit("CharEvolveCount", [{ char }]);
+      await this._trigger.emit("EvolveChar", [{ char }]);
     });
   }
 
+  /**
+   * 使用满级直升券（VOUCHER_LEVELMAX_4/5/6）
+   *
+   * 校验道具家族与稀有度匹配，将干员升至当前精英化阶段的上限等级
+   * （maxLevel[rarity][evolvePhase]），经验清零；扣消耗道具并推进升级任务。
+   */
   async upgradeCharLevelMaxUseItem(args: {
     charInstId: number;
     itemId: string;
@@ -782,7 +978,9 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, itemId, instId } = args;
       const char = draft.troop.chars[charInstId];
+      if (!char) throw new Error(`干员不存在: instId=${charInstId}`);
       const rarity = rarityToIndex(excel.CharacterTable[char.charId].rarity);
+      this._assertVoucher(itemId, "VOUCHER_LEVELMAX_", rarity);
       // 修复：原实现恒写 maxLevel[rarity][2]（精二满级）——maxLevel 数据为空桩时
       // 写 undefined（等级字段从存档消失）；且无视当前相位（E0 干员被写成 E2 满级）。
       // 按当前相位取对应上限：maxLevel[rarity][evolvePhase]
@@ -795,9 +993,16 @@ export class CharManager {
       await this._trigger.emit("items:use", [
         [{ id: itemId, count: 1, instId }],
       ]);
+      await this._trigger.emit("UpgradeChar", [{ char, exp: 0 }]);
     });
   }
 
+  /**
+   * 使用专精直升券（VOUCHER_SKILL_SPECIALLEVELMAX_4/5/6）
+   *
+   * 校验道具家族与稀有度匹配、技能已解锁，直接将技能专精至 3
+   * （completeUpgradeTime=-1、state=0 复位）；扣消耗道具并推进专精任务。
+   */
   async upgradeSpecializedSkillUseItem(args: {
     charInstId: number;
     skillIndex: number;
@@ -807,10 +1012,23 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, skillIndex, itemId, instId } = args;
       const char = draft.troop.chars[charInstId];
-      char.skills![skillIndex].specializeLevel = 3;
+      if (!char) throw new Error(`干员不存在: instId=${charInstId}`);
+      const rarity = rarityToIndex(excel.CharacterTable[char.charId].rarity);
+      this._assertVoucher(itemId, "VOUCHER_SKILL_SPECIALLEVELMAX_", rarity);
+      const skill = char.skills?.[skillIndex];
+      if (!skill) {
+        throw new Error(`技能索引 ${skillIndex} 越界（干员 ${char.charId}）`);
+      }
+      if (skill.unlock !== 1) {
+        throw new Error(`技能 ${skill.skillId} 未解锁，无法直升专精`);
+      }
+      skill.specializeLevel = 3;
+      skill.state = 0;
+      skill.completeUpgradeTime = -1;
       await this._trigger.emit("items:use", [
         [{ id: itemId, count: 1, instId }],
       ]);
+      await this._trigger.emit("UpgradeSpecialization", [{ targetLevel: 3 }]);
     });
   }
 }

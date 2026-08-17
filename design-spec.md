@@ -1808,3 +1808,142 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 
 复核官服 27 份含 `ark_odc_act53side` 主题的抓包：**完成态 varSeqs 为 34 键**（不含 `bool_end_guide_done`/`tre_*_got`），仅 1 份 40 键含之——`bool_end_guide_done` 是玩家实际完成末尾教程后由官服写入的**增量标记**，非必含字段；缺失时 `logic_game_end_p1`（q003_prog==4 && bool_end_guide_done==0 && q003_banner_showed==1，AUTO_ONCE → PlayArkodcTutorial）每次进图重放教程。25.1 的 finishStory 同步 + 播种回填仍为正确修复方向（与 40 键官服快照一致）。
 
+
+## 29. 奇象巡展 Phase 1：勋章/任务/结算真实化（2026-08-17）
+
+基于 PRTS 攻略差距分析（`docs/奇象巡展-差距分析.md`），Phase 1 实现 P0 缺口（不改数据文件、不破坏官方 playerdata 形状）：
+
+### 29.1 事件层（app/game/model/events.ts）
+新增 11 个事件，事件名 = ActivityTable.missionData.template / medal_table.template：
+- 任务 8 类：`ArkhubMissionCompleted / ArkhubDailyMissionCompleted / ArkhubCreatureCollection / ArkhubCreatureCaptured / ArkhubCreatureExchange / ArkhubPassDexBattle / ArkhubPublishPixelArt / ArkhubCollectPixelArt`
+- 勋章 3 类：`ActivityArkhubPixelCollect / ActivityArkhubCreatureCollect / ActivityArkhubAlterCollect`
+参数与各模板 param 语义对齐（param[0]=参数类型位、param[1]=activityId）。
+
+### 29.2 任务进度真实化（app/game/manager/mission.ts + unlockActivity.ts）
+- **MissionProgress.init ACTIVITY 分支**：原实现直接 return（无监听器、进度全假）。现从 `ActivityTable.missionData` 按 id 查 template/param，走与 DAILY/WEEKLY 相同的模板注册机制（事件驱动真实进度）。
+- **MissionTemplates 增加 8 类 Arkhub 模板**：引导=flag 匹配 +1；每日=窗口门控（param[2..3] 日期区间，**getTime() 毫秒需 /1000 对齐 userTimestamp() 秒**）取 max；收集/对战/发布/收集画像=按 collectionKey 过滤取 max；信息素扫描/交换=每次 +1。
+- **播种（unlockActivity）**：8 类模板按 param 解析真实 target（value:0/target:N）；引导任务（ArkhubMissionCompleted）因本服引导为完成态播种即完成（state:2 + value==target，保持可领体验）；param 日期起点在未来的任务（8/18 更新后每日 7/8）播种 state:0 锁定；非 arkhub 模板保持原"全可领"行为；已播种条目不覆盖（存量存档不动）。
+- **reloadActivity()**：MissionManager.init 先于播种执行（播种任务无实例），播种后重建 ACTIVITY 任务监听器。
+- **syncInfo（activity.ts）**：去掉强制 `progress=[{1,1}]`，仅防御性保证 progress 为数组。
+
+### 29.3 勋章三模板（app/game/manager/medal.ts）
+- `ActivityArkhubPixelCollect`（unlockParam=[act1arkhub,0,4] → target=param[2]）
+- `ActivityArkhubCreatureCollect`（[act1arkhub,arkhubMissionCollection1,10] → target=param[2]）
+- `ActivityArkhubAlterCollect`（[act1arkhub,arkhubMissionCollection1,10,1] → 镀层双条件：alterCount>=param[3] 才积累 count，10+1 达标）
+- **播种**：unlockActivity 把 `ungroupedMedalIds`（01/02，不含 025 镀层）写入 `medal.medals`（val=[[0,target]], fts:0, rts:-1）。MedalManager.init 先于播种 → 本会话内存 map 不含新勋章，进度监听自下次加载生效。
+
+### 29.4 玩法事件入口（app/game/manager/activity/arkhub.ts，新增）
+统一承载 ARK_HUB 计数更新 + 事件发射（幂等可重复调用）：
+- `arkhubOnDuelSettle`：duelCount +1 → 发 15 券（token_seal + ARK_HUB.coin/tshop.coin 同步，对齐 §27.1）→ emit ArkhubPassDexBattle。**胜负字段未确认，暂按胜利发 15 券**（官方：胜 15/负 7 + 概率道具）。
+- `arkhubOnDailySupply`：每日限 1 次（自然日标记 dailySupplyLastDay）→ dailySupplyDays +1 → 发 100 券 → emit ArkhubDailyMissionCompleted。
+- `arkhubCreatureCollected / Captured / Exchange / PixelPublished / PixelCollected`：落状态 + 发任务/勋章事件（Phase 2/3 玩法接入点）。
+- ARK_HUB 私有扩展字段（官服快照无、客户端不读）：`duelCount / dailySupplyDays / creatureCollected / activeCreatureCollected / alterCollected / pixelCollected / pixelPublished`。
+
+### 29.5 网关回调（arkhub-gateway-local.ts + index.ts）
+- 新增选项 `onDuelSettle(uid)` / `onDailySupplyClaimed(uid)`：战斗结算帧与 daily_task 交互领奖后触发。
+- index.ts 私服模式注入 → `arkhubOnDuelSettle / arkhubOnDailySupply`（accountManager.data[uid] 空守卫）。
+
+### 29.6 生物数据表（data/arkhub/creatures.json + excel.ts）
+- 字段形状逆向自官方反编译 `reference/.../Torappu/ArkdexCreatureData.cs`（creatureNumId/enemyId/rarity/specialRarity/alterNumId/upWeightTagIsShow/advantageType/abilities/六维 hp·atk·def·mag·moveSpeed·atkSpeed 等）。
+- **实际数值本地缺失**（ArknightsGameData 仓库不含该活动），当前为空表占位 + schema 注释，Phase 2 ARKDEX 前需官服网关抓包/客户端 AssetBundle 解包补全。
+
+### 29.7 测试与验证
+- `tests/unit/manager/activity-arkhub.test.ts` 16 条：播种（真实 target/引导完成/8/18 锁定/勋章播种/存量不覆盖）、8 类任务模板（含 collectionKey 过滤、窗口门控、双事件）、3 枚勋章模板（含镀层双条件）、玩法事件入口（结算发券/每日限次/收录事件）。
+- 修复要点：日期解析 ms/秒单位对齐（getTime()/1000）；MissionProgress ACTIVITY 分支需同时赋值 mission（否则后续 `if (mission)` 判空置 invalid）；EventBus 监听器收到的是参数元组 `[obj]` 需解构。
+- tsc --noEmit 干净；全量 vitest 1729 通过。traffic-recorder/capture-manager/pack-mod 在并行全量跑偶发失败（共享 tmp/capture/index.db 跨运行累积 + 并行污染，单跑/清库即过，存量问题与本次无关）。
+
+### 29.8 遗留（Phase 2/3）
+- ARKDUEL 胜负字段（0xb7c204e8 结算帧）未确认 → 暂按胜发 15 券。
+- ARKDEX 生物数据值未落地；寻迹/道具/保护区/交换站、像素持久化、勋章 025 入档均待 Phase 2/3。
+
+## 30. 奇象巡展 Phase 2：ARKDEX 寻迹状态层（2026-08-17）
+
+### 30.1 ARK_HUB 状态扩展（unlockActivity.ts defaultArkhubState）
+新增 Phase 2 私服扩展字段（官服快照无、客户端不读）：
+- `dex`：生物数据库 `{ [creatureNumId]: { numId, isAlter, alterOf?, active? } }`——首次/亚种收录，`active` 标记"活动频繁"（任务 12-14）
+- `scanBag`：扫描仪个体列表（上限 400）`[{ id, numId, isAlter, alterOf?, fav, sourceUid }]` + `scanSeq` 自增
+- `props`：巡展道具箱 `{ [itemNumId]: { count, uses } }`（count=持有、uses=剩余生效次数）
+- `propSoldToday`：道具每日售出记录（跨日重置，`{ date, sold: { [itemNumId]: n } }`）
+- `trade`：交换站需求 `{ wantSpecies, offerNumIds }`（同时 1 条）
+- `unlockedAreas`：保护区解锁 `{ [areaId]: 1 }`（守门人拟合胜利解锁）
+
+### 30.2 ARKDEX 玩法模块（app/game/manager/activity/arkdex.ts，新增）
+- **巡展道具表** `ARKDEX_PROPS`：7 种（5004 标准诱引剂40 / 5005 专业60 / 5006 稀有250 库存2 / 5009 甜味60 / 5010 辣味60 / 5015 专业信息素60 / 5021 苦味信息素60，价格与库存逆向自 ARKDUEL 商店价格表 §28），类型 lure/pheromone。
+- **属性克制**：`ARKDEX_ADVANTAGE_TYPES`（奇术/本能/百变）、`ARKDEX_ADVANTAGE_COUNTER`（奇术→本能→百变→奇术）、`arkdexDamageScale`（克 1.3 / 被克 0.7 / 同级 1.0）——攻略明文 + `ArkdexAdvantageTypeData.damageScaleMap`/`advantageCounterMap` 结构确认。
+- **六维换算** `arkdexSixStatsToCombat`：进攻×20≈攻击、守备×2≈防御、耐久×100≈HP、法抗×0.5、攻速=间隔倒数×10、移速基准 1.1（攻略明文）。
+- **玩法函数**（全部幂等、可单测）：
+  - `arkhubScanSucceed`：扫描成功 → 发 15 券（token_seal+coin/tshop 同步）→ dex 收录（亚种/活动频繁标记）→ scanBag 入袋（400 上限）→ `arkhubDexRecount` 重算计数并发射 `ArkhubCreatureCollection`/勋章事件；空列表 = 扫描失败无奖励。
+  - `arkhubBuyProp`：扣 coin → 道具箱 +生效次数；每日库存限购（`propSoldToday` 跨日重置）；券/库存不足返回 false。
+  - `arkhubUseProp`：消耗 1 次生效次数（离开会场不清除）。
+  - `arkhubPheromoneScan`：信息素扫描 → `ArkhubCreatureCaptured`（任务 15；私服单机简化：调用即视为完成一次）。
+  - `arkhubSetTrade` / `arkhubDoTrade`：交换需求设置（1 条/可清除）+ `ArkhubCreatureExchange`（任务 16）。
+  - `arkhubUnlockArea`：保护区解锁标记。
+
+### 30.3 测试
+`tests/unit/manager/activity-arkdex.test.ts` 12 条全绿（克制/换算/扫描成功失败/内存上限/购买限购与跨日重置/使用次数/交换/保护区/道具表完整性）。连同 Phase 1，全量 vitest 1742 通过（traffic-recorder 2 条为共享 tmp/capture 累积的存量失败）。
+
+### 30.4 遗留：需要官服抓包的帧协议（Phase 2 主体）
+ARKDEX 状态层不依赖生物数值，但**客户端实际游玩**仍缺以下帧协议（本地无官服样本，不能硬写假 subID——§26.8 教训）：
+1. **生物数据模块帧**：官服网关下发的 `ArkdexModuleData`（creatureData/advantageTypeData/npcInfoData/npcDuelStrategyData/itemEffectData/traitData 等）——客户端据此渲染图鉴/配置界面，**无此数据 ARKDEX/ARKDUEL 配置界面为空**。
+2. **遭遇/捕获帧**：栖息地遭遇生物（可能走位置同步/场景实体交互）、扫描开始/结束。
+3. **道具购买帧**：ARKDUEL 商店价格表已回（0x28f5ba6f），购买请求帧 subID 未知（服务器函数 `arkhubBuyProp` 已就绪）。
+4. **交换站帧**：需求设置/请求/确认。
+5. **守门人 NPC 对决**：`npcDuelStrategyData`（生物列表+权重）依赖生物数据。
+
+**抓包指引**：`pnpm run start:capture` 启动官服转发 → 官服账号进捕抓区，依次执行：走草丛遭遇生物→扫描→使用诱引剂/信息素→开拟合配置界面→NPC 对决→交换站操作；抓包落 `tmp/capture/records/{rid}/`（gateway-bidi），`pnpm exec tsx scripts/parse-arkhub-gateway.ts [rid]` 解析，重点观察 down 流"连续 protobuf/自定义封装"变体（§17.5 提到的未解变体，疑似即模块数据帧）。抓到后按 §28 模式补帧即可完成 Phase 2。
+
+## 31. 奇象巡展 Phase 3：巡展像素（ARKPIXEL）持久化（2026-08-17）
+
+### 31.1 官服链路（抓包 R-1786876787370-0074 / R-1786680304215-0147）
+- **savePixelArt**（multipart/form-data）：json part `{"brief":{"activityId":"act1arkhub","token":"<32hex>"}}` + pixelData part（1728B RGB）→ 响应 `{"pixelArtId":<10位数字>}`（pixelArtId 由**服务端**分配；token 关联自网关令牌帧 0x31d603b3 的实体 id）
+- **getPixelArt**（JSON `{activityId, pixelArtIds:[...]}`）→ `{"pixelArts":{<id>:{"url":"<OSS .dat 链接>","isBanned":false}}}`
+- 像素格式：24×24×3 RGB 1728B，空白 (255,255,255) 透明，调色板 40 色（§17.5 备注）
+
+### 31.2 私服实现
+- **存储层**（`app/game/manager/activity/arkpixel.ts`，新增）：
+  - `savePixel(uid, data)`：validatePixelData（长度）+ **调色板白名单校验**（官方语义"invalid pixel color"）→ 分配全局唯一 10 位 pixelArtId → 落盘 `data/arkhub/pixels/<id>.bin` + `index.json`（uid/ts/md5/banned）
+  - `loadPixelBytes` / `pixelMeta` / `buildPixelArtResp`（url = `<config.Host>/activity/arkhub/pixel/<id>.dat`）
+  - `computeNewCollects(uid, ids, collectedIds)`：收集去重（非本人发布且未收集）
+  - `parseMultipartForm`：极简 multipart 解析（json + pixelData 两 part）
+  - `setPixelsDirForTest`：测试注入临时目录
+- **路由**（activity.ts）：
+  - `POST /activity/arkhub/savePixelArt`：优先取 capture 模式 rawBody，否则路由内收集原始流（express.json 不解析 multipart）→ 解析 brief/pixelData → **发布上限 50 次**（攻略）→ 落盘 → `arkhubPixelPublished` 计数（任务 20-21）
+  - `GET /activity/arkhub/pixel/:id.dat`：像素下载端点（getPixelArt 返回的 url）
+  - `POST /activity/arkhub/getPixelArt`：返回本服 url 列表；拉取他人画像 → `computeNewCollects` 去重 → `pixelCollectedIds` 记录 + `arkhubPixelCollected` 计数（任务 22-23、勋章 01）
+- **计数**：发布/收集复用 arkhub.ts 的 `arkhubPixelPublished/arkhubPixelCollected`（写 ARK_HUB 私有字段 + 事件驱动任务/勋章模板）
+
+### 31.3 测试
+`tests/unit/manager/activity-arkpixel.test.ts` 8 条全绿（保存/读取/url/收集去重/multipart 解析/调色板校验/40 色板）。连同 Phase 1/2，全量 vitest 1748 通过（traffic-recorder 3 条为共享 tmp/capture 累积的存量失败，单跑即过）。
+
+### 31.4 遗留
+- 画像"审核"流程：官服 savePixelArt 响应无审核字段（isBanned 仅封禁标记），私服保存即公开，未模拟审核（可加 isBanned 管理端开关）。
+- 图纸分享专题网页/摊位（4 人）为网页功能，私服不适用。
+- 草稿保存为客户端本地行为，不经过服务端（savePixelArt 即发布）。
+
+## 32. 奇象巡展数据实锤：arkdexModule 全表在服务器 excel 里（2026-08-17 复核）
+
+### 32.1 结论（修正 §30.4 的"需官服抓包"判断）
+用户指出"这些应该都遇到过啊"——复核确认：**完整 ARKDEX 数据一直在 `data/excel/activity_table.json` 里**，
+只是此前只检索了 basicInfo/活动名，未检查 `activity.arkHub.act1arkhub.moduleData.arkdexModule` 深层：
+- `creatureData`：**37 种生物**（19001-19037+，含 名称/珍奇度 rarity 1-3★/specialRarity 闪框/属性 advantageType/六维 hp·atk·def·mag·moveSpeed·atkSpeed/能力 abilities/获取途径/亚种关联 alterNumId/**活动频繁 upWeightTagIsShow**/enemyId·trapId·worldEntityId）
+- `advantageTypeData` + `advantageCounterMap`：3 属性（arkdex_advantage_A 奇术 / B 本能 / C 百变），damageScaleMap **克 1.3 / 被克 0.7**（与 Phase 2 实现一致）
+- `modeData`：10 种对决模式（singleRound 快速 2人1轮 / BO3 常规 2人3轮 / 4Player 多人 4人1轮，Solo/Match/Room 变体）
+- `itemEffectData`：**16 种道具**（5004/5005/5006 珍奇度诱引剂、5007-5011 味道诱引剂、5014-5016 珍奇度信息素、5017-5021 味道信息素）
+- `traitData`：9 特质（traitMask 位标记 + buff 黑板）
+- `npcInfoData`：10 NPC（1 苍苔 = 守门人/对决专员）、`npcDuelStrategyData`：13 策略组（真实敌队，如 strategy_group_intro = 19005×2+19003）、`npcBattleParamData`：10
+- `captureAreaData`：12 捕获区、`npcPixelData`：4、`sceneTypeMap`：4、`dexConstData`：25 常量（bag 400 / teamSize 3 / maxTeamRarityCount 7 / operatorTeamSize 4）
+
+### 32.2 落地
+- **导出** `data/arkhub/arkdex.json`（完整模块数据 + 来源标注）；`excel.ArkhubCreatureTable` 懒加载改读此文件（原空表 creatures.json 删除）
+- **arkdex.ts 升级**：道具表扩至 16 种（价格 §28 确认 7 种 + 同类推断 9 种标注）；新增
+  `arkdexCreature(s)/arkdexCreatures()`、`arkdexAdvantageName()`（属性 id→中文名）、
+  `arkdexDamageScaleById()`（读 damageScaleMap 真实倍率）、`arkdexModeRules()`（模式规则）、
+  `arkdexEnemySquad()`（策略组敌队）、`arkdexConst()`（常量）
+- **解码怪癖**：npcDuelStrategyData 每条被 FlatBuffers→JSON 包装为 `{ groupId: {真数据}, 伪键: null }`，
+  arkdexEnemySquad 需先取嵌套同名键（类似 missionData 伪键防御）
+- 测试 +5（生物/克制 id/模式规则/敌队/常量），连同既有 41 条全绿
+
+### 32.3 意义与剩余
+- 服务器侧已有全部生物数据 → 扫描遭遇可随机真实生物、ARKDUEL 敌队可用策略组真实数据、数据库收录可校验种类
+- 客户端 ArkdexModuleData 由客户端热更资源自行持有（同版本客户端），服务器无需下发
+- 剩余未确认：网关捕获/购买/交换帧 subID（客户端行为帧）；ARKDUEL 敌方响应 f3 状态位语义（保持官服字节对齐现状）

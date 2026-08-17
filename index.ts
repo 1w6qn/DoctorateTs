@@ -279,6 +279,26 @@ process.on("exit", (code) => {
           avatarId: status.avatar?.id,
         };
       },
+      // ARKDUEL 结算 → 发 15 券 + 对战计数 + 任务事件（arkhubOnDuelSettle）
+      onDuelSettle: (uid: string) => {
+        const player = accountManager.data[uid];
+        if (!player) return;
+        void import("./app/game/manager/activity/arkhub").then(({ arkhubOnDuelSettle }) =>
+          arkhubOnDuelSettle(player).catch((e: Error) =>
+            logger.warn("index", `ARKDUEL 结算处理失败: ${e.message}`),
+          ),
+        );
+      },
+      // 每日物资 → 记录领取天数 + 发 100 券 + 任务事件（arkhubOnDailySupply）
+      onDailySupplyClaimed: (uid: string) => {
+        const player = accountManager.data[uid];
+        if (!player) return;
+        void import("./app/game/manager/activity/arkhub").then(({ arkhubOnDailySupply }) =>
+          arkhubOnDailySupply(player).catch((e: Error) =>
+            logger.warn("index", `每日物资处理失败: ${e.message}`),
+          ),
+        );
+      },
     });
   }
   // auth 挂根路径：as 域接口（/user/*、/u8/*、/app/* 等）直接命中（用户最终决定，勿改回 /auth）

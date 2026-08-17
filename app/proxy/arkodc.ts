@@ -154,23 +154,23 @@ function decodeProtobufWalk(buf: Buffer, start: number): { fields: PbField[]; en
     switch (wire) {
       case 0: {
         const v = readVarint(buf, off);
-        if (!v) { fields.push(entry); off = buf.length; break; }
+        if (!v) { off = buf.length; break; }
         entry.varint = v.value;
         off = v.next;
         break;
       }
       case 1: {
-        if (off + 8 > buf.length) { fields.push(entry); off = buf.length; break; }
+        if (off + 8 > buf.length) { off = buf.length; break; }
         entry.fixed64 = buf.readBigUInt64LE(off);
         off += 8;
         break;
       }
       case 2: {
         const len = readVarint(buf, off);
-        if (!len) { fields.push(entry); off = buf.length; break; }
+        if (!len) { off = buf.length; break; }
         const size = Number(len.value);
         off = len.next;
-        if (off + size > buf.length) { fields.push(entry); off = buf.length; break; }
+        if (off + size > buf.length) { off = buf.length; break; }
         const bytes = buf.subarray(off, off + size);
         entry.bytes = bytes.toString("hex");
         entry.str = toUtf8(bytes);
@@ -187,7 +187,7 @@ function decodeProtobufWalk(buf: Buffer, start: number): { fields: PbField[]; en
         break;
       }
       case 5: {
-        if (off + 4 > buf.length) { fields.push(entry); off = buf.length; break; }
+        if (off + 4 > buf.length) { off = buf.length; break; }
         entry.fixed32 = buf.readUInt32LE(off);
         off += 4;
         break;

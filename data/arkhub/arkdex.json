@@ -1,0 +1,4325 @@
+{
+ "_source": "data/excel/activity_table.json → activity.arkHub.act1arkhub.moduleData.arkdexModule（官方 CDN 热更，2026-08-17 导出）",
+ "creatureData": {
+  "19001": {
+   "creatureNumId": 19001,
+   "enemyId": "enemy_1350_mgcshp",
+   "deployedEnemyId": "enemy_19001_akshep",
+   "trapId": "trap_1601_akshept",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 3,
+   "specialRarity": false,
+   "sortId": 4,
+   "orderId": "4",
+   "name": "星术绒绒",
+   "creatureIcon": "enemy_19001_akshep",
+   "worldEntityId": "arkvent_enemy_19001_akshep",
+   "alterNumId": 19002,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_A",
+   "description": "喜欢各类神秘小物件，经常闯进占卜店的毛绒绒生物，它们最喜欢亮闪闪的东西，具体原因尚未得到确切证实。",
+   "abilities": [
+    "·攻击造成法术伤害，且攻击有概率造成停顿",
+    "·远程攻击，造成法术伤害",
+    "·“奇术”属性，对“本能”属性生物造成的伤害提升，对“百变”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于密林外沿",
+   "hp": 42,
+   "atk": 35,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 27,
+   "atkSpeed": 33,
+   "hpPct": 42,
+   "atkPct": 35,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 27,
+   "atkSpeedPct": 33,
+   "def_": null
+  },
+  "19002": {
+   "creatureNumId": 19002,
+   "enemyId": "enemy_1350_mgcshp_2",
+   "deployedEnemyId": "enemy_19002_akspsp",
+   "trapId": "trap_1602_akspspt",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 3,
+   "specialRarity": false,
+   "sortId": 5,
+   "orderId": "5",
+   "name": "奥术绒绒",
+   "creatureIcon": "enemy_19002_akspsp",
+   "worldEntityId": "arkvent_enemy_19002_akspsp",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_A",
+   "description": "对神秘物件的颜色有特殊偏好的星术绒绒，无论什么时候都要保证自己的头上有一顶红色的魔法帽。",
+   "abilities": [
+    "·攻击造成法术伤害，且攻击有概率造成晕眩",
+    "·远程攻击，造成法术伤害",
+    "·“奇术”属性，对“本能”属性生物造成的伤害提升，对“百变”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于密林外沿",
+   "hp": 33,
+   "atk": 35,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 27,
+   "atkSpeed": 29,
+   "hpPct": 33,
+   "atkPct": 35,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 27,
+   "atkSpeedPct": 29,
+   "def_": null
+  },
+  "19003": {
+   "creatureNumId": 19003,
+   "enemyId": "enemy_1349_rckshp",
+   "deployedEnemyId": "enemy_19003_akbudy",
+   "trapId": "trap_1603_akbudyt",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 2,
+   "specialRarity": false,
+   "sortId": 16,
+   "orderId": "16",
+   "name": "大个子绒绒",
+   "creatureIcon": "enemy_19003_akbudy",
+   "worldEntityId": "arkvent_enemy_19003_akbudy",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_A",
+   "description": "强壮且有力，同时食欲非常惊人的毛绒绒生物。由于体型超常而行动缓慢，会喷出一些小个子绒绒来应对攻击。",
+   "abilities": [
+    "·首次攻击造成更高伤害且会投掷一个“小个子绒绒”",
+    "·近战攻击，造成物理伤害",
+    "·“奇术”属性，对“本能”属性生物造成的伤害提升，对“百变”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于密林外沿",
+   "hp": 45,
+   "atk": 35,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 36,
+   "atkSpeed": 33,
+   "hpPct": 45,
+   "atkPct": 35,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 36,
+   "atkSpeedPct": 33,
+   "def_": null
+  },
+  "19005": {
+   "creatureNumId": 19005,
+   "enemyId": "enemy_1345_tplamb",
+   "deployedEnemyId": "enemy_19005_akplsp",
+   "trapId": "trap_1605_akplspt",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 1,
+   "specialRarity": false,
+   "sortId": 26,
+   "orderId": "26",
+   "name": "活泼绒绒",
+   "creatureIcon": "enemy_19005_akplsp",
+   "worldEntityId": "arkvent_enemy_19005_akplsp",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_A",
+   "description": "热情而快活的毛绒绒生物，会聚集在一起用它们捡到的体育用具玩耍，据此可推测它们拥有与其他绒绒差异较大的运动神经。",
+   "abilities": [
+    "·虽然没有特殊的战斗能力，但是可以丢飞盘",
+    "·远程攻击，造成物理伤害",
+    "·“奇术”属性，对“本能”属性生物造成的伤害提升，对“百变”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于密林外沿",
+   "hp": 38,
+   "atk": 30,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 36,
+   "atkSpeed": 25,
+   "hpPct": 38,
+   "atkPct": 30,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 36,
+   "atkSpeedPct": 25,
+   "def_": null
+  },
+  "19006": {
+   "creatureNumId": 19006,
+   "enemyId": "enemy_2022_syzeni",
+   "deployedEnemyId": "enemy_19006_aksnil",
+   "trapId": "trap_1606_aksnilt",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 1,
+   "specialRarity": false,
+   "sortId": 30,
+   "orderId": "30",
+   "name": "固海凿石者",
+   "creatureIcon": "enemy_19006_aksnil",
+   "worldEntityId": "arkvent_enemy_19006_aksnil",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_B",
+   "description": "拥有坚硬壳体的恐鱼，因不明原因出现在汐斯塔附近，学会正在紧急展开对这种奇异生物行为的分析与研究活动。",
+   "abilities": [
+    "·首次有敌人进入攻击范围时，停止移动且防御力提升，持续一段时间",
+    "·远程攻击，造成物理伤害",
+    "·“本能”属性，对“百变”属性生物造成的伤害提升，对“奇术”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于晦光林地",
+   "hp": 31,
+   "atk": 28,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 32,
+   "atkSpeed": 29,
+   "hpPct": 31,
+   "atkPct": 28,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 32,
+   "atkSpeedPct": 29,
+   "def_": null
+  },
+  "19007": {
+   "creatureNumId": 19007,
+   "enemyId": "enemy_1123_spsbr",
+   "deployedEnemyId": "enemy_19007_akplbt",
+   "trapId": "trap_1607_akplbtt",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 1,
+   "specialRarity": false,
+   "sortId": 27,
+   "orderId": "27",
+   "name": "“阿咬”",
+   "creatureIcon": "enemy_19007_akplbt",
+   "worldEntityId": "arkvent_enemy_19007_akplbt",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_A",
+   "description": "被人诱拐到当地后四处游荡的墨魉，一直在寻找能和它一起玩的对象。至于为什么生物扫描仪能对它起效，原理完全不明。",
+   "abilities": [
+    "·自身的生命值会缓慢回复",
+    "·近战攻击，造成物理伤害",
+    "·“奇术”属性，对“本能”属性生物造成的伤害提升，对“百变”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于密林外沿",
+   "hp": 30,
+   "atk": 30,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 55,
+   "atkSpeed": 33,
+   "hpPct": 30,
+   "atkPct": 30,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 55,
+   "atkSpeedPct": 33,
+   "def_": null
+  },
+  "19008": {
+   "creatureNumId": 19008,
+   "enemyId": "enemy_2002_bearmi",
+   "deployedEnemyId": "enemy_19008_akplbr",
+   "trapId": "trap_1608_akplbrt",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.2,
+   "rarity": 3,
+   "specialRarity": true,
+   "sortId": 2,
+   "orderId": "2",
+   "name": "高普尼克",
+   "creatureIcon": "enemy_19008_akplbr",
+   "worldEntityId": "arkvent_enemy_19008_akplbr",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_B",
+   "description": "随鸭爵一同前来汐斯塔进行商业考察，却不知为何被困在林地之中的保镖，其脑体质量比相当低，乃至可以算作最低基准值。",
+   "abilities": [
+    "·行动缓慢，但每次造成的伤害惊人",
+    "·近战攻击，造成物理伤害",
+    "·“本能”属性，对“百变”属性生物造成的伤害提升，对“奇术”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于晦光林地",
+   "hp": 78,
+   "atk": 68,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 36,
+   "atkSpeed": 25,
+   "hpPct": 78,
+   "atkPct": 68,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 36,
+   "atkSpeedPct": 25,
+   "def_": null
+  },
+  "19009": {
+   "creatureNumId": 19009,
+   "enemyId": "enemy_7015_xbcrab2",
+   "deployedEnemyId": "enemy_19009_akcrab",
+   "trapId": "trap_1609_akcrabt",
+   "uiDisplayScale": 0.45,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 3,
+   "specialRarity": false,
+   "sortId": 9,
+   "orderId": "9",
+   "name": "石背岩壳蟹",
+   "creatureIcon": "enemy_19009_akcrab",
+   "worldEntityId": "arkvent_enemy_19009_akcrab",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_B",
+   "description": "栖息于潮湿密林的溪涧旁的大岩壳蟹，攻击性不强但领地意识强烈，每年都有误入其栖息地的探险者被钳伤的记录。",
+   "abilities": [
+    "·场上所有熔火小壳蟹和浪花小壳蟹攻击速度和生命值提升",
+    "·近战攻击，造成物理伤害",
+    "·“本能”属性，对“百变”属性生物造成的伤害提升，对“奇术”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于晦光林地",
+   "hp": 40,
+   "atk": 50,
+   "def": 100,
+   "mag": 100,
+   "moveSpeed": 45,
+   "atkSpeed": 33,
+   "hpPct": 40,
+   "atkPct": 50,
+   "defPct": 100,
+   "magPct": 100,
+   "moveSpeedPct": 45,
+   "atkSpeedPct": 33,
+   "def_": null
+  },
+  "19010": {
+   "creatureNumId": 19010,
+   "enemyId": "enemy_10138_xdsnow",
+   "deployedEnemyId": "enemy_19010_akplsn",
+   "trapId": "trap_1610_akplsnt",
+   "uiDisplayScale": 0.45,
+   "followScale": 1,
+   "animSpeedFollow": 0.2,
+   "rarity": 1,
+   "specialRarity": false,
+   "sortId": 34,
+   "orderId": "34",
+   "name": "直立小雪怪",
+   "creatureIcon": "enemy_19010_akplsn",
+   "worldEntityId": "arkvent_enemy_19010_akplsn",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_C",
+   "description": "通体白色的双足直立生物，据考察应该是原生于谢拉格雪原的物种，它们为当地生物群系带来的影响依然在评估之中。",
+   "abilities": [
+    "·战斗开始后，召唤5个“直立小雪怪”",
+    "·近战攻击，造成物理伤害",
+    "·“百变”属性，对“奇术”属性生物造成的伤害提升，对“本能”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于奇生保护区",
+   "hp": 11,
+   "atk": 11,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 36,
+   "atkSpeed": 29,
+   "hpPct": 11,
+   "atkPct": 11,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 36,
+   "atkSpeedPct": 29,
+   "def_": null
+  },
+  "19011": {
+   "creatureNumId": 19011,
+   "enemyId": "enemy_10107_mjcdog",
+   "deployedEnemyId": "enemy_19011_akdog",
+   "trapId": "trap_1611_akdogt",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.1,
+   "rarity": 3,
+   "specialRarity": false,
+   "sortId": 12,
+   "orderId": "12",
+   "name": "花冠园丁",
+   "creatureIcon": "enemy_19011_akdog",
+   "worldEntityId": "arkvent_enemy_19011_akdog",
+   "alterNumId": 19012,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_C",
+   "description": "智商相当高的一种四足兽类，会主动收集各种自认为好看的东西，然后搬运到自己的巢穴附近摆放，因此得名园丁。",
+   "abilities": [
+    "·数次攻击后可以推动敌人",
+    "·近战攻击，造成物理伤害",
+    "·“百变”属性，对“奇术”属性生物造成的伤害提升，对“本能”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于奇生保护区",
+   "hp": 63,
+   "atk": 40,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 100,
+   "atkSpeed": 40,
+   "hpPct": 63,
+   "atkPct": 40,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 100,
+   "atkSpeedPct": 40,
+   "def_": null
+  },
+  "19012": {
+   "creatureNumId": 19012,
+   "enemyId": "enemy_10107_mjcdog_2",
+   "deployedEnemyId": "enemy_19012_akdgsp",
+   "trapId": "trap_1612_akdgspt",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.1,
+   "rarity": 3,
+   "specialRarity": false,
+   "sortId": 13,
+   "orderId": "13",
+   "name": "黑毛花冠园丁",
+   "creatureIcon": "enemy_19012_akdgsp",
+   "worldEntityId": "arkvent_enemy_19012_akdgsp",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_C",
+   "description": "花冠园丁的亚种，和普通花冠园丁一样带有能让人失去知觉的分泌物质，一旦失去抵抗能力就会被它搬到不知道哪里去。",
+   "abilities": [
+    "·数次攻击后可以推动敌人",
+    "·近战攻击，造成物理伤害",
+    "·“百变”属性，对“奇术”属性生物造成的伤害提升，对“本能”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于奇生保护区",
+   "hp": 55,
+   "atk": 43,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 100,
+   "atkSpeed": 40,
+   "hpPct": 55,
+   "atkPct": 43,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 100,
+   "atkSpeedPct": 40,
+   "def_": null
+  },
+  "19013": {
+   "creatureNumId": 19013,
+   "enemyId": "enemy_5503_arcslma",
+   "deployedEnemyId": "enemy_19013_akslm",
+   "trapId": "trap_1613_akslmt",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.1,
+   "rarity": 3,
+   "specialRarity": false,
+   "sortId": 14,
+   "orderId": "14",
+   "name": "果冻清道夫",
+   "creatureIcon": "enemy_19013_akslm",
+   "worldEntityId": "arkvent_enemy_19013_akslm",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_C",
+   "description": "非常少见的一种奇象生物，会在林地的底层活动并清理地面，若能找到一只就可以算得上幸运超常了。",
+   "abilities": [
+    "·战斗中可以召唤“果冻清道夫幼体”",
+    "·近战攻击，造成物理伤害",
+    "·“百变”属性，对“奇术”属性生物造成的伤害提升，对“本能”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于奇生保护区",
+   "hp": 36,
+   "atk": 30,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 27,
+   "atkSpeed": 33,
+   "hpPct": 36,
+   "atkPct": 30,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 27,
+   "atkSpeedPct": 33,
+   "def_": null
+  },
+  "19015": {
+   "creatureNumId": 19015,
+   "enemyId": "enemy_19035_wlftr",
+   "deployedEnemyId": "enemy_19015_akftr",
+   "trapId": "trap_1615_akftrt",
+   "uiDisplayScale": 0.45,
+   "followScale": 1,
+   "animSpeedFollow": 0.1,
+   "rarity": 1,
+   "specialRarity": false,
+   "sortId": 28,
+   "orderId": "28",
+   "name": "大嘴捕食草",
+   "creatureIcon": "enemy_19015_akftr",
+   "worldEntityId": "arkvent_enemy_19015_akftr",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_A",
+   "description": "一种在密林地面活动的变异食肉植物，与其他坐等食物上门的“同类”不同，会主动出击追捕猎物。\n",
+   "abilities": [
+    "·战斗时进行较高频率的攻击",
+    "·近战攻击，造成物理伤害",
+    "·“奇术”属性，对“本能”属性生物造成的伤害提升，对“百变”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于密林外沿",
+   "hp": 36,
+   "atk": 10,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 100,
+   "atkSpeed": 100,
+   "hpPct": 36,
+   "atkPct": 10,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 100,
+   "atkSpeedPct": 100,
+   "def_": null
+  },
+  "19016": {
+   "creatureNumId": 19016,
+   "enemyId": "enemy_19036_wlmage",
+   "deployedEnemyId": "enemy_19016_akmage",
+   "trapId": "trap_1616_akmaget",
+   "uiDisplayScale": 0.45,
+   "followScale": 1,
+   "animSpeedFollow": 0.12,
+   "rarity": 1,
+   "specialRarity": false,
+   "sortId": 29,
+   "orderId": "29",
+   "name": "爬行鬼伞",
+   "creatureIcon": "enemy_19016_akmage",
+   "worldEntityId": "arkvent_enemy_19016_akmage",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_A",
+   "description": "从菌类子实体变化而来的小型生物，能散播孢子进行攻击，因为其外形看起来无害而放松警惕被偷袭的探险者可不少见。",
+   "abilities": [
+    "·前数次攻击变为更高伤害的群体攻击",
+    "·远程攻击，造成法术伤害",
+    "·“奇术”属性，对“本能”属性生物造成的伤害提升，对“百变”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于密林外沿",
+   "hp": 31,
+   "atk": 10,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 27,
+   "atkSpeed": 33,
+   "hpPct": 31,
+   "atkPct": 10,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 27,
+   "atkSpeedPct": 33,
+   "def_": null
+  },
+  "19017": {
+   "creatureNumId": 19017,
+   "enemyId": "enemy_19037_wlrang",
+   "deployedEnemyId": "enemy_19017_akrang",
+   "trapId": "trap_1617_akrangt",
+   "uiDisplayScale": 0.45,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 1,
+   "specialRarity": false,
+   "sortId": 35,
+   "orderId": "35",
+   "name": "红宝石投石虫",
+   "creatureIcon": "enemy_19017_akrang",
+   "worldEntityId": "arkvent_enemy_19017_akrang",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_C",
+   "description": "原生于汐斯塔火山地带的甲虫，它的膜翅在受到威胁时会以特殊方式振动，引发种荚爆裂并弹出坚硬的红色种子。",
+   "abilities": [
+    "·战斗时进行范围较远的物理攻击",
+    "·远程攻击，造成物理伤害",
+    "·“百变”属性，对“奇术”属性生物造成的伤害提升，对“本能”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于奇生保护区",
+   "hp": 22,
+   "atk": 50,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 18,
+   "atkSpeed": 17,
+   "hpPct": 22,
+   "atkPct": 50,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 18,
+   "atkSpeedPct": 17,
+   "def_": null
+  },
+  "19018": {
+   "creatureNumId": 19018,
+   "enemyId": "enemy_19038_wlshd",
+   "deployedEnemyId": "enemy_19018_akshd",
+   "trapId": "trap_1618_akshdt",
+   "uiDisplayScale": 0.45,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 1,
+   "specialRarity": false,
+   "sortId": 31,
+   "orderId": "31",
+   "name": "困困荪茸",
+   "creatureIcon": "enemy_19018_akshd",
+   "worldEntityId": "arkvent_enemy_19018_akshd",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_B",
+   "description": "在火山区域的黑色土壤上成长的生物，白天会张开看起来轻薄实际上十分坚硬的菌伞休眠，菌伞被破坏的话会奋起反击。\n",
+   "abilities": [
+    "·免疫首次受到的伤害",
+    "·近战攻击，造成物理伤害",
+    "·“本能”属性，对“百变”属性生物造成的伤害提升，对“奇术”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于晦光林地",
+   "hp": 30,
+   "atk": 35,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 100,
+   "atkSpeed": 33,
+   "hpPct": 30,
+   "atkPct": 35,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 100,
+   "atkSpeedPct": 33,
+   "def_": null
+  },
+  "19019": {
+   "creatureNumId": 19019,
+   "enemyId": "enemy_19039_wlbow",
+   "deployedEnemyId": "enemy_19019_akbow",
+   "trapId": "trap_1619_akbowt",
+   "uiDisplayScale": 0.45,
+   "followScale": 1,
+   "animSpeedFollow": 0.1,
+   "rarity": 1,
+   "specialRarity": false,
+   "sortId": 36,
+   "orderId": "36",
+   "name": "石榴弩手",
+   "creatureIcon": "enemy_19019_akbow",
+   "worldEntityId": "arkvent_enemy_19019_akbow",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_C",
+   "description": "似乎是一种有自我意识的成熟石榴果，仅在最近几年于火山山脚的林地中有目击报告，能将种子以惊人的高速度发射而出。",
+   "abilities": [
+    "·战斗时进行较高频率的攻击",
+    "·远程攻击，造成物理伤害",
+    "·“百变”属性，对“奇术”属性生物造成的伤害提升，对“本能”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于奇生保护区",
+   "hp": 31,
+   "atk": 20,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 27,
+   "atkSpeed": 50,
+   "hpPct": 31,
+   "atkPct": 20,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 27,
+   "atkSpeedPct": 50,
+   "def_": null
+  },
+  "19020": {
+   "creatureNumId": 19020,
+   "enemyId": "enemy_19040_wldef",
+   "deployedEnemyId": "enemy_19020_akdef",
+   "trapId": "trap_1620_akdeft",
+   "uiDisplayScale": 0.45,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 1,
+   "specialRarity": false,
+   "sortId": 37,
+   "orderId": "37",
+   "name": "椰壳蟹",
+   "creatureIcon": "enemy_19020_akdef",
+   "worldEntityId": "arkvent_enemy_19020_akdef",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_C",
+   "description": "原本是为了观赏而引进的一种小型岩壳蟹，其中一个种群在繁衍并野化之后学会了利用椰子壳保护自己，逐渐演化成了新物种。\n",
+   "abilities": [
+    "·战斗开始时防御力和法术抗性提升，直到自身发动一次攻击",
+    "·近战攻击，造成物理伤害",
+    "·“百变”属性，对“奇术”属性生物造成的伤害提升，对“本能”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于奇生保护区",
+   "hp": 36,
+   "atk": 30,
+   "def": 25,
+   "mag": 20,
+   "moveSpeed": 36,
+   "atkSpeed": 33,
+   "hpPct": 36,
+   "atkPct": 30,
+   "defPct": 25,
+   "magPct": 20,
+   "moveSpeedPct": 36,
+   "atkSpeedPct": 33,
+   "def_": null
+  },
+  "19024": {
+   "creatureNumId": 19024,
+   "enemyId": "enemy_19044_wlfire",
+   "deployedEnemyId": "enemy_19024_akfire",
+   "trapId": "trap_1624_akfiret",
+   "uiDisplayScale": 0.4,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 2,
+   "specialRarity": false,
+   "sortId": 17,
+   "orderId": "17",
+   "name": "灼热跳跳蜥",
+   "creatureIcon": "enemy_19024_akfire",
+   "worldEntityId": "arkvent_enemy_19024_akfire",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_A",
+   "description": "栖息在火山口附近的一种鳞蜥，能从口部喷出灼热体液，因为外形艳丽，近来吸引了一批异宠爱好家的兴趣。\n",
+   "abilities": [
+    "·攻击附带一定的灼燃损伤",
+    "·远程攻击，造成法术伤害",
+    "·“奇术”属性，对“本能”属性生物造成的伤害提升，对“百变”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于密林外沿",
+   "hp": 40,
+   "atk": 10,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 27,
+   "atkSpeed": 29,
+   "hpPct": 40,
+   "atkPct": 10,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 27,
+   "atkSpeedPct": 29,
+   "def_": null
+  },
+  "19026": {
+   "creatureNumId": 19026,
+   "enemyId": "enemy_19046_wltele",
+   "deployedEnemyId": "enemy_19026_aktele",
+   "trapId": "trap_1626_aktelet",
+   "uiDisplayScale": 0.4,
+   "followScale": 1,
+   "animSpeedFollow": 0.12,
+   "rarity": 2,
+   "specialRarity": false,
+   "sortId": 22,
+   "orderId": "22",
+   "name": "蓝冠羽镖客",
+   "creatureIcon": "enemy_19026_aktele",
+   "worldEntityId": "arkvent_enemy_19026_aktele",
+   "alterNumId": 19027,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_C",
+   "description": "活跃在树冠层，颜色绚丽的羽兽，拥有极其坚硬的羽干，会在树枝间频繁移动，并用羽毛从远距离进行捕猎和反击。",
+   "abilities": [
+    "·每攻击数次后随机传送到小范围内的可达地块",
+    "·远程攻击，造成物理伤害",
+    "·“百变”属性，对“奇术”属性生物造成的伤害提升，对“本能”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于奇生保护区",
+   "hp": 27,
+   "atk": 38,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 36,
+   "atkSpeed": 33,
+   "hpPct": 27,
+   "atkPct": 38,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 36,
+   "atkSpeedPct": 33,
+   "def_": null
+  },
+  "19027": {
+   "creatureNumId": 19027,
+   "enemyId": "enemy_19047_wltesp",
+   "deployedEnemyId": "enemy_19027_aktesp",
+   "trapId": "trap_1627_aktespt",
+   "uiDisplayScale": 0.4,
+   "followScale": 1,
+   "animSpeedFollow": 0.12,
+   "rarity": 2,
+   "specialRarity": false,
+   "sortId": 23,
+   "orderId": "23",
+   "name": "橙冠羽镖客",
+   "creatureIcon": "enemy_19027_aktesp",
+   "worldEntityId": "arkvent_enemy_19027_aktesp",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_C",
+   "description": "蓝冠羽镖客的亚种，由于其数量稀少且颜色绚烂，部分偷猎者曾将其视作目标，但目睹了其他猎人被羽毛扎满身子的惨状后不得不放弃。\n",
+   "abilities": [
+    "·每攻击数次后随机传送到大范围内的可达地块",
+    "·远程攻击，造成物理伤害",
+    "·“百变”属性，对“奇术”属性生物造成的伤害提升，对“本能”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于奇生保护区",
+   "hp": 27,
+   "atk": 38,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 36,
+   "atkSpeed": 33,
+   "hpPct": 27,
+   "atkPct": 38,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 36,
+   "atkSpeedPct": 33,
+   "def_": null
+  },
+  "19031": {
+   "creatureNumId": 19031,
+   "enemyId": "enemy_19051_wlrage",
+   "deployedEnemyId": "enemy_19031_akrage",
+   "trapId": "trap_1631_akraget",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.2,
+   "rarity": 2,
+   "specialRarity": false,
+   "sortId": 18,
+   "orderId": "18",
+   "name": "密林锋脊裂兽",
+   "creatureIcon": "enemy_19031_akrage",
+   "worldEntityId": "arkvent_enemy_19031_akrage",
+   "alterNumId": 19032,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_B",
+   "description": "在森林深处巡视领地的罕见裂兽，从其脊柱生出的硬骨刺穿透皮毛显露在外，在它被激怒从而展开攻击时会对攻击目标造成巨大伤害。\n",
+   "abilities": [
+    "·生命值低于50%时，无敌一段时间",
+    "·近战攻击，造成物理伤害",
+    "·“本能”属性，对“百变”属性生物造成的伤害提升，对“奇术”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于晦光林地",
+   "hp": 30,
+   "atk": 35,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 55,
+   "atkSpeed": 33,
+   "hpPct": 30,
+   "atkPct": 35,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 55,
+   "atkSpeedPct": 33,
+   "def_": null
+  },
+  "19032": {
+   "creatureNumId": 19032,
+   "enemyId": "enemy_19052_wlrgsp",
+   "deployedEnemyId": "enemy_19032_akrgsp",
+   "trapId": "trap_1632_akrgspt",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.2,
+   "rarity": 2,
+   "specialRarity": false,
+   "sortId": 19,
+   "orderId": "19",
+   "name": "枯焦锋脊裂兽",
+   "creatureIcon": "enemy_19032_akrgsp",
+   "worldEntityId": "arkvent_enemy_19032_akrgsp",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_B",
+   "description": "密林锋脊裂兽在炎热区域的亚种，拥有普通弩箭难以贯穿的坚韧皮毛，这让它们成为在生物群系中横行无忌的上位捕食者。\n",
+   "abilities": [
+    "·生命值低于50%时，无敌一段时间",
+    "·近战攻击，造成物理伤害",
+    "·“本能”属性，对“百变”属性生物造成的伤害提升，对“奇术”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于晦光林地",
+   "hp": 30,
+   "atk": 33,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 55,
+   "atkSpeed": 40,
+   "hpPct": 30,
+   "atkPct": 33,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 55,
+   "atkSpeedPct": 40,
+   "def_": null
+  },
+  "19053": {
+   "creatureNumId": 19053,
+   "enemyId": "enemy_10070_ftkbtt",
+   "deployedEnemyId": "enemy_19053_akrbt",
+   "trapId": "trap_1633_akrbt",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 2,
+   "specialRarity": false,
+   "sortId": 24,
+   "orderId": "24",
+   "name": "深林伪形兽",
+   "creatureIcon": "enemy_19053_akrbt",
+   "worldEntityId": "arkvent_enemy_19053_akrbt",
+   "alterNumId": 19054,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_C",
+   "description": "潜藏在浓密林地中的一种捕食性兽类，平时伪装成无害的草食动物，猎物接近后就会现出原形进行捕猎。\n",
+   "abilities": [
+    "·同时攻击两个目标，但自身生命值会不断流失",
+    "·远程攻击，造成法术伤害",
+    "·“百变”属性，对“奇术”属性生物造成的伤害提升，对“本能”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于奇生保护区",
+   "hp": 83,
+   "atk": 43,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 45,
+   "atkSpeed": 40,
+   "hpPct": 83,
+   "atkPct": 43,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 45,
+   "atkSpeedPct": 40,
+   "def_": null
+  },
+  "19054": {
+   "creatureNumId": 19054,
+   "enemyId": "enemy_10070_ftkbtt_2",
+   "deployedEnemyId": "enemy_19054_akrbsp",
+   "trapId": "trap_1634_akrbsp",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 2,
+   "specialRarity": false,
+   "sortId": 25,
+   "orderId": "25",
+   "name": "赤黑伪形兽",
+   "creatureIcon": "enemy_19054_akrbsp",
+   "worldEntityId": "arkvent_enemy_19054_akrbsp",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_C",
+   "description": "生活在火山区域的深林伪形兽亚种，因环境变化改变了身体颜色。由于其伪装形态看起来人畜无害，新手探险者往往会因此靠近它而被咬伤。\n",
+   "abilities": [
+    "·同时攻击两个目标，但自身生命值会不断流失",
+    "·远程攻击，造成法术伤害",
+    "·“百变”属性，对“奇术”属性生物造成的伤害提升，对“本能”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于奇生保护区",
+   "hp": 97,
+   "atk": 48,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 45,
+   "atkSpeed": 40,
+   "hpPct": 97,
+   "atkPct": 48,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 45,
+   "atkSpeedPct": 40,
+   "def_": null
+  },
+  "19055": {
+   "creatureNumId": 19055,
+   "enemyId": "enemy_7006_xbcrab",
+   "deployedEnemyId": "enemy_19055_akblcr",
+   "trapId": "trap_1635_akblcr",
+   "uiDisplayScale": 0.45,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 1,
+   "specialRarity": false,
+   "sortId": 32,
+   "orderId": "32",
+   "name": "浪花小壳蟹",
+   "creatureIcon": "enemy_19055_akblcr",
+   "worldEntityId": "arkvent_enemy_19055_akblcr",
+   "alterNumId": 19056,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_B",
+   "description": "汐斯塔的近海区域中常见的小型岩壳蟹，与其亚种处于同等级生态位，两个种群间的领地之争是当地一大奇观。",
+   "abilities": [
+    "·对熔火小壳蟹造成的伤害提升",
+    "·近战攻击，造成物理伤害",
+    "·“本能”属性，对“百变”属性生物造成的伤害提升，对“奇术”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于晦光林地",
+   "hp": 60,
+   "atk": 40,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 55,
+   "atkSpeed": 20,
+   "hpPct": 60,
+   "atkPct": 40,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 55,
+   "atkSpeedPct": 20,
+   "def_": null
+  },
+  "19056": {
+   "creatureNumId": 19056,
+   "enemyId": "enemy_7006_xbcrab_2",
+   "deployedEnemyId": "enemy_19056_akrdcr",
+   "trapId": "trap_1636_akrdcr",
+   "uiDisplayScale": 0.45,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 1,
+   "specialRarity": false,
+   "sortId": 33,
+   "orderId": "33",
+   "name": "熔火小壳蟹",
+   "creatureIcon": "enemy_19056_akrdcr",
+   "worldEntityId": "arkvent_enemy_19056_akrdcr",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_B",
+   "description": "浪花小壳蟹的亚种，生息区域更靠近内陆火山，平时比较温顺，但在与浪花小壳蟹争夺领地时会变得非常暴躁。\n",
+   "abilities": [
+    "·对浪花小壳蟹造成的伤害提升",
+    "·近战攻击，造成物理伤害",
+    "·“本能”属性，对“百变”属性生物造成的伤害提升，对“奇术”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于晦光林地",
+   "hp": 40,
+   "atk": 40,
+   "def": 100,
+   "mag": 0,
+   "moveSpeed": 55,
+   "atkSpeed": 20,
+   "hpPct": 40,
+   "atkPct": 40,
+   "defPct": 100,
+   "magPct": 0,
+   "moveSpeedPct": 55,
+   "atkSpeedPct": 20,
+   "def_": null
+  },
+  "19057": {
+   "creatureNumId": 19057,
+   "enemyId": "enemy_1384_winfrz",
+   "deployedEnemyId": "enemy_19057_akickb",
+   "trapId": "trap_1637_akickb",
+   "uiDisplayScale": 0.4,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 2,
+   "specialRarity": false,
+   "sortId": 20,
+   "orderId": "20",
+   "name": "寒山大角驮兽",
+   "creatureIcon": "enemy_19057_akickb",
+   "worldEntityId": "arkvent_enemy_19057_akickb",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_B",
+   "description": "主要生息在高海拔山地附近的有角驮兽，行动缓慢而笨拙，曾因为角的价值极高而遭到猎捕，如今是知名度颇高的保护动物。",
+   "abilities": [
+    "·战斗开始时自身冰冻一段时间，期间防御力和法术抗性提升",
+    "·近战攻击，造成物理伤害",
+    "·“本能”属性，对“百变”属性生物造成的伤害提升，对“奇术”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于晦光林地",
+   "hp": 70,
+   "atk": 50,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 55,
+   "atkSpeed": 25,
+   "hpPct": 70,
+   "atkPct": 50,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 55,
+   "atkSpeedPct": 25,
+   "def_": null
+  },
+  "19058": {
+   "creatureNumId": 19058,
+   "enemyId": "enemy_7010_bldrgn",
+   "deployedEnemyId": "enemy_19058_akdrgn",
+   "trapId": "trap_1638_akdrgn",
+   "uiDisplayScale": 0.3,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 3,
+   "specialRarity": true,
+   "sortId": 1,
+   "orderId": "1",
+   "name": "锐爪巨翼兽",
+   "creatureIcon": "enemy_19058_akdrgn",
+   "worldEntityId": "arkvent_enemy_19058_akdrgn",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_A",
+   "description": "活跃在近海林地的有翼兽类，与分布在萨尔贡的近似种不同，这种巨翼兽脚爪更为尖锐，攻击性也更强，是稀有且危险的奇象生物。",
+   "abilities": [
+    "·战斗开始时一定时间内处于飞行状态，期间攻击附带灼燃损伤",
+    "·多种攻击模式",
+    "·“奇术”属性，对“本能”属性生物造成的伤害提升，对“百变”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于密林外沿",
+   "hp": 58,
+   "atk": 40,
+   "def": 0,
+   "mag": 100,
+   "moveSpeed": 64,
+   "atkSpeed": 20,
+   "hpPct": 58,
+   "atkPct": 40,
+   "defPct": 0,
+   "magPct": 100,
+   "moveSpeedPct": 64,
+   "atkSpeedPct": 20,
+   "def_": null
+  },
+  "19059": {
+   "creatureNumId": 19059,
+   "enemyId": "enemy_1415_mmkabi",
+   "deployedEnemyId": "enemy_19059_akkabi",
+   "trapId": "trap_1639_akkabi",
+   "uiDisplayScale": 0.3,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 2,
+   "specialRarity": false,
+   "sortId": 21,
+   "orderId": "21",
+   "name": "温和驮兽",
+   "creatureIcon": "enemy_19059_akkabi",
+   "worldEntityId": "arkvent_enemy_19059_akkabi",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_B",
+   "description": "存在于各地的大型温顺驮兽，经常被用作交通和装载工具，由于数量众多，走失之后出现在周边野外环境中的情况也很常见。",
+   "abilities": [
+    "·受到一定伤害后大摔一跤并晕眩，对自身和周围其他单位造成物理伤害",
+    "·近战攻击，造成物理伤害",
+    "·“本能”属性，对“百变”属性生物造成的伤害提升，对“奇术”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于晦光林地",
+   "hp": 90,
+   "atk": 100,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 55,
+   "atkSpeed": 14,
+   "hpPct": 90,
+   "atkPct": 100,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 55,
+   "atkSpeedPct": 14,
+   "def_": null
+  },
+  "19060": {
+   "creatureNumId": 19060,
+   "enemyId": "enemy_10157_mnggyl",
+   "deployedEnemyId": "enemy_19060_akmndx",
+   "trapId": "trap_1645_akmndx",
+   "uiDisplayScale": 0.4,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 3,
+   "specialRarity": true,
+   "sortId": 3,
+   "orderId": "3",
+   "name": "未定义石兽",
+   "creatureIcon": "enemy_19060_akmndx",
+   "worldEntityId": "arkvent_enemy_19060_akmndx",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_C",
+   "description": "以往一直被当做未确认生物的物种，外观与米诺斯传说中的怪物类似。在巡展周边区域内关于它的目击报告引发了轰动，其话题度可见一斑。\n",
+   "abilities": [
+    "·战斗开始一定时间后降落并不再移动",
+    "·远程攻击，造成法术伤害",
+    "·“百变”属性，对“奇术”属性生物造成的伤害提升，对“本能”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于奇生保护区",
+   "hp": 75,
+   "atk": 28,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 68,
+   "atkSpeed": 50,
+   "hpPct": 75,
+   "atkPct": 28,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 68,
+   "atkSpeedPct": 50,
+   "def_": null
+  },
+  "19061": {
+   "creatureNumId": 19061,
+   "enemyId": "enemy_1205_sfpin",
+   "deployedEnemyId": "enemy_19061_akqhc",
+   "trapId": "trap_1646_akqhc",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 3,
+   "specialRarity": false,
+   "sortId": 6,
+   "orderId": "6",
+   "name": "青花",
+   "creatureIcon": "enemy_19061_akqhc",
+   "worldEntityId": "arkvent_enemy_19061_akqhc",
+   "alterNumId": 19062,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_A",
+   "description": "之前仅在炎国的特定环境中存在的器伥，在巡展开始后出现在探索区域之中，有人推测它们在此现身的原因与墨魉来此的理由类似。\n",
+   "abilities": [
+    "·数次攻击后，使目标受到持续递增的法术伤害",
+    "·远程攻击，造成法术伤害",
+    "·“奇术”属性，对“本能”属性生物造成的伤害提升，对“百变”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于密林外沿",
+   "hp": 45,
+   "atk": 33,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 36,
+   "atkSpeed": 33,
+   "hpPct": 45,
+   "atkPct": 33,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 36,
+   "atkSpeedPct": 33,
+   "def_": null
+  },
+  "19062": {
+   "creatureNumId": 19062,
+   "enemyId": "enemy_1205_sfpin_2",
+   "deployedEnemyId": "enemy_19062_akqhsp",
+   "trapId": "trap_1647_akqhsp",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 3,
+   "specialRarity": false,
+   "sortId": 7,
+   "orderId": "7",
+   "name": "赤霞",
+   "creatureIcon": "enemy_19062_akqhsp",
+   "worldEntityId": "arkvent_enemy_19062_akqhsp",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_A",
+   "description": "相比于青花脾性更为暴躁，攻击性更强的同类型器伥。部分参展者反映了它们与青花争抢活动范围的场面，引起相关研究人员的高度重视。\n",
+   "abilities": [
+    "·数次攻击后，使目标受到持续递增的法术伤害",
+    "·远程攻击，造成法术伤害",
+    "·“奇术”属性，对“本能”属性生物造成的伤害提升，对“百变”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于密林外沿",
+   "hp": 48,
+   "atk": 40,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 36,
+   "atkSpeed": 29,
+   "hpPct": 48,
+   "atkPct": 40,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 36,
+   "atkSpeedPct": 29,
+   "def_": null
+  },
+  "19063": {
+   "creatureNumId": 19063,
+   "enemyId": "enemy_10132_pyceat",
+   "deployedEnemyId": "enemy_19063_akpeat",
+   "trapId": "trap_1648_akpeat",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 3,
+   "specialRarity": false,
+   "sortId": 10,
+   "orderId": "10",
+   "name": "不知足吞噬者",
+   "creatureIcon": "enemy_19063_akpeat",
+   "worldEntityId": "arkvent_enemy_19063_akpeat",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_B",
+   "description": "在晦光林地深处栖息着的一种罕见捕食性生物，胃口巨大而且不挑食物种类，当地警方怀疑未曾侦破的几起探险者失踪案就和它们有关。\n",
+   "abilities": [
+    "·可以吃掉一只自身重量不大于2的友军，并使下次攻击变为远程范围攻击",
+    "·近战攻击，造成物理伤害",
+    "·“本能”属性，对“百变”属性生物造成的伤害提升，对“奇术”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于晦光林地",
+   "hp": 58,
+   "atk": 45,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 55,
+   "atkSpeed": 33,
+   "hpPct": 58,
+   "atkPct": 45,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 55,
+   "atkSpeedPct": 33,
+   "def_": null
+  },
+  "19064": {
+   "creatureNumId": 19064,
+   "enemyId": "enemy_1151_dslntc",
+   "deployedEnemyId": "enemy_19064_akflwr",
+   "trapId": "trap_1649_akflwr",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 3,
+   "specialRarity": false,
+   "sortId": 15,
+   "orderId": "15",
+   "name": "钵海收割者",
+   "creatureIcon": "enemy_19064_akflwr",
+   "worldEntityId": "arkvent_enemy_19064_akflwr",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_C",
+   "description": "另一种不知为何出现在汐斯塔周边水域内的恐鱼，专家提出了它们是被固海凿石者引诱而来的假说，但由于难以接近其本体而无法验证。\n",
+   "abilities": [
+    "·初始不攻击，在受伤或一段时间后进入临战状态，逐渐损失生命并对周围的敌人持续造成神经损伤",
+    "·近战攻击，造成物理伤害",
+    "·“百变”属性，对“奇术”属性生物造成的伤害提升，对“本能”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于奇生保护区",
+   "hp": 100,
+   "atk": 45,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 27,
+   "atkSpeed": 33,
+   "hpPct": 100,
+   "atkPct": 45,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 27,
+   "atkSpeedPct": 33,
+   "def_": null
+  },
+  "19065": {
+   "creatureNumId": 19065,
+   "enemyId": "enemy_2003_rockman",
+   "deployedEnemyId": "enemy_19065_aktstn",
+   "trapId": "trap_1650_aktstn",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 3,
+   "specialRarity": false,
+   "sortId": 11,
+   "orderId": "11",
+   "name": "孤独的巨像",
+   "creatureIcon": "enemy_19065_aktstn",
+   "worldEntityId": "arkvent_enemy_19065_aktstn",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_B",
+   "description": "因为被创造者遗忘一路漫游到了汐斯塔的法术造物，在近海林地里努力寻找着自己的存在意义，也许比起被扫描，它更希望能跟随发现者离开。",
+   "abilities": [
+    "·可进行远程投掷，造成长时间的晕眩",
+    "·近战攻击，造成物理伤害",
+    "·“本能”属性，对“百变”属性生物造成的伤害提升，对“奇术”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于晦光林地",
+   "hp": 75,
+   "atk": 75,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 27,
+   "atkSpeed": 17,
+   "hpPct": 75,
+   "atkPct": 75,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 27,
+   "atkSpeedPct": 17,
+   "def_": null
+  },
+  "19066": {
+   "creatureNumId": 19066,
+   "enemyId": "enemy_10007_trspsb",
+   "deployedEnemyId": "enemy_19066_akmdbf",
+   "trapId": "trap_1651_akmdbf",
+   "uiDisplayScale": 0.35,
+   "followScale": 1,
+   "animSpeedFollow": 0.15,
+   "rarity": 3,
+   "specialRarity": false,
+   "sortId": 8,
+   "orderId": "8",
+   "name": "“酩酊”",
+   "creatureIcon": "enemy_19066_akmdbf",
+   "worldEntityId": "arkvent_enemy_19066_akmdbf",
+   "alterNumId": 0,
+   "upWeightTagIsShow": false,
+   "advantageType": "arkdex_advantage_A",
+   "description": "另一种出现在汐斯塔的墨魉，与“阿咬”不同，它们迅速适应了汐斯塔的环境，接近的话能从它们身上闻到鸡尾酒特有的味道。\n",
+   "abilities": [
+    "·使自身及周围的友军移动和攻击速度提升，并减少受到的物理与法术伤害",
+    "·近战攻击，造成物理伤害",
+    "·“奇术”属性，对“本能”属性生物造成的伤害提升，对“百变”属性生物造成的伤害降低"
+   ],
+   "obtainApproach": "生息于密林外沿",
+   "hp": 50,
+   "atk": 25,
+   "def": 0,
+   "mag": 0,
+   "moveSpeed": 27,
+   "atkSpeed": 40,
+   "hpPct": 50,
+   "atkPct": 25,
+   "defPct": 0,
+   "magPct": 0,
+   "moveSpeedPct": 27,
+   "atkSpeedPct": 40,
+   "def_": null
+  }
+ },
+ "advantageTypeData": {
+  "arkdex_advantage_A": {
+   "advantageType": "arkdex_advantage_A",
+   "sortId": 0,
+   "name": "奇术",
+   "typeIcon": "adrdex_advantagetype_a",
+   "entryEffectKey": "arkdex_type_red_01",
+   "damageScaleMap": {
+    "arkdex_advantage_B": 1.3,
+    "arkdex_advantage_C": 0.7
+   }
+  },
+  "arkdex_advantage_B": {
+   "advantageType": "arkdex_advantage_B",
+   "sortId": 1,
+   "name": "本能",
+   "typeIcon": "adrdex_advantagetype_b",
+   "entryEffectKey": "arkdex_type_green_01",
+   "damageScaleMap": {
+    "arkdex_advantage_A": 0.7,
+    "arkdex_advantage_C": 1.3
+   }
+  },
+  "arkdex_advantage_C": {
+   "advantageType": "arkdex_advantage_C",
+   "sortId": 2,
+   "name": "百变",
+   "typeIcon": "adrdex_advantagetype_c",
+   "entryEffectKey": "arkdex_type_blue_01",
+   "damageScaleMap": {
+    "arkdex_advantage_A": 1.3,
+    "arkdex_advantage_B": 0.7
+   }
+  }
+ },
+ "advantageCounterMap": {
+  "arkdex_advantage_A": [
+   "arkdex_advantage_B"
+  ],
+  "arkdex_advantage_B": [
+   "arkdex_advantage_C"
+  ],
+  "arkdex_advantage_C": [
+   "arkdex_advantage_A"
+  ]
+ },
+ "modeData": {
+  "arkdex_singleRound_Solo": {
+   "modeId": "arkdex_singleRound_Solo",
+   "modeNumId": 1,
+   "isMultiplayer": false,
+   "numMax": 2,
+   "battleNpcCount": 1,
+   "isMatching": false,
+   "maxRoundNumber": 1,
+   "stageTimeMax": 360,
+   "characterLimit": 2,
+   "modeType": "ARKDEX_DUEL_SINGLEROUND",
+   "stageIds": [
+    "act1arkhub_03",
+    "act1arkhub_04",
+    "act1arkhub_05"
+   ],
+   "modeName": "快速对决",
+   "modeHint": "配置生物数据以进行对决",
+   "matchingIconId": "icon_start_duel"
+  },
+  "arkdex_BO3_Solo": {
+   "modeId": "arkdex_BO3_Solo",
+   "modeNumId": 2,
+   "isMultiplayer": false,
+   "numMax": 2,
+   "battleNpcCount": 1,
+   "isMatching": false,
+   "maxRoundNumber": 3,
+   "stageTimeMax": 820,
+   "characterLimit": 1,
+   "modeType": "ARKDEX_DUEL_BO3",
+   "stageIds": [
+    "act1arkhub_06",
+    "act1arkhub_07",
+    "act1arkhub_08"
+   ],
+   "modeName": "常规对决",
+   "modeHint": "配置生物数据以进行对决",
+   "matchingIconId": "icon_start_duel"
+  },
+  "arkdex_4Player_Solo": {
+   "modeId": "arkdex_4Player_Solo",
+   "modeNumId": 3,
+   "isMultiplayer": false,
+   "numMax": 4,
+   "battleNpcCount": 3,
+   "isMatching": false,
+   "maxRoundNumber": 1,
+   "stageTimeMax": 360,
+   "characterLimit": 2,
+   "modeType": "ARKDEX_DUEL_4PLAYER",
+   "stageIds": [
+    "act1arkhub_09",
+    "act1arkhub_10",
+    "act1arkhub_11"
+   ],
+   "modeName": "多人对决",
+   "modeHint": "配置生物数据以进行对决",
+   "matchingIconId": "icon_start_duel"
+  },
+  "arkdex_singleRound_Match": {
+   "modeId": "arkdex_singleRound_Match",
+   "modeNumId": 4,
+   "isMultiplayer": true,
+   "numMax": 2,
+   "battleNpcCount": 0,
+   "isMatching": true,
+   "maxRoundNumber": 1,
+   "stageTimeMax": 360,
+   "characterLimit": 2,
+   "modeType": "ARKDEX_DUEL_SINGLEROUND",
+   "stageIds": [
+    "act1arkhub_03",
+    "act1arkhub_04",
+    "act1arkhub_05"
+   ],
+   "modeName": "快速对决",
+   "modeHint": "配置生物数据以进行对决",
+   "matchingIconId": "icon_start_matching"
+  },
+  "arkdex_BO3_Match": {
+   "modeId": "arkdex_BO3_Match",
+   "modeNumId": 5,
+   "isMultiplayer": true,
+   "numMax": 2,
+   "battleNpcCount": 0,
+   "isMatching": true,
+   "maxRoundNumber": 3,
+   "stageTimeMax": 820,
+   "characterLimit": 1,
+   "modeType": "ARKDEX_DUEL_BO3",
+   "stageIds": [
+    "act1arkhub_06",
+    "act1arkhub_07",
+    "act1arkhub_08"
+   ],
+   "modeName": "常规对决",
+   "modeHint": "配置生物数据以进行对决",
+   "matchingIconId": "icon_start_matching"
+  },
+  "arkdex_4Player_Match": {
+   "modeId": "arkdex_4Player_Match",
+   "modeNumId": 6,
+   "isMultiplayer": true,
+   "numMax": 4,
+   "battleNpcCount": 0,
+   "isMatching": true,
+   "maxRoundNumber": 1,
+   "stageTimeMax": 360,
+   "characterLimit": 2,
+   "modeType": "ARKDEX_DUEL_4PLAYER",
+   "stageIds": [
+    "act1arkhub_09",
+    "act1arkhub_10",
+    "act1arkhub_11"
+   ],
+   "modeName": "多人对决",
+   "modeHint": "配置生物数据以进行对决",
+   "matchingIconId": "icon_start_matching"
+  },
+  "arkdex_singleRound_Room": {
+   "modeId": "arkdex_singleRound_Room",
+   "modeNumId": 7,
+   "isMultiplayer": true,
+   "numMax": 2,
+   "battleNpcCount": 0,
+   "isMatching": false,
+   "maxRoundNumber": 1,
+   "stageTimeMax": 360,
+   "characterLimit": 2,
+   "modeType": "ARKDEX_DUEL_SINGLEROUND",
+   "stageIds": [
+    "act1arkhub_03",
+    "act1arkhub_04",
+    "act1arkhub_05"
+   ],
+   "modeName": "快速对决",
+   "modeHint": "配置生物数据以进行对决",
+   "matchingIconId": "icon_join_duel"
+  },
+  "arkdex_BO3_Room": {
+   "modeId": "arkdex_BO3_Room",
+   "modeNumId": 8,
+   "isMultiplayer": true,
+   "numMax": 2,
+   "battleNpcCount": 0,
+   "isMatching": false,
+   "maxRoundNumber": 3,
+   "stageTimeMax": 820,
+   "characterLimit": 1,
+   "modeType": "ARKDEX_DUEL_BO3",
+   "stageIds": [
+    "act1arkhub_06",
+    "act1arkhub_07",
+    "act1arkhub_08"
+   ],
+   "modeName": "常规对决",
+   "modeHint": "配置生物数据以进行对决",
+   "matchingIconId": "icon_join_duel"
+  },
+  "arkdex_4Player_Room": {
+   "modeId": "arkdex_4Player_Room",
+   "modeNumId": 9,
+   "isMultiplayer": true,
+   "numMax": 4,
+   "battleNpcCount": 0,
+   "isMatching": false,
+   "maxRoundNumber": 1,
+   "stageTimeMax": 360,
+   "characterLimit": 2,
+   "modeType": "ARKDEX_DUEL_4PLAYER",
+   "stageIds": [
+    "act1arkhub_09",
+    "act1arkhub_10",
+    "act1arkhub_11"
+   ],
+   "modeName": "多人对决",
+   "modeHint": "配置生物数据以进行对决",
+   "matchingIconId": "icon_join_duel"
+  },
+  "arkdex_BO3_Solo_wild": {
+   "modeId": "arkdex_BO3_Solo_wild",
+   "modeNumId": 11,
+   "isMultiplayer": false,
+   "numMax": 2,
+   "battleNpcCount": 1,
+   "isMatching": false,
+   "maxRoundNumber": 3,
+   "stageTimeMax": 820,
+   "characterLimit": 1,
+   "modeType": "ARKDEX_DUEL_BO3",
+   "stageIds": [
+    "act1arkhub_16",
+    "act1arkhub_17",
+    "act1arkhub_18"
+   ],
+   "modeName": "常规对决",
+   "modeHint": "配置生物数据以进行对决",
+   "matchingIconId": "icon_start_duel"
+  }
+ },
+ "itemEffectData": {
+  "5004": {
+   "itemNumId": 5004,
+   "buff": "arkdex_change_creature",
+   "activeDesc": "生效期间，会遭遇珍奇度为1的生物数据",
+   "blackboard": [
+    {
+     "key": "count",
+     "value": 1,
+     "valueStr": null
+    },
+    {
+     "key": "id",
+     "value": 0,
+     "valueStr": "pool_item_2"
+    }
+   ]
+  },
+  "5005": {
+   "itemNumId": 5005,
+   "buff": "arkdex_change_creature",
+   "activeDesc": "生效期间，会遭遇珍奇度为2的生物数据",
+   "blackboard": [
+    {
+     "key": "count",
+     "value": 1,
+     "valueStr": null
+    },
+    {
+     "key": "id",
+     "value": 0,
+     "valueStr": "pool_item_3"
+    }
+   ]
+  },
+  "5006": {
+   "itemNumId": 5006,
+   "buff": "arkdex_change_creature",
+   "activeDesc": "生效期间，会遭遇珍奇度为3的生物数据",
+   "blackboard": [
+    {
+     "key": "count",
+     "value": 1,
+     "valueStr": null
+    },
+    {
+     "key": "id",
+     "value": 0,
+     "valueStr": "pool_item_4"
+    }
+   ]
+  },
+  "5007": {
+   "itemNumId": 5007,
+   "buff": "arkdex_change_creature",
+   "activeDesc": "生效期间，一定会遭遇焦虑不安或坚韧不屈的生物数据",
+   "blackboard": [
+    {
+     "key": "count",
+     "value": 3,
+     "valueStr": null
+    },
+    {
+     "key": "trait_mask",
+     "value": 3,
+     "valueStr": null
+    }
+   ]
+  },
+  "5008": {
+   "itemNumId": 5008,
+   "buff": "arkdex_change_creature",
+   "activeDesc": "生效期间，一定会遭遇时常应激或小心谨慎的生物数据",
+   "blackboard": [
+    {
+     "key": "count",
+     "value": 3,
+     "valueStr": null
+    },
+    {
+     "key": "trait_mask",
+     "value": 12,
+     "valueStr": null
+    }
+   ]
+  },
+  "5009": {
+   "itemNumId": 5009,
+   "buff": "arkdex_change_creature",
+   "activeDesc": "生效期间，一定会遭遇天生幸运或活力满满的生物数据",
+   "blackboard": [
+    {
+     "key": "count",
+     "value": 3,
+     "valueStr": null
+    },
+    {
+     "key": "trait_mask",
+     "value": 48,
+     "valueStr": null
+    }
+   ]
+  },
+  "5010": {
+   "itemNumId": 5010,
+   "buff": "arkdex_change_creature",
+   "activeDesc": "生效期间，一定会遭遇暴躁易怒或难以捉摸的生物数据",
+   "blackboard": [
+    {
+     "key": "count",
+     "value": 3,
+     "valueStr": null
+    },
+    {
+     "key": "trait_mask",
+     "value": 192,
+     "valueStr": null
+    }
+   ]
+  },
+  "5011": {
+   "itemNumId": 5011,
+   "buff": "arkdex_change_creature",
+   "activeDesc": "生效期间，一定会遭遇分外记仇或狠毒异常的生物数据",
+   "blackboard": [
+    {
+     "key": "count",
+     "value": 3,
+     "valueStr": null
+    },
+    {
+     "key": "trait_mask",
+     "value": 768,
+     "valueStr": null
+    }
+   ]
+  },
+  "5014": {
+   "itemNumId": 5014,
+   "buff": "arkdex_summon_creature",
+   "activeDesc": "随机引出一只珍奇度为1的生物数据，该数据会在一定时间后消失；仅可在生息区域内使用，若当前生物生息区域没有空位，则无法引出",
+   "blackboard": [
+    {
+     "key": "id",
+     "value": 0,
+     "valueStr": "pool_item_2"
+    }
+   ]
+  },
+  "5015": {
+   "itemNumId": 5015,
+   "buff": "arkdex_summon_creature",
+   "activeDesc": "随机引出一只珍奇度为2的生物数据，该数据会在一定时间后消失；仅可在生息区域内使用，若当前生物生息区域没有空位，则无法引出",
+   "blackboard": [
+    {
+     "key": "id",
+     "value": 0,
+     "valueStr": "pool_item_3"
+    }
+   ]
+  },
+  "5016": {
+   "itemNumId": 5016,
+   "buff": "arkdex_summon_creature",
+   "activeDesc": "随机引出一只珍奇度为3的生物数据，该数据会在一定时间后消失；仅可在生息区域内使用，若当前生物生息区域没有空位，则无法引出",
+   "blackboard": [
+    {
+     "key": "id",
+     "value": 0,
+     "valueStr": "pool_item_4"
+    }
+   ]
+  },
+  "5017": {
+   "itemNumId": 5017,
+   "buff": "arkdex_summon_trait",
+   "activeDesc": "随机引出一只焦虑不安或坚韧不屈的生物数据，该数据会在一定时间后消失；仅可在生息区域内使用，若当前生物生息区域没有空位，则无法引出",
+   "blackboard": [
+    {
+     "key": "trait_mask",
+     "value": 3,
+     "valueStr": null
+    }
+   ]
+  },
+  "5018": {
+   "itemNumId": 5018,
+   "buff": "arkdex_summon_trait",
+   "activeDesc": "随机引出一只时常应激或小心谨慎的生物数据，该数据会在一定时间后消失；仅可在生息区域内使用，若当前生物生息区域没有空位，则无法引出",
+   "blackboard": [
+    {
+     "key": "trait_mask",
+     "value": 12,
+     "valueStr": null
+    }
+   ]
+  },
+  "5019": {
+   "itemNumId": 5019,
+   "buff": "arkdex_summon_trait",
+   "activeDesc": "随机引出一只天生幸运或活力满满的生物数据，该数据会在一定时间后消失；仅可在生息区域内使用，若当前生物生息区域没有空位，则无法引出",
+   "blackboard": [
+    {
+     "key": "trait_mask",
+     "value": 48,
+     "valueStr": null
+    }
+   ]
+  },
+  "5020": {
+   "itemNumId": 5020,
+   "buff": "arkdex_summon_trait",
+   "activeDesc": "随机引出一只暴躁易怒或难以捉摸的生物数据，该数据会在一定时间后消失；仅可在生息区域内使用，若当前生物生息区域没有空位，则无法引出",
+   "blackboard": [
+    {
+     "key": "trait_mask",
+     "value": 192,
+     "valueStr": null
+    }
+   ]
+  },
+  "5021": {
+   "itemNumId": 5021,
+   "buff": "arkdex_summon_trait",
+   "activeDesc": "随机引出一只分外记仇或狠毒异常的生物数据，该数据会在一定时间后消失；仅可在生息区域内使用，若当前生物生息区域没有空位，则无法引出",
+   "blackboard": [
+    {
+     "key": "trait_mask",
+     "value": 768,
+     "valueStr": null
+    }
+   ]
+  }
+ },
+ "traitData": {
+  "1": {
+   "sortId": 2,
+   "traitMask": 1,
+   "traitId": "arkdex_trait_2",
+   "name": "坚韧不屈",
+   "icon": "arkdex_trait_2",
+   "description": "生命值即将归零时短暂无敌，每次无敌时间结束时有概率重复该无敌效果",
+   "color": "#f2ddcf",
+   "buff": [
+    {
+     "key": "interval",
+     "value": 3,
+     "valueStr": null
+    },
+    {
+     "key": "continue_buff_prob_each_trigger",
+     "value": 0.3,
+     "valueStr": null
+    }
+   ]
+  },
+  "2": {
+   "sortId": 3,
+   "traitMask": 2,
+   "traitId": "arkdex_trait_3",
+   "name": "时常应激",
+   "icon": "arkdex_trait_3",
+   "description": "攻击时有较低概率失手，有一定概率造成大量伤害",
+   "color": "#f3dfbd",
+   "buff": [
+    {
+     "key": "miss",
+     "value": 0.05,
+     "valueStr": null
+    },
+    {
+     "key": "critical",
+     "value": 0.1,
+     "valueStr": null
+    },
+    {
+     "key": "damage_scale",
+     "value": 4,
+     "valueStr": null
+    }
+   ]
+  },
+  "3": {
+   "sortId": 4,
+   "traitMask": 3,
+   "traitId": "arkdex_trait_4",
+   "name": "小心谨慎",
+   "icon": "arkdex_trait_4",
+   "description": "每次攻击后,有一定概率攻击力提升（最高叠加5次）",
+   "color": "#bbcce6",
+   "buff": [
+    {
+     "key": "max",
+     "value": 5,
+     "valueStr": null
+    },
+    {
+     "key": "atk",
+     "value": 0.3,
+     "valueStr": null
+    },
+    {
+     "key": "def",
+     "value": 0,
+     "valueStr": null
+    },
+    {
+     "key": "prob",
+     "value": 0.1,
+     "valueStr": null
+    }
+   ]
+  },
+  "4": {
+   "sortId": 5,
+   "traitMask": 4,
+   "traitId": "arkdex_trait_5",
+   "name": "天生幸运",
+   "icon": "arkdex_trait_5",
+   "description": "攻击时有一定概率伤害提升并使敌人短暂晕眩",
+   "color": "#e3f1fa",
+   "buff": [
+    {
+     "key": "prob",
+     "value": 0.07,
+     "valueStr": null
+    },
+    {
+     "key": "damage_scale",
+     "value": 2,
+     "valueStr": null
+    },
+    {
+     "key": "stun",
+     "value": 6,
+     "valueStr": null
+    }
+   ]
+  },
+  "5": {
+   "sortId": 6,
+   "traitMask": 5,
+   "traitId": "arkdex_trait_6",
+   "name": "活力满满",
+   "icon": "arkdex_trait_6",
+   "description": "首次攻击造成的伤害提升随机倍率",
+   "color": "#bcd6e1",
+   "buff": [
+    {
+     "key": "damage_scale_min",
+     "value": 1.2,
+     "valueStr": null
+    },
+    {
+     "key": "damage_scale_max",
+     "value": 4,
+     "valueStr": null
+    }
+   ]
+  },
+  "6": {
+   "sortId": 7,
+   "traitMask": 6,
+   "traitId": "arkdex_trait_7",
+   "name": "暴躁易怒",
+   "icon": "arkdex_trait_7",
+   "description": "攻击速度随机提升，移动速度随机大幅提升",
+   "color": "#f8e8ec",
+   "buff": [
+    {
+     "key": "attack_speed_min",
+     "value": 10,
+     "valueStr": null
+    },
+    {
+     "key": "attack_speed_max",
+     "value": 30,
+     "valueStr": null
+    },
+    {
+     "key": "move_speed_min",
+     "value": 1.5,
+     "valueStr": null
+    },
+    {
+     "key": "move_speed_max",
+     "value": 2,
+     "valueStr": null
+    }
+   ]
+  },
+  "7": {
+   "sortId": 8,
+   "traitMask": 7,
+   "traitId": "arkdex_trait_8",
+   "name": "难以捉摸",
+   "icon": "arkdex_trait_8",
+   "description": "获得一定物理和法术闪避",
+   "color": "#ffffe5",
+   "buff": [
+    {
+     "key": "init_atk",
+     "value": 0,
+     "valueStr": null
+    },
+    {
+     "key": "max_atk",
+     "value": 0,
+     "valueStr": null
+    },
+    {
+     "key": "min_atk",
+     "value": 0,
+     "valueStr": null
+    },
+    {
+     "key": "prob",
+     "value": 0.2,
+     "valueStr": null
+    }
+   ]
+  },
+  "8": {
+   "sortId": 9,
+   "traitMask": 8,
+   "traitId": "arkdex_trait_9",
+   "name": "分外记仇",
+   "icon": "arkdex_trait_9",
+   "description": "受到攻击伤害后,有概率使目标受到基于该伤害比例的真实伤害",
+   "color": "#f9cdb5",
+   "buff": [
+    {
+     "key": "prob",
+     "value": 0.25,
+     "valueStr": null
+    },
+    {
+     "key": "atk_scale",
+     "value": 1,
+     "valueStr": null
+    },
+    {
+     "key": "atk_scale_capture",
+     "value": 0.2,
+     "valueStr": null
+    }
+   ]
+  },
+  "9": {
+   "sortId": 10,
+   "traitMask": 9,
+   "traitId": "arkdex_trait_10",
+   "name": "狠毒异常",
+   "icon": "arkdex_trait_10",
+   "description": "攻击力略微下降,但攻击后有概率使目标受到持续法术伤害",
+   "color": "#d7d7d7",
+   "buff": [
+    {
+     "key": "atk",
+     "value": -0.1,
+     "valueStr": null
+    },
+    {
+     "key": "prob",
+     "value": 0.25,
+     "valueStr": null
+    },
+    {
+     "key": "dot_duration",
+     "value": 5,
+     "valueStr": null
+    },
+    {
+     "key": "magic_dot_atk_scale",
+     "value": 0.4,
+     "valueStr": null
+    }
+   ]
+  }
+ },
+ "npcInfoData": {
+  "1": {
+   "npcId": 1,
+   "strategyGroupId": "strategy_group_intro",
+   "name": "苍苔",
+   "avatarId": "avatar_def_01",
+   "npcProb": 0,
+   "avatarType": "DEFAULT",
+   "nameCardSkinId": "nc_rhodes_default",
+   "nameCardSkinTmplId": 0
+  },
+  "2": {
+   "npcId": 2,
+   "strategyGroupId": "strategy_group_pve",
+   "name": "工作人员",
+   "avatarId": "avatar_def_01",
+   "npcProb": 10,
+   "avatarType": "DEFAULT",
+   "nameCardSkinId": "nc_rhodes_default",
+   "nameCardSkinTmplId": 0
+  },
+  "3": {
+   "npcId": 3,
+   "strategyGroupId": "strategy_group_pve",
+   "name": "工作人员",
+   "avatarId": "avatar_def_01",
+   "npcProb": 10,
+   "avatarType": "DEFAULT",
+   "nameCardSkinId": "nc_rhodes_default",
+   "nameCardSkinTmplId": 0
+  },
+  "4": {
+   "npcId": 4,
+   "strategyGroupId": "strategy_group_pve",
+   "name": "工作人员",
+   "avatarId": "avatar_def_01",
+   "npcProb": 10,
+   "avatarType": "DEFAULT",
+   "nameCardSkinId": "nc_rhodes_default",
+   "nameCardSkinTmplId": 0
+  },
+  "5": {
+   "npcId": 5,
+   "strategyGroupId": "strategy_group_npc2",
+   "name": "不安的吉祥物",
+   "avatarId": "avatar_def_01",
+   "npcProb": 0,
+   "avatarType": "DEFAULT",
+   "nameCardSkinId": "nc_rhodes_default",
+   "nameCardSkinTmplId": 0
+  },
+  "6": {
+   "npcId": 6,
+   "strategyGroupId": "strategy_group_npc3",
+   "name": "热情的布偶",
+   "avatarId": "avatar_def_01",
+   "npcProb": 0,
+   "avatarType": "DEFAULT",
+   "nameCardSkinId": "nc_rhodes_default",
+   "nameCardSkinTmplId": 0
+  },
+  "7": {
+   "npcId": 7,
+   "strategyGroupId": "strategy_group_npc4",
+   "name": "近海护林员",
+   "avatarId": "avatar_def_01",
+   "npcProb": 0,
+   "avatarType": "DEFAULT",
+   "nameCardSkinId": "nc_rhodes_default",
+   "nameCardSkinTmplId": 0
+  },
+  "8": {
+   "npcId": 8,
+   "strategyGroupId": "strategy_group_npc5",
+   "name": "坚硬的警官",
+   "avatarId": "avatar_def_01",
+   "npcProb": 0,
+   "avatarType": "DEFAULT",
+   "nameCardSkinId": "nc_rhodes_default",
+   "nameCardSkinTmplId": 0
+  },
+  "9": {
+   "npcId": 9,
+   "strategyGroupId": "strategy_group_npc6",
+   "name": "“鸭爵？”",
+   "avatarId": "avatar_def_01",
+   "npcProb": 0,
+   "avatarType": "DEFAULT",
+   "nameCardSkinId": "nc_rhodes_default",
+   "nameCardSkinTmplId": 0
+  },
+  "10": {
+   "npcId": 10,
+   "strategyGroupId": "strategy_group_npc7",
+   "name": "奇象收集师",
+   "avatarId": "avatar_def_01",
+   "npcProb": 0,
+   "avatarType": "DEFAULT",
+   "nameCardSkinId": "nc_rhodes_default",
+   "nameCardSkinTmplId": 0
+  }
+ },
+ "npcDuelStrategyData": {
+  "strategy_group_1": {
+   "arkdex_a_1": {
+    "strategyGroupId": "strategy_group_1",
+    "strategyId": "arkdex_a_1",
+    "tileStrategy": 0,
+    "cardStrategy": 0,
+    "creatureData": [
+     {
+      "creatureNumId": 19001,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19002,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19003,
+      "traitMask": 0
+     }
+    ],
+    "weight": 50
+   },
+   "arkdex_a_2": {
+    "strategyGroupId": "strategy_group_1",
+    "strategyId": "arkdex_a_2",
+    "tileStrategy": 0,
+    "cardStrategy": 0,
+    "creatureData": [
+     {
+      "creatureNumId": 19001,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19002,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19003,
+      "traitMask": 1
+     }
+    ],
+    "weight": 50
+   },
+   "strategyGroupId": null,
+   "strategyId": null,
+   "tileStrategy": null,
+   "cardStrategy": null,
+   "creatureData": null,
+   "weight": null
+  },
+  "strategy_group_2": {
+   "arkdex_a_3": {
+    "strategyGroupId": "strategy_group_2",
+    "strategyId": "arkdex_a_3",
+    "tileStrategy": 0,
+    "cardStrategy": 0,
+    "creatureData": [
+     {
+      "creatureNumId": 19001,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19002,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19003,
+      "traitMask": 2
+     }
+    ],
+    "weight": 50
+   },
+   "arkdex_b_1": {
+    "strategyGroupId": "strategy_group_2",
+    "strategyId": "arkdex_b_1",
+    "tileStrategy": 0,
+    "cardStrategy": 0,
+    "creatureData": [
+     {
+      "creatureNumId": 19006,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19008,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19009,
+      "traitMask": 7
+     }
+    ],
+    "weight": 50
+   },
+   "strategyGroupId": null,
+   "strategyId": null,
+   "tileStrategy": null,
+   "cardStrategy": null,
+   "creatureData": null,
+   "weight": null
+  },
+  "strategy_group_3": {
+   "arkdex_b_2": {
+    "strategyGroupId": "strategy_group_3",
+    "strategyId": "arkdex_b_2",
+    "tileStrategy": 0,
+    "cardStrategy": 0,
+    "creatureData": [
+     {
+      "creatureNumId": 19008,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19008,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19009,
+      "traitMask": 7
+     }
+    ],
+    "weight": 50
+   },
+   "arkdex_b_3": {
+    "strategyGroupId": "strategy_group_3",
+    "strategyId": "arkdex_b_3",
+    "tileStrategy": 0,
+    "cardStrategy": 0,
+    "creatureData": [
+     {
+      "creatureNumId": 19010,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19011,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19012,
+      "traitMask": 0
+     }
+    ],
+    "weight": 50
+   },
+   "strategyGroupId": null,
+   "strategyId": null,
+   "tileStrategy": null,
+   "cardStrategy": null,
+   "creatureData": null,
+   "weight": null
+  },
+  "strategy_group_4": {
+   "arkdex_c_1": {
+    "strategyGroupId": "strategy_group_4",
+    "strategyId": "arkdex_c_1",
+    "tileStrategy": 0,
+    "cardStrategy": 0,
+    "creatureData": [
+     {
+      "creatureNumId": 19010,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19011,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19012,
+      "traitMask": 4
+     }
+    ],
+    "weight": 50
+   },
+   "arkdex_c_2": {
+    "strategyGroupId": "strategy_group_4",
+    "strategyId": "arkdex_c_2",
+    "tileStrategy": 0,
+    "cardStrategy": 0,
+    "creatureData": [
+     {
+      "creatureNumId": 19010,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19011,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19012,
+      "traitMask": 4
+     }
+    ],
+    "weight": 50
+   },
+   "strategyGroupId": null,
+   "strategyId": null,
+   "tileStrategy": null,
+   "cardStrategy": null,
+   "creatureData": null,
+   "weight": null
+  },
+  "strategy_group_5": {
+   "arkdex_c_3": {
+    "strategyGroupId": "strategy_group_5",
+    "strategyId": "arkdex_c_3",
+    "tileStrategy": 0,
+    "cardStrategy": 0,
+    "creatureData": [
+     {
+      "creatureNumId": 19012,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19009,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19003,
+      "traitMask": 4
+     }
+    ],
+    "weight": 100
+   },
+   "strategyGroupId": null,
+   "strategyId": null,
+   "tileStrategy": null,
+   "cardStrategy": null,
+   "creatureData": null,
+   "weight": null
+  },
+  "strategy_group_intro": {
+   "strategy_group_intro": {
+    "strategyGroupId": "strategy_group_intro",
+    "strategyId": "strategy_group_intro",
+    "tileStrategy": 2,
+    "cardStrategy": 1,
+    "creatureData": [
+     {
+      "creatureNumId": 19005,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19005,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19003,
+      "traitMask": 3
+     }
+    ],
+    "weight": 100
+   },
+   "strategyGroupId": null,
+   "strategyId": null,
+   "tileStrategy": null,
+   "cardStrategy": null,
+   "creatureData": null,
+   "weight": null
+  },
+  "strategy_group_pve": {
+   "strategy_group_pve1": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve1",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19059,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19008,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19007,
+      "traitMask": 2
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve2": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve2",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19058,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19019,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19024,
+      "traitMask": 7
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve3": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve3",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19055,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19018,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19002,
+      "traitMask": 2
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve4": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve4",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19055,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19031,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19017,
+      "traitMask": 7
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve5": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve5",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19005,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19008,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19002,
+      "traitMask": 7
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve6": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve6",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19008,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19009,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19010,
+      "traitMask": 4
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve7": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve7",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19053,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19002,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19020,
+      "traitMask": 6
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve8": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve8",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19001,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19017,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19008,
+      "traitMask": 2
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve9": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve9",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19018,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19008,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19058,
+      "traitMask": 5
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve10": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve10",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19005,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19008,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19009,
+      "traitMask": 6
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve11": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve11",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19007,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19003,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19015,
+      "traitMask": 1
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve12": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve12",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19013,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19032,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19016,
+      "traitMask": 6
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve13": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve13",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19059,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19056,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19019,
+      "traitMask": 4
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve14": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve14",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19007,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19057,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19011,
+      "traitMask": 2
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve15": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve15",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19006,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19011,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19013,
+      "traitMask": 7
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve16": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve16",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19026,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19003,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19059,
+      "traitMask": 3
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve17": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve17",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19027,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19026,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19059,
+      "traitMask": 6
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve18": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve18",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19008,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19018,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19001,
+      "traitMask": 4
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve19": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve19",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19016,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19002,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19012,
+      "traitMask": 1
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve20": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve20",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19007,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19059,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19020,
+      "traitMask": 5
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve21": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve21",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19016,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19010,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19031,
+      "traitMask": 7
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve22": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve22",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19015,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19032,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19058,
+      "traitMask": 7
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve23": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve23",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19009,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19006,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19007,
+      "traitMask": 1
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve24": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve24",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19009,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19006,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19054,
+      "traitMask": 6
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve25": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve25",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19011,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19059,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19057,
+      "traitMask": 4
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve26": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve26",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19018,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19013,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19032,
+      "traitMask": 3
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve27": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve27",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19026,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19011,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19005,
+      "traitMask": 4
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve28": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve28",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19002,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19019,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19011,
+      "traitMask": 3
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve29": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve29",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19020,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19053,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19017,
+      "traitMask": 3
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve30": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve30",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19059,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19017,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19002,
+      "traitMask": 5
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve31": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve31",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19003,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19017,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19018,
+      "traitMask": 7
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve32": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve32",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19032,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19006,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19019,
+      "traitMask": 7
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve33": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve33",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19017,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19003,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19057,
+      "traitMask": 6
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve34": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve34",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19003,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19016,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19010,
+      "traitMask": 5
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve35": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve35",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19024,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19056,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19018,
+      "traitMask": 5
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve36": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve36",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19020,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19002,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19008,
+      "traitMask": 4
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve37": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve37",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19057,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19013,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19027,
+      "traitMask": 0
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve38": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve38",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19018,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19006,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19026,
+      "traitMask": 0
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve39": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve39",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19027,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19056,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19012,
+      "traitMask": 6
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve40": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve40",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19007,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19055,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19012,
+      "traitMask": 7
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve41": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve41",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19016,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19020,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19017,
+      "traitMask": 3
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve42": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve42",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19007,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19026,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19002,
+      "traitMask": 0
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve43": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve43",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19026,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19010,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19002,
+      "traitMask": 4
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve44": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve44",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19016,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19055,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19007,
+      "traitMask": 0
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve45": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve45",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19016,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19011,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19031,
+      "traitMask": 4
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve46": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve46",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19016,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19017,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19059,
+      "traitMask": 3
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve47": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve47",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19024,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19020,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19057,
+      "traitMask": 2
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve48": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve48",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19010,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19031,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19005,
+      "traitMask": 6
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve49": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve49",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19006,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19019,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19017,
+      "traitMask": 5
+     }
+    ],
+    "weight": 2
+   },
+   "strategy_group_pve50": {
+    "strategyGroupId": "strategy_group_pve",
+    "strategyId": "strategy_group_pve50",
+    "tileStrategy": 5,
+    "cardStrategy": 11,
+    "creatureData": [
+     {
+      "creatureNumId": 19008,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19010,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19003,
+      "traitMask": 2
+     }
+    ],
+    "weight": 2
+   },
+   "strategyGroupId": null,
+   "strategyId": null,
+   "tileStrategy": null,
+   "cardStrategy": null,
+   "creatureData": null,
+   "weight": null
+  },
+  "strategy_group_npc2": {
+   "strategy_group_npc2": {
+    "strategyGroupId": "strategy_group_npc2",
+    "strategyId": "strategy_group_npc2",
+    "tileStrategy": 1,
+    "cardStrategy": 3,
+    "creatureData": [
+     {
+      "creatureNumId": 19055,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19056,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19007,
+      "traitMask": 0
+     }
+    ],
+    "weight": 100
+   },
+   "strategyGroupId": null,
+   "strategyId": null,
+   "tileStrategy": null,
+   "cardStrategy": null,
+   "creatureData": null,
+   "weight": null
+  },
+  "strategy_group_npc3": {
+   "strategy_group_npc3": {
+    "strategyGroupId": "strategy_group_npc3",
+    "strategyId": "strategy_group_npc3",
+    "tileStrategy": 3,
+    "cardStrategy": 4,
+    "creatureData": [
+     {
+      "creatureNumId": 19019,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19016,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19010,
+      "traitMask": 3
+     }
+    ],
+    "weight": 100
+   },
+   "strategyGroupId": null,
+   "strategyId": null,
+   "tileStrategy": null,
+   "cardStrategy": null,
+   "creatureData": null,
+   "weight": null
+  },
+  "strategy_group_npc4": {
+   "strategy_group_npc4": {
+    "strategyGroupId": "strategy_group_npc4",
+    "strategyId": "strategy_group_npc4",
+    "tileStrategy": 3,
+    "cardStrategy": 4,
+    "creatureData": [
+     {
+      "creatureNumId": 19006,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19024,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19010,
+      "traitMask": 3
+     }
+    ],
+    "weight": 100
+   },
+   "strategyGroupId": null,
+   "strategyId": null,
+   "tileStrategy": null,
+   "cardStrategy": null,
+   "creatureData": null,
+   "weight": null
+  },
+  "strategy_group_npc5": {
+   "strategy_group_npc5": {
+    "strategyGroupId": "strategy_group_npc5",
+    "strategyId": "strategy_group_npc5",
+    "tileStrategy": 0,
+    "cardStrategy": 1,
+    "creatureData": [
+     {
+      "creatureNumId": 19018,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19020,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19006,
+      "traitMask": 1
+     }
+    ],
+    "weight": 100
+   },
+   "strategyGroupId": null,
+   "strategyId": null,
+   "tileStrategy": null,
+   "cardStrategy": null,
+   "creatureData": null,
+   "weight": null
+  },
+  "strategy_group_npc6": {
+   "strategy_group_npc6": {
+    "strategyGroupId": "strategy_group_npc6",
+    "strategyId": "strategy_group_npc6",
+    "tileStrategy": 4,
+    "cardStrategy": 1,
+    "creatureData": [
+     {
+      "creatureNumId": 19008,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19009,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19024,
+      "traitMask": 0
+     }
+    ],
+    "weight": 100
+   },
+   "strategyGroupId": null,
+   "strategyId": null,
+   "tileStrategy": null,
+   "cardStrategy": null,
+   "creatureData": null,
+   "weight": null
+  },
+  "strategy_group_npc7": {
+   "strategy_group_npc7_1": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_1",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19032,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19027,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19054,
+      "traitMask": 3
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_2": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_2",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19012,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19027,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19054,
+      "traitMask": 3
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_3": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_3",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19002,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19012,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19027,
+      "traitMask": 1
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_4": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_4",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19002,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19032,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19054,
+      "traitMask": 3
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_5": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_5",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19062,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19032,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19012,
+      "traitMask": 4
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_6": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_6",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19062,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19012,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19027,
+      "traitMask": 4
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_7": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_7",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19002,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19012,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19054,
+      "traitMask": 4
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_8": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_8",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19002,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19062,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19054,
+      "traitMask": 3
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_9": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_9",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19002,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19027,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19054,
+      "traitMask": 4
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_10": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_10",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19002,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19032,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19027,
+      "traitMask": 5
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_11": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_11",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19002,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19062,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19032,
+      "traitMask": 1
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_12": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_12",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19002,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19062,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19027,
+      "traitMask": 3
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_13": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_13",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19032,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19012,
+      "traitMask": 3
+     },
+     {
+      "creatureNumId": 19027,
+      "traitMask": 3
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_14": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_14",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19062,
+      "traitMask": 4
+     },
+     {
+      "creatureNumId": 19027,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19054,
+      "traitMask": 3
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_15": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_15",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19002,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19032,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19012,
+      "traitMask": 1
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_16": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_16",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19002,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19062,
+      "traitMask": 5
+     },
+     {
+      "creatureNumId": 19012,
+      "traitMask": 5
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_17": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_17",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19032,
+      "traitMask": 0
+     },
+     {
+      "creatureNumId": 19012,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19054,
+      "traitMask": 4
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_18": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_18",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19062,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19032,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19054,
+      "traitMask": 7
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_19": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_19",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19062,
+      "traitMask": 7
+     },
+     {
+      "creatureNumId": 19012,
+      "traitMask": 2
+     },
+     {
+      "creatureNumId": 19054,
+      "traitMask": 4
+     }
+    ],
+    "weight": 5
+   },
+   "strategy_group_npc7_20": {
+    "strategyGroupId": "strategy_group_npc7",
+    "strategyId": "strategy_group_npc7_20",
+    "tileStrategy": 3,
+    "cardStrategy": 6,
+    "creatureData": [
+     {
+      "creatureNumId": 19062,
+      "traitMask": 1
+     },
+     {
+      "creatureNumId": 19032,
+      "traitMask": 6
+     },
+     {
+      "creatureNumId": 19027,
+      "traitMask": 0
+     }
+    ],
+    "weight": 5
+   },
+   "strategyGroupId": null,
+   "strategyId": null,
+   "tileStrategy": null,
+   "cardStrategy": null,
+   "creatureData": null,
+   "weight": null
+  }
+ },
+ "npcBattleParamData": {
+  "1": {
+   "npcBattleId": 1,
+   "modeId": "arkdex_singleRound_Solo"
+  },
+  "2": {
+   "npcBattleId": 2,
+   "modeId": "arkdex_BO3_Solo"
+  },
+  "3": {
+   "npcBattleId": 3,
+   "modeId": "arkdex_4Player_Solo"
+  },
+  "4": {
+   "npcBattleId": 4,
+   "modeId": "arkdex_BO3_Solo"
+  },
+  "5": {
+   "npcBattleId": 5,
+   "modeId": "arkdex_BO3_Solo"
+  },
+  "6": {
+   "npcBattleId": 6,
+   "modeId": "arkdex_BO3_Solo"
+  },
+  "7": {
+   "npcBattleId": 7,
+   "modeId": "arkdex_BO3_Solo_wild"
+  },
+  "8": {
+   "npcBattleId": 8,
+   "modeId": "arkdex_BO3_Solo_wild"
+  },
+  "9": {
+   "npcBattleId": 9,
+   "modeId": "arkdex_BO3_Solo_wild"
+  },
+  "10": {
+   "npcBattleId": 10,
+   "modeId": "arkdex_BO3_Solo_wild"
+  }
+ },
+ "npcPixelData": {
+  "npcPixel_npc_1": {
+   "npcPixelId": "npcPixel_npc_1",
+   "npcPixelIcon": "npcPixel_1",
+   "npcPixelName": "奇象收集师",
+   "npcLockedToast": "与<color=#027474>奇象收集师</color>对决获取画像奖励"
+  },
+  "npcPixel_npc_2": {
+   "npcPixelId": "npcPixel_npc_2",
+   "npcPixelIcon": "npcPixel_2",
+   "npcPixelName": "近海护林员",
+   "npcLockedToast": "与<color=#027474>近海护林员</color>对决获取画像奖励"
+  },
+  "npcPixel_npc_3": {
+   "npcPixelId": "npcPixel_npc_3",
+   "npcPixelIcon": "npcPixel_3",
+   "npcPixelName": "坚硬的警官",
+   "npcLockedToast": "与<color=#027474>坚硬的警官</color>对决获取画像奖励"
+  },
+  "npcPixel_npc_4": {
+   "npcPixelId": "npcPixel_npc_4",
+   "npcPixelIcon": "npcPixel_4",
+   "npcPixelName": "“鸭爵？”",
+   "npcLockedToast": "与<color=#027474>“鸭爵？”</color>对决获取画像奖励"
+  }
+ },
+ "captureAreaData": {
+  "-1773187339": {
+   "areaId": -1773187339
+  },
+  "-1773187338": {
+   "areaId": -1773187338
+  },
+  "-1773187337": {
+   "areaId": -1773187337
+  },
+  "-1773187344": {
+   "areaId": -1773187344
+  },
+  "-1773187343": {
+   "areaId": -1773187343
+  },
+  "-1773187342": {
+   "areaId": -1773187342
+  },
+  "-1773187341": {
+   "areaId": -1773187341
+  },
+  "-1773187348": {
+   "areaId": -1773187348
+  },
+  "-1773187347": {
+   "areaId": -1773187347
+  },
+  "-1772138763": {
+   "areaId": -1772138763
+  },
+  "-1772204299": {
+   "areaId": -1772204299
+  },
+  "-1772007691": {
+   "areaId": -1772007691
+  }
+ },
+ "sceneTypeMap": {
+  "-1520665757": "TOWN",
+  "-820616879": "CAPTURE",
+  "-820813487": "CAPTURE",
+  "-820747951": "CAPTURE"
+ },
+ "dexConstData": {
+  "arkdexCreatureBagMaxNum": 400,
+  "arkdexCreatureBagAlertNum": 390,
+  "operatorTeamSize": 4,
+  "totalSquadCnt": 4,
+  "teamSlots": 3,
+  "teamSize": 3,
+  "maxTeamRarityCount": 7,
+  "soloCharacterLimit": 0,
+  "brawlCharacterLimit": 0,
+  "buildEntryMaxTime": 0,
+  "battleEntryMaxTime": 0,
+  "settleMaxTime": 0,
+  "pingConds": [
+   {
+    "cond": 1,
+    "txt": "<@ping.low>{0}</>ms"
+   },
+   {
+    "cond": 60,
+    "txt": "<@ping.medium>{0}</>ms"
+   },
+   {
+    "cond": 200,
+    "txt": "<@ping.high>{0}</>ms"
+   }
+  ],
+  "maxLoadingTime": 60,
+  "deployPhaseTime": 60,
+  "deployPhaseHintTime": 10,
+  "battlePhaseTimeMax": 200,
+  "modeOperationRankTime": 5,
+  "petFollowPanelScale": 0.8,
+  "tradeRequestTime": 300,
+  "creaturedDisappearAlert": 15,
+  "creatureInteractRange": {
+   "type": "CIRCLE",
+   "position": {},
+   "bounds": {}
+  },
+  "creatureInteractStyleId": "portal_interact_capture",
+  "creatureDisplayNameId": "arkvent_creature_template",
+  "creatureHeadUpStyleId": "head_ui_capture"
+ }
+}

@@ -81,8 +81,24 @@ vi.mock("@excel/excel", () => {
             { evolveCost: [{ id: "mat_002", count: 10 }] },
           ],
           skills: [
-            { skillId: "skchr_test_1", unlockCond: { phase: 0, level: 1 } },
-            { skillId: "skchr_test_2", unlockCond: { phase: "PHASE_1", level: 1 } },
+            {
+              skillId: "skchr_test_1",
+              unlockCond: { phase: 0, level: 1 },
+              levelUpCostCond: [
+                { unlockCond: { phase: "PHASE_2", level: 1 }, lvlUpTime: 28800, levelUpCost: [{ id: "sp_mat", count: 2 }] },
+                { unlockCond: { phase: "PHASE_2", level: 1 }, lvlUpTime: 57600, levelUpCost: [{ id: "sp_mat", count: 3 }] },
+                { unlockCond: { phase: "PHASE_2", level: 1 }, lvlUpTime: 86400, levelUpCost: [{ id: "sp_mat", count: 4 }] },
+              ],
+            },
+            {
+              skillId: "skchr_test_2",
+              unlockCond: { phase: "PHASE_1", level: 1 },
+              levelUpCostCond: [
+                { unlockCond: { phase: "PHASE_2", level: 1 }, lvlUpTime: 28800, levelUpCost: [{ id: "sp_mat", count: 2 }] },
+                { unlockCond: { phase: "PHASE_2", level: 1 }, lvlUpTime: 57600, levelUpCost: [{ id: "sp_mat", count: 3 }] },
+                { unlockCond: { phase: "PHASE_2", level: 1 }, lvlUpTime: 86400, levelUpCost: [{ id: "sp_mat", count: 4 }] },
+              ],
+            },
           ],
           allSkillLvlup: [
             { unlockCond: { phase: "PHASE_0", level: 1 }, lvlUpCost: [{ id: "skill_mat", count: 1 }] },
@@ -100,9 +116,33 @@ vi.mock("@excel/excel", () => {
             { evolveCost: [{ id: "mat_002", count: 10 }] },
           ],
           skills: [
-            { skillId: "skchr_test_2_1", unlockCond: { phase: "PHASE_0", level: 1 } },
-            { skillId: "skchr_test_2_2", unlockCond: { phase: "PHASE_1", level: 1 } },
-            { skillId: "skchr_test_2_3", unlockCond: { phase: "PHASE_2", level: 1 } },
+            {
+              skillId: "skchr_test_2_1",
+              unlockCond: { phase: "PHASE_0", level: 1 },
+              levelUpCostCond: [
+                { unlockCond: { phase: "PHASE_2", level: 1 }, lvlUpTime: 28800, levelUpCost: [{ id: "sp_mat", count: 2 }] },
+                { unlockCond: { phase: "PHASE_2", level: 1 }, lvlUpTime: 57600, levelUpCost: [{ id: "sp_mat", count: 3 }] },
+                { unlockCond: { phase: "PHASE_2", level: 1 }, lvlUpTime: 86400, levelUpCost: [{ id: "sp_mat", count: 4 }] },
+              ],
+            },
+            {
+              skillId: "skchr_test_2_2",
+              unlockCond: { phase: "PHASE_1", level: 1 },
+              levelUpCostCond: [
+                { unlockCond: { phase: "PHASE_2", level: 1 }, lvlUpTime: 28800, levelUpCost: [{ id: "sp_mat", count: 2 }] },
+                { unlockCond: { phase: "PHASE_2", level: 1 }, lvlUpTime: 57600, levelUpCost: [{ id: "sp_mat", count: 3 }] },
+                { unlockCond: { phase: "PHASE_2", level: 1 }, lvlUpTime: 86400, levelUpCost: [{ id: "sp_mat", count: 4 }] },
+              ],
+            },
+            {
+              skillId: "skchr_test_2_3",
+              unlockCond: { phase: "PHASE_2", level: 1 },
+              levelUpCostCond: [
+                { unlockCond: { phase: "PHASE_2", level: 1 }, lvlUpTime: 28800, levelUpCost: [{ id: "sp_mat", count: 2 }] },
+                { unlockCond: { phase: "PHASE_2", level: 1 }, lvlUpTime: 57600, levelUpCost: [{ id: "sp_mat", count: 3 }] },
+                { unlockCond: { phase: "PHASE_2", level: 1 }, lvlUpTime: 86400, levelUpCost: [{ id: "sp_mat", count: 4 }] },
+              ],
+            },
           ],
           allSkillLvlup: [
             { unlockCond: { phase: "PHASE_0", level: 1 }, lvlUpCost: [{ id: "skill_mat", count: 1 }] },
@@ -124,7 +164,13 @@ vi.mock("@excel/excel", () => {
       ItemTable: {
         items: {
           mat_001: { itemType: "MATERIAL", rarity: 1 },
+          mat_002: { itemType: "MATERIAL", rarity: 2 },
           exp_mat: { itemType: "CARD_EXP", rarity: 0 },
+          sp_mat: { itemType: "MATERIAL", rarity: 2 },
+          voucher_elite_II_6: { itemType: "VOUCHER_ELITE_II_6", rarity: "TIER_5" },
+          voucher_elite_II_4: { itemType: "VOUCHER_ELITE_II_4", rarity: "TIER_5" },
+          voucher_levelmax_6: { itemType: "VOUCHER_LEVELMAX_6", rarity: "TIER_5" },
+          voucher_skill_specialLevelMax_6: { itemType: "VOUCHER_SKILL_SPECIALLEVELMAX_6", rarity: "TIER_5" },
         },
         expItems: {
           exp_mat: { gainExp: 50 },
@@ -281,6 +327,11 @@ describe("CharManager", () => {
         mockPlayer as any,
         mockTrigger as any
       );
+      // 先给干员填充已解锁技能（真实存档 skills 由 reconcileCharSkills 维护）
+      mockPlayer._playerdata.troop!.chars[1001].skills = [
+        { skillId: "skchr_test_1", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 },
+        { skillId: "skchr_test_2", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 },
+      ];
 
       await manager.setDefaultSkill({
         charInstId: 1001,
@@ -419,20 +470,15 @@ describe("CharManager", () => {
       mockPlayer._playerdata.troop!.curCharInstId = 0;
       const result = await manager.onCharGet(["char_002", { from: "NORMAL" }]);
       const charInstId = result.charInstId as number;
-      // 已有技能1 设置专精状态，验证精英化后不被覆盖
-      await manager.upgradeSpecialization({ charInstId, skillIndex: 0, targetLevel: 2 });
-      const chBefore = mockPlayer._playerdata.troop!.chars[charInstId];
-      expect(chBefore.skills[0].specializeLevel).toBe(2);
+      // 精1 解锁技能2；技能1 专精状态保留；技能3 仍是 unlock:0 占位
       await manager.evolveChar({ charInstId, destEvolvePhase: 1 });
       let ch = mockPlayer._playerdata.troop!.chars[charInstId];
       expect(ch.evolvePhase).toBe(1);
-      // 精1 解锁技能2；技能1 专精状态保留；技能3 仍是 unlock:0 占位
       expect(ch.skills.map((s) => s.skillId)).toEqual([
         "skchr_test_2_1",
         "skchr_test_2_2",
         "skchr_test_2_3",
       ]);
-      expect(ch.skills[0].specializeLevel).toBe(2);
       expect(ch.skills[1].unlock).toBe(1);
       expect(ch.skills[2].unlock).toBe(0);
       // 精2 解锁技能3
@@ -444,6 +490,17 @@ describe("CharManager", () => {
         "skchr_test_2_3",
       ]);
       expect(ch.skills[2].unlock).toBe(1);
+      // 两阶段专精：精2 + 主技能 7 后发起 M1（升级只写训练状态），结算后提升等级
+      ch.mainSkillLvl = 7;
+      await manager.upgradeSpecialization({ charInstId, skillIndex: 0, targetLevel: 1 });
+      ch = mockPlayer._playerdata.troop!.chars[charInstId];
+      expect(ch.skills[0].state).toBe(1);
+      expect(ch.skills[0].specializeLevel).toBe(0);
+      await manager.completeUpgradeSpecialization({ charInstId, skillIndex: 0, targetLevel: 1 });
+      ch = mockPlayer._playerdata.troop!.chars[charInstId];
+      expect(ch.skills[0].specializeLevel).toBe(1);
+      expect(ch.skills[0].state).toBe(0);
+      expect(ch.skills[0].completeUpgradeTime).toBe(-1);
     });
 
     it("等级提升不解锁技能2（标准规则：仅精英化解锁）", async () => {
@@ -481,6 +538,240 @@ describe("CharManager", () => {
       // 空 id extraItem 被过滤（不进入 items:get 发放）
       const granted = itemsGetCalls.flatMap((c: any) => c[1][0]);
       expect(granted.some((i: any) => i.id === "")).toBe(false);
+    });
+  });
+
+  describe("技能专精（完整两阶段流程：升级扣费 → 结算提升）", () => {
+    /** 新建 char_002（E0，建档技能 unlock 0/0/0）并返回其 instId */
+    const setupChar002 = async (manager: CharManager): Promise<number> => {
+      mockPlayer._playerdata.dexNav!.character = {};
+      mockPlayer._playerdata.troop!.curCharInstId = 0;
+      const result = await manager.onCharGet(["char_002", { from: "NORMAL" }]);
+      return result.charInstId as number;
+    };
+    const getChar = (charInstId: number) =>
+      mockPlayer._playerdata.troop!.chars[charInstId];
+
+    it("升级专精应扣材料、写训练时间并进入训练状态；结算后提升等级", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      const charInstId = await setupChar002(manager);
+      let ch = getChar(charInstId);
+      ch.mainSkillLvl = 7;
+      ch.evolvePhase = 2;
+      const emitSpy = vi.spyOn(mockTrigger, "emit");
+      await manager.upgradeSpecialization({ charInstId, skillIndex: 0, targetLevel: 1 });
+      // 材料扣减（levelUpCostCond[0] = M1 材料）
+      expect(emitSpy).toHaveBeenCalledWith("items:use", [[{ id: "sp_mat", count: 2 }]]);
+      ch = getChar(charInstId);
+      expect(ch.skills[0].state).toBe(1); // 训练中
+      expect(ch.skills[0].completeUpgradeTime).toBeGreaterThan(0); // now + lvlUpTime
+      expect(ch.skills[0].specializeLevel).toBe(0); // 升级阶段不提升等级
+      // 结算：专精 +1、状态复位
+      await manager.completeUpgradeSpecialization({ charInstId, skillIndex: 0, targetLevel: 1 });
+      ch = getChar(charInstId);
+      expect(ch.skills[0].specializeLevel).toBe(1);
+      expect(ch.skills[0].state).toBe(0);
+      expect(ch.skills[0].completeUpgradeTime).toBe(-1);
+      expect(emitSpy).toHaveBeenCalledWith("UpgradeSpecialization", [{ targetLevel: 1 }]);
+    });
+
+    it("专精需逐级提升（目标必须为当前+1，防跳级少扣材料）", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      const charInstId = await setupChar002(manager);
+      const ch = getChar(charInstId);
+      ch.mainSkillLvl = 7;
+      ch.evolvePhase = 2;
+      await expect(
+        manager.upgradeSpecialization({ charInstId, skillIndex: 0, targetLevel: 2 }),
+      ).rejects.toThrow("逐级提升");
+    });
+
+    it("主技能未达 7 级无法专精", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      const charInstId = await setupChar002(manager);
+      const ch = getChar(charInstId);
+      ch.evolvePhase = 2; // mainSkillLvl 保持 1
+      await expect(
+        manager.upgradeSpecialization({ charInstId, skillIndex: 0, targetLevel: 1 }),
+      ).rejects.toThrow("未达 7");
+    });
+
+    it("未精二无法专精（levelUpCostCond 要求 PHASE_2）", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      const charInstId = await setupChar002(manager);
+      const ch = getChar(charInstId);
+      ch.mainSkillLvl = 7; // evolvePhase 保持 0
+      await expect(
+        manager.upgradeSpecialization({ charInstId, skillIndex: 0, targetLevel: 1 }),
+      ).rejects.toThrow("精英化2");
+    });
+
+    it("未解锁技能无法专精", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      const charInstId = await setupChar002(manager);
+      const ch = getChar(charInstId);
+      ch.mainSkillLvl = 7;
+      ch.evolvePhase = 2;
+      // skillIndex 1（skchr_test_2_2）建档时 unlock=0（需精1）
+      await expect(
+        manager.upgradeSpecialization({ charInstId, skillIndex: 1, targetLevel: 1 }),
+      ).rejects.toThrow("未解锁");
+    });
+
+    it("未发起训练无法结算专精", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      const charInstId = await setupChar002(manager);
+      const ch = getChar(charInstId);
+      ch.mainSkillLvl = 7;
+      ch.evolvePhase = 2;
+      await expect(
+        manager.completeUpgradeSpecialization({ charInstId, skillIndex: 0, targetLevel: 1 }),
+      ).rejects.toThrow("未在专精训练中");
+    });
+
+    it("重复发起专精训练应拒绝（防重复扣材料）", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      const charInstId = await setupChar002(manager);
+      const ch = getChar(charInstId);
+      ch.mainSkillLvl = 7;
+      ch.evolvePhase = 2;
+      await manager.upgradeSpecialization({ charInstId, skillIndex: 0, targetLevel: 1 });
+      await expect(
+        manager.upgradeSpecialization({ charInstId, skillIndex: 0, targetLevel: 1 }),
+      ).rejects.toThrow("正在专精训练中");
+    });
+  });
+
+  describe("技能升级精英化门槛与上限", () => {
+    it("技能升至 4 级需精英二（allSkillLvlup unlockCond.phase）", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.dexNav!.character = {};
+      mockPlayer._playerdata.troop!.curCharInstId = 0;
+      const result = await manager.onCharGet(["char_002", { from: "NORMAL" }]);
+      const charInstId = result.charInstId as number;
+      // E0：allSkillLvlup[2]（4 级）要求 PHASE_2 → 拒绝
+      await expect(manager.upgradeSkill({ charInstId, targetLevel: 4 })).rejects.toThrow(
+        "精英化2",
+      );
+      // 精2 后可正常升至 4 级
+      await manager.evolveChar({ charInstId, destEvolvePhase: 2 });
+      await manager.upgradeSkill({ charInstId, targetLevel: 4 });
+      expect(mockPlayer._playerdata.troop!.chars[charInstId].mainSkillLvl).toBe(4);
+    });
+
+    it("技能目标等级超过上限应拒绝（allSkillLvlup 长度 + 1）", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      // char_001 allSkillLvlup 仅 2 档 → 上限 3
+      await expect(manager.upgradeSkill({ charInstId: 1001, targetLevel: 10 })).rejects.toThrow(
+        "超过上限 3",
+      );
+      // 无技能干员（2 星）上限 1
+      mockPlayer._playerdata.dexNav!.character = {};
+      mockPlayer._playerdata.troop!.curCharInstId = 0;
+      const result = await manager.onCharGet(["char_502_nblade", { from: "NORMAL" }]);
+      await expect(
+        manager.upgradeSkill({ charInstId: result.charInstId as number, targetLevel: 2 }),
+      ).rejects.toThrow("超过上限 1");
+    });
+  });
+
+  describe("直升券（UseItem 端点：道具家族 + 稀有度校验 + 完整效果）", () => {
+    const setupChar002 = async (manager: CharManager): Promise<number> => {
+      mockPlayer._playerdata.dexNav!.character = {};
+      mockPlayer._playerdata.troop!.curCharInstId = 0;
+      const result = await manager.onCharGet(["char_002", { from: "NORMAL" }]);
+      return result.charInstId as number;
+    };
+
+    it("精二直升券应校验稀有度（6★券不可用于 4★干员）", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      // char_001 rarity 5 → 6★；voucher_elite_II_4 为 4★券 → 拒绝
+      await expect(
+        manager.evolveCharUseItem({ charInstId: 1001, itemId: "voucher_elite_II_4", instId: 1 }),
+      ).rejects.toThrow("稀有度与干员不匹配");
+    });
+
+    it("精二直升券应完整精二（E2、等级重置、皮肤#2、解锁技能）并推进事件", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      const charInstId = await setupChar002(manager);
+      const emitSpy = vi.spyOn(mockTrigger, "emit");
+      await manager.evolveCharUseItem({ charInstId, itemId: "voucher_elite_II_6", instId: 1 });
+      const ch = mockPlayer._playerdata.troop!.chars[charInstId];
+      expect(ch.evolvePhase).toBe(2);
+      expect(ch.level).toBe(1);
+      expect(ch.exp).toBe(0);
+      expect(ch.skin).toBe("char_002#2");
+      expect(ch.skills[2].unlock).toBe(1); // 精二解锁技能3
+      expect(emitSpy).toHaveBeenCalledWith("CharEvolveCount", [{ char: ch }]);
+      expect(emitSpy).toHaveBeenCalledWith("EvolveChar", [{ char: ch }]);
+    });
+
+    it("满级直升券应按当前精英化阶段提升等级", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      const charInstId = await setupChar002(manager);
+      // E0 阶段上限 = maxLevel[5][0] = 50
+      await manager.upgradeCharLevelMaxUseItem({
+        charInstId,
+        itemId: "voucher_levelmax_6",
+        instId: 1,
+      });
+      const ch = mockPlayer._playerdata.troop!.chars[charInstId];
+      expect(ch.level).toBe(50);
+      expect(ch.exp).toBe(0);
+    });
+
+    it("专精直升券应满专精并复位训练状态", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      const charInstId = await setupChar002(manager);
+      await manager.upgradeSpecializedSkillUseItem({
+        charInstId,
+        skillIndex: 0,
+        itemId: "voucher_skill_specialLevelMax_6",
+        instId: 1,
+      });
+      const ch = mockPlayer._playerdata.troop!.chars[charInstId];
+      expect(ch.skills[0].specializeLevel).toBe(3);
+      expect(ch.skills[0].state).toBe(0);
+      expect(ch.skills[0].completeUpgradeTime).toBe(-1);
+    });
+
+    it("使用非直升券道具应拒绝", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      await expect(
+        manager.evolveCharUseItem({ charInstId: 1001, itemId: "mat_001", instId: 1 }),
+      ).rejects.toThrow("不是 VOUCHER_ELITE_II_* 直升券");
+    });
+  });
+
+  describe("干员存在性防御与安全空操作", () => {
+    it("升级不存在的干员应抛业务错误（防 500）", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      await expect(
+        manager.upgradeChar({ charInstId: 9999, expMats: [] }),
+      ).rejects.toThrow("干员不存在");
+    });
+
+    it("设置默认技能指向未解锁技能应拒绝", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.dexNav!.character = {};
+      mockPlayer._playerdata.troop!.curCharInstId = 0;
+      const result = await manager.onCharGet(["char_002", { from: "NORMAL" }]);
+      const charInstId = result.charInstId as number;
+      // 建档时技能2/3 未解锁（unlock=0）→ 拒绝；技能1 可设
+      await expect(
+        manager.setDefaultSkill({ charInstId, defaultSkillIndex: 1 }),
+      ).rejects.toThrow("未解锁");
+      await manager.setDefaultSkill({ charInstId, defaultSkillIndex: 0 });
+      expect(mockPlayer._playerdata.troop!.chars[charInstId].defaultSkillIndex).toBe(0);
+    });
+
+    it("lockChar/sellChar 为安全空操作（官方已下架；仅校验干员存在性）", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      await manager.lockChar({ charInstIdList: [1001, 9999] });
+      await manager.sellChar({ charInstIdList: [1001] });
+      // roster 不被修改、悬空 instId 不崩溃
+      expect(mockPlayer._playerdata.troop!.chars[1001].charId).toBe("char_001");
+      expect(mockPlayer._playerdata.troop!.chars[9999]).toBeUndefined();
     });
   });
 });

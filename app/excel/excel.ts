@@ -183,6 +183,18 @@ export class Excel {
   }
 
   /**
+   * 奇象巡展 ARKDEX 完整模块数据（生物/属性克制/道具/特质/NPC/模式/捕获区）
+   * 来源：activity_table.json → activity.arkHub.act1arkhub.moduleData.arkdexModule
+   * （官方 CDN 热更，2026-08-17 导出到 data/arkhub/arkdex.json）
+   */
+  private _arkhubCreatureTable?: Record<string, any>;
+  get ArkhubCreatureTable(): Record<string, any> {
+    return (this._arkhubCreatureTable ??= readJsonSync<Record<string, any>>(
+      "./data/arkhub/arkdex.json",
+    ));
+  }
+
+  /**
    * 失效懒加载大表缓存（热重载后调用，避免返回陈旧数据）
    *
    * init() 重载数据时清空私有缓存字段，使后续 getter 访问重新读盘。
@@ -195,6 +207,7 @@ export class Excel {
     this._enemyHandbookRaceTable = undefined;
     this._handbookTeamTable = undefined;
     this._skillDataBundle = undefined;
+    this._arkhubCreatureTable = undefined;
   }
 
   /**

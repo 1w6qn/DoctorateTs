@@ -242,6 +242,8 @@ router.post("/battleFinish", async (req, res) => {
     complete = false;
   }
   if (!complete) {
+    // 清理残留 topic，避免后续无 battleStart 的 battleFinish 沿用错误 topic
+    arkOdcTopics.delete(player.uid);
     return res.send({
       ...emptyResult,
       ...player.delta,
@@ -319,8 +321,9 @@ router.post("/triggerInteraction", async (req, res) => {
       arkTopic.rewards[awardId] = 1;
       const rewardGroup = arkvent?.odcDataMap?.[topicId!]?.rewardGroups?.[awardId];
       if (rewardGroup) items = rewardGroup;
-      // awardId 以 q 结尾 → 触发关联 actor 的 varSeqs 推进
-      if (awardId.length >= 5 && awardId[awardId.length - 5] === "q") {
+      // awardId 形如 ..._q001/_q002/_q003（任务奖励）→ 触发关联 actor 的 varSeqs 推进；
+      // 宝箱奖励（..._tre_a 等）不匹配
+      if (/_q\d+$/.test(awardId)) {
         const actorDataMap = arkvent?.arkventDataMap?.[topicId!]?.taskData?.actorData ?? {};
         for (const currentTaskData of Object.values(actorDataMap) as any[]) {
           const triggerOps = currentTaskData?.actorTriggerOperations ?? {};
@@ -430,10 +433,12 @@ router.post("/restart", async (req, res) => {
     arkTopic.varSeqs = {};
     arkTopic.position = null;
   });
+  // 触发落盘并清空 _changes，避免残留补丁污染下一个请求的 delta（delta getter 内部会 emit "save"）
+  void player.delta;
   res.send({
     playerDataDelta: {
       modified: {
-        arkodc: { topics: { [body.topicId!]: { varSeqs: {} } } },
+        arkodc: { topics: { [body.topicId!]: { varSeqs: {}, position: null } } },
       },
       deleted: {
         arkodc: { topics: { [body.topicId!]: { varSeqs: deletedKeys } } },

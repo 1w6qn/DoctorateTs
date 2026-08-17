@@ -17,7 +17,7 @@ import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 import { PlayerCharacter } from "../model/character";
 import { BattleData } from "../model/battle";
-import { checkBetween, now } from "@utils/time";
+import { checkBetween, now, userTimestamp } from "@utils/time";
 import { EventMap, TypedEventEmitter } from "@game/model/events";
 import { MissionData } from "@excel/types_excel_gen";
 import { PlayerDataManager } from "./PlayerDataManager";
@@ -196,6 +196,29 @@ export class MissionManager {
       await instance.init();
       if (instance.valid) {
         this.missions["WEEKLY"].push(instance);
+      }
+    }
+  }
+
+  /**
+   * 重建 ACTIVITY 任务进度实例（活动播种后调用）
+   *
+   * MissionManager.init 在活动播种（unlockActivity）之前执行——init 时 ACTIVITY
+   * 组为空（播种任务尚未写入），播种后的新任务没有 MissionProgress 实例/监听器，
+   * 事件驱动进度（奇象巡展 8 类 Arkhub 模板）无法生效。此方法退订旧实例并按其
+   * 当前存档重建（与 dailyRefresh 同款：无效任务跳过）。
+   */
+  async reloadActivity(): Promise<void> {
+    for (const m of this.missions["ACTIVITY"] ?? []) {
+      m.unsubscribe();
+    }
+    this.missions["ACTIVITY"] = [];
+    const saveMissions = this._player._playerdata.mission.missions["ACTIVITY"] ?? {};
+    for (const missionId of Object.keys(saveMissions)) {
+      const mission = new MissionProgress(missionId, "ACTIVITY", this._player);
+      await mission.init();
+      if (mission.valid) {
+        this.missions["ACTIVITY"].push(mission);
       }
     }
   }
@@ -573,7 +596,28 @@ export class MissionProgress {
     let template: keyof typeof MissionTemplates;
     let mission: MissionData | undefined;
     if (this.type == "ACTIVITY") {
-      return;
+      // 活动任务（奇象巡展 1arkhubActivity_* / 53sideActivity_* 等）不在 MissionTable——
+      // 定义在 ActivityTable.missionData（id/template/param/rewards）。原实现直接 return
+      // （无监听器、进度全假）；现按模板注册监听器，事件驱动真实进度。
+      // 注意：taskData 类型与 MissionData 同构（template/param），用 any 收窄。
+      const actMission = (excel.ActivityTable as any)?.missionData?.find(
+        (m: any) => m.id === this.missionId,
+      ) as MissionData | undefined;
+      if (!actMission) {
+        this.valid = false;
+        logger.debug("MissionManager", `Activity mission ${this.missionId} not found in ActivityTable.missionData`);
+        return;
+      }
+      if (actMission.template in MissionTemplates) {
+        template = actMission.template as keyof typeof MissionTemplates;
+        this.param = actMission.param;
+        // 后续 `if (mission)` 分支依赖 mission 非空——活动任务从 missionData 取
+        mission = actMission as MissionData;
+      } else {
+        this.valid = false;
+        logger.debug("MissionManager", `Invalid activity template: ${actMission.template} (${this.missionId})`);
+        return;
+      }
     } else if (this.type == "OPENSERVER") {
       // 开服任务数据缺失容错（excel 未初始化/版本错位）——标记无效并降级日志，避免 unhandled rejection
       const schedule = excel.OpenServerTable?.schedule;
@@ -1669,6 +1713,169 @@ export const MissionTemplates: {
         });
       },
       update: () => {},
+    },
+  },
+
+  // ==================== 奇象巡展（ARK_HUB）任务模板 ====================
+  // ActivityTable.missionData 的 template（1arkhubActivity_1..23，共 8 类）。
+  // param 语义（对齐官服）：param[0]=参数类型位(恒"0")，param[1]=activityId("act1arkhub")，
+  // 其余位随模板不同（见各模板注释）。事件名 = 模板名，由 arkhub 玩法/网关回调 emit。
+
+  /** 引导任务：完成引导对话（param[2]=引导 flag，目标=1） */
+  ArkhubMissionCompleted: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: { activityId: string; flag: string }) => {
+        if (args.activityId !== mission.param[1]) return;
+        if (args.flag !== mission.param[2]) return;
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+
+  /** 每日物资：累计领取天数（param[2..3]=活动日期区间，param[4]=目标天数） */
+  ArkhubDailyMissionCompleted: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[4]),
+        });
+      },
+      update: (mission, args: { activityId: string; days: number }) => {
+        if (args.activityId !== mission.param[1]) return;
+        // 窗口门控（8/18 更新后任务：param[2] 起点 2026-08-18 16:00:00 前不推进）。
+        // getTime() 为毫秒，需除以 1000 与 userTimestamp()（秒）对齐
+        const start = Math.floor(
+          new Date((mission.param[2] ?? "").replace(/\//g, "-")).getTime() / 1000,
+        );
+        const end = Math.floor(
+          new Date((mission.param[3] ?? "").replace(/\//g, "-")).getTime() / 1000,
+        );
+        const ts = userTimestamp();
+        if (Number.isNaN(start) || Number.isNaN(end) || !(ts >= start && ts <= end)) {
+          return;
+        }
+        // 累计天数直接取当前值（服务端 ARK_HUB.dailySupplyDays 恒不小于历史值）
+        mission.progress[0].value = Math.max(
+          mission.progress[0].value,
+          Math.min(args.days, mission.progress[0].target!),
+        );
+      },
+    },
+  },
+
+  /** 收录生物种类：param[2]=目标 N，param[3]=collectionKey（arkhubMissionCollection1=全部 / 2=活动频繁） */
+  ArkhubCreatureCollection: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (
+        mission,
+        args: { activityId: string; count: number; collectionKey: string },
+      ) => {
+        if (args.activityId !== mission.param[1]) return;
+        if (args.collectionKey !== mission.param[3]) return;
+        mission.progress[0].value = Math.max(
+          mission.progress[0].value,
+          Math.min(args.count, mission.progress[0].target!),
+        );
+      },
+    },
+  },
+
+  /** 信息素诱引生物扫描（param[2]=目标次数，事件每次触发 +1） */
+  ArkhubCreatureCaptured: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (mission, args: { activityId: string }) => {
+        if (args.activityId !== mission.param[1]) return;
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+
+  /** 发起生物数据交换（param[2]=目标次数，事件每次触发 +1） */
+  ArkhubCreatureExchange: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (mission, args: { activityId: string }) => {
+        if (args.activityId !== mission.param[1]) return;
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+
+  /** 奇象拟合对战完成次数（param[2]=目标 N；count=ARK_HUB.duelCount 累计值） */
+  ArkhubPassDexBattle: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (mission, args: { activityId: string; count: number }) => {
+        if (args.activityId !== mission.param[1]) return;
+        mission.progress[0].value = Math.max(
+          mission.progress[0].value,
+          Math.min(args.count, mission.progress[0].target!),
+        );
+      },
+    },
+  },
+
+  /** 发布画像数（param[2]=目标 N） */
+  ArkhubPublishPixelArt: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (mission, args: { activityId: string; count: number }) => {
+        if (args.activityId !== mission.param[1]) return;
+        mission.progress[0].value = Math.max(
+          mission.progress[0].value,
+          Math.min(args.count, mission.progress[0].target!),
+        );
+      },
+    },
+  },
+
+  /** 收集画像数（param[2]=目标 N） */
+  ArkhubCollectPixelArt: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (mission, args: { activityId: string; count: number }) => {
+        if (args.activityId !== mission.param[1]) return;
+        mission.progress[0].value = Math.max(
+          mission.progress[0].value,
+          Math.min(args.count, mission.progress[0].target!),
+        );
+      },
     },
   },
 };

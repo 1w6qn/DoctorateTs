@@ -89,6 +89,10 @@ export interface ArkhubLocalGatewayOptions {
     skinId?: string;
     avatarId?: string;
   };
+  /** 可选：ARKDUEL 战斗结算回调（uid=已登录账号；私服据此发 15 券 + 对战计数） */
+  onDuelSettle?: (uid: string) => void;
+  /** 可选：每日物资领取回调（uid；私服据此记录领取天数 + 发 100 券） */
+  onDailySupplyClaimed?: (uid: string) => void;
 }
 
 /* ---------- protobuf wire 编解码（子集） ---------- */
@@ -450,7 +454,6 @@ export function startArkhubLocalGateway(
   opts: ArkhubLocalGatewayOptions = {},
 ): Promise<net.Server | null> {
   const { port = 30000, resolveNickname, resolvePlayerProfile, maxPortTries = 50 } = opts;
-
   const handleConnection = (sock: net.Socket): void => {
     let buffer = Buffer.alloc(0);
     // 当前连接的登录 uid（登录帧解析；场景 hello 用它构建自己的玩家条目）
@@ -807,6 +810,13 @@ export function startArkhubLocalGateway(
               (subID & ~0xffffffffn) | GW_DUEL_RESULT_PUSH_2,
               buildDuelResultPush2(),
             );
+            // 私服奖励挂钩：结算完成 → 服务端发 15 券 + 对战计数（onDuelSettle 由
+            // index.ts 注入，经 arkhubOnDuelSettle 落 activity.ARK_HUB + 任务/事件）
+            try {
+              opts.onDuelSettle?.(loginUid);
+            } catch (e) {
+              logger.warn("arkhub-gateway", `ARKDUEL 结算奖励处理失败: ${(e as Error).message}`);
+            }
           } else if (
             mainID === 8 &&
             (subID & 0xffffffffn) === GW_INTERACT_REQ
@@ -858,6 +868,15 @@ export function startArkhubLocalGateway(
                 "arkhub-gateway",
                 `捕抓引导完成（mmkabi_01b 领奖）→ capture_catch_guide_02=2，设施已解锁`,
               );
+            }
+            // 每日物资：服务端记录领取天数 + 发 100 券（onDailySupplyClaimed 由
+            // index.ts 注入，经 arkhubOnDailySupply 落 ARK_HUB + 任务事件）
+            if (actorId === "arkhub_main_daily_task_02a") {
+              try {
+                opts.onDailySupplyClaimed?.(loginUid);
+              } catch (e) {
+                logger.warn("arkhub-gateway", `每日物资处理失败: ${(e as Error).message}`);
+              }
             }
             logger.info(
               "arkhub-gateway",

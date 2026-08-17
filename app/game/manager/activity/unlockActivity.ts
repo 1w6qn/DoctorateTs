@@ -112,7 +112,54 @@ function defaultArkhubState(): object {
       { slots: [] },
     ],
     globalBan: false,
+    // ---- 私服扩展（官服快照无这些字段；客户端不读，供任务/勋章进度事件驱动）----
+    // Phase 1 计数器
+    duelCount: 0, // 奇象拟合对战完成次数（ArkhubPassDexBattle）
+    dailySupplyDays: 0, // 每日物资领取天数（ArkhubDailyMissionCompleted）
+    dailySupplyLastDay: "", // 每日物资最后领取自然日（每日限 1 次）
+    creatureCollected: 0, // 已收录生物种类数（ArkhubCreatureCollection/勋章 02）
+    activeCreatureCollected: 0, // 已收录"活动频繁"生物种类数（任务 12-14）
+    alterCollected: 0, // 已收录亚种数（勋章 025 镀层）
+    pixelCollected: 0, // 收集画像数（ArkhubCollectPixelArt/勋章 01）
+    pixelPublished: 0, // 发布画像数（ArkhubPublishPixelArt）
+    // Phase 2 ARKDEX 玩法状态
+    dex: {}, // 生物数据库：{ [creatureNumId]: { numId, isAlter, alterOf? } }——首次/亚种收录
+    scanBag: [], // 扫描仪个体列表（上限 400）：[{ id, numId, isAlter, alterOf?, fav, sourceUid }]
+    scanSeq: 0, // 扫描仪个体自增 id（instId）
+    props: {}, // 巡展道具箱：{ [itemNumId]: { count, uses } }（count=持有数，uses=剩余生效次数）
+    trade: { wantSpecies: null, offerNumIds: [] }, // 交换站需求（1 条；wantSpecies 为种类 id 或 null）
+    unlockedAreas: {}, // 保护区解锁：{ [areaId]: 1 }（守门人拟合胜利解锁）
   };
+}
+
+/**
+ * 奇象巡展活动任务的目标进度（ActivityTable.missionData 8 类模板）
+ * @param mission - missionData 条目（id/template/param）
+ * @returns 目标值；非 arkhub 模板返回 null（保持原"全可领"播种行为）
+ */
+function arkhubMissionTarget(mission: any): number | null {
+  const tpl = mission?.template;
+  if (tpl === "ArkhubMissionCompleted") return 1; // 引导（本服完成态，播种即完成）
+  if (tpl === "ArkhubDailyMissionCompleted") return parseInt(mission?.param?.[4]);
+  if (tpl === "ArkhubCreatureCollection") return parseInt(mission?.param?.[2]);
+  if (tpl === "ArkhubCreatureCaptured") return parseInt(mission?.param?.[2]);
+  if (tpl === "ArkhubCreatureExchange") return parseInt(mission?.param?.[2]);
+  if (tpl === "ArkhubPassDexBattle") return parseInt(mission?.param?.[2]);
+  if (tpl === "ArkhubPublishPixelArt") return parseInt(mission?.param?.[2]);
+  if (tpl === "ArkhubCollectPixelArt") return parseInt(mission?.param?.[2]);
+  return null;
+}
+
+/**
+ * 奇象巡展任务日期门控起点（param[2]，如 "2026-08-18 16:00:00"/"2026/8/18 16:00:00"）
+ * @param param2 - missionData.param[2]
+ * @returns 秒级时间戳（与 userTimestamp() 同单位）；非日期参数（引导 flag 等）返回 null
+ */
+function arkhubMissionWindowStart(param2?: string): number | null {
+  if (!param2 || !/\d{4}/.test(param2)) return null;
+  const norm = param2.replace(/\//g, "-");
+  const ts = new Date(norm).getTime();
+  return Number.isNaN(ts) ? null : Math.floor(ts / 1000);
 }
 
 /** TYPE_ACT53SIDE（奇象巡展主活动）默认状态（官方形状：actCoin/campaignCnt/favorList） */
@@ -234,18 +281,56 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
         };
       }
 
-      // 活动任务：missionGroup[id].missionIds → ACTIVITY 组播种（state:2 + value==target，可直接领取）
+      // 活动任务：missionGroup[id].missionIds → ACTIVITY 组播种。
+      // 奇象巡展（1arkhubActivity_*）：按 8 类模板播种真实进度（value:0 → 事件驱动），
+      // 引导任务（ArkhubMissionCompleted）因本服引导为完成态播种即完成（state:2+满进度，
+      // 与既有"可领取态"行为一致）；param 日期起点在未来的任务（8/18 更新后）锁定 state:0。
+      // 其余活动任务保持原行为（state:2 + value==target，可直接领取）。
       const group = excel.ActivityTable.missionGroup.find((g) => g.id === actId);
       if (group) {
         draft.mission.missions["ACTIVITY"] = draft.mission.missions["ACTIVITY"] || {};
         for (const missionId of group.missionIds) {
-          if (!draft.mission.missions["ACTIVITY"][missionId]) {
+          if (draft.mission.missions["ACTIVITY"][missionId]) continue;
+          const missionDef = (excel.ActivityTable as any)?.missionData?.find(
+            (m: any) => m.id === missionId,
+          );
+          const target = missionDef ? arkhubMissionTarget(missionDef) : null;
+          if (target !== null) {
+            const guide = missionDef.template === "ArkhubMissionCompleted";
+            const windowStart = arkhubMissionWindowStart(missionDef.param?.[2]);
+            const locked = windowStart !== null && ts < windowStart;
+            draft.mission.missions["ACTIVITY"][missionId] = {
+              state: locked ? 0 : 2,
+              progress: [{ value: guide ? target : 0, target }],
+            };
+          } else {
             draft.mission.missions["ACTIVITY"][missionId] = {
               state: 2,
               progress: [{ value: 1, target: 1 }],
             };
           }
         }
+      }
+    }
+
+    // 奇象巡展勋章播种：activity.ARK_HUB 已播种时，把 ungroupedMedalIds 的两枚勋章
+    // （巡展印象/珍奇奖章）写入 playerdata.medal.medals（val=[[0,target]]）。
+    // 注意：MedalManager.init 先于播种执行——本会话内存 map 不含新勋章，进度监听
+    // 自下次加载生效（模板已实现，不会 "not implemented" throw）；syncInfo 会推送。
+    if ((draft.activity as any)?.ARK_HUB?.act1arkhub && !draft.medal?.medals?.["medal_activity_1arkhub_01"]) {
+      draft.medal = draft.medal ?? { medals: {}, custom: { currentIndex: "", customs: {} } };
+      const info = excel.ActivityTable?.basicInfo?.["act1arkhub"];
+      for (const medalId of info?.ungroupedMedalIds ?? []) {
+        if (draft.medal.medals[medalId]) continue;
+        const medalInfo = excel.MedalTable?.medalList?.find((m) => m.medalId === medalId);
+        if (!medalInfo) continue;
+        const target = parseInt(medalInfo.unlockParam?.[2] ?? "0") || 1;
+        draft.medal.medals[medalId] = {
+          id: medalId,
+          val: [[0, target]],
+          fts: 0,
+          rts: -1,
+        };
       }
     }
 
@@ -271,5 +356,10 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
     }
 
     unlockStages(draft);
+  });
+  // 播种后重建 ACTIVITY 任务进度实例（MissionManager.init 先于播种执行，播种任务
+  // 无监听器——重建后奇象巡展 8 类模板的事件驱动进度才能生效）
+  await player.mission?.reloadActivity?.().catch((error) => {
+    logger.warn("Activity", `活动任务监听器重建失败: ${(error as Error).message}`);
   });
 }

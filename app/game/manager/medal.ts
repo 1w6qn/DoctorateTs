@@ -2666,6 +2666,66 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * ActivityArkhubPixelCollect勋章模板（巡展印象奖章）
+   * 奇象巡展期间收集画像（unlockParam=[act1arkhub, 0, 4] → target=param[2]）。
+   * 事件参数 {activityId, count}：count=ARK_HUB.pixelCollected 累计收集数。
+   */
+  ActivityArkhubPixelCollect(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[2])),
+      update: (args: { activityId: string; count: number }) => {
+        if (args.activityId !== this.param[0]) return;
+        this.val[0][0] = Math.max(
+          this.val[0][0],
+          Math.min(args.count ?? 0, this.val[0][1]),
+        );
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActivityArkhubCreatureCollect勋章模板（巡展珍奇奖章）
+   * 收录 N 种奇象生物数据（unlockParam=[act1arkhub, arkhubMissionCollection1, 10]
+   * → target=param[2]）。事件 {activityId, count, collectionKey}：count=已收录种类数。
+   */
+  ActivityArkhubCreatureCollect(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[2])),
+      update: (args: { activityId: string; count: number }) => {
+        if (args.activityId !== this.param[0]) return;
+        this.val[0][0] = Math.max(
+          this.val[0][0],
+          Math.min(args.count ?? 0, this.val[0][1]),
+        );
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ActivityArkhubAlterCollect勋章模板（巡展珍奇奖章·镀层）
+   * 收录 N 种 + 至少 1 只亚种（unlockParam=[act1arkhub, arkhubMissionCollection1, 10, 1]
+   * → target=param[2]、亚种要求=param[3]）。事件 {activityId, count, alterCount}：
+   * 仅当 alterCount >= param[3] 时进度才随 count 推进（镀层条件缺一不可）。
+   */
+  ActivityArkhubAlterCollect(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[2])),
+      update: (args: { activityId: string; count: number; alterCount: number }) => {
+        if (args.activityId !== this.param[0]) return;
+        const needAlter = parseInt(this.param[3] ?? "0");
+        if ((args.alterCount ?? 0) < needAlter) return;
+        this.val[0][0] = Math.max(
+          this.val[0][0],
+          Math.min(args.count ?? 0, this.val[0][1]),
+        );
+      },
+    };
+    funcs[mode](args);
+  }
+
   toJSON(): PlayerPerMedal {
     return {
       id: this.id,

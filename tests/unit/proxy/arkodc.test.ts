@@ -53,6 +53,20 @@ describe("decodeProtobuf（通用 protobuf 解码）", () => {
     const fields = decodeProtobuf(Buffer.from([0x0f, 0x01, 0x02])); // field1 wire7
     expect(Array.isArray(fields)).toBe(true);
   });
+
+  it("截断 varint：字段只压入一次（不产生幻影重复）", () => {
+    // field1 wire0 标签 + 未终结 varint（0x80 0x80 后续无终止字节）
+    const fields = decodeProtobuf(Buffer.from([0x08, 0x80, 0x80]));
+    expect(fields.length).toBe(1);
+    expect(fields[0]).toMatchObject({ field: 1, wire: 0 });
+  });
+
+  it("截断 length-delimited：字段只压入一次（不产生幻影重复）", () => {
+    // field2 wire2，声明长度 5 但只有 1 字节
+    const fields = decodeProtobuf(Buffer.from([0x12, 0x05, 0x61]));
+    expect(fields.length).toBe(1);
+    expect(fields[0]).toMatchObject({ field: 2, wire: 2 });
+  });
 });
 
 describe("splitGatewayFrames / parseGatewayStream（帧切分）", () => {

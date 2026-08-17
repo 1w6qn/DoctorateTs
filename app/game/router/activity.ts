@@ -17,6 +17,18 @@ import { now } from "@utils/time";
 import { CommonStartBattleRequest } from "../model/battle";
 import config from "../../config";
 import { activityDictKey } from "../manager/activity/unlockActivity";
+import {
+  arkhubPixelPublished,
+  arkhubPixelCollected,
+} from "../manager/activity/arkhub";
+import {
+  savePixel,
+  loadPixelBytes,
+  buildPixelArtResp,
+  computeNewCollects,
+  parseMultipartForm,
+  ARKPIXEL_MAX_PUBLISH,
+} from "../manager/activity/arkpixel";
 import { VHALFIDLE_POOLS, VHALFIDLE_SPEC_CHAR } from "../data/vhalfidle";
 import {
   ActCheckinvsSignRequest,
@@ -2604,21 +2616,83 @@ router.post("/arkhub/getFriendUidList", async (req, res) => {
   });
 });
 
-/** 方舟枢纽像素画（私服无网关存储，返回空） */
-router.post("/arkhub/getPixelArt", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
-  req.body as ActivityStubRequest;
-  res.send({
-    pixelArts: {},
-    ...player.delta,
-  });
-});
-
-/** 方舟枢纽像素画上传（客户端 multipart → 网关；私服记录并返回空，客户端可继续流程） */
+/**
+ * 方舟枢纽像素画上传（客户端 multipart → 网关；私服：落盘 data/arkhub/pixels + 发布计数）
+ *
+ * 官服链路（抓包 R-1786876787370-0074）：
+ * - multipart/form-data：json part `{"brief":{"activityId","token"}}` + pixelData part（1728B RGB）
+ * - 响应 `{"pixelArtId":<数字>}`（pixelArtId 由服务端分配；客户端随后 getPixelArt 拉取）
+ * 私服：express.json 不解析 multipart——优先取 capture 模式 rawBody，否则收集原始流；
+ * 发布次数上限 50（攻略），计数驱动任务 20-21（ArkhubPublishPixelArt）。
+ */
 router.post("/arkhub/savePixelArt", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  req.body as ActivityStubRequest;
+  const raw = (req as unknown as { rawBody?: Buffer }).rawBody ?? (await collectRawBody(req));
+  let brief: { activityId?: string; token?: string } | undefined;
+  let pixelData: Buffer | undefined;
+  try {
+    const parts = parseMultipartForm(raw, req.headers["content-type"]);
+    const jsonPart = parts.get("json");
+    const pixelPart = parts.get("pixelData");
+    brief = jsonPart ? (JSON.parse(jsonPart.toString("utf-8"))?.brief ?? undefined) : undefined;
+    pixelData = pixelPart;
+  } catch {
+    // 解析失败按无 brief 处理
+  }
+  if (brief?.activityId !== "act1arkhub" || !pixelData || pixelData.length !== 1728) {
+    res.status(400).json({ error: "invalid pixel art payload", ...player.delta });
+    return;
+  }
+  // 发布上限 50 次（攻略）
+  const hub = (player._playerdata.activity as any)?.ARK_HUB?.act1arkhub;
+  if ((hub?.pixelPublished ?? 0) >= ARKPIXEL_MAX_PUBLISH) {
+    res.status(400).json({ error: "publish limit reached", ...player.delta });
+    return;
+  }
+  let pixelArtId: number;
+  try {
+    pixelArtId = savePixel(String((player._playerdata.status as any)?.uid ?? ""), pixelData);
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message, ...player.delta });
+    return;
+  }
+  await arkhubPixelPublished(player, (hub?.pixelPublished ?? 0) + 1);
+  res.send({ pixelArtId, ...player.delta });
+});
+
+/** 方舟枢纽像素画下载端点（getPixelArt 返回的 url 指向此处；GET /activity/arkhub/pixel/<id>.dat） */
+router.get("/arkhub/pixel/:id.dat", (req, res) => {
+  const bytes = loadPixelBytes(req.params.id);
+  if (!bytes) {
+    res.status(404).json({ error: "pixel art not found" });
+    return;
+  }
+  res.type("application/octet-stream").send(bytes);
+});
+
+/**
+ * 方舟枢纽像素画查询（官服抓包 R-1786680304215-0147 形状）
+ * 请求 `{activityId, pixelArtIds:[...]}` → `{"pixelArts":{<id>:{"url","isBanned"}}}`。
+ * 私服：返回本服下载 URL；拉取他人画像计为"收集"（任务 22-23/勋章 01，去重）。
+ */
+router.post("/arkhub/getPixelArt", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as { activityId?: string; pixelArtIds?: number[] };
+  const ids = Array.isArray(body.pixelArtIds) ? body.pixelArtIds : [];
+  // 收集计数：非本人发布且未收集过的画像（computeNewCollects 去重）
+  const hub = (player._playerdata.activity as any)?.ARK_HUB?.act1arkhub;
+  const collectedIds: number[] = Array.isArray(hub?.pixelCollectedIds) ? hub.pixelCollectedIds : [];
+  const fresh = computeNewCollects(String((player._playerdata.status as any)?.uid ?? ""), ids, collectedIds);
+  if (fresh.length > 0) {
+    await player.update(async (draft) => {
+      const h = (draft.activity as any)?.ARK_HUB?.act1arkhub;
+      if (!h) return;
+      h.pixelCollectedIds = [...collectedIds, ...fresh];
+    });
+    await arkhubPixelCollected(player, collectedIds.length + fresh.length);
+  }
   res.send({
+    pixelArts: buildPixelArtResp(ids, config.Host),
     ...player.delta,
   });
 });
@@ -2674,6 +2748,8 @@ router.post("/arkhub/syncInfo", async (req, res) => {
   // {mission.missions.ACTIVITY(1arkhubActivity_* 进度), medal.medals(枢纽勋章),
   //  activity.ARK_HUB.act1arkhub(状态)}——客户端据此刷新枢纽进度页。
   // 用 forcePatch 强制推送（纯读请求不产生 Immer 补丁，直接 res.delta 为空）。
+  // 进度真实化（2026-08-17）：不再把未完成任务强制 [{1,1}]——任务模板监听事件
+  // 驱动真实进度（播种 value:0/target:N），此处仅防御性保证 progress 为数组。
   const pd = player._playerdata as any;
   await player.update(async (draft) => {
     const actMissions = (draft.mission as any)?.missions?.["ACTIVITY"];
@@ -2681,7 +2757,7 @@ router.post("/arkhub/syncInfo", async (req, res) => {
       if (!id.startsWith("1arkhubActivity_")) continue;
       const m = actMissions[id];
       if (m && !Array.isArray(m.progress)) {
-        m.progress = [{ value: 1, target: 1 }];
+        m.progress = [];
       }
     }
   });
@@ -2717,6 +2793,16 @@ router.post("/interlock/refreshSquad", async (req, res) => {
 });
 
 export default router;
+
+/** 收集请求原始字节流（multipart 等非 JSON；capture 模式已有 rawBody 时直接取用） */
+function collectRawBody(req: import("express").Request): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (c: Buffer) => chunks.push(c));
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
 
 /**
  * 将 ItemType 枚举值转换为字符串类型标识

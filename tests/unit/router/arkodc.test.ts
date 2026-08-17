@@ -30,6 +30,20 @@ vi.mock("@excel/excel", () => ({
               banner_controller_p1: {
                 actorShowCondition: [{ varSeqList: ["q001_banner_showed"] }],
               },
+              banner_controller_p2: {
+                actorShowCondition: [
+                  { varSeqList: ["q002_prog"] },
+                  { varSeqList: ["q002_banner_showed"] },
+                ],
+                actorTriggerOperations: {
+                  "0": [
+                    {
+                      operationTemplate: "ReceiveArkodcAward",
+                      operationParams: { awardId: "ark_odc_act53side_reward_q002" },
+                    },
+                  ],
+                },
+              },
             },
           },
         },
@@ -106,6 +120,17 @@ describe("arkodc（奇象巡展 ODC）路由", () => {
     ).toEqual({});
   });
 
+  it("restart：读取 player.delta 触发落盘且响应 position 重置为 null", async () => {
+    const deltaSpy = vi.spyOn(player, "delta", "get");
+    await call("/restart", { topicId: "ark_odc_act53side" });
+    // 落盘触发：update 后必须读取 delta（内部 emit "save" + 清空 _changes）
+    expect(deltaSpy).toHaveBeenCalled();
+    const response = res.send.mock.calls[0][0];
+    expect(
+      response.playerDataDelta.modified.arkodc.topics["ark_odc_act53side"].position,
+    ).toBeNull();
+  });
+
   it("battleFinish：actorData 存在时推进 varSeqs（topic 惰性创建）", async () => {
     const { decryptBattleData } = await import("@utils/crypt");
     // battleStart 记录 topic，battleFinish 消费
@@ -148,6 +173,41 @@ describe("arkodc（奇象巡展 ODC）路由", () => {
 
   it("finishArkOdcGuideStory：非 ODC 教程剧情不写入 varSeqs", async () => {
     await finishArkOdcGuideStory(player, "activities/act53side/level_act53side_01_beg");
+    expect(player._playerdata.arkodc).toBeUndefined();
+  });
+
+  it("triggerInteraction：_qNNN 后缀奖励正确推进关联 actor varSeqs（修复索引错误）", async () => {
+    await call("/triggerInteraction", {
+      topicId: "ark_odc_act53side",
+      awardId: "ark_odc_act53side_reward_q002",
+    });
+    const topic = player._playerdata.arkodc?.topics?.["ark_odc_act53side"];
+    expect(topic.rewards["ark_odc_act53side_reward_q002"]).toBe(1);
+    // 修复后：actor varSeqs 正确推进——q002_banner_showed=1 且 代码自动置 q002_end=1
+    expect(topic.varSeqs["q002_banner_showed"]).toBe(1);
+    expect(topic.varSeqs["q002_end"]).toBe(1);
+  });
+
+  it("battleFinish：未完成路径清理 topic（避免后续 battleFinish 沿用错误 topic）", async () => {
+    const { decryptBattleData } = await import("@utils/crypt");
+    // 第一次：battleStart 记录 topic，然后第一次 battleFinish 未完成
+    await call("/battleStart", { topicId: "ark_odc_act53side", groupId: "g1" });
+    (decryptBattleData as any).mockResolvedValueOnce({ completeState: 1, interrupt: false, giveUp: false });
+    await call("/battleFinish", {
+      data: "fake-encrypted",
+      battleData: { isCheat: "0", completeTime: 100 },
+      actorId: "banner_controller_p1",
+      operationId: "op1",
+    });
+    // 第一次完成后 topic 已被清理，Map 中无残留
+    // 第二次：无 battleStart 直接调用 battleFinish → topicId 应为空，不推进 varSeqs
+    await call("/battleFinish", {
+      data: "fake-encrypted",
+      battleData: { isCheat: "0", completeTime: 100 },
+      actorId: "banner_controller_p1",
+      operationId: "op1",
+    });
+    // 因为 Map 无 topic（已清理）→ topicId 为空，不推进 varSeqs 也不创建 arkodc
     expect(player._playerdata.arkodc).toBeUndefined();
   });
 });

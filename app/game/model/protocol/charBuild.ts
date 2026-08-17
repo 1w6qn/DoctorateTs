@@ -47,7 +47,8 @@ export type EvolveCharResponse = PlayerDeltaResponse;
 
 /**
  * 锁定干员请求（服务端自定义，无 CS 对应类）
- * 服务端实现为空操作，仅读取 charInstIdList
+ * 服务端实现为安全空操作：仅校验干员存在性（2.7.61 客户端数据模型无 locked
+ * 字段，锁定功能已随旧版本下架），不做任何写入
  */
 export interface LockCharRequest {
   charInstIdList: number[];
@@ -56,7 +57,11 @@ export interface LockCharRequest {
 /** 锁定干员响应（服务端自定义） */
 export type LockCharResponse = PlayerDeltaResponse;
 
-/** 出售干员请求（CS: SellCharRequest；服务端实现为空操作） */
+/**
+ * 出售干员请求（CS: SellCharRequest）
+ * 服务端实现为安全空操作：官方已下架干员出售，重复干员在获取时自动转化为
+ * 资质凭证（onCharGet），直接删除 roster 会破坏编队/助战/图鉴引用
+ */
 export interface SellCharRequest {
   charInstIdList: number[];
 }
@@ -138,7 +143,7 @@ export interface GetSpCharMissionRewardRequest {
 /** 获取特殊干员任务奖励响应（CS: GetSpCharMissionRewardResponse；服务端仅返回增量） */
 export type GetSpCharMissionRewardResponse = PlayerDeltaResponse;
 
-/** 使用道具精英化请求（CS: EvolveCharUseItemRequest） */
+/** 使用道具精英化请求（CS: EvolveCharUseItemRequest；itemId 为精二直升券如 voucher_elite_II_6） */
 export interface EvolveCharUseItemRequest {
   charInstId: number;
   itemId: string;
@@ -150,7 +155,8 @@ export type EvolveCharUseItemResponse = PlayerDeltaResponse;
 
 /**
  * 使用道具升至满级请求（服务端契约；CS 同名类 UpgradeCharLevelMaxRequest
- * 字段为 charInsId/itemId/itemInsId，服务端读取 charInstId/itemId/instId）
+ * 字段为 charInsId/itemId/itemInsId，服务端读取 charInstId/itemId/instId；
+ * itemId 为满级直升券如 voucher_levelmax_6）
  */
 export interface UpgradeCharLevelMaxUseItemRequest {
   charInstId: number;
@@ -163,7 +169,8 @@ export type UpgradeCharLevelMaxUseItemResponse = PlayerDeltaResponse;
 
 /**
  * 使用道具专精满级请求（CS: UpgradeSpecializedSkillUseItemRequest）
- * CS 字段为 charInsId/itemInsId，服务端读取 charInstId/instId
+ * CS 字段为 charInsId/itemInsId，服务端读取 charInstId/instId；
+ * itemId 为专精直升券如 voucher_skill_specialLevelMax_6
  */
 export interface UpgradeSpecializedSkillUseItemRequest {
   charInstId: number;

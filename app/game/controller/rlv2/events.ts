@@ -84,6 +84,20 @@ export class RoguelikeEventManager {
       },
     ]);
 
+    // 行动奖励（GAME_INIT_SUPPORT）：襁褓三头犬（rogue_6_legacy_03）→ 选择次数 +1
+    // （追加一个 SUPPORT 事件；官方"襁褓生灵的效果可以增加行动奖励选项及选择次数"；
+    // 仅当本局有行动奖励阶段——上一把到 3 层 supportEnabled——时追加）
+    const legacy = (this._player.outer as any)?.[theme]?.record?.legacy || [];
+    const extraSupport =
+      supportEnabled &&
+      legacy.some((id: string) => id.startsWith("rogue_6_legacy_03"));
+    if (extraSupport) {
+      this._trigger.emit("rlv2:event:create", [
+        "GAME_INIT_SUPPORT",
+        { step: [giftEnabled ? 3 : 2, totalStep], id: "" },
+      ]);
+    }
+
     this._trigger.emit("rlv2:event:create", [
       "GAME_INIT_RECRUIT",
       {
@@ -182,7 +196,8 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
         : k.startsWith(`choice_ro${roNum}_startbuff_`),
     );
     // 基础行动奖励 6 选 3（官方：6 个基础选项随机出 3 个；襁褓生灵可额外增加选项）。
-    // 黑流树海基础选项为 startbuff_1..6，襁褓类（7..12）仅当持有对应襁褓时追加。
+    // 黑流树海基础选项为 startbuff_1..6，襁褓类（7..12，选择后获得襁褓宠物 start_1..6）
+    // 仅当持有对应襁褓时追加。
     const baseKeys =
       roNum === "6"
         ? allChoiceKeys.filter((k) => {
@@ -194,6 +209,17 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
       () => Math.random() - 0.5,
     );
     const picked = shuffled.slice(0, 3);
+    // 襁褓羽蛇（legacy_04..09：通过≥2 区 → 下次行动奖励 +1 个支援选项）→ 追加 1 个襁褓选项
+    const legacy = (this._player.outer as any)?.[theme]?.record?.legacy || [];
+    if (roNum === "6" && legacy.some((id: string) => /^rogue_6_legacy_0[4-9]/.test(id))) {
+      const extraPool = allChoiceKeys.filter((k) => {
+        const n = parseInt(k.replace(/^.*startbuff_/, ""), 10);
+        return n >= 7 && n <= 12;
+      });
+      if (extraPool.length > 0) {
+        picked.push(extraPool[Math.floor(Math.random() * extraPool.length)]);
+      }
+    }
     const choices = picked.reduce((acc, key) => ({ ...acc, [key]: 1 }), {});
     return {
       initSupport: {

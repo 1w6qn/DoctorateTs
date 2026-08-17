@@ -105,7 +105,7 @@ describe("rlv2 主题模块管理器（2026-08-10）", () => {
       expect(gz).toBeTruthy();
       gz.generate([1]);
       const json = gz.toJSON();
-      expect(json.stepRemain).toBe(20);
+      expect(json.stepRemain).toBe(5); // Ⅰ 层初始行动力 5（官方逐层 5/6/7/8/8）
       expect(json.needConfirmStepZero).toBe(true);
       expect(Object.keys(json.zones["zone_1"].nodes).length).toBeGreaterThan(0);
       // 战斗节点信息在 map.zones（gridZone content 为空，stage 由 map.zones 提供）
@@ -161,12 +161,13 @@ describe("rlv2 主题模块管理器（2026-08-10）", () => {
       }
     });
 
-    it("step 应消耗行动力", async () => {
+    it("step 应消耗行动力（Ⅰ 层初始行动力 5）", async () => {
       const player = await createModules(makePlayer("rogue_6"));
       const gz = (player.rlv2 as any)._module.gridZone;
       gz.generate([1]);
+      expect(gz.toJSON().stepRemain).toBe(5);
       gz.step();
-      expect(gz.toJSON().stepRemain).toBe(19);
+      expect(gz.toJSON().stepRemain).toBe(4);
     });
   });
 

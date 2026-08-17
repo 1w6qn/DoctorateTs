@@ -21,6 +21,7 @@ import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { BattleData } from "@game/model/battle";
 import { RoguelikePoolManager } from "./rlv2/pool";
+import { ROGUE6_NODE } from "./rlv2/modules/grid_zone";
 import { RoguelikeGameInitData } from "@excel/roguelike_topic_table";
 import { TypedEventEmitter } from "@game/model/events";
 import { Draft } from "mutative";
@@ -96,6 +97,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   inventory!: RoguelikeInventoryManager | null;
   /** 本次对局所选分队（开局 chooseInitialRelic 记录，结算 brief.band 用） */
   _bandId = "";
+  /** 多边贸易分队：当前行商节点已卖出零件数（进入行商节点重置，节点内限 1 次奖励） */
+  _shopSellCount?: number;
 
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     // rlv2 内部模型（model/rlv2.ts）与生成模型（types-playerdata）为同一数据的两种视图：
@@ -262,6 +265,13 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     // 黑流树海襁褓类藏品（上一把获得并持久化到 record.legacy）——襁褓中的猫 +5 源石锭 / 狗 +1 希望
     const legacyList: string[] = (this.outer?.[theme]?.record as any)?.legacy || [];
     for (const legacyId of legacyList) {
+      if (legacyId === "rogue_6_relic_fight_29") {
+        // 特勤任务影像（难度 0 失败补偿）：开局直接获得该收藏品
+        await this._trigger.emit("rlv2:relic:gain", [
+          { id: legacyId, count: 1 },
+        ]);
+        continue;
+      }
       const def = (excel.RoguelikeTopicTable.details[theme] as any)?.items?.[legacyId];
       const usage = def?.usage || "";
       if (usage.includes("5源石锭")) {
@@ -644,7 +654,11 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
           (detail?.items?.[id]?.usage || "").includes("让探索走向不同的结局") ||
           (detail?.items?.[id]?.usage || "").includes("不同结局"),
       );
-      if (hasEndingChange) return max;
+      // 三结局·纠缠调和：持有【怦然信标】（rogue_6_relic_final_3，gameConst.expedEndingRelic）
+      // → 通过第Ⅴ层后可进入第Ⅵ层（源流交汇处）
+      const hasBeacon =
+        theme === "rogue_6" && relicIds.includes("rogue_6_relic_final_3");
+      if (hasEndingChange || hasBeacon) return max;
     }
     return Math.min(max || 6, 5);
   }
@@ -655,6 +669,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
    */
   private zoneKey(zone: number): string | number {
     const zones = this._map.zones;
+    // 误入奇境隐藏层（portal active）：地图为 portal zone（键 3000+）
+    const gz = this._module?.gridZone;
+    if (gz?.portal?.active && gz.portal.zoneKey) return gz.portal.zoneKey;
     if (zones[zone]) return zone;
     if (zones[String(1000 + zone - 1)]) return String(1000 + zone - 1);
     return zone;
@@ -674,7 +691,19 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   private async checkZoneEnd(): Promise<boolean> {
     if (!this.isZoneEnd()) return false;
     const zone = this._status.cursor.zone;
+    const theme = this.current.game!.theme;
     if (zone >= this.maxZone) {
+      // 三结局·纠缠调和：持有【怦然信标】通过第Ⅵ层 → ending_3
+      if (theme === "rogue_6" && this.hasRelic("rogue_6_relic_final_3")) {
+        this._status.toEnding = "ro6_ending_3";
+      } else if (
+        theme === "rogue_6" &&
+        (this.hasRelic("rogue_6_relic_final_1") ||
+          this.hasRelic("rogue_6_relic_final_2"))
+      ) {
+        // 二结局·维度重构：持有沙盘α/β 且不持有怦然信标通过第Ⅴ层 → ending_2
+        this._status.toEnding = "ro6_ending_2";
+      }
       // 修复：通关到最终层终点 → 标记成功（原实现 toEnding 恒非 "normal" → 每次通关
       // 结算都显示失败）；放弃路径由 giveUpGame 置 "giveup"
       this._status.runResult = "success";
@@ -686,7 +715,6 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     }
     // 区域奖励：非最终层通关时填充 zoneReward（confirmZoneReward 发放并清空）
     if (!this._status.zoneReward || Object.keys(this._status.zoneReward).length === 0) {
-      const theme = this.current.game!.theme;
       const hasRelic = Object.values(this.inventory!.relic || {}).map(
         (r) => (r as any).id,
       );
@@ -705,8 +733,32 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     }
     this._status.cursor.zone += 1;
     this._status.cursor.position = null;
+    // 三结局·纠缠调和：先行一步派出的干员返回，带回 2 希望 + 【怦然信标】
+    // （官方 gameConst.expedEndingRelic = rogue_6_relic_final_3；描述"干员{0}发现了【怦然信标】"）
+    const expDetails = this.troop.expeditionDetails as any;
+    if (expDetails?.ending && this.troop.expedition.length > 0) {
+      const detail = excel.RoguelikeTopicTable.details[theme] as any;
+      const endingRelic = detail?.gameConst?.expedEndingRelic;
+      if (endingRelic) {
+        await this._trigger.emit("rlv2:get:items", [
+          [{ id: `${theme}_population`, count: 2 }],
+        ]);
+        await this._trigger.emit("rlv2:relic:gain", [
+          { id: endingRelic, count: 1 },
+        ]);
+      }
+      this.troop.expedition = [];
+      delete expDetails.ending;
+    }
     await this._trigger.emit("rlv2:zone:new", [this._status.cursor.zone]);
     return false;
+  }
+
+  /** 是否持有指定收藏品（按 id） */
+  private hasRelic(id: string): boolean {
+    return Object.values(this.inventory?.relic || {}).some(
+      (r) => (r as any).id === id,
+    );
   }
 
   async selectChoice(args: { choice: string }): Promise<void> {
@@ -763,6 +815,94 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         (e.type || "").startsWith("GAME_INIT_"),
       );
       this._status.state = hasInit ? "INIT" : "WAIT_MOVE";
+      return;
+    }
+
+    // 误入奇境（rogue_6 portal 场景）：消耗 1 件加工品进入隐藏层（未萌生的摇篮）
+    // _1.._3=消耗加工品进入（无加工品→无加工品场景 _2）、_4=直接进入、_5=无加工品、_6=离开
+    const portalM = choice.match(/^choice_ro\d+_portal(\d+[ab]?)_(\d+)$/);
+    if (portalM && this.current.game!.theme === "rogue_6") {
+      const family = portalM[1];
+      const suffix = portalM[2];
+      const numFamily = family.replace(/[ab]$/, "");
+      const finishPortal = () => {
+        this._status.pending.shift();
+        this._status.state = "WAIT_MOVE";
+      };
+      if (suffix === "4") {
+        // 进入黑潭（不消耗加工品）
+        this.enterPortalZone(numFamily);
+        return;
+      }
+      if (suffix === "1" || suffix === "2" || suffix === "3") {
+        if (this.consumePortalScrap()) {
+          this.enterPortalZone(numFamily);
+        } else {
+          // 没有可用的加工品 → 节点结束（客户端展示对应提示）
+          finishPortal();
+        }
+        return;
+      }
+      // _5 无加工品 / _6 离开 → 节点结束
+      finishPortal();
+      return;
+    }
+
+    // 二结局·维度重构——命运所指（好奇心与死 end1 / 窥视箱中 end2）
+    if (theme === "rogue_6" && /^choice_ro6_end2_[14]$/.test(choice)) {
+      // 找到传出声音的位置 → 决战场景（仅给"与当前区域首领的决战"选项）
+      this._status.pending.shift();
+      const c3 = { choice_ro6_end2_3: 1, choice_ro6_end2_4: 1 };
+      const ca3 = {
+        choice_ro6_end2_3: { rewards: [] },
+        choice_ro6_end2_4: { rewards: [] },
+      };
+      this._trigger.emit("rlv2:event:create", [
+        "SCENE",
+        {
+          scene: { id: "scene_ro6_end2_2", choices: c3, choiceAdditional: ca3 },
+          done: false,
+          popReport: false,
+        },
+      ]);
+      return;
+    }
+    if (theme === "rogue_6" && choice === "choice_ro6_end2_3") {
+      // 与当前区域首领的决战 → 混沌源阶理论（ro6_b_5，险路恶敌）
+      this.startChaosSourceBattle();
+      return;
+    }
+    if (theme === "rogue_6" && /^choice_ro6_end1_[12]$/.test(choice)) {
+      // 好奇心与死：消耗 50 源石锭标记（找投影位置）/ 获得 1 件收藏品
+      if (choice === "choice_ro6_end1_1") {
+        this._status.property.gold = Math.max(
+          0,
+          this._status.property.gold - 50,
+        );
+      } else {
+        const hasRelic = Object.values(this.inventory!.relic || {}).map(
+          (r) => (r as any).id,
+        );
+        const rid = this._pool.getRelic("pool_relic_all", hasRelic);
+        if (rid) {
+          this._trigger.emit("rlv2:relic:gain", [{ id: rid, count: 1 }]);
+        }
+      }
+      this._status.pending.shift();
+      this._status.state = "WAIT_MOVE";
+      return;
+    }
+    // 二结局·线人（bomb1：不期而遇"线人与线索"）→ 沙盘α / 珍贵加工品 / 离开
+    if (theme === "rogue_6" && /^choice_ro6_bomb1_/.test(choice)) {
+      if (choice === "choice_ro6_bomb1_1") {
+        await this._trigger.emit("rlv2:relic:gain", [
+          { id: "rogue_6_relic_final_1", count: 1 },
+        ]);
+      } else if (choice === "choice_ro6_bomb1_2") {
+        this.gainPreciousScrap();
+      }
+      this._status.pending.shift();
+      this._status.state = "WAIT_MOVE";
       return;
     }
 
@@ -834,6 +974,12 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     } else {
       const nextSceneId = choiceConfig?.nextSceneId;
       if (nextSceneId) {
+        // 先行一步（rogue_6 三结局·纠缠调和）：选择"派一名同伴进入/探索"
+        // （choice_ro6_scout_1/3 → scene_ro6_scout_2/3）→ 标记三结局远征，
+        // 干员下一层返回时带回 2 希望 + 【怦然信标】（gameConst.expedEndingRelic）
+        if (theme === "rogue_6" && /^choice_ro6_scout_[13]$/.test(choice)) {
+          (this.troop.expeditionDetails as any).ending = true;
+        }
         const lose = eventConfig?.lose;
         const get = eventConfig?.get;
         const mLose = eventConfig?.m_lose;
@@ -954,7 +1100,11 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       (r) => (r as any).id,
     );
     const relicPool = Object.keys(items).filter(
-      (id) => items[id]?.type === "RELIC" && !hasRelic.includes(id),
+      (id) =>
+        items[id]?.type === "RELIC" &&
+        !hasRelic.includes(id) &&
+        // 二结局专属藏品（沙盘α/β）不走随机商店池——仅经线人事件/Ⅰ-Ⅲ 层行商专属渠道获得
+        !["rogue_6_relic_final_1", "rogue_6_relic_final_2"].includes(id),
     );
     const tier = (id: string) =>
       items[id]?.rarity === "RARE" ? 1 : items[id]?.rarity === "SUPER_RARE" ? 2 : 0;
@@ -1024,6 +1174,24 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     // 官服商店 id 用层号（cursor.zone 1000 起为网格区域索引——减 999 还原层号）
     const layer = zone > 999 ? zone - 999 : zone;
     const goods = this.generateShopGoods(theme);
+    // 二结局·维度重构：沙盘β 大概率在 Ⅰ-Ⅲ 层诡意行商以 1 源石锭出售（未持有才出现）
+    if (theme === "rogue_6" && layer >= 1 && layer <= 3) {
+      const hasRelic = Object.values(this.inventory?.relic || {}).map(
+        (r) => (r as any).id,
+      );
+      if (!hasRelic.includes("rogue_6_relic_final_2")) {
+        goods.push({
+          index: String(goods.length),
+          itemId: "rogue_6_relic_final_2",
+          count: 1,
+          priceId: `${theme}_gold`,
+          priceCount: 1,
+          origCost: 1,
+          displayPriceChg: false,
+          _retainDiscount: 1,
+        });
+      }
+    }
     const content: any = {
       bank: {
         open: true,
@@ -1918,6 +2086,15 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       return;
     }
     if (node?.content?.shop) {
+      // 进入行商节点：重置卖零件计数（多边贸易"同一个行商节点"语义）
+      this._shopSellCount = 0;
+      // 多边贸易升级（band_20）：每次进入行商节点获得 1 个<枯苔藓球>
+      if (
+        this.current.game!.theme === "rogue_6" &&
+        this.hasRelic("rogue_6_band_20")
+      ) {
+        this._trigger.emit("rlv2:scrap:gain", ["rogue_6_scrap_G_08"]);
+      }
       this._status.state = "PENDING";
       this._trigger.emit("rlv2:event:create", [
         "BATTLE_SHOP",
@@ -1925,8 +2102,246 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       ]);
       return;
     }
+    // 误入奇境（MIRAGE）：进入黑潭场景（消耗加工品 → 隐藏层 未萌生的摇篮）
+    if (node?.content?.kind === ROGUE6_NODE.MIRAGE) {
+      this.createPortalScene();
+      return;
+    }
+    // 命运所指（PROPHECY，V 层二结局 / VI 层调谐仪式入口）：好奇心与死 / 窥视箱中
+    if (node?.content?.kind === ROGUE6_NODE.PROPHECY) {
+      this.createFateScene();
+      return;
+    }
+    // 不期而遇（INCIDENT）：rogue_6 概率触发线人事件（二结局沙盘α）
+    if (node?.content?.kind === ROGUE6_NODE.INCIDENT) {
+      this.createIncidentScene();
+      return;
+    }
     // 空节点：网格区域自由移动，回到 WAIT_MOVE（客户端继续走）
     this._status.state = "WAIT_MOVE";
+  }
+
+  /**
+   * 误入奇境（MIRAGE 节点）入口场景：随机选一个雾色场景族（scene_ro6_portalX*_enter），
+   * 选项为该族全部 choice（_1.._3 消耗 1 件加工品进入 / _4 直接进入 / _5 无加工品 / _6 离开）。
+   * 选项效果由 selectChoice 的 portal 分支处理（进入隐藏层或结束节点）。
+   */
+  private createPortalScene(): void {
+    const theme = this.current.game!.theme;
+    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+    const sceneIds = Object.keys(detail?.choiceScenes || {}).filter(
+      (id) => id.startsWith(`scene_ro6_portal`) && id.endsWith("_enter"),
+    );
+    if (sceneIds.length === 0) {
+      this._status.state = "WAIT_MOVE";
+      return;
+    }
+    const sceneId = sceneIds[Math.floor(Math.random() * sceneIds.length)];
+    // 场景族：scene_ro6_portal1a_enter → "1a"
+    const family =
+      sceneId.match(/scene_ro\d+_portal(\d+[ab]?)_enter/)?.[1] ?? "1a";
+    const prefix = `choice_ro6_portal${family}`;
+    const choiceIds = Object.keys(detail.choices || {}).filter((k) =>
+      k.startsWith(prefix),
+    );
+    if (choiceIds.length === 0) {
+      this._status.state = "WAIT_MOVE";
+      return;
+    }
+    const choices = choiceIds.reduce(
+      (acc, cid) => ({ ...acc, [cid]: 1 }),
+      {},
+    );
+    const choiceAdditional = choiceIds.reduce(
+      (acc, cid) => ({ ...acc, [cid]: { rewards: [] } }),
+      {},
+    );
+    this._status.state = "PENDING";
+    this._trigger.emit("rlv2:event:create", [
+      "SCENE",
+      {
+        scene: { id: sceneId, choices, choiceAdditional },
+        done: false,
+        popReport: false,
+      },
+    ]);
+  }
+
+  /**
+   * 进入误入奇境隐藏层（未萌生的摇篮）：记录返回点，生成 portal zone（乌托邦模板 + 本层专用行动力）。
+   * @param family 雾色场景族数字（1..9，字母变体已剥离）
+   */
+  private enterPortalZone(family: string): void {
+    const gz = this._module.gridZone;
+    if (!gz) {
+      this._status.state = "WAIT_MOVE";
+      return;
+    }
+    const pos = this._status.cursor.position;
+    const returnNode = pos ? String(pos.x * 100 + pos.y) : "0";
+    const returnZone = this._status.cursor.zone;
+    this._status.pending.shift();
+    gz.generatePortal(family, returnZone, returnNode);
+    this._status.state = "PENDING";
+  }
+
+  /**
+   * 消耗 1 件加工品（零件箱非载具废品）进入黑潭；无可用加工品返回 false。
+   * 加工品 = 零件箱中非 MOVE 型废品（载具保留）；扣 1 件（优先估价低者）。
+   */
+  private consumePortalScrap(): boolean {
+    const scrap = this._module.scrap;
+    if (!scrap) return false;
+    const theme = this.current.game!.theme;
+    const scrapMod = (excel.RoguelikeTopicTable.modules as any)?.[theme];
+    const typeMap =
+      scrapMod?.scrap ?? scrapMod?.sCRAP ?? {};
+    const candidates = Object.values(scrap.inventory || {}).filter((it: any) => {
+      const t = typeMap?.scrapItemToType?.[it.id];
+      return t !== "MOVE";
+    }) as { instId: string; value: number }[];
+    if (candidates.length === 0) return false;
+    // 优先扣估价最低的加工品
+    candidates.sort((a, b) => a.value - b.value);
+    delete scrap.inventory[candidates[0].instId];
+    return true;
+  }
+
+  /**
+   * 二结局·维度重构：与"窥视箱中"的首领决战 → 混沌源阶理论（ro6_b_5，险路恶敌）。
+   * 将当前节点标记为混沌源阶理论并创建 BATTLE 事件（客户端随后 moveAndBattleStart）。
+   */
+  private startChaosSourceBattle(): void {
+    const theme = this.current.game!.theme;
+    const stageId = "ro6_b_5"; // 混沌源阶理论（stages 表实锤）
+    // 当前节点标记为混沌源阶理论（客户端地图显示险路恶敌）
+    const pos = this._status.cursor.position;
+    if (pos) {
+      const node = this._map.zones[this.zoneKey(this._status.cursor.zone)]?.nodes[
+        pos.x * 100 + pos.y
+      ];
+      if (node) {
+        node.stage = stageId;
+        node.type = TorappuRoguelikeEventType.BATTLE_BOSS;
+        (node as any).zone_end = true; // 首领战可推进结算
+      }
+    }
+    this._status.pending.shift();
+    this._trigger.emit("rlv2:event:create", [
+      "BATTLE",
+      {
+        state: 1,
+        chestCnt: 100,
+        goldTrapCnt: 100,
+        diceRoll: [],
+        boxInfo: {},
+        tmpChar: [],
+        sanity: 0,
+        unKeepBuff: [],
+      },
+    ]);
+    this._status.state = "PENDING";
+  }
+
+  /** 线人事件：获得 1 件珍贵的加工品（零件池随机 1 件入零件箱） */
+  private gainPreciousScrap(): void {
+    const theme = this.current.game!.theme;
+    const scrapMod = (excel.RoguelikeTopicTable.modules as any)?.[theme];
+    const pool = Object.keys(
+      (scrapMod?.scrap ?? scrapMod?.sCRAP)?.scrapItemToType || {},
+    );
+    if (pool.length === 0) return;
+    const id = pool[Math.floor(Math.random() * pool.length)];
+    this._trigger.emit("rlv2:scrap:gain", [id]);
+  }
+
+  /**
+   * 命运所指（PROPHECY 节点）入口场景：持有双沙盘 → 窥视箱中（end2，谜题与谜底）；
+   * 否则随机 1/3 概率窥视箱中、2/3 好奇心与死（V 层 3 个命运所指中 1 个为窥视箱中）。
+   */
+  private createFateScene(): void {
+    const theme = this.current.game!.theme;
+    if (theme !== "rogue_6") {
+      this._status.state = "WAIT_MOVE";
+      return;
+    }
+    const hasBoth =
+      this.hasRelic("rogue_6_relic_final_1") &&
+      this.hasRelic("rogue_6_relic_final_2");
+    const isBox = hasBoth || Math.random() < 1 / 3;
+    const sceneId = isBox ? "scene_ro6_end2_enter" : "scene_ro6_end1_enter";
+    const prefix = isBox ? "choice_ro6_end2_" : "choice_ro6_end1_";
+    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+    const choiceIds = Object.keys(detail.choices || {}).filter((k) =>
+      k.startsWith(prefix),
+    );
+    if (choiceIds.length === 0) {
+      this._status.state = "WAIT_MOVE";
+      return;
+    }
+    const choices = choiceIds.reduce(
+      (acc, cid) => ({ ...acc, [cid]: 1 }),
+      {},
+    );
+    const choiceAdditional = choiceIds.reduce(
+      (acc, cid) => ({ ...acc, [cid]: { rewards: [] } }),
+      {},
+    );
+    this._status.state = "PENDING";
+    this._trigger.emit("rlv2:event:create", [
+      "SCENE",
+      {
+        scene: { id: sceneId, choices, choiceAdditional },
+        done: false,
+        popReport: false,
+      },
+    ]);
+  }
+
+  /**
+   * 不期而遇（INCIDENT）事件：rogue_6 无 event_choices 数据 → Ⅱ-Ⅳ 层概率触发
+   * 线人事件（bomb1"线人与线索"，未持有沙盘α时），否则空节点结束。
+   */
+  private createIncidentScene(): void {
+    const theme = this.current.game!.theme;
+    const finish = () => {
+      this._status.state = "WAIT_MOVE";
+    };
+    if (theme !== "rogue_6" || this.hasRelic("rogue_6_relic_final_1")) {
+      finish();
+      return;
+    }
+    const zone = this._status.cursor.zone;
+    // 线人仅 Ⅱ-Ⅳ 层出现；概率触发（40%）
+    if (zone < 2 || zone > 4 || Math.random() >= 0.4) {
+      finish();
+      return;
+    }
+    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+    const choiceIds = Object.keys(detail.choices || {}).filter((k) =>
+      k.startsWith("choice_ro6_bomb1_"),
+    );
+    if (choiceIds.length === 0) {
+      finish();
+      return;
+    }
+    const choices = choiceIds.reduce(
+      (acc, cid) => ({ ...acc, [cid]: 1 }),
+      {},
+    );
+    const choiceAdditional = choiceIds.reduce(
+      (acc, cid) => ({ ...acc, [cid]: { rewards: [] } }),
+      {},
+    );
+    this._status.state = "PENDING";
+    this._trigger.emit("rlv2:event:create", [
+      "SCENE",
+      {
+        scene: { id: "scene_ro6_bomb1_enter", choices, choiceAdditional },
+        done: false,
+        popReport: false,
+      },
+    ]);
   }
 
   /** 网格区域移动并开始战斗（抓包 { route, stageId, squad }） */
@@ -1996,14 +2411,51 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       return;
     }
     const inventory = sm.inventory;
-    if (args.instId in inventory) {
+    const item = inventory[args.instId];
+    if (item) {
+      const isVehicle = sm.activeVehicle?.instId === args.instId;
+      // 多边贸易（shop_recycle_reward）：在行商节点卖出零件（非载具）计数
+      if (!isVehicle && this.isInShopNode()) {
+        await this.sellScrapAtShop();
+      }
       delete inventory[args.instId];
       // 若丢弃的是当前载具，切回步行
-      if (sm.activeVehicle?.instId === args.instId) {
+      if (isVehicle) {
         sm.activeVehicle = { isWalk: true };
       }
     }
     this._status.state = "WAIT_MOVE";
+  }
+
+  /** 当前节点是否为行商节点（诡意行商 4096 / 秘境行商 2097152） */
+  private isInShopNode(): boolean {
+    const pos = this._status.cursor.position;
+    if (!pos) return false;
+    const node = this._map.zones[this.zoneKey(this._status.cursor.zone)]?.nodes[
+      pos.x * 100 + pos.y
+    ];
+    return node?.type === 4096 || node?.type === 2097152;
+  }
+
+  /**
+   * 多边贸易分队（shop_recycle_reward）：同一行商节点中卖出 sell_count 件零件 → +8 源石锭。
+   * 官方 buff：blackboard = [id: 源石锭, count: 8, sell_count: 3, limit: 1]；
+   * 计数在进入行商节点时重置（每节点限 1 次，limit 语义由重置实现）。
+   */
+  private async sellScrapAtShop(): Promise<void> {
+    const recycle = this._buff.filterBuffs("shop_recycle_reward");
+    if (recycle.length === 0) return;
+    const buff = recycle[0];
+    const sellCount = buff.blackboard[2]?.value ?? 3;
+    if ((this._shopSellCount ?? 0) >= sellCount) return; // 本节点已达卖出上限
+    this._shopSellCount = (this._shopSellCount ?? 0) + 1;
+    if (this._shopSellCount >= sellCount) {
+      const goldId =
+        buff.blackboard[0]?.valueStr ||
+        `${this.current.game!.theme}_gold`;
+      const count = buff.blackboard[1]?.value ?? 8;
+      await this._trigger.emit("rlv2:get:items", [[{ id: goldId, count }]]);
+    }
   }
 
   /**
@@ -2453,6 +2905,16 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         });
       if (legacy.length > 0) {
         rec.legacy = [...new Set([...(rec.legacy || []), ...legacy])];
+      }
+      // 难度 0 失败补偿：本次探索失败 → 下次开局获得收藏品【特勤任务影像】
+      // （官方保密等级·0"失败时下次探索获得特勤任务影像"；难度 4+ 起"失败后不再获得"）
+      if (success === 0 && (this.current.game?.modeGrade ?? 0) <= 3) {
+        rec.legacy = [
+          ...new Set([
+            ...(rec.legacy || []),
+            "rogue_6_relic_fight_29",
+          ]),
+        ];
       }
       // 分队升级隐藏（使用分队通关解锁其升级变体）：本把所选分队（_bandId）若有升级变体
       // （bandRef bandLevel>0 且 normalBandId == _bandId）→ 升级变体 state 1、旧分队隐藏。

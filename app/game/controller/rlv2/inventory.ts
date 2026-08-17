@@ -172,13 +172,16 @@ export class RoguelikeInventoryManager
       BAND: (item: RoguelikeItemBundle) => {},
       ACTIVE_TOOL: (item: RoguelikeItemBundle) => {},
       CAPSULE: (item: RoguelikeItemBundle) => {},
-      POOL: (item: RoguelikeItemBundle) => {
+      POOL: async (item: RoguelikeItemBundle) => {
+        // 从池抽 1 件并按其类型发放（修复：原实现抽出后丢弃——
+        // pool_scrap_3/6（开拓者分队加工品）等池物品无法入库存）
         const ro = this._player._pool.get(
           item.id,
           item.id.includes("fragment"),
         );
-        //this._trigger.emit("rlv2:get:items", ro.id);
-        //this._trigger.emit("rlv2:pool:gain", item.id)
+        if (ro?.id) {
+          await this.getItem({ id: ro.id, count: item.count, sub: 0 });
+        }
       },
       RL_BP: (item: RoguelikeItemBundle) => {},
       RL_GP: (item: RoguelikeItemBundle) => {},
@@ -206,8 +209,13 @@ export class RoguelikeInventoryManager
       LEGACY: (item: RoguelikeItemBundle) => {},
       // rogue_6 流窜“居民”节点标记（NODE_BUOY 型）：地图层节点机制，无库存表现
       NODE_BUOY: (item: RoguelikeItemBundle) => {},
-      // rogue_6 行动力（SPECIAL_ZONE_AP 型）：机制物品，消耗于地图移动
-      SPECIAL_ZONE_AP: (item: RoguelikeItemBundle) => {},
+      // rogue_6 行动力（SPECIAL_ZONE_AP 型）：增减当前区域剩余行动力（事件/安全的角落/休息选项等）
+      SPECIAL_ZONE_AP: (item: RoguelikeItemBundle) => {
+        const gz = this._player._module?.gridZone;
+        if (gz && typeof item.count === "number") {
+          gz.stepRemain = Math.max(0, (gz.stepRemain || 0) + item.count);
+        }
+      },
       // rogue_6 存券数量（STASH_RECRUIT_LIMIT 型）：机制数值，无库存表现
       STASH_RECRUIT_LIMIT: (item: RoguelikeItemBundle) => {},
       // rogue_6 干员（CHARACTER 型）：佣兵招募固定干员（如 Sharp/Stormeye/Pith）
@@ -221,6 +229,14 @@ export class RoguelikeInventoryManager
         this._trigger.emit("rlv2:fragment:gain", [item.id]);
       },
       MAX_WEIGHT: (item: RoguelikeItemBundle) => {
+        // rogue_6：MAX_WEIGHT = 零件箱容量（多边贸易分队 +2/+4）→ 加 SCRAP 模块上限
+        if (theme === "rogue_6") {
+          const scrap = this._player._module?.scrap;
+          if (scrap && typeof item.count === "number") {
+            scrap.limit = Math.max(0, (scrap.limit || 6) + item.count);
+          }
+          return;
+        }
         this._trigger.emit("rlv2:fragment:max_weight:add", [item.count]);
       },
       DISASTER: (item: RoguelikeItemBundle) => {},

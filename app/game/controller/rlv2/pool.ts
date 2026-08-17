@@ -43,6 +43,15 @@ export class RoguelikePoolManager {
     this._pools["pool_relic_rare"] = [];
     this._pools["pool_relic_super_rare"] = [];
     this._pools["pool_relic_all"] = [];
+    // 加工品池（rogue_6 开拓者分队 zone_into_reward pool_scrap_3/6）：
+    // GOODS 型废品（零件箱加工品）；pool_scrap_3=珍贵（简化：随机 3 件中的随机 1 件），pool_scrap_6=普通（全部）
+    const scrapMod = (excel.RoguelikeTopicTable.modules[theme] as any) || {};
+    const typeMap = scrapMod?.scrap ?? scrapMod?.sCRAP ?? {};
+    const goodsIds = Object.keys(typeMap?.scrapItemToType || {}).filter(
+      (id) => typeMap.scrapItemToType[id] === "GOODS",
+    );
+    this._pools["pool_scrap_3"] = [...goodsIds];
+    this._pools["pool_scrap_6"] = [...goodsIds];
     const fragment = excel.RoguelikeTopicTable.modules[theme].fragment;
     if (fragment) {
       this._pools["pool_fragment_3"] = [];

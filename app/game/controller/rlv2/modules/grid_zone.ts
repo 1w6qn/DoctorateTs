@@ -38,7 +38,7 @@ interface GridZone {
 }
 
 /** 黑流树海节点类型（官方 nodeTypeData 数值） */
-const ROGUE6_NODE = {
+export const ROGUE6_NODE = {
   BATTLE_NORMAL: 1,
   BATTLE_ELITE: 2,
   BATTLE_BOSS: 4,
@@ -120,10 +120,50 @@ function countColumnForLayer(layer: number): number {
   return Math.min(4, layer - 1);
 }
 
+/** 误入奇境隐藏层（未萌生的摇篮）活动状态：
+ * active=true 时当前地图为 portal zone（_map.zones 键 = portalZoneKey），
+ * 行动力（stepRemain）耗尽后返回 returnZone/returnPos。
+ * 乌托邦效果（variation）在进入时写入 portal zone 的 variation。 */
+export interface GridPortalState {
+  active: boolean;
+  /** 返回区域（进入隐藏层前的 cursor.zone） */
+  returnZone: number;
+  /** 返回节点（进入隐藏层前的位置，x*100+y 节点 id） */
+  returnNode: string;
+  /** 本层乌托邦效果 id（variationData 键，如 variation_1） */
+  variation: string;
+  /** portal zone 在 _map.zones 的键（3000+ 避开常规 1000+ 键） */
+  zoneKey: string;
+  /** 进入时的场景族（portal1a/1b/2a…，用于返回提示/续局） */
+  family: string;
+}
+
+/** 雾色场景族 → 乌托邦效果（variationData 键）与隐藏层构造模板（sourceId 前缀）
+ * portal1..4=红雾（4 种战斗乌托邦，随机选 1）、5=蓝（全知者盲区）、6=绿（未亡者遗怨）、
+ * 7=金（源石之城）、8=橙（消耗螺旋）、9=紫（换心联结）。 */
+const PORTAL_FAMILY: {
+  [family: string]: {
+    variationIds: string[];
+    templateSource: string[];
+  };
+} = {
+  "1": { variationIds: ["variation_1", "variation_2", "variation_3", "variation_4"], templateSource: ["utopia-red-construction-1", "utopia-red-construction-2", "utopia-red-construction-3", "utopia-red-construction-4"] },
+  "2": { variationIds: ["variation_1", "variation_2", "variation_3", "variation_4"], templateSource: ["utopia-red-construction-1", "utopia-red-construction-2", "utopia-red-construction-3", "utopia-red-construction-4"] },
+  "3": { variationIds: ["variation_1", "variation_2", "variation_3", "variation_4"], templateSource: ["utopia-red-construction-1", "utopia-red-construction-2", "utopia-red-construction-3", "utopia-red-construction-4"] },
+  "4": { variationIds: ["variation_1", "variation_2", "variation_3", "variation_4"], templateSource: ["utopia-red-construction-1", "utopia-red-construction-2", "utopia-red-construction-3", "utopia-red-construction-4"] },
+  "5": { variationIds: ["variation_5"], templateSource: ["utopia-omniscient-blind-spot"] },
+  "6": { variationIds: ["variation_6"], templateSource: ["utopia-undead-grudge"] },
+  "7": { variationIds: ["variation_7"], templateSource: ["utopia-originium-city"] },
+  "8": { variationIds: ["variation_8"], templateSource: ["utopia-consumption-spiral"] },
+  "9": { variationIds: ["variation_9"], templateSource: ["utopia-heart-link"] },
+};
+
 export class RoguelikeGridZoneManager {
   zones: { [key: string]: GridZone };
   stepRemain: number;
   needConfirmStepZero: boolean;
+  /** 误入奇境隐藏层活动状态（未进入时为 null） */
+  portal: GridPortalState | null;
   _player: RoguelikeV2Controller;
   _trigger: TypedEventEmitter;
 
@@ -133,6 +173,7 @@ export class RoguelikeGridZoneManager {
     this.zones = {};
     this.stepRemain = 20;
     this.needConfirmStepZero = false;
+    this.portal = null;
     this._trigger.on("rlv2:module:init", this.init.bind(this));
     this._trigger.on("rlv2:continue", this.continue.bind(this));
     this._trigger.on("rlv2:zone:new", this.generate.bind(this));
@@ -143,13 +184,23 @@ export class RoguelikeGridZoneManager {
     this.zones = {};
     this.stepRemain = 20;
     this.needConfirmStepZero = false;
+    this.portal = null;
   }
 
   continue(): void {
-    this.zones = this._player.current.module?.gridZone?.zones || {};
-    this.stepRemain = this._player.current.module?.gridZone?.stepRemain ?? 20;
+    const g = this._player.current.module?.gridZone as any;
+    this.zones = g?.zones || {};
+    this.stepRemain = g?.stepRemain ?? 20;
     this.needConfirmStepZero =
-      this._player.current.module?.gridZone?.needConfirmStepZero ?? false;
+      g?.needConfirmStepZero ?? false;
+    this.portal = g?.portal ?? null;
+    // 续局恢复 portal zone（_map.zones 键已在存档，无需重建）
+    if (this.portal?.active && this.portal.zoneKey) {
+      // 行动力已耗尽则立即返回（防续局卡在隐藏层）
+      if (this.stepRemain <= 0) {
+        this.leavePortal();
+      }
+    }
   }
 
   /** 官服节点 ID：x*100+y（抓包 route ["602","300"] 确认） */
@@ -260,8 +311,56 @@ export class RoguelikeGridZoneManager {
     this.zones[`zone_${zoneId}`] = { nodes };
     // 同步官服 map.zones 全量结构（客户端地图渲染读 map.zones：index/pos/next/type/stage/visibility）
     this.syncMapZones(zoneId, template, nodes);
-    this.stepRemain = 20;
+    // 行动力：模板显式 action（VI 层/portal 等特殊层）优先，否则按层初始值 5/6/7/8/8
+    this.stepRemain = template.action ?? this.initialActionForZone(zoneId);
     this.needConfirmStepZero = true;
+    // 常规区域实托邦（难度≥2 起）：附加乌托邦效果（variation）到本层地图，客户端渲染区域效果。
+    // 生成频率按难度分档：2~5 较低、6~11 提升（实托邦更频繁）、12+ 更高（晚期）；效果数值由客户端按难度处理。
+    this.applyUtopiaVariation(zoneId);
+  }
+
+  /**
+   * 常规区域实托邦：难度≥2 时按概率给本层附加乌托邦效果（map.zones[zone].variation）。
+   * 官方规则：保密等级·2 起"实托邦将会在区域中生成"；6 起"更频繁地生成"；12 起"效果提升至晚期"。
+   * 效果 id 取自 variationData（variation_1..9：巨人摇篮/迪斯科狂热/已知浩劫/孤立石林/全知者盲区/
+   * 未亡者遗怨/源石之城/消耗螺旋/换心联结）；具体效果数值（早/中/晚期）由客户端按难度渲染。
+   */
+  private applyUtopiaVariation(zoneId: number): void {
+    const theme = this._player.current.game?.theme ?? "";
+    if (theme !== "rogue_6") return;
+    // 结局层（zone 6）不生成实托邦
+    if (zoneId >= 6) return;
+    const modeGrade = this._player.current.game?.modeGrade ?? 0;
+    if (modeGrade < 2) return;
+    const chance = modeGrade >= 12 ? 0.6 : modeGrade >= 6 ? 0.4 : 0.25;
+    if (Math.random() >= chance) return;
+    const detail = (excel.RoguelikeTopicTable.details as any)?.[theme];
+    const variations = Object.keys(detail?.variationData || {});
+    if (variations.length === 0) return;
+    const varId = variations[Math.floor(Math.random() * variations.length)];
+    const map = this._player._map;
+    const key = String(1000 + zoneId - 1);
+    if (map?.zones?.[key]) {
+      map.zones[key].variation = [varId];
+    }
+  }
+
+  /** 区域初始行动力（官方 I..V 层 5/6/7/8/8；【生命游戏】"翅膀"节点解锁后 Ⅰ 层 +1；
+   * 襁褓天马（rogue_6_start_1）每区 +1） */
+  private initialActionForZone(zoneId: number): number {
+    const base = [0, 5, 6, 7, 8, 8][zoneId] ?? 8;
+    let bonus = 0;
+    const outer = this._player.outer?.rogue_6 as any;
+    // 生命游戏"翅膀"节点（rogue_6_outbuff_37）：Ⅰ 层初始行动力 6
+    if (zoneId === 1 && outer?.buff?.unlocked?.["rogue_6_outbuff_37"]) {
+      bonus += 1;
+    }
+    // 襁褓天马（startbuff_7 选择获得）：每次进入新区域初始行动力+1
+    const relics = this._player.inventory?.relic || {};
+    if (Object.values(relics).some((r: any) => r.id === "rogue_6_start_1")) {
+      bonus += 1;
+    }
+    return base + bonus;
   }
 
   /**
@@ -272,6 +371,7 @@ export class RoguelikeGridZoneManager {
     zoneId: number,
     template: BlackstreamConstruction,
     lightNodes: { [key: string]: GridNode },
+    mapKey?: string,
   ): void {
     const map = this._player._map;
     if (!map) return;
@@ -305,7 +405,7 @@ export class RoguelikeGridZoneManager {
       fullNodes[id] = node;
     }
     // 官服 map.zones 键 = 区域索引（zone_1 → 1000），非层号；zone 带 variation + type
-    map.zones[String(1000 + zoneId - 1)] = {
+    map.zones[mapKey ?? String(1000 + zoneId - 1)] = {
       id: `zone_${zoneId}`,
       index: 1000 + zoneId - 1,
       nodes: fullNodes,
@@ -404,10 +504,14 @@ export class RoguelikeGridZoneManager {
         if (v.set.includes(distance)) allowedByDistance.add(t);
       }
     }
-    // 层允许类型过滤（BLACKSTREAM_LAYER_TYPES 用中文标签——映射回数值集合）
+    // 层允许类型过滤（BLACKSTREAM_LAYER_TYPES 用中文标签——映射回数值集合；
+    // 隐藏层/portal（layer 6）无层类型表 → 跳过过滤，由距离规则限定类型范围）
     const layerTypes = BLACKSTREAM_LAYER_TYPES[layer - 1] || [];
     const layerNodeSet = this.layerTypeSet(layerTypes);
-    const candidates = [...allowedByDistance].filter((t) => layerNodeSet.has(t));
+    const candidates =
+      layerNodeSet.size > 0
+        ? [...allowedByDistance].filter((t) => layerNodeSet.has(t))
+        : [...allowedByDistance];
 
     // 数量规则：候选内未达上限的类型优先
     const underLimit = candidates.filter((t) => {
@@ -498,12 +602,128 @@ export class RoguelikeGridZoneManager {
     if (this.stepRemain > 0) {
       this.stepRemain -= 1;
     }
+    // 隐藏层行动力耗尽 → 返回进入时所在节点（官服：本层专用行动力耗尽后返回）
+    if (this.portal?.active && this.stepRemain <= 0) {
+      this.leavePortal();
+    }
+  }
+
+  /** 按雾色场景族抽取隐藏层构造模板（utopia-* 系列，layerIndex=6） */
+  private pickPortalTemplate(family: string): BlackstreamConstruction {
+    const fam = PORTAL_FAMILY[family];
+    const sources = fam?.templateSource ?? ["utopia-red-construction-1"];
+    const pool = BLACKSTREAM_CONSTRUCTIONS.filter((c) =>
+      sources.includes(c.sourceId),
+    );
+    if (pool.length > 0) {
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+    const fallback = BLACKSTREAM_CONSTRUCTIONS.filter(
+      (c) => c.layerIndex === 6,
+    );
+    return (
+      fallback[Math.floor(Math.random() * fallback.length)] ??
+      BLACKSTREAM_CONSTRUCTIONS[0]
+    );
+  }
+
+  /** 生成误入奇境隐藏层（未萌生的摇篮）：
+   * 按雾色场景族选乌托邦模板铺节点，写入 map.zones（键 3000+，variation=乌托邦效果），
+   * 本层专用行动力 = 模板 action，记录返回点。 */
+  generatePortal(family: string, returnZone: number, returnNode: string): void {
+    const theme = this._player.current.game!.theme;
+    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+    const fam = PORTAL_FAMILY[family] ?? PORTAL_FAMILY["1"];
+    const variationId =
+      fam.variationIds[Math.floor(Math.random() * fam.variationIds.length)] ??
+      "variation_1";
+    const template = this.pickPortalTemplate(family);
+    const stages = Object.keys(detail?.stages || {});
+    const nodes: { [key: string]: GridNode } = {};
+
+    // 起点（林间空地，可见可访问）
+    const [sx, sy] = template.startSlot;
+    nodes[this.nodeId(sx, sy)] = {
+      content: { kind: ROGUE6_NODE.GLADE },
+      state: 1,
+      show: true,
+    };
+    // 模板固定节点（utopia 模板无终点：terminalSlots 为空，行动力耗尽返回）
+    for (const f of template.fixedNodes || []) {
+      const [fx, fy] = f.slot;
+      nodes[this.nodeId(fx, fy)] = this.makeContentNode(
+        CONSTRUCTION_TYPE_TO_NODE[f.type] ?? ROGUE6_NODE.INCIDENT,
+        stages,
+        stages,
+        false,
+      );
+    }
+    // 其余占位格：按隐藏层（第 6 列）距离/数量规则抽类型
+    const remaining = template.occupiedSlots.filter(
+      ([x, y]) => !nodes[this.nodeId(x, y)],
+    );
+    const dist = this.edgeDistances(template);
+    for (const [x, y] of remaining) {
+      const id = this.nodeId(x, y);
+      const d = dist.get(id) ?? 1;
+      const type = this.pickTypeByRules(6, d, {});
+      nodes[id] = this.makeContentNode(type, stages, stages, false);
+    }
+
+    const key = String(3000 + Math.floor(Math.random() * 900));
+    this.zones[`zone_${key}`] = { nodes };
+    this.syncMapZones(parseInt(key, 10) - 1000 + 1, template, nodes, key);
+    const map = this._player._map;
+    if (map?.zones?.[key]) {
+      map.zones[key].variation = [variationId];
+      map.zones[key].id = `zone_portal_normal_${family}`;
+    }
+    this.stepRemain = template.action ?? 2;
+    this.needConfirmStepZero = true;
+    this.portal = {
+      active: true,
+      returnZone,
+      returnNode,
+      variation: variationId,
+      zoneKey: key,
+      family,
+    };
+    // 当前节点 = 隐藏层起点
+    const status = this._player._status;
+    status.cursor.position = { x: sx, y: sy };
+  }
+
+  /** 离开隐藏层（行动力耗尽/放弃）：删除 portal zone，恢复返回点，状态回 WAIT_MOVE */
+  leavePortal(): void {
+    if (!this.portal) return;
+    const p = this.portal;
+    const map = this._player._map;
+    if (map?.zones?.[p.zoneKey]) delete map.zones[p.zoneKey];
+    delete this.zones[`zone_${p.zoneKey}`];
+    const status = this._player._status;
+    status.cursor.zone = p.returnZone;
+    const nodeId = parseInt(p.returnNode, 10);
+    status.cursor.position = {
+      x: Math.floor(nodeId / 100),
+      y: nodeId % 100,
+    };
+    this.portal = null;
+    this.stepRemain = this.initialActionForZone(p.returnZone);
+    this.needConfirmStepZero = true;
+    status.state = "WAIT_MOVE";
+    this._trigger.emit("rlv2:portal:return", []);
+  }
+
+  /** 当前活动 zone 键（隐藏层返回 portal.zoneKey；常规返回 cursor.zone） */
+  currentZoneKey(): string {
+    return this.portal?.active
+      ? `zone_${this.portal.zoneKey}`
+      : `zone_${this._player._status.cursor.zone}`;
   }
 
   /** 移动到指定节点（route 末节点）；标记节点已访问并返回节点 */
   moveTo(route: string[]): GridNode | undefined {
-    const zoneId = `zone_${this._player._status.cursor.zone}`;
-    const zone = this.zones[zoneId];
+    const zone = this.zones[this.currentZoneKey()];
     if (!zone || !route || route.length === 0) return undefined;
     const last = route[route.length - 1];
     const node = zone.nodes[last];
@@ -531,6 +751,7 @@ export class RoguelikeGridZoneManager {
     zones: { [key: string]: GridZone };
     stepRemain: number;
     needConfirmStepZero: boolean;
+    portal?: GridPortalState | null;
   } {
     // 官方 gridZone 节点 content：地图生成（finishEvent）时全为 {}——战斗信息由 map.zones 提供；
     // 商店节点进入后 content 变为 { shop: { goods } }。savage/kind 为内部标记（战斗触发用），
@@ -548,10 +769,18 @@ export class RoguelikeGridZoneManager {
       }
       zones[k] = { nodes };
     }
-    return {
+    const out: {
+      zones: { [key: string]: GridZone };
+      stepRemain: number;
+      needConfirmStepZero: boolean;
+      portal?: GridPortalState;
+    } = {
       zones,
       stepRemain: this.stepRemain,
       needConfirmStepZero: this.needConfirmStepZero,
     };
+    // portal 状态仅活动（隐藏层中）时输出——官服线格式无此字段，开局/常规状态严格比对不允许多余键
+    if (this.portal?.active) out.portal = this.portal;
+    return out;
   }
 }

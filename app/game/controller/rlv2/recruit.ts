@@ -139,6 +139,22 @@ export class RoguelikeRecruitManager {
           population += cost;
         }
       }
+      // 分队效果：本源研修分队（recruit_cost_sub_profession）——本源系子职业干员（4星+）希望降低
+      // 官方 buff：rarity "TIER_4,TIER_5,TIER_6" + sub_profession "primcaster,primprotector,primguard,ritualist" + delta -2
+      for (const buff of this._player._buff.filterBuffs(
+        "recruit_cost_sub_profession",
+      )) {
+        const rarities = (buff.blackboard[0]?.valueStr || "").split(",");
+        const subProfs = (buff.blackboard[1]?.valueStr || "").split(",");
+        const delta = buff.blackboard[2]?.value ?? 0;
+        if (
+          delta !== 0 &&
+          rarities.includes(data.rarity) &&
+          subProfs.includes(data.subProfessionId)
+        ) {
+          population += delta;
+        }
+      }
       for (const buff of this._player._buff.filterBuffs(
         "limited_direct_upgrade",
       )) {

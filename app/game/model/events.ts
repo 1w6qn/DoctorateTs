@@ -166,6 +166,8 @@ export type EventMap = {
   "rlv2:node:complete": [{ nodeId: string }];
   /** 肉鸽V2网格区域步进事件（rogue_6 GRID_ZONE） */
   "rlv2:grid:step": [];
+  /** 肉鸽V2误入奇境隐藏层返回事件（rogue_6 portal 行动力耗尽返回原区域） */
+  "rlv2:portal:return": [];
   /** 肉鸽V2废品获得事件（rogue_6 SCRAP） */
   "rlv2:scrap:gain": [string];
   /** 肉鸽V2铜币开局抽牌事件（rogue_5 COPPER） */

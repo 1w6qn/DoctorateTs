@@ -34,6 +34,11 @@ import { logger } from "@utils/logger";
 import { logService } from "@logs/log-service";
 import { unlockActivity } from "@game/manager/activity/unlockActivity";
 import {
+  loadOrders as loadPayOrders,
+  markPaid as markPayOrderPaid,
+  PayOrderRecord,
+} from "@game/pay-store";
+import {
   itemName,
   charName,
   charRarity,
@@ -882,6 +887,44 @@ export class AdminService {
     await this.savePlayer(uid);
     await this._audit("dailyRoutine", uid, `刷新 + ${checkin}`);
     return { refreshed: true, checkin };
+  }
+
+  /**
+   * 手动刷新信用交易所（服务器指令）
+   *
+   * 等价于每日 04:00 的 refresh:daily 自动刷新：重置低级商店当日限购记录，
+   * 并重置信用商店（SOCIAL）当日购买记录 + 更新当天 shopId。
+   * @param uid - 玩家 uid
+   */
+  async refreshSocialShop(uid: string): Promise<void> {
+    const pd = await this.getPlayer(uid);
+    await pd.shop.refreshSocialShop();
+    await this.savePlayer(uid);
+    await this._audit("refreshSocialShop", uid, "手动刷新信用交易所");
+  }
+
+  /**
+   * 支付订单列表（只读）
+   * @param uid - 可选玩家 uid 过滤
+   * @returns 订单记录列表
+   */
+  async listPayOrders(uid?: string) {
+    const orders = loadPayOrders();
+    return uid ? orders.filter((o) => o.uid === uid) : orders;
+  }
+
+  /**
+   * 手动确认支付（real 模式：真实收款后标记订单 paid，客户端 confirmOrder 时发货）
+   * @param orderId - 订单号
+   * @returns 确认结果
+   */
+  async confirmPayOrder(orderId: string): Promise<{ ok: boolean; order?: PayOrderRecord }> {
+    const order = markPayOrderPaid(orderId);
+    if (!order) {
+      return { ok: false };
+    }
+    await this._audit("confirmPayOrder", order.uid, `订单 ${orderId} 标记已支付（${order.goodId}）`);
+    return { ok: true, order };
   }
 
   /** 立即保存用户存档 */

@@ -7,22 +7,40 @@
 
 import { ItemBundle } from "@excel/character_table";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { readJson } from "@utils/file";
+import { readJsonSync } from "@utils/file";
 import {
   ChooseGPItem,
+  ClassicGoodList,
   GPGoodList,
+  HighGoodList,
   LevelGPItem,
   LMTGSGood,
   MonthlySubItem,
   NormalGPItem,
   PeriodicityGroup,
   PeriodicityGPItem,
+  QCObject,
+  REPGoodList,
   SocialGoodList,
+  SocialShopData,
 } from "@excel/shop";
 import excel from "@excel/excel";
 import { GachaPerChar } from "@excel/gacha_detail_table";
 import { now } from "@utils/time";
 import { TypedEventEmitter } from "@game/model/events";
+
+/**
+ * 商店业务错误（余额不足/超限购/已拥有）
+ *
+ * 路由层捕获后返回 result:1 业务错误而非 500；购买流程在抛出前必须未产生任何副作用
+ *（不扣费、不发放、不写记录）。
+ */
+export class ShopError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ShopError";
+  }
+}
 
 export class ShopController {
   /** 社交商店商品列表 */
@@ -42,16 +60,16 @@ export class ShopController {
     this._trigger = _trigger;
     this._trigger.on("refresh:daily", this.dailyRefresh.bind(this));
     this._trigger.on("refresh:monthly", this.monthlyRefresh.bind(this));
-    this.socialGoodList = {
-      goodList: [],
-      charPurchase: {},
-    };
-    // 信用商店商品基座（静态配置；buildSocialGoodList 按当天日期重新生成）
-    void readJson<SocialGoodList>("./data/shop/SocialGoodList.json")
-      .then((d) => {
-        this.socialGoodList = d;
-      })
-      .catch(() => {});
+    // 信用商店商品基座（静态配置；buildSocialGoodList 按当天日期重新生成）。
+    // 修复：同步读取——原异步 readJson 与首次 getSocialGoodList 请求竞态，
+    // 启动后首请求拿到空基座 → 信用商店缺常规商品
+    try {
+      this.socialGoodList = readJsonSync<SocialGoodList>(
+        "./data/shop/SocialGoodList.json",
+      );
+    } catch {
+      this.socialGoodList = { goodList: [], charPurchase: {} };
+    }
   }
 
   /**
@@ -68,11 +86,104 @@ export class ShopController {
   }
 
   /**
+   * 读取物品当前持有量（货币/凭证统一入口，余额校验用）
+   *
+   * 4001 龙门币 / 4002 源石 / 4003 合成玉 / 4004 高级凭证 / 4005 资质凭证 /
+   * socialPoint 信用 在 status；其余（4006/3401/EPGS_COIN/REP_COIN/LMTGS_COIN_*）在 inventory。
+   * @param itemId - 物品 ID（socialPoint 表示信用）
+   * @returns 当前持有量（未持有为 0）
+   */
+  private _held(itemId: string): number {
+    const st = this._player._playerdata.status as any;
+    switch (itemId) {
+      case "4001":
+        return st.gold ?? 0;
+      case "4002":
+        return st.androidDiamond ?? 0;
+      case "4003":
+        return st.diamondShard ?? 0;
+      case "4004":
+        return st.hggShard ?? 0;
+      case "4005":
+        return st.lggShard ?? 0;
+      case "socialPoint":
+        return st.socialPoint ?? 0;
+      default:
+        return this._player._playerdata.inventory?.[itemId] ?? 0;
+    }
+  }
+
+  /**
+   * 余额校验：不足抛 ShopError（路由层转 result:1，不扣费不发放）
+   *
+   * 修复：原各 buy* 方法直接 emit items:use 扣费——余额不足时 gainItem 把余额扣成
+   * 负数但商品照常发放，等于免费刷货币；此处先校验、不足即拒绝且无副作用。
+   * @param itemId - 货币物品 ID
+   * @param count - 本次需扣总量
+   */
+  private _assertAffordable(itemId: string, count: number): void {
+    if (count <= 0) return;
+    const have = this._held(itemId);
+    if (have < count) {
+      throw new ShopError(`货币不足: 需要 ${itemId}×${count}，持有 ${have}`);
+    }
+  }
+
+  /**
+   * 读取 shop.<key>.info 中某商品已购数量
+   * @param shopKey - 商店类型键（LS/HS/ES/...）
+   * @param goodId - 商品 ID
+   * @returns 已购数量
+   */
+  private _boughtCount(shopKey: string, goodId: string): number {
+    const shop = (this._player._playerdata.shop as any)?.[shopKey];
+    const rec = (shop?.info ?? []).find((i: any) => i.id === goodId);
+    return rec?.count ?? 0;
+  }
+
+  /**
+   * 限购校验：已购 + 本次 > availCount 时抛 ShopError
+   *
+   * 修复：原各 buy* 方法从不检查 availCount——每日/总量限购商品可无限购买。
+   * 官服 availCount 用 -1 表示无限（本实现 <=0 视为不限）。
+   * @param shopKey - 商店类型键
+   * @param goodId - 商品 ID
+   * @param count - 本次购买数量
+   * @param availCount - 限购数量（<=0 不限）
+   */
+  private _assertAvail(
+    shopKey: string,
+    goodId: string,
+    count: number,
+    availCount?: number,
+  ): void {
+    if (!availCount || availCount <= 0) return;
+    const bought = this._boughtCount(shopKey, goodId);
+    if (bought + count > availCount) {
+      throw new ShopError(`商品 ${goodId} 已达限购（${availCount}）`);
+    }
+  }
+
+  /** 读取/初始化 shop.<key> 基础结构（官服迁移数据缺字段时不 500） */
+  private _shopDraft(draft: any, key: string): any {
+    draft.shop = draft.shop ?? {};
+    return (draft.shop[key] = draft.shop[key] ?? {
+      curShopId: "",
+      info: [],
+      progressInfo: {},
+      charPurchase: {},
+      groupInfo: {},
+    });
+  }
+
+  /**
    * 每日刷新处理：重置低级商店每日限购记录
    */
   async dailyRefresh() {
     await this._player.update(async (draft) => {
-      draft.shop.LS.info = [];
+      // 修复：兜底 shop.LS 缺失（官服迁移数据 shop 可能为空对象 → 原直接访问 .info 500）
+      const ls = this._shopDraft(draft, "LS");
+      ls.info = [];
       // 信用商店按当天日期重置（curShopId 对齐 buildSocialGoodList 的 goodId 前缀）
       if (draft.shop.SOCIAL) {
         draft.shop.SOCIAL.curShopId = this.todaySocialShopId();
@@ -97,16 +208,106 @@ export class ShopController {
    *
    * @returns 当天信用商店商品列表
    */
-  buildSocialGoodList(): SocialGoodList {
+  /**
+   * 干员合同价格（信用交易所干员合同无折扣，按累计信用消费档位定价，PRTS 数据）
+   * @param unlockNum - 解锁所需累计消费
+   * @returns 合同价格
+   */
+  private _creditContractPrice(unlockNum: number): number {
+    const tiers: [number, number][] = [
+      [0, 100],
+      [200, 120],
+      [500, 140],
+      [1000, 160],
+      [1500, 160],
+      [2000, 180],
+      [3000, 200],
+      [4000, 200],
+      [5000, 240],
+      [6000, 240],
+      [7000, 240],
+      [8500, 240],
+      [10000, 300],
+    ];
+    let price = 300;
+    for (const [num, p] of tiers) {
+      if (unlockNum >= num) price = p;
+    }
+    return price;
+  }
+
+  /**
+   * 生成当天信用商店商品（信用交易所）
+   *
+   * 修复：干员进度卡死——原实现只返回静态 10 个常规商品，缺干员合同商品与
+   * creditGroup/costSocialPoint 字段；客户端点击干员卡 → SocialUnlockState 用
+   * response.creditGroup 查本地 creditUnlockGroup 渲染干员解锁进度，字段缺失 →
+   * TryGetValue 失败/空引用 → 卡死。现补全：
+   * - 常规商品（静态基座，goodId 日期前缀当天）
+   * - 干员合同商品（已解锁干员放第 1 栏位，无折扣；charPurchase 已购信物数，
+   *   availCount = 剩余信物档位；价格按累计消费档位）
+   * - creditGroup：玩家已购干员所在组（有 creditGroup2 干员 → creditGroup2）
+   * - costSocialPoint：累计信用消费（玩家存档动态字段优先，否则按已购信物档位推导）
+   * - charPurchase：玩家实际购买记录（与静态基座合并，玩家优先）
+   *
+   * @returns 信用商店商品列表 + 干员解锁进度数据
+   */
+  buildSocialGoodList(): SocialGoodList & {
+    costSocialPoint: number;
+    creditGroup: string;
+  } {
     const base = this.socialGoodList;
-    if (!base?.goodList?.length) return { goodList: [], charPurchase: {} };
     const prefix = this.todaySocialShopId();
-    const goodList = base.goodList.map((g) =>
+    const goodList: SocialShopData[] = (base?.goodList ?? []).map((g) =>
       g.goodId.startsWith(prefix)
         ? g
         : { ...g, goodId: g.goodId.replace(/^SOCIAL\d+/, prefix) },
     );
-    return { goodList, charPurchase: base.charPurchase ?? {} };
+    // 干员合同：玩家已购信物（静态基座合并 + 玩家实际，玩家优先）
+    const playerSocial = this._player._playerdata.shop?.SOCIAL;
+    const charPurchase: { [k: string]: number } = {
+      ...(base?.charPurchase ?? {}),
+      ...(playerSocial?.charPurchase ?? {}),
+    };
+    // 信用干员解锁配置（客户端 shop_client_table creditUnlockGroup）
+    const unlockGroups = (excel.ShopClientTable as any)?.creditUnlockGroup ?? {};
+    let costSocialPoint = 0;
+    let creditGroup = "creditGroup1";
+    for (const [charId, bought] of Object.entries(charPurchase)) {
+      if (!bought || bought <= 0) continue;
+      for (const [groupId, g] of Object.entries(unlockGroups)) {
+        const entries: any[] = (g as any)?.charDict ?? [];
+        const my = entries.filter((e: any) => e.charId === charId);
+        if (!my.length) continue;
+        const tier = my[Math.min(bought, my.length) - 1];
+        const unlockNum = tier?.unlockNum ?? 0;
+        costSocialPoint = Math.max(costSocialPoint, unlockNum);
+        if (groupId === "creditGroup2") creditGroup = "creditGroup2";
+        const price = this._creditContractPrice(unlockNum);
+        const contract: SocialShopData = {
+          // charId 已含 char_ 前缀，无需再加 char_ 段（避免 char_char_ 重复）
+          goodId: `${prefix}_T1_${charId}`,
+          displayName: this._charName(charId),
+          item: { id: charId, count: 1, type: "CHAR" },
+          price,
+          availCount: Math.max(0, my.length - bought),
+          slotItem: {
+            price,
+            displayName: this._charName(charId),
+            item: { id: charId, count: 1, type: "CHAR" },
+          },
+          discount: 0,
+          originPrice: price,
+        };
+        goodList.unshift(contract); // 干员合同占第 1 栏位
+      }
+    }
+    // 玩家存档累计消费优先（buySocialGood 实时累计，动态字段）
+    const savedCost = (playerSocial as any)?.costSocialPoint;
+    if (typeof savedCost === "number" && savedCost > 0) {
+      costSocialPoint = Math.max(costSocialPoint, savedCost);
+    }
+    return { goodList, charPurchase, costSocialPoint, creditGroup };
   }
 
   /**
@@ -129,6 +330,10 @@ export class ShopController {
     // 防御：未知商品不 500
     if (!good) return [];
     const price = (good.price ?? 0) * count;
+    // 修复：余额不足拒绝（原直接 socialPoint -= price → 信用扣成负数仍发货）
+    this._assertAffordable("socialPoint", price);
+    // 修复：信用商店商品每日限购（availCount）
+    this._assertAvail("SOCIAL", goodId, count, good.availCount);
     await this._player.update(async (draft) => {
       // 扣信用（socialPoint）
       draft.status.socialPoint = (draft.status.socialPoint ?? 0) - price;
@@ -140,8 +345,17 @@ export class ShopController {
           charPurchase: {},
         };
       }
-      draft.shop.SOCIAL.curShopId = this.todaySocialShopId();
-      const info = draft.shop.SOCIAL.info ?? [];
+      const social = draft.shop.SOCIAL;
+      social.curShopId = this.todaySocialShopId();
+      // 修复：累计信用消费（响应 costSocialPoint 数据源——干员解锁进度按累计消费判断）
+      (social as any).costSocialPoint =
+        ((social as any).costSocialPoint ?? 0) + price;      // 修复：干员合同购买 → 更新 charPurchase（信物计数，客户端干员进度）
+      if (good.item.type === "CHAR") {
+        social.charPurchase = social.charPurchase ?? {};
+        social.charPurchase[good.item.id] =
+          (social.charPurchase[good.item.id] ?? 0) + count;
+      }
+      const info = social.info ?? [];
       const existing = info.find((i) => i.id === goodId);
       if (existing) {
         existing.count += count;
@@ -168,9 +382,11 @@ export class ShopController {
     const ts = new Date();
     const monthNum = ts.getMonth() - 5 + (ts.getFullYear() - 2019) * 12;
     await this._player.update(async (draft) => {
-      draft.shop.LS.curShopId = `lggShdShopnumber${monthNum}`;
-      draft.shop.LS.curGroupId = `lggShdGroupnumber${monthNum}_Group_1`;
-      draft.shop.LS.info = [];
+      // 修复：兜底 shop.LS 缺失（同 dailyRefresh）
+      const ls = this._shopDraft(draft, "LS");
+      ls.curShopId = `lggShdShopnumber${monthNum}`;
+      ls.curGroupId = `lggShdGroupnumber${monthNum}_Group_1`;
+      ls.info = [];
     });
   }
 
@@ -190,14 +406,21 @@ export class ShopController {
     this._assertBuyCount(count);
     const good = excel.ShopTable.lowGoodList.goodList.find(
       (g) => g.goodId === goodId,
-    )!;
+    );
+    // 防御：未知商品不 500（原 find! 断言 → undefined.item 崩溃）
+    if (!good) return [];
+    // 修复：余额不足拒绝（资质凭证 4005）
+    this._assertAffordable("4005", good.price * count);
+    // 修复：每日限购检查
+    this._assertAvail("LS", goodId, count, good.availCount);
     const item = { id: good.item.id, count: good.item.count * count };
     await this._player.update(async (draft) => {
-      const existingItem = draft.shop.LS.info.find((i) => i.id === goodId);
+      const ls = this._shopDraft(draft, "LS");
+      const existingItem = ls.info.find((i: any) => i.id === goodId);
       if (existingItem) {
         existingItem.count += count;
       } else {
-        draft.shop.LS.info.push({ id: goodId, count });
+        ls.info.push({ id: goodId, count });
       }
     });
     await this._trigger.emit("items:use", [
@@ -223,26 +446,43 @@ export class ShopController {
     const { goodId, count } = args;
     // 修复：负数 count → 免费刷高级凭证；正整数校验
     this._assertBuyCount(count);
-    const good = excel.ShopTable.highGoodList.goodList.find(
-      (g) => g.goodId === goodId,
-    )!;
+    const good =
+      excel.ShopTable.highGoodList.goodList.find((g) => g.goodId === goodId) ??
+      // 动态商品（根据当前标准池自动生成的干员区）
+      this.buildHighCharGoods().find((g) => g.goodId === goodId);
+    // 防御：未知商品不 500
+    if (!good) return [];
     let price = good.price;
     let item!: ItemBundle;
+    if (!good?.progressGoodId) {
+      // 修复：余额不足拒绝（高级凭证 4004）
+      this._assertAffordable("4004", good.price * count);
+      // 修复：限购检查
+      this._assertAvail("HS", good.goodId, count, good.availCount);
+    } else {
+      // 进度商品：按档位定价，一次购买推进一档（count 按 1 档处理，费率一致）
+      const progressGood =
+        excel.ShopTable.highGoodList.progressGoodList[good.progressGoodId];
+      const order =
+        (this._player._playerdata.shop as any)?.HS?.progressInfo?.[
+          good.progressGoodId
+        ]?.order ?? 1;
+      this._assertAffordable("4004", progressGood[order - 1]?.price ?? 0);
+    }
     await this._player.update(async (draft) => {
+      const hs = this._shopDraft(draft, "HS");
       if (!good?.progressGoodId) {
         item = { id: good.item.id, count: good.item.count * count };
-        const existingItem = draft.shop.HS.info.find(
-          (i) => i.id === good.goodId,
-        );
+        const existingItem = hs.info.find((i: any) => i.id === good.goodId);
         if (existingItem) {
           existingItem.count += count;
         } else {
-          draft.shop.HS.info.push({ id: good.goodId, count: count });
+          hs.info.push({ id: good.goodId, count: count });
         }
       } else {
         const progressGood =
           excel.ShopTable.highGoodList.progressGoodList[good.progressGoodId];
-        let progressInfo = draft.shop.HS.progressInfo[good.progressGoodId];
+        let progressInfo = hs.progressInfo[good.progressGoodId];
         if (!progressInfo) {
           progressInfo = {
             order: 1,
@@ -251,12 +491,13 @@ export class ShopController {
         }
         price = progressGood[progressInfo.order - 1].price;
         item = progressGood[progressInfo.order - 1].item;
-        if (progressInfo.order < 5) {
+        // 修复：档位数取配置长度（原硬编码 5，进度档数变化时错乱）
+        if (progressInfo.order < progressGood.length) {
           progressInfo.order += 1;
         } else {
           progressInfo.count += 1;
         }
-        draft.shop.HS.progressInfo[good.progressGoodId] = progressInfo;
+        hs.progressInfo[good.progressGoodId] = progressInfo;
       }
     });
     await this._trigger.emit("items:use", [
@@ -284,14 +525,21 @@ export class ShopController {
     this._assertBuyCount(count);
     const good = excel.ShopTable.extraGoodList.goodList.find(
       (g) => g.goodId === goodId,
-    )!;
+    );
+    // 防御：未知商品不 500
+    if (!good) return [];
+    // 修复：余额不足拒绝（采购凭证 4006）
+    this._assertAffordable("4006", good.price * count);
+    // 修复：限购检查
+    this._assertAvail("ES", goodId, count, good.availCount);
     const item = { id: good.item.id, count: good.item.count * count };
     await this._player.update(async (draft) => {
-      const existingItem = draft.shop.ES.info.find((i) => i.id === goodId);
+      const es = this._shopDraft(draft, "ES");
+      const existingItem = es.info.find((i: any) => i.id === goodId);
       if (existingItem) {
         existingItem.count += count;
       } else {
-        draft.shop.ES.info.push({ id: goodId, count });
+        es.info.push({ id: goodId, count });
       }
     });
     await this._trigger.emit("items:use", [
@@ -304,6 +552,19 @@ export class ShopController {
   }
 
   /**
+   * 皮肤是否存在（皮肤表存在性防御）
+   *
+   * 修复：SkinGoodList.json 数据错位（如 char_254_vodfox_witch#2 漏写品牌分隔符 @）
+   * 会下发皮肤表不存在的 skinId → 客户端预览图加载失败。购买/列表均按
+   * excel.SkinTable.charSkins 校验，无效皮肤拒绝/过滤。
+   * @param skinId - 皮肤 ID
+   * @returns 皮肤表存在返回 true
+   */
+  private _skinExists(skinId: string): boolean {
+    return Boolean((excel.SkinTable as any)?.charSkins?.[skinId]);
+  }
+
+  /**
    * 购买皮肤商店商品
    * @param args - 购买参数
    * @param args.goodId - 商品ID
@@ -312,10 +573,32 @@ export class ShopController {
     const { goodId } = args;
     const good = excel.ShopTable.skinGoodList.goodList.find(
       (g) => g.goodId === goodId,
-    )!;
+    );
+    // 防御：未知商品不 500（原 find! 断言 → undefined.skinId 崩溃）
+    if (!good) return;
+    // 修复：皮肤表不存在（数据错位）拒绝——避免写入无效 characterSkins 条目导致预览图错误
+    if (!this._skinExists(good.skinId)) {
+      throw new ShopError(`皮肤 ${good.skinId} 不存在（数据错位）`);
+    }
+    // 修复：已拥有拒绝——皮肤经 CHAR_SKIN 入 characterSkins，重复购买应被服务端拒绝
+    if (this._player._playerdata.skin?.characterSkins?.[good.skinId]) {
+      throw new ShopError(`皮肤 ${good.skinId} 已拥有`);
+    }
+    // 修复：余额不足拒绝（至纯源石 4002）
+    this._assertAffordable("4002", good.price);
     const item = { id: good.skinId, count: 1, type: "CHAR_SKIN" };
+    // 修复：记录购买（原不写 SKIN.info → 客户端购买状态永远可买）
+    await this._player.update(async (draft) => {
+      const skin = this._shopDraft(draft, "SKIN");
+      const existing = skin.info.find((i: any) => i.id === good.goodId);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        skin.info.push({ id: good.goodId, count: 1 });
+      }
+    });
     await this._trigger.emit("items:use", [
-      [{ id: "4002", count: good.price }],
+      [{ id: "4002", type: "DIAMOND", count: good.price }],
     ]);
     await this._trigger.emit("items:get", [[item]]);
   }
@@ -331,17 +614,24 @@ export class ShopController {
    */
   async buyCashGood(args: { goodId: string }): Promise<ItemBundle[]> {
     const { goodId } = args;
-    const good = excel.ShopTable.cashGoodList.goodList.find(
-      (g) => g.goodId === goodId,
-    )!;
+    // 修复：兼容 AllProductList 基础 id（CS_1）与 CashGoodList 版本化 id（CS_1_r1/r2/r3）——
+    // 客户端 createOrder 传 product_id（可为基础或版本化），按前缀匹配避免发货落空
+    const good =
+      excel.ShopTable.cashGoodList.goodList.find((g) => g.goodId === goodId) ??
+      excel.ShopTable.cashGoodList.goodList.find((g) =>
+        g.goodId.startsWith(goodId + "_"),
+      );
+    // 防御：未知商品不 500
+    if (!good) return [];
     // 现金商店物品为钻石充值，发放钻石，并依据 doubleCount 判断是否为首充翻倍
     const isDouble = await this._player.update(async (draft) => {
-      const existingItem = draft.shop.CASH.info.find((i) => i.id === goodId);
+      const cash = this._shopDraft(draft, "CASH");
+      const existingItem = cash.info.find((i: any) => i.id === goodId);
       if (existingItem) {
         existingItem.count += 1;
         return 0;
       } else {
-        draft.shop.CASH.info.push({ id: goodId, count: 1 });
+        cash.info.push({ id: goodId, count: 1 });
         return good.doubleCount > 0 ? 1 : 0;
       }
     });
@@ -373,14 +663,21 @@ export class ShopController {
     this._assertBuyCount(count);
     const good = excel.ShopTable.EPGSGoodList.goodList.find(
       (g) => g.goodId === goodId,
-    )!;
+    );
+    // 防御：未知商品不 500
+    if (!good) return [];
+    // 修复：余额不足拒绝（寻访参数模型 EPGS_COIN）
+    this._assertAffordable("EPGS_COIN", good.price * count);
+    // 修复：限购检查
+    this._assertAvail("EPGS", goodId, count, good.availCount);
     const item = { id: good.item.id, count: good.item.count * count };
     await this._player.update(async (draft) => {
-      const existingItem = draft.shop.EPGS.info.find((i) => i.id === goodId);
+      const epgs = this._shopDraft(draft, "EPGS");
+      const existingItem = epgs.info.find((i: any) => i.id === goodId);
       if (existingItem) {
         existingItem.count += count;
       } else {
-        draft.shop.EPGS.info.push({ id: goodId, count });
+        epgs.info.push({ id: goodId, count });
       }
     });
     await this._trigger.emit("items:use", [
@@ -406,14 +703,21 @@ export class ShopController {
     this._assertBuyCount(count);
     const good = excel.ShopTable.REPGoodList.goodList.find(
       (g) => g.goodId === goodId,
-    )!;
+    );
+    // 防御：未知商品不 500
+    if (!good) return [];
+    // 修复：余额不足拒绝（情报凭证 REP_COIN）
+    this._assertAffordable("REP_COIN", good.price * count);
+    // 修复：限购检查
+    this._assertAvail("REP", goodId, count, good.availCount);
     const item = { id: good.item.id, count: good.item.count * count };
     await this._player.update(async (draft) => {
-      const existingItem = draft.shop.REP.info.find((i) => i.id === goodId);
+      const rep = this._shopDraft(draft, "REP");
+      const existingItem = rep.info.find((i: any) => i.id === goodId);
       if (existingItem) {
         existingItem.count += count;
       } else {
-        draft.shop.REP.info.push({ id: goodId, count });
+        rep.info.push({ id: goodId, count });
       }
     });
     await this._trigger.emit("items:use", [
@@ -437,42 +741,63 @@ export class ShopController {
     const { goodId, count } = args;
     // 修复：负数 count → 免费刷经典票/凭证；正整数校验
     this._assertBuyCount(count);
-    const good = excel.ShopTable.classicGoodList.goodList.find(
-      (g) => g.goodId === goodId,
-    )!;
+    const good =
+      excel.ShopTable.classicGoodList.goodList.find((g) => g.goodId === goodId) ??
+      // 动态商品（根据当前中坚池自动生成的干员区）
+      this.buildClassicCharGoods().find((g) => g.goodId === goodId);
+    // 防御：未知商品不 500
+    if (!good) return [];
     let item!: ItemBundle;
     let price = good.price;
+    if (!good?.progressGoodId) {
+      // 修复：余额不足拒绝（高级凭证 4004）
+      this._assertAffordable("4004", good.price * count);
+      // 修复：限购检查
+      this._assertAvail("CLASSIC", good.goodId, count, good.availCount);
+    } else {
+      // 进度商品：按档位定价，一次购买推进一档（count 按 1 档处理）
+      const progressGood =
+        excel.ShopTable.classicGoodList.progressGoodList[good.progressGoodId];
+      const order =
+        (this._player._playerdata.shop as any)?.CLASSIC?.progressInfo?.[
+          good.progressGoodId
+        ]?.order ?? 1;
+      this._assertAffordable("4004", progressGood[order - 1]?.price ?? 0);
+    }
     await this._player.update(async (draft) => {
+      const classic = this._shopDraft(draft, "CLASSIC");
       if (!good?.progressGoodId) {
         item = { id: good.item.id, count: good.item.count * count };
-        const existingItem = draft.shop.CLASSIC.info.find(
-          (i) => i.id === good.goodId,
+        const existingItem = classic.info.find(
+          (i: any) => i.id === good.goodId,
         );
         if (existingItem) {
           existingItem.count += count;
         } else {
-          draft.shop.CLASSIC.info.push({ id: good.goodId, count: count });
+          classic.info.push({ id: good.goodId, count: count });
         }
       } else {
         const { progressGoodId } = good;
         const progressGood =
           excel.ShopTable.classicGoodList.progressGoodList[progressGoodId];
-        let progressInfo = draft.shop.CLASSIC.progressInfo[progressGoodId];
-        price = progressGood[progressInfo.order - 1].price;
-        item = progressGood[progressInfo.order - 1].item;
+        // 修复：先判空再解引用——原实现先取 progressInfo.order 后判空，
+        // 首次购买（progressInfo 为 undefined）直接 TypeError 500
+        let progressInfo = classic.progressInfo[progressGoodId];
         if (!progressInfo) {
           progressInfo = {
             order: 1,
             count: 0,
           };
+          classic.progressInfo[progressGoodId] = progressInfo;
         }
-
-        if (progressInfo.order < 5) {
+        price = progressGood[progressInfo.order - 1].price;
+        item = progressGood[progressInfo.order - 1].item;
+        // 修复：档位数取配置长度（原硬编码 5）
+        if (progressInfo.order < progressGood.length) {
           progressInfo.order += 1;
         } else {
           progressInfo.count += 1;
         }
-        draft.shop.CLASSIC.progressInfo[progressGoodId] = progressInfo;
       }
     });
 
@@ -503,7 +828,21 @@ export class ShopController {
     // 防御：未知商品不 500
     if (!good) return [];
     // 修复：扣对应池的寻访数据契约（price.id = LMTGS_COIN_<poolId>；原硬编码
-    // "LMTGS_COIN" 通用 id 扣不到玩家手里的具体凭证）
+    // "LMTGS_COIN" 通用 id 扣不到玩家手里的具体凭证）——先校验余额，不足拒绝
+    this._assertAffordable(good.price.id, good.price.count * count);
+    // 修复：限购检查（静态表 availCount；自动生成商品为 -1 不限）
+    this._assertAvail("LMTGS", goodId, count, good.availCount);
+    // 修复：记录购买（原不写任何记录 → 客户端 getGoodPurchaseState 永远可买）
+    await this._player.update(async (draft) => {
+      const shop = draft.shop as any;
+      shop.LMTGS = shop.LMTGS ?? { info: [] };
+      const existing = shop.LMTGS.info.find((i: any) => i.id === goodId);
+      if (existing) {
+        existing.count += count;
+      } else {
+        shop.LMTGS.info.push({ id: goodId, count });
+      }
+    });
     await this._trigger.emit("items:use", [
       [{ id: good.price.id, count: good.price.count * count, type: good.price.type }],
     ]);
@@ -519,56 +858,81 @@ export class ShopController {
 
   /** 自动生成的限定商店商品（懒构建，一次生成缓存） */
   private _autoLMTGSGoods: LMTGSGood[] | null = null;
+  /** 自动生成的高级商店（HS 高级凭证区）干员商品（懒构建，随当前标准池） */
+  private _autoHighGoods: QCObject[] | null = null;
+  /** 自动生成的经典商店（CLASSIC 通用凭证区）干员商品（懒构建，随当前中坚池） */
+  private _autoClassicGoods: QCObject[] | null = null;
+
+  /**
+   * 当前限定池（LMTGS 商店按当期池代币过滤）
+   *
+   * 优先当前活跃 LIMITED 池（openTime<=now<=endTime），无活跃池回退最近一期
+   *（数据版本落后/卡池空窗期商店仍有内容）。客户端限定商店只展示当期池商品，
+   * 商品代币 = 当期池 lMTGSID（LMTGS_COIN_<poolId>）。
+   * @returns 当前限定池，无则 null
+   */
+  currentLimitedPool(): (typeof excel.GachaTable.gachaPoolClient)[number] | null {
+    const ts = now();
+    const pools = excel.GachaTable.gachaPoolClient
+      .filter((p) => p.gachaRuleType === "LIMITED")
+      .sort((a, b) => b.openTime - a.openTime);
+    if (!pools.length) return null;
+    return (
+      pools.find((p) => p.openTime <= ts && ts <= p.endTime) ??
+      pools[0]
+    );
+  }
 
   /**
    * 自动生成限定商店商品（运行时——新限定池无需手动补 LMTGSGoodList.json）
    *
-   * 每个 LIMITED 池生成：本池 UP 六星（300 凭证）+ 本池新五星（75 凭证）+
+   * 修复：按当期卡池过滤——只生成当前限定池（currentLimitedPool）商品，
+   * 商品代币为当期池 lMTGSID；不再跨池返回全部 LIMITED 池商品（原实现客户端需按
+   * LMTGSID 自行过滤，且非当期池商品用旧池代币无法购买）。
+   * 每池生成：本池 UP 六星（300 凭证）+ 本池新五星（75 凭证）+
    * 历史限定六星（300 凭证，最多 4 个，排除本池已含）。goodId = `${poolId}_${seq}`
    * 稳定（客户端按 getLMTGSGoodList 拿到的 goodId 回传 buyLMTGSGood）。
-   * 与静态 LMTGSGoodList.json 合并（静态保留特殊商品，按 goodId 去重、自动优先）。
+   * 与静态 LMTGSGoodList.json 合并（静态保留当期池特殊商品，按 goodId 去重、自动优先）。
    *
-   * @returns 自动生成的全部限定商品（跨池，客户端按当前池 LMTGSID 过滤）
+   * @returns 自动生成的当期限定商品（客户端按当前池 LMTGSID 过滤）
    */
   buildLMTGSGoodList(): LMTGSGood[] {
     if (this._autoLMTGSGoods) return this._autoLMTGSGoods;
-    const pools = excel.GachaTable.gachaPoolClient
-      .filter((p) => p.gachaRuleType === "LIMITED")
-      .sort((a, b) => a.gachaIndex - b.gachaIndex);
-    // 历史限定六星：全部 LIMITED 池的 UP 六星（去重、按池序收集）
-    const historical: string[] = [];
-    for (const p of pools) {
-      const detail = excel.GachaDetailTable.details[p.gachaPoolId];
-      const up6 =
-        (detail?.upCharInfo?.perCharList ?? []).filter(
-          (c: GachaPerChar) => c.rarityRank === 5,
-        );
-      for (const c of up6) {
-        for (const id of c.charIdList) {
-          if (!historical.includes(id)) historical.push(id);
+    const pool = this.currentLimitedPool();
+    const goods: LMTGSGood[] = [];
+    if (pool) {
+      // 历史限定六星：全部 LIMITED 池的 UP 六星（去重、按池序收集），供当期池"历史限定"区
+      const historical: string[] = [];
+      const allPools = excel.GachaTable.gachaPoolClient
+        .filter((p) => p.gachaRuleType === "LIMITED")
+        .sort((a, b) => a.openTime - b.openTime);
+      for (const p of allPools) {
+        const detail = excel.GachaDetailTable.details[p.gachaPoolId];
+        const up6 =
+          (detail?.upCharInfo?.perCharList ?? []).filter(
+            (c: GachaPerChar) => c.rarityRank === 5,
+          );
+        for (const c of up6) {
+          for (const id of c.charIdList) {
+            if (!historical.includes(id)) historical.push(id);
+          }
         }
       }
-    }
-    const goods: LMTGSGood[] = [];
-    for (const p of pools) {
-      const detail = excel.GachaDetailTable.details[p.gachaPoolId];
+      const detail = excel.GachaDetailTable.details[pool.gachaPoolId];
       const up = detail?.upCharInfo?.perCharList ?? [];
       const up6 = up.filter((c: GachaPerChar) => c.rarityRank === 5);
       const up4 = up.find((c: GachaPerChar) => c.rarityRank === 4);
-      // 寻访数据契约按池（JSON 键 lMTGSID，如 LMTGS_COIN_903）——旧实现读 LMTGSID
-      //（CS 反编译大小写）恒 undefined → 所有池都用通用 LMTGS_COIN
-      const token = p.lMTGSID || "LMTGS_COIN";
-      const start = p.openTime;
-      const end = p.endTime;
+      // 寻访数据契约按池（JSON 键 lMTGSID，如 LMTGS_COIN_7601）
+      const token = (pool as any).lMTGSID || "LMTGS_COIN";
       let seq = 0;
       const push = (
         item: ItemBundle,
         price: number,
       ): void => {
         goods.push({
-          goodId: `${p.gachaPoolId}_${++seq}`,
-          startTime: start,
-          endTime: end,
+          goodId: `${pool.gachaPoolId}_${++seq}`,
+          startTime: pool.openTime,
+          endTime: pool.endTime,
           availCount: -1,
           item,
           price: { id: token, count: price, type: "LMTGS_COIN" },
@@ -597,6 +961,202 @@ export class ShopController {
   }
 
   /**
+   * 当前标准寻访池（高级凭证区干员来源）
+   *
+   * 标准池 gachaRuleType === 0（JSON 数字 0）。优先当前活跃池（openTime<=now<=endTime），
+   * 无活跃池时取最近结束的一期（数据版本落后时商店仍有内容）。
+   * @returns 标准池配置，无则 null
+   */
+  private _currentStandardPool(): (typeof excel.GachaTable.gachaPoolClient)[number] | null {
+    const ts = now();
+    const pools = excel.GachaTable.gachaPoolClient
+      .filter((p) => Number(p.gachaRuleType) === 0)
+      .sort((a, b) => b.openTime - a.openTime);
+    if (!pools.length) return null;
+    return (
+      pools.find((p) => p.openTime <= ts && ts <= p.endTime) ??
+      pools[0]
+    );
+  }
+
+  /**
+   * 当前中坚池（CLASSIC 通用凭证区干员来源）
+   *
+   * 中坚规则：CLASSIC / CLASSIC_DOUBLE / CLASSIC_ATTAIN / FESCLASSIC / FESCLASSIC 变体。
+   * @returns 中坚池配置，无则 null
+   */
+  private _currentClassicPool(): (typeof excel.GachaTable.gachaPoolClient)[number] | null {
+    const ts = now();
+    const pools = excel.GachaTable.gachaPoolClient
+      .filter((p) => /^(CLASSIC|FESCLASSIC)/.test(String(p.gachaRuleType)))
+      .sort((a, b) => b.openTime - a.openTime);
+    if (!pools.length) return null;
+    return (
+      pools.find((p) => p.openTime <= ts && ts <= p.endTime) ??
+      pools[0]
+    );
+  }
+
+  /** 干员展示名（CHAR 表缺失时回退 charId） */
+  private _charName(charId: string): string {
+    return (excel.CharacterTable as any)?.[charId]?.name ?? charId;
+  }
+
+  /**
+   * 根据当前标准池自动生成高级凭证区（HS）干员商品
+   *
+   * 官服规则：高级凭证区干员随轮换卡池刷新——当期标准池 6★ 180 黄票 / 5★ 45 黄票
+   *（萌娘百科：指定六星干员凭证 180、指定五星干员凭证 45）。
+   * 标准池无结构化 upCharInfo，取 availCharInfo.perAvailList 中 6★(rarityRank 5)/5★(rarityRank 4)
+   * 全部干员（当期标准池可获得的 6★/5★），goodId = `HS_${poolId}_${seq}` 稳定。
+   * 与静态 HighGoodList.json 合并（静态保留材料区/progress 商品，按 goodId 去重、自动优先）。
+   * @returns 自动生成的 HS 干员商品
+   */
+  buildHighCharGoods(): QCObject[] {
+    if (this._autoHighGoods) return this._autoHighGoods;
+    const pool = this._currentStandardPool();
+    const goods: QCObject[] = [];
+    if (pool) {
+      const detail = excel.GachaDetailTable.details[pool.gachaPoolId];
+      let seq = 0;
+      for (const avail of detail?.availCharInfo?.perAvailList ?? []) {
+        const price =
+          avail.rarityRank === 5 ? 180 : avail.rarityRank === 4 ? 45 : 0;
+        if (!price) continue;
+        for (const charId of avail.charIdList) {
+          goods.push({
+            goodId: `HS_${pool.gachaPoolId}_${++seq}`,
+            displayName: this._charName(charId),
+            priority: 1,
+            number: seq,
+            goodType: "NORMAL",
+            item: { id: charId, count: 1, type: "CHAR" },
+            progressGoodId: "",
+            price,
+            originPrice: price,
+            discount: 0,
+            availCount: 1,
+            slotId: 0,
+            groupId: "",
+            goodStartTime: pool.openTime,
+            goodEndTime: pool.endTime,
+          } as QCObject);
+        }
+      }
+    }
+    this._autoHighGoods = goods;
+    return goods;
+  }
+
+  /**
+   * 根据当前中坚池自动生成通用凭证区（CLASSIC）干员商品
+   *
+   * 官服规则：通用凭证区干员随中坚卡池刷新——中坚池 UP 6★ 2000 / 5★ 500（蓝票；
+   * 2025-05 起 1800/450，此处沿用静态数据 2000/500 与 buyClassicGood 扣费一致）。
+   * 中坚池有结构化 upCharInfo.perCharList，直接取 UP 干员。
+   * @returns 自动生成的 CLASSIC 干员商品
+   */
+  buildClassicCharGoods(): QCObject[] {
+    if (this._autoClassicGoods) return this._autoClassicGoods;
+    const pool = this._currentClassicPool();
+    const goods: QCObject[] = [];
+    if (pool) {
+      const detail = excel.GachaDetailTable.details[pool.gachaPoolId];
+      let seq = 0;
+      for (const c of detail?.upCharInfo?.perCharList ?? []) {
+        const price = c.rarityRank === 5 ? 2000 : c.rarityRank === 4 ? 500 : 0;
+        if (!price) continue;
+        for (const charId of c.charIdList) {
+          goods.push({
+            goodId: `KS_${pool.gachaPoolId}_${++seq}`,
+            displayName: this._charName(charId),
+            priority: 1,
+            number: seq,
+            goodType: "NORMAL",
+            item: { id: charId, count: 1, type: "CHAR" },
+            progressGoodId: "",
+            price,
+            originPrice: price,
+            discount: 0,
+            availCount: 1,
+            slotId: 0,
+            groupId: "",
+            goodStartTime: pool.openTime,
+            goodEndTime: pool.endTime,
+          } as QCObject);
+        }
+      }
+    }
+    this._autoClassicGoods = goods;
+    return goods;
+  }
+
+  /**
+   * 高级凭证区完整商品列表（动态干员 + 静态材料区合并）
+   * @returns 合并后的 HighGoodList
+   */
+  buildHighGoodList(): HighGoodList {
+    const staticList = excel.ShopTable.highGoodList;
+    const auto = this.buildHighCharGoods();
+    const autoIds = new Set(auto.map((g) => g.goodId));
+    return {
+      ...staticList,
+      goodList: [
+        ...auto,
+        ...staticList.goodList.filter((g) => !autoIds.has(g.goodId)),
+      ],
+    };
+  }
+
+  /**
+   * 通用凭证区完整商品列表（动态干员 + 静态 progress 商品合并）
+   * @returns 合并后的 ClassicGoodList
+   */
+  buildClassicGoodList(): ClassicGoodList {
+    const staticList = excel.ShopTable.classicGoodList;
+    const auto = this.buildClassicCharGoods();
+    const autoIds = new Set(auto.map((g) => g.goodId));
+    return {
+      ...staticList,
+      goodList: [
+        ...auto,
+        ...staticList.goodList.filter((g) => !autoIds.has(g.goodId)),
+      ],
+    };
+  }
+
+  /**
+   * 声望商店（REP）商品列表
+   *
+   * 修复：剩余数量显示为负——客户端 RemainCount = availCount - 已购 count
+   *（QCShopREPGood.RemainCount），限购修复前可无限购买的老存档 count 已超过静态
+   * availCount → 显示负数。此处对每个商品按已购数量抬升 availCount 至 max(静态, 已购)，
+   * 保证剩余 ≥ 0；已购达上限的商品显示售罄（isSoldOut），且 buyREPGood 的限购检查
+   *（静态 availCount）继续拦截新购买，语义一致。
+   * @returns 修正后的 REP 商品列表
+   */
+  buildREPGoodList(): REPGoodList {
+    const staticList = excel.ShopTable.REPGoodList;
+    return {
+      ...staticList,
+      goodList: staticList.goodList.map((g) => ({
+        ...g,
+        availCount: Math.max(g.availCount, this._boughtCount("REP", g.goodId)),
+      })),
+    };
+  }
+
+  /**
+   * 手动刷新信用交易所（服务器指令入口）
+   *
+   * 自动刷新已由 dailyRefresh（每天 04:00 refresh:daily 事件）承担；此方法供管理端
+   * 指令手动触发同一逻辑——重置低级商店/信用商店当日购买记录并更新信用商店 shopId。
+   */
+  async refreshSocialShop(): Promise<void> {
+    await this.dailyRefresh();
+  }
+
+  /**
    * 购买家具商店商品
    * @param args - 购买参数
    * @param args.goodId - 商品ID
@@ -617,21 +1177,28 @@ export class ShopController {
     if (!good) return [];
     // 修复：负数 buyCount → 价格取反经 items:use 反向入账（免费刷家具/钻石）；正整数校验
     this._assertBuyCount(buyCount);
+    // 修复：余额不足拒绝（家具币 3401 / 源石 4002）
+    const pay = costType === "COIN_FURN" ? good.priceCoin : good.priceDia;
+    this._assertAffordable(costType === "COIN_FURN" ? "3401" : "4002", pay * buyCount);
+    // 修复：限购检查（FurniGood.count 总可购数）
+    this._assertAvail("FURNI", goodId, buyCount, good.count);
     if (costType === "COIN_FURN") {
       await this._trigger.emit("items:use", [
         [{ id: "3401", count: good.priceCoin * buyCount }],
       ]);
     } else {
+      // 修复：DIAMOND 分支 id 补全（原 id 为空串，仅靠 type 分支扣减）
       await this._trigger.emit("items:use", [
-        [{ id: "", type: "DIAMOND", count: good.priceDia * buyCount }],
+        [{ id: "4002", type: "DIAMOND", count: good.priceDia * buyCount }],
       ]);
     }
     await this._player.update(async (draft) => {
-      const existingItem = draft.shop.FURNI.info.find((i) => i.id === goodId);
+      const furni = this._shopDraft(draft, "FURNI");
+      const existingItem = furni.info.find((i: any) => i.id === goodId);
       if (existingItem) {
         existingItem.count += buyCount;
       } else {
-        draft.shop.FURNI.info.push({ id: goodId, count: buyCount });
+        furni.info.push({ id: goodId, count: buyCount });
       }
     });
     const item = { id: good.furniId, type: "FURN", count: buyCount };
@@ -661,18 +1228,20 @@ export class ShopController {
       const count = g.count ?? 1;
       // 修复：负数 count → 价格取反 → 免费刷家具币；正整数校验
       this._assertBuyCount(count);
+      // 修复：余额不足的家具跳过（不扣不发，不影响组内其余结算）
+      if (this._held("3401") < (good.priceCoin ?? 0) * count) continue;
+      // 修复：限购检查
+      this._assertAvail("FURNI", g.id, count, good.count);
       await this._trigger.emit("items:use", [
         [{ id: "3401", count: (good.priceCoin ?? 0) * count }],
       ]);
       await this._player.update(async (draft) => {
-        if (!draft.shop.FURNI) {
-          draft.shop.FURNI = { info: [], groupInfo: {} };
-        }
-        const existing = draft.shop.FURNI.info.find((i) => i.id === g.id);
+        const furni = this._shopDraft(draft, "FURNI");
+        const existing = furni.info.find((i: any) => i.id === g.id);
         if (existing) {
           existing.count += count;
         } else {
-          draft.shop.FURNI.info.push({ id: g.id, count });
+          furni.info.push({ id: g.id, count });
         }
       });
       items.push({ id: good.furniId, type: "FURN", count });
@@ -706,49 +1275,102 @@ export class ShopController {
     const goodType = parts[1];
     const gpList: GPGoodList = excel.ShopTable.GPGoodList;
     let configItems: ItemBundle[] = [];
+    let availCount = 0;
 
     if (goodType === "gM") {
       // 月度礼包：monthlyGroup.packages 是字典，直接按 goodId 取
       const group: PeriodicityGroup = gpList.monthlyGroup;
-      const pkg: PeriodicityGPItem | undefined = group.packages[goodId];
+      const pkg: PeriodicityGPItem | undefined = group?.packages?.[goodId];
       if (pkg) {
         configItems = pkg.items;
+        availCount = pkg.availCount;
       }
     } else if (goodType === "Once") {
       // 一次性礼包：oneTimeGP 是数组，需遍历查找
-      const found = gpList.oneTimeGP.find((g) => g.goodId === goodId);
+      // 修复：数据字段可能为 null → 防御不 500
+      const found = (gpList.oneTimeGP ?? []).find((g) => g.goodId === goodId);
       if (found) {
         configItems = (found as NormalGPItem).items;
+        availCount = found.availCount;
       }
     } else if (goodType === "NpOne") {
       // 选择礼包：chooseGroup 是数组，需遍历查找
-      const found = gpList.chooseGroup.find((g) => g.goodId === goodId);
+      const found = (gpList.chooseGroup ?? []).find((g) => g.goodId === goodId);
       if (found) {
         configItems = (found as ChooseGPItem).items;
+        availCount = found.availCount;
       }
     } else if (goodType === "Lv") {
       // 等级礼包：levelGP 是数组
-      const found = gpList.levelGP.find((g) => g.goodId === goodId);
+      const found = (gpList.levelGP ?? []).find((g) => g.goodId === goodId);
       if (found) {
         configItems = (found as LevelGPItem).items;
+        availCount = found.availCount;
       }
-    } else if (goodType === "Wk") {
+    } else if (goodType === "gW") {
       // 周度礼包：weeklyGroup.packages 是字典
+      // 修复：数据 goodId = GP_gW_*（原匹配 "Wk" 永不命中 → 周礼包不发放）
       const group: PeriodicityGroup = gpList.weeklyGroup;
-      const pkg: PeriodicityGPItem | undefined = group.packages[goodId];
+      const pkg: PeriodicityGPItem | undefined = group?.packages?.[goodId];
       if (pkg) {
         configItems = pkg.items;
+        availCount = pkg.availCount;
       }
     } else if (goodType === "Ms") {
       // 月卡礼包：monthlySub 是数组
-      const found = gpList.monthlySub.find((g) => g.goodId === goodId);
+      const found = (gpList.monthlySub ?? []).find((g) => g.goodId === goodId);
       if (found) {
         configItems = (found as MonthlySubItem).items;
+        availCount = found.availCount;
       }
     }
 
     // 发放礼包内的所有物品
     if (configItems.length > 0) {
+      // 修复：限购检查（一次性/月卡等礼包 shop.GP.<type>.info 记录）
+      if (availCount > 0) {
+        const gpInfo =
+          (this._player._playerdata.shop as any)?.GP?.[
+            goodType === "Once"
+              ? "oneTime"
+              : goodType === "Lv"
+                ? "level"
+                : goodType === "gW"
+                  ? "weekly"
+                  : goodType === "gM"
+                    ? "monthly"
+                    : goodType === "NpOne"
+                      ? "choose"
+                      : "monthlySub"
+          ]?.info ?? [];
+        const bought = (gpInfo.find((i: any) => i.id === goodId)?.count ?? 0);
+        if (bought + 1 > availCount) {
+          throw new ShopError(`礼包 ${goodId} 已达限购（${availCount}）`);
+        }
+        await this._player.update(async (draft) => {
+          const shop = draft.shop as any;
+          shop.GP = shop.GP ?? {};
+          const sub =
+            goodType === "Once"
+              ? "oneTime"
+              : goodType === "Lv"
+                ? "level"
+                : goodType === "gW"
+                  ? "weekly"
+                  : goodType === "gM"
+                    ? "monthly"
+                    : goodType === "NpOne"
+                      ? "choose"
+                      : "monthlySub";
+          shop.GP[sub] = shop.GP[sub] ?? { info: [], valid: [], curGroupId: "" };
+          const rec = shop.GP[sub].info.find((i: any) => i.id === goodId);
+          if (rec) {
+            rec.count += 1;
+          } else {
+            shop.GP[sub].info.push({ id: goodId, count: 1 });
+          }
+        });
+      }
       await this._trigger.emit("items:get", [configItems]);
     }
     return configItems;
@@ -765,7 +1387,8 @@ export class ShopController {
     info: { id: string; count: number }[];
   }> {
     return {
-      info: this._player._playerdata.shop.CASH.info,
+      // 修复：兜底 CASH 缺失（官服迁移数据 shop 可能为空对象 → 原直接访问 .info 500）
+      info: this._player._playerdata.shop.CASH?.info ?? [],
     };
   }
 
@@ -778,8 +1401,9 @@ export class ShopController {
    */
   getVoucherSkinGoodList(): { goodList: unknown[] } {
     // 简化实现：返回皮肤商店中标记为可兑换(isRedeem)的皮肤
+    // 修复：过滤皮肤表不存在的条目（数据错位 → 客户端预览图加载失败）
     const voucherGoods = excel.ShopTable.skinGoodList.goodList.filter(
-      (g) => g.isRedeem,
+      (g) => g.isRedeem && this._skinExists(g.skinId),
     );
     return { goodList: voucherGoods };
   }
@@ -799,6 +1423,17 @@ export class ShopController {
     if (!good) {
       return;
     }
+    // 修复：皮肤表不存在（数据错位）拒绝——避免写入无效 characterSkins 条目
+    if (!this._skinExists(good.skinId)) {
+      return;
+    }
+    // 修复：凭证核销——凭证皮肤商品 currencyUnit 即凭证物品 id（DIAMOND 除外；
+    // 当前 SkinGoodList.json 无 isRedeem 商品，此路径有配置时不再无限免费兑换）
+    if (good.isRedeem && good.currencyUnit && good.currencyUnit !== "DIAMOND") {
+      await this._trigger.emit("items:use", [
+        [{ id: good.currencyUnit, count: 1 }],
+      ]);
+    }
     // 发放皮肤物品
     const item: ItemBundle = {
       id: good.skinId,
@@ -806,11 +1441,13 @@ export class ShopController {
       type: "CHAR_SKIN",
     };
     await this._player.update(async (draft) => {
-      const existingItem = draft.shop.SOCIAL.info.find((i) => i.id === goodId);
+      // 修复：兑换记录写入 SKIN 商店而非信用商店（原写 SOCIAL.info 污染信用记录）
+      const skin = this._shopDraft(draft, "SKIN");
+      const existingItem = skin.info.find((i: any) => i.id === goodId);
       if (existingItem) {
         existingItem.count += 1;
       } else {
-        draft.shop.SOCIAL.info.push({ id: goodId, count: 1 });
+        skin.info.push({ id: goodId, count: 1 });
       }
     });
     await this._trigger.emit("items:get", [[item]]);

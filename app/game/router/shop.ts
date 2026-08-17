@@ -9,6 +9,7 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { ShopError } from "../controller/shop";
 import excel from "@excel/excel";
 import {
   BuyCashGoodRequest,
@@ -191,7 +192,7 @@ router.post("/getLowGoodList", async (req, res) => {
 });
 
 /**
- * 获取高级商店商品列表
+ * 获取高级商店商品列表（高级凭证区——干员区按当前标准池自动生成 + 静态材料区）
  * @route POST /shop/getHighGoodList
  * @returns 高级商店商品列表和玩家增量数据
  */
@@ -199,13 +200,13 @@ router.post("/getHighGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetHighGoodListRequest;
   res.send({
-    ...excel.ShopTable.highGoodList,
+    ...player.shop.buildHighGoodList(),
     ...player.delta,
   } satisfies GetHighGoodListResponse);
 });
 
 /**
- * 获取经典商店商品列表
+ * 获取经典商店商品列表（通用凭证区——干员区按当前中坚池自动生成 + 静态 progress 商品）
  * @route POST /shop/getClassicGoodList
  * @returns 经典商店商品列表和玩家增量数据
  */
@@ -213,7 +214,7 @@ router.post("/getClassicGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetClassicGoodListRequest;
   res.send({
-    ...excel.ShopTable.classicGoodList,
+    ...player.shop.buildClassicGoodList(),
     ...player.delta,
   } satisfies GetClassicGoodListResponse);
 });
@@ -243,10 +244,16 @@ router.post("/getLMTGSGoodList", async (req, res) => {
   // 自动生成 + 静态合并：新限定池无需手动补 LMTGSGoodList.json
   const auto = player.shop.buildLMTGSGoodList();
   const staticList = excel.ShopTable.LMTGSGoodList;
+  // 修复：静态商品仅保留当期池（按池前缀过滤）——原返回全部池商品，非当期池
+  // 商品用旧池代币无法购买；自动商品已按当期池代币生成（见 buildLMTGSGoodList）
+  const poolId = player.shop.currentLimitedPool()?.gachaPoolId;
+  const staticGoods = poolId
+    ? staticList.goodList.filter((g) => g.goodId.startsWith(poolId))
+    : [];
   const autoIds = new Set(auto.map((g) => g.goodId));
   const goodList = [
     ...auto,
-    ...staticList.goodList.filter((g) => !autoIds.has(g.goodId)),
+    ...staticGoods.filter((g) => !autoIds.has(g.goodId)),
   ];
   res.send({
     goodList,
@@ -278,21 +285,29 @@ router.post("/getREPGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetREPGoodListRequest;
   res.send({
-    ...excel.ShopTable.REPGoodList,
+    // 修复：availCount 按已购数量抬升（剩余显示不为负，见 buildREPGoodList）
+    ...player.shop.buildREPGoodList(),
     ...player.delta,
   } satisfies GetREPGoodListResponse);
 });
 
 /**
  * 获取皮肤商店商品列表
+ *
+ * 修复：过滤皮肤表（excel.SkinTable.charSkins）不存在的 skinId——数据错位（如
+ * char_254_vodfox_witch#2 漏写 @）会导致客户端预览图加载失败。
  * @route POST /shop/getSkinGoodList
  * @returns 皮肤商店商品列表和玩家增量数据
  */
 router.post("/getSkinGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetSkinGoodListRequest;
+  const charSkins = (excel.SkinTable as any)?.charSkins ?? {};
   res.send({
     ...excel.ShopTable.skinGoodList,
+    goodList: excel.ShopTable.skinGoodList.goodList.filter(
+      (g) => Boolean(charSkins[g.skinId]),
+    ),
     ...player.delta,
   } satisfies GetSkinGoodListResponse);
 });
@@ -349,11 +364,20 @@ router.post("/buySocialGood", async (req, res) => {
     res.send({ result: 1, ...player.delta });
     return;
   }
-  res.send({
-    result: 0,
-    items: await player.shop.buySocialGood(body),
-    ...player.delta,
-  } satisfies BuySocialGoodResponse);
+  try {
+    res.send({
+      result: 0,
+      items: await player.shop.buySocialGood(body),
+      ...player.delta,
+    } satisfies BuySocialGoodResponse);
+  } catch (e) {
+    // 余额不足/超限购 → result:1 业务错误而非 500
+    if (e instanceof ShopError) {
+      res.send({ result: 1, items: [], ...player.delta } satisfies BuySocialGoodResponse);
+      return;
+    }
+    throw e;
+  }
 });
 
 /**
@@ -384,11 +408,19 @@ router.post("/buyLowGood", async (req, res) => {
     res.send({ result: 1, ...player.delta });
     return;
   }
-  res.send({
-    result: 0,
-    items: await player.shop.buyLowGood(body),
-    ...player.delta,
-  } satisfies BuyLowGoodResponse);
+  try {
+    res.send({
+      result: 0,
+      items: await player.shop.buyLowGood(body),
+      ...player.delta,
+    } satisfies BuyLowGoodResponse);
+  } catch (e) {
+    if (e instanceof ShopError) {
+      res.send({ result: 1, items: [], ...player.delta } satisfies BuyLowGoodResponse);
+      return;
+    }
+    throw e;
+  }
 });
 
 /**
@@ -405,11 +437,19 @@ router.post("/buyHighGood", async (req, res) => {
     res.send({ result: 1, ...player.delta });
     return;
   }
-  res.send({
-    result: 0,
-    items: await player.shop.buyHighGood(body),
-    ...player.delta,
-  } satisfies BuyHighGoodResponse);
+  try {
+    res.send({
+      result: 0,
+      items: await player.shop.buyHighGood(body),
+      ...player.delta,
+    } satisfies BuyHighGoodResponse);
+  } catch (e) {
+    if (e instanceof ShopError) {
+      res.send({ result: 1, items: [], ...player.delta } satisfies BuyHighGoodResponse);
+      return;
+    }
+    throw e;
+  }
 });
 
 /**
@@ -426,11 +466,19 @@ router.post("/buyExtraGood", async (req, res) => {
     res.send({ result: 1, ...player.delta });
     return;
   }
-  res.send({
-    result: 0,
-    items: await player.shop.buyExtraGood(body),
-    ...player.delta,
-  } satisfies BuyExtraGoodResponse);
+  try {
+    res.send({
+      result: 0,
+      items: await player.shop.buyExtraGood(body),
+      ...player.delta,
+    } satisfies BuyExtraGoodResponse);
+  } catch (e) {
+    if (e instanceof ShopError) {
+      res.send({ result: 1, items: [], ...player.delta } satisfies BuyExtraGoodResponse);
+      return;
+    }
+    throw e;
+  }
 });
 
 /**
@@ -449,11 +497,19 @@ router.post("/buyCashGood", async (req, res) => {
     res.send({ result: 1, ...player.delta });
     return;
   }
-  res.send({
-    result: 0,
-    items: await player.shop.buyCashGood(body),
-    ...player.delta,
-  } satisfies BuyCashGoodResponse);
+  try {
+    res.send({
+      result: 0,
+      items: await player.shop.buyCashGood(body),
+      ...player.delta,
+    } satisfies BuyCashGoodResponse);
+  } catch (e) {
+    if (e instanceof ShopError) {
+      res.send({ result: 1, items: [], ...player.delta } satisfies BuyCashGoodResponse);
+      return;
+    }
+    throw e;
+  }
 });
 
 /**
@@ -470,11 +526,19 @@ router.post("/buyEPGSGood", async (req, res) => {
     res.send({ result: 1, ...player.delta });
     return;
   }
-  res.send({
-    result: 0,
-    items: await player.shop.buyEPGSGood(body),
-    ...player.delta,
-  } satisfies BuyEPGSGoodResponse);
+  try {
+    res.send({
+      result: 0,
+      items: await player.shop.buyEPGSGood(body),
+      ...player.delta,
+    } satisfies BuyEPGSGoodResponse);
+  } catch (e) {
+    if (e instanceof ShopError) {
+      res.send({ result: 1, items: [], ...player.delta } satisfies BuyEPGSGoodResponse);
+      return;
+    }
+    throw e;
+  }
 });
 
 /**
@@ -491,11 +555,19 @@ router.post("/buyREPGood", async (req, res) => {
     res.send({ result: 1, ...player.delta });
     return;
   }
-  res.send({
-    result: 0,
-    items: await player.shop.buyREPGood(body),
-    ...player.delta,
-  } satisfies BuyREPGoodResponse);
+  try {
+    res.send({
+      result: 0,
+      items: await player.shop.buyREPGood(body),
+      ...player.delta,
+    } satisfies BuyREPGoodResponse);
+  } catch (e) {
+    if (e instanceof ShopError) {
+      res.send({ result: 1, items: [], ...player.delta } satisfies BuyREPGoodResponse);
+      return;
+    }
+    throw e;
+  }
 });
 /** 购买声望商店商品（门票版；客户端路由 /shop/buyREPGoodWithTicket，复用 buyREPGood 逻辑） */
 router.post("/buyREPGoodWithTicket", async (req, res) => {
@@ -506,11 +578,19 @@ router.post("/buyREPGoodWithTicket", async (req, res) => {
     res.send({ result: 1, ...player.delta });
     return;
   }
-  res.send({
-    result: 0,
-    items: await player.shop.buyREPGood(body),
-    ...player.delta,
-  } satisfies BuyREPGoodResponse);
+  try {
+    res.send({
+      result: 0,
+      items: await player.shop.buyREPGood(body),
+      ...player.delta,
+    } satisfies BuyREPGoodResponse);
+  } catch (e) {
+    if (e instanceof ShopError) {
+      res.send({ result: 1, items: [], ...player.delta } satisfies BuyREPGoodResponse);
+      return;
+    }
+    throw e;
+  }
 });
 
 /**
@@ -527,11 +607,19 @@ router.post("/buyClassicGood", async (req, res) => {
     res.send({ result: 1, ...player.delta });
     return;
   }
-  res.send({
-    result: 0,
-    items: await player.shop.buyClassicGood(body),
-    ...player.delta,
-  } satisfies BuyClassicGoodResponse);
+  try {
+    res.send({
+      result: 0,
+      items: await player.shop.buyClassicGood(body),
+      ...player.delta,
+    } satisfies BuyClassicGoodResponse);
+  } catch (e) {
+    if (e instanceof ShopError) {
+      res.send({ result: 1, items: [], ...player.delta } satisfies BuyClassicGoodResponse);
+      return;
+    }
+    throw e;
+  }
 });
 
 /**
@@ -543,11 +631,19 @@ router.post("/buyClassicGood", async (req, res) => {
 router.post("/buyLMTGSGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyLMTGSGoodRequest;
-  res.send({
-    result: 0,
-    items: await player.shop.buyLMTGSGood(body),
-    ...player.delta,
-  } satisfies BuyLMTGSGoodResponse);
+  try {
+    res.send({
+      result: 0,
+      items: await player.shop.buyLMTGSGood(body),
+      ...player.delta,
+    } satisfies BuyLMTGSGoodResponse);
+  } catch (e) {
+    if (e instanceof ShopError) {
+      res.send({ result: 1, items: [], ...player.delta } satisfies BuyLMTGSGoodResponse);
+      return;
+    }
+    throw e;
+  }
 });
 
 /**
@@ -560,21 +656,37 @@ router.post("/buyLMTGSGood", async (req, res) => {
 router.post("/buyFurniGroup", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyFurniGroupRequest;
-  res.send({
-    result: 0,
-    items: await player.shop.buyFurniGroup(body),
-    ...player.delta,
-  } satisfies BuyFurniGoodResponse);
+  try {
+    res.send({
+      result: 0,
+      items: await player.shop.buyFurniGroup(body),
+      ...player.delta,
+    } satisfies BuyFurniGoodResponse);
+  } catch (e) {
+    if (e instanceof ShopError) {
+      res.send({ result: 1, items: [], ...player.delta } satisfies BuyFurniGoodResponse);
+      return;
+    }
+    throw e;
+  }
 });
 
 router.post("/buyFurniGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyFurniGoodRequest;
-  res.send({
-    result: 0,
-    items: await player.shop.buyFurniGood(body),
-    ...player.delta,
-  } satisfies BuyFurniGoodResponse);
+  try {
+    res.send({
+      result: 0,
+      items: await player.shop.buyFurniGood(body),
+      ...player.delta,
+    } satisfies BuyFurniGoodResponse);
+  } catch (e) {
+    if (e instanceof ShopError) {
+      res.send({ result: 1, items: [], ...player.delta } satisfies BuyFurniGoodResponse);
+      return;
+    }
+    throw e;
+  }
 });
 
 /**
@@ -591,8 +703,17 @@ router.post("/buySkinGood", async (req, res) => {
     res.send({ result: 1, ...player.delta });
     return;
   }
-  await player.shop.buySkinGood(body);
-  res.send({ ...player.delta } satisfies BuySkinGoodResponse);
+  try {
+    await player.shop.buySkinGood(body);
+    res.send({ ...player.delta } satisfies BuySkinGoodResponse);
+  } catch (e) {
+    // 已拥有/源石不足 → result:1 业务错误而非 500
+    if (e instanceof ShopError) {
+      res.send({ result: 1, ...player.delta } satisfies BuySkinGoodResponse);
+      return;
+    }
+    throw e;
+  }
 });
 
 /**
@@ -613,11 +734,27 @@ router.post("/buyGoodWithTicket", async (req, res) => {
     res.send({ result: 1, ...player.delta });
     return;
   }
-  res.send({
-    result: 0,
-    items: await player.shop.buyGoodWithTicket(body),
-    ...player.delta,
-  } satisfies BuyGoodWithTicketResponse);
+  try {
+    // 修复：凭证核销——原实现从不扣 ticketId，1 张票可无限兑换礼包。
+    // ticketId 为凭证物品 id（如 VOUCHER_ONCE_*）；非 ItemTable 物品时 items:use
+    // WARN 跳过不 500，避免客户端乱传导致崩溃。
+    if (body.ticketId) {
+      await player._trigger.emit("items:use", [
+        [{ id: body.ticketId, count: 1 }],
+      ]);
+    }
+    res.send({
+      result: 0,
+      items: await player.shop.buyGoodWithTicket(body),
+      ...player.delta,
+    } satisfies BuyGoodWithTicketResponse);
+  } catch (e) {
+    if (e instanceof ShopError) {
+      res.send({ result: 1, items: [], ...player.delta } satisfies BuyGoodWithTicketResponse);
+      return;
+    }
+    throw e;
+  }
 });
 
 /**
@@ -665,8 +802,21 @@ router.post("/getVoucherSkinGoodList", async (req, res) => {
 router.post("/useVoucherSkin", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UseVoucherSkinRequest;
-  await player.shop.useVoucherSkin(body);
-  res.send({ ...player.delta } satisfies UseVoucherSkinResponse);
+  // 缺参校验：goodId 缺失时返回业务错误而非 500
+  if (missingRequiredFields(body, ["goodId"]).length) {
+    res.send({ result: 1, ...player.delta });
+    return;
+  }
+  try {
+    await player.shop.useVoucherSkin(body);
+    res.send({ ...player.delta } satisfies UseVoucherSkinResponse);
+  } catch (e) {
+    if (e instanceof ShopError) {
+      res.send({ result: 1, ...player.delta } satisfies UseVoucherSkinResponse);
+      return;
+    }
+    throw e;
+  }
 });
 
 /**

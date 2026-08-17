@@ -34,10 +34,12 @@ export interface TemplateBuyGoodRequest {
 /**
  * 购买模板商店商品响应
  * CS: UI.TemplateShop.TemplateBuyGoodResponse : PlayerDeltaResponse { itemList: List<RewardItemModel> }，
- * 服务端为 stub 实现（原样回显请求体），未返回 itemList/playerDataDelta，协议字段标为可选
+ * 服务端为 stub 实现（原样回显请求体），未返回 itemList/playerDataDelta，协议字段标为可选；
+ * 服务端额外返回 result（0 成功 / 1 业务错误：缺参、未知商品、限购、货币不足）
  */
 export interface TemplateBuyGoodResponse extends PlayerDeltaResponse {
   itemList?: unknown[];
+  result?: number;
 }
 
 /** 模板商店数据（CS: UI.TemplateShop.TemplateShopData；供参考，服务端暂未返回完整结构） */

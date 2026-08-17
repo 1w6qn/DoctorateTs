@@ -19,6 +19,7 @@ import {
   REPGoodList,
   SkinGoodList,
   SocialGoodList,
+  SocialShopData,
 } from "@excel/shop";
 import { PlayerDeltaResponse } from "./common";
 
@@ -215,8 +216,17 @@ export type GetCashGoodListResponse = CashGoodList & PlayerDeltaResponse;
 /** 获取信用商店商品列表响应（CS: GetGPGoodListResponse） */
 export type GetGPGoodListResponse = GPGoodList & PlayerDeltaResponse;
 
-/** 获取社交商店商品列表响应（CS: GetSocialGoodListResponse） */
-export type GetSocialGoodListResponse = SocialGoodList & PlayerDeltaResponse;
+/**
+ * 获取社交商店商品列表响应（CS: GetSocialGoodListResponse）
+ * 服务端补全 costSocialPoint（累计信用消费）/ creditGroup（干员解锁组）——
+ * 客户端点击干员进度依赖此二字段，缺失导致干员解锁弹窗卡死
+ */
+export interface GetSocialGoodListResponse extends PlayerDeltaResponse {
+  goodList: SocialShopData[];
+  charPurchase: { [key: string]: number };
+  costSocialPoint: number;
+  creditGroup: string;
+}
 
 /** 购买信用商店商品请求（CS: BuySocialGoodRequest；goodId + count） */
 export interface BuySocialGoodRequest {
@@ -287,8 +297,10 @@ export interface BuyFurniGoodResponse extends PlayerDeltaResponse {
   result?: number;
 }
 
-/** 购买皮肤商店商品响应（CS: BuySkinGoodRepsonse，CS 拼写 Repsonse；仅增量） */
-export type BuySkinGoodResponse = PlayerDeltaResponse;
+/** 购买皮肤商店商品响应（CS: BuySkinGoodRepsonse，CS 拼写 Repsonse；仅增量；服务端额外返回 result） */
+export interface BuySkinGoodResponse extends PlayerDeltaResponse {
+  result?: number;
+}
 
 /** 使用凭证购买礼包响应（CS: BuyGpGoodWithTicketResponse；服务端额外返回 result） */
 export interface BuyGoodWithTicketResponse extends PlayerDeltaResponse {
@@ -306,8 +318,10 @@ export interface GetVoucherSkinGoodListResponse extends PlayerDeltaResponse {
   goodList: unknown[];
 }
 
-/** 使用凭证兑换皮肤响应（服务端自定义；仅增量） */
-export type UseVoucherSkinResponse = PlayerDeltaResponse;
+/** 使用凭证兑换皮肤响应（服务端自定义；仅增量；服务端额外返回 result） */
+export interface UseVoucherSkinResponse extends PlayerDeltaResponse {
+  result?: number;
+}
 
 /** 检查商店禁止状态响应（服务端自定义） */
 export interface CheckForbiddenResponse extends PlayerDeltaResponse {

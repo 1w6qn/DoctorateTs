@@ -120,6 +120,30 @@ interface UserConfig {
      */
     timestamp?: number;
   };
+  /** 支付配置（pay 路由） */
+  pay?: {
+    /**
+     * 支付模式：
+     * - "fake"（缺省）：虚假支付——createOrder 后 confirmOrderAlipay/Wechat 直接成功，
+     *   confirmOrder 立即发货，全程免费（私服测试用）
+     * - "real"：真实支付——confirmOrderAlipay/Wechat 仅登记支付，须支付渠道异步回调
+     *   /pay/notify（或管理端 `pay order <id> confirm` 手动确认）标记 paid 后，
+     *   confirmOrder 才发货
+     */
+    mode?: "fake" | "real";
+    /** 支付宝支付参数（real 模式：app_id/notify 地址/密钥） */
+    alipay?: {
+      appId?: string;
+      notifyUrl?: string;
+      privateKey?: string;
+    };
+    /** 微信支付参数（real 模式：appid/商户号/密钥） */
+    wechat?: {
+      appId?: string;
+      mchId?: string;
+      apiKey?: string;
+    };
+  };
 }
 
 /** 应用配置实例 */

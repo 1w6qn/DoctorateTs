@@ -161,6 +161,7 @@ export function printHelp(): void {
   users medals <uid> [--json]                       查看勋章进度（只读）
   users activity <uid> [--json]                     查看活动数据摘要（只读）
   users shop <uid> [--json]                         查看商店数据汇总（只读）
+  users shop <uid> refresh                         手动刷新信用交易所（重置当日购买记录）
   users checkin <uid> [--reset|--do]                查看/重置/代签签到
   users daily <uid>                               一键日常（每日刷新+代签）
   users export <uid> [path]                         导出存档到 JSON（默认 ./exports/）
@@ -177,6 +178,7 @@ export function printHelp(): void {
   users medals <uid> [--json]                       查看勋章进度（只读）
   users activity <uid> [--json]                     查看活动数据摘要（只读）
   users shop <uid> [--json]                         查看商店数据汇总（只读）
+  users shop <uid> refresh                         手动刷新信用交易所（重置当日购买记录）
   users checkin <uid> [--reset|--do]                查看/重置/代签签到
   users daily <uid>                               一键日常（每日刷新+代签）
   users export <uid> [path]                         导出存档到 JSON（默认 ./exports/）
@@ -222,6 +224,10 @@ export function printHelp(): void {
   gacha state <uid> <poolId> [--json]               玩家卡池状态（UP 选择+保底计数）
   gacha up <uid> <poolId> [charId...]               设置玩家 UP（空=清除）
   gacha pity <uid> [ruleType] [count]               查看/设置玩家保底计数
+
+支付管理:
+  pay orders [uid] [--json]                         支付订单列表（状态机 created/paid/delivered）
+  pay order confirm <orderId>                       手动确认支付（real 模式真实收款后标记 paid）
 
 官服迁移:
   official accounts <file> [--json]                 预览账号文件解析结果
@@ -751,8 +757,14 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
     case "shop": {
       const uid = args[1];
       if (!uid) {
-        console.error("用法: users shop <uid> [--json]");
+        console.error("用法: users shop <uid> [--json] | users shop <uid> refresh");
         process.exitCode = 1;
+        return;
+      }
+      // 服务器指令：手动刷新信用交易所（重置当日购买记录 + 更新信用商店 shopId）
+      if (args[2] === "refresh") {
+        await adminService.refreshSocialShop(uid);
+        console.log(`用户 ${uid} 信用交易所已手动刷新（等价每日 04:00 自动刷新）`);
         return;
       }
       const st = await adminService.getShopSummary(uid);
@@ -1413,9 +1425,56 @@ async function runMaxAccount(args: string[]): Promise<void> {
   console.log(`已按当前数据版本刷新满配账号 ${uid}（合并式刷新——进度字段保留）`);
 }
 
+/** pay 子命令：订单管理（支付流程：createOrder → confirm → deliver） */
+async function runPay(args: string[]): Promise<void> {
+  const sub = args[0];
+  if (sub === "orders") {
+    const uid = args[1];
+    const orders = await adminService.listPayOrders(uid);
+    if (args.includes("--json")) {
+      output(orders, { json: "1" });
+      return;
+    }
+    if (!orders.length) {
+      console.log(uid ? `用户 ${uid} 无订单` : "无订单");
+      return;
+    }
+    console.table(
+      orders.map((o) => ({
+        订单号: o.orderId,
+        用户: o.uid,
+        商品: o.goodId,
+        金额分: o.amount,
+        状态: o.status,
+        创建时间: new Date(o.createdAt * 1000).toISOString().slice(0, 19),
+      })),
+    );
+    return;
+  }
+  if (sub === "order" && args[1] === "confirm") {
+    const orderId = args[2];
+    if (!orderId) {
+      console.error("用法: pay order confirm <orderId>");
+      process.exitCode = 1;
+      return;
+    }
+    const r = await adminService.confirmPayOrder(orderId);
+    if (!r.ok || !r.order) {
+      console.error(`订单 ${orderId} 不存在或已发货`);
+      process.exitCode = 1;
+      return;
+    }
+    console.log(
+      `订单 ${orderId} 已标记支付（${r.order.goodId}，状态 ${r.order.status}）——客户端 confirmOrder 时发货`,
+    );
+    return;
+  }
+  console.error("用法: pay orders [uid] [--json] | pay order confirm <orderId>");
+  process.exitCode = 1;
+}
+
 async function runOfficial(
-  args: string[],
-  flags: { [key: string]: string },
+  args: string[],  flags: { [key: string]: string },
 ): Promise<void> {
   const sub = args[0];
   if (sub === "accounts") {
@@ -1605,6 +1664,9 @@ export async function dispatch(
     case "gacha":
       await runGacha(args, flags);
       break;
+    case "pay":
+      await runPay(args);
+      break;
     case "official":
       await runOfficial(args, flags);
       break;
@@ -1626,7 +1688,7 @@ export async function dispatch(
 /** 交互模式：逐行执行命令，help/exit 退出（Tab 补全命令名） */
 function runRepl(): void {
   console.log("DoctorateTs 管理交互模式（输入 help 查看命令，exit 退出；Tab 补全）");
-  const COMMANDS = ["users", "mail", "server", "config", "gacha", "official", "logs", "capture", "help", "exit", "quit"];
+  const COMMANDS = ["users", "mail", "server", "config", "gacha", "pay", "official", "logs", "capture", "help", "exit", "quit"];
   const completer = (line: string): [string[], string] => {
     const hits = COMMANDS.filter((c) => c.startsWith(line));
     return [hits.length ? hits : COMMANDS, line];

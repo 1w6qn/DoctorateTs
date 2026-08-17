@@ -68,5 +68,18 @@
     "timestamp": -1
   },
   "_lastVersionSyncTs": 1786684852158,
-  "autoUpdate": false
+  "autoUpdate": false,
+  "pay": {
+    "mode": "fake",
+    "alipay": {
+      "appId": "",
+      "notifyUrl": "",
+      "privateKey": ""
+    },
+    "wechat": {
+      "appId": "",
+      "mchId": "",
+      "apiKey": ""
+    }
+  }
 }

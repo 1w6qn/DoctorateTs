@@ -1,30 +1,54 @@
 /**
- * 支付路由
+ * 支付路由（完整支付流程 + 可配置真实/虚假支付）
  *
- * 私服支付简化：订单列表为空（参考 DoctoratePy pay.py payGetUnconfirmedOrderIdList）；
- * createOrder/confirmOrder 模拟支付成功并发放商品（现金包 CS_ → 钻石，
- * 参考 DoctoratePy payConfirmOrder + 本项目 shop buyCashGood 首充双倍逻辑）。
- * 请求/响应类型见 @game/model/protocol/pay（参考 CS 2.7.61 协议类 + 抓包）。
+ * 支付流程：createOrder（创建订单，持久化 data/pay/orders.json）→
+ * createOrderAlipay/Wechat（生成支付宝/微信支付参数）→ confirmOrderAlipay/Wechat（支付确认）→
+ * confirmOrder（发货：CS_ 现金包 → 钻石（含首充双倍），GP_ 礼包 → 礼包物品）。
+ * 订单状态机：created → paid → delivered（防重复发货；持久化 JSON，重启不丢）。
+ *
+ * 支付模式 config.pay.mode：
+ * - "fake"（缺省）：虚假支付——confirmOrderAlipay/Wechat 直接标记 paid（模拟渠道确认），
+ *   confirmOrder 立即发货，全程免费（私服测试用）
+ * - "real"：真实支付——confirmOrderAlipay/Wechat 仅走客户端流程占位，须支付渠道异步回调
+ *   /pay/notify（或管理端 `pay order <id> confirm` 手动确认）标记 paid 后，confirmOrder 才发货。
+ *   支付宝/微信支付参数可配（config.pay.alipay.appId / wechat.mchId 等）。
+ *
+ * 请求/响应类型见 @game/model/protocol/pay（参考 CS 2.7.61 协议类 + DoctoratePy pay.py）。
  */
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
-import { readJson } from "@utils/file";
+import { readJsonSync } from "@utils/file";
+import config from "../../config";
+import {
+  loadOrders,
+  saveOrders,
+  markPaid,
+  deliverOrder,
+} from "../pay-store";
 import {
   PayGetUnconfirmedOrderListRequest,
   PayGetUnconfirmedOrderListResponse,
   PayCreateOrderRequest,
   PayCreateOrderResponse,
+  PayCreateOrderAlipayRequest,
+  PayCreateOrderAlipayResponse,
+  PayCreateOrderWechatRequest,
+  PayCreateOrderWechatResponse,
   PayConfirmOrderRequest,
   PayConfirmOrderResponse,
+  PayConfirmOrderAlipayRequest,
+  PayConfirmOrderAlipayResponse,
+  PayConfirmOrderWechatRequest,
+  PayConfirmOrderWechatResponse,
+  PayNotifyRequest,
+  PayNotifyResponse,
+  PaySuccessResponse,
 } from "../model/protocol/pay";
 
 const router = Router();
-
-/** 内存订单表（参考 DoctoratePy TemporaryData.order_data_list）——重启即失效，私服可接受 */
-const orderDataList: { [orderId: string]: { storeId: number; goodId: string } } = {};
 
 /** 生成订单号（参考 DoctoratePy：日期时间 + 18 位随机数） */
 function genOrderId(): string {
@@ -52,36 +76,68 @@ function randomDigits(len: number): string {
   return out;
 }
 
-/** 未确认订单列表（私服无真实支付——返回空） */
+/** 支付模式（config.pay.mode，缺省 fake） */
+function payMode(): "fake" | "real" {
+  return config.pay?.mode === "real" ? "real" : "fake";
+}
+
+/** 商品信息（AllProductList 按 store_id） */
+function productInfo(storeId: number): {
+  amount: number;
+  productName: string;
+} {
+  try {
+    const list = readJsonSync<{ productList?: { store_id: number; price: number; name: string }[] }>(
+      "./data/shop/AllProductList.json",
+    );
+    const p = (list.productList ?? []).find(
+      (x) => Number(x.store_id) === Number(storeId),
+    );
+    return { amount: p?.price ?? 0, productName: p?.name ?? "" };
+  } catch {
+    return { amount: 0, productName: "" };
+  }
+}
+
+/** 未确认订单列表（该 uid 未交付的订单 id） */
 router.post("/getUnconfirmedOrderIdList", async (req, res) => {
-  httpContext.get<PlayerDataManager>("playerData");
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as PayGetUnconfirmedOrderListRequest;
+  const orders = loadOrders().filter(
+    (o) => o.uid === player.uid && o.status !== "delivered",
+  );
   res.send({
-    orderIdList: [],
-    playerDataDelta: { deleted: {}, modified: {} },
+    orderIdList: orders.map((o) => o.orderId),
+    ...player.delta,
   } satisfies PayGetUnconfirmedOrderListResponse);
 });
 
 /**
  * 创建订单（CS: PayCreateOrderRequest { storeId, goodId }）
- * 从 AllProductList.json 查商品生成订单，返回 extension JSON 字符串
+ * 从 AllProductList.json 查商品生成订单（持久化，status=created），返回 extension JSON 字符串
  * （形状对齐抓包 tmp/pay_createOrder_res_1016.json）。
  */
 router.post("/createOrder", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as PayCreateOrderRequest;
-  const productList = (await readJson("./data/shop/AllProductList.json")) as {
-    productList?: { store_id: number; price: number; name: string }[];
-  };
-  const product = (productList.productList ?? []).find(
-    (p) => Number(p.store_id) === Number(body.storeId),
-  );
+  const { amount, productName } = productInfo(body.storeId);
   const orderId = genOrderId();
-  orderDataList[orderId] = { storeId: body.storeId, goodId: body.goodId };
+  const orders = loadOrders();
+  orders.push({
+    orderId,
+    uid: player.uid,
+    storeId: body.storeId,
+    goodId: body.goodId,
+    amount,
+    productName,
+    status: "created",
+    createdAt: now(),
+  });
+  saveOrders(orders);
   const extension = JSON.stringify({
     appCode: randomHex(16),
-    amount: product?.price ?? 0,
-    productName: product?.name ?? "",
+    amount,
+    productName,
     extension: { appStoreProductId: body.goodId },
     uid: randomDigits(13),
     outOrderId: orderId,
@@ -99,15 +155,131 @@ router.post("/createOrder", async (req, res) => {
 });
 
 /**
+ * 创建支付宝订单（DoctoratePy 兼容：H5/扫码支付）
+ * fake 模式返回占位参数；real 模式按 config.pay.alipay 生成（未配置则占位）
+ */
+router.post("/createOrderAlipay", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as PayCreateOrderAlipayRequest;
+  const order = loadOrders().find((o) => o.orderId === body.orderId);
+  if (!order) {
+    return res.send({
+      result: 1,
+      orderId: body.orderId,
+      qs: "",
+      prcie: 0,
+      pagePay: null,
+      returnUrl: "",
+      ...player.delta,
+    } satisfies PayCreateOrderAlipayResponse);
+  }
+  const alipay = config.pay?.alipay;
+  const qs = new URLSearchParams({
+    app_id: alipay?.appId || randomDigits(16),
+    biz_content: JSON.stringify({
+      body: order.productName,
+      subject: "DoctorateTs",
+      out_trade_no: order.orderId,
+      timeout_express: "90m",
+      total_amount: ((order.amount || 1) / 100).toFixed(2),
+      product_code: "FAST_INSTANT_TRADE_PAY",
+    }),
+    charset: "utf-8",
+    format: "JSON",
+    method: "alipay.trade.page.pay",
+    notify_url: alipay?.notifyUrl || "",
+    return_url: "",
+    timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
+    sign: randomHex(32),
+  }).toString();
+  res.send({
+    result: 0,
+    orderId: order.orderId,
+    qs,
+    prcie: order.amount,
+    pagePay: null,
+    returnUrl: "",
+    ...player.delta,
+  } satisfies PayCreateOrderAlipayResponse);
+});
+
+/**
+ * 创建微信订单（DoctoratePy 兼容：H5/扫码支付）
+ * fake 模式返回占位参数；real 模式按 config.pay.wechat 生成（未配置则占位）
+ */
+router.post("/createOrderWechat", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as PayCreateOrderWechatRequest;
+  const order = loadOrders().find((o) => o.orderId === body.orderId);
+  if (!order) {
+    return res.send({
+      orderId: body.orderId,
+      price: 0,
+      requestObj: null,
+      ...player.delta,
+    } satisfies PayCreateOrderWechatResponse);
+  }
+  const wechat = config.pay?.wechat;
+  res.send({
+    orderId: order.orderId,
+    price: order.amount,
+    requestObj: {
+      appid: wechat?.appId || `wx${randomHex(16)}`,
+      partnerid: wechat?.mchId || randomDigits(10),
+      prepayid: `wx${randomHex(32)}`,
+      package: "Sign=WXPay",
+      noncestr: `${now()}${randomDigits(7)}`,
+      timestamp: now(),
+      sign: randomHex(32),
+    },
+    ...player.delta,
+  } satisfies PayCreateOrderWechatResponse);
+});
+
+/**
+ * 支付宝支付确认（DoctoratePy 兼容）
+ * fake 模式：直接标记订单 paid（模拟支付渠道确认，免费成功）
+ * real 模式：仅返回占位 status（支付状态由 /pay/notify 渠道回调或管理端确认）
+ */
+router.post("/confirmOrderAlipay", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as PayConfirmOrderAlipayRequest;
+  if (payMode() === "fake" && body.orderId) {
+    markPaid(body.orderId);
+  }
+  res.send({
+    status: 0,
+    ...player.delta,
+  } satisfies PayConfirmOrderAlipayResponse);
+});
+
+/**
+ * 微信支付确认（DoctoratePy 兼容，同 confirmOrderAlipay）
+ */
+router.post("/confirmOrderWechat", async (req, res) => {
+  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const body = req.body as PayConfirmOrderWechatRequest;
+  if (payMode() === "fake" && body.orderId) {
+    markPaid(body.orderId);
+  }
+  res.send({
+    status: 0,
+    ...player.delta,
+  } satisfies PayConfirmOrderWechatResponse);
+});
+
+/**
  * 确认订单（CS: PayConfirmOrderRequest { orderId, enterTs }）
- * 私服模拟支付成功：现金包（CS_）复用 shop.buyCashGood 发放钻石
- * （含首充双倍 + shop.CASH.info 购买计数），返回 receiveItems。
+ *
+ * 状态机：delivered → 已发货拒绝（防重复发货）；fake 模式 created/paid 均可发货；
+ * real 模式仅 paid（支付渠道已确认）才发货，created → result:1 未支付。
  */
 router.post("/confirmOrder", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as PayConfirmOrderRequest;
-  const order = orderDataList[body.orderId];
-  if (!order) {
+  const orders = loadOrders();
+  const order = orders.find((o) => o.orderId === body.orderId);
+  if (!order || order.uid !== player.uid) {
     return res.send({
       result: 1,
       goodId: "",
@@ -115,12 +287,8 @@ router.post("/confirmOrder", async (req, res) => {
       ...player.delta,
     } satisfies PayConfirmOrderResponse);
   }
-  let items: ItemBundle[] = [];
-  if (order.goodId.startsWith("CS_")) {
-    items = await player.shop.buyCashGood({ goodId: order.goodId });
-  } else if (order.goodId.startsWith("GP_")) {
-    // 修复：GP_ 礼包（月卡/通行证等 362 款）无发放实现——原实现返回成功但不发任何
-    // 东西（客户端标记已购、玩家白花钱）；按参考实现返回失败，避免误标已购
+  // 防重复发货
+  if (order.status === "delivered") {
     return res.send({
       result: 1,
       goodId: order.goodId,
@@ -128,13 +296,58 @@ router.post("/confirmOrder", async (req, res) => {
       ...player.delta,
     } satisfies PayConfirmOrderResponse);
   }
-  delete orderDataList[body.orderId];
+  // real 模式：未支付拒绝
+  if (payMode() === "real" && order.status !== "paid") {
+    return res.send({
+      result: 1,
+      goodId: order.goodId,
+      receiveItems: { items: [], checkInItems: [] },
+      ...player.delta,
+    } satisfies PayConfirmOrderResponse);
+  }
+  const items = await deliverOrder(player, order);
+  // GP_ 月卡等无发放配置 → 拒绝（订单保留，不误标已购）
+  if (order.goodId.startsWith("GP_") && items.length === 0) {
+    return res.send({
+      result: 1,
+      goodId: order.goodId,
+      receiveItems: { items: [], checkInItems: [] },
+      ...player.delta,
+    } satisfies PayConfirmOrderResponse);
+  }
+  order.status = "delivered";
+  order.deliveredAt = now();
+  saveOrders(orders);
   res.send({
     result: 0,
     goodId: order.goodId,
     receiveItems: { items, checkInItems: [] },
     ...player.delta,
   } satisfies PayConfirmOrderResponse);
+});
+
+/**
+ * 支付渠道异步回调（real 模式核心——支付宝/微信 notify_url 指向此端点）
+ * body 支持 out_trade_no 或 orderId；标记订单 paid。
+ * 真实渠道接入时在此处验签（config.pay.alipay.privateKey / wechat.apiKey）。
+ */
+router.post("/notify", async (req, res) => {
+  const body = (req.body ?? {}) as PayNotifyRequest;
+  const orderId = body.orderId || body.out_trade_no || "";
+  const ok = orderId ? markPaid(orderId) !== null : false;
+  // 支付宝 notify 期望纯文本 "success"；此处统一 JSON（私服内部使用）
+  res.send({
+    result: ok ? 0 : 1,
+    ...(ok ? {} : { errMsg: "order not found" }),
+  } satisfies PayNotifyResponse);
+});
+
+/** 支付成功页（DoctoratePy paySuccess 兼容；H5 支付跳转返回） */
+router.get("/success", async (_req, res) => {
+  res.send({
+    status: 0,
+    message: "DoctorateTs",
+  } satisfies PaySuccessResponse);
 });
 
 export default router;

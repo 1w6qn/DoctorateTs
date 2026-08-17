@@ -116,19 +116,28 @@ router.post("/getGoodList", async (req, res) => {
   const { shopId } = req.body as TemplateGetGoodListRequest;
   const data = templateShopData?.[shopId];
   // 私服便利：货币不足购全店时补足（保持玩家已有余额；只补差）——写活动币/tshop 币
-  // 而非库存物品（客户端商店币显示取自 tshop.coin）
+  // 而非库存物品（客户端商店币显示取自 tshop.coin）。
+  // 修复：先读实时余额，只有确实不足才 update（原每次请求都写库并触发 save）
   if (data?.price?.id) {
     const total = shopPurchasePower(data);
-    await player.update(async (draft) => {
-      const coinRef = shopCoinRefs(draft, shopId);
-      const st = ensureShopState(draft, shopId);
-      if (coinRef) {
-        if (coinRef.coin < total) coinRef.set(total);
-        if (st.coin < total) st.coin = total;
-      } else if (st.coin < total) {
-        st.coin = total;
-      }
-    });
+    const coinRef = shopCoinRefs(player._playerdata, shopId);
+    const st = (player._playerdata.tshop ?? {})[shopId];
+    const need =
+      coinRef?.coin !== undefined
+        ? Math.max(coinRef.coin ?? 0, st?.coin ?? 0) < total
+        : (st?.coin ?? 0) < total;
+    if (need) {
+      await player.update(async (draft) => {
+        const ref = shopCoinRefs(draft, shopId);
+        const s = ensureShopState(draft, shopId);
+        if (ref) {
+          if (ref.coin < total) ref.set(total);
+          if (s.coin < total) s.coin = total;
+        } else if (s.coin < total) {
+          s.coin = total;
+        }
+      });
+    }
   }
   const allPriceDict = data?.startTime
     ? [{ startTime: data.startTime, maxPrice: shopPurchasePower(data) }]
@@ -156,6 +165,17 @@ router.post("/buyGood", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as TemplateBuyGoodRequest;
   const { shopId, goodId, count = 1 } = body;
+  // 修复：缺参/非法 count 校验（原负数 count → 货币反向入账刷币）
+  if (
+    !shopId ||
+    !goodId ||
+    typeof count !== "number" ||
+    !Number.isInteger(count) ||
+    count <= 0
+  ) {
+    res.send({ result: 1, itemList: [], ...player.delta } satisfies TemplateBuyGoodResponse);
+    return;
+  }
   const shop = templateShopData?.[shopId];
 
   // 在全部 shopGroup 中查找商品及其所在 group（PROGRESS 商品按 group.progressGoods 档位发放）
@@ -173,7 +193,8 @@ router.post("/buyGood", async (req, res) => {
 
   const items: ItemBundle[] = [];
   if (good) {
-    await player.update(async (draft) => {
+    // 修复：限购/余额不足拒绝——update 透传 recipe 返回值标记失败，响应 result:1
+    const rejected = await player.update(async (draft): Promise<boolean> => {
       const st = ensureShopState(draft, shopId);
       const coinRef = shopCoinRefs(draft, shopId);
       // 购买记录（官方 tshop.info）
@@ -181,20 +202,20 @@ router.post("/buyGood", async (req, res) => {
       const bought = boughtRec?.count ?? 0;
       // 限购检查（availCount）
       if (good.availCount && bought + count > good.availCount) {
-        return;
+        return true;
       }
       // PROGRESS 商品：价格与发放物按档位（progressGoods[progressGoodId][bought]）
       let price = good.price ?? 0;
       let grant = good.item;
       if (good.goodType === "PROGRESS" && good.progressGoodId) {
         const tier = group?.progressGoods?.[good.progressGoodId]?.[bought];
-        if (!tier) return; // 已购完所有档位
+        if (!tier) return true; // 已购完所有档位
         price = tier.price ?? 0;
         grant = tier.item;
       }
       // 扣货币（活动币引用优先，其余走 tshop.coin；不足则不发放）
       const have = coinRef ? coinRef.coin : st.coin;
-      if (have < price * count) return;
+      if (have < price * count) return true;
       const remain = have - price * count;
       if (coinRef) coinRef.set(remain);
       st.coin = remain;
@@ -212,7 +233,16 @@ router.post("/buyGood", async (req, res) => {
           count: (grant.count ?? 1) * count,
         });
       }
+      return false;
     });
+    if (rejected) {
+      res.send({ result: 1, itemList: [], ...player.delta } satisfies TemplateBuyGoodResponse);
+      return;
+    }
+  } else {
+    // 修复：未知商品/商店 → 业务错误而非静默空结果
+    res.send({ result: 1, itemList: [], ...player.delta } satisfies TemplateBuyGoodResponse);
+    return;
   }
 
   // 物品经 items:get 发放（干员走 char 入账，皮肤走 skin，其余走 inventory）

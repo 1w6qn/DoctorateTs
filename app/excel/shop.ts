@@ -30,7 +30,7 @@ export class ShopData {
       "./data/shop/HighGoodList.json",
     );
     this.REPGoodList = await readJson<REPGoodList>(
-      "./data/shop/REPGoodList.json",
+      "./data/shop/RepGoodList.json",
     );
     this.LMTGSGoodList = await readJson<LMTGSGoodList>(
       "./data/shop/LMTGSGoodList.json",
@@ -214,7 +214,8 @@ export interface ShopSLot {
 
 export interface SocialGoodList {
   goodList: SocialShopData[];
-  charPurchase: { [key: string]: string };
+  /** 干员信物购买记录（charId → 已购信物数） */
+  charPurchase: { [key: string]: number };
 }
 
 export interface MonthlySubItem extends NormalGPItem {

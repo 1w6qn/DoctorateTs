@@ -346,18 +346,13 @@ export class RoguelikeGridZoneManager {
   }
 
   /** 区域初始行动力（官方 I..V 层 5/6/7/8/8；【生命游戏】"翅膀"节点解锁后 Ⅰ 层 +1；
-   * 襁褓天马（rogue_6_start_1）每区 +1） */
+   * 襁褓天马（rogue_6_start_1）每区 +1 由官方 zone_into_reward buff 实现（进入区域发行动力物品）） */
   private initialActionForZone(zoneId: number): number {
     const base = [0, 5, 6, 7, 8, 8][zoneId] ?? 8;
     let bonus = 0;
     const outer = this._player.outer?.rogue_6 as any;
-    // 生命游戏"翅膀"节点（rogue_6_outbuff_37）：Ⅰ 层初始行动力 6
+    // 生命游戏"翅膀"节点（rogue_6_outbuff_37，RAW_TEXT_EFFECT"进入第一层时，行动力+1"）：Ⅰ 层初始行动力 6
     if (zoneId === 1 && outer?.buff?.unlocked?.["rogue_6_outbuff_37"]) {
-      bonus += 1;
-    }
-    // 襁褓天马（startbuff_7 选择获得）：每次进入新区域初始行动力+1
-    const relics = this._player.inventory?.relic || {};
-    if (Object.values(relics).some((r: any) => r.id === "rogue_6_start_1")) {
       bonus += 1;
     }
     return base + bonus;

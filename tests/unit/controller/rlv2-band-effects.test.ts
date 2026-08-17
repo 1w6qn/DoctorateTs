@@ -17,8 +17,24 @@ const excelMock = vi.hoisted(() => ({
           rogue_6_scrap_G_01: { id: "rogue_6_scrap_G_01", type: "SCRAP", rarity: "NORMAL" },
           rogue_6_scrap_G_02: { id: "rogue_6_scrap_G_02", type: "SCRAP", rarity: "NORMAL" },
           rogue_6_scrap_G_08: { id: "rogue_6_scrap_G_08", type: "SCRAP", rarity: "NORMAL" },
+          rogue_6_scrap_P_01: { id: "rogue_6_scrap_P_01", type: "SCRAP", rarity: "RARE" },
+          rogue_6_relic_cargo_4: { id: "rogue_6_relic_cargo_4", type: "RELIC", rarity: "RARE" },
+          rogue_6_relic_cargo_7: { id: "rogue_6_relic_cargo_7", type: "RELIC", rarity: "NORMAL" },
+          rogue_6_relic_cargo_8: { id: "rogue_6_relic_cargo_8", type: "RELIC", rarity: "NORMAL" },
+          rogue_6_relic_legacy_50: { id: "rogue_6_relic_legacy_50", type: "RELIC", rarity: "RARE" },
+          rogue_6_relic_fight_1: { id: "rogue_6_relic_fight_1", type: "RELIC", rarity: "SUPER_RARE" },
+          rogue_6_start_6: { id: "rogue_6_start_6", type: "RELIC", rarity: "NORMAL" },
         },
         relics: {
+          rogue_6_start_6: {
+            id: "rogue_6_start_6",
+            buffs: [
+              { key: "zone_into_reward", blackboard: [{ key: "id", valueStr: "pool_treasure" }, { key: "count", value: 3 }, { key: "zone", valueStr: "zone_3" }] },
+            ],
+          },
+          rogue_6_relic_cargo_4: { id: "rogue_6_relic_cargo_4", buffs: [] },
+          rogue_6_relic_legacy_50: { id: "rogue_6_relic_legacy_50", buffs: [] },
+          rogue_6_relic_fight_1: { id: "rogue_6_relic_fight_1", buffs: [] },
           rogue_6_band_14: { id: "rogue_6_band_14", buffs: [{ key: "recruit_cost_sub_profession", blackboard: [{ key: "rarity", valueStr: "TIER_4,TIER_5,TIER_6" }, { key: "sub_profession", valueStr: "primcaster,primprotector,primguard,ritualist" }, { key: "delta", value: -2 }] }] },
           rogue_6_band_19: { id: "rogue_6_band_19", buffs: [{ key: "immediate_reward", blackboard: [{ key: "id", valueStr: "rogue_6_max_weight" }, { key: "count", value: 2 }] }, { key: "shop_recycle_reward", blackboard: [{ key: "id", valueStr: "rogue_6_gold" }, { key: "count", value: 8 }, { key: "sell_count", value: 3 }, { key: "limit", value: 1 }] }] },
           rogue_6_band_20: { id: "rogue_6_band_20", buffs: [{ key: "shop_recycle_reward", blackboard: [{ key: "id", valueStr: "rogue_6_gold" }, { key: "count", value: 8 }, { key: "sell_count", value: 3 }, { key: "limit", value: 1 }] }] },
@@ -32,7 +48,7 @@ const excelMock = vi.hoisted(() => ({
     modules: {
       rogue_6: {
         moduleTypes: ["GRID_ZONE", "SCRAP"],
-        scrap: { scrapItemToType: { rogue_6_scrap_G_01: "GOODS", rogue_6_scrap_G_02: "GOODS", rogue_6_scrap_G_08: "GOODS" } },
+        scrap: { scrapItemToType: { rogue_6_scrap_G_01: "GOODS", rogue_6_scrap_G_02: "GOODS", rogue_6_scrap_G_08: "GOODS", rogue_6_scrap_P_01: "PASSIVE" } },
       },
     },
     consts: {},
@@ -179,6 +195,26 @@ describe("rogue_6 分队专属逻辑", () => {
     expect((player.rlv2 as any)._pool._pools["pool_scrap_3"].length).toBe(3);
   });
 
+  it("官方池（路标档案馆 pools/rogue_6）：珍宝池/小礼物/零件池 7-9/额外掉落/Boss", async () => {
+    const player = makePlayer();
+    await (player.rlv2 as any)._module.create();
+    await (player.rlv2 as any)._pool.create();
+    const pools = (player.rlv2 as any)._pool._pools;
+    // pool_treasure：PASSIVE 白模零件 + RARE/SUPER_RARE 珍宝藏品
+    expect(pools["pool_treasure"]).toContain("rogue_6_scrap_P_01");
+    expect(pools["pool_treasure"]).toContain("rogue_6_relic_fight_1");
+    expect(pools["pool_treasure"]).not.toContain("rogue_6_relic_cargo_7"); // NORMAL 不入珍宝
+    // pool_small_gift：古地树实
+    expect(pools["pool_small_gift"]).toEqual(["rogue_6_relic_legacy_50"]);
+    // pool_scrap_7/8/9：迷藏/囊中骨/林中小手
+    expect(pools["pool_scrap_7"]).toEqual(["rogue_6_relic_cargo_4"]);
+    expect(pools["pool_scrap_8"]).toEqual(["rogue_6_relic_cargo_7"]);
+    expect(pools["pool_scrap_9"]).toEqual(["rogue_6_relic_cargo_8"]);
+    // drop_extra_pool / pool_boss：珍宝藏品级
+    expect(pools["drop_extra_pool"]).toContain("rogue_6_relic_fight_1");
+    expect(pools["pool_boss"]).toContain("rogue_6_relic_fight_1");
+  });
+
   it("多边贸易（shop_recycle_reward）：同一行商节点卖出 3 件零件 → +8 源石锭（限 1 次）", async () => {
     const player = makePlayer();
     await (player.rlv2 as any)._module.create();
@@ -238,5 +274,34 @@ describe("rogue_6 分队专属逻辑", () => {
     const ids = Object.values(scrap.inventory).map((i: any) => i.id);
     expect(ids).toContain("rogue_6_scrap_G_08");
     expect(Object.keys(scrap.inventory).length).toBe(before + 1);
+  });
+
+  it("startbuff_12（进入血色空脉 zone_3 获得 3 个随机收藏品）：zone_into_reward 按 valueStr 区域匹配发 pool_treasure", async () => {
+    await withRandom(0, async () => {
+      const player = makePlayer();
+      await (player.rlv2 as any)._module.create();
+      await (player.rlv2 as any)._pool.create();
+      // 获得襁褓巨龙（start_6，zone_into_reward pool_treasure ×3 zone_3）
+      await (player.rlv2 as any)._trigger.emit("rlv2:relic:gain", [
+        { id: "rogue_6_start_6", count: 1 },
+      ]);
+      const gz = (player.rlv2 as any)._module.gridZone;
+      const scrap = (player.rlv2 as any)._module.scrap;
+      const scrapBefore = Object.keys(scrap.inventory).length;
+      // 进入 zone_3（匹配 valueStr "zone_3"，zone:new → map.generate 发 pool_treasure ×3）
+      const relicBefore = Object.keys((player.rlv2 as any).inventory.relic).length;
+      await (player.rlv2 as any)._trigger.emit("rlv2:zone:new", [3]);
+      await new Promise((r) => setTimeout(r, 0));
+      // pool_treasure = 白模零件(P_01) + 珍宝藏品(cargo_4/legacy_50/fight_1) → 抽 3 件入库（scrap 或 relic）
+      const scrapGain = Object.keys(scrap.inventory).length - scrapBefore;
+      const relicGain = Object.keys((player.rlv2 as any).inventory.relic).length - relicBefore;
+      expect(scrapGain + relicGain).toBe(3);
+      // 进入 zone_2（不匹配 zone_3）→ 无奖励
+      const s2 = Object.keys(scrap.inventory).length + Object.keys((player.rlv2 as any).inventory.relic).length;
+      await (player.rlv2 as any)._trigger.emit("rlv2:zone:new", [2]);
+      await new Promise((r) => setTimeout(r, 0));
+      const s3 = Object.keys(scrap.inventory).length + Object.keys((player.rlv2 as any).inventory.relic).length;
+      expect(s3).toBe(s2);
+    });
   });
 });

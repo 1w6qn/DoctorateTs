@@ -173,14 +173,17 @@ export class RoguelikeInventoryManager
       ACTIVE_TOOL: (item: RoguelikeItemBundle) => {},
       CAPSULE: (item: RoguelikeItemBundle) => {},
       POOL: async (item: RoguelikeItemBundle) => {
-        // 从池抽 1 件并按其类型发放（修复：原实现抽出后丢弃——
-        // pool_scrap_3/6（开拓者分队加工品）等池物品无法入库存）
-        const ro = this._player._pool.get(
-          item.id,
-          item.id.includes("fragment"),
-        );
-        if (ro?.id) {
-          await this.getItem({ id: ro.id, count: item.count, sub: 0 });
+        // 从池抽 count 件并按其类型发放（修复：原实现抽出即弃——
+        // pool_scrap_3/6（开拓者分队）、pool_treasure（珍宝池/startbuff_12 ×3）等池物品无法入库存）
+        const n = Math.max(1, item.count || 1);
+        for (let i = 0; i < n; i++) {
+          const ro = this._player._pool.get(
+            item.id,
+            item.id.includes("fragment"),
+          );
+          if (ro?.id) {
+            await this.getItem({ id: ro.id, count: 1, sub: 0 });
+          }
         }
       },
       RL_BP: (item: RoguelikeItemBundle) => {},

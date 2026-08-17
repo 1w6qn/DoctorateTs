@@ -23,6 +23,15 @@ const excelMock = vi.hoisted(() => ({
           rogue_6_ap: { id: "rogue_6_ap", type: "SPECIAL_ZONE_AP", rarity: "NONE" },
           rogue_6_start_1: { id: "rogue_6_start_1", type: "RELIC", rarity: "NORMAL" },
         },
+        relics: {
+          rogue_6_start_1: {
+            id: "rogue_6_start_1",
+            buffs: [
+              { key: "zone_into_reward", blackboard: [{ key: "id", valueStr: "rogue_6_ap" }, { key: "count", value: 1 }, { key: "zone", valueStr: "zone_1" }] },
+              { key: "zone_into_reward", blackboard: [{ key: "id", valueStr: "rogue_6_ap" }, { key: "count", value: 1 }, { key: "zone", valueStr: "zone_4" }] },
+            ],
+          },
+        },
         variationData: {
           variation_1: { id: "variation_1", outerName: "“巨人摇篮”", type: "BAT" },
           variation_5: { id: "variation_5", outerName: "“全知者盲区”", type: "MAP" },
@@ -141,18 +150,22 @@ describe("rogue_6 行动力（逐层初始值）", () => {
     expect(gz.stepRemain).toBe(9);
   });
 
-  it("襁褓天马（rogue_6_start_1）→ 每次进入新区域行动力 +1", async () => {
+  it("襁褓天马（rogue_6_start_1，zone_into_reward）→ 进入对应区域时行动力 +1", async () => {
     const player = makePlayer();
     await (player.rlv2 as any)._module.create();
     const gz = (player.rlv2 as any)._module.gridZone;
-    // 模拟持有襁褓天马（startbuff_7 选择获得）
-    (player.rlv2 as any).inventory._relic.relics = {
-      r_0: { index: "r_0", id: "rogue_6_start_1", count: 1, ts: 0 },
-    };
-    gz.generate([1]);
-    expect(gz.stepRemain).toBe(6); // 5 + 1
-    gz.generate([4]);
-    expect(gz.stepRemain).toBe(9); // 8 + 1
+    // 获得襁褓天马（startbuff_7 选择 → relic.gain → zone_into_reward 进 buffs）
+    await (player.rlv2 as any)._trigger.emit("rlv2:relic:gain", [
+      { id: "rogue_6_start_1", count: 1 },
+    ]);
+    // 进入 zone_1（匹配 zone_1，rlv2:zone:new → map.generate 发 1 行动力物品）→ stepRemain 5+1=6
+    await (player.rlv2 as any)._trigger.emit("rlv2:zone:new", [1]);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(gz.stepRemain).toBe(6);
+    // 进入 zone_2（无 zone_2 buff）→ 基础 6，不额外 +1
+    await (player.rlv2 as any)._trigger.emit("rlv2:zone:new", [2]);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(gz.stepRemain).toBe(6);
   });
 });
 

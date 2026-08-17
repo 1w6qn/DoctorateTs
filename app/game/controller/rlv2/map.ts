@@ -62,9 +62,14 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
 
   generate([id]: [number]) {
     this._player._buff.filterBuffs("zone_into_reward").forEach((b) => {
-      // blackboard[2] 为区域限定（官方部分 buff 无此限定——如开拓者分队 pool_scrap_6 全区生效）
+      // 区域限定：blackboard[2].value（数字，旧格式）或 .valueStr（官方 "zone_N"）；缺失=全区
       const zoneCond = b.blackboard[2]?.value;
-      if (zoneCond === undefined || zoneCond == id) {
+      const zoneStr = b.blackboard[2]?.valueStr;
+      const matches =
+        zoneStr !== undefined
+          ? zoneStr === `zone_${id}` || zoneStr === String(id)
+          : zoneCond === undefined || zoneCond == id;
+      if (matches) {
         this._trigger.emit("rlv2:get:items", [
           [
             {
@@ -77,7 +82,12 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
     });
     this._player._buff.filterBuffs("zone_into_cost").forEach((b) => {
       const zoneCond = b.blackboard[2]?.value;
-      if (zoneCond === undefined || zoneCond == id) {
+      const zoneStr = b.blackboard[2]?.valueStr;
+      const matches =
+        zoneStr !== undefined
+          ? zoneStr === `zone_${id}` || zoneStr === String(id)
+          : zoneCond === undefined || zoneCond == id;
+      if (matches) {
         this._trigger.emit("rlv2:get:items", [
           [
             {

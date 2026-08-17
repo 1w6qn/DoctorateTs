@@ -52,6 +52,27 @@ export class RoguelikePoolManager {
     );
     this._pools["pool_scrap_3"] = [...goodsIds];
     this._pools["pool_scrap_6"] = [...goodsIds];
+    // 官方池（路标档案馆 pools/rogue_6 页 + buffs 引用）：
+    // pool_treasure 珍宝池（文明开化分队/startbuff_12 血色空脉 3 收藏品）=
+    // PASSIVE 白模零件（P_01..06）+ 珍宝藏品（RARE/SUPER_RARE RELIC）
+    const passiveIds = Object.keys(typeMap?.scrapItemToType || {}).filter(
+      (id) => typeMap.scrapItemToType[id] === "PASSIVE",
+    );
+    const treasureRelics = Object.entries(detail.items).filter(
+      ([, it]: any) =>
+        it.type === "RELIC" &&
+        (it.rarity === "RARE" || it.rarity === "SUPER_RARE"),
+    ).map(([id]) => id);
+    this._pools["pool_treasure"] = [...passiveIds, ...treasureRelics];
+    // pool_small_gift 小礼物池（古地树实 legacy_50）
+    this._pools["pool_small_gift"] = ["rogue_6_relic_legacy_50"];
+    // pool_scrap_7/8/9 零件池（迷藏/囊中骨/林中小手）
+    this._pools["pool_scrap_7"] = ["rogue_6_relic_cargo_4"];
+    this._pools["pool_scrap_8"] = ["rogue_6_relic_cargo_7"];
+    this._pools["pool_scrap_9"] = ["rogue_6_relic_cargo_8"];
+    // drop_extra_pool 额外掉落池（地质调查分队）/ pool_boss Boss 藏品池：珍宝藏品级
+    this._pools["drop_extra_pool"] = [...treasureRelics];
+    this._pools["pool_boss"] = [...treasureRelics];
     const fragment = excel.RoguelikeTopicTable.modules[theme].fragment;
     if (fragment) {
       this._pools["pool_fragment_3"] = [];

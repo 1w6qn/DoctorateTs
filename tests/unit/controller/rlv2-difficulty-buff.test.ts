@@ -212,7 +212,7 @@ describe("难度描述 → buff 生成（difficultyBuffs）", () => {
     expect(buffs.some((b: any) => b.key === "level_life_point_add")).toBe(false);
   });
 
-  it("applyBuffs 实际应用：难度 1 生命-2、难度 7 废品上限-2、难度 10 部署-1", async () => {
+  it("applyBuffs 实际应用：难度 1 生命-2、难度 7 废品上限-2、难度 10 部署-1 不作用于开局 capacity", async () => {
     const player = makePlayer("rogue_6", 10);
     await (player.rlv2 as any)._module.create();
     const buff = (player.rlv2 as any)._buff;
@@ -220,10 +220,11 @@ describe("难度描述 → buff 生成（difficultyBuffs）", () => {
     (player.rlv2 as any)._status.property.hp = { current: 10, max: 10 };
     (player.rlv2 as any)._status.property.capacity = 6;
     // 进阶式累积：N10 应用 grade 1..10（生命扣减由 init 表承载，不再解析；
-    // grade10 部署-1）
+    // grade10 部署-1——2026-08-18 对齐官服：可部署人数是战斗内上限，
+    // 开局 capacity 不受影响（官服 createGame capacity=7=init6+outbuff_22 携带+1））
     await buff.applyBuffs([buff.difficultyBuffs("rogue_6", 10)]);
     expect((player.rlv2 as any)._status.property.hp.max).toBe(10); // 难度 buff 不含生命扣减
-    expect((player.rlv2 as any)._status.property.capacity).toBe(5); // 6 - 1(grade10)
+    expect((player.rlv2 as any)._status.property.capacity).toBe(6); // 部署-1 不作用于开局 capacity
     // 废品上限：N7 应用 grade 1..7（grade7 零件箱-2；grade1 生命-2 不影响）
     const player7 = makePlayer("rogue_6", 7);
     await (player7.rlv2 as any)._module.create();

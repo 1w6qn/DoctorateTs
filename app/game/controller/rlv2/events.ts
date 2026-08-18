@@ -190,7 +190,8 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
     const theme = this._player.current.game!.theme;
     const legacy = ((this._player.outer as any)?.[theme]?.record?.legacy || []) as string[];
     const detail = excel.RoguelikeTopicTable.details[theme] as any;
-    // 全部 init_gift buff 累加（同一襁褓多个变体/多件可叠加）
+    // 全部 init_gift buff 按物品 id 合并 count（官服 8-11 抓包：2 猫 1 狗 →
+    // items=[{gold,10},{population,1}]，同类累加而非逐条下发）
     const items = legacy
       .flatMap((id) => detail?.relics?.[id]?.buffs || [])
       .filter((b: any) => b.key === "init_gift")
@@ -198,7 +199,13 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
         id: b.blackboard[0]?.valueStr,
         count: b.blackboard[1]?.value ?? 1,
       }))
-      .filter((it: any) => it.id);
+      .filter((it: any) => it.id)
+      .reduce((acc: any[], it: any) => {
+        const found = acc.find((x) => x.id === it.id);
+        if (found) found.count += it.count;
+        else acc.push({ ...it });
+        return acc;
+      }, []);
     return {
       initGift: {
         step: args.step,

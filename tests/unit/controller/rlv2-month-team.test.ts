@@ -221,15 +221,16 @@ describe("实践者列表（MONTH_TEAM）模式", () => {
   });
 });
 
-describe("finishEvent 初始阶段循环消费（用户序列回归）", () => {
-  it("有 GIFT+SUPPORT 但未 selectChoice：一次 finishEvent 应直达 WAIT_MOVE（服务端代选兜底）", async () => {
+describe("finishEvent 初始阶段消费（官服语义：每次一个事件，专用接口消费其余）", () => {
+  it("官服标准序列：Relic → GIFT(finishEvent) → SUPPORT(selectChoice) → RecruitSet → 招募 → finishEvent 进入 WAIT_MOVE", async () => {
     const player = makePlayer();
     const rlv2 = player.rlv2 as any;
-    // 上一把到 3 层（SUPPORT）+ 遗留襁褓猫狗（GIFT）
+    // 上一把到 3 层（SUPPORT）+ 遗留襁褓猫狗（GIFT）——
+    // support 判定按官服：stageCnt 存在 3 层关卡记录
     rlv2.outer.rogue_6.record = {
       last: 0, lastZone: 3,
       legacy: ["rogue_6_legacy_01", "rogue_6_legacy_01_1", "rogue_6_legacy_02"],
-      stageCnt: {}, bandCnt: {}, bandGrade: {},
+      stageCnt: { ro6_n_3_1: 1 }, bandCnt: {}, bandGrade: {},
     };
     const rand = vi.spyOn(Math, "random").mockReturnValue(0.5);
     try {
@@ -237,8 +238,14 @@ describe("finishEvent 初始阶段循环消费（用户序列回归）", () => {
       const types = rlv2._status.pending.map((e: any) => e.type);
       expect(types).toContain("GAME_INIT_GIFT");
       expect(types).toContain("GAME_INIT_SUPPORT");
-      // 用户序列：Relic → RecruitSet → 招募×3 → 仅一次 finishEvent（无 selectChoice）
+      // 官服标准序列：Relic → GIFT(finishEvent) → SUPPORT(selectChoice) → RecruitSet → 招募 → finishEvent
       await rlv2.chooseInitialRelic({ select: "0" });
+      await rlv2.finishEvent(); // GIFT
+      const sup = rlv2._status.pending.find((e: any) => e.type === "GAME_INIT_SUPPORT");
+      if (sup) {
+        const choiceId = Object.keys(sup.content.initSupport.scene.choices)[0];
+        await rlv2.selectChoice({ choice: choiceId });
+      }
       await rlv2.chooseInitialRecruitSet({ select: "recruit_group_1" });
       const recruitEvt = rlv2._status.pending.find((e: any) => e.type === "GAME_INIT_RECRUIT");
       for (const t of recruitEvt?.content?.initRecruit?.tickets || []) {
@@ -248,11 +255,10 @@ describe("finishEvent 初始阶段循环消费（用户序列回归）", () => {
           await rlv2.recruitChar({ ticketIndex: t, optionId: String(ticket.list[0].instId) });
         }
       }
-      await rlv2.finishEvent();
+      await rlv2.finishEvent(); // 消费 RECRUIT → 进入第一层
       expect(rlv2._status.state).toBe("WAIT_MOVE");
       expect(rlv2._status.cursor.zone).toBe(1);
-      expect(rlv2._status.pending.length).toBe(0);
-      // GIFT 礼物已发放（襁褓猫×2 → 金+10）+ SUPPORT 代选
+      // GIFT 礼物已发放（襁褓猫×2 → 金+10）
       expect(rlv2._status.property.gold).toBeGreaterThanOrEqual(8 + 10);
     } finally {
       rand.mockRestore();
@@ -264,7 +270,7 @@ describe("finishEvent 初始阶段循环消费（用户序列回归）", () => {
     const rlv2 = player.rlv2 as any;
     rlv2.outer.rogue_6.record = {
       last: 0, lastZone: 3, legacy: ["rogue_6_legacy_01"],
-      stageCnt: {}, bandCnt: {}, bandGrade: {},
+      stageCnt: { ro6_n_3_1: 1 }, bandCnt: {}, bandGrade: {},
     };
     const rand = vi.spyOn(Math, "random").mockReturnValue(0.5);
     try {

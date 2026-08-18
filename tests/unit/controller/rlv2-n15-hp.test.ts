@@ -97,9 +97,16 @@ describe("N15 开局血量（init 表承载难度扣血，不二次解析）", (
       await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
       await rlv2.chooseInitialRelic({ select: "0" });
       // 消费 GIFT（无 legacy 则无）→ SUPPORT → RecruitSet → 招募
+      // 官服语义：finishEvent 消费 GIFT，selectChoice 消费 SUPPORT，
+      // chooseInitialRecruitSet 消费 RECRUIT_SET（8-11 抓包对照）
       const pend = rlv2._status.pending;
       const types = pend.map((e: any) => e.type);
       expect(types).toContain("GAME_INIT_RECRUIT_SET");
+      if (pend[0]?.type === "GAME_INIT_GIFT") await rlv2.finishEvent();
+      if (pend[0]?.type === "GAME_INIT_SUPPORT") {
+        const choices = pend[0].content.initSupport.scene.choices;
+        await rlv2.selectChoice({ choice: Object.keys(choices)[0] });
+      }
       await rlv2.chooseInitialRecruitSet({ select: "recruit_group_1" });
       const recruitEvt = pend.find((e: any) => e.type === "GAME_INIT_RECRUIT");
       for (const t of recruitEvt?.content?.initRecruit?.tickets || []) {

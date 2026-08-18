@@ -237,6 +237,8 @@ export namespace PlayerRoguelikeV2 {
             difficult?: number
             outer: {
                 support:boolean
+                /** 上局遗留襁褓预告（官服 createGame game.outer.legacy，8-18 抓包含襁褓 id） */
+                legacy?: string[]
             }
             start: number
         }

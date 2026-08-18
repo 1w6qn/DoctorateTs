@@ -254,9 +254,15 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         predefined: args.predefinedId,
         theme: theme,
         outer: {
-          // 支援选项（GAME_INIT_SUPPORT/startbuff 3 选 1）：仅当上一把到达第 3 层（zone>=3）才出现。
-          // 官方机制：所有主题上一把到 3 层 → 下一把加入支援选项。
-          support: (draft.outer?.[theme]?.record as any)?.lastZone >= 3,
+          // 支援选项（GAME_INIT_SUPPORT/startbuff 3 选 1）：仅当"上一把到达过第 3 层"才出现。
+          // 官方判定依据 record.stageCnt 中存在 3 层关卡通关记录（ro6_n_3_ 等）——
+          // 8-11/8-18 官服 createGame 抓包对照：record 无 lastZone 键，有 3 层 stageCnt 且 support=true。
+          // 原实现用自定义 lastZone>=3 字段（官服 record 无此键，且判定失效）。
+          support: this.hasReachedZone3((draft.outer?.[theme]?.record as any)?.stageCnt),
+          // 上局遗留襁褓预告：官服 game.outer = { support, legacy } 结构（8-18 抓包 legacy 可含
+          // 襁褓 id），但与 record.legacy/GIFT 内容不同源——8-11 抓包 legacy=[] 而 GIFT=gold10。
+          // 数据不足精确复现，先输出空数组对齐 8-11 结构（GIFT 内容由 record.legacy 驱动）。
+          legacy: [],
         },
         start: now(),
         modeGrade: args.modeGrade,
@@ -383,8 +389,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     if (!target.record) {
       target.record = { last: 0, stageCnt: {}, bandCnt: {}, bandGrade: {} };
     }
-    // 上一把到达层数（支援选项门槛）
-    if (target.record.lastZone === undefined) target.record.lastZone = 0;
+    // 旧存档兼容：record.lastZone 是私服历史自定义字段（官服 record 无此键，
+    // 8-11/8-18 抓包对照），保留读取兼容但不新增写入；新数据不再初始化。
     if (!Array.isArray(target.record.legacy)) target.record.legacy = [];
     // 分队升级可见性对齐：已有科技树解锁（如 分裂→指挥分队 band_2）时升级分队 state 1、
     // 旧分队隐藏（修复历史存档升级后旧分队未隐藏）
@@ -628,38 +634,33 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
 
   async finishEvent() {
     if (this._status.cursor.zone === 0) {
-      // 初始阶段：循环消费"确认型" GAME_INIT_* 事件，直至需要玩家操作的
-      // 事件（RECRUIT_SET）或 pending 清空——一次 finishEvent 处理完所有
-      // GIFT（发礼物）+ RECRUIT（招募完成）+ SUPPORT（未选时代选兜底），
-      // 避免多事件残留时客户端只调一次 finishEvent 卡在 INIT。
-      // （RELIC/RECRUIT_SET 由 chooseInitialRelic/chooseInitialRecruitSet 消费）
-      while (this._status.pending.length > 0) {
-        const top = this._status.pending[0];
-        if (top.type === "GAME_INIT_GIFT") {
-          const items = top.content.initGift?.items || [];
-          if (items.length > 0) {
-            await this._trigger.emit("rlv2:get:items", [items]);
-          }
-          this._status.pending.shift();
-        } else if (top.type === "GAME_INIT_RECRUIT") {
-          this._status.pending.shift();
-          // 清空初始招募残留的 RECRUIT 事件（放弃票/候选为空未招募场景——
-          // 官服进入第一层 WAIT_MOVE 时 pending 为空，残留会导致客户端"系统发生未知故障"）
-          this._status._pending._pending =
-            this._status._pending._pending.filter((e) => e.type !== "RECRUIT");
-        } else if (top.type === "GAME_INIT_SUPPORT") {
-          // 行动奖励未选（客户端未调 selectChoice）时服务端代选第一个选项兜底——
-          // 官方必须选择才能继续，客户端异常跳过会导致流程卡死
-          const choices = top.content.initSupport?.scene?.choices || {};
-          const choiceId = Object.keys(choices)[0];
-          if (choiceId) {
-            await this.selectChoice({ choice: choiceId });
-          } else {
-            this._status.pending.shift();
-          }
-        } else {
-          break; // GAME_INIT_RECRUIT_SET 等需客户端专用接口
+      // 初始阶段：按官服语义消费事件——finishEvent 每次只推进一个"确认型"事件
+      // （GIFT 发礼物 / RECRUIT 招募完成），其余留给客户端专用接口：
+      // RELIC→chooseInitialRelic、SUPPORT→selectChoice、RECRUIT_SET→chooseInitialRecruitSet。
+      // 8-11 官服抓包对照：finishEvent#1 消费 GIFT（pending 剩 SUPPORT/RECRUIT_SET/RECRUIT），
+      // finishEvent#2 消费 RECRUIT 进入 WAIT_MOVE。原实现循环消费会把 SUPPORT 代选
+      // （跳过客户端 selectChoice 步骤，且代选选项可能误改属性——hp 4→6 差异）。
+      // 仅当 GIFT/RECRUIT 不存在时才兜底清空（防客户端异常跳步卡死）。
+      const top = this._status.pending[0];
+      if (top?.type === "GAME_INIT_GIFT") {
+        const items = top.content.initGift?.items || [];
+        if (items.length > 0) {
+          await this._trigger.emit("rlv2:get:items", [items]);
         }
+        this._status.pending.shift();
+      } else if (top?.type === "GAME_INIT_RECRUIT") {
+        this._status.pending.shift();
+        // 清空初始招募残留的 RECRUIT 事件（放弃票/候选为空未招募场景——
+        // 官服进入第一层 WAIT_MOVE 时 pending 为空，残留会导致客户端"系统发生未知故障"）
+        this._status._pending._pending =
+          this._status._pending._pending.filter((e) => e.type !== "RECRUIT");
+      } else if (top && top.type.startsWith("GAME_INIT_")) {
+        // 其余 GAME_INIT_*（SUPPORT/RECRUIT_SET）需专用接口，不消费
+        this._status.state = "INIT";
+        return;
+      } else if (top?.type === "RECRUIT") {
+        // 非初始 RECRUIT 事件（商店/战斗获得招募券后）：消费
+        this._status.pending.shift();
       }
       const hasInit = this._status.pending.some((e) =>
         (e.type || "").startsWith("GAME_INIT_"),
@@ -700,6 +701,26 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       return;
     }
     this._status.state = "WAIT_MOVE";
+  }
+
+  /**
+   * 支援选项（行动奖励）判定：上一把是否到达过第 3 层。
+   * 官方依据 record.stageCnt 中存在 3 层关卡通关记录（8-11/8-18 官服 createGame 抓包对照：
+   * support=true 的账号 stageCnt 含 ro6_n_3_ 等 3 层关卡；record 无 lastZone 键）。
+   * 兼容旧存档的 lastZone 字段（>=3 也视为到过）。
+   */
+  private hasReachedZone3(stageCnt?: Record<string, number>): boolean {
+    if (stageCnt) {
+      for (const stageId of Object.keys(stageCnt)) {
+        // 3 层关卡：ro6_[ne]_3_* / ro6_b_3* / ro6_c_3（通关计数 >0）
+        const m = stageId.match(/^ro\d+_[ne]_3_/);
+        if (m) return true;
+        if (/^ro\d+_(b|c)_3/.test(stageId)) return true;
+      }
+    }
+    // 兼容旧存档自定义字段
+    const legacy = (this.outer?.[this.current.game?.theme || ""]?.record as any)?.lastZone;
+    return typeof legacy === "number" && legacy >= 3;
   }
 
   /**
@@ -1333,7 +1354,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       const ticketIndex = tickets[tickets.length - 1]?.index;
       if (ticketIndex) {
         this._trigger.emit("rlv2:recruit:active", [ticketIndex]);
-        this._trigger.emit("rlv2:event:create", ["RECRUIT", { ticket: ticketIndex }]);
+        // 参数键名与 events.ts RECRUIT 构造一致（tickets）——原传 {ticket} 导致 undefined
+        this._trigger.emit("rlv2:event:create", ["RECRUIT", { tickets: ticketIndex }]);
       }
     } else if (itemId.includes("_relic_")) {
       this._trigger.emit("rlv2:relic:gain", [{ id: itemId, count: 1 }]);
@@ -2101,7 +2123,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     if (!ticket) return;
     ticket.state = 0;
     this._trigger.emit("rlv2:recruit:active", [args.id]);
-    this._trigger.emit("rlv2:event:create", ["RECRUIT", { ticket: args.id }]);
+    this._trigger.emit("rlv2:event:create", ["RECRUIT", { tickets: args.id }]);
   }
 
   /** 选择初始探索工具（CS: RoguelikeSelectInitialExploreToolRequest { select }） */
@@ -2976,9 +2998,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       buff.score = (buff.score || 0) + exploreScore;
       buff.pointOwned = (buff.pointOwned || 0) + exploreScore;
 
-      // 记录本把到达的最深层（支持选项门槛：上一把到 3 层 → 下一把支援 3 选 1）
+      // 记录本把到达的最深层——官服 record 无 lastZone 键（8-11/8-18 抓包对照），
+      // 支援选项判定改由 stageCnt 3 层关卡存在性承载；lastZone 仅为旧存档兼容读取。
       const rec = (outerTheme.record ?? (outerTheme.record = {} as any)) as any;
-      rec.lastZone = Math.max(rec.lastZone ?? 0, this._status.cursor.zone);
       rec.last = Date.now();
       // 难度通关记录（进阶式解锁：通关 grade N 解锁 N+1）——record.modeGrade[mode][grade]++
       const mode = this.current.game?.mode || "NORMAL";

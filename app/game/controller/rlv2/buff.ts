@@ -162,9 +162,10 @@ export class RoguelikeBuffManager {
         this._status.property.hp.max += value;
         this._status.property.hp.current += value;
       } else if (arg.key == "level_char_limit_add") {
-        // 分队效果：可部署人数上限 +value（集群分队等）
-        const value = arg.blackboard[0]?.value ?? 0;
-        this._status.property.population.max += value;
+        // 可部署人数+value（outbuff_50"信息素"等）——**开局 property 不生效**：
+        // 官服 createGame 初始 population.max=init 值（6），该加成是战斗内部署上限，
+        // 应用到 population.max 会把开局希望上限改错（8-11 官服抓包对照确认）。
+        // 仅记录 buff（filterBuffs 可读），不修改 property。
       } else if (arg.key == "immediate_recruit") {
         // 分队效果：初始额外干员（immediate_recruit char_list）
         const list = (arg.blackboard[0]?.valueStr || "").split(",").filter(Boolean);
@@ -172,9 +173,10 @@ export class RoguelikeBuffManager {
           await this._trigger.emit("rlv2:recruit:initial_char", [charId]);
         }
       } else if (arg.key == "deploy_limit_add") {
-        // 难度效果：可同时部署人数（干员部署上限）+value
-        const value = arg.blackboard[0]?.value ?? 0;
-        this._status.property.capacity += value;
+        // 可同时部署人数+value（难度10"可部署人数-1"）——**开局 property 不生效**：
+        // 官服 createGame 初始 capacity=7（init 6 + outbuff_22 可携带+1），
+        // 难度部署限制是战斗内生效；原实现改 capacity 导致 7→6（8-11 官服抓包对照）。
+        // 仅记录 buff，不修改 property。
       } else if (arg.key == "scrap_limit_add") {
         // 难度效果：零件箱/废品库存容量 +value（rogue_6 SCRAP 模块）
         const value = arg.blackboard[0]?.value ?? 0;

@@ -435,7 +435,7 @@ describe("分队机制（2026-08-11）", () => {
     expect((player.rlv2 as any)._status.property.hp.current).toBe(8);
   });
 
-  it("chooseInitialRelic 应应用分队可部署上限（level_char_limit_add）", async () => {
+  it("chooseInitialRelic 分队 level_char_limit_add（可部署人数）不作用于希望上限 population.max", async () => {
     const player = await readyPlayer("rogue_1");
     (player.rlv2 as any)._status._pending._pending.push({
       type: "GAME_INIT_RELIC",
@@ -443,7 +443,9 @@ describe("分队机制（2026-08-11）", () => {
     });
     (player.rlv2 as any)._status.property.population.max = 6;
     await (player.rlv2 as any).chooseInitialRelic({ select: "0" });
-    expect((player.rlv2 as any)._status.property.population.max).toBe(8);
+    // 2026-08-18 对齐官服：level_char_limit_add（可部署人数）是战斗内上限，
+    // 开局 population.max（希望上限）不受影响（8-11 官服 createGame popMax=6=init）
+    expect((player.rlv2 as any)._status.property.population.max).toBe(6);
   });
 
   it("ensureOuterTheme 应初始化 collect.band 分队解锁状态", async () => {

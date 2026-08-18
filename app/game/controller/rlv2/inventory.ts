@@ -132,10 +132,11 @@ export class RoguelikeInventoryManager
         this._trigger.emit("rlv2:recruit:gain", [item.id, "battle", 0]);
         const ticket = Object.values(this.recruit).slice(-1)[0].index;
         this._trigger.emit("rlv2:recruit:active", [ticket]);
+        // 参数键名与 events.ts RECRUIT 构造一致（tickets）——原传 {ticket} 导致 undefined
         this._trigger.emit("rlv2:event:create", [
           "RECRUIT",
           {
-            ticket: ticket,
+            tickets: ticket,
           },
         ]);
       },
@@ -146,7 +147,7 @@ export class RoguelikeInventoryManager
         this._trigger.emit("rlv2:event:create", [
           "RECRUIT",
           {
-            ticket: ticket,
+            tickets: ticket,
           },
         ]);
       },

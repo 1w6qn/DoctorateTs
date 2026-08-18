@@ -45,13 +45,31 @@ export class RoguelikeRecruitManager {
 
   /**
    * 各主题招募希望消耗表（索引 = rarityIdx，TIER_1..6 → 0..5）：
-   * 黑流树海（rogue_6）：4 星 0 希望、5 星 2、6 星 4（官方机制，初始希望 6）
-   * 其余主题：3 星 0、4 星 2、5 星 3、6 星 6（常规曲线）
+   * 黑流树海（rogue_6）：4 星 0 希望、5 星 2、6 星 4（官方文本+实测确认，初始希望 6）
+   * 萨卡兹的无终奇语（rogue_5）：4 星 0、5 星 2、6 星 6（官方表 000026）
+   * 其余主题（rogue_1..4）：3 星 0、4 星 2、5 星 3、6 星 6（常规曲线）
    */
   private populationFor(rarityIdx: number): number {
     const theme = this._player.current.game?.theme || "";
     const map =
-      theme === "rogue_6" ? [0, 0, 0, 0, 2, 4] : [0, 0, 0, 2, 3, 6];
+      theme === "rogue_6"
+        ? [0, 0, 0, 0, 2, 4]
+        : theme === "rogue_5"
+          ? [0, 0, 0, 0, 2, 6]
+          : [0, 0, 0, 2, 3, 6];
+    return map[rarityIdx] || 0;
+  }
+
+  /**
+   * 各主题干员进阶希望消耗表（索引 = rarityIdx，TIER_1..6 → 0..5）：
+   * 萨卡兹的无终奇语（rogue_5）：4 星 1、5 星 1、6 星 3（官方表 000113；
+   * 用户消息写 000123 疑笔误，以官方表 ★★★★★ 进阶 1 为准）
+   * 进阶接口（如后续实现）按此扣希望；当前路由无进阶干员接口，表备用于客户端协议。
+   */
+  private advancePopulationFor(rarityIdx: number): number {
+    const theme = this._player.current.game?.theme || "";
+    const map =
+      theme === "rogue_5" ? [0, 0, 0, 1, 1, 3] : [0, 0, 0, 0, 0, 0];
     return map[rarityIdx] || 0;
   }
 

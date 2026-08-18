@@ -119,3 +119,29 @@ describe("N15 开局血量（init 表承载难度扣血，不二次解析）", (
     }
   });
 });
+
+describe("各主题招募/进阶希望消耗（官方表）", () => {
+  it("rogue_5 萨卡兹：招募消耗表 000026（4星0/5星2/6星6）", async () => {
+    const player = makePlayer(0);
+    const rlv2 = player.rlv2 as any;
+    // 覆盖当前主题为 rogue_5（populationFor 按 theme 分支）
+    rlv2.current.game.theme = "rogue_5";
+    await rlv2._module.create();
+    const recruit = rlv2.inventory._recruit;
+    const pop = (recruit as any).populationFor.bind(recruit);
+    // TIER_3→2 / TIER_4→3 / TIER_5→4 / TIER_6→5
+    expect(pop(2)).toBe(0); // 3星
+    expect(pop(3)).toBe(0); // 4星
+    expect(pop(4)).toBe(2); // 5星
+    expect(pop(5)).toBe(6); // 6星
+    // rogue_6 保持 6星4（实测确认）
+    rlv2.current.game.theme = "rogue_6";
+    expect(pop(5)).toBe(4);
+    // 进阶消耗表（000113：4星1/5星1/6星3）
+    rlv2.current.game.theme = "rogue_5";
+    const adv = (recruit as any).advancePopulationFor.bind(recruit);
+    expect(adv(3)).toBe(1);
+    expect(adv(4)).toBe(1);
+    expect(adv(5)).toBe(3);
+  });
+});

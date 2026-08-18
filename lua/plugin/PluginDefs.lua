@@ -4,6 +4,12 @@
 --]]
 local PluginDefs = {
   {
+    id = "network_redirect",
+    name = "私服引导",
+    desc = "将客户端网络路由与签名校验重定向到本私服（保持启用，关闭则连不回私服）",
+    module = "Plugin/NetworkRedirectPlugin",
+  },
+  {
     id = "enemy_hp",
     name = "敌人血量显示",
     desc = "在敌人血条旁显示具体血量数值",

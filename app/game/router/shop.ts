@@ -185,6 +185,12 @@ router.post("/getGoodPurchaseState", async (req, res) => {
 router.post("/getLowGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetLowGoodListRequest;
+  // 修复：跨月刷新——玩家 LS.curShopId 停留在旧月份（迁移/未触发 monthlyRefresh）时，
+  // 客户端按它计算刷新倒计时 → 剩余时间为负。进入商店时若不是当月立即重置
+  const ls = player._playerdata.shop?.LS as { curShopId?: string } | undefined;
+  if (ls && ls.curShopId !== player.shop.todayLowShopId()) {
+    await player.shop.monthlyRefresh();
+  }
   res.send({
     ...excel.ShopTable.lowGoodList,
     ...player.delta,
@@ -270,6 +276,12 @@ router.post("/getLMTGSGoodList", async (req, res) => {
 router.post("/getExtraGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetExtraGoodListRequest;
+  // 修复：跨年刷新——玩家 ES.curShopId 停留在旧年份（如 xShdShopnumber2=2023）时，
+  // 客户端按它计算刷新倒计时 → 剩余时间为负。进入商店时若不是当年立即重置
+  const es = player._playerdata.shop?.ES as { curShopId?: string } | undefined;
+  if (es && es.curShopId !== player.shop.todayExtraShopId()) {
+    await player.shop.refreshExtraShop();
+  }
   res.send({
     ...excel.ShopTable.extraGoodList,
     ...player.delta,
@@ -303,11 +315,15 @@ router.post("/getSkinGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetSkinGoodListRequest;
   const charSkins = (excel.SkinTable as any)?.charSkins ?? {};
+  // 修复：slotId 重排——SkinGoodList.json 由多期数据拼接，12 组皮肤共用同一 slotId
+  // （客户端时装商店按 slotId 渲染格子，冲突导致点 A 显示 B / 预览错乱）。
+  // 过滤皮肤表不存在的 skinId（数据错位防御）后按原顺序重排唯一 slotId
+  const goodList = excel.ShopTable.skinGoodList.goodList
+    .filter((g) => Boolean(charSkins[g.skinId]))
+    .map((g, i) => ({ ...g, slotId: i + 1 }));
   res.send({
     ...excel.ShopTable.skinGoodList,
-    goodList: excel.ShopTable.skinGoodList.goodList.filter(
-      (g) => Boolean(charSkins[g.skinId]),
-    ),
+    goodList,
     ...player.delta,
   } satisfies GetSkinGoodListResponse);
 });
@@ -348,6 +364,15 @@ router.post("/getGPGoodList", async (req, res) => {
 router.post("/getSocialGoodList", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetSocialGoodListRequest;
+  // 修复：跨天刷新——玩家 shop.SOCIAL.curShopId 停留在旧日期（迁移/未触发 dailyRefresh）
+  // 时，客户端按它计算刷新倒计时 → 剩余时间为负。进入商店时若 curShopId 不是当天，
+  // 立即重置为当天并清空当日购买记录（干员信物进度 charPurchase 保留）
+  const social = player._playerdata.shop?.SOCIAL as
+    | { curShopId?: string }
+    | undefined;
+  if (social && social.curShopId !== player.shop.todaySocialShopId()) {
+    await player.shop.refreshSocialShop();
+  }
   // 信用商店：按当天日期自动生成（goodId = SOCIAL<YYYYMMDD>_...）
   res.send({
     ...player.shop.buildSocialGoodList(),

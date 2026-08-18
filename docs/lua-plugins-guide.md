@@ -26,6 +26,58 @@ lua/plugin/                    ← 插件明文源码
 
 > ⚠️ 关于「从官方 hot_update_list 提取」：该内置 Lua bundle 是**客户端 base 资产**，**不在**官方 `hot_update_list.json` 的 abInfos 中（清单仅含可热更增量资产；当前 2.7.61 清单 14981 条无此 hash，CDN 各版本路径亦 404）。bundle 哈希由官方 `resource_manifest_idx.json`（ArknightsGameData）确认：全部 `gamedata/[uc]lua/*` 资产的 `bundleIndex=2246` → `bundles[2246].name = anon/7d91430e114d86fef7d3b3511151e12d.bin`。取数源只能是已装客户端内的该 bundle。
 
+### 2.0 一键自动工作流（推荐）：抓最新 APK → 注入 Lua 引导
+
+`pnpm run apk:lua` 自动完成「下载最新版官服 Android APK → 解包定位内置 Lua bundle → 提取明文 → 注入插件引导」全链路：
+
+```powershell
+pnpm run apk:lua                                   # 自动下载最新 APK → 提取 → 注入 → 启用 mod
+pnpm run apk:lua -- --apk ./arknights.apk          # 用本地 APK（跳过下载）
+pnpm run apk:lua -- --extract-only                 # 只解包提取明文 Lua（不注入）
+pnpm run apk:lua -- --repack-only <bundle.bin> --bundle-name anon/xxx.bin  # 已有 bundle，只注入
+pnpm run apk:lua -- --force                        # 忽略已下载缓存，强制重下 APK
+pnpm run apk:lua -- --no-extract                   # 跳过明文提取（仅注入）
+```
+
+- **下载源多级回退**：官方稳定链接 `https://ak.hypergryph.com/downloads/android_lastest`（302 → 最新 APK）→ gryph-links 跟踪链接（GitHub raw，社区定时维护）→ 手动 `--apk`。
+- **自动定位 bundle**：扫描 APK 内所有候选文件，按 UnityFS 魔数 + `.lua` 资产（entry/DefinedFix 锚点）识别内置 Lua bundle（**不依赖硬编码 hash，版本升级自动适配**）；推断客户端资源名（`assets/AB/Android/anon/xxx.bin` → `anon/xxx.bin`），可用 `--bundle-name` 覆盖。
+- **Android 加密自适应**：Android 客户端内置 Lua 为 **CRYPTIC_A 加密**（实测格式 `[128B 随机头][IV XOR mask[16:32]][AES-128-CBC(key,IV) 密文]`，key/mask = excel 管线同款 `UITpAi82pHAWwnzqHRMCwPonJLIB3WCl`）。repack 自动检测加密：解密内置资产 → 合并插件 → patch DefinedFix → 全部重新加密；插件资产按 Android 裸文件名布局（客户端 require 归一化为 basename 匹配）。明文提取输出到 `tmp/apk-work/<版本>/lua-plain/`（与 Windows 参考目录隔离）。
+- **幂等与缓存**：APK 缓存于 `tmp/apk/<版本>/`（>50MB 视为完整复用），bundle 副本落 `tmp/apk-work/<版本>/`；重复运行不会重复下载。
+- **产出**：注入 mod → `mods/anon_<hash>.dat`（bundle 名随版本变化时自动对应）；自动启用 `data/config.json` 的 `assets.enableMods`。
+- 版本漂移（DefinedFix 锚点不匹配）时脚本会报错，按 §5 校准锚点后重跑即可。
+
+### 2.0.1 私服引导插件（NetworkRedirectPlugin）
+
+`lua/plugin/NetworkRedirectPlugin.lua` 提供**纯 Lua 私服引导**（无需 Frida）：客户端经内置 Lua 管线启动时
+hotfix 两个 C# 方法：
+
+1. `Torappu.Network.Networker.get_overrideRouterUrl` → 返回 `${SERVER_URL}/config/prod/official/network_config`，
+   引导客户端从私服拉取网络路由配置（`Networker` 实现 `IHotfixable`，该属性 getter 有 XLua hotfix 委托字段，官方预留热更入口）；
+2. `Torappu.CryptUtils.VerifySignMD5RSA` → 恒返回 `true`，绕过官服 RSA-MD5 响应签名校验
+   （校验点：`NetworkRouter.cs:409` network_config、`BsonNetConverter_WithSign.cs:56` BSON 响应、
+   `CrypticConverter_WithSign.cs:109` 加密响应——私服无官方私钥，必须绕过）。
+
+- 插件默认启用（PluginDefs 首条，ID `network_redirect`）；**关闭即连不回私服**。
+- 私服地址改插件顶部 `SERVER_URL` 常量（默认 `http://192.168.0.100:8443`，与 `hook/main.ts` 一致）。
+- Java/native 层（Hypergryph SDK URL、ACE/MTP 反作弊）Lua 覆盖不了，仍走 Frida（`hook/main.ts`）。
+
+### 2.0.2 APK 校验 / 反作弊 / 暗桩审查（apk:audit）
+
+`pnpm run apk:audit` 对客户端反编译源码做静态安全审查，输出 `docs/apk-security-audit.md`：
+
+```powershell
+pnpm run apk:audit                                     # 默认源码目录 → 报告
+pnpm run apk:audit -- --apk ./arknights.apk            # 追加 APK 签名方案检测（V1/V2/V3）
+pnpm run apk:audit -- --json                           # 同时输出 JSON 原始结果
+```
+
+三类审查：
+- **A 完整性/签名校验**：`VerifySignMD5RSA` 定义与三大调用点、`HotUpdater` 热更 md5/hash 校验；
+- **B 反作弊**：CodeStage.AntiCheat 六类检测器（定义存在；游戏代码无直接引用，推测经场景组件挂载）、
+  `Obscured*` 混淆数值类型 15+ 处、ACE/MTP（Java/native 层，标注需动态分析，`hook/main.ts` 已有处理点）；
+- **C 暗桩/埋点**：EventLogSDK 事件上报、CrashSight 崩溃上报、OneChannel/Webview、硬编码外联域名
+  （结论：官服域名不硬编码，全部配置驱动——正是 `overrideRouterUrl` 引导可行性的基础）。
+
 ```powershell
 # 1) 从已装客户端提取内置 bundle（ArkUnpacker 解包后定位该 .bin，或直接取 .dat）
 #    得到 <内置bundle>.dat 或 .bin

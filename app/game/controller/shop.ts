@@ -165,15 +165,22 @@ export class ShopController {
   }
 
   /** 读取/初始化 shop.<key> 基础结构（官服迁移数据缺字段时不 500） */
+  /**
+   * 商店状态兜底（draft 内创建/补全商店对象）
+   *
+   * 修复：原实现 `draft.shop[key] ?? 默认值` 只对"商店不存在"生效——玩家数据里商店
+   * 已存在但字段缺失（如官服迁移的 SKIN 无 info）时返回原对象，info 为 undefined →
+   * `.info.find` 500。此处对已存在对象也逐字段补全（info/progressInfo 等保证类型）。
+   */
   private _shopDraft(draft: any, key: string): any {
     draft.shop = draft.shop ?? {};
-    return (draft.shop[key] = draft.shop[key] ?? {
-      curShopId: "",
-      info: [],
-      progressInfo: {},
-      charPurchase: {},
-      groupInfo: {},
-    });
+    const st = (draft.shop[key] = draft.shop[key] ?? {});
+    st.curShopId = st.curShopId ?? "";
+    st.info = Array.isArray(st.info) ? st.info : [];
+    st.progressInfo = st.progressInfo ?? {};
+    st.charPurchase = st.charPurchase ?? {};
+    st.groupInfo = st.groupInfo ?? {};
+    return st;
   }
 
   /**
@@ -237,15 +244,35 @@ export class ShopController {
   }
 
   /**
+   * 确定性洗牌（信用商店"9 随机商品"——同日稳定，跨日变化；参考官服每日轮换）
+   * @param arr - 商品数组
+   * @param seed - 随机种子（当天日期前缀）
+   */
+  private _shuffleWithSeed<T>(arr: T[], seed: string): T[] {
+    let s = 0;
+    for (let i = 0; i < seed.length; i++) {
+      s = (s * 31 + seed.charCodeAt(i)) >>> 0;
+    }
+    const out = [...arr];
+    for (let i = out.length - 1; i > 0; i--) {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      const j = s % (i + 1);
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  }
+
+  /**
    * 生成当天信用商店商品（信用交易所）
    *
-   * 修复：干员进度卡死——原实现只返回静态 10 个常规商品，缺干员合同商品与
-   * creditGroup/costSocialPoint 字段；客户端点击干员卡 → SocialUnlockState 用
-   * response.creditGroup 查本地 creditUnlockGroup 渲染干员解锁进度，字段缺失 →
-   * TryGetValue 失败/空引用 → 卡死。现补全：
-   * - 常规商品（静态基座，goodId 日期前缀当天）
-   * - 干员合同商品（已解锁干员放第 1 栏位，无折扣；charPurchase 已购信物数，
-   *   availCount = 剩余信物档位；价格按累计消费档位）
+   * 官服规则（PRTS）：每日 10 个商品；干员合同解锁后占第 1 栏位（1 干员 + 9 随机商品），
+   * 干员信物换满（6 个）后不再占位（10 个随机商品）。
+   * 修复：
+   * - 干员合同只生成 1 个"当前干员"（creditUnlockGroup 顺序上第一个未满 6 信物的干员；
+   *   全部满潜 → 无干员合同 → 10 个常规商品）——原实现把全部已购干员都生成合同（3 个），
+   *   客户端干员区渲染异常/点击无效
+   * - 干员购买上限固定 6（availCount = 6 - 已购，不依赖配置档位数）
+   * - 常规商品：有干员时按当天日期种子随机取 9 个，无干员时 10 个
    * - creditGroup：玩家已购干员所在组（有 creditGroup2 干员 → creditGroup2）
    * - costSocialPoint：累计信用消费（玩家存档动态字段优先，否则按已购信物档位推导）
    * - charPurchase：玩家实际购买记录（与静态基座合并，玩家优先）
@@ -258,11 +285,6 @@ export class ShopController {
   } {
     const base = this.socialGoodList;
     const prefix = this.todaySocialShopId();
-    const goodList: SocialShopData[] = (base?.goodList ?? []).map((g) =>
-      g.goodId.startsWith(prefix)
-        ? g
-        : { ...g, goodId: g.goodId.replace(/^SOCIAL\d+/, prefix) },
-    );
     // 干员合同：玩家已购信物（静态基座合并 + 玩家实际，玩家优先）
     const playerSocial = this._player._playerdata.shop?.SOCIAL;
     const charPurchase: { [k: string]: number } = {
@@ -271,36 +293,69 @@ export class ShopController {
     };
     // 信用干员解锁配置（客户端 shop_client_table creditUnlockGroup）
     const unlockGroups = (excel.ShopClientTable as any)?.creditUnlockGroup ?? {};
-    let costSocialPoint = 0;
     let creditGroup = "creditGroup1";
-    for (const [charId, bought] of Object.entries(charPurchase)) {
-      if (!bought || bought <= 0) continue;
-      for (const [groupId, g] of Object.entries(unlockGroups)) {
-        const entries: any[] = (g as any)?.charDict ?? [];
-        const my = entries.filter((e: any) => e.charId === charId);
-        if (!my.length) continue;
-        const tier = my[Math.min(bought, my.length) - 1];
-        const unlockNum = tier?.unlockNum ?? 0;
-        costSocialPoint = Math.max(costSocialPoint, unlockNum);
+    let costSocialPoint = 0;
+    // 按已购信物推导累计消费与所在组
+    for (const [groupId, g] of Object.entries(unlockGroups)) {
+      const entries: any[] = (g as any)?.charDict ?? [];
+      for (const e of entries) {
+        const bought = charPurchase[e.charId] ?? 0;
+        if (!bought) continue;
         if (groupId === "creditGroup2") creditGroup = "creditGroup2";
-        const price = this._creditContractPrice(unlockNum);
-        const contract: SocialShopData = {
-          // charId 已含 char_ 前缀，无需再加 char_ 段（避免 char_char_ 重复）
-          goodId: `${prefix}_T1_${charId}`,
-          displayName: this._charName(charId),
-          item: { id: charId, count: 1, type: "CHAR" },
-          price,
-          availCount: Math.max(0, my.length - bought),
-          slotItem: {
-            price,
-            displayName: this._charName(charId),
-            item: { id: charId, count: 1, type: "CHAR" },
-          },
-          discount: 0,
-          originPrice: price,
-        };
-        goodList.unshift(contract); // 干员合同占第 1 栏位
+        const my = entries.filter((x: any) => x.charId === e.charId);
+        const tier = my[Math.min(bought, my.length) - 1];
+        if (tier?.unlockNum) {
+          costSocialPoint = Math.max(costSocialPoint, tier.unlockNum);
+        }
       }
+    }
+    // 当前干员 = 组顺序上第一个未满 6 信的干员（上限固定 6；全满 → null）
+    let currentChar: { charId: string; bought: number; unlockNum: number } | null = null;
+    for (const [groupId, g] of Object.entries(unlockGroups)) {
+      const entries: any[] = (g as any)?.charDict ?? [];
+      const seen = new Set<string>();
+      for (const e of entries) {
+        if (seen.has(e.charId)) continue;
+        seen.add(e.charId);
+        const bought = charPurchase[e.charId] ?? 0;
+        if (bought < 6) {
+          const my = entries.filter((x: any) => x.charId === e.charId);
+          const tier = my[Math.min(bought, my.length) - 1];
+          currentChar = { charId: e.charId, bought, unlockNum: tier?.unlockNum ?? 0 };
+          break;
+        }
+      }
+      if (currentChar) break;
+    }
+    // 常规商品（静态基座，goodId 日期前缀当天）
+    let normal: SocialShopData[] = (base?.goodList ?? []).map((g) =>
+      g.goodId.startsWith(prefix)
+        ? g
+        : { ...g, goodId: g.goodId.replace(/^SOCIAL\d+/, prefix) },
+    );
+    const goodList: SocialShopData[] = [];
+    if (currentChar) {
+      // 1 干员 + 9 随机商品（同日稳定，跨日轮换）
+      normal = this._shuffleWithSeed(normal, prefix);
+      const price = this._creditContractPrice(currentChar.unlockNum);
+      const contract: SocialShopData = {
+        goodId: `${prefix}_T1_${currentChar.charId}`,
+        displayName: this._charName(currentChar.charId),
+        item: { id: currentChar.charId, count: 1, type: "CHAR" },
+        price,
+        availCount: Math.max(0, 6 - currentChar.bought),
+        slotItem: {
+          price,
+          displayName: this._charName(currentChar.charId),
+          item: { id: currentChar.charId, count: 1, type: "CHAR" },
+        },
+        discount: 0,
+        originPrice: price,
+      };
+      goodList.push(contract); // 干员合同占第 1 栏位
+      goodList.push(...normal.slice(0, 9));
+    } else {
+      goodList.push(...normal); // 干员已换完 → 10 个常规商品
     }
     // 玩家存档累计消费优先（buySocialGood 实时累计，动态字段）
     const savedCost = (playerSocial as any)?.costSocialPoint;
@@ -379,14 +434,47 @@ export class ShopController {
    * 更新月度商店的ID和分组信息，重置购买记录。
    */
   async monthlyRefresh() {
-    const ts = new Date();
-    const monthNum = ts.getMonth() - 5 + (ts.getFullYear() - 2019) * 12;
     await this._player.update(async (draft) => {
       // 修复：兜底 shop.LS 缺失（同 dailyRefresh）
       const ls = this._shopDraft(draft, "LS");
-      ls.curShopId = `lggShdShopnumber${monthNum}`;
-      ls.curGroupId = `lggShdGroupnumber${monthNum}_Group_1`;
+      ls.curShopId = this.todayLowShopId();
+      ls.curGroupId = `${this.todayLowShopId()}_Group_1`;
       ls.info = [];
+    });
+  }
+
+  /**
+   * 当前低级商店 ID（资质凭证区，按月刷新）
+   *
+   * 官服公式（参考 DoctoratePy shopGetLowGoodList）：ShopNumber = (年-2019)*12 + (月-5) + 1，
+   * month 为 1-based。2026-08 → 88。修复：原公式 getMonth()(0-based)-5+(年-2019)*12 少 2，
+   * 与官服/玩家存档（如 69=2025-01）不一致 → 客户端按 curShopId 计算刷新时间会偏差
+   */
+  todayLowShopId(): string {
+    const t = new Date();
+    const monthNum =
+      (t.getFullYear() - 2019) * 12 + (t.getMonth() + 1 - 5) + 1;
+    return `lggShdShopnumber${monthNum}`;
+  }
+
+  /**
+   * 当前额外商店 ID（采购凭证区，按年刷新）
+   *
+   * 官服公式（参考 DoctoratePy shopGetExtraGoodList）：ShopId = xShdShopnumber<年-2021>。
+   * 2026 → xShdShopnumber5；玩家旧数据 xShdShopnumber2（2023）→ 客户端刷新倒计时为负
+   */
+  todayExtraShopId(): string {
+    return `xShdShopnumber${new Date().getFullYear() - 2021}`;
+  }
+
+  /**
+   * 手动刷新额外商店（跨年更新 curShopId 并清空旧周期购买记录）
+   */
+  async refreshExtraShop(): Promise<void> {
+    await this._player.update(async (draft) => {
+      const es = this._shopDraft(draft, "ES");
+      es.curShopId = this.todayExtraShopId();
+      es.info = [];
     });
   }
 

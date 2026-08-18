@@ -8,7 +8,13 @@
     - Fix_ex(cls, method, fixFunc)：完整替换，fixFunc(self, ...) 取代原方法；
     - Hotfix(cls, method, fixFunc)：包装模式，fixFunc(self, orig, ...)，
       orig 为链上下一段实现，可调 orig(self, ...) 保留原行为。
+    - 注册的 fixFunc 运行时统一经 xpcall 兜底（PluginHotfix 层），崩溃不冒泡到
+      C# 调用栈——对齐官方 hotfixer 写法（如 ArkventHotfixer 每个 fix 内部 xpcall）。
   两种模式均按 (cls, method) 注册到共享注册表，Unload / Load 失败时统一注销。
+
+  PrivateAccess(cls)：hotfix C# 私有成员/方法前调用，封装 xlua.private_accessible
+  （官方 ArkventHotfixer 先 private_accessible(ArkhubUnitSyncSystem) 再 Fix_ex 私有
+  方法 _SyncSelfCaptureArea 的同一模式），pcall 兜底，失败只记日志不中断。
 
   须在 Base/BaseModule（提供 Class）之后加载。
 --]]
@@ -28,6 +34,24 @@ function BasePlugin:ctor(id, name, desc)
   self.desc = desc
   self.enabled = false      -- 当前是否启用
   self._fixes = {}          -- 已注册补丁记录（{cls, method}），卸载/回滚时注销
+end
+
+--[[
+  解锁 C# 类型的私有成员访问（xlua.private_accessible）。
+  对齐官方 hotfixer 模式：先 private_accessible 再 Fix_ex/Fix 私有方法或私有字段
+  （如 ArkventHotfixer 对 ArkhubUnitSyncSystem._SyncSelfCaptureArea 的 hotfix）。
+  幂等（xlua 内部重复调用安全）；失败只记日志，不中断插件加载。
+  @param cls C# 类型
+--]]
+function BasePlugin:PrivateAccess(cls)
+  local ok, err = pcall(function()
+    if xlua ~= nil and xlua.private_accessible ~= nil then
+      xlua.private_accessible(cls)
+    end
+  end, debug.traceback)
+  if not ok then
+    eutil.LogHotfixError("[BasePlugin] " .. self.id .. " PrivateAccess(" .. tostring(cls) .. ") 失败: " .. tostring(err))
+  end
 end
 
 --[[

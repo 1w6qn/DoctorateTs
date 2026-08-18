@@ -22,6 +22,7 @@ import * as fs from "fs";
 import * as path from "path";
 import JSZip from "jszip";
 import { extractTextAssets, type TextAssetData } from "./vendor/unityfs";
+import { decryptLuaScript, isLuaEncrypted } from "./vendor/lua-crypt";
 
 /** Lua 资产名前缀（对齐客户端资源名约定） */
 const LUA_PREFIX = "gamedata/[uc]lua/";
@@ -75,7 +76,8 @@ function stripBootInjection(script: string): string {
 
 /**
  * 从内置 bundle 提取全部 Lua 脚本到参考目录。
- * 跳过插件资产（plugin/*，构建期重新合并）并还原 DefinedFix 注入标记。
+ * 跳过插件资产（plugin/* 或插件裸名，构建期重新合并）并还原 DefinedFix 注入标记；
+ * Android 加密格式（CRYPTIC_A）自动解密后写入。
  * @param bundlePath - 内置 bundle 路径（.dat 或 .bin）
  * @param outDir     - 参考输出目录
  * @returns 统计信息
@@ -98,19 +100,29 @@ export async function extractLuaBundle(
   for (const asset of assets) {
     const name = asset.name;
     const lower = name.toLowerCase();
-    if (!lower.startsWith(LUA_PREFIX)) {
+    const isPrefixed = lower.startsWith(LUA_PREFIX);
+    if (!isPrefixed && !lower.endsWith(".lua")) {
       skipped++;
       skippedList.push(name);
       continue;
     }
-    const rel = name.slice(LUA_PREFIX.length);
-    // 跳过插件资产（构建期由 lua/plugin/ 重新合并）
+    const rel = isPrefixed ? name.slice(LUA_PREFIX.length) : name;
+    // 跳过插件资产（构建期由 lua/plugin/ 重新合并；仅 prefixed 布局的 plugin/ 子目录，
+    // Android 裸名布局的官方内置 bundle 不含插件资产，全量保留）
     if (rel.toLowerCase().startsWith(PLUGIN_SUBDIR)) {
       skipped++;
       skippedList.push(name);
       continue;
     }
+    // 解密（Android CRYPTIC_A 加密格式；明文资产原样保留）
     let script = asset.script;
+    try {
+      if (isLuaEncrypted(script)) {
+        script = decryptLuaScript(script);
+      }
+    } catch {
+      // 解密失败视为明文，原样写入（版本漂移时至少保留原始字节可人工分析）
+    }
     // 还原 DefinedFix 的注入标记；unchanged 仅统计「DefinedFix 未含注入标记（官方原版）」的数量
     const isDefinedFix = rel.toLowerCase().endsWith("definedfix.lua");
     let injected = false;

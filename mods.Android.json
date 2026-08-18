@@ -1,22 +1,33 @@
 {
     "file": {
+        "D:\\develop\\DoctorateTs\\mods\\android\\anon_28a90538296517ab6eef8d4e6ef32e95.dat": {
+            "size": 1638412,
+            "crc32": 3631985230
+        },
         "D:\\develop\\DoctorateTs\\mods\\android\\skinpack_char_4064_mlynar.dat": {
             "size": 15802886,
             "crc32": 324697302
         },
         "D:\\develop\\DoctorateTs\\mods\\anon_7d91430e114d86fef7d3b3511151e12d.dat": {
-            "size": 278423,
-            "crc32": 2414583504
+            "size": 285899,
+            "crc32": 3564914295
         }
     },
     "mod": {
         "mods": [
             {
                 "name": "anon/7d91430e114d86fef7d3b3511151e12d.bin",
-                "hash": "b26e60c90ec85fa85fd5147f16d6d949",
-                "md5": "b26e60c90ec85fa85fd5147f16d6d949",
-                "totalSize": 278423,
-                "abSize": 1524179
+                "hash": "8c5ae4baeebe2ebf1fa479056bd592c4",
+                "md5": "8c5ae4baeebe2ebf1fa479056bd592c4",
+                "totalSize": 285899,
+                "abSize": 1594839
+            },
+            {
+                "name": "anon/28a90538296517ab6eef8d4e6ef32e95.bin",
+                "hash": "28a90538296517ab6eef8d4e6ef32e95",
+                "md5": "28a90538296517ab6eef8d4e6ef32e95",
+                "totalSize": 1638412,
+                "abSize": 1653792
             },
             {
                 "name": "skinpack/char_4064_mlynar.ab",
@@ -28,14 +39,17 @@
         ],
         "name": [
             "anon/7d91430e114d86fef7d3b3511151e12d.bin",
+            "anon/28a90538296517ab6eef8d4e6ef32e95.bin",
             "skinpack/char_4064_mlynar.ab"
         ],
         "path": [
             "anon_7d91430e114d86fef7d3b3511151e12d.dat",
+            "android\\anon_28a90538296517ab6eef8d4e6ef32e95.dat",
             "android\\skinpack_char_4064_mlynar.dat"
         ],
         "download": [
             "anon_7d91430e114d86fef7d3b3511151e12d.dat",
+            "anon_28a90538296517ab6eef8d4e6ef32e95.dat",
             "skinpack_char_4064_mlynar.dat"
         ]
     }

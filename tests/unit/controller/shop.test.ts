@@ -622,6 +622,24 @@ describe("buySkinGood 校验", () => {
     ).rejects.toThrow();
   });
 
+  it("玩家存档无 shop.SKIN 时购买皮肤不 500（_shopDraft 兜底创建）", async () => {
+    delete (mockPlayer._playerdata.shop as any).SKIN;
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    await controller.buySkinGood({ goodId: "SKIN_1" });
+    // SKIN 被兜底创建且 info 记录写入
+    const skin = (mockPlayer._playerdata.shop as any).SKIN;
+    expect(skin).toBeTruthy();
+    expect(skin.info).toContainEqual({ id: "SKIN_1", count: 1 });
+  });
+
+  it("shop.SKIN 已存在但 info 缺失时购买不 500（字段补全）", async () => {
+    (mockPlayer._playerdata.shop as any).SKIN = { curShopId: "", gachaGood: { info: [] } };
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    await controller.buySkinGood({ goodId: "SKIN_1" });
+    const skin = (mockPlayer._playerdata.shop as any).SKIN;
+    expect(skin.info).toContainEqual({ id: "SKIN_1", count: 1 });
+  });
+
   it("已拥有皮肤拒绝重复购买", async () => {
     const controller = new ShopController(mockPlayer as any, mockTrigger as any);
     await expect(
@@ -1017,13 +1035,18 @@ describe("信用交易所干员合同（点击干员进度不卡死）", () => {
       charPurchase: { char_187_ccheal: 1 },
     };
     const list = controller.buildSocialGoodList() as any;
-    // 干员合同商品（黑角已购 2 → 剩余 2 档；坚雷满潜 → 剩余 0）
-    const blackd = list.goodList.find((g: any) => g.item?.id === "char_198_blackd");
-    const durnar = list.goodList.find((g: any) => g.item?.id === "char_260_durnar");
-    expect(blackd).toBeTruthy();
-    expect(blackd.item.type).toBe("CHAR");
-    expect(blackd.availCount).toBe(2);
-    expect(durnar.availCount).toBe(0);
+    // 干员合同：只生成 1 个"当前干员"（黑角已购 2 → 剩余 6-2=4，上限固定 6）
+    const chars = list.goodList.filter((g: any) => g.item?.type === "CHAR");
+    expect(chars).toHaveLength(1);
+    const blackd = chars[0];
+    expect(blackd.item.id).toBe("char_198_blackd");
+    expect(blackd.availCount).toBe(4);
+    // 坚雷已满潜（6）→ 不再生成合同；商品 = 1 干员 + 常规商品（基座仅 1 个，全纳入）
+    expect(list.goodList.find((g: any) => g.item?.id === "char_260_durnar")).toBeFalsy();
+    expect(list.goodList.length).toBe(2);
+    // 干员合同占第 1 栏位
+    expect(list.goodList[0].item.type).toBe("CHAR");
+    expect(list.goodList[1].item.id).toBe("3113"); // 常规商品紧随其后
     // 关键修复字段：creditGroup/costSocialPoint 非空
     expect(list.creditGroup).toBe("creditGroup2"); // 有 creditGroup2 干员（坚雷）
     expect(list.costSocialPoint).toBeGreaterThan(0);
@@ -1060,5 +1083,35 @@ describe("信用交易所干员合同（点击干员进度不卡死）", () => {
     expect(social.charPurchase.char_198_blackd).toBe(3);
     // 累计信用消费累计（price 140）
     expect(social.costSocialPoint).toBe(140);
+  });
+
+  it("全部干员满潜（6）→ 无干员合同，10 个常规商品（若已换完）", async () => {
+    // 玩家 3 干员全满潜
+    const excelMock = (await import("@excel/excel")).default as any;
+    mockPlayer._playerdata.shop.SOCIAL.charPurchase = {
+      char_198_blackd: 6,
+      char_187_ccheal: 6,
+      char_260_durnar: 6,
+    };
+    // 基座 10 个常规商品
+    const baseGoods = Array.from({ length: 10 }, (_, i) => ({
+      goodId: `SOCIAL20211106_T2_goods_${i}_${i + 1}`,
+      displayName: `材料${i}`,
+      originPrice: 100,
+      price: 50,
+      discount: 0.5,
+      slotId: i + 1,
+      availCount: 1,
+      item: { id: `3001${i}`, count: 1, type: "MATERIAL" },
+    }));
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    controller.socialGoodList = { goodList: baseGoods, charPurchase: {} };
+    void excelMock;
+    const list = controller.buildSocialGoodList() as any;
+    // 无干员合同，10 个常规商品
+    expect(list.goodList.filter((g: any) => g.item?.type === "CHAR")).toHaveLength(0);
+    expect(list.goodList.length).toBe(10);
+    // creditGroup 仍为玩家所在组
+    expect(list.creditGroup).toBe("creditGroup2");
   });
 });

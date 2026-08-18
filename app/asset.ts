@@ -5,7 +5,7 @@ import { crc32 } from "crc";
 import axios from "axios";
 import { EventEmitter } from "events";
 import yauzl, { ZipFile } from "yauzl";
-import { mkdir, readdir, readFile, writeFile, stat } from "fs/promises";
+import { mkdir, readdir, readFile, writeFile, rename, stat } from "fs/promises";
 import config from "./config";
 import { exists, size } from "@utils/file";
 import { logger } from "@utils/logger";
@@ -35,7 +35,7 @@ router.get(
 
     if (fileName === "hot_update_list.json" && config.assets.enableMods) {
       try {
-        stateFor(platform).list = await loadMods(platform);
+        stateFor(platform).list = await loadModsGuarded(platform);
       } catch (error) {
         // 容错：mod 扫描异常（权限/损坏）不阻断清单服务——记录并置空
         logger.error("Asset", `mod 列表刷新失败: ${(error as Error).message}`);
@@ -191,6 +191,44 @@ function emptyModsList(): ModsList {
   return { mods: [], name: [], path: [], download: [] };
 }
 
+/**
+ * 同平台 loadMods 并发去重：hot_update_list.json 请求每次都会触发 loadMods，
+ * 缓存 miss（首次/缓存损坏/目录变更）时全量扫描 + 写缓存——多个并发请求各自扫描
+ * 并并发写缓存文件会互相覆盖/拼接，产生损坏 JSON（实测 2026-08-18：mods.Windows.json
+ * 出现两段 JSON 拼接，"Unexpected non-whitespace character after JSON"）。
+ * 同一时间同平台只允许一个 loadMods 在执行，其余复用其 Promise。
+ * @param platform - 平台键
+ * @returns mod 列表 Promise（并发共享）
+ */
+const loadingMods: Record<string, Promise<ModsList>> = {};
+
+function loadModsGuarded(platform: string): Promise<ModsList> {
+  if (!loadingMods[platform]) {
+    loadingMods[platform] = loadMods(platform).finally(() => {
+      delete loadingMods[platform];
+    });
+  }
+  return loadingMods[platform];
+}
+
+/**
+ * mod 缓存文件原子写：先写 .tmp 再 rename（原子替换），并用全局队列串行化——
+ * loadMods 每处理完一个 zip 条目就写一次完整缓存，多个 .dat / 多次 loadMods
+ * 并发写 writeFile 会互相覆盖/拼接损坏 JSON；串行 + 原子替换保证文件内容始终是
+ * 某个完整快照（最后写入者完整覆盖）。
+ * @param modCachePath - 缓存文件路径（mods.<平台>.json）
+ * @param data         - 序列化后的缓存内容
+ */
+let cacheWriteChain: Promise<void> = Promise.resolve();
+function writeModCacheAtomically(modCachePath: string, data: string): Promise<void> {
+  cacheWriteChain = cacheWriteChain.then(async () => {
+    const tmpPath = modCachePath + ".tmp";
+    await writeFile(tmpPath, data);
+    await rename(tmpPath, modCachePath);
+  });
+  return cacheWriteChain;
+}
+
 /** mods 目录（.gitignore；仅 mods/.placeholder 与平台子目录占位入 git） */
 const MODS_DIR = join(__dirname, "..", "mods");
 
@@ -267,7 +305,7 @@ export async function refreshModsIfChanged(platform: string): Promise<boolean> {
   if (fp === state.fingerprint) return false;
   state.fingerprint = fp;
   try {
-    state.list = await loadMods(platform);
+    state.list = await loadModsGuarded(platform);
     logger.info(
       "Asset",
       `[${platform}] mod 变更检测到，已重载：${state.list.mods.length} 个`,
@@ -290,7 +328,7 @@ export async function initMods(platform?: string): Promise<void> {
     if (state.loaded) continue;
     state.loaded = true;
     try {
-      state.list = await loadMods(p);
+      state.list = await loadModsGuarded(p);
       // 同步指纹基线，避免启动后首个版本请求触发一次无意义的重复重载
       state.fingerprint = await computeModsFingerprint(p);
       logger.info(
@@ -653,7 +691,7 @@ async function loadMods(platform: string): Promise<ModsList> {
             // 二次 relative 会把相对路径当相对 cwd 解析，生成错误的 `..\` 前缀（bug 修复）。
             loadedModList.path.push(relative(MODS_DIR, filePath));
             loadedModList.download.push(downloadName);
-            await writeFile(
+            await writeModCacheAtomically(
               modCachePath,
               JSON.stringify(
                 {

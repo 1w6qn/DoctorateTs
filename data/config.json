@@ -1,91 +1,91 @@
 {
-    "Host": "http://127.0.0.1",
-    "PORT": 8443,
-    "offline": false,
-    "majorVersion": "446",
-    "version": {
-        "clientVersion": "2.7.61",
-        "resVersion": "26-08-07-14-53-29_30b8f0",
-        "windows": {
-            "clientVersion": "2.7.61",
-            "resVersion": "26-08-07-10-51-39_26e0fc"
-        }
-    },
-    "assets": {
-        "enableMods": true,
-        "downloadLocally": true,
-        "downloadPeoxy": false,
-        "autoUpdate": true
-    },
-    "NetworkConfig": {
-        "configVer": "5",
-        "funcVer": "V070",
-        "configs": {
-            "V070": {
-                "override": true,
-                "network": {
-                    "gs": "{server}",
-                    "as": "{server}",
-                    "u8": "{server}/u8",
-                    "hu": "{server}/assetbundle/official",
-                    "hv": "{server}/config/prod/official/{0}/version",
-                    "rc": "{server}/config/prod/official/remote_config",
-                    "an": "{server}/config/prod/announce_meta/{0}/announcement.meta.json",
-                    "prean": "{server}/config/prod/announce_meta/{0}/preannouncement.meta.json",
-                    "sl": "https://ak.hypergryph.com/protocol/service",
-                    "of": "https://ak.hypergryph.com/index.html",
-                    "pkgAd": null,
-                    "pkgIOS": null,
-                    "secure": false
-                }
-            }
-        }
-    },
-    "RemoteConfig": {
-        "fapv2": 1,
-        "HGDownload_1": 10000,
-        "HGDownload_2": 10000,
-        "enableGameBI": true,
-        "showRecordNumber": false,
-        "enableNativeLicense": true,
-        "bakeMuzzleEnableRate": 0,
-        "enemyBakeMuzzleEnableRate": 3000
-    },
-    "admin": {
-        "enable": true,
-        "token": "doctorate-admin"
-    },
-    "authMode": "real",
-    "capture": {
-        "enabled": false,
-        "asHost": "https://as.hypergryph.com",
-        "gsHost": "https://ak-gs-gf.hypergryph.com",
-        "gatewayPort": 30001
-    },
-    "singleAutoMaxAccount": false,
-    "singleUid": "2222",
-    "developer": {
-        "timestamp": -1
-    },
-    "activities": {
-        "forceOpen": [],
-        "crisisV1": "cc1",
-        "crisisV2": "cc1",
-        "autoBackfill": true
-    },
-    "_lastVersionSyncTs": 1786684852158,
-    "autoUpdate": false,
-    "pay": {
-        "mode": "fake",
-        "alipay": {
-            "appId": "",
-            "notifyUrl": "",
-            "privateKey": ""
-        },
-        "wechat": {
-            "appId": "",
-            "mchId": "",
-            "apiKey": ""
-        }
+  "Host": "http://127.0.0.1",
+  "PORT": 8443,
+  "offline": false,
+  "majorVersion": "446",
+  "version": {
+    "clientVersion": "2.7.61",
+    "resVersion": "26-08-17-11-25-42_dbc172",
+    "windows": {
+      "clientVersion": "2.7.61",
+      "resVersion": "26-08-17-11-22-14_59d37d"
     }
+  },
+  "assets": {
+    "enableMods": true,
+    "downloadLocally": true,
+    "downloadPeoxy": false,
+    "autoUpdate": true
+  },
+  "NetworkConfig": {
+    "configVer": "5",
+    "funcVer": "V070",
+    "configs": {
+      "V070": {
+        "override": true,
+        "network": {
+          "gs": "{server}",
+          "as": "{server}",
+          "u8": "{server}/u8",
+          "hu": "{server}/assetbundle/official",
+          "hv": "{server}/config/prod/official/{0}/version",
+          "rc": "{server}/config/prod/official/remote_config",
+          "an": "{server}/config/prod/announce_meta/{0}/announcement.meta.json",
+          "prean": "{server}/config/prod/announce_meta/{0}/preannouncement.meta.json",
+          "sl": "https://ak.hypergryph.com/protocol/service",
+          "of": "https://ak.hypergryph.com/index.html",
+          "pkgAd": null,
+          "pkgIOS": null,
+          "secure": false
+        }
+      }
+    }
+  },
+  "RemoteConfig": {
+    "fapv2": 1,
+    "HGDownload_1": 10000,
+    "HGDownload_2": 10000,
+    "enableGameBI": true,
+    "showRecordNumber": false,
+    "enableNativeLicense": true,
+    "bakeMuzzleEnableRate": 0,
+    "enemyBakeMuzzleEnableRate": 3000
+  },
+  "admin": {
+    "enable": true,
+    "token": "doctorate-admin"
+  },
+  "authMode": "real",
+  "capture": {
+    "enabled": false,
+    "asHost": "https://as.hypergryph.com",
+    "gsHost": "https://ak-gs-gf.hypergryph.com",
+    "gatewayPort": 30001
+  },
+  "singleAutoMaxAccount": false,
+  "singleUid": "2222",
+  "developer": {
+    "timestamp": -1
+  },
+  "activities": {
+    "forceOpen": [],
+    "crisisV1": "cc1",
+    "crisisV2": "cc1",
+    "autoBackfill": true
+  },
+  "_lastVersionSyncTs": 1787048092873,
+  "autoUpdate": false,
+  "pay": {
+    "mode": "fake",
+    "alipay": {
+      "appId": "",
+      "notifyUrl": "",
+      "privateKey": ""
+    },
+    "wechat": {
+      "appId": "",
+      "mchId": "",
+      "apiKey": ""
+    }
+  }
 }

@@ -1,0 +1,813 @@
+[
+  {
+    "title": "A. 完整性 / 签名校验",
+    "summary": "RSA 响应验签（必须绕过）+ 热更资源 md5 校验（mod 方案已兼容）",
+    "items": [
+      {
+        "name": "RSA 响应签名校验 VerifySignMD5RSA",
+        "desc": "官服对 network_config 路由配置与 BSON/加密响应做 RSA-MD5 签名，客户端验签失败即拒绝。私服必须绕过（Lua 引导插件已 hotfix 返回 true）。",
+        "hits": [
+          {
+            "file": "Assembly-CSharp/Torappu/CryptUtils.cs",
+            "line": 206,
+            "text": "public static bool VerifySignMD5RSA(string content, string sign, string publicKey)"
+          },
+          {
+            "file": "Assembly-CSharp/Torappu/CryptUtils.cs",
+            "line": 212,
+            "text": "return VerifySignMD5RSA(Encoding.UTF8.GetBytes(content), sign2, publicKey);"
+          },
+          {
+            "file": "Assembly-CSharp/Torappu/CryptUtils.cs",
+            "line": 220,
+            "text": "public static bool VerifySignMD5RSA(byte[] contentBytes, byte[] sign, string publicKey)"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu.DB\\BsonNetConverter_WithSign.cs",
+            "line": 56,
+            "text": "if (CryptUtils.VerifySignMD5RSA(contentBytes, array, signPubKey))"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu.DB\\CrypticConverter_WithSign.cs",
+            "line": 109,
+            "text": "if (!CryptUtils.VerifySignMD5RSA(contentBytes, array, signPubKey))"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu.Network\\NetworkRouter.cs",
+            "line": 409,
+            "text": "if (CryptUtils.VerifySignMD5RSA(networkRouterConfig.content, sign, text))"
+          }
+        ]
+      },
+      {
+        "name": "热更资源完整性校验 HotUpdater",
+        "desc": "按 hot_update_list 的 md5/hash 判定资源是否需更新；私服 mod 方案通过替换 hash 让客户端下载自定义资源（正常链路）。",
+        "hits": [
+          {
+            "file": "Assembly-CSharp\\Torappu.Resource\\HotUpdater.cs",
+            "line": 2028,
+            "text": "string md = abInfo.md5;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu.Resource\\HotUpdater.cs",
+            "line": 2046,
+            "text": "string md2 = abInfo.md5;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu.Resource\\HotUpdater.cs",
+            "line": 3125,
+            "text": "private static DelegateBridge __Hotfix0__CheckIfAssetDirty;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu.Resource\\HotUpdater.cs",
+            "line": 4383,
+            "text": "private static bool _CheckIfAssetDirty(HotUpdateInfo.ABInfo abInfo, Dictionary<string, string> oldHashMap, Dictionary<string, string> oldMD5Map, Dictionary<stri"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu.Resource\\HotUpdater.cs",
+            "line": 4389,
+            "text": "DelegateBridge _Hotfix0__CheckIfAssetDirty = __Hotfix0__CheckIfAssetDirty;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu.Resource\\HotUpdater.cs",
+            "line": 4391,
+            "text": "if (_Hotfix0__CheckIfAssetDirty == null && flag)"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu.Resource\\HotUpdater.cs",
+            "line": 4393,
+            "text": "string hash = abInfo.hash;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu.Resource\\HotUpdater.cs",
+            "line": 4399,
+            "text": "bool flag2 = abInfo.md5 != valueOrDefault;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu.Resource\\HotUpdater.cs",
+            "line": 4418,
+            "text": "bool flag4 = _Hotfix0__CheckIfAssetDirty.__Gen_Delegate_Imp1227((HotUpdateInfo.ABInfo)num, oldHashMap, oldMD5Map, oldTypeMap);"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "title": "B. 反作弊",
+    "summary": "CodeStage 检测器 5 类 + Obscured 混淆值 + ACE/MTP（native 层，动态分析）",
+    "items": [
+      {
+        "name": "CodeStage.InjectionDetector",
+        "desc": "注入检测（内存修改 / 注入框架）。定义存在于客户端程序集，但游戏代码无直接 new/引用，通常由场景组件（Inspector）配置启用。",
+        "hits": [
+          {
+            "file": "-",
+            "line": 0,
+            "text": "(游戏代码未直接引用——可能经场景 prefab / Inspector 配置挂载)"
+          }
+        ]
+      },
+      {
+        "name": "CodeStage.SpeedHackDetector",
+        "desc": "游戏加速器检测。定义存在于客户端程序集，但游戏代码无直接 new/引用，通常由场景组件（Inspector）配置启用。",
+        "hits": [
+          {
+            "file": "-",
+            "line": 0,
+            "text": "(游戏代码未直接引用——可能经场景 prefab / Inspector 配置挂载)"
+          }
+        ]
+      },
+      {
+        "name": "CodeStage.TimeCheatingDetector",
+        "desc": "系统时间篡改检测。定义存在于客户端程序集，但游戏代码无直接 new/引用，通常由场景组件（Inspector）配置启用。",
+        "hits": [
+          {
+            "file": "-",
+            "line": 0,
+            "text": "(游戏代码未直接引用——可能经场景 prefab / Inspector 配置挂载)"
+          }
+        ]
+      },
+      {
+        "name": "CodeStage.WallHackDetector",
+        "desc": "透视 / 穿墙检测。定义存在于客户端程序集，但游戏代码无直接 new/引用，通常由场景组件（Inspector）配置启用。",
+        "hits": [
+          {
+            "file": "-",
+            "line": 0,
+            "text": "(游戏代码未直接引用——可能经场景 prefab / Inspector 配置挂载)"
+          }
+        ]
+      },
+      {
+        "name": "CodeStage.ObscuredCheatingDetector",
+        "desc": "混淆值作弊检测（对 Obscured* 类型篡改）。定义存在于客户端程序集，但游戏代码无直接 new/引用，通常由场景组件（Inspector）配置启用。",
+        "hits": [
+          {
+            "file": "-",
+            "line": 0,
+            "text": "(游戏代码未直接引用——可能经场景 prefab / Inspector 配置挂载)"
+          }
+        ]
+      },
+      {
+        "name": "CodeStage.ActDetectorBase",
+        "desc": "检测器基类。定义存在于客户端程序集，但游戏代码无直接 new/引用，通常由场景组件（Inspector）配置启用。",
+        "hits": [
+          {
+            "file": "-",
+            "line": 0,
+            "text": "(游戏代码未直接引用——可能经场景 prefab / Inspector 配置挂载)"
+          }
+        ]
+      },
+      {
+        "name": "Obscured* 混淆数值类型",
+        "desc": "CodeStage 混淆值（防内存修改），常用于玩家资源/战斗数值等敏感字段。",
+        "hits": [
+          {
+            "file": "Assembly-CSharp\\Torappu\\AttributesData.cs",
+            "line": 53,
+            "text": "public ObscuredInt maxHp;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu\\AttributesData.cs",
+            "line": 58,
+            "text": "public ObscuredInt atk;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu\\AttributesData.cs",
+            "line": 63,
+            "text": "public ObscuredInt def;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu\\AttributesData.cs",
+            "line": 68,
+            "text": "public ObscuredFloat magicResistance;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu\\AttributesData.cs",
+            "line": 73,
+            "text": "public ObscuredInt cost;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu\\AttributesData.cs",
+            "line": 78,
+            "text": "public ObscuredInt blockCnt;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu\\AttributesData.cs",
+            "line": 83,
+            "text": "public ObscuredFloat moveSpeed;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu\\AttributesData.cs",
+            "line": 88,
+            "text": "public ObscuredFloat attackSpeed;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu\\AttributesData.cs",
+            "line": 93,
+            "text": "public ObscuredFloat baseAttackTime;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu\\AttributesData.cs",
+            "line": 98,
+            "text": "public ObscuredInt respawnTime;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu\\AttributesData.cs",
+            "line": 103,
+            "text": "public ObscuredFloat hpRecoveryPerSec;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu\\AttributesData.cs",
+            "line": 108,
+            "text": "public ObscuredFloat spRecoveryPerSec;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu\\AttributesData.cs",
+            "line": 113,
+            "text": "public ObscuredInt maxDeployCount;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu\\AttributesData.cs",
+            "line": 118,
+            "text": "public ObscuredInt maxDeckStackCnt;"
+          },
+          {
+            "file": "Assembly-CSharp\\Torappu\\AttributesData.cs",
+            "line": 123,
+            "text": "public ObscuredInt tauntLevel;"
+          }
+        ]
+      },
+      {
+        "name": "ACE / MTP（com.hg.sdk，Java/native 层）",
+        "desc": "腾讯 ACE + Hypergryph MTP 反作弊 SDK 在 Java/native 层，C# 源码不可见，需动态分析；现有 hook/main.ts 已置空 MTPProxyApplication.onProxyCreate / MTPDetection.onUserLogin 处理。",
+        "hits": []
+      }
+    ]
+  },
+  {
+    "title": "C. 暗桩 / 埋点",
+    "summary": "EventLogSDK 埋点 + CrashSight 崩溃上报 + OneChannel/Webview + 硬编码域名",
+    "items": [
+      {
+        "name": "Hypergryph.EventLogSDK",
+        "desc": "鹰角事件日志 SDK：行为埋点 / 上报（登录、进关、支付等）。",
+        "hits": [
+          {
+            "file": "Hypergryph.EventLogSDK\\Hypergryph.SDK\\HGEventLogSDKAppInstance.cs",
+            "line": 97,
+            "text": "public static void Flush()"
+          },
+          {
+            "file": "Hypergryph.EventLogSDK\\Hypergryph.SDK\\HGEventLogSDKMgr.cs",
+            "line": 107,
+            "text": "public static void Flush()"
+          }
+        ]
+      },
+      {
+        "name": "torappu.CrashSight.Standalone",
+        "desc": "腾讯 CrashSight 崩溃/异常上报 SDK（含设备信息收集）。",
+        "hits": [
+          {
+            "file": "Assembly-CSharp\\Torappu.CrashSight\\CrashSightSDK.cs",
+            "line": 20,
+            "text": "public unsafe static void Init()"
+          },
+          {
+            "file": "torappu.CrashSight.Standalone\\CrashSightAgent.cs",
+            "line": 543,
+            "text": "public static void Init(string app_id, string app_key, string app_version)"
+          },
+          {
+            "file": "torappu.CrashSight.Standalone\\GCloud.UQM\\UQM.cs",
+            "line": 19,
+            "text": "public static void Init()"
+          },
+          {
+            "file": "torappu.CrashSight.Standalone\\GCloud.UQM\\UQMCrash.cs",
+            "line": 571,
+            "text": "public static void Init(string app_id, string app_key, string app_version)"
+          },
+          {
+            "file": "torappu.CrashSight.Standalone\\GCloud.UQM\\UQMMessageCenter.cs",
+            "line": 44,
+            "text": "public void Init()"
+          }
+        ]
+      },
+      {
+        "name": "Hypergryph.OneChannel / Webview",
+        "desc": "渠道服务与内嵌 WebView（运营活动页 / 公告页，可能加载外联页面）。",
+        "hits": []
+      },
+      {
+        "name": "硬编码外联域名",
+        "desc": "客户端源码中出现的固定域名（去重，已排除注释与第三方资产 URL）——评估数据外流面。",
+        "hits": []
+      }
+    ]
+  },
+  {
+    "title": "D. APK 本体（Java / native / 资源层）",
+    "summary": "5 个 dex + 51 个 so 库 + 5 个敏感权限",
+    "items": [
+      {
+        "name": "Dex 反作弊特征",
+        "desc": "Java 层反作弊 SDK 字符串特征（com.hg.sdk / MTP / ACE / root / 注入 / 模拟器 / 调试检测）",
+        "hits": [
+          {
+            "file": "classes.dex",
+            "line": 0,
+            "text": "[Root / 提权检测] …ersedHorizontalSet..isReversedVertical..isRooted..isRotateSupported..isRotationNeeded..i…"
+          },
+          {
+            "file": "classes.dex",
+            "line": 0,
+            "text": "[注入 / Hook 检测] …|bid|bike|bing|bingo|bio|biz|black|blackfriday|bloomberg|blue|bms|bmw|bnl|bnpparibas|…"
+          },
+          {
+            "file": "classes.dex",
+            "line": 0,
+            "text": "[模拟器检测] …pty-impl..isEmptyImpl..isEmptyLoadPath..isEmulator..isEmulatorAndApi21..isEnableANRCrashMo…"
+          },
+          {
+            "file": "classes.dex",
+            "line": 0,
+            "text": "[EventLogSDK 事件上报] …/hms/ads/identifier/e;.\"Lcom/hypergryph/eventlog/EventLog;.%Lcom/hypergryph/platform/hgs…"
+          },
+          {
+            "file": "classes.dex",
+            "line": 0,
+            "text": "[CrashSight / Bugly 崩溃上报] …..begin.. .(.....end.. .(.B.....com.uqm.crashsight.protobufB.DescriptorProtosH.Z>github.co…"
+          },
+          {
+            "file": "classes.dex",
+            "line": 0,
+            "text": "[统计 / 广告埋点] …Lcom/u8/sdk/UserExtraData;. Lcom/u8/sdk/analytics/UDAgent$1;. Lcom/u8/sdk/analytics/UDAge…"
+          },
+          {
+            "file": "classes2.dex",
+            "line": 0,
+            "text": "[Root / 提权检测] …in/failsafe/su../system/bin/qemu-props../system/bin/su.%/system/lib/libc_malloc_debug_qemu.so.…"
+          },
+          {
+            "file": "classes2.dex",
+            "line": 0,
+            "text": "[注入 / Hook 检测] …8c7b0edc262196ab4b0082.#de.robv.android.xposed.XposedBridge. de.robv.android.xposed.in…"
+          },
+          {
+            "file": "classes2.dex",
+            "line": 0,
+            "text": "[模拟器检测] …./data/local/xbin/su../data/misc/../dev/qemu_pipe../dev/socket/baseband_genyd../dev/…"
+          },
+          {
+            "file": "classes2.dex",
+            "line": 0,
+            "text": "[EventLogSDK 事件上报] …decoder$Mode.5$SwitchMap$com$hypergryph$eventlog$utils$Tools$REMOTE.I$SwitchMap$com$hype…"
+          },
+          {
+            "file": "classes2.dex",
+            "line": 0,
+            "text": "[CrashSight / Bugly 崩溃上报] ….2..SightPkg.ExceptionUploadB6.*com.uqm.crashsight.crashreport.common.infoB.SightPkgb.prot…"
+          },
+          {
+            "file": "classes2.dex",
+            "line": 0,
+            "text": "[统计 / 广告埋点] …/SwitchNetManagerExternal;./Lcn/jiguang/analytics/page/ActivityLifecycle$1;.-Lcn/jiguang/…"
+          },
+          {
+            "file": "classes3.dex",
+            "line": 0,
+            "text": "[Root / 提权检测] …tem/bin/netcfg../system/bin/qemu-props../system/bin/su../system/build.prop../system/etc/.has_s…"
+          },
+          {
+            "file": "classes3.dex",
+            "line": 0,
+            "text": "[注入 / Hook 检测] …dc..dc:..dd..ddata..de.#de.robv.android.xposed.XposedBridge. de.robv.android.xposed.in…"
+          },
+          {
+            "file": "classes3.dex",
+            "line": 0,
+            "text": "[模拟器检测] …eruser.daemon/../dev/cpuctl/tasks../dev/qemu_pipe../dev/socket/baseband_genyd../dev/…"
+          },
+          {
+            "file": "classes3.dex",
+            "line": 0,
+            "text": "[EventLogSDK 事件上报] …nload/utils/LogHelper;.\"Lcom/hypergryph/eventlog/EventLog;..Lcom/hypergryph/platform/sha…"
+          },
+          {
+            "file": "classes3.dex",
+            "line": 0,
+            "text": "[CrashSight / Bugly 崩溃上报] …SDK VER: %s.B# You can use Bugly(http:\\\\bugly.qq.com) to get more Crash Detail!.,#+++…"
+          },
+          {
+            "file": "classes4.dex",
+            "line": 0,
+            "text": "[MTP 反作弊] …:: HGShareImpl construction.$Is here :: MTPDetection construction.)Is here :: PermissionRequ…"
+          },
+          {
+            "file": "classes4.dex",
+            "line": 0,
+            "text": "[Root / 提权检测] …system/bin/failsafe/su../system/bin/sh../system/bin/su../system/sd/xbin/su../system/xbin/su../…"
+          },
+          {
+            "file": "classes4.dex",
+            "line": 0,
+            "text": "[注入 / Hook 检测] …elegate..dd..ddata..de.#de.robv.android.xposed.XposedBridge.8de.robv.android.xposed.Xp…"
+          },
+          {
+            "file": "classes4.dex",
+            "line": 0,
+            "text": "[模拟器检测] …_settings..goldenMask..goldenMaskArray..goldfish..gone..google:false..google_play_servic…"
+          },
+          {
+            "file": "classes4.dex",
+            "line": 0,
+            "text": "[调试器检测] …Valid..isDebug..isDebug:..isDebuggable..isDebuggerConnected..isDecided..isDefault..isDefaultMethod.…"
+          },
+          {
+            "file": "classes4.dex",
+            "line": 0,
+            "text": "[EventLogSDK 事件上报] …ew$ScaleType.9$SwitchMap$com$hypergryph$eventlog$utils$ThirdPartyIdType.3$SwitchMap$com$…"
+          },
+          {
+            "file": "classes4.dex",
+            "line": 0,
+            "text": "[CrashSight / Bugly 崩溃上报] …should not be empty!..appId:..appId_for_crashsight..appInfo..appInstanceAppId..appKey..app…"
+          }
+        ]
+      },
+      {
+        "name": "Dex 埋点 / 暗桩特征",
+        "desc": "Java 层埋点与上报 SDK（EventLog / CrashSight / OneChannel / 统计）",
+        "hits": [
+          {
+            "file": "classes.dex",
+            "line": 0,
+            "text": "[EventLogSDK 事件上报] …/hms/ads/identifier/e;.\"Lcom/hypergryph/eventlog/EventLog;.%Lcom/hypergryph/platform/hgs…"
+          },
+          {
+            "file": "classes.dex",
+            "line": 0,
+            "text": "[CrashSight / Bugly 崩溃上报] …..begin.. .(.....end.. .(.B.....com.uqm.crashsight.protobufB.DescriptorProtosH.Z>github.co…"
+          },
+          {
+            "file": "classes.dex",
+            "line": 0,
+            "text": "[统计 / 广告埋点] …Lcom/u8/sdk/UserExtraData;. Lcom/u8/sdk/analytics/UDAgent$1;. Lcom/u8/sdk/analytics/UDAge…"
+          },
+          {
+            "file": "classes2.dex",
+            "line": 0,
+            "text": "[EventLogSDK 事件上报] …decoder$Mode.5$SwitchMap$com$hypergryph$eventlog$utils$Tools$REMOTE.I$SwitchMap$com$hype…"
+          },
+          {
+            "file": "classes2.dex",
+            "line": 0,
+            "text": "[CrashSight / Bugly 崩溃上报] ….2..SightPkg.ExceptionUploadB6.*com.uqm.crashsight.crashreport.common.infoB.SightPkgb.prot…"
+          },
+          {
+            "file": "classes2.dex",
+            "line": 0,
+            "text": "[统计 / 广告埋点] …/SwitchNetManagerExternal;./Lcn/jiguang/analytics/page/ActivityLifecycle$1;.-Lcn/jiguang/…"
+          },
+          {
+            "file": "classes3.dex",
+            "line": 0,
+            "text": "[EventLogSDK 事件上报] …nload/utils/LogHelper;.\"Lcom/hypergryph/eventlog/EventLog;..Lcom/hypergryph/platform/sha…"
+          },
+          {
+            "file": "classes3.dex",
+            "line": 0,
+            "text": "[CrashSight / Bugly 崩溃上报] …SDK VER: %s.B# You can use Bugly(http:\\\\bugly.qq.com) to get more Crash Detail!.,#+++…"
+          },
+          {
+            "file": "classes4.dex",
+            "line": 0,
+            "text": "[EventLogSDK 事件上报] …ew$ScaleType.9$SwitchMap$com$hypergryph$eventlog$utils$ThirdPartyIdType.3$SwitchMap$com$…"
+          },
+          {
+            "file": "classes4.dex",
+            "line": 0,
+            "text": "[CrashSight / Bugly 崩溃上报] …should not be empty!..appId:..appId_for_crashsight..appInfo..appInstanceAppId..appKey..app…"
+          },
+          {
+            "file": "classes4.dex",
+            "line": 0,
+            "text": "[统计 / 广告埋点] ….cn.jiguang..cn.jiguang.ads..cn.jiguang.analytics..cn.jiguang.common..cn.jiguang.dy.FileL…"
+          },
+          {
+            "file": "classes5.dex",
+            "line": 0,
+            "text": "[统计 / 广告埋点] …g/al/d;..Lcn/jiguang/al/e;.-Lcn/jiguang/analytics/page/ActivityLifecycle;.\"Lcn/jiguang/an…"
+          }
+        ]
+      },
+      {
+        "name": "Native 库清单（lib/*.so）",
+        "desc": "共 51 个 so；命中安全/上报关键词 18 个",
+        "hits": [
+          {
+            "file": "lib/arm64-v8a/libBugly.so",
+            "line": 0,
+            "text": "lib/arm64-v8a/libBugly.so（190656 B）"
+          },
+          {
+            "file": "lib/arm64-v8a/libCrashSight.so",
+            "line": 0,
+            "text": "lib/arm64-v8a/libCrashSight.so（1093048 B）"
+          },
+          {
+            "file": "lib/arm64-v8a/libcri_ware_unity.so",
+            "line": 0,
+            "text": "lib/arm64-v8a/libcri_ware_unity.so（2653920 B）"
+          },
+          {
+            "file": "lib/arm64-v8a/libHGEventlog.so",
+            "line": 0,
+            "text": "lib/arm64-v8a/libHGEventlog.so（321312 B）"
+          },
+          {
+            "file": "lib/arm64-v8a/libhgvulkanapi.so",
+            "line": 0,
+            "text": "lib/arm64-v8a/libhgvulkanapi.so（292920 B）"
+          },
+          {
+            "file": "lib/arm64-v8a/libsmsdk.so",
+            "line": 0,
+            "text": "lib/arm64-v8a/libsmsdk.so（826104 B）"
+          },
+          {
+            "file": "lib/arm64-v8a/libtapsdkcore.so",
+            "line": 0,
+            "text": "lib/arm64-v8a/libtapsdkcore.so（4212056 B）"
+          },
+          {
+            "file": "lib/arm64-v8a/libtprt.so",
+            "line": 0,
+            "text": "lib/arm64-v8a/libtprt.so（1692296 B）"
+          },
+          {
+            "file": "lib/arm64-v8a/libunity.so",
+            "line": 0,
+            "text": "lib/arm64-v8a/libunity.so（20012592 B）"
+          },
+          {
+            "file": "lib/armeabi-v7a/libBugly.so",
+            "line": 0,
+            "text": "lib/armeabi-v7a/libBugly.so（165628 B）"
+          },
+          {
+            "file": "lib/armeabi-v7a/libCrashSight.so",
+            "line": 0,
+            "text": "lib/armeabi-v7a/libCrashSight.so（747936 B）"
+          },
+          {
+            "file": "lib/armeabi-v7a/libcri_ware_unity.so",
+            "line": 0,
+            "text": "lib/armeabi-v7a/libcri_ware_unity.so（2303432 B）"
+          },
+          {
+            "file": "lib/armeabi-v7a/libHGEventlog.so",
+            "line": 0,
+            "text": "lib/armeabi-v7a/libHGEventlog.so（181824 B）"
+          },
+          {
+            "file": "lib/armeabi-v7a/libhgvulkanapi.so",
+            "line": 0,
+            "text": "lib/armeabi-v7a/libhgvulkanapi.so（169612 B）"
+          },
+          {
+            "file": "lib/armeabi-v7a/libsmsdk.so",
+            "line": 0,
+            "text": "lib/armeabi-v7a/libsmsdk.so（742376 B）"
+          },
+          {
+            "file": "lib/armeabi-v7a/libtapsdkcore.so",
+            "line": 0,
+            "text": "lib/armeabi-v7a/libtapsdkcore.so（2788652 B）"
+          },
+          {
+            "file": "lib/armeabi-v7a/libtprt.so",
+            "line": 0,
+            "text": "lib/armeabi-v7a/libtprt.so（1411924 B）"
+          },
+          {
+            "file": "lib/armeabi-v7a/libunity.so",
+            "line": 0,
+            "text": "lib/armeabi-v7a/libunity.so（15202504 B）"
+          }
+        ]
+      },
+      {
+        "name": "AndroidManifest 敏感权限",
+        "desc": "检出 5 个敏感权限",
+        "hits": [
+          {
+            "file": "AndroidManifest.xml",
+            "line": 0,
+            "text": "QUERY_ALL_PACKAGES"
+          },
+          {
+            "file": "AndroidManifest.xml",
+            "line": 0,
+            "text": "READ_EXTERNAL_STORAGE"
+          },
+          {
+            "file": "AndroidManifest.xml",
+            "line": 0,
+            "text": "INSTALL_PACKAGES"
+          },
+          {
+            "file": "AndroidManifest.xml",
+            "line": 0,
+            "text": "REQUEST_INSTALL_PACKAGES"
+          },
+          {
+            "file": "AndroidManifest.xml",
+            "line": 0,
+            "text": "WRITE_SETTINGS"
+          }
+        ]
+      },
+      {
+        "name": "硬编码域名（dex 层）",
+        "desc": "检出 91 个去重域名",
+        "hits": [
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "www.googleapis.com（13 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "openmobile.qq.com（8 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "mclient.alipay.com（7 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "imgcache.qq.com（6 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "opencloud.wostore.cn（5 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "user.hypergryph.com（5 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "issuetracker.google.com（4 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "ak.hypergryph.com（4 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "onepass.geetest.com（3 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "service.weibo.com（3 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "wappaygw.alipay.com（3 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "schemas.android.com（2 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "open.weibo.cn（2 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "ak-web-staging.hypergryph.com（2 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "appsupport.qq.com（2 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "as.hypergryph.com（2 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "core-api-account-dev.hypergryph.net（2 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "loggw-exsdk.alipay.com（2 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "mcgw.alipay.com（2 次）"
+          },
+          {
+            "file": "classes*.dex",
+            "line": 0,
+            "text": "mobilegw.alipay.com（2 次）"
+          }
+        ]
+      },
+      {
+        "name": "assets 资源结构（采样）",
+        "desc": "Unity 资源布局（AB bundle 目录 / 加密 Lua bundle 等）",
+        "hits": [
+          {
+            "file": "assets/",
+            "line": 0,
+            "text": "assets/AB/Android/745b15f58f014d6568da4ae045d95a3f.idx（10241604 B）"
+          },
+          {
+            "file": "assets/",
+            "line": 0,
+            "text": "assets/AB/Android/activity/commonassets.ab（4627815 B）"
+          },
+          {
+            "file": "assets/",
+            "line": 0,
+            "text": "assets/AB/Android/akvt/prfb_fx_0.ab（156191 B）"
+          },
+          {
+            "file": "assets/",
+            "line": 0,
+            "text": "assets/AB/Android/akvt/prfb_spn_0.ab（14609 B）"
+          },
+          {
+            "file": "assets/",
+            "line": 0,
+            "text": "assets/AB/Android/akvt/prfb_spn_1.ab（5759 B）"
+          },
+          {
+            "file": "assets/",
+            "line": 0,
+            "text": "assets/AB/Android/akvt/prfb_trp_0.ab（84016 B）"
+          },
+          {
+            "file": "assets/",
+            "line": 0,
+            "text": "assets/AB/Android/anon/03c294ec637a9d2aa11ca45006bf20a2.bin（379828 B）"
+          },
+          {
+            "file": "assets/",
+            "line": 0,
+            "text": "assets/AB/Android/anon/057ce414728716944e50014e7a34d437.bin（2741563 B）"
+          },
+          {
+            "file": "assets/",
+            "line": 0,
+            "text": "assets/AB/Android/anon/076eaf0724466661547a9d77855c0776.bin（3588 B）"
+          },
+          {
+            "file": "assets/",
+            "line": 0,
+            "text": "assets/AB/Android/anon/0b57b98e9391802ac345ce338beb3eeb.bin（2155 B）"
+          },
+          {
+            "file": "assets/",
+            "line": 0,
+            "text": "assets/AB/Android/anon/0c7428e9e598f1efb2dfea78b3f935e6.bin（1246028 B）"
+          },
+          {
+            "file": "assets/",
+            "line": 0,
+            "text": "assets/AB/Android/anon/0d688f1808e17ccf5294634f668be5f4.bin（1732241 B）"
+          }
+        ]
+      }
+    ]
+  }
+]

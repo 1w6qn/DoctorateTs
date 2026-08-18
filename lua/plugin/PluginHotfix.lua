@@ -16,10 +16,23 @@
                 最多一个生效（对应 BasePlugin:Fix_ex）。
   - 不依赖游戏提供的 HotfixBase，直接用 xlua.hotfix；任何注册失败（如方法
     不存在/版本漂移）返回 false，由调用方记录日志，不影响其它插件。
+  - 运行时兜底（对齐官方 hotfixer 的 xpcall 包裹模式，如 ArkventHotfixer）：
+    安装的包装器统一 xpcall 调用链，fixFunc 运行时抛错只记日志并返回 nil，
+    不冒泡到 C# 调用栈导致游戏崩溃；链上后续处理函数仍会执行。
 
-  依赖：无（模块加载不触碰任何游戏全局，运行时才访问 xlua）。
+  依赖：无（模块加载不触碰任何游戏全局，运行时才访问 xlua / CS）。
 --]]
 local PluginHotfix = {}
+
+-- 惰性获取 Torappu.Lua.Util（运行时才触碰 CS，避免模块加载期依赖游戏全局）
+local _eutil = nil
+local function _Util()
+  if _eutil == nil then
+    local ok, u = pcall(function() return CS.Torappu.Lua.Util end)
+    _eutil = ok and u or false
+  end
+  return _eutil or nil
+end
 
 -- entries[cls][method] = { orig, handlers = { {plugin, fn}, ... }, fixEx, chain }
 local entries = {}
@@ -74,7 +87,15 @@ local function _EnsureInstalled(cls, method)
     entry = { orig = orig, handlers = {}, fixEx = nil, chain = orig }
     byMethod[method] = entry
     xlua.hotfix(cls, method, function(self, ...)
-      return entry.chain(self, ...)
+      -- 运行时兜底：fixFunc 抛错不冒泡到 C# 栈，只记日志（返回 nil 由 xlua 转默认值）
+      local ok, result = xpcall(entry.chain, debug.traceback, self, ...)
+      if not ok then
+        local u = _Util()
+        if u ~= nil then
+          u.LogHotfixError("[PluginHotfix] " .. tostring(cls) .. "." .. tostring(method) .. " 运行时异常: " .. tostring(result))
+        end
+      end
+      return result
     end)
   end
   return entry

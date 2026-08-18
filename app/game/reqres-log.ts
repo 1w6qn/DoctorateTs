@@ -4,23 +4,25 @@
  * 用途：排查客户端与服务端交互问题（如 rlv2 开局/推进异常）时，逐请求记录
  * req body 与 res body，便于复现与分析。属临时调试设施，生产环境建议关闭。
  *
+ * 记录方式与 capture 抓包系统一致：写入 captureManager 统一存储
+ * （tmp/capture/index.db SQLite 索引 + records/{rid}/req.json|res.json body 文件），
+ * 可在 Dashboard「抓包」Tab 查询/对比（source=private，note="reqres-log"），
+ * 而非自建文本日志。
+ *
  * 开关（环境变量 REQRES_LOG，默认 "rlv2"）：
  *   - "all"   记录所有请求
  *   - "rlv2"  仅记录 /rlv2/ 路径（默认，当前调试主题）
- *   - "0"/空  关闭
+ *   - "0"/"false"/"off"/空  关闭
  *
- * 输出：logs/reqres-YYYYMM-DD.log（独立文件，避免污染 server log）；
- * 每行格式：时间 | 方法 | 路径 | REQ/RES | 状态码 | 耗时 | 内容
- * 响应体与请求体超过 maxLen 字符时截断（含截断标记）。
+ * 与 traffic-recorder（debug.recordTraffic 开关、全量+排除前缀）的区别：
+ * 本中间件用环境变量按路径前缀精确过滤，适合临时定向抓某个接口族。
  */
-import { appendFileSync } from "fs";
-import { join } from "path";
 import type { Request, Response, NextFunction } from "express";
+import { captureManager } from "@capture/capture-manager";
+import { logger } from "@utils/logger";
 
 // 空字符串/缺省 → 默认 "rlv2"；显式 "0"/"false"/"off" → 关闭（用 ?? 而非 ||，空串不被覆盖）
 const MODE = (process.env.REQRES_LOG ?? "rlv2").toLowerCase();
-/** 请求/响应体最大记录长度（超长截断） */
-const MAX_LEN = 4000;
 
 /** 路径是否命中记录模式（导出供测试） */
 export function enabledFor(path: string): boolean {
@@ -29,42 +31,6 @@ export function enabledFor(path: string): boolean {
   if (MODE === "rlv2") return path.startsWith("/rlv2");
   // 其他值视为精确前缀匹配
   return path.startsWith(MODE.startsWith("/") ? MODE : `/${MODE}`);
-}
-
-/** 请求/响应体安全序列化（截断，导出供测试） */
-export function safeJson(body: unknown): string {
-  if (body === undefined || body === null) return String(body);
-  if (typeof body === "string") {
-    return body.length > MAX_LEN ? `${body.slice(0, MAX_LEN)}…[截断 ${body.length - MAX_LEN} 字符]` : body;
-  }
-  try {
-    const s = JSON.stringify(body);
-    if (!s) return "";
-    return s.length > MAX_LEN ? `${s.slice(0, MAX_LEN)}…[截断 ${s.length - MAX_LEN} 字符]` : s;
-  } catch {
-    return `[不可序列化: ${typeof body}]`;
-  }
-}
-
-function appendLine(line: string): void {
-  try {
-    const d = new Date();
-    const file = join(
-      __dirname,
-      "..",
-      "..",
-      "logs",
-      `reqres-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}.log`,
-    );
-    appendFileSync(file, `${line}\n`, "utf8");
-  } catch (e) {
-    // 记录失败不阻断业务
-  }
-}
-
-function ts(): string {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}.${String(d.getMilliseconds()).padStart(3, "0")}`;
 }
 
 export function reqresLogMiddleware(
@@ -76,22 +42,77 @@ export function reqresLogMiddleware(
     next();
     return;
   }
-  const start = Date.now();
-  const base = `${ts()} | ${req.method} | ${req.originalUrl}`;
-  appendLine(`${base} | REQ | ${safeJson(req.body)}`);
+  const startedAt = Date.now();
+  // 非 JSON（multipart 等）请求体：capture 模式用 rawBody 捕获原始字节
+  const rawBody = (req as unknown as { rawBody?: Buffer }).rawBody;
 
-  const origSend = res.send.bind(res);
-  res.send = ((body: unknown) => {
-    const elapsed = Date.now() - start;
-    appendLine(`${base} | RES | ${res.statusCode} | ${elapsed}ms | ${safeJson(body)}`);
-    return origSend(body);
-  }) as Response["send"];
+  const originalSend = res.send.bind(res);
+  const originalJson = res.json.bind(res);
+  let body: unknown;
 
-  // 请求异常终止时补记（避免丢失仅有 REQ 的行）
-  res.on("close", () => {
-    if (!res.writableEnded) {
-      appendLine(`${base} | RES | ${res.statusCode} | 中断(close)`);
-    }
+  res.json = ((data: unknown) => {
+    body = data;
+    return originalJson(data);
+  }) as typeof res.json;
+
+  res.send = ((data: unknown) => {
+    body = data;
+    return originalSend(data);
+  }) as typeof res.send;
+
+  // 响应结束（finish 事件）后异步写入 captureManager，不阻塞响应；失败仅 logger.debug
+  res.on("finish", () => {
+    void (async () => {
+      try {
+        // Express res.send/res.json 在链上可能已把对象序列化为字符串，统一解析回对象再落盘
+        let payload: unknown = body ?? undefined;
+        if (typeof payload === "string") {
+          try {
+            payload = JSON.parse(payload);
+          } catch {
+            /* 非 JSON 文本（如 404 HTML）保持原样 */
+          }
+        }
+        const url = req.originalUrl.split("?")[0];
+        const query = req.originalUrl.includes("?")
+          ? req.originalUrl.split("?")[1]
+          : undefined;
+
+        // 请求体：rawBody（multipart/二进制原始字节）优先，其次 req.body（JSON）
+        const reqBody =
+          rawBody && rawBody.length > 0
+            ? { kind: "bin" as const, data: rawBody }
+            : req.body !== undefined && req.body !== null
+              ? { kind: "json" as const, data: req.body }
+              : undefined;
+
+        // 响应体：对象→json；Buffer/非 JSON 字符串→bin
+        const resBody =
+          payload === undefined
+            ? undefined
+            : typeof payload === "object" && !Buffer.isBuffer(payload)
+              ? { kind: "json" as const, data: payload }
+              : { kind: "bin" as const, data: payload };
+
+        await captureManager.addRecord(
+          {
+            ts: startedAt,
+            method: req.method,
+            path: url,
+            query,
+            status: res.statusCode,
+            latencyMs: Date.now() - startedAt,
+            source: "private",
+            note: "reqres-log",
+            reqHeaders: req.headers as Record<string, unknown>,
+            resHeaders: res.getHeaders() as Record<string, unknown>,
+          },
+          { req: reqBody, res: resBody },
+        );
+      } catch (e) {
+        logger.debug("reqres-log", "记录失败:", (e as Error).message);
+      }
+    })();
   });
 
   next();

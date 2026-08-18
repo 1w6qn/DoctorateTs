@@ -599,22 +599,38 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
 
   async finishEvent() {
     if (this._status.cursor.zone === 0) {
-      // 初始阶段：RELIC/SUPPORT/RECRUIT_SET 由各自专用接口消费
-      // （chooseInitialRelic/selectChoice/chooseInitialRecruitSet），finishEvent 仅消费
-      // GAME_INIT_GIFT（开局礼物确认——发放礼物物品）与 GAME_INIT_RECRUIT（开局招募完成），
-      // 全部 GAME_INIT_* 消费完才生成第一层地图。
-      const top = this._status.pending[0];
-      if (top && top.type === "GAME_INIT_GIFT") {
-        // 发放开局礼物（rogue_6 岁主题：金 +10 / 人口 +1）
-        const items = top.content.initGift?.items || [];
-        await this._trigger.emit("rlv2:get:items", [items]);
-        this._status.pending.shift();
-      } else if (top && top.type === "GAME_INIT_RECRUIT") {
-        this._status.pending.shift();
-        // 清空初始招募残留的 RECRUIT 事件（放弃票/候选为空未招募场景——
-        // 官服进入第一层 WAIT_MOVE 时 pending 为空，残留会导致客户端"系统发生未知故障"）
-        this._status._pending._pending =
-          this._status._pending._pending.filter((e) => e.type !== "RECRUIT");
+      // 初始阶段：循环消费"确认型" GAME_INIT_* 事件，直至需要玩家操作的
+      // 事件（RECRUIT_SET）或 pending 清空——一次 finishEvent 处理完所有
+      // GIFT（发礼物）+ RECRUIT（招募完成）+ SUPPORT（未选时代选兜底），
+      // 避免多事件残留时客户端只调一次 finishEvent 卡在 INIT。
+      // （RELIC/RECRUIT_SET 由 chooseInitialRelic/chooseInitialRecruitSet 消费）
+      while (this._status.pending.length > 0) {
+        const top = this._status.pending[0];
+        if (top.type === "GAME_INIT_GIFT") {
+          const items = top.content.initGift?.items || [];
+          if (items.length > 0) {
+            await this._trigger.emit("rlv2:get:items", [items]);
+          }
+          this._status.pending.shift();
+        } else if (top.type === "GAME_INIT_RECRUIT") {
+          this._status.pending.shift();
+          // 清空初始招募残留的 RECRUIT 事件（放弃票/候选为空未招募场景——
+          // 官服进入第一层 WAIT_MOVE 时 pending 为空，残留会导致客户端"系统发生未知故障"）
+          this._status._pending._pending =
+            this._status._pending._pending.filter((e) => e.type !== "RECRUIT");
+        } else if (top.type === "GAME_INIT_SUPPORT") {
+          // 行动奖励未选（客户端未调 selectChoice）时服务端代选第一个选项兜底——
+          // 官方必须选择才能继续，客户端异常跳过会导致流程卡死
+          const choices = top.content.initSupport?.scene?.choices || {};
+          const choiceId = Object.keys(choices)[0];
+          if (choiceId) {
+            await this.selectChoice({ choice: choiceId });
+          } else {
+            this._status.pending.shift();
+          }
+        } else {
+          break; // GAME_INIT_RECRUIT_SET 等需客户端专用接口
+        }
       }
       const hasInit = this._status.pending.some((e) =>
         (e.type || "").startsWith("GAME_INIT_"),

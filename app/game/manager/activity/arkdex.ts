@@ -31,12 +31,12 @@ export const ARKDEX_SCAN_REWARD: ItemBundle = {
 };
 
 /**
- * 巡展道具定义（itemNumId/名称/单价/类型/每日库存）。
- * 名称与效果来自 arkdexModule.itemEffectData（16 种）；价格逆向自 ARKDUEL 商店
- * 价格表 §28（5004/5005/5006/5009/5010/5015/5021），其余按同类推断并标注：
- * - 味道诱引剂（5007/5008/5009/5010/5011，特质定向）= 60
- * - 信息素（5014/5015/5016 珍奇度 1/2/3 引出）= 60
- * - 特质信息素（5017-5021）= 60
+ * 巡展道具定义（itemNumId/名称/单价/类型/每日库存/定向目标）。
+ * 名称与效果来自 arkdexModule.itemEffectData（16 种，2026-08-18 复核实锤）：
+ * - 5004/5005/5006 珍奇度诱引剂（1★/2★/3★ 遭遇池）、5007-5011 特质诱引剂（trait_mask 定向）
+ * - 5014/5015/5016 珍奇度信息素（1★/2★/3★ 直接引出）、5017-5021 特质信息素（trait_mask 定向）
+ * 价格逆向自 ARKDUEL 商店价格表 §28（5004/5005/5006/5009/5010/5015/5021 确认），
+ * 其余按同类推断（60）并标注。味道名（甜/辣/苦等）仅 §28 确认 3 种，其余为推断展示名。
  * 类型：lure=诱引剂（使用后遭遇目标条件生物）、pheromone=信息素（直接引出生物）。
  */
 export interface ArkdexPropDef {
@@ -46,26 +46,32 @@ export interface ArkdexPropDef {
   /** 每日固定库存（稀有诱引剂 2，其余 5——对齐官服价格表 avail 字段） */
   dailyStock: number;
   type: "lure" | "pheromone";
+  /** 定向珍奇度（1/2/3；itemEffectData activeDesc） */
+  targetRarity?: number;
+  /** 定向特质位掩码（itemEffectData blackboard trait_mask；0/空 = 不按特质定向） */
+  targetTraitMask?: number;
+  /** 道具效果描述（itemEffectData activeDesc 原文） */
+  activeDesc?: string;
 }
 
-/** 道具定义（价格来源：§28 价格表确认 / 推断标注） */
+/** 道具定义（target 字段自 itemEffectData 实锤；价格来源：§28 确认 / 推断标注） */
 export const ARKDEX_PROPS: Record<number, ArkdexPropDef> = {
-  5004: { itemNumId: 5004, name: "标准诱引剂", price: 40, dailyStock: 99, type: "lure" },
-  5005: { itemNumId: 5005, name: "专业诱引剂", price: 60, dailyStock: 99, type: "lure" },
-  5006: { itemNumId: 5006, name: "稀有诱引剂", price: 250, dailyStock: 2, type: "lure" },
-  5007: { itemNumId: 5007, name: "酸味诱引剂", price: 60, dailyStock: 5, type: "lure" }, // 价格推断
-  5008: { itemNumId: 5008, name: "甜味诱引剂", price: 60, dailyStock: 5, type: "lure" }, // 价格推断
-  5009: { itemNumId: 5009, name: "甜味诱引剂", price: 60, dailyStock: 5, type: "lure" },
-  5010: { itemNumId: 5010, name: "辣味诱引剂", price: 60, dailyStock: 5, type: "lure" },
-  5011: { itemNumId: 5011, name: "苦味诱引剂", price: 60, dailyStock: 5, type: "lure" }, // 价格推断
-  5014: { itemNumId: 5014, name: "标准信息素", price: 60, dailyStock: 5, type: "pheromone" }, // 价格推断
-  5015: { itemNumId: 5015, name: "专业信息素", price: 60, dailyStock: 5, type: "pheromone" },
-  5016: { itemNumId: 5016, name: "稀有信息素", price: 60, dailyStock: 5, type: "pheromone" }, // 价格推断
-  5017: { itemNumId: 5017, name: "酸味信息素", price: 60, dailyStock: 5, type: "pheromone" }, // 价格推断
-  5018: { itemNumId: 5018, name: "甜味信息素", price: 60, dailyStock: 5, type: "pheromone" }, // 价格推断
-  5019: { itemNumId: 5019, name: "辣味信息素", price: 60, dailyStock: 5, type: "pheromone" }, // 价格推断
-  5020: { itemNumId: 5020, name: "苦味信息素", price: 60, dailyStock: 5, type: "pheromone" }, // 价格推断
-  5021: { itemNumId: 5021, name: "苦味信息素", price: 60, dailyStock: 5, type: "pheromone" },
+  5004: { itemNumId: 5004, name: "标准诱引剂", price: 40, dailyStock: 99, type: "lure", targetRarity: 1, activeDesc: "生效期间，会遭遇珍奇度为1的生物数据" },
+  5005: { itemNumId: 5005, name: "专业诱引剂", price: 60, dailyStock: 99, type: "lure", targetRarity: 2, activeDesc: "生效期间，会遭遇珍奇度为2的生物数据" },
+  5006: { itemNumId: 5006, name: "稀有诱引剂", price: 250, dailyStock: 2, type: "lure", targetRarity: 3, activeDesc: "生效期间，会遭遇珍奇度为3的生物数据" },
+  5007: { itemNumId: 5007, name: "诱引剂·坚韧", price: 60, dailyStock: 5, type: "lure", targetTraitMask: 3, activeDesc: "生效期间，一定会遭遇焦虑不安或坚韧不屈的生物数据" },
+  5008: { itemNumId: 5008, name: "诱引剂·应激", price: 60, dailyStock: 5, type: "lure", targetTraitMask: 12, activeDesc: "生效期间，一定会遭遇时常应激或小心谨慎的生物数据" },
+  5009: { itemNumId: 5009, name: "甜味诱引剂", price: 60, dailyStock: 5, type: "lure", targetTraitMask: 48, activeDesc: "生效期间，一定会遭遇天生幸运或活力满满的生物数据" },
+  5010: { itemNumId: 5010, name: "辣味诱引剂", price: 60, dailyStock: 5, type: "lure", targetTraitMask: 192, activeDesc: "生效期间，一定会遭遇暴躁易怒或难以捉摸的生物数据" },
+  5011: { itemNumId: 5011, name: "诱引剂·记仇", price: 60, dailyStock: 5, type: "lure", targetTraitMask: 768, activeDesc: "生效期间，一定会遭遇分外记仇或狠毒异常的生物数据" },
+  5014: { itemNumId: 5014, name: "标准信息素", price: 60, dailyStock: 5, type: "pheromone", targetRarity: 1, activeDesc: "随机引出一只珍奇度为1的生物数据" },
+  5015: { itemNumId: 5015, name: "专业信息素", price: 60, dailyStock: 5, type: "pheromone", targetRarity: 2, activeDesc: "随机引出一只珍奇度为2的生物数据" },
+  5016: { itemNumId: 5016, name: "稀有信息素", price: 60, dailyStock: 5, type: "pheromone", targetRarity: 3, activeDesc: "随机引出一只珍奇度为3的生物数据" },
+  5017: { itemNumId: 5017, name: "信息素·坚韧", price: 60, dailyStock: 5, type: "pheromone", targetTraitMask: 3, activeDesc: "随机引出一只焦虑不安或坚韧不屈的生物数据" },
+  5018: { itemNumId: 5018, name: "信息素·应激", price: 60, dailyStock: 5, type: "pheromone", targetTraitMask: 12, activeDesc: "随机引出一只时常应激或小心谨慎的生物数据" },
+  5019: { itemNumId: 5019, name: "信息素·幸运", price: 60, dailyStock: 5, type: "pheromone", targetTraitMask: 48, activeDesc: "随机引出一只天生幸运或活力满满的生物数据" },
+  5020: { itemNumId: 5020, name: "信息素·易怒", price: 60, dailyStock: 5, type: "pheromone", targetTraitMask: 192, activeDesc: "随机引出一只暴躁易怒或难以捉摸的生物数据" },
+  5021: { itemNumId: 5021, name: "苦味信息素", price: 60, dailyStock: 5, type: "pheromone", targetTraitMask: 768, activeDesc: "随机引出一只分外记仇或狠毒异常的生物数据" },
 };
 
 /**
@@ -174,25 +180,80 @@ export function arkdexModeRules(modeId: string): {
 
 /**
  * NPC 对决策略敌队（npcDuelStrategyData[strategyGroupId].creatureData）
- * 注意解码怪癖：活动表 FlatBuffers→JSON 把每条策略包装为
- * `{ groupId: {真数据}, 伪键: null }`——需先取嵌套同名键再取 creatureData。
+ * 解码怪癖（活动表 FlatBuffers→JSON）：
+ * - 简单组（strategy_group_intro/npc2-6）包装为 `{ groupId: {真数据}, 伪键: null }`
+ * - 策略池组（strategy_group_1-5/pve/npc7）为 `{ groupId: { strategyId: {真数据}, ... }, 伪键: null }`，
+ *   含多个策略变体（tileStrategy/cardStrategy/creatureData/weight）——深度查找首个 creatureData。
  * @returns [{creatureNumId, traitMask}]；未知策略组返回空数组
  */
 export function arkdexEnemySquad(strategyGroupId: string): Array<{ creatureNumId: number; traitMask: number }> {
   const group = (excel.ArkhubCreatureTable as any)?.npcDuelStrategyData?.[strategyGroupId];
   if (!group) return [];
-  // 嵌套同名键（解码包装）优先；否则直接读
-  const data = Array.isArray(group?.creatureData)
-    ? group.creatureData
-    : Array.isArray(group?.[strategyGroupId]?.creatureData)
-      ? group[strategyGroupId].creatureData
-      : [];
-  return data ?? [];
+  const data = findCreatureDataDeep(group);
+  return Array.isArray(data) ? data : [];
+}
+
+/** 深度优先查找对象树中第一个 creatureData 数组（兼容多层解码包装） */
+function findCreatureDataDeep(node: unknown): unknown {
+  if (Array.isArray(node)) return node;
+  if (node && typeof node === "object") {
+    for (const v of Object.values(node as Record<string, unknown>)) {
+      if (v && typeof v === "object") {
+        const found = findCreatureDataDeep(v);
+        if (Array.isArray(found)) return found;
+      }
+    }
+  }
+  return undefined;
 }
 
 /** ARKDEX 常量（dexConstData，如 bag 上限/队伍大小/稀有度上限） */
 export function arkdexConst(key: string): number {
   return (excel.ArkhubCreatureTable as any)?.dexConstData?.[key] ?? 0;
+}
+
+/**
+ * 特质数据（traitData；key 1-9 对应 trait_2..trait_10，trait_1"焦虑不安"数据缺失但存在于
+ * 道具 trait_mask 位 0）。traitMask 字段为展示序号（1-9），非位掩码——道具定向用位掩码
+ * （5007=3=位0|位1=焦虑不安|坚韧不屈）。
+ * @returns [{traitId, name, description, traitMask}] 按 key 排序
+ */
+export function arkdexTraits(): Array<{ traitId: string; name: string; description: string; traitMask: number }> {
+  const td = (excel.ArkhubCreatureTable as any)?.traitData ?? {};
+  return Object.values(td).map((v: any) => ({
+    traitId: v?.traitId ?? "",
+    name: v?.name ?? "",
+    description: v?.description ?? "",
+    traitMask: v?.traitMask ?? 0,
+  }));
+}
+
+/** 位掩码 → 特质名列表（道具定向 targetTraitMask 解析；位 0=焦虑不安，位 n=traitData[n]） */
+export function arkdexTraitNames(mask: number): string[] {
+  if (!mask) return [];
+  const names: string[] = [];
+  if (mask & 1) names.push("焦虑不安");
+  const traits = arkdexTraits();
+  for (let bit = 1; bit <= 9; bit++) {
+    if (mask & (1 << bit)) {
+      names.push(traits[bit - 1]?.name ?? `特质${bit + 1}`);
+    }
+  }
+  return names;
+}
+
+/** 栖息地（obtainApproach 取值；普通栖息地开放 1-2★，保护区可出 3★） */
+export const ARKDEX_HABITATS = ["密林外沿", "晦光林地", "奇生保护区"] as const;
+export type ArkdexHabitat = (typeof ARKDEX_HABITATS)[number];
+
+/** 按栖息地筛选生物（obtainApproach 形如"生息于密林外沿"，前缀匹配；供扫描遭遇按区域选生物池） */
+export function arkdexCreaturesByHabitat(habitat: string): any[] {
+  return arkdexCreatures().filter((c) => (c?.obtainApproach ?? "").includes(habitat));
+}
+
+/** 按珍奇度筛选生物（普通栖息地 1-2★；保护区含 3★） */
+export function arkdexCreaturesByRarity(rarity: number): any[] {
+  return arkdexCreatures().filter((c) => c?.rarity === rarity);
 }
 
 /** 读 ARK_HUB 状态（update 配方外只读） */

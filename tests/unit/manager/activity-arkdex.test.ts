@@ -24,6 +24,10 @@ import {
   arkdexModeRules,
   arkdexEnemySquad,
   arkdexConst,
+  arkdexTraits,
+  arkdexTraitNames,
+  arkdexCreaturesByHabitat,
+  arkdexCreaturesByRarity,
 } from "@game/manager/activity/arkdex";
 
 function hubPlayer(overrides: Record<string, any> = {}) {
@@ -195,15 +199,23 @@ describe("数据集换与保护区", () => {
     expect(hubOf(player).unlockedAreas["1"]).toBe(1);
   });
 
-  it("道具表完整性：16 种道具含价格与类型（arkdexModule.itemEffectData）", () => {
+  it("道具表完整性：16 种道具含价格/类型/定向目标（itemEffectData 实锤）", () => {
     expect(Object.keys(ARKDEX_PROPS)).toHaveLength(16);
-    expect(ARKDEX_PROPS[5004]).toMatchObject({ price: 40, type: "lure" });
-    expect(ARKDEX_PROPS[5006]).toMatchObject({ price: 250, type: "lure" });
-    expect(ARKDEX_PROPS[5015]).toMatchObject({ price: 60, type: "pheromone" });
-    expect(ARKDEX_PROPS[5016]).toMatchObject({ price: 60, type: "pheromone" });
-    expect(ARKDEX_PROPS[5011]).toMatchObject({ price: 60, type: "lure" });
-    // 5006 稀有诱引剂每日库存 2（官服价格表 avail），其余 5
-    expect(ARKDEX_PROPS[5006].dailyStock).toBe(2);
+    expect(ARKDEX_PROPS[5004]).toMatchObject({ price: 40, type: "lure", targetRarity: 1 });
+    expect(ARKDEX_PROPS[5005]).toMatchObject({ type: "lure", targetRarity: 2 });
+    expect(ARKDEX_PROPS[5006]).toMatchObject({ price: 250, type: "lure", targetRarity: 3, dailyStock: 2 });
+    expect(ARKDEX_PROPS[5014]).toMatchObject({ type: "pheromone", targetRarity: 1 });
+    expect(ARKDEX_PROPS[5015]).toMatchObject({ price: 60, type: "pheromone", targetRarity: 2 });
+    expect(ARKDEX_PROPS[5016]).toMatchObject({ type: "pheromone", targetRarity: 3 });
+    // trait_mask 位掩码（5007=3=焦虑不安|坚韧不屈 … 5011=768=分外记仇|狠毒异常）
+    expect(ARKDEX_PROPS[5007].targetTraitMask).toBe(3);
+    expect(ARKDEX_PROPS[5008].targetTraitMask).toBe(12);
+    expect(ARKDEX_PROPS[5009].targetTraitMask).toBe(48);
+    expect(ARKDEX_PROPS[5010].targetTraitMask).toBe(192);
+    expect(ARKDEX_PROPS[5011].targetTraitMask).toBe(768);
+    expect(ARKDEX_PROPS[5017].targetTraitMask).toBe(3);
+    expect(ARKDEX_PROPS[5021].targetTraitMask).toBe(768);
+    expect(ARKDEX_PROPS[5004].activeDesc).toContain("珍奇度为1");
   });
 });
 
@@ -256,5 +268,61 @@ describe("arkdexModule 数据访问（data/arkhub/arkdex.json 实锤数据）", 
     expect(arkdexConst("arkdexCreatureBagMaxNum")).toBe(400);
     expect(arkdexConst("teamSize")).toBe(3);
     expect(arkdexConst("maxTeamRarityCount")).toBe(7);
+  });
+});
+
+describe("arkdexModule 活动细节补全（2026-08-18 实锤）", () => {
+  it("特质：9 种（traitData），位掩码解析含缺失的焦虑不安（位 0）", () => {
+    const traits = arkdexTraits();
+    expect(traits).toHaveLength(9);
+    expect(traits[0].name).toBe("坚韧不屈");
+    expect(traits[0].traitMask).toBe(1);
+    expect(traits[8].name).toBe("狠毒异常");
+    // 5007 mask=3 = 位0(焦虑不安) + 位1(坚韧不屈)
+    expect(arkdexTraitNames(3)).toEqual(["焦虑不安", "坚韧不屈"]);
+    // 5010 mask=192 = 位6(暴躁易怒) + 位7(难以捉摸)
+    expect(arkdexTraitNames(192)).toEqual(["暴躁易怒", "难以捉摸"]);
+    expect(arkdexTraitNames(0)).toEqual([]);
+  });
+
+  it("栖息地：3 区按 obtainApproach 分组（密林外沿/晦光林地/奇生保护区）", () => {
+    const forest = arkdexCreaturesByHabitat("密林外沿");
+    const dark = arkdexCreaturesByHabitat("晦光林地");
+    const reserve = arkdexCreaturesByHabitat("奇生保护区");
+    expect(forest.length).toBe(12);
+    expect(dark.length).toBe(12);
+    expect(reserve.length).toBe(13);
+    // 三个区域都是"生息于"前缀（obtainApproach）；3★ 生物分布在所有区域
+    // （普通区域遭遇限制 1-2★ 是玩法规则，非数据分组——3★ 只在保护区/概率出）
+    expect(forest.some((c: any) => c.rarity === 3)).toBe(true);
+    expect(reserve.some((c: any) => c.rarity === 3)).toBe(true);
+    expect(arkdexCreaturesByRarity(3).length).toBe(15);
+  });
+
+  it("深层策略组：strategy_group_pve 9 变体 + strategy_group_npc2 敌队（深度查找）", () => {
+    const pve = arkdexEnemySquad("strategy_group_pve");
+    expect(pve.length).toBeGreaterThanOrEqual(3);
+    expect(pve[0].creatureNumId).toBe(19059);
+    const npc2 = arkdexEnemySquad("strategy_group_npc2");
+    expect(npc2.map((e) => e.creatureNumId)).toEqual([19055, 19056, 19007]);
+    // 未知组返回空
+    expect(arkdexEnemySquad("no_such_group")).toEqual([]);
+  });
+
+  it("NPC 与策略组：苍苔引导战 intro、工作人员 pve、奇象收集师 npc7", () => {
+    const intro = arkdexEnemySquad("strategy_group_intro");
+    expect(intro.map((e) => e.creatureNumId)).toEqual([19005, 19005, 19003]);
+    const npc7 = arkdexEnemySquad("strategy_group_npc7");
+    expect(npc7.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("模式规则含野外变体：BO3_Solo_wild（守门人/8/18 野外对决）", () => {
+    const wild = arkdexModeRules("arkdex_BO3_Solo_wild");
+    expect(wild.rounds).toBe(3);
+    expect(wild.numPlayers).toBe(2);
+    expect(wild.isMatching).toBe(false);
+    // 快速对决 characterLimit=2 一只轮 1 轮
+    expect(arkdexModeRules("arkdex_singleRound_Solo")).toMatchObject({ rounds: 1, numPlayers: 2 });
+    expect(arkdexModeRules("arkdex_4Player_Solo")).toMatchObject({ rounds: 1, numPlayers: 4, npcCount: 3 });
   });
 });

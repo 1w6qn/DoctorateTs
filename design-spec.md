@@ -1947,3 +1947,81 @@ ARKDEX 状态层不依赖生物数值，但**客户端实际游玩**仍缺以下
 - 服务器侧已有全部生物数据 → 扫描遭遇可随机真实生物、ARKDUEL 敌队可用策略组真实数据、数据库收录可校验种类
 - 客户端 ArkdexModuleData 由客户端热更资源自行持有（同版本客户端），服务器无需下发
 - 剩余未确认：网关捕获/购买/交换帧 subID（客户端行为帧）；ARKDUEL 敌方响应 f3 状态位语义（保持官服字节对齐现状）
+
+## 33. capture 模式无法进广场修复：enterHall 本地化（2026-08-18）
+
+### 33.1 症状与根因
+- 症状：capture 模式（转发官服）下客户端无法进入 arkhub 广场；转发器日志显示
+  `up.bin 105B（登录帧）→ down.bin 0B`，连接 15 秒后断开（latencyMs ~15000）。
+- 排查链路（2026-08-18 17:12-17:16 抓包）：
+  1. HTTP 转发层完全正常：/account/login 200（官服账号 230847132/100566259）、syncInfo 200——
+     **客户端用的是官服账号与官服 secret**；
+  2. enterHall 响应改写正常：`{"result":0,"endpoint":"127.0.0.1","port":30001}`；
+  3. 客户端 TCP 连上转发器并发出 105B 登录帧（与 08-09 成功会话**字节级一致**，仅 secret 不同）；
+  4. **官服网关 0 字节响应**——实测直连 `arkhub-gateway.hypergryph.com:30000` 发送 08-09 完整
+     成功 up 流（11211B）同样 0 响应 → **官服网关 2026-08-18 起不再响应登录帧**
+     （TCP 可连、握手成功，但无任何下行字节——官方侧变化，非私服代码 bug）。
+
+### 33.2 修复：capture 模式 enterHall 本地化 + 本地网关应答器
+- `official-forward.ts`：`/activity/arkhub/enterHall` 加入 `LOCAL_ONLY_PREFIXES`——
+  capture 模式下 enterHall 不再转发官服（官服网关无响应，转发必然失败），走本地 activity.ts 路由；
+  其余 `/activity/arkhub/*`（syncInfo/setSecretary 等）仍转发官服抓真实响应。
+- `index.ts` capture 分支：同时启动**本地网关应答器**（startArkhubLocalGateway，与私服分支同款
+  resolvePlayerProfile 回调）——enterHall 本地路由按 `isArkhubLocalGatewayActive()` 返回
+  `config.Host + 本地网关实际端口`（转发器占 gatewayPort 时本地网关自动避让 +1），客户端经
+  本地网关进广场。转发器（startArkhubGatewayProxy）保留——官服网关恢复后，把 enterHall 从
+  LOCAL_ONLY 移除并重启即可切回真实网关抓包。
+- 测试：official-forward.test.ts 两个 enterHall 用例改为断言"不转发、走 next"（syncInfo 仍转发），
+  45 条 proxy 测试全绿。
+
+### 33.3 注意
+- capture 模式客户端为官服账号：本地网关 `resolvePlayerProfile` 对不在本地存档的官服 uid 回退
+  默认值（昵称"博士<uid>"、无秘书干员）——仅广场模型外观差异，不影响进入。
+- 网关登录帧带官服 secret 也能进本地网关（本地网关任意凭据 code=100）。
+- 全量 vitest 1776 通过（tsc 干净）。
+
+### 33.4 根因修正：官服网关切到 canary 灰度域名（2026-08-18 18:00 复核）
+§33.1/33.2 的"官服网关 0 响应"结论**根因是域名切换而非网关维护**：
+- 直接请求官服 gs `POST /activity/arkhub/enterHall`（用客户端真实官服凭据）→ 响应
+  `{"result":0,"endpoint":"arkhub-gateway-canary.hypergryph.com","port":30000}`——
+  **官服把 arkhub 网关切到 canary 灰度子域名**（端口仍 30000）；
+- 实测 `arkhub-gateway-canary.hypergryph.com:30000` 对今天的登录帧**响应 205B**（老域名 0 响应）；
+- 端到端验证：转发器 → canary 透传登录帧收到响应 ✓。
+
+**方案修订（替代 §33.2 的 enterHall 本地化）**：
+- `arkhub-gateway.ts`：转发目标**动态化**——`updateGatewayTarget(host, port)` + `getGatewayTarget()`，
+  初始缺省 `arkhub-gateway-canary.hypergryph.com:30000`（`OFFICIAL_ARKHUB_GATEWAY_CANARY_HOST`），
+  handleConnection 每连接实时读取目标；
+- `official-forward.ts`：enterHall 响应处理时**先 updateGatewayTarget 跟随官服 endpoint**（域名再变
+  也自动跟随），再改写为代理地址；LOCAL_ONLY_PREFIXES 移除 enterHall（恢复转发官服）；
+- `index.ts`：capture 分支移除 §33.2 的本地网关启动（恢复纯转发，真实网关流量可抓）。
+- 测试：official-forward 2 个 enterHall 用例恢复"转发+改写+更新目标"断言；proxy 38 条全绿；
+  全量 vitest 通过。
+
+## 34. 奇象巡展活动细节补全（2026-08-18）
+
+### 34.1 数据复核结论
+- `pnpm run update` 实测：官方最新热更 26-08-17（8/18 无新增 excel）——本地数据即最新。
+- `upWeightTagIsShow`（活动频繁）37 种生物全 false——该标记由**官服网关服务端下发**（ArkdexModuleData
+  creatureData），本地 excel 仅默认值；任务 12-14（arkhubMissionCollection2）按 `dex[].active` 计数。
+- syncInfo 官服真实响应（18:06 canary 抓包）= `{"playerDataDelta":{"modified":{},"deleted":{}}}`——与本地一致。
+- 完整细节文档：`docs/奇象巡展-活动细节.md`（37 生物全表/16 道具/9+1 特质/10 模式/13 策略组/常量/奖励）。
+
+### 34.2 arkdex.ts 数据访问补全
+- **ARKDEX_PROPS 16 种加定向字段**：`targetRarity`（5004-5006/5014-5016 珍奇度 1/2/3）+
+  `targetTraitMask`（5007-5011/5017-5021 特质位掩码）+ `activeDesc`（itemEffectData 原文）。
+- **trait_mask 位掩码实锤**（道具 blackboard，与 traitData 序号不同）：
+  `3=焦虑不安|坚韧不屈、12=时常应激|小心谨慎、48=天生幸运|活力满满、192=暴躁易怒|难以捉摸、
+  768=分外记仇|狠毒异常`；位 0=焦虑不安（trait_1 在 traitData 缺失）。
+- 新增 `arkdexTraits()`（9 特质）/ `arkdexTraitNames(mask)`（位掩码→特质名）/ 
+  `arkdexCreaturesByHabitat(habitat)`（obtainApproach 前缀匹配，形如"生息于密林外沿"）/
+  `arkdexCreaturesByRarity(rarity)` / `ARKDEX_HABITATS`（3 区）。
+- **arkdexEnemySquad 深度查找**：修复策略池组解码（strategy_group_1-5/pve/npc7 为
+  `{gid:{strategyId:{真数据},…},伪键:null}` 多层嵌套）——`findCreatureDataDeep` 深度优先取首个
+  creatureData 数组。
+- 栖息地数据是"生息于X"前缀（obtainApproach），匹配需 includes；3★ 生物分布在所有区域
+  （普通区域遭遇限制 1-2★ 是玩法规则非数据分组）。
+
+### 34.3 测试
+activity-arkdex.test.ts 22 条全绿（+5：特质位掩码/栖息地分组/深层策略组/NPC 策略/野外模式）。
+全量 vitest 通过（基线环境失败除外）。

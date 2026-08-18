@@ -145,8 +145,8 @@ describe("实践者列表（MONTH_TEAM）模式", () => {
         expect(ticket.list.length).toBeGreaterThan(0);
         const res = await rlv2.recruitChar({ ticketIndex: t, optionId: String(ticket.list[0].instId) });
         expect(res[0]?.type).toBe("NORMAL");
-        // 官服行为：招募完成票从 inventory.recruit 移除
-        expect(rlv2.inventory.recruit[t]).toBeUndefined();
+        // 票保留（state=2 终态）；inventory.recruit 由 finishEvent 统一清空
+        expect(rlv2.inventory.recruit[t].state).toBe(2);
       }
       // 消费 GAME_INIT_RECRUIT → 进入第一层
       await rlv2.finishEvent();
@@ -310,11 +310,13 @@ describe("recruitChar 重复调用容错（客户端会对同一票发两次）"
     // 第一次招募成功
     const r1 = await rlv2.recruitChar({ ticketIndex: t, optionId: opt });
     expect(r1.length).toBe(1);
-    // 票已移除
-    expect(rlv2.inventory.recruit[t]).toBeUndefined();
-    // 第二次（客户端重复调用）：不抛错、返回空
+    // 票保留（state=2 终态）——删票会导致客户端重复调用收到 [] 卡死
+    expect(rlv2.inventory.recruit[t]).toBeDefined();
+    expect(rlv2.inventory.recruit[t].state).toBe(2);
+    // 第二次（客户端重复调用同一票）：不抛错、返回同样的 result（官服幂等）
     const r2 = await rlv2.recruitChar({ ticketIndex: t, optionId: opt });
-    expect(r2).toEqual([]);
+    expect(r2.length).toBe(1);
+    expect(r2[0].charId).toBe(r1[0].charId);
   });
 
   it("done 幂等：票 state=2 时重复 done 不重复扣希望", async () => {
@@ -333,8 +335,33 @@ describe("recruitChar 重复调用容错（客户端会对同一票发两次）"
     const costAfter1 = rlv2._status.property.population.cost;
     // 第一次招募扣希望（cost 增加；4星干员 population=0 则不扣）
     expect(costAfter1).toBeGreaterThanOrEqual(costBefore);
-    // 直接再 emit done（模拟重复）——票已删，幂等返回，不重复扣
+    // 直接再 emit done（模拟重复）——state=2 幂等返回，不重复扣
     await rlv2._trigger.emit("rlv2:recruit:done", [t, opt]);
     expect(rlv2._status.property.population.cost).toBe(costAfter1);
+  });
+
+  it("不同 optionId 重复调用（客户端 30→22 序列）：幂等返回首次 result，不重复扣希望", async () => {
+    const player = makePlayer();
+    const rlv2 = player.rlv2 as any;
+    await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 0, predefinedId: null });
+    await rlv2.chooseInitialRelic({ select: "0" });
+    await rlv2.chooseInitialRecruitSet({ select: "recruit_group_1" });
+    const recruitEvt = rlv2._status.pending.find((e: any) => e.type === "GAME_INIT_RECRUIT");
+    const t = (recruitEvt?.content?.initRecruit?.tickets || [])[0];
+    await rlv2.activeRecruitTicket({ id: t });
+    const ticket = rlv2.inventory.recruit[t];
+    expect(ticket.list.length).toBeGreaterThan(0);
+    const opt1 = String(ticket.list[0].instId);
+    // 第二个不同的 optionId（done 幂等按 state 判定，不看 optionId 值）
+    const opt2 = String(Number(opt1) + 9999);
+    const costBefore = rlv2._status.property.population.cost;
+    const r1 = await rlv2.recruitChar({ ticketIndex: t, optionId: opt1 });
+    const costAfter1 = rlv2._status.property.population.cost;
+    // 第二次不同 optionId：幂等返回首次 result（非空，客户端不卡），不重复扣希望
+    const r2 = await rlv2.recruitChar({ ticketIndex: t, optionId: opt2 });
+    expect(r2.length).toBe(1);
+    expect(r2[0].charId).toBe(r1[0].charId);
+    expect(rlv2._status.property.population.cost).toBe(costAfter1);
+    expect(costAfter1).toBeGreaterThanOrEqual(costBefore);
   });
 });

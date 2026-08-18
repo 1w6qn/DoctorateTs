@@ -53,7 +53,6 @@ function appendLine(line: string): void {
       __dirname,
       "..",
       "..",
-      "..",
       "logs",
       `reqres-${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}.log`,
     );

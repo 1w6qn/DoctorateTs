@@ -130,12 +130,16 @@ export class RoguelikeRecruitManager {
           population += buff.blackboard[2].value!;
         }
       }
-      // 难度效果：招募 N 星及以上干员希望消耗 +cost（recruit_hop_cost，blackboard min_star/cost）
+      // 难度效果：招募 N 星干员希望消耗 +cost（recruit_hop_cost，blackboard min_star/cost/gte）。
+      // 语义：gte=1 表示"N 星及以上"（rogue_2/3，>= 阈值）；gte=0 表示精确 N 星
+      // （rogue_1/4/5/6——难度13"五星+1"仅对 5 星、难度15"六星+1"仅对 6 星；
+      // 原实现统一 >= 会让 6 星同时吃到 5 星与 6 星两条 4+1+1=6，官方应为 4+1=5）
       for (const buff of this._player._buff.filterBuffs("recruit_hop_cost")) {
         const minStar = buff.blackboard[0]?.value ?? 0;
         const cost = buff.blackboard[1]?.value ?? 0;
+        const gte = buff.blackboard[2]?.value ?? 0;
         // rarityIdx 0 基：TIER_3→2 / TIER_4→3 / TIER_5→4 / TIER_6→5，与星级（3/4/5/6）差 1
-        if (minStar > 0 && rarityIdx + 1 >= minStar) {
+        if (minStar > 0 && (gte ? rarityIdx + 1 >= minStar : rarityIdx + 1 === minStar)) {
           population += cost;
         }
       }

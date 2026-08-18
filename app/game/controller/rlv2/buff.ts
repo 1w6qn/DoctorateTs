@@ -106,21 +106,28 @@ export class RoguelikeBuffManager {
     const deploy = texts.match(/可同时部署人数\s*([+-]?\d+)/);
     if (deploy) buffs.push(bb("deploy_limit_add", parseInt(deploy[1], 10)));
 
-    // 招募N星及以上干员希望消耗+N（星级阈值：3/4/5/6；描述用数字或中文数字，
-    // 措辞有"希望+1"与"希望消耗+1"两种）
+    // 招募N星[及以上]干员希望消耗+N（星级：3/4/5/6；措辞"希望+1"与"希望消耗+1"）。
+    // 语义分两种：含"及以上"（rogue_2/3）→ 星级阈值 gte；精确星级（rogue_1/4/5/6）→ 精确匹配
     const CN_NUM: { [k: string]: number } = { 三: 3, 四: 4, 五: 5, 六: 6, 七: 7 };
-    const hop =
-      texts.match(/招募\s*([3-6三四五六])星(?:及以上)?干员[^，。]*?希望消耗?\s*\+\s*(\d+)/) ||
-      texts.match(/非初始招募\s*([三四五六])星干员[^，。]*?希望\s*\+\s*(\d+)/);
-    if (hop) {
-      const starRaw = hop[1];
+    const hop1 = texts.match(
+      /招募\s*([3-6三四五六])星(及以上)?干员[^，。]*?希望消耗?\s*\+\s*(\d+)/,
+    );
+    const hop2 = texts.match(
+      /非初始招募\s*([三四五六])星干员[^，。]*?希望\s*\+\s*(\d+)/,
+    );
+    if (hop1 || hop2) {
+      const m = (hop1 || hop2)!;
+      const starRaw = m[1];
       const minStar = /^\d$/.test(starRaw) ? parseInt(starRaw, 10) : CN_NUM[starRaw] || 3;
-      const cost = parseInt(hop[2], 10);
+      // hop1 捕获组：[全, 星, 及以上?, cost]；hop2：[全, 星, cost]
+      const cost = parseInt(hop1 ? m[3] : m[2], 10);
+      const gte = hop1 && m[2] === "及以上" ? 1 : 0;
       buffs.push({
         key: "recruit_hop_cost",
         blackboard: [
           { key: "min_star", value: minStar },
           { key: "cost", value: cost },
+          { key: "gte", value: gte },
         ] as Blackboard,
       });
     }

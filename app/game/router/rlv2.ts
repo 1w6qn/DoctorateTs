@@ -156,6 +156,9 @@ export function rlv2Response<T extends object>(
   extra?: T,
   sections?: readonly string[],
 ) {
+  // 内存态（status/map/module/troop 等 manager）写回存档——供重登"继续探索"
+  // （controller 重建走 rlv2:continue 恢复）使用；否则 current.player 等为空
+  player.rlv2.persistCurrent();
   const base = player.delta;
   const full = player.rlv2.toJSON();
   const current = full.current as any;

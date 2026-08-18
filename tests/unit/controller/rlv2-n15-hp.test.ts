@@ -163,3 +163,29 @@ describe("rlv2 响应 outer 精简（对齐官服 createGame）", () => {
     expect(JSON.stringify(resp).length).toBeLessThan(20000);
   });
 });
+
+describe("重登继续探索（controller 重建恢复进行中游戏）", () => {
+  it("createGame 后重建 controller：current.game 保留、status/map/pending 恢复", async () => {
+    const player = makePlayer(15);
+    const rlv2 = player.rlv2 as any;
+    await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
+    await rlv2.chooseInitialRelic({ select: "0" });
+    // 模拟 rlv2Response：内存态写回存档（status/pending 等持久化）
+    (player.rlv2 as any).persistCurrent();
+    // 模拟重启重登：用同一存档数据新建 PlayerDataManager → 新 controller 构造
+    const pd2: any = mockPlayerData({});
+    // 复用当前玩家数据（含进行中 current）——直接改 pd2 的引用为同一 _playerdata
+    const player2 = new PlayerDataManager((player as any)._playerdata as any);
+    const rlv22 = player2.rlv2 as any;
+    // 构造器 hasRunning 分支：current.game.theme 保留（不被重置 NONE）
+    expect(rlv22.current.game.theme).toBe("rogue_6");
+    expect(rlv22.current.game.mode).toBe("NORMAL");
+    // status 恢复（非 NONE、有属性）
+    expect(rlv22._status.state).toBe("INIT");
+    expect(rlv22._status.property.hp.max).toBeGreaterThan(0);
+    // pending 恢复（RELIC 已被 chooseInitialRelic 消费，剩余 RECRUIT_SET 等）
+    await new Promise((r) => setTimeout(r, 0)); // 等 rlv2:continue 异步 emit 恢复 pending
+    const types = rlv22._status.pending.map((e: any) => e.type);
+    expect(types).toContain("GAME_INIT_RECRUIT_SET");
+  });
+});

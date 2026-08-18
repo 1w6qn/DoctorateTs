@@ -22,6 +22,7 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
     this._player = player;
     this._trigger = _trigger;
     this._trigger.on("rlv2:init", this.init.bind(this));
+    this._trigger.on("rlv2:continue", this.continue.bind(this));
     this._trigger.on("rlv2:create", this.create.bind(this));
     this._trigger.on("rlv2:zone:new", this.generate.bind(this));
     try {
@@ -35,6 +36,11 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
 
   init() {
     this.zones = {};
+  }
+
+  /** 重登"继续探索"：从存档 current.map.zones 恢复地图 */
+  continue() {
+    this.zones = this._player.current.map?.zones || {};
   }
 
   create() {

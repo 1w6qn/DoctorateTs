@@ -111,24 +111,29 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     // 整个 _playerdata），则以深可变副本替换 rlv2 子树，避免构造期原地写抛错。
     this._normalizeMutablePlayerdata();
     this._troop = player.troop;
-    this.current.game = {
-      mode: "NONE",
-      predefined: "",
-      theme: "",
-      outer: {
-        support: false,
-      },
-      start: -1,
-      modeGrade: 0,
-      equivalentGrade: 0,
-    };
-
-    this.current.buff = {
-      tmpHP: 0,
-      capsule: null,
-      squadBuff: [],
-    };
-    this.current.record = { brief: null };
+    // 构造期占位：仅当存档无进行中的对局（current.game.theme 空——新登录/无对局）
+    // 时初始化 NONE 占位；有进行中游戏（重启后重登"继续探索"）保留存档
+    // current.game/buff/record——无条件重置会把进行中对局清空 → 重登后无法继续
+    const hasRunning = !!this.current.game?.theme;
+    if (!hasRunning) {
+      this.current.game = {
+        mode: "NONE",
+        predefined: "",
+        theme: "",
+        outer: {
+          support: false,
+        },
+        start: -1,
+        modeGrade: 0,
+        equivalentGrade: 0,
+      };
+      this.current.buff = {
+        tmpHP: 0,
+        capsule: null,
+        squadBuff: [],
+      };
+      this.current.record = { brief: null };
+    }
 
     this.troop = new RoguelikeTroopManager(this, this._trigger);
     this._status = new RoguelikePlayerStatusManager(this, this._trigger);
@@ -138,7 +143,14 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     this._module = new RoguelikeModuleManager(this, this._trigger);
     this._battle = new RoguelikeBattleManager(this, this._trigger);
     this._pool = new RoguelikePoolManager(this, this._trigger);
-    this._trigger.emit("rlv2:init", [this]);
+    // 进行中的对局：走 rlv2:continue 恢复（grid_zone/weather/scrap/chaos/buff/
+    // events 等从存档 current 恢复；status 单独恢复，避免 rlv2:init 重置为 NONE）
+    if (hasRunning) {
+      this._trigger.emit("rlv2:continue", []);
+      this._status.continue();
+    } else {
+      this._trigger.emit("rlv2:init", [this]);
+    }
   }
 
   get initConfig(): RoguelikeGameInitData {
@@ -2617,6 +2629,28 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       },
       pinned: this.pinned,
     };
+  }
+
+  /**
+   * 内存态写回存档（rlv2Response 调用）：status/map/module/troop 等 manager 为
+   * 内存态（不经 Immer patch），响应时把 toJSON 快照写回 _playerdata.rlv2.current，
+   * 供重登"继续探索"（controller 重建走 rlv2:continue 恢复）使用——
+   * 否则存档 current.player 等为空，重登后无法继续。
+   */
+  persistCurrent(): void {
+    const pd = this._player._playerdata;
+    if (!pd.rlv2?.current) return;
+    const j = this.toJSON();
+    const cur = pd.rlv2.current as any;
+    cur.player = j.current.player;
+    cur.map = j.current.map;
+    cur.inventory = j.current.inventory;
+    cur.troop = j.current.troop;
+    cur.buff = j.current.buff;
+    cur.module = j.current.module;
+    cur.record = j.current.record;
+    cur.game = j.current.game;
+    this._player.markDirty();
   }
 
   /**

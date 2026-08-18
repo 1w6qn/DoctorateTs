@@ -25,7 +25,16 @@ export class RoguelikeEventManager {
     this._pending = [];
   }
 
-  continue(): void {}
+  continue(): void {
+    // 重登"继续探索"：从存档 current.player.pending 恢复事件队列
+    // （进行中游戏的重登恢复——否则 pending 为空，客户端无法继续；
+    // 存档元素为线格式 {type, content}，运行时按字段消费兼容）
+    const pend = this._player.current.player?.pending;
+    if (Array.isArray(pend)) {
+      this._pending = pend as unknown as RoguelikePendingEvent[];
+      this._index = pend.length;
+    }
+  }
 
   createEvent([type, args]: [string, object]): void {
     this._pending.push(

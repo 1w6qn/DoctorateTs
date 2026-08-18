@@ -76,6 +76,32 @@ export class RoguelikePlayerStatusManager
     this.traderReturn = undefined;
   }
 
+  /**
+   * 重登"继续探索"恢复：从存档 current.player（status toJSON 快照）恢复
+   * 状态/属性/游标/轨迹/结局标记——构造器对进行中游戏调用（不再 init 重置）。
+   */
+  async continue() {
+    const p = this._player.current.player as
+      | PlayerRoguelikeV2.CurrentData.PlayerStatus
+      | undefined;
+    if (!p || !p.state || p.state === "NONE") {
+      this.init();
+      return;
+    }
+    this.state = p.state;
+    this.property = p.property;
+    this.cursor = p.cursor;
+    this.trace = p.trace || [];
+    this.status = p.status || { bankPut: 0 };
+    this.toEnding = p.toEnding || "";
+    this.chgEnding = p.chgEnding ?? false;
+    this.runResult = (p as { runResult?: string }).runResult ?? "";
+    this.innerMission = p.innerMission;
+    this.nodeMission = p.nodeMission;
+    this.zoneReward = p.zoneReward;
+    this.traderReturn = p.traderReturn;
+  }
+
   async create() {
     const game = this._player.current.game!;
     const theme = game.theme;

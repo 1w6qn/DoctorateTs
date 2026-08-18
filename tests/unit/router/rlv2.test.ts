@@ -19,6 +19,7 @@ describe("rlv2 路由", () => {
     player = {
       delta: { playerDataDelta: { modified: { status: { ap: 1 } }, deleted: {} } },
       rlv2: {
+        persistCurrent: vi.fn(),
         toJSON: () => ({ outer: {}, current: {} }),
         refreshShop: vi.fn().mockResolvedValue(undefined),
         leaveShop: vi.fn().mockResolvedValue(undefined),
@@ -47,13 +48,15 @@ describe("rlv2 路由", () => {
   }
 
   /**
-   * rlv2 统一响应约定：playerDataDelta.modified 含 Immer 增量 + 完整 rlv2 子树
-   * （官方抓包确认客户端按 modified.rlv2 整体替换自身状态）
+   * rlv2 统一响应约定：playerDataDelta.modified 含 Immer 增量 + rlv2 子树。
+   * 2026-08-18 对齐官服：非 createGame/gameSettle 路由不再输出 outer/pinned
+   * （官服所有 rlv2 响应均无 pinned；outer 仅 createGame/gameSettle/gridZone
+   * moveAndBattleStart 下发当前主题 {record, monthTeam}）。
    */
   function expectRlv2Response(calledWith: any) {
     expect(calledWith.playerDataDelta).toBeTruthy();
     expect(calledWith.playerDataDelta.modified.status).toEqual({ ap: 1 });
-    expect(calledWith.playerDataDelta.modified.rlv2).toEqual({ outer: {}, current: {} });
+    expect(calledWith.playerDataDelta.modified.rlv2).toEqual({ current: {} });
   }
 
   it("POST /refreshShop 应调用控制器并返回 delta", async () => {

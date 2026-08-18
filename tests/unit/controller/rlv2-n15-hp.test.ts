@@ -32,6 +32,7 @@ function makePlayer(modeGrade = 15) {
           record: { last: 0, lastZone: 3, legacy: [], stageCnt: {}, bandCnt: {}, bandGrade: {} },
           collect: { band: {} },
           buff: { pointOwned: 0, pointCost: 0, unlocked: {}, score: 0 },
+          monthTeam: { valid: [] },
         },
       },
       current: {},
@@ -152,7 +153,8 @@ describe("rlv2 响应 outer 精简（对齐官服 createGame）", () => {
     const rlv2 = player.rlv2 as any;
     await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
     const { rlv2Response } = await import("@game/router/rlv2");
-    const resp = rlv2Response(player as any, undefined);
+    // 2026-08-18：outer 改为显式 outerKeys（对齐官服 createGame={record,monthTeam}）
+    const resp = rlv2Response(player as any, undefined, undefined, ["record", "monthTeam"]);
     const r = resp.playerDataDelta.modified.rlv2;
     // outer 只含当前主题 rogue_6（不再全量 6 主题）
     expect(Object.keys(r.outer)).toEqual(["rogue_6"]);

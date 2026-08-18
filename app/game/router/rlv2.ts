@@ -131,18 +131,30 @@ import {
 const router = Router();
 
 /**
- * 官方各路由响应包含的 current 节（抓包 2026-08-11 统计）。
+ * 官方各路由响应包含的 current 节（抓包 2026-08-11/08-18 统计）。
  * 核心节 player/inventory/record/buff 几乎总是出现；map/module 仅在生成/变化时出现；
  * game/troop 仅 createGame/gameSettle/recruitChar 等变更时出现。
+ * 2026-08-18 按官服抓包逐路由校准（finishEvent/selectChoice/recruitSet/ticket/recruitChar/giveUpGame）：
+ *   chooseInitialRelic/finishEvent(INIT)/selectChoice/battleFinish = CORE
+ *   finishEvent(进层)/gridZone 移动 = CORE_MAP_MODULE
+ *   chooseInitialRecruitSet = player/inventory/record（无 buff）
+ *   activeRecruitTicket = player/inventory（无 record/buff）
+ *   recruitChar = player/inventory/record/buff/troop/module（无 map/game）
+ *   giveUpGame = player/record（极少）
  */
 const SEC = {
-  ALL: undefined, // 全量
+  ALL: undefined, // 全量（createGame/gameSettle）
   CORE: ["player", "inventory", "record", "buff"],
   CORE_MAP: ["player", "inventory", "record", "buff", "map"],
   CORE_MODULE: ["player", "inventory", "record", "buff", "module"],
   CORE_MAP_MODULE: ["player", "inventory", "record", "buff", "map", "module"],
   RECRUIT: ["player", "inventory", "record", "troop"],
   PLAYER: ["player"],
+  // 官服增量节（2026-08-18 校准）
+  RECRUIT_SET: ["player", "inventory", "record"],
+  TICKET: ["player", "inventory"],
+  RECRUIT_CHAR: ["player", "inventory", "record", "buff", "troop", "module"],
+  GIVEUP: ["player", "record"],
 } as const;
 
 /**
@@ -150,11 +162,20 @@ const SEC = {
  * 官方抓包确认：客户端按 modified.rlv2 合并状态，但每路由只发送"发生变化"的
  * current 节（createGame/gameSettle 全量；其余为增量节）——多发的 game/troop 等
  * 节会破坏客户端状态合并导致崩溃。rlv2Response 按 sections 过滤 current。
+ *
+ * 2026-08-18 对齐官服抓包修正：
+ * 1. pinned 不输出（官服所有 rlv2 响应均无 pinned——置顶主题由其他接口下发）
+ * 2. outer 仅显式要求（outerKeys 非空，createGame/gameSettle/gridZone moveAndBattleStart）
+ *    时输出当前主题指定键（官服各路由 outer 内容不同：createGame={record,monthTeam}、
+ *    gameSettle=7 键全量、moveAndBattleStart={record}）；其余路由不带
+ *    （原实现 theme 存在即输出，且 {...full} 泄漏全量 6 主题 outer → 255KB 冗余）
+ * 3. sections=undefined 全量时也只取 current 自身，不再展开 full.outer/full.pinned
  */
 export function rlv2Response<T extends object>(
   player: PlayerDataManager,
   extra?: T,
   sections?: readonly string[],
+  outerKeys?: readonly string[],
 ) {
   // 内存态（status/map/module/troop 等 manager）写回存档——供重登"继续探索"
   // （controller 重建走 rlv2:continue 恢复）使用；否则 current.player 等为空
@@ -170,24 +191,19 @@ export function rlv2Response<T extends object>(
   } else {
     Object.assign(currentOut, current);
   }
-  // outer 精简（对齐官服 createGame 抓包）：全量 outer（6 主题 collect 等合计
-  // ~252KB）纯冗余——客户端分队/收藏品/科技树状态由 syncData 登录全量提供，
-  // rlv2 路由仅需下发当前主题的 record（last/modeCnt/endingCnt 等）与
-  // monthTeam（实践者列表有效性）；其余主题不发。255KB → ~3KB 响应瘦身。
-  const theme = current?.game?.theme as string | undefined;
-  const fullOuter = full.outer as Record<string, any> | undefined;
-  let outer: Record<string, unknown> | undefined;
-  if (theme && fullOuter?.[theme]) {
-    const o = fullOuter[theme];
-    outer = {
-      [theme]: {
-        record: o.record,
-        monthTeam: o.monthTeam,
-      },
-    };
+  const rlv2: any = { current: currentOut };
+  if (outerKeys && outerKeys.length > 0) {
+    const theme = current?.game?.theme as string | undefined;
+    const fullOuter = full.outer as Record<string, any> | undefined;
+    if (theme && fullOuter?.[theme]) {
+      const o = fullOuter[theme];
+      const picked: Record<string, unknown> = {};
+      for (const k of outerKeys) {
+        if (k in o) picked[k] = o[k];
+      }
+      rlv2.outer = { [theme]: picked };
+    }
   }
-  const rlv2: any = { ...full, current: currentOut };
-  if (outer) rlv2.outer = outer;
   return {
     ...(extra ?? ({} as T)),
     playerDataDelta: {
@@ -208,13 +224,14 @@ function rlv2MissingParam(player: PlayerDataManager): any {
   return rlv2Response(player, { result: 1 } as any, SEC.ALL);
 }
 
-/** 放弃游戏（CS: RoguelikeTopicGiveUpGameRequest）——官方响应带 result:"ok" */
+/** 放弃游戏（CS: RoguelikeTopicGiveUpGameRequest）——官方响应带 result:"ok"，
+ *  current 节仅 [record, player]（2026-08-18 官服 giveUpGame 抓包校准） */
 router.post("/giveUpGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as RoguelikeTopicGiveUpGameRequest;
   await player.rlv2.giveUpGame();
   res.send(
-    rlv2Response(player, { result: "ok" } as any, SEC.ALL) satisfies RoguelikeTopicGiveUpGameResponse,
+    rlv2Response(player, { result: "ok" } as any, SEC.GIVEUP) satisfies RoguelikeTopicGiveUpGameResponse,
   );
 });
 
@@ -227,7 +244,7 @@ router.post("/createGame", async (req, res) => {
     return;
   }
   await player.rlv2.createGame(body);
-  res.send(rlv2Response(player, undefined, SEC.ALL) satisfies RoguelikeTopicCreateGameResponse);
+  res.send(rlv2Response(player, undefined, SEC.ALL, ["record", "monthTeam"]) satisfies RoguelikeTopicCreateGameResponse);
 });
 
 /** 游戏结算（抓包 POST /rlv2/gameSettle，body {}；响应带 game/outer 结算数据） */
@@ -236,7 +253,11 @@ router.post("/gameSettle", async (req, res) => {
   req.body as RoguelikeGameSettleRequest;
   await player.rlv2.gameSettle();
   res.send(
-    rlv2Response(player, player.rlv2.buildSettleResponse() as any, SEC.ALL) satisfies RoguelikeGameSettleResponse,
+    // 官服 gameSettle rlv2.outer = 当前主题 7 键全量（record/bank/buff/bp/collect/mission/activity）——
+    // 2026-08-18 抓包校准（非 createGame 的 {record,monthTeam} 精简）
+    rlv2Response(player, player.rlv2.buildSettleResponse() as any, SEC.ALL, [
+      "record", "bank", "buff", "bp", "collect", "mission", "activity",
+    ]) satisfies RoguelikeGameSettleResponse,
   );
 });
 
@@ -254,7 +275,8 @@ router.post("/chooseInitialRecruitSet", async (req, res) => {
   const body = req.body as RoguelikeSelectInitialRecruitSetRequest;
   await player.rlv2.chooseInitialRecruitSet(body);
   res.send(
-    rlv2Response(player, undefined, SEC.CORE) satisfies RoguelikeSelectInitialRecruitSetResponse,
+    // 官服 chooseInitialRecruitSet current=[inventory,record,player]（无 buff）——2026-08-18 抓包校准
+    rlv2Response(player, undefined, SEC.RECRUIT_SET) satisfies RoguelikeSelectInitialRecruitSetResponse,
   );
 });
 
@@ -277,7 +299,8 @@ router.post("/activeRecruitTicket", async (req, res) => {
     return;
   }
   await player.rlv2.activeRecruitTicket(body);
-  res.send(rlv2Response(player, undefined, SEC.CORE) satisfies RoguelikeActivateTicketResponse);
+  // 官服 activeRecruitTicket current=[inventory,player]（无 record/buff）——2026-08-18 抓包校准
+  res.send(rlv2Response(player, undefined, SEC.TICKET) satisfies RoguelikeActivateTicketResponse);
 });
 
 /** 招募干员（CS: RoguelikeRecruitCharRequest） */
@@ -289,9 +312,10 @@ router.post("/recruitChar", async (req, res) => {
     return;
   }
   res.send(
+    // 官服 recruitChar current=[inventory,troop,buff,player,module,record]（无 map/game）——2026-08-18 抓包校准
     rlv2Response(player, {
       chars: await player.rlv2.recruitChar(body),
-    }) satisfies RoguelikeRecruitCharResponse,
+    }, SEC.RECRUIT_CHAR) satisfies RoguelikeRecruitCharResponse,
   );
 });
 
@@ -325,7 +349,13 @@ router.post("/finishEvent", async (req, res) => {
     return;
   }
   await player.rlv2.finishEvent();
-  res.send(rlv2Response(player) satisfies RoguelikeFinishEventResponse);
+  // 官服 finishEvent 响应节动态：初始阶段（未进层）只发 CORE（player/inventory/record/buff）；
+  // 消费完初始事件进入第一层（WAIT_MOVE，地图生成）追加 map/module（CORE_MAP_MODULE）。
+  // 2026-08-18 官服抓包校准：finishEvent#1(INIT) current=[record,player,buff,inventory]；
+  // finishEvent#2(进层) current=[record,player,module,map,buff,inventory]。
+  const feState = player.rlv2.current?.player?.state;
+  const feSections = feState === "WAIT_MOVE" ? SEC.CORE_MAP_MODULE : SEC.CORE;
+  res.send(rlv2Response(player, undefined, feSections) satisfies RoguelikeFinishEventResponse);
 });
 
 /**
@@ -340,7 +370,8 @@ router.post("/selectChoice", async (req, res) => {
     return;
   }
   await player.rlv2.selectChoice(body);
-  res.send(rlv2Response(player) satisfies RoguelikeSelectChoiceResponse);
+  // 官服 selectChoice 响应节 = CORE（player/inventory/record/buff）——2026-08-18 抓包校准
+  res.send(rlv2Response(player, undefined, SEC.CORE) satisfies RoguelikeSelectChoiceResponse);
 });
 
 /** 移动（CS: RoguelikeMoveToRequest） */
@@ -369,12 +400,12 @@ router.post("/moveAndBattleStart", async (req, res) => {
   );
 });
 
-/** 战斗结算（CS: RoguelikeFinishBattleRequest） */
+/** 战斗结算（CS: RoguelikeFinishBattleRequest）——官服 current=[record,player,buff,inventory] */
 router.post("/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeFinishBattleRequest;
   await player.rlv2.battleFinish(body);
-  res.send(rlv2Response(player) satisfies RoguelikeFinishBattleResponse);
+  res.send(rlv2Response(player, undefined, SEC.CORE) satisfies RoguelikeFinishBattleResponse);
 });
 
 /** 选择战斗奖励（CS: RoguelikeSelectRewardRequest） */
@@ -777,15 +808,15 @@ router.post("/scrap/identify", async (req, res) => {
 
 /* ===== rogue_6 GRID_ZONE 网格区域 ===== */
 
-/** 网格区域移动（抓包 { route: [nodeIndex] }） */
+/** 网格区域移动（抓包 { route: [nodeIndex] }）——官服 current=CORE_MAP_MODULE */
 router.post("/gridZone/moveTo", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeGridZoneMoveToRequest;
   await player.rlv2.gridZoneMoveTo(body);
-  res.send(rlv2Response(player) satisfies RoguelikeGridZoneMoveToResponse);
+  res.send(rlv2Response(player, undefined, SEC.CORE_MAP_MODULE) satisfies RoguelikeGridZoneMoveToResponse);
 });
 
-/** 网格区域移动并开始战斗（抓包 { route, stageId, squad }） */
+/** 网格区域移动并开始战斗（抓包 { route, stageId, squad }）——官服 current=CORE_MAP_MODULE + outer */
 router.post("/gridZone/moveAndBattleStart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeGridZoneMoveAndBattleStartRequest;
@@ -795,7 +826,8 @@ router.post("/gridZone/moveAndBattleStart", async (req, res) => {
   }
   await player.rlv2.gridZoneMoveAndBattleStart(body);
   res.send(
-    rlv2Response(player) satisfies RoguelikeGridZoneMoveAndBattleStartResponse,
+    // 官服 gridZone/moveAndBattleStart rlv2.outer = {record}——2026-08-18 抓包校准
+    rlv2Response(player, undefined, SEC.CORE_MAP_MODULE, ["record"]) satisfies RoguelikeGridZoneMoveAndBattleStartResponse,
   );
 });
 

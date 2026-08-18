@@ -82,8 +82,9 @@ export class RoguelikeRecruitManager {
     if (!data) return;
     const rarity = rarityToIndex(data.rarity);
     const popMap = [0, 0, 0, 2, 3, 6];
-    // 递增 troopInstId，避免多干员互相覆盖（getChar 按 troopInstId+1 定位 instId）
-    const troopInstId = Object.keys(this._player.troop.chars).length;
+    // 递增 troopInstId（1 基，与 getChar 直接使用 troopInstId 的约定一致——
+    // 原实现此处 0 基 + getChar +1 错位到 2，首名初始干员 instId 应为 1）
+    const troopInstId = Object.keys(this._player.troop.chars).length + 1;
     const char: PlayerRoguelikeV2.CurrentData.RecruitChar = {
       instId: 0,
       charId,
@@ -295,16 +296,27 @@ export class RoguelikeRecruitManager {
     // （不重复扣希望/入队），放弃的票不可复活。undefined 容错防 500。
     if (!this.tickets[id] || this.tickets[id].state !== 1) return;
     this.tickets[id].state = 2;
-    this.tickets[id].result = this.tickets[id].list.find(
+    const picked = this.tickets[id].list.find(
       (item) => String(item.instId) === String(optionId),
-    ) as PlayerRoguelikeV2.CurrentData.RecruitChar;
-    // 官服 recruit.result：instId/troopInstId 为字符串（troop 干员 instId），非序号
-    if (this.tickets[id].result) {
-      this.tickets[id].result = Object.assign({}, this.tickets[id].result, {
-        instId: String(this.tickets[id].result.instId),
-        troopInstId: String(this.tickets[id].result.troopInstId),
-      }) as any;
-    }
+    ) as PlayerRoguelikeV2.CurrentData.RecruitChar | undefined;
+    if (!picked) return;
+    // 官服 recruitChar 响应结构（2026-08-18 抓包校准）：完整养成结构——
+    //   instId = 玩家主队伍 instId（非候选序号）；troopInstId = 对局内入队序号（1 基递增）；
+    //   skills/master/equip/currentEquip 从玩家源干员补齐（候选 list 为精简结构：
+    //   skills 空/master {} /无 equip——activeRecruitTicket 抓包确认）。
+    // 候选生成时 troopInstId 暂存玩家 instId（active() 里 troopInstId=char.instId），
+    // 此处先读玩家源干员补齐养成，再覆写为对局内入队序号（1 基递增）。
+    const troopChars = this._player._player._playerdata.troop?.chars ?? {};
+    const src = troopChars[String(picked.troopInstId)] as any;
+    const troopNo = Object.keys(this._player.troop.chars).length + 1;
+    this.tickets[id].result = Object.assign({}, picked, {
+      instId: String(picked.troopInstId),
+      troopInstId: String(troopNo),
+      skills: src?.skills || [],
+      master: src?.master || {},
+      equip: src?.equip || {},
+      currentEquip: src?.currentEquip ?? "",
+    }) as any;
 
     await this._trigger.emit("rlv2:char:get", [this.tickets[id].result!]);
     await this._trigger.emit("rlv2:get:items", [

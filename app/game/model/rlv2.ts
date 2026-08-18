@@ -205,7 +205,9 @@ export namespace PlayerRoguelikeV2 {
             expeditionReturn: ExpeditionReturn | null
             hasExpeditionReturn: boolean
         }
-        export interface Char extends PlayerCharacter {
+        export interface Char extends Omit<PlayerCharacter, "instId"> {
+            /** 对局内入队序号（官服字符串 '1','2',...——覆盖 PlayerCharacter.instId 的 number） */
+            instId: string
             upgradePhase: number
             upgradeLimited: boolean
             type: string//RoguelikeCharState

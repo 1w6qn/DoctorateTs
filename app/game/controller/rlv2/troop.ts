@@ -62,8 +62,10 @@ export class RoguelikeTroopManager
       "isCure",
       "population",
       "troopInstId",
-    ]) as PlayerRoguelikeV2.CurrentData.Char;
-    c.instId = Number(char.troopInstId) + 1;
+    ]) as unknown as PlayerRoguelikeV2.CurrentData.Char;
+    // 官服 troop.chars key/instId = 入队序号字符串（'1','2',...）——
+    // recruit done() 已按 1 基递增分配 troopInstId；原实现 +1 错位且数字类型不符
+    c.instId = String(char.troopInstId);
     this.chars[c.instId] = c;
   }
 

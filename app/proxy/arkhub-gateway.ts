@@ -31,8 +31,33 @@ import {
 export const OFFICIAL_ARKHUB_GATEWAY_HOST = "arkhub-gateway.hypergryph.com";
 /** 官服 arkhub 网关端口 */
 export const OFFICIAL_ARKHUB_GATEWAY_PORT = 30000;
+/** 官服 arkhub 网关 canary 灰度域名（2026-08-18 起 enterHall 返回此地址；老域名登录帧 0 响应） */
+export const OFFICIAL_ARKHUB_GATEWAY_CANARY_HOST = "arkhub-gateway-canary.hypergryph.com";
 /** 默认记录根目录（统一抓包存储的 records 目录；测试可传独立临时目录） */
 const DEFAULT_RECORD_ROOT = "tmp/capture/records";
+
+/**
+ * 当前转发目标（动态可更新）
+ *
+ * 2026-08-18 官服把 arkhub 网关切到 canary 灰度子域名（官服 enterHall 响应 endpoint
+ * 由 `arkhub-gateway.hypergryph.com` 变为 `arkhub-gateway-canary.hypergryph.com`），
+ * 老域名 TCP 可连但对登录帧 0 响应。转发目标由 official-forward 在改写 enterHall 响应前
+ * 调用 updateGatewayTarget 动态跟随；启动初始值可用 opts.targetHost 覆盖。
+ */
+let _targetHost = OFFICIAL_ARKHUB_GATEWAY_CANARY_HOST;
+let _targetPort = OFFICIAL_ARKHUB_GATEWAY_PORT;
+
+/** 更新转发目标（官服 enterHall 响应 endpoint/port 变化时调用；幂等） */
+export function updateGatewayTarget(host: string, port: number): void {
+  if (!host) return;
+  _targetHost = host;
+  if (Number.isInteger(port) && port > 0) _targetPort = port;
+}
+
+/** 当前转发目标（供日志/测试） */
+export function getGatewayTarget(): { host: string; port: number } {
+  return { host: _targetHost, port: _targetPort };
+}
 
 /** arkhub 网关代理信息（用于改写 enterHall 响应 + 启动转发器） */
 export interface ArkhubGatewayInfo {
@@ -118,17 +143,23 @@ export function startArkhubGatewayProxy(
 ): Promise<ArkhubGatewayProxyResult> {
   const {
     port = OFFICIAL_ARKHUB_GATEWAY_PORT,
-    targetHost = OFFICIAL_ARKHUB_GATEWAY_HOST,
+    targetHost,
     targetPort = OFFICIAL_ARKHUB_GATEWAY_PORT,
     recordRoot = DEFAULT_RECORD_ROOT,
     maxPortTries = 50,
   } = opts;
+  // opts.targetHost 提供时覆盖初始转发目标（缺省 canary 灰度域名，见 _targetHost 注释）
+  if (targetHost) {
+    updateGatewayTarget(targetHost, targetPort);
+  }
 
   // 单连接处理（每个尝试端口新建的 server 共用）：客户端 → 官服网关透传 + 双向字节流落盘
   const handleConnection = (client: net.Socket): void => {
     const connectionId = new Date().toISOString().replace(/[:.]/g, "-");
     const startedAt = Date.now();
-    const upstream = net.connect({ host: targetHost, port: targetPort });
+    // 目标动态读取（enterHall 响应可能已通过 updateGatewayTarget 切换到新域名/端口）
+    const { host: targetHostName, port: targetPortNum } = getGatewayTarget();
+    const upstream = net.connect({ host: targetHostName, port: targetPortNum });
     let upBytes = 0;
     let downBytes = 0;
     let metaWritten = false;
@@ -177,7 +208,7 @@ export function startArkhubGatewayProxy(
               {
                 timestamp: new Date().toISOString(),
                 clientAddr: client.remoteAddress,
-                targetAddr: `${targetHost}:${targetPort}`,
+                targetAddr: `${getGatewayTarget().host}:${getGatewayTarget().port}`,
                 upBytes,
                 downBytes,
                 reason,
@@ -236,11 +267,11 @@ export function startArkhubGatewayProxy(
                 latencyMs: Date.now() - startedAt,
                 reqSize: upBytes,
                 resSize: downBytes,
-                note: `arkhub 网关连接（${targetHost}:${targetPort}，${reason}）`,
+                note: `arkhub 网关连接（${getGatewayTarget().host}:${getGatewayTarget().port}，${reason}）`,
               },
               dir,
               {
-                targetAddr: `${targetHost}:${targetPort}`,
+                targetAddr: `${getGatewayTarget().host}:${getGatewayTarget().port}`,
                 clientAddr: client.remoteAddress,
                 upBytes,
                 downBytes,
@@ -299,9 +330,9 @@ export function startArkhubGatewayProxy(
       server.listen(p, () => {
         const actualPort = (server.address() as net.AddressInfo).port;
         if (attempt > 0) {
-          logger.warn("capture", `arkhub 网关端口 ${port} 被占用，自动避让到 :${actualPort} → ${targetHost}:${targetPort}（流量记录 ${recordRoot}）`);
+          logger.warn("capture", `arkhub 网关端口 ${port} 被占用，自动避让到 :${actualPort} → ${getGatewayTarget().host}:${getGatewayTarget().port}（流量记录 ${recordRoot}）`);
         } else {
-          logger.info("capture", `arkhub 网关转发器已启动：监听 :${actualPort} → ${targetHost}:${targetPort}（流量记录 ${recordRoot}）`);
+          logger.info("capture", `arkhub 网关转发器已启动：监听 :${actualPort} → ${getGatewayTarget().host}:${getGatewayTarget().port}（流量记录 ${recordRoot}）`);
         }
         resolve({ server, port: actualPort, exhausted: false, adjusted: attempt > 0 });
       });

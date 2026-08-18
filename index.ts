@@ -247,7 +247,10 @@ process.on("exit", (code) => {
     const gw = await startArkhubGatewayProxy({ port: gatewayPort });
     const proxyHost = String(config.Host).replace(/^https?:\/\//, "");
     // 转发器就绪（或避让端口全部被占、配置端口上大概率有另一实例转发器）时都改写 enterHall
-    // endpoint 指向本代理——否则客户端直连官服网关、网关流量不经过任何代理（实测无法进入）
+    // endpoint 指向本代理——否则客户端直连官服网关、网关流量不经过任何代理（实测无法进入）。
+    // 转发器目标主机为动态值：官服 enterHall 响应 endpoint 会变化（2026-08-18 起为
+    // arkhub-gateway-canary.hypergryph.com 灰度域名，老域名登录帧 0 响应）——
+    // official-forward 在改写响应前调用 updateGatewayTarget 跟随；启动初始值缺省 canary。
     const arkhubGateway =
       gw.server || gw.exhausted ? { endpoint: proxyHost, port: gw.port } : null;
     app.use(

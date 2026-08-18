@@ -9,6 +9,7 @@ import {
   OFFICIAL_AS_HOST,
   OFFICIAL_GS_HOST,
 } from "../../../app/proxy/official-forward";
+import { getGatewayTarget } from "../../../app/proxy/arkhub-gateway";
 
 const mockAxios = axios as unknown as ReturnType<typeof vi.fn>;
 
@@ -274,12 +275,12 @@ describe("resolveForwardTarget（官服转发目标解析）", () => {
       expect(res.send).toHaveBeenCalledWith("Bad Gateway");
     });
 
-    it("arkhub enterHall 响应改写 endpoint/port 指向代理（网关转发器运行中）", async () => {
+    it("arkhub enterHall 转发官服并改写 endpoint/port 指向代理（网关转发器运行中）", async () => {
       mockAxios.mockResolvedValueOnce({
         status: 200,
         data: {
           result: 0,
-          endpoint: "arkhub-gateway.hypergryph.com",
+          endpoint: "arkhub-gateway-canary.hypergryph.com",
           port: 30000,
           playerDataDelta: { modified: {}, deleted: {} },
         },
@@ -300,18 +301,25 @@ describe("resolveForwardTarget（官服转发目标解析）", () => {
 
       await handler(req, res, next);
 
+      // 转发官服 → 响应改写为代理地址
+      expect(mockAxios).toHaveBeenCalled();
       expect(res.send).toHaveBeenCalledWith({
         result: 0,
         endpoint: "127.0.0.1",
         port: 30000,
         playerDataDelta: { modified: {}, deleted: {} },
       });
+      // 同时动态更新 TCP 转发器目标（跟随官服 canary 域名，见 arkhub-gateway.ts）
+      expect(getGatewayTarget()).toEqual({
+        host: "arkhub-gateway-canary.hypergryph.com",
+        port: 30000,
+      });
     });
 
-    it("未传 arkhubGateway（转发器未启动）时 enterHall 响应不改写", async () => {
+    it("未传 arkhubGateway（转发器未启动）时 enterHall 响应不改写但仍更新转发目标", async () => {
       mockAxios.mockResolvedValueOnce({
         status: 200,
-        data: { result: 0, endpoint: "arkhub-gateway.hypergryph.com", port: 30000, playerDataDelta: {} },
+        data: { result: 0, endpoint: "arkhub-gateway-canary.hypergryph.com", port: 30000, playerDataDelta: {} },
       });
       const handler = createOfficialForwarder(); // 无 arkhubGateway
       const req = {
@@ -329,10 +337,33 @@ describe("resolveForwardTarget（官服转发目标解析）", () => {
 
       expect(res.send).toHaveBeenCalledWith({
         result: 0,
-        endpoint: "arkhub-gateway.hypergryph.com",
+        endpoint: "arkhub-gateway-canary.hypergryph.com",
         port: 30000,
         playerDataDelta: {},
       });
+      expect(getGatewayTarget().host).toBe("arkhub-gateway-canary.hypergryph.com");
+    });
+
+    it("非 enterHall 的 arkhub 接口（syncInfo）仍转发官服（抓真实响应）", async () => {
+      mockAxios.mockResolvedValueOnce({ status: 200, data: { playerDataDelta: {} } });
+      const handler = createOfficialForwarder({
+        arkhubGateway: { endpoint: "127.0.0.1", port: 30000 },
+      });
+      const req = {
+        method: "POST",
+        url: "/activity/arkhub/syncInfo",
+        headers: { host: "127.0.0.1:8443" },
+        body: { activityId: "act1arkhub" },
+        query: {},
+        originalUrl: "/activity/arkhub/syncInfo",
+      } as any;
+      const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+      const next = vi.fn();
+
+      await handler(req, res, next);
+
+      expect(mockAxios).toHaveBeenCalled();
+      expect(res.send).toHaveBeenCalledWith({ playerDataDelta: {} });
     });
 
     it("非 enterHall 接口（syncInfo）即使传 arkhubGateway 也不改写", async () => {

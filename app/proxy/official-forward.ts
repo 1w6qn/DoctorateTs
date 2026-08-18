@@ -31,6 +31,7 @@ import {
   ArkhubGatewayInfo,
   adaptArkhubEnterHallResponse,
   isArkhubEnterHall,
+  updateGatewayTarget,
 } from "./arkhub-gateway";
 
 /**
@@ -267,10 +268,18 @@ export function createOfficialForwarder(opts: OfficialForwarderOptions = {}): Re
         validateStatus: () => true,
       });
       res.status(response.status).send(
-        // 特殊适配：arkhub enterHall 响应带官服网关 endpoint（arkhub-gateway.hypergryph.com:30000），
-        // 网关转发器运行中时改写为代理地址，客户端才会连到本代理、网关流量才经过代理被抓
-        arkhubGateway && isArkhubEnterHall(target.path)
-          ? adaptArkhubEnterHallResponse(response.data, arkhubGateway)
+        // 特殊适配：arkhub enterHall 响应带官服网关 endpoint（2026-08-18 起为
+        // arkhub-gateway-canary.hypergryph.com:30000——官服灰度迁移，老域名登录帧 0 响应），
+        // 1) 先动态更新 TCP 转发器目标（updateGatewayTarget），使转发器跟随官服网关域名变化；
+        // 2) 再改写为代理地址，客户端才会连到本代理、网关流量才经过代理被抓。
+        isArkhubEnterHall(target.path)
+          ? (updateGatewayTarget(
+              (response.data as { endpoint?: string })?.endpoint ?? "",
+              (response.data as { port?: number })?.port ?? 30000,
+            ),
+            arkhubGateway
+              ? adaptArkhubEnterHallResponse(response.data, arkhubGateway)
+              : response.data)
           : response.data,
       );
     } catch (error) {

@@ -115,8 +115,8 @@ describe("rlv2 补全接口", () => {
         needAssist: false,
       } as any;
       await (player.rlv2 as any).closeRecruitTicket({ id: "t_1" });
-      expect(player.rlv2.inventory.recruit["t_1"].state).toBe(3);
-      expect(player.rlv2.inventory.recruit["t_1"].list).toHaveLength(0);
+      // 官服行为：放弃票从 inventory.recruit 移除（finishEvent 时 recruit 为空）
+      expect(player.rlv2.inventory.recruit["t_1"]).toBeUndefined();
     });
 
     it("不存在的票应静默返回", async () => {

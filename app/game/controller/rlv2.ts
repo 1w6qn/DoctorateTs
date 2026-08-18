@@ -594,7 +594,11 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         (e.content as any)?.recruit?.ticket === ticketIndex,
     );
     if (evIdx >= 0) this._status.pending.splice(evIdx, 1);
-    return [this.inventory!.recruit[ticketIndex].result!];
+    // 删除已用完的票（官服：finishEvent 时 inventory.recruit 为空——已招募/放弃的
+    // 票都移除；残留会导致客户端在 WAIT_MOVE 下读到多余招募票）
+    const result = this.inventory!.recruit[ticketIndex]?.result;
+    delete this.inventory!.recruit[ticketIndex];
+    return [result!];
   }
 
   async finishEvent() {
@@ -1359,6 +1363,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     if (!ticket) return;
     ticket.state = 3;
     ticket.list = [];
+    // 放弃票也移除（官服 finishEvent 时 inventory.recruit 为空——残留导致
+    // 客户端在 WAIT_MOVE 下读到多余招募票）
+    delete this.inventory!.recruit[args.id];
   }
 
   async moveAndBattleStart(args: {

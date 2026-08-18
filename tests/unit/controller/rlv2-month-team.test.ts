@@ -143,8 +143,10 @@ describe("实践者列表（MONTH_TEAM）模式", () => {
         const ticket = rlv2.inventory.recruit[t];
         // 候选非空（真实干员库），招募结果为 NORMAL（非意外临时）
         expect(ticket.list.length).toBeGreaterThan(0);
-        await rlv2.recruitChar({ ticketIndex: t, optionId: String(ticket.list[0].instId) });
-        expect(rlv2.inventory.recruit[t].result?.type).toBe("NORMAL");
+        const res = await rlv2.recruitChar({ ticketIndex: t, optionId: String(ticket.list[0].instId) });
+        expect(res[0]?.type).toBe("NORMAL");
+        // 官服行为：招募完成票从 inventory.recruit 移除
+        expect(rlv2.inventory.recruit[t]).toBeUndefined();
       }
       // 消费 GAME_INIT_RECRUIT → 进入第一层
       await rlv2.finishEvent();

@@ -14,6 +14,7 @@ import { logger } from "@utils/logger";
 import config from "../config";
 import { routes } from "./routes";
 import { createAuthStrategy, type AuthStrategy } from "./auth-strategy";
+import { reqresLogMiddleware } from "./reqres-log";
 
 /** Express 应用实例 */
 const app = express();
@@ -23,6 +24,12 @@ app.use(httpContext.middleware);
 
 /** 注册 JSON 解析中间件 */
 app.use(bodyParser.json());
+
+/**
+ * 临时请求/响应记录中间件（调试用，REQRES_LOG 开关——默认记录 /rlv2/ 路径）。
+ * 放在认证前：未认证/认证失败的请求同样记录（便于排查登录/鉴权问题）。
+ */
+app.use(reqresLogMiddleware);
 
 /** 缓存的认证策略实例（按 authMode 失效重建——测试运行时切换模式也能生效） */
 let cachedAuthStrategy: AuthStrategy | null = null;

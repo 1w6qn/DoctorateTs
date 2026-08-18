@@ -145,6 +145,44 @@ describe("实践者列表（MONTH_TEAM）模式", () => {
       await rlv2.finishEvent();
       expect(rlv2._status.state).toBe("WAIT_MOVE");
       expect(rlv2._status.cursor.zone).toBe(1);
+      // 与官服一致：进入第一层后 pending 为空（无残留 RECRUIT——否则客户端报"系统发生未知故障"）
+      expect(rlv2._status.pending.length).toBe(0);
+    } finally {
+      rand.mockRestore();
+    }
+  });
+
+  it("recruitChar 消费对应 RECRUIT 事件（残留会导致客户端未知故障）", async () => {
+    const player = makePlayer();
+    const rlv2 = player.rlv2 as any;
+    const rand = vi.spyOn(Math, "random").mockReturnValue(0.5);
+    try {
+      await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 0, predefinedId: null });
+      await rlv2.chooseInitialRelic({ select: "0" });
+      await consumeGiftAndSupport(rlv2);
+      await rlv2.chooseInitialRecruitSet({ select: "recruit_group_1" });
+      const recruitEvt = rlv2._status.pending.find((e: any) => e.type === "GAME_INIT_RECRUIT");
+      const tickets = recruitEvt?.content?.initRecruit?.tickets || [];
+      for (const t of tickets) {
+        await rlv2.activeRecruitTicket({ id: t });
+        const evBefore = rlv2._status.pending.filter(
+          (e: any) => e.type === "RECRUIT" && e.content?.recruit?.ticket === t,
+        );
+        expect(evBefore.length).toBe(1);
+        const ticket = rlv2.inventory.recruit[t];
+        if (ticket.list.length > 0) {
+          await rlv2.recruitChar({ ticketIndex: t, optionId: String(ticket.list[0].instId) });
+          // 招募后对应 RECRUIT 事件被消费
+          const evAfter = rlv2._status.pending.filter(
+            (e: any) => e.type === "RECRUIT" && e.content?.recruit?.ticket === t,
+          );
+          expect(evAfter.length).toBe(0);
+        }
+      }
+      // 放弃/空票残留场景：finishEvent 也应清空初始 RECRUIT（防御）
+      await rlv2.finishEvent();
+      expect(rlv2._status.state).toBe("WAIT_MOVE");
+      expect(rlv2._status.pending.filter((e: any) => e.type === "RECRUIT").length).toBe(0);
     } finally {
       rand.mockRestore();
     }

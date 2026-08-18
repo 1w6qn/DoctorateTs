@@ -586,6 +586,14 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }): Promise<PlayerRoguelikeV2.CurrentData.RecruitChar[]> {
     const { ticketIndex, optionId } = args;
     await this._trigger.emit("rlv2:recruit:done", [ticketIndex, optionId]);
+    // 消费该票对应的 RECRUIT 事件（官服：招募完成后事件移除——
+    // 否则残留 RECRUIT 进入 WAIT_MOVE，客户端报"系统发生未知故障"）
+    const evIdx = this._status.pending.findIndex(
+      (e) =>
+        e.type === "RECRUIT" &&
+        (e.content as any)?.recruit?.ticket === ticketIndex,
+    );
+    if (evIdx >= 0) this._status.pending.splice(evIdx, 1);
     return [this.inventory!.recruit[ticketIndex].result!];
   }
 
@@ -603,6 +611,10 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         this._status.pending.shift();
       } else if (top && top.type === "GAME_INIT_RECRUIT") {
         this._status.pending.shift();
+        // 清空初始招募残留的 RECRUIT 事件（放弃票/候选为空未招募场景——
+        // 官服进入第一层 WAIT_MOVE 时 pending 为空，残留会导致客户端"系统发生未知故障"）
+        this._status._pending._pending =
+          this._status._pending._pending.filter((e) => e.type !== "RECRUIT");
       }
       const hasInit = this._status.pending.some((e) =>
         (e.type || "").startsWith("GAME_INIT_"),

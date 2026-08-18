@@ -106,15 +106,14 @@ function makePlayer(theme: string, modeGrade: number) {
 }
 
 describe("难度描述 → buff 生成（difficultyBuffs）", () => {
-  it("rogue_6 难度 1：目标生命上限-2", async () => {
+  it("rogue_6 难度 1：不再生成生命 buff（init 表已按 modeGrade 预扣：grade1 初始 6）", async () => {
     const player = makePlayer("rogue_6", 1);
     await (player.rlv2 as any)._module.create();
     await (player.rlv2 as any)._buff.create();
     const buffs = (player.rlv2 as any)._buff.difficultyBuffs("rogue_6", 1);
-    expect(buffs).toContainEqual({
-      key: "level_life_point_add",
-      blackboard: [{ key: "value", value: -2 }],
-    });
+    // 生命上限扣减由 init 表承载（grade1 initialHp=6），难度描述不再二次解析——
+    // 否则 N15 双重扣血（init 4 再 -2-2 → 0/0 开局崩溃）
+    expect(buffs.some((b: any) => b.key === "level_life_point_add")).toBe(false);
   });
 
   it("rogue_6 难度 7：零件箱容量-2", async () => {
@@ -137,7 +136,7 @@ describe("难度描述 → buff 生成（difficultyBuffs）", () => {
     });
   });
 
-  it("rogue_6 难度 10：部署人数-1 + 生命上限-2", async () => {
+  it("rogue_6 难度 10：部署人数-1（生命上限-2 由 init 表承载，不重复解析）", async () => {
     const player = makePlayer("rogue_6", 10);
     await (player.rlv2 as any)._module.create();
     const buffs = (player.rlv2 as any)._buff.difficultyBuffs("rogue_6", 10);
@@ -145,10 +144,7 @@ describe("难度描述 → buff 生成（difficultyBuffs）", () => {
       key: "deploy_limit_add",
       blackboard: [{ key: "value", value: -1 }],
     });
-    expect(buffs).toContainEqual({
-      key: "level_life_point_add",
-      blackboard: [{ key: "value", value: -2 }],
-    });
+    expect(buffs.some((b: any) => b.key === "level_life_point_add")).toBe(false);
   });
 
   it("rogue_6 难度 13/15：五星/六星干员希望+1（中文数字，精确星级 gte=0）", async () => {
@@ -176,13 +172,16 @@ describe("难度描述 → buff 生成（difficultyBuffs）", () => {
     });
   });
 
-  it("rogue_3 难度 2/6/9：生命上限-4 / 4星及以上希望+1（gte=1）/ 部署-1", async () => {
+  it("rogue_3 难度 2/6/9：生命扣减由 init 承载 / 4星及以上希望+1（gte=1）/ 部署-1", async () => {
     const player = makePlayer("rogue_3", 2);
     await (player.rlv2 as any)._module.create();
-    expect((player.rlv2 as any)._buff.difficultyBuffs("rogue_3", 2)).toContainEqual({
-      key: "level_life_point_add",
-      blackboard: [{ key: "value", value: -4 }],
-    });
+    // rogue_3 难度 2 的"初始目标生命上限-4"由 init 表承载（grade2 initialHp=4），
+    // 难度描述不再二次解析（避免双重扣血）
+    expect(
+      (player.rlv2 as any)._buff.difficultyBuffs("rogue_3", 2).some(
+        (b: any) => b.key === "level_life_point_add",
+      ),
+    ).toBe(false);
     expect((player.rlv2 as any)._buff.difficultyBuffs("rogue_3", 6)).toContainEqual({
       key: "recruit_hop_cost",
       blackboard: [
@@ -220,9 +219,10 @@ describe("难度描述 → buff 生成（difficultyBuffs）", () => {
     // 手工构造状态（create 全流程会重置为 init 数值）
     (player.rlv2 as any)._status.property.hp = { current: 10, max: 10 };
     (player.rlv2 as any)._status.property.capacity = 6;
-    // 进阶式累积：N10 应用 grade 1..10（grade1 生命-2 + grade10 生命-2 = -4；grade10 部署-1）
+    // 进阶式累积：N10 应用 grade 1..10（生命扣减由 init 表承载，不再解析；
+    // grade10 部署-1）
     await buff.applyBuffs([buff.difficultyBuffs("rogue_6", 10)]);
-    expect((player.rlv2 as any)._status.property.hp.max).toBe(6); // 10 - 2(grade1) - 2(grade10)
+    expect((player.rlv2 as any)._status.property.hp.max).toBe(10); // 难度 buff 不含生命扣减
     expect((player.rlv2 as any)._status.property.capacity).toBe(5); // 6 - 1(grade10)
     // 废品上限：N7 应用 grade 1..7（grade7 零件箱-2；grade1 生命-2 不影响）
     const player7 = makePlayer("rogue_6", 7);

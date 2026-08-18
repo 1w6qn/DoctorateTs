@@ -98,9 +98,9 @@ export class RoguelikeBuffManager {
       blackboard: [{ key: "value", value }] as Blackboard,
     });
 
-    // 初始目标生命上限-N（描述自带符号：上限-2 → -2）
-    const hp = texts.match(/目标生命上限\s*([+-]?\d+)/);
-    if (hp) buffs.push(bb("level_life_point_add", parseInt(hp[1], 10)));
+    // 初始目标生命上限-N：**不解析**——init 表已按 modeGrade 预扣血量
+    // （rogue_6：grade 0=8 / 1-9=6 / 10+=4；rogue_4/5 同理）。再解析并应用
+    // level_life_point_add 会双重扣血（N15 4-2-2=0，开局血 0/0 客户端崩溃）。
 
     // 可同时部署人数-N（描述自带符号：人数-1 → -1）
     const deploy = texts.match(/可同时部署人数\s*([+-]?\d+)/);

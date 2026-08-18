@@ -173,37 +173,52 @@ export class RoguelikeRecruitManager {
       if (char.charId == "char_4151_tinman") {
         population -= char.evolvePhase > 0 ? 2 : 1;
       }
-      let levelPatch = {};
+      let levelPatch: {
+        level?: number;
+        exp?: number;
+        evolvePhase?: number;
+      } = {};
       if (char.evolvePhase == 2 && !isUpgraded) {
         const maxLevel = excel.GameDataConst.maxLevel[rarityIdx][1];
         levelPatch = {
           evolvePhase: 1,
           level: maxLevel,
           exp: 0,
-          skills: char.skills?.map((s: { specializeLevel?: number }) => {
-            return Object.assign({}, s, { specializeLevel: 0 });
-          }),
         };
       }
+      // 候选干员结构对齐官服（activeRecruitTicket 抓包）——精简结构：
+      // 官服 list[0] = {instId:"0"(字符串), charId, type:"NORMAL", favorPoint,
+      //   potentialRank, mainSkillLvl, skin, level, exp, evolvePhase,
+      //   defaultSkillIndex, skills:[], upgradeLimited, upgradePhase,
+      //   isUpgrade:false, isCure:false, population, charBuff:[], troopInstId:"0",
+      //   master:{}}——skills/equip 空、instId/troopInstId 字符串、
+      //   无 gainTime/currentEquip/voiceLan 等玩家养成字段（客户端按白名单解析）
       return [
         ...acc,
-        Object.assign(
-          {},
-          char,
-          {
-            // instId 为候选列表序号（客户端 optionId 选择用）；troopInstId 为真实 troop 干员 instId
-            instId: acc.length,
-            type: "NORMAL",
-            upgradePhase: isUpgraded ? 1 : 0,
-            upgradeLimited: !isUpgraded,
-            population: population >= 0 ? population : 0,
-            isCure: false,
-            charBuff: [],
-            isUpgrade: false,
-            troopInstId: (char as any).instId ?? Object.keys(this._player.troop.chars).length,
-          },
-          levelPatch,
-        ),
+        {
+          instId: String(acc.length),
+          charId: char.charId,
+          type: "NORMAL",
+          favorPoint: char.favorPoint ?? 0,
+          potentialRank: char.potentialRank ?? 0,
+          mainSkillLvl: char.mainSkillLvl ?? 1,
+          skin: char.skin ?? "",
+          level: levelPatch.level ?? char.level ?? 1,
+          exp: levelPatch.exp ?? char.exp ?? 0,
+          evolvePhase: levelPatch.evolvePhase ?? char.evolvePhase ?? 0,
+          defaultSkillIndex: char.defaultSkillIndex ?? 0,
+          skills: [],
+          upgradeLimited: !isUpgraded,
+          upgradePhase: isUpgraded ? 1 : 0,
+          isUpgrade: false,
+          isCure: false,
+          population: population >= 0 ? population : 0,
+          charBuff: [],
+          troopInstId: String(
+            (char as any).instId ?? Object.keys(this._player.troop.chars).length,
+          ),
+          master: {},
+        },
       ];
     }, [] as PlayerRoguelikeV2.CurrentData.RecruitChar[]);
 

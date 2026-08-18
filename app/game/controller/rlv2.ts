@@ -585,8 +585,14 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     optionId: string;
   }): Promise<PlayerRoguelikeV2.CurrentData.RecruitChar[]> {
     const { ticketIndex, optionId } = args;
-    // 容错：票不存在（异常/已被清理）→ 幂等返回空，避免 done() 崩 500
-    if (!this.inventory!.recruit[ticketIndex]) return [];
+    const ticket = this.inventory!.recruit[ticketIndex];
+    // 一张票只能招募一次（官方语义）：票不存在 / 未打开(state=0) / 已放弃(state=3)
+    // → 不可招募；已招募(state=2) 的票重复调用 → 幂等返回首次 result（非空，
+    // 客户端不卡死）；仅 state=1（active）执行招募
+    if (!ticket) return [];
+    if (ticket.state !== 1) {
+      return ticket.result ? [ticket.result] : [];
+    }
     await this._trigger.emit("rlv2:recruit:done", [ticketIndex, optionId]);
     // 消费该票对应的 RECRUIT 事件（官服：招募完成后事件移除——
     // 否则残留 RECRUIT 进入 WAIT_MOVE，客户端报"系统发生未知故障"）
@@ -596,9 +602,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         (e.content as any)?.recruit?.ticket === ticketIndex,
     );
     if (evIdx >= 0) this._status.pending.splice(evIdx, 1);
-    // 票保留（官服：recruitChar 后票仍在 inventory.recruit，state=2 终态；
-    // 客户端会对同一票重复调用——若删票则后续返回 [] 导致客户端"无限卡在一张
-    // 招募券"；重复调用由 done() 幂等处理，返回同样的 result）
+    // 票保留（state=2 终态）；inventory.recruit 由 finishEvent 初始阶段统一清空
     const result = this.inventory!.recruit[ticketIndex]?.result;
     return result ? [result] : [];
   }

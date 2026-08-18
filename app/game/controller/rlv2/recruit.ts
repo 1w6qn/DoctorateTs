@@ -256,9 +256,10 @@ export class RoguelikeRecruitManager {
   }
 
   async done(id: string, optionId: string) {
-    // 容错：票不存在（已招募/放弃后客户端重复调用）或已处于完成态 → 幂等返回，
-    // 避免 `this.tickets[id].state` 对 undefined 赋值抛 500
-    if (!this.tickets[id] || this.tickets[id].state === 2) return;
+    // 一张票只能招募一次（官方语义）：state=0 未打开 / 2 已招募 / 3 已放弃(close)
+    // 都拒绝招募——仅 state=1（active 打开）可招募；已招募的票重复调用幂等返回
+    // （不重复扣希望/入队），放弃的票不可复活。undefined 容错防 500。
+    if (!this.tickets[id] || this.tickets[id].state !== 1) return;
     this.tickets[id].state = 2;
     this.tickets[id].result = this.tickets[id].list.find(
       (item) => String(item.instId) === String(optionId),

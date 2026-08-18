@@ -364,4 +364,25 @@ describe("recruitChar 重复调用容错（客户端会对同一票发两次）"
     expect(rlv2._status.property.population.cost).toBe(costAfter1);
     expect(costAfter1).toBeGreaterThanOrEqual(costBefore);
   });
+
+  it("close=放弃：放弃后不可招募（state=3 拒绝 recruitChar，不复活）", async () => {
+    const player = makePlayer();
+    const rlv2 = player.rlv2 as any;
+    await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 0, predefinedId: null });
+    await rlv2.chooseInitialRelic({ select: "0" });
+    await rlv2.chooseInitialRecruitSet({ select: "recruit_group_1" });
+    const recruitEvt = rlv2._status.pending.find((e: any) => e.type === "GAME_INIT_RECRUIT");
+    const t = (recruitEvt?.content?.initRecruit?.tickets || [])[0];
+    await rlv2.activeRecruitTicket({ id: t });
+    const opt = String(rlv2.inventory.recruit[t].list[0].instId);
+    // 放弃（close）
+    await rlv2.closeRecruitTicket({ id: t });
+    expect(rlv2.inventory.recruit[t].state).toBe(3);
+    // 放弃后 recruitChar：不可招募（返回空，票保持 state=3 不复活、不入队）
+    const troopBefore = Object.keys(rlv2._player._playerdata.troop.chars || {}).length;
+    const r = await rlv2.recruitChar({ ticketIndex: t, optionId: opt });
+    expect(r).toEqual([]);
+    expect(rlv2.inventory.recruit[t].state).toBe(3);
+    expect(Object.keys(rlv2._player._playerdata.troop.chars || {}).length).toBe(troopBefore);
+  });
 });

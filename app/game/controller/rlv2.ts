@@ -227,7 +227,11 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     // 统一刷新 this.outer/this.current 引用（后续代码用 this.xxx 读安全）。
     await this.update(async (draft) => {
       draft.current.game = {
-        mode: args.mode === "MONTH_TEAM" || args.mode === "CHALLENGE" ? "NORMAL" : args.mode,
+        // 模式：MONTH_TEAM（实践者列表）保留原模式——init 表有专属条目
+        // （month_team_1/2，初始招募组 recruit_group_m1/m2）；仅 CHALLENGE 无专属
+        // init 条目，强制走 NORMAL 规则（此前 MONTH_TEAM 也被转 NORMAL 但 predefinedId
+        // 保留 month_team_N → status.create 的 init.find 无匹配崩溃 → 开局血 0/流程卡死）
+        mode: args.mode === "CHALLENGE" ? "NORMAL" : args.mode,
         predefined: args.predefinedId,
         theme: theme,
         outer: {
@@ -521,7 +525,11 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     );
     let picked: string[];
     const groupTickets = GROUP_TICKETS[args.select] || [];
-    if (groupTickets.length > 0) {
+    if (/^recruit_group_m[12]$/.test(args.select)) {
+      // 实践者列表（recruit_group_m1/m2 "支援作战"）：两张随机的招募券
+      const shuffled = [...pool].sort(() => Math.random() - 0.5);
+      picked = shuffled.slice(0, 2);
+    } else if (groupTickets.length > 0) {
       // 随心所欲专用券（5star/quad_melee/quad_ranged）——校验存在，缺失回退随机
       const valid = groupTickets.filter(
         (t) => (excel.RoguelikeTopicTable.details[theme] as any)?.recruitTickets?.[t],

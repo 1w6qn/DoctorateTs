@@ -151,7 +151,7 @@ const SEC = {
  * current 节（createGame/gameSettle 全量；其余为增量节）——多发的 game/troop 等
  * 节会破坏客户端状态合并导致崩溃。rlv2Response 按 sections 过滤 current。
  */
-function rlv2Response<T extends object>(
+export function rlv2Response<T extends object>(
   player: PlayerDataManager,
   extra?: T,
   sections?: readonly string[],
@@ -167,7 +167,24 @@ function rlv2Response<T extends object>(
   } else {
     Object.assign(currentOut, current);
   }
-  const rlv2 = { ...full, current: currentOut };
+  // outer 精简（对齐官服 createGame 抓包）：全量 outer（6 主题 collect 等合计
+  // ~252KB）纯冗余——客户端分队/收藏品/科技树状态由 syncData 登录全量提供，
+  // rlv2 路由仅需下发当前主题的 record（last/modeCnt/endingCnt 等）与
+  // monthTeam（实践者列表有效性）；其余主题不发。255KB → ~3KB 响应瘦身。
+  const theme = current?.game?.theme as string | undefined;
+  const fullOuter = full.outer as Record<string, any> | undefined;
+  let outer: Record<string, unknown> | undefined;
+  if (theme && fullOuter?.[theme]) {
+    const o = fullOuter[theme];
+    outer = {
+      [theme]: {
+        record: o.record,
+        monthTeam: o.monthTeam,
+      },
+    };
+  }
+  const rlv2: any = { ...full, current: currentOut };
+  if (outer) rlv2.outer = outer;
   return {
     ...(extra ?? ({} as T)),
     playerDataDelta: {

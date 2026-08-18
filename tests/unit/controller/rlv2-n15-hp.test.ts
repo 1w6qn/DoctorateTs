@@ -145,3 +145,21 @@ describe("各主题招募/进阶希望消耗（官方表）", () => {
     expect(adv(5)).toBe(3);
   });
 });
+
+describe("rlv2 响应 outer 精简（对齐官服 createGame）", () => {
+  it("createGame 响应 outer 只含当前主题 record/monthTeam，响应显著瘦身", async () => {
+    const player = makePlayer(15);
+    const rlv2 = player.rlv2 as any;
+    await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
+    const { rlv2Response } = await import("@game/router/rlv2");
+    const resp = rlv2Response(player as any, undefined);
+    const r = resp.playerDataDelta.modified.rlv2;
+    // outer 只含当前主题 rogue_6（不再全量 6 主题）
+    expect(Object.keys(r.outer)).toEqual(["rogue_6"]);
+    // 该主题只含 record + monthTeam（官服 createGame 结构；collect/buff/bank 等
+    // 客户端从 syncData 全量拿，不随 rlv2 路由下发）
+    expect(Object.keys(r.outer.rogue_6).sort()).toEqual(["monthTeam", "record"]);
+    // 响应总大小显著小于修复前（255KB → 数 KB）
+    expect(JSON.stringify(resp).length).toBeLessThan(20000);
+  });
+});

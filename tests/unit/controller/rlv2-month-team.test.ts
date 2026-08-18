@@ -292,3 +292,49 @@ describe("finishEvent 初始阶段循环消费（用户序列回归）", () => {
     }
   });
 });
+
+describe("recruitChar 重复调用容错（客户端会对同一票发两次）", () => {
+  it("第二次 recruitChar 返回空数组，不抛错（票已删）", async () => {
+    const player = makePlayer();
+    const rlv2 = player.rlv2 as any;
+    await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 0, predefinedId: null });
+    await rlv2.chooseInitialRelic({ select: "0" });
+    await rlv2.chooseInitialRecruitSet({ select: "recruit_group_1" });
+    const recruitEvt = rlv2._status.pending.find((e: any) => e.type === "GAME_INIT_RECRUIT");
+    const tickets = recruitEvt?.content?.initRecruit?.tickets || [];
+    expect(tickets.length).toBeGreaterThan(0);
+    const t = tickets[0];
+    await rlv2.activeRecruitTicket({ id: t });
+    const ticket = rlv2.inventory.recruit[t];
+    const opt = String(ticket.list[0].instId);
+    // 第一次招募成功
+    const r1 = await rlv2.recruitChar({ ticketIndex: t, optionId: opt });
+    expect(r1.length).toBe(1);
+    // 票已移除
+    expect(rlv2.inventory.recruit[t]).toBeUndefined();
+    // 第二次（客户端重复调用）：不抛错、返回空
+    const r2 = await rlv2.recruitChar({ ticketIndex: t, optionId: opt });
+    expect(r2).toEqual([]);
+  });
+
+  it("done 幂等：票 state=2 时重复 done 不重复扣希望", async () => {
+    const player = makePlayer();
+    const rlv2 = player.rlv2 as any;
+    await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 0, predefinedId: null });
+    await rlv2.chooseInitialRelic({ select: "0" });
+    await rlv2.chooseInitialRecruitSet({ select: "recruit_group_1" });
+    const recruitEvt = rlv2._status.pending.find((e: any) => e.type === "GAME_INIT_RECRUIT");
+    const t = (recruitEvt?.content?.initRecruit?.tickets || [])[0];
+    await rlv2.activeRecruitTicket({ id: t });
+    const ticket = rlv2.inventory.recruit[t];
+    const opt = String(ticket.list[0].instId);
+    const costBefore = rlv2._status.property.population.cost;
+    await rlv2.recruitChar({ ticketIndex: t, optionId: opt });
+    const costAfter1 = rlv2._status.property.population.cost;
+    // 第一次招募扣希望（cost 增加；4星干员 population=0 则不扣）
+    expect(costAfter1).toBeGreaterThanOrEqual(costBefore);
+    // 直接再 emit done（模拟重复）——票已删，幂等返回，不重复扣
+    await rlv2._trigger.emit("rlv2:recruit:done", [t, opt]);
+    expect(rlv2._status.property.population.cost).toBe(costAfter1);
+  });
+});

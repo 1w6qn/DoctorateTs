@@ -256,6 +256,9 @@ export class RoguelikeRecruitManager {
   }
 
   async done(id: string, optionId: string) {
+    // 容错：票不存在（已招募/放弃后客户端重复调用）或已处于完成态 → 幂等返回，
+    // 避免 `this.tickets[id].state` 对 undefined 赋值抛 500
+    if (!this.tickets[id] || this.tickets[id].state === 2) return;
     this.tickets[id].state = 2;
     this.tickets[id].result = this.tickets[id].list.find(
       (item) => String(item.instId) === String(optionId),

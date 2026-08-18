@@ -585,6 +585,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     optionId: string;
   }): Promise<PlayerRoguelikeV2.CurrentData.RecruitChar[]> {
     const { ticketIndex, optionId } = args;
+    // 容错：票不存在（已招募/放弃后客户端重复调用同一票）→ 幂等返回空，
+    // 避免 done() 对 undefined 赋值抛 500（客户端会重复调 recruitChar）
+    if (!this.inventory!.recruit[ticketIndex]) return [];
     await this._trigger.emit("rlv2:recruit:done", [ticketIndex, optionId]);
     // 消费该票对应的 RECRUIT 事件（官服：招募完成后事件移除——
     // 否则残留 RECRUIT 进入 WAIT_MOVE，客户端报"系统发生未知故障"）
@@ -598,7 +601,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     // 票都移除；残留会导致客户端在 WAIT_MOVE 下读到多余招募票）
     const result = this.inventory!.recruit[ticketIndex]?.result;
     delete this.inventory!.recruit[ticketIndex];
-    return [result!];
+    return result ? [result] : [];
   }
 
   async finishEvent() {
@@ -642,6 +645,11 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       if (hasInit) {
         this._status.state = "INIT";
         return;
+      }
+      // 兜底：清空初始招募残留票（官服进入第一层 WAIT_MOVE 时 inventory.recruit
+      // 为空——已招募/放弃/未处理的票都移除；残留导致客户端状态机异常）
+      for (const k of Object.keys(this.inventory!.recruit || {})) {
+        delete this.inventory!.recruit[k];
       }
       this._status.cursor.zone = 1;
       this._status.cursor.position = null;

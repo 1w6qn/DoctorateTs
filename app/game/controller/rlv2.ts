@@ -113,8 +113,15 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     this._troop = player.troop;
     // 构造期占位：仅当存档无进行中的对局（current.game.theme 空——新登录/无对局）
     // 时初始化 NONE 占位；有进行中游戏（重启后重登"继续探索"）保留存档
-    // current.game/buff/record——无条件重置会把进行中对局清空 → 重登后无法继续
-    const hasRunning = !!this.current.game?.theme;
+    // current.game/buff/record——无条件重置会把进行中对局清空 → 重登后无法继续。
+    // 防御：game.theme 存在但 player.state 缺失/NONE（如服务器中途强退留下的
+    // "半初始化"存档——game 已写但状态机未跑）视为无进行中游戏——否则 continue
+    // 恢复出"有对局但状态机 NONE"的僵尸态，客户端既不能移动也不能放弃。
+    const st = this.current.player as
+      | PlayerRoguelikeV2.CurrentData.PlayerStatus
+      | undefined;
+    const hasRunning =
+      !!this.current.game?.theme && !!st?.state && st.state !== "NONE";
     if (!hasRunning) {
       this.current.game = {
         mode: "NONE",

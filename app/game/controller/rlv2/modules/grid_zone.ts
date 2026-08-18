@@ -248,11 +248,13 @@ export class RoguelikeGridZoneManager {
     // 距起点沿边距离（BFS over template.edges）
     const dist = this.edgeDistances(template);
 
-    // 起点
+    // 起点（官服 gridZone：GLADE 起点/林间空地节点 state=2——官服 state 语义
+    // 0=普通/未访问、2=GLADE(起点/林间空地)；原 state=1 与官服不符，客户端
+    // 按 state 渲染节点状态可能异常）
     const [sx, sy] = template.startSlot;
     nodes[this.nodeId(sx, sy)] = {
       content: { kind: ROGUE6_NODE.GLADE },
-      state: 1,
+      state: 2,
       show: true,
     };
 

@@ -88,8 +88,8 @@ describe("GRID_ZONE 官服结构对齐（构造模板）", () => {
           const y = Number(id) % 100;
           expect(mapNodes[id].pos).toEqual({ x, y });
         }
-        // 起点（唯一 state 1）为 GLADE
-        const start = Object.entries(light).find(([, n]: any) => n.state === 1);
+        // 起点（唯一 state 2，官服 GLADE）为 GLADE
+        const start = Object.entries(light).find(([, n]: any) => n.state === 2);
         expect(start, `zone ${zone} 起点`).toBeTruthy();
         expect((start![1] as any).content).toEqual({}); // 起点 content 空（官方线格式）
         // 终点 zone_end ≥1 且 type 为 VISIBLE_END/BATTLE_BOSS
@@ -115,7 +115,7 @@ describe("GRID_ZONE 官服结构对齐（构造模板）", () => {
         const light = gz.toJSON().zones[`zone_${zone}`].nodes;
         const t = BLACKSTREAM_CONSTRUCTIONS.find((c) => c.layerIndex === zone - 1)!;
         const dist = gz.edgeDistances(t);
-        const startId = Object.entries(light).find(([, n]: any) => n.state === 1)![0];
+        const startId = Object.entries(light).find(([, n]: any) => n.state === 2)![0];
         for (const [id, n] of Object.entries(light) as [string, any][]) {
           if (dist.get(id) === 1 && id !== startId) {
             const mapN = (player.rlv2 as any)._map.zones[String(1000 + zone - 1)]?.nodes?.[id];
@@ -136,7 +136,7 @@ describe("GRID_ZONE 官服结构对齐（构造模板）", () => {
       const t5 = BLACKSTREAM_CONSTRUCTIONS.find((c) => c.layerIndex === 4)!;
       const dist = gz.edgeDistances(t5);
       // 起点
-      const startId = Object.entries(light).find(([, n]: any) => n.state === 1)![0];
+      const startId = Object.entries(light).find(([, n]: any) => n.state === 2)![0];
       for (const [id, n] of Object.entries(light) as [string, any][]) {
         if (id === startId) continue; // 起点不受距离规则约束
         const d = dist.get(id);

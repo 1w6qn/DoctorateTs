@@ -224,7 +224,8 @@ export class RoguelikeRecruitManager {
           level: levelPatch.level ?? char.level ?? 1,
           exp: levelPatch.exp ?? char.exp ?? 0,
           evolvePhase: levelPatch.evolvePhase ?? char.evolvePhase ?? 0,
-          defaultSkillIndex: char.defaultSkillIndex ?? 0,
+          defaultSkillIndex:
+            (char.defaultSkillIndex ?? 0) >= 0 ? char.defaultSkillIndex ?? 0 : 0,
           skills: [],
           upgradeLimited: !isUpgraded,
           upgradePhase: isUpgraded ? 1 : 0,

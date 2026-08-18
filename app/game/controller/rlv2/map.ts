@@ -26,7 +26,7 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
     this._trigger.on("rlv2:zone:new", this.generate.bind(this));
     try {
       this._nodesInfo = JSON.parse(
-        readFileSync(`${__dirname}/../../../data/rlv2/nodesInfo.json`, "utf-8"),
+        readFileSync(`${__dirname}/../../../../data/rlv2/nodesInfo.json`, "utf-8"),
       );
     } catch {
       this._nodesInfo = null;

@@ -87,12 +87,14 @@ describe("rlv2 地图生成数据与区域推进", () => {
       const zone = (player.rlv2 as any)._map.zones[2];
       expect(zone).toBeDefined();
       expect(zone.id).toBe("zone_2");
-      // 应存在普通作战节点且带有 stage（来自 nodesInfo 的 ro1_n_2_1）
+      // 应存在普通作战节点且带有 stage（来自 nodesInfo 官方列表 ro1_n_2_*）
       const battleNode = Object.values(zone.nodes).find(
         (n: any) => n.type === 1 && n.stage
       );
       expect(battleNode).toBeDefined();
-      expect((battleNode as any).stage).toBe("ro1_n_2_1");
+      // 修复 nodesInfo 路径后：stage 来自官方 nodesInfo zones["2"].Normal（ro1_n_2_1/2/3...），
+      // 而非 mock stages 过滤的单一 ro1_n_2_1
+      expect((battleNode as any).stage).toMatch(/^ro1_n_2_\d+$/);
     });
   });
 

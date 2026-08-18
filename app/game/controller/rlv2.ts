@@ -657,6 +657,17 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       this._status.cursor.zone = 1;
       this._status.cursor.position = null;
       await this._trigger.emit("rlv2:zone:new", [this._status.cursor.zone]);
+      // 进入第一层后 cursor.position = 起点节点位置（官服 finishEvent#2：
+      // position={x:0,y:1} 即 type=268435456 起点；null 会导致客户端无法定位当前
+      // 节点 → 地图渲染/步进崩溃）
+      const zoneNodes = this._map.zones[String(1000 + this._status.cursor.zone - 1)]
+        ?.nodes as Record<string, any> | undefined;
+      const startNode = Object.values(zoneNodes || {}).find(
+        (n) => n?.type === ROGUE6_NODE.GLADE,
+      );
+      if (startNode?.pos) {
+        this._status.cursor.position = { x: startNode.pos.x, y: startNode.pos.y };
+      }
       this._status.state = "WAIT_MOVE";
       return;
     }

@@ -100,6 +100,17 @@ describe("探索中 zone 推进（真实 excel）", () => {
       await openToWaitMove(rlv2);
       expect(rlv2._status.state).toBe("WAIT_MOVE");
       expect(rlv2._status.cursor.zone).toBe(1);
+      // cursor.position = 起点节点位置（官服 finishEvent#2 position={x:0,y:1}；
+      // null 会导致客户端无法定位当前节点崩溃）
+      expect(rlv2._status.cursor.position).not.toBeNull();
+      const startNode = Object.values(rlv2._map.zones["1000"].nodes).find(
+        (n: any) => n.type === 268435456,
+      ) as any;
+      expect(startNode).toBeTruthy();
+      expect(rlv2._status.cursor.position).toEqual({
+        x: startNode.pos.x,
+        y: startNode.pos.y,
+      });
       // 层尾节点存在且标记 zone_end（map 侧）
       const ends = Object.entries(rlv2._map.zones["1000"].nodes).filter(
         ([, n]: any) => n.zone_end,

@@ -48,8 +48,15 @@ export class RoguelikeEventManager {
     const initConfig = this._player.initConfig;
 
     const supportEnabled = game.outer.support || false;
-    // rogue_6（岁主题）额外有 GAME_INIT_GIFT 开局礼物（抓包 07-45：金 +10 / 人口 +1）
-    const giftEnabled = theme === "rogue_6";
+    // GAME_INIT_GIFT 开局礼物：由上一把遗留襁褓的 init_gift buff 数据驱动——
+    // 仅当持有襁褓猫（金）/狗（希望）等带 init_gift 的 legacy 藏品才出现，
+    // 内容 = 全部 init_gift buff（id/count）累加（非固定金+10/人口+1）。
+    const legacyBuffs = ((this._player.outer as any)?.[theme]?.record?.legacy || [])
+      .flatMap((id: string) => {
+        const def = (excel.RoguelikeTopicTable.details[theme] as any)?.relics?.[id];
+        return def?.buffs || [];
+      });
+    const giftEnabled = legacyBuffs.some((b: any) => b.key === "init_gift");
     const totalStep = (supportEnabled ? 4 : 3) + (giftEnabled ? 1 : 0);
 
     this._trigger.emit("rlv2:event:create", [
@@ -84,13 +91,16 @@ export class RoguelikeEventManager {
       },
     ]);
 
-    // 行动奖励（GAME_INIT_SUPPORT）：襁褓三头犬（rogue_6_legacy_03）→ 选择次数 +1
-    // （追加一个 SUPPORT 事件；官方"襁褓生灵的效果可以增加行动奖励选项及选择次数"；
-    // 仅当本局有行动奖励阶段——上一把到 3 层 supportEnabled——时追加）
-    const legacy = (this._player.outer as any)?.[theme]?.record?.legacy || [];
+    // 行动奖励（GAME_INIT_SUPPORT）襁褓加成（数据驱动，官方 buff）：
+    // - init_support_multi_chance（襁褓三头犬）→ 选择次数 +1（追加一个 SUPPORT 事件）
+    // - force_add_choice（襁褓羽蛇 legacy_04..09）→ 强制追加指定选项（startbuff_7..12）
+    // 仅当本局有行动奖励阶段——上一把到 3 层 supportEnabled——时生效。
+    const detailLg = excel.RoguelikeTopicTable.details[theme] as any;
+    const legacyBuffs2 = ((this._player.outer as any)?.[theme]?.record?.legacy || [])
+      .flatMap((id: string) => detailLg?.relics?.[id]?.buffs || []);
     const extraSupport =
       supportEnabled &&
-      legacy.some((id: string) => id.startsWith("rogue_6_legacy_03"));
+      legacyBuffs2.some((b: any) => b.key === "init_support_multi_chance");
     if (extraSupport) {
       this._trigger.emit("rlv2:event:create", [
         "GAME_INIT_SUPPORT",
@@ -161,18 +171,29 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
     };
   }
 
-  /** 开局礼物（rogue_6 岁主题；抓包 07-45：金 +10 / 人口 +1） */
+  /**
+   * 开局礼物：由上一把遗留襁褓的 init_gift buff 数据驱动（衬于 legacy 藏品：
+   * 襁褓中的猫→金+5、襁褓中的狗→希望+1），无衬于则本事件不生成。
+   */
   GAME_INIT_GIFT(args: {
     step: [number, number];
   }): PlayerRoguelikePendingEvent.Content {
     const theme = this._player.current.game!.theme;
+    const legacy = ((this._player.outer as any)?.[theme]?.record?.legacy || []) as string[];
+    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+    // 全部 init_gift buff 累加（同一襁褓多个变体/多件可叠加）
+    const items = legacy
+      .flatMap((id) => detail?.relics?.[id]?.buffs || [])
+      .filter((b: any) => b.key === "init_gift")
+      .map((b: any) => ({
+        id: b.blackboard[0]?.valueStr,
+        count: b.blackboard[1]?.value ?? 1,
+      }))
+      .filter((it: any) => it.id);
     return {
       initGift: {
         step: args.step,
-        items: [
-          { id: `${theme}_gold`, count: 10 },
-          { id: `${theme}_population`, count: 1 },
-        ],
+        items,
       },
     };
   }
@@ -209,16 +230,16 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
       () => Math.random() - 0.5,
     );
     const picked = shuffled.slice(0, 3);
-    // 襁褓羽蛇（legacy_04..09：通过≥2 区 → 下次行动奖励 +1 个支援选项）→ 追加 1 个襁褓选项
-    const legacy = (this._player.outer as any)?.[theme]?.record?.legacy || [];
-    if (roNum === "6" && legacy.some((id: string) => /^rogue_6_legacy_0[4-9]/.test(id))) {
-      const extraPool = allChoiceKeys.filter((k) => {
-        const n = parseInt(k.replace(/^.*startbuff_/, ""), 10);
-        return n >= 7 && n <= 12;
-      });
-      if (extraPool.length > 0) {
-        picked.push(extraPool[Math.floor(Math.random() * extraPool.length)]);
-      }
+    // 襁褓生灵加成（数据驱动，官方 force_add_choice buff——襁褓羽蛇 legacy_04..09：
+    // 通过≥2 区 → 下次行动奖励强制追加指定襁褓选项 startbuff_7..12）
+    const detailLg2 = excel.RoguelikeTopicTable.details[theme] as any;
+    const forceChoices = ((this._player.outer as any)?.[theme]?.record?.legacy || [])
+      .flatMap((id: string) => detailLg2?.relics?.[id]?.buffs || [])
+      .filter((b: any) => b.key === "force_add_choice")
+      .map((b: any) => b.blackboard[0]?.valueStr)
+      .filter((cid: any) => cid && allChoiceKeys.includes(cid));
+    for (const cid of forceChoices) {
+      if (!picked.includes(cid)) picked.push(cid);
     }
     const choices = picked.reduce((acc, key) => ({ ...acc, [key]: 1 }), {});
     return {

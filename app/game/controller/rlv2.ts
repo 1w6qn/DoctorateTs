@@ -265,23 +265,16 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     this._player.markDirty();
     await this._trigger.emit("rlv2:create", [this]);
 
-    // 开局增益在 rlv2:create（status.create 重置初始值）之后应用：
-    // 黑流树海襁褓类藏品（上一把获得并持久化到 record.legacy）——襁褓中的猫 +5 源石锭 / 狗 +1 希望
+    // 开局 legacy 襁褓藏品：
+    // - 特勤任务影像（难度 0 失败补偿）：开局直接获得该收藏品
+    // - 襁褓猫/狗等 init_gift 效果：由 GAME_INIT_GIFT 事件统一发放（events.create 按
+    //   legacy 的 init_gift buff 数据驱动生成事件与内容）——此处不再直接加金/希望，避免双发
     const legacyList: string[] = (this.outer?.[theme]?.record as any)?.legacy || [];
     for (const legacyId of legacyList) {
       if (legacyId === "rogue_6_relic_fight_29") {
-        // 特勤任务影像（难度 0 失败补偿）：开局直接获得该收藏品
         await this._trigger.emit("rlv2:relic:gain", [
           { id: legacyId, count: 1 },
         ]);
-        continue;
-      }
-      const def = (excel.RoguelikeTopicTable.details[theme] as any)?.items?.[legacyId];
-      const usage = def?.usage || "";
-      if (usage.includes("5源石锭")) {
-        this._status.property.gold += 5;
-      } else if (usage.includes("1点希望")) {
-        this._status.property.population.max += 1;
       }
     }
 

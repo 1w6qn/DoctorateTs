@@ -61,6 +61,10 @@ vi.mock("@excel/excel", () => ({
           relics: {
             rogue_6_band_1: { id: "rogue_6_band_1", buffs: [] },
             rogue_6_band_2: { id: "rogue_6_band_2", buffs: [] },
+            // 襁褓生灵（开局礼物 GAME_INIT_GIFT 数据源：抓包该局 金+10/人口+1 = 2 猫 + 狗）
+            rogue_6_legacy_01: { id: "rogue_6_legacy_01", buffs: [{ key: "init_gift", blackboard: [{ key: "id", value: 0, valueStr: "rogue_6_gold" }, { key: "count", value: 5, valueStr: null }] }] },
+            rogue_6_legacy_01_1: { id: "rogue_6_legacy_01_1", buffs: [{ key: "init_gift", blackboard: [{ key: "id", value: 0, valueStr: "rogue_6_gold" }, { key: "count", value: 5, valueStr: null }] }] },
+            rogue_6_legacy_02: { id: "rogue_6_legacy_02", buffs: [{ key: "init_gift", blackboard: [{ key: "id", value: 0, valueStr: "rogue_6_population" }, { key: "count", value: 1, valueStr: null }] }] },
           },
           bandRef: {},
           choices: {
@@ -122,7 +126,7 @@ function makePlayer() {
     rlv2: {
       outer: {
         rogue_6: {
-          record: { last: 0, lastZone: 3, legacy: [], stageCnt: {}, bandCnt: {}, bandGrade: {} },
+          record: { last: 0, lastZone: 3, legacy: ["rogue_6_legacy_01", "rogue_6_legacy_01_1", "rogue_6_legacy_02"], stageCnt: {}, bandCnt: {}, bandGrade: {} },
           collect: { band: {} },
           buff: { pointOwned: 0, pointCost: 0, unlocked: {}, score: 0 },
         },

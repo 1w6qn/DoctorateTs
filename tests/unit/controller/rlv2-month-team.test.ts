@@ -75,6 +75,8 @@ describe("实践者列表（MONTH_TEAM）模式", () => {
   it("createGame 不崩：血 8/8、希望 6、pending 完整 5 事件", async () => {
     const player = makePlayer();
     const rlv2 = player.rlv2 as any;
+    // 该局携带襁褓（猫+狗）→ 应有 GAME_INIT_GIFT
+    rlv2.outer.rogue_6.record.legacy = ["rogue_6_legacy_01", "rogue_6_legacy_02"];
     await rlv2.createGame({ theme: "rogue_6", mode: "MONTH_TEAM", modeGrade: 0, predefinedId: "month_team_1" });
     const s = rlv2._status;
     expect(s.property.hp.current).toBe(8);
@@ -88,6 +90,34 @@ describe("实践者列表（MONTH_TEAM）模式", () => {
     expect(types).toContain("GAME_INIT_RECRUIT");
     // 招募组为实践者专属（支援作战 m1）
     expect(rlv2.initConfig.initialRecruitGroup).toContain("recruit_group_m1");
+  });
+
+  it("无襁褓 legacy → 不生成 GAME_INIT_GIFT（开局礼物由上一把藏品动态触发）", async () => {
+    const player = makePlayer();
+    const rlv2 = player.rlv2 as any;
+    await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 0, predefinedId: null });
+    const types = rlv2._status.pending.map((e: any) => e.type);
+    expect(types).not.toContain("GAME_INIT_GIFT");
+    // 无礼物 → 希望保持 6
+    expect(rlv2._status.property.population.max).toBe(6);
+  });
+
+  it("开局礼物内容 = init_gift buff 累加（襁褓猫+狗 → 金+5/希望+1）", async () => {
+    const player = makePlayer();
+    const rlv2 = player.rlv2 as any;
+    rlv2.outer.rogue_6.record.legacy = ["rogue_6_legacy_01", "rogue_6_legacy_02"];
+    await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 0, predefinedId: null });
+    const gift = rlv2._status.pending.find((e: any) => e.type === "GAME_INIT_GIFT");
+    expect(gift).toBeTruthy();
+    expect(gift.content.initGift.items).toEqual([
+      { id: "rogue_6_gold", count: 5 },
+      { id: "rogue_6_population", count: 1 },
+    ]);
+    // finishEvent 消费 GIFT → 金 8+5、希望 6+1（无双发）；先消费 RELIC（pending[0]）
+    await rlv2.chooseInitialRelic({ select: "0" });
+    await rlv2.finishEvent();
+    expect(rlv2._status.property.gold).toBe(13);
+    expect(rlv2._status.property.population.max).toBe(7);
   });
 
   it("完整开局流程不卡死：2 张支援作战票招募后 finishEvent 进入 WAIT_MOVE", async () => {

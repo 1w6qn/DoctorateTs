@@ -24,6 +24,11 @@ const excelMock = vi.hoisted(() => ({
         relics: {
           rogue_6_relic_fight_29: { id: "rogue_6_relic_fight_29", buffs: [] },
           rogue_6_start_1: { id: "rogue_6_start_1", buffs: [] },
+          // 襁褓生灵（数据驱动：init_gift / init_support_multi_chance / force_add_choice）
+          rogue_6_legacy_01: { id: "rogue_6_legacy_01", buffs: [{ key: "init_gift", blackboard: [{ key: "id", value: 0, valueStr: "rogue_6_gold" }, { key: "count", value: 5, valueStr: null }] }] },
+          rogue_6_legacy_02: { id: "rogue_6_legacy_02", buffs: [{ key: "init_gift", blackboard: [{ key: "id", value: 0, valueStr: "rogue_6_population" }, { key: "count", value: 1, valueStr: null }] }] },
+          rogue_6_legacy_03: { id: "rogue_6_legacy_03", buffs: [{ key: "init_support_multi_chance", blackboard: [{ key: "add", value: 1, valueStr: null }] }] },
+          rogue_6_legacy_04: { id: "rogue_6_legacy_04", buffs: [{ key: "force_add_choice", blackboard: [{ key: "choice_id", value: 0, valueStr: "choice_ro6_startbuff_7" }, { key: "scene_ids", value: 0, valueStr: "scene_ro6_startbuff_enter" }] }] },
         },
         choices: {
           choice_ro6_startbuff_1: { id: "choice_ro6_startbuff_1" },

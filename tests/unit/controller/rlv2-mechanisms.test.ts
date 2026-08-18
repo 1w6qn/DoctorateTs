@@ -27,6 +27,9 @@ vi.mock("@excel/excel", () => ({
           relics: {
             rogue_6_band_1: { id: "rogue_6_band_1", buffs: [{ key: "immediate_reward", blackboard: [{ key: "id", valueStr: "rogue_6_hpmax" }, { key: "count", value: 2 }] }] },
             rogue_6_band_3: { id: "rogue_6_band_3", buffs: [] },
+            // 襁褓生灵（开局礼物 init_gift 数据源）
+            rogue_6_legacy_01: { id: "rogue_6_legacy_01", buffs: [{ key: "init_gift", blackboard: [{ key: "id", value: 0, valueStr: "rogue_6_gold" }, { key: "count", value: 5, valueStr: null }] }] },
+            rogue_6_legacy_02: { id: "rogue_6_legacy_02", buffs: [{ key: "init_gift", blackboard: [{ key: "id", value: 0, valueStr: "rogue_6_population" }, { key: "count", value: 1, valueStr: null }] }] },
           },
           bandRef: {
             rogue_6_band_1: { itemId: "rogue_6_band_1", bandLevel: 0, normalBandId: "rogue_6_band_1" },
@@ -532,19 +535,28 @@ describe("指挥等级/经验（2026-08-11 文档对齐）", () => {
 });
 
 describe("rogue_6 开局礼物/分队隐藏/选项效果（2026-08-11）", () => {
-  it("rogue_6 createGame 应包含 GAME_INIT_GIFT 且 finishEvent 发放礼物", async () => {
+  it("rogue_6 createGame 应包含 GAME_INIT_GIFT 且 finishEvent 发放礼物（init_gift 数据驱动）", async () => {
     const player = await readyPlayer("rogue_6");
+    // 上一把持有襁褓猫+狗 → 开局礼物 = 金+5 / 希望+1（非固定金+10/人口+1）
+    (player.rlv2 as any).outer.rogue_6 = {
+      record: { legacy: ["rogue_6_legacy_01", "rogue_6_legacy_02"] },
+      collect: { band: {} },
+      buff: { unlocked: {}, score: 0 },
+    };
     await (player.rlv2 as any).createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 0, predefinedId: null });
     const pend = (player.rlv2 as any)._status.pending;
     const gift = pend.find((e: any) => e.type === "GAME_INIT_GIFT");
     expect(gift).toBeDefined();
-    expect(gift.content.initGift.items.length).toBe(2);
-    // 先消费 RELIC（chooseInitialRelic），再 finishEvent 应发放礼物（金 +10 / 人口 +1）
+    expect(gift.content.initGift.items).toEqual([
+      { id: "rogue_6_gold", count: 5 },
+      { id: "rogue_6_population", count: 1 },
+    ]);
+    // 先消费 RELIC（chooseInitialRelic），再 finishEvent 应发放礼物（金 +5 / 人口 +1）
     await (player.rlv2 as any).chooseInitialRelic({ select: "0" });
     (player.rlv2 as any)._status.property.gold = 8;
     (player.rlv2 as any)._status.property.population.max = 6;
     await (player.rlv2 as any).finishEvent();
-    expect((player.rlv2 as any)._status.property.gold).toBe(18);
+    expect((player.rlv2 as any)._status.property.gold).toBe(13);
     expect((player.rlv2 as any)._status.property.population.max).toBe(7);
     expect((player.rlv2 as any)._status.pending.find((e: any) => e.type === "GAME_INIT_GIFT")).toBeUndefined();
   });

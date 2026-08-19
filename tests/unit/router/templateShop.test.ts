@@ -120,4 +120,33 @@ describe("templateShop 路由", () => {
     const send = res.send.mock.calls[0][0];
     expect(send.itemList).toEqual([]);
   });
+
+  it("buyGood 无限池商品（availCount=-1）应可正常购买且不限购", async () => {
+    // 修复：原 availCount=-1 被当成"恒超限"拒绝购买
+    player._playerdata.activity.TYPE_ACT53SIDE.act53side.actCoin = 99999;
+    await call("/buyGood", { shopId: "shop_act53side", goodId: "act53side_40", count: 2 });
+    const send = res.send.mock.calls[0][0];
+    // act53side_40 = 30073 材料，price 25，无限购
+    expect(send.itemList).toEqual([{ id: "30073", type: "MATERIAL", count: 2 }]);
+    expect(player._playerdata.activity.TYPE_ACT53SIDE.act53side.actCoin).toBe(99999 - 25 * 2);
+    // 再次购买继续放行（无限池）
+    await call("/buyGood", { shopId: "shop_act53side", goodId: "act53side_40", count: 3 });
+    expect(player._playerdata.tshop["shop_act53side"].info).toEqual(
+      expect.arrayContaining([{ id: "act53side_40", count: 5 }]),
+    );
+  });
+
+  it("buyGood PROGRESS 商品应写入 progressInfo（阶段显示随购买推进）", async () => {
+    // 修复：原漏写 progressInfo，购买后阶段显示不更新
+    player._playerdata.activity.TYPE_ACT53SIDE.act53side.actCoin = 99999;
+    await call("/buyGood", { shopId: "shop_act53side", goodId: "act53side_1", count: 1 });
+    // 5 档进度商品（char_tmslot_progress）：第 1 档 price 200 → 下一档序号 2
+    expect(player._playerdata.tshop["shop_act53side"].progressInfo).toEqual({
+      char_tmslot_progress: { order: 2, count: 0 },
+    });
+    await call("/buyGood", { shopId: "shop_act53side", goodId: "act53side_1", count: 1 });
+    expect(player._playerdata.tshop["shop_act53side"].progressInfo).toEqual({
+      char_tmslot_progress: { order: 3, count: 0 },
+    });
+  });
 });

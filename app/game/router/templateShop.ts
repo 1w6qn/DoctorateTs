@@ -200,18 +200,30 @@ router.post("/buyGood", async (req, res) => {
       // 购买记录（官方 tshop.info）
       const boughtRec = st.info.find((r: any) => r.id === goodId);
       const bought = boughtRec?.count ?? 0;
-      // 限购检查（availCount）
-      if (good.availCount && bought + count > good.availCount) {
+      // 限购检查（availCount：仅 >0 限购——0/-1/缺省视为无限可购。
+      // 修复：原 `good.availCount && ...` 会把 availCount=-1 的无限池商品判为恒超限拒绝购买）
+      if (good.availCount > 0 && bought + count > good.availCount) {
         return true;
       }
       // PROGRESS 商品：价格与发放物按档位（progressGoods[progressGoodId][bought]）
       let price = good.price ?? 0;
       let grant = good.item;
       if (good.goodType === "PROGRESS" && good.progressGoodId) {
-        const tier = group?.progressGoods?.[good.progressGoodId]?.[bought];
+        const tiers = group?.progressGoods?.[good.progressGoodId] ?? [];
+        const tier = tiers[bought];
         if (!tier) return true; // 已购完所有档位
         price = tier.price ?? 0;
         grant = tier.item;
+        // 修复：写入 progressInfo（客户端据此显示阶段性物品的当前档位——原实现漏写，
+        // 购买后阶段始终停在第 1 档不更新）。order 存下一次将购的档位序号（1 起，
+        // 对齐 HS/CLASSIC 进度商品形状）；全部档位购完后 count 累计超出次数。
+        const prog = st.progressInfo[good.progressGoodId] ?? { order: 1, count: 0 };
+        if (prog.order < tiers.length) {
+          prog.order += 1;
+        } else {
+          prog.count += 1;
+        }
+        st.progressInfo[good.progressGoodId] = prog;
       }
       // 扣货币（活动币引用优先，其余走 tshop.coin；不足则不发放）
       const have = coinRef ? coinRef.coin : st.coin;

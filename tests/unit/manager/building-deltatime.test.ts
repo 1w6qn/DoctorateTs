@@ -77,6 +77,7 @@ const excelMock = vi.hoisted(() => ({
         TRAINING: { phases: [{ buildCost: { items: [], time: 0, labor: 10 }, maxStationedNum: 1 }] },
       },
       meetingData: { phases: [{ friendSlotInc: 10, maxVisitorNum: 10, gatheringSpeed: 100 }] },
+      hireData: { phases: [{ economizeRate: 0, resSpeed: 100, refreshTimes: 3 }] },
     },
   },
 }));
@@ -296,7 +297,7 @@ describe("BuildingManager 统一 deltaTime 推进（_advanceBuilding 注入 ts�
     mockPlayer._playerdata.building.rooms.TRAINING.slot_13 = {
       state: 1,
       trainer: { charInstId: 401, state: 3 },
-      trainee: { charInstId: 402, state: 3, processPoint: 0, speed: 1000, targetSkill: 0 },
+      trainee: { charInstId: 402, state: 1, processPoint: 0, speed: 1000, targetSkill: 0 }, // TRAINING=1（官方枚举）
       lastUpdateTime: LAST, completeWorkTime: -1,
     };
     mockPlayer._playerdata.troop.chars["401"] = { charId: "char_train", level: 1, evolvePhase: 0 };
@@ -304,6 +305,68 @@ describe("BuildingManager 统一 deltaTime 推进（_advanceBuilding 注入 ts�
     (manager as any)._advanceBuilding(draft, at(3600));
     // 1000 × (1 + 0.5) × 3600
     expect(draft.building.rooms.TRAINING.slot_13.trainee.processPoint).toBe(1000 * 1.5 * 3600);
+  });
+
+  it("训练室 state=3（WAITING 等待）不推进——官方枚举语义", () => {
+    const { manager, mockPlayer } = setup();
+    mockPlayer._playerdata.building.roomSlots.slot_13 = {
+      level: 1, state: 2, roomId: "TRAINING", charInstIds: [401, 402], completeConstructTime: -1,
+    };
+    mockPlayer._playerdata.building.rooms.TRAINING.slot_13 = {
+      state: 1,
+      trainer: { charInstId: 401, state: 3 },
+      trainee: { charInstId: 402, state: 3, processPoint: 500, speed: 1000, targetSkill: 0 },
+      lastUpdateTime: LAST, completeWorkTime: -1,
+    };
+    mockPlayer._playerdata.troop.chars["401"] = { charId: "char_train", level: 1, evolvePhase: 0 };
+    const draft = draftOf(mockPlayer);
+    (manager as any)._advanceBuilding(draft, at(3600));
+    expect(draft.building.rooms.TRAINING.slot_13.trainee.processPoint).toBe(500);
+  });
+
+  it("会客室按 deltaTime 推进线索搜集进度（processPoint += elapsed × 有效速度）", () => {
+    const { manager, mockPlayer } = setup();
+    mockPlayer._playerdata.building.roomSlots.slot_36 = {
+      level: 1, state: 2, roomId: "MEETING", charInstIds: [], completeConstructTime: -1,
+    };
+    mockPlayer._playerdata.building.rooms.MEETING.slot_36 = {
+      state: 1, speed: 100, processPoint: 0, lastUpdateTime: LAST, completeWorkTime: -1,
+    };
+    const draft = draftOf(mockPlayer);
+    (manager as any)._advanceBuilding(draft, at(3600));
+    const room = draft.building.rooms.MEETING.slot_36;
+    // 基础 gatheringSpeed=100 × (1 + 0 buff) = 100 → 3600 × 100
+    expect(room.speed).toBe(100);
+    expect(room.processPoint).toBe(3600 * 100);
+    // 时间戳推进到当前
+    expect(room.lastUpdateTime).toBe(at(3600));
+  });
+
+  it("人力办公室按 deltaTime 推进人脉搜集进度（processPoint += elapsed × 有效速度）", () => {
+    const { manager, mockPlayer } = setup();
+    mockPlayer._playerdata.building.roomSlots.slot_37 = {
+      level: 1, state: 2, roomId: "HIRE", charInstIds: [], completeConstructTime: -1,
+    };
+    mockPlayer._playerdata.building.rooms.HIRE.slot_37 = {
+      state: 1, speed: 100, processPoint: 0, lastUpdateTime: LAST, completeWorkTime: -1,
+    };
+    const draft = draftOf(mockPlayer);
+    (manager as any)._advanceBuilding(draft, at(3600));
+    const room = draft.building.rooms.HIRE.slot_37;
+    // 基础 resSpeed=100 → 3600 × 100
+    expect(room.speed).toBe(100);
+    expect(room.processPoint).toBe(3600 * 100);
+  });
+
+  it("统一时间戳：无推进逻辑的房间（CONTROL）lastUpdateTime 也推进到当前", () => {
+    const { manager, mockPlayer } = setup();
+    mockPlayer._playerdata.building.rooms.CONTROL.slot_34 = {
+      buff: {}, apCost: 0, lastUpdateTime: LAST, presetQueue: [],
+    };
+    const draft = draftOf(mockPlayer);
+    (manager as any)._advanceBuilding(draft, at(3600));
+    // CONTROL 无 state 字段（常驻房间）→ 时间戳恒推进
+    expect(draft.building.rooms.CONTROL.slot_34.lastUpdateTime).toBe(at(3600));
   });
 });
 

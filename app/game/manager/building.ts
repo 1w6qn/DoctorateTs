@@ -10,7 +10,7 @@ import { PlayerDataModel } from "@game/model/playerdata";
 import { PlayerBuildingMeetingClue } from "@game/model/playerdata";
 import { BuildingData_OrderType, BuildingData_RoomType } from "@game/model/playerdata";
 import { accountManager } from "./AccountManager";
-import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase } from "@excel/building_excel";
+import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase } from "@excel/building_excel";
 import {
   CharBuffSource,
   roomSpeedBonus,
@@ -408,8 +408,102 @@ export class BuildingManager {
     this._refreshTradingOrders(draft);
     // 训练室进度推进（trainee.processPoint 随时间累积，客户端进度显示一致）
     this._accrueTraining(draft, ts);
+    // 会客室线索搜集进度推进（processPoint 随时间累积，speed 含 meet_* buff）
+    this._accrueMeeting(draft, ts);
+    // 人力办公室人脉搜集进度推进（processPoint 随时间累积，speed 含 hire_* buff）
+    this._accrueHire(draft, ts);
+    // 统一时间戳：所有工作时间房间（state=1）lastUpdateTime 推进到 ts——
+    // 修复 CONTROL/无推进条件房间（如无 next 的旧存档贸易站）时间戳长期停留旧值
+    // （2222 存档 CONTROL/MEETING/HIRE lastUpdateTime 停在 6 天前）
+    this._touchActiveRooms(draft, ts);
     // 会客室 infoShare.reward 待领取指示（官方 sync 响应含该字段）
     this._refreshInfoShare(draft);
+  }
+
+  /**
+   * 内部方法：会客室线索搜集进度推进
+   *
+   * 官方模型（PlayerBuildingMeeting）：processPoint 随时间按有效速度累积
+   * （基础 gatheringSpeed × (1 + 进驻干员 meet_* buff)），达到阈值出线索。
+   * 修复（2026-08-19）：此前无推进逻辑——2222 存档会客室 processPoint 停在
+   * 540 万、lastUpdateTime 停在 8-13，客户端进度/倒计时失实。
+   * 私服简化：进度真实累积供客户端显示；线索产出仍由 getDailyClue/访客/边界驱动。
+   *
+   * @param draft - mutative 可写草稿
+   * @param ts - 当前时间基准（秒）
+   */
+  private _accrueMeeting(draft: Draft<PlayerDataModel>, ts: number): void {
+    for (const [slotId, roomRaw] of Object.entries(draft.building.rooms.MEETING ?? {})) {
+      const room = roomRaw as any;
+      if (!room || room.state !== 1) continue;
+      const slot = draft.building.roomSlots[slotId];
+      const base = getMeetingPhase(slot?.level ?? 1)?.gatheringSpeed;
+      if (typeof base !== "number" || base <= 0) continue;
+      // 有效速度 = 基础搜集速度 × (1 + 干员 meet_* buff)，回写供客户端进度一致
+      const bonus = roomSpeedBonus(
+        this._roomCharSources(draft, slot),
+        "MEETING",
+        [],
+        this._specialCtx(draft),
+      );
+      room.speed = Math.round(base * (1 + bonus));
+      const elapsed = ts - (room.lastUpdateTime || ts);
+      if (elapsed <= 0) continue;
+      room.lastUpdateTime = ts;
+      room.processPoint = (room.processPoint ?? 0) + elapsed * room.speed;
+    }
+  }
+
+  /**
+   * 内部方法：人力办公室人脉搜集进度推进
+   *
+   * 官方模型（PlayerBuildingHire）：processPoint 随时间按有效速度累积
+   * （基础 resSpeed × (1 + 进驻干员 hire_* buff)），达到阈值刷新招募位。
+   * 修复（2026-08-19）：同会客室——此前无推进逻辑（2222 人力 processPoint 停摆）。
+   * 私服简化：进度真实累积供客户端显示；招募位刷新由边界/每日刷新驱动。
+   *
+   * @param draft - mutative 可写草稿
+   * @param ts - 当前时间基准（秒）
+   */
+  private _accrueHire(draft: Draft<PlayerDataModel>, ts: number): void {
+    for (const [slotId, roomRaw] of Object.entries(draft.building.rooms.HIRE ?? {})) {
+      const room = roomRaw as any;
+      if (!room || room.state !== 1) continue;
+      const slot = draft.building.roomSlots[slotId];
+      const base = getHirePhase(slot?.level ?? 1)?.resSpeed;
+      if (typeof base !== "number" || base <= 0) continue;
+      const bonus = roomSpeedBonus(
+        this._roomCharSources(draft, slot),
+        "HIRE",
+        [],
+        this._specialCtx(draft),
+      );
+      room.speed = Math.round(base * (1 + bonus));
+      const elapsed = ts - (room.lastUpdateTime || ts);
+      if (elapsed <= 0) continue;
+      room.lastUpdateTime = ts;
+      room.processPoint = (room.processPoint ?? 0) + elapsed * room.speed;
+    }
+  }
+
+  /**
+   * 内部方法：工作时间房间统一时间戳推进
+   * 所有工作时间房间（state=1）及常驻房间（CONTROL 无 state 字段、恒运行）的
+   * lastUpdateTime ← ts——保证 sync 后基建时间戳恒为当前时间（官方每次 sync 推进
+   * 全部房间），不因"无生产逻辑"（CONTROL）或"无订单进度"（旧存档 TRADING）而停留旧值。
+   * @param draft - mutative 可写草稿
+   * @param ts - 当前时间基准（秒）
+   */
+  private _touchActiveRooms(draft: Draft<PlayerDataModel>, ts: number): void {
+    for (const [rtype, roomsByType] of Object.entries(draft.building.rooms)) {
+      for (const roomRaw of Object.values(roomsByType ?? {})) {
+        const room = roomRaw as any;
+        if (!room || typeof room.lastUpdateTime !== "number") continue;
+        // 工作时间（state=1）或常驻房间（CONTROL 无 state 字段）
+        const active = room.state === 1 || rtype === "CONTROL";
+        if (active) room.lastUpdateTime = ts;
+      }
+    }
   }
 
   async sync() {
@@ -443,6 +537,12 @@ export class BuildingManager {
   /**
    * 内部方法：训练室进度推进
    * trainee.processPoint += 流逝时间 × trainee.speed × (1 + 教官训练 buff 加成)（与官方模型一致）
+   *
+   * 修复（2026-08-19）：trainee.state 判定错误——官方 PlayerBuildingTraineeState 枚举
+   * EMPTY=0/TRAINING=1/OUTOFDATE=2/WAITING=3，训练中为 **state=1**；原实现 `state !== 3`
+   * 把 WAITING(3) 当训练态 → 真实存档（state=1）训练进度从不推进（2222 空弦 processPoint 停摆）。
+   * 完成（state=2 OUTOFDATE）仍由客户端计时驱动 completeUpgradeSpecialization。
+   *
    * @param draft - mutative 可写草稿
    * @param ts - 当前时间基准（秒），elapsed = ts - lastUpdateTime
    */
@@ -451,7 +551,7 @@ export class BuildingManager {
     for (const roomSlotId of Object.keys(trainingRoom)) {
       const room = trainingRoom[roomSlotId];
       const trainee = room?.trainee;
-      if (!trainee || trainee.charInstId <= 0 || trainee.state !== 3) continue;
+      if (!trainee || trainee.charInstId <= 0 || trainee.state !== 1) continue;
       // 教官（slot charInstIds[0] 或 room.trainer）的 train_* buff 加速训练
       const slot = draft.building.roomSlots[roomSlotId];
       const trainerId =
@@ -566,11 +666,13 @@ export class BuildingManager {
       const effSpeed = Math.max(0.01, (next.speed || 1) * (1 + bonus));
       next.speed = effSpeed;
       next.processPoint = (next.processPoint ?? 0) + elapsed * effSpeed;
-      // 达到阈值且库存未满 → 生成一笔订单（next.order 从 -1 起递增）
-      if (
+      // 达到阈值 → 逐笔生成订单（修复：while 一次性结算全部达到的订单——
+      // 原 if 只生成 1 笔，长时间离线累积多笔时进度滞留、订单节奏失真）
+      const limit = Math.max(1, room.stockLimit ?? 2);
+      while (
         next.processPoint >= next.maxPoint &&
         Array.isArray(room.stock) &&
-        room.stock.length < (room.stockLimit ?? 2)
+        room.stock.length < limit
       ) {
         const orderId = (next.order ?? -1) + 1;
         this._genTradingOrder(draft, room, orderId);

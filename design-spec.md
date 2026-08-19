@@ -1043,6 +1043,24 @@ BuildingManager（app/game/manager/building.ts）已实现完整基建玩法：
 
 **测试**：`tests/unit/manager/building-special.test.ts`（16 条）——special.ts 纯函数（fraction/token/术语映射）、buff.ts 集成（roomSpeedBonus/controlGlobalBonus）、BuildingManager 集成（制造站容量含 control_prod_fraction、token 条件切换、贸易站独占订单、会客室线索加权、心情特殊）。基建 5 文件 169 测试通过，tsc 干净。
 
+### 11.11 基建时间戳更新修复（2222 存档审计，2026-08-19）
+
+**背景**：观察存档 2222（8-18 备份）基建发现"存在时间未更新"——CONTROL/MEETING/HIRE/TRADING `lastUpdateTime` 停在 8-13（6 天前）、TRAINING 空弦 `processPoint` 停摆、MEETING/HIRE 线索/人脉搜集进度停滞。
+
+**根因（反编译官方枚举确认）**：
+1. **训练室 state 语义错误**：官方 `PlayerBuildingTraineeState` = EMPTY(0)/TRAINING(1)/OUTOFDATE(2)/WAITING(3)——训练中为 **state=1**；旧实现 `state !== 3` 把 WAITING(3) 当训练态 → 真实存档（state=1）训练进度从不推进
+2. **MEETING/HIRE 无时间推进**：`PlayerBuildingMeeting`/`PlayerBuildingHire` 的 `processPoint`（线索/人脉搜集进度）没有任何 accrue 逻辑——进度停滞 + lastUpdateTime 停留旧值
+3. **CONTROL 无推进**：控制中枢无生产逻辑但官方有 `lastUpdateTime`（无 state 字段，恒运行）
+
+**修复（building.ts）**：
+- `_accrueTraining`：条件改为 `trainee.state === 1`（TRAINING），完成（state=2 OUTOFDATE）仍由 completeUpgradeSpecialization 驱动
+- 新增 `_accrueMeeting`/`_accrueHire`：`processPoint += elapsed × 有效速度`，有效速度 = 相位 `gatheringSpeed`/`resSpeed` × (1 + 干员 `meet_*`/`hire_*` buff)，回写 `room.speed` 供客户端进度一致；私服简化——进度真实累积供显示，线索/招募位产出仍由边界/每日刷新驱动
+- 新增 `_touchActiveRooms`：统一推进所有工作时间房间（state=1）及常驻房间（CONTROL 无 state）的 `lastUpdateTime ← ts`——sync 后基建时间戳恒为当前
+- `_accrueTrading` 订单生成改 **while 循环**：长时间离线累积多笔时一次性结算全部达到阈值的订单（原 if 只生成 1 笔，进度滞留）
+- `building_excel.ts` 新增 `getHirePhase`（人力相位：resSpeed/refreshTimes）
+
+**测试**：`tests/unit/manager/building-archive-time.test.ts`（6 条，基于 2222 真实结构快照）——统一时间戳（6 房间 lastUpdateTime 推进）、训练 state=1 推进、会客室/人力进度推进 + speed 按 buff 重算、制造站产出累积 + 二次 sync 不重复、贸易站 while 批量结算；building-deltatime 补训练 state=3 不推进断言。基建 7 文件 186 测试通过，tsc 干净。
+
 ---
 
 ## 12. 战斗结算后处理逻辑
@@ -1270,6 +1288,99 @@ pnpm run migrate:official -- --accounts <账号文件路径> --template 1
 - `rlv2/mission.ts`（0 字节空文件）、`rlv2/game.ts`（空壳类）零引用死代码已删除。
 
 **注意（既有竞态）**：`TypedEventEmitter.emit` 为异步（Emittery），控制器构造期 `emit("rlv2:init")` 的处理器（status/map/inventory init 重置）在微任务中执行——测试在构造后立即改 rlv2 状态需先 flush 微任务（`await new Promise(r => setTimeout(r, 0))`），否则会被异步 init 覆盖。
+
+### 16.9 黑流树海（rogue_6）集成战略方案（2026-08-19）
+
+黑流树海是首个**无相地图（GRID_ZONE）**主题：地图不再是「层内若干节点 + 连线」，而是 **x/y 网格 + 行动力（stepRemain）驱动的自由移动**，并叠加零件箱（SCRAP）与天气（WEATHER）两个专属模块。以下为架构、接口、数据流、安全四部分设计与落地结论。
+
+#### 16.9.1 系统架构
+
+| 层 | 文件 | 职责 |
+|---|---|---|
+| 主题规则注册表 | `app/game/controller/rlv2/theme-rules.ts` | **单一事实来源**：节点类型数值、商店/战斗节点集合、各层行动力、场景前缀、结局关卡与收藏品、重掷类型映射。**不 import 任何管理器**（避免循环依赖） |
+| 主控制器 | `app/game/controller/rlv2.ts` | 请求编排：`gridZoneMoveTo` / `gridZoneEmptyStep` / `gridZoneReadStepZero` / `changeVehicle` / `loseScrap` / `scrapIdentify`；节点 → 事件分发 |
+| 地图模块 | `rlv2/modules/grid_zone.ts` | 网格生成（构造模板 + BFS 边距离 + 数量规则）、视野、移动、误入奇境隐藏层 |
+| 零件箱模块 | `rlv2/modules/scrap.ts` | 废品增删、载具切换、官方 `sellPrice` 估价 |
+| 天气模块 | `rlv2/modules/weather.ts` | 层天气状态 |
+| 路由 | `app/game/router/rlv2.ts` | 8 个 rogue_6 专属 POST（协议见 `api.md`） |
+
+**分层原则**：「主题相关的**数据**」集中到 theme-rules；「主题相关的**行为**」留在各自管理器（不做上帝对象）。重构前 `theme === "rogue_6"` 与节点数值字面量散落 7 个文件 20+ 处，现全部改为查表 / `isBlackstream(theme)`。`grid_zone.ts` 对外 re-export `ROGUE6_NODE`，既有调用方零改动。
+
+#### 16.9.2 节点语义确证（官方 `RoguelikeEventType` 位标志枚举）
+
+关键发现：`types_excel_gen.ts` 的 `RoguelikeEventType` 按声明顺序 2^n 展开后，与 `details.rogue_6.nodeTypeData` 的 **21 个键逐一吻合**——据此可确证每个节点的官方语义，不再依赖中文名猜测：
+
+| 值 | 官方枚举 | 中文名 | 落地行为 |
+|---|---|---|---|
+| 1 / 2 / 4 | BATTLE_NORMAL / _ELITE / _BOSS | 作战 / 紧急作战 / 险路恶敌 | 战斗（关卡按三池分流） |
+| 16 | REST | 安全的角落 | SCENE `scene_ro6_rest*` |
+| 32 | INCIDENT | 不期而遇 | SCENE `normal*` / `bat*`（回退通用 incident） |
+| 512 / 1024 | WISH / SACRIFICE | 得偿所愿 / 失与得 | SCENE `wish*`+`relic*` / `sacrifice*` |
+| 2048 | EXPEDITION | 先行一步 | SCENE `scout*`（**三结局远征入口**） |
+| 4096 / 2097152 / 33554432 | BATTLE_SHOP / SCRAP_SHOP / EMPLOY | 诡意行商 / 秘境行商 / 应急助力 | BATTLE_SHOP 事件（应急助力另有 `hire*` 场景） |
+| 8192 | PORTAL | 误入奇境 | 生成隐藏层（未萌生的摇篮） |
+| 32768 / 65536 | STORY / STORY_HIDDEN | 命运所指 | 二结局 / 调谐仪式入口 |
+| 262144 | DUEL | 狭路相逢 | SCENE `sala*` |
+| 4194304 | DOOR | 曲折密道 | 地图机制（传送），无场景 |
+| 8388608 | FINAL | 险路尽头 | SCENE `final*`（ZONE_END / 召集同伴） |
+| 16777216 | **EVACUATE** | 险路小径 | SCENE `evacuate*`（保留行动力提前进层） |
+| 67108864 | LIGHT | 羽瞰点 | 地图机制（视野 +1 格），无场景 |
+| 134217728 | **BATTLE_SAVAGE** | “居民”据点 | 归入战斗类（`moduleConsts.savageBubble`） |
+| 268435456 | EMPTY | 林间空地 | 空节点 / 起点 |
+
+`scrapTypeData` 官方语义同样以数据为准：**`MOVE` = 加工品**（可用于地图移动 / 误入奇境消耗）、`GOODS` = 自然物、`PASSIVE` = 概念体。
+
+#### 16.9.3 数据流转
+
+```
+POST /rlv2/gridZone/moveTo {route:[nodeId…]}
+  → router 校验 route 非空数组
+  → controller.gridZoneMoveTo：清空 _pushMessages
+     → gridZone.moveTo(route)（逐格扣 stepRemain、揭示视野、写 cursor.position）
+     → 读 node.content.kind → 查 theme-rules 分发：
+         战斗类 → BATTLE 事件 ／ 商店类 → BATTLE_SHOP 事件
+         PORTAL → generatePortal（新建 3000+ 递增 zone 键）
+         其余 → createRogue6NodeScene(kind)：按前缀筛 scene_ro6_*_enter，
+                派生选项 choice_{stem}_*
+         无匹配 → WAIT_MOVE
+     → 累积 pushMessage：rlv2NodeArrive{nodeType} + rlv2NodeChange{nodeList}
+  → res.send(player.delta, …, player.rlv2.takePushMessages())
+```
+
+**状态归属**：网格与游标写在 `rlv2._map.zones[1000+zoneId-1]`（隐藏层 `3000+`）与 `_status.cursor`，全部经 `player.update(recipe)` 记录 patch；`pushMessages` 为**一次性**队列，`takePushMessages()` 取走即清空，与 `player.delta` 同样禁止一次请求读两次。
+
+#### 16.9.4 安全策略
+
+| 面 | 措施 |
+|---|---|
+| 入参校验 | `gridZone/moveTo` 拒绝空/非数组 route；`scrap/loseScrap` 拒绝 `instId == null`（原静默 no-op，客户端拿不到错误） |
+| 越权移动 | 路径由 `gridZone.moveTo` 逐格判定可达性与 `stepRemain`，服务端持有唯一真值，客户端仅提交路径 |
+| 键冲突 | 隐藏层键从 `3000 + random*900`（可撞键覆盖已有层）改为 `nextPortalZoneKey()` 单调递增 |
+| 资源消耗一致性 | `consumePortalScrap` 按官方语义消耗 **MOVE（加工品）**，并在消耗的是当前载具时切回步行，避免出现「载具指向已不存在的废品」的悬垂引用 |
+| 类型安全 | `RoguelikeModule` 补 `gridZone/weather/scrap`、`CustomizeData` 补 `rogue_5/6`，消除全链路 `as any` 与 6 处 `sCRAP` 拼写兜底死分支 |
+| 账号面 | 沿用私服既有约束（单账号 uid=1、`secret` 强制为 "1"），本方案未新增鉴权面 |
+
+#### 16.9.5 bug 台账（复现 / 根因 / 修复 / 验证）
+
+| # | 复现 | 根因 | 修复 | 验证 |
+|---|---|---|---|---|
+| B1 | rogue_6 走到安全的角落/得偿所愿/失与得/**先行一步**，客户端无事件、直接可继续移动 | `triggerNodeEvent()` 定义但**零调用**，`gridZoneMoveTo` 只处理战斗/商店/PORTAL/PROPHECY/INCIDENT，其余落 WAIT_MOVE；三结局入口因此不可达 | 新增 `createRogue6NodeScene(kind)` 按 `ROGUE6_NODE_SCENE_PREFIX` 生成 SCENE；删除死方法 `triggerNodeEvent` | `rlv2-node-dispatch.test.ts` 参数化 8 类节点断言 SCENE 生成 + `choice_ro6_scout_1/3` 存在 |
+| B2 | rogue_6 隐藏层重掷节点无任何变化 | `rerollNode` 用 `zones[zone]` 而非 `zones[zoneKey(zone)]`（rogue_6 为 1000+ 键）直接 return；且 typeMap 缺 11 类新节点 | 改用 `this.zoneKey(zone)`；typeMap 换成 `ROLL_NODE_TYPE_VALUES`（25 项） | 同上测试：1000+ 键可取到节点、`SCRAP_SHOP → SECRET_SHOP` |
+| B3 | 客户端地图不刷新节点状态 | `gridZone/*` 路由未传第 5 参 `takePushMessages()`，`rlv2NodeArrive` 永不下发 | 路由接线 + 控制器内累积两类消息 | 断言累积后取走即清空 |
+| B4 | 精英/首领节点打出普通关卡 | `generate()` 算出 `eliteStages` 后**未使用**，三类节点共用普通池 | 引入 `ZoneStagePools{normal,elite,boss}`，正则 `^ro6_b_{zone}(_|$)` 提 boss 池 | 断言 map 内节点 stage 前缀分流 |
+| B5 | 多次误入奇境偶发覆盖已生成隐藏层 | 隐藏层键 `3000 + Math.random()*900` 可能重复 | `nextPortalZoneKey()` 递增分配；起点 state 与主层统一为 2 | `rlv2-gridzone-portal.test.ts` |
+| B6 | 误入奇境消耗加工品时选错件 | `scrap.gain()` 的 `value` 恒为 1，排序失效 | 新增 `sellPriceOf()` 读官方 `goods/move/passiveScrapData.sellPrice` | 断言 gain 值=2、开局 s_1 值=1 |
+| B7 | 全链路 `as any`、`sCRAP` 拼写兜底 | `RoguelikeModule`/`CustomizeData` 类型缺口 | 从 `types_excel_gen.ts` 复用权威定义并补字段 | `tsc --noEmit` 全绿 |
+| B8 | — | 死代码 `NODE_TO_KIND`、未用 `occupied` Set、硬编码 `PORTAL_FAMILY` | 删除；改 `pickPortalTemplate` 按数据字段 `utopiaPortal(s)` 筛选（该字段实为**雾色场景族编号**，非"列") | 全量 rlv2 测试通过 |
+| B9 | 误入奇境后零件箱少的是自然物而非加工品 | `consumePortalScrap` 筛 `t !== "MOVE"`，与官方 `scrapTypeData` 语义**颠倒** | 改为 `=== "MOVE"`，并处理载具回退 | portal 测试由红转绿 |
+
+**验证结果**：`pnpm exec tsc --noEmit` 通过；`pnpm exec vitest run` 1957 passed（2 个失败为改动前既有：`pay-gate`、`plugin-config-service`，已用 `git stash` 复核与本方案无关）；新增 `tests/unit/controller/rlv2-node-dispatch.test.ts` 21 条全绿。
+
+#### 16.9.6 简化项（YAGNI）
+
+- `data/rlv2/event_choices.json` 无 rogue_6 分区，选项效果沿用官方 excel 元数据，不补效果增强表；
+- `nodesInfo.json` 已含 rogue_6 关卡列表，但 `grid_zone.ts` 仍从 `details.stages` 前缀过滤（两处结果一致，未做切换）；
+- 三结局的完整剧情分支（远征后续场景链）仅接通入口，未逐幕实现。
 
 ---
 

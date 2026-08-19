@@ -117,3 +117,13 @@ export function getMeetingPhase(
 ): { friendSlotInc?: number; maxVisitorNum?: number; gatheringSpeed?: number } | undefined {
   return excel.BuildingData?.meetingData?.phases?.[level - 1];
 }
+
+/**
+ * 人力办公室相位（level 从 1 起；resSpeed = 基础人脉搜集速度、refreshTimes = 每日招募刷新次数）
+ * 时间推进：HIRE 房间 processPoint += 流逝时间 × 有效速度（resSpeed × (1 + hire_* buff)）。
+ */
+export function getHirePhase(
+  level: number,
+): { economizeRate?: number; resSpeed?: number; refreshTimes?: number } | undefined {
+  return excel.BuildingData?.hireData?.phases?.[level - 1];
+}

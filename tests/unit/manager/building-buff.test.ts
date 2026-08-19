@@ -310,7 +310,7 @@ describe("BuildingManager 干员技能（buff）集成", () => {
     (mockPlayer._playerdata.building!.rooms.TRAINING as any).slot_13 = {
       state: 1,
       trainer: { charInstId: 401, state: 3 },
-      trainee: { charInstId: 402, state: 3, processPoint: 0, speed: 1000, targetSkill: 0 },
+      trainee: { charInstId: 402, state: 1, processPoint: 0, speed: 1000, targetSkill: 0 }, // TRAINING=1（官方枚举）
       lastUpdateTime: timeMock.now - 3600,
       completeWorkTime: -1,
     };

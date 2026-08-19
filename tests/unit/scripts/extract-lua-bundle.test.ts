@@ -22,12 +22,12 @@ afterEach(async () => {
   );
 });
 
-/** 构造与官方 DefinedFix.lua 结构一致的假清单（已注入引导 hotfixer） */
+/** 构造与官方 DefinedFix.lua 结构一致的假清单（已注入插件 hotfixer 条目） */
 function patchedDefinedFix(): string {
   return [
     "local list = ",
     "{",
-    '  "Plugin/PluginBootHotfixer",',
+    '  "Plugin/NetworkRedirectPlugin",',
     '  "HotFixes/TestStubHotfixer",',
     "};",
     "return list;",
@@ -44,7 +44,7 @@ describe("extract-lua-bundle 内置 Lua bundle 提取", () => {
       { name: "gamedata/[uc]lua/entry.lua", script: enc.encode("-- entry\n") },
       { name: "gamedata/[uc]lua/Hotfixes/DefinedFix.lua", script: enc.encode(patchedDefinedFix()) },
       { name: "gamedata/[uc]lua/base/BaseModule.lua", script: enc.encode("-- base\n") },
-      { name: "gamedata/[uc]lua/plugin/PluginBootHotfixer.lua", script: enc.encode("-- boot\n") },
+      { name: "gamedata/[uc]lua/plugin/NetworkRedirectPlugin.lua", script: enc.encode("-- redirect\n") },
       { name: "gamedata/[uc]lua/plugin/EnemyHpPlugin.lua", script: enc.encode("-- hp\n") },
       { name: "gamedata/[uc]lua/nested/sub/Deep.lua", script: enc.encode("-- deep\n") },
       { name: "gamedata/other/not_lua.bin", script: enc.encode("\u0000") }, // 非 Lua 资产
@@ -67,11 +67,11 @@ describe("extract-lua-bundle 内置 Lua bundle 提取", () => {
     expect(await readFile(join(out, "nested", "sub", "Deep.lua"), "utf8")).toBe("-- deep\n");
 
     // 插件资产被跳过（不写入参考目录）
-    await expect(readFile(join(out, "plugin", "PluginBootHotfixer.lua"))).rejects.toThrow();
+    await expect(readFile(join(out, "plugin", "NetworkRedirectPlugin.lua"))).rejects.toThrow();
 
     // DefinedFix 注入标记被还原（与 collectReferenceLua 的 from-ref 重建期望一致）
     const df = await readFile(join(out, "Hotfixes", "DefinedFix.lua"), "utf8");
-    expect(df).not.toContain("PluginBootHotfixer");
+    expect(df).not.toContain("Plugin/NetworkRedirectPlugin");
     expect(df).toContain('"HotFixes/TestStubHotfixer"');
   });
 

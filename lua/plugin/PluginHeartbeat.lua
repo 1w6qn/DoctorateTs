@@ -16,6 +16,7 @@
 local PluginHeartbeat = {}
 local eutil = CS.Torappu.Lua.Util
 local PluginHotfix = require("Plugin/PluginHotfix")
+local PluginManager = require("Plugin/PluginManager")
 
 local _MAX_RETRY = 6
 local _RETRY_DELAY_SEC = 5

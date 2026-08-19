@@ -4,6 +4,11 @@
   高风险项（高倍速）默认关闭。API 随版本可能漂移，已做 pcall 兜底。
 --]]
 local BattleAssistPlugin = Class("BattleAssistPlugin", require("Plugin/BasePlugin"))
+
+-- 类级元数据（管理器/面板/管理端目录以此为准；与 PluginDefs.lua 保持一致）
+BattleAssistPlugin.id = "battle_assist"
+BattleAssistPlugin.name = "战斗辅助"
+BattleAssistPlugin.desc = "战斗时间轴 / 倍速 / TAS 暂停帧"
 local eutil = CS.Torappu.Lua.Util
 
 local UnityEngine = CS.UnityEngine

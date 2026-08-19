@@ -2,8 +2,8 @@
  * 内置 Lua bundle 重打包器（方案 A）
  *
  * 目标：把客户端内置 Lua 主 bundle（anon/7d91430e114d86fef7d3b3511151e12d.bin）重打包，
- * 将 lua/plugin/ 插件脚本 merge 进去，并 patch DefinedFix.lua 注入引导 hotfixer
- * （Plugin/PluginBootHotfixer，经游戏原生 HotfixProcesser.Do 管线加载插件），
+ * 将 lua/plugin/ 插件脚本 merge 进去，并在 DefinedFix.lua 中逐条注入各插件 hotfixer 条目
+ * （Plugin/<X>，经游戏原生 HotfixProcesser.Do 管线 new() + Init() 驱动加载），
  * 最后覆盖下发为 mods/anon_7d91430e114d86fef7d3b3511151e12d.dat，客户端热更即加载插件。
  *
  * 输入：内置 bundle（.bin UnityFS 或 .dat zip 单条目）。
@@ -162,20 +162,34 @@ export function collectReferenceLua(refDir: string): LuaAsset[] {
 }
 
 /**
- * 在 DefinedFix.lua 清单中注入引导 hotfixer：把 "Plugin/PluginBootHotfixer" 插到首个条目之前。
- * 幂等：先剔除已注入的引导条目（避免对已重打包 bundle 二次注入），再按
- * 大小写不敏感锚点（"HotFixes/..." 或 "Hotfixes/..."）插入。
- * 使用游戏原生 hotfix 管线（HotfixProcesser.Do）引导插件加载，比 patch entry.lua 更稳。
- * @param script - 原始 DefinedFix.lua 文本
+ * 插件 hotfixer 清单（DefinedFix 注入条目，顺序 = 加载顺序）。
+ * 引导类 network_redirect 必须最先（早于网络初始化前生效）；其余与
+ * lua/plugin/PluginDefs.lua 保持一致。
+ */
+const PLUGIN_HOTFIXER_ENTRIES: string[] = [
+  "Plugin/NetworkRedirectPlugin",
+  "Plugin/EnemyHpPlugin",
+  "Plugin/EnemyInfoPlugin",
+  "Plugin/BattleAssistPlugin",
+  "Plugin/PanelPlugin",
+];
+
+/**
+ * 在 DefinedFix.lua 清单中注入各插件 hotfixer 条目（对齐官服：每个插件独立登记一条）。
+ * 幂等：先剔除已注入的插件条目（避免对已重打包 bundle 二次注入），再按
+ * 大小写不敏感锚点（"HotFixes/..." 或 "Hotfixes/..."）批量插入清单最前。
+ * 使用游戏原生 hotfix 管线（HotfixProcesser.Do）逐条实例化各插件，比 patch entry.lua 更稳。
+ * @param script  - 原始 DefinedFix.lua 文本
+ * @param entries - 插件 hotfixer 条目（缺省用 PLUGIN_HOTFIXER_ENTRIES）
  * @returns 补丁后的 DefinedFix.lua 文本
  */
-export function patchDefinedFix(script: string): string {
-  // 剔除已注入的引导条目（独立行精确匹配，避免误删内容中的同名引用）
+export function patchDefinedFix(script: string, entries: string[] = PLUGIN_HOTFIXER_ENTRIES): string {
+  // 剔除已注入的插件条目（独立行精确匹配，避免误删内容中的同名引用）
   const stripped = script
     .split(/\r?\n/)
     .filter((line) => {
       const t = line.trim();
-      return !(t === '"Plugin/PluginBootHotfixer",' || t === '"Plugin/PluginBootHotfixer"');
+      return !entries.some((e) => t === `"${e}",` || t === `"${e}"`);
     })
     .join("\n");
   const markerRe = /["']\s*[Hh]ot[Ff]ixes?\//;
@@ -184,8 +198,9 @@ export function patchDefinedFix(script: string): string {
     throw new Error("DefinedFix 补丁失败：未找到 hotfixer 条目（版本漂移？）");
   }
   const idx = m.index;
-  // 在首个条目前插入新条目（新条目带逗号，原首个条目及其逗号保留，Lua 5.1 语法合法）
-  return stripped.slice(0, idx) + '  "Plugin/PluginBootHotfixer",\n' + stripped.slice(idx);
+  // 在首个条目前插入全部插件条目（每行一条、带逗号；引导类 network_redirect 须在前）
+  const block = entries.map((e) => `  "${e}",`).join("\n");
+  return stripped.slice(0, idx) + block + "\n" + stripped.slice(idx);
 }
 
 /**

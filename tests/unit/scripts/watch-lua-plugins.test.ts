@@ -82,16 +82,16 @@ describe("watch-lua-plugins 插件热重载", () => {
   it("重打包产物可解包回插件与补丁后的 DefinedFix", async () => {
     const { ref, plugin, out } = await makeTempDirs();
     await writeRefLua(ref);
-    await writeFile(join(plugin, "PluginBootHotfixer.lua"), enc.encode("-- boot\n"));
+    await writeFile(join(plugin, "NetworkRedirectPlugin.lua"), enc.encode("-- redirect\n"));
 
     const { bundle } = await rebuildOnce(ref, plugin, out, []);
     const assets = extractTextAssets(bundle);
     const names = assets.map((a) => a.name.toLowerCase());
     // 插件资产已并入
-    expect(names).toContain("gamedata/[uc]lua/plugin/pluginboothotfixer.lua");
-    // DefinedFix 已注入 PluginBootHotfixer 引导条目
+    expect(names).toContain("gamedata/[uc]lua/plugin/networkredirectplugin.lua");
+    // DefinedFix 已注入该插件 hotfixer 条目
     const df = assets.find((a) => a.name.toLowerCase().endsWith("definedfix.lua"))!;
     const txt = new TextDecoder().decode(df.script);
-    expect(txt).toContain('"Plugin/PluginBootHotfixer",');
+    expect(txt).toContain('"Plugin/NetworkRedirectPlugin",');
   });
 });

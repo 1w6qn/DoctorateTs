@@ -30,11 +30,11 @@ afterEach(async () => {
   );
 });
 
-/** 与官方 DefinedFix.lua 结构一致的假清单（已注入引导 hotfixer） */
+/** 与官方 DefinedFix.lua 结构一致的假清单（已注入插件 hotfixer 条目） */
 function injectedDefinedFix(): string {
   return [
     "local list = {",
-    '  "Plugin/PluginBootHotfixer",',
+    '  "Plugin/NetworkRedirectPlugin",',
     '  "HotFixes/TestStubHotfixer",',
     "};",
     "return list;",
@@ -98,7 +98,7 @@ describe("lua-mod-builder 启动自动构建", () => {
     ]);
     // 把 dat 时间戳拨回过去，模拟插件源码更新
     await utimes(dat, new Date("2020-01-01T00:00:00Z"), new Date("2020-01-01T00:00:00Z"));
-    await writeFile(join(plugin, "PluginBootHotfixer.lua"), enc.encode("-- boot\n"));
+    await writeFile(join(plugin, "NetworkRedirectPlugin.lua"), enc.encode("-- redirect\n"));
     await writeFile(join(plugin, "NewPlugin.lua"), enc.encode("-- new\n"));
 
     const result = await ensureLuaModBuilt({ modsDir: mods, pluginDir: plugin, refDir: ref });
@@ -108,13 +108,13 @@ describe("lua-mod-builder 启动自动构建", () => {
     const assets = await readModAssets(result.dat!);
     const names = assets.map((a) => a.name);
     expect(names).toContain("gamedata/[uc]lua/Plugin/NewPlugin.lua");
-    expect(names).toContain("gamedata/[uc]lua/Plugin/PluginBootHotfixer.lua");
+    expect(names).toContain("gamedata/[uc]lua/Plugin/NetworkRedirectPlugin.lua");
     expect(names).not.toContain("gamedata/[uc]lua/Plugin/Old.lua");
     const df = assets.find((a) => a.name.toLowerCase().endsWith("definedfix.lua"))!;
     const bootCount = dec
       .decode(df.script)
       .split(/\r?\n/)
-      .filter((l) => l.trim() === '"Plugin/PluginBootHotfixer",').length;
+      .filter((l) => l.trim() === '"Plugin/NetworkRedirectPlugin",').length;
     expect(bootCount).toBe(1);
   });
 

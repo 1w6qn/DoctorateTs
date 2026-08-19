@@ -28,8 +28,8 @@ import { decryptLuaScript, isLuaEncrypted } from "./vendor/lua-crypt";
 const LUA_PREFIX = "gamedata/[uc]lua/";
 /** 插件资产子目录（构建期由 lua/plugin/ 重新合并，提取时跳过避免重复） */
 const PLUGIN_SUBDIR = "plugin/";
-/** 引导 hotfixer 条目（构建期由 patchDefinedFix 注入，提取时需还原） */
-const BOOT_ENTRY = '"Plugin/PluginBootHotfixer"';
+/** 插件 hotfixer 条目判定（DefinedFix 注入条目，形式："Plugin/<X>", 或 "Plugin/<X>"） */
+const PLUGIN_ENTRY_RE = /^\s*"Plugin\/[^"]+",?\s*$/;
 /** 内置 Lua 主 bundle 名（.dat 多条目时优先匹配该条目） */
 const BUILTIN_BUNDLE_NAME = "anon/7d91430e114d86fef7d3b3511151e12d.bin";
 
@@ -59,19 +59,25 @@ async function readBuiltinBundle(input: string): Promise<Uint8Array> {
 }
 
 /**
- * 还原 DefinedFix.lua 的官方原版：剔除 patchDefinedFix 注入的引导 hotfixer 条目。
+ * 还原 DefinedFix.lua 的官方原版：剔除 patchDefinedFix 注入的全部插件 hotfixer 条目
+ * （"Plugin/<X>", 形式，对齐官服 DefinedFix.lua 原样）。
  * 若不剔除，reference 里将带注入标记，--from-ref 重建时会二次注入。
  * @param script - 可能被注入过的 DefinedFix.lua 文本
- * @returns 剔除引导条目后的文本
+ * @returns 剔除插件条目后的文本
  */
 function stripBootInjection(script: string): string {
   const lines = script.split(/\r?\n/);
-  const kept = lines.filter((line) => {
-    const trimmed = line.trim();
-    // 仅剔除恰好是引导条目（含逗号的独立行）的情况，避免误删内容中的同名引用
-    return !(trimmed === `${BOOT_ENTRY},` || trimmed === BOOT_ENTRY);
-  });
-  return kept.join("\n");
+  return lines.filter((line) => !PLUGIN_ENTRY_RE.test(line)).join("\n");
+}
+
+/**
+ * DefinedFix 是否含插件注入条目（构建期二次注入防护 / 提取时判是否需要还原）。
+ * 按行检测（PLUGIN_ENTRY_RE 无 m 标志，直接 .test 多行文本只会命中串首）。
+ * @param text - DefinedFix.lua 文本
+ * @returns 含插件条目为 true
+ */
+function hasPluginInjection(text: string): boolean {
+  return text.split(/\r?\n/).some((line) => PLUGIN_ENTRY_RE.test(line));
 }
 
 /**
@@ -128,7 +134,7 @@ export async function extractLuaBundle(
     let injected = false;
     if (isDefinedFix) {
       const text = new TextDecoder().decode(script);
-      injected = text.includes(BOOT_ENTRY);
+      injected = hasPluginInjection(text);
       if (injected) {
         script = Buffer.from(stripBootInjection(text), "utf8");
       }

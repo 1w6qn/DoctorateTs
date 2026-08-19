@@ -62,13 +62,18 @@ function readZip(path: string): Promise<{ entryName: string; content: Buffer }[]
 }
 
 describe("repack-lua-bundle 内置 bundle 重打包（DefinedFix 引导）", () => {
-  it("patchDefinedFix 注入 PluginBootHotfixer 到清单最前", () => {
+  it("patchDefinedFix 注入各插件 hotfixer 条目到清单最前", () => {
     const patched = patchDefinedFix(fakeDefinedFix());
-    expect(patched).toContain('  "Plugin/PluginBootHotfixer",');
+    expect(patched).toContain('  "Plugin/NetworkRedirectPlugin",');
+    expect(patched).toContain('  "Plugin/EnemyHpPlugin",');
+    expect(patched).toContain('  "Plugin/PanelPlugin",');
     expect(patched).toContain('"HotFixes/TestStubHotfixer",');
     expect(patched).toContain('"HotFixes/PCInputFontRegistryHotfixer"');
-    // 新条目在最前
-    expect(patched.indexOf("Plugin/PluginBootHotfixer")).toBeLessThan(
+    // 插件条目在最前（network_redirect 引导类须最先）
+    expect(patched.indexOf("Plugin/NetworkRedirectPlugin")).toBeLessThan(
+      patched.indexOf("HotFixes/TestStubHotfixer"),
+    );
+    expect(patched.indexOf("Plugin/PanelPlugin")).toBeLessThan(
       patched.indexOf("HotFixes/TestStubHotfixer"),
     );
   });
@@ -85,17 +90,17 @@ describe("repack-lua-bundle 内置 bundle 重打包（DefinedFix 引导）", () 
       "",
     ].join("\n");
     const patched = patchDefinedFix(lower);
-    expect(patched).toContain('  "Plugin/PluginBootHotfixer",');
-    expect(patched.indexOf("Plugin/PluginBootHotfixer")).toBeLessThan(
+    expect(patched).toContain('  "Plugin/NetworkRedirectPlugin",');
+    expect(patched.indexOf("Plugin/NetworkRedirectPlugin")).toBeLessThan(
       patched.indexOf("Hotfixes/TestStubHotfixer"),
     );
   });
 
-  it("patchDefinedFix 幂等：已注入的 bundle 只保留一条引导条目", () => {
+  it("patchDefinedFix 幂等：已注入的 bundle 不重复追加插件条目", () => {
     const once = patchDefinedFix(fakeDefinedFix());
     const twice = patchDefinedFix(once);
-    expect(twice).toContain('  "Plugin/PluginBootHotfixer",');
-    const bootCount = twice.split(/\r?\n/).filter((l) => l.trim() === '"Plugin/PluginBootHotfixer",').length;
+    expect(twice).toContain('  "Plugin/NetworkRedirectPlugin",');
+    const bootCount = twice.split(/\r?\n/).filter((l) => l.trim() === '"Plugin/NetworkRedirectPlugin",').length;
     expect(bootCount).toBe(1);
     expect(twice).toContain('"HotFixes/TestStubHotfixer",');
   });
@@ -113,11 +118,11 @@ describe("repack-lua-bundle 内置 bundle 重打包（DefinedFix 引导）", () 
     const builtinBin = join(src, "anon_7d91430e114d86fef7d3b3511151e12d.bin");
     await writeFile(builtinBin, Buffer.from(builtinBytes));
 
-    // 假插件目录（含引导 hotfixer）
+    // 假插件目录（模拟 lua/plugin/，每个插件作为独立 hotfixer 资产）
     const pluginDir = join(src, "plugin");
     await mkdir(pluginDir, { recursive: true });
-    await writeFile(join(pluginDir, "PluginBootHotfixer.lua"), enc.encode("-- boot\n"));
     await writeFile(join(pluginDir, "EnemyHpPlugin.lua"), enc.encode("-- hp\n"));
+    await writeFile(join(pluginDir, "NetworkRedirectPlugin.lua"), enc.encode("-- redirect\n"));
 
     const result = await repackBuiltinLua(builtinBin, pluginDir, out);
     expect(result.dat.endsWith("anon_7d91430e114d86fef7d3b3511151e12d.dat")).toBe(true);
@@ -128,12 +133,17 @@ describe("repack-lua-bundle 内置 bundle 重打包（DefinedFix 引导）", () 
     const list = extractTextAssets(new Uint8Array(entries[0].content));
     const names = list.map((a) => a.name);
     // 插件资产用 Plugin 大写前缀（与 require 路径一致）
-    expect(names).toContain("gamedata/[uc]lua/Plugin/PluginBootHotfixer.lua");
     expect(names).toContain("gamedata/[uc]lua/Plugin/EnemyHpPlugin.lua");
     // 内置 bundle 中残留的旧插件资产被剔除（构建期由 lua/plugin/ 重新合并）
     expect(names).not.toContain("gamedata/[uc]lua/Plugin/OldPlugin.lua");
+    // DefinedFix 按单个 hotfixer 逐条注入（引导类 network_redirect 排在其它插件前）
     const df = list.find((a) => a.name.toLowerCase().endsWith("definedfix.lua"))!;
-    expect(dec.decode(df.script)).toContain('"Plugin/PluginBootHotfixer",');
+    const dfText = dec.decode(df.script);
+    expect(dfText).toContain('"Plugin/NetworkRedirectPlugin",');
+    expect(dfText).toContain('"Plugin/EnemyHpPlugin",');
+    expect(dfText.indexOf('"Plugin/NetworkRedirectPlugin",')).toBeLessThan(
+      dfText.indexOf('"Plugin/EnemyHpPlugin",'),
+    );
   });
 
   it("内置 bundle 无 DefinedFix 时抛错", async () => {

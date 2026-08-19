@@ -7,6 +7,11 @@
 local EnemyHpPlugin = Class("EnemyHpPlugin", require("Plugin/BasePlugin"))
 local eutil = CS.Torappu.Lua.Util
 
+-- 类级元数据（管理器/面板/管理端目录以此为准；与 PluginDefs.lua 保持一致）
+EnemyHpPlugin.id = "enemy_hp"
+EnemyHpPlugin.name = "敌人血量显示"
+EnemyHpPlugin.desc = "在敌人血条旁显示具体血量数值"
+
 -- 全局字体（懒取一次，供血量文本使用）
 EnemyHpPlugin._font = nil
 

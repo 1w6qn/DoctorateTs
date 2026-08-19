@@ -11,7 +11,7 @@
   说明：
     - Networker 实现 IHotfixable 且 get_overrideRouterUrl 有 __Hotfix0_get_overrideRouterUrl
       委托字段，属性 getter 可被 xLua hotfix（方法名 get_xxx）。
-    - 本插件在游戏启动早期（DefinedFix 管线 → PluginBootHotfixer）加载，早于网络模块初始化，
+    - 本插件在游戏启动早期（DefinedFix 管线 → HotfixProcesser.Do）加载，早于网络模块初始化，
       因此 getter 首次被读取时即命中私服地址。
     - 私服地址改 SERVER_URL 即可；默认与 hook/main.ts（Frida 版）保持一致。
 
@@ -19,6 +19,11 @@
 --]]
 local NetworkRedirectPlugin = Class("NetworkRedirectPlugin", require("Plugin/BasePlugin"))
 local eutil = CS.Torappu.Lua.Util
+
+-- 类级元数据（管理器/面板/管理端目录以此为准；与 PluginDefs.lua 保持一致）
+NetworkRedirectPlugin.id = "network_redirect"
+NetworkRedirectPlugin.name = "私服引导"
+NetworkRedirectPlugin.desc = "将客户端网络路由与签名校验重定向到本私服（保持启用，关闭则连不回私服）"
 
 -- 私服地址（改为你机器的局域网 IP / 域名；端口与 data/config.json 的 server 一致）
 local SERVER_URL = "http://192.168.0.100:8443"

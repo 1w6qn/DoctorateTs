@@ -1,7 +1,14 @@
 --[[
-  BasePlugin.lua —— 插件基类
-  封装插件生命周期（Load/Unload）与统一打补丁入口，子类实现 OnLoad/OnUnload
-  完成具体功能。所有异常用 xpcall 兜底并记日志。
+  BasePlugin.lua —— 插件热更基类（继承游戏原生 HotfixBase）
+  对齐官服 hotfixer 模型：每个插件 = 一个自包含 hotfixer，直接逐条登记在
+  DefinedFix.lua 清单，由 HotfixProcesser.Do 阶段 new() + Init()（→ OnInit()）驱动，
+  不再经单一引导 hotfixer + PluginManager.Init 的冷启动链加载。
+
+  生命周期（官方驱动）：
+    - OnInit()：注册到 PluginManager，由管理器按启用态 Load（打补丁）。
+    - Dispose()：从管理器注销并回滚本插件全部补丁（覆盖官方版本，
+      因为本插件补丁经 PluginHotfix 共享注册表管理，非官方 _Record）。
+    - Load / Unload：运行时启停（面板 / 管理端触发），幂等。
 
   补丁机制（经 PluginHotfix 共享注册表，见 Plugin/PluginHotfix）：
     - 多插件 hook 同一 C# 方法时共享一个 xlua.hotfix 包装器，卸载互不干扰；
@@ -10,30 +17,57 @@
       orig 为链上下一段实现，可调 orig(self, ...) 保留原行为。
     - 注册的 fixFunc 运行时统一经 xpcall 兜底（PluginHotfix 层），崩溃不冒泡到
       C# 调用栈——对齐官方 hotfixer 写法（如 ArkventHotfixer 每个 fix 内部 xpcall）。
-  两种模式均按 (cls, method) 注册到共享注册表，Unload / Load 失败时统一注销。
 
   PrivateAccess(cls)：hotfix C# 私有成员/方法前调用，封装 xlua.private_accessible
-  （官方 ArkventHotfixer 先 private_accessible(ArkhubUnitSyncSystem) 再 Fix_ex 私有
-  方法 _SyncSelfCaptureArea 的同一模式），pcall 兜底，失败只记日志不中断。
+  （官方 ArkventHotfixer 先 private_accessible 再 Fix_ex 私有方法的同一模式）。
 
-  须在 Base/BaseModule（提供 Class）之后加载。
+  元数据：插件在类级声明 id/name/desc（Class 的实例经 __index 继承类字段），
+  因此 new() 无参即可实例化；ctor 亦可被显式传参覆盖。
 --]]
-local BasePlugin = Class("BasePlugin")
+local BasePlugin = Class("BasePlugin", HotfixBase)
 local eutil = CS.Torappu.Lua.Util
 local PluginHotfix = require("Plugin/PluginHotfix")
 
+-- 类级默认元数据（子类覆盖；无参 new() 时回退用）
+BasePlugin.id = "base"
+BasePlugin.name = "插件"
+BasePlugin.desc = ""
+
 --[[
   构造插件实例。
-  @param id   插件唯一标识（如 "enemy_hp"，与 PluginDefs 一致）
-  @param name 显示名（面板展示用）
-  @param desc 描述（面板展示用）
+  @param id   插件唯一标识（缺省用类级 id）
+  @param name 显示名（缺省用类级 name）
+  @param desc 描述（缺省用类级 desc）
 --]]
 function BasePlugin:ctor(id, name, desc)
-  self.id = id
-  self.name = name
-  self.desc = desc
+  self.id = id or self.id
+  self.name = name or self.name
+  self.desc = desc or self.desc
   self.enabled = false      -- 当前是否启用
   self._fixes = {}          -- 已注册补丁记录（{cls, method}），卸载/回滚时注销
+  self._pluginManager = nil -- 所属管理器（OnInit 时绑定）
+end
+
+--[[
+  官方 hotfixer 生命周期 OnInit：HotfixProcesser.Do → new() → Init() → OnInit()。
+  注册到 PluginManager，由管理器按持久化启用态决定是否 Load（打补丁）。
+--]]
+function BasePlugin:OnInit()
+  local pluginManager = require("Plugin/PluginManager")
+  self._pluginManager = pluginManager
+  pluginManager:Register(self)
+end
+
+--[[
+  官方 hotfixer 生命周期 Dispose：从管理器注销并回滚本插件全部补丁。
+  覆盖 HotfixBase.Dispose（本插件补丁经 PluginHotfix 共享注册表，非官方 _Record 记录）。
+--]]
+function BasePlugin:Dispose()
+  if self._pluginManager ~= nil then
+    self._pluginManager:Unregister(self)
+    self._pluginManager = nil
+  end
+  self:Unload()
 end
 
 --[[

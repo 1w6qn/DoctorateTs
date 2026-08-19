@@ -7,18 +7,22 @@
 
 ```
 lua/plugin/                    ← 插件明文源码
-├── BasePlugin.lua             ← 插件基类（Load/Unload/OnLoad/OnUnload + Hotfix/Fix_ex）
+├── BasePlugin.lua             ← 插件基类（继承官方 HotfixBase，OnLoad/OnUnload + Hotfix/Fix_ex）
 ├── PluginHotfix.lua           ← 共享 hotfix 注册表（多插件 hook 同方法互不覆盖）
 ├── PluginDefs.lua             ← 插件清单（id/name/desc/module）
-├── PluginManager.lua          ← 注册表：加载/启停/配置持久化
-├── PluginEntry.lua            ← 入口：init()/dispose()，由 PluginBootHotfixer 调用
-├── PluginBootHotfixer.lua     ← 引导 hotfixer（挂进 DefinedFix，经游戏原生管线加载插件）
+├── PluginManager.lua          ← 注册表：加载/启停/配置持久化（自举全局）
 ├── PluginHeartbeat.lua        ← 生效确认心跳 + 服务端启停状态同步
+├── NetworkRedirectPlugin.lua  ← 私服引导（DefinedFix 首个 hotfixer，早于网络初始化）
 ├── EnemyHpPlugin.lua          ← 敌人血量显示（UIUnitHUD.Attach）
 ├── EnemyInfoPlugin.lua        ← 敌人属性面板（动态 UnityEngine.UI，触摸 + 鼠标）
 ├── BattleAssistPlugin.lua     ← 战斗辅助（时间轴/倍速/TAS 单帧步进）
 └── PanelPlugin.lua            ← 插件管理面板（浮动按钮 + 列表开关，延迟挂载）
 ```
+
+> 每个插件 = 一个继承 `BasePlugin`（→ 官方 `HotfixBase`）的自包含 hotfixer，逐条登记在
+> `DefinedFix.lua` 清单（`Plugin/<X>`）。客户端经游戏原生 `HotfixProcesser.Do` 管线对清单每个
+> 条目 `require(v).new()` + `Init()`（→ `OnInit()`），插件在 `OnInit()` 注册到 `PluginManager` 并按
+> 持久化启用态 `Load`（打补丁）。无独立引导 hotfixer / 入口文件——取消互补、各插件直接接入管线。
 
 ## 2. 打包与下发（方案 A：重打包内置 Lua bundle）
 
@@ -106,7 +110,7 @@ pnpm run repack:lua -- --bundle <内置bundle.dat|.bin> --platform android
 > 或放置一个现有 mod 作为自举源（二者皆无时启动会 warn 跳过）。
 
 > 说明：
-> - `scripts/repack-lua-bundle.ts` 会 **merge** 内置 Lua 资产与 `lua/plugin/*.lua`，并向 `DefinedFix.lua` 清单注入引导 hotfixer `Plugin/PluginBootHotfixer`，经游戏原生 `HotfixProcesser.Do` 管线引导插件加载。
+> - `scripts/repack-lua-bundle.ts` 会 **merge** 内置 Lua 资产与 `lua/plugin/*.lua`，并向 `DefinedFix.lua` 清单逐条注入各插件 hotfixer 条目（`Plugin/NetworkRedirectPlugin`、`Plugin/EnemyHpPlugin` …），经游戏原生 `HotfixProcesser.Do` 管线逐条目 `new()` + `Init()` 驱动加载。
 > - 插件资产统一用 `gamedata/[uc]lua/Plugin/` 前缀（大写 P），与 require 路径 `Plugin/…` 大小写一致，避免 loader 找不到资源。
 > - 单独的 `pnpm run pack:lua-plugins`（产出 `mods/plugin_lua.dat`）仅用于**独立开发/调试**，不能单独替代内置 bundle（否则客户端会丢失全部内置 Lua）。
 > - 若 `DefinedFix.lua` 锚点不匹配（版本漂移），脚本会报「未找到 … 锚点」，需人工校准锚点后重跑。

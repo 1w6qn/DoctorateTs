@@ -1,7 +1,8 @@
 /**
  * 插件心跳（heartbeat）路由
  *
- * 客户端 Lua 插件系统引导成功后，由 PluginBootHotfixer 向此端点发送生效确认，
+ * 客户端 Lua 插件系统引导成功后（各插件经 DefinedFix 管线加载，PluginManager 聚合），
+ * 由 PluginHeartbeat 向此端点发送生效确认，
  * 服务端记录日志并在响应中回传插件目录与启用状态——用于真机验证「插件是否真正加载」，
  * 并让客户端 best-effort 应用服务端启停状态（见 lua/plugin/PluginHeartbeat.lua）。
  *

@@ -1398,6 +1398,25 @@ export class BuildingManager {
    * 携带数据时立即生效；空请求体按官方行为返回当前状态（不 500、不改分配）。
    * @param args - 请求体（roomSlotId/slotId + charInstIdList/charInstIds/list）
    */
+  /**
+   * 内部方法：房间预设队列轮换——返回当前排班的下一组（循环）。
+   * 客户端"换班"按钮调 batchChangeWorkChar（官方 CS 无字段）期望轮换排班；
+   * 当前排班不在队列中 → 应用第一组；无队列 → null（不改分配）。
+   */
+  private _nextPresetQueue(
+    draft: Draft<PlayerDataModel>,
+    slotId: string,
+  ): number[] | null {
+    const queue = this._roomPresetQueue(draft, slotId);
+    if (!queue || queue.length === 0) return null;
+    const current = draft.building.roomSlots[slotId]?.charInstIds ?? [];
+    const eq = (a: number[], b: number[]) =>
+      Array.isArray(b) && a.length === b.length && a.every((v, i) => v === b[i]);
+    const idx = queue.findIndex((q) => eq(current, q));
+    if (idx === -1) return queue[0];
+    return queue[(idx + 1) % queue.length];
+  }
+
   async batchChangeWorkChar(args: {
     roomSlotId?: string;
     slotId?: string;
@@ -1408,19 +1427,25 @@ export class BuildingManager {
     const roomSlotId = args.roomSlotId ?? args.slotId;
     const charInstIdList = args.charInstIdList ?? args.charInstIds ?? args.list;
     return await this._player.update(async (draft) => {
-      // 空请求体（官方无字段）→ 不改分配，仅返回当前状态（不 500）
-      if (!Array.isArray(charInstIdList) || !roomSlotId) return;
+      if (!roomSlotId) return;
+      // 修复（2026-08-19）：官方 CS BuildingBatchChangeWorkCharRequest 无字段——
+      // 客户端"换班"按钮发空体期望**预设队列轮换**（应用下一组排班）；
+      // 原实现空体直接不改分配 → 客户端换班无效果。
+      const target = Array.isArray(charInstIdList)
+        ? charInstIdList
+        : this._nextPresetQueue(draft, roomSlotId);
+      if (!target) return;
       // 清空这些干员在其他房间的占用
       for (const slotKey in draft.building.roomSlots) {
         if (slotKey === roomSlotId) continue;
         const ids = draft.building.roomSlots[slotKey].charInstIds;
         for (let i = 0; i < ids.length; i++) {
-          if (charInstIdList.includes(ids[i])) {
+          if (target.includes(ids[i])) {
             ids[i] = -1;
           }
         }
       }
-      draft.building.roomSlots[roomSlotId].charInstIds = charInstIdList;
+      draft.building.roomSlots[roomSlotId].charInstIds = [...target];
       // 换班后立即按新岗位重算心情档位
       this._recomputeCharScales(draft);
     });
@@ -1703,18 +1728,32 @@ export class BuildingManager {
 
   /**
    * 批量完成订单（对 orderId 数组中的每个订单按 instId 结算）
-   * @param args - 包含 slotId 和 orderId 列表的参数对象
+   * 兼容字段变体（CS BuildingDeliveryBatchOrderRequest.slotList 为主）：
+   * slotList / slotIdList / roomSlotIdList / 单值 slotId / roomSlotId——
+   * 客户端改造版可能发不同字段名导致 200 但不交付（空循环）。
+   * @param args - 包含 slotList（或变体）的参数对象
    */
-  async deliveryBatchOrder(args: { slotList?: string[] }): Promise<{
+  async deliveryBatchOrder(args: {
+    slotList?: string[];
+    slotIdList?: string[];
+    roomSlotIdList?: string[];
+    slotId?: string;
+    roomSlotId?: string;
+  }): Promise<{
     [slotId: string]: ItemBundle[];
   }> {
     // 修复：官方字段为 slotList（CS BuildingDeliveryBatchOrderRequest { slotList }，
     // 结算每个贸易站的全部库存订单）；原实现读 slotId/orderId → 客户端请求解构不到
     // → 空 delta。响应 delivered: { slotId: [收益物品] } 对齐 CS/抓包。
+    const slotList =
+      args.slotList ??
+      args.slotIdList ??
+      args.roomSlotIdList ??
+      (args.slotId ? [args.slotId] : args.roomSlotId ? [args.roomSlotId] : []);
     const delivered: { [slotId: string]: ItemBundle[] } = {};
     let totalDelivered = 0;
     await this._player.update(async (draft) => {
-      for (const slotId of args.slotList ?? []) {
+      for (const slotId of slotList) {
         const room = draft.building.rooms.TRADING[slotId];
         if (!room || !Array.isArray(room.stock) || room.stock.length === 0) {
           delivered[slotId] = [];

@@ -263,7 +263,10 @@ export class MissionManager {
       }
       // confirmed 为服务端持久化的防重复标记（官方结构无此字段，按 any 访问）
       const full = data.progress.every((p) => p.value >= p.target);
-      if (!full || (data as any).confirmed) return;
+      // 修复（2026-08-19）：旧存档任务 state=3（官方"已完成可领取"）可能无 confirmed
+      // 字段（8-12 模板迁移）——只判 confirmed 会重复发放奖励 + dailyPoint 无限累积；
+      // state===3 官方语义即"已领取"，一并视为已领。
+      if (!full || (data as any).confirmed || data.state === 3) return;
       data.state = 3;
       (data as any).confirmed = 1;
       if (mission) mission.confirmed = true;

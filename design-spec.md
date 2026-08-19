@@ -1061,6 +1061,18 @@ BuildingManager（app/game/manager/building.ts）已实现完整基建玩法：
 
 **测试**：`tests/unit/manager/building-archive-time.test.ts`（6 条，基于 2222 真实结构快照）——统一时间戳（6 房间 lastUpdateTime 推进）、训练 state=1 推进、会客室/人力进度推进 + speed 按 buff 重算、制造站产出累积 + 二次 sync 不重复、贸易站 while 批量结算；building-deltatime 补训练 state=3 不推进断言。基建 7 文件 186 测试通过，tsc 干净。
 
+### 11.12 客户端交互三问题修复（2026-08-19）
+
+**1. deliveryBatchOrder 交付无效果**：服务端逻辑验证正常（结算扣 delivery/加 gain/清 stock），但客户端改造版可能发非 `slotList` 字段 → 空循环 → 200 但未交付。修复：兼容 `slotList`/`slotIdList`/`roomSlotIdList`/单值 `slotId`/`roomSlotId`。
+
+**2. batchChangeWorkChar 队列轮换**：官方 `BuildingBatchChangeWorkCharRequest` **无字段**——客户端"换班"按钮只带 `roomSlotId`（无干员列表）期望服务端**轮换预设队列**（应用下一组 `room.presetQueue`），原实现无干员列表时直接不改分配。修复：`_nextPresetQueue`——当前排班在队列中 → 应用下一组（循环）；不在队列 → 应用第一组；无队列 → 不改。显式 `charInstIdList` 路径保持。
+
+**3. autoConfirmMissions 重复发放/任务状态**：
+- **重复发放修复**：旧存档（8-12 模板迁移）已领任务 `state=3` 但无 `confirmed` 字段——confirmMission 只判 confirmed 会**重复发放奖励 + dailyPoint 无限累积**（每次一键领取 +5）；修复：`data.state === 3`（官方"已完成已领取"语义）一并视为已领
+- 存档审计结论：当前 1.json 满进度任务均已 `state=3`（无可领任务），autoConfirmMissions 返回空 items 是**正确行为**；若客户端显示"进行中"，对应的是进度未满任务（如 daily_5828 7/10）——真实未完成，事件驱动进度追踪正常（日志 daily_70xx complete）
+
+**测试**：`tests/unit/manager/building-client-fixes.test.ts`（12 条）——deliveryBatchOrder 五种字段变体、batchChangeWorkChar 轮换四场景（首组/循环/空体不改/显式列表）、confirmMission 已领不重复发 + 未领正常发放。基建+任务 9 文件 224 测试通过，tsc 干净。
+
 ---
 
 ## 12. 战斗结算后处理逻辑

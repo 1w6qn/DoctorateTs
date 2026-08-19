@@ -68,7 +68,14 @@ describe("PluginConfigService", () => {
     const svc = new PluginConfigService(path);
     await svc.setEnabled("enemy_hp", false);
     const list = await svc.getAll();
-    expect(list.map((p) => p.id)).toEqual(["enemy_hp", "enemy_info", "battle_assist", "plugin_panel"]);
+    // 顺序与 PluginDefs.lua 单一数据源一致（network_redirect=私服引导，保持启用）
+    expect(list.map((p) => p.id)).toEqual([
+      "network_redirect",
+      "enemy_hp",
+      "enemy_info",
+      "battle_assist",
+      "plugin_panel",
+    ]);
     expect(list.find((p) => p.id === "enemy_hp")?.enabled).toBe(false);
     expect(list.find((p) => p.id === "plugin_panel")?.enabled).toBe(true);
   });

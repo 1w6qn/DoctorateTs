@@ -1,5 +1,10 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
+import { fileURLToPath } from 'node:url';
+
+// 以 .mts 显式声明 ESM，规避 Vite 8 的 configLoader:'native' 把本项目（type: commonjs）
+// 下的 .ts 配置误判为 CommonJS 加载——该误判会导致套件注册失败（所有测试弃跑）。
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   test: {

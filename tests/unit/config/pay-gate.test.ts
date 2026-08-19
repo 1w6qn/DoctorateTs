@@ -1,7 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("express-http-context2", () => ({
-  default: { get: vi.fn(), set: vi.fn() },
+  default: {
+    get: vi.fn(() => ({
+      uid: "1",
+      get delta() {
+        return { playerDataDelta: {} };
+      },
+    })),
+    set: vi.fn(),
+  },
 }));
 vi.mock("@utils/time", () => ({ now: () => 1234567890, userTimestamp: () => 1234567890 }));
 

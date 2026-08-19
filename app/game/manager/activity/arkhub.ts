@@ -186,3 +186,147 @@ export async function arkhubPixelCollected(
     { activityId: ARKHUB_ACT_ID, count },
   ]);
 }
+
+/* ================= 枢纽引导/剧情推进（GuideFlags 渐进，2026-08-19） =================
+ *
+ * 现状背景：本地网关原先把 GuideFlags 全部初始化为"完成态"（1/2），客户端因此不触发
+ * 任何引导对话/剧情（§25.2c 记：GuideFlags 是进度计数——0=未开始/1=播放中/2=完成）。
+ * 本节实现"剧情推进"：GuideFlags 持久化到 ARK_HUB（per-player），渐进模式下初始给
+ * 未开始态（0），玩家完成引导对话（交互帧 actor）→ 服务端推进 flag → 出展指引任务
+ * 1-3（ArkhubMissionCompleted）随之完成。
+ *
+ * 安全设计：默认仍回退完成态（零风险）；`config.arkhub.guideProgressive=true` 开启
+ * 渐进引导（index.ts 注入 + unlockActivity 播种联动）。
+ */
+
+/** 枢纽 GuideFlags 全部键（对齐网关 defaultGuideFlags / 官服完成态快照） */
+export const ARKHUB_GUIDE_KEYS = [
+  "arkhub_login",
+  "terminal_guide",
+  "capture_catch_guide_01",
+  "capture_catch_guide_02",
+  "arkdex_battle_guide",
+  "pixel_unlock",
+  "pixel_unlock_system",
+  "area_1_block",
+  "area_2_block",
+  "area_3_blcok",
+  "area_2_guard",
+  "area_3_guard",
+  "arkdex_mmkabi1",
+] as const;
+export type ArkhubGuideKey = (typeof ARKHUB_GUIDE_KEYS)[number];
+
+/** 完成态 GuideFlags（对齐网关 defaultGuideFlags/官服完成态快照：进度类=2、布尔类=1） */
+export function arkhubCompletedGuideFlags(): Record<string, number> {
+  return {
+    arkdex_battle_guide: 2,
+    area_2_guard: 1,
+    area_3_guard: 1,
+    terminal_guide: 1,
+    area_3_blcok: 1,
+    terminal_guide_arkdex: 1,
+    arkhub_login: 1,
+    arkdex_mmkabi1: 1,
+    capture_catch_guide_02: 2,
+    pixel_unlock: 1,
+    pixel_unlock_system: 1,
+    area_2_block: 1,
+    area_1_block: 1,
+    capture_catch_guide_01: 2,
+  };
+}
+
+/**
+ * 渐进引导初始态（config.arkhub.guideProgressive=true 时首次下发；持久化后走存档值）。
+ * 关键引导 flag=0（未开始，客户端播放引导对话），非引导/防卡 flag 保持完成态：
+ * - capture_catch_guide_01（夏妮引导）保持 2——对话 actor 未确认，任务 1 播种完成态可领
+ * - area_*_block / area_*_guard / arkdex_mmkabi1 保持 1——防区域/场景卡死
+ * - capture_catch_guide_02 / arkdex_battle_guide / arkhub_login / terminal_guide / pixel_* = 0
+ */
+export function arkhubProgressiveGuideFlags(): Record<string, number> {
+  return {
+    ...arkhubCompletedGuideFlags(),
+    arkhub_login: 0,
+    terminal_guide: 0,
+    capture_catch_guide_02: 0,
+    arkdex_battle_guide: 0,
+    pixel_unlock: 0,
+    pixel_unlock_system: 0,
+  };
+}
+
+/**
+ * 读玩家 GuideFlags（持久化优先，兼容无 guideFlags 字段的存量存档）。
+ * @param progressive - 无持久化时的缺省：true=渐进初始态（未开始，触发引导对话）；
+ *                      false=完成态（不触发任何引导，默认零风险）。
+ */
+export function arkhubResolveGuideFlags(
+  player: PlayerDataManager,
+  progressive = false,
+): Record<string, number> {
+  const gf = hubState(player)?.guideFlags;
+  if (gf && typeof gf === "object") {
+    // 持久化优先；未持久化的引导键按渐进/完成态基线兜底——
+    // progressive=true 时用渐进初始态（防卡键外引导=0），避免残留完成态导致新引导对话不触发
+    const base = progressive ? arkhubProgressiveGuideFlags() : arkhubCompletedGuideFlags();
+    return { ...base, ...(gf as Record<string, number>) };
+  }
+  return progressive ? arkhubProgressiveGuideFlags() : arkhubCompletedGuideFlags();
+}
+
+/**
+ * 引导 actor → 推进的 GuideFlags（交互帧 actorId 匹配；值取 max 防回退）。
+ * - mmkabi_01b：捕抓引导领奖（ReceiveArkhubReward reward_guide_01）→ 捕抓引导完成 +
+ *   设施（扫描仪/道具箱/数据库）解锁——任务 2（param[2]=capture_catch_guide_02）
+ * - bryota_01c：对决引导（SubmitArkhubAVG）→ 对决引导完成——任务 3（arkdex_battle_guide）
+ */
+export const ARKHUB_GUIDE_ACTOR_FLAGS: Record<string, Partial<Record<string, number>>> = {
+  arkhub_capture1_mmkabi_01b: {
+    capture_catch_guide_02: 2,
+    pixel_unlock: 1,
+    pixel_unlock_system: 1,
+  },
+  arkhub_main_bryota_01c: {
+    arkdex_battle_guide: 2,
+  },
+};
+
+/**
+ * 推进引导进度（网关交互帧 actor 匹配后调用）
+ * 落 ARK_HUB.guideFlags 持久化 + 按推进的 flag 发射 ArkhubMissionCompleted
+ * （出展指引任务 1-3 模板监听 args.flag === param[2]）。
+ */
+export async function arkhubAdvanceGuide(
+  player: PlayerDataManager,
+  actorId: string,
+): Promise<void> {
+  const flags = ARKHUB_GUIDE_ACTOR_FLAGS[actorId];
+  if (!flags) {
+    logger.debug("arkhub", `引导 actor 未映射: ${actorId}`);
+    return;
+  }
+  let changed: string[] = [];
+  await player.update(async (draft) => {
+    const hub = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    if (!hub) return;
+    hub.guideFlags = hub.guideFlags ?? {};
+    for (const [key, value] of Object.entries(flags)) {
+      const cur = (hub.guideFlags[key] as number) ?? 0;
+      if (cur < (value as number)) {
+        hub.guideFlags[key] = value;
+        changed.push(key);
+      }
+    }
+  });
+  if (changed.length === 0) {
+    logger.debug("arkhub", `引导 ${actorId} 无新推进（flag 已达成）`);
+    return;
+  }
+  for (const key of changed) {
+    await player._trigger.emit("ArkhubMissionCompleted", [
+      { activityId: ARKHUB_ACT_ID, flag: key },
+    ]);
+  }
+  logger.info("arkhub", `引导推进 ${actorId}: ${changed.join(",")}`);
+}

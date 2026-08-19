@@ -161,13 +161,14 @@ export class BuildingManager {
   }
 
   /**
-   * 按 laborRecoverTime（秒/点）自动恢复劳动力（sync 等入口调用）
+   * 按 laborRecoverTime（秒/点）自动恢复劳动力（_advanceBuilding 统一 deltaTime 推进调用）
    * 例：laborRecoverTime=360 → 6 分钟恢复 1 点，封顶 maxValue
+   * @param draft - mutative 可写草稿
+   * @param ts - 当前时间基准（秒），elapsed = ts - lastUpdateTime
    */
-  private _recoverLabor(draft: Draft<PlayerDataModel>): void {
+  private _recoverLabor(draft: Draft<PlayerDataModel>, ts: number): void {
     const labor = draft.building.status.labor;
     const rate = getBuildingConstant<number>("laborRecoverTime") ?? 360;
-    const ts = now();
     const elapsed = ts - (labor.lastUpdateTime || ts);
     if (elapsed <= 0 || rate <= 0) return;
     const gain = Math.floor(elapsed / rate);
@@ -268,9 +269,12 @@ export class BuildingManager {
    * - 贸易站：now + (maxPoint - next.processPoint) / next.speed（下一订单刷新）
    * - 会客室/招募：now + (phase 阶段点 - processPoint) / speed（下一线索/干员刷新）
    * @param draft - mutative 可写草稿
+   * @param ts - 当前时间基准（秒）
    */
-  private _refreshRoomCompletionTimes(draft: Draft<PlayerDataModel>): void {
-    const ts = now();
+  private _refreshRoomCompletionTimes(
+    draft: Draft<PlayerDataModel>,
+    ts: number,
+  ): void {
     const rooms = draft.building.rooms;
     // 制造站：下一方案完成时刻
     for (const [slotId, room] of Object.entries(rooms.MANUFACTURE ?? {})) {
@@ -326,9 +330,12 @@ export class BuildingManager {
    * 既有即将完成的房间事件（订单/生产完成）时用事件时刻，否则回到重置边界
    * （DoctoratePy 参考行为），保证 event.building 恒为未来、随 sync 动态推进。
    * @param draft - mutative 可写草稿
+   * @param ts - 当前时间基准（秒）
    */
-  private _refreshBuildingEventTs(draft: Draft<PlayerDataModel>): void {
-    const ts = now();
+  private _refreshBuildingEventTs(
+    draft: Draft<PlayerDataModel>,
+    ts: number,
+  ): void {
     const boundary = this._nextDailyBoundary(ts);
     let earliestCwt = Infinity;
     for (const roomsByType of Object.values(draft.building.rooms)) {
@@ -364,36 +371,61 @@ export class BuildingManager {
     return Math.floor(target / 1000);
   }
 
+  /**
+   * 统一 deltaTime 基建状态推进入口
+   *
+   * 时间基准由调用方注入（ts=整数秒、tsFloat=浮点秒）——所有子系统以
+   * elapsed = ts - lastUpdateTime 推进，同一轮推进内时间一致，且不依赖真实时钟
+   * （测试可直接注入任意 ts 验证 deltaTime 语义，无需 mock now()）。
+   *
+   * 推进顺序（与官方 sync 语义一致）：
+   * 劳动力恢复 → 心情档位重算 → 干员心情累积 → 制造站生产 → 贸易站订单推进 →
+   * 贸易站补单兜底 → 训练室进度 → 会客室 infoShare 指示。
+   *
+   * @param draft - mutative 可写草稿
+   * @param ts - 当前时间基准（整数秒）
+   * @param tsFloat - 浮点秒时间基准（默认同 ts；干员心情用毫秒精度保证增量恒在）
+   */
+  private _advanceBuilding(
+    draft: Draft<PlayerDataModel>,
+    ts: number,
+    tsFloat: number = ts,
+  ): void {
+    // 劳动力恢复（按 laborRecoverTime 自动回涨，封顶 maxValue）
+    this._recoverLabor(draft, ts);
+    // 干员心情档位（changeScale）按当前岗位 + 干员技能重算——换班后无需等客户端
+    this._recomputeCharScales(draft);
+    // 干员心情（building.chars[].ap）随时间累积——官方每次 sync 都下发 chars 增量
+    this._accrueCharAp(draft, tsFloat);
+    // 制造站生产随时间累积（进度/产出不再与时间脱钩）
+    for (const roomSlotId of Object.keys(draft.building.rooms.MANUFACTURE)) {
+      this._accrueManufacture(draft, roomSlotId, ts);
+    }
+    // 贸易站订单按 next.processPoint 随时间生成（deltaTime 驱动）+ 静态补单兜底
+    this._accrueTrading(draft, ts);
+    this._refreshTradingOrders(draft);
+    // 训练室进度推进（trainee.processPoint 随时间累积，客户端进度显示一致）
+    this._accrueTraining(draft, ts);
+    // 会客室 infoShare.reward 待领取指示（官方 sync 响应含该字段）
+    this._refreshInfoShare(draft);
+  }
+
   async sync() {
     return await this._player.update(async (draft) => {
-      this._recoverLabor(draft);
-      // 干员心情档位（changeScale）按当前岗位 + 干员技能重算——换班后无需等客户端
-      this._recomputeCharScales(draft);
-      // 修复：干员心情（building.chars[].ap/lastApAddTime）随时间累积——
-      // 官方每次 sync 都下发 chars 增量（抓包 res_1074 含 308 chars），delta 恒非空；
-      // 此前移除导致本服 sync 高频返回空 delta → 客户端空响应重试紧循环（无限同步）。
-      // lastApAddTime 写浮点秒（毫秒精度）：任意两次调用（≥1ms 间隔）必变 → 增量恒在，
-      // 同秒紧邻的 getInfoShareReward 也能正常推进（不会出现 b1c673a 的空 delta 回归）。
-      this._accrueCharAp(draft);
-      // 修复：制造站生产随时间累积（进度/产出不再与时间脱钩）
-      for (const roomSlotId of Object.keys(draft.building.rooms.MANUFACTURE)) {
-        this._accrueManufacture(draft, roomSlotId);
-      }
-      // 修复：贸易站订单补充（原实现无生成逻辑，交付完即永久为空）
-      this._refreshTradingOrders(draft);
-      // 训练室进度推进（trainee.processPoint 随时间累积，客户端进度显示一致；
-      // 完成仍由客户端计时驱动 completeUpgradeSpecialization）
-      this._accrueTraining(draft);
-      // 会客室 infoShare.reward 待领取指示（官方 sync 响应含该字段）
-      this._refreshInfoShare(draft);
+      const ts = now();
+      // 浮点秒（毫秒精度）：任意两次 sync（≥1ms 间隔）lastApAddTime 必变 →
+      // chars 增量恒在（同秒紧邻调用也能正常推进，不会出现空 delta 回归）
+      const tsFloat = Date.now() / 1000;
+      // 统一 deltaTime 推进（时间基准一次取定，全子系统共用）
+      this._advanceBuilding(draft, ts, tsFloat);
       // 修复（高频无限 sync 根因）：客户端基建界面据各房间 completeWorkTime 调度倒计时
       // 与下一次 sync——存档中 completeWorkTime 是过去值（2025）→ 客户端判定"事件已到期
       // 待处理"→ 立即 sync → 服务端不推进 → 无限循环。此处按生产进度把制造站/贸易站/
       // 会客室/招募的 completeWorkTime 推进到未来，客户端据此正常调度。
-      this._refreshRoomCompletionTimes(draft);
+      this._refreshRoomCompletionTimes(draft, ts);
       // event.building = 下一个最近事件时刻（min：下一 4:00/16:00 重置边界 / 最小未来
       // completeWorkTime）——对齐官方：客户端在 event.building 时刻触发下一次 sync。
-      this._refreshBuildingEventTs(draft);
+      this._refreshBuildingEventTs(draft, ts);
       // 强制 event.building 每次进 delta（对齐 DoctoratePy 响应恒含 event）：
       // Immer 对未变化的值不产生补丁，而客户端需用它调度下一次 sync——
       // 缺失时沿用缓存旧值（过期边界）→ 立即重同步 → 紧循环。
@@ -402,16 +434,17 @@ export class BuildingManager {
         ["event", "building"],
         draft.event.building as number,
       );
-      return now();
+      return ts;
     });
   }
 
   /**
    * 内部方法：训练室进度推进
    * trainee.processPoint += 流逝时间 × trainee.speed × (1 + 教官训练 buff 加成)（与官方模型一致）
-   * @param draft - Immer 可写草稿
+   * @param draft - mutative 可写草稿
+   * @param ts - 当前时间基准（秒），elapsed = ts - lastUpdateTime
    */
-  private _accrueTraining(draft: Draft<PlayerDataModel>): void {
+  private _accrueTraining(draft: Draft<PlayerDataModel>, ts: number): void {
     const trainingRoom = draft.building.rooms.TRAINING;
     for (const roomSlotId of Object.keys(trainingRoom)) {
       const room = trainingRoom[roomSlotId];
@@ -427,7 +460,6 @@ export class BuildingManager {
         "TRAINING",
         [],
       );
-      const ts = now();
       const elapsed = ts - (room.lastUpdateTime || ts);
       if (elapsed <= 0) continue;
       room.lastUpdateTime = ts;
@@ -438,7 +470,76 @@ export class BuildingManager {
   }
 
   /**
-   * 内部方法：贸易站订单补充
+   * 内部方法：生成一笔贸易站金币订单（结构对齐官服 O_GOLD：delivery 3003 → gain GOLD）
+   * 1~4 张贸易凭证 × 汇率 = 金币收益；订单 instId 由调用方保证递增连续。
+   */
+  private _genTradingOrder(room: any, instId: number): void {
+    const rate = getGoldRate();
+    const count = 1 + Math.floor(Math.random() * 4);
+    room.stock.push({
+      instId,
+      delivery: [{ id: "3003", type: "MATERIAL", count }],
+      type: "O_GOLD",
+      gain: { id: "4001", type: "GOLD", count: count * rate },
+      buff: [],
+    });
+  }
+
+  /**
+   * 内部方法：贸易站订单时间推进（deltaTime 驱动）
+   *
+   * 官方模型（PlayerBuildingTradingNext）：next={order, processPoint, speed, maxPoint}，
+   * processPoint 随时间按有效速度累积，达到 maxPoint 即生成一笔新订单并回退阈值。
+   * 有效速度 = 存档 next.speed（基础订单效率）× (1 + 进驻干员 trade_* buff + 控制中枢
+   * control_tra_* 全局)；回写 room.buff={speed, limit}（官方线格式，客户端倒计时显示）。
+   *
+   * 时间模型仅在存档已有订单进度（next.maxPoint > 0，官方迁移/时间累积过）时激活；
+   * 旧存档无 next 数据 → 不惰性初始化（避免污染存档语义），交 _refreshTradingOrders
+   * 静态补单兜底。
+   *
+   * @param draft - mutative 可写草稿
+   * @param ts - 当前时间基准（秒）
+   */
+  private _accrueTrading(draft: Draft<PlayerDataModel>, ts: number): void {
+    const controlBonus = this._controlGlobalFor(draft).TRADING ?? 0;
+    for (const [slotId, room] of Object.entries(
+      draft.building.rooms.TRADING ?? {},
+    )) {
+      if (!room || room.state !== 1) continue;
+      // 回写官方线格式 buff：speed=订单效率加成、limit=库存上限（任何工作时间贸易站）
+      const slot = draft.building.roomSlots[slotId];
+      const chars = this._roomCharSources(draft, slot);
+      const bonus = roomSpeedBonus(chars, "TRADING", []) + controlBonus;
+      const roomBuff = (room.buff as any) ?? {};
+      roomBuff.speed = bonus;
+      roomBuff.limit = room.stockLimit ?? 0;
+      room.buff = roomBuff;
+      // 旧存档无订单进度 → 静态补单兜底（本方法不推进）
+      const next = room.next;
+      if (!next || (next.maxPoint ?? 0) <= 0) continue;
+      const elapsed = ts - (room.lastUpdateTime || ts);
+      if (elapsed <= 0) continue;
+      room.lastUpdateTime = ts;
+      // 有效速度 = 基础 × (1 + 加成)，回写 next.speed 供客户端倒计时一致
+      const effSpeed = Math.max(0.01, (next.speed || 1) * (1 + bonus));
+      next.speed = effSpeed;
+      next.processPoint = (next.processPoint ?? 0) + elapsed * effSpeed;
+      // 达到阈值且库存未满 → 生成一笔订单（next.order 从 -1 起递增）
+      if (
+        next.processPoint >= next.maxPoint &&
+        Array.isArray(room.stock) &&
+        room.stock.length < (room.stockLimit ?? 2)
+      ) {
+        const orderId = (next.order ?? -1) + 1;
+        this._genTradingOrder(room, orderId);
+        next.order = orderId;
+        next.processPoint -= next.maxPoint;
+      }
+    }
+  }
+
+  /**
+   * 内部方法：贸易站订单补充（静态兜底——旧存档无 next 时间累积的订单生成）
    *
    * 修复：服务端无订单生成逻辑——stock 由账号生成器静态填充，交付完即枯竭。
    * 简单机制：工作时间（state=1）且 stock 不足 stockLimit 时按 3003（贸易凭证）
@@ -447,31 +548,28 @@ export class BuildingManager {
    * 再修复：原实现恒补到 2 单（忽略 room.stockLimit）——贸易站升级/策略调整后
    * 库存上限形同虚设；现按 stockLimit 补单（缺省 2，防御 0/负数）。
    *
-   * @param draft - Immer 可写草稿
+   * 时间模型已激活（next.maxPoint > 0）的房间跳过——订单由 _accrueTrading
+   * 随时间逐笔生成，静态补单会破坏"订单获取效率"节奏。
+   *
+   * @param draft - mutative 可写草稿
    */
   private _refreshTradingOrders(
     draft: Draft<PlayerDataModel>,
   ): void {
-    const rate = getGoldRate();
     for (const slotId of Object.keys(draft.building.rooms.TRADING)) {
       const room = draft.building.rooms.TRADING[slotId];
       if (!room || room.state !== 1) continue;
+      // 时间模型激活（next.maxPoint>0）→ 订单由 _accrueTrading 生成
+      if (room.next?.maxPoint > 0) continue;
       if (!Array.isArray(room.stock)) room.stock = [];
       const target = Math.max(1, room.stockLimit ?? 2);
       if (room.stock.length >= target) continue;
+      // instId 从现有库存最大值续增（保证递增连续）
       let maxInstId = room.stock.reduce((m, s) => Math.max(m, s?.instId ?? 0), 0);
       const missing = target - room.stock.length;
       for (let i = 0; i < missing; i++) {
-        // 1~4 张贸易凭证 → count×rate 金币（参考官服 O_GOLD 订单结构）
-        const count = 1 + Math.floor(Math.random() * 4);
         maxInstId += 1;
-        room.stock.push({
-          instId: maxInstId,
-          delivery: [{ id: "3003", type: "MATERIAL", count }],
-          type: "O_GOLD",
-          gain: { id: "4001", type: "GOLD", count: count * rate },
-          buff: [],
-        });
+        this._genTradingOrder(room, maxInstId);
       }
     }
   }
@@ -1460,19 +1558,22 @@ export class BuildingManager {
   }
 
   /**
-   * 内部方法：推进制造站生产（随时间累积 processPoint → 产出方案）
+   * 内部方法：制造站生产时间推进（deltaTime 驱动）
+   * processPoint += 流逝时间 × 有效容量；达到 costPoint 产出 1 方案（计划剩余数钳制）。
    *
    * 修复：基建生产不随时间累积、生产速度 buff 无效的问题。
    * 官方模型：房间有效容量（基础容量 × (1 + 干员技能加成 + 控制中枢全局加成)）× 流逝时间
    * → processPoint，每满 formula.costPoint 产出 1 方案（remainSolutionCnt 递减、outputSolutionCnt 递增）。
    * 用房间自维护的 lastUpdateTime 计算流逝（生成器的 saveTime/tailTime 为相对值，不可用）。
    *
-   * @param draft - Immer 可写草稿
-   * @param roomSlotId - 制造站房间槽位 ID
+   * @param draft - mutative 可写草稿
+   * @param roomSlotId - 制造站槽位 ID
+   * @param ts - 当前时间基准（秒），elapsed = ts - lastUpdateTime
    */
   private _accrueManufacture(
     draft: Draft<PlayerDataModel>,
     roomSlotId: string,
+    ts: number,
   ): void {
     const room = draft.building.rooms.MANUFACTURE[roomSlotId];
     if (!room || room.state !== 1) return;
@@ -1486,7 +1587,6 @@ export class BuildingManager {
     // 原实现 remain=0 时跳过钳制 → 产出无上限累积（制造站赤金数量异常）
     const remain = room.remainSolutionCnt ?? 0;
     if (remain <= 0) return;
-    const ts = now();
     const elapsed = ts - (room.lastUpdateTime || ts);
     if (elapsed <= 0) return;
     room.lastUpdateTime = ts;
@@ -1514,7 +1614,7 @@ export class BuildingManager {
     await this._player.update(async (draft) => {
       for (const roomSlotId of list) {
         // 先推进时间累积的产出再结算
-        this._accrueManufacture(draft, roomSlotId);
+        this._accrueManufacture(draft, roomSlotId, now());
         const room = draft.building.rooms.MANUFACTURE[roomSlotId];
         producedTotal += room?.outputSolutionCnt ?? 0;
         await this._settleManufactureInternal(draft, roomSlotId);
@@ -1665,7 +1765,7 @@ export class BuildingManager {
     const { roomSlotId, targetFormulaId, solutionCount } = args;
     await this._player.update(async (draft) => {
       // 先推进并结算当前已产出的方案
-      this._accrueManufacture(draft, roomSlotId);
+      this._accrueManufacture(draft, roomSlotId, now());
       this._settleManufactureInternal(draft, roomSlotId);
       // 切换到新配方（修复：产出随时间累积而非立即满产——
       // remainSolutionCnt 为目标批次数，outputSolutionCnt 从 0 开始由 _accrueManufacture 推进）
@@ -2394,17 +2494,18 @@ export class BuildingManager {
    * （抓包 res_1074 含 308 chars）——秒级整型在客户端紧邻重拉（同一秒内多次调用）
    * 时无法变化 → 空 delta → 会客室会话不推进 → 无限重复获取；
    * 浮点秒保证任意两次调用（≥1ms 间隔）lastApAddTime 必变 → 增量恒在。
-   * @param draft - Immer 可写草稿
+   * @param draft - mutative 可写草稿
+   * @param nowSec - 当前时间基准（浮点秒，毫秒精度；缺省取 Date.now()/1000）
    */
-  private _accrueCharAp(draft: Draft<PlayerDataModel>): void {
-    const nowSec = Date.now() / 1000; // 浮点秒（毫秒精度）
+  private _accrueCharAp(draft: Draft<PlayerDataModel>, nowSec?: number): void {
+    const ts = nowSec ?? Date.now() / 1000; // 浮点秒（毫秒精度）
     let recovered = 0;
     for (const ch of Object.values(draft.building.chars ?? {})) {
       const last =
-        typeof ch.lastApAddTime === "number" ? ch.lastApAddTime : nowSec;
-      const elapsedSec = nowSec - last;
+        typeof ch.lastApAddTime === "number" ? ch.lastApAddTime : ts;
+      const elapsedSec = ts - last;
       if (elapsedSec <= 0) continue;
-      ch.lastApAddTime = nowSec;
+      ch.lastApAddTime = ts;
       const scale = ch.changeScale ?? 0;
       if (scale !== 0) {
         const before = ch.ap ?? 0;

@@ -987,6 +987,30 @@ BuildingManager（app/game/manager/building.ts）已实现完整基建玩法：
 
 **简化（YAGNI）**：单账号私服无真实好友访问（模拟源为好友数）；creditComfortFactor=0 不产生舒适度附加信用。
 
+### 11.9 统一 deltaTime 推进 + 贸易站订单时间模型（2026-08-19）
+
+**统一 deltaTime 推进入口（_advanceBuilding）**：
+- 原 `sync()` 各子系统内部各自取 `now()` 计算流逝——时间基准不统一（同一轮推进内不同毫秒），且无法注入时间做精确测试
+- 新增 `_advanceBuilding(draft, ts, tsFloat)`：所有时间敏感推进以 `elapsed = ts - lastUpdateTime` 为唯一语义，时间基准由调用方注入（sync 传 `now()`；测试传任意 ts 即可验证 deltaTime，无需 mock 时钟）
+- 推进顺序（与官方 sync 语义一致）：劳动力恢复 → 心情档位重算 → 干员心情累积（浮点秒，保证 chars 增量恒在）→ 制造站生产 → 贸易站订单推进 → 贸易站静态补单兜底 → 训练室进度 → 会客室 infoShare 指示
+- `sync()` 仅负责取时间基准 + 调 `_advanceBuilding` + completeWorkTime/event.building 刷新
+
+**贸易站订单时间模型（_accrueTrading，官方 PlayerBuildingTradingNext）**：
+- 官方模型：`next = {order, processPoint, speed, maxPoint}`——processPoint 随时间按有效速度累积，达到 maxPoint 逐笔生成订单（instId 从 order 递增）并回退阈值
+- 有效速度 = 存档 `next.speed`（基础订单效率）× (1 + 进驻干员 `trade_*` buff + 控制中枢 `control_tra_*` 全局)，回写 `next.speed` 供客户端倒计时一致
+- 回写官方线格式 `room.buff = {speed: 加成系数, limit: stockLimit}`（PlayerBuildingTradingBuff，客户端倒计时显示）
+- **激活条件**：时间模型仅在存档已有订单进度（`next.maxPoint > 0`，官方迁移存档）时激活；旧存档无 next 数据 → 不惰性初始化（避免污染存档语义），交 `_refreshTradingOrders` 静态补单兜底（补满 stockLimit）
+- 静态补单跳过 `next.maxPoint > 0` 的房间——避免"时间逐笔生成 + 静态补满"叠加破坏订单节奏
+- `_genTradingOrder` 抽公共订单生成（静态补单/时间生成共用，结构对齐官服 O_GOLD：delivery 3003 → gain GOLD）
+
+**技能描述解析器增强（buff.ts）**：
+- `parseDescTags(desc)`：通用提取 `<@cc.vup>/<@cc.vdown>/<@cc.vdo>` 全部数值标签（tag/value/hasPct/signed）
+- `parsePlainPercent(desc)`：纯文本百分数兜底（无富文本标签的描述，如"生产力+15%"→15）
+- `buffValueForTarget` 兜底链路：efficiency → vup 标签 → vdown/vdo 带 % 标签 → 纯文本百分比 → 0（计数/阈值类不贡献，避免生产速度虚高）
+- `parseMoodCostValue` 正则扩展支持 `<@cc.vdo>` 标签（心情消耗语境）
+
+**测试**：`tests/unit/manager/building-deltatime.test.ts`（14 条）——deltaTime 注入推进（劳动力/制造/心情/训练）、贸易站时间模型（逐笔生成/效率加成/静态补单隔离/库存上限）、解析器新函数。全量基建 160 测试通过，tsc 干净。
+
 ---
 
 ## 12. 战斗结算后处理逻辑

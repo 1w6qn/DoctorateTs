@@ -28,12 +28,14 @@ import { FriendDataWithNameCard, FriendMedalBoard } from "@game/model/social";
 import { OpenServerManager } from "@game/manager/activity/openServer";
 import { PlayerStatus } from "./PlayerStatus";
 import { BattleInfo, BattleInfoStore } from "./BattleInfoStore";
+import { PlayerDataDelta, RoguelikePushMessage } from "@game/model/protocol/common";
 import { Draft } from "mutative";
 import { logger } from "@utils/logger";
 import { TypedEventEmitter } from "@game/model/events";
 import { CharRotationManager } from "@game/manager/charRotation";
 import { RetroManager } from "@game/manager/retro";
 import { CharManager } from "@game/manager/char";
+import { EquipmentMissionManager } from "@game/manager/equipmentMission";
 import { AprilFoolManager } from "@game/manager/aprilFool";
 
 export class PlayerDataManager {
@@ -77,6 +79,8 @@ export class PlayerDataManager {
   retro: RetroManager;
   /** 角色管理器 */
   char: CharManager;
+  /** 模组任务管理器 */
+  equipmentMission: EquipmentMissionManager;
   /** 勋章管理器 */
   medal: MedalManager;
   /** 愚人节活动管理器 */
@@ -85,6 +89,13 @@ export class PlayerDataManager {
   battle!: BattleManager;
   /** 事件触发器 */
   _trigger: TypedEventEmitter;
+  /**
+   * 待随下一响应下发的通用推送（medalFinish/equipmentMission 等）
+   *
+   * 由 delta getter 统一带出并清空；与 rlv2 的附加 pushMessage（rlv2Response 自走一条）
+   * 正交，避免互相覆盖。
+   */
+  _pushMessages: RoguelikePushMessage[] = [];
   /** 战斗信息存储（构造器注入，解耦 AccountManager） */
   private _battleStore: BattleInfoStore;
 
@@ -125,6 +136,7 @@ export class PlayerDataManager {
     this.openServer = new OpenServerManager(this, this._trigger);
     this.retro = new RetroManager(this, this._trigger);
     this.char = new CharManager(this, this._trigger);
+    this.equipmentMission = new EquipmentMissionManager(this);
     this.medal = new MedalManager(this, this._trigger);
     void this.medal.init().catch((e) => logger.error("MedalManager", `init failed: ${(e as Error).message}`));
     this.aprilFool = new AprilFoolManager(this, this._trigger);
@@ -156,9 +168,24 @@ export class PlayerDataManager {
     if (changed) {
       this._trigger.emit("save", []);
     }
-    return {
+    const base: { playerDataDelta: PlayerDataDelta; pushMessage?: RoguelikePushMessage[] } = {
       playerDataDelta,
     };
+    // 通用推送：一并带出并清空（只在非空时下发，避免多余 pushMessage 节）
+    if (this._pushMessages.length > 0) {
+      base.pushMessage = this._pushMessages;
+      this._pushMessages = [];
+    }
+    return base;
+  }
+
+  /**
+   * 压入一条随下一响应下发的通用推送
+   * @param path 推送标识（如 medalFinish / equipmentMission）
+   * @param payload 推送内容
+   */
+  pushMessage(path: string, payload: unknown): void {
+    this._pushMessages.push({ path, payload });
   }
 
   /**

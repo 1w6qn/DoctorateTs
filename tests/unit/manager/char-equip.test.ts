@@ -110,6 +110,7 @@ vi.mock("@excel/excel", () => {
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import { CharManager } from "@game/manager/char";
+import { EquipmentMissionManager } from "@game/manager/equipmentMission";
 
 function makeChar(overrides: Record<string, unknown> = {}) {
   return {
@@ -150,6 +151,7 @@ describe("CharManager 模组（uniequip）", () => {
       status: { gold: 9999, uid: 10000 } as any,
     });
     mockPlayer._trigger = mockTrigger;
+    (mockPlayer as any).equipmentMission = new EquipmentMissionManager(mockPlayer as any);
     manager = new CharManager(mockPlayer as any, mockTrigger as any);
     // TypedEventEmitter 为真实实现——对 emit 打 spy 记录事件（items:use / HasEquipment）
     emitSpy = vi.spyOn(mockTrigger, "emit");
@@ -227,14 +229,23 @@ describe("CharManager 模组（uniequip）", () => {
       ).rejects.toThrow("不属于");
     });
 
-    it("特殊模组解锁时播种 equipment.missions 完成态", async () => {
+    it("特殊模组任务未完成时拒绝解锁", async () => {
       mockPlayer._playerdata.troop!.chars![1001] = makeChar({ evolvePhase: 2, level: 60 }) as any;
-      await manager.unlockEquipment({ charInstId: 1001, templateId: "", equipId: "uniequip_002_test1" });
+      // 任务未播种/未完成（value=0）→ 拒绝解锁
+      await expect(
+        manager.unlockEquipment({ charInstId: 1001, templateId: "", equipId: "uniequip_002_test1" }),
+      ).rejects.toThrow(/未完成/);
+      expect(char().equip["uniequip_002_test1"]).toBeUndefined();
+    });
 
-      const mission = mockPlayer._playerdata.equipment?.missions?.["mission_002_1"];
-      // target 取 paramList 首个数值 5，播种完成态 value === target
-      expect(mission).toEqual({ value: 5, target: 5 });
+    it("特殊模组任务已完成（progress 达标）时解锁", async () => {
+      mockPlayer._playerdata.troop!.chars![1001] = makeChar({ evolvePhase: 2, level: 60 }) as any;
+      // 任务进度已达标（如战斗胜利结算推进 EquipmentDeployStage 完成 5 场）
+      mockPlayer._playerdata.equipment!.missions!["mission_002_1"] = { value: 5, target: 5 };
+      await manager.unlockEquipment({ charInstId: 1001, templateId: "", equipId: "uniequip_002_test1" });
       expect(char().equip["uniequip_002_test1"].locked).toBe(0);
+      // 已完成的任务条目不回退
+      expect(mockPlayer._playerdata.equipment!.missions!["mission_002_1"]).toEqual({ value: 5, target: 5 });
     });
   });
 

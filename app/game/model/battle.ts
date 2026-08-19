@@ -23,10 +23,10 @@ export interface BattleLogger {
 export interface BattleStats {
   killedEnemiesCnt: number;
   unnatrualRecoveredCost: number;
-  charStats: object[];
+  charStats: ListCounterPool<BattleStats.CharStatKey>;
   enemyStats: ListCounterPool<BattleStats.EnemyStatKey>;
-  skillTrigStats: object[];
-  charAdvancedStats: object;
+  skillTrigStats: ListCounterPool<BattleStats.SkillTrigStatsKey>;
+  charAdvancedStats: { [charId: string]: BattleStats.CharAdvancedStats };
   enemyAdvancedStats: object;
   runeAdvancedStats: object[];
   rlBuffAdvancedStats: object[];
@@ -59,6 +59,34 @@ export namespace BattleStats {
     enemyId: string;
     counterType: string;
     isInvalidKilled: number;
+  }
+  /**
+   * 干员计数键（反编译 Torappu.Battle.BattleLogger.BattleStats.CharStatKey）
+   * counterType 为线格式字符串枚举：SPAWN/DEAD/WITHDRAW
+   */
+  export interface CharStatKey {
+    charId: string;
+    counterType: "SPAWN" | "DEAD" | "WITHDRAW";
+  }
+  /** 技能施放计数键（反编译 SkillTrigStatsKey）：charId + skillId */
+  export interface SkillTrigStatsKey {
+    charId: string;
+    skillId: string;
+  }
+  /**
+   * 干员高级统计（反编译 CharAdvancedStats，基于 CharacterSnapshot 聚合）
+   * - outputDamageTotal：干员造成总伤害
+   * - outputElementDamageTotal：按元素类型的造成伤害累计
+   * - outputEpBreakCnt：按元素类型的元素爆发次数
+   * - outputDamageByTypeTotal：按伤害类型的造成伤害累计
+   */
+  export interface CharAdvancedStats {
+    outputDamageRange?: [number, number];
+    inputDamageRange?: [number, number];
+    outputDamageTotal: number;
+    outputElementDamageTotal?: number[];
+    outputEpBreakCnt?: number[];
+    outputDamageByTypeTotal?: number[];
   }
 }
 export interface CommonStartBattleRequest {

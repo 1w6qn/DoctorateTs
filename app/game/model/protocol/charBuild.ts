@@ -8,7 +8,7 @@
  */
 import { ItemBundle } from "@excel/character_table";
 import { PlayerSquad } from "../character";
-import { PlayerDeltaResponse } from "./common";
+import { PlayerDeltaResponse, RoguelikePushMessage } from "./common";
 
 /* ===== 基础养成 ===== */
 
@@ -203,10 +203,12 @@ export interface MedalFinishPushMessage {
  * 解锁干员密录剧情响应（服务端自定义）
  * 对照官服抓包（tmp/charBuild_addonStory_unlock_res_1107.json）：
  * 响应含 rewards:null + 增量 + pushMessage medalFinish（解锁密录发放勋章时推送）
+ * pushMessage 采用通用 `RoguelikePushMessage[]`（medal.ts rewardMedal 同样推 medalFinish），
+ * 兼容增量带出的通用推送；具体形状见 {@link MedalFinishPushMessage}。
  */
 export interface AddonStoryUnlockResponse extends PlayerDeltaResponse {
   rewards: null;
-  pushMessage?: MedalFinishPushMessage[];
+  pushMessage?: RoguelikePushMessage[];
 }
 
 /** 干员密录关卡开始请求（CS: HandBookAddonStageBattleStartRequest） */

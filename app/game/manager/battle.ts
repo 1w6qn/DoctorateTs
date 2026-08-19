@@ -544,6 +544,8 @@ export class BattleManager {
     // 修复：以下任务事件从未 emit → 相应任务模板永不推进；胜利结算统一补发。
     // 入账顺位在 update 之后（干员信赖 favorPoint 已在 recipe 内 +1）
     if (!isPractice && (battleData.completeState ?? 0) >= 2) {
+      // 模组（uniequip）任务真实进度推进——依据上场非助战干员 + 关卡/星级判定
+      await this._player.equipmentMission?.onBattleWin({ battleInfo, battleData });
       const stType = excel.StageTable.stages[stageId]?.stageType ?? "";
       await this._trigger.emit("CompleteAnyStage", [
         { ...battleData, stageId },

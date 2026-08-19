@@ -585,16 +585,6 @@ export class CharManager {
     return char;
   }
 
-  /** 特殊模组任务目标值（paramList 首个数值，缺省 1）——任务直接播种完成态 */
-  private _missionTarget(missionId: string): number {
-    const mission = excel.UniequipTable.missionList[missionId];
-    for (const raw of mission?.paramList ?? []) {
-      const n = Number(raw);
-      if (Number.isFinite(n) && n > 0) return n;
-    }
-    return 1;
-  }
-
   /**
    * 技能专精配置（skills[i].levelUpCostCond[targetLevel-1]）
    *
@@ -683,19 +673,15 @@ export class CharManager {
       }
       entry.hide = 0;
       entry.locked = 0;
-      // 特殊模组解锁任务：播种完成态（私服无任务结算端点——客户端模组 UI 按
-      // playerdata.equipment.missions 显示进度，直接完成可正常解锁/装备）
+      // 特殊模组解锁任务：按其真实进度校验（进度由 battle 胜利结算时按「指定干员
+      // 非助战 + 指定关卡/星级」推进，见 EquipmentMissionManager.onBattleWin）——
+      // 任务未完成时拒绝解锁；老存档中的完成态条目保留（向后兼容）
       if (equipData.missionList?.length) {
-        if (!draft.equipment) draft.equipment = { missions: {} };
-        if (!draft.equipment.missions) draft.equipment.missions = {};
-        for (const missionId of equipData.missionList) {
-          if (draft.equipment.missions[missionId]) continue;
-          const targetValue = this._missionTarget(missionId);
-          draft.equipment.missions[missionId] = {
-            value: targetValue,
-            target: targetValue,
-          };
-        }
+        this._player.equipmentMission.assertUnlockable(
+          char.charId,
+          equipData.missionList,
+          draft as any,
+        );
       }
       await this._trigger.emit("items:use", [equipData.itemCost?.[1] ?? []]);
       await this._trigger.emit("HasEquipment", [{ char }]);

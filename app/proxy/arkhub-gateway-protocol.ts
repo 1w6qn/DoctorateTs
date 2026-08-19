@@ -1,5 +1,5 @@
 /**
- * arkhub 网关 TCP 协议解析（arkodc）
+ * 奇象巡展（arkhub）网关 TCP 协议解析
  *
  * 官服网关（arkhub-gateway.hypergryph.com:30000）的帧格式（实测，见 capture-forward-mode 记忆）：
  *   [4B 大端总长度][4B 大端消息 ID][8B 头字段（seq/标志等，含义待确认）][protobuf payload]

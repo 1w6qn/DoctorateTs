@@ -1,5 +1,5 @@
 /**
- * 奇象巡展（arkodc，活动模式）路由
+ * arkodc（act53side「直到大地变成一颗酸橙」安洁莉娜的旅行小记，活动模式 ODC 小游戏）路由
  *
  * 对应客户端 com.hypergryph.arknights_2.7.61.cs 中
  * Torappu.UI.ArkOdc.ArkOdcBattleStartRequest/ArkOdcTaskSavePositionRequest/

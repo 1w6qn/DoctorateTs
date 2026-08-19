@@ -1,7 +1,7 @@
-# arkhub 网关协议完全解析（arkodc）
+# 奇象巡展（arkhub）网关协议完全解析
 
 > 文档对象：官服 arkhub 网关 `arkhub-gateway.hypergryph.com:30000` 的 TCP 私有协议。
-> 解析器：`app/proxy/arkodc.ts`；工具：`scripts/parse-arkhub-gateway.ts`（重解析抓包）、
+> 解析器：`app/proxy/arkhub-gateway-protocol.ts`；工具：`scripts/parse-arkhub-gateway.ts`（重解析抓包）、
 > `scripts/dump-gateway-dict.ts`（协议字典）。
 > 数据来源：capture 模式经 30000 转发器抓取的 12+ 个会话（up.bin/down.bin + parsed.json）。
 

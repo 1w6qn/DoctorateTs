@@ -10,7 +10,7 @@
 import fs from "fs";
 import path from "path";
 import { captureManager } from "../app/capture/capture-manager";
-import { splitGatewayFrames, MSG_NAMES, decodeProtobuf } from "../app/proxy/arkodc";
+import { splitGatewayFrames, MSG_NAMES, decodeProtobuf } from "../app/proxy/arkhub-gateway-protocol";
 
 interface DictEntry {
   msgId: number;

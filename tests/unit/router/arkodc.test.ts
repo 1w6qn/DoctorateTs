@@ -60,7 +60,7 @@ function mockRes() {
   return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };
 }
 
-describe("arkodc（奇象巡展 ODC）路由", () => {
+describe("arkodc（act53side「直到大地变成一颗酸橙」安洁莉娜的旅行小记 ODC 小游戏）路由", () => {
   let player: any;
   let res: any;
 

@@ -153,7 +153,7 @@ export const routes: RouteRegistration[] = [
   { prefix: "/", module: "./router/vecbreak" },
   // 资源版本审计（客户端 /audit/official/*，stub）
   { prefix: "/audit", module: "./router/audit" },
-  // 奇象巡展 ODC（客户端 /arkodc/*，根路径）
+  // arkodc ODC 小游戏（act53side「直到大地变成一颗酸橙」安洁莉娜的旅行小记，客户端 /arkodc/*，根路径）
   { prefix: "/arkodc", module: "./router/arkodc" },
   // 全量对齐杂项（telemetry/odpy-only/api 端点等 stub），见 router/misc-alignment
   { prefix: "/", module: "./router/misc-alignment" },

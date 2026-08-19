@@ -127,7 +127,7 @@ describe("resolveForwardTarget（官服转发目标解析）", () => {
       expect(resolveForwardTarget("POST", "/audit/official/x", "127.0.0.1:8443")).toBeNull();
     });
 
-    it("/arkodc（奇象巡展活动路由）转发官服 gs——OBS 路由即从官服逆向，须抓真实响应", () => {
+    it("/arkodc（act53side ODC 小游戏「直到大地变成一颗酸橙」路由）转发官服 gs——OBS 路由即从官服逆向，须抓真实响应", () => {
       expect(resolveForwardTarget("POST", "/arkodc/odp", "127.0.0.1:8443")?.baseUrl).toBe(OFFICIAL_GS_HOST);
       expect(resolveForwardTarget("POST", "/arkodc/battleStart", "127.0.0.1:8443")?.baseUrl).toBe(OFFICIAL_GS_HOST);
     });

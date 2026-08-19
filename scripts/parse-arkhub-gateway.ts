@@ -1,5 +1,5 @@
 /**
- * 离线解析已抓取的 arkhub 网关 TCP 流量（arkodc 帧）
+ * 离线解析已抓取的 奇象巡展（arkhub）网关 TCP 流量（网关帧）
  *
  * 从统一抓包存储（captureManager，tmp/capture/）读取 gateway-bidi 记录的
  * up.bin/down.bin，按网关帧格式（4B 大端长度 + 4B 消息 ID + 8B 头 + protobuf）
@@ -17,7 +17,7 @@ import {
   framesToJson,
   fieldsToJson,
   gatewayTranscript,
-} from "../app/proxy/arkodc";
+} from "../app/proxy/arkhub-gateway-protocol";
 
 function parseConnection(dir: string, id: string): void {
   const upPath = path.join(dir, "up.bin");

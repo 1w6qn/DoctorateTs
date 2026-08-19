@@ -12,7 +12,7 @@
  *
  * 网关为明文 TCP（官服 30000 可 TCP 连接；TLS 握手被直接断开、明文 WebSocket 握手无响应），
  * 因此转发器是纯 TCP pipe（不做协议解析）；客户端自带上层握手/鉴权，原样透传即可。
- * 连接关闭时按 arkodc 帧协议解析出 parsed.json/messages.json，并提交一条
+ * 连接关闭时按网关帧协议解析出 parsed.json/messages.json，并提交一条
  * direction=gateway-bidi 的抓包记录（source=gateway）到统一索引库，供 Dashboard 统一查看。
  */
 import net from "net";
@@ -25,7 +25,7 @@ import {
   framesToJson,
   gatewayTranscript,
   fieldsToJson,
-} from "./arkodc";
+} from "./arkhub-gateway-protocol";
 
 /** 官服 arkhub 网关主机 */
 export const OFFICIAL_ARKHUB_GATEWAY_HOST = "arkhub-gateway.hypergryph.com";

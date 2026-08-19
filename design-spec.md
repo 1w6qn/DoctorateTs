@@ -1011,6 +1011,38 @@ BuildingManager（app/game/manager/building.ts）已实现完整基建玩法：
 
 **测试**：`tests/unit/manager/building-deltatime.test.ts`（14 条）——deltaTime 注入推进（劳动力/制造/心情/训练）、贸易站时间模型（逐笔生成/效率加成/静态补单隔离/库存上限）、解析器新函数。全量基建 160 测试通过，tsc 干净。
 
+### 11.10 特殊技能适配（2026-08-19）
+
+**背景**：官方基建 buff 中 141 个技能描述含条件标签 `<$cc.tag.X>` / `<$cc.g.X>` / `<$cc.m.X>` / `<$cc.tra.X>`——加成语义为条件/数量依赖，旧实现 `buffValue` 会把其中 vup% 当无条件固定加成 → 生产/贸易速度虚高（薇薇安娜"每个骑士+7%"被当作无条件+7%）。
+
+**数据源（100% 官方在库）**：
+- `gamedata_const.termDescriptionDict`：`cc.tag.*`/`cc.g.*`/`cc.m.*`/`cc.tra.*` 术语 → 干员名单（中文名/特殊名，196 名 100% 可映射到 character_table）
+- `character_table.name`：干员名 → charId 索引（惰性缓存）
+
+**特殊技能类型（special.ts，新模块）**：
+- **fraction（"每个"）**：每个符合条件标签的干员提供 +Y%（如薇薇安娜「每个进驻在制造站的骑士+7%」→ 加成 = 7% × 制造站骑士数；涤火杰西卡「每个黑钢国际+5%」）
+- **token（条件触发）**：条件满足才 +Y%（如布丁「≥2台作业平台进驻发电站时+2%」；麒麟R夜刀「与怪物猎人小队干员同驻控制中枢时+2%」）
+- 判定用 `roomTargetFromDesc` 精确解析"进驻在X"（X=制造站/贸易站/宿舍/发电站/控制中枢，剥 `<@cc.kw>` 标签）——避免"进驻控制中枢时…每个进驻在制造站的…"误取控制中枢干员池
+
+**集成（buff.ts → special.ts 单向依赖，避免循环依赖）**：
+- `roomSpeedBonus(chars, roomType, targets, ctx?)` / `controlGlobalBonus(controlChars, ctx?)` 新增 `SpecialSkillContext`（各房间干员 charId）；含条件标签的 buff 走 `specialBuffValue` 条件/数量计算
+- `CONTROL_TARGET_PREFIX` 扩展映射 `control_token_prod_`/`control_token_tra_`/`control_bd_spd` → MANUFACTURE/TRADING
+- BuildingManager `_specialCtx(draft)` 从 roomSlots 构造全房间干员上下文
+
+**会客室线索概率（meet_spd_notOwned/Owned）**：
+- `getDailyClue` 阵营抽取加权：晓歌（未拥有线索概率↑）→ 未上板阵营权重 ×2；U-Official（已拥有↑）→ 已上板阵营权重 ×2
+- 私服无真实访客线索交换，getDailyClue 是唯一线索来源——技能实际生效
+
+**贸易站独占订单（trade_ord_pepe/closure）**：
+- `_genTradingOrder` 检测进驻干员技能：佩佩 → 特别独占订单（赤金交付 0、收益恒定 rate×2）；可露希尔 → 可露希尔特别订单（赤金交付 2、收益恒定 rate×3）；订单带 `special` 标记
+
+**心情特殊（control_mp_cost_double/reset）**：
+- `_recomputeCharScales` 控制中枢分支：魔王与阿米娅（char_002_amiya）同驻 → 自身心情恢复档位（vup ×100）；若叶睦与丰川祥子（char_4182_oblvns）同驻 → 消除自身心情消耗
+
+**坑**：① special.ts 不得 import buff.ts（循环依赖致 vite 下函数绑定失效——实际症状为 fraction 返回 0）；② 注释中 `cc.tag.*/` 的 `*/` 序列提前终止 JSDoc；③ "N台以上"数量词被 `<@cc.kw>N</>` 包裹，需剥标签再正则匹配。
+
+**测试**：`tests/unit/manager/building-special.test.ts`（16 条）——special.ts 纯函数（fraction/token/术语映射）、buff.ts 集成（roomSpeedBonus/controlGlobalBonus）、BuildingManager 集成（制造站容量含 control_prod_fraction、token 条件切换、贸易站独占订单、会客室线索加权、心情特殊）。基建 5 文件 169 测试通过，tsc 干净。
+
 ---
 
 ## 12. 战斗结算后处理逻辑

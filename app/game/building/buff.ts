@@ -16,6 +16,11 @@
  * - 控制中枢干员的 control_* buff 全局作用于目标房间（按 buffId 前缀映射），同种取最高
  */
 import excel from "@excel/excel";
+import {
+  isConditionSkill,
+  specialBuffValue,
+  SpecialSkillContext,
+} from "./special";
 
 /** 干员 buff 激活所需信息（取自 troop.chars） */
 export interface CharBuffSource {
@@ -188,11 +193,15 @@ function maxByGroup(buffs: any[], resolver: (b: any) => number): number {
 /**
  * 房间速度/产量加成（乘法系数总和，≥0）：
  * 遍历进驻干员，取其在 roomType 下激活的 buff；targets 非空时仅匹配指定配方类型。
+ * 含条件标签的特殊技能（<$cc.*>，fraction/token）走 specialBuffValue 条件/数量计算，
+ * 不再把描述中 vup% 当无条件固定加成（修复薇薇安娜/布丁等干员加成虚高）。
+ * @param ctx - 特殊技能上下文（各房间干员，用于 fraction/token 条件判定）
  */
 export function roomSpeedBonus(
   chars: CharBuffSource[],
   roomType: string,
   targets?: string[],
+  ctx?: SpecialSkillContext,
 ): number {
   let total = 0;
   for (const char of chars ?? []) {
@@ -202,7 +211,12 @@ export function roomSpeedBonus(
       if (!targets || targets.length === 0) return true;
       return targets.some((x) => t.includes(x));
     });
-    total += maxByGroup(buffs, buffValue);
+    total += maxByGroup(buffs, (b) => {
+      if (isConditionSkill(b?.description)) {
+        return specialBuffValue(b, ctx) ?? 0;
+      }
+      return buffValue(b);
+    });
   }
   return total;
 }
@@ -210,7 +224,10 @@ export function roomSpeedBonus(
 /** 控制中枢 control_* buff → 目标房间类型（按 buffId 前缀） */
 const CONTROL_TARGET_PREFIX: Array<[RegExp, string]> = [
   [/^control_prod_/, "MANUFACTURE"],
+  [/^control_token_prod_/, "MANUFACTURE"],
+  [/^control_bd_spd/, "MANUFACTURE"],
   [/^control_tra_/, "TRADING"],
+  [/^control_token_tra_/, "TRADING"],
   [/^control_dorm_/, "DORMITORY"],
   [/^control_meeting|^control_upMeeting/, "MEETING"],
   [/^control_hire_/, "HIRE"],
@@ -219,9 +236,13 @@ const CONTROL_TARGET_PREFIX: Array<[RegExp, string]> = [
 /**
  * 控制中枢全局加成（按目标房间类型，乘法系数）：control_* buff 中同种效果跨干员取最高。
  * 仅映射生产/贸易/宿舍/会客/人力五类前缀（心情/费用类 control_mp_* 等不影响生产）。
+ * 含条件标签的特殊技能（<$cc.*>，如 control_prod_fraction「每个骑士+7%」、
+ * control_token_prod_spd「≥2台作业平台在发电站时+2%」）走 specialBuffValue
+ * 条件/数量计算（需 ctx 提供各房间干员）。
  */
 export function controlGlobalBonus(
   controlChars: CharBuffSource[],
+  ctx?: SpecialSkillContext,
 ): Record<string, number> {
   const byTarget = new Map<string, Map<string, number>>();
   for (const char of controlChars ?? []) {
@@ -231,7 +252,10 @@ export function controlGlobalBonus(
       if (!target) continue;
       const key = buffGroupKey(prefix);
       const groups = byTarget.get(target) ?? new Map<string, number>();
-      groups.set(key, Math.max(groups.get(key) ?? 0, buffValueForTarget(b, target)));
+      const val = isConditionSkill(b?.description)
+        ? specialBuffValue(b, ctx) ?? 0
+        : buffValueForTarget(b, target);
+      groups.set(key, Math.max(groups.get(key) ?? 0, val));
       byTarget.set(target, groups);
     }
   }

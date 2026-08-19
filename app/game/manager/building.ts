@@ -17,6 +17,8 @@ import {
   controlGlobalBonus,
   dormRecoveryBonus,
   charMoodCost,
+  getActiveCharBuffs,
+  parseVupValue,
 } from "@game/building/buff";
 
 /**
@@ -472,9 +474,47 @@ export class BuildingManager {
   /**
    * 内部方法：生成一笔贸易站金币订单（结构对齐官服 O_GOLD：delivery 3003 → gain GOLD）
    * 1~4 张贸易凭证 × 汇率 = 金币收益；订单 instId 由调用方保证递增连续。
+   *
+   * 特殊技能适配（独占订单，数据源 gamedata_const cc.tra.* 术语）：
+   * - trade_ord_pepe（佩佩）：固定获取「特别独占订单」——所需赤金交付数为 0、收益恒定
+   * - trade_ord_closure（可露希尔）：固定获取「可露希尔特别订单」——赤金交付 2、收益恒定
    */
-  private _genTradingOrder(room: any, instId: number): void {
+  private _genTradingOrder(draft: Draft<PlayerDataModel>, room: any, instId: number): void {
     const rate = getGoldRate();
+    // 定位该房间槽位 → 进驻干员的 TRADING 技能
+    const slotId = Object.entries(draft.building.rooms.TRADING).find(
+      ([, r]) => r === room,
+    )?.[0];
+    const slot = slotId ? draft.building.roomSlots[slotId] : null;
+    const chars = this._roomCharSources(draft, slot ?? null);
+    const hasBuff = (re: RegExp) =>
+      chars.some((c) =>
+        getActiveCharBuffs(c, "TRADING").some((b) => re.test(b?.buffId ?? "")),
+      );
+    // 佩佩「特别独占订单」：赤金交付 0、收益恒定（rate×2）
+    if (hasBuff(/^trade_ord_pepe/)) {
+      room.stock.push({
+        instId,
+        delivery: [],
+        type: "O_GOLD",
+        gain: { id: "4001", type: "GOLD", count: rate * 2 },
+        buff: [],
+        special: "pepe",
+      });
+      return;
+    }
+    // 可露希尔「可露希尔特别订单」：赤金交付 2、收益恒定（rate×3）
+    if (hasBuff(/^trade_ord_closure/)) {
+      room.stock.push({
+        instId,
+        delivery: [{ id: "3003", type: "MATERIAL", count: 2 }],
+        type: "O_GOLD",
+        gain: { id: "4001", type: "GOLD", count: rate * 3 },
+        buff: [],
+        special: "closure",
+      });
+      return;
+    }
     const count = 1 + Math.floor(Math.random() * 4);
     room.stock.push({
       instId,
@@ -509,7 +549,9 @@ export class BuildingManager {
       // 回写官方线格式 buff：speed=订单效率加成、limit=库存上限（任何工作时间贸易站）
       const slot = draft.building.roomSlots[slotId];
       const chars = this._roomCharSources(draft, slot);
-      const bonus = roomSpeedBonus(chars, "TRADING", []) + controlBonus;
+      const bonus =
+        roomSpeedBonus(chars, "TRADING", [], this._specialCtx(draft)) +
+        controlBonus;
       const roomBuff = (room.buff as any) ?? {};
       roomBuff.speed = bonus;
       roomBuff.limit = room.stockLimit ?? 0;
@@ -531,7 +573,7 @@ export class BuildingManager {
         room.stock.length < (room.stockLimit ?? 2)
       ) {
         const orderId = (next.order ?? -1) + 1;
-        this._genTradingOrder(room, orderId);
+        this._genTradingOrder(draft, room, orderId);
         next.order = orderId;
         next.processPoint -= next.maxPoint;
       }
@@ -569,7 +611,7 @@ export class BuildingManager {
       const missing = target - room.stock.length;
       for (let i = 0; i < missing; i++) {
         maxInstId += 1;
-        this._genTradingOrder(room, maxInstId);
+        this._genTradingOrder(draft, room, maxInstId);
       }
     }
   }
@@ -722,7 +764,35 @@ export class BuildingManager {
     const ctlSlot = Object.values(draft.building.roomSlots).find(
       (s) => s.roomId === "CONTROL",
     );
-    return controlGlobalBonus(this._roomCharSources(draft, ctlSlot ?? null));
+    return controlGlobalBonus(
+      this._roomCharSources(draft, ctlSlot ?? null),
+      this._specialCtx(draft),
+    );
+  }
+
+  /**
+   * 特殊技能上下文：各房间进驻干员 charId（按房间类型分组）。
+   * 供 fraction/token 条件技能判定（"每个进驻制造站的X干员"→ manufactureCharIds、
+   * "≥N台作业平台进驻发电站"→ powerCharIds、"与X同驻控制中枢"→ controlCharIds）。
+   */
+  private _specialCtx(draft: Draft<PlayerDataModel>): any {
+    const byRoom: Record<string, string[]> = {};
+    for (const slot of Object.values(draft.building.roomSlots)) {
+      if (!slot?.roomId) continue;
+      const ids = (slot.charInstIds ?? [])
+        .filter((i) => i > 0)
+        .map((i) => this._charSource(draft, i)?.charId)
+        .filter((c): c is string => c != null);
+      (byRoom[slot.roomId] ??= []).push(...ids);
+    }
+    return {
+      roomCharIds: byRoom.MANUFACTURE ?? [],
+      manufactureCharIds: byRoom.MANUFACTURE ?? [],
+      tradingCharIds: byRoom.TRADING ?? [],
+      dormCharIds: byRoom.DORMITORY ?? [],
+      powerCharIds: byRoom.POWER ?? [],
+      controlCharIds: byRoom.CONTROL ?? [],
+    };
   }
 
   /** 制造站基础容量（房间等级 phase.outputCapacity；缺数据回退房间存储值） */
@@ -753,7 +823,7 @@ export class BuildingManager {
     // targets 过滤：buff.targets 非空时仅对配方类型（F_GOLD/F_EXP/…）生效
     const targets = formula?.formulaType ? [formula.formulaType] : [];
     const bonus =
-      roomSpeedBonus(chars, "MANUFACTURE", targets) +
+      roomSpeedBonus(chars, "MANUFACTURE", targets, this._specialCtx(draft)) +
       (this._controlGlobalFor(draft).MANUFACTURE ?? 0);
     if (room) {
       room.capacity = base;
@@ -844,12 +914,40 @@ export class BuildingManager {
       } else {
         scale = this._workBaseScale(roomType);
         const src = this._charSource(draft, instId);
-        if (src) scale -= charMoodCost(src, roomType);
+        if (src) {
+          scale -= charMoodCost(src, roomType);
+          // 特殊技能适配（控制中枢心情类，数据源 buffId 前缀 + <@cc.kw> 关键词干员）：
+          // - control_mp_cost_double（魔王）：与阿米娅同驻控制中枢时，自身和阿米娅心情恢复
+          // - control_mp_cost_reset（若叶睦）：与丰川祥子同驻控制中枢时，消除自身心情消耗
+          if (roomType === "CONTROL") {
+            const active = getActiveCharBuffs(src, "CONTROL");
+            const ctlChars = this._roomCharSources(draft, this._controlSlot(draft));
+            if (ctlChars.some((c) => c.charId === "char_002_amiya")) {
+              const dbl = active.find((b) => /^control_mp_cost_double/.test(b?.buffId ?? ""));
+              if (dbl) {
+                // 恢复档位：描述 vup（点/小时）× 100 → AP/秒
+                const rec = parseVupValue(dbl?.description);
+                if (rec != null) scale = rec * 100;
+              }
+            }
+            if (ctlChars.some((c) => c.charId === "char_4182_oblvns")) {
+              const reset = active.find((b) => /^control_mp_cost_reset/.test(b?.buffId ?? ""));
+              if (reset) scale = 0; // 消除自身心情消耗
+            }
+          }
+        }
       }
       if (ch.changeScale !== scale) {
         ch.changeScale = scale;
       }
     }
+  }
+
+  /** 控制中枢槽位（特殊心情技能判定用） */
+  private _controlSlot(draft: Draft<PlayerDataModel>): { charInstIds?: number[] } | null {
+    return (
+      Object.values(draft.building.roomSlots).find((s) => s.roomId === "CONTROL") ?? null
+    );
   }
 
   // ==================== 房间管理 ====================
@@ -2125,6 +2223,50 @@ export class BuildingManager {
   ];
 
   /**
+   * 会客室线索阵营加权选择（特殊技能适配）
+   *
+   * meet_spd_notOwned（晓歌）：更容易获得线索板上尚未拥有的线索 → 未上板阵营权重 ×2；
+   * meet_spd_Owned（U-Official）：更容易获得已拥有的线索 → 已上板阵营权重 ×2。
+   * 私服无真实访客线索交换，getDailyClue 是唯一线索来源——按进驻会客室干员的
+   * 技能修正各阵营抽取权重，使"未拥有线索"技能实际生效。
+   * @param draft - mutative 可写草稿
+   * @param room - 会客室房间对象
+   * @returns 加权选出的阵营
+   */
+  private _clueFactionWeighted(
+    draft: Draft<PlayerDataModel>,
+    room: any,
+  ): string {
+    const factions = BuildingManager._CLUE_FACTIONS;
+    const slot = Object.values(draft.building.roomSlots).find(
+      (s) => s.roomId === "MEETING",
+    );
+    const chars = this._roomCharSources(draft, slot ?? null);
+    const hasSkill = (re: RegExp) =>
+      chars.some((c) =>
+        getActiveCharBuffs(c, "MEETING").some((b) => re.test(b?.buffId ?? "")),
+      );
+    const preferNew = hasSkill(/^meet_spd_notOwned/);
+    const preferOwned = hasSkill(/^meet_spd_Owned/);
+    const onBoard = new Set(Object.keys(room?.board ?? {}));
+    // 加权随机：未上板阵营在 preferNew 时 ×2；已上板阵营在 preferOwned 时 ×2
+    const weights = factions.map((f) => {
+      let w = 1;
+      const isOnBoard = onBoard.has(f);
+      if (preferNew && !isOnBoard) w *= 2;
+      if (preferOwned && isOnBoard) w *= 2;
+      return w;
+    });
+    const total = weights.reduce((s, w) => s + w, 0);
+    let r = Math.random() * total;
+    for (let i = 0; i < factions.length; i++) {
+      r -= weights[i];
+      if (r <= 0) return factions[i];
+    }
+    return factions[factions.length - 1];
+  }
+
+  /**
    * 获取每日线索
    * 每日一条免费线索（dailyReward 已领则不重复发放）
    * 真实格式：type=阵营、id={uid}#{随机}#{时间戳}
@@ -2135,11 +2277,10 @@ export class BuildingManager {
       const room = Object.values(draft.building.rooms.MEETING)[0];
       if (!room || room.dailyReward) return;
       const status = draft.status;
+      // 特殊技能适配：进驻会客室干员的线索概率技能影响阵营抽取权重
       const clue: PlayerBuildingMeetingClue = {
         id: `${status.uid}#${Math.floor(Math.random() * 9000 + 1000)}#${now()}`,
-        type: BuildingManager._CLUE_FACTIONS[
-          Math.floor(Math.random() * BuildingManager._CLUE_FACTIONS.length)
-        ],
+        type: this._clueFactionWeighted(draft, room),
         number: 1 + Math.floor(Math.random() * 3),
         uid: String(status.uid),
         name: status.nickName,

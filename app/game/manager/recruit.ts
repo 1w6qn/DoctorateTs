@@ -272,7 +272,11 @@ export class RecruitTools {
       randomCharId = randomChoice(sortedMatchingChars.map((x) => x[0]));
     }
 
-    const filterTags = selectedTags.filter(
+    // 修复：划掉集合按**玩家本次选中的全部词条**计算（而非内部随机子集 selectedTags）。
+    // 原实现对 selectedTags（randomSample 的 0~3 个）取反 → 玩家实际选中但干员确有的词条
+    // 只要没被抽进子集就会误标 pick=0（客户端划掉）；真正该划掉的是"玩家选了但结果干员
+    // 不具备"的词条。客户端按返回的 selectTags[].pick 划掉词条。
+    const filterTags = tagList.filter(
       (x) => !charData[randomCharId].tags.includes(x),
     );
 

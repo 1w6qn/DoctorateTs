@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { patchesToObject } from '@utils/delta';
-import type { Patch } from 'immer';
+import type { Patch } from 'mutative';
 
 describe('patchesToObject', () => {
   it('应该正确处理 replace 操作', () => {
-    const patches: Patch[] = [
+    const patches: Patch<true>[] = [
       { op: 'replace', path: ['name'], value: 'newName' },
     ];
     const origin = { name: 'oldName', age: 20 };
@@ -14,7 +14,7 @@ describe('patchesToObject', () => {
   });
 
   it('应该正确处理 remove 操作', () => {
-    const patches: Patch[] = [
+    const patches: Patch<true>[] = [
       { op: 'remove', path: ['tempField'] },
     ];
     const origin = { name: 'test', tempField: 'value' };
@@ -24,7 +24,7 @@ describe('patchesToObject', () => {
   });
 
   it('应该正确处理 add 操作', () => {
-    const patches: Patch[] = [
+    const patches: Patch<true>[] = [
       { op: 'add', path: ['newField'], value: 'added' },
     ];
     const origin = { name: 'test' };
@@ -34,7 +34,7 @@ describe('patchesToObject', () => {
   });
 
   it('应该处理嵌套路径的修改', () => {
-    const patches: Patch[] = [
+    const patches: Patch<true>[] = [
       { op: 'replace', path: ['player', 'stats', 'hp'], value: 100 },
     ];
     const origin = { player: { stats: { hp: 50, mp: 30 } } };
@@ -43,7 +43,7 @@ describe('patchesToObject', () => {
   });
 
   it('应该处理嵌套路径的删除', () => {
-    const patches: Patch[] = [
+    const patches: Patch<true>[] = [
       { op: 'remove', path: ['player', 'tempBuff'] },
     ];
     const origin = { player: { name: 'test', tempBuff: 'expired' } };
@@ -52,7 +52,7 @@ describe('patchesToObject', () => {
   });
 
   it('应该处理多个 patch 操作', () => {
-    const patches: Patch[] = [
+    const patches: Patch<true>[] = [
       { op: 'replace', path: ['gold'], value: 1000 },
       { op: 'replace', path: ['level'], value: 5 },
       { op: 'remove', path: ['expiredItem'] },
@@ -64,7 +64,7 @@ describe('patchesToObject', () => {
   });
 
   it('应该处理空的 patch 数组', () => {
-    const patches: Patch[] = [];
+    const patches: Patch<true>[] = [];
     const origin = { name: 'test' };
     const result = patchesToObject(patches, origin);
     expect(result.modified).toEqual({});
@@ -72,7 +72,7 @@ describe('patchesToObject', () => {
   });
 
   it('应该处理数组路径（遇到数组时设置整个数组作为值）', () => {
-    const patches: Patch[] = [
+    const patches: Patch<true>[] = [
       { op: 'replace', path: ['items', 0], value: 'newItem' },
     ];
     const origin = { items: ['oldItem', 'keepItem'] };
@@ -81,7 +81,7 @@ describe('patchesToObject', () => {
   });
 
   it('应该处理深层嵌套的添加操作', () => {
-    const patches: Patch[] = [
+    const patches: Patch<true>[] = [
       { op: 'add', path: ['config', 'newOption', 'key'], value: 'val' },
     ];
     const origin = { config: {} };

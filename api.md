@@ -1076,6 +1076,118 @@ OAuth2 授权
 
 ---
 
+## 肉鸽模式 · 黑流树海（rogue_6）专属接口
+
+黑流树海使用**无相地图（GRID_ZONE）**与**零件箱（SCRAP）**两个专属模块。节点 id = `x * 100 + y`（字符串），层键为 `1000 + zoneId - 1`（误入奇境隐藏层为 `3000+`）。
+
+所有接口响应均为 `rlv2Response` 包装：`{ playerDataDelta, rlv2: { current, outer?, pushMessage? }, ...extra }`。参数缺失时返回 `{ result: 1, ... }`（不抛 500）。
+
+### POST /rlv2/gridZone/moveTo
+网格区域移动（黑流树海的**唯一**移动入口，替代 `/rlv2/moveTo`）
+
+**请求参数**:
+```json
+{
+  "route": ["302", "303"]
+}
+```
+- `route`：途经节点 id 序列（末项为终点）。为空或非数组时返回 `result: 1`
+- 每格消耗 1 行动力（`stepRemain`），服务端校验可达性
+
+**响应**:
+```json
+{
+  "playerDataDelta": { ... },
+  "rlv2": {
+    "current": { "player": {}, "inventory": {}, "record": {}, "buff": {}, "map": {}, "module": {} },
+    "pushMessage": [
+      { "path": "rlv2NodeArrive", "payload": { "nodeType": 16 } },
+      { "path": "rlv2NodeChange", "payload": { "nodeList": ["302", "303"] } }
+    ]
+  }
+}
+```
+- 落地节点按类型生成事件（写入 `current.player.pending`）：战斗类 → `BATTLE`，商店类（诡意行商/秘境行商/应急助力）→ `BATTLE_SHOP`，误入奇境 → 生成隐藏层，安全的角落/得偿所愿/失与得/先行一步/狭路相逢/应急助力/险路尽头/险路小径 → `SCENE`；林间空地/曲折密道/羽瞰点 → 无事件（`state: WAIT_MOVE`）
+
+### POST /rlv2/gridZone/moveAndBattleStart
+网格区域移动并开始战斗
+
+**请求参数**:
+```json
+{
+  "route": ["302"],
+  "stageId": "ro6_n_1_1",
+  "squad": { ... }
+}
+```
+- `route` 为空/非数组或缺 `stageId` 时返回 `result: 1`
+- 响应 `rlv2.outer` 仅含 `record` 节（官服抓包校准）
+
+### POST /rlv2/gridZone/emptyStep
+网格区域空步（原地消耗 1 行动力）
+
+**请求参数**: 无
+
+### POST /rlv2/gridZone/readStepZero
+行动力耗尽提示已读（`stepRemain` 归零时客户端上报）
+
+**请求参数**: 无
+
+### POST /rlv2/scrap
+拉取零件箱状态
+
+**请求参数**: 无
+
+### POST /rlv2/scrap/changeVehicle
+切换载具（加工品 = `scrapTypeData.MOVE` 型废品，可用于地图移动）
+
+**请求参数**:
+```json
+{
+  "scrapInstId": "s_2",
+  "toWalk": 0
+}
+```
+- `toWalk` 为真值或 `scrapInstId` 为空串时切回步行（亦兼容旧字段名 `scrapId`）
+
+### POST /rlv2/scrap/loseScrap
+丢弃废品
+
+**请求参数**:
+```json
+{
+  "instId": "s_2"
+}
+```
+- 缺 `instId` 时返回 `result: 1`（原实现静默无效果）
+- 丢弃的若是当前载具，服务端自动切回步行
+- 在行商节点丢弃非载具废品会计入「多边贸易」（`shop_recycle_reward`）
+
+### POST /rlv2/scrap/identify
+废品鉴定（抽取 `count` 件废品入零件箱，`count` 限制 1~3）
+
+**请求参数**:
+```json
+{
+  "count": 3
+}
+```
+
+**响应**（`scrap` / `legacy` 在响应**顶层**，均为物品 bundle 数组）:
+```json
+{
+  "scrap": [ { "id": "rogue_6_scrap_G_01", "count": 1 } ],
+  "legacy": [ { "id": "rogue_6_legacy_1", "count": 1 } ],
+  "playerDataDelta": { ... },
+  "rlv2": { ... }
+}
+```
+- `legacy` 件数 = `floor(count / 2)`（LEGACY 型物品，下次探索开局加成）
+- 入箱废品的 `value` 取官方 `goodsScrapData/moveScrapData/passiveScrapData` 的 `sellPrice`（非固定 1）
+- 废品类型：`MOVE` = 加工品、`GOODS` = 自然物、`PASSIVE` = 概念体
+
+---
+
 ## 基建模块
 
 ### POST /building/sync

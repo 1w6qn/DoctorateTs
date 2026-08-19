@@ -263,10 +263,11 @@ export class MissionManager {
       }
       // confirmed 为服务端持久化的防重复标记（官方结构无此字段，按 any 访问）
       const full = data.progress.every((p) => p.value >= p.target);
-      // 修复（2026-08-19）：旧存档任务 state=3（官方"已完成可领取"）可能无 confirmed
-      // 字段（8-12 模板迁移）——只判 confirmed 会重复发放奖励 + dailyPoint 无限累积；
-      // state===3 官方语义即"已领取"，一并视为已领。
-      if (!full || (data as any).confirmed || data.state === 3) return;
+      // 修复：state=3 是"已完成可领取"而非"已领取"——任务进度填满时 init 事件回调即置 3
+      //（见 init），此刻奖励尚未发放。原 guard 把 data.state===3 一并视为已领 → 已完成待领取
+      // 的任务 confirmMission 直接 return（items 空、dailyPoint 不累计）→ 客户端"显示待领取
+      // 却无法领取"。改以新增的 confirmed 标记判重（发放时置 1），state 不再参与判重。
+      if (!full || (data as any).confirmed) return;
       data.state = 3;
       (data as any).confirmed = 1;
       if (mission) mission.confirmed = true;
@@ -290,6 +291,12 @@ export class MissionManager {
           missionRewards.weeklyPoint += missionInfo.periodicalPoint;
           break;
         default:
+          // 修复：MAIN/SUB/GUIDE/RETRO/SPECIAL 等非周期点任务——直接发放任务自身 rewards。
+          // 原实现 default 分支空 out → 完成态任务 confirm 后 items 为空，客户端视为
+          // "领取无奖励/无法领取"（2222 存档里大量 MAIN/SUB 任务即属此类）。
+          for (const r of missionInfo.rewards ?? []) {
+            items.push({ id: r.id, count: r.count, type: String(r.type) });
+          }
           break;
       }
     });

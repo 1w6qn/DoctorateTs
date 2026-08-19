@@ -164,10 +164,10 @@ export interface ConfirmActivityMissionRequest {
 
 /**
  * 确认活动任务并领取奖励响应（CS: Activity.ActivityConfirmMissionResponse）
- * CS 字段名为 items，服务端返回 rewards（以服务端为准）
+ * 修复：CS 字段名为 items（客户端据此弹"获得奖励"提示），原服务端返回 rewards 客户端读不到
  */
 export interface ConfirmActivityMissionResponse extends PlayerDeltaResponse {
-  rewards: ItemBundle[];
+  items: ItemBundle[];
 }
 
 /**
@@ -180,9 +180,9 @@ export interface ConfirmActivityMissionListRequest {
   activityId?: string;
 }
 
-/** 批量确认活动任务响应（服务端自定义，同单任务确认结构） */
+/** 批量确认活动任务响应（CS 同单任务结构，字段名为 items——客户端弹"获得奖励"提示） */
 export interface ConfirmActivityMissionListResponse extends PlayerDeltaResponse {
-  rewards: ItemBundle[];
+  items: ItemBundle[];
 }
 
 /**
@@ -197,10 +197,10 @@ export interface ConfirmActivityMissionGroupRequest {
 
 /**
  * 确认活动任务组响应（CS: Activity.ActivityConfirmMissionGroupResponse）
- * CS 字段名为 items，服务端返回 rewards（以服务端为准）
+ * 修复：CS 字段名为 items（客户端据此弹"获得奖励"提示）
  */
 export interface ConfirmActivityMissionGroupResponse extends PlayerDeltaResponse {
-  rewards: ItemBundle[];
+  items: ItemBundle[];
 }
 
 /**

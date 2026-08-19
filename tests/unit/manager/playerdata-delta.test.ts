@@ -1,9 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { enablePatches } from "immer";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { mockPlayerData } from "../../helpers";
 
-enablePatches();
 
 /**
  * 条件落盘回归测试

@@ -206,37 +206,62 @@ async function main() {
   }
 
   if (doDownload) {
+    // S7：下载由串行改为有界并发池——downloadBundle 是网络 IO，逐个等待造成瓶颈；
+    // 并发池让多个 bundle 的 HTTP + 落盘重叠。并发数 cap 6（IO 密集，略高于 decode）。
     let n = 0;
-    for (const [base, dat] of bundleMap) {
-      if (fs.existsSync(dat) && fs.statSync(dat).size > 1000) continue;
-      const ab = abInfos.find((a) => transName(a.name) === path.basename(dat));
-      if (ab && (await downloadBundle(ab, resVersion))) {
-        n++;
-        console.log(`  已下载 ${base}`);
+    const pending = [...bundleMap].filter(
+      ([, dat]) => !(fs.existsSync(dat) && fs.statSync(dat).size > 1000),
+    );
+    let idx = 0;
+    async function downloadWorker(): Promise<void> {
+      while (idx < pending.length) {
+        const i = idx++;
+        const [base, dat] = pending[i];
+        const ab = abInfos.find((a) => transName(a.name) === path.basename(dat));
+        if (ab && (await downloadBundle(ab, resVersion))) {
+          n++;
+          console.log(`  已下载 ${base}`);
+        }
       }
     }
+    await Promise.all(
+      Array.from({ length: Math.min(6, Math.max(1, os.cpus().length || 4)) }, downloadWorker),
+    );
     console.log(`下载完成: ${n}`);
   }
 
   if (doDecode) {
+    // S7：解码由串行改为有界并发池——decodeBundle 为 async（JSZip 解压即 IO），
+    // 原先 for...of 逐个等待造成串行 IO；并发池让多个 bundle 的解压/解密/读写重叠。
+    // 并发数取 CPU 核数（cap 4）：decoder 同步 CPU 段（FBO/AES）仍占主线程，
+    // 核数外并发无额外 CPU 收益；IO 侧异步重叠已足够摊薄总耗时。
     let ok = 0, fail = 0;
-    for (const [base, dat] of [...bundleMap.entries()].sort()) {
-      const out = path.join(OUT_DIR, `${base}.json`);
-      if (fs.existsSync(out) && fs.statSync(out).size > 100) continue;
-      try {
-        const dic = await decodeBundle(dat, base);
-        if (dic === null) {
-          console.log(`  跳过 ${base}`);
-          continue;
+    const entries = [...bundleMap.entries()].sort();
+    let idx = 0;
+    const decodeConcurrency = Math.min(4, Math.max(1, os.cpus().length || 4));
+    async function decodeWorker(): Promise<void> {
+      while (idx < entries.length) {
+        // Node 单线程：idx++ 无竞态，各 worker 顺序取任务
+        const i = idx++;
+        const [base, dat] = entries[i];
+        const out = path.join(OUT_DIR, `${base}.json`);
+        if (fs.existsSync(out) && fs.statSync(out).size > 100) continue;
+        try {
+          const dic = await decodeBundle(dat, base);
+          if (dic === null) {
+            console.log(`  跳过 ${base}`);
+            continue;
+          }
+          fs.writeFileSync(out, JSON.stringify(dic));
+          ok++;
+          console.log(`  解码 ${base}: ${(fs.statSync(out).size / 1024).toFixed(0)}KB`);
+        } catch (e) {
+          fail++;
+          console.log(`  解码失败 ${base}: ${(e as Error).message.slice(0, 60)}`);
         }
-        fs.writeFileSync(out, JSON.stringify(dic));
-        ok++;
-        console.log(`  解码 ${base}: ${(fs.statSync(out).size / 1024).toFixed(0)}KB`);
-      } catch (e) {
-        fail++;
-        console.log(`  解码失败 ${base}: ${(e as Error).message.slice(0, 60)}`);
       }
     }
+    await Promise.all(Array.from({ length: decodeConcurrency }, decodeWorker));
     console.log(`解码完成: ${ok} ok, ${fail} fail`);
   }
 

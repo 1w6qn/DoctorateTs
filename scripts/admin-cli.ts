@@ -69,7 +69,6 @@
  *
  * 说明：CLI 直接操作本地数据，无需启动服务器，完全离线可用。
  */
-import { enablePatches } from "immer";
 import * as readline from "readline";
 import { readFileSync } from "fs";
 import excel from "@excel/excel";
@@ -106,7 +105,6 @@ export function parseArgs(argv: string[]): ParsedArgs {
 
 /** 初始化游戏数据（excel + 账户），CLI 每次运行前调用 */
 export async function cliInit(): Promise<void> {
-  enablePatches();
   await excel.init();
   await accountManager.init();
 }

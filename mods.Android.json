@@ -9,18 +9,18 @@
             "crc32": 324697302
         },
         "D:\\develop\\DoctorateTs\\mods\\anon_7d91430e114d86fef7d3b3511151e12d.dat": {
-            "size": 285899,
-            "crc32": 3564914295
+            "size": 285866,
+            "crc32": 791584918
         }
     },
     "mod": {
         "mods": [
             {
                 "name": "anon/7d91430e114d86fef7d3b3511151e12d.bin",
-                "hash": "8c5ae4baeebe2ebf1fa479056bd592c4",
-                "md5": "8c5ae4baeebe2ebf1fa479056bd592c4",
-                "totalSize": 285899,
-                "abSize": 1594839
+                "hash": "1f7ac5200bc3628f33f5d7513a01eeb0",
+                "md5": "1f7ac5200bc3628f33f5d7513a01eeb0",
+                "totalSize": 285866,
+                "abSize": 1595302
             },
             {
                 "name": "anon/28a90538296517ab6eef8d4e6ef32e95.bin",

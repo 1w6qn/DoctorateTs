@@ -142,7 +142,14 @@ export class GachaController {
         c.type || excel.ItemTable?.items?.[c.id]?.itemType;
       switch (type) {
         case "DIAMOND_SHD":
+          // 合成玉（4003）→ status.diamondShard。修复：原实现把 DIAMOND_SHD 与 DIAMOND
+          //（至纯源石 4002）合并在一个 case 里校验 androidDiamond → 合成玉抽卡时按源石余额判
+          // 档（源石够但合成玉不够也会放行、再扣成负），且混用十连（合成玉+凭证）会出现
+          // "只耗合成玉/余额错判" 的异常。
+          if (p.status.diamondShard < c.count) return false;
+          break;
         case "DIAMOND":
+          // 至纯源石（4002）→ androidDiamond
           if (p.status.androidDiamond < c.count) return false;
           break;
         case "LGG_SHD":
@@ -540,25 +547,30 @@ export class GachaController {
     let per6 = perAvailList.find((c) => c.rarityRank === 5)?.totalPercent ?? 2;
     let rank: number;
     per6 += args.beforeNonHitCnt < 50 ? 0 : (args.beforeNonHitCnt - 50) * 0.02;
+    // 五星保底（自定义稀有度下标 4=五星）：一次性事件——第 maxCnt(10) 抽若仍未出五星则强制升 4，
+    // 触发一次后即不再触发（计数器只增不减、不归零、无窗口回绕）。修复：原实现判 `cnt == maxCnt`
+    // 且计数在抽前判断（少一）→ 保底被推到第 11 抽才触发，前 10 抽可能无五星；现改在抽后累计，
+    // 使第 10 抽正好触发（保证前 10 抽内必有五星）。
+    const gachaSt = this.gacha.normal?.[poolId] ?? { cnt: 0, maxCnt: 10 };
+    // 本次抽完后的累计抽数
+    const nextCnt = (gachaSt.cnt ?? 0) + 1;
+    // 一次性保底点：恰好第 maxCnt 抽强制五星
+    const atGuarantee = nextCnt === (gachaSt.maxCnt ?? 10);
     if (Math.random() <= per6) {
       rank = 5;
     } else {
       const ranks = perAvailList.map((c) => c.rarityRank);
       const weights = perAvailList.map((r) => r.totalPercent);
       rank = randomChoices(ranks, weights, 1)[0];
-      if (
-        rank < 4 &&
-        this.gacha.normal[poolId].avail &&
-        this.gacha.normal[poolId].cnt == this.gacha.normal[poolId].maxCnt
-      ) {
+      if (rank < 4 && atGuarantee) {
         rank = 4;
       }
     }
     await this._player.update(async (draft) => {
-      draft.gacha.normal[poolId].cnt += 1;
-      if (draft.gacha.normal[poolId].avail && rank >= 4) {
-        draft.gacha.normal[poolId].avail = false;
-      }
+      const st = draft.gacha.normal?.[poolId];
+      if (!st) return;
+      // 只增不减，禁止窗口回绕（一次性事件，触发后 cnt 继续增长不再命中保底点）
+      st.cnt = nextCnt;
     });
 
     return rank;

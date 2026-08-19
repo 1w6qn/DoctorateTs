@@ -195,15 +195,17 @@ describe("buildLMTGSGoodList 自动生成限定商店", () => {
     const controller = new ShopController(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     const items = await controller.buyLMTGSGood({ goodId: "LIMITED_76_0_1_1", count: 1 });
-    expect(items).toEqual([{ id: "char_1015_aglna2", count: 1, type: "CHAR" }]);
+    // 干员（CHAR）经 char:get 入账并返回带 instId（获得干员效果；测试环境无 char:get 订阅 → 0）
+    expect(items).toEqual([{ id: "char_1015_aglna2", count: 1, type: "CHAR", instId: 0 }]);
     // 扣 LMTGS_COIN_7601（原硬编码 LMTGS_COIN 扣错货币）
     expect(emitSpy).toHaveBeenCalledWith("items:use", [
       [{ id: "LMTGS_COIN_7601", count: 300, type: "LMTGS_COIN" }],
     ]);
-    // 带 type 发放（CHAR → char:get 入账干员）
-    expect(emitSpy).toHaveBeenCalledWith("items:get", [
-      [{ id: "char_1015_aglna2", count: 1, type: "CHAR" }],
-    ]);
+    // 干员走 char:get 事件（非 items:get 裸发放）
+    expect(emitSpy).toHaveBeenCalledWith(
+      "char:get",
+      ["char_1015_aglna2", { from: "SHOP" }, expect.any(Function)],
+    );
   });
 });
 
@@ -791,7 +793,7 @@ describe("ShopController 根据卡池自动生成（HS 高级凭证区 / CLASSIC
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     const good = controller.buildHighCharGoods().find((g) => g.item.id === "char_6s")!;
     const items = await controller.buyHighGood({ goodId: good.goodId, count: 1 });
-    expect(items).toEqual([{ id: "char_6s", count: 1 }]);
+    expect(items).toEqual([{ id: "char_6s", count: 1, type: "CHAR", instId: 0 }]);
     expect(emitSpy).toHaveBeenCalledWith("items:use", [
       [{ id: "4004", count: 180 }],
     ]);
@@ -801,7 +803,7 @@ describe("ShopController 根据卡池自动生成（HS 高级凭证区 / CLASSIC
     const controller = new ShopController(mockPlayer as any, mockTrigger as any);
     const good = controller.buildClassicCharGoods().find((g) => g.item.id === "char_old6")!;
     const items = await controller.buyClassicGood({ goodId: good.goodId, count: 1 });
-    expect(items).toEqual([{ id: "char_old6", count: 1 }]);
+    expect(items).toEqual([{ id: "char_old6", count: 1, type: "CHAR", instId: 0 }]);
   });
 
   it("refreshSocialShop 手动刷新信用交易所（重置 LS/SOCIAL 购买记录）", async () => {

@@ -180,12 +180,12 @@ describe("batchChangeWorkChar 预设队列轮换", () => {
   });
 });
 
-describe("confirmMission 旧存档已领任务不重复发放", () => {
-  it("state=3 无 confirmed 字段的任务（8-12 模板迁移）不重复发奖", async () => {
+describe("confirmMission 已完成待领取任务可领取", () => {
+  it("state=3 无 confirmed（已完成可领取）应正常发奖并置 confirmed（修复：原误判为已领不发放）", async () => {
     const mission = {
       missions: {
         DAILY: {
-          "daily_claimed": { state: 3, progress: [{ value: 1, target: 1 }] }, // 已领但无 confirmed
+          "daily_claimed": { state: 3, progress: [{ value: 1, target: 1 }] }, // 已完成未领取
         },
       },
       missionRewards: { dailyPoint: 10, weeklyPoint: 0, rewards: { DAILY: {}, WEEKLY: {} } },
@@ -194,9 +194,11 @@ describe("confirmMission 旧存档已领任务不重复发放", () => {
     const { mockPlayer, mockTrigger } = makePlayer(baseBuilding(), { mission });
     const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
     const items = await manager.confirmMission({ missionId: "daily_claimed" } as any);
+    // periodicalRewards 为空 → items 无实发性（本条只验发放路径打通）
     expect(items).toEqual([]);
-    // dailyPoint 不重复累积
-    expect(mockPlayer._playerdata.mission!.missionRewards.dailyPoint).toBe(10);
+    // 发放后置 confirmed 防重复；dailyPoint 正常累计（10 + 5）
+    expect((mockPlayer._playerdata.mission!.missions.DAILY["daily_claimed"] as any).confirmed).toBe(1);
+    expect(mockPlayer._playerdata.mission!.missionRewards.dailyPoint).toBe(15);
     expect(mockPlayer._playerdata.mission!.missions.DAILY["daily_claimed"].state).toBe(3);
   });
 

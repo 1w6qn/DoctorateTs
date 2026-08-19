@@ -47,6 +47,7 @@ import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import { GachaController } from "@game/controller/gacha";
 import { GachaType } from "@game/model/gacha";
 import { accountManager } from "@game/manager/AccountManager";
+import excelData from "@excel/excel";
 
 /** accountManager 模块 mock 的 saveBeforeNonHitCnt（vi.fn()，调用历史跨测试保留需手动 clear） */
 const saveSpy = vi.mocked(accountManager.saveBeforeNonHitCnt);
@@ -123,6 +124,31 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     } as any);
     await controller.advancedGacha({ poolId: "p_normal_1", useTkt: GachaType.UseItem, itemId: "4005" });
     expect(emitSpy).toHaveBeenCalledWith("items:use", [[{ id: "4005", count: 1 }]]);
+  });
+
+  it("合成玉（DIAMOND_SHD）单抽余额按 diamondShard 校验，不误用源石 androidDiamond", async () => {
+    const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+    vi.spyOn(controller, "doAdvancedGacha").mockResolvedValue({
+      charInstId: 1,
+      charId: "char_001",
+      isNew: 0,
+      itemGet: [],
+      logInfo: { beforeNonHitCnt: 0 },
+    } as any);
+    const st = (mockPlayer._playerdata.status as any);
+    // 合成玉充足（1000 ≥ 600）、源石为 0 —— 修复前按 androidDiamond 判档会误拒
+    st.diamondShard = 1000;
+    st.androidDiamond = 0;
+    await expect(
+      controller.advancedGacha({ poolId: "p_normal_1", useTkt: GachaType.Diamond, itemId: "" }),
+    ).resolves.toBeDefined();
+
+    // 反例：合成玉不足（0）、源石充足（9999）—— 必须拒绝（合成玉消费≠源石）
+    st.diamondShard = 0;
+    st.androidDiamond = 9999;
+    await expect(
+      controller.advancedGacha({ poolId: "p_normal_1", useTkt: GachaType.Diamond, itemId: "" }),
+    ).rejects.toThrow("资源不足");
   });
 
   it("BOOT 池 Diamond 单抽应扣 380 合成玉", async () => {
@@ -217,6 +243,35 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
       });
       expect(saveSpy).toHaveBeenCalledTimes(1);
       expect(saveSpy).toHaveBeenCalledWith(10000, "NORMAL", 7);
+    });
+  });
+
+  describe("五星保底：一次性事件（2026-08-19 修复：原 cnt 少一 → 前 10 抽可能无五星）", () => {
+    it("前 10 抽若无五星，第 10 抽强制五星；此后不再触发（一次性）且计数器不回绕", async () => {
+      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      // 屏蔽六星（totalPercent 置 0）——否则 per6 恒命中六星，保底分支不可达
+      (excelData as any).GachaDetailTable.details["p_normal_1"].availCharInfo.perAvailList[0].totalPercent = 0;
+      // 初始化保底：累计抽数从 0 开始（cnt 只增不减，不回绕）
+      await mockPlayer.update((draft: any) => {
+        draft.gacha.normal["p_normal_1"] = { cnt: 0, maxCnt: 10, rarity: 4, avail: true };
+      });
+      // 六星判定 Math.random<=per6(0) 恒不命中；randomChoices 加权恒取最末 rank 3
+      const rnd = vi.spyOn(Math, "random").mockReturnValue(0.9);
+      const ranks: number[] = [];
+      for (let i = 0; i < 10; i++) {
+        ranks.push(await controller._getRarityRank("p_normal_1", { beforeNonHitCnt: 0 }));
+      }
+      // 前 9 抽全为低稀有度（<4，非五星），第 10 抽触发一次性保底强制 4（五星）
+      expect(ranks.slice(0, 9).every((r) => r < 4)).toBe(true);
+      expect(ranks[9]).toBe(4);
+      // 计数器只增不减（禁止回绕）：10 抽后 cnt=10
+      expect(mockPlayer._playerdata.gacha!.normal["p_normal_1"].cnt).toBe(10);
+      // 一次性事件：第 11、第 20 抽（cnt 不再等于 maxCnt）均不再强制五星
+      for (let i = 0; i < 10; i++) {
+        expect(await controller._getRarityRank("p_normal_1", { beforeNonHitCnt: 0 })).toBe(3);
+      }
+      expect(mockPlayer._playerdata.gacha!.normal["p_normal_1"].cnt).toBe(20);
+      rnd.mockRestore();
     });
   });
 

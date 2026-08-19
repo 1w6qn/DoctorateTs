@@ -418,14 +418,14 @@ export class ShopController {
         info.push({ id: goodId, count });
       }
     });
-    // 带 type 发放（TKT_RECRUIT/MATERIAL/CARD_EXP 等走 items:get）
+    // 带 type 发放（干员合同 CHAR → char:get 入账并返回 instId；其余 TKT/材料走 items:get）
     const item: ItemBundle = {
       id: good.item.id,
       count: good.item.count * count,
       type: good.item.type,
     };
-    await this._trigger.emit("items:get", [[item]]);
-    return [item];
+    const granted = await this._issueCharItem(item);
+    return [granted];
   }
 
   /**
@@ -560,7 +560,7 @@ export class ShopController {
     await this._player.update(async (draft) => {
       const hs = this._shopDraft(draft, "HS");
       if (!good?.progressGoodId) {
-        item = { id: good.item.id, count: good.item.count * count };
+        item = { id: good.item.id, count: good.item.count * count, type: good.item.type };
         const existingItem = hs.info.find((i: any) => i.id === good.goodId);
         if (existingItem) {
           existingItem.count += count;
@@ -591,10 +591,11 @@ export class ShopController {
     await this._trigger.emit("items:use", [
       [{ id: "4004", count: price * count }],
     ]);
-    await this._trigger.emit("items:get", [[item]]);
+    // 修复：干员（CHAR）走 char:get 入账并返回带 instId（获得干员效果）；其余走 items:get
+    const granted = await this._issueCharItem(item);
     // 修复：BuyShopItem 任务事件从未 emit → 商店购买任务永不推进
     await this._trigger.emit("BuyShopItem", [{ type: "HS", socialPoint: 0 }]);
-    return [item];
+    return [granted];
   }
 
   /**
@@ -620,7 +621,7 @@ export class ShopController {
     this._assertAffordable("4006", good.price * count);
     // 修复：限购检查
     this._assertAvail("ES", goodId, count, good.availCount);
-    const item = { id: good.item.id, count: good.item.count * count };
+    const item = { id: good.item.id, count: good.item.count * count, type: good.item.type };
     await this._player.update(async (draft) => {
       const es = this._shopDraft(draft, "ES");
       const existingItem = es.info.find((i: any) => i.id === goodId);
@@ -633,10 +634,11 @@ export class ShopController {
     await this._trigger.emit("items:use", [
       [{ id: "4006", count: good!.price * count }],
     ]);
-    await this._trigger.emit("items:get", [[item]]);
+    // 修复：干员（CHAR）走 char:get 入账并返回带 instId 的效果，避免客户端显示"未知物品"
+    const granted = await this._issueCharItem(item);
     // 修复：BuyShopItem 任务事件从未 emit → 商店购买任务永不推进
     await this._trigger.emit("BuyShopItem", [{ type: "ES", socialPoint: 0 }]);
-    return [item];
+    return [granted];
   }
 
   /**
@@ -758,7 +760,7 @@ export class ShopController {
     this._assertAffordable("EPGS_COIN", good.price * count);
     // 修复：限购检查
     this._assertAvail("EPGS", goodId, count, good.availCount);
-    const item = { id: good.item.id, count: good.item.count * count };
+    const item = { id: good.item.id, count: good.item.count * count, type: good.item.type };
     await this._player.update(async (draft) => {
       const epgs = this._shopDraft(draft, "EPGS");
       const existingItem = epgs.info.find((i: any) => i.id === goodId);
@@ -771,8 +773,9 @@ export class ShopController {
     await this._trigger.emit("items:use", [
       [{ id: "EPGS_COIN", count: good!.price * count }],
     ]);
-    await this._trigger.emit("items:get", [[item]]);
-    return [item];
+    // 修复：干员（CHAR）走 char:get 入账并返回 instId；其余走 items:get
+    const granted = await this._issueCharItem(item);
+    return [granted];
   }
 
   /**
@@ -855,7 +858,7 @@ export class ShopController {
     await this._player.update(async (draft) => {
       const classic = this._shopDraft(draft, "CLASSIC");
       if (!good?.progressGoodId) {
-        item = { id: good.item.id, count: good.item.count * count };
+        item = { id: good.item.id, count: good.item.count * count, type: good.item.type };
         const existingItem = classic.info.find(
           (i: any) => i.id === good.goodId,
         );
@@ -892,8 +895,10 @@ export class ShopController {
     await this._trigger.emit("items:use", [
       [{ id: "4004", count: price * count }],
     ]);
-    await this._trigger.emit("items:get", [[item]]);
-    return [item];
+    // 修复：干员（CHAR）走 char:get 入账并返回带 instId（获得干员效果）；其余走 items:get
+    const granted = await this._issueCharItem(item);
+    await this._trigger.emit("BuyShopItem", [{ type: "CLASSIC", socialPoint: 0 }]);
+    return [granted];
   }
 
   /**
@@ -934,14 +939,14 @@ export class ShopController {
     await this._trigger.emit("items:use", [
       [{ id: good.price.id, count: good.price.count * count, type: good.price.type }],
     ]);
-    // 带 type 发放（CHAR → char:get 入账干员；原缺 type → gainItem 查不到 ItemTable 跳过）
+    // 带 type 发放（CHAR → char:get 入账干员并返回 instId，客户端"获得干员"效果）
     const item: ItemBundle = {
       id: good.item.id,
       count: good.item.count * count,
       type: good.item.type,
     };
-    await this._trigger.emit("items:get", [[item]]);
-    return [item];
+    const granted = await this._issueCharItem(item);
+    return [granted];
   }
 
   /** 自动生成的限定商店商品（懒构建，一次生成缓存） */
@@ -1088,6 +1093,32 @@ export class ShopController {
   /** 干员展示名（CHAR 表缺失时回退 charId） */
   private _charName(charId: string): string {
     return (excel.CharacterTable as any)?.[charId]?.name ?? charId;
+  }
+
+  /**
+   * 发放单件商品并返回供客户端展示（"获得干员"效果）
+   *
+   * 干员（CHAR）走 char:get 管线入账（获得 charInstId/潜能/凭证），并返回携带 instId
+   *（干员实例 id）的 CHAR 条目——客户端据此弹出"获得干员"弹窗；其余类型走 items:get。
+   * 修复：原实现一律 items:get [[item]]，CHAR 商品有些丢失 type（干员不入账），且返回不含
+   * instId → 客户端购买干员无获得效果。
+   * @param item - 待发放的商品（ID/数量/类型）
+   * @returns 返回客户端的条目（CHAR 附带 instId）
+   */
+  private async _issueCharItem(item: ItemBundle): Promise<ItemBundle> {
+    if (item.type === "CHAR" && item.id) {
+      let charInstId = 0;
+      await this._trigger.emit("char:get", [
+        item.id,
+        { from: "SHOP" },
+        (res: any) => {
+          charInstId = res?.charInstId ?? 0;
+        },
+      ]);
+      return { ...item, instId: charInstId };
+    }
+    await this._trigger.emit("items:get", [[item]]);
+    return item;
   }
 
   /**
@@ -1265,12 +1296,16 @@ export class ShopController {
     if (!good) return [];
     // 修复：负数 buyCount → 价格取反经 items:use 反向入账（免费刷家具/钻石）；正整数校验
     this._assertBuyCount(buyCount);
-    // 修复：余额不足拒绝（家具币 3401 / 源石 4002）
-    const pay = costType === "COIN_FURN" ? good.priceCoin : good.priceDia;
-    this._assertAffordable(costType === "COIN_FURN" ? "3401" : "4002", pay * buyCount);
+    // 修复：费用币种解析不再依赖 costType 严格等于 "COIN_FURN"。
+    // 当前 FurniGoodList 数据 priceDia 全为 0（无源石价），非 "COIN_FURN" 的 costType
+    // （如客户端传数值枚举）会被旧实现误判为源石分支 → 扣 priceDia(=0) → 家具免费、
+    // 与客户端显示的家具币消耗不符。改为：有源石价且非家具币时才走源石，否则一律家具币。
+    const isCoin = costType === "COIN_FURN" || !(good.priceDia > 0);
+    const pay = isCoin ? good.priceCoin : good.priceDia;
+    this._assertAffordable(isCoin ? "3401" : "4002", pay * buyCount);
     // 修复：限购检查（FurniGood.count 总可购数）
     this._assertAvail("FURNI", goodId, buyCount, good.count);
-    if (costType === "COIN_FURN") {
+    if (isCoin) {
       await this._trigger.emit("items:use", [
         [{ id: "3401", count: good.priceCoin * buyCount }],
       ]);
@@ -1459,7 +1494,14 @@ export class ShopController {
           }
         });
       }
-      await this._trigger.emit("items:get", [configItems]);
+      // 修复：逐件发放——干员（CHAR）走 char:get 入账并带 instId（客户端"获得干员"效果），
+      // 其余走 items:get。原实现一次性 items:get [configItems]，CHAR 无 instId → pay/其他
+      // 发放干员的礼包客户端无获得效果（甚至解析异常）。
+      const granted: ItemBundle[] = [];
+      for (const ci of configItems) {
+        granted.push(await this._issueCharItem(ci));
+      }
+      return granted;
     }
     return configItems;
   }

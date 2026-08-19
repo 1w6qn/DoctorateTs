@@ -410,7 +410,13 @@ export async function arkhubBuyProp(
 }
 
 /**
- * 使用巡展道具（消耗 1 次生效次数）
+ * 使用巡展道具（消耗 1 次生效次数 + 记录为生效道具）
+ *
+ * 道具箱点击"使用"= 激活一次：消耗 1 次生效次数，并把该道具记为当前生效道具
+ * （草丛遭遇/信息素引出按此定向遭遇池——珍奇度诱引剂强制该稀有度、信息素强制引出）。
+ * 扫描结算时每完成一次扫描再消耗 1 次（arkhubEndScan 复用本函数；攻略"每完成一次
+ * 扫描消耗一次生效次数"）。
+ *
  * @returns 是否可用（道具不存在/生效次数用完返回 false；扣减在 update 内完成）
  */
 export async function arkhubUseProp(
@@ -425,6 +431,9 @@ export async function arkhubUseProp(
     const p = hh?.props?.[key];
     if (!def || !p || (p.uses ?? 0) < 1) return;
     p.uses -= 1;
+    // 记录生效道具（草丛遭遇/信息素引出按此定向遭遇池）
+    hh.arkdexState = hh.arkdexState ?? {};
+    hh.arkdexState.activeLure = itemNumId;
     ok = true;
   });
   if (ok) {
@@ -473,4 +482,273 @@ export async function arkhubUnlockArea(
     h.unlockedAreas[String(areaId)] = 1;
   });
   logger.info("arkdex", `保护区解锁: area=${areaId}`);
+}
+
+/* ============ 草丛遭遇机制（ARKDEX 遭遇生成 + 扫描会话，2026-08-19） ============
+ *
+ * 草丛遭遇 = 在捕抓区栖息地走动的随机遭遇 + 扫描（作战式）结算。
+ * 服务端职责（攻略对齐）：
+ * - 遭遇生成：按栖息地物种池 + 珍奇度门控（普通区域仅 1-2★ / 保护区解锁含 3★）+
+ *   生效道具定向（珍奇度诱引剂强制稀有度、信息素强制引出）+ 活动频繁加成，
+ *   随机 1-10 只（ARKDEX_MAX_ENCOUNTER），3★ 加权降频"有概率出现"
+ * - 群集/单种预览：群集 = 本次遭遇个体种类不一（含亚种，无法确认具体种类）；
+ *   单种 = 本次遭遇个体都是该种；预览附带"暂未收录"（collected=false）标记
+ * - 扫描结算：扫描成功 15 券 + 个体数据入库（arkhubScanSucceed），失败无奖励；
+ *   诱引剂每完成一次扫描消耗 1 次生效次数（复用 arkhubUseProp）
+ *
+ * 传输层说明：官方 StartCaptureReq/EndCaptureReq/EncounterCreatureNotify 帧 subID
+ * 未抓包确认（design-spec §30.4 教训：不硬写假 subID）——私服以 HTTP 路由
+ * /activity/arkhub/encounter/start|end 为接口（仿 savePixelArt 模式），
+ * 网关接线待官服抓包后补帧即可（抓包指引见 design-spec §30.4）。
+ */
+
+/** 捕抓区 CAPTURE 场景 map_id → 栖息地（sceneTypeMap：CAPTURE 1/2/3 = 三栖息地） */
+export const ARKDEX_CAPTURE_SCENES: Record<number, ArkdexHabitat> = {
+  [-820616879]: "密林外沿", // CAPTURE 1
+  [-820813487]: "晦光林地", // CAPTURE 2
+  [-820747951]: "奇生保护区", // CAPTURE 3
+};
+
+/** 保护区栖息地（攻略：守门人拟合胜利开放，可遇珍奇度 3 个体；解锁按捕获区 id 判定） */
+export const ARKDEX_PROTECTED_HABITAT: ArkdexHabitat = "奇生保护区";
+
+/** 遭遇个体（扫描会话中的一只生物） */
+export interface ArkdexEncounterCreature {
+  /** 生物种类 id（creatureNumId） */
+  numId: number;
+  /** 生物名（群集预览对客户端隐藏具体种类，服务端留存用于结算） */
+  name: string;
+  /** 珍奇度 1-3★ */
+  rarity: number;
+  /** 亚种个体（creatureData.alterNumId > 0） */
+  isAlter: boolean;
+  /** 活动频繁（upWeightTagIsShow / dex.active，任务 12-14） */
+  active: boolean;
+  /** 已收录数据库（预览"暂未收录"标记用） */
+  collected: boolean;
+}
+
+/** 一次草丛遭遇（服务端生成的遭遇 = 扫描会话） */
+export interface ArkdexEncounter {
+  /** 遭遇 id（扫描会话标识） */
+  id: string;
+  /** 捕获区 id（scene map_id 或 captureAreaData 子区 id） */
+  areaId: number | string;
+  /** 栖息地 */
+  habitat: ArkdexHabitat;
+  /** 保护区（守门人解锁，遭遇池含 3★） */
+  isProtected: boolean;
+  /** 群集（预览不显示具体种类）还是单种 */
+  cluster: boolean;
+  /** 生效道具（诱引剂/信息素，定向了本次遭遇池） */
+  lureNumId?: number;
+  /** 实际遭遇个体（1-10） */
+  creatures: ArkdexEncounterCreature[];
+}
+
+/**
+ * 捕获区/场景 → 栖息地
+ * scene map_id 直映射（CAPTURE 1/2/3）；captureAreaData 子区 id（12 个）按哈希
+ * 稳定分组到 3 栖息地（官方无区域→栖息地映射，私服按此确定性分组）。
+ */
+export function arkdexCaptureAreaToHabitat(areaIdOrMapId: number | string): ArkdexHabitat {
+  const key = Number(areaIdOrMapId);
+  const direct = ARKDEX_CAPTURE_SCENES[key];
+  if (direct) return direct;
+  const idx = Math.abs(key) % ARKDEX_HABITATS.length;
+  return ARKDEX_HABITATS[idx];
+}
+
+/**
+ * 按栖息地构建遭遇物种池（普通区域仅 1-2★；保护区解锁后含 3★——攻略明文）
+ */
+export function arkdexBuildEncounterPool(habitat: ArkdexHabitat, isProtected: boolean): any[] {
+  return arkdexCreaturesByHabitat(habitat).filter(
+    (c) => isProtected || (c?.rarity ?? 0) <= 2,
+  );
+}
+
+/** 当前生效道具（最近使用且仍有生效次数的 lure/pheromone；无则 undefined） */
+export function arkdexActiveLure(player: PlayerDataManager): number | undefined {
+  const h = hub(player);
+  const active = h?.arkdexState?.activeLure;
+  if (active == null) return undefined;
+  const p = h?.props?.[String(active)];
+  if (!p || (p.uses ?? 0) < 1) return undefined;
+  return active;
+}
+
+/** 加权随机选 count 个生物（3★ 权重 0.3 实现保护区"有概率出现"） */
+function pickWeighted(pool: any[], count: number): any[] {
+  const remaining = [...pool];
+  const picked: any[] = [];
+  for (let n = 0; n < count && remaining.length > 0; n++) {
+    const weights = remaining.map((c) => ((c?.rarity ?? 1) >= 3 ? 0.3 : 1));
+    const total = weights.reduce((a, b) => a + b, 0);
+    let r = Math.random() * total;
+    let chosen = 0;
+    for (let i = 0; i < remaining.length; i++) {
+      r -= weights[i];
+      if (r <= 0) {
+        chosen = i;
+        break;
+      }
+    }
+    picked.push(remaining[chosen]);
+    remaining.splice(chosen, 1);
+  }
+  return picked;
+}
+
+/**
+ * 生成一次草丛遭遇（开启扫描会话）
+ *
+ * 遭遇个体随机 1-10（ARKDEX_MAX_ENCOUNTER），按栖息地 + 珍奇度门控 + 生效道具定向；
+ * 群集 = 多种类（含亚种），单种 = 同类。遭遇写入 ARK_HUB.arkdexState.activeEncounter
+ * （幂等覆盖），作为扫描会话待结束结算。
+ *
+ * @param areaIdOrMapId - 捕获区 id（scene map_id 或 captureAreaData 子区 id）
+ * @param opts - lureNumId 强制指定生效道具（缺省取当前生效道具）；
+ *               forceNumIds 显式指定遭遇个体（供单测/信息素强制引出）
+ * @returns 遭遇记录（含实际个体；已持久化为当前扫描会话）
+ */
+export async function arkhubStartEncounter(
+  player: PlayerDataManager,
+  areaIdOrMapId: number | string,
+  opts: { lureNumId?: number; forceNumIds?: number[] } = {},
+): Promise<ArkdexEncounter> {
+  const habitat = arkdexCaptureAreaToHabitat(areaIdOrMapId);
+  const h = hub(player);
+  const isProtected = !!h?.unlockedAreas?.[String(areaIdOrMapId)];
+  const lureNumId = opts.lureNumId ?? arkdexActiveLure(player);
+  const def = lureNumId ? ARKDEX_PROPS[lureNumId] : undefined;
+
+  let pool: any[];
+  if (opts.forceNumIds && opts.forceNumIds.length > 0) {
+    pool = opts.forceNumIds.map((id) => arkdexCreature(id)).filter(Boolean);
+  } else {
+    pool = arkdexBuildEncounterPool(habitat, isProtected);
+    // 珍奇度诱引剂/信息素：定向遭遇池到目标稀有度
+    if (def?.targetRarity) pool = pool.filter((c) => c.rarity === def.targetRarity);
+    // 特质定向（targetTraitMask）：生物数据无 trait 字段，无法过滤——保持池不变（记录道具）
+    if (pool.length === 0) pool = arkdexBuildEncounterPool(habitat, isProtected);
+  }
+
+  const count = Math.min(
+    ARKDEX_MAX_ENCOUNTER,
+    Math.max(1, Math.floor(Math.random() * ARKDEX_MAX_ENCOUNTER) + 1),
+  );
+  const picked = pickWeighted(pool, count);
+  const dex = h?.dex ?? {};
+  const creatures: ArkdexEncounterCreature[] = picked.map((c) => ({
+    numId: c.creatureNumId,
+    name: c.name,
+    rarity: c.rarity,
+    isAlter: arkdexIsAlter(c.creatureNumId),
+    active: !!c.upWeightTagIsShow,
+    collected: !!dex[String(c.creatureNumId)],
+  }));
+  const species = new Set(creatures.map((c) => c.numId));
+  const encounter: ArkdexEncounter = {
+    id: `enc_${Date.now()}_${Math.floor(Math.random() * 0xffffff).toString(16)}`,
+    areaId: areaIdOrMapId,
+    habitat,
+    isProtected,
+    cluster: species.size > 1 || creatures.some((c) => c.isAlter),
+    ...(lureNumId ? { lureNumId } : {}),
+    creatures,
+  };
+  await arkhubRecordEncounter(player, encounter);
+  return encounter;
+}
+
+/** 记录当前遭遇（扫描会话），幂等覆盖 */
+export async function arkhubRecordEncounter(
+  player: PlayerDataManager,
+  encounter: ArkdexEncounter,
+): Promise<void> {
+  await player.update(async (draft) => {
+    const hh = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    if (!hh) return;
+    hh.arkdexState = hh.arkdexState ?? {};
+    hh.arkdexState.activeEncounter = encounter;
+  });
+}
+
+/**
+ * 亚种判定：该物种是否为亚种（某基种的 alterNumId 指向的 `_2` 变体，如 19002 奥术绒绒）
+ * 数据语义：基种（19001 星术绒绒）alterNumId=19002 → 其亚种是 19002；亚种自身 alterNumId=0。
+ */
+export function arkdexIsAlter(numId: number): boolean {
+  return arkdexCreatures().some((c) => c?.alterNumId === numId);
+}
+
+/** 亚种 → 本体种类 id（该物种被谁引为亚种；非亚种返回 undefined） */
+export function arkdexAlterBase(numId: number): number | undefined {
+  const c = arkdexCreatures().find((x) => x?.alterNumId === numId);
+  return c?.creatureNumId;
+}
+
+/**
+ * 亚种映射：{ [numId]: 本体种类 id }（仅收录亚种本身；基种不映射）
+ * 如 [19002] → { 19002: 19001 }（奥术绒绒 是 星术绒绒 的亚种）；[19001] → {}。
+ */
+export function arkdexAlterOfMap(numIds: number[]): Record<number, number> {
+  const out: Record<number, number> = {};
+  for (const id of numIds) {
+    const base = arkdexAlterBase(id);
+    if (base) out[id] = base;
+  }
+  return out;
+}
+
+/** 活动频繁映射：{ [numId]: true }（creatureData.upWeightTagIsShow；本地全 false，留接线） */
+export function arkdexActiveMap(numIds: number[]): Record<number, boolean> {
+  const out: Record<number, boolean> = {};
+  for (const id of numIds) {
+    const c = arkdexCreature(id);
+    if (c?.upWeightTagIsShow) out[id] = true;
+  }
+  return out;
+}
+
+/**
+ * 结束扫描（扫描结算）
+ *
+ * 攻略：扫描至少 1 个生物即成功——结算 15 券 + 个体数据入库（arkhubScanSucceed）；
+ * 未扫描到任何生物视为失败，什么都不获得（arkhubScanFail）。
+ * 本次遭遇被诱引剂/信息素定向时，结算消耗 1 次生效次数（攻略"每完成一次扫描
+ * 消耗一次"）；扫描会话结束后清除（遭遇为一次性）。
+ *
+ * @param capturedNumIds - 本次扫描捕获的生物种类 id 列表（空 = 失败）
+ * @returns { success, encounter }——是否成功 + 本次遭遇（供前端展示）
+ */
+export async function arkhubEndScan(
+  player: PlayerDataManager,
+  capturedNumIds: number[],
+): Promise<{ success: boolean; encounter?: ArkdexEncounter }> {
+  const h = hub(player);
+  const enc = h?.arkdexState?.activeEncounter;
+  const ids = Array.isArray(capturedNumIds)
+    ? capturedNumIds.map(Number).filter((n) => Number.isFinite(n))
+    : [];
+  // 诱引剂消耗：本次遭遇被道具定向 → 完成一次扫描消耗 1 次生效次数
+  if (enc?.lureNumId) {
+    await arkhubUseProp(player, enc.lureNumId);
+  }
+  // 清除扫描会话（遭遇为一次性）
+  await player.update(async (draft) => {
+    const hh = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    if (hh?.arkdexState) delete hh.arkdexState.activeEncounter;
+  });
+  if (ids.length === 0) {
+    await arkhubScanFail(player);
+    return { success: false, ...(enc ? { encounter: enc } : {}) };
+  }
+  const ok = await arkhubScanSucceed(player, {
+    creatureNumIds: ids,
+    alterOf: arkdexAlterOfMap(ids),
+    active: arkdexActiveMap(ids),
+  });
+  return { success: ok, ...(enc ? { encounter: enc } : {}) };
 }

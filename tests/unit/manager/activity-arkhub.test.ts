@@ -85,6 +85,11 @@ import {
   arkhubCreatureExchange,
   arkhubPixelCollected,
   ARKHUB_ACT_ID,
+  arkhubCompletedGuideFlags,
+  arkhubProgressiveGuideFlags,
+  arkhubResolveGuideFlags,
+  arkhubAdvanceGuide,
+  ARKHUB_GUIDE_ACTOR_FLAGS,
 } from "@game/manager/activity/arkhub";
 
 /** 冻结时间（2026-08-15 12:00 +8：活动窗口内、8/18 更新前） */
@@ -386,5 +391,141 @@ describe("arkhub 玩法事件入口（arkhub.ts）", () => {
     await arkhubPixelCollected(player as any, 4);
     expect((player._playerdata as any).activity.ARK_HUB.act1arkhub.pixelCollected).toBe(4);
     expect(seen).toEqual(["captured", "exchange", "pixel:4", "medal01"]);
+  });
+});
+
+describe("arkhub 渐进引导/剧情推进（GuideFlags，2026-08-19）", () => {
+  function guidePlayer(overrides: Record<string, any> = {}) {
+    const bus = new EventBus();
+    const player = mockPlayerData({
+      status: { uid: 1, nickName: "T", nickNumber: 0, level: 1, exp: 0 } as any,
+      activity: { ARK_HUB: { act1arkhub: { coin: 0 } } },
+      mission: { missions: {} },
+      ...overrides,
+    });
+    (player as any)._trigger = bus;
+    return { player, bus };
+  }
+
+  it("渐进初始态：关键引导 flag=0，非引导/防卡 flag 保持完成态", () => {
+    const complete = arkhubCompletedGuideFlags();
+    expect(complete.capture_catch_guide_02).toBe(2);
+    expect(complete.arkdex_battle_guide).toBe(2);
+    expect(complete.arkhub_login).toBe(1);
+
+    const prog = arkhubProgressiveGuideFlags();
+    // 渐进 = 完成态 + 引导类置 0
+    expect(prog.arkhub_login).toBe(0);
+    expect(prog.terminal_guide).toBe(0);
+    expect(prog.capture_catch_guide_02).toBe(0);
+    expect(prog.arkdex_battle_guide).toBe(0);
+    expect(prog.pixel_unlock).toBe(0);
+    expect(prog.pixel_unlock_system).toBe(0);
+    // 防卡/未知 actor 项保持完成态
+    expect(prog.capture_catch_guide_01).toBe(2);
+    expect(prog.area_1_block).toBe(1);
+    expect(prog.area_2_guard).toBe(1);
+  });
+
+  it("resolveGuideFlags：持久化优先（合并完成态兜底）/ 无持久化回退 progressive 或完成态", () => {
+    // 无持久化：progressive=false → 完成态
+    const p1 = guidePlayer();
+    expect(arkhubResolveGuideFlags(p1.player as any)).toEqual(arkhubCompletedGuideFlags());
+    // 无持久化：progressive=true → 渐进初始态
+    expect(arkhubResolveGuideFlags(p1.player as any, true)).toEqual(arkhubProgressiveGuideFlags());
+    // 有持久化：部分 flag → 合并完成态兜底
+    const p2 = guidePlayer({ activity: { ARK_HUB: { act1arkhub: { guideFlags: { arkdex_battle_guide: 2 } } } } });
+    const merged = arkhubResolveGuideFlags(p2.player as any, true);
+    expect(merged.arkdex_battle_guide).toBe(2);
+    expect(merged.capture_catch_guide_02).toBe(0); // 未持久化项走渐进初始态
+    expect(merged.area_1_block).toBe(1);
+  });
+
+  it("推进 mmkabi_01b：捕抓引导完成 + 设施解锁 + ArkhubMissionCompleted(任务2 flag)", async () => {
+    const { player, bus } = guidePlayer();
+    const seen: any[] = [];
+    bus.on("ArkhubMissionCompleted", (args: any[]) => seen.push(args[0] as { flag: string }));
+    await arkhubAdvanceGuide(player as any, "arkhub_capture1_mmkabi_01b");
+    const hub = (player._playerdata as any).activity.ARK_HUB.act1arkhub;
+    expect(hub.guideFlags.capture_catch_guide_02).toBe(2);
+    expect(hub.guideFlags.pixel_unlock).toBe(1);
+    expect(hub.guideFlags.pixel_unlock_system).toBe(1);
+    // 事件 flag 列表（任务 2 模板监听 param[2]===flag）
+    expect(seen.map((e) => e.flag).sort()).toEqual(["capture_catch_guide_02", "pixel_unlock", "pixel_unlock_system"]);
+    // 幂等：重复调用不重复计数/事件
+    seen.length = 0;
+    await arkhubAdvanceGuide(player as any, "arkhub_capture1_mmkabi_01b");
+    expect(seen).toEqual([]);
+    expect(hub.guideFlags.capture_catch_guide_02).toBe(2);
+  });
+
+  it("推进 bryota_01c：对决引导完成（任务3 flag）", async () => {
+    const { player, bus } = guidePlayer();
+    const seen: any[] = [];
+    bus.on("ArkhubMissionCompleted", (args: any[]) => seen.push(args[0] as { flag: string }));
+    await arkhubAdvanceGuide(player as any, "arkhub_main_bryota_01c");
+    const hub = (player._playerdata as any).activity.ARK_HUB.act1arkhub;
+    expect(hub.guideFlags.arkdex_battle_guide).toBe(2);
+    expect(seen.map((e) => e.flag)).toEqual(["arkdex_battle_guide"]);
+  });
+
+  it("未知 actor no-op（不落状态不发射事件）", async () => {
+    const { player, bus } = guidePlayer();
+    const seen: any[] = [];
+    bus.on("ArkhubMissionCompleted", (args: any[]) => seen.push(args[0]));
+    await arkhubAdvanceGuide(player as any, "arkhub_main_daily_task_02a");
+    const hub = (player._playerdata as any).activity.ARK_HUB.act1arkhub;
+    expect(hub.guideFlags).toBeUndefined();
+    expect(seen).toEqual([]);
+  });
+
+  it("引导 actor 映射表：mmkabi 推进 3 flag（含设施解锁），bryota 推进对决引导", () => {
+    expect(ARKHUB_GUIDE_ACTOR_FLAGS.arkhub_capture1_mmkabi_01b).toEqual({
+      capture_catch_guide_02: 2,
+      pixel_unlock: 1,
+      pixel_unlock_system: 1,
+    });
+    expect(ARKHUB_GUIDE_ACTOR_FLAGS.arkhub_main_bryota_01c).toEqual({ arkdex_battle_guide: 2 });
+  });
+});
+
+describe("unlockActivity 播种 × 渐进引导开关（config.arkhub.guideProgressive）", () => {
+  function mockPlayer2() {
+    const reloadActivity = vi.fn().mockResolvedValue(undefined);
+    const player = mockPlayerData({
+      status: { uid: 1, nickName: "T", nickNumber: 0, level: 1, exp: 0 } as any,
+      activity: { ARK_HUB: {} },
+      mission: { missions: { ACTIVITY: {} } },
+      medal: { medals: {}, custom: { currentIndex: "", customs: {} } },
+      dungeon: { stages: {} },
+      arkodc: { topics: {} },
+    });
+    (player as any).mission = { reloadActivity };
+    return { player };
+  }
+
+  it("guideProgressive=true：任务 2/3 播种进行中（0/1），任务 1 保持完成态", async () => {
+    config.developer = { timestamp: FROZEN_TS };
+    config.arkhub = { guideProgressive: true };
+    const { player } = mockPlayer2();
+    await unlockActivity(player as any);
+    const am = (player._playerdata as any).mission.missions.ACTIVITY;
+    // 任务 2（捕抓引导 capture_catch_guide_02）：进行中 0/1
+    expect(am["1arkhubActivity_2"]).toEqual({ state: 2, progress: [{ value: 0, target: 1 }] });
+    // 任务 3（对决引导 arkdex_battle_guide）：进行中 0/1
+    expect(am["1arkhubActivity_3"]).toEqual({ state: 2, progress: [{ value: 0, target: 1 }] });
+    // 任务 1（夏妮 capture_catch_guide_01）：保持完成态（actor 未确认）
+    expect(am["1arkhubActivity_1"]).toEqual({ state: 2, progress: [{ value: 1, target: 1 }] });
+  });
+
+  it("guideProgressive=false（默认）：引导任务全部播种完成态（回归）", async () => {
+    config.developer = { timestamp: FROZEN_TS };
+    config.arkhub = { guideProgressive: false };
+    const { player } = mockPlayer2();
+    await unlockActivity(player as any);
+    const am = (player._playerdata as any).mission.missions.ACTIVITY;
+    expect(am["1arkhubActivity_1"]).toEqual({ state: 2, progress: [{ value: 1, target: 1 }] });
+    expect(am["1arkhubActivity_2"]).toEqual({ state: 2, progress: [{ value: 1, target: 1 }] });
+    expect(am["1arkhubActivity_3"]).toEqual({ state: 2, progress: [{ value: 1, target: 1 }] });
   });
 });

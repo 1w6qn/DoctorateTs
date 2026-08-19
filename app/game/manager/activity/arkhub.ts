@@ -277,19 +277,28 @@ export function arkhubResolveGuideFlags(
 
 /**
  * 引导 actor → 推进的 GuideFlags（交互帧 actorId 匹配；值取 max 防回退）。
- * - mmkabi_01b：捕抓引导领奖（ReceiveArkhubReward reward_guide_01）→ 捕抓引导完成 +
- *   设施（扫描仪/道具箱/数据库）解锁——任务 2（param[2]=capture_catch_guide_02）
- * - bryota_01c：对决引导（SubmitArkhubAVG）→ 对决引导完成——任务 3（arkdex_battle_guide）
+ * 覆盖完整引导链（arkvent actorTriggerOperations 实锤）：
+ * - 夏妮引导①（capture_catch_guide_01，任务 1）：shiane_01（INTERACT 起点/AVG 提交）、
+ *   shiane_02b（领奖 ReceiveArkhubReward reward_guide_01）
+ * - 捕抓引导②（capture_catch_guide_02，任务 2）：mmkabi_auto（ENTER 起点/StartArkdexCaptureGuideBattle）、
+ *   mmkabi_01b（领奖 + 设施解锁：扫描仪/道具箱/数据库）
+ * - 终端引导（terminal_guide）：terminal_auto（ENTER）、terminal_02a（INTERACT）
+ * - 对决引导（arkdex_battle_guide，任务 3）：bryota_01c（AUTO）
+ * - 像素解锁：pixel_unlock
  */
 export const ARKHUB_GUIDE_ACTOR_FLAGS: Record<string, Partial<Record<string, number>>> = {
+  arkhub_main_shiane_01: { capture_catch_guide_01: 2 },
+  arkhub_main_shiane_02b: { capture_catch_guide_01: 2 },
+  arkhub_capture1_mmkabi_auto: { capture_catch_guide_02: 2 },
   arkhub_capture1_mmkabi_01b: {
     capture_catch_guide_02: 2,
     pixel_unlock: 1,
     pixel_unlock_system: 1,
   },
-  arkhub_main_bryota_01c: {
-    arkdex_battle_guide: 2,
-  },
+  arkhub_main_terminal_auto: { terminal_guide: 2 },
+  arkhub_main_terminal_02a: { terminal_guide: 2 },
+  arkhub_main_bryota_01c: { arkdex_battle_guide: 2 },
+  pixel_unlock: { pixel_unlock: 1 },
 };
 
 /**

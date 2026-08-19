@@ -28,6 +28,14 @@ import {
   arkdexTraitNames,
   arkdexCreaturesByHabitat,
   arkdexCreaturesByRarity,
+  ARKDEX_CAPTURE_SCENES,
+  arkdexCaptureAreaToHabitat,
+  arkdexBuildEncounterPool,
+  arkdexActiveLure,
+  arkhubStartEncounter,
+  arkhubEndScan,
+  arkdexAlterOfMap,
+  ARKDEX_MAX_ENCOUNTER,
 } from "@game/manager/activity/arkdex";
 
 function hubPlayer(overrides: Record<string, any> = {}) {
@@ -324,5 +332,123 @@ describe("arkdexModule 活动细节补全（2026-08-18 实锤）", () => {
     // 快速对决 characterLimit=2 一只轮 1 轮
     expect(arkdexModeRules("arkdex_singleRound_Solo")).toMatchObject({ rounds: 1, numPlayers: 2 });
     expect(arkdexModeRules("arkdex_4Player_Solo")).toMatchObject({ rounds: 1, numPlayers: 4, npcCount: 3 });
+  });
+});
+
+describe("草丛遭遇机制（2026-08-19）", () => {
+  /** 密林外沿 CAPTURE 1 场景 map_id（sceneTypeMap） */
+  const CAPTURE1 = -820616879;
+  /** 密林外沿 12 种生物全部为非 3★（普通栖息地池 1-2★） */
+  it("区域→栖息地：CAPTURE 场景直映射，captureAreaData 子区稳定分组", () => {
+    expect(ARKDEX_CAPTURE_SCENES[CAPTURE1]).toBe("密林外沿");
+    expect(arkdexCaptureAreaToHabitat(CAPTURE1)).toBe("密林外沿");
+    expect(arkdexCaptureAreaToHabitat(-820813487)).toBe("晦光林地");
+    expect(arkdexCaptureAreaToHabitat(-820747951)).toBe("奇生保护区");
+    // captureAreaData 子区 id（-1773187348 等）→ 稳定落入 3 个栖息地之一
+    const habitats = [-1773187337, -1773187338, -1773187339, -1773187348].map((id) =>
+      arkdexCaptureAreaToHabitat(id),
+    );
+    expect(habitats.every((h) => ["密林外沿", "晦光林地", "奇生保护区"].includes(h))).toBe(true);
+    // 同一 id 结果确定（无随机）
+    expect(arkdexCaptureAreaToHabitat(-1773187337)).toBe(arkdexCaptureAreaToHabitat(-1773187337));
+  });
+
+  it("遭遇物种池：普通区域仅 1-2★，保护区（解锁）含 3★", () => {
+    const normal = arkdexBuildEncounterPool("密林外沿", false);
+    expect(normal.length).toBeGreaterThan(0);
+    expect(normal.every((c: any) => (c.rarity ?? 0) <= 2)).toBe(true);
+    const protectedPool = arkdexBuildEncounterPool("密林外沿", true);
+    expect(protectedPool.length).toBeGreaterThan(normal.length);
+    expect(protectedPool.some((c: any) => c.rarity === 3)).toBe(true);
+  });
+
+  it("生成遭遇：个体 1-10、来自栖息地池、群集/单种与暂未收录标记", async () => {
+    const player = hubPlayer();
+    const enc = await arkhubStartEncounter(player as any, CAPTURE1);
+    expect(enc.habitat).toBe("密林外沿");
+    expect(enc.areaId).toBe(CAPTURE1);
+    expect(enc.isProtected).toBe(false);
+    expect(enc.creatures.length).toBeGreaterThanOrEqual(1);
+    expect(enc.creatures.length).toBeLessThanOrEqual(ARKDEX_MAX_ENCOUNTER);
+    // 普通区域不会出现 3★
+    expect(enc.creatures.every((c) => c.rarity <= 2)).toBe(true);
+    // 全部来自密林外沿栖息地
+    const habitatIds = new Set(arkdexCreaturesByHabitat("密林外沿").map((c) => c.creatureNumId));
+    expect(enc.creatures.every((c) => habitatIds.has(c.numId))).toBe(true);
+    // 初始 dex 为空 → 全部"暂未收录"
+    expect(enc.creatures.every((c) => c.collected === false)).toBe(true);
+    // 会话已持久化
+    expect(hubOf(player).arkdexState.activeEncounter.id).toBe(enc.id);
+    // 群集标记为布尔（多种类 = 群集，见 forceNumIds 单种用例）
+    expect(typeof enc.cluster).toBe("boolean");
+  });
+
+  it("保护区（守门人解锁）遭遇可出 3★；珍奇度诱引剂定向稀有度", async () => {
+    const player = hubPlayer();
+    await arkhubUnlockArea(player as any, CAPTURE1);
+    const enc = await arkhubStartEncounter(player as any, CAPTURE1);
+    expect(enc.isProtected).toBe(true);
+    // 保护区池含 3★（随机可能抽不到，但池子允许）
+    expect(enc.creatures.every((c) => c.rarity <= 2 || c.rarity === 3)).toBe(true);
+    // 稀有诱引剂 5006（targetRarity=3）：遭遇池强制 3★
+    const lureEnc = await arkhubStartEncounter(player as any, CAPTURE1, { lureNumId: 5006 });
+    expect(lureEnc.lureNumId).toBe(5006);
+    expect(lureEnc.creatures.every((c) => c.rarity === 3)).toBe(true);
+  });
+
+  it("显式指定个体（forceNumIds）：信息素强制引出单种生物", async () => {
+    const player = hubPlayer();
+    const enc = await arkhubStartEncounter(player as any, CAPTURE1, {
+      forceNumIds: [19005],
+    });
+    expect(enc.creatures).toHaveLength(1);
+    expect(enc.creatures[0].numId).toBe(19005);
+    expect(enc.cluster).toBe(false); // 单种非群集
+  });
+
+  it("生效道具：使用后记录 activeLure，生效次数耗尽失效", async () => {
+    const player = hubPlayer({ props: { "5004": { count: 1, uses: 1 } } });
+    expect(arkdexActiveLure(player as any)).toBeUndefined();
+    expect(await arkhubUseProp(player as any, 5004)).toBe(true);
+    expect(hubOf(player).arkdexState.activeLure).toBe(5004);
+    // uses=0 → 不再生效
+    expect(arkdexActiveLure(player as any)).toBeUndefined();
+  });
+
+  it("扫描结算成功：发 15 券 + 收录 + 会话清除 + 诱引剂消耗 1 次", async () => {
+    const player = hubPlayer({ props: { "5004": { count: 2, uses: 2 } } });
+    // 使用诱引剂（uses 2→1）→ 遭遇被定向
+    await arkhubUseProp(player as any, 5004);
+    const enc = await arkhubStartEncounter(player as any, CAPTURE1);
+    expect(enc.lureNumId).toBe(5004);
+    expect(hubOf(player).props["5004"].uses).toBe(1);
+    // 结算：捕获 19005（密林外沿 1★）
+    const result = await arkhubEndScan(player as any, [19005]);
+    expect(result.success).toBe(true);
+    expect(result.encounter?.id).toBe(enc.id);
+    const hub = hubOf(player);
+    // 15 券（500 + 15）
+    expect(hub.coin).toBe(515);
+    // dex 收录 + 扫描仪入袋
+    expect(hub.dex["19005"]).toBeDefined();
+    expect(hub.scanBag).toHaveLength(1);
+    // 诱引剂再消耗 1 次（攻略"每完成一次扫描消耗一次"）uses 1→0
+    expect(hub.props["5004"].uses).toBe(0);
+    // 会话已清除
+    expect(hub.arkdexState.activeEncounter).toBeUndefined();
+  });
+
+  it("扫描结算失败：未捕获任何生物 → 无奖励；亚种映射正确", async () => {
+    const player = hubPlayer();
+    await arkhubStartEncounter(player as any, CAPTURE1);
+    const fail = await arkhubEndScan(player as any, []);
+    expect(fail.success).toBe(false);
+    const hub = hubOf(player);
+    expect(hub.coin).toBe(500);
+    expect(Object.keys(hub.dex)).toHaveLength(0);
+    expect(hub.arkdexState.activeEncounter).toBeUndefined();
+    // 亚种映射：19002 是 19001 的亚种（alterNumId）
+    expect(arkdexAlterOfMap([19001])).toEqual({});
+    expect(arkdexAlterOfMap([19002])).toEqual({ 19002: 19001 });
   });
 });

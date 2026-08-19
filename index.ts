@@ -11,7 +11,6 @@ import { logger, flush as flushLogs } from "./app/utils/logger";
 import { createTrafficRecorder } from "./app/utils/traffic-recorder";
 import { captureManager } from "./app/capture/capture-manager";
 import excel from "@excel/excel";
-import { enablePatches } from "immer";
 import morgan from "morgan";
 import compression, { filter as compressionFilter } from "compression";
 import prod from "./app/config/prod";
@@ -139,7 +138,6 @@ process.on("exit", (code) => {
     logger.info("index", "跳过游戏数据更新，使用本地缓存数据");
   }
   
-  enablePatches();
   // 独立初始化并行：Excel 数据表 + 统一抓包存储 + mod 预热（互不依赖，均不依赖 Express）——
   // 原串行三段（ excel.init → captureManager.init → initMods ）改为并行，缩短启动关键路径。
   const [excelInitPromise, captureInitPromise, modInitPromise] = [
@@ -299,6 +297,68 @@ process.on("exit", (code) => {
         void import("./app/game/manager/activity/arkhub").then(({ arkhubOnDailySupply }) =>
           arkhubOnDailySupply(player).catch((e: Error) =>
             logger.warn("index", `每日物资处理失败: ${e.message}`),
+          ),
+        );
+      },
+      // 渐进引导（剧情推进）：resolveGuideFlags 按 uid 读持久化 GuideFlags（config
+      // arkhub.guideProgressive=true 时首次给未开始态触发引导对话，随交互逐步推进）；
+      // onGuideAdvance 在交互帧命中引导 actor 时落持久化 + 出展指引任务 1-3 进度。
+      resolveGuideFlags: (uid: string) => {
+        if (!config.arkhub?.guideProgressive) return undefined; // 完成态（网关默认，零风险）
+        const player = accountManager.data[uid];
+        if (!player) return undefined;
+        return import("./app/game/manager/activity/arkhub").then(({ arkhubResolveGuideFlags }) =>
+          arkhubResolveGuideFlags(player, true),
+        );
+      },
+      onGuideAdvance: (uid: string, actorId: string) => {
+        if (!config.arkhub?.guideProgressive) return;
+        const player = accountManager.data[uid];
+        if (!player) return;
+        void import("./app/game/manager/activity/arkhub").then(({ arkhubAdvanceGuide }) =>
+          arkhubAdvanceGuide(player, actorId).catch((e: Error) =>
+            logger.warn("index", `引导推进处理失败: ${e.message}`),
+          ),
+        );
+      },
+      // 引导推进广播（38b36462）的 f2.f1 需携带玩家当前奇象兑换券数（官服实锤 f2={1:155,...}）
+      resolveArkDexGold: (uid: string) => {
+        const player = accountManager.data[uid];
+        return (
+          (player?._playerdata?.activity as { ARK_HUB?: { act1arkhub?: { coin?: number } } } | undefined)
+            ?.ARK_HUB?.act1arkhub?.coin ?? 0
+        );
+      },
+      // 草丛遭遇/扫描开始（战斗触发帧 b7c21f3a，捕获区）→ 生成/记录遭遇
+      // （arkhubStartEncounter 落 ARK_HUB.arkdexState.activeEncounter，供结算做亚种/活动频繁映射）
+      onScanStart: (uid: string, areaId: number | string) => {
+        const player = accountManager.data[uid];
+        if (!player) return;
+        void import("./app/game/manager/activity/arkdex").then(({ arkhubStartEncounter }) =>
+          arkhubStartEncounter(player, areaId).catch((e: Error) =>
+            logger.warn("index", `草丛遭遇生成失败: ${e.message}`),
+          ),
+        );
+      },
+      // 草丛扫描结算（战斗结算帧 b7c204e8，遭遇生物非空）→ 发 15 券 + 数据库收录 +
+      // 扫描仪入袋 + 任务/勋章事件（arkhubEndScan 接遭遇引擎）
+      onScanSettle: (uid: string, capturedNumIds: number[]) => {
+        const player = accountManager.data[uid];
+        if (!player) return;
+        void import("./app/game/manager/activity/arkdex").then(({ arkhubEndScan }) =>
+          arkhubEndScan(player, capturedNumIds).catch((e: Error) =>
+            logger.warn("index", `草丛扫描结算失败: ${e.message}`),
+          ),
+        );
+      },
+      // 巡展道具购买（购买帧 28f56f2c/28f5b1ab）→ 扣券 + 道具箱 + 生效次数 + 每日库存限购
+      // （arkhubBuyProp 接遭遇引擎道具系统）
+      onBuyProp: (uid: string, itemNumId: number, count: number) => {
+        const player = accountManager.data[uid];
+        if (!player) return;
+        void import("./app/game/manager/activity/arkdex").then(({ arkhubBuyProp }) =>
+          arkhubBuyProp(player, itemNumId, count).catch((e: Error) =>
+            logger.warn("index", `巡展道具购买失败: ${e.message}`),
           ),
         );
       },

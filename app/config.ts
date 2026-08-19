@@ -85,6 +85,15 @@ interface UserConfig {
     /** 统一抓包存储根目录（缺省 tmp/capture；一般无需覆盖） */
     root?: string;
   };
+  /** 奇象巡展（arkhub）配置 */
+  arkhub?: {
+    /**
+     * 渐进引导/剧情推进：true=GuideFlags 初始未开始态（0），玩家完成引导对话
+     * （夏妮/收集师捕抓/苍苔对决）逐步推进 flag + 完成出展指引任务 1-3；
+     * false=保持完成态（默认，不触发任何引导，零风险）。
+     */
+    guideProgressive?: boolean;
+  };
   /** 调试配置 */
   debug?: {
     /** 是否记录请求/响应到统一抓包存储 tmp/capture/（traffic-recorder 中间件） */

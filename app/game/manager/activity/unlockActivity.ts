@@ -280,9 +280,18 @@ function seedActivityState(draft: any, actId: string, info: any, ts: number): vo
         const guide = missionDef.template === "ArkhubMissionCompleted";
         const windowStart = arkhubMissionWindowStart(missionDef.param?.[2]);
         const locked = windowStart !== null && ts < windowStart;
+        // 渐进引导（config.arkhub.guideProgressive）：引导任务按 flag 语义播种进行中——
+        // capture_catch_guide_02（任务 2 捕抓引导）/arkdex_battle_guide（任务 3 对决引导）
+        // 由引导对话推进完成（交互帧 actor → arkhubAdvanceGuide）；capture_catch_guide_01
+        // （任务 1 夏妮）对话 actor 未确认，保持完成态可领。
+        const progressiveGuide =
+          config.arkhub?.guideProgressive &&
+          guide &&
+          (missionDef.param?.[2] === "capture_catch_guide_02" ||
+            missionDef.param?.[2] === "arkdex_battle_guide");
         draft.mission.missions["ACTIVITY"][missionId] = {
           state: locked ? 0 : 2,
-          progress: [{ value: guide ? target : 0, target }],
+          progress: [{ value: guide && !progressiveGuide ? target : 0, target }],
         };
       } else {
         draft.mission.missions["ACTIVITY"][missionId] = {

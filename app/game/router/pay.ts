@@ -21,6 +21,7 @@ import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
 import { readJsonSync } from "@utils/file";
+import { logger } from "@utils/logger";
 import config from "../../config";
 import {
   loadOrders,
@@ -305,7 +306,20 @@ router.post("/confirmOrder", async (req, res) => {
       ...player.delta,
     } satisfies PayConfirmOrderResponse);
   }
-  const items = await deliverOrder(player, order);
+  let items: ItemBundle[];
+  try {
+    items = await deliverOrder(player, order);
+  } catch (e) {
+    // 修复：发货异常（礼包限购/未知商品等 ShopError）不直接 500——否则客户端弹"服务异常"，
+    // 回滚到未发货（订单保留，可重试）；此前部分发放已写入但响应失败，需重启才"到账"。
+    logger.warn("pay", `订单 ${order.orderId} 发货失败：${(e as Error)?.message}`);
+    return res.send({
+      result: 1,
+      goodId: order.goodId,
+      receiveItems: { items: [], checkInItems: [] },
+      ...player.delta,
+    } satisfies PayConfirmOrderResponse);
+  }
   // GP_ 月卡等无发放配置 → 拒绝（订单保留，不误标已购）
   if (order.goodId.startsWith("GP_") && items.length === 0) {
     return res.send({

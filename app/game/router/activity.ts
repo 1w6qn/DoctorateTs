@@ -576,7 +576,7 @@ router.post("/confirmActivityMission", async (req, res) => {
 
   res.send({
     ...player.delta,
-    rewards,
+    items: rewards,
   } satisfies ConfirmActivityMissionResponse);
 });
 
@@ -632,7 +632,7 @@ router.post("/confirmActivityMissionList", async (req, res) => {
 
   res.send({
     ...player.delta,
-    rewards: allRewards,
+    items: allRewards,
   } satisfies ConfirmActivityMissionListResponse);
 });
 
@@ -683,7 +683,7 @@ router.post("/confirmActivityMissionGroup", async (req, res) => {
 
   res.send({
     ...player.delta,
-    rewards,
+    items: rewards,
   } satisfies ConfirmActivityMissionGroupResponse);
 });
 

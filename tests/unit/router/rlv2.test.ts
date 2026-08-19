@@ -35,6 +35,9 @@ describe("rlv2 路由", () => {
           scrap: [{ id: "rogue_6_scrap_G_05", count: 1 }],
           legacy: [{ id: "rogue_6_legacy_02", count: 1 }],
         }),
+        // 多数端点经 rlv2Response 透传 takePushMessages；默认返回空数组，
+        // 保证未触发推送时响应不带 pushMessage 字段
+        takePushMessages: vi.fn().mockReturnValue([]),
       },
     };
     res = mockRes();
@@ -131,5 +134,40 @@ describe("rlv2 路由", () => {
     expect(sent.scrap).toEqual([{ id: "rogue_6_scrap_G_05", count: 1 }]);
     expect(sent.legacy).toEqual([{ id: "rogue_6_legacy_02", count: 1 }]);
     expectRlv2Response(sent);
+  });
+
+  /**
+   * P1/P2 官服对齐：pushMessage 经控制器收集、router 在响应顶层下发。
+   * createGame 端点必须透传 takePushMessages()；非 rogue_6 时收集器为空，
+   * rlv2Response 不应附加 pushMessage 字段（避免破坏客户端合并）。
+   */
+  it("POST /createGame 应透传控制器收集到的 pushMessage（rogue_6）", async () => {
+    player.rlv2.createGame = vi.fn().mockResolvedValue(undefined);
+    player.rlv2.takePushMessages = vi
+      .fn()
+      .mockReturnValue([{ path: "rlv2ScrapLimit", payload: {} }]);
+    await call("/createGame", {
+      theme: "rogue_6",
+      mode: "NORMAL",
+      modeGrade: 0,
+      predefinedId: null,
+    });
+    expect(player.rlv2.createGame).toHaveBeenCalled();
+    expect(player.rlv2.takePushMessages).toHaveBeenCalled();
+    const sent = res.send.mock.calls[0][0];
+    expect(sent.pushMessage).toEqual([{ path: "rlv2ScrapLimit", payload: {} }]);
+  });
+
+  it("POST /createGame 非 rogue_6 时响应应无 pushMessage 字段", async () => {
+    player.rlv2.createGame = vi.fn().mockResolvedValue(undefined);
+    player.rlv2.takePushMessages = vi.fn().mockReturnValue([]);
+    await call("/createGame", {
+      theme: "rogue_1",
+      mode: "NORMAL",
+      modeGrade: 0,
+      predefinedId: null,
+    });
+    const sent = res.send.mock.calls[0][0];
+    expect(sent.pushMessage).toBeUndefined();
   });
 });

@@ -182,7 +182,7 @@ export class RoguelikeBuffManager {
         const value = arg.blackboard[0]?.value ?? 0;
         const scrap = this._player._module?.scrap;
         if (scrap) {
-          scrap.limit = Math.max(0, (scrap.limit || 6) + value);
+          scrap.setLimit((scrap.limit || 6) + value);
         }
       } else if (arg.key == "light_add") {
         // 难度效果：初始灯火 +value（rogue_2 灯火模块 sanity）

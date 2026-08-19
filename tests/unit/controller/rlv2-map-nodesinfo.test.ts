@@ -1,7 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { enablePatches } from "immer";
-
-enablePatches();
 
 // nodesInfo.json 路径修复验证：map.ts 读取 data/rlv2/nodesInfo.json（官方关卡列表），
 // 修复前 __dirname 3 级路径指向 app/data/ 导致 _nodesInfo 恒为 null（旧主题走 stages.filter 回退）

@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
-import { enablePatches } from "immer";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-enablePatches();
 
 // ===== 官服抓包回放验证（2026-08-11 rogue_6 完整对局）=====
 // 用官服请求序列驱动当前控制器，逐请求比对响应关键结构（state/pending 事件链/键格式）。

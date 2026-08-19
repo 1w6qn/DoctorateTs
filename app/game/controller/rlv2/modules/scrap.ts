@@ -12,6 +12,8 @@ import { RoguelikeV2Controller } from "../../rlv2";
 import excel from "@excel/excel";
 import { now } from "@utils/time";
 import { TypedEventEmitter } from "@game/model/events";
+import { isBlackstream } from "../theme-rules";
+import type { RoguelikeScrapModuleData } from "@excel/roguelike_topic_table";
 
 export interface ScrapItem {
   instId: string;
@@ -52,14 +54,43 @@ export class RoguelikeScrapManager {
     this.seedInitial();
   }
 
-  /** 官服开局废品：s_1/s_2 = rogue_6_scrap_G_01（value 2）——初始零件箱自带 2 件 */
+  /** 官方开局废品：s_1/s_2 = rogue_6_scrap_G_01（value 2）——初始零件箱自带 2 件 */
   private seedInitial(): void {
     const theme = this._player.current.game?.theme || "";
-    if (theme !== "rogue_6") return;
-    const tpl = { id: "rogue_6_scrap_G_01", value: 2, useCnt: 0, ts: now() };
+    if (!isBlackstream(theme)) return;
+    // 开局废品 id 取官方 moduleConsts.identifyScrapId（实测 = rogue_6_scrap_G_01），
+    // 估价取该废品的官方 sellPrice（实测 2），与抓包一致
+    const id = this.scrapModule()?.moduleConsts?.identifyScrapId ?? "rogue_6_scrap_G_01";
+    const tpl = { id, value: this.sellPriceOf(id, 2), useCnt: 0, ts: now() };
     this.inventory["s_1"] = { instId: "s_1", ...tpl };
     this.inventory["s_2"] = { instId: "s_2", ...tpl };
     this._index = 3; // 下个废品 s_3（不覆盖 s_1/s_2）
+  }
+
+  /**
+   * 当前主题的 SCRAP 模块数据（官方 modules[theme].scrap）。
+   * @returns 模块数据；主题无该模块时为 undefined
+   */
+  private scrapModule(): RoguelikeScrapModuleData | undefined {
+    const theme = this._player.current.game?.theme || "";
+    return excel.RoguelikeTopicTable.modules[theme]?.scrap ?? undefined;
+  }
+
+  /**
+   * 废品官方估价（sellPrice）。
+   * 官方按类型分表：goodsScrapData（自然物）/ moveScrapData（加工品/载具）/
+   * passiveScrapData（概念体）。估价决定行商售价与"消耗最低估价加工品"的排序。
+   * @param id 废品 id
+   * @param fallback 数据缺失时的兜底估价
+   * @returns 估价
+   */
+  private sellPriceOf(id: string, fallback = 1): number {
+    const m = this.scrapModule();
+    const price =
+      m?.goodsScrapData?.[id]?.sellPrice ??
+      m?.moveScrapData?.[id]?.sellPrice ??
+      m?.passiveScrapData?.[id]?.sellPrice;
+    return typeof price === "number" ? price : fallback;
   }
 
   continue(): void {
@@ -79,38 +110,63 @@ export class RoguelikeScrapManager {
 
   /** 获得废品（战斗/事件奖励） */
   gain([id]: [string]): void {
-    const theme = this._player.current.game!.theme;
-    const scrapMod = (excel.RoguelikeTopicTable.modules[theme] as any) || {};
-    const type =
-      (scrapMod.scrap ?? scrapMod.sCRAP)?.scrapItemToType?.[id];
+    const type = this.scrapModule()?.scrapItemToType?.[id];
     if (!type) return;
     if (Object.keys(this.inventory).length >= this.limit) return;
-    this.inventory[`s_${this._index}`] = {
-      instId: `s_${this._index}`,
+    const instId = `s_${this._index}`;
+    this.inventory[instId] = {
+      instId,
       id,
-      value: 1,
+      // 估价取官方 sellPrice（原实现恒为 1，导致行商售价与"扣最低估价加工品"排序失真）
+      value: this.sellPriceOf(id),
       useCnt: 0,
       ts: now(),
     };
     this._index += 1;
+    // 散件获得推送（rlv2GotRandScrap，触发类 RoguelikeScrapGainTrigger）：携带获得的散件 id
+    this._player.pushMessage("rlv2GotRandScrap", { idList: [id] });
     // MOVE 型废品自动装备为载具（首个）
     if (type === "MOVE" && this.activeVehicle.isWalk) {
       this.activeVehicle = {
-        instId: `s_${this._index - 1}`,
+        instId,
         isWalk: false,
       };
     }
   }
 
-  /** 切换当前载具（scrap/changeVehicle） */
+  /** 切换当前载具（scrap/changeVehicle）→ rlv2VehicleChange 推送（触发类 RoguelikeVehicleChangeTrigger） */
   changeVehicle(instId: string): void {
-    const item = this.inventory[instId];
     if (instId === "") {
+      if (this.activeVehicle?.isWalk) return; // 已是步行，无变化不推送
       this.activeVehicle = { isWalk: true };
+      this._player.pushMessage("rlv2VehicleChange", {});
       return;
     }
-    if (!item) return;
+    const item = this.inventory[instId];
+    if (!item || this.activeVehicle?.instId === instId) return;
     this.activeVehicle = { instId, isWalk: false };
+    this._player.pushMessage("rlv2VehicleChange", {});
+  }
+
+  /**
+   * 调整零件箱容量上限（统一入口：MAX_WEIGHT / scrap_limit_add 增减均由外部改 scrap.limit，
+   * 这里集中触发容量变化推送，避免各调用点重复逻辑）。
+   * 官方触发类：RoguelikeFragmentBagWeightUpgradeTrigger（rlv2LevelUpMaxWeight {count}，扩容）、
+   * RoguelikeFragmentBagWeightWorseTrigger（rlv2WeightWorse {}，缩减）。
+   * @param next 调整后的容量上限
+   */
+  setLimit(next: number): void {
+    const prev = this.limit;
+    const n = Math.max(0, next);
+    if (n === prev) return;
+    this.limit = n;
+    if (n < prev) {
+      // 容量缩减 → WeightWorse（零件箱变小提示）
+      this._player.pushMessage("rlv2WeightWorse", {});
+    } else {
+      // 容量扩容 → LevelUpMaxWeight（count = 本次新增容量）
+      this._player.pushMessage("rlv2LevelUpMaxWeight", { count: n - prev });
+    }
   }
 
   toJSON(): {

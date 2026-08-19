@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { enablePatches } from "immer";
 
-enablePatches();
 
 // 官方 excel mock：提供 RoguelikeConsts（data/rlv2.json 模拟）与 RoguelikeTopicTable.details（fallback）
 vi.mock("@excel/excel", () => ({

@@ -1,7 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { enablePatches } from "immer";
-
-enablePatches();
 
 // rogue_6 误入奇境（portal/隐藏层）+ 常规实托邦 + 行动力 测试
 // 数据 mock：variationData（乌托邦效果表）、portal 场景/选项（scene_ro6_portal*）、
@@ -18,7 +15,7 @@ const excelMock = vi.hoisted(() => ({
         },
         init: [{ modeGrade: 0, predefinedId: null, modeId: "NORMAL" }],
         items: {
-          rogue_6_scrap_G_01: { id: "rogue_6_scrap_G_01", type: "SCRAP", rarity: "NORMAL" },
+          rogue_6_scrap_M_01: { id: "rogue_6_scrap_M_01", type: "SCRAP", rarity: "NORMAL" },
           rogue_6_scrap_G_07: { id: "rogue_6_scrap_G_07", type: "SCRAP", rarity: "RARE" },
           rogue_6_ap: { id: "rogue_6_ap", type: "SPECIAL_ZONE_AP", rarity: "NONE" },
           rogue_6_start_1: { id: "rogue_6_start_1", type: "RELIC", rarity: "NORMAL" },
@@ -56,8 +53,17 @@ const excelMock = vi.hoisted(() => ({
       rogue_6: {
         moduleTypes: ["GRID_ZONE", "SCRAP"],
         scrap: {
+          // 官方 scrapTypeData：MOVE=加工品（可用于地图移动）、GOODS=自然物、PASSIVE=概念体。
+          // 误入奇境"消耗零件箱里的 1件 加工品"消耗的是 MOVE 型 → 开局 s_1/s_2 用 MOVE 型。
+          moduleConsts: { identifyScrapId: "rogue_6_scrap_M_01" },
+          moveScrapData: {
+            rogue_6_scrap_M_01: { scrapId: "rogue_6_scrap_M_01", sellPrice: 2 },
+          },
+          goodsScrapData: {
+            rogue_6_scrap_G_07: { scrapId: "rogue_6_scrap_G_07", sellPrice: 2 },
+          },
           scrapItemToType: {
-            rogue_6_scrap_G_01: "GOODS",
+            rogue_6_scrap_M_01: "MOVE",
             rogue_6_scrap_G_07: "GOODS",
             rogue_6_scrap_MOVE: "MOVE",
           },

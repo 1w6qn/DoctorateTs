@@ -1,7 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { enablePatches } from "immer";
-
-enablePatches();
 
 // 官方 excel mock：rogue_4 difficulties（scoreFactor）+ items + relics
 vi.mock("@excel/excel", () => ({

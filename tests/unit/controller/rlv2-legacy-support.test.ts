@@ -1,7 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { enablePatches } from "immer";
-
-enablePatches();
 
 // rogue_6 P2：襁褓生灵接入行动奖励（羽蛇 +1 选项 / 三头犬 +1 选择次数）
 // + 难度 0 失败补偿（下次开局特勤任务影像）

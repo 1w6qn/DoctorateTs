@@ -1,7 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { enablePatches } from "immer";
-
-enablePatches();
 
 // 官方 excel mock：rogue_1 带商品池（票/碎片/战术道具/各稀有度藏品）；rogue_6 带 SCRAP 池
 vi.mock("@excel/excel", () => {

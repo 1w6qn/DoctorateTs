@@ -10,6 +10,7 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { RoguelikePushMessage } from "../model/protocol/common";
 import {
   FinishBattleRewardRequest,
   FinishBattleRewardResponse,
@@ -131,6 +132,20 @@ import {
 const router = Router();
 
 /**
+ * 每请求开始时清空 pushMessage 收集器。
+ * 控制器为玩家持久实例，`_pushMessages` 跨请求累积；新增收藏品/散件/载具/天气/结局等
+ * 推送由多种端点触发，此处统一在进入端点前复位，保证推送只随触发它的那次响应下发、
+ * 不泄漏到后续请求（与 createGame/gridZone/moveTo 内各自的手动复位等价且冗余安全）。
+ */
+router.use((_req, _res, next) => {
+  const player = httpContext.get<PlayerDataManager>("playerData");
+  if (player?.rlv2?._pushMessages?.length) {
+    player.rlv2._pushMessages = [];
+  }
+  next();
+});
+
+/**
  * 官方各路由响应包含的 current 节（抓包 2026-08-11/08-18 统计）。
  * 核心节 player/inventory/record/buff 几乎总是出现；map/module 仅在生成/变化时出现；
  * game/troop 仅 createGame/gameSettle/recruitChar 等变更时出现。
@@ -176,6 +191,7 @@ export function rlv2Response<T extends object>(
   extra?: T,
   sections?: readonly string[],
   outerKeys?: readonly string[],
+  pushMessages?: RoguelikePushMessage[],
 ) {
   // 内存态（status/map/module/troop 等 manager）写回存档——供重登"继续探索"
   // （controller 重建走 rlv2:continue 恢复）使用；否则 current.player 等为空
@@ -206,6 +222,7 @@ export function rlv2Response<T extends object>(
   }
   return {
     ...(extra ?? ({} as T)),
+    ...(pushMessages && pushMessages.length > 0 ? { pushMessage: pushMessages } : {}),
     playerDataDelta: {
       modified: {
         ...base.playerDataDelta.modified,
@@ -244,7 +261,7 @@ router.post("/createGame", async (req, res) => {
     return;
   }
   await player.rlv2.createGame(body);
-  res.send(rlv2Response(player, undefined, SEC.ALL, ["record", "monthTeam"]) satisfies RoguelikeTopicCreateGameResponse);
+  res.send(rlv2Response(player, undefined, SEC.ALL, ["record", "monthTeam"], player.rlv2.takePushMessages()) satisfies RoguelikeTopicCreateGameResponse);
 });
 
 /** 游戏结算（抓包 POST /rlv2/gameSettle，body {}；响应带 game/outer 结算数据） */
@@ -266,7 +283,9 @@ router.post("/chooseInitialRelic", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeSelectInitialRelicRequest;
   await player.rlv2.chooseInitialRelic(body);
-  res.send(rlv2Response(player, undefined, SEC.CORE) satisfies RoguelikeSelectInitialRelicResponse);
+  res.send(
+    rlv2Response(player, undefined, SEC.CORE, undefined, player.rlv2.takePushMessages()) satisfies RoguelikeSelectInitialRelicResponse,
+  );
 });
 
 /** 选择初始招募组（CS: RoguelikeSelectInitialRecruitSetRequest） */
@@ -355,7 +374,7 @@ router.post("/finishEvent", async (req, res) => {
   // finishEvent#2(进层) current=[record,player,module,map,buff,inventory]。
   const feState = player.rlv2.current?.player?.state;
   const feSections = feState === "WAIT_MOVE" ? SEC.CORE_MAP_MODULE : SEC.CORE;
-  res.send(rlv2Response(player, undefined, feSections) satisfies RoguelikeFinishEventResponse);
+  res.send(rlv2Response(player, undefined, feSections, undefined, player.rlv2.takePushMessages()) satisfies RoguelikeFinishEventResponse);
 });
 
 /**
@@ -371,7 +390,7 @@ router.post("/selectChoice", async (req, res) => {
   }
   await player.rlv2.selectChoice(body);
   // 官服 selectChoice 响应节 = CORE（player/inventory/record/buff）——2026-08-18 抓包校准
-  res.send(rlv2Response(player, undefined, SEC.CORE) satisfies RoguelikeSelectChoiceResponse);
+  res.send(rlv2Response(player, undefined, SEC.CORE, undefined, player.rlv2.takePushMessages()) satisfies RoguelikeSelectChoiceResponse);
 });
 
 /** 移动（CS: RoguelikeMoveToRequest） */
@@ -383,7 +402,7 @@ router.post("/moveTo", async (req, res) => {
     return;
   }
   await player.rlv2.moveTo(body);
-  res.send(rlv2Response(player) satisfies RoguelikeMoveToResponse);
+  res.send(rlv2Response(player, undefined, undefined, undefined, player.rlv2.takePushMessages()) satisfies RoguelikeMoveToResponse);
 });
 
 /** 移动并开始战斗（CS: RoguelikeStepMoveToAndStartBattleRequest） */
@@ -396,7 +415,7 @@ router.post("/moveAndBattleStart", async (req, res) => {
   }
   await player.rlv2.moveAndBattleStart(body);
   res.send(
-    rlv2Response(player) satisfies RoguelikeStepMoveToAndStartBattleResponse,
+    rlv2Response(player, undefined, undefined, undefined, player.rlv2.takePushMessages()) satisfies RoguelikeStepMoveToAndStartBattleResponse,
   );
 });
 
@@ -425,7 +444,7 @@ router.post("/finishBattleReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as FinishBattleRewardRequest;
   await player.rlv2.finishBattleReward(body);
-  res.send(rlv2Response(player) satisfies FinishBattleRewardResponse);
+  res.send(rlv2Response(player, undefined, undefined, undefined, player.rlv2.takePushMessages()) satisfies FinishBattleRewardResponse);
 });
 
 /** 设置队伍携带（服务端自定义） */
@@ -481,7 +500,7 @@ router.post("/buyGoods", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeBuyGoodsRequest;
   await player.rlv2.buyGoods({ select: body.select ?? 0 });
-  res.send(rlv2Response(player) satisfies RoguelikeBuyGoodsResponse);
+  res.send(rlv2Response(player, undefined, undefined, undefined, player.rlv2.takePushMessages()) satisfies RoguelikeBuyGoodsResponse);
 });
 
 /** 商店操作（CS: RoguelikeShopActionRequest）：buy 数组 → buyGoods；否则离开商店 */
@@ -493,7 +512,7 @@ router.post("/shopAction", async (req, res) => {
   } else {
     await player.rlv2.leaveShop();
   }
-  res.send(rlv2Response(player) satisfies RoguelikeShopActionResponse);
+  res.send(rlv2Response(player, undefined, undefined, undefined, player.rlv2.takePushMessages()) satisfies RoguelikeShopActionResponse);
 });
 
 /** 使用图腾（CS: RL03UseTotemRequest） */
@@ -545,7 +564,7 @@ router.post("/confirmZoneReward", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as RoguelikeZoneRewardRequest;
   await player.rlv2.confirmZoneReward();
-  res.send(rlv2Response(player) satisfies RoguelikeZoneRewardResponse);
+  res.send(rlv2Response(player, undefined, undefined, undefined, player.rlv2.takePushMessages()) satisfies RoguelikeZoneRewardResponse);
 });
 
 /** 确认商人返回（CS: RoguelikeTraderReturnRequest） */
@@ -781,7 +800,7 @@ router.post("/scrap/changeVehicle", async (req, res) => {
   const body = req.body as RoguelikeScrapChangeVehicleRequest;
   await player.rlv2.scrapChangeVehicle(body);
   res.send(
-    rlv2Response(player) satisfies RoguelikeScrapChangeVehicleResponse,
+    rlv2Response(player, undefined, undefined, undefined, player.rlv2.takePushMessages()) satisfies RoguelikeScrapChangeVehicleResponse,
   );
 });
 
@@ -789,8 +808,13 @@ router.post("/scrap/changeVehicle", async (req, res) => {
 router.post("/scrap/loseScrap", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeScrapLoseRequest;
+  // 缺 instId 时原实现会静默走 inventory[undefined] → 无任何效果也无错误提示
+  if (body?.instId == null) {
+    res.send(rlv2MissingParam(player));
+    return;
+  }
   await player.rlv2.loseScrap(body);
-  res.send(rlv2Response(player) satisfies RoguelikeScrapLoseResponse);
+  res.send(rlv2Response(player, undefined, undefined, undefined, player.rlv2.takePushMessages()) satisfies RoguelikeScrapLoseResponse);
 });
 
 /** 废品鉴定（rogue_6 SCRAP 模块；抓包 body { count }，响应顶层 { scrap, legacy }） */
@@ -812,8 +836,22 @@ router.post("/scrap/identify", async (req, res) => {
 router.post("/gridZone/moveTo", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeGridZoneMoveToRequest;
+  if (!Array.isArray(body.route) || body.route.length === 0) {
+    res.send(rlv2MissingParam(player));
+    return;
+  }
   await player.rlv2.gridZoneMoveTo(body);
-  res.send(rlv2Response(player, undefined, SEC.CORE_MAP_MODULE) satisfies RoguelikeGridZoneMoveToResponse);
+  res.send(
+    // 节点到达推送（rlv2NodeArrive/rlv2NodeChange）随响应下发——原实现漏传
+    // takePushMessages，而黑流树海的移动全走本路由 → 推送永不到达客户端
+    rlv2Response(
+      player,
+      undefined,
+      SEC.CORE_MAP_MODULE,
+      undefined,
+      player.rlv2.takePushMessages(),
+    ) satisfies RoguelikeGridZoneMoveToResponse,
+  );
 });
 
 /** 网格区域移动并开始战斗（抓包 { route, stageId, squad }）——官服 current=CORE_MAP_MODULE + outer */
@@ -827,7 +865,13 @@ router.post("/gridZone/moveAndBattleStart", async (req, res) => {
   await player.rlv2.gridZoneMoveAndBattleStart(body);
   res.send(
     // 官服 gridZone/moveAndBattleStart rlv2.outer = {record}——2026-08-18 抓包校准
-    rlv2Response(player, undefined, SEC.CORE_MAP_MODULE, ["record"]) satisfies RoguelikeGridZoneMoveAndBattleStartResponse,
+    rlv2Response(
+      player,
+      undefined,
+      SEC.CORE_MAP_MODULE,
+      ["record"],
+      player.rlv2.takePushMessages(),
+    ) satisfies RoguelikeGridZoneMoveAndBattleStartResponse,
   );
 });
 

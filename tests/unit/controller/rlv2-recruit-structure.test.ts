@@ -1,6 +1,4 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
-import { enablePatches } from "immer";
-enablePatches();
 
 vi.mock("@utils/crypt", () => ({
   decryptBattleData: vi.fn().mockResolvedValue({ completeState: 1, finalHp: 8, isPerfect: 1 }),

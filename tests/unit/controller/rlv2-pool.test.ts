@@ -1,7 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { enablePatches } from "immer";
-
-enablePatches();
 
 // 官方 excel mock：rogue_1 items 含 RELIC（不同稀有度）+ 可献祭物品 + fragment 模块
 vi.mock("@excel/excel", () => ({

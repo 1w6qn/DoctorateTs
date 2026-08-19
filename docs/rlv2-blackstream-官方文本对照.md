@@ -1,10 +1,12 @@
 # 黑流树海（rogue_6）实现体检报告：已实现 vs 官方文本对照
 
-> 体检日期：2026-08-17（首版）；**2026-08-17 18:35 更新**：P0（实托邦/误入奇境/行动力）与三结局核心链路已实现（见 §十一 变更记录）；**18:40 更新**：二结局·维度重构全链路已实现
+> 体检日期：2026-08-17（首版）；**2026-08-17 18:35 更新**：P0（实托邦/误入奇境/行动力）与三结局核心链路已实现（见 §十一 变更记录）；**18:40 更新**：二结局·维度重构全链路已实现；**2026-08-19 更新**：节点分发全量补齐 + 主题规则注册表重构 + B1~B9 bug 修复（见 §十二）
 > 对照源：用户提供的官方探索模式文本（模式/难度/分队/行动奖励/招募组合/区域/结局）
 > 检查范围：`app/game/controller/rlv2/` 全部控制器、`app/excel/roguelike_topic_table.ts`、`data/excel/roguelike_topic_table.json`、`data/rlv2/*.json`、`app/game/router/rlv2.ts`
 >
-> 结论速览：**核心框架与数据表高度完整**（难度表、分队、地图构造模板、结局收藏品、startbuff 选项全部在库）；主要缺口集中在**多结局流程（二/三结局）、实践者列表模式、实托邦生成逻辑、行动力机制、襁褓加成接入**五块——其中实托邦/行动力/二三四结局流程已落地，实践者列表与襁褓细节待办。
+> **阅读须知**：本文按时间线增量更新，早期章节中被后续实现推翻的结论已就地标注 `~~已过期~~`；如遇同一项在不同章节结论冲突，**以日期更晚的结论为准**（§十二 > §十一 > 首版）。
+>
+> 结论速览：**核心框架与数据表高度完整**（难度表、分队、地图构造模板、结局收藏品、startbuff 选项全部在库）；首版列出的五大缺口中，实托邦/行动力/二三结局流程/误入奇境/节点分发均已落地，**仅实践者列表模式（MONTH_TEAM）与文明开化分队专属待办**。
 
 ---
 
@@ -37,7 +39,7 @@
 |---|---|---|---|
 | 保密等级 0（初始生命更高 / 失败下次获得【特勤任务影像】） | ±0% | scoreFactor=1 ✅ | 🟡 失败补偿未接入（见下） |
 | 保密等级 1（生命上限-2） | +5% | 1.05 ✅ | ✅ `level_life_point_add -2` |
-| 保密等级 2（实托邦生成） | +10% | 1.10 ✅ | ❌ 实托邦生成逻辑缺失（见 §六） |
+| 保密等级 2（实托邦生成） | +10% | 1.10 ✅ | ✅ 实托邦生成已实现（2026-08-17，见 §六）。~~原结论"逻辑缺失"已过期~~ |
 | 保密等级 3（险路尽头不再提前揭示） | +15% | 1.15 ✅ | 🟡 地图模板数据含 reveal 差异，但"难度3 起不揭示"无显式分支 |
 | 保密等级 4（“居民”据点 / 失败不再获得特勤任务影像） | +20% | 1.20 ✅ | 🟡 “居民”据点节点类型 ✅（RESIDENT 134217728）；失败影像条件无 |
 | 保密等级 5（敌生命+30%） | +25% | 1.25 ✅ | 👁 客户端战斗数值 |
@@ -140,12 +142,12 @@
 
 | 官方层 | 官方初始行动力 | 状态 |
 |---|---|---|
-| Ⅰ 玻利瓦尔肤层 | 5（翅膀节点后 6） | 🟡 见"行动力" |
-| Ⅱ 甜美的伤口 | 6 | 🟡 |
-| Ⅲ 血色空脉 | 7 | 🟡 |
-| Ⅳ 受害者腐殖 | 8 | 🟡 |
-| Ⅴ 卡德霍之颅 | 8 | 🟡 |
-| **行动力机制整体** | — | ❌ `grid_zone.stepRemain` 固定重置为 **20**（`grid_zone.ts:263`），与官方逐层 5/6/7/8/8 不符；`SPECIAL_ZONE_AP` 物品 handler 为空（`inventory.ts:209-210`）；【生命游戏】"翅膀"节点 +1 无逻辑；"行动力耗尽返回进入层位置"无逻辑 |
+| Ⅰ 玻利瓦尔肤层 | 5（翅膀节点后 6） | ✅ |
+| Ⅱ 甜美的伤口 | 6 | ✅ |
+| Ⅲ 血色空脉 | 7 | ✅ |
+| Ⅳ 受害者腐殖 | 8 | ✅ |
+| Ⅴ 卡德霍之颅 | 8 | ✅ |
+| **行动力机制整体** | — | ✅ 已实现（2026-08-17，见下"行动力机制"行）。~~原结论"stepRemain 固定重置为 20 / SPECIAL_ZONE_AP handler 为空 / 翅膀 +1 无逻辑"已过期~~ |
 
 ### 地图生成
 
@@ -164,11 +166,15 @@
 
 | 节点 | 状态 | 说明 |
 |---|---|---|
-| 不期而遇 / 得偿所愿 / 失与得 / 安全的角落 / 先行一步 / 古堡馈赠 / 兴致盎然 / 迷雾重重 | ✅ | `NODE_SCENE_PREFIX` + 官方 choiceScenes 场景分发 |
-| 诡意行商 / 秘境行商 | ✅ | SHOP/SECRET_SHOP → `BATTLE_SHOP`（含碎片回收、刷新、折扣） |
-| 先行一步（三结局"探索树的源头"入口） | ❌ | EXPEDITION 只做远征记录（`expeditionChoice`），**无"送干员→下一层返回+2希望+怦然信标"流程** |
-| 命运所指（二结局 3 选 1 / 三结局调谐仪式） | ❌ | PROPHECY 类型 ✅，但 `triggerNodeEvent`/`createNodeScene` 均无 PROPHECY 分支（NODE_SCENE_PREFIX 无映射）→ 进入后无场景 |
-| 误入奇境 | ❌ | 见上"隐藏层" |
+| 全部 21 类节点分发 | ✅ 已实现（2026-08-19） | rogue_6 走 `gridZoneMoveTo` → `createRogue6NodeScene`（`ROGUE6_NODE_SCENE_PREFIX`，见 §十二）；标准主题仍走 `moveTo` + `NODE_SCENE_PREFIX` |
+| 安全的角落 / 得偿所愿 / 失与得 / 狭路相逢 / 险路尽头 / 险路小径 | ✅ | 前缀 `rest` / `wish`+`relic` / `sacrifice` / `sala` / `final` / `evacuate`（官方 choiceScenes 实测确证） |
+| 不期而遇 | ✅ | `createIncidentScene`（线人 bomb1）优先，未命中则 `normal*` / `bat*` 通用场景 |
+| 诡意行商 / 秘境行商 / 应急助力 | ✅ | `ROGUE6_SHOP_NODES` → `BATTLE_SHOP`（含碎片回收、刷新、折扣）；应急助力另有 `hire*` 场景 |
+| 作战 / 紧急作战 / 险路恶敌 / “居民”据点 | ✅ | `ROGUE6_BATTLE_NODES` → 战斗；关卡按 `ZoneStagePools` 三池分流（普通/精英/首领） |
+| 先行一步（三结局"探索树的源头"入口） | ✅ 已实现（2026-08-17 流程 + 2026-08-19 节点可达） | `scout*` 场景（choice_ro6_scout_1/3）→ 送干员 → 下一层返回 +2 希望 + 怦然信标。~~原结论"只做远征记录"已过期~~ |
+| 命运所指（二结局 3 选 1 / 三结局调谐仪式） | ✅ 已实现（2026-08-17） | `createFateScene`（PROPHECY 与 PROPHECY_HIDDEN 两个数值均分发）→ end1/end2 判定。~~原结论"无 PROPHECY 分支"已过期~~ |
+| 误入奇境 | ✅ 已实现（2026-08-17） | `createPortalScene` → 消耗 1 件**加工品（MOVE 型）**→ `generatePortal` 隐藏层 |
+| 曲折密道 / 羽瞰点 / 林间空地 | ✅ | 官方 subName 为传送 / 视野 / 空节点——地图机制而非事件场景，落地即 `WAIT_MOVE`（非缺陷） |
 
 ---
 
@@ -204,9 +210,9 @@
 ## 九、数据侧发现的疑点
 
 1. **初始源石锭不一致**：官方文本写「源石锭 6」，数据表 `initialGold=8`（黑流树海与其他集成战略一致为 8，疑为所贴文本版本差异；**以数据表/官服抓包为准**，但需你确认）。
-2. **startbuff 12 个选项在库**（1-6 基础 + 7-12 襁褓），`GAME_INIT_SUPPORT` 仅用 1-6 → 襁褓追加是数据就绪但逻辑缺失的典型。
-3. **NODE_BUOY 型 8 个物品**（线人与线索/神明之殇/文明之烬/光明之末等）全部在库，但无任何读取逻辑（二/三结局依赖）。
-4. **VI 层构造模板**（layerIndex=5）存在，但 `maxZone` 无三结局放行 → 模板不可达。
+2. **startbuff 12 个选项在库**（1-6 基础 + 7-12 襁褓）；襁褓追加已于 2026-08-17 接入（§十 P2-6），~~"仅用 1-6 / 逻辑缺失"已过期~~。
+3. **NODE_BUOY 型 8 个物品**（线人与线索/神明之殇/文明之烬/光明之末等）全部在库；二结局依赖的线人（bomb1）读取逻辑已于 2026-08-17 接入，~~"无任何读取逻辑"已过期~~，其余 NODE_BUOY 仍无专属逻辑。
+4. **VI 层构造模板**（layerIndex=5）已可达：`maxZone` 持怦然信标放行第 Ⅵ 层（2026-08-17），~~"模板不可达"已过期~~。
 5. `chooseInitialRecruitSet` 的 `GROUP_PROFESSIONS` 与官方文本职业顺序一致（先手必胜=先锋/狙击/特种 ✓）。
 
 ---
@@ -277,3 +283,52 @@
 7. **难度 0/4 特勤任务影像**：失败时发放 legacy_10 → 下次开局送【特勤任务影像】。
 8. **分队专属逻辑**：本源系招募希望-2（本源研修）、卖出 3 零件奖励（多边贸易）、进区获加工品（开拓者）、消除理想源奖励（文明开化，依赖实托邦）。
 9. **初始源石锭** 6 vs 8 核实。
+
+---
+
+## 十二、变更记录（2026-08-19）：节点分发补全 + 主题规则注册表 + bug 修复
+
+> 完整设计说明见 `design-spec.md §16.9`（架构/数据流/安全策略/bug 台账），接口协议见 `api.md`「肉鸽模式 · 黑流树海专属接口」。
+
+### 12.1 节点语义确证（推翻此前的中文名猜测）
+
+官方 `RoguelikeEventType`（`types_excel_gen.ts`）为**位标志枚举**，按声明顺序 2^n 展开后与 `details.rogue_6.nodeTypeData` 的 21 个键**逐一吻合**——每个节点的官方语义由此实锤，不再靠中文名推断。两处此前的误判已纠正：
+
+- `16777216` 官方名为 **EVACUATE**（险路小径），场景 `scene_ro6_evacuate_enter`（三重身，选项 ZONE_END"保留行动力，进入下一区域"）——此前未映射场景；
+- `134217728` 官方名为 **BATTLE_SAVAGE**（“居民”据点）→ 应走**战斗**分支（`moduleConsts.savageBubble` 佐证），此前误映射到 `res` 前缀场景；
+- `65536` = STORY_HIDDEN（命运所指隐藏变体），与 32768 同名同描述，需一并分发。
+
+`scrapTypeData` 同样以数据为准：**`MOVE` = 加工品**（可用于地图移动 / 误入奇境消耗）、`GOODS` = 自然物、`PASSIVE` = 概念体。~~此前"加工品 = 非 MOVE 型"的注释结论错误~~，见 B9。
+
+### 12.2 主题规则注册表（架构重构）
+
+新增 `app/game/controller/rlv2/theme-rules.ts` 作为主题数据的**单一事实来源**：`ROGUE6_NODE`（21 项）、`ROGUE6_SHOP_NODES` / `ROGUE6_BATTLE_NODES`、`ROGUE6_ZONE_ACTION`、`ROGUE6_NODE_SCENE_PREFIX`、`ROLL_NODE_TYPE_VALUES`、结局关卡/收藏品常量、`isBlackstream(theme)`。原先散落 7 个文件的 20+ 处 `theme === "rogue_6"` 与节点数值字面量全部改为查表。该文件**不 import 任何管理器**（避免循环依赖），`grid_zone.ts` 对外 re-export `ROGUE6_NODE` 保证既有调用方零改动。
+
+### 12.3 bug 修复台账
+
+| # | 现象 | 根因 | 修复 |
+|---|---|---|---|
+| B1 | 安全的角落/得偿所愿/失与得/**先行一步**等节点进入后无事件（三结局入口不可达） | `triggerNodeEvent()` 定义但**零调用**——rogue_6 走 `gridZoneMoveTo`，只处理战斗/商店/PORTAL/PROPHECY/INCIDENT | 新增 `createRogue6NodeScene(kind)` 按前缀筛 `scene_ro6_*_enter` 并派生选项；删除死方法 |
+| B2 | 隐藏层重掷节点无效 | `rerollNode` 用 `zones[zone]` 而非 `zones[zoneKey(zone)]`（rogue_6 为 1000+ 键）；typeMap 缺 11 类 | 改用 `zoneKey`；typeMap 换成 `ROLL_NODE_TYPE_VALUES` |
+| B3 | 客户端地图节点状态不刷新 | `gridZone/*` 路由漏传 `takePushMessages()` → `rlv2NodeArrive` 永不下发 | 路由接线 + 控制器累积 `rlv2NodeArrive{nodeType}` / `rlv2NodeChange{nodeList}` |
+| B4 | 精英/首领节点打出普通关卡 | `generate()` 算出 `eliteStages` 后未使用 | `ZoneStagePools{normal,elite,boss}` 三池分流 |
+| B5 | 多次误入奇境偶发覆盖已生成隐藏层 | 隐藏层键 `3000 + random*900` 可撞键 | `nextPortalZoneKey()` 递增分配；起点 state 与主层统一为 2 |
+| B6 | 误入奇境消耗加工品时选错件 | `scrap.gain()` 的 `value` 恒为 1，排序失效 | `sellPriceOf()` 读官方 `goods/move/passiveScrapData.sellPrice` |
+| B7 | 全链路 `as any` + 6 处 `sCRAP` 拼写兜底死分支 | `RoguelikeModule` 缺 gridZone/weather/scrap；`CustomizeData` 缺 rogue_5/6 | 从 `types_excel_gen.ts` 复用权威类型并补字段 |
+| B8 | 死代码与硬编码 | `NODE_TO_KIND` 零引用、`occupied` Set 未用、`PORTAL_FAMILY` 硬编码 | 删除；`pickPortalTemplate` 改按数据字段 `utopiaPortal(s)` 筛选（该字段实为**雾色场景族编号**，非"节点所在列"） |
+| B9 | 误入奇境后零件箱少的是自然物而非加工品 | `consumePortalScrap` 筛 `t !== "MOVE"`，与官方 `scrapTypeData` 语义**颠倒** | 改为 `=== "MOVE"`；消耗的若是当前载具则切回步行 |
+
+附带修复：`scrap/loseScrap` 缺 `instId` 由静默 no-op 改为返回 `result: 1`；`gridZone/moveTo` 校验 route 非空数组。
+
+### 12.4 验证结果
+
+- `pnpm exec tsc --noEmit` 通过；
+- 新增 `tests/unit/controller/rlv2-node-dispatch.test.ts`（21 条）覆盖 B1/B2/B3/B4/B6 与注册表一致性（含"21 项节点数值与官方 nodeTypeData 键集合完全相等"断言）；
+- 全量 `pnpm exec vitest run`：1957 passed；2 个失败（`pay-gate`、`plugin-config-service`）经 `git stash` 复核为**改动前既有**，与本次无关。
+
+### 12.5 仍待办
+
+- 实践者列表模式（MONTH_TEAM 强制转 NORMAL，专属 init 条目永不命中）；
+- 文明开化分队（`immediate_reward_on_weather_clear`，依赖理想源/天气清除机制）；
+- 三结局调谐仪式提交（final_4/5/6 削弱效果在客户端战斗内，服务端仅保证节点通行）；
+- 难度 3「险路尽头不再提前揭示」无显式分支。

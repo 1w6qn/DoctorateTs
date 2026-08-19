@@ -190,9 +190,8 @@ export class RoguelikeBattleManager {
       // 黑流树海（rogue_6）：战斗奖励含零件（废品）组——官方抓包 battleFinish rewards 含
       // rogue_6_scrap_P_01/P_02 等。从主题 scrapItemToType 池随机 1-2 件。
       if (theme === "rogue_6") {
-        const scrapMod = (excel.RoguelikeTopicTable.modules as any)?.[theme];
         const scrapPool = Object.keys(
-          (scrapMod?.scrap ?? scrapMod?.sCRAP)?.scrapItemToType || {},
+          excel.RoguelikeTopicTable.modules[theme]?.scrap?.scrapItemToType || {},
         );
         const scrapRewards: any[] = [];
         const scrapCount = isBoss ? 2 : Math.random() < 0.5 ? 1 : 0;

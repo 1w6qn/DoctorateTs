@@ -58,6 +58,14 @@ export class RoguelikeWeatherManager {
     const mainWeatherData = (
       excel.RoguelikeTopicTable.modules[theme] as any
     )?.weather?.mainWeatherData;
+    // 天气清除推送（rlv2WeatherClear，触发类 RoguelikeWeatherClearTrigger）：进入新层会重置天气，
+    // 把"上一层"仍在生效的天气（mainId/subId）视为被清除 → 客户端清除对应天气 UI。首层无前序天气不发。
+    if (this.currentMain) {
+      this._player.pushMessage("rlv2WeatherClear", {
+        mainId: this.currentMain,
+        subId: this.currentSub,
+      });
+    }
     if (!mainWeatherData) return;
     // 选择天气类型（去掉 _a/_b/_c 等级后缀）
     const types = [

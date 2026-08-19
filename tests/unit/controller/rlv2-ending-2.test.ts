@@ -1,7 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { enablePatches } from "immer";
-
-enablePatches();
 
 // rogue_6 二结局·维度重构：线人（bomb1）→ 沙盘α；沙盘β 商店；V 层命运所指
 // （好奇心与死 end1 / 窥视箱中 end2）→ 混沌源阶理论（ro6_b_5）→ ending_2

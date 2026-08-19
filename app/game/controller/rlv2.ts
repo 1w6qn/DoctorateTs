@@ -257,20 +257,19 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }
 
   /**
-   * 清掉 pending 中残留的 GAME_SETTLE（幂等：重登恢复的"放弃结算中间态"存档
-   * 已带 GAME_SETTLE，再次 giveUpGame/gameSettle 若直接追加会产生重复事件，
-   * 客户端渲染结算页崩溃——官服 giveUpGame 后 pending 只有 1 个 GAME_SETTLE）。
+   * 清空 pending 全部事件，准备生成唯一的结算事件（GAME_SETTLE）。
+   * 官服 giveUpGame/gameSettle 后 pending 只有 1 个 GAME_SETTLE——若放弃/结算时
+   * 残留进行中的其他事件（RECRUIT/SCENE/BATTLE_REWARD 等），会与结算页并列下发，
+   * 客户端状态机无法推进 → 报"系统发生未知故障"/卡死。同时覆盖幂等场景：
+   * 重登恢复的"放弃结算中间态"存档已带 GAME_SETTLE，直接清空避免重复追加。
    */
-  private clearPendingSettle(): void {
-    const pend = this._status.pending;
-    for (let i = pend.length - 1; i >= 0; i--) {
-      if (pend[i].type === "GAME_SETTLE") pend.splice(i, 1);
-    }
+  private clearPending(): void {
+    this._status._pending._pending = [];
   }
 
   async giveUpGame(): Promise<void> {
-    // 放弃结算：生成 GAME_SETTLE 事件（客户端展示放弃结算页），保留游戏态直至 gameSettle 确认
-    this.clearPendingSettle();
+    // 放弃结算：清空进行中残留事件，生成唯一 GAME_SETTLE（展示放弃结算页），保留游戏态直至 gameSettle 确认
+    this.clearPending();
     this._status.runResult = "giveup";
     const { brief, record } = this.buildSettlement(true, 0, "");
     // current.record 为 _playerdata.rlv2 引用（update() 后冻结），写入须放入配方
@@ -376,6 +375,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     if (hasEndingChangeRelic) {
       this._status.toEnding = `ro${theme.slice(-1)}_ending_2`;
       this._status.chgEnding = true;
+      // 结局变更推送（rlv2ChangeEnding，触发类 RoguelikeCheckOnlyEndingChangeNotifyTrigger）
+      this.pushMessage("rlv2ChangeEnding", {});
     }
 
     // 难度 buff（进阶式累积）在 rlv2:create（模块初始化完成）之后应用——
@@ -858,6 +859,10 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       ) {
         // 二结局·维度重构：持有沙盘α/β 且不持有怦然信标通过第Ⅴ层 → ending_2
         this._status.toEnding = "ro6_ending_2";
+      }
+      // 结局切换为二/三号时下发变更推送（rlv2ChangeEnding，触发类 RoguelikeCheckOnlyEndingChangeNotifyTrigger）
+      if (this._status.toEnding === "ro6_ending_2" || this._status.toEnding === "ro6_ending_3") {
+        this.pushMessage("rlv2ChangeEnding", {});
       }
       // 修复：通关到最终层终点 → 标记成功（原实现 toEnding 恒非 "normal" → 每次通关
       // 结算都显示失败）；放弃路径由 giveUpGame 置 "giveup"
@@ -2626,9 +2631,11 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         await this.sellScrapAtShop();
       }
       delete inventory[args.instId];
-      // 若丢弃的是当前载具，切回步行
+      // 若丢弃的是当前载具，切回步行（模型无耐久度机制，载具被移除即视为"破除"）
       if (isVehicle) {
         sm.activeVehicle = { isWalk: true };
+        // 散件破除推送（rlv2ScrapBreak，触发类 RoguelikeScrapBreakTrigger）：携带破除散件 id
+        this.pushMessage("rlv2ScrapBreak", { idList: [item.id] });
       }
     }
     this._status.state = "WAIT_MOVE";
@@ -3033,8 +3040,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }
 
   async gameSettle(): Promise<void> {
-    // 幂等：清掉重登恢复时残留的 GAME_SETTLE（giveUpGame 后 gameSettle 前中断的存档）
-    this.clearPendingSettle();
+    // 幂等：清空 pending，保证结算事件唯一（重登恢复的"放弃结算中间态"存档可能已带 GAME_SETTLE）
+    this.clearPending();
     const theme = this.current.game!.theme;
     const ending = this._status.toEnding || "";
     // 修复：原实现 toEnding 恒为 "roX_ending_1/2"（非 "normal"）且 chgEnding 仅持有

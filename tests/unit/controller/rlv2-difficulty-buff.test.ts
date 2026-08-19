@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { enablePatches } from "immer";
 
-enablePatches();
 
 // 官方 excel mock：difficulties 带 ruleDesc/addDesc（难度描述）
 vi.mock("@excel/excel", () => ({

@@ -1,7 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { enablePatches } from "immer";
 
-enablePatches();
 
 vi.mock("@excel/excel", () => ({
   default: {

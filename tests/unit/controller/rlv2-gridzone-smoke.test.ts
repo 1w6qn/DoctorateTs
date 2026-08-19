@@ -1,7 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { enablePatches } from "immer";
-
-enablePatches();
 
 const excelMock = vi.hoisted(() => ({
   RoguelikeTopicTable: {

@@ -7,7 +7,7 @@
  * 本服务端部分响应体直接构造 playerDataDelta 对象（非 player.delta 展开）。
  */
 import { PlayerCrisisShop, PlayerGoodItemData } from "../playerdata";
-import { PlayerDeltaResponse } from "./common";
+import { PlayerDeltaResponse, RoguelikePushMessage } from "./common";
 
 /* ===== 危机合约 V1 请求 ===== */
 
@@ -223,7 +223,7 @@ export interface CrisisV2GetGoodListResponse extends PlayerDeltaResponse {
 
 /** 确认危机合约V2任务响应（服务端自定义，返回固定空 pushMessage） */
 export interface CrisisV2ConfirmMissionsResponse extends PlayerDeltaResponse {
-  pushMessage: unknown[];
+  pushMessage: RoguelikePushMessage[];
 }
 
 /** 危机合约V2购买商品响应（CS: CrisisBuyShopResponse 含 items；服务端返回固定空 items） */

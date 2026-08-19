@@ -1,7 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { enablePatches } from "immer";
-
-enablePatches();
 
 // ===== 探索中 zone 推进回归（真实 excel 数据）=====
 // 完整开局 → 走到 zone_end 节点 → finishEvent → zone 2 生成；

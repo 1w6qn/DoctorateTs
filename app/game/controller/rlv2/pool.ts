@@ -70,11 +70,11 @@ export class RoguelikePoolManager {
     this._pools["pool_relic_super_rare"] = [];
     this._pools["pool_relic_all"] = [];
     // 加工品池（rogue_6 开拓者分队 zone_into_reward pool_scrap_3/6）：
-    // GOODS 型废品（零件箱加工品）；pool_scrap_3=珍贵（简化：随机 3 件中的随机 1 件），pool_scrap_6=普通（全部）
-    const scrapMod = (excel.RoguelikeTopicTable.modules[theme] as any) || {};
-    const typeMap = scrapMod?.scrap ?? scrapMod?.sCRAP ?? {};
+    // 官方成员由 data/rlv2/pools.json 提供（见下方 official 覆盖），此处按 GOODS 型
+    // 废品建兜底池，避免 pools.json 缺失时池为空
+    const typeMap = excel.RoguelikeTopicTable.modules[theme]?.scrap;
     const goodsIds = Object.keys(typeMap?.scrapItemToType || {}).filter(
-      (id) => typeMap.scrapItemToType[id] === "GOODS",
+      (id) => typeMap?.scrapItemToType?.[id] === "GOODS",
     );
     this._pools["pool_scrap_3"] = [...goodsIds];
     this._pools["pool_scrap_6"] = [...goodsIds];

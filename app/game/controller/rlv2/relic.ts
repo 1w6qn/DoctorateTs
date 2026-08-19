@@ -38,6 +38,9 @@ export class RoguelikeRelicManager {
     const buffs =
       excel.RoguelikeTopicTable.details[theme].relics[relic.id].buffs;
     await this._trigger.emit("rlv2:buff:apply", [[...buffs]]);
+    // 收藏品获得推送（rlv2GotRandRelic，官服触发类 RoguelikeRelicGetTrigger）：
+    // 携带本次获得的收藏品 id（force 建图时对非 rogue_6 主题由 pushMessage 内部静默跳过）
+    this._player.pushMessage("rlv2GotRandRelic", { idList: [relic.id] });
     // 官方线格式：relic 库存以 index（r_N）为键，非 relic id
     this.relics[this.index] = {
       index: this.index,

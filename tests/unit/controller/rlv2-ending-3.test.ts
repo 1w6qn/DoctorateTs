@@ -1,7 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { enablePatches } from "immer";
-
-enablePatches();
 
 // rogue_6 三结局·纠缠调和：先行一步送干员 → 下一层返回 +2 希望 + 怦然信标
 // → 持有怦然信标通过第Ⅴ层 → 第Ⅵ层（源流交汇处）→ ending_3

@@ -22,6 +22,19 @@ import {
   BLACKSTREAM_LAYER_TYPES,
   BlackstreamConstruction,
 } from "./blackstream-data";
+import {
+  ROGUE6_NODE,
+  ROGUE6_BATTLE_NODES,
+  ROGUE6_SHOP_NODES,
+  ROGUE6_ZONE_ACTION,
+  ROGUE6_WING_OUTBUFF,
+  BLACKSTREAM_THEME,
+  isBlackstream,
+} from "../theme-rules";
+
+// 节点类型数值统一由 theme-rules 提供（单一事实来源）；此处 re-export 保持既有
+// `import { ROGUE6_NODE } from "./modules/grid_zone"` 调用方不变。
+export { ROGUE6_NODE };
 
 interface GridNode {
   content: {
@@ -37,29 +50,12 @@ interface GridZone {
   nodes: { [key: string]: GridNode };
 }
 
-/** 黑流树海节点类型（官方 nodeTypeData 数值） */
-export const ROGUE6_NODE = {
-  BATTLE_NORMAL: 1,
-  BATTLE_ELITE: 2,
-  BATTLE_BOSS: 4,
-  REST: 16,
-  INCIDENT: 32,
-  WISH: 512,
-  SACRIFICE: 1024,
-  EXPEDITION: 2048,
-  SHOP: 4096,
-  MIRAGE: 8192, // 误入奇境
-  PROPHECY: 32768, // 命运所指
-  FACE_OFF: 262144, // 狭路相逢
-  SECRET_SHOP: 2097152, // 秘境行商
-  TUNNEL: 4194304, // 曲折密道
-  VISIBLE_END: 8388608, // 险路尽头
-  VISIBLE_PATH: 16777216, // 险路小径
-  EMERGENCY_AID: 33554432, // 应急助力
-  RAIN_VIEW: 67108864, // 羽瞰点（照亮 1-2 曼哈顿距离）
-  RESIDENT: 134217728, // "居民"据点
-  GLADE: 268435456, // 林间空地
-};
+/** 本层关卡池（按节点类型取用）：普通作战 / 紧急作战 / 险路恶敌 */
+interface ZoneStagePools {
+  normal: string[];
+  elite: string[];
+  boss: string[];
+}
 
 /** 构造模板节点 type 字符串 → 节点数值（与官服 nodeTypeData 对齐） */
 const CONSTRUCTION_TYPE_TO_NODE: { [key: string]: number } = {
@@ -84,27 +80,6 @@ const CONSTRUCTION_TYPE_TO_NODE: { [key: string]: number } = {
   overlook: ROGUE6_NODE.RAIN_VIEW,
   settlement: ROGUE6_NODE.RESIDENT,
   glade: ROGUE6_NODE.GLADE,
-};
-
-/** 节点数值 → 客户端可渲染类型（用于 content.kind 的显式数值） */
-const NODE_TO_KIND: { [key: number]: number } = {
-  [ROGUE6_NODE.REST]: ROGUE6_NODE.REST,
-  [ROGUE6_NODE.INCIDENT]: ROGUE6_NODE.INCIDENT,
-  [ROGUE6_NODE.WISH]: ROGUE6_NODE.WISH,
-  [ROGUE6_NODE.SACRIFICE]: ROGUE6_NODE.SACRIFICE,
-  [ROGUE6_NODE.EXPEDITION]: ROGUE6_NODE.EXPEDITION,
-  [ROGUE6_NODE.SHOP]: ROGUE6_NODE.SHOP,
-  [ROGUE6_NODE.MIRAGE]: ROGUE6_NODE.MIRAGE,
-  [ROGUE6_NODE.PROPHECY]: ROGUE6_NODE.PROPHECY,
-  [ROGUE6_NODE.FACE_OFF]: ROGUE6_NODE.FACE_OFF,
-  [ROGUE6_NODE.SECRET_SHOP]: ROGUE6_NODE.SECRET_SHOP,
-  [ROGUE6_NODE.TUNNEL]: ROGUE6_NODE.TUNNEL,
-  [ROGUE6_NODE.VISIBLE_END]: ROGUE6_NODE.VISIBLE_END,
-  [ROGUE6_NODE.VISIBLE_PATH]: ROGUE6_NODE.VISIBLE_PATH,
-  [ROGUE6_NODE.EMERGENCY_AID]: ROGUE6_NODE.EMERGENCY_AID,
-  [ROGUE6_NODE.RAIN_VIEW]: ROGUE6_NODE.RAIN_VIEW,
-  [ROGUE6_NODE.RESIDENT]: ROGUE6_NODE.RESIDENT,
-  [ROGUE6_NODE.GLADE]: ROGUE6_NODE.GLADE,
 };
 
 /** 层索引（0 起）→ 距离规则列索引：I II III IV IV追忆 V（官服 Ut 映射） */
@@ -138,25 +113,21 @@ export interface GridPortalState {
   family: string;
 }
 
-/** 雾色场景族 → 乌托邦效果（variationData 键）与隐藏层构造模板（sourceId 前缀）
- * portal1..4=红雾（4 种战斗乌托邦，随机选 1）、5=蓝（全知者盲区）、6=绿（未亡者遗怨）、
- * 7=金（源石之城）、8=橙（消耗螺旋）、9=紫（换心联结）。 */
-const PORTAL_FAMILY: {
-  [family: string]: {
-    variationIds: string[];
-    templateSource: string[];
-  };
-} = {
-  "1": { variationIds: ["variation_1", "variation_2", "variation_3", "variation_4"], templateSource: ["utopia-red-construction-1", "utopia-red-construction-2", "utopia-red-construction-3", "utopia-red-construction-4"] },
-  "2": { variationIds: ["variation_1", "variation_2", "variation_3", "variation_4"], templateSource: ["utopia-red-construction-1", "utopia-red-construction-2", "utopia-red-construction-3", "utopia-red-construction-4"] },
-  "3": { variationIds: ["variation_1", "variation_2", "variation_3", "variation_4"], templateSource: ["utopia-red-construction-1", "utopia-red-construction-2", "utopia-red-construction-3", "utopia-red-construction-4"] },
-  "4": { variationIds: ["variation_1", "variation_2", "variation_3", "variation_4"], templateSource: ["utopia-red-construction-1", "utopia-red-construction-2", "utopia-red-construction-3", "utopia-red-construction-4"] },
-  "5": { variationIds: ["variation_5"], templateSource: ["utopia-omniscient-blind-spot"] },
-  "6": { variationIds: ["variation_6"], templateSource: ["utopia-undead-grudge"] },
-  "7": { variationIds: ["variation_7"], templateSource: ["utopia-originium-city"] },
-  "8": { variationIds: ["variation_8"], templateSource: ["utopia-consumption-spiral"] },
-  "9": { variationIds: ["variation_9"], templateSource: ["utopia-heart-link"] },
-};
+/** 雾色场景族（scene_ro6_portalN → N）→ 乌托邦效果 id（variationData 键）。
+ * 官方 variationData 共 9 条，与雾色一一对应：1~4=红雾（巨人摇篮/迪斯科狂热/已知浩劫/
+ * 孤立石林，4 种战斗乌托邦）、5=蓝（全知者盲区）、6=绿（未亡者遗怨）、7=金（源石之城）、
+ * 8=橙（消耗螺旋）、9=紫（换心联结）。
+ *
+ * 隐藏层构造模板不再硬编码：treehole-* 模板自带 `utopiaPortal`（单族）或
+ * `utopiaPortals`（多族，红雾四族共用同一批模板）字段标注其所属雾色族，
+ * 由 pickPortalTemplate 按该字段筛选。 */
+function portalVariationIds(family: string): string[] {
+  const n = parseInt(family, 10);
+  // 红雾四族共用 variation_1..4（进入时随机取其一）；其余族与雾色一对一
+  return n >= 1 && n <= 4
+    ? ["variation_1", "variation_2", "variation_3", "variation_4"]
+    : [`variation_${n}`];
+}
 
 export class RoguelikeGridZoneManager {
   zones: { [key: string]: GridZone };
@@ -217,21 +188,32 @@ export class RoguelikeGridZoneManager {
    */
   generate([zoneId]: [number]): void {
     const theme = this._player.current.game!.theme;
-    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+    const detail = excel.RoguelikeTopicTable.details[theme];
     const stages = Object.keys(detail?.stages || {});
     const roNum = theme.slice(-1);
 
-    // 本层关卡优先，缺失回退全主题普通关卡
+    // 本层关卡池：普通 / 紧急（精英）/ 首领分开取——原实现只用普通池，精英与首领
+    // 节点也抽普通关卡（eliteStages 算完未用），导致紧急作战/险路恶敌难度与官服不符。
     const zoneStages = stages.filter((s) =>
       s.startsWith(`ro${roNum}_n_${zoneId}_`),
     );
     const eliteStages = stages.filter((s) =>
       s.startsWith(`ro${roNum}_e_${zoneId}_`),
     );
+    // 首领关卡：ro6_b_{zone}（含 _b 变体，如 ro6_b_1_b 哀悼铁腕）
+    const bossStages = stages.filter((s) =>
+      new RegExp(`^ro${roNum}_b_${zoneId}(_|$)`).test(s),
+    );
+    // 缺失回退全主题普通/紧急关卡（层号越界或数据缺失时不至于无 stage）
     const all =
       zoneStages.length > 0
         ? zoneStages
         : stages.filter((s) => /^ro\d+_[ne]_\d+_/.test(s));
+    const pools: ZoneStagePools = {
+      normal: zoneStages.length > 0 ? zoneStages : all,
+      elite: eliteStages.length > 0 ? eliteStages : all,
+      boss: bossStages.length > 0 ? bossStages : all,
+    };
 
     // 层 index（0 起）→ 构造模板池（黑流树海 I..V 层；VI 为 boss 层）
     const layerIndex = Math.min(zoneId - 1, 5);
@@ -262,12 +244,7 @@ export class RoguelikeGridZoneManager {
     const terminalType = template.terminalType;
     const terminalNode = CONSTRUCTION_TYPE_TO_NODE[terminalType] ?? ROGUE6_NODE.VISIBLE_END;
     for (const [tx, ty] of template.terminalSlots) {
-      nodes[this.nodeId(tx, ty)] = this.makeContentNode(
-        terminalNode,
-        all,
-        zoneStages.length > 0 ? zoneStages : all,
-        true,
-      );
+      nodes[this.nodeId(tx, ty)] = this.makeContentNode(terminalNode, pools);
     }
 
     // 模板固定节点（固定 type 字符串）
@@ -275,16 +252,11 @@ export class RoguelikeGridZoneManager {
       const [fx, fy] = f.slot;
       nodes[this.nodeId(fx, fy)] = this.makeContentNode(
         CONSTRUCTION_TYPE_TO_NODE[f.type] ?? ROGUE6_NODE.INCIDENT,
-        all,
-        zoneStages.length > 0 ? zoneStages : all,
-        false,
+        pools,
       );
     }
 
     // 其余占位格：按距离规则 + 数量规则抽类型
-    const occupied = new Set(
-      template.occupiedSlots.map(([x, y]) => this.nodeId(x, y)),
-    );
     const remaining = template.occupiedSlots.filter(
       ([x, y]) => !nodes[this.nodeId(x, y)],
     );
@@ -302,12 +274,7 @@ export class RoguelikeGridZoneManager {
         type = this.pickTypeByRules(zoneId, d, counts);
       }
       counts[type] = (counts[type] || 0) + 1;
-      nodes[id] = this.makeContentNode(
-        type,
-        all,
-        zoneStages.length > 0 ? zoneStages : all,
-        false,
-      );
+      nodes[id] = this.makeContentNode(type, pools);
     }
 
     this.zones[`zone_${zoneId}`] = { nodes };
@@ -329,14 +296,14 @@ export class RoguelikeGridZoneManager {
    */
   private applyUtopiaVariation(zoneId: number): void {
     const theme = this._player.current.game?.theme ?? "";
-    if (theme !== "rogue_6") return;
+    if (!isBlackstream(theme)) return;
     // 结局层（zone 6）不生成实托邦
     if (zoneId >= 6) return;
     const modeGrade = this._player.current.game?.modeGrade ?? 0;
     if (modeGrade < 2) return;
     const chance = modeGrade >= 12 ? 0.6 : modeGrade >= 6 ? 0.4 : 0.25;
     if (Math.random() >= chance) return;
-    const detail = (excel.RoguelikeTopicTable.details as any)?.[theme];
+    const detail = excel.RoguelikeTopicTable.details[theme];
     const variations = Object.keys(detail?.variationData || {});
     if (variations.length === 0) return;
     const varId = variations[Math.floor(Math.random() * variations.length)];
@@ -350,11 +317,11 @@ export class RoguelikeGridZoneManager {
   /** 区域初始行动力（官方 I..V 层 5/6/7/8/8；【生命游戏】"翅膀"节点解锁后 Ⅰ 层 +1；
    * 襁褓天马（rogue_6_start_1）每区 +1 由官方 zone_into_reward buff 实现（进入区域发行动力物品）） */
   private initialActionForZone(zoneId: number): number {
-    const base = [0, 5, 6, 7, 8, 8][zoneId] ?? 8;
+    const base = ROGUE6_ZONE_ACTION[zoneId] ?? 8;
     let bonus = 0;
-    const outer = this._player.outer?.rogue_6 as any;
+    const outer = this._player.outer?.[BLACKSTREAM_THEME];
     // 生命游戏"翅膀"节点（rogue_6_outbuff_37，RAW_TEXT_EFFECT"进入第一层时，行动力+1"）：Ⅰ 层初始行动力 6
-    if (zoneId === 1 && outer?.buff?.unlocked?.["rogue_6_outbuff_37"]) {
+    if (zoneId === 1 && outer?.buff?.unlocked?.[ROGUE6_WING_OUTBUFF]) {
       bonus += 1;
     }
     return base + bonus;
@@ -576,19 +543,27 @@ export class RoguelikeGridZoneManager {
     return set;
   }
 
-  /** 构造 GridNode：战斗带 stage + kind，商店空货架 + kind，其余 kind 数值；初始均未访问（state 0） */
-  makeContentNode(
-    type: number,
-    allStages: string[],
-    zoneStages: string[],
-    _isTerminal: boolean,
-  ): GridNode {
-    if (type === ROGUE6_NODE.BATTLE_NORMAL || type === ROGUE6_NODE.BATTLE_ELITE || type === ROGUE6_NODE.BATTLE_BOSS) {
-      const pool = zoneStages.length > 0 ? zoneStages : allStages;
-      const stageId = pool[Math.floor(Math.random() * Math.max(pool.length, 1))] || "";
+  /**
+   * 构造 GridNode：战斗按类型取对应关卡池（普通/紧急/首领）+ kind，
+   * 商店（诡意行商/秘境行商/应急助力）空货架 + kind，其余仅 kind；初始均未访问（state 0）。
+   * @param type 节点类型数值（ROGUE6_NODE）
+   * @param pools 本层关卡池
+   * @returns 网格节点
+   */
+  makeContentNode(type: number, pools: ZoneStagePools): GridNode {
+    if (ROGUE6_BATTLE_NODES.includes(type)) {
+      const pool =
+        type === ROGUE6_NODE.BATTLE_ELITE
+          ? pools.elite
+          : type === ROGUE6_NODE.BATTLE_BOSS
+            ? pools.boss
+            : pools.normal;
+      const usable = pool.length > 0 ? pool : pools.normal;
+      const stageId =
+        usable[Math.floor(Math.random() * Math.max(usable.length, 1))] || "";
       return { content: { savage: { stageId }, kind: type }, state: 0, show: true };
     }
-    if (type === ROGUE6_NODE.SHOP || type === ROGUE6_NODE.SECRET_SHOP) {
+    if (ROGUE6_SHOP_NODES.includes(type)) {
       return { content: { shop: { goods: [] }, kind: type }, state: 0, show: true };
     }
     return { content: { kind: type }, state: 0, show: true };
@@ -605,21 +580,24 @@ export class RoguelikeGridZoneManager {
     }
   }
 
-  /** 按雾色场景族抽取隐藏层构造模板（utopia-* 系列，layerIndex=6） */
+  /**
+   * 按雾色场景族抽取隐藏层构造模板（utopia-* 系列，layerIndex=6）。
+   * 模板归属由数据字段决定：`utopiaPortal`（单族，如 treehole-05 = 5 蓝雾/全知者盲区）
+   * 或 `utopiaPortals`（多族，treehole-01..04 = [1,2,3,4] 红雾四族共用）。
+   * @param family 雾色场景族数字字符串（1..9）
+   * @returns 构造模板；无匹配时回退任一隐藏层模板
+   */
   private pickPortalTemplate(family: string): BlackstreamConstruction {
-    const fam = PORTAL_FAMILY[family];
-    const sources = fam?.templateSource ?? ["utopia-red-construction-1"];
-    const pool = BLACKSTREAM_CONSTRUCTIONS.filter((c) =>
-      sources.includes(c.sourceId),
+    const n = parseInt(family, 10);
+    const hidden = BLACKSTREAM_CONSTRUCTIONS.filter((c) => c.layerIndex === 6);
+    const pool = hidden.filter((c) =>
+      c.utopiaPortals
+        ? c.utopiaPortals.includes(n)
+        : c.utopiaPortal === n,
     );
-    if (pool.length > 0) {
-      return pool[Math.floor(Math.random() * pool.length)];
-    }
-    const fallback = BLACKSTREAM_CONSTRUCTIONS.filter(
-      (c) => c.layerIndex === 6,
-    );
+    const usable = pool.length > 0 ? pool : hidden;
     return (
-      fallback[Math.floor(Math.random() * fallback.length)] ??
+      usable[Math.floor(Math.random() * usable.length)] ??
       BLACKSTREAM_CONSTRUCTIONS[0]
     );
   }
@@ -629,20 +607,22 @@ export class RoguelikeGridZoneManager {
    * 本层专用行动力 = 模板 action，记录返回点。 */
   generatePortal(family: string, returnZone: number, returnNode: string): void {
     const theme = this._player.current.game!.theme;
-    const detail = excel.RoguelikeTopicTable.details[theme] as any;
-    const fam = PORTAL_FAMILY[family] ?? PORTAL_FAMILY["1"];
+    const detail = excel.RoguelikeTopicTable.details[theme];
+    const variationIds = portalVariationIds(family);
     const variationId =
-      fam.variationIds[Math.floor(Math.random() * fam.variationIds.length)] ??
+      variationIds[Math.floor(Math.random() * variationIds.length)] ??
       "variation_1";
     const template = this.pickPortalTemplate(family);
+    // 隐藏层无专属关卡池（官方 stages 无 portal 层条目）→ 用全主题关卡兜底
     const stages = Object.keys(detail?.stages || {});
+    const pools: ZoneStagePools = { normal: stages, elite: stages, boss: stages };
     const nodes: { [key: string]: GridNode } = {};
 
     // 起点（林间空地，可见可访问）
     const [sx, sy] = template.startSlot;
     nodes[this.nodeId(sx, sy)] = {
       content: { kind: ROGUE6_NODE.GLADE },
-      state: 1,
+      state: 2,
       show: true,
     };
     // 模板固定节点（utopia 模板无终点：terminalSlots 为空，行动力耗尽返回）
@@ -650,9 +630,7 @@ export class RoguelikeGridZoneManager {
       const [fx, fy] = f.slot;
       nodes[this.nodeId(fx, fy)] = this.makeContentNode(
         CONSTRUCTION_TYPE_TO_NODE[f.type] ?? ROGUE6_NODE.INCIDENT,
-        stages,
-        stages,
-        false,
+        pools,
       );
     }
     // 其余占位格：按隐藏层（第 6 列）距离/数量规则抽类型
@@ -664,10 +642,12 @@ export class RoguelikeGridZoneManager {
       const id = this.nodeId(x, y);
       const d = dist.get(id) ?? 1;
       const type = this.pickTypeByRules(6, d, {});
-      nodes[id] = this.makeContentNode(type, stages, stages, false);
+      nodes[id] = this.makeContentNode(type, pools);
     }
 
-    const key = String(3000 + Math.floor(Math.random() * 900));
+    // portal zone 键：3000 起首个未占用键（原实现 3000+random*900 有 1/900 撞键概率，
+    // 同一局多次进入隐藏层可能覆盖上一层残留数据）
+    const key = this.nextPortalZoneKey();
     this.zones[`zone_${key}`] = { nodes };
     this.syncMapZones(parseInt(key, 10) - 1000 + 1, template, nodes, key);
     const map = this._player._map;
@@ -688,6 +668,21 @@ export class RoguelikeGridZoneManager {
     // 当前节点 = 隐藏层起点
     const status = this._player._status;
     status.cursor.position = { x: sx, y: sy };
+  }
+
+  /**
+   * 分配下一个 portal zone 键（3000 起递增，跳过已占用）。
+   * @returns 未被 map.zones / this.zones 占用的键
+   */
+  private nextPortalZoneKey(): string {
+    const map = this._player._map;
+    for (let n = 3000; n < 3900; n++) {
+      const key = String(n);
+      if (map?.zones?.[key]) continue;
+      if (this.zones[`zone_${key}`]) continue;
+      return key;
+    }
+    return "3000";
   }
 
   /** 离开隐藏层（行动力耗尽/放弃）：删除 portal zone，恢复返回点，状态回 WAIT_MOVE */

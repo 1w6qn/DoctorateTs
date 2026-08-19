@@ -1,5 +1,18 @@
 import { RoguelikeBuff } from "@game/model/rlv2";
 import { ItemBundle } from "./character_table";
+// 黑流树海（rogue_6）三模块数据类型复用 CS 反编译生成的权威定义
+// （types_excel_gen.ts，由 scripts/generate-types.ts --excel 产出），避免手写重复。
+import type {
+  RoguelikeGridZoneModuleData,
+  RoguelikeWeatherModuleData,
+  RoguelikeScrapModuleData,
+} from "./types_excel_gen";
+
+export type {
+  RoguelikeGridZoneModuleData,
+  RoguelikeWeatherModuleData,
+  RoguelikeScrapModuleData,
+};
 
 export interface RoguelikeTopicTable {
     topics:        {[key:string]:RoguelikeTopicBasicData};
@@ -32,11 +45,19 @@ export namespace RoguelikeTopicConst{
 }
 
 
+/**
+ * 主题自定义数据（官方 customizeData）。
+ * rogue_1..3 用各自的 developments 结构；rogue_4..6 统一走 commonDevelopment
+ * （CustomizeDataCommon）——实测 data/excel/roguelike_topic_table.json 六主题全在，
+ * 原类型仅声明 rogue_1..4 导致 rogue_5/6 访问必须 as any。
+ */
 export interface CustomizeData {
     rogue_1: CustomizeDataRogue1;
     rogue_2: CustomizeDataRogue2;
     rogue_3: CustomizeDataRogue3;
     rogue_4: CustomizeDataRogue4;
+    rogue_5: CustomizeDataCommon;
+    rogue_6: CustomizeDataCommon;
 }
 
 export interface CustomizeDataRogue1 {
@@ -283,6 +304,20 @@ export interface CustomizeDataRogue4 {
     commonDevelopment: CommonDevelopment;
     difficulties:      FluffyDifficulty[];
     endingText:        { [key: string]: string };
+}
+
+/**
+ * rogue_4..6 共用的 customizeData 结构（commonDevelopment + difficulties + endingText）。
+ * rogue_5 另有 specialShopDialog、rogue_6 另有 scrapShopDialogData/employShopDialogData
+ * （商店对话文本，纯客户端展示）——以可选键描述，服务端不消费。
+ */
+export interface CustomizeDataCommon {
+    commonDevelopment:      CommonDevelopment;
+    difficulties:           FluffyDifficulty[];
+    endingText:             { [key: string]: string };
+    specialShopDialog?:     { [key: string]: unknown };
+    scrapShopDialogData?:   { [key: string]: unknown };
+    employShopDialogData?:  { [key: string]: unknown };
 }
 
 export interface CommonDevelopment {
@@ -1113,6 +1148,13 @@ export interface RoguelikeRollNodeGroupData {
 }
 
 
+/**
+ * 主题模块数据（官方 modules[theme]）。
+ * moduleTypes 决定 RoguelikeModuleManager 实例化哪些管理器；各模块数据键为 null 表示
+ * 该主题不启用。gridZone/scrap/weather 为黑流树海（rogue_6）三模块——实测
+ * data/excel/roguelike_topic_table.json 的 modules.rogue_6 键名为小驼峰
+ * `gridZone`/`scrap`/`weather`（moduleTypes = ["GRID_ZONE","WEATHER","SCRAP"]）。
+ */
 export interface RoguelikeModule {
     moduleTypes: string[];
     sanCheck:    RoguelikeSanCheckModuleData | null;
@@ -1123,6 +1165,9 @@ export interface RoguelikeModule {
     fragment:    RoguelikeFragmentModuleData | null;
     disaster:    RoguelikeDisasterModuleData | null;
     nodeUpgrade: RoguelikeNodeUpgradeModuleData | null;
+    gridZone?:   RoguelikeGridZoneModuleData | null;
+    weather?:    RoguelikeWeatherModuleData | null;
+    scrap?:      RoguelikeScrapModuleData | null;
 }
 
 export interface RoguelikeChaosModuleData {

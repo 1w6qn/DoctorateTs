@@ -1,7 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { enablePatches } from "immer";
-
-enablePatches();
 
 // 官方 excel mock：rogue_4 choiceScenes（rest/sacrifice 等 enter 场景）+ choices（选项含 displayData.itemId）
 vi.mock("@excel/excel", () => ({

@@ -1,7 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { enablePatches } from "immer";
-
-enablePatches();
 
 // 官方 excel mock：rogue_1 stages 覆盖 zone 1-6（主流程 6 层）
 vi.mock("@excel/excel", () => {

@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
-import { enablePatches } from "immer";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-enablePatches();
 
 // ===== 官服抓包严格结构 diff（2026-08-11 rogue_6 对局）=====
 // 用真实 excel + 官服请求序列驱动当前逻辑，对响应的每一节做递归结构比对

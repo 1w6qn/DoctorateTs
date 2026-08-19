@@ -1,7 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { enablePatches } from "immer";
-
-enablePatches();
 
 // ===== 实践者列表（MONTH_TEAM）模式修复回归 =====
 // 用户 bug：MONTH_TEAM 开局血/血上限 0、希望 7、recruitChar 意外临时招募、finishEvent 后卡死。

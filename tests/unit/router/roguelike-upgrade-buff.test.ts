@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { enablePatches } from "immer";
 
-enablePatches();
 
 vi.mock("express-http-context2", () => ({
   default: {

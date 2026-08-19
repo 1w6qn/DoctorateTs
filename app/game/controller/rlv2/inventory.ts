@@ -237,7 +237,7 @@ export class RoguelikeInventoryManager
         if (theme === "rogue_6") {
           const scrap = this._player._module?.scrap;
           if (scrap && typeof item.count === "number") {
-            scrap.limit = Math.max(0, (scrap.limit || 6) + item.count);
+            scrap.setLimit((scrap.limit || 6) + item.count);
           }
           return;
         }

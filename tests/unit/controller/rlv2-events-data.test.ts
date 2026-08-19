@@ -1,7 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { enablePatches } from "immer";
 
-enablePatches();
 
 // 官方 excel mock：rogue_1/2/4/6 的 choices 含 startbuff 选项
 vi.mock("@excel/excel", () => {

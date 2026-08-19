@@ -1,7 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { enablePatches } from "immer";
-
-enablePatches();
 
 vi.mock("@excel/excel", () => ({
   default: {
@@ -103,6 +100,22 @@ describe("rlv2 结算残留续局恢复", () => {
     // gameSettle 后结算完成（同样清残留）
     await rlv2.gameSettle();
     expect(rlv2._status.state).toBe("END");
+  });
+
+  it("giveUpGame 应丢弃进行中遗留事件，pending 只留 1 个 GAME_SETTLE（防客户端状态机卡死）", async () => {
+    const player = makeSettleStuckPlayer();
+    const rlv2 = player.rlv2 as any;
+    // 等构造期 emit("rlv2:continue") 微任务落定后再修改状态
+    await Promise.resolve();
+    await Promise.resolve();
+    // 模拟"在地图中途放弃"：WAIT_MOVE 态 + pending 残留进行中事件（如 RECRUIT）
+    rlv2._status.state = "WAIT_MOVE";
+    (rlv2._status._pending._pending as any[]) = [
+      { index: "e_0", type: "RECRUIT", content: { recruit: { ticket: "t1" } } },
+    ];
+    await rlv2.giveUpGame();
+    // 官服 giveUpGame 后 pending 只有 1 个 GAME_SETTLE（清除进行中残留，避免与结算页冲突）
+    expect(rlv2._status.pending.map((e: any) => e.type)).toEqual(["GAME_SETTLE"]);
   });
 
   it("module.continue() 按主题恢复模块管理器（重登继续探索不崩）", async () => {

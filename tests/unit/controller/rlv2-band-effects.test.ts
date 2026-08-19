@@ -1,7 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { enablePatches } from "immer";
-
-enablePatches();
 
 // rogue_6 分队专属逻辑：本源研修（本源系希望-2）、多边贸易（零件箱容量+2/+4）、
 // 开拓者（进区获加工品）、zone_into_reward 无区域限定不崩

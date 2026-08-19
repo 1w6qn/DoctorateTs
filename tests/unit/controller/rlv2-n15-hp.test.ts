@@ -1,7 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { enablePatches } from "immer";
 
-enablePatches();
 
 // ===== N15 开局血量回归 =====
 // 用户 bug：N15（modeGrade 15）开局血/血上限 0，客户端"系统发生未知故障"。

@@ -1,7 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { enablePatches } from "immer";
-
-enablePatches();
 
 // 官方 excel mock：rogue_1 developments（增益树节点，含 frontNodeId 数组/tokenCost）
 vi.mock("@excel/excel", () => ({

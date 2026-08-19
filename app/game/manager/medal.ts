@@ -127,6 +127,8 @@ export class MedalManager implements PlayerMedal {
     // 绕过 update() 的原地写回不产生 Immer 补丁，显式标记脏以触发条件落盘
     this._player.markDirty();
     this._trigger.emit("items:get", [items]);
+    // 勋章完成推送（path 自拟 gamepp）：随本次响应下发，客户端据此刷新勋章界面
+    this._player.pushMessage("medalFinish", { medalId: args.medalId, rts });
     return items;
   }
 
@@ -278,7 +280,13 @@ export class MedalProgress implements PlayerPerMedal {
     }
     this.param = medalInfo.unlockParam;
     if (!(template in this)) {
-      throw new Error(`template ${template} not implemented yet`);
+      // 未实现模板（数据版本新增 / 活动模板）——降级为不追踪进度，避免整服崩溃
+      logger.debug(
+        "MedalManager",
+        `template ${template} not implemented, skip ${this.id}`,
+      );
+      this.val = [[0, 0]];
+      return;
     }
 
     (this as any)[template]({}, "init");
@@ -2721,6 +2729,48 @@ export class MedalProgress implements PlayerPerMedal {
           this.val[0][0],
           Math.min(args.count ?? 0, this.val[0][1]),
         );
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * ArkodcVarSeqAtLeast勋章模板
+   * 某玩法变量序列达到阈值（target=param 初始数值；等待对应事件 emits 驱动）
+   */
+  ArkodcVarSeqAtLeast(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Rlv2KillWeather勋章模板
+   * 肉鸽中击杀天气敌人（target=param[0]；等待 rlv2 KillWeather 事件驱动）
+   */
+  Rlv2KillWeather(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * Rlv2MoveByScrap勋章模板
+   * 肉鸽废品玩法中移动/推进（target=param[0]；等待 rlv2 scrap move 事件驱动）
+   */
+  Rlv2MoveByScrap(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: () => {
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);

@@ -105,7 +105,7 @@ router.post("/story/finishStory", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as FinishStoryRequest;
   await player.status.finishStory(body);
-  // 奇象巡展 ODC：教程剧情提交后同步主题 varSeq bool_end_guide_done=1——
+  // ODC：教程剧情提交后同步主题 varSeq bool_end_guide_done=1——
   // 否则 logic_game_end_p1（q003_prog==4 && bool_end_guide_done==0 &&
   // q003_banner_showed==1）每次进图 AUTO_ONCE 重放新手教程（无限教程）
   const { finishArkOdcGuideStory } = await import("./arkodc");

@@ -171,7 +171,7 @@ function arkhubMissionWindowStart(param2?: string): number | null {
   return Number.isNaN(ts) ? null : Math.floor(ts / 1000);
 }
 
-/** TYPE_ACT53SIDE（奇象巡展主活动）默认状态（官方形状：actCoin/campaignCnt/favorList） */
+/** TYPE_ACT53SIDE（安洁莉娜的旅行小记主活动 / ODC）默认状态（官方形状：actCoin/campaignCnt/favorList） */
 function defaultAct53SideState(startTime: number): object {
   return {
     actCoin: 0,
@@ -252,7 +252,7 @@ function seedActivityState(draft: any, actId: string, info: any, ts: number): vo
     // 奇象巡展方舟枢纽（官方形状：coin/secretary/squads/globalBan）
     draft.activity[type][actId] = defaultArkhubState();
   } else if (type === "TYPE_ACT53SIDE" && !existing) {
-    // 奇象巡展主活动（官方形状：actCoin/campaignCnt/favorList，与通用 TYPE_ACT 的 coin/news 不同）
+    // 安洁莉娜的旅行小记主活动（act53side / ODC；官方形状：actCoin/campaignCnt/favorList，与通用 TYPE_ACT 的 coin/news 不同）
     draft.activity[type][actId] = defaultAct53SideState(info.startTime);
   } else if (type.startsWith("TYPE_ACT") && !existing) {
     draft.activity[type][actId] = {
@@ -300,8 +300,8 @@ function seedActivityState(draft: any, actId: string, info: any, ts: number): vo
  */
 export async function unlockActivity(player: PlayerDataManager): Promise<void> {
   // 修复：原仅冻结模式（活动切换开启）执行，真实时间（-1/缺省）为 no-op——
-  // 真实模式下 userTimestamp() = now()，窗口内活动（如 TYPE_ACT53SIDE 奇象巡展/
-  // ARK_HUB）从不播种 → 客户端活动状态缺失 → 奇象巡展新手教程卡死、无人物模型。
+  // 真实模式下 userTimestamp() = now()，窗口内活动（如 TYPE_ACT53SIDE（安洁莉娜的旅行小记）/
+  // ARK_HUB）从不播种 → 客户端活动状态缺失 → ODC 新手教程卡死、无人物模型。
   // 播种/修剪逻辑本身按 ts 窗口判定，真实模式即按当前时间正确播种当前活动。
   const ts = userTimestamp();
   // 强制开启的活动（config.activities.forceOpen）：忽略时间窗口播种且不修剪
@@ -368,10 +368,10 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
       }
     }
 
-    // 奇象巡展 ODC 主题（playerdata.arkodc.topics[topicId]）——客户端据此渲染 ODC 地图状态
+    // ODC 主题（playerdata.arkodc.topics[topicId]）——客户端据此渲染 ODC 地图状态
     seedArkOdcTopics(draft);
 
-    // 奇象巡展 ODC 教程状态回填：教程剧情已提交（status.flags 已置 1）但主题
+    // ODC 教程状态回填：教程剧情已提交（status.flags 已置 1）但主题
     // varSeq bool_end_guide_done 缺失的旧存档（finishStory 未同步 varSeq 时期的漏洞）——
     // logic_game_end_p1（q003_prog==4 && bool_end_guide_done==0 && q003_banner_showed==1）
     // 每次进图 AUTO_ONCE 重放新手教程，需补置为 1（官服完成态快照含 bool_end_guide_done=1）。

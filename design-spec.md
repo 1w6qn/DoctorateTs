@@ -1309,7 +1309,7 @@ mitmproxy map remote 设置 URL 时会同步改写 Host 头为 `127.0.0.1:8443`�
 
 **路由分发规则**（`resolveForwardTarget` 纯函数，与 scripts/proxy-harness.ts / §17.1 路径级兜底一致）：
 - **Host 优先**：`as.*` → `as.hypergryph.com`（路径原样，官服无 /auth 前缀）；`ak-gs-*` → `ak-gs-gf.hypergryph.com`（剥 `/game` 基址前缀，本地挂载点同样排除）；其余 `*.hypergryph.com`（ak-conf/game-config 等配置域）→ 不转发，保持本地
-- **路径级兜底**（Host 非官服：localhost/IP 直连 / mitmweb 重写）：as 前缀 `/user/auth|info|online|oauth2`、`/u8`、`/app`、`/general`、`/as`（剥路径化前缀）→ as 域；`/game/*` → gs 域（剥前缀）；**其余 POST** → gs 域根路径兜底（/account、/shop、/activity、/user/checkIn、**/arkodc**（奇象巡展活动路由——OBS 即从官服逆向，照常转发抓真实响应）等），但**排除本地挂载点** `/admin` `/assetbundle` `/pcSdk` `/config` `/api` `/audit` `/batch_event`（管理/配置/事件上报由私服响应——`/batch_event` 由 home.ts 返回 `{}`，转发官服只得 404 噪音，用户明确要求不转发；Host 级 ak-gs-* 分支同样排除）；GET 非 as 路径不转发（保持本地响应）
+- **路径级兜底**（Host 非官服：localhost/IP 直连 / mitmweb 重写）：as 前缀 `/user/auth|info|online|oauth2`、`/u8`、`/app`、`/general`、`/as`（剥路径化前缀）→ as 域；`/game/*` → gs 域（剥前缀）；**其余 POST** → gs 域根路径兜底（/account、/shop、/activity、/user/checkIn、**/arkodc**（ODC 小游戏活动路由——安洁莉娜的旅行小记 / act53side；OBS 即从官服逆向，照常转发抓真实响应）等），但**排除本地挂载点** `/admin` `/assetbundle` `/pcSdk` `/config` `/api` `/audit` `/batch_event`（管理/配置/事件上报由私服响应——`/batch_event` 由 home.ts 返回 `{}`，转发官服只得 404 噪音，用户明确要求不转发；Host 级 ak-gs-* 分支同样排除）；GET 非 as 路径不转发（保持本地响应）
 - 官服对双斜杠路径返回 404，endpoint 统一归一化去前导斜杠；`validateStatus: () => true` 原样透传官服 401/400 等状态；网络层错误（官服不可达）返回 502
 - **content-length 剥离**（2026-08-09 修复）：客户端原始 body 可能带空白/换行（实测 oauth2/v2/grant 原始 94B、解析后重序列化 74B），透传 `content-length` 会让官服按声明长度等剩余字节而**永久挂起**（`POST /user/oauth2/v2/grant` 20s 无响应）。转发头剥离 `host`/`content-length`/`transfer-encoding`，由 axios 按实际 body 重算。test.ts 同步修复。
 - **/u8 双写修复**（2026-08-09）：路径级兜底的 as 前缀 baseUrl 一律为 as 域根地址、path 保留完整原路径（含 `/u8`）——若 baseUrl 再拼 `/u8` 基址会与 path 里的 `/u8` 双写（实测 `as.hypergryph.com/u8/u8/user/v1/getToken` → Go 404，修复后 400 字段校验）。test.ts 的 `app.post("/u8/*endpoint", ...)` 通配符不含 `/u8` 前缀，无此问题。
@@ -1354,7 +1354,7 @@ tmp/capture/
     req.json|req.bin        # 请求体（JSON→.json；原始字节/二进制→.bin）
     res.json|res.bin        # 响应体
     up.bin/down.bin         # 网关连接原始字节流（direction=gateway-bidi）
-    parsed.json/messages.json  # 网关 arkodc 解析产物（连接关闭时生成）
+    parsed.json/messages.json  # arkhub 网关帧解析产物（连接关闭时生成）
     meta.json               # 完整元数据副本（导出/便携）
   exports/                  # 会话导出 zip（jszip）
 ```
@@ -1615,7 +1615,7 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 
 - **arkhub（方舟枢纽）游戏路由实现（2026-08-09，用户报告 /activity/arkhub/syncInfo 404）**：客户端 7 条路由（enterHall/getFriendUidList/getPixelArt/savePixelArt/setSecretary/setSquad/syncInfo）原未实现。按抓包实现：enterHall 返回 gateway 端点+端口、setSecretary/setSquad 更新 activity.ARK_HUB[act1arkhub]、syncInfo 空增量、getPixelArt/savePixelArt 私服空（像素画走 admin 的 arkhub-gateway-client 与官服网关通信）。全部 200 且 setSecretary 正确持久化。
 
-- **templateShop 商店打不开修复（2026-08-09，用户报告奇象巡展/arkodc 商店）**：getGoodList 原返回空 data（商店无法打开）。已复制 ODPY 数据源 `data/shop/templateShop.json`（33 家商店含 sandbox_1/2、shop_act53side 巡展店），getGoodList 返回完整商店配置（32KB，含 shopGroup 商品）；buyGood 实现购买（扣货币→发物品→限购记录），修复 tshop 初始化崩溃。实机：getGoodList 完整返回、buyGood 无货币返回空列表不 500。
+- **templateShop 商店打不开修复（2026-08-09，用户报告奇象巡展/arkodc 商店）**：getGoodList 原返回空 data（商店无法打开）。已复制 ODPY 数据源 `data/shop/templateShop.json`（33 家商店含 sandbox_1/2、shop_act53side（ODC / 安洁莉娜的旅行小记 店）），getGoodList 返回完整商店配置（32KB，含 shopGroup 商品）；buyGood 实现购买（扣货币→发物品→限购记录），修复 tshop 初始化崩溃。实机：getGoodList 完整返回、buyGood 无货币返回空列表不 500。
 
 - **抽卡 charGet 响应修复（2026-08-09，用户报告）**：
   - curCharInstId 从不递增 bug：onCharGet 新干员用 `draft.troop.curCharInstId` 作为 instId 但从不 +1 → 后续新干员 instId 冲突互相覆盖。已在新干员创建后递增
@@ -1664,11 +1664,11 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 - **A-2 savePlayerData 序列化**：实测 `JSON.stringify` 5.4MB 对象 ~9ms，已防抖离请求路径 + 紧凑输出（1.7MB）——`savePlayerData` 增加耗时 debug 日志；worker_threads 序列化收益低（9ms 可接受）暂缓（YAGNI）。
 - **D-2 excel 内存**：82MB 源 JSON 全量解析后驻留内存较大；懒加载已缓解内容表，核心表（character/stage/item/skill）仍常驻——多账号/大内存压力场景再评估分表卸载。
 
-## 25. 奇象巡展 ODC 修复记录（2026-08-16）
+## 25. ODC（安洁莉娜的旅行小记）修复记录（2026-08-16）
 
 ### 25.1 无限新手教程（bool_end_guide_done 缺失）
 
-**症状**：奇象巡展 ODC 地图每次进入都重放新手教程（`ark_odc_act53side_guide`）。
+**症状**：ODC 地图每次进入都重放新手教程（`ark_odc_act53side_guide`）。
 
 **根因**（对比官服完成态快照 `tmp/capture/records/R-1786248128589.9783-0050`）：
 - 教程触发 actor `logic_game_end_p1` 的 `actorShowCondition` = `q003_prog==4 && bool_end_guide_done==0 && q003_banner_showed==1`，`actorTriggerType=AUTO_ONCE` → `PlayArkodcTutorial(ark_odc_act53side_guide)`。

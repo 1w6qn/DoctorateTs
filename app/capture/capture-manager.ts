@@ -10,7 +10,7 @@
  *       req.json | req.bin      ← 请求体（JSON 可解析→.json；原始字节→.bin）
  *       res.json | res.bin      ← 响应体
  *       up.bin / down.bin       ← 网关连接原始字节流（direction=gateway-bidi）
- *       parsed.json / messages.json  ← 网关连接关闭时生成的 arkodc 解析产物
+ *       parsed.json / messages.json  ← arkhub 网关连接关闭时生成的网关帧解析产物
  *       meta.json               ← 完整元数据副本（导出/便携用）
  *     exports/                  ← 会话导出 zip
  *

@@ -65,11 +65,11 @@ function ensureArkOdcTopic(draft: any, topicId: string): any {
   return topic;
 }
 
-/** 奇象巡展 ODC 新手教程剧情 id（客户端 /story/finishStory 提交；trigger CUSTOM_OPERATION=PlayArkodcTutorial） */
+/** ODC 新手教程剧情 id（客户端 /story/finishStory 提交；trigger CUSTOM_OPERATION=PlayArkodcTutorial） */
 export const ARK_ODC_GUIDE_STORY_ID = "activities/act53side/ark_odc_act53side_guide";
 
 /**
- * 奇象巡展 ODC 新手教程完成同步（home.ts /story/finishStory 调用）
+ * ODC 新手教程完成同步（home.ts /story/finishStory 调用）
  *
  * 客户端教程（story ark_odc_act53side_guide）提交后，除 status.flags 标记外还需把
  * 主题 varSeq `bool_end_guide_done` 置 1——logic_game_end_p1 的 actorShowCondition
@@ -100,14 +100,14 @@ export async function finishArkOdcGuideStory(
   });
 }
 
-/** 奇象巡展 ODC 开始战斗请求（CS: ArkOdcBattleStartRequest : DefaultStartBattleRequest） */
+/** ODC 开始战斗请求（CS: ArkOdcBattleStartRequest : DefaultStartBattleRequest） */
 export interface ArkOdcBattleStartRequest {
   groupId: string;
   topicId: string;
   stageId?: string;
 }
 
-/** 奇象巡展 ODC 开始战斗响应（CS: ArkOdcBattleStartResponse : DefaultStartBattleResponse） */
+/** ODC 开始战斗响应（CS: ArkOdcBattleStartResponse : DefaultStartBattleResponse） */
 export interface ArkOdcBattleStartResponse extends PlayerDeltaResponse {
   result: number;
   battleId: string;
@@ -117,7 +117,7 @@ export interface ArkOdcBattleStartResponse extends PlayerDeltaResponse {
   notifyPowerScoreNotEnoughIfFailed: boolean;
 }
 
-/** 奇象巡展 ODC 战斗结算请求（CS: ArkOdcBattleFinishRequest : DefaultFinishBattleRequest） */
+/** ODC 战斗结算请求（CS: ArkOdcBattleFinishRequest : DefaultFinishBattleRequest） */
 export interface ArkOdcBattleFinishRequest {
   data: string;
   battleData: { isCheat: string; completeTime: number };
@@ -125,7 +125,7 @@ export interface ArkOdcBattleFinishRequest {
   actorId?: string;
 }
 
-/** 奇象巡展 ODC 战斗结算响应（CS: ArkOdcBattleFinishResponse : DefaultFinishBattleResponse） */
+/** ODC 战斗结算响应（CS: ArkOdcBattleFinishResponse : DefaultFinishBattleResponse） */
 export interface ArkOdcBattleFinishResponse extends PlayerDeltaResponse {
   result?: number;
   apFailReturn?: number;
@@ -142,7 +142,7 @@ export interface ArkOdcBattleFinishResponse extends PlayerDeltaResponse {
   pryResult?: unknown[];
 }
 
-/** 奇象巡展 ODC 保存位置请求（CS: ArkOdcTaskSavePositionRequest） */
+/** ODC 保存位置请求（CS: ArkOdcTaskSavePositionRequest） */
 export interface ArkOdcSavePositionRequest {
   groupId?: string;
   topicId: string;
@@ -151,10 +151,10 @@ export interface ArkOdcSavePositionRequest {
   z: number;
 }
 
-/** 奇象巡展 ODC 保存位置响应（CS: ArkOdcTaskSavePositionResponse） */
+/** ODC 保存位置响应（CS: ArkOdcTaskSavePositionResponse） */
 export type ArkOdcSavePositionResponse = PlayerDeltaResponse;
 
-/** 奇象巡展 ODC 触发互动请求（CS: ArkOdcTriggerActionRequest） */
+/** ODC 触发互动请求（CS: ArkOdcTriggerActionRequest） */
 export interface ArkOdcTriggerActionRequest {
   groupId?: string;
   topicId?: string;
@@ -164,21 +164,21 @@ export interface ArkOdcTriggerActionRequest {
   awardId?: string | null;
 }
 
-/** 奇象巡展 ODC 触发互动响应（CS: ArkOdcTriggerActionResponse { items }） */
+/** ODC 触发互动响应（CS: ArkOdcTriggerActionResponse { items }） */
 export interface ArkOdcTriggerActionResponse extends PlayerDeltaResponse {
   items: ItemBundle[];
 }
 
-/** 奇象巡展 ODC 重启任务请求（CS: ArkOdcTaskRestartRequest） */
+/** ODC 重启任务请求（CS: ArkOdcTaskRestartRequest） */
 export interface ArkOdcRestartRequest {
   groupId?: string;
   topicId?: string;
 }
 
-/** 奇象巡展 ODC 重启任务响应（CS: ArkOdcTaskRestartResponse） */
+/** ODC 重启任务响应（CS: ArkOdcTaskRestartResponse） */
 export type ArkOdcRestartResponse = PlayerDeltaResponse;
 
-/** 奇象巡展 ODC 开始战斗（CS: ArkOdcBattleStartRequest；参考 OBS 固定 battleId stub） */
+/** ODC 开始战斗（CS: ArkOdcBattleStartRequest；参考 OBS 固定 battleId stub） */
 router.post("/battleStart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ArkOdcBattleStartRequest;
@@ -196,7 +196,7 @@ router.post("/battleStart", async (req, res) => {
 });
 
 /**
- * 奇象巡展 ODC 战斗结算（CS: ArkOdcBattleFinishRequest；参考 ODPY arkodcBattleFinish）
+ * ODC 战斗结算（CS: ArkOdcBattleFinishRequest；参考 ODPY arkodcBattleFinish）
  * 解密战斗数据判定是否完成（q001_logic_after_bat_p1 需非中断/非放弃；
  * 其余按 completeState 2/3 为完成）——完成后按 actorData.actorShowCondition 推进 varSeqs
  */
@@ -271,7 +271,7 @@ router.post("/battleFinish", async (req, res) => {
 });
 
 /**
- * 奇象巡展 ODC 保存位置（CS: ArkOdcTaskSavePositionRequest）
+ * ODC 保存位置（CS: ArkOdcTaskSavePositionRequest）
  * 参考 ODPY arkodc.savePosition：写入 arkodc.topics[topicId].position
  */
 router.post("/savePosition", async (req, res) => {
@@ -300,7 +300,7 @@ function isInvalidTopicId(topicId: string | undefined | null): boolean {
 }
 
 /**
- * 奇象巡展 ODC 触发互动（CS: ArkOdcTriggerActionRequest）
+ * ODC 触发互动（CS: ArkOdcTriggerActionRequest）
  * 参考 ODPY arkodc.triggerInteraction：awardId 存在且无 avgId 时标记
  * topics[topicId].rewards[awardId]=1；奖励返回空（参考 OBS）
  */
@@ -414,7 +414,7 @@ router.post("/triggerInteraction", async (req, res) => {
 });
 
 /**
- * 奇象巡展 ODC 重启任务（CS: ArkOdcTaskRestartRequest；参考 ODPY arkodcRestart）
+ * ODC 重启任务（CS: ArkOdcTaskRestartRequest；参考 ODPY arkodcRestart）
  * 重置主题 varSeqs（deleted delta 下发被删 key 列表）+ position 置空
  */
 router.post("/restart", async (req, res) => {

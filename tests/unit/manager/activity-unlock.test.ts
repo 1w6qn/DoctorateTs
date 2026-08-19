@@ -206,7 +206,7 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
     expect(act53.coin).toBeUndefined();
   });
 
-  it("冻结到奇象巡展窗口：播种 arkodc 主题（ODC 地图状态）", async () => {
+  it("冻结到 ODC 窗口：播种 arkodc 主题（ODC 地图状态）", async () => {
     config.developer = { timestamp: 1785538800 };
     await unlockActivity(mockPlayer as any);
 

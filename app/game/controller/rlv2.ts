@@ -22,8 +22,19 @@ import { PlayerDataModel } from "@game/model/playerdata";
 import { BattleData } from "@game/model/battle";
 import { RoguelikePoolManager } from "./rlv2/pool";
 import { ROGUE6_NODE } from "./rlv2/modules/grid_zone";
+import {
+  ROGUE6_BATTLE_NODES,
+  ROGUE6_SHOP_NODES,
+  ROGUE6_NODE_SCENE_PREFIX,
+  ROGUE6_END2_BOSS_STAGE,
+  ROGUE6_END2_RELICS,
+  ROGUE6_END3_RELIC,
+  ROLL_NODE_TYPE_VALUES,
+  isBlackstream,
+} from "./rlv2/theme-rules";
 import { RoguelikeGameInitData } from "@excel/roguelike_topic_table";
 import { TypedEventEmitter } from "@game/model/events";
+import { RoguelikePushMessage } from "../model/protocol/common";
 import { Draft } from "mutative";
 import { ItemBundle } from "@excel/character_table";
 
@@ -99,6 +110,13 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   _bandId = "";
   /** 多边贸易分队：当前行商节点已卖出零件数（进入行商节点重置，节点内限 1 次奖励） */
   _shopSellCount?: number;
+  /**
+   * 本次 rlv2 请求的 pushMessage 收集器（官服对齐新增）。
+   * 控制器为玩家持久实例，故每次会发推送的端点（createGame/moveTo 等）需先清空再累积，
+   * 并由对应 router 端点经 `takePushMessages()` 读取并清空后随响应下发。
+   * 仅 rogue_6（黑流树海）在范围内下发，其余主题 `pushMessage()` 直接跳过。
+   */
+  _pushMessages: RoguelikePushMessage[] = [];
 
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     // rlv2 内部模型（model/rlv2.ts）与生成模型（types-playerdata）为同一数据的两种视图：
@@ -183,6 +201,29 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }
 
   /**
+   * 收集一条 rlv2 推送消息（官服对齐新增）。
+   * 仅当主题为 rogue_6（黑流树海，本次对齐范围）时累积；其余主题静默跳过，
+   * 保证 pushMessage 字段在非范围内主题响应中不被下发（rlv2Response 仅非空时合并）。
+   * @param path         官服 pushMessage.path（如 rlv2ScrapLimit / rlv2NodeArrive）
+   * @param payload      官服 pushMessage.payload（如 {} / { nodeType } / { nodeList }）
+   * @param themeOverride 主题覆盖：createGame 在 update() 写库前调用时，当前game.theme 仍是
+   *                       旧主题，需显式传入本次要创建的主题；其余端点（进行中对局）可不传，
+   *                       自动取 this.current.game.theme。
+   */
+  pushMessage(path: string, payload: unknown, themeOverride?: string): void {
+    const theme = themeOverride ?? this.current.game?.theme;
+    if (theme !== "rogue_6") return;
+    this._pushMessages.push({ path, payload });
+  }
+
+  /** 读取并清空本次请求累积的 pushMessage（由 router 端点在 res.send 前调用） */
+  takePushMessages(): RoguelikePushMessage[] {
+    const out = this._pushMessages;
+    this._pushMessages = [];
+    return out;
+  }
+
+  /**
    * 规范化 rlv2 持久态为可写（autoFreeze 兼容）
    *
    * Immer finishDraft 在 autoFreeze=true 下会冻结整个 _playerdata（含 rlv2 子树的
@@ -215,8 +256,21 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     });
   }
 
+  /**
+   * 清掉 pending 中残留的 GAME_SETTLE（幂等：重登恢复的"放弃结算中间态"存档
+   * 已带 GAME_SETTLE，再次 giveUpGame/gameSettle 若直接追加会产生重复事件，
+   * 客户端渲染结算页崩溃——官服 giveUpGame 后 pending 只有 1 个 GAME_SETTLE）。
+   */
+  private clearPendingSettle(): void {
+    const pend = this._status.pending;
+    for (let i = pend.length - 1; i >= 0; i--) {
+      if (pend[i].type === "GAME_SETTLE") pend.splice(i, 1);
+    }
+  }
+
   async giveUpGame(): Promise<void> {
     // 放弃结算：生成 GAME_SETTLE 事件（客户端展示放弃结算页），保留游戏态直至 gameSettle 确认
+    this.clearPendingSettle();
     this._status.runResult = "giveup";
     const { brief, record } = this.buildSettlement(true, 0, "");
     // current.record 为 _playerdata.rlv2 引用（update() 后冻结），写入须放入配方
@@ -241,6 +295,12 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     predefinedId: string | null;
   }): Promise<void> {
     const theme = args.theme;
+    // 清空上一请求的残留推送（控制器为持久实例），并收集本局创建的入场推送。
+    // 官服 createGame 必带 {path:"rlv2ScrapLimit",payload:{}}（黑流树海抓包 2026-08-11）。
+    this._pushMessages = [];
+    if (theme === "rogue_6") {
+      this.pushMessage("rlv2ScrapLimit", {}, theme);
+    }
     // 迁移：current.* 与 outer[theme] 都是 _playerdata.rlv2 的引用，update() 后会被
     // Immer autoFreeze 冻结，配方外原地写会抛错 → 全部放入 update() 配方内，经 finishDraft
     // 统一刷新 this.outer/this.current 引用（后续代码用 this.xxx 读安全）。
@@ -789,12 +849,12 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     const theme = this.current.game!.theme;
     if (zone >= this.maxZone) {
       // 三结局·纠缠调和：持有【怦然信标】通过第Ⅵ层 → ending_3
-      if (theme === "rogue_6" && this.hasRelic("rogue_6_relic_final_3")) {
+      if (isBlackstream(theme) && this.hasRelic(ROGUE6_END3_RELIC)) {
         this._status.toEnding = "ro6_ending_3";
       } else if (
-        theme === "rogue_6" &&
-        (this.hasRelic("rogue_6_relic_final_1") ||
-          this.hasRelic("rogue_6_relic_final_2"))
+        isBlackstream(theme) &&
+        (this.hasRelic(ROGUE6_END2_RELICS.sandboxAlpha) ||
+          this.hasRelic(ROGUE6_END2_RELICS.sandboxBeta))
       ) {
         // 二结局·维度重构：持有沙盘α/β 且不持有怦然信标通过第Ⅴ层 → ending_2
         this._status.toEnding = "ro6_ending_2";
@@ -1446,6 +1506,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
 
   async moveTo(args: { to: RoguelikeNodePosition }): Promise<void> {
     const theme = this.current.game!.theme;
+    // 清空上一请求的残留推送（控制器为持久实例）
+    this._pushMessages = [];
     const detail = excel.RoguelikeTopicTable.details[theme].gameConst;
     const pos = this._status.cursor.position;
     this._status.state = "PENDING";
@@ -1518,6 +1580,16 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       }
     }
     this._status.cursor.position = args.to;
+    // 节点到达推送（官服对齐）：rlv2NodeArrive 携节点类型，rlv2NodeChange 携当前 zone 节点列表。
+    // 仅 rogue_6（黑流树海）范围内下发；其余主题静默跳过（pushMessage 仅在 rogue_6 累积）。
+    if (theme === "rogue_6" && next) {
+      const zoneNodes =
+        this._map.zones[this._status.cursor.zone]?.nodes ?? {};
+      this.pushMessage("rlv2NodeArrive", { nodeType: next.type });
+      this.pushMessage("rlv2NodeChange", {
+        nodeList: Object.keys(zoneNodes),
+      });
+    }
   }
 
   /**
@@ -2032,54 +2104,33 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   async rerollNode(args: { nodeIndex: string }): Promise<void> {
     const { nodeIndex } = args;
     const zone = this._status.cursor.zone;
-    const node = this._map.zones[zone]?.nodes[nodeIndex];
+    // 键兼容：标准主题为层号，黑流树海为区域索引（1000+）/隐藏层（3000+）——
+    // 原实现直写 zones[zone]，rogue_6 恒取不到节点 → 重掷静默失效
+    const mapZone = this._map.zones[this.zoneKey(zone)];
+    const node = mapZone?.nodes[nodeIndex];
     if (!node) return;
     const refresh = node.refresh;
     if (refresh && refresh.usedCount >= refresh.count) return;
     if (refresh) refresh.usedCount += 1;
-    // 官方 rollNodeData 按 zoneId 分组（rogue_6 有配置；其余主题为空 → 随机换战斗类型）
+    // 官方 rollNodeData 按 zoneId 分组（rogue_6 为隐藏层 zone_portal_normal_5_*）
     const theme = this.current.game!.theme;
-    const rollNodeData = (excel.RoguelikeTopicTable.details[theme] as any)
-      ?.rollNodeData;
-    const zoneId = this._map.zones[zone].id;
+    const detail = excel.RoguelikeTopicTable.details[theme];
+    const rollNodeData = detail?.rollNodeData;
+    const zoneId = mapZone.id;
     const group = rollNodeData?.[zoneId]?.groups;
+    const stageKeys = Object.keys(detail?.stages || {});
+    const roNum = theme.slice(-1);
     if (group) {
       const types = Object.values(group) as { nodeType: string }[];
-      const typeMap: { [key: string]: number } = {
-        BATTLE_NORMAL: 1,
-        BATTLE_ELITE: 2,
-        BATTLE_BOSS: 4,
-        SHOP: 8,
-        REST: 16,
-        INCIDENT: 32,
-        TREASURE: 64,
-        ENTERTAINMENT: 128,
-        UNKNOWN: 256,
-        WISH: 512,
-        SACRIFICE: 1024,
-        EXPEDITION: 2048,
-        BATTLE_SHOP: 4096,
-        PORTAL: 8192,
-      };
       const pick = types[Math.floor(Math.random() * types.length)];
-      node.type = typeMap[pick.nodeType] ?? 1;
-      const stageKeys = Object.keys(
-        (excel.RoguelikeTopicTable.details[theme] as any)?.stages || {},
-      );
-      const zoneNum = String(zone);
-      const roNum = theme.slice(-1);
-      const candidates = stageKeys.filter((s) =>
-        s.startsWith(`ro${roNum}_n_${zoneNum}_`),
-      );
-      if (candidates.length > 0) {
-        node.stage = candidates[Math.floor(Math.random() * candidates.length)];
-      }
+      // 节点类型名 → 数值统一走 theme-rules 表（原 typeMap 缺 rogue_6 的
+      // 命运所指/狭路相逢/秘境行商等 11 类 → 一律退化为普通作战）
+      node.type = ROLL_NODE_TYPE_VALUES[pick.nodeType] ?? ROGUE6_NODE.BATTLE_NORMAL;
     } else {
-      node.type = 1;
-      const stageKeys = Object.keys(
-        (excel.RoguelikeTopicTable.details[theme] as any)?.stages || {},
-      );
-      const roNum = theme.slice(-1);
+      node.type = ROGUE6_NODE.BATTLE_NORMAL;
+    }
+    // 战斗类节点补关卡（非战斗类不需要 stage）
+    if (ROGUE6_BATTLE_NODES.includes(node.type)) {
       const candidates = stageKeys.filter((s) =>
         s.startsWith(`ro${roNum}_n_${zone}_`),
       );
@@ -2160,6 +2211,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   async gridZoneMoveTo(args: { route: string[] }): Promise<void> {
     const route = args.route || [];
     if (route.length === 0) return;
+    // 清空上一请求的残留推送（控制器为持久实例，与标准 moveTo 一致）
+    this._pushMessages = [];
     const gz = this._module.gridZone;
     // 路径中每个节点消耗一步（含末节点）
     for (const _nodeId of route) {
@@ -2176,8 +2229,16 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     const lastY = Number(last) % 100;
     this._status.trace.push({ zone, position: { x: lastX, y: lastY } });
     this._status.cursor.position = { x: lastX, y: lastY };
+    const kind = node?.content?.kind;
+    // 节点到达推送（官服对齐）：rlv2NodeArrive 携节点类型、rlv2NodeChange 携当前 zone 节点列表。
+    // 原实现只在标准 moveTo 中累积，而黑流树海走本方法 → 推送永不下发。
+    if (typeof kind === "number") {
+      const zoneNodes = gz?.zones?.[gz.currentZoneKey()]?.nodes ?? {};
+      this.pushMessage("rlv2NodeArrive", { nodeType: kind });
+      this.pushMessage("rlv2NodeChange", { nodeList: Object.keys(zoneNodes) });
+    }
     if (node?.content?.savage?.stageId) {
-      // 战斗节点 → 战斗
+      // 战斗节点（作战/紧急作战/险路恶敌/“居民”据点）→ 战斗
       this._status.state = "PENDING";
       await this._trigger.emit("rlv2:battle:start", [
         node.content.savage.stageId,
@@ -2189,7 +2250,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       this._shopSellCount = 0;
       // 多边贸易升级（band_20）：每次进入行商节点获得 1 个<枯苔藓球>
       if (
-        this.current.game!.theme === "rogue_6" &&
+        isBlackstream(this.current.game!.theme) &&
         this.hasRelic("rogue_6_band_20")
       ) {
         this._trigger.emit("rlv2:scrap:gain", ["rogue_6_scrap_G_08"]);
@@ -2202,22 +2263,71 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       return;
     }
     // 误入奇境（MIRAGE）：进入黑潭场景（消耗加工品 → 隐藏层 未萌生的摇篮）
-    if (node?.content?.kind === ROGUE6_NODE.MIRAGE) {
+    if (kind === ROGUE6_NODE.MIRAGE) {
       this.createPortalScene();
       return;
     }
     // 命运所指（PROPHECY，V 层二结局 / VI 层调谐仪式入口）：好奇心与死 / 窥视箱中
-    if (node?.content?.kind === ROGUE6_NODE.PROPHECY) {
+    if (kind === ROGUE6_NODE.PROPHECY || kind === ROGUE6_NODE.PROPHECY_HIDDEN) {
       this.createFateScene();
       return;
     }
-    // 不期而遇（INCIDENT）：rogue_6 概率触发线人事件（二结局沙盘α）
-    if (node?.content?.kind === ROGUE6_NODE.INCIDENT) {
-      this.createIncidentScene();
+    // 不期而遇（INCIDENT）：优先二结局线人事件，否则走通用节点场景
+    if (kind === ROGUE6_NODE.INCIDENT && this.createIncidentScene()) {
       return;
     }
-    // 空节点：网格区域自由移动，回到 WAIT_MOVE（客户端继续走）
+    // 其余事件节点（安全的角落/得偿所愿/失与得/先行一步/狭路相逢/应急助力/险路小径/险路尽头）：
+    // 按节点类型从官方 choiceScenes 抽 enter 场景生成 SCENE 事件。
+    // 原实现缺此分发（triggerNodeEvent 零调用）→ 这些节点全部退化为空节点，
+    // 三结局入口（先行一步 → scene_ro6_scout_enter）也因此不可达。
+    if (typeof kind === "number" && this.createRogue6NodeScene(kind)) {
+      return;
+    }
+    // 空节点（林间空地/曲折密道/羽瞰点）：网格区域自由移动，回到 WAIT_MOVE（客户端继续走）
     this._status.state = "WAIT_MOVE";
+  }
+
+  /**
+   * 生成黑流树海节点事件场景（SCENE）。
+   * 按节点类型取官方 enter 场景前缀（ROGUE6_NODE_SCENE_PREFIX），随机抽一幕，
+   * 选项取该幕同前缀的 choices（如 scene_ro6_rest_enter → choice_ro6_rest_1..6）。
+   * @param nodeType 节点类型数值（ROGUE6_NODE）
+   * @returns 已生成场景返回 true；该类型无场景映射或数据缺失返回 false
+   */
+  private createRogue6NodeScene(nodeType: number): boolean {
+    const theme = this.current.game!.theme;
+    const prefixes = ROGUE6_NODE_SCENE_PREFIX[nodeType];
+    if (!prefixes || prefixes.length === 0) return false;
+    const detail = excel.RoguelikeTopicTable.details[theme];
+    // enter 场景：scene_ro6_{prefix}{N}_enter（N 可空，如 scene_ro6_rest_enter）
+    const sceneIds = Object.keys(detail?.choiceScenes || {}).filter((id) =>
+      prefixes.some((p) => new RegExp(`^scene_ro\\d+_${p}\\d*_enter$`).test(id)),
+    );
+    if (sceneIds.length === 0) return false;
+    const sceneId = sceneIds[Math.floor(Math.random() * sceneIds.length)];
+    // 该幕的选项：与场景同名前缀（scene_ro6_bat1_enter → choice_ro6_bat1_*）
+    const stem = sceneId.replace(/^scene_/, "").replace(/_enter$/, "");
+    const choiceIds = Object.keys(detail?.choices || {}).filter((k) =>
+      k.startsWith(`choice_${stem}_`),
+    );
+    if (choiceIds.length === 0) return false;
+    this._status.state = "PENDING";
+    this._trigger.emit("rlv2:event:create", [
+      "SCENE",
+      {
+        scene: {
+          id: sceneId,
+          choices: choiceIds.reduce((acc, cid) => ({ ...acc, [cid]: 1 }), {}),
+          choiceAdditional: choiceIds.reduce(
+            (acc, cid) => ({ ...acc, [cid]: { rewards: [] } }),
+            {},
+          ),
+        },
+        done: false,
+        popReport: false,
+      },
+    ]);
+    return true;
   }
 
   /**
@@ -2285,24 +2395,28 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }
 
   /**
-   * 消耗 1 件加工品（零件箱非载具废品）进入黑潭；无可用加工品返回 false。
-   * 加工品 = 零件箱中非 MOVE 型废品（载具保留）；扣 1 件（优先估价低者）。
+   * 消耗 1 件加工品（零件箱 MOVE 型废品）进入黑潭；无可用加工品返回 false。
+   * 官方 scrapTypeData：MOVE = "加工品"（可用于地图移动），GOODS = "自然物"，
+   * PASSIVE = "概念体"——误入奇境选项文本"消耗零件箱里的 1件 加工品"即 MOVE 型。
+   * 扣估价（sellPrice）最低者。
    */
   private consumePortalScrap(): boolean {
     const scrap = this._module.scrap;
     if (!scrap) return false;
     const theme = this.current.game!.theme;
-    const scrapMod = (excel.RoguelikeTopicTable.modules as any)?.[theme];
-    const typeMap =
-      scrapMod?.scrap ?? scrapMod?.sCRAP ?? {};
+    const typeMap = excel.RoguelikeTopicTable.modules[theme]?.scrap;
     const candidates = Object.values(scrap.inventory || {}).filter((it: any) => {
-      const t = typeMap?.scrapItemToType?.[it.id];
-      return t !== "MOVE";
+      return typeMap?.scrapItemToType?.[it.id] === "MOVE";
     }) as { instId: string; value: number }[];
     if (candidates.length === 0) return false;
     // 优先扣估价最低的加工品
     candidates.sort((a, b) => a.value - b.value);
-    delete scrap.inventory[candidates[0].instId];
+    const consumed = candidates[0];
+    delete scrap.inventory[consumed.instId];
+    // 扣掉的若是当前载具，切回步行（否则 activeVehicle 指向已删除的 instId）
+    if (scrap.activeVehicle?.instId === consumed.instId) {
+      scrap.activeVehicle = { isWalk: true };
+    }
     return true;
   }
 
@@ -2311,8 +2425,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
    * 将当前节点标记为混沌源阶理论并创建 BATTLE 事件（客户端随后 moveAndBattleStart）。
    */
   private startChaosSourceBattle(): void {
-    const theme = this.current.game!.theme;
-    const stageId = "ro6_b_5"; // 混沌源阶理论（stages 表实锤）
+    const stageId = ROGUE6_END2_BOSS_STAGE; // 混沌源阶理论（stages 表实锤 ro6_b_5）
     // 当前节点标记为混沌源阶理论（客户端地图显示险路恶敌）
     const pos = this._status.cursor.position;
     if (pos) {
@@ -2345,9 +2458,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   /** 线人事件：获得 1 件珍贵的加工品（零件池随机 1 件入零件箱） */
   private gainPreciousScrap(): void {
     const theme = this.current.game!.theme;
-    const scrapMod = (excel.RoguelikeTopicTable.modules as any)?.[theme];
     const pool = Object.keys(
-      (scrapMod?.scrap ?? scrapMod?.sCRAP)?.scrapItemToType || {},
+      excel.RoguelikeTopicTable.modules[theme]?.scrap?.scrapItemToType || {},
     );
     if (pool.length === 0) return;
     const id = pool[Math.floor(Math.random() * pool.length)];
@@ -2360,17 +2472,17 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
    */
   private createFateScene(): void {
     const theme = this.current.game!.theme;
-    if (theme !== "rogue_6") {
+    if (!isBlackstream(theme)) {
       this._status.state = "WAIT_MOVE";
       return;
     }
     const hasBoth =
-      this.hasRelic("rogue_6_relic_final_1") &&
-      this.hasRelic("rogue_6_relic_final_2");
+      this.hasRelic(ROGUE6_END2_RELICS.sandboxAlpha) &&
+      this.hasRelic(ROGUE6_END2_RELICS.sandboxBeta);
     const isBox = hasBoth || Math.random() < 1 / 3;
     const sceneId = isBox ? "scene_ro6_end2_enter" : "scene_ro6_end1_enter";
     const prefix = isBox ? "choice_ro6_end2_" : "choice_ro6_end1_";
-    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+    const detail = excel.RoguelikeTopicTable.details[theme];
     const choiceIds = Object.keys(detail.choices || {}).filter((k) =>
       k.startsWith(prefix),
     );
@@ -2398,31 +2510,26 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }
 
   /**
-   * 不期而遇（INCIDENT）事件：rogue_6 无 event_choices 数据 → Ⅱ-Ⅳ 层概率触发
-   * 线人事件（bomb1"线人与线索"，未持有沙盘α时），否则空节点结束。
+   * 二结局·线人事件（bomb1"线人与线索"）：不期而遇节点上的专属分支。
+   * 仅 Ⅱ-Ⅳ 层、未持有沙盘α时按 40% 概率触发；不触发时交回调用方走通用不期而遇场景。
+   * @returns 已生成线人场景返回 true，否则 false
    */
-  private createIncidentScene(): void {
+  private createIncidentScene(): boolean {
     const theme = this.current.game!.theme;
-    const finish = () => {
-      this._status.state = "WAIT_MOVE";
-    };
-    if (theme !== "rogue_6" || this.hasRelic("rogue_6_relic_final_1")) {
-      finish();
-      return;
+    if (!isBlackstream(theme) || this.hasRelic(ROGUE6_END2_RELICS.sandboxAlpha)) {
+      return false;
     }
     const zone = this._status.cursor.zone;
     // 线人仅 Ⅱ-Ⅳ 层出现；概率触发（40%）
     if (zone < 2 || zone > 4 || Math.random() >= 0.4) {
-      finish();
-      return;
+      return false;
     }
-    const detail = excel.RoguelikeTopicTable.details[theme] as any;
+    const detail = excel.RoguelikeTopicTable.details[theme];
     const choiceIds = Object.keys(detail.choices || {}).filter((k) =>
       k.startsWith("choice_ro6_bomb1_"),
     );
     if (choiceIds.length === 0) {
-      finish();
-      return;
+      return false;
     }
     const choices = choiceIds.reduce(
       (acc, cid) => ({ ...acc, [cid]: 1 }),
@@ -2441,6 +2548,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         popReport: false,
       },
     ]);
+    return true;
   }
 
   /** 网格区域移动并开始战斗（抓包 { route, stageId, squad }） */
@@ -2526,14 +2634,14 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     this._status.state = "WAIT_MOVE";
   }
 
-  /** 当前节点是否为行商节点（诡意行商 4096 / 秘境行商 2097152） */
+  /** 当前节点是否为行商节点（诡意行商 / 秘境行商 / 应急助力，官方 subName=商店） */
   private isInShopNode(): boolean {
     const pos = this._status.cursor.position;
     if (!pos) return false;
     const node = this._map.zones[this.zoneKey(this._status.cursor.zone)]?.nodes[
       pos.x * 100 + pos.y
     ];
-    return node?.type === 4096 || node?.type === 2097152;
+    return typeof node?.type === "number" && ROGUE6_SHOP_NODES.includes(node.type);
   }
 
   /**
@@ -2567,10 +2675,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     legacy: RoguelikeItemBundle[];
   }> {
     const theme = this.current.game?.theme ?? "";
-    const scrapMod = (excel.RoguelikeTopicTable.modules as any)?.[theme];
-    // 兼容 sCRAP（CS 枚举污染）与 scrap 两种键名（同 battle.ts 处理）
     const pool = Object.keys(
-      (scrapMod?.scrap ?? scrapMod?.sCRAP)?.scrapItemToType || {},
+      excel.RoguelikeTopicTable.modules[theme]?.scrap?.scrapItemToType || {},
     );
     const count = Math.max(1, Math.min(args.count ?? 1, 3));
     const scrap: RoguelikeItemBundle[] = [];
@@ -2593,54 +2699,6 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     }
     this._status.state = "PENDING";
     return { scrap, legacy };
-  }
-
-  /**
-   * 节点事件触发（gridZone 移动落地）：复用 moveTo 的节点类型分发
-   * @param nodeType TorappuRoguelikeEventType
-   */
-  private triggerNodeEvent(nodeType: number): void {
-    const theme = this.current.game!.theme;
-    switch (nodeType) {
-      case TorappuRoguelikeEventType.INCIDENT: {
-        const enterScenes = this._data.eventChoices?.[theme]?.enter;
-        if (enterScenes) {
-          const sceneIds = Object.keys(enterScenes);
-          if (sceneIds.length > 0) {
-            const sceneId =
-              sceneIds[Math.floor(Math.random() * sceneIds.length)];
-            const choicesList = enterScenes[sceneId] || [];
-            const choices = choicesList.reduce(
-              (acc, cid) => ({ ...acc, [cid]: 1 }),
-              {},
-            );
-            const choiceAdditional = choicesList.reduce(
-              (acc, cid) => ({ ...acc, [cid]: { rewards: [] } }),
-              {},
-            );
-            this._trigger.emit("rlv2:event:create", [
-              "SCENE",
-              {
-                scene: { id: sceneId, choices, choiceAdditional },
-                done: false,
-                popReport: false,
-              },
-            ]);
-          }
-        }
-        break;
-      }
-      case TorappuRoguelikeEventType.SHOP:
-      case TorappuRoguelikeEventType.BATTLE_SHOP:
-        this._trigger.emit("rlv2:event:create", [
-          "BATTLE_SHOP",
-          this.buildShopContent(theme),
-        ]);
-        break;
-      default:
-        this.createNodeScene(theme, nodeType);
-        break;
-    }
   }
 
   toJSON(): PlayerRoguelikeV2 {
@@ -2975,6 +3033,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }
 
   async gameSettle(): Promise<void> {
+    // 幂等：清掉重登恢复时残留的 GAME_SETTLE（giveUpGame 后 gameSettle 前中断的存档）
+    this.clearPendingSettle();
     const theme = this.current.game!.theme;
     const ending = this._status.toEnding || "";
     // 修复：原实现 toEnding 恒为 "roX_ending_1/2"（非 "normal"）且 chgEnding 仅持有

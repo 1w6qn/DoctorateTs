@@ -39,11 +39,9 @@ export class RoguelikeModuleManager {
     this._modules = {};
   }
 
-  async create() {
-    const theme = this._player.current.game!.theme;
-    // 新对局先清空旧主题残留管理器（giveUpGame 已不触发 rlv2:init 清空）
-    this._modules = {};
-    const moduleHandler: { [key: string]: () => any } = {
+  /** 主题模块管理器工厂（create/continue 共用） */
+  private moduleHandler(): { [key: string]: () => any } {
+    return {
       FRAGMENT: () => new RoguelikeFragmentManager(this._player, this._trigger),
       DISASTER: () => new RoguelikeDisasterManager(this._player, this._trigger),
       NODE_UPGRADE: () =>
@@ -61,6 +59,13 @@ export class RoguelikeModuleManager {
       WRATH: () => new RoguelikeWrathManager(this._player, this._trigger),
       SKY: () => new RoguelikeSkyManager(this._player, this._trigger),
     };
+  }
+
+  async create() {
+    const theme = this._player.current.game!.theme;
+    // 新对局先清空旧主题残留管理器（giveUpGame 已不触发 rlv2:init 清空）
+    this._modules = {};
+    const moduleHandler = this.moduleHandler();
 
     const moduleTypes = excel.RoguelikeTopicTable.modules[theme]?.moduleTypes || [];
     // 创建管理器；构造期 rlv2:init（未 await）可能在 create 期间滞后触发清空 → 前后各确保一次
@@ -86,7 +91,29 @@ export class RoguelikeModuleManager {
     }
   }
 
-  continue() {}
+  /**
+   * 重登"继续探索"恢复：按主题创建模块管理器并主动恢复各模块状态
+   * （原实现为空实现——管理器从未创建，gridZone/scrap 等 getter 返回 undefined，
+   * 续局请求直接崩溃）。不依赖 Emittery 微任务时序（新注册监听在本次 emit
+   * 快照之外不会触发），创建后直接调用子模块的 continue()。
+   */
+  continue(): void {
+    const theme = this._player.current.game?.theme;
+    if (!theme) return;
+    const moduleHandler = this.moduleHandler();
+    const moduleTypes =
+      excel.RoguelikeTopicTable.modules[theme]?.moduleTypes || [];
+    for (const moduleName of moduleTypes) {
+      if (moduleName in moduleHandler && !this._modules[moduleName]) {
+        this._modules[moduleName] = moduleHandler[moduleName]();
+      }
+    }
+    // 主动恢复各模块存档状态（grid_zone 恢复 zones/stepRemain、scrap 恢复 inventory
+    // 等；存档无该模块数据时子模块 continue 内部做空值兜底）
+    for (const m of Object.values(this._modules)) {
+      if (typeof m?.continue === "function") m.continue();
+    }
+  }
 
   /** 图腾管理器访问器（rogue_3 TOTEM 模块） */
   get totem(): any {

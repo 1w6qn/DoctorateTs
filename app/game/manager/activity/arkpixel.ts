@@ -49,6 +49,37 @@ export const ARKPIXEL_MAX_PUBLISH = 50;
 
 let _index: Record<string, PixelMeta> | null = null;
 
+/**
+ * 上传 token → {pixel_art_id, md5} 暂存（内存，进程内共享）。
+ * 网关 RequestPixelArtUploadToken 分支分配 id 后登记；HTTP savePixelArt 消费。
+ * 作用：保证"token 阶段分配给客户端的 pixel_art_id" = "落盘 pixelArtId"——
+ * 客户端上传成功后用 token 响应里的 id 调 getPixelArt 加载画像时能命中（此前两者不一致
+ * 导致"上传成功但无法加载"）。token 一次性消费，客户端重试会重新申请。
+ */
+const _pendingPixelUploads = new Map<string, { id: number; md5: string }>();
+
+/** 登记像素上传 token（网关 token 请求分支调用） */
+export function registerPixelUploadToken(token: string, id: number, md5: string): void {
+  if (token) _pendingPixelUploads.set(token, { id, md5 });
+}
+
+/** 查询像素上传 token（不消费；savePixelArt 校验/取 id 用） */
+export function peekPixelUploadToken(token: string): { id: number; md5: string } | undefined {
+  return _pendingPixelUploads.get(token);
+}
+
+/** 消费像素上传 token（savePixelArt 落盘成功后调用，一次性删除） */
+export function consumePixelUploadToken(token: string): { id: number; md5: string } | undefined {
+  const v = _pendingPixelUploads.get(token);
+  _pendingPixelUploads.delete(token);
+  return v;
+}
+
+/** 测试辅助：清空待消费上传 token（单测隔离用） */
+export function _resetPendingPixelUploadsForTest(): void {
+  _pendingPixelUploads.clear();
+}
+
 /** 加载像素索引（惰性；损坏时重置为空并告警） */
 function loadIndex(): Record<string, PixelMeta> {
   if (_index) return _index;
@@ -90,10 +121,12 @@ const PALETTE_SET: Set<string> = new Set(PIXEL_PALETTE.map((h) => h.toLowerCase(
  * 保存像素（发布）：校验 1728B + 调色板 → 分配 id → 落盘 + 索引
  * @param uid - 发布者 uid（入索引）
  * @param pixelData - 1728B RGB 或可被 validatePixelData 接受的输入
+ * @param pixelArtId - 可选：指定 id（网关 token 阶段预分配的 id，保证客户端加载命中）；
+ *                     缺省/已被占用时自动分配新 id
  * @returns 分配的 pixelArtId
  * @throws 像素数据非法（长度/调色板）抛 Error
  */
-export function savePixel(uid: string, pixelData: unknown): number {
+export function savePixel(uid: string, pixelData: unknown, pixelArtId?: number): number {
   const buf = validatePixelData(pixelData);
   if (buf.length !== PIXEL_DATA_LEN) {
     throw new Error(`pixel data length ${buf.length} != ${PIXEL_DATA_LEN}`);
@@ -110,18 +143,19 @@ export function savePixel(uid: string, pixelData: unknown): number {
     }
   }
   const idx = loadIndex();
-  const pixelArtId = allocPixelArtId();
+  // 指定 id 未被占用则沿用（token 阶段预分配），否则回退自动分配
+  const id = pixelArtId && !idx[String(pixelArtId)] ? pixelArtId : allocPixelArtId();
   fs.mkdirSync(PIXELS_DIR, { recursive: true });
-  fs.writeFileSync(path.join(PIXELS_DIR, `${pixelArtId}.bin`), buf);
-  idx[String(pixelArtId)] = {
+  fs.writeFileSync(path.join(PIXELS_DIR, `${id}.bin`), buf);
+  idx[String(id)] = {
     uid,
     ts: Math.floor(Date.now() / 1000),
     md5: crypto.createHash("md5").update(buf).digest("hex"),
     banned: false,
   };
   saveIndex();
-  logger.info("arkpixel", `像素发布: id=${pixelArtId} uid=${uid} md5=${idx[String(pixelArtId)].md5.slice(0, 8)}`);
-  return pixelArtId;
+  logger.info("arkpixel", `像素发布: id=${id} uid=${uid} md5=${idx[String(id)].md5.slice(0, 8)}`);
+  return id;
 }
 
 /** 读取像素原始字节（供下载端点；不存在返回 null） */
@@ -131,9 +165,43 @@ export function loadPixelBytes(pixelArtId: number | string): Buffer | null {
   return fs.readFileSync(p);
 }
 
+/**
+ * 删除像素（发布者删除）：移除 .bin 与索引记录
+ * @param pixelArtId - 像素 id
+ * @returns 是否存在并已删除（不存在返回 false）
+ */
+export function deletePixel(pixelArtId: number | string): boolean {
+  const idx = loadIndex();
+  const key = String(pixelArtId);
+  if (!idx[key]) return false;
+  delete idx[key];
+  try {
+    fs.rmSync(path.join(PIXELS_DIR, `${key}.bin`), { force: true });
+  } catch {
+    // 文件已缺失也视为删除成功
+  }
+  saveIndex();
+  logger.info("arkpixel", `像素删除: id=${key}`);
+  return true;
+}
+
 /** 像素元数据（不存在返回 undefined） */
 export function pixelMeta(pixelArtId: number | string): PixelMeta | undefined {
   return loadIndex()[String(pixelArtId)];
+}
+
+/**
+ * 列出指定 uid 发布的像素（creations 数据源：PixelArtData.f1）
+ * @param uid - 发布者 uid
+ * @returns 像素列表（id/md5/ts，按时间升序）
+ */
+export function listPixelsByUid(uid: string): Array<PixelMeta & { id: number }> {
+  const idx = loadIndex();
+  const out: Array<PixelMeta & { id: number }> = [];
+  for (const [id, meta] of Object.entries(idx)) {
+    if (meta.uid === uid) out.push({ id: Number(id), ...meta });
+  }
+  return out.sort((a, b) => a.ts - b.ts);
 }
 
 /**

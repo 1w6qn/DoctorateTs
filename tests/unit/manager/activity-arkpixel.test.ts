@@ -14,6 +14,9 @@ import {
   buildPixelArtResp,
   computeNewCollects,
   parseMultipartForm,
+  registerPixelUploadToken,
+  consumePixelUploadToken,
+  _resetPendingPixelUploadsForTest,
 } from "@game/manager/activity/arkpixel";
 import { PIXEL_PALETTE, PIXEL_DATA_LEN } from "../../../app/admin/arkhub-pixel";
 
@@ -30,6 +33,23 @@ describe("ARKPIXEL 像素存储", () => {
   });
   afterEach(() => {
     fs.rmSync(dir, { recursive: true, force: true });
+    _resetPendingPixelUploadsForTest();
+  });
+
+  it("token 暂存 → savePixel 沿用预分配 id → getPixelArt 命中（上传后加载链路）", () => {
+    const token = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6";
+    // 网关 token 阶段：登记 token → 预分配 id（此前 token id 与落盘 id 不一致 → 加载失败）
+    registerPixelUploadToken(token, 5140274482, "c13ee8e6008018bc773b76b9eade06d7");
+    // savePixelArt 阶段：消费 token 并用其 id 落盘（而非再分配新 id）
+    const pending = consumePixelUploadToken(token);
+    expect(pending?.id).toBe(5140274482);
+    const id = savePixel("1", blankPixel(), pending?.id);
+    expect(id).toBe(5140274482); // 沿用预分配 id，与客户端 token 响应一致
+    // getPixelArt 用该 id 加载能命中（buildPixelArtResp 含条目）
+    const resp = buildPixelArtResp([id], "http://127.0.0.1:8443");
+    expect(resp[String(id)]).toBeDefined();
+    // token 一次性：重复消费返回 undefined
+    expect(consumePixelUploadToken(token)).toBeUndefined();
   });
 
   it("savePixel：分配全局唯一 id、落盘 1728B、索引含 uid/ts/md5", () => {

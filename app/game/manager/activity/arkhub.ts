@@ -299,6 +299,9 @@ export const ARKHUB_GUIDE_ACTOR_FLAGS: Record<string, Partial<Record<string, num
   arkhub_main_terminal_02a: { terminal_guide: 2 },
   arkhub_main_bryota_01c: { arkdex_battle_guide: 2 },
   pixel_unlock: { pixel_unlock: 1 },
+  // 进入大厅的"登录/入场引导"（非交互 actor）：本地网关在首次 EnterScene hello 自动完成，
+  // 经 arkhubAdvanceGuide 落库为 1，防止渐进模式下每次进入都重复触发该引导对话。
+  arkhub_login: { arkhub_login: 1 },
 };
 
 /**

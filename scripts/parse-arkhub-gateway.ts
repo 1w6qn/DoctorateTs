@@ -76,9 +76,9 @@ function parseConnection(dir: string, id: string): void {
   console.log(JSON.stringify(summary));
 }
 
-async function main(): Promise<void> {
+export async function main(argv: string[] = []): Promise<void> {
   await captureManager.init();
-  const arg = process.argv[2];
+  const arg = argv[0];
   if (arg) {
     const rec = await captureManager.getRecord(arg);
     if (!rec) {
@@ -98,7 +98,10 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((e) => {
-  console.error("解析失败:", (e as Error).message);
-  process.exit(1);
-});
+// 直连执行入口（被 admin-cli tools 导入时不自动运行）
+if (typeof require !== "undefined" && require.main === module) {
+  main().catch((e) => {
+    console.error("解析失败:", (e as Error).message);
+    process.exit(1);
+  });
+}

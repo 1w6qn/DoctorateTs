@@ -27,6 +27,7 @@ import {
   buildPixelArtResp,
   computeNewCollects,
   parseMultipartForm,
+  consumePixelUploadToken,
   ARKPIXEL_MAX_PUBLISH,
 } from "../manager/activity/arkpixel";
 import { VHALFIDLE_POOLS, VHALFIDLE_SPEC_CHAR } from "../data/vhalfidle";
@@ -2651,7 +2652,10 @@ router.post("/arkhub/savePixelArt", async (req, res) => {
   }
   let pixelArtId: number;
   try {
-    pixelArtId = savePixel(String((player._playerdata.status as any)?.uid ?? ""), pixelData);
+    // token 阶段（网关 RequestPixelArtUploadToken）预分配的 id——客户端上传成功后用该 id
+    // 调 getPixelArt 加载画像，落盘必须沿用此 id（否则"上传成功但无法加载"）；消费一次性。
+    const pending = consumePixelUploadToken(brief?.token ?? "");
+    pixelArtId = savePixel(String((player._playerdata.status as any)?.uid ?? ""), pixelData, pending?.id);
   } catch (e) {
     res.status(400).json({ error: (e as Error).message, ...player.delta });
     return;
@@ -2692,7 +2696,7 @@ router.post("/arkhub/getPixelArt", async (req, res) => {
     await arkhubPixelCollected(player, collectedIds.length + fresh.length);
   }
   res.send({
-    pixelArts: buildPixelArtResp(ids, config.Host),
+    pixelArts: buildPixelArtResp(ids, arkhubFullHost()),
     ...player.delta,
   });
 });
@@ -2802,6 +2806,18 @@ function collectRawBody(req: import("express").Request): Promise<Buffer> {
     req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", reject);
   });
+}
+
+/**
+ * 方舟枢纽对外完整地址（config.Host + PORT 补全）
+ * config.Host 通常无端口（如 "http://127.0.0.1"），而私服实际监听 config.PORT——
+ * getPixelArt 返回的像素下载 url 必须带端口，否则客户端按默认 80 端口下载 → 失败"数据异常"。
+ * Host 已含端口（如自定义 "http://192.168.1.5:9000"）时不重复补。
+ */
+function arkhubFullHost(): string {
+  const host = String(config.Host).replace(/\/$/, "");
+  const authority = host.replace(/^https?:\/\//, "");
+  return /:\d+$/.test(authority) ? host : `${host}:${config.PORT}`;
 }
 
 /**

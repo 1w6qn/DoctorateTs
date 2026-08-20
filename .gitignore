@@ -68,3 +68,7 @@ data/pay/
 # 运行时 mod 缓存（占位 .placeholder 保留）
 mods/android/*.dat
 mods/windows/*.dat
+# 运行时提取的明文 Lua 参考资产（extract:lua / extract:lua:hot 产物）——方括号须转义，否则被当 glob 字符类
+data/\[uc\]lua/
+# 运行时用户上传的像素画数据（arkhub 存档），不入库
+data/arkhub/pixels/

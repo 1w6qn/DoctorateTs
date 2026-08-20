@@ -247,8 +247,18 @@ router.post("/giveUpGame", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as RoguelikeTopicGiveUpGameRequest;
   await player.rlv2.giveUpGame();
+  const resp = rlv2Response(player, { result: "ok" } as any, SEC.GIVEUP) as any;
+  // 官服 giveUpGame 的 current.record 仅带 brief 摘要（完整 record 在 player.pending
+  // 的 GAME_SETTLE.result.record 中）；原实现把完整 record 一并下发多余字段 → 客户端
+  // 合并 current.record 时被污染。此处裁剪成 {brief} 对齐官服形状——存档
+  // current.record.{brief,record} 保持不变，gameSettle 的 buildSettleResponse 不受影响。
+  const cur = resp?.playerDataDelta?.modified?.rlv2?.current;
+  if (cur && typeof cur.record === "object" && cur.record !== null) {
+    const brief = (cur.record as any).brief;
+    cur.record = brief === undefined ? undefined : { brief };
+  }
   res.send(
-    rlv2Response(player, { result: "ok" } as any, SEC.GIVEUP) satisfies RoguelikeTopicGiveUpGameResponse,
+    resp satisfies RoguelikeTopicGiveUpGameResponse,
   );
 });
 

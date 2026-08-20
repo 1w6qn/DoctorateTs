@@ -137,6 +137,12 @@ export class RoguelikeGridZoneManager {
   portal: GridPortalState | null;
   _player: RoguelikeV2Controller;
   _trigger: TypedEventEmitter;
+  /**
+   * 本次移动请求中发生状态/视野变化的节点 id 集合（rlv2NodeChange.nodeList 数据源）。
+   * 官服 pushMessage 只下发"变化节点"（到达节点 + 新揭示邻居），非整层全量；
+   * moveTo 内累积，由控制器经 beginMove/takeChangedNodes 界定一次请求生命周期。
+   */
+  private _changedNodeIds: Set<string>;
 
   constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
     this._player = player;
@@ -145,6 +151,7 @@ export class RoguelikeGridZoneManager {
     this.stepRemain = 20;
     this.needConfirmStepZero = false;
     this.portal = null;
+    this._changedNodeIds = new Set();
     this._trigger.on("rlv2:module:init", this.init.bind(this));
     this._trigger.on("rlv2:continue", this.continue.bind(this));
     this._trigger.on("rlv2:zone:new", this.generate.bind(this));
@@ -720,7 +727,11 @@ export class RoguelikeGridZoneManager {
     const last = route[route.length - 1];
     const node = zone.nodes[last];
     if (node) {
-      node.state = 2;
+      // 到达节点：未访问→已访问（state 0/1 → 2），记为变化节点
+      if (node.state !== 2) {
+        node.state = 2;
+        this._changedNodeIds.add(last);
+      }
       // 视野：点亮当前节点曼哈顿距离 1 的可达节点（黑流树海视野机制——
       // 自身视野照亮直接可达节点；羽瞰点照亮 1-2 格）
       const lastX = Math.floor(Number(last) / 100);
@@ -731,12 +742,33 @@ export class RoguelikeGridZoneManager {
         const ny = Number(id) % 100;
         const dist = Math.abs(nx - lastX) + Math.abs(ny - lastY);
         if (dist <= visionRange) {
+          // 视野揭示：仅当该节点实际发生状态/视野变化才记为变化节点
+          const changed = !n.show || n.state === 0;
           n.show = true;
           if (n.state === 0) n.state = 1;
+          if (changed) this._changedNodeIds.add(id);
         }
       }
     }
     return node;
+  }
+
+  /**
+   * 开始一次移动请求的变化节点收集（清空上次遗留，界定请求边界）。
+   * 由控制器在一条 route 落格前调用。
+   */
+  beginMove(): void {
+    this._changedNodeIds = new Set();
+  }
+
+  /**
+   * 取走并清空本次移动请求发生状态/视野变化的节点 id 列表（rlv2NodeChange.nodeList）。
+   * @returns 变化节点 id 数组（保持插入顺序，Set 迭代序）
+   */
+  takeChangedNodes(): string[] {
+    const out = [...this._changedNodeIds];
+    this._changedNodeIds = new Set();
+    return out;
   }
 
   toJSON(): {

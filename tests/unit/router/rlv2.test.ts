@@ -170,4 +170,29 @@ describe("rlv2 路由", () => {
     const sent = res.send.mock.calls[0][0];
     expect(sent.pushMessage).toBeUndefined();
   });
+
+  /**
+   * P 官服对齐：giveUpGame 响应 current.record 仅下发 brief 摘要（完整 record 在
+   * player.pending 的 GAME_SETTLE.result.record 中）。原实现把 {brief, record} 一并
+   * 下发多余字段 → 客户端合并 current.record 被污染；此用例锁回归。
+   */
+  it("POST /giveUpGame 应裁剪 current.record 为仅 {brief}", async () => {
+    player.rlv2.giveUpGame = vi.fn().mockResolvedValue(undefined);
+    player.rlv2.toJSON = () => ({
+      outer: {},
+      current: {
+        player: { state: "END" },
+        record: {
+          brief: { level: 1, seed: "AbCdEfGhIjKlMnOpQr,rogue_6,15" },
+          record: { cntZone: 1 },
+        },
+      },
+    });
+    await call("/giveUpGame", {});
+    expect(player.rlv2.giveUpGame).toHaveBeenCalled();
+    const sent = res.send.mock.calls[0][0];
+    const rlv2 = sent.playerDataDelta.modified.rlv2;
+    // current.record 只含 brief，不再携带多余 record 键
+    expect(rlv2.current.record).toEqual({ brief: { level: 1, seed: "AbCdEfGhIjKlMnOpQr,rogue_6,15" } });
+  });
 });

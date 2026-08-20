@@ -170,13 +170,14 @@ describe("rlv2 主题模块管理器（2026-08-10）", () => {
   });
 
   describe("WEATHER（rogue_6）", () => {
-    it("onZoneNew 应选择主/副天气", async () => {
+    it("onZoneNew 后 weather 保持为空（按官服对齐：不下发随机天气）", async () => {
       const player = await createModules(makePlayer("rogue_6"));
       const w = (player.rlv2 as any)._module.weather;
       w.onZoneNew([1]);
       const json = w.toJSON();
-      expect(json.currentMain).toMatch(/^rogue_6_weather_\d+_[abc]$/);
-      expect(json.currentSub).toBe("rogue_6_subweather_1");
+      expect(json.currentMain).toBe("");
+      expect(json.currentSub).toBe("");
+      expect(json.weatherStep).toBe(0);
     });
   });
 

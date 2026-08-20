@@ -4,10 +4,9 @@
  * 客户端状态形状（types-playerdata）：weather = {
  *   currentMain, currentSub, eye, effectArea: { [key]: number }, weatherStep
  * }
- * 简化实现：开局随机主天气，随层数推进升级（mainWeatherData 按 level 1/2/3 变体）。
+ * 简化实现：按官服抓包对齐，进层后 weather 保持为空（不下发随机主/副天气）。
  */
 import { RoguelikeV2Controller } from "../../rlv2";
-import excel from "@excel/excel";
 import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeWeatherManager {
@@ -52,43 +51,21 @@ export class RoguelikeWeatherManager {
     this.weatherStep = w?.weatherStep || 0;
   }
 
-  /** 进入新层：随机选主天气；天气等级随天气步数推进（mainWeatherData 的 level 1/2/3） */
-  onZoneNew([zoneId]: [number]): void {
-    const theme = this._player.current.game!.theme;
-    const mainWeatherData = (
-      excel.RoguelikeTopicTable.modules[theme] as any
-    )?.weather?.mainWeatherData;
-    // 天气清除推送（rlv2WeatherClear，触发类 RoguelikeWeatherClearTrigger）：进入新层会重置天气，
-    // 把"上一层"仍在生效的天气（mainId/subId）视为被清除 → 客户端清除对应天气 UI。首层无前序天气不发。
+  /** 进层（rlv2:zone:new）处理。
+   * 按官服抓包对齐：进层后 weather 保持为空（currentMain/currentSub=""、weatherStep=0），
+   * 不再随机分配主/副天气——官服黑流树海进层（finishEvent）响应 weather 全空。
+   * 保留方法骨架以维持事件订阅，但重置本轮未用的步进计数器。 */
+  onZoneNew([_zoneId]: [number]): void {
+    // 上一轮生效的天气在进入新层时视为清除（客户端清除对应天气 UI）。
+    // 移除随机天气后 currentMain 恒空，此判断通常不触发；保留以兼容外部显式赋值。
     if (this.currentMain) {
       this._player.pushMessage("rlv2WeatherClear", {
         mainId: this.currentMain,
         subId: this.currentSub,
       });
     }
-    if (!mainWeatherData) return;
-    // 选择天气类型（去掉 _a/_b/_c 等级后缀）
-    const types = [
-      ...new Set(
-        Object.keys(mainWeatherData).map((id) =>
-          id.replace(/_[abc]$/, ""),
-        ),
-      ),
-    ];
-    if (types.length === 0) return;
-    const type = types[Math.floor(Math.random() * types.length)];
-    // 等级：层 1-2 → 1（_a），3-4 → 2（_b），5+ → 3（_c）
-    const level = Math.min(3, Math.max(1, Math.ceil(zoneId / 2)));
-    const suffix = ["", "_a", "_b", "_c"][level];
-    this.currentMain = `${type}${suffix}`;
-    // 副天气：随机选一个（若有）
-    const subWeatherData = (
-      excel.RoguelikeTopicTable.modules[theme] as any
-    )?.weather?.subWeatherData;
-    const subKeys = subWeatherData ? Object.keys(subWeatherData) : [];
-    this.currentSub = subKeys.length
-      ? subKeys[Math.floor(Math.random() * subKeys.length)]
-      : "";
+    this.currentMain = "";
+    this.currentSub = "";
     this.eye = "";
     this.effectArea = {};
     this.weatherStep = 0;

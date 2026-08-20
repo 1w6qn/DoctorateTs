@@ -96,4 +96,49 @@ describe("finishEvent 崩溃排查", () => {
     // needConfirmStepZero 为布尔
     expect(typeof gz.needConfirmStepZero).toBe("boolean");
   });
+
+  it("进层后自动完成起点走一步：needConfirmStepZero=false、起点节点已访问、trace 含起点、weather 为空（官服对齐 R-1786531228496.9993-3674）", async () => {
+    const player = makePlayer();
+    await (player.rlv2 as any).createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
+    const rlv2 = player.rlv2 as any;
+    const pending = rlv2._status.pending;
+    await rlv2.chooseInitialRelic({ select: "0" });
+    await rlv2.finishEvent(); // GIFT
+    await rlv2.selectChoice({ choice: "choice_x" }); // SUPPORT
+    await rlv2.chooseInitialRecruitSet({ select: "recruit_group_1" });
+    const recruitEvt = pending.find((e: any) => e.type === "GAME_INIT_RECRUIT");
+    if (recruitEvt?.content?.initRecruit?.tickets?.length) {
+      for (const t of [...recruitEvt.content.initRecruit.tickets]) {
+        await rlv2.activeRecruitTicket({ id: t });
+        const ticket = rlv2.inventory.recruit[t];
+        if (ticket?.list?.length) {
+          await rlv2.recruitChar({ ticketIndex: t, optionId: String(ticket.list[0].instId) });
+        }
+      }
+    }
+    await rlv2.finishEvent(); // 消费 GAME_INIT_RECRUIT → 生成第一层地图（进层）
+    const json = JSON.parse(JSON.stringify(rlv2.toJSON()));
+    const gz = json.current.module.gridZone;
+    // 1) 进层后无条件确认初始位置
+    expect(gz.needConfirmStepZero).toBe(false);
+    // 2) trace 已含起点（进层自动走一步）
+    expect(rlv2._status.trace.length).toBe(1);
+    // 3) 起点节点已访问（state=2），且与 trace 位置一致
+    const t0 = rlv2._status.trace[0];
+    const startId = String(t0.position.x * 100 + t0.position.y);
+    const zoneKey = currentZoneKeyOf(rlv2, t0.zone);
+    const startNode = gz.zones[zoneKey]?.nodes?.[startId];
+    expect(startNode).toBeTruthy();
+    expect(startNode.state).toBe(2);
+    // 4) weather 保持为空（彻底移除随机天气）
+    expect(json.current.module.weather.currentMain).toBe("");
+    expect(json.current.module.weather.currentSub).toBe("");
+    expect(json.current.module.weather.weatherStep).toBe(0);
+  });
 });
+
+/** 取 gridZone 当前 zone 键（与控制器 currentZoneKey 等价） */
+function currentZoneKeyOf(rlv2: any, zone: number): string {
+  const gz = rlv2._module.gridZone;
+  return gz?.currentZoneKey ? gz.currentZoneKey() : `zone_${zone}`;
+}

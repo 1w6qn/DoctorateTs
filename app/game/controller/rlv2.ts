@@ -6,6 +6,7 @@ import {
 } from "../model/rlv2";
 import excel from "@excel/excel";
 import { readFileSync } from "fs";
+import zlib from "node:zlib";
 import { logger } from "@utils/logger";
 import { RoguelikeInventoryManager } from "./rlv2/inventory";
 import { TroopManager } from "../manager/troop";
@@ -281,6 +282,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       {
         success: 0,
         result: { brief, record },
+        detailStr: this.buildDetailStr(brief),
         popReport: false,
       },
     ]);
@@ -730,9 +732,13 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         this._status.state = "INIT";
         return;
       }
-      // 兜底：清空初始招募残留票（官服进入第一层 WAIT_MOVE 时 inventory.recruit
-      // 为空——已招募/放弃/未处理的票都移除；残留导致客户端状态机异常）
+      // 兜底：清理初始招募残留票（官服进入第一层 WAIT_MOVE 时 inventory.recruit 基本为空）。
+      // 仅移除未招募(state=0/1)/放弃(state=3)的票；保留已招募(state=2 且 result 非空)的票，
+      // 使玩家在本局内仍能从 inventory.recruit 查看已招募干员（干员同时已在 troop）。
+      // 全量清空会让已招募干员从本局 inventory.recruit 直接消失。
       for (const k of Object.keys(this.inventory!.recruit || {})) {
+        const t = this.inventory!.recruit[k];
+        if (t && t.state === 2 && t.result) continue;
         delete this.inventory!.recruit[k];
       }
       this._status.cursor.zone = 1;
@@ -748,6 +754,25 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       );
       if (startNode?.pos) {
         this._status.cursor.position = { x: startNode.pos.x, y: startNode.pos.y };
+        // 进层后自动完成"起点走一步"（官服 finishEvent 对齐）：起点节点标为已访问、
+        // trace 追加起点、清 needConfirmStepZero（无需再要求玩家确认初始位置）。
+        // 注意不打 moveTo——moveTo 会累积 rlv2NodeChange 推送，而进层响应不应携带节点
+        // 变化推送（官服进层 finishEvent 顶层无 pushMessage）。
+        const gz = this._module?.gridZone;
+        if (gz) {
+          const startId = String(startNode.pos.x * 100 + startNode.pos.y);
+          const z = gz.zones?.[gz.currentZoneKey()];
+          const sn = z?.nodes?.[startId];
+          if (sn && (sn.state !== 2 || !sn.show)) {
+            sn.state = 2;
+            sn.show = true;
+          }
+          gz.needConfirmStepZero = false;
+        }
+        this._status.trace.push({
+          zone: this._status.cursor.zone,
+          position: { x: startNode.pos.x, y: startNode.pos.y },
+        });
       }
       this._status.state = "WAIT_MOVE";
       return;
@@ -2219,6 +2244,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     // 清空上一请求的残留推送（控制器为持久实例，与标准 moveTo 一致）
     this._pushMessages = [];
     const gz = this._module.gridZone;
+    // 界定本次移动请求的变化节点收集范围（rlv2NodeChange.nodeList 只下发发生变化的节点）
+    gz?.beginMove();
     // 路径中每个节点消耗一步（含末节点）
     for (const _nodeId of route) {
       this._trigger.emit("rlv2:grid:step", []);
@@ -2234,20 +2261,40 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     const lastY = Number(last) % 100;
     this._status.trace.push({ zone, position: { x: lastX, y: lastY } });
     this._status.cursor.position = { x: lastX, y: lastY };
-    const kind = node?.content?.kind;
-    // 节点到达推送（官服对齐）：rlv2NodeArrive 携节点类型、rlv2NodeChange 携当前 zone 节点列表。
+    // 节点类型/关卡判定来源（gridZone vs map.zones 双轨）：
+    // - 会话内（未落盘）：gridZone 节点 content.kind/savage 是最新语义的权威来源
+    //   （含手动变更/事件改写，与 map.zones 可能不同步）。
+    // - 重登"继续探索"恢复后：gridZone.toJSON 为客户端线格式精简会剥除 savage/kind，
+    //   content 丢失战斗/特殊节点判定 → 必须回退到完整持久化的 map.zones（type/stage
+    //   完整保留），否则续局移动进作战节点既不触发战斗、也不下发 rlv2NodeArrive
+    //   （kind 恒 undefined）→ 客户端卡死（2026-08-20 复现）。
+    const mapNode = this._map.zones[this.zoneKey(zone)]?.nodes?.[last];
+    const kind =
+      typeof node?.content?.kind === "number"
+        ? node.content.kind
+        : typeof (mapNode as any)?.type === "number"
+          ? (mapNode as any).type
+          : undefined;
+    // 战斗判定与节点类型绑定，避免误开战：
+    // - 会话内 content.kind 存在时以 content.savage 为准（含被改写成非战斗节点，如林间
+    //   空地/羽瞰点，map.zones 里可能残留生成期灌入的 stage——不能据此误判战斗）。
+    // - 仅当 content.kind 缺失（重登"继续探索"恢复后被剥除）才回退 map.zones 的 stage，
+    //   保证续局移动进作战节点仍能触发战斗。
+    const battleStage =
+      node?.content?.savage?.stageId ||
+      (node?.content?.kind === undefined ? (mapNode as any)?.stage : undefined);
+    // 节点到达推送（官服对齐）：rlv2NodeArrive 携节点类型、rlv2NodeChange 携本次发生
+    // 状态/视野变化的节点列表（官服抓包 R-1786531228496.9993-3674：nodeList=["202","200"]
+    // 为到达节点+新揭示邻居，非整层全量）。
     // 原实现只在标准 moveTo 中累积，而黑流树海走本方法 → 推送永不下发。
     if (typeof kind === "number") {
-      const zoneNodes = gz?.zones?.[gz.currentZoneKey()]?.nodes ?? {};
       this.pushMessage("rlv2NodeArrive", { nodeType: kind });
-      this.pushMessage("rlv2NodeChange", { nodeList: Object.keys(zoneNodes) });
+      this.pushMessage("rlv2NodeChange", { nodeList: gz?.takeChangedNodes() ?? [] });
     }
-    if (node?.content?.savage?.stageId) {
+    if (battleStage) {
       // 战斗节点（作战/紧急作战/险路恶敌/“居民”据点）→ 战斗
       this._status.state = "PENDING";
-      await this._trigger.emit("rlv2:battle:start", [
-        node.content.savage.stageId,
-      ]);
+      await this._trigger.emit("rlv2:battle:start", [battleStage]);
       return;
     }
     if (node?.content?.shop) {
@@ -2893,6 +2940,80 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     }
     return max;
   }
+  /**
+   * 战报种子（brief.seed，官服格式 "{随机},{theme},{modeGrade}"，客户端分享/复现用）。
+   * 同实例首按需生成并缓存——giveUpGame 与其后 gameSettle 的 brief.seed 保持一致；
+   * 重登恢复（controller 重建）会重新生成，仅影响展示。
+   */
+  private _gameSeed: string | null = null;
+  private gameSeed(): string {
+    if (!this._gameSeed) {
+      const theme = this.current.game?.theme ?? "";
+      const grade = this.current.game?.modeGrade ?? 0;
+      const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+      const rand = Array.from(
+        { length: 18 },
+        () => chars[Math.floor(Math.random() * chars.length)],
+      ).join("");
+      this._gameSeed = `${rand},${theme},${grade}`;
+    }
+    return this._gameSeed;
+  }
+
+  /**
+   * 构建结算明细序列化（GAME_SETTLE.detailStr，官方 giveUpGame/gameSettle 携带）。
+   * 官服格式：detailStr = base64(zlib-deflate(JSON))（解压见抓包，键集：
+   * { brief, troopChars, initial, zones }）。私服无官方"开局快照/逐层 per-step 获取"
+   * 采集，故 initial.recruits / zones.steps 用当前可得数据近似——键结构对齐官服，
+   * 客户端可解析不崩，内容为近似值。
+   * @param brief - 本次结算的 brief 摘要（含 seed/innerMissionProcessAddition）
+   * @returns base64 编码的结算明细；无游戏态时返回 null（不携带该字段）
+   */
+  private buildDetailStr(brief: any): string | null {
+    const game = this.current.game as any;
+    if (!game) return null;
+    // troopChars：当前队伍干员（官方 detailStr 每干员仅 6 字段，无 potentialRank/mainSkillLvl）
+    const troopChars = Object.values(this.troop.chars).map((c: any) => ({
+      instId: String(c.instId),
+      charId: c.charId,
+      type: c.type || "NORMAL",
+      upgradePhase: c.upgradePhase ?? 0,
+      evolvePhase: c.evolvePhase ?? 0,
+      level: c.level ?? 1,
+    }));
+    // initial：开局配置。私服未单独采集开局快照，relics 用当前藏品、
+    // recruits 用当前队伍近似（官方此处为开局确定的 3 名初始干员）。
+    const initial = {
+      mode: game.mode ?? "NORMAL",
+      band: this._bandId || "",
+      relics: Object.keys(this.inventory?.relic || {}),
+      support: "",
+      supportMulti: [],
+      recruitSet: "",
+      recruits: troopChars.map((t) => ({
+        charId: t.charId,
+        type: t.type,
+        cost: 0,
+      })),
+      upgrades: [],
+    };
+    // zones：每层区域。私服无 per-step 物品获取记录，steps 留空（键结构对齐）。
+    const zones = Object.values(this._map.zones || {}).map((z: any) => ({
+      index: z.index,
+      zoneId: z.id,
+      variation: Array.isArray(z.variation) ? z.variation : [],
+      type: 0,
+      pass: false,
+      steps: [],
+      snapRecruits: [],
+      snapSettleCover: {},
+      expeditionReturn: { chars: [] },
+    }));
+    const payload = { brief, troopChars, initial, zones };
+    // deflateSync 默认 level 6 → zlib 头 0x78 0x9c → base64 前缀 "eJ"（与官服一致）
+    return zlib.deflateSync(Buffer.from(JSON.stringify(payload))).toString("base64");
+  }
+
   private buildSettlement(
     over: boolean,
     success: number,
@@ -2959,7 +3080,11 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       },
       innerMission: false,
       innerMissionProcess: null,
+      // 官服 brief 恒定携带这两个键（innerMissionProcessAddition 恒 null；
+      // seed 为 "{随机},{theme},{modeGrade}" 战报种子，客户端据此分享/复现）
+      innerMissionProcessAddition: null,
       modeGrade: game.modeGrade,
+      seed: this.gameSeed(),
     };
 
     const record = {
@@ -2987,7 +3112,14 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       activeToolList: Object.values(this.inventory?.exploreTool || {}).map(
         (t) => (t as any).id,
       ),
-      zones: Object.keys(this._map.zones).length,
+      // 官服 record.zones 为区域数组 [{index, zoneId, variation}]（黑流树海无相地图，
+      // 由 grid_zone 模块生成）；原实现误写为层数数字 → 客户端合并结构错误。改从
+      // _map.zones 值构造（每个值即含 id/index/variation）。
+      zones: Object.values(this._map.zones).map((z: any) => ({
+        index: z.index,
+        zoneId: z.id, // 形如 "zone_1"
+        variation: Array.isArray(z.variation) ? z.variation : [],
+      })),
       nodeMission: [],
       squadBuff: this.current.buff?.squadBuff || [],
       charBuff: [],
@@ -3128,6 +3260,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       {
         success,
         result: { brief, record },
+        detailStr: this.buildDetailStr(brief),
         popReport: false,
       },
     ]);

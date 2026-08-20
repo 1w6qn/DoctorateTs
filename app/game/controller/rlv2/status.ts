@@ -100,6 +100,20 @@ export class RoguelikePlayerStatusManager
     this.nodeMission = p.nodeMission;
     this.zoneReward = p.zoneReward;
     this.traderReturn = p.traderReturn;
+    // 结算终态归一：若存档已带 GAME_SETTLE（放弃/结算已生成）而 state 仍是 PENDING——
+    // 放弃结算中途被中断留下的"僵尸态"（存档2222 复现），客户端会把该对局当"进行中"
+    // 继续探索，却因无任何可推进事件而冻结（点继续卡死、且不再提供放弃）。健康已结算态
+    // 应为 state=END + pending=GAME_SETTLE（gameSettle 收尾态），故恢复时把 PENDING 对齐 END。
+    // 需同时回写持久态（_playerdata 的 current.player），否则登录响应序列化的是持久态
+    // （仍是 PENDING），客户端依旧把对局当进行中。
+    const settled = Array.isArray(p.pending) && p.pending.some((e: any) => e?.type === "GAME_SETTLE");
+    if (settled && this.state !== "END") {
+      this.state = "END";
+      (p as { state: string }).state = "END";
+      // 标记变更使存档落盘（控制器 _player 为 PlayerDataManager；normalization 直接改
+      // 持久节点，登录即可见 END；markDirty 保证后续 delta 触发 save 写盘）
+      this._player._player?.markDirty?.();
+    }
   }
 
   async create() {

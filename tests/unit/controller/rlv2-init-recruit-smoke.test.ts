@@ -147,4 +147,35 @@ describe("初始招募流程（GAME_INIT_RECRUIT）", () => {
     expect(state).toBe("WAIT_MOVE");
     expect((player.rlv2 as any)._status.cursor.zone).toBe(1);
   });
+
+  it("开局进入第一层后，已招募干员保留在 inventory.recruit（未招募票被清理）", async () => {
+    const player = makePlayer();
+    await runInitFlow(player);
+    const events = (player.rlv2 as any)._status._pending;
+    await (player.rlv2 as any).chooseInitialRelic({ select: "0" });
+    await (player.rlv2 as any).finishEvent();
+    await (player.rlv2 as any).selectChoice({ choice: "choice_x" });
+    await (player.rlv2 as any).chooseInitialRecruitSet({ select: "recruit_group_1" });
+    const recruitEvt = events._pending.find((e: any) => e.type === "GAME_INIT_RECRUIT");
+    const tickets = [...recruitEvt.content.initRecruit.tickets];
+    // 只招募第一张票，其余保持未招募状态
+    const first = tickets[0];
+    await (player.rlv2 as any).activeRecruitTicket({ id: first });
+    const firstTicket = (player.rlv2 as any).inventory.recruit[first];
+    if (firstTicket.list.length > 0) {
+      await (player.rlv2 as any).recruitChar({ ticketIndex: first, optionId: String(firstTicket.list[0].instId) });
+    }
+    // 进入 WAIT_MOVE
+    await (player.rlv2 as any).finishEvent();
+    const recruit = (player.rlv2 as any).inventory.recruit;
+    // 已招募票保留（state=2 且 result 非空）
+    if (firstTicket.list.length > 0) {
+      expect(recruit[first]?.state).toBe(2);
+      expect(recruit[first]?.result).toBeTruthy();
+    }
+    // 未招募票（剩余第一张之外的）被清理
+    for (const t of tickets.slice(1)) {
+      expect(recruit[t]).toBeUndefined();
+    }
+  });
 });

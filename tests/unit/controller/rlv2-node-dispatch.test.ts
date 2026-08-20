@@ -231,6 +231,47 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
     // 取走后清空（避免残留累积到下一请求）
     expect((player.rlv2 as any).takePushMessages().length).toBe(0);
   });
+
+  it("rlv2NodeChange.nodeList 只含发生变化的节点（到达节点+新揭示邻居），非整层全量（官服抓包 R-1786531228496.9993-3674）", async () => {
+    // 固定随机：构造模板/关卡/节点类型稳定；用单格 moveTo 直接验证变化节点集合
+    const player = makePlayer();
+    await (player.rlv2 as any)._module.create();
+    const rlv2 = player.rlv2 as any;
+    const gz = rlv2._module.gridZone;
+    gz.beginMove();
+    // 手工铺一张平铺网格：0,0 起点（已访问）；目标节点 100 → 到达后其曼哈顿距离 1 的
+    // 邻居 1/200/100 被揭示。断言 nodeList = 到达节点 + 实际发生状态/视野变化的邻居，
+    // 且不含已被点亮的远节点 2（距离 2，不在范围内）。
+    gz.zones = {
+      zone_3: {
+        nodes: {
+          "0": { content: { kind: ROGUE6_NODE.GLADE }, state: 2, show: true },
+          "1": { content: { kind: ROGUE6_NODE.BATTLE_NORMAL }, state: 0, show: false },
+          "2": { content: { kind: ROGUE6_NODE.INCIDENT }, state: 0, show: false },
+          "100": { content: { kind: ROGUE6_NODE.BATTLE_NORMAL }, state: 0, show: true },
+          "101": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: false },
+          "200": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: false },
+        },
+      },
+    };
+    rlv2._status.cursor.zone = 3;
+    rlv2.beginMove?.();
+    gz.moveTo(["100"]);
+    const changed = gz.takeChangedNodes();
+    expect(changed).toContain("100"); // 到达节点：0 → 2
+    expect(changed).toContain("101"); // 距离 1 邻居（x1,y1）：0 → 1（可见+可访问）
+    expect(changed).toContain("200"); // 距离 1 邻居（x2,y0）：0 → 1
+    expect(changed).not.toContain("1"); // 距离 2（x0,y1）：超出视野，不揭示
+    expect(changed).not.toContain("2"); // 距离 3（x0,y2）：超出视野，不揭示
+    // 已访问起点 0（state 2 / show 已有）不重复进变化集
+    expect(changed).not.toContain("0");
+    // nodeList 必须反映真实变化（否则退回归漏、全量兜底回归）
+    expect(changed.length).toBe(3);
+    // beginMove 界定边界：第二次未变化移动不再累积
+    gz.beginMove();
+    gz.moveTo(["100"]);
+    expect(gz.takeChangedNodes()).toEqual([]);
+  });
 });
 
 describe("rogue_6 关卡池按节点类型分流（eliteStages 修复）", () => {

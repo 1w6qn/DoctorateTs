@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import zlib from "node:zlib";
 
 vi.mock("@excel/excel", () => ({
   default: {
@@ -85,8 +86,9 @@ describe("rlv2 结算残留续局恢复", () => {
     // 构造期 emit("rlv2:continue") 为异步微任务（Emittery）——等落定后再断言
     await Promise.resolve();
     await Promise.resolve();
-    // 恢复后 pending 带残留 GAME_SETTLE
-    expect(rlv2._status.state).toBe("PENDING");
+    // 恢复后 pending 带残留 GAME_SETTLE；且"结算终态对齐"：PENDING 僵尸态被归一为 END
+    // （否则客户端把该对局当进行中继续探索而冻结——存档2222 卡死根因）
+    expect(rlv2._status.state).toBe("END");
     expect(rlv2._status.pending.map((e: any) => e.type)).toEqual(["GAME_SETTLE"]);
 
     await rlv2.giveUpGame();
@@ -133,5 +135,34 @@ describe("rlv2 结算残留续局恢复", () => {
     expect(rlv2._module.weather).toBeTruthy();
     expect(Object.keys(rlv2._module.gridZone.zones || {})).toHaveLength(0);
     expect(rlv2._module.scrap.limit).toBe(10);
+  });
+
+  it("giveUpGame 结算产物对齐官服：brief 带 seed/innerMissionProcessAddition、record.zones 为数组", async () => {
+    const player = makeSettleStuckPlayer();
+    const rlv2 = player.rlv2 as any;
+    // 等构造期 emit("rlv2:continue") 微任务落定
+    await Promise.resolve();
+    await Promise.resolve();
+    await rlv2.giveUpGame();
+    const rec = (rlv2.current as any).record;
+    expect(rec).toBeTruthy();
+    // brief：官服恒定带 innerMissionProcessAddition(null) 与战报种子 seed
+    expect(rec.brief.innerMissionProcessAddition).toBeNull();
+    // seed 格式 "{随机18位base62},{theme},{modeGrade}"；同实例与 gameSettle 的 brief 一致
+    expect(rec.brief.seed).toMatch(/^[A-Za-z0-9]{18},rogue_6,15$/);
+    // record.zones：官服为区域数组 [{index,zoneId,variation}]，原实现误写成数字
+    expect(Array.isArray(rec.record.zones)).toBe(true);
+    // player.pending 中的 GAME_SETTLE.result.record 同步为数组
+    const settle = rlv2._status.pending.find((e: any) => e.type === "GAME_SETTLE");
+    expect(Array.isArray(settle.content.result.record.zones)).toBe(true);
+    // detailStr：官服 giveUpGame/gameSettle 携带，格式 base64(zlib-deflate(JSON))
+    expect(typeof settle.content.detailStr).toBe("string");
+    const detail = JSON.parse(zlib.inflateSync(Buffer.from(settle.content.detailStr, "base64")).toString("utf8"));
+    // 键结构与官服解压一致（brief/troopChars/initial/zones），brief 内联 valid seed
+    expect(Object.keys(detail).sort()).toEqual(["brief", "initial", "troopChars", "zones"]);
+    expect(detail.brief.seed).toMatch(/^[A-Za-z0-9]{18},rogue_6,15$/);
+    expect(Array.isArray(detail.troopChars)).toBe(true);
+    expect(Array.isArray(detail.zones)).toBe(true);
+    expect(typeof detail.initial).toBe("object");
   });
 });

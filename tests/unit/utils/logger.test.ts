@@ -12,6 +12,8 @@ afterEach(() => {
     fs.rmSync(dir, { recursive: true, force: true });
   }
   delete process.env.LOG_DIR;
+  delete process.env.LOG_MAX_BYTES;
+  delete process.env.LOG_RETAIN_DAYS;
 });
 
 describe("logger", () => {
@@ -92,5 +94,59 @@ describe("text2color", () => {
     expect(text2color["TIER_3"]).toBe("#0000FF");
     expect(text2color["TIER_2"]).toBe("#FFFFFF");
     expect(text2color["TIER_1"]).toBe("#FFFFFF");
+  });
+});
+
+describe("logger 日志上限保护（防止超大日志）", () => {
+  /** 今天文件名（与 logger 一致） */
+  function todayFile(dir: string): string {
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    return path.join(
+      dir,
+      `server-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}.log`,
+    );
+  }
+
+  it("单文件超过大小上限时轮转归档（生成 .N 文件）", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "zcode-log-rot-"));
+    tempDirs.push(dir);
+    process.env.LOG_DIR = dir;
+    process.env.LOG_MAX_BYTES = "50"; // 极小上限，快速触发轮转
+
+    // 分多次 flush 让文件逐步增长，最终跨过上限触发轮转
+    for (let i = 0; i < 6; i++) {
+      logger.info("rot", "short-line-" + i);
+      flush();
+    }
+
+    const base = todayFile(dir);
+    // 同一日期归档文件 server-YYYYMMDD.log.N 已生成
+    expect(fs.readdirSync(dir).some((n) => n === `${base.split(path.sep).pop()}.1`)).toBe(true);
+    // 当前文件仍在且未消失，可继续写入
+    expect(fs.existsSync(base)).toBe(true);
+    const re = /^server-\d{8}\.log(\.\d+)?$/;
+    // 总日志文件（含归档）不超 MAX_ARCHIVES+1
+    const total = fs.readdirSync(dir).filter((n) => re.test(n)).length;
+    expect(total).toBeLessThanOrEqual(1 + 5);
+  });
+
+  it("清理早于保留天数的旧日志，保留当天日志", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "zcode-log-prune-"));
+    tempDirs.push(dir);
+    process.env.LOG_DIR = dir;
+    process.env.LOG_RETAIN_DAYS = "2";
+
+    // 预写一个很久以前的日志（应被清理）
+    fs.writeFileSync(path.join(dir, "server-20200101.log"), "old line\n");
+    // 归档形式的旧文件也应被清理
+    fs.writeFileSync(path.join(dir, "watchdog-20200101.log"), "old watchdog\n");
+
+    logger.info("prune", "current");
+    flush();
+
+    expect(fs.existsSync(path.join(dir, "server-20200101.log"))).toBe(false);
+    expect(fs.existsSync(path.join(dir, "watchdog-20200101.log"))).toBe(false);
+    expect(fs.existsSync(todayFile(dir))).toBe(true);
   });
 });

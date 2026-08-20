@@ -167,7 +167,9 @@ class LogService {
     }
     const names = await readdir(logDir()).catch(() => [] as string[]);
     let cleared = 0;
-    for (const n of names.filter((n) => n.startsWith(SERVER_PREFIX) && n.endsWith(".log"))) {
+    for (const n of names.filter(
+      (n) => n.startsWith(SERVER_PREFIX) && /\.log(\.\d+)?$/.test(n),
+    )) {
       await rm(path.join(logDir(), n), { force: true }).catch(() => undefined);
       cleared++;
     }

@@ -86,6 +86,17 @@ describe("logService（统一日志服务）", () => {
     expect(fs.existsSync(path.join(process.env.LOG_DIR!, "watchdog-20260101.log"))).toBe(true);
   });
 
+  it("listServerLogDates 忽略轮转归档；clearServerLogs 一并清归档", async () => {
+    const dir = process.env.LOG_DIR!;
+    fs.writeFileSync(path.join(dir, "server-20260101.log.1"), "arch line\n");
+    // 归档文件不计入日期列表（只列一天）
+    expect(await logService.listServerLogDates()).toEqual(["20260101"]);
+    // 手动清空同样删除归档文件
+    const r = await logService.clearServerLogs("CLEAR");
+    expect(r.cleared).toBe(2);
+    expect(fs.existsSync(path.join(dir, "server-20260101.log.1"))).toBe(false);
+  });
+
   it("subscribeServer 收到 logger 实时事件（级别过滤后）", () => {
     const events: string[] = [];
     const unsub = logService.subscribeServer((e) => events.push(`${e.level}:${e.tag}:${e.text}`));

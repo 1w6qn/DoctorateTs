@@ -39,6 +39,92 @@ function logFilePath(): string {
   );
 }
 
+/**
+ * 单个日志文件大小上限（字节），超过即轮转归档，防止单文件无界膨胀。
+ * 环境变量 LOG_MAX_BYTES 可覆盖（正整数）；缺省 64MB。
+ */
+function resolveMaxBytes(): number {
+  const raw = process.env.LOG_MAX_BYTES;
+  if (raw && /^\d+$/.test(raw)) return Number(raw);
+  return 64 * 1024 * 1024;
+}
+
+/**
+ * 日志保留天数，超过该天数的 server- 与 watchdog- 前缀日志文件会被自动清理，
+ * 防止磁盘无限增长。环境变量 LOG_RETAIN_DAYS 可覆盖；0 表示不清理旧日志。
+ */
+function resolveRetainDays(): number {
+  const raw = process.env.LOG_RETAIN_DAYS;
+  if (raw && /^\d+$/.test(raw)) return Number(raw);
+  return 7;
+}
+
+/** 同一日期最多保留的归档文件数（超出删除最旧归档） */
+const MAX_ARCHIVES = 5;
+
+/**
+ * 删除早于保留天数的历史日志文件（server- 与 watchdog- 前缀），防止 logs/ 长期累积膨胀。
+ * 同步实现、随每次批量落盘调用；任一文件删除失败不影响其余。
+ */
+function pruneOutdatedLogs(): void {
+  const retainDays = resolveRetainDays();
+  if (retainDays <= 0) return;
+  const dir = logDir();
+  if (!fs.existsSync(dir)) return;
+  const cutoffMs = Date.now() - retainDays * 24 * 60 * 60 * 1000;
+  for (const name of fs.readdirSync(dir)) {
+    const m = /^(server|watchdog)-(\d{8})/.exec(name);
+    if (!m) continue;
+    const y = Number(m[2].slice(0, 4));
+    const mo = Number(m[2].slice(4, 6)) - 1;
+    const d = Number(m[2].slice(6, 8));
+    const dateMs = new Date(y, mo, d).getTime();
+    if (!Number.isNaN(dateMs) && dateMs < cutoffMs) {
+      try {
+        fs.rmSync(path.join(dir, name), { force: true });
+      } catch {
+        /* 清理失败不影响运行 */
+      }
+    }
+  }
+}
+
+/**
+ * 单文件超上限后的归档轮转：当前文件 → .1，旧归档依次后移，删除超出 MAX_ARCHIVES 的归档。
+ * @param basePath - 日志文件路径（不含归档后缀）
+ */
+function rotateLogFile(basePath: string): void {
+  if (!fs.existsSync(basePath)) return;
+  // 删除最老的归档，为后移腾位置
+  for (let i = MAX_ARCHIVES; i >= 1; i--) {
+    const f = `${basePath}.${i}`;
+    if (fs.existsSync(f)) {
+      try {
+        fs.rmSync(f, { force: true });
+      } catch {
+        /* 忽略单文件删除失败 */
+      }
+    }
+  }
+  // 旧归档依次后移（.MAX-1 → .MAX，…，.1 → .2）
+  for (let i = MAX_ARCHIVES - 1; i >= 1; i--) {
+    const src = `${basePath}.${i}`;
+    const dst = `${basePath}.${i + 1}`;
+    if (fs.existsSync(src)) {
+      try {
+        fs.renameSync(src, dst);
+      } catch {
+        /* 忽略单文件移动失败 */
+      }
+    }
+  }
+  try {
+    fs.renameSync(basePath, `${basePath}.1`);
+  } catch {
+    /* 轮转失败不阻断写入新文件 */
+  }
+}
+
 /** 参数序列化：Error 优先 stack，对象 JSON 兜底 String()（与 console 显示保持一致） */
 function formatArg(arg: unknown): string {
   if (arg instanceof Error) return arg.stack ?? arg.message;
@@ -73,6 +159,8 @@ function scheduleFlush(): void {
 /** 同步批量落盘（按文件分组，每个文件一次 appendFile；定时器/显式 flush/进程退出调用） */
 function flushLogBuffer(): void {
   if (logBuffer.length === 0) return;
+  // 每次落盘先清理过期日志：短时间日志爆炸时也能及时回收磁盘，避免累积膨胀
+  pruneOutdatedLogs();
   const pending = logBuffer.splice(0);
   const byFile = new Map<string, string[]>();
   for (const { file, line } of pending) {
@@ -83,6 +171,14 @@ function flushLogBuffer(): void {
   for (const [file, lines] of byFile) {
     try {
       fs.mkdirSync(path.dirname(file), { recursive: true });
+      // 单文件超上限时先归档轮转，防止单个日志文件无界膨胀
+      let size = 0;
+      try {
+        size = fs.statSync(file).size;
+      } catch {
+        size = 0;
+      }
+      if (size >= resolveMaxBytes()) rotateLogFile(file);
       fs.appendFileSync(file, lines.join("\n") + "\n", "utf-8");
     } catch {
       /* 文件日志失败不影响服务器运行 */

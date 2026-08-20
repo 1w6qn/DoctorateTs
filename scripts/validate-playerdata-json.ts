@@ -272,7 +272,7 @@ function walk(
     }
     if (t.kind === "iface") {
       const fields = interfaces.get(t.ifaceName!)!;
-      const childCtx = { iface: t.ifaceName };
+      const childCtx = { iface: t.ifaceName! };
       for (const key of Object.keys(jsonValue as object)) {
         const childPath = `${path}.${key}`;
         if (key in fields) {
@@ -321,8 +321,8 @@ function getArg(args: string[], name: string, def: string): string {
   return idx !== -1 && args[idx + 1] ? args[idx + 1] : def;
 }
 
-function main(): void {
-  const args = process.argv.slice(2);
+export function main(argv: string[] = []): void {
+  const args = argv;
   const input = getArg(args, "--input", "D:/develop/DoctorateTs/reference/OpenBachelorS-master/tmp/player_data.json");
   const typesFile = getArg(args, "--types", "D:/develop/DoctorateTs/app/excel/types-playerdata.ts");
   const rootPath = getArg(args, "--root", "");
@@ -388,4 +388,7 @@ function main(): void {
   report.typeOnly.slice(0, 30).forEach(m => console.log(`  ONLY ${m}`));
 }
 
-main();
+// 直连执行入口（被 admin-cli tools 导入时不自动运行）
+if (typeof require !== "undefined" && require.main === module) {
+  main();
+}

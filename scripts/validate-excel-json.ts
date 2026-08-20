@@ -186,7 +186,7 @@ function walk(
     }
     if (t.kind === "iface") {
       const fields = interfaces.get(t.ifaceName!)!;
-      const childCtx = { iface: t.ifaceName };
+      const childCtx = { iface: t.ifaceName! };
       for (const key of Object.keys(jsonValue as object)) {
         const childPath = `${path}.${key}`;
         if (key in fields) {
@@ -258,8 +258,8 @@ function walkTable(
 
 // ---------- main ----------
 
-function main(): void {
-  const args = process.argv.slice(2);
+export function main(argv: string[] = []): void {
+  const args = argv;
   const typesFile = "D:/develop/DoctorateTs/app/excel/types_excel_gen.ts";
   const tablesArg = args.indexOf("--tables");
   const tableFilter = tablesArg !== -1 ? new Set(args[tablesArg + 1].split(",")) : null;
@@ -325,4 +325,7 @@ function main(): void {
   }
 }
 
-main();
+// 直连执行入口（被 admin-cli tools 导入时不自动运行）
+if (typeof require !== "undefined" && require.main === module) {
+  main();
+}

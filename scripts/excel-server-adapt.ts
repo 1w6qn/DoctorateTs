@@ -201,7 +201,7 @@ export const EXCEL_ADD_FIELDS: Record<string, Record<string, string>> = {
   SandboxPermDetailData: { SANDBOX_V2: "object", SANDBOX_V3: "object" },
   // 商店客户端：低阶/高阶商店缩写 key（线格式字典）
   ShopClientData: { ls: "object", os: "object" },
-  // 肉鸽常量表（JSON 有，cs RoguelikeTable 未声明全字段）
+  // 肉鸽常量表补充（JSON 有，cs RoguelikeTable 未声明全字段）
   RoguelikeTable: {
     playerLevelTable: "object",
     recruitPopulationTable: "object",
@@ -210,11 +210,6 @@ export const EXCEL_ADD_FIELDS: Record<string, Record<string, string>> = {
     shopDialogs: "object",
     shopRelicDialogs: "object",
     eventTypeDialogs: "object",
-  },
-  // 热更图片条目（JSON 有视频字段）
-  HotUpdateMetaPicData: { videoId: "string", videoPath: "string" },
-  // 肉鸽常量表补充
-  RoguelikeTable: {
     shopTicketDialogs: "object",
     mimicEnemyIds: "string[]",
     clearZoneScores: "object",
@@ -227,6 +222,8 @@ export const EXCEL_ADD_FIELDS: Record<string, Record<string, string>> = {
     eventTypeIcons: "object",
     choiceScenes: "object",
   },
+  // 热更图片条目（JSON 有视频字段）
+  HotUpdateMetaPicData: { videoId: "string", videoPath: "string" },
 
 };
 

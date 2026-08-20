@@ -128,6 +128,19 @@ function runOfficialExcelPipeline(): boolean {
   );
 }
 
+/**
+ * 官服热更 anon 资源 Lua 自动提取（非致命）：
+ * 复用 excel 管线已下载的 anon/.dat 资源，解包提取其中的明文 Lua 写入 data/[uc]lua/，
+ * 供 repack-lua-bundle --from-ref 等消费。仅使用本地缓存，不额外联网下载。
+ */
+function runLuaHotExtract(): boolean {
+  log(`运行官服热更 anon Lua 提取管线...`);
+  return executeCommand(
+    "pnpm exec tsx scripts/extract-lua-hot.ts",
+    path.join(__dirname, ".."),
+  );
+}
+
 function generateTypes(): boolean {
   log(`生成 TypeScript 类型...`);
   // 类型生成已切换到 CS 反编译源（reference/com.hypergryph.arknights_2.7.61.cs），
@@ -183,6 +196,11 @@ export async function main(skipUpdate: boolean = false, offline: boolean = false
     log("\n官服热更 excel 管线（下载/解码/转换）...");
     if (!runOfficialExcelPipeline()) {
       logError("官服热更 excel 管线失败，使用本地缓存数据");
+    }
+
+    log("\n官服热更 anon Lua 自动提取...");
+    if (!runLuaHotExtract()) {
+      logError("官服热更 anon Lua 提取失败（非致命）");
     }
   } else {
     log("跳过官服热更管线（使用本地 excel 缓存）");

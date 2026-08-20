@@ -243,6 +243,7 @@ export function printHelp(): void {
   official gacha-sync <phone> <pwd> [--pools a,b] [--refresh]  从官服同步卡池详情（补全模式跳过已有，--refresh 全量）
 
 其他:
+  tools <name> [args...]                             开发工具统一入口（validate-*/dump-*/parse-arkhub 等，tools help 查看）
   help / exit                                       帮助 / 退出`);
 }
 
@@ -1782,6 +1783,46 @@ async function runActivities(
   process.exitCode = 1;
 }
 
+/** tools 子命令帮助 */
+function printToolsHelp(): void {
+  console.log(`DoctorateTs 开发工具（统一入口）
+用法: pnpm run admin -- tools <name> [args...]
+  tools validate-excel [--tables t1,t2] [--full <file>] [--raw]    excel 类型闭包覆盖校验
+  tools validate-playerdata [--input <json>] [--types <ts>] [--root <path>] [--full <file>]  玩家数据线格式校验
+  tools dump-definedfix [<mod.dat 路径>]                          解出 DefinedFix.lua 明文验证注入
+  tools check-plugin-deps [<mod.dat 路径>]                        校验插件 require 依赖图
+  tools dump-gateway-dict [rid]                                   网关协议字典（扫描抓包消息形态）
+  tools parse-arkhub [rid]                                        重解析网关抓包为 parsed.json/messages.json
+  tools help                                                       显示本帮助`);
+}
+
+/** tools 子命令：统一调度散落的开发工具（各工具导出 main(argv)，此处分派调用） */
+async function runTools(raw: string[]): Promise<void> {
+  const name = raw[0];
+  const toolArgs = raw.slice(1);
+  if (!name || name === "help" || name === "-h" || name === "--help") {
+    printToolsHelp();
+    return;
+  }
+  const MODS: Record<string, () => Promise<{ main: (argv: string[]) => Promise<void> | void }>> = {
+    "validate-excel": () => import("./validate-excel-json"),
+    "validate-playerdata": () => import("./validate-playerdata-json"),
+    "dump-definedfix": () => import("./dump-definedfix"),
+    "check-plugin-deps": () => import("./check-plugin-deps"),
+    "dump-gateway-dict": () => import("./dump-gateway-dict"),
+    "parse-arkhub": () => import("./parse-arkhub-gateway"),
+  };
+  const load = MODS[name];
+  if (!load) {
+    console.error(`未知 tools 子命令: ${name}`);
+    printToolsHelp();
+    process.exitCode = 1;
+    return;
+  }
+  const mod = await load();
+  await mod.main(toolArgs);
+}
+
 /** 命令分发（main 与交互模式共用） */
 export async function dispatch(
   command: string,
@@ -1822,6 +1863,17 @@ export async function dispatch(
     case "max-account":
       await runMaxAccount(args);
       break;
+    case "tools":
+      // 重建原始 argv：位置参数在前，布尔 flag 只带键，带值 flag 补值
+      {
+        const raw: string[] = [...args];
+        for (const [k, v] of Object.entries(flags)) {
+          raw.push(`--${k}`);
+          if (v !== "true") raw.push(v);
+        }
+        await runTools(raw);
+      }
+      break;
     case "help":
     case "-h":
     case "--help":
@@ -1837,7 +1889,7 @@ export async function dispatch(
 /** 交互模式：逐行执行命令，help/exit 退出（Tab 补全命令名） */
 function runRepl(): void {
   console.log("DoctorateTs 管理交互模式（输入 help 查看命令，exit 退出；Tab 补全）");
-  const COMMANDS = ["users", "mail", "server", "config", "gacha", "pay", "official", "logs", "capture", "activities", "help", "exit", "quit"];
+  const COMMANDS = ["users", "mail", "server", "config", "gacha", "pay", "official", "logs", "capture", "activities", "tools", "help", "exit", "quit"];
   const completer = (line: string): [string[], string] => {
     const hits = COMMANDS.filter((c) => c.startsWith(line));
     return [hits.length ? hits : COMMANDS, line];
@@ -1900,7 +1952,10 @@ export async function main(): Promise<void> {
     printHelp();
     return;
   }
-  await cliInit();
+  // tools 命令组下的纯开发工具无需初始化 excel/账户数据
+  if (command !== "tools") {
+    await cliInit();
+  }
   await dispatch(command, args, flags);
 }
 

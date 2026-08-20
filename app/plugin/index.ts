@@ -11,6 +11,7 @@ export {
 export { loadPluginCatalog, parsePluginDefs, FALLBACK_CATALOG, type PluginCatalogEntry } from "./plugin-catalog";
 export {
   ensureLuaModBuilt,
+  ensureLuaMinModBuilt,
   isLuaModStale,
   BUILTIN_LUA_MOD_NAME,
   type LuaModBuildResult,

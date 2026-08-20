@@ -156,10 +156,12 @@ process.on("exit", (code) => {
     // 启用 mod 时启动预热加载（避免首个热更清单请求卡在扫描、mod 文件请求早于清单时列表为空）
     config.assets.enableMods
       ? (async () => {
-          // 自动重打包内置 Lua bundle mod：插件源码变更后无需手动 pnpm run repack:lua
+          // 自动构建最小 Lua 更新包（Delta）：只含补丁 DefinedFix + 插件资产，哈希命名下发
           // （缺省开启，可用 data/config.json 的 assets.autoBuildLuaMod=false 关闭）
           if (config.assets.autoBuildLuaMod !== false) {
-            await (await import("./app/plugin/lua-mod-builder")).ensureLuaModBuilt();
+            const builder = await import("./app/plugin/lua-mod-builder");
+            // 最小包路线：不再重建整包 bundle（旧方案），构建后自动清理多余的整包/旧 hash anon 残留
+            await builder.ensureLuaMinModBuilt();
           }
           await (await import("./app/asset")).initMods();
         })()
@@ -328,6 +330,32 @@ process.on("exit", (code) => {
           (player?._playerdata?.activity as { ARK_HUB?: { act1arkhub?: { coin?: number } } } | undefined)
             ?.ARK_HUB?.act1arkhub?.coin ?? 0
         );
+      },
+      // 户籍裁剪：场景帧 PlayerSyncData f5-f9（生物图鉴/道具/像素/状态/功能位）数据源——
+      // 从 ARK_HUB.act1arkhub 读 dex(图鉴收录)/scanBag(持有个体)/coin(券)/props(道具箱)。
+      // 客户端没有这些字段时"数据库等功能"显示未解锁。返回 undefined 则维持现状。
+      resolveArkdexDocs: (uid: string) => {
+        const player = accountManager.data[uid];
+        const hub =
+          (player?._playerdata?.activity as { ARK_HUB?: { act1arkhub?: any } } | undefined)
+            ?.ARK_HUB?.act1arkhub;
+        if (!hub) return undefined;
+        // dex：{ [numId字符串]: {...} } → 收录种类集（key=numId，value 计 1 → CreatureCollection）
+        const dex: Record<string, number> = {};
+        for (const key of Object.keys(hub.dex ?? {})) dex[String(key)] = 1;
+        // scanBag：持有个体 → Creature（id→unique_id，numId→template_id，isAlter→persona，
+        // sourceUid→source）
+        const scanBag = (hub.scanBag ?? []).map((b: any) => ({
+          id: b.id,
+          numId: b.numId,
+          ...(b.isAlter ? { persona: 1 } : {}),
+          source: b.sourceUid,
+        }));
+        // props：{ [itemNumId字符串]: {count, uses} } → itemData.items
+        const items = Object.entries(hub.props ?? {})
+          .filter(([, v]: [string, any]) => (v as any)?.count > 0)
+          .map(([k, v]: [string, any]) => ({ itemId: Number(k), count: (v as any).count }));
+        return { dex, scanBag, coin: hub.coin ?? 0, items };
       },
       // 草丛遭遇/扫描开始（战斗触发帧 b7c21f3a，捕获区）→ 生成/记录遭遇
       // （arkhubStartEncounter 落 ARK_HUB.arkdexState.activeEncounter，供结算做亚种/活动频繁映射）

@@ -104,7 +104,7 @@ export function detectAssetStyle(builtin: LuaAsset[]): "prefixed" | "bare" {
  * @param style - 命名风格
  * @returns 插件 Lua 资产列表（按名排序）
  */
-function collectPluginAssets(dir: string, style: "prefixed" | "bare"): LuaAsset[] {
+export function collectPluginAssets(dir: string, style: "prefixed" | "bare"): LuaAsset[] {
   const out: LuaAsset[] = [];
   const walk = (cur: string): void => {
     for (const entry of fs.readdirSync(cur, { withFileTypes: true })) {
@@ -119,7 +119,7 @@ function collectPluginAssets(dir: string, style: "prefixed" | "bare"): LuaAsset[
         });
       }
     }
-  };
+  }; // 此处为 walk 定义的闭合（真实实现见下方完整函数）
   walk(dir);
   out.sort((a, b) => (a.name < b.name ? -1 : 1));
   return out;

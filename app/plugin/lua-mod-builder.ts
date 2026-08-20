@@ -15,6 +15,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { logger } from "@utils/logger";
 import { repackBuiltinLua, repackBuiltinFromRef } from "../../scripts/repack-lua-bundle";
+import { buildLuaMinPack } from "../../scripts/pack-lua-min";
 
 /** 内置 Lua 主 bundle 覆盖 mod 文件名（对应 app/asset.ts mod 管线下载名） */
 export const BUILTIN_LUA_MOD_NAME = "anon_7d91430e114d86fef7d3b3511151e12d.dat";
@@ -182,5 +183,39 @@ export async function ensureLuaModBuilt(
     // 容错：构建失败不阻断启动（保留现有 mod；缺失则客户端回退官方内置 bundle）
     logger.warn("Plugin", `Lua mod 自动构建失败（不影响启动）: ${(error as Error).message}`);
     return { built: false, reason: `error: ${(error as Error).message}`, dat: fs.existsSync(datPath) ? datPath : null };
+  }
+}
+
+/**
+ * 确保最小 Lua 更新包（Delta）已构建：只含「补丁后的 DefinedFix + 插件资产」的哈希命名 bundle。
+ * 在 assets.enableMods 且资产注入链路上下发，体积最小（不重建整包 bundle）。
+ * 构建完成后自动清除 mods 目录中多余的哈希命名 anon 残留（整包 anon_7d91430e... 或旧 hash 最小包），
+ * 仅保留新产物。
+ * 幂等：产物内容不变时 hash 命名不变（不重复下载）；插件/DefinedFix 变更时自动重建。
+ * 永不抛错：失败仅记 warn，不影响服务启动。
+ * @param modsDir  - 输出 mods 目录
+ * @returns 结果（built / dat 路径）
+ */
+export async function ensureLuaMinModBuilt(
+  modsDir: string = path.join(__dirname, "..", "..", "mods"),
+): Promise<{ built: boolean; dat: string | null }> {
+  try {
+    const result = await buildLuaMinPack(undefined, undefined, modsDir);
+    // 清理 mods 根目录多余的哈希命名 anon（整包 anon_7d91430e... 与旧 hash 最小包），仅留新产物
+    const keep = path.basename(result.dat);
+    const hashRe = /^anon_[0-9a-f]{32}\.dat$/i;
+    if (fs.existsSync(modsDir)) {
+      for (const name of fs.readdirSync(modsDir)) {
+        if (hashRe.test(name) && name !== keep) {
+          fs.rmSync(path.join(modsDir, name), { force: true });
+          logger.info("Plugin", `已清理多余 anon mod: ${name}`);
+        }
+      }
+    }
+    logger.info("Plugin", `最小 Lua 更新包自动构建完成: ${result.dat}（${result.bundle.length} B，${result.pluginCount} 个插件）`);
+    return { built: true, dat: result.dat };
+  } catch (error) {
+    logger.warn("Plugin", `最小 Lua 更新包自动构建失败（不影响启动）: ${(error as Error).message}`);
+    return { built: false, dat: null };
   }
 }

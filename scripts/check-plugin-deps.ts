@@ -4,9 +4,9 @@ import JSZip from "jszip";
 import { extractTextAssets } from "./vendor/unityfs";
 
 // 校验插件模块 require 依赖图：所有 require "Plugin/xxx" 路径都能在 bundle 资产中解析到对应 asset。
-
-async function main(): Promise<void> {
-  const datPath = path.join(__dirname, "..", "mods", "anon_7d91430e114d86fef7d3b3511151e12d.dat");
+// 可指定 dat 路径（默认取当前插件 bundle）。
+export async function main(argv: string[] = []): Promise<void> {
+  const datPath = path.resolve(argv[0] ?? path.join(__dirname, "..", "mods", "anon_7d91430e114d86fef7d3b3511151e12d.dat"));
   const zip = await JSZip.loadAsync(fs.readFileSync(datPath));
   const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
   const unity = await zip.files[names[0]].async("uint8array");
@@ -50,7 +50,10 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+// 直连执行入口（被 admin-cli tools 导入时不自动运行）
+if (typeof require !== "undefined" && require.main === module) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}

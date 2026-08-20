@@ -54,8 +54,11 @@
     "apk:lua": "tsx scripts/apk-lua.ts",
     "apk:audit": "tsx scripts/apk-audit.ts",
     "pack:lua-plugins": "tsx scripts/pack-lua-plugins.ts",
+    "pack:lua:min": "tsx scripts/pack-lua-min.ts",
+    "pack:lua:min:current": "tsx scripts/pack-lua-min-current.ts",
     "repack:lua": "tsx scripts/repack-lua-bundle.ts",
     "extract:lua": "tsx scripts/extract-lua-bundle.ts",
+    "extract:lua:hot": "tsx scripts/extract-lua-hot.ts",
     "watch:lua": "tsx scripts/watch-lua-plugins.ts",
     "watch": "node scripts/watchdog.mjs"
   },

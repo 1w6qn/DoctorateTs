@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { mkdtemp, mkdir, writeFile, rm, utimes, readFile } from "fs/promises";
+import { mkdtemp, mkdir, writeFile, rm, utimes, readFile, access } from "fs/promises";
 import { join } from "path";
 import os from "os";
 import JSZip from "jszip";
@@ -7,6 +7,7 @@ import { packLuaBundle } from "../../../scripts/pack-lua-bundle";
 import { extractTextAssets } from "../../../scripts/vendor/unityfs";
 import {
   ensureLuaModBuilt,
+  ensureLuaMinModBuilt,
   isLuaModStale,
   BUILTIN_LUA_MOD_NAME,
 } from "../../../app/plugin/lua-mod-builder";
@@ -159,5 +160,25 @@ describe("lua-mod-builder 启动自动构建", () => {
     expect(result.built).toBe(false);
     expect(result.reason).toMatch(/^error:/);
     expect(result.dat).toBe(dat); // 原文件保留
+  });
+
+  it("ensureLuaMinModBuilt 只生成最小包，并清理整包残留 anon", async () => {
+    const { mods, plugin, ref } = await makeDirs();
+    await writeFile(join(plugin, "EnemyHpPlugin.lua"), enc.encode("-- hp\n"));
+    await writeFile(join(plugin, "NetworkRedirectPlugin.lua"), enc.encode("-- redirect\n"));
+    // 预置整包残留（anon_<32hex>.dat）与占位
+    await writeFile(join(mods, BUILTIN_LUA_MOD_NAME), "stale-full");
+    await writeFile(join(mods, ".placeholder"), "");
+
+    const result = await ensureLuaMinModBuilt(mods);
+
+    // 构建成功且只留一个新产物（哈希命名，非整包名）
+    expect(result.built).toBe(true);
+    expect(result.dat).toBeTruthy();
+    const datName = result.dat!.split(/[\\/]/).pop()!;
+    expect(datName).toMatch(/anon_[0-9a-f]{32}\.dat$/);
+    expect(datName).not.toBe(BUILTIN_LUA_MOD_NAME);
+    // 整包残留被清理，占位保留
+    await expect(access(join(mods, BUILTIN_LUA_MOD_NAME))).rejects.toThrow();
   });
 });

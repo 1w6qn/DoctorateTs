@@ -225,6 +225,9 @@ export class CharManager {
         { curCharInstId: this._player._playerdata.troop.curCharInstId },
       ]);
       await this._trigger.emit("GotChars", [{ char: liveChar }]);
+      // 限时获得干员勋章（GotCharsBeforeTime）—— 活动期间获得指定干员（模板按
+      // unlockParam charId + 结束时间过滤，越界/非目标干员不推进）
+      await this._trigger.emit("GotCharsBeforeTime", [{ charId }]);
     }
     const res = {
       charInstId: charInstId,

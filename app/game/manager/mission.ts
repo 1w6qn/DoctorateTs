@@ -326,10 +326,14 @@ export class MissionManager {
       count: r.count,
       type: String(r.type),
     }));
+    let newlyCompleted = false;
     await this._player.update(async (draft) => {
       const activityMissions = (draft.mission as any)?.missions?.["ACTIVITY"];
       const data = activityMissions?.[missionId];
-      if (data) data.state = 3;
+      if (data && data.state !== 3) {
+        data.state = 3;
+        newlyCompleted = true;
+      }
       // 枢纽任务奖励 → ARK_HUB.coin / tshop.shop_act1arkhub.coin 同步累加
       const seal = (missionInfo.rewards ?? []).find(
         (r: any) => r.id === "act1arkhub_token_seal",
@@ -341,6 +345,11 @@ export class MissionManager {
         if (shop) shop.coin = (shop.coin ?? 0) + seal.count;
       }
     });
+    // 活动任务完成勋章（MissionCompleteSome，medal_activity_53side_04）：每新完成
+    // 一个 53side 任务 +1，目标 = 任务列表长度
+    if (newlyCompleted) {
+      await this._trigger.emit("MissionCompleteSome", [{ count: 1 }]);
+    }
     if (items.length > 0) {
       await this._trigger.emit("items:get", [items]);
     }
@@ -766,6 +775,15 @@ export const MissionTemplates: {
     };
   };
 } = {
+  /**
+   * 通关任意类型关卡累计次数
+   *
+   * 达成目标状态（param[2]，如 2=三星通关）即 +1，以累计通关场次为进度。
+   * 典型用例：日常/周常「通关任意关卡 N 次」（如 daily_4801 param=[0,1,2]）。
+   * @param param[0] 恒为 "0"（无实际作用，占位分支位）
+   * @param param[1] 目标累计通关次数
+   * @param param[2] 通关状态阈值（completeState >= 该值才计入）
+   */
   CompleteStageAnyType: {
     "0": {
       init: (mission) => {
@@ -783,6 +801,20 @@ export const MissionTemplates: {
     },
   },
 
+  /**
+   * 指定关卡内击杀敌人（按分支细分击杀方式）
+   *
+   * param[0] 区分 6 种分支：
+   *   0 / 3 —— 占位分支（同 param[0] 未启用），仅注册进度，update 为空
+   *   1 —— 任意关卡三星通关后，按本场击杀数 killCnt 累计（日常/周常击杀任务）
+   *   2 —— 指定敌人（param[2] 以 ^ 分隔 enemyId）击杀计数，标准 HP_ZERO 判定
+   *   5 —— 指定关卡（param[1] ^ 分隔，可含 #f# 变体）三星后累计 killCnt
+   *   6 —— 指定关卡（param[1]）内击杀达到 param[2] 即算完成 1 次
+   * @param param[0] 分支标识
+   * @param param[1] 目标值或关卡列表（依分支而定；目标场次/累计击杀用）
+   * @param param[2] 敌人列表 / 关卡状态阈值 / 单场击杀下限（依分支而定）
+   * @param param[3] 目标值或状态阈值（分支 6 用）
+   */
   StageWithEnemyKill: {
     "0": {
       init: (mission) => {
@@ -871,6 +903,15 @@ export const MissionTemplates: {
     },
   },
 
+  /**
+   * 任意关卡击杀敌人累计数
+   *
+   * 任意关卡通关状态达到 param[2] 后，累计本场击杀数 killCnt 为进度。
+   * 典型用例：日常/周常「累计击杀敌人 N 个」（如 daily_4808 param=[0,100,2]）。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标累计击杀数
+   * @param param[2] 通关状态阈值（completeState >= 该值才累计本场击杀）
+   */
   EnemyKillInAnyStage: {
     "0": {
       init: (mission) => {
@@ -888,6 +929,15 @@ export const MissionTemplates: {
     },
   },
 
+  /**
+   * 携带助战干员通关
+   *
+   * 通关（completeState>=2）且本场使用助战（assistFriend 非空）即 +1，
+   * 以累计携带助战通关场次为进度。
+   * @param param[0] 恒为 "1"（分支标识）
+   * @param param[1] 无实际作用（如 daily_4813 param=[1,1]）
+   * @param param[2] 目标场次（常为 1 或 5，如 weekly_713）
+   */
   StageWithAssistChar: {
     "1": {
       init: (mission) => {
@@ -904,6 +954,17 @@ export const MissionTemplates: {
     },
   },
 
+  /**
+   * 干员养成升级（按分支细分养成口径）
+   *
+   * @param param[0] 分支标识：
+   *   0 —— 任意干员养成事件 +1（周常「升级干员 N 次」）
+   *   1 —— 干员精二达到 param[2]（evolvePhase）且等级达到 param[3] 各计 1
+   *   2 —— 按累计获得的经验 exp 累加
+   * @param param[1] 目标值
+   * @param param[2] 精二阶段阈值（分支 1 用）
+   * @param param[3] 等级阈值（分支 1 用）
+   */
   UpgradeChar: {
     "0": {
       init: (mission) => {
@@ -945,6 +1006,14 @@ export const MissionTemplates: {
     },
   },
 
+  /**
+   * 获得社交点（助战信任点）
+   *
+   * @param param[0] 分支标识：
+   *   0 —— 按累计收到的社交点 socialPoint 累加
+   *   1 —— 事件触发一次 +1（如 daily_4815 param=[1,1]，周常=5次）
+   * @param param[1] 目标值
+   */
   ReceiveSocialPoint: {
     "0": {
       init: (mission) => {
@@ -970,6 +1039,15 @@ export const MissionTemplates: {
     },
   },
 
+  /**
+   * 购买商店物品（按分支细分商店来源）
+   *
+   * @param param[0] 分支标识：
+   *   0 —— 购买任何商店（LS/HS/ES=物资/高层/标准商城）物品各计 1
+   *   1 —— 购买信用交易所（SOCIAL）物品各计 1
+   *   3 —— 购买信用交易所时按消费的社交点 socialPoint 累计
+   * @param param[1] 目标值
+   */
   BuyShopItem: {
     "0": {
       init: (mission) => {
@@ -1014,6 +1092,14 @@ export const MissionTemplates: {
     },
   },
 
+  /**
+   * 常规抽卡（公开招募）
+   *
+   * 每次抽取 +1。param[2] 为目标次数（如 daily_4818=[0,-1,3] 抽3次）。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 无实际作用（常为 -1）
+   * @param param[2] 目标抽取次数
+   */
   NormalGacha: {
     "0": {
       init: (mission) => {
@@ -1028,6 +1114,13 @@ export const MissionTemplates: {
     },
   },
 
+  /**
+   * 获得干员信赖值
+   *
+   * 每次获得信赖 count 累加，达 param[1] 完成（如 daily_4819=[0,5]）。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标信赖值总量
+   */
   GainIntimacy: {
     "0": {
       init: (mission) => {
@@ -1041,6 +1134,17 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 制造站生产（按分支细分口径）
+   *
+   * @param param[0] 分支标识：
+   *   0 —— 指定物品（param[2] itemId）累计生产数量
+   *   1 —— 任意生产事件按产出 count 累加/计数（如 daily_4821=[1,1]）
+   *   2 —— 指定物品集合（param[2] 以 # 分隔）任意命中 +1
+   * @param param[1] 目标值
+   * @param param[2] 指定物品 id 或 id 集合（分支 0/2 用）
+   */
   ManufactureItem: {
     "0": {
       init: (mission) => {
@@ -1081,6 +1185,15 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 贸易站订单交付
+   *
+   * 每次交付订单 count 累加，达 param[1] 完成。分支 0 / 1 行为一致
+   * （如 daily_4822=[1,1]、周常=15/30/50/80 单）。
+   * @param param[0] 分支标识（0 或 1，行为相同）
+   * @param param[1] 目标交付订单量
+   */
   DeliveryOrder: {
     "0": {
       init: (mission) => {
@@ -1105,6 +1218,14 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 恢复干员基础体力
+   *
+   * 每次恢复体力 count 累加，达 param[1] 完成（如 daily_4826=[0,1]）。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标恢复体力值
+   */
   RecoverCharBaseAp: {
     "0": {
       init: (mission) => {
@@ -1118,6 +1239,14 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 访问好友基建
+   *
+   * 每次访问 +1，达 param[1] 完成（如 weekly_732=[0,5]）。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标访问次数
+   */
   VisitBuilding: {
     "0": {
       init: (mission) => {
@@ -1131,6 +1260,15 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 升级技能（按分支细分口径）
+   *
+   * @param param[0] 分支标识：
+   *   0 —— 每次技能升级事件 +1
+   *   1 —— 按累计升级目标等级 targetLevel 累加
+   * @param param[1] 目标值
+   */
   UpgradeSkill: {
     "0": {
       init: (mission) => {
@@ -1155,6 +1293,15 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 编队/阵容配置
+   *
+   * 每次编队事件 +1，达 param[2] 完成。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 无实际作用
+   * @param param[2] 目标编队次数
+   */
   SquadFormation: {
     "0": {
       init: (mission) => {
@@ -1168,6 +1315,17 @@ export const MissionTemplates: {
       },
     },
   },
+  /**
+   * 通关指定关卡（按分支细分通关类型）
+   *
+   * @param param[0] 分支标识：
+   *   0 —— 指定关卡（param[1] 以 ^ 分隔 stageId）三星通关（completeState>=2）各计 1
+   *   2 —— 任意关卡通关状态达到 param[2] 各计 1（文件主线外围任务）
+   *   3 —— 演习（isPractice 非 0）三星通关各计 1
+   *   4 —— 突袭关节（stageId 含 #f#）三星通关（completeState>=3）各计 1
+   * @param param[1] 关卡列表（分支 0）或通关状态阈值（分支 2）或目标值（分支 3/4）
+   * @param param[2] 目标通关次数（分支 0/2 用）
+   */
   CompleteStage: {
     "0": {
       init: (mission) => {
@@ -1232,6 +1390,14 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 升级玩家等级
+   *
+   * 进度直接取当前玩家等级 level（覆盖式）。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标玩家等级
+   */
   UpgradePlayer: {
     "0": {
       init: (mission) => {
@@ -1245,6 +1411,16 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 通关任一指定关卡
+   *
+   * 指定关卡列表（param[1] 以 ^ 分隔）中命中一关、且通关状态达 param[2] 各计 1。
+   * 文件主线章节任务（如 main_83=[0,main_15-04^main_15-04#s,2]）。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 关卡列表（^ 分隔，可含 #s 变体）
+   * @param param[2] 通关状态阈值
+   */
   CompleteAnyStage: {
     "0": {
       init: (mission) => {
@@ -1261,6 +1437,19 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 拥有符合筛选条件的干员
+   *
+   * 每满足条件的干员 +1。分支 0 / 1 行为一致。用于「拥有某精二/等级/稀有度/职业干员」任务
+   * （如 sub_10010 param=[0,30,-1,SNIPER]）。
+   * @param param[0] 分支标识（0 或 1，行为相同）
+   * @param param[1] 目标干员数量
+   * @param param[2] 精二阶段下限（evolvePhase）
+   * @param param[3] 等级下限
+   * @param param[4] 稀有度（-1=不限）
+   * @param param[5] 职业（ALL=不限，如 SNIPER/TANK/PIONEER）
+   */
   HasChar: {
     "0": {
       init: (mission) => {
@@ -1317,6 +1506,17 @@ export const MissionTemplates: {
       },
     },
   },
+  /**
+   * 拥有符合条件（稀有度 + 模组等级）的已解锁模组
+   *
+   * 精二（evolvePhase>=2）干员，其稀有度命中 param[1]（^ 分隔），每有一个模组等级
+   * 命中 param[2]（^ 分隔，模组等级列表）各计 1，达 param[3] 完成。
+   * 用于「模组任务」（如 sub_20001 param=[0,4^5^6,1^2^3,1]）。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 干员稀有度列表（^ 分隔）
+   * @param param[2] 模组等级列表（^ 分隔）
+   * @param param[3] 目标模组数量
+   */
   HasEquipment: {
     "0": {
       init: (mission) => {
@@ -1343,6 +1543,16 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 干员精二
+   *
+   * 干员精二阶段达到 param[2] 各计 1，达 param[1] 完成。
+   * 用于「精二 N 名干员」（如 sub_73 param=[1,3,1] 精二3名）。
+   * @param param[0] 恒为 "1"（分支标识）
+   * @param param[1] 目标精二干员数
+   * @param param[2] 目标精二阶段（evolvePhase）
+   */
   EvolveChar: {
     "1": {
       init: (mission) => {
@@ -1358,6 +1568,15 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 基建舒适度提升（按分支细分）
+   *
+   * @param param[0] 分支标识：
+   *   0 —— 按累计新增舒适度 comfort 累加（如 sub_85 param=[0,2000]）
+   *   1 —— 直接以当前舒适度覆盖式进度（如 sub_113 param=[4000]）
+   * @param param[1] 目标舒适度值
+   */
   DiyComfort: {
     "0": {
       init: (mission) => {
@@ -1382,6 +1601,17 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 基建房间建造（指定房间类型）
+   *
+   * 每次新增房间按 roomCount 累加，达 param[1] 完成。用于「建造 N 级某类型房间」
+   * （如 sub_79 param=[0,1,2,POWER] 建造2级发电站）。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标房间数
+   * @param param[2] 房间等级（部分任务用）
+   * @param param[3] 房间类型（如 POWER/MANUFACTURE/TRADING/WORKSHOP/CONTROL）
+   */
   HasRoom: {
     "0": {
       init: (mission) => {
@@ -1395,6 +1625,15 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 车间合成物品
+   *
+   * 指定物品（param[2] itemId）合成时按产出数量累计，达 param[1] 完成。
+   *   @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标合成数量
+   * @param param[2] 指定产物 itemId
+   */
   WorkshopSynthesis: {
     "0": {
       init: (mission) => {
@@ -1410,6 +1649,15 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 专精技能（升级专精等级）
+   *
+   * @param param[0] 分支标识：
+   *   0 —— 每次专精事件 +1（如「专精任意技能 N 次」）
+   *   1 —— 专精等级达到 param[1] 各计 1（如 sub_135 param=[1,1]、sub_137=[1,3]）
+   * @param param[1] 目标值或目标专精等级
+   */
   UpgradeSpecialization: {
     "0": {
       init: (mission) => {
@@ -1433,6 +1681,16 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 指定关卡内击杀敌人（单场阈值式）
+   *
+   * 指定关卡（param[1] ^ 分隔）单场击杀 killCnt 取较大值作为进度上限，达 param[2]
+   * 完成。用于「在 XX 关卡单场击杀 N」（如 sub_69 param=[0,camp_01,350]）。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 关卡列表（^ 分隔）
+   * @param param[2] 单场目标击杀数
+   */
   BattleWithEnemyKill: {
     "0": {
       init: (mission) => {
@@ -1452,6 +1710,16 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 干员信赖（羁绊）达到指定百分比
+   *
+   * 按干员当前信赖百分比 percent（最大 200%=满信赖）判定，达到 param[2]% 各计 1，
+   * 达 param[1] 完成。用于「信任 N 名干员达到 XX%」。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标干员数
+   * @param param[2] 目标信赖百分比阈值（0-200）
+   */
   CharIntimacy: {
     "0": {
       init: (mission) => {
@@ -1479,6 +1747,12 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 完成剧情/破镜奖励
+   *
+   * 每次完成奖励事件 +1，目标恒为 1。用于一次性剧情奖励任务。
+   */
   CompleteBreakReward: {
     "0": {
       init: (mission) => {
@@ -1489,6 +1763,13 @@ export const MissionTemplates: {
       },
     },
   },
+  /**
+   * 信息分享（截图/分享）
+   *
+   * 每次分享事件 +1，达 param[1] 完成。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标分享次数
+   */
   StartInfoShare: {
     "0": {
       init: (mission) => {
@@ -1502,6 +1783,12 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 编辑名片
+   *
+   * 每次编辑名片 +1，目标恒为 1。
+   */
   EditBusinessCard: {
     "0": {
       init: (mission) => {
@@ -1512,6 +1799,14 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 设置助战干员列表
+   *
+   * 每次设置助战 +1，达 param[1] 完成。
+   * @param param[0] 恒为 "1"（分支标识）
+   * @param param[1] 目标设置次数
+   */
   SetAssistCharList: {
     "1": {
       init: (mission) => {
@@ -1525,6 +1820,14 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 修改编队/小队名称
+   *
+   * 每次改名 +1，达 param[1] 完成。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标改名次数
+   */
   ChangeSquadName: {
     "0": {
       init: (mission) => {
@@ -1538,6 +1841,14 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 通关时使用代理/再现（代理作战）
+   *
+   * 每次代理作战通关（isReplay 非空）+1，达 param[1] 完成。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标代理作战次数
+   */
   StageWithReplay: {
     "0": {
       init: (mission) => {
@@ -1553,6 +1864,14 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 接管/中断代理作战（手动接管）
+   *
+   * 战斗中产生自动代理取消（autoReplayCancelled）各计 1，达 param[1] 完成。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标接管次数
+   */
   TakeOverReplay: {
     "0": {
       init: (mission) => {
@@ -1568,6 +1887,14 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 通关剿灭作战
+   *
+   * 三星通关（completeState>=2）且关卡类型为 CAMPAIGN（剿灭）：各计 1，达 param[1] 完成。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标剿灭通关次数
+   */
   CompleteCampaign: {
     "0": {
       init: (mission) => {
@@ -1587,6 +1914,12 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 设置基建助战（基建入驻助战位）
+   *
+   * 每次设置 +1，目标恒为 1。
+   */
   SetBuildingAssist: {
     "0": {
       init: (mission) => {
@@ -1597,6 +1930,15 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 提升潜能（潜能等级达阈值）
+   *
+   * 干员潜能提升后 targetLevel 达到 param[2] 各计 1，达 param[1] 完成。
+   * @param param[0] 恒为 "1"（分支标识）
+   * @param param[1] 目标干员数
+   * @param param[2] 目标潜能等级
+   */
   BoostPotential: {
     "1": {
       init: (mission) => {
@@ -1612,6 +1954,14 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 车间额外产出
+   *
+   * 每次车间额外产出事件 +1，达 param[1] 完成。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标次数
+   */
   WorkshopExBonus: {
     "0": {
       init: (mission) => {
@@ -1625,6 +1975,14 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 提升常规抽卡（公开招募）数量
+   *
+   * 每次抽取 +1，达 param[1] 完成。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标抽取次数
+   */
   BoostNormalGacha: {
     "0": {
       init: (mission) => {
@@ -1638,6 +1996,15 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 通关指定主线关卡
+   *
+   * 指定主线关卡（param[1] stageId）三星通关（completeState>=2）各计 1，目标恒为 1。
+   * 用于主线章节任务（如 main_28 param=[1,main_02-03,1]）。
+   * @param param[0] 恒为 "1"（分支标识）
+   * @param param[1] 指定主线关卡 id
+   */
   CompleteMainStage: {
     "1": {
       init: (mission) => {
@@ -1653,6 +2020,14 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 发送线索
+   *
+   * 每次发送线索 +1，达 param[1] 完成（社会/基建线索交流）。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标发送次数
+   */
   SendClue: {
     "0": {
       init: (mission) => {
@@ -1666,6 +2041,12 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 获得团队干员（小程序/联动获得的干员）
+   *
+   * 每次获得 +1，目标恒为 1。
+   */
   GainTeamChar: {
     "0": {
       init: (mission) => {
@@ -1676,6 +2057,12 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 加速订单（基建加速制造/贸易）
+   *
+   * 每次加速订单 +1，目标恒为 1。
+   */
   AccelerateOrder: {
     "0": {
       init: (mission) => {
@@ -1686,6 +2073,14 @@ export const MissionTemplates: {
       },
     },
   },
+
+  /**
+   * 消耗理智
+   *
+   * 每次战斗消耗理智按 ap 累加，达 param[1] 完成。
+   * @param param[0] 恒为 "0"（占位分支位）
+   * @param param[1] 目标消耗理智值
+   */
   CostAp: {
     "0": {
       init: (mission) => {
@@ -1884,6 +2279,65 @@ export const MissionTemplates: {
         mission.progress[0].value = Math.max(
           mission.progress[0].value,
           Math.min(args.count, mission.progress[0].target!),
+        );
+      },
+    },
+  },
+
+  // ==================== act53side（arkodc）活动任务模板 ====================
+  /**
+   * 通关活动关卡累计（53sideActivity_37..39）
+   *
+   * param[1]=活动关卡列表（^ 分隔，含 #f# 突袭变体），param[2]=目标累计通关次数
+   * （15/45/85）。事件 CompleteStageAct 由 battle 结算 emit，满足 completeState>=2
+   * 且关卡命中列表时累计 +1。
+   */
+  CompleteStageAct: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        const stages = mission.param[1].split("^");
+        if (!stages.includes(args.stageId)) return;
+        if (args.completeState < 2) return;
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+
+  /**
+   * arkodc 奖励组收集（53sideActivity_1..9）
+   *
+   * param[1]=arkodc topic 活动 id，param[2]=目标奖励组 id 列表（逗号分隔，
+   * 如 reward_tre_a 等宝箱/任务奖励），param[3]=目标收集数量。事件
+   * ArkodcRewardGroupAtLeast 在 triggerInteraction 收集奖励后 emit，模板统计
+   * topic.rewards 中已命中 param[2] 列表的数量作为进度。
+   */
+  ArkodcRewardGroupAtLeast: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[3]),
+        });
+      },
+      update: (
+        mission,
+        args: { activityId: string; rewards: Record<string, number> },
+      ) => {
+        if (args.activityId !== mission.param[1]) return;
+        const targets = mission.param[2].split(",");
+        let count = 0;
+        for (const t of targets) {
+          if (args.rewards?.[t]) count += 1;
+        }
+        mission.progress[0].value = Math.max(
+          mission.progress[0].value,
+          count,
         );
       },
     },

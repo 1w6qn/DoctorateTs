@@ -550,6 +550,19 @@ export class BattleManager {
       await this._trigger.emit("CompleteAnyStage", [
         { ...battleData, stageId },
       ]);
+      // 活动关卡累计任务（act53side CompleteStageAct，53sideActivity_37..39）——
+      // 每次胜利通关活动关累计 +1，模板按 param[1] 关卡列表过滤
+      await this._trigger.emit("CompleteStageAct", [
+        { ...battleData, stageId },
+      ]);
+      // act53side 通关累计勋章（PassStageWithSimpleCountMore，medal_activity_53side_06）
+      await this._trigger.emit("PassStageWithSimpleCountMore", [
+        {
+          stageId,
+          completeState: battleData.completeState ?? 0,
+          enemyStats: (battleData.battleData?.stats?.enemyStats ?? []) as never,
+        },
+      ]);
       if (stType === "MAIN") {
         await this._trigger.emit("CompleteMainStage", [
           { ...battleData, stageId },

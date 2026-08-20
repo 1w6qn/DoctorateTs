@@ -620,11 +620,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 生息演算（Sbv2）— 升级基地等级
+   *
+   * 追踪玩家在生息演算玩法中升级基地的进度。目标为 param[0]。
+   * 注：当前为占位实现（进度恒取注册后天数，未接入玩法真实状态）。
+   * @param param[0] 目标基地等级
+   */
   Sbv2UpgradeBase(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -634,11 +637,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 生息演算（Sbv2）— 完成任务
+   *
+   * 追踪玩家在生息演算玩法中完成的任务数量。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标完成任务数
+   */
   Sbv2FinishQuest(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -648,11 +654,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 生息演算（Sbv2）— 使用指定角色通关战斗
+   *
+   * 追踪玩家使用指定干员完成生息演算战斗的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
   Sbv2BattleFinishWithChar(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -662,11 +671,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 生息演算（Sbv2）— 解锁菜谱
+   *
+   * 追踪玩家在生息演算玩法中解锁的菜谱数量。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标菜谱数量
+   */
   Sbv2UnlockCook(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -676,11 +688,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 生息演算（Sbv2）— 放置建筑
+   *
+   * 追踪玩家在生息演算基建中放置建筑的数量。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标建筑放置数
+   */
   Sbv2PlaceBuilding(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -690,11 +705,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 生息演算（Sbv2）— 通关指定裂隙关卡
+   *
+   * 追踪玩家通关生息演算指定关卡（裂隙）的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标关卡进度
+   */
   Sbv2PassRiftLevel(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -704,11 +722,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 生息演算（Sbv2）— 通关裂隙次数
+   *
+   * 追踪玩家通关生息演算裂隙关卡的总次数。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标通关次数
+   */
   Sbv2PassRiftCount(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -718,11 +739,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 生息演算（Sbv2）— 捕获生物
+   *
+   * 追踪玩家在生息演算玩法中捕获生物的数量。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标捕获生物数
+   */
   Sbv2CatchAnimal(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -732,11 +756,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 生息演算（Sbv2）— 解锁科技
+   *
+   * 追踪玩家在生息演算玩法中解锁的科技数量。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标科技解锁数
+   */
   Sbv2UnlockTech(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -746,11 +773,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 生息演算（Sbv2）— 存活天数
+   *
+   * 追踪玩家在生息演算玩法中存活的天数。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标存活天数
+   */
   Sbv2SurviveDays(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -760,11 +790,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 生息演算（Sbv2）— 击杀首领
+   *
+   * 追踪玩家在生息演算玩法中击杀首领的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标击杀首领数
+   */
   Sbv2KillBoss(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -774,6 +807,12 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 肉鸽（Roguelike）— 通关节点
+   *
+   * 每次通关节点 +1，达 param[0] 完成。
+   * @param param[0] 目标节点数
+   */
   Rlv2PassNode(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
@@ -784,6 +823,12 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 肉鸽（Roguelike）— 月度小队/点数等级
+   *
+   * 进度直接取当前点数等级 level（覆盖式），达 param[0] 完成。
+   * @param param[0] 目标等级
+   */
   Rlv2BpLevel(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
@@ -794,6 +839,12 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 装扮/通用养成到位
+   *
+   * 每次事件 +1，达 param[0] 完成。
+   * @param param[0] 目标次数
+   */
   PermUpgrade(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
@@ -804,6 +855,12 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 炼金/合成使用
+   *
+   * 每次使用炼金（合成）事件 +1，达 param[0] 完成。
+   * @param param[0] 目标次数
+   */
   UseAlchemy(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
@@ -814,6 +871,12 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 肉鸽（Roguelike）— 招募干员
+   *
+   * 每次招募干员 +1，达 param[0] 完成。
+   * @param param[0] 目标招募次数
+   */
   Rlv2Recruit(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
@@ -824,6 +887,12 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 肉鸽（Roguelike）— 获得小队奖励
+   *
+   * 每次获得小队奖励 +1，达 param[0] 完成。
+   * @param param[0] 目标奖励获取次数
+   */
   Rlv2GetTeamReward(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
@@ -834,6 +903,12 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 肉鸽（Roguelike）— 结局收集
+   *
+   * 每次获得结局（args.ending）事件 +1，达 param[0] 完成。
+   * @param param[0] 目标结局数
+   */
   Rlv2EndingCollect(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
@@ -844,11 +919,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 肉鸽（Roguelike）— 收藏收集
+   *
+   * 追踪玩家收藏密室宝箱/战利品的数量。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标收藏数
+   */
   Rlv2CollectRelic(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -858,11 +936,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 肉鸽（Roguelike）— 使用指定角色通关战斗
+   *
+   * 追踪玩家使用指定干员完成肉鸽战斗的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
   Rlv2FinishBattleWithSpecChar(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -872,11 +953,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 肉鸽（Roguelike）— 指定模式与难度达成结局
+   *
+   * 追踪玩家在指定开局/难度下达成结局的次数。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标结局次数
+   */
   Rlv2EndingWithModeGrade(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -886,11 +970,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 肉鸽（Roguelike）— 解锁乐/节奏带
+   *
+   * 追踪玩家解锁玩法乐带进度的数量。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标解锁数
+   */
   Rlv2UnlockBand(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -900,11 +987,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 肉鸽（Roguelike）— 图腾共鸣
+   *
+   * 追踪玩家触发图腾共鸣进度的数量。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标共鸣数
+   */
   Rlv2TotemResonance(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -914,11 +1004,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 肉鸽（Roguelike）— 完成节点任务
+   *
+   * 追踪玩家完成节点隐藏任务的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标任务数
+   */
   Rlv2CompleteNodeMission(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -928,11 +1021,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 肉鸽（Roguelike）— 获得密文胶囊
+   *
+   * 追踪玩家获得密文胶囊的数量。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标胶囊数
+   */
   Rlv2GainCapsule(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -996,53 +1092,71 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
-  GotCharsBeforeTime(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+  /**
+   * 限时获取角色勋章模板
+   * 在指定结束时间（param[1]，unix 秒）前获得 param[0] 指定干员即达成
+   *（act53side medal_activity_53side_02）。事件 GotCharsBeforeTime:[{charId}] 由
+   * 干员入账处发射。
+   */
+  GotCharsBeforeTime(args: { charId: string }, mode: string = "update") {
+    const funcs: { [key: string]: (args: { charId: string }) => void } = {
+      init: (args) => this.val[0].push(0, 1),
+      update: (args) => {
+        if (args.charId !== this.param[0]) return;
+        if (now() > parseInt(this.param[1])) return;
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);
   }
 
-  ActivityCoinCost(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+  /**
+   * 活动代币消耗勋章模板
+   * 累计消耗活动币，消耗来源（coinType，取 activity id）匹配 param[0] 即累加
+   * 花费 param[2] 达成（act53side medal_activity_53side_03）。事件
+   * ActivityCoinCost:[{coinType, cost}] 由活动商店扣币处发射。
+   */
+  ActivityCoinCost(args: { coinType: string; cost: number }, mode: string = "update") {
+    const funcs: { [key: string]: (args: { coinType: string; cost: number }) => void } = {
+      init: (args) => this.val[0].push(0, parseInt(this.param[2])),
+      update: (args) => {
+        if (typeof args?.coinType === "string" && !String(args.coinType).includes(this.param[0])) {
+          return;
+        }
+        this.val[0][0] += args.cost ?? 1;
       },
     };
     funcs[mode](args);
   }
 
-  MissionCompleteSome(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+  /**
+   * 任务完成数量勋章模板
+   * 完成 param[0]（分号分隔的任务 id 列表，如 53sideActivity_*）指定的任务组，
+   * 目标 = 列表长度（act53side medal_activity_53side_04）。事件
+   * MissionCompleteSome:[{count}] 在活动任务成功领取后发射（每完成一个 +1）。
+   */
+  MissionCompleteSome(args: { count: number }, mode: string = "update") {
+    const funcs: { [key: string]: (args: { count?: number }) => void } = {
+      init: () => {
+        const p0 = String(this.param[0] ?? "");
+        const target = p0.includes(";") ? p0.split(";").length : parseInt(p0) || 0;
+        this.val[0].push(0, target);
+      },
+      update: (args) => {
+        this.val[0][0] += args?.count ?? 1;
       },
     };
     funcs[mode](args);
   }
 
+  /**
+   * 活动关卡内累计代币数（下限）
+   *
+   * 追踪在活动关卡中获得的代币数量。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标代币数量
+   */
   ActivityPassStageWithSimpleTokenCountMore(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -1052,11 +1166,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 活动（act35side）— 完成雕刻
+   *
+   * 追踪完成活动雕刻的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标雕刻数
+   */
   Act35SideFinishCarving(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -1066,25 +1183,54 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
-  PassStageWithSimpleCountMore(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+  /**
+   * 通关关卡且击杀指定敌人勋章模板
+   * 官服语义：一次通关战斗中，当关击倒（counterType=param[3]，如 FALLDOWN）目标敌人
+   *（param[2]，enemy_10228_agball）即计 1 次，累计 param[4] 次完成；通关状态门槛
+   * 取 param[0]（活动章 completeState>=3=三星）。事件
+   * PassStageWithSimpleCountMore:[{stageId, completeState, enemyStats}] 由 battle 结算发射。
+   */
+  PassStageWithSimpleCountMore(
+    args: {
+      stageId: string;
+      completeState: number;
+      enemyStats?: { Key: { enemyId: string; counterType: string }; Value: number }[];
+    },
+    mode: string = "update",
+  ) {
+    const funcs: {
+      [key: string]: (args: {
+        stageId: string;
+        completeState: number;
+        enemyStats?: { Key: { enemyId: string; counterType: string }; Value: number }[];
+      }) => void;
+    } = {
+      init: (args) => this.val[0].push(0, parseInt(this.param[4])),
+      update: (args) => {
+        if (args.stageId !== this.param[1]) return;
+        if ((args.completeState ?? 0) < parseInt(this.param[0] || "2")) return;
+        const stats = args.enemyStats ?? [];
+        const downed = stats.some(
+          (s) =>
+            s.Key?.enemyId === this.param[2] &&
+            s.Key?.counterType === this.param[3] &&
+            s.Value > 0,
+        );
+        if (!downed) return;
+        this.val[0][0] += 1;
       },
     };
     funcs[mode](args);
   }
 
+  /**
+   * 通关关卡且击杀敌方指定单位种类（细分）
+   *
+   * 追踪通关活动关卡且累计击杀指定敌人种类的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标等级
+   */
   PassStageWithDetailDiffCountMore(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -1094,6 +1240,13 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 通关关卡（代币上限）
+   *
+   * 通关时场内置放/使用代币数不超过 param[1] 即 +1，达 param[0] 完成。
+   * @param param[0] 目标场次
+   * @param param[1] 代币数量上限
+   */
   PassStageWithSimpleTokenCountLess(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
@@ -1106,6 +1259,12 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 累计击杀敌人总数
+   *
+   * 每场累计击杀数 killCnt 累加，达 param[0] 完成。
+   * @param param[0] 目标击杀总数
+   */
   PassStageKilledTotal(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
@@ -1116,11 +1275,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 联合行动（多人）— 关卡总分
+   *
+   * 追踪联合行动关卡的累计总分。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标总分
+   */
   ActMultiplayVerify2StageTotalScore(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -1130,11 +1292,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 联合行动（多人）— 达成分数通关
+   *
+   * 追踪联合行动中达到指定分数通关的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
   ActMultiplayVerify2PassStageWithScore(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -1144,11 +1309,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 活动里程碑点数
+   *
+   * 追踪活动里程碑累计点数。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标点数
+   */
   ActivityMilestonePoint(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -1158,11 +1326,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 限时获得指定物品
+   *
+   * 追踪在限时内获得指定物品（param[?]）的数量。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标物品数
+   */
   GotItemBeforeTime(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -1172,6 +1343,13 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 通关关卡（代币下限）
+   *
+   * 通关时场内置放/使用代币数不低于 param[1] 即 +1，达 param[0] 完成。
+   * @param param[0] 目标场次
+   * @param param[1] 代币数量下限
+   */
   PassStageWithSimpleTokenCountMore(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
@@ -1184,6 +1362,12 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 危机合约V2 — 维度总分
+   *
+   * 每次单局得分 score 累加，达 param[0] 完成。
+   * @param param[0] 目标总分
+   */
   CrisisV2DimScoreTotal(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
@@ -1194,6 +1378,12 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 危机合约V2 — 通关指定节点
+   *
+   * 每次通关节点 +1，达 param[0] 完成。
+   * @param param[0] 目标节点数
+   */
   CrisisV2NodeSome(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
@@ -1204,851 +1394,14 @@ export class MedalProgress implements PlayerPerMedal {
     funcs[mode](args);
   }
 
+  /**
+   * 危机合约V2 — 指定维度达成得分
+   *
+   * 追踪在指定维度达成得分的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标得分
+   */
   CrisisV2DimScoreSome(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  CrisisV2UseAssist(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageWithBossRush(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageWithSimpleCountLess(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  TotalSimpleTokenCount(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageWithSimpleTokenCountMax(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  Act29SideInvestigateDailyNPC(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  SimpleTokenCountMoreInManyStages(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  Act29SideSyncthesizeMelody(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  Act42D0UnlockArea(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  Act42D0UseAssistPassStage(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  Act42D0FinishChallenge(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageWithTrapSurvivedLess(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityAct38d1DimScoreTotal(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityAct38d1DimScoreSome(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityAct38d1UnlockNodeSome(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityAct38d1UseAssist(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStoryStageSome(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  Act25SideSimpleEventAtLeast(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  Act25SideFinInvestigation(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  CrisisStageScoreSome(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  CrisisTempClearSome(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  CrisisTaskSome(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  CrisisUnlockPermRuneSome(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  CrisisUseAssist(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageWithKillSurvive(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageWithTrapSurvived(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageWithReedResidue(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityLikeOperaComment(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityFinishCharCardTask(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityUnlockSiracusaArea(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  GainCarAccessories(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageKilled(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageKilledLess(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityTechTreeActive(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityTreasureGain(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageWithTechTree(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageWithEnemyActiveLess(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageWithAtLeast(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityCostAgenda(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityReachPrestigeLevel(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityMilestoneReward(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  CharmUnlock(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityCharmRecycleReward(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageWithActiveTotal(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageWithActiveLess(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageWithDeadInLess(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityHoldTaichi(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageWithLessDeploy(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageWithoutBossShield(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityConfinementTotal(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityKilledTotal(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityCasimirReadNews(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivityCutTree(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageWithCutTree(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  PassStageWithTower(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivitySandboxCreateItem(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  ActivitySandboxAchieveEnding(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  UnlockStoryGroup(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  FullPotentialOverflow(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
-      },
-    };
-    funcs[mode](args);
-  }
-
-  CrisisStageScoreBeforeTime(args: {}, mode: string = "update") {
-    /**
-     *
-     *
-     */
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
       update: (args: { registerTs: number }) => {
@@ -2059,8 +1412,1032 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Act1ArcadeCollectAllBadge勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 危机合约V2 — 使用助战
+   *
+   * 追踪携带助战通关危机合约V2的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  CrisisV2UseAssist(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关首领讨伐（BossRush）
+   *
+   * 追踪通关首领讨伐玩法的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标进度
+   */
+  PassStageWithBossRush(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关关卡（击杀数上限）
+   *
+   * 追踪通关时击杀数不超过阈值的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  PassStageWithSimpleCountLess(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 累计代币获得数量勋章模板
+   * 累计获得 param[3]（分号分隔的活动材料 id 列表）中指定材料达 param[2] 数量
+   *（act53side medal_activity_53side_10/105）。事件 TotalSimpleTokenCount:[{itemId,count}]
+   * 由 inventory items:get 处对获得的每个物品发射。
+   */
+  TotalSimpleTokenCount(args: { itemId: string; count: number }, mode: string = "update") {
+    const funcs: { [key: string]: (args: { itemId: string; count: number }) => void } = {
+      init: (args) => this.val[0].push(0, parseInt(this.param[2])),
+      update: (args) => {
+        if (typeof args?.itemId !== "string") return;
+        const ids = String(this.param[3] ?? "").split(";");
+        if (!ids.includes(args.itemId)) return;
+        this.val[0][0] += args.count ?? 1;
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关关卡（代币达最大值）
+   *
+   * 追踪单局代币数达到最大值（满场）的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  PassStageWithSimpleTokenCountMax(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动（act29side）— 每日调查 NPC
+   *
+   * 追踪参与活动每日调查 NPC 的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标调查数
+   */
+  Act29SideInvestigateDailyNPC(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 多关卡累计代币数（下限）
+   *
+   * 追踪在多个指定关卡累计获得代币数。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标代币总数
+   */
+  SimpleTokenCountMoreInManyStages(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动（act29side）— 合成旋律
+   *
+   * 追踪合成活动旋律的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标合成数
+   */
+  Act29SideSyncthesizeMelody(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动（act42d0）— 解锁区域
+   *
+   * 追踪解锁活动区域的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标区域数
+   */
+  Act42D0UnlockArea(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动（act42d0）— 携带助战通关
+   *
+   * 追踪使用助战通关活动关卡的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  Act42D0UseAssistPassStage(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动（act42d0）— 完成挑战
+   *
+   * 追踪完成活动挑战的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标挑战数
+   */
+  Act42D0FinishChallenge(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关关卡（陷阱存活数上限）
+   *
+   * 追踪通关时陷阱载体/装置存活数不超过阈值的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  PassStageWithTrapSurvivedLess(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动（act38d1）— 维度总分
+   *
+   * 追踪活动危机维度累计分。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标总分
+   */
+  ActivityAct38d1DimScoreTotal(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动（act38d1）— 指定维度达成得分
+   *
+   * 追踪在指定活动维度达成得分的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标得分
+   */
+  ActivityAct38d1DimScoreSome(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动（act38d1）— 解锁指定节点
+   *
+   * 追踪解锁活动节点的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标节点数
+   */
+  ActivityAct38d1UnlockNodeSome(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动（act38d1）— 使用助战
+   *
+   * 追踪使用助战通关活动关卡的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  ActivityAct38d1UseAssist(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关剧情关卡（story 关卡）
+   *
+   * 追踪通关指定剧情关卡的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标关卡数
+   */
+  PassStoryStageSome(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动（act25side）— 完成简单事件至少
+   *
+   * 追踪完成活动简单事件达指定次数。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标事件数
+   */
+  Act25SideSimpleEventAtLeast(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动（act25side）— 完成调查
+   *
+   * 追踪完成活动调查任务的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标调查数
+   */
+  Act25SideFinInvestigation(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 危机合约 — 指定关卡达成得分
+   *
+   * 追踪危机合约关卡达成指定得分的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标关卡数
+   */
+  CrisisStageScoreSome(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 危机合约 — 临时派遣结算
+   *
+   * 追踪危机合约临时派遣结算的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标结算数
+   */
+  CrisisTempClearSome(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 危机合约 — 完成任务
+   *
+   * 追踪危机合约任务完成进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标任务数
+   */
+  CrisisTaskSome(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 危机合约 — 解锁永久词条（Rune）
+   *
+   * 追踪危机合约永久词条解锁进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标词条数
+   */
+  CrisisUnlockPermRuneSome(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 危机合约 — 使用助战
+   *
+   * 追踪危机合约携带助战通关的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  CrisisUseAssist(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关关卡（击杀与存活条件）
+   *
+   * 追踪同时满足击杀与存活条件的通关场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  PassStageWithKillSurvive(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关关卡（陷阱存活）
+   *
+   * 追踪通关时指定陷阱存活数量的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标陷阱数
+   */
+  PassStageWithTrapSurvived(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关关卡（残留实体）
+   *
+   * 追踪通关时关卡残留实体数量的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标残留数
+   */
+  PassStageWithReedResidue(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动点赞歌剧评论
+   *
+   * 追踪为活动歌剧评论点赞的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标点赞数
+   */
+  ActivityLikeOperaComment(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动完成角色卡任务
+   *
+   * 追踪完成活动角色卡任务的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标任务数
+   */
+  ActivityFinishCharCardTask(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动（西西里）— 解锁区域
+   *
+   * 追踪解锁活动（西西里语地区）区域的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标区域数
+   */
+  ActivityUnlockSiracusaArea(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 获取载具配件
+   *
+   * 追踪获取载具配件的累计进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标配件数
+   */
+  GainCarAccessories(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关关卡累计击杀
+   *
+   * 追踪通关关卡时累计击杀指定敌人的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标击杀数
+   */
+  PassStageKilled(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关关卡击杀数上限
+   *
+   * 追踪通关时指定击杀数不超过阈值的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  PassStageKilledLess(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动科技树激活
+   *
+   * 追踪激活活动科技树科技的数量。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标科技数
+   */
+  ActivityTechTreeActive(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动宝藏获得
+   *
+   * 追踪获得活动宝藏的累计进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标宝藏数
+   */
+  ActivityTreasureGain(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关关卡（携带科技树）
+   *
+   * 追踪携带指定科技通关的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  PassStageWithTechTree(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关关卡（场上敌人上限）
+   *
+   * 追踪通关时场上活跃敌人数不超过阈值的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  PassStageWithEnemyActiveLess(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关关卡（至少达成）
+   *
+   * 追踪通关时达成指定条件的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  PassStageWithAtLeast(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动消耗日程（Agenda）
+   *
+   * 追踪活动日程资源消耗量。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标消耗量
+   */
+  ActivityCostAgenda(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动达到声望等级
+   *
+   * 追踪达到活动声望等级的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标声望等级
+   */
+  ActivityReachPrestigeLevel(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动里程碑奖励
+   *
+   * 追踪领取活动里程碑奖励的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标奖励数
+   */
+  ActivityMilestoneReward(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 饰物（Charm）解锁
+   *
+   * 追踪解锁饰物格位/词条的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标解锁数
+   */
+  CharmUnlock(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动饰物回收奖励
+   *
+   * 追踪活动饰物回收获得奖励的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标奖励数
+   */
+  ActivityCharmRecycleReward(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关关卡（活跃装置总数）
+   *
+   * 追踪通关时活跃装置/载具总数的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标总数
+   */
+  PassStageWithActiveTotal(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关关卡（活跃装置上限）
+   *
+   * 追踪通关时活跃装置/载具数不超过阈值的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  PassStageWithActiveLess(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关关卡（阵亡数上限）
+   *
+   * 追踪通关时阵亡单位数不超过阈值的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  PassStageWithDeadInLess(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动（太极拳）持有
+   *
+   * 追踪活动（太极拳）累计持有量。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标持有量
+   */
+  ActivityHoldTaichi(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关关卡（低部署）
+   *
+   * 追踪通关时部署干员数不超过阈值的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  PassStageWithLessDeploy(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关首领关卡（不破盾）
+   *
+   * 追踪未破除首领护盾即通关的场次。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  PassStageWithoutBossShield(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动监禁总数（Confinement）
+   *
+   * 追踪活动监禁/囚禁总数的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标总数
+   */
+  ActivityConfinementTotal(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动累计击杀总数
+   *
+   * 追踪活动累计击杀敌人的总数。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标击杀总数
+   */
+  ActivityKilledTotal(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动阅读新闻
+   *
+   * 追踪阅读活动新闻的数量。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标新闻数
+   */
+  ActivityCasimirReadNews(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动砍树（资源采集）
+   *
+   * 追踪砍伐活动树木（资源）的总量。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标采伐量
+   */
+  ActivityCutTree(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关关卡（砍树）
+   *
+   * 追踪通关时砍伐树木数量的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  PassStageWithCutTree(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 通关关卡（塔/建筑）
+   *
+   * 追踪通关时使用/留存塔类装置的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标场次
+   */
+  PassStageWithTower(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动沙盒创建物品
+   *
+   * 追踪在沙盒玩法中创建物品的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标物品数
+   */
+  ActivitySandboxCreateItem(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动沙盒达成结局
+   *
+   * 追踪在沙盒玩法中达成结局的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标结局数
+   */
+  ActivitySandboxAchieveEnding(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 解锁剧情组（章节）
+   *
+   * 追踪解锁剧情章节组的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标章节数
+   */
+  UnlockStoryGroup(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 潜能溢出（满潜后再获得）
+   *
+   * 追踪干员潜能溢出材料的获取进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标溢出数
+   */
+  FullPotentialOverflow(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 危机合约 — 指定时限前达成得分
+   *
+   * 追踪在指定时间前达成危机合约关卡得分的进度。目标为 param[0]。
+   * 注：当前为占位实现（未接入玩法真实状态）。
+   * @param param[0] 目标关卡数
+   */
+  CrisisStageScoreBeforeTime(args: {}, mode: string = "update") {
+    const funcs: { [key: string]: (args: any) => void } = {
+      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
+      update: (args: { registerTs: number }) => {
+        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      },
+    };
+    funcs[mode](args);
+  }
+
+  /**
+   * 活动（act1 街机）— 收集全部徽章
+   *
+   * 每次获得街机徽章 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标徽章数
    */
   Act1ArcadeCollectAllBadge(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2073,8 +2450,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Act1FootballScores勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 活动（act1 足球）— 得分
+   *
+   * 每次获得足球活动得分 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标得分
    */
   Act1FootballScores(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2087,8 +2466,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Act1HalfidleUpgradeChar勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 活动（act1 挂机）— 升级干员
+   *
+   * 每次升级干员 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标升级数
    */
   Act1HalfidleUpgradeChar(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2101,8 +2482,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Act38SideCompletePuzzle勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 活动（act38side）— 完成拼图
+   *
+   * 每次完成拼图 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标拼图数
    */
   Act38SideCompletePuzzle(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2115,8 +2498,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Act42sideUnlockGunCnt勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 活动（act42side）— 解锁枪支
+   *
+   * 每次解锁枪支 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标解锁枪数
    */
   Act42sideUnlockGunCnt(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2129,8 +2514,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Act46sidePassMonopolyStage勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 活动（act46side）— 通过大富翁关卡
+   *
+   * 每次通过大富翁关卡 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标关卡数
    */
   Act46sidePassMonopolyStage(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2143,8 +2530,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActMultiV3CommitAlbum勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 联合行动（MultiV3）— 提交相册
+   *
+   * 每次提交相册 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标提交数
    */
   ActMultiV3CommitAlbum(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2157,8 +2546,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActMultiV3CompleteSimpleEvent勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 联合行动（MultiV3）— 完成简单事件
+   *
+   * 每次完成简单事件 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标事件数
    */
   ActMultiV3CompleteSimpleEvent(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2171,8 +2562,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActMultiV3DefenceWave勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 联合行动（MultiV3）— 防守波次
+   *
+   * 每次完成防守波次 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标波次数
    */
   ActMultiV3DefenceWave(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2185,8 +2578,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActMultiV3FootballGoal勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 联合行动（MultiV3）— 足球进球
+   *
+   * 每次进球 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标进球数
    */
   ActMultiV3FootballGoal(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2199,8 +2594,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActMultiV3GainTitle勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 联合行动（MultiV3）— 获得头衔
+   *
+   * 每次获得头衔 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标头衔数
    */
   ActMultiV3GainTitle(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2213,8 +2610,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActMultiV3StageDefenceDamage勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 联合行动（MultiV3）— 关卡防守承伤
+   *
+   * 每次达成防守承伤条件 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标承伤值
    */
   ActMultiV3StageDefenceDamage(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2227,8 +2626,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActMultiV3StageStar勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 联合行动（MultiV3）— 关卡星级
+   *
+   * 每次达成指定关卡星级 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标星级数
    */
   ActMultiV3StageStar(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2241,8 +2642,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActMultiV3TotalStar勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 联合行动（MultiV3）— 总星级
+   *
+   * 每次累计星级 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标总星级
    */
   ActMultiV3TotalStar(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2255,8 +2658,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActVecBreakV2LevelSimpleEventAtLeast勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 破碎维度（VecBreak V2）— 关卡简单事件
+   *
+   * 每次完成关卡简单事件 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标事件数
    */
   ActVecBreakV2LevelSimpleEventAtLeast(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2269,8 +2674,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActVecBreakV2PassStageBeforeTime勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 破碎维度（VecBreak V2）— 时限前过关
+   *
+   * 每次在指定时间前过关 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标关卡数
    */
   ActVecBreakV2PassStageBeforeTime(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2283,8 +2690,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActVecBreakV2PassStageWithEnemyKilled勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 破碎维度（VecBreak V2）— 过关注击杀敌人
+   *
+   * 每次达成指定击杀即 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标击杀数
    */
   ActVecBreakV2PassStageWithEnemyKilled(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2297,8 +2706,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActVecBreakV2PassStageWithSkillUsed勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 破碎维度（VecBreak V2）— 过关注使用技能
+   *
+   * 每次达成指定技能使用即 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标技能使用数
    */
   ActVecBreakV2PassStageWithSkillUsed(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2311,8 +2722,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActVecBreakV2SimpleEventAtLeast勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 破碎维度（VecBreak V2）— 完成简单事件
+   *
+   * 每次完成简单事件 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标事件数
    */
   ActVecBreakV2SimpleEventAtLeast(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2325,8 +2738,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActivityAutoChessBandBadgeCount勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 自动棋（AutoChess）— 乐带徽章数
+   *
+   * 每次获得乐带徽章 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标徽章数
    */
   ActivityAutoChessBandBadgeCount(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2339,8 +2754,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActivityAutoChessCharChessUpgrade勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 自动棋（AutoChess）— 干员棋升级
+   *
+   * 每次升级干员棋 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标升级数
    */
   ActivityAutoChessCharChessUpgrade(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2353,8 +2770,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActivityAutoChessPassGame勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 自动棋（AutoChess）— 通过对局
+   *
+   * 每次通过对局 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标对局数
    */
   ActivityAutoChessPassGame(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2367,8 +2786,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActivityAutoChessPassWithBandAccumulative勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 自动棋（AutoChess）— 累计乐带通关
+   *
+   * 每次累计乐带通关 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标通关数
    */
   ActivityAutoChessPassWithBandAccumulative(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2381,8 +2802,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActivityAutoChessPassWithBondAccumulative勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 自动棋（AutoChess）— 累计羁绊通关
+   *
+   * 每次累计羁绊通关 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标通关数
    */
   ActivityAutoChessPassWithBondAccumulative(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2395,8 +2818,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActivityBattleHeal勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 战斗治疗量
+   *
+   * 每次达成累计治疗量 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标治疗量
    */
   ActivityBattleHeal(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2409,8 +2834,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * ActivityEnemyDuelRank勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 活动对决排行榜名次
+   *
+   * 每次达成指定对决名次 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标任务次数
    */
   ActivityEnemyDuelRank(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2423,8 +2850,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * CharEvolvePhase勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 干员精二阶段达成
+   *
+   * 每次达成指定精二阶段 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标任务次数
    */
   CharEvolvePhase(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2437,8 +2866,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * GainSixStarGroupPoint勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 获得六星小组积分
+   *
+   * 每次获得六星小组积分 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标积分
    */
   GainSixStarGroupPoint(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2451,8 +2882,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * RecalRuneStageScoreSome勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 危机合约（Recal）— 关卡得分
+   *
+   * 每次达成关卡得分 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标得分
    */
   RecalRuneStageScoreSome(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2465,8 +2898,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Rlv2CopperDraw勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 肉鸽（Roguelike）— 铜币抽取
+   *
+   * 每次铜币抽取 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标抽取次数
    */
   Rlv2CopperDraw(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2479,8 +2914,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Rlv2PassNodeStrict勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 肉鸽（Roguelike）— 严格条件通关节点
+   *
+   * 每次苛刻条件下通关节点 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标节点数
    */
   Rlv2PassNodeStrict(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2493,8 +2930,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Rlv2PassZone勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 肉鸽（Roguelike）— 通关区域
+   *
+   * 每次通关区域 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标区域数
    */
   Rlv2PassZone(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2507,8 +2946,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Rlv2SpecialZoneEnter勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 肉鸽（Roguelike）— 进入特殊区域
+   *
+   * 每次进入特殊区域 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标区域数
    */
   Rlv2SpecialZoneEnter(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2521,8 +2962,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Sbv3BaseUpgrade勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 生息演算（Sbv3）— 升级基地
+   *
+   * 每次升级基地 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标基地等级
    */
   Sbv3BaseUpgrade(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2535,8 +2978,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Sbv3BattleTaskCount勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 生息演算（Sbv3）— 战斗任务数
+   *
+   * 每次完成战斗任务 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标任务数
    */
   Sbv3BattleTaskCount(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2549,8 +2994,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Sbv3ClearDebris勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 生息演算（Sbv3）— 清理障碍
+   *
+   * 每次清理障碍 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标清理数
    */
   Sbv3ClearDebris(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2563,8 +3010,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Sbv3DeployBuilding勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 生息演算（Sbv3）— 部署建筑
+   *
+   * 每次部署建筑 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标部署数
    */
   Sbv3DeployBuilding(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2577,8 +3026,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Sbv3DungeonKillEnemyType勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 生息演算（Sbv3）— 地牢击杀敌人类型
+   *
+   * 每次击杀指定类型敌人 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标任务次数
    */
   Sbv3DungeonKillEnemyType(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2591,8 +3042,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Sbv3ElectricScore勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 生息演算（Sbv3）— 电力得分
+   *
+   * 每次获得电力得分 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标电力分
    */
   Sbv3ElectricScore(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2605,8 +3058,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Sbv3GainCookbook勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 生息演算（Sbv3）— 解锁菜谱
+   *
+   * 每次解锁菜谱 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标菜谱数
    */
   Sbv3GainCookbook(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2619,8 +3074,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Sbv3PassDungeon勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 生息演算（Sbv3）— 通过地牢
+   *
+   * 每次通过地牢 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标地牢数
    */
   Sbv3PassDungeon(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2633,8 +3090,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Sbv3QuestFinish勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 生息演算（Sbv3）— 完成任务
+   *
+   * 每次完成任务 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标任务数
    */
   Sbv3QuestFinish(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2647,8 +3106,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * Sbv3TechUnlock勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 生息演算（Sbv3）— 解锁科技
+   *
+   * 每次解锁科技 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标科技数
    */
   Sbv3TechUnlock(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2661,8 +3122,10 @@ export class MedalProgress implements PlayerPerMedal {
   }
 
   /**
-   * TotalCheckinCount勋章模板
-   * 追踪玩家在游戏中的相关行为
+   * 累计签到次数
+   *
+   * 每次签到 +1，达 param[0] 完成（未接入玩法真实状态）。
+   * @param param[0] 目标签到次数
    */
   TotalCheckinCount(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
@@ -2736,13 +3199,19 @@ export class MedalProgress implements PlayerPerMedal {
 
   /**
    * ArkodcVarSeqAtLeast勋章模板
-   * 某玩法变量序列达到阈值（target=param 初始数值；等待对应事件 emits 驱动）
+   * arkodc 主题变量序列(param[1]，如 bool_all_unlocked)达到 param[2] 值达成
+   *（act53side medal_activity_53side_05）。事件 ArkodcVarSeqAtLeast:[{activityId, varSeqs}]
+   * 由 arkodc 状态更新处发射，模板读 varSeqs[param[1]] 作为进度。
    */
-  ArkodcVarSeqAtLeast(args: {}, mode: string = "update") {
-    const funcs: { [key: string]: (args: any) => void } = {
-      init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: () => {
-        this.val[0][0] += 1;
+  ArkodcVarSeqAtLeast(args: { activityId: string; varSeqs: Record<string, number> }, mode: string = "update") {
+    const funcs: { [key: string]: (args: { activityId: string; varSeqs: Record<string, number> }) => void } = {
+      init: (args) => this.val[0].push(0, parseInt(this.param[2])),
+      update: (args) => {
+        if (args.activityId !== this.param[0]) return;
+        this.val[0][0] = Math.max(
+          this.val[0][0],
+          Math.min(args.varSeqs?.[this.param[1]] ?? 0, this.val[0][1]),
+        );
       },
     };
     funcs[mode](args);

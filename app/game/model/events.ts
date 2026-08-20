@@ -293,6 +293,11 @@ export type EventMap = {
   /** 肉鸽V2结算游戏次数 */
   Rlv2SettleGameTimes: [];
 
+  /** 通关活动关卡累计（act53side 任务 CompleteStageAct：param[1]=关卡列表，目标=累计通关次数） */
+  CompleteStageAct: [BattleData & { stageId: string }];
+  /** arkodc 奖励组收集（act53side 任务 ArkodcRewardGroupAtLeast：统计 topic.rewards 命中 param[2] 列表的数量） */
+  ArkodcRewardGroupAtLeast: [{ activityId: string; rewards: Record<string, number> }];
+
   // 勋章相关事件
   /** 勋章完成事件 */
   "medal:complete": [{ medalId: string }];
@@ -312,6 +317,18 @@ export type EventMap = {
   PassStageSome: [PlayerDataManager];
   /** 任务完成情况（勋章追踪） */
   MissionCompleteSome: [{ count: number }];
+  /** 累计获得指定活动材料（勋章追踪，act53side TotalSimpleTokenCount：param[3]=材料列表） */
+  TotalSimpleTokenCount: [{ itemId: string; count: number }];
+  /** 通关关卡且满足条件次数（勋章追踪，act53side PassStageWithSimpleCountMore；enemyStats=当关各敌人击杀计数） */
+  PassStageWithSimpleCountMore: [
+    {
+      stageId: string;
+      completeState: number;
+      enemyStats?: { Key: { enemyId: string; counterType: string }; Value: number }[];
+    },
+  ];
+  /** arkodc 变量序列达标（勋章追踪，act53side ArkodcVarSeqAtLeast：读 topic.varSeqs） */
+  ArkodcVarSeqAtLeast: [{ activityId: string; varSeqs: Record<string, number> }];
   /** 干员精英化次数（勋章追踪，补声明——medal.ts CharEvolveCount 模板监听） */
   CharEvolveCount: [{ char: PlayerCharacter }];
   /** 干员信赖档位（勋章追踪，补声明——medal.ts CharFavorCount 模板监听） */

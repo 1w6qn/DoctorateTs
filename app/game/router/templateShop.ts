@@ -193,6 +193,8 @@ router.post("/buyGood", async (req, res) => {
 
   const items: ItemBundle[] = [];
   if (good) {
+    /** 本次扣币总额（recipe 内计算，块级承接——event ActivityCoinCost 用） */
+    let costSpent = 0;
     // 修复：限购/余额不足拒绝——update 透传 recipe 返回值标记失败，响应 result:1
     const rejected = await player.update(async (draft): Promise<boolean> => {
       const st = ensureShopState(draft, shopId);
@@ -229,6 +231,7 @@ router.post("/buyGood", async (req, res) => {
       const have = coinRef ? coinRef.coin : st.coin;
       if (have < price * count) return true;
       const remain = have - price * count;
+      costSpent = price * count;
       if (coinRef) coinRef.set(remain);
       st.coin = remain;
       // 记录购买
@@ -251,6 +254,12 @@ router.post("/buyGood", async (req, res) => {
       res.send({ result: 1, itemList: [], ...player.delta } satisfies TemplateBuyGoodResponse);
       return;
     }
+    // 活动代币消耗勋章（ActivityCoinCost）—— 扣币成功后累计花费（模板按 activity
+    // id 匹配 shopId，如 shop_act53side 含 "act53side"）；私服商店自动补足货币，
+    // 购买即真实消耗
+    await player._trigger.emit("ActivityCoinCost", [
+      { coinType: shopId, cost: costSpent },
+    ]);
   } else {
     // 修复：未知商品/商店 → 业务错误而非静默空结果
     res.send({ result: 1, itemList: [], ...player.delta } satisfies TemplateBuyGoodResponse);

@@ -142,12 +142,13 @@ function defaultArkhubState(): object {
 }
 
 /**
- * 奇象巡展活动任务的目标进度（ActivityTable.missionData 8 类模板）
+ * 活动任务的目标进度（ActivityTable.missionData 模板）
  * @param mission - missionData 条目（id/template/param）
- * @returns 目标值；非 arkhub 模板返回 null（保持原"全可领"播种行为）
+ * @returns 目标值；非既有模板返回 null（保持原"全可领"播种行为）
  */
 function arkhubMissionTarget(mission: any): number | null {
   const tpl = mission?.template;
+  // 奇象巡展（ARK_HUB）8 类模板
   if (tpl === "ArkhubMissionCompleted") return 1; // 引导（本服完成态，播种即完成）
   if (tpl === "ArkhubDailyMissionCompleted") return parseInt(mission?.param?.[4]);
   if (tpl === "ArkhubCreatureCollection") return parseInt(mission?.param?.[2]);
@@ -156,6 +157,10 @@ function arkhubMissionTarget(mission: any): number | null {
   if (tpl === "ArkhubPassDexBattle") return parseInt(mission?.param?.[2]);
   if (tpl === "ArkhubPublishPixelArt") return parseInt(mission?.param?.[2]);
   if (tpl === "ArkhubCollectPixelArt") return parseInt(mission?.param?.[2]);
+  // act53side（arkodc）模板——播种真实 target，value:0 走事件驱动真实进度
+  if (tpl === "CompleteAnyStage") return 1; // 通关指定关 1 次（param[2]=通关状态门槛）
+  if (tpl === "CompleteStageAct") return parseInt(mission?.param?.[2]); // 累计通关次数（15/45/85）
+  if (tpl === "ArkodcRewardGroupAtLeast") return parseInt(mission?.param?.[3]); // 收集奖励组数量
   return null;
 }
 
@@ -178,6 +183,65 @@ function defaultAct53SideState(startTime: number): object {
     campaignCnt: 0,
     favorList: favorListFor(startTime),
   };
+}
+
+/**
+ * 勋章播种目标值推导（与 manager/medal.ts 各模板 init 的 target 保持一致，
+ * 修改任一模板 target 语义时需同步本函数）
+ * @param medalInfo - MedalTable.medalList 条目
+ * @returns 目标值（无模板/纯展示章返回 0——MedalProgress 不注册监听）
+ */
+function medalSeedTarget(medalInfo: any): number {
+  const tpl = medalInfo?.template;
+  const p = medalInfo?.unlockParam ?? [];
+  if (!tpl) return 0;
+  if (tpl === "GotCharsBeforeTime") return 1;
+  if (tpl === "ActivityCoinCost") return parseInt(p[2]) || 1;
+  if (tpl === "MissionCompleteSome") {
+    const s = String(p[0] ?? "");
+    return s.includes(";") ? s.split(";").length : parseInt(s) || 1;
+  }
+  if (tpl === "ArkodcVarSeqAtLeast") return parseInt(p[2]) || 1;
+  if (tpl === "PassStageWithSimpleCountMore") return parseInt(p[4]) || 1;
+  if (tpl === "PassStageSome") return parseInt(p[2]) || 1;
+  if (tpl === "TotalSimpleTokenCount") return parseInt(p[2]) || 1;
+  return parseInt(p[0]) || 1; // 兜底（通用 target=param[0]）
+}
+
+/**
+ * 播种活动的勋章组到 playerdata.medal.medals
+ * @param draft - 玩家数据 draft
+ * @param actId - 活动 id（basicInfo[actId].medalGroupId 指定组）
+ *
+ * 仿 act1arkhub ungroupedMedalIds 播种：组勋章先入存档，MedalManager.init 才会创建
+ * MedalProgress 并注册事件监听 → 事件驱动的真实进度/完成才生效（act53side 6 个
+ * 重写的勋章模板即依赖此）。含 advancedMedal（如 medal_activity_53side_105）一并播种。
+ */
+function seedMedalGroup(draft: any, actId: string): void {
+  const info = excel.ActivityTable?.basicInfo?.[actId];
+  if (!info?.medalGroupId) return;
+  const groupData = (excel.MedalTable?.medalTypeData as any)?.activityMedal?.groupData;
+  const group = (groupData ?? []).find((g: any) => g.groupId === info.medalGroupId);
+  if (!group) return;
+  draft.medal = draft.medal ?? { medals: {}, custom: { currentIndex: "", customs: {} } };
+  const ids = [...(group.medalId ?? [])];
+  for (const m of excel.MedalTable?.medalList ?? []) {
+    if (ids.includes(m.medalId) && m.advancedMedal && !ids.includes(m.advancedMedal)) {
+      ids.push(m.advancedMedal);
+    }
+  }
+  for (const medalId of ids) {
+    if (draft.medal.medals[medalId]) continue;
+    const mi = excel.MedalTable?.medalList?.find((m) => m.medalId === medalId);
+    if (!mi) continue;
+    draft.medal.medals[medalId] = {
+      id: medalId,
+      // target 与模板 init 一致（val=[[0,target]]）：target=0 的纯展示章不注册进度监听
+      val: [[0, medalSeedTarget(mi)]],
+      fts: 0,
+      rts: -1,
+    };
+  }
 }
 
 /**
@@ -278,7 +342,12 @@ function seedActivityState(draft: any, actId: string, info: any, ts: number): vo
       const target = missionDef ? arkhubMissionTarget(missionDef) : null;
       if (target !== null) {
         const guide = missionDef.template === "ArkhubMissionCompleted";
-        const windowStart = arkhubMissionWindowStart(missionDef.param?.[2]);
+        // 日期门控仅对奇象巡展任务计算（Act53side/官本模板的 param[2] 是门槛/目标数字，
+        // 无日期；且这些任务播种应 value:0 走真实进度，不能因误判被 locked）
+        const arkhubTask = String(missionDef?.template ?? "").startsWith("Arkhub");
+        const windowStart = arkhubTask
+          ? arkhubMissionWindowStart(missionDef.param?.[2])
+          : null;
         const locked = windowStart !== null && ts < windowStart;
         // 渐进引导（config.arkhub.guideProgressive）：引导任务按 flag 语义播种进行中——
         // capture_catch_guide_02（任务 2 捕抓引导）/arkdex_battle_guide（任务 3 对决引导）
@@ -375,6 +444,14 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
           rts: -1,
         };
       }
+    }
+
+    // act53side（TYPE_ACT53SIDE）勋章组播种：medalGroupActivity53side → medals，
+    // 使 MedalProgress 可注册监听、事件驱动真实追踪（含进阶章 medal_activity_53side_105）
+    for (const [actId2, info2] of Object.entries(basicInfo)) {
+      if (!info2 || typeof info2 !== "object") continue;
+      if ((info2 as any).type !== "TYPE_ACT53SIDE") continue;
+      seedMedalGroup(draft, actId2);
     }
 
     // ODC 主题（playerdata.arkodc.topics[topicId]）——客户端据此渲染 ODC 地图状态

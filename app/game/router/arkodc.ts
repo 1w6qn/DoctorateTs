@@ -402,6 +402,19 @@ router.post("/triggerInteraction", async (req, res) => {
     }
   });
 
+  // act53side 任务/勋章进度同步：收集奖励后按当前存档快照发射 ArkodcRewardGroupAtLeast
+  //（任务 1..9）与 ArkodcVarSeqAtLeast（勋章 bool_all_unlocked）——进度值 = 已收集
+  // 奖励/变量命中数量，事件驱动模板据此推进。
+  const latestTopic = (player._playerdata as any)?.arkodc?.topics?.[topicId!];
+  if (latestTopic) {
+    await player._trigger.emit("ArkodcRewardGroupAtLeast", [
+      { activityId: topicId!, rewards: latestTopic.rewards ?? {} },
+    ]);
+    await player._trigger.emit("ArkodcVarSeqAtLeast", [
+      { activityId: topicId!, varSeqs: latestTopic.varSeqs ?? {} },
+    ]);
+  }
+
   // 宝箱奖励真实发放（响应 items 仅客户端展示用，物品进背包经 items:get）
   if (items.length > 0) {
     await player._trigger.emit("items:get", [items]);

@@ -48,6 +48,11 @@ export class InventoryManager {
         // （官服 activity.TYPE_ACT53SIDE[actId].actCoin 随活动币获取累计——关卡掉落
         // act53side_token_photo 等；缺此逻辑事件页硬币计数恒 0）
         await this._trackAct53SideCoin(item);
+        // 累计获得活动代币/材料勋章（TotalSimpleTokenCount）—— 模板按 param[3]
+        // 材料列表过滤相关物品，非目标 id 不推进
+        await this._trigger.emit("TotalSimpleTokenCount", [
+          { itemId: item.id, count: item.count ?? 1 },
+        ]);
       }
     });
   }

@@ -273,10 +273,12 @@ export class CharManager {
         expTotal += gainNum * expMats[i].count;
       }
       char.exp += expTotal;
-      // 修复：已满级时不再升级（原实现 expMap[maxLevel-1] 哨兵 -1 触发一次循环 →
-      // 金币 -1 + 材料被消耗）；直接清 exp 返回，不扣任何材料
+      // 已满级时不再升级（原实现 expMap[maxLevel-1] 哨兵 -1 触发一次循环 →
+      // 金币 -1）；但玩家喂入的经验卡仍应消耗，否则可白嫖无限喂卡。
+      // 清 exp 丢弃溢出经验，仅扣经验卡本身、不产生金币。
       if (char.level >= maxLevel) {
         char.exp = 0;
+        await this._trigger.emit("items:use", [expMats]);
         return;
       }
       while (true) {
@@ -296,6 +298,9 @@ export class CharManager {
           break;
         }
       }
+      // 累计消耗龙门币任务（CostGold / CostGoldPlus）—— 升级耗币统计（type0 param[1]=target）
+      await this._trigger.emit("CostGold", [{ goldCost: gold }]);
+      await this._trigger.emit("CostGoldPlus", [{ goldCostPlus: gold }]);
       expMats.push({ id: "4001", count: gold });
       // 技能：按官服线格式校正 unlock（等级提升不会解锁技能），保留已有技能状态
       reconcileCharSkills(char);
@@ -328,14 +333,19 @@ export class CharManager {
       // 防御：部分特殊干员（预备干员等）无精二配置（evolveCost 为 null），跳过消耗直接升阶
       const evolveCost = phaseConfig?.evolveCost ?? [];
       const rarity = rarityToIndex(info.rarity);
-      // 修复：evolveGoldCost 中 -1 = 该稀有度无此相位（如 3 星无精二）——
-      // 原实现 goldCost=-1 → items:use 反向 +1 金币；不可用相位直接拒绝
-      const goldCost =
-        excel.GameDataConst.evolveGoldCost[rarity]?.[destEvolvePhase] ?? -1;
+      // 修复：evolveGoldCost 下标约定为「精一费, 精二费」两列（无 phase0 列），
+      // 须用 destEvolvePhase - 1 取列。原实现直接以 destEvolvePhase 当下标：
+      // 精一取到精二价（多扣钱）、精二取 undefined → ?? -1 → 被拒，无法精二。
+      // -1 表示该稀有度无此相位（如 3 星无精二），直接拒绝。
+      const goldRow = excel.GameDataConst.evolveGoldCost[rarity];
+      const goldCost = goldRow?.[destEvolvePhase - 1] ?? -1;
       if (goldCost < 0) return;
       await this._trigger.emit("items:use", [
         evolveCost.concat([{ id: "4001", count: goldCost } as ItemBundle]),
       ]);
+      // 累计消耗龙门币任务（CostGold / CostGoldPlus）—— 晋升耗币统计
+      await this._trigger.emit("CostGold", [{ goldCost: goldCost }]);
+      await this._trigger.emit("CostGoldPlus", [{ goldCostPlus: goldCost }]);
       char.evolvePhase = destEvolvePhase;
       char.level = 1;
       char.exp = 0;
@@ -441,9 +451,21 @@ export class CharManager {
           `技能升至 ${targetLevel} 需精英化${phaseNeed}（当前精${char.evolvePhase}）`,
         );
       }
-      const targetLevelCost = lvlUpCond.lvlUpCost ?? [];
+      // 修复：按从当前等级到目标等级逐档累计扣费，防止一次性越级直达
+      //（如 1→7）时只扣最高一档费用、少扣中间 2~6 档材料。
+      // 目标不高于当前等级时拒绝（无升级空间，防刷请求）。
+      const currentLevel = char.mainSkillLvl ?? 1;
+      if (targetLevel <= currentLevel) {
+        throw new Error(
+          `技能目标等级 ${targetLevel} 不高于当前等级 ${currentLevel}（干员 ${char.charId}）`,
+        );
+      }
+      const costItems: ItemBundle[] = [];
+      for (let i = currentLevel - 1; i < targetLevel - 1; i++) {
+        costItems.push(...(allSkillLvlup[i]?.lvlUpCost ?? []));
+      }
       char.mainSkillLvl = targetLevel;
-      await this._trigger.emit("items:use", [targetLevelCost]);
+      await this._trigger.emit("items:use", [costItems]);
       // 修复：原实现发错事件 BoostPotential → 技能升级任务（监听 UpgradeSkill）永不推进；
       // 改为 UpgradeSkill
       await this._trigger.emit("UpgradeSkill", [{ targetLevel }]);

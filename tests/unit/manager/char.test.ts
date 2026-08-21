@@ -61,12 +61,14 @@ vi.mock("@excel/excel", () => {
           [50, 50, 50, 50, 50, 50],
         ],
         evolveGoldCost: [
-          [0, 100, 200],
-          [0, 200, 400],
-          [0, 300, 600],
-          [0, 400, 800],
-          [0, 500, 1000],
-          [0, 600, 1200],
+          // 真实 excel 结构：每行仅「精一费, 精二费」两列（无 phase0 列），
+          // 与 GameDataConst 对齐；-1 = 该稀有度无此相位（如 3 星无精二）。
+          [-1, -1],
+          [-1, -1],
+          [10000, -1],
+          [15000, 60000],
+          [20000, 120000],
+          [30000, 180000],
         ],
       },
       CharacterTable: {
@@ -772,6 +774,93 @@ describe("CharManager", () => {
       // roster 不被修改、悬空 instId 不崩溃
       expect(mockPlayer._playerdata.troop!.chars[1001].charId).toBe("char_001");
       expect(mockPlayer._playerdata.troop!.chars[9999]).toBeUndefined();
+    });
+  });
+
+  describe("精英化金币下标（evolveGoldCost 精一/精二两列）回归", () => {
+    it("精一应扣精一档金币（evolveGoldCost[rarity][0]，非精二价）", async () => {
+      // char_001 mock rarity=5（数字）→ rarityToIndex 直接返回 5 → index5=6星 [30000,180000]
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      const emitSpy = vi.spyOn(mockTrigger, "emit");
+      await manager.evolveChar({ charInstId: 1001, destEvolvePhase: 1 });
+      expect(mockPlayer._playerdata.troop!.chars[1001].evolvePhase).toBe(1);
+      const useCall = emitSpy.mock.calls.find((c) => c[0] === "items:use");
+      expect(useCall).toBeDefined();
+      expect((useCall as any)[1][0]).toEqual(
+        expect.arrayContaining([{ id: "4001", count: 30000 }]),
+      );
+    });
+
+    it("精二应扣精二档金币（前端 destEvolvePhase=2 不再被拒，可正常精二）", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      const emitSpy = vi.spyOn(mockTrigger, "emit");
+      await manager.evolveChar({ charInstId: 1001, destEvolvePhase: 2 });
+      expect(mockPlayer._playerdata.troop!.chars[1001].evolvePhase).toBe(2);
+      const useCall = emitSpy.mock.calls.find((c) => c[0] === "items:use");
+      expect(useCall).toBeDefined();
+      expect((useCall as any)[1][0]).toEqual(
+        expect.arrayContaining([{ id: "4001", count: 180000 }]),
+      );
+    });
+  });
+
+  describe("满级喂经验卡应扣卡（防白嫖材料）", () => {
+    it("满级时升级消耗经验卡但不产生金币、不越级", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      // char_001 rarity 5 → maxLevel[4][0]=50
+      const char = mockPlayer._playerdata.troop!.chars[1001];
+      char.level = 50;
+      char.exp = 0;
+      const emitSpy = vi.spyOn(mockTrigger, "emit");
+      await manager.upgradeChar({
+        charInstId: 1001,
+        expMats: [{ id: "exp_mat", count: 2 }],
+      });
+      // 满级时不产生金币消耗（不 push 4001）
+      const useCall = emitSpy.mock.calls.find((c) => c[0] === "items:use");
+      expect(useCall).toBeDefined();
+      const used = (useCall as any)[1][0];
+      expect(used.some((i: any) => i.id === "4001")).toBe(false);
+      expect(used.some((i: any) => i.id === "exp_mat" && i.count === 2)).toBe(true);
+      expect(char.level).toBe(50);
+    });
+  });
+
+  describe("技能越级升级应逐档累计扣费", () => {
+    // char_002 allSkillLvlup 3 档（2/3/4 级），需精二才可升 4 级
+    const setupChar002 = async (manager: CharManager): Promise<number> => {
+      mockPlayer._playerdata.dexNav!.character = {};
+      mockPlayer._playerdata.troop!.curCharInstId = 0;
+      const result = await manager.onCharGet(["char_002", { from: "NORMAL" }]);
+      return result.charInstId as number;
+    };
+
+    it("从 1 级直接升 4 级应累计扣 2~4 级三档材料", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      const charInstId = await setupChar002(manager);
+      const emitSpy = vi.spyOn(mockTrigger, "emit");
+      mockPlayer._playerdata.troop!.chars[charInstId].evolvePhase = 2; // 满足 4 级精英化门槛
+      await manager.upgradeSkill({ charInstId, targetLevel: 4 });
+      // mock 的 update 整体替换 troop → 升级后须重新读取干员对象
+      const char = mockPlayer._playerdata.troop!.chars[charInstId];
+      expect(char.mainSkillLvl).toBe(4);
+      const useCall = emitSpy.mock.calls.find((c) => c[0] === "items:use");
+      expect(useCall).toBeDefined();
+      // char_002 allSkillLvlup 三档各 1 个 skill_mat → 累计 3 个
+      const used = (useCall as any)[1][0];
+      const skillMat = used.filter((i: any) => i.id === "skill_mat");
+      expect(skillMat.reduce((s: number, i: any) => s + i.count, 0)).toBe(3);
+    });
+
+    it("目标等级不高于当前等级应拒绝（防刷请求）", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      const charInstId = await setupChar002(manager);
+      const char = mockPlayer._playerdata.troop!.chars[charInstId];
+      char.evolvePhase = 2;
+      char.mainSkillLvl = 4;
+      await expect(
+        manager.upgradeSkill({ charInstId, targetLevel: 3 }),
+      ).rejects.toThrow("不高于当前等级");
     });
   });
 });

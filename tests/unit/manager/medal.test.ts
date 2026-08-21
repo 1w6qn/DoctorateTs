@@ -804,7 +804,7 @@ describe("MedalManager 集齐章结算", () => {
 
 describe("MedalManager 危机合约章（事件驱动）", () => {
   it("CrisisStageScoreSome 取峰值得分", () => {
-    const item: any = { id: "c1", val: [], fts: 1, rts: -1 };
+    const item: any = { id: "c1", fts: 1, rts: -1 };
     const p = new MedalProgress(item, mockTypedEventEmitter() as any);
     p.param = ["8"];
     p.CrisisStageScoreSome({}, "init");
@@ -817,7 +817,7 @@ describe("MedalManager 危机合约章（事件驱动）", () => {
   });
 
   it("CrisisTaskSome 完成任务数累加", () => {
-    const item: any = { id: "c2", val: [], fts: 1, rts: -1 };
+    const item: any = { id: "c2", fts: 1, rts: -1 };
     const p = new MedalProgress(item, mockTypedEventEmitter() as any);
     p.param = ["3"];
     p.CrisisTaskSome({}, "init");
@@ -827,7 +827,7 @@ describe("MedalManager 危机合约章（事件驱动）", () => {
   });
 
   it("CrisisV2NodeSome 每局 +1", () => {
-    const item: any = { id: "c3", val: [], fts: 1, rts: -1 };
+    const item: any = { id: "c3", fts: 1, rts: -1 };
     const p = new MedalProgress(item, mockTypedEventEmitter() as any);
     p.param = ["2"];
     p.CrisisV2NodeSome({}, "init");

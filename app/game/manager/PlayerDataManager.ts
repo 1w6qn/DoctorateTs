@@ -37,6 +37,7 @@ import { RetroManager } from "@game/manager/retro";
 import { CharManager } from "@game/manager/char";
 import { EquipmentMissionManager } from "@game/manager/equipmentMission";
 import { AprilFoolManager } from "@game/manager/aprilFool";
+import { BossRushManager } from "@game/manager/activity/bossrush";
 
 export class PlayerDataManager {
   /** 状态引擎（Immer 状态管理、patch 聚合、序列化） */
@@ -85,6 +86,8 @@ export class PlayerDataManager {
   medal: MedalManager;
   /** 愚人节活动管理器 */
   aprilFool: AprilFoolManager;
+  /** 尖灭测试（bossRush）活动管理器 */
+  bossRush: BossRushManager;
   /** 战斗管理器 */
   battle!: BattleManager;
   /** 事件触发器 */
@@ -140,6 +143,7 @@ export class PlayerDataManager {
     this.medal = new MedalManager(this, this._trigger);
     void this.medal.init().catch((e) => logger.error("MedalManager", `init failed: ${(e as Error).message}`));
     this.aprilFool = new AprilFoolManager(this, this._trigger);
+    this.bossRush = new BossRushManager(this, this._trigger);
     this._trigger.on(
       "save:battle",
       async ([battleId, info]: [string, BattleInfo]) => {

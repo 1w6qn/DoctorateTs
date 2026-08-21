@@ -8,13 +8,10 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
-import { accountManager } from "../manager/AccountManager";
 import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
-import { decryptBattleData } from "@utils/crypt";
 import { logger } from "@utils/logger";
 import { now } from "@utils/time";
-import { CommonStartBattleRequest } from "../model/battle";
 import config from "../../config";
 import { activityDictKey } from "../manager/activity/unlockActivity";
 import {
@@ -1005,7 +1002,7 @@ router.post("/tryGetCharmFirstReward", async (req, res) => {
   } satisfies TryGetCharmFirstRewardResponse);
 });
 
-/* ===== 尖灭测试（bossRush，参考 DoctoratePy activity.py / OBS misc_bp）===== */
+/* ===== 尖灭测试（bossRush，委托 BossRushManager，参考 DoctoratePy activity.py / OBS misc_bp）===== */
 
 /**
  * 尖灭测试开始战斗
@@ -1013,26 +1010,18 @@ router.post("/tryGetCharmFirstReward", async (req, res) => {
  * @param req.body - CS: BossRushStartBattleRequest（activityId/stageId/teamId/ownSlots/assistFriend）
  * @returns 战斗开始信息（同 quest battleStart 形状）
  *
- * 复用标准战斗开始（battle.start）——尖灭关卡 apCost=0 不耗理智，
- * battleInfo 由 battle.start 落库供 battleFinish 结算读取。
+ * 校验（关卡归属/编队）与标准战斗开始均在 BossRushManager.battleStart 内完成；
+ * 尖灭关卡 apCost=0 不耗理智，battleInfo 由 battle.start 落库供 battleFinish 结算读取。
  */
 router.post("/bossRush/battleStart", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BossRushStartBattleRequest;
+  const result = await player.bossRush.battleStart(body);
+  if (!result.ok) {
+    return res.send({ result: 1, ...player.delta });
+  }
   res.send({
-    ...(await player.battle.start({
-      stageId: body.stageId,
-      squad: body.ownSlots,
-      usePracticeTicket: 0,
-      assistFriend: body.assistFriend,
-      // 其余字段 battle.start 未读取，填默认值满足类型
-      isRetro: 0,
-      pray: 0,
-      battleType: 0,
-      continuous: { battleTimes: 1 },
-      isReplay: 0,
-      startTs: 0,
-    } as CommonStartBattleRequest)),
+    ...result.data,
     ...player.delta,
   } satisfies BossRushStartBattleResponse);
 });
@@ -1043,108 +1032,21 @@ router.post("/bossRush/battleStart", async (req, res) => {
  * @param req.body - CS: BossRushFinishBattleRequest（CommonFinishBattleRequest + activityId）
  * @returns 结算信息 + 尖灭专属字段（wave/milestone/token）
  *
- * 复用标准战斗结算（battle.finish：掉落/关卡解锁/图鉴），
- * 再按 DoctoratePy 逻辑更新 activity.BOSS_RUSH[activityId] 的
- * milestone.point / relic.token.total / best[stageId]；wave 从战斗数据
- * extraBattleInfo 的 bossrush_finished_wave 解析，掉落加值数据驱动
- * （当前 excel 无尖灭掉落配置时 milestoneAdd/tokenAdd 回退为 0）。
+ * 复用标准战斗结算（battle.finish：掉落/关卡解锁/图鉴），再按 BossRushManager.battleFinish
+ * 数据驱动更新 activity.BOSS_RUSH[activityId] 的 milestone.point / relic.token{current,total} /
+ * bestWaveDic[stageId]；wave 从战斗数据 extraBattleInfo 的 bossrush_finished_wave 解析，
+ * 加值取 activity.bossRush[actId].stageDropDataMap[stageId][wave]（milestone_point / token_relic）。
  */
 router.post("/bossRush/battleFinish", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BossRushFinishBattleRequest;
-  // 缺参校验：battle data 缺失时返回业务错误，避免 decryptBattleData 抛 TypeError → 500
+  // 缺参校验：battle data 缺失时返回业务错误，避免解密抛 TypeError → 500
   if (body.data == null) {
     return res.send({ result: 1, ...player.delta });
   }
-
-  // 标准战斗结算
-  const result = await player.battle.finish({
-    data: body.data,
-    battleData: body.battleData,
-  });
-
-  // 解密战斗数据：解析波次与关卡 id
-  let wave = 0;
-  let stageId = "";
-  try {
-    const battleData = await decryptBattleData(
-      body.data,
-      player._playerdata.pushFlags.status,
-    );
-    const extra = battleData.battleData?.stats?.extraBattleInfo ?? {};
-    for (const [key, value] of Object.entries(extra)) {
-      if (key.includes("bossrush_finished_wave")) {
-        wave = Number(value);
-      }
-    }
-    const battleInfo = await accountManager.getBattleInfo(
-      player.uid,
-      battleData.battleId,
-    );
-    stageId = battleInfo?.stageId ?? "";
-  } catch (err) {
-    logger.error("activity/bossRush/battleFinish", "解密战斗数据失败:", err);
-  }
-
-  // 更新尖灭专属数据（milestone/token/best）
-  let milestoneBefore = 0;
-  let milestoneAdd = 0;
-  let tokenAdd = 0;
-  await player.update(async (draft) => {
-    const bossRush = (draft.activity as any).BOSS_RUSH?.[body.activityId] as
-      | {
-          milestone?: { point?: number; got?: string[] };
-          relic?: {
-            token?: { current?: number; total?: number };
-            level?: { [key: string]: number };
-            select?: string;
-          };
-          best?: { [key: string]: number };
-        }
-      | undefined;
-    if (!bossRush) return;
-    milestoneBefore = bossRush.milestone?.point ?? 0;
-    // 数据驱动：掉落配置含 milestone_point/token_relic 时累计（当前 excel 无则回退 0）
-    if (stageId && excel.StageTable.stages[stageId]) {
-      const drops =
-        excel.StageTable.stages[stageId].stageDropInfo?.displayDetailRewards ?? [];
-      for (const drop of drops as any[]) {
-        const dropId = drop?.id ?? "";
-        if (dropId.includes("milestone_point")) {
-          milestoneAdd += Number(drop?.dropCount ?? 0);
-        }
-        if (dropId.includes("token_relic")) {
-          tokenAdd += Number(drop?.dropCount ?? 0);
-        }
-      }
-    }
-    if (milestoneAdd !== 0 && bossRush.milestone) {
-      bossRush.milestone.point = milestoneBefore + milestoneAdd;
-    }
-    if (tokenAdd !== 0 && bossRush.relic?.token) {
-      // 修复：current 也要累计——原实现只加 total，relicUpgrade 扣 current 恒为 0 → 免费升级
-      bossRush.relic.token.current =
-        (bossRush.relic.token.current ?? 0) + tokenAdd;
-      bossRush.relic.token.total = (bossRush.relic.token.total ?? 0) + tokenAdd;
-    }
-    // 更新该关最高波次（best）
-    if (wave && stageId) {
-      if (!bossRush.best) bossRush.best = {};
-      if (wave > (bossRush.best[stageId] ?? 0)) {
-        bossRush.best[stageId] = wave;
-      }
-    }
-  });
-
+  const result = await player.bossRush.battleFinish(body);
   res.send({
     ...result,
-    result: 0,
-    wave,
-    milestoneBefore,
-    milestoneAdd,
-    isMilestoneMax: false,
-    tokenAdd,
-    isTokenMax: false,
     ...player.delta,
   } satisfies BossRushFinishBattleResponse);
 });
@@ -1155,19 +1057,16 @@ router.post("/bossRush/battleFinish", async (req, res) => {
  * @param req.body - CS: BossRushRelicSelectRequest（activityId/relicId）
  * @returns 玩家增量
  *
- * 参考 DoctoratePy/OBS：写入 activity.BOSS_RUSH[activityId].relic.select
+ * 委托 BossRushManager.relicSelect：校验遗物存在且已解锁（空串清除），
+ * 写入 relic.selectingRelicId（对齐官服快照结构）。
  */
 router.post("/bossRush/relicSelect", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BossRushRelicSelectRequest;
-  await player.update(async (draft) => {
-    const relic = (draft.activity as any).BOSS_RUSH?.[body.activityId]?.relic as
-      | { select?: string }
-      | undefined;
-    if (relic) {
-      relic.select = body.relicId;
-    }
-  });
+  const result = await player.bossRush.relicSelect(body.activityId, body.relicId);
+  if (!result.ok) {
+    return res.send({ result: 1, ...player.delta });
+  }
   res.send(player.delta satisfies BossRushRelicSelectResponse);
 });
 
@@ -1177,29 +1076,16 @@ router.post("/bossRush/relicSelect", async (req, res) => {
  * @param req.body - CS: BossRushRelicUpgradeRequest（activityId/relicId）
  * @returns 玩家增量
  *
- * 参考 DoctoratePy activityBossRushRelicUpgrade：等级 +1，消耗 20 尖灭代币（current）
+ * 委托 BossRushManager.relicUpgrade：数据驱动消耗（relicLevelInfoDataMap 的 needItemCount），
+ * 校验已解锁/未满级/代币充足，等级 +1 并扣代币（对齐官服快照结构 unlockedRelicLevelDic）。
  */
 router.post("/bossRush/relicUpgrade", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BossRushRelicUpgradeRequest;
-  await player.update(async (draft) => {
-    const relic = (draft.activity as any).BOSS_RUSH?.[body.activityId]?.relic as
-      | {
-          token?: { current?: number; total?: number };
-          level?: { [key: string]: number };
-          select?: string;
-        }
-      | undefined;
-    if (!relic) return;
-    if (!relic.level) relic.level = {};
-    // 修复：升级需 20 尖灭代币——原实现 current 恒 0 仍升级（免费无限升）+ 无余额校验
-    if ((relic.token?.current ?? 0) < 20) {
-      return;
-    }
-    relic.level[body.relicId] = (relic.level[body.relicId] ?? 1) + 1;
-    if (!relic.token) relic.token = { current: 0, total: 0 };
-    relic.token.current = Math.max(0, (relic.token.current ?? 0) - 20);
-  });
+  const result = await player.bossRush.relicUpgrade(body.activityId, body.relicId);
+  if (!result.ok) {
+    return res.send({ result: 1, ...player.delta });
+  }
   res.send(player.delta satisfies BossRushRelicUpgradeResponse);
 });
 

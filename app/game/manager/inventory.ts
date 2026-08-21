@@ -53,6 +53,11 @@ export class InventoryManager {
         await this._trigger.emit("TotalSimpleTokenCount", [
           { itemId: item.id, count: item.count ?? 1 },
         ]);
+        // 累计获得活动币任务（ActivityCoinGain）—— 模板按 param[3] 活动币 itemId 过滤。
+        // act17side/act24side 等别传用（累计获得 actXXside_token 达目标）
+        await this._trigger.emit("ActivityCoinGain", [
+          { itemId: item.id, count: item.count ?? 1 },
+        ]);
       }
     });
   }

@@ -21,6 +21,12 @@ vi.mock("@excel/excel", () => {
             id: "act53side", type: "TYPE_ACT53SIDE", name: "直到大地变成一颗酸橙",
             startTime: 1785538800, endTime: 1787342399, rewardEndTime: 1787947199,
           },
+          // 窗口已过期的 TYPE_ACT 别传：forceOpen 时强制播种；medalGroupId 触发奖章组播种
+          act49side: {
+            id: "act49side", type: "TYPE_ACT9D0", name: "辞岁行", displayType: "SIDESTORY",
+            startTime: 1600000000, endTime: 1610000000, rewardEndTime: 1620000000,
+            medalGroupId: "medalGroupActivity49side",
+          },
           // 已过期（rewardEndTime 早于测试冻结 ts）
           act_expired: {
             id: "act_expired", type: "TYPE_ACT", name: "过期活动",
@@ -34,13 +40,19 @@ vi.mock("@excel/excel", () => {
           // null 占位条目（真实数据含 20/331）——播种/修剪必须跳过不崩溃
           __null__: null,
         },
-        missionGroup: [{ id: "act5d0", type: "SANDBOX_PERM", rewards: [], missionIds: ["act5d0_1", "act5d0_2"] }],
-        missionData: [],
+        missionGroup: [
+          { id: "act5d0", type: "SANDBOX_PERM", rewards: [], missionIds: ["act5d0_1", "act5d0_2"] },
+          { id: "act49side", rewards: [], missionIds: ["49sideActivity_1"] },
+        ],
+        missionData: [
+          { id: "49sideActivity_1", template: "CompleteAnyStage", param: ["0", "act49side_01", "2"], rewards: [] },
+        ],
         activity: {
           bOSS_RUSH: {
             act6bossrush: { relicList: [{ relicId: "act6bossrush_relic_01", sortId: 1 }] },
           },
           tYPE_ACT5D0: {},
+          tYPE_ACT9D0: {},
           aRK_HUB: {},
           tYPE_ACT53SIDE: {
             act53side: {
@@ -48,6 +60,28 @@ vi.mock("@excel/excel", () => {
             },
           },
         },
+      },
+      MedalTable: {
+        medalTypeData: {
+          activityMedal: {
+            groupData: [
+              {
+                groupId: "medalGroupActivity49side",
+                medalId: [
+                  "medal_activity_49side_01",
+                  "medal_activity_49side_04",
+                  "medal_activity_49side_10",
+                ],
+              },
+            ],
+          },
+        },
+        medalList: [
+          { medalId: "medal_activity_49side_01", template: null, unlockParam: [] },
+          { medalId: "medal_activity_49side_04", template: "PassStageSome", unlockParam: ["3", "act49side_01;act49side_11", "11"] },
+          { medalId: "medal_activity_49side_10", template: "PassStageSome", unlockParam: ["3", "act49side_10", "1"], advancedMedal: "medal_activity_49side_105" },
+          { medalId: "medal_activity_49side_105", template: "PassStageWithSimpleCountLess", unlockParam: ["3", "act49side_10", "e1;e2;e3;e4", "sui_part_sealed", "2"] },
+        ],
       },
       StageTable: {
         stages: {
@@ -280,5 +314,26 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
 
     const topic = mockPlayer._playerdata.arkodc!.topics!["ark_odc_act53side"] as any;
     expect(topic.varSeqs.bool_end_guide_done).toBeUndefined();
+  });
+
+  it("强制开启（forceOpen）播种窗口外 TYPE_ACT 活动 + 泛化播种其奖章组（含进阶章）", async () => {
+    config.activities = { ...(config.activities ?? {}), forceOpen: ["act49side"] };
+    config.developer = { timestamp: 1786176000 };
+    await unlockActivity(mockPlayer as any);
+
+    // TYPE_ACT 通用默认状态（coin/favorList/news）
+    expect(mockPlayer._playerdata.activity?.TYPE_ACT9D0?.act49side).toBeDefined();
+    expect((mockPlayer._playerdata.activity?.TYPE_ACT9D0?.act49side as any).coin).toBe(0);
+    // 活动任务播种（CompleteAnyStage → target 1，value 0 走事件驱动）
+    expect(mockPlayer._playerdata.mission?.missions?.ACTIVITY?.["49sideActivity_1"]).toEqual({
+      state: 2, progress: [{ value: 0, target: 1 }],
+    });
+    // 奖章组泛化播种：groupData 内 01/04/10 + advancedMedal 追入的 105（除 act53side 特判外通用）
+    const medals = mockPlayer._playerdata.medal?.medals ?? {};
+    expect(medals["medal_activity_49side_01"]).toEqual({ id: "medal_activity_49side_01", val: [[0, 0]], fts: 0, rts: -1 });
+    expect(medals["medal_activity_49side_04"]).toEqual({ id: "medal_activity_49side_04", val: [[0, 11]], fts: 0, rts: -1 });
+    expect(medals["medal_activity_49side_10"]).toEqual({ id: "medal_activity_49side_10", val: [[0, 1]], fts: 0, rts: -1 });
+    // 进阶章（advancedMedal 从 medal_activity_49side_10 追入；PassStageWithSimpleCountLess 兜底 target=param[0]）
+    expect(medals["medal_activity_49side_105"]).toEqual({ id: "medal_activity_49side_105", val: [[0, 3]], fts: 0, rts: -1 });
   });
 });

@@ -767,4 +767,73 @@ describe("Medal 核心修复", () => {
     expect(pd._playerdata.medal.medals["medal_lv_1"].rts).not.toBe(-1);
   });
 });
+
+describe("MedalManager 集齐章结算", () => {
+  it("前置章全部达成才点亮（未全不点亮）", async () => {
+    const ref = (vi.mocked(await import("@excel/excel")).default as any);
+    ref.MedalTable.medalList = [
+      { medalId: "G", medalName: "集章", template: null, preMedalIdList: ["P1", "P2"], medalRewardGroup: [] },
+      { medalId: "P1", template: "PassStageSome", preMedalIdList: [], medalRewardGroup: [] },
+      { medalId: "P2", template: "PassStageSome", preMedalIdList: [], medalRewardGroup: [] },
+    ];
+    const player: any = {
+      _playerdata: {
+        medal: {
+          medals: {
+            G: { id: "G", val: [[]], fts: 0, rts: -1 },
+            P1: { id: "P1", val: [[0, 1]], fts: 100, rts: -1 },
+            P2: { id: "P2", val: [[0, 1]], fts: 0, rts: -1 },
+          },
+          custom: { currentIndex: "", customs: {} },
+        },
+      },
+      markDirty: vi.fn(),
+      pushMessage: vi.fn(),
+    };
+    const mgr = new MedalManager(player, mockTypedEventEmitter());
+    mgr.medals = {};
+    // P2 未完成（fts=0 且 val 未满）→ 集章不点亮
+    await (mgr as any)._settleCollectionMedals();
+    expect(player._playerdata.medal.medals["G"].fts).toBe(0);
+    // P2 进度填满 → 全部前置达成 → 集章点亮（fts>0）
+    player._playerdata.medal.medals["P2"].val = [[1, 1]];
+    await (mgr as any)._settleCollectionMedals();
+    expect(player._playerdata.medal.medals["G"].fts).toBeGreaterThan(0);
+  });
+});
+
+describe("MedalManager 危机合约章（事件驱动）", () => {
+  it("CrisisStageScoreSome 取峰值得分", () => {
+    const item: any = { id: "c1", val: [], fts: 0, rts: -1 };
+    const p = new MedalProgress(item, mockTypedEventEmitter() as any);
+    p.param = ["8"];
+    p.CrisisStageScoreSome({}, "init");
+    expect(p.val[0][1]).toBe(8);
+    p.CrisisStageScoreSome({ score: 3 }, "update");
+    p.CrisisStageScoreSome({ score: 6 }, "update");
+    p.CrisisStageScoreSome({ score: 4 }, "update");
+    // 取最大单局得分
+    expect(p.val[0][0]).toBe(6);
+  });
+
+  it("CrisisTaskSome 完成任务数累加", () => {
+    const item: any = { id: "c2", val: [], fts: 0, rts: -1 };
+    const p = new MedalProgress(item, mockTypedEventEmitter() as any);
+    p.param = ["3"];
+    p.CrisisTaskSome({}, "init");
+    p.CrisisTaskSome({ count: 1 }, "update");
+    p.CrisisTaskSome({ count: 2 }, "update");
+    expect(p.val[0][0]).toBe(3);
+  });
+
+  it("CrisisV2NodeSome 每局 +1", () => {
+    const item: any = { id: "c3", val: [], fts: 0, rts: -1 };
+    const p = new MedalProgress(item, mockTypedEventEmitter() as any);
+    p.param = ["2"];
+    p.CrisisV2NodeSome({}, "init");
+    p.CrisisV2NodeSome({}, "update");
+    p.CrisisV2NodeSome({}, "update");
+    expect(p.val[0][0]).toBe(2);
+  });
+});
 });

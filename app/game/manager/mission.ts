@@ -1782,6 +1782,18 @@ export const MissionTemplates: {
         mission.progress[0].value += 1;
       },
     },
+    // 型1：线索分享类（target=param[1]，事件每次 +1）；对齐 DoctoratePy StartInfoShare type1
+    "1": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission) => {
+        mission.progress[0].value += 1;
+      },
+    },
   },
 
   /**
@@ -2307,6 +2319,23 @@ export const MissionTemplates: {
         mission.progress[0].value += 1;
       },
     },
+    // 型1：通关指定单关 n 次（param[1]=关卡，param[2]=目标次数，param[3]=星级门槛）。
+    // 大量别传 EX/普通关单关任务（917 个 missionData 用此型）；对齐 DoctoratePy
+    // CompleteStageAct type1：命中 param[1] 且 completeState>=param[3] 每次 +1
+    "1": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2] ?? "1"),
+        });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[1]) return;
+        const gate = parseInt(mission.param[3] ?? "2");
+        if (args.completeState < gate) return;
+        mission.progress[0].value += 1;
+      },
+    },
   },
 
   /**
@@ -2339,6 +2368,742 @@ export const MissionTemplates: {
           mission.progress[0].value,
           count,
         );
+      },
+    },
+  },
+
+  // ==================== 通用活动战斗模板（DoctoratePy MissionTemplate 移植）====================
+  // 名称与 ActivityTable.missionData.template 一致；update 从 battle 结算携带的
+  // battleData.stats（enemyStats/charStats/skillTrigStats/extraBattleInfo）读取真实统计。
+  // param[0]=type 位，语义对齐 DoctoratePy mission.py。
+
+  /**
+   * 指定关卡内累计杀敌 / 用技能 / 部署（StageWithCondition）
+   * type0：param[1]=关卡列表(^)，param[2]=enemyId，param[3]=目标击杀数
+   * type1：param[1]=关卡列表，param[2]=目标技能施放次数
+   * type2：param[1]=关卡列表，param[2]=目标干员部署次数
+   */
+  StageWithCondition: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[3]),
+        });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        const stages = mission.param[1].split("^");
+        if (!stages.includes(args.stageId) || args.completeState < 2) return;
+        const stats = args.battleData?.stats;
+        let sum = 0;
+        for (const n of stats?.enemyStats ?? []) {
+          if (n.Key.enemyId === mission.param[2] && n.Key.counterType === "HP_ZERO") {
+            sum += n.Value;
+          }
+        }
+        mission.progress[0].value += sum;
+      },
+    },
+    "1": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        const stages = mission.param[1].split("^");
+        if (!stages.includes(args.stageId) || args.completeState < 2) return;
+        const stats = args.battleData?.stats;
+        let sum = 0;
+        for (const n of stats?.skillTrigStats ?? []) {
+          sum += n.Value;
+        }
+        mission.progress[0].value += sum;
+      },
+    },
+    "2": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        const stages = mission.param[1].split("^");
+        if (!stages.includes(args.stageId) || args.completeState < 2) return;
+        const stats = args.battleData?.stats;
+        let sum = 0;
+        for (const n of stats?.charStats ?? []) {
+          if (n.Key.counterType === "SPAWN") {
+            sum += n.Value;
+          }
+        }
+        mission.progress[0].value += sum;
+      },
+    },
+    // 型3：关卡三星且 extraBattleInfo 同时命中 param[2]**param[3] 累计达 param[4]
+    //（act50side 载具骑乘 trap_* , ride / enemy killed_no_eat）
+    "3": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[4] ?? "1"),
+        });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        const stages = mission.param[1].split("^");
+        if (!stages.includes(args.stageId) || args.completeState < 2) return;
+        const info = Object.entries(args.battleData?.stats?.extraBattleInfo ?? {});
+        let cnt = 0;
+        for (const [k, v] of info) {
+          if (k.includes(mission.param[2]) && k.includes(mission.param[3])) {
+            cnt += v;
+          }
+        }
+        mission.progress[0].value += cnt;
+      },
+    },
+    // 型4：关卡三星且 extraBattleInfo 命中 param[2] 累计达 param[3]
+    //（如 flashstun / criticaldamage）
+    "4": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[3]),
+        });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        const stages = mission.param[1].split("^");
+        if (!stages.includes(args.stageId) || args.completeState < 2) return;
+        const info = Object.entries(args.battleData?.stats?.extraBattleInfo ?? {});
+        let cnt = 0;
+        for (const [k, v] of info) {
+          if (k.includes(mission.param[2])) {
+            cnt += v;
+          }
+        }
+        mission.progress[0].value += cnt;
+      },
+    },
+  },
+
+  /**
+   * 活动关卡累计击杀敌人（EnemyKill，type0）
+   * param[1]=关卡列表(^)，param[2]=目标累计击杀数；命中关卡三星后按 killCnt 累加
+   */
+  EnemyKill: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        const stages = mission.param[1].split("^");
+        if (!stages.includes(args.stageId) || args.completeState < 2) return;
+        mission.progress[0].value += args.killCnt;
+      },
+    },
+  },
+
+  /**
+   * 通关任意关卡（CompleteStageOrCampaign，type0）
+   * param[1]=目标累计通关次数
+   */
+  CompleteStageOrCampaign: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (!args.stageId || args.completeState < 2) return;
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+
+  /**
+   * 通关物资筹备关卡（CompleteDailyStage，type1）
+   * param[1]=物资类型（如 MATERIAL），param[2]=目标累计通关次数；stageType==DAILY 才计入
+   */
+  CompleteDailyStage: {
+    "1": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (!args.stageId || args.completeState < 2) return;
+        const stageType = excel.StageTable.stages[args.stageId]?.stageType;
+        if (stageType !== "DAILY") return;
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+
+  /**
+   * 通关多维合作（CompleteAnyMulStage，type0）
+   * param[1]=关卡，param[2]=星级门槛（completeState）
+   */
+  CompleteAnyMulStage: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[1]) return;
+        if (args.completeState < parseInt(mission.param[2])) return;
+        mission.progress[0].value += 1;
+      },
+    },
+  },
+
+  /**
+   * 自走车发射计数（CompleteStageSimpleAtLeastId，type0）
+   * param[1]=星级门槛，param[2]=关卡，param[3]=enemyId，param[4]=counterType(born)，
+   * param[5]=目标次数；extraBattleInfo 中 key 同时含 enemy+counterType 之和达标即 +1
+   */
+  CompleteStageSimpleAtLeastId: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const info = Object.entries(args.battleData?.stats?.extraBattleInfo ?? {});
+        let count = 0;
+        for (const [k, v] of info) {
+          if (k.includes(mission.param[3]) && k.includes(mission.param[4])) {
+            count += v;
+          }
+        }
+        if (count >= parseInt(mission.param[5])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+
+  /**
+   * 阻止/避免指定事件（CompleteStageSimpleAtMostId，type0）
+   * param[1]=星级门槛，param[2]=关卡，param[3]=enemyId，param[4]=counterType(take)，
+   * param[5]=上限次数；extraBattleInfo 中命中项计数不超上限即通关计 1 次
+   */
+  CompleteStageSimpleAtMostId: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const info = Object.entries(args.battleData?.stats?.extraBattleInfo ?? {});
+        let count = 0;
+        for (const [k, v] of info) {
+          if (k.includes(mission.param[3]) && k.includes(mission.param[4])) {
+            count += v;
+          }
+        }
+        if (count <= parseInt(mission.param[5])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+
+  /**
+   * 通关且满足战斗统计条件（CompleteStageCondition）
+   * 覆盖 DoctoratePy 最常用的细分型（读 battleData.stats 统计，不依赖 ownSlots）：
+   *  type0：param[1]=星级门槛，param[2]=关卡，param[3]=技能 id 列表(^)，param[4]=目标施放次数
+   *  type3：param[1]=门槛，param[2]=关卡，param[3]=装置 key，param[4]=上限——命中装置不超上限
+   *  type4：param[1]=门槛，param[2]=关卡，param[3]=装置 key，param[4]=上限——累计不超上限
+   *  type8：param[1]=门槛，param[2]=关卡，param[3]=enemyId，param[4]=counterType(killed)，param[5]=目标击杀
+   *  type10：param[1]=门槛，param[2]=关卡，param[3]=teamKey，param[4]=目标计数
+   *  type11：param[1]=门槛，param[2]=关卡，param[3]=key，param[4]=上限（潮汐撤退/击倒）
+   *  type12：param[1]=门槛，param[2]=关卡，param[3]=干员列表(^)——指定干员无 DEAD 即 +1
+   *  type15：param[1]=门槛，param[2]=关卡，param[3]=上限，param[4]=key（受影响干员数上限）
+   */
+  CompleteStageCondition: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const skills = mission.param[3].split("^");
+        const stats = args.battleData?.stats;
+        let count = 0;
+        for (const n of stats?.skillTrigStats ?? []) {
+          if (skills.includes(n.Key.skillId)) {
+            count += n.Value;
+          }
+        }
+        if (count >= parseInt(mission.param[4])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    "3": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const info = Object.entries(args.battleData?.stats?.extraBattleInfo ?? {});
+        for (const [k, v] of info) {
+          if (k.includes(mission.param[3]) && v <= parseInt(mission.param[4])) {
+            mission.progress[0].value += 1;
+            return;
+          }
+        }
+      },
+    },
+    "4": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const info = Object.entries(args.battleData?.stats?.extraBattleInfo ?? {});
+        let count = 0;
+        for (const [k, v] of info) {
+          if (k.includes(mission.param[3])) {
+            count += v;
+          }
+        }
+        if (count <= parseInt(mission.param[4])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    "8": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const info = Object.entries(args.battleData?.stats?.extraBattleInfo ?? {});
+        for (const [k, v] of info) {
+          if (k.includes(mission.param[3]) && k.includes(mission.param[4]) && v >= parseInt(mission.param[5])) {
+            mission.progress[0].value += 1;
+            return;
+          }
+        }
+      },
+    },
+    "10": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const info = Object.entries(args.battleData?.stats?.extraBattleInfo ?? {});
+        let count = 0;
+        for (const [k, v] of info) {
+          if (k.includes(mission.param[3])) {
+            count += v;
+          }
+        }
+        if (count >= parseInt(mission.param[4])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    "11": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const info = Object.entries(args.battleData?.stats?.extraBattleInfo ?? {});
+        let count = 0;
+        for (const [k, v] of info) {
+          if (k.includes(mission.param[3])) {
+            count += v;
+          }
+        }
+        if (count <= parseInt(mission.param[4])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    "12": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const chars = mission.param[3].split("^");
+        const stats = args.battleData?.stats;
+        for (const n of stats?.charStats ?? []) {
+          if (n.Key.counterType === "DEAD" && chars.includes(n.Key.charId)) {
+            return;
+          }
+        }
+        mission.progress[0].value += 1;
+      },
+    },
+    "15": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const info = Object.entries(args.battleData?.stats?.extraBattleInfo ?? {});
+        let count = 0;
+        for (const [k, v] of info) {
+          if (k.includes(mission.param[4])) {
+            count += v;
+          }
+        }
+        if (count <= parseInt(mission.param[3])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    "2": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const info = Object.entries(args.battleData?.stats?.extraBattleInfo ?? {});
+        let count = 0;
+        for (const [k, v] of info) {
+          if (k.includes(mission.param[3])) {
+            count += v;
+          }
+        }
+        if (count >= parseInt(mission.param[4])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    "9": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const info = Object.entries(args.battleData?.stats?.extraBattleInfo ?? {});
+        let count = 0;
+        for (const [k, v] of info) {
+          if (k.includes(mission.param[3]) && k.includes(mission.param[4])) {
+            count += v;
+          }
+        }
+        if (count >= parseInt(mission.param[5])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    // 型13：N 星通关且部署非助战的指定干员（param[3]=charId，param[4]=推进数）。
+    // 需 ownSlots（battleInfo），事件暂不带 → 占位防崩（对齐 DoctoratePy TODO）
+    "13": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      // 近似实现：N 星通关该关且上场干员 charId==param[3] 且非助战（未在 stats.idList）即推进。
+      // 较 DoctoratePy ownSlots 的「编入非助战」判定更宽松（按实际上场判定）
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const stats = args.battleData?.stats;
+        const idList: string[] = (stats?.idList ?? []) as unknown as string[];
+        for (const n of stats?.charStats ?? []) {
+          if (
+            n.Key.charId === mission.param[3] &&
+            n.Key.counterType === "SPAWN" &&
+            !idList.includes(n.Key.charId)
+          ) {
+            mission.progress[0].value += parseInt(mission.param[4] ?? "1");
+            return;
+          }
+        }
+      },
+    },
+    // 型14：N 星通关且额外进化 buff 达到 param[3]（param[4]=buff key；extraBattleInfo 命中 key 数）
+    "14": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const info = Object.entries(args.battleData?.stats?.extraBattleInfo ?? {});
+        let count = 0;
+        for (const [k] of info) {
+          if (k.includes(mission.param[4])) {
+            count += 1;
+          }
+        }
+        if (count >= parseInt(mission.param[3])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    // 型5：N 星通关且场上干员数不超过 param[3]（charList 规模判定）
+    "5": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const cl = (args.battleData?.stats?.charList ?? {}) as Record<string, unknown>;
+        if (Object.keys(cl).length <= parseInt(mission.param[3] ?? "0")) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    // 型6/7：N 星通关且 extraBattleInfo 命中 param[3] 累计不超 param[4]（如不使用的装置）
+    "6": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const info = Object.entries(args.battleData?.stats?.extraBattleInfo ?? {});
+        let count = 0;
+        for (const [k, v] of info) {
+          if (k.includes(mission.param[3])) {
+            count += v;
+          }
+        }
+        if (count <= parseInt(mission.param[4])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    "7": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const info = Object.entries(args.battleData?.stats?.extraBattleInfo ?? {});
+        let count = 0;
+        for (const [k, v] of info) {
+          if (k.includes(mission.param[3])) {
+            count += v;
+          }
+        }
+        if (count <= parseInt(mission.param[4])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    // 型16：N 星通关且部署 param[3] 势力的干员累计 param[4]（charStats SPAWN + nationId）
+    "16": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const stats = args.battleData?.stats;
+        let count = 0;
+        for (const n of stats?.charStats ?? []) {
+          if (n.Key.counterType === "SPAWN") {
+            const national = excel.CharacterTable[n.Key.charId]?.nationId;
+            if (national === mission.param[3]) {
+              count += n.Value;
+            }
+          }
+        }
+        if (count >= parseInt(mission.param[4])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+    // 型17：N 星通关且上场干员中至少 param[3] 位含 tag=param[4]（近似 ownSlots 编队 tag 判定）
+    "17": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const stats = args.battleData?.stats;
+        const seen = new Set<string>();
+        let count = 0;
+        for (const n of stats?.charStats ?? []) {
+          if (seen.has(n.Key.charId)) continue;
+          seen.add(n.Key.charId);
+          const tags = excel.CharacterTable[n.Key.charId]?.tagList;
+          const hit = Array.isArray(tags)
+            ? (tags as string[]).some((t) => String(t).includes(mission.param[4]))
+            : String(tags ?? "").includes(mission.param[4]);
+          if (hit) {
+            count += 1;
+            if (count >= parseInt(mission.param[3] ?? "1")) break;
+          }
+        }
+        if (count >= parseInt(mission.param[3] ?? "1")) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+
+  /**
+   * 携带遗物通关（CompleteStageWithRelic，type0）
+   * param[1]=关卡列表(^)，param[2]=遗物 id，param[3]=目标部署次数；
+   * packedRuneDataList 命中遗物且部署达标即 +1
+   */
+  CompleteStageWithRelic: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        const stages = mission.param[1].split("^");
+        if (!stages.includes(args.stageId) || args.completeState < 2) return;
+        const stats = args.battleData?.stats as any;
+        const runes: string[] = stats?.packedRuneDataList ?? [];
+        if (!runes.some((r: string) => String(r).includes(mission.param[2]))) return;
+        let deploy = 0;
+        for (const n of stats?.charStats ?? []) {
+          if (n.Key.counterType === "SPAWN") {
+            deploy += n.Value;
+          }
+        }
+        if (deploy >= parseInt(mission.param[3])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+
+  /**
+   * 携带小帮手组件通关（CompleteStageWithTechTree，type0）
+   * param[1]=星级门槛，param[2]=关卡，param[3]=组件 id 列表(^)，param[4]=携带上限；
+   * packedRuneDataList 中命中组件数不超上限即 +1
+   */
+  CompleteStageWithTechTree: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: (mission, args: BattleData & { stageId: string }) => {
+        if (args.stageId !== mission.param[2]) return;
+        if (args.completeState < parseInt(mission.param[1])) return;
+        const techs = mission.param[3].split(";");
+        const stats = args.battleData?.stats as any;
+        const runes: string[] = stats?.packedRuneDataList ?? [];
+        let count = 0;
+        for (const r of runes) {
+          if (techs.includes(String(r))) {
+            count += 1;
+          }
+        }
+        if (count <= parseInt(mission.param[4])) {
+          mission.progress[0].value += 1;
+        }
+      },
+    },
+  },
+
+  /**
+   * 驻守关卡通关（CompleteInterlockStage，type0，参照 DoctoratePy 占位实现）
+   * 锁活动（act1lock）专属；当前不推进进度（完整判定需链路关卡状态）
+   */
+  CompleteInterlockStage: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: () => {},
+    },
+  },
+
+  /**
+   * 携带标志物通关（CompleteStageWithCharm，type0，参照 DoctoratePy 占位）
+   * act12side 专属（玄铁/旗舰标志物判定）；完整判定需玩法状态，暂不推进防崩
+   */
+  CompleteStageWithCharm: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({ value: mission.value, target: 1 });
+      },
+      update: () => {},
+    },
+  },
+
+  /**
+   * 累计获得活动货币（ActivityCoinGain，type0）
+   * param[1]=activityId，param[2]=目标累计数，param[3]=活动币 itemId（如 act17side_token_compass）；
+   * 事件由 inventory 获得目标币物品时发射，按 itemId 过滤累计
+   */
+  ActivityCoinGain: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[2]),
+        });
+      },
+      update: (mission, args: { itemId: string; count: number }) => {
+        if (args.itemId !== mission.param[3]) return;
+        mission.progress[0].value += args.count ?? 1;
+      },
+    },
+  },
+
+  /**
+   * 累计消耗龙门币（CostGold，type0）
+   * param[1]=目标累计消耗；升级/晋升/远征等耗币处 emit {goldCost}（此处由 char 升级/晋升触发）
+   */
+  CostGold: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission, args: { goldCost: number }) => {
+        if (!Number.isFinite(args.goldCost)) return;
+        mission.progress[0].value += args.goldCost;
+      },
+    },
+  },
+
+  /**
+   * 干员升级与晋升中累计消耗龙门币（CostGoldPlus，type0）
+   * param[1]=目标累计消耗；char 升级/晋升处 emit {goldCostPlus}
+   */
+  CostGoldPlus: {
+    "0": {
+      init: (mission) => {
+        mission.progress.push({
+          value: mission.value,
+          target: parseInt(mission.param[1]),
+        });
+      },
+      update: (mission, args: { goldCostPlus: number }) => {
+        if (!Number.isFinite(args.goldCostPlus)) return;
+        mission.progress[0].value += args.goldCostPlus;
       },
     },
   },

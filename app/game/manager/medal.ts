@@ -141,12 +141,68 @@ export class MedalManager implements PlayerMedal {
   async onMedalComplete([{ medalId }]: [{ medalId: string }]) {
     const medalInfo = excel.MedalTable.medalList.find(
       (m) => m.medalId == medalId,
-    )!;
-    if (!medalInfo || !medalInfo.medalRewardGroup || medalInfo.medalRewardGroup.length === 0) {
+    );
+    // 集齐章结算：无 template 的章靠 preMedalIdList 集齐解锁——任一章达成后重算，
+    // 使组内「01 号集章」在前置普通章全部完成时自动点亮
+    await this._settleCollectionMedals();
+    if (
+      !medalInfo ||
+      !medalInfo.medalRewardGroup ||
+      medalInfo.medalRewardGroup.length === 0
+    ) {
       return;
     }
     const defaultRewardGroup = medalInfo.medalRewardGroup[0];
     await this.rewardMedal({ medalId, group: defaultRewardGroup.groupId });
+  }
+
+  /**
+   * 集齐章（无 template 且含 preMedalIdList）结算
+   *
+   * 无 template 的章（多为活动组「01 号」全收集章，如 medal_activity_49side_01）没有进度
+   * 模板，官方获取方式 = 获得 preMedalIdList 中所有前置普通章后自动解锁。本方法在任一
+   * 章完成（medal:complete）后重算：前置全部达成（fts>0 或进度满）即点亮该集章（写 fts +
+   * markDirty），不再次触发 medal:complete（避免递归），有奖励组则发放。
+   */
+  private async _settleCollectionMedals(): Promise<void> {
+    const medalList = excel.MedalTable?.medalList ?? [];
+    for (const m of medalList) {
+      // 仅处理无 template 的集齐章（跳过有模板的普通章）
+      if (m.template || !m.preMedalIdList || m.preMedalIdList.length === 0) {
+        continue;
+      }
+      const progress =
+        this.medals[m.medalId] ?? this._playerdata.medal.medals[m.medalId];
+      if (!progress || (progress.fts ?? 0) > 0) {
+        continue;
+      }
+      // 前置章全部达成才点亮
+      const allDone = m.preMedalIdList.every((pre) => {
+        const p = this.medals[pre] ?? this._playerdata.medal.medals[pre];
+        if (!p) return false;
+        if ((p.fts ?? 0) > 0) return true;
+        const v = p.val?.[0];
+        return v?.[1] != null && v[0] >= v[1];
+      });
+      if (!allDone) {
+        continue;
+      }
+      const fts = now();
+      if (this.medals[m.medalId]) {
+        this.medals[m.medalId].fts = fts;
+      }
+      if (this._playerdata.medal.medals[m.medalId]) {
+        this._playerdata.medal.medals[m.medalId].fts = fts;
+      }
+      this._player.markDirty();
+      this._player.pushMessage("medalFinish", { medalId: m.medalId, fts });
+      if (m.medalRewardGroup?.length) {
+        await this.rewardMedal({
+          medalId: m.medalId,
+          group: m.medalRewardGroup[0].groupId,
+        });
+      }
+    }
   }
 
   /**
@@ -1404,8 +1460,9 @@ export class MedalProgress implements PlayerPerMedal {
   CrisisV2DimScoreSome(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      // 该维度单局峰值得分（battleFinish 发 scoreCurrent 的最大维度分）
+      update: (args: { score?: number }) => {
+        this.val[0][0] = Math.max(this.val[0][0], args.score ?? 0);
       },
     };
     funcs[mode](args);
@@ -1421,8 +1478,9 @@ export class MedalProgress implements PlayerPerMedal {
   CrisisV2UseAssist(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      // 携带助战通关次数（battleFinish 按是否用助战发 used）
+      update: (args: { used?: number }) => {
+        this.val[0][0] += args.used ?? 0;
       },
     };
     funcs[mode](args);
@@ -1746,8 +1804,9 @@ export class MedalProgress implements PlayerPerMedal {
   CrisisStageScoreSome(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      // 达成得分：单局峰值（V1 battleFinish 发 totalRisks，V2 发最高维度分）
+      update: (args: { score?: number }) => {
+        this.val[0][0] = Math.max(this.val[0][0], args.score ?? 0);
       },
     };
     funcs[mode](args);
@@ -1763,8 +1822,9 @@ export class MedalProgress implements PlayerPerMedal {
   CrisisTempClearSome(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      // 临时派遣结算次数（V1 battleFinish 每局 +1）
+      update: (args: { count?: number }) => {
+        this.val[0][0] += args.count ?? 1;
       },
     };
     funcs[mode](args);
@@ -1780,8 +1840,9 @@ export class MedalProgress implements PlayerPerMedal {
   CrisisTaskSome(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      // 完成任务数（battleFinish/挑战任务确认处 +1）
+      update: (args: { count?: number }) => {
+        this.val[0][0] += args.count ?? 1;
       },
     };
     funcs[mode](args);
@@ -1797,8 +1858,9 @@ export class MedalProgress implements PlayerPerMedal {
   CrisisUnlockPermRuneSome(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      // 解锁永久词条数（unlockRune 处 +1）
+      update: (args: { count?: number }) => {
+        this.val[0][0] += args.count ?? 1;
       },
     };
     funcs[mode](args);
@@ -1814,8 +1876,9 @@ export class MedalProgress implements PlayerPerMedal {
   CrisisUseAssist(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      // 携带助战通关次数（battleFinish 按是否用助战发 used）
+      update: (args: { used?: number }) => {
+        this.val[0][0] += args.used ?? 0;
       },
     };
     funcs[mode](args);
@@ -2426,8 +2489,9 @@ export class MedalProgress implements PlayerPerMedal {
   CrisisStageScoreBeforeTime(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: (args: { registerTs: number }) => {
-        this.val[0][0] = moment().diff(moment(args.registerTs), "days");
+      // 限时峰值得分（battleFinish 发 score）
+      update: (args: { score?: number }) => {
+        this.val[0][0] = Math.max(this.val[0][0], args.score ?? 0);
       },
     };
     funcs[mode](args);
@@ -2890,8 +2954,9 @@ export class MedalProgress implements PlayerPerMedal {
   RecalRuneStageScoreSome(args: {}, mode: string = "update") {
     const funcs: { [key: string]: (args: any) => void } = {
       init: (args: {}) => this.val[0].push(0, parseInt(this.param[0])),
-      update: () => {
-        this.val[0][0] += 1;
+      // 重构符文单局得分峰值（recal battleFinish 发 score）
+      update: (args: { score?: number }) => {
+        this.val[0][0] = Math.max(this.val[0][0], args.score ?? 0);
       },
     };
     funcs[mode](args);

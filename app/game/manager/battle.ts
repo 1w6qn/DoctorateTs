@@ -555,6 +555,19 @@ export class BattleManager {
       await this._trigger.emit("CompleteStageAct", [
         { ...battleData, stageId },
       ]);
+      // 通用活动战斗模板事件（DoctoratePy MissionTemplate 移植）——battle 胜利统一补发，
+      // 参数携带完整 BattleData（stats 统计），模板按自身 param/stageId 过滤；仅已播种
+      // 且 init 的活动任务注册了对应监听器，无监听时 no-op
+      await this._trigger.emit("StageWithCondition", [{ ...battleData, stageId }]);
+      await this._trigger.emit("EnemyKill", [{ ...battleData, stageId }]);
+      await this._trigger.emit("CompleteStageOrCampaign", [{ ...battleData, stageId }]);
+      await this._trigger.emit("CompleteDailyStage", [{ ...battleData, stageId }]);
+      await this._trigger.emit("CompleteAnyMulStage", [{ ...battleData, stageId }]);
+      await this._trigger.emit("CompleteStageCondition", [{ ...battleData, stageId }]);
+      await this._trigger.emit("CompleteStageSimpleAtLeastId", [{ ...battleData, stageId }]);
+      await this._trigger.emit("CompleteStageSimpleAtMostId", [{ ...battleData, stageId }]);
+      await this._trigger.emit("CompleteStageWithRelic", [{ ...battleData, stageId }]);
+      await this._trigger.emit("CompleteStageWithTechTree", [{ ...battleData, stageId }]);
       // act53side 通关累计勋章（PassStageWithSimpleCountMore，medal_activity_53side_06）
       await this._trigger.emit("PassStageWithSimpleCountMore", [
         {

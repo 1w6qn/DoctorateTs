@@ -1072,6 +1072,10 @@ router.post("/recalRune/battleFinish", async (req, res) => {
   const isCompleted = completeState === 3;
   const battleState = isCompleted ? 1 : 0;
 
+  // 危机蚀刻章（重构符文）：得分驱动
+  await player._trigger.emit("RecalRuneStageScoreSome", [{ score: totalScore }]);
+  await player._trigger.emit("CrisisTaskSome", [{ count: 1 }]);
+
   res.send({
     seasonId,
     stageId,

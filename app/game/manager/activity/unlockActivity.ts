@@ -413,6 +413,10 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
       const isForced = forced.has(actId);
       if (!isForced && !(info.startTime <= ts && ts <= info.rewardEndTime)) continue;
       seedActivityState(draft, actId, info, ts);
+      // 活动勋章组播种（medalGroupId → playerdata.medal.medals）——使 MedalProgress
+      // 可注册监听、事件驱动真实追踪。原实现只对 TYPE_ACT53SIDE 特判；泛化到所有
+      // 已播种且带 medalGroupId 的活动（别传/主活动统一受益，含 act53side/act49side）
+      if (info.medalGroupId) seedMedalGroup(draft, actId);
     }
     // 强制开启但不在 basicInfo 中的 ID：无法播种，记录告警（大小写不敏感匹配常见笔误）
     for (const id of forced) {
@@ -444,14 +448,6 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
           rts: -1,
         };
       }
-    }
-
-    // act53side（TYPE_ACT53SIDE）勋章组播种：medalGroupActivity53side → medals，
-    // 使 MedalProgress 可注册监听、事件驱动真实追踪（含进阶章 medal_activity_53side_105）
-    for (const [actId2, info2] of Object.entries(basicInfo)) {
-      if (!info2 || typeof info2 !== "object") continue;
-      if ((info2 as any).type !== "TYPE_ACT53SIDE") continue;
-      seedMedalGroup(draft, actId2);
     }
 
     // ODC 主题（playerdata.arkodc.topics[topicId]）——客户端据此渲染 ODC 地图状态

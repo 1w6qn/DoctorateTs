@@ -21,7 +21,11 @@ vi.mock("@excel/excel", () => {
       },
       MedalTable: { medalList: [], medalTypeData: {} },
       StageTable: {
-        stages: {},
+        stages: {
+          // 供 CompleteDailyStage 模板测试用（LS-1=物资筹备 DAILY 关）
+          "LS-1": { stageType: "DAILY" },
+          "main_01-01": { stageType: "MAIN" },
+        },
         runeStageGroups: {},
         mapThemes: {},
         tileInfo: {},
@@ -558,6 +562,269 @@ describe("MissionTemplates 核心模板", () => {
     // 非指定关卡不推进
     MissionTemplates.CompleteAnyStage["0"].update(mission, { completeState: 3, stageId: "main_02-07" } as any);
     expect(mission.progress[0].value).toBe(1);
+  });
+});
+
+describe("MissionTemplates 通用活动战斗模板（DoctoratePy 移植）", () => {
+  function makeMission(param: string[], value = 0) {
+    return { value, param, progress: [] } as any;
+  }
+
+  it("StageWithCondition type0 指定关卡累计杀敌", () => {
+    const mission = makeMission(["0", "act17side_01^act17side_02", "enemy_1160_hvyslr", "6"]);
+    MissionTemplates.StageWithCondition["0"].init(mission);
+    expect(mission.progress[0].target).toBe(6);
+    MissionTemplates.StageWithCondition["0"].update(mission, {
+      completeState: 3, stageId: "act17side_02",
+      battleData: { stats: { enemyStats: [{ Key: { enemyId: "enemy_1160_hvyslr", counterType: "HP_ZERO" }, Value: 4 }] } },
+    } as any);
+    expect(mission.progress[0].value).toBe(4);
+    // 非指定关卡不推进
+    MissionTemplates.StageWithCondition["0"].update(mission, {
+      completeState: 3, stageId: "act17side_03",
+      battleData: { stats: { enemyStats: [{ Key: { enemyId: "enemy_1160_hvyslr", counterType: "HP_ZERO" }, Value: 4 }] } },
+    } as any);
+    expect(mission.progress[0].value).toBe(4);
+  });
+
+  it("StageWithCondition type1 指定关卡累计施放技能", () => {
+    const mission = makeMission(["1", "act17side_01", "3"]);
+    MissionTemplates.StageWithCondition["1"].init(mission);
+    expect(mission.progress[0].target).toBe(3);
+    MissionTemplates.StageWithCondition["1"].update(mission, {
+      completeState: 3, stageId: "act17side_01",
+      battleData: { stats: { skillTrigStats: [{ Key: { skillId: "s1" }, Value: 2 }, { Key: { skillId: "s2" }, Value: 2 }] } },
+    } as any);
+    expect(mission.progress[0].value).toBe(4);
+  });
+
+  it("StageWithCondition type2 指定关卡累计部署", () => {
+    const mission = makeMission(["2", "act17side_01", "5"]);
+    MissionTemplates.StageWithCondition["2"].init(mission);
+    MissionTemplates.StageWithCondition["2"].update(mission, {
+      completeState: 3, stageId: "act17side_01",
+      battleData: { stats: { charStats: [{ Key: { charId: "c1", counterType: "SPAWN" }, Value: 3 }, { Key: { charId: "c2", counterType: "SPAWN" }, Value: 2 }] } },
+    } as any);
+    expect(mission.progress[0].value).toBe(5);
+  });
+
+  it("EnemyKill 指定活动关卡累计击杀", () => {
+    const mission = makeMission(["0", "act13d5_01^act13d5_02", "200"]);
+    MissionTemplates.EnemyKill["0"].init(mission);
+    expect(mission.progress[0].target).toBe(200);
+    MissionTemplates.EnemyKill["0"].update(mission, { completeState: 3, stageId: "act13d5_02", killCnt: 30 } as any);
+    expect(mission.progress[0].value).toBe(30);
+  });
+
+  it("CompleteStageOrCampaign 任意关卡通关累计", () => {
+    const mission = makeMission(["0", "40"]);
+    MissionTemplates.CompleteStageOrCampaign["0"].init(mission);
+    expect(mission.progress[0].target).toBe(40);
+    MissionTemplates.CompleteStageOrCampaign["0"].update(mission, { completeState: 2, stageId: "main_01-01" } as any);
+    expect(mission.progress[0].value).toBe(1);
+  });
+
+  it("CompleteDailyStage 仅 DAILY 关卡计入", () => {
+    const mission = makeMission(["1", "MATERIAL", "8"]);
+    MissionTemplates.CompleteDailyStage["1"].init(mission);
+    expect(mission.progress[0].target).toBe(8);
+    MissionTemplates.CompleteDailyStage["1"].update(mission, { completeState: 3, stageId: "LS-1" } as any);
+    expect(mission.progress[0].value).toBe(1);
+    // MAIN 关卡不计入
+    MissionTemplates.CompleteDailyStage["1"].update(mission, { completeState: 3, stageId: "main_01-01" } as any);
+    expect(mission.progress[0].value).toBe(1);
+  });
+
+  it("CompleteAnyMulStage 多维合作指定关推进", () => {
+    const mission = makeMission(["0", "act17d1_02_a", "3"]);
+    MissionTemplates.CompleteAnyMulStage["0"].init(mission);
+    MissionTemplates.CompleteAnyMulStage["0"].update(mission, { completeState: 3, stageId: "act17d1_02_a" } as any);
+    expect(mission.progress[0].value).toBe(1);
+    // 星级不足不推进
+    MissionTemplates.CompleteAnyMulStage["0"].update(mission, { completeState: 2, stageId: "act17d1_02_a" } as any);
+    expect(mission.progress[0].value).toBe(1);
+  });
+
+  it("CompleteStageCondition type0 技能列表达标", () => {
+    const mission = makeMission(["0", "2", "act1bossrush_tm02", "skchr_shotst_2^skchr_estell_2", "20"]);
+    MissionTemplates.CompleteStageCondition["0"].init(mission);
+    MissionTemplates.CompleteStageCondition["0"].update(mission, {
+      completeState: 3, stageId: "act1bossrush_tm02",
+      battleData: { stats: { skillTrigStats: [{ Key: { skillId: "skchr_shotst_2" }, Value: 12 }, { Key: { skillId: "skchr_estell_2" }, Value: 12 }] } },
+    } as any);
+    expect(mission.progress[0].value).toBe(1);
+  });
+
+  it("CompleteStageCondition type8 击杀指定敌人", () => {
+    const mission = makeMission(["8", "3", "act21side_09", "enemy_1284_sgprst", "killed", "1"]);
+    MissionTemplates.CompleteStageCondition["8"].init(mission);
+    MissionTemplates.CompleteStageCondition["8"].update(mission, {
+      completeState: 3, stageId: "act21side_09",
+      battleData: { stats: { extraBattleInfo: { "enemy_1284_sgprst,killed": 1 } } },
+    } as any);
+    expect(mission.progress[0].value).toBe(1);
+  });
+
+  it("CompleteStageCondition type12 指定干员不阵亡才推进", () => {
+    const mission = makeMission(["12", "3", "act13side_06", "char_496_wild^char_420_flamtl"]);
+    MissionTemplates.CompleteStageCondition["12"].init(mission);
+    MissionTemplates.CompleteStageCondition["12"].update(mission, {
+      completeState: 3, stageId: "act13side_06",
+      battleData: { stats: { charStats: [{ Key: { charId: "char_420_flamtl", counterType: "SPAWN" }, Value: 1 }] } },
+    } as any);
+    expect(mission.progress[0].value).toBe(1);
+    // 任一指定干员阵亡则不推进
+    MissionTemplates.CompleteStageCondition["12"].update(mission, {
+      completeState: 3, stageId: "act13side_06",
+      battleData: { stats: { charStats: [{ Key: { charId: "char_420_flamtl", counterType: "DEAD" }, Value: 1 }] } },
+    } as any);
+    expect(mission.progress[0].value).toBe(1);
+  });
+
+  it("CompleteStageSimpleAtLeastId extraBattleInfo 命中达标", () => {
+    const mission = makeMission(["0", "3", "act20side_06", "enemy_1265_durcar", "born", "10"]);
+    MissionTemplates.CompleteStageSimpleAtLeastId["0"].init(mission);
+    MissionTemplates.CompleteStageSimpleAtLeastId["0"].update(mission, {
+      completeState: 3, stageId: "act20side_06",
+      battleData: { stats: { extraBattleInfo: { "enemy_1265_durcar,born": 12 } } },
+    } as any);
+    expect(mission.progress[0].value).toBe(1);
+  });
+
+  it("CompleteStageWithTechTree 组件不超上限才推进", () => {
+    const mission = makeMission(["0", "3", "act17side_ex07", "tech_1;tech_2;tech_3;tech_4;tech_5", "3"]);
+    MissionTemplates.CompleteStageWithTechTree["0"].init(mission);
+    MissionTemplates.CompleteStageWithTechTree["0"].update(mission, {
+      completeState: 3, stageId: "act17side_ex07",
+      battleData: { stats: { packedRuneDataList: ["tech_1", "tech_2"] } },
+    } as any);
+    expect(mission.progress[0].value).toBe(1);
+    // 超上限不推进
+    const over = makeMission(["0", "3", "act17side_ex07", "tech_1;tech_2;tech_3;tech_4;tech_5", "3"]);
+    MissionTemplates.CompleteStageWithTechTree["0"].init(over);
+    MissionTemplates.CompleteStageWithTechTree["0"].update(over, {
+      completeState: 3, stageId: "act17side_ex07",
+      battleData: { stats: { packedRuneDataList: ["tech_1", "tech_2", "tech_3", "tech_4", "tech_5"] } },
+    } as any);
+    expect(over.progress[0].value).toBe(0);
+  });
+
+  it("CompleteStageAct type1 指定单关通关", () => {
+    const mission = makeMission(["1", "act50side_03", "1", "2"]);
+    MissionTemplates.CompleteStageAct["1"].init(mission);
+    expect(mission.progress[0].target).toBe(1);
+    MissionTemplates.CompleteStageAct["1"].update(mission, { completeState: 3, stageId: "act50side_03" } as any);
+    expect(mission.progress[0].value).toBe(1);
+    // 星级不足不推进
+    MissionTemplates.CompleteStageAct["1"].update(mission, { completeState: 1, stageId: "act50side_03" } as any);
+    expect(mission.progress[0].value).toBe(1);
+    // 非该单关不推进
+    MissionTemplates.CompleteStageAct["1"].update(mission, { completeState: 3, stageId: "act50side_04" } as any);
+    expect(mission.progress[0].value).toBe(1);
+  });
+
+  it("StartInfoShare type1 线索分享推进", () => {
+    const mission = makeMission(["1", "3"]);
+    MissionTemplates.StartInfoShare["1"].init(mission);
+    expect(mission.progress[0].target).toBe(3);
+    MissionTemplates.StartInfoShare["1"].update(mission, {} as any);
+    MissionTemplates.StartInfoShare["1"].update(mission, {} as any);
+    expect(mission.progress[0].value).toBe(2);
+  });
+
+  it("ActivityCoinGain 累计活动币（按 itemId 过滤）", () => {
+    const mission = makeMission(["0", "act17side", "500", "act17side_token_compass"]);
+    MissionTemplates.ActivityCoinGain["0"].init(mission);
+    expect(mission.progress[0].target).toBe(500);
+    MissionTemplates.ActivityCoinGain["0"].update(mission, { itemId: "act17side_token_compass", count: 300 } as any);
+    expect(mission.progress[0].value).toBe(300);
+    // 非活动币物品不推进
+    MissionTemplates.ActivityCoinGain["0"].update(mission, { itemId: "30012", count: 900 } as any);
+    expect(mission.progress[0].value).toBe(300);
+  });
+
+  it("CostGold 累计消耗龙门币", () => {
+    const mission = makeMission(["0", "150000"]);
+    MissionTemplates.CostGold["0"].init(mission);
+    expect(mission.progress[0].target).toBe(150000);
+    MissionTemplates.CostGold["0"].update(mission, { goldCost: 3000 } as any);
+    MissionTemplates.CostGold["0"].update(mission, { goldCost: 2000 } as any);
+    expect(mission.progress[0].value).toBe(5000);
+  });
+
+  it("CostGoldPlus 累计升级晋升耗币", () => {
+    const mission = makeMission(["0", "60000"]);
+    MissionTemplates.CostGoldPlus["0"].init(mission);
+    expect(mission.progress[0].target).toBe(60000);
+    MissionTemplates.CostGoldPlus["0"].update(mission, { goldCostPlus: 1200 } as any);
+    expect(mission.progress[0].value).toBe(1200);
+  });
+
+  it("StageWithCondition type3 载具骑乘累计", () => {
+    const mission = makeMission(["3", "act50side_01^act50side_02", "trap_284_ctlzog", "ride", "3"]);
+    MissionTemplates.StageWithCondition["3"].init(mission);
+    expect(mission.progress[0].target).toBe(3);
+    MissionTemplates.StageWithCondition["3"].update(mission, {
+      completeState: 3, stageId: "act50side_01",
+      battleData: { stats: { extraBattleInfo: { "trap_284_ctlzog,ride": 2 } } },
+    } as any);
+    expect(mission.progress[0].value).toBe(2);
+  });
+
+  it("StageWithCondition type4 特殊计数（如 flashstun）累计", () => {
+    const mission = makeMission(["4", "act24side_01", "flashstun", "10"]);
+    MissionTemplates.StageWithCondition["4"].init(mission);
+    expect(mission.progress[0].target).toBe(10);
+    MissionTemplates.StageWithCondition["4"].update(mission, {
+      completeState: 3, stageId: "act24side_01",
+      battleData: { stats: { extraBattleInfo: { "flashstun,use": 6 } } },
+    } as any);
+    expect(mission.progress[0].value).toBe(6);
+  });
+
+  it("CompleteStageCondition type5 场上干员数不超上限", () => {
+    const mission = makeMission(["5", "3", "act11d0_08", "6"]);
+    MissionTemplates.CompleteStageCondition["5"].init(mission);
+    MissionTemplates.CompleteStageCondition["5"].update(mission, {
+      completeState: 3, stageId: "act11d0_08",
+      battleData: { stats: { charList: { a: 1, b: 2 } } },
+    } as any);
+    expect(mission.progress[0].value).toBe(1);
+  });
+
+  it("CompleteStageCondition type6 装置使用不超上限", () => {
+    const mission = makeMission(["6", "3", "act11d0_06", "trap_014_tower", "0"]);
+    MissionTemplates.CompleteStageCondition["6"].init(mission);
+    // 超上限不推进
+    MissionTemplates.CompleteStageCondition["6"].update(mission, {
+      completeState: 3, stageId: "act11d0_06",
+      battleData: { stats: { extraBattleInfo: { "trap_014_tower,use": 2 } } },
+    } as any);
+    expect(mission.progress[0].value).toBe(0);
+    // 未使用则推进
+    MissionTemplates.CompleteStageCondition["6"].update(mission, {
+      completeState: 3, stageId: "act11d0_06",
+      battleData: { stats: { extraBattleInfo: { "trap_014_tower,use": 0 } } },
+    } as any);
+    expect(mission.progress[0].value).toBe(1);
+  });
+
+  it("CompleteStageCondition type13 部署非助战指定干员推进（助战不推进）", () => {
+    const mission = makeMission(["13", "3", "act21side_s04", "char_427_vigil", "1"]);
+    MissionTemplates.CompleteStageCondition["13"].init(mission);
+    MissionTemplates.CompleteStageCondition["13"].update(mission, {
+      completeState: 3, stageId: "act21side_s04",
+      battleData: { stats: { charStats: [{ Key: { charId: "char_427_vigil", counterType: "SPAWN" }, Value: 1 }], idList: [] } },
+    } as any);
+    expect(mission.progress[0].value).toBe(1);
+    // 若在 idList（助战）则不推进
+    const m2 = makeMission(["13", "3", "act21side_s04", "char_427_vigil", "1"]);
+    MissionTemplates.CompleteStageCondition["13"].init(m2);
+    MissionTemplates.CompleteStageCondition["13"].update(m2, {
+      completeState: 3, stageId: "act21side_s04",
+      battleData: { stats: { charStats: [{ Key: { charId: "char_427_vigil", counterType: "SPAWN" }, Value: 1 }], idList: ["char_427_vigil"] } },
+    } as any);
+    expect(m2.progress[0].value).toBe(0);
   });
 });
 

@@ -295,6 +295,28 @@ export type EventMap = {
 
   /** 通关活动关卡累计（act53side 任务 CompleteStageAct：param[1]=关卡列表，目标=累计通关次数） */
   CompleteStageAct: [BattleData & { stageId: string }];
+  /** 指定关卡累计杀敌 / 用技能 / 部署（StageWithCondition：type0=杀敌，1=技能，2=部署） */
+  StageWithCondition: [BattleData & { stageId: string }];
+  /** 活动关卡累计击杀敌人（EnemyKill：param[1]=关卡列表，目标=累计击杀数） */
+  EnemyKill: [BattleData & { stageId: string }];
+  /** 通关任意关卡（CompleteStageOrCampaign：目标=累计通关次数） */
+  CompleteStageOrCampaign: [BattleData & { stageId: string }];
+  /** 通关物资筹备关卡（CompleteDailyStage：目标=累计通关次数，param[1]=物资类型） */
+  CompleteDailyStage: [BattleData & { stageId: string }];
+  /** 通关多维合作（CompleteAnyMulStage：param[1]=关卡，param[2]=星级门槛） */
+  CompleteAnyMulStage: [BattleData & { stageId: string }];
+  /** 驻守关卡通关（CompleteInterlockStage：param[1]=reference，param[2]=驻守关卡链） */
+  CompleteInterlockStage: [BattleData & { stageId: string }];
+  /** 通关且满足战斗条件（CompleteStageCondition：细分型读 enemyStats/extraBattleInfo/skillTrigStats） */
+  CompleteStageCondition: [BattleData & { stageId: string }];
+  /** 通关且达成击杀/装置计数（CompleteStageSimpleAtLeastId / CompleteStageSimpleAtMostId） */
+  CompleteStageSimpleAtLeastId: [BattleData & { stageId: string }];
+  CompleteStageSimpleAtMostId: [BattleData & { stageId: string }];
+  /** 携带遗物/科技树通关（CompleteStageWithRelic / CompleteStageWithTechTree） */
+  CompleteStageWithRelic: [BattleData & { stageId: string }];
+  CompleteStageWithTechTree: [BattleData & { stageId: string }];
+  /** 携带标志物通关（CompleteStageWithCharm） */
+  CompleteStageWithCharm: [BattleData & { stageId: string }];
   /** arkodc 奖励组收集（act53side 任务 ArkodcRewardGroupAtLeast：统计 topic.rewards 命中 param[2] 列表的数量） */
   ArkodcRewardGroupAtLeast: [{ activityId: string; rewards: Record<string, number> }];
 
@@ -319,6 +341,12 @@ export type EventMap = {
   MissionCompleteSome: [{ count: number }];
   /** 累计获得指定活动材料（勋章追踪，act53side TotalSimpleTokenCount：param[3]=材料列表） */
   TotalSimpleTokenCount: [{ itemId: string; count: number }];
+  /** 累计获得活动货币（ActivityCoinGain：param[1]=activityId，param[2]=目标，param[3]=活动币 itemId） */
+  ActivityCoinGain: [{ itemId: string; count: number }];
+  /** 累计消耗龙门币（CostGold：param[1]=目标；升级/晋升耗币 emit {goldCost}） */
+  CostGold: [{ goldCost: number }];
+  /** 干员升级与晋升累计消耗龙门币（CostGoldPlus：param[1]=目标） */
+  CostGoldPlus: [{ goldCostPlus: number }];
   /** 通关关卡且满足条件次数（勋章追踪，act53side PassStageWithSimpleCountMore；enemyStats=当关各敌人击杀计数） */
   PassStageWithSimpleCountMore: [
     {
@@ -399,20 +427,26 @@ export type EventMap = {
   GotItemBeforeTime: [{ itemId: string }];
   /** 危机合约维度分数总计（勋章追踪） */
   CrisisV2DimScoreTotal: [{ score: number }];
-  /** 危机合约解锁节点（勋章追踪） */
+  /** 危机合约解锁节点（勋章追踪，每局通关 +1） */
   CrisisV2NodeSome: [];
-  /** 危机合约维度分数达标（勋章追踪） */
+  /** 危机合约维度分数达标（勋章追踪，峰值得分） */
   CrisisV2DimScoreSome: [{ score: number }];
-  /** 危机合约使用助战（勋章追踪） */
-  CrisisV2UseAssist: [];
-  /** 危机合约分数达标（勋章追踪） */
+  /** 危机合约V2使用助战（勋章追踪） */
+  CrisisV2UseAssist: [{ used: number }];
+  /** 危机合约分数达标（勋章追踪，峰值得分） */
   CrisisStageScoreSome: [{ score: number }];
   /** 危机合约完成任务（勋章追踪） */
-  CrisisTaskSome: [];
+  CrisisTaskSome: [{ count: number }];
   /** 危机合约解锁永久符文（勋章追踪） */
-  CrisisUnlockPermRuneSome: [];
+  CrisisUnlockPermRuneSome: [{ count: number }];
   /** 危机合约使用助战（勋章追踪） */
-  CrisisUseAssist: [];
+  CrisisUseAssist: [{ used: number }];
+  /** 危机合约临时派遣结算（CrisisTempClearSome：每结算局 +1） */
+  CrisisTempClearSome: [{ count: number }];
+  /** 危机合约限时达成得分（CrisisStageScoreBeforeTime：峰值 score） */
+  CrisisStageScoreBeforeTime: [{ score: number }];
+  /** 重构符文关卡得分（RecalRuneStageScoreSome：峰值 score；由 recal battleFinish 发） */
+  RecalRuneStageScoreSome: [{ score: number }];
 
   // 日志相关事件
   /** 事件日志事件 - 记录事件日志 */

@@ -974,4 +974,151 @@ describe("arkhub 本地网关应答器", () => {
       sock.end();
     });
   });
+
+  describe("会话/设置/外观帧（路由补齐：此前落通用 ACK 或错位响应）", () => {
+    async function openConn(port: number) {
+      const sock = net.connect(port, "127.0.0.1");
+      let buf = Buffer.alloc(0);
+      const pending: Array<(f: Buffer) => void> = [];
+      sock.on("data", (d: Buffer) => {
+        buf = Buffer.concat([buf, d]);
+        while (buf.length >= 16) {
+          const len = buf.readUInt32BE(0);
+          if (buf.length < len) return;
+          const f = buf.subarray(0, len);
+          buf = buf.subarray(len);
+          pending.shift()?.(f);
+        }
+      });
+      const next = () => new Promise<Buffer>((resolve) => pending.push(resolve));
+      await new Promise<void>((r) => sock.once("connect", r));
+      const sendFrame = (mainID: number, subID: bigint, body: Buffer) => sock.write(frame(mainID, subID, body));
+      return { sock, next, sendFrame };
+    }
+
+    it("更换形象（0x38b3d83c）→ ChangeOutlookResp（0x38b3f7a7，code=100 + 回显外观）", async () => {
+      const port = await startServer();
+      const { sock, next, sendFrame } = await openConn(port);
+      const p = next();
+      // ChangeOutlookReq：{1:"char_1012_skadi2", 2:"char_1012_skadi2#1", 3:1(SP)}（§10 字段）
+      const body = Buffer.concat([
+        Buffer.from([0x0a, 0x10]), Buffer.from("char_1012_skadi2"),
+        Buffer.from([0x12, 0x12]), Buffer.from("char_1012_skadi2#1"),
+        Buffer.from([0x18, 0x01]),
+      ]);
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0x38b3d83c), body);
+      const resp = await p;
+      expect((resp.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("38b3f7a7");
+      const hex = resp.subarray(16).toString("hex");
+      expect(hex.startsWith("0864")).toBe(true); // {1:code=100}
+      expect(hex).toContain("636861725f313031325f736b61646932"); // char_1012_skadi2
+      expect(hex).toContain("636861725f313031325f736b616469322331"); // char_1012_skadi2#1
+      expect(hex.endsWith("2001")).toBe(true); // {4:skin_sp=1}
+      sock.end();
+    });
+
+    it("设置更新（0x38b36054 settings={4:0}）→ UpdatePlayerSettingsResp（0x38b3db61 回显）", async () => {
+      const port = await startServer();
+      const { sock, next, sendFrame } = await openConn(port);
+      const p = next();
+      // 官服抓包 2026-08-09：请求 {1:{1:4}}（settings map 条目 {key=4, value 缺省 0}）
+      const body = Buffer.from([0x0a, 0x02, 0x08, 0x04]);
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0x38b36054), body);
+      const resp = await p;
+      expect((resp.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("38b3db61");
+      // 响应 {1:100, 2:{1:4, 2:0}}——对齐官服抓包字节（0864120408041000）
+      expect(resp.subarray(16).toString("hex")).toBe("0864120408041000");
+      sock.end();
+    });
+
+    it("名片查看（0x38b322c3）→ GetBusinessCardResp（0x38b3613c 最小结构）", async () => {
+      const port = await startServer();
+      const { sock, next, sendFrame } = await openConn(port);
+      const p = next();
+      // 官服抓包：请求带 [4B seq] 前缀 + {1:unique_id}
+      const body = Buffer.concat([
+        Buffer.from([0, 0, 0, 7]),
+        Buffer.from([0x08, 0x01]),
+      ]);
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0x38b322c3), body);
+      const resp = await p;
+      expect((resp.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("38b3613c");
+      // {1: card=BusinessCard{1: card_info=NameCard(空)}} = 0a 02 0a 00
+      expect(resp.subarray(16).toString("hex")).toBe("0a020a00");
+      sock.end();
+    });
+
+    it("活跃上报（0x38b3ab0c）→ fire-and-forget 不响应", async () => {
+      const port = await startServer();
+      const { sock, sendFrame } = await openConn(port);
+      // ReportPlayerActiveReq：{1:count}——官服忽略不响应（此前落通用 ACK 属多余帧）
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0x38b3ab0c),
+        Buffer.from([0x08, 0x01]));
+      const got = await new Promise<boolean>((resolve) => {
+        sock.once("data", () => resolve(true));
+        setTimeout(() => resolve(false), 60);
+      });
+      expect(got).toBe(false);
+      sock.end();
+    });
+
+    it("离开场景（0x38b3c3c9）→ ACK {1:100}", async () => {
+      const port = await startServer();
+      const { sock, next, sendFrame } = await openConn(port);
+      const p = next();
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0x38b3c3c9),
+        Buffer.from([0x08, 0x01])); // {1:logout_type=1}
+      const resp = await p;
+      expect((resp.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("38b3c3ca");
+      expect(resp.subarray(16).toString("hex")).toBe("0864");
+      sock.end();
+    });
+
+    it("交互（0x38b36055）→ InteractionActionResp（0x38b3d134 {1:result_code=0}）", async () => {
+      const port = await startServer();
+      const { sock, next, sendFrame } = await openConn(port);
+      const p = next();
+      // InteractionActionReq：{1:target_unique_id, 2:action, 3:squad_index}（§10 字段）
+      const body = Buffer.concat([
+        Buffer.from([0x08, 0x01]),
+        Buffer.from([0x10, 0x00]),
+        Buffer.from([0x18, 0x00]),
+      ]);
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0x38b36055), body);
+      const resp = await p;
+      expect((resp.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("38b3d134");
+      expect(resp.subarray(16).toString("hex")).toBe("0800");
+      sock.end();
+    });
+
+    it("表情（0x38b3170a）→ ACK {1:100}", async () => {
+      const port = await startServer();
+      const { sock, next, sendFrame } = await openConn(port);
+      const p = next();
+      // DoRolePlayingReq：{1:emoj_id, 2:theme_id, 3:action_mask}
+      const body = Buffer.concat([
+        Buffer.from([0x0a, 0x01]), Buffer.from("e"),
+        Buffer.from([0x12, 0x01]), Buffer.from("t"),
+        Buffer.from([0x18, 0x01]),
+      ]);
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0x38b3170a), body);
+      const resp = await p;
+      expect((resp.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("38b3170b");
+      expect(resp.subarray(16).toString("hex")).toBe("0864");
+      sock.end();
+    });
+
+    it("动作掩码（0x38b39680）→ ACK {1:100}", async () => {
+      const port = await startServer();
+      const { sock, next, sendFrame } = await openConn(port);
+      const p = next();
+      // ModifyPlayerActionReq：{1:operation, 2:state_mask}
+      const body = Buffer.from([0x08, 0x00, 0x10, 0x00]);
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0x38b39680), body);
+      const resp = await p;
+      expect((resp.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("38b39681");
+      expect(resp.subarray(16).toString("hex")).toBe("0864");
+      sock.end();
+    });
+  });
 });

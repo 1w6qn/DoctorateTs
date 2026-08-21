@@ -1,0 +1,815 @@
+/**
+ * arkhub 网关会话/场景/交互处理（handlers——逻辑层）
+ *
+ * 登录/重连/心跳 + 场景（EnterScene/ChangeScene/LogoutScene/Move）+ 交互提交/引导推进
+ * + 设置更新/名片查看/更换形象/动作掩码/活跃上报/表情/交互等玩法帧的应答构建。
+ * 帧形状对齐官服逆向（docs/arkhub-gateway-protocol.md §9.1/§9.6/§10/§11）。
+ * 路由注册入口：registerSessionHandlers(router)。
+ *
+ * 依赖方向：session → shop（buildPixelArtData，场景帧 f7 像素画户籍数据源），
+ *           play → session（CAPTURE_MAP_IDS 捕抓区判定）。
+ */
+import { logger } from "@utils/logger";
+import { ARKHUB_GUIDE_ACTOR_FLAGS } from "@game/manager/activity/arkhub";
+import {
+  encodeFieldBytes as fb,
+  encodeFieldVarint as fv,
+  encodeFieldFixed32 as ff32,
+  ProtoReader,
+} from "../arkhub-gateway-codec";
+import { GW_CODE_OK } from "../arkhub-gateway-router";
+import type {
+  ArkdexDocsData,
+  ArkhubFrameRouter,
+  ArkhubGatewayHandlerContext,
+  ArkhubGatewayFrame,
+} from "../arkhub-gateway-router";
+import { buildPixelArtData } from "./shop";
+
+/* ---------- 帧 subID ---------- */
+
+/** 登录请求/响应 subID（main=4） */
+const GW_USER_LOGIN_REQ = BigInt(0x0fa1);
+const GW_USER_LOGIN_RESP = BigInt(0x0fa2);
+/** 重连登录请求/响应（UserReconnectReq/Resp，main=4） */
+const GW_RECONNECT_REQ = BigInt(0x0fa3);
+const GW_RECONNECT_RESP = BigInt(0x0fa4);
+/** 场景 hello subID（登录后客户端必发，实为 EnterSceneReq） */
+const GW_SCENE_HELLO = BigInt("0x00018fb64de29cdb");
+/** 场景数据响应 subID（服务端回给 hello 的 EnterSceneNotify 帧） */
+const GW_SCENE_DATA = BigInt("0x0002c89b38b37d3d");
+/** 切场景请求 subID（low32） */
+const GW_SCENE_SWITCH = BigInt(0x38b3b60b);
+/** 切场景 ACK 响应 subID（low32；响应前缀固定 0x2c89b3） */
+const GW_SCENE_SWITCH_ACK = BigInt(0x38b3a5a8);
+/** 离开场景（LogoutSceneReq：{1:logout_type}） */
+const GW_LOGOUT_SCENE_REQ = BigInt(0x38b3c3c9);
+/** 位置同步（MoveReq）——回位置 ACK（subID+1），保持既有行为 */
+const GW_MOVE_REQ = BigInt(0x38b32a34);
+/** 交互提交请求（领奖/AVG 完成：{1: actorId, 2: operationId("get_reward")}） */
+const GW_INTERACT_REQ = BigInt(0x38b3116d);
+/**
+ * 交互提交 ACK（0x38b38cd6，官服实锤 2026-08-19 抓包）
+ * 形状：[4B 请求序号回显] + {1:100}。交互提交后官服下发三帧：
+ * 38b38cd6 ACK → 3000ee32 奖励通知 → 38b36462 引导更新广播。
+ */
+const GW_INTERACT_ACK = BigInt(0x38b38cd6);
+/**
+ * GuideFlags 广播（服务端引导推进后主动下发）
+ * 形状：{2:{1:更新数}, 5:[{1:{1:key, 2:value}}×N]}——客户端据此更新引导状态并结束对话。
+ */
+const GW_GUIDE_FLAGS_NOTIFY = BigInt(0x38b36462);
+/**
+ * 奖励/掉落通知（服务端主动下发：{1:类型, 3:生物id列表} / {1:4, 4:npcPixel id}）
+ */
+const GW_REWARD_NOTIFY = BigInt(0x3000ee32);
+/** 设置更新（UpdatePlayerSettingsReq：{1:settings=map<int,int>}）→ 38b3db61 回显 */
+const GW_UPDATE_SETTINGS_REQ = BigInt(0x38b36054);
+const GW_UPDATE_SETTINGS_RESP = BigInt(0x38b3db61);
+/** 名片查看（GetBusinessCardReq：[seq]{1:unique_id}）→ 38b3613c BusinessCardResp */
+const GW_GET_BUSINESS_CARD_REQ = BigInt(0x38b322c3);
+const GW_GET_BUSINESS_CARD_RESP = BigInt(0x38b3613c);
+/** 更换形象（ChangeOutlookReq：{1:charater, 2:skin, 3:skin_sp}）→ 38b3f7a7 回显 */
+const GW_CHANGE_OUTLOOK_REQ = BigInt(0x38b3d83c);
+const GW_CHANGE_OUTLOOK_RESP = BigInt(0x38b3f7a7);
+/** 交互（InteractWithUnitReq：{1:target_unique_id, 2:action, 3:squad_index}）→ 38b3d134 */
+const GW_INTERACT_WITH_UNIT_REQ = BigInt(0x38b36055);
+const GW_INTERACT_WITH_UNIT_RESP = BigInt(0x38b3d134);
+/** 动作掩码（ModifyPlayerActionReq：{1:operation, 2:state_mask}）→ ACK */
+const GW_MODIFY_PLAYER_ACTION_REQ = BigInt(0x38b39680);
+/** 活跃上报（ReportPlayerActiveReq：{1:count}）——fire-and-forget，不响应 */
+const GW_REPORT_ACTIVE_REQ = BigInt(0x38b3ab0c);
+/** 表情/动作发送（DoRolePlayingReq：{1:emoj_id, 2:theme_id, 3:action_mask}）→ ACK */
+const GW_EMOTE = BigInt(0x38b3170a);
+
+/** 方舟枢纽广场 map_id（activity.ARK_HUB.sceneTypeMap：-1520665757 = TOWN 广场） */
+export const HALL_MAP_ID = -1520665757;
+/** 巡展捕抓区 map_id（sceneTypeMap：CAPTURE 场景 1/2/3） */
+export const CAPTURE_MAP_IDS = [-820616879, -820813487, -820747951];
+/** 场景类型（官服 EnterSceneNotify HallInfo.scene_type 恒定 200） */
+const HALL_SCENE_TYPE = 200;
+/** 广场属性位（HallInfo.attributes 恒定 1） */
+const HALL_ATTRIBUTES = 1;
+/** 位置同步间隔 ms（HallInfo.sync_interval 恒定 200） */
+const HALL_SYNC_INTERVAL = 200;
+
+/** 枢纽 actor → 领奖奖励（activity.ARK_HUB.rewardDataDict 映射；据官服/抓包） */
+const HUB_REWARD_MAP: Record<string, { id: string; count: number; type: string }[]> = {
+  // 夏妮引导（capture_catch_guide_01）：mmkabi 同款引导奖励 reward_guide_01（×50 券）
+  arkhub_main_shiane_02b: [{ id: "arkdex_1_gold", count: 50, type: "COIN" }],
+  arkhub_capture1_mmkabi_01b: [{ id: "arkdex_1_gold", count: 50, type: "COIN" }], // reward_guide_01
+  arkhub_main_daily_task_02a: [{ id: "arkdex_1_gold", count: 100, type: "COIN" }], // reward_daily_task_01
+};
+
+/** 引导 flag → feature_doc(f6) 功能位 id（FeatureFlagsDoc.flags 的 int key）。 */
+const ARKHUB_FEATURE_IDS: Record<string, number> = {
+  pixel_unlock: 1,
+  pixel_unlock_system: 2,
+};
+
+/* ---------- 应答构建 ---------- */
+
+/** 登录响应 body：{1: code=100, 2: heartbeatInterval, 3: reconnectToken(payload.signature)} */
+function buildLoginResp(uid: string): Buffer {
+  // 官服 field3 = `base64({uuid, device_id, expire_time}).signature` 两段式（签名部分任意）
+  const payload = Buffer.from(
+    JSON.stringify({
+      uuid: uid,
+      device_id: "0".repeat(32),
+      expire_time: Math.floor(Date.now() / 1000) + 86400,
+    }),
+    "utf8",
+  ).toString("base64");
+  const token = `${payload}.local-gateway`;
+  return Buffer.concat([
+    fv(1, GW_CODE_OK),
+    fv(2, 2000),
+    fb(3, Buffer.from(token, "utf8")),
+  ]);
+}
+
+/** Vector3 位置（3× fixed32，15B） */
+function buildVector3(x: number, y: number, z: number): Buffer {
+  return Buffer.concat([ff32(1, x), ff32(2, y), ff32(3, z)]);
+}
+
+/** 枢纽 GuideFlags 默认值（对齐官服完成态快照；传输层按连接初始化用） */
+export function defaultGuideFlags(): Record<string, number> {
+  return {
+    arkdex_battle_guide: 2,
+    area_2_guard: 1,
+    area_3_guard: 1,
+    terminal_guide: 1,
+    area_3_blcok: 1,
+    terminal_guide_arkdex: 1,
+    arkhub_login: 1,
+    arkdex_mmkabi1: 1,
+    // capture_catch_guide_02 取 2（完成态）——取 1 会触发 mmkabi_01b [AUTO] 引导
+    capture_catch_guide_02: 2,
+    pixel_unlock: 1,
+    pixel_unlock_system: 1,
+    area_2_block: 1,
+    area_1_block: 1,
+    capture_catch_guide_01: 2,
+  };
+}
+
+/**
+ * 合法 EnterSceneNotify body：{1: HallInfo, 2: PlayerSyncData(自己), 3: PlayerHallBrief}
+ * 官方形状（抓包验证，tmp/capture/records/2026-08-09T04-29-12-534Z/parsed.json）：
+ * - HallInfo: {1:unique_id, 2:map_id(-1520665757=TOWN), 3:scene_type(200), 5:attributes(1), 6:sync_interval(200)}
+ * - PlayerSyncData: {
+ *     1: PlayerBrief{1:uid, 2:nickname, 3:nicknumber, 4:level, 5:channel, 6:charater, 7:skin}
+ *     2: AvatarInfo{1:"ICON", 2:avatar_id, 3:secretary, 4:secretary_skin_id}
+ *     3: GuideFlags{1:[{1:key, 2:value}...], 2:ts}
+ *     4: GameplayAttr{1:[{1:attrId, 2:level}...]}
+ *   }（配置 resolveArkdexDocs 时补 f5-f9 户籍）
+ * - PlayerHallBrief: {1:unique_id, 2:pos(Vector3)}
+ */
+function buildEnterScene(
+  uid: string,
+  profile: {
+    nickname: string;
+    level: number;
+    charId: string;
+    skinId: string;
+    avatarId?: string;
+  },
+  mapId: number = HALL_MAP_ID,
+  guideValues: Record<string, number> = defaultGuideFlags(),
+  arkdocs?: ArkdexDocsData,
+): Buffer {
+  // HallInfo（unique_id 每会话生成，取 uid 数值稳定；map_id 决定客户端加载哪个场景）
+  const uidNum = BigInt(uid || "0") || BigInt(Date.now());
+  const hallUnique = BigInt.asUintN(32, uidNum) | BigInt(1);
+  const hallInfo = Buffer.concat([
+    fv(1, hallUnique),
+    fv(2, mapId),
+    fv(3, HALL_SCENE_TYPE),
+    fv(5, HALL_ATTRIBUTES),
+    fv(6, HALL_SYNC_INTERVAL),
+  ]);
+  // PlayerBrief：1~3 基本，4=level，5=channel，6=charater，7=skin（权威字段名 §10；
+  // PlayerBrief 无 avatarId 字段——玩家形象走下方 Avatar f3/f4 = secretary/secretary_skin_id）
+  const playerBrief = Buffer.concat([
+    fb(1, Buffer.from(uid, "utf8")),
+    fb(2, Buffer.from(profile.nickname, "utf8")),
+    fb(3, Buffer.from(String(uidNum & BigInt(9999)), "utf8")),
+    fv(4, profile.level || 1),
+    fv(5, 1), // channel（登录渠道，官方 f5）
+    fb(6, Buffer.from(profile.charId, "utf8")),
+    fb(7, Buffer.from(profile.skinId, "utf8")),
+  ]);
+  // Avatar：{1:type="ICON", 2:avatar_id, 3:secretary(代表干员), 4:secretary_skin_id(秘书皮肤)}（§10）
+  const avatarInfo = Buffer.concat([
+    fb(1, Buffer.from("ICON", "utf8")),
+    fb(2, Buffer.from(profile.avatarId || "avatar_dyn_04", "utf8")),
+    fb(3, Buffer.from(profile.charId, "utf8")),
+    fb(4, Buffer.from(profile.skinId, "utf8")),
+  ]);
+  // GuideFlags：f1 为【重复字段】，每条 {1:key, 2:value} 独立一条，f2 为时间戳
+  const guideFlags = Buffer.concat([
+    ...Object.entries(guideValues).map(([key, val]) =>
+      fb(1, Buffer.concat([fb(1, Buffer.from(key, "utf8")), fv(2, val)])),
+    ),
+    fv(2, BigInt(Date.now())),
+  ]);
+  // GameplayAttr：官方样例 [{1:4,2:1},{1:5,2:1},{1:9}]
+  const gameAttrs = Buffer.concat([
+    fb(1, Buffer.concat([fv(1, 4), fv(2, 1)])),
+    fb(1, Buffer.concat([fv(1, 5), fv(2, 1)])),
+    fb(1, Buffer.concat([fv(1, 9)])),
+  ]);
+  // 户籍裁剪：配置 resolveArkdexDocs 时补 f5-f9（客户端据此渲染生物图鉴/道具/功能位）
+  const syncParts = [
+    fb(1, playerBrief),
+    fb(2, avatarInfo),
+    fb(3, guideFlags),
+    fb(4, gameAttrs),
+  ];
+  if (arkdocs) {
+    syncParts.push(fb(5, buildCreatureData(arkdocs)));
+    syncParts.push(fb(6, buildArkhubItemData(arkdocs)));
+    syncParts.push(fb(7, buildPixelArtData(uid)));
+    syncParts.push(fb(8, buildBuffDoc()));
+    syncParts.push(fb(9, buildFeatureDoc()));
+  }
+  const playerSync = Buffer.concat(syncParts);
+  // PlayerHallBrief：{1: unique_id(ulong), 2: pos}
+  const selfUnitId = BigInt.asUintN(64, uidNum) | (BigInt(1) << BigInt(40));
+  const hallBrief = Buffer.concat([
+    fv(1, selfUnitId),
+    fb(2, buildVector3(...spawnPointFor(mapId))),
+  ]);
+  return Buffer.concat([
+    fb(1, hallInfo),
+    fb(2, playerSync),
+    fb(3, hallBrief),
+  ]);
+}
+
+/* ---------- PlayerSyncData f5-f9 户籍构建（奇象展册，字段号对齐官服逆向） ---------- */
+
+/**
+ * 生物图鉴数据（PlayerSyncData.f5 CreatureData）
+ * 官方结构：f1 creatures[]（Creature），f2 collections[]（CreatureCollection）。
+ * dex 每种收录 → collections 一条 CreatureCollection（template_id=numId）；scanBag 每个持有个体
+ * → creatures 一条 Creature（unique_id=个体id，template_id=numId）。
+ */
+function buildCreatureData(docs: ArkdexDocsData): Buffer {
+  const creatures = (docs.scanBag ?? []).map((b) =>
+    fb(1, Buffer.concat([
+      fv(1, BigInt(b.id)), // unique_id
+      fv(2, b.numId), // template_id
+      fv(3, b.persona ?? 0), // persona
+      fv(5, BigInt(Date.now())), // gain_time
+      ...(b.source ? [fb(6, Buffer.from(b.source, "utf8"))] : []), // source(string)
+    ])),
+  );
+  const collections = Object.keys(docs.dex ?? {}).map((numId) =>
+    fb(2, Buffer.concat([
+      fv(1, Number(numId)), // template_id
+      fv(3, 1), // caught_count
+    ])),
+  );
+  return Buffer.concat([...creatures, ...collections]);
+}
+
+/**
+ * 道具数据（PlayerSyncData.f6 ArkhubItemData）
+ * 官方结构：f1 coin(int)，f2 items[]（ArkhubItem{1:item_id(int), 2:count(int)}）。
+ */
+function buildArkhubItemData(docs: ArkdexDocsData): Buffer {
+  const items = (docs.items ?? []).map((it) =>
+    fb(2, Buffer.concat([fv(1, it.itemId), fv(2, it.count)])),
+  );
+  return Buffer.concat([fv(1, docs.coin ?? 0), ...items]);
+}
+
+/**
+ * 状态数据（PlayerSyncData.f8 BuffDoc）：空容器。
+ */
+function buildBuffDoc(): Buffer {
+  return Buffer.alloc(0);
+}
+
+/** 非永久功能菜单解锁位（ActArkHubMenuType 枚举值 = menuData.sortId）：4=扫描仪、
+ *  5=道具箱、6=数据库、7=画像册、8=交换站。 */
+const ARKHUB_MENU_UNLOCK_IDS = [4, 5, 6, 7, 8];
+
+/**
+ * 功能位数据（PlayerSyncData.f9 FeatureFlagsDoc）
+ * 官方结构：f1 flags 为 Dictionary<int,int>（proto map：重复 f1 元素 {1:menuType, 2:value}）。
+ */
+function buildFeatureDoc(): Buffer {
+  return Buffer.concat(
+    ARKHUB_MENU_UNLOCK_IDS.map((id) => fb(1, Buffer.concat([fv(1, id), fv(2, 1)]))),
+  );
+}
+
+/**
+ * 各场景出生点（官服抓包验证：EnterSceneNotify PlayerHallBrief.pos）
+ * - TOWN 广场 = (4.742, -0.008, 6.079)
+ * - CAPTURE 1 = (1.945, 0.513, -6.850)（CAPTURE 2/3 无样本，沿用 CAPTURE 1）
+ */
+function spawnPointFor(mapId: number): [number, number, number] {
+  if (CAPTURE_MAP_IDS.includes(mapId)) return [1.945, 0.513, -6.85];
+  return [4.742, -0.008, 6.079];
+}
+
+/**
+ * 道具奖励通知（3000ee32，交互提交领奖后服务端下发）
+ * 官服形状（2026-08-19 shiane_02b 领奖实锤）：{1:1, 2:[{1:奖励id, 2:数量}×N]}。
+ *
+ * @param items - 奖励条目（{id: 数值奖励 id, count: 数量}）
+ */
+function buildItemRewardNotify(items: Array<{ id: number; count: number }>): Buffer {
+  const entries = (items ?? []).map((it) => fb(2, Buffer.concat([fv(1, it.id), fv(2, it.count)])));
+  return Buffer.concat([fv(1, 1), ...entries]);
+}
+
+/**
+ * GuideFlags 广播（38b36462，引导推进后服务端主动下发）
+ * 该帧官方业务对象为 PlayerAlterDataNotify（SyncAlterDataNotify），字段：
+ *   f2 = item_alter_data:ItemChangeNotify{ 1:coin, 2:modified:ArkhubItem[], 3:deleted }
+ *   f5 = task_alter_data:TaskAlterList{ 1:modified:TaskInfo[] }，TaskInfo{ 1:seq_number, 2:status }
+ * 本地发送对齐官方结构：f2 放当前券数 + 本次领奖道具，f5 把引导推进项封装为
+ * task_alter_data.modified（关键：f5 必须包进 TaskAlterList.modified 这层嵌套），
+ * f6 兜底双通道下发 feature_doc（画像册等设施解锁）。
+ *
+ * @param flags - 本次推进的 GuideFlags（{key: value}，转为 TaskInfo{seq_number, status}）
+ * @param gold - 玩家当前奇象兑换券数（arkdex_1_gold 持有量，f2.f1/ItemChangeNotify.coin）
+ * @param items - 本次领奖道具（{id, count}，f2.f2/ArkhubItem[]）
+ */
+function buildGuideFlagsNotify(
+  flags: Record<string, number>,
+  gold = 0,
+  items: Array<{ id: number; count: number }> = [],
+): Buffer {
+  // f2 = ItemChangeNotify{ 1:coin, 2:modified[] }（官方字段号，ArkhubItem{item_id,count} 兼容）
+  const f2 = Buffer.concat([
+    fv(1, gold),
+    ...(items ?? []).map((it) => fb(2, Buffer.concat([fv(1, it.id), fv(2, it.count)]))),
+  ]);
+  // f5 = TaskAlterList{ 1:modified:[TaskInfo{1:seq_number, 2:status}] }
+  const modified = Object.entries(flags).map(([key, val]) =>
+    fb(1, Buffer.concat([fb(1, Buffer.from(key, "utf8")), fv(2, val)])),
+  );
+  // f6 = feature_doc: FeatureFlagsDoc{ 1:flags:[{1:featureId, 2:value}] }（兜底双通道）
+  const featureFlags = Object.entries(flags)
+    .filter(([key]) => ARKHUB_FEATURE_IDS[key] !== undefined)
+    .map(([key, val]) =>
+      fb(1, Buffer.concat([fv(1, ARKHUB_FEATURE_IDS[key] as number), fv(2, val)])),
+    );
+  return Buffer.concat([
+    fb(2, f2),
+    ...(modified.length ? [fb(5, Buffer.concat(modified))] : []),
+    ...(featureFlags.length ? [fb(6, Buffer.concat(featureFlags))] : []),
+  ]);
+}
+
+/**
+ * 设置更新响应（38b36054 → 38b3db61，官服抓包 2026-08-09 字节对齐）
+ * 请求 {1:settings=map<int,int>}（每条 {1:key, 2:value}）；响应回显 code + settings 快照。
+ *
+ * @param entries - 请求解析出的 settings 条目（{key, value}；value 缺省 0）
+ */
+function buildUpdateSettingsResp(entries: Array<{ key: number; value: number }>): Buffer {
+  const settings = (entries ?? []).map((e) => fb(2, Buffer.concat([fv(1, e.key), fv(2, e.value)])));
+  return Buffer.concat([fv(1, GW_CODE_OK), ...settings]);
+}
+
+/**
+ * 名片响应（38b322c3 → 38b3613c BusinessCardResp{1:card=BusinessCard}）
+ * 单机无其他玩家——回最小合法结构（card → card_info 空 NameCard），保证客户端
+ * 拿到正确 subID 的响应而非错位的 subID+1 ACK（此前会导致卡片 UI 流程错乱）。
+ */
+function buildBusinessCardResp(): Buffer {
+  const businessCard = fb(1, Buffer.alloc(0)); // BusinessCard{1: card_info: NameCard(空)}
+  return fb(1, businessCard);
+}
+
+/**
+ * 更换形象响应（38b3d83c → 38b3f7a7 ChangeOutlookResp）
+ * 回显 code=100 + 服务端确认后的外观（干员/皮肤/SP），与请求一致时客户端视为生效。
+ *
+ * @param charater - 角色干员 ID
+ * @param skin - 皮肤 ID
+ * @param skinSp - 是否 SP 皮肤
+ */
+function buildChangeOutlookResp(charater: string, skin: string, skinSp: boolean): Buffer {
+  return Buffer.concat([
+    fv(1, GW_CODE_OK),
+    fb(2, Buffer.from(charater, "utf8")),
+    fb(3, Buffer.from(skin, "utf8")),
+    fv(4, skinSp ? 1 : 0),
+  ]);
+}
+
+/**
+ * 交互响应（38b36055 → 38b3d134 InteractionActionResp）
+ * 权威字段：{1:result_code(int)}——0=成功（本地回 0，对齐 doc §10 交互动作语义）。
+ */
+function buildInteractionWithUnitResp(): Buffer {
+  return Buffer.from([0x08, 0]);
+}
+
+/** 重连登录响应（0x0fa3 → 0x0fa4）：{1:101（重连成功 code）} */
+function buildReconnectResp(): Buffer {
+  return Buffer.from([0x08, 101]);
+}
+
+/** 通用 ACK body：{1:code=100} */
+function ackBody(): Buffer {
+  return Buffer.from([0x08, GW_CODE_OK]);
+}
+
+/* ---------- 帧处理 ---------- */
+
+/** 玩家资料（charId/skinId 供客户端渲染广场玩家模型；缺省回退通用值） */
+function buildProfile(ctx: ArkhubGatewayHandlerContext): {
+  nickname: string;
+  level: number;
+  charId: string;
+  skinId: string;
+  avatarId?: string;
+} {
+  const { state, opts } = ctx;
+  const nickname = opts.resolveNickname ? opts.resolveNickname(state.uid) : `博士${state.uid || "1"}`;
+  const profile = opts.resolvePlayerProfile ? opts.resolvePlayerProfile(state.uid) : undefined;
+  return {
+    nickname: profile?.nickname || nickname,
+    level: profile?.level || 1,
+    charId: profile?.charId || "",
+    skinId: profile?.skinId || "",
+    avatarId: profile?.avatarId,
+  };
+}
+
+/** 场景数据帧：EnterSceneNotify（目标 map_id 决定客户端加载场景） */
+function sendSceneFrame(ctx: ArkhubGatewayHandlerContext, mapId: number): void {
+  const { state, opts } = ctx;
+  // 户籍裁剪：配置 resolveArkdexDocs 时把玩家奇象展册数据编进 PlayerSyncData f5-f9
+  const arkdocs = opts.resolveArkdexDocs?.(state.uid);
+  ctx.send(
+    8,
+    GW_SCENE_DATA,
+    buildEnterScene(state.uid, buildProfile(ctx), mapId, state.guideState, arkdocs),
+  );
+}
+
+/** 心跳（main=1）：回显 16B（客户端时间戳 + 服务端时间戳） */
+function handleHeartbeat(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): void {
+  const echo = Buffer.alloc(16);
+  frame.body.copy(echo, 0, 0, Math.min(frame.body.length, 8));
+  echo.writeBigUInt64BE(BigInt(Date.now()), 8);
+  ctx.send(2, BigInt(0), echo);
+}
+
+/** 登录（main=4 sub=0x0fa1）：解析 uid（field1）用于 token/场景，任意凭据均放行（私服） */
+function handleLogin(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): void {
+  const { state, opts } = ctx;
+  const uid = readLoginUid(frame.body);
+  state.uid = uid;
+  state.currentMapId = HALL_MAP_ID;
+  // 渐进引导：登录后按 uid 解析 GuideFlags（persisted，缺省回退完成态）。
+  // 支持异步回调（动态加载玩法模块）——fire-and-forget，场景 hello 前生效。
+  const guideResolved = opts.resolveGuideFlags?.(uid);
+  if (guideResolved && typeof (guideResolved as Promise<unknown>).then === "function") {
+    (guideResolved as Promise<Record<string, number> | undefined>)
+      .then((flags) => {
+        if (flags) state.guideState = flags;
+      })
+      .catch((e: Error) => logger.warn("arkhub-gateway", `GuideFlags 解析失败: ${e.message}`));
+  } else if (guideResolved) {
+    state.guideState = guideResolved as Record<string, number>;
+  }
+  logger.info("arkhub-gateway", `本地网关登录: uid=${uid || "?"}`);
+  ctx.send(4, GW_USER_LOGIN_RESP, buildLoginResp(uid));
+}
+
+/** 重连登录（UserReconnectReq：{1:uid, 2:base64 JWT}）→ {1:101} 重连成功（私服单账号任意放行） */
+function handleReconnect(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): void {
+  const uid = readLoginUid(frame.body);
+  ctx.state.uid = uid;
+  logger.info("arkhub-gateway", `本地网关重连登录: uid=${uid || "?"}`);
+  ctx.send(4, GW_RECONNECT_RESP, buildReconnectResp());
+}
+
+/** 登录请求 body 解析 uid（field1 string） */
+function readLoginUid(body: Buffer): string {
+  const reader = new ProtoReader(body);
+  let uid = "";
+  for (;;) {
+    const tag = reader.readTag();
+    if (!tag) break;
+    if (tag.wire === 2) {
+      const s = reader.readString();
+      if (tag.field === 1) uid = s;
+    } else if (tag.wire === 0) {
+      reader.readVarint();
+    } else break;
+  }
+  return uid;
+}
+
+/** 场景 hello（EnterSceneReq）→ 合法 EnterSceneNotify（当前场景 + 自己） */
+function handleEnterScene(ctx: ArkhubGatewayHandlerContext, _frame: ArkhubGatewayFrame): void {
+  const { state, opts } = ctx;
+  state.currentMapId = HALL_MAP_ID;
+  // 进入大厅：首次自动完成"登录/入场引导"（arkhub_login）。
+  // 渐进模式下 arkhub_login 初始为 0（触发入场引导对话）；这里在本连接把它置 1
+  // 并经 onGuideAdvance→arkhubAdvanceGuide 持久化——本次场景仍播一次，之后不再重复。
+  if (state.guideState.arkhub_login === 0) {
+    state.guideState.arkhub_login = 1;
+    try {
+      opts.onGuideAdvance?.(state.uid, "arkhub_login", "");
+    } catch (e) {
+      logger.warn("arkhub-gateway", `登录引导自动完成失败: ${(e as Error).message}`);
+    }
+  }
+  logger.info(
+    "arkhub-gateway",
+    `场景 hello → EnterSceneNotify (uid=${state.uid}, map=${state.currentMapId})`,
+  );
+  sendSceneFrame(ctx, state.currentMapId);
+}
+
+/**
+ * 切场景（传送门）：请求 {1:2, 2:<目标 map_id 有符号 varint>}（官服抓包：
+ * 0x38b3b60b → ACK 0x38b3a5a8{f1:9} + 新场景 EnterSceneNotify 0x38b37d3d）
+ */
+function handleChangeScene(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): void {
+  const { state } = ctx;
+  let targetMapId = state.currentMapId;
+  try {
+    const reader = new ProtoReader(frame.body);
+    for (;;) {
+      const tag = reader.readTag();
+      if (!tag) break;
+      if (tag.wire === 0) {
+        const v = reader.readVarint();
+        if (tag.field === 2) targetMapId = Number(BigInt.asIntN(64, v));
+      } else break;
+    }
+  } catch {
+    // 解析失败保持原场景
+  }
+  state.currentMapId = targetMapId;
+  const mapName = CAPTURE_MAP_IDS.includes(targetMapId)
+    ? `CAPTURE(${CAPTURE_MAP_IDS.indexOf(targetMapId) + 1})`
+    : targetMapId === HALL_MAP_ID
+      ? "TOWN"
+      : "?";
+  logger.info(
+    "arkhub-gateway",
+    `切场景 → ${mapName} (map=${targetMapId}) uid=${state.uid}`,
+  );
+  // 官服序列：先小 ACK（{1:9}），再发新场景 EnterSceneNotify
+  ctx.send(
+    8,
+    (BigInt("0x2c89b3") << BigInt(32)) | GW_SCENE_SWITCH_ACK,
+    Buffer.from([0x08, 0x09]),
+  );
+  sendSceneFrame(ctx, state.currentMapId);
+}
+
+/** 离开场景（LogoutSceneReq）→ 通用 ACK {1:100} */
+function handleLogoutScene(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): void {
+  logger.debug("arkhub-gateway", `离开场景 (uid=${ctx.state.uid || "?"})`);
+  ctx.send(8, frame.subID + BigInt(1), ackBody());
+}
+
+/** 位置同步（MoveReq）——body 仅日志，回位置 ACK（subID+1，保持既有行为） */
+function handleMove(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): void {
+  ctx.send(8, frame.subID + BigInt(1), ackBody());
+}
+
+/** 设置更新（UpdatePlayerSettingsReq：{1:settings=map<int,int>}）→ 38b3db61 回显 code + settings */
+function handleUpdateSettings(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): void {
+  const entries: Array<{ key: number; value: number }> = [];
+  const reader = new ProtoReader(frame.body);
+  for (;;) {
+    const tag = reader.readTag();
+    if (!tag) break;
+    if (tag.wire === 2) {
+      if (tag.field === 1) {
+        const entryBuf = reader.readLengthDelimited();
+        const er = new ProtoReader(entryBuf);
+        let key = 0;
+        let value = 0;
+        for (;;) {
+          const et = er.readTag();
+          if (!et) break;
+          if (et.wire === 0) {
+            const v = Number(er.readVarint());
+            if (et.field === 1) key = v;
+            else if (et.field === 2) value = v;
+          } else break;
+        }
+        entries.push({ key, value });
+      } else {
+        reader.readLengthDelimited();
+      }
+    } else if (tag.wire === 0) {
+      reader.readVarint();
+    } else break;
+  }
+  logger.info("arkhub-gateway", `设置更新 settings=${JSON.stringify(entries)} → 响应 (uid=${ctx.state.uid || "?"})`);
+  ctx.send(
+    8,
+    (frame.subID & ~0xffffffffn) | GW_UPDATE_SETTINGS_RESP,
+    buildUpdateSettingsResp(entries),
+  );
+}
+
+/** 名片查看（GetBusinessCardReq：[seq]{1:unique_id}）→ 38b3613c BusinessCardResp（最小结构） */
+function handleGetBusinessCard(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): void {
+  const seq = frame.body.length >= 4 ? frame.body.readUInt32BE(0) : 0;
+  logger.info("arkhub-gateway", `名片查看 (uid=${ctx.state.uid || "?"}) → BusinessCard (seq=${seq})`);
+  ctx.send(
+    8,
+    (frame.subID & ~0xffffffffn) | GW_GET_BUSINESS_CARD_RESP,
+    buildBusinessCardResp(),
+  );
+}
+
+/** 更换形象（ChangeOutlookReq：{1:charater, 2:skin, 3:skin_sp}）→ 38b3f7a7 回显确认 */
+function handleChangeOutlook(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): void {
+  const reader = new ProtoReader(frame.body);
+  let charater = "";
+  let skin = "";
+  let skinSp = false;
+  for (;;) {
+    const tag = reader.readTag();
+    if (!tag) break;
+    if (tag.wire === 2) {
+      const s = reader.readString();
+      if (tag.field === 1) charater = s;
+      else if (tag.field === 2) skin = s;
+    } else if (tag.wire === 0) {
+      const v = reader.readVarint();
+      if (tag.field === 3) skinSp = v !== 0n;
+    } else break;
+  }
+  logger.info("arkhub-gateway", `更换形象 charater=${charater} skin=${skin} skin_sp=${skinSp}`);
+  ctx.send(
+    8,
+    (frame.subID & ~0xffffffffn) | GW_CHANGE_OUTLOOK_RESP,
+    buildChangeOutlookResp(charater, skin, skinSp),
+  );
+}
+
+/** 交互（InteractWithUnitReq）→ 38b3d134 InteractionActionResp{1:result_code=0} */
+function handleInteractWithUnit(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): void {
+  logger.info("arkhub-gateway", `交互 (uid=${ctx.state.uid || "?"}) → InteractionActionResp`);
+  ctx.send(
+    8,
+    (frame.subID & ~0xffffffffn) | GW_INTERACT_WITH_UNIT_RESP,
+    buildInteractionWithUnitResp(),
+  );
+}
+
+/** 动作掩码（ModifyPlayerActionReq）→ 通用 ACK {1:100} */
+function handleModifyPlayerAction(
+  ctx: ArkhubGatewayHandlerContext,
+  frame: ArkhubGatewayFrame,
+): void {
+  ctx.send(8, frame.subID + BigInt(1), ackBody());
+}
+
+/** 活跃上报（ReportPlayerActiveReq）——官服 fire-and-forget，不响应（仅日志） */
+function handleReportActive(ctx: ArkhubGatewayHandlerContext, _frame: ArkhubGatewayFrame): void {
+  logger.debug("arkhub-gateway", `活跃上报 (uid=${ctx.state.uid || "?"})`);
+}
+
+/** 服务端下发帧（down 广播，客户端不会主动发）——收到仅记录日志，不回帧 */
+function logOnlyDown(ctx: ArkhubGatewayHandlerContext, _frame: ArkhubGatewayFrame): void {
+  logger.debug("arkhub-gateway", `服务端下发帧（忽略） uid=${ctx.state.uid || "?"}`);
+}
+
+/** 表情/动作（DoRolePlayingReq）→ 通用 ACK {1:100}（单机 fire-and-forget） */
+function handleEmote(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): void {
+  ctx.send(8, frame.subID + BigInt(1), ackBody());
+}
+
+/**
+ * 枢纽交互提交（领奖）：[seq] {1:actorId, 2:operationId("get_reward")}
+ * 响应三帧（官服实锤 2026-08-19 shiane_02b 领奖抓包）：
+ * ① 38b38cd6 通用 ACK（[seq回显]{1:100}）
+ * ② 3000ee32 道具奖励通知（{1:1, 2:[{1:5012,2:1},{1:5022,2:1}]}）
+ * ③ 38b36462 引导更新广播（capture_update_guide=1，客户端据此结束对话）
+ */
+function handleSubmitActorOp(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): void {
+  const { state, opts } = ctx;
+  const body = frame.body;
+  const seq = body.length >= 4 ? body.readUInt32BE(0) : 0;
+  let actorId = "";
+  let operationId = "";
+  try {
+    const reader = new ProtoReader(body.subarray(4));
+    for (;;) {
+      const tag = reader.readTag();
+      if (!tag) break;
+      if (tag.wire === 2) {
+        const s = reader.readString();
+        if (tag.field === 1) actorId = s;
+        else if (tag.field === 2) operationId = s;
+      } else if (tag.wire === 0) {
+        reader.readVarint();
+      } else break;
+    }
+  } catch {
+    // 解析失败按空 actor 处理
+  }
+  const reward = HUB_REWARD_MAP[actorId] ?? [];
+  // 引导推进：命中引导 actor → 本连接 guideState 同步 + 通知私服落持久化/出展指引任务。
+  // 引导推进后服务端主动下发 GuideFlags 广播（38b36462）——客户端据此更新引导状态并结束对话。
+  const guideFlags = ARKHUB_GUIDE_ACTOR_FLAGS[actorId];
+  let guideBroadcast: Buffer | null = null;
+  if (guideFlags) {
+    for (const [key, value] of Object.entries(guideFlags)) {
+      state.guideState[key] = Math.max(state.guideState[key] ?? 0, value as number);
+    }
+    // 引导更新广播（38b36462）push 两件事：
+    //  ① capture_update_guide=1 —— 客户端据此"重新读取引导状态并结束当前对话"；
+    //  ② 本次推进的其余 GuideFlags（如 pixel_unlock）——经 task_alter_data 下发，
+    //     客户端据此解锁画像册等设施。f2 对齐官服：{1:当前券数, 2:[本次领奖道具]}
+    const gold = opts.resolveArkDexGold?.(state.uid) ?? 0;
+    guideBroadcast = buildGuideFlagsNotify(
+      { ...(guideFlags as Record<string, number>), capture_update_guide: 1 },
+      gold,
+      [
+        { id: 5012, count: 1 },
+        { id: 5022, count: 1 },
+      ],
+    );
+    try {
+      opts.onGuideAdvance?.(state.uid, actorId, operationId);
+    } catch (e) {
+      logger.warn("arkhub-gateway", `引导推进处理失败: ${(e as Error).message}`);
+    }
+  }
+  // 每日物资：服务端记录领取天数 + 发 100 券（onDailySupplyClaimed）
+  if (actorId === "arkhub_main_daily_task_02a") {
+    try {
+      opts.onDailySupplyClaimed?.(state.uid);
+    } catch (e) {
+      logger.warn("arkhub-gateway", `每日物资处理失败: ${(e as Error).message}`);
+    }
+  }
+  logger.info(
+    "arkhub-gateway",
+    `交互提交 actor=${actorId} op=${operationId} → 奖励 ${reward.map((r) => `${r.id}x${r.count}`).join(",") || "无"}`,
+  );
+  const ack = Buffer.alloc(4);
+  ack.writeUInt32BE(seq, 0);
+  ctx.send(
+    8,
+    (frame.subID & ~0xffffffffn) | GW_INTERACT_ACK,
+    Buffer.concat([ack, Buffer.from([0x08, GW_CODE_OK])]),
+  );
+  ctx.send(
+    8,
+    (frame.subID & ~0xffffffffn) | GW_REWARD_NOTIFY,
+    buildItemRewardNotify([
+      { id: 5012, count: 1 },
+      { id: 5022, count: 1 },
+    ]),
+  );
+  if (guideBroadcast) {
+    ctx.send(8, (frame.subID & ~0xffffffffn) | GW_GUIDE_FLAGS_NOTIFY, guideBroadcast);
+  }
+}
+
+/** 注册会话/场景/交互/引导路由 */
+export function registerSessionHandlers(router: ArkhubFrameRouter): void {
+  // main 级（心跳无 subID 语义）
+  router.registerMain(1, "心跳(Ping)", handleHeartbeat);
+  // full 匹配（登录/重连/场景 hello——整 64 位 subID）
+  router.register(4, GW_USER_LOGIN_REQ, "登录(UserLoginReq)", handleLogin);
+  router.register(4, GW_RECONNECT_REQ, "重连登录(UserReconnectReq)", handleReconnect);
+  router.register(8, GW_SCENE_HELLO, "场景hello(EnterSceneReq)", handleEnterScene);
+  // low32 匹配（场景/交互/设置/外观等玩法帧）
+  router.registerLow(8, GW_SCENE_SWITCH, "切场景(ChangeSceneReq)", handleChangeScene);
+  router.registerLow(8, GW_LOGOUT_SCENE_REQ, "离开场景(LogoutSceneReq)", handleLogoutScene);
+  router.registerLow(8, GW_MOVE_REQ, "位置同步(MoveReq)", handleMove);
+  router.registerLow(8, GW_UPDATE_SETTINGS_REQ, "设置更新(UpdatePlayerSettingsReq)", handleUpdateSettings);
+  router.registerLow(8, GW_GET_BUSINESS_CARD_REQ, "名片查看(GetBusinessCardReq)", handleGetBusinessCard);
+  router.registerLow(8, GW_CHANGE_OUTLOOK_REQ, "更换形象(ChangeOutlookReq)", handleChangeOutlook);
+  router.registerLow(8, GW_INTERACT_WITH_UNIT_REQ, "交互(InteractWithUnitReq)", handleInteractWithUnit);
+  router.registerLow(8, GW_MODIFY_PLAYER_ACTION_REQ, "动作掩码(ModifyPlayerActionReq)", handleModifyPlayerAction);
+  router.registerLow(8, GW_REPORT_ACTIVE_REQ, "活跃上报(ReportPlayerActiveReq)", handleReportActive);
+  router.registerLow(8, GW_EMOTE, "表情(DoRolePlayingReq)", handleEmote);
+  router.registerLow(8, GW_INTERACT_REQ, "交互提交(SubmitActorOpReq)", handleSubmitActorOp);
+  // 服务端下发帧（down 广播——客户端不会主动发；注册为 log-only 使路由表覆盖 §11 全表，
+  // 避免误落入通用 ACK 兜底回错帧）
+  router.registerLow(8, BigInt(0x38b37d3d), "场景数据(EnterSceneNotify)", logOnlyDown);
+  router.registerLow(8, BigInt(0x38b31d8f), "状态同步(SyncStateNotify)", logOnlyDown);
+  router.registerLow(8, BigInt(0x38b3360a), "玩家同步(SyncSceneNotify)", logOnlyDown);
+  router.registerLow(8, BigInt(0x38b3e70f), "强制定位(ForceSetPositionNotify)", logOnlyDown);
+  router.registerLow(8, BigInt(0x38b3f32d), "重连通知(OnReconnectNotify)", logOnlyDown);
+  router.registerLow(8, BigInt(0x38b39689), "中继登录(OnRelayNotify)", logOnlyDown);
+  router.registerLow(8, BigInt(0x30009df1), "错误提示(NotifyErrorMessageNotify)", logOnlyDown);
+  router.registerLow(8, BigInt(0x4de28c3f), "退出场景(SyncClientLogoutNotify)", logOnlyDown);
+}

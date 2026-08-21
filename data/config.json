@@ -68,7 +68,13 @@
     "timestamp": -1
   },
   "activities": {
-    "forceOpen": [],
+    "forceOpen": [
+      "act49side", "act33side", "act30side", "act31side", "act34side",
+      "act35side", "act37side", "act38side", "act39side", "act40side",
+      "act41side", "act46side", "act27side", "act21side", "act17side",
+      "act14side", "act15side", "act16side", "act18side", "act19side",
+      "act22side", "act23side", "act25side", "act26side", "act28side"
+    ],
     "crisisV1": "cc1",
     "crisisV2": "cc1",
     "autoBackfill": true

@@ -109,6 +109,12 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   inventory!: RoguelikeInventoryManager | null;
   /** 本次对局所选分队（开局 chooseInitialRelic 记录，结算 brief.band 用） */
   _bandId = "";
+  /**
+   * 结算完成标志：gameSettle 置 true，令 toJSON/persistCurrent 输出 current 全空
+   * （player/map/troop/inventory/game/buff/module/record = null）——结算后本局已结束，
+   * 不再保留可"继续探索"的运行态。createGame 开新局时重置为 false。
+   */
+  _settled = false;
   /** 多边贸易分队：当前行商节点已卖出零件数（进入行商节点重置，节点内限 1 次奖励） */
   _shopSellCount?: number;
   /**
@@ -144,7 +150,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     if (!hasRunning) {
       this.current.game = {
         mode: "NONE",
-        predefined: "",
+        // 未指定预置剧本（predefined）时用 null 而非 ""（Game.predefined 类型为 string|null，
+        // 空串会让客户端按"有预置剧本"解析，与官服线格式不符）
+        predefined: null,
         theme: "",
         outer: {
           support: false,
@@ -272,7 +280,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     // 放弃结算：清空进行中残留事件，生成唯一 GAME_SETTLE（展示放弃结算页），保留游戏态直至 gameSettle 确认
     this.clearPending();
     this._status.runResult = "giveup";
-    const { brief, record } = this.buildSettlement(true, 0, "");
+    const { brief, record, buffBankPut } = this.buildSettlement(true, 0, "");
     // current.record 为 _playerdata.rlv2 引用（update() 后冻结），写入须放入配方
     await this.update(async (draft) => {
       draft.current.record = { brief, record };
@@ -281,7 +289,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       "GAME_SETTLE",
       {
         success: 0,
-        result: { brief, record },
+        result: { brief, record, buffBankPut },
         detailStr: this.buildDetailStr(brief),
         popReport: false,
       },
@@ -296,6 +304,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     predefinedId: string | null;
   }): Promise<void> {
     const theme = args.theme;
+    // 开新局：清除上一把结算的置空标志（否则 toJSON 继续输出 current 全空）
+    this._settled = false;
     // 清空上一请求的残留推送（控制器为持久实例），并收集本局创建的入场推送。
     // 官服 createGame 必带 {path:"rlv2ScrapLimit",payload:{}}（黑流树海抓包 2026-08-11）。
     this._pushMessages = [];
@@ -312,7 +322,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         // init 条目，强制走 NORMAL 规则（此前 MONTH_TEAM 也被转 NORMAL 但 predefinedId
         // 保留 month_team_N → status.create 的 init.find 无匹配崩溃 → 开局血 0/流程卡死）
         mode: args.mode === "CHALLENGE" ? "NORMAL" : args.mode,
-        predefined: args.predefinedId,
+        // 预置剧本 id：客户端未传/传空串（NORMAL 等无预置剧本）时归一为 null，
+        // 避免 game.predefined=""（Game.predefined 类型为 string|null）
+        predefined: args.predefinedId ?? null,
         theme: theme,
         outer: {
           // 支援选项（GAME_INIT_SUPPORT/startbuff 3 选 1）：仅当"上一把到达过第 3 层"才出现。
@@ -744,6 +756,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       this._status.cursor.zone = 1;
       this._status.cursor.position = null;
       await this._trigger.emit("rlv2:zone:new", [this._status.cursor.zone]);
+      // 特勤干员任务：到达区域事件（Rlv2PassZoneSpec）
+      await this.emitSpecialOperatorZone(this._status.cursor.zone);
       // 进入第一层后 cursor.position = 起点节点位置（官服 finishEvent#2：
       // position={x:0,y:1} 即 type=268435456 起点；null 会导致客户端无法定位当前
       // 节点 → 地图渲染/步进崩溃）
@@ -754,20 +768,26 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       );
       if (startNode?.pos) {
         this._status.cursor.position = { x: startNode.pos.x, y: startNode.pos.y };
-        // 进层后自动完成"起点走一步"（官服 finishEvent 对齐）：起点节点标为已访问、
+        // 进层后自动完成"起点走一步"（官服 finishEvent#2 对齐）：起点标已访问、
         // trace 追加起点、清 needConfirmStepZero（无需再要求玩家确认初始位置）。
-        // 注意不打 moveTo——moveTo 会累积 rlv2NodeChange 推送，而进层响应不应携带节点
-        // 变化推送（官服进层 finishEvent 顶层无 pushMessage）。
+        // 进层下发唯一 rlv2NodeChange（官服抓包 R-1786531228496.9993-3674：
+        // nodeList 为起点列节点["202","200"]，排除起点；仅 nodeChange 不带 nodeArrive）。
+        // 不做 moveTo 揭示——moveTo 会把周边 state0 节点改成 state1，而官服进层后
+        // gridZone 节点 state 只取 0/2（平铺无中间态），故仅显式标起点 state=2。
         const gz = this._module?.gridZone;
         if (gz) {
           const startId = String(startNode.pos.x * 100 + startNode.pos.y);
           const z = gz.zones?.[gz.currentZoneKey()];
           const sn = z?.nodes?.[startId];
-          if (sn && (sn.state !== 2 || !sn.show)) {
-            sn.state = 2;
-            sn.show = true;
-          }
+          if (sn && sn.state !== 2) sn.state = 2;
           gz.needConfirmStepZero = false;
+          const colNodeIds = Object.keys(z?.nodes || {}).filter(
+            (id) =>
+              Math.floor(Number(id) / 100) === startNode.pos.x && id !== startId,
+          );
+          if (colNodeIds.length > 0) {
+            this.pushMessage("rlv2NodeChange", { nodeList: colNodeIds });
+          }
         }
         this._status.trace.push({
           zone: this._status.cursor.zone,
@@ -936,6 +956,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       delete expDetails.ending;
     }
     await this._trigger.emit("rlv2:zone:new", [this._status.cursor.zone]);
+    // 特勤干员任务：到达区域事件（Rlv2PassZoneSpec）
+    await this.emitSpecialOperatorZone(this._status.cursor.zone);
     return false;
   }
 
@@ -944,6 +966,97 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     return Object.values(this.inventory?.relic || {}).some(
       (r) => (r as any).id === id,
     );
+  }
+
+  /**
+   * 特勤干员任务：到达区域事件（Rlv2PassZoneSpec）。
+   * 进入新区域时调用——携带当前主题/模式/难度与区域 id（zone_N）。
+   * @param zone 当前区域序号（cursor.zone）
+   */
+  private async emitSpecialOperatorZone(zone: number): Promise<void> {
+    const game = this.current.game;
+    if (!game) return;
+    await this._trigger.emit("Rlv2PassZoneSpec", [
+      {
+        theme: game.theme,
+        mode: game.mode,
+        grade: game.modeGrade ?? 0,
+        zoneId: `zone_${zone}`,
+      },
+    ]);
+  }
+
+  /**
+   * 本局已通过节点类型计数（trace 轨迹 → 地图节点 type → 次数）。
+   * 供特勤干员结算任务统计祸乱/紧急作战节点数。
+   * @returns 节点类型数值 → 通过次数
+   */
+  private nodeTypeCounts(): Map<number, number> {
+    const counts = new Map<number, number>();
+    for (const t of this._status.trace) {
+      const node = this._map.zones[this.zoneKey(t.zone)]?.nodes[
+        `${(t.position?.x ?? 0) * 100 + (t.position?.y ?? 0)}`
+      ];
+      const type = node?.type ?? 0;
+      counts.set(type, (counts.get(type) ?? 0) + 1);
+    }
+    return counts;
+  }
+
+  /**
+   * 特勤干员任务：结算事件（gameSettle 成功达成结局时调用）。
+   *
+   * 依据本局轨迹/队伍与累计分队记录，发出 Rlv2* 结算类任务事件：
+   * - Rlv2BandGradeCnt / Rlv2EndingBandGradeCnt / Rlv2EndingModeGrade：按累计分队记录
+   *   （bandCnt/bandGrade）统计，模板自行按各任务 param 门槛过滤。
+   * - Rlv2EndingWithBandChar / EndingWithCharPassSpBattle / EndingWithCandleChar /
+   *   EliteBattleWithChar：按本局事实判定（分队、入队干员、节点通过、结局）。
+   * @param theme 主题 id
+   * @param ending 本局达成结局 id
+   */
+  private async emitSpecialOperatorSettle(
+    theme: string,
+    ending: string,
+  ): Promise<void> {
+    const game = this.current.game;
+    if (!game) return;
+    const mode = game.mode;
+    // 特勤干员任务均针对「常规行动」（NORMAL 模式）——MONTH_TEAM 等特殊模式不计入
+    if (mode !== "NORMAL") return;
+    const grade = game.modeGrade ?? 0;
+    const bandId = this._bandId || "";
+    const charIds = Object.keys(this.troop.chars || {});
+    const rec = (this.outer?.[theme]?.record as any) || {};
+    const bandGrade: Record<string, Record<string, number>> =
+      rec.bandGrade || {};
+    const bandCnt: Record<string, Record<string, number>> = rec.bandCnt || {};
+
+    // 本局节点通过：祸乱（BATTLE/BATTLE_HARD 近似作战/紧急作战）与紧急作战数
+    const nodeCounts = this.nodeTypeCounts();
+    const spBattleCount = (nodeCounts.get(1) ?? 0) + (nodeCounts.get(2) ?? 0);
+    const eliteCount = nodeCounts.get(2) ?? 0;
+    // 岁兽残识：所有入队干员即伺烛客（秉烛）
+    const candleCharCount = charIds.length;
+
+    await this._trigger.emit("Rlv2BandGradeCnt", [{ theme, bandGrade }]);
+    await this._trigger.emit("Rlv2EndingBandGradeCnt", [
+      { theme, bandGrade, bandCnt, ending },
+    ]);
+    await this._trigger.emit("Rlv2EndingModeGrade", [
+      { theme, bandGrade, bandCnt, ending },
+    ]);
+    await this._trigger.emit("Rlv2EndingWithBandChar", [
+      { theme, mode, grade, bandId, charIds, ending },
+    ]);
+    await this._trigger.emit("Rlv2EndingWithCharPassSpBattle", [
+      { theme, mode, grade, charIds, spBattleCount, ending },
+    ]);
+    await this._trigger.emit("Rlv2EndingWithCandleChar", [
+      { theme, mode, grade, charIds, candleCharCount, ending },
+    ]);
+    await this._trigger.emit("Rlv2EliteBattleWithChar", [
+      { theme, mode, grade, charIds, eliteCount, ending },
+    ]);
   }
 
   async selectChoice(args: { choice: string }): Promise<void> {
@@ -966,16 +1079,48 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       top = this._status.pending[0];
     }
     if (top && top.type === "GAME_INIT_SUPPORT") {
+      const cfg = choiceConfig as any;
+      const desc = (cfg?.description as string) || "";
+      const dd = cfg?.displayData || {};
+      const prop = this._status.property;
+      // 结算描述中的 <lose> 消耗。开局 buff（行动奖励）选项常带“消耗”，此前只发放 get 奖励、
+      // 未扣对应资源，导致实际消耗与 UI 描述不符（如 startbuff_3“消耗6源石锭”却未扣 gold）。
+      // 依据描述关键字映射资源类型，避免与后续 get 奖励混淆。
+      const loseTags = [...desc.matchAll(/<@[^>]*\.lose>([^<]*)<\/>/g)];
+      for (const m of loseTags) {
+        const raw = m[1].trim();
+        const num = parseInt(raw, 10);
+        if (desc.includes("源石锭")) {
+          // “消耗N源石锭”扣 gold；“消耗所有源石锭”清空
+          prop.gold = Number.isNaN(num) ? 0 : Math.max(0, prop.gold - num);
+        } else if (desc.includes("目标生命值上限")) {
+          // “消耗N目标生命值上限”：扣上限并夹取当前值（startbuff_4 退行补偿）
+          prop.hp.max = Math.max(0, prop.hp.max - num);
+          prop.hp.current = Math.min(prop.hp.current, prop.hp.max);
+        } else if (desc.includes("零件箱容量")) {
+          // “零件箱容量-1 / +N”：scrap 零件箱容量上限，值可为负（startbuff_6 巢寄生缩减）
+          const sm = this._module.scrap;
+          if (!Number.isNaN(num) && sm) sm.setLimit(sm.limit + num);
+        } else if (desc.includes("希望")) {
+          // “消耗N希望及等量上限”：扣希望（人口）上限（老主题回收战利品）
+          prop.population.max = Math.max(0, prop.population.max - num);
+        }
+      }
       // 官方 displayData.itemID（PascalCase ID）——startbuff_2/3 有 itemID；startbuff_1 无（发随机收藏品）
-      const dd = (choiceConfig?.displayData as any) || {};
       const itemId = dd.itemID ?? dd.itemId;
       if (itemId) {
+        const itemDef =
+          excel.RoguelikeTopicTable.details[theme]?.items?.[itemId];
         // 奖励数量：description 含 <@roX.get>N</>（如"获得<@ro6.get>8</>源石锭"）
-        const m = (choiceConfig?.description || "").match(
-          /<@ro\d+\.get>(\d+)<\/>/,
-        );
+        const m = desc.match(/<@ro\d+\.get>(\d+)<\/>/);
         const count = m ? parseInt(m[1], 10) : 1;
-        this._trigger.emit("rlv2:get:items", [[{ id: itemId, count }]]);
+        if (itemDef?.type === "MAX_WEIGHT") {
+          // 零件箱容量型（MAX_WEIGHT 无专属结算）：零件箱容量上限+count（startbuff_3“空间租赁”+2）
+          const sm = this._module.scrap;
+          if (sm) sm.setLimit(sm.limit + (count || 1));
+        } else {
+          this._trigger.emit("rlv2:get:items", [[{ id: itemId, count }]]);
+        }
       } else {
         // 无 itemId：startbuff_1"获得1件普通收藏品" → 随机未拥有藏品
         const theme = this.current.game!.theme;
@@ -1620,6 +1765,22 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         nodeList: Object.keys(zoneNodes),
       });
     }
+    // 特勤干员任务：节点通过事件（Rlv2PassNodeSpec）+ 岁兽残识移动消耗烛火（Rlv2SpZoneSteps 近似，
+    // 每移动一步计 1 点烛火——后端未实现烛火机制，以步进近似）。
+    const rlv2Game = this.current.game!;
+    const rlv2Ctx = {
+      theme: rlv2Game.theme,
+      mode: rlv2Game.mode,
+      grade: rlv2Game.modeGrade ?? 0,
+    };
+    await this._trigger.emit("Rlv2PassNodeSpec", [
+      { ...rlv2Ctx, nodeType: next.type },
+    ]);
+    if (rlv2Game.theme === "rogue_5") {
+      await this._trigger.emit("Rlv2SpZoneSteps", [
+        { ...rlv2Ctx, cost: 1 },
+      ]);
+    }
   }
 
   /**
@@ -2259,6 +2420,17 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     const zone = this._status.cursor.zone;
     const lastX = Math.floor(Number(last) / 100);
     const lastY = Number(last) % 100;
+    // 被经过的节点衰减为林间空地：玩家移走的上一个位置 + 路径中途节点（不含末节点，
+    // 消费者为玩家当前所在，保留事件；商店/林间空地/尽头/小径/密道等可反复进入类保留）。
+    const gzZoneKey = `zone_${zone}`;
+    const mapZoneKey = this.zoneKey(zone);
+    const passed = new Set<string>(route.slice(0, -1));
+    const prev = this._status.cursor.position;
+    if (prev) passed.add(String(prev.x * 100 + prev.y));
+    passed.delete(last); // 玩家当前所在不衰减
+    for (const pid of passed) {
+      gz?.decayPassed(mapZoneKey, gzZoneKey, pid);
+    }
     this._status.trace.push({ zone, position: { x: lastX, y: lastY } });
     this._status.cursor.position = { x: lastX, y: lastY };
     // 节点类型/关卡判定来源（gridZone vs map.zones 双轨）：
@@ -2287,9 +2459,42 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     // 状态/视野变化的节点列表（官服抓包 R-1786531228496.9993-3674：nodeList=["202","200"]
     // 为到达节点+新揭示邻居，非整层全量）。
     // 原实现只在标准 moveTo 中累积，而黑流树海走本方法 → 推送永不下发。
+    const changedMoveNodes = gz?.takeChangedNodes() ?? [];
     if (typeof kind === "number") {
       this.pushMessage("rlv2NodeArrive", { nodeType: kind });
-      this.pushMessage("rlv2NodeChange", { nodeList: gz?.takeChangedNodes() ?? [] });
+      this.pushMessage("rlv2NodeChange", { nodeList: changedMoveNodes });
+      // 特勤干员任务：黑流树海节点通过 + "居民"恶意节点（Rlv2PassNodeSpec / Rlv2MeetBandit）
+      const gzGame = this.current.game!;
+      const gzCtx = {
+        theme: gzGame.theme,
+        mode: gzGame.mode,
+        grade: gzGame.modeGrade ?? 0,
+      };
+      await this._trigger.emit("Rlv2PassNodeSpec", [
+        { ...gzCtx, nodeType: kind },
+      ]);
+      if (kind === ROGUE6_NODE.RESIDENT) {
+        await this._trigger.emit("Rlv2MeetBandit", [gzCtx]);
+      }
+    }
+    // 特勤干员任务：累计消耗行动力（Rlv2MoveCostAp，路径每节点 1 步）
+    if (route.length > 0) {
+      const apGame = this.current.game!;
+      await this._trigger.emit("Rlv2MoveCostAp", [
+        {
+          theme: apGame.theme,
+          mode: apGame.mode,
+          grade: apGame.modeGrade ?? 0,
+          cost: route.length,
+        },
+      ]);
+    }
+    // 自然物（GOODS）估价动态：移动后 → G_05 随机 -6~+8、G_10 -2；本次移动揭示节点 →
+    // G_03 每次揭示 +1（按本次变化节点数计）。
+    const goodsScrap = this._module.scrap;
+    goodsScrap?.applyGoodsEffect("move");
+    if (changedMoveNodes.length > 0) {
+      goodsScrap?.applyGoodsEffect("node_reveal", changedMoveNodes.length);
     }
     if (battleStage) {
       // 战斗节点（作战/紧急作战/险路恶敌/“居民”据点）→ 战斗
@@ -2631,6 +2836,18 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   /** 网格区域空步：消耗一步行动力（不移动） */
   async gridZoneEmptyStep(): Promise<void> {
     this._trigger.emit("rlv2:grid:step", []);
+    // 特勤干员任务：空步同样消耗 1 行动力（Rlv2MoveCostAp）
+    const game = this.current.game;
+    if (game) {
+      await this._trigger.emit("Rlv2MoveCostAp", [
+        {
+          theme: game.theme,
+          mode: game.mode,
+          grade: game.modeGrade ?? 0,
+          cost: 1,
+        },
+      ]);
+    }
     this._status.state = "WAIT_MOVE";
   }
 
@@ -2676,6 +2893,10 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       // 多边贸易（shop_recycle_reward）：在行商节点卖出零件（非载具）计数
       if (!isVehicle && this.isInShopNode()) {
         await this.sellScrapAtShop();
+        // 特勤干员任务：行商卖出零件（Rlv2ShopRecycle，每件 1 计）
+        await this._trigger.emit("Rlv2ShopRecycle", [
+          { itemType: "SCRAP", count: 1 },
+        ]);
       }
       delete inventory[args.instId];
       // 若丢弃的是当前载具，切回步行（模型无耐久度机制，载具被移除即视为"破除"）
@@ -2756,20 +2977,36 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }
 
   toJSON(): PlayerRoguelikeV2 {
+    // 结算完成后（gameSettle / _settled），本局运行态已结束，不再保留可"继续探索"的
+    // current——输出全空（各节 null）。结算内容经 gameSettle 响应的顶层 extra
+    // （buildSettleResponse 的 game/outer）下发，current 为空不影响结算页。
+    // 也经 persistCurrent 落到存档，重登时 hasRunning=false → 不再提示"继续探索"。
+    const current = this._settled
+      ? {
+          player: null,
+          map: null,
+          troop: null,
+          inventory: null,
+          game: null,
+          buff: null,
+          module: null,
+          record: null,
+        }
+      : {
+          player: this._status,
+          record: this.current.record,
+          map: this._map,
+          inventory: this.inventory,
+          game: this.current.game,
+          troop: this.troop,
+          buff: this.current.buff,
+          module: this._module,
+        };
     return {
       outer: this.outer,
-      current: {
-        player: this._status,
-        record: this.current.record,
-        map: this._map,
-        inventory: this.inventory,
-        game: this.current.game,
-        troop: this.troop,
-        buff: this.current.buff,
-        module: this._module,
-      },
+      current,
       pinned: this.pinned,
-    };
+    } as unknown as PlayerRoguelikeV2;
   }
 
   /**
@@ -3018,10 +3255,12 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     over: boolean,
     success: number,
     ending: string,
-  ): { brief: any; record: any } {
+  ): { brief: any; record: any; buffBankPut: number } {
     const game = this.current.game!;
     const theme = game.theme;
-    const endTs = Date.now();
+    // endTs 用秒（now() 秒级），与 game.start（now() 秒级）保持一致
+    //（原实现 Date.now() 为毫秒 → 响应里 endTs 13 位而 startTs 10 位，长度/t 值域不一致）
+    const endTs = now();
     const startTs = game.start || endTs;
     const property = this._status.property;
 
@@ -3066,7 +3305,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       ending,
       theme,
       mode: game.mode,
-      predefined: game.predefined || "",
+      // 预置剧本 id：无预置剧本（NORMAL 等）时为 null 而非 ""——official brief.predefined 为 null
+      //（原实现 `|| ""` 会把 null 强转成空串，客户端按"有预置剧本"解析）
+      predefined: game.predefined ?? null,
       band: this._bandId || "",
       startTs,
       endTs,
@@ -3087,6 +3328,23 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       seed: this.gameSeed(),
     };
 
+    // 招募干员职业分布（record.cntRecruitProfession）：按当前队伍干员职业统计。
+    // 官方键为职业名（TANK/CASTER/SNIPER…），值 = 该职业干员数。
+    const cntRecruitProfession: { [key: string]: number } = {};
+    for (const t of troopChars) {
+      const prof = (excel.CharacterTable as any)?.[t.charId]?.profession;
+      if (prof) cntRecruitProfession[prof] = (cntRecruitProfession[prof] ?? 0) + 1;
+    }
+    // 废品/零件箱各 id 持有数（黑流树海 record.scrapCounter）
+    const scrapCounter: { [key: string]: number } = {};
+    const scrapInv = (this._module as any)?.scrap?.inventory;
+    if (scrapInv) {
+      for (const it of Object.values(scrapInv)) {
+        const id = (it as any)?.id;
+        if (id) scrapCounter[id] = (scrapCounter[id] ?? 0) + 1;
+      }
+    }
+
     const record = {
       cntZone: Object.keys(this._map.zones).length,
       cntBattleNormal,
@@ -3102,7 +3360,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       cntRecruitFree: 0,
       cntRecruitAssist: 0,
       cntRecruitNpc: 0,
-      cntRecruitProfession: {},
+      cntRecruitProfession,
       troopChars,
       cntArrivedNodeType,
       relicList: Object.values(this.inventory!.relic || {}).map(
@@ -3110,6 +3368,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       ),
       capsuleList: [],
       activeToolList: Object.values(this.inventory?.exploreTool || {}).map(
+        (t) => (t as any).id,
+      ),
+      exploreToolList: Object.values(this.inventory?.exploreTool || {}).map(
         (t) => (t as any).id,
       ),
       // 官服 record.zones 为区域数组 [{index, zoneId, variation}]（黑流树海无相地图，
@@ -3120,12 +3381,27 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         zoneId: z.id, // 形如 "zone_1"
         variation: Array.isArray(z.variation) ? z.variation : [],
       })),
+      legacyList: [],
+      scrapCounter,
+      cntExpedition: {},
+      cntWeatherMainGain: {},
+      cntWeatherSubGain: {},
+      cntWeatherMainClear: {},
+      cntScrapIdentify: 0,
+      cntShopRecycleCount: {},
+      cntShopRecycleProfit: {},
+      cntEndZoneBattle: {},
+      cntSettleSavage: 0,
+      cntSettleBandit: 0,
+      cntNodePassBattle: 0,
       nodeMission: [],
       squadBuff: this.current.buff?.squadBuff || [],
       charBuff: [],
     };
 
-    return { brief, record };
+    // 本局银行余额（GAME_SETTLE.result.buffBankPut，官服 giveUpGame/gameSettle 结算携带）
+    const buffBankPut = (this.outer as any)?.[theme]?.bank?.current ?? 0;
+    return { brief, record, buffBankPut };
   }
 
   /** 探索分数（官方公式，用户提供 2026-08：萨卡兹方式，各主题一致） */
@@ -3180,7 +3456,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     // 结局变更藏品时为 true → 通关结算恒显示失败；改按本局结果标记判定
     const success =
       this._status.runResult === "success" || this._status.chgEnding ? 1 : 0;
-    const { brief, record } = this.buildSettlement(true, success, ending);
+    const { brief, record, buffBankPut } = this.buildSettlement(true, success, ending);
     // current.record 为 _playerdata.rlv2 引用（update() 后冻结），写入放入下方 update() 配方
     const exploreScore = this.exploreScore();
     await this.update(async (draft) => {
@@ -3200,13 +3476,29 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       // 记录本把到达的最深层——官服 record 无 lastZone 键（8-11/8-18 抓包对照），
       // 支援选项判定改由 stageCnt 3 层关卡存在性承载；lastZone 仅为旧存档兼容读取。
       const rec = (outerTheme.record ?? (outerTheme.record = {} as any)) as any;
-      rec.last = Date.now();
+      // 上次结束时间用秒（now()）——原实现 Date.now() 为毫秒（13 位），与本局
+      // startTs/endTs（秒、10 位）与 record 其余时间字段值域不一致。
+      rec.last = now();
       // 难度通关记录（进阶式解锁：通关 grade N 解锁 N+1）——record.modeGrade[mode][grade]++
       const mode = this.current.game?.mode || "NORMAL";
       const grade = this.current.game?.modeGrade ?? 0;
       const recMode = (rec.modeGrade ?? (rec.modeGrade = {} as any)) as any;
       const recGrades = (recMode[mode] ?? (recMode[mode] = {} as any)) as any;
       recGrades[grade] = (recGrades[grade] || 0) + 1;
+      // 特勤干员任务数据源：成功结算记录「分队×结局」「分队×难度」（Rlv2BandGradeCnt /
+      // Rlv2EndingBandGradeCnt / Rlv2EndingModeGrade 模板按此统计累计分队数）。
+      // bandCnt[bandId][endingId]++、bandGrade[bandId][gradeId]++。
+      // 仅常规行动（NORMAL 模式）计入——MONTH_TEAM 等特殊模式不参与特勤干员任务。
+      if (success === 1 && ending && this._bandId && mode === "NORMAL") {
+        const soBandCnt = (rec.bandCnt ?? (rec.bandCnt = {} as any)) as any;
+        const perEnding =
+          (soBandCnt[this._bandId] ?? (soBandCnt[this._bandId] = {} as any)) as any;
+        perEnding[ending] = (perEnding[ending] || 0) + 1;
+        const soBandGrade = (rec.bandGrade ?? (rec.bandGrade = {} as any)) as any;
+        const perGrade =
+          (soBandGrade[this._bandId] ?? (soBandGrade[this._bandId] = {} as any)) as any;
+        perGrade[String(grade)] = (perGrade[String(grade)] || 0) + 1;
+      }
       // 同步 collect.modeGrade 解锁状态（当前难度 + 下一级可解锁）
       const collect = outerTheme.collect as any;
       if (collect?.modeGrade?.[mode]) {
@@ -3255,17 +3547,24 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       }
     });
 
+    // 特勤干员任务：结算事件（仅成功达成结局时推进——giveup/失败不产生分队×结局记录）
+    if (success === 1) {
+      await this.emitSpecialOperatorSettle(theme, ending);
+    }
+
     await this._trigger.emit("rlv2:event:create", [
       "GAME_SETTLE",
       {
         success,
-        result: { brief, record },
+        result: { brief, record, buffBankPut },
         detailStr: this.buildDetailStr(brief),
         popReport: false,
       },
     ]);
 
     this._status.state = "END";
+    // 结算完成：令 toJSON/persistCurrent 输出 current 全空（本局结束，不再保留续局运行态）
+    this._settled = true;
   }
 
   /**

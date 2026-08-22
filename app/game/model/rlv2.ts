@@ -746,7 +746,7 @@ export namespace PlayerRoguelikePendingEvent {
         ending:string
         theme:string
         mode:string
-        predefined:string
+        predefined:string|null
         band:string
         startTs:number
         endTs:number

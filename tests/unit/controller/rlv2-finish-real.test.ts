@@ -6,6 +6,7 @@ vi.mock("@utils/crypt", () => ({
 }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { rlv2Response } from "@game/router/rlv2";
 import { mockPlayerData } from "../../helpers";
 import excel from "@excel/excel";
 
@@ -221,5 +222,126 @@ describe("rlv2Response 节过滤（route-aware sections）", () => {
     expect(keys).toEqual(["buff", "inventory", "map", "module", "player", "record"].sort());
     expect("game" in current).toBe(false);
     expect("troop" in current).toBe(false);
+  });
+});
+
+describe("rlv2Response 输出 zone 与 map.zones 键对齐（黑流树海）", () => {
+  it("cursor/trace 的 zone 映射为区域索引并指向存在的 map 区域，且不污染内存态", async () => {
+    const player = makePlayer();
+    const rlv2 = player.rlv2 as any;
+    await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
+    const pending = rlv2._status.pending;
+    const items = pending[0].content.initRelic.items;
+    await rlv2.chooseInitialRelic({ select: Object.keys(items)[0] });
+    if (pending[0]?.type === "GAME_INIT_GIFT") await rlv2.finishEvent();
+    if (pending[0]?.type?.startsWith("GAME_INIT_SUPPORT")) {
+      const choices = Object.keys(pending[0].content.initSupport.scene.choices);
+      await rlv2.selectChoice({ choice: choices[0] });
+    }
+    await rlv2.chooseInitialRecruitSet({ select: "recruit_group_1" });
+    const recruitEvt = pending.find((e: any) => e.type === "GAME_INIT_RECRUIT");
+    const tickets = recruitEvt ? [...recruitEvt.content.initRecruit.tickets] : [];
+    for (const t of tickets) {
+      await rlv2.activeRecruitTicket({ id: t });
+      const ticket = rlv2.inventory.recruit[t];
+      if (ticket?.list?.length) await rlv2.recruitChar({ ticketIndex: t, optionId: String(ticket.list[0].instId) });
+    }
+    await rlv2.finishEvent();
+    // 进层完成：内存态仍为层号
+    expect(rlv2._status.cursor.zone).toBe(1);
+
+    const resp = rlv2Response(player, undefined, ["player", "map"]) as any;
+    const cur = resp.playerDataDelta.modified.rlv2.current;
+    // 输出 cursor/trace 的 zone 被映射为 map.zones 区域索引（层 1 → 1000）
+    expect(cur.player.cursor.zone).toBe(1000);
+    expect(cur.player.trace[0].zone).toBe(1000);
+    // 该区域确实存在于 map.zones（即"zone 在 map 中不存在"得到修复）
+    expect(cur.map.zones[String(cur.player.cursor.zone)]).toBeTruthy();
+    // 响应改写不污染内存态与存档（内部仍按层号存储，重登"继续探索"可还原）
+    expect(rlv2._status.cursor.zone).toBe(1);
+  });
+});
+
+describe("gameSettle current 置空", () => {
+  const NULL_CURRENT = {
+    player: null,
+    map: null,
+    troop: null,
+    inventory: null,
+    game: null,
+    buff: null,
+    module: null,
+    record: null,
+  };
+
+  it("gameSettle 后 toJSON/持久化/响应 current 全 null，结算数据仍经 buildSettleResponse 下发", async () => {
+    const player = makePlayer();
+    const rlv2 = player.rlv2 as any;
+    await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
+    const pending = rlv2._status.pending;
+    const items = pending[0].content.initRelic.items;
+    await rlv2.chooseInitialRelic({ select: Object.keys(items)[0] });
+    if (pending[0]?.type === "GAME_INIT_GIFT") await rlv2.finishEvent();
+    if (pending[0]?.type?.startsWith("GAME_INIT_SUPPORT")) {
+      const choices = Object.keys(pending[0].content.initSupport.scene.choices);
+      await rlv2.selectChoice({ choice: choices[0] });
+    }
+    await rlv2.chooseInitialRecruitSet({ select: "recruit_group_1" });
+    const recruitEvt = pending.find((e: any) => e.type === "GAME_INIT_RECRUIT");
+    const tickets = recruitEvt ? [...recruitEvt.content.initRecruit.tickets] : [];
+    for (const t of tickets) {
+      await rlv2.activeRecruitTicket({ id: t });
+      const ticket = rlv2.inventory.recruit[t];
+      if (ticket?.list?.length) await rlv2.recruitChar({ ticketIndex: t, optionId: String(ticket.list[0].instId) });
+    }
+    await rlv2.finishEvent();
+    await rlv2.gameSettle();
+
+    // toJSON() 输出 current 全空（结算后本局结束）
+    expect(rlv2.toJSON().current).toEqual(NULL_CURRENT);
+    // 持久化（rlv2Response 内 persistCurrent）后 _playerdata.rlv2.current 全空
+    const resp = rlv2Response(
+      player,
+      rlv2.buildSettleResponse() as any,
+      undefined,
+      ["record"],
+      rlv2.takePushMessages(),
+    ) as any;
+    expect(player._playerdata.rlv2.current).toEqual(NULL_CURRENT);
+    // 响应 modified.rlv2.current 全空
+    expect(resp.playerDataDelta.modified.rlv2.current).toEqual(NULL_CURRENT);
+    // 结算内容仍经 buildSettleResponse 顶层 extra 下发（结算页不受影响）
+    expect(resp.game).toBeTruthy();
+    expect(resp.game.brief).toBeTruthy();
+    expect(resp.outer).toBeTruthy();
+  });
+
+  it("createGame 开新局后 _settled 重置，current 不再全空", async () => {
+    const player = makePlayer();
+    const rlv2 = player.rlv2 as any;
+    await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
+    const pending = rlv2._status.pending;
+    const items = pending[0].content.initRelic.items;
+    await rlv2.chooseInitialRelic({ select: Object.keys(items)[0] });
+    if (pending[0]?.type === "GAME_INIT_GIFT") await rlv2.finishEvent();
+    if (pending[0]?.type?.startsWith("GAME_INIT_SUPPORT")) {
+      const choices = Object.keys(pending[0].content.initSupport.scene.choices);
+      await rlv2.selectChoice({ choice: choices[0] });
+    }
+    await rlv2.chooseInitialRecruitSet({ select: "recruit_group_1" });
+    const recruitEvt = pending.find((e: any) => e.type === "GAME_INIT_RECRUIT");
+    const tickets = recruitEvt ? [...recruitEvt.content.initRecruit.tickets] : [];
+    for (const t of tickets) {
+      await rlv2.activeRecruitTicket({ id: t });
+      const ticket = rlv2.inventory.recruit[t];
+      if (ticket?.list?.length) await rlv2.recruitChar({ ticketIndex: t, optionId: String(ticket.list[0].instId) });
+    }
+    await rlv2.finishEvent();
+    await rlv2.gameSettle();
+    expect(rlv2._settled).toBe(true);
+
+    await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
+    expect(rlv2._settled).toBe(false);
+    expect((rlv2.toJSON() as any).current.game).toBeTruthy();
   });
 });

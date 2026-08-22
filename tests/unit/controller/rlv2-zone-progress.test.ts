@@ -180,4 +180,44 @@ describe("探索中 zone 推进（真实 excel）", () => {
       rand.mockRestore();
     }
   });
+
+  it("进层 finishEvent：自动起点走一步 + 下发 rlv2NodeChange（官服抓包 R-1786531228496.9993-3674 对齐）", async () => {
+    const player = makePlayer();
+    const rlv2 = player.rlv2 as any;
+    let seed = 0;
+    const rand = vi.spyOn(Math, "random").mockImplementation(() => (seed++ % 100) / 100);
+    try {
+      await openToWaitMove(rlv2);
+      // 进层完成：WAIT_MOVE、无需确认起点
+      expect(rlv2._status.state).toBe("WAIT_MOVE");
+      expect(rlv2._module.gridZone.needConfirmStepZero).toBe(false);
+      const startNode = Object.values(rlv2._map.zones["1000"].nodes).find(
+        (n: any) => n.type === 268435456,
+      ) as any;
+      expect(startNode).toBeTruthy();
+      // trace 含起点（官服进层 trace=[起点]），position 已定位
+      expect(rlv2._status.trace).toEqual([
+        { zone: 1, position: { x: startNode.pos.x, y: startNode.pos.y } },
+      ]);
+      // 起点 gridZone state=2（已访问）；进层后无 state=1 中间态（官服 gridZone 只取 0/2）
+      const gz = rlv2._module.gridZone;
+      const startId = String(startNode.pos.x * 100 + startNode.pos.y);
+      expect(gz.zones["zone_1"].nodes[startId].state).toBe(2);
+      const zg = gz.zones["zone_1"];
+      expect(Object.values(zg.nodes).some((n: any) => n.state === 1)).toBe(false);
+      // 进层下发唯一 rlv2NodeChange（nodeList=起点列排除起点，官服 ["202","200"]）
+      const pushes = rlv2.takePushMessages() as any[];
+      const nc = pushes.find((p: any) => p.path === "rlv2NodeChange");
+      expect(nc).toBeTruthy();
+      const colIds = Object.keys(zg.nodes).filter(
+        (id) =>
+          Math.floor(Number(id) / 100) === startNode.pos.x && id !== startId,
+      );
+      expect((nc!.payload.nodeList as string[]).sort()).toEqual(colIds.sort());
+      // 进层只有 nodeChange，不带 rlv2NodeArrive
+      expect(pushes.some((p: any) => p.path === "rlv2NodeArrive")).toBe(false);
+    } finally {
+      rand.mockRestore();
+    }
+  });
 });

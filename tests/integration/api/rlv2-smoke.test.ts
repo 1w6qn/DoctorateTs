@@ -22,11 +22,12 @@ describe("游戏 API rlv2 建局冒烟", () => {
     await fx.close();
   });
 
-  it("createGame 缺失必填参数 → result:1 受控错误（非 500）", async () => {
+  it("createGame 缺失必填参数 → HTTP 422（zod 格式校验，非 500）", async () => {
     const res = await fx.post("/rlv2/createGame", {}, secret);
-    expect(res.status).toBe(200);
-    expect(res.body.result).toBe(1);
-    expect(res.body.playerDataDelta.modified.rlv2).toBeDefined();
+    expect(res.status).toBe(422);
+    expect(res.body.result).toBe(-1);
+    // 校验失败由 validateBody 中间件返回，不再进入控制器/playerDataDelta 分支
+    expect(res.body.message).toBeTruthy();
   });
 
   it("createGame 合法入参 → 建局成功进入 INIT 状态", async () => {

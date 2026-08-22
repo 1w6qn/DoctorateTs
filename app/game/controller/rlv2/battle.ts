@@ -2,7 +2,59 @@ import { RoguelikeV2Controller } from "../rlv2";
 import { BattleData } from "@game/model/battle";
 import { decryptBattleData } from "@utils/crypt";
 import { TypedEventEmitter } from "@game/model/events";
+import { generateBattleId } from "@utils/random";
+import type { BattleRecord } from "@game/manager/BattleInfoStore";
+import { logger } from "@utils/logger";
 import excel from "@excel/excel";
+
+/** 各账号最近一次 rlv2 战斗上下文（start 生成写入，finish 读取结算与记录留存用） */
+const battleSessionByUid = new Map<
+  string,
+  { battleId: string; stageId: string }
+>();
+
+/**
+ * 组装 rlv2 战斗结束记录（battle_records 表留存，供未来分析）
+ *
+ * @param controller - RoguelikeV2Controller（提供 _player.data 访问底层 PlayerDataManager）
+ * @param battleId - 战斗 id
+ * @param stageId - 关卡 id
+ * @param decryptResult - 解密后的战斗数据（win 路径；可为 null）
+ * @param rewards - 结算奖励（扁平化为 ItemBundle 摘要）
+ * @returns 战斗结束记录对象
+ */
+function buildRlv2Record(
+  controller: RoguelikeV2Controller,
+  battleId: string,
+  stageId: string,
+  decryptResult: any,
+  rewards: { type: string; id: string; count: number }[],
+): BattleRecord {
+  // controller 内置 _player 字段即底层 PlayerDataManager（提供 uid 与记录存储）
+  const player = controller._player;
+  const stats = decryptResult?.battleData?.stats;
+  const completeState =
+    decryptResult?.completeState === 1 ? 1 : (decryptResult?.completeState ?? 0);
+  return {
+    battleId,
+    uid: player.uid,
+    stageId,
+    isPractice: 0,
+    source: "rlv2",
+    completeState,
+    beginTs: stats?.beginTs ?? Math.floor(Date.now() / 1000),
+    endTs: stats?.endTs ?? Math.floor(Date.now() / 1000),
+    killCnt: stats?.checkKilledCnt ?? 0,
+    totalDamage: stats?.totalDamage ?? 0,
+    leftHp: stats?.leftHp ?? 0,
+    totalHeal: stats?.totalHeal ?? 0,
+    fixedPlayTime: stats?.fixedPlayTime ?? 0,
+    squadInstIds: [],
+    rewards,
+    stats,
+    createdTs: Math.floor(Date.now() / 1000),
+  };
+}
 
 export class RoguelikeBattleManager {
   _player: RoguelikeV2Controller;
@@ -15,8 +67,25 @@ export class RoguelikeBattleManager {
     this._trigger.on("rlv2:battle:finish", this.finish.bind(this));
   }
 
+  /**
+   * 留存 rlv2 战斗结束记录（失败不阻断结算）
+   *
+   * @param record - 战斗结束记录
+   */
+  private async persistRecord(record: BattleRecord): Promise<void> {
+    try {
+      await this._player._player.saveBattleRecord(record);
+    } catch (e) {
+      // 留存失败不影响战斗结算/状态机（分析数据偶发丢失可接受）
+      logger.warn("rlv2", `战斗记录留存失败: ${(e as Error).message}`);
+    }
+  }
+
   async start([stageId]: [string]) {
-    const battleId = "1";
+    // 唯一 battleId：crypto.randomUUID 随机生成，替换固定 "1"，支持多场战斗区分/历史检索
+    const battleId = generateBattleId();
+    // 记录当前 battleId 与关卡，finish 据此读取本次战斗（覆盖最近一场）
+    battleSessionByUid.set(this._player._player.uid, { battleId, stageId });
     let sanity = 0;
     const diceRoll = [];
     if ("SANCHECK" in this._player._module._modules) {
@@ -78,7 +147,11 @@ export class RoguelikeBattleManager {
       battleData: BattleData;
     },
   ]) {
-    const battleId = "1";
+    const { battleId, stageId } =
+      battleSessionByUid.get(this._player._player.uid) ?? {
+        battleId: "",
+        stageId: "",
+      };
     const loginTime = this._player._player.loginTime;
     let decryptResult: any = null;
     try {
@@ -86,7 +159,6 @@ export class RoguelikeBattleManager {
     } catch {
       // 无效/空战斗数据（模拟器/异常结算）：按战斗失败路径处理（WAIT_MOVE + 清空 pending）
     }
-    const info = this._player._player.getBattleInfo(battleId);
     const event = this._player._status.pending.shift();
     const theme = this._player.current.game!.theme;
     const detail = excel.RoguelikeTopicTable.details[theme];
@@ -215,12 +287,61 @@ export class RoguelikeBattleManager {
           isPerfect: (decryptResult as any).isPerfect || 0,
         },
       ]);
+
+      // —— 自然物（GOODS）估价动态：每次作战胜利 → G_02 +2；完美作战 → G_06 +4；
+      // 非完美作战 → G_06 自身损坏（移除）。
+      const perfect = (decryptResult as any).isPerfect || 0;
+      const scrap = this._player._module?.scrap;
+      scrap?.applyGoodsEffect("battle_win");
+      scrap?.applyGoodsEffect(perfect ? "battle_perfect" : "battle_nonperfect");
+
+      // —— 战斗结束记录留存（win 路径）：扁平化奖励摘要 + 统计入库 ——
+      const flatRewards: { type: string; id: string; count: number }[] = [];
+      for (const block of rewards as {
+        items?: { sub: number; id: string; count: number }[];
+      }[]) {
+        for (const it of block.items ?? []) {
+          flatRewards.push({ type: "", id: it.id, count: it.count });
+        }
+      }
+      await this.persistRecord(
+        buildRlv2Record(
+          this._player,
+          battleId,
+          stageId,
+          decryptResult,
+          flatRewards,
+        ),
+      );
+
+      // 特勤干员任务：战斗简单事件计数（Rlv2StageSimpleEventMore，如"使用电弧及其召唤物击杀'易'"）。
+      // 事件携带本关 extraBattleInfo（键如 "radian_kill_enemy_dylbhm"），模板按任务 param 的键匹配。
+      const extraInfo =
+        (decryptResult as any)?.battleData?.stats?.extraBattleInfo;
+      if (extraInfo && typeof extraInfo === "object") {
+        await this._trigger.emit("Rlv2StageSimpleEventMore", [
+          {
+            theme: this._player.current.game?.theme || "",
+            mode: this._player.current.game?.mode || "NORMAL",
+            grade: this._player.current.game?.modeGrade ?? 0,
+            stageId,
+            events: extraInfo,
+          },
+        ]);
+      }
     } else {
       this._player._status.state = "WAIT_MOVE";
       while (this._player._status.pending.length > 0) {
         this._player._status.pending.shift();
       }
       this._player._status.trace.pop();
+      // 自然物估价动态：非完美作战（含失败）→ G_06 自身损坏（移除）
+      this._player._module?.scrap?.applyGoodsEffect("battle_fail");
+
+      // —— 战斗结束记录留存（loss 路径）：仅统计入库，无奖励 ——
+      await this.persistRecord(
+        buildRlv2Record(this._player, battleId, stageId, decryptResult, []),
+      );
     }
   }
 }

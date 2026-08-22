@@ -106,6 +106,50 @@ export const ROGUE6_BATTLE_NODES: readonly number[] = [
 ];
 
 /**
+ * 黑流树海初始默认点亮的特殊节点（show=true），其余节点初始不点亮：
+ * - GLADE（林间空地/起点）
+ * - BATTLE_BOSS（险路恶敌）与 VISIBLE_END（险路尽头）——各层终点/首领
+ * - TUNNEL（曲折密道）、RAIN_VIEW（羽瞰点）——传送/视野机制锚点
+ * 其余节点生成时 show=false；抵达时沿地图边点亮可达路径首次节点（见 grid_zone.moveTo）。
+ */
+export const ROGUE6_INITIALLY_LIT_NODES: readonly number[] = [
+  ROGUE6_NODE.GLADE,
+  ROGUE6_NODE.BATTLE_BOSS,
+  ROGUE6_NODE.VISIBLE_END,
+  ROGUE6_NODE.TUNNEL,
+  ROGUE6_NODE.RAIN_VIEW,
+];
+
+/**
+ * 地图节点 visibility（官方枚举 PlayerNodeForesightType 的数值）：
+ * - NORMAL=0：已揭示/可见，显示真实节点
+ * - HIDE_INVISIBLE=1：隐藏不可见（未揭示的节点或事件，显名"未知事件"）
+ * - HIDE_BATTLE=2：隐藏战斗（战斗节点被遮蔽，显名"未知战斗"）
+ * - PRESAGE=3：预言/预兆（特殊揭示）
+ * 到达状态不在此表达，由 gridZone 节点 state（GridMapZoneNodeStatus.FINISHED=2）承载。
+ */
+export const ROGUE6_FORESIGHT = {
+  NORMAL: 0,
+  HIDE_INVISIBLE: 1,
+  HIDE_BATTLE: 2,
+  PRESAGE: 3,
+} as const;
+
+/**
+ * 黑流树海"可反复进入"的节点类型（经过后不变成林间空地）：
+ * 商店类（诡意行商/秘境行商/应急助力）、林间空地、险路尽头、险路小径、曲折密道。
+ * 其余节点被玩家"经过"后（玩家移走）其地图节点类型改写为林间空地 GLADE，
+ * 表示已探索/不可再次进入原事件。见 grid_zone.moveTo 中被经过节点的衰减处理。
+ */
+export const ROGUE6_REVISITABLE_NODES: readonly number[] = [
+  ...ROGUE6_SHOP_NODES,
+  ROGUE6_NODE.GLADE,
+  ROGUE6_NODE.VISIBLE_END,
+  ROGUE6_NODE.VISIBLE_PATH,
+  ROGUE6_NODE.TUNNEL,
+];
+
+/**
  * 各层（1 起）初始行动力：Ⅰ..Ⅴ = 5/6/7/8/8（官方探索文本）。
  * 索引 0 占位；超出索引（Ⅵ 层 / 隐藏层）由构造模板的 action 字段决定。
  */

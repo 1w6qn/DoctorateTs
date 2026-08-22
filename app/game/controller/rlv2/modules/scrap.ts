@@ -23,6 +23,17 @@ export interface ScrapItem {
   ts: number;
 }
 
+/** 自然物（GOODS 型废品）估价动态效果的触发事件类型 */
+type GoodsTrigger =
+  | "battle_win" // 作战胜利
+  | "battle_perfect" // 完美作战
+  | "battle_nonperfect" // 胜利但非完美
+  | "battle_fail" // 作战失败
+  | "move" // 移动后
+  | "node_reveal" // 揭示节点
+  | "recruit" // 招募干员
+  | "scrap_gain"; // 获得零件
+
 export class RoguelikeScrapManager {
   activeVehicle: { instId?: string; isWalk: boolean };
   inventory: { [key: string]: ScrapItem };
@@ -114,15 +125,31 @@ export class RoguelikeScrapManager {
     if (!type) return;
     if (Object.keys(this.inventory).length >= this.limit) return;
     const instId = `s_${this._index}`;
+    // 估价取官方 sellPrice（原实现恒为 1，导致行商售价与"扣最低估价加工品"排序失真）
+    let value = this.sellPriceOf(id);
+    // 藏品被动 scrap_fill_up（如【多生苔藓】"获得零件时估价+1"）：持有该 buff 时，
+    // 本次获得的零件估价 +1。applyBuffs 已把该 buff 记录进 _buffs（其余 key 原样入池）。
+    if (this._player._buff?.filterBuffs("scrap_fill_up").length) {
+      value += 1;
+    }
     this.inventory[instId] = {
       instId,
       id,
-      // 估价取官方 sellPrice（原实现恒为 1，导致行商售价与"扣最低估价加工品"排序失真）
-      value: this.sellPriceOf(id),
+      value,
       useCnt: 0,
       ts: now(),
     };
     this._index += 1;
+    // 特勤干员任务：获得零件（Rlv2GainItem，每件 1 计）
+    this._trigger.emit("Rlv2GainItem", [{ itemType: "SCRAP", count: 1 }]);
+    // 自然物 G_07【多生藓苔】"获得时，立刻获得3个枯苔藓球"：获得该自然物时额外发放 3 件 G_08
+    if (id === "rogue_6_scrap_G_07") {
+      for (let i = 0; i < 3; i++) {
+        this.gain(["rogue_6_scrap_G_08"]);
+      }
+    }
+    // 自然物获得时估价效果：已持有的 G_07/G_09 在"获得零件时"估价 +1/+4（自身受事件累积）
+    this.applyGoodsEffect("scrap_gain");
     // 散件获得推送（rlv2GotRandScrap，触发类 RoguelikeScrapGainTrigger）：携带获得的散件 id
     this._player.pushMessage("rlv2GotRandScrap", { idList: [id] });
     // MOVE 型废品自动装备为载具（首个）
@@ -131,6 +158,75 @@ export class RoguelikeScrapManager {
         instId,
         isWalk: false,
       };
+    }
+  }
+
+  /**
+   * 自然物（GOODS 型废品）估价动态效果——服务端事件驱动 value。
+   * 各自然物在对应事件发生时自身的 value（估价）累积变化，供行商售价与
+   * "消耗最低估价加工品"排序使用（consumePortalScrap / loseScrap 读 inventory.value）。
+   * @param trigger 触发事件类型
+   * @param count 事件发生次数（如一次移动揭示多个节点）
+   */
+  applyGoodsEffect(trigger: GoodsTrigger, count = 1): void {
+    if (!this.inventory) return;
+    const stm = this.scrapModule();
+    if (!stm) return;
+    // 待移除（损坏）的自然物 id 集，遍历后统一删除（避免遍历中改动）
+    const toRemove: string[] = [];
+    for (const it of Object.values(this.inventory)) {
+      if (stm.scrapItemToType?.[it.id] !== "GOODS") continue;
+      this.applySingleGoodsEffect(it, trigger, count, toRemove);
+    }
+    if (toRemove.length > 0) {
+      for (const instId of toRemove) delete this.inventory[instId];
+    }
+  }
+
+  /** 对单个自然物按其 id 应用一次事件估价效果 */
+  private applySingleGoodsEffect(
+    it: ScrapItem,
+    trigger: GoodsTrigger,
+    count: number,
+    toRemove: string[],
+  ): void {
+    const value = (d: number) => {
+      it.value += d;
+    };
+    switch (it.id) {
+      case "rogue_6_scrap_G_02": // 每次作战后估价+2
+        if (trigger === "battle_win") value(2 * count);
+        break;
+      case "rogue_6_scrap_G_03": // 每次揭示节点信息时估价+1
+        if (trigger === "node_reveal") value(1 * count);
+        break;
+      case "rogue_6_scrap_G_04": // 每次招募干员时估价+3
+        if (trigger === "recruit") value(3 * count);
+        break;
+      case "rogue_6_scrap_G_05": // 每次移动后估价随机 -6~+8（含两端）
+        if (trigger === "move") {
+          for (let i = 0; i < count; i++) {
+            it.value += Math.floor(Math.random() * 15) - 6;
+          }
+        }
+        break;
+      case "rogue_6_scrap_G_06": // 完美作战后+4；非完美作战后自身损坏（移除）
+        if (trigger === "battle_perfect") value(4 * count);
+        else if (trigger === "battle_fail" || trigger === "battle_nonperfect") {
+          toRemove.push(it.instId);
+        }
+        break;
+      case "rogue_6_scrap_G_07": // 获得零件时估价+1
+        if (trigger === "scrap_gain") value(1 * count);
+        break;
+      case "rogue_6_scrap_G_09": // 获得零件时估价+4
+        if (trigger === "scrap_gain") value(4 * count);
+        break;
+      case "rogue_6_scrap_G_10": // 每次移动后估价-2
+        if (trigger === "move") value(-2 * count);
+        break;
+      default:
+        break; // G_01/G_08/G_11/G_12：无估价动态（G_12 不期而遇特殊作用见节点钩子）
     }
   }
 

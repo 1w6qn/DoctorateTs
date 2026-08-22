@@ -11,6 +11,7 @@ import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { RoguelikePushMessage } from "../model/protocol/common";
+import { isBlackstream } from "../controller/rlv2/theme-rules";
 import {
   FinishBattleRewardRequest,
   FinishBattleRewardResponse,
@@ -214,6 +215,29 @@ export function rlv2Response<T extends object>(
     }
   } else {
     Object.assign(currentOut, current);
+  }
+  // 修复：黑流树海（rogue_6）地图 zone 以「区域索引」为 map.zones 键（1000+层号-1，如层 1 → "1000"），
+  // 而游标/轨迹内部按「层号」存储（1,2,3…）。若不把输出到客户端的 cursor.zone 与 trace[].zone 映射回
+  // 区域索引，客户端按 cursor.zone 去 map.zones 里找不到对应区域（"zone 在 map 中不存在"），导致地图
+  // 渲染/推进异常（官方抓包：cursor.zone=1000、trace[].zone=1000 与 map.zones 键 "1000" 对齐）。
+  // 仍按层号存储可保持内部逻辑（checkZoneEnd/maxZone/zoneKey/结算）与重登"继续探索"不变。
+  // 注意：先经 toJSON() 取干净的可序列化副本再改写 zone——若用 {...p} 直接展平，会丢掉 toJSON()，
+  // 使 res.send 序列化整个状态管理器（_player 自指控制器 → map/inventory/troop 冗余全量泄漏，
+  // 响应体积暴涨，如 giveUpGame）。仅在响应副本上改写，不触碰控制器内存态。
+  const respTheme = (current as any)?.game?.theme as string | undefined;
+  if (isBlackstream(respTheme) && currentOut.player?.cursor?.zone > 0) {
+    const toZoneIndex = (zone: number) => zone + 999;
+    const clean =
+      typeof currentOut.player.toJSON === "function"
+        ? currentOut.player.toJSON()
+        : currentOut.player;
+    currentOut.player = {
+      ...clean,
+      cursor: { ...clean.cursor, zone: toZoneIndex(clean.cursor.zone) },
+      trace: Array.isArray(clean.trace)
+        ? clean.trace.map((t: any) => ({ ...t, zone: toZoneIndex(t.zone) }))
+        : clean.trace,
+    };
   }
   const rlv2: any = { current: currentOut };
   if (outerKeys && outerKeys.length > 0) {

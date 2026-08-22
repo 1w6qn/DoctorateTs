@@ -26,6 +26,9 @@ import {
   ROGUE6_NODE,
   ROGUE6_BATTLE_NODES,
   ROGUE6_SHOP_NODES,
+  ROGUE6_INITIALLY_LIT_NODES,
+  ROGUE6_REVISITABLE_NODES,
+  ROGUE6_FORESIGHT,
   ROGUE6_ZONE_ACTION,
   ROGUE6_WING_OUTBUFF,
   BLACKSTREAM_THEME,
@@ -287,6 +290,30 @@ export class RoguelikeGridZoneManager {
     this.zones[`zone_${zoneId}`] = { nodes };
     // 同步官服 map.zones 全量结构（客户端地图渲染读 map.zones：index/pos/next/type/stage/visibility）
     this.syncMapZones(zoneId, template, nodes);
+    // 进入区域 = 抵达起点：点亮起点沿地图边可达的首节点（初始仅特殊节点点亮，
+    // 起点路径在此揭示，否则开局无可移动目标）。
+    this.revealReachable(
+      this.mapZoneKeyOf(`zone_${zoneId}`),
+      `zone_${zoneId}`,
+      template.startSlot[0],
+      template.startSlot[1],
+      1,
+    );
+    // 羽瞰点默认照亮到羽瞰点曼哈顿距离为 2 的节点（未经过时）：进层即揭示其周边 2 跳；
+    // 抵达羽瞰点（经过，state=2）后由 moveTo 增为 3。
+    for (const [id, n] of Object.entries(nodes)) {
+      if (n.content?.kind === ROGUE6_NODE.RAIN_VIEW) {
+        this.revealManhattan(
+          this.mapZoneKeyOf(`zone_${zoneId}`),
+          `zone_${zoneId}`,
+          Math.floor(Number(id) / 100),
+          Number(id) % 100,
+          2,
+        );
+      }
+    }
+    // 进层揭示属于“初始版面”，不落入后续移动的 rlv2NodeChange.nodeList
+    this._changedNodeIds = new Set();
     // 行动力：模板显式 action（VI 层/portal 等特殊层）优先，否则按层初始值 5/6/7/8/8
     this.stepRemain = template.action ?? this.initialActionForZone(zoneId);
     this.needConfirmStepZero = true;
@@ -360,12 +387,22 @@ export class RoguelikeGridZoneManager {
       const y = Number(id) % 100;
       const light = lightNodes[id];
       const next = (adj[id] || []).slice().sort((p, q) => p.x - q.x || p.y - q.y);
+      // visibility（PlayerNodeForesightType 线格式）：0=NORMAL 已揭示可见（起点/初始点亮的
+      // 特殊节点），1=HIDE_INVISIBLE 未揭示隐藏（其余节点——显示"未知事件"）。抵达时由
+      // revealReachable/Manhattan 逐级揭示为 NORMAL。到达状态由 gridZone 节点 state 承载。
+      const nodeType = this.lightType(light);
+      const isStart =
+        template.startSlot[0] === x && template.startSlot[1] === y;
+      const visibility =
+        isStart || ROGUE6_INITIALLY_LIT_NODES.includes(nodeType)
+          ? ROGUE6_FORESIGHT.NORMAL
+          : ROGUE6_FORESIGHT.HIDE_INVISIBLE;
       const node: any = {
         index: id,
         pos: { x, y },
         next,
-        type: this.lightType(light),
-        visibility: 0,
+        type: nodeType,
+        visibility,
       };
       if (light.content?.savage?.stageId) node.stage = light.content.savage.stageId;
       // 终点（险路尽头/险路恶敌）标记 zone_end——控制器 checkZoneEnd 依赖
@@ -553,6 +590,8 @@ export class RoguelikeGridZoneManager {
   /**
    * 构造 GridNode：战斗按类型取对应关卡池（普通/紧急/首领）+ kind，
    * 商店（诡意行商/秘境行商/应急助力）空货架 + kind，其余仅 kind；初始均未访问（state 0）。
+   * 视野/点亮状态由 map.zones 节点的 visibility（PlayerNodeForesightType 线格式 0/1/2）表示，
+   * gridZone 节点 show 恒为 true，不承担点亮语义——见 syncMapZones / revealReachable。
    * @param type 节点类型数值（ROGUE6_NODE）
    * @param pools 本层关卡池
    * @returns 网格节点
@@ -672,6 +711,11 @@ export class RoguelikeGridZoneManager {
       zoneKey: key,
       family,
     };
+    // 进入隐藏层 = 抵达起点：点亮起点沿边可达首节点（portal.active 已置位，
+    // mapZoneKeyOf 据此命中 portalZoneKey 本身）
+    this.revealReachable(this.mapZoneKeyOf(`zone_${key}`), `zone_${key}`, sx, sy, 1);
+    // 初始版面揭示不落入后续移动的 rlv2NodeChange.nodeList
+    this._changedNodeIds = new Set();
     // 当前节点 = 隐藏层起点
     const status = this._player._status;
     status.cursor.position = { x: sx, y: sy };
@@ -722,7 +766,8 @@ export class RoguelikeGridZoneManager {
 
   /** 移动到指定节点（route 末节点）；标记节点已访问并返回节点 */
   moveTo(route: string[]): GridNode | undefined {
-    const zone = this.zones[this.currentZoneKey()];
+    const zoneKey = this.currentZoneKey();
+    const zone = this.zones[zoneKey];
     if (!zone || !route || route.length === 0) return undefined;
     const last = route[route.length - 1];
     const node = zone.nodes[last];
@@ -732,25 +777,181 @@ export class RoguelikeGridZoneManager {
         node.state = 2;
         this._changedNodeIds.add(last);
       }
-      // 视野：点亮当前节点曼哈顿距离 1 的可达节点（黑流树海视野机制——
-      // 自身视野照亮直接可达节点；羽瞰点照亮 1-2 格）
+      // 到达节点在地图上也揭示为可见（visibility=NORMAL）；抵达本身由 gridZone state=2 承载，
+      // 不再用 visibility 数值表达（官方 visibility 无"到达"专用值）。
+      const mapKey = this.mapZoneKeyOf(zoneKey);
+      const mapArrived = this._player._map?.zones?.[mapKey]?.nodes?.[last];
+      if (
+        mapArrived &&
+        (mapArrived.visibility ?? ROGUE6_FORESIGHT.HIDE_INVISIBLE) !==
+          ROGUE6_FORESIGHT.NORMAL
+      ) {
+        mapArrived.visibility = ROGUE6_FORESIGHT.NORMAL;
+      }
+      // 视野：抵达后揭视可达节点——普通节点沿地图边点亮可达路径首节点（1 跳）；
+      // 羽瞰点按到羽瞰点的曼哈顿距离照亮，经过后（state 已置 2）为 3，未经过时的默认 2
+      // 在进层生成时揭示（见 generate）。
       const lastX = Math.floor(Number(last) / 100);
       const lastY = Number(last) % 100;
-      const visionRange = node.content?.kind === ROGUE6_NODE.RAIN_VIEW ? 2 : 1;
-      for (const [id, n] of Object.entries(zone.nodes)) {
-        const nx = Math.floor(Number(id) / 100);
-        const ny = Number(id) % 100;
-        const dist = Math.abs(nx - lastX) + Math.abs(ny - lastY);
-        if (dist <= visionRange) {
-          // 视野揭示：仅当该节点实际发生状态/视野变化才记为变化节点
-          const changed = !n.show || n.state === 0;
-          n.show = true;
-          if (n.state === 0) n.state = 1;
-          if (changed) this._changedNodeIds.add(id);
-        }
+      // 羽瞰点：特殊视野，按到羽瞰点的曼哈顿距离照亮（默认 2，经过后 state=2 增为 3）；
+      // 普通节点仍沿地图边点亮可达路径首节点（1 跳）。
+      if (node.content?.kind === ROGUE6_NODE.RAIN_VIEW) {
+        this.revealManhattan(mapKey, zoneKey, lastX, lastY, 3, true);
+      } else {
+        this.revealReachable(mapKey, zoneKey, lastX, lastY, 1, true);
       }
     }
     return node;
+  }
+
+  /**
+   * 节点"被经过"衰减：将玩家移走的旧节点改写为林间空地 GLADE（地图类型 + gridZone 类型）。
+   * 可反复进入的节点类型（商店类/林间空地/险路尽头/险路小径/曲折密道，见
+   * ROGUE6_REVISITABLE_NODES）保持不变。抵达新节点时对刚移走的上一位置调用。
+   * @param mapKey _map.zones 键
+   * @param zoneKey gridZone 键
+   * @param nodeId 被经过的旧节点 id（x*100+y）
+   * @returns 是否实际发生了衰减（类型被改写为 GLADE）
+   */
+  decayPassed(mapKey: string, zoneKey: string, nodeId: string): boolean {
+    const zone = this.zones[zoneKey];
+    const gzNode = zone?.nodes[nodeId];
+    if (!gzNode) return false;
+    const kind = gzNode.content?.kind;
+    if (typeof kind !== "number" || ROGUE6_REVISITABLE_NODES.includes(kind)) {
+      return false;
+    }
+    gzNode.content = { kind: ROGUE6_NODE.GLADE };
+    const mapNode =
+      this._player._map?.zones?.[mapKey]?.nodes?.[nodeId];
+    if (mapNode) mapNode.type = ROGUE6_NODE.GLADE;
+    this._changedNodeIds.add(nodeId);
+    return true;
+  }
+
+  /**
+   * 网格 zone 键（zone_N 常规 / zone_<portalKey> 隐藏层）→ _map.zones 键。
+   * 常规层键 = 1000+N-1（与 syncMapZones 一致）；隐藏层 = portal.zoneKey 本身。
+   * @param zoneKey gridZone 的 zone 键
+   * @returns _map.zones 的对应键
+   */
+  private mapZoneKeyOf(zoneKey: string): string {
+    if (this.portal?.active && zoneKey === `zone_${this.portal.zoneKey}`) {
+      return this.portal.zoneKey;
+    }
+    const zoneId = parseInt(zoneKey.slice("zone_".length), 10);
+    return String(1000 + zoneId - 1);
+  }
+
+  /**
+   * 从节点 (sx,sy) 沿地图边（_map.zones 节点的 next 邻接表）点亮 ≤hops 跳的首段可达节点：
+   * 置其 map.zones visibility=NORMAL（揭示可见），按需把 gridZone state 0→1，并入变化节点集合。
+   * 供 moveTo 抵达揭示可达路径，以及进入区域时把起点视为“已抵达”揭示起点路径。
+   * 揭示为单调（不降级已探索节点：visibility=NORMAL / state=2 不回退）；只取 current hop 的边邻居。
+   * @param mapZoneKey _map.zones 键
+   * @param zoneKey gridZone 键
+   * @param sx 起始 x（x*100+y 节点坐标）
+   * @param sy 起始 y
+   * @param hops 可达跳数（普通 1；羽瞰点 2）
+   * @param markAccessible 是否把揭示节点 gridZone state 0→1（可访问）。normal moveTo 传 true；
+   *  进层起点揭示传 false——官服进层后 gridZone 节点 state 只取 0/2（无中间态），仅点亮不升状态
+   */
+  private revealReachable(
+    mapZoneKey: string,
+    zoneKey: string,
+    sx: number,
+    sy: number,
+    hops: number,
+    markAccessible = false,
+  ): void {
+    const zone = this.zones[zoneKey];
+    const mapNodes = (this._player._map?.zones?.[mapZoneKey]?.nodes ||
+      {}) as {
+      [id: string]: { next?: { x: number; y: number }[]; visibility?: number };
+    };
+    if (!zone) return;
+    const visited = new Set<string>([this.nodeId(sx, sy)]);
+    let frontier: { x: number; y: number }[] = [{ x: sx, y: sy }];
+    for (let hop = 1; hop <= hops; hop++) {
+      const nextFrontier: { x: number; y: number }[] = [];
+      for (const cur of frontier) {
+        for (const nb of mapNodes[this.nodeId(cur.x, cur.y)]?.next ?? []) {
+          const nid = this.nodeId(nb.x, nb.y);
+          if (visited.has(nid)) continue;
+          visited.add(nid);
+          const gzNode = zone.nodes[nid];
+          const mapNode = mapNodes[nid];
+          let changed = false;
+          // visibility 单调揭示：HIDE（未定义/1/2/3）→ NORMAL(0)；已揭示不回退
+          if (
+            mapNode &&
+            (mapNode.visibility ?? ROGUE6_FORESIGHT.HIDE_INVISIBLE) !==
+              ROGUE6_FORESIGHT.NORMAL
+          ) {
+            mapNode.visibility = ROGUE6_FORESIGHT.NORMAL;
+            changed = true;
+          }
+          if (gzNode && markAccessible && gzNode.state === 0) {
+            gzNode.state = 1;
+            changed = true;
+          }
+          if (changed) this._changedNodeIds.add(nid);
+          nextFrontier.push(nb);
+        }
+      }
+      frontier = nextFrontier;
+    }
+  }
+
+  /**
+   * 按到起点 (sx,sy) 的曼哈顿距离点亮 zone 内节点（羽瞰点特殊视野）：
+   * 曼哈顿距离 = |x-sx|+|y-sy| ≤ radius 的节点置 map.zones visibility=NORMAL（揭示可见），
+   * 按需把 gridZone state 0→1，并入变化节点集合。
+   * 与 revealReachable（沿地图边）不同，此处以到羽瞰点的曼哈顿半径铺开，
+   * 不要求边连通；揭示为单调（不降级已探索节点）。
+   * @param mapZoneKey _map.zones 键
+   * @param zoneKey gridZone 键
+   * @param sx 羽瞰点 x（x*100+y 节点坐标）
+   * @param sy 羽瞰点 y
+   * @param radius 曼哈顿距离半径（默认 2；经过后 3）
+   * @param markAccessible 是否把揭示节点 gridZone state 0→1（可访问）
+   */
+  private revealManhattan(
+    mapZoneKey: string,
+    zoneKey: string,
+    sx: number,
+    sy: number,
+    radius: number,
+    markAccessible = false,
+  ): void {
+    const zone = this.zones[zoneKey];
+    if (!zone) return;
+    const mapNodes = (this._player._map?.zones?.[mapZoneKey]?.nodes ||
+      {}) as {
+      [id: string]: { visibility?: number };
+    };
+    for (const nid of Object.keys(zone.nodes)) {
+      const x = Math.floor(Number(nid) / 100);
+      const y = Number(nid) % 100;
+      if (Math.abs(x - sx) + Math.abs(y - sy) > radius) continue;
+      const mapNode = mapNodes[nid];
+      const gzNode = zone.nodes[nid];
+      let changed = false;
+      // visibility 单调揭示：HIDE（未定义/1/2/3）→ NORMAL(0)；已揭示不回退
+      if (
+        mapNode &&
+        (mapNode.visibility ?? ROGUE6_FORESIGHT.HIDE_INVISIBLE) !==
+          ROGUE6_FORESIGHT.NORMAL
+      ) {
+        mapNode.visibility = ROGUE6_FORESIGHT.NORMAL;
+        changed = true;
+      }
+      if (gzNode && markAccessible && gzNode.state === 0) {
+        gzNode.state = 1;
+        changed = true;
+      }
+      if (changed) this._changedNodeIds.add(nid);
+    }
   }
 
   /**

@@ -319,6 +319,28 @@ export class RoguelikeRecruitManager {
     }) as any;
 
     await this._trigger.emit("rlv2:char:get", [this.tickets[id].result!]);
+    // 特勤干员任务：招募指定干员（Rlv2RecruitSpecificChar）；招募时直接进阶（upgradePhase>=1，
+    // 如 limited_direct_upgrade 直接进阶）另发进阶事件（Rlv2UpgradeSpecificChar）；
+    // 岁兽残识（rogue_5）中干员入队即视为秉烛（Rlv2CandleTimes 近似）。
+    const soTheme = this._player.current.game?.theme || "";
+    const soCharId = this.tickets[id].result!.charId;
+    await this._trigger.emit("Rlv2RecruitSpecificChar", [
+      { theme: soTheme, charId: soCharId },
+    ]);
+    if ((this.tickets[id].result!.upgradePhase ?? 0) >= 1) {
+      await this._trigger.emit("Rlv2UpgradeSpecificChar", [
+        { theme: soTheme, charId: soCharId },
+      ]);
+    }
+    if (soTheme === "rogue_5") {
+      await this._trigger.emit("Rlv2CandleTimes", [
+        {
+          theme: soTheme,
+          mode: this._player.current.game?.mode || "NORMAL",
+          grade: this._player.current.game?.modeGrade ?? 0,
+        },
+      ]);
+    }
     await this._trigger.emit("rlv2:get:items", [
       [
         {
@@ -328,6 +350,8 @@ export class RoguelikeRecruitManager {
         },
       ],
     ]);
+    // 自然物（GOODS）估价动态：每次招募干员 → G_04 +3
+    this._player._module?.scrap?.applyGoodsEffect("recruit");
     this.tickets[id].list = [];
   }
 

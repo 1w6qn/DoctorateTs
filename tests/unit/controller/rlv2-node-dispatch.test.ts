@@ -239,9 +239,9 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
     const rlv2 = player.rlv2 as any;
     const gz = rlv2._module.gridZone;
     gz.beginMove();
-    // 手工铺一张平铺网格：0,0 起点（已访问）；目标节点 100 → 到达后其曼哈顿距离 1 的
-    // 邻居 1/200/100 被揭示。断言 nodeList = 到达节点 + 实际发生状态/视野变化的邻居，
-    // 且不含已被点亮的远节点 2（距离 2，不在范围内）。
+    // 手工铺一张平铺网格：0,0 起点（已访问）；目标节点 100 → 到达后按地图边点亮
+    // 可达首节点（边连 0/200/101）。断言 nodeList = 到达节点 + 实际发生状态/视野变化的
+    // 边可达邻居，且不含非边连接（曼哈顿相邻但未连通）的 1/2。
     gz.zones = {
       zone_3: {
         nodes: {
@@ -252,6 +252,15 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
           "101": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: false },
           "200": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: false },
         },
+      },
+    };
+    // 沿边可达揭示 visibility：设置 map.zones 邻接（100 边连 0/200/101）供 moveTo 按边揭示。
+    // 起点 0 已揭示（visibility=NORMAL），抵达 100 后 200/101 由 HIDE_INVISIBLE → NORMAL，
+    // 起点不降级、1/2 非边连接不入列。
+    (rlv2._map as any).zones["1002"] = {
+      nodes: {
+        "0": { next: [{ x: 1, y: 0 }], visibility: 0 },
+        "100": { next: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 1, y: 1 }], visibility: 1 },
       },
     };
     rlv2._status.cursor.zone = 3;
@@ -271,6 +280,106 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
     gz.beginMove();
     gz.moveTo(["100"]);
     expect(gz.takeChangedNodes()).toEqual([]);
+  });
+
+  it("羽瞰点经过后按到羽瞰点的曼哈顿距离照亮 3（普通节点仅沿边 1 跳）", async () => {
+    // 布局：0(起点) 直链边连 100 - 200 - 300；另有 101(1,1)/103(1,3) 不与任何边连通。
+    // 羽瞰点 100（抵达即经过，state→2）视野半径 3：按曼哈顿距离铺开，
+    // 101(距1)、200(距1)、300(距2)、103(距3) 全部点亮——含无边连接的 101/103。
+    // 普通节点 1 跳：沿地图边只点亮直链邻居 200，无边连接的 101/103 与距离 2 的 300 不亮。
+    const player = makePlayer();
+    await (player.rlv2 as any)._module.create();
+    const rlv2 = player.rlv2 as any;
+    const gz = rlv2._module.gridZone;
+    const layer = (zoneKey: string, kind: number) => {
+      gz.beginMove();
+      gz.zones = {
+        [zoneKey]: {
+          nodes: {
+            "0": { content: { kind: ROGUE6_NODE.GLADE }, state: 2, show: true },
+            "100": { content: { kind }, state: 1, show: true },
+            "200": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: false },
+            "300": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: false },
+            "101": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: false },
+            "103": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: false },
+          },
+        },
+      };
+      // map.zones 邻接：仅直链 0-100-200-300；101/103 无边（next 空）。
+      // visibility 官方枚举语义：0=NORMAL 已揭示，1=HIDE_INVISIBLE 未揭示。
+      (rlv2._map as any).zones["1003"] = {
+        nodes: {
+          "0": { next: [{ x: 1, y: 0 }], visibility: 0 },
+          "100": { next: [{ x: 0, y: 0 }, { x: 2, y: 0 }], visibility: 1 },
+          "200": { next: [{ x: 1, y: 0 }, { x: 3, y: 0 }], visibility: 1 },
+          "300": { next: [{ x: 2, y: 0 }], visibility: 1 },
+          "101": { next: [], visibility: 1 },
+          "103": { next: [], visibility: 1 },
+        },
+      };
+      rlv2._status.cursor.zone = 4;
+      gz.beginMove();
+      gz.moveTo(["100"]);
+    };
+    const mapOf = () => (rlv2._map as any).zones["1003"].nodes;
+
+    // 羽瞰点：曼哈顿距离 ≤3（101/200 距1、300 距2、103 距3）全部揭示为 NORMAL(0)
+    layer("zone_4", ROGUE6_NODE.RAIN_VIEW);
+    let changed = gz.takeChangedNodes();
+    expect(changed).toContain("100");
+    expect(changed).toContain("200");
+    expect(changed).toContain("300");
+    expect(changed).toContain("101"); // 无边连接，但距羽瞰点 1 → 曼哈顿揭示
+    expect(changed).toContain("103"); // 距羽瞰点 3 → 半径 3 内
+    expect(mapOf()["101"].visibility).toBe(0);
+    expect(mapOf()["103"].visibility).toBe(0);
+
+    // 普通节点：沿地图边 1 跳，仅直链邻居 200 揭示；101/103 无边、300 距离 2 均保持 HIDE_INVISIBLE(1)
+    layer("zone_4", ROGUE6_NODE.BATTLE_NORMAL);
+    changed = gz.takeChangedNodes();
+    expect(changed).toContain("200");
+    expect(changed).not.toContain("300");
+    expect(changed).not.toContain("101");
+    expect(changed).not.toContain("103");
+    expect(mapOf()["300"].visibility).toBe(1);
+    expect(mapOf()["101"].visibility).toBe(1);
+  });
+
+  it("进层生成时羽瞰点默认按曼哈顿距离 2 点亮（3 处距离不点）", async () => {
+    // 构造一个羽瞰点身处其中、周围曼哈顿距离 2/3 的节点混布的 zone。
+    // 直接校验 generate 后 map.zones 的 visibility：羽瞰点 2 半径内揭示为 NORMAL(0)，半径 3 保持 HIDE_INVISIBLE(1)。
+    const player = makePlayer();
+    await (player.rlv2 as any)._module.create();
+    const rlv2 = player.rlv2 as any;
+    const gz = rlv2._module.gridZone;
+    // 放入羽瞰点 200(2,0)，其曼哈顿距离：300(3,0) 距1、400(4,0) 距2、500(5,0) 距3
+    gz.zones = {
+      zone_4: {
+        nodes: {
+          "0": { content: { kind: ROGUE6_NODE.GLADE }, state: 2, show: true },
+          "200": { content: { kind: ROGUE6_NODE.RAIN_VIEW }, state: 0, show: true },
+          "300": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: false },
+          "400": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: false },
+          "500": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: false },
+        },
+      },
+    };
+    (rlv2._map as any).zones["1003"] = {
+      nodes: {
+        "0": { next: [{ x: 2, y: 0 }], visibility: 0 },
+        "200": { next: [{ x: 0, y: 0 }, { x: 3, y: 0 }], visibility: 1 },
+        "300": { next: [{ x: 2, y: 0 }, { x: 4, y: 0 }], visibility: 1 },
+        "400": { next: [{ x: 3, y: 0 }, { x: 5, y: 0 }], visibility: 1 },
+        "500": { next: [{ x: 4, y: 0 }], visibility: 1 },
+      },
+    };
+    // 触发 generate 的羽瞰点默认揭示逻辑
+    gz.beginMove();
+    gz.revealManhattan("1003", "zone_4", 2, 0, 2);
+    const mapNodes = (rlv2._map as any).zones["1003"].nodes;
+    expect(mapNodes["300"].visibility).toBe(0); // 距1 → NORMAL
+    expect(mapNodes["400"].visibility).toBe(0); // 距2 → NORMAL
+    expect(mapNodes["500"].visibility).toBe(1); // 距3 → 半径 2 之外，保持 HIDE_INVISIBLE
   });
 });
 
@@ -446,5 +555,95 @@ describe("rogue_6 新增 pushMessage 类型", () => {
     (player.rlv2 as any).current.game.theme = "rogue_5";
     player.rlv2.pushMessage("rlv2VehicleChange", {});
     expect((player.rlv2 as any).takePushMessages().length).toBe(0);
+  });
+});
+
+describe("rogue_6 经过后节点衰减为林间空地（decayPassed）", () => {
+  // 主力验证 grid_zone.decayPassed 的类型改写：
+  // 普通节点被经过 → gridZone/map 均变 GLADE；可反复进入类节点保持不变。
+  it("普通节点被移走后变为林间空地（gridZone 与 map 类型同步）", async () => {
+    const player = makePlayer();
+    await (player.rlv2 as any)._module.create();
+    const rlv2 = player.rlv2 as any;
+    const gz = rlv2._module.gridZone;
+    gz.zones = {
+      zone_3: {
+        nodes: {
+          "100": { content: { kind: ROGUE6_NODE.BATTLE_NORMAL }, state: 2, show: true },
+          "200": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: true },
+        },
+      },
+    };
+    (rlv2._map as any).zones["1002"] = {
+      nodes: {
+        "100": { next: [{ x: 2, y: 0 }], visibility: 0, type: ROGUE6_NODE.BATTLE_NORMAL },
+        "200": { next: [{ x: 1, y: 0 }], visibility: 1, type: ROGUE6_NODE.REST },
+      },
+    };
+    expect(gz.decayPassed("1002", "zone_3", "100")).toBe(true);
+    expect(gz.zones["zone_3"].nodes["100"].content.kind).toBe(ROGUE6_NODE.GLADE);
+    expect((rlv2._map as any).zones["1002"].nodes["100"].type).toBe(ROGUE6_NODE.GLADE);
+    // decayPassed 不改 visibility；100 已揭示（NORMAL=0）
+    expect((rlv2._map as any).zones["1002"].nodes["100"].visibility).toBe(0);
+  });
+
+  it("可反复进入类节点（商店/林间空地/尽头/小径/密道）经过后保持原类型", async () => {
+    const player = makePlayer();
+    await (player.rlv2 as any)._module.create();
+    const rlv2 = player.rlv2 as any;
+    const gz = rlv2._module.gridZone;
+    const revisit = [
+      ROGUE6_NODE.SHOP,
+      ROGUE6_NODE.SECRET_SHOP,
+      ROGUE6_NODE.EMERGENCY_AID,
+      ROGUE6_NODE.GLADE,
+      ROGUE6_NODE.VISIBLE_END,
+      ROGUE6_NODE.VISIBLE_PATH,
+      ROGUE6_NODE.TUNNEL,
+    ];
+    gz.zones = { zone_3: { nodes: {} } };
+    (rlv2._map as any).zones["1002"] = { nodes: {} };
+    revisit.forEach((kind, i) => {
+      const id = String((i + 1) * 100);
+      gz.zones["zone_3"].nodes[id] = { content: { kind }, state: 2, show: true };
+      (rlv2._map as any).zones["1002"].nodes[id] = { type: kind, visibility: 0 };
+    });
+    revisit.forEach((kind, i) => {
+      const id = String((i + 1) * 100);
+      expect(gz.decayPassed("1002", "zone_3", id)).toBe(false);
+      expect(gz.zones["zone_3"].nodes[id].content.kind).toBe(kind);
+      expect((rlv2._map as any).zones["1002"].nodes[id].type).toBe(kind);
+    });
+  });
+
+  it("gridZoneMoveTo：移动后上一位置普通节点变 GLADE 并进入 nodeList", async () => {
+    const player = makePlayer();
+    await (player.rlv2 as any)._module.create();
+    const rlv2 = player.rlv2 as any;
+    const gz = rlv2._module.gridZone;
+    // 起点 0 已访问（GLADE）；目标 100 为普通作战；玩家起点在 0 → 移动到 100
+    gz.zones = {
+      zone_3: {
+        nodes: {
+          "0": { content: { kind: ROGUE6_NODE.GLADE }, state: 2, show: true },
+          "100": { content: { kind: ROGUE6_NODE.BATTLE_NORMAL }, state: 0, show: true },
+          "200": { content: { kind: ROGUE6_NODE.GLADE }, state: 0, show: true },
+        },
+      },
+    };
+    (rlv2._map as any).zones["1002"] = {
+      nodes: {
+        "0": { next: [{ x: 1, y: 0 }], visibility: 0, type: ROGUE6_NODE.GLADE },
+        "100": { next: [{ x: 0, y: 0 }, { x: 2, y: 0 }], visibility: 1, type: ROGUE6_NODE.BATTLE_NORMAL },
+        "200": { next: [{ x: 1, y: 0 }], visibility: 1, type: ROGUE6_NODE.GLADE },
+      },
+    };
+    rlv2._status.cursor.zone = 3;
+    rlv2._status.cursor.position = { x: 0, y: 0 };
+    gz.beginMove();
+    await rlv2.gridZoneMoveTo({ route: ["100"] });
+    // 抵达 100 后，起点 0 为 GLADE（本来就 GLADE，不衰减）；无中途节点 → 无衰减
+    expect((rlv2._map as any).zones["1002"].nodes["100"].type).toBe(ROGUE6_NODE.BATTLE_NORMAL);
+    expect((rlv2._map as any).zones["1002"].nodes["0"].type).toBe(ROGUE6_NODE.GLADE);
   });
 });

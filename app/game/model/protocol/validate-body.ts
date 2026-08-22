@@ -8,6 +8,7 @@
  */
 import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
+import { logger } from "@utils/logger";
 
 /** 校验失败响应体（对齐游戏约定：顶层 result 字段标识业务失败） */
 export interface ValidationErrorBody {
@@ -38,6 +39,11 @@ export function validateBody(
     if (!parsed.success) {
       const first = parsed.error.issues[0];
       const where = first.path.length > 0 ? ` field "${first.path.join(".")}"` : "";
+      // 校验失败日志：记录方法/路径/首个失败原因，便于在统一日志与抓包中追踪被 422 拦下的请求
+      logger.warn(
+        "validate-body",
+        `请求体校验失败 ${req.method} ${req.originalUrl ?? req.url} → ${first.message}${where}`,
+      );
       const body: ValidationErrorBody = {
         result: -1,
         message: `${first.message}${where ? `${where}` : ""}`,

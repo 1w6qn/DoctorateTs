@@ -30,7 +30,7 @@ describe("validateBody 中间件", () => {
   it("合法 body 通过且 req.body 被 parse", () => {
     const res = makeRes();
     const next = vi.fn();
-    const req: any = { body: { theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null } };
+    const req: any = { body: { theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null, activityId: null } };
     validateBody(ReqSchema.createGameSchema)(req, res as any, next);
     expect(next).toHaveBeenCalledTimes(1);
     expect(res.status).not.toHaveBeenCalled();

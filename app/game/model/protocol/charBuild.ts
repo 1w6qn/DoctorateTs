@@ -219,8 +219,15 @@ export interface AddonStageBattleStartRequest {
   stageType: string;
 }
 
-/** 干员密录关卡开始响应（CS: HandBookAddonStageBattleStartResponse；服务端仅返回增量） */
-export type AddonStageBattleStartResponse = PlayerDeltaResponse;
+/** 干员密录关卡开始响应（CS: HandBookAddonStageBattleStartResponse；服务端返回 battleId + 增量） */
+export interface AddonStageBattleStartResponse extends PlayerDeltaResponse {
+  result: number;
+  battleId: string;
+  apFailReturn: number;
+  isApProtect: number;
+  inApProtectPeriod: boolean;
+  notifyPowerScoreNotEnoughIfFailed: boolean;
+}
 
 /**
  * 干员密录关卡结算请求（CS: HandBookAddonStageBattleFinishRequest : CommonFinishBattleRequest）

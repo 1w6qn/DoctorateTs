@@ -88,15 +88,27 @@ export const assignCharSchema = z.object({
   charInstIdList: z.array(z.number()),
 });
 
-/** 批量更换工作干员（CS: BuildingBatchChangeWorkCharRequest，服务端读 roomSlotId/charInstIdList） */
+/**
+ * 批量更换工作干员（CS: BuildingBatchChangeWorkCharRequest）
+ * 抓包实测：客户端"换班"按钮发空体 {} 期望预设队列轮换；字段全可选匹配 handler
+ * 契约（roomSlotId 缺省走队列轮换逻辑）。
+ */
 export const batchChangeWorkCharSchema = z.object({
-  roomSlotId: z.string(),
-  charInstIdList: z.array(z.number()),
+  roomSlotId: z.string().optional(),
+  slotId: z.string().optional(),
+  charInstIdList: z.array(z.number()).optional(),
+  charInstIds: z.array(z.number()).optional(),
+  list: z.array(z.number()).optional(),
 });
 
-/** 批量休息干员（CS: BuildingBatchChangeRestCharRequest，服务端读 charInstIdList） */
+/**
+ * 批量休息干员（CS: BuildingBatchChangeRestCharRequest）
+ * 抓包实测：客户端可能发空体 {}（handler 空列表时直接不改分配）；字段可选。
+ */
 export const batchRestCharSchema = z.object({
-  charInstIdList: z.array(z.number()),
+  charInstIdList: z.array(z.number()).optional(),
+  charInstIds: z.array(z.number()).optional(),
+  list: z.array(z.number()).optional(),
 });
 
 /** 获得信赖（CS: CharBuildIncIntimacyRequest { charInstId }） */

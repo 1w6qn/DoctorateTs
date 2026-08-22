@@ -98,10 +98,10 @@ describe("游戏 API 独立端点：输入 → 输出", () => {
     expect(Array.isArray(res.body.mailList)).toBe(true);
   });
 
-  it("rlv2 /rlv2/createGame：缺失必填参数应返回受控业务错误而非 500", async () => {
+  it("rlv2 /rlv2/createGame：缺失必填参数返回 HTTP 422（zod 格式校验，非 500）", async () => {
     const res = await fx.post("/rlv2/createGame", {}, secret);
-    expect(res.status).toBe(200);
-    expect(res.body.result).toBe(1);
-    expect(res.body.playerDataDelta.modified.rlv2).toBeDefined();
+    expect(res.status).toBe(422);
+    expect(res.body.result).toBe(-1);
+    expect(res.body.message).toBeTruthy();
   });
 });

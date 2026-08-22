@@ -17,22 +17,34 @@ export const changeNameCardComponentSchema = z.object({
   component: z.array(z.string()),
 });
 
-/** 编辑名片内容（服务端契约：flag + content；misc 仅读 showDetail/showBirthday） */
+/**
+ * 编辑名片请求（CS: EditNameCardRequest { flag, content }）
+ * 抓包实测：content.skinId/component 可为 null，misc.showDetail/showBirthday 为 0/1 数字
+ * （非 TS 声明的 boolean），并含未读取的 skinTmpl；全部按真实客户端形态放行。
+ */
 export const editNameCardSchema = z.object({
   flag: z.number(),
   content: z
     .object({
-      skinId: z.string().optional(),
-      component: z.array(z.string()).optional(),
+      // skinId/component 客户端可能显式传 null（未设置对应项）
+      skinId: z.string().nullable().optional(),
+      component: z.array(z.string()).nullable().optional(),
+      // misc 布尔字段实为 0/1 数字；位置覆盖不深检，容错宽松
+      // 修复：客户端在该请求非「杂项」模式（flag != 4）时会显式传 misc:null，
+      // 仅 optional() 只放行 undefined 不放行 null → 抓包实测被拦成 422；补 nullable()
       misc: z
         .object({
-          showDetail: z.boolean().optional(),
-          showBirthday: z.boolean().optional(),
+          showDetail: z.union([z.boolean(), z.number()]).optional(),
+          showBirthday: z.union([z.boolean(), z.number()]).optional(),
         })
         .partial()
+        .passthrough()
+        .nullable()
         .optional(),
+      // 未读取的外部字段（skinTmpl 等）允许出现，不拦截
     })
-    .partial(),
+    .partial()
+    .passthrough(),
 });
 
 /** 获取其他玩家名片请求（CS: GetOtherPlayerNameCardRequest { uid, src }）；空 uid 视为非法 */

@@ -32,7 +32,9 @@ export const createGameSchema = z.object({
   modeGrade: z.number(),
   // 抓包/测试确认部分请求不携带 predefinedId（controller 按 undefined 处理），故可选
   predefinedId: z.string().nullable().optional(),
-  activityId: z.string().optional(),
+  // 修复：客户端在无关联活动时显式传 activityId:null 而非省略；仅 optional() 放行
+  // undefined 不放行 null → 抓包实测被拦成 422，补 nullable()
+  activityId: z.string().nullable().optional(),
 });
 
 /** 选择初始密文（CS: RoguelikeSelectInitialRelicRequest { select }） */

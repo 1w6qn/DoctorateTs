@@ -149,9 +149,10 @@ export const getThumbnailUrlSchema = z.object({
 /** 修改杂志编队请求（服务端自定义，空请求体） */
 export const changeMagazineSquadSchema = z.object({});
 
-/** 保存自定义杂志请求（V1/V2；magazine 为复杂对象，用 z.any()） */
+/** 保存自定义杂志请求（V1/V2；magazine 为复杂对象，用 z.any()；thumbnail 为客户端上传的 base64 缩略图，可选） */
 export const saveDiyMagazineSchema = z.object({
   magazine: z.any(),
+  thumbnail: z.string().optional(),
 });
 
 /** 设置勋章自定义数据请求（CS: MedalSetCustomDataRequest { index?, data }）；data 复杂，用 z.any() */

@@ -5,9 +5,12 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { parseMultipartForm } from "../manager/activity/arkpixel";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import {
   AddCgCollectionRequest,
   AddCgCollectionResponse,
@@ -96,6 +99,165 @@ const PLACEHOLDER_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
   "base64",
 );
+
+/**
+ * 形艺特辑杂志缩略图存储目录
+ *
+ * 编辑保存的 base64 缩略图以 `{uid}_magazine_{leafId}.jpg` 落盘于此，
+ * 展示环节（getThumbnailUrl /gallery/jpg）据此回传真实图片，形成编辑→展示闭环。
+ * 该目录属持久化用户数据，随 data/user 一并管理。
+ */
+const GALLERY_DIR = "./data/user/gallery";
+
+/**
+ * 生成杂志缩略图文件名（对齐参考实现 `{uid}_magazine_{leafId}.jpg`）
+ *
+ * @param uid - 玩家 uid
+ * @param leafId - 杂志页 ID
+ * @returns 缩略图文件名
+ */
+function galleryThumbnailName(uid: string, leafId: string): string {
+  return `${uid}_magazine_${leafId}.jpg`;
+}
+
+/**
+ * 将客户端上传的 base64 缩略图落盘为 jpg
+ *
+ * 参考实现：reference/opendoctoratepy-ex-public/server/user.py gallery.saveDiyMagazineV1._b64_to_jpg
+ * @param uid - 玩家 uid
+ * @param leafId - 杂志页 ID
+ * @param base64Data - base64 编码的 jpg 数据（可含 data URI 前缀）
+ */
+function saveGalleryThumbnail(uid: string, leafId: string, base64Data: string): void {
+  // 解析 base64：剥离 data URI 前缀（如 data:image/jpeg;base64,）并移除空白
+  let code = base64Data;
+  if (code.includes(",")) code = code.split(",")[1];
+  code = code.replace(/\s/g, "");
+  if (!code) return;
+  // 补齐 base64 填充位，避免解码报错
+  const padding = 4 - (code.length % 4);
+  if (padding !== 4) code += "=".repeat(padding);
+
+  mkdirSync(GALLERY_DIR, { recursive: true });
+  writeFileSync(join(GALLERY_DIR, galleryThumbnailName(uid, leafId)), Buffer.from(code, "base64"));
+}
+
+/**
+ * 删除指定杂志页的缩略图（页面内容清空时清理磁盘残留）
+ *
+ * @param uid - 玩家 uid
+ * @param leafId - 杂志页 ID
+ */
+function removeGalleryThumbnail(uid: string, leafId: string): void {
+  const filepath = join(GALLERY_DIR, galleryThumbnailName(uid, leafId));
+  if (existsSync(filepath)) unlinkSync(filepath);
+}
+
+/**
+ * 编辑后同步缩略图到磁盘
+ *
+ * 有 thumbnail 则保存；页面内容为空且无 thumbnail 时删除残留（页面被清空）。
+ * 已在 player.update 之外调用，文件 IO 不进入 immer 草稿更新。
+ *
+ * @param uid - 玩家 uid
+ * @param magazine - 杂志数据（leafId/charSkin/decorList）
+ * @param thumbnail - 客户端上传的 base64 缩略图（可为空）
+ */
+function persistGalleryThumbnail(
+  uid: string,
+  magazine: { leafId?: string; charSkin?: unknown; decorList?: unknown[] },
+  thumbnail?: string,
+): void {
+  const leafId = magazine?.leafId;
+  if (!leafId) return;
+  const decorList = Array.isArray(magazine?.decorList) ? magazine.decorList : [];
+  const hasContent = magazine?.charSkin != null || decorList.length > 0;
+  if (thumbnail) {
+    saveGalleryThumbnail(uid, leafId, thumbnail);
+  } else if (!hasContent) {
+    removeGalleryThumbnail(uid, leafId);
+  }
+}
+
+/** 构造请求基准 URL（协议请求的主机前缀），用于生成缩略图绝对地址 */
+function requestBaseUrl(req: { protocol: string; get(name: string): string | undefined }): string {
+  return `${req.protocol}://${req.get("host")}`;
+}
+
+/**
+ * 收集请求原始字节流（multipart 等非 JSON body）
+ *
+ * express.json 只解析 application/json，multipart 请求的 req.body 为空；
+ * capture 模式已捕获 rawBody 时直接取用，否则监听 stream 逐块收齐原始字节。
+ */
+function collectRawBody(req: import("express").Request): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (c: Buffer) => chunks.push(c));
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
+
+/**
+ * 解析 multipart/form-data 的杂志保存负载（saveDiyMagazineV2 专用）
+ *
+ * 客户端 V2 走 form-data（抓包 content-level ~49KB：含缩略图图片部分）。复用 arkhub
+ * savePixelArt 的极简 multipart 解析：主负载 `json` part（含 magazine/magazineSquad），
+ * thumbnail 图片 part 转 base64 data URI；规避 express.json 无法解析 multipart 的问题。
+ *
+ * @param req - Express 请求（读取 content-type 与原始裸体）
+ * @returns 解析结果；非 multipart 或无可解析 part 时返回 null
+ */
+async function parseMagazineMultipart(req: import("express").Request): Promise<{
+  magazine?: unknown;
+  thumbnail?: string;
+  magazineSquad?: string[];
+} | null> {
+  const raw = (req as unknown as { rawBody?: Buffer }).rawBody ?? (await collectRawBody(req));
+  const parts = parseMultipartForm(raw, req.headers["content-type"]);
+  if (parts.size === 0) return null;
+
+  // 主负载：优先 `json` part（对齐 savePixelArt 约定），其次常见别名
+  let payload: any = {};
+  const jsonPart = parts.get("json") ?? parts.get("data") ?? parts.get("payload");
+  if (jsonPart) {
+    try {
+      payload = JSON.parse(jsonPart.toString("utf-8"));
+    } catch {
+      payload = {};
+    }
+  }
+
+  // thumbnail：独立二进制图片 part → base64 data URI
+  let thumbnail = payload.thumbnail;
+  if (parts.get("thumbnail")) {
+    thumbnail = `data:image/jpeg;base64,${parts.get("thumbnail")!.toString("base64")}`;
+  }
+
+  // magazine：主负载字段，或独立 JSON part
+  let magazine = payload.magazine;
+  if (!magazine && parts.get("magazine")) {
+    const mPart = parts.get("magazine")!.toString("utf-8");
+    try {
+      magazine = JSON.parse(mPart);
+    } catch {
+      magazine = mPart;
+    }
+  }
+
+  // magazineSquad：主负载字段，或独立 JSON part
+  let magazineSquad = Array.isArray(payload.magazineSquad) ? payload.magazineSquad : undefined;
+  if (!magazineSquad && parts.get("magazineSquad")) {
+    try {
+      magazineSquad = JSON.parse(parts.get("magazineSquad")!.toString("utf-8"));
+    } catch {
+      magazineSquad = undefined;
+    }
+  }
+
+  return { magazine, thumbnail, magazineSquad };
+}
 
 const router = Router();
 
@@ -610,10 +772,24 @@ function ensureGallery(draft: any): any {
 rootRouter.get("/announce/images/:subpath", async (_req, res) => {
   res.type("png").send(PLACEHOLDER_PNG);
 });
-rootRouter.get("/gallery/jpg/:jpgName", async (_req, res) => {
+rootRouter.get("/gallery/jpg/:jpgName", async (req, res) => {
+  // 仅取 basename，防止目录穿越；缩略图以 `{uid}_magazine_{leafId}.jpg` 命名
+  const jpgName = basename(req.params.jpgName || "");
+  const filepath = join(GALLERY_DIR, jpgName);
+  if (jpgName && existsSync(filepath)) {
+    res.type("image/jpeg").send(readFileSync(filepath));
+    return;
+  }
+  // 私服无对应缩略图：返回 1x1 透明占位图，避免客户端报错
   res.type("png").send(PLACEHOLDER_PNG);
 });
-rootRouter.get("/gallery/jpg/:jpgName.png", async (_req, res) => {
+rootRouter.get("/gallery/jpg/:jpgName.png", async (req, res) => {
+  const jpgName = basename(req.params.jpgName || "");
+  const filepath = join(GALLERY_DIR, `${jpgName}.png`);
+  if (jpgName && existsSync(filepath)) {
+    res.type("image/png").send(readFileSync(filepath));
+    return;
+  }
   res.type("png").send(PLACEHOLDER_PNG);
 });
 
@@ -649,12 +825,22 @@ rootRouter.post("/gallery/getThumbnailUrl", validateBody(getThumbnailUrlSchema),
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetThumbnailUrlRequest;
   const idList: string[] = body?.idList || [];
+  const base = requestBaseUrl(req);
+  const uid = String(player.uid);
+  let urlList: (string | null)[] = [];
   await player.update(async (draft) => {
-    ensureGallery(draft);
+    const gallery = ensureGallery(draft);
+    // 仅当杂志页有实际内容（角色皮肤或装饰）才返回真实缩略图 URL，否则 null
+    urlList = idList.map((leafId) => {
+      const leaf = gallery.leafMap?.[leafId];
+      const hasContent =
+        leaf != null && (leaf.charSkin != null || (Array.isArray(leaf.decorList) && leaf.decorList.length > 0));
+      return hasContent ? `${base}/gallery/jpg/${galleryThumbnailName(uid, leafId)}` : null;
+    });
   });
   res.send({
     ...player.delta,
-    url: idList.map(() => null),
+    url: urlList,
   } satisfies GetThumbnailUrlResponse);
 });
 
@@ -667,11 +853,28 @@ rootRouter.post("/gallery/getThumbnailUrl", validateBody(getThumbnailUrlSchema),
  * 路径：POST /gallery/changeMagazineSquad
  * @returns playerDataDelta（包含 gallery 的变更）
  */
-rootRouter.post("/gallery/changeMagazineSquad", validateBody(changeMagazineSquadSchema), async (req, res) => {
+rootRouter.post("/gallery/changeMagazineSquad", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  req.body as ChangeMagazineSquadRequest;
+  const ct = String(req?.headers?.["content-type"] ?? "");
+  // 解析客户端提交的编队列表（兼容 multipart 与 JSON body 的多种字段写法）
+  let squad: string[] | undefined;
+  if (ct.includes("multipart/form-data")) {
+    const parsed = await parseMagazineMultipart(req);
+    squad = parsed?.magazineSquad;
+  } else {
+    const body = (req.body ?? {}) as Record<string, any>;
+    squad =
+      body.magazineSquad ??
+      body.leafIds ??
+      (typeof body.leafId === "string" ? [body.leafId] : undefined) ??
+      (typeof body.magazineId === "string" ? [body.magazineId] : undefined);
+  }
   await player.update(async (draft) => {
-    ensureGallery(draft);
+    const gallery = ensureGallery(draft);
+    if (Array.isArray(squad)) {
+      // 实际修改展示编队：去重 + 过滤空值
+      gallery.magazineSquad = Array.from(new Set(squad.map(String).filter(Boolean)));
+    }
   });
   res.send(player.delta satisfies ChangeMagazineSquadResponse);
 });
@@ -692,10 +895,13 @@ rootRouter.post("/gallery/changeMagazineSquad", validateBody(changeMagazineSquad
 rootRouter.post("/gallery/saveDiyMagazineV1", validateBody(saveDiyMagazineSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SaveDiyMagazineRequest;
-  const { magazine } = body;
+  const { magazine, thumbnail } = body;
+  const uid = String(player.uid);
   await player.update(async (draft) => {
     saveDiyMagazine(draft, magazine);
   });
+  // 编辑闭环：将客户端上传的缩略图落盘（页面清空时清理残留），供展示环节回传
+  persistGalleryThumbnail(uid, magazine, thumbnail);
   res.send(player.delta satisfies SaveDiyMagazineResponse);
 });
 
@@ -709,13 +915,27 @@ rootRouter.post("/gallery/saveDiyMagazineV1", validateBody(saveDiyMagazineSchema
  * @param req.body.magazine - 杂志数据（leafId/charSkin/decorList）
  * @returns playerDataDelta（包含 gallery.leafMap 的变更）
  */
-rootRouter.post("/gallery/saveDiyMagazineV2", validateBody(saveDiyMagazineSchema), async (req, res) => {
+rootRouter.post("/gallery/saveDiyMagazineV2", async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
-  const body = req.body as SaveDiyMagazineRequest;
-  const { magazine } = body;
+  const ct = String(req?.headers?.["content-type"] ?? "");
+  const uid = String(player.uid);
+  let magazine: unknown;
+  let thumbnail: string | undefined;
+  if (ct.includes("multipart/form-data")) {
+    // 客户端 V2 走 form-data（express.json 不解析 multipart，需读原始裸体）
+    const parsed = await parseMagazineMultipart(req);
+    magazine = parsed?.magazine;
+    thumbnail = parsed?.thumbnail;
+  } else {
+    const body = req.body as SaveDiyMagazineRequest;
+    magazine = body?.magazine;
+    thumbnail = body?.thumbnail;
+  }
   await player.update(async (draft) => {
     saveDiyMagazine(draft, magazine);
   });
+  // 编辑闭环：将客户端上传的缩略图落盘（页面清空时清理残留），供展示环节回传
+  persistGalleryThumbnail(uid, magazine as any, thumbnail);
   res.send(player.delta satisfies SaveDiyMagazineResponse);
 });
 

@@ -132,6 +132,8 @@ export interface ChangeMagazineSquadRequest {}
 /** 保存自定义杂志请求（V1/V2；服务端自定义，无 CS 对应类） */
 export interface SaveDiyMagazineRequest {
   magazine: SaveDiyMagazineRequest.Magazine;
+  /** 客户端生成的杂志缩略图（base64 字符串），用于展示环节回传；可选 */
+  thumbnail?: string;
 }
 export namespace SaveDiyMagazineRequest {
   export interface Magazine {
@@ -224,7 +226,7 @@ export interface GetCollectionRewardsResponse extends PlayerDeltaResponse {
 
 /** 获取杂志缩略图 URL 响应（服务端自定义） */
 export interface GetThumbnailUrlResponse extends PlayerDeltaResponse {
-  url: Array<null>;
+  url: Array<string | null>;
 }
 
 /** 修改杂志编队响应（服务端自定义） */

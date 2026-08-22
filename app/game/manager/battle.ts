@@ -8,13 +8,113 @@ import { TypedEventEmitter } from "@game/model/events";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 import { ConditionDesc, DisplayDetailRewards } from "@excel/stage_table";
-import { randomChoice, randomChoices } from "@utils/random";
+import { randomChoice, randomChoices, generateBattleId } from "@utils/random";
 import { rarityToIndex } from "@utils/rarity";
 import { pick } from "lodash";
 import { logger } from "@utils/logger";
+import type { BattleRecord } from "@game/manager/BattleInfoStore";
+
+/** excel 关卡表镜像类型（来自 types_excel_gen，与 excel.StageTable.stages 值一致） */
+type ExcelStage = (typeof excel.StageTable.stages)[string];
 
 /** 解锁条件完成度（PlayerBattleRank 字符串）→ 关卡 state 数值档位 */
 const completeStateRank: Record<string, number> = { FAIL: 1, PASS: 2, COMPLETE: 3 };
+
+/**
+ * 解析战斗关卡配置（StaageTable.stages 未收录时才回退到悖论模拟）。
+ *
+ * 悖论模拟（干员密录）关卡以 `mem_` 为前缀（如 mem_blkkgt_1），不入 StageTable，
+ * 而是存在 `handbook_info_table.handbookStageData`。此前 battleStart/battleFinish
+ * 会把这类关卡误判为「未知关卡」。这里回退查找，为悖论模拟构造一个最小可结算
+ * 的 stage 片段（无理智/经验/金币消耗，默认无体力保护期、无精英前置校验）。
+ *
+ * @param stageId - 客户端请求的关卡 id
+ * @returns 解析到的 stage 配置；未知关卡返回 undefined
+ */
+function resolveStage(stageId: string): ExcelStage | undefined {
+  const stage = excel.StageTable.stages[stageId];
+  if (stage) return stage;
+  const mem = Object.values(excel.HandbookInfoTable.handbookStageData).find(
+    (s) => s.stageId === stageId,
+  );
+  if (!mem) return undefined;
+  // 悖论模拟特殊关卡：零体力/零经验/零金币，无前置，公开练习向
+  return {
+    stageId,
+    zoneId: mem.zoneId,
+    code: mem.code,
+    name: mem.name,
+    description: mem.description,
+    apCost: 0,
+    apFailReturn: 0,
+    expGain: 0,
+    goldGain: 0,
+    loseExpGain: 0,
+    loseGoldGain: 0,
+    dangerLevel: "",
+    dangerPoint: 0,
+    hardStagedId: null,
+    loadingPicId: mem.loadingPicId,
+    canPractice: true,
+    canBattleReplay: false,
+    etItemId: null,
+    etCost: 0,
+    etFailReturn: 0,
+    etButtonStyle: null,
+    apProtectTimes: 0,
+    diamondOnceDrop: 0,
+    practiceTicketCost: 0,
+    dailyStageDifficulty: 0,
+    passFavor: 0,
+    completeFavor: 0,
+    slProgress: 0,
+    displayMainItem: null,
+    hilightMark: false,
+    bossMark: false,
+    isPredefined: false,
+    isHardPredefined: false,
+    isSkillSelectablePredefined: false,
+    isStoryOnly: false,
+    appearanceStyle: "SPECIAL_STORY",
+    stageDropInfo: { displayDetailRewards: [] },
+    canUseCharm: false,
+    canUseTech: false,
+    canUseTrapTool: false,
+    canUseBattlePerformance: false,
+    canContinuousBattle: false,
+    startButtonOverrideId: null,
+    isStagePatch: false,
+    mainStageId: null,
+    extraCondition: null,
+    extraInfo: null,
+    stageType: "SPECIAL_STORY",
+    difficulty: "NORMAL",
+    performanceStageFlag: "NORMAL_STAGE",
+    diffGroup: "NONE",
+    unlockCondition: [],
+  } as unknown as ExcelStage;
+}
+
+/**
+ * 查找悖论模拟（干员密录）关卡的手册元数据
+ *
+ * 悖论模拟关卡（mem_ 前缀，handbookStageData 收录）结算时需要用到其中的
+ * `charID`（对应干员，决定 `troop.addon.<charID>.stage` 写入目标）与 `rewardItem`
+ * （首通奖励，如合成玉 DIAMOND_SHD）。resolveStage 只关心战斗数值，元数据在此单独暴露。
+ *
+ * @param stageId - 客户端请求的关卡 id
+ * @returns 手册阶段元数据（含 charID/rewardItem）；非悖论模拟关卡返回 undefined
+ */
+function resolveHandbookMeta(stageId: string): {
+  charID: string;
+  rewardItem: ItemBundle[];
+} | undefined {
+  const mem = Object.values(excel.HandbookInfoTable.handbookStageData).find(
+    (s) => s.stageId === stageId,
+  );
+  if (!mem) return undefined;
+  return { charID: mem.charID, rewardItem: mem.rewardItem ?? [] };
+}
 
 /**
  * 各账号最近一次 battleStart 时的战斗加密锚点（pushFlags.status 快照）
@@ -26,9 +126,23 @@ const completeStateRank: Record<string, number> = { FAIL: 1, PASS: 2, COMPLETE: 
  */
 const battleLoginTimes = new Map<string, number>();
 
+/** 单场战斗的生命周期状态 */
+type BattleSessionStatus = "in_progress" | "finished";
+
+/** 进行中的战斗会话（供生命周期跟踪与重复开始/结算判定） */
+interface BattleSession {
+  battleId: string;
+  stageId: string;
+  startTs: number;
+  status: BattleSessionStatus;
+}
+
 export class BattleManager {
   _player: PlayerDataManager;
   _trigger: TypedEventEmitter;
+
+  /** 战斗会话登记表（key=uid，覆盖最近一场战斗；单账号私服场景足够） */
+  private _sessions = new Map<string, BattleSession>();
 
   constructor(_player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = _player;
@@ -42,11 +156,32 @@ export class BattleManager {
     });
   }
 
+  /**
+   * 获取当前账号进行中的战斗会话
+   *
+   * 供上层查询当前战斗状态（battleId/stageId/开始时间），用于断线重连、
+   * 重复开始防护等。无进行中战斗返回 undefined。
+   *
+   * @returns 进行中的战斗会话；无则 undefined
+   */
+  getActiveBattle(): BattleSession | undefined {
+    const session = this._sessions.get(this._player.uid);
+    return session && session.status === "in_progress" ? session : undefined;
+  }
+
   async start(args: CommonStartBattleRequest) {
     const { stageId, usePracticeTicket, squad } = args;
-    // 唯一 battleId（时间戳 + 随机数），避免多场战斗互相覆盖 battleInfo/replay
-    const battleId = `${now()}_${Math.floor(Math.random() * 100000)}`;
-    const stage = excel.StageTable.stages[stageId];
+    // 唯一 battleId：crypto.randomUUID（v4）随机生成，避免多场战斗互相覆盖 battleInfo/replay，
+    // 且不再暴露时间戳等可预测信息，支持后续按 uuid 检索历史记录
+    const battleId = generateBattleId();
+    // 生命周期：登记进行中的战斗会话
+    this._sessions.set(this._player.uid, {
+      battleId,
+      stageId,
+      startTs: now(),
+      status: "in_progress",
+    });
+    const stage = resolveStage(stageId);
     // 修复：未知关卡（数据版本错位/客户端请求未收录关卡）不 500——
     // 记录缺失 stageId 并返回最小战斗响应，客户端仍可本地游玩（结算由 finish 容错）
     if (!stage) {
@@ -276,7 +411,7 @@ export class BattleManager {
     const unlockStagesObject = [];
     const firstRewards: ItemBundle[] = [];
     const { stageId, isPractice } = battleInfo;
-    const stage = excel.StageTable.stages[stageId];
+    const stage = resolveStage(stageId);
     // 修复：未知关卡（battleStart 已容错，battleInfo 里的 stageId 同样可能不在表内）——
     // 返回最小结算响应，避免 500
     if (!stage) {
@@ -456,12 +591,14 @@ export class BattleManager {
                 // completeTimes/startTimes/noCostCnt 全被清零、关卡重新变锁定；
                 // 改为直接查对象键（与上方无前置条件分支同款修复）
                 if (!(item in draft.dungeon.stages)) {
+                  // 修复：read 非 main/sub 关卡（如悖论模拟 mem_ 不在 StageTable）时
+                  // excel.StageTable.stages[stageId] 为 undefined → .stageType 崩溃。
+                  // 改用已解析的 stage（resolveStage 回退构造，stageType=SPECIAL_STORY，
+                  // 自然不满足 MAIN/SUB 判定，跳过 mainStageProgress 推进）
                   if (
+                    ["MAIN", "SUB"].includes(stage.stageType as string) &&
                     ["MAIN", "SUB"].includes(
-                      excel.StageTable.stages[stageId].stageType,
-                    ) &&
-                    ["MAIN", "SUB"].includes(
-                      excel.StageTable.stages[item].stageType,
+                      excel.StageTable.stages[item]?.stageType as string,
                     )
                   ) {
                     draft.status.mainStageProgress = item;
@@ -517,6 +654,13 @@ export class BattleManager {
               }
             }
           }
+          // —— 悖论模拟（干员密录 mem_ 关卡）完整结算 ——
+          await this.settleParadoxStage(draft, {
+            stageId,
+            completeState: battleData.completeState,
+            firstClear,
+            pushFirstReward: (item) => firstRewards.push(item),
+          });
         }
         [additionalRewards, unusualRewards, furnitureRewards, rewards] =
           await this.dropReward(
@@ -533,6 +677,46 @@ export class BattleManager {
         }
       }
     });
+
+    // —— 生命周期：战斗已结算，标记会话结束 ——
+    const session = this._sessions.get(this._player.uid);
+    if (session && session.battleId === battleData.battleId) {
+      session.status = "finished";
+    }
+    // —— 战斗结束记录留存：完整解析结果入库（battle_records 表，供未来分析）——
+    const stats = battleData.battleData?.stats;
+    const record: BattleRecord = {
+      battleId: battleData.battleId,
+      uid: this._player.uid,
+      stageId,
+      isPractice: isPractice ? 1 : 0,
+      source: "quest",
+      completeState: battleData.completeState ?? 0,
+      beginTs: stats?.beginTs ?? now(),
+      endTs: stats?.endTs ?? now(),
+      killCnt: stats?.checkKilledCnt ?? battleData.killCnt ?? 0,
+      totalDamage: stats?.totalDamage ?? 0,
+      leftHp: stats?.leftHp ?? 0,
+      totalHeal: stats?.totalHeal ?? 0,
+      fixedPlayTime: stats?.fixedPlayTime ?? battleData.battleData.completeTime ?? 0,
+      squadInstIds:
+        battleInfo.squad?.slots?.filter((s) => s).map((s) => s!.charInstId) ?? [],
+      rewards: [
+        ...rewards,
+        ...additionalRewards,
+        ...unusualRewards,
+        ...furnitureRewards,
+        ...firstRewards,
+      ],
+      stats,
+      createdTs: now(),
+    };
+    try {
+      await accountManager.saveBattleRecord(record);
+    } catch (e) {
+      // 留存失败不阻断正常结算（分析数据偶发丢失可接受）
+      logger.warn("battle", `战斗记录留存失败: ${(e as Error).message}`);
+    }
 
     await this._trigger.emit("CompleteStageAnyType", [battleData]);
     await this._trigger.emit("CompleteStage", [
@@ -668,6 +852,72 @@ export class BattleManager {
       alert: [],
       suggestFriend,
       pryResult: [],
+    };
+  }
+
+  /**
+   * 悖论模拟（干员密录 mem_ 关卡）完整结算
+   *
+   * 悖论模拟关卡不在 StageTable，仅由 handbook_stage_data 收录。胜利（completeState 2/3，
+   * 非练习）结算时需额外处理两类独有的写入，标准关卡不触发（resolveHandbookMeta 返回
+   * undefined 直接跳过）：
+   * - **首通奖励**：发放 handbook rewardItem（如 DIAMOND_SHD 合成玉）入 firstRewards，
+   *   并通过 items:get 实际入账（与首通关卡星章/掉落行为对齐）；
+   * - **密录进度**：写入 `troop.addon.<charID>.stage.<stageId>`（fts/rts/startTimes/
+   *   completeTimes/state/startTime），客户端据此展示干员密录悖论模拟的完成状态。
+   *
+   * 该方法须在 `player.update` 配方内调用（draft 为可变代理，写入会记录补丁）；
+   * 奖励发放经 `_trigger.emit("items:get")` 在配方内同步入账。
+   *
+   * @param draft - player.update 配方内的可变草稿（dungeon/troop.addon 写入口）
+   * @param opts.stageId - 当前结算的关卡 id（mem_ 前缀悖论模拟关）
+   * @param opts.completeState - 客户端上报的完成状态（2/3 为胜利）
+   * @param opts.firstClear - 是否首通（首次胜利）
+   * @param opts.pushFirstReward - 把首通奖励追加进响应 firstRewards 列表的回调
+   */
+  private async settleParadoxStage(
+    draft: any,
+    opts: {
+      stageId: string;
+      completeState: number;
+      firstClear: boolean;
+      pushFirstReward: (item: ItemBundle) => void;
+    },
+  ): Promise<void> {
+    const { stageId, completeState, firstClear } = opts;
+    // 标准关卡不触发（resolveHandbookMeta 返回 undefined）
+    const meta = resolveHandbookMeta(stageId);
+    if (!meta) {
+      return;
+    }
+    // 首通奖励：发放 handbook rewardItem 并回填响应 firstRewards
+    if (firstClear && meta.rewardItem.length) {
+      for (const item of meta.rewardItem) {
+        opts.pushFirstReward(item);
+        await this._trigger.emit("items:get", [[item]]);
+      }
+    }
+    // 密录进度：写入 troop.addon.<charID>.stage.<memStageId>
+    const addon = draft.troop.addon;
+    const prev = addon[meta.charID]?.stage?.[stageId];
+    const t = now();
+    const addonStage = {
+      // 首次记录时 fts（first-time timestamp）设为当前，否则沿用既有
+      fts: prev ? prev.fts : t,
+      rts: t,
+      // 开始次数沿用既有 +1（battle.start 未在 addon.stage 计次，这里以完成为准）
+      startTimes: (prev?.startTimes ?? 0) + 1,
+      completeTimes: (prev?.completeTimes ?? 0) + 1,
+      state: completeState,
+      // 官服存档中 startTime 恒为 2（手书解锁标记），新开条目补默认值
+      startTime: prev?.startTime ?? 2,
+    };
+    draft.troop.addon = {
+      ...addon,
+      [meta.charID]: {
+        ...(addon[meta.charID] ?? {}),
+        stage: { ...(addon[meta.charID]?.stage ?? {}), [stageId]: addonStage },
+      },
     };
   }
 

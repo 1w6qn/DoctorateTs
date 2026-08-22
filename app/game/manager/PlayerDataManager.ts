@@ -27,7 +27,11 @@ import { BuildingManager } from "./building";
 import { FriendDataWithNameCard, FriendMedalBoard } from "@game/model/social";
 import { OpenServerManager } from "@game/manager/activity/openServer";
 import { PlayerStatus } from "./PlayerStatus";
-import { BattleInfo, BattleInfoStore } from "./BattleInfoStore";
+import {
+  BattleInfo,
+  BattleInfoStore,
+  BattleRecord,
+} from "./BattleInfoStore";
 import { PlayerDataDelta, RoguelikePushMessage } from "@game/model/protocol/common";
 import { Draft } from "mutative";
 import { logger } from "@utils/logger";
@@ -112,6 +116,9 @@ export class PlayerDataManager {
     this._battleStore = battleStore ?? {
       getBattleInfo: async () => undefined as unknown as BattleInfo,
       saveBattleInfo: async () => {},
+      saveBattleRecord: async () => {},
+      getBattleRecord: async () => undefined,
+      listBattleRecords: async () => [],
     };
     this._trigger = new TypedEventEmitter();
     this.status = new StatusManager(this, this._trigger);
@@ -149,6 +156,12 @@ export class PlayerDataManager {
       async ([battleId, info]: [string, BattleInfo]) => {
         await this._battleStore.saveBattleInfo(this.uid, battleId, info);
       },
+    );
+    // 启动迁移：干员技能/模组回填（含精二后模组隐藏→显示状态校正）。
+    // 历史上一度通过 game:fix 事件触发但无 emit 方 → 从不执行，导致新/存量干员
+    // 的模组条目缺失、精二后客户端无模组入口。这里在构造末直接调用一次。
+    void this.troop.fix().catch((e) =>
+      logger.error("TroopManager", `fix failed: ${(e as Error).message}`),
     );
   }
 
@@ -331,6 +344,35 @@ export class PlayerDataManager {
    */
   async getBattleInfo(battleId: string): Promise<BattleInfo> {
     return (await this._battleStore.getBattleInfo(this.uid, battleId))!;
+  }
+
+  /**
+   * 留存战斗结束记录（委托存储——battle_records 表，供未来分析）
+   * @param record - 战斗结束记录（uid 缺省填当前账号）
+   */
+  async saveBattleRecord(
+    record: BattleRecord,
+  ): Promise<void> {
+    return this._battleStore.saveBattleRecord({
+      ...record,
+      uid: record.uid || this.uid,
+    });
+  }
+
+  /**
+   * 读取战斗结束记录（无则 undefined）
+   * @param battleId - 战斗ID
+   */
+  async getBattleRecord(battleId: string): Promise<BattleRecord | undefined> {
+    return this._battleStore.getBattleRecord(this.uid, battleId);
+  }
+
+  /**
+   * 读取最近 N 条战斗结束记录（按创建时间倒序）
+   * @param limit - 条数上限
+   */
+  async listBattleRecords(limit = 50): Promise<BattleRecord[]> {
+    return this._battleStore.listBattleRecords(this.uid, limit);
   }
 
   /**

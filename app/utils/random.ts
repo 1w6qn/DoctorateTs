@@ -3,6 +3,20 @@
  * 
  * 提供常用的随机数生成和随机选择功能，用于抽卡、招募等游戏随机机制。
  */
+import { randomUUID } from "node:crypto";
+
+/**
+ * 生成战斗唯一标识（battleId）
+ *
+ * 使用 crypto.randomUUID（v4）生成全局唯一的随机标识，替代此前 `时间戳_随机数`
+ * 或固定值 `"1"` 的 battleId——随机性由系统加密级 PRNG 保证，多场战斗不冲突，
+ * 兼顾并发与后续按 uuid 检索的历史分析需求。
+ *
+ * @returns 形如 `xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx` 的小写 UUID 字符串
+ */
+export function generateBattleId(): string {
+  return randomUUID();
+}
 
 /**
  * 生成指定范围内的随机整数

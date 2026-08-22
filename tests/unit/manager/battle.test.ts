@@ -17,6 +17,25 @@ vi.mock("@excel/excel", () => {
         guideMissionGroupInfo: {},
       },
       MedalTable: { medalList: [], medalTypeData: {} },
+      HandbookInfoTable: {
+        handbookStageData: {
+          char_4116_blkkgt: {
+            charID: "char_4116_blkkgt",
+            stageId: "mem_blkkgt_1",
+            levelId: "Obt/Memory/level_memory_blkkgt_1",
+            zoneId: "storyMission",
+            code: "mem_blkkgt_1",
+            name: "路在脚下",
+            loadingPicId: "loading_BI",
+            description: "",
+            unlockParam: [],
+            rewardItem: [
+              { type: "DIAMOND_SHD", id: "4003", count: 200 },
+            ],
+            stageGetTime: 0,
+          },
+        },
+      },
       StageTable: {
         stages: {
           "main_01-07": {
@@ -140,6 +159,24 @@ vi.mock("@game/manager/AccountManager", () => {
         }
         mockAccountConfigs[uid].battle.replays[stageId] = replay;
       }),
+      // 战斗结束记录留存（battle_records 表）——mock 存内存数组
+      saveBattleRecord: vi.fn().mockImplementation(async (record: any) => {
+        if (!mockAccountConfigs[record.uid]) {
+          mockAccountConfigs[record.uid] = { battle: { infos: {}, replays: {} } };
+        }
+        if (!mockAccountConfigs[record.uid].battleRecords) {
+          mockAccountConfigs[record.uid].battleRecords = [];
+        }
+        mockAccountConfigs[record.uid].battleRecords.push(record);
+      }),
+      getBattleRecord: vi.fn().mockImplementation(async (uid: string, battleId: string) => {
+        return mockAccountConfigs[uid]?.battleRecords?.find(
+          (r: any) => r.battleId === battleId,
+        );
+      }),
+      listBattleRecords: vi.fn().mockImplementation(async (uid: string) => {
+        return mockAccountConfigs[uid]?.battleRecords ?? [];
+      }),
     },
   };
 });
@@ -178,6 +215,7 @@ describe("BattleManager", () => {
             evolvePhase: 1,
           },
         },
+        addon: {},
       },
       dexNav: { enemy: { stage: {} }, character: {} },
       recruit: { normal: { slots: [{ state: 0 }, { state: 0 }] } },
@@ -437,6 +475,81 @@ describe("BattleManager", () => {
         "encrypted_battle_data",
         "anchorA",
       );
+    });
+  });
+
+  describe("battleId 随机生成与战斗记录留存", () => {
+    it("battleStart 生成随机 battleId（UUID v4），并登记进行中会话", async () => {
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      const r1 = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad: { slots: [] },
+      } as any);
+      const r2 = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad: { slots: [] },
+      } as any);
+      // 两次 start 的 battleId 互不相同且为 UUID v4 格式
+      expect(r1.battleId).not.toBe(r2.battleId);
+      expect(r1.battleId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      );
+      // 存在进行中的战斗会话（尚未结算）
+      expect(manager.getActiveBattle()).toBeDefined();
+    });
+
+    it("finish 结算后把完整战斗记录写入留存库（供未来分析）并结束会话", async () => {
+      const manager = new BattleManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      const started = await manager.start({
+        stageId: "main_01-07",
+        usePracticeTicket: false,
+        squad: { slots: [{ charInstId: 2001 }, null] },
+      } as any);
+
+      // 结算接口解密结果回填 start 生成的 battleId（真实客户端如此），否则记录用默认 "1"
+      const crypt = await import("@utils/crypt");
+      vi.mocked(crypt.decryptBattleData).mockResolvedValue({
+        battleId: started.battleId,
+        battleData: {
+          stats: {
+            enemyList: {},
+            autoReplayCancelled: false,
+            beginTs: 1700000000,
+            endTs: 1700000040,
+            checkKilledCnt: 12,
+            totalDamage: 12345,
+          },
+        },
+        completeState: 3,
+        killCnt: 12,
+      } as any);
+
+      await manager.finish({
+        data: "encrypted_battle_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      } as any);
+
+      const { accountManager } = await import("@game/manager/AccountManager");
+      const calls = (accountManager.saveBattleRecord as any).mock.calls;
+      const saved = calls[calls.length - 1][0];
+      expect(saved.battleId).toBe(started.battleId);
+      expect(saved.stageId).toBe("main_01-07");
+      expect(saved.source).toBe("quest");
+      expect(saved.completeState).toBe(3);
+      expect(saved.killCnt).toBe(12);
+      expect(saved.totalDamage).toBe(12345);
+      expect(saved.squadInstIds).toEqual([2001]);
+      expect(saved.uid).toBe(mockPlayer.uid);
+      // 结算后失效进行中会话
+      expect(manager.getActiveBattle()).toBeUndefined();
     });
   });
 
@@ -803,6 +916,166 @@ describe("BattleManager", () => {
       expect(result.result).toBe(0);
       expect(result.battleId).toBeDefined();
       expect(result.apFailReturn).toBe(0);
+    });
+  });
+
+  describe("悖论模拟关卡解析（2026-08-22 修复）", () => {
+    it("battleStart 应识别悖论模拟关卡（mem_ 前缀，handbookStageData 收录）", async () => {
+      const manager = new BattleManager(mockPlayer as any, mockTrigger as any);
+      const result = await manager.start({
+        stageId: "mem_blkkgt_1",
+        usePracticeTicket: false,
+        squad: { slots: [] },
+      } as any);
+      // 不再走「未知关卡」兜底：应正常计入 stage 进度（startTimes+1）与 battleId
+      expect(result).toBeDefined();
+      expect(result.result).toBe(0);
+      expect(result.battleId).toBeDefined();
+      // 悖论模拟零体力：无体力保护返还，且不被视为 noCostCnt（apCost=0 不触发）
+      expect(result.apFailReturn).toBe(0);
+      expect(result.isApProtect).toBe(0);
+      // start 已播种该关卡到存档（此前走「未知关卡」兜底不播种）
+      expect(mockPlayer._playerdata.dungeon.stages["mem_blkkgt_1"]).toBeDefined();
+    });
+
+    it("胜利结算应发放 handbook rewardItem 并写入 addon.stage 密录进度", async () => {
+      // 播种悖论模拟关卡（首通：state=0）
+      mockPlayer._playerdata.dungeon!.stages["mem_blkkgt_1"] = {
+        stageId: "mem_blkkgt_1",
+        state: 0,
+        completeTimes: 0,
+        startTimes: 1,
+        practiceTimes: 0,
+        hasBattleReplay: 0,
+        noCostCnt: 0,
+      };
+      const manager = new BattleManager(mockPlayer as any, mockTrigger as any);
+      // start 生成随机 battleId 并登记会话/落 battleInfo（悖论模拟真实战斗，非演习）
+      const started = await manager.start({
+        stageId: "mem_blkkgt_1",
+        usePracticeTicket: false,
+        squad: { slots: [{ charInstId: 1001 }] },
+      } as any);
+      // 结算接口解密回填 start 生成的 battleId + 完成状态 3
+      const crypt = await import("@utils/crypt");
+      vi.mocked(crypt.decryptBattleData).mockResolvedValue({
+        battleId: started.battleId,
+        battleData: { stats: {} },
+        completeState: 3,
+      } as any);
+
+      const result = await manager.finish({
+        data: "encrypted_battle_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      } as any);
+
+      // 首通奖励：handbook rewardItem（DIAMOND_SHD 4003）落入 firstRewards
+      expect(result.result).toBe(0);
+      expect(result.firstRewards).toEqual([
+        { type: "DIAMOND_SHD", id: "4003", count: 200 },
+      ]);
+      // 密录进度已写入 troop.addon.<charID>.stage.<stageId>
+      const stage = mockPlayer._playerdata.troop!.addon!["char_4116_blkkgt"]!.stage[
+        "mem_blkkgt_1"
+      ];
+      expect(stage).toBeDefined();
+      expect(stage.completeTimes).toBe(1);
+      expect(stage.state).toBe(3);
+      expect(stage.startTimes).toBe(1);
+      expect(stage.fts).toBeDefined();
+      // 通关次数累计（not 练习，startTimes 已 +1）
+      expect(mockPlayer._playerdata.dungeon!.stages["mem_blkkgt_1"].state).toBe(3);
+    });
+
+    it("重复挑战（已通关）不再重复发放 rewardItem，仅累计完成次数", async () => {
+      // 已通关：state=3 + 既有 addon.stage 记录
+      mockPlayer._playerdata.dungeon!.stages["mem_blkkgt_1"] = {
+        stageId: "mem_blkkgt_1",
+        state: 3,
+        completeTimes: 1,
+        startTimes: 2,
+        practiceTimes: 0,
+        hasBattleReplay: 0,
+        noCostCnt: 0,
+      };
+      mockPlayer._playerdata.troop!.addon!["char_4116_blkkgt"] = {
+        stage: {
+          "mem_blkkgt_1": {
+            fts: 1624284657,
+            rts: 1624284657,
+            startTimes: 2,
+            completeTimes: 1,
+            state: 3,
+            startTime: 2,
+          },
+        },
+      };
+      const manager = new BattleManager(mockPlayer as any, mockTrigger as any);
+      const started = await manager.start({
+        stageId: "mem_blkkgt_1",
+        usePracticeTicket: false,
+        squad: { slots: [] },
+      } as any);
+      const crypt = await import("@utils/crypt");
+      vi.mocked(crypt.decryptBattleData).mockResolvedValue({
+        battleId: started.battleId,
+        battleData: { stats: {} },
+        completeState: 3,
+      } as any);
+
+      const result = await manager.finish({
+        data: "encrypted_battle_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      } as any);
+
+      // 非首通：firstRewards 为空，不重复发合成玉
+      expect(result.firstRewards.length).toBe(0);
+      // addon 密录完成次数累计 +1，fts 沿用既有
+      const stage = mockPlayer._playerdata.troop!.addon!["char_4116_blkkgt"]!.stage[
+        "mem_blkkgt_1"
+      ];
+      expect(stage.completeTimes).toBe(2);
+      expect(stage.fts).toBe(1624284657);
+      expect(mockPlayer._playerdata.dungeon!.stages["mem_blkkgt_1"].completeTimes).toBe(2);
+    });
+
+    it("悖论模拟同步结算不触碰标准关卡解锁链（mem_ 不在 StageTable 不崩溃）", async () => {
+      // 预置一个无前置条件关卡（解锁链会遍历，但 mem_ 结算不推进 mainStageProgress）
+      mockExcelRef.StageTable.stages["tr_01"] = {
+        stageId: "tr_01",
+        stageType: "MAIN",
+        unlockCondition: [],
+      };
+      mockPlayer._playerdata.dungeon!.stages["mem_blkkgt_1"] = {
+        stageId: "mem_blkkgt_1",
+        state: 0,
+        completeTimes: 0,
+        startTimes: 1,
+        practiceTimes: 0,
+        hasBattleReplay: 0,
+        noCostCnt: 0,
+      };
+      const manager = new BattleManager(mockPlayer as any, mockTrigger as any);
+      const started = await manager.start({
+        stageId: "mem_blkkgt_1",
+        usePracticeTicket: false,
+        squad: { slots: [] },
+      } as any);
+      const crypt = await import("@utils/crypt");
+      vi.mocked(crypt.decryptBattleData).mockResolvedValue({
+        battleId: started.battleId,
+        battleData: { stats: {} },
+        completeState: 3,
+      } as any);
+
+      const result = await manager.finish({
+        data: "encrypted_battle_data",
+        battleData: { isCheat: "0", completeTime: 100 },
+      } as any);
+
+      // 不崩溃、正常返回 result:0
+      expect(result.result).toBe(0);
+      expect(mockPlayer._playerdata.status?.mainStageProgress).toBe("");
     });
   });
 });

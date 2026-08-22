@@ -5,7 +5,10 @@
  * users 表 JSON，避免每次保存配置时全量重写（R4 + A3）。
  */
 import { DatabaseSync } from "node:sqlite";
-import type { BattleInfo } from "@game/manager/BattleInfoStore";
+import type {
+  BattleInfo,
+  BattleRecord,
+} from "@game/manager/BattleInfoStore";
 
 /** 当前时间戳（秒） */
 function nowTs(): number {
@@ -53,5 +56,41 @@ export class ReplayRepository {
   deleteUser(uid: string): void {
     this.db.prepare("DELETE FROM replays WHERE uid = ?").run(uid);
     this.db.prepare("DELETE FROM battle_infos WHERE uid = ?").run(uid);
+    this.db.prepare("DELETE FROM battle_records WHERE uid = ?").run(uid);
+  }
+
+  /** 留存战斗结束记录（写入/覆盖，供未来分析） */
+  saveRecord(record: BattleRecord): void {
+    this.db
+      .prepare(
+        "INSERT OR REPLACE INTO battle_records (battle_id, uid, stage_id, record, created_ts) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run(
+        record.battleId,
+        record.uid,
+        record.stageId,
+        JSON.stringify(record),
+        record.createdTs,
+      );
+  }
+
+  /** 按账号+战斗 id 读取战斗结束记录（无则 undefined） */
+  getRecord(uid: string, battleId: string): BattleRecord | undefined {
+    const row = this.db
+      .prepare(
+        "SELECT record FROM battle_records WHERE uid = ? AND battle_id = ?",
+      )
+      .get(uid, battleId) as { record: string } | undefined;
+    return row ? (JSON.parse(row.record) as BattleRecord) : undefined;
+  }
+
+  /** 按账号读取最近 N 条战斗结束记录（按创建时间倒序） */
+  listRecords(uid: string, limit = 50): BattleRecord[] {
+    const rows = this.db
+      .prepare(
+        "SELECT record FROM battle_records WHERE uid = ? ORDER BY created_ts DESC LIMIT ?",
+      )
+      .all(uid, limit) as { record: string }[];
+    return rows.map((r) => JSON.parse(r.record) as BattleRecord);
   }
 }

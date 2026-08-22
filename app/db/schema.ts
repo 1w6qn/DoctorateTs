@@ -56,6 +56,17 @@ CREATE TABLE IF NOT EXISTS battle_infos (
   PRIMARY KEY (uid, battle_id)
 );
 
+-- 战斗结束记录（完整结算数据留存，供未来分析——按 uid 建索引便于历史检索）
+CREATE TABLE IF NOT EXISTS battle_records (
+  battle_id   TEXT NOT NULL,
+  uid         TEXT NOT NULL,
+  stage_id    TEXT NOT NULL,
+  record      TEXT NOT NULL,
+  created_ts  INTEGER NOT NULL,
+  PRIMARY KEY (battle_id, uid)
+);
+CREATE INDEX IF NOT EXISTS idx_battle_records_uid ON battle_records(uid);
+
 -- 玩家存档（方案 A+C：gzip BLOB 文档存储，替代 data/user/databases/*.json）
 CREATE TABLE IF NOT EXISTS player_data (
   uid       TEXT PRIMARY KEY,

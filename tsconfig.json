@@ -14,7 +14,8 @@
       "@game/*": ["./app/game/*"],
       "@capture/*": ["./app/capture/*"],
       "@logs/*": ["./app/logs/*"],
-      "@plugin/*": ["./app/plugin/*"]
+      "@plugin/*": ["./app/plugin/*"],
+      "@asset/*": ["./app/asset-registry/*"]
     }
   },
   "include": ["app/**/*", "index.ts"],

@@ -10,6 +10,7 @@ import config from "./config";
 import { exists, size } from "@utils/file";
 import { logger } from "@utils/logger";
 import { backfillFile } from "./asset-backfill";
+import { assetRegistry } from "@asset/asset-service";
 
 const router = Router();
 
@@ -416,6 +417,24 @@ async function downloadFile(url: string, filePath: string): Promise<void> {
     timeout: CDN_TIMEOUT,
   });
   await writeFile(filePath, response.data);
+  // 溯源：CDN 文件获取留痕（fire-and-forget，不阻断下载热路径）
+  void assetRegistry
+    .recordEvent({
+      asset: {
+        name: basename(filePath),
+        category: "file",
+        source: url,
+        version: officialResVersion("Android"),
+        hash: createHash("md5").update(response.data).digest("hex"),
+        size: response.data.length,
+      },
+      action: "acquire",
+      actor: "asset-router",
+      source: url,
+      hashAfter: createHash("md5").update(response.data).digest("hex"),
+      sizeAfter: response.data.length,
+    })
+    .catch(() => undefined);
 }
 
 async function exportFile(
@@ -478,6 +497,48 @@ async function exportFile(
       await mkdir(cachePath, { recursive: true });
     }
     await writeFile(savePath, JSON.stringify(hotUpdateList));
+
+    // 溯源：清单交付 + mod 注入留痕（fire-and-forget）
+    const manifestHash = createHash("md5")
+      .update(JSON.stringify(hotUpdateList))
+      .digest("hex");
+    void assetRegistry
+      .recordEvent({
+        asset: {
+          name: "hot_update_list.json",
+          category: "manifest",
+          source: url,
+          version: hotUpdateList.versionId ?? assetsHash,
+          hash: manifestHash,
+          size: Buffer.byteLength(JSON.stringify(hotUpdateList)),
+        },
+        action: "deliver",
+        actor: "asset-router",
+        source: url,
+        version: assetsHash,
+        detail: { abInfos: newAbInfos.length },
+      })
+      .catch(() => undefined);
+    if (config.assets.enableMods) {
+      const injectedMods = (mods?.mods ?? []).map((m) => (m as { name?: string }).name);
+      void assetRegistry
+        .recordEvent({
+          asset: {
+            name: "hot_update_list.json",
+            category: "manifest",
+            source: url,
+            version: hotUpdateList.versionId ?? assetsHash,
+            hash: manifestHash,
+            size: Buffer.byteLength(JSON.stringify(hotUpdateList)),
+          },
+          action: "modify",
+          actor: "asset-router",
+          source: "mod 注入",
+          version: assetsHash,
+          detail: { injectedMods },
+        })
+        .catch(() => undefined);
+    }
 
     return join(__dirname, "../assets/cache/hot_update_list.json");
   }

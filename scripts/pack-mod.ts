@@ -16,6 +16,7 @@ import { readdir, readFile, writeFile, mkdir, rm } from "fs/promises";
 import { join, relative, basename, sep } from "path";
 import JSZip from "jszip";
 import { exists } from "../app/utils/file";
+import { assetRegistry } from "../app/asset-registry/asset-service";
 
 interface CliArgs {
   dir: string;
@@ -133,6 +134,19 @@ async function main(): Promise<void> {
   for (const f of files) {
     console.log(`  ${f.rel} -> ${f.downloadName} (${f.bytes} B)`);
   }
+  // 溯源：mod 生成留痕（mod 资产注册 + modify 事件）
+  try {
+    for (const f of files) {
+      await assetRegistry.recordEvent({
+        asset: { name: f.downloadName, category: "mod", source: args.dir, version: "mod", size: f.bytes },
+        action: "modify",
+        actor: "pack-mod",
+        source: args.dir,
+        sizeAfter: f.bytes,
+        detail: { rel: f.rel },
+      });
+    }
+  } catch { /* 溯源失败不阻断 */ }
   console.log(
     `\n打包完成：${packed} 个 mod -> ${out}（源共 ${totalBytes} B）。\n` +
       `启用：将 data/config.json 的 "assets" -> "enableMods" 置 true，重启服务后客户端热更自动拉取。`,

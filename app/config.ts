@@ -37,6 +37,17 @@ interface UserConfig {
   offline?: boolean;
   /** 是否启动时自动更新数据（缺省 false——激进默认：仅 npm run update / --auto-update 更新） */
   autoUpdate?: boolean;
+  /**
+   * 运行期自动更新（缺省关闭）：周期探测官服 CDN 数据版本，发现变动即自动
+   * 拉取资源并执行「下载→解包→解码转换→生成类型→同步版本」全管线（解包重签），
+   * 成功后热重载 excel。可用 CLI `--auto-update-watch` 强制开启。
+   */
+  autoUpdateWatch?: {
+    /** 是否启用运行期自动更新 */
+    enabled?: boolean;
+    /** 探测间隔（分钟，缺省 15） */
+    intervalMinutes?: number;
+  };
   /** 登录响应主版本号（客户端校验用——去硬编码，缺省 "446"） */
   majorVersion?: string;
   /** 版本信息 */
@@ -103,6 +114,12 @@ interface UserConfig {
      * 默认排除本地管理/资源/配置噪音：/admin /assetbundle /pcSdk /config /api /audit /batch_event
      */
     recordTrafficExclude?: string[];
+    /**
+     * 抓包记录开关：为所有除 /admin 外的路由开启抓包（录 request/response 到统一抓包存储）。
+     * 开启时强制 debug.recordTraffic=true 且仅排除 /admin 前缀——不再默认排除
+     * assetbundle/config/api 等本地噪音，全量记录协议对比所需流量。
+     */
+    recordTrafficAllExceptAdmin?: boolean;
   };
   /** 管理后台配置 */
   admin?: {
@@ -134,6 +151,11 @@ interface UserConfig {
      * -1（缺省）= 真实时间；数值 = 冻结到该时间戳（仅允许过去时间，未来值回退真实时间）
      */
     timestamp?: number;
+    /**
+     * 专精技能训练时间强制为 0：调用专精升级（/building/upgradeSpecialization）
+     * 时立即完成升级（specializeLevel 直接 +1），无需基建训练室等待（缺省 false）。
+     */
+    specializationTimeZero?: boolean;
   };
   /** 自定义活动切换（强制开启 + 合约赛季选择 + 资产补全） */
   activities?: {
@@ -151,6 +173,15 @@ interface UserConfig {
      * 仅当 assets.downloadLocally=true 时生效。
      */
     autoBackfill?: boolean;
+  };
+  /** 商店功能配置 */
+  shop?: {
+    /**
+     * 皮肤商店售卖全部皮肤：true 时 /shop/getSkinGoodList 返回 SkinTable 中所有
+     * 可购买（isBuySkin）皮肤，而非仅静态 SkinGoodList.json 列出的皮肤（缺省 false）。
+     * 动态生成的商品统一按源石（DIAMOND）定价，price 可随皮肤实际价格覆盖。
+     */
+    skinSellAll?: boolean;
   };
   /** 支付配置（pay 路由） */
   pay?: {

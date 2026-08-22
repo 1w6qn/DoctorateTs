@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
 import { getResVersion, CONF_API } from "./official-api";
+import { assetRegistry } from "../app/asset-registry/asset-service";
 
 const EXCEL_TARGET_DIR = path.join(__dirname, "../data/excel");
 
@@ -298,6 +299,20 @@ export async function syncGameVersion(): Promise<boolean> {
     } else {
       log(`游戏版本已更新: ${old} → ${next}${winNext}`);
     }
+
+    // 溯源：版本同步留痕（改前 → 改后 resVersion）
+    try {
+      await assetRegistry.recordEvent({
+        asset: { name: "config.version", category: "version", source: CONF_API, version: android.resVersion },
+        action: "modify",
+        actor: "update-data",
+        source: "官服版本同步",
+        version: android.resVersion,
+        hashBefore: old,
+        hashAfter: next,
+        detail: { old, next, windows: windows?.resVersion ?? null },
+      });
+    } catch { /* 溯源失败不阻断 */ }
     return true;
   } catch (error) {
     logError(`同步游戏版本失败: ${(error as Error).message}`);

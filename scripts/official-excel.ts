@@ -13,6 +13,7 @@ import { createCipheriv, createDecipheriv, createHash } from "crypto";
 import { extractTextAsset } from "./vendor/unityfs";
 import { FBO } from "./vendor/fbo";
 import { convertTable } from "./excel-convert";
+import { assetRegistry } from "../app/asset-registry/asset-service";
 
 const ROOT = path.join(__dirname, "..");
 const HU = "https://ak.hycdn.cn/assetbundle/official";
@@ -228,6 +229,17 @@ async function main() {
       Array.from({ length: Math.min(6, Math.max(1, os.cpus().length || 4)) }, downloadWorker),
     );
     console.log(`下载完成: ${n}`);
+    // 溯源：官方 excel 数据获取留痕（batch 脚本阻塞写可接受）
+    try {
+      await assetRegistry.recordEvent({
+        asset: { name: "官方excel数据集", category: "excel", source: HU, version: resVersion, size: n },
+        action: "acquire",
+        actor: "official-excel",
+        source: HU,
+        version: resVersion,
+        detail: { downloadedBundles: n, resVersion },
+      });
+    } catch { /* 溯源失败不阻断管线 */ }
   }
 
   if (doDecode) {
@@ -335,6 +347,17 @@ async function main() {
       }
     }
     console.log(`转换完成: ${ok} ok, ${fail} fail${skipped ? `（跳过 ${skipped} 张未变更表）` : ""}`);
+    // 溯源：官方 excel 转换（transform）留痕
+    try {
+      await assetRegistry.recordEvent({
+        asset: { name: "官方excel数据集", category: "excel", source: HU, version: resVersion },
+        action: "transform",
+        actor: "official-excel",
+        source: "FBO/AES 解码 → data/excel",
+        version: resVersion,
+        detail: { ok, fail, skipped, resVersion, tableCount: ok + skipped },
+      });
+    } catch { /* 溯源失败不阻断管线 */ }
   }
 }
 

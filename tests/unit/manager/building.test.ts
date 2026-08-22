@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import config from "../../../app/config";
 
 // Excel BuildingData 样本（真实结构，制造/加工/房间/常量——任务 2-7 复用）
 const excelMock = vi.hoisted(() => ({
@@ -825,6 +826,8 @@ describe("BuildingManager 加工分解与专精", () => {
   let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
 
   beforeEach(() => {
+    // 本组测试验证真实训练室专精路径：禁用 config 的即时完成开发开关，保证走训练等待逻辑
+    config.developer!.specializationTimeZero = false;
     vi.restoreAllMocks();
     mockTrigger = mockTypedEventEmitter();
     mockPlayer = mockPlayerData({
@@ -890,6 +893,11 @@ describe("BuildingManager 加工分解与专精", () => {
     expect(skill.specializeLevel).toBe(1);
     expect(skill.state).toBe(0);
     expect(skill.completeUpgradeTime).toBe(-1);
+  });
+
+  afterEach(() => {
+    // 恢复开发开关，避免污染共享 config 单例影响其他用例
+    config.developer!.specializationTimeZero = true;
   });
 });
 
@@ -1492,6 +1500,8 @@ describe("训练室专精结算 / 批量换班（修复）", () => {
   let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
 
   beforeEach(async () => {
+    // 本组测试验证真实训练室专精路径：禁用 config 的即时完成开发开关，保证走训练等待逻辑
+    config.developer!.specializationTimeZero = false;
     vi.restoreAllMocks();
     mockTrigger = mockTypedEventEmitter();
     mockPlayer = mockPlayerData({
@@ -1600,5 +1610,10 @@ describe("训练室专精结算 / 批量换班（修复）", () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     // 不抛错即修复（空 body 不再 500）
     await manager.batchChangeWorkChar({} as any);
+  });
+
+  afterEach(() => {
+    // 恢复开发开关，避免污染共享 config 单例影响其他用例
+    config.developer!.specializationTimeZero = true;
   });
 });

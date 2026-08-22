@@ -3,6 +3,7 @@ import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";
+import config from "../../config";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 import { Draft } from "mutative";
@@ -1226,7 +1227,11 @@ export class BuildingManager {
   /**
    * 专精升级（开始训练）
    * 记录训练目标到训练室 trainee（官方 CS 枚举：TRAINING=1/OUTOFDATE=2/WAITING=3/EMPTY=0），
-   * 将目标技能置为专精中（state=1），完成时由 completeUpgradeSpecialization 提升等级
+   * 将目标技能置为专精中（state=1），完成时由 completeUpgradeSpecialization 提升等级。
+   *
+   * 当 config.developer.specializationTimeZero=true 时，跳过训练等待——立即完成升级
+   * （specializeLevel 直接 +1、技能复位、trainee 复位 WAITING），并照常发出
+   * UpgradeSpecialization 任务事件。
    * @param args - 包含 charInstId 和 targetSkill（技能索引）的参数对象
    */
   async upgradeSpecialization(args: {
@@ -1235,6 +1240,35 @@ export class BuildingManager {
     reduceTimeBd?: any;
   }) {
     const { charInstId, targetSkill } = args;
+    // 专精时间强制为 0：调用即立即完成，任务事件照常发出（复用结算逻辑）
+    if (config.developer?.specializationTimeZero) {
+      let settledLevel = 0;
+      await this._player.update(async (draft) => {
+        const char = draft.troop.chars[String(charInstId)];
+        if (char && char.skills && char.skills[targetSkill]) {
+          char.skills[targetSkill].specializeLevel += 1;
+          settledLevel = char.skills[targetSkill].specializeLevel;
+          char.skills[targetSkill].state = 0;
+          char.skills[targetSkill].completeUpgradeTime = -1;
+        }
+        // 复位训练室 trainee（官方线格式恒为对象：state=WAITING、targetSkill=-1）
+        const rooms = Object.values(draft.building.rooms.TRAINING);
+        const room =
+          rooms.find((r) => r.trainee?.charInstId === charInstId) ?? rooms[0];
+        if (room?.trainee) {
+          room.trainee.state = 3; // WAITING
+          room.trainee.targetSkill = -1;
+          if (room.trainer) room.trainer.state = 3; // WAITING
+          room.lastUpdateTime = now();
+        }
+      });
+      if (settledLevel > 0) {
+        await this._trigger.emit("UpgradeSpecialization", [
+          { targetLevel: settledLevel },
+        ]);
+      }
+      return;
+    }
     return await this._player.update(async (draft) => {
       const char = draft.troop.chars[String(charInstId)];
       if (char && char.skills && char.skills[targetSkill]) {

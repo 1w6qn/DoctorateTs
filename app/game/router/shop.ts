@@ -11,6 +11,7 @@ import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { ShopError } from "../controller/shop";
 import excel from "@excel/excel";
+import config from "../../config";
 import {
   BuyCashGoodRequest,
   BuyCashGoodResponse,
@@ -330,6 +331,9 @@ router.post("/getREPGoodList", validateBody(emptyRequestSchema), async (req, res
  *
  * 修复：过滤皮肤表（excel.SkinTable.charSkins）不存在的 skinId——数据错位（如
  * char_254_vodfox_witch#2 漏写 @）会导致客户端预览图加载失败。
+ * 配置 config.shop.skinSellAll=true 时，售卖全部可购买（isBuySkin）皮肤——在静态
+ * SkinGoodList.json 之上补齐所有未收录皮肤（统一按源石 DIAMOND 定价，price 优先取
+ * 静态同名商品，否则默认 18），静态列表中已有的价格/命名被保留，其余动态生成。
  * @route POST /shop/getSkinGoodList
  * @returns 皮肤商店商品列表和玩家增量数据
  */
@@ -337,10 +341,42 @@ router.post("/getSkinGoodList", validateBody(emptyRequestSchema), async (req, re
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetSkinGoodListRequest;
   const charSkins = (excel.SkinTable as any)?.charSkins ?? {};
+  let goodList = excel.ShopTable.skinGoodList.goodList;
+  // 皮肤售卖所有皮肤：动态补齐所有 isBuySkin 皮肤（静态皮肤优先保留价格/命名）
+  if (config.shop?.skinSellAll) {
+    const staticBySkin = new Map(
+      goodList.filter((g: any) => charSkins[g.skinId]).map((g: any) => [g.skinId, g]),
+    );
+    const auto: any[] = [];
+    for (const skin of Object.values(charSkins) as any[]) {
+      if (!skin || !skin.isBuySkin) continue; // 默认/活动皮肤不售卖
+      const s = staticBySkin.get(skin.skinId);
+      const name =
+        s?.skinName ?? skin.displaySkin?.skinName ?? skin.skinId;
+      // 静态已收录的取原价/原价/折扣，未收录默认 18 源石
+      auto.push({
+        charId: skin.charId,
+        skinName: name,
+        discount: s?.discount ?? 0,
+        skinId: skin.skinId,
+        goodId: `SS_${skin.skinId}`,
+        originPrice: s?.originPrice ?? 18,
+        endDateTime: -1,
+        desc1: null,
+        desc2: null,
+        startDateTime: -1,
+        price: s?.price ?? 18,
+        slotId: 0,
+        currencyUnit: "DIAMOND",
+        isRedeem: s?.isRedeem ?? false,
+      });
+    }
+    goodList = auto;
+  }
   // 修复：slotId 重排——SkinGoodList.json 由多期数据拼接，12 组皮肤共用同一 slotId
   // （客户端时装商店按 slotId 渲染格子，冲突导致点 A 显示 B / 预览错乱）。
   // 过滤皮肤表不存在的 skinId（数据错位防御）后按原顺序重排唯一 slotId
-  const goodList = excel.ShopTable.skinGoodList.goodList
+  goodList = goodList
     .filter((g) => Boolean(charSkins[g.skinId]))
     .map((g, i) => ({ ...g, slotId: i + 1 }));
   res.send({

@@ -159,6 +159,13 @@
   .mv-edge-path { stroke: var(--accent); stroke-width: 2.6; fill: none; }
   .mv-zone-title { font-size: 14px; font-weight: 600; fill: var(--text); }
   .mv-zone-end { font-size: 10px; fill: #e06c75; }
+  /* 上帝视角：状态全景树（可折叠分区 + 可点击叶子） */
+  .god-sec-head { cursor: pointer; font-size: 12px; color: var(--text); padding: 2px 4px; border-radius: 4px; user-select: none; white-space: nowrap; }
+  .god-sec-head:hover { background: var(--input); }
+  .god-caret { display: inline-block; width: 14px; color: var(--muted); }
+  .god-node { font-size: 11px; line-height: 1.75; color: var(--text); white-space: nowrap; }
+  .god-node:hover { background: var(--input); border-radius: 3px; }
+  #god-toggle.active { background: var(--danger, #e06c75); border-color: transparent; }
   @media (max-width: 900px) { .mv-wrap { flex-direction: column; } .mv-side { width: auto; max-height: none; } }
   /* 移动端适配：单列布局、控制台/弹窗不溢出、导航横排可滚动 */
   /* 移动端汉堡抽屉 */
@@ -271,6 +278,7 @@
       <div class="tabs">
         <div class="tab" data-tab="capture">🕸️ 抓包</div>
         <div class="tab" data-tab="logs">📜 日志</div>
+        <div class="tab" data-tab="asset">🗂️ 资产</div>
       </div>
     </div>
   </aside>
@@ -356,6 +364,7 @@
       <div class="tab-pane" id="pane-activity"></div>
       <div class="tab-pane" id="pane-capture"></div>
       <div class="tab-pane" id="pane-logs"></div>
+      <div class="tab-pane" id="pane-asset"></div>
       <div class="tab-pane" id="pane-raw"></div>
     </div>
   </section>
@@ -637,10 +646,14 @@
         var checked = selectedUids.indexOf(u.uid) !== -1 ? " checked" : "";
         tr.innerHTML =
           '<td><input type="checkbox" class="u-check" data-uid="' + u.uid + '"' + checked + '></td>' +
-          "<td>" + u.uid + "</td><td>" + escapeHtml(u.nickName) + "</td><td>" + u.level + "</td>" +
+          "<td>" + u.uid + "</td><td>" +
+          (u.disabled ? '<span style="color:var(--err);font-size:11px;border:1px solid var(--err);border-radius:3px;padding:0 4px;margin-right:4px;">禁用</span>' : "") +
+          escapeHtml(u.nickName) + "</td><td>" + u.level + "</td>" +
           "<td>" + escapeHtml(u.phone || "-") + "</td><td title=\"" + fmtTs(u.lastOnlineTs) + "\">" + fmtRel(u.lastOnlineTs) + "</td>" +
           "<td><button data-grant=\"" + u.uid + "\" class=\"btn-sm\">发物品</button> " +
-          "<button data-mail=\"" + u.uid + "\" class=\"btn-sm\">发邮件</button></td>";
+          "<button data-mail=\"" + u.uid + "\" class=\"btn-sm\">发邮件</button> " +
+          "<button data-toggle-disabled=\"" + u.uid + "\" class=\"btn-sm\">" + (u.disabled ? "启用" : "禁用") + "</button> " +
+          "<button data-del-user=\"" + u.uid + "\" class=\"btn-sm danger\">删除</button></td>";
         tr.querySelector(".u-check").addEventListener("change", function (e) {
           e.stopPropagation();
           toggleSelect(u.uid, this.checked);
@@ -652,6 +665,37 @@
         tr.querySelector("[data-mail]").addEventListener("click", function (e) {
           e.stopPropagation();
           openMail(u.uid);
+        });
+        tr.querySelector("[data-toggle-disabled]").addEventListener("click", function (e) {
+          e.stopPropagation();
+          confirmDialog(
+            (u.disabled ? "启用用户 " + u.uid : "禁用用户 " + u.uid + "？禁用后将无法登录/游玩") + (u.disabled ? "？" : ""),
+            function () {
+              api("/users/" + encodeURIComponent(u.uid) + "/disabled", {
+                method: "POST", body: JSON.stringify({ disabled: !u.disabled }),
+              }).then(function () {
+                toast(u.disabled ? "已启用用户 " + u.uid : "已禁用用户 " + u.uid);
+                refreshUsers();
+                refreshLogs();
+              }).catch(function (e2) { toast("操作失败：" + e2.message); });
+            },
+            u.disabled ? "启用用户" : "禁用用户",
+            u.disabled ? "warn" : "warn",
+          );
+        });
+        tr.querySelector("[data-del-user]").addEventListener("click", function (e) {
+          e.stopPropagation();
+          confirmDialog("确认删除用户 " + u.uid + "？此操作不可恢复（存档/账号/社交/回放全部清除）。", function () {
+            api("/users/" + encodeURIComponent(u.uid), {
+              method: "DELETE", body: JSON.stringify({ confirmWord: "DELETE" }),
+            }).then(function () {
+              if (selectedUid === u.uid) selectedUid = null;
+              toast("已删除用户 " + u.uid);
+              refreshUsers();
+              refreshStats();
+              refreshLogs();
+            }).catch(function (e2) { toast("删除失败：" + e2.message); });
+          }, "删除用户", "danger");
         });
         tr.addEventListener("click", function () { selectUser(u.uid); });
         tbody.appendChild(tr);
@@ -759,9 +803,9 @@
 
   /* ---------- 用户详情（Tab） ---------- */
 
-  var TAB_LABELS = { overview: "概览", chars: "干员", mails: "邮件", pools: "卡池", api: "接口", official: "官服", pixel: "像素画", map: "地图", capture: "抓包", logs: "日志", raw: "数据" };
+  var TAB_LABELS = { overview: "概览", chars: "干员", mails: "邮件", pools: "卡池", api: "接口", official: "官服", pixel: "像素画", map: "地图", capture: "抓包", logs: "日志", asset: "资产", raw: "数据" };
   /** 全局功能 Tab（不依赖选中用户，内容全宽） */
-  var GLOBAL_TABS = ["pools", "api", "official", "pixel", "map", "capture", "logs"];
+  var GLOBAL_TABS = ["pools", "api", "official", "pixel", "map", "capture", "logs", "asset"];
 
   /** Tab 输入状态缓存（切 Tab 回来恢复搜索/请求体/账号等） */
   var tabState = {};
@@ -827,6 +871,7 @@
     if (tab === "activity") { loadActivityPane(); return; }
     if (tab === "capture") { loadCapturePane(); return; }
     if (tab === "logs") { loadLogsPane(); return; }
+    if (tab === "asset") { loadAssetPane(); return; }
     // 用户相关 Tab：未选用户时提示
     if (!uid) {
       var pane = $("pane-" + tab);
@@ -857,6 +902,7 @@
         "<p><b>" + escapeHtml(info.nickName) + "#" + escapeHtml(info.nickNumber) + "</b> Lv." + info.level + "</p>" +
         "<p style=\"color:var(--muted);margin-top:6px;\">UID " + info.uid + " | 注册 " + fmtRel(info.registerTs) +
         " | 最后在线 " + fmtRel(info.lastOnlineTs) + "</p>" +
+        (info.disabled ? '<p style="color:var(--err);margin-top:6px;"><b>该用户已被禁用</b> —— 无法登录/游玩，可在用户列表点击「启用」恢复</p>' : "") +
         '<div class="row wrap" style="gap:8px;margin:12px 0;">' +
         '<button id="act-maxout" class="primary">一键满配</button>' +
         '<button id="act-building">基建满级</button>' +
@@ -3308,6 +3354,40 @@
       "<h3 style='font-size:13px;color:var(--muted);margin:0 0 6px;'>步骤日志 / 结算报告</h3>" +
       '<div class="resp-box" id="rogue-steps" style="max-height:260px;min-height:60px;">—</div>' +
       "</div>" +
+      "</div></div>" +
+      /* 上帝视角面板：实时查看指定玩家当前地图 + 全状态树 + 实时修改 */
+      '<div class="card" style="margin-top:14px;">' +
+      '<div class="row" style="align-items:center;margin-bottom:8px;">' +
+      '<h3 style="color:var(--gold);margin:0;">👁 实时上帝视角</h3>' +
+      '<span style="font-size:11px;color:var(--muted);margin-left:10px;">查看指定玩家<b>当前对局</b>的真实地图与各状态子树，实时轮询；点击地图节点可移动/开战，可直接修改字段。</span>' +
+      "</div>" +
+      '<div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">' +
+      "<label style='align-self:center;'>uid</label>" +
+      '<input id="god-uid" placeholder="玩家 uid（缺省选中用户）" style="width:120px;">' +
+      '<button id="god-toggle" class="primary">▶ 开启实时</button>' +
+      '<input id="god-interval" placeholder="轮询ms" value="3000" style="width:80px;">' +
+      '<button id="god-refresh">⟳ 刷新</button>' +
+      '<button id="god-consume" class="primary">▶ 消费PENDING</button>' +
+      '<button id="god-settle">🏁 结算</button>' +
+      '<button id="god-fullstate">💊 满状态</button>' +
+      "</div>" +
+      '<div class="row" style="gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">' +
+      '<span style="font-size:12px;color:var(--muted);">修改</span>' +
+      '<select id="god-op" style="width:70px;"><option value="set">set</option><option value="del">del</option><option value="inc">inc</option></select>' +
+      '<input id="god-path" placeholder="路径 如 player.property.hp.current" style="flex:1;min-width:220px;">' +
+      '<input id="god-value" placeholder="值(JSON，留空=删除)" style="width:150px;">' +
+      '<button id="god-apply" class="primary">应用</button>' +
+      "</div>" +
+      '<div class="row" style="gap:14px;align-items:flex-start;flex-wrap:wrap;">' +
+      '<div style="flex:1.3;min-width:360px;">' +
+      "<h3 style='font-size:13px;color:var(--muted);margin:0 0 6px;'>实时地图（当前对局）</h3>" +
+      '<div class="resp-box" style="overflow:auto;"><svg id="god-map" width="860" height="420" style="display:block;"></svg></div>' +
+      '<div id="god-map-hint" style="font-size:11px;color:var(--muted);margin-top:4px;">—</div>' +
+      "</div>" +
+      '<div style="flex:1;min-width:300px;">' +
+      "<h3 style='font-size:13px;color:var(--muted);margin:0 0 6px;'>状态全景（各子树）</h3>" +
+      '<div class="resp-box" id="god-tree" style="max-height:460px;min-height:280px;overflow:auto;">未发起对局或未刷新。</div>' +
+      "</div>" +
       "</div></div>";
 
     var legendEntries = [
@@ -3348,6 +3428,7 @@
       });
 
     bindRogueSim();
+    bindGodView();
   }
 
   /* ---------- 肉鸽流程模拟（经 /api/rogue/* 代理真实 rlv2 控制器） ---------- */
@@ -3545,6 +3626,389 @@
     // 初始主题下拉与地图预览同步
     var mvt = $("mv-theme");
     if (mvt) $("rogue-theme").value = mvt.value;
+  }
+
+  /* ---------- 上帝视角（实时查看指定玩家当前地图 + 全状态树 + 实时修改） ---------- */
+
+  var godSimState = null;         // 当前 rlv2 快照
+  var godTimer = null;            // 实时轮询定时器
+  var godLive = false;            // 是否开启实时
+
+  function godUid() {
+    var v = $("god-uid") ? $("god-uid").value.trim() : "";
+    return v || (selectedUid ? String(selectedUid) : "1");
+  }
+  function godInterval() {
+    var n = parseInt($("god-interval").value, 10);
+    return Number.isFinite(n) && n >= 500 ? n : 3000;
+  }
+  function godTheme() {
+    return godSimState ? ((godSimState.current || {}).game || {}).theme : "";
+  }
+
+  /** 解析修改值：合法 JSON 优先，否则当字符串 */
+  function godParseValue(s) {
+    var t = String(s == null ? "" : s).trim();
+    if (t === "") return undefined;
+    try { return JSON.parse(t); } catch (e) { return t; }
+  }
+
+  /** 刷新当前对局快照并渲染 */
+  function godRefresh() {
+    api("/rogue/state?uid=" + encodeURIComponent(godUid()))
+      .then(function (r) { godSimState = r; godRender(r); })
+      .catch(function (e) {
+        $("god-map-hint").textContent = "读取失败：" + e.message;
+        $("god-tree").innerHTML = '<span style="color:#e06c75;">' + escapeHtml(e.message) + "</span>";
+      });
+  }
+
+  /** 单步动作：执行 rlv2 动作并更新本地快照（返回是否成功） */
+  function godStep(action, body) {
+    return api("/rogue/sim-step", {
+      method: "POST",
+      body: JSON.stringify({ uid: godUid(), action: action, body: body || {} }),
+    }).then(function (r) {
+      if (!r.ok) throw new Error(r.error || "步骤失败");
+      godSimState = r.state;
+      godRender(r.state);
+      return true;
+    }).catch(function (e) { godFlash("操作失败：" + e.message); return false; });
+  }
+
+  /** 上帝视图操作反馈（地图下方提示条） */
+  function godFlash(msg) {
+    var h = $("god-map-hint");
+    if (h) h.textContent = msg;
+  }
+
+  /** 自动循环消费 PENDING 事件（至 WAIT_MOVE 无 pending 或超步数） */
+  function godAutoConsume(max) {
+    var guard = max || 12;
+    function loop() {
+      if (--guard < 0) return Promise.resolve(true);
+      var st = ((godSimState || {}).current || {}).player || {};
+      var state = st.state;
+      var pending = st.pending || [];
+      var topType = pending[0] ? pending[0].type : "";
+      if (state !== "PENDING" && state !== "INIT") return Promise.resolve(true);
+      var action, body = {};
+      if (state === "INIT") {
+        if (topType === "GAME_INIT_RELIC") { action = "chooseInitialRelic"; body = { select: "0" }; }
+        else if (topType === "GAME_INIT_RECRUIT_SET") { action = "chooseInitialRecruitSet"; body = { select: "0" }; }
+        else if (topType === "GAME_INIT_SUPPORT") {
+          action = "selectChoice";
+          var chs = Object.keys(((pending[0].content || {}).initSupport || {}).scene?.choices || {});
+          body = { choice: chs[0] || "" };
+        } else { action = "finishEvent"; }
+      } else if (topType === "BATTLE_SHOP") { action = "leaveShop"; }
+      else if (topType === "SCENE") {
+        action = "selectChoice";
+        var sc = Object.keys(((pending[0].content || {}).scene || {}).choices || {});
+        body = { choice: sc.find(function (c) { return c !== "choice_leave"; }) || sc[0] || "" };
+      } else if (topType === "BATTLE") { action = "battleFinish"; body = { data: "", battleData: { isCheat: "0", completeTime: 0 } }; }
+      else if (topType === "GAME_SETTLE") { action = "gameSettle"; }
+      else { action = "finishEvent"; }
+      return godStep(action, body).then(function (ok) {
+        if (!ok) return false;
+        var ns = ((godSimState || {}).current || {}).player || {};
+        return loop();
+      });
+    }
+    return loop();
+  }
+
+  /** 上帝视图：移动到指定节点并自动消费产生的 PENDING 事件 */
+  function godMoveTo(x, y) {
+    $("god-map-hint").textContent = "移动到 (" + x + ", " + y + ") …";
+    return godStep("moveTo", { to: { x: x, y: y } }).then(function (ok) {
+      if (!ok) return;
+      return godAutoConsume(12).then(function () {
+        godFlash("已移动到 (" + x + ", " + y + ") 并处理事件");
+        refreshLogs();
+      });
+    });
+  }
+
+  /** 渲染实时地图（标准 zones 网格 or rogue_6 gridZone） */
+  function godRenderMap(snap) {
+    var svg = $("god-map");
+    var hint = $("god-map-hint");
+    if (!svg) return;
+    var NS = "http://www.w3.org/2000/svg";
+    svg.innerHTML = "";
+    var cur = (snap || {}).current || {};
+    var st = cur.player || {};
+    var game = cur.game || {};
+    var zone = (st.cursor || {}).zone || 0;
+    var pos = st.cursor && st.cursor.position;
+    if (!game.theme) { hint.textContent = "该玩家当前无进行中的集成战略对局（可在地图上手动开局自动模拟）。"; return; }
+    var themed = String(game.theme);
+    var isR6 = themed === "rogue_6";
+    // standard: current.map.zones[zone].nodes；rogue_6: current.module.gridZone.zones[zone].nodes
+    var zones = (cur.map || {}).zones || {};
+    var gz = (cur.module || {}).gridZone || {};
+    var nodes = (isR6 ? ((gz.zones || {})[String(zone)] || {}) : (zones[String(zone)] || {})).nodes || {};
+    var keys = Object.keys(nodes);
+    if (keys.length === 0) {
+      hint.textContent = "当前层（zone " + zone + "）无节点数据。标准地图取 current.map.zones，rogue_6 取 current.module.gridZone。";
+      godRenderTree(snap);
+      return;
+    }
+    // 统一节点存取：标准节点有 type/pos/next；gridZone 节点在 content.kind 或本性
+    var typeOf = function (n) {
+      if (n.type != null) return n.type;
+      var kind = (n.content || {}).kind;
+      if (kind === 268435456) return 268435456; // 起点
+      if (kind === 4) return 4;                 // 险路恶敌
+      if ((n.content || {}).savage) return 1;   // 作战
+      if ((n.content || {}).shop) return 8;     // 商店
+      return 8388608;                            // 险路尽头
+    };
+    var posOf = function (n) {
+      var p = n.pos || n.coord || { x: 0, y: 0 };
+      return { x: p.x, y: p.y };
+    };
+    // 布局：取最大 x/y 计算网格坐标
+    var maxX = 0, maxY = 0;
+    var list = [];
+    for (var i = 0; i < keys.length; i++) {
+      var n = nodes[keys[i]];
+      if (!n) continue;
+      var p = posOf(n);
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
+      list.push({ key: keys[i], node: n, p: p });
+    }
+    var COLS = 180, ROWS = 64, R = 15, PAD_X = 60, PAD_Y = 42;
+    var w = PAD_X * 2 + maxX * COLS + 40;
+    var h = PAD_Y * 2 + maxY * ROWS + 60;
+    svg.setAttribute("width", w); svg.setAttribute("height", h);
+    var px = function (p) { return { x: PAD_X + p.x * COLS, y: PAD_Y + p.y * ROWS }; };
+    var title = document.createElementNS(NS, "text");
+    title.setAttribute("class", "mv-zone-title");
+    title.setAttribute("x", PAD_X); title.setAttribute("y", 18);
+    title.textContent = "zone_" + zone + " · " + themed + " · " + (isR6 ? "gridZone" : "standard");
+    svg.appendChild(title);
+    var nodeById = {};
+    for (i = 0; i < list.length; i++) nodeById[String(list[i].p.x * 100 + list[i].p.y)] = list[i].node;
+    // 连线：node.next 或 node.next 数组（gridZone 固定方向连下一格）
+    for (i = 0; i < list.length; i++) {
+      var ln = list[i].node;
+      var nexts = ln.next || [];
+      for (var ej = 0; ej < nexts.length; ej++) {
+        var e = nexts[ej];
+        var t = nodeById[String(e.x * 100 + e.y)];
+        if (!t) continue;
+        var line = document.createElementNS(NS, "line");
+        line.setAttribute("x1", px(list[i].p).x); line.setAttribute("y1", px(list[i].p).y);
+        line.setAttribute("x2", px(posOf(t)).x); line.setAttribute("y2", px(posOf(t)).y);
+        line.setAttribute("class", e.key ? "mv-edge-key" : "mv-edge");
+        svg.appendChild(line);
+      }
+    }
+    // 节点
+    for (i = 0; i < list.length; i++) {
+      var item = list[i];
+      var pxy = px(item.p);
+      var g = document.createElementNS(NS, "g");
+      g.setAttribute("class", "mv-node-group");
+      g.style.cursor = "pointer";
+      var isCur = pos && item.p.x === pos.x && item.p.y === pos.y;
+      var circle = document.createElementNS(NS, "circle");
+      circle.setAttribute("cx", pxy.x); circle.setAttribute("cy", pxy.y);
+      circle.setAttribute("r", isCur ? R + 3 : R);
+      circle.setAttribute("fill", mv_typeColor(typeOf(item.node)));
+      circle.setAttribute("stroke", isCur ? "#ffffff" : "#1b1e27");
+      circle.setAttribute("stroke-width", isCur ? 3 : 1.5);
+      g.appendChild(circle);
+      var label = document.createElementNS(NS, "text");
+      label.setAttribute("x", pxy.x); label.setAttribute("y", pxy.y + 3.5);
+      label.setAttribute("text-anchor", "middle");
+      label.setAttribute("class", "mv-node-label");
+      label.style.fill = "#fff"; label.style.fontSize = "8px";
+      label.textContent = mv_typeAbbr(typeOf(item.node));
+      g.appendChild(label);
+      if (item.node.zone_end) {
+        var ze = document.createElementNS(NS, "text");
+        ze.setAttribute("x", pxy.x); ze.setAttribute("y", pxy.y - R - 6);
+        ze.setAttribute("text-anchor", "middle"); ze.setAttribute("class", "mv-zone-end");
+        ze.textContent = isCur ? "★当前位置" : "终点";
+        g.appendChild(ze);
+      }
+      g.dataset.x = item.p.x; g.dataset.y = item.p.y;
+      g.addEventListener("click", function () {
+        godMoveTo(parseInt(this.dataset.x, 10), parseInt(this.dataset.y, 10));
+      });
+      svg.appendChild(g);
+    }
+    hint.innerHTML = "当前 zone <b>" + zone + "</b> · 节点 <b>" + keys.length +
+      "</b> · 位置 <b>" + (pos ? "(" + pos.x + ", " + pos.y + ")" : "—") +
+      "</b> · 点击节点即时移动。窗口未开启实时时，点击节点也会移动该玩家真实对局。";
+  }
+
+  /** 渲染状态全景：分区可折叠 JSON 树（点击叶子回填修改框） */
+  function godRenderTree(snap) {
+    var box = $("god-tree");
+    if (!box) return;
+    var cur = ((snap || {}).current) || {};
+    if (Object.keys(cur).length === 0) { box.innerHTML = '<span style="color:var(--muted);">无对局状态。</span>'; return; }
+    var SECTIONS = ["player", "inventory", "record", "buff", "map", "module", "troop", "game"];
+    var html = "";
+    for (var s = 0; s < SECTIONS.length; s++) {
+      var sec = SECTIONS[s];
+      var v = cur[sec];
+      if (v === undefined) continue;
+      var cnt = JSON.stringify(v).length;
+      html += '<div class="god-sec" data-path="' + sec + '">' +
+        '<div class="god-sec-head"><span class="god-caret">▸</span> <b>' + sec + "</b> <span style='color:var(--muted);font-size:11px;'>" + cnt + "B</span></div>" +
+        '<div class="god-sec-body" style="display:none;padding-left:8px;"></div></div>';
+    }
+    box.innerHTML = html;
+    var heads = box.querySelectorAll(".god-sec-head");
+    for (var i = 0; i < heads.length; i++) {
+      (function (head) {
+        head.addEventListener("click", function () {
+          var body = head.nextElementSibling;
+          var shown = body.style.display === "block";
+          body.style.display = shown ? "none" : "block";
+          head.querySelector(".god-caret").textContent = shown ? "▸" : "▾";
+          if (!shown) godRenderSection(body, head.closest(".god-sec").dataset.path, cur[head.closest(".god-sec").dataset.path], "");
+        });
+      })(heads[i]);
+    }
+  }
+
+  /** 递归渲染单个子树节点（对象→可折叠；叶子→可点击回填修改框） */
+  function godRenderSection(el, path, val, indent) {
+    var pre = new Array(indent.length + 1).join("&nbsp;");
+    if (val === null) { el.innerHTML += '<div class="god-node">' + pre + '<span style="color:#6b7280;">null</span></div>'; return; }
+    if (Array.isArray(val)) {
+      if (val.length === 0) { el.innerHTML += '<div class="god-node">' + pre + '[]</div>'; return; }
+      el.innerHTML += '<div class="god-sec" data-path="' + path + '"><div class="god-sec-head" style="padding-left:8px;"><span class="god-caret">▸</span> <span style="color:var(--muted);">[' + val.length + ']</span></div><div class="god-sec-body" style="display:none;"></div></div>';
+      var arrayHead = el.lastElementChild.firstElementChild;
+      var arrayBody = el.lastElementChild.querySelector(".god-sec-body");
+      arrayHead.addEventListener("click", function () {
+        var shown = arrayBody.style.display === "block";
+        arrayBody.style.display = shown ? "none" : "block";
+        arrayHead.querySelector(".god-caret").textContent = shown ? "▸" : "▾";
+        if (!shown) {
+          arrayBody.innerHTML = "";
+          for (var k = 0; k < val.length; k++) godRenderSection(arrayBody, path + "[" + k + "]", val[k], indent + "&nbsp;&nbsp;");
+        }
+      });
+      return;
+    }
+    if (typeof val === "object") {
+      var ks = Object.keys(val);
+      if (ks.length === 0) { el.innerHTML += '<div class="god-node">' + pre + '{} </div>'; return; }
+      el.innerHTML += '<div class="god-sec" data-path="' + path + '"><div class="god-sec-head" style="padding-left:8px;"><span class="god-caret">▸</span> <span style="color:var(--muted);">{}</span></div><div class="god-sec-body" style="display:none;"></div></div>';
+      var objHead = el.lastElementChild.firstElementChild;
+      var objBody = el.lastElementChild.querySelector(".god-sec-body");
+      objHead.addEventListener("click", function () {
+        var shown = objBody.style.display === "block";
+        objBody.style.display = shown ? "none" : "block";
+        objHead.querySelector(".god-caret").textContent = shown ? "▸" : "▾";
+        if (!shown) {
+          objBody.innerHTML = "";
+          for (var key in val) {
+            var childPath = path ? path + "." + key : key;
+            godRenderSection(objBody, childPath, val[key], indent + "&nbsp;&nbsp;");
+          }
+        }
+      });
+      return;
+    }
+    // 叶子：显示键值，点击回填到修改框
+    var label = String(val);
+    if (label.length > 40) label = label.slice(0, 40) + "…";
+    var color = typeof val === "number" ? "#d19a66" : (typeof val === "boolean" ? "#56b6c2" : "#98c379");
+    var node = document.createElement("div");
+    node.className = "god-node";
+    node.style.cursor = "pointer";
+    node.title = path;
+    node.innerHTML = pre + '<span style="color:var(--muted);">' + escapeHtml(path.split(".").pop()) + ':</span> <span style="color:' + color + ';">' + escapeHtml(label) + "</span>";
+    node.addEventListener("click", function () {
+      $("god-path").value = path;
+      $("god-op").value = "set";
+      $("god-value").value = JSON.stringify(val);
+      godFlash("已回填修改框：" + path);
+    });
+    el.appendChild(node);
+  }
+
+  /** 应用修改框的 set/del/inc */
+  function godApply() {
+    var path = $("god-path").value.trim();
+    if (!path) { godFlash("请填写路径"); return; }
+    var op = $("god-op").value;
+    var value = godParseValue($("god-value").value);
+    api("/rogue/modify", { method: "POST", body: JSON.stringify({ uid: godUid(), ops: [{ op: op, path: path, value: value }] }) })
+      .then(function (r) {
+        if (!r.ok) throw new Error(r.error || "修改失败");
+        godSimState = r.state;
+        godRender(r.state);
+        godFlash("已 " + op + " " + path);
+        refreshLogs();
+      })
+      .catch(function (e) { godFlash("修改失败：" + e.message); });
+  }
+
+  /** 一次性满状态（血量/金币/盾/人口） */
+  function godFullState() {
+    var cur = ((godSimState || {}).current || {});
+    var prop = (cur.player || {}).property || {};
+    var ops = [];
+    if (prop.hp) { ops.push({ op: "set", path: "player.property.hp.current", value: prop.hp.max || 1 }); }
+    if (prop.gold != null) ops.push({ op: "set", path: "player.property.gold", value: 999 });
+    if (prop.shield != null) ops.push({ op: "set", path: "player.property.shield", value: 10 });
+    if (prop.population) ops.push({ op: "set", path: "player.property.population.max", value: 12 });
+    if (ops.length === 0) { godFlash("暂无可满的字段（先发起对局）"); return; }
+    api("/rogue/modify", { method: "POST", body: JSON.stringify({ uid: godUid(), ops: ops }) })
+      .then(function (r) {
+        if (!r.ok) throw new Error(r.error || "失败");
+        godSimState = r.state; godRender(r.state);
+        godFlash("已满状态（血/金币/盾/人口）"); refreshLogs();
+      })
+      .catch(function (e) { godFlash("满状态失败：" + e.message); });
+  }
+
+  function godRender(snap) { godRenderMap(snap); godRenderTree(snap); }
+
+  /** 实时开关：开启则按间隔轮询刷新 */
+  function godToggle() {
+    godLive = !godLive;
+    var btn = $("god-toggle");
+    if (godLive) {
+      btn.textContent = "⏸ 暂停实时";
+      btn.classList.add("active");
+      godRefresh();
+      godTimer = setInterval(function () { godRefresh(); }, godInterval());
+    } else {
+      btn.textContent = "▶ 开启实时";
+      btn.classList.remove("active");
+      if (godTimer) { clearInterval(godTimer); godTimer = null; }
+    }
+  }
+
+  function bindGodView() {
+    var t = $("god-toggle");
+    if (!t || t.dataset.bound) return;
+    t.dataset.bound = "1";
+    t.addEventListener("click", godToggle);
+    $("god-refresh").addEventListener("click", godRefresh);
+    $("god-consume").addEventListener("click", function () { godAutoConsume(12).then(function () { godFlash("已消费 PENDING 事件"); refreshLogs(); }); });
+    $("god-settle").addEventListener("click", function () { godStep("gameSettle", {}).then(function (ok) { if (ok) { godFlash("已结算"); refreshLogs(); } }); });
+    $("god-fullstate").addEventListener("click", godFullState);
+    $("god-apply").addEventListener("click", godApply);
+    // 初始 uid 回填
+    var gu = $("god-uid");
+    var preseed = function () {
+      if (!gu.value.trim() && selectedUid) gu.value = String(selectedUid);
+      else if (!gu.value.trim()) gu.value = "1";
+    };
+    preseed();
+    godRefresh();
   }
 
   /* ---------- 活动切换（时间冻结 + 强制开启 + 合约赛季 + 资产补全） ---------- */
@@ -4626,6 +5090,132 @@
     if (!s) return true;
     try { JSON.parse(s); return true; } catch (e) { return false; }
   }
+
+  /* ---------- 一体化可溯源资产系统（pane-asset） ---------- */
+
+  var assetES = null;
+
+  function closeAssetStream() {
+    if (assetES) { assetES.close(); assetES = null; }
+    var b = $("asset-live");
+    if (b) { b.classList.remove("primary"); b.textContent = "⚡ 实时审计"; }
+  }
+
+  function loadAssetPane() {
+    closeAssetStream();
+    var pane = $("pane-asset");
+    pane.innerHTML =
+      '<div class="card" style="margin-top:0;">' +
+      '<div class="row" style="align-items:center;margin-bottom:8px;">' +
+      '<h3 style="color:var(--gold);margin:0;">🗂️ 一体化可溯源资产系统</h3>' +
+      '<span style="font-size:11px;color:var(--muted);margin-left:10px;">manifest 清单 / excel 数据 / CDN 资源 / mod 模组 / version 版本 — 全链路溯源（获取→转换→修改→下发）与审计实时流。</span>' +
+      '<button id="asset-live" class="btn-sm" style="margin-left:auto;">⚡ 实时审计</button>' +
+      "</div>" +
+      '<div class="row" style="gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">' +
+      '<select id="asset-category" style="width:130px;margin:0;"><option value="">全部分类</option><option value="manifest">manifest 清单</option><option value="excel">excel 数据</option><option value="file">CDN 资源</option><option value="mod">mod 模组</option><option value="version">版本</option></select>' +
+      '<input id="asset-q" placeholder="资产名关键字" style="width:180px;margin:0;">' +
+      '<button id="asset-refresh" class="btn-sm primary">刷新</button>' +
+      '<span style="flex:1;"></span>' +
+      "</div>" +
+      '<div id="asset-summary" style="font-size:11px;color:var(--muted);margin-bottom:6px;"></div>' +
+      '<div style="max-height:30vh;overflow:auto;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;">' +
+      '<table style="font-size:12px;"><thead><tr>' +
+      '<th style="padding:5px 8px;">资产名</th><th style="padding:5px 8px;">分类</th><th style="padding:5px 8px;">来源</th><th style="padding:5px 8px;">版本</th><th style="padding:5px 8px;">大小</th><th style="padding:5px 8px;">更新时间</th></tr></thead><tbody id="asset-rows"></tbody></table>' +
+      "</div>" +
+      '<div id="asset-lineage"></div>' +
+      '<div style="margin-top:8px;border:1px solid var(--border);border-radius:6px;padding:8px;">' +
+      '<div class="row" style="align-items:center;"><b style="color:var(--gold);">📜 审计实时流</b><span style="flex:1;"></span></div>' +
+      '<div id="asset-activity" style="margin-top:6px;max-height:180px;overflow:auto;font-size:11px;font-family:Consolas,monospace;"></div>' +
+      "</div>" +
+      "</div>";
+    bindAssetPane();
+    refreshAssets();
+  }
+
+  function bindAssetPane() {
+    $("asset-refresh").addEventListener("click", refreshAssets);
+    $("asset-category").addEventListener("change", refreshAssets);
+    $("asset-q").addEventListener("keydown", function (e) { if (e.key === "Enter") refreshAssets(); });
+    $("asset-live").addEventListener("click", function () {
+      if (assetES) { closeAssetStream(); return; }
+      var b = $("asset-live");
+      b.classList.add("primary");
+      b.textContent = "● 审计直播中";
+      assetES = new EventSource(API + "/asset/events/stream?token=" + encodeURIComponent(token));
+      assetES.addEventListener("event", function (ev) {
+        var d = JSON.parse(ev.data);
+        if (d.type === "live") appendAssetActivity(d.event);
+      });
+      assetES.onerror = function () { /* EventSource 自动重连 */ };
+    });
+  }
+
+  function refreshAssets() {
+    var cat = $("asset-category").value;
+    var name = ($("asset-q").value || "").trim();
+    var qs = "?limit=300";
+    if (cat) qs += "&category=" + encodeURIComponent(cat);
+    if (name) qs += "&name=" + encodeURIComponent(name);
+    api("/asset" + qs).then(function (r) {
+      var rows = $("asset-rows");
+      if (!rows) return;
+      $("asset-summary").textContent = "共 " + r.total + " 个资产（筛选：" + (cat || "全部") + "）";
+      rows.innerHTML = (r.items || []).map(function (a) {
+        return '<tr data-name="' + h(a.name) + '" style="cursor:pointer;">' +
+          '<td style="padding:5px 8px;">' + h(a.name) + "</td>" +
+          '<td style="padding:5px 8px;">' + h(a.category) + "</td>" +
+          '<td style="padding:5px 8px;">' + h(a.source || "-") + "</td>" +
+          '<td style="padding:5px 8px;">' + h(a.version || "-") + "</td>" +
+          "<td style=\"padding:5px 8px;\">" + fmtSize(a.size) + "</td>" +
+          "<td style=\"padding:5px 8px;\">" + fmtMs(a.updatedAt) + "</td>" +
+          "</tr>";
+      }).join("") || '<tr><td colspan="6" style="padding:12px;color:var(--muted);text-align:center;">暂无资产</td></tr>';
+      rows.querySelectorAll("tr[data-name]").forEach(function (tr) {
+        tr.addEventListener("click", function () {
+          showAssetLineage(tr.getAttribute("data-name"));
+        });
+      });
+    }).catch(function () {});
+  }
+
+  function showAssetLineage(name) {
+    api("/asset/lineage?name=" + encodeURIComponent(name)).then(function (r) {
+      var box = $("asset-lineage");
+      if (!box) return;
+      if (!r.asset) {
+        box.innerHTML = '<div style="color:var(--warn);font-size:12px;">未找到资产 ' + h(name) + "</div>";
+        return;
+      }
+      var a = r.asset;
+      var head = '<div style="border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;">' +
+        '<b style="color:var(--gold);">🔍 溯源：' + h(a.name) + "</b>" +
+        '<div style="font-size:11px;color:var(--muted);margin-top:4px;">分类 ' + h(a.category) + " · 来源 " + h(a.source || "-") + " · 版本 " + h(a.version || "-") + " · hash " + h(a.hash || "-") + " · 大小 " + fmtSize(a.size) + "</div>" +
+        "</div>";
+      var list = (r.events || []).map(function (e) {
+        var color = e.action === "acquire" ? "var(--ok)" : e.action === "deliver" ? "var(--gold)" : e.action === "modify" ? "var(--warn)" : "var(--star5)";
+        var diff = e.hashBefore ? ' · <span style="color:var(--muted);">' + h(e.hashBefore) + " → " + h(e.hashAfter || "-") + "</span>" : "";
+        var det = e.detail ? ' <span style="color:var(--muted);">' + h(e.detail) + "</span>" : "";
+        return '<div style="border-left:2px solid ' + color + ';padding-left:8px;margin:4px 0;font-size:12px;">' +
+          "<b style=\"color:" + color + "\">" + h(e.action) + "</b>" +
+          " · " + fmtMs(e.ts) +
+          " · <span style=\"color:var(--muted);\">" + h(e.actor || "-") + "</span>" +
+          " · " + h(e.source || "-") +
+          diff + det + "</div>";
+      }).join("") || '<div style="color:var(--muted);font-size:12px;">无事件记录</div>';
+      box.innerHTML = head + list;
+    }).catch(function (e) { toast("溯源失败：" + e.message); });
+  }
+
+  function appendAssetActivity(e) {
+    var box = $("asset-activity");
+    if (!box) return;
+    var color = e.action === "acquire" ? "var(--ok)" : e.action === "deliver" ? "var(--gold)" : e.action === "modify" ? "var(--warn)" : "var(--star5)";
+    var div = document.createElement("div");
+    div.innerHTML = "<b style=\"color:" + color + "\">" + h(e.action) + "</b> · " + fmtMs(e.ts) + " · " + h(e.actor || "-") + " · " + h(e.source || "-");
+    box.insertBefore(div, box.firstChild);
+    while (box.children.length > 300) box.removeChild(box.lastChild);
+  }
+
   // 即时输入校验（事件委托：动态渲染的输入框也生效）
   document.addEventListener("input", function (e) {
     var el = e.target;

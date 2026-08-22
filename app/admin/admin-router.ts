@@ -30,6 +30,7 @@ import {
   deleteCaptureSessionSchema,
   deleteMailSchema,
   deletePixelArtSchema,
+  deleteUserSchema,
   disablePluginSchema,
   doCheckInSchema,
   emptyObjectSchema,
@@ -55,6 +56,7 @@ import {
   restoreSchema,
   rogueSimAutoSchema,
   rogueSimStepSchema,
+  rogueModifySchema,
   saveUserSchema,
   sendMailAllSchema,
   sendMailSchema,
@@ -67,6 +69,7 @@ import {
   unlockAllStagesSchema,
   unlockStageSchema,
   uploadPixelArtSchema,
+  setUserDisabledSchema,
 } from "./schemas";
 
 const router = Router();
@@ -126,6 +129,35 @@ router.post("/api/users", validateBody(createUserSchema, 400), async (req: Reque
     res.status(400).json({ error: (err as Error).message });
   }
 });
+
+/** 禁用/启用用户（real 模式生效：禁用后登录/鉴权被拦截） */
+router.post(
+  "/api/users/:uid/disabled",
+  validateBody(setUserDisabledSchema, 400),
+  async (req: Request, res: Response) => {
+    try {
+      const { disabled } = req.body ?? {};
+      res.json(await adminService.setUserDisabled(String(req.params.uid), Boolean(disabled)));
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message });
+    }
+  },
+);
+
+/** 删除用户（危险操作，须传 confirmWord="DELETE" 确认） */
+router.delete(
+  "/api/users/:uid",
+  validateBody(deleteUserSchema, 400),
+  async (req: Request, res: Response) => {
+    try {
+      const { confirmWord } = req.body ?? {};
+      const result = await adminService.deleteUser(String(req.params.uid), String(confirmWord));
+      res.json({ ok: true, uid: result.uid });
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message });
+    }
+  },
+);
 
 /** 发放物品 */
 router.post("/api/users/:uid/grant", validateBody(grantItemSchema, 400), async (req: Request, res: Response) => {
@@ -479,6 +511,21 @@ router.get("/api/rogue/state", async (req: Request, res: Response) => {
     const q = (req.query ?? {}) as { uid?: string };
     const state = await adminService.rogueSimState(String(q.uid ?? "1"));
     res.json(state);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 上帝视角：按 JSON 路径实时修改 rlv2 current 状态（set/del/inc），返回最新快照 */
+router.post("/api/rogue/modify", validateBody(rogueModifySchema, 400), async (req: Request, res: Response) => {
+  try {
+    const { uid, ops } = req.body ?? {};
+    const result = await adminService.rogueModifyState(String(uid), ops ?? []);
+    if (!result.ok) {
+      res.status(400).json({ ok: false, error: result.error });
+      return;
+    }
+    res.json({ ok: true, state: result.state });
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }

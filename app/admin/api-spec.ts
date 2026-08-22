@@ -22,6 +22,10 @@ export interface AdminEndpointSpec {
 }
 
 export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
+  { method: "GET", path: "/api/asset", summary: "资产列表（?category=manifest|excel|file|mod|version&name=模糊搜索&limit=&offset=）", params: [{ name: "category", type: "string", desc: "资产分类" }, { name: "name", type: "string", desc: "按资产名模糊搜索" }] },
+  { method: "GET", path: "/api/asset/lineage", summary: "资产溯源链（?name= 返回获取→转换→修改→下发完整事件链）", params: [{ name: "name", type: "string", required: true, desc: "资产名" }] },
+  { method: "GET", path: "/api/asset/events", summary: "审计事件流（?action=acquire|transform|modify|deliver）" },
+  { method: "GET", path: "/api/asset/events/stream", summary: "审计事件实时流（SSE 尾随）" },
   { method: "GET", path: "/api/plugin", summary: "Lua 插件列表（含启用状态）" },
   { method: "POST", path: "/api/plugin/:id/enable", summary: "启用 Lua 插件", params: [{ name: "id", type: "string", required: true, desc: "插件 ID（enemy_hp / enemy_info / battle_assist / plugin_panel）" }] },
   { method: "POST", path: "/api/plugin/:id/disable", summary: "停用 Lua 插件", params: [{ name: "id", type: "string", required: true, desc: "插件 ID" }] },

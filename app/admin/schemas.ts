@@ -25,6 +25,16 @@ export const createUserSchema = z.object({
   password: z.string(),
 });
 
+/** 禁用/启用用户（读 disabled） */
+export const setUserDisabledSchema = z.object({
+  disabled: z.boolean(),
+});
+
+/** 删除用户（读 confirmWord，须为 "DELETE" 防误删） */
+export const deleteUserSchema = z.object({
+  confirmWord: z.string(),
+});
+
 /** 发放物品（读 itemId/count） */
 export const grantItemSchema = z.object({
   itemId: z.string(),
@@ -116,6 +126,18 @@ export const rogueSimStepSchema = z.object({
   action: z.string(),
   // body 为各 action 的透传参数，灵活结构不深检
   body: z.any().optional(),
+});
+
+/** 上帝视角实时修改（读 uid/ops：set|del|inc 路径补丁数组） */
+export const rogueModifySchema = z.object({
+  uid: z.string(),
+  ops: z.array(
+    z.object({
+      op: z.enum(["set", "del", "inc"]),
+      path: z.string(),
+      value: z.any().optional(),
+    }),
+  ),
 });
 
 /** 切换活动（读 timestamp/forceOpen/crisisV1/crisisV2；forceOpen 兼容数组或逗号串） */

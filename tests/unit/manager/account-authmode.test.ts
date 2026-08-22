@@ -185,6 +185,32 @@ describe("getUidByToken 认证模式", () => {
     expect(await accountManager.getUidByToken("1")).toBe("1");
   });
 
+  it("real 模式：禁用账号禁止鉴权与登录（Dashboard 删除/禁用用户）", async () => {
+    (config as any).authMode = "real";
+    (accountManager as any).configs = {
+      "1": { auth: { phone: "1" }, secret: "secret_1" },
+      "2221": { auth: { phone: "2221" }, secret: "secret_2221", disabled: true, password: "p2221" },
+      "2222": { auth: { phone: "2222" }, disabled: true }, // 无 secret 旧账号 + 已禁用
+    };
+    // secret 登录被拒
+    expect(await accountManager.getUidByToken("secret_2221")).toBe("");
+    // uid 数字直通被拒（无 secret 旧账号 + 已禁用）
+    expect(await accountManager.getUidByToken("2222")).toBe("");
+    // 未禁用账号正常
+    expect(await accountManager.getUidByToken("secret_1")).toBe("1");
+    // 登录被拒
+    await expect(accountManager.tokenByPhonePassword("2221", "p2221")).rejects.toThrow("禁用");
+  });
+
+  it("single 模式：禁用固定账号后 getUidByToken 返回空（无法鉴权）", async () => {
+    (config as any).authMode = "single";
+    (config as any).singleUid = "1";
+    (accountManager as any).configs = {
+      "1": { auth: { phone: "1" }, disabled: true },
+    };
+    expect(await accountManager.getUidByToken("any")).toBe("");
+  });
+
   it("registerUser 原子写（.tmp + rename，避免写一半崩溃留坏档）", async () => {
     (config as any).authMode = "real";
     const writeMock = vi.mocked(writeFile);

@@ -7,7 +7,11 @@
 
 import { PlayerDataModel } from "../model/playerdata";
 import { PlayerDataManager } from "./PlayerDataManager";
-import { BattleInfo, BattleInfoStore } from "./BattleInfoStore";
+import {
+  BattleInfo,
+  BattleInfoStore,
+  BattleRecord,
+} from "./BattleInfoStore";
 import { unlockActivity } from "./activity/unlockActivity";
 import { readJson } from "@utils/file";
 import { now } from "@utils/time";
@@ -214,6 +218,15 @@ export class AccountManager implements BattleInfoStore {
   }
 
   /**
+   * 判断账号是否被禁用（Dashboard 禁用用户后，登录/鉴权均拒绝）
+   * @param uid - 用户ID（可为空，空视为未禁用）
+   * @returns 是否禁用
+   */
+  isAccountDisabled(uid: string | undefined): boolean {
+    return !!uid && !!this.configs[uid]?.disabled;
+  }
+
+  /**
    * 保存用户配置到 SQLite（全量同步 upsert）
    * 未 init（_userRepo 未初始化，如单测直接操作 configs）时 no-op——不污染真实库
    */
@@ -237,6 +250,24 @@ export class AccountManager implements BattleInfoStore {
    */
   async getBattleInfo(uid: string, battleId: string): Promise<BattleInfo> {
     return this._battleStore?.getInfo(uid, battleId) as BattleInfo;
+  }
+
+  /**
+   * 留存战斗结束记录（BattleStore 委托——battle_records 表，供未来分析）
+   * @param record - 战斗结束记录（含 battleId/uid）
+   */
+  async saveBattleRecord(record: BattleRecord): Promise<void> {
+    this._battleStore?.saveRecord(record);
+  }
+
+  /** 读取战斗结束记录（无则 undefined） */
+  async getBattleRecord(uid: string, battleId: string): Promise<BattleRecord | undefined> {
+    return this._battleStore?.getRecord(uid, battleId);
+  }
+
+  /** 读取最近 N 条战斗结束记录（按创建时间倒序） */
+  async listBattleRecords(uid: string, limit = 50): Promise<BattleRecord[]> {
+    return this._battleStore?.listRecords(uid, limit) ?? [];
   }
 
   /**
@@ -701,6 +732,10 @@ export class AccountManager implements BattleInfoStore {
     if (found) {
       // 真实模式：返回账号 secret（参考 DoctoratePy——token=secret）
       const [uid, conf] = found;
+      // 禁用账号拦截：已禁用（Dashboard 操作）则拒绝登录
+      if (conf.disabled) {
+        throw new Error("该账号已被禁用，请联系管理员");
+      }
       // 旧明文账号登录成功后惰性升级为哈希（之后不再明文存储）
       if (!isHashedPassword(conf.password)) {
         conf.password = hashPassword(password);
@@ -893,7 +928,9 @@ export class AccountManager implements BattleInfoStore {
       // 真实模式：token 匹配账号 secret（参考 DoctoratePy query_account_by_secret）
       // 收紧：有 secret 的账号必须以 secret 登录（防止 uid 数字直通枚举冒用）；
       // 仅无 secret 的旧账号保留 uid 直通（兼容迁移前账号）
-      if (this.configs[token] && !this.configs[token].secret) return token;
+      if (this.configs[token] && !this.configs[token].secret) {
+        return this.isAccountDisabled(token) ? "" : token;
+      }
       // 懒构建 secret→uid 索引；configs 被整体替换（init/直接赋值）或新增账号（register/ensure）后失效重建
       if (!this._secretIndex || this._secretIndexConfigs !== this.configs) {
         this._secretIndexConfigs = this.configs;
@@ -906,20 +943,23 @@ export class AccountManager implements BattleInfoStore {
         }
       }
       const hit = this._secretIndex.get(token);
-      if (hit) return hit;
+      if (hit) return this.isAccountDisabled(hit) ? "" : hit;
       // 宽松兜底（对齐 ODPY——私服单机不卡客户端流程）：未知 token（非配置账号 key，
       // 即客户端 SDK 会话 token）回退默认账号（singleUid 优先，其次第一个配置账号）。
       // 配置账号 key 本身（uid 数字直通）仍拒绝——有 secret 的账号必须用 secret 登录。
       if (token && !this.configs[token]) {
         const fallback = config.singleUid || Object.keys(this.configs)[0];
-        if (fallback && this.configs[fallback]) return fallback;
+        if (fallback && this.configs[fallback]) {
+          return this.isAccountDisabled(fallback) ? "" : fallback;
+        }
       }
       return "";
     }
     // 单例模式：任意 token 收敛到固定账号（oauth2/basic/u8 全流程返回单例 uid）。
     // 语义契约：single 下 token=secret=uid 三者语义统一（middleware 会强制覆盖 secret header），
     // real 下 token 为账号 secret（旧账号无 secret 回退 uid）。
-    return config.singleUid || "1";
+    const singleUid = config.singleUid || "1";
+    return this.isAccountDisabled(singleUid) ? "" : singleUid;
   }
 }
 
@@ -955,6 +995,8 @@ export interface UserConfig {
   password: string;
   /** 账号密钥（参考 DoctoratePy：MD5(phone + 渠道密钥)，真实模式 token 用） */
   secret?: string;
+  /** 是否禁用（Dashboard 删除/禁用用户；禁用后无法登录/鉴权） */
+  disabled?: boolean;
   auth: {
     hgId: string;
     phone: string;
@@ -980,7 +1022,7 @@ export interface UserConfig {
 /**
  * 战斗信息接口（从 BattleInfoStore 重导出，保持向后兼容）
  */
-export type { BattleInfo } from "./BattleInfoStore";
+export type { BattleInfo, BattleRecord } from "./BattleInfoStore";
 
 /** 账户管理器全局实例 */
 export const accountManager = new AccountManager();

@@ -70,6 +70,8 @@ export interface UserSummary {
   level: number;
   phone: string;
   lastOnlineTs: number;
+  /** 是否被禁用（Dashboard 禁用/删除用户状态展示） */
+  disabled: boolean;
 }
 
 /** 用户详情（列表摘要 + 资源/道具摘要） */
@@ -243,6 +245,7 @@ export function toUserSummary(uid: string, pd: PlayerDataManager): UserSummary {
     level: status.level,
     phone: accountManager.configs[uid]?.auth.phone ?? "",
     lastOnlineTs: status.lastOnlineTs,
+    disabled: !!accountManager.configs[uid]?.disabled,
   };
 }
 
@@ -254,6 +257,96 @@ function formatTs(ts: number): string {
     `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}` +
     `-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
   );
+}
+
+/** 路径段转容器键：数字段按数组下标处理 */
+function rlv2Key(seg: string, parent: Record<string, unknown>): string | number {
+  return Array.isArray(parent) && /^\d+$/.test(seg) ? Number(seg) : seg;
+}
+
+/**
+ * 上帝视角修改：把 current 顶层段路由到对应 manager 的"可写权威对象"。
+ * rlv2 的 player/map/module/troop/inventory 是内存 manager，persistCurrent() 以
+ * manager.toJSON() 为快照回写 current——若直接改 current.* 会被回写覆盖。故把补丁
+ * 作用到 manager 实际持有的对象（其 toJSON 读取的同一引用）。record/game/buff 未
+ * 被 manager 接管，直接落在 current。
+ * @param ctl  - RoguelikeV2Controller（任意类型）
+ * @param segs - 完整路径段（如 ["player","property","hp","current"]）
+ * @returns 权威根对象 + 剩余路径段（已去掉顶层段）
+ */
+function rlv2AuthoritativeRoot(
+  ctl: any,
+  segs: string[],
+): { root: Record<string, unknown>; rest: string[] } {
+  const top = segs[0];
+  const rest = segs.slice(1);
+  const cur = ctl.current;
+  switch (top) {
+    case "player":
+      return { root: ctl._status, rest }; // property/cursor/state 等字段
+    case "map":
+      return { root: ctl._map, rest }; // _map.zones === current.map.zones（别名）
+    case "module":
+      return { root: ctl._module, rest }; // gridZone/scrap 等经 _modules 管理器
+    case "troop":
+      return { root: ctl.troop, rest };
+    case "inventory":
+      // relic/recruit 是 getter（子管理器），需钻进 *_relic.relics / *_recruit.tickets
+      if (rest[0] === "relic") return { root: ctl.inventory?._relic?.relics, rest: rest.slice(1) };
+      if (rest[0] === "recruit") return { root: ctl.inventory?._recruit?.tickets, rest: rest.slice(1) };
+      return { root: ctl.inventory, rest };
+    default:
+      // record / game / buff 直接同居 current
+      return { root: cur, rest: segs };
+  }
+}
+
+/**
+ * 沿 JSON 路径对 rlv2 current 子树应用单个补丁（set/del/inc）。
+ * 修改对象（含数组）须为可变——rlv2 是 autoFreeze 兼容的可写孤岛，直接改即可。
+ * @param root  - current 根对象
+ * @param op    - set=赋值（不存在则创建中间路径）；del=删除键/数组元素；inc=数值加（默认 +1）
+ * @param segs  - 点分路径段（如 ["player","property","hp","current"]）
+ * @param value - set 的目标值
+ */
+export function applyRlv2Patch(
+  root: Record<string, unknown>,
+  op: "set" | "del" | "inc",
+  segs: string[],
+  value?: unknown,
+): void {
+  let cur = root;
+  const last = rlv2Key(segs[segs.length - 1], cur);
+  for (let i = 0; i < segs.length - 1; i++) {
+    const key = rlv2Key(segs[i], cur);
+    const next: unknown = (cur as any)[key];
+    if (next === null || next === undefined || typeof next !== "object") {
+      // 自动创建中间容器（对象或数组由下一段的形态决定，默认对象）
+      (cur as any)[key] = {};
+    }
+    cur = (cur as any)[key] as Record<string, unknown>;
+  }
+  const container = cur as Record<string, unknown>;
+  if (op === "del") {
+    if (Array.isArray(container)) {
+      const idx = typeof last === "number" ? last : Number(last);
+      if (Number.isFinite(idx)) container.splice(idx, 1);
+    } else if (typeof last === "string") {
+      delete container[last];
+    }
+  } else if (op === "inc") {
+    const base = Number((container as any)[last] ?? 0);
+    const delta = Number(value ?? 0);
+    (container as any)[last] = base + delta;
+  } else {
+    // set：空值可选语义——显式传 undefined 表示删除，避免误留
+    if (value === undefined) {
+      if (Array.isArray(container)) container.splice(Number(last) || 0, 1);
+      else if (typeof last === "string") delete container[last];
+    } else {
+      (container as any)[last] = value;
+    }
+  }
 }
 
 export class AdminService {
@@ -1302,6 +1395,45 @@ export class AdminService {
     return pd.rlv2.toJSON();
   }
 
+  /**
+   * 上帝视角：按 JSON 路径实时修改 rlv2 内存态，并回写存档。
+   * 允许对 player/inventory/record/buff/map/module/troop/game 任意字段做 set/del/inc。
+   * 说明：rlv2 的 player/map/module/troop/inventory 为内存 manager（persistCurrent 以
+   * manager toJSON 快照为准），直接改 current.* 会被回写覆盖——因此按顶层段路由到
+   * 对应 manager 的可变对象上修改，再 persistCurrent 落盘。record/game/buff 直接同居
+   * current。直接改内存态是"上帝模式"，绕过状态机事件；客户端下次拉取即生效。
+   *
+   * @param uid - 目标玩家
+   * @param ops  - 操作数组：{ op: "set"|"del"|"inc", path: "player.property.hp.current", value? }
+   *              路径以 current 为根，点分号分隔；数字段按数组下标处理。
+   * @returns { ok, state, error } — state 为修改后完整 rlv2 快照
+   */
+  async rogueModifyState(
+    uid: string,
+    ops: { op: "set" | "del" | "inc"; path: string; value?: unknown }[],
+  ): Promise<{ ok: boolean; state: unknown; error?: string }> {
+    try {
+      const pd = await this.getPlayer(uid);
+      const ctl: any = pd.rlv2;
+      if (!ctl?.current) {
+        return { ok: false, state: null, error: "该玩家无 rlv2 上下文（未发起对局或已卸载）" };
+      }
+      for (const op of ops || []) {
+        const segs = String(op.path ?? "").split(".").filter(Boolean);
+        if (segs.length === 0) throw new Error("操作路径不能为空");
+        // 顶层段路由到对应 manager 的可变权威对象（record/game/buff 直接落在 current）
+        const { root, rest } = rlv2AuthoritativeRoot(ctl, segs);
+        applyRlv2Patch(root, op.op, rest, op.value);
+        this._audit("rogueModify", uid, `${op.op} ${op.path}`);
+      }
+      // 内存 manager 快照写回存档（供重登"继续探索"），同 rlv2Response 的持久化契约
+      ctl.persistCurrent();
+      return { ok: true, state: ctl.toJSON() };
+    } catch (e) {
+      return { ok: false, state: null, error: (e as Error).message };
+    }
+  }
+
   /** 卡池清单（excel.GachaTable.gachaPoolClient） */
   listPools(): PoolSummary[] {
     return (excel.GachaTable?.gachaPoolClient ?? []).map((p) => ({
@@ -1994,6 +2126,23 @@ export class AdminService {
     await accountManager.deleteAccount(uid);
     await this._audit("deleteUser", uid, "已删除");
     return { uid };
+  }
+
+  /**
+   * 禁用/启用用户（Dashboard 禁用用户：登录与鉴权立即被 AccountManager 拦截）
+   * @param uid - 目标用户
+   * @param disabled - true=禁用；false=启用
+   * @returns 操作结果（含最新 disabled 状态）
+   */
+  async setUserDisabled(uid: string, disabled: boolean): Promise<{ uid: string; disabled: boolean }> {
+    const conf = accountManager.configs[uid];
+    if (!conf) {
+      throw new Error(`用户不存在: ${uid}`);
+    }
+    conf.disabled = !!disabled;
+    await accountManager.saveUserConfig();
+    await this._audit("setUserDisabled", uid, disabled ? "已禁用" : "已启用");
+    return { uid, disabled: conf.disabled };
   }
 
   /**

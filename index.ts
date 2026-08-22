@@ -78,6 +78,9 @@ process.on("exit", (code) => {
   const skipUpdate = args.includes("--skip-update") || args.includes("-s");
   // 激进：默认不跑数据更新（config.autoUpdate=false），仅显式 --auto-update / pnpm run update
   const autoUpdate = args.includes("--auto-update") || config.autoUpdate === true;
+  // 运行期自动更新（检测官服 CDN 数据变动 → 自动拉取 + 解包重签）：CLI 或 config 开启
+  const watchAutoUpdate =
+    args.includes("--auto-update-watch") || config.autoUpdateWatch?.enabled === true;
   // 完全离线模式：命令行参数 --offline/-o 或 data/config.json 中 offline: true
   const offline = args.includes("--offline") || args.includes("-o") || config.offline === true;
   // 抓包专用官服转发模式：命令行 --capture 或 data/config.json 中 capture.enabled: true
@@ -140,7 +143,7 @@ process.on("exit", (code) => {
   
   // 独立初始化并行：Excel 数据表 + 统一抓包存储 + mod 预热（互不依赖，均不依赖 Express）——
   // 原串行三段（ excel.init → captureManager.init → initMods ）改为并行，缩短启动关键路径。
-  const [excelInitPromise, captureInitPromise, modInitPromise] = [
+  const [excelInitPromise, captureInitPromise, modInitPromise, assetInitPromise] = [
     excel.init(),
     (async () => {
       // 统一抓包存储初始化（幂等）：Dashboard「抓包」Tab / CLI / 各抓包来源共用
@@ -156,18 +159,24 @@ process.on("exit", (code) => {
     // 启用 mod 时启动预热加载（避免首个热更清单请求卡在扫描、mod 文件请求早于清单时列表为空）
     config.assets.enableMods
       ? (async () => {
-          // 自动构建最小 Lua 更新包（Delta）：只含补丁 DefinedFix + 插件资产，哈希命名下发
+          // 自动重打包内置 Lua bundle 覆盖 mod（工作版本，经真机验证的心跳/加载路径）：
+          // 插件源码变更后无需手动 pnpm run repack:lua，服务启动自动整包重建并覆盖下发。
           // （缺省开启，可用 data/config.json 的 assets.autoBuildLuaMod=false 关闭）
           if (config.assets.autoBuildLuaMod !== false) {
-            const builder = await import("./app/plugin/lua-mod-builder");
-            // 最小包路线：不再重建整包 bundle（旧方案），构建后自动清理多余的整包/旧 hash anon 残留
-            await builder.ensureLuaMinModBuilt();
+            await (await import("./app/plugin/lua-mod-builder")).ensureLuaModBuilt();
           }
           await (await import("./app/asset")).initMods();
         })()
       : Promise.resolve(),
+    // 一体化资产注册表初始化（幂等）：Dashboard「资产」Tab / 各上游获取与生成点共用
+    (async () => {
+      const { assetRegistry } = await import("./app/asset-registry/asset-service");
+      await assetRegistry
+        .init()
+        .catch((e) => logger.warn("index", `资产注册表初始化失败: ${(e as Error).message}`));
+    })(),
   ];
-  await Promise.all([excelInitPromise, captureInitPromise, modInitPromise]);
+  await Promise.all([excelInitPromise, captureInitPromise, modInitPromise, assetInitPromise]);
   const app = express();
   // 响应压缩（B1）：syncData 等大响应（user 全量数 MB）gzip 后传输大幅减小。
   // 放 bodyParser 之前——压缩作用于响应，客户端带 Accept-Encoding: gzip 时生效
@@ -200,6 +209,14 @@ process.on("exit", (code) => {
   }
   app.use(morgan("short"));
   // 调试记录：debug.recordTraffic=true 时保存 request/response 到统一抓包存储 tmp/capture/
+  // recordTrafficAllExceptAdmin=true 时为所有除 /admin 外路由开启抓包（覆盖默认排除列表）
+  if (config.debug?.recordTrafficAllExceptAdmin) {
+    config.debug = {
+      ...config.debug,
+      recordTraffic: true,
+      recordTrafficExclude: ["/admin"],
+    };
+  }
   app.use(createTrafficRecorder(config, capture ? "official" : "private"));
   // 子域名分发：*.hypergryph.com 请求按官服子域名映射到私服路由
   app.use(createHostRouter());
@@ -438,8 +455,14 @@ process.on("exit", (code) => {
     // 服务器内嵌命令行 REPL（日志与命令行共存；非 TTY 自动跳过）
     import("./app/admin/server-repl").then((m) => m.startServerRepl());
     // 后台版本检测提示（非阻塞）：本地数据较旧时提醒 pnpm run update（默认已跳过自动更新）
-    if (!offline && !autoUpdate) {
+    if (!offline && !autoUpdate && !watchAutoUpdate) {
       checkRemoteVersionHint().catch(() => undefined);
+    }
+    // 运行期自动更新（检测官服 CDN 数据变动 → 自动拉取 + 解包重签）：开启后不再仅提示，自动执行
+    if (!offline && watchAutoUpdate) {
+      import("./app/updater/auto-update-watch").then(({ autoUpdateWatch }) =>
+        autoUpdateWatch.start((config.autoUpdateWatch?.intervalMinutes ?? 15) * 60 * 1000),
+      );
     }
   });
 /**

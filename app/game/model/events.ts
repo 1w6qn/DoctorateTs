@@ -484,6 +484,86 @@ export type EventMap = {
   ActivityArkhubAlterCollect: [
     { activityId: string; count: number; alterCount: number },
   ];
+
+  // ==================== 特勤干员（SPECIAL_OPERATOR）任务事件 ====================
+  // 事件名 = SpecialOperatorTable.nodeUnlockMissionData 中任务的 template，由 rlv2 控制器
+  // 在对应玩法动作处 emit。各模板 param 语义见 mission.ts MissionTemplates 对应条目。
+  /** Rlv2PassZoneSpec：到达指定区域（emit 于进入新区域时；zoneId 形如 "zone_2"） */
+  Rlv2PassZoneSpec: [
+    { theme: string; mode: string; grade: number; zoneId: string },
+  ];
+  /** Rlv2PassNodeSpec：通过指定类型节点（emit 于抵达节点；nodeType 为节点类型数值） */
+  Rlv2PassNodeSpec: [
+    { theme: string; mode: string; grade: number; nodeType: number },
+  ];
+  /** Rlv2CandleTimes：累计秉烛（rogue_5 岁兽残识——干员入队即视为秉烛，emit 于招募） */
+  Rlv2CandleTimes: [{ theme: string; mode: string; grade: number }];
+  /** Rlv2SpZoneSteps：累计在岁兽残识消耗烛火（emit 于 rogue_5 移动，每步 1 点） */
+  Rlv2SpZoneSteps: [
+    { theme: string; mode: string; grade: number; cost: number },
+  ];
+  /** Rlv2BandGradeCnt：使用 N 个分队在 grade 及以上通关任意结局（结算时发累计分队×难度记录，模板按 param[2] 门槛过滤） */
+  Rlv2BandGradeCnt: [
+    { theme: string; bandGrade: Record<string, Record<string, number>> },
+  ];
+  /** Rlv2EndingBandGradeCnt：使用 N 个分队在 grade 及以上达成指定结局（结算时发累计分队记录） */
+  Rlv2EndingBandGradeCnt: [
+    {
+      theme: string;
+      bandGrade: Record<string, Record<string, number>>;
+      bandCnt: Record<string, Record<string, number>>;
+      ending: string;
+    },
+  ];
+  /** Rlv2EndingModeGrade：在 grade 及以上达成指定结局（结算时发累计分队记录） */
+  Rlv2EndingModeGrade: [
+    {
+      theme: string;
+      bandGrade: Record<string, Record<string, number>>;
+      bandCnt: Record<string, Record<string, number>>;
+      ending: string;
+    },
+  ];
+  /** Rlv2EndingWithBandChar：使用指定分队招募指定干员并达成任意结局（本局判定） */
+  Rlv2EndingWithBandChar: [
+    { theme: string; mode: string; grade: number; bandId: string; charIds: string[]; ending: string },
+  ];
+  /** Rlv2EndingWithCharPassSpBattle：招募指定干员、通过 N 次祸乱节点并达成指定结局（本局判定） */
+  Rlv2EndingWithCharPassSpBattle: [
+    { theme: string; mode: string; grade: number; charIds: string[]; spBattleCount: number; ending: string },
+  ];
+  /** Rlv2EndingWithCandleChar：招募指定干员、N 名干员成为伺烛客并达成指定结局（本局判定） */
+  Rlv2EndingWithCandleChar: [
+    { theme: string; mode: string; grade: number; charIds: string[]; candleCharCount: number; ending: string },
+  ];
+  /** Rlv2EliteBattleWithChar：招募指定干员并通关任意紧急作战（本局判定；eliteCount=本局通过紧急作战节点数） */
+  Rlv2EliteBattleWithChar: [
+    { theme: string; mode: string; grade: number; charIds: string[]; eliteCount: number; ending: string },
+  ];
+  /** Rlv2StageSimpleEventMore：指定关卡内战斗简单事件计数（如击杀"易"，battle finish emit；events 为 extraBattleInfo 映射） */
+  Rlv2StageSimpleEventMore: [
+    {
+      theme: string;
+      mode: string;
+      grade: number;
+      stageId: string;
+      events: Record<string, number>;
+    },
+  ];
+  /** Rlv2RecruitSpecificChar：招募指定干员（emit 于 recruit done） */
+  Rlv2RecruitSpecificChar: [{ theme: string; charId: string }];
+  /** Rlv2UpgradeSpecificChar：进阶指定干员（emit 于招募时直接进阶 upgradePhase>=1） */
+  Rlv2UpgradeSpecificChar: [{ theme: string; charId: string }];
+  /** Rlv2MeetBandit：探索"居民"恶意占据的节点（rogue_6 RESIDENT 节点，emit 于抵达） */
+  Rlv2MeetBandit: [{ theme: string; mode: string; grade: number }];
+  /** Rlv2GainItem：累计获得零件（emit 于 rlv2:scrap:gain；itemType 恒 "SCRAP"） */
+  Rlv2GainItem: [{ itemType: string; count: number }];
+  /** Rlv2MoveCostAp：累计消耗行动力（emit 于 rogue_6 网格移动/空步；cost=步数） */
+  Rlv2MoveCostAp: [
+    { theme: string; mode: string; grade: number; cost: number },
+  ];
+  /** Rlv2ShopRecycle：累计卖出零件（emit 于行商节点丢弃废品；itemType 恒 "SCRAP"） */
+  Rlv2ShopRecycle: [{ itemType: string; count: number }];
 };
 
 /**

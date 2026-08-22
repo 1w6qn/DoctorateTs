@@ -20,6 +20,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { captureManager } from "@capture/capture-manager";
 import { logger } from "@utils/logger";
+import { CAPTURE_RECORDED } from "@utils/traffic-recorder";
 
 // 空字符串/缺省 → 默认 "rlv2"；显式 "0"/"false"/"off" → 关闭（用 ?? 而非 ||，空串不被覆盖）
 const MODE = (process.env.REQRES_LOG ?? "rlv2").toLowerCase();
@@ -42,6 +43,13 @@ export function reqresLogMiddleware(
     next();
     return;
   }
+  // 共享标记：请求已被其他 HTTP 抓包中间件（traffic-recorder）记录 → 跳过，避免同一请求重复落库
+  const marked = res as unknown as Record<string | symbol, unknown>;
+  if (marked[CAPTURE_RECORDED]) {
+    next();
+    return;
+  }
+  marked[CAPTURE_RECORDED] = true;
   const startedAt = Date.now();
   // 非 JSON（multipart 等）请求体：capture 模式用 rawBody 捕获原始字节
   const rawBody = (req as unknown as { rawBody?: Buffer }).rawBody;

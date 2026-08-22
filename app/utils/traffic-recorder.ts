@@ -21,6 +21,13 @@ import { captureManager, CaptureSource } from "@capture/capture-manager";
 import { logger } from "@utils/logger";
 
 /**
+ * 共享"已记录"标记（Symbol.for 全局注册表，跨中间件模块共享）：
+ * 同一请求若已被任一 HTTP 抓包中间件记录（traffic-recorder / reqres-log），
+ * 其余中间件据此跳过包裹 res，避免一个请求被多次落库。
+ */
+export const CAPTURE_RECORDED = Symbol.for("DoctorateTs.capture.recorded");
+
+/**
  * 默认排除的本地挂载路径前缀（与 official-forward 的 LOCAL_ONLY_PREFIXES 对齐）：
  * 管理后台（/admin 页面 + API + 30s 轮询）、资源下载（/assetbundle 大文件）、
  * SDK（/pcSdk）、配置（/config /api——launcher/remote_config）、事件上报（/batch_event）、
@@ -62,6 +69,10 @@ export function createTrafficRecorder(
     const excludes = config.debug.recordTrafficExclude ?? DEFAULT_EXCLUDE_PREFIXES;
     const pathname = req.originalUrl.split("?")[0];
     if (isExcluded(pathname, excludes)) return next();
+    // 共享标记：请求已被其他 HTTP 抓包中间件（reqres-log）记录 → 跳过，避免同一请求重复落库
+    const marked = res as unknown as Record<string | symbol, unknown>;
+    if (marked[CAPTURE_RECORDED]) return next();
+    marked[CAPTURE_RECORDED] = true;
 
     const startedAt = Date.now();
     // 非 JSON（multipart 等）请求体：index.ts capture 模式用 rawBody 捕获原始字节

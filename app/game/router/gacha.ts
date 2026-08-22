@@ -230,7 +230,12 @@ router.post("/choosePoolUp", validateBody(choosePoolUpSchema), async (req, res) 
     // 参考 OBS bp_gacha.gacha_choosePoolUp：gacha[gachaType][poolId].upChar = chooseChar
     const pool = excel.GachaTable.gachaPoolClient.find((p) => p.gachaPoolId === poolId);
     const gachaType = pool ? GACHA_RULE_TYPE[pool.gachaRuleType] ?? "single" : "single";
-    (draft as any).gacha[gachaType][poolId].upChar = chooseChar;
+    // 修复：首次选择 UP 时 gacha / gacha[gachaType] / gacha[gachaType][poolId] 层级缺失，
+    // 直接赋值会报 Cannot set properties of undefined(upChar)；须逐层初始化（与 AdminService.setPlayerPoolUp 一致）
+    const gacha = (draft as any).gacha;
+    if (!gacha[gachaType]) gacha[gachaType] = {};
+    if (!gacha[gachaType][poolId]) gacha[gachaType][poolId] = {};
+    gacha[gachaType][poolId].upChar = chooseChar;
   });
   res.send({ result: 0, ...player.delta } satisfies ChoosePoolUpResponse);
 });

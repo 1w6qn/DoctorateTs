@@ -26,7 +26,12 @@ export enum GachaType {
 
 /**
  * gachaRuleType → 玩家数据 gacha 子结构名
- * （参考 OBS bp_gacha.GACHA_RULE_TYPE_DICT；gacha 路由与管理后台共用）
+ * （参考 OBS bp_gacha.GACHA_RULE_TYPE_DICT；gacha 路由、抽卡控制器与管理后台共用）
+ *
+ * 补齐中坚甄选/回归/特殊等自选池的映射——此前这些规则类型未收录，
+ * choosePoolUp 会把玩家自选 UP 误回落写入 "single"，导致自选既不落盘在
+ * 正确子结构、抽卡时也读不到（自选形同虚设）。键名对齐
+ * app/excel/types-playerdata.ts 的 PlayerGacha 字段（fesClassic/special/backflow/doubleGacha）。
  */
 export const GACHA_RULE_TYPE: { [rule: string]: string } = {
     NORMAL: "normal",
@@ -34,6 +39,11 @@ export const GACHA_RULE_TYPE: { [rule: string]: string } = {
     LIMITED: "limit",
     SINGLE: "single",
     CLASSIC: "classic",
+    CLASSIC_ATTAIN: "classic",
+    CLASSIC_DOUBLE: "doubleGacha",
+    FESCLASSIC: "fesClassic",
+    SPECIAL: "special",
+    BACKFLOW: "backflow",
     DOUBLE: "double",
     NEWBEE: "newbee",
     LINKAGE: "linkage",

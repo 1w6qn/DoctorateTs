@@ -6,7 +6,7 @@
  */
 
 import { PlayerGacha } from "../model/playerdata";
-import { GachaResult, GachaType } from "../model/gacha";
+import { GachaResult, GachaType, GACHA_RULE_TYPE } from "../model/gacha";
 import {
   GachaDetailData,
   GachaDetailTable,
@@ -468,9 +468,45 @@ export class GachaController {
   }
 
   /**
+   * 获取玩家在该自选卡池、指定稀有度下已选中的 UP 干员列表
+   *
+   * 中坚甄选/回归/特殊等自选池通过 choosePoolUp（或管理后台 setPlayerPoolUp）
+   * 把玩家选择写入 gacha[gachaType][poolId].upChar。upChar 的三种形态在此统一兼容：
+   * - 字典 { rank: string[] }（客户端 choosePoolUp 协议 Dictionary<Int32, List<String>>）
+   * - 干员数组 string[]（管理后台写入）
+   * - 单一字符串（旧测试/容错，视为 1 个干员）
+   * 未作选择或无匹配稀有度时返回空数组，调用方走详情表静态 UP 逻辑。
+   * @param poolId - 抽卡池ID
+   * @param rank - 稀有度下标（5=六星）
+   * @returns 玩家该稀有度已选中 UP 干员 ID 列表（可为空）
+   */
+  private _selfSelectedUpForRank(poolId: string, rank: number): string[] {
+    const poolConfig = this._getPoolConfig(poolId);
+    const ruleType = poolConfig?.gachaRuleType ?? "NORMAL";
+    const gachaType = GACHA_RULE_TYPE[ruleType] ?? "single";
+    const poolData: any = (this.gacha as any)?.[gachaType]?.[poolId];
+    const upChar = poolData?.upChar;
+    if (!upChar) return [];
+    // 字典形态：按稀有度取（兼容字符串键）
+    if (typeof upChar === "object" && !Array.isArray(upChar)) {
+      const list = upChar[String(rank)] ?? upChar[rank];
+      return Array.isArray(list) ? list.filter(Boolean) : [];
+    }
+    // 数组/字符串形态：无法按稀有度区分，仅保留确实在该稀有度候选中的干员
+    const raw: string[] = Array.isArray(upChar) ? upChar : [String(upChar)];
+    const rankedSet = new Set(
+      this._poolDetail(poolId).availCharInfo.perAvailList
+        .find((c) => c.rarityRank === rank)?.charIdList ?? [],
+    );
+    return raw.filter((id) => rankedSet.has(id));
+  }
+
+  /**
    * 获取随机角色
    * 
    * 根据稀有度从抽卡池中随机选择一个角色，考虑UP角色概率。
+   * 自选卡池：若玩家已为该稀有度自选 UP，则用自选列表替换详情表静态 UP
+   * （同一概率档位，无静态 UP 时按 35% 默认档替），未自选时维持原逻辑。
    * @param poolId - 抽卡池ID
    * @param rank - 稀有度等级
    * @param args - 参数
@@ -484,9 +520,22 @@ export class GachaController {
   ): Promise<string> {
     let charId: string;
     const detail = this._poolDetail(poolId);
-    const perChar = detail.upCharInfo!.perCharList.find(
+    const staticPerChar = detail.upCharInfo!.perCharList.find(
       (c) => c.rarityRank === rank,
-    ) as GachaPerChar;
+    ) as GachaPerChar | undefined;
+    // 自选覆盖：玩家选中该稀有度 UP 时，用它替换静态 UP
+    const selfUps = this._selfSelectedUpForRank(poolId, rank);
+    const perChar: GachaPerChar | undefined = selfUps.length
+      ? {
+          rarityRank: rank,
+          charIdList: selfUps,
+          // 沿用静态 UP 的整体出率档位（percent*count）；无静态时按 35% 默认档
+          percent: staticPerChar
+            ? staticPerChar.percent * staticPerChar.count
+            : 0.35,
+          count: 1,
+        }
+      : staticPerChar;
     const rr = Math.random();
     if (perChar) {
       if (rr < perChar.percent * perChar.count) {
@@ -571,6 +620,12 @@ export class GachaController {
       if (!st) return;
       // 只增不减，禁止窗口回绕（一次性事件，触发后 cnt 继续增长不再命中保底点）
       st.cnt = nextCnt;
+      // 修复：抽到五星及以上（rank>=4，对齐回退分支）后关闭 avail——
+      // 客户端据此隐藏"保底剩余次数"提示；原实现仅回退分支处理，正常路径
+      // avail 恒为 true，抽到五星后保底提示仍残留。
+      if (st.avail && rank >= 4) {
+        st.avail = false;
+      }
     });
 
     return rank;

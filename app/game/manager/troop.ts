@@ -3,7 +3,10 @@ import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
 import { rarityToIndex } from "@utils/rarity";
-import { reconcileCharSkills } from "@game/util/char-skills";
+import {
+  reconcileCharEquips,
+  reconcileCharSkills,
+} from "@game/util/char-skills";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 
@@ -163,22 +166,30 @@ export class TroopManager {
     stageType: string;
   }) {
     const { stageId, squad } = args;
-    await this._trigger.emit("battle:start", [
-      {
-        isRetro: 0,
-        pray: 0,
-        battleType: 0,
-        continuous: {
-          battleTimes: 1,
-        },
-        usePracticeTicket: 1,
-        stageId: stageId,
-        squad: squad,
-        assistFriend: null,
-        isReplay: 0,
-        startTs: now(),
+    // 修复①：原实现 emit "battle:start" 且丢弃返回值 → /charBuild/addonStage/battleStart
+    // 响应不含 battleId，客户端结算时只能沿用上一次战斗（如肉鸽内层 ro6_*）的 battleId 解密，
+    // 导致 battleFinish 读错 battleInfo → 未知关卡空结算。改为直接调用 battle.start 并返回结果，
+    // 由路由把 battleId 等一并回传（与 /quest/battleStart 对齐）。
+    //
+    // 修复②（悖论模拟完整结算）：悖论模拟（mem_ 干员密录关卡）不是演习——
+    // 首通会发放 handbook rewardItem（如合成玉）+ 记录 addon.stage。此前 usePracticeTicket=1
+    // 固定练习模式，battle.finish 走练习分支直接返回 {result:0}，永不发奖/记录通关。改为
+    // 真实战斗（usePracticeTicket=0）即可走标准结算；mem_ 关卡在 resolveStage 已保证 apCost=0/
+    // expGain=0/goldGain=0，故不耗理智、不发经验金币，仅结算首通奖励与完成状态。
+    return this._player.battle.start({
+      isRetro: 0,
+      pray: 0,
+      battleType: 0,
+      continuous: {
+        battleTimes: 1,
       },
-    ]);
+      usePracticeTicket: 0,
+      stageId: stageId,
+      squad: squad,
+      assistFriend: null,
+      isReplay: 0,
+      startTs: now(),
+    });
   }
 
   async addonStageBattleFinish(args: {
@@ -196,25 +207,11 @@ export class TroopManager {
   }
 
   async fix(): Promise<void> {
-    // 模组回填：按归属干员（base 或 tmpl 变体各自 charId）补缺失条目
-    const backfillOwner = (
-      ownerId: string,
-      dict: { [key: string]: PlayerCharEquipInfo },
-    ) => {
-      Object.values(excel.UniequipTable.equipDict)
-        // 防御：equipDict 含 null 占位条目（26/924）
-        .filter((equip) => equip && equip.charId === ownerId)
-        .forEach((equip) => {
-          dict[equip.uniEquipId] = dict[equip.uniEquipId] || {
-            hide: 1,
-            locked: 1,
-            level: 1,
-          };
-        });
-    };
     // 迁移：进度修复移入 update() 配方——配方内 mutate draft（可变代理，
-    // push/splice/赋值均安全）会记录 Immer 补丁，无需再 markDirty
+    // push/splice/赋值均安全）会记录补丁，无需再 markDirty
     await this._player.update((draft) => {
+      // 防御：某些测试/空基座构造传入无 troop 的数据，直接跳过
+      if (!draft.troop?.chars) return Promise.resolve();
       Object.values(draft.troop.chars).forEach((char) => {
         if (char.charId == "char_002_amiya") {
           return;
@@ -222,17 +219,19 @@ export class TroopManager {
         // 技能按官服线格式回填/解锁（excel skills[i].unlockCond.phase；
         // test.json 378/378 验证；未解锁技能以 unlock:0 占位保留）
         reconcileCharSkills(char);
-        char.equip = char.equip || {};
-        backfillOwner(char.charId, char.equip);
-        // 模板变体回填（tmpl 各形态按各自 charId 归属）
+        // 模组回填 + 精二隐藏→显示校正（补齐缺失条目；hide 按 showEvolvePhase 置 0/1）
+        reconcileCharEquips(char);
+        // 模板变体回填（tmpl 各形态按各自 charId 归属，分别校正）
         if (char.tmpl) {
           Object.entries(char.tmpl).forEach(([tmplId, patch]) => {
             patch.equip = patch.equip || {};
-            backfillOwner(tmplId, patch.equip);
+            reconcileCharEquips({
+              charId: tmplId,
+              evolvePhase: char.evolvePhase ?? 0,
+              equip: patch.equip,
+              currentEquip: patch.currentEquip,
+            });
           });
-        }
-        if (char.evolvePhase == 2 && char.equip) {
-          char.currentEquip = char.currentEquip || Object.keys(char.equip)[0]!;
         }
       });
       return Promise.resolve();

@@ -180,6 +180,22 @@ vi.mock("@excel/excel", () => {
       },
       ShopClientTable: {},
       SkillDataBundle: {},
+      UniequipTable: {
+        charEquip: { char_001: ["uniequip_001_test"] },
+        equipDict: {
+          // 精二即用模组（真实 excel：unlockEvolvePhase 数字 0 + unlockLevel 0 + showEvolvePhase PHASE_2）
+          uniequip_001_test: {
+            uniEquipId: "uniequip_001_test",
+            charId: "char_001",
+            showEvolvePhase: "PHASE_2",
+            unlockEvolvePhase: 0,
+            unlockLevel: 0,
+            missionList: [],
+            itemCost: { 1: [] },
+          },
+        },
+        missionList: {},
+      },
     },
   };
 });
@@ -861,6 +877,34 @@ describe("CharManager", () => {
       await expect(
         manager.upgradeSkill({ charInstId, targetLevel: 3 }),
       ).rejects.toThrow("不高于当前等级");
+    });
+  });
+
+  describe("建档与精二驱动模组状态（reconcileCharEquips 集成）", () => {
+    it("新建干员按 charEquip 预填模组条目（E0 隐藏 hide:1）", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.dexNav!.character = {};
+      mockPlayer._playerdata.troop!.curCharInstId = 0;
+      const res = await manager.onCharGet(["char_001", { from: "NORMAL" }]);
+      const ch = mockPlayer._playerdata.troop!.chars[res.charInstId as number];
+      // 建档即补齐该干员模组占位条目（char_001 → uniequip_001_test）
+      expect(ch.equip["uniequip_001_test"]).toBeDefined();
+      expect(ch.equip["uniequip_001_test"].hide).toBe(1); // E0 隐藏
+      expect(ch.currentEquip).toBeNull();
+    });
+
+    it("elite 精二后隐藏→显示（hide:0）+ 精二即用模组 locked:0 + currentEquip", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.dexNav!.character = {};
+      mockPlayer._playerdata.troop!.curCharInstId = 0;
+      const res = await manager.onCharGet(["char_001", { from: "NORMAL" }]);
+      const charInstId = res.charInstId as number;
+      await manager.evolveChar({ charInstId, destEvolvePhase: 2 });
+      const ch = mockPlayer._playerdata.troop!.chars[charInstId];
+      expect(ch.evolvePhase).toBe(2);
+      expect(ch.equip["uniequip_001_test"].hide).toBe(0); // 显示
+      expect(ch.equip["uniequip_001_test"].locked).toBe(0); // 精二即用解锁
+      expect(ch.currentEquip).toBe("uniequip_001_test");
     });
   });
 });

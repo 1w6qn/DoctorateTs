@@ -7,7 +7,10 @@ import { now } from "@utils/time";
 import { ceil } from "lodash";
 import { logger } from "@utils/logger";
 import { rarityToIndex } from "@utils/rarity";
-import { reconcileCharSkills } from "@game/util/char-skills";
+import {
+  reconcileCharEquips,
+  reconcileCharSkills,
+} from "@game/util/char-skills";
 import { PlayerCharacter, PlayerCharPatch } from "@game/model/character";
 import { UniEquipData } from "@excel/types_excel_gen";
 
@@ -187,6 +190,10 @@ export class CharManager {
         // 未解锁技能以 unlock:0 占位；原实现 skills 恒为空 → 客户端干员详情无技能可看）
         // + defaultSkillIndex
         reconcileCharSkills(draft.troop.chars[charInstId]);
+        // 修复：新干员预填该干员模组占位条目（E0 时 hide:1 隐藏，精二后
+        // reconcileCharEquips 按阶段置 hide:0）——否则 equip 恒空，精二后客户端
+        // 无模组入口可显示/解锁
+        reconcileCharEquips(draft.troop.chars[charInstId]);
         // 修复：新干员创建后递增 curCharInstId，避免后续新干员 instId 冲突互相覆盖
         draft.troop.curCharInstId += 1;
         createdCharInstId = charInstId;
@@ -353,6 +360,10 @@ export class CharManager {
       await this._trigger.emit("CharEvolveCount", [{ char }]);
       // 技能：精英化后按官服线格式校正 unlock（如 E1 解锁技能2、E2 解锁技能3），保留已有技能状态
       reconcileCharSkills(char);
+      // 修复：精二后校正当前目标相位范围内干员的模组状态——按 showEvolvePhase
+      // 把该干员模组条目的 hide 置 0（从隐藏到显示），并补齐缺失条目、精二即用的
+      // 首个模组置 locked 0 + 设置 currentEquip。此前从未处理 → 精二后客户端无模组入口
+      reconcileCharEquips(char);
       if (destEvolvePhase >= 2) {
         char.skin = char.charId + "#2";
       }
@@ -967,6 +978,8 @@ export class CharManager {
       char.skin = char.charId + "#2";
       // 精二解锁技能3（保留已有技能专精状态）
       reconcileCharSkills(char);
+      // 精二后校正模组状态（同 evolveChar：hide 置 0、补齐条目、首个模组 locked 0 + currentEquip）
+      reconcileCharEquips(char);
       await this._trigger.emit("items:use", [
         [{ id: itemId, count: 1, instId }],
       ]);

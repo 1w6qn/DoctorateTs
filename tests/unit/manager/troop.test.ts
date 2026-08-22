@@ -338,31 +338,48 @@ describe("TroopManager", () => {
   });
 
   describe("addonStageBattleStart", () => {
-    it("应该触发 battle:start 事件并携带关卡与编队信息", async () => {
+    it("应调用 player.battle.start（携带关卡/编队/演习标记）并返回其结果（含 battleId）", async () => {
       const manager = new TroopManager(
         mockPlayer as any,
         mockTrigger as any
       );
 
-      const emitSpy = vi.spyOn(mockTrigger, "emit");
+      const startFn = vi.fn().mockResolvedValue({
+        result: 0,
+        battleId: "battle_abc",
+        apFailReturn: 0,
+        isApProtect: 0,
+        inApProtectPeriod: false,
+        notifyPowerScoreNotEnoughIfFailed: false,
+      });
+      (mockPlayer as any).battle = { start: startFn };
+
       const squad = {
         squadId: "1",
         name: "test",
         slots: [],
       };
-      await manager.addonStageBattleStart({
+      const result = await manager.addonStageBattleStart({
         charId: "char_001",
         stageId: "stage_001",
         squad,
         stageType: "STORY",
       });
 
-      const battleStartCalls = emitSpy.mock.calls.filter(
-        (c) => c[0] === "battle:start"
+      // 复用 quest battle.start，带回 battleId 等结算上下文（客户端据此解密结算）
+      expect(startFn).toHaveBeenCalledTimes(1);
+      expect(startFn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          stageId: "stage_001",
+          squad,
+          // 悖论模拟为真实战斗（非演习），首通发 handbook rewardItem + 记录完成
+          usePracticeTicket: 0,
+          isReplay: 0,
+        }),
       );
-      expect(battleStartCalls.length).toBe(1);
-      expect(battleStartCalls[0][1][0].stageId).toBe("stage_001");
-      expect(battleStartCalls[0][1][0].squad).toBe(squad);
+      expect(result).toEqual(
+        expect.objectContaining({ battleId: "battle_abc", result: 0 }),
+      );
     });
   });
 

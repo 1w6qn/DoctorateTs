@@ -26,6 +26,15 @@ vi.mock("@excel/excel", () => ({
           charId: "char_103_angel",
           missionList: ["uniequip_004_angel_cast", "uniequip_004_angel_dmg"],
         },
+        uniequip_002_kirara: {
+          uniEquipId: "uniequip_002_kirara",
+          charId: "char_478_kirara",
+          missionList: [
+            "uniequip_002_kirara_2",
+            "uniequip_002_kirara_kill",
+            "uniequip_002_kirara_battlekill",
+          ],
+        },
       },
       missionList: {
         // 场次型：完成 5 次战斗（每场召唤5回召唤物）→ target=5
@@ -58,6 +67,21 @@ vi.mock("@excel/excel", () => ({
           template: "EquipmentDamageTotal",
           paramList: ["char_103_angel", "200000", "0"],
         },
+        // 一次性击杀关卡：3星通关 main_03-01 并共歼灭 20 个敌人 → target=20
+        uniequip_002_kirara_2: {
+          template: "EquipmentCharKilledStage",
+          paramList: ["3", "main_03-01", "char_478_kirara", "20", "char_478_kirara"],
+        },
+        // 累计歼灭：非助战绮良累计歼灭 30 个敌人 → target=30
+        uniequip_002_kirara_kill: {
+          template: "EquipmentCharKilled",
+          paramList: ["char_478_kirara", "30", "char_478_kirara"],
+        },
+        // 场次型击杀：完成 5 次战斗且每场歼灭≥3 个敌人 → target=5
+        uniequip_002_kirara_battlekill: {
+          template: "EquipmentBattleCharKilled",
+          paramList: ["5", "char_478_kirara", "3"],
+        },
       },
     },
   },
@@ -73,6 +97,7 @@ function playerData() {
         1: { instId: 1, charId: "char_248_mgllan" },
         2: { instId: 2, charId: "char_106_franka" },
         3: { instId: 3, charId: "char_103_angel" },
+        4: { instId: 4, charId: "char_478_kirara" },
       },
     },
   } as any);
@@ -259,5 +284,79 @@ describe("EquipmentMissionManager", () => {
       equipment: { missions: { uniequip_002_mgllan_1: { value: 5, target: 5 } } },
     };
     expect(() => mgr.assertUnlockable("char_248_mgllan", ["uniequip_002_mgllan_1"], doneDraft)).not.toThrow();
+  });
+
+  it("一次性击杀关卡：击杀不足不完成，累计达标才完成（不自动完成）", async () => {
+    // 3星通关 main_03-01，本场歼灭 12 → 进度 12/20，不直接完成
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_03-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } } as any,
+      battleData: {
+        completeState: 3,
+        battleData: { stats: { enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 12 }] } },
+      } as any,
+    });
+    expect(missions()["uniequip_002_kirara_2"]).toEqual({ value: 12, target: 20 });
+    // 再次通关再歼灭 8 → 累计 20/20 完成
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_03-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } } as any,
+      battleData: {
+        completeState: 3,
+        battleData: { stats: { enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 8 }] } },
+      } as any,
+    });
+    expect(missions()["uniequip_002_kirara_2"]).toEqual({ value: 20, target: 20 });
+  });
+
+  it("一次性击杀关卡：关卡不符或未三星不推进击杀进度", async () => {
+    // 未三星（completeState=2）→ 仅播种进度，不累加
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_03-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } } as any,
+      battleData: {
+        completeState: 2,
+        battleData: { stats: { enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 12 }] } },
+      } as any,
+    });
+    expect(missions()["uniequip_002_kirara_2"]).toEqual({ value: 0, target: 20 });
+    // 击杀达标但关卡不符 → 仍不推进
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_04-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } } as any,
+      battleData: {
+        completeState: 3,
+        battleData: { stats: { enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 12 }] } },
+      } as any,
+    });
+    expect(missions()["uniequip_002_kirara_2"]).toEqual({ value: 0, target: 20 });
+  });
+
+  it("累计歼灭敌人：按 enemyStats 逐场累加而非一次置满", async () => {
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_01-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } } as any,
+      battleData: {
+        completeState: 3,
+        battleData: { stats: { enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 5 }] } },
+      } as any,
+    });
+    expect(missions()["uniequip_002_kirara_kill"]).toEqual({ value: 5, target: 30 });
+  });
+
+  it("场次型击杀：单场未达阈值不计数，达标才计一场", async () => {
+    // 本场歼灭 2 < 3 → 不计
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_01-01", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } } as any,
+      battleData: {
+        completeState: 3,
+        battleData: { stats: { enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 2 }] } },
+      } as any,
+    });
+    expect(missions()["uniequip_002_kirara_battlekill"]).toEqual({ value: 0, target: 5 });
+    // 本场歼灭 5 >= 3 → 计一场
+    await mgr.onBattleWin({
+      battleInfo: { stageId: "main_01-02", isPractice: 0, squad: { slots: [{ charInstId: 4 }] } } as any,
+      battleData: {
+        completeState: 3,
+        battleData: { stats: { enemyStats: [{ Key: { enemyId: "e", counterType: "HP_ZERO", isInvalidKilled: 0 }, Value: 5 }] } },
+      } as any,
+    });
+    expect(missions()["uniequip_002_kirara_battlekill"]).toEqual({ value: 1, target: 5 });
   });
 });

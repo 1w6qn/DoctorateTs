@@ -28,6 +28,23 @@ export interface CharSkillsLike {
   defaultSkillIndex?: number;
 }
 
+/** 干员模组相关字段（兼容 PlayerCharacter 与 save-health 的 any 数据） */
+export interface CharEquipsLike {
+  charId: string;
+  evolvePhase: number;
+  equip?: Record<string, { hide: number; locked: number; level: number }> | null;
+  currentEquip?: string | null;
+}
+
+/** 单个模组在 excel 中的展示/解锁信息 */
+interface ExcelEquipInfo {
+  uiEquipId: string;
+  /** 显示所需精英化阶段（showEvolvePhase，0/1/2） */
+  showPhase: number;
+  /** 无条件解锁标记（unlockEvolvePhase 为 number 0 且 unlockLevel 0 → 精二即解锁） */
+  freeUnlock: boolean;
+}
+
 /** 单个技能在 excel 中的解锁信息 */
 interface ExcelSkillInfo {
   skillId: string;
@@ -178,6 +195,98 @@ export function reconcileCharSkills(char: CharSkillsLike): boolean {
   ) {
     char.defaultSkillIndex = -1;
     changed = true;
+  }
+  return changed;
+}
+
+/**
+ * 获取干员在 excel 中拥有的模组列表及展示/解锁信息
+ * （UniequipTable.charEquip[charId]；无模组干员返回空）
+ */
+function excelEquipInfos(charId: string): ExcelEquipInfo[] {
+  const table = (excel.UniequipTable as any) ?? {};
+  const dict = table.equipDict ?? {};
+  // 优先按 charEquip 映射获取该干员模组顺序；无映射时退化为 scan equipDict
+  // 的 charId 归属（兼容仅按 equipDict[].charId 建模的用例）
+  let engine: string[] | null = (table.charEquip?.[charId] ?? null);
+  if (!Array.isArray(engine) || engine.length === 0) {
+    engine = Object.keys(dict).filter(
+      (uid) => dict[uid] && dict[uid].charId === charId,
+    );
+  }
+  if (!engine || engine.length === 0) return [];
+  const infos: ExcelEquipInfo[] = [];
+  for (const uid of engine) {
+    // 防御：equipDict 含 null 占位条目
+    const e = dict[uid];
+    if (!e) continue;
+    infos.push({
+      uiEquipId: uid,
+      // showPhase：按 showEvolvePhase 归一；缺省视为需精二（2）——无显示配置的
+      // 模组默认隐藏，避免 E0 干员误显示（兼容未配置 showEvolvePhase 的用例）
+      showPhase: (() => {
+        const p = normalizePhase(e.showEvolvePhase);
+        return e.showEvolvePhase == null ? 2 : p;
+      })(),
+      // 无条件解锁：unlockEvolvePhase 为数字 0 且 unlockLevel 0（如各干员首个模组）
+      freeUnlock:
+        typeof e.unlockEvolvePhase === "number" &&
+        e.unlockEvolvePhase === 0 &&
+        !(e.unlockLevel ?? 0),
+    });
+  }
+  return infos;
+}
+
+/**
+ * 按官服线格式校正干员模组（equip）条目：
+ * - 补齐缺失的该干员模组占位条目（{hide, locked, level}）；
+ * - hide 按 showEvolvePhase 校正：evolvePhase >= 显示所需阶段 → 0，否则 1
+ *   （即「干员从无模组状态到有模组状态」的精二转变）；
+ * - locked：遗留已解锁条目（locked=0）保留；新增条目中「精二且无条件解锁」
+ *   的模组置 locked=0（参照官方精致即带首个模组），其余置 locked=1；
+ * - currentEquip：精二且有已解锁条目时，若未指向任何已解锁模组则指向首个已解锁模组。
+ *
+ * 幂等：对已合规官服存档无副作用；缺失条目才补齐，已有条目只校正 hide。
+ * @param char - 干员对象（原地修改）
+ * @returns 是否发生变更
+ */
+export function reconcileCharEquips(char: CharEquipsLike): boolean {
+  let changed = false;
+  const equip = char.equip ?? (char.equip = {});
+  const infos = excelEquipInfos(char.charId);
+  if (infos.length === 0) return false;
+  const evolvePhase = Number(char.evolvePhase) || 0;
+
+  // 1. 补齐缺失条目 + 按阶段校正 hide
+  for (const info of infos) {
+    const entry = equip[info.uiEquipId] ??= { hide: 1, locked: 1, level: 1 };
+    const targetHide = evolvePhase >= info.showPhase ? 0 : 1;
+    if (entry.hide !== targetHide) {
+      entry.hide = targetHide;
+      changed = true;
+    }
+    // 新增条目：精二且无条件解锁的模组默认已解锁（与官方精致即用首个模组一致）
+    if (
+      entry.locked !== 0 &&
+      evolvePhase >= info.showPhase &&
+      info.freeUnlock
+    ) {
+      entry.locked = 0;
+      changed = true;
+    }
+  }
+
+  // 2. currentEquip：精二后未指向已解锁模组 → 指向首个已解锁模组
+  if (evolvePhase >= 2) {
+    const unlockedFirst = Object.entries(equip).find(([, v]) => v && v.locked === 0);
+    if (unlockedFirst) {
+      const [uid] = unlockedFirst;
+      if (!char.currentEquip || equip[char.currentEquip]?.locked !== 0) {
+        char.currentEquip = uid;
+        changed = true;
+      }
+    }
   }
   return changed;
 }

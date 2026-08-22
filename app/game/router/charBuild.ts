@@ -297,8 +297,10 @@ router.post("/addonStory/unlock", validateBody(addonStoryUnlockSchema), async (r
 router.post("/addonStage/battleStart", validateBody(addonStageBattleStartSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as AddonStageBattleStartRequest;
-  await player.troop.addonStageBattleStart(body);
-  res.send(player.delta satisfies AddonStageBattleStartResponse);
+  // 修复：把 battle.start 的结果（含 battleId）并入响应——若不回传 battleId，
+  // 客户端结算时沿用上一次战斗的 battleId 解密 → 读错 battleInfo → 未知关卡空结算
+  const result = await player.troop.addonStageBattleStart(body);
+  res.send({ ...result, ...player.delta } satisfies AddonStageBattleStartResponse);
 });
 router.post("/addonStage/battleFinish", validateBody(addonStageBattleFinishSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;

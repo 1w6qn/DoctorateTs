@@ -15,7 +15,9 @@
  *   - enemyStats（按 enemyId 的 HP_ZERO/… 击杀计数，全队维度）
  *
  * 无法从 BattleStats 提取的逐干员统计（"使用 XX 干员歼灭 XX 敌人"的 DEATHDETAIL、部署顺序），
- * 采用「该干员非助战上场的通关战斗场次」兜底，保证任务可完成不卡死。
+ * 采用「enemyStats 全队击杀数（HP_ZERO 求和）」作为代理：击杀类模板（EquipmentCharKilled /
+ * EquipmentCharKilledStage / EquipmentBattleCharKilled）据此真实累计，不再一上场就自动完成；
+ * 特定精英/领袖/事件类模板（EventTotal/EventStage*）仍以通关场次兜底保证可完成不卡死。
  *
  * 进度写入 playerdata.equipment.missions[missionId] = { value, target }。
  * 模板按完成形态分三类：
@@ -65,12 +67,18 @@ interface StatView {
   dead: Map<string, number>;
   /** charId → WITHDRAW 撤退次数 */
   withdraw: Map<string, number>;
+  /** enemyStats.HP_ZERO 求和：全队击杀数（击杀类模板的代理统计） */
+  enemyKills: number;
+  /** 是否存在 enemyStats 击杀数据（区分「本场 0 击杀」与「无击杀数据」） */
+  killHasData: boolean;
 }
 
 /** 单次战斗推进结果 */
 interface Advance {
   /** 累计型：本场应累加的进度值 */
   add?: number;
+  /** 击杀型：本场实际击杀数（原样累加，可为 0） */
+  killAdd?: number;
   /** 累计型兜底：无可算统计时直接置满 */
   set?: number;
   /** 场次/一次性：本场是否计一次有效战斗 */
@@ -103,6 +111,10 @@ export class EquipmentMissionManager {
    */
   private _targetFor(template: string, paramList?: string[]): number {
     const params = paramList ?? [];
+    // 一次性击杀关卡：目标为击杀数（param[3]，如「歼灭20个敌人」→ target=20）
+    if (template === "EquipmentCharKilledStage") {
+      return this._firstNumber(params.slice(3)) ?? 1;
+    }
     const kind = EquipmentMissionManager._kind(template);
     if (kind === EquipTmplKind.FIELD) {
       return this._firstNumber(params) ?? 1;
@@ -184,6 +196,8 @@ export class EquipmentMissionManager {
       deploy: new Map(),
       dead: new Map(),
       withdraw: new Map(),
+      enemyKills: 0,
+      killHasData: false,
     };
     const stats: BattleStats | undefined = battleData.battleData?.stats;
     if (!stats) return sv;
@@ -222,6 +236,13 @@ export class EquipmentMissionManager {
       } else if (key.counterType === "WITHDRAW") {
         sv.withdraw.set(cid, (sv.withdraw.get(cid) ?? 0) + v);
       }
+    }
+    // enemyStats（全队击杀代理：HP_ZERO 求和；无法按干员拆分，故整体累计）
+    for (const item of stats.enemyStats ?? []) {
+      if (!item?.Key || item.Key.counterType !== "HP_ZERO") continue;
+      const v = Number(item.Value) || 0;
+      sv.enemyKills += v;
+      sv.killHasData = true;
     }
     // skillTrigStats（ListCounterPool<SkillTrigStatsKey>；线上可能为 dict/entias，防御双形态）
     const skillSrc = stats.skillTrigStats as unknown;
@@ -276,8 +297,11 @@ export class EquipmentMissionManager {
         const ids = this._tokenIds(p);
         return this._sumAdvance(sv, ids, (id) => sv.deploy.get(id), p);
       }
-      // ===== 累计击杀/事件（无逐干员明细 → 兜底）=====
-      case "EquipmentCharKilled":
+      // ===== 累计歼灭敌人（enemyStats 全队击杀逐场累加；无数据兜底置满）=====
+      case "EquipmentCharKilled": {
+        return this._killsAccumulate(sv, this._firstNumber(p.slice(1)) ?? 1);
+      }
+      // ===== 累计歼灭精英/领袖（DEATHDETAIL，不可逐干员统计 → 置满兜底）=====
       case "EquipmentEventTotal": {
         return { set: this._firstNumber(p) ?? 1 };
       }
@@ -332,8 +356,12 @@ export class EquipmentMissionManager {
         const hit = computable ? dead === 0 && withdraw === 0 : true;
         return { hit };
       }
-      // ===== 一次性关卡 + 击杀/事件（无逐干员明细 → 已达基就完成）=====
-      case "EquipmentCharKilledStage":
+      // ===== 一次性击杀关卡（3星通关 + 击杀数逐场累计；enemyStats 代理）=====
+      case "EquipmentCharKilledStage": {
+        const killTarget = this._firstNumber(p.slice(3)) ?? 1;
+        return this._killsAccumulate(sv, killTarget);
+      }
+      // ===== 一次性关卡 + 击杀/事件（特定单位击杀，不可逐干员统计 → 已达基就完成）=====
       case "EquipmentEventStageKill":
       case "EquipmentEventStageMore":
       case "EquipmentSquadNoAnyDead":
@@ -344,9 +372,13 @@ export class EquipmentMissionManager {
       case "EquipmentSquadStar":
       case "EquipmentSkillCastStage":
       case "EquipmentEventBattleMore":
-      case "EquipmentBattleCharKilled":
       case "EquipmentDeployCharOrder":
         return { hit: true };
+      // ===== 场次型 + 单场击杀阈值（每场击杀 >= param[2] 才计一场）=====
+      case "EquipmentBattleCharKilled": {
+        const minKills = this._firstNumber(p.slice(2)) ?? 0;
+        return this._killsThreshold(sv, minKills);
+      }
       // ===== 场次型（无统计/队伍限制，按有效战斗计数）=====
       case "EquipmentSquadProStage":
       case "EquipmentSquadStarStage":
@@ -354,6 +386,32 @@ export class EquipmentMissionManager {
       default:
         return { hit: true };
     }
+  }
+
+  /**
+   * 击杀累计（累计型/一次性击杀关卡共用）：enemyStats 全队击杀原样累加；
+   * 无击杀数据时置满兜底（保证任务可完成不卡死）
+   *
+   * @param sv 统计视图
+   * @param target 击杀目标值
+   * @returns 有数据返回 killAdd（可为 0），否则返回 set 置满
+   */
+  private _killsAccumulate(sv: StatView, target: number): Advance {
+    if (sv.killHasData) return { killAdd: sv.enemyKills };
+    return { set: target };
+  }
+
+  /**
+   * 单场击杀阈值判定（场次型）：本场击杀达阈值才计一次有效战斗；
+   * 无击杀数据时兜底计（保证可完成）
+   *
+   * @param sv 统计视图
+   * @param threshold 单场击杀阈值
+   * @returns 有数据按阈值判定 hit，否则兜底 hit
+   */
+  private _killsThreshold(sv: StatView, threshold: number): Advance {
+    if (!sv.killHasData) return { hit: true };
+    return { hit: sv.enemyKills >= threshold };
   }
 
   /** 累计型（标量统计）：可算则累加，否则置满兜底 */
@@ -499,7 +557,10 @@ export class EquipmentMissionManager {
         if (!baseHit) continue;
         const adv = this._advanceBattle(u.template, p, u.charId, sv);
         const before = entry.value;
-        if (adv.set != null) {
+        if (adv.killAdd != null) {
+          // 击杀累计：原样累加本场击杀（可为 0，避免 0 击杀也被 max(1) 顶上）
+          entry.value = Math.min(entry.target, entry.value + adv.killAdd);
+        } else if (adv.set != null) {
           entry.value = Math.min(entry.target, adv.set);
         } else if (adv.add != null) {
           entry.value = Math.min(entry.target, entry.value + Math.max(1, adv.add));

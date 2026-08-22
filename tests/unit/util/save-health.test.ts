@@ -19,6 +19,20 @@ vi.mock("@excel/excel", () => ({
         allSkillLvlup: [{ unlockCond: { phase: "PHASE_0", level: 1 } }],
       },
     },
+    UniequipTable: {
+      charEquip: { char_999_mod: ["mod_001"] },
+      equipDict: {
+        mod_001: {
+          uniEquipId: "mod_001",
+          charId: "char_999_mod",
+          showEvolvePhase: "PHASE_2",
+          unlockEvolvePhase: 0,
+          unlockLevel: 0,
+          missionList: [],
+          itemCost: { 1: [] },
+        },
+      },
+    },
   },
 }));
 
@@ -446,5 +460,51 @@ describe("checkAndRepairSave（存档损坏自动检测与修复）", () => {
     expect(data.arkodc.topics["ark_odc_act53side"]).toBeDefined();
     expect(data.arkodc.topics["ark_odc_act53side"].position).toEqual({ x: 0, y: 0, z: 0 });
     expect(issues.some((i) => i.path.includes("undefined") && i.fixed)).toBe(true);
+  });
+
+  it("精二干员有模组却 hide=1（历史精二未处理模组）应自动显示并设 currentEquip", () => {
+    const data = {
+      status: { uid: "1" },
+      troop: {
+        chars: {
+          // 精二 + 已有模组条目但 hide=1（错误隐藏）
+          "10": {
+            instId: 10,
+            charId: "char_999_mod",
+            level: 50,
+            evolvePhase: 2,
+            defaultSkillIndex: 0,
+            currentEquip: null,
+            equip: { mod_001: { hide: 1, locked: 0, level: 1 } },
+          },
+        },
+      },
+      dungeon: {},
+      activity: {},
+      building: {},
+    };
+    const issues = checkAndRepairSave(data as any);
+    const mod = data.troop.chars["10"].equip.mod_001;
+    expect(mod.hide).toBe(0); // 精二后显示
+    expect(mod.locked).toBe(0); // 已解锁的保持
+    expect(data.troop.chars["10"].currentEquip).toBe("mod_001"); // currentEquip 补上
+    expect(issues.some((i) => i.path === "troop.chars[10].equip" && i.fixed)).toBe(true);
+  });
+
+  it("无模组干员/阿米娅不应被模组健康检查改动", () => {
+    const data = {
+      status: { uid: "1" },
+      troop: {
+        chars: {
+          "2": { instId: 2, charId: "char_002", level: 1, evolvePhase: 0, defaultSkillIndex: 0, equip: {} },
+          "3": { instId: 3, charId: "char_002_amiya", level: 90, evolvePhase: 2, defaultSkillIndex: 0, equip: {} },
+        },
+      },
+      dungeon: {},
+      activity: {},
+      building: {},
+    };
+    const issues = checkAndRepairSave(data as any);
+    expect(issues.some((i) => i.path.includes("equip") && i.fixed)).toBe(false);
   });
 });

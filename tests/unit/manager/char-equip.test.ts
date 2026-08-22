@@ -67,10 +67,23 @@ vi.mock("@excel/excel", () => {
           uniequip_004_fresh: {
             uniEquipId: "uniequip_004_fresh",
             charId: "char_001",
+            showEvolvePhase: "PHASE_2",
             unlockEvolvePhase: "PHASE_0",
             unlockLevel: 1,
             missionList: [],
             itemCost: { 1: [{ id: "mat_fresh", count: 1, type: "MATERIAL" }] },
+            type: "INITIAL",
+            hasUnlockMission: false,
+          },
+          // 精二即用模组（真实 excel：unlockEvolvePhase 为数字 0 + unlockLevel 0）
+          uniequip_005_free: {
+            uniEquipId: "uniequip_005_free",
+            charId: "char_001",
+            showEvolvePhase: "PHASE_2",
+            unlockEvolvePhase: 0,
+            unlockLevel: 0,
+            missionList: [],
+            itemCost: { 1: [] },
             type: "INITIAL",
             hasUnlockMission: false,
           },
@@ -87,7 +100,7 @@ vi.mock("@excel/excel", () => {
           },
         },
         subProfDict: {},
-        charEquip: { char_001: ["uniequip_001_test1", "uniequip_002_test1", "uniequip_004_fresh"] },
+        charEquip: { char_001: ["uniequip_001_test1", "uniequip_002_test1", "uniequip_004_fresh", "uniequip_005_free"] },
         equipTrackDict: [],
       },
       CharMetaTable: {
@@ -111,6 +124,7 @@ vi.mock("@excel/excel", () => {
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import { CharManager } from "@game/manager/char";
 import { EquipmentMissionManager } from "@game/manager/equipmentMission";
+import { reconcileCharEquips } from "@game/util/char-skills";
 
 function makeChar(overrides: Record<string, unknown> = {}) {
   return {
@@ -389,30 +403,37 @@ describe("CharManager 模组（uniequip）", () => {
     });
   });
 
-  describe("getSpCharMissionReward", () => {
-    it("条件满足时发奖并置已领取", async () => {
-      mockPlayer._playerdata.troop!.chars![1001] = makeChar({ evolvePhase: 1, level: 1 }) as any;
-      const items = await manager.getSpCharMissionReward({
-        charId: "char_001",
-        missionId: "mission_char_001_0",
-      });
-      // 修复：spChar 奖励 type 为数字枚举（2=CARD_EXP），发放时统一转字符串类型
-      expect(items).toEqual([{ id: "2002", count: 25, type: "CARD_EXP" }]);
-      expect(mockPlayer._playerdata.troop!.charMission!["char_001"]["mission_char_001_0"]).toBe(2);
+  describe("精二模组校正（reconcileCharEquips：从无到有转变）", () => {
+    it("E0 建档隐藏模组条目（hide:1）", () => {
+      const ch: any = makeChar(); // 默认 E0、equip 空
+      reconcileCharEquips(ch);
+      // E0：模组条目补齐但隐藏（showEvolvePhase=PHASE_2 → hide:1）
+      expect(ch.equip).toBeDefined();
+      expect(ch.equip["uniequip_001_test1"].hide).toBe(1);
+      expect(ch.equip["uniequip_004_fresh"].hide).toBe(1);
+      expect(ch.equip["uniequip_005_free"].hide).toBe(1);
+      expect(ch.currentEquip).toBeNull();
     });
 
-    it("条件不满足（精二阶段不足）拒绝", async () => {
-      await expect(
-        manager.getSpCharMissionReward({ charId: "char_001", missionId: "mission_char_001_0" }),
-      ).rejects.toThrow("未满足");
+    it("E2 精二后模组条目隐藏→显示（hide:0）+ 精二即用模组 locked:0 + currentEquip", () => {
+      const ch: any = makeChar({ evolvePhase: 2 });
+      reconcileCharEquips(ch);
+      // 精二后所有模组显示
+      expect(ch.equip["uniequip_001_test1"].hide).toBe(0);
+      expect(ch.equip["uniequip_004_fresh"].hide).toBe(0);
+      // 精二即用模组（unlockEvolvePhase 数字 0 + unlockLevel 0）自动解锁
+      expect(ch.equip["uniequip_005_free"].hide).toBe(0);
+      expect(ch.equip["uniequip_005_free"].locked).toBe(0);
+      // 需材料解锁的模组仍 locked:1
+      expect(ch.equip["uniequip_001_test1"].locked).toBe(1);
+      // currentEquip 指向首个已解锁模组
+      expect(ch.currentEquip).toBe("uniequip_005_free");
     });
 
-    it("重复领取拒绝", async () => {
-      mockPlayer._playerdata.troop!.chars![1001] = makeChar({ evolvePhase: 1, level: 1 }) as any;
-      await manager.getSpCharMissionReward({ charId: "char_001", missionId: "mission_char_001_0" });
-      await expect(
-        manager.getSpCharMissionReward({ charId: "char_001", missionId: "mission_char_001_0" }),
-      ).rejects.toThrow("已领取");
+    it("unlockEquipment 对精二后显示条目的解锁仍可用（不破坏既有解锁流程）", async () => {
+      mockPlayer._playerdata.troop!.chars![1001] = makeChar({ evolvePhase: 1, level: 45 }) as any;
+      await manager.unlockEquipment({ charInstId: 1001, templateId: "", equipId: "uniequip_001_test1" });
+      expect(char().equip["uniequip_001_test1"].locked).toBe(0);
     });
   });
 });

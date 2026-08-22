@@ -9,13 +9,18 @@
  * 5. dexNav.character[].charInstId 与 troop.chars 一致性（roster 重建后悬空重指向）
  * 6. troop.chars 干员模板字段归一化（自引用空 currentTmpl/旧 null 结构 → 移除）
  * 7. troop.chars 技能回填（按等级/精英化解锁——历史新干员建档空 skills）
- * 8. building.rooms.TRAINING[].trainee/trainer 空对象修复（旧结算 trainee=null 残留）
+ * 8. troop.chars 模组回填与精二显示校正（hide=0/locked/currentEquip——历史精二未处理模组）
+ * 9. building.rooms.TRAINING[].trainee/trainer 空对象修复（旧结算 trainee=null 残留）
  *
  * 修复为幂等（对合规结构无副作用）且保守（不做破坏性重建）——结构性损坏可安全修复，
  * 非法 JSON 无法自动修复（由加载层记录并备份）。
  */
 import { logger } from "@utils/logger";
-import { reconcileCharSkills, unlockedSkillIds } from "@game/util/char-skills";
+import {
+  reconcileCharEquips,
+  reconcileCharSkills,
+  unlockedSkillIds,
+} from "@game/util/char-skills";
 
 /** 存档问题记录 */
 export interface SaveIssue {
@@ -200,7 +205,31 @@ export function checkAndRepairSave(data: any): SaveIssue[] {
     }
   }
 
-  // 9. building.rooms.TRAINING[].trainee/trainer 必须为对象（官方线格式恒为对象——
+  // 9. troop.chars 模组（uniequip）自动校正：精二干员的模组条目应显示（hide=0）。
+  //    历史精二流程未处理模组 → 已解锁（locked=0）但 hide=1（隐藏）或 equip 空/缺条目、
+  //    currentEquip 悬空。reconcileCharEquips 幂等补齐缺失条目、按 showEvolvePhase 校正
+  //    hide（精二→0）、精二即用模组置 locked=0、修正 currentEquip。阿米娅/无模组干员跳过。
+  if (chars && typeof chars === "object") {
+    for (const [instId, ch] of Object.entries(chars)) {
+      const c = ch as any;
+      if (!c || typeof c !== "object" || !c.charId) continue;
+      if (reconcileCharEquips(c)) {
+        const hiddenUnlocked = Object.entries(c.equip ?? {}).filter(
+          ([, v]: any) => v && v.locked === 0 && v.hide === 1,
+        );
+        issues.push({
+          path: `troop.chars[${instId}].equip`,
+          message:
+            hiddenUnlocked.length > 0
+              ? `精二模组隐藏→显示（${hiddenUnlocked.map(([id]) => id).join(",")}）`
+              : "模组条目按官服线补齐/校正（hide/locked/currentEquip）",
+          fixed: true,
+        });
+      }
+    }
+  }
+
+  // 10. building.rooms.TRAINING[].trainee/trainer 必须为对象（官方线格式恒为对象——
   //    旧实现结算后 trainee=null → 客户端读 trainee.charInstId 崩溃 → 存档破坏）。
   //    修复为官方空态（4.json 官服快照）：trainee {charInstId:-1,state:0,targetSkill:-1,
   //    processPoint:-1,speed:1}、trainer {charInstId:-1,state:0}。

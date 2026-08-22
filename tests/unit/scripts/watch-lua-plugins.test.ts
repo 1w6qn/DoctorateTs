@@ -61,7 +61,7 @@ describe("watch-lua-plugins 插件热重载", () => {
     // 重打包产物存在且含插件 + DefinedFix
     expect(result.assetCount).toBeGreaterThan(0);
     const datPath = result.dat;
-    expect(datPath.endsWith("anon_7d91430e114d86fef7d3b3511151e12d.dat")).toBe(true);
+    expect(datPath.endsWith("anon_6edf14bbd79243eb61e288ff28e446c3.dat")).toBe(true);
     await expect(access(datPath)).resolves.toBeUndefined();
 
     // 平台 mods 缓存均被删除

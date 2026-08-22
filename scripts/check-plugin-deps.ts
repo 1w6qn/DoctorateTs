@@ -6,7 +6,7 @@ import { extractTextAssets } from "./vendor/unityfs";
 // 校验插件模块 require 依赖图：所有 require "Plugin/xxx" 路径都能在 bundle 资产中解析到对应 asset。
 // 可指定 dat 路径（默认取当前插件 bundle）。
 export async function main(argv: string[] = []): Promise<void> {
-  const datPath = path.resolve(argv[0] ?? path.join(__dirname, "..", "mods", "anon_7d91430e114d86fef7d3b3511151e12d.dat"));
+  const datPath = path.resolve(argv[0] ?? path.join(__dirname, "..", "mods", "anon_6edf14bbd79243eb61e288ff28e446c3.dat"));
   const zip = await JSZip.loadAsync(fs.readFileSync(datPath));
   const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
   const unity = await zip.files[names[0]].async("uint8array");

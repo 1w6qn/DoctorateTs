@@ -125,10 +125,10 @@ describe("repack-lua-bundle 内置 bundle 重打包（DefinedFix 引导）", () 
     await writeFile(join(pluginDir, "NetworkRedirectPlugin.lua"), enc.encode("-- redirect\n"));
 
     const result = await repackBuiltinLua(builtinBin, pluginDir, out);
-    expect(result.dat.endsWith("anon_7d91430e114d86fef7d3b3511151e12d.dat")).toBe(true);
+    expect(result.dat.endsWith("anon_6edf14bbd79243eb61e288ff28e446c3.dat")).toBe(true);
 
     const entries = await readZip(result.dat);
-    expect(entries.map((e) => e.entryName)).toEqual(["anon/7d91430e114d86fef7d3b3511151e12d.bin"]);
+    expect(entries.map((e) => e.entryName)).toEqual(["anon/6edf14bbd79243eb61e288ff28e446c3.bin"]);
 
     const list = extractTextAssets(new Uint8Array(entries[0].content));
     const names = list.map((a) => a.name);

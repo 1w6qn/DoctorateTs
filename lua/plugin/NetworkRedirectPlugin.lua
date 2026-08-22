@@ -26,7 +26,8 @@ NetworkRedirectPlugin.name = "私服引导"
 NetworkRedirectPlugin.desc = "将客户端网络路由与签名校验重定向到本私服（保持启用，关闭则连不回私服）"
 
 -- 私服地址（改为你机器的局域网 IP / 域名；端口与 data/config.json 的 server 一致）
-local SERVER_URL = "http://192.168.0.100:8443"
+-- 客户端与服务端同机时用 127.0.0.1 最稳（绕开防火墙）；跨设备联机时改为本机局域网 IP。
+local SERVER_URL = "http://127.0.0.1:8443"
 
 --[[
   Networker.get_overrideRouterUrl 的替换实现：返回私服 network_config 路由地址。

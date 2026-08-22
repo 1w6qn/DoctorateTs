@@ -28,7 +28,8 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "tsconfig-paths": "^4.2.0",
-    "yauzl": "^3.1.3"
+    "yauzl": "^3.1.3",
+    "zod": "^4.4.3"
   },
   "scripts": {
     "start": "tsx index.ts",
@@ -51,6 +52,7 @@
     "migrate:official": "tsx scripts/migrate-official.ts",
     "decompile": "bash scripts/decompile-client.sh",
     "pack:mod": "tsx scripts/pack-mod.ts",
+    "inject:lua": "tsx scripts/inject-lua-inplace.ts",
     "apk:lua": "tsx scripts/apk-lua.ts",
     "apk:audit": "tsx scripts/apk-audit.ts",
     "pack:lua-plugins": "tsx scripts/pack-lua-plugins.ts",

@@ -1,0 +1,572 @@
+/**
+ * 在位(byte-level) Lua 插件注入器 —— 零结构风险的初始化方案（方案 B）
+ *
+ * 问题根因（已诊断）：客户端 2.7.61 的 Lua bundle `anon/6edf14bb….dat` 的 SerializedFile 采用
+ *   enableTypeTree=true + 完整类型树 + AssetBundle(142) 容器（完整 require 路径 → pathId 映射），
+ *   TextAsset 全量 CRYPTIC_A 加密、扁平裸名。旧的 packLuaBundle 生成「无容器 / 无类型树 / 无加密 /
+ *   带前缀名」的简化 SerializedFile，导致客户端 CustomLoaders 无法按名解析 `entry.lua` → 注入失败。
+ *
+ * 本工具不重建 SF，而是**只改写一个已存在 TextAsset 的 m_Script 内容字节，并保持其加密后字节
+ * 长度完全不变**。这样：
+ *   - UnityFS 头 / 块信息 / SerializedFile 元数据 / 两条类型树 / 对象表 / AssetBundle 容器 /
+ *     m_Name 全部字节级不变 → 客户端对 bundle 结构的一切校验都原样通过；
+ *   - 唯一变化是该资产的内容（被替换为自包含插件引导代码），require/解析路径不受影响；
+ *   - 通过 CRYPTIC_A 加密输出长度可调（AES-CBC + PKCS7，128B 头 + 16B IV），把明文 padding 到
+ *     目标长度即可令密文长度 100% 等于原内容长度 → 无需重排对象表 / 类型树 / 容器。
+ *
+ * 默认注入目标 `TestStubHotfixer.lua`（官方首个 DefinedFix 热更入口，官方预留的空桩，仅实现
+ * `HotfixTestStub_GenerateDevInfo`，替换它对游戏无副作用）。DefinedFix 仍列出
+ * `"HotFixes/TestStubHotfixer"`，HotfixProcesser.Do 会在启动早期 require(v).new():Init()，
+ * 于是执行到我们注入的 OnInit：写 `plugin_boot_trace.txt`（证明确实在客户端执行了注入代码）
+ * 并尝试发 GET /plugin/heartbeat（私服日志打印 [PluginHeartbeat] = 插件生效确认）。
+ *
+ * 用法：
+ *   pnpm run inject:lua            # 默认：官方 6edf14bb 源 → mods/anon_6edf14bb….dat
+ *   pnpm run inject:lua -- --bundle <官方bundle.dat|.bin> --asset TestStubHotfixer --script <自定义.lua>
+ *   --script  可选自定义注入 Lua（缺省用内置自包含引导）；必须为合法 HotfixBase hotfixer
+ *   --out     输出 mods 目录（缺省 <项目根>/mods）
+ */
+import * as fs from "fs";
+import * as path from "path";
+import JSZip from "jszip";
+import { lz4BlockDecompress, decompressLz4ak, lz4BlockCompress, compressLz4ak } from "./vendor/lz4";
+import { encryptLuaScript, decryptLuaScript } from "./vendor/lua-crypt";
+
+/** 内置 Lua 主 bundle 名（zip 条目名 = 客户端资源名） */
+const BUILTIN_BUNDLE_NAME = "anon/6edf14bbd79243eb61e288ff28e446c3.bin";
+/** 客户端资源名 → 本地 .dat 文件名（目录分隔 / → _，扩展名 → .dat） */
+function bundleToModName(bundleName: string): string {
+  return bundleName.replace(/\//g, "_").replace(/#/g, "__").replace(/\.[^.]*$/, "") + ".dat";
+}
+/** zip 条目固定时间戳（内容不变时产物字节稳定） */
+const LUA_ZIP_DATE = new Date("2024-01-01T00:00:00.000Z");
+
+/* ------------------------- UnityFS / SerializedFile 解析 ------------------------- */
+
+function u32be(b: Uint8Array, o: number): number {
+  return ((b[o] << 24) | (b[o + 1] << 16) | (b[o + 2] << 8) | b[o + 3]) >>> 0;
+}
+function i64be(b: Uint8Array, o: number): number {
+  return u32be(b, o) * 4294967296 + u32be(b, o + 4);
+}
+function i32le(b: Uint8Array, o: number): number {
+  return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) | 0;
+}
+function u32le(b: Uint8Array, o: number): number {
+  return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0;
+}
+function readI64(b: Uint8Array, o: number): bigint {
+  return (BigInt(u32le(b, o + 4)) << 32n) | BigInt(u32le(b, o));
+}
+function concatBytes(parts: Uint8Array[]): Uint8Array {
+  const total = parts.reduce((a, p) => a + p.length, 0);
+  const out = new Uint8Array(total);
+  let o = 0;
+  for (const p of parts) out.set(p, o), (o += p.length);
+  return out;
+}
+
+/** 读取 bundle 字节（.dat 取 zip 单条目，.bin 直读） */
+async function readBundleBytes(file: string): Promise<Uint8Array> {
+  const ext = path.extname(file).toLowerCase();
+  if (ext === ".dat") {
+    const zip = await JSZip.loadAsync(fs.readFileSync(file));
+    const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
+    const preferred = names.find((n) => n === BUILTIN_BUNDLE_NAME);
+    const inner = await zip.files[preferred ?? names[0]].async("uint8array");
+    return new Uint8Array(inner);
+  }
+  return new Uint8Array(fs.readFileSync(file));
+}
+
+/** UnityFS → SerializedFile(CAB) 字节与节点路径 */
+export function unityfsToSF(uf: Uint8Array): { sf: Uint8Array; cabNodeName: string } {
+  let off = 0;
+  while (uf[off] !== 0) off++;
+  off += 1;
+  const version = u32be(uf, off);
+  off += 4;
+  while (uf[off] !== 0) off++;
+  off += 1;
+  while (uf[off] !== 0) off++;
+  off += 1;
+  const size = i64be(uf, off);
+  off += 8;
+  const cSize = u32be(uf, off);
+  off += 4;
+  const uSize = u32be(uf, off);
+  off += 4;
+  const flags = u32be(uf, off);
+  off += 4;
+  if (version >= 7) while (off % 16 !== 0) off++;
+  const biBytes = flags & 0x80 ? uf.subarray(uf.length - cSize) : uf.subarray(off, off + cSize);
+  const infoMode = flags & 0x3f;
+  let bi: Uint8Array;
+  if (infoMode === 0) bi = biBytes;
+  else if (infoMode === 3 || infoMode === 2) bi = lz4BlockDecompress(biBytes, uSize);
+  else if (infoMode === 4) bi = decompressLz4ak(biBytes, uSize);
+  else throw new Error(`块信息压缩模式不支持: ${infoMode}`);
+  let o = 16;
+  const blockCount = u32be(bi, o);
+  o += 4;
+  const blocks: { u: number; c: number; mode: number }[] = [];
+  for (let i = 0; i < blockCount; i++) {
+    const u = u32be(bi, o);
+    const c = u32be(bi, o + 4);
+    const fl = (bi[o + 8] << 8) | bi[o + 9];
+    o += 10;
+    blocks.push({ u, c, mode: fl & 0x3f });
+  }
+  const nodeCount = u32be(bi, o);
+  o += 4;
+  const nodes: { offset: number; size: number; path: string }[] = [];
+  for (let i = 0; i < nodeCount; i++) {
+    const no = i64be(bi, o);
+    const ns = i64be(bi, o + 8);
+    const nf = u32be(bi, o + 16);
+    o += 20;
+    const s = cstrLen(bi, o);
+    o += s.len + 1;
+    nodes.push({ offset: no, size: ns, path: s.s });
+    void nf;
+  }
+  let dataOff = off + cSize;
+  if (flags & 0x200) while (dataOff % 16 !== 0) dataOff++;
+  let bstart = dataOff;
+  const parts: Uint8Array[] = [];
+  for (const b of blocks) {
+    const raw = uf.subarray(bstart, bstart + b.c);
+    bstart += b.c;
+    if (b.mode === 0) parts.push(raw);
+    else if (b.mode === 3 || b.mode === 2) parts.push(lz4BlockDecompress(raw, b.u));
+    else if (b.mode === 4) parts.push(decompressLz4ak(raw, b.u));
+    else throw new Error(`数据块压缩模式不支持: ${b.mode}`);
+  }
+  const cab = concatBytes(parts);
+  const node = nodes[0];
+  void size;
+  return { sf: cab.subarray(node.offset, node.offset + node.size), cabNodeName: node.path };
+}
+function cstrLen(b: Uint8Array, o: number): { s: string; len: number } {
+  let e = o;
+  while (b[e] !== 0) e++;
+  return { s: new TextDecoder().decode(b.subarray(o, e)), len: e - o };
+}
+
+/** 解析 SerializedFile → 对象表（pathId / 绝对 byteStart / 对象大小 / typeId） */
+export function parseSFObjects(sf: Uint8Array): { classIds: number[]; objects: { pathId: bigint; start: number; size: number; typeId: number }[]; dataOffset: number; version: number; enableTypeTree: boolean } {
+  let o = 0;
+  const version = u32be(sf, 8);
+  o += 16;
+  o += 4; // endian + reserved
+  let dataOffset = 0;
+  if (version >= 22) {
+    o += 4;
+    o += 8;
+    dataOffset = Number(i64be(sf, o)); // v22 扩展头为 64 位大端
+    o += 8;
+    o += 8;
+  }
+  while (sf[o] !== 0) o++;
+  o += 1;
+  o += 4; // targetPlatform
+  const enableTypeTree = sf[o] !== 0;
+  o += 1;
+  const typeCount = i32le(sf, o);
+  o += 4;
+  const classIds: number[] = [];
+  for (let i = 0; i < typeCount; i++) {
+    const classId = i32le(sf, o);
+    o += 4;
+    classIds.push(classId);
+    if (version >= 16) o += 1;
+    if (version >= 17) o += 2;
+    if (version >= 13) {
+      if (version >= 16 ? classId === 114 : classId < 0) o += 16;
+      o += 16;
+    }
+    if (enableTypeTree && version >= 12) {
+      const n = i32le(sf, o);
+      o += 4;
+      const sb = i32le(sf, o);
+      o += 4;
+      o += 32 * n + sb;
+    }
+    if (version >= 21) {
+      const dep = i32le(sf, o);
+      o += 4;
+      o += 4 * dep;
+    }
+  }
+  if (version >= 7 && version < 14) o += 4;
+  const objectCount = i32le(sf, o);
+  o += 4;
+  while (o % 4 !== 0) o++;
+  const objects: { pathId: bigint; start: number; size: number; typeId: number }[] = [];
+  for (let i = 0; i < objectCount; i++) {
+    const pathId = readI64(sf, o);
+    o += 8;
+    const start = Number(readI64(sf, o)) + dataOffset;
+    o += 8;
+    const size = i32le(sf, o);
+    o += 4;
+    const typeId = i32le(sf, o);
+    o += 4;
+    objects.push({ pathId, start, size, typeId });
+  }
+  return { classIds, objects, dataOffset, version, enableTypeTree };
+}
+
+/** 从 TextAsset 对象数据读 m_Name */
+function textAssetName(obj: Uint8Array): string {
+  const len = i32le(obj, 0);
+  return new TextDecoder().decode(obj.subarray(4, 4 + len));
+}
+
+/**
+ * 在 TextAsset 对象内定位 m_Script 字节区（绝对 SF 偏移）。
+ * TextAsset 布局：m_Name(AlignedString) → m_Script(Int32 长度 + 字节)。
+ * @param sf  - SerializedFile 字节
+ * @param objAbsStart - 对象在 SF 内的绝对起始偏移
+ * @param objSize     - 对象大小
+ * @returns 找到则返回 { scriptAbs, scriptLen, name }；否则 null
+ */
+export function locateScript(sf: Uint8Array, objAbsStart: number, objSize: number): { scriptAbs: number; scriptLen: number; name: string } | null {
+  let p = objAbsStart;
+  const end = objAbsStart + objSize;
+  if (p + 4 > end) return null;
+  const nameLen = i32le(sf, p);
+  p += 4;
+  if (p + nameLen > end) return null;
+  const name = new TextDecoder().decode(sf.subarray(p, p + nameLen));
+  p += nameLen;
+  // m_Name 对齐 4（相对对象起点）
+  while ((p - objAbsStart) % 4 !== 0 && p < end) p++;
+  if (p + 4 > end) return null;
+  const scriptLen = i32le(sf, p);
+  p += 4;
+  if (p + scriptLen > end) return null;
+  return { scriptAbs: p, scriptLen, name };
+}
+
+/* ------------------------- 注入内容（内置自包含引导） ------------------------- */
+
+/**
+ * 生成内置自包含插件引导（Default）。是合法 HotfixBase hotfixer。
+ * 受限于目标资产明文预算（TestStubHotfixer 加密 496B → 明文 ≤351B），代码压到最简：
+ * OnInit 写 plugin_boot_trace.txt（确定性执行证明）并尝试发心跳（私服 [PluginHeartbeat]）。
+ * @returns 明文 Lua 源码
+ */
+function buildDefaultBootstrap(): string {
+  return [
+    'local T=Class("T",HotfixBase)',
+    "function T:OnInit()",
+    "xpcall(function()",
+    'local p=CS.UnityEngine.Application.persistentDataPath.."/plugin_boot_trace.txt"',
+    'CS.Torappu.FileUtil.WriteToFile("i",p,true)',
+    'if UISender then UISender:SendGet("/plugin/heartbeat",nil,{useMask=false}) end',
+    "end,function()end)",
+    "end",
+    "return T",
+    "",
+  ].join("\n");
+}
+
+/**
+ * 生成 robust 自包含引导（复刻之前成功心跳链路）。
+ *
+ * 目标：让 GET /plugin/heartbeat 在网络就绪后**可靠送达**服务端（[PluginHeartbeat]），
+ * 而不只是引导时试一次。做法与旧成功版 PluginHeartbeat.ScheduleAuto 一致：
+ *   1) 立即尝试一次（UISender 可能还没建，忽略失败）；
+ *   2) xlua.hotfix 兜底挂 `CS.Torappu.Battle.UI.UIController.Awake` —— 战斗 UI Awake 必然晚于
+ *      登录/网络/UISender 就绪，届时再发心跳（与旧版 UIController.Awake 兜底同源）；
+ *   3) TimerModel.me 若可用，额外延时一次重试。
+ * 全程 xpcall 兜底，绝不阻断游戏；引导时仍写 plugin_boot_trace.txt（确定性执行证明）。
+ * 体积约 0.5KB，需在明文预算 ≥1KB 的资产（如 ArkventHotfixer）内使用。
+ * @returns 明文 Lua 源码
+ */
+function buildRobustBootstrap(): string {
+  return [
+    'local T=Class("T",HotfixBase)',
+    "local function hb()",
+    '  if UISender and UISender.SendGet then UISender:SendGet("/plugin/heartbeat",nil,{useMask=false}) end',
+    "end",
+    "local function inst()",
+    "  xpcall(function()",
+    '    local p=CS.UnityEngine.Application.persistentDataPath.."/plugin_boot_trace.txt"',
+    '    CS.Torappu.FileUtil.WriteToFile("ok\\n",p,true)',
+    "  end,function()end)",
+    "  xpcall(hb,function()end)",
+    "  -- 兜底①：战斗 UI Awake（晚于网络/ UISender 就绪）再发一次",
+    "  xpcall(function()",
+    "    local C=CS.Torappu.Battle.UI.UIController",
+    '    xlua.hotfix(C,"Awake",function(so)',
+    "      local o=C.__Hotfix0_Awake",
+    "      if o then o(so) end",
+    "      xpcall(hb,function()end)",
+    "    end)",
+    "  end,function()end)",
+    "  -- 兜底②：TimerModel 可用时 5s 后重试",
+    "  xpcall(function()",
+    "    local tm=TimerModel and TimerModel.me",
+    "    if tm then tm:Delay(5,function() xpcall(hb,function()end) end) end",
+    "  end,function()end)",
+    "end",
+    "function T:OnInit()",
+    "  inst()",
+    "end",
+    "return T",
+    "",
+  ].join("\n");
+}
+
+/**
+ * 把明文内容 padding 到目标字节长度 P，使 encryptLuaScript 输出密文长度 == targetEncLen。
+ * 目标关系：encLen = 144 + nextMultiple16(P)。调用方先由原密文长度反推 P 区间，本函数取区间内
+ * 最大长度并填充 `-- 注释` 行（Lua 尾注释安全），保证实际明文长度恰好落在能复现 encLen 的集合。
+ * @param plain  - 明文 Lua（含 return）
+ * @param targetP - 目标明文字节长度
+ * @returns 填充后的明文（UTF-8 ASCII，长度 == targetP）
+ */
+export function padTo(plain: string, targetP: number): string {
+  let bytes = Buffer.byteLength(plain, "utf8");
+  if (bytes > targetP) {
+    throw new Error(`注入内容过长（${bytes}B）超过目标明文预算 ${targetP}B`);
+  }
+  const suffix = ["\n\n-- [[ plugin-inject padding ]]", "-- " + "-".repeat(60), "-- end padding"];
+  const padLine = "-- " + " ".repeat(48);
+  let out = plain;
+  let cur = bytes;
+  let i = 0;
+  while (cur < targetP) {
+    const line = suffix[i % suffix.length];
+    i++;
+    const extra = Buffer.byteLength(line, "utf8");
+    if (cur + extra <= targetP) {
+      out += line;
+      cur += extra;
+    } else {
+      // 按需把长注释行截断为刚好补足的注释（仍是注释，语法安全）
+      const need = targetP - cur;
+      const sliced = "-- " + " ".repeat(Math.max(0, need - 3));
+      out += sliced;
+      cur = targetP;
+      break;
+    }
+    if (i > 400) break; // 兜底防死循环
+  }
+  const final = Buffer.byteLength(out, "utf8");
+  if (final !== targetP) {
+    throw new Error(`padding 失败: 期望 ${targetP}B 实际 ${final}B`);
+  }
+  return out;
+}
+
+/** 由原密文长度 L 计算可用的明文长度集合上限与目标 P（取最大，留足空间） */
+export function plainBudget(L: number): number {
+  // encLen = 144 + nextMultiple16(P) = L  =>  P ∈ [L-160, L-145]（L>=160 时）
+  return L - 145;
+}
+
+/* ------------------------- UnityFS 压缩重建（对齐官方 mode-4） ------------------------- */
+
+/**
+ * 重建 UnityFS wrapper：块信息 standard-LZ4(mode3) 压缩、数据块 LZ4AK(mode4) 压缩，
+ * flags=0x243 —— 与官方 6edf14bb 完全一致的加载路径（客户端只认 LZ4-HK/mode4，mode0 会原生崩）。
+ * @param sf - SerializedFile(CAB) 字节
+ * @param cabName - CAB 节点名（保留官方的 CAB-<hash>）
+ * @returns UnityFS bundle 字节
+ */
+export function buildUnityFSCompressed(sf: Uint8Array, cabName: string): Uint8Array {
+  const unityVer = "5.x.x";
+  const engine = "2021.3.39f1";
+  const binaryLength = (s: string) => Buffer.byteLength(s, "utf8");
+  const BLOCK = 131072; // 官方 128KiB 数据块
+  // 1. 切分 CAB 并逐块 LZ4AK 压缩（mode 4）
+  const chunks: Uint8Array[] = [];
+  for (let off = 0; off < sf.length; off += BLOCK) {
+    chunks.push(sf.subarray(off, Math.min(off + BLOCK, sf.length)));
+  }
+  const comps = chunks.map((c) => compressLz4ak(c));
+  // 2. 块信息明文体（大端）：hash + blockCount + (u,c,fl) + nodeCount + node
+  const biParts: number[] = [];
+  const push = (...arr: Uint8Array[] | number[]) => {
+    for (const a of arr) {
+      if (typeof a === "number") biParts.push(a);
+      else for (const b of a) biParts.push(b);
+    }
+  };
+  const wBE = (n: number, width: number) => {
+    const out = new Uint8Array(width);
+    let x = n >>> 0;
+    for (let i = width - 1; i >= 0; i--) {
+      out[i] = x & 0xff;
+      x = Math.floor(x / 256);
+    }
+    return Array.from(out);
+  };
+  push(new Uint8Array(16)); // hash 占位 16B
+  push(wBE(chunks.length, 4)); // blockCount
+  chunks.forEach((c, i) => {
+    push(wBE(c.length, 4)); // uncompressed u
+    push(wBE(comps[i].length, 4)); // compressed c
+    push(wBE(4, 2)); // block flags mode=4（大端 u16）
+  });
+  push(wBE(1, 4)); // nodeCount
+  push(wBE(0, 8)); // node offset
+  push(wBE(sf.length, 8)); // node size
+  push(wBE(4, 4)); // node flags
+  for (const b of Buffer.from(cabName, "utf8")) biParts.push(b);
+  biParts.push(0);
+  const biBody = new Uint8Array(biParts);
+  const cSizeBody = lz4BlockCompress(biBody);
+  const cSize = cSizeBody.length;
+  const uSize = biBody.length;
+  const BLOCK_FLAGS = 0x243; // infoMode=3(块信息 LZ4) | 0x40 | 0x200(数据对齐)
+
+  // 3. 头部
+  let headerLen = 0;
+  headerLen += binaryLength("UnityFS") + 1;
+  headerLen += 4; // version
+  headerLen += binaryLength(unityVer) + 1;
+  headerLen += binaryLength(engine) + 1;
+  headerLen += 8; // size
+  headerLen += 4 + 4 + 4; // cSize,uSize,flags
+  while (headerLen % 16 !== 0) headerLen++;
+  // 数据块总长
+  const dataTotal = comps.reduce((a, c) => a + c.length, 0);
+  let dataOff = headerLen + cSize;
+  while (dataOff % 16 !== 0) dataOff++;
+  const totalSize = dataOff + dataTotal;
+
+  const buf = Buffer.alloc(totalSize);
+  let o = 0;
+  buf.write("UnityFS", o), o += binaryLength("UnityFS") + 1;
+  buf.writeUInt32BE(8, o); o += 4;
+  buf.write(unityVer, o), o += binaryLength(unityVer) + 1;
+  buf.write(engine, o), o += binaryLength(engine) + 1;
+  buf.writeBigUInt64BE(BigInt(totalSize), o); o += 8;
+  buf.writeUInt32BE(cSize, o); o += 4;
+  buf.writeUInt32BE(uSize, o); o += 4;
+  buf.writeUInt32BE(BLOCK_FLAGS, o); o += 4;
+  while (o % 16 !== 0) o++;
+  Buffer.from(cSizeBody).copy(buf, o); o += cSize; // 压缩块信息
+  while (o % 16 !== 0) o++; // 0x200 数据对齐
+  for (const c of comps) {
+    Buffer.from(c).copy(buf, o);
+    o += c.length;
+  }
+  if (o !== totalSize) throw new Error(`UnityFS 长度不匹配: ${o} vs ${totalSize}`);
+  return new Uint8Array(buf);
+}
+
+/* ------------------------- 主流程 ------------------------- */
+
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  const bi = args.indexOf("--bundle");
+  const ai = args.indexOf("--asset");
+  const si = args.indexOf("--script");
+  const oi = args.indexOf("--out");
+  const bsi = args.indexOf("--bootstrap");
+  const bundleFile = path.resolve(bi >= 0 ? args[bi + 1] : "reference/hotupdate/downloads-min/anon_6edf14bbd79243eb61e288ff28e446c3.dat");
+  const bootstrapMode = bsi >= 0 ? args[bsi + 1] : "robust";
+  // robust（复刻成功心跳链路）默认落到明文预算更大的官方热修资产，避免写不下
+  let assetWant = ai >= 0 ? args[ai + 1] : "";
+  if (!assetWant) assetWant = bootstrapMode === "robust" ? "ArkventHotfixer" : "TestStubHotfixer";
+  const scriptFile = si >= 0 ? args[si + 1] : "";
+  const outMods = path.resolve(oi >= 0 ? args[oi + 1] : path.join(__dirname, "..", "mods"));
+
+  console.log(`[inject] 源 bundle: ${bundleFile}`);
+  const uf = await readBundleBytes(bundleFile);
+  if (uf.length < 8 || String.fromCharCode(...uf.subarray(0, 7)) !== "UnityFS") {
+    throw new Error("非 UnityFS bundle");
+  }
+  const { sf, cabNodeName } = unityfsToSF(uf);
+  console.log(`[inject] SerializedFile: ${sf.length}B, CAB 节点=${cabNodeName}`);
+  const meta = parseSFObjects(sf);
+
+  // 找到目标 TextAsset 对象
+  const taTypeIdx = meta.classIds.indexOf(49);
+  if (taTypeIdx < 0) throw new Error("SerializedFile 中无 TextAsset(49) 类型");
+  let target: { pathId: bigint; start: number; size: number } | null = null;
+  for (const obj of meta.objects.filter((x) => x.typeId === taTypeIdx)) {
+    const loc = locateScript(sf, obj.start, obj.size);
+    if (loc && loc.name.includes(assetWant)) {
+      target = obj;
+      break;
+    }
+  }
+  if (!target) throw new Error(`未找到资产 "${assetWant}"（名含该关键词的 TextAsset）`);
+  const loc = locateScript(sf, target.start, target.size)!;
+  const srcEnc = sf.slice(loc.scriptAbs, loc.scriptAbs + loc.scriptLen);
+  console.log(`[inject] 目标: "${loc.name}" (pathId=${target.pathId}, objectStart=${target.start}, size=${target.size})`);
+  console.log(`[inject] m_Script 原始密文 ${loc.scriptLen}B @ SF+${loc.scriptAbs}`);
+
+  // 生成注入明文并 padding 到可复现同长密文的长度
+  const basePlain = scriptFile
+    ? fs.readFileSync(scriptFile, "utf8")
+    : bootstrapMode === "robust"
+      ? buildRobustBootstrap()
+      : buildDefaultBootstrap();
+  const targetP = plainBudget(loc.scriptLen);
+  if (Buffer.byteLength(basePlain, "utf8") > targetP) {
+    throw new Error(`注入内容 ${Buffer.byteLength(basePlain, "utf8")}B 超过该资产明文预算 ${targetP}B；换更大的目标资产或精简内容`);
+  }
+  const padded = padTo(basePlain, targetP);
+  const newEnc = Buffer.from(encryptLuaScript(Buffer.from(padded, "utf8")));
+  if (newEnc.length !== loc.scriptLen) {
+    throw new Error(`重加密长度不符: 期望 ${loc.scriptLen}B 实际 ${newEnc.length}B`);
+  }
+
+  // 原位写回（仅 m_Script 字节区，长度不变 → 结构不动）
+  const mutated = sf.slice();
+  mutated.set(newEnc, loc.scriptAbs);
+  console.log(`[inject] 已原位写回加密引导 ${newEnc.length}B（结构零改动）`);
+
+  // 重建 UnityFS（官方 mode-4 压缩，客户端可加载）
+  const newUf = buildUnityFSCompressed(mutated, cabNodeName);
+  console.log(`[inject] UnityFS 重建: ${newUf.length}B`);
+
+  // 打 .dat（zip 单条目）
+  const zip = new JSZip();
+  zip.file(BUILTIN_BUNDLE_NAME, Buffer.from(newUf), { createFolders: false, date: LUA_ZIP_DATE });
+  const dat = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+  fs.mkdirSync(outMods, { recursive: true });
+  const datPath = path.join(outMods, bundleToModName(BUILTIN_BUNDLE_NAME));
+  fs.writeFileSync(datPath, Buffer.from(dat));
+  console.log(`[inject] 已生成 mod: ${datPath} (${dat.length}B)`);
+
+  // 离线回读校验：结构完整 + 目标资产内容 == 注入明文
+  const checkUf = await readBundleBytes(datPath);
+  const { sf: checkSF } = unityfsToSF(checkUf);
+  const checkMeta = parseSFObjects(checkSF);
+  const checkTAType = checkMeta.classIds.indexOf(49);
+  const checkTextAssets = checkMeta.objects.filter((x) => x.typeId === checkTAType).length;
+  const checkAB = checkMeta.classIds.indexOf(142) >= 0
+    ? checkMeta.objects.filter((x) => x.typeId === checkMeta.classIds.indexOf(142)).length
+    : 0;
+  let targetOk = false;
+  for (const obj of checkMeta.objects.filter((x) => x.typeId === checkTAType)) {
+    const cl = locateScript(checkSF, obj.start, obj.size);
+    if (cl && cl.name.includes(assetWant)) {
+      const dec = Buffer.from(decryptLuaScript(checkSF.slice(cl.scriptAbs, cl.scriptAbs + cl.scriptLen)));
+      targetOk = dec.toString("utf8").includes("plugin_boot_trace");
+      console.log(`[verify] 目标资产回读密文 ${cl.scriptLen}B，解密明文 ${dec.length}B, 含引导标记=${targetOk}`);
+      console.log("[verify] 注入明文首行:", dec.toString("utf8").split("\n").slice(-4).join(" … "));
+    }
+  }
+  const abCount = checkMeta.objects.filter((x) => x.typeId === checkMeta.classIds.indexOf(142)).length;
+  console.log(`[verify] 回读结构: TextAsset=${checkTextAssets} AssetBundle=${checkAB}/${abCount}（应为 345/1）`);
+  if (checkTextAssets !== 345 || checkAB < 1 || !targetOk) {
+    throw new Error("离线回读校验失败：结构与内容未保持完整");
+  }
+  console.log("[inject] 校验通过。重启服务端加载该 mod，再完全退出并重启客户端即可验证 heartbeat。");
+}
+
+if (require.main === module) {
+  main().catch((e) => {
+    console.error("注入失败:", e instanceof Error ? e.message : e);
+    process.exit(1);
+  });
+}

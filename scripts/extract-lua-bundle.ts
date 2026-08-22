@@ -31,11 +31,13 @@ const PLUGIN_SUBDIR = "plugin/";
 /** 插件 hotfixer 条目判定（DefinedFix 注入条目，形式："Plugin/<X>", 或 "Plugin/<X>"） */
 const PLUGIN_ENTRY_RE = /^\s*"Plugin\/[^"]+",?\s*$/;
 /** 内置 Lua 主 bundle 名（.dat 多条目时优先匹配该条目） */
-const BUILTIN_BUNDLE_NAME = "anon/7d91430e114d86fef7d3b3511151e12d.bin";
+const BUILTIN_BUNDLE_NAME = "anon/6edf14bbd79243eb61e288ff28e446c3.bin";
 
-/** 默认参考输出目录（相对项目根） */
+/** 默认参考输出目录（相对项目根）。
+ *  注意：不写入 reference/ArknightsGameData（外部数据源，禁止脚本修改），
+ *  统一输出到 data/[uc]lua（与 pack-lua-min 首选参考一致）。 */
 function defaultRefDir(): string {
-  return path.join(__dirname, "..", "reference", "ArknightsGameData", "zh_CN", "gamedata", "[uc]lua");
+  return path.join(__dirname, "..", "data", "[uc]lua");
 }
 
 /**

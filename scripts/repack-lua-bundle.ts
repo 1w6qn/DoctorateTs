@@ -30,8 +30,9 @@ import { packLuaBundle, type LuaAsset } from "./pack-lua-bundle";
 import { extractTextAssets } from "./vendor/unityfs";
 import { decryptLuaScript, encryptLuaScript, isLuaEncrypted } from "./vendor/lua-crypt";
 
-/** 内置 Lua 主 bundle 名（zip 条目名 = 客户端资源名） */
-const BUILTIN_BUNDLE_NAME = "anon/7d91430e114d86fef7d3b3511151e12d.bin";
+/** 内置 Lua 主 bundle 名（zip 条目名 = 客户端资源名）。以客户端真实引导 Lua 的 bundle 为准：
+ *  2.7.61 当前为 anon/6edf14bb….bin，官服更新后需同步校准。 */
+const BUILTIN_BUNDLE_NAME = "anon/6edf14bbd79243eb61e288ff28e446c3.bin";
 
 /**
  * 由 bundle 名推导 mod 下载名（客户端资源名 → .dat 文件名）：
@@ -162,17 +163,12 @@ export function collectReferenceLua(refDir: string): LuaAsset[] {
 }
 
 /**
- * 插件 hotfixer 清单（DefinedFix 注入条目，顺序 = 加载顺序）。
- * 引导类 network_redirect 必须最先（早于网络初始化前生效）；其余与
- * lua/plugin/PluginDefs.lua 保持一致。
+ * 插件引导 hotfixer（DefinedFix 注入条目）。
+ * 工作版设计：只注入单一 PluginBootHotfixer（经游戏原生 HotfixProcesser.Do 加载），
+ * 其 OnInit 建立全局依赖并初始化整个插件系统（PluginManager.Init），不再 per-plugin 逐个登记。
+ * per-plugin 各自 new()+Init() 的写法在真机 2.7.61（引导 6edf14bb delta bundle）上会崩，故退回单入口。
  */
-const PLUGIN_HOTFIXER_ENTRIES: string[] = [
-  "Plugin/NetworkRedirectPlugin",
-  "Plugin/EnemyHpPlugin",
-  "Plugin/EnemyInfoPlugin",
-  "Plugin/BattleAssistPlugin",
-  "Plugin/PanelPlugin",
-];
+const PLUGIN_HOTFIXER_ENTRIES: string[] = ["Plugin/PluginBootHotfixer"];
 
 /**
  * 在 DefinedFix.lua 清单中注入各插件 hotfixer 条目（对齐官服：每个插件独立登记一条）。

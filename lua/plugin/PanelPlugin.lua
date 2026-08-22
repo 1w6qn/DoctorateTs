@@ -14,11 +14,6 @@ local PanelPlugin = Class("PanelPlugin", require("Plugin/BasePlugin"))
 local eutil = CS.Torappu.Lua.Util
 local PluginHeartbeat = require("Plugin/PluginHeartbeat")
 
--- 类级元数据（管理器/面板/管理端目录以此为准；与 PluginDefs.lua 保持一致）
-PanelPlugin.id = "plugin_panel"
-PanelPlugin.name = "插件管理面板"
-PanelPlugin.desc = "现代化插件启停管理面板"
-
 local UnityEngine = CS.UnityEngine
 local UGUI = CS.UnityEngine.UI
 

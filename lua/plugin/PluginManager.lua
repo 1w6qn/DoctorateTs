@@ -1,19 +1,11 @@
 --[[
-  PluginManager.lua —— 插件管理器（单例注册表）
-  每个插件作为独立 hotfixer 在 DefinedFix 清单中由 HotfixProcesser.Do 实例化，
-  OnInit() 里调用 Register 注册到本管理器；管理器按持久化启用态 Load/Unload，
-  并提供 GetPlugin / SetEnabled / GetAll 供面板、心跳与管理端使用。
+  PluginManager.lua —— 插件管理器（单例）
+  按 PluginDefs 加载各插件，维护启用态与加载状态，并持久化到 persistentDataPath/plugin_config.json。
+  提供 Init / GetPlugin / SetEnabled / GetAll 供面板与入口使用。
   单个插件加载失败不拖垮系统：记录错误状态，其余插件照常加载。
-
-  模块加载期自举全局（替代原 PluginBootHotfixer 的 _BootstrapGlobals）：
-    _G.PluginDefs / _G.PluginManager —— 供 PanelPlugin / PluginHeartbeat 以全局名引用。
-  文件 IO / rapidjson 惰性获取（引导阶段可能不可用，pcall 兜底）。
-
-  依赖：Base/BaseModule（Class）、Plugin/PluginDefs。
 --]]
 local PluginManager = Class("PluginManager")
 local eutil = CS.Torappu.Lua.Util
-local PluginDefs = require("Plugin/PluginDefs")
 
 -- 顶层不再 require rapidjson / CS.System.IO.File：引导阶段可能不可用，
 -- 若顶层 require 失败会拖垮整个插件系统。改为惰性获取 + pcall 兜底。
@@ -51,11 +43,11 @@ PluginManager.me = nil
   构造插件管理器（仅创建一次）。
 --]]
 function PluginManager:ctor()
-  self._plugins = {}        -- [id] = 插件实例（已注册）
+  self._plugins = {}        -- [id] = BasePlugin 实例（加载成功）
+  self._defs = {}           -- [id] = 定义表
   self._errors = {}         -- [id] = 错误信息（加载失败）
   self._configPath = nil    -- 持久化文件路径（懒计算）
-  self._enabled = nil       -- [id] = bool（持久化启用态；首次 Register 时加载）
-  self._heartbeatScheduled = false
+  self._initialized = false
 end
 
 --[[
@@ -71,7 +63,6 @@ end
 
 --[[
   读取持久化的启用态配置；文件不存在、依赖不可用或解析失败时返回全启用默认值。
-  插件申明从 PluginDefs（模块加载期已 require）取，保证与面板/管理端目录一致。
   @return table：[id] = bool
 --]]
 function PluginManager:_ReadConfig()
@@ -113,7 +104,7 @@ function PluginManager:_SaveConfig()
   for id, v in pairs(prev) do
     payload.enabled[id] = v
   end
-  -- 覆盖当前已注册插件的实际状态
+  -- 覆盖当前已加载插件的实际状态
   for defId, plugin in pairs(self._plugins) do
     payload.enabled[defId] = plugin.enabled
   end
@@ -127,63 +118,56 @@ function PluginManager:_SaveConfig()
 end
 
 --[[
-  首次 Register 时一次性引导：读取启用态配置并调度心跳确认（网络就绪后自动重试）。
-  幂等。
+  初始化插件系统：按 PluginDefs 加载并依据配置启停各插件。
+  单个插件 require/实例化/初始化失败时记录错误到 _errors，其余插件照常加载（可重复调用，幂等）。
 --]]
-function PluginManager:_EnsureConfig()
-  if self._enabled ~= nil then return end
-  self._enabled = self:_ReadConfig()
-  self:_ScheduleHeartbeat()
-end
-
---[[
-  引导一次插件心跳确认（best-effort，失败静默）。
-  PluginHeartbeat 内置重试链（TimerModel 就绪后自动补发），此处无需等待。
---]]
-function PluginManager:_ScheduleHeartbeat()
-  if self._heartbeatScheduled then return end
-  self._heartbeatScheduled = true
-  xpcall(function()
-    local hb = require("Plugin/PluginHeartbeat")
-    if hb ~= nil and hb.ScheduleAuto ~= nil then
-      hb.ScheduleAuto()
-    end
-  end, debug.traceback)
-end
-
---[[
-  注册插件实例并按其启用态决定是否应用补丁。
-  单个插件 Load 失败记录错误，不阻断整体。
-  @param plugin 插件实例（继承 BasePlugin，含 id/name/desc）
---]]
-function PluginManager:Register(plugin)
-  self:_EnsureConfig()
-  self._plugins[plugin.id] = plugin
-  if self:IsEnabled(plugin.id) then
-    local okLoad, loadErr = pcall(function() plugin:Load() end)
-    if not okLoad then
-      self._errors[plugin.id] = "初始化失败: " .. tostring(loadErr)
+function PluginManager:Init()
+  if self._initialized then return end
+  self._initialized = true
+  local enabled = self:_ReadConfig()
+  for _, def in ipairs(PluginDefs) do
+    local mod
+    local ok, err = pcall(function() mod = require(def.module) end)
+    if not ok then
+      self._errors[def.id] = "模块加载失败: " .. tostring(err)
+      eutil.LogHotfixError("[PluginManager] 加载插件模块失败 " .. def.module .. ": " .. tostring(err))
+    else
+      local okNew, plugin = pcall(function() return mod.new(def.id, def.name, def.desc) end)
+      if not okNew then
+        self._errors[def.id] = "实例化失败: " .. tostring(plugin)
+      else
+        self._plugins[def.id] = plugin
+        self._defs[def.id] = def
+        if enabled[def.id] then
+          local okLoad, loadErr = pcall(function() plugin:Load() end)
+          if not okLoad then
+            self._errors[def.id] = "初始化失败: " .. tostring(loadErr)
+          end
+        end
+      end
     end
   end
+  eutil.Log("[PluginManager] 初始化完成，共 " .. self:_Count() .. " 个插件，失败 " .. self:_ErrorCount() .. " 个")
 end
 
 --[[
-  注销插件实例（从注册表移除以避免 Dispose 后仍被面板引用）。
-  不在此执行 Unload（Dispose 已先回滚补丁）。
-  @param plugin 插件实例
+  返回已加载（成功）插件数量。
+  @return 数量
 --]]
-function PluginManager:Unregister(plugin)
-  self._plugins[plugin.id] = nil
+function PluginManager:_Count()
+  local n = 0
+  for _ in pairs(self._plugins) do n = n + 1 end
+  return n
 end
 
 --[[
-  查询插件是否启用（无记录时默认为启用）。
-  @param id 插件标识
-  @return 是否启用
+  返回加载失败插件数量。
+  @return 数量
 --]]
-function PluginManager:IsEnabled(id)
-  self:_EnsureConfig()
-  return self._enabled[id] ~= false
+function PluginManager:_ErrorCount()
+  local n = 0
+  for _ in pairs(self._errors) do n = n + 1 end
+  return n
 end
 
 --[[
@@ -205,7 +189,7 @@ function PluginManager:GetError(id)
 end
 
 --[[
-  返回全部插件实例列表（保持 PluginDefs 顺序，仅含已注册插件）。
+  返回全部插件实例列表（保持 PluginDefs 顺序，仅含加载成功的插件）。
   @return 插件实例数组
 --]]
 function PluginManager:GetAll()
@@ -228,23 +212,18 @@ end
 function PluginManager:SetEnabled(id, value)
   local plugin = self._plugins[id]
   if plugin == nil then return end
-  self:_EnsureConfig()
   if value then
     plugin:Load()
   else
     plugin:Unload()
   end
-  self._enabled[id] = value
   self:_SaveConfig()
-  local ok, hb = pcall(function() return require("Plugin/PluginHeartbeat") end)
-  if ok and hb ~= nil and hb.PushState ~= nil then
-    hb.PushState(id, value)
+  if PluginHeartbeat ~= nil and PluginHeartbeat.PushState ~= nil then
+    PluginHeartbeat.PushState(id, value)
   end
 end
 
--- 创建单例，并自举全局（替代原 PluginBootHotfixer 的 _BootstrapGlobals）
+-- 创建单例
 PluginManager.me = PluginManager.new()
-_G.PluginDefs = PluginDefs
-_G.PluginManager = PluginManager
 
 return PluginManager

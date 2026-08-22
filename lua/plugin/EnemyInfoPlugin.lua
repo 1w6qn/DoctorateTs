@@ -7,11 +7,6 @@
 local EnemyInfoPlugin = Class("EnemyInfoPlugin", require("Plugin/BasePlugin"))
 local eutil = CS.Torappu.Lua.Util
 
--- 类级元数据（管理器/面板/管理端目录以此为准；与 PluginDefs.lua 保持一致）
-EnemyInfoPlugin.id = "enemy_info"
-EnemyInfoPlugin.name = "敌人属性面板"
-EnemyInfoPlugin.desc = "战斗中长按并点击敌人查看属性与路线"
-
 local UnityEngine = CS.UnityEngine
 local UGUI = CS.UnityEngine.UI
 

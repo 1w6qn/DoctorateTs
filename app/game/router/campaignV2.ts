@@ -25,6 +25,14 @@ import {
   CampaignSweepRequest,
   CampaignSweepResponse,
 } from "../model/protocol/campaignV2";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  campaignV2BattleFinishSchema,
+  campaignV2BattleStartSchema,
+  campaignV2BattleSweepSchema,
+  campaignV2GetBreakRewardSchema,
+  campaignV2GetExMissionRewardSchema,
+} from "../model/protocol/campaignV2.schema";
 
 const router = Router();
 
@@ -38,7 +46,7 @@ const router = Router();
  * @param req.body - CommonStartBattleRequest 结构，包含 stageId、squad 等字段
  * @returns battleId、战斗结果及玩家增量数据
  */
-router.post("/campaignV2/battleStart", async (req, res) => {
+router.post("/campaignV2/battleStart", validateBody(campaignV2BattleStartSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as CampaignStartBattleRequest;
   const battleResult = await player.battle.start(body);
@@ -59,7 +67,7 @@ router.post("/campaignV2/battleStart", async (req, res) => {
  * @param req.body - 包含 data（加密战斗数据）和 battleData 字段
  * @returns 战斗结算结果及玩家增量数据
  */
-router.post("/campaignV2/battleFinish", async (req, res) => {
+router.post("/campaignV2/battleFinish", validateBody(campaignV2BattleFinishSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as CampaignFinishBattleRequest;
   // 缺参校验：data/battleData 缺失时返回业务错误，避免 undefined 传入 battle.finish 抛 500
@@ -85,7 +93,7 @@ router.post("/campaignV2/battleFinish", async (req, res) => {
  * @route POST /campaignV2/battleSweep
  * @returns 扫荡结果（奖励列表、解锁关卡、玩家增量数据等）
  */
-router.post("/campaignV2/battleSweep", async (req, res) => {
+router.post("/campaignV2/battleSweep", validateBody(campaignV2BattleSweepSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as CampaignSweepRequest;
 
@@ -120,7 +128,7 @@ router.post("/campaignV2/battleSweep", async (req, res) => {
  * @route POST /campaignV2/getBreakReward
  * @returns HTTP 202 状态码
  */
-router.post("/campaignV2/getBreakReward", async (req, res) => {
+router.post("/campaignV2/getBreakReward", validateBody(campaignV2GetBreakRewardSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as CampaignConfirmBreakRewardRequest;
   // 修复：sendStatus(202) 返回文本 "Accepted"，客户端按 JSON 解析失败（同 gallery
@@ -138,7 +146,7 @@ router.post("/campaignV2/getBreakReward", async (req, res) => {
  * @route POST /campaignV2/getExMissionReward
  * @returns HTTP 202 状态码
  */
-router.post("/campaignV2/getExMissionReward", async (req, res) => {
+router.post("/campaignV2/getExMissionReward", validateBody(campaignV2GetExMissionRewardSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as CampaignGetCommonMissionRewardRequest;
   // 修复：同上——JSON 响应避免客户端解析失败

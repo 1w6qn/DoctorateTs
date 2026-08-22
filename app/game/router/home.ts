@@ -39,27 +39,47 @@ import {
   CharRotationUpdatePresetRequest,
   CharRotationUpdatePresetResponse,
 } from "../model/protocol/charRotation";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  batchEventSchema,
+  changeMarkStarSchema,
+  charmSetSquadSchema,
+  charRotationCreatePresetSchema,
+  charRotationDeletePresetSchema,
+  charRotationSetCurrentSchema,
+  charRotationUpdatePresetSchema,
+  confirmBattleCarSchema,
+  finishStorySchema,
+  fireworkChangeAnimalSchema,
+  fireworkSavePlateSlotsSchema,
+  npcAudioChangeLanSchema,
+  pinSpecialOperatorSchema,
+  setBackgroundSchema,
+  setHomeThemeSchema,
+  setLowPowerSchema,
+  setTrapSquadSchema,
+} from "../model/protocol/home.schema";
 
 const router = Router();
-router.post("/homeTheme/change", async (req, res) => {
+router.post("/homeTheme/change", validateBody(setHomeThemeSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SetHomeThemeRequest;
   await player.home.setHomeTheme(body);
   res.send(player.delta satisfies SetHomeThemeResponse);
 });
-router.post("/background/setBackground", async (req, res) => {
+router.post("/background/setBackground", validateBody(setBackgroundSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SetBackgroundRequest;
   await player.home.setBackground(body);
   res.send(player.delta satisfies SetBackgroundResponse);
 });
-router.post("/charRotation/setCurrent", async (req, res) => {
+router.post("/charRotation/setCurrent", validateBody(charRotationSetCurrentSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as CharRotationSetCurrentPresetRequest;
   await player.charRotation.setCurrent(body);
   res.send(player.delta satisfies CharRotationSetCurrentPresetResponse);
 });
-router.post("/charRotation/createPreset", async (req, res) => {
+router.post("/charRotation/createPreset", validateBody(charRotationCreatePresetSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as CharRotationCreatePresetRequest;
   res.send({
@@ -67,31 +87,31 @@ router.post("/charRotation/createPreset", async (req, res) => {
     ...player.delta,
   } satisfies CharRotationCreatePresetResponse);
 });
-router.post("/charRotation/updatePreset", async (req, res) => {
+router.post("/charRotation/updatePreset", validateBody(charRotationUpdatePresetSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as CharRotationUpdatePresetRequest;
   await player.charRotation.updatePreset(body);
   res.send(player.delta satisfies CharRotationUpdatePresetResponse);
 });
-router.post("/charRotation/deletePreset", async (req, res) => {
+router.post("/charRotation/deletePreset", validateBody(charRotationDeletePresetSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as CharRotationDeletePresetRequest;
   await player.charRotation.deletePreset(body);
   res.send(player.delta satisfies CharRotationDeletePresetResponse);
 });
-router.post("/char/changeMarkStar", async (req, res) => {
+router.post("/char/changeMarkStar", validateBody(changeMarkStarSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ChangeMarkStarRequest;
   await player.char.changeMarkStar(body);
   res.send(player.delta satisfies ChangeMarkStarResponse);
 });
-router.post("/setting/perf/setLowPower", async (req, res) => {
+router.post("/setting/perf/setLowPower", validateBody(setLowPowerSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SetLowPowerRequest;
   await player.home.setLowPower(body);
   res.send(player.delta satisfies SetLowPowerResponse);
 });
-router.post("/npcAudio/changeLan", async (req, res) => {
+router.post("/npcAudio/changeLan", validateBody(npcAudioChangeLanSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as NpcAudioChangeLanRequest;
   // 修复：缺 id/voiceLan 必填参数时返回业务错误，而非 500
@@ -101,7 +121,7 @@ router.post("/npcAudio/changeLan", async (req, res) => {
   await player.home.npcAudioChangeLan(body);
   res.send(player.delta satisfies NpcAudioChangeLanResponse);
 });
-router.post("/story/finishStory", async (req, res) => {
+router.post("/story/finishStory", validateBody(finishStorySchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as FinishStoryRequest;
   await player.status.finishStory(body);
@@ -123,11 +143,11 @@ router.post("/story/finishStory", async (req, res) => {
  *
  * 路径：POST /batch_event（游戏域 ak-gs-* 根级接口，mitmweb 重定向后 Host 为 127.0.0.1）
  */
-router.post("/batch_event", async (req, res) => {
+router.post("/batch_event", validateBody(batchEventSchema), async (req, res) => {
   req.body as BatchEventRequest;
   res.send({} satisfies BatchEventResponse);
 });
-router.post("/charm/setSquad", async (req, res) => {
+router.post("/charm/setSquad", validateBody(charmSetSquadSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as CharmSetSquadRequest;
   await player.update(async (draft) => {
@@ -135,7 +155,7 @@ router.post("/charm/setSquad", async (req, res) => {
   });
   res.send(player.delta satisfies CharmSetSquadResponse);
 });
-router.post("/firework/savePlateSlots", async (req, res) => {
+router.post("/firework/savePlateSlots", validateBody(fireworkSavePlateSlotsSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as FireworkSavePlateSlotsRequest;
   // 参考 OBS misc_bp.firework_savePlateSlots：firework.plate.slots = slots
@@ -147,7 +167,7 @@ router.post("/firework/savePlateSlots", async (req, res) => {
   });
   res.send(player.delta satisfies FireworkSavePlateSlotsResponse);
 });
-router.post("/firework/changeAnimal", async (req, res) => {
+router.post("/firework/changeAnimal", validateBody(fireworkChangeAnimalSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as FireworkChangeAnimalRequest;
   // 参考 OBS misc_bp.firework_changeAnimal：firework.animal.select = animal
@@ -159,7 +179,7 @@ router.post("/firework/changeAnimal", async (req, res) => {
   });
   res.send({ animal: body.animal, ...player.delta } satisfies FireworkChangeAnimalResponse);
 });
-router.post("/car/confirmBattleCar", async (req, res) => {
+router.post("/car/confirmBattleCar", validateBody(confirmBattleCarSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ConfirmBattleCarRequest;
   // 参考 OBS misc_bp.car_confirmBattleCar：car.battleCar = car
@@ -168,7 +188,7 @@ router.post("/car/confirmBattleCar", async (req, res) => {
   });
   res.send(player.delta satisfies ConfirmBattleCarResponse);
 });
-router.post("/templateTrap/setTrapSquad", async (req, res) => {
+router.post("/templateTrap/setTrapSquad", validateBody(setTrapSquadSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SetTrapSquadRequest;
   // 修复：缺 trapDomainId/trapSquad 必填参数时返回业务错误，而非 500
@@ -185,7 +205,7 @@ router.post("/templateTrap/setTrapSquad", async (req, res) => {
     ...player.delta,
   } satisfies SetTrapSquadResponse);
 });
-router.post("/troop/pinSpecialOperator", async (req, res) => {
+router.post("/troop/pinSpecialOperator", validateBody(pinSpecialOperatorSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as PinSpecialOperatorRequest;
   // 参考 OBS misc_bp.troop_pinSpecialOperator：mission.pinnedSpecialOperator = troop.chars[instId].charId

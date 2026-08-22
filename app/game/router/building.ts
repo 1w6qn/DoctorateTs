@@ -130,6 +130,8 @@ import {
   TakeClueFromBoardRequest,
   TakeClueFromBoardResponse,
 } from "../model/protocol/building";
+import * as B from "../model/protocol/building.schema";
+import { validateBody } from "../model/protocol/validate-body";
 
 const router = Router();
 
@@ -144,7 +146,7 @@ const router = Router();
 // ==================== 同步与基础设置 ====================
 
 /** 同步基建数据 */
-router.post("/sync", async (req, res) => {
+router.post("/sync", validateBody(B.buildingSyncSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as BuildingSyncRequest;
   const ts = await player.building.sync();
@@ -166,7 +168,7 @@ router.post("/sync", async (req, res) => {
 });
 
 /** 切换基建背景音乐 */
-router.post("/changeBGM", async (req, res) => {
+router.post("/changeBGM", validateBody(B.changeBGMSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ChangeBGMRequest;
   await player.building.changeBGM(body);
@@ -176,7 +178,7 @@ router.post("/changeBGM", async (req, res) => {
 });
 
 /** 设置私人宿舍归属 */
-router.post("/setPrivateDormOwner", async (req, res) => {
+router.post("/setPrivateDormOwner", validateBody(B.setPrivateDormOwnerSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SetPrivateDormOwnerRequest;
   await player.building.setPrivateDormOwner(body);
@@ -186,7 +188,7 @@ router.post("/setPrivateDormOwner", async (req, res) => {
 });
 
 /** 设置基建助战干员 */
-router.post("/setBuildingAssist", async (req, res) => {
+router.post("/setBuildingAssist", validateBody(B.setBuildingAssistSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SetBuildingAssistRequest;
   // 修复：缺 type/charInstId 必填参数时返回业务错误，而非 500
@@ -210,7 +212,7 @@ router.post("/buildRoom", async (req, res) => {
 });
 
 /** 升级房间等级 */
-router.post("/upgradeRoom", async (req, res) => {
+router.post("/upgradeRoom", validateBody(B.upgradeRoomSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UpgradeRoomRequest;
   await player.building.upgradeRoom(body);
@@ -218,7 +220,7 @@ router.post("/upgradeRoom", async (req, res) => {
 });
 
 /** 完成房间升级 */
-router.post("/completeUpgradeRoom", async (req, res) => {
+router.post("/completeUpgradeRoom", validateBody(B.completeUpgradeRoomSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as CompleteUpgradeRoomRequest;
   await player.building.completeUpgradeRoom();
@@ -226,7 +228,7 @@ router.post("/completeUpgradeRoom", async (req, res) => {
 });
 
 /** 降级房间 */
-router.post("/degradeRoom", async (req, res) => {
+router.post("/degradeRoom", validateBody(B.degradeRoomSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as DegradeRoomRequest;
   await player.building.degradeRoom(body);
@@ -234,7 +236,7 @@ router.post("/degradeRoom", async (req, res) => {
 });
 
 /** 专精升级（简化实现） */
-router.post("/upgradeSpecialization", async (req, res) => {
+router.post("/upgradeSpecialization", validateBody(B.upgradeSpecializationSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UpgradeSpecializationRequest;
   await player.building.upgradeSpecialization(body);
@@ -242,7 +244,7 @@ router.post("/upgradeSpecialization", async (req, res) => {
 });
 
 /** 完成专精升级（简化实现） */
-router.post("/completeUpgradeSpecialization", async (req, res) => {
+router.post("/completeUpgradeSpecialization", validateBody(B.completeUpgradeSpecializationSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as CompleteUpgradeSpecializationRequest;
   await player.building.completeUpgradeSpecialization(body);
@@ -250,7 +252,7 @@ router.post("/completeUpgradeSpecialization", async (req, res) => {
 });
 
 /** 升级自定义等级（简化实现） */
-router.post("/upgradeDiyLevel", async (req, res) => {
+router.post("/upgradeDiyLevel", validateBody(B.upgradeDiyLevelSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as UpgradeDiyLevelRequest;
   await player.building.upgradeDiyLevel();
@@ -260,7 +262,7 @@ router.post("/upgradeDiyLevel", async (req, res) => {
 // ==================== 干员分配 ====================
 
 /** 分配干员到房间 */
-router.post("/assignChar", async (req, res) => {
+router.post("/assignChar", validateBody(B.assignCharSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as AssignCharRequest;
   // 修复：缺 roomSlotId/charInstIdList 必填参数时返回业务错误，而非 500
@@ -272,7 +274,7 @@ router.post("/assignChar", async (req, res) => {
 });
 
 /** 批量更换工作干员（简化实现） */
-router.post("/batchChangeWorkChar", async (req, res) => {
+router.post("/batchChangeWorkChar", validateBody(B.batchChangeWorkCharSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BatchChangeWorkCharRequest;
   await player.building.batchChangeWorkChar(body);
@@ -280,7 +282,7 @@ router.post("/batchChangeWorkChar", async (req, res) => {
 });
 
 /** 批量休息干员（简化实现） */
-router.post("/batchRestChar", async (req, res) => {
+router.post("/batchRestChar", validateBody(B.batchRestCharSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BatchRestCharRequest;
   await player.building.batchRestChar(body);
@@ -288,7 +290,7 @@ router.post("/batchRestChar", async (req, res) => {
 });
 
 /** 获得信赖（简化实现） */
-router.post("/gainIntimacy", async (req, res) => {
+router.post("/gainIntimacy", validateBody(B.gainIntimacySchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GainIntimacyRequest;
   await player.building.gainIntimacy(body);
@@ -309,7 +311,7 @@ router.post("/gainAllIntimacy", async (req, res) => {
 });
 
 /** 获得助战信赖（简化实现） */
-router.post("/gainAssistIntimacy", async (req, res) => {
+router.post("/gainAssistIntimacy", validateBody(B.gainAssistIntimacySchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GainAssistIntimacyRequest;
   await player.building.gainAssistIntimacy(body);
@@ -327,7 +329,7 @@ router.post("/confirmPrivateDormIntimacy", async (req, res) => {
 // ==================== 订单/生产 ====================
 
 /** 加速订单（简化实现） */
-router.post("/accelerateOrder", async (req, res) => {
+router.post("/accelerateOrder", validateBody(B.accelerateOrderSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as AccelerateOrderRequest;
   await player.building.accelerateOrder(body);
@@ -343,7 +345,7 @@ router.post("/accelerateSolution", async (req, res) => {
 });
 
 /** 完成订单（贸易站交付） */
-router.post("/deliveryOrder", async (req, res) => {
+router.post("/deliveryOrder", validateBody(B.deliveryOrderSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as DeliveryOrderRequest;
   await player.building.deliveryOrder(body);
@@ -371,7 +373,7 @@ router.post("/deleteOrder", async (req, res) => {
 });
 
 /** 制造站结算 */
-router.post("/settleManufacture", async (req, res) => {
+router.post("/settleManufacture", validateBody(B.settleManufactureSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SettleManufactureRequest;
   // 修复：响应含 supplement（结算房间数，CS BuildingSettleManufactResponse）
@@ -402,7 +404,7 @@ router.post("/changeManufactureSolution", async (req, res) => {
 });
 
 /** 更换贸易方案（简化实现） */
-router.post("/changeSaleSolution", async (req, res) => {
+router.post("/changeSaleSolution", validateBody(B.changeSaleSolutionSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ChangeSaleSolutionRequest;
   await player.building.changeSaleSolution(body);
@@ -418,7 +420,7 @@ router.post("/changeDiySolution", async (req, res) => {
 });
 
 /** 加工站合成 */
-router.post("/workshopSynthesis", async (req, res) => {
+router.post("/workshopSynthesis", validateBody(B.workshopSynthesisSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as WorkshopSynthesisRequest;
   const result = await player.building.workshopSynthesis(body);
@@ -429,7 +431,7 @@ router.post("/workshopSynthesis", async (req, res) => {
 });
 
 /** 加工站分解（简化实现） */
-router.post("/workshopDecomposition", async (req, res) => {
+router.post("/workshopDecomposition", validateBody(B.workshopDecompositionSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as WorkshopDecompositionRequest;
   await player.building.workshopDecomposition(body);
@@ -439,7 +441,7 @@ router.post("/workshopDecomposition", async (req, res) => {
 // ==================== 线索系统 ====================
 
 /** 获取每日线索（简化实现） */
-router.post("/getDailyClue", async (req, res) => {
+router.post("/getDailyClue", validateBody(B.getDailyClueSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetDailyClueRequest;
   await player.building.getDailyClue(body);
@@ -447,7 +449,7 @@ router.post("/getDailyClue", async (req, res) => {
 });
 
 /** 发送线索（简化实现） */
-router.post("/sendClue", async (req, res) => {
+router.post("/sendClue", validateBody(B.sendClueSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SendClueRequest;
   await player.building.sendClue(body);
@@ -455,7 +457,7 @@ router.post("/sendClue", async (req, res) => {
 });
 
 /** 自动发送线索（简化实现） */
-router.post("/sendClueAuto", async (req, res) => {
+router.post("/sendClueAuto", validateBody(B.sendClueAutoSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SendClueAutoRequest;
   await player.building.sendClueAuto(body);
@@ -471,7 +473,7 @@ router.post("/receiveClueToStock", async (req, res) => {
 });
 
 /** 放置线索到留言板（简化实现） */
-router.post("/putClueToTheBoard", async (req, res) => {
+router.post("/putClueToTheBoard", validateBody(B.putClueToTheBoardSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as PutClueToTheBoardRequest;
   await player.building.putClueToTheBoard(body);
@@ -479,7 +481,7 @@ router.post("/putClueToTheBoard", async (req, res) => {
 });
 
 /** 自动放置线索到留言板（简化实现） */
-router.post("/putClueToTheBoardAuto", async (req, res) => {
+router.post("/putClueToTheBoardAuto", validateBody(B.putClueToTheBoardAutoSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as PutClueToTheBoardAutoRequest;
   await player.building.putClueToTheBoardAuto(body);
@@ -487,7 +489,7 @@ router.post("/putClueToTheBoardAuto", async (req, res) => {
 });
 
 /** 删除自己持有的线索（简化实现） */
-router.post("/deleteOwnClue", async (req, res) => {
+router.post("/deleteOwnClue", validateBody(B.deleteOwnClueSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as DeleteOwnClueRequest;
   await player.building.deleteOwnClue(body);
@@ -495,7 +497,7 @@ router.post("/deleteOwnClue", async (req, res) => {
 });
 
 /** 删除接收到的线索（简化实现） */
-router.post("/deleteReceiveClue", async (req, res) => {
+router.post("/deleteReceiveClue", validateBody(B.deleteReceiveClueSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as DeleteReceiveClueRequest;
   await player.building.deleteReceiveClue(body);
@@ -503,7 +505,7 @@ router.post("/deleteReceiveClue", async (req, res) => {
 });
 
 /** 获取线索盒 */
-router.post("/getClueBox", async (req, res) => {
+router.post("/getClueBox", validateBody(B.getClueBoxSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetClueBoxRequest;
   const result = await player.building.getClueBox();
@@ -514,7 +516,7 @@ router.post("/getClueBox", async (req, res) => {
 });
 
 /** 获取线索好友列表 */
-router.post("/getClueFriendList", async (req, res) => {
+router.post("/getClueFriendList", validateBody(B.getClueFriendListSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetClueFriendListRequest;
   const result = await player.building.getClueFriendList();
@@ -536,7 +538,7 @@ router.post("/getInfoShareReward", async (req, res) => {
 });
 
 /** 获取会议室奖励 */
-router.post("/getMeetingroomReward", async (req, res) => {
+router.post("/getMeetingroomReward", validateBody(B.getMeetingroomRewardSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetMeetingroomRewardRequest;
   const result = await player.building.getMeetingroomReward();
@@ -549,7 +551,7 @@ router.post("/getMeetingroomReward", async (req, res) => {
 // ==================== 预设队列 ====================
 
 /** 添加预设队列（简化实现） */
-router.post("/addPresetQueue", async (req, res) => {
+router.post("/addPresetQueue", validateBody(B.addPresetQueueSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as AddPresetQueueRequest;
   await player.building.addPresetQueue(body);
@@ -557,7 +559,7 @@ router.post("/addPresetQueue", async (req, res) => {
 });
 
 /** 删除预设队列（简化实现） */
-router.post("/deletePresetQueue", async (req, res) => {
+router.post("/deletePresetQueue", validateBody(B.deletePresetQueueSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as DeletePresetQueueRequest;
   await player.building.deletePresetQueue(body);
@@ -565,7 +567,7 @@ router.post("/deletePresetQueue", async (req, res) => {
 });
 
 /** 编辑预设队列（简化实现） */
-router.post("/editPresetQueue", async (req, res) => {
+router.post("/editPresetQueue", validateBody(B.editPresetQueueSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as EditPresetQueueRequest;
   await player.building.editPresetQueue(body);
@@ -573,7 +575,7 @@ router.post("/editPresetQueue", async (req, res) => {
 });
 
 /** 使用预设队列（简化实现） */
-router.post("/usePresetQueue", async (req, res) => {
+router.post("/usePresetQueue", validateBody(B.usePresetQueueSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UsePresetQueueRequest;
   await player.building.usePresetQueue(body);
@@ -581,7 +583,7 @@ router.post("/usePresetQueue", async (req, res) => {
 });
 
 /** 使用单个预设队列（简化实现） */
-router.post("/useOnePresetQueue", async (req, res) => {
+router.post("/useOnePresetQueue", validateBody(B.useOnePresetQueueSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UseOnePresetQueueRequest;
   await player.building.useOnePresetQueue(body);
@@ -589,7 +591,7 @@ router.post("/useOnePresetQueue", async (req, res) => {
 });
 
 /** 修改预设名称（简化实现） */
-router.post("/changePresetName", async (req, res) => {
+router.post("/changePresetName", validateBody(B.changePresetNameSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ChangePresetNameRequest;
   await player.building.changePresetName(body);
@@ -605,7 +607,7 @@ router.post("/saveDiyPresetSolution", async (req, res) => {
 });
 
 /** 编辑锁定队列（简化实现） */
-router.post("/editLockQueue", async (req, res) => {
+router.post("/editLockQueue", validateBody(B.editLockQueueSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as EditLockQueueRequest;
   await player.building.editLockQueue(body);
@@ -615,7 +617,7 @@ router.post("/editLockQueue", async (req, res) => {
 // ==================== 其他功能 ====================
 
 /** 更改贸易站策略 */
-router.post("/changeStrategy", async (req, res) => {
+router.post("/changeStrategy", validateBody(B.changeStrategySchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ChangeStrategyRequest;
   await player.building.changeStrategy(body);
@@ -623,7 +625,7 @@ router.post("/changeStrategy", async (req, res) => {
 });
 
 /** 购买劳动力（简化实现） */
-router.post("/buyLabor", async (req, res) => {
+router.post("/buyLabor", validateBody(B.buyLaborSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyLaborRequest;
   await player.building.buyLabor(body);
@@ -631,7 +633,7 @@ router.post("/buyLabor", async (req, res) => {
 });
 
 /** 清理房间槽位（官方路由名：BuildingCleanRoomRequest → /cleanRoom） */
-router.post("/cleanRoom", async (req, res) => {
+router.post("/cleanRoom", validateBody(B.cleanRoomSlotSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as CleanRoomSlotRequest;
   await player.building.cleanRoomSlot(body);
@@ -639,7 +641,7 @@ router.post("/cleanRoom", async (req, res) => {
 });
 
 /** 清理房间槽位（兼容旧路由名） */
-router.post("/cleanRoomSlot", async (req, res) => {
+router.post("/cleanRoomSlot", validateBody(B.cleanRoomSlotSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as CleanRoomSlotRequest;
   await player.building.cleanRoomSlot(body);
@@ -655,7 +657,7 @@ router.post("/takeClueFromBoard", async (req, res) => {
 });
 
 /** 确认留言板奖励（会客室留言板：领取上周社交点 → reward 返回 SOCIAL_PT） */
-router.post("/confirmMessageBoardReward", async (req, res) => {
+router.post("/confirmMessageBoardReward", validateBody(B.confirmMessageBoardRewardSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ConfirmMessageBoardRewardRequest;
   const reward = await player.building.confirmMessageBoardReward(body);
@@ -666,7 +668,7 @@ router.post("/confirmMessageBoardReward", async (req, res) => {
 });
 
 /** 获取协助报告 */
-router.post("/getAssistReport", async (req, res) => {
+router.post("/getAssistReport", validateBody(B.getAssistReportSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetAssistReportRequest;
   const result = await player.building.getAssistReport();
@@ -677,7 +679,7 @@ router.post("/getAssistReport", async (req, res) => {
 });
 
 /** 获取信息共享访客数 */
-router.post("/getInfoShareVisitorsNum", async (req, res) => {
+router.post("/getInfoShareVisitorsNum", validateBody(B.getInfoShareVisitorsNumSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetInfoShareVisitorsNumRequest;
   const result = await player.building.getInfoShareVisitorsNum();
@@ -688,7 +690,7 @@ router.post("/getInfoShareVisitorsNum", async (req, res) => {
 });
 
 /** 获取最近访客 */
-router.post("/getRecentVisitors", async (req, res) => {
+router.post("/getRecentVisitors", validateBody(B.getRecentVisitorsSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetRecentVisitorsRequest;
   const result = await player.building.getRecentVisitors();
@@ -709,7 +711,7 @@ router.post("/getMessageBoardContent", async (req, res) => {
   } satisfies GetMessageBoardContentResponse);
 });
 
-router.post("/getOthersMessageBoardContent", async (req, res) => {
+router.post("/getOthersMessageBoardContent", validateBody(B.getOthersMessageBoardContentSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetOthersMessageBoardContentRequest;
   // 修复：原实现丢弃返回值（客户端访问好友留言板空白）——现合并对方留言板内容
@@ -740,7 +742,7 @@ router.post("/sendEmoji", async (req, res) => {
 });
 
 /** 开始信息共享（简化实现） */
-router.post("/startInfoShare", async (req, res) => {
+router.post("/startInfoShare", validateBody(B.startInfoShareSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as StartInfoShareRequest;
   await player.building.startInfoShare(body);
@@ -748,7 +750,7 @@ router.post("/startInfoShare", async (req, res) => {
 });
 
 /** 访问基建（简化实现） */
-router.post("/visitBuilding", async (req, res) => {
+router.post("/visitBuilding", validateBody(B.visitBuildingSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as VisitBuildingRequest;
   await player.building.visitBuilding(body);

@@ -49,11 +49,13 @@ import {
   ProcessInviteRequest,
   ProcessInviteResponse,
 } from "../model/protocol/multiplayer";
+import { emptyRequestSchema } from "../model/protocol/multiplayer.schema";
+import { validateBody } from "../model/protocol/validate-body";
 
 const router = Router();
 
 /** 获取联机信息（CS: ActMultiV3QueryGetInfoRequest） */
-router.post("/multiplayerV3/getInfo", async (req, res) => {
+router.post("/multiplayerV3/getInfo", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActMultiV3QueryGetInfoRequest;
 
@@ -74,7 +76,7 @@ router.post("/multiplayerV3/getInfo", async (req, res) => {
 });
 
 /** 修改称号（CS: ActMultiV3ChangeTitleRequest） */
-router.post("/multiplayerV3/changeTitle", async (req, res) => {
+router.post("/multiplayerV3/changeTitle", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActMultiV3ChangeTitleRequest;
 
@@ -82,7 +84,7 @@ router.post("/multiplayerV3/changeTitle", async (req, res) => {
 });
 
 /** 设置战斗增益（CS: ActMultiV3SetSquadEffectRequest） */
-router.post("/multiplayerV3/setBuff", async (req, res) => {
+router.post("/multiplayerV3/setBuff", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActMultiV3SetSquadEffectRequest;
 
@@ -90,7 +92,7 @@ router.post("/multiplayerV3/setBuff", async (req, res) => {
 });
 
 /** 设置出战编队（CS: ActMultiV3SetSquadRequest） */
-router.post("/multiplayerV3/setSquads", async (req, res) => {
+router.post("/multiplayerV3/setSquads", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActMultiV3SetSquadRequest;
 
@@ -98,7 +100,7 @@ router.post("/multiplayerV3/setSquads", async (req, res) => {
 });
 
 /** 引导战斗开始（CS: ActMultiV3GuideBattleStartRequest） */
-router.post("/multiplayerV3/guideBattleStart", async (req, res) => {
+router.post("/multiplayerV3/guideBattleStart", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActMultiV3GuideBattleStartRequest;
 
@@ -110,7 +112,7 @@ router.post("/multiplayerV3/guideBattleStart", async (req, res) => {
 });
 
 /** 引导战斗结束（CS: ActMultiV3GuideBattleFinishRequest） */
-router.post("/multiplayerV3/guideBattleFinish", async (req, res) => {
+router.post("/multiplayerV3/guideBattleFinish", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActMultiV3GuideBattleFinishRequest;
 
@@ -118,7 +120,7 @@ router.post("/multiplayerV3/guideBattleFinish", async (req, res) => {
 });
 
 /** 联机战斗开始（CS: ActMultiV3BattleStartRequest） */
-router.post("/multiplayerV3/battleStart", async (req, res) => {
+router.post("/multiplayerV3/battleStart", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActMultiV3BattleStartRequest;
 
@@ -130,7 +132,7 @@ router.post("/multiplayerV3/battleStart", async (req, res) => {
 });
 
 /** 联机战斗结束（CS: ActMultiV3BattleFinishRequest） */
-router.post("/multiplayerV3/battleFinish", async (req, res) => {
+router.post("/multiplayerV3/battleFinish", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActMultiV3BattleFinishRequest;
 
@@ -138,7 +140,7 @@ router.post("/multiplayerV3/battleFinish", async (req, res) => {
 });
 
 /** 更换照片（CS: ActMultiV3ChangePhotoRequest） */
-router.post("/multiplayerV3/changePhoto", async (req, res) => {
+router.post("/multiplayerV3/changePhoto", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActMultiV3ChangePhotoRequest;
 
@@ -146,7 +148,7 @@ router.post("/multiplayerV3/changePhoto", async (req, res) => {
 });
 
 /** 提交相册（CS: ActMultiV3CommitAlbumRequest） */
-router.post("/multiplayerV3/commitAlbum", async (req, res) => {
+router.post("/multiplayerV3/commitAlbum", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActMultiV3CommitAlbumRequest;
 
@@ -154,7 +156,7 @@ router.post("/multiplayerV3/commitAlbum", async (req, res) => {
 });
 
 /** 创建队伍（CS: ActMultiV3CreateTeamRequest） */
-router.post("/multiplayerV3/createTeam", async (req, res) => {
+router.post("/multiplayerV3/createTeam", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActMultiV3CreateTeamRequest;
 
@@ -165,7 +167,7 @@ router.post("/multiplayerV3/createTeam", async (req, res) => {
 });
 
 /** 加入队伍（CS: ActMultiV3JoinTeamRequest） */
-router.post("/multiplayerV3/joinTeam", async (req, res) => {
+router.post("/multiplayerV3/joinTeam", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActMultiV3JoinTeamRequest;
 
@@ -173,7 +175,7 @@ router.post("/multiplayerV3/joinTeam", async (req, res) => {
 });
 
 /** 查询匹配（CS: ActMultiV3QueryMatchRequest） */
-router.post("/multiplayerV3/queryMatch", async (req, res) => {
+router.post("/multiplayerV3/queryMatch", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActMultiV3QueryMatchRequest;
 
@@ -185,7 +187,7 @@ router.post("/multiplayerV3/queryMatch", async (req, res) => {
 });
 
 /** 举报队友（CS: ActMultiV3ReportPartnerRequest） */
-router.post("/multiplayerV3/report", async (req, res) => {
+router.post("/multiplayerV3/report", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActMultiV3ReportPartnerRequest;
 
@@ -193,7 +195,7 @@ router.post("/multiplayerV3/report", async (req, res) => {
 });
 
 /** 点赞队友（CS: ActMultiV3LikePartnerRequest） */
-router.post("/multiplayerV3/settleLike", async (req, res) => {
+router.post("/multiplayerV3/settleLike", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActMultiV3LikePartnerRequest;
 
@@ -201,7 +203,7 @@ router.post("/multiplayerV3/settleLike", async (req, res) => {
 });
 
 /** 开始匹配（CS: ActMultiV3StartMatchRequest） */
-router.post("/multiplayerV3/startMatch", async (req, res) => {
+router.post("/multiplayerV3/startMatch", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActMultiV3StartMatchRequest;
 
@@ -209,7 +211,7 @@ router.post("/multiplayerV3/startMatch", async (req, res) => {
 });
 
 /** 解锁战斗增益（CS: ActMultiV3UnlockSquadEffectRequest） */
-router.post("/multiplayerV3/unlockBuff", async (req, res) => {
+router.post("/multiplayerV3/unlockBuff", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActMultiV3UnlockSquadEffectRequest;
 
@@ -217,7 +219,7 @@ router.post("/multiplayerV3/unlockBuff", async (req, res) => {
 });
 
 /** 刷新邀请列表（CS: InvitedRefreshRequest） */
-router.post("/invite/refreshInviteList", async (req, res) => {
+router.post("/invite/refreshInviteList", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as InvitedRefreshRequest;
 
@@ -228,7 +230,7 @@ router.post("/invite/refreshInviteList", async (req, res) => {
 });
 
 /** 切换邀请接受状态（CS: InvitedSettingRequest） */
-router.post("/invite/switchInviteAccept", async (req, res) => {
+router.post("/invite/switchInviteAccept", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as InvitedSettingRequest;
 
@@ -236,7 +238,7 @@ router.post("/invite/switchInviteAccept", async (req, res) => {
 });
 
 /** 发送邀请（CS: InviteRequest） */
-router.post("/invite/sendInvite", async (req, res) => {
+router.post("/invite/sendInvite", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as InviteRequest;
 
@@ -244,7 +246,7 @@ router.post("/invite/sendInvite", async (req, res) => {
 });
 
 /** 处理邀请（CS: ProcessInviteRequest） */
-router.post("/invite/processInvite", async (req, res) => {
+router.post("/invite/processInvite", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ProcessInviteRequest;
 

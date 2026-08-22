@@ -18,11 +18,19 @@ import {
   RemoveAllReceivedMailRequest,
   RemoveAllReceivedMailResponse,
 } from "../model/protocol/mail";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  getMetaInfoListSchema,
+  listMailBoxSchema,
+  receiveAllMailSchema,
+  receiveMailSchema,
+  removeAllReceivedMailSchema,
+} from "../model/protocol/mail.schema";
 
 const router = Router();
 
 /** 一键删除已读邮件（CS: RemoveAllRecievedMailRequest） */
-router.post("/removeAllReceivedMail", async (req, res) => {
+router.post("/removeAllReceivedMail", validateBody(removeAllReceivedMailSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RemoveAllReceivedMailRequest;
   await mailManager.removeAllReceivedMail(player.uid, body);
@@ -30,7 +38,7 @@ router.post("/removeAllReceivedMail", async (req, res) => {
 });
 
 /** 一键领取邮件（CS: ReceiveAllMailRequest） */
-router.post("/receiveAllMail", async (req, res) => {
+router.post("/receiveAllMail", validateBody(receiveAllMailSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ReceiveAllMailRequest;
   const items = await mailManager.receiveAllMail(player.uid, body);
@@ -42,7 +50,7 @@ router.post("/receiveAllMail", async (req, res) => {
 });
 
 /** 获取邮件元信息列表（CS: GetMetaInfoListRequest） */
-router.post("/getMetaInfoList", async (req, res) => {
+router.post("/getMetaInfoList", validateBody(getMetaInfoListSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetMetaInfoListRequest;
   res.send({
@@ -52,7 +60,7 @@ router.post("/getMetaInfoList", async (req, res) => {
 });
 
 /** 领取单封邮件（CS: ReceiveMailRequest） */
-router.post("/receiveMail", async (req, res) => {
+router.post("/receiveMail", validateBody(receiveMailSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ReceiveMailRequest;
   const items = await mailManager.receiveMail(player.status.uid, body);
@@ -64,7 +72,7 @@ router.post("/receiveMail", async (req, res) => {
 });
 
 /** 获取邮件列表（CS: ListMailBoxRequest） */
-router.post("/listMailBox", async (req, res) => {
+router.post("/listMailBox", validateBody(listMailBoxSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ListMailBoxRequest;
   res.send({

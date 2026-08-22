@@ -14,6 +14,17 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  getVoucherDetailSchema,
+  voucherGachaSchema,
+  getCharGachaVoucherDetailSchema,
+  getMaterialVoucherDetailSchema,
+  useCharGachaVoucherSchema,
+  useMaterialVoucherSchema,
+  useFullPotentialItemSchema,
+  useOptionVoucherSchema,
+} from "../model/protocol/depot.schema";
 import { readJsonSync } from "@utils/file";
 import { ItemBundle } from "@excel/character_table";
 import { randomChoice } from "@utils/random";
@@ -169,7 +180,7 @@ const router = Router();
  * @param req.body.instId - 实例ID
  * @returns 凭证详情和玩家增量数据
  */
-router.post("/getVoucherDetail", async (req, res) => {
+router.post("/getVoucherDetail", validateBody(getVoucherDetailSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { itemId } = req.body as GetVoucherDetailRequest;
   const voucherInfo = VoucherDataManager.getVoucher(itemId);
@@ -188,7 +199,7 @@ router.post("/getVoucherDetail", async (req, res) => {
  * @param req.body - 抽卡参数（含凭证物品ID等）
  * @returns 玩家增量数据
  */
-router.post("/voucherGacha", async (req, res) => {
+router.post("/voucherGacha", validateBody(voucherGachaSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as VoucherGachaDetailRequest;
   // 简化实现：凭证抽卡逻辑较为复杂，需要根据凭证关联的卡池执行抽卡策略
@@ -208,7 +219,7 @@ router.post("/voucherGacha", async (req, res) => {
  * @param req.body.instId - 实例ID
  * @returns 凭证详情和玩家增量数据
  */
-router.post("/getCharGachaVoucherDetail", async (req, res) => {
+router.post("/getCharGachaVoucherDetail", validateBody(getCharGachaVoucherDetailSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { itemId } = req.body as VoucherCharDetailRequest;
   const voucherInfo = VoucherDataManager.getVoucher(itemId);
@@ -227,7 +238,7 @@ router.post("/getCharGachaVoucherDetail", async (req, res) => {
  * @param req.body.itemId - 物品ID
  * @returns 材料凭证详情（含物品池）和玩家增量数据
  */
-router.post("/getMaterialVoucherDetail", async (req, res) => {
+router.post("/getMaterialVoucherDetail", validateBody(getMaterialVoucherDetailSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { itemId } = req.body as VoucherItemDetailRequest;
   const relatedItems = VoucherDataManager.findRelatedItems(itemId);
@@ -262,7 +273,7 @@ router.post("/getMaterialVoucherDetail", async (req, res) => {
  * @param req.body.instId - 实例ID
  * @returns 玩家增量数据
  */
-router.post("/useCharGachaVoucher", async (req, res) => {
+router.post("/useCharGachaVoucher", validateBody(useCharGachaVoucherSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { itemId, instId } = req.body as UseCharGachaVoucherRequest;
   // 修复：原实现只扣凭证不发干员（凭证消耗但无结果——数据丢失）。
@@ -308,7 +319,7 @@ router.post("/useCharGachaVoucher", async (req, res) => {
  * @param req.body.count - 使用次数
  * @returns 获得物品列表和玩家增量数据
  */
-router.post("/useMaterialVoucher", async (req, res) => {
+router.post("/useMaterialVoucher", validateBody(useMaterialVoucherSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { itemId, instId, count } = req.body as UseMaterialVoucherRequest;
   const useCount = count || 1;
@@ -366,7 +377,7 @@ router.post("/useMaterialVoucher", async (req, res) => {
  * @param req.body.itemId - 物品ID
  * @returns 结果状态和玩家增量数据
  */
-router.post("/useFullPotentialItem", async (req, res) => {
+router.post("/useFullPotentialItem", validateBody(useFullPotentialItemSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { charInstId, itemId } = req.body as BoostPotentialRequest;
   // 获取干员信息以计算最大潜能等级
@@ -403,7 +414,7 @@ router.post("/useFullPotentialItem", async (req, res) => {
  * @param req.body.voucherCount - 凭证消耗数量
  * @returns 获得物品列表和玩家增量数据
  */
-router.post("/useOptionVoucher", async (req, res) => {
+router.post("/useOptionVoucher", validateBody(useOptionVoucherSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { itemId, instId, choices, voucherCount } = req.body as UseOptionalVoucherRequest;
   const consumeCount = voucherCount || 1;

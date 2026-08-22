@@ -9,6 +9,11 @@
  */
 import { Router } from "express";
 import httpContext from "express-http-context2";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  runeFinishBattleSchema,
+  runeStartBattleSchema,
+} from "../model/protocol/rune.schema";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 import { PlayerDeltaResponse } from "../model/protocol/common";
@@ -71,7 +76,7 @@ router.post("/battleStart", async (req, res) => {
 });
 
 /** 符文学徒试炼战斗结算（CS: RuneFinishBattleRequest；score/from/to 固定 0 stub） */
-router.post("/battleFinish", async (req, res) => {
+router.post("/battleFinish", validateBody(runeFinishBattleSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RuneFinishBattleRequest;
   // 缺参校验：data/battleData 缺失时返回业务错误，避免 undefined 传入 battle.finish 抛 500

@@ -13,8 +13,61 @@ import { buildOpenApi } from "./openapi";
 import config from "../config";
 import { captureManager } from "@capture/capture-manager";
 import { logService } from "@logs/log-service";
+import { assetRegistry } from "@asset/asset-service";
 import { createSse, sseSend } from "@utils/sse";
 import { pluginConfigService } from "@plugin/index";
+import { validateBody } from "../game/model/protocol/validate-body";
+import {
+  backfillAssetsSchema,
+  buildingMaxSchema,
+  captureClearSchema,
+  charModuleSchema,
+  cliExecSchema,
+  createBackupSchema,
+  createCaptureSessionSchema,
+  createUserSchema,
+  deleteCaptureRecordSchema,
+  deleteCaptureSessionSchema,
+  deleteMailSchema,
+  deletePixelArtSchema,
+  disablePluginSchema,
+  doCheckInSchema,
+  emptyObjectSchema,
+  enablePluginSchema,
+  exportUserSchema,
+  gameProxySchema,
+  grantAllItemsSchema,
+  grantCharSchema,
+  grantItemSchema,
+  grantSkinSchema,
+  importUserSchema,
+  listPixelArtSchema,
+  logClearSchema,
+  maxAllCharsSchema,
+  maxOutAccountSchema,
+  migrateOfficialSchema,
+  officialActionSchema,
+  officialCallSchema,
+  pushMessageSchema,
+  refreshUserSchema,
+  repairCharsSchema,
+  resetCheckInSchema,
+  restoreSchema,
+  rogueSimAutoSchema,
+  rogueSimStepSchema,
+  saveUserSchema,
+  sendMailAllSchema,
+  sendMailSchema,
+  setCharAttrsSchema,
+  setPlayerPitySchema,
+  setPlayerPoolUpSchema,
+  stopCaptureSessionSchema,
+  switchActivitySchema,
+  syncGachaPoolSchema,
+  unlockAllStagesSchema,
+  unlockStageSchema,
+  uploadPixelArtSchema,
+} from "./schemas";
 
 const router = Router();
 
@@ -63,7 +116,7 @@ router.get("/api/users/:uid", async (req: Request, res: Response) => {
 });
 
 /** 创建用户 */
-router.post("/api/users", async (req: Request, res: Response) => {
+router.post("/api/users", validateBody(createUserSchema, 400), async (req: Request, res: Response) => {
   try {
     const { phone, password } = req.body ?? {};
     const uid = await adminService.createUser(String(phone), String(password));
@@ -75,7 +128,7 @@ router.post("/api/users", async (req: Request, res: Response) => {
 });
 
 /** 发放物品 */
-router.post("/api/users/:uid/grant", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/grant", validateBody(grantItemSchema, 400), async (req: Request, res: Response) => {
   try {
     const { itemId, count } = req.body ?? {};
     await adminService.grantItem(
@@ -90,7 +143,7 @@ router.post("/api/users/:uid/grant", async (req: Request, res: Response) => {
 });
 
 /** 发放干员 */
-router.post("/api/users/:uid/grantchar", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/grantchar", validateBody(grantCharSchema, 400), async (req: Request, res: Response) => {
   try {
     const { charId } = req.body ?? {};
     const result = await adminService.grantChar(String(req.params.uid), String(charId));
@@ -101,7 +154,7 @@ router.post("/api/users/:uid/grantchar", async (req: Request, res: Response) => 
 });
 
 /** 解锁皮肤 */
-router.post("/api/users/:uid/grantskin", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/grantskin", validateBody(grantSkinSchema, 400), async (req: Request, res: Response) => {
   try {
     const { skinId } = req.body ?? {};
     await adminService.grantSkin(String(req.params.uid), String(skinId));
@@ -140,6 +193,7 @@ router.get("/api/users/:uid/chars/:instId", async (req: Request, res: Response) 
 /** 干员模组操作：unlock / upgrade / set（body: { equipId, templateId?, targetLevel? }） */
 router.post(
   "/api/users/:uid/chars/:instId/module/:action",
+  validateBody(charModuleSchema, 400),
   async (req: Request, res: Response) => {
     try {
       const action = String(req.params.action) as "unlock" | "upgrade" | "set";
@@ -175,7 +229,7 @@ router.get("/api/users/:uid/checkin", async (req: Request, res: Response) => {
 });
 
 /** 重置签到 */
-router.post("/api/users/:uid/checkin/reset", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/checkin/reset", validateBody(resetCheckInSchema, 400), async (req: Request, res: Response) => {
   try {
     res.json(await adminService.resetCheckIn(String(req.params.uid)));
   } catch (err) {
@@ -184,7 +238,7 @@ router.post("/api/users/:uid/checkin/reset", async (req: Request, res: Response)
 });
 
 /** 发放推送信息（设置玩家 pushFlags——红点/通知；body 传 hasGifts/hasFriendRequest/hasClues/hasFreeLevelGP，0=清除） */
-router.post("/api/users/:uid/push", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/push", validateBody(pushMessageSchema, 400), async (req: Request, res: Response) => {
   try {
     res.json(await adminService.pushMessage(String(req.params.uid), req.body ?? {}));
   } catch (err) {
@@ -193,7 +247,7 @@ router.post("/api/users/:uid/push", async (req: Request, res: Response) => {
 });
 
 /** 代签（领取当前档位奖励） */
-router.post("/api/users/:uid/checkin/do", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/checkin/do", validateBody(doCheckInSchema, 400), async (req: Request, res: Response) => {
   try {
     res.json(await adminService.doCheckIn(String(req.params.uid)));
   } catch (err) {
@@ -202,7 +256,7 @@ router.post("/api/users/:uid/checkin/do", async (req: Request, res: Response) =>
 });
 
 /** 修改干员属性 */
-router.post("/api/users/:uid/chars", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/chars", validateBody(setCharAttrsSchema, 400), async (req: Request, res: Response) => {
   try {
     const { instId, ...attrs } = req.body ?? {};
     const result = await adminService.setCharAttrs(
@@ -217,7 +271,7 @@ router.post("/api/users/:uid/chars", async (req: Request, res: Response) => {
 });
 
 /** 一键满配 */
-router.post("/api/users/:uid/maxout", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/maxout", validateBody(maxOutAccountSchema, 400), async (req: Request, res: Response) => {
   try {
     res.json(await adminService.maxOutAccount(String(req.params.uid)));
   } catch (err) {
@@ -226,7 +280,7 @@ router.post("/api/users/:uid/maxout", async (req: Request, res: Response) => {
 });
 
 /** 基建满级 */
-router.post("/api/users/:uid/building-max", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/building-max", validateBody(buildingMaxSchema, 400), async (req: Request, res: Response) => {
   try {
     res.json(await adminService.buildingMax(String(req.params.uid)));
   } catch (err) {
@@ -235,7 +289,7 @@ router.post("/api/users/:uid/building-max", async (req: Request, res: Response) 
 });
 
 /** 创建备份 */
-router.post("/api/users/:uid/backup", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/backup", validateBody(createBackupSchema, 400), async (req: Request, res: Response) => {
   try {
     res.json(await adminService.backup(String(req.params.uid)));
   } catch (err) {
@@ -253,7 +307,7 @@ router.get("/api/users/:uid/backups", async (req: Request, res: Response) => {
 });
 
 /** 从备份恢复 */
-router.post("/api/users/:uid/restore", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/restore", validateBody(restoreSchema, 400), async (req: Request, res: Response) => {
   try {
     const { backup } = req.body ?? {};
     await adminService.restore(String(req.params.uid), String(backup));
@@ -284,6 +338,7 @@ router.get("/api/users/:uid/mails", async (req: Request, res: Response) => {
 /** 删除单封邮件 */
 router.delete(
   "/api/users/:uid/mails/:mailId",
+  validateBody(deleteMailSchema, 400),
   async (req: Request, res: Response) => {
     try {
       const ok = await adminService.deleteMail(
@@ -302,7 +357,7 @@ router.delete(
 );
 
 /** 发送邮件 */
-router.post("/api/mail", async (req: Request, res: Response) => {
+router.post("/api/mail", validateBody(sendMailSchema, 400), async (req: Request, res: Response) => {
   try {
     const { uid, subject, content, items } = req.body ?? {};
     const mail = await adminService.sendMail(String(uid), {
@@ -317,7 +372,7 @@ router.post("/api/mail", async (req: Request, res: Response) => {
 });
 
 /** 群发邮件（全部用户） */
-router.post("/api/mail/all", async (req: Request, res: Response) => {
+router.post("/api/mail/all", validateBody(sendMailAllSchema, 400), async (req: Request, res: Response) => {
   try {
     const { subject, content, items } = req.body ?? {};
     const result = await adminService.sendMailAll({
@@ -332,7 +387,7 @@ router.post("/api/mail/all", async (req: Request, res: Response) => {
 });
 
 /** 每日/每周刷新 */
-router.post("/api/users/:uid/refresh", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/refresh", validateBody(refreshUserSchema, 400), async (req: Request, res: Response) => {
   try {
     await adminService.refreshUser(String(req.params.uid));
     res.json({ ok: true });
@@ -342,7 +397,7 @@ router.post("/api/users/:uid/refresh", async (req: Request, res: Response) => {
 });
 
 /** 立即保存 */
-router.post("/api/users/:uid/save", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/save", validateBody(saveUserSchema, 400), async (req: Request, res: Response) => {
   try {
     await adminService.saveUser(String(req.params.uid));
     res.json({ ok: true });
@@ -389,7 +444,7 @@ router.get("/api/mapviz-data", async (_req: Request, res: Response) => {
 });
 
 /** 肉鸽流程模拟：自动一键跑完整流程（不含战斗） */
-router.post("/api/rogue/sim-auto", async (req: Request, res: Response) => {
+router.post("/api/rogue/sim-auto", validateBody(rogueSimAutoSchema, 400), async (req: Request, res: Response) => {
   try {
     const { uid, theme, maxZone } = req.body ?? {};
     const result = await adminService.rogueSimAuto(String(uid), String(theme), maxZone ? Number(maxZone) : undefined);
@@ -404,7 +459,7 @@ router.post("/api/rogue/sim-auto", async (req: Request, res: Response) => {
 });
 
 /** 肉鸽流程分步模拟：单步执行（白名单 action） */
-router.post("/api/rogue/sim-step", async (req: Request, res: Response) => {
+router.post("/api/rogue/sim-step", validateBody(rogueSimStepSchema, 400), async (req: Request, res: Response) => {
   try {
     const { uid, action, body } = req.body ?? {};
     const result = await adminService.rogueSimStep(String(uid), String(action), body ?? {});
@@ -439,7 +494,7 @@ router.get("/api/activity/list", async (_req: Request, res: Response) => {
 });
 
 /** 切换活动（自定义活动切换：时间冻结 + 强制开启 + 合约赛季选择；兼容仅传 timestamp） */
-router.post("/api/activity/switch", async (req: Request, res: Response) => {
+router.post("/api/activity/switch", validateBody(switchActivitySchema, 400), async (req: Request, res: Response) => {
   try {
     const body = (req.body ?? {}) as {
       timestamp?: number;
@@ -466,7 +521,7 @@ router.post("/api/activity/switch", async (req: Request, res: Response) => {
 });
 
 /** 启动资产补全后台任务（target=all|活动id|危机赛季id） */
-router.post("/api/asset/backfill", async (req: Request, res: Response) => {
+router.post("/api/asset/backfill", validateBody(backfillAssetsSchema, 400), async (req: Request, res: Response) => {
   try {
     const { target, platform } = (req.body ?? {}) as { target?: string; platform?: string };
     if (!target) {
@@ -504,7 +559,7 @@ router.get("/api/asset/backfill", async (_req: Request, res: Response) => {
 });
 
 /** CLI 集成：服务器内执行 CLI 命令（复用 admin-cli dispatch，输出捕获返回） */
-router.post("/api/cli/exec", async (req: Request, res: Response) => {
+router.post("/api/cli/exec", validateBody(cliExecSchema, 400), async (req: Request, res: Response) => {
   try {
     const { command } = req.body ?? {};
     const { cliExec } = await import("./cli-exec");
@@ -525,7 +580,7 @@ router.get("/api/spec", (_req: Request, res: Response) => {
 });
 
 /** 游戏协议代理（带玩家 secret 调用游戏端点） */
-router.post("/api/game-proxy", async (req: Request, res: Response) => {
+router.post("/api/game-proxy", validateBody(gameProxySchema, 400), async (req: Request, res: Response) => {
   try {
     const { uid, path: gamePath, method, body } = req.body ?? {};
     const result = await adminService.gameProxy(
@@ -570,7 +625,7 @@ router.get("/api/users/:uid/pools/:poolId", async (req: Request, res: Response) 
 });
 
 /** 设置玩家卡池 UP 选择（charIds 空数组清除） */
-router.post("/api/users/:uid/pools/:poolId/up", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/pools/:poolId/up", validateBody(setPlayerPoolUpSchema, 400), async (req: Request, res: Response) => {
   try {
     const { charIds } = req.body ?? {};
     res.json(
@@ -586,7 +641,7 @@ router.post("/api/users/:uid/pools/:poolId/up", async (req: Request, res: Respon
 });
 
 /** 设置玩家保底计数 */
-router.post("/api/users/:uid/pity", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/pity", validateBody(setPlayerPitySchema, 400), async (req: Request, res: Response) => {
   try {
     const { ruleType, count } = req.body ?? {};
     res.json(
@@ -602,7 +657,7 @@ router.post("/api/users/:uid/pity", async (req: Request, res: Response) => {
 });
 
 /** 官服账号迁移（联网拉取官服数据 → 注册私服账号） */
-router.post("/api/official/migrate", async (req: Request, res: Response) => {
+router.post("/api/official/migrate", validateBody(migrateOfficialSchema, 400), async (req: Request, res: Response) => {
   try {
     const { accounts, templateUid } = req.body ?? {};
     const results = await adminService.migrateOfficial(
@@ -616,7 +671,7 @@ router.post("/api/official/migrate", async (req: Request, res: Response) => {
 });
 
 /** 官服操作（登录官服执行签到/邮件等；无状态会话即用即弃） */
-router.post("/api/official/action", async (req: Request, res: Response) => {
+router.post("/api/official/action", validateBody(officialActionSchema, 400), async (req: Request, res: Response) => {
   try {
     const { phone, pwd, action } = req.body ?? {};
     const result = await adminService.officialAction(
@@ -631,7 +686,7 @@ router.post("/api/official/action", async (req: Request, res: Response) => {
 });
 
 /** 官服通用 API 调用（登录后调用任意官方 cgi） */
-router.post("/api/official/call", async (req: Request, res: Response) => {
+router.post("/api/official/call", validateBody(officialCallSchema, 400), async (req: Request, res: Response) => {
   try {
     const { phone, pwd, cgi, body } = req.body ?? {};
     const result = await adminService.officialCall(
@@ -647,7 +702,7 @@ router.post("/api/official/call", async (req: Request, res: Response) => {
 });
 
 /** 从官服同步卡池详情 */
-router.post("/api/official/sync-gacha", async (req: Request, res: Response) => {
+router.post("/api/official/sync-gacha", validateBody(syncGachaPoolSchema, 400), async (req: Request, res: Response) => {
   try {
     const { phone, pwd, poolIds, refresh } = req.body ?? {};
     const result = await adminService.syncGachaPools(
@@ -663,7 +718,7 @@ router.post("/api/official/sync-gacha", async (req: Request, res: Response) => {
 });
 
 /** 像素画上传官服 arkhub（24×24 RGB → savePixelArt 完整流程：网关 token → multipart 上传 → 保存确认） */
-router.post("/api/pixel/upload-official", async (req: Request, res: Response) => {
+router.post("/api/pixel/upload-official", validateBody(uploadPixelArtSchema, 400), async (req: Request, res: Response) => {
   try {
     const { phone, pwd, pixelData } = req.body ?? {};
     const result = await adminService.uploadPixelArt(String(phone), String(pwd), pixelData);
@@ -689,7 +744,7 @@ router.post("/api/pixel/upload-batch", async (req: Request, res: Response) => {
 });
 
 /** 读取官服已上传像素画（HTTP getPixelArt + OSS .dat 下载解析，返回缩略像素数组） */
-router.post("/api/pixel/list-official", async (req: Request, res: Response) => {
+router.post("/api/pixel/list-official", validateBody(listPixelArtSchema, 400), async (req: Request, res: Response) => {
   try {
     const { phone, pwd, pixelArtIds } = req.body ?? {};
     const result = await adminService.getPixelArtList(
@@ -704,7 +759,7 @@ router.post("/api/pixel/list-official", async (req: Request, res: Response) => {
 });
 
 /** 撤销（删除）官服已上传像素画（网关 DeletePixelArtReq） */
-router.post("/api/pixel/delete-official", async (req: Request, res: Response) => {
+router.post("/api/pixel/delete-official", validateBody(deletePixelArtSchema, 400), async (req: Request, res: Response) => {
   try {
     const { phone, pwd, pixelArtIds } = req.body ?? {};
     const result = await adminService.deletePixelArt(
@@ -719,7 +774,7 @@ router.post("/api/pixel/delete-official", async (req: Request, res: Response) =>
 });
 
 /** 批量发放全部物品 */
-router.post("/api/users/:uid/grant-all", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/grant-all", validateBody(grantAllItemsSchema, 400), async (req: Request, res: Response) => {
   try {
     const { count } = req.body ?? {};
     res.json(
@@ -731,7 +786,7 @@ router.post("/api/users/:uid/grant-all", async (req: Request, res: Response) => 
 });
 
 /** 批量拉满全部已有干员 */
-router.post("/api/users/:uid/maxchars", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/maxchars", validateBody(maxAllCharsSchema, 400), async (req: Request, res: Response) => {
   try {
     res.json(await adminService.maxAllChars(String(req.params.uid)));
   } catch (err) {
@@ -740,7 +795,7 @@ router.post("/api/users/:uid/maxchars", async (req: Request, res: Response) => {
 });
 
 /** 修复干员结构（补齐 voiceLan/starMark/equip/skills/阿米娅 tmpl） */
-router.post("/api/users/:uid/repair-chars", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/repair-chars", validateBody(repairCharsSchema, 400), async (req: Request, res: Response) => {
   try {
     res.json(await adminService.repairChars(String(req.params.uid)));
   } catch (err) {
@@ -758,7 +813,7 @@ router.get("/api/users/:uid/stages", async (req: Request, res: Response) => {
 });
 
 /** 解锁指定关卡 */
-router.post("/api/users/:uid/stages/unlock", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/stages/unlock", validateBody(unlockStageSchema, 400), async (req: Request, res: Response) => {
   try {
     const { stageId } = req.body ?? {};
     res.json(
@@ -770,7 +825,7 @@ router.post("/api/users/:uid/stages/unlock", async (req: Request, res: Response)
 });
 
 /** 推图全解锁 */
-router.post("/api/users/:uid/stages/unlock-all", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/stages/unlock-all", validateBody(unlockAllStagesSchema, 400), async (req: Request, res: Response) => {
   try {
     res.json(await adminService.unlockAllStages(String(req.params.uid)));
   } catch (err) {
@@ -805,7 +860,7 @@ router.get("/api/users/:uid/medals", async (req: Request, res: Response) => {
 });
 
 /** 导出用户存档 */
-router.post("/api/users/:uid/export", async (req: Request, res: Response) => {
+router.post("/api/users/:uid/export", validateBody(exportUserSchema, 400), async (req: Request, res: Response) => {
   try {
     const { path: targetPath } = req.body ?? {};
     res.json(
@@ -817,7 +872,7 @@ router.post("/api/users/:uid/export", async (req: Request, res: Response) => {
 });
 
 /** 导入存档（替换指定 uid；uid 缺省取文件内 status.uid） */
-router.post("/api/import", async (req: Request, res: Response) => {
+router.post("/api/import", validateBody(importUserSchema, 400), async (req: Request, res: Response) => {
   try {
     const { filePath, uid } = req.body ?? {};
     res.json(await adminService.importUser(String(filePath), uid ? String(uid) : undefined));
@@ -858,7 +913,7 @@ router.get("/api/capture/sessions", async (_req: Request, res: Response) => {
 });
 
 /** 新建抓包会话（body: { name, source?, note? }） */
-router.post("/api/capture/sessions", async (req: Request, res: Response) => {
+router.post("/api/capture/sessions", validateBody(createCaptureSessionSchema, 400), async (req: Request, res: Response) => {
   try {
     const { name, source, note } = req.body ?? {};
     const s = await captureManager.startSession(
@@ -873,7 +928,7 @@ router.post("/api/capture/sessions", async (req: Request, res: Response) => {
 });
 
 /** 停止抓包会话 */
-router.post("/api/capture/sessions/:id/stop", async (req: Request, res: Response) => {
+router.post("/api/capture/sessions/:id/stop", validateBody(stopCaptureSessionSchema, 400), async (req: Request, res: Response) => {
   const ok = await captureManager.stopSession(String(req.params.id));
   if (!ok) {
     res.status(404).json({ error: `会话不存在: ${req.params.id}` });
@@ -883,7 +938,7 @@ router.post("/api/capture/sessions/:id/stop", async (req: Request, res: Response
 });
 
 /** 删除抓包会话（级联删除其全部记录与 body 目录） */
-router.delete("/api/capture/sessions/:id", async (req: Request, res: Response) => {
+router.delete("/api/capture/sessions/:id", validateBody(deleteCaptureSessionSchema, 400), async (req: Request, res: Response) => {
   const deleted = await captureManager.deleteSession(String(req.params.id));
   res.json({ deleted });
 });
@@ -930,7 +985,7 @@ router.get("/api/capture/records/:id", async (req: Request, res: Response) => {
 });
 
 /** 删除单条抓包记录 */
-router.delete("/api/capture/records/:id", async (req: Request, res: Response) => {
+router.delete("/api/capture/records/:id", validateBody(deleteCaptureRecordSchema, 400), async (req: Request, res: Response) => {
   const ok = await captureManager.deleteRecord(String(req.params.id));
   if (!ok) {
     res.status(404).json({ error: `记录不存在: ${req.params.id}` });
@@ -940,7 +995,7 @@ router.delete("/api/capture/records/:id", async (req: Request, res: Response) =>
 });
 
 /** 清空全部抓包（confirmWord="CLEAR" 确认） */
-router.post("/api/capture/clear", async (req: Request, res: Response) => {
+router.post("/api/capture/clear", validateBody(captureClearSchema, 400), async (req: Request, res: Response) => {
   try {
     res.json(await captureManager.clearAll(String((req.body ?? {}).confirmWord ?? "")));
   } catch (err) {
@@ -1049,7 +1104,7 @@ router.get("/api/logs/audit", async (req: Request, res: Response) => {
 });
 
 /** 清空服务器日志（confirmWord="CLEAR"） */
-router.post("/api/logs/server/clear", async (req: Request, res: Response) => {
+router.post("/api/logs/server/clear", validateBody(logClearSchema, 400), async (req: Request, res: Response) => {
   try {
     res.json(await logService.clearServerLogs(String((req.body ?? {}).confirmWord ?? "")));
   } catch (err) {
@@ -1097,6 +1152,57 @@ router.get("/api/logs/stream", (req: Request, res: Response) => {
   req.on("close", unsub);
 });
 
+/** 资产列表（?category=&name=&limit=&offset=，按 name 模糊搜索） */
+router.get("/api/asset", async (req: Request, res: Response) => {
+  const q = (req.query ?? {}) as {
+    category?: string;
+    name?: string;
+    limit?: string;
+    offset?: string;
+  };
+  const result = await assetRegistry.listAssets({
+    category: q.category as never,
+    name: q.name ? String(q.name) : undefined,
+    limit: q.limit ? Number(q.limit) : undefined,
+    offset: q.offset ? Number(q.offset) : undefined,
+  });
+  res.json(result);
+});
+
+/** 资产溯源链（?name= 精确查资产，返回该资产完整事件链） */
+router.get("/api/asset/lineage", async (req: Request, res: Response) => {
+  const name = String((req.query ?? {}).name ?? "");
+  if (!name) {
+    res.status(400).json({ error: "缺少 ?name= 查询参数" });
+    return;
+  }
+  res.json(await assetRegistry.getAssetLineage(name));
+});
+
+/** 审计事件流（?action=&assetId=&limit=，时间降序 JSON） */
+router.get("/api/asset/events", async (req: Request, res: Response) => {
+  const q = (req.query ?? {}) as { action?: string; assetId?: string; limit?: string };
+  const result = await assetRegistry.listEvents({
+    action: q.action as never,
+    assetId: q.assetId != null ? Number(q.assetId) : undefined,
+    limit: q.limit ? Number(q.limit) : undefined,
+  });
+  res.json(result);
+});
+
+/** 审计事件实时流（SSE：?token= 认证；回填最近 100 条后直播新事件） */
+router.get("/api/asset/events/stream", (req: Request, res: Response) => {
+  createSse(req, res);
+  void assetRegistry
+    .listEvents({ limit: 100 })
+    .then(({ items }) => {
+      for (const e of items.reverse()) sseSend(res, "event", { type: "backfill", event: e });
+    })
+    .catch(() => undefined);
+  const unsub = assetRegistry.subscribe((e) => sseSend(res, "event", { type: "live", event: e }));
+  req.on("close", unsub);
+});
+
 /** 配置（只读） */
 router.get("/api/config", (_req: Request, res: Response) => {
   res.json(config);
@@ -1108,7 +1214,7 @@ router.get("/api/plugin", async (_req: Request, res: Response) => {
 });
 
 /** 启用插件 */
-router.post("/api/plugin/:id/enable", async (req: Request, res: Response) => {
+router.post("/api/plugin/:id/enable", validateBody(enablePluginSchema, 400), async (req: Request, res: Response) => {
   try {
     const enabled = await pluginConfigService.setEnabled(String(req.params.id), true);
     res.json({ ok: true, id: req.params.id, enabled });
@@ -1118,7 +1224,7 @@ router.post("/api/plugin/:id/enable", async (req: Request, res: Response) => {
 });
 
 /** 停用插件 */
-router.post("/api/plugin/:id/disable", async (req: Request, res: Response) => {
+router.post("/api/plugin/:id/disable", validateBody(disablePluginSchema, 400), async (req: Request, res: Response) => {
   try {
     const enabled = await pluginConfigService.setEnabled(String(req.params.id), false);
     res.json({ ok: true, id: req.params.id, enabled });

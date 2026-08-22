@@ -27,9 +27,24 @@ import {
   SetStarFriendListRequest,
   SetStarFriendListResponse,
 } from "../model/protocol/social";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  deleteFriendSchema,
+  getFriendListSchema,
+  getFriendRequestListSchema,
+  getSortListInfoSchema,
+  processFriendRequestSchema,
+  receiveSocialPointSchema,
+  searchPlayerSchema,
+  sendFriendRequestSchema,
+  setAssistCharListSchema,
+  setCardShowMedalSchema,
+  setFriendAliasSchema,
+  setStarFriendListSchema,
+} from "../model/protocol/social.schema";
 
 const router = Router();
-router.post("/deleteFriend", async (req, res) => {
+router.post("/deleteFriend", validateBody(deleteFriendSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as DeleteFriendRequest;
   // 修复：缺 id 必填参数时返回业务错误，而非 500
@@ -39,7 +54,7 @@ router.post("/deleteFriend", async (req, res) => {
   await player.social.deleteFriend(body);
   res.send(player.delta satisfies DeleteFriendResponse);
 });
-router.post("/sendFriendRequest", async (req, res) => {
+router.post("/sendFriendRequest", validateBody(sendFriendRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SendFriendRequest;
   // 修复：缺 friendId 必填参数时返回业务错误，而非 500
@@ -49,7 +64,7 @@ router.post("/sendFriendRequest", async (req, res) => {
   await player.social.sendFriendRequest(body);
   res.send(player.delta satisfies SendFriendResponse);
 });
-router.post("/processFriendRequest", async (req, res) => {
+router.post("/processFriendRequest", validateBody(processFriendRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ProcessFriendRequest;
   // 修复：缺 friendId/action 必填参数时返回业务错误，而非 500
@@ -61,7 +76,7 @@ router.post("/processFriendRequest", async (req, res) => {
     ...player.delta,
   } satisfies ProcessFriendResponse);
 });
-router.post("/searchPlayer", async (req, res) => {
+router.post("/searchPlayer", validateBody(searchPlayerSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SearchPlayerRequest;
   res.send({
@@ -69,7 +84,7 @@ router.post("/searchPlayer", async (req, res) => {
     ...player.delta,
   } satisfies SearchPlayerResponse);
 });
-router.post("/getSortListInfo", async (req, res) => {
+router.post("/getSortListInfo", validateBody(getSortListInfoSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetSortListInfoRequest;
   const result = await player.social.getSortListInfo(body);
@@ -78,7 +93,7 @@ router.post("/getSortListInfo", async (req, res) => {
     ...player.delta,
   } satisfies GetSortListInfoResponse);
 });
-router.post("/getFriendList", async (req, res) => {
+router.post("/getFriendList", validateBody(getFriendListSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetFriendListRequest;
   const result = await player.social.getFriendList(body);
@@ -87,7 +102,7 @@ router.post("/getFriendList", async (req, res) => {
     ...player.delta,
   } satisfies GetFriendListResponse);
 });
-router.post("/getFriendRequestList", async (req, res) => {
+router.post("/getFriendRequestList", validateBody(getFriendRequestListSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetFriendRequestListRequest;
   res.send({
@@ -95,7 +110,7 @@ router.post("/getFriendRequestList", async (req, res) => {
     ...player.delta,
   } satisfies GetFriendRequestResponse);
 });
-router.post("/getFriendAndRequestSendList", async (req, res) => {
+router.post("/getFriendAndRequestSendList", validateBody(getFriendListSchema), async (req, res) => {
   // 好友+已发送请求合并列表（客户端路由；复用 getFriendList 结构）
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetFriendListRequest;
@@ -105,13 +120,13 @@ router.post("/getFriendAndRequestSendList", async (req, res) => {
     ...player.delta,
   } satisfies GetFriendListResponse);
 });
-router.post("/setAssistCharList", async (req, res) => {
+router.post("/setAssistCharList", validateBody(setAssistCharListSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SetAssistCharListRequest;
   await player.social.setAssistCharList(body);
   res.send(player.delta satisfies SetAssistCharListResponse);
 });
-router.post("/setFriendAlias", async (req, res) => {
+router.post("/setFriendAlias", validateBody(setFriendAliasSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SetFriendAliasRequest;
   // 修复：缺 friendId/alias 必填参数时返回业务错误，而非 500
@@ -121,19 +136,19 @@ router.post("/setFriendAlias", async (req, res) => {
   await player.social.setFriendAlias(body);
   res.send(player.delta satisfies SetFriendAliasResponse);
 });
-router.post("/receiveSocialPoint", async (req, res) => {
+router.post("/receiveSocialPoint", validateBody(receiveSocialPointSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ReceiveSocialPointRequest;
   await player.social.receiveSocialPoint();
   res.send(player.delta satisfies ReceiveSocialPointResponse);
 });
-router.post("/setCardShowMedal", async (req, res) => {
+router.post("/setCardShowMedal", validateBody(setCardShowMedalSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as SetCardShowMedalRequest;
   await player.social.setCardShowMedal(body);
   res.send(player.delta satisfies SetCardShowMedalResponse);
 });
-router.post("/setStarFriendList", async (req, res) => {
+router.post("/setStarFriendList", validateBody(setStarFriendListSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as SetStarFriendListRequest;
   // 参考 OBS bp_social.setStarFriendList：空实现返回固定结构

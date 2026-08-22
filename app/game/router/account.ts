@@ -14,6 +14,13 @@ import {
   SyncStatusRequest,
   SyncStatusResponse,
 } from "../model/protocol/account";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  loginSchema,
+  syncDataSchema,
+  syncPushMessageSchema,
+  syncStatusSchema,
+} from "../model/protocol/account.schema";
 
 const router = Router();
 
@@ -23,7 +30,7 @@ const router = Router();
  * token 语义：real 模式为账号 secret（或 uid 兼容），single 模式任意 token 收敛到 singleUid
  * 版本校验 YAGNI：clientVersion/networkVersion 读取但不拦截（私服客户端版本可能滞后，避免卡登录）
  */
-router.post("/login", async (req, res) => {
+router.post("/login", validateBody(loginSchema), async (req, res) => {
   const body = req.body as LoginRequest;
   const token = String(body?.token ?? "");
   const uid = await accountManager.getUidByToken(token);
@@ -41,7 +48,7 @@ router.post("/login", async (req, res) => {
   } satisfies LoginResponse);
 });
 
-router.post("/syncData", async (req, res) => {
+router.post("/syncData", validateBody(syncDataSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData");
   if (!player) {
     return res.status(401).send({ status: 401, msg: "未登录（缺少 secret）" });
@@ -66,7 +73,7 @@ router.post("/syncData", async (req, res) => {
   res.type("json").send(body);
 });
 
-router.post("/syncStatus", async (req, res) => {
+router.post("/syncStatus", validateBody(syncStatusSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData");
   if (!player) {
     return res.status(401).send({ status: 401, msg: "未登录（缺少 secret）" });
@@ -80,7 +87,7 @@ router.post("/syncStatus", async (req, res) => {
   } satisfies SyncStatusResponse);
 });
 
-router.post("/syncPushMessage", async (req, res) => {
+router.post("/syncPushMessage", validateBody(syncPushMessageSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData");
   if (!player) {
     return res.status(401).send({ status: 401, msg: "未登录（缺少 secret）" });

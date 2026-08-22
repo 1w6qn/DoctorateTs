@@ -6,6 +6,13 @@
 
 import { Router } from "express";
 import httpContext from "express-http-context2";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  createPresetSchema,
+  deletePresetSchema,
+  setCurrentSchema,
+  updatePresetSchema,
+} from "../model/protocol/charRotation.schema";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import {
   CharRotationCreatePresetRequest,
@@ -26,7 +33,7 @@ const router = Router();
  * @param req.body.instId - 预设实例ID
  * @returns 玩家增量数据和推送消息
  */
-router.post("/setCurrent", async (req, res) => {
+router.post("/setCurrent", validateBody(setCurrentSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as CharRotationSetCurrentPresetRequest;
   await player.charRotation.setCurrent(body);
@@ -38,7 +45,7 @@ router.post("/setCurrent", async (req, res) => {
  * @route POST /charRotation/createPreset
  * @returns 玩家增量数据、推送消息和实例ID
  */
-router.post("/createPreset", async (req, res) => {
+router.post("/createPreset", validateBody(createPresetSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as CharRotationCreatePresetRequest;
   await player.charRotation.createPreset();
@@ -51,7 +58,7 @@ router.post("/createPreset", async (req, res) => {
  * @param req.body.instId - 预设实例ID
  * @returns 玩家增量数据和推送消息
  */
-router.post("/deletePreset", async (req, res) => {
+router.post("/deletePreset", validateBody(deletePresetSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as CharRotationDeletePresetRequest;
   await player.charRotation.deletePreset(body);
@@ -65,7 +72,7 @@ router.post("/deletePreset", async (req, res) => {
  * @param req.body.data - 更新数据
  * @returns 更新结果、玩家增量数据和推送消息
  */
-router.post("/updatePreset", async (req, res) => {
+router.post("/updatePreset", validateBody(updatePresetSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as CharRotationUpdatePresetRequest;
   await player.charRotation.updatePreset(body);

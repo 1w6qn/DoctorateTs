@@ -22,6 +22,18 @@ import {
   DeepSeaSelectChoiceRequest,
   DeepSeaUnlockTechTreeRequest,
 } from "../model/protocol/deepsea";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  activateNodeSchema,
+  activeTechTreeSchema,
+  changeTechBranchSchema,
+  completeStorySchema,
+  discoverPlaceSchema,
+  openTreasureSchema,
+  readEventSchema,
+  selectChoiceSchema,
+  unlockTechTreeSchema,
+} from "../model/protocol/deepsea.schema";
 
 const router = Router();
 
@@ -31,7 +43,7 @@ const router = Router();
  * @param req.body.branches - 分支列表
  * @returns 玩家增量数据
  */
-router.post("/branch", async (req, res) => {
+router.post("/branch", validateBody(changeTechBranchSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { branches = [] } = req.body as DeepSeaChangeTechBranchRequest;
 
@@ -58,7 +70,7 @@ router.post("/branch", async (req, res) => {
  * @route POST /deepsea/event
  * @returns 玩家增量数据
  */
-router.post("/event", async (req, res) => {
+router.post("/event", validateBody(readEventSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as DeepSeaReadEventRequest;
 
@@ -83,7 +95,7 @@ function bumpCount(key: "places" | "nodes" | "stories" | "treasures", placeId: s
  * 发现地点
  * @route POST /deepsea/place
  */
-router.post("/place", async (req, res) => {
+router.post("/place", validateBody(discoverPlaceSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { placeId } = req.body as DeepSeaDiscoverPlaceRequest;
   await bumpCount("places", placeId, player);
@@ -94,7 +106,7 @@ router.post("/place", async (req, res) => {
  * 激活节点
  * @route POST /deepsea/node
  */
-router.post("/node", async (req, res) => {
+router.post("/node", validateBody(activateNodeSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { placeId } = req.body as DeepSeaActivateNodeRequest;
   await bumpCount("nodes", placeId, player);
@@ -105,7 +117,7 @@ router.post("/node", async (req, res) => {
  * 完成剧情
  * @route POST /deepsea/story
  */
-router.post("/story", async (req, res) => {
+router.post("/story", validateBody(completeStorySchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { placeId } = req.body as DeepSeaCompleteStoryRequest;
   await bumpCount("stories", placeId, player);
@@ -116,7 +128,7 @@ router.post("/story", async (req, res) => {
  * 开启宝藏
  * @route POST /deepsea/treasure
  */
-router.post("/treasure", async (req, res) => {
+router.post("/treasure", validateBody(openTreasureSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { placeId } = req.body as DeepSeaOpenTreasureRequest;
   await bumpCount("treasures", placeId, player);
@@ -127,7 +139,7 @@ router.post("/treasure", async (req, res) => {
  * 解锁科技树节点（placeId 标识节点）
  * @route POST /deepsea/techTreeUnlock
  */
-router.post("/techTreeUnlock", async (req, res) => {
+router.post("/techTreeUnlock", validateBody(unlockTechTreeSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { placeId } = req.body as DeepSeaUnlockTechTreeRequest;
   await player.update(async (draft) => {
@@ -140,7 +152,7 @@ router.post("/techTreeUnlock", async (req, res) => {
  * 激活科技树（techTreeId 标识树）
  * @route POST /deepsea/techTreeActive
  */
-router.post("/techTreeActive", async (req, res) => {
+router.post("/techTreeActive", validateBody(activeTechTreeSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { techTreeId } = req.body as DeepSeaActiveTechTreeRequest;
   await player.update(async (draft) => {
@@ -156,7 +168,7 @@ router.post("/techTreeActive", async (req, res) => {
  * 选择分支（记录到 choices）
  * @route POST /deepsea/choice
  */
-router.post("/choice", async (req, res) => {
+router.post("/choice", validateBody(selectChoiceSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { placeId } = req.body as DeepSeaSelectChoiceRequest;
   await player.update(async (draft) => {

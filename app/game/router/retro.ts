@@ -2,6 +2,14 @@ import { Router } from "express";
 import httpContext from "express-http-context2";
 import { randomUUID } from "node:crypto";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  unlockRetroBlockSchema,
+  getRetroTrailRewardSchema,
+  getRetroPassRewardSchema,
+  competitionStartSchema,
+  competitionFinishSchema,
+} from "../model/protocol/retro.schema";
 import {
   RetroCarCompetitionFinishRequest,
   RetroCarCompetitionFinishResponse,
@@ -16,7 +24,7 @@ import {
 } from "../model/protocol/retro";
 
 const router = Router();
-router.post("/retro/unlockRetroBlock", async (req, res) => {
+router.post("/retro/unlockRetroBlock", validateBody(unlockRetroBlockSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RetroUnlockRetroBlockRequest;
   if (body.retroId == null) {
@@ -26,7 +34,7 @@ router.post("/retro/unlockRetroBlock", async (req, res) => {
   await player.retro.unlockRetroBlock(body);
   res.send(player.delta satisfies RetroUnlockRetroBlockResponse);
 });
-router.post("/retro/getRetroTrailReward", async (req, res) => {
+router.post("/retro/getRetroTrailReward", validateBody(getRetroTrailRewardSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RetroTrailRewardRequest;
   res.send({
@@ -34,14 +42,14 @@ router.post("/retro/getRetroTrailReward", async (req, res) => {
     ...player.delta,
   } satisfies RetroTrailRewardResponse);
 });
-router.post("/retro/getRetroPassReward", async (req, res) => {
+router.post("/retro/getRetroPassReward", validateBody(getRetroPassRewardSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RetroGetPassRewardRequest;
   // 修复：原实现调用两次 getRetroPassReward → 每次请求双倍发放；改为单次调用
   const items = await player.retro.getRetroPassReward(body);
   res.send({ items, ...player.delta } satisfies RetroGetPassRewardResponse);
 });
-router.post("/retro/typeAct20side/competitionStart", async (req, res) => {
+router.post("/retro/typeAct20side/competitionStart", validateBody(competitionStartSchema), async (req, res) => {
   // 参考 OBS misc_bp.retro_typeAct20side_competitionStart：战车竞速非标准战斗，
   // 不校验 body，返回 result 0 + 真实随机 battleId（客户端按 DefaultStartBattleResponse 解析）
   const player = httpContext.get<PlayerDataManager>("playerData")!;
@@ -52,7 +60,7 @@ router.post("/retro/typeAct20side/competitionStart", async (req, res) => {
     ...player.delta,
   } satisfies RetroCarCompetitionStartResponse);
 });
-router.post("/retro/typeAct20side/competitionFinish", async (req, res) => {
+router.post("/retro/typeAct20side/competitionFinish", validateBody(competitionFinishSchema), async (req, res) => {
   // 参考 OBS misc_bp.retro_typeAct20side_competitionFinish：固定评价结构
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as RetroCarCompetitionFinishRequest;

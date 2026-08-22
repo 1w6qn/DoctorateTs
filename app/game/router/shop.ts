@@ -76,6 +76,28 @@ import {
   UseVoucherSkinRequest,
   UseVoucherSkinResponse,
 } from "../model/protocol/shop";
+import {
+  buyCashGoodSchema,
+  buyClassicGoodSchema,
+  buyEPGSGoodSchema,
+  buyExtraGoodSchema,
+  buyFurniGoodSchema,
+  buyFurniGroupSchema,
+  buyGoodWithTicketSchema,
+  buyGPGoodWithTicketSchema,
+  buyHighGoodSchema,
+  buyLMTGSGoodSchema,
+  buyLowGoodSchema,
+  buyREPGoodSchema,
+  buySkinGoodSchema,
+  buySocialGoodSchema,
+  decomposeClassicPotentialItemSchema,
+  decomposePotentialItemSchema,
+  emptyRequestSchema,
+  getGoodPurchaseStateSchema,
+  useVoucherSkinSchema,
+} from "../model/protocol/shop.schema";
+import { validateBody } from "../model/protocol/validate-body";
 
 const router = Router();
 
@@ -99,7 +121,7 @@ function missingRequiredFields(
  * @param req.body - 分解参数
  * @returns 分解获得的物品和玩家增量数据
  */
-router.post("/decomposePotentialItem", async (req, res) => {
+router.post("/decomposePotentialItem", validateBody(decomposePotentialItemSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as DecomposePotentialItemRequest;
   // 缺参校验：charInstIdList 缺失时返回业务错误而非 500
@@ -119,7 +141,7 @@ router.post("/decomposePotentialItem", async (req, res) => {
  * @param req.body - 分解参数
  * @returns 分解获得的物品和玩家增量数据
  */
-router.post("/decomposeClassicPotentialItem", async (req, res) => {
+router.post("/decomposeClassicPotentialItem", validateBody(decomposeClassicPotentialItemSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as DecomposeClassicPotentialItemRequest;
   // 缺参校验：charInstIdList 缺失时返回业务错误而非 500
@@ -141,7 +163,7 @@ router.post("/decomposeClassicPotentialItem", async (req, res) => {
  * @route POST /shop/getGoodPurchaseState
  * @returns 购买状态和玩家增量数据
  */
-router.post("/getGoodPurchaseState", async (req, res) => {
+router.post("/getGoodPurchaseState", validateBody(getGoodPurchaseStateSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetGoodPurchaseStateRequest;
   // 修复：按客户端 goodIdMap 返回扁平 {goodId: 1|-1}（1=可购买/-1=已购买/限购），
@@ -182,7 +204,7 @@ router.post("/getGoodPurchaseState", async (req, res) => {
  * @route POST /shop/getLowGoodList
  * @returns 低级商店商品列表和玩家增量数据
  */
-router.post("/getLowGoodList", async (req, res) => {
+router.post("/getLowGoodList", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetLowGoodListRequest;
   // 修复：跨月刷新——玩家 LS.curShopId 停留在旧月份（迁移/未触发 monthlyRefresh）时，
@@ -202,7 +224,7 @@ router.post("/getLowGoodList", async (req, res) => {
  * @route POST /shop/getHighGoodList
  * @returns 高级商店商品列表和玩家增量数据
  */
-router.post("/getHighGoodList", async (req, res) => {
+router.post("/getHighGoodList", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetHighGoodListRequest;
   res.send({
@@ -216,7 +238,7 @@ router.post("/getHighGoodList", async (req, res) => {
  * @route POST /shop/getClassicGoodList
  * @returns 经典商店商品列表和玩家增量数据
  */
-router.post("/getClassicGoodList", async (req, res) => {
+router.post("/getClassicGoodList", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetClassicGoodListRequest;
   res.send({
@@ -230,7 +252,7 @@ router.post("/getClassicGoodList", async (req, res) => {
  * @route POST /shop/getEPGSGoodList
  * @returns 联合行动商店商品列表和玩家增量数据
  */
-router.post("/getEPGSGoodList", async (req, res) => {
+router.post("/getEPGSGoodList", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetEPGSGoodListRequest;
   res.send({
@@ -244,7 +266,7 @@ router.post("/getEPGSGoodList", async (req, res) => {
  * @route POST /shop/getLMTGSGoodList
  * @returns 限定商店商品列表和玩家增量数据
  */
-router.post("/getLMTGSGoodList", async (req, res) => {
+router.post("/getLMTGSGoodList", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetLMTGSGoodListRequest;
   // 自动生成 + 静态合并：新限定池无需手动补 LMTGSGoodList.json
@@ -273,7 +295,7 @@ router.post("/getLMTGSGoodList", async (req, res) => {
  * @route POST /shop/getExtraGoodList
  * @returns 额外商店商品列表和玩家增量数据
  */
-router.post("/getExtraGoodList", async (req, res) => {
+router.post("/getExtraGoodList", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetExtraGoodListRequest;
   // 修复：跨年刷新——玩家 ES.curShopId 停留在旧年份（如 xShdShopnumber2=2023）时，
@@ -293,7 +315,7 @@ router.post("/getExtraGoodList", async (req, res) => {
  * @route POST /shop/getREPGoodList
  * @returns 声望商店商品列表和玩家增量数据
  */
-router.post("/getREPGoodList", async (req, res) => {
+router.post("/getREPGoodList", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetREPGoodListRequest;
   res.send({
@@ -311,7 +333,7 @@ router.post("/getREPGoodList", async (req, res) => {
  * @route POST /shop/getSkinGoodList
  * @returns 皮肤商店商品列表和玩家增量数据
  */
-router.post("/getSkinGoodList", async (req, res) => {
+router.post("/getSkinGoodList", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetSkinGoodListRequest;
   const charSkins = (excel.SkinTable as any)?.charSkins ?? {};
@@ -333,7 +355,7 @@ router.post("/getSkinGoodList", async (req, res) => {
  * @route POST /shop/getCashGoodList
  * @returns 现金商店商品列表和玩家增量数据
  */
-router.post("/getCashGoodList", (req, res) => {
+router.post("/getCashGoodList", validateBody(emptyRequestSchema), (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetCashGoodListRequest;
   res.send({
@@ -347,7 +369,7 @@ router.post("/getCashGoodList", (req, res) => {
  * @route POST /shop/getGPGoodList
  * @returns 信用商店商品列表和玩家增量数据
  */
-router.post("/getGPGoodList", async (req, res) => {
+router.post("/getGPGoodList", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetGPGoodListRequest;
   res.send({
@@ -361,7 +383,7 @@ router.post("/getGPGoodList", async (req, res) => {
  * @route POST /shop/getSocialGoodList
  * @returns 社交商店商品列表和玩家增量数据
  */
-router.post("/getSocialGoodList", async (req, res) => {
+router.post("/getSocialGoodList", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetSocialGoodListRequest;
   // 修复：跨天刷新——玩家 shop.SOCIAL.curShopId 停留在旧日期（迁移/未触发 dailyRefresh）
@@ -381,7 +403,7 @@ router.post("/getSocialGoodList", async (req, res) => {
 });
 
 /** 购买信用商店商品（信用 = status.socialPoint） */
-router.post("/buySocialGood", async (req, res) => {
+router.post("/buySocialGood", validateBody(buySocialGoodSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuySocialGoodRequest;
   // 缺参校验：goodId/count 缺失时返回业务错误而非 500
@@ -410,7 +432,7 @@ router.post("/buySocialGood", async (req, res) => {
  * @route POST /shop/getFurniGoodList
  * @returns 家具商店商品列表和玩家增量数据
  */
-router.post("/getFurniGoodList", async (req, res) => {
+router.post("/getFurniGoodList", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetFurniGoodListRequest;
   res.send({
@@ -425,7 +447,7 @@ router.post("/getFurniGoodList", async (req, res) => {
  * @param req.body - 购买参数
  * @returns 购买结果和玩家增量数据
  */
-router.post("/buyLowGood", async (req, res) => {
+router.post("/buyLowGood", validateBody(buyLowGoodSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyLowGoodRequest;
   // 缺参校验：goodId/count 缺失时返回业务错误而非 500
@@ -454,7 +476,7 @@ router.post("/buyLowGood", async (req, res) => {
  * @param req.body - 购买参数
  * @returns 购买结果和玩家增量数据
  */
-router.post("/buyHighGood", async (req, res) => {
+router.post("/buyHighGood", validateBody(buyHighGoodSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyHighGoodRequest;
   // 缺参校验：goodId/count 缺失时返回业务错误而非 500
@@ -483,7 +505,7 @@ router.post("/buyHighGood", async (req, res) => {
  * @param req.body - 购买参数
  * @returns 购买结果和玩家增量数据
  */
-router.post("/buyExtraGood", async (req, res) => {
+router.post("/buyExtraGood", validateBody(buyExtraGoodSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyExtraGoodRequest;
   // 缺参校验：goodId/count 缺失时返回业务错误而非 500
@@ -514,7 +536,7 @@ router.post("/buyExtraGood", async (req, res) => {
  * @param req.body - 购买参数
  * @returns 购买结果和玩家增量数据
  */
-router.post("/buyCashGood", async (req, res) => {
+router.post("/buyCashGood", validateBody(buyCashGoodSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyCashGoodRequest;
   // 缺参校验：goodId 缺失时返回业务错误而非 500
@@ -543,7 +565,7 @@ router.post("/buyCashGood", async (req, res) => {
  * @param req.body - 购买参数
  * @returns 购买结果和玩家增量数据
  */
-router.post("/buyEPGSGood", async (req, res) => {
+router.post("/buyEPGSGood", validateBody(buyEPGSGoodSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyEPGSGoodRequest;
   // 缺参校验：goodId/count 缺失时返回业务错误而非 500
@@ -572,7 +594,7 @@ router.post("/buyEPGSGood", async (req, res) => {
  * @param req.body - 购买参数
  * @returns 购买结果和玩家增量数据
  */
-router.post("/buyREPGood", async (req, res) => {
+router.post("/buyREPGood", validateBody(buyREPGoodSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyREPGoodRequest;
   // 缺参校验：goodId/count 缺失时返回业务错误而非 500
@@ -595,7 +617,7 @@ router.post("/buyREPGood", async (req, res) => {
   }
 });
 /** 购买声望商店商品（门票版；客户端路由 /shop/buyREPGoodWithTicket，复用 buyREPGood 逻辑） */
-router.post("/buyREPGoodWithTicket", async (req, res) => {
+router.post("/buyREPGoodWithTicket", validateBody(buyREPGoodSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyREPGoodRequest;
   // 缺参校验：goodId/count 缺失时返回业务错误而非 500
@@ -624,7 +646,7 @@ router.post("/buyREPGoodWithTicket", async (req, res) => {
  * @param req.body - 购买参数
  * @returns 购买结果和玩家增量数据
  */
-router.post("/buyClassicGood", async (req, res) => {
+router.post("/buyClassicGood", validateBody(buyClassicGoodSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyClassicGoodRequest;
   // 缺参校验：goodId/count 缺失时返回业务错误而非 500
@@ -653,7 +675,7 @@ router.post("/buyClassicGood", async (req, res) => {
  * @param req.body - 购买参数
  * @returns 购买结果和玩家增量数据
  */
-router.post("/buyLMTGSGood", async (req, res) => {
+router.post("/buyLMTGSGood", validateBody(buyLMTGSGoodSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyLMTGSGoodRequest;
   try {
@@ -678,7 +700,7 @@ router.post("/buyLMTGSGood", async (req, res) => {
  * @returns 购买结果和玩家增量数据
  */
 /** 购买家具组（客户端 body: {groupId, goods: [{id,count}]}——整组购买） */
-router.post("/buyFurniGroup", async (req, res) => {
+router.post("/buyFurniGroup", validateBody(buyFurniGroupSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyFurniGroupRequest;
   try {
@@ -696,7 +718,7 @@ router.post("/buyFurniGroup", async (req, res) => {
   }
 });
 
-router.post("/buyFurniGood", async (req, res) => {
+router.post("/buyFurniGood", validateBody(buyFurniGoodSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyFurniGoodRequest;
   try {
@@ -720,7 +742,7 @@ router.post("/buyFurniGood", async (req, res) => {
  * @param req.body - 购买参数
  * @returns 玩家增量数据
  */
-router.post("/buySkinGood", async (req, res) => {
+router.post("/buySkinGood", validateBody(buySkinGoodSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuySkinGoodRequest;
   // 缺参校验：goodId 缺失时返回业务错误而非 500
@@ -751,7 +773,7 @@ router.post("/buySkinGood", async (req, res) => {
  * @param req.body.goodId - 商品ID
  * @returns 购买结果（含获得的物品列表）和玩家增量数据
  */
-router.post("/buyGoodWithTicket", async (req, res) => {
+router.post("/buyGoodWithTicket", validateBody(buyGoodWithTicketSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyGoodWithTicketRequest;
   // 缺参校验：goodId/ticketId 缺失时返回业务错误而非 500
@@ -790,7 +812,7 @@ router.post("/buyGoodWithTicket", async (req, res) => {
  * @route POST /shop/getCashGoodPurchaseResult
  * @returns 购买结果和玩家增量数据
  */
-router.post("/getCashGoodPurchaseResult", async (req, res) => {
+router.post("/getCashGoodPurchaseResult", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetCashGoodPurchaseResultRequest;
   res.send({
@@ -807,7 +829,7 @@ router.post("/getCashGoodPurchaseResult", async (req, res) => {
  * @route POST /shop/getVoucherSkinGoodList
  * @returns 凭证皮肤商品列表和玩家增量数据
  */
-router.post("/getVoucherSkinGoodList", async (req, res) => {
+router.post("/getVoucherSkinGoodList", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as GetVoucherSkinGoodListRequest;
   res.send({
@@ -824,7 +846,7 @@ router.post("/getVoucherSkinGoodList", async (req, res) => {
  * @param req.body.goodId - 商品ID
  * @returns 玩家增量数据
  */
-router.post("/useVoucherSkin", async (req, res) => {
+router.post("/useVoucherSkin", validateBody(useVoucherSkinSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as UseVoucherSkinRequest;
   // 缺参校验：goodId 缺失时返回业务错误而非 500
@@ -852,7 +874,7 @@ router.post("/useVoucherSkin", async (req, res) => {
  * @route POST /shop/checkForbidden
  * @returns 禁止状态和玩家增量数据
  */
-router.post("/checkForbidden", async (req, res) => {
+router.post("/checkForbidden", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as CheckForbiddenRequest;
   res.send({
@@ -865,7 +887,7 @@ router.post("/checkForbidden", async (req, res) => {
  * 用票券购买 GP 商品（CS: ShopDetailGPState——/shop/buyGPGoodWithTicket）
  * 私服返回空增量（GP 票券购买暂不核销）
  */
-router.post("/buyGPGoodWithTicket", async (req, res) => {
+router.post("/buyGPGoodWithTicket", validateBody(buyGPGoodWithTicketSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as { goodsId?: string };
   res.send(player.delta);

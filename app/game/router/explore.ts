@@ -9,6 +9,17 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  confirmMissionListSchema,
+  confirmMissionSchema,
+  confirmPassTargetSchema,
+  giveUpGameSchema,
+  selectEventChoiceSchema,
+  selectInitGroupSchema,
+  selectTargetChoiceSchema,
+  settleGameSchema,
+} from "../model/protocol/explore.schema";
 
 const router = Router();
 
@@ -23,7 +34,7 @@ function ensureOuter(draft: any): any {
 }
 
 /** 领取单个探索任务奖励（CS: ExploreClaimSingleMissionRequest { id }） */
-router.post("/confirmMission", async (req, res) => {
+router.post("/confirmMission", validateBody(confirmMissionSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { id } = req.body as { id: string };
   await player.update(async (draft) => {
@@ -35,7 +46,7 @@ router.post("/confirmMission", async (req, res) => {
 });
 
 /** 批量领取探索任务奖励（CS: ExploreClaimAllMissionRequest { idList }） */
-router.post("/confirmMissionList", async (req, res) => {
+router.post("/confirmMissionList", validateBody(confirmMissionListSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { idList = [] } = req.body as { idList?: string[] };
   await player.update(async (draft) => {
@@ -47,7 +58,7 @@ router.post("/confirmMissionList", async (req, res) => {
 });
 
 /** 选择初始探索组（CS: ExploreSelectInitGroupRequest { groupId, heritage }） */
-router.post("/selectInitGroup", async (req, res) => {
+router.post("/selectInitGroup", validateBody(selectInitGroupSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { groupId } = req.body as { groupId: string; heritage?: boolean };
   await player.update(async (draft) => {
@@ -70,7 +81,7 @@ router.post("/selectEventChoice", async (req, res) => {
 });
 
 /** 目标选项选择（CS: ExploreSelectTargetOptionRequest { index }） */
-router.post("/selectTargetChoice", async (req, res) => {
+router.post("/selectTargetChoice", validateBody(selectTargetChoiceSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { index } = req.body as { index: number };
   await player.update(async (draft) => {
@@ -94,7 +105,7 @@ router.post("/confirmPassTarget", async (req, res) => {
 });
 
 /** 放弃探索（CS: ExploreGiveUpGameRequest） */
-router.post("/giveUpGame", async (req, res) => {
+router.post("/giveUpGame", validateBody(giveUpGameSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as Record<string, unknown>;
   await player.update(async (draft) => {
@@ -106,7 +117,7 @@ router.post("/giveUpGame", async (req, res) => {
 });
 
 /** 探索结算（CS: ExploreSettleGameRequest） */
-router.post("/settleGame", async (req, res) => {
+router.post("/settleGame", validateBody(settleGameSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as Record<string, unknown>;
   await player.update(async (draft) => {

@@ -9,6 +9,21 @@ import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { GACHA_RULE_TYPE } from "../model/gacha";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  syncNormalGachaSchema,
+  finishNormalGachaSchema,
+  normalGachaSchema,
+  boostNormalGachaSchema,
+  cancelNormalGachaSchema,
+  buyRecruitSlotSchema,
+  refreshTagsSchema,
+  getPoolDetailSchema,
+  advancedGachaSchema,
+  tenAdvancedGachaSchema,
+  choosePoolUpSchema,
+  getFreeCharSchema,
+} from "../model/protocol/gacha.schema";
 import excel from "@excel/excel";
 import {
   AdvancedGachaRequest,
@@ -44,7 +59,7 @@ const router = Router();
  * @route POST /gacha/syncNormalGacha
  * @returns 玩家增量数据
  */
-router.post("/syncNormalGacha", async (req, res) => {
+router.post("/syncNormalGacha", validateBody(syncNormalGachaSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as SyncNormalGachaRequest;
   await player.recruit.sync();
@@ -57,7 +72,7 @@ router.post("/syncNormalGacha", async (req, res) => {
  * @param req.body - 招募参数
  * @returns 招募结果和玩家增量数据
  */
-router.post("/finishNormalGacha", async (req, res) => {
+router.post("/finishNormalGacha", validateBody(finishNormalGachaSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as FinishNormalGachaRequest;
   res.send({
@@ -74,7 +89,7 @@ router.post("/finishNormalGacha", async (req, res) => {
  * @param req.body - 招募参数
  * @returns 招募结果和玩家增量数据
  */
-router.post("/normalGacha", async (req, res) => {
+router.post("/normalGacha", validateBody(normalGachaSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as NormalGachaRequest;
   // 修复：缺 slotId/tagList/duration 必填参数时返回业务错误，而非 500
@@ -96,7 +111,7 @@ router.post("/normalGacha", async (req, res) => {
  * @param req.body - 加速参数
  * @returns 加速结果和玩家增量数据
  */
-router.post("/boostNormalGacha", async (req, res) => {
+router.post("/boostNormalGacha", validateBody(boostNormalGachaSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BoostNormalGachaRequest;
   await player.recruit.boost(body);
@@ -112,7 +127,7 @@ router.post("/boostNormalGacha", async (req, res) => {
  * @param req.body - 取消参数
  * @returns 玩家增量数据
  */
-router.post("/cancelNormalGacha", async (req, res) => {
+router.post("/cancelNormalGacha", validateBody(cancelNormalGachaSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as CancelNormalGachaRequest;
   await player.recruit.cancel(body);
@@ -129,7 +144,7 @@ router.post("/cancelNormalGacha", async (req, res) => {
  * @param req.body - 购买参数
  * @returns 玩家增量数据
  */
-router.post("/buyRecruitSlot", async (req, res) => {
+router.post("/buyRecruitSlot", validateBody(buyRecruitSlotSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as BuyRecruitSlotRequest;
   await player.recruit.buyRecruitSlot(body);
@@ -142,7 +157,7 @@ router.post("/buyRecruitSlot", async (req, res) => {
  * @param req.body - 刷新参数
  * @returns 玩家增量数据
  */
-router.post("/refreshTags", async (req, res) => {
+router.post("/refreshTags", validateBody(refreshTagsSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RefreshTagsGachaRequest;
   await player.recruit.refreshTags(body);
@@ -155,7 +170,7 @@ router.post("/refreshTags", async (req, res) => {
  * @param req.body - 抽卡池参数
  * @returns 抽卡池详情和玩家增量数据
  */
-router.post("/getPoolDetail", async (req, res) => {
+router.post("/getPoolDetail", validateBody(getPoolDetailSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetDetailGachaRequest;
   res.send({
@@ -171,7 +186,7 @@ router.post("/getPoolDetail", async (req, res) => {
  * @param req.body - 抽卡参数
  * @returns 抽卡结果和玩家增量数据
  */
-router.post("/advancedGacha", async (req, res) => {
+router.post("/advancedGacha", validateBody(advancedGachaSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as AdvancedGachaRequest;
   res.send({
@@ -187,7 +202,7 @@ router.post("/advancedGacha", async (req, res) => {
  * @param req.body - 抽卡参数
  * @returns 十连抽卡结果列表和玩家增量数据
  */
-router.post("/tenAdvancedGacha", async (req, res) => {
+router.post("/tenAdvancedGacha", validateBody(tenAdvancedGachaSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as TenAdvancedGachaRequest;
   res.send({
@@ -203,7 +218,7 @@ router.post("/tenAdvancedGacha", async (req, res) => {
  * @param req.body - { poolId, chooseChar }
  * @returns result 和玩家增量数据
  */
-router.post("/choosePoolUp", async (req, res) => {
+router.post("/choosePoolUp", validateBody(choosePoolUpSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ChoosePoolUpRequest;
   const { poolId, chooseChar } = body;
@@ -226,7 +241,7 @@ router.post("/choosePoolUp", async (req, res) => {
  * @param req.body - 抽卡参数
  * @returns result 和玩家增量数据
  */
-router.post("/getFreeChar", async (req, res) => {
+router.post("/getFreeChar", validateBody(getFreeCharSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as GetFreeCharRequest;
   // 参考 OBS bp_gacha.gacha_getFreeChar（空操作），仅返回 result

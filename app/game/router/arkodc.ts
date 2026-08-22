@@ -16,6 +16,14 @@ import { decryptBattleData } from "@utils/crypt";
 import { now } from "@utils/time";
 import { PlayerDeltaResponse } from "../model/protocol/common";
 import { activityDictKey } from "../manager/activity/unlockActivity";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  arkOdcBattleFinishSchema,
+  arkOdcBattleStartSchema,
+  arkOdcRestartSchema,
+  arkOdcSavePositionSchema,
+  arkOdcTriggerActionSchema,
+} from "../model/protocol/arkodc.schema";
 
 const router = Router();
 
@@ -179,7 +187,7 @@ export interface ArkOdcRestartRequest {
 export type ArkOdcRestartResponse = PlayerDeltaResponse;
 
 /** ODC 开始战斗（CS: ArkOdcBattleStartRequest；参考 OBS 固定 battleId stub） */
-router.post("/battleStart", async (req, res) => {
+router.post("/battleStart", validateBody(arkOdcBattleStartSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ArkOdcBattleStartRequest;
   // 参考 ODPY：记录 topic 供 battleFinish 使用
@@ -200,7 +208,7 @@ router.post("/battleStart", async (req, res) => {
  * 解密战斗数据判定是否完成（q001_logic_after_bat_p1 需非中断/非放弃；
  * 其余按 completeState 2/3 为完成）——完成后按 actorData.actorShowCondition 推进 varSeqs
  */
-router.post("/battleFinish", async (req, res) => {
+router.post("/battleFinish", validateBody(arkOdcBattleFinishSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ArkOdcBattleFinishRequest;
   const { operationId, actorId } = body;
@@ -304,7 +312,7 @@ function isInvalidTopicId(topicId: string | undefined | null): boolean {
  * 参考 ODPY arkodc.triggerInteraction：awardId 存在且无 avgId 时标记
  * topics[topicId].rewards[awardId]=1；奖励返回空（参考 OBS）
  */
-router.post("/triggerInteraction", async (req, res) => {
+router.post("/triggerInteraction", validateBody(arkOdcTriggerActionSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ArkOdcTriggerActionRequest;
   const { topicId, awardId, avgId, actorId } = body;
@@ -430,7 +438,7 @@ router.post("/triggerInteraction", async (req, res) => {
  * ODC 重启任务（CS: ArkOdcTaskRestartRequest；参考 ODPY arkodcRestart）
  * 重置主题 varSeqs（deleted delta 下发被删 key 列表）+ position 置空
  */
-router.post("/restart", async (req, res) => {
+router.post("/restart", validateBody(arkOdcRestartSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as ArkOdcRestartRequest;
   // 修复：缺失 topicId 时返回业务错误而非写入 topics["undefined"]

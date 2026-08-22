@@ -15,6 +15,16 @@ import {
   VecBreakV2SetDefendResponse,
   VecBreakV2StartBattleResponse,
 } from "../model/protocol/vecbreak";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  battleFinishSchema,
+  battleStartSchema,
+  changeBuffListSchema,
+  defendBattleFinishSchema,
+  defendBattleStartSchema,
+  getSeasonRecordSchema,
+  setDefendSchema,
+} from "../model/protocol/vecbreak.schema";
 
 const router = Router();
 
@@ -74,7 +84,7 @@ router.post("/vecBreakV2/getSeasonRecord", async (req, res) => {
   } satisfies VecBreakV2SeasonRecordResponse);
 });
 
-router.post("/vecBreakV2/changeBuffList", async (req, res) => {
+router.post("/vecBreakV2/changeBuffList", validateBody(changeBuffListSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as VecBreakV2ChangeBuffRequest;
   if (!body.activityId) return res.send({ result: 1, ...player.delta });
@@ -86,7 +96,7 @@ router.post("/vecBreakV2/changeBuffList", async (req, res) => {
   res.send(player.delta satisfies VecBreakV2ChangeBuffResponse);
 });
 
-router.post("/vecBreakV2/defendBattleStart", async (req, res) => {
+router.post("/vecBreakV2/defendBattleStart", validateBody(defendBattleStartSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as VecBreakV2DefenseStartBattleRequest;
   // 参考 ODPY：记录战斗上下文并复用标准战斗开始
@@ -107,7 +117,7 @@ router.post("/vecBreakV2/defendBattleStart", async (req, res) => {
   } satisfies VecBreakV2StartBattleResponse);
 });
 
-router.post("/vecBreakV2/defendBattleFinish", async (req, res) => {
+router.post("/vecBreakV2/defendBattleFinish", validateBody(defendBattleFinishSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as VecBreakV2FinishBattleRequest;
   // 参考 ODPY：通关后写入 defendStages + activatedBuff 追加 stageId
@@ -164,7 +174,7 @@ router.post("/vecBreakV2/setDefend", async (req, res) => {
   res.send(player.delta satisfies VecBreakV2SetDefendResponse);
 });
 
-router.post("/vecBreakV2/battleStart", async (req, res) => {
+router.post("/vecBreakV2/battleStart", validateBody(battleStartSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as VecBreakV2OffenseStartBattleRequest;
 
@@ -175,7 +185,7 @@ router.post("/vecBreakV2/battleStart", async (req, res) => {
   } satisfies VecBreakV2StartBattleResponse);
 });
 
-router.post("/vecBreakV2/battleFinish", async (req, res) => {
+router.post("/vecBreakV2/battleFinish", validateBody(battleFinishSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as VecBreakV2FinishBattleRequest;
   // 与驻防结算同形状（result/msBefore/msAfter/finTs）

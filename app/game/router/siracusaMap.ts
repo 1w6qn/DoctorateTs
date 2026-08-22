@@ -9,6 +9,15 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  avgItemCardGainSchema,
+  avgOptionSelectSchema,
+  avgTaskFinishSchema,
+  cardSelectSchema,
+  operaCommentLikeSchema,
+  taskRingGainRewardSchema,
+} from "../model/protocol/siracusaMap.schema";
 
 const router = Router();
 
@@ -20,7 +29,7 @@ function markArea(player: PlayerDataManager, key: string, value: number): Promis
 }
 
 /** 干员卡选择（CS: SiracusaMapCharCardSelectRequest { groupId, cardId }） */
-router.post("/cardSelect", async (req, res) => {
+router.post("/cardSelect", validateBody(cardSelectSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { cardId } = req.body as { groupId?: string; cardId: string };
   await player.update(async (draft) => {
@@ -30,7 +39,7 @@ router.post("/cardSelect", async (req, res) => {
 });
 
 /** 剧情选项选择（CS: SiracusaMapAvgOptionSelectRequest { groupId, taskId, optionId }） */
-router.post("/avgOptionSelect", async (req, res) => {
+router.post("/avgOptionSelect", validateBody(avgOptionSelectSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { optionId } = req.body as { groupId?: string; taskId?: string; optionId: string };
   await markArea(player, optionId, 1);
@@ -38,7 +47,7 @@ router.post("/avgOptionSelect", async (req, res) => {
 });
 
 /** 剧情任务完成（CS: SiracusaMapAvgTaskFinishRequest { groupId, taskId }） */
-router.post("/avgTaskFinish", async (req, res) => {
+router.post("/avgTaskFinish", validateBody(avgTaskFinishSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { taskId } = req.body as { groupId?: string; taskId: string };
   await markArea(player, taskId, 2);
@@ -46,7 +55,7 @@ router.post("/avgTaskFinish", async (req, res) => {
 });
 
 /** 道具卡获得（CS: SiracusaMapAvgItemCardGainRequest { groupId, taskId, itemCardId }） */
-router.post("/avgItemCardGain", async (req, res) => {
+router.post("/avgItemCardGain", validateBody(avgItemCardGainSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { itemCardId } = req.body as { groupId?: string; taskId?: string; itemCardId: string };
   await player.update(async (draft) => {
@@ -56,7 +65,7 @@ router.post("/avgItemCardGain", async (req, res) => {
 });
 
 /** 歌剧评论点赞（CS: SiracusaMapOperaCommentLikeRequest { groupId, operaId, commentId }） */
-router.post("/operaCommentLike", async (req, res) => {
+router.post("/operaCommentLike", validateBody(operaCommentLikeSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { commentId } = req.body as { groupId?: string; operaId?: string; commentId: string };
   await markArea(player, commentId, 1);
@@ -64,7 +73,7 @@ router.post("/operaCommentLike", async (req, res) => {
 });
 
 /** 任务环奖励领取（CS: SiracusaTaskRingGainRewardRequest { groupId, taskRingId }） */
-router.post("/taskRingGainReward", async (req, res) => {
+router.post("/taskRingGainReward", validateBody(taskRingGainRewardSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { taskRingId } = req.body as { groupId?: string; taskRingId: string };
   await markArea(player, taskRingId, 1);

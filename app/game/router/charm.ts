@@ -8,6 +8,8 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { validateBody } from "../model/protocol/validate-body";
+import { setSquadSchema } from "../model/protocol/charm.schema";
 import { CharmSetSquadRequest, CharmSetSquadResponse } from "../model/protocol/charm";
 
 const router = Router();
@@ -18,7 +20,7 @@ const router = Router();
  * @param req.body.squad - 编队数据
  * @returns 玩家增量数据
  */
-router.post("/setSquad", async (req, res) => {
+router.post("/setSquad", validateBody(setSquadSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { squad } = req.body as CharmSetSquadRequest;
 

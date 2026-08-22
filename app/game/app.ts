@@ -15,6 +15,7 @@ import config from "../config";
 import { routes } from "./routes";
 import { createAuthStrategy, type AuthStrategy } from "./auth-strategy";
 import { reqresLogMiddleware } from "./reqres-log";
+import { responseSchemaMiddleware } from "./resp-schema";
 
 /** Express 应用实例 */
 const app = express();
@@ -78,6 +79,9 @@ export const authMiddleware: express.RequestHandler = async (req, res, next) => 
 };
 
 app.use(authMiddleware);
+
+/** 全局响应骨架校验（可开关，失败仅告警不阻断；靠后挂载以覆盖各业务路由，见 resp-schema.ts） */
+app.use(responseSchemaMiddleware);
 
 /** 每账号请求互斥：同一 uid 的请求串行执行（防止并发 update() 丢变更） */
 app.use(async (req, res, next) => {

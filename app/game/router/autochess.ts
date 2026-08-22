@@ -43,11 +43,13 @@ import {
   AutoChessTrainingBattleStartRequest,
   AutoChessTrainingBattleStartResponse,
 } from "../model/protocol/autochess";
+import { emptyRequestSchema } from "../model/protocol/autochess.schema";
+import { validateBody } from "../model/protocol/validate-body";
 
 const router = Router();
 
 /** 同步赛季信息（CS: ActAutoChessSyncInfoRequest） */
-router.post("/autochessSeason/syncInfo", async (req, res) => {
+router.post("/autochessSeason/syncInfo", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as ActAutoChessSyncInfoRequest;
 
@@ -58,7 +60,7 @@ router.post("/autochessSeason/syncInfo", async (req, res) => {
 });
 
 /** 设置棋子池部署（CS: AutoChessSetChessPoolDeployRequest） */
-router.post("/autochessSeason/setChessPoolDeploy", async (req, res) => {
+router.post("/autochessSeason/setChessPoolDeploy", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as AutoChessSetChessPoolDeployRequest;
 
@@ -66,7 +68,7 @@ router.post("/autochessSeason/setChessPoolDeploy", async (req, res) => {
 });
 
 /** 完成引导战斗（CS: AutoChessTrainingBattleFinishRequest） */
-router.post("/autochessSeason/finishGuideBattle", async (req, res) => {
+router.post("/autochessSeason/finishGuideBattle", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as AutoChessTrainingBattleFinishRequest;
 
@@ -74,7 +76,7 @@ router.post("/autochessSeason/finishGuideBattle", async (req, res) => {
 });
 
 /** 获取好友助战列表（CS: AutoChessGetFriendAssistListRequest） */
-router.post("/autochessSeason/getFriendCharAssistList", async (req, res) => {
+router.post("/autochessSeason/getFriendCharAssistList", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as AutoChessGetFriendAssistListRequest;
 
@@ -85,7 +87,7 @@ router.post("/autochessSeason/getFriendCharAssistList", async (req, res) => {
 });
 
 /** 加入队伍（CS: AutoChessJoinTeamRequest） */
-router.post("/autochessSeason/joinTeam", async (req, res) => {
+router.post("/autochessSeason/joinTeam", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as AutoChessJoinTeamRequest;
 
@@ -93,7 +95,7 @@ router.post("/autochessSeason/joinTeam", async (req, res) => {
 });
 
 /** 多人战斗结束（CS: AutoChessMultiBattleFinishRequest） */
-router.post("/autochessSeason/multiBattleFinish", async (req, res) => {
+router.post("/autochessSeason/multiBattleFinish", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as AutoChessMultiBattleFinishRequest;
 
@@ -101,7 +103,7 @@ router.post("/autochessSeason/multiBattleFinish", async (req, res) => {
 });
 
 /** 多人战斗开始（CS: AutoChessMultiBattleStartRequest） */
-router.post("/autochessSeason/multiBattleStart", async (req, res) => {
+router.post("/autochessSeason/multiBattleStart", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as AutoChessMultiBattleStartRequest;
 
@@ -113,7 +115,7 @@ router.post("/autochessSeason/multiBattleStart", async (req, res) => {
 });
 
 /** 查询匹配（CS: AutoChessQueryMatchRequest） */
-router.post("/autochessSeason/queryMatch", async (req, res) => {
+router.post("/autochessSeason/queryMatch", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as AutoChessQueryMatchRequest;
 
@@ -125,7 +127,7 @@ router.post("/autochessSeason/queryMatch", async (req, res) => {
 });
 
 /** 退出单机游戏（CS: AutoChessQuitSingleGameRequest） */
-router.post("/autochessSeason/quitSingleGame", async (req, res) => {
+router.post("/autochessSeason/quitSingleGame", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as AutoChessQuitSingleGameRequest;
 
@@ -133,7 +135,7 @@ router.post("/autochessSeason/quitSingleGame", async (req, res) => {
 });
 
 /** 移除棋子池角色（CS: AutoChessRemoveChessPoolCharRequest） */
-router.post("/autochessSeason/removeChessPoolChar", async (req, res) => {
+router.post("/autochessSeason/removeChessPoolChar", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as AutoChessRemoveChessPoolCharRequest;
 
@@ -141,7 +143,7 @@ router.post("/autochessSeason/removeChessPoolChar", async (req, res) => {
 });
 
 /** 上报战斗结果（服务端自定义） */
-router.post("/autochessSeason/report", async (req, res) => {
+router.post("/autochessSeason/report", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as AutoChessReportRequest;
 
@@ -149,7 +151,7 @@ router.post("/autochessSeason/report", async (req, res) => {
 });
 
 /** 设置棋子池助战（CS: AutoChessSetFriendAssistRequest） */
-router.post("/autochessSeason/setChessPoolAssist", async (req, res) => {
+router.post("/autochessSeason/setChessPoolAssist", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as AutoChessSetFriendAssistRequest;
 
@@ -157,7 +159,7 @@ router.post("/autochessSeason/setChessPoolAssist", async (req, res) => {
 });
 
 /** 设置棋子池自定角色（CS: AutoChessSetChessPoolDiyCharRequest） */
-router.post("/autochessSeason/setChessPoolDiyChar", async (req, res) => {
+router.post("/autochessSeason/setChessPoolDiyChar", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as AutoChessSetChessPoolDiyCharRequest;
 
@@ -165,7 +167,7 @@ router.post("/autochessSeason/setChessPoolDiyChar", async (req, res) => {
 });
 
 /** 结算游戏（CS: AutoChessSettleGameRequest） */
-router.post("/autochessSeason/settleGame", async (req, res) => {
+router.post("/autochessSeason/settleGame", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as AutoChessSettleGameRequest;
 
@@ -176,7 +178,7 @@ router.post("/autochessSeason/settleGame", async (req, res) => {
 });
 
 /** 点赞结算（CS: AutoChessSettleLikeRequest） */
-router.post("/autochessSeason/settleLike", async (req, res) => {
+router.post("/autochessSeason/settleLike", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as AutoChessSettleLikeRequest;
 
@@ -184,7 +186,7 @@ router.post("/autochessSeason/settleLike", async (req, res) => {
 });
 
 /** 开始匹配（CS: AutoChessStartMatchRequest） */
-router.post("/autochessSeason/startMatch", async (req, res) => {
+router.post("/autochessSeason/startMatch", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as AutoChessStartMatchRequest;
 
@@ -192,7 +194,7 @@ router.post("/autochessSeason/startMatch", async (req, res) => {
 });
 
 /** 创建队伍（CS: AutoChessCreateTeamRequest） */
-router.post("/autochessSeason/createTeam", async (req, res) => {
+router.post("/autochessSeason/createTeam", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as AutoChessCreateTeamRequest;
 
@@ -203,7 +205,7 @@ router.post("/autochessSeason/createTeam", async (req, res) => {
 });
 
 /** 开始引导战斗（CS: AutoChessTrainingBattleStartRequest） */
-router.post("/autochessSeason/startGuideBattle", async (req, res) => {
+router.post("/autochessSeason/startGuideBattle", validateBody(emptyRequestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as AutoChessTrainingBattleStartRequest;
 
@@ -216,7 +218,7 @@ router.post("/autochessSeason/startGuideBattle", async (req, res) => {
 
 /** 自走棋赛季信息（客户端路由 /autoChess/act1autochess|act2autochess；stub 返回空增量） */
 for (const autoChessSeason of ["act1autochess", "act2autochess"]) {
-  router.post(`/${autoChessSeason}`, async (req, res) => {
+  router.post(`/${autoChessSeason}`, validateBody(emptyRequestSchema), async (req, res) => {
     const player = httpContext.get<PlayerDataManager>("playerData")!;
     res.send(player.delta satisfies { playerDataDelta: unknown });
   });

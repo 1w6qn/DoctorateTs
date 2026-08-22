@@ -7,6 +7,29 @@
 
 import { Router } from "express";
 import httpContext from "express-http-context2";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  crisisBuyGoodsSchema,
+  crisisChallengeRewardAllSchema,
+  crisisChallengeRewardPointSchema,
+  crisisChallengeRewardTaskSchema,
+  crisisGetAllItemsSchema,
+  crisisGetGoodListSchema,
+  crisisGetInfoSchema,
+  crisisUnlockMapRankSchema,
+  crisisUnlockRuneSchema,
+  crisisV1BattleFinishSchema,
+  crisisV1BattleStartSchema,
+  crisisV2BattleFinishSchema,
+  crisisV2BattleStartSchema,
+  crisisV2BuyGoodSchema,
+  crisisV2ConfirmMissionsSchema,
+  crisisV2GetGoodListSchema,
+  crisisV2GetInfoSchema,
+  crisisV2GetSnapshotSchema,
+  recalRuneBattleFinishSchema,
+  recalRuneBattleStartSchema,
+} from "../model/protocol/crisis.schema";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { now } from "@utils/time";
 import { readJson } from "@utils/file";
@@ -505,13 +528,13 @@ async function handleCrisisGetInfo(_req: any, res: any) {
 }
 
 /** 危机合约信息（服务端既有路径 /getCrisisInfo） */
-router.post("/getCrisisInfo", async (req, res) => {
+router.post("/getCrisisInfo", validateBody(crisisGetInfoSchema), async (req, res) => {
   req.body as CrisisGetInfoRequest;
   await handleCrisisGetInfo(req, res);
 });
 
 /** 危机合约信息（客户端实际调用 /crisis/getInfo） */
-router.post("/getInfo", async (req, res) => {
+router.post("/getInfo", validateBody(crisisGetInfoSchema), async (req, res) => {
   req.body as CrisisGetInfoRequest;
   await handleCrisisGetInfo(req, res);
 });
@@ -523,7 +546,7 @@ router.post("/getInfo", async (req, res) => {
  * @param req.body.rune - 符文列表
  * @returns 战斗ID和玩家增量数据
  */
-router.post("/battleStart", async (req, res) => {
+router.post("/battleStart", validateBody(crisisV1BattleStartSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { stageId, rune: runeList } = req.body as CrisisV1BattleStartRequest;
 
@@ -569,7 +592,7 @@ router.post("/battleStart", async (req, res) => {
  * @route POST /crisis/battleFinish
  * @returns 战斗结果、分数和玩家增量数据
  */
-router.post("/battleFinish", async (req, res) => {
+router.post("/battleFinish", validateBody(crisisV1BattleFinishSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as CrisisV1BattleFinishRequest;
 
@@ -598,7 +621,7 @@ router.post("/battleFinish", async (req, res) => {
  * @route POST /crisis/getGoodList
  * @returns 商品列表和玩家增量数据
  */
-router.post("/getGoodList", async (req, res) => {
+router.post("/getGoodList", validateBody(crisisGetGoodListSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as CrisisGetGoodListRequest;
 
@@ -623,7 +646,7 @@ router.post("/getGoodList", async (req, res) => {
  * 简化实现：更新商店购买记录，扣除危机合约硬币。
  * 实际物品奖励需要完整的商品定义表，此处仅更新购买计数。
  */
-router.post("/buyGoods", async (req, res) => {
+router.post("/buyGoods", validateBody(crisisBuyGoodsSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { goodId, count } = req.body as CrisisBuyGoodsRequest;
 
@@ -654,7 +677,7 @@ router.post("/buyGoods", async (req, res) => {
  *
  * 简化实现：标记任务奖励为已领取。
  */
-router.post("/challengeRewardTask", async (req, res) => {
+router.post("/challengeRewardTask", validateBody(crisisChallengeRewardTaskSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { seasonId, taskId } = req.body as CrisisChallengeRewardTaskRequest;
 
@@ -680,7 +703,7 @@ router.post("/challengeRewardTask", async (req, res) => {
  *
  * 简化实现：标记积分奖励为已领取。
  */
-router.post("/challengeRewardPoint", async (req, res) => {
+router.post("/challengeRewardPoint", validateBody(crisisChallengeRewardPointSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { seasonId, pointId } = req.body as CrisisChallengeRewardPointRequest;
 
@@ -734,7 +757,7 @@ router.post("/challengeRewardAll", async (req, res) => {
  * @route POST /crisis/getAllItems
  * @returns 商店信息和玩家增量数据
  */
-router.post("/getAllItems", async (req, res) => {
+router.post("/getAllItems", validateBody(crisisGetAllItemsSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as CrisisGetAllItemsRequest;
 
@@ -756,7 +779,7 @@ router.post("/getAllItems", async (req, res) => {
  *
  * 简化实现：更新玩家危机合约地图数据，标记地图排名已解锁。
  */
-router.post("/unlockMapRank", async (req, res) => {
+router.post("/unlockMapRank", validateBody(crisisUnlockMapRankSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { mapId } = req.body as CrisisUnlockMapRankRequest;
 
@@ -782,7 +805,7 @@ router.post("/unlockMapRank", async (req, res) => {
  *
  * 简化实现：在玩家赛季数据中标记符文为已解锁。
  */
-router.post("/unlockRune", async (req, res) => {
+router.post("/unlockRune", validateBody(crisisUnlockRuneSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { seasonId, runeId } = req.body as CrisisUnlockRuneRequest;
 
@@ -803,7 +826,7 @@ router.post("/unlockRune", async (req, res) => {
  * @route POST /crisis/v2/getInfo
  * @returns 危机合约V2信息和玩家增量数据
  */
-router.post("/v2/getInfo", async (req, res) => {
+router.post("/v2/getInfo", validateBody(crisisV2GetInfoSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as CrisisV2GetInfoRequest;
 
@@ -831,7 +854,7 @@ router.post("/v2/getInfo", async (req, res) => {
  * @param req.body.runeSlots - 符文槽位
  * @returns 战斗ID和玩家增量数据
  */
-router.post("/v2/battleStart", async (req, res) => {
+router.post("/v2/battleStart", validateBody(crisisV2BattleStartSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { mapId, runeSlots } = req.body as CrisisV2BattleStartRequest;
 
@@ -856,7 +879,7 @@ router.post("/v2/battleStart", async (req, res) => {
  * @route POST /crisis/v2/battleFinish
  * @returns 战斗结果、分数和玩家增量数据
  */
-router.post("/v2/battleFinish", async (req, res) => {
+router.post("/v2/battleFinish", validateBody(crisisV2BattleFinishSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as CrisisV2BattleFinishRequest;
 
@@ -901,7 +924,7 @@ router.post("/v2/battleFinish", async (req, res) => {
  * @route POST /crisis/v2/getSnapshot
  * @returns 快照详情和玩家增量数据
  */
-router.post("/v2/getSnapshot", async (req, res) => {
+router.post("/v2/getSnapshot", validateBody(crisisV2GetSnapshotSchema), async (req, res) => {
   req.body as CrisisV2GetSnapshotRequest;
 
   res.send({
@@ -919,7 +942,7 @@ router.post("/v2/getSnapshot", async (req, res) => {
  * @route POST /crisis/v2/getGoodList
  * @returns 商品列表和玩家增量数据
  */
-router.post("/v2/getGoodList", async (req, res) => {
+router.post("/v2/getGoodList", validateBody(crisisV2GetGoodListSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as CrisisV2GetGoodListRequest;
 
@@ -963,7 +986,7 @@ router.post("/v2/confirmMissions", async (req, res) => {
  * 简化实现：更新商店购买记录。
  * 实际物品奖励需要完整的商品定义表，此处仅更新购买计数。
  */
-router.post("/v2/buyGood", async (req, res) => {
+router.post("/v2/buyGood", validateBody(crisisV2BuyGoodSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { goodId, count } = req.body as CrisisV2BuyGoodRequest;
 
@@ -997,7 +1020,7 @@ router.post("/v2/buyGood", async (req, res) => {
  * @param req.body.assistFriend - 助战好友
  * @returns 战斗ID和玩家增量数据
  */
-router.post("/recalRune/battleStart", async (req, res) => {
+router.post("/recalRune/battleStart", validateBody(recalRuneBattleStartSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { seasonId, stageId, runes, slots, assistFriend } = req.body as RecalRuneBattleStartRequest;
 
@@ -1030,7 +1053,7 @@ router.post("/recalRune/battleStart", async (req, res) => {
  * 注意：玩家数据模型中暂无 recalRune 字段，持久化部分已简化，
  * 仅返回计算结果。完整实现需要扩展 PlayerDataModel。
  */
-router.post("/recalRune/battleFinish", async (req, res) => {
+router.post("/recalRune/battleFinish", validateBody(recalRuneBattleFinishSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RecalRuneBattleFinishRequest;
 

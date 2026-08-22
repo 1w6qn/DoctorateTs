@@ -8,6 +8,8 @@
 
 import { Router } from "express";
 import excel from "@excel/excel";
+import { validateBody } from "../model/protocol/validate-body";
+import { getListSchema } from "../model/protocol/mailCollection.schema";
 import {
   MailCollectionGetListRequest,
   MailCollectionGetListResponse,
@@ -20,7 +22,7 @@ const router = Router();
  * @route POST /mailCollection/getList
  * @returns collections（display_meta_table.mailArchiveData 的收藏 ID 列表）与 extra
  */
-router.post("/getList", async (req, res) => {
+router.post("/getList", validateBody(getListSchema), async (req, res) => {
   req.body as MailCollectionGetListRequest;
   const collectionLst = Object.keys(
     excel.DisplayMetaTable.mailArchiveData.mailArchiveInfoDict,

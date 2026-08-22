@@ -17,6 +17,11 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  templateGetGoodListSchema,
+  templateBuyGoodSchema,
+} from "../model/protocol/templateShop.schema";
 import { readJsonSync } from "@utils/file";
 import { ItemBundle } from "@excel/character_table";
 import {
@@ -111,7 +116,7 @@ function ensureShopState(draft: any, shopId: string): any {
  * templateShop.json[shopId] 返回完整商店配置；并自动补足商店货币
  *（私服便利——活动代币无获取途径）。2026-08-16 对齐官服响应补 allPriceDict。
  */
-router.post("/getGoodList", async (req, res) => {
+router.post("/getGoodList", validateBody(templateGetGoodListSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { shopId } = req.body as TemplateGetGoodListRequest;
   const data = templateShopData?.[shopId];
@@ -161,7 +166,7 @@ router.post("/getGoodList", async (req, res) => {
  * 2026-08-16 对齐官服（buyGood 抓包）：购买记录写 playerdata.tshop.{shopId}.info
  *（{id, count}），扣币写活动币/tshop.coin，响应增量含 tshop 状态。
  */
-router.post("/buyGood", async (req, res) => {
+router.post("/buyGood", validateBody(templateBuyGoodSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as TemplateBuyGoodRequest;
   const { shopId, goodId, count = 1 } = body;

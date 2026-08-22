@@ -19,11 +19,20 @@ import {
   RoguelikeUpgradeOutBuffRequest,
   RoguelikeUpgradeOutBuffResponse,
 } from "../model/protocol/roguelike";
+import { validateBody } from "../model/protocol/validate-body";
+import {
+  roguelikeCreateGameSchema,
+  roguelikeFinishGameSchema,
+  roguelikeGiveUpGameSchema,
+  roguelikeMilestoneRewardSchema,
+  roguelikeMilestoneRewardTryBestSchema,
+  roguelikeUpgradeOutBuffSchema,
+} from "../model/protocol/roguelike.schema";
 
 const router = Router();
 
 /** 创建游戏（服务端自定义） */
-router.post("/roguelike/createGame", async (req, res) => {
+router.post("/roguelike/createGame", validateBody(roguelikeCreateGameSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as RoguelikeCreateGameRequest;
 
@@ -34,7 +43,7 @@ router.post("/roguelike/createGame", async (req, res) => {
 });
 
 /** 结束游戏（服务端自定义） */
-router.post("/roguelike/finishGame", async (req, res) => {
+router.post("/roguelike/finishGame", validateBody(roguelikeFinishGameSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as RoguelikeFinishGameRequest;
 
@@ -45,7 +54,7 @@ router.post("/roguelike/finishGame", async (req, res) => {
 });
 
 /** 放弃游戏（服务端自定义） */
-router.post("/roguelike/giveUpGame", async (req, res) => {
+router.post("/roguelike/giveUpGame", validateBody(roguelikeGiveUpGameSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as RoguelikeGiveUpGameRequest;
 
@@ -56,7 +65,7 @@ router.post("/roguelike/giveUpGame", async (req, res) => {
 });
 
 /** 里程碑奖励（服务端自定义） */
-router.post("/roguelike/milestoneReward", async (req, res) => {
+router.post("/roguelike/milestoneReward", validateBody(roguelikeMilestoneRewardSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as RoguelikeMilestoneRewardRequest;
 
@@ -68,7 +77,7 @@ router.post("/roguelike/milestoneReward", async (req, res) => {
 });
 
 /** 尝试最佳里程碑奖励（服务端自定义） */
-router.post("/roguelike/milestoneRewardTryBest", async (req, res) => {
+router.post("/roguelike/milestoneRewardTryBest", validateBody(roguelikeMilestoneRewardTryBestSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   req.body as RoguelikeMilestoneRewardTryBestRequest;
 
@@ -87,7 +96,7 @@ router.post("/roguelike/milestoneRewardTryBest", async (req, res) => {
  *
  * @route POST /roguelike/upgradeOutBuff
  */
-router.post("/roguelike/upgradeOutBuff", async (req, res) => {
+router.post("/roguelike/upgradeOutBuff", validateBody(roguelikeUpgradeOutBuffSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const { theme, id, buffId } = (req.body ?? {}) as RoguelikeUpgradeOutBuffRequest;
   const buffId2 = id || buffId || "";

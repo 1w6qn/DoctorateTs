@@ -8,6 +8,8 @@
 import { Router } from "express";
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { validateBody } from "../model/protocol/validate-body";
+import { miscAlignmentStubSchema } from "../model/protocol/misc-alignment.schema";
 
 const router = Router();
 
@@ -24,53 +26,53 @@ for (const telemetryPath of [
   "/survey/startSurvey",
   "/general/v1/send_phone_code",
 ]) {
-  router.all(telemetryPath, async (_req, res) => {
+  router.all(telemetryPath, validateBody(miscAlignmentStubSchema), async (_req, res) => {
     res.send({});
   });
 }
 
 /** yostar 登录链路（P4 原本跳过，全量对齐补 stub） */
-router.post("/account/yostar_auth_request", async (_req, res) => {
+router.post("/account/yostar_auth_request", validateBody(miscAlignmentStubSchema), async (req, res) => {
   res.send({ result: 0, uid: "", token: "" });
 });
-router.post("/account/yostar_auth_submit", async (_req, res) => {
+router.post("/account/yostar_auth_submit", validateBody(miscAlignmentStubSchema), async (req, res) => {
   res.send({ result: 0, uid: "", token: "" });
 });
-router.post("/user/yostar_createlogin", async (_req, res) => {
+router.post("/user/yostar_createlogin", validateBody(miscAlignmentStubSchema), async (req, res) => {
   res.send({ result: 0, uid: "", token: "" });
 });
 
 /** ODPY 独有 app/api 端点（stub） */
-router.get("/app/getCode", async (_req, res) => {
+router.get("/app/getCode", validateBody(miscAlignmentStubSchema), async (req, res) => {
   res.send({ code: "0" });
 });
-router.get("/app/getSettings", async (_req, res) => {
+router.get("/app/getSettings", validateBody(miscAlignmentStubSchema), async (req, res) => {
   res.send({});
 });
-router.get("/api/gacha/cate", async (_req, res) => {
+router.get("/api/gacha/cate", validateBody(miscAlignmentStubSchema), async (req, res) => {
   res.send({ cateList: [] });
 });
-router.get("/api/gacha/history", async (_req, res) => {
+router.get("/api/gacha/history", validateBody(miscAlignmentStubSchema), async (req, res) => {
   res.send({ history: [] });
 });
-router.get("/api/autoChess/act1autochess/playerSummary", async (_req, res) => {
+router.get("/api/autoChess/act1autochess/playerSummary", validateBody(miscAlignmentStubSchema), async (req, res) => {
   res.send({});
 });
-router.get("/api/autoChess/act2autochess/playerSummary", async (_req, res) => {
+router.get("/api/autoChess/act2autochess/playerSummary", validateBody(miscAlignmentStubSchema), async (req, res) => {
   res.send({});
 });
-router.get("/api/is/rogue_1/bulletinVersion", async (_req, res) => {
+router.get("/api/is/rogue_1/bulletinVersion", validateBody(miscAlignmentStubSchema), async (req, res) => {
   res.send({ version: 0 });
 });
-router.post("/api/is/rogue_1/bulletinVersion", async (_req, res) => {
+router.post("/api/is/rogue_1/bulletinVersion", validateBody(miscAlignmentStubSchema), async (req, res) => {
   res.send({ version: 0 });
 });
 
 /** 用户协议（ODPY 独有，stub） */
-router.post("/user/agreement", async (_req, res) => {
+router.post("/user/agreement", validateBody(miscAlignmentStubSchema), async (req, res) => {
   res.send({ result: 0 });
 });
-router.post("/user/auth/v2/token_by_phone_code", async (_req, res) => {
+router.post("/user/auth/v2/token_by_phone_code", validateBody(miscAlignmentStubSchema), async (req, res) => {
   res.send({ result: 3, msg: "token_by_phone_code 已由 /user/auth/v1 替代" });
 });
 
@@ -87,7 +89,7 @@ for (const payVariantPath of [
   "/user/pay/order/v2/create/app_product",
   "/user/pay/v1/query_payment_config",
 ]) {
-  router.post(payVariantPath, async (req, res) => {
+  router.post(payVariantPath, validateBody(miscAlignmentStubSchema), async (req, res) => {
     const player = httpContext.get<PlayerDataManager>("playerData");
     res.send({
       result: 0,
@@ -97,7 +99,7 @@ for (const payVariantPath of [
 }
 
 /** recalRune 根路径别名（服务端既有 /crisis/recalRune/*） */
-router.post("/recalRune/battleStart", async (req, res) => {
+router.post("/recalRune/battleStart", validateBody(miscAlignmentStubSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   res.send({
     result: 0,
@@ -109,7 +111,7 @@ router.post("/recalRune/battleStart", async (req, res) => {
     ...player.delta,
   });
 });
-router.post("/recalRune/battleFinish", async (req, res) => {
+router.post("/recalRune/battleFinish", validateBody(miscAlignmentStubSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   res.send({
     result: 0,
@@ -125,51 +127,51 @@ for (const adminAliasPath of [
   "/admin/saveUserData",
   "/admin/verify",
 ]) {
-  router.all(adminAliasPath, async (_req, res) => {
+  router.all(adminAliasPath, validateBody(miscAlignmentStubSchema), async (_req, res) => {
     res.send({ status: 0, result: 0 });
   });
 }
 
 
 /** 官方资源文件（/official/Android/assets/<hash>/<file>；私服无资源返回空） */
-router.get("/official/Android/assets/:assetsHash/:fileName", async (_req, res) => {
+router.get("/official/Android/assets/:assetsHash/:fileName", validateBody(miscAlignmentStubSchema), async (_req, res) => {
   res.send({});
 });
 
 
 /** 根路径（ODPY 管理索引对应；返回空 JSON） */
-router.all("/", async (_req, res) => {
+router.all("/", validateBody(miscAlignmentStubSchema), async (_req, res) => {
   res.send({ result: 0 });
 });
 
 
 /** DoctoratePy 支付变体（支付宝/微信/成功回调——CN 2.7.61 客户端不调用，全量对齐补 stub） */
-router.post("/pay/createOrderAlipay", async (req, res) => {
+router.post("/pay/createOrderAlipay", validateBody(miscAlignmentStubSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData");
   res.send({ result: 0, ...(player ? player.delta : { playerDataDelta: { modified: {}, deleted: {} } }) });
 });
-router.post("/pay/createOrderWechat", async (req, res) => {
+router.post("/pay/createOrderWechat", validateBody(miscAlignmentStubSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData");
   res.send({ result: 0, ...(player ? player.delta : { playerDataDelta: { modified: {}, deleted: {} } }) });
 });
-router.post("/pay/confirmOrderAlipay", async (_req, res) => {
+router.post("/pay/confirmOrderAlipay", validateBody(miscAlignmentStubSchema), async (_req, res) => {
   res.send({ status: 0 });
 });
-router.post("/pay/confirmOrderWechat", async (_req, res) => {
+router.post("/pay/confirmOrderWechat", validateBody(miscAlignmentStubSchema), async (_req, res) => {
   res.send({ status: 0 });
 });
-router.post("/pay/success", async (_req, res) => {
+router.post("/pay/success", validateBody(miscAlignmentStubSchema), async (_req, res) => {
   res.send({ result: 0 });
 });
 
 /** DoctoratePy 管理登录（stub） */
-router.post("/login", async (_req, res) => {
+router.post("/login", validateBody(miscAlignmentStubSchema), async (_req, res) => {
   res.send({ result: 0, msg: "OK" });
 });
 
 
 /** 协议确认（EN 客户端路径变体） */
-router.post("/user/agreement/confirm", async (_req, res) => {
+router.post("/user/agreement/confirm", validateBody(miscAlignmentStubSchema), async (_req, res) => {
   res.send({ result: 0 });
 });
 
@@ -184,7 +186,7 @@ for (const enPath of [
   "/user/detail",
   "/user/quick-login",
 ]) {
-  router.all(enPath, async (_req, res) => {
+  router.all(enPath, validateBody(miscAlignmentStubSchema), async (_req, res) => {
     res.send({});
   });
 }

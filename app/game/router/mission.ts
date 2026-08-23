@@ -81,7 +81,7 @@ router.post("/confirmMissionList", validateBody(confirmMissionListSchema), async
     }
   }
   res.send({
-    items,
+    items: player.mission.mergeItemBundles(items),
     ...player.delta,
   } satisfies ConfirmMissionListResponse);
 });
@@ -108,7 +108,7 @@ router.post("/confirmMultiGroupMissionList", validateBody(confirmMultiGroupMissi
     }
   }
   res.send({
-    items,
+    items: player.mission.mergeItemBundles(items),
     ...player.delta,
   } satisfies ConfirmMultiGroupMissionListResponse);
 });

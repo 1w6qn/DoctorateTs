@@ -68,12 +68,32 @@ export class MissionManager {
     const ts = now();
     // 修复：同 dailyMissionPeriod——getDay()+1 星期错位，先映射周日→7
     const weekDay = new Date().getDay() === 0 ? 7 : new Date().getDay();
-    const period = excel.MissionTable.dailyMissionPeriodInfo.find(
+    const period = (excel.MissionTable.dailyMissionPeriodInfo ?? []).find(
       (p) => p.startTime <= ts && p.endTime >= ts,
-    )!;
-    return period.periodList.find((p) =>
-      p.period.includes(weekDay),
-    )!.rewardGroupId;
+    );
+    // 防御：periodicalRewards 缺失/单测未配置周期表时返回空串（兑换据此不过滤）
+    if (!period) return "";
+    const match = period.periodList?.find((p) => p.period.includes(weekDay));
+    return match?.rewardGroupId ?? "";
+  }
+
+  /**
+   * 获取当前每周任务奖励周期ID
+   *
+   * weeklyRewards 无 periodList 分组概念，每条凭 beginTime/endTime 时间窗标识生效期；
+   * 取覆盖当前时间的所有奖励组（通常唯一），多组并存时按 id 排序取最小以保证确定。
+   * @returns 当前生效的周奖励组 id（如 reward_weekly_g_4）；无覆盖时返回空串
+   */
+  get weeklyRewardPeriod(): string {
+    const ts = now();
+    const groupIds = new Set<string>(
+      Object.values(excel.MissionTable.weeklyRewards ?? {})
+        .filter(
+          (r: any) => r && checkBetween(ts, r.beginTime, r.endTime),
+        )
+        .map((r: any) => r.groupId),
+    );
+    return [...groupIds].sort()[0] ?? "";
   }
 
   /**
@@ -81,9 +101,12 @@ export class MissionManager {
    * 遍历所有任务类型，为每个任务创建MissionProgress实例并初始化
    */
   async init() {
-    // 先补 ACTIVITY 空分组（Immer draft 内不创建 MissionProgress，避免模板 push 到冻结 draft）
+    // 先补 ACTIVITY 分组（Immer draft 内不创建 MissionProgress，避免模板 push 到冻结 draft）。
+    // 修复：改为仅在分组不存在时补空——原无条件 `ACTIVITY = {}` 会清空已加载存档里的
+    // ACTIVITY 任务（含奇象巡展 1arkhubActivity_* 的 progress 进度），后续 unlockActivity
+    // 播种因组已空而全部重建为初始态 → 玩家既有任务进度无法从存档继承（丢失）。
     await this._player.update(async (draft) => {
-      draft.mission.missions["ACTIVITY"] = {};
+      draft.mission.missions["ACTIVITY"] ??= {};
       // 播种特勤干员（SPECIAL_OPERATOR）任务（幂等：仅补缺失条目，见 seedSpecialOperatorMissions）
       this.seedSpecialOperatorMissions(draft);
     });
@@ -121,6 +144,43 @@ export class MissionManager {
         group[missionId] = { state: 1, progress: [] };
       }
     }
+  }
+
+  /**
+   * 生成任务的初始进度条目 [{value:0,target}]（非空数组）。
+   *
+   * dailyRefresh 播种日常任务时调用。原实现播种 `progress: []`（空数组），依赖
+   * MissionProgress.init 里的模板 init 兜底填充；一旦该兜底未执行（数据缺失/边缘路径）
+   * 便会向存档残留空数组，日常任务进度显示为空、无法推进。此处播种即调用模板 init
+   * 推导真实 target，从根源保证 progress 结构完整。
+   *
+   * 纯计算，不触碰 playerdata（模板 init 只写入传入的临时 mission 对象），可在 update
+   * 配方的 draft 内安全调用。
+   * @param missionId 任务 ID（MissionTable.missions 中的键）
+   * @returns 初始进度数组；模板缺失时兜底 [{value:0,target:1}]
+   */
+  private _seedInitialProgress(
+    missionId: string,
+  ): { value: number; target: number }[] {
+    const info = excel.MissionTable.missions[missionId];
+    const template = info?.template as keyof typeof MissionTemplates | undefined;
+    const branch = info?.param?.[0];
+    // 数据表缺失或模板/分支不存在 → 兜底单目标 1，仍保证非空数组
+    if (!template || !branch || !(template in MissionTemplates)) {
+      return [{ value: 0, target: 1 }];
+    }
+    const tpl = MissionTemplates[template]?.[branch ?? ""];
+    if (!tpl?.init) {
+      return [{ value: 0, target: 1 }];
+    }
+    const seed: { value: number; target: number }[] = [];
+    try {
+      // 复用模板 init 计算 target（与 MissionProgress.init 兜底一致）
+      tpl.init({ progress: seed, value: 0, param: info.param } as never);
+    } catch {
+      return [{ value: 0, target: 1 }];
+    }
+    return seed.length > 0 ? seed : [{ value: 0, target: 1 }];
   }
 
   /**
@@ -163,18 +223,23 @@ export class MissionManager {
       // 修复：播种当前周期组任务到存档（原实现只重建内存列表——存档仍是创建时的旧组
       // 任务，当前组 id 在存档缺失 → init 全部 invalid → DAILY 列表空 → confirmMission
       // 拿不到实例返回空 → "任务无法确认"；且客户端仍显示旧组 state=3 任务，点确认无响应）。
-      // 官方每日重置即替换当日任务组：删旧组条目、补新组条目（progress:[] 由模板 init 构建）。
+      // 官方每日重置即替换当日任务组：删旧组条目、补新组条目。
       const currentIds =
         excel.MissionTable.missionGroups[this.dailyMissionPeriod].missionIds ??
         [];
       const daily = (draft.mission.missions["DAILY"] ??= {});
+      // 跨天周期组相同（如周内连续工作日同组）时，无论任务是否已存在都强制重置为
+      // 初始可接取态（state=1），避免昨日完成态残留导致"每日更新不刷新进度"。
+      // 修复（2026-08-23）：播种的 progress 直接写入结构完整、target 真实的
+      // [{value:0,target}]——原实现播种 progress:[]（空数组中间态），一旦依赖的模板
+      // init 兜底未执行便会残留空数组 → 日常任务进度被置空、存档坏数据。此处播种即
+      // 用模板 init 推导初始 target，从根源保证 progress 永不为空数组。
+      for (const id of currentIds) {
+        daily[id] = { state: 1, progress: this._seedInitialProgress(id) };
+      }
+      // 删除当前组之外的历史任务条目
       for (const id of Object.keys(daily)) {
         if (!currentIds.includes(id)) delete daily[id];
-      }
-      for (const id of currentIds) {
-        if (!daily[id]) {
-          daily[id] = { state: 1, progress: [] };
-        }
       }
     });
     const missionIds =
@@ -279,7 +344,9 @@ export class MissionManager {
       }
       // 活动任务（ActivityTable.missionData，如 1arkhubActivity_*/53sideActivity_*）
       // 兜底领取——枢纽任务奖励同步 ARK_HUB.coin/tshop 币（官服形状）
-      return this._confirmActivityTableMission(missionId);
+      return this.mergeItemBundles(
+        await this._confirmActivityTableMission(missionId),
+      );
     }
     const mission = await this.getMissionById(missionId);
     const items: ItemBundle[] = [];
@@ -313,22 +380,44 @@ export class MissionManager {
       const missionRewards = draft.mission.missionRewards;
       switch (missionInfo.type) {
         case "DAILY":
-          missionRewards.dailyPoint += missionInfo.periodicalPoint;
-          Object.entries(missionRewards.rewards["DAILY"]).forEach(([k, v]) => {
-            const periodicalReward = excel.MissionTable.periodicalRewards[k];
-            if (
-              v == 0 &&
-              missionRewards.dailyPoint >= periodicalReward.periodicalPointCost
-            ) {
-              missionRewards.dailyPoint -= periodicalReward.periodicalPointCost;
-              items.push(...periodicalReward.rewards);
-              missionRewards.rewards["DAILY"][k] = 1;
+        case "WEEKLY": {
+          // 修复：WEEKLY 与 DAILY 对称——累加周期点后自动兑换所有达标周期奖励。
+          // 原 WEEKLY 分支只累加 weeklyPoint 从不兑换 → 确认周任务后响应 items
+          // 恒为空，客户端"获得物品"提示永不出现（官服 autoConfirm WEEKLY 抓包
+          // R-1787047281356-0118 确认周任务会兑换 reward_weekly_* 并返回物品）。
+          const isWeekly = missionInfo.type === "WEEKLY";
+          const type = isWeekly ? "WEEKLY" : "DAILY";
+          const pointField = isWeekly ? "weeklyPoint" : "dailyPoint";
+          missionRewards[pointField] += missionInfo.periodicalPoint ?? 0;
+          // 防御：新账号 missionRewards 可能为空对象（freshMission 只给
+          // { missions, missionRewards: {}, missionGroups }），rewards 子树未初始化
+          // → 原 Object.entries(undefined) 直接崩溃（接口 500 → 客户端无任何提示）。
+          const rewardsTree = (missionRewards.rewards ??= {});
+          const rewardMap = (rewardsTree[type] ??= {});
+          // 奖励定义表：DAILY 走 periodicalRewards（仅 DAILY），WEEKLY 走 weeklyRewards——
+          // 原实现统一查 periodicalRewards，而该表只有 DAILY → WEEKLY 周期奖励永不兑换。
+          // 当前周期组：多组并存（历史组残留）时只兑换当前生效组，避免一次确认把多个
+          // 奖励组的奖励全部发放（重复刷金币/材料/寻访凭证）。
+          const rewardDefs = isWeekly
+            ? (excel.MissionTable.weeklyRewards ?? {} as Record<string, any>)
+            : (excel.MissionTable.periodicalRewards ?? {});
+          const currentGroup = isWeekly
+            ? this.weeklyRewardPeriod
+            : this.dailyMissionRewardPeriod;
+          for (const [k, v] of Object.entries(rewardMap)) {
+            const reward = rewardDefs[k];
+            // 防御：数据表缺该奖励（版本错位/伪键）时跳过，避免读 undefined.cost
+            if (!reward || v != 0) continue;
+            // 只兑当前周期组——rewards 若残留历史组条目，跳过以免多组同时发放
+            if (currentGroup && reward.groupId !== currentGroup) continue;
+            if (missionRewards[pointField] >= reward.periodicalPointCost) {
+              missionRewards[pointField] -= reward.periodicalPointCost;
+              items.push(...reward.rewards);
+              rewardMap[k] = 1;
             }
-          });
+          }
           break;
-        case "WEEKLY":
-          missionRewards.weeklyPoint += missionInfo.periodicalPoint;
-          break;
+        }
         default:
           // 修复：MAIN/SUB/GUIDE/RETRO/SPECIAL 等非周期点任务——直接发放任务自身 rewards。
           // 原实现 default 分支空 out → 完成态任务 confirm 后 items 为空，客户端视为
@@ -340,8 +429,40 @@ export class MissionManager {
       }
     });
 
-    await this._trigger.emit("items:get", [items]);
-    return items;
+    // 修复：合并相同物品（相同 type+id count 相加，保持首次出现顺序）——多任务
+    // 兑换/发放产生的 items 常含重复 id 条目（如 autoConfirm 多个 reward 都含 GOLD
+    // 4001），不合并则客户端"获得物品"提示按多条拆分、计数错乱/重复弹窗。
+    const merged = this.mergeItemBundles(items);
+    await this._trigger.emit("items:get", [merged]);
+    return merged;
+  }
+
+  /**
+   * 合并物品列表：相同 type+id 的条目 count 相加，保留首次出现顺序。
+   *
+   * 用于单任务确认与一键领取返回给客户端的"获得物品"列表——不同任务/周期奖励
+   * 常产出重复 id 的物品（如多个奖励都含 GOLD 4001），未合并会拆成多条，客户端
+   * 提示计数错误或重复弹出。合并后每类物品仅一条，count 为总和。
+   * @param items 待合并的物品列表
+   * @returns 合并后的物品列表
+   */
+  mergeItemBundles(items: ItemBundle[]): ItemBundle[] {
+    const map = new Map<string, ItemBundle>();
+    for (const item of items) {
+      if (item == null) continue;
+      const key = `${item.type}|${item.id}`;
+      const prev = map.get(key);
+      if (prev) {
+        prev.count = (prev.count ?? 0) + (item.count ?? 0);
+      } else {
+        map.set(key, {
+          id: item.id,
+          count: item.count ?? 0,
+          type: item.type,
+        });
+      }
+    }
+    return [...map.values()];
   }
 
   /**
@@ -432,7 +553,9 @@ export class MissionManager {
     for (const missionId of Object.keys(saveMissions)) {
       items.push(...(await this.confirmMission({ missionId })));
     }
-    return items;
+    // 聚合后统一合并相同物品（confirmMission 各自返回已合并，但跨任务重复 id
+    // 仍需在此再聚合一次，保证一键领取响应去重）
+    return this.mergeItemBundles(items);
   }
 
   /**
@@ -731,8 +854,21 @@ export class MissionProgress {
       logger.debug("MissionManager", `Mission ID ${this.missionId} not found in data`);
       return;
     }
+    // 防御：模板分支校验——模板 key 合法但 param[0] 分支在该模板中未定义时，
+    // MissionTemplates[template][param[0]] 为 undefined，事件触发 func 会抛
+    // "Cannot read properties of undefined (reading 'update')"。此类任务（rogue/
+    // 活动里模板与 param 分支不匹配）标记无效并降级日志，不注册监听器。
+    const tpl = MissionTemplates[template]?.[this.param[0]];
+    if (!tpl?.update || !tpl?.init) {
+      this.valid = false;
+      logger.debug(
+        "MissionManager",
+        `Template branch not implemented: ${template}/${this.param[0]} (${this.missionId})`,
+      );
+      return;
+    }
     const func = async ([args]: unknown[]) => {
-      MissionTemplates[template]![this.param[0]].update(this, args as never);
+      tpl.update(this, args as never);
       if (this.progress[0].value >= this.progress[0].target!) {
         logger.info("MissionManager", `${this.missionId} complete`);
         this._trigger.off(template, func);
@@ -764,7 +900,7 @@ export class MissionProgress {
     // 存档进度数组随每次刷新/加载重复累加，1.json 已出现 29 份重复条目、
     // 且 getState 读 progress[0] 恒为旧值）；已有 progress[0] 时直接沿用存档进度
     if (this.progress.length === 0) {
-      MissionTemplates[template]![this.param[0]].init(this);
+      tpl.init(this);
     }
     if (this.progress[0] && this.progress[0].value < this.progress[0].target!) {
       this._registeredTemplate = template;

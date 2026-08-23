@@ -131,6 +131,115 @@ describe("MissionManager", () => {
       );
   });
 
+  describe("ACTIVITY 任务进度从存档继承", () => {
+    it("init 不应清空已有存档的 ACTIVITY 任务（奇象巡展进度继承）", async () => {
+      // 模拟从磁盘加载的存档：ACTIVITY 组含已推进的任务（如 1arkhubActivity_5）
+      mockPlayer._playerdata.mission = {
+        missions: {
+          ACTIVITY: {
+            "1arkhubActivity_5": {
+              state: 2,
+              progress: [{ value: 5, target: 5 }],
+            },
+          },
+        },
+        missionRewards: { dailyPoint: 0, weeklyPoint: 0, rewards: {} },
+        missionGroups: {},
+      };
+      const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
+      await manager.init();
+      const act = mockPlayer._playerdata.mission.missions["ACTIVITY"];
+      // 修复前：init 无条件 ACTIVITY={} 清空 → 后续播种重建为初始态，进度丢失。
+      // 修复后：仅在缺失时补空，保留已有条目与进度，供播种/reloadActivity 继承。
+      expect(act["1arkhubActivity_5"]).toBeDefined();
+      expect(act["1arkhubActivity_5"].progress[0].value).toBe(5);
+    });
+  });
+
+  describe("dailyRefresh 播种日常任务", () => {
+    it("播种的日常任务 progress 应为非空且 target 真实（修复前为空数组）", async () => {
+      // 构造一个覆盖当前日期的周期，使 dailyMissionPeriod 可用
+      const period = {
+        startTime: 0,
+        endTime: Number.MAX_SAFE_INTEGER,
+        periodList: [
+          {
+            period: [1, 2, 3, 4, 5, 6, 7], // 覆盖周一~周日
+            missionGroupId: "daily_g_seed",
+            rewardGroupId: "reward_g_seed",
+          },
+        ],
+      };
+      mockExcelRef.MissionTable.dailyMissionPeriodInfo = [period];
+      mockExcelRef.MissionTable.missionGroups["daily_g_seed"] = {
+        missionIds: ["daily_seed_c", "daily_seed_g"],
+      };
+      // 两个真实模板任务：CompleteStageAnyType target=param[1]=3，EnemyKillInAnyStage target=param[1]=100
+      mockExcelRef.MissionTable.missions["daily_seed_c"] = {
+        id: "daily_seed_c", type: "DAILY", periodicalPoint: 1,
+        template: "CompleteStageAnyType", param: ["0", "3", "2"],
+      };
+      mockExcelRef.MissionTable.missions["daily_seed_g"] = {
+        id: "daily_seed_g", type: "DAILY", periodicalPoint: 1,
+        template: "EnemyKillInAnyStage", param: ["0", "100"],
+      };
+
+      const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
+      await manager.dailyRefresh();
+
+      const da = mockPlayer._playerdata.mission.missions["DAILY"];
+      expect(da["daily_seed_c"]).toBeDefined();
+      // 修复前：progress 为空数组 [] → 日常任务进度被置空。
+      // 修复后：播种即写入 [{value:0,target}]，target 由模板推导而非兜底 1。
+      expect(da["daily_seed_c"].progress).toEqual([{ value: 0, target: 3 }]);
+      expect(da["daily_seed_g"].progress).toEqual([{ value: 0, target: 100 }]);
+      expect(da["daily_seed_c"].progress.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("多任务奖励组并存兑换", () => {
+    it("rewards.DAILY 含多个组时，confirm 只兑换当前周期组（修复前跨组发放）", async () => {
+      // 构造当前周期（周日需包含，用全 weekday period 覆盖）与两组周期奖励
+      mockExcelRef.MissionTable.dailyMissionPeriodInfo = [{
+        startTime: 0,
+        endTime: Number.MAX_SAFE_INTEGER,
+        periodList: [{ period: [1, 2, 3, 4, 5, 6, 7], missionGroupId: "daily_g_mg", rewardGroupId: "reward_daily_g_cur" }],
+      }];
+      mockExcelRef.MissionTable.missionGroups["daily_g_mg"] = { missionIds: ["daily_mg"] };
+      mockExcelRef.MissionTable.missions["daily_mg"] = {
+        id: "daily_mg", type: "DAILY", periodicalPoint: 4,
+        template: "CompleteStageAnyType", param: ["0", "1", "2"],
+      };
+      // 当前组奖励：GOLD；历史组奖励：DIAMOND（不应被当前任务点兑换）
+      mockExcelRef.MissionTable.periodicalRewards["r_cur"] = {
+        id: "r_cur", groupId: "reward_daily_g_cur", periodicalPointCost: 2, type: "DAILY",
+        rewards: [{ type: "GOLD", id: "4001", count: 500 }],
+      };
+      mockExcelRef.MissionTable.periodicalRewards["r_hist"] = {
+        id: "r_hist", groupId: "reward_daily_g_hist", periodicalPointCost: 2, type: "DAILY",
+        rewards: [{ type: "DIAMOND_SHD", id: "4003", count: 100 }],
+      };
+
+      mockPlayer._playerdata.mission = {
+        missions: { DAILY: { "daily_mg": { state: 3, progress: [{ value: 1, target: 1 }] } } },
+        missionRewards: {
+          dailyPoint: 0, weeklyPoint: 0,
+          rewards: { DAILY: { r_cur: 0, r_hist: 0 }, WEEKLY: {} },
+        },
+        missionGroups: {},
+      };
+      const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
+      const items = await manager.confirmMission({ missionId: "daily_mg" });
+      // 只应兑换当前组（reward_daily_g_cur）：GOLD 4001；历史组 r_hist 的 DIAMOND_SHD 不应出现
+      expect(items).toContainEqual({ type: "GOLD", id: "4001", count: 500 });
+      const diamond = items.filter((i: any) => i.id === "4003");
+      expect(diamond.length).toBe(0);
+      // 已领取标记只置当前组，历史组仍 0（未误发）
+      expect(mockPlayer._playerdata.mission.missionRewards.rewards.DAILY.r_cur).toBe(1);
+      expect(mockPlayer._playerdata.mission.missionRewards.rewards.DAILY.r_hist).toBe(0);
+    });
+  });
+
   describe("constructor", () => {
     it("应该正确初始化 MissionManager 实例", () => {
       const manager = new MissionManager(
@@ -143,7 +252,7 @@ describe("MissionManager", () => {
       expect(manager._trigger).toBe(mockTrigger);
     });
 
-    it("应该注册 daily 和 weekly 刷新事件监听", () => {
+    it("应注册 daily 和 weekly 刷新事件监听", () => {
       const onSpy = vi.spyOn(mockTrigger, "on");
       new MissionManager(mockPlayer as any, mockTrigger as any);
       expect(onSpy).toHaveBeenCalledWith(
@@ -422,6 +531,82 @@ describe("MissionManager", () => {
       const result = await manager.autoConfirmMissions({ type: "DAILY" });
       expect(result).toBeDefined();
       expect(Array.isArray(result)).toBe(true);
+    });
+
+    it("应合并相同 id 物品（修复：autoConfirm 多个奖励含重复物品时响应拆条，客户端提示计数错乱）", async () => {
+      const manager = new MissionManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      // 两个 DAILY 任务，各自兑换出的周期奖励都含 GOLD 4001
+      // 构造当前周期组，使 r_merge_1/r_merge_2 归属当前组可被兑换
+      mockExcelRef.MissionTable.dailyMissionPeriodInfo = [{
+        startTime: 0,
+        endTime: Number.MAX_SAFE_INTEGER,
+        periodList: [{ period: [1, 2, 3, 4, 5, 6, 7], missionGroupId: "g", rewardGroupId: "reward_daily_g_merge" }],
+      }];
+      mockExcelRef.MissionTable.missions["daily_m1"] = {
+        id: "daily_m1",
+        type: "DAILY",
+        periodicalPoint: 2,
+      };
+      mockExcelRef.MissionTable.missions["daily_m2"] = {
+        id: "daily_m2",
+        type: "DAILY",
+        periodicalPoint: 3,
+      };
+      mockExcelRef.MissionTable.periodicalRewards["r_merge_1"] = {
+        id: "r_merge_1",
+        type: "DAILY",
+        groupId: "reward_daily_g_merge",
+        periodicalPointCost: 2,
+        rewards: [{ type: "GOLD", id: "4001", count: 500 }],
+      };
+      mockExcelRef.MissionTable.periodicalRewards["r_merge_2"] = {
+        id: "r_merge_2",
+        type: "DAILY",
+        groupId: "reward_daily_g_merge",
+        periodicalPointCost: 3,
+        rewards: [{ type: "GOLD", id: "4001", count: 1000 }],
+      };
+
+      mockPlayer._playerdata.mission = {
+        missions: {
+          DAILY: {
+            "daily_m1": { state: 2, progress: [{ value: 1, target: 1 }] },
+            "daily_m2": { state: 2, progress: [{ value: 1, target: 1 }] },
+          },
+        },
+        missionRewards: {
+          dailyPoint: 0,
+          weeklyPoint: 0,
+          rewards: { DAILY: { r_merge_1: 0, r_merge_2: 0 }, WEEKLY: {} },
+        },
+        missionGroups: {},
+      };
+
+      const result = await manager.autoConfirmMissions({ type: "DAILY" });
+      // 未合并前应为 [{GOLD,500},{GOLD,1000}] 两条 → 现应合并为一条 count 1500
+      expect(result).toEqual([{ type: "GOLD", id: "4001", count: 1500 }]);
+    });
+
+    it("mergeItemBundles 应合并同 id 不同 type 之外，保留首次顺序", () => {
+      const manager = new MissionManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      const merged = manager.mergeItemBundles([
+        { type: "GOLD", id: "4001", count: 100 },
+        { type: "CARD_EXP", id: "2001", count: 3 },
+        { type: "GOLD", id: "4001", count: 50 },
+        { type: null as any, id: "4001", count: 10 }, // 不同 type 不合并
+      ]);
+      expect(merged).toEqual([
+        { type: "GOLD", id: "4001", count: 150 },
+        { type: "CARD_EXP", id: "2001", count: 3 },
+        { type: null, id: "4001", count: 10 },
+      ]);
     });
   });
 
@@ -894,6 +1079,22 @@ describe("MissionManager 刷新", () => {
     expect(mockPlayer._playerdata.mission!.missionRewards.rewards["DAILY"]).toEqual({ r1: 0 });
     expect(manager.missions["DAILY"]).toHaveLength(1);
     expect(manager.missions["DAILY"][0].missionId).toBe("daily_r1");
+  });
+
+  it("跨天周期组相同时 dailyRefresh 也应重置日常任务进度（state/progress）", async () => {
+    // 修复前：跨天时若当前组与昨日相同（如周内连续工作日同组），已存在的 daily_r1
+    // 条目仅「缺失才补新」，旧进度（已完成 target）残留 → 客户端显示昨日已完成任务
+    // 却无法重新接取 → 「每日更新不刷新日常任务进度」。
+    mockPlayer._playerdata.mission!.missions.DAILY["daily_r1"] = {
+      state: 3,
+      progress: [{ value: 1, target: 1 }],
+    };
+    const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
+    await manager.dailyRefresh();
+    // state 重置为可接取(1)，progress 由模板 init 重建并归零；修复前 state 残留昨日完成态(3)
+    const reset = mockPlayer._playerdata.mission!.missions.DAILY["daily_r1"];
+    expect(reset.state).toBe(1);
+    expect(reset.progress[0]).toMatchObject({ value: 0, target: 1 });
   });
 
   it("weeklyRefresh 应重置每周点数并加载每周任务", async () => {

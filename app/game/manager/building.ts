@@ -11,7 +11,7 @@ import { PlayerDataModel } from "@game/model/playerdata";
 import { PlayerBuildingMeetingClue } from "@game/model/playerdata";
 import { BuildingData_OrderType, BuildingData_RoomType } from "@game/model/playerdata";
 import { accountManager } from "./AccountManager";
-import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase } from "@excel/building_excel";
+import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst } from "@excel/building_excel";
 import {
   CharBuffSource,
   roomSpeedBonus,
@@ -30,6 +30,8 @@ import {
  * 通过 Immer 进行状态管理，所有变更通过 PlayerDataManager.update 进行。
  */
 export class BuildingManager {
+  /** 静态补单节流间隔（秒）：贸易站交付后，需间隔本时长才补 1 单，防反复领取刷资源 */
+  private _TRADE_FILL_INTERVAL = 3600;
   _player: PlayerDataManager;
   _trigger: TypedEventEmitter;
 
@@ -113,10 +115,19 @@ export class BuildingManager {
       const ts = now();
       for (const room of Object.values(draft.building.rooms.MEETING ?? {})) {
         (room as any).dailyReward = null;
+        // 自动移除线索盒（receiveStock）中已过期的好友赠送线索
+        this._purgeExpiredReceivedClues(draft, room as any, ts);
+        // 留言板社交点周切（跨周：lastWeek ← thisWeek 可领、thisWeek 归零）
         this._rolloverWeekSp(room as any, ts);
+        // 留言板社交点累积（模拟好友访问留言板）→ 计入本周 thisWeek
+        this._accumulateMessageLeaveSp(room as any, friendCount);
         // 修复：被动信用每日模拟好友访问（封顶 creditPassiveLimit）
         this._accumulateDailyCredit(draft, room, friendCount);
       }
+      // 再修复（2026-08-23）：累积被动信用后刷新 infoShare.reward 待领取指示——
+      // 原实现只写 socialReward.daily，不更新 infoShare，客户端"会客室可领信用"红点/
+      // 状态在每日刷新后不更新，需等下次 sync 才反映 → 「每日更新不刷新信用可领取状态」。
+      this._refreshInfoShare(draft);
     });
   }
 
@@ -221,6 +232,38 @@ export class BuildingManager {
     room.socialReward.daily = Math.min(
       (room.socialReward.daily ?? 0) + visitCount * perVisit,
       limit,
+    );
+  }
+
+  /**
+   * 内部方法：留言板社交点（messageLeave.sp.thisWeek）累积——好友访问
+   * 留言板每位 + visitorBonus，封顶 visitorBonusLimit（每周）
+   *
+   * 修复（2026-08-23）：confirmMessageBoardReward 领取的是 sp.lastWeek
+   * （上周留言板社交点），但私服从未累积 sp.thisWeek——lastWeek 恒 0，
+   * 留言板"上周社交点"永远领不到。此处模拟好友访问留言板，每日刷新时
+   * 把 thisWeek 累积起来，跨周（_rolloverWeekSp）后 lastWeek ← thisWeek
+   * 即可正常领取。
+   */
+  private _accumulateMessageLeaveSp(
+    room: any,
+    visitCount: number,
+  ): void {
+    if (!room || visitCount <= 0) return;
+    const { visitorBonus, visitorBonusLimit } = getMessageLeaveBoardConst();
+    const leave = room.messageLeave ??= {
+      inUse: false,
+      lastVisitTs: 0,
+      lastShowTs: 0,
+      lastUpdateSpTs: 0,
+      sp: { lastWeek: 0, lastWeekSum: 0, thisWeek: 0, thisWeekSum: 0 },
+    };
+    leave.inUse = true;
+    leave.lastVisitTs = now();
+    const sp = leave.sp ??= { lastWeek: 0, lastWeekSum: 0, thisWeek: 0, thisWeekSum: 0 };
+    sp.thisWeek = Math.min(
+      (sp.thisWeek ?? 0) + visitCount * visitorBonus,
+      visitorBonusLimit,
     );
   }
 
@@ -400,13 +443,15 @@ export class BuildingManager {
     this._recomputeCharScales(draft);
     // 干员心情（building.chars[].ap）随时间累积——官方每次 sync 都下发 chars 增量
     this._accrueCharAp(draft, tsFloat);
+    // 干员信赖（favorPoint）随时间累积：在岗 + 助战干员按流逝时间结算（basicFavorPerDay/24/h）
+    this._accrueFavor(draft, tsFloat);
     // 制造站生产随时间累积（进度/产出不再与时间脱钩）
     for (const roomSlotId of Object.keys(draft.building.rooms.MANUFACTURE)) {
       this._accrueManufacture(draft, roomSlotId, ts);
     }
     // 贸易站订单按 next.processPoint 随时间生成（deltaTime 驱动）+ 静态补单兜底
     this._accrueTrading(draft, ts);
-    this._refreshTradingOrders(draft);
+    this._refreshTradingOrders(draft, ts);
     // 训练室进度推进（trainee.processPoint 随时间累积，客户端进度显示一致）
     this._accrueTraining(draft, ts);
     // 会客室线索搜集进度推进（processPoint 随时间累积，speed 含 meet_* buff）
@@ -515,6 +560,8 @@ export class BuildingManager {
       const tsFloat = Date.now() / 1000;
       // 统一 deltaTime 推进（时间基准一次取定，全子系统共用）
       this._advanceBuilding(draft, ts, tsFloat);
+      // 自动移除会客室线索盒（receiveStock）中已过期的好友赠送线索
+      this._purgeAllExpiredClues(draft, ts);
       // 修复（高频无限 sync 根因）：客户端基建界面据各房间 completeWorkTime 调度倒计时
       // 与下一次 sync——存档中 completeWorkTime 是过去值（2025）→ 客户端判定"事件已到期
       // 待处理"→ 立即 sync → 服务端不推进 → 无限循环。此处按生产进度把制造站/贸易站/
@@ -533,6 +580,57 @@ export class BuildingManager {
       );
       return ts;
     });
+  }
+
+  /**
+   * 管理员加速基建：将指定玩家的基建整体快进 seconds 秒
+   *
+   * 语义：把所有基建时间相关字段（劳动力恢复、各房间 lastUpdateTime、
+   * 干员心情 lastApAddTime、干员信赖 lastFavorAddTime）统一前移 seconds，
+   * 再以真实当前时间调用一次 sync()——统一 deltaTime 推进会把前移的
+   * seconds 一次性结算（制造产出/贸易订单/训练进度/心情/信赖/劳动力），
+   * 并把各时间戳复位到当前时间，不产生"未来冷却"副作用。
+   *
+   * 注意：快进受既有上限约束（制造站计划 remainSolutionCnt、贸易站
+   * stockLimit、心情 clamp [0,8640000]、劳动力封顶 maxValue），符合
+   * "手动补 N 秒基建产出"的管理员语义。
+   *
+   * @param seconds - 快进秒数（正整数；内部向下取整，至少为 1）
+   * @returns 结算后的当前时间戳（sync 返回值）
+   */
+  async advance(seconds: number): Promise<number> {
+    const secs = Math.max(1, Math.floor(seconds));
+    // 第一步：把基建各子系统时间基准统一前移 secs（使其早于当前时间）
+    await this._player.update(async (draft) => {
+      // 劳动力恢复时间戳前移
+      const labor = draft.building.status?.labor;
+      if (labor && typeof labor.lastUpdateTime === "number") {
+        labor.lastUpdateTime -= secs;
+      }
+      // 各房间（制造/贸易/训练/会客/人力等）生产时间戳前移——
+      // 只前移工作时间（state=1）或常驻（CONTROL）房间，停工房间保持当前基准，
+      // 避免下次开工时凭空多结算 seconds（与 _touchActiveRooms 的 active 判定一致）
+      for (const [rtype, roomsByType] of Object.entries(draft.building.rooms ?? {})) {
+        for (const roomRaw of Object.values(roomsByType ?? {})) {
+          const room = roomRaw as any;
+          if (!room || typeof room.lastUpdateTime !== "number") continue;
+          const active = room.state === 1 || rtype === "CONTROL";
+          if (active) room.lastUpdateTime -= secs;
+        }
+      }
+      // 干员心情/信赖结算基准前移
+      for (const ch of Object.values(draft.building.chars ?? {})) {
+        if (ch && typeof ch.lastApAddTime === "number") {
+          ch.lastApAddTime -= secs;
+        }
+        const raw = ch as unknown as { lastFavorAddTime?: number };
+        if (typeof raw.lastFavorAddTime === "number") {
+          raw.lastFavorAddTime -= secs;
+        }
+      }
+    });
+    // 第二步：以真实当前时间结算——统一 deltaTime 推进前移的秒数并复位时间戳
+    return this.sync();
   }
 
   /**
@@ -684,7 +782,7 @@ export class BuildingManager {
   }
 
   /**
-   * 内部方法：贸易站订单补充（静态兜底——旧存档无 next 时间累积的订单生成）
+   * 贸易站订单补充（静态兜底——旧存档无 next 时间累积的订单生成）
    *
    * 修复：服务端无订单生成逻辑——stock 由账号生成器静态填充，交付完即枯竭。
    * 简单机制：工作时间（state=1）且 stock 不足 stockLimit 时按 3003（贸易凭证）
@@ -693,13 +791,22 @@ export class BuildingManager {
    * 再修复：原实现恒补到 2 单（忽略 room.stockLimit）——贸易站升级/策略调整后
    * 库存上限形同虚设；现按 stockLimit 补单（缺省 2，防御 0/负数）。
    *
+   * 防反复领取修复（2026-08-23）：原实现每次 sync 都无条件把 stock 补满到
+   * stockLimit → 玩家 deliveryBatchOrder 清空库存后，紧接着 sync 又立即补满，
+   * 可无限反复领取订单刷金币/凭证。现引入补单节流：
+   * - 首次（房间尚无 `_lastOrderFillTs`）：当作守卫初始化，一次性补满到 stockLimit；
+   * - 此后每次补单需距上次补单至少经过 `_TRADE_FILL_INTERVAL` 秒，且每次只补 1 单
+   *   （订单随时间逐笔生成，贴近官方节奏），空缺不会再被瞬间回满。
+   *
    * 时间模型已激活（next.maxPoint > 0）的房间跳过——订单由 _accrueTrading
    * 随时间逐笔生成，静态补单会破坏"订单获取效率"节奏。
    *
    * @param draft - mutative 可写草稿
+   * @param ts - 当前时间基准（秒，用于补单节流判定）
    */
   private _refreshTradingOrders(
     draft: Draft<PlayerDataModel>,
+    ts: number,
   ): void {
     for (const slotId of Object.keys(draft.building.rooms.TRADING)) {
       const room = draft.building.rooms.TRADING[slotId];
@@ -708,14 +815,26 @@ export class BuildingManager {
       if (room.next?.maxPoint > 0) continue;
       if (!Array.isArray(room.stock)) room.stock = [];
       const target = Math.max(1, room.stockLimit ?? 2);
-      if (room.stock.length >= target) continue;
+      if (room.stock.length >= target) {
+        // 关键修复：库存已满（初始预置）也初始化补单守卫——否则结算清空后
+        // 下一次 sync 会把本房间当"首次补单"立即补满 → 订单回退未结算状态。
+        if ((room as any)._lastOrderFillTs == null) (room as any)._lastOrderFillTs = ts;
+        continue;
+      }
+      // 补单节流：首次（守卫初始化）补满；此后需间隔 ≥ _TRADE_FILL_INTERVAL 才补 1 单
+      const lastFill = (room as any)._lastOrderFillTs ?? 0;
+      const isFirstFill = lastFill <= 0;
+      if (!isFirstFill && ts - lastFill < this._TRADE_FILL_INTERVAL) continue;
+      const missing = target - room.stock.length;
+      const toFill = isFirstFill ? missing : 1;
       // instId 从现有库存最大值续增（保证递增连续）
       let maxInstId = room.stock.reduce((m, s) => Math.max(m, s?.instId ?? 0), 0);
-      const missing = target - room.stock.length;
-      for (let i = 0; i < missing; i++) {
+      for (let i = 0; i < toFill; i++) {
         maxInstId += 1;
         this._genTradingOrder(draft, room, maxInstId);
       }
+      // 记录本次补单时刻，用于下一次节流判定
+      (room as any)._lastOrderFillTs = ts;
     }
   }
 
@@ -1433,22 +1552,35 @@ export class BuildingManager {
    * @param args - 请求体（roomSlotId/slotId + charInstIdList/charInstIds/list）
    */
   /**
-   * 内部方法：房间预设队列轮换——返回当前排班的下一组（循环）。
-   * 客户端"换班"按钮调 batchChangeWorkChar（官方 CS 无字段）期望轮换排班；
-   * 当前排班不在队列中 → 应用第一组；无队列 → null（不改分配）。
+   * 内部方法：从房间预设队列中选出「干员当前心情总和最高」的一组
+   * （compare 心情 field = building.chars[].ap，值越大心情越充沛）。
+   * 供 batchChangeWorkChar / useOnePresetQueue 自动换班为心情相对高的一组。
+   * @param draft - Immer 草稿
+   * @param slotId - 房间槽位 ID
+   * @returns 目标预设干员组（不存在队列返回 null）
    */
-  private _nextPresetQueue(
+  private _pickHighestApPreset(
     draft: Draft<PlayerDataModel>,
     slotId: string,
   ): number[] | null {
     const queue = this._roomPresetQueue(draft, slotId);
     if (!queue || queue.length === 0) return null;
-    const current = draft.building.roomSlots[slotId]?.charInstIds ?? [];
-    const eq = (a: number[], b: number[]) =>
-      Array.isArray(b) && a.length === b.length && a.every((v, i) => v === b[i]);
-    const idx = queue.findIndex((q) => eq(current, q));
-    if (idx === -1) return queue[0];
-    return queue[(idx + 1) % queue.length];
+    // 心情总和最高的组；固定比较顺序保证平手时选中第一组（无心情数据按 0 计）
+    let best: number[] | null = null;
+    let bestAp = -1;
+    for (const group of queue) {
+      if (!Array.isArray(group)) continue;
+      const ap = group.reduce<number>(
+        (sum, id) =>
+          id > 0 ? sum + (draft.building.chars[String(id)]?.ap ?? 0) : sum,
+        0,
+      );
+      if (ap > bestAp) {
+        bestAp = ap;
+        best = group;
+      }
+    }
+    return best;
   }
 
   async batchChangeWorkChar(args: {
@@ -1461,33 +1593,44 @@ export class BuildingManager {
     const roomSlotId = args.roomSlotId ?? args.slotId;
     const charInstIdList = args.charInstIdList ?? args.charInstIds ?? args.list;
     return await this._player.update(async (draft) => {
-      if (!roomSlotId) return;
       // 修复（2026-08-19）：官方 CS BuildingBatchChangeWorkCharRequest 无字段——
-      // 客户端"换班"按钮发空体期望**预设队列轮换**（应用下一组排班）；
-      // 原实现空体直接不改分配 → 客户端换班无效果。
-      const target = Array.isArray(charInstIdList)
-        ? charInstIdList
-        : this._nextPresetQueue(draft, roomSlotId);
-      if (!target) return;
-      // 清空这些干员在其他房间的占用
-      for (const slotKey in draft.building.roomSlots) {
-        if (slotKey === roomSlotId) continue;
-        const ids = draft.building.roomSlots[slotKey].charInstIds;
-        for (let i = 0; i < ids.length; i++) {
-          if (target.includes(ids[i])) {
-            ids[i] = -1;
+      // 客户端"换班"按钮发空体 {}。抓包实测空体不含 roomSlotId → 原实现
+      // `if (!roomSlotId) return;` 直接短路返回空 delta → 客户端判定"换班无效"。
+      // 修复（2026-08-23）：空体应视为"全局自动换班"——遍历所有设了预设队列的
+      // 工作房间，逐个自动应用「中心情相对高（心情总和最高）」的一组；显式携带
+      // roomSlotId/charInstIdList 时仍仅操作指定房间/排班（兼容旧行为）。
+      const slots = roomSlotId
+        ? [roomSlotId]
+        : Object.keys(draft.building.roomSlots);
+      let changed = false;
+      for (const sid of slots) {
+        const target = Array.isArray(charInstIdList)
+          ? charInstIdList
+          : this._pickHighestApPreset(draft, sid);
+        // 空体全局模式：房间无预设队列则跳过（不影响其他房间）
+        if (!target) continue;
+        // 清空这些干员在其他房间的占用
+        for (const slotKey in draft.building.roomSlots) {
+          if (slotKey === sid) continue;
+          const ids = draft.building.roomSlots[slotKey].charInstIds;
+          for (let i = 0; i < ids.length; i++) {
+            if (target.includes(ids[i])) {
+              ids[i] = -1;
+            }
           }
         }
+        draft.building.roomSlots[sid].charInstIds = [...target];
+        changed = true;
       }
-      draft.building.roomSlots[roomSlotId].charInstIds = [...target];
       // 换班后立即按新岗位重算心情档位
-      this._recomputeCharScales(draft);
+      if (changed) this._recomputeCharScales(draft);
     });
   }
 
   /**
    * 批量休息干员
-   * 将指定干员从所有房间的工作位置移除（置为 -1）。
+   * 将指定干员从所有房间的工作位置移除（置为 -1），随后自动将
+   * 「不在任何房间中且当前心情(ap)为 0」的干员安排入住宿舍空位（补宿舍回复）。
    * 官方 CS BuildingBatchChangeRestCharRequest 无字段（实际清人走 assignChar [-1]），
    * 服务端兼容 charInstIdList/charInstIds/list 字段名变体；空请求体不改分配。
    * @param args - 请求体（charInstIdList/charInstIds/list）
@@ -1499,18 +1642,76 @@ export class BuildingManager {
   }) {
     const charInstIdList = args.charInstIdList ?? args.charInstIds ?? args.list;
     return await this._player.update(async (draft) => {
-      if (!Array.isArray(charInstIdList)) return;
-      for (const slotKey in draft.building.roomSlots) {
-        const ids = draft.building.roomSlots[slotKey].charInstIds;
-        for (let i = 0; i < ids.length; i++) {
-          if (charInstIdList.includes(ids[i])) {
-            ids[i] = -1;
+      if (Array.isArray(charInstIdList)) {
+        for (const slotKey in draft.building.roomSlots) {
+          const ids = draft.building.roomSlots[slotKey].charInstIds;
+          for (let i = 0; i < ids.length; i++) {
+            if (charInstIdList.includes(ids[i])) {
+              ids[i] = -1;
+            }
           }
         }
       }
+      // 自动把不在房间且心情告罄的干员安排进宿舍空位
+      this._fillDormEmptySlots(draft);
       // 休息后立即恢复空闲心情档位（0）
       this._recomputeCharScales(draft);
     });
+  }
+
+  /**
+   * 内部方法：将「不在任何房间中且当前心情(ap)为 0」的干员安排入住宿舍空位。
+   *
+   * 宿舍空位判定（修复 2026-08-23）：
+   * - 空床（charInstIds 中 ≤0 的槽位）；
+   * - 以及「宿舍内心情已满（ap ≥ 上限 8640000）且所在宿舍未锁定（presetQueues[slotId].locked
+   *   ≠ true）」的干员——这类干员已不需要继续驻宿回复，可腾出床位让给需要休息的干员。
+   *   （锁定的宿舍视为不可变动，腾床不触及锁定房间。）
+   */
+  private _fillDormEmptySlots(draft: Draft<PlayerDataModel>): void {
+    // 心情满值（与 _accrueCharAp 封顶一致）
+    const MAX_AP = 8640000;
+    // 收集已占用的干员（排除在任意房间工作中的）
+    const occupied = new Set<number>();
+    for (const slot of Object.values(draft.building.roomSlots)) {
+      for (const id of slot?.charInstIds ?? []) {
+        if (id && id > 0) occupied.add(id);
+      }
+    }
+    // 需要入住的目标：不在任何房间 且 心情(ap) 为 0 的干员
+    const candidates: number[] = [];
+    for (const [instIdStr, ch] of Object.entries(draft.building.chars ?? {})) {
+      const instId = Number(instIdStr);
+      if (occupied.has(instId)) continue;
+      if ((ch?.ap ?? 0) > 0) continue;
+      candidates.push(instId);
+    }
+    if (candidates.length === 0) return;
+    // 依次填补各宿舍槽位床位（先空床，后满心情未锁定干员的床位），先填床位数较多的宿舍
+    const dormSlots = Object.entries(draft.building.roomSlots)
+      .filter(([, slot]) => slot.roomId === "DORMITORY")
+      .sort((a, b) => b[1].charInstIds.length - a[1].charInstIds.length);
+    let c = 0;
+    for (const [slotId, slot] of dormSlots) {
+      const ids = slot.charInstIds;
+      const meta = this._presetQueues(draft)[slotId] as
+        | { locked?: boolean }
+        | undefined;
+      const locked = meta?.locked === true;
+      for (let i = 0; i < ids.length && c < candidates.length; i++) {
+        if (ids[i] <= 0) {
+          // 空床：直接入住
+          ids[i] = candidates[c++];
+          continue;
+        }
+        // 满心情且未锁定宿舍的干员 → 视为可腾出床位（让位给需休息干员）
+        if (locked) continue;
+        const ch = draft.building.chars[String(ids[i])];
+        if ((ch?.ap ?? 0) >= MAX_AP) {
+          ids[i] = candidates[c++];
+        }
+      }
+    }
   }
 
   /**
@@ -1883,6 +2084,11 @@ export class BuildingManager {
     // 修复：官方字段为 roomSlotIdList（数组），原实现读取单值 roomSlotId →
     // 客户端请求解构不到 → 空 delta → 客户端"无法更新制造站状态"
     const list = args.roomSlotIdList ?? [];
+    // 修复：CS BuildingSettleManufactRequest.supplement = 免费生产自动补货次数。
+    // 原实现忽略该字段：免费配方（F_EXP/F_GOLD，costs 为空）计划耗尽即停止，
+    // 玩家需反复手动 changeManufactureSolution 补货。客户端每次收获会带上
+    // supplement>0，据此对免费生产方案自动回填计划、继续保持生产。
+    const supplement = args.supplement ?? 0;
     let producedTotal = 0;
     await this._player.update(async (draft) => {
       for (const roomSlotId of list) {
@@ -1901,14 +2107,33 @@ export class BuildingManager {
           roomAfter.processPoint = 0;
           roomAfter.lastUpdateTime = now();
         } else {
-          // 计划耗尽：停止生产并清空
-          roomAfter.state = 0;
-          roomAfter.formulaId = "";
-          roomAfter.lastUpdateTime = now();
-          roomAfter.completeWorkTime = -1;
-          roomAfter.remainSolutionCnt = 0;
-          roomAfter.outputSolutionCnt = 0;
-          roomAfter.processPoint = 0;
+          // 计划耗尽：若为免费生产配方且请求带 supplement → 自动补货，否则停止清空
+          const formula = getManufactFormula(roomAfter.formulaId);
+          // 仅配方存在且无材料成本才算"免费生产"——未知配方（数据缺失）不视为免费
+          const isFree =
+            !!formula &&
+            (formula.costs ?? []).every((c: any) => (c?.count ?? 0) <= 0);
+          if (isFree && supplement > 0) {
+            // 免费生产自动补货：把刚收获的产量回填为剩余计划，继续保持生产
+            const harvested = roomAfter.outputSolutionCnt || 0;
+            roomAfter.remainSolutionCnt = Math.max(
+              roomAfter.remainSolutionCnt ?? 0,
+              harvested,
+            );
+            roomAfter.outputSolutionCnt = 0;
+            roomAfter.processPoint = 0;
+            roomAfter.lastUpdateTime = now();
+            roomAfter.completeWorkTime = -1;
+          } else {
+            // 非免费配方 / 未请求补货：停止生产并清空
+            roomAfter.state = 0;
+            roomAfter.formulaId = "";
+            roomAfter.lastUpdateTime = now();
+            roomAfter.completeWorkTime = -1;
+            roomAfter.remainSolutionCnt = 0;
+            roomAfter.outputSolutionCnt = 0;
+            roomAfter.processPoint = 0;
+          }
         }
       }
     });
@@ -2490,6 +2715,9 @@ export class BuildingManager {
       if (idx === -1) return;
       const clue = room.ownStock.splice(idx, 1)[0];
       clue.uid = String(friendId);
+      // 好友赠送的线索进入线索盒（receiveStock）后限时保留：
+      // 写入绝对过期时间戳（now + expiredDays×86400），到期由自动清理移除。
+      clue.ts = now() + getClueExpiredDays() * 86400;
       room.receiveStock.push(clue);
       sent = true;
       // 推送：同步会客室红点（存在未上板线索 → 1）
@@ -2510,6 +2738,8 @@ export class BuildingManager {
       const room = Object.values(draft.building.rooms.MEETING)[0];
       if (!room || room.ownStock.length === 0) return;
       const clue = room.ownStock.shift()!;
+      // 好友赠送的线索进入线索盒（receiveStock）后限时保留（同 sendClue）
+      clue.ts = now() + getClueExpiredDays() * 86400;
       room.receiveStock.push(clue);
       // 修复：自动发送后同步红点（与 sendClue 一致）
       this._refreshClueFlag(draft, room);
@@ -2689,14 +2919,80 @@ export class BuildingManager {
   }
 
   /**
+   * 内部方法：自动移除会客室线索盒（receiveStock）中已过期的好友赠送线索
+   *
+   * 官方模型：好友赠送的线索进入线索盒后限时保留（PlayerBuildingMeetingClue.ts
+   * 为绝对过期时间戳，客户端 MeetingClueRestTimeLabel 按 ts 显示剩余时间）；
+   * 过期后服务端同步时自动移除，避免线索盒堆积过期线索。
+   *
+   * 私服实现：sendClue/sendClueAuto 写入 ts = now + expiredDays×86400，
+   * 此处过滤 ts ≤ 当前时间 的条目（旧存档无 ts 的线索按未过期保留，不误删）。
+   *
+   * @param draft - mutative 可写草稿
+   * @param room - 会客室房间对象
+   * @param ts - 当前时间基准（秒）
+   * @returns 移除的线索数量
+   */
+  private _purgeExpiredReceivedClues(
+    draft: Draft<PlayerDataModel>,
+    room: any,
+    ts: number,
+  ): number {
+    const stock = room?.receiveStock;
+    if (!Array.isArray(stock) || stock.length === 0) return 0;
+    const before = stock.length;
+    room.receiveStock = stock.filter((c) => {
+      // 无 ts（旧存档/非好友赠送）视为未过期；ts 为数字且 ≤ now 才过期
+      return typeof c?.ts !== "number" || c.ts > ts;
+    });
+    const removed = before - room.receiveStock.length;
+    if (removed > 0) {
+      // 过期线索被移除 → 红点按剩余未上板线索重算
+      this._refreshClueFlag(draft, room);
+    }
+    return removed;
+  }
+
+  /**
+   * 内部方法：清理会客室全部房间中已过期的好友赠送线索
+   *
+   * 遍历所有 MEETING 房间（兼容多会客室存档），委托 _purgeExpiredReceivedClues。
+   * @param draft - mutative 可写草稿
+   * @param ts - 当前时间基准（秒）
+   * @returns 移除的线索总数
+   */
+  private _purgeAllExpiredClues(draft: Draft<PlayerDataModel>, ts: number): number {
+    let total = 0;
+    for (const roomRaw of Object.values(draft.building.rooms.MEETING ?? {})) {
+      total += this._purgeExpiredReceivedClues(draft, roomRaw as any, ts);
+    }
+    return total;
+  }
+
+  /**
    * 获取线索盒（ownStock + receiveStock）
+   *
+   * 读取前自动清理已过期的好友赠送线索（_purgeAllExpiredClues），
+   * 确保返回给客户端的线索盒不含过期条目（变更经 update 落盘进 delta）。
    * @returns 包含 box 字段的对象
    */
   async getClueBox() {
-    const room = this._meetingRoom();
-    return {
-      box: [...(room?.ownStock ?? []), ...(room?.receiveStock ?? [])],
-    };
+    return await this._player.update(async (draft) => {
+      const ts = now();
+      this._purgeAllExpiredClues(draft, ts);
+      const room = Object.values(draft.building.rooms.MEETING)[0];
+      // 深拷贝后再返回：draft 为 mutative 代理，update 结束后被 revoke，
+      // 直接返回代理元素会让 router 在 JSON.stringify 时报
+      // "Cannot perform 'get' on a proxy that has been revoked"。
+      return {
+        box: JSON.parse(
+          JSON.stringify([
+            ...(room?.ownStock ?? []),
+            ...(room?.receiveStock ?? []),
+          ]),
+        ),
+      };
+    });
   }
 
   /**
@@ -2833,6 +3129,55 @@ export class BuildingManager {
     // 本次有干员恢复心情时计 1 次
     if (recovered > 0) {
       void this._trigger.emit("RecoverCharBaseAp", [{ count: recovered }]);
+    }
+  }
+
+  /**
+   * 内部方法：干员信赖（favorPoint）随时间累积
+   *
+   * 官方机制：进驻干员（在岗）+ 助战干员按小时累积信赖（basicFavorPerDay 每日量
+   * ÷ 24 为每小时量）。修复（2026-08-23）：原实现仅在手动 gainIntimacy /
+   * gainAllIntimacy / gainAssistIntimacy 时发放固定量，sync 推进不结算 → 长时间
+   * 在线信赖停滞（需要手动点数），与官方「随时间自动累积」语义不符。
+   *
+   * 现按流逝时间持续结算：duration = ts - lastFavorAddTime，信赖增量 =
+   * duration × (basicFavorPerDay / 24) / 3600；只对「在岗 + 助战」干员累积，未进驻
+   * 干员不结算；同步更新 troop.chars 与 charGroup。lastFavorAddTime 复用浮点秒
+   * （毫秒精度，任意两次 sync ≥1ms 必变 → 信赖增量恒在）。
+   *
+   * @param draft - Immer 草稿
+   * @param nowSec - 当前时间基准（浮点秒，毫秒精度；缺省取 Date.now()/1000）
+   */
+  private _accrueFavor(draft: Draft<PlayerDataModel>, nowSec?: number): void {
+    const ts = nowSec ?? Date.now() / 1000; // 浮点秒（毫秒精度）
+    const perDay = getBuildingConstant<number>("basicFavorPerDay") ?? 720;
+    const perHour = Math.max(perDay / 24, 1); // 每小时信赖量（默认 720/24 = 30）
+    const perSec = perHour / 3600; // 每秒信赖量
+    if (perSec <= 0) return;
+    // 收集「在岗 + 助战」干员（去重），未进驻的干员不结算
+    const targets = new Set<number>();
+    for (const slot of Object.values(draft.building.roomSlots)) {
+      for (const id of slot?.charInstIds ?? []) {
+        if (id && id > 0) targets.add(id);
+      }
+    }
+    for (const id of draft.building.assist ?? []) {
+      if (id && id > 0) targets.add(id);
+    }
+    for (const instId of targets) {
+      const ch = draft.building.chars[String(instId)];
+      if (!ch) continue;
+      // 非官方扩展字段：记录上次信赖结算时间（浮点秒），缺省用当前时间（首次引入）
+      const raw = ch as unknown as { lastFavorAddTime?: number };
+      const last =
+        typeof raw.lastFavorAddTime === "number" ? raw.lastFavorAddTime : ts;
+      const elapsedSec = ts - last;
+      // 无论是否产生增量都推进基准时间（首次缺省用当前时间 → 下次才从该基准结算）
+      raw.lastFavorAddTime = ts;
+      if (elapsedSec <= 0) continue;
+      const gain = elapsedSec * perSec;
+      if (gain <= 0) continue;
+      this._addFavor(draft, instId, gain);
     }
   }
 
@@ -2996,14 +3341,31 @@ export class BuildingManager {
   }
 
   /**
-   * 使用单个预设队列（单房间版，应用首个队列）
+   * 使用单个预设队列（单房间版，自动选中心情相对高的预设）
    * @param args - { slotId }（或 roomSlotId）
    */
   async useOnePresetQueue(args: {
     slotId?: string;
     roomSlotId?: string;
   }) {
-    return this.usePresetQueue({ ...args, index: 0 });
+    const slotId = args.slotId ?? args.roomSlotId;
+    if (!slotId) return;
+    return await this._player.update(async (draft) => {
+      // 自动选该房间预设队列中「干员当前心情总和最高」的一组（心情相对高的预设）
+      const charInstIdList = this._pickHighestApPreset(draft, slotId);
+      if (!Array.isArray(charInstIdList)) return;
+      // 清空这些干员在其他房间的占用
+      for (const slotKey in draft.building.roomSlots) {
+        if (slotKey === slotId) continue;
+        const ids = draft.building.roomSlots[slotKey].charInstIds;
+        for (let i = 0; i < ids.length; i++) {
+          if (charInstIdList.includes(ids[i])) ids[i] = -1;
+        }
+      }
+      draft.building.roomSlots[slotId].charInstIds = [...charInstIdList];
+      // 换班后立即按新岗位重算心情档位
+      this._recomputeCharScales(draft);
+    });
   }
 
   /**

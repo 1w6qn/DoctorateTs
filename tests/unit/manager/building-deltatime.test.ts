@@ -456,4 +456,64 @@ describe("BuildingManager 贸易站订单时间模型（_accrueTrading）", () =
     (manager as any)._advanceBuilding(draft, at(6000));
     expect(draft.building.rooms.TRADING.slot_6.stock).toHaveLength(1); // 上限 1，不再生成
   });
+
+  it("fix(八一八交付刷单)：交付清空后立即 sync 不补满，须等待补单节流才逐笔补", () => {
+    const { manager, mockPlayer } = setup();
+    mockPlayer._playerdata.building.rooms.TRADING.slot_6 = {
+      state: 1, stock: [], stockLimit: 5, strategy: "O_GOLD", lastUpdateTime: LAST,
+    };
+    const draft = draftOf(mockPlayer);
+    // 首次 sync：守卫初始化补满到 stockLimit
+    (manager as any)._advanceBuilding(draft, at(0));
+    let room = draft.building.rooms.TRADING.slot_6;
+    expect(room.stock).toHaveLength(5);
+    // 模拟 deliveryBatchOrder 交付：清空全部库存
+    room.stock = [];
+    // 紧接着 sync（间隔 < _TRADE_FILL_INTERVAL=3600）→ 不得立即补满（防反复领取刷单）
+    (manager as any)._advanceBuilding(draft, at(100));
+    room = draft.building.rooms.TRADING.slot_6;
+    expect(room.stock).toHaveLength(0);
+    // 超过补单节流后再次 sync → 只补 1 单（随时间逐笔）
+    (manager as any)._advanceBuilding(draft, at(3700));
+    room = draft.building.rooms.TRADING.slot_6;
+    expect(room.stock).toHaveLength(1);
+  });
+
+  it("fix(信赖时间结算)：在岗干员信赖随时间累计（basicFavorPerDay/24 每小时），未进驻不结算", () => {
+    const { manager, mockPlayer } = setup();
+    // 在岗干员：进驻贸易站 slot_6
+    mockPlayer._playerdata.building.roomSlots.slot_6 = {
+      level: 3, state: 2, roomId: "TRADING", charInstIds: [5], completeConstructTime: -1,
+    };
+    mockPlayer._playerdata.building.chars["5"] = { charId: "char_5", ap: 5000, lastApAddTime: LAST };
+    mockPlayer._playerdata.troop.chars["5"] = { charId: "char_5", favorPoint: 100 };
+    mockPlayer._playerdata.troop.charGroup["char_5"] = { favorPoint: 100 };
+    const draft = draftOf(mockPlayer);
+    // 首次 sync：建立 lastFavorAddTime 基准（不结算）
+    (manager as any)._advanceBuilding(draft, at(0));
+    expect(draft.troop.chars["5"].favorPoint).toBe(100);
+    // 1 小时后：信赖 += 720/24 = 30（每小时 30 点）
+    (manager as any)._advanceBuilding(draft, at(3600));
+    expect(draft.troop.chars["5"].favorPoint).toBeCloseTo(130);
+    expect(draft.troop.charGroup["char_5"].favorPoint).toBeCloseTo(130);
+    // 未进驻干员（chars 有记录但不在岗）不结算
+    mockPlayer._playerdata.building.chars["99"] = { charId: "char_99", ap: 5000, lastApAddTime: LAST };
+    mockPlayer._playerdata.troop.chars["99"] = { charId: "char_99", favorPoint: 50 };
+    mockPlayer._playerdata.troop.charGroup["char_99"] = { favorPoint: 50 };
+    const draft2 = draftOf(mockPlayer);
+    (manager as any)._advanceBuilding(draft2, at(3600));
+    expect(draft2.troop.chars["99"].favorPoint).toBe(50);
+  });
+
+  it("fix(八一八交付刷单)：补单节流不污染时间模型房间（next.maxPoint>0 仍走 _accrueTrading）", () => {
+    const { manager, mockPlayer } = setup();
+    mockPlayer._playerdata.building.rooms.TRADING.slot_6 = {
+      state: 1, stock: [], stockLimit: 5, strategy: "O_GOLD", lastUpdateTime: LAST,
+      next: { order: -1, processPoint: 0, speed: 1, maxPoint: 3000 },
+    };
+    const draft = draftOf(mockPlayer);
+    (manager as any)._advanceBuilding(draft, at(3000)); // 满阈值 → 1 单（时间模型）
+    expect(draft.building.rooms.TRADING.slot_6.stock).toHaveLength(1);
+    expect(draft.building.rooms.TRADING.slot_6._lastOrderFillTs).toBeUndefined();
+  });
 });

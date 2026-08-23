@@ -266,6 +266,61 @@ describe("BuildingManager", () => {
     });
   });
 
+  describe("advance", () => {
+    /** 前移时间基准后按真实当前时间统一结算（now mock = 1234567890，laborRecoverTime = 360） */
+    it("应前移劳动力时间基准并结算恢复量，返回当前时间戳", async () => {
+      const manager = new BuildingManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      mockPlayer._playerdata.building!.status.labor.lastUpdateTime = 1234567890;
+      mockPlayer._playerdata.building!.status.labor.value = 0;
+
+      const result = await manager.advance(3600);
+
+      // elapsed = now - (now - 3600) = 3600 → gain = floor(3600/360) = 10
+      expect(mockPlayer._playerdata.building!.status.labor.value).toBe(10);
+      expect(mockPlayer._playerdata.building!.status.labor.lastUpdateTime).toBe(1234567890);
+      expect(result).toBe(1234567890);
+    });
+
+    it("应前移工作时间房间时间戳并在 sync 后复位，停工房间保持不动", async () => {
+      const manager = new BuildingManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      const building = mockPlayer._playerdata.building!;
+      (building.rooms.MEETING.room_001 as any).state = 1;
+      (building.rooms.MEETING.room_001 as any).lastUpdateTime = 1234567890;
+      (building.rooms.MEETING as any).room_002 = {
+        state: 0,
+        lastUpdateTime: 1234567890,
+      };
+
+      await manager.advance(7200);
+
+      // 工作时间房间：被 _touchActiveRooms 复位到当前时间
+      expect((building.rooms.MEETING.room_001 as any).lastUpdateTime).toBe(1234567890);
+      // 停工房间：既不前移也不 touch，保持原值
+      expect((building.rooms.MEETING as any).room_002.lastUpdateTime).toBe(1234567890);
+    });
+
+    it("快进秒数向下取整且至少为 1", async () => {
+      const manager = new BuildingManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      mockPlayer._playerdata.building!.status.labor.lastUpdateTime = 1234567890;
+      mockPlayer._playerdata.building!.status.labor.value = 0;
+
+      await manager.advance(0.5); // floor → 0 → 钳制为 1
+
+      // elapsed = 1 < laborRecoverTime=360 → 不产生恢复，也不推进时间戳
+      expect(mockPlayer._playerdata.building!.status.labor.value).toBe(0);
+      expect(mockPlayer._playerdata.building!.status.labor.lastUpdateTime).toBe(1234567889);
+    });
+  });
+
   describe("changeBGM", () => {
     it("应该更新选中 BGM ID", async () => {
       const manager = new BuildingManager(
@@ -498,6 +553,52 @@ describe("BuildingManager 批量干员", () => {
     await manager.batchRestChar({ charInstIdList: [1001, 1004] } as any);
     expect(mockPlayer._playerdata.building!.roomSlots.slot_5.charInstIds).toEqual([-1, 1002, 1003]);
     expect(mockPlayer._playerdata.building!.roomSlots.slot_6.charInstIds).toEqual([-1]);
+  });
+
+  it("batchRestChar 应自动将不在房间且心情为0的干员安排入住宿舍空位", async () => {
+    // 构造宿舍空位（DORMITORY 槽位 charInstIds 中 -1 即空床）
+    (mockPlayer._playerdata.building!.roomSlots as any).slot_7 = {
+      level: 2, state: 2, roomId: "DORMITORY", charInstIds: [-1, -1, -1], completeConstructTime: 0,
+    };
+    // 心情为 0 且不在任何房间的干员 → 应被安排入住
+    (mockPlayer._playerdata.building!.chars as any)["2001"] = { ap: 0 };
+    (mockPlayer._playerdata.building!.chars as any)["2002"] = { ap: 0 };
+    // 心情 > 0 且不在房间 → 不需休息，不应被安排
+    (mockPlayer._playerdata.building!.chars as any)["2003"] = { ap: 500 };
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.batchRestChar({} as any);
+    const dorm = mockPlayer._playerdata.building!.roomSlots.slot_7.charInstIds;
+    // 2001/2002 入住空位；2003 心情充足不入住
+    expect(dorm).toEqual([2001, 2002, -1]);
+  });
+
+  it("batchRestChar 应将宿舍中满心情且未锁定的干员床位视为空位（腾出给需休息干员）", async () => {
+    // 宿舍 1 床已由满心情干员 2001 占据（未锁定）
+    (mockPlayer._playerdata.building!.roomSlots as any).slot_7 = {
+      level: 2, state: 2, roomId: "DORMITORY", charInstIds: [2001, -1, -1], completeConstructTime: 0,
+    };
+    (mockPlayer._playerdata.building!.chars as any)["2001"] = { ap: 8640000 }; // 心情已满
+    (mockPlayer._playerdata.building!.chars as any)["2002"] = { ap: 0 };       // 需休息
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.batchRestChar({} as any);
+    const dorm = mockPlayer._playerdata.building!.roomSlots.slot_7.charInstIds;
+    // 2001 满心情未锁定 → 床位作废让给 2002（空床也填满）
+    expect(dorm).toEqual([2002, -1, -1]);
+  });
+
+  it("batchRestChar 不得腾出已锁定宿舍的满心情干员床位", async () => {
+    (mockPlayer._playerdata.building!.roomSlots as any).slot_7 = {
+      level: 2, state: 2, roomId: "DORMITORY", charInstIds: [2001, -1, -1], completeConstructTime: 0,
+    };
+    (mockPlayer._playerdata.building!.chars as any)["2001"] = { ap: 8640000 }; // 满心情
+    (mockPlayer._playerdata.building!.chars as any)["2002"] = { ap: 0 };       // 需休息
+    // 锁定该宿舍（私服扩展 building.presetQueues[slotId].locked）
+    (mockPlayer._playerdata.building as any).presetQueues = { slot_7: { locked: true } };
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.batchRestChar({} as any);
+    const dorm = mockPlayer._playerdata.building!.roomSlots.slot_7.charInstIds;
+    // 锁定宿舍的满心情床位不可动；2002 只能入住剩余空床
+    expect(dorm).toEqual([2001, 2002, -1]);
   });
 
   it("cleanRoomSlot 应清空房间全部干员", async () => {
@@ -1058,6 +1159,20 @@ describe("BuildingManager 线索系统", () => {
     expect(mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock).toHaveLength(2);
   });
 
+  it("dailyRefresh 应自动移除已过期的好友赠送线索", async () => {
+    mockPlayer._playerdata.building!.rooms.MEETING.room_001.receiveStock = [
+      // 已过期
+      { id: "clue_expired", type: "PENGUIN", number: 1, uid: "2", name: "B", nickNum: "1", chars: [], inUse: 0, ts: 1234567890 - 1 },
+      // 未过期
+      { id: "clue_alive", type: "URSUS", number: 1, uid: "3", name: "C", nickNum: "1", chars: [], inUse: 0, ts: 1234567890 + 9999 },
+    ] as any;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.dailyRefresh();
+    expect(
+      mockPlayer._playerdata.building!.rooms.MEETING.room_001.receiveStock.map((c: any) => c.id),
+    ).toEqual(["clue_alive"]);
+  });
+
   it("sendClue 应将线索从 ownStock 移到 receiveStock", async () => {
     mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock = [
       { id: "clue_001", type: "clue_1", number: 1, uid: "1", name: "A", nickNum: "1", chars: [], inUse: 0 },
@@ -1067,6 +1182,66 @@ describe("BuildingManager 线索系统", () => {
     const room = mockPlayer._playerdata.building!.rooms.MEETING.room_001;
     expect(room.ownStock).toHaveLength(0);
     expect(room.receiveStock).toHaveLength(1);
+  });
+
+  it("sendClue 应在线索写入过期时间戳 ts（now + expiredDays×86400）", async () => {
+    mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock = [
+      { id: "clue_001", type: "RHINE", number: 1, uid: "1", name: "A", nickNum: "1", chars: [], inUse: 0 },
+    ] as any;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.sendClue({ id: "clue_001", friendId: "2" } as any);
+    const clue = mockPlayer._playerdata.building!.rooms.MEETING.room_001.receiveStock[0];
+    // now() mock = 1234567890；缺省 expiredDays = 10 → ts = now + 864000
+    expect(clue.ts).toBe(1234567890 + 10 * 86400);
+  });
+
+  it("sendClueAuto 应在线索写入过期时间戳 ts", async () => {
+    mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock = [
+      { id: "clue_001", type: "RHINE", number: 1, uid: "1", name: "A", nickNum: "1", chars: [], inUse: 0 },
+    ] as any;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.sendClueAuto({} as any);
+    const clue = mockPlayer._playerdata.building!.rooms.MEETING.room_001.receiveStock[0];
+    expect(clue.ts).toBe(1234567890 + 10 * 86400);
+  });
+
+  it("getClueBox 应自动移除已过期（ts ≤ now）的好友赠送线索", async () => {
+    mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock = [
+      { id: "clue_own", type: "RHINE", number: 1, uid: "1", name: "A", nickNum: "1", chars: [], inUse: 0 },
+    ] as any;
+    mockPlayer._playerdata.building!.rooms.MEETING.room_001.receiveStock = [
+      // 已过期（ts 早于 now=1234567890）
+      { id: "clue_expired", type: "PENGUIN", number: 1, uid: "2", name: "B", nickNum: "1", chars: [], inUse: 0, ts: 1234567890 - 1 },
+      // 未过期（ts 晚于 now）
+      { id: "clue_alive", type: "URSUS", number: 1, uid: "3", name: "C", nickNum: "1", chars: [], inUse: 0, ts: 1234567890 + 9999 },
+      // 无 ts（旧存档）→ 视为未过期
+      { id: "clue_no_ts", type: "RHODES", number: 1, uid: "4", name: "D", nickNum: "1", chars: [], inUse: 0 },
+    ] as any;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const box = await manager.getClueBox();
+    // 过期线索被移除 → box 仅含 own + 未过期 receive（3 条）
+    expect(box.box).toHaveLength(3);
+    const ids = box.box.map((c: any) => c.id);
+    expect(ids).not.toContain("clue_expired");
+    expect(ids).toContain("clue_own");
+    expect(ids).toContain("clue_alive");
+    expect(ids).toContain("clue_no_ts");
+    // 已落盘：receiveStock 同样清理
+    expect(
+      mockPlayer._playerdata.building!.rooms.MEETING.room_001.receiveStock.map((c: any) => c.id),
+    ).toEqual(["clue_alive", "clue_no_ts"]);
+  });
+
+  it("getClueBox 对无过期线索的线索盒不做任何移除", async () => {
+    mockPlayer._playerdata.building!.rooms.MEETING.room_001.receiveStock = [
+      { id: "clue_alive", type: "URSUS", number: 1, uid: "3", name: "C", nickNum: "1", chars: [], inUse: 0, ts: 1234567890 + 9999 },
+    ] as any;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const box = await manager.getClueBox();
+    expect(box.box).toHaveLength(1);
+    expect(
+      mockPlayer._playerdata.building!.rooms.MEETING.room_001.receiveStock,
+    ).toHaveLength(1);
   });
 
   it("getInfoShareReward 应推进会客室干员体力累积（官方响应 delta 必含 building.chars）", async () => {
@@ -1234,10 +1409,24 @@ describe("BuildingManager 预设队列", () => {
     expect(mockPlayer._playerdata.building!.roomSlots.slot_5.charInstIds).toEqual([2001, 2002]);
   });
 
-  it("useOnePresetQueue 应应用房间首个预设队列（修复空 delta）", async () => {
+  it("useOnePresetQueue 应应用房间内中心情相对高的预设（自动选心情最高组）", async () => {
     const room = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
-    room.presetQueue = [[1001, 1002]];
+    // 两组预设；第 2 组干员心情(ap)总和更高 → 应自动当选
+    room.presetQueue = [[1001, 1002], [2001, 2002]];
+    const chars = mockPlayer._playerdata.building!.chars as any;
+    chars["1001"] = { ap: 1000 };
+    chars["1002"] = { ap: 1000 };
+    chars["2001"] = { ap: 5000 };
+    chars["2002"] = { ap: 5000 };
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.useOnePresetQueue({ slotId: "slot_5" } as any);
+    // 应自动应用心情更高的第 2 组（2001,2002）
+    expect(mockPlayer._playerdata.building!.roomSlots.slot_5.charInstIds).toEqual([2001, 2002]);
+  });
+
+  it("useOnePresetQueue 无预设队列时不变更排班（不 500）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    mockPlayer._playerdata.building!.roomSlots.slot_5.charInstIds = [1001, 1002];
     await manager.useOnePresetQueue({ slotId: "slot_5" } as any);
     expect(mockPlayer._playerdata.building!.roomSlots.slot_5.charInstIds).toEqual([1001, 1002]);
   });
@@ -1346,6 +1535,51 @@ describe("BuildingManager 劳动力与留言板奖励", () => {
     const second = await manager.confirmMessageBoardReward({} as any);
     expect(second).toEqual([]);
     expect(mockPlayer._playerdata.status!.socialPoint).toBe(38 + 300); // 未重复发放
+  });
+
+  it("留言板完整链路：dailyRefresh 累积 thisWeek → 跨周滚动 lastWeek → confirmMessageBoardReward 可领取信用", async () => {
+    // 好友访问留言板：1 好友 × visitorBonus=30
+    vi.spyOn(accountManager, "getSocial").mockResolvedValue({
+      friends: [{ uid: "2", alias: "" }],
+      friendRequests: [],
+      visited: [],
+    } as any);
+    const room = (mockPlayer._playerdata.building!.rooms.MEETING as any).room_001;
+    room.messageLeave = {
+      inUse: true, lastVisitTs: 0, lastShowTs: 0,
+      lastUpdateSpTs: 1234567890 - 7 * 86400, // 一周前 → dailyRefresh 触发周切
+      sp: { lastWeek: 0, lastWeekSum: 0, thisWeek: 90, thisWeekSum: 90 },
+    };
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    // 每日刷新：先周切（thisWeek 90 → lastWeek），再累积新一周 thisWeek（1×30=30）
+    await manager.dailyRefresh();
+    // update 深拷贝替换 building → 重新读取
+    const sp = (mockPlayer._playerdata.building!.rooms.MEETING as any).room_001.messageLeave.sp;
+    expect(sp.lastWeek).toBe(90); // 上周可领
+    expect(sp.thisWeek).toBe(30); // 本周新累积
+    // 领取上周留言板社交点 → 信用入账
+    const reward = await manager.confirmMessageBoardReward({} as any);
+    expect(reward).toEqual([{ id: "SOCIAL_PT", count: 90, type: "SOCIAL_PT" }]);
+    expect(mockPlayer._playerdata.status!.socialPoint).toBe(38 + 90);
+    const spAfter = (mockPlayer._playerdata.building!.rooms.MEETING as any).room_001.messageLeave.sp;
+    expect(spAfter.lastWeek).toBe(0); // 已领取清零
+    expect(spAfter.lastWeekSum).toBe(90); // 累计
+    expect(spAfter.thisWeek).toBe(30); // 本周未动
+  });
+
+  it("留言板累积应封顶 visitorBonusLimit（本周社交点 ≤ 300）", async () => {
+    vi.spyOn(accountManager, "getSocial").mockResolvedValue({
+      friends: [{ uid: "2", alias: "" }, { uid: "3", alias: "" }, { uid: "4", alias: "" }, { uid: "5", alias: "" }, { uid: "6", alias: "" }],
+      friendRequests: [],
+      visited: [],
+    } as any);
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    // 5 好友 × 30 = 150；连续刷新多天 → 封顶 300
+    for (let i = 0; i < 5; i++) {
+      await manager.dailyRefresh();
+    }
+    const sp = (mockPlayer._playerdata.building!.rooms.MEETING as any).room_001.messageLeave.sp;
+    expect(sp.thisWeek).toBe(300);
   });
 
   it("getMessageBoardContent 应返回留言板内容（访客/统计/上周可领社交点）", async () => {

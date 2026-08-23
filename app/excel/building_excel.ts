@@ -108,6 +108,35 @@ export function getRoomElectricity(
 }
 
 /**
+ * 会客室线索过期天数（官方 clue_data.json expiredDays，缺省 10 天）
+ *
+ * 好友赠送的线索进入 receiveStock 后，在过期时间（now + expiredDays×86400s）
+ * 之后由 BuildingManager 自动移除；缺表/字段时回退官方默认值 10。
+ */
+export function getClueExpiredDays(): number {
+  const days = (excel as any).ClueData?.expiredDays;
+  return typeof days === "number" && days > 0 ? days : 10;
+}
+
+/**
+ * 会客室留言板常量（官方 clue_data.json messageLeaveBoardConstData）
+ *
+ * - visitorBonus：每位访客留言（好友访问）获得的社交点
+ * - visitorBonusLimit：每周留言板社交点上限（封顶值）
+ * 缺表/字段时回退官方默认（30 / 300）。
+ */
+export function getMessageLeaveBoardConst(): {
+  visitorBonus: number;
+  visitorBonusLimit: number;
+} {
+  const c = (excel as any).ClueData?.messageLeaveBoardConstData;
+  const visitorBonus = typeof c?.visitorBonus === "number" ? c.visitorBonus : 30;
+  const visitorBonusLimit =
+    typeof c?.visitorBonusLimit === "number" ? c.visitorBonusLimit : 300;
+  return { visitorBonus, visitorBonusLimit };
+}
+
+/**
  * 会客室相位（level 从 1 起；friendSlotInc = 每次好友访问/情报分享的信用量）
  * 信用经济：socialReward.daily/search 按 friendSlotInc 累积（封顶 creditPassiveLimit/
  * creditInitiativeLimit），getMeetingroomReward 领取后清零重新累积。

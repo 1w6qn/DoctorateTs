@@ -523,7 +523,8 @@ describe("BuildingManager 会客室/每日刷新完整性", () => {
     // update 替换 building 对象 → 重新读取
     const sp = mockPlayer._playerdata.building.rooms.MEETING.room_001.messageLeave.sp;
     expect(sp.lastWeek).toBe(90); // thisWeek → lastWeek
-    expect(sp.thisWeek).toBe(0);
+    // 新一周：好友访问留言板累积（2 好友 × visitorBonus=30）→ thisWeek 从 0 重新累积
+    expect(sp.thisWeek).toBe(60);
   });
 
   it("getInfoShareVisitorsNum 应返回好友数", async () => {

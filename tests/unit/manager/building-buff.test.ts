@@ -362,6 +362,35 @@ describe("BuildingManager 干员技能（buff）集成", () => {
     expect(settled.formulaId).toBe("");
   });
 
+  it("settleManufacture：免费配方带 supplement 计划耗尽后自动补货（继续保持生产）", async () => {
+    const room = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
+    room.remainSolutionCnt = 0; // 免费生产（F_GOLD，costs 为空）计划已耗尽
+    room.outputSolutionCnt = 99;
+    room.formulaId = "4";
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.settleManufacture({ roomSlotIdList: ["slot_5"], supplement: 1 } as any);
+    expect(mockPlayer._playerdata.inventory!["3003"]).toBe(99);
+    const restocked = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
+    // 自动补货：配方保留、计划回填为刚收获量、继续生产而不停止
+    expect(restocked.state).toBe(1);
+    expect(restocked.formulaId).toBe("4");
+    expect(restocked.remainSolutionCnt).toBe(99);
+    expect(restocked.outputSolutionCnt).toBe(0);
+    expect(restocked.processPoint).toBe(0);
+  });
+
+  it("settleManufacture：无材料成本以外的配方带 supplement 不自动补货（停止清空）", async () => {
+    const room = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
+    room.remainSolutionCnt = 0;
+    room.outputSolutionCnt = 99;
+    room.formulaId = "999"; // 配方不存在 → 不视为免费生产 → 不自动补货
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.settleManufacture({ roomSlotIdList: ["slot_5"], supplement: 1 } as any);
+    const stopped = mockPlayer._playerdata.building!.rooms.MANUFACTURE.slot_5 as any;
+    expect(stopped.state).toBe(0);
+    expect(stopped.formulaId).toBe("");
+  });
+
   it("getMeetingroomReward：发放 socialPoint 并清零 socialReward（一次性，修复无限信用点）", async () => {
     const room = mockPlayer._playerdata.building!.rooms.MEETING as any;
     room.meeting_001 = {

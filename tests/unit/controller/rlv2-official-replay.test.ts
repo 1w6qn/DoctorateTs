@@ -97,7 +97,7 @@ vi.mock("@excel/excel", () => ({
 }));
 
 vi.mock("@utils/crypt", () => ({
-  decryptBattleData: vi.fn().mockResolvedValue({ completeState: 1, finalHp: 8, isPerfect: 1 }),
+  decryptBattleData: vi.fn().mockResolvedValue({ completeState: 2, finalHp: 8, isPerfect: 1 }),
 }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
@@ -344,7 +344,7 @@ describe("官服回放扩展：战斗/暂存/结算", () => {
     await rlv2._battle.finish([{
       battleLog: "",
       data: "encrypted",
-      battleData: { completeState: 1, finalHp: 8, isPerfect: 1 },
+      battleData: { completeState: 2, finalHp: 8, isPerfect: 1 },
     }]);
     const ourBattle = ourKey(rlv2);
     expect(ourBattle.pendingTypes).toContain("BATTLE_REWARD");

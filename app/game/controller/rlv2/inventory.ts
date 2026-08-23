@@ -128,23 +128,25 @@ export class RoguelikeInventoryManager
       SQUAD_CAPACITY: (item: RoguelikeItemBundle) => {
         this._player._status.property.capacity += item.count;
       },
-      RECRUIT_TICKET: (item: RoguelikeItemBundle) => {
-        this._trigger.emit("rlv2:recruit:gain", [item.id, "battle", 0]);
+      RECRUIT_TICKET: async (item: RoguelikeItemBundle) => {
+        // await：gain 先写入 recruit 票，active 打开候选、event:create 生成 RECRUIT 事件，
+        // 三者需在响应序列化前完成，否则拿券后无 RECRUIT 事件可招募（"拿到券不能招"）。
+        await this._trigger.emit("rlv2:recruit:gain", [item.id, "battle", 0]);
         const ticket = Object.values(this.recruit).slice(-1)[0].index;
-        this._trigger.emit("rlv2:recruit:active", [ticket]);
+        await this._trigger.emit("rlv2:recruit:active", [ticket]);
         // 参数键名与 events.ts RECRUIT 构造一致（tickets）——原传 {ticket} 导致 undefined
-        this._trigger.emit("rlv2:event:create", [
+        await this._trigger.emit("rlv2:event:create", [
           "RECRUIT",
           {
             tickets: ticket,
           },
         ]);
       },
-      UPGRADE_TICKET: (item: RoguelikeItemBundle) => {
-        this._trigger.emit("rlv2:recruit:gain", [item.id, "battle", 0]);
+      UPGRADE_TICKET: async (item: RoguelikeItemBundle) => {
+        await this._trigger.emit("rlv2:recruit:gain", [item.id, "battle", 0]);
         const ticket = Object.values(this.recruit).slice(-1)[0].index;
-        this._trigger.emit("rlv2:recruit:active", [ticket]);
-        this._trigger.emit("rlv2:event:create", [
+        await this._trigger.emit("rlv2:recruit:active", [ticket]);
+        await this._trigger.emit("rlv2:event:create", [
           "RECRUIT",
           {
             tickets: ticket,

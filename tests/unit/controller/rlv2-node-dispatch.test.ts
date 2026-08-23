@@ -282,10 +282,10 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
     expect(gz.takeChangedNodes()).toEqual([]);
   });
 
-  it("羽瞰点经过后按到羽瞰点的曼哈顿距离照亮 3（普通节点仅沿边 1 跳）", async () => {
+  it("羽瞰点前往后按到羽瞰点的曼哈顿距离照亮 2（普通节点仅沿边 1 跳）", async () => {
     // 布局：0(起点) 直链边连 100 - 200 - 300；另有 101(1,1)/103(1,3) 不与任何边连通。
-    // 羽瞰点 100（抵达即经过，state→2）视野半径 3：按曼哈顿距离铺开，
-    // 101(距1)、200(距1)、300(距2)、103(距3) 全部点亮——含无边连接的 101/103。
+    // 羽瞰点 100（抵达即经过，state→2）视野半径 2：按曼哈顿距离铺开，
+    // 101(距1)、200(距1)、300(距2) 全部揭示；103(距3) 在半径 2 之外保持隐藏——含无边连接。
     // 普通节点 1 跳：沿地图边只点亮直链邻居 200，无边连接的 101/103 与距离 2 的 300 不亮。
     const player = makePlayer();
     await (player.rlv2 as any)._module.create();
@@ -323,16 +323,16 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
     };
     const mapOf = () => (rlv2._map as any).zones["1003"].nodes;
 
-    // 羽瞰点：曼哈顿距离 ≤3（101/200 距1、300 距2、103 距3）全部揭示为 NORMAL(0)
+    // 羽瞰点：曼哈顿距离 ≤2（101/200 距1、300 距2）全部揭示为 NORMAL(0)；103 距3 保持隐藏
     layer("zone_4", ROGUE6_NODE.RAIN_VIEW);
     let changed = gz.takeChangedNodes();
     expect(changed).toContain("100");
     expect(changed).toContain("200");
     expect(changed).toContain("300");
     expect(changed).toContain("101"); // 无边连接，但距羽瞰点 1 → 曼哈顿揭示
-    expect(changed).toContain("103"); // 距羽瞰点 3 → 半径 3 内
+    expect(changed).not.toContain("103"); // 距羽瞰点 3 → 半径 2 之外
     expect(mapOf()["101"].visibility).toBe(0);
-    expect(mapOf()["103"].visibility).toBe(0);
+    expect(mapOf()["103"].visibility).toBe(1);
 
     // 普通节点：沿地图边 1 跳，仅直链邻居 200 揭示；101/103 无边、300 距离 2 均保持 HIDE_INVISIBLE(1)
     layer("zone_4", ROGUE6_NODE.BATTLE_NORMAL);
@@ -345,41 +345,138 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
     expect(mapOf()["101"].visibility).toBe(1);
   });
 
-  it("进层生成时羽瞰点默认按曼哈顿距离 2 点亮（3 处距离不点）", async () => {
-    // 构造一个羽瞰点身处其中、周围曼哈顿距离 2/3 的节点混布的 zone。
-    // 直接校验 generate 后 map.zones 的 visibility：羽瞰点 2 半径内揭示为 NORMAL(0)，半径 3 保持 HIDE_INVISIBLE(1)。
+  it("进层生成时羽瞰点默认揭示曼哈顿距离 1（周围4格；距离 2 保持隐藏）", async () => {
+    // 直接校验 generate 中默认揭示（r=1）：羽瞰点 1 半径内（上下左右）揭示为 NORMAL(0)，
+    // 距离 2 节点保持 HIDE_INVISIBLE(1)。
     const player = makePlayer();
     await (player.rlv2 as any)._module.create();
     const rlv2 = player.rlv2 as any;
     const gz = rlv2._module.gridZone;
-    // 放入羽瞰点 200(2,0)，其曼哈顿距离：300(3,0) 距1、400(4,0) 距2、500(5,0) 距3
+    // 羽瞰点 200(2,0) 居中：左 100(1,0) 距1、上 201(2,1) 距1、右 300(3,0) 距1、远 500(5,0) 距3
     gz.zones = {
       zone_4: {
         nodes: {
-          "0": { content: { kind: ROGUE6_NODE.GLADE }, state: 2, show: true },
+          "100": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: false },
           "200": { content: { kind: ROGUE6_NODE.RAIN_VIEW }, state: 0, show: true },
+          "201": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: false },
           "300": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: false },
-          "400": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: false },
           "500": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: false },
         },
       },
     };
+    // 羽瞰点在 map.zones 固定为已揭示（visibility=NORMAL），其余保持隐藏
     (rlv2._map as any).zones["1003"] = {
       nodes: {
-        "0": { next: [{ x: 2, y: 0 }], visibility: 0 },
-        "200": { next: [{ x: 0, y: 0 }, { x: 3, y: 0 }], visibility: 1 },
-        "300": { next: [{ x: 2, y: 0 }, { x: 4, y: 0 }], visibility: 1 },
-        "400": { next: [{ x: 3, y: 0 }, { x: 5, y: 0 }], visibility: 1 },
+        "100": { next: [{ x: 2, y: 0 }], visibility: 1 },
+        "200": { next: [{ x: 1, y: 0 }, { x: 2, y: 1 }, { x: 3, y: 0 }], visibility: 0 },
+        "201": { next: [{ x: 2, y: 0 }], visibility: 1 },
+        "300": { next: [{ x: 2, y: 0 }], visibility: 1 },
         "500": { next: [{ x: 4, y: 0 }], visibility: 1 },
       },
     };
-    // 触发 generate 的羽瞰点默认揭示逻辑
+    // 模拟 generate 中羽瞰点的默认揭示（r=1）
     gz.beginMove();
-    gz.revealManhattan("1003", "zone_4", 2, 0, 2);
+    gz.revealManhattan("1003", "zone_4", 2, 0, 1);
     const mapNodes = (rlv2._map as any).zones["1003"].nodes;
-    expect(mapNodes["300"].visibility).toBe(0); // 距1 → NORMAL
-    expect(mapNodes["400"].visibility).toBe(0); // 距2 → NORMAL
-    expect(mapNodes["500"].visibility).toBe(1); // 距3 → 半径 2 之外，保持 HIDE_INVISIBLE
+    expect(mapNodes["100"].visibility).toBe(0); // 左，距1 → NORMAL
+    expect(mapNodes["201"].visibility).toBe(0); // 上，距1 → NORMAL
+    expect(mapNodes["300"].visibility).toBe(0); // 右，距1 → NORMAL
+    expect(mapNodes["500"].visibility).toBe(1); // 距3 → 半径 1 之外，保持 HIDE_INVISIBLE
+  });
+
+  it("羽瞰点 moveTo 前往后揭示曼哈顿距离 2 并补偿 1 行动力", async () => {
+    const player = makePlayer();
+    await (player.rlv2 as any)._module.create();
+    const rlv2 = player.rlv2 as any;
+    const gz = rlv2._module.gridZone;
+    gz.zones = {
+      zone_3: {
+        nodes: {
+          "0": { content: { kind: ROGUE6_NODE.GLADE }, state: 2, show: true },
+          "100": { content: { kind: ROGUE6_NODE.RAIN_VIEW }, state: 0, show: true },
+          "200": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: true },
+          "201": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: true },
+        },
+      },
+    };
+    (rlv2._map as any).zones["1002"] = {
+      nodes: {
+        "0": { next: [{ x: 1, y: 0 }], visibility: 0 },
+        "100": { next: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 1 }], visibility: 1 },
+        "200": { next: [{ x: 1, y: 0 }], visibility: 1 },
+        "201": { next: [{ x: 1, y: 0 }], visibility: 1 },
+      },
+    };
+    rlv2._status.cursor.zone = 3;
+    rlv2._status.cursor.position = { x: 0, y: 0 };
+    gz.stepRemain = 5;
+    gz.beginMove();
+    gz.moveTo(["100"]);
+    // 前往羽瞰点：+1 行动力（官服"前往该节点后……获得1行动力"）
+    expect(gz.stepRemain).toBe(6);
+    // 曼哈顿距离 1/2（200 距1、201 距2）均揭示为 NORMAL(0)
+    expect((rlv2._map as any).zones["1002"].nodes["200"].visibility).toBe(0);
+    expect((rlv2._map as any).zones["1002"].nodes["201"].visibility).toBe(0);
+  });
+});
+
+describe("rogue_6 曲折密道成对传送", () => {
+  it("层内两个 TUNNEL 节点成对索引，进入其一返回配对密道目标", async () => {
+    const player = makePlayer();
+    await (player.rlv2 as any)._module.create();
+    const rlv2 = player.rlv2 as any;
+    const gz = rlv2._module.gridZone;
+    // 手工铺一张恰好含两个 TUNNEL 节点的层，避免 generate 随机抽取额外密道影响成对计数
+    gz.zones = {
+      zone_3: {
+        nodes: {
+          "0": { content: { kind: ROGUE6_NODE.GLADE }, state: 2, show: true },
+          "100": { content: { kind: ROGUE6_NODE.TUNNEL }, state: 0, show: true },
+          "300": { content: { kind: ROGUE6_NODE.TUNNEL }, state: 0, show: true },
+          "200": { content: { kind: ROGUE6_NODE.REST }, state: 0, show: true },
+        },
+      },
+    };
+    gz["indexTunnelPairs"](3, gz.zones["zone_3"].nodes);
+    expect(gz.tunnelPairTarget("zone_3", "100")).toBe("300");
+    expect(gz.tunnelPairTarget("zone_3", "300")).toBe("100");
+    // 非密道节点无目标
+    expect(gz.tunnelPairTarget("zone_3", "0")).toBeUndefined();
+  });
+
+  it("移动进密道节点：服务端位移到配对密道并下发 rlv2NodeTeleport", async () => {
+    const player = makePlayer();
+    await (player.rlv2 as any)._module.create();
+    const rlv2 = player.rlv2 as any;
+    const gz = rlv2._module.gridZone;
+    gz.zones = {
+      zone_3: {
+        nodes: {
+          "0": { content: { kind: ROGUE6_NODE.GLADE }, state: 2, show: true },
+          "100": { content: { kind: ROGUE6_NODE.TUNNEL }, state: 0, show: true },
+          "300": { content: { kind: ROGUE6_NODE.TUNNEL }, state: 0, show: true },
+        },
+      },
+    };
+    gz["indexTunnelPairs"](3, gz.zones["zone_3"].nodes);
+    (rlv2._map as any).zones["1002"] = {
+      nodes: {
+        "0": { next: [{ x: 1, y: 0 }], visibility: 0 },
+        "100": { next: [{ x: 0, y: 0 }], visibility: 1 },
+        "300": { next: [{ x: 0, y: 0 }], visibility: 1 },
+      },
+    };
+    rlv2._status.cursor.zone = 3;
+    rlv2._status.cursor.position = { x: 0, y: 0 };
+    gz.beginMove();
+    rlv2.takePushMessages();
+    await rlv2.gridZoneMoveTo({ route: ["100"] });
+    // 位置位移到配对密道 300（3,0）
+    expect(rlv2._status.cursor.position).toEqual({ x: 3, y: 0 });
+    const msgs = rlv2.takePushMessages();
+    const tele = msgs.find((m: any) => m.path === "rlv2NodeTeleport");
+    expect(tele).toBeTruthy();
+    expect((tele!.payload as any).nodeId).toBe("300");
   });
 });
 
@@ -645,5 +742,230 @@ describe("rogue_6 经过后节点衰减为林间空地（decayPassed）", () => 
     // 抵达 100 后，起点 0 为 GLADE（本来就 GLADE，不衰减）；无中途节点 → 无衰减
     expect((rlv2._map as any).zones["1002"].nodes["100"].type).toBe(ROGUE6_NODE.BATTLE_NORMAL);
     expect((rlv2._map as any).zones["1002"].nodes["0"].type).toBe(ROGUE6_NODE.GLADE);
+  });
+});
+
+// ===== “居民”据点与流窜居民机制（rogue_6） =====
+describe("rogue_6 居民据点与流窜居民机制", () => {
+  /** 构造一张含居民据点的 zone_3（modeGrade 由参数指定），并返回相关句柄 */
+  async function residentFixture(modeGrade: number) {
+    const player = makePlayer();
+    (player.rlv2 as any).current.game.modeGrade = modeGrade;
+    const rlv2 = player.rlv2 as any;
+    await rlv2._module.create();
+    const gz = rlv2._module.gridZone;
+    // gridZone：0 起点 GLADE、100 “居民”据点、200/300 普通节点（可被流窜占领）
+    gz.zones = {
+      zone_3: {
+        nodes: {
+          "0": { content: { kind: ROGUE6_NODE.GLADE }, state: 2, show: true },
+          "100": { content: { kind: ROGUE6_NODE.RESIDENT }, state: 0, show: true },
+          "200": { content: { kind: ROGUE6_NODE.BATTLE_NORMAL }, state: 0, show: true },
+          "300": { content: { kind: ROGUE6_NODE.INCIDENT }, state: 0, show: true },
+        },
+      },
+    };
+    // map：100 边连 200/300（供周边流窜生成）；200/300 visibility 初始隐藏
+    (rlv2._map as any).zones["1002"] = {
+      nodes: {
+        "0": { next: [{ x: 1, y: 0 }], visibility: 0, type: ROGUE6_NODE.GLADE },
+        "100": { next: [{ x: 2, y: 0 }, { x: 3, y: 0 }], visibility: 1, type: ROGUE6_NODE.RESIDENT },
+        "200": { next: [], visibility: 1, type: ROGUE6_NODE.BATTLE_NORMAL },
+        "300": { next: [], visibility: 1, type: ROGUE6_NODE.INCIDENT },
+      },
+    };
+    rlv2._status.cursor.zone = 3;
+    return { player, rlv2, gz };
+  }
+
+  it("canSpawnResident：保密等级>=4 且非 I/VI 层才允许", async () => {
+    const { player, gz } = await residentFixture(4);
+    expect(gz.canSpawnResident(3)).toBe(true);
+    expect(gz.canSpawnResident(1)).toBe(false); // I 层
+    expect(gz.canSpawnResident(6)).toBe(false); // VI 层
+    (player.rlv2 as any).current.game.modeGrade = 3;
+    expect(gz.canSpawnResident(3)).toBe(false); // 保密等级不足
+  });
+
+  it("保密等级>=4：生成流窜居民、据点被记录、被占节点临时变特殊作战（独立池，不与首领冲突）", async () => {
+    const { rlv2, gz } = await residentFixture(4);
+    const spy = vi.spyOn(Math, "random").mockReturnValue(0.3); // <0.6 → 生成流窜
+    try {
+      gz.spawnResidentAndBandits(3, {
+        normal: ["ro6_n_3_1"],
+        elite: ["ro6_e_3_1"],
+        boss: ["ro6_b_3"],
+        resident: ["ro6_n_3_1"],
+      });
+    } finally {
+      spy.mockRestore();
+    }
+    // 据点被记录
+    expect(gz.isResidentNode("zone_3", "100")).toBe(true);
+    expect(gz.residentNodeIds("zone_3")).toEqual(["100"]);
+    // 周边合法邻居被流窜占领，临时变特殊作战，关卡来自独立池（ro6_n 非 ro6_b）
+    const b200 = gz.banditAt("zone_3", "200");
+    const b300 = gz.banditAt("zone_3", "300");
+    expect(b200 || b300).toBeTruthy();
+    const mapNodes = (rlv2._map as any).zones["1002"].nodes;
+    for (const nid of ["200", "300"]) {
+      if (gz.banditAt("zone_3", nid)) {
+        expect(mapNodes[nid].type).toBe(ROGUE6_NODE.BATTLE_NORMAL);
+        expect(mapNodes[nid].stage).toMatch(/^ro6_n_3_/); // 独立池：不与首领 ro6_b 冲突
+        if (mapNodes[nid].visibility !== 0) {
+          expect(mapNodes[nid].visibility).toBe(0); // 立即揭示
+        }
+      }
+    }
+    // 据点自身保留 RESIDENT 类型
+    expect(mapNodes["100"].type).toBe(ROGUE6_NODE.RESIDENT);
+  });
+
+  it("保密等级<4：居民据点被改写为林间空地，不生成流窜", async () => {
+    const { rlv2, gz } = await residentFixture(0);
+    const spy = vi.spyOn(Math, "random").mockReturnValue(0.3);
+    try {
+      gz.spawnResidentAndBandits(3, {
+        normal: ["ro6_n_3_1"],
+        elite: [],
+        boss: [],
+        resident: ["ro6_n_3_1"],
+      });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(gz.isResidentNode("zone_3", "100")).toBe(false);
+    expect(gz.residentNodeIds("zone_3")).toEqual([]);
+    expect(gz.banditAt("zone_3", "200")).toBeUndefined();
+    expect((rlv2._map as any).zones["1002"].nodes["100"].type).toBe(ROGUE6_NODE.GLADE);
+  });
+
+  it("驱逐被占领节点后节点被毁为林间空地（其余流窜保留）", async () => {
+    const { rlv2, gz } = await residentFixture(4);
+    const spy = vi.spyOn(Math, "random").mockReturnValue(0.3);
+    try {
+      gz.spawnResidentAndBandits(3, {
+        normal: ["ro6_n_3_1"],
+        elite: [],
+        boss: [],
+        resident: ["ro6_n_3_1"],
+      });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(gz.banditAt("zone_3", "200")).toBeTruthy();
+    gz.beginMove();
+    gz.startClearing("zone_3", "200");
+    gz.finishClearing();
+    // 被驱逐节点毁为林间空地
+    expect(gz.banditAt("zone_3", "200")).toBeUndefined();
+    expect(gz.zones["zone_3"].nodes["200"].content.kind).toBe(ROGUE6_NODE.GLADE);
+    expect((rlv2._map as any).zones["1002"].nodes["200"].type).toBe(ROGUE6_NODE.GLADE);
+    // 其余流窜居民（若有）保留
+    expect(gz.banditAt("zone_3", "300")).toBeTruthy();
+  });
+
+  it("战胜居民据点驱逐区域内全部流窜居民（据点本身也被毁）", async () => {
+    const { rlv2, gz } = await residentFixture(4);
+    const spy = vi.spyOn(Math, "random").mockReturnValue(0.3);
+    try {
+      gz.spawnResidentAndBandits(3, {
+        normal: ["ro6_n_3_1"],
+        elite: [],
+        boss: [],
+        resident: ["ro6_n_3_1"],
+      });
+    } finally {
+      spy.mockRestore();
+    }
+    // 确保两个邻居都被占领
+    expect(gz.banditAt("zone_3", "200")).toBeTruthy();
+    expect(gz.banditAt("zone_3", "300")).toBeTruthy();
+    gz.beginMove();
+    gz.startClearing("zone_3", "100"); // 居民据点
+    const cleared = gz.finishClearing();
+    expect(cleared).toBe(true);
+    // 全部流窜被驱逐
+    expect(gz.banditAt("zone_3", "200")).toBeUndefined();
+    expect(gz.banditAt("zone_3", "300")).toBeUndefined();
+    // 据点被毁为林间空地
+    expect(gz.isResidentNode("zone_3", "100")).toBe(false);
+    expect(gz.residentNodeIds("zone_3")).toEqual([]);
+    expect(gz.zones["zone_3"].nodes["100"].content.kind).toBe(ROGUE6_NODE.GLADE);
+    expect((rlv2._map as any).zones["1002"].nodes["100"].type).toBe(ROGUE6_NODE.GLADE);
+  });
+
+  it("流窜居民沿连通路径移动 1 格，不进入可反复进入节点/林间空地（GLADE）", async () => {
+    const player = makePlayer();
+    const rlv2 = player.rlv2 as any;
+    await rlv2._module.create();
+    const gz = rlv2._module.gridZone;
+    // 流窜居民在 200；可移动邻居 100(作战，合法) 与 300(林间空地，非法)
+    gz.zones = {
+      zone_3: {
+        nodes: {
+          "0": { content: { kind: ROGUE6_NODE.GLADE }, state: 2, show: true },
+          "100": { content: { kind: ROGUE6_NODE.BATTLE_NORMAL }, state: 0, show: true },
+          "200": { content: { kind: ROGUE6_NODE.INCIDENT }, state: 1, show: true },
+          "300": { content: { kind: ROGUE6_NODE.GLADE }, state: 0, show: true },
+        },
+      },
+    };
+    (rlv2._map as any).zones["1002"] = {
+      nodes: {
+        "0": { next: [{ x: 1, y: 0 }], visibility: 0, type: ROGUE6_NODE.GLADE },
+        "200": { next: [{ x: 1, y: 0 }, { x: 3, y: 0 }], visibility: 1, type: ROGUE6_NODE.INCIDENT },
+        "100": { next: [{ x: 2, y: 0 }], visibility: 1, type: ROGUE6_NODE.BATTLE_NORMAL },
+        "300": { next: [{ x: 2, y: 0 }], visibility: 1, type: ROGUE6_NODE.GLADE },
+      },
+    };
+    rlv2._status.cursor.zone = 3;
+    rlv2._status.cursor.position = { x: 0, y: 0 }; // 玩家在起点 0，不参与
+    // 手工安置一个流窜居民在 200（原始类型 INCIDENT，独立池关卡 ro6_n_3_1）
+    (player.rlv2 as any).current.game.modeGrade = 4;
+    gz["spawnBanditAt"]("zone_3", "1002", "200", {
+      normal: ["ro6_n_3_1"],
+      elite: [],
+      boss: [],
+      resident: ["ro6_n_3_1"],
+    });
+    expect(gz.banditAt("zone_3", "200")).toBeTruthy();
+    // 只给出一个合法候选（100）→ random 取值不影响唯一性
+    const spy = vi.spyOn(Math, "random").mockReturnValue(0.0);
+    try {
+      gz.stepBandits("zone_3");
+    } finally {
+      spy.mockRestore();
+    }
+    // 流窜移动到 100：原节点 200 恢复为 INCIDENT，目标 100 被占领
+    expect(gz.banditAt("zone_3", "200")).toBeUndefined();
+    expect(gz.banditAt("zone_3", "100")).toBeTruthy();
+    expect(gz.zones["zone_3"].nodes["200"].content.kind).toBe(ROGUE6_NODE.INCIDENT);
+    expect((rlv2._map as any).zones["1002"].nodes["100"].type).toBe(ROGUE6_NODE.BATTLE_NORMAL);
+    expect((rlv2._map as any).zones["1002"].nodes["100"].stage).toBe("ro6_n_3_1");
+  });
+});
+
+// ===== 无法携带至下一区域的加工品 =====
+describe("rogue_6 无法携带至下一区域的加工品", () => {
+  it("进入新的常规区域时移除 M_04/M_07（无法携带类），保留普通加工品", async () => {
+    const player = makePlayer();
+    await (player.rlv2 as any)._module.create();
+    const rlv2 = player.rlv2 as any;
+    const gz = rlv2._module.gridZone;
+    // 手工注入零件箱：不可携带的 M_04/M_07 + 可携带的 M_01/M_05
+    rlv2._module.scrap.inventory = {
+      s_1: { instId: "s_1", id: "rogue_6_scrap_M_01", value: 1, useCnt: 0, ts: 0 },
+      s_2: { instId: "s_2", id: "rogue_6_scrap_M_04", value: 1, useCnt: 0, ts: 0 },
+      s_3: { instId: "s_3", id: "rogue_6_scrap_M_07", value: 1, useCnt: 0, ts: 0 },
+      s_4: { instId: "s_4", id: "rogue_6_scrap_M_05", value: 1, useCnt: 0, ts: 0 },
+    };
+    // 生成常规层（非 portal）→ 移除不可携带类
+    gz.generate([3]);
+    const ids = Object.values(rlv2._module.scrap.inventory).map((s: any) => s.id);
+    expect(ids).toContain("rogue_6_scrap_M_01");
+    expect(ids).toContain("rogue_6_scrap_M_05");
+    expect(ids).not.toContain("rogue_6_scrap_M_04");
+    expect(ids).not.toContain("rogue_6_scrap_M_07");
   });
 });

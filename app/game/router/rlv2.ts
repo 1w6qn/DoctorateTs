@@ -460,7 +460,7 @@ router.post("/battleFinish", validateBody(ReqSchema.battleFinishSchema), async (
 router.post("/chooseBattleReward", validateBody(ReqSchema.chooseBattleRewardSchema), async (req, res) => {
   const player = httpContext.get<PlayerDataManager>("playerData")!;
   const body = req.body as RoguelikeSelectRewardRequest;
-  player.rlv2.chooseBattleReward(body);
+  await player.rlv2.chooseBattleReward(body);
   res.send(rlv2Response(player) satisfies RoguelikeSelectRewardResponse);
 });
 

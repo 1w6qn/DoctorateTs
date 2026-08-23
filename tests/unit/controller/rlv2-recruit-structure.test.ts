@@ -92,4 +92,39 @@ describe("recruitChar 响应结构对齐官服（2026-08-18 抓包校准）", ()
     expect((troopChars["1"].skills || []).length).toBe(3);
     expect(troopChars["1"].currentEquip).toBe("uniequip_002_mcnist");
   });
+
+  it("精二源干员首次招募被锁定精一时：专精/模组养成同步裁剪（显示与状态一致）", async () => {
+    const player = makePlayer();
+    const rlv2 = player.rlv2 as any;
+    await Promise.resolve();
+    const rm = rlv2.inventory._recruit;
+    // 候选体现 active() 的 levelPatch：精二源降为精一（evolvePhase=1、精一满级、exp=0、upgradeLimited）
+    rm.tickets["t_0"] = {
+      index: "t_0", id: "rogue_6_recruit_ticket_sniper", state: 1,
+      list: [{
+        instId: "0", charId: "char_4230_mcnist", type: "NORMAL",
+        favorPoint: 625, potentialRank: 5, mainSkillLvl: 7, skin: "char_4230_mcnist#2",
+        level: 50, exp: 0, evolvePhase: 1, defaultSkillIndex: 0, skills: [],
+        upgradeLimited: true, upgradePhase: 0, isUpgrade: false, isCure: false,
+        population: 2, charBuff: [], troopInstId: "33", master: {},
+      }],
+      result: null, from: "initial", mustExtra: 0, needAssist: false, ts: 0,
+    } as any;
+    await rm.done("t_0", "0");
+    const c = rm.tickets["t_0"].result as any;
+    expect(c.evolvePhase).toBe(1);
+    // 精一仅保留已解锁的前 2 个技能（三技能 skchr_mcnist_3 为 PHASE_2 需精二，剔除）
+    expect(c.skills.map((s: any) => s.skillId)).toEqual([
+      "skchr_mcnist_1",
+      "skchr_mcnist_2",
+    ]);
+    // 专精归零（精一不可专精）
+    for (const s of c.skills) expect(s.specializeLevel).toBe(0);
+    // 默认技能钳制到保留技能数内（候选 defaultSkillIndex=0 保持 0）
+    expect(c.defaultSkillIndex).toBe(0);
+    // 无专精 → master 清空；无模组 → equip/currentEquip 清空
+    expect(Object.keys(c.master || {})).toEqual([]);
+    expect(Object.keys(c.equip || {})).toEqual([]);
+    expect(c.currentEquip).toBe("");
+  });
 });

@@ -158,6 +158,23 @@ export const ROGUE6_ZONE_ACTION: readonly number[] = [0, 5, 6, 7, 8, 8];
 /** 【生命游戏】"翅膀"节点：点亮后 Ⅰ 层初始行动力 +1（RAW_TEXT_EFFECT"进入第一层时，行动力+1"） */
 export const ROGUE6_WING_OUTBUFF = "rogue_6_outbuff_37";
 
+/**
+ * 【生命游戏】"喙"节点：点亮后先行一步派出的干员归来时会带回随机加工品。
+ * 与"翅膀"同为科技树标记节点（outbuff effect 数组为空，语义由代码解释）。
+ * 该 outbuff id 由用户指定（官方数据的科技树节点名集中无字面"喙"，此为其检索键）。
+ */
+export const ROGUE6_BEAK_OUTBUFF = "rogue_6_outbuff_33";
+
+/**
+ * "无法携带至下一区域"的移动加工品（官方 moveScrapData.scrapDesc 原文含
+ * "无法被携带至下一区域"）：进入下一层/新区域时被移除；进入/离开特殊层（portal）
+ * 时豁免（官方误入奇境描述"进入和离开特殊层时，不会使无法携带至下一层的加工品损坏"）。
+ */
+export const ROGUE6_NON_PORTABLE_SCRAPS: readonly string[] = [
+  "rogue_6_scrap_M_04",
+  "rogue_6_scrap_M_07",
+];
+
 /** 二结局·维度重构的首领关卡（窥视箱中 → 混沌源阶理论） */
 export const ROGUE6_END2_BOSS_STAGE = "ro6_b_5";
 

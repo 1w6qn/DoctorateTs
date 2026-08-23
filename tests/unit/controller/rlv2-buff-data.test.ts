@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { buildRoguelikeConsts } from "../../../app/excel/roguelike_consts_gen";
 
 
-// 官方 excel mock：提供 RoguelikeConsts（data/rlv2.json 模拟）与 RoguelikeTopicTable.details（fallback）
+// 官方 excel mock：提供 RoguelikeConsts（由官方表派生，替代 data/rlv2.json）
+// 与 RoguelikeTopicTable.details（fallback）
 vi.mock("@excel/excel", () => ({
   default: {
     RoguelikeTopicTable: {
@@ -26,7 +28,7 @@ vi.mock("@excel/excel", () => ({
       modules: { rogue_3: {} },
       consts: {},
     },
-    // 模拟 data/rlv2.json：只有 rogue_3 有 recruitGrps，modebuff 缺失（验证容错）
+    // 模拟派生 RoguelikeConsts：只有 rogue_3 有 recruitGrps，modebuff 缺失（验证容错）
     RoguelikeConsts: {
       rogue_3: { outbuff: {}, modebuff: {}, recruitGrps: { recruit_group_1: ["ro3_ticket_a"] } },
     },
@@ -59,9 +61,9 @@ describe("rlv2 局外buff/难度buff/招募组数据", () => {
     player.rlv2.current.game = { theme: "rogue_3", mode: "NORMAL", modeGrade: 0, predefined: null } as any;
   });
 
-  describe("data/rlv2.json 数据文件", () => {
+  describe("派生 RoguelikeConsts（官方 excel 取代 data/rlv2.json）", () => {
     it("应覆盖全部 6 主题且 recruitGrps 非空", () => {
-      const data = require("../../../data/rlv2.json");
+      const data = buildRoguelikeConsts(require("../../../data/excel/roguelike_topic_table.json"));
       const themes = Object.keys(data);
       expect(themes.sort()).toEqual(["rogue_1", "rogue_2", "rogue_3", "rogue_4", "rogue_5", "rogue_6"]);
       for (const th of themes) {
@@ -70,7 +72,7 @@ describe("rlv2 局外buff/难度buff/招募组数据", () => {
     });
 
     it("各主题 outbuff 数量应与增益树节点一致", () => {
-      const data = require("../../../data/rlv2.json");
+      const data = buildRoguelikeConsts(require("../../../data/excel/roguelike_topic_table.json"));
       expect(Object.keys(data.rogue_1.outbuff).length).toBeGreaterThanOrEqual(45);
       expect(Object.keys(data.rogue_2.outbuff).length).toBeGreaterThanOrEqual(58);
       expect(Object.keys(data.rogue_3.outbuff).length).toBeGreaterThanOrEqual(43);
@@ -80,7 +82,7 @@ describe("rlv2 局外buff/难度buff/招募组数据", () => {
     });
 
     it("rogue_2/3 应有 0-15 难度 modebuff", () => {
-      const data = require("../../../data/rlv2.json");
+      const data = buildRoguelikeConsts(require("../../../data/excel/roguelike_topic_table.json"));
       for (const th of ["rogue_2", "rogue_3"]) {
         const grades = Object.keys(data[th].modebuff);
         expect(grades).toContain("0");
@@ -91,7 +93,7 @@ describe("rlv2 局外buff/难度buff/招募组数据", () => {
     });
 
     it("rogue_1 outbuff 应为标准 RoguelikeBuff 格式", () => {
-      const data = require("../../../data/rlv2.json");
+      const data = buildRoguelikeConsts(require("../../../data/excel/roguelike_topic_table.json"));
       const b = data.rogue_1.outbuff.outbuff_1;
       expect(Array.isArray(b)).toBe(true);
       expect(b[0]).toHaveProperty("key");

@@ -345,3 +345,21 @@ describe("gameSettle current 置空", () => {
     expect((rlv2.toJSON() as any).current.game).toBeTruthy();
   });
 });
+
+describe("生命游戏「喙」节点（先行一步归来带随机加工品）", () => {
+  it("解锁 outbuff_33 且 rawDesc 含归来+加工品 → isBeakUnlocked 为真（真实 excel）", async () => {
+    const player = makePlayer();
+    const rlv2 = player.rlv2 as any;
+    await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
+    // 未解锁 → false
+    expect(rlv2.isBeakUnlocked()).toBe(false);
+    // 解锁 rogue_6_outbuff_33 → true（真实 excel commonDevelopment rawDesc 含"归来…随机加工品"）
+    if (!rlv2.outer.rogue_6) rlv2.outer.rogue_6 = {};
+    rlv2.outer.rogue_6.buff = rlv2.outer.rogue_6.buff || {};
+    rlv2.outer.rogue_6.buff.unlocked = {
+      ...(rlv2.outer.rogue_6.buff.unlocked || {}),
+      rogue_6_outbuff_33: true,
+    };
+    expect(rlv2.isBeakUnlocked()).toBe(true);
+  });
+});

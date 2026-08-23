@@ -45,7 +45,7 @@ export class RoguelikeRecruitManager {
 
   /**
    * 各主题招募希望消耗表（索引 = rarityIdx，TIER_1..6 → 0..5）：
-   * 黑流树海（rogue_6）：4 星 0 希望、5 星 2、6 星 4（官方文本+实测确认，初始希望 6）
+   * 黑流树海（rogue_6）：4 星及以下 0 希望、5 星 2、6 星 6（官方文本+实测确认，初始希望 6）
    * 萨卡兹的无终奇语（rogue_5）：4 星 0、5 星 2、6 星 6（官方表 000026）
    * 其余主题（rogue_1..4）：3 星 0、4 星 2、5 星 3、6 星 6（常规曲线）
    */
@@ -53,7 +53,7 @@ export class RoguelikeRecruitManager {
     const theme = this._player.current.game?.theme || "";
     const map =
       theme === "rogue_6"
-        ? [0, 0, 0, 0, 2, 4]
+        ? [0, 0, 0, 0, 2, 6]
         : theme === "rogue_5"
           ? [0, 0, 0, 0, 2, 6]
           : [0, 0, 0, 2, 3, 6];
@@ -62,14 +62,20 @@ export class RoguelikeRecruitManager {
 
   /**
    * 各主题干员进阶希望消耗表（索引 = rarityIdx，TIER_1..6 → 0..5）：
+   * 黑流树海（rogue_6）：4 星 1、5 星 2、6 星 3（进阶曲线）
    * 萨卡兹的无终奇语（rogue_5）：4 星 1、5 星 1、6 星 3（官方表 000113；
    * 用户消息写 000123 疑笔误，以官方表 ★★★★★ 进阶 1 为准）
+   * 其余主题：进阶不消耗希望（[0,0,0,0,0,0]）。
    * 进阶接口（如后续实现）按此扣希望；当前路由无进阶干员接口，表备用于客户端协议。
    */
   private advancePopulationFor(rarityIdx: number): number {
     const theme = this._player.current.game?.theme || "";
     const map =
-      theme === "rogue_5" ? [0, 0, 0, 1, 1, 3] : [0, 0, 0, 0, 0, 0];
+      theme === "rogue_6"
+        ? [0, 0, 0, 1, 2, 3]
+        : theme === "rogue_5"
+          ? [0, 0, 0, 1, 1, 3]
+          : [0, 0, 0, 0, 0, 0];
     return map[rarityIdx] || 0;
   }
 
@@ -309,13 +315,53 @@ export class RoguelikeRecruitManager {
     const troopChars = this._player._player._playerdata.troop?.chars ?? {};
     const src = troopChars[String(picked.troopInstId)] as any;
     const troopNo = Object.keys(this._player.troop.chars).length + 1;
+    // 首次招募精二干员时 active() 用 levelPatch 将候选锁定为精一（evolvePhase=1、
+    // 精一满级、exp=0）。此时若仍从精二源干员原样补齐 skills/master/equip/
+    // currentEquip，会"显示为精一却携带精二专属养成（专精/模组/三技能）"。官方
+    // 机制（集成战略招募说明）能力上限同样锁定精一满级——故降级时同步裁剪：
+    //   * skills 仅保留精一阶段已解锁的技能（按 unlockCond.phase <= evolvePhase，
+    //     精二才解锁的三技能等剔除），且 specializeLevel 归零（精一不可专精）
+    //   * defaultSkillIndex 钳制到保留后的技能数内（默认技能若被剔除会越界）
+    //   * master 清空（专项记录随专精归零）
+    //   * equip/currentEquip 清空（模组需精二解锁）
+    let skills = src?.skills || [];
+    let master = src?.master || {};
+    let equip = src?.equip || {};
+    let currentEquip = src?.currentEquip ?? "";
+    let defaultSkillIndex = picked.defaultSkillIndex ?? 0;
+    const downgraded = (src?.evolvePhase ?? 0) > (picked.evolvePhase ?? 0);
+    if (downgraded) {
+      const capPhase = picked.evolvePhase ?? 0;
+      // phase 兼容数字（0）与字符串枚举（"PHASE_1"/"PHASE_2"）
+      const phaseOf = (v: any) =>
+        typeof v === "number"
+          ? v
+          : parseInt(String(v ?? "").replace(/PHASE_/i, ""), 10) || 0;
+      const skillData =
+        (excel.CharacterTable as Record<string, any>)[picked.charId]?.skills ||
+        [];
+      const cappedSkills = (src?.skills ?? []).filter((_: any, i: number) => {
+        return phaseOf(skillData[i]?.unlockCond?.phase) <= capPhase;
+      });
+      skills = cappedSkills.map((s: any) => ({ ...s, specializeLevel: 0 }));
+      if (skills.length > 0) {
+        defaultSkillIndex = Math.min(
+          Math.max(defaultSkillIndex, 0),
+          skills.length - 1,
+        );
+      }
+      master = {};
+      equip = {};
+      currentEquip = "";
+    }
     this.tickets[id].result = Object.assign({}, picked, {
       instId: String(picked.troopInstId),
       troopInstId: String(troopNo),
-      skills: src?.skills || [],
-      master: src?.master || {},
-      equip: src?.equip || {},
-      currentEquip: src?.currentEquip ?? "",
+      skills,
+      master,
+      equip,
+      currentEquip,
+      defaultSkillIndex,
     }) as any;
 
     await this._trigger.emit("rlv2:char:get", [this.tickets[id].result!]);

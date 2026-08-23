@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("@utils/crypt", () => ({
   decryptBattleData: vi.fn().mockResolvedValue({
-    completeState: 1,
+    completeState: 2,
     finalHp: 10,
     isPerfect: 0,
   }),
@@ -103,7 +103,7 @@ describe("rlv2 战斗胜利驱动 CHAOS 坍缩", () => {
     (player.rlv2 as any)._status.cursor.zone = 1;
     (player.rlv2 as any)._status.cursor.position = { x: 1, y: 0 };
     await (player.rlv2 as any)._battle.finish([
-      { battleLog: "", data: "encrypted", battleData: { completeState: 1 } },
+      { battleLog: "", data: "encrypted", battleData: { completeState: 2 } },
     ]);
     // 胜利 +1 坍缩值，deltaChaos.dValue = 1
     expect(chaosMgr.toJSON().value).toBe(1);

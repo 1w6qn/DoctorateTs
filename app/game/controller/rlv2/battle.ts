@@ -56,6 +56,28 @@ function buildRlv2Record(
   };
 }
 
+/** 黑流树海基础职业招募券列表（官服 battleFinish 奖励为职业券而非通用 _all） */
+const ROGUE6_CLASS_TICKETS = [
+  "rogue_6_recruit_ticket_pioneer",
+  "rogue_6_recruit_ticket_warrior",
+  "rogue_6_recruit_ticket_tank",
+  "rogue_6_recruit_ticket_sniper",
+  "rogue_6_recruit_ticket_caster",
+  "rogue_6_recruit_ticket_support",
+  "rogue_6_recruit_ticket_medic",
+  "rogue_6_recruit_ticket_special",
+] as const;
+
+/**
+ * 随机抽取一张黑流树海职业招募券（8 职业等概率）
+ * @returns 一个职业招募券 id
+ */
+function pickRogue6ClassTicket(): string {
+  return ROGUE6_CLASS_TICKETS[
+    Math.floor(Math.random() * ROGUE6_CLASS_TICKETS.length)
+  ];
+}
+
 export class RoguelikeBattleManager {
   _player: RoguelikeV2Controller;
   _trigger: TypedEventEmitter;
@@ -185,7 +207,10 @@ export class RoguelikeBattleManager {
       maxHpUp: 0,
     };
 
-    if ((decryptResult as any)?.completeState === 1) {
+    // 战斗胜利判定：completeState 语义与标准战斗一致（1=失败 / 2=通关 / 3=三星）。
+    // 修复：原实现用 `=== 1` 当胜利——真实胜利（2/3）被误判为失败 → 清空 pending、
+    // 直接进 WAIT_MOVE（表现为"进入 zone 而不弹 BATTLE_REWARD"），而真实失败（1）反而误发奖励。
+    if ((decryptResult as any)?.completeState >= 2) {
       // 战斗胜利：rogue_3 CHAOS 模块累积坍缩值（每次胜利 +1，达到上限升层）
       const chaosMgr = this._player._module._modules["CHAOS"];
       chaosMgr?.gainChaos(1);
@@ -201,37 +226,20 @@ export class RoguelikeBattleManager {
         }
       }
 
-      earn.exp = detail.detailConst.playerLevelTable[this._player._status.property.level + 1]?.exp || 10;
+      earn.exp =
+        detail.detailConst.playerLevelTable[this._player._status.property.level + 1]?.exp || 10;
+      // earn.populationMax：本场胜利升级带来的希望上限增加——从下一级等级表读 (
+      // 官服黑流树海 battleFinish 抓包 populationMax=4 = lv2.populationUp，
+      // 实际升级在 finishBattleReward 发放 exp 后进行，earn 仅为回报口径)
+      earn.populationMax =
+        detail.detailConst.playerLevelTable[this._player._status.property.level + 1]?.populationUp ?? 0;
 
-      const rewards: any[] = [
-        {
-          index: 0,
-          items: [{ sub: 0, id: ticket, count: 1 }],
-          done: 0,
-        },
-      ];
+      // —— 战斗奖励组构建：奖励组"序 + 内容"对齐官服黑流树海 battleFinish（金/废品/招募券）——
+      const rewards: any[] = [];
 
-      const goldReward = Math.floor(Math.random() * 10) + 5;
-      rewards.push({
-        index: 1,
-        items: [{ sub: 0, id: `${theme}_gold`, count: goldReward }],
-        done: 0,
-      });
-
-      const fragmentPool = detail.items ? Object.keys(detail.items).filter((k) => k.includes("fragment")) : [];
-      if (fragmentPool.length > 0) {
-        const fragmentId = fragmentPool[Math.floor(Math.random() * fragmentPool.length)];
-        rewards.push({
-          index: 2,
-          items: [{ sub: 0, id: fragmentId, count: 1 }],
-          done: 0,
-        });
-      }
-
-      // 随机收藏品掉落（参考 Dorothinights generateBaseBattleRewards：
-      // 收藏品池过滤已拥有，boss 战必掉 2 个）
-      const pos = this._player._status.cursor.position;
+      // 节点/阶段判定（boss 战必掉多件——废品/收藏品数量加成）
       // 兼容黑流树海（map.zones 键为区域索引 1000+）与标准主题（层号键）
+      const pos = this._player._status.cursor.position;
       const mapZones = this._player._map.zones;
       const zoneKey = mapZones[this._player._status.cursor.zone]
         ? this._player._status.cursor.zone
@@ -241,26 +249,18 @@ export class RoguelikeBattleManager {
         : undefined;
       const curStageId = (node as any)?.stage || "";
       const isBoss = curStageId.includes("_b_");
-      const relicChance = isBoss ? 1 : 0.4; // 简化概率：普通/紧急 40%，boss 100%
-      const hasRelic = Object.values(this._player.inventory!.relic || {}).map(
-        (r) => (r as any).id,
-      );
-      const relicCount = isBoss ? 2 : 1;
-      if (Math.random() < relicChance) {
-        const relicItems: any[] = [];
-        for (let i = 0; i < relicCount; i++) {
-          const relicId = this._player._pool.getRelic("pool_relic_all", hasRelic);
-          if (!relicId) break;
-          relicItems.push({ sub: i, id: relicId, count: 1 });
-          hasRelic.push(relicId);
-        }
-        if (relicItems.length > 0) {
-          rewards.push({ index: rewards.length, items: relicItems, done: 0 });
-        }
-      }
 
-      // 黑流树海（rogue_6）：战斗奖励含零件（废品）组——官方抓包 battleFinish rewards 含
-      // rogue_6_scrap_P_01/P_02 等。从主题 scrapItemToType 池随机 1-2 件。
+      // 黄金奖励（官服 index 0）
+      const goldReward = Math.floor(Math.random() * 10) + 5;
+      rewards.push({
+        index: 0,
+        items: [{ sub: 0, id: `${theme}_gold`, count: goldReward }],
+        done: 0,
+      });
+
+      // 黑流树海（rogue_6）专属：零件（废品）组（官服 index 1）——官方抓包 battleFinish
+      // rewards 含 rogue_6_scrap_P_01/P_02 等。从主题 scrapItemToType 池随机 1-2 件
+      // （boss 必 2 件）。
       if (theme === "rogue_6") {
         const scrapPool = Object.keys(
           excel.RoguelikeTopicTable.modules[theme]?.scrap?.scrapItemToType || {},
@@ -277,12 +277,62 @@ export class RoguelikeBattleManager {
         }
       }
 
+      // 招募券奖励（官服 index 2）：黑流树海发职业券（官服 rogue_6_recruit_ticket_sniper），
+      // 其余主题沿用通用券（`${theme}_recruit_ticket_all`）。
+      const rewardTicket =
+        theme === "rogue_6" ? pickRogue6ClassTicket() : ticket;
+      rewards.push({
+        index: rewards.length,
+        items: [{ sub: 0, id: rewardTicket, count: 1 }],
+        done: 0,
+      });
+
+      // 通用主题（非黑流树海）追加碎片 + 随机收藏品掉落——黑流树海收藏品不随战斗掉落
+      // （官服 battleFinish 无该组，收藏品经分队/事件/贸易获取），故仅非 rogue_6 生成。
+      if (theme !== "rogue_6") {
+        const fragmentPool = detail.items
+          ? Object.keys(detail.items).filter((k) => k.includes("fragment"))
+          : [];
+        if (fragmentPool.length > 0) {
+          const fragmentId =
+            fragmentPool[Math.floor(Math.random() * fragmentPool.length)];
+          rewards.push({
+            index: rewards.length,
+            items: [{ sub: 0, id: fragmentId, count: 1 }],
+            done: 0,
+          });
+        }
+
+        // 随机收藏品掉落（参考 Dorothinights generateBaseBattleRewards：
+        // 收藏品池过滤已拥有，boss 战必掉 2 个）
+        const relicChance = isBoss ? 1 : 0.4; // 简化概率：普通/紧急 40%，boss 100%
+        const hasRelic = Object.values(this._player.inventory!.relic || {}).map(
+          (r) => (r as any).id,
+        );
+        const relicCount = isBoss ? 2 : 1;
+        if (Math.random() < relicChance) {
+          const relicItems: any[] = [];
+          for (let i = 0; i < relicCount; i++) {
+            const relicId = this._player._pool.getRelic(
+              "pool_relic_all",
+              hasRelic,
+            );
+            if (!relicId) break;
+            relicItems.push({ sub: i, id: relicId, count: 1 });
+            hasRelic.push(relicId);
+          }
+          if (relicItems.length > 0) {
+            rewards.push({ index: rewards.length, items: relicItems, done: 0 });
+          }
+        }
+      }
+
       await this._trigger.emit("rlv2:event:create", [
         "BATTLE_REWARD",
         {
           earn: earn,
           rewards: rewards,
-          show: "1",
+          show: "2",
           state: 0,
           isPerfect: (decryptResult as any).isPerfect || 0,
         },
@@ -330,11 +380,6 @@ export class RoguelikeBattleManager {
         ]);
       }
     } else {
-      this._player._status.state = "WAIT_MOVE";
-      while (this._player._status.pending.length > 0) {
-        this._player._status.pending.shift();
-      }
-      this._player._status.trace.pop();
       // 自然物估价动态：非完美作战（含失败）→ G_06 自身损坏（移除）
       this._player._module?.scrap?.applyGoodsEffect("battle_fail");
 
@@ -342,6 +387,24 @@ export class RoguelikeBattleManager {
       await this.persistRecord(
         buildRlv2Record(this._player, battleId, stageId, decryptResult, []),
       );
+
+      if ((decryptResult as any)?.completeState === 1) {
+        // 战斗战败（completeState 语义 1=失败）：直接结算结束本局——官服肉鸽战败即终止。
+        // runResult 置 "fail"（非 "success"）→ gameSettle 的 success=0，展示失败结算页；
+        // fire-and-forget 防未捕获拒绝终止进程（同 checkZoneEnd 通关路径的 void gameSettle 约定）。
+        this._player._status.runResult = "fail";
+        void this._player.gameSettle().catch((e: Error) =>
+          logger.error("rlv2", `battle-fail gameSettle failed: ${e.message}`),
+        );
+      } else {
+        // 解密失败/无效数据（模拟器/异常报文）：软失败——不清空整局，仅回退一步并进入
+        // WAIT_MOVE（不下发结算，避免一次异常请求终止整局）。
+        this._player._status.state = "WAIT_MOVE";
+        while (this._player._status.pending.length > 0) {
+          this._player._status.pending.shift();
+        }
+        this._player._status.trace.pop();
+      }
     }
   }
 }

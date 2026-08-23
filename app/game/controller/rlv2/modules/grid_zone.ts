@@ -31,6 +31,7 @@ import {
   ROGUE6_FORESIGHT,
   ROGUE6_ZONE_ACTION,
   ROGUE6_WING_OUTBUFF,
+  ROGUE6_NON_PORTABLE_SCRAPS,
   BLACKSTREAM_THEME,
   isBlackstream,
 } from "../theme-rules";
@@ -58,6 +59,27 @@ interface ZoneStagePools {
   normal: string[];
   elite: string[];
   boss: string[];
+  /**
+   * “居民”/流窜居民战斗关卡池——独立于首领池（老板 ro6_b_*）。
+   * 官方 rogue_6.stages 无“流窜居民”专属关卡 id（全部为 ro6_n/e/b_*），
+   * 故居民战斗复用普通作战池（ro6_n_*），前缀与首领池天然隔离、不冲突。
+   */
+  resident: string[];
+}
+
+/**
+ * 流窜居民的单一占领状态：被占领节点临时变为特殊作战（独立关卡池），
+ * 会阻碍徒步移动路线；前往作战驱逐后节点被毁（变林间空地）。
+ */
+interface Bandit {
+  /** 所在层键（zone_N / portal 键） */
+  zoneKey: string;
+  /** 被占领节点 id（x*100+y） */
+  nodeId: string;
+  /** 被占前节点的原始类型（流窜离开/驱逐时恢复或销毁用） */
+  originalType: number;
+  /** 该流窜居民战斗的独立关卡 id */
+  stageId: string;
 }
 
 /** 构造模板节点 type 字符串 → 节点数值（与官服 nodeTypeData 对齐） */
@@ -141,11 +163,32 @@ export class RoguelikeGridZoneManager {
   _player: RoguelikeV2Controller;
   _trigger: TypedEventEmitter;
   /**
+   * 本层曲折密道（DOOR/TUNNEL）成对索引：zoneId(1 起) → [密道A id, 密道B id]。
+   * 官方定义"曲折密道成对出现，进入后可传送到另一个密道节点位置"，由 generate 在本层
+   * 生成完毕后收集恰好两个 TUNNEL 节点配对；供 moveTo 到达密道时确定传送目标。
+   * 运行时计算（不落盘，进层重算）。
+   */
+  private _tunnelPairs: { [zoneId: string]: [string, string] };
+  /**
    * 本次移动请求中发生状态/视野变化的节点 id 集合（rlv2NodeChange.nodeList 数据源）。
    * 官服 pushMessage 只下发"变化节点"（到达节点 + 新揭示邻居），非整层全量；
    * moveTo 内累积，由控制器经 beginMove/takeChangedNodes 界定一次请求生命周期。
    */
   private _changedNodeIds: Set<string>;
+  /**
+   * 本层“居民”据点节点（key = `${zoneKey}:${nodeId}` → true）：
+   * 仅在保密等级（modeGrade）>=4 时生成，且不在 I、VI 层出现。
+   */
+  private _residentNodeKeys: Set<string>;
+  /**
+   * 被流窜居民占领的节点（key = `${zoneKey}:${nodeId}` → Bandit）：
+   * 占领后节点临时变特殊作战（level 池），驱逐后节点被毁为林间空地。
+   */
+  private _bandits: Map<string, Bandit>;
+  /** 当前进行中的驱逐战目标（战斗胜利后据此驱逐），null 表示非驱逐战斗 */
+  private _clearingBandit: Bandit | null;
+  /** 每次移动后流窜居民沿连通路径可移动的最大步数（官方每次 1 格） */
+  private readonly BANDIT_STEP = 1;
 
   constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
     this._player = player;
@@ -154,7 +197,11 @@ export class RoguelikeGridZoneManager {
     this.stepRemain = 20;
     this.needConfirmStepZero = false;
     this.portal = null;
+    this._tunnelPairs = {};
     this._changedNodeIds = new Set();
+    this._residentNodeKeys = new Set();
+    this._bandits = new Map();
+    this._clearingBandit = null;
     this._trigger.on("rlv2:module:init", this.init.bind(this));
     this._trigger.on("rlv2:continue", this.continue.bind(this));
     this._trigger.on("rlv2:zone:new", this.generate.bind(this));
@@ -166,6 +213,10 @@ export class RoguelikeGridZoneManager {
     this.stepRemain = 20;
     this.needConfirmStepZero = false;
     this.portal = null;
+    this._tunnelPairs = {};
+    this._residentNodeKeys = new Set();
+    this._bandits = new Map();
+    this._clearingBandit = null;
   }
 
   continue(): void {
@@ -198,6 +249,10 @@ export class RoguelikeGridZoneManager {
    */
   generate([zoneId]: [number]): void {
     const theme = this._player.current.game!.theme;
+    // 进入新区域（常规层）：移除"无法携带至下一区域"的加工品（官方 moveScrapData 描述
+    // "无法被携带至下一区域"，如 M_04/M_07）。误入奇境特殊层经 generatePortal 生成，
+    // 不走此方法，故 portal 进入/离开时自动豁免（官方"进入离开特殊层不会损坏此类加工品"）。
+    this.dropNonPortableScraps();
     const detail = excel.RoguelikeTopicTable.details[theme];
     const stages = Object.keys(detail?.stages || {});
     const roNum = theme.slice(-1);
@@ -223,6 +278,8 @@ export class RoguelikeGridZoneManager {
       normal: zoneStages.length > 0 ? zoneStages : all,
       elite: eliteStages.length > 0 ? eliteStages : all,
       boss: bossStages.length > 0 ? bossStages : all,
+      // “居民”/流窜居民独立分池：复用本层普通作战（ro6_n_*），与首领池（ro6_b_*）隔离
+      resident: zoneStages.length > 0 ? zoneStages : all,
     };
 
     // 层 index（0 起）→ 构造模板池（黑流树海 I..V 层；VI 为 boss 层）
@@ -290,6 +347,9 @@ export class RoguelikeGridZoneManager {
     this.zones[`zone_${zoneId}`] = { nodes };
     // 同步官服 map.zones 全量结构（客户端地图渲染读 map.zones：index/pos/next/type/stage/visibility）
     this.syncMapZones(zoneId, template, nodes);
+    // 曲折密道成对：本层若恰好有两个 TUNNEL 节点则记为密道对（供传送目标）；
+    // 官方"几乎不出现/只在 III-V 层可成对"，层数量规则已约束 0 或 2。
+    this.indexTunnelPairs(zoneId, nodes);
     // 进入区域 = 抵达起点：点亮起点沿地图边可达的首节点（初始仅特殊节点点亮，
     // 起点路径在此揭示，否则开局无可移动目标）。
     this.revealReachable(
@@ -299,8 +359,8 @@ export class RoguelikeGridZoneManager {
       template.startSlot[1],
       1,
     );
-    // 羽瞰点默认照亮到羽瞰点曼哈顿距离为 2 的节点（未经过时）：进层即揭示其周边 2 跳；
-    // 抵达羽瞰点（经过，state=2）后由 moveTo 增为 3。
+    // 羽瞰点：出现时立即揭示自身及周围曼哈顿距离 1（官方"周围4格"；含上下左右 4 格）；
+    // 前往后（经过，state=2）由 moveTo 扩大为曼哈顿距离 2（官方"周围12格"）并 +1 行动力。
     for (const [id, n] of Object.entries(nodes)) {
       if (n.content?.kind === ROGUE6_NODE.RAIN_VIEW) {
         this.revealManhattan(
@@ -308,10 +368,13 @@ export class RoguelikeGridZoneManager {
           `zone_${zoneId}`,
           Math.floor(Number(id) / 100),
           Number(id) % 100,
-          2,
+          1,
         );
       }
     }
+    // “居民”据点：保密等级 >=4 时在其周边生成流窜居民标记并立即揭示；
+    // 不满足条件（保密 <4 或 I/VI 层）则不会出现居民（生成后改写为林间空地）。
+    this.spawnResidentAndBandits(zoneId, pools);
     // 进层揭示属于“初始版面”，不落入后续移动的 rlv2NodeChange.nodeList
     this._changedNodeIds = new Set();
     // 行动力：模板显式 action（VI 层/portal 等特殊层）优先，否则按层初始值 5/6/7/8/8
@@ -388,15 +451,18 @@ export class RoguelikeGridZoneManager {
       const light = lightNodes[id];
       const next = (adj[id] || []).slice().sort((p, q) => p.x - q.x || p.y - q.y);
       // visibility（PlayerNodeForesightType 线格式）：0=NORMAL 已揭示可见（起点/初始点亮的
-      // 特殊节点），1=HIDE_INVISIBLE 未揭示隐藏（其余节点——显示"未知事件"）。抵达时由
-      // revealReachable/Manhattan 逐级揭示为 NORMAL。到达状态由 gridZone 节点 state 承载。
+      // 特殊节点），1=HIDE_INVISIBLE 未揭示隐藏（非战斗节点——显名"未知的诡秘"），
+      // 2=HIDE_BATTLE 未揭示的战斗节点（作战/紧急作战/险路恶敌/居民据点——显名"未知的凶戾"）。
+      // 抵达时由 revealReachable/Manhattan 逐级揭示为 NORMAL。到达状态由 gridZone 节点 state 承载。
       const nodeType = this.lightType(light);
       const isStart =
         template.startSlot[0] === x && template.startSlot[1] === y;
       const visibility =
         isStart || ROGUE6_INITIALLY_LIT_NODES.includes(nodeType)
           ? ROGUE6_FORESIGHT.NORMAL
-          : ROGUE6_FORESIGHT.HIDE_INVISIBLE;
+          : ROGUE6_BATTLE_NODES.includes(nodeType)
+            ? ROGUE6_FORESIGHT.HIDE_BATTLE
+            : ROGUE6_FORESIGHT.HIDE_INVISIBLE;
       const node: any = {
         index: id,
         pos: { x, y },
@@ -597,6 +663,14 @@ export class RoguelikeGridZoneManager {
    * @returns 网格节点
    */
   makeContentNode(type: number, pools: ZoneStagePools): GridNode {
+    // “居民”据点使用独立关卡池（与首领 ro6_b_* 隔离）
+    if (type === ROGUE6_NODE.RESIDENT) {
+      const pool =
+        pools.resident && pools.resident.length > 0 ? pools.resident : pools.normal;
+      const stageId =
+        pool[Math.floor(Math.random() * Math.max(pool.length, 1))] || "";
+      return { content: { savage: { stageId }, kind: type }, state: 0, show: true };
+    }
     if (ROGUE6_BATTLE_NODES.includes(type)) {
       const pool =
         type === ROGUE6_NODE.BATTLE_ELITE
@@ -613,6 +687,320 @@ export class RoguelikeGridZoneManager {
       return { content: { shop: { goods: [] }, kind: type }, state: 0, show: true };
     }
     return { content: { kind: type }, state: 0, show: true };
+  }
+
+  /* ================= “居民”据点与流窜居民机制 ================= */
+
+  /** 节点归组键（居民点/流窜占用的唯一索引键）：`${zoneKey}:${nodeId}` */
+  private banditKeyOf(zoneKey: string, nodeId: string): string {
+    return `${zoneKey}:${nodeId}`;
+  }
+
+  /**
+   * “居民”据点是否允许在此层出现：保密等级（modeGrade）>=4 且非 I（zone 1）/VI（zone 6）层。
+   * @param zoneId 区域号（1 起）
+   * @returns 允许出现返回 true
+   */
+  canSpawnResident(zoneId: number): boolean {
+    const grade = this._player.current.game?.modeGrade ?? 0;
+    return grade >= 4 && zoneId !== 1 && zoneId !== 6;
+  }
+
+  /**
+   * 本层“居民”据点节点 id 集合（用于判断驱逐时是否触发“驱逐区域内全部流窜居民”）。
+   * @param zoneKey 层键（zone_N）
+   * @returns 据点节点 id 列表
+   */
+  residentNodeIds(zoneKey: string): string[] {
+    return [...this._residentNodeKeys]
+      .filter((k) => k.startsWith(`${zoneKey}:`))
+      .map((k) => k.slice(zoneKey.length + 1));
+  }
+
+  /**
+   * 是否“居民”据点节点。
+   * @param zoneKey 层键
+   * @param nodeId 节点 id
+   * @returns 是据点返回 true
+   */
+  isResidentNode(zoneKey: string, nodeId: string): boolean {
+    return this._residentNodeKeys.has(this.banditKeyOf(zoneKey, nodeId));
+  }
+
+  /**
+   * 生成阶段落地“居民”据点与流窜居民：
+   * - 保密等级 <4 或 I/VI 层：不会出现“居民”，生成期铺入的 RESIDENT 节点改写为林间空地；
+   * - 否则：逐个据点记录，在其周边生成若干流窜居民并立即揭示（据点 + 被占邻居）。
+   * @param zoneId 区域号（1 起）
+   * @param pools 本层关卡池（resident 独立池）
+   */
+  spawnResidentAndBandits(zoneId: number, pools: ZoneStagePools): void {
+    const zoneKey = `zone_${zoneId}`;
+    const zone = this.zones[zoneKey];
+    if (!zone) return;
+    const mapKey = this.mapZoneKeyOf(zoneKey);
+    const mapNodes = this._player._map?.zones?.[mapKey]?.nodes || {};
+    // 不满足出现条件：本层产生的 RESIDENT 节点全部改写为林间空地（保守，避免泄漏）
+    if (!this.canSpawnResident(zoneId)) {
+      for (const [id, n] of Object.entries(zone.nodes)) {
+        if (n.content?.kind !== ROGUE6_NODE.RESIDENT) continue;
+        n.content = { kind: ROGUE6_NODE.GLADE };
+        if (mapNodes[id]) mapNodes[id].type = ROGUE6_NODE.GLADE;
+      }
+      return;
+    }
+    const residentIds = Object.keys(zone.nodes).filter(
+      (id) => zone.nodes[id].content?.kind === ROGUE6_NODE.RESIDENT,
+    );
+    if (residentIds.length === 0) return;
+    for (const rid of residentIds) {
+      this._residentNodeKeys.add(this.banditKeyOf(zoneKey, rid));
+      // 立即揭示：据点 + 其周边地图边邻居各 1 跳（初始版面，不进 rlv2NodeChange）
+      this.revealReachable(mapKey, zoneKey, Math.floor(Number(rid) / 100), Number(rid) % 100, 1, true);
+      // 周边邻居中生成若干流窜居民（占领）
+      for (const nb of mapNodes[rid]?.next ?? []) {
+        const nid = this.nodeId(nb.x, nb.y);
+        const kind = zone.nodes[nid]?.content?.kind;
+        if (typeof kind !== "number") continue;
+        if (!this.isValidBanditTarget(mapKey, zoneKey, nid)) continue;
+        // 每个据点随机在部分合法邻居上生成流窜居民（“若干”，最多 2 个）
+        if (Math.random() < 0.6) this.spawnBanditAt(zoneKey, mapKey, nid, pools);
+      }
+    }
+  }
+
+  /**
+   * 合法性预判：节点能否被流窜居民占领/移入。
+   * 不能移入：可反复进入的节点（含林间空地）、居民据点、已被占领节点、玩家当前所在。
+   * @param mapKey _map.zones 键
+   * @param zoneKey gridZone 键
+   * @param nodeId 目标节点 id
+   * @param playerId 玩家当前所在节点 id（空串表示无）
+   * @returns 可占领返回 true
+   */
+  private isValidBanditTarget(
+    mapKey: string,
+    zoneKey: string,
+    nodeId: string,
+    playerId = "",
+  ): boolean {
+    const zone = this.zones[zoneKey];
+    const zoneNode = zone?.nodes[nodeId];
+    if (!zoneNode) return false;
+    if (this._bandits.has(this.banditKeyOf(zoneKey, nodeId))) return false;
+    if (nodeId === playerId) return false;
+    const kind = zoneNode.content?.kind;
+    if (typeof kind !== "number") return false;
+    if (ROGUE6_REVISITABLE_NODES.includes(kind)) return false; // 可反复进入（含林间空地）
+    if (this.isResidentNode(zoneKey, nodeId)) return false;
+    // 玩家完成节点产生的林间空地（曾衰减为 GLADE 的节点）同样禁止——kind 已含 GLADE 在上面拦截
+    void mapKey;
+    return true;
+  }
+
+  /**
+   * 生成流窜居民：占领指定节点，令其临时变特殊作战（独立关卡池 stageId）、改地图类型为作战，
+   * visibility 立即揭示。驱逐后该节点被毁为林间空地。
+   * @param zoneKey 层键
+   * @param mapKey _map.zones 键
+   * @param nodeId 被占领节点 id
+   * @param pools 本层关卡池（resident 独立池）
+   */
+  private spawnBanditAt(
+    zoneKey: string,
+    mapKey: string,
+    nodeId: string,
+    pools: ZoneStagePools,
+  ): void {
+    const zone = this.zones[zoneKey];
+    const zoneNode = zone?.nodes[nodeId];
+    if (!zoneNode) return;
+    const pool = pools.resident && pools.resident.length > 0 ? pools.resident : pools.normal;
+    const stageId = pool[Math.floor(Math.random() * Math.max(pool.length, 1))] || "";
+    const originalType =
+      typeof zoneNode.content?.kind === "number" ? zoneNode.content!.kind! : ROGUE6_NODE.GLADE;
+    const bandit: Bandit = { zoneKey, nodeId, originalType, stageId };
+    this._bandits.set(this.banditKeyOf(zoneKey, nodeId), bandit);
+    // 占领：临时变特殊作战（gridZone + map 同步）
+    zoneNode.content = { savage: { stageId }, kind: ROGUE6_NODE.BATTLE_NORMAL };
+    const mapNode = this._player._map?.zones?.[mapKey]?.nodes?.[nodeId];
+    if (mapNode) {
+      mapNode.type = ROGUE6_NODE.BATTLE_NORMAL;
+      mapNode.stage = stageId;
+      mapNode.visibility = ROGUE6_FORESIGHT.NORMAL;
+    }
+    // 立即揭示：被占节点 state 0→1 可访问、并入变化集合
+    if (zoneNode.state === 0) zoneNode.state = 1;
+    this._changedNodeIds.add(nodeId);
+  }
+
+  /**
+   * 查询节点是否被流窜居民占领。
+   * @param zoneKey 层键
+   * @param nodeId 节点 id
+   * @returns 占领信息，未占领返回 undefined
+   */
+  banditAt(zoneKey: string, nodeId: string): Bandit | undefined {
+    return this._bandits.get(this.banditKeyOf(zoneKey, nodeId));
+  }
+
+  /** 当前层全部被流窜居民占领的节点数组 */
+  private banditsOf(zoneKey: string): Bandit[] {
+    return [...this._bandits.values()].filter((b) => b.zoneKey === zoneKey);
+  }
+
+  /**
+   * 记录驱逐战斗目标：玩家进入被占领节点 / 居民据点后触发战斗，战斗胜利由
+   * finishClearing 据此驱逐。非驱逐战斗不设置（保持 null）。
+   * @param zoneKey 层键
+   * @param nodeId 触发战斗的节点 id
+   */
+  startClearing(zoneKey: string, nodeId: string): void {
+    const bandit = this._bandits.get(this.banditKeyOf(zoneKey, nodeId));
+    this._clearingBandit =
+      bandit ??
+      (this.isResidentNode(zoneKey, nodeId)
+        ? { zoneKey, nodeId, originalType: ROGUE6_NODE.RESIDENT, stageId: "" }
+        : null);
+  }
+
+  /**
+   * 驱逐战斗胜利后的结算（rlv2 battleFinish 挂钩）：
+   * - 驱逐目标为被流窜居民占领的节点 → 该节点被毁为林间空地；
+   * - 驱逐目标为“居民”据点 → 驱逐该层全部流窜居民（同时据点被毁为林间空地）。
+   * @returns 是否发生了驱逐
+   */
+  finishClearing(): boolean {
+    const clearing = this._clearingBandit;
+    this._clearingBandit = null;
+    if (!clearing) return false;
+    const bandits = this.banditsOf(clearing.zoneKey);
+    if (this.isResidentNode(clearing.zoneKey, clearing.nodeId)) {
+      // 居民据点：驱逐区域内全部流窜居民 + 据点本身被毁
+      for (const b of bandits) this.destroyBanditNode(b);
+      this.destroyResidentNode(clearing.zoneKey, clearing.nodeId);
+      return true;
+    }
+    // 被流窜占领的节点：仅驱逐该节点（被毁为林间空地）
+    const target = this._bandits.get(this.banditKeyOf(clearing.zoneKey, clearing.nodeId));
+    if (target) this.destroyBanditNode(target);
+    return true;
+  }
+
+  /** 把被流窜占领的节点驱逐为林间空地（gridZone 与 map 类型同步、移除占领、记为变化） */
+  private destroyBanditNode(bandit: Bandit): void {
+    const { zoneKey, nodeId } = bandit;
+    this._bandits.delete(this.banditKeyOf(zoneKey, nodeId));
+    const zoneNode = this.zones[zoneKey]?.nodes[nodeId];
+    if (zoneNode) zoneNode.content = { kind: ROGUE6_NODE.GLADE };
+    const mapKey = this.mapZoneKeyOf(zoneKey);
+    const mapNode = this._player._map?.zones?.[mapKey]?.nodes?.[nodeId];
+    if (mapNode) {
+      mapNode.type = ROGUE6_NODE.GLADE;
+      delete mapNode.stage;
+    }
+    this._changedNodeIds.add(nodeId);
+  }
+
+  /** 把“居民”据点节点销毁为林间空地（后续不再视为据点） */
+  private destroyResidentNode(zoneKey: string, nodeId: string): void {
+    this._residentNodeKeys.delete(this.banditKeyOf(zoneKey, nodeId));
+    const zoneNode = this.zones[zoneKey]?.nodes[nodeId];
+    if (zoneNode) zoneNode.content = { kind: ROGUE6_NODE.GLADE };
+    const mapKey = this.mapZoneKeyOf(zoneKey);
+    const mapNode = this._player._map?.zones?.[mapKey]?.nodes?.[nodeId];
+    if (mapNode) {
+      mapNode.type = ROGUE6_NODE.GLADE;
+      delete mapNode.stage;
+    }
+    this._changedNodeIds.add(nodeId);
+  }
+
+  /**
+   * 玩家每次移动后，所有流窜居民沿连通路径（地图边）移动 1 格（BANDIT_STEP）。
+   * 不移动到：可反复进入的节点、居民据点、已被占领节点、玩家当前所在节点、
+   * 玩家完成节点产生的林间空地。无合法目标时原地停留。
+   * @param zoneKey 层键
+   */
+  stepBandits(zoneKey: string): void {
+    const zone = this.zones[zoneKey];
+    if (!zone) return;
+    const mapKey = this.mapZoneKeyOf(zoneKey);
+    const mapNodes = this._player._map?.zones?.[mapKey]?.nodes || {};
+    const pos = this._player._status.cursor?.position;
+    const playerId = pos ? this.nodeId(pos.x, pos.y) : "";
+    for (let s = 0; s < this.BANDIT_STEP; s++) {
+      const bands = this.banditsOf(zoneKey);
+      for (const b of bands) {
+        const neighbours = mapNodes[b.nodeId]?.next ?? [];
+        const candidates = neighbours.filter((n) =>
+          this.isValidBanditTarget(mapKey, zoneKey, this.nodeId(n.x, n.y), playerId),
+        );
+        if (candidates.length === 0) continue;
+        const pick = candidates[Math.floor(Math.random() * candidates.length)];
+        const targetId = this.nodeId(pick.x, pick.y);
+        this.moveBandit(zoneKey, mapKey, b, targetId);
+      }
+    }
+  }
+
+  /**
+   * 流窜居民从当前节点移动到目标节点：释放原节点（恢复原始类型），占领目标节点。
+   * @param zoneKey 层键
+   * @param mapKey _map.zones 键
+   * @param bandit 原占领信息
+   * @param targetId 目标节点 id
+   */
+  private moveBandit(
+    zoneKey: string,
+    mapKey: string,
+    bandit: Bandit,
+    targetId: string,
+  ): void {
+    this._bandits.delete(this.banditKeyOf(zoneKey, bandit.nodeId));
+    // 释放原节点：恢复原始类型（保留已被占领状态变化）
+    const fromNode = this.zones[zoneKey]?.nodes[bandit.nodeId];
+    if (fromNode) fromNode.content = { kind: bandit.originalType };
+    const fromMap = this._player._map?.zones?.[mapKey]?.nodes?.[bandit.nodeId];
+    if (fromMap) {
+      fromMap.type = bandit.originalType;
+      delete fromMap.stage;
+    }
+    this._changedNodeIds.add(bandit.nodeId);
+    // 占领目标节点（复用原关卡）
+    const toNode = this.zones[zoneKey]?.nodes[targetId];
+    if (!toNode) return;
+    const orig = typeof toNode.content?.kind === "number" ? toNode.content!.kind! : ROGUE6_NODE.GLADE;
+    this._bandits.set(this.banditKeyOf(zoneKey, targetId), {
+      zoneKey,
+      nodeId: targetId,
+      originalType: orig,
+      stageId: bandit.stageId,
+    });
+    toNode.content = { savage: { stageId: bandit.stageId }, kind: ROGUE6_NODE.BATTLE_NORMAL };
+    const toMap = this._player._map?.zones?.[mapKey]?.nodes?.[targetId];
+    if (toMap) {
+      toMap.type = ROGUE6_NODE.BATTLE_NORMAL;
+      toMap.stage = bandit.stageId;
+    }
+    if (toNode.state === 0) toNode.state = 1;
+    this._changedNodeIds.add(targetId);
+  }
+
+  /**
+   * 移除"无法携带至下一区域"的加工品（进入新的常规区域时调用）。
+   * 官方 moveScrapData 描述中"无法被携带至下一区域"的加工品（见
+   * ROGUE6_NON_PORTABLE_SCRAPS）在离开当前区域进入下一层时会被丢弃。
+   * 误入奇境特殊层（portal）不调用，故 portal 进入/离开不会触发此类加工品损坏。
+   */
+  private dropNonPortableScraps(): void {
+    const scrap = this._player._module.scrap;
+    if (!scrap?.inventory) return;
+    for (const [instId, it] of Object.entries(scrap.inventory as { [k: string]: { id: string } })) {
+      if (ROGUE6_NON_PORTABLE_SCRAPS.includes(it.id)) {
+        delete scrap.inventory[instId];
+      }
+    }
   }
 
   /** 消耗一步行动力（rlv2:grid:step 事件处理器） */
@@ -661,7 +1049,12 @@ export class RoguelikeGridZoneManager {
     const template = this.pickPortalTemplate(family);
     // 隐藏层无专属关卡池（官方 stages 无 portal 层条目）→ 用全主题关卡兜底
     const stages = Object.keys(detail?.stages || {});
-    const pools: ZoneStagePools = { normal: stages, elite: stages, boss: stages };
+    const pools: ZoneStagePools = {
+      normal: stages,
+      elite: stages,
+      boss: stages,
+      resident: stages,
+    };
     const nodes: { [key: string]: GridNode } = {};
 
     // 起点（林间空地，可见可访问）
@@ -789,14 +1182,16 @@ export class RoguelikeGridZoneManager {
         mapArrived.visibility = ROGUE6_FORESIGHT.NORMAL;
       }
       // 视野：抵达后揭视可达节点——普通节点沿地图边点亮可达路径首节点（1 跳）；
-      // 羽瞰点按到羽瞰点的曼哈顿距离照亮，经过后（state 已置 2）为 3，未经过时的默认 2
-      // 在进层生成时揭示（见 generate）。
+      // 羽瞰点按到羽瞰点的曼哈顿距离照亮，经过后（state 已置 2）为 2（官方"周围12格"），
+      // 出现时的默认 1（官方"周围4格"）在进层生成时揭示（见 generate）。
       const lastX = Math.floor(Number(last) / 100);
       const lastY = Number(last) % 100;
-      // 羽瞰点：特殊视野，按到羽瞰点的曼哈顿距离照亮（默认 2，经过后 state=2 增为 3）；
+      // 羽瞰点：特殊视野，按到羽瞰点的曼哈顿距离照亮（默认 1，经过后 state=2 增为 2），
+      // 并补偿 1 行动力（官方："前往该节点后，揭示范围扩大至周围12格并获得1行动力"）。
       // 普通节点仍沿地图边点亮可达路径首节点（1 跳）。
       if (node.content?.kind === ROGUE6_NODE.RAIN_VIEW) {
-        this.revealManhattan(mapKey, zoneKey, lastX, lastY, 3, true);
+        this.revealManhattan(mapKey, zoneKey, lastX, lastY, 2, true);
+        this.stepRemain += 1;
       } else {
         this.revealReachable(mapKey, zoneKey, lastX, lastY, 1, true);
       }
@@ -952,6 +1347,39 @@ export class RoguelikeGridZoneManager {
       }
       if (changed) this._changedNodeIds.add(nid);
     }
+  }
+
+  /**
+   * 记录本层曲折密道成对索引（zoneId → [密道A id, 密道B id]）。
+   * 官方"曲折密道成对出现"：层内恰好两个 TUNNEL 节点互为传送目标。
+   * @param zoneId 区域号（1 起）
+   * @param nodes 本层 gridZone 节点表
+   */
+  private indexTunnelPairs(zoneId: number, nodes: { [key: string]: GridNode }): void {
+    const tunnels = Object.keys(nodes).filter(
+      (id) => nodes[id].content?.kind === ROGUE6_NODE.TUNNEL,
+    );
+    if (tunnels.length === 2) {
+      this._tunnelPairs[String(zoneId)] = [tunnels[0], tunnels[1]];
+    } else if (tunnels.length === 0) {
+      delete this._tunnelPairs[String(zoneId)];
+    }
+    // 非 0 非 2（异常生成）不建对，避免单向传送
+  }
+
+  /**
+   * 曲折密道传送目标：本层 nodeId 若为已记录密道对的成员，返回另一密道节点 id；
+   * 非密道或未成对返回 undefined。供控制器在玩家进入密道节点后决定是否位移到配对位置。
+   * @param zoneKey gridZone 层键（zone_1 之类）
+   * @param nodeId 当前所在密道节点 id
+   */
+  tunnelPairTarget(zoneKey: string, nodeId: string): string | undefined {
+    const zoneId = zoneKey.replace("zone_", "");
+    const pair = this._tunnelPairs[zoneId];
+    if (!pair) return undefined;
+    if (pair[0] === nodeId) return pair[1];
+    if (pair[1] === nodeId) return pair[0];
+    return undefined;
   }
 
   /**

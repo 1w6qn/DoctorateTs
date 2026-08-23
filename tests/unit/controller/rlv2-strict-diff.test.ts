@@ -8,7 +8,7 @@ import * as path from "node:path";
 // （缺失/多余字段、类型差异、数组长度），输出全部差异。
 
 vi.mock("@utils/crypt", () => ({
-  decryptBattleData: vi.fn().mockResolvedValue({ completeState: 1, finalHp: 8, isPerfect: 1 }),
+  decryptBattleData: vi.fn().mockResolvedValue({ completeState: 2, finalHp: 8, isPerfect: 1 }),
 }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
@@ -192,7 +192,7 @@ describe("官服抓包严格结构 diff（2026-08-11 rogue_6）", () => {
     // 战斗
     await rlv2._trigger.emit("rlv2:event:create", ["BATTLE", { state: 1, chestCnt: 2, goldTrapCnt: 1, boxInfo: {}, tmpChar: [] }]);
     rlv2._status.property.hp = { current: 10, max: 10 };
-    await rlv2._battle.finish([{ battleLog: "", data: "encrypted", battleData: { completeState: 1, finalHp: 8, isPerfect: 1 } }]);
+    await rlv2._battle.finish([{ battleLog: "", data: "encrypted", battleData: { completeState: 2, finalHp: 8, isPerfect: 1 } }]);
     const off = readRes("battleFinish", "2026-08-11T07-48-18-678Z");
     const diffs = strictCompare(off, JSON.parse(JSON.stringify(rlv2.toJSON())));
     const real = diffs.filter((d) => !allowedDiff(d));

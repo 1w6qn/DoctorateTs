@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { buildRoguelikeConsts } from "../../../app/excel/roguelike_consts_gen";
 
 
 // ===== N15 开局血量回归 =====
@@ -14,7 +15,7 @@ vi.mock("@excel/excel", () => ({
     RoguelikeTopicTable: require("../../../data/excel/roguelike_topic_table.json"),
     CharacterTable: require("../../../data/excel/character_table.json"),
     GameDataConst: require("../../../data/excel/gamedata_const.json"),
-    RoguelikeConsts: require("../../../data/rlv2.json"),
+    RoguelikeConsts: buildRoguelikeConsts(require("../../../data/excel/roguelike_topic_table.json")),
   },
 }));
 

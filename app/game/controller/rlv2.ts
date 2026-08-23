@@ -30,6 +30,8 @@ import {
   ROGUE6_END2_BOSS_STAGE,
   ROGUE6_END2_RELICS,
   ROGUE6_END3_RELIC,
+  ROGUE6_BEAK_OUTBUFF,
+  ROGUE6_NON_PORTABLE_SCRAPS,
   ROLL_NODE_TYPE_VALUES,
   isBlackstream,
 } from "./rlv2/theme-rules";
@@ -761,29 +763,28 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       // 进入第一层后 cursor.position = 起点节点位置（官服 finishEvent#2：
       // position={x:0,y:1} 即 type=268435456 起点；null 会导致客户端无法定位当前
       // 节点 → 地图渲染/步进崩溃）
-      const zoneNodes = this._map.zones[String(1000 + this._status.cursor.zone - 1)]
-        ?.nodes as Record<string, any> | undefined;
-      const startNode = Object.values(zoneNodes || {}).find(
-        (n) => n?.type === ROGUE6_NODE.GLADE,
-      );
-      if (startNode?.pos) {
-        this._status.cursor.position = { x: startNode.pos.x, y: startNode.pos.y };
+      // 起点定位见 locateStartNode：起点是 gridZone 唯一 state=2 节点，不能按
+      // map.zones 首个 GLADE 推断——林间空地同为填充节点类型（官方数量规则每层
+      // 可铺 0..16 个，见 BLACKSTREAM_COUNT_RULES），首次命中可能是填充林间空地。
+      const gz = this._module?.gridZone;
+      const startPos = this.locateStartNode();
+      if (startPos) {
+        this._status.cursor.position = { x: startPos.x, y: startPos.y };
         // 进层后自动完成"起点走一步"（官服 finishEvent#2 对齐）：起点标已访问、
         // trace 追加起点、清 needConfirmStepZero（无需再要求玩家确认初始位置）。
         // 进层下发唯一 rlv2NodeChange（官服抓包 R-1786531228496.9993-3674：
         // nodeList 为起点列节点["202","200"]，排除起点；仅 nodeChange 不带 nodeArrive）。
         // 不做 moveTo 揭示——moveTo 会把周边 state0 节点改成 state1，而官服进层后
         // gridZone 节点 state 只取 0/2（平铺无中间态），故仅显式标起点 state=2。
-        const gz = this._module?.gridZone;
         if (gz) {
-          const startId = String(startNode.pos.x * 100 + startNode.pos.y);
+          const startId = String(startPos.x * 100 + startPos.y);
           const z = gz.zones?.[gz.currentZoneKey()];
           const sn = z?.nodes?.[startId];
           if (sn && sn.state !== 2) sn.state = 2;
           gz.needConfirmStepZero = false;
           const colNodeIds = Object.keys(z?.nodes || {}).filter(
             (id) =>
-              Math.floor(Number(id) / 100) === startNode.pos.x && id !== startId,
+              Math.floor(Number(id) / 100) === startPos.x && id !== startId,
           );
           if (colNodeIds.length > 0) {
             this.pushMessage("rlv2NodeChange", { nodeList: colNodeIds });
@@ -791,7 +792,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         }
         this._status.trace.push({
           zone: this._status.cursor.zone,
-          position: { x: startNode.pos.x, y: startNode.pos.y },
+          position: { x: startPos.x, y: startPos.y },
         });
       }
       this._status.state = "WAIT_MOVE";
@@ -827,6 +828,35 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     // 兼容旧存档自定义字段
     const legacy = (this.outer?.[this.current.game?.theme || ""]?.record as any)?.lastZone;
     return typeof legacy === "number" && legacy >= 3;
+  }
+
+  /**
+   * 定位当前层起点（林间空地/“起点”）的坐标。
+   * 起点是 gridZone 当前层内唯一已访问（state=2）的节点（进层生成时只有起点
+   * state=2，其余占位格为 0）。不能按 map.zones 的 type===GLADE 查找——林间空地
+   * (GLADE) 同为普通填充节点类型（官方数量规则每层可铺 0..16 个，见
+   * BLACKSTREAM_COUNT_RULES），首个 GLADE 可能是填充节点而非起点，会令 cursor
+   * 定位到错误节点、起点步进/渲染异常。
+   * 兜底：老存档/无 gridZone 模块时回退到 map.zones 找任一 GLADE。
+   * @returns 起点坐标 {x,y}；找不到返回 undefined
+   */
+  private locateStartNode(): { x: number; y: number } | undefined {
+    const gz = this._module?.gridZone;
+    if (gz) {
+      const zoneKey = gz.currentZoneKey();
+      for (const [id, n] of Object.entries(gz.zones?.[zoneKey]?.nodes || {})) {
+        if ((n as any)?.state === 2) {
+          return { x: Math.floor(Number(id) / 100), y: Number(id) % 100 };
+        }
+      }
+    }
+    const zoneNodes = this._map.zones[
+      String(1000 + this._status.cursor.zone - 1)
+    ]?.nodes as Record<string, any> | undefined;
+    const g = Object.values(zoneNodes || {}).find(
+      (n) => n?.type === ROGUE6_NODE.GLADE,
+    ) as any;
+    return g?.pos ? { x: g.pos.x, y: g.pos.y } : undefined;
   }
 
   /**
@@ -938,19 +968,31 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     }
     this._status.cursor.zone += 1;
     this._status.cursor.position = null;
-    // 三结局·纠缠调和：先行一步派出的干员返回，带回 2 希望 + 【怦然信标】
-    // （官方 gameConst.expedEndingRelic = rogue_6_relic_final_3；描述"干员{0}发现了【怦然信标】"）
+    // 先行一步：派出的干员返回。
+    // - 基础：归来带回 2 希望（先行一步节点"干员将在下一层开始时归来"，官方选树口述）。
+    // - 三结局·纠缠调和：持有【怦然信标】的 ending 分支额外发【怦然信标】
+    //   （gameConst.expedEndingRelic = rogue_6_relic_final_3）。
+    // - 【生命游戏】"喙"节点（rogue_6_outbuff_33，RAW_TEXT_EFFECT"“先行一步”归来时额外获得
+    //   随机加工品"）：归来时额外获得 1 个随机加工品——从 excel 该节点 rawDesc 读取判定。
     const expDetails = this.troop.expeditionDetails as any;
-    if (expDetails?.ending && this.troop.expedition.length > 0) {
+    if (this.troop.expedition.length > 0) {
       const detail = excel.RoguelikeTopicTable.details[theme] as any;
-      const endingRelic = detail?.gameConst?.expedEndingRelic;
-      if (endingRelic) {
-        await this._trigger.emit("rlv2:get:items", [
-          [{ id: `${theme}_population`, count: 2 }],
-        ]);
-        await this._trigger.emit("rlv2:relic:gain", [
-          { id: endingRelic, count: 1 },
-        ]);
+      // 基础：2 希望（先行一步派发归来通用奖励）
+      await this._trigger.emit("rlv2:get:items", [
+        [{ id: `${theme}_population`, count: 2 }],
+      ]);
+      // «喙»已点亮 → 额外随机加工品（读取 excel 科技树节点 rawDesc 判定，与"翅膀"同模式）
+      if (this.isBeakUnlocked()) {
+        this.gainRandomScrap();
+      }
+      // 三结局分支：额外怦然信标
+      if (expDetails?.ending) {
+        const endingRelic = detail?.gameConst?.expedEndingRelic;
+        if (endingRelic) {
+          await this._trigger.emit("rlv2:relic:gain", [
+            { id: endingRelic, count: 1 },
+          ]);
+        }
       }
       this.troop.expedition = [];
       delete expDetails.ending;
@@ -1849,6 +1891,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     battleData: BattleData;
   }) {
     await this._trigger.emit("rlv2:battle:finish", [args]);
+    // "流窜居民"驱逐结算：本次若为驱逐战（进入被占领节点 / "居民"据点），战斗胜利后
+    // 驱逐目标——被占领节点被毁为林间空地；居民据点战胜则驱逐该层全部流窜居民。
+    this._module.gridZone?.finishClearing();
     // 标准地图节点 fts 标记（网格区域用 gridZone 节点——标准地图可能无此节点，容错跳过）
     const pos = this._status.cursor.position;
     if (pos) {
@@ -1859,9 +1904,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     }
   }
 
-  chooseBattleReward(args: { index: number; sub: number }) {
+  async chooseBattleReward(args: { index: number; sub: number }) {
     const rewardGrp =
-      this._status.pending[0].content.battleReward!.rewards.find(
+      this._status.pending[0]?.content?.battleReward?.rewards.find(
         (r) => r.index == args.index,
       );
     // 防御：未知奖励组不 500
@@ -1871,7 +1916,15 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     if (rewardGrp.done) return;
     const reward = rewardGrp.items.find((r) => r.sub == args.sub);
     if (!reward) return;
-    this._trigger.emit("rlv2:get:items", [[reward]]);
+    // 招募券奖励：reward 无 type 字段，getItem 落 POOL 不触发招募（"拿到券不能招"）——
+    // 招募券定义在 details[theme].recruitTickets（非 items），据此识别并显式标记 RECRUIT_TICKET。
+    const theme = this.current.game!.theme;
+    const item: any = { ...reward };
+    if (excel.RoguelikeTopicTable.details[theme]?.recruitTickets?.[item.id]) {
+      item.type = "RECRUIT_TICKET";
+    }
+    // await：getItem 为异步（gold/希望/招募券实时入账），不 await 会先序列化旧状态（奖励不实时）
+    await this._trigger.emit("rlv2:get:items", [[item]]);
 
     rewardGrp.done = 1;
   }
@@ -1882,7 +1935,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     const earnExp = rewardEvent?.content?.battleReward?.earn?.exp;
     if (earnExp) {
       const theme = this.current.game!.theme;
-      this._trigger.emit("rlv2:get:items", [
+      // await：经验发放为异步，需在响应序列化前入账（否则 exp/升希望不实时）
+      await this._trigger.emit("rlv2:get:items", [
         [{ id: `${theme}_exp`, count: earnExp }],
       ]);
     }
@@ -2400,11 +2454,21 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
 
   /** 网格区域移动（抓包 { route: [nodeIndex] }）：沿 route 路径逐节点移动并消耗行动力 */
   async gridZoneMoveTo(args: { route: string[] }): Promise<void> {
-    const route = args.route || [];
+    let route = args.route || [];
     if (route.length === 0) return;
     // 清空上一请求的残留推送（控制器为持久实例，与标准 moveTo 一致）
     this._pushMessages = [];
     const gz = this._module.gridZone;
+    const zone = this._status.cursor.zone;
+    const gzZoneKey = `zone_${zone}`;
+    // 阻碍徒步：流窜居民被占领的节点无法徒步越过——若路径中途含被占领节点，将路径截断
+    // 到第一个被占领节点（玩家被迫停在被占领节点，进入驱逐战）。
+    const barricadeIdx = route.findIndex(
+      (nid, i) => i < route.length - 1 && !!gz?.banditAt(gzZoneKey, nid),
+    );
+    if (barricadeIdx !== -1) {
+      route = route.slice(0, barricadeIdx + 1);
+    }
     // 界定本次移动请求的变化节点收集范围（rlv2NodeChange.nodeList 只下发发生变化的节点）
     gz?.beginMove();
     // 路径中每个节点消耗一步（含末节点）
@@ -2417,13 +2481,21 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       gz?.moveTo([nodeId]);
     }
     const node = gz?.moveTo([last]);
-    const zone = this._status.cursor.zone;
-    const lastX = Math.floor(Number(last) / 100);
-    const lastY = Number(last) % 100;
+    const mapZoneKey = this.zoneKey(zone);
+    let lastX = Math.floor(Number(last) / 100);
+    let lastY = Number(last) % 100;
+    // 曲折密道传送（服务端记录成对 + 送声）：抵达密道节点且存在配对密道时，玩家位置
+    // 直接位移到另一密道坐标；官服"行动力只在进入时被消耗、可重复进入、立即揭示"。
+    // 密道为通路节点（无 scene），落位到配对处继续走。服务端只改位置，动画由客户端
+    // （RL06DoorAnimDialog）表现。
+    const tunnelTarget = gz?.tunnelPairTarget(gzZoneKey, last);
+    if (tunnelTarget) {
+      lastX = Math.floor(Number(tunnelTarget) / 100);
+      lastY = Number(tunnelTarget) % 100;
+      this.pushMessage("rlv2NodeTeleport", { nodeId: tunnelTarget });
+    }
     // 被经过的节点衰减为林间空地：玩家移走的上一个位置 + 路径中途节点（不含末节点，
     // 消费者为玩家当前所在，保留事件；商店/林间空地/尽头/小径/密道等可反复进入类保留）。
-    const gzZoneKey = `zone_${zone}`;
-    const mapZoneKey = this.zoneKey(zone);
     const passed = new Set<string>(route.slice(0, -1));
     const prev = this._status.cursor.position;
     if (prev) passed.add(String(prev.x * 100 + prev.y));
@@ -2459,6 +2531,11 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     // 状态/视野变化的节点列表（官服抓包 R-1786531228496.9993-3674：nodeList=["202","200"]
     // 为到达节点+新揭示邻居，非整层全量）。
     // 原实现只在标准 moveTo 中累积，而黑流树海走本方法 → 推送永不下发。
+    // 流窜居民移动：每次玩家移动后，各流窜居民沿连通路径移动 1 格。若末节点本就是
+    // 被流窜占领节点（本次为驱逐战，战斗胜利后由 finishClearing 驱逐），则不步进该节点。
+    if (!gz?.banditAt(gzZoneKey, last)) {
+      gz?.stepBandits(gzZoneKey);
+    }
     const changedMoveNodes = gz?.takeChangedNodes() ?? [];
     if (typeof kind === "number") {
       this.pushMessage("rlv2NodeArrive", { nodeType: kind });
@@ -2498,6 +2575,9 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     }
     if (battleStage) {
       // 战斗节点（作战/紧急作战/险路恶敌/“居民”据点）→ 战斗
+      // 记录驱逐战目标（被流窜占领节点 / "居民"据点）：战斗胜利由 battleFinish →
+      // grid_zone.finishClearing 驱逐（被占节点毁为林间空地 / 居民据点驱逐全层流窜）。
+      gz?.startClearing(gzZoneKey, last);
       this._status.state = "PENDING";
       await this._trigger.emit("rlv2:battle:start", [battleStage]);
       return;
@@ -2714,6 +2794,14 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
 
   /** 线人事件：获得 1 件珍贵的加工品（零件池随机 1 件入零件箱） */
   private gainPreciousScrap(): void {
+    this.gainRandomScrap();
+  }
+
+  /**
+   * 获得 1 件随机加工品（零件池随机 1 件入零件箱）。
+   * 「先行一步 归来」与线人事件共用；零件源 = 官方 modules[theme].scrap.scrapItemToType 键。
+   */
+  private gainRandomScrap(): void {
     const theme = this.current.game!.theme;
     const pool = Object.keys(
       excel.RoguelikeTopicTable.modules[theme]?.scrap?.scrapItemToType || {},
@@ -2721,6 +2809,25 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     if (pool.length === 0) return;
     const id = pool[Math.floor(Math.random() * pool.length)];
     this._trigger.emit("rlv2:scrap:gain", [id]);
+  }
+
+  /**
+   * 【生命游戏】"喙"节点是否已点亮（"先行一步"归来时额外获得随机加工品）。
+   * 判定依据：科技树节点（customizeData.commonDevelopment.developments[rogue_6_outbuff_33]）
+   * 已捕获（outer.buff.unlocked）且其 RAW_TEXT_EFFECT 的 rawDesc 存在并描述"加工品"。
+   * 与"翅膀"（rogue_6_outbuff_37）同模式，但显式校验 rawDesc 指向"归来带加工品"。
+   * @returns 已点亮返回 true
+   */
+  private isBeakUnlocked(): boolean {
+    const theme = (this.current.game?.theme as string) || "";
+    if (!isBlackstream(theme)) return false;
+    const outer = this.outer?.[theme];
+    if (!outer?.buff?.unlocked?.[ROGUE6_BEAK_OUTBUFF]) return false;
+    const dev = (excel.RoguelikeTopicTable as any)?.customizeData?.[theme]
+      ?.commonDevelopment?.developments?.[ROGUE6_BEAK_OUTBUFF];
+    const rawDesc = Array.isArray(dev?.rawDesc) ? dev.rawDesc.join("") : "";
+    // rawDesc 描述"归来时……随机加工品"，据此确认该节点为"先行一步归来带加工品"
+    return rawDesc.includes("加工品") && rawDesc.includes("归来");
   }
 
   /**
@@ -2888,23 +2995,27 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     }
     const inventory = sm.inventory;
     const item = inventory[args.instId];
-    if (item) {
-      const isVehicle = sm.activeVehicle?.instId === args.instId;
-      // 多边贸易（shop_recycle_reward）：在行商节点卖出零件（非载具）计数
-      if (!isVehicle && this.isInShopNode()) {
-        await this.sellScrapAtShop();
-        // 特勤干员任务：行商卖出零件（Rlv2ShopRecycle，每件 1 计）
-        await this._trigger.emit("Rlv2ShopRecycle", [
-          { itemType: "SCRAP", count: 1 },
-        ]);
-      }
-      delete inventory[args.instId];
+    if (!item) {
+      this._status.state = "WAIT_MOVE";
+      return;
+    }
+    const isVehicle = sm.activeVehicle?.instId === args.instId;
+    // 先移除废品，再处理行商侧副作用——行商卖出/任务推送均为 await 异步，若提前 await
+    // 侧副作用抛错会跳过 delete，导致"丢弃后废品仍留在包里"（客户端零件箱不更新）。
+    // 置顶 delete 保证丢弃必生效，副作用放移除之后即便异常也不影响槽位清空。
+    delete inventory[args.instId];
+    if (isVehicle) {
       // 若丢弃的是当前载具，切回步行（模型无耐久度机制，载具被移除即视为"破除"）
-      if (isVehicle) {
-        sm.activeVehicle = { isWalk: true };
-        // 散件破除推送（rlv2ScrapBreak，触发类 RoguelikeScrapBreakTrigger）：携带破除散件 id
-        this.pushMessage("rlv2ScrapBreak", { idList: [item.id] });
-      }
+      sm.activeVehicle = { isWalk: true };
+      // 散件破除推送（rlv2ScrapBreak，触发类 RoguelikeScrapBreakTrigger）：携带破除散件 id
+      this.pushMessage("rlv2ScrapBreak", { idList: [item.id] });
+    } else if (this.isInShopNode()) {
+      // 多边贸易（shop_recycle_reward）：在行商节点卖出零件（非载具）计数
+      await this.sellScrapAtShop();
+      // 特勤干员任务：行商卖出零件（Rlv2ShopRecycle，每件 1 计）
+      await this._trigger.emit("Rlv2ShopRecycle", [
+        { itemType: "SCRAP", count: 1 },
+      ]);
     }
     this._status.state = "WAIT_MOVE";
   }
@@ -3404,26 +3515,29 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     return { brief, record, buffBankPut };
   }
 
-  /** 探索分数（官方公式，用户提供 2026-08：萨卡兹方式，各主题一致） */
-  private exploreScore(): number {
-    const theme = this.current.game!.theme;
-    // 层数档位 0/30/80/150/270/400/550/650（>7 按 7）+ 步数×1 + 普通战×10 + 招募×2
-    // + 物品×5（收藏品+战术道具，不含思绪）+ 领袖战×30 + 精英战×20，求和 × 难度倍率
+  /**
+   * 探索分数逐项明细（dorothinights gameSettle 参考：官方结算页逐行列出贡献项）。
+   * 每行固定为 [count, score] 二元组，顺序 = 层数档位 / 步数×1 / 普通战×10 / 精英战×20 /
+   * 领袖战×30 / 物品×5（收藏品+战术道具，不含思绪）/ 招募×2（难度倍率前 raw 贡献）。
+   * @returns detail 明细对 + raw 未乘难度倍率的原始分数
+   */
+  private exploreBreakdown(): { detail: number[][]; raw: number } {
+    // 层数档位 0/30/80/150/270/400/550/650（>7 按 7）
     const ZONE_SCORES = [0, 30, 80, 150, 270, 400, 550, 650];
-    const clearedZones = Math.min(this._status.cursor.zone, 7);
-    const zoneScore = ZONE_SCORES[clearedZones];
-    const steps = this._status.trace.length;
-    let normalBattles = 0;
-    let eliteBattles = 0;
-    let leaderBattles = 0;
+    const zoneCount = Math.min(this._status.cursor.zone, 7);
+    const zoneScore = ZONE_SCORES[zoneCount] ?? 0;
+    const stepCount = this._status.trace.length;
+    let normalCount = 0;
+    let eliteCount = 0;
+    let bossCount = 0;
     for (const t of this._status.trace) {
       const node = this._map.zones[this.zoneKey(t.zone)]?.nodes[
         `${(t.position?.x ?? 0) * 100 + (t.position?.y ?? 0)}`
       ];
       const type = node?.type ?? 0;
-      if (type === 1) normalBattles++;
-      else if (type === 2) eliteBattles++;
-      else if (type === 4) leaderBattles++;
+      if (type === 1) normalCount++;
+      else if (type === 2) eliteCount++;
+      else if (type === 4) bossCount++;
     }
     const recruitCount = Object.values(this.inventory!.recruit || {}).filter(
       (t) => (t as any).result,
@@ -3431,20 +3545,116 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     const itemCount =
       Object.keys(this.inventory!.relic || {}).length +
       Object.keys(this.inventory?.exploreTool || {}).length;
-    const raw =
-      zoneScore +
-      steps +
-      normalBattles * 10 +
-      recruitCount * 2 +
-      itemCount * 5 +
-      leaderBattles * 30 +
-      eliteBattles * 20;
+    const detail: number[][] = [
+      [zoneCount, zoneScore], // 通过层数（档位）
+      [stepCount, stepCount * 1], // 通过步数 ×1
+      [normalCount, normalCount * 10], // 普通战斗 ×10
+      [eliteCount, eliteCount * 20], // 精英战斗 ×20
+      [bossCount, bossCount * 30], // 领袖战斗 ×30
+      [itemCount, itemCount * 5], // 获得物品 ×5
+      [recruitCount, recruitCount * 2], // 招募干员 ×2
+    ];
+    const raw = detail.reduce((sum, [, score]) => sum + score, 0);
+    return { detail, raw };
+  }
+
+  /** 当前难度对应的探索分数倍率（difficulty.scoreFactor，无则默认 1） */
+  private exploreScoreFactor(): number {
+    const theme = this.current.game!.theme;
     const detail = excel.RoguelikeTopicTable.details[theme] as any;
     const difficulty = detail?.difficulties?.find(
       (d: any) => d.modeDifficulty === this.current.game!.mode && d.grade === this.current.game!.modeGrade,
     );
-    const scoreFactor = difficulty?.scoreFactor ?? 1;
-    return Math.floor(raw * scoreFactor);
+    return difficulty?.scoreFactor ?? 1;
+  }
+
+  /**
+   * 探索分数 = 明细求和 × 难度倍率（dorothinights 对齐：仅按难度单次放大，
+   * 生命游戏/难度 bump 的「源流样本」效率走 buff/bp，不放大 score 本体）。
+   */
+  private exploreScore(): number {
+    return Math.floor(this.exploreBreakdown().raw * this.exploreScoreFactor());
+  }
+
+  /**
+   * 黑流树海（rogue_6）「生命游戏」增益树节点集合。
+   * 来源：customizeData[theme].developments / commonDevelopment.developments（upgradeBuff 同源）。
+   * 仅统计 outbuff 型生长节点（`rogue_6_outbuff_*`），难度解锁节点（`rogue_6_difficulty_*`）不计入——
+   * 演化算子只用于升级【生命游戏】（生长树）节点。
+   * @returns 节点 id 数组
+   */
+  private lifeGameNodes(theme: string): string[] {
+    const customize = (excel.RoguelikeTopicTable.customizeData as any)?.[theme];
+    const devs =
+      customize?.developments && !Array.isArray(customize.developments)
+        ? customize.developments
+        : customize?.commonDevelopment?.developments;
+    const all = devs ? Object.keys(devs) : [];
+    return all.filter(
+      (id) =>
+        isBlackstream(theme) ? id.includes("rogue_6_outbuff_") : true,
+    );
+  }
+
+  /**
+   * 黑流树海分数→源流样本转换效率。
+   * 默认 1:1；【生命游戏】科技树按已解锁生长节点占比 ×10% 累加（封顶 +10%）；
+   * 难度等级 ≥3/≥6/≥9 时各额外 +2% → 1:1.1 / 1.12 / 1.14 / 1.16（生命游戏满级基准）。
+   * 非黑流树海主题恒为 1（保持 1:1，不启用效率加成）。
+   * @param theme 主题
+   * @param grade 难度等级（modeGrade）
+   */
+  private blackstreamEfficiency(theme: string, grade: number): number {
+    if (!isBlackstream(theme)) return 1;
+    const nodes = this.lifeGameNodes(theme);
+    const unlocked = Object.keys(this.outer?.[theme]?.buff?.unlocked || {}).filter(
+      (id) => id.includes("rogue_6_outbuff_"),
+    ).length;
+    let efficiency = 1;
+    // 生命游戏：按已解锁生长节点占比累加，封顶 +10%
+    if (nodes.length > 0) {
+      efficiency += 0.1 * Math.min(1, unlocked / nodes.length);
+    }
+    // 难度等级 3+/6+/9+ 各额外提升 2%
+    if (grade >= 3) efficiency += 0.02;
+    if (grade >= 6) efficiency += 0.02;
+    if (grade >= 9) efficiency += 0.02;
+    return efficiency;
+  }
+
+  /**
+   * 是否仍可获得演化算子（黑流树海）。
+   * 官方说明：当获得的演化算子能够升级所有【生命游戏】节点时停止获得。
+   * 这里以「还有未解锁的生长节点」近似判定——全部解锁即不再发放，
+   * 否则跨局累计的源流堆栈满 200 点得分的演化算子继续发放。
+   * @param theme 主题
+   */
+  private canEvolveOperators(theme: string): boolean {
+    if (!isBlackstream(theme)) return false;
+    const nodes = this.lifeGameNodes(theme);
+    if (nodes.length === 0) return true;
+    const unlocked = Object.keys(this.outer?.[theme]?.buff?.unlocked || {}).filter(
+      (id) => id.includes("rogue_6_outbuff_"),
+    ).length;
+    return unlocked < nodes.length;
+  }
+
+  /**
+   * 黑流树海结算奖励统计算法（源流样本 + 演化算子）。
+   * 源流样本得分 = floor(探索分数 × 转换效率)；
+   * 跨局源流堆栈（buff.sourceStack）累计该得分，每满 200 点 → 1 点演化算子（pointOwned），
+   * 不满 200 的余数保留到后续探索继续累加。非黑流树海满 1:1（源流得分=探索分数、无算子）。
+   * @returns 当局源流样本得分与转换效率
+   */
+  private blackstreamAwards(): { sourceScore: number; efficiency: number } {
+    const theme = this.current.game!.theme;
+    const exploreScore = this.exploreScore();
+    const efficiency = this.blackstreamEfficiency(
+      theme,
+      this.current.game?.modeGrade ?? 0,
+    );
+    const sourceScore = Math.floor(exploreScore * efficiency);
+    return { sourceScore, efficiency };
   }
 
   async gameSettle(): Promise<void> {
@@ -3459,19 +3669,34 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     const { brief, record, buffBankPut } = this.buildSettlement(true, success, ending);
     // current.record 为 _playerdata.rlv2 引用（update() 后冻结），写入放入下方 update() 配方
     const exploreScore = this.exploreScore();
+    // 黑流树海（rogue_6）启用「源流样本 + 演化算子」多币种结算；其余主题保持分数→科技树点数 1:1。
+    const themeBlackstream = isBlackstream(theme);
+    const { sourceScore } = this.blackstreamAwards();
     await this.update(async (draft) => {
       draft.current.record = { brief, record };
       const outerTheme = draft.outer[theme] ?? (draft.outer[theme] = {} as any);
-      const buff =
+      const buff: any =
         outerTheme.buff ??
         (outerTheme.buff = {
           pointOwned: 0,
           pointCost: 0,
           unlocked: {},
           score: 0,
+          sourceStack: 0,
         } as any);
+      // 累计探索分数 = 探索分数（dorothinights 对齐：不放大；生命游戏加成走演化算子）
       buff.score = (buff.score || 0) + exploreScore;
-      buff.pointOwned = (buff.pointOwned || 0) + exploreScore;
+      if (themeBlackstream && this.canEvolveOperators(theme)) {
+        // 演化算子：跨局累计源流堆栈（每满 200 点源流得分 → 1 点演化算子），
+        // 不足 200 的余数保留到后续探索继续累加；演化算子即科技树货币 pointOwned。
+        const stack = (buff.sourceStack || 0) + sourceScore;
+        const operators = Math.floor(stack / 200);
+        buff.sourceStack = stack - operators * 200;
+        buff.pointOwned = (buff.pointOwned || 0) + operators;
+      } else {
+        // 非黑流树海 / 生命游戏节点已全部解锁：分数直接 1:1 计入科技树点数
+        buff.pointOwned = (buff.pointOwned || 0) + exploreScore;
+      }
 
       // 记录本把到达的最深层——官服 record 无 lastZone 键（8-11/8-18 抓包对照），
       // 支援选项判定改由 stageCnt 3 层关卡存在性承载；lastZone 仅为旧存档兼容读取。
@@ -3575,7 +3800,13 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   buildSettleResponse(): { game: any; outer: any } {
     const theme = this.current.game!.theme;
     const { brief, record } = this.current.record as any;
-    const score = this.exploreScore();
+    // dorothinights gameSettle 对齐：score 仅按难度单次放大；生命游戏/难度 bump 的效率
+    // （extra_grow_point → buff=1+extra、bp.cnt=floor(score×buff)）不放大 score 本体。
+    const efficiency = this.blackstreamEfficiency(theme, this.current.game?.modeGrade ?? 0);
+    const scoreFactor = this.exploreScoreFactor();
+    const { detail, raw } = this.exploreBreakdown();
+    const score = Math.floor(raw * scoreFactor); // 探索分数
+    const boosted = Math.floor(score * efficiency); // bp.cnt（源流样本，含生命游戏加成）
     const outerTheme = (this.outer as any)[theme] ?? {};
     const bp = (from: number) => ({ cnt: 0, from, to: from });
     const missionList = Array.isArray(outerTheme.mission?.list)
@@ -3587,24 +3818,24 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         brief: brief ?? {},
         record: record ?? {},
         score: {
-          detail: [],
-          scoreFactor: 1,
+          detail,
+          scoreFactor,
           score,
-          buff: 1,
-          bp: bp(19000),
+          buff: efficiency,
+          bp: { cnt: boosted, from: 55000, to: 55000 },
           gp: 0,
-          gpChange: [score, score],
-          accumulation: [score, score],
+          gpChange: [100, 100],
+          accumulation: [20000, 20000],
         },
       },
       outer: {
         mission,
-        missionBp: bp(19000),
-        relicBp: bp(19000),
-        totemBp: bp(19000),
-        fragmentBp: bp(19000),
-        copperBp: bp(19000),
-        scrapBp: bp(19000),
+        missionBp: bp(55000),
+        relicBp: bp(55000),
+        totemBp: bp(55000),
+        fragmentBp: bp(55000),
+        copperBp: bp(55000),
+        scrapBp: bp(55000),
         relicUnlock: [],
         totemUnlock: [],
         fragmentUnlock: [],

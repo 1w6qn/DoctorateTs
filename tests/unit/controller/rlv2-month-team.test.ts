@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { buildRoguelikeConsts } from "../../../app/excel/roguelike_consts_gen";
 
 // ===== 实践者列表（MONTH_TEAM）模式修复回归 =====
 // 用户 bug：MONTH_TEAM 开局血/血上限 0、希望 7、recruitChar 意外临时招募、finishEvent 后卡死。
@@ -15,7 +16,7 @@ vi.mock("@excel/excel", () => ({
     RoguelikeTopicTable: require("../../../data/excel/roguelike_topic_table.json"),
     CharacterTable: require("../../../data/excel/character_table.json"),
     GameDataConst: require("../../../data/excel/gamedata_const.json"),
-    RoguelikeConsts: require("../../../data/rlv2.json"),
+    RoguelikeConsts: buildRoguelikeConsts(require("../../../data/excel/roguelike_topic_table.json")),
   },
 }));
 

@@ -906,6 +906,7 @@
         '<div class="row wrap" style="gap:8px;margin:12px 0;">' +
         '<button id="act-maxout" class="primary">一键满配</button>' +
         '<button id="act-building">基建满级</button>' +
+        '<button id="act-building-advance">基建加速</button>' +
         '<button id="act-refresh">每日刷新</button>' +
         '<button id="act-save">保存</button>' +
         '<button id="act-backup">备份</button>' +
@@ -998,6 +999,29 @@
           .finally(function () { el.disabled = false; });
       });
     });
+    var advBtn = $("act-building-advance");
+    if (advBtn) {
+      advBtn.addEventListener("click", function () {
+        var input = prompt("输入基建快进秒数（正整数）：\n3600 = 1 小时，86400 = 1 天", "3600");
+        if (input == null || input === "") return;
+        var secs = parseInt(input, 10);
+        if (!(secs > 0) || String(secs) !== String(Math.floor(secs))) {
+          toast("秒数须为正整数");
+          return;
+        }
+        advBtn.disabled = true;
+        api("/users/" + encodeURIComponent(uid) + "/building-advance", {
+          method: "POST", body: JSON.stringify({ seconds: secs }),
+        })
+          .then(function (r) {
+            toast("基建已快进 " + r.advanced + " 秒并结算产出");
+            loadOverview(uid);
+            refreshLogs();
+          })
+          .catch(function (e) { toast("基建加速失败：" + e.message); })
+          .finally(function () { advBtn.disabled = false; });
+      });
+    }
     var restoreBtn = $("act-restore");
     if (restoreBtn) {
       restoreBtn.addEventListener("click", function () {

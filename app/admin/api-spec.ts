@@ -89,6 +89,7 @@ export const ADMIN_ENDPOINTS: AdminEndpointSpec[] = [
   },
   { method: "POST", path: "/api/users/:uid/maxout", summary: "一键满配（资源/背包/干员/基建/皮肤，不覆盖阵容）", body: "{}" },
   { method: "POST", path: "/api/users/:uid/building-max", summary: "基建满级", body: "{}" },
+  { method: "POST", path: "/api/users/:uid/building-advance", summary: "基建加速（快进 seconds 秒并结算产出）", body: '{"seconds":3600}' },
   { method: "POST", path: "/api/users/:uid/backup", summary: "备份存档", body: "{}" },
   { method: "GET", path: "/api/users/:uid/backups", summary: "备份列表（按时间倒序）" },
   {

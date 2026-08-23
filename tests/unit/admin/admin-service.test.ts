@@ -517,6 +517,21 @@ describe("AdminService 一键满配与基建", () => {
     expect(pd._playerdata.building.roomSlots.slot_1.level).toBe(3);
     expect(result).toEqual({ rooms: 1 });
   });
+
+  it("buildingAdvance 应委托 building.advance 快进并落盘", async () => {
+    const advance = vi.fn().mockResolvedValue(1234567890);
+    pd.building = { advance };
+    const result = await service.buildingAdvance("1", 3600);
+    expect(advance).toHaveBeenCalledWith(3600);
+    expect(accountManager.savePlayerData).toHaveBeenCalledWith("1");
+    expect(result).toEqual({ advanced: 3600 });
+  });
+
+  it("buildingAdvance 对非正整数秒数应抛错", async () => {
+    await expect(service.buildingAdvance("1", 0)).rejects.toThrow(/正整数/);
+    await expect(service.buildingAdvance("1", -60)).rejects.toThrow(/正整数/);
+    await expect(service.buildingAdvance("1", NaN)).rejects.toThrow(/正整数/);
+  });
 });
 
 describe("AdminService 邮件（群发/查看/删除）", () => {

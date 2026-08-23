@@ -83,6 +83,11 @@ export const maxOutAccountSchema = emptyObjectSchema;
 /** 基建满级（无 body） */
 export const buildingMaxSchema = emptyObjectSchema;
 
+/** 基建加速（读 seconds：快进秒数，正整数） */
+export const buildingAdvanceSchema = z.object({
+  seconds: z.number(),
+});
+
 /** 创建备份（无 body） */
 export const createBackupSchema = emptyObjectSchema;
 

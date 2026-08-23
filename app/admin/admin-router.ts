@@ -19,6 +19,7 @@ import { pluginConfigService } from "@plugin/index";
 import { validateBody } from "../game/model/protocol/validate-body";
 import {
   backfillAssetsSchema,
+  buildingAdvanceSchema,
   buildingMaxSchema,
   captureClearSchema,
   charModuleSchema,
@@ -315,6 +316,15 @@ router.post("/api/users/:uid/maxout", validateBody(maxOutAccountSchema, 400), as
 router.post("/api/users/:uid/building-max", validateBody(buildingMaxSchema, 400), async (req: Request, res: Response) => {
   try {
     res.json(await adminService.buildingMax(String(req.params.uid)));
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+  }
+});
+
+/** 基建加速（手动快进指定秒数并结算产出） */
+router.post("/api/users/:uid/building-advance", validateBody(buildingAdvanceSchema, 400), async (req: Request, res: Response) => {
+  try {
+    res.json(await adminService.buildingAdvance(String(req.params.uid), req.body.seconds));
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }

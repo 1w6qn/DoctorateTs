@@ -18,6 +18,7 @@
  *   users char <uid> <instId> [--level N] [--evolve N] [--potential N] [--skill N]   修改干员属性
  *   users maxout <uid>                                  一键满配（资源/背包/干员/基建/皮肤，不覆盖阵容）
  *   users building <uid> max                            基建满级
+ *   users building <uid> advance <seconds>              基建加速（快进秒数并结算产出）
  *   users backup <uid>                                  备份存档
  *   users backups <uid> [--json]                        列出备份
  *   users restore <uid> <backupName>                    从备份恢复
@@ -154,6 +155,7 @@ export function printHelp(): void {
   users char <uid> <instId> [--level N] [--evolve N] [--potential N] [--skill N]  修改干员属性
   users maxout <uid>                                一键满配（不覆盖阵容）
   users building <uid> max                          基建满级
+  users building <uid> advance <seconds>            基建加速（快进秒数并结算产出）
   users backup <uid> / users backups <uid> / users restore <uid> <备份名>   备份/列出/恢复
   users dump <uid> [--pretty]                       导出原始玩家数据 JSON
   users grantall <uid> [count]                      批量发放全部物品（默认 999）
@@ -473,13 +475,24 @@ async function runUsers(args: string[], flags: { [key: string]: string }): Promi
     case "building": {
       const uid = args[1];
       const act = args[2];
-      if (!uid || act !== "max") {
-        console.error("用法: users building <uid> max");
+      if (!uid || (act !== "max" && act !== "advance")) {
+        console.error("用法: users building <uid> max | users building <uid> advance <seconds>");
         process.exitCode = 1;
         return;
       }
-      const result = await adminService.buildingMax(uid);
-      console.log(`已满级基建 ${result.rooms} 间房间`);
+      if (act === "max") {
+        const result = await adminService.buildingMax(uid);
+        console.log(`已满级基建 ${result.rooms} 间房间`);
+        return;
+      }
+      const secs = Number(args[3]);
+      if (!Number.isInteger(secs) || secs <= 0) {
+        console.error("用法: users building <uid> advance <seconds>（秒数须为正整数）");
+        process.exitCode = 1;
+        return;
+      }
+      const result = await adminService.buildingAdvance(uid, secs);
+      console.log(`已快进基建 ${result.advanced} 秒并结算产出`);
       return;
     }
     case "backup": {

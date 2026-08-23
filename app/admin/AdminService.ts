@@ -786,6 +786,28 @@ export class AdminService {
     return { rooms };
   }
 
+  /**
+   * 手动加速指定玩家基建指定时间（快进 seconds 秒并立即结算产出）
+   *
+   * 委托 BuildingManager.advance：前移基建时间基准后按真实时间统一结算
+   * 制造产出/贸易订单/训练进度/心情/信赖/劳动力，随后落盘并写审计日志。
+   *
+   * @param uid - 玩家 UID
+   * @param seconds - 快进秒数（正整数）
+   * @returns 实际快进的秒数
+   */
+  async buildingAdvance(uid: string, seconds: number): Promise<{ advanced: number }> {
+    const secs = Math.floor(Number(seconds));
+    if (!Number.isFinite(secs) || secs <= 0) {
+      throw new Error("加速秒数必须为正整数");
+    }
+    const pd = await this.getPlayer(uid);
+    await pd.building.advance(secs);
+    await this.savePlayer(uid);
+    await this._audit("buildingAdvance", uid, `基建快进 ${secs}s`);
+    return { advanced: secs };
+  }
+
   /** 备份用户存档（data/user/backups/{uid}-{YYYYMMDD-HHmmss}.json） */
   async backup(uid: string): Promise<BackupInfo> {
     // SQLite 感知：方案 A+C 下存档主体在库（gzip BLOB），直读文件对库内账号 ENOENT
@@ -2711,7 +2733,6 @@ export class AdminService {
       "./data/user/users.json",
       "./data/user/mails.json",
       "./data/gacha_detail_table.json",
-      "./data/rlv2.json",
     ];
     const dataFiles: ServerStatus["dataFiles"] = [];
     let totalBytes = 0;

@@ -69,7 +69,6 @@ const REQUIRED_DATA_FILES: string[] = [
   "data/excel/story_table.json",
   "data/excel/uniequip_data.json",
   "data/excel/zone_table.json",
-  "data/rlv2.json",
   "data/gacha_detail_table.json",
   // 商店数据（ShopData.init() 加载）
   "data/shop/LowGoodList.json",

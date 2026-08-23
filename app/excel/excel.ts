@@ -62,6 +62,7 @@ import {
 import { ServerItemTable } from "./item_table";
 import { GachaDetailTable } from "./gacha_detail_table";
 import { RoguelikeConst } from "@excel/roguelike_consts";
+import { buildRoguelikeConsts } from "./roguelike_consts_gen";
 import { ShopData } from "@excel/shop";
 
 export type ChapterData = any;
@@ -183,6 +184,17 @@ export class Excel {
   }
 
   /**
+   * 会客室线索数据表（官方 clue_data.json）
+   *
+   * 线索阵营/编号/过期天数等常量；`expiredDays`（线索过期天数）供
+   * BuildingManager 好友赠送线索的自动过期移除使用。懒加载（小表）。
+   */
+  private _clueData?: any;
+  get ClueData(): any {
+    return (this._clueData ??= readJsonSync<any>("./data/excel/clue_data.json"));
+  }
+
+  /**
    * 奇象巡展 ARKDEX 完整模块数据（生物/属性克制/道具/特质/NPC/模式/捕获区）
    * 来源：activity_table.json → activity.arkHub.act1arkhub.moduleData.arkdexModule
    * （官方 CDN 热更，2026-08-17 导出到 data/arkhub/arkdex.json）
@@ -207,6 +219,7 @@ export class Excel {
     this._enemyHandbookRaceTable = undefined;
     this._handbookTeamTable = undefined;
     this._skillDataBundle = undefined;
+    this._clueData = undefined;
     this._arkhubCreatureTable = undefined;
   }
 
@@ -290,7 +303,6 @@ export class Excel {
       ["UniEquipData", "./data/excel/uniequip_data.json"],
       ["ZoneTable", "./data/excel/zone_table.json"],
       ["ArkventTable", "./data/excel/arkvent_table.json"],
-      ["RoguelikeConsts", "./data/rlv2.json"],
     ];
 
     // 去重后的唯一路径：同一文件被多个 key 引用时只读取/解析一次，
@@ -304,6 +316,10 @@ export class Excel {
     loaders.forEach(([key, path]) => {
       (this as any)[key] = byPath.get(path);
     });
+
+    // RoguelikeConsts 不再从 data/rlv2.json 读取：由官方 RoguelikeTopicTable 派生
+    // （outbuff/recruitGrps 直接来自官方 excel，modebuff 内嵌常量，见 roguelike_consts_gen）
+    this.RoguelikeConsts = buildRoguelikeConsts(this.RoguelikeTopicTable);
 
     // 归一化掉落信息（occPercent/dropType 字符串 → 数字档位，供 dropReward 使用）
     normalizeStageDropInfo(this.StageTable);

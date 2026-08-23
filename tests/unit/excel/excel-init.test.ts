@@ -40,6 +40,7 @@ describe("Excel.init 并行加载", () => {
     const paths = readJsonMock.mock.calls.map((c: any) => c[0]);
     expect(paths).toContain("./data/excel/mission_table.json");
     expect(paths).toContain("./data/excel/character_table.json");
-    expect(paths).toContain("./data/rlv2.json");
+    // RoguelikeConsts 由本表派生（不再读取 data/rlv2.json）
+    expect(paths).toContain("./data/excel/roguelike_topic_table.json");
   });
 });

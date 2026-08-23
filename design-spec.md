@@ -635,7 +635,7 @@ get socialInfo(): FriendDataWithNameCard {
 | 应用配置 | `data/config.json`、`data/appConfig.json` | 2 |
 | 用户数据 | `data/user/users.json` | 1 |
 | Excel 数据表 | `data/excel/*.json` | 50 |
-| 肉鸽/卡池 | `data/rlv2.json`、`data/gacha_detail_table.json` | 2 |
+| 肉鸽/卡池 | `data/gacha_detail_table.json` | 1 |
 | 商店数据 | `data/shop/*.json` | 11 |
 
 校验实现位于 `scripts/update-data.ts` 的 `verifyLocalData(baseDir)`：基于 `REQUIRED_DATA_FILES` 清单过滤出不存在的文件，返回缺失列表；入口 `index.ts` 在离线模式下先执行该校验，返回非 0 则终止启动。
@@ -1214,7 +1214,7 @@ pnpm run migrate:official -- --accounts <账号文件路径> --template 1
 | 数据文件 | 覆盖 | 数据源 | 消费点 |
 |---|---|---|---|
 | `data/rlv2/event_choices.json`（505KB） | rogue_1..5 不期而遇全量效果 | 参考项目 odpy（官方 choices 的效果增强版，rogue_3/4/5 与官方 excel 数量完全一致） | `selectChoice`（lose/get/m_lose/m_get/i_get/i_lose/curse/get_id）、`moveTo` INCIDENT 生成 SCENE |
-| `data/rlv2.json`（RoguelikeConsts） | 6 主题 outbuff/modebuff/recruitGrps | outbuff 从官方 `customizeData[theme].developments`（含 commonDevelopment）的 `buffDisplayInfo` 转换（displayType→RoguelikeBuff 映射，PERCENTAGE 除 100、ABSOLUTE_VAL 作 count）；modebuff 从 odpy `rlv2_data.py` rogue_buffs（rogue_2/3 难度 0-15）；recruitGrps 从官方 `details[theme].recruitGrps` 全量 | `buff.create()`（outbuff/modebuff 应用）、`chooseInitialRecruitSet` |
+| `app/excel/roguelike_consts_gen.ts`（RoguelikeConsts） | 6 主题 outbuff/modebuff/recruitGrps | 运行时由官方 `customizeData[theme].developments`（含 commonDevelopment）的 `buffDisplayInfo` 派生（displayType→RoguelikeBuff 映射，PERCENTAGE 除 100、ABSOLUTE_VAL 作 count）；`buffDisplayInfo` 空的分队开发项按 `RAWRULES` 逐条给出；modebuff 官方 excel 无此表，内嵌常量（odpy rogue_2/3 难度 0-15）；recruitGrps 直接引用官方 `details[theme].recruitGrps` | `buff.create()`（outbuff/modebuff 应用）、`chooseInitialRecruitSet` |
 | `data/rlv2/nodesInfo.json` | 6 主题 × zone 关卡列表（Normal/Emergency/Boss） | 官方 `details[theme].stages` 按 `ro{n}_{n|e}_{zone}_` 前缀提取 | `map.generate()` 优先读（缺失回退动态过滤） |
 | `data/rlv2/choices.json` | 6 主题开局 buff（行动奖励）场景 | 官方 `choiceScenes` + `choices`（startbuff 前缀） | `RoguelikeV2Config.choiceScenes`（数据完整性） |
 
@@ -1226,7 +1226,7 @@ pnpm run migrate:official -- --accounts <账号文件路径> --template 1
 
 **容错**：`buff.create()` 对 `outer[theme]` 缺失（从未玩过该主题）与 `modebuff[modeGrade]` 缺失均容错；`chooseInitialRecruitSet` 招募组缺失回退官方 excel recruitGrps。
 
-**死文件清理**：`data/rlv2/choiceBuffs.json`、`data/rlv2/recruitGroups.json` 零引用已删除（数据由官方 excel/event_choices/data/rlv2.json 覆盖）。
+**死文件清理**：`data/rlv2/choiceBuffs.json`、`data/rlv2/recruitGroups.json` 零引用已删除（数据由官方 excel/data/rlv2/event_choices.json 覆盖）。`data/rlv2.json`（RoguelikeConsts）已改为由官方 excel 派生（`buildRoguelikeConsts`），该文件已删除，不再维护。
 
 ### 16.6 藏品池功能（2026-08，战斗收藏品掉落）
 
@@ -1776,7 +1776,7 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 
 ### 24.3 待评估（C-2/D-4，需客户端验证或专项）
 
-- **C-2 运行时散文件 SQLite 化**：`data/` 根下 `mails.json`/`building.json`/`battleReplays.json`/`user.json`/`rlv2.json` 等仍是 JSON 文件存储（非玩家账号主体，属各管理器独立状态）——社交/回放/结算已入 social.db，其余可逐步收编，按需迁移。
+- **C-2 运行时散文件 SQLite 化**：`data/` 根下 `mails.json`/`building.json`/`battleReplays.json`/`user.json` 等仍是 JSON 文件存储（非玩家账号主体，属各管理器独立状态）——社交/回放/结算已入 social.db，其余可逐步收编，按需迁移。（`rlv2.json` 已于 2026-08 改为官方 excel 派生，不再作为独立文件。）
 - **D-4 业务校验错误响应**：游戏路由统一 JSON 500（gameErrorHandler）——业务校验失败（如社交自请求）也走 500。若客户端只处理业务码（result/status 字段）不处理 HTTP 500，需实测确认；确认前不改为 200 + 业务码。
 
 ### 24.4 性能优化记录（2026-08-11）

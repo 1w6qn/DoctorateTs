@@ -62,18 +62,15 @@ function readZip(path: string): Promise<{ entryName: string; content: Buffer }[]
 }
 
 describe("repack-lua-bundle 内置 bundle 重打包（DefinedFix 引导）", () => {
-  it("patchDefinedFix 注入各插件 hotfixer 条目到清单最前", () => {
+  it("patchDefinedFix 注入单一引导 hotfixer（PluginBootHotfixer）到清单最前", () => {
     const patched = patchDefinedFix(fakeDefinedFix());
-    expect(patched).toContain('  "Plugin/NetworkRedirectPlugin",');
-    expect(patched).toContain('  "Plugin/EnemyHpPlugin",');
-    expect(patched).toContain('  "Plugin/PanelPlugin",');
+    // 工作化设计：只注入单一 PluginBootHotfixer（经游戏原生 HotfixProcesser.Do 驱动
+    // PluginManager 初始化整个插件系统）；per-plugin 逐条 new+Init 在真机 2.7.61 会崩
+    expect(patched).toContain('  "Plugin/PluginBootHotfixer",');
     expect(patched).toContain('"HotFixes/TestStubHotfixer",');
     expect(patched).toContain('"HotFixes/PCInputFontRegistryHotfixer"');
-    // 插件条目在最前（network_redirect 引导类须最先）
-    expect(patched.indexOf("Plugin/NetworkRedirectPlugin")).toBeLessThan(
-      patched.indexOf("HotFixes/TestStubHotfixer"),
-    );
-    expect(patched.indexOf("Plugin/PanelPlugin")).toBeLessThan(
+    // 引导类插件条目须在清单最前
+    expect(patched.indexOf("Plugin/PluginBootHotfixer")).toBeLessThan(
       patched.indexOf("HotFixes/TestStubHotfixer"),
     );
   });
@@ -90,8 +87,8 @@ describe("repack-lua-bundle 内置 bundle 重打包（DefinedFix 引导）", () 
       "",
     ].join("\n");
     const patched = patchDefinedFix(lower);
-    expect(patched).toContain('  "Plugin/NetworkRedirectPlugin",');
-    expect(patched.indexOf("Plugin/NetworkRedirectPlugin")).toBeLessThan(
+    expect(patched).toContain('  "Plugin/PluginBootHotfixer",');
+    expect(patched.indexOf("Plugin/PluginBootHotfixer")).toBeLessThan(
       patched.indexOf("Hotfixes/TestStubHotfixer"),
     );
   });
@@ -99,8 +96,8 @@ describe("repack-lua-bundle 内置 bundle 重打包（DefinedFix 引导）", () 
   it("patchDefinedFix 幂等：已注入的 bundle 不重复追加插件条目", () => {
     const once = patchDefinedFix(fakeDefinedFix());
     const twice = patchDefinedFix(once);
-    expect(twice).toContain('  "Plugin/NetworkRedirectPlugin",');
-    const bootCount = twice.split(/\r?\n/).filter((l) => l.trim() === '"Plugin/NetworkRedirectPlugin",').length;
+    expect(twice).toContain('  "Plugin/PluginBootHotfixer",');
+    const bootCount = twice.split(/\r?\n/).filter((l) => l.trim() === '"Plugin/PluginBootHotfixer",').length;
     expect(bootCount).toBe(1);
     expect(twice).toContain('"HotFixes/TestStubHotfixer",');
   });
@@ -136,14 +133,13 @@ describe("repack-lua-bundle 内置 bundle 重打包（DefinedFix 引导）", () 
     expect(names).toContain("gamedata/[uc]lua/Plugin/EnemyHpPlugin.lua");
     // 内置 bundle 中残留的旧插件资产被剔除（构建期由 lua/plugin/ 重新合并）
     expect(names).not.toContain("gamedata/[uc]lua/Plugin/OldPlugin.lua");
-    // DefinedFix 按单个 hotfixer 逐条注入（引导类 network_redirect 排在其它插件前）
+    // DefinedFix 注入单一 PluginBootHotfixer（引导整插件系统），不含逐条 per-plugin 条目
     const df = list.find((a) => a.name.toLowerCase().endsWith("definedfix.lua"))!;
     const dfText = dec.decode(df.script);
-    expect(dfText).toContain('"Plugin/NetworkRedirectPlugin",');
-    expect(dfText).toContain('"Plugin/EnemyHpPlugin",');
-    expect(dfText.indexOf('"Plugin/NetworkRedirectPlugin",')).toBeLessThan(
-      dfText.indexOf('"Plugin/EnemyHpPlugin",'),
-    );
+    expect(dfText).toContain('"Plugin/PluginBootHotfixer",');
+    expect(dfText).toContain('"HotFixes/TestStubHotfixer",');
+    expect(dfText).not.toContain('"Plugin/NetworkRedirectPlugin",');
+    expect(dfText).not.toContain('"Plugin/EnemyHpPlugin",');
   });
 
   it("内置 bundle 无 DefinedFix 时抛错", async () => {

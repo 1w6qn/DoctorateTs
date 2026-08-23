@@ -68,9 +68,9 @@ describe("PluginConfigService", () => {
     const svc = new PluginConfigService(path);
     await svc.setEnabled("enemy_hp", false);
     const list = await svc.getAll();
-    // 顺序与 PluginDefs.lua 单一数据源一致（network_redirect=私服引导，保持启用）
+    // 顺序与 PluginDefs.lua 单一数据源一致（PluginDefs 现列 4 个可由面板管理的插件；
+    // network_redirect 私服引导由 PluginBootHotfixer 纳入引导，不在此面板清单中）
     expect(list.map((p) => p.id)).toEqual([
-      "network_redirect",
       "enemy_hp",
       "enemy_info",
       "battle_assist",

@@ -108,10 +108,12 @@ describe("shop 路由", () => {
     };
     excel.SkinTable = {
       charSkins: {
-        "skin_a#1": { charId: "char_a" },
-        "skin_b#1": { charId: "char_b" },
+        "skin_a#1": { charId: "char_a", skinId: "skin_a#1", isBuySkin: true },
+        "skin_b#1": { charId: "char_b", skinId: "skin_b#1", isBuySkin: true },
       },
     };
+    // 注：data/config.json 的 config.shop.skinSellAll=true → 走「售卖全部可购买皮肤」自动
+    // 生成路径（仅收录 charSkins 中 isBuySkin 的皮肤，天然过滤皮肤表缺失条目并重排 slotId）
     await call("/getSkinGoodList", {});
     const sent = res.send.mock.calls[0][0];
     // 无效皮肤被过滤（2 条）

@@ -1592,7 +1592,9 @@ export class BuildingManager {
   }) {
     const roomSlotId = args.roomSlotId ?? args.slotId;
     const charInstIdList = args.charInstIdList ?? args.charInstIds ?? args.list;
-    return await this._player.update(async (draft) => {
+    // 本次换班实际发生变化的干员数（对齐官服 buildingBatchChangeWorkChar pushMessage 的 num）
+    let changedCount = 0;
+    await this._player.update(async (draft) => {
       // 修复（2026-08-19）：官方 CS BuildingBatchChangeWorkCharRequest 无字段——
       // 客户端"换班"按钮发空体 {}。抓包实测空体不含 roomSlotId → 原实现
       // `if (!roomSlotId) return;` 直接短路返回空 delta → 客户端判定"换班无效"。
@@ -1609,6 +1611,8 @@ export class BuildingManager {
           : this._pickHighestApPreset(draft, sid);
         // 空体全局模式：房间无预设队列则跳过（不影响其他房间）
         if (!target) continue;
+        // 记录更换前排班，用于统计本次实际变化的干员数
+        const before = draft.building.roomSlots[sid].charInstIds;
         // 清空这些干员在其他房间的占用
         for (const slotKey in draft.building.roomSlots) {
           if (slotKey === sid) continue;
@@ -1619,12 +1623,22 @@ export class BuildingManager {
             }
           }
         }
-        draft.building.roomSlots[sid].charInstIds = [...target];
+        const after: number[] = [...target];
+        // 统计该房间槽位排班发生变化的干员数（新旧逐位比较，-1 与空视为等价）
+        const len = Math.max(before.length, after.length);
+        for (let i = 0; i < len; i++) {
+          if ((before[i] ?? -1) !== (after[i] ?? -1)) changedCount++;
+        }
+        draft.building.roomSlots[sid].charInstIds = after;
         changed = true;
       }
       // 换班后立即按新岗位重算心情档位
       if (changed) this._recomputeCharScales(draft);
     });
+    // 对齐官服：实际发生换班变更时下发 buildingBatchChangeWorkChar pushMessage（num=变化的干员数）
+    if (changedCount > 0) {
+      this._player.pushMessage("buildingBatchChangeWorkChar", { num: changedCount });
+    }
   }
 
   /**
@@ -1641,22 +1655,30 @@ export class BuildingManager {
     list?: number[];
   }) {
     const charInstIdList = args.charInstIdList ?? args.charInstIds ?? args.list;
-    return await this._player.update(async (draft) => {
+    // 本次实际得到休息（移出岗位 + 入住宿舍）的干员数
+    // 对齐官服 buildingBatchRestChar pushMessage 的 num
+    let restedCount = 0;
+    await this._player.update(async (draft) => {
       if (Array.isArray(charInstIdList)) {
         for (const slotKey in draft.building.roomSlots) {
           const ids = draft.building.roomSlots[slotKey].charInstIds;
           for (let i = 0; i < ids.length; i++) {
             if (charInstIdList.includes(ids[i])) {
               ids[i] = -1;
+              restedCount++;
             }
           }
         }
       }
-      // 自动把不在房间且心情告罄的干员安排进宿舍空位
-      this._fillDormEmptySlots(draft);
+      // 自动把不在房间且心情告罄的干员安排进宿舍空位，并累计实际安置数
+      restedCount += this._fillDormEmptySlots(draft);
       // 休息后立即恢复空闲心情档位（0）
       this._recomputeCharScales(draft);
     });
+    // 对齐官服：实际发生休息变更时下发 buildingBatchRestChar pushMessage（num=休息的干员数）
+    if (restedCount > 0) {
+      this._player.pushMessage("buildingBatchRestChar", { num: restedCount });
+    }
   }
 
   /**
@@ -1667,8 +1689,9 @@ export class BuildingManager {
    * - 以及「宿舍内心情已满（ap ≥ 上限 8640000）且所在宿舍未锁定（presetQueues[slotId].locked
    *   ≠ true）」的干员——这类干员已不需要继续驻宿回复，可腾出床位让给需要休息的干员。
    *   （锁定的宿舍视为不可变动，腾床不触及锁定房间。）
+   * @returns 实际被安排入住宿舍的干员数
    */
-  private _fillDormEmptySlots(draft: Draft<PlayerDataModel>): void {
+  private _fillDormEmptySlots(draft: Draft<PlayerDataModel>): number {
     // 心情满值（与 _accrueCharAp 封顶一致）
     const MAX_AP = 8640000;
     // 收集已占用的干员（排除在任意房间工作中的）
@@ -1686,7 +1709,7 @@ export class BuildingManager {
       if ((ch?.ap ?? 0) > 0) continue;
       candidates.push(instId);
     }
-    if (candidates.length === 0) return;
+    if (candidates.length === 0) return 0;
     // 依次填补各宿舍槽位床位（先空床，后满心情未锁定干员的床位），先填床位数较多的宿舍
     const dormSlots = Object.entries(draft.building.roomSlots)
       .filter(([, slot]) => slot.roomId === "DORMITORY")
@@ -1712,6 +1735,8 @@ export class BuildingManager {
         }
       }
     }
+    // 返回实际被安排入住宿舍的干员数（供 batchRestChar 统计 pushMessage 的 num）
+    return c;
   }
 
   /**

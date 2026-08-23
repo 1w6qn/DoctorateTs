@@ -1851,3 +1851,84 @@ describe("训练室专精结算 / 批量换班（修复）", () => {
     config.developer!.specializationTimeZero = true;
   });
 });
+
+describe("batchChangeWorkChar / batchRestChar pushMessage（对齐官服抓包 buildingBatchChangeWorkChar / buildingBatchRestChar）", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+
+  beforeEach(async () => {
+    config.developer!.specializationTimeZero = false;
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({
+      building: {
+        status: { labor: { buffSpeed: 0, processPoint: 0, value: 100, lastUpdateTime: 0, maxValue: 100 }, workshop: { bonusActive: 0, bonus: {} } },
+        chars: {},
+        roomSlots: {
+          slot_5: { level: 2, state: 2, roomId: "TRADING", charInstIds: [1001, 1002, 1003], completeConstructTime: 0 },
+        },
+        rooms: {
+          CONTROL: {}, ELEVATOR: {}, POWER: {}, TRADING: {}, MANUFACTURE: {},
+          CORRIDOR: {}, WORKSHOP: {}, DORMITORY: {}, MEETING: {}, HIRE: {},
+          TRAINING: {}, PRIVATE: {},
+        },
+        furniture: {},
+        diyPresetSolutions: {},
+        assist: [-1, -1, -1],
+        solution: { furnitureTs: {} },
+        music: { selected: "bgm_default" },
+      } as any,
+      status: { uid: "1" } as any,
+      troop: { chars: {} },
+    });
+    mockPlayer._trigger = mockTrigger;
+    mockPlayer.update = vi
+      .fn()
+      .mockImplementation(
+        async (recipe: (draft: any) => Promise<any> | any) => {
+          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+          const result = await recipe(draft);
+          Object.assign(mockPlayer._playerdata, draft);
+          return result;
+        }
+      );
+  });
+
+  it("batchChangeWorkChar 发生排班变化时下发 buildingBatchChangeWorkChar（num=变化的干员数）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.batchChangeWorkChar({
+      roomSlotId: "slot_5",
+      charInstIdList: [1004, 1005, 1006],
+    } as any);
+    expect(mockPlayer._pushMessages).toEqual([
+      { path: "buildingBatchChangeWorkChar", payload: { num: 3 } },
+    ]);
+  });
+
+  it("batchChangeWorkChar 替换为相同排班（无变化）时不下发 pushMessage", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.batchChangeWorkChar({
+      roomSlotId: "slot_5",
+      charInstIdList: [1001, 1002, 1003],
+    } as any);
+    expect(mockPlayer._pushMessages).toEqual([]);
+  });
+
+  it("batchRestChar 移除干员时下发 buildingBatchRestChar（num=休息干员数）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.batchRestChar({ charInstIdList: [1001, 1002] } as any);
+    expect(mockPlayer._pushMessages).toEqual([
+      { path: "buildingBatchRestChar", payload: { num: 2 } },
+    ]);
+  });
+
+  it("batchRestChar 空请求体且无可休息干员时不下发 pushMessage", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.batchRestChar({} as any);
+    expect(mockPlayer._pushMessages).toEqual([]);
+  });
+
+  afterEach(() => {
+    config.developer!.specializationTimeZero = true;
+  });
+});

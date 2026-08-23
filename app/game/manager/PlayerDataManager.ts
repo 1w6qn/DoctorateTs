@@ -103,6 +103,8 @@ export class PlayerDataManager {
    * 正交，避免互相覆盖。
    */
   _pushMessages: RoguelikePushMessage[] = [];
+  /** 登录会话内是否已推送过项目信息提示（避免 rest/重连时重复弹提示） */
+  private _loginNoticePushed = false;
   /** 战斗信息存储（构造器注入，解耦 AccountManager） */
   private _battleStore: BattleInfoStore;
 
@@ -206,6 +208,21 @@ export class PlayerDataManager {
   }
 
   /**
+   * 推送本项目信息提示（登录会话内仅推送一次）
+   *
+   * 在登录数据同步时调用：向客户端推送一条项目名+版本号的提示信息，
+   * 随下一 delta 响应以 pushMessage 形式下发；同一会话（玩家数据管理器实例
+   * 缓存存活期）内只会推送一次，避免 rest/重连时重复弹提示。
+   * @param title - 提示标题（如项目名）
+   * @param content - 提示正文（如版本号 / 欢迎语）
+   */
+  pushLoginNotice(title: string, content: string): void {
+    if (this._loginNoticePushed) return;
+    this._loginNoticePushed = true;
+    this.pushMessage("serverNotice", { title, content });
+  }
+
+  /**
    * 获取用户ID
    * @returns 用户ID
    */
@@ -248,9 +265,12 @@ export class PlayerDataManager {
         },
       };
     }
-    const assistCharList = pd.social.assistCharList.map((char) => {
-      const charInfo = pd.troop.chars[char.charInstId];
-      const res = {
+    // 防御：助战槽引用的干员已不存在（全新号 / 满配模板残留）时跳过，避免社交信息崩溃
+    const assistCharList = pd.social.assistCharList
+      .filter((char) => Boolean(pd.troop.chars[char.charInstId]))
+      .map((char) => {
+        const charInfo = pd.troop.chars[char.charInstId];
+        const res = {
         charId: charInfo.charId,
         skinId: charInfo.skin,
         skills: charInfo.skills,

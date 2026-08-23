@@ -25,6 +25,11 @@ import {
 const router = Router();
 
 /**
+ * 本项目版本号（来源 package.json；登录提示推送展示用）
+ */
+const PROJECT_VERSION = "1.0.0";
+
+/**
  * 用户登录（参考 DoctoratePy accountLogin）
  * 客户端流程：token_by_phone_password / oauth2 grant 拿到 token → /account/login 换游戏凭证 secret
  * token 语义：real 模式为账号 secret（或 uid 兼容），single 模式任意 token 收敛到 singleUid
@@ -68,6 +73,11 @@ router.post("/syncData", validateBody(syncDataSchema), async (req, res) => {
   ]);
   // B4：预序列化响应（user 全量 1.3MB 级 JSON.stringify 缓存，update 后失效）
   const userJson = player.toJSONString();
+  // 登录会话内仅首次数同步推送一次本项目信息提示（项目名+版本号）
+  player.pushLoginNotice(
+    "DoctorateTs 私服",
+    `DoctorateTs v${PROJECT_VERSION} · 本项目为明日方舟私服，仅用于学习交流`,
+  );
   const deltaJson = JSON.stringify(player.delta);
   const body = `{"result":0,"ts":${ts},"user":${userJson}${deltaJson !== "{}" ? "," + deltaJson.slice(1, -1) : ""}}`;
   res.type("json").send(body);

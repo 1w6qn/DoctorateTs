@@ -71,6 +71,8 @@ export class CharManager {
     const items: ItemBundle[] = [];
     await this._player.update(async (draft) => {
       const { from, extraItem } = args;
+      // 防御：全新号 dexNav 可能为空对象（无 character 子树），先补结构再读写
+      if (!draft.dexNav.character) draft.dexNav.character = {};
       isNew = draft.dexNav.character[charId] ? 0 : 1;
       const info = excel.CharacterTable[charId];
       logger.info(

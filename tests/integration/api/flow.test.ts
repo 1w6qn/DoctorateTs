@@ -47,6 +47,8 @@ describe("游戏 API 核心业务流程（注册→登录→签到→商城→�
       draft.checkIn.checkInRewardIndex = 0;
       draft.status.gachaTicket = 0;
       draft.status.gold = 100000;
+      // 商店低级凭证区商品以资质凭证（4005）计价，需一并注入才能购得寻访凭证
+      draft.status.lggShard = 100000;
     });
 
     // 1) 签到 → 发放金币（不含寻访凭证）

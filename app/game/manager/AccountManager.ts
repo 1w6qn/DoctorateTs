@@ -33,6 +33,7 @@ import { acquireLock } from "@utils/mutex";
 import { hashPassword, verifyPassword, isHashedPassword } from "@utils/crypt";
 import { logger } from "@utils/logger";
 import { checkAndRepairSave, logSaveRepair } from "../util/save-health";
+import { buildFreshPlayerData } from "./freshPlayer";
 
 /**
  * 热路径顶层键（放最前）
@@ -774,13 +775,16 @@ export class AccountManager implements BattleInfoStore {
       const newUid = String((uids.length ? Math.max(...uids) : 0) + 1);
 
       // 方案 A+C：新账号模板从 SQLite player_data 表 uid=1 模板行读取（无 repo 回退 JSON 文件）
+      // 参考 LocalArknight 新玩家语义：以模板为结构脚手架构造「从零开始的崭新新号」，
+      // 而非直接复制满配模板（避免新号继承 1 号满配的财富/干员/进度）。
       const templateData = await this._loadTemplate();
-      const playerData = JSON.parse(JSON.stringify(templateData));
-      playerData.status.uid = newUid;
-      playerData.status.nickName = `博士${newUid}`;
-      playerData.status.nickNumber = "1";
-      playerData.status.registerTs = now();
-      playerData.status.lastOnlineTs = 0;
+      const registerTs = now();
+      const playerData = buildFreshPlayerData(templateData, {
+        uid: newUid,
+        nickName: `博士${newUid}`,
+        nickNumber: "1",
+        registerTs,
+      });
 
       const userConfig: UserConfig = {
         uid: newUid,
@@ -806,7 +810,7 @@ export class AccountManager implements BattleInfoStore {
       this._secretIndex = null; // 新增账号：secret 索引失效，下次查询重建
       await this.saveUserConfig();
       // 注册后加载玩家数据（与 ensureSingleUser 一致——searchPlayer/getPlayerData 立即可用，免重启）
-      await this._loadPlayer(newUid, playerData as PlayerDataModel);
+      await this._loadPlayer(newUid, playerData as unknown as PlayerDataModel);
       return newUid;
     } finally {
       release();

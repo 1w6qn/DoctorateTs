@@ -63,7 +63,8 @@ export class InventoryManager {
   }
 
   get skinCnt(): number {
-    return Object.keys(this._player._playerdata.skin.characterSkins).length;
+    // 防御：全新号 skin 可能为空对象（无 characterSkins 子树）
+    return Object.keys(this._player._playerdata.skin.characterSkins ?? {}).length;
   }
 
   /**

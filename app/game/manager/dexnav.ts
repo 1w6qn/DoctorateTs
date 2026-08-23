@@ -11,7 +11,8 @@ export class DexNavManager {
   }
 
   get teamV2Info(): { [key: string]: number } {
-    return Object.entries(this._player._playerdata.dexNav.teamV2).reduce(
+    // 防御：全新号 dexNav 可能为空对象（无 teamV2 子树）
+    return Object.entries(this._player._playerdata.dexNav.teamV2 ?? {}).reduce(
       (acc, [k, v]) => ({ ...acc, [k]: Object.keys(v).length }),
       {},
     );

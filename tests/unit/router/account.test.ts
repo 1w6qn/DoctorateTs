@@ -44,6 +44,7 @@ describe("account 路由", () => {
       toJSONString: vi.fn(() => JSON.stringify(mockPlayer._playerdata)),
       _playerdata: { pushFlags: { status: 0 } },
       _trigger: { emit: vi.fn().mockResolvedValue(undefined) },
+      pushLoginNotice: vi.fn(),
     };
     (vi.mocked(httpContext.get) as any).mockReturnValue(mockPlayer);
   });
@@ -129,6 +130,8 @@ describe("account 路由", () => {
       modified: { pushFlags: { status: 1234567890 } },
       deleted: {},
     });
+    // 登录提示：首次数同步调用一次本项目信息推送
+    expect(mockPlayer.pushLoginNotice).toHaveBeenCalledTimes(1);
   });
 
   it("syncStatus 应触发 status:refresh:time 事件", async () => {

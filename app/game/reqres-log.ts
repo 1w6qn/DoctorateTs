@@ -18,6 +18,7 @@
  * 本中间件用环境变量按路径前缀精确过滤，适合临时定向抓某个接口族。
  */
 import type { Request, Response, NextFunction } from "express";
+import type { CaptureRecorder } from "@capture/capture-recorder";
 import { captureManager } from "@capture/capture-manager";
 import { logger } from "@utils/logger";
 import { CAPTURE_RECORDED } from "@utils/traffic-recorder";
@@ -38,6 +39,7 @@ export function reqresLogMiddleware(
   req: Request,
   res: Response,
   next: NextFunction,
+  recorder: CaptureRecorder = captureManager,
 ): void {
   if (!enabledFor(req.path)) {
     next();
@@ -102,7 +104,7 @@ export function reqresLogMiddleware(
               ? { kind: "json" as const, data: payload }
               : { kind: "bin" as const, data: payload };
 
-        await captureManager.addRecord(
+        await recorder.addRecord(
           {
             ts: startedAt,
             method: req.method,

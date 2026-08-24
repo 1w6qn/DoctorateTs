@@ -17,6 +17,7 @@
  * 全部来源（私服/capture 转发/独立代理/官服操作）统一进入 captureManager 存储。
  */
 import { RequestHandler } from "express";
+import type { CaptureRecorder } from "@capture/capture-recorder";
 import { captureManager, CaptureSource } from "@capture/capture-manager";
 import { logger } from "@utils/logger";
 
@@ -62,6 +63,7 @@ function isExcluded(path: string, prefixes: readonly string[]): boolean {
 export function createTrafficRecorder(
   config: { debug?: { recordTraffic?: boolean; recordTrafficExclude?: string[] } },
   source: CaptureSource = "private",
+  recorder: CaptureRecorder = captureManager,
 ): RequestHandler {
   return (req, res, next) => {
     if (!config.debug?.recordTraffic) return next();
@@ -124,7 +126,7 @@ export function createTrafficRecorder(
                 ? { kind: "json" as const, data: payload }
                 : { kind: "bin" as const, data: payload };
 
-          await captureManager.addRecord(
+          await recorder.addRecord(
             {
               ts: startedAt,
               method: req.method,

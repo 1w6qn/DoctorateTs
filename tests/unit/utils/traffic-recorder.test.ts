@@ -218,4 +218,24 @@ describe("createTrafficRecorder（统一抓包存储记录）", () => {
     expect(items.length).toBe(1);
     expect(items[0].path).toBe("/shop/getLowGoodList");
   });
+
+  it("注入 CaptureRecorder 端口（mock）时写入 mock 而非真实单例（解耦验证）", async () => {
+    // 业务层面向 CaptureRecorder 窄端口编程，可注入 mock 替换真实 captureManager 单例。
+    const addRecord = vi.fn().mockResolvedValue({} as never);
+    const mockRecorder = { addRecord };
+    const handler = createTrafficRecorder(cfgOn, "private", mockRecorder);
+    const req = mockReq("/shop/getLowGoodList");
+    const res = mockRes();
+    handler(req, res, () => {});
+    res.send({ ok: 1 });
+    res.flush();
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(addRecord).toHaveBeenCalledTimes(1);
+    const [meta, bodies] = addRecord.mock.calls[0];
+    expect(meta.path).toBe("/shop/getLowGoodList");
+    expect(bodies.res).toEqual({ kind: "json", data: { ok: 1 } });
+    // 真实单例不应收到写入（把记录导向了注入的 mock）
+    expect((await captureManager.query({})).total).toBe(0);
+  });
 });

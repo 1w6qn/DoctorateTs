@@ -10,12 +10,9 @@ import { appendFile, copyFile, mkdir, readFile, readdir, rm, stat, writeFile } f
 import * as path from "path";
 import excel from "@excel/excel";
 import { getRoomPhase } from "@excel/building_excel";
-import { buildMaxedSkills, buildMaxedEquip } from "@game/maxout";
-import { GACHA_RULE_TYPE } from "@game/model/gacha";
-import { accountManager } from "@game/manager/AccountManager";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { PlayerDataModel } from "@game/model/playerdata";
-import { mailManager } from "@game/manager/mail";
+import { adminGame } from "./game-gateway";
 import { runMigration } from "../../scripts/migrate-official";
 import { loadUsers } from "../../scripts/official-register";
 import { buildMaxedChar } from "../../scripts/generate-max-account";
@@ -32,8 +29,6 @@ import { exists, size, readJson, readJsonSync, writeJson } from "@utils/file";
 import { now, userTimestamp } from "@utils/time";
 import { logger } from "@utils/logger";
 import { logService } from "@logs/log-service";
-import { unlockActivity, forcedActivityIds } from "@game/manager/activity/unlockActivity";
-import { listCrisisSeasons } from "@game/router/crisis";
 import {
   startBackfillTask,
   getBackfillTask as getAssetBackfillTask,
@@ -41,11 +36,7 @@ import {
   autoBackfillAfterSwitch,
   BackfillTask,
 } from "../asset-backfill";
-import {
-  loadOrders as loadPayOrders,
-  markPaid as markPayOrderPaid,
-  PayOrderRecord,
-} from "@game/pay-store";
+import type { PayOrderRecord } from "@game/pay-store";
 import {
   itemName,
   charName,
@@ -56,6 +47,23 @@ import {
   COMMON_ITEMS,
 } from "./admin-names";
 import config from "../config";
+
+/**
+ * 解构 admin 可访问的 game 运行时实体（来自 game-gateway 薄网关）。
+ * 别名保持与迁移前一致：loadPayOrders=loadOrders、markPayOrderPaid=markPaid。
+ */
+const {
+  buildMaxedSkills,
+  buildMaxedEquip,
+  GACHA_RULE_TYPE,
+  accountManager,
+  mailManager,
+  unlockActivity,
+  forcedActivityIds,
+  listCrisisSeasons,
+  loadOrders: loadPayOrders,
+  markPaid: markPayOrderPaid,
+} = adminGame;
 
 /** 审计日志文件（JSONL：一行一条 {ts, action, uid, detail}） */
 const ADMIN_LOG_PATH = "./data/admin/logs.jsonl";

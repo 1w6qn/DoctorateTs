@@ -127,8 +127,9 @@ export class MedalManager implements PlayerMedal {
     // 绕过 update() 的原地写回不产生 Immer 补丁，显式标记脏以触发条件落盘
     this._player.markDirty();
     this._trigger.emit("items:get", [items]);
-    // 勋章完成推送（path 自拟 gamepp）：随本次响应下发，客户端据此刷新勋章界面
-    this._player.pushMessage("medalFinish", { medalId: args.medalId, rts });
+    // 勋章完成推送（对齐官服 medalFinish pushMessage，payload 为 idList）：
+    // 随本次响应下发，客户端据此刷新勋章界面
+    this._player.pushMessage("medalFinish", { idList: [args.medalId] });
     return items;
   }
 
@@ -195,7 +196,7 @@ export class MedalManager implements PlayerMedal {
         this._playerdata.medal.medals[m.medalId].fts = fts;
       }
       this._player.markDirty();
-      this._player.pushMessage("medalFinish", { medalId: m.medalId, fts });
+      this._player.pushMessage("medalFinish", { idList: [m.medalId] });
       if (m.medalRewardGroup?.length) {
         await this.rewardMedal({
           medalId: m.medalId,

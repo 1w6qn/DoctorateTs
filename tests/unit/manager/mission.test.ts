@@ -416,6 +416,39 @@ describe("MissionManager", () => {
       expect(result).toBeDefined();
       expect(Array.isArray(result)).toBe(true);
     });
+
+    it("活动任务确认后不能再次确认刷奖励（confirmed 标记持久化）", async () => {
+      const manager = new MissionManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      const rewardGold = { type: "MATERIAL", id: "GOLD", count: 100 };
+      mockExcelRef.ActivityTable = {
+        missionData: [{ id: "act_repeat_001", rewards: [rewardGold] }],
+      };
+      mockPlayer._playerdata.mission.missions["ACTIVITY"] = {
+        act_repeat_001: { state: 2, progress: [{ value: 1, target: 1 }] },
+      };
+      const emitSpy = vi.spyOn(mockTrigger, "emit");
+
+      // 第一次确认：发放奖励并置持久化 confirmed 标记
+      const first = await manager.confirmMission({
+        missionId: "act_repeat_001",
+      });
+      expect(first).toEqual([rewardGold]);
+      expect(emitSpy).toHaveBeenCalledWith("items:get", [[rewardGold]]);
+
+      // 再次确认：已领取 → 返回空奖励，不再发放/触发 items:get
+      emitSpy.mockClear();
+      const second = await manager.confirmMission({
+        missionId: "act_repeat_001",
+      });
+      expect(second).toEqual([]);
+      const itemsCalls = emitSpy.mock.calls.filter(
+        (call) => call[0] === "items:get"
+      );
+      expect(itemsCalls.length).toBe(0);
+    });
   });
 
   describe("confirmMissionGroup", () => {

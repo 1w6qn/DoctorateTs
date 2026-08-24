@@ -224,7 +224,9 @@ export class RoguelikeRecruitManager {
           instId: String(acc.length),
           charId: char.charId,
           type: "NORMAL",
-          favorPoint: char.favorPoint ?? 0,
+          // 信赖取整（客户端 PlayerCharacter.favorPoint 为 int；历史数据可能出现
+          // 小数/超上限——招募候选/结果直接透传会破坏客户端解析）
+          favorPoint: Math.round(char.favorPoint ?? 0),
           potentialRank: char.potentialRank ?? 0,
           mainSkillLvl: char.mainSkillLvl ?? 1,
           skin: char.skin ?? "",
@@ -355,7 +357,11 @@ export class RoguelikeRecruitManager {
       currentEquip = "";
     }
     this.tickets[id].result = Object.assign({}, picked, {
-      instId: String(picked.troopInstId),
+      // instId 保持候选序号（list 下标，与客户端请求 optionId 一致——官服 recruitChar
+      // 响应 chars[].instId 即 optionId/候选序号，非玩家主队伍 instId）。
+      // 原实现写成 String(picked.troopInstId)（玩家主队伍 instId）：当该 instId 数值较小
+      // （落在候选列表下标范围内）时，客户端按 chars[].instId 回查候选列表会命中错误干员
+      // → 招募结果崩溃（战斗获取招募券招募后游戏崩溃）。候选序号恒与 optionId 一致，安全。
       troopInstId: String(troopNo),
       skills,
       master,

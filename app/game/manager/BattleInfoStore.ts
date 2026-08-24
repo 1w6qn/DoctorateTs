@@ -69,6 +69,10 @@ export interface BattleRecord {
   rewards: ItemBundle[];
   /** 完整战斗统计（BattleStats，含 enemyStats/charStats 等，供深度分析） */
   stats: unknown;
+  /** 战报反作弊标识（battleData.isCheat——私服仅留存不校验） */
+  isCheat?: string;
+  /** 解析后的战斗回放（battleLog 经 decryptBattleReplay 解压，无/解析失败为 undefined） */
+  battleLog?: unknown;
   /** 记录创建时间戳（秒） */
   createdTs: number;
 }

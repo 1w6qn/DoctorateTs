@@ -86,6 +86,26 @@ describe("SocialManager.getAssistList 随机补位", () => {
     expect(list).toHaveLength(0);
   });
 
+  it("玩家过少（无好友、无其他账号）时应回退自己助战补位", async () => {
+    // 单账号私服：池子只有自己，好友为空 → 借不到助战则用自己补位
+    vi.spyOn(accountManager, "getSocial").mockResolvedValue({
+      friends: [],
+      friendRequests: [],
+      visited: [],
+    });
+    vi.spyOn(accountManager, "getPlayerUidList").mockReturnValue(["1"]);
+    vi.spyOn(accountManager, "getPlayerFriendInfo").mockImplementation(
+      async (uid: string) => friendInfo(uid, ["char_001"]),
+    );
+    const list = await social.getAssistList({ profession: "WARRIOR" });
+    expect(list.length).toBe(1);
+    const self = list[0] as any;
+    expect(self.uid).toBe("1");
+    // 自己不可请求好友
+    expect(self.isFriend).toBe(true);
+    expect(self.canRequestFriend).toBe(false);
+  });
+
   it("排除自己与其他账号重复干员", async () => {
     vi.spyOn(accountManager, "getSocial").mockResolvedValue({
       friends: [],

@@ -573,9 +573,10 @@ export class EquipmentMissionManager {
         }
       }
     });
-    // 模组任务进度推送（path 自拟 gamepp）：随本次战斗结算响应下发
+    // 模组任务进度推送（对齐官服 equipmentMission pushMessage，payload 为 idList）：
+    // 随本次战斗结算响应下发，逐条推进的任务各发一条
     for (const t of touched) {
-      this._player.pushMessage("equipmentMission", t);
+      this._player.pushMessage("equipmentMission", { idList: [t.missionId] });
     }
     logger.debug(
       "EquipmentMission",

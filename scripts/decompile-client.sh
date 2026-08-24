@@ -21,7 +21,14 @@
 set -euo pipefail
 
 # ---------- 配置 ----------
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+_raw_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# 强制 Windows 绝对路径，避免后台 shell 下 POSIX 路径被 MSYS 二次转换为
+# "D:/d/develop/..." 导致后续 python/工具找不到文件（曾导致签名生成步失败）
+if command -v cygpath >/dev/null 2>&1; then
+  REPO_ROOT="$(cygpath -w "$_raw_root")"
+else
+  REPO_ROOT="$_raw_root"
+fi
 GAME_PATH="${1:-${GAME_PATH:-E:\Games\Hypergryph Launcher\games\Arknights Game}}"
 WORKDIR="${DECOMPILE_WORKDIR:-$REPO_ROOT/tmp/decompile}"
 TOOLS="$WORKDIR/tools"

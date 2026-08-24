@@ -27,6 +27,7 @@ import {
 import excel from "@excel/excel";
 import { GachaPerChar } from "@excel/gacha_detail_table";
 import { now } from "@utils/time";
+import { logger } from "@utils/logger";
 import { TypedEventEmitter } from "@game/model/events";
 
 /**
@@ -537,7 +538,9 @@ export class ShopController {
     const good =
       excel.ShopTable.highGoodList.goodList.find((g) => g.goodId === goodId) ??
       // 动态商品（根据当前标准池自动生成的干员区）
-      this.buildHighCharGoods().find((g) => g.goodId === goodId);
+      this.buildHighCharGoods().find((g) => g.goodId === goodId) ??
+      // 中坚甄选券（CLASSIC_FES_PICK_TIER_*/5，随中坚甄选池）
+      this.buildFesPickGoods("HS").find((g) => g.goodId === goodId);
     // 防御：未知商品不 500
     if (!good) return [];
     let price = good.price;
@@ -835,7 +838,9 @@ export class ShopController {
     const good =
       excel.ShopTable.classicGoodList.goodList.find((g) => g.goodId === goodId) ??
       // 动态商品（根据当前中坚池自动生成的干员区）
-      this.buildClassicCharGoods().find((g) => g.goodId === goodId);
+      this.buildClassicCharGoods().find((g) => g.goodId === goodId) ??
+      // 中坚甄选券（CLASSIC_FES_PICK_TIER_*/5，随中坚甄选池）
+      this.buildFesPickGoods("KS").find((g) => g.goodId === goodId);
     // 防御：未知商品不 500
     if (!good) return [];
     let item!: ItemBundle;
@@ -955,6 +960,8 @@ export class ShopController {
   private _autoHighGoods: QCObject[] | null = null;
   /** 自动生成的经典商店（CLASSIC 通用凭证区）干员商品（懒构建，随当前中坚池） */
   private _autoClassicGoods: QCObject[] | null = null;
+  /** 自动生成的中坚甄选券商品（懒构建，随当前中坚甄选池；HS/KS 各一份） */
+  private _autoFesPickGoods: { HS: QCObject[]; KS: QCObject[] } | null = null;
 
   /**
    * 当前限定池（LMTGS 商店按当期池代币过滤）
@@ -1090,6 +1097,22 @@ export class ShopController {
     );
   }
 
+  /**
+   * 当前中坚甄选池（FESCLASSIC 二次元自选卡池；甄选券商品关联的池）
+   *
+   * 不混入 CLASSIC 常规中坚池：甄选券只对应 FESCLASSIC（中坚甄选）池。优先当前活跃
+   *（openTime<=now<=endTime），无活跃池时回退最近开启的一期（数据版本落后时仍有内容）。
+   * @returns 中坚甄选池配置，无则 null
+   */
+  private _currentFesClassicPool(): (typeof excel.GachaTable.gachaPoolClient)[number] | null {
+    const ts = now();
+    const pools = excel.GachaTable.gachaPoolClient
+      .filter((p) => String(p.gachaRuleType) === "FESCLASSIC")
+      .sort((a, b) => b.openTime - a.openTime);
+    if (!pools.length) return null;
+    return pools.find((p) => p.openTime <= ts && ts <= p.endTime) ?? pools[0];
+  }
+
   /** 干员展示名（CHAR 表缺失时回退 charId） */
   private _charName(charId: string): string {
     return (excel.CharacterTable as any)?.[charId]?.name ?? charId;
@@ -1182,7 +1205,14 @@ export class ShopController {
     if (pool) {
       const detail = excel.GachaDetailTable.details[pool.gachaPoolId];
       let seq = 0;
-      for (const c of detail?.upCharInfo?.perCharList ?? []) {
+      // 自选卡池（FESCLASSIC 中坚甄选）：干员区反映玩家 choosePoolUp 自选 UP，
+      // 未自选/常规 CLASSIC 池时 effectiveUpPerCharList 原样返回静态 upCharInfo，
+      // 行为不变（详见 GachaController.effectiveUpPerCharList）。
+      const perCharList =
+        this._player.gacha?.effectiveUpPerCharList(pool.gachaPoolId) ??
+        detail?.upCharInfo?.perCharList ??
+        [];
+      for (const c of perCharList) {
         const price = c.rarityRank === 5 ? 2000 : c.rarityRank === 4 ? 500 : 0;
         if (!price) continue;
         for (const charId of c.charIdList) {
@@ -1211,17 +1241,123 @@ export class ShopController {
   }
 
   /**
+   * 解析中坚甄选券的物品 id
+   *
+   * 官服规则：券 id = `classic_fes_pick_tier_{稀有度}_{池序号}01`（如池 FESCLASSIC_76_0_2
+   * → classic_fes_pick_tier_6_7601）。当前 excel 数据的 item_table 可能未收录当期池的券（版本
+   * 落后），此时回退到已收录的同稀有度券 id（取后缀最大者），保证物品可被客户端正常解析；
+   * 全无收录时仍按官服规则生成 id 并记 WARN 供补数据。
+   * @param tier - 稀有度档（6=六星 / 5=五星）
+   * @param poolId - 中坚甄选池 id（形如 FESCLASSIC_76_0_2）
+   * @returns 可发放的券物品 id
+   */
+  private _pickTicketId(tier: number, poolId: string): string {
+    // 池序号：取池 id 中版本号首段（FESCLASSIC_76_0_2 → 76）
+    const seqMatch = /^FESCLASSIC_(\d+)/.exec(poolId);
+    const seq = seqMatch ? seqMatch[1] : "00";
+    const byRule = `classic_fes_pick_tier_${tier}_${seq}01`;
+    const items: Record<string, unknown> = (excel.ItemTable as any)?.items ?? {};
+    if (items[byRule]) return byRule;
+    // 回退：取已收录同稀有度券中后缀最大者（越接近当期数据越新）
+    const existing = Object.keys(items).filter((k) =>
+      k.startsWith(`classic_fes_pick_tier_${tier}_`),
+    );
+    if (existing.length) {
+      return existing.sort((a, b) =>
+        Number(b.split("_").pop() ?? 0) - Number(a.split("_").pop() ?? 0),
+      )[0];
+    }
+    logger.warn("shop", `中坚甄选券 ${byRule} 未收录于 item_table，按规则生成`);
+    return byRule;
+  }
+
+  /**
+   * 按当期中坚甄选（FESCLASSIC）池生成"中坚甄选 6/5★ 干员"甄选券商品
+   *
+   * 参考官方抓包 /shop/getClassicGoodList、/shop/getHighGoodList：两处都售卖两张甄选券
+   *（CLASSIC_FES_PICK_TIER_6 / CLASSIC_FES_PICK_TIER_5），玩家购买后可在 FESCLASSIC 池
+   * 通过 /gacha/choosePoolUp 自选 UP 干员并抽取（复用既有 gacha 自选抽卡逻辑）。
+   * 价格对齐抓包——高级凭证区（HS）6★180/5★45，通用凭证区（KS）6★1800/5★450。
+   * 无 FESCLASSIC 池时返回空数组（商店不展现甄选券）。
+   * @param prefix - 商店前缀（HS=高级凭证区 / KS=通用凭证区），决定 goodId 与价格档位
+   * @returns 甄选券商品列表（NORMAL；可空）
+   */
+  buildFesPickGoods(prefix: "HS" | "KS"): QCObject[] {
+    if (this._autoFesPickGoods) return this._autoFesPickGoods[prefix];
+    let resolved: { HS: QCObject[]; KS: QCObject[] } = { HS: [], KS: [] };
+    const pool = this._currentFesClassicPool();
+    if (pool) {
+      // 两商店售卖的券物品一致（同一 FESCLASSIC 池、同一券），仅 goodId/价格档位不同
+      const tier6 = this._pickTicketId(6, pool.gachaPoolId);
+      const tier5 = this._pickTicketId(5, pool.gachaPoolId);
+      resolved = {
+        HS: [
+          this._buildFesPickGood("HS", "6", tier6, pool, 180, "CLASSIC_FES_PICK_TIER_6"),
+          this._buildFesPickGood("HS", "5", tier5, pool, 45, "CLASSIC_FES_PICK_TIER_5"),
+        ].filter(Boolean) as QCObject[],
+        KS: [
+          this._buildFesPickGood("KS", "6", tier6, pool, 1800, "CLASSIC_FES_PICK_TIER_6"),
+          this._buildFesPickGood("KS", "5", tier5, pool, 450, "CLASSIC_FES_PICK_TIER_5"),
+        ].filter(Boolean) as QCObject[],
+      };
+    }
+    this._autoFesPickGoods = resolved;
+    return resolved[prefix];
+  }
+
+  /**
+   * 构造单张甄选券商品（NORMAL）
+   *
+   * @param prefix - 商店前缀（HS/KS，用于 goodId 前缀与排序号）
+   * @param tier - 稀有度档位标签（"6"/"5"）
+   * @param ticketId - 甄选券物品 id
+   * @param pool - 关联的 FESCLASSIC 池（提供时间窗）
+   * @param price - 价格（按商店币种档位传入）
+   * @param itemType - 物品类型（CLASSIC_FES_PICK_TIER_6 / _5）
+   * @returns 单条甄选券商品
+   */
+  private _buildFesPickGood(
+    prefix: "HS" | "KS",
+    tier: string,
+    ticketId: string,
+    pool: (typeof excel.GachaTable.gachaPoolClient)[number],
+    price: number,
+    itemType: string,
+  ): QCObject {
+    const goodId = `${prefix}_FESPICK${tier}_${pool.gachaPoolId}`;
+    return {
+      goodId,
+      displayName: tier === "6" ? "中坚甄选6星干员" : "中坚甄选5星干员",
+      priority: 1,
+      number: tier === "6" ? 1 : 2,
+      goodType: "NORMAL",
+      item: { id: ticketId, count: 1, type: itemType },
+      progressGoodId: "",
+      price,
+      originPrice: price,
+      discount: 0,
+      availCount: 1,
+      slotId: 0,
+      groupId: "",
+      goodStartTime: pool.openTime,
+      goodEndTime: pool.endTime,
+    };
+  }
+
+  /**
    * 高级凭证区完整商品列表（动态干员 + 静态材料区合并）
    * @returns 合并后的 HighGoodList
    */
   buildHighGoodList(): HighGoodList {
     const staticList = excel.ShopTable.highGoodList;
     const auto = this.buildHighCharGoods();
-    const autoIds = new Set(auto.map((g) => g.goodId));
+    const fesPick = this.buildFesPickGoods("HS");
+    const autoIds = new Set([...auto, ...fesPick].map((g) => g.goodId));
     return {
       ...staticList,
       goodList: [
         ...auto,
+        ...fesPick,
         ...staticList.goodList.filter((g) => !autoIds.has(g.goodId)),
       ],
     };
@@ -1234,11 +1370,13 @@ export class ShopController {
   buildClassicGoodList(): ClassicGoodList {
     const staticList = excel.ShopTable.classicGoodList;
     const auto = this.buildClassicCharGoods();
-    const autoIds = new Set(auto.map((g) => g.goodId));
+    const fesPick = this.buildFesPickGoods("KS");
+    const autoIds = new Set([...auto, ...fesPick].map((g) => g.goodId));
     return {
       ...staticList,
       goodList: [
         ...auto,
+        ...fesPick,
         ...staticList.goodList.filter((g) => !autoIds.has(g.goodId)),
       ],
     };

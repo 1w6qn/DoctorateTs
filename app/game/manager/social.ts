@@ -286,6 +286,14 @@ export class SocialManager {
       }
     }
 
+    // 3. 仍不足时回退当前玩家自己的助战干员（修复：单账号私服/玩家过少时好友与
+    //    其他账号池皆为空 → 借不到助战；用自己的助战补位保证始终能借）
+    if (assistList.length < MAX_LIST) {
+      const self = await accountManager.getPlayerFriendInfo(this._uid);
+      const item = buildAssistInfo(self, true, "");
+      if (item) assistList.push(item);
+    }
+
     return assistList;
   }
 

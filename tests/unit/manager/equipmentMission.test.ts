@@ -145,7 +145,7 @@ describe("EquipmentMissionManager", () => {
     // 进度变化时压入 equipmentMission 推送
     expect(pd._pushMessages.map((p) => p.path)).toContain("equipmentMission");
     const push = pd._pushMessages.find((p) => p.path === "equipmentMission");
-    expect(push!.payload).toMatchObject({ missionId: "uniequip_002_franka_dmg", value: 12000, target: 60000 });
+    expect(push!.payload).toEqual({ idList: ["uniequip_002_franka_dmg"] });
   });
 
   it("累计型模板统计缺失时置满兜底（不卡死）", async () => {

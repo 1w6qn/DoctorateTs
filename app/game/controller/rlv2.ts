@@ -22,6 +22,10 @@ import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { BattleData } from "@game/model/battle";
 import { RoguelikePoolManager } from "./rlv2/pool";
+import {
+  composeRlv2ChildModules,
+  type Rlv2ChildModules,
+} from "./rlv2-composition";
 import { ROGUE6_NODE } from "./rlv2/modules/grid_zone";
 import {
   ROGUE6_BATTLE_NODES,
@@ -127,7 +131,17 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
    */
   _pushMessages: RoguelikePushMessage[] = [];
 
-  constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
+  /**
+   * 构造函数
+   * @param player - 玩家数据管理器（父）
+   * @param _trigger - 类型化事件触发器
+   * @param deps - 可选依赖（DI）：`deps.modules` 可部分覆写子模块，用于测试缩小构造面
+   */
+  constructor(
+    player: PlayerDataManager,
+    _trigger: TypedEventEmitter,
+    deps?: { modules?: Partial<Rlv2ChildModules> },
+  ) {
     // rlv2 内部模型（model/rlv2.ts）与生成模型（types-playerdata）为同一数据的两种视图：
     // 内部模型为功能实现的类型契约，生成模型为线格式存储视图，边界处做显式桥接
     this._player = player;
@@ -171,14 +185,18 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       this.current.record = { brief: null };
     }
 
-    this.troop = new RoguelikeTroopManager(this, this._trigger);
-    this._status = new RoguelikePlayerStatusManager(this, this._trigger);
-    this.inventory = new RoguelikeInventoryManager(this, this._trigger);
-    this._buff = new RoguelikeBuffManager(this, this._trigger);
-    this._map = new RoguelikeMapManager(this, this._trigger);
-    this._module = new RoguelikeModuleManager(this, this._trigger);
-    this._battle = new RoguelikeBattleManager(this, this._trigger);
-    this._pool = new RoguelikePoolManager(this, this._trigger);
+    // 组合子模块：默认工厂按原顺序构造 8 个子管理器；deps.modules 覆写个别模块。
+    // 构造顺序即事件订阅顺序，必须与迁移前完全一致（见 rlv2-composition.ts）。
+    const composed = composeRlv2ChildModules(this, this._trigger);
+    const m = { ...composed, ...deps?.modules };
+    this.troop = m.troop;
+    this._status = m.status;
+    this.inventory = m.inventory;
+    this._buff = m.buff;
+    this._map = m.map;
+    this._module = m.module;
+    this._battle = m.battle;
+    this._pool = m.pool;
     // 进行中的对局：走 rlv2:continue 恢复（grid_zone/weather/scrap/chaos/buff/
     // events 等从存档 current 恢复；status 单独恢复，避免 rlv2:init 重置为 NONE）
     if (hasRunning) {
@@ -2915,27 +2933,28 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     return true;
   }
 
-  /** 网格区域移动并开始战斗（抓包 { route, stageId, squad }） */
+  /**
+   * 网格区域移动并开始战斗（抓包 { route, stageId, squad }）。
+   * 复用 gridZoneMoveTo 的完整移动逻辑（beginMove/takeChangedNodes 变化节点、被经过节点
+   * 衰减 decayPassed、流窜居民 stepBandits、驱逐战 startClearing、节点类型判定与推送、
+   * 特勤干员任务/goodsScrap 效果等）——若此处走旧简化实现会与 gridZoneMoveTo 行为分叉：
+   * 变化节点不收集（rlv2NodeChange 永不下发）、被经过节点不衰减为林间空地、流窜居民/
+   * 驱逐战机制缺失，导致续局存档网格结构异常。战斗节点由 gridZoneMoveTo 内部触发
+   * battle:start；续局等场景判定失败时用客户端 stageId 兜底开战。
+   */
   async gridZoneMoveAndBattleStart(args: {
     route: string[];
     stageId: string;
     squad: PlayerSquad;
   }): Promise<void> {
-    const gz = this._module.gridZone;
-    // 路径每节点消耗一步
-    for (const _nodeId of args.route) {
-      this._trigger.emit("rlv2:grid:step", []);
+    // 复用 gridZoneMoveTo 完整移动逻辑；战斗节点内部已触发 battle:start。
+    // 仅当移动未进入任何节点事件（空节点/续局判定失败）时才按客户端 stageId 兜底开战，
+    // 避免对商店/事件节点重复触发双事件。
+    const pendingBefore = this._status.pending.length;
+    await this.gridZoneMoveTo({ route: args.route });
+    if (this._status.pending.length > pendingBefore) {
+      return;
     }
-    for (const nodeId of args.route) {
-      gz?.moveTo([nodeId]);
-    }
-    gz?.moveTo([args.route[args.route.length - 1]]);
-    const zone = this._status.cursor.zone;
-    const last = args.route[args.route.length - 1];
-    const lastX = Math.floor(Number(last) / 100);
-    const lastY = Number(last) % 100;
-    this._status.trace.push({ zone, position: { x: lastX, y: lastY } });
-    this._status.cursor.position = { x: lastX, y: lastY };
     this._status.state = "PENDING";
     await this._trigger.emit("rlv2:battle:start", [args.stageId]);
   }

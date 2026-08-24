@@ -12,7 +12,7 @@ import {
   GachaDetailTable,
   GachaPerChar,
 } from "@excel/gacha_detail_table";
-import { GachaPoolClientData } from "@excel/types_excel_gen";
+import { GachaPoolClientData } from "@excel/excel-types";
 import excel from "@excel/excel";
 import { accountManager } from "../manager/AccountManager";
 import { ItemBundle } from "@excel/character_table";
@@ -632,12 +632,81 @@ export class GachaController {
   }
 
   /**
+   * 读取玩家在当前自选卡池（如 FESCLASSIC）已选的 UP 字典
+   *
+   * 读取 gacha[gachaType][poolId].upChar，仅当其为字典形态
+   *（客户端 choosePoolUp 协议 Dictionary<Int32, List<String>>，如 {4:[...],5:[...]}）
+   * 时返回；数组/字符串形态由 _selfSelectedUpForRank 另行兼容。无选择返回 null。
+   * @param poolId - 抽卡池ID
+   * @returns 玩家已选 UP 字典（{稀有度: 干员列表}），无则 null
+   */
+  private _selfSelectedUpDict(poolId: string): Record<string, string[]> | null {
+    const cfg = this._getPoolConfig(poolId);
+    const gachaType = GACHA_RULE_TYPE[cfg?.gachaRuleType ?? ""] ?? "single";
+    const upChar: unknown = (this.gacha as any)?.[gachaType]?.[poolId]?.upChar;
+    if (upChar && typeof upChar === "object" && !Array.isArray(upChar)) {
+      return upChar as Record<string, string[]>;
+    }
+    return null;
+  }
+
+  /**
+   * 当前卡的生效 UP 干员列表（静态池 UP 与玩家自选叠加）
+   *
+   * 自选卡池（中坚甄选 FESCLASSIC 等）：玩家 choosePoolUp 选择的 UP 需反映到
+   * getPoolDetail 的 detailInfo 与商店干员区，否则客户端无法生成所选卡池、商店也
+   * 不显示选择。此方法以静态 upCharInfo.perCharList 为基座，按稀有度用玩家自选
+   * charIdList 覆盖（无自选时原样返回静态，行为不变）。返回一份克隆，不改动共享详情。
+   * @param poolId - 抽卡池ID
+   * @returns 合并玩家自选后的 perCharList（克隆）
+   */
+  effectiveUpPerCharList(poolId: string): GachaPerChar[] {
+    const detail = this._poolDetail(poolId);
+    const base: GachaPerChar[] = (detail.upCharInfo?.perCharList ?? []).map(
+      (c) => ({ ...c, charIdList: [...c.charIdList] }),
+    );
+    const upChar = this._selfSelectedUpDict(poolId);
+    if (!upChar) return base;
+    const result = base.map((c) => ({ ...c, charIdList: [...c.charIdList] }));
+    for (const [rankKey, charIds] of Object.entries(upChar)) {
+      const rank = Number(rankKey);
+      if (!Number.isInteger(rank) || !Array.isArray(charIds) || !charIds.length) {
+        continue;
+      }
+      const ex = result.find((c) => c.rarityRank === rank);
+      if (ex) {
+        ex.charIdList = [...charIds];
+        ex.count = 1;
+      } else {
+        result.push({
+          rarityRank: rank,
+          charIdList: [...charIds],
+          percent: 0.35,
+          count: 1,
+        });
+      }
+    }
+    return result;
+  }
+
+  /**
    * 获取抽卡池详情
+   *
+   * 格式化补全 gachaObjGroups（客户端解析必需）外，对自选卡池把玩家已选 UP 合并进
+   * upCharInfo.perCharList——fix：此前直接返回静态详情，客户端无法感知玩家选择，
+   * 抽卡界面上"没有生成所选卡池"。
    * @param args - 参数
    * @param args.poolId - 抽卡池ID
-   * @returns 抽卡池详情数据
+   * @returns 抽卡池详情数据（自选池已含玩家 UP）
    */
   async getPoolDetail(args: { poolId: string }): Promise<GachaDetailData> {
-    return this._poolDetail(args.poolId);
+    const detail = this._poolDetail(args.poolId);
+    if (!detail || !detail.upCharInfo) return detail;
+    return {
+      ...detail,
+      upCharInfo: {
+        perCharList: this.effectiveUpPerCharList(args.poolId),
+      },
+    };
   }
 }

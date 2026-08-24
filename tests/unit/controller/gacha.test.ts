@@ -444,6 +444,57 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
       expect(charId).toBe("char_upA");
       rnd.mockRestore();
     });
+
+    it("effectiveUpPerCharList 用玩家自选覆盖静态 UP（按稀有度）", () => {
+      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      // 模拟 choosePoolUp 已写入：gacha[classic][poolId].upChar = { 5:[...], 4:[...] }
+      mockPlayer._playerdata.gacha = {
+        classic: {
+          p_classic_1: { upChar: { "5": ["char_c5b"], "4": ["char_c4c"] } },
+        },
+      } as any;
+      const per = controller.effectiveUpPerCharList("p_classic_1");
+      expect(per.find((c) => c.rarityRank === 5)).toMatchObject({
+        rarityRank: 5,
+        charIdList: ["char_c5b"],
+        count: 1,
+      });
+      expect(per.find((c) => c.rarityRank === 4)?.charIdList).toEqual(["char_c4c"]);
+    });
+
+    it("getPoolDetail 返回的 detailInfo 应含玩家自选 UP（客户端据此生成所选卡池）", async () => {
+      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.gacha = {
+        classic: {
+          p_classic_1: { upChar: { "5": ["char_c5b"], "4": ["char_c4c"] } },
+        },
+      } as any;
+      const detail = await controller.getPoolDetail({ poolId: "p_classic_1" });
+      // 静态 UP char_upA → 自选 char_c5b
+      expect(detail.upCharInfo?.perCharList.find((c) => c.rarityRank === 5)?.charIdList).toEqual([
+        "char_c5b",
+      ]);
+      expect(detail.upCharInfo?.perCharList.find((c) => c.rarityRank === 4)?.charIdList).toEqual([
+        "char_c4c",
+      ]);
+    });
+
+    it("FESCLASSIC 无静态 UP 时自选按 35% 默认档注入 perCharList", () => {
+      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.gacha = {
+        fesClassic: {
+          p_fesclassic_1: { upChar: { "5": ["char_f5a"] } },
+        },
+      } as any;
+      const per = controller.effectiveUpPerCharList("p_fesclassic_1");
+      expect(per).toHaveLength(1);
+      expect(per[0]).toMatchObject({
+        rarityRank: 5,
+        charIdList: ["char_f5a"],
+        percent: 0.35,
+        count: 1,
+      });
+    });
   });
 
   describe("CLASSIC 自选池保底联动", () => {

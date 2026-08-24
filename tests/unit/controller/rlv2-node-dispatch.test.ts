@@ -969,3 +969,86 @@ describe("rogue_6 无法携带至下一区域的加工品", () => {
     expect(ids).not.toContain("rogue_6_scrap_M_07");
   });
 });
+
+// ===== gridZoneMoveAndBattleStart 复用完整移动逻辑（防破坏存档结构） =====
+describe("rogue_6 gridZoneMoveAndBattleStart（移动并开战）", () => {
+  /** 构造 zone_3 网格：0 起点 GLADE、100 战斗节点（可攻击目标） */
+  async function battleMoveFixture() {
+    const player = makePlayer();
+    const rlv2 = player.rlv2 as any;
+    await rlv2._module.create();
+    const gz = rlv2._module.gridZone;
+    gz.zones = {
+      zone_3: {
+        nodes: {
+          "0": { content: { kind: ROGUE6_NODE.GLADE }, state: 2, show: true },
+          "100": {
+            content: {
+              savage: { stageId: "ro6_n_3_1" },
+              kind: ROGUE6_NODE.BATTLE_NORMAL,
+            },
+            state: 0,
+            show: true,
+          },
+        },
+      },
+    };
+    (rlv2._map as any).zones["1002"] = {
+      nodes: {
+        "0": { next: [{ x: 1, y: 0 }], visibility: 0, type: ROGUE6_NODE.GLADE },
+        "100": { next: [], visibility: 1, type: ROGUE6_NODE.BATTLE_NORMAL, stage: "ro6_n_3_1" },
+      },
+    };
+    rlv2._status.cursor.zone = 3;
+    rlv2._status.cursor.position = { x: 0, y: 0 };
+    return { player, rlv2, gz };
+  }
+
+  it("移动并进入战斗：触发 BATTLE 事件且累积节点到达推送（原简化实现两者皆缺失）", async () => {
+    const { player, rlv2 } = await battleMoveFixture();
+    await rlv2.gridZoneMoveAndBattleStart({
+      route: ["100"],
+      stageId: "ro6_n_3_1",
+      squad: {},
+    });
+    // 战斗节点落地 → PENDING + BATTLE 事件（gridZoneMoveTo 内部触发 battle:start）
+    expect(rlv2._status.state).toBe("PENDING");
+    expect(rlv2._status.pending.some((e: any) => e.type === "BATTLE")).toBe(true);
+    // 与 gridZoneMoveTo 一致累积节点到达/变化推送（客户端地图据此刷新）
+    const msgs = rlv2.takePushMessages();
+    const paths = msgs.map((m: any) => m.path);
+    expect(paths).toContain("rlv2NodeArrive");
+    expect(paths).toContain("rlv2NodeChange");
+  });
+
+  it("非战斗节点（林间空地）不重复触发战斗——pending 无新增事件时不兜底开战", async () => {
+    const { player, rlv2, gz } = await battleMoveFixture();
+    // 把目标改写为空节点（GLADE）：gridZoneMoveTo 走 WAIT_MOVE，不会产生事件
+    gz.zones["zone_3"].nodes["100"].content = {
+      kind: ROGUE6_NODE.GLADE,
+    };
+    (rlv2._map as any).zones["1002"].nodes["100"].type = ROGUE6_NODE.GLADE;
+    await rlv2.gridZoneMoveAndBattleStart({
+      route: ["100"],
+      stageId: "ro6_n_3_1",
+      squad: {},
+    });
+    // 空节点：gridZoneMoveTo 置 WAIT_MOVE（未进事件），moveAndBattleStart 按客户端
+    // stageId 兜底开战（BATTLE）——保持"移动并开战"语义
+    expect(rlv2._status.state).toBe("PENDING");
+    expect(rlv2._status.pending.some((e: any) => e.type === "BATTLE")).toBe(true);
+    // 兜底仅触发一次 BATTLE，不产生双事件
+    const battles = rlv2._status.pending.filter((e: any) => e.type === "BATTLE");
+    expect(battles.length).toBe(1);
+  });
+
+  it("移动经中间节点后起点被经过处保留（无中途节点则不衰减）", async () => {
+    const { rlv2, gz } = await battleMoveFixture();
+    await rlv2.gridZoneMoveTo({ route: ["100"] });
+    // 抵达 100 后，起点 0 为 GLADE（本来就 GLADE，不衰减）
+    expect(gz.zones["zone_3"].nodes["100"].state).toBe(2);
+    expect((rlv2._map as any).zones["1002"].nodes["100"].type).toBe(
+      ROGUE6_NODE.BATTLE_NORMAL,
+    );
+  });
+});

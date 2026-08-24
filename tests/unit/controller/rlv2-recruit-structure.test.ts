@@ -79,7 +79,9 @@ describe("recruitChar 响应结构对齐官服（2026-08-18 抓包校准）", ()
     // 官服 chars[0] 22 键
     const expected = ["instId","charId","type","favorPoint","potentialRank","mainSkillLvl","skin","level","exp","evolvePhase","defaultSkillIndex","skills","upgradeLimited","upgradePhase","isUpgrade","isCure","population","charBuff","troopInstId","master","currentEquip","equip"];
     expect(Object.keys(c).sort()).toEqual([...expected].sort());
-    expect(c.instId).toBe("33");
+    // instId = 候选序号（list 下标，与客户端 optionId 一致——官服 recruitChar chars[].instId 即 optionId）；
+    // troopInstId = 对局内入队序号（1 基递增）
+    expect(c.instId).toBe("0");
     expect(c.troopInstId).toBe("1");
     expect((c.skills || []).length).toBe(3);
     expect(Object.keys(c.master || {}).length).toBe(6);
@@ -126,5 +128,37 @@ describe("recruitChar 响应结构对齐官服（2026-08-18 抓包校准）", ()
     expect(Object.keys(c.master || {})).toEqual([]);
     expect(Object.keys(c.equip || {})).toEqual([]);
     expect(c.currentEquip).toBe("");
+  });
+
+  it("战斗获取招募券招募：result.instId 保持候选序号（防客户端按 instId 回查候选列表命中错误干员崩溃）", async () => {
+    const player = makePlayer();
+    const rlv2 = player.rlv2 as any;
+    await Promise.resolve();
+    const rm = rlv2.inventory._recruit;
+    // 模拟战斗获取招募券 t_0：候选 troopInstId 为玩家主队伍 instId（此处恰为 "5"，
+    // 数值落在候选列表下标范围内——旧实现把 result.instId 写成该值会让客户端
+    // 按 chars[].instId 回查候选列表命中错误干员 → 招募后崩溃）
+    rm.tickets["t_0"] = {
+      index: "t_0", id: "rogue_6_recruit_ticket_tank", state: 1,
+      list: [{
+        instId: "0", charId: "char_4230_mcnist", type: "NORMAL",
+        favorPoint: 625, potentialRank: 5, mainSkillLvl: 7, skin: "char_4230_mcnist#2",
+        level: 80, exp: 0, evolvePhase: 1, defaultSkillIndex: 0, skills: [],
+        upgradeLimited: true, upgradePhase: 0, isUpgrade: false, isCure: false,
+        population: 6, charBuff: [], troopInstId: "5", master: {},
+      }],
+      result: null, from: "battle", mustExtra: 0, needAssist: false, ts: 0,
+    } as any;
+    await rm.done("t_0", "0");
+    const c = rm.tickets["t_0"].result as any;
+    // instId 必须等于候选序号（与客户端请求 optionId "0" 一致），而非玩家主队伍 instId "5"
+    expect(c.instId).toBe("0");
+    expect(c.charId).toBe("char_4230_mcnist");
+    expect(c.troopInstId).toBe("1");
+    // 信赖取整（客户端 favorPoint 为 int；历史数据可为小数）
+    expect(Number.isInteger(c.favorPoint)).toBe(true);
+    // 招募结果结构与官服一致（22 键）
+    const expected = ["instId","charId","type","favorPoint","potentialRank","mainSkillLvl","skin","level","exp","evolvePhase","defaultSkillIndex","skills","upgradeLimited","upgradePhase","isUpgrade","isCure","population","charBuff","troopInstId","master","currentEquip","equip"];
+    expect(Object.keys(c).sort()).toEqual([...expected].sort());
   });
 });

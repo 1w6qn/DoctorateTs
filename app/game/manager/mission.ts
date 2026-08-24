@@ -19,7 +19,7 @@ import { PlayerCharacter } from "../model/character";
 import { BattleData } from "../model/battle";
 import { checkBetween, now, userTimestamp } from "@utils/time";
 import { EventMap, TypedEventEmitter } from "@game/model/events";
-import { MissionData } from "@excel/types_excel_gen";
+import { MissionData } from "@excel/excel-types";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { logger } from "@utils/logger";
 
@@ -487,13 +487,22 @@ export class MissionManager {
       type: String(r.type),
     }));
     let newlyCompleted = false;
+    let alreadyConfirmed = false;
     await this._player.update(async (draft) => {
       const activityMissions = (draft.mission as any)?.missions?.["ACTIVITY"];
       const data = activityMissions?.[missionId];
+      // 修复：活动任务确认后还能重复确认刷奖励——原实现仅 state!=3 置 3，state 已为 3
+      // 时仍无条件返回全部 rewards。现与普通任务一致：以持久化 confirmed 标记判重，
+      // 已领取即返回空奖励并中止（不累加枢纽 ARK_HUB coin），避免重复发放。
+      if (data && (data as any).confirmed) {
+        alreadyConfirmed = true;
+        return;
+      }
       if (data && data.state !== 3) {
         data.state = 3;
         newlyCompleted = true;
       }
+      if (data) (data as any).confirmed = 1;
       // 枢纽任务奖励 → ARK_HUB.coin / tshop.shop_act1arkhub.coin 同步累加
       const seal = (missionInfo.rewards ?? []).find(
         (r: any) => r.id === "act1arkhub_token_seal",
@@ -505,6 +514,8 @@ export class MissionManager {
         if (shop) shop.coin = (shop.coin ?? 0) + seal.count;
       }
     });
+    // 已领取：不发放奖励、不重复触发勋章/物品事件
+    if (alreadyConfirmed) return [];
     // 活动任务完成勋章（MissionCompleteSome，medal_activity_53side_04）：每新完成
     // 一个 53side 任务 +1，目标 = 任务列表长度
     if (newlyCompleted) {

@@ -1,6 +1,6 @@
 import { RoguelikeV2Controller } from "../rlv2";
 import { BattleData } from "@game/model/battle";
-import { decryptBattleData } from "@utils/crypt";
+import { decryptBattleData, decryptBattleReplay } from "@utils/crypt";
 import { TypedEventEmitter } from "@game/model/events";
 import { generateBattleId } from "@utils/random";
 import type { BattleRecord } from "@game/manager/BattleInfoStore";
@@ -21,6 +21,7 @@ const battleSessionByUid = new Map<
  * @param stageId - 关卡 id
  * @param decryptResult - 解密后的战斗数据（win 路径；可为 null）
  * @param rewards - 结算奖励（扁平化为 ItemBundle 摘要）
+ * @param opts - 可选战报扩展：isCheat 反作弊标识、battleLog 解析后的战斗回放
  * @returns 战斗结束记录对象
  */
 function buildRlv2Record(
@@ -29,6 +30,7 @@ function buildRlv2Record(
   stageId: string,
   decryptResult: any,
   rewards: { type: string; id: string; count: number }[],
+  opts: { isCheat?: string; battleLog?: unknown } = {},
 ): BattleRecord {
   // controller 内置 _player 字段即底层 PlayerDataManager（提供 uid 与记录存储）
   const player = controller._player;
@@ -52,6 +54,8 @@ function buildRlv2Record(
     squadInstIds: [],
     rewards,
     stats,
+    ...(opts.isCheat ? { isCheat: opts.isCheat } : {}),
+    ...(opts.battleLog !== undefined ? { battleLog: opts.battleLog } : {}),
     createdTs: Math.floor(Date.now() / 1000),
   };
 }
@@ -100,6 +104,71 @@ export class RoguelikeBattleManager {
     } catch (e) {
       // 留存失败不影响战斗结算/状态机（分析数据偶发丢失可接受）
       logger.warn("rlv2", `战斗记录留存失败: ${(e as Error).message}`);
+    }
+  }
+
+  /**
+   * 合并解密战报（data）与请求明文 battleData——两者同为 BattleData 结构。
+   * 解密结果为权威数据源；请求明文 battleData 用于补齐解密缺失字段，
+   * 并在 data 解密失败/为空时作为降级数据源（completeState 缺失仍走软失败路径）。
+   *
+   * @param decryptResult - decryptBattleData(data) 的解密结果（可为 null）
+   * @param requestBattleData - 请求顶层 battleData 字段（可为 undefined）
+   * @returns 合并后的战报对象（两者皆空返回 null）
+   */
+  private mergeBattleData(
+    decryptResult: any,
+    requestBattleData: any,
+  ): any {
+    if (!decryptResult && !requestBattleData) return null;
+    return { ...(requestBattleData ?? {}), ...(decryptResult ?? {}) };
+  }
+
+  /**
+   * 解析战斗上下文（battleId/stageId）。
+   * battleId 优先取战报内回传值（客户端回传 start 下发的 battleId），
+   * 会话内存 Map（battleSessionByUid）作为兜底；stageId 战报无此字段，仅走会话 Map。
+   * 战报回传 battleId 与会话不一致时告警（不阻断——续局/异常场景容忍）。
+   *
+   * @param battleData - 合并后的战报对象
+   * @param uid - 账号 uid
+   * @returns 解析出的 battleId 与 stageId
+   */
+  private resolveBattleContext(
+    battleData: any,
+    uid: string,
+  ): { battleId: string; stageId: string } {
+    const session = battleSessionByUid.get(uid);
+    const reportBattleId = battleData?.battleId as string | undefined;
+    if (reportBattleId && session?.battleId && reportBattleId !== session.battleId) {
+      logger.warn(
+        "rlv2",
+        `battleId 不一致: 战报=${reportBattleId}, 会话=${session.battleId}`,
+      );
+    }
+    return {
+      battleId: reportBattleId || session?.battleId || "",
+      stageId: session?.stageId || "",
+    };
+  }
+
+  /**
+   * 解析战斗回放（battleLog——base64+zip 压缩的回放数据）。
+   * 空串直接跳过（不触发解析）；解析失败仅告警、不阻断结算（分析数据可丢失）。
+   *
+   * @param battleLog - 客户端回放字段
+   * @returns 解析后的回放对象（无/解析失败为 undefined）
+   */
+  private async parseBattleLog(battleLog: string): Promise<unknown> {
+    if (!battleLog) return undefined;
+    try {
+      return await decryptBattleReplay(battleLog);
+    } catch (e) {
+      logger.warn(
+        "rlv2",
+        `battleLog 解析失败（仅分析数据，不阻断结算）: ${(e as Error).message}`,
+      );
+      return undefined;
     }
   }
 
@@ -169,18 +238,22 @@ export class RoguelikeBattleManager {
       battleData: BattleData;
     },
   ]) {
-    const { battleId, stageId } =
-      battleSessionByUid.get(this._player._player.uid) ?? {
-        battleId: "",
-        stageId: "",
-      };
     const loginTime = this._player._player.loginTime;
     let decryptResult: any = null;
     try {
       decryptResult = await decryptBattleData(args.data, loginTime);
     } catch {
-      // 无效/空战斗数据（模拟器/异常结算）：按战斗失败路径处理（WAIT_MOVE + 清空 pending）
+      // 无效/空战斗数据（模拟器/异常结算）：降级到请求明文 battleData 判定
     }
+    // 合并解密战报（data）与请求明文 battleData——解密失败时后者兜底提供 completeState
+    const battleInfo = this.mergeBattleData(decryptResult, args.battleData);
+    // battleId 优先取战报回传值（客户端回传 start 下发），会话 Map 兜底；stageId 仅来自会话
+    const { battleId, stageId } = this.resolveBattleContext(
+      battleInfo,
+      this._player._player.uid,
+    );
+    // 战斗回放（battleLog）解析——仅留存分析数据，解析失败不阻断结算
+    const replay = await this.parseBattleLog(args.battleLog);
     const event = this._player._status.pending.shift();
     const theme = this._player.current.game!.theme;
     const detail = excel.RoguelikeTopicTable.details[theme];
@@ -210,13 +283,17 @@ export class RoguelikeBattleManager {
     // 战斗胜利判定：completeState 语义与标准战斗一致（1=失败 / 2=通关 / 3=三星）。
     // 修复：原实现用 `=== 1` 当胜利——真实胜利（2/3）被误判为失败 → 清空 pending、
     // 直接进 WAIT_MOVE（表现为"进入 zone 而不弹 BATTLE_REWARD"），而真实失败（1）反而误发奖励。
-    if ((decryptResult as any)?.completeState >= 2) {
+    // 判定基于合并后战报（解密 data 优先，请求明文 battleData 兜底）。
+    const battleStats = battleInfo?.battleData?.stats;
+    if (battleInfo?.completeState >= 2) {
       // 战斗胜利：rogue_3 CHAOS 模块累积坍缩值（每次胜利 +1，达到上限升层）
       const chaosMgr = this._player._module._modules["CHAOS"];
       chaosMgr?.gainChaos(1);
-      const finalHp = (decryptResult as any).finalHp || 0;
+      const finalHp = battleInfo?.finalHp || 0;
       const maxHp = this._player._status.property.hp.max;
-      earn.damage = maxHp - finalHp;
+      // 伤害：优先取战报 stats.totalDamage（官方战报口径），无战报时用"最大生命-剩余生命"兜底
+      earn.damage =
+        (battleStats?.totalDamage as number) || (maxHp - finalHp);
       earn.hp = Math.floor(earn.damage * 0.3);
 
       if (earn.hp > 0) {
@@ -250,8 +327,10 @@ export class RoguelikeBattleManager {
       const curStageId = (node as any)?.stage || "";
       const isBoss = curStageId.includes("_b_");
 
-      // 黄金奖励（官服 index 0）
-      const goldReward = Math.floor(Math.random() * 10) + 5;
+      // 黄金奖励（官服 index 0）：基础 5-14，随击杀表现上调上限（每 10 杀 +5，封顶 30）
+      const killed = (battleStats?.checkKilledCnt as number) || 0;
+      const goldMax = Math.min(14 + Math.floor(killed / 10) * 5, 30);
+      const goldReward = Math.floor(Math.random() * (goldMax - 4)) + 5;
       rewards.push({
         index: 0,
         items: [{ sub: 0, id: `${theme}_gold`, count: goldReward }],
@@ -334,18 +413,18 @@ export class RoguelikeBattleManager {
           rewards: rewards,
           show: "2",
           state: 0,
-          isPerfect: (decryptResult as any).isPerfect || 0,
+          isPerfect: battleInfo?.isPerfect || 0,
         },
       ]);
 
       // —— 自然物（GOODS）估价动态：每次作战胜利 → G_02 +2；完美作战 → G_06 +4；
       // 非完美作战 → G_06 自身损坏（移除）。
-      const perfect = (decryptResult as any).isPerfect || 0;
+      const perfect = battleInfo?.isPerfect || 0;
       const scrap = this._player._module?.scrap;
       scrap?.applyGoodsEffect("battle_win");
       scrap?.applyGoodsEffect(perfect ? "battle_perfect" : "battle_nonperfect");
 
-      // —— 战斗结束记录留存（win 路径）：扁平化奖励摘要 + 统计入库 ——
+      // —— 战斗结束记录留存（win 路径）：扁平化奖励摘要 + 统计 + 回放/反作弊标识入库 ——
       const flatRewards: { type: string; id: string; count: number }[] = [];
       for (const block of rewards as {
         items?: { sub: number; id: string; count: number }[];
@@ -359,15 +438,18 @@ export class RoguelikeBattleManager {
           this._player,
           battleId,
           stageId,
-          decryptResult,
+          battleInfo,
           flatRewards,
+          {
+            isCheat: battleInfo?.battleData?.isCheat,
+            battleLog: replay,
+          },
         ),
       );
 
       // 特勤干员任务：战斗简单事件计数（Rlv2StageSimpleEventMore，如"使用电弧及其召唤物击杀'易'"）。
       // 事件携带本关 extraBattleInfo（键如 "radian_kill_enemy_dylbhm"），模板按任务 param 的键匹配。
-      const extraInfo =
-        (decryptResult as any)?.battleData?.stats?.extraBattleInfo;
+      const extraInfo = battleInfo?.battleData?.stats?.extraBattleInfo;
       if (extraInfo && typeof extraInfo === "object") {
         await this._trigger.emit("Rlv2StageSimpleEventMore", [
           {
@@ -385,10 +467,13 @@ export class RoguelikeBattleManager {
 
       // —— 战斗结束记录留存（loss 路径）：仅统计入库，无奖励 ——
       await this.persistRecord(
-        buildRlv2Record(this._player, battleId, stageId, decryptResult, []),
+        buildRlv2Record(this._player, battleId, stageId, battleInfo, [], {
+          isCheat: battleInfo?.battleData?.isCheat,
+          battleLog: replay,
+        }),
       );
 
-      if ((decryptResult as any)?.completeState === 1) {
+      if (battleInfo?.completeState === 1) {
         // 战斗战败（completeState 语义 1=失败）：直接结算结束本局——官服肉鸽战败即终止。
         // runResult 置 "fail"（非 "success"）→ gameSettle 的 success=0，展示失败结算页；
         // fire-and-forget 防未捕获拒绝终止进程（同 checkZoneEnd 通关路径的 void gameSettle 约定）。

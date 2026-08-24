@@ -839,6 +839,181 @@ describe("ShopController 根据卡池自动生成（HS 高级凭证区 / CLASSIC
   });
 });
 
+describe("ShopController 中坚甄选券（FESCLASSIC 自选卡池）", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+  let excelMock: any;
+
+  beforeEach(async () => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({
+      // 预留足够高级凭证，供购买甄选券扣费
+      status: { hggShard: 100000 } as any,
+    });
+    mockPlayer._trigger = mockTrigger;
+    mockPlayer.update = vi
+      .fn()
+      .mockImplementation(
+        async (recipe: (draft: any) => Promise<any> | any) => {
+          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+          const result = await recipe(draft);
+          Object.assign(mockPlayer._playerdata, draft);
+          return result;
+        }
+      );
+    excelMock = (await import("@excel/excel")).default;
+    // 当期活跃中坚甄选池（FESCLASSIC）+ 一个标准池（保持 altre 方法可运行）
+    excelMock.GachaTable = {
+      gachaPoolClient: [
+        {
+          gachaPoolId: "NORM_76_0_1",
+          gachaRuleType: 0,
+          gachaIndex: 100,
+          openTime: 1700000000,
+          endTime: 1999999999,
+        },
+        {
+          gachaPoolId: "FESCLASSIC_76_0_2",
+          gachaRuleType: "FESCLASSIC",
+          gachaIndex: 201,
+          openTime: 1700000000,
+          endTime: 1999999999,
+        },
+      ],
+    };
+    excelMock.GachaDetailTable = { details: {} };
+    excelMock.ShopTable.highGoodList = {
+      goodList: [{ goodId: "HS_MAT", item: { id: "32001", count: 1 }, price: 20, progressGoodId: "" }],
+      progressGoodList: {},
+      newFlag: [],
+    };
+    excelMock.ShopTable.classicGoodList = {
+      goodList: [{ goodId: "KS_PROG", item: null, price: 0, progressGoodId: "AAA1" }],
+      progressGoodList: { AAA1: [] },
+      newFlag: [],
+    };
+  });
+
+  it("buildFesPickGoods 生成 6/5★ 甄选券（HS 180/45，KS 1800/450，item 用官服池化 id）", () => {
+    // item_table 收录当期池券 id → 直接采用官服规则 id
+    excelMock.ItemTable = {
+      items: {
+        classic_fes_pick_tier_6_7601: { name: "中坚甄选6星干员" },
+        classic_fes_pick_tier_5_7601: { name: "中坚甄选5星干员" },
+      },
+    };
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const hs = controller.buildFesPickGoods("HS");
+    expect(hs).toHaveLength(2);
+    expect(hs[0]).toMatchObject({
+      displayName: "中坚甄选6星干员",
+      goodType: "NORMAL",
+      price: 180,
+      availCount: 1,
+      item: { id: "classic_fes_pick_tier_6_7601", count: 1, type: "CLASSIC_FES_PICK_TIER_6" },
+    });
+    expect(hs[0].goodId).toContain("HS_FESPICK6_");
+    expect(hs[1]).toMatchObject({
+      displayName: "中坚甄选5星干员",
+      price: 45,
+      item: { id: "classic_fes_pick_tier_5_7601", type: "CLASSIC_FES_PICK_TIER_5" },
+    });
+    const ks = controller.buildFesPickGoods("KS");
+    expect(ks[0].price).toBe(1800);
+    expect(ks[1].price).toBe(450);
+    expect(ks[0].goodId).toContain("KS_FESPICK6_");
+  });
+
+  it("item_table 未收录当期券时回退到已收录同稀有度券（取后缀最大）", () => {
+    excelMock.ItemTable = {
+      items: {
+        classic_fes_pick_tier_6_3801: { name: "中坚甄选6星干员" },
+        classic_fes_pick_tier_6_4401: { name: "中坚甄选6星干员" },
+      },
+    };
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const hs = controller.buildFesPickGoods("HS");
+    // 池 76 的券未收录 → 回退到已收录的后缀最大的 6★ 券
+    expect(hs[0].item.id).toBe("classic_fes_pick_tier_6_4401");
+    // 5★ 完全未收录 → 按官服规则生成池化 id
+    expect(hs[1].item.id).toBe("classic_fes_pick_tier_5_7601");
+  });
+
+  it("buildHighGoodList / buildClassicGoodList 合并甄选券商品", () => {
+    excelMock.ItemTable = {
+      items: {
+        classic_fes_pick_tier_6_7601: {},
+        classic_fes_pick_tier_5_7601: {},
+      },
+    };
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const high = controller.buildHighGoodList();
+    expect(high.goodList.some((g) => g.item.type === "CLASSIC_FES_PICK_TIER_6")).toBe(true);
+    expect(high.goodList.some((g) => g.goodId.startsWith("HS_FESPICK6_"))).toBe(true);
+    const classic = controller.buildClassicGoodList();
+    expect(classic.goodList.some((g) => g.item.type === "CLASSIC_FES_PICK_TIER_5")).toBe(true);
+    expect(classic.goodList.some((g) => g.goodId.startsWith("KS_FESPICK6_"))).toBe(true);
+  });
+
+  it("buyHighGood / buyClassicGood 可购买甄选券并发放券（items:get，非干员）", async () => {
+    excelMock.ItemTable = {
+      items: {
+        classic_fes_pick_tier_6_7601: {},
+        classic_fes_pick_tier_5_7601: {},
+      },
+    };
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const emitSpy = vi.spyOn(mockTrigger, "emit");
+    const hsGood = controller.buildFesPickGoods("HS").find((g) => g.goodId.startsWith("HS_FESPICK6_"))!;
+    const items = await controller.buyHighGood({ goodId: hsGood.goodId, count: 1 });
+    expect(items).toEqual([{ id: "classic_fes_pick_tier_6_7601", count: 1, type: "CLASSIC_FES_PICK_TIER_6" }]);
+    expect(emitSpy).toHaveBeenCalledWith("items:use", [[{ id: "4004", count: 180 }]]);
+    expect(emitSpy).toHaveBeenCalledWith("items:get", [[{ id: "classic_fes_pick_tier_6_7601", count: 1, type: "CLASSIC_FES_PICK_TIER_6" }]]);
+    // 余额不足拒绝（result:1 业务错误）
+    (mockPlayer._playerdata.status as any).hggShard = 0;
+    const ksGood = controller.buildFesPickGoods("KS").find((g) => g.goodId.startsWith("KS_FESPICK6_"))!;
+    await expect(controller.buyClassicGood({ goodId: ksGood.goodId, count: 1 })).rejects.toThrow();
+  });
+
+  it("无 FESCLASSIC 池时商店不生成甄选券", () => {
+    excelMock.GachaTable = {
+      gachaPoolClient: [
+        { gachaPoolId: "NORM_76_0_1", gachaRuleType: 0, gachaIndex: 100, openTime: 1700000000, endTime: 1999999999 },
+      ],
+    };
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    expect(controller.buildFesPickGoods("HS")).toEqual([]);
+    expect(controller.buildFesPickGoods("KS")).toEqual([]);
+  });
+
+  it("FESCLASSIC 池商店干员区反映玩家自选 UP（选择反映在商店）", () => {
+    excelMock.GachaDetailTable.details = {
+      FESCLASSIC_76_0_2: {
+        upCharInfo: {
+          perCharList: [
+            { rarityRank: 5, charIdList: ["static6"], percent: 0.25, count: 2 },
+            { rarityRank: 4, charIdList: ["static5"], percent: 0.1667, count: 3 },
+          ],
+        },
+        availCharInfo: { perAvailList: [] },
+      },
+    };
+    // 模拟 GachaController.effectiveUpPerCharList（getPoolDetail/商店共用）：返回玩家已选 UP
+    (mockPlayer as any).gacha = {
+      effectiveUpPerCharList: () => [
+        { rarityRank: 5, charIdList: ["sel_6"], percent: 0.25, count: 1 },
+        { rarityRank: 4, charIdList: ["sel_5"], percent: 0.1667, count: 1 },
+      ],
+    };
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const goods = controller.buildClassicCharGoods();
+    expect(goods.some((g) => g.item.id === "sel_6" && g.price === 2000)).toBe(true);
+    expect(goods.some((g) => g.item.id === "sel_5" && g.price === 500)).toBe(true);
+    expect(goods.some((g) => g.item.id === "static6")).toBe(false);
+  });
+});
+
 describe("LMTGS 按当期卡池代币过滤 + REP 剩余数量", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
   let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;

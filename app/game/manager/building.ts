@@ -121,8 +121,12 @@ export class BuildingManager {
         this._rolloverWeekSp(room as any, ts);
         // 留言板社交点累积（模拟好友访问留言板）→ 计入本周 thisWeek
         this._accumulateMessageLeaveSp(room as any, friendCount);
-        // 修复：被动信用每日模拟好友访问（封顶 creditPassiveLimit）
-        this._accumulateDailyCredit(draft, room, friendCount);
+        // 修复：宿舍氛围每日结算信用（Cd=10+⌊Ad/125⌋，每间 50 上限、全天 200，
+        // 次日于信用交易所手动领取）取代原"模拟好友访问"被动信用（creditPassiveLimit）
+        room.socialReward = room.socialReward ?? { daily: 0, search: 0 };
+        room.socialReward.daily = this._settleDormCredit(draft);
+        // 线索接收信用每日计次重置（接收好友线索 15/10/5，第 4 张起不获信用）
+        (room as any).clueReceiveCount = 0;
       }
       // 再修复（2026-08-23）：累积被动信用后刷新 infoShare.reward 待领取指示——
       // 原实现只写 socialReward.daily，不更新 infoShare，客户端"会客室可领信用"红点/
@@ -217,22 +221,22 @@ export class BuildingManager {
   }
 
   /**
-   * 内部方法：被动信用（socialReward.daily）累积——好友访问会客室每次 +
-   * friendSlotInc，封顶 creditPassiveLimit（领取后清零重新累积）
+   * 宿舍氛围每日结算信用（PRTS：Cd = 10 + ⌊Ad/125⌋，每间 ≤50，全天 ≤200，
+   * 次日于信用交易所手动领取）
+   *
+   * 宿舍氛围值 Ad 取该间宿舍的 comfort 字段（如真实存档 comfort=5000 → 50，正好封顶）。
+   * 结果写入会客室 socialReward.daily，经 getMeetingroomReward 领取入账——即"今日结算、
+   * 次日（每日刷新后）手动领取"。
+   * @param draft - mutative 草稿
+   * @returns 当日宿舍结算信用总量（≤200）
    */
-  private _accumulateDailyCredit(
-    draft: Draft<PlayerDataModel>,
-    room: any,
-    visitCount: number,
-  ): void {
-    if (!room || visitCount <= 0) return;
-    const perVisit = this._meetingCreditPerVisit(draft);
-    const limit = getBuildingConstant<number>("creditPassiveLimit") ?? 100;
-    room.socialReward = room.socialReward ?? { daily: 0, search: 0 };
-    room.socialReward.daily = Math.min(
-      (room.socialReward.daily ?? 0) + visitCount * perVisit,
-      limit,
-    );
+  private _settleDormCredit(draft: Draft<PlayerDataModel>): number {
+    let total = 0;
+    for (const room of Object.values(draft.building.rooms.DORMITORY ?? {})) {
+      const comfort = (room as any)?.comfort ?? 0;
+      total += Math.min(10 + Math.floor(comfort / 125), 50);
+    }
+    return Math.min(total, 200);
   }
 
   /**
@@ -2715,6 +2719,8 @@ export class BuildingManager {
       };
       room.ownStock.push(clue);
       room.dailyReward = clue;
+      // 修复：线索生成信用（PRTS：进驻干员每张线索 +20 信用，无上限，访问基建自动领取）
+      draft.status.socialPoint = (draft.status.socialPoint ?? 0) + 20;
       // 推送：新线索可处理 → 客户端会客室红点
       draft.pushFlags.hasClues = 1;
     });
@@ -2745,6 +2751,8 @@ export class BuildingManager {
       clue.ts = now() + getClueExpiredDays() * 86400;
       room.receiveStock.push(clue);
       sent = true;
+      // 修复：传递线索信用（PRTS：向好友传递线索每张 +20 信用，无上限）
+      draft.status.socialPoint = (draft.status.socialPoint ?? 0) + 20;
       // 推送：同步会客室红点（存在未上板线索 → 1）
       this._refreshClueFlag(draft, room);
     });
@@ -2766,6 +2774,8 @@ export class BuildingManager {
       // 好友赠送的线索进入线索盒（receiveStock）后限时保留（同 sendClue）
       clue.ts = now() + getClueExpiredDays() * 86400;
       room.receiveStock.push(clue);
+      // 修复：传递线索信用（PRTS：每张 +20，无上限；与 sendClue 一致）
+      draft.status.socialPoint = (draft.status.socialPoint ?? 0) + 20;
       // 修复：自动发送后同步红点（与 sendClue 一致）
       this._refreshClueFlag(draft, room);
     });
@@ -2790,6 +2800,14 @@ export class BuildingManager {
         if (idx === -1) continue;
         const clue = room.receiveStock.splice(idx, 1)[0];
         room.ownStock.push(clue);
+        // 修复：接收好友线索信用（PRTS：每张依次 15/10/5，第 4 张起不获信用，每日刷新计次）
+        const receiveIdx = (room as any).clueReceiveCount ?? 0;
+        const receivePt =
+          receiveIdx === 0 ? 15 : receiveIdx === 1 ? 10 : receiveIdx === 2 ? 5 : 0;
+        if (receivePt > 0) {
+          draft.status.socialPoint = (draft.status.socialPoint ?? 0) + receivePt;
+          (room as any).clueReceiveCount = receiveIdx + 1;
+        }
       }
       this._refreshClueFlag(draft, room);
     });
@@ -2887,7 +2905,12 @@ export class BuildingManager {
     return await this._player.update(async (draft) => {
       const room = Object.values(draft.building.rooms.MEETING)[0];
       if (!room) return;
+      const before = room.ownStock.length;
       room.ownStock = room.ownStock.filter((c) => c.id !== id);
+      // 修复：回收自有库线索信用（PRTS：每张 +5 信用，无上限）——确实删除了一条才发放
+      if (room.ownStock.length < before) {
+        draft.status.socialPoint = (draft.status.socialPoint ?? 0) + 5;
+      }
       this._clearBoardEntry(draft, room, id);
       this._refreshClueFlag(draft, room);
     });
@@ -3773,21 +3796,20 @@ export class BuildingManager {
     const friendId = args?.friendId;
     // 修复：VisitBuilding 任务事件从未 emit → 访问基建任务永不推进
     await this._trigger.emit("VisitBuilding", []);
-    // 被访方被动信用（访问基建给主人 friendSlotInc 信用 → 会客室待领）
+    // 修复（2026-08-24，C 类好友访问信用）：访问开启线索交流的好友基建 → **访问方**获得
+    // 30 信用，每场限 1 次、每日上限 10 次（PRTS）。不再给好友(owner)发放 friendSlotInc——
+    // 原方向错误（文档为访问方收益），且私服好友多为模板账号无意义。
     if (friendId && String(friendId) !== String(this._player.uid)) {
-      try {
-        const owner = await accountManager.getPlayerData(String(friendId));
-        await owner.update(async (draft) => {
-          const room = Object.values(draft.building?.rooms?.MEETING ?? {})[0];
-          if (!room) return;
-          this._accumulateDailyCredit(draft, room, 1);
-        });
-      } catch (e) {
-        logger.warn(
-          "building",
-          `访问基建 ${friendId} 信用发放失败: ${(e as Error).message}`,
-        );
-      }
+      await this._player.update(async (draft) => {
+        const st = draft.status as any;
+        const dayKey = Math.floor(now() / 86400);
+        const used =
+          st.visitCreditDay === dayKey ? (st.visitCreditCount ?? 0) : 0;
+        if (used >= 10) return;
+        draft.status.socialPoint = (draft.status.socialPoint ?? 0) + 30;
+        st.visitCreditDay = dayKey;
+        st.visitCreditCount = used + 1;
+      });
     }
     return args;
   }

@@ -1932,3 +1932,130 @@ describe("batchChangeWorkChar / batchRestChar pushMessage（对齐官服抓包 b
     config.developer!.specializationTimeZero = true;
   });
 });
+
+describe("BuildingManager 信用获取规则（PRTS）", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
+
+  beforeEach(async () => {
+    vi.restoreAllMocks();
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({
+      building: {
+        status: { labor: { buffSpeed: 0, processPoint: 0, value: 100, lastUpdateTime: 0, maxValue: 100 }, workshop: { bonusActive: 0, bonus: {} } },
+        chars: {},
+        roomSlots: {},
+        rooms: {
+          CONTROL: {}, ELEVATOR: {}, POWER: {}, MANUFACTURE: {}, TRADING: {}, CORRIDOR: {}, WORKSHOP: {},
+          DORMITORY: {
+            slot_d1: { comfort: 5000, buff: {}, diySolution: {}, level: 5 } as any, // 10+⌊5000/125⌋=50（封顶）
+            slot_d2: { comfort: 1000, buff: {}, diySolution: {}, level: 5 } as any, // 10+⌊1000/125⌋=18
+          },
+          MEETING: {
+            room_001: {
+              ownStock: [], receiveStock: [], board: {}, dailyReward: null,
+              socialReward: { daily: 0, search: 0 }, mustgetClue: [],
+            } as any,
+          },
+          HIRE: {}, TRAINING: {}, PRIVATE: {},
+        },
+        furniture: {}, diyPresetSolutions: {}, assist: [-1, -1, -1],
+        solution: { furnitureTs: {} }, music: { selected: "bgm_default" },
+      } as any,
+      status: { uid: "1", nickName: "A", nickNumber: "1", socialPoint: 0 } as any,
+      pushFlags: { hasGifts: 0, hasFriendRequest: 0, hasClues: 0, hasFreeLevelGP: 0, status: 0 },
+      event: { building: 0 },
+    });
+    mockPlayer._trigger = mockTrigger;
+    mockPlayer.update = vi
+      .fn()
+      .mockImplementation(
+        async (recipe: (draft: any) => Promise<any> | any) => {
+          const draft = JSON.parse(JSON.stringify(mockPlayer._playerdata));
+          const result = await recipe(draft);
+          Object.assign(mockPlayer._playerdata, draft);
+          return result;
+        }
+      );
+    vi.spyOn(accountManager, "getSocial").mockResolvedValue({ friends: [], friendRequests: [], visited: [] } as any);
+    vi.spyOn(Date, "now").mockReturnValue(1234567890000);
+  });
+
+  it("宿舍氛围每日结算信用：Cd=10+⌊Ad/125⌋、每间 50 上限，getMeetingroomReward 手动领取", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.dailyRefresh();
+    // 两间宿舍：5000→50、1000→18，合计 68（<200 不上限）
+    expect((mockPlayer._playerdata.building!.rooms.MEETING as any).room_001.socialReward.daily).toBe(68);
+    // 手动领取入账 socialPoint，领取后清零
+    const granted = await manager.getMeetingroomReward();
+    expect(granted.rewards).toEqual([{ id: "SOCIAL_PT", type: "SOCIAL_PT", count: 68 }]);
+    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(68);
+    // 领取后清零（update 深拷贝替换 room，须重读）
+    expect((mockPlayer._playerdata.building!.rooms.MEETING as any).room_001.socialReward.daily).toBe(0);
+  });
+
+  it("宿舍氛围每日结算信用全天上限 200（5 间满氛围宿舍封顶）", async () => {
+    (mockPlayer._playerdata.building!.rooms.DORMITORY as any) = {
+      slot_1: { comfort: 5000 }, slot_2: { comfort: 5000 }, slot_3: { comfort: 5000 },
+      slot_4: { comfort: 5000 }, slot_5: { comfort: 5000 },
+    };
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.dailyRefresh();
+    // 5×50=250，但全天上限 200
+    expect((mockPlayer._playerdata.building!.rooms.MEETING as any).room_001.socialReward.daily).toBe(200);
+  });
+
+  it("getDailyClue 生成线索即时 +20 信用", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.getDailyClue({} as any);
+    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(20);
+  });
+
+  it("sendClue 传递线索即时 +20 信用", async () => {
+    (mockPlayer._playerdata.building!.rooms.MEETING as any).room_001.ownStock = [
+      { id: "c1", type: "RHINE", uid: "1", inUse: 0 },
+    ];
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.sendClue({ id: "c1", friendId: "2" } as any);
+    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(20);
+  });
+
+  it("deleteOwnClue 回收自有库线索即时 +5 信用；删不存在不加", async () => {
+    const room = (mockPlayer._playerdata.building!.rooms.MEETING as any).room_001;
+    room.ownStock = [{ id: "c1", type: "RHINE", uid: "1", inUse: 0 }];
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.deleteOwnClue({ id: "c1" } as any);
+    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(5);
+    // 删除不存在的线索不发放
+    await manager.deleteOwnClue({ id: "c2" } as any);
+    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(5);
+  });
+
+  it("receiveClueToStock 接收线索依次 +15/10/5，第 4 张起不获信用（每日计次）", async () => {
+    const room = (mockPlayer._playerdata.building!.rooms.MEETING as any).room_001;
+    room.receiveStock = [
+      { id: "r1" }, { id: "r2" }, { id: "r3" }, { id: "r4" },
+    ];
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.receiveClueToStock({ clues: ["r1", "r2", "r3"] } as any);
+    // 15+10+5 = 30
+    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(30);
+    const countBefore = (room as any).clueReceiveCount;
+    // 第 4 张起不获信用
+    await manager.receiveClueToStock({ clues: ["r4"] } as any);
+    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(30);
+    expect((room as any).clueReceiveCount).toBe(countBefore);
+  });
+
+  it("visitBuilding 访问好友基建 → 访问方 +30，每日上限 10 次", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.visitBuilding({ friendId: "2" } as any);
+    await manager.visitBuilding({ friendId: "3" } as any);
+    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(60);
+    // 第 11 次（上限 10）后不再发放
+    const st = mockPlayer._playerdata.status as any;
+    st.visitCreditCount = 10;
+    await manager.visitBuilding({ friendId: "4" } as any);
+    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(60);
+  });
+});

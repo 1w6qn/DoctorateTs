@@ -43,6 +43,83 @@ export class ShopError extends Error {
   }
 }
 
+/**
+ * 信用交易所物资条目（PRTS 采购中心「信用交易所」物资表的单个物资）
+ *
+ * 对应候选池中的一种可选物资：item 入账所需 id/count/type，
+ * originPrice 为原价（信用），allow95/allow99 标记该物资是否可刷出 -95%/-99% 特价
+ *（仅「龙门币×1800/基础作战记录」可 -95%，「龙门币×3600/初级作战记录」可 -99%）。
+ */
+interface CreditShopMaterial {
+  /** 物品 id（ItemTable itemId） */
+  id: string;
+  /** 单次购买数量 */
+  count: number;
+  /** 入账类型（ItemTable itemType） */
+  type: string;
+  /** 客户端展示名称 */
+  name: string;
+  /** 原价（信用） */
+  originPrice: number;
+  /** 是否可刷 -95% 特价 */
+  allow95?: boolean;
+  /** 是否可刷 -99% 特价 */
+  allow99?: boolean;
+}
+
+/**
+ * 信用交易所候选池（7 行「并列随机抽取项」）
+ *
+ * PRTS：信用交易所物资每日只刷 10 个；候选物资按"同一行四个物品为并列随机抽取项"——
+ * 每次从一行中随机取其一作为当日可能出现的一个物资。行内各物资原价（信用）见文档。
+ */
+const CREDIT_SHOP_ROWS: CreditShopMaterial[][] = [
+  // 行1：-95% 特价候选（龙门币×1800 / 基础作战记录×9）
+  [
+    { id: "4001", count: 1800, type: "GOLD", name: "龙门币", originPrice: 100, allow95: true },
+    { id: "2001", count: 9, type: "CARD_EXP", name: "基础作战记录", originPrice: 100, allow95: true },
+    { id: "30011", count: 2, type: "MATERIAL", name: "源岩", originPrice: 80 },
+    { id: "30012", count: 3, type: "MATERIAL", name: "固源岩", originPrice: 200 },
+  ],
+  // 行2：-99% 特价候选（龙门币×3600 / 初级作战记录×9）
+  [
+    { id: "4001", count: 3600, type: "GOLD", name: "龙门币", originPrice: 200, allow99: true },
+    { id: "2002", count: 9, type: "CARD_EXP", name: "初级作战记录", originPrice: 200, allow99: true },
+    { id: "30021", count: 2, type: "MATERIAL", name: "代糖", originPrice: 100 },
+    { id: "30022", count: 2, type: "MATERIAL", name: "糖", originPrice: 200 },
+  ],
+  // 行3
+  [
+    { id: "3401", count: 20, type: "MATERIAL", name: "家具零件", originPrice: 160 },
+    { id: "3301", count: 5, type: "MATERIAL", name: "技巧概要·卷1", originPrice: 160 },
+    { id: "30031", count: 2, type: "MATERIAL", name: "酯原料", originPrice: 100 },
+    { id: "30032", count: 2, type: "MATERIAL", name: "聚酸酯", originPrice: 200 },
+  ],
+  // 行4
+  [
+    { id: "3401", count: 25, type: "MATERIAL", name: "家具零件", originPrice: 200 },
+    { id: "3302", count: 3, type: "MATERIAL", name: "技巧概要·卷2", originPrice: 200 },
+    { id: "30041", count: 2, type: "MATERIAL", name: "异铁碎片", originPrice: 120 },
+    { id: "30042", count: 2, type: "MATERIAL", name: "异铁", originPrice: 240 },
+  ],
+  // 行5
+  [
+    { id: "7001", count: 1, type: "TKT_RECRUIT", name: "招聘许可", originPrice: 160 },
+    { id: "3112", count: 5, type: "MATERIAL", name: "碳", originPrice: 160 },
+    { id: "30051", count: 2, type: "MATERIAL", name: "双酮", originPrice: 120 },
+    { id: "30052", count: 2, type: "MATERIAL", name: "酮凝集", originPrice: 240 },
+  ],
+  // 行6
+  [
+    { id: "7002", count: 1, type: "TKT_INST_FIN", name: "加急许可", originPrice: 160 },
+    { id: "3113", count: 3, type: "MATERIAL", name: "碳素", originPrice: 200 },
+    { id: "30061", count: 2, type: "MATERIAL", name: "破损装置", originPrice: 160 },
+    { id: "30062", count: 1, type: "MATERIAL", name: "装置", originPrice: 160 },
+  ],
+  // 行7：仅赤金
+  [{ id: "3003", count: 6, type: "MATERIAL", name: "赤金", originPrice: 160 }],
+];
+
 export class ShopController {
   /** 社交商店商品列表 */
   socialGoodList!: SocialGoodList;
@@ -245,25 +322,6 @@ export class ShopController {
   }
 
   /**
-   * 确定性洗牌（信用商店"9 随机商品"——同日稳定，跨日变化；参考官服每日轮换）
-   * @param arr - 商品数组
-   * @param seed - 随机种子（当天日期前缀）
-   */
-  private _shuffleWithSeed<T>(arr: T[], seed: string): T[] {
-    let s = 0;
-    for (let i = 0; i < seed.length; i++) {
-      s = (s * 31 + seed.charCodeAt(i)) >>> 0;
-    }
-    const out = [...arr];
-    for (let i = out.length - 1; i > 0; i--) {
-      s = (s * 1664525 + 1013904223) >>> 0;
-      const j = s % (i + 1);
-      [out[i], out[j]] = [out[j], out[i]];
-    }
-    return out;
-  }
-
-  /**
    * 生成当天信用商店商品（信用交易所）
    *
    * 官服规则（PRTS）：每日 10 个商品；干员合同解锁后占第 1 栏位（1 干员 + 9 随机商品），
@@ -328,16 +386,11 @@ export class ShopController {
       }
       if (currentChar) break;
     }
-    // 常规商品（静态基座，goodId 日期前缀当天）
-    let normal: SocialShopData[] = (base?.goodList ?? []).map((g) =>
-      g.goodId.startsWith(prefix)
-        ? g
-        : { ...g, goodId: g.goodId.replace(/^SOCIAL\d+/, prefix) },
-    );
+    // 常规物资（每日从候选池按当天种子生成 count 个带折扣商品；跨日轮换、同日稳定）
     const goodList: SocialShopData[] = [];
+    // 干员合同存在时占第 1 栏位 → 剩余 9 个随机物资；干员换完后 10 个随机物资
+    const normal = this._buildSocialNormalGoods(currentChar ? 9 : 10, prefix);
     if (currentChar) {
-      // 1 干员 + 9 随机商品（同日稳定，跨日轮换）
-      normal = this._shuffleWithSeed(normal, prefix);
       const price = this._creditContractPrice(currentChar.unlockNum);
       const contract: SocialShopData = {
         goodId: `${prefix}_T1_${currentChar.charId}`,
@@ -354,9 +407,9 @@ export class ShopController {
         originPrice: price,
       };
       goodList.push(contract); // 干员合同占第 1 栏位
-      goodList.push(...normal.slice(0, 9));
+      goodList.push(...normal);
     } else {
-      goodList.push(...normal); // 干员已换完 → 10 个常规商品
+      goodList.push(...normal); // 干员已换完 → 10 个常规物资
     }
     // 玩家存档累计消费优先（buySocialGood 实时累计，动态字段）
     const savedCost = (playerSocial as any)?.costSocialPoint;
@@ -364,6 +417,99 @@ export class ShopController {
       costSocialPoint = Math.max(costSocialPoint, savedCost);
     }
     return { goodList, charPurchase, costSocialPoint, creditGroup };
+  }
+
+  /**
+   * 基于种子串的确定性伪随机数生成器（线性同余，同日稳定 / 跨日轮换）
+   *
+   * 信用交易所物资抽选/折扣需要"同一天多次请求返回一致、次日自然变化"的随机源，
+   * 不能直接用 Math.random。以当天的日期前缀（SOCIAL<YYYYMMDD>）作种子。
+   * @param seed - 随机种子串（当天日期前缀）
+   * @returns 每次调用返回 [0,1) 的确定性随机函数
+   */
+  private _seededRng(seed: string): () => number {
+    let s = 0;
+    for (let i = 0; i < seed.length; i++) {
+      s = (s * 31 + seed.charCodeAt(i)) >>> 0;
+    }
+    return () => {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      return s / 4294967296;
+    };
+  }
+
+  /**
+   * 决定单个信用交易所物资的折扣力度（对应 PRTS 折扣规则）
+   *
+   * 主档为 -50%/-75%；低概率（约 10%）出现 -95%/-99% 特价，且仅限允许特价的物资
+   *（-95% 仅龙门币×1800/基础作战记录，-99% 仅龙门币×3600/初级作战记录）。
+   * @param rand - 确定性随机函数
+   * @param m - 候选物资
+   * @returns 折扣力度（0 表示无折扣；0.5/0.75 普通档，0.95/0.99 特价档）
+   */
+  private _creditDiscount(rand: () => number, m: CreditShopMaterial): number {
+    const r = rand();
+    if (m.allow99 && r < 0.03) return 0.99;
+    if (m.allow95 && r < 0.06) return 0.95;
+    if (r < 0.45) return 0.5;
+    return 0.75;
+  }
+
+  /**
+   * 生成当天信用交易所随机物资商品（对应 PRTS 信用交易所机制）
+   *
+   * 候选池为 7 行「并列随机抽取项」，每日生成 count 个：每次从随机一行内随机取一个物资
+   *（同一天内可命中同一行不同物资）。其中前 3~7 个（不超过 count）为打折商品——折扣高的
+   * 排列在前，同档次（-75% 及以上）之间顺序不定。同日用当天日期种子稳定，次日自然轮换。
+   * @param count - 需生成的物资数量（有干员合同 9，否则 10）
+   * @param prefix - 当天日期前缀（SOCIAL<YYYYMMDD>）
+   * @returns 按折扣从高到低排列的物资商品
+   */
+  private _buildSocialNormalGoods(
+    count: number,
+    prefix: string,
+  ): SocialShopData[] {
+    const rand = this._seededRng(prefix);
+    // 1) 抽 count 个物资：每行随机取一个代表（有放回，允许命中同一行不同物资）
+    const picked: { m: CreditShopMaterial; discount: number }[] = [];
+    for (let i = 0; i < count; i++) {
+      const row = CREDIT_SHOP_ROWS[Math.floor(rand() * CREDIT_SHOP_ROWS.length)];
+      picked.push({
+        m: row[Math.floor(rand() * row.length)],
+        discount: 0,
+      });
+    }
+    // 2) 决定打折商品数（3~7，不超过 count）并为其分配折扣
+    const kDisc = Math.min(count, 3 + Math.floor(rand() * 5));
+    const indices = Array.from({ length: count }, (_, i) => i);
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    const discounted = new Set(indices.slice(0, kDisc));
+    // 特价（-95%/-99%）多于 1 个时，仅保留 1 个，其余降为普通档（PRTS：多特价倾向减少打折数）
+    let special = 0;
+    for (const idx of discounted) {
+      const d = this._creditDiscount(rand, picked[idx].m);
+      picked[idx].discount = d >= 0.9 ? (special++ === 0 ? d : 0.75) : d;
+    }
+    // 3) 转成协议商品，折扣高优先排前（同折扣保持生成序）
+    return picked
+      .map((p, idx): [SocialShopData, number, number] => [
+        {
+          goodId: `${prefix}_T2_goods_${idx + 1}_${idx + 1}`,
+          displayName: p.m.name,
+          originPrice: p.m.originPrice,
+          price: Math.round(p.m.originPrice * (1 - p.discount)),
+          discount: p.discount,
+          availCount: -1, // 每日刷新，不限购
+          item: { id: p.m.id, count: p.m.count, type: p.m.type },
+        } as SocialShopData,
+        p.discount,
+        idx,
+      ])
+      .sort((a, b) => b[1] - a[1] || a[2] - b[2])
+      .map(([g]) => g);
   }
 
   /**
@@ -1113,6 +1259,30 @@ export class ShopController {
     return pools.find((p) => p.openTime <= ts && ts <= p.endTime) ?? pools[0];
   }
 
+  /**
+   * 归一化自动生成商品的可见时间窗口（goodStartTime/goodEndTime）
+   *
+   * 修复：数据版本处于卡池空窗期（已无活跃池）时，_currentStandardPool/_currentClassicPool
+   * 会回退到最近一期已结束的池，其 endTime 已过期。若直接把 pool.endTime 作为商品
+   * goodEndTime，客户端会按它判定商品过期而下架/禁用该商品。
+   * 此处当池已结束时，把 goodEndTime 顺延为"持续开放"（脚本化未来 +90 天），保证商店在
+   * 空窗期仍可正常购买；池活跃时原样返回。
+   * @param pool - 关联卡池
+   * @returns 商品可见时间窗口
+   */
+  private _autoGoodsTime(pool: {
+    openTime: number;
+    endTime: number;
+  }): { goodStartTime: number; goodEndTime: number } {
+    const goodStartTime = pool.openTime;
+    let goodEndTime = pool.endTime;
+    // 池已结束（卡池空窗期）：商品持续开放，避免客户端按 goodEndTime 判过期
+    if (pool.endTime < now()) {
+      goodEndTime = now() + 90 * 86400;
+    }
+    return { goodStartTime, goodEndTime };
+  }
+
   /** 干员展示名（CHAR 表缺失时回退 charId） */
   private _charName(charId: string): string {
     return (excel.CharacterTable as any)?.[charId]?.name ?? charId;
@@ -1159,6 +1329,7 @@ export class ShopController {
     const pool = this._currentStandardPool();
     const goods: QCObject[] = [];
     if (pool) {
+      const { goodStartTime, goodEndTime } = this._autoGoodsTime(pool);
       const detail = excel.GachaDetailTable.details[pool.gachaPoolId];
       let seq = 0;
       for (const avail of detail?.availCharInfo?.perAvailList ?? []) {
@@ -1180,8 +1351,8 @@ export class ShopController {
             availCount: 1,
             slotId: 0,
             groupId: "",
-            goodStartTime: pool.openTime,
-            goodEndTime: pool.endTime,
+            goodStartTime,
+            goodEndTime,
           } as QCObject);
         }
       }
@@ -1203,6 +1374,7 @@ export class ShopController {
     const pool = this._currentClassicPool();
     const goods: QCObject[] = [];
     if (pool) {
+      const { goodStartTime, goodEndTime } = this._autoGoodsTime(pool);
       const detail = excel.GachaDetailTable.details[pool.gachaPoolId];
       let seq = 0;
       // 自选卡池（FESCLASSIC 中坚甄选）：干员区反映玩家 choosePoolUp 自选 UP，
@@ -1230,8 +1402,8 @@ export class ShopController {
             availCount: 1,
             slotId: 0,
             groupId: "",
-            goodStartTime: pool.openTime,
-            goodEndTime: pool.endTime,
+            goodStartTime,
+            goodEndTime,
           } as QCObject);
         }
       }

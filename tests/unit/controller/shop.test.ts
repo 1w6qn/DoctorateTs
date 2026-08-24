@@ -222,59 +222,74 @@ describe("buildSocialGoodList / buySocialGood 信用商店", () => {
     });
   });
 
-  it("buildSocialGoodList 应按当天日期重定 goodId 前缀", async () => {
+  it("buildSocialGoodList 无干员时应生成 10 个当天前缀的随机物资", async () => {
     const controller = new ShopController(mockPlayer as any, mockTrigger as any);
-    controller.socialGoodList = {
-      goodList: [
-        {
-          goodId: "SOCIAL20211106_T1_recruit_1_1",
-          displayName: "招聘许可",
-          originPrice: 160,
-          price: 40,
-          discount: 0.75,
-          slotId: 1,
-          availCount: 1,
-          item: { id: "7001", count: 1, type: "TKT_RECRUIT" },
-        },
-      ],
-      charPurchase: {},
-    };
+    controller.socialGoodList = { goodList: [], charPurchase: {} };
     const list = controller.buildSocialGoodList();
-    expect(list.goodList[0].goodId).toMatch(/^SOCIAL\d{8}_T1_recruit_1_1$/);
-    // 日期前缀 = 当天
+    // 无干员购买记录 → 无干员合同 → 10 个随机物资
+    expect(list.goodList).toHaveLength(10);
     const t = new Date();
     const p = (n: number) => String(n).padStart(2, "0");
-    expect(list.goodList[0].goodId.startsWith(`SOCIAL${t.getFullYear()}${p(t.getMonth() + 1)}${p(t.getDate())}`)).toBe(true);
+    const prefix = `SOCIAL${t.getFullYear()}${p(t.getMonth() + 1)}${p(t.getDate())}`;
+    for (const g of list.goodList) {
+      // 物资商品 goodId 均带当天日期前缀
+      expect(g.goodId).toMatch(/^SOCIAL\d{8}_T2_goods_\d+_\d+$/);
+      expect(g.goodId.startsWith(prefix)).toBe(true);
+    }
+  });
+
+  it("信用交易所物资：同日稳定、折扣高优先排前、价格=原价×(1-折扣)、特价仅限允许物资", async () => {
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    controller.socialGoodList = { goodList: [], charPurchase: {} };
+    // 候选池允许的全部物品 id
+    const allowed = new Set([
+      "4001", "2001", "2002", "3003", "3112", "3113",
+      "30011", "30012", "30021", "30022", "30031", "30032",
+      "30041", "30042", "30051", "30052", "30061", "30062",
+      "3301", "3302", "3401", "7001", "7002",
+    ]);
+    const g1 = controller.buildSocialGoodList().goodList;
+    const g2 = controller.buildSocialGoodList().goodList;
+    // 同日稳定（同一日期种子 → 多次请求一致）
+    expect(g1).toEqual(g2);
+    expect(g1).toHaveLength(10);
+    // 折扣高优先排前（折扣序列非递增）
+    const discounts = g1.map((g) => g.discount);
+    for (let i = 1; i < discounts.length; i++) {
+      expect(discounts[i - 1]).toBeGreaterThanOrEqual(discounts[i]);
+    }
+    for (const g of g1) {
+      // 物品都是候选池内的有效物资
+      expect(allowed.has(g.item.id)).toBe(true);
+      // 折扣档位合法，价格 = 原价 × (1 - 折扣)
+      expect([0, 0.5, 0.75, 0.95, 0.99]).toContain(g.discount);
+      expect(g.price).toBe(Math.round(g.originPrice * (1 - g.discount)));
+      // -95%/-99% 特价仅出现在允许的物资上
+      if (g.discount >= 0.9) {
+        const ok95 =
+          g.item.id === "2001" ||
+          (g.item.id === "4001" && g.item.count === 1800);
+        const ok99 =
+          g.item.id === "2002" ||
+          (g.item.id === "4001" && g.item.count === 3600);
+        expect(ok95 || ok99).toBe(true);
+      }
+    }
   });
 
   it("buySocialGood 应扣 socialPoint 并记录购买 + 发放", async () => {
     const controller = new ShopController(mockPlayer as any, mockTrigger as any);
-    controller.socialGoodList = {
-      goodList: [
-        {
-          goodId: "SOCIAL20211106_T1_recruit_1_1",
-          displayName: "招聘许可",
-          originPrice: 160,
-          price: 40,
-          discount: 0.75,
-          slotId: 1,
-          availCount: 1,
-          item: { id: "7001", count: 1, type: "TKT_RECRUIT" },
-        },
-      ],
-      charPurchase: {},
-    };
+    controller.socialGoodList = { goodList: [], charPurchase: {} };
     const emitSpy = vi.spyOn(mockTrigger, "emit");
-    // 客户端回传的是 buildSocialGoodList 重定日期后的 goodId
-    const goodId = controller.buildSocialGoodList().goodList[0].goodId;
+    // 取当日生成的第 1 个物资回传购买（goodId 为 buildSocialGoodList 动态生成）
+    const good = controller.buildSocialGoodList().goodList[0];
+    const goodId = good.goodId;
     const items = await controller.buySocialGood({ goodId, count: 1 });
-    expect(items).toEqual([{ id: "7001", count: 1, type: "TKT_RECRUIT" }]);
-    // 信用扣除 + 发放
+    expect(items).toEqual([good.item]);
+    // 信用扣除（按该商品价格）+ 发放
     const status = mockPlayer._playerdata.status as any;
-    expect(status.socialPoint).toBe(460);
-    expect(emitSpy).toHaveBeenCalledWith("items:get", [
-      [{ id: "7001", count: 1, type: "TKT_RECRUIT" }],
-    ]);
+    expect(status.socialPoint).toBe(500 - good.price);
+    expect(emitSpy).toHaveBeenCalledWith("items:get", [[good.item]]);
     // 购买记录
     const social = (mockPlayer._playerdata.shop as any).SOCIAL;
     expect(social.info).toContainEqual({ id: goodId, count: 1 });
@@ -471,29 +486,16 @@ describe("ShopController 余额/限购校验", () => {
 
   it("信用不足应拒绝购买（socialPoint 不扣成负数）", async () => {
     const controller = new ShopController(mockPlayer as any, mockTrigger as any);
-    controller.socialGoodList = {
-      goodList: [
-        {
-          goodId: "SOCIAL20260101_T1_recruit_1_1",
-          displayName: "招聘许可",
-          originPrice: 160,
-          price: 40,
-          discount: 0.75,
-          slotId: 1,
-          availCount: 1,
-          item: { id: "7001", count: 1, type: "TKT_RECRUIT" },
-        },
-      ],
-      charPurchase: {},
-    };
-    // socialPoint=30 < 40 → 拒绝
+    controller.socialGoodList = { goodList: [], charPurchase: {} };
+    mockPlayer._playerdata.status.socialPoint = 0;
+    // 信用 0 < 任意商品价格 → 拒绝，且不扣成负数
     await expect(
       controller.buySocialGood({
         goodId: controller.buildSocialGoodList().goodList[0].goodId,
         count: 1,
       }),
     ).rejects.toThrow();
-    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(30);
+    expect((mockPlayer._playerdata.status as any).socialPoint).toBe(0);
   });
 
   it("超过 availCount 限购应抛 ShopError", async () => {
@@ -836,6 +838,34 @@ describe("ShopController 根据卡池自动生成（HS 高级凭证区 / CLASSIC
     // 已过期池（now > endTime）仍作为最近一期回退
     expect(controller.buildHighCharGoods().some((g) => g.item.id === "char_old6b")).toBe(true);
     expect(controller.buildClassicCharGoods().some((g) => g.item.id === "char_old6c")).toBe(true);
+  });
+
+  it("空窗期回退已结束池时商品不受池过期时间影响（goodEndTime 顺延为未来，客户端不判过期）", async () => {
+    const excelMock = (await import("@excel/excel")).default as any;
+    excelMock.GachaTable.gachaPoolClient = [
+      { gachaPoolId: "NORM_74_0_5", gachaRuleType: 0, gachaIndex: 90, openTime: 1700000000, endTime: 1710000000 },
+      { gachaPoolId: "CLASSIC_74_0_1", gachaRuleType: "CLASSIC", gachaIndex: 190, openTime: 1700000000, endTime: 1710000000 },
+    ];
+    excelMock.GachaDetailTable.details = {
+      NORM_74_0_5: {
+        availCharInfo: { perAvailList: [{ rarityRank: 5, charIdList: ["char_old6b"], totalPercent: 0.02 }] },
+      },
+      CLASSIC_74_0_1: {
+        upCharInfo: { perCharList: [{ rarityRank: 5, charIdList: ["char_old6c"], percent: 0.25, count: 1 }] },
+      },
+    };
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    // 回退池已结束（endTime=1710000000 < now），商品 goodEndTime 应顺延为未来，避免客户端按过期时间下架
+    const nowSec = Math.floor(Date.now() / 1000);
+    for (const g of [
+      ...controller.buildHighCharGoods(),
+      ...controller.buildClassicCharGoods(),
+    ]) {
+      // goodStartTime 仍取自池 openTime（过去）
+      expect(g.goodStartTime).toBe(1700000000);
+      // goodEndTime 不再取已结束池的 endTime，而是未来（持续开放）
+      expect(g.goodEndTime).toBeGreaterThan(nowSec);
+    }
   });
 });
 
@@ -1218,12 +1248,17 @@ describe("信用交易所干员合同（点击干员进度不卡死）", () => {
     const blackd = chars[0];
     expect(blackd.item.id).toBe("char_198_blackd");
     expect(blackd.availCount).toBe(4);
-    // 坚雷已满潜（6）→ 不再生成合同；商品 = 1 干员 + 常规商品（基座仅 1 个，全纳入）
+    // 坚雷已满潜（6）→ 不再生成合同
     expect(list.goodList.find((g: any) => g.item?.id === "char_260_durnar")).toBeFalsy();
-    expect(list.goodList.length).toBe(2);
+    // 有干员合同 → 共 1 干员 + 9 随机物资 = 10 个
+    expect(list.goodList).toHaveLength(10);
+    expect(list.goodList.filter((g: any) => g.item?.type !== "CHAR")).toHaveLength(9);
     // 干员合同占第 1 栏位
     expect(list.goodList[0].item.type).toBe("CHAR");
-    expect(list.goodList[1].item.id).toBe("3113"); // 常规商品紧随其后
+    // 其余 9 个为当日候选池随机物资（goodId 为 _T2_goods）
+    for (const g of list.goodList.slice(1)) {
+      expect(g.goodId).toMatch(/^SOCIAL\d{8}_T2_goods_\d+_\d+$/);
+    }
     // 关键修复字段：creditGroup/costSocialPoint 非空
     expect(list.creditGroup).toBe("creditGroup2"); // 有 creditGroup2 干员（坚雷）
     expect(list.costSocialPoint).toBeGreaterThan(0);

@@ -28,6 +28,10 @@ import { FriendDataWithNameCard, FriendMedalBoard } from "@game/model/social";
 import { OpenServerManager } from "@game/manager/activity/openServer";
 import { PlayerStatus } from "./PlayerStatus";
 import {
+  composePlayerChildModules,
+  type PlayerChildModules,
+} from "./player-composition";
+import {
   BattleInfo,
   BattleInfoStore,
   BattleRecord,
@@ -112,8 +116,13 @@ export class PlayerDataManager {
    * 构造函数
    * @param playerdata - 玩家数据模型
    * @param battleStore - 战斗信息存储（默认 no-op，由 AccountManager 注入）
+   * @param deps - 可选依赖（DI）：`deps.modules` 可部分覆写子模块，用于测试缩小构造面
    */
-  constructor(playerdata: PlayerDataModel, battleStore?: BattleInfoStore) {
+  constructor(
+    playerdata: PlayerDataModel,
+    battleStore?: BattleInfoStore,
+    deps?: { modules?: Partial<PlayerChildModules> },
+  ) {
     this.playerStatus = new PlayerStatus(playerdata);
     this._battleStore = battleStore ?? {
       getBattleInfo: async () => undefined as unknown as BattleInfo,
@@ -123,36 +132,41 @@ export class PlayerDataManager {
       listBattleRecords: async () => [],
     };
     this._trigger = new TypedEventEmitter();
-    this.status = new StatusManager(this, this._trigger);
-    this.inventory = new InventoryManager(this, this._trigger);
-    this.troop = new TroopManager(this, this._trigger);
-    this.dungeon = new DungeonManager(this, this._trigger);
-    this.home = new HomeManager(this, this._trigger);
-    this.charRotation = new CharRotationManager(this, this._trigger);
-    this.checkIn = new CheckInManager(this, this._trigger);
-    this.storyreview = new StoryreviewManager(this, this._trigger);
-    this.mission = new MissionManager(this, this._trigger);
+    // 组合子模块：默认工厂按原顺序构造全部子模块；deps.modules 覆写个别模块。
+    // 构造顺序即事件订阅顺序，必须与迁移前完全一致（见 player-composition.ts）。
+    const composed = composePlayerChildModules(this, this._trigger);
+    const m = { ...composed, ...deps?.modules };
+    this.status = m.status;
+    this.inventory = m.inventory;
+    this.troop = m.troop;
+    this.dungeon = m.dungeon;
+    this.home = m.home;
+    this.charRotation = m.charRotation;
+    this.checkIn = m.checkIn;
+    this.storyreview = m.storyreview;
+    this.mission = m.mission;
+    this.shop = m.shop;
+    this.battle = m.battle;
+    this.recruit = m.recruit;
+    this.rlv2 = m.rlv2;
+    this.social = m.social;
+    this.gacha = m.gacha;
+    this.dexNav = m.dexNav;
+    this.building = m.building;
+    this.openServer = m.openServer;
+    this.retro = m.retro;
+    this.char = m.char;
+    this.equipmentMission = m.equipmentMission;
+    this.medal = m.medal;
+    this.aprilFool = m.aprilFool;
+    this.bossRush = m.bossRush;
     // init 的 promise 暴露给外部（AccountManager 加载后先 await 再播种活动任务，
     // 避免 MissionManager.init 的 missions["ACTIVITY"] = {} 清掉已播种条目）
     this.mission.initPromise = this.mission
       .init()
       .catch((e) => logger.error("MissionManager", `init failed: ${(e as Error).message}`));
-    this.shop = new ShopController(this, this._trigger);
-    this.battle = new BattleManager(this, this._trigger);
-    this.recruit = new RecruitManager(this, this._trigger);
-    this.rlv2 = new RoguelikeV2Controller(this, this._trigger);
-    this.social = new SocialManager(this, this._trigger);
-    this.gacha = new GachaController(this, this._trigger);
-    this.dexNav = new DexNavManager(this, this._trigger);
-    this.building = new BuildingManager(this, this._trigger);
-    this.openServer = new OpenServerManager(this, this._trigger);
-    this.retro = new RetroManager(this, this._trigger);
-    this.char = new CharManager(this, this._trigger);
-    this.equipmentMission = new EquipmentMissionManager(this);
-    this.medal = new MedalManager(this, this._trigger);
+    // 子模块初始化副作用
     void this.medal.init().catch((e) => logger.error("MedalManager", `init failed: ${(e as Error).message}`));
-    this.aprilFool = new AprilFoolManager(this, this._trigger);
-    this.bossRush = new BossRushManager(this, this._trigger);
     this._trigger.on(
       "save:battle",
       async ([battleId, info]: [string, BattleInfo]) => {

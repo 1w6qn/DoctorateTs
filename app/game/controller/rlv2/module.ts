@@ -1,23 +1,7 @@
 import { PlayerRoguelikeV2 } from "../../model/rlv2";
 import { RoguelikeV2Controller } from "../rlv2";
 import excel from "@excel/excel";
-import { RoguelikeFragmentManager } from "./modules/fragment";
-import { RoguelikeDisasterManager } from "./modules/disaster";
-import { RoguelikeNodeUpgradeManager } from "./modules/node_upgrade";
-import { RoguelikeTotemManager } from "./modules/totem";
-import { RoguelikeGridZoneManager } from "./modules/grid_zone";
-import { RoguelikeWeatherManager } from "./modules/weather";
-import { RoguelikeScrapManager } from "./modules/scrap";
-import { RoguelikeDiceManager, RoguelikeSanManager } from "./modules/dice";
-import { RoguelikeCopperManager } from "./modules/copper";
-import {
-  RoguelikeChaosManager,
-  RoguelikeVisionManager,
-} from "./modules/chaos";
-import {
-  RoguelikeSkyManager,
-  RoguelikeWrathManager,
-} from "./modules/wrath_sky";
+import { composeRlv2ThemeModules } from "../rlv2-module-composition";
 import { toCamelCase } from "@utils/string";
 import { TypedEventEmitter } from "@game/model/events";
 
@@ -39,25 +23,10 @@ export class RoguelikeModuleManager {
     this._modules = {};
   }
 
-  /** 主题模块管理器工厂（create/continue 共用） */
+  /** 主题模块管理器工厂（create/continue 共用），分发表见 rlv2-module-composition */
   private moduleHandler(): { [key: string]: () => any } {
-    return {
-      FRAGMENT: () => new RoguelikeFragmentManager(this._player, this._trigger),
-      DISASTER: () => new RoguelikeDisasterManager(this._player, this._trigger),
-      NODE_UPGRADE: () =>
-        new RoguelikeNodeUpgradeManager(this._player, this._trigger),
-      TOTEM: () => new RoguelikeTotemManager(this._player, this._trigger),
-      GRID_ZONE: () =>
-        new RoguelikeGridZoneManager(this._player, this._trigger),
-      WEATHER: () => new RoguelikeWeatherManager(this._player, this._trigger),
-      SCRAP: () => new RoguelikeScrapManager(this._player, this._trigger),
-      SANCHECK: () => new RoguelikeSanManager(this._player, this._trigger),
-      DICE: () => new RoguelikeDiceManager(this._player, this._trigger),
-      COPPER: () => new RoguelikeCopperManager(this._player, this._trigger),
-      CHAOS: () => new RoguelikeChaosManager(this._player, this._trigger),
-      VISION: () => new RoguelikeVisionManager(this._player, this._trigger),
-      WRATH: () => new RoguelikeWrathManager(this._player, this._trigger),
-      SKY: () => new RoguelikeSkyManager(this._player, this._trigger),
+    return composeRlv2ThemeModules(this._player, this._trigger) as {
+      [key: string]: () => any;
     };
   }
 

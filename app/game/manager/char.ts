@@ -12,7 +12,7 @@ import {
   reconcileCharSkills,
 } from "@game/util/char-skills";
 import { PlayerCharacter, PlayerCharPatch } from "@game/model/character";
-import { UniEquipData } from "@excel/types_excel_gen";
+import { UniEquipData } from "@excel/excel-types";
 
 /** 物品类型数字枚举 → 字符串（spCharMissions 等表的 rewards.type 为数字枚举） */
 function itemTypeToString(itemType: number | string): string {

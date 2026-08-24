@@ -1,5 +1,4 @@
-import { RoguelikeBuff } from "@game/model/rlv2";
-import { ItemBundle } from "./character_table";
+import { RoguelikeBuff, ItemBundle } from "./character_table";
 // 黑流树海（rogue_6）三模块数据类型复用 CS 反编译生成的权威定义
 // （types_excel_gen.ts，由 scripts/generate-types.ts --excel 产出），避免手写重复。
 import type {

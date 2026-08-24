@@ -5,6 +5,17 @@ export interface KeyFrame<TInput, TOutput> {
 export type KeyFrames<TData> = KeyFrame<TData, TData>[]
 export type Blackboard = BlackboardDataPair[];
 
+/**
+ * 肉鸽 buff（复用 CS 反编译的 buff 结构）
+ *
+ * 定义于 excel 数据层（而非 game 业务层），供 excel 表类型使用，
+ * 避免 excel → game 的反向依赖；game 侧再从本处 re-export 复用。
+ */
+export interface RoguelikeBuff {
+    key: string
+    blackboard: Blackboard
+}
+
 export interface CharacterTable {
     [key: string]: CharacterData
 }

@@ -1,5 +1,5 @@
 import { OrigChar, PlayerCharacter } from "./character"
-import { Blackboard } from "@excel/character_table"
+import type { RoguelikeBuff } from "@excel/character_table"
 
 // Assembly-CSharp
 export enum TorappuRoguelikeEventType {
@@ -773,10 +773,7 @@ export namespace PlayerRoguelikePendingEvent {
         isFail:boolean
     }
 }
-export interface RoguelikeBuff {
-    key:string
-    blackboard:Blackboard
-}
+export { RoguelikeBuff };
 export interface RoguelikeItemBundle {
     sub?:number
     type?:string

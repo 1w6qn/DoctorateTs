@@ -1,4 +1,4 @@
-import { RoguelikeBuff } from "@game/model/rlv2";
+import { RoguelikeBuff } from "./character_table";
 
 export interface RoguelikeConst {
   outbuff: { [key: string]: RoguelikeBuff[] };

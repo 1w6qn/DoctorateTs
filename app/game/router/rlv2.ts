@@ -8,7 +8,7 @@
  * 客户端收不到任何状态。rlv2Response 把控制器 toJSON 全量并入 modified.rlv2。
  */
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { RoguelikePushMessage } from "../model/protocol/common";
 import { isBlackstream } from "../controller/rlv2/theme-rules";
@@ -147,7 +147,7 @@ const router = Router();
  * 不泄漏到后续请求（与 createGame/gridZone/moveTo 内各自的手动复位等价且冗余安全）。
  */
 router.use((_req, _res, next) => {
-  const player = httpContext.get<PlayerDataManager>("playerData");
+  const player = getPlayerOptional();
   if (player?.rlv2?._pushMessages?.length) {
     player.rlv2._pushMessages = [];
   }
@@ -287,7 +287,7 @@ function rlv2MissingParam(player: PlayerDataManager): any {
 /** 放弃游戏（CS: RoguelikeTopicGiveUpGameRequest）——官方响应带 result:"ok"，
  *  current 节仅 [record, player]（2026-08-18 官服 giveUpGame 抓包校准） */
 router.post("/giveUpGame", validateBody(ReqSchema.giveUpGameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeTopicGiveUpGameRequest;
   await player.rlv2.giveUpGame();
   const resp = rlv2Response(player, { result: "ok" } as any, SEC.GIVEUP) as any;
@@ -307,7 +307,7 @@ router.post("/giveUpGame", validateBody(ReqSchema.giveUpGameSchema), async (req,
 
 /** 创建游戏（CS: RoguelikeTopicCreateGameRequest） */
 router.post("/createGame", validateBody(ReqSchema.createGameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeTopicCreateGameRequest;
   await player.rlv2.createGame(body);
   res.send(rlv2Response(player, undefined, SEC.ALL, ["record", "monthTeam"], player.rlv2.takePushMessages()) satisfies RoguelikeTopicCreateGameResponse);
@@ -315,7 +315,7 @@ router.post("/createGame", validateBody(ReqSchema.createGameSchema), async (req,
 
 /** 游戏结算（抓包 POST /rlv2/gameSettle，body {}；响应带 game/outer 结算数据） */
 router.post("/gameSettle", validateBody(ReqSchema.gameSettleSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeGameSettleRequest;
   await player.rlv2.gameSettle();
   res.send(
@@ -329,7 +329,7 @@ router.post("/gameSettle", validateBody(ReqSchema.gameSettleSchema), async (req,
 
 /** 选择初始密文（CS: RoguelikeSelectInitialRelicRequest） */
 router.post("/chooseInitialRelic", validateBody(ReqSchema.chooseInitialRelicSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeSelectInitialRelicRequest;
   await player.rlv2.chooseInitialRelic(body);
   res.send(
@@ -339,7 +339,7 @@ router.post("/chooseInitialRelic", validateBody(ReqSchema.chooseInitialRelicSche
 
 /** 选择初始招募组（CS: RoguelikeSelectInitialRecruitSetRequest） */
 router.post("/chooseInitialRecruitSet", validateBody(ReqSchema.chooseInitialRecruitSetSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeSelectInitialRecruitSetRequest;
   await player.rlv2.chooseInitialRecruitSet(body);
   res.send(
@@ -350,7 +350,7 @@ router.post("/chooseInitialRecruitSet", validateBody(ReqSchema.chooseInitialRecr
 
 /** 选择初始探索工具（CS: RoguelikeSelectInitialExploreToolRequest） */
 router.post("/chooseInitialExploreTool", validateBody(ReqSchema.chooseInitialExploreToolSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeSelectInitialExploreToolRequest;
   await player.rlv2.chooseInitialExploreTool(body);
   res.send(
@@ -360,7 +360,7 @@ router.post("/chooseInitialExploreTool", validateBody(ReqSchema.chooseInitialExp
 
 /** 激活招募票（CS: RoguelikeActivateTicketRequest） */
 router.post("/activeRecruitTicket", validateBody(ReqSchema.activeRecruitTicketSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeActivateTicketRequest;
   await player.rlv2.activeRecruitTicket(body);
   // 官服 activeRecruitTicket current=[inventory,player]（无 record/buff）——2026-08-18 抓包校准
@@ -369,7 +369,7 @@ router.post("/activeRecruitTicket", validateBody(ReqSchema.activeRecruitTicketSc
 
 /** 招募干员（CS: RoguelikeRecruitCharRequest） */
 router.post("/recruitChar", validateBody(ReqSchema.recruitCharSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeRecruitCharRequest;
   res.send(
     // 官服 recruitChar current=[inventory,troop,buff,player,module,record]（无 map/game）——2026-08-18 抓包校准
@@ -381,7 +381,7 @@ router.post("/recruitChar", validateBody(ReqSchema.recruitCharSchema), async (re
 
 /** 获取招募票助战列表（CS: RoguelikeGetTicketAssistListRequest） */
 router.post("/getTicketAssistList", validateBody(ReqSchema.getTicketAssistListSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeGetTicketAssistListRequest;
   await player.rlv2.getTicketAssistList(body);
   res.send(
@@ -391,7 +391,7 @@ router.post("/getTicketAssistList", validateBody(ReqSchema.getTicketAssistListSc
 
 /** 招募助战干员（CS: RoguelikeRecruitAssistCharRequest） */
 router.post("/recruitAssistChar", validateBody(ReqSchema.recruitAssistCharSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeRecruitAssistCharRequest;
   await player.rlv2.recruitAssistChar(body);
   res.send(rlv2Response(player) satisfies RoguelikeRecruitAssistCharResponse);
@@ -399,7 +399,7 @@ router.post("/recruitAssistChar", validateBody(ReqSchema.recruitAssistCharSchema
 
 /** 结束事件（CS: RoguelikeFinishEventRequest） */
 router.post("/finishEvent", validateBody(ReqSchema.finishEventSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeFinishEventRequest;
   // 修复：无进行中游戏（或游戏主题无效）时返回业务错误，避免状态机在空态下异常调用崩溃
   //（如冒烟空 body 探测触发 zone:new → 地图生成读取 undefined game.theme → details[undefined].stages → 500）
@@ -423,7 +423,7 @@ router.post("/finishEvent", validateBody(ReqSchema.finishEventSchema), async (re
  * 控制器 selectChoice 已实现（buff/遗物/下一场景构建），此前漏接线
  */
 router.post("/selectChoice", validateBody(ReqSchema.selectChoiceSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeSelectChoiceRequest;
   await player.rlv2.selectChoice(body);
   // 官服 selectChoice 响应节 = CORE（player/inventory/record/buff）——2026-08-18 抓包校准
@@ -432,7 +432,7 @@ router.post("/selectChoice", validateBody(ReqSchema.selectChoiceSchema), async (
 
 /** 移动（CS: RoguelikeMoveToRequest） */
 router.post("/moveTo", validateBody(ReqSchema.moveToSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeMoveToRequest;
   await player.rlv2.moveTo(body);
   res.send(rlv2Response(player, undefined, undefined, undefined, player.rlv2.takePushMessages()) satisfies RoguelikeMoveToResponse);
@@ -440,7 +440,7 @@ router.post("/moveTo", validateBody(ReqSchema.moveToSchema), async (req, res) =>
 
 /** 移动并开始战斗（CS: RoguelikeStepMoveToAndStartBattleRequest） */
 router.post("/moveAndBattleStart", validateBody(ReqSchema.moveAndBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeStepMoveToAndStartBattleRequest;
   await player.rlv2.moveAndBattleStart(body);
   res.send(
@@ -450,7 +450,7 @@ router.post("/moveAndBattleStart", validateBody(ReqSchema.moveAndBattleStartSche
 
 /** 战斗结算（CS: RoguelikeFinishBattleRequest）——官服 current=[record,player,buff,inventory] */
 router.post("/battleFinish", validateBody(ReqSchema.battleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeFinishBattleRequest;
   await player.rlv2.battleFinish(body);
   res.send(rlv2Response(player, undefined, SEC.CORE) satisfies RoguelikeFinishBattleResponse);
@@ -458,7 +458,7 @@ router.post("/battleFinish", validateBody(ReqSchema.battleFinishSchema), async (
 
 /** 选择战斗奖励（CS: RoguelikeSelectRewardRequest） */
 router.post("/chooseBattleReward", validateBody(ReqSchema.chooseBattleRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeSelectRewardRequest;
   await player.rlv2.chooseBattleReward(body);
   res.send(rlv2Response(player) satisfies RoguelikeSelectRewardResponse);
@@ -466,7 +466,7 @@ router.post("/chooseBattleReward", validateBody(ReqSchema.chooseBattleRewardSche
 
 /** 完成战斗奖励（服务端自定义） */
 router.post("/finishBattleReward", validateBody(ReqSchema.finishBattleRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as FinishBattleRewardRequest;
   await player.rlv2.finishBattleReward(body);
   res.send(rlv2Response(player, undefined, undefined, undefined, player.rlv2.takePushMessages()) satisfies FinishBattleRewardResponse);
@@ -474,7 +474,7 @@ router.post("/finishBattleReward", validateBody(ReqSchema.finishBattleRewardSche
 
 /** 设置队伍携带（服务端自定义） */
 router.post("/setTroopCarry", validateBody(ReqSchema.setTroopCarrySchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as SetTroopCarryRequest;
   player.rlv2.setTroopCarry(body);
   res.send(rlv2Response(player) satisfies SetTroopCarryResponse);
@@ -482,7 +482,7 @@ router.post("/setTroopCarry", validateBody(ReqSchema.setTroopCarrySchema), async
 
 /** 丢失密文（CS: RL04LoseFragmentRequest） */
 router.post("/loseFragment", validateBody(ReqSchema.loseFragmentSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RL04LoseFragmentRequest;
   player.rlv2.loseFragment(body);
   res.send(rlv2Response(player) satisfies RL04LoseFragmentResponse);
@@ -490,7 +490,7 @@ router.post("/loseFragment", validateBody(ReqSchema.loseFragmentSchema), async (
 
 /** 使用灵感（CS: RL04UseInspirationRequest） */
 router.post("/useInspiration", validateBody(ReqSchema.useInspirationSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RL04UseInspirationRequest;
   player.rlv2.useInspiration(body);
   res.send(rlv2Response(player) satisfies RL04UseInspirationResponse);
@@ -498,7 +498,7 @@ router.post("/useInspiration", validateBody(ReqSchema.useInspirationSchema), asy
 
 /** 置顶主题（CS: RoguelikePinTopicRequest） */
 router.post("/setPinned", validateBody(ReqSchema.setPinnedSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikePinTopicRequest;
   player.rlv2.setPinned(body);
   res.send(rlv2Response(player) satisfies RoguelikePinTopicResponse);
@@ -506,7 +506,7 @@ router.post("/setPinned", validateBody(ReqSchema.setPinnedSchema), async (req, r
 
 /** 刷新商店（CS: RoguelikeShopRefreshRequest） */
 router.post("/refreshShop", validateBody(ReqSchema.refreshShopSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeShopRefreshRequest;
   await player.rlv2.refreshShop();
   res.send(rlv2Response(player) satisfies RoguelikeShopRefreshResponse);
@@ -514,7 +514,7 @@ router.post("/refreshShop", validateBody(ReqSchema.refreshShopSchema), async (re
 
 /** 离开商店（CS: RoguelikeShopActionRequest） */
 router.post("/leaveShop", validateBody(ReqSchema.shopActionSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeShopActionRequest;
   await player.rlv2.leaveShop();
   res.send(rlv2Response(player) satisfies RoguelikeShopActionResponse);
@@ -522,7 +522,7 @@ router.post("/leaveShop", validateBody(ReqSchema.shopActionSchema), async (req, 
 
 /** 商店购买（CS: RoguelikeShopActionRequest；控制器 buyGoods 已实现此前漏接线，同 selectChoice） */
 router.post("/buyGoods", validateBody(ReqSchema.buyGoodsSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeBuyGoodsRequest;
   await player.rlv2.buyGoods({ select: body.select ?? 0 });
   res.send(rlv2Response(player, undefined, undefined, undefined, player.rlv2.takePushMessages()) satisfies RoguelikeBuyGoodsResponse);
@@ -530,7 +530,7 @@ router.post("/buyGoods", validateBody(ReqSchema.buyGoodsSchema), async (req, res
 
 /** 商店操作（CS: RoguelikeShopActionRequest）：buy 数组 → buyGoods；否则离开商店 */
 router.post("/shopAction", validateBody(ReqSchema.shopActionSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeShopActionRequest;
   if (body.buy && body.buy.length > 0) {
     await player.rlv2.buyGoods({ select: parseInt(body.buy[0], 10) || 0 });
@@ -542,7 +542,7 @@ router.post("/shopAction", validateBody(ReqSchema.shopActionSchema), async (req,
 
 /** 使用图腾（CS: RL03UseTotemRequest） */
 router.post("/useTotem", validateBody(ReqSchema.useTotemSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RL03UseTotemRequest;
   await player.rlv2.useTotem(body);
   res.send(rlv2Response(player) satisfies RL03UseTotemResponse);
@@ -550,7 +550,7 @@ router.post("/useTotem", validateBody(ReqSchema.useTotemSchema), async (req, res
 
 /** 确认预言（CS: RL03ConfirmPredictRequest） */
 router.post("/confirmPredict", validateBody(ReqSchema.confirmPredictSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RL03ConfirmPredictRequest;
   await player.rlv2.confirmPredict();
   res.send(rlv2Response(player) satisfies RL03ConfirmPredictResponse);
@@ -558,7 +558,7 @@ router.post("/confirmPredict", validateBody(ReqSchema.confirmPredictSchema), asy
 
 /** 关闭招募票（CS: RoguelikeCloseTicketRequest） */
 router.post("/closeRecruitTicket", validateBody(ReqSchema.closeRecruitTicketSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeCloseTicketRequest;
   await player.rlv2.closeRecruitTicket(body);
   res.send(rlv2Response(player) satisfies RoguelikeCloseTicketResponse);
@@ -566,7 +566,7 @@ router.post("/closeRecruitTicket", validateBody(ReqSchema.closeRecruitTicketSche
 
 /** 读取结局变更（CS: RoguelikeReadEndingChangeRequest） */
 router.post("/readEndingChange", validateBody(ReqSchema.readEndingChangeSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeReadEndingChangeRequest;
   await player.rlv2.readEndingChange();
   res.send(rlv2Response(player) satisfies RoguelikeReadEndingChangeResponse);
@@ -574,7 +574,7 @@ router.post("/readEndingChange", validateBody(ReqSchema.readEndingChangeSchema),
 
 /** 月度任务刷新（CS: RoguelikeTopicRefreshMissionRequest { theme, index }） */
 router.post("/normal/refreshMission", validateBody(ReqSchema.refreshMissionSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as { theme?: string; index?: number };
   await player.rlv2.refreshMission(body);
   res.send(rlv2Response(player) satisfies RoguelikeTopicRefreshMissionResponse);
@@ -582,7 +582,7 @@ router.post("/normal/refreshMission", validateBody(ReqSchema.refreshMissionSchem
 
 /** 确认区域奖励（CS: RoguelikeZoneRewardRequest { itemType }） */
 router.post("/confirmZoneReward", validateBody(ReqSchema.confirmZoneRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeZoneRewardRequest;
   await player.rlv2.confirmZoneReward();
   res.send(rlv2Response(player, undefined, undefined, undefined, player.rlv2.takePushMessages()) satisfies RoguelikeZoneRewardResponse);
@@ -590,7 +590,7 @@ router.post("/confirmZoneReward", validateBody(ReqSchema.confirmZoneRewardSchema
 
 /** 确认商人返回（CS: RoguelikeTraderReturnRequest） */
 router.post("/confirmTraderReturn", validateBody(ReqSchema.confirmTraderReturnSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeTraderReturnRequest;
   await player.rlv2.confirmTraderReturn();
   res.send(rlv2Response(player) satisfies RoguelikeTraderReturnResponse);
@@ -598,7 +598,7 @@ router.post("/confirmTraderReturn", validateBody(ReqSchema.confirmTraderReturnSc
 
 /** 离开特殊区域（CS: RoguelikeSpecialZoneLeaveRequest） */
 router.post("/specialZone/leave", validateBody(ReqSchema.specialZoneLeaveSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeSpecialZoneLeaveRequest;
   await player.rlv2.specialZoneLeave();
   res.send(rlv2Response(player) satisfies RoguelikeSpecialZoneLeaveResponse);
@@ -606,7 +606,7 @@ router.post("/specialZone/leave", validateBody(ReqSchema.specialZoneLeaveSchema)
 
 /** 战令领奖（抓包 { theme, rewards }） */
 router.post("/battlePass/getReward", validateBody(ReqSchema.battlePassGetRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeBattlePassGetRewardRequest;
   const { items } = await player.rlv2.battlePassGetReward(
     body.theme,
@@ -619,7 +619,7 @@ router.post("/battlePass/getReward", validateBody(ReqSchema.battlePassGetRewardS
 
 /** 战令领奖（客户端路径 /rlv2/battlePass_getReward，下划线风格——官方抓包确认） */
 router.post("/battlePass_getReward", validateBody(ReqSchema.battlePassGetRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeBattlePassGetRewardRequest;
   const { items } = await player.rlv2.battlePassGetReward(
     body.theme,
@@ -632,7 +632,7 @@ router.post("/battlePass_getReward", validateBody(ReqSchema.battlePassGetRewardS
 
 /** 银行存钱（CS: RoguelikeBankInvestRequest） */
 router.post("/bankPut", validateBody(ReqSchema.bankPutSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeBankInvestRequest;
   await player.rlv2.bankPut();
   res.send(rlv2Response(player) satisfies RoguelikeBankInvestResponse);
@@ -640,7 +640,7 @@ router.post("/bankPut", validateBody(ReqSchema.bankPutSchema), async (req, res) 
 
 /** 银行取钱（CS: RoguelikeBankWithdrawRequest { count }） */
 router.post("/bankWithdraw", validateBody(ReqSchema.bankWithdrawSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeBankWithdrawRequest;
   await player.rlv2.bankWithdraw(body);
   res.send(rlv2Response(player) satisfies RoguelikeBankWithdrawResponse);
@@ -648,7 +648,7 @@ router.post("/bankWithdraw", validateBody(ReqSchema.bankWithdrawSchema), async (
 
 /** 确认节点任务（CS: RoguelikeConfirmNodeMissionRequest） */
 router.post("/nodeMission/confirm", validateBody(ReqSchema.nodeMissionConfirmSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeConfirmNodeMissionRequest;
   await player.rlv2.nodeMissionConfirm();
   res.send(rlv2Response(player) satisfies RoguelikeConfirmNodeMissionResponse);
@@ -656,7 +656,7 @@ router.post("/nodeMission/confirm", validateBody(ReqSchema.nodeMissionConfirmSch
 
 /** 放弃节点任务（CS: RoguelikeGiveUpNodeMissionRequest） */
 router.post("/nodeMission/giveUp", validateBody(ReqSchema.nodeMissionGiveUpSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeGiveUpNodeMissionRequest;
   await player.rlv2.nodeMissionGiveUp();
   res.send(rlv2Response(player) satisfies RoguelikeGiveUpNodeMissionResponse);
@@ -664,7 +664,7 @@ router.post("/nodeMission/giveUp", validateBody(ReqSchema.nodeMissionGiveUpSchem
 
 /** 关闭节点任务提示（CS: RoguelikeReadMissionTipRequest） */
 router.post("/nodeMission/closeTip", validateBody(ReqSchema.nodeMissionCloseTipSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeReadMissionTipRequest;
   await player.rlv2.nodeMissionCloseTip();
   res.send(rlv2Response(player) satisfies RoguelikeReadMissionTipResponse);
@@ -675,21 +675,21 @@ router.post("/nodeMission/closeTip", validateBody(ReqSchema.nodeMissionCloseTipS
  * 官方抓包确认；斜杠路径保留兼容）
  */
 router.post("/nodeMission_confirm", validateBody(ReqSchema.nodeMissionConfirmSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeConfirmNodeMissionRequest;
   await player.rlv2.nodeMissionConfirm();
   res.send(rlv2Response(player) satisfies RoguelikeConfirmNodeMissionResponse);
 });
 
 router.post("/nodeMission_giveUp", validateBody(ReqSchema.nodeMissionGiveUpSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeGiveUpNodeMissionRequest;
   await player.rlv2.nodeMissionGiveUp();
   res.send(rlv2Response(player) satisfies RoguelikeGiveUpNodeMissionResponse);
 });
 
 router.post("/nodeMission_closeTip", validateBody(ReqSchema.nodeMissionCloseTipSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeReadMissionTipRequest;
   await player.rlv2.nodeMissionCloseTip();
   res.send(rlv2Response(player) satisfies RoguelikeReadMissionTipResponse);
@@ -697,7 +697,7 @@ router.post("/nodeMission_closeTip", validateBody(ReqSchema.nodeMissionCloseTipS
 
 /** 远征选择（CS: RoguelikeExpeditionRequest { choice, leave }） */
 router.post("/expeditionChoice", validateBody(ReqSchema.expeditionChoiceSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeExpeditionRequest;
   const ret = await player.rlv2.expeditionChoice(body);
   res.send(rlv2Response(player, ret) satisfies RoguelikeExpeditionResponse);
@@ -705,7 +705,7 @@ router.post("/expeditionChoice", validateBody(ReqSchema.expeditionChoiceSchema),
 
 /** 确认远征返回（CS: RoguelikeExpedReturnRequest） */
 router.post("/game/confirmExpeditonReturn", validateBody(ReqSchema.confirmExpeditionReturnSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeExpedReturnRequest;
   await player.rlv2.confirmExpeditonReturn();
   res.send(rlv2Response(player) satisfies RoguelikeExpedReturnResponse);
@@ -713,7 +713,7 @@ router.post("/game/confirmExpeditonReturn", validateBody(ReqSchema.confirmExpedi
 
 /** 骰子选择（CS: RoguelikeDiceChoiceRequest） */
 router.post("/diceChoice", validateBody(ReqSchema.diceChoiceSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeDiceChoiceRequest;
   const ret = await player.rlv2.diceChoice(body);
   res.send(rlv2Response(player, ret) satisfies RoguelikeDiceChoiceResponse);
@@ -721,7 +721,7 @@ router.post("/diceChoice", validateBody(ReqSchema.diceChoiceSchema), async (req,
 
 /** 献祭选择（CS: RoguelikeSacrificeRequest { choice, leave }） */
 router.post("/sacrificeChoice", validateBody(ReqSchema.sacrificeChoiceSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeSacrificeRequest;
   await player.rlv2.sacrificeChoice(body);
   res.send(rlv2Response(player) satisfies RoguelikeSacrificeResponse);
@@ -729,7 +729,7 @@ router.post("/sacrificeChoice", validateBody(ReqSchema.sacrificeChoiceSchema), a
 
 /** 铜币镀金（CS: RoguelikeGildRequest { choice, leave }） */
 router.post("/copper/gild", validateBody(ReqSchema.gildSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeGildRequest;
   await player.rlv2.copperGild(body);
   res.send(rlv2Response(player) satisfies RoguelikeGildResponse);
@@ -737,7 +737,7 @@ router.post("/copper/gild", validateBody(ReqSchema.gildSchema), async (req, res)
 
 /** 铜币重抽（COPPER 模块） */
 router.post("/copper/redraw", validateBody(ReqSchema.copperRedrawSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeCopperRedrawRequest;
   const ret = await player.rlv2.copperRedraw();
   res.send(rlv2Response(player, ret) satisfies RoguelikeCopperRedrawResponse);
@@ -745,7 +745,7 @@ router.post("/copper/redraw", validateBody(ReqSchema.copperRedrawSchema), async 
 
 /** 商店战斗开始（CS: RoguelikeShopBattleRequest） */
 router.post("/shopBattleStart", validateBody(ReqSchema.shopBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeShopBattleRequest;
   await player.rlv2.shopBattleStart();
   res.send(rlv2Response(player) satisfies RoguelikeShopBattleResponse);
@@ -753,7 +753,7 @@ router.post("/shopBattleStart", validateBody(ReqSchema.shopBattleStartSchema), a
 
 /** 重掷节点（CS: RoguelikeRollNodeRequest { nodeIndex }） */
 router.post("/rerollNode", validateBody(ReqSchema.rollNodeSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeRollNodeRequest;
   await player.rlv2.rerollNode(body);
   res.send(rlv2Response(player) satisfies RoguelikeRollNodeResponse);
@@ -761,7 +761,7 @@ router.post("/rerollNode", validateBody(ReqSchema.rollNodeSchema), async (req, r
 
 /** 升级节点（CS: RoguelikeUpgradeNodeRequest { nodeType }） */
 router.post("/upgradeNode", validateBody(ReqSchema.upgradeNodeSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeUpgradeNodeRequest;
   await player.rlv2.upgradeNode(body);
   res.send(rlv2Response(player) satisfies RoguelikeUpgradeNodeResponse);
@@ -769,7 +769,7 @@ router.post("/upgradeNode", validateBody(ReqSchema.upgradeNodeSchema), async (re
 
 /** 暂存招募票（CS: RoguelikeStashTicketRequest { index }） */
 router.post("/stashRecruitTicket", validateBody(ReqSchema.stashRecruitTicketSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeStashTicketRequest;
   await player.rlv2.stashRecruitTicket(body);
   res.send(rlv2Response(player) satisfies RoguelikeStashTicketResponse);
@@ -777,7 +777,7 @@ router.post("/stashRecruitTicket", validateBody(ReqSchema.stashRecruitTicketSche
 
 /** 使用暂存票（CS: RoguelikeStashedTicketUseRequest { id }） */
 router.post("/useStashedTicket", validateBody(ReqSchema.useStashedTicketSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeStashedTicketUseRequest;
   await player.rlv2.useStashedTicket(body);
   res.send(rlv2Response(player) satisfies RoguelikeStashedTicketUseResponse);
@@ -785,7 +785,7 @@ router.post("/useStashedTicket", validateBody(ReqSchema.useStashedTicketSchema),
 
 /** 炼金（fragment 模块；抓包 { leave }） */
 router.post("/alchemy", validateBody(ReqSchema.alchemySchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeAlchemyRequest;
   await player.rlv2.alchemy(body);
   res.send(rlv2Response(player) satisfies RoguelikeAlchemyResponse);
@@ -793,7 +793,7 @@ router.post("/alchemy", validateBody(ReqSchema.alchemySchema), async (req, res) 
 
 /** 炼金奖励（抓包 { index }） */
 router.post("/alchemyReward", validateBody(ReqSchema.alchemyRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeAlchemyRewardRequest;
   await player.rlv2.alchemyReward({ index: 0 });
   res.send(rlv2Response(player) satisfies RoguelikeAlchemyRewardResponse);
@@ -801,7 +801,7 @@ router.post("/alchemyReward", validateBody(ReqSchema.alchemyRewardSchema), async
 
 /** 废品操作（rogue_6 SCRAP 模块） */
 router.post("/scrap", validateBody(ReqSchema.scrapSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeScrapRequest;
   await player.rlv2.scrap();
   res.send(rlv2Response(player) satisfies RoguelikeScrapResponse);
@@ -809,7 +809,7 @@ router.post("/scrap", validateBody(ReqSchema.scrapSchema), async (req, res) => {
 
 /** 废品换乘（rogue_6 SCRAP MOVE 型；客户端 body { scrapInstId, toWalk }） */
 router.post("/scrap/changeVehicle", validateBody(ReqSchema.scrapChangeVehicleSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeScrapChangeVehicleRequest;
   await player.rlv2.scrapChangeVehicle(body);
   res.send(
@@ -819,7 +819,7 @@ router.post("/scrap/changeVehicle", validateBody(ReqSchema.scrapChangeVehicleSch
 
 /** 丢弃废品（rogue_6 SCRAP 模块；客户端 body { instId }） */
 router.post("/scrap/loseScrap", validateBody(ReqSchema.scrapLoseSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeScrapLoseRequest;
   await player.rlv2.loseScrap(body);
   res.send(rlv2Response(player, undefined, undefined, undefined, player.rlv2.takePushMessages()) satisfies RoguelikeScrapLoseResponse);
@@ -827,7 +827,7 @@ router.post("/scrap/loseScrap", validateBody(ReqSchema.scrapLoseSchema), async (
 
 /** 废品鉴定（rogue_6 SCRAP 模块；抓包 body { count }，响应顶层 { scrap, legacy }） */
 router.post("/scrap/identify", validateBody(ReqSchema.scrapIdentifySchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as { count?: number };
   const ret = await player.rlv2.scrapIdentify({ count: body?.count });
   res.send(
@@ -842,7 +842,7 @@ router.post("/scrap/identify", validateBody(ReqSchema.scrapIdentifySchema), asyn
 
 /** 网格区域移动（抓包 { route: [nodeIndex] }）——官服 current=CORE_MAP_MODULE */
 router.post("/gridZone/moveTo", validateBody(ReqSchema.gridZoneMoveToSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeGridZoneMoveToRequest;
   await player.rlv2.gridZoneMoveTo(body);
   res.send(
@@ -860,7 +860,7 @@ router.post("/gridZone/moveTo", validateBody(ReqSchema.gridZoneMoveToSchema), as
 
 /** 网格区域移动并开始战斗（抓包 { route, stageId, squad }）——官服 current=CORE_MAP_MODULE + outer */
 router.post("/gridZone/moveAndBattleStart", validateBody(ReqSchema.gridZoneMoveAndBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RoguelikeGridZoneMoveAndBattleStartRequest;
   await player.rlv2.gridZoneMoveAndBattleStart(body);
   res.send(
@@ -877,7 +877,7 @@ router.post("/gridZone/moveAndBattleStart", validateBody(ReqSchema.gridZoneMoveA
 
 /** 网格区域空步（GRID_ZONE 节点消耗） */
 router.post("/gridZone/emptyStep", validateBody(ReqSchema.gridZoneEmptyStepSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeGridZoneEmptyStepRequest;
   await player.rlv2.gridZoneEmptyStep();
   res.send(rlv2Response(player) satisfies RoguelikeGridZoneEmptyStepResponse);
@@ -885,7 +885,7 @@ router.post("/gridZone/emptyStep", validateBody(ReqSchema.gridZoneEmptyStepSchem
 
 /** 网格区域读取第 0 步（GRID_ZONE 模块） */
 router.post("/gridZone/readStepZero", validateBody(ReqSchema.gridZoneReadStepZeroSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeGridZoneReadStepZeroRequest;
   await player.rlv2.gridZoneReadStepZero();
   res.send(

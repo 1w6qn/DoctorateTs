@@ -16,7 +16,7 @@
  * 请求/响应类型见 @game/model/protocol/pay（参考 CS 2.7.61 协议类 + DoctoratePy pay.py）。
  */
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
@@ -113,7 +113,7 @@ function productInfo(storeId: number): {
 
 /** 未确认订单列表（该 uid 未交付的订单 id） */
 router.post("/getUnconfirmedOrderIdList", validateBody(getUnconfirmedOrderListSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as PayGetUnconfirmedOrderListRequest;
   const orders = loadOrders().filter(
     (o) => o.uid === player.uid && o.status !== "delivered",
@@ -130,7 +130,7 @@ router.post("/getUnconfirmedOrderIdList", validateBody(getUnconfirmedOrderListSc
  * （形状对齐抓包 tmp/pay_createOrder_res_1016.json）。
  */
 router.post("/createOrder", validateBody(createOrderSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as PayCreateOrderRequest;
   const { amount, productName } = productInfo(body.storeId);
   const orderId = genOrderId();
@@ -171,7 +171,7 @@ router.post("/createOrder", validateBody(createOrderSchema), async (req, res) =>
  * fake 模式返回占位参数；real 模式按 config.pay.alipay 生成（未配置则占位）
  */
 router.post("/createOrderAlipay", validateBody(createOrderAlipaySchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as PayCreateOrderAlipayRequest;
   const order = loadOrders().find((o) => o.orderId === body.orderId);
   if (!order) {
@@ -220,7 +220,7 @@ router.post("/createOrderAlipay", validateBody(createOrderAlipaySchema), async (
  * fake 模式返回占位参数；real 模式按 config.pay.wechat 生成（未配置则占位）
  */
 router.post("/createOrderWechat", validateBody(createOrderWechatSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as PayCreateOrderWechatRequest;
   const order = loadOrders().find((o) => o.orderId === body.orderId);
   if (!order) {
@@ -254,7 +254,7 @@ router.post("/createOrderWechat", validateBody(createOrderWechatSchema), async (
  * real 模式：仅返回占位 status（支付状态由 /pay/notify 渠道回调或管理端确认）
  */
 router.post("/confirmOrderAlipay", validateBody(confirmOrderAlipaySchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as PayConfirmOrderAlipayRequest;
   if (payMode() === "fake" && body.orderId) {
     markPaid(body.orderId);
@@ -269,7 +269,7 @@ router.post("/confirmOrderAlipay", validateBody(confirmOrderAlipaySchema), async
  * 微信支付确认（DoctoratePy 兼容，同 confirmOrderAlipay）
  */
 router.post("/confirmOrderWechat", validateBody(confirmOrderWechatSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as PayConfirmOrderWechatRequest;
   if (payMode() === "fake" && body.orderId) {
     markPaid(body.orderId);
@@ -287,7 +287,7 @@ router.post("/confirmOrderWechat", validateBody(confirmOrderWechatSchema), async
  * real 模式仅 paid（支付渠道已确认）才发货，created → result:1 未支付。
  */
 router.post("/confirmOrder", validateBody(confirmOrderSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as PayConfirmOrderRequest;
   const orders = loadOrders();
   const order = orders.find((o) => o.orderId === body.orderId);

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import {
   DeleteFriendRequest,
@@ -45,7 +45,7 @@ import {
 
 const router = Router();
 router.post("/deleteFriend", validateBody(deleteFriendSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as DeleteFriendRequest;
   // 修复：缺 id 必填参数时返回业务错误，而非 500
   if (typeof body?.id !== "string" || body.id === "") {
@@ -55,7 +55,7 @@ router.post("/deleteFriend", validateBody(deleteFriendSchema), async (req, res) 
   res.send(player.delta satisfies DeleteFriendResponse);
 });
 router.post("/sendFriendRequest", validateBody(sendFriendRequestSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as SendFriendRequest;
   // 修复：缺 friendId 必填参数时返回业务错误，而非 500
   if (typeof body?.friendId !== "string" || body.friendId === "") {
@@ -65,7 +65,7 @@ router.post("/sendFriendRequest", validateBody(sendFriendRequestSchema), async (
   res.send(player.delta satisfies SendFriendResponse);
 });
 router.post("/processFriendRequest", validateBody(processFriendRequestSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ProcessFriendRequest;
   // 修复：缺 friendId/action 必填参数时返回业务错误，而非 500
   if (typeof body?.friendId !== "string" || typeof body?.action !== "number") {
@@ -77,7 +77,7 @@ router.post("/processFriendRequest", validateBody(processFriendRequestSchema), a
   } satisfies ProcessFriendResponse);
 });
 router.post("/searchPlayer", validateBody(searchPlayerSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as SearchPlayerRequest;
   res.send({
     ...(await player.social.searchPlayer(body)),
@@ -85,7 +85,7 @@ router.post("/searchPlayer", validateBody(searchPlayerSchema), async (req, res) 
   } satisfies SearchPlayerResponse);
 });
 router.post("/getSortListInfo", validateBody(getSortListInfoSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as GetSortListInfoRequest;
   const result = await player.social.getSortListInfo(body);
   res.send({
@@ -94,7 +94,7 @@ router.post("/getSortListInfo", validateBody(getSortListInfoSchema), async (req,
   } satisfies GetSortListInfoResponse);
 });
 router.post("/getFriendList", validateBody(getFriendListSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as GetFriendListRequest;
   const result = await player.social.getFriendList(body);
   res.send({
@@ -103,7 +103,7 @@ router.post("/getFriendList", validateBody(getFriendListSchema), async (req, res
   } satisfies GetFriendListResponse);
 });
 router.post("/getFriendRequestList", validateBody(getFriendRequestListSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as GetFriendRequestListRequest;
   res.send({
     ...(await player.social.getFriendRequestList(body)),
@@ -112,7 +112,7 @@ router.post("/getFriendRequestList", validateBody(getFriendRequestListSchema), a
 });
 router.post("/getFriendAndRequestSendList", validateBody(getFriendListSchema), async (req, res) => {
   // 好友+已发送请求合并列表（客户端路由；复用 getFriendList 结构）
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as GetFriendListRequest;
   const result = await player.social.getFriendList(body);
   res.send({
@@ -121,13 +121,13 @@ router.post("/getFriendAndRequestSendList", validateBody(getFriendListSchema), a
   } satisfies GetFriendListResponse);
 });
 router.post("/setAssistCharList", validateBody(setAssistCharListSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as SetAssistCharListRequest;
   await player.social.setAssistCharList(body);
   res.send(player.delta satisfies SetAssistCharListResponse);
 });
 router.post("/setFriendAlias", validateBody(setFriendAliasSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as SetFriendAliasRequest;
   // 修复：缺 friendId/alias 必填参数时返回业务错误，而非 500
   if (typeof body?.friendId !== "string" || typeof body?.alias !== "string") {
@@ -137,19 +137,19 @@ router.post("/setFriendAlias", validateBody(setFriendAliasSchema), async (req, r
   res.send(player.delta satisfies SetFriendAliasResponse);
 });
 router.post("/receiveSocialPoint", validateBody(receiveSocialPointSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ReceiveSocialPointRequest;
   await player.social.receiveSocialPoint();
   res.send(player.delta satisfies ReceiveSocialPointResponse);
 });
 router.post("/setCardShowMedal", validateBody(setCardShowMedalSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as SetCardShowMedalRequest;
   await player.social.setCardShowMedal(body);
   res.send(player.delta satisfies SetCardShowMedalResponse);
 });
 router.post("/setStarFriendList", validateBody(setStarFriendListSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as SetStarFriendListRequest;
   // 参考 OBS bp_social.setStarFriendList：空实现返回固定结构
   res.send({

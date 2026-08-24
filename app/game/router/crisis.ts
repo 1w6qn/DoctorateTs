@@ -6,7 +6,12 @@
  */
 
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
+import {
+  listCrisisSeasons,
+  CRISIS_JSON_BASE_PATH,
+  CRISIS_V2_JSON_BASE_PATH,
+} from "../crisis-seasons";
 import { validateBody } from "../model/protocol/validate-body";
 import {
   crisisBuyGoodsSchema,
@@ -37,7 +42,6 @@ import { decryptBattleData } from "@utils/crypt";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
 import config from "../../config";
-import { readdir } from "fs/promises";
 import {
   CrisisBuyGoodsRequest,
   CrisisBuyGoodsResponse,
@@ -87,48 +91,13 @@ import {
 const DEFAULT_SELECTED_CRISIS = "cc1";
 /** 默认选中的危机合约V2赛季文件名（对应 data/crisisV2/cc1.json；被 config.activities.crisisV2 覆盖） */
 const DEFAULT_SELECTED_CRISIS_V2 = "cc1";
-/** 危机合约V1数据文件基础路径 */
-const CRISIS_JSON_BASE_PATH = "./data/crisis/";
-/** 危机合约V2数据文件基础路径 */
-const CRISIS_V2_JSON_BASE_PATH = "./data/crisisV2/";
 /** 一天的秒数 */
 const ONE_DAY_SECONDS = 86400;
 /** 固定战斗ID（与参考实现一致） */
 const BATTLE_ID = "abcdefgh-1234-5678-a1b2c3d4e5f6";
 
-// ==================== 赛季选择（自定义活动切换：config.activities.crisisV1/V2）====================
-
-/** 可用赛季文件列表缓存（静态资源，进程生命周期内不变） */
-let crisisSeasonsCache: { v1: string[]; v2: string[] } | null = null;
-
-/**
- * 列出某目录下可用赛季文件名（去 .json 后缀；目录不存在返回空）
- * @param dir - 数据目录
- * @returns 赛季 id 列表
- */
-async function listCrisisFiles(dir: string): Promise<string[]> {
-  try {
-    const names = await readdir(dir);
-    return names.filter((n) => n.endsWith(".json")).map((n) => n.replace(/\.json$/, ""));
-  } catch {
-    return [];
-  }
-}
-
-/**
- * 可用危机合约赛季列表
- * @returns { v1: data/crisis/*.json 文件列表, v2: data/crisisV2/*.json 文件列表 }
- */
-export async function listCrisisSeasons(): Promise<{ v1: string[]; v2: string[] }> {
-  if (!crisisSeasonsCache) {
-    const [v1, v2] = await Promise.all([
-      listCrisisFiles(CRISIS_JSON_BASE_PATH),
-      listCrisisFiles(CRISIS_V2_JSON_BASE_PATH),
-    ]);
-    crisisSeasonsCache = { v1, v2 };
-  }
-  return crisisSeasonsCache;
-}
+// 赛季选择（自定义活动切换：config.activities.crisisV1/V2）相关数据查询见危机合约赛季服务
+// ../crisis-seasons（listCrisisSeasons / CRISIS_JSON_BASE_PATH / CRISIS_V2_JSON_BASE_PATH）。
 
 /**
  * 选中危机合约V1赛季（config.activities.crisisV1；文件不存在时回退默认 cc1）
@@ -479,7 +448,7 @@ const router = Router();
  * @returns 危机合约信息和玩家增量数据
  */
 async function handleCrisisGetInfo(_req: any, res: any) {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const currentTime = now();
   const nextDay = currentTime + ONE_DAY_SECONDS;
 
@@ -547,7 +516,7 @@ router.post("/getInfo", validateBody(crisisGetInfoSchema), async (req, res) => {
  * @returns 战斗ID和玩家增量数据
  */
 router.post("/battleStart", validateBody(crisisV1BattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { stageId, rune: runeList } = req.body as CrisisV1BattleStartRequest;
 
   let totalRisks = 0;
@@ -593,7 +562,7 @@ router.post("/battleStart", validateBody(crisisV1BattleStartSchema), async (req,
  * @returns 战斗结果、分数和玩家增量数据
  */
 router.post("/battleFinish", validateBody(crisisV1BattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as CrisisV1BattleFinishRequest;
 
   /** 获取战斗开始时保存的风险等级 */
@@ -622,7 +591,7 @@ router.post("/battleFinish", validateBody(crisisV1BattleFinishSchema), async (re
  * @returns 商品列表和玩家增量数据
  */
 router.post("/getGoodList", validateBody(crisisGetGoodListSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as CrisisGetGoodListRequest;
 
   /** 返回玩家危机合约商店数据 */
@@ -647,7 +616,7 @@ router.post("/getGoodList", validateBody(crisisGetGoodListSchema), async (req, r
  * 实际物品奖励需要完整的商品定义表，此处仅更新购买计数。
  */
 router.post("/buyGoods", validateBody(crisisBuyGoodsSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { goodId, count } = req.body as CrisisBuyGoodsRequest;
 
   await player.update(async (draft) => {
@@ -678,7 +647,7 @@ router.post("/buyGoods", validateBody(crisisBuyGoodsSchema), async (req, res) =>
  * 简化实现：标记任务奖励为已领取。
  */
 router.post("/challengeRewardTask", validateBody(crisisChallengeRewardTaskSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { seasonId, taskId } = req.body as CrisisChallengeRewardTaskRequest;
 
   await player.update(async (draft) => {
@@ -704,7 +673,7 @@ router.post("/challengeRewardTask", validateBody(crisisChallengeRewardTaskSchema
  * 简化实现：标记积分奖励为已领取。
  */
 router.post("/challengeRewardPoint", validateBody(crisisChallengeRewardPointSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { seasonId, pointId } = req.body as CrisisChallengeRewardPointRequest;
 
   await player.update(async (draft) => {
@@ -732,7 +701,7 @@ router.post("/challengeRewardPoint", validateBody(crisisChallengeRewardPointSche
  * 简化实现：标记当前赛季所有可领取的积分奖励为已领取。
  */
 router.post("/challengeRewardAll", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { seasonId } = req.body as CrisisChallengeRewardAllRequest;
 
   await player.update(async (draft) => {
@@ -758,7 +727,7 @@ router.post("/challengeRewardAll", async (req, res) => {
  * @returns 商店信息和玩家增量数据
  */
 router.post("/getAllItems", validateBody(crisisGetAllItemsSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as CrisisGetAllItemsRequest;
 
   res.send({
@@ -780,7 +749,7 @@ router.post("/getAllItems", validateBody(crisisGetAllItemsSchema), async (req, r
  * 简化实现：更新玩家危机合约地图数据，标记地图排名已解锁。
  */
 router.post("/unlockMapRank", validateBody(crisisUnlockMapRankSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { mapId } = req.body as CrisisUnlockMapRankRequest;
 
   await player.update(async (draft) => {
@@ -806,7 +775,7 @@ router.post("/unlockMapRank", validateBody(crisisUnlockMapRankSchema), async (re
  * 简化实现：在玩家赛季数据中标记符文为已解锁。
  */
 router.post("/unlockRune", validateBody(crisisUnlockRuneSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { seasonId, runeId } = req.body as CrisisUnlockRuneRequest;
 
   await player.update(async (draft) => {
@@ -827,7 +796,7 @@ router.post("/unlockRune", validateBody(crisisUnlockRuneSchema), async (req, res
  * @returns 危机合约V2信息和玩家增量数据
  */
 router.post("/v2/getInfo", validateBody(crisisV2GetInfoSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as CrisisV2GetInfoRequest;
 
   try {
@@ -855,7 +824,7 @@ router.post("/v2/getInfo", validateBody(crisisV2GetInfoSchema), async (req, res)
  * @returns 战斗ID和玩家增量数据
  */
 router.post("/v2/battleStart", validateBody(crisisV2BattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { mapId, runeSlots } = req.body as CrisisV2BattleStartRequest;
 
   /** 保存战斗上下文，供 battleFinish 使用 */
@@ -880,7 +849,7 @@ router.post("/v2/battleStart", validateBody(crisisV2BattleStartSchema), async (r
  * @returns 战斗结果、分数和玩家增量数据
  */
 router.post("/v2/battleFinish", validateBody(crisisV2BattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as CrisisV2BattleFinishRequest;
 
   /** 获取战斗开始时保存的上下文 */
@@ -943,7 +912,7 @@ router.post("/v2/getSnapshot", validateBody(crisisV2GetSnapshotSchema), async (r
  * @returns 商品列表和玩家增量数据
  */
 router.post("/v2/getGoodList", validateBody(crisisV2GetGoodListSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as CrisisV2GetGoodListRequest;
 
   /** 返回玩家危机合约V2商店数据 */
@@ -987,7 +956,7 @@ router.post("/v2/confirmMissions", async (req, res) => {
  * 实际物品奖励需要完整的商品定义表，此处仅更新购买计数。
  */
 router.post("/v2/buyGood", validateBody(crisisV2BuyGoodSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { goodId, count } = req.body as CrisisV2BuyGoodRequest;
 
   await player.update(async (draft) => {
@@ -1021,7 +990,7 @@ router.post("/v2/buyGood", validateBody(crisisV2BuyGoodSchema), async (req, res)
  * @returns 战斗ID和玩家增量数据
  */
 router.post("/recalRune/battleStart", validateBody(recalRuneBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { seasonId, stageId, runes, slots, assistFriend } = req.body as RecalRuneBattleStartRequest;
 
   /** 保存战斗上下文，供 battleFinish 使用 */
@@ -1054,7 +1023,7 @@ router.post("/recalRune/battleStart", validateBody(recalRuneBattleStartSchema), 
  * 仅返回计算结果。完整实现需要扩展 PlayerDataModel。
  */
 router.post("/recalRune/battleFinish", validateBody(recalRuneBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RecalRuneBattleFinishRequest;
 
   /** 获取战斗开始时保存的上下文 */

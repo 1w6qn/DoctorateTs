@@ -1,4 +1,4 @@
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { Router } from "express";
 import { decryptBattleData } from "@utils/crypt";
@@ -66,7 +66,7 @@ async function tryDecryptBattle(
 }
 
 router.post("/act5fun/battleStart", validateBody(act5funBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act3FunBattleStartRequest;
   res.send({
     ...aprilFoolBattleStart(),
@@ -74,7 +74,7 @@ router.post("/act5fun/battleStart", validateBody(act5funBattleStartSchema), asyn
   } satisfies Act3FunBattleStartResponse);
 });
 router.post("/act5fun/battleFinish", validateBody(act5funBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act3FunBattleFinishRequest;
   if (body.data == null || body.battleData == null) {
     res.send({ result: 1, ...player.delta } as Act3FunBattleFinishResponse);
@@ -88,7 +88,7 @@ router.post("/act5fun/battleFinish", validateBody(act5funBattleFinishSchema), as
 
 /** act3fun 开始战斗（CS: Act3FunBattleStartRequest） */
 router.post("/act3fun/battleStart", validateBody(act3funBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act3FunBattleStartRequest;
   res.send({
     ...aprilFoolBattleStart(),
@@ -101,7 +101,7 @@ router.post("/act3fun/battleStart", validateBody(act3funBattleStartSchema), asyn
  * { score, inRank, scoreItem, rank }）
  */
 router.post("/act3fun/battleFinish", validateBody(act3funBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act3FunBattleFinishRequest;
   await tryDecryptBattle(player, body.data);
   res.send({
@@ -115,7 +115,7 @@ router.post("/act3fun/battleFinish", validateBody(act3funBattleFinishSchema), as
 
 /** act4fun 开始战斗（CS: Act4FunBattleStartRequest） */
 router.post("/act4fun/battleStart", validateBody(act4funBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act4FunBattleStartRequest;
   res.send({
     ...aprilFoolBattleStart(),
@@ -128,7 +128,7 @@ router.post("/act4fun/battleStart", validateBody(act4funBattleStartSchema), asyn
  * { liveId, materials }；私服返回空材料列表）
  */
 router.post("/act4fun/battleFinish", validateBody(act4funBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act4FunBattleFinishRequest;
   res.send({
     liveId: "",
@@ -139,14 +139,14 @@ router.post("/act4fun/battleFinish", validateBody(act4funBattleFinishSchema), as
 
 /** act4fun 直播结算（服务端自定义 stub） */
 router.post("/act4fun/liveSettle", validateBody(act4funLiveSettleSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act4FunLiveSettleRequest;
   res.send(player.delta satisfies Act4FunLiveSettleResponse);
 });
 
 /** act6fun 开始战斗（CS: Act6FunBattleStartRequest） */
 router.post("/act6fun/battleStart", validateBody(act6funBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act6FunBattleStartRequest;
   res.send({
     ...aprilFoolBattleStart(),
@@ -160,7 +160,7 @@ router.post("/act6fun/battleStart", validateBody(act6funBattleStartSchema), asyn
  * 参考 ODPY act6fun_questBattleFinish：从战斗数据解析完成状态/耗时/金币
  */
 router.post("/act6fun/battleFinish", validateBody(act6funBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act6FunBattleFinishRequest;
   const battleData = await tryDecryptBattle(player, body.data);
   let completeState = 0;
@@ -187,7 +187,7 @@ router.post("/act6fun/battleFinish", validateBody(act6funBattleFinishSchema), as
 
 /** act7fun 开始战斗（CS: Act7FunBattleStartRequest） */
 router.post("/act7fun/battleStart", validateBody(act7funBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act7FunBattleStartRequest;
   res.send({
     ...aprilFoolBattleStart(),
@@ -201,7 +201,7 @@ router.post("/act7fun/battleStart", validateBody(act7funBattleStartSchema), asyn
  * 参考 ODPY act7fun_questBattleFinish：解析完成状态，奖励/解锁关卡返回空
  */
 router.post("/act7fun/battleFinish", validateBody(act7funBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act7FunBattleFinishRequest;
   const battleData = await tryDecryptBattle(player, body.data);
   res.send({
@@ -217,7 +217,7 @@ router.post("/act7fun/battleFinish", validateBody(act7funBattleFinishSchema), as
  * 私服直接发放（返回空增量，奖励项后续可按 excel 补）
  */
 router.post("/act6fun/recvReward", validateBody(act6funRecvRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as { rewardId?: string };
   res.send(player.delta);
 });

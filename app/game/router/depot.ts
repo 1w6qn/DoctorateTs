@@ -12,7 +12,7 @@
  */
 
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { validateBody } from "../model/protocol/validate-body";
 import {
@@ -181,7 +181,7 @@ const router = Router();
  * @returns 凭证详情和玩家增量数据
  */
 router.post("/getVoucherDetail", validateBody(getVoucherDetailSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { itemId } = req.body as GetVoucherDetailRequest;
   const voucherInfo = VoucherDataManager.getVoucher(itemId);
   res.send({
@@ -200,7 +200,7 @@ router.post("/getVoucherDetail", validateBody(getVoucherDetailSchema), async (re
  * @returns 玩家增量数据
  */
 router.post("/voucherGacha", validateBody(voucherGachaSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as VoucherGachaDetailRequest;
   // 简化实现：凭证抽卡逻辑较为复杂，需要根据凭证关联的卡池执行抽卡策略
   // 当前仅返回玩家增量数据，完整实现可参考 GachaController.doAdvancedGacha
@@ -220,7 +220,7 @@ router.post("/voucherGacha", validateBody(voucherGachaSchema), async (req, res) 
  * @returns 凭证详情和玩家增量数据
  */
 router.post("/getCharGachaVoucherDetail", validateBody(getCharGachaVoucherDetailSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { itemId } = req.body as VoucherCharDetailRequest;
   const voucherInfo = VoucherDataManager.getVoucher(itemId);
   res.send({
@@ -239,7 +239,7 @@ router.post("/getCharGachaVoucherDetail", validateBody(getCharGachaVoucherDetail
  * @returns 材料凭证详情（含物品池）和玩家增量数据
  */
 router.post("/getMaterialVoucherDetail", validateBody(getMaterialVoucherDetailSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { itemId } = req.body as VoucherItemDetailRequest;
   const relatedItems = VoucherDataManager.findRelatedItems(itemId);
   const pool: MaterialVoucherPoolEntry[] = relatedItems.map((item, index) => ({
@@ -274,7 +274,7 @@ router.post("/getMaterialVoucherDetail", validateBody(getMaterialVoucherDetailSc
  * @returns 玩家增量数据
  */
 router.post("/useCharGachaVoucher", validateBody(useCharGachaVoucherSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { itemId, instId } = req.body as UseCharGachaVoucherRequest;
   // 修复：原实现只扣凭证不发干员（凭证消耗但无结果——数据丢失）。
   // 有可发干员池（voucher.json itemList / voucherRelateList）时随机发一个；
@@ -320,7 +320,7 @@ router.post("/useCharGachaVoucher", validateBody(useCharGachaVoucherSchema), asy
  * @returns 获得物品列表和玩家增量数据
  */
 router.post("/useMaterialVoucher", validateBody(useMaterialVoucherSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { itemId, instId, count } = req.body as UseMaterialVoucherRequest;
   const useCount = count || 1;
   // 修复：材料池为空时不再消耗凭证（原实现先扣证后 findRelatedItems 可能为空 →
@@ -378,7 +378,7 @@ router.post("/useMaterialVoucher", validateBody(useMaterialVoucherSchema), async
  * @returns 结果状态和玩家增量数据
  */
 router.post("/useFullPotentialItem", validateBody(useFullPotentialItemSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { charInstId, itemId } = req.body as BoostPotentialRequest;
   // 获取干员信息以计算最大潜能等级
   const char = player._playerdata.troop.chars[charInstId];
@@ -415,7 +415,7 @@ router.post("/useFullPotentialItem", validateBody(useFullPotentialItemSchema), a
  * @returns 获得物品列表和玩家增量数据
  */
 router.post("/useOptionVoucher", validateBody(useOptionVoucherSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { itemId, instId, choices, voucherCount } = req.body as UseOptionalVoucherRequest;
   const consumeCount = voucherCount || 1;
   // 修复：choices 为客户端直接传参——原实现不校验直接 items:get 发放任意物品

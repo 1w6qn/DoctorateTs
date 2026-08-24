@@ -3,7 +3,7 @@
  * 请求/响应类型见 @game/model/protocol/roguelike（CS 2.7.61 无对应类，以服务端实现为准）
  */
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import {
   RoguelikeCreateGameRequest,
@@ -33,7 +33,7 @@ const router = Router();
 
 /** 创建游戏（服务端自定义） */
 router.post("/roguelike/createGame", validateBody(roguelikeCreateGameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeCreateGameRequest;
 
   res.send({
@@ -44,7 +44,7 @@ router.post("/roguelike/createGame", validateBody(roguelikeCreateGameSchema), as
 
 /** 结束游戏（服务端自定义） */
 router.post("/roguelike/finishGame", validateBody(roguelikeFinishGameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeFinishGameRequest;
 
   res.send({
@@ -55,7 +55,7 @@ router.post("/roguelike/finishGame", validateBody(roguelikeFinishGameSchema), as
 
 /** 放弃游戏（服务端自定义） */
 router.post("/roguelike/giveUpGame", validateBody(roguelikeGiveUpGameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeGiveUpGameRequest;
 
   res.send({
@@ -66,7 +66,7 @@ router.post("/roguelike/giveUpGame", validateBody(roguelikeGiveUpGameSchema), as
 
 /** 里程碑奖励（服务端自定义） */
 router.post("/roguelike/milestoneReward", validateBody(roguelikeMilestoneRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeMilestoneRewardRequest;
 
   res.send({
@@ -78,7 +78,7 @@ router.post("/roguelike/milestoneReward", validateBody(roguelikeMilestoneRewardS
 
 /** 尝试最佳里程碑奖励（服务端自定义） */
 router.post("/roguelike/milestoneRewardTryBest", validateBody(roguelikeMilestoneRewardTryBestSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as RoguelikeMilestoneRewardTryBestRequest;
 
   res.send({
@@ -97,7 +97,7 @@ router.post("/roguelike/milestoneRewardTryBest", validateBody(roguelikeMilestone
  * @route POST /roguelike/upgradeOutBuff
  */
 router.post("/roguelike/upgradeOutBuff", validateBody(roguelikeUpgradeOutBuffSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { theme, id, buffId } = (req.body ?? {}) as RoguelikeUpgradeOutBuffRequest;
   const buffId2 = id || buffId || "";
   const ret = await player.rlv2.unlockBuff(theme, buffId2);

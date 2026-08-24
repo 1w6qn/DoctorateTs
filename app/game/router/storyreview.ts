@@ -1,5 +1,5 @@
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { now } from "@utils/time";
 import {
@@ -25,13 +25,13 @@ import {
 
 const router = Router();
 router.post("/markStoryAcceKnown", validateBody(markStoryAcceKnownSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as MarkStoryAcceKnownRequest;
   await player.storyreview.markStoryAcceKnown();
   res.send(player.delta satisfies MarkStoryAcceKnownResponse);
 });
 router.post("/rewardGroup", validateBody(rewardGroupSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as StoryReviewRewardRequest;
   res.send({
     items: await player.storyreview.rewardGroup(body),
@@ -39,7 +39,7 @@ router.post("/rewardGroup", validateBody(rewardGroupSchema), async (req, res) =>
   } satisfies StoryReviewRewardResponse);
 });
 router.post("/readStory", validateBody(readStorySchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ReadStoryRequest;
   // 修复：缺 storyId 必填参数时返回业务错误，而非 500
   if (typeof body?.storyId !== "string" || body.storyId === "") {
@@ -49,7 +49,7 @@ router.post("/readStory", validateBody(readStorySchema), async (req, res) => {
   res.send(player.delta satisfies ReadStoryResponse);
 });
 router.post("/unlockStoryByCoin", validateBody(unlockStoryByCoinSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as UnlockStoryByCoinRequest;
   // 修复：缺 storyId 必填参数时返回业务错误，而非 500
   if (typeof body?.storyId !== "string" || body.storyId === "") {
@@ -62,7 +62,7 @@ router.post("/unlockStoryByCoin", validateBody(unlockStoryByCoinSchema), async (
   } satisfies UnlockStoryByCoinResponse);
 });
 router.post("/trailReward", validateBody(trailRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as StoryReviewGetTrialRewardRequest;
   res.send({
     items: await player.storyreview.trailReward(body),

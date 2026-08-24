@@ -5,7 +5,7 @@
  */
 
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { now } from "@utils/time";
 import {
@@ -165,7 +165,7 @@ const router = Router();
  * @returns 玩家增量数据和结果
  */
 router.post("/changeTopic", validateBody(ReqSchema.changeTopicSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as SandboxPermChangeTopicRequest;
 
   res.send({
@@ -193,7 +193,7 @@ router.post("/pinTopic", validateBody(ReqSchema.pinTopicSchema), async (req, res
  * @returns 玩家增量数据
  */
 router.post("/v2/createGame", validateBody(ReqSchema.v2CreateGameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as SandboxV2CreateGameRequest;
 
   res.send({
@@ -210,7 +210,7 @@ router.post("/v2/createGame", validateBody(ReqSchema.v2CreateGameSchema), async 
  * @returns 玩家增量数据
  */
 router.post("/v2/battleStart", validateBody(ReqSchema.v2BattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as SandboxV2BattleStartRequest;
 
   res.send({
@@ -227,7 +227,7 @@ router.post("/v2/battleStart", validateBody(ReqSchema.v2BattleStartSchema), asyn
  * @returns 玩家增量数据
  */
 router.post("/v2/battleFinish", validateBody(ReqSchema.v2BattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as SandboxV2BattleFinishRequest;
 
   res.send({
@@ -274,7 +274,7 @@ router.post("/v2/cookFood", validateBody(ReqSchema.v2CookFoodSchema), async (req
  * @returns 玩家增量数据
  */
 router.post("/v2/setSquad", validateBody(ReqSchema.v2SetSquadSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as SandboxV2SetSquadRequest;
 
   res.send({
@@ -291,7 +291,7 @@ router.post("/v2/setSquad", validateBody(ReqSchema.v2SetSquadSchema), async (req
  * @returns 玩家增量数据
  */
 router.post("/v2/settleGame", validateBody(ReqSchema.v2SettleGameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as SandboxV2SettleGameRequest;
 
   res.send({
@@ -308,7 +308,7 @@ router.post("/v2/settleGame", validateBody(ReqSchema.v2SettleGameSchema), async 
  * @returns 玩家增量数据
  */
 router.post("/v2/homeBuildSave", validateBody(ReqSchema.v2HomeBuildSaveSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as SandboxV2HomeBuildSaveRequest;
 
   res.send({
@@ -325,7 +325,7 @@ router.post("/v2/homeBuildSave", validateBody(ReqSchema.v2HomeBuildSaveSchema), 
  * @returns 玩家增量数据
  */
 router.post("/v2/monthBattleStart", validateBody(ReqSchema.v2MonthBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as SandboxV2MonthBattleStartRequest;
 
   res.send({
@@ -342,7 +342,7 @@ router.post("/v2/monthBattleStart", validateBody(ReqSchema.v2MonthBattleStartSch
  * @returns 玩家增量数据
  */
 router.post("/v2/monthBattleFinish", validateBody(ReqSchema.v2MonthBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as SandboxV2MonthBattleFinishRequest;
 
   res.send({
@@ -359,7 +359,7 @@ router.post("/v2/monthBattleFinish", validateBody(ReqSchema.v2MonthBattleFinishS
  * @returns 玩家增量数据
  */
 router.post("/v2/exploreMode", validateBody(ReqSchema.v2ExploreModeSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as SandboxV2ExploreModeRequest;
 
   res.send({
@@ -376,7 +376,7 @@ router.post("/v2/exploreMode", validateBody(ReqSchema.v2ExploreModeSchema), asyn
  * @returns 玩家增量数据
  */
 router.post("/v2/eventChoice", validateBody(ReqSchema.v2EventChoiceSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as SandboxV2EventChoiceRequest;
 
   res.send({
@@ -643,7 +643,7 @@ router.post("/v2/unlockTech", validateBody(ReqSchema.v2UnlockTechSchema), async 
  * @returns 玩家增量数据
  */
 router.post("/v3/switchMode", validateBody(ReqSchema.v3SwitchModeSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as SandboxV3SwitchModeRequest;
 
   res.send({
@@ -661,7 +661,7 @@ router.post("/v3/switchMode", validateBody(ReqSchema.v3SwitchModeSchema), async 
  * @returns 玩家增量数据
  */
 router.post("/v3/productionRefresh", validateBody(ReqSchema.v3ProductionRefreshSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { topicId } = req.body as SandboxV3RefreshHarvestRequest;
 
   res.send({
@@ -693,7 +693,7 @@ router.post("/v3/productionRefresh", validateBody(ReqSchema.v3ProductionRefreshS
  * @returns 玩家增量数据
  */
 router.post("/v3/productionHarvest", validateBody(ReqSchema.v3ProductionHarvestSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { topicId } = req.body as SandboxV3HarvestRequest;
 
   res.send({
@@ -718,7 +718,7 @@ router.post("/v3/productionHarvest", validateBody(ReqSchema.v3ProductionHarvestS
  * @returns 玩家增量数据
  */
 router.post("/v3/homeEnter", validateBody(ReqSchema.v3HomeEnterSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as SandboxV3EnterBaseRequest;
 
   res.send({
@@ -738,7 +738,7 @@ router.post("/v3/homeEnter", validateBody(ReqSchema.v3HomeEnterSchema), async (r
  * @returns 玩家增量数据
  */
 router.post("/v3/homeShopBuy", validateBody(ReqSchema.v3HomeShopBuySchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as SandboxV3BaseShopBuyRequest;
 
   res.send({
@@ -757,7 +757,7 @@ router.post("/v3/homeShopBuy", validateBody(ReqSchema.v3HomeShopBuySchema), asyn
  * @returns 玩家增量数据
  */
 router.post("/v3/homeSave", validateBody(ReqSchema.v3HomeSaveSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as SandboxV3BuildSaveRequest;
 
   res.send({
@@ -797,7 +797,7 @@ router.post("/v3/homeUpgrade", validateBody(ReqSchema.v3HomeUpgradeSchema), asyn
  * @returns 玩家增量数据
  */
 router.post("/v3/createGame", validateBody(ReqSchema.v3CreateGameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { topicId } = req.body as SandboxV3CreateGameRequest;
 
   res.send({
@@ -877,7 +877,7 @@ router.post("/v3/createGame", validateBody(ReqSchema.v3CreateGameSchema), async 
  * @returns 玩家增量数据
  */
 router.post("/v3/giveUpGame", validateBody(ReqSchema.v3GiveUpGameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { topicId } = req.body as SandboxV3GiveUpGameRequest;
 
   res.send({
@@ -928,7 +928,7 @@ router.post("/v3/battleFinish", validateBody(ReqSchema.v3BattleFinishSchema), as
  * @returns 玩家增量数据
  */
 router.post("/v3/changeDefend", validateBody(ReqSchema.v3ChangeDefendSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { topicId } = req.body as SandboxV3ChangeDefendRequest;
 
   res.send({
@@ -1077,7 +1077,7 @@ router.post("/v3/shopSell", validateBody(ReqSchema.v3ShopSellSchema), async (req
  * @returns 玩家增量数据
  */
 router.post("/v3/unlockTech", validateBody(ReqSchema.v3UnlockTechSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { topicId, techId } = req.body as SandboxV3UnlockTechRequest;
 
   res.send({
@@ -1168,7 +1168,7 @@ for (const racingRoute of [
   "saveMark",
 ]) {
   router.post(`/v2/racing/${racingRoute}`, validateBody(ReqSchema.v2RacingStubSchema), async (req, res) => {
-    const player = httpContext.get<PlayerDataManager>("playerData")!;
+    const player = getPlayer();
     res.send(player.delta satisfies { playerDataDelta: unknown });
   });
 }

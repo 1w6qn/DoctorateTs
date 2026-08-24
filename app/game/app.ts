@@ -9,6 +9,7 @@ import express from "express";
 import bodyParser from "body-parser";
 import { accountManager } from "./manager/AccountManager";
 import { PlayerDataManager } from "./manager/PlayerDataManager";
+import { setPlayer, getPlayerOptional } from "./request-context";
 import { acquireLock } from "@utils/mutex";
 import { logger } from "@utils/logger";
 import config from "../config";
@@ -74,7 +75,7 @@ export const authMiddleware: express.RequestHandler = async (req, res, next) => 
     // single 模式：任意/缺失 secret 强制归一为固定账号
     req.headers.secret = uid;
   }
-  httpContext.set("playerData", await accountManager.getPlayerData(uid));
+  setPlayer(await accountManager.getPlayerData(uid));
   next();
 };
 
@@ -85,7 +86,7 @@ app.use(responseSchemaMiddleware);
 
 /** 每账号请求互斥：同一 uid 的请求串行执行（防止并发 update() 丢变更） */
 app.use(async (req, res, next) => {
-  const player = httpContext.get<PlayerDataManager>("playerData");
+  const player = getPlayerOptional();
   // /admin 管理接口属控制平面（含 game-proxy 自代理）：不占游戏锁，
   // 否则 single 模式下外层的 admin 请求持有 singleUid 锁、内层代理等待同一把锁会死锁
   if (!player || req.path.startsWith("/admin")) {

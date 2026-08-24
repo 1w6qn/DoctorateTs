@@ -6,7 +6,7 @@
  */
 
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
@@ -163,7 +163,7 @@ const router = Router();
  * @returns 奖励列表和玩家增量数据
  */
 router.post("/getChainLogInReward", validateBody(ReqSchema.getChainLogInRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as GetChainLogInRewardRequest;
   res.send({
     reward: await player.openServer.getChainLogInReward(body),
@@ -177,7 +177,7 @@ router.post("/getChainLogInReward", validateBody(ReqSchema.getChainLogInRewardSc
  * @returns 奖励列表和玩家增量数据
  */
 router.post("/getChainLogInFinalRewards", validateBody(ReqSchema.getChainLogInFinalRewardsSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as GetChainLogInFinalRewardsRequest;
   res.send({
     reward: await player.openServer.getChainLogInFinalRewards(),
@@ -192,7 +192,7 @@ router.post("/getChainLogInFinalRewards", validateBody(ReqSchema.getChainLogInFi
  * @returns 奖励列表和玩家增量数据
  */
 router.post("/getOpenServerCheckInReward", validateBody(ReqSchema.getOpenServerCheckInRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as GetOpenServerCheckInRewardRequest;
   // 读类缺参校验：index 为必填，缺失时返回业务错误
   if (body.index == null) {
@@ -212,7 +212,7 @@ router.post("/getOpenServerCheckInReward", validateBody(ReqSchema.getOpenServerC
  * @returns 玩家增量数据和物品列表
  */
 router.post("/getActivityCheckInReward", validateBody(ReqSchema.getActivityCheckInRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as GetActivityCheckInRewardRequest;
   // 缺参校验：activityId/index 为必填，缺失时返回业务错误
   if (body.activityId == null || body.index == null) {
@@ -246,7 +246,7 @@ router.post("/getActivityCheckInReward", validateBody(ReqSchema.getActivityCheck
  * @returns 玩家增量和物品列表
  */
 router.post("/actCheckinvs/sign", validateBody(ReqSchema.actCheckinvsSignSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ActCheckinvsSignRequest;
 
   await player.update(async (draft) => {
@@ -293,7 +293,7 @@ router.post("/actCheckinvs/sign", validateBody(ReqSchema.actCheckinvsSignSchema)
  * @returns 玩家增量数据
  */
 router.post("/getSwitchOnlyReward", validateBody(ReqSchema.getSwitchOnlyRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as GetSwitchOnlyRewardRequest;
 
   await player.update(async (draft) => {
@@ -321,7 +321,7 @@ router.post("/getSwitchOnlyReward", validateBody(ReqSchema.getSwitchOnlyRewardSc
  * - blessing 后缀：祝福型签到，初始化祝福数据
  */
 router.post("/getCheckInReward", validateBody(ReqSchema.getCheckInRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as GetCheckInRewardRequest;
 
   const activityId = body.activityId;
@@ -395,7 +395,7 @@ router.post("/getCheckInReward", validateBody(ReqSchema.getCheckInRewardSchema),
  * 由于活动数据结构差异，简化处理为直接写入 charId。
  */
 router.post("/changeFestivalChar", validateBody(ReqSchema.changeFestivalCharSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ChangeFestivalCharRequest;
   // 缺参校验：activityId/index/newChar 缺失时返回业务错误
   if (body.activityId == null || body.index == null || body.newChar == null) {
@@ -432,7 +432,7 @@ router.post("/changeFestivalChar", validateBody(ReqSchema.changeFestivalCharSche
  * 由于活动里程碑数据结构因活动类型而异，此处采用通用处理逻辑。
  */
 router.post("/rewardMilestone", validateBody(ReqSchema.rewardMilestoneSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RewardMilestoneRequest;
   const rewards: ItemBundle[] = [];
 
@@ -483,7 +483,7 @@ router.post("/rewardMilestone", validateBody(ReqSchema.rewardMilestoneSchema), a
  * 简化实现：批量领取指定活动的所有可领取里程碑奖励。
  */
 router.post("/rewardAllMilestone", validateBody(ReqSchema.rewardAllMilestoneSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RewardAllMilestoneRequest;
   const rewards: ItemBundle[] = [];
 
@@ -527,7 +527,7 @@ router.post("/rewardAllMilestone", validateBody(ReqSchema.rewardAllMilestoneSche
  * 并通过事件触发器发放奖励。活动任务的进度追踪未实现，仅处理领取逻辑。
  */
 router.post("/confirmActivityMission", validateBody(ReqSchema.confirmActivityMissionSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ConfirmActivityMissionRequest;
   const rewards: ItemBundle[] = [];
 
@@ -589,7 +589,7 @@ router.post("/confirmActivityMission", validateBody(ReqSchema.confirmActivityMis
  * 循环调用单个任务确认逻辑，合并所有奖励。
  */
 router.post("/confirmActivityMissionList", validateBody(ReqSchema.confirmActivityMissionListSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ConfirmActivityMissionListRequest;
   const allRewards: ItemBundle[] = [];
 
@@ -646,7 +646,7 @@ router.post("/confirmActivityMissionList", validateBody(ReqSchema.confirmActivit
  * 失败时从 ActivityTable.missionGroup 中查找组奖励并发放。
  */
 router.post("/confirmActivityMissionGroup", validateBody(ReqSchema.confirmActivityMissionGroupSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ConfirmActivityMissionGroupRequest;
   let rewards: ItemBundle[] = [];
 
@@ -697,7 +697,7 @@ router.post("/confirmActivityMissionGroup", validateBody(ReqSchema.confirmActivi
  * 调用 confirmMission 发放奖励。
  */
 router.post("/autoConfirmMissions", validateBody(ReqSchema.autoConfirmMissionsSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as AutoConfirmMissionsRequest;
   const allRewards: ItemBundle[] = [];
 
@@ -794,7 +794,7 @@ router.post("/autoConfirmMissions", validateBody(ReqSchema.autoConfirmMissionsSc
  * 由于活动商店配置因活动而异，此处采用通用 tshop 数据结构处理。
  */
 router.post("/exchangeActivityShopItem", validateBody(ReqSchema.exchangeActivityShopItemSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ExchangeActivityShopItemRequest;
   const count = body.count || 1;
   let rewardItem: ItemBundle | null = null;
@@ -839,7 +839,7 @@ router.post("/exchangeActivityShopItem", validateBody(ReqSchema.exchangeActivity
  * 标记收集状态并发放对应奖励。
  */
 router.post("/getActivityCollectionReward", validateBody(ReqSchema.getActivityCollectionRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as GetActivityCollectionRewardRequest;
   const rewards: ItemBundle[] = [];
   let claimed = false;
@@ -912,7 +912,7 @@ router.post("/getActivityCollectionReward", validateBody(ReqSchema.getActivityCo
  * 简化实现：返回玩家在指定活动商店的购买记录和代币余额。
  */
 router.post("/getActivityShopInfo", validateBody(ReqSchema.getActivityShopInfoSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as GetActivityShopInfoRequest;
 
   const playerData = player._playerdata as any;
@@ -934,7 +934,7 @@ router.post("/getActivityShopInfo", validateBody(ReqSchema.getActivityShopInfoSc
  * 简化实现：从 charm.charms 中减少对应信物数量，按回收比例返还硬币。
  */
 router.post("/recycleCharms", validateBody(ReqSchema.recycleCharmsSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RecycleCharmsRequest;
   const charmIds = body.charmIds || [];
   let recycleNum = 0;
@@ -971,7 +971,7 @@ router.post("/recycleCharms", validateBody(ReqSchema.recycleCharmsSchema), async
  * 简化实现：检查信物是否已领取首通奖励，未领取则发放奖励并标记。
  */
 router.post("/tryGetCharmFirstReward", validateBody(ReqSchema.tryGetCharmFirstRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as TryGetCharmFirstRewardRequest;
   let isFirst = false;
   const rewards: ItemBundle[] = [];
@@ -1016,7 +1016,7 @@ router.post("/tryGetCharmFirstReward", validateBody(ReqSchema.tryGetCharmFirstRe
  * 尖灭关卡 apCost=0 不耗理智，battleInfo 由 battle.start 落库供 battleFinish 结算读取。
  */
 router.post("/bossRush/battleStart", validateBody(ReqSchema.bossRushStartBattleSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as BossRushStartBattleRequest;
   const result = await player.bossRush.battleStart(body);
   if (!result.ok) {
@@ -1040,7 +1040,7 @@ router.post("/bossRush/battleStart", validateBody(ReqSchema.bossRushStartBattleS
  * 加值取 activity.bossRush[actId].stageDropDataMap[stageId][wave]（milestone_point / token_relic）。
  */
 router.post("/bossRush/battleFinish", validateBody(ReqSchema.bossRushBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as BossRushFinishBattleRequest;
   // 缺参校验：battle data 缺失时返回业务错误，避免解密抛 TypeError → 500
   if (body.data == null) {
@@ -1063,7 +1063,7 @@ router.post("/bossRush/battleFinish", validateBody(ReqSchema.bossRushBattleFinis
  * 写入 relic.selectingRelicId（对齐官服快照结构）。
  */
 router.post("/bossRush/relicSelect", validateBody(ReqSchema.bossRushRelicSelectSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as BossRushRelicSelectRequest;
   const result = await player.bossRush.relicSelect(body.activityId, body.relicId);
   if (!result.ok) {
@@ -1082,7 +1082,7 @@ router.post("/bossRush/relicSelect", validateBody(ReqSchema.bossRushRelicSelectS
  * 校验已解锁/未满级/代币充足，等级 +1 并扣代币（对齐官服快照结构 unlockedRelicLevelDic）。
  */
 router.post("/bossRush/relicUpgrade", validateBody(ReqSchema.bossRushRelicUpgradeSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as BossRushRelicUpgradeRequest;
   const result = await player.bossRush.relicUpgrade(body.activityId, body.relicId);
   if (!result.ok) {
@@ -1163,7 +1163,7 @@ function buildEnemyDuelFinishResponse(
  * 参考 ODPY/OBS 返回固定 battleId stub（不落 battleInfo，结算独立处理）
  */
 router.post("/enemyDuel/singleBattleStart", validateBody(ReqSchema.enemyDuelSingleBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as EnemyDuelSingleBattleStartRequest;
   res.send({
     result: 0,
@@ -1183,7 +1183,7 @@ router.post("/enemyDuel/singleBattleStart", validateBody(ReqSchema.enemyDuelSing
  * 结算返回排行榜（settle.rankList + 活动表 NPC 填充）与怪猎专属字段
  */
 router.post("/enemyDuel/singleBattleFinish", validateBody(ReqSchema.enemyDuelSingleBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as EnemyDuelSingleBattleFinishRequest;
   res.send({
     ...buildEnemyDuelFinishResponse(body.activityId, body.settle?.rankList),
@@ -1197,7 +1197,7 @@ router.post("/enemyDuel/singleBattleFinish", validateBody(ReqSchema.enemyDuelSin
  * CS: EnemyDuelStartMatchRequest {activityId, modeId}；记录匹配状态供 queryMatch 使用
  */
 router.post("/enemyDuel/startMatch", validateBody(ReqSchema.enemyDuelStartMatchSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as EnemyDuelStartMatchRequest;
   enemyDuelMatchState = { activityId: body.activityId, modeId: body.modeId };
   res.send({ result: 0, ...player.delta } satisfies EnemyDuelStartMatchResponse);
@@ -1210,7 +1210,7 @@ router.post("/enemyDuel/startMatch", validateBody(ReqSchema.enemyDuelStartMatchS
  * （serverToken = modeId|curStage，curStage 取玩家 ENEMY_DUEL modeInfo）
  */
 router.post("/enemyDuel/queryMatch", validateBody(ReqSchema.enemyDuelQueryMatchSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as EnemyDuelQueryMatchRequest;
   if (body.needLeave || !enemyDuelMatchState) {
     return res.send({
@@ -1242,7 +1242,7 @@ router.post("/enemyDuel/queryMatch", validateBody(ReqSchema.enemyDuelQueryMatchS
  * CS: EnemyDuelCreateTeamRequest {activityId, modeId}；私服无真实多人，返回固定队伍 stub
  */
 router.post("/enemyDuel/createTeam", validateBody(ReqSchema.enemyDuelCreateTeamSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as EnemyDuelCreateTeamRequest;
   res.send({
     result: 0,
@@ -1261,7 +1261,7 @@ router.post("/enemyDuel/createTeam", validateBody(ReqSchema.enemyDuelCreateTeamS
  * CS: EnemyDuelJoinTeamRequest {activityId, teamId}；私服无真实多人，返回队伍 stub
  */
 router.post("/enemyDuel/joinTeam", validateBody(ReqSchema.enemyDuelJoinTeamSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as EnemyDuelJoinTeamRequest;
   res.send({
     result: 0,
@@ -1280,7 +1280,7 @@ router.post("/enemyDuel/joinTeam", validateBody(ReqSchema.enemyDuelJoinTeamSchem
  * CS: EnemyDuelMultiBattleStartRequest {activityId, sceneId}；同单人，返回 battleId stub
  */
 router.post("/enemyDuel/multiBattleStart", validateBody(ReqSchema.enemyDuelMultiBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as EnemyDuelMultiBattleStartRequest;
   res.send({
     result: 0,
@@ -1300,7 +1300,7 @@ router.post("/enemyDuel/multiBattleStart", validateBody(ReqSchema.enemyDuelMulti
  * 响应同单人结算（含 rankList/choiceCnt 等怪猎专属字段）
  */
 router.post("/enemyDuel/multiBattleFinish", validateBody(ReqSchema.enemyDuelMultiBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as EnemyDuelMultiBattleFinishRequest;
   res.send({
     ...buildEnemyDuelFinishResponse(body.activityId),
@@ -1318,7 +1318,7 @@ router.post("/enemyDuel/multiBattleFinish", validateBody(ReqSchema.enemyDuelMult
  * 奖励经 items:get 发放，抽中记录写入 activity.TYPE_ACT24SIDE[activityId].alchemy.gacha
  */
 router.post("/act24side/alchemy", validateBody(ReqSchema.act24sideAlchemySchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act24sideAlchemyRequest;
   const { activityId, gachaBox } = body;
   const items = body.items ?? {};
@@ -1433,7 +1433,7 @@ router.post("/act24side/alchemy", validateBody(ReqSchema.act24sideAlchemySchema)
  * 复用标准战斗开始（battle.start）——狩猎关卡 AP 消耗按 StageTable 正常结算
  */
 router.post("/act24side/battleStart", validateBody(ReqSchema.act24sideBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act24sideBattleStartRequest;
   res.send({
     ...(await player.battle.start(body)),
@@ -1448,7 +1448,7 @@ router.post("/act24side/battleStart", validateBody(ReqSchema.act24sideBattleStar
  * 复用标准战斗结算 + 怪猎专属 meldingRewards 三字段（当前 excel 无怪猎掉落配置返回空）
  */
 router.post("/act24side/battleFinish", validateBody(ReqSchema.act24sideBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act24sideBattleFinishRequest;
   // 缺参校验：battle data 缺失时返回业务错误
   if (body.data == null) {
@@ -1473,7 +1473,7 @@ router.post("/act24side/battleFinish", validateBody(ReqSchema.act24sideBattleFin
  * 参考 ODPY act24eat：重置 meal 状态（digested=0/chance=0）并记录 meal id
  */
 router.post("/act24side/eat", validateBody(ReqSchema.act24sideEatSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act24sideEatRequest;
   await player.update(async (draft) => {
     const act = (draft.activity as any).TYPE_ACT24SIDE as
@@ -1492,7 +1492,7 @@ router.post("/act24side/eat", validateBody(ReqSchema.act24sideEatSchema), async 
  * 参考 ODPY/OBS act24setTool：tools 列表内的工具置 2（激活），其余置 1（未激活）
  */
 router.post("/act24side/setTool", validateBody(ReqSchema.act24sideSetToolSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act24sideSetToolRequest;
   await player.update(async (draft) => {
     const act = (draft.activity as any).TYPE_ACT24SIDE?.[body.activityId] as
@@ -1512,7 +1512,7 @@ router.post("/act24side/setTool", validateBody(ReqSchema.act24sideSetToolSchema)
  * CS: Act24sideGetHuntWikiRewardRequest {activityId}；私服简化返回空奖励
  */
 router.post("/act24side/getHuntCollectRewards", validateBody(ReqSchema.act24sideGetHuntCollectRewardsSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act24sideGetHuntCollectRewardsRequest;
   res.send({
     rewards: [],
@@ -1530,7 +1530,7 @@ router.post("/act24side/getHuntCollectRewards", validateBody(ReqSchema.act24side
  * CS: Act1FootballBattleStartRequest；参考 ODPY footballBattleStart 返回固定 battleId stub
  */
 router.post("/football/battleStart", validateBody(ReqSchema.footballBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as FootballBattleStartRequest;
   res.send({
     result: 0,
@@ -1550,7 +1550,7 @@ router.post("/football/battleStart", validateBody(ReqSchema.footballBattleStartS
  * 参考 ODPY footballBattleFinish：固定比分（selfScore 99 胜）与里程碑加值 0
  */
 router.post("/football/battleFinish", validateBody(ReqSchema.footballBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as FootballBattleFinishRequest;
   res.send({
     result: 0,
@@ -1603,34 +1603,34 @@ function reqBodyRef(_body: any): void {
 
 // arcade（街机）
 router.post("/arcade/battleStart", validateBody(ReqSchema.activityMiniBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityMiniBattleStartRequest;
   res.send(miniBattleStart(player));
 });
 router.post("/arcade/battleFinish", validateBody(ReqSchema.activityMiniBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ActivityMiniBattleFinishRequest;
   res.send(miniBattleFinish(player, body));
 });
 
 // act42d0（熔炉活动）
 router.post("/act42d0/battleStart", validateBody(ReqSchema.activityMiniBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityMiniBattleStartRequest;
   res.send(miniBattleStart(player));
 });
 router.post("/act42d0/battleFinish", validateBody(ReqSchema.activityMiniBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ActivityMiniBattleFinishRequest;
   res.send(miniBattleFinish(player, body));
 });
 router.post("/act42d0/challengeStart", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 router.post("/act42d0/challengeFinish", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send({
     items: [],
@@ -1638,7 +1638,7 @@ router.post("/act42d0/challengeFinish", validateBody(ReqSchema.activityStubSchem
   } satisfies ActivityStubItemsResponse);
 });
 router.post("/act42d0/recvMilestone", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send({
     items: [],
@@ -1648,12 +1648,12 @@ router.post("/act42d0/recvMilestone", validateBody(ReqSchema.activityStubSchema)
 
 // act1vhalfidle（半挂机，参考 ODPY vhalfidle 类）
 router.post("/act1vhalfidle/battleStart", validateBody(ReqSchema.activityMiniBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityMiniBattleStartRequest;
   res.send(miniBattleStart(player));
 });
 router.post("/act1vhalfidle/battleFinish", validateBody(ReqSchema.activityMiniBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ActivityMiniBattleFinishRequest;
   res.send(miniBattleFinish(player, body));
 });
@@ -1681,7 +1681,7 @@ function ensureHalfIdleData(draft: any, activityId: string): any {
 
 /** 挂机产出刷新（参考 ODPY refreshProduct：rate × 流逝小时 → product） */
 router.post("/act1vhalfidle/refreshProduct", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act1vhalfidleRequest;
   if (!body.activityId) return res.send({ result: 1, ...player.delta });
   await player.update(async (draft) => {
@@ -1700,7 +1700,7 @@ router.post("/act1vhalfidle/refreshProduct", validateBody(ReqSchema.act1vhalfidl
 
 /** 收获（参考 ODPY harvest：product → inventory，token_point 计 milestoneAdd） */
 router.post("/act1vhalfidle/harvest", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act1vhalfidleRequest;
   if (!body.activityId) return res.send({ result: 1, ...player.delta });
   let milestoneAdd = 0;
@@ -1728,7 +1728,7 @@ router.post("/act1vhalfidle/harvest", validateBody(ReqSchema.act1vhalfidleSchema
 
 /** 解锁科技（参考 ODPY unlockTech：tech.unlock 追加 techId） */
 router.post("/act1vhalfidle/unlockTech", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act1vhalfidleRequest;
   if (!body.activityId) return res.send({ result: 1, ...player.delta });
   await player.update(async (draft) => {
@@ -1742,7 +1742,7 @@ router.post("/act1vhalfidle/unlockTech", validateBody(ReqSchema.act1vhalfidleSch
 
 /** 招募（参考 ODPY recruitNormal/recruitDirect：卡池抽干员加入活动 troop） */
 router.post("/act1vhalfidle/recruitNormal", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act1vhalfidleRequest;
   if (!body.activityId) return res.send({ result: 1, ...player.delta });
   const { poolId, count = 1 } = body as any;
@@ -1795,7 +1795,7 @@ router.post("/act1vhalfidle/recruitNormal", validateBody(ReqSchema.act1vhalfidle
 
 /** 定向招募（参考 ODPY recruitDirect） */
 router.post("/act1vhalfidle/recruitDirect", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act1vhalfidleRequest;
   if (!body.activityId) return res.send({ result: 1, ...player.delta });
   await player.update(async (draft) => {
@@ -1826,7 +1826,7 @@ router.post("/act1vhalfidle/recruitDirect", validateBody(ReqSchema.act1vhalfidle
 
 /** 升级/替换/助战（对齐 CS Response 字段：upgrade 返回 charId/currentLvl 等） */
 router.post("/act1vhalfidle/upgradeChar", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act1vhalfidleRequest;
   if (!body.activityId) return res.send({ result: 1, ...player.delta });
   let charId = "";
@@ -1843,7 +1843,7 @@ router.post("/act1vhalfidle/upgradeChar", validateBody(ReqSchema.act1vhalfidleSc
   res.send({ charId, currentLvl, ...player.delta } as any);
 });
 router.post("/act1vhalfidle/upgradeSkill", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act1vhalfidleRequest;
   if (!body.activityId) return res.send({ result: 1, ...player.delta });
   let charId = "";
@@ -1860,7 +1860,7 @@ router.post("/act1vhalfidle/upgradeSkill", validateBody(ReqSchema.act1vhalfidleS
   res.send({ charId, currentLvl, ...player.delta } as any);
 });
 router.post("/act1vhalfidle/evolveChar", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act1vhalfidleRequest;
   if (!body.activityId) return res.send({ result: 1, ...player.delta });
   let charId = "";
@@ -1880,12 +1880,12 @@ router.post("/act1vhalfidle/evolveChar", validateBody(ReqSchema.act1vhalfidleSch
   res.send({ charId, currentEvolvePhase, item: null, ...player.delta } as any);
 });
 router.post("/act1vhalfidle/replaceRate", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act1vhalfidleRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 router.post("/act1vhalfidle/setAssistChar", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act1vhalfidleRequest;
   if (!body.activityId) return res.send({ result: 1, ...player.delta });
   await player.update(async (draft) => {
@@ -1898,7 +1898,7 @@ router.post("/act1vhalfidle/setAssistChar", validateBody(ReqSchema.act1vhalfidle
 
 // act13side（日任务）
 router.post("/act13side/clearFlag", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
@@ -1910,7 +1910,7 @@ for (const act13sideRoute of [
   "longMissionCommitBatch",
 ]) {
   router.post(`/act13side/${act13sideRoute}`, validateBody(ReqSchema.act13sideDailyMissionCommitSchema), async (req, res) => {
-    const player = httpContext.get<PlayerDataManager>("playerData")!;
+    const player = getPlayer();
     req.body as Act13sideDailyMissionCommitRequest;
     res.send({
       items: [],
@@ -1920,7 +1920,7 @@ for (const act13sideRoute of [
 }
 for (const act13sideRoute of ["dailyMissionCommit", "dailyMissionRandom"]) {
   router.post(`/act13side/${act13sideRoute}`, validateBody(ReqSchema.act13sideDailyMissionRandomSchema), async (req, res) => {
-    const player = httpContext.get<PlayerDataManager>("playerData")!;
+    const player = getPlayer();
     req.body as Act13sideDailyMissionRandomRequest;
     res.send({
       items: [],
@@ -1940,7 +1940,7 @@ for (const act27sideRoute of [
   "sell",
 ]) {
   router.post(`/act27side/${act27sideRoute}`, validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-    const player = httpContext.get<PlayerDataManager>("playerData")!;
+    const player = getPlayer();
     req.body as ActivityStubRequest;
     res.send(player.delta satisfies ActivityStubResponse);
   });
@@ -1948,7 +1948,7 @@ for (const act27sideRoute of [
 
 // act35side（卡牌合成）
 router.post("/act35side/create", validateBody(ReqSchema.act35sideCreateSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act35sideCreateRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
@@ -1963,7 +1963,7 @@ for (const act35sideRoute of [
   "toProcess",
 ]) {
   router.post(`/act35side/${act35sideRoute}`, validateBody(ReqSchema.act35sideBuySchema), async (req, res) => {
-    const player = httpContext.get<PlayerDataManager>("playerData")!;
+    const player = getPlayer();
     req.body as Act35sideBuyRequest;
     res.send(player.delta satisfies ActivityStubResponse);
   });
@@ -1971,12 +1971,12 @@ for (const act35sideRoute of [
 
 // act38side（拼图）
 router.post("/act38side/getInfo", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 router.post("/act38side/completePuzzle", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send({
     items: [],
@@ -1984,14 +1984,14 @@ router.post("/act38side/completePuzzle", validateBody(ReqSchema.activityStubSche
   } satisfies ActivityStubItemsResponse);
 });
 router.post("/act38side/useHint", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 
 // act42side（信任任务，参考 ODPY act42side）
 router.post("/act42side/getDailyRewards", validateBody(ReqSchema.act42sideGetDailyRewardsSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act42sideGetDailyRewardsRequest;
   // 参考 ODPY：写 TYPE_ACT42SIDE[activityId].dailyRewardState = 0
   await player.update(async (draft) => {
@@ -2003,7 +2003,7 @@ router.post("/act42side/getDailyRewards", validateBody(ReqSchema.act42sideGetDai
   res.send(player.delta satisfies ActivityStubResponse);
 });
 router.post("/act42side/getDailyTrustedItem", validateBody(ReqSchema.act42sideGetDailyRewardsSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act42sideGetDailyRewardsRequest;
   res.send({
     items: [],
@@ -2011,7 +2011,7 @@ router.post("/act42side/getDailyTrustedItem", validateBody(ReqSchema.act42sideGe
   } satisfies ActivityStubItemsResponse);
 });
 router.post("/act42side/acceptTask", validateBody(ReqSchema.act42sideTaskSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as { activityId?: string; taskId?: string };
   // 参考 ODPY：写 taskMap[taskId] = 2（接取）
   await player.update(async (draft) => {
@@ -2024,7 +2024,7 @@ router.post("/act42side/acceptTask", validateBody(ReqSchema.act42sideTaskSchema)
   res.send(player.delta satisfies ActivityStubResponse);
 });
 router.post("/act42side/confirmTask", validateBody(ReqSchema.act42sideTaskSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as { activityId?: string; taskId?: string };
   // 参考 ODPY：写 taskMap[taskId] = 4（完成）
   await player.update(async (draft) => {
@@ -2039,34 +2039,34 @@ router.post("/act42side/confirmTask", validateBody(ReqSchema.act42sideTaskSchema
 
 // act44side（剧情选择）
 router.post("/act44side/startGame", validateBody(ReqSchema.act44sideStartGameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act44sideStartGameRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 router.post("/act44side/nextState", validateBody(ReqSchema.act44sideStartGameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act44sideStartGameRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 router.post("/act44side/selectChoice", validateBody(ReqSchema.act44sideSelectChoiceSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act44sideSelectChoiceRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 router.post("/act44side/useInsight", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 
 // act45side（确认干员/邮件）
 router.post("/act45side/confirmChar", validateBody(ReqSchema.act45sideConfirmSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act45sideConfirmRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 router.post("/act45side/confirmMail", validateBody(ReqSchema.act45sideConfirmSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act45sideConfirmRequest;
   res.send({
     items: [],
@@ -2076,13 +2076,13 @@ router.post("/act45side/confirmMail", validateBody(ReqSchema.act45sideConfirmSch
 
 // act46side（挖矿）
 router.post("/act46side/startGame", validateBody(ReqSchema.act46sideGameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act46sideGameRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 for (const act46sideRoute of ["settleGame", "move", "endRound", "mining"]) {
   router.post(`/act46side/${act46sideRoute}`, validateBody(ReqSchema.act46sideGameSchema), async (req, res) => {
-    const player = httpContext.get<PlayerDataManager>("playerData")!;
+    const player = getPlayer();
     req.body as Act46sideGameRequest;
     res.send(player.delta satisfies ActivityStubResponse);
   });
@@ -2090,7 +2090,7 @@ for (const act46sideRoute of ["settleGame", "move", "endRound", "mining"]) {
 
 // actBlessOnly / actCheckinAccess / loginOnly / prayOnly（签到类）
 router.post("/actBlessOnly/getCheckInReward", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send({
     items: [],
@@ -2098,12 +2098,12 @@ router.post("/actBlessOnly/getCheckInReward", validateBody(ReqSchema.activityStu
   } satisfies ActivityStubItemsResponse);
 });
 router.post("/actBlessOnly/changeFestivalChar", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 router.post("/actCheckinAccess/getCheckInReward", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send({
     items: [],
@@ -2112,7 +2112,7 @@ router.post("/actCheckinAccess/getCheckInReward", validateBody(ReqSchema.activit
 });
 for (const loginRoute of ["loginOnly/getReward", "loginOnlyUnique/getReward", "prayOnly/getReward"]) {
   router.post(`/${loginRoute}`, validateBody(ReqSchema.activityGetRewardSchema), async (req, res) => {
-    const player = httpContext.get<PlayerDataManager>("playerData")!;
+    const player = getPlayer();
     req.body as ActivityGetRewardRequest;
     res.send({
       items: [],
@@ -2123,7 +2123,7 @@ for (const loginRoute of ["loginOnly/getReward", "loginOnlyUnique/getReward", "p
 
 // year5General（五周年）
 router.post("/year5General/getInfReward", validateBody(ReqSchema.activityGetRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityGetRewardRequest;
   res.send({
     items: [],
@@ -2133,29 +2133,29 @@ router.post("/year5General/getInfReward", validateBody(ReqSchema.activityGetRewa
 
 // teamQuest
 router.post("/teamQuest/refreshInfo", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 
 // typeAct3d0（三周年选阵营抽卡）
 router.post("/typeAct3d0/selectFaction", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 router.post("/typeAct3d0/gacha", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 router.post("/typeAct3d0/getGachaInfo", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 router.post("/typeAct3d0/getMilestoneReward", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send({
     items: [],
@@ -2166,7 +2166,7 @@ router.post("/typeAct3d0/getMilestoneReward", validateBody(ReqSchema.activityStu
 // typeAct4d0 / typeAct5d0 / typeAct9d0（剧情类）
 for (const typeAct4d0Route of ["finishStory", "getReward", "unlockStory"]) {
   router.post(`/typeAct4d0/${typeAct4d0Route}`, validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-    const player = httpContext.get<PlayerDataManager>("playerData")!;
+    const player = getPlayer();
     req.body as ActivityStubRequest;
     res.send({
       items: [],
@@ -2175,7 +2175,7 @@ for (const typeAct4d0Route of ["finishStory", "getReward", "unlockStory"]) {
   });
 }
 router.post("/typeAct5d0/getReward", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send({
     items: [],
@@ -2183,29 +2183,29 @@ router.post("/typeAct5d0/getReward", validateBody(ReqSchema.activityStubSchema),
   } satisfies ActivityStubItemsResponse);
 });
 router.post("/typeAct9d0/readNews", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 
 // typeAct5d1（危机合约类）
 router.post("/typeAct5d1/getInfo", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 router.post("/typeAct5d1/getGoodsList", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 router.post("/typeAct5d1/buyGoods", validateBody(ReqSchema.act5d1BuyGoodsSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act5d1BuyGoodsRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
 router.post("/typeAct5d1/buyRune", validateBody(ReqSchema.act5d1BuyGoodsSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act5d1BuyGoodsRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });
@@ -2221,7 +2221,7 @@ for (const typeAct20sideRoute of [
   "quickRecycle",
 ]) {
   router.post(`/typeAct20side/${typeAct20sideRoute}`, validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-    const player = httpContext.get<PlayerDataManager>("playerData")!;
+    const player = getPlayer();
     req.body as ActivityStubRequest;
     res.send({
       items: [],
@@ -2252,7 +2252,7 @@ for (const autochessSeasonRoute of [
   "removeChessPoolChar",
 ]) {
   router.post(`/autochessSeason/${autochessSeasonRoute}`, validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-    const player = httpContext.get<PlayerDataManager>("playerData")!;
+    const player = getPlayer();
     req.body as ActivityStubRequest;
     res.send(player.delta satisfies ActivityStubResponse);
   });
@@ -2266,7 +2266,7 @@ for (const autochessSeasonRoute of [
 export const rootRouter = Router();
 
 rootRouter.post("/act25side/battleStart", validateBody(ReqSchema.act25sideBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act25sideBattleStartRequest;
   res.send({
     ...(await player.battle.start(body)),
@@ -2280,7 +2280,7 @@ rootRouter.post("/act25side/battleStart", validateBody(ReqSchema.act25sideBattle
  * CS: Act25sideBattleFinishRequest : DefaultFinishBattleRequest；复用标准战斗结算
  */
 rootRouter.post("/act25side/battleFinish", validateBody(ReqSchema.act25sideBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as Act25sideBattleFinishRequest;
   // 缺参校验：battle data 缺失时返回业务错误
   if (body.data == null) {
@@ -2302,7 +2302,7 @@ rootRouter.post("/act25side/battleFinish", validateBody(ReqSchema.act25sideBattl
  * CS: Act25sideDailyRefreshRequest {actId}；私服简化返回固定 tokenDelta 0
  */
 rootRouter.post("/act25side/dailyRefresh", validateBody(ReqSchema.act25sideDailyRefreshSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act25sideDailyRefreshRequest;
   res.send({
     tokenDelta: 0,
@@ -2317,7 +2317,7 @@ rootRouter.post("/act25side/dailyRefresh", validateBody(ReqSchema.act25sideDaily
  * CS: Act25sideDailyHarvestRequest {actId}；私服简化返回空奖励
  */
 rootRouter.post("/act25side/harvest", validateBody(ReqSchema.act25sideHarvestSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act25sideHarvestRequest;
   res.send({
     items: [],
@@ -2332,7 +2332,7 @@ rootRouter.post("/act25side/harvest", validateBody(ReqSchema.act25sideHarvestSch
  * CS: Act25sideResearchRequest {actId, areaId}；仅返回增量
  */
 rootRouter.post("/act25side/investigate", validateBody(ReqSchema.act25sideInvestigateSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act25sideInvestigateRequest;
   res.send(player.delta satisfies Act25sideInvestigateResponse);
 });
@@ -2343,7 +2343,7 @@ rootRouter.post("/act25side/investigate", validateBody(ReqSchema.act25sideInvest
  * CS: Act25sideFinishInvestigationRequest {actId, areaId}；私服简化返回空奖励
  */
 rootRouter.post("/act25side/finishInvestigation", validateBody(ReqSchema.act25sideInvestigateSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act25sideFinishInvestigationRequest;
   res.send({
     items: [],
@@ -2355,28 +2355,28 @@ rootRouter.post("/act25side/finishInvestigation", validateBody(ReqSchema.act25si
 
 /** 生息演算 act29side 提交旋律（参考 ODPY act29commitMelody 202 stub） */
 rootRouter.post("/act29side/commitMelody", validateBody(ReqSchema.act29sideSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act29sideCommitMelodyRequest;
   res.send(player.delta satisfies Act29sideCommitMelodyResponse);
 });
 
 /** 生息演算 act29side 开始大投资（参考 ODPY act29startMajorInvest 202 stub） */
 rootRouter.post("/act29side/startMajorInvest", validateBody(ReqSchema.act29sideSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act29sideStartMajorInvestRequest;
   res.send(player.delta satisfies Act29sideStartMajorInvestResponse);
 });
 
 /** 生息演算 act29side 合成（参考 ODPY act29syncthesize 202 stub） */
 rootRouter.post("/act29side/syncthesize", validateBody(ReqSchema.act29sideSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act29sideSyncthesizeRequest;
   res.send(player.delta satisfies Act29sideSyncthesizeResponse);
 });
 
 /** 生息演算 act36side 确认图鉴奖励（私服简化返回空奖励） */
 rootRouter.post("/act36side/confirmDexNavReward", validateBody(ReqSchema.act36sideConfirmDexNavRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act36sideConfirmDexNavRewardRequest;
   res.send({
     items: [],
@@ -2390,7 +2390,7 @@ rootRouter.post("/act36side/confirmDexNavReward", validateBody(ReqSchema.act36si
  * 主路由 /activity/actCheckinvs/sign 因前缀不符客户端调不到，此处补根别名
  */
 rootRouter.post("/actcheckinvs/sign", validateBody(ReqSchema.actCheckinvsSignSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ActCheckinvsSignRequest;
 
   await player.update(async (draft) => {
@@ -2455,14 +2455,14 @@ rootRouter.post("/actcheckinvs/sign", validateBody(ReqSchema.actCheckinvsSignSch
 
 /** 训练场开始战斗（参考 ODPY trainingGroundBattleStart 空 stub） */
 rootRouter.post("/trainingGround/battleStart", validateBody(ReqSchema.trainingGroundSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as TrainingGroundBattleStartRequest;
   res.send(player.delta satisfies TrainingGroundBattleStartResponse);
 });
 
 /** 训练场战斗结算（参考 ODPY trainingGroundBattleFinish 空 stub） */
 rootRouter.post("/trainingGround/battleFinish", validateBody(ReqSchema.trainingGroundSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as TrainingGroundBattleFinishRequest;
   res.send(player.delta satisfies TrainingGroundBattleFinishResponse);
 });
@@ -2473,7 +2473,7 @@ rootRouter.post("/trainingGround/battleFinish", validateBody(ReqSchema.trainingG
 
 /** 方舟枢纽进入大厅（抓包：返回 gateway 端点 + 端口） */
 router.post("/arkhub/enterHall", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   // 私服模式：本地网关应答器启动后指向本服端口（客户端连本服进空广场），
   // 否则返回官服域名（官服网关不可达/账号凭据无效时客户端无法进入）
@@ -2497,7 +2497,7 @@ router.post("/arkhub/enterHall", validateBody(ReqSchema.activityStubSchema), asy
 
 /** 方舟枢纽好友 UID 列表（私服返回空——无真实网关好友） */
 router.post("/arkhub/getFriendUidList", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send({
     friendUidList: [],
@@ -2515,7 +2515,7 @@ router.post("/arkhub/getFriendUidList", validateBody(ReqSchema.activityStubSchem
  * 发布次数上限 50（攻略），计数驱动任务 20-21（ArkhubPublishPixelArt）。
  */
 router.post("/arkhub/savePixelArt", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const raw = (req as unknown as { rawBody?: Buffer }).rawBody ?? (await collectRawBody(req));
   let brief: { activityId?: string; token?: string } | undefined;
   let pixelData: Buffer | undefined;
@@ -2568,7 +2568,7 @@ router.get("/arkhub/pixel/:id.dat", (req, res) => {
  * 私服：返回本服下载 URL；拉取他人画像计为"收集"（任务 22-23/勋章 01，去重）。
  */
 router.post("/arkhub/getPixelArt", validateBody(ReqSchema.arkhubGetPixelArtSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as { activityId?: string; pixelArtIds?: number[] };
   const ids = Array.isArray(body.pixelArtIds) ? body.pixelArtIds : [];
   // 收集计数：非本人发布且未收集过的画像（computeNewCollects 去重）
@@ -2591,7 +2591,7 @@ router.post("/arkhub/getPixelArt", validateBody(ReqSchema.arkhubGetPixelArtSchem
 
 /** 方舟枢纽设置秘书（抓包：更新 ARK_HUB[act1arkhub].secretary/secretarySkinId） */
 router.post("/arkhub/setSecretary", validateBody(ReqSchema.arkhubSetSecretarySchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as { secretary?: string; secretarySkinId?: string };
   await player.update(async (draft) => {
     const act = draft.activity as any;
@@ -2613,7 +2613,7 @@ router.post("/arkhub/setSecretary", validateBody(ReqSchema.arkhubSetSecretarySch
 
 /** 方舟枢纽设置队伍（抓包：更新 ARK_HUB[act1arkhub].squads） */
 router.post("/arkhub/setSquad", validateBody(ReqSchema.arkhubSetSquadSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as { squads?: unknown[] };
   await player.update(async (draft) => {
     const act = draft.activity as any;
@@ -2634,7 +2634,7 @@ router.post("/arkhub/setSquad", validateBody(ReqSchema.arkhubSetSquadSchema), as
 
 /** 方舟枢纽同步（抓包：返回枢纽进度增量——活动任务进度 + 勋章 + 枢纽状态） */
 router.post("/arkhub/syncInfo", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   // 官服抓包对齐（R-1786877177293-0081）：syncInfo 返回枢纽进度增量
   // {mission.missions.ACTIVITY(1arkhubActivity_* 进度), medal.medals(枢纽勋章),
@@ -2669,7 +2669,7 @@ router.post("/arkhub/syncInfo", validateBody(ReqSchema.activityStubSchema), asyn
  * CS: Torappu.UI.ActArkhub.ActArkhubService（/activity/arkhub/report）
  */
 router.post("/arkhub/report", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send({ result: 0, ...player.delta });
 });
@@ -2679,7 +2679,7 @@ router.post("/arkhub/report", validateBody(ReqSchema.activityStubSchema), async 
  * 私服单机无多人锁链，返回空增量
  */
 router.post("/interlock/refreshSquad", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ActivityStubRequest;
   res.send(player.delta satisfies ActivityStubResponse);
 });

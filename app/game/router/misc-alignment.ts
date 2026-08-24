@@ -6,7 +6,7 @@
  * 多为 stub（返回空/固定响应），保证参考项目路径全部可达。
  */
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { validateBody } from "../model/protocol/validate-body";
 import { miscAlignmentStubSchema } from "../model/protocol/misc-alignment.schema";
@@ -90,7 +90,7 @@ for (const payVariantPath of [
   "/user/pay/v1/query_payment_config",
 ]) {
   router.post(payVariantPath, validateBody(miscAlignmentStubSchema), async (req, res) => {
-    const player = httpContext.get<PlayerDataManager>("playerData");
+    const player = getPlayerOptional();
     res.send({
       result: 0,
       ...(player ? player.delta : { playerDataDelta: { modified: {}, deleted: {} } }),
@@ -100,7 +100,7 @@ for (const payVariantPath of [
 
 /** recalRune 根路径别名（服务端既有 /crisis/recalRune/*） */
 router.post("/recalRune/battleStart", validateBody(miscAlignmentStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   res.send({
     result: 0,
     battleId: "abcdefgh-1234-5678-a1b2c3d4e5f6",
@@ -112,7 +112,7 @@ router.post("/recalRune/battleStart", validateBody(miscAlignmentStubSchema), asy
   });
 });
 router.post("/recalRune/battleFinish", validateBody(miscAlignmentStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   res.send({
     result: 0,
     ...player.delta,
@@ -147,11 +147,11 @@ router.all("/", validateBody(miscAlignmentStubSchema), async (_req, res) => {
 
 /** DoctoratePy 支付变体（支付宝/微信/成功回调——CN 2.7.61 客户端不调用，全量对齐补 stub） */
 router.post("/pay/createOrderAlipay", validateBody(miscAlignmentStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData");
+  const player = getPlayerOptional();
   res.send({ result: 0, ...(player ? player.delta : { playerDataDelta: { modified: {}, deleted: {} } }) });
 });
 router.post("/pay/createOrderWechat", validateBody(miscAlignmentStubSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData");
+  const player = getPlayerOptional();
   res.send({ result: 0, ...(player ? player.delta : { playerDataDelta: { modified: {}, deleted: {} } }) });
 });
 router.post("/pay/confirmOrderAlipay", validateBody(miscAlignmentStubSchema), async (_req, res) => {

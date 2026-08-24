@@ -3,7 +3,7 @@
  * 请求/响应类型见 @game/model/protocol/user（参考 CS 2.7.61 协议类）
  */
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { parseMultipartForm } from "../manager/activity/arkpixel";
 import excel from "@excel/excel";
@@ -263,7 +263,7 @@ const router = Router();
 
 /** 更换秘书干员（CS: ChangeSecretaryRequest） */
 router.post("/changeSecretary", validateBody(changeSecretarySchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ChangeSecretaryRequest;
   await player.status.changeSecretary(body);
   res.send(player.delta satisfies ChangeSecretaryResponse);
@@ -271,7 +271,7 @@ router.post("/changeSecretary", validateBody(changeSecretarySchema), async (req,
 
 /** 更换头像（CS: ChangeAvatarRequest） */
 router.post("/changeAvatar", validateBody(changeAvatarSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ChangeAvatarRequest;
   await player.status.changeAvatar(body);
   res.send(player.delta satisfies ChangeAvatarResponse);
@@ -279,7 +279,7 @@ router.post("/changeAvatar", validateBody(changeAvatarSchema), async (req, res) 
 
 /** 更换简介（CS: ChangeResumeRequest） */
 router.post("/changeResume", validateBody(changeResumeSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ChangeResumeRequest;
   // 修复：移除"resume 以 @ 开头触发任意内部事件"的后门——客户端可借此触发
   // 任意事件（@refresh:daily/@char:get/@items:get 等）破坏状态或 500。
@@ -291,7 +291,7 @@ router.post("/changeResume", validateBody(changeResumeSchema), async (req, res) 
 
 /** 绑定昵称（服务端自定义） */
 router.post("/bindNickName", validateBody(bindNickNameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as BindNickNameRequest;
   const nickName = body.nickName;
   // 修复：缺 nickName 必填参数时返回业务错误，而非 500
@@ -322,7 +322,7 @@ router.post("/bindNickName", validateBody(bindNickNameSchema), async (req, res) 
 
 /** 使用改名卡（CS: UseRenameCardRequest） */
 router.post("/useRenameCard", validateBody(useRenameCardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as UseRenameCardRequest;
   await player.status.bindNickName({ nickname: body.nickName });
   await player._trigger.emit("items:use", [
@@ -339,7 +339,7 @@ router.post("/useRenameCard", validateBody(useRenameCardSchema), async (req, res
 
 /** 领取团队收集奖励（CS: ReceiveTeamCollectionRewardRequest） */
 router.post("/receiveTeamCollectionReward", validateBody(receiveTeamCollectionRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ReceiveTeamCollectionRewardRequest;
   await player.status.receiveTeamCollectionReward(body);
   res.send(player.delta satisfies ReceiveTeamCollectionRewardResponse);
@@ -347,7 +347,7 @@ router.post("/receiveTeamCollectionReward", validateBody(receiveTeamCollectionRe
 
 /** 购买理智（CS: BuyApRequest） */
 router.post("/buyAp", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as BuyApRequest;
   await player.status.buyAp();
   res.send(player.delta satisfies BuyApResponse);
@@ -355,7 +355,7 @@ router.post("/buyAp", async (req, res) => {
 
 /** 兑换源石碎片（CS: ExchangeDiamondShardRequest） */
 router.post("/exchangeDiamondShard", validateBody(exchangeDiamondShardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ExchangeDiamondShardRequest;
   // 修复：负数 count 绕过余额守卫（_useItem 取反后反向入账 → 免费刷源石）；非法入参直接拒绝
   if (typeof body?.count !== "number" || !Number.isInteger(body.count) || body.count <= 0) {
@@ -374,7 +374,7 @@ router.post("/exchangeDiamondShard", validateBody(exchangeDiamondShardSchema), a
 
 /** 使用单个物品（CS: UseItemRequest；字段名为 cnt，兼容 count） */
 router.post("/useItem", validateBody(useItemSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as UseItemRequest;
   // 修复：客户端字段为 cnt（CS UseItemRequest 字段名）——原实现读 count 恒 undefined，
   // 负数校验直接把所有单物品使用打成 400（AP 补给/凭证等全部无法消耗）
@@ -393,7 +393,7 @@ router.post("/useItem", validateBody(useItemSchema), async (req, res) => {
 
 /** 使用多个物品（CS: UseItemsRequest） */
 router.post("/useItems", validateBody(useItemsSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as UseItemsRequest;
   if (
     !Array.isArray(body?.items) ||
@@ -425,7 +425,7 @@ router.post("/useItems", validateBody(useItemsSchema), async (req, res) => {
 
 /** 签到（CS ServiceCode: CHECKIN_HOME） */
 router.post("/checkIn", validateBody(checkInSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as CheckInHomeRequest;
   res.send({
     ...(await player.checkIn.checkIn()),
@@ -447,7 +447,7 @@ router.post("/checkIn", validateBody(checkInSchema), async (req, res) => {
  * @returns playerDataDelta（包含 status.birthday 的变更）
  */
 router.post("/bindBirthday", validateBody(bindBirthdaySchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as BindBirthdayRequest;
   const { month, day } = body;
   await player.update(async (draft) => {
@@ -491,7 +491,7 @@ export const rootRouter = Router();
  * 路径：POST /medal/rewardMedal
  */
 rootRouter.post("/medal/rewardMedal", validateBody(rewardMedalSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RewardMedalRequest;
   const items = await player.medal.rewardMedal(body);
   res.send({
@@ -511,7 +511,7 @@ rootRouter.post("/medal/rewardMedal", validateBody(rewardMedalSchema), async (re
  * @returns playerDataDelta（包含 mainline.clue.state 的变更）
  */
 rootRouter.post("/mainlineClue/unlockClue", validateBody(unlockClueSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as UnlockClueRequest;
   const { id } = body;
   await player.update(async (draft) => {
@@ -532,7 +532,7 @@ rootRouter.post("/mainlineClue/unlockClue", validateBody(unlockClueSchema), asyn
  * 私服不做长期签到活动时返回空奖励（客户端正常收包不崩溃）。
  */
 rootRouter.post("/user/recvLongTermCheckInReward", validateBody(recvLongTermCheckInRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as { groupId?: string };
   res.send({
     ...player.delta,
@@ -546,7 +546,7 @@ rootRouter.post("/user/recvLongTermCheckInReward", validateBody(recvLongTermChec
  * 写 mainline.missionArchive[topicId].entryRewardClaimed
  */
 rootRouter.post("/mainline/enterCharVoiceRecord", validateBody(enterCharVoiceRecordSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { topicId } = req.body as { topicId: string };
   // 修复：缺 topicId 必填参数时返回业务错误，而非 500
   if (typeof topicId !== "string" || topicId === "") {
@@ -567,7 +567,7 @@ rootRouter.post("/mainline/enterCharVoiceRecord", validateBody(enterCharVoiceRec
  * 写 mainline.missionArchive[topicId].nodes[nodeId]
  */
 rootRouter.post("/mainline/confirmCharVoiceRecordReward", validateBody(confirmCharVoiceRecordRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { topicId, nodeId } = req.body as { topicId: string; nodeId: string };
   // 修复：缺 topicId/nodeId 必填参数时返回业务错误，而非 500
   if (
@@ -592,7 +592,7 @@ rootRouter.post("/mainline/confirmCharVoiceRecordReward", validateBody(confirmCh
  * 写 mainline.clue.state[id]（与 unlockClue 同结构）
  */
 rootRouter.post("/mainlineClue/readClue", validateBody(unlockClueSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { id } = req.body as { id: string };
   await player.update(async (draft) => {
     const mainline = draft.mainline as any;
@@ -610,7 +610,7 @@ rootRouter.post("/mainlineClue/readClue", validateBody(unlockClueSchema), async 
  * 写 mainline.clue.reward[id]
  */
 rootRouter.post("/mainlineClue/getRewards", validateBody(unlockClueSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { id } = req.body as { id: string };
   await player.update(async (draft) => {
     const mainline = draft.mainline as any;
@@ -629,7 +629,7 @@ rootRouter.post("/mainlineClue/getRewards", validateBody(unlockClueSchema), asyn
  * 私服记录到 activity.ARK_HUB.pixelArts，返回空增量
  */
 rootRouter.post("/pixelArt/review", validateBody(pixelArtReviewSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as { uid?: string; status?: number };
   await player.update(async (draft) => {
     const act = draft.activity as any;
@@ -642,7 +642,7 @@ rootRouter.post("/pixelArt/review", validateBody(pixelArtReviewSchema), async (r
 
 /** 演出剧情开始（CS: Torappu.Network.ServiceCode，/performanceStory/startStory）——空增量 */
 rootRouter.post("/performanceStory/startStory", validateBody(startStorySchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as { storyId?: string };
   res.send(player.delta);
 });
@@ -652,7 +652,7 @@ rootRouter.post("/performanceStory/startStory", validateBody(startStorySchema), 
  * 写 share 状态，返回空增量
  */
 rootRouter.post("/share/confirmShareMission", validateBody(confirmShareMissionSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { shareMissionId } = req.body as { shareMissionId?: string };
   await player.update(async (draft) => {
     if (shareMissionId) {
@@ -668,7 +668,7 @@ rootRouter.post("/share/confirmShareMission", validateBody(confirmShareMissionSc
  * 记录到 troop 特勤数据，返回空增量
  */
 rootRouter.post("/troop/SpecialOperatorUnlockNode", validateBody(specialOperatorUnlockNodeSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { instId, nodeId } = req.body as { instId?: string; nodeId?: string };
   await player.update(async (draft) => {
     const troop = draft.troop as any;
@@ -690,7 +690,7 @@ rootRouter.post("/troop/SpecialOperatorUnlockNode", validateBody(specialOperator
  * @returns playerDataDelta 与 cgList
  */
 rootRouter.post("/cg/getCgCollection", validateBody(getCgCollectionSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as GetCgCollectionRequest;
   res.send({
     ...player.delta,
@@ -708,7 +708,7 @@ rootRouter.post("/cg/getCgCollection", validateBody(getCgCollectionSchema), asyn
  * @returns playerDataDelta 与更新后的 cgList
  */
 rootRouter.post("/cg/addCgCollection", validateBody(cgCollectionSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as AddCgCollectionRequest;
   const { cgId } = body;
   cgCollection.add(cgId);
@@ -728,7 +728,7 @@ rootRouter.post("/cg/addCgCollection", validateBody(cgCollectionSchema), async (
  * @returns playerDataDelta 与更新后的 cgList
  */
 rootRouter.post("/cg/removeCgCollection", validateBody(cgCollectionSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RemoveCgCollectionRequest;
   const { cgId } = body;
   cgCollection.delete(cgId);
@@ -794,7 +794,7 @@ rootRouter.get("/gallery/jpg/:jpgName.png", async (req, res) => {
 });
 
 rootRouter.post("/gallery/getFirstRewards", validateBody(getFirstRewardsSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as GetFirstRewardsRequest;
   await player.update(async (draft) => {
     const gallery = ensureGallery(draft);
@@ -822,7 +822,7 @@ rootRouter.post("/gallery/getFirstRewards", validateBody(getFirstRewardsSchema),
  * @returns playerDataDelta 与 url 列表
  */
 rootRouter.post("/gallery/getThumbnailUrl", validateBody(getThumbnailUrlSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as GetThumbnailUrlRequest;
   const idList: string[] = body?.idList || [];
   const base = requestBaseUrl(req);
@@ -854,7 +854,7 @@ rootRouter.post("/gallery/getThumbnailUrl", validateBody(getThumbnailUrlSchema),
  * @returns playerDataDelta（包含 gallery 的变更）
  */
 rootRouter.post("/gallery/changeMagazineSquad", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const ct = String(req?.headers?.["content-type"] ?? "");
   // 解析客户端提交的编队列表（兼容 multipart 与 JSON body 的多种字段写法）
   let squad: string[] | undefined;
@@ -893,7 +893,7 @@ rootRouter.post("/gallery/changeMagazineSquad", async (req, res) => {
  * @returns playerDataDelta（包含 gallery.leafMap 的变更）
  */
 rootRouter.post("/gallery/saveDiyMagazineV1", validateBody(saveDiyMagazineSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as SaveDiyMagazineRequest;
   const { magazine, thumbnail } = body;
   const uid = String(player.uid);
@@ -916,7 +916,7 @@ rootRouter.post("/gallery/saveDiyMagazineV1", validateBody(saveDiyMagazineSchema
  * @returns playerDataDelta（包含 gallery.leafMap 的变更）
  */
 rootRouter.post("/gallery/saveDiyMagazineV2", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const ct = String(req?.headers?.["content-type"] ?? "");
   const uid = String(player.uid);
   let magazine: unknown;
@@ -972,7 +972,7 @@ function saveDiyMagazine(draft: any, magazine: any): void {
  * @returns playerDataDelta（包含 medal.custom 的变更）
  */
 rootRouter.post("/medal/setCustomData", validateBody(medalSetCustomDataSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as MedalSetCustomDataRequest;
   const customData = body.data;
   await player.update(async (draft) => {
@@ -991,7 +991,7 @@ rootRouter.post("/medal/setCustomData", validateBody(medalSetCustomDataSchema), 
  * 路径：POST /gallery/getCollectionRewards
  */
 rootRouter.post("/gallery/getCollectionRewards", validateBody(getCollectionRewardsSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as GetCollectionRewardsRequest;
   const rewards: ItemBundle[] = [];
   const set = excel.DisplayMetaTable?.artGalleryCollectData?.collectionSets?.[

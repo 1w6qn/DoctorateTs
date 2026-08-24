@@ -1,5 +1,5 @@
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { now } from "@utils/time";
 import {
@@ -55,7 +55,7 @@ function ensureVecBreakData(draft: any, activityId: string): any {
 }
 
 router.post("/vecBreakV2/getSeasonRecord", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as VecBreakV2SeasonRecordRequest;
   // 参考 ODPY：stageInfo 来自 dungeon.stages（act1break_* → COMPLETE），
   // bestRecord 用 VEC_BREAK_V2 当前 buff/编队
@@ -85,7 +85,7 @@ router.post("/vecBreakV2/getSeasonRecord", async (req, res) => {
 });
 
 router.post("/vecBreakV2/changeBuffList", validateBody(changeBuffListSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as VecBreakV2ChangeBuffRequest;
   if (!body.activityId) return res.send({ result: 1, ...player.delta });
   // 参考 ODPY：写入 activity.VEC_BREAK_V2[activityId].activatedBuff
@@ -97,7 +97,7 @@ router.post("/vecBreakV2/changeBuffList", validateBody(changeBuffListSchema), as
 });
 
 router.post("/vecBreakV2/defendBattleStart", validateBody(defendBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as VecBreakV2DefenseStartBattleRequest;
   // 参考 ODPY：记录战斗上下文并复用标准战斗开始
   vecBreakBattleCtxs.set(player.uid, {
@@ -118,7 +118,7 @@ router.post("/vecBreakV2/defendBattleStart", validateBody(defendBattleStartSchem
 });
 
 router.post("/vecBreakV2/defendBattleFinish", validateBody(defendBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as VecBreakV2FinishBattleRequest;
   // 参考 ODPY：通关后写入 defendStages + activatedBuff 追加 stageId
   const ctx = vecBreakBattleCtxs.get(player.uid);
@@ -160,7 +160,7 @@ router.post("/vecBreakV2/defendBattleFinish", validateBody(defendBattleFinishSch
 });
 
 router.post("/vecBreakV2/setDefend", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as VecBreakV2SetDefendRequest;
   if (!body.activityId) return res.send({ result: 1, ...player.delta });
   // 参考 ODPY：写入 defendStages[stageId].defendSquad
@@ -175,7 +175,7 @@ router.post("/vecBreakV2/setDefend", async (req, res) => {
 });
 
 router.post("/vecBreakV2/battleStart", validateBody(battleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as VecBreakV2OffenseStartBattleRequest;
 
   res.send({
@@ -186,7 +186,7 @@ router.post("/vecBreakV2/battleStart", validateBody(battleStartSchema), async (r
 });
 
 router.post("/vecBreakV2/battleFinish", validateBody(battleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as VecBreakV2FinishBattleRequest;
   // 与驻防结算同形状（result/msBefore/msAfter/finTs）
   res.send({

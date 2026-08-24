@@ -1,5 +1,5 @@
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import {
   Act1LockGetMilestoneBatchRequest,
@@ -22,7 +22,7 @@ import {
 const router = Router();
 
 router.post("/interlock/milestone", validateBody(getMilestoneSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act1LockGetMilestoneRequest;
 
   res.send({
@@ -32,7 +32,7 @@ router.post("/interlock/milestone", validateBody(getMilestoneSchema), async (req
 });
 
 router.post("/interlock/milestoneBatch", validateBody(getMilestoneBatchSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act1LockGetMilestoneBatchRequest;
 
   res.send({
@@ -42,14 +42,14 @@ router.post("/interlock/milestoneBatch", validateBody(getMilestoneBatchSchema), 
 });
 
 router.post("/interlock/setDefend", validateBody(setDefendSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act1LockSetDefendRequest;
 
   res.send(player.delta satisfies Act1LockSetDefendResponse);
 });
 
 router.post("/interlock/setSquad", validateBody(setSquadSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Act1LockSetSquadRequest;
 
   res.send(player.delta satisfies Act1LockSetSquadResponse);

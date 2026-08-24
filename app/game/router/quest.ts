@@ -1,5 +1,5 @@
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { validateBody } from "../model/protocol/validate-body";
 import {
@@ -72,7 +72,7 @@ import { CommonStartBattleRequest } from "../model/battle";
  *    **/
 const router = Router();
 router.post("/squadFormation", validateBody(squadFormationSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as SquadFormationRequest;
   // 缺参校验：squadId/slots 缺失时返回业务错误，避免 manager 内 undefined 崩溃 → 500
   if (body.squadId == null || !Array.isArray(body.slots)) {
@@ -82,7 +82,7 @@ router.post("/squadFormation", validateBody(squadFormationSchema), async (req, r
   res.send(player.delta satisfies SquadFormationResponse);
 });
 router.post("/changeSquadName", validateBody(changeSquadNameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ChangeSquadNameRequest;
   // 缺参校验：squadId/name 缺失时返回业务错误
   if (body.squadId == null || typeof body.name !== "string") {
@@ -92,7 +92,7 @@ router.post("/changeSquadName", validateBody(changeSquadNameSchema), async (req,
   res.send(player.delta satisfies ChangeSquadNameResponse);
 });
 router.post("/changeSquadName2", validateBody(changeSquadNameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ChangeSquadNameRequest;
   // 缺参校验：squadId/name 缺失时返回业务错误
   if (body.squadId == null || typeof body.name !== "string") {
@@ -102,7 +102,7 @@ router.post("/changeSquadName2", validateBody(changeSquadNameSchema), async (req
   res.send(player.delta satisfies ChangeSquadNameResponse);
 });
 router.post("/getAssistList", validateBody(getAssistListSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as GetAssistListRequest;
   res.send({
     list: await player.social.getAssistList(body),
@@ -110,7 +110,7 @@ router.post("/getAssistList", validateBody(getAssistListSchema), async (req, res
   } satisfies GetAssistListResponse);
 });
 router.post("/battleStart", validateBody(battleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as CommonStartBattleRequest;
   res.send({
     ...(await player.battle.start(body)),
@@ -118,7 +118,7 @@ router.post("/battleStart", validateBody(battleStartSchema), async (req, res) =>
   } satisfies QuestBattleStartResponse);
 });
 router.post("/battleFinish", validateBody(battleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as QuestBattleFinishRequest;
   // 缺参校验：battle data 缺失时返回业务错误，避免 decryptBattleData 抛 TypeError → 500
   if (body.data == null) {
@@ -130,7 +130,7 @@ router.post("/battleFinish", validateBody(battleFinishSchema), async (req, res) 
   } satisfies QuestBattleFinishResponse);
 });
 router.post("/getBattleReplay", validateBody(getBattleReplaySchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as GetBattleReplayRequest;
   // 读类缺参校验：stageId 为必填，缺失时返回业务错误
   if (body.stageId == null) {
@@ -142,7 +142,7 @@ router.post("/getBattleReplay", validateBody(getBattleReplaySchema), async (req,
   } satisfies GetBattleReplayResponse);
 });
 router.post("/saveBattleReplay", validateBody(saveBattleReplaySchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as SaveBattleReplayRequest;
   // 缺参校验：battleId/battleReplay 缺失时返回业务错误
   if (body.battleId == null || body.battleReplay == null) {
@@ -153,7 +153,7 @@ router.post("/saveBattleReplay", validateBody(saveBattleReplaySchema), async (re
 });
 router.post("/battleContinue", validateBody(battleContinueSchema), async (req, res) => {
   // 继续战斗：参考 OBS bp_quest.battleContinue，仅返回固定 stub（战斗数据由 battleFinish 结算）
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as BattleContinueRequest;
   res.send({
     result: 1,
@@ -163,7 +163,7 @@ router.post("/battleContinue", validateBody(battleContinueSchema), async (req, r
   } satisfies BattleContinueResponse);
 });
 router.post("/finishStoryStage", validateBody(finishStoryStageSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as FinishStoryStageRequest;
   // 缺参校验：stageId 缺失时返回业务错误，避免 manager 内 undefined 崩溃 → 500
   if (body.stageId == null) {
@@ -175,7 +175,7 @@ router.post("/finishStoryStage", validateBody(finishStoryStageSchema), async (re
   } satisfies FinishStoryStageResponse);
 });
 router.post("/editStageSixStarTag", validateBody(editStageSixStarTagSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { stageId, selected } = req.body as EditStageSixStarTagRequest;
   // 手写 PlayerDataModel 未声明 dungeon.sixStar（生成参考类型 types-playerdata.ts 有），用 (draft as any) 访问
   await player.update(async (draft) => {
@@ -194,7 +194,7 @@ router.post("/editStageSixStarTag", validateBody(editStageSixStarTagSchema), asy
 
 /** 获取特殊关卡（牛关）奖励（CS: SpecialStoryStageRewardRequest；标记已领取，奖励空） */
 router.post("/getCowLevelReward", validateBody(getCowLevelRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { stageId } = req.body as GetCowLevelRewardRequest;
   const rewards: ItemBundle[] = [];
   await player.update(async (draft) => {
@@ -216,7 +216,7 @@ router.post("/getCowLevelReward", validateBody(getCowLevelRewardSchema), async (
 
 /** 获取主线记录奖励（CS: ZoneRecordRewardRequest { stageId[] }；私服返回空） */
 router.post("/getMainlineRecordRewards", validateBody(getMainlineRecordRewardsSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as GetMainlineRecordRewardsRequest;
   res.send({
     items: [],
@@ -226,7 +226,7 @@ router.post("/getMainlineRecordRewards", validateBody(getMainlineRecordRewardsSc
 
 /** 获取主线缓存（CS: GetMainlineCacheRequest；私服返回空） */
 router.post("/getMainlineCache", validateBody(getMainlineCacheSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as GetMainlineCacheRequest;
   res.send({
     items: [],
@@ -236,14 +236,14 @@ router.post("/getMainlineCache", validateBody(getMainlineCacheSchema), async (re
 
 /** 解锁关卡迷雾（CS: UnlockStageFogResponse；仅返回增量） */
 router.post("/unlockStageFog", validateBody(unlockStageFogSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as UnlockStageFogRequest;
   res.send(player.delta satisfies UnlockStageFogResponse);
 });
 
 /** 解锁隐藏关卡（写 dungeon.hideStages[stageId].unlock） */
 router.post("/unlockHideStage", validateBody(unlockHideStageSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { stageId } = req.body as UnlockHideStageRequest;
   await player.update(async (draft) => {
     const hideStages = (draft as any).dungeon.hideStages as
@@ -263,7 +263,7 @@ router.post("/unlockHideStage", validateBody(unlockHideStageSchema), async (req,
  * 私服记录领取状态，返回空增量
  */
 router.post("/confirmSixStarReward", validateBody(confirmSixStarRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { groupId, rewardIds = [] } = req.body as {
     groupId?: string;
     rewardIds?: string[];

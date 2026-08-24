@@ -6,7 +6,7 @@
  */
 
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { validateBody } from "../model/protocol/validate-body";
 import { setSquadSchema } from "../model/protocol/charm.schema";
@@ -21,7 +21,7 @@ const router = Router();
  * @returns 玩家增量数据
  */
 router.post("/setSquad", validateBody(setSquadSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { squad } = req.body as CharmSetSquadRequest;
 
   // 修复：原实现只返回假 delta 从不落盘（客户端显示已设置、刷新即回退）——

@@ -5,7 +5,7 @@
  */
 
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { validateBody } from "../model/protocol/validate-body";
 import {
   createPresetSchema,
@@ -34,7 +34,7 @@ const router = Router();
  * @returns 玩家增量数据和推送消息
  */
 router.post("/setCurrent", validateBody(setCurrentSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as CharRotationSetCurrentPresetRequest;
   await player.charRotation.setCurrent(body);
   res.send(player.delta satisfies CharRotationSetCurrentPresetResponse);
@@ -46,7 +46,7 @@ router.post("/setCurrent", validateBody(setCurrentSchema), async (req, res) => {
  * @returns 玩家增量数据、推送消息和实例ID
  */
 router.post("/createPreset", validateBody(createPresetSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as CharRotationCreatePresetRequest;
   await player.charRotation.createPreset();
   res.send(player.delta satisfies CharRotationCreatePresetResponse);
@@ -59,7 +59,7 @@ router.post("/createPreset", validateBody(createPresetSchema), async (req, res) 
  * @returns 玩家增量数据和推送消息
  */
 router.post("/deletePreset", validateBody(deletePresetSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as CharRotationDeletePresetRequest;
   await player.charRotation.deletePreset(body);
   res.send(player.delta satisfies CharRotationDeletePresetResponse);
@@ -73,7 +73,7 @@ router.post("/deletePreset", validateBody(deletePresetSchema), async (req, res) 
  * @returns 更新结果、玩家增量数据和推送消息
  */
 router.post("/updatePreset", validateBody(updatePresetSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as CharRotationUpdatePresetRequest;
   await player.charRotation.updatePreset(body);
   res.send(player.delta satisfies CharRotationUpdatePresetResponse);

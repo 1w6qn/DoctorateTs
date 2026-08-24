@@ -10,7 +10,7 @@
  */
 
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { ItemBundle } from "@excel/character_table";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import {
@@ -47,7 +47,7 @@ const router = Router();
  * @returns battleId、战斗结果及玩家增量数据
  */
 router.post("/campaignV2/battleStart", validateBody(campaignV2BattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as CampaignStartBattleRequest;
   const battleResult = await player.battle.start(body);
 
@@ -68,7 +68,7 @@ router.post("/campaignV2/battleStart", validateBody(campaignV2BattleStartSchema)
  * @returns 战斗结算结果及玩家增量数据
  */
 router.post("/campaignV2/battleFinish", validateBody(campaignV2BattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as CampaignFinishBattleRequest;
   // 缺参校验：data/battleData 缺失时返回业务错误，避免 undefined 传入 battle.finish 抛 500
   if (body.data == null || body.battleData == null) {
@@ -94,7 +94,7 @@ router.post("/campaignV2/battleFinish", validateBody(campaignV2BattleFinishSchem
  * @returns 扫荡结果（奖励列表、解锁关卡、玩家增量数据等）
  */
 router.post("/campaignV2/battleSweep", validateBody(campaignV2BattleSweepSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as CampaignSweepRequest;
 
   // 修复：展示的奖励入账（原实现只在响应里给 1 合成玉，从不 items:get → 不到账）
@@ -129,7 +129,7 @@ router.post("/campaignV2/battleSweep", validateBody(campaignV2BattleSweepSchema)
  * @returns HTTP 202 状态码
  */
 router.post("/campaignV2/getBreakReward", validateBody(campaignV2GetBreakRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as CampaignConfirmBreakRewardRequest;
   // 修复：sendStatus(202) 返回文本 "Accepted"，客户端按 JSON 解析失败（同 gallery
   // 修复模式）→ 返回 JSON 增量
@@ -147,7 +147,7 @@ router.post("/campaignV2/getBreakReward", validateBody(campaignV2GetBreakRewardS
  * @returns HTTP 202 状态码
  */
 router.post("/campaignV2/getExMissionReward", validateBody(campaignV2GetExMissionRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as CampaignGetCommonMissionRewardRequest;
   // 修复：同上——JSON 响应避免客户端解析失败
   res.send(player.delta satisfies CampaignGetCommonMissionRewardResponse);

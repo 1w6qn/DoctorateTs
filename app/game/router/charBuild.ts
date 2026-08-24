@@ -1,5 +1,5 @@
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { validateBody } from "../model/protocol/validate-body";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import {
@@ -81,7 +81,7 @@ import {
 
 const router = Router();
 router.post("/setDefaultSkill", validateBody(setDefaultSkillSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as SetDefaultSkillRequest;
   // 缺参校验：空 body 或缺 charInstId/defaultSkillIndex 时返回业务错误（避免 500）
   if (
@@ -94,7 +94,7 @@ router.post("/setDefaultSkill", validateBody(setDefaultSkillSchema), async (req,
   res.send(player.delta satisfies SetDefaultSkillResponse);
 });
 router.post("/upgradeChar", validateBody(upgradeCharSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as UpgradeCharRequest;
   // 缺参校验：空 body 或缺 charInstId/expMats 时返回业务错误（避免 500）
   if (
@@ -107,13 +107,13 @@ router.post("/upgradeChar", validateBody(upgradeCharSchema), async (req, res) =>
   res.send(player.delta satisfies UpgradeCharResponse);
 });
 router.post("/evolveChar", validateBody(evolveCharSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as EvolveCharRequest;
   await player.char.evolveChar(body);
   res.send(player.delta satisfies EvolveCharResponse);
 });
 router.post("/lockChar", validateBody(lockCharSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as LockCharRequest;
   // 缺参校验：空 body 或缺 charInstIdList 时返回业务错误（避免空操作误判）
   if (!Array.isArray(body?.charInstIdList)) {
@@ -123,7 +123,7 @@ router.post("/lockChar", validateBody(lockCharSchema), async (req, res) => {
   res.send(player.delta satisfies LockCharResponse);
 });
 router.post("/sellChar", validateBody(sellCharSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as SellCharRequest;
   // 缺参校验：空 body 或缺 charInstIdList 时返回业务错误（避免空操作误判）
   if (!Array.isArray(body?.charInstIdList)) {
@@ -133,7 +133,7 @@ router.post("/sellChar", validateBody(sellCharSchema), async (req, res) => {
   res.send(player.delta satisfies SellCharResponse);
 });
 router.post("/boostPotential", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as BoostPotentialRequest;
   await player.char.boostPotential(body);
   res.send({
@@ -143,7 +143,7 @@ router.post("/boostPotential", async (req, res) => {
 });
 
 router.post("/upgradeSkill", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as UpgradeSkillRequest;
   // 缺参校验：空 body 或缺 charInstId/targetLevel 时返回业务错误（避免 500）
   if (
@@ -156,7 +156,7 @@ router.post("/upgradeSkill", async (req, res) => {
   res.send(player.delta satisfies UpgradeSkillResponse);
 });
 router.post("/upgradeSpecialization", validateBody(upgradeSpecializationSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as UpgradeSpecializationRequest;
   // 缺参校验：空 body 或缺 charInstId/skillIndex/targetLevel 时返回业务错误（避免 500）
   if (
@@ -170,7 +170,7 @@ router.post("/upgradeSpecialization", validateBody(upgradeSpecializationSchema),
   res.send(player.delta satisfies UpgradeSpecializationResponse);
 });
 router.post("/completeUpgradeSpecialization", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as CompleteUpgradeSpecializationRequest;
   // 缺参校验：空 body 或缺 charInstId/skillIndex/targetLevel 时返回业务错误（避免 500）
   if (
@@ -184,7 +184,7 @@ router.post("/completeUpgradeSpecialization", async (req, res) => {
   res.send(player.delta satisfies CompleteUpgradeSpecializationResponse);
 });
 router.post("/changeCharSkin", validateBody(changeCharSkinSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ChangeCharSkinRequest;
   // 缺参校验：空 body 或缺 charInstId/skinId 时返回业务错误（避免 500）
   if (
@@ -197,7 +197,7 @@ router.post("/changeCharSkin", validateBody(changeCharSkinSchema), async (req, r
   res.send(player.delta satisfies ChangeCharSkinResponse);
 });
 router.post("/changeCharTemplate", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as ChangeCharTemplateRequest;
   // 缺参校验：空 body 或缺 charInstId/templateId 时返回业务错误（避免 500）
   if (
@@ -210,7 +210,7 @@ router.post("/changeCharTemplate", async (req, res) => {
   res.send(player.delta satisfies ChangeCharTemplateResponse);
 });
 router.post("/getSpCharMissionReward", validateBody(getSpCharMissionRewardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as GetSpCharMissionRewardRequest;
   // 缺参校验：读类端点但确实需要必填字段 charId/missionId，缺参时返回业务错误（避免 500）
   if (
@@ -223,7 +223,7 @@ router.post("/getSpCharMissionReward", validateBody(getSpCharMissionRewardSchema
   res.send(player.delta satisfies GetSpCharMissionRewardResponse);
 });
 router.post("/evolveCharUseItem", validateBody(evolveCharUseItemSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as EvolveCharUseItemRequest;
   // 修复：CS 字段为 charInsId/itemInsId——客户端按 CS 发，服务端读 charInstId/instId
   //（原实现读不到 → undefined 干员 → 500）
@@ -241,7 +241,7 @@ router.post("/evolveCharUseItem", validateBody(evolveCharUseItemSchema), async (
   res.send(player.delta satisfies EvolveCharUseItemResponse);
 });
 router.post("/upgradeCharLevelMaxUseItem", validateBody(upgradeCharLevelMaxUseItemSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as UpgradeCharLevelMaxUseItemRequest;
   // 修复：同上 CS 字段名归一化
   const charInstId = (body as any)?.charInstId ?? (body as any)?.charInsId;
@@ -258,7 +258,7 @@ router.post("/upgradeCharLevelMaxUseItem", validateBody(upgradeCharLevelMaxUseIt
   res.send(player.delta satisfies UpgradeCharLevelMaxUseItemResponse);
 });
 router.post("/upgradeSpecializedSkillUseItem", validateBody(upgradeSpecializedSkillUseItemSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as UpgradeSpecializedSkillUseItemRequest;
   // 修复：同上 CS 字段名归一化
   const charInstId = (body as any)?.charInstId ?? (body as any)?.charInsId;
@@ -282,7 +282,7 @@ router.post("/upgradeSpecializedSkillUseItem", validateBody(upgradeSpecializedSk
 });
 
 router.post("/addonStory/unlock", validateBody(addonStoryUnlockSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as AddonStoryUnlockRequest;
   const medalId = await player.troop.addonStoryUnlock(body);
   res.send({
@@ -295,7 +295,7 @@ router.post("/addonStory/unlock", validateBody(addonStoryUnlockSchema), async (r
   } satisfies AddonStoryUnlockResponse);
 });
 router.post("/addonStage/battleStart", validateBody(addonStageBattleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as AddonStageBattleStartRequest;
   // 修复：把 battle.start 的结果（含 battleId）并入响应——若不回传 battleId，
   // 客户端结算时沿用上一次战斗的 battleId 解密 → 读错 battleInfo → 未知关卡空结算
@@ -303,7 +303,7 @@ router.post("/addonStage/battleStart", validateBody(addonStageBattleStartSchema)
   res.send({ ...result, ...player.delta } satisfies AddonStageBattleStartResponse);
 });
 router.post("/addonStage/battleFinish", validateBody(addonStageBattleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as AddonStageBattleFinishRequest;
   // 缺参校验：空 body 或缺 data/battleData 时返回业务错误（避免 battle:finish 读 undefined 崩溃）
   if (
@@ -317,7 +317,7 @@ router.post("/addonStage/battleFinish", validateBody(addonStageBattleFinishSchem
   res.send({ ...(result as object), ...player.delta } satisfies AddonStageBattleFinishResponse);
 });
 router.post("/unlockEquipment", validateBody(unlockEquipmentSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as UnlockEquipmentRequest;
   // 缺参校验：空 body 或缺 charInstId/equipId 时返回业务错误（避免 500）
   if (
@@ -330,7 +330,7 @@ router.post("/unlockEquipment", validateBody(unlockEquipmentSchema), async (req,
   res.send(player.delta satisfies UnlockEquipmentResponse);
 });
 router.post("/upgradeEquipment", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as UpgradeEquipmentRequest;
   // 缺参校验：空 body 或缺 charInstId/equipId/targetLevel 时返回业务错误（避免 500）
   if (
@@ -344,7 +344,7 @@ router.post("/upgradeEquipment", async (req, res) => {
   res.send(player.delta satisfies UpgradeEquipmentResponse);
 });
 router.post("/setEquipment", validateBody(setEquipmentSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as SetEquipmentRequest;
   // 缺参校验：空 body 或缺 charInstId/equipId 时返回业务错误（避免 500）
   if (
@@ -358,13 +358,13 @@ router.post("/setEquipment", validateBody(setEquipmentSchema), async (req, res) 
 });
 
 router.post("/batchSetCharVoiceLan", validateBody(batchSetCharVoiceLanSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as BatchSetCharVoiceLanRequest;
   await player.char.batchSetCharVoiceLan(body);
   res.send(player.delta satisfies BatchSetCharVoiceLanResponse);
 });
 router.post("/setCharVoiceLan", validateBody(setCharVoiceLanSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as SetCharVoiceLanRequest;
   // 缺参校验：空 body 或缺 charList/voiceLan 时返回业务错误（避免 forEach undefined 崩溃）
   if (
@@ -377,7 +377,7 @@ router.post("/setCharVoiceLan", validateBody(setCharVoiceLanSchema), async (req,
   res.send(player.delta satisfies SetCharVoiceLanResponse);
 });
 router.post("/changeSkinSpState", validateBody(changeSkinSpStateSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { skinId, isSpecial } = req.body as ChangeCharSkinSpStateRequest;
   // 参考 OBS bp_charBuild.changeSkinSpState：skin.skinSp[skinId] = isSpecial
   await player.update(async (draft) => {

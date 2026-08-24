@@ -8,7 +8,7 @@
  * 复用标准战斗开始/结算（battle.start/finish）。
  */
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { validateBody } from "../model/protocol/validate-body";
 import {
   runeFinishBattleSchema,
@@ -67,7 +67,7 @@ export interface RuneFinishBattleResponse extends PlayerDeltaResponse {
 
 /** 符文学徒试炼开始战斗（CS: RuneStartBattleRequest） */
 router.post("/battleStart", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RuneStartBattleRequest;
   res.send({
     ...(await player.battle.start(body)),
@@ -77,7 +77,7 @@ router.post("/battleStart", async (req, res) => {
 
 /** 符文学徒试炼战斗结算（CS: RuneFinishBattleRequest；score/from/to 固定 0 stub） */
 router.post("/battleFinish", validateBody(runeFinishBattleSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as RuneFinishBattleRequest;
   // 缺参校验：data/battleData 缺失时返回业务错误，避免 undefined 传入 battle.finish 抛 500
   if (body.data == null || body.battleData == null) {

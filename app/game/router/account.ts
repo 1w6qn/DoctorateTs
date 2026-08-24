@@ -1,5 +1,5 @@
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { accountManager } from "../manager/AccountManager";
 import { userTimestamp } from "@utils/time";
@@ -54,7 +54,7 @@ router.post("/login", validateBody(loginSchema), async (req, res) => {
 });
 
 router.post("/syncData", validateBody(syncDataSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData");
+  const player = getPlayerOptional();
   if (!player) {
     return res.status(401).send({ status: 401, msg: "未登录（缺少 secret）" });
   }
@@ -84,7 +84,7 @@ router.post("/syncData", validateBody(syncDataSchema), async (req, res) => {
 });
 
 router.post("/syncStatus", validateBody(syncStatusSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData");
+  const player = getPlayerOptional();
   if (!player) {
     return res.status(401).send({ status: 401, msg: "未登录（缺少 secret）" });
   }
@@ -98,7 +98,7 @@ router.post("/syncStatus", validateBody(syncStatusSchema), async (req, res) => {
 });
 
 router.post("/syncPushMessage", validateBody(syncPushMessageSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData");
+  const player = getPlayerOptional();
   if (!player) {
     return res.status(401).send({ status: 401, msg: "未登录（缺少 secret）" });
   }

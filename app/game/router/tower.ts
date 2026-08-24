@@ -11,7 +11,7 @@
  */
 
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { now } from "@utils/time";
 import { decryptBattleData } from "@utils/crypt";
@@ -121,7 +121,7 @@ function buildRecruitCandidate(draft: any): any[] {
  * @returns 玩家增量数据，包含完整的 tower.current 初始化结构
  */
 router.post("/createGame", validateBody(createGameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { tower, isHard } = req.body as ClimbTowerCreateGameRequest;
 
   // 缺参校验：tower 为必填字段
@@ -194,7 +194,7 @@ router.post("/createGame", validateBody(createGameSchema), async (req, res) => {
  * @returns 玩家增量数据
  */
 router.post("/initGodCard", validateBody(initGodCardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { godCardId } = req.body as ClimbTowerInitGodCardRequest;
 
   await player.update(async (draft) => {
@@ -216,7 +216,7 @@ router.post("/initGodCard", validateBody(initGodCardSchema), async (req, res) =>
  * @returns 玩家增量数据
  */
 router.post("/initGame", validateBody(initGameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { strategy, tactical } = req.body as ClimbTowerInitGameRequest;
 
   await player.update(async (draft) => {
@@ -239,7 +239,7 @@ router.post("/initGame", validateBody(initGameSchema), async (req, res) => {
  * @returns 玩家增量数据
  */
 router.post("/initCard", validateBody(initCardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { slots } = req.body as ClimbTowerInitSquadRequest;
 
   // 缺参校验：slots 必须为非空数组
@@ -289,7 +289,7 @@ router.post("/initCard", validateBody(initCardSchema), async (req, res) => {
  * @returns 玩家增量数据
  */
 router.post("/battleStart", validateBody(battleStartSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { stageId } = req.body as ClimbTowerBattleStartRequest;
 
   await player.update(async (draft) => {
@@ -328,7 +328,7 @@ router.post("/battleStart", validateBody(battleStartSchema), async (req, res) =>
  * @returns 战斗结果（drop/isNewRecord/trap）与玩家增量数据
  */
 router.post("/battleFinish", validateBody(battleFinishSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { data } = req.body as ClimbTowerBattleFinishRequest;
 
   // 解密战斗数据（失败时不影响主流程，按失败处理）
@@ -422,7 +422,7 @@ router.post("/battleFinish", validateBody(battleFinishSchema), async (req, res) 
  * @returns 玩家增量数据
  */
 router.post("/recruit", validateBody(recruitSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { charId, giveUp } = req.body as ClimbTowerHalftimeRecruitRequest;
 
   await player.update(async (draft) => {
@@ -485,7 +485,7 @@ router.post("/recruit", validateBody(recruitSchema), async (req, res) => {
  * @returns 玩家增量数据
  */
 router.post("/chooseSubGodCard", validateBody(chooseSubGodCardSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { subGodCardId } = req.body as ClimbTowerRecruitSubGodCardRequest;
 
   await player.update(async (draft) => {
@@ -506,7 +506,7 @@ router.post("/chooseSubGodCard", validateBody(chooseSubGodCardSchema), async (re
  * @returns 奖励信息、时间戳与玩家增量数据
  */
 router.post("/settleGame", validateBody(settleGameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as ClimbTowerSettleGameRequest;
 
   await player.update(async (draft) => {

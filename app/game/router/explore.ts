@@ -7,7 +7,7 @@
  */
 
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { validateBody } from "../model/protocol/validate-body";
 import {
@@ -35,7 +35,7 @@ function ensureOuter(draft: any): any {
 
 /** 领取单个探索任务奖励（CS: ExploreClaimSingleMissionRequest { id }） */
 router.post("/confirmMission", validateBody(confirmMissionSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { id } = req.body as { id: string };
   await player.update(async (draft) => {
     const outer = ensureOuter(draft);
@@ -47,7 +47,7 @@ router.post("/confirmMission", validateBody(confirmMissionSchema), async (req, r
 
 /** 批量领取探索任务奖励（CS: ExploreClaimAllMissionRequest { idList }） */
 router.post("/confirmMissionList", validateBody(confirmMissionListSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { idList = [] } = req.body as { idList?: string[] };
   await player.update(async (draft) => {
     const outer = ensureOuter(draft);
@@ -59,7 +59,7 @@ router.post("/confirmMissionList", validateBody(confirmMissionListSchema), async
 
 /** 选择初始探索组（CS: ExploreSelectInitGroupRequest { groupId, heritage }） */
 router.post("/selectInitGroup", validateBody(selectInitGroupSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { groupId } = req.body as { groupId: string; heritage?: boolean };
   await player.update(async (draft) => {
     const outer = ensureOuter(draft);
@@ -70,7 +70,7 @@ router.post("/selectInitGroup", validateBody(selectInitGroupSchema), async (req,
 
 /** 事件选项选择（CS: ExploreSelectEventOptionRequest { index }） */
 router.post("/selectEventChoice", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { index } = req.body as { index: number };
   await player.update(async (draft) => {
     const explore = (draft.mainline.explore = draft.mainline.explore ?? { game: {}, outer: {} });
@@ -82,7 +82,7 @@ router.post("/selectEventChoice", async (req, res) => {
 
 /** 目标选项选择（CS: ExploreSelectTargetOptionRequest { index }） */
 router.post("/selectTargetChoice", validateBody(selectTargetChoiceSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { index } = req.body as { index: number };
   await player.update(async (draft) => {
     const explore = (draft.mainline.explore = draft.mainline.explore ?? { game: {}, outer: {} });
@@ -94,7 +94,7 @@ router.post("/selectTargetChoice", validateBody(selectTargetChoiceSchema), async
 
 /** 确认通过目标（CS: ExploreConfirmPassTargetRequest） */
 router.post("/confirmPassTarget", async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Record<string, unknown>;
   await player.update(async (draft) => {
     const explore = (draft.mainline.explore = draft.mainline.explore ?? { game: {}, outer: {} });
@@ -106,7 +106,7 @@ router.post("/confirmPassTarget", async (req, res) => {
 
 /** 放弃探索（CS: ExploreGiveUpGameRequest） */
 router.post("/giveUpGame", validateBody(giveUpGameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Record<string, unknown>;
   await player.update(async (draft) => {
     const explore = (draft.mainline.explore = draft.mainline.explore ?? { game: {}, outer: {} });
@@ -118,7 +118,7 @@ router.post("/giveUpGame", validateBody(giveUpGameSchema), async (req, res) => {
 
 /** 探索结算（CS: ExploreSettleGameRequest） */
 router.post("/settleGame", validateBody(settleGameSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as Record<string, unknown>;
   await player.update(async (draft) => {
     const explore = (draft.mainline.explore = draft.mainline.explore ?? { game: {}, outer: {} });

@@ -15,7 +15,7 @@
  */
 
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import { validateBody } from "../model/protocol/validate-body";
 import {
@@ -117,7 +117,7 @@ function ensureShopState(draft: any, shopId: string): any {
  *（私服便利——活动代币无获取途径）。2026-08-16 对齐官服响应补 allPriceDict。
  */
 router.post("/getGoodList", validateBody(templateGetGoodListSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { shopId } = req.body as TemplateGetGoodListRequest;
   const data = templateShopData?.[shopId];
   // 私服便利：货币不足购全店时补足（保持玩家已有余额；只补差）——写活动币/tshop 币
@@ -167,7 +167,7 @@ router.post("/getGoodList", validateBody(templateGetGoodListSchema), async (req,
  *（{id, count}），扣币写活动币/tshop.coin，响应增量含 tshop 状态。
  */
 router.post("/buyGood", validateBody(templateBuyGoodSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const body = req.body as TemplateBuyGoodRequest;
   const { shopId, goodId, count = 1 } = body;
   // 修复：缺参/非法 count 校验（原负数 count → 货币反向入账刷币）

@@ -6,7 +6,7 @@
  */
 
 import { Router } from "express";
-import httpContext from "express-http-context2";
+import { getPlayer, getPlayerOptional } from "../request-context";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
 import {
   DeepSeaActiveTechTreeRequest,
@@ -44,7 +44,7 @@ const router = Router();
  * @returns 玩家增量数据
  */
 router.post("/branch", validateBody(changeTechBranchSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { branches = [] } = req.body as DeepSeaChangeTechBranchRequest;
 
   const techTrees: { [key: string]: { branch: string; state: number } } = {};
@@ -71,7 +71,7 @@ router.post("/branch", validateBody(changeTechBranchSchema), async (req, res) =>
  * @returns 玩家增量数据
  */
 router.post("/event", validateBody(readEventSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   req.body as DeepSeaReadEventRequest;
 
   res.send({
@@ -96,7 +96,7 @@ function bumpCount(key: "places" | "nodes" | "stories" | "treasures", placeId: s
  * @route POST /deepsea/place
  */
 router.post("/place", validateBody(discoverPlaceSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { placeId } = req.body as DeepSeaDiscoverPlaceRequest;
   await bumpCount("places", placeId, player);
   res.send(player.delta satisfies DeepSeaDeltaResponse);
@@ -107,7 +107,7 @@ router.post("/place", validateBody(discoverPlaceSchema), async (req, res) => {
  * @route POST /deepsea/node
  */
 router.post("/node", validateBody(activateNodeSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { placeId } = req.body as DeepSeaActivateNodeRequest;
   await bumpCount("nodes", placeId, player);
   res.send(player.delta satisfies DeepSeaDeltaResponse);
@@ -118,7 +118,7 @@ router.post("/node", validateBody(activateNodeSchema), async (req, res) => {
  * @route POST /deepsea/story
  */
 router.post("/story", validateBody(completeStorySchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { placeId } = req.body as DeepSeaCompleteStoryRequest;
   await bumpCount("stories", placeId, player);
   res.send(player.delta satisfies DeepSeaDeltaResponse);
@@ -129,7 +129,7 @@ router.post("/story", validateBody(completeStorySchema), async (req, res) => {
  * @route POST /deepsea/treasure
  */
 router.post("/treasure", validateBody(openTreasureSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { placeId } = req.body as DeepSeaOpenTreasureRequest;
   await bumpCount("treasures", placeId, player);
   res.send(player.delta satisfies DeepSeaDeltaResponse);
@@ -140,7 +140,7 @@ router.post("/treasure", validateBody(openTreasureSchema), async (req, res) => {
  * @route POST /deepsea/techTreeUnlock
  */
 router.post("/techTreeUnlock", validateBody(unlockTechTreeSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { placeId } = req.body as DeepSeaUnlockTechTreeRequest;
   await player.update(async (draft) => {
     draft.deepSea.techTrees[placeId] = { state: 1, branch: "" };
@@ -153,7 +153,7 @@ router.post("/techTreeUnlock", validateBody(unlockTechTreeSchema), async (req, r
  * @route POST /deepsea/techTreeActive
  */
 router.post("/techTreeActive", validateBody(activeTechTreeSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { techTreeId } = req.body as DeepSeaActiveTechTreeRequest;
   await player.update(async (draft) => {
     draft.deepSea.techTrees[techTreeId] = {
@@ -169,7 +169,7 @@ router.post("/techTreeActive", validateBody(activeTechTreeSchema), async (req, r
  * @route POST /deepsea/choice
  */
 router.post("/choice", validateBody(selectChoiceSchema), async (req, res) => {
-  const player = httpContext.get<PlayerDataManager>("playerData")!;
+  const player = getPlayer();
   const { placeId } = req.body as DeepSeaSelectChoiceRequest;
   await player.update(async (draft) => {
     const list = draft.deepSea.choices[placeId] ?? [];

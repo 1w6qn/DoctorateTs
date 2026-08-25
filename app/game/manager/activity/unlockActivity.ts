@@ -7,18 +7,19 @@
  * - 播种：basicInfo 中 startTime <= ts <= rewardEndTime 的活动——
  *   BOSS_RUSH / TYPE_ACT* 默认状态、活动任务（ACTIVITY 任务组，可领取态）、
  *   ARK_HUB（奇象巡展方舟枢纽）活动状态、arkodc 主题（ODC 地图 varSeqs/rewards/position）
- * - 关卡：unlockCondition 链扫描解锁可达关卡（仿 battle.finishStoryStage）
+ * - 关卡：unlockCondition 链扫描解锁可达关卡（seed 语义，共享实现
+ *   `@game/util/stage-unlock` 的 scanUnlockChain，与 battle.finishStoryStage/finish 同源）
  *
  * 真实时间模式（timestamp 缺省/-1）不做任何改动，保持现有行为。
  */
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { defaultAct44State } from "@game/manager/activity/informant";
 import excel from "@excel/excel";
 import { userTimestamp } from "@utils/time";
+import { syncAct44SideEntry } from "./informant";
 import { logger } from "@utils/logger";
 import config from "../../../config";
-
-/** 解锁条件完成度（PlayerBattleRank 字符串）→ 关卡 state 数值档位（与 battle.ts 一致） */
-const completeStateRank: Record<string, number> = { FAIL: 1, PASS: 2, COMPLETE: 3 };
+import { scanUnlockChain } from "@game/util/stage-unlock";
 
 /**
  * 强制开启的活动 ID 集合（config.activities.forceOpen，忽略时间窗口无条件播种/不修剪）
@@ -74,35 +75,6 @@ function favorListFor(startTime: number): string[] {
     logger.warn("Activity", `charword 表读取失败，信赖列表留空: ${(error as Error).message}`);
   }
   return [];
-}
-
-/** 关卡解锁：unlockCondition 链扫描，条件满足且缺失的关卡写入默认 state */
-function unlockStages(draft: any): void {
-  if (!draft.dungeon) return;
-  const stages = excel.StageTable.stages;
-  const dungeonStages = (draft.dungeon.stages = draft.dungeon.stages || {});
-  for (const [stageId, stage] of Object.entries(stages) as [string, any][]) {
-    const conditions = stage?.unlockCondition ?? [];
-    if (conditions.length === 0) {
-      // 无条件关卡（主线起点等）直接解锁
-      if (!dungeonStages[stageId]) {
-        dungeonStages[stageId] = defaultStageState(stageId);
-      }
-      continue;
-    }
-    let pass = true;
-    for (const condition of conditions) {
-      const condStage = dungeonStages[condition.stageId];
-      const need = completeStateRank[condition.completeState] ?? 0;
-      if (!condStage || condStage.state < need) {
-        pass = false;
-        break;
-      }
-    }
-    if (pass && !dungeonStages[stageId]) {
-      dungeonStages[stageId] = defaultStageState(stageId);
-    }
-  }
 }
 
 /** ARK_HUB 活动默认状态（奇象巡展方舟枢纽；参考官服 syncData 快照形状） */
@@ -269,26 +241,6 @@ function seedArkOdcTopics(draft: any): void {
   }
 }
 
-/** 关卡默认状态（#f#/hard_/tr_ 开头为无体力/练习关卡——noCostCnt 0，其余 1） */
-function defaultStageState(stageId: string): object {
-  let noCostCnt = 1;
-  for (const marker of ["#f#", "hard_", "tr_"]) {
-    if (stageId.includes(marker)) {
-      noCostCnt = 0;
-      break;
-    }
-  }
-  return {
-    stageId,
-    practiceTimes: 0,
-    completeTimes: 0,
-    startTimes: 0,
-    state: 0,
-    hasBattleReplay: 0,
-    noCostCnt,
-  };
-}
-
 /**
  * 播种单个活动（默认状态 + 活动任务），忽略时间窗口（强制开启与窗口内活动共用）
  * @param draft - 玩家数据 draft
@@ -318,6 +270,11 @@ function seedActivityState(draft: any, actId: string, info: any, ts: number): vo
   } else if (type === "TYPE_ACT53SIDE" && !existing) {
     // 安洁莉娜的旅行小记主活动（act53side / ODC；官方形状：actCoin/campaignCnt/favorList，与通用 TYPE_ACT 的 coin/news 不同）
     draft.activity[type][actId] = defaultAct53SideState(info.startTime);
+  } else if (type === "TYPE_ACT44SIDE" && !existing) {
+    // 「墟」情报屋主状态（官服抓包形状：informantPt/milestone/businessDay/
+    // unlockedCustomers/unlockedTags/outerOpen，营业会话 game 缺省 null——
+    // 由 /activity/act44side/* 路由按需创建）
+    draft.activity[type][actId] = defaultAct44State(favorListFor(info.startTime));
   } else if (type.startsWith("TYPE_ACT") && !existing) {
     draft.activity[type][actId] = {
       coin: 0,
@@ -373,6 +330,69 @@ function seedActivityState(draft: any, actId: string, info: any, ts: number): vo
 }
 
 /**
+ * 复刻活动开始：重置未完成的活动蚀刻章进度（幂等，flags 标记）
+ *
+ * 官服规则（「墟」复刻公告 2026-08-22 / PRTS「空想花庭」复刻说明）：复刻期间活动
+ * 任务/计数进度重置，首次活动未获得的蚀刻章需从头收集（进度清零）；已获得的章保留。
+ * 服务端此前从不重置——玩家复刻前遗留的半成品章进度原样保留，复刻无法重新达成。
+ * 每个复刻活动仅在其开始后重置一次（draft.status.flags `retroMedalReset_<actId>` 标记），
+ * 避免复刻进行中每次登录清空玩家新进度。
+ *
+ * @param draft - player.update 的 draft
+ * @param basicInfo - ActivityTable.basicInfo（复刻活动条目 id 以 sre 结尾）
+ * @param ts - 当前时间基准（秒）
+ */
+function resetRetroMedals(
+  draft: any,
+  basicInfo: Record<string, any>,
+  ts: number,
+): void {
+  for (const [actId, info] of Object.entries(basicInfo)) {
+    if (!info || typeof info !== "object") continue;
+    // 复刻活动（id 以 sre 结尾，如 act43sre/act24sre）
+    if (!String(actId).endsWith("sre")) continue;
+    // 复刻尚未开始 → 不重置（未开始的复刻不清既有进度）
+    if (!(info.startTime <= ts)) continue;
+    if (!info.medalGroupId) continue;
+    // 幂等：已执行过重置的复刻不再重复
+    const flagKey = `retroMedalReset_${actId}`;
+    if (
+      (draft.status?.flags as Record<string, number> | undefined)?.[flagKey] === 1
+    ) {
+      continue;
+    }
+    const groupData = (excel.MedalTable?.medalTypeData as any)?.activityMedal?.groupData;
+    const group = (groupData ?? []).find(
+      (g: any) => g?.groupId === info.medalGroupId,
+    );
+    if (!group?.medalId || !Array.isArray(group.medalId)) continue;
+    draft.status = draft.status ?? {};
+    draft.status.flags = draft.status.flags ?? {};
+    let reset = 0;
+    for (const medalId of group.medalId) {
+      const m = draft.medal?.medals?.[medalId];
+      if (!m || typeof m !== "object") continue;
+      // 已获得的章（rts > 0）保留，不重复收集
+      if ((m.rts ?? -1) > 0) continue;
+      const mi = excel.MedalTable?.medalList?.find(
+        (x: any) => x?.medalId === medalId,
+      );
+      m.val = [[0, medalSeedTarget(mi)]];
+      m.fts = 0;
+      m.rts = -1;
+      reset += 1;
+    }
+    draft.status.flags[flagKey] = 1;
+    if (reset > 0) {
+      logger.info(
+        "Activity",
+        `复刻活动开始：重置 ${reset} 枚未完成蚀刻章进度（${actId}）`,
+      );
+    }
+  }
+}
+
+/**
  * 活动播种入口（冻结模式/真实时间模式均执行）
  * @param player - 目标玩家
  */
@@ -394,7 +414,13 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
           if (forced.has(actId)) continue;
           const info = basicInfo[actId];
           if (info && ts > info.rewardEndTime) {
-            delete draft.activity[type][actId];
+            // 有该活动关卡进度的条目不修剪：官方语义旧活动玩家态随进度长期保留
+            // （如 act31side 商店历史在过期很久后仍随 syncData 下发）；否则窗口外
+            // 推完关卡的情报屋等状态会在下次登录被清空 → 入口重新锁死
+            const hasStageProgress = Object.keys(draft.dungeon?.stages ?? {}).some(
+              (sid) => sid.startsWith(`${actId}_`),
+            );
+            if (!hasStageProgress) delete draft.activity[type][actId];
           }
         }
       }
@@ -418,6 +444,9 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
       // 已播种且带 medalGroupId 的活动（别传/主活动统一受益，含 act53side/act49side）
       if (info.medalGroupId) seedMedalGroup(draft, actId);
     }
+    // 复刻活动开始：重置未完成的活动蚀刻章进度（官服复刻规则，幂等 flags 标记）——
+    // 必须在 seedMedalGroup 之后执行（章条目先播种/存在于存档才可重置）
+    resetRetroMedals(draft, basicInfo, ts);
     // 强制开启但不在 basicInfo 中的 ID：无法播种，记录告警（大小写不敏感匹配常见笔误）
     for (const id of forced) {
       if (!basicInfo[id]) {
@@ -471,7 +500,19 @@ export async function unlockActivity(player: PlayerDataManager): Promise<void> {
       }
     }
 
-    unlockStages(draft);
+    // 关卡：unlockCondition 链扫描解锁可达关卡（共享实现 seed 语义——
+    // 全表可达性扫描、rank ?? 0 宽档位、#f#/hard_/tr_ 标记 noCostCnt=0，
+    // 与原 unlockStages 内联实现逐分支等价）
+    scanUnlockChain(draft, undefined, {
+      mode: "seed",
+      noCost: { noCostByMarker: true },
+    });
+
+    // 情报屋（TYPE_ACT44SIDE）：关卡链已推进但活动状态缺失（如迁移存档已通关
+    // AT-TR-1、或窗口外打过关卡）——按关卡进度自愈播种。客户端情报屋入口
+    // Status 计算需要 TYPE_ACT44SIDE[actId] 非空，否则恒 LOCKED（官服语义：
+    // 状态随进度事件创建，不依赖播种窗口）
+    syncAct44SideEntry(draft);
   });
   // 播种后重建 ACTIVITY 任务进度实例（MissionManager.init 先于播种执行，播种任务
   // 无监听器——重建后奇象巡展 8 类模板的事件驱动进度才能生效）

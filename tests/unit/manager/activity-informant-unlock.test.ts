@@ -1,0 +1,421 @@
+/**
+ * 情报屋（TYPE_ACT44SIDE）随关卡进度解锁回归测试
+ *
+ * 背景 bug：客户端情报屋入口 Status 计算要求 activity.TYPE_ACT44SIDE[actId]
+ * 非空（官服在进度事件中创建 `{coin}` 级状态），缺失时恒为 LOCKED——即使
+ * AT-TR-1 已通关。修复前服务端仅在窗口内/forceOpen 播种或玩法路由内自愈，
+ * 窗口外推进关卡链（ST-1→TR-1）从不创建状态 → 入口无法随关卡进度解锁。
+ *
+ * 覆盖：
+ * - syncAct44SideEntry 纯函数（前缀命中/setdefault/no-op/扫描模式）
+ * - battle.finishStoryStage / battle.finish 胜利路径接线
+ * - unlockActivity 播种后自愈（迁移存档场景）+ 过期活动有进度不修剪
+ */
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+vi.mock("@excel/excel", () => {
+  return {
+    default: {
+      MissionTable: {
+        missions: {},
+        missionGroups: {},
+        periodicalRewards: {},
+        weeklyRewards: {},
+        soCharMissionGroupInfo: {},
+        dailyMissionGroupInfo: {},
+        dailyMissionPeriodInfo: [],
+        mainlineMissionEndImageDataList: [],
+        crossAppShareMissions: {},
+        crossAppShareMissionConst: {},
+        guideMissionGroupInfo: {},
+      },
+      MedalTable: { medalList: [], medalTypeData: {} },
+      HandbookInfoTable: { handbookStageData: {} },
+      ActivityTable: {
+        basicInfo: {
+          // 「墟」：窗口早已过期（2025-08），未 forceOpen——模拟用户真实环境
+          act44side: {
+            id: "act44side",
+            type: "TYPE_ACT44SIDE",
+            name: "墟",
+            displayType: "SIDESTORY",
+            startTime: 1754085600,
+            endTime: 1755892799,
+            rewardEndTime: 1755892799,
+          },
+          act_other: {
+            id: "act_other",
+            type: "TYPE_ACT",
+            name: "无关活动",
+            startTime: 1500000000,
+            endTime: 1500000001,
+            rewardEndTime: 1500000001,
+          },
+        },
+        activity: {
+          tYPE_ACT44SIDE: {
+            act44side: { constData: { informantUnlockStageId: "act44side_tr01" } },
+          },
+        },
+      },
+      CharWordTable: { startTimeWithTypeDict: {} },
+      StageTable: {
+        stages: {
+          "main_01-07": {
+            stageId: "main_01-07",
+            zoneId: "zone_01",
+            apCost: 10,
+            apFailReturn: 10,
+            stageType: "MAIN",
+            stageDropInfo: { displayDetailRewards: [] },
+            unlockCondition: [],
+          },
+          "main_01-10": {
+            stageId: "main_01-10",
+            zoneId: "zone_01",
+            apCost: 10,
+            apFailReturn: 10,
+            stageType: "MAIN",
+            stageDropInfo: { displayDetailRewards: [] },
+            unlockCondition: [{ stageId: "main_01-09", completeState: "PASS" }],
+          },
+          act44side_st01: {
+            stageId: "act44side_st01",
+            stageType: "ACTIVITY",
+            stageDropInfo: { displayDetailRewards: [] },
+            unlockCondition: [{ stageId: "main_01-10", completeState: "PASS" }],
+          },
+          act44side_tr01: {
+            stageId: "act44side_tr01",
+            stageType: "ACTIVITY",
+            stageDropInfo: { displayDetailRewards: [] },
+            unlockCondition: [{ stageId: "act44side_st01", completeState: "PASS" }],
+          },
+          act44side_01: {
+            stageId: "act44side_01",
+            stageType: "ACTIVITY",
+            stageDropInfo: { displayDetailRewards: [] },
+            unlockCondition: [{ stageId: "act44side_tr01", completeState: "PASS" }],
+          },
+        },
+        runeStageGroups: {},
+        mapThemes: {},
+        tileInfo: {},
+        forceOpenTable: {},
+        timelyStageDropInfo: {},
+        overrideDropInfo: {},
+        overrideUnlockInfo: {},
+        timelyTable: {},
+        stageValidInfo: {},
+        stageFogInfo: {},
+        stageStartConds: {},
+        diffGroupTable: {},
+        storyStageShowGroup: {},
+        specialBattleFinishStageData: {},
+        recordRewardData: {},
+        apProtectZoneInfo: {},
+        antiSpoilerDict: {},
+        actCustomStageDatas: {},
+        spNormalStageIdFor4StarList: [],
+        storylines: {},
+        storylineStorySets: {},
+        storylineConst: {},
+        cgGalleryDisplays: {},
+        cgGalleryGroups: {},
+        cgGalleryCgs: {},
+        sixStarRuneData: {},
+        sixStarMilestoneInfo: {},
+      },
+      GachaTable: {},
+      GameDataConst: {},
+      CharacterTable: {},
+      ItemTable: { items: {}, expItems: {} },
+      ShopClientTable: {},
+      SkillDataBundle: {},
+    },
+  };
+});
+
+vi.mock("@game/manager/PlayerDataManager", () => ({
+  PlayerDataManager: vi.fn(),
+}));
+
+vi.mock("@game/manager/AccountManager", () => {
+  const mockAccountConfigs: any = {
+    "10000": {
+      battle: {
+        infos: {
+          "1": {
+            stageId: "main_01-07",
+            isPractice: false,
+          },
+        },
+        replays: {},
+      },
+    },
+  };
+  return {
+    accountManager: {
+      configs: mockAccountConfigs,
+      saveBattleInfo: vi.fn().mockImplementation(async (uid: string, battleId: string, info: any) => {
+        if (!mockAccountConfigs[uid]) {
+          mockAccountConfigs[uid] = { battle: { infos: {}, replays: {} } };
+        }
+        mockAccountConfigs[uid].battle.infos[battleId] = info;
+      }),
+      getBattleInfo: vi.fn().mockImplementation(async (uid: string, battleId: string) => {
+        return mockAccountConfigs[uid]?.battle?.infos?.[battleId];
+      }),
+      getBattleReplay: vi.fn(),
+      saveBattleReplay: vi.fn(),
+      saveBattleRecord: vi.fn(),
+      getBattleRecord: vi.fn(),
+      listBattleRecords: vi.fn(async () => []),
+    },
+  };
+});
+
+vi.mock("@utils/crypt", () => ({
+  decryptBattleData: vi.fn().mockResolvedValue({
+    battleId: "1",
+    battleData: {
+      stats: { enemyList: {}, autoReplayCancelled: false },
+    },
+    completeState: 3,
+  }),
+}));
+
+vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
+vi.mock("@excel/stage_table", () => ({
+  DisplayDetailRewards: {},
+  ConditionDesc: {},
+}));
+
+import config from "../../../app/config";
+import { mockPlayerData } from "../../helpers";
+import { BattleManager } from "@game/manager/battle";
+import { unlockActivity } from "@game/manager/activity/unlockActivity";
+import { syncAct44SideEntry } from "@game/manager/activity/informant";
+import { accountManager } from "@game/manager/AccountManager";
+
+/** 构造一个已解锁/已通关的关卡条目 */
+function stageEntry(state: number) {
+  return {
+    stageId: "",
+    practiceTimes: 0,
+    completeTimes: state >= 2 ? 1 : 0,
+    startTimes: state >= 2 ? 1 : 0,
+    state,
+    hasBattleReplay: 0,
+    noCostCnt: 1,
+  };
+}
+
+describe("syncAct44SideEntry（按关卡进度自愈情报屋状态）", () => {
+  it("命中活动 id 前缀的关卡时创建默认状态（官服形状）", () => {
+    const draft: any = { activity: {}, dungeon: { stages: {} } };
+    syncAct44SideEntry(draft, "act44side_tr01");
+    const state = draft.activity.TYPE_ACT44SIDE.act44side;
+    expect(state).toBeDefined();
+    expect(state.coin).toBe(0);
+    expect(state.milestone).toEqual({ point: 0, got: [] });
+    expect(state.businessDay).toBe(1);
+    expect(state.game).toBeNull();
+    expect(state.outerOpen).toBe(true);
+  });
+
+  it("已有条目时 setdefault 不覆盖玩家数据", () => {
+    const draft: any = {
+      activity: { TYPE_ACT44SIDE: { act44side: { coin: 5 } } },
+      dungeon: { stages: {} },
+    };
+    syncAct44SideEntry(draft, "act44side_tr01");
+    expect(draft.activity.TYPE_ACT44SIDE.act44side.coin).toBe(5);
+  });
+
+  it("非 TYPE_ACT44SIDE 活动关卡为 no-op", () => {
+    const draft: any = { activity: {}, dungeon: { stages: {} } };
+    syncAct44SideEntry(draft, "main_01-07");
+    expect(draft.activity.TYPE_ACT44SIDE).toBeUndefined();
+  });
+
+  it("复刻活动关卡（act<NN>sre_*）触发情报屋状态自愈（键 act44sre，修复前恒 LOCKED）", () => {
+    // live 客户端 activityId=act44sre（抓包 tmp/act44side-captures.json 实证），
+    // excel basicInfo 仅收录 act44side——原实现只匹配 act44side_ 前缀，复刻玩家
+    // 通关 act44sre_tr01 后 TYPE_ACT44SIDE["act44sre"] 缺失 → 小游戏入口不解锁。
+    const draft: any = { activity: {}, dungeon: { stages: {} } };
+    syncAct44SideEntry(draft, "act44sre_tr01");
+    const state = draft.activity.TYPE_ACT44SIDE.act44sre;
+    expect(state).toBeDefined();
+    expect(state.coin).toBe(0);
+    expect(state.businessDay).toBe(1);
+    expect(state.game).toBeNull();
+  });
+
+  it("复刻活动关卡在缺省 stageId 扫描模式下同样自愈", () => {
+    const draft: any = {
+      activity: {},
+      dungeon: {
+        stages: {
+          act44sre_tr01: { ...stageEntry(3), stageId: "act44sre_tr01" },
+        },
+      },
+    };
+    syncAct44SideEntry(draft);
+    expect(draft.activity.TYPE_ACT44SIDE.act44sre).toBeDefined();
+  });
+
+  it("缺省 stageId 时扫描 dungeon.stages 全部键（播种后自愈迁移存档）", () => {
+    const draft: any = {
+      activity: {},
+      dungeon: {
+        stages: {
+          act44side_tr01: { ...stageEntry(3), stageId: "act44side_tr01" },
+        },
+      },
+    };
+    syncAct44SideEntry(draft);
+    expect(draft.activity.TYPE_ACT44SIDE.act44side).toBeDefined();
+  });
+
+  it("basicInfo 无 TYPE_ACT44SIDE 活动时安全跳过", async () => {
+    const excelRef = (await import("@excel/excel")).default as any;
+    const saved = excelRef.ActivityTable.basicInfo;
+    excelRef.ActivityTable.basicInfo = { act_other: saved.act_other };
+    try {
+      const draft: any = {
+        activity: {},
+        dungeon: { stages: { act44side_tr01: stageEntry(3) } },
+      };
+      syncAct44SideEntry(draft);
+      expect(draft.activity.TYPE_ACT44SIDE).toBeUndefined();
+    } finally {
+      excelRef.ActivityTable.basicInfo = saved;
+    }
+  });
+});
+
+describe("battle 结算接线（通关即自愈）", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  let mockTrigger: ReturnType<typeof import("../../helpers").mockTypedEventEmitter>;
+
+  beforeEach(async () => {
+    vi.restoreAllMocks();
+    const { mockTypedEventEmitter } = await import("../../helpers");
+    mockTrigger = mockTypedEventEmitter();
+    mockPlayer = mockPlayerData({
+      activity: {},
+      dungeon: {
+        stages: {
+          // 迁移存档形态：主线已推进、活动链已解锁但从未触发玩法路由
+          "main_01-10": { ...stageEntry(3), stageId: "main_01-10" },
+          "main_01-07": { ...stageEntry(0), stageId: "main_01-07" },
+          act44side_st01: { ...stageEntry(0), stageId: "act44side_st01" },
+          act44side_tr01: { ...stageEntry(0), stageId: "act44side_tr01" },
+        },
+      },
+      troop: { chars: {}, addon: {} },
+      dexNav: { enemy: { stage: {} }, character: {} },
+      recruit: { normal: { slots: [] } },
+      status: { mainStageProgress: "", uid: "10000" },
+      pushFlags: { status: {} },
+      inventory: {},
+    });
+  });
+
+  it("finishStoryStage 通关 act44side_st01 后创建 TYPE_ACT44SIDE 状态并解锁 tr01", async () => {
+    const manager = new BattleManager(mockPlayer as any, mockTrigger as any);
+    await manager.finishStoryStage({ stageId: "act44side_st01" });
+
+    // 官服语义状态已存在 → 客户端入口 Status 可随 tr01 通关翻转为 UNLOCK
+    const state = (mockPlayer._playerdata.activity as any)?.TYPE_ACT44SIDE?.act44side;
+    expect(state).toBeDefined();
+    expect(state.game).toBeNull();
+    // 原有关卡链推进不受影响
+    expect(mockPlayer._playerdata.dungeon!.stages!.act44side_tr01).toBeDefined();
+  });
+
+  it("finish 胜利通关 act44side_tr01 后创建 TYPE_ACT44SIDE 状态并解锁 act44side_01", async () => {
+    (accountManager.configs as any)["10000"].battle.infos["1"].stageId =
+      "act44side_tr01";
+    const manager = new BattleManager(mockPlayer as any, mockTrigger as any);
+    await manager.finish({
+      data: "encrypted_battle_data",
+      battleData: { isCheat: "0", completeTime: 100 },
+    } as any);
+
+    const state = (mockPlayer._playerdata.activity as any)?.TYPE_ACT44SIDE?.act44side;
+    expect(state).toBeDefined();
+    // 胜利后关卡链继续推进
+    expect(mockPlayer._playerdata.dungeon!.stages!.act44side_01).toBeDefined();
+    expect(mockPlayer._playerdata.dungeon!.stages!.act44side_tr01.state).toBe(3);
+  });
+
+  it("胜利通关无关关卡（main_01-07）不创建情报屋状态", async () => {
+    // 前一用例可能改写过 battleId→stageId 映射，显式归位
+    (accountManager.configs as any)["10000"].battle.infos["1"].stageId = "main_01-07";
+    const manager = new BattleManager(mockPlayer as any, mockTrigger as any);
+    await manager.finish({
+      data: "encrypted_battle_data",
+      battleData: { isCheat: "0", completeTime: 100 },
+    } as any);
+    expect((mockPlayer._playerdata.activity as any)?.TYPE_ACT44SIDE).toBeUndefined();
+  });
+});
+
+describe("unlockActivity 联动（过期活动自愈与修剪豁免）", () => {
+  let mockPlayer: ReturnType<typeof mockPlayerData>;
+  const originalDeveloper = config.developer;
+  const originalActivities = config.activities;
+
+  afterEach(() => {
+    config.developer = originalDeveloper;
+    config.activities = originalActivities;
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    config.developer = { timestamp: -1 }; // 真实时间模式（用户当前配置）
+    config.activities = { ...(config.activities ?? {}), forceOpen: [] };
+  });
+
+  it("迁移存档：关卡链已推进（tr01 通关）而活动状态缺失 → 登录播种自愈且不被修剪", async () => {
+    mockPlayer = mockPlayerData({
+      activity: {},
+      mission: { missions: { ACTIVITY: {} } },
+      dungeon: {
+        stages: {
+          "main_01-09": { ...stageEntry(3), stageId: "main_01-09" },
+          "main_01-10": { ...stageEntry(3), stageId: "main_01-10" },
+          act44side_st01: { ...stageEntry(3), stageId: "act44side_st01" },
+          act44side_tr01: { ...stageEntry(3), stageId: "act44side_tr01" },
+        },
+      },
+    });
+
+    await unlockActivity(mockPlayer as any);
+
+    // 自愈创建（act44side 窗口已过期、未强制开启——旧逻辑下永远缺失）
+    const state = (mockPlayer._playerdata.activity as any)?.TYPE_ACT44SIDE?.act44side;
+    expect(state).toBeDefined();
+    expect(state.milestone).toEqual({ point: 0, got: [] });
+    // 可达关卡照常播种；已通关进度保持
+    expect(mockPlayer._playerdata.dungeon!.stages!.act44side_st01).toBeDefined();
+    expect(mockPlayer._playerdata.dungeon!.stages!.act44side_01).toBeDefined();
+    expect(mockPlayer._playerdata.dungeon!.stages!.act44side_tr01.state).toBe(3);
+
+    // 二次登录：修剪阶段因「存在关卡进度」豁免，状态不再被清空
+    await unlockActivity(mockPlayer as any);
+    expect((mockPlayer._playerdata.activity as any)?.TYPE_ACT44SIDE?.act44side).toBeDefined();
+  });
+
+  it("从未接触该活动的玩家不被塞入状态（fresh 存档无 act44side 关卡）", async () => {
+    mockPlayer = mockPlayerData({
+      activity: {},
+      mission: { missions: { ACTIVITY: {} } },
+      dungeon: { stages: {} },
+    });
+    await unlockActivity(mockPlayer as any);
+    expect((mockPlayer._playerdata.activity as any)?.TYPE_ACT44SIDE).toBeUndefined();
+  });
+});

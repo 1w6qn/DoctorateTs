@@ -7,18 +7,20 @@ import { CommonStartBattleRequest } from "@game/model/battle";
 import { TypedEventEmitter } from "@game/model/events";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
-import { ConditionDesc, DisplayDetailRewards } from "@excel/stage_table";
+import { DisplayDetailRewards } from "@excel/stage_table";
+import { syncAct44SideEntry } from "./activity/informant";
 import { randomChoice, randomChoices, generateBattleId } from "@utils/random";
 import { rarityToIndex } from "@utils/rarity";
-import { pick } from "lodash";
+import { pickKeys } from "@utils/object";
 import { logger } from "@utils/logger";
+import {
+  defaultStageState,
+  scanUnlockChain,
+} from "@game/util/stage-unlock";
 import type { BattleRecord } from "@game/manager/BattleInfoStore";
 
 /** excel 关卡表镜像类型（来自 types_excel_gen，与 excel.StageTable.stages 值一致） */
 type ExcelStage = (typeof excel.StageTable.stages)[string];
-
-/** 解锁条件完成度（PlayerBattleRank 字符串）→ 关卡 state 数值档位 */
-const completeStateRank: Record<string, number> = { FAIL: 1, PASS: 2, COMPLETE: 3 };
 
 /**
  * 解析战斗关卡配置（StaageTable.stages 未收录时才回退到悖论模拟）。
@@ -226,15 +228,10 @@ export class BattleManager {
       if (stageId in draft.dungeon.stages) {
         draft.dungeon.stages[stageId].startTimes += 1;
       } else {
-        draft.dungeon.stages[stageId] = {
-          stageId: stageId,
-          completeTimes: 0,
-          startTimes: 0,
-          practiceTimes: 0,
-          state: 0,
-          hasBattleReplay: 0,
-          noCostCnt: stageId.includes("guide") ? 1 : 0,
-        };
+        // 新关卡默认状态（共享实现）：guide 关卡保留 1 次免体力（原内联规则）
+        draft.dungeon.stages[stageId] = defaultStageState(stageId, {
+          guideNoCost: true,
+        });
       }
       // Check if PracticeTicket is used
       if (apCost == 0 || usePracticeTicket) {
@@ -299,79 +296,21 @@ export class BattleManager {
       // 修复：关卡未播种（如活动剧情关卡在播种前被客户端提交）时先补默认条目，
       // 避免 `draft.dungeon.stages[stageId].state` 读 undefined 崩溃 → 500
       if (!draft.dungeon.stages[stageId]) {
-        draft.dungeon.stages[stageId] = {
-          stageId,
-          practiceTimes: 0,
-          completeTimes: 0,
-          startTimes: 0,
-          state: 0,
-          hasBattleReplay: 0,
-          noCostCnt: 1,
-        };
+        draft.dungeon.stages[stageId] = defaultStageState(stageId);
       }
       const stageState = draft.dungeon.stages[stageId].state;
       if (stageState !== 3) {
         draft.dungeon.stages[stageId].state = 3;
+        // 情报屋（TYPE_ACT44SIDE）：通关其关卡时自愈创建活动状态（官服语义：
+        // 状态随进度事件存在；否则客户端入口恒 LOCKED，无法随关卡进度解锁）
+        syncAct44SideEntry(draft, stageId);
 
-        const unlock_list: { [key: string]: ConditionDesc[] } = {};
-        const stage_data = excel.StageTable.stages;
-        for (const item of Object.keys(stage_data)) {
-          // 防御：数据表末尾字段名伪键（值 null）——stage.unlockCondition 读 null 崩溃
-          const stage = stage_data[item];
-          if (!stage || typeof stage !== "object") continue;
-          unlock_list[item] = stage.unlockCondition as unknown as ConditionDesc[];
-        }
-
-        for (const item of Object.keys(unlock_list)) {
-          let passCondition = 0;
-          if (unlock_list[item].length == 0) {
-            // 修复：`in Object.keys(...)` 恒 false → 无前置关卡每次把既有进度重置为 0
-            if (!(item in draft.dungeon.stages)) {
-              draft.dungeon.stages[item] = {
-                stageId: item,
-                practiceTimes: 0,
-                completeTimes: 0,
-                startTimes: 0,
-                state: 0,
-                hasBattleReplay: 0,
-                noCostCnt: 1,
-              };
-              unlockStages.push(item);
-            }
-          } else {
-            for (const condition of unlock_list[item]) {
-              // 修复：同上 in 数组 bug；completeState 字符串已映射（此分支原本正确用
-              // completeStateRank，但 173 行 in 数组恒 false 导致永不满足）
-              if (condition.stageId in draft.dungeon.stages) {
-                if (
-                  draft.dungeon.stages[condition.stageId].state >=
-                  completeStateRank[condition.completeState]
-                ) {
-                  passCondition += 1;
-                }
-              }
-              if (stageId == condition.stageId) {
-                if (3 >= completeStateRank[condition.completeState]) {
-                  passCondition += 1;
-                }
-              }
-            }
-            if (passCondition == unlock_list[item].length) {
-              if (!(item in draft.dungeon.stages)) {
-                draft.dungeon.stages[item] = {
-                  stageId: item,
-                  practiceTimes: 0,
-                  completeTimes: 0,
-                  startTimes: 0,
-                  state: 0,
-                  hasBattleReplay: 0,
-                  noCostCnt: 1,
-                };
-                unlockStages.push(item);
-              }
-            }
-          }
-        }
+        // 解锁链扫描（共享实现，battle.finishStoryStage 原内联逻辑的等价迁移）：
+        // 锚点恒为 COMPLETE 档（state=3，与上方写入一致）；无前置条件分支 noCostCnt
+        // 恒 1；「存档命中 + 锚点命中」双计致 passCondition 超长的历史行为原样保留
+        // （含两代同款修复注释所指的 `in Object.keys(...)` 恒 false / 对象键直查语义）
+        const { unlockedIds } = scanUnlockChain(draft, { stageId, state: 3 });
+        unlockStages.push(...unlockedIds);
 
         rewards.push({
           type: "DIAMOND",
@@ -526,90 +465,25 @@ export class BattleManager {
             draft.recruit.normal.slots[1].state = 1;
           }
           //unlock stage
-          const unlockList: { [key: string]: ConditionDesc[] } = {};
-          for (const item of Object.keys(excel.StageTable.stages)) {
-            // 防御：数据表末尾字段名伪键（值 null）——stage.unlockCondition 读 null 崩溃
-            const stage = excel.StageTable.stages[item];
-            if (!stage || typeof stage !== "object") continue;
-            unlockList[item] = stage.unlockCondition as unknown as ConditionDesc[];
-          }
-          for (const item of Object.keys(unlockList)) {
-            let passCondition = 0;
-            if (unlockList[item].length == 0) {
-              // 修复：`item in Object.keys(...)` 恒 false（测数组下标）→ 无前置关卡每次
-              // 都把既有进度重置为 state 0；改为直接查对象键
-              if (!(item in draft.dungeon.stages)) {
-                draft.dungeon.stages[item] = {
-                  stageId: item,
-                  practiceTimes: 0,
-                  completeTimes: 0,
-                  startTimes: 0,
-                  state: 0,
-                  hasBattleReplay: 0,
-                  noCostCnt: 1,
-                };
-                unlockStages.push(item);
-              }
-            } else {
-              for (const condition of unlockList[item]) {
-                // 修复：同上 in 数组 bug + completeState 为 "PASS"/"COMPLETE" 字符串，
-                // 数字 >= 字符串 → NaN 恒 false → 条件关卡永不解锁；经 completeStateRank 映射
-                if (condition.stageId in draft.dungeon.stages) {
-                  if (
-                    draft.dungeon.stages[condition.stageId].state >=
-                    completeStateRank[condition.completeState]
-                  ) {
-                    passCondition += 1;
-                  }
-                }
-                if (stageId == condition.stageId) {
-                  if (
-                    battleData.completeState >=
-                    completeStateRank[condition.completeState]
-                  ) {
-                    passCondition += 1;
-                  }
-                }
-              }
-              if (passCondition == unlockList[item].length) {
-                const unlockStage = {
-                  stageId: item,
-                  practiceTimes: 0,
-                  completeTimes: 0,
-                  startTimes: 0,
-                  state: 0,
-                  hasBattleReplay: 0,
-                  noCostCnt: 1,
-                };
-                for (const chr of ["#f#", "hard_", "tr_"]) {
-                  if (item.includes(chr)) {
-                    unlockStage.noCostCnt = 0;
-                  }
-                }
-                // 修复：原 `item in Object.keys(draft.dungeon.stages)` 对数组用 in
-                // 恒 false → 已存在的关卡（含已通关）每次被整体覆盖为 state 0，
-                // completeTimes/startTimes/noCostCnt 全被清零、关卡重新变锁定；
-                // 改为直接查对象键（与上方无前置条件分支同款修复）
-                if (!(item in draft.dungeon.stages)) {
-                  // 修复：read 非 main/sub 关卡（如悖论模拟 mem_ 不在 StageTable）时
-                  // excel.StageTable.stages[stageId] 为 undefined → .stageType 崩溃。
-                  // 改用已解析的 stage（resolveStage 回退构造，stageType=SPECIAL_STORY，
-                  // 自然不满足 MAIN/SUB 判定，跳过 mainStageProgress 推进）
-                  if (
-                    ["MAIN", "SUB"].includes(stage.stageType as string) &&
-                    ["MAIN", "SUB"].includes(
-                      excel.StageTable.stages[item]?.stageType as string,
-                    )
-                  ) {
-                    draft.status.mainStageProgress = item;
-                  }
-                  draft.dungeon.stages[item] = unlockStage;
-                  unlockStages.push(item);
-                  unlockStagesObject.push(unlockStage);
-                }
-              }
-            }
-          }
+          // 解锁链扫描（共享实现，battle.finish 原内联逻辑的等价迁移）：
+          // - 锚点用本次解密的 completeState（与 finishStoryStage 的恒 3 不同源，参数化保留）；
+          // - 有前置条件分支的新条目按 #f#/hard_/tr_ 标记置 noCostCnt=0（无前置条件分支恒 1）；
+          // - MAIN/SUB 双向判定推进 mainStageProgress（clearedStageType 取已解析 stage，
+          //   悖论模拟 mem_ 回退构造为 SPECIAL_STORY 自然不满足）；
+          // - 「存档命中 + 锚点命中」双计、`in` 对象键直查等历史修复语义原样保留
+          const { unlockedIds, unlockedStates } = scanUnlockChain(
+            draft,
+            { stageId, state: battleData.completeState },
+            {
+              noCost: { noCostByMarker: true },
+              clearedStageType: stage.stageType as string,
+            },
+          );
+          unlockStages.push(...unlockedIds);
+          unlockStagesObject.push(...unlockedStates);
+          // 情报屋（TYPE_ACT44SIDE）：通关其关卡时自愈创建活动状态（官服语义：
+          // 状态随进度事件存在；否则客户端入口恒 LOCKED，无法随关卡进度解锁）
+          syncAct44SideEntry(draft, stageId);
         }
         if (firstClear) {
           for (const item of displayDetailRewards) {
@@ -1226,7 +1100,7 @@ export class BattleManager {
             if (stageId.includes("pro_")) {
               const drop_array = randomChoices([0, 1], [50, 50], 1)[0];
               rewards.push({
-                ...pick(displayDetailRewards[drop_array], ["id", "type"]),
+                ...pickKeys(displayDetailRewards[drop_array], ["id", "type"]),
                 count: reward_count,
               });
             } else {

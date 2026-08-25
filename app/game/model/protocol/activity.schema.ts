@@ -416,15 +416,21 @@ export const act42sideTaskSchema = z.object({
   taskId: z.string().optional(),
 });
 
-/** act44side 开始游戏（Act44sideStartGameRequest；未读取 body） */
+/** act44side 开始游戏/使用洞悉（InformantStartGameRequest/InformantUseInsightRequest；服务端读 activityId） */
 export const act44sideStartGameSchema = z.object({
   activityId: z.string().optional(),
 });
 
-/** act44side 选择（Act44sideSelectChoiceRequest；未读取 body） */
+/** act44side 推进状态（InformantNextStateRequest；服务端读 activityId/state） */
+export const act44sideNextStateSchema = z.object({
+  activityId: z.string().optional(),
+  state: z.number().optional(),
+});
+
+/** act44side 选择对话（InformantSelectChoiceRequest；服务端读 activityId/index） */
 export const act44sideSelectChoiceSchema = z.object({
   activityId: z.string().optional(),
-  choice: z.string().optional(),
+  index: z.number().optional(),
 });
 
 /** act45side 确认干员/邮件（Act45sideConfirmRequest；未读取 body） */

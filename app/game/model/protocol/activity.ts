@@ -872,15 +872,32 @@ export interface Act35sideBuyRequest {
   goodsId?: string;
 }
 
-/** act44side 开始游戏/选择请求 */
+/**
+ * act44side 开始游戏/使用洞悉请求
+ *
+ * 官方 InformantStartGameRequest / InformantUseInsightRequest（Torappu.UI.Informant），
+ * 响应均为纯 PlayerDeltaResponse。
+ */
 export interface Act44sideStartGameRequest {
   activityId?: string;
 }
 
-/** act44side 选择请求 */
+/**
+ * act44side 推进状态请求
+ *
+ * 官方 InformantNextStateRequest；`state` 为客户端报告的当前 InformantState 数值
+ * （ENTRY=0/CHOICE=1/CHOICE_END=2/BEFORE_SINGLE_RESULT=3/SINGLE_RESULT=4/RESULT=5），
+ * 服务端据此转移状态机。
+ */
+export interface Act44sideNextStateRequest {
+  activityId?: string;
+  state?: number;
+}
+
+/** act44side 选择对话请求（官方 InformantSelectChoiceRequest：选项下标 0/1） */
 export interface Act44sideSelectChoiceRequest {
   activityId?: string;
-  choice?: string;
+  index?: number;
 }
 
 /** act46side 开始/移动/开采请求 */

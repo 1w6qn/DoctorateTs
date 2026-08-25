@@ -15,6 +15,7 @@ export type { GachaPoolClientData } from "./types_excel_gen";
 export type { UniEquipData } from "./types_excel_gen";
 export type { MailArchiveItemData } from "./types_excel_gen";
 export type { MissionData } from "./types_excel_gen";
+export type { Act44SideData } from "./types_excel_gen";
 export type {
   ActivityBossRushData,
   ActivityBossRushData_RelicLevelInfo,

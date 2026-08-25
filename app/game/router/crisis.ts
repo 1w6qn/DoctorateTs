@@ -36,6 +36,7 @@ import {
   recalRuneBattleStartSchema,
 } from "../model/protocol/crisis.schema";
 import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { recordPurchase } from "../util/purchase-record";
 import { now } from "@utils/time";
 import { readJson } from "@utils/file";
 import { decryptBattleData } from "@utils/crypt";
@@ -612,7 +613,8 @@ router.post("/getGoodList", validateBody(crisisGetGoodListSchema), async (req, r
  * @param req.body.count - 购买数量
  * @returns 获得的物品和玩家增量数据
  *
- * 简化实现：更新商店购买记录，扣除危机合约硬币。
+ * 简化实现：仅更新商店购买记录（recordPurchase），不扣除危机合约硬币——
+ * 购买无代价属既有简化行为（与 V2 buyGood 一致；补扣款需先核对代币字段语义）。
  * 实际物品奖励需要完整的商品定义表，此处仅更新购买计数。
  */
 router.post("/buyGoods", validateBody(crisisBuyGoodsSchema), async (req, res) => {
@@ -620,15 +622,8 @@ router.post("/buyGoods", validateBody(crisisBuyGoodsSchema), async (req, res) =>
   const { goodId, count } = req.body as CrisisBuyGoodsRequest;
 
   await player.update(async (draft) => {
-    /** 更新商店购买记录 */
-    const existingItem = draft.crisis.shop.info.find(
-      (i) => i.id === goodId,
-    );
-    if (existingItem) {
-      existingItem.count += count;
-    } else {
-      draft.crisis.shop.info.push({ id: goodId, count });
-    }
+    /** 更新商店购买记录（共享实现，见 @game/util/purchase-record） */
+    recordPurchase(draft.crisis.shop.info, goodId, count);
   });
 
   res.send({
@@ -960,15 +955,8 @@ router.post("/v2/buyGood", validateBody(crisisV2BuyGoodSchema), async (req, res)
   const { goodId, count } = req.body as CrisisV2BuyGoodRequest;
 
   await player.update(async (draft) => {
-    /** 更新V2商店购买记录 */
-    const existingItem = draft.crisisV2.shop.info.find(
-      (i) => i.id === goodId,
-    );
-    if (existingItem) {
-      existingItem.count += count;
-    } else {
-      draft.crisisV2.shop.info.push({ id: goodId, count });
-    }
+    /** 更新V2商店购买记录（共享实现，见 @game/util/purchase-record） */
+    recordPurchase(draft.crisisV2.shop.info, goodId, count);
   });
 
   res.send({

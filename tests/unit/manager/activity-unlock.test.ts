@@ -147,7 +147,47 @@ describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
     expect(Object.keys(mockPlayer._playerdata.dungeon?.stages ?? {})).toContain("main_00_01");
   });
 
+  it("复刻活动开始：重置未完成的活动蚀刻章进度（已获得保留、幂等不重复）", async () => {
+    // 注入已开始的复刻活动 act49sre（复用 act49side 的 medalGroup）
+    const excelRef = (await import("@excel/excel")).default as any;
+    const savedBasic = excelRef.ActivityTable.basicInfo;
+    excelRef.ActivityTable.basicInfo = {
+      ...savedBasic,
+      act49sre: {
+        id: "act49sre", type: "TYPE_ACT9D0", name: "辞岁行·复刻",
+        startTime: 1600000000, endTime: 1700000000, rewardEndTime: 1710000000,
+        medalGroupId: "medalGroupActivity49side",
+      },
+    };
+    try {
+      config.developer = { timestamp: -1 }; // 真实时间（2026-08 → 复刻早已开始）
+      mockPlayer._playerdata.medal = {
+        medals: {
+          // 未完成章：进度 5/11（复刻应清零重新收集）
+          "medal_activity_49side_04": { id: "medal_activity_49side_04", val: [[5, 11]], fts: 0, rts: -1 },
+          // 已获得章（rts>0）：复刻保留
+          "medal_activity_49side_01": { id: "medal_activity_49side_01", val: [[1, 0]], fts: 1750000000, rts: 1750000000 },
+        } as any,
+      };
+      await unlockActivity(mockPlayer as any);
+      const medals = mockPlayer._playerdata.medal.medals;
+      // 未完成章进度清零（target 按模板推导：PassStageSome param[2]=11）
+      expect(medals["medal_activity_49side_04"].val).toEqual([[0, 11]]);
+      expect(medals["medal_activity_49side_04"].rts).toBe(-1);
+      // 已获得章保留
+      expect(medals["medal_activity_49side_01"].val).toEqual([[1, 0]]);
+      expect(medals["medal_activity_49side_01"].rts).toBe(1750000000);
+      // 幂等：二次播种（复刻中玩家新进度）不被再次清空
+      medals["medal_activity_49side_04"].val = [[3, 11]];
+      await unlockActivity(mockPlayer as any);
+      expect(medals["medal_activity_49side_04"].val).toEqual([[3, 11]]);
+    } finally {
+      excelRef.ActivityTable.basicInfo = savedBasic;
+    }
+  });
+
   it("冻结到 TYPE_ACT 窗口：播种默认状态 + 任务 + 修剪过期 + 解锁无条件关卡", async () => {
+
     config.developer = { timestamp: 1597132800 };
     await unlockActivity(mockPlayer as any);
 

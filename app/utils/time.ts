@@ -71,3 +71,59 @@ export function checkNew(
   const ms2 = ts2 > 1e11 ? ts2 - delta : ts2 * 1000 - delta;
   return !moment(ms1).isSame(moment(ms2), type);
 }
+
+/**
+ * 本地时区紧凑日期 YYYYMMDD（缺省当前时间）
+ *
+ * 收敛此前手写 padStart 句式 ×6（logger/log-service/capture-manager/shop/AdminService）：
+ * 日志文件名后缀、抓包默认会话名、信用商店周期 id、备份文件名日期段等。
+ *
+ * @param d - Date 对象，缺省 new Date()
+ * @returns 形如 `20260825` 的字符串
+ */
+export function formatDateCompact(d: Date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
+}
+
+/**
+ * 本地时区紧凑时间戳 YYYYMMDD-HHmmss（缺省当前时间）
+ *
+ * 备份文件名等需要秒级但禁用冒号的场景（AdminService.formatTs 原句式）。
+ *
+ * @param d - Date 对象，缺省 new Date()
+ * @returns 形如 `20260825-143000` 的字符串
+ */
+export function formatCompactTimestamp(d: Date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${formatDateCompact(d)}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
+  );
+}
+
+/**
+ * 本地时区日志时间戳 YYYY-MM-DD HH:mm:ss（缺省当前时间）
+ *
+ * logger 行级时间戳原句式。
+ *
+ * @param d - Date 对象，缺省 new Date()
+ * @returns 形如 `2026-08-25 14:30:00` 的字符串
+ */
+export function formatTimestamp(d: Date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+/**
+ * 距今天数（moment 语义：moment().diff(moment(ts), "days")）
+ *
+ * 收敛 medal.ts 中逐字重复 ×78 的注册天数表达式。**刻意不做秒/毫秒归一**——
+ * 与被替换的原表达式完全同语义（registerTs 按原样交给 moment），避免改变既有
+ * 勋章数值；如需归一化应连同调用方一起评估。
+ *
+ * @param ts - 注册时间戳（原样传给 moment，与历史行为一致）
+ * @returns 整数天数差（可为负）
+ */
+export function daysSince(ts: number | string | Date): number {
+  return moment().diff(moment(ts as never), "days");
+}

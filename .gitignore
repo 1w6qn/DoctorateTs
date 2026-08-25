@@ -54,6 +54,7 @@ scripts/_verify-mitmweb.ts
 .zcode/
 opencode.json
 exports/
+.qoder/
 
 # 运行时日志 / V8 report / 看门狗日记（按天轮转，不入库）
 logs/
@@ -72,3 +73,5 @@ mods/windows/*.dat
 data/\[uc\]lua/
 # 运行时用户上传的像素画数据（arkhub 存档），不入库
 data/arkhub/pixels/
+# 运行时用户画廊图片（gallery 存档），不入库
+data/user/gallery/

@@ -212,10 +212,6 @@ vi.mock("@utils/time", () => ({
 
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
-vi.mock("lodash", () => ({
-  ceil: (n: number) => Math.ceil(n),
-}));
-
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import { CharManager } from "@game/manager/char";
 

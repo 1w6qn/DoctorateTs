@@ -17,7 +17,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'json', 'lcov'],
       include: ['app/**/*.ts'],
-      exclude: ['app/excel/**', 'app/config/**', 'app/assets.ts', 'app/updater.ts'],
+      exclude: ['app/excel/**', 'app/config/**', 'app/assets.ts'],
       thresholds: {
         // 实测全局 ~51% 行 / 47% 函数 / 41% 分支——阈值低于现值留缓冲（D2）
         lines: 40,

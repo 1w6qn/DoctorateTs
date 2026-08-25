@@ -5,15 +5,11 @@
  * users 表 JSON，避免每次保存配置时全量重写（R4 + A3）。
  */
 import { DatabaseSync } from "node:sqlite";
+import { now } from "@utils/time";
 import type {
   BattleInfo,
   BattleRecord,
 } from "@game/manager/BattleInfoStore";
-
-/** 当前时间戳（秒） */
-function nowTs(): number {
-  return Math.floor(Date.now() / 1000);
-}
 
 export class ReplayRepository {
   constructor(private db: DatabaseSync) {}
@@ -32,7 +28,7 @@ export class ReplayRepository {
       .prepare(
         "INSERT OR REPLACE INTO replays (uid, stage_id, replay, updated_ts) VALUES (?, ?, ?, ?)",
       )
-      .run(uid, stageId, replay, nowTs());
+      .run(uid, stageId, replay, now());
   }
 
   /** 获取战斗结算信息（无则返回 undefined） */
@@ -49,7 +45,7 @@ export class ReplayRepository {
       .prepare(
         "INSERT OR REPLACE INTO battle_infos (uid, battle_id, info, updated_ts) VALUES (?, ?, ?, ?)",
       )
-      .run(uid, battleId, JSON.stringify(info), nowTs());
+      .run(uid, battleId, JSON.stringify(info), now());
   }
 
   /** 删除账号的战斗数据（B-2：回放 + 结算信息） */

@@ -4,7 +4,6 @@ import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
 import { GachaResult } from "@game/model/gacha";
 import { now } from "@utils/time";
-import { ceil } from "lodash";
 import { logger } from "@utils/logger";
 import { rarityToIndex } from "@utils/rarity";
 import {
@@ -145,10 +144,10 @@ export class CharManager {
         } else {
           switch (rarityToIndex(excel.CharacterTable[charId].rarity)) {
             case 5:
-              items.push({ id: "4004", count: ceil(10 * mul) });
+              items.push({ id: "4004", count: Math.ceil(10 * mul) });
               break;
             case 4:
-              items.push({ id: "4004", count: ceil(5 * mul) });
+              items.push({ id: "4004", count: Math.ceil(5 * mul) });
               break;
             case 3:
               items.push({ id: "4005", count: 30 });

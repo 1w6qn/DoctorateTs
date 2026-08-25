@@ -5,7 +5,7 @@
  * 所有接口路径前缀为 `/auth`。
  */
 
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import { now } from "@utils/time";
 import { readJson } from "@utils/file";
 import { logger } from "@utils/logger";
@@ -180,8 +180,8 @@ router.get("/pcSdk/userInfo", async (_req, res) => {
   res.send(null);
 });
 
-/** OAuth2 授权 v1（兼容旧客户端——同 v2 逻辑） */
-router.post("/user/oauth2/v1/grant", async (req, res) => {
+/** OAuth2 授权共享 handler（v1 兼容旧客户端，v2 为现行版本——逻辑一致） */
+async function oauth2Grant(req: Request, res: Response): Promise<void> {
   const code: string = req.body!.token;
   const uid = await accountManager.getUidByToken(code);
   res.send({
@@ -189,26 +189,21 @@ router.post("/user/oauth2/v1/grant", async (req, res) => {
     msg: "OK",
     data: { code, uid },
   });
-});
+}
+
+/** OAuth2 授权 v1（兼容旧客户端——同 v2 逻辑） */
+router.post("/user/oauth2/v1/grant", oauth2Grant);
 
 /**
  * OAuth2 授权
- * 
+ *
  * 处理 OAuth2 授权流程，根据 Token 返回授权码和用户 ID。
- * 
+ *
  * @route POST /auth/user/oauth2/v2/grant
  * @param token - 用户登录 Token
  * @returns 授权码和用户 ID
  */
-router.post("/user/oauth2/v2/grant", async (req, res) => {
-  const code: string = req.body!.token;
-  const uid = await accountManager.getUidByToken(code);
-  res.send({
-    status: 0,
-    msg: "OK",
-    data: { code, uid },
-  });
-});
+router.post("/user/oauth2/v2/grant", oauth2Grant);
 
 /**
  * U8 渠道获取 Token
@@ -505,23 +500,6 @@ router.post("/user/oauth2/v1/unbind_grant", async (req, res) => {
 /** 支付订单状态（参考 DoctoratePy payConfirmOrderState——私服无支付返回未完成） */
 router.post("/u8/pay/confirmOrderState", async (req, res) => {
   res.send({ payState: 0 });
-});
-
-/** Token 换取用户状态（参考 DoctoratePy userAuth——客户端登录后校验） */
-router.post("/user/auth", async (req, res) => {
-  const token = String(req.body?.token ?? "");
-  const uid = await accountManager.getUidByToken(token);
-  if (!uid) {
-    return res.status(404).send({ status: 1, msg: "用户不存在" });
-  }
-  res.send({
-    uid,
-    isMinor: false,
-    isAuthenticate: true,
-    isGuest: false,
-    needAuthenticate: false,
-    isLatestUserAgreement: true,
-  });
 });
 
 /**

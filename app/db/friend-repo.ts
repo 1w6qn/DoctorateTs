@@ -5,11 +5,7 @@
  * 方法语义与 AccountManager 原社交方法一致，便于平滑替换。
  */
 import { DatabaseSync } from "node:sqlite";
-
-/** 当前时间戳（秒） */
-function nowTs(): number {
-  return Math.floor(Date.now() / 1000);
-}
+import { now } from "@utils/time";
 
 export class FriendRepository {
   constructor(private db: DatabaseSync) {}
@@ -38,7 +34,7 @@ export class FriendRepository {
       .prepare(
         "INSERT OR IGNORE INTO friends (uid, friend_uid, alias, create_ts) VALUES (?, ?, ?, ?)",
       )
-      .run(uid, friendUid, alias, nowTs());
+      .run(uid, friendUid, alias, now());
   }
 
   /** 删除好友 */
@@ -79,7 +75,7 @@ export class FriendRepository {
       .prepare(
         "INSERT OR IGNORE INTO friend_requests (from_uid, to_uid, create_ts) VALUES (?, ?, ?)",
       )
-      .run(fromUid, toUid, nowTs());
+      .run(fromUid, toUid, now());
   }
 
   /** 删除申请（删除 to 收到的来自 from 的申请） */
@@ -95,7 +91,7 @@ export class FriendRepository {
       .prepare(
         "INSERT OR REPLACE INTO visited (uid, visited_uid, ts) VALUES (?, ?, ?)",
       )
-      .run(uid, visitedUid, nowTs());
+      .run(uid, visitedUid, now());
   }
 
   /** 获取访问记录 */

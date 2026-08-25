@@ -6,12 +6,8 @@
  */
 import { DatabaseSync } from "node:sqlite";
 import { readJson } from "@utils/file";
+import { now } from "@utils/time";
 import type { UserConfig } from "@game/manager/AccountManager";
-
-/** 当前时间戳（秒） */
-function nowTs(): number {
-  return Math.floor(Date.now() / 1000);
-}
 
 /**
  * 持久化前剔除社交字段
@@ -54,7 +50,7 @@ export class UserRepository {
   upsert(uid: string, config: UserConfig): void {
     this.db
       .prepare("INSERT OR REPLACE INTO users (uid, data, updated_ts) VALUES (?, ?, ?)")
-      .run(uid, JSON.stringify(stripSocial(config)), nowTs());
+      .run(uid, JSON.stringify(stripSocial(config)), now());
   }
 
   /**
@@ -73,7 +69,7 @@ export class UserRepository {
       this.db.prepare("SELECT uid FROM users").all() as { uid: string }[]
     ).map((r) => r.uid);
     const next = new Set(Object.keys(configs));
-    const ts = nowTs();
+    const ts = now();
     this.db.exec("BEGIN");
     try {
       for (const [uid, config] of Object.entries(configs)) {

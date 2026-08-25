@@ -1,6 +1,6 @@
 import { PlayerFriendAssist } from "@game/model/playerdata";
 import { accountManager } from "./AccountManager";
-import { pick } from "lodash";
+import { pickKeys, pickLoose } from "@utils/object";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 import excel from "@excel/excel";
@@ -44,7 +44,7 @@ export class SocialManager {
       const infoList = await Promise.all(
         playerList.map((friend) => accountManager.getPlayerFriendInfo(friend)),
       );
-      return infoList.map((friend) => pick(friend, ["uid", "level"]));
+      return infoList.map((friend) => pickKeys(friend, ["uid", "level"]));
     } else if (type === FriendServiceType.GET_FRIEND_LIST) {
       const social = await accountManager.getSocial(this._uid);
       const friendIdList = social.friends.map((friend) => friend.uid);
@@ -54,7 +54,7 @@ export class SocialManager {
         ),
       );
       return friendInfoList.map((friend) =>
-        pick(friend, ["uid", ...sortKeyList]),
+        pickLoose(friend, ["uid", ...sortKeyList]),
       );
     }
   }

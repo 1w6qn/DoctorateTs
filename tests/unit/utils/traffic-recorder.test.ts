@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
-import { createTrafficRecorder } from "../../../app/utils/traffic-recorder";
+import {
+  createTrafficRecorder,
+  parseReqresLogMode,
+} from "../../../app/utils/traffic-recorder";
 import { captureManager } from "../../../app/capture/capture-manager";
 
 // 测试专用独立临时目录——绝不碰真实 tmp/capture/（统一抓包存储）
@@ -18,10 +21,10 @@ function mockReq(originalUrl: string, method = "POST", body: any = {}) {
   } as any;
 }
 
-function mockRes() {
+function mockRes(statusCode = 200) {
   const res: any = {};
   let finishCb: () => void = () => {};
-  res.statusCode = 200;
+  res.statusCode = statusCode;
   res.getHeaders = vi.fn(() => ({}));
   res.send = vi.fn(function (this: any, data: any) {
     this._body = data;
@@ -37,6 +40,12 @@ function mockRes() {
   });
   res.flush = () => finishCb();
   return res;
+}
+
+/** CaptureRecorder 端口 mock（解耦验证：记录导向注入端口而非真实单例） */
+function mockRecorder() {
+  const addRecord = vi.fn().mockResolvedValue({} as never);
+  return { addRecord };
 }
 
 describe("createTrafficRecorder（统一抓包存储记录）", () => {
@@ -65,7 +74,7 @@ describe("createTrafficRecorder（统一抓包存储记录）", () => {
     res.send({ result: 0, ts: 123 });
     res.flush();
     // finish 回调是异步落库的
-    await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 300));
 
     const { total, items } = await captureManager.query({});
     expect(total).toBe(1);
@@ -95,7 +104,7 @@ describe("createTrafficRecorder（统一抓包存储记录）", () => {
     handler(req, res, () => {});
     res.send({ result: 0 });
     res.flush();
-    await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 300));
     expect((await captureManager.query({})).total).toBe(0);
   });
 
@@ -106,7 +115,7 @@ describe("createTrafficRecorder（统一抓包存储记录）", () => {
     handler(req, res, () => {});
     res.json({ result: 0 });
     res.flush();
-    await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 300));
     const { items } = await captureManager.query({});
     expect(items[0].path).toBe("/u8/user/v1/getToken");
     expect(items[0].query).toBe("appCode=abc&platform=2");
@@ -121,7 +130,7 @@ describe("createTrafficRecorder（统一抓包存储记录）", () => {
     handler(req, res, () => {});
     res.json({ result: 0 });
     res.flush();
-    await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 300));
     const { items } = await captureManager.query({});
     expect(items[0].source).toBe("official");
   });
@@ -138,7 +147,7 @@ describe("createTrafficRecorder（统一抓包存储记录）", () => {
     handler(req, res, () => {});
     res.send({ pixelArtId: 123 });
     res.flush();
-    await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 300));
 
     const { items } = await captureManager.query({});
     const rec = items[0];
@@ -157,7 +166,7 @@ describe("createTrafficRecorder（统一抓包存储记录）", () => {
     handler(req, res, () => {});
     res.send({ result: 0 });
     res.flush();
-    await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 300));
     const { items } = await captureManager.query({});
     expect(items[0].reqBodyType).toBe("json");
     const detail = await captureManager.getRecordDetail(items[0].id);
@@ -181,7 +190,7 @@ describe("createTrafficRecorder（统一抓包存储记录）", () => {
       res.send({ ok: 1 });
       res.flush();
     }
-    await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 300));
     expect((await captureManager.query({})).total).toBe(0);
     // 未包裹 res.send：mock 的 send 应保持原样被调用（res.json 未被替换成记录版本）
   });
@@ -194,7 +203,7 @@ describe("createTrafficRecorder（统一抓包存储记录）", () => {
     handler(req, res, () => {});
     res.send({ ok: 1 });
     res.flush();
-    await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 300));
     const { items } = await captureManager.query({});
     expect(items.length).toBe(1);
     expect(items[0].path).toBe("/admin/api/status");
@@ -213,7 +222,7 @@ describe("createTrafficRecorder（统一抓包存储记录）", () => {
     handler(req2, res2, () => {});
     res2.send({ ok: 1 });
     res2.flush();
-    await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 300));
     const { items } = await captureManager.query({});
     expect(items.length).toBe(1);
     expect(items[0].path).toBe("/shop/getLowGoodList");
@@ -221,9 +230,8 @@ describe("createTrafficRecorder（统一抓包存储记录）", () => {
 
   it("注入 CaptureRecorder 端口（mock）时写入 mock 而非真实单例（解耦验证）", async () => {
     // 业务层面向 CaptureRecorder 窄端口编程，可注入 mock 替换真实 captureManager 单例。
-    const addRecord = vi.fn().mockResolvedValue({} as never);
-    const mockRecorder = { addRecord };
-    const handler = createTrafficRecorder(cfgOn, "private", mockRecorder);
+    const recorder = mockRecorder();
+    const handler = createTrafficRecorder(cfgOn, "private", recorder);
     const req = mockReq("/shop/getLowGoodList");
     const res = mockRes();
     handler(req, res, () => {});
@@ -231,11 +239,255 @@ describe("createTrafficRecorder（统一抓包存储记录）", () => {
     res.flush();
     await new Promise((r) => setTimeout(r, 50));
 
-    expect(addRecord).toHaveBeenCalledTimes(1);
-    const [meta, bodies] = addRecord.mock.calls[0];
+    expect(recorder.addRecord).toHaveBeenCalledTimes(1);
+    const [meta, bodies] = recorder.addRecord.mock.calls[0];
     expect(meta.path).toBe("/shop/getLowGoodList");
     expect(bodies.res).toEqual({ kind: "json", data: { ok: 1 } });
     // 真实单例不应收到写入（把记录导向了注入的 mock）
     expect((await captureManager.query({})).total).toBe(0);
+  });
+});
+
+describe("parseReqresLogMode（REQRES_LOG 环境变量解析，原 reqres-log enabledFor）", () => {
+  it("缺省/空串/0/false/off → 关闭（行为变更：缺省不再视为 rlv2，默认关闭）", () => {
+    for (const off of [undefined, "", "0", "false", "off"]) {
+      expect(parseReqresLogMode(off)).toEqual({ enabled: false });
+    }
+  });
+
+  it("大小写不敏感：OFF/False/ALL 同义", () => {
+    expect(parseReqresLogMode("OFF")).toEqual({ enabled: false });
+    expect(parseReqresLogMode("False")).toEqual({ enabled: false });
+    expect(parseReqresLogMode("ALL")).toEqual({ enabled: true, prefix: null });
+  });
+
+  it("all 模式 → 全部记录（prefix=null）", () => {
+    expect(parseReqresLogMode("all")).toEqual({ enabled: true, prefix: null });
+  });
+
+  it("其余值视为路径前缀并自动补前导 /", () => {
+    expect(parseReqresLogMode("rlv2")).toEqual({ enabled: true, prefix: "/rlv2" });
+    expect(parseReqresLogMode("/rlv2")).toEqual({ enabled: true, prefix: "/rlv2" });
+    expect(parseReqresLogMode("battle")).toEqual({ enabled: true, prefix: "/battle" });
+  });
+});
+
+describe("REQRES_LOG 定向记录通道（原 reqres-log 能力并入；env 在创建时读取）", () => {
+  const ORIGINAL = process.env.REQRES_LOG;
+  const cfgOff = { debug: { recordTraffic: false } };
+
+  beforeEach(() => {
+    delete process.env.REQRES_LOG;
+  });
+
+  afterEach(() => {
+    if (ORIGINAL === undefined) delete process.env.REQRES_LOG;
+    else process.env.REQRES_LOG = ORIGINAL;
+  });
+
+  it("默认关闭（⚠ 行为变更）：主开关关 + 未设 REQRES_LOG 时 /rlv2 也不再记录（旧默认 rlv2 会记）", async () => {
+    const recorder = mockRecorder();
+    const handler = createTrafficRecorder(cfgOff, "private", recorder);
+    const res = mockRes();
+    handler(mockReq("/rlv2/finishEvent?t=1"), res, () => {});
+    res.send({ ok: 1 });
+    res.flush();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(recorder.addRecord).not.toHaveBeenCalled();
+  });
+
+  it("REQRES_LOG=rlv2：仅记录 /rlv2 前缀（白名单语义），其余不包裹不写入", async () => {
+    process.env.REQRES_LOG = "rlv2";
+    const recorder = mockRecorder();
+    const handler = createTrafficRecorder(cfgOff, "private", recorder);
+
+    const res1 = mockRes();
+    handler(mockReq("/rlv2/finishEvent?t=1"), res1, () => {});
+    res1.send({ playerDataDelta: { ok: true } });
+    res1.flush();
+
+    const res2 = mockRes();
+    let nextCalled = false;
+    handler(mockReq("/other/route"), res2, () => {
+      nextCalled = true;
+    });
+    res2.send({});
+    res2.flush();
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(nextCalled).toBe(true);
+    expect(recorder.addRecord).toHaveBeenCalledTimes(1);
+    const [meta, bodies] = recorder.addRecord.mock.calls[0];
+    expect(meta.path).toBe("/rlv2/finishEvent");
+    expect(meta.query).toBe("t=1");
+    expect(meta.source).toBe("private");
+    // bodies：req json + res json
+    expect(bodies.req).toEqual({ kind: "json", data: {} });
+    expect(bodies.res).toEqual({ kind: "json", data: { playerDataDelta: { ok: true } } });
+  });
+
+  it("REQRES_LOG=all：全部记录（含默认排除前缀 /admin）", async () => {
+    process.env.REQRES_LOG = "all";
+    const recorder = mockRecorder();
+    const handler = createTrafficRecorder(cfgOff, "private", recorder);
+    const res = mockRes();
+    handler(mockReq("/admin/api/status"), res, () => {});
+    res.send({ ok: 1 });
+    res.flush();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(recorder.addRecord).toHaveBeenCalledTimes(1);
+    expect(recorder.addRecord.mock.calls[0][0].path).toBe("/admin/api/status");
+  });
+
+  it("REQRES_LOG=自定义前缀 battle：只记 /battle/*", async () => {
+    process.env.REQRES_LOG = "battle";
+    const recorder = mockRecorder();
+    const handler = createTrafficRecorder(cfgOff, "private", recorder);
+    const res1 = mockRes();
+    handler(mockReq("/battle/start"), res1, () => {});
+    res1.send({ ok: 1 });
+    res1.flush();
+    const res2 = mockRes();
+    handler(mockReq("/rlv2/x"), res2, () => {});
+    res2.send({});
+    res2.flush();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(recorder.addRecord).toHaveBeenCalledTimes(1);
+    expect(recorder.addRecord.mock.calls[0][0].path).toBe("/battle/start");
+  });
+
+  it("显式关闭值（0/false/off）→ 不记录（迁移自旧「开关关闭」用例）", async () => {
+    const recorder = mockRecorder();
+    for (const off of ["0", "false", "off"]) {
+      process.env.REQRES_LOG = off;
+      const handler = createTrafficRecorder(cfgOff, "private", recorder);
+      const res = mockRes();
+      let nextCalled = false;
+      handler(mockReq("/rlv2/x"), res, () => {
+        nextCalled = true;
+      });
+      res.send({});
+      res.flush();
+      expect(nextCalled).toBe(true);
+    }
+    await new Promise((r) => setTimeout(r, 20));
+    expect(recorder.addRecord).not.toHaveBeenCalled();
+  });
+});
+
+describe("options.include 正向匹配与 note 透传（对象参数形态）", () => {
+  const cfgOn = { debug: { recordTraffic: true } };
+
+  afterEach(() => {
+    delete process.env.REQRES_LOG;
+  });
+
+  it("include 命中的请求即使命中 exclude 也记录（include 优先于 exclude，修复排除旁路）", async () => {
+    const recorder = mockRecorder();
+    // /admin 在默认排除列表中，但 include 正向命中 → 必须记录
+    const handler = createTrafficRecorder({
+      config: cfgOn,
+      source: "private",
+      recorder,
+      include: ["/rlv2", "/admin"],
+    });
+    const res1 = mockRes();
+    handler(mockReq("/admin/api/status"), res1, () => {});
+    res1.send({ ok: 1 });
+    res1.flush();
+    const res2 = mockRes();
+    handler(mockReq("/rlv2/finishEvent"), res2, () => {});
+    res2.json({ code: 0 });
+    res2.flush();
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(recorder.addRecord).toHaveBeenCalledTimes(2);
+    expect(recorder.addRecord.mock.calls[0][0].path).toBe("/admin/api/status");
+    // res.json 路径同样记录（对象不被二次序列化）
+    expect(recorder.addRecord.mock.calls[1][1].res).toEqual({ kind: "json", data: { code: 0 } });
+  });
+
+  it("未命中 include 且命中 exclude：跳过且不写入；include 单独存在不能激活关闭的中间件", async () => {
+    const recorder = mockRecorder();
+    const cfgOnExcludeAdmin = { debug: { recordTraffic: true, recordTrafficExclude: ["/admin"] } };
+    const active = createTrafficRecorder({
+      config: cfgOnExcludeAdmin,
+      recorder,
+      include: ["/rlv2"],
+    });
+    // 主开关开、include=/rlv2：/admin 命中 exclude 且未命中 include → 跳过
+    const res1 = mockRes();
+    let nextCalled = false;
+    active(mockReq("/admin/dashboard"), res1, () => {
+      nextCalled = true;
+    });
+    res1.send({});
+    res1.flush();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(nextCalled).toBe(true);
+    expect(recorder.addRecord).not.toHaveBeenCalled();
+
+    // 主开关关 + 仅 options.include（无 REQRES_LOG）：include 只是过滤器，不是激活通道
+    const dormant = createTrafficRecorder({
+      config: { debug: { recordTraffic: false } },
+      recorder,
+      include: ["/rlv2"],
+    });
+    const res2 = mockRes();
+    dormant(mockReq("/rlv2/x"), res2, () => {});
+    res2.send({});
+    res2.flush();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(recorder.addRecord).not.toHaveBeenCalled();
+  });
+
+  it("note 透传到 addRecord（保持 reqres-log 来源标记能力）；位置参数形态不带 note", async () => {
+    const recorder = mockRecorder();
+    const handler = createTrafficRecorder({
+      config: cfgOn,
+      source: "private",
+      recorder,
+      note: "reqres-log",
+    });
+    const res = mockRes();
+    handler(mockReq("/shop/getLowGoodList"), res, () => {});
+    res.send({ ok: 1 });
+    res.flush();
+    await new Promise((r) => setTimeout(r, 20));
+
+    const [meta] = recorder.addRecord.mock.calls[0];
+    expect(meta.note).toBe("reqres-log");
+
+    // 对照：旧位置参数调用（index.ts 形态）不注入 note
+    const plain = mockRecorder();
+    const handler2 = createTrafficRecorder(cfgOn, "private", plain);
+    const res2 = mockRes();
+    handler2(mockReq("/shop/getLowGoodList"), res2, () => {});
+    res2.send({ ok: 1 });
+    res2.flush();
+    await new Promise((r) => setTimeout(r, 20));
+    const [meta2] = plain.addRecord.mock.calls[0];
+    expect("note" in meta2).toBe(false);
+  });
+
+  it("rawBody 二进制请求体优先于 req.body；非 JSON 字符串响应体走 bin（迁移自 reqres-log 用例）", async () => {
+    const recorder = mockRecorder();
+    const handler = createTrafficRecorder({ config: cfgOn, source: "private", recorder });
+    const buf = Buffer.from([1, 2, 3]);
+    const req = mockReq("/activity/upload?platform=2");
+    req.rawBody = buf;
+    req.body = {};
+    const res = mockRes(404);
+    handler(req, res, () => {});
+    res.send("not found html");
+    res.flush();
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(recorder.addRecord).toHaveBeenCalledTimes(1);
+    const [meta, bodies] = recorder.addRecord.mock.calls[0];
+    expect(meta.status).toBe(404);
+    expect(meta.query).toBe("platform=2");
+    expect(bodies.req).toEqual({ kind: "bin", data: buf });
+    expect(bodies.res).toEqual({ kind: "bin", data: "not found html" });
   });
 });

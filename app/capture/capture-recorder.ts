@@ -4,9 +4,9 @@
  * 定义业务/工具层面向的窄接口：仅暴露落库一条记录的能力，
  * 隐藏 CaptureManager 的会话管理、查询、导出、订阅等实现细节。
  *
- * 目的：解耦业务层（game/reqres-log、utils/traffic-recorder）对具体单例
+ * 目的：解耦业务层（utils/traffic-recorder，含并入的原 game/reqres-log）对具体单例
  * `captureManager` 的依赖——它们只依赖该端口，默认注入真实单例，
- * 测试时可替换为 mock（见 reqres-log.test / traffic-recorder.test）。
+ * 测试时可替换为 mock（见 traffic-recorder.test）。
  *
  * `CaptureManager` 天然结构性满足本接口，组装层（index.ts）保持默认注入即可。
  */
@@ -20,7 +20,7 @@ import type {
  * 抓包写入端口
  *
  * @remarks
- * 仅声明 addRecord 一条写入能力，供 HTTP 抓包中间件（traffic-recorder / reqres-log）
+ * 仅声明 addRecord 一条写入能力，供 HTTP 抓包中间件（traffic-recorder）
  * 面向接口写入统一抓包存储。
  */
 export interface CaptureRecorder {

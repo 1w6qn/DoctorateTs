@@ -11,12 +11,7 @@
  */
 import { readdir, readFile, rm } from "fs/promises";
 import * as path from "path";
-import { subscribeLog, LogEvent } from "@utils/logger";
-
-/** 日志目录（与 logger 同源：LOG_DIR 环境变量可覆盖——测试注入临时目录） */
-function logDir(): string {
-  return process.env.LOG_DIR ?? "logs";
-}
+import { subscribeLog, logDir, LogEvent } from "@utils/logger";
 
 /** 服务器日志文件名前缀 */
 const SERVER_PREFIX = "server-";

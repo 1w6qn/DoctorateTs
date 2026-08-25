@@ -24,8 +24,9 @@ import * as path from "path";
 /**
  * 文件日志目录（LOG_DIR 环境变量可覆盖——测试注入临时目录用）。
  * 运行时求值：日志落盘目录不缓存，测试可动态设置后再调用。
+ * 单一事实源：log-service 等日志消费方一律 import 本函数，勿再复制。
  */
-function logDir(): string {
+export function logDir(): string {
   return process.env.LOG_DIR ?? "logs";
 }
 

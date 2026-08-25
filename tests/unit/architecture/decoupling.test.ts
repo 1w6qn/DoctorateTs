@@ -5,8 +5,8 @@
  *  1. excel 层不得反向依赖 game 业务层（无 `from "@game/`）
  *  2. router 层不得直接依赖请求上下文实现（express-http-context2），
  *     访问玩家门面必须经 app/game/request-context 助手
- *  3. 抓包写入方（reqres-log / traffic-recorder）面向 CaptureRecorder 端口写入，
- *     不得直接调用 captureManager.addRecord 落库
+ *  3. 抓包写入方（traffic-recorder，含已并入的原 reqres-log 定向记录）面向 CaptureRecorder
+ *     端口写入，不得直接调用 captureManager.addRecord 落库
  *
  * 这是对改造点的持久证明：任何未来改动若重新引入反向/越界耦合，本测试将红灯。
  */
@@ -96,10 +96,10 @@ describe("架构解耦守卫", () => {
   });
 
   it("抓包写入方须面向 CaptureRecorder 端口，不直接调用 captureManager.addRecord", () => {
-    const targets = [
-      path.join(APP_ROOT, "game", "reqres-log.ts"),
-      path.join(APP_ROOT, "utils", "traffic-recorder.ts"),
-    ];
+    // reqres-log 已并入 traffic-recorder（include 定向记录 + parseReqresLogMode），文件已删除——守卫防回归
+    const mergedAway = path.join(APP_ROOT, "game", "reqres-log.ts");
+    expect(fs.existsSync(mergedAway)).toBe(false);
+    const targets = [path.join(APP_ROOT, "utils", "traffic-recorder.ts")];
     // 通过端口类型注入 recorder，而不是直接落库到具体单例
     expect(targets.every((f) => fs.existsSync(f))).toBe(true);
     for (const file of targets) {

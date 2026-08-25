@@ -12,7 +12,8 @@ import JSZip from "jszip";
 import { createCipheriv, createDecipheriv, createHash } from "crypto";
 import { extractTextAsset } from "./vendor/unityfs";
 import { FBO } from "./vendor/fbo";
-import { convertTable } from "./excel-convert";
+import { LUACRYPT_MASK } from "./vendor/lua-crypt";
+import { convertTable, buildCompletion, isUpToDate } from "./excel-convert";
 import { assetRegistry } from "../app/asset-registry/asset-service";
 
 const ROOT = path.join(__dirname, "..");
@@ -117,7 +118,8 @@ function saveNameCache(): void {
 }
 
 function aesDecrypt(script: Uint8Array): { json?: any; bson?: any } {
-  const mask = Buffer.from("UITpAi82pHAWwnzqHRMCwPonJLIB3WCl");
+  // mask 与 lua 加密共用同一常量（vendor/lua-crypt LUACRYPT_MASK = excel 管线 MASK_V2），单点维护
+  const mask = LUACRYPT_MASK;
   const data = script.subarray(128);
   const key = mask.subarray(0, 16);
   const iv = Buffer.from(data.subarray(0, 16).map((d, i) => d ^ mask[16 + i]));
@@ -284,20 +286,11 @@ async function main() {
     // 并行转换：需转换的表数较多时用 worker_threads（首次/新版本全量）；否则内联
     const needConvert = targets.filter((name) => {
       const f = `${name}.json`;
-      const out = path.join(DATA_EXCEL_DIR, f);
-      const schemaPath = path.join(SCHEMA_DIR, f);
-      try {
-        const decStat = fs.statSync(path.join(OUT_DIR, f));
-        const outStat = fs.existsSync(out) ? fs.statSync(out) : null;
-        const schemaStat = fs.existsSync(schemaPath) ? fs.statSync(schemaPath) : null;
-        return !(
-          outStat &&
-          decStat.mtimeMs <= outStat.mtimeMs &&
-          (!schemaStat || schemaStat.mtimeMs <= outStat.mtimeMs)
-        );
-      } catch {
-        return true;
-      }
+      return !isUpToDate(
+        path.join(OUT_DIR, f),
+        path.join(DATA_EXCEL_DIR, f),
+        path.join(SCHEMA_DIR, f),
+      );
     });
     skipped = targets.length - needConvert.length;
 
@@ -359,27 +352,6 @@ async function main() {
       });
     } catch { /* 溯源失败不阻断管线 */ }
   }
-}
-
-/** 从 schema JSON 推导记录级字段清单（OpenArknightsFBS 结构） */
-function buildCompletion(schemaPath: string): { fields: string[]; applyTo: "root" | "values"; schema?: any; recordType?: string } | undefined {
-  if (!fs.existsSync(schemaPath)) return undefined;
-  let schema: any;
-  try {
-    schema = JSON.parse(fs.readFileSync(schemaPath, "utf-8"));
-  } catch {
-    return undefined;
-  }
-  const root: string = schema.root || "";
-  let recordType = root;
-  let applyTo: "root" | "values" = "root";
-  if (root.startsWith("clz_Torappu_SimpleKVTable_")) {
-    recordType = root.slice("clz_Torappu_SimpleKVTable_".length);
-    applyTo = "values";
-  }
-  const fields = (schema.tables?.[recordType] || []).map((x: any) => x.name);
-  if (!fields.length) return undefined;
-  return { fields, applyTo, schema, recordType };
 }
 
 main().catch((e) => {

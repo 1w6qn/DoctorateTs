@@ -65,19 +65,6 @@ function normKey(k: string): string {
   return out;
 }
 
-function normNode(node: any): any {
-  if (Array.isArray(node)) return node.map(normNode);
-  if (node && typeof node === "object") {
-    const out: any = {};
-    for (const [k, v] of Object.entries(node)) {
-      if (k.endsWith("AsNumpy")) continue;
-      out[normKey(k)] = normNode(v);
-    }
-    return out;
-  }
-  return node;
-}
-
 function stripIdx(p: string): string {
   return p.replace(/\[\d+\]/g, "");
 }
@@ -128,6 +115,51 @@ export interface SchemaCompletion {
   applyTo: "root" | "values"; // values = SimpleKVTable 解包后的每个记录对象
   schema?: any; // 完整 schema（递归补全嵌套层用）
   recordType?: string; // 记录类型的 clz 名
+}
+
+/**
+ * 从 schema JSON 推导记录级字段清单（OpenArknightsFBS 结构）
+ *
+ * 单点实现：official-excel（内联转换）与 convert-worker（并行转换）共用。
+ * 无 schema 文件 / 解析失败 / 字段为空时返回 undefined。
+ */
+export function buildCompletion(schemaPath: string): SchemaCompletion | undefined {
+  if (!fs.existsSync(schemaPath)) return undefined;
+  let schema: any;
+  try {
+    schema = JSON.parse(fs.readFileSync(schemaPath, "utf-8"));
+  } catch {
+    return undefined;
+  }
+  const root: string = schema.root || "";
+  let recordType = root;
+  let applyTo: "root" | "values" = "root";
+  if (root.startsWith("clz_Torappu_SimpleKVTable_")) {
+    recordType = root.slice("clz_Torappu_SimpleKVTable_".length);
+    applyTo = "values";
+  }
+  const fields = (schema.tables?.[recordType] || []).map((x: any) => x.name);
+  if (!fields.length) return undefined;
+  return { fields, applyTo, schema, recordType };
+}
+
+/**
+ * 增量判断：原始解码文件与 schema 均不晚于输出文件 mtime → 已是最新（true）。
+ * raw 不存在 / stat 出错返回 false（调用方按需转换）。official-excel 与 convert-worker 共用。
+ */
+export function isUpToDate(rawFile: string, outFile: string, schemaFile?: string): boolean {
+  try {
+    const decStat = fs.statSync(rawFile);
+    const outStat = fs.existsSync(outFile) ? fs.statSync(outFile) : null;
+    const schemaStat = schemaFile && fs.existsSync(schemaFile) ? fs.statSync(schemaFile) : null;
+    return (
+      !!outStat &&
+      decStat.mtimeMs <= outStat.mtimeMs &&
+      (!schemaStat || schemaStat.mtimeMs <= outStat.mtimeMs)
+    );
+  } catch {
+    return false;
+  }
 }
 
 export function convertTable(

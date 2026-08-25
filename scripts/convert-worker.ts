@@ -5,7 +5,7 @@
 import { parentPort, workerData } from "worker_threads";
 import * as fs from "fs";
 import * as path from "path";
-import { convertTable } from "./excel-convert";
+import { convertTable, buildCompletion, isUpToDate } from "./excel-convert";
 
 interface WorkerJob {
   tables: string[]; // 表名（不含 .json）
@@ -17,40 +17,13 @@ interface WorkerJob {
 const job: WorkerJob = workerData;
 const { tables, outDir, dataDir, schemaDir } = job;
 
-function buildCompletion(schemaPath: string): any {
-  if (!fs.existsSync(schemaPath)) return undefined;
-  let schema: any;
-  try {
-    schema = JSON.parse(fs.readFileSync(schemaPath, "utf-8"));
-  } catch {
-    return undefined;
-  }
-  const root: string = schema.root || "";
-  let recordType = root;
-  let applyTo: "root" | "values" = "root";
-  if (root.startsWith("clz_Torappu_SimpleKVTable_")) {
-    recordType = root.slice("clz_Torappu_SimpleKVTable_".length);
-    applyTo = "values";
-  }
-  const fields = (schema.tables?.[recordType] || []).map((x: any) => x.name);
-  if (!fields.length) return undefined;
-  return { fields, applyTo, schema, recordType };
-}
-
 for (const name of tables) {
   const f = `${name}.json`;
   const out = path.join(dataDir, f);
   const schemaPath = path.join(schemaDir, f);
   try {
     // 增量：原始解码 + schema 均未变 → 跳过
-    const decStat = fs.statSync(path.join(outDir, f));
-    const outStat = fs.existsSync(out) ? fs.statSync(out) : null;
-    const schemaStat = fs.existsSync(schemaPath) ? fs.statSync(schemaPath) : null;
-    if (
-      outStat &&
-      decStat.mtimeMs <= outStat.mtimeMs &&
-      (!schemaStat || schemaStat.mtimeMs <= outStat.mtimeMs)
-    ) {
+    if (isUpToDate(path.join(outDir, f), out, schemaPath)) {
       parentPort?.postMessage({ name, status: "skipped" });
       continue;
     }

@@ -24,7 +24,13 @@ import * as fs from "fs";
 import * as path from "path";
 import { createHash } from "crypto";
 import JSZip from "jszip";
-import { collectReferenceLua, detectAssetStyle, collectPluginAssets, patchDefinedFix } from "./repack-lua-bundle";
+import {
+  bundleToModName,
+  collectReferenceLua,
+  detectAssetStyle,
+  collectPluginAssets,
+  patchDefinedFix,
+} from "./repack-lua-bundle";
 import { packLuaBundle, type LuaAsset } from "./pack-lua-bundle";
 
 /** zip 条目固定时间戳：内容不变时 md5 稳定（客户端不重复下载） */
@@ -120,7 +126,9 @@ export async function buildLuaMinPack(
   const datBuf = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 
   fs.mkdirSync(outs, { recursive: true });
-  const datName = bundleName.replace(/\//g, "_").replace(/\.[^.]*$/, "") + ".dat";
+  // dat 名 = bundleToModName(bundleName)（规范实现在 repack-lua-bundle，语义对齐
+  // app/asset.ts loadMods 由 zip 条目名推导 downloadName 的查找规则：/ → _、# → __、去扩展名 + .dat）。
+  const datName = bundleToModName(bundleName);
   const dat = path.join(outs, datName);
   fs.writeFileSync(dat, Buffer.from(datBuf));
 

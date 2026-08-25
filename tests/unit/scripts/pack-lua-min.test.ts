@@ -4,6 +4,7 @@ import { join } from "path";
 import os from "os";
 import JSZip from "jszip";
 import { extractTextAssets } from "../../../scripts/vendor/unityfs";
+import { bundleToModName } from "../../../scripts/repack-lua-bundle";
 import { buildLuaMinPack } from "../../../scripts/pack-lua-min";
 
 const enc = new TextEncoder();
@@ -53,9 +54,8 @@ describe("pack-lua-min 最小 Lua 更新包", () => {
 
     // 哈希命名（anon/<md5>.bin）
     expect(result.bundleName).toMatch(/^anon\/[0-9a-f]{32}\.bin$/);
-    expect(result.datName).toBe(
-      result.bundleName.replace(/\//g, "_").replace(/\.[^.]*$/, "") + ".dat",
-    );
+    // dat 名必须与规范转换 bundleToModName 一致（对齐 app/asset.ts loadMods 的 download 查找语义）
+    expect(result.datName).toBe(bundleToModName(result.bundleName));
     expect(result.pluginCount).toBe(2);
     expect(result.dat).toBe(join(out, result.datName));
 

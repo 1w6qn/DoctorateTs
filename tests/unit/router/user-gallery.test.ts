@@ -171,6 +171,20 @@ describe("形艺特辑 gallery 编辑→展示闭环", () => {
     expect(player._playerdata.gallery.magazineSquad).toEqual(["leaf_3"]);
   });
 
+  it("changeMagazineSquad：官服字段 squad 写入当前陈列（修复前无匹配 → 不更新）", async () => {
+    (player._playerdata.gallery as any) = { firstRewards: 0, leafMap: {}, magazineSquad: [], collectionRewards: {}, stickerMap: {}, offlineList: {} };
+    // 官服抓包（R-1787473456620-0040）：请求体 {"squad":["leaf_default"]}
+    const r = await call({
+      method: "POST",
+      url: "/gallery/changeMagazineSquad",
+      headers: { "content-type": "application/json" },
+      body: { squad: ["leaf_default", "leaf_default"] },
+    });
+    // 写入 + 去重，且响应 delta 携带 gallery.magazineSquad（客户端据此刷新"当前陈列"）
+    expect(player._playerdata.gallery.magazineSquad).toEqual(["leaf_default"]);
+    expect(r.send).toHaveBeenCalled();
+  });
+
   it("saveDiyMagazineV2：multipart rawBody 能解析 json part 并写入 leafMap（不再 422）", async () => {
     const boundary = "BOUND";
     const raw = Buffer.concat([

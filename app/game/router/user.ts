@@ -213,6 +213,7 @@ async function parseMagazineMultipart(req: import("express").Request): Promise<{
   magazine?: unknown;
   thumbnail?: string;
   magazineSquad?: string[];
+  squad?: string[];
 } | null> {
   const raw = (req as unknown as { rawBody?: Buffer }).rawBody ?? (await collectRawBody(req));
   const parts = parseMultipartForm(raw, req.headers["content-type"]);
@@ -255,8 +256,19 @@ async function parseMagazineMultipart(req: import("express").Request): Promise<{
       magazineSquad = undefined;
     }
   }
+  // squad：官服 changeMagazineSquad 请求字段（R-1787473456620-0040），multipart 时同样兼容
+  let squad: string[] | undefined;
+  if (Array.isArray(payload.squad)) {
+    squad = payload.squad;
+  } else if (parts.get("squad")) {
+    try {
+      squad = JSON.parse(parts.get("squad")!.toString("utf-8"));
+    } catch {
+      squad = undefined;
+    }
+  }
 
-  return { magazine, thumbnail, magazineSquad };
+  return { magazine, thumbnail, magazineSquad, squad };
 }
 
 const router = Router();
@@ -860,10 +872,15 @@ rootRouter.post("/gallery/changeMagazineSquad", async (req, res) => {
   let squad: string[] | undefined;
   if (ct.includes("multipart/form-data")) {
     const parsed = await parseMagazineMultipart(req);
-    squad = parsed?.magazineSquad;
+    squad = parsed?.squad ?? parsed?.magazineSquad;
   } else {
     const body = (req.body ?? {}) as Record<string, any>;
+    // 修复（2026-08-25）：官服请求字段是 `squad`（抓包 R-1787473456620-0040
+    // {"squad":["leaf_default"]}）——原实现只解析 magazineSquad/leafIds/leafId/
+    // magazineId，客户端"添加到当前陈列"发 squad → 无匹配 → magazineSquad 不更新、
+    // delta 为空 → 界面无变化。squad 优先级最高，其余保留兼容旧写法。
     squad =
+      body.squad ??
       body.magazineSquad ??
       body.leafIds ??
       (typeof body.leafId === "string" ? [body.leafId] : undefined) ??

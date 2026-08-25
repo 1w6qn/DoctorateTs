@@ -156,8 +156,53 @@ describe("MissionManager", () => {
     });
   });
 
-  describe("dailyRefresh 播种日常任务", () => {
-    it("播种的日常任务 progress 应为非空且 target 真实（修复前为空数组）", async () => {
+  describe("weeklyRefresh 播种每周任务", () => {
+    it("weeklyRefresh 应播种并重置存档 WEEKLY 任务（链头 state=2、其余 state=1、进度清零）", async () => {
+      // 构造两个 WEEKLY 任务：weekly_701 是 WEEKLY_START_LIST 链头、weekly_test_001 普通
+      mockExcelRef.MissionTable.missions["weekly_701"] = {
+        id: "weekly_701", type: "WEEKLY", periodicalPoint: 100,
+        template: "CompleteStageAnyType", param: ["0", "1", "2"],
+      };
+      mockExcelRef.MissionTable.missions["weekly_test_001"] = {
+        id: "weekly_test_001", type: "WEEKLY", periodicalPoint: 20,
+        template: "CompleteStageAnyType", param: ["0", "1", "2"],
+      };
+      // 预置上周完成态 + 已领周奖励（修复前 weeklyRefresh 不清 → 客户端仍显示完成态）
+      mockPlayer._playerdata.mission = {
+        missions: {
+          DAILY: {},
+          WEEKLY: {
+            "weekly_701": { state: 3, progress: [{ value: 1, target: 1 }] },
+          },
+          ACTIVITY: {},
+          OPENSERVER: {},
+        },
+        missionRewards: {
+          dailyPoint: 0,
+          weeklyPoint: 50,
+          rewards: { DAILY: {}, WEEKLY: { wr_1: 1 } },
+        },
+        missionGroups: {},
+      };
+      const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
+      await manager.weeklyRefresh();
+      const wk = mockPlayer._playerdata.mission.missions["WEEKLY"];
+      // 播种：存档补齐所有 WEEKLY 任务（修复前仅内存重建，存档无 weekly_test_001）
+      expect(wk["weekly_701"]).toBeDefined();
+      expect(wk["weekly_test_001"]).toBeDefined();
+      // 链头可见（state=2）、普通链中隐藏（state=1）、进度重置为 0
+      expect(wk["weekly_701"].state).toBe(2);
+      expect(wk["weekly_test_001"].state).toBe(1);
+      expect(wk["weekly_701"].progress).toEqual([{ value: 0, target: 1 }]);
+      // 周点数与已领奖励重置
+      expect(mockPlayer._playerdata.mission.missionRewards.weeklyPoint).toBe(0);
+      expect(
+        mockPlayer._playerdata.mission.missionRewards.rewards["WEEKLY"],
+      ).toEqual({});
+    });
+  });
+
+  describe("dailyRefresh 播种日常任务", () => {    it("播种的日常任务 progress 应为非空且 target 真实（修复前为空数组）", async () => {
       // 构造一个覆盖当前日期的周期，使 dailyMissionPeriod 可用
       const period = {
         startTime: 0,
@@ -194,6 +239,46 @@ describe("MissionManager", () => {
       expect(da["daily_seed_c"].progress).toEqual([{ value: 0, target: 3 }]);
       expect(da["daily_seed_g"].progress).toEqual([{ value: 0, target: 100 }]);
       expect(da["daily_seed_c"].progress.length).toBeGreaterThan(0);
+    });
+
+    it("播种时链头任务 state=2（可见）、链中任务 state=1（隐藏，修复前全部 state=1）", async () => {
+      // 构造覆盖当前日期的周期，使 dailyMissionPeriod 可用
+      const period = {
+        startTime: 0,
+        endTime: Number.MAX_SAFE_INTEGER,
+        periodList: [
+          {
+            period: [1, 2, 3, 4, 5, 6, 7],
+            missionGroupId: "daily_g_seed_state",
+            rewardGroupId: "reward_g_seed_state",
+          },
+        ],
+      };
+      mockExcelRef.MissionTable.dailyMissionPeriodInfo = [period];
+      // 组内混入真实链头（daily_5801 在 DAILY_START_LIST）与普通链中任务
+      mockExcelRef.MissionTable.missionGroups["daily_g_seed_state"] = {
+        missionIds: ["daily_5801", "daily_5802"],
+      };
+      mockExcelRef.MissionTable.missions["daily_5801"] = {
+        id: "daily_5801", type: "DAILY", periodicalPoint: 1,
+        template: "CompleteStageAnyType", param: ["0", "1", "2"],
+      };
+      mockExcelRef.MissionTable.missions["daily_5802"] = {
+        id: "daily_5802", type: "DAILY", periodicalPoint: 1,
+        template: "CompleteStageAnyType", param: ["0", "1", "2"],
+      };
+
+      const manager = new MissionManager(mockPlayer as any, mockTrigger as any);
+      await manager.dailyRefresh();
+
+      const da = mockPlayer._playerdata.mission.missions["DAILY"];
+      // 修复前：两者播种均 state=1 → 客户端任务列表只显示 state>=2（IN_EFFECT/
+      // CONFIRMED/FINISHED）的任务，未完成且进度为 0 的链头任务不显示。
+      // 修复后：链头 daily_5801 可见（state=2），链中 daily_5802 隐藏（state=1）。
+      expect(da["daily_5801"].state).toBe(2);
+      expect(da["daily_5802"].state).toBe(1);
+      // 链头任务进度仍为 0 但处于可见态（未完成也显示在列表中）
+      expect(da["daily_5801"].progress).toEqual([{ value: 0, target: 1 }]);
     });
   });
 

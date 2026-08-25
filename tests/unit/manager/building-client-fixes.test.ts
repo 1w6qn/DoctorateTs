@@ -135,6 +135,31 @@ describe("deliveryBatchOrder 请求字段变体兼容", () => {
     expect(res).toEqual({});
     expect(mockPlayer._playerdata.status!.gold).toBe(1000); // 未交付
   });
+
+  it("deliveryBatchOrder 交付后 sync 不应立即补满订单（改动不被撤回）", async () => {
+    const b = baseBuilding();
+    // 静态兜底路径（无 next）：初始库存 2 单，stockLimit 5
+    b.rooms.TRADING.slot_6 = {
+      state: 1,
+      stock: [
+        { instId: 1, delivery: [{ id: "3003", type: "MATERIAL", count: 2 }], type: "O_GOLD", gain: { id: "4001", type: "GOLD", count: 1000 }, buff: [] },
+        { instId: 2, delivery: [{ id: "3003", type: "MATERIAL", count: 2 }], type: "O_GOLD", gain: { id: "4001", type: "GOLD", count: 1000 }, buff: [] },
+      ],
+      stockLimit: 5, strategy: "O_GOLD", lastUpdateTime: 1000,
+    };
+    ({ mockPlayer, mockTrigger } = makePlayer(b));
+    manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    // 交付清空全部订单（初始 gold=1000，2 单 × 1000）
+    await manager.deliveryBatchOrder({ slotList: ["slot_6"] } as any);
+    const room = () => mockPlayer._playerdata.building.rooms.TRADING.slot_6;
+    expect(room().stock).toEqual([]);
+    expect(mockPlayer._playerdata.status!.gold).toBe(3000);
+    // 紧接 sync：修复前补单守卫未初始化 → 当"首次补单"立即补满 5 单（订单回退、
+    // 交付被撤回）；修复后交付时刻已记录守卫 → sync 只可能节流补单（间隔内不补）
+    await manager.sync();
+    expect(room().stock).toEqual([]);
+    expect(mockPlayer._playerdata.status!.gold).toBe(3000);
+  });
 });
 
 describe("batchChangeWorkChar 预设队列轮换", () => {

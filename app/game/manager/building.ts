@@ -21,6 +21,7 @@ import {
   getActiveCharBuffs,
   parseVupValue,
 } from "@game/building/buff";
+import { headcountMoodRelief, isDispersedAp } from "@game/building/mood";
 
 /**
  * 基建管理器类
@@ -115,8 +116,8 @@ export class BuildingManager {
       const ts = now();
       for (const room of Object.values(draft.building.rooms.MEETING ?? {})) {
         (room as any).dailyReward = null;
-        // 自动移除线索盒（receiveStock）中已过期的好友赠送线索
-        this._purgeExpiredReceivedClues(draft, room as any, ts);
+        // 自动移除库存（ownStock + receiveStock）中已过期的线索
+        this._purgeExpiredClues(draft, room as any, ts);
         // 留言板社交点周切（跨周：lastWeek ← thisWeek 可领、thisWeek 归零）
         this._rolloverWeekSp(room as any, ts);
         // 留言板社交点累积（模拟好友访问留言板）→ 计入本周 thisWeek
@@ -447,6 +448,8 @@ export class BuildingManager {
     this._recomputeCharScales(draft);
     // 干员心情（building.chars[].ap）随时间累积——官方每次 sync 都下发 chars 增量
     this._accrueCharAp(draft, tsFloat);
+    // 干员暖机工时（在岗累积，离岗/换工位清零）——贸易概率改写等暖机技能消费
+    this._accrueWarmup(draft, ts);
     // 干员信赖（favorPoint）随时间累积：在岗 + 助战干员按流逝时间结算（basicFavorPerDay/24/h）
     this._accrueFavor(draft, tsFloat);
     // 制造站生产随时间累积（进度/产出不再与时间脱钩）
@@ -560,8 +563,10 @@ export class BuildingManager {
     return await this._player.update(async (draft) => {
       const ts = now();
       // 浮点秒（毫秒精度）：任意两次 sync（≥1ms 间隔）lastApAddTime 必变 →
-      // chars 增量恒在（同秒紧邻调用也能正常推进，不会出现空 delta 回归）
-      const tsFloat = Date.now() / 1000;
+      // chars 增量恒在（同秒紧邻调用也能正常推进，不会出现空 delta 回归）。
+      // 时间基准与 ts 同源（now() + 真实时钟亚秒小数部分）——避免注入式时间基准
+      // （测试 mock now()）与 Date.now() 混用导致 elapsed 失真（心情被按真实时钟超发扣成涣散）
+      const tsFloat = ts + (Date.now() % 1000) / 1000;
       // 统一 deltaTime 推进（时间基准一次取定，全子系统共用）
       this._advanceBuilding(draft, ts, tsFloat);
       // 自动移除会客室线索盒（receiveStock）中已过期的好友赠送线索
@@ -639,7 +644,10 @@ export class BuildingManager {
 
   /**
    * 内部方法：训练室进度推进
-   * trainee.processPoint += 流逝时间 × trainee.speed × (1 + 教官训练 buff 加成)（与官方模型一致）
+   * trainee.processPoint += 流逝时间 × trainee.speed × (1 + 教官训练 buff 加成)
+   *（speed 为训练速度系数：官方空态=1、训练中 ≈1.x（2222 存档 1.65），教官 train_*
+   *  buff 在 (1 + trainBonus) 项另行计入——修复后 upgradeSpecialization/assignChar
+   *  不再硬编码 1000，见上。）
    *
    * 修复（2026-08-19）：trainee.state 判定错误——官方 PlayerBuildingTraineeState 枚举
    * EMPTY=0/TRAINING=1/OUTOFDATE=2/WAITING=3，训练中为 **state=1**；原实现 `state !== 3`
@@ -782,6 +790,25 @@ export class BuildingManager {
         next.order = orderId;
         next.processPoint -= next.maxPoint;
       }
+    }
+  }
+
+  /**
+   * 内部方法：初始化贸易站补单守卫（_lastOrderFillTs）
+   *
+   * 修复（2026-08-25）：deliveryOrder/deliveryBatchOrder/accelerateOrder 结算清空
+   * 库存后调用——若守卫从未初始化，下一次 sync 的 _refreshTradingOrders 会把该房间
+   * 当"首次补单"立即补满到 stockLimit（已交付/已结算订单回退，改动被撤回，可无限
+   * 刷金币/凭证）。记录结算时刻后，sync 补单走节流（间隔 ≥ _TRADE_FILL_INTERVAL 才
+   * 补 1 单）。首次守卫由 _refreshTradingOrders 在"库存满"或"首次补单"时初始化，
+   * 此处仅兜底"订单被消费但从未触发过补单"的房间。
+   *
+   * @param room - 贸易站房间对象（draft 内可变对象）
+   */
+  private _touchOrderFillGuard(room: any): void {
+    if (!room) return;
+    if ((room as any)._lastOrderFillTs == null) {
+      (room as any)._lastOrderFillTs = now();
     }
   }
 
@@ -958,7 +985,7 @@ export class BuildingManager {
 
   // ==================== 干员技能（buff）计算 ====================
 
-  /** 干员 buff 激活所需信息（charId/level/evolvePhase），缺失返回 null */
+  /** 干员 buff 激活所需信息（charId/level/evolvePhase/ap），缺失返回 null */
   private _charSource(
     draft: Draft<PlayerDataModel>,
     instId: number,
@@ -969,6 +996,8 @@ export class BuildingManager {
       charId: char.charId,
       level: char.level ?? 0,
       evolvePhase: char.evolvePhase ?? 0,
+      // 心情（raw AP）供涣散判定——缺失视为满心情（未建档干员）
+      ap: (draft.building.chars as any)?.[String(instId)]?.ap,
     };
   }
 
@@ -1115,9 +1144,13 @@ export class BuildingManager {
    */
   private _recomputeCharScales(draft: Draft<PlayerDataModel>): void {
     const roomTypeOf = new Map<number, string>();
+    // 干员 → 所在房间在岗人数（官方头数心情减免：制造/贸易 2人-0.05、3人-0.1 点/时）
+    const headcountOf = new Map<number, number>();
     for (const slot of Object.values(draft.building.roomSlots)) {
-      for (const instId of slot?.charInstIds ?? []) {
-        if (instId > 0) roomTypeOf.set(instId, slot.roomId);
+      const stationed = (slot?.charInstIds ?? []).filter((i) => i > 0);
+      for (const instId of stationed) {
+        roomTypeOf.set(instId, slot.roomId);
+        headcountOf.set(instId, stationed.length);
       }
     }
     // 宿舍恢复按宿舍房间分别计算（干员 → 所在宿舍恢复档位）
@@ -1161,6 +1194,11 @@ export class BuildingManager {
               if (reset) scale = 0; // 消除自身心情消耗
             }
           }
+        }
+        // 官方头数心情减免（制造/贸易）：2人 +0.05、3人 +0.1 点/时
+        // （1 点/时 = 100 raw AP/秒，与 charMoodCost ×100 换算一致）
+        if (roomType === "MANUFACTURE" || roomType === "TRADING") {
+          scale += headcountMoodRelief(headcountOf.get(instId) ?? 1) * 100;
         }
       }
       if (ch.changeScale !== scale) {
@@ -1334,9 +1372,9 @@ export class BuildingManager {
   ): void {
     for (const item of buildCost?.items ?? []) {
       if (item.type === "GOLD") {
-        draft.status.gold -= item.count;
+        this._applyGoldDelta(draft, -item.count);
       } else {
-        draft.inventory[item.id] = (draft.inventory[item.id] || 0) - item.count;
+        this._applyItemDelta(draft, item.id, -item.count);
       }
     }
     if (buildCost?.labor) {
@@ -1345,6 +1383,55 @@ export class BuildingManager {
         0,
       );
     }
+  }
+
+  /**
+   * 内部方法：库存物品数量增减——building 订单/制造/加工结算的统一直写收敛点。
+   * 语义与原各处内联字面量完全一致：draft.inventory[itemId] = (draft.inventory[itemId] || 0) + delta，
+   * 缺省键按 0 起算（?? 0）；delta 允许为负（扣料、部分结算回退），不做任何钳制。
+   *
+   * ⚠️ 已知缺口：本方法直接改写 draft.inventory，绕过 InventoryManager.gainItem 的
+   * items:get 事件通道——制造/加工/订单产出不推进 TotalSimpleTokenCount、ActivityCoinGain
+   * 等勋章任务事件。本次仅为结构收敛（不新增事件发射，行为保持不变）；迁移方案见
+   * docs/重复实现审查-整合清单.md §一。
+   */
+  private _applyItemDelta(
+    draft: Draft<PlayerDataModel>,
+    itemId: string,
+    delta: number,
+  ): void {
+    draft.inventory[itemId] = (draft.inventory[itemId] || 0) + delta;
+  }
+
+  /**
+   * 内部方法：批量库存增减——bundle 形态 { id, count? }，count 缺省按 1
+   * （与订单 delivery/gain 的 `?? 1` 缺省语义一致）；sign=+1 入账 / -1 扣料。
+   *
+   * ⚠️ 同 _applyItemDelta：绕过 items:get 是已知缺口（勋章/任务不推进），
+   * 迁移方案见 docs/重复实现审查-整合清单.md §一。
+   */
+  private _applyBundles(
+    draft: Draft<PlayerDataModel>,
+    bundles: { id?: string; count?: number }[] | null | undefined,
+    sign: 1 | -1,
+  ): void {
+    for (const b of bundles ?? []) {
+      // b.id 类型上可缺省（any 来源数据）；原实现即直接以该键写 inventory——
+      // 非空断言仅为通过类型检查，运行时行为与原字面量写法一致
+      this._applyItemDelta(draft, b.id!, sign * (b.count ?? 1));
+    }
+  }
+
+  /**
+   * 内部方法：金币数量增减——building 订单/制造/加工结算的统一金币直写收敛点。
+   * 语义与原内联 `draft.status.gold -= x` / `+= x` 完全一致（等价于 gold += ±x，
+   * 无下限钳制，允许负值）。
+   *
+   * ⚠️ 已知缺口：同样绕过 InventoryManager.gainItem 的 items:get 类型分发（GOLD
+   * 分支），勋章/任务事件不推进；迁移方案见 docs/重复实现审查-整合清单.md §一。
+   */
+  private _applyGoldDelta(draft: Draft<PlayerDataModel>, delta: number): void {
+    draft.status.gold += delta;
   }
 
   /**
@@ -1412,7 +1499,13 @@ export class BuildingManager {
           state: 1,
           targetSkill,
           processPoint: 0,
-          speed: 1000,
+          // 修复（2026-08-25）：speed 原硬编码 1000（参考实现移植值）→ 官方模型为
+          // 训练速度系数（4.json 官服快照空态 speed=1、训练中 ≈1.x，如 2222 存档 1.65）。
+          // speed=1000 使 _accrueTraining 的 processPoint 秒涨 1000（官方 600 倍），
+          // 客户端 LevelUpSnapshot 按 (totalRequirePoint - processPoint)/speed 显示
+          // 剩余时间 → 训练进度/倒计时异常。改回官方基础速度 1（教官 train_* buff
+          // 在 _accrueTraining 另行加成）。
+          speed: 1,
         };
       } else {
         room.trainee.targetSkill = targetSkill;
@@ -1525,12 +1618,14 @@ export class BuildingManager {
         const trainingRoom = draft.building.rooms.TRAINING[roomSlotId];
         if (trainingRoom) {
           trainingRoom.trainee = trainingRoom.trainee ?? {
-            charInstId: -1, processPoint: 0, speed: 1000, state: 0, targetSkill: -1,
+            charInstId: -1, processPoint: 0, speed: 1, state: 0, targetSkill: -1,
           };
           trainingRoom.trainer = trainingRoom.trainer ?? { charInstId: -1, state: 0 };
           trainingRoom.trainee.charInstId = trainee;
           trainingRoom.trainee.targetSkill = -1;
-          trainingRoom.trainee.speed = 1000;
+          // speed 同 upgradeSpecialization：官方基础速度 1（空态/训练中 ≈1.x），
+          // 非参考实现移植的 1000（否则 processPoint 秒涨 1000 → 训练进度异常）
+          trainingRoom.trainee.speed = 1;
           trainingRoom.trainer.charInstId = trainer;
           trainingRoom.trainee.state = trainee === -1 ? 0 : 3;
           trainingRoom.trainer.state = trainer === -1 ? 0 : 3;
@@ -1891,16 +1986,13 @@ export class BuildingManager {
     draft: Draft<PlayerDataModel>,
     stockItem: any,
   ): void {
-    for (const d of stockItem?.delivery ?? []) {
-      draft.inventory[d.id] = (draft.inventory[d.id] || 0) - (d.count ?? 1);
-    }
+    this._applyBundles(draft, stockItem?.delivery ?? [], -1);
     const gain = stockItem?.gain;
     if (gain) {
       if (gain.type === "GOLD") {
-        draft.status.gold += gain.count ?? 0;
+        this._applyGoldDelta(draft, gain.count ?? 0);
       } else {
-        draft.inventory[gain.id] =
-          (draft.inventory[gain.id] || 0) + (gain.count ?? 1);
+        this._applyBundles(draft, [gain], 1);
       }
     }
   }
@@ -1920,6 +2012,9 @@ export class BuildingManager {
           // 修复：splice 产生 DELETE patch（客户端删 stock 属性而非替换 → UI 残留）；
           // 用 filter 生成 replace patch（modified）
           room.stock = room.stock.filter((x: any) => x !== room.stock[idx]);
+          // 修复（2026-08-25）：加速结算订单同样初始化补单守卫（同 deliveryOrder，
+          // 防 sync 把已结算订单当"首次补单"立即补满 → 改动被撤回）
+          this._touchOrderFillGuard(room);
           // 修复：AccelerateOrder 任务事件从未 emit → 加速订单类任务永不推进
           await this._trigger.emit("AccelerateOrder", []);
         }
@@ -1980,6 +2075,11 @@ export class BuildingManager {
           tradingRoom.stock = tradingRoom.stock.filter(
             (x: any) => x !== tradingRoom.stock[idx],
           );
+          // 修复（2026-08-25）：结算订单后初始化补单守卫——否则下一次 sync 的
+          // _refreshTradingOrders 把该房间当"首次补单"立即补满到 stockLimit（已交付
+          // 订单又回来，改动被撤回，可无限刷金币/凭证）。记录结算时刻，sync 补单走
+          // 节流（间隔 ≥ _TRADE_FILL_INTERVAL 才补 1 单）。
+          this._touchOrderFillGuard(tradingRoom);
           delivered = 1;
         }
       }
@@ -2036,6 +2136,10 @@ export class BuildingManager {
           room.stock = room.stock.filter((x: any) => x !== stock);
           totalDelivered += 1;
         }
+        // 修复（2026-08-25）：批量交付后初始化补单守卫——否则交付清空库存后，紧接的
+        // sync 的 _refreshTradingOrders 把该房间当"首次补单"立即补满到 stockLimit
+        // （订单回退、交付被撤回，可无限刷金币/凭证）。记录交付时刻，sync 补单走节流。
+        if (totalDelivered > 0) this._touchOrderFillGuard(room);
         delivered[slotId] = gains;
       }
     });
@@ -2196,8 +2300,7 @@ export class BuildingManager {
 
     // 产出：itemId × count × 已产出方案数
     const gainCount = (formula.count ?? 1) * outputSolutionCnt;
-    draft.inventory[formula.itemId] =
-      (draft.inventory[formula.itemId] || 0) + gainCount;
+    this._applyItemDelta(draft, formula.itemId, gainCount);
     // 修复：ManufactureItem 任务事件从未 emit → 制造物品类任务永不推进
     //（模板 0/2 读 item、模板 1 读 count，一并携带）
     await this._trigger.emit("ManufactureItem", [
@@ -2222,8 +2325,7 @@ export class BuildingManager {
     if (affordable <= 0) {
       // 材料不足：回退产出（下轮 settle 再补扣），并恢复已产出方案到 remain——
       // 原实现只回退 inventory，outputSolutionCnt 残留被调用方清零 → 已产出货物丢失
-      draft.inventory[formula.itemId] =
-        (draft.inventory[formula.itemId] || 0) - gainCount;
+      this._applyItemDelta(draft, formula.itemId, -gainCount);
       room.remainSolutionCnt =
         (room.remainSolutionCnt ?? 0) + room.outputSolutionCnt;
       room.outputSolutionCnt = 0;
@@ -2232,18 +2334,19 @@ export class BuildingManager {
     const settleCount = Math.min(outputSolutionCnt, affordable);
     if (settleCount !== outputSolutionCnt) {
       // 部分结算：产出与消耗都按可承担数
-      draft.inventory[formula.itemId] =
-        (draft.inventory[formula.itemId] || 0) -
-        (gainCount - (formula.count ?? 1) * settleCount);
+      this._applyItemDelta(
+        draft,
+        formula.itemId,
+        -(gainCount - (formula.count ?? 1) * settleCount),
+      );
       room.outputSolutionCnt = outputSolutionCnt - settleCount;
       room.remainSolutionCnt = (room.remainSolutionCnt ?? 0) + (outputSolutionCnt - settleCount);
     }
     for (const cost of formula.costs ?? []) {
       if (cost.type === "GOLD") {
-        draft.status.gold -= cost.count * settleCount;
+        this._applyGoldDelta(draft, -(cost.count * settleCount));
       } else {
-        draft.inventory[cost.id] =
-          (draft.inventory[cost.id] || 0) - cost.count * settleCount;
+        this._applyItemDelta(draft, cost.id, -(cost.count * settleCount));
       }
     }
   }
@@ -2445,6 +2548,9 @@ export class BuildingManager {
       }
       // 干员心情（体力）余额：apCost 为每次合成的心情成本（raw AP），不足时按可承担次数
       const workshopChar = this._workshopChar(draft);
+      // 官方：无进驻干员时副产物概率锁定 0%；涣散干员技能失效同样不产副产物。
+      // 注意：按扣减前心情判定——本次合成可承担即视为非涣散（扣减后才到 0 不影响本次）
+      const canBonus = !!workshopChar && !isDispersedAp(workshopChar.ap);
       const apCostPer = formula.apCost ?? 0;
       if (workshopChar && apCostPer > 0) {
         const charAp = workshopChar.ap ?? 0;
@@ -2456,30 +2562,34 @@ export class BuildingManager {
       // 消耗：costs（MATERIAL 扣 inventory / GOLD 扣金币）
       for (const cost of formula.costs ?? []) {
         if (cost.type === "GOLD") {
-          draft.status.gold -= cost.count * times2;
+          this._applyGoldDelta(draft, -(cost.count * times2));
         } else {
-          draft.inventory[cost.id] =
-            (draft.inventory[cost.id] || 0) - cost.count * times2;
+          this._applyItemDelta(draft, cost.id, -(cost.count * times2));
         }
       }
       // 消耗：goldCost（合成手续费）
       if (formula.goldCost) {
-        draft.status.gold -= formula.goldCost * times2;
+        this._applyGoldDelta(draft, -(formula.goldCost * times2));
       }
       // 消耗：干员心情（按实际合成次数）
       if (workshopChar && apCostPer > 0) {
         workshopChar.ap = Math.max(0, (workshopChar.ap ?? 0) - apCostPer * times2);
       }
       // 产出（主产物）
-      draft.inventory[formula.itemId] =
-        (draft.inventory[formula.itemId] || 0) + (formula.count ?? 1) * times2;
+      this._applyItemDelta(
+        draft,
+        formula.itemId,
+        (formula.count ?? 1) * times2,
+      );
 
-      // 工坊 bonus（ws_bonus）：进驻干员技能累积"因果/业报"点数 → 必定副产物
+      // 工坊 bonus（ws_bonus）：进驻干员技能累积“因果/业报”点数 → 必定副产物
       const ws = (draft.building.status.workshop ??= {
         bonusActive: 0,
         bonus: {},
       });
-      const wsBonusIds = this._workshopBonusIds(draft, workshopChar);
+      const wsBonusIds = canBonus
+        ? this._workshopBonusIds(draft, workshopChar)
+        : [];
       const formulaType = formula.formulaType as string | undefined;
 
       // 副产物：逐次合成处理 ws_bonus 累计/触发 + 概率副产物
@@ -2511,11 +2621,12 @@ export class BuildingManager {
             }
           }
         }
-        // 副产物（概率 or 蓄力必定）
+        // 副产物（概率 or 蓄力必定；无干员/涣散时锁定 0%）
         if (formula.extraOutcomeGroup?.length) {
           const shouldRoll =
-            guaranteed ||
-            (!!formula.extraOutcomeRate && Math.random() < formula.extraOutcomeRate);
+            canBonus &&
+            (guaranteed ||
+              (!!formula.extraOutcomeRate && Math.random() < formula.extraOutcomeRate));
           if (shouldRoll) {
             const pool = formula.extraOutcomeGroup as {
               weight?: number;
@@ -2527,8 +2638,7 @@ export class BuildingManager {
             for (const g of pool) {
               roll -= g.weight ?? 1;
               if (roll <= 0) {
-                draft.inventory[g.itemId] =
-                  (draft.inventory[g.itemId] || 0) + (g.itemCount ?? 1);
+                this._applyItemDelta(draft, g.itemId, g.itemCount ?? 1);
                 // 修复：WorkshopExBonus 任务事件从未 emit → 工坊副产物任务永不推进
                 await this._trigger.emit("WorkshopExBonus", []);
                 break;
@@ -2628,7 +2738,7 @@ export class BuildingManager {
       const info = getFurnitureInfo(furnitureId);
       const productId = info?.processedProductId ?? "30012";
       const productCount = (info?.processedProductCount ?? 2) * count;
-      draft.inventory[productId] = (draft.inventory[productId] || 0) + productCount;
+      this._applyItemDelta(draft, productId, productCount);
     });
   }
 
@@ -2716,6 +2826,10 @@ export class BuildingManager {
         nickNum: String(status.nickNumber),
         chars: [],
         inUse: 0,
+        // 修复（2026-08-25）：ownStock 线索写入绝对过期时间戳（now + expiredDays×86400，
+        // 与 sendClue/receiveClueToStock 一致）。原实现不写 ts → 客户端不显示剩余时间、
+        // 服务端过期清理（_purgeExpiredClues）只认 ts → 自己的线索永不过期、永不销毁。
+        ts: now() + getClueExpiredDays() * 86400,
       };
       room.ownStock.push(clue);
       room.dailyReward = clue;
@@ -2967,33 +3081,65 @@ export class BuildingManager {
   }
 
   /**
-   * 内部方法：自动移除会客室线索盒（receiveStock）中已过期的好友赠送线索
+   * 内部方法：自动移除会客室库存（ownStock + receiveStock）中已过期的线索
    *
-   * 官方模型：好友赠送的线索进入线索盒后限时保留（PlayerBuildingMeetingClue.ts
-   * 为绝对过期时间戳，客户端 MeetingClueRestTimeLabel 按 ts 显示剩余时间）；
-   * 过期后服务端同步时自动移除，避免线索盒堆积过期线索。
+   * 官方模型：线索（无论自己获得还是好友赠送）携带绝对过期时间戳
+   * （PlayerBuildingMeetingClue.ts，客户端 MeetingClueRestTimeLabel 按 ts 显示剩余
+   * 时间），过期后服务端同步时自动移除，避免库存堆积过期线索。
    *
-   * 私服实现：sendClue/sendClueAuto 写入 ts = now + expiredDays×86400，
-   * 此处过滤 ts ≤ 当前时间 的条目（旧存档无 ts 的线索按未过期保留，不误删）。
+   * 私服实现：getDailyClue/sendClue/sendClueAuto/receiveClueToStock 均写入
+   * ts = now + expiredDays×86400。
+   * 修复（2026-08-25）：
+   * - 旧存档/修复前生成的线索无 ts（抓包证实 inUse=1 上板线索 ts=undefined）→
+   *   客户端无剩余时长可显示（剩余时长不更新）、清理"无 ts 不删"→ 永不过期。
+   *   此处给无 ts 线索补写 ts = now + expiredDays×86400（从现在起算），使其进入
+   *   过期机制且客户端剩余时长正常显示。
+   * - 过期线索若为上板（inUse=1），同步清理留言板索引（board = {[type]: clueId}），
+   *   不留孤儿槽位。
+   * - 清理后统一清除 board 中指向已不存在线索的孤儿索引（历史残留防御）。
    *
    * @param draft - mutative 可写草稿
    * @param room - 会客室房间对象
    * @param ts - 当前时间基准（秒）
    * @returns 移除的线索数量
    */
-  private _purgeExpiredReceivedClues(
+  private _purgeExpiredClues(
     draft: Draft<PlayerDataModel>,
     room: any,
     ts: number,
   ): number {
-    const stock = room?.receiveStock;
-    if (!Array.isArray(stock) || stock.length === 0) return 0;
-    const before = stock.length;
-    room.receiveStock = stock.filter((c) => {
-      // 无 ts（旧存档/非好友赠送）视为未过期；ts 为数字且 ≤ now 才过期
-      return typeof c?.ts !== "number" || c.ts > ts;
-    });
-    const removed = before - room.receiveStock.length;
+    let removed = 0;
+    for (const key of ["ownStock", "receiveStock"] as const) {
+      const stock = room?.[key];
+      if (!Array.isArray(stock) || stock.length === 0) continue;
+      const kept: any[] = [];
+      for (const c of stock) {
+        // 旧存档线索无 ts：补写过期时间戳（从现在起算），保留并进入过期机制
+        if (typeof c?.ts !== "number") {
+          c.ts = ts + getClueExpiredDays() * 86400;
+          kept.push(c);
+          continue;
+        }
+        if (c.ts > ts) {
+          kept.push(c);
+          continue;
+        }
+        // 已过期：上板线索（inUse=1）同步清理留言板索引，不留孤儿槽位
+        if (c.inUse === 1) this._clearBoardEntry(draft, room, c.id);
+        removed++;
+      }
+      room[key] = kept;
+    }
+    // 防御：清除 board 中指向已不存在线索的孤儿索引（含历史残留）
+    if (room?.board) {
+      const alive = new Set<string>([
+        ...(room.ownStock ?? []).map((c: any) => c?.id),
+        ...(room.receiveStock ?? []).map((c: any) => c?.id),
+      ]);
+      for (const [type, id] of Object.entries(room.board)) {
+        if (!alive.has(id as string)) delete room.board[type];
+      }
+    }
     if (removed > 0) {
       // 过期线索被移除 → 红点按剩余未上板线索重算
       this._refreshClueFlag(draft, room);
@@ -3002,9 +3148,9 @@ export class BuildingManager {
   }
 
   /**
-   * 内部方法：清理会客室全部房间中已过期的好友赠送线索
+   * 内部方法：清理会客室全部房间中已过期的线索
    *
-   * 遍历所有 MEETING 房间（兼容多会客室存档），委托 _purgeExpiredReceivedClues。
+   * 遍历所有 MEETING 房间（兼容多会客室存档），委托 _purgeExpiredClues。
    * @param draft - mutative 可写草稿
    * @param ts - 当前时间基准（秒）
    * @returns 移除的线索总数
@@ -3012,7 +3158,7 @@ export class BuildingManager {
   private _purgeAllExpiredClues(draft: Draft<PlayerDataModel>, ts: number): number {
     let total = 0;
     for (const roomRaw of Object.values(draft.building.rooms.MEETING ?? {})) {
-      total += this._purgeExpiredReceivedClues(draft, roomRaw as any, ts);
+      total += this._purgeExpiredClues(draft, roomRaw as any, ts);
     }
     return total;
   }
@@ -3177,6 +3323,49 @@ export class BuildingManager {
     // 本次有干员恢复心情时计 1 次
     if (recovered > 0) {
       void this._trigger.emit("RecoverCharBaseAp", [{ count: recovered }]);
+    }
+  }
+
+  /**
+   * 内部方法：干员暖机工时（在岗累积工作时间）随时间推进。
+   *
+   * 官方语义（贸易站页：裁缝/手工艺品 α/β 概率改写需累积工作 3/5 小时，
+   * 干员离岗/换工位累积时间清零）：仅工作区在岗干员累积；离岗（含宿舍/中枢）
+   * 或换房间即清零。存档扩展字段（服务端自洽，旧存档惰性初始化）：
+   * building.chars[].warmupSec（累积秒）/ warmupTs（上次推进时间，秒）/
+   * warmupSlot（累积中的房间槽位，换岗判定）。
+   *
+   * @param draft - mutative 可写草稿
+   * @param ts - 当前时间基准（秒）
+   */
+  private _accrueWarmup(draft: Draft<PlayerDataModel>, ts: number): void {
+    // 工作区在岗干员 → 槽位（宿舍/控制中枢不计暖机：休息/无暖机消费技能）
+    const workSlotOf = new Map<number, string>();
+    for (const [slotId, slot] of Object.entries(draft.building.roomSlots)) {
+      if (!slot || slot.roomId === "DORMITORY" || slot.roomId === "CONTROL") continue;
+      for (const instId of slot?.charInstIds ?? []) {
+        if (instId > 0) workSlotOf.set(instId, slotId);
+      }
+    }
+    for (const [instIdStr, chRaw] of Object.entries(draft.building.chars ?? {})) {
+      const ch = chRaw as any;
+      const last = typeof ch.warmupTs === "number" ? ch.warmupTs : ts;
+      const elapsed = ts - last;
+      ch.warmupTs = ts;
+      const slotId = workSlotOf.get(Number(instIdStr));
+      if (!slotId) {
+        // 离岗（含进驻宿舍/中枢/未进驻）→ 累积清零（官方：离岗清零）
+        ch.warmupSec = 0;
+        ch.warmupSlot = "";
+        continue;
+      }
+      if (ch.warmupSlot !== slotId) {
+        // 换工位/换房间 → 累积清零；本次 elapsed 属于旧岗位，一并丢弃（官方：换工位清零）
+        ch.warmupSec = 0;
+        ch.warmupSlot = slotId;
+      } else if (elapsed > 0) {
+        ch.warmupSec = (ch.warmupSec ?? 0) + elapsed;
+      }
     }
   }
 

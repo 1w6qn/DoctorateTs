@@ -342,6 +342,8 @@ describe("BuildingManager 干员分配完整性", () => {
     const room = mockPlayer._playerdata.building.rooms.TRAINING.slot_20;
     expect(room.trainer.charInstId).toBe(1002);
     expect(room.trainee.charInstId).toBe(1001);
+    // speed 官方基础速度 1（修复前硬编码 1000 → processPoint 秒涨 1000，训练进度异常）
+    expect(room.trainee.speed).toBe(1);
   });
 
   it("setPrivateDormOwner 双端同步（新 owner 加入 privateRooms、旧 owner 清除）", async () => {
@@ -698,20 +700,24 @@ describe("BuildingManager 会客室信用经济（socialReward 循环）", () =>
     vi.spyOn(accountManager, "getPlayerData").mockResolvedValue(mockPlayer as any);
   });
 
-  it("dailyRefresh 应模拟好友访问累积被动信用（daily += 好友数 × friendSlotInc）", async () => {
-    // 会客室 lv3 → friendSlotInc=35；2 好友 → 70
+  it("dailyRefresh 应按宿舍氛围结算当日被动信用（Cd=10+⌊Ad/125⌋，每间≤50）", async () => {
+    // 2026-08-23 模型：被动信用改为宿舍氛围每日结算（取代好友数×friendSlotInc）
+    const b = mockPlayer._playerdata.building;
+    b.rooms.DORMITORY.room_d1 = { comfort: 5000 }; // 10+40 = 50（封顶）
+    b.rooms.DORMITORY.room_d2 = { comfort: 2500 }; // 10+20 = 30
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.dailyRefresh();
     const room = mockPlayer._playerdata.building.rooms.MEETING.room_001;
-    expect(room.socialReward.daily).toBe(70);
+    expect(room.socialReward.daily).toBe(80);
   });
 
-  it("被动信用应封顶 creditPassiveLimit（100）", async () => {
+  it("宿舍结算信用应封顶（每间≤50，全天≤200；覆盖昨日未领值）", async () => {
+    // dailyRefresh 写入的是当日结算值（覆盖，非累加）；无宿舍时结算 0 并封顶归零
     mockPlayer._playerdata.building.rooms.MEETING.room_001.socialReward = { daily: 90, search: 0 };
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.dailyRefresh();
     const room = mockPlayer._playerdata.building.rooms.MEETING.room_001;
-    expect(room.socialReward.daily).toBe(100); // 90 + 70 → 封顶 100
+    expect(room.socialReward.daily).toBe(0); // 无宿舍 → 当日结算 0（覆盖昨日 90）
   });
 
   it("getInfoShareReward 应按访客数累积主动信用（search，封顶 creditInitiativeLimit）", async () => {
@@ -734,16 +740,16 @@ describe("BuildingManager 会客室信用经济（socialReward 循环）", () =>
     expect(room.socialReward.search).toBe(100); // 90 + 70 → 封顶 100
   });
 
-  it("visitBuilding 被访方应累积被动信用（daily），不再直接加 socialPoint", async () => {
-    // 访客（本玩家）访问好友 2 → 好友的 socialReward.daily += friendSlotInc
+  it("visitBuilding 访问方获得信用（+30/次，每日≤10 次），不再给被访方发 passive 信用", async () => {
+    // 2026-08-24 C 类好友访问信用：访问开启线索交流的好友基建 → 访问方 +30 信用
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.visitBuilding({ friendId: "2" } as any);
+    expect(mockPlayer._playerdata.status!.socialPoint).toBe(80); // 50 + 30
+    const st = mockPlayer._playerdata.status as any;
+    expect(st.visitCreditCount).toBe(1);
+    // 被访方（自己）的被动信用不受影响（无宿舍结算时为 0）
     const room = mockPlayer._playerdata.building.rooms.MEETING.room_001;
-    expect(room.socialReward.daily).toBe(35); // 1 次访问 × 35
-    // 修复：原实现直接 +20 socialPoint——现走信用循环（领取后入账）
-    expect(mockPlayer._playerdata.status!.socialPoint).toBe(50);
-    await manager.getMeetingroomReward();
-    expect(mockPlayer._playerdata.status!.socialPoint).toBe(85);
+    expect(room.socialReward.daily).toBe(0);
   });
 
   it("getMeetingroomReward 应领取 daily+search 并清零（可持续循环）", async () => {

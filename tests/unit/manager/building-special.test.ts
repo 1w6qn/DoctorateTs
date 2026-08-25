@@ -322,7 +322,7 @@ describe("BuildingManager 特殊技能集成", () => {
     slot.charInstIds = entries.map(([instId]) => instId);
     for (const [instId, charId] of entries) {
       mockPlayer._playerdata.building.chars[String(instId)] = {
-        charId, ap: 8640000, lastApAddTime: 1000, roomSlotId: slotId, index: 0,
+        charId, ap: 8640000, lastApAddTime: timeMock.now, roomSlotId: slotId, index: 0,
         changeScale: 0, bubble: {}, workTime: 0, privateRooms: [],
       };
       mockPlayer._playerdata.troop.chars[String(instId)] = { charId, level: 1, evolvePhase: 0 };
@@ -331,6 +331,9 @@ describe("BuildingManager 特殊技能集成", () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    // sync 的浮点秒时间基准用 Date.now()——与 timeMock.now（秒）对齐，
+    // 避免真实时钟与 fixture 时间基准混用把干员心情超发扣成涣散（技能失效）
+    vi.spyOn(Date, "now").mockReturnValue(timeMock.now * 1000);
   });
 
   it("制造站容量含控制中枢 fraction 技能（薇薇安娜 + 2 骑士 → +14% 全局）", async () => {

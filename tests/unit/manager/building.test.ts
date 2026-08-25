@@ -986,6 +986,21 @@ describe("BuildingManager 加工分解与专精", () => {
     expect(mockPlayer._playerdata.troop!.chars["1001"].skills[0].state).toBe(1);
   });
 
+  it("upgradeSpecialization 训练目标 trainee.speed 应为官方基础速度 1（修复前硬编码 1000）", async () => {
+    mockPlayer._playerdata.building!.rooms.TRAINING.slot_13 = {
+      trainee: { charInstId: -1, state: 0, targetSkill: -1, processPoint: 0, speed: 1 },
+      trainer: { charInstId: -1, state: 0 },
+    } as any;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.upgradeSpecialization({ charInstId: 1001, targetSkill: 0 } as any);
+    const trainee = mockPlayer._playerdata.building!.rooms.TRAINING.slot_13.trainee;
+    expect(trainee.state).toBe(1); // TRAINING
+    expect(trainee.targetSkill).toBe(0);
+    // 官方模型（4.json 官服快照空态 speed=1、2222 训练中 1.65）；1000 会使 processPoint
+    // 秒涨 1000 → 客户端 (total-processPoint)/speed 剩余时间异常
+    expect(trainee.speed).toBe(1);
+  });
+
   it("completeUpgradeSpecialization 应提升 specializeLevel 并复位", async () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.upgradeSpecialization({ charInstId: 1001, targetSkill: 0 } as any);
@@ -1055,6 +1070,10 @@ describe("BuildingManager 加工站合成（Excel 驱动）", () => {
 
   it("workshopSynthesis 副产物概率触发时额外产出（extraOutcomeGroup 加权）", async () => {
     vi.spyOn(Math, "random").mockReturnValue(0.05); // < extraOutcomeRate 0.1
+    // 官方（2026-08-25 对齐）：无进驻干员时副产物概率锁定 0%——需进驻加工站干员
+    const b = mockPlayer._playerdata.building! as any;
+    b.roomSlots.slot_ws = { level: 1, state: 2, roomId: "WORKSHOP", charInstIds: [7], completeConstructTime: -1 };
+    b.chars["7"] = { charId: "char_test", ap: 8640000, lastApAddTime: 0, roomSlotId: "slot_ws", index: 0, changeScale: 0, bubble: {} };
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.workshopSynthesis({ roomSlotId: "slot_5", times: 1, formulaId: "1" } as any);
     expect(mockPlayer._playerdata.inventory!["3112"]).toBe(9); // 10 - 2 + 副产物 1
@@ -1139,6 +1158,14 @@ describe("BuildingManager 线索系统", () => {
       "GLASGOW", "KJERAG", "RHODES",
     ]).toContain(clue.type);
     expect(clue.id).toMatch(/^\d+#\d+#\d+$/);
+  });
+
+  it("getDailyClue 应在线索写入过期时间戳 ts（修复前 ownStock 无 ts → 永不销毁）", async () => {
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    await manager.getDailyClue({} as any);
+    const clue = mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock[0];
+    // now() mock = 1234567890；缺省 expiredDays = 10 → ts = now + 864000
+    expect(clue.ts).toBe(1234567890 + 10 * 86400);
   });
 
   it("getDailyClue 重复调用不应重复发线索", async () => {
@@ -1242,6 +1269,63 @@ describe("BuildingManager 线索系统", () => {
     expect(
       mockPlayer._playerdata.building!.rooms.MEETING.room_001.receiveStock,
     ).toHaveLength(1);
+  });
+
+  it("getClueBox 应自动移除 ownStock 中已过期（ts ≤ now）的线索", async () => {
+    mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock = [
+      // 已过期（ts 早于 now=1234567890）
+      { id: "own_expired", type: "RHINE", number: 1, uid: "1", name: "A", nickNum: "1", chars: [], inUse: 0, ts: 1234567890 - 1 },
+      // 未过期
+      { id: "own_alive", type: "URSUS", number: 1, uid: "1", name: "A", nickNum: "1", chars: [], inUse: 0, ts: 1234567890 + 9999 },
+    ] as any;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const box = await manager.getClueBox();
+    const ids = box.box.map((c: any) => c.id);
+    expect(ids).not.toContain("own_expired");
+    expect(ids).toContain("own_alive");
+    // 已落盘：ownStock 同样清理（修复前仅清理 receiveStock → ownStock 过期线索永存）
+    expect(
+      mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock.map((c: any) => c.id),
+    ).toEqual(["own_alive"]);
+  });
+
+  it("getClueBox 应为无 ts 的旧线索补写过期时间戳（客户端剩余时长可显示）", async () => {
+    mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock = [
+      // 旧存档/修复前 getDailyClue 生成的线索：无 ts → 客户端无剩余时长、永不过期
+      { id: "old_clue", type: "RHINE", number: 1, uid: "1", name: "A", nickNum: "1", chars: [], inUse: 0 },
+    ] as any;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const box = await manager.getClueBox();
+    expect(box.box).toHaveLength(1);
+    // 补写 ts = now + expiredDays×86400（now mock=1234567890，缺省 10 天）
+    expect(box.box[0].ts).toBe(1234567890 + 10 * 86400);
+    // 已落盘
+    expect(
+      mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock[0].ts,
+    ).toBe(1234567890 + 10 * 86400);
+  });
+
+  it("getClueBox 应销毁上板过期线索并清除留言板索引（不留孤儿槽位）", async () => {
+    mockPlayer._playerdata.building!.rooms.MEETING.room_001.ownStock = [
+      // 上板且已过期（inUse=1, ts ≤ now）
+      { id: "board_expired", type: "RHINE", number: 1, uid: "1", name: "A", nickNum: "1", chars: [], inUse: 1, ts: 1234567890 - 1 },
+      // 上板未过期
+      { id: "board_alive", type: "URSUS", number: 1, uid: "1", name: "A", nickNum: "1", chars: [], inUse: 1, ts: 1234567890 + 9999 },
+    ] as any;
+    mockPlayer._playerdata.building!.rooms.MEETING.room_001.board = {
+      RHINE: "board_expired",
+      URSUS: "board_alive",
+      PENGUIN: "ghost_id", // 孤儿索引：指向不存在的线索
+    } as any;
+    const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
+    const box = await manager.getClueBox();
+    const ids = box.box.map((c: any) => c.id);
+    expect(ids).not.toContain("board_expired");
+    expect(ids).toContain("board_alive");
+    // 上板过期线索被销毁 → board 对应索引清除；孤儿索引一并清除
+    expect(
+      mockPlayer._playerdata.building!.rooms.MEETING.room_001.board,
+    ).toEqual({ URSUS: "board_alive" });
   });
 
   it("getInfoShareReward 应推进会客室干员体力累积（官方响应 delta 必含 building.chars）", async () => {

@@ -21,12 +21,18 @@ import {
   specialBuffValue,
   SpecialSkillContext,
 } from "./special";
+import { isDispersedAp } from "./mood";
 
 /** 干员 buff 激活所需信息（取自 troop.chars） */
 export interface CharBuffSource {
   charId: string;
   level: number;
   evolvePhase: number;
+  /**
+   * 干员当前心情（raw AP，building.chars[].ap）。缺失视为满心情。
+   * 注意力涣散（ap ≤ 0）时技能失效（官方：后勤技能与基础效率大部分失效）。
+   */
+  ap?: number | null;
 }
 
 /** "PHASE_2" → 2；未知/缺失 → 0（同时接受数字原值） */
@@ -155,11 +161,17 @@ export function buffValueForTarget(buff: any, targetRoom?: string | null): numbe
   return 0;
 }
 
-/** 干员在指定房间类型下激活的 buff 列表（条件 level/phase + roomType 匹配） */
+/**
+ * 干员在指定房间类型下激活的 buff 列表（条件 level/phase + roomType 匹配）。
+ * 注意力涣散（ap ≤ 0）的干员默认不激活任何 buff（官方：涣散时后勤技能失效）；
+ * 宿舍恢复等休息语境传 options.allowDispersed=true 跳过该判定。
+ */
 export function getActiveCharBuffs(
   char: CharBuffSource,
   roomType: string,
+  options?: { allowDispersed?: boolean },
 ): any[] {
+  if (!options?.allowDispersed && isDispersedAp(char?.ap)) return [];
   const building = excel.BuildingData as any;
   const slots = building?.chars?.[char?.charId]?.buffChar;
   if (!Array.isArray(slots)) return [];
@@ -266,11 +278,15 @@ export function controlGlobalBonus(
   return out;
 }
 
-/** 宿舍恢复加成（点/小时）：进驻宿舍干员的 dorm_* buff，同种取最高 */
+/**
+ * 宿舍恢复加成（点/小时）：进驻宿舍干员的 dorm_* buff，同种取最高。
+ * 宿舍为休息语境——涣散干员进驻宿舍同样恢复（官方“休息中”状态），
+ * 不受涣散失效影响。
+ */
 export function dormRecoveryBonus(dormChars: CharBuffSource[]): number {
   const buffs: any[] = [];
   for (const char of dormChars ?? []) {
-    buffs.push(...getActiveCharBuffs(char, "DORMITORY"));
+    buffs.push(...getActiveCharBuffs(char, "DORMITORY", { allowDispersed: true }));
   }
   return maxByGroup(buffs, buffValue);
 }

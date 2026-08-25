@@ -277,15 +277,15 @@ describe("BuildingManager 干员技能（buff）集成", () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.sync();
     const chars = mockPlayer._playerdata.building!.chars as any;
-    // char_001 无技能附加 → -55
-    expect(chars["101"].changeScale).toBe(-55);
-    // char_003 带 manu_formula_spd&cost vdown=+0.25（PHASE_2 激活，×100）→ -55-25 = -80
-    expect(chars["102"].changeScale).toBe(-80);
+    // char_001 无技能附加：基础 -55 + 2 人头数减免 0.05 点/时（+5）→ -50（官方头数减免，2026-08-25）
+    expect(chars["101"].changeScale).toBe(-50);
+    // char_003 带 manu_formula_spd&cost vdown=+0.25（PHASE_2 激活，×100）→ -55-25+5 = -75
+    expect(chars["102"].changeScale).toBe(-75);
     // 控制中枢干员不消耗
     expect(chars["301"].changeScale).toBe(0);
     // 修复：sync 现在也推进心情累积（官方行为——每次 sync 下发 chars 增量，
     // delta 恒非空，否则客户端空响应重试紧循环）；工作干员按 changeScale 消耗
-    expect(chars["101"].ap).toBe(8640000 - 55 * 3600);
+    expect(chars["101"].ap).toBe(8640000 - 50 * 3600);
   });
 
   it("sync：宿舍恢复 = (基础 + 舒适度 + 宿舍 buff + 控制中枢 dorm 全局) × 100", async () => {

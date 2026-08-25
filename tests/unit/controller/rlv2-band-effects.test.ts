@@ -242,10 +242,11 @@ describe("rogue_6 分队专属逻辑", () => {
     ]);
     expect(pools["pool_scrap_8"].length).toBe(6);
     expect(pools["pool_scrap_9"]).toContain("rogue_6_scrap_G_02"); // 血蕈
-    // drop_extra_pool（51 件）/ pool_boss（35 件）：官方精确成员
-    expect(pools["drop_extra_pool"].length).toBe(51);
+    // drop_extra_pool（76 件，地质调查分队额外掉落）/ pool_boss（36 件）：
+    // 路标档案馆原始数据全量（2026-08-25 重抓 /data/archives/blackstream.json）
+    expect(pools["drop_extra_pool"].length).toBe(76);
     expect(pools["drop_extra_pool"]).toContain("rogue_6_relic_legacy_2");
-    expect(pools["pool_boss"].length).toBe(35);
+    expect(pools["pool_boss"].length).toBe(36);
     expect(pools["pool_boss"]).toContain("rogue_6_relic_legacy_4"); // 迷梦香精
   });
 

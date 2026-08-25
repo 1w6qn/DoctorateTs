@@ -1,6 +1,6 @@
 import { PlayerRoguelikeV2 } from "../../model/rlv2";
 import { RoguelikeV2Controller } from "../rlv2";
-import { omit } from "lodash";
+import { omitKeys } from "@utils/object";
 import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeTroopManager
@@ -57,7 +57,7 @@ export class RoguelikeTroopManager
   }
 
   getChar([char]: [PlayerRoguelikeV2.CurrentData.RecruitChar]) {
-    const c = omit(char, [
+    const c = omitKeys(char, [
       "isUpgrade",
       "isCure",
       "population",

@@ -25,6 +25,7 @@ vi.mock("@excel/excel", () => ({
           init: [{ modeGrade: 0, predefinedId: null, modeId: "NORMAL" }],
           items: {
             rogue_6_gold: { id: "rogue_6_gold", type: "GOLD", rarity: "NONE" },
+            rogue_6_shield: { id: "rogue_6_shield", type: "SHIELD", rarity: "NONE" },
             rogue_6_fragment_sd_1: { id: "rogue_6_fragment_sd_1", type: "FRAGMENT", rarity: "NONE" },
           },
           relics: {},
@@ -183,6 +184,31 @@ describe("rlv2 黑流树海（rogue_6）战斗胜利奖励对齐官服 battleFin
     } finally {
       settleSpy.mockRestore();
     }
+  });
+
+  it("指挥分队升级（battle_extra_drop）：护盾低于阈值时战斗结束 +1 护盾，达标不追加", async () => {
+    // 注入 band_2 升级效果：护盾 <5 时每次战斗结束额外获得 1 点护盾
+    await (player.rlv2 as any)._trigger.emit("rlv2:buff:apply", [
+      [
+        {
+          key: "battle_extra_drop",
+          blackboard: [
+            { key: "threshold", value: 5, valueStr: null },
+            { key: "id", value: 0, valueStr: "rogue_6_shield" },
+            { key: "count", value: 1, valueStr: null },
+          ],
+        },
+      ],
+    ]);
+    (player.rlv2 as any)._status.property.shield = 0;
+    await finishBattle("ro6_n_1_1");
+    expect((player.rlv2 as any)._status.property.shield).toBe(1);
+    // 护盾已达阈值（5）：再战不追加；未达阈值继续补到阈值前持续生效——
+    // 此处验证达标不追加：手动置 5，再战仍为 5（阈值判定为 < 而非 <=）
+    (player.rlv2 as any)._status._pending._pending.push({ type: "BATTLE", content: {} });
+    (player.rlv2 as any)._status.property.shield = 5;
+    await finishBattle("ro6_n_1_1");
+    expect((player.rlv2 as any)._status.property.shield).toBe(5);
   });
 
   it("chooseBattleReward：gold 实时入账 + 招募券触发招募（票入库 + RECRUIT 事件）", async () => {

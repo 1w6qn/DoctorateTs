@@ -44,6 +44,7 @@ import { TypedEventEmitter } from "@game/model/events";
 import { RoguelikePushMessage } from "../model/protocol/common";
 import { Draft } from "mutative";
 import { ItemBundle } from "@excel/character_table";
+import { Rogue6IncidentEngine } from "./rlv2/incident";
 
 export class RoguelikeV2Config {
   choiceScenes: { [key: string]: { choices: { [key: string]: number } } };
@@ -110,6 +111,8 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   _troop: TroopManager;
   _pool: RoguelikePoolManager;
   _data: RoguelikeV2Config;
+  /** 黑流树海不期而遇事件引擎（事件池/场景图/效果结算，数据驱动） */
+  _incident!: Rogue6IncidentEngine;
   _player: PlayerDataManager;
   _trigger: TypedEventEmitter;
   inventory!: RoguelikeInventoryManager | null;
@@ -147,6 +150,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     this._player = player;
     this._trigger = _trigger;
     this._data = new RoguelikeV2Config();
+    this._incident = new Rogue6IncidentEngine(this);
     // 规范化持久态为可写（autoFreeze 兼容）：构造期同步填充 current.game/buff/record
     // 缺失字段，若 _playerdata.rlv2 已被 Immer 冻结（autoFreeze=true 下 finishDraft 冻结
     // 整个 _playerdata），则以深可变副本替换 rlv2 子树，避免构造期原地写抛错。
@@ -347,10 +351,10 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
         predefined: args.predefinedId ?? null,
         theme: theme,
         outer: {
-          // 支援选项（GAME_INIT_SUPPORT/startbuff 3 选 1）：仅当"上一把到达过第 3 层"才出现。
-          // 官方判定依据 record.stageCnt 中存在 3 层关卡通关记录（ro6_n_3_ 等）——
-          // 8-11/8-18 官服 createGame 抓包对照：record 无 lastZone 键，有 3 层 stageCnt 且 support=true。
-          // 原实现用自定义 lastZone>=3 字段（官服 record 无此键，且判定失效）。
+          // 支援选项（GAME_INIT_SUPPORT/startbuff 3 选 1）：仅当"上一把至少通过两层"（到达过第 3 层）才出现。
+          // 官方判定依据 record.stageCnt 中存在 2 层（兼容 3 层）关卡通关记录（prts.wiki
+          // 「至少通过两层」；8-11/8-18 官服 createGame 抓包对照：record 无 lastZone 键，
+          // 有 3 层 stageCnt 且 support=true）。原实现用自定义 lastZone>=3 字段（官服 record 无此键）。
           support: this.hasReachedZone3((draft.outer?.[theme]?.record as any)?.stageCnt),
           // 上局遗留襁褓预告：官服 game.outer = { support, legacy } 结构（8-18 抓包 legacy 可含
           // 襁褓 id），但与 record.legacy/GIFT 内容不同源——8-11 抓包 legacy=[] 而 GIFT=gold10。
@@ -829,21 +833,24 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
   }
 
   /**
-   * 支援选项（行动奖励）判定：上一把是否到达过第 3 层。
-   * 官方依据 record.stageCnt 中存在 3 层关卡通关记录（8-11/8-18 官服 createGame 抓包对照：
-   * support=true 的账号 stageCnt 含 ro6_n_3_ 等 3 层关卡；record 无 lastZone 键）。
+   * 支援选项（行动奖励）判定：上一把是否至少通过两层（到达过第 3 层）。
+   * prts.wiki「若上一次行动至少通过两层，则触发本阶段」；官方依据 record.stageCnt
+   * 中存在 2 层关卡通关记录（8-11/8-18 官服 createGame 抓包对照：support=true 的账号
+   * stageCnt 含 3 层关卡——通过 3 层必已通过 2 层，两类匹配都保留；record 无 lastZone 键）。
    * 兼容旧存档的 lastZone 字段（>=3 也视为到过）。
    */
   private hasReachedZone3(stageCnt?: Record<string, number>): boolean {
     if (stageCnt) {
       for (const stageId of Object.keys(stageCnt)) {
-        // 3 层关卡：ro6_[ne]_3_* / ro6_b_3* / ro6_c_3（通关计数 >0）
-        const m = stageId.match(/^ro\d+_[ne]_3_/);
-        if (m) return true;
+        // 通过 2 层：ro6_[ne]_2_* / ro6_b_2* / ro6_c_2（通关记录）
+        if (/^ro\d+_[ne]_2_/.test(stageId)) return true;
+        if (/^ro\d+_(b|c)_2/.test(stageId)) return true;
+        // 兼容：3 层通关记录（抓包样本形态，通过 3 层必已通过 2 层）
+        if (/^ro\d+_[ne]_3_/.test(stageId)) return true;
         if (/^ro\d+_(b|c)_3/.test(stageId)) return true;
       }
     }
-    // 兼容旧存档自定义字段
+    // 兼容旧存档自定义字段（到达层数，>=3 即通过两层）
     const legacy = (this.outer?.[this.current.game?.theme || ""]?.record as any)?.lastZone;
     return typeof legacy === "number" && legacy >= 3;
   }
@@ -1166,13 +1173,14 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
           prop.population.max = Math.max(0, prop.population.max - num);
         }
       }
-      // 官方 displayData.itemID（PascalCase ID）——startbuff_2/3 有 itemID；startbuff_1 无（发随机收藏品）
+      // 官方 displayData.itemID（PascalCase ID）——startbuff_2/3 有 itemID；startbuff_1/4/5/6 无
       const itemId = dd.itemID ?? dd.itemId;
       if (itemId) {
         const itemDef =
           excel.RoguelikeTopicTable.details[theme]?.items?.[itemId];
-        // 奖励数量：description 含 <@roX.get>N</>（如"获得<@ro6.get>8</>源石锭"）
-        const m = desc.match(/<@ro\d+\.get>(\d+)<\/>/);
+        // 奖励数量：description 含 <@roX.get>N</>（如"获得<@ro6.get>8</>源石锭"；
+        // 带符号的"零件箱容量<@ro6.get>+2</>"也需命中，空间租赁 +2）
+        const m = desc.match(/<@ro\d+\.get>([+-]?\d+)<\/>/);
         const count = m ? parseInt(m[1], 10) : 1;
         if (itemDef?.type === "MAX_WEIGHT") {
           // 零件箱容量型（MAX_WEIGHT 无专属结算）：零件箱容量上限+count（startbuff_3“空间租赁”+2）
@@ -1182,20 +1190,47 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
           this._trigger.emit("rlv2:get:items", [[{ id: itemId, count }]]);
         }
       } else {
-        // 无 itemId：startbuff_1"获得1件普通收藏品" → 随机未拥有藏品
+        // 无 itemId：按官方 funcIconId 语义分发（prts.wiki 行动奖励）：
+        // 未编号物=1 件普通收藏品（NORMAL 池）；巢寄生=1 件稀有收藏品（RARE 池）；
+        // 林间代步=1 件加工品（MOVE 型零件）；其余（退行补偿）=全量池随机藏品。
         const theme = this.current.game!.theme;
+        const funcIcon = (dd.funcIconId as string) || "";
         const hasRelic = Object.values(this.inventory!.relic || {}).map(
           (r) => (r as any).id,
         );
-        const rewardId = this._pool.getRelic("pool_relic_all", hasRelic);
-        if (rewardId) {
-          this._trigger.emit("rlv2:relic:gain", [
-            { id: rewardId, count: 1 },
-          ]);
+        if (funcIcon === "initial_reward_scrap_move" || desc.includes("加工品")) {
+          // 林间代步：scrapItemToType 中 MOVE 型零件随机 1 件入零件箱
+          const typeMap = (excel.RoguelikeTopicTable.modules[theme]?.scrap as any)
+            ?.scrapItemToType || {};
+          const moveIds = Object.keys(typeMap).filter(
+            (id) => typeMap[id] === "MOVE",
+          );
+          if (moveIds.length > 0) {
+            const scrapId = moveIds[Math.floor(Math.random() * moveIds.length)];
+            await this._trigger.emit("rlv2:scrap:gain", [scrapId]);
+          }
         } else {
-          this._trigger.emit("rlv2:get:items", [
-            [{ id: `${theme}_gold`, count: 5 }],
-          ]);
+          const poolId =
+            funcIcon === "initial_reward_relic" || desc.includes("普通收藏品")
+              ? "pool_relic_normal"
+              : funcIcon === "initial_reward_unknown_pay_weight" ||
+                  desc.includes("稀有收藏品")
+                ? "pool_relic_rare"
+                : "pool_relic_all";
+          const rewardId =
+            this._pool.getRelic(poolId, hasRelic) ||
+            (poolId !== "pool_relic_all"
+              ? this._pool.getRelic("pool_relic_all", hasRelic)
+              : "");
+          if (rewardId) {
+            await this._trigger.emit("rlv2:relic:gain", [
+              { id: rewardId, count: 1 },
+            ]);
+          } else {
+            this._trigger.emit("rlv2:get:items", [
+              [{ id: `${theme}_gold`, count: 5 }],
+            ]);
+          }
         }
       }
       this._status.pending.shift();
@@ -1282,7 +1317,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       this._status.state = "WAIT_MOVE";
       return;
     }
-    // 二结局·线人（bomb1：不期而遇"线人与线索"）→ 沙盘α / 珍贵加工品 / 离开
+    // 二结局·线人（bomb1：不期而遇“线人与线索”）→ 沙盘α / 珍贵加工品 / 离开
     if (theme === "rogue_6" && /^choice_ro6_bomb1_/.test(choice)) {
       if (choice === "choice_ro6_bomb1_1") {
         await this._trigger.emit("rlv2:relic:gain", [
@@ -1294,6 +1329,24 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       this._status.pending.shift();
       this._status.state = "WAIT_MOVE";
       return;
+    }
+
+    // 不期而遇事件选项（res/relic/normal/bat/bat6b/task/chimera 系列）：
+    // 事件引擎统一结算（描述文本解析消耗 / displayData 发放 / 随机分支 / 场景图推进 / 战斗）
+    if (
+      theme === "rogue_6" &&
+      /^choice_ro6_(res\d|relic\d|normal\d|bat\d|task\d|chimera\d)/.test(choice)
+    ) {
+      if (await this._incident.resolveChoice(choice)) return;
+    }
+
+    // 非战斗事件节点选项（安全的角落/得偿所愿/失与得/险路尽头/险路小径/先行一步）：
+    // 引擎结算完整效果（区域出口推进/行动力转化/收藏品与零件交换/招募等）
+    if (
+      theme === "rogue_6" &&
+      /^choice_ro6_(rest|wish|sacrifice|final|evacuate|scout)/.test(choice)
+    ) {
+      if (await this._incident.resolveNodeChoice(choice)) return;
     }
 
     if (choice === "choice_leave") {
@@ -2600,7 +2653,13 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       await this._trigger.emit("rlv2:battle:start", [battleStage]);
       return;
     }
-    if (node?.content?.shop) {
+    // 商店节点判定：会话内以 content.shop 为准；续局恢复后 content 被精简剥除
+    // （kind/shop 可能丢失）时回退 map.zones 节点类型判定（与战斗判定同模式）——
+    // 否则续局后抵达商店节点不开商店（诡意行商/秘境行商/应急助力全部失效）。
+    const isShopNode =
+      !!node?.content?.shop ||
+      (typeof kind === "number" && ROGUE6_SHOP_NODES.includes(kind));
+    if (isShopNode) {
       // 进入行商节点：重置卖零件计数（多边贸易"同一个行商节点"语义）
       this._shopSellCount = 0;
       // 多边贸易升级（band_20）：每次进入行商节点获得 1 个<枯苔藓球>
@@ -2627,8 +2686,14 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
       this.createFateScene();
       return;
     }
-    // 不期而遇（INCIDENT）：优先二结局线人事件，否则走通用节点场景
-    if (kind === ROGUE6_NODE.INCIDENT && this.createIncidentScene()) {
+    // 不期而遇（INCIDENT）：优先二结局线人事件，否则交回事件引擎完整事件池
+    if (kind === ROGUE6_NODE.INCIDENT && (await this.createIncidentScene())) {
+      return;
+    }
+    // 非战斗事件节点（安全的角落/得偿所愿/失与得/险路尽头/险路小径）：
+    // 事件引擎按 nodeEnters 表下发完整效果（随机 3 选项/出口进区等）；
+    // 无配置时回退下方前缀场景分发。
+    if (typeof kind === "number" && (await this._incident.createNodeScene(kind))) {
       return;
     }
     // 其余事件节点（安全的角落/得偿所愿/失与得/先行一步/狭路相逢/应急助力/险路小径/险路尽头）：
@@ -2893,25 +2958,29 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
 
   /**
    * 二结局·线人事件（bomb1"线人与线索"）：不期而遇节点上的专属分支。
-   * 仅 Ⅱ-Ⅳ 层、未持有沙盘α时按 40% 概率触发；不触发时交回调用方走通用不期而遇场景。
-   * @returns 已生成线人场景返回 true，否则 false
+   * 仅 Ⅱ-Ⅳ 层、未持有沙盘α时按 40% 概率触发；不触发（或线人数据缺失）时交回
+   * 不期而遇事件引擎（_incident）从完整事件池随机一幕。
+   * @returns 已生成场景返回 true，数据缺失无法生成返回 false
    */
-  private createIncidentScene(): boolean {
+  private async createIncidentScene(): Promise<boolean> {
     const theme = this.current.game!.theme;
+    // 线人（二结局前置）：Ⅱ-Ⅳ 层、未持有沙盘α时按 40% 概率优先触发；
+    // 未命中则交回不期而遇事件引擎从完整事件池（res*/relic*/normal*/bat*/task*/
+    // chimera*，含层数限制/重复规则/前置条件）随机一幕。
     if (!isBlackstream(theme) || this.hasRelic(ROGUE6_END2_RELICS.sandboxAlpha)) {
-      return false;
+      return await this._incident.createIncident();
     }
     const zone = this._status.cursor.zone;
     // 线人仅 Ⅱ-Ⅳ 层出现；概率触发（40%）
     if (zone < 2 || zone > 4 || Math.random() >= 0.4) {
-      return false;
+      return await this._incident.createIncident();
     }
     const detail = excel.RoguelikeTopicTable.details[theme];
     const choiceIds = Object.keys(detail.choices || {}).filter((k) =>
       k.startsWith("choice_ro6_bomb1_"),
     );
     if (choiceIds.length === 0) {
-      return false;
+      return await this._incident.createIncident();
     }
     const choices = choiceIds.reduce(
       (acc, cid) => ({ ...acc, [cid]: 1 }),

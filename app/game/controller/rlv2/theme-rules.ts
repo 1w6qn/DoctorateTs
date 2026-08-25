@@ -166,6 +166,18 @@ export const ROGUE6_WING_OUTBUFF = "rogue_6_outbuff_37";
 export const ROGUE6_BEAK_OUTBUFF = "rogue_6_outbuff_33";
 
 /**
+ * 【生命游戏】"声带"节点（rawDesc“『失与得』出现额外选项（可以交换零件）”）：
+ * 点亮后失与得提供零件交换选项（prts.wiki 事件节点节）。
+ */
+export const ROGUE6_VOCAL_OUTBUFF = "rogue_6_outbuff_8";
+
+/**
+ * 【生命游戏】"手掌"节点（rawDesc“『失与得』节点可交换次数+1”）：
+ * 点亮后失与得可继续交换（二次交换选项）。
+ */
+export const ROGUE6_PALM_OUTBUFF = "rogue_6_outbuff_32";
+
+/**
  * "无法携带至下一区域"的移动加工品（官方 moveScrapData.scrapDesc 原文含
  * "无法被携带至下一区域"）：进入下一层/新区域时被移除；进入/离开特殊层（portal）
  * 时豁免（官方误入奇境描述"进入和离开特殊层时，不会使无法携带至下一层的加工品损坏"）。
@@ -194,10 +206,11 @@ export const ROGUE6_END3_RELIC = "rogue_6_relic_final_3";
  * title/description、choices 的 type，以及 RoguelikeEventType 枚举名）：
  * - REST(安全的角落 "食物和水也很充足，别一直紧绷着神经了") → `rest`
  *   （金色凝滞：坐下休息 +生命上限 / 采样金色泉水 +可携带干员）
- * - INCIDENT(不期而遇 "新朋友、老对头......奇遇") → `normal`（沉寂之屋等 5 幕）
- *   + `bat`（思乡心切等 6 幕，含"遭遇一场特殊的战斗"选项）
- * - WISH(得偿所愿 "许愿的形式千奇百怪") → `wish`（无人商店）+ `relic`
- *   （血衣之下 / 擒与缚，选项均为"获得收藏品"；与路标档案馆得偿所愿池 78 件收藏品一致）
+ * - INCIDENT(不期而遇 "新朋友、老对头......奇遇") → 完整事件池由事件引擎（`incident.ts`，
+ *   数据见 event_choices.json rogue_6 段）分发：res / relic（血衣之下/擒与缚，
+ *   prts.wiki 实锤属不期而遇）/ normal / bat / task / chimera 系列；此处前缀仅作引擎缺数时回退。
+ * - WISH(得偿所愿 "许愿的形式千奇百怪") → `wish`（无人商店；官方：免费 2 选 1 收藏品，
+ *   4 源石锭刷新陈列）
  * - SACRIFICE(失与得) → `sacrifice`（回滚文明，选项 type=SACRIFICE）
  * - EXPEDITION(先行一步) → `scout`（未涉足之树，选项 type=EXPEDITION；三结局入口）
  * - FACE_OFF(狭路相逢 = 枚举 DUEL，"猎物与猎手的对话") → `sala`
@@ -221,7 +234,7 @@ export const ROGUE6_NODE_SCENE_PREFIX: {
 } = {
   [ROGUE6_NODE.REST]: ["rest"],
   [ROGUE6_NODE.INCIDENT]: ["normal", "bat"],
-  [ROGUE6_NODE.WISH]: ["wish", "relic"],
+  [ROGUE6_NODE.WISH]: ["wish"],
   [ROGUE6_NODE.SACRIFICE]: ["sacrifice"],
   [ROGUE6_NODE.EXPEDITION]: ["scout"],
   [ROGUE6_NODE.FACE_OFF]: ["sala"],

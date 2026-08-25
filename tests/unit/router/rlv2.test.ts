@@ -35,6 +35,9 @@ describe("rlv2 路由", () => {
           scrap: [{ id: "rogue_6_scrap_G_05", count: 1 }],
           legacy: [{ id: "rogue_6_legacy_02", count: 1 }],
         }),
+        battleFinish: vi.fn().mockResolvedValue(undefined),
+        chooseBattleReward: vi.fn().mockResolvedValue(undefined),
+        sacrificeChoice: vi.fn().mockResolvedValue(undefined),
         // 多数端点经 rlv2Response 透传 takePushMessages；默认返回空数组，
         // 保证未触发推送时响应不带 pushMessage 字段
         takePushMessages: vi.fn().mockReturnValue([]),
@@ -72,6 +75,42 @@ describe("rlv2 路由", () => {
     await call("/leaveShop", {});
     expect(player.rlv2.leaveShop).toHaveBeenCalled();
     expectRlv2Response(res.send.mock.calls[0][0]);
+  });
+
+  it("POST /battleFinish 透传 pushMessage（战斗发放护盾/零件推送）", async () => {
+    player.rlv2.takePushMessages.mockReturnValue([
+      { path: "rlv2GotRandScrap", payload: { idList: ["rogue_6_scrap_M_01"] } },
+    ]);
+    await call("/battleFinish", { battleData: {}, data: "", battleLog: "" });
+    expect(player.rlv2.battleFinish).toHaveBeenCalled();
+    const body = res.send.mock.calls[0][0];
+    expect(body.pushMessage).toEqual([
+      { path: "rlv2GotRandScrap", payload: { idList: ["rogue_6_scrap_M_01"] } },
+    ]);
+  });
+
+  it("POST /chooseBattleReward 透传 pushMessage（领取零件组获得提示）", async () => {
+    player.rlv2.takePushMessages.mockReturnValue([
+      { path: "rlv2GotRandScrap", payload: { idList: ["rogue_6_scrap_M_02"] } },
+    ]);
+    await call("/chooseBattleReward", { index: 1, sub: 0 });
+    expect(player.rlv2.chooseBattleReward).toHaveBeenCalledWith({ index: 1, sub: 0 });
+    const body = res.send.mock.calls[0][0];
+    expect(body.pushMessage).toEqual([
+      { path: "rlv2GotRandScrap", payload: { idList: ["rogue_6_scrap_M_02"] } },
+    ]);
+  });
+
+  it("POST /sacrificeChoice 透传 pushMessage（献祭回报藏品推送）", async () => {
+    player.rlv2.takePushMessages.mockReturnValue([
+      { path: "rlv2GotRandRelic", payload: { idList: ["rogue_6_relic_a"] } },
+    ]);
+    await call("/sacrificeChoice", { choice: "0" });
+    expect(player.rlv2.sacrificeChoice).toHaveBeenCalled();
+    const body = res.send.mock.calls[0][0];
+    expect(body.pushMessage).toEqual([
+      { path: "rlv2GotRandRelic", payload: { idList: ["rogue_6_relic_a"] } },
+    ]);
   });
 
   it("POST /useTotem 应透传参数", async () => {

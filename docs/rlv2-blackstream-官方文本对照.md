@@ -167,8 +167,8 @@
 | 节点 | 状态 | 说明 |
 |---|---|---|
 | 全部 21 类节点分发 | ✅ 已实现（2026-08-19） | rogue_6 走 `gridZoneMoveTo` → `createRogue6NodeScene`（`ROGUE6_NODE_SCENE_PREFIX`，见 §十二）；标准主题仍走 `moveTo` + `NODE_SCENE_PREFIX` |
-| 安全的角落 / 得偿所愿 / 失与得 / 狭路相逢 / 险路尽头 / 险路小径 | ✅ | 前缀 `rest` / `wish`+`relic` / `sacrifice` / `sala` / `final` / `evacuate`（官方 choiceScenes 实测确证） |
-| 不期而遇 | ✅ | `createIncidentScene`（线人 bomb1）优先，未命中则 `normal*` / `bat*` 通用场景 |
+| 安全的角落 / 得偿所愿 / 失与得 / 狭路相逢 / 险路尽头 / 险路小径 | ✅ 完整实现（2026-08-25，见 §13.2） | 安全的角落（6 选 3 随机 + 效果发放）/ 得偿所愿（免费藏品 + 4 金刷新提档）/ 失与得（藏品与零件交换 + 复原“文明”差分）/ 险路尽头（+1 加工品 + 行动力转希望 + 召集同伴）/ 险路小径（+1 珍贵加工品保留行动力进区）均由事件引擎结算；血衣之下/擒与缚（`relic`）经 prts.wiki 实锤属不期而遇，已从得偿所愿前缀移出（2026-08-25） |
+| 不期而遇 | ✅ 完整实现（2026-08-25，见 §十三） | 事件引擎 `incident.ts`：全部 21 个事件（res/relic/normal/bat/bat6b/task/chimera/bomb1）按层数/重复/前置/持有物条件入池；场景图推进、描述文本消耗结算、随机分支、门槛选项、事件战斗（含追猎战/下一层普通战）均已落地 |
 | 诡意行商 / 秘境行商 / 应急助力 | ✅ | `ROGUE6_SHOP_NODES` → `BATTLE_SHOP`（含碎片回收、刷新、折扣）；应急助力另有 `hire*` 场景 |
 | 作战 / 紧急作战 / 险路恶敌 / “居民”据点 | ✅ | `ROGUE6_BATTLE_NODES` → 战斗；关卡按 `ZoneStagePools` 三池分流（普通/精英/首领） |
 | 先行一步（三结局"探索树的源头"入口） | ✅ 已实现（2026-08-17 流程 + 2026-08-19 节点可达） | `scout*` 场景（choice_ro6_scout_1/3）→ 送干员 → 下一层返回 +2 希望 + 怦然信标。~~原结论"只做远征记录"已过期~~ |
@@ -332,3 +332,98 @@
 - 文明开化分队（`immediate_reward_on_weather_clear`，依赖理想源/天气清除机制）；
 - 三结局调谐仪式提交（final_4/5/6 削弱效果在客户端战斗内，服务端仅保证节点通行）；
 - 难度 3「险路尽头不再提前揭示」无显式分支。
+- 不期而遇近似项（§十三）：「希望的沃土」下区实托邦生成未接入；task1_3/task2_3 传送与 task1_4/task2_4 地图标记为客户端表现；三结局“？”标记节点未实现（泪之聚落/无效验尸/复原“文明”改按持有怦然信标后入池近似）。
+
+---
+
+## 十三、变更记录（2026-08-25）：不期而遇完整实现（对照 prts.wiki 事件一览）
+
+> 对照源：prts.wiki「沉沦者的黑流树海/事件一览」（2026-08-25 抓取，存档 `tmp/ro6-events-wikitext.txt`）。
+
+### 13.1 新增/修改
+
+1. `app/game/controller/rlv2/incident.ts`（新增）：`Rogue6IncidentEngine` 事件引擎。
+   - `createIncident`：按当前层（floors）、遭遇记录（非重复事件只出现一次）、前置事件（呼吸的红苔←沉寂之屋）、持有物（泪之聚落←怦然信标）过滤事件池随机一幕；误入奇境隐藏层内「洞中宝」切 bat6b 差分；遭遇记录持久于 `current.game.incidentSeen`。
+   - `resolveChoice`：消耗按官方描述文本解析（全部/一半源石锭、N源石锭/目标生命值（至少保留1）/行动力、随机2件加工品、种子、源私钥）；发放走官方 `displayData.itemID`（虚拟资源物品既有 handler）+ grants 表随机奖励（收藏品/珍贵收藏品/三类零件）；随机分支（randomScenes）与场景图（sceneChoices）推进；战斗选项映射关卡（固定/随机/下一层普通作战）并标记节点。
+2. `data/rlv2/event_choices.json`：新增 `rogue_6` 段（incidents/enter/sceneChoices/randomScenes/battles/grants/gates）。
+3. `rlv2.ts`：`createIncidentScene` 线人未命中时交回引擎；`selectChoice` 新增引擎挂钩；`relic.ts` 新增 `lose`（源私钥消耗）。
+4. `theme-rules.ts`：`relic*`（血衣之下/擒与缚）经 prts.wiki 实锤属不期而遇，从得偿所愿前缀移出（WISH 仅 `wish`）。
+5. 关卡映射实锤：bat1→ro6_t_1 陌生旅伴 / bat2→ro6_t_2 安保措施 / bat3→ro6_t_3（紧急 ro6_e_t_3）开业剪彩 / bat4→ro6_t_4（紧急 ro6_e_t_4）合伙人会议 / bat5→ro6_t_5（紧急 ro6_e_t_5）湖中魇 / 黑诞→ro6_t_13/14/15（“闹乐”/“纵怒”/“灭身”）随机 / 洞中宝咬人→下一层普通作战随机。
+6. 测试：`tests/unit/controller/rlv2-incident-ro6.test.ts`（12 条）覆盖池过滤/前置/门槛/消耗/随机链/战斗/三结局事件。
+
+### 13.2 非战斗节点完整效果（2026-08-25，对照 prts.wiki 事件节点节 + 路标档案馆 lubiao.wiki）
+
+> lubiao.wiki（路标档案馆）为 SPA 站，经浏览器渲染后抓取：主题页 `/archives/blackstream`、
+> 藏品池页 `/pools/rogue_6`（得偿所愿/失与得节点池）、地图工具 `/tools/blackstream-route`；
+> 安全的角落/险路尽头/险路小径/应急助力/秘境行商站内无规则文本（以 prts.wiki 为准）。
+
+事件引擎（`incident.ts`）新增 `createNodeScene` / `resolveNodeChoice`，数据在 `event_choices.json` rogue_6 段（`nodeEnters` / `enter` / `sceneChoices` / `gates`）：
+
+| 节点 | 效果落地 |
+|---|---|
+| 安全的角落（REST） | 6 选项随机出 3；坐下休息 +3 生命上限 / 采样泉水 +1 可携带干员 / 许愿 +3 希望 / 无人机高级物资配给券 / 抚摸小动物 +2 行动力 / 整理行囊零件箱容量 +1（均走官方 displayData 虚拟物品 handler） |
+| 得偿所愿（WISH） | 搬桶免费得 1 件随机收藏品，池为路标档案馆观测池 `node_wish_relic`（78 件，官方无对应 pool_* 代码）；撬开木桶耗 4 源石锭刷新陈列且切换到更高级池 `node_wish_relic_advanced`（83 件）；推轮子需持四叶草化石（门槛过滤） |
+| 失与得（SACRIFICE） | 藏品交换（献祭 canSacrifice 藏品 → **同稀有度档**随机新藏品，路标档案馆同稀有度交换观测）；零件交换（同稀有度零件互换）受【生命游戏】"声带"（rogue_6_outbuff_8）门槛；二次交换（继续赞助）受"手掌"（rogue_6_outbuff_32）门槛；持怦然信标进入"复原文明"差分：耗 2 随机自然物 → 得焚毁"文明"（三结局削弱） |
+| 险路尽头（FINAL） | 说服同伴：+1 加工品 + 全部行动力转等量希望；召集同伴：取回留存招募券开启招募；进入下一区域：ZONE_END → checkZoneEnd（结局判定/区域奖励/远征归来/新层生成） |
+| 险路小径（EVACUATE） | 接受提议：+1 珍贵加工品，保留行动力；离开：ZONE_END 提前进层（三重身 3 差分随机） |
+| 先行一步（EXPEDITION） | 引擎接管：休息 +2 希望；派同伴进入/探索标记三结局远征（归来结算不变） |
+| 曲折密道 / 羽瞰点 | 已有实现：传送（tunnelPairTarget）/ 视野扩大 + 行动力 +1（grid_zone.moveTo） |
+| 应急助力 / 秘境行商 / 诡意行商 | 商店体系既有实现（BATTLE_SHOP：招募券 4 金定价/刷新/折扣/碎片回收/银行），不重复建设 |
+
+近似项：得偿所愿 2 选 1 陈列（客户端表现）简化为选项直得；应急助力免费专属干员未单独建模（走招募券商品）。
+测试：`tests/unit/controller/rlv2-node-effects-ro6.test.ts`（8 条）覆盖上述全部节点、科技树门槛与进区链路。
+
+### 13.3 战斗藏品池完整接入（2026-08-25，路标档案馆原始数据）
+
+> 数据源：lubiao.wiki 站点原始数据 `/data/archives/blackstream.json`（2026-08-25 抓取，
+> 存档 `tmp/lubiao-blackstream.json`），成员直接为官方藏品 id，全部经 excel items 表 RELIC/SCRAP 校验。
+> 此前 2026-08-17 抓取的 drop_extra_pool（51 件）/pool_boss（35 件）为不全旧版，已按最新全量覆盖。
+
+写入 `data/rlv2/pools.json` 的战斗池：
+
+| 池 | 件数 | 用途 |
+|---|---|---|
+| node_battle_normal | 1 | 普通作战（观测仅人偶之家，池空降档 pool_relic_normal/全量） |
+| node_battle_normal_invalid_autopsy | 16 | 三结局“无效验尸”战斗（ro6_t_12） |
+| node_battle_elite | 62 | 紧急作战（降档 pool_relic_rare） |
+| node_battle_savage | 25 | “居民”据点（必掉 1 件） |
+| node_incident_lake_fairy / _emergency | 9 / 15 | 不期而遇·湖中仙女事件战（ro6_t_5 / ro6_e_t_5） |
+| node_duel_relic / node_duel_scrap | 38 / 24 | 狭路相逢（左/中/右三敌观测池并集，藏品/零件双池） |
+| pool_boss | 36 | 险路恶敌首领战（必掉 2 件，降档 pool_relic_super_rare） |
+| drop_extra_pool | 76 | 地质调查分队额外掉落（概率随已过节点数上调，近似） |
+
+`rlv2/battle.ts` 接线：`pickBattleRelic`（特殊关卡优先 > 节点类型选池 > 降档回退）+ `pickFromPool`
+（不放回、过滤已拥有、校验 relics 登记）；掉落概率维持既有口径（普通/紧急 40%、首领/居民据点必掉）。
+狭路相逢额外补 1 件零件（官方左/中敌奖零件、右敌奖藏品，服务端无法区分击败对象）。
+测试：`tests/unit/controller/rlv2-battle-pool-blackstream.test.ts`（9 条）覆盖池规模与全部选池分支；
+`rlv2-band-effects.test.ts` 官方池断言同步更新至最新全量。
+
+### 13.4 初始流程修正（2026-08-25，对照 prts.wiki 开始探索节）
+
+| 项 | wiki 规则 | 修正前 | 修正后 |
+|---|---|---|---|
+| 行动奖励触发门槛 | 上一次行动**至少通过两层** | 仅匹配 3 层通关记录（`ro6_[ne]_3_`） | 2 层通关记录即触发（`ro6_[ne]_2_`/b_2/c_2），兼容 3 层抓包样本与旧存档 lastZone≥3 |
+| 未编号物（startbuff_1） | 1 件**普通**收藏品 | 全量池随机（可出 RARE/SR） | `pool_relic_normal`（空降档全量池） |
+| 巢寄生（startbuff_6） | 零件箱-1 + 1 件**稀有**收藏品 | 容量-1✓，藏品走全量池 | 容量-1✓ + `pool_relic_rare`（空降档全量池） |
+| 林间代步（startbuff_5） | 1 件**加工品** | 误发随机收藏品 | 按官方 `funcIconId=initial_reward_scrap_move` 发 MOVE 型零件 |
+| 空间租赁（startbuff_3） | -6 源石锭，零件箱**+2** | +2 数量标签带符号（`<get>+2</>`）未命中正则 → 实际只 +1 | 数量正则支持 `[+-]?\d+`，+2 正确生效 |
+| 退行补偿（startbuff_4） | -2 生命上限 + 随机收藏品 | ✓（全量池，官方未限定稀有度） | 不变 |
+| 初始源石锭 | 文本 6 / excel 与官服抓包 8 | 8 | 维持 8（官方客户端表与官服 createGame 抓包双重证据 > 维基文本；差异留存待官方定谳） |
+| 招募组合/随心所欲 | 5 固定组合 + 第 1 张 5星临时/第 2 张近战四职业/第 3 张远程四职业 | 已对齐（专用券 5star/quad_melee/quad_ranged） | 不变 |
+| 初始招募希望 | 4星 0 / 5星 2 / 6星 4 | 已对齐（populationFor） | 不变 |
+| 指挥分队升级（band_2） | <3+> 每次战斗结束后若护盾小于 5 点，额外获得 1 点护盾 | `battle_extra_drop` buff 无结算（仅入池） | `battleFinish` 按 blackboard[阈值,物品,数量]结算：护盾<阈值时发放（新增测试） |
+| 分队初始效果核查 | 本源研修初始携带河谷祭祈 / 特勤 5 预备干员 / 后勤 +20金+2希望(+多生苔藓) / 矛头 HP=1(+时光之末) / 战术分队首次直升 | 数据驱动全在库：immediate_reward / immediate_recruit / item_cover_set / limited_direct_upgrade（recruit.ts 已有直升判定） | 不变（核查确认） |
+| 难度 0/4 失败补偿 | 失败下把得特勤任务影像；难度 4+ 不再获得 | 已实现（≤难度 3 失败记录 → 开局发放，核查确认） | 不变 |
+
+测试：`tests/unit/controller/rlv2-init-flow-blackstream.test.ts`（6 条）覆盖触发门槛与 5 类奖励发放；
+`rlv2-battle-reward-blackstream.test.ts` 新增指挥分队升级护盾结算用例。
+
+### 13.5 实战缺陷修复（2026-08-25，用户反馈三例）
+
+| # | 现象 | 根因 | 修复 |
+|---|---|---|---|
+| C1 | 商店无法正常抵达（抵达后不开商店） | `gridZoneMoveTo` 商店判定仅认 `node.content.shop`；存档精简/续局形态 content 被剥除后商店事件丢失（复现测试确证） | 商店判定回退 `map.zones` 节点类型（`ROGUE6_SHOP_NODES.includes(kind)`，与战斗判定同模式）；应急助力同步按商店语义开 BATTLE_SHOP（官方 subName=商店，node-dispatch 断言同步更新） |
+| C2 | 不会生成林间空地节点 | 生成数据（blackstream-data.ts，抽取脚本已佚）中「林间空地」规则 `nodeType: null` → 距离/数量规则解析跳过，填充格永无林间空地（诊断确证：仅起点+居民改写） | `grid_zone.ruleNodeValue`：nodeType 缺失按中文标签解析（林间空地→GLADE）；start 规则不参与填充限数（避免[1,1]错当上限） |
+| C3 | 获得加工品无 pushMessage 提示 | `/battleFinish`、`/chooseBattleReward`（战斗奖励零件组）、`/sacrificeChoice` 路由漏传 `takePushMessages()` → rlv2GotRandScrap/rlv2GotRandRelic 永不下发 | 三个路由补传 `takePushMessages()`；`tests/unit/router/rlv2.test.ts` 新增 3 条透传断言 |
+
+测试：`rlv2-shop-reach.test.ts`（3 形态均开商店）、`rlv2-glade-gen.test.ts`（Ⅲ/Ⅴ 层填充空地 + Ⅰ 层上限约束）、路由推送 3 条；全量回归 2482 passed（仅既有基线 flaky 失败，经多轮对照与 git stash 隔离确证与本修复无关）。

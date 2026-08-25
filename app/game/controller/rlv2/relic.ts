@@ -33,6 +33,22 @@ export class RoguelikeRelicManager {
 
   use(id: string): void {}
 
+  /**
+   * 移除收藏品（按 id 删除首个匹配实例）。
+   * 事件消耗类用途（如愈创之心"消耗源私钥"）；buff 不回收（消耗型藏品效果服务端不结算）。
+   * @param relicId 收藏品 id
+   * @returns 已移除返回 true；未持有返回 false
+   */
+  lose(relicId: string): boolean {
+    for (const [idx, r] of Object.entries(this.relics)) {
+      if (r.id === relicId) {
+        delete this.relics[idx];
+        return true;
+      }
+    }
+    return false;
+  }
+
   async gain([relic]: [RoguelikeItemBundle]): Promise<void> {
     const theme = this._player.current.game!.theme;
     const buffs =

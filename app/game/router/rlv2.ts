@@ -453,7 +453,9 @@ router.post("/battleFinish", validateBody(ReqSchema.battleFinishSchema), async (
   const player = getPlayer();
   const body = req.body as RoguelikeFinishBattleRequest;
   await player.rlv2.battleFinish(body);
-  res.send(rlv2Response(player, undefined, SEC.CORE) satisfies RoguelikeFinishBattleResponse);
+  // 战斗结束可能发放护盾/零件等（指挥分队升级/战斗掉落）——推送需随响应下发，
+  // 否则客户端无获得提示（原实现漏传 takePushMessages）
+  res.send(rlv2Response(player, undefined, SEC.CORE, undefined, player.rlv2.takePushMessages()) satisfies RoguelikeFinishBattleResponse);
 });
 
 /** 选择战斗奖励（CS: RoguelikeSelectRewardRequest） */
@@ -461,7 +463,9 @@ router.post("/chooseBattleReward", validateBody(ReqSchema.chooseBattleRewardSche
   const player = getPlayer();
   const body = req.body as RoguelikeSelectRewardRequest;
   await player.rlv2.chooseBattleReward(body);
-  res.send(rlv2Response(player) satisfies RoguelikeSelectRewardResponse);
+  // 战斗奖励含零件组（黑流树海）：领取时 rlv2GotRandScrap 推送需随响应下发，
+  // 否则获得加工品无提示（原实现漏传 takePushMessages）
+  res.send(rlv2Response(player, undefined, undefined, undefined, player.rlv2.takePushMessages()) satisfies RoguelikeSelectRewardResponse);
 });
 
 /** 完成战斗奖励（服务端自定义） */
@@ -724,7 +728,7 @@ router.post("/sacrificeChoice", validateBody(ReqSchema.sacrificeChoiceSchema), a
   const player = getPlayer();
   const body = req.body as RoguelikeSacrificeRequest;
   await player.rlv2.sacrificeChoice(body);
-  res.send(rlv2Response(player) satisfies RoguelikeSacrificeResponse);
+  res.send(rlv2Response(player, undefined, undefined, undefined, player.rlv2.takePushMessages()) satisfies RoguelikeSacrificeResponse);
 });
 
 /** 铜币镀金（CS: RoguelikeGildRequest { choice, leave }） */

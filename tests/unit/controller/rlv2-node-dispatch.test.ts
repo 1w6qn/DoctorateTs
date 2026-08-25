@@ -150,7 +150,6 @@ describe("rogue_6 事件节点分发（gridZoneMoveTo）", () => {
     ["失与得", ROGUE6_NODE.SACRIFICE, /^scene_ro6_sacrifice\d*_enter$/],
     ["先行一步", ROGUE6_NODE.EXPEDITION, /^scene_ro6_scout_enter$/],
     ["狭路相逢", ROGUE6_NODE.FACE_OFF, /^scene_ro6_sala\d*_enter$/],
-    ["应急助力", ROGUE6_NODE.EMERGENCY_AID, /^scene_ro6_hire\d*_enter$/],
     ["险路尽头", ROGUE6_NODE.VISIBLE_END, /^scene_ro6_final\d*_enter$/],
     ["险路小径", ROGUE6_NODE.VISIBLE_PATH, /^scene_ro6_evacuate\d*_enter$/],
   ])(
@@ -177,6 +176,18 @@ describe("rogue_6 事件节点分发（gridZoneMoveTo）", () => {
     const choices = Object.keys(pending[0].content.scene.choices);
     expect(choices).toContain("choice_ro6_scout_1");
     expect(choices).toContain("choice_ro6_scout_3");
+  });
+
+  it("应急助力按商店语义开 BATTLE_SHOP（官方 subName=商店；含 content 精简形态）", async () => {
+    const player = makePlayer();
+    await (player.rlv2 as any)._module.create();
+    const { pending, state } = await moveToNodeOfType(
+      player,
+      ROGUE6_NODE.EMERGENCY_AID,
+    );
+    expect(state).toBe("PENDING");
+    expect(pending.length).toBeGreaterThan(0);
+    expect(pending[0].type).toBe("BATTLE_SHOP");
   });
 
   it("不期而遇未触发线人时回退通用场景（normal 幕）", async () => {

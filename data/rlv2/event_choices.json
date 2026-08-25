@@ -1,293 +1,597 @@
 {
     "rogue_1": {
         "enter": {
-            "scene_hp_enter": ["choice_hp_1"],
-            "scene_gold_enter": ["choice_gold_1"],
-            "scene_population_enter": ["choice_population_1"],
-            "scene_recruit1_enter": ["choice_recruit1_1","choice_recruit1_2","choice_recruit1_3"],
-            "scene_recruit2_enter": ["choice_recruit2_1","choice_recruit2_2"],
-            "scene_up1_enter": ["choice_up1_1"],
-            "scene_up2_enter": ["choice_up2_1"],
-            "scene_trade1_enter": ["choice_trade1_1", "choice_trade1_2"],
-            "scene_trade2_enter": ["choice_trade2_1", "choice_trade2_2"],
-            "scene_trade3_enter": ["choice_trade3_1", "choice_trade3_2"],
-            "scene_exchange_enter": ["choice_exchange_1", "choice_exchange_2", "choice_exchange_3", "choice_exchange_4", "choice_exchange_5", "choice_exchange_6"],
-            "scene_1_enter": ["choice_1_1", "choice_1_2"],
-            "scene_2_enter": ["choice_2_1", "choice_2_2"],
-            "scene_3_enter": ["choice_3_1","choice_3_2"],
-            "scene_4_enter": ["choice_4_1", "choice_4_2", "choice_4_3"],
-            "scene_5_enter": ["choice_5_1", "choice_5_2"],
-            "scene_6_enter": ["choice_6_1", "choice_6_10"],
-            "scene_bat1_enter": ["choice_bat1_1", "choice_bat1_2"],
-            "scene_bat2_enter": ["choice_bat2_1", "choice_bat2_2"],
-            "scene_bat3_enter": ["choice_bat3_1", "choice_bat3_2"],
-            "scene_bat4_enter": ["choice_bat4_1", "choice_bat4_2"],
-            "scene_t1_enter": ["choice_t1_1", "choice_t1_3"],
-            "scene_t2_enter": ["choice_t2_1", "choice_t2_3"],
-            "scene_t3_enter": ["choice_t3_1", "choice_t3_3"],
-            "scene_t4_enter": ["choice_t4_1", "choice_t4_3"],
-            "scene_blood1_enter": ["choice_blood1_1", "choice_blood1_2"],
-            "scene_blood2_enter": ["choice_blood2_1", "choice_blood2_2", "choice_blood2_3"],
-            "scene_bottle1_enter": ["choice_bottle1_1", "choice_bottle1_2"],
-            "scene_bottle2_enter": ["choice_bottle2_1", "choice_bottle2_2"],
-            "scene_bottle3_enter": ["choice_bottle3_1", "choice_bottle3_2", "choice_bottle3_3"],
-            "scene_bottle4_enter": ["choice_bottle4_1", "choice_bottle4_2", "choice_bottle4_3", "choice_bottle4_3"],
-            "scene_side1_enter": ["choice_side1_1", "choice_side1_2"],
-            "scene_side2_enter": ["choice_side2_1", "choice_side2_5"],
-            "scene_side3_enter": ["choice_side3_1"],
-            "scene_hidden1_enter": ["choice_hidden1_1", "choice_hidden1_2"],
-            "scene_hidden2_enter": ["choice_hidden2_1", "choice_hidden2_2"],
-            "scene_writer1_enter": ["choice_writer1_1", "choice_writer1_2"],
-            "scene_writer2_enter": ["choice_writer2_1", "choice_writer2_2"]
+            "scene_hp_enter": [
+                "choice_hp_1"
+            ],
+            "scene_gold_enter": [
+                "choice_gold_1"
+            ],
+            "scene_population_enter": [
+                "choice_population_1"
+            ],
+            "scene_recruit1_enter": [
+                "choice_recruit1_1",
+                "choice_recruit1_2",
+                "choice_recruit1_3"
+            ],
+            "scene_recruit2_enter": [
+                "choice_recruit2_1",
+                "choice_recruit2_2"
+            ],
+            "scene_up1_enter": [
+                "choice_up1_1"
+            ],
+            "scene_up2_enter": [
+                "choice_up2_1"
+            ],
+            "scene_trade1_enter": [
+                "choice_trade1_1",
+                "choice_trade1_2"
+            ],
+            "scene_trade2_enter": [
+                "choice_trade2_1",
+                "choice_trade2_2"
+            ],
+            "scene_trade3_enter": [
+                "choice_trade3_1",
+                "choice_trade3_2"
+            ],
+            "scene_exchange_enter": [
+                "choice_exchange_1",
+                "choice_exchange_2",
+                "choice_exchange_3",
+                "choice_exchange_4",
+                "choice_exchange_5",
+                "choice_exchange_6"
+            ],
+            "scene_1_enter": [
+                "choice_1_1",
+                "choice_1_2"
+            ],
+            "scene_2_enter": [
+                "choice_2_1",
+                "choice_2_2"
+            ],
+            "scene_3_enter": [
+                "choice_3_1",
+                "choice_3_2"
+            ],
+            "scene_4_enter": [
+                "choice_4_1",
+                "choice_4_2",
+                "choice_4_3"
+            ],
+            "scene_5_enter": [
+                "choice_5_1",
+                "choice_5_2"
+            ],
+            "scene_6_enter": [
+                "choice_6_1",
+                "choice_6_10"
+            ],
+            "scene_bat1_enter": [
+                "choice_bat1_1",
+                "choice_bat1_2"
+            ],
+            "scene_bat2_enter": [
+                "choice_bat2_1",
+                "choice_bat2_2"
+            ],
+            "scene_bat3_enter": [
+                "choice_bat3_1",
+                "choice_bat3_2"
+            ],
+            "scene_bat4_enter": [
+                "choice_bat4_1",
+                "choice_bat4_2"
+            ],
+            "scene_t1_enter": [
+                "choice_t1_1",
+                "choice_t1_3"
+            ],
+            "scene_t2_enter": [
+                "choice_t2_1",
+                "choice_t2_3"
+            ],
+            "scene_t3_enter": [
+                "choice_t3_1",
+                "choice_t3_3"
+            ],
+            "scene_t4_enter": [
+                "choice_t4_1",
+                "choice_t4_3"
+            ],
+            "scene_blood1_enter": [
+                "choice_blood1_1",
+                "choice_blood1_2"
+            ],
+            "scene_blood2_enter": [
+                "choice_blood2_1",
+                "choice_blood2_2",
+                "choice_blood2_3"
+            ],
+            "scene_bottle1_enter": [
+                "choice_bottle1_1",
+                "choice_bottle1_2"
+            ],
+            "scene_bottle2_enter": [
+                "choice_bottle2_1",
+                "choice_bottle2_2"
+            ],
+            "scene_bottle3_enter": [
+                "choice_bottle3_1",
+                "choice_bottle3_2",
+                "choice_bottle3_3"
+            ],
+            "scene_bottle4_enter": [
+                "choice_bottle4_1",
+                "choice_bottle4_2",
+                "choice_bottle4_3",
+                "choice_bottle4_3"
+            ],
+            "scene_side1_enter": [
+                "choice_side1_1",
+                "choice_side1_2"
+            ],
+            "scene_side2_enter": [
+                "choice_side2_1",
+                "choice_side2_5"
+            ],
+            "scene_side3_enter": [
+                "choice_side3_1"
+            ],
+            "scene_hidden1_enter": [
+                "choice_hidden1_1",
+                "choice_hidden1_2"
+            ],
+            "scene_hidden2_enter": [
+                "choice_hidden2_1",
+                "choice_hidden2_2"
+            ],
+            "scene_writer1_enter": [
+                "choice_writer1_1",
+                "choice_writer1_2"
+            ],
+            "scene_writer2_enter": [
+                "choice_writer2_1",
+                "choice_writer2_2"
+            ]
         },
         "choices": {
             "choice_hp_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_gold_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_population_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_recruit1_1": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 2},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 2
+                },
                 "get": "rogue_1_recruit_ticket_"
             },
             "choice_recruit1_2": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 5},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 5
+                },
                 "get": "rogue_1_recruit_ticket_all"
             },
             "choice_recruit1_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_recruit2_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_1_recruit_ticket_"
             },
             "choice_recruit2_2": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 8},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 8
+                },
                 "get": "rogue_1_recruit_ticket_all"
             },
             "choice_up1_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_1_upgrade_ticket_5star"
             },
             "choice_up2_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_1_upgrade_ticket_all"
             },
             "choice_trade1_1": {
-                "choices": ["choice_leave"],
-                "lose": {"hp": {"current": 2}},
-                "get": {"gold": 8}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 2
+                    }
+                },
+                "get": {
+                    "gold": 8
+                }
             },
             "choice_trade1_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_trade2_1": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 5},
-                "get": {"population": {"max": 3}}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 5
+                },
+                "get": {
+                    "population": {
+                        "max": 3
+                    }
+                }
             },
             "choice_trade2_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_trade3_1": {
-                "choices": ["choice_leave"],
-                "lose": {"population": {"max": 2}},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "population": {
+                        "max": 2
+                    }
+                },
                 "get": "rogue_1_relic_"
             },
             "choice_trade3_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_exchange_1": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 10},
-                "get": {"hp": {"current": 8}}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 10
+                },
+                "get": {
+                    "hp": {
+                        "current": 8
+                    }
+                }
             },
             "choice_exchange_2": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 10},
-                "get": {"population": {"max": 6}}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 10
+                },
+                "get": {
+                    "population": {
+                        "max": 6
+                    }
+                }
             },
             "choice_exchange_3": {
-                "choices": ["choice_leave"],
-                "lose": {"population": {"max": 4}},
-                "get": {"hp": {"current": 10}}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "population": {
+                        "max": 4
+                    }
+                },
+                "get": {
+                    "hp": {
+                        "current": 10
+                    }
+                }
             },
             "choice_exchange_4": {
-                "choices": ["choice_leave"],
-                "lose": {"hp": {"current": 5}},
-                "get": {"population": {"max": 8}}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 5
+                    }
+                },
+                "get": {
+                    "population": {
+                        "max": 8
+                    }
+                }
             },
             "choice_exchange_5": {
-                "choices": ["choice_leave"],
-                "lose": {"hp": {"current": 5}},
-                "get": {"gold": 15}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 5
+                    }
+                },
+                "get": {
+                    "gold": 15
+                }
             },
             "choice_exchange_6": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_1_1": {
-                "choices": ["choice_leave"],
-                "lose": {"hp": {"current": 1}},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 1
+                    }
+                },
                 "get": "rogue_1_relic_"
             },
             "choice_1_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_2_1": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 3},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 3
+                },
                 "get": "rogue_1_relic_"
             },
             "choice_2_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_3_1": {
-                "choices": ["choice_3_2", "choice_3_8"],
-                "lose": {"gold": 3},
+                "choices": [
+                    "choice_3_2",
+                    "choice_3_8"
+                ],
+                "lose": {
+                    "gold": 3
+                },
                 "get": null
             },
             "choice_3_2": {
-                "choices": ["choice_3_3", "choice_3_8"],
-                "lose": {"gold": 3},
+                "choices": [
+                    "choice_3_3",
+                    "choice_3_8"
+                ],
+                "lose": {
+                    "gold": 3
+                },
                 "get": null
             },
             "choice_3_3": {
-                "choices": ["choice_3_4", "choice_3_8"],
-                "lose": {"gold": 3},
+                "choices": [
+                    "choice_3_4",
+                    "choice_3_8"
+                ],
+                "lose": {
+                    "gold": 3
+                },
                 "get": null
             },
             "choice_3_4": {
-                "choices": ["choice_3_5", "choice_3_8"],
-                "lose": {"gold": 3},
+                "choices": [
+                    "choice_3_5",
+                    "choice_3_8"
+                ],
+                "lose": {
+                    "gold": 3
+                },
                 "get": null
             },
             "choice_3_5": {
-                "choices": ["choice_3_6", "choice_3_8"],
-                "lose": {"gold": 3},
+                "choices": [
+                    "choice_3_6",
+                    "choice_3_8"
+                ],
+                "lose": {
+                    "gold": 3
+                },
                 "get": null
             },
             "choice_3_6": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_1_relic_m03"
             },
             "choice_3_8": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_4_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_1_relic_m05"
             },
             "choice_4_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_1_relic_m04"
             },
             "choice_4_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_5_1": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 99999999},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 99999999
+                },
                 "get": "rogue_1_relic_m06"
             },
             "choice_5_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_6_1": {
-                "choices": ["choice_6_2", "choice_6_3", "choice_6_4", "choice_6_5"],
-                "lose": {"gold": 4},
+                "choices": [
+                    "choice_6_2",
+                    "choice_6_3",
+                    "choice_6_4",
+                    "choice_6_5"
+                ],
+                "lose": {
+                    "gold": 4
+                },
                 "get": null
             },
             "choice_6_2": {
-                "choices": ["choice_6_6"],
+                "choices": [
+                    "choice_6_6"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_6_3": {
-                "choices": ["choice_6_7"],
+                "choices": [
+                    "choice_6_7"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_6_4": {
-                "choices": ["choice_6_8"],
+                "choices": [
+                    "choice_6_8"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_6_5": {
-                "choices": ["choice_6_9"],
+                "choices": [
+                    "choice_6_9"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_6_6": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_1_relic_m10"
             },
             "choice_6_7": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_1_relic_m11"
             },
             "choice_6_8": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_1_relic_m12"
             },
             "choice_6_9": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"gold": 3}
+                "get": {
+                    "gold": 3
+                }
             },
             "choice_6_10": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_bat1_1": {
-                "choices": ["choice_bat1_3"],
+                "choices": [
+                    "choice_bat1_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_bat1_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -297,12 +601,16 @@
                 "get": null
             },
             "choice_bat2_1": {
-                "choices": ["choice_bat2_3"],
+                "choices": [
+                    "choice_bat2_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_bat2_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -312,12 +620,16 @@
                 "get": null
             },
             "choice_bat3_1": {
-                "choices": ["choice_bat3_3"],
+                "choices": [
+                    "choice_bat3_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_bat3_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -327,12 +639,16 @@
                 "get": null
             },
             "choice_bat4_1": {
-                "choices": ["choice_bat4_3"],
+                "choices": [
+                    "choice_bat4_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_bat4_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -342,12 +658,16 @@
                 "get": null
             },
             "choice_t1_1": {
-                "choices": ["choice_t1_3"],
+                "choices": [
+                    "choice_t1_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_t1_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -357,12 +677,16 @@
                 "get": null
             },
             "choice_t2_1": {
-                "choices": ["choice_t2_3"],
+                "choices": [
+                    "choice_t2_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_t2_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -372,12 +696,16 @@
                 "get": null
             },
             "choice_t3_1": {
-                "choices": ["choice_t3_3"],
+                "choices": [
+                    "choice_t3_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_t3_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -387,12 +715,16 @@
                 "get": null
             },
             "choice_t4_1": {
-                "choices": ["choice_t4_3"],
+                "choices": [
+                    "choice_t4_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_t4_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -402,157 +734,284 @@
                 "get": null
             },
             "choice_blood1_1": {
-                "choices": ["choice_leave"],
-                "lose": {"hp": {"current": 3}},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 3
+                    }
+                },
                 "get": "rogue_1_relic_m07"
             },
             "choice_blood1_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"gold": 4}
+                "get": {
+                    "gold": 4
+                }
             },
             "choice_blood2_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"gold": 20}
+                "get": {
+                    "gold": 20
+                }
             },
             "choice_blood2_2": {
-                "choices": ["choice_leave"],
-                "lose": {"hp": {"current": 2}},
-                "get": {"population": {"max": 3}}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 2
+                    }
+                },
+                "get": {
+                    "population": {
+                        "max": 3
+                    }
+                }
             },
             "choice_blood2_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"hp": {"current": 3}}
+                "get": {
+                    "hp": {
+                        "current": 3
+                    }
+                }
             },
             "choice_bottle1_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_1_relic_m13"
             },
             "choice_bottle1_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"population": {"max": 2}}
+                "get": {
+                    "population": {
+                        "max": 2
+                    }
+                }
             },
             "choice_bottle2_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"hp": {"current": 3}}
+                "get": {
+                    "hp": {
+                        "current": 3
+                    }
+                }
             },
             "choice_bottle2_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_1_relic_m14"
             },
             "choice_bottle3_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"gold": 15}
+                "get": {
+                    "gold": 15
+                }
             },
             "choice_bottle3_2": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 6},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 6
+                },
                 "get": "rogue_1_relic_"
             },
             "choice_bottle3_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_bottle4_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_1_relic_m15"
             },
             "choice_bottle4_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"population": {"max": 3}}
+                "get": {
+                    "population": {
+                        "max": 3
+                    }
+                }
             },
             "choice_bottle4_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"gold": 5}
+                "get": {
+                    "gold": 5
+                }
             },
             "choice_bottle4_4": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_side1_1": {
-                "choices": ["choice_side1_3"],
-                "lose": {"population": {"cost": -1}},
+                "choices": [
+                    "choice_side1_3"
+                ],
+                "lose": {
+                    "population": {
+                        "cost": -1
+                    }
+                },
                 "get": null
             },
             "choice_side1_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"population": {"cost": 1}}
+                "get": {
+                    "population": {
+                        "cost": 1
+                    }
+                }
             },
             "choice_side1_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_1_relic_m16"
             },
             "choice_side2_1": {
-                "choices": ["choice_side2_2", "choice_side2_5"],
-                "lose": {"hp": {"current": 1}},
+                "choices": [
+                    "choice_side2_2",
+                    "choice_side2_5"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 1
+                    }
+                },
                 "get": null
             },
             "choice_side2_2": {
-                "choices": ["choice_side2_3", "choice_side2_5"],
-                "lose": {"hp": {"current": 1}},
+                "choices": [
+                    "choice_side2_3",
+                    "choice_side2_5"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 1
+                    }
+                },
                 "get": null
             },
             "choice_side2_3": {
-                "choices": ["choice_side2_4", "choice_side2_5"],
-                "lose": {"hp": {"current": 1}},
+                "choices": [
+                    "choice_side2_4",
+                    "choice_side2_5"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 1
+                    }
+                },
                 "get": null
             },
             "choice_side2_4": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_1_relic_m17"
             },
             "choice_side2_5": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_side3_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_1_relic_m18"
             },
             "choice_hidden1_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_1_relic_m19"
             },
             "choice_hidden1_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"hp": {"current": 2}}
+                "get": {
+                    "hp": {
+                        "current": 2
+                    }
+                }
             },
             "choice_hidden2_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_1_relic_m21"
             },
             "choice_hidden2_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_writer1_1": {
-                "choices": ["choice_writer1_3"],
+                "choices": [
+                    "choice_writer1_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_writer1_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -562,12 +1021,16 @@
                 "get": null
             },
             "choice_writer2_1": {
-                "choices": ["choice_writer2_3"],
+                "choices": [
+                    "choice_writer2_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_writer2_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -580,714 +1043,1481 @@
     },
     "rogue_2": {
         "enter": {
-            "scene_ro2_dice_enter": ["choice_ro2_dice_1"],
-            "scene_ro2_grace_enter": ["choice_ro2_grace_1"],
-            "scene_ro2_recruit1_enter": ["choice_ro2_recruit1_1", "choice_ro2_recruit1_2", "choice_ro2_recruit1_3"],
-            "scene_ro2_recruit2_enter": ["choice_ro2_recruit2_1", "choice_ro2_recruit2_2"],
-            "scene_ro2_up1_enter": ["choice_ro2_up1_1"],
-            "scene_ro2_up2_enter": ["choice_ro2_up2_1"],
-            "scene_ro2_trade3_enter": ["choice_ro2_trade3_1", "choice_ro2_trade3_2"],
-            "scene_ro2_2_enter": ["choice_ro2_2_1", "choice_ro2_2_2"],
-            "scene_ro2_trade2_enter": ["choice_ro2_trade2_1", "choice_ro2_trade2_2", "choice_ro2_trade2_3"],
-            "scene_ro2_4_enter": ["choice_ro2_4_1", "choice_ro2_4_2", "choice_ro2_4_3"],
-            "scene_ro2_1_enter": ["choice_ro2_1_1", "choice_ro2_1_2", "choice_ro2_1_3"],
-            "scene_ro2_5_enter": ["choice_ro2_5_1", "choice_ro2_5_2", "choice_ro2_5_3"],
-            "scene_ro2_6_enter": ["choice_ro2_6_1", "choice_ro2_6_10"],
-            "scene_ro2_blood1_enter": ["choice_ro2_blood1_1", "choice_ro2_blood1_2"],
-            "scene_ro2_blood2_enter": ["choice_ro2_blood2_1", "choice_ro2_blood2_2", "choice_ro2_blood2_3"],
-            "scene_ro2_trade1_enter": ["choice_ro2_trade1_1", "choice_ro2_trade1_2", "choice_ro2_trade1_3"],
-            "scene_ro2_hp_enter": ["choice_ro2_hp_1"],
-            "scene_ro2_exchange_enter": ["choice_ro2_exchange_10", "choice_ro2_exchange_1", "choice_ro2_exchange_2", "choice_ro2_exchange_3", "choice_ro2_exchange_4", "choice_ro2_exchange_5", "choice_ro2_exchange_6", "choice_ro2_exchange_7", "choice_ro2_exchange_8", "choice_ro2_exchange_9"],
-            "scene_ro2_hp2_enter": ["choice_ro2_hp2_1"],
-            "scene_ro2_key_enter": ["choice_ro2_key_1", "choice_ro2_key_2"],
-            "scene_ro2_dice2_enter": ["choice_ro2_dice2_1"],
-            "scene_ro2_suit_enter": ["choice_ro2_suit_2", "choice_ro2_suit_3", "choice_ro2_suit_7"],
-            "scene_ro2_trade4_enter": ["choice_ro2_trade4_1", "choice_ro2_trade4_4"],
-            "scene_ro2_7_enter": ["choice_ro2_7_1", "choice_ro2_7_5"],
-            "scene_ro2_8_enter": ["choice_ro2_8_1", "choice_ro2_8_2"],
-            "scene_ro2_9_enter": ["choice_ro2_9_1", "choice_ro2_9_2"],
-            "scene_ro2_10_enter": ["choice_ro2_10_1", "choice_ro2_10_2", "choice_ro2_10_3"],
-            "scene_ro2_11_enter": ["choice_ro2_11_1", "choice_ro2_11_2"],
-            "scene_ro2_king_enter": ["choice_ro2_king_1", "choice_ro2_king_4"],
-            "scene_ro2_liar1_enter": ["choice_ro2_liar1_1", "choice_ro2_liar1_2"],
-            "scene_ro2_liar2_enter": ["choice_ro2_liar2_1", "choice_ro2_liar2_2"],
-            "scene_ro2_san1_enter": ["choice_ro2_san1_1", "choice_ro2_san1_2", "choice_ro2_san1_3"],
-            "scene_ro2_bat1_enter": ["choice_ro2_bat1_1", "choice_ro2_bat1_2"],
-            "scene_ro2_bat2_enter": ["choice_ro2_bat2_1", "choice_ro2_bat2_2"],
-            "scene_ro2_t1_enter": ["choice_ro2_t1_1", "choice_ro2_t1_2"],
-            "scene_ro2_t2_enter": ["choice_ro2_t2_1", "choice_ro2_t2_2"],
-            "scene_ro2_t3_enter": ["choice_ro2_t3_1", "choice_ro2_t3_2"],
-            "scene_ro2_t4_enter": ["choice_ro2_t4_1", "choice_ro2_t4_2"],
-            "scene_ro2_t5_enter": ["choice_ro2_t5_1", "choice_ro2_t5_2"],
-            "scene_ro2_bossa1_enter": ["choice_ro2_bossa1_1", "choice_ro2_bossa1_2", "choice_ro2_bossa1_3"],
-            "scene_ro2_bossa2_enter": ["choice_ro2_bossa2_1", "choice_ro2_bossa2_2", "choice_ro2_bossa2_3"],
-            "scene_ro2_bossb1_enter": ["choice_ro2_bossb1_1", "choice_ro2_bossb1_3", "choice_ro2_bossb1_2"],
-            "scene_ro2_bossb2_enter": ["choice_ro2_bossb2_6", "choice_ro2_bossb2_1", "choice_ro2_bossb2_3", "choice_ro2_bossb2_4", "choice_ro2_bossb2_5", "choice_ro2_bossb2_2"],
-            "scene_ro2_bossb3_enter": ["choice_ro2_bossb3_1"],
-            "scene_ro2_bossc2_enter": ["choice_ro2_bossc2_1", "choice_ro2_bossc2_2"],
-            "scene_ro2_bossc3_enter": ["choice_ro2_bossc3_1", "choice_ro2_bossc3_2", "choice_ro2_bossc3_3"]
+            "scene_ro2_dice_enter": [
+                "choice_ro2_dice_1"
+            ],
+            "scene_ro2_grace_enter": [
+                "choice_ro2_grace_1"
+            ],
+            "scene_ro2_recruit1_enter": [
+                "choice_ro2_recruit1_1",
+                "choice_ro2_recruit1_2",
+                "choice_ro2_recruit1_3"
+            ],
+            "scene_ro2_recruit2_enter": [
+                "choice_ro2_recruit2_1",
+                "choice_ro2_recruit2_2"
+            ],
+            "scene_ro2_up1_enter": [
+                "choice_ro2_up1_1"
+            ],
+            "scene_ro2_up2_enter": [
+                "choice_ro2_up2_1"
+            ],
+            "scene_ro2_trade3_enter": [
+                "choice_ro2_trade3_1",
+                "choice_ro2_trade3_2"
+            ],
+            "scene_ro2_2_enter": [
+                "choice_ro2_2_1",
+                "choice_ro2_2_2"
+            ],
+            "scene_ro2_trade2_enter": [
+                "choice_ro2_trade2_1",
+                "choice_ro2_trade2_2",
+                "choice_ro2_trade2_3"
+            ],
+            "scene_ro2_4_enter": [
+                "choice_ro2_4_1",
+                "choice_ro2_4_2",
+                "choice_ro2_4_3"
+            ],
+            "scene_ro2_1_enter": [
+                "choice_ro2_1_1",
+                "choice_ro2_1_2",
+                "choice_ro2_1_3"
+            ],
+            "scene_ro2_5_enter": [
+                "choice_ro2_5_1",
+                "choice_ro2_5_2",
+                "choice_ro2_5_3"
+            ],
+            "scene_ro2_6_enter": [
+                "choice_ro2_6_1",
+                "choice_ro2_6_10"
+            ],
+            "scene_ro2_blood1_enter": [
+                "choice_ro2_blood1_1",
+                "choice_ro2_blood1_2"
+            ],
+            "scene_ro2_blood2_enter": [
+                "choice_ro2_blood2_1",
+                "choice_ro2_blood2_2",
+                "choice_ro2_blood2_3"
+            ],
+            "scene_ro2_trade1_enter": [
+                "choice_ro2_trade1_1",
+                "choice_ro2_trade1_2",
+                "choice_ro2_trade1_3"
+            ],
+            "scene_ro2_hp_enter": [
+                "choice_ro2_hp_1"
+            ],
+            "scene_ro2_exchange_enter": [
+                "choice_ro2_exchange_10",
+                "choice_ro2_exchange_1",
+                "choice_ro2_exchange_2",
+                "choice_ro2_exchange_3",
+                "choice_ro2_exchange_4",
+                "choice_ro2_exchange_5",
+                "choice_ro2_exchange_6",
+                "choice_ro2_exchange_7",
+                "choice_ro2_exchange_8",
+                "choice_ro2_exchange_9"
+            ],
+            "scene_ro2_hp2_enter": [
+                "choice_ro2_hp2_1"
+            ],
+            "scene_ro2_key_enter": [
+                "choice_ro2_key_1",
+                "choice_ro2_key_2"
+            ],
+            "scene_ro2_dice2_enter": [
+                "choice_ro2_dice2_1"
+            ],
+            "scene_ro2_suit_enter": [
+                "choice_ro2_suit_2",
+                "choice_ro2_suit_3",
+                "choice_ro2_suit_7"
+            ],
+            "scene_ro2_trade4_enter": [
+                "choice_ro2_trade4_1",
+                "choice_ro2_trade4_4"
+            ],
+            "scene_ro2_7_enter": [
+                "choice_ro2_7_1",
+                "choice_ro2_7_5"
+            ],
+            "scene_ro2_8_enter": [
+                "choice_ro2_8_1",
+                "choice_ro2_8_2"
+            ],
+            "scene_ro2_9_enter": [
+                "choice_ro2_9_1",
+                "choice_ro2_9_2"
+            ],
+            "scene_ro2_10_enter": [
+                "choice_ro2_10_1",
+                "choice_ro2_10_2",
+                "choice_ro2_10_3"
+            ],
+            "scene_ro2_11_enter": [
+                "choice_ro2_11_1",
+                "choice_ro2_11_2"
+            ],
+            "scene_ro2_king_enter": [
+                "choice_ro2_king_1",
+                "choice_ro2_king_4"
+            ],
+            "scene_ro2_liar1_enter": [
+                "choice_ro2_liar1_1",
+                "choice_ro2_liar1_2"
+            ],
+            "scene_ro2_liar2_enter": [
+                "choice_ro2_liar2_1",
+                "choice_ro2_liar2_2"
+            ],
+            "scene_ro2_san1_enter": [
+                "choice_ro2_san1_1",
+                "choice_ro2_san1_2",
+                "choice_ro2_san1_3"
+            ],
+            "scene_ro2_bat1_enter": [
+                "choice_ro2_bat1_1",
+                "choice_ro2_bat1_2"
+            ],
+            "scene_ro2_bat2_enter": [
+                "choice_ro2_bat2_1",
+                "choice_ro2_bat2_2"
+            ],
+            "scene_ro2_t1_enter": [
+                "choice_ro2_t1_1",
+                "choice_ro2_t1_2"
+            ],
+            "scene_ro2_t2_enter": [
+                "choice_ro2_t2_1",
+                "choice_ro2_t2_2"
+            ],
+            "scene_ro2_t3_enter": [
+                "choice_ro2_t3_1",
+                "choice_ro2_t3_2"
+            ],
+            "scene_ro2_t4_enter": [
+                "choice_ro2_t4_1",
+                "choice_ro2_t4_2"
+            ],
+            "scene_ro2_t5_enter": [
+                "choice_ro2_t5_1",
+                "choice_ro2_t5_2"
+            ],
+            "scene_ro2_bossa1_enter": [
+                "choice_ro2_bossa1_1",
+                "choice_ro2_bossa1_2",
+                "choice_ro2_bossa1_3"
+            ],
+            "scene_ro2_bossa2_enter": [
+                "choice_ro2_bossa2_1",
+                "choice_ro2_bossa2_2",
+                "choice_ro2_bossa2_3"
+            ],
+            "scene_ro2_bossb1_enter": [
+                "choice_ro2_bossb1_1",
+                "choice_ro2_bossb1_3",
+                "choice_ro2_bossb1_2"
+            ],
+            "scene_ro2_bossb2_enter": [
+                "choice_ro2_bossb2_6",
+                "choice_ro2_bossb2_1",
+                "choice_ro2_bossb2_3",
+                "choice_ro2_bossb2_4",
+                "choice_ro2_bossb2_5",
+                "choice_ro2_bossb2_2"
+            ],
+            "scene_ro2_bossb3_enter": [
+                "choice_ro2_bossb3_1"
+            ],
+            "scene_ro2_bossc2_enter": [
+                "choice_ro2_bossc2_1",
+                "choice_ro2_bossc2_2"
+            ],
+            "scene_ro2_bossc3_enter": [
+                "choice_ro2_bossc3_1",
+                "choice_ro2_bossc3_2",
+                "choice_ro2_bossc3_3"
+            ]
         },
         "choices": {
             "choice_ro2_dice_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"gold": 4},
-                "m_get": {"dice": {"count": 1}}
+                "get": {
+                    "gold": 4
+                },
+                "m_get": {
+                    "dice": {
+                        "count": 1
+                    }
+                }
             },
             "choice_ro2_grace_1": {
-                "choices": ["choice_ro2_grace_2"],
+                "choices": [
+                    "choice_ro2_grace_2"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_grace_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_",
                 "curse": false
             },
             "choice_ro2_recruit1_1": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 2},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 2
+                },
                 "get": "rogue_2_recruit_ticket_"
             },
             "choice_ro2_recruit1_2": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 5},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 5
+                },
                 "get": "rogue_2_recruit_ticket_all"
             },
             "choice_ro2_recruit1_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_recruit2_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_recruit_ticket_"
             },
             "choice_ro2_recruit2_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "m_lose": {"san": {"sanity": 10}},
+                "m_lose": {
+                    "san": {
+                        "sanity": 10
+                    }
+                },
                 "get": "rogue_2_recruit_ticket_all"
             },
             "choice_ro2_up1_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_upgrade_ticket_5star"
             },
             "choice_ro2_up2_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_upgrade_ticket_all"
             },
             "choice_ro2_trade3_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_",
                 "curse": true
             },
             "choice_ro2_trade3_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_2_1": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 3},
-                "get": ["rogue_2_relic_fight_43", "rogue_2_relic_fight_44"]
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 3
+                },
+                "get": [
+                    "rogue_2_relic_fight_43",
+                    "rogue_2_relic_fight_44"
+                ]
             },
             "choice_ro2_2_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_trade2_1": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 5},
-                "get": {"population": {"max": 3}}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 5
+                },
+                "get": {
+                    "population": {
+                        "max": 3
+                    }
+                }
             },
             "choice_ro2_trade2_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"population": {"max": 1}}
+                "get": {
+                    "population": {
+                        "max": 1
+                    }
+                }
             },
             "choice_ro2_trade2_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_4_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_fight_40"
             },
             "choice_ro2_4_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_fight_41"
             },
             "choice_ro2_4_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_1_1": {
-                "choices": ["choice_leave"],
-                "lose": {"hp": {"current": 1}},
-                "get": ["rogue_2_relic_fight_38", "rogue_2_relic_fight_39"]
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 1
+                    }
+                },
+                "get": [
+                    "rogue_2_relic_fight_38",
+                    "rogue_2_relic_fight_39"
+                ]
             },
             "choice_ro2_1_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"hp": {"current": 1, "max": 1}}
+                "get": {
+                    "hp": {
+                        "current": 1,
+                        "max": 1
+                    }
+                }
             },
             "choice_ro2_1_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_5_1": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 99999999},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 99999999
+                },
                 "get": "rogue_2_relic_fight_42"
             },
             "choice_ro2_5_2": {
-                "choices": ["choice_leave"],
-                "lose": {"hp": {"current": 5}},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 5
+                    }
+                },
                 "get": "rogue_2_relic_fight_42"
             },
             "choice_ro2_5_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_6_1": {
-                "choices": ["choice_ro2_6_2", "choice_ro2_6_3", "choice_ro2_6_4", "choice_ro2_6_5"],
-                "lose": {"gold": 4},
+                "choices": [
+                    "choice_ro2_6_2",
+                    "choice_ro2_6_3",
+                    "choice_ro2_6_4",
+                    "choice_ro2_6_5"
+                ],
+                "lose": {
+                    "gold": 4
+                },
                 "get": null
             },
             "choice_ro2_6_2": {
-                "choices": ["choice_ro2_6_6"],
+                "choices": [
+                    "choice_ro2_6_6"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_6_3": {
-                "choices": ["choice_ro2_6_7"],
+                "choices": [
+                    "choice_ro2_6_7"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_6_4": {
-                "choices": ["choice_ro2_6_8"],
+                "choices": [
+                    "choice_ro2_6_8"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_6_5": {
-                "choices": ["choice_ro2_6_9"],
+                "choices": [
+                    "choice_ro2_6_9"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_6_6": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_grace_77"
             },
             "choice_ro2_6_7": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_fight_45"
             },
             "choice_ro2_6_8": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_fight_46"
             },
             "choice_ro2_6_9": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null,
-                "m_get": {"san": {"sanity": 5}}
+                "m_get": {
+                    "san": {
+                        "sanity": 5
+                    }
+                }
             },
             "choice_ro2_6_10": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_blood1_1": {
-                "choices": ["choice_leave"],
-                "lose": {"hp": {"current": 3}},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 3
+                    }
+                },
                 "get": "rogue_2_relic_grace_76"
             },
             "choice_ro2_blood1_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"gold": 5}
+                "get": {
+                    "gold": 5
+                }
             },
             "choice_ro2_blood2_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": "rogue_2_relic_grace_76",
-                "get": {"san": {"sanity": 40}}
+                "get": {
+                    "san": {
+                        "sanity": 40
+                    }
+                }
             },
             "choice_ro2_blood2_2": {
-                "choices": ["choice_leave"],
-                "lose": {"hp": {"current": 2}},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 2
+                    }
+                },
                 "get": null,
-                "m_get": {"san": {"sanity": 15}}
+                "m_get": {
+                    "san": {
+                        "sanity": 15
+                    }
+                }
             },
             "choice_ro2_blood2_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"population": {"max": 2}}
+                "get": {
+                    "population": {
+                        "max": 2
+                    }
+                }
             },
             "choice_ro2_trade1_1": {
-                "choices": ["choice_leave"],
-                "lose": {"hp": {"current": 3}},
-                "get": {"gold": 8}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 3
+                    }
+                },
+                "get": {
+                    "gold": 8
+                }
             },
             "choice_ro2_trade1_2": {
-                "choices": ["choice_leave"],
-                "lose": {"hp": {"current": 6}},
-                "get": {"hp": {"current": 4, "max": 4}}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 6
+                    }
+                },
+                "get": {
+                    "hp": {
+                        "current": 4,
+                        "max": 4
+                    }
+                }
             },
             "choice_ro2_trade1_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_hp_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"hp": {"current": 2, "max": 2}}
+                "get": {
+                    "hp": {
+                        "current": 2,
+                        "max": 2
+                    }
+                }
             },
             "choice_ro2_exchange_1": {
-                "choices": ["choice_ro2_exchange_11", "choice_ro2_exchange_20"],
-                "lose": {"gold": 10},
-                "get": {"hp": {"current": 4, "max": 4}}
+                "choices": [
+                    "choice_ro2_exchange_11",
+                    "choice_ro2_exchange_20"
+                ],
+                "lose": {
+                    "gold": 10
+                },
+                "get": {
+                    "hp": {
+                        "current": 4,
+                        "max": 4
+                    }
+                }
             },
             "choice_ro2_exchange_2": {
-                "choices": ["choice_ro2_exchange_12", "choice_ro2_exchange_20"],
-                "lose": {"gold": 10},
-                "get": {"population": {"max": 4}}
+                "choices": [
+                    "choice_ro2_exchange_12",
+                    "choice_ro2_exchange_20"
+                ],
+                "lose": {
+                    "gold": 10
+                },
+                "get": {
+                    "population": {
+                        "max": 4
+                    }
+                }
             },
             "choice_ro2_exchange_3": {
-                "choices": ["choice_ro2_exchange_13", "choice_ro2_exchange_20"],
-                "lose": {"gold": 10},
+                "choices": [
+                    "choice_ro2_exchange_13",
+                    "choice_ro2_exchange_20"
+                ],
+                "lose": {
+                    "gold": 10
+                },
                 "get": null,
-                "i_get": {"rogue_2_key": 1}
+                "i_get": {
+                    "rogue_2_key": 1
+                }
             },
             "choice_ro2_exchange_4": {
-                "choices": ["choice_ro2_exchange_14", "choice_ro2_exchange_20"],
-                "lose": {"population": {"max": 4}},
-                "get": {"hp": {"current": 3, "max": 3}}
+                "choices": [
+                    "choice_ro2_exchange_14",
+                    "choice_ro2_exchange_20"
+                ],
+                "lose": {
+                    "population": {
+                        "max": 4
+                    }
+                },
+                "get": {
+                    "hp": {
+                        "current": 3,
+                        "max": 3
+                    }
+                }
             },
             "choice_ro2_exchange_5": {
-                "choices": ["choice_ro2_exchange_15", "choice_ro2_exchange_20"],
-                "lose": {"population": {"max": 4}},
+                "choices": [
+                    "choice_ro2_exchange_15",
+                    "choice_ro2_exchange_20"
+                ],
+                "lose": {
+                    "population": {
+                        "max": 4
+                    }
+                },
                 "get": null,
-                "m_get": {"dice": {"count": 2}}
+                "m_get": {
+                    "dice": {
+                        "count": 2
+                    }
+                }
             },
             "choice_ro2_exchange_6": {
-                "choices": ["choice_ro2_exchange_16", "choice_ro2_exchange_20"],
-                "lose": {"population": {"max": 4}},
+                "choices": [
+                    "choice_ro2_exchange_16",
+                    "choice_ro2_exchange_20"
+                ],
+                "lose": {
+                    "population": {
+                        "max": 4
+                    }
+                },
                 "get": {}
             },
             "choice_ro2_exchange_7": {
-                "choices": ["choice_ro2_exchange_17", "choice_ro2_exchange_20"],
-                "lose": {"hp": {"current": 3}},
-                "get": {"dice": {"count": 1}}
+                "choices": [
+                    "choice_ro2_exchange_17",
+                    "choice_ro2_exchange_20"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 3
+                    }
+                },
+                "get": {
+                    "dice": {
+                        "count": 1
+                    }
+                }
             },
             "choice_ro2_exchange_8": {
-                "choices": ["choice_ro2_exchange_18", "choice_ro2_exchange_20"],
-                "lose": {"hp": {"current": 3}},
-                "get": {"population": {"cost": 2, "max": 2}}
+                "choices": [
+                    "choice_ro2_exchange_18",
+                    "choice_ro2_exchange_20"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 3
+                    }
+                },
+                "get": {
+                    "population": {
+                        "cost": 2,
+                        "max": 2
+                    }
+                }
             },
             "choice_ro2_exchange_9": {
-                "choices": ["choice_ro2_exchange_19", "choice_ro2_exchange_20"],
-                "lose": {"hp": {"current": 3}},
-                "get":  {}
+                "choices": [
+                    "choice_ro2_exchange_19",
+                    "choice_ro2_exchange_20"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 3
+                    }
+                },
+                "get": {}
             },
             "choice_ro2_exchange_10": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_exchange_11": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 10},
-                "get": {"hp": {"current": 4, "max": 4}}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 10
+                },
+                "get": {
+                    "hp": {
+                        "current": 4,
+                        "max": 4
+                    }
+                }
             },
             "choice_ro2_exchange_12": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 10},
-                "get": {"population": {"max": 4}}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 10
+                },
+                "get": {
+                    "population": {
+                        "max": 4
+                    }
+                }
             },
             "choice_ro2_exchange_13": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 10},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 10
+                },
                 "get": null,
-                "i_get": {"rogue_2_key": 1}
+                "i_get": {
+                    "rogue_2_key": 1
+                }
             },
             "choice_ro2_exchange_14": {
-                "choices": ["choice_leave"],
-                "lose": {"population": {"max": 4}},
-                "get": {"hp":{"current": 3,"max": 3}}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "population": {
+                        "max": 4
+                    }
+                },
+                "get": {
+                    "hp": {
+                        "current": 3,
+                        "max": 3
+                    }
+                }
             },
             "choice_ro2_exchange_15": {
-                "choices": ["choice_leave"],
-                "lose": {"population": {"max": 4}},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "population": {
+                        "max": 4
+                    }
+                },
                 "get": null,
-                "m_get": {"dice": {"count": 2}}
+                "m_get": {
+                    "dice": {
+                        "count": 2
+                    }
+                }
             },
             "choice_ro2_exchange_16": {
-                "choices": ["choice_leave"],
-                "lose": {"population": {"max": 4}},
-                "get": {"shield": 4}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "population": {
+                        "max": 4
+                    }
+                },
+                "get": {
+                    "shield": 4
+                }
             },
             "choice_ro2_exchange_17": {
-                "choices": ["choice_leave"],
-                "lose": {"hp": {"current":3}},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 3
+                    }
+                },
                 "get": null,
-                "m_get": {"dice": {"count": 1}}
+                "m_get": {
+                    "dice": {
+                        "count": 1
+                    }
+                }
             },
             "choice_ro2_exchange_18": {
-                "choices": ["choice_leave"],
-                "lose": {"hp": {"current":3}},
-                "get": {"population": {"max": 2}}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 3
+                    }
+                },
+                "get": {
+                    "population": {
+                        "max": 2
+                    }
+                }
             },
             "choice_ro2_exchange_19": {
-                "choices": ["choice_leave"],
-                "lose": {"hp": {"current":3}},
-                "get": {"shield": 3}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 3
+                    }
+                },
+                "get": {
+                    "shield": 3
+                }
             },
             "choice_ro2_exchange_20": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_hp2_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"shield": 3}
+                "get": {
+                    "shield": 3
+                }
             },
             "choice_ro2_key_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null,
-                "i_get": {"rogue_2_key": 1}
+                "i_get": {
+                    "rogue_2_key": 1
+                }
             },
             "choice_ro2_key_2": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 6},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 6
+                },
                 "get": null,
-                "i_get": {"rogue_2_key": 2}
+                "i_get": {
+                    "rogue_2_key": 2
+                }
             },
             "choice_ro2_dice2_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null,
-                "m_get": {"dice": {"count": 2}}
+                "m_get": {
+                    "dice": {
+                        "count": 2
+                    }
+                }
             },
             "choice_ro2_suit_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_suit_2": {
-                "choices": ["choice_ro2_suit_5", "choice_ro2_suit_7"],
+                "choices": [
+                    "choice_ro2_suit_5",
+                    "choice_ro2_suit_7"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_suit_3": {
-                "choices": ["choice_ro2_suit_7", "choice_ro2_suit_4", "choice_ro2_suit_6"],
+                "choices": [
+                    "choice_ro2_suit_7",
+                    "choice_ro2_suit_4",
+                    "choice_ro2_suit_6"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_suit_4": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_recruit_ticket_all"
             },
             "choice_ro2_suit_5": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null,
-                "m_get": {"san": {"sanity": 15}}
+                "m_get": {
+                    "san": {
+                        "sanity": 15
+                    }
+                }
             },
             "choice_ro2_suit_6": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"gold": 5, "hp":{"current": 2, "max": 2}, "shield": 2}
+                "get": {
+                    "gold": 5,
+                    "hp": {
+                        "current": 2,
+                        "max": 2
+                    },
+                    "shield": 2
+                }
             },
             "choice_ro2_suit_7": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_trade4_1": {
-                "choices": ["choice_ro2_trade4_2"],
+                "choices": [
+                    "choice_ro2_trade4_2"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_trade4_2": {
-                "choices": ["choice_ro2_trade4_3"],
+                "choices": [
+                    "choice_ro2_trade4_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_trade4_3": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 10},
-                "get": {"gold": 25}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 10
+                },
+                "get": {
+                    "gold": 25
+                }
             },
             "choice_ro2_trade4_4": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_7_1": {
-                "choices": ["choice_ro2_7_2", "choice_ro2_7_6"],
-                "lose": {"hp":{"current":2}},
-                "get": {"population": {"max": 1}}
+                "choices": [
+                    "choice_ro2_7_2",
+                    "choice_ro2_7_6"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 2
+                    }
+                },
+                "get": {
+                    "population": {
+                        "max": 1
+                    }
+                }
             },
             "choice_ro2_7_2": {
-                "choices": ["choice_ro2_7_3", "choice_ro2_7_6"],
-                "lose": {"hp":{"current":2}},
-                "get": {"hp":{"current":1, "max":1}}
+                "choices": [
+                    "choice_ro2_7_3",
+                    "choice_ro2_7_6"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 2
+                    }
+                },
+                "get": {
+                    "hp": {
+                        "current": 1,
+                        "max": 1
+                    }
+                }
             },
             "choice_ro2_7_3": {
-                "choices": ["choice_ro2_7_4", "choice_ro2_7_6"],
-                "lose": {"hp":{"current":2}},
+                "choices": [
+                    "choice_ro2_7_4",
+                    "choice_ro2_7_6"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 2
+                    }
+                },
                 "get": null,
-                "i_get": {"rogue_2_key": 1}
+                "i_get": {
+                    "rogue_2_key": 1
+                }
             },
             "choice_ro2_7_4": {
-                "choices": ["choice_leave"],
-                "lose": {"hp":{"current":2}},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 2
+                    }
+                },
                 "get": "rogue_2_relic_",
                 "curse": false
             },
             "choice_ro2_7_5": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_7_6": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_8_1": {
-                "choices": ["choice_ro2_8_4", "choice_ro2_8_5", "choice_ro2_8_6", "choice_ro2_8_7"],
-                "lose": {"hp": 2},
+                "choices": [
+                    "choice_ro2_8_4",
+                    "choice_ro2_8_5",
+                    "choice_ro2_8_6",
+                    "choice_ro2_8_7"
+                ],
+                "lose": {
+                    "hp": 2
+                },
                 "get": null
             },
             "choice_ro2_8_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_8_3": {
-                "choices": ["choice_ro2_8_4", "choice_ro2_8_5", "choice_ro2_8_6", "choice_ro2_8_7"],
-                "lose": {"hp": 2},
+                "choices": [
+                    "choice_ro2_8_4",
+                    "choice_ro2_8_5",
+                    "choice_ro2_8_6",
+                    "choice_ro2_8_7"
+                ],
+                "lose": {
+                    "hp": 2
+                },
                 "get": null
             },
             "choice_ro2_8_4": {
-                "choices": ["choice_ro2_8_3", "choice_ro2_8_2"],
+                "choices": [
+                    "choice_ro2_8_3",
+                    "choice_ro2_8_2"
+                ],
                 "lose": null,
                 "get": null,
-                "m_get": {"san": 10}
+                "m_get": {
+                    "san": 10
+                }
             },
             "choice_ro2_8_5": {
-                "choices": ["choice_ro2_8_3", "choice_ro2_8_2"],
+                "choices": [
+                    "choice_ro2_8_3",
+                    "choice_ro2_8_2"
+                ],
                 "lose": null,
-                "get": {"hp": {"current": 1, "max": 1}}
+                "get": {
+                    "hp": {
+                        "current": 1,
+                        "max": 1
+                    }
+                }
             },
             "choice_ro2_8_6": {
-                "choices": ["choice_ro2_8_3", "choice_ro2_8_2"],
+                "choices": [
+                    "choice_ro2_8_3",
+                    "choice_ro2_8_2"
+                ],
                 "lose": null,
                 "get": null,
-                "i_get": {"rogue_2_key": 1}
+                "i_get": {
+                    "rogue_2_key": 1
+                }
             },
             "choice_ro2_8_7": {
-                "choices": ["choice_ro2_8_3", "choice_ro2_8_2"],
+                "choices": [
+                    "choice_ro2_8_3",
+                    "choice_ro2_8_2"
+                ],
                 "lose": null,
                 "get": "rogue_2_recruit_ticket_"
             },
             "choice_ro2_8_8": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_9_1": {
-                "choices": ["choice_ro2_9_3", "choice_ro2_9_6", "choice_ro2_9_9", "choice_ro2_9_12"],
-                "lose": {"gold": 6},
+                "choices": [
+                    "choice_ro2_9_3",
+                    "choice_ro2_9_6",
+                    "choice_ro2_9_9",
+                    "choice_ro2_9_12"
+                ],
+                "lose": {
+                    "gold": 6
+                },
                 "get": null
             },
             "choice_ro2_9_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_9_3": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 2},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 2
+                },
                 "get": null
             },
             "choice_ro2_9_4": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 2},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 2
+                },
                 "get": null
             },
             "choice_ro2_9_5": {
-                "choices": ["choice_leave"],
-                "lose": {"gold": 2},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "gold": 2
+                },
                 "get": null
             },
             "choice_ro2_9_6": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "m_lose": {"dice": {"count": 1}},
+                "m_lose": {
+                    "dice": {
+                        "count": 1
+                    }
+                },
                 "get": null
             },
             "choice_ro2_9_7": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "m_lose": {"dice": {"count": 1}},
+                "m_lose": {
+                    "dice": {
+                        "count": 1
+                    }
+                },
                 "get": null
             },
             "choice_ro2_9_8": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "m_lose": {"dice": {"count": 1}},
+                "m_lose": {
+                    "dice": {
+                        "count": 1
+                    }
+                },
                 "get": null
             },
             "choice_ro2_9_9": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_",
                 "curse": false
             },
             "choice_ro2_9_10": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_",
                 "curse": false
             },
             "choice_ro2_9_11": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_",
                 "curse": false
             },
             "choice_ro2_9_12": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_",
                 "curse": false
             },
             "choice_ro2_9_13": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_",
                 "curse": false
             },
             "choice_ro2_10_1": {
-                "choices": ["choice_ro2_10_4", "choice_ro2_10_5"],
+                "choices": [
+                    "choice_ro2_10_4",
+                    "choice_ro2_10_5"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_10_2": {
-                "choices": ["choice_ro2_10_6", "choice_ro2_10_7"],
+                "choices": [
+                    "choice_ro2_10_6",
+                    "choice_ro2_10_7"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_10_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_10_4": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_",
                 "curse": false
             },
             "choice_ro2_10_5": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_",
                 "curse": false
             },
             "choice_ro2_10_6": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_curse_",
                 "curse": true,
-                "m_get": {"dice": {"count": 3}}
+                "m_get": {
+                    "dice": {
+                        "count": 3
+                    }
+                }
             },
             "choice_ro2_10_7": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_curse_",
                 "curse": true,
-                "i_get": {"rogue_2_key": 2}
+                "i_get": {
+                    "rogue_2_key": 2
+                }
             },
             "choice_ro2_11_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": 2,
                 "get_id": [
-                    {"get": "rogue_2_relic_", "curse": false},
-                    {"get": "rogue_2_relic_curse_", "curse": true}
+                    {
+                        "get": "rogue_2_relic_",
+                        "curse": false
+                    },
+                    {
+                        "get": "rogue_2_relic_curse_",
+                        "curse": true
+                    }
                 ]
             },
             "choice_ro2_11_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_",
                 "curse": false
             },
             "choice_ro2_king_1": {
-                "choices": ["choice_ro2_king_3", "choice_ro2_king_2"],
+                "choices": [
+                    "choice_ro2_king_3",
+                    "choice_ro2_king_2"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_king_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_"
             },
             "choice_ro2_king_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": ["rogue_2_relic_grace_77", "rogue_2_relic_grace_78"]
+                "get": [
+                    "rogue_2_relic_grace_77",
+                    "rogue_2_relic_grace_78"
+                ]
             },
             "choice_ro2_king_4": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_liar1_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": 2,
                 "get_id": [
-                    {"get": "rogue_2_relic_grace_60", "curse": false},
-                    {"get": "rogue_2_relic_", "curse": false}
+                    {
+                        "get": "rogue_2_relic_grace_60",
+                        "curse": false
+                    },
+                    {
+                        "get": "rogue_2_relic_",
+                        "curse": false
+                    }
                 ]
             },
             "choice_ro2_liar1_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_grace_81",
-                "m_get": {"san": {"sanity": 5}}
+                "m_get": {
+                    "san": {
+                        "sanity": 5
+                    }
+                }
             },
             "choice_ro2_liar2_1": {
-                "choices": ["choice_ro2_liar2_3"],
+                "choices": [
+                    "choice_ro2_liar2_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_liar2_2": {
-                "choices": ["choice_ro2_liar2_4", "choice_ro2_liar2_5"],
+                "choices": [
+                    "choice_ro2_liar2_4",
+                    "choice_ro2_liar2_5"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -1297,33 +2527,53 @@
                 "get": null
             },
             "choice_ro2_liar2_4": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_grace_82",
                 "curse": false
             },
             "choice_ro2_liar2_5": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"gold": 30}
+                "get": {
+                    "gold": 30
+                }
             },
             "choice_ro2_san1_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "m_lose": {"san": {"sanity": 30}},
+                "m_lose": {
+                    "san": {
+                        "sanity": 30
+                    }
+                },
                 "get": "rogue_2_relic_grace_80",
                 "curse": false
             },
             "choice_ro2_san1_2": {
-                "choices": ["choice_ro2_san1_4"],
+                "choices": [
+                    "choice_ro2_san1_4"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_san1_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null,
-                "m_get": {"san": {"sanity": 15}}
+                "m_get": {
+                    "san": {
+                        "sanity": 15
+                    }
+                }
             },
             "choice_ro2_san1_4": {
                 "choices": "ro2_ev_2",
@@ -1331,12 +2581,16 @@
                 "get": null
             },
             "choice_ro2_bat1_1": {
-                "choices": ["choice_ro2_bat1_3"],
+                "choices": [
+                    "choice_ro2_bat1_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_bat1_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -1346,12 +2600,16 @@
                 "get": null
             },
             "choice_ro2_bat2_1": {
-                "choices": ["choice_ro2_bat2_3"],
+                "choices": [
+                    "choice_ro2_bat2_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_bat2_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -1361,12 +2619,16 @@
                 "get": null
             },
             "choice_ro2_t1_1": {
-                "choices": ["choice_ro2_t1_3"],
+                "choices": [
+                    "choice_ro2_t1_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_t1_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -1376,12 +2638,16 @@
                 "get": null
             },
             "choice_ro2_t2_1": {
-                "choices": ["choice_ro2_t2_3"],
+                "choices": [
+                    "choice_ro2_t2_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_t2_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -1391,12 +2657,16 @@
                 "get": null
             },
             "choice_ro2_t3_1": {
-                "choices": ["choice_ro2_t3_3"],
+                "choices": [
+                    "choice_ro2_t3_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_t3_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -1406,12 +2676,16 @@
                 "get": null
             },
             "choice_ro2_t4_1": {
-                "choices": ["choice_ro2_t4_3"],
+                "choices": [
+                    "choice_ro2_t4_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_t4_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -1421,12 +2695,16 @@
                 "get": null
             },
             "choice_ro2_t5_1": {
-                "choices": ["choice_ro2_t5_3"],
+                "choices": [
+                    "choice_ro2_t5_3"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_t5_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
@@ -1436,135 +2714,242 @@
                 "get": null
             },
             "choice_ro2_bossa1_1": {
-                "choices": ["choice_leave"],
-                "lose": {"population": {"max": 2}},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "population": {
+                        "max": 2
+                    }
+                },
                 "get": "rogue_2_relic_grace_83",
                 "curse": false
             },
             "choice_ro2_bossa1_2": {
-                "choices": ["choice_ro2_bossa1_4"],
+                "choices": [
+                    "choice_ro2_bossa1_4"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_bossa1_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"population": {"max": 2}}
+                "get": {
+                    "population": {
+                        "max": 2
+                    }
+                }
             },
             "choice_ro2_bossa1_4": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_grace_83",
                 "curse": false
             },
             "choice_ro2_bossa2_1": {
-                "choices": ["choice_leave"],
-                "lose": {"hp": {"current": 2}},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "hp": {
+                        "current": 2
+                    }
+                },
                 "get": "rogue_2_relic_grace_85",
                 "curse": false
             },
             "choice_ro2_bossa2_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_grace_86",
                 "curse": false
             },
             "choice_ro2_bossa2_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_bossb1_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_curse_7",
                 "curse": true
             },
             "choice_ro2_bossb1_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "get": {"population": {"max": 3}}
+                "get": {
+                    "population": {
+                        "max": 3
+                    }
+                }
             },
             "choice_ro2_bossb1_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_curse_9",
                 "curse": true
             },
             "choice_ro2_bossb1_4": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_bossb2_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "m_lose": {"san": {"sanity": 20}},
-                "get": {"population": {"max": 5}}
+                "m_lose": {
+                    "san": {
+                        "sanity": 20
+                    }
+                },
+                "get": {
+                    "population": {
+                        "max": 5
+                    }
+                }
             },
             "choice_ro2_bossb2_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
-                "m_lose": {"san": {"sanity": 20}},
+                "m_lose": {
+                    "san": {
+                        "sanity": 20
+                    }
+                },
                 "get": "rogue_2_relic_",
                 "curse": false
             },
             "choice_ro2_bossb2_3": {
-                "choices": ["choice_leave"],
-                "lose": {"san": {"sanity": 20}},
-                "get": {"gold": 13}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "san": {
+                        "sanity": 20
+                    }
+                },
+                "get": {
+                    "gold": 13
+                }
             },
             "choice_ro2_bossb2_4": {
-                "choices": ["choice_leave"],
-                "lose": {"san": {"sanity": 20}},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "san": {
+                        "sanity": 20
+                    }
+                },
                 "get": null,
-                "m_get": {"dice": {"count": 5}}
+                "m_get": {
+                    "dice": {
+                        "count": 5
+                    }
+                }
             },
             "choice_ro2_bossb2_5": {
-                "choices": ["choice_leave"],
-                "lose": {"san": {"sanity": 20}},
-                "get": {"hp": {"current": 6, "max": 6}}
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "san": {
+                        "sanity": 20
+                    }
+                },
+                "get": {
+                    "hp": {
+                        "current": 6,
+                        "max": 6
+                    }
+                }
             },
             "choice_ro2_bossb2_6": {
-                "choices": ["choice_leave"],
-                "lose": {"san": {"sanity": 20}},
+                "choices": [
+                    "choice_leave"
+                ],
+                "lose": {
+                    "san": {
+                        "sanity": 20
+                    }
+                },
                 "get": "rogue_2_relic_curse_8",
                 "curse": true
             },
             "choice_ro2_bossb2_8": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null
             },
             "choice_ro2_bossb3_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_grace_87"
             },
             "choice_ro2_bossc2_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": null,
-                "m_get": {"san": {"sanity": 30}}
+                "m_get": {
+                    "san": {
+                        "sanity": 30
+                    }
+                }
             },
             "choice_ro2_bossc2_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_curse_10",
                 "curse": true
             },
             "choice_ro2_bossc3_1": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_grace_88"
             },
             "choice_ro2_bossc3_2": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_grace_89"
             },
             "choice_ro2_bossc3_3": {
-                "choices": ["choice_leave"],
+                "choices": [
+                    "choice_leave"
+                ],
                 "lose": null,
                 "get": "rogue_2_relic_grace_90"
             }
@@ -17223,5 +18608,938 @@
             }
         },
         "modeule_chage": {}
+    },
+    "rogue_6": {
+        "incidents": {
+            "scene_ro6_res1_enter": {
+                "floors": [
+                    1,
+                    2
+                ]
+            },
+            "scene_ro6_res2_enter": {
+                "floors": [
+                    1,
+                    2
+                ],
+                "repeat": true
+            },
+            "scene_ro6_res3_enter": {
+                "floors": [
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                ],
+                "repeat": true
+            },
+            "scene_ro6_res4_enter": {
+                "floors": [
+                    2,
+                    3,
+                    4,
+                    5
+                ]
+            },
+            "scene_ro6_res5_enter": {
+                "floors": [
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                ],
+                "repeat": true
+            },
+            "scene_ro6_relic1_enter": {
+                "floors": [
+                    2,
+                    3,
+                    4,
+                    5
+                ]
+            },
+            "scene_ro6_relic2_enter": {
+                "floors": [
+                    3,
+                    4,
+                    5,
+                    6
+                ]
+            },
+            "scene_ro6_normal1_enter": {
+                "floors": [
+                    1,
+                    2,
+                    3
+                ]
+            },
+            "scene_ro6_normal2_enter": {
+                "floors": [
+                    3,
+                    4,
+                    5
+                ]
+            },
+            "scene_ro6_normal3_enter": {
+                "floors": [
+                    2,
+                    3,
+                    4
+                ],
+                "requireScene": "scene_ro6_normal1_enter"
+            },
+            "scene_ro6_normal4_enter": {
+                "floors": [
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                ]
+            },
+            "scene_ro6_normal5_enter": {
+                "floors": [
+                    4
+                ]
+            },
+            "scene_ro6_bat1_enter": {
+                "floors": [
+                    1,
+                    2
+                ]
+            },
+            "scene_ro6_bat2_enter": {
+                "floors": [
+                    2,
+                    3
+                ]
+            },
+            "scene_ro6_bat3_enter": {
+                "floors": [
+                    3,
+                    4
+                ]
+            },
+            "scene_ro6_bat4_enter": {
+                "floors": [
+                    4,
+                    5,
+                    6
+                ]
+            },
+            "scene_ro6_bat5_enter": {
+                "floors": [
+                    3,
+                    4,
+                    5
+                ]
+            },
+            "scene_ro6_bat6_enter": {
+                "floors": [
+                    3,
+                    4
+                ],
+                "repeat": true
+            },
+            "scene_ro6_task1_enter": {
+                "floors": [
+                    4,
+                    5
+                ]
+            },
+            "scene_ro6_task2_enter": {
+                "floors": [
+                    1,
+                    2,
+                    3,
+                    4,
+                    5
+                ]
+            },
+            "scene_ro6_chimera2_enter": {
+                "floors": [
+                    3,
+                    4,
+                    5
+                ],
+                "requireRelic": "rogue_6_relic_final_3"
+            }
+        },
+        "enter": {
+            "scene_ro6_res1_enter": [
+                "choice_ro6_res1_1",
+                "choice_ro6_res1_2"
+            ],
+            "scene_ro6_res2_enter": [
+                "choice_ro6_res2_1",
+                "choice_ro6_res2_2",
+                "choice_ro6_res2_3"
+            ],
+            "scene_ro6_res3_enter": [
+                "choice_ro6_res3_1",
+                "choice_ro6_res3_2",
+                "choice_ro6_res3_3",
+                "choice_ro6_res3_4"
+            ],
+            "scene_ro6_res4_enter": [
+                "choice_ro6_res4_1",
+                "choice_ro6_res4_2",
+                "choice_ro6_res4_3"
+            ],
+            "scene_ro6_res5_enter": [
+                "choice_ro6_res5_1",
+                "choice_ro6_res5_2",
+                "choice_ro6_res5_3"
+            ],
+            "scene_ro6_relic1_enter": [
+                "choice_ro6_relic1_1",
+                "choice_ro6_relic1_2",
+                "choice_ro6_relic1_3",
+                "choice_ro6_relic1_4"
+            ],
+            "scene_ro6_relic2_enter": [
+                "choice_ro6_relic2_1",
+                "choice_ro6_relic2_2",
+                "choice_ro6_relic2_3"
+            ],
+            "scene_ro6_normal1_enter": [
+                "choice_ro6_normal1_1",
+                "choice_ro6_normal1_2",
+                "choice_ro6_normal1_3"
+            ],
+            "scene_ro6_normal2_enter": [
+                "choice_ro6_normal2_1",
+                "choice_ro6_normal2_2",
+                "choice_ro6_normal2_3"
+            ],
+            "scene_ro6_normal3_enter": [
+                "choice_ro6_normal3_1",
+                "choice_ro6_normal3_2",
+                "choice_ro6_normal3_3"
+            ],
+            "scene_ro6_normal4_enter": [
+                "choice_ro6_normal4_1",
+                "choice_ro6_normal4_2"
+            ],
+            "scene_ro6_normal5_enter": [
+                "choice_ro6_normal5_1",
+                "choice_ro6_normal5_2",
+                "choice_ro6_normal5_3",
+                "choice_ro6_normal5_4",
+                "choice_ro6_normal5_5"
+            ],
+            "scene_ro6_bat1_enter": [
+                "choice_ro6_bat1_1",
+                "choice_ro6_bat1_2"
+            ],
+            "scene_ro6_bat2_enter": [
+                "choice_ro6_bat2_1",
+                "choice_ro6_bat2_2"
+            ],
+            "scene_ro6_bat3_enter": [
+                "choice_ro6_bat3_1",
+                "choice_ro6_bat3_2",
+                "choice_ro6_bat3_4"
+            ],
+            "scene_ro6_bat4_enter": [
+                "choice_ro6_bat4_1",
+                "choice_ro6_bat4_2",
+                "choice_ro6_bat4_4"
+            ],
+            "scene_ro6_bat5_enter": [
+                "choice_ro6_bat5_1",
+                "choice_ro6_bat5_2"
+            ],
+            "scene_ro6_bat6_enter": [
+                "choice_ro6_bat6_1",
+                "choice_ro6_bat6_2"
+            ],
+            "scene_ro6_bat6b_enter": [
+                "choice_ro6_bat6b_1",
+                "choice_ro6_bat6b_2"
+            ],
+            "scene_ro6_task1_enter": [
+                "choice_ro6_task1_1",
+                "choice_ro6_task1_2"
+            ],
+            "scene_ro6_task2_enter": [
+                "choice_ro6_task2_1",
+                "choice_ro6_task2_2"
+            ],
+            "scene_ro6_chimera2_enter": [
+                "choice_ro6_chimera2_1",
+                "choice_ro6_chimera2_2"
+            ],
+            "scene_ro6_rest_enter": [
+                "choice_ro6_rest_1",
+                "choice_ro6_rest_2",
+                "choice_ro6_rest_3",
+                "choice_ro6_rest_4",
+                "choice_ro6_rest_5",
+                "choice_ro6_rest_6"
+            ],
+            "scene_ro6_wish_enter": [
+                "choice_ro6_wish_1",
+                "choice_ro6_wish_2",
+                "choice_ro6_wish_3",
+                "choice_ro6_wish_6"
+            ],
+            "scene_ro6_sacrifice1_enter": [
+                "choice_ro6_sacrifice1_1",
+                "choice_ro6_sacrifice1_11",
+                "choice_ro6_sacrifice1_5"
+            ],
+            "scene_ro6_sacrifice2_enter": [
+                "choice_ro6_sacrifice2_1",
+                "choice_ro6_sacrifice2_11",
+                "choice_ro6_sacrifice2_20",
+                "choice_ro6_sacrifice2_5"
+            ],
+            "scene_ro6_final1_enter": [
+                "choice_ro6_final1_1",
+                "choice_ro6_final1_2",
+                "choice_ro6_final1_4"
+            ],
+            "scene_ro6_evacuate_enter": [
+                "choice_ro6_evacuate_1",
+                "choice_ro6_evacuate_2"
+            ],
+            "scene_ro6_evacuate2_enter": [
+                "choice_ro6_evacuate2_1",
+                "choice_ro6_evacuate2_2"
+            ],
+            "scene_ro6_evacuate3_enter": [
+                "choice_ro6_evacuate3_1",
+                "choice_ro6_evacuate3_2"
+            ]
+        },
+        "sceneChoices": {
+            "scene_ro6_bat1_1": [
+                "choice_ro6_bat1_3"
+            ],
+            "scene_ro6_bat2_1": [
+                "choice_ro6_bat2_3"
+            ],
+            "scene_ro6_bat3_1": [
+                "choice_ro6_bat3_3"
+            ],
+            "scene_ro6_bat3_2": [
+                "choice_ro6_bat3_5"
+            ],
+            "scene_ro6_bat4_1": [
+                "choice_ro6_bat4_3"
+            ],
+            "scene_ro6_bat4_2": [
+                "choice_ro6_bat4_5"
+            ],
+            "scene_ro6_bat5_1": [
+                "choice_ro6_bat5_3",
+                "choice_ro6_bat5_4",
+                "choice_ro6_bat5_6"
+            ],
+            "scene_ro6_bat5_3": [
+                "choice_ro6_bat5_5"
+            ],
+            "scene_ro6_bat5_5": [
+                "choice_ro6_bat5_7",
+                "choice_ro6_bat5_4",
+                "choice_ro6_bat5_6"
+            ],
+            "scene_ro6_bat5_6": [
+                "choice_ro6_bat5_8",
+                "choice_ro6_bat5_4",
+                "choice_ro6_bat5_6"
+            ],
+            "scene_ro6_bat5_7": [
+                "choice_ro6_bat5_9"
+            ],
+            "scene_ro6_bat5_8": [
+                "choice_ro6_bat5_10"
+            ],
+            "scene_ro6_bat6_2": [
+                "choice_ro6_bat6_3"
+            ],
+            "scene_ro6_bat6_3": [
+                "choice_ro6_bat6_4"
+            ],
+            "scene_ro6_bat6_4": [
+                "choice_ro6_bat6_5"
+            ],
+            "scene_ro6_bat6_5": [
+                "choice_ro6_bat6_6"
+            ],
+            "scene_ro6_bat6_6": [
+                "choice_ro6_bat6_7",
+                "choice_ro6_bat6_8"
+            ],
+            "scene_ro6_bat6_8": [
+                "choice_ro6_bat6_9"
+            ],
+            "scene_ro6_bat6_9": [
+                "choice_ro6_bat6_10"
+            ],
+            "scene_ro6_bat6_10": [
+                "choice_ro6_bat6_11"
+            ],
+            "scene_ro6_bat6_11": [
+                "choice_ro6_bat6_12"
+            ],
+            "scene_ro6_bat6_12": [
+                "choice_ro6_bat6_13",
+                "choice_ro6_bat6_8"
+            ],
+            "scene_ro6_bat6_13": [
+                "choice_ro6_bat6_14"
+            ],
+            "scene_ro6_bat6_14": [
+                "choice_ro6_bat6_15"
+            ],
+            "scene_ro6_bat6_15": [
+                "choice_ro6_bat6_16"
+            ],
+            "scene_ro6_bat6_16": [
+                "choice_ro6_bat6_17"
+            ],
+            "scene_ro6_bat6_17": [
+                "choice_ro6_bat6_18",
+                "choice_ro6_bat6_8"
+            ],
+            "scene_ro6_bat6_18": [
+                "choice_ro6_bat6_19"
+            ],
+            "scene_ro6_bat6_19": [
+                "choice_ro6_bat6_20"
+            ],
+            "scene_ro6_bat6_20": [
+                "choice_ro6_bat6_21"
+            ],
+            "scene_ro6_bat6_21": [
+                "choice_ro6_bat6_22"
+            ],
+            "scene_ro6_bat6b_2": [
+                "choice_ro6_bat6b_3"
+            ],
+            "scene_ro6_bat6b_3": [
+                "choice_ro6_bat6b_4"
+            ],
+            "scene_ro6_bat6b_4": [
+                "choice_ro6_bat6b_5"
+            ],
+            "scene_ro6_bat6b_5": [
+                "choice_ro6_bat6b_6"
+            ],
+            "scene_ro6_bat6b_6": [
+                "choice_ro6_bat6b_7",
+                "choice_ro6_bat6b_8"
+            ],
+            "scene_ro6_bat6b_8": [
+                "choice_ro6_bat6b_9"
+            ],
+            "scene_ro6_bat6b_9": [
+                "choice_ro6_bat6b_10"
+            ],
+            "scene_ro6_bat6b_10": [
+                "choice_ro6_bat6b_11"
+            ],
+            "scene_ro6_bat6b_11": [
+                "choice_ro6_bat6b_12"
+            ],
+            "scene_ro6_bat6b_12": [
+                "choice_ro6_bat6b_13",
+                "choice_ro6_bat6b_8"
+            ],
+            "scene_ro6_bat6b_13": [
+                "choice_ro6_bat6b_14"
+            ],
+            "scene_ro6_bat6b_14": [
+                "choice_ro6_bat6b_15"
+            ],
+            "scene_ro6_bat6b_15": [
+                "choice_ro6_bat6b_16"
+            ],
+            "scene_ro6_bat6b_16": [
+                "choice_ro6_bat6b_17"
+            ],
+            "scene_ro6_bat6b_17": [
+                "choice_ro6_bat6b_18",
+                "choice_ro6_bat6b_8"
+            ],
+            "scene_ro6_bat6b_18": [
+                "choice_ro6_bat6b_19"
+            ],
+            "scene_ro6_bat6b_19": [
+                "choice_ro6_bat6b_20"
+            ],
+            "scene_ro6_bat6b_20": [
+                "choice_ro6_bat6b_21"
+            ],
+            "scene_ro6_bat6b_21": [
+                "choice_ro6_bat6b_22"
+            ],
+            "scene_ro6_normal4_1": [
+                "choice_ro6_normal4_3",
+                "choice_ro6_normal4_4"
+            ],
+            "scene_ro6_normal4_4": [
+                "choice_ro6_normal4_5",
+                "choice_ro6_normal4_8"
+            ],
+            "scene_ro6_normal4_5": [
+                "choice_ro6_normal4_6",
+                "choice_ro6_normal4_7"
+            ],
+            "scene_ro6_normal4_8": [
+                "choice_ro6_normal4_9",
+                "choice_ro6_normal4_8"
+            ],
+            "scene_ro6_normal4_9": [
+                "choice_ro6_normal4_10",
+                "choice_ro6_normal4_11"
+            ],
+            "scene_ro6_normal4_11": [
+                "choice_ro6_normal4_12",
+                "choice_ro6_normal4_8"
+            ],
+            "scene_ro6_normal4_12": [
+                "choice_ro6_normal4_13",
+                "choice_ro6_normal4_14",
+                "choice_ro6_normal4_15"
+            ],
+            "scene_ro6_normal4_15": [
+                "choice_ro6_normal4_16",
+                "choice_ro6_normal4_8"
+            ],
+            "scene_ro6_normal4_16": [
+                "choice_ro6_normal4_17",
+                "choice_ro6_normal4_18"
+            ],
+            "scene_ro6_normal4_18": [
+                "choice_ro6_normal4_19",
+                "choice_ro6_normal4_8"
+            ],
+            "scene_ro6_normal4_19": [
+                "choice_ro6_normal4_20",
+                "choice_ro6_normal4_21",
+                "choice_ro6_normal4_22"
+            ],
+            "scene_ro6_normal4_22": [
+                "choice_ro6_normal4_23",
+                "choice_ro6_normal4_8"
+            ],
+            "scene_ro6_normal4_23": [
+                "choice_ro6_normal4_24"
+            ],
+            "scene_ro6_normal4_24": [
+                "choice_ro6_normal4_25",
+                "choice_ro6_normal4_28",
+                "choice_ro6_normal4_8"
+            ],
+            "scene_ro6_normal4_25": [
+                "choice_ro6_normal4_26"
+            ],
+            "scene_ro6_normal4_26": [
+                "choice_ro6_normal4_27"
+            ],
+            "scene_ro6_normal4_27": [
+                "choice_leave"
+            ],
+            "scene_ro6_normal4_2": [
+                "choice_leave"
+            ],
+            "scene_ro6_task1_1": [
+                "choice_ro6_task1_3",
+                "choice_ro6_task1_4"
+            ],
+            "scene_ro6_task2_1": [
+                "choice_ro6_task2_3",
+                "choice_ro6_task2_4"
+            ],
+            "scene_ro6_normal2_1": [
+                "choice_leave"
+            ],
+            "scene_ro6_normal2_2": [
+                "choice_leave"
+            ],
+            "scene_ro6_bat1_2": [
+                "choice_leave"
+            ],
+            "scene_ro6_bat2_2": [
+                "choice_leave"
+            ],
+            "scene_ro6_bat3_3": [
+                "choice_leave"
+            ],
+            "scene_ro6_bat4_3": [
+                "choice_leave"
+            ],
+            "scene_ro6_bat5_2": [
+                "choice_leave"
+            ],
+            "scene_ro6_bat5_4": [
+                "choice_leave"
+            ],
+            "scene_ro6_bat5_9": [
+                "choice_leave"
+            ],
+            "scene_ro6_bat6_1": [
+                "choice_leave"
+            ],
+            "scene_ro6_bat6_7": [
+                "choice_leave"
+            ],
+            "scene_ro6_bat6_22": [
+                "choice_leave"
+            ],
+            "scene_ro6_bat6b_1": [
+                "choice_leave"
+            ],
+            "scene_ro6_bat6b_7": [
+                "choice_leave"
+            ],
+            "scene_ro6_bat6b_22": [
+                "choice_leave"
+            ],
+            "scene_ro6_rest_1": [
+                "choice_leave"
+            ],
+            "scene_ro6_rest_2": [
+                "choice_leave"
+            ],
+            "scene_ro6_rest_3": [
+                "choice_leave"
+            ],
+            "scene_ro6_rest_4": [
+                "choice_leave"
+            ],
+            "scene_ro6_rest_5": [
+                "choice_leave"
+            ],
+            "scene_ro6_rest_6": [
+                "choice_leave"
+            ],
+            "scene_ro6_scout_1": [
+                "choice_leave"
+            ],
+            "scene_ro6_scout_2": [
+                "choice_leave"
+            ],
+            "scene_ro6_scout_3": [
+                "choice_leave"
+            ],
+            "scene_ro6_wish_1": [
+                "choice_leave"
+            ],
+            "scene_ro6_wish_2": [
+                "choice_ro6_wish_4",
+                "choice_ro6_wish_5",
+                "choice_ro6_wish_6"
+            ],
+            "scene_ro6_wish_3": [
+                "choice_ro6_wish_9",
+                "choice_ro6_wish_10",
+                "choice_ro6_wish_11"
+            ],
+            "scene_ro6_sacrifice1_1": [
+                "choice_ro6_sacrifice1_6",
+                "choice_ro6_sacrifice1_10"
+            ],
+            "scene_ro6_sacrifice1_10": [
+                "choice_leave"
+            ],
+            "scene_ro6_sacrifice1_13": [
+                "choice_ro6_sacrifice1_14",
+                "choice_ro6_sacrifice1_17"
+            ],
+            "scene_ro6_sacrifice1_17": [
+                "choice_leave"
+            ],
+            "scene_ro6_sacrifice2_1": [
+                "choice_ro6_sacrifice2_6",
+                "choice_ro6_sacrifice2_10"
+            ],
+            "scene_ro6_sacrifice2_10": [
+                "choice_leave"
+            ],
+            "scene_ro6_sacrifice2_13": [
+                "choice_ro6_sacrifice2_14",
+                "choice_ro6_sacrifice2_17"
+            ],
+            "scene_ro6_sacrifice2_17": [
+                "choice_leave"
+            ],
+            "scene_ro6_sacrifice2_5": [
+                "choice_leave"
+            ],
+            "scene_ro6_sacrifice2_20": [
+                "choice_ro6_sacrifice2_21"
+            ],
+            "scene_ro6_sacrifice2_21": [
+                "choice_leave"
+            ],
+            "scene_ro6_final1_1": [
+                "choice_ro6_final1_3",
+                "choice_ro6_final1_4"
+            ],
+            "scene_ro6_final1_2": [
+                "choice_leave"
+            ],
+            "scene_ro6_final1_3": [
+                "choice_ro6_final1_3"
+            ],
+            "scene_ro6_evacuate_1": [
+                "choice_ro6_evacuate_4"
+            ],
+            "scene_ro6_evacuate_2": [
+                "choice_leave"
+            ],
+            "scene_ro6_evacuate2_1": [
+                "choice_ro6_evacuate2_4"
+            ],
+            "scene_ro6_evacuate2_2": [
+                "choice_leave"
+            ],
+            "scene_ro6_evacuate3_1": [
+                "choice_ro6_evacuate3_4"
+            ],
+            "scene_ro6_evacuate3_2": [
+                "choice_leave"
+            ]
+        },
+        "randomScenes": {
+            "choice_ro6_bat5_8": [
+                "scene_ro6_bat5_7",
+                "scene_ro6_bat5_8"
+            ],
+            "choice_ro6_bat6_1": [
+                "scene_ro6_bat6_2",
+                "scene_ro6_bat6_3",
+                "scene_ro6_bat6_4",
+                "scene_ro6_bat6_5"
+            ],
+            "choice_ro6_bat6_7": [
+                "scene_ro6_bat6_8",
+                "scene_ro6_bat6_9",
+                "scene_ro6_bat6_10",
+                "scene_ro6_bat6_11"
+            ],
+            "choice_ro6_bat6_13": [
+                "scene_ro6_bat6_13",
+                "scene_ro6_bat6_14",
+                "scene_ro6_bat6_15",
+                "scene_ro6_bat6_16"
+            ],
+            "choice_ro6_bat6_18": [
+                "scene_ro6_bat6_18",
+                "scene_ro6_bat6_19",
+                "scene_ro6_bat6_20",
+                "scene_ro6_bat6_21"
+            ],
+            "choice_ro6_bat6b_1": [
+                "scene_ro6_bat6b_2",
+                "scene_ro6_bat6b_3",
+                "scene_ro6_bat6b_4",
+                "scene_ro6_bat6b_5"
+            ],
+            "choice_ro6_bat6b_7": [
+                "scene_ro6_bat6b_8",
+                "scene_ro6_bat6b_9",
+                "scene_ro6_bat6b_10",
+                "scene_ro6_bat6b_11"
+            ],
+            "choice_ro6_bat6b_13": [
+                "scene_ro6_bat6b_13",
+                "scene_ro6_bat6b_14",
+                "scene_ro6_bat6b_15",
+                "scene_ro6_bat6b_16"
+            ],
+            "choice_ro6_bat6b_18": [
+                "scene_ro6_bat6b_18",
+                "scene_ro6_bat6b_19",
+                "scene_ro6_bat6b_20",
+                "scene_ro6_bat6b_21"
+            ],
+            "choice_ro6_normal4_25": [
+                "scene_ro6_normal4_25",
+                "scene_ro6_normal4_26"
+            ]
+        },
+        "battles": {
+            "choice_ro6_bat1_3": "ro6_t_1",
+            "choice_ro6_bat2_3": "ro6_t_2",
+            "choice_ro6_bat3_3": "ro6_t_3",
+            "choice_ro6_bat3_5": "ro6_e_t_3",
+            "choice_ro6_bat4_3": "ro6_t_4",
+            "choice_ro6_bat4_5": "ro6_e_t_4",
+            "choice_ro6_bat5_5": "ro6_t_5",
+            "choice_ro6_bat5_9": "ro6_e_t_5",
+            "choice_ro6_normal2_2": {
+                "random": [
+                    "ro6_t_13",
+                    "ro6_t_14",
+                    "ro6_t_15"
+                ]
+            },
+            "choice_ro6_bat6_6": {
+                "nextZoneNormal": true
+            },
+            "choice_ro6_bat6_12": {
+                "nextZoneNormal": true
+            },
+            "choice_ro6_bat6_17": {
+                "nextZoneNormal": true
+            },
+            "choice_ro6_bat6_22": {
+                "nextZoneNormal": true
+            },
+            "choice_ro6_bat6b_6": {
+                "nextZoneNormal": true
+            },
+            "choice_ro6_bat6b_12": {
+                "nextZoneNormal": true
+            },
+            "choice_ro6_bat6b_17": {
+                "nextZoneNormal": true
+            },
+            "choice_ro6_bat6b_22": {
+                "nextZoneNormal": true
+            }
+        },
+        "grants": {
+            "choice_ro6_res3_1": {
+                "kind": "scrap_move"
+            },
+            "choice_ro6_res3_2": {
+                "kind": "scrap_passive"
+            },
+            "choice_ro6_res3_3": {
+                "kind": "scrap_goods"
+            },
+            "choice_ro6_res5_1": {
+                "kind": "relic"
+            },
+            "choice_ro6_res5_2": {
+                "kind": "relic",
+                "count": 3
+            },
+            "choice_ro6_normal4_10": {
+                "kind": "scrap_goods"
+            },
+            "choice_ro6_normal4_13": {
+                "kind": "scrap_move"
+            },
+            "choice_ro6_normal4_17": {
+                "kind": "relic"
+            },
+            "choice_ro6_normal4_24": {
+                "kind": "relic",
+                "count": 3
+            },
+            "choice_ro6_bat5_10": {
+                "kind": "relic_rare"
+            },
+            "choice_ro6_bat6_4": {
+                "kind": "relic"
+            },
+            "choice_ro6_bat6_10": {
+                "kind": "relic"
+            },
+            "choice_ro6_bat6_15": {
+                "kind": "relic"
+            },
+            "choice_ro6_bat6_20": {
+                "kind": "relic"
+            },
+            "choice_ro6_bat6b_4": {
+                "kind": "relic"
+            },
+            "choice_ro6_bat6b_10": {
+                "kind": "relic"
+            },
+            "choice_ro6_bat6b_15": {
+                "kind": "relic"
+            },
+            "choice_ro6_bat6b_20": {
+                "kind": "relic"
+            }
+        },
+        "gates": {
+            "choice_ro6_normal2_1": {
+                "scrap": "rogue_6_scrap_G_12"
+            },
+            "choice_ro6_normal3_1": {
+                "scrap": "rogue_6_scrap_G_12"
+            },
+            "choice_ro6_normal3_2": {
+                "scrap": "rogue_6_scrap_G_01"
+            },
+            "choice_ro6_normal5_3": {
+                "relic": "rogue_6_relic_cargo_13"
+            },
+            "choice_ro6_normal5_4": {
+                "scrap": "rogue_6_scrap_G_12"
+            },
+            "choice_ro6_bat4_2": {
+                "gold": 51
+            },
+            "choice_ro6_normal4_25": {
+                "notRelic": "rogue_6_relic_artifact_4"
+            },
+            "choice_ro6_normal4_28": {
+                "relic": "rogue_6_relic_artifact_4"
+            },
+            "choice_ro6_wish_6": {
+                "relic": "rogue_6_relic_legacy_113"
+            },
+            "choice_ro6_wish_7": {
+                "relic": "rogue_6_relic_legacy_113"
+            },
+            "choice_ro6_wish_11": {
+                "relic": "rogue_6_relic_legacy_113"
+            },
+            "choice_ro6_sacrifice1_11": {
+                "develop": "rogue_6_outbuff_8"
+            },
+            "choice_ro6_sacrifice2_11": {
+                "develop": "rogue_6_outbuff_8"
+            },
+            "choice_ro6_sacrifice1_6": {
+                "develop": "rogue_6_outbuff_32"
+            },
+            "choice_ro6_sacrifice1_14": {
+                "develop": "rogue_6_outbuff_32"
+            },
+            "choice_ro6_sacrifice2_6": {
+                "develop": "rogue_6_outbuff_32"
+            },
+            "choice_ro6_sacrifice2_14": {
+                "develop": "rogue_6_outbuff_32"
+            }
+        },
+        "nodeEnters": {
+            "16": {
+                "scene": "scene_ro6_rest_enter",
+                "randomChoices": 3
+            },
+            "512": {
+                "scene": "scene_ro6_wish_enter"
+            },
+            "1024": {
+                "scene": "scene_ro6_sacrifice1_enter",
+                "beaconScene": "scene_ro6_sacrifice2_enter"
+            },
+            "8388608": {
+                "scene": "scene_ro6_final1_enter"
+            },
+            "16777216": {
+                "scenes": [
+                    "scene_ro6_evacuate_enter",
+                    "scene_ro6_evacuate2_enter",
+                    "scene_ro6_evacuate3_enter"
+                ]
+            }
+        }
     }
 }

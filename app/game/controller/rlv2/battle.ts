@@ -6,6 +6,7 @@ import { generateBattleId } from "@utils/random";
 import type { BattleRecord } from "@game/manager/BattleInfoStore";
 import { logger } from "@utils/logger";
 import excel from "@excel/excel";
+import { ROGUE6_NODE } from "./theme-rules";
 
 /** 各账号最近一次 rlv2 战斗上下文（start 生成写入，finish 读取结算与记录留存用） */
 const battleSessionByUid = new Map<
@@ -270,6 +271,20 @@ export class RoguelikeBattleManager {
       ]);
     }
 
+    // 指挥分队升级（band_2 battle_extra_drop，prts.wiki「<3+>每次战斗结束后若护盾小于 5 点，
+    // 额外获得 1 点护盾」）：blackboard = [阈值, 物品 id, 数量]；与战斗额外回复同为每次战斗结束生效。
+    for (const buff of this._player._buff.filterBuffs("battle_extra_drop")) {
+      const bb = buff.blackboard;
+      const threshold = bb[0]?.value ?? 0;
+      const dropId = bb[1]?.valueStr;
+      const dropCount = bb[2]?.value ?? 1;
+      if (dropId && this._player._status.property.shield < threshold) {
+        await this._trigger.emit("rlv2:get:items", [
+          [{ id: dropId, count: dropCount }],
+        ]);
+      }
+    }
+
     const earn = {
       damage: 0,
       hp: 0,
@@ -366,8 +381,8 @@ export class RoguelikeBattleManager {
         done: 0,
       });
 
-      // 通用主题（非黑流树海）追加碎片 + 随机收藏品掉落——黑流树海收藏品不随战斗掉落
-      // （官服 battleFinish 无该组，收藏品经分队/事件/贸易获取），故仅非 rogue_6 生成。
+      // 通用主题（非黑流树海）追加碎片 + 随机收藏品掉落——黑流树海战斗藏品掉落
+      // 走下方专属块（路标档案馆观测池，按节点类型/特殊关卡选池）。
       if (theme !== "rogue_6") {
         const fragmentPool = detail.items
           ? Object.keys(detail.items).filter((k) => k.includes("fragment"))
@@ -402,6 +417,63 @@ export class RoguelikeBattleManager {
           }
           if (relicItems.length > 0) {
             rewards.push({ index: rewards.length, items: relicItems, done: 0 });
+          }
+        }
+      } else {
+        // 黑流树海战斗藏品掉落（路标档案馆观测池 lubiao.wiki /pools/rogue_6）：
+        // 作战/紧急作战/险路恶敌/居民据点各有独立池，事件战斗（湖中仙女/无效验尸/
+        // 狭路相逢）按关卡选池；普通/紧急 40% 概率，首领与居民据点必掉（首领 2 件）。
+        const nodeType = (node as any)?.type as number | undefined;
+        const isSavage = nodeType === ROGUE6_NODE.RESIDENT;
+        const ro6Chance = isBoss || isSavage ? 1 : 0.4;
+        if (Math.random() < ro6Chance) {
+          const owned = Object.values(this._player.inventory!.relic || {}).map(
+            (r) => (r as any).id,
+          );
+          const ro6Count = isBoss ? 2 : 1;
+          const relicItems: any[] = [];
+          for (let i = 0; i < ro6Count; i++) {
+            const relicId = this.pickBattleRelic(nodeType, curStageId, owned);
+            if (!relicId) break;
+            relicItems.push({ sub: i, id: relicId, count: 1 });
+            owned.push(relicId);
+          }
+          // 狭路相逢（公平战斗）：右敌奖收藏品、左/中敌奖零件——服务端无法区分
+          // 击败对象，藏品组内补 1 件随机零件（node_duel_scrap 观测池）
+          if (curStageId.startsWith("ro6_duel")) {
+            const scrapId = this.pickFromPool("node_duel_scrap", [], (id) => {
+              const items = excel.RoguelikeTopicTable.details[theme]?.items;
+              return (items as any)?.[id]?.type === "SCRAP";
+            });
+            if (scrapId) {
+              relicItems.push({
+                sub: relicItems.length,
+                id: scrapId,
+                count: 1,
+              });
+            }
+          }
+          if (relicItems.length > 0) {
+            rewards.push({ index: rewards.length, items: relicItems, done: 0 });
+          }
+        }
+        // 地质调查分队（rogue_6_band_21“探访节点提升战斗后获得收藏品的概率”）：
+        // 额外掉落 1 件 drop_extra_pool 藏品，概率随本局已过节点数上调（近似）。
+        if (this.hasBand("rogue_6_band_21")) {
+          const visited = this._player._status.trace.length;
+          const extraChance = Math.min(0.2 + visited * 0.02, 0.6);
+          if (Math.random() < extraChance) {
+            const owned = Object.values(
+              this._player.inventory!.relic || {},
+            ).map((r) => (r as any).id);
+            const extraId = this.pickFromPool("drop_extra_pool", owned);
+            if (extraId) {
+              rewards.push({
+                index: rewards.length,
+                items: [{ sub: 0, id: extraId, count: 1 }],
+                done: 0,
+              });
+            }
           }
         }
       }
@@ -491,5 +563,80 @@ export class RoguelikeBattleManager {
         this._player._status.trace.pop();
       }
     }
+  }
+
+  /**
+   * 黑流树海战斗藏品选池（路标档案馆观测池）：特殊关卡优先，其次节点类型；
+   * 档内池抽空后降档稀有度池/全量池。
+   * - ro6_t_5/ro6_e_t_5 = 湖中仙女（普通/紧急）事件战；ro6_t_12 = 无效验尸；
+   *   ro6_duel_* = 狭路相逢公平战斗（左/中/右三敌池并集）
+   * - 紧急作战 → node_battle_elite；险路恶敌 → pool_boss；“居民”据点 → node_battle_savage；
+   *   普通作战 → node_battle_normal（观测仅人偶之家，降档 pool_relic_normal 兜底）
+   * @param nodeType 当前节点类型（ROGUE6_NODE，可为 undefined）
+   * @param stageId 关卡 id（节点标记/事件战）
+   * @param owned 已拥有藏品 id（过滤）
+   * @returns 抽中藏品 id；全部池空返回空串
+   */
+  private pickBattleRelic(
+    nodeType: number | undefined,
+    stageId: string,
+    owned: string[],
+  ): string {
+    const pools: string[] =
+      stageId === "ro6_t_5"
+        ? ["node_incident_lake_fairy"]
+        : stageId === "ro6_e_t_5"
+          ? ["node_incident_lake_fairy_emergency"]
+          : stageId === "ro6_t_12"
+            ? ["node_battle_normal_invalid_autopsy"]
+            : stageId.startsWith("ro6_duel")
+              ? ["node_duel_relic"]
+              : nodeType === ROGUE6_NODE.BATTLE_ELITE
+                ? ["node_battle_elite", "pool_relic_rare"]
+                : nodeType === ROGUE6_NODE.BATTLE_BOSS
+                  ? ["pool_boss", "pool_relic_super_rare"]
+                  : nodeType === ROGUE6_NODE.RESIDENT
+                    ? ["node_battle_savage"]
+                    : ["node_battle_normal", "pool_relic_normal"];
+    pools.push("pool_relic_all");
+    for (const p of pools) {
+      const id = this.pickFromPool(p, owned);
+      if (id) return id;
+    }
+    return "";
+  }
+
+  /**
+   * 从指定池抽 1 件未拥有且通过校验的物品（不放回，与 pool.getRelic 同语义）。
+   * 默认校验 = 主题 relics 表登记（藏品结算依赖 buffs 数据）；零件等传入自定义校验。
+   * @param poolId 池 id（data/rlv2/pools.json）
+   * @param owned 已拥有/已抽出的物品 id（过滤）
+   * @param validate 成员合法性校验（缺省：主题 relics 表登记）
+   * @returns 抽中 id；池空/全被过滤返回空串
+   */
+  private pickFromPool(
+    poolId: string,
+    owned: string[],
+    validate?: (id: string) => boolean,
+  ): string {
+    const theme = this._player.current.game?.theme || "";
+    const detail = excel.RoguelikeTopicTable.details[theme];
+    const ok = validate ?? ((id: string) => !!(detail as any)?.relics?.[id]);
+    const pool = (this._player._pool as any)?._pools?.[poolId] as
+      | string[]
+      | undefined;
+    if (!pool) return "";
+    const avail = pool.filter((id) => !owned.includes(id) && ok(id));
+    if (avail.length === 0) return "";
+    const id = avail[Math.floor(Math.random() * avail.length)];
+    pool.splice(pool.indexOf(id), 1);
+    return id;
+  }
+
+  /** 是否持有指定分队（开局分队以收藏品形式入库存，如地质调查分队） */
+  private hasBand(bandId: string): boolean {
+    return Object.values(this._player.inventory?.relic || {}).some(
+      (r: any) => r.id === bandId,
+    );
   }
 }

@@ -107,6 +107,15 @@ const CONSTRUCTION_TYPE_TO_NODE: { [key: string]: number } = {
   glade: ROGUE6_NODE.GLADE,
 };
 
+/**
+ * 生成数据（blackstream-data.ts）中 nodeType 缺失的规则按中文标签解析。
+ * 抽取脚本（已不存在）未映射「林间空地」→ 该规则 nodeType 为 null，
+ * 导致林间空地从不进入候选类型（填充格全为事件/战斗节点）；按标签补解析。
+ */
+const RULE_LABEL_TO_NODE: { [label: string]: number } = {
+  林间空地: ROGUE6_NODE.GLADE,
+};
+
 /** 层索引（0 起）→ 距离规则列索引：I II III IV IV追忆 V（官服 Ut 映射） */
 function distanceColumnForLayer(layer: number): number {
   // 层 1..3 → 列 0..2；层 4 → 列 3（IV）；层 5 → 列 5（V）
@@ -554,6 +563,21 @@ export class RoguelikeGridZoneManager {
    * 候选 = 距离规则允许该距离的本层类型（未定/— 跳过）；
    * 优先未达数量上限的类型；战斗类型优先（保持层内战斗占比）。
    */
+  /**
+   * 规则条目 → 节点类型数值：优先 nodeType 映射；nodeType 缺失（生成数据
+   * 如「林间空地」）按中文标签解析。start 为固定起点，不参与填充格抽取/计数
+   * （起点格由模板 startSlot 预置，若按 start 规则[1,1]限数会把填充林间空地上限错当 1）。
+   */
+  private ruleNodeValue(rule: {
+    nodeType?: string | null;
+    label?: string;
+  }): number | undefined {
+    if (!rule.nodeType || rule.nodeType === "start") {
+      return RULE_LABEL_TO_NODE[rule.label ?? ""];
+    }
+    return CONSTRUCTION_TYPE_TO_NODE[rule.nodeType];
+  }
+
   pickTypeByRules(
     layer: number,
     distance: number,
@@ -562,10 +586,11 @@ export class RoguelikeGridZoneManager {
     const dCol = distanceColumnForLayer(layer);
     const cCol = countColumnForLayer(layer);
 
-    // 距离规则表：nodeType → [min,max]，未定跳过，—（null）跳过
+    // 距离规则表：nodeType → [min,max]，未定跳过，—（null）跳过；
+    // nodeType 缺失的规则（林间空地）按标签解析，否则填充格永无林间空地
     const allowedByDistance = new Set<number>();
     for (const rule of BLACKSTREAM_DISTANCE_RULES) {
-      const t = rule.nodeType ? CONSTRUCTION_TYPE_TO_NODE[rule.nodeType] : undefined;
+      const t = this.ruleNodeValue(rule);
       if (t === undefined) continue;
       const v = rule.values[dCol];
       if (!v || v === "unknown") continue;
@@ -587,17 +612,11 @@ export class RoguelikeGridZoneManager {
         ? [...allowedByDistance].filter((t) => layerNodeSet.has(t))
         : [...allowedByDistance];
 
-    // 数量规则：候选内未达上限的类型优先
+    // 数量规则：候选内未达上限的类型优先（林间空地等标签规则同样参与限数）
     const underLimit = candidates.filter((t) => {
-      const rule = BLACKSTREAM_COUNT_RULES.find((r) => {
-        const num =
-          r.nodeType === "start"
-            ? ROGUE6_NODE.GLADE
-            : r.nodeType
-              ? CONSTRUCTION_TYPE_TO_NODE[r.nodeType]
-              : undefined;
-        return num === t;
-      });
+      const rule = BLACKSTREAM_COUNT_RULES.find(
+        (r) => this.ruleNodeValue(r) === t,
+      );
       if (!rule) return true;
       const v = rule.values[cCol];
       if (!v) return true;

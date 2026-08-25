@@ -7,6 +7,7 @@
 
 import { ItemBundle } from "@excel/character_table";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { recordPurchase } from "@game/util/purchase-record";
 import { readJsonSync } from "@utils/file";
 import {
   ChooseGPItem,
@@ -502,7 +503,11 @@ export class ShopController {
           originPrice: p.m.originPrice,
           price: Math.round(p.m.originPrice * (1 - p.discount)),
           discount: p.discount,
-          availCount: -1, // 每日刷新，不限购
+          // 修复（2026-08-25）：availCount 原为 -1（不限购）→ 官服 getSocialGoodList
+          // 抓包（R-1787479734940-0470 等 4 条）显示信用交易所每个常规商品每日限购
+          // 1 次（availCount=1），客户端剩余数量 RemainCount = availCount - 已购，
+          // -1 被渲染为"无限"。现按官服改为每日限购 1 次。
+          availCount: 1, // 每日限购 1 次（与官服一致）
           item: { id: p.m.id, count: p.m.count, type: p.m.type },
         } as SocialShopData,
         p.discount,
@@ -558,12 +563,7 @@ export class ShopController {
           (social.charPurchase[good.item.id] ?? 0) + count;
       }
       const info = social.info ?? [];
-      const existing = info.find((i) => i.id === goodId);
-      if (existing) {
-        existing.count += count;
-      } else {
-        info.push({ id: goodId, count });
-      }
+      recordPurchase(info, goodId, count);
     });
     // 带 type 发放（干员合同 CHAR → char:get 入账并返回 instId；其余 TKT/材料走 items:get）
     const item: ItemBundle = {

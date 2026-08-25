@@ -295,6 +295,29 @@ describe("buildSocialGoodList / buySocialGood 信用商店", () => {
     expect(social.info).toContainEqual({ id: goodId, count: 1 });
   });
 
+  it("常规物资 availCount 应为 1（每日限购 1 次，修复前 -1 显示为无限）", async () => {
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    controller.socialGoodList = { goodList: [], charPurchase: {} };
+    const list = controller.buildSocialGoodList();
+    // 官服抓包（R-1787479734940-0470 等）：信用交易所每个常规商品 availCount=1
+    for (const g of list.goodList) {
+      expect(g.availCount).toBe(1);
+    }
+  });
+
+  it("buySocialGood 同一商品每日限购 1 次（第二次购买抛 ShopError）", async () => {
+    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    controller.socialGoodList = { goodList: [], charPurchase: {} };
+    const good = controller.buildSocialGoodList().goodList[0];
+    const goodId = good.goodId;
+    // 第一次购买成功
+    await controller.buySocialGood({ goodId, count: 1 });
+    // 第二次购买同一商品 → 已购 1 + 本次 1 > availCount(1) → 拒绝
+    await expect(
+      controller.buySocialGood({ goodId, count: 1 }),
+    ).rejects.toThrow("已达限购");
+  });
+
   it("buySocialGood 未知商品应返回空（不 500）", async () => {
     const controller = new ShopController(mockPlayer as any, mockTrigger as any);
     controller.socialGoodList = { goodList: [], charPurchase: {} };

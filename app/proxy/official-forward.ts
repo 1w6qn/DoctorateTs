@@ -26,6 +26,7 @@ import axios, { AxiosError, RawAxiosRequestHeaders } from "axios";
 import http from "http";
 import https from "https";
 import { logger } from "@utils/logger";
+import { hasPathPrefix, matchesAnyPrefix, LOCAL_ONLY_PREFIXES } from "@utils/path-prefix";
 import config from "../config";
 import {
   ArkhubGatewayInfo,
@@ -101,26 +102,9 @@ const AS_PATH_PREFIXES = [
 ] as const;
 
 /**
- * 本地挂载点前缀：capture 模式须排除、不转发官服的路径——
- * 管理/配置/资源等由私服响应；/batch_event 客户端事件上报由 home.ts 返回 {} 即可
- * （转发官服只会得到 404 噪音，用户明确要求不转发）。
- * 注意：/arkodc（act53side ODC 小游戏「直到大地变成一颗酸橙」安洁莉娜的旅行小记路由）是游戏域接口，官服在活动开启期间客户端会调用——
- * OBS 的 arkodc 路由即从官服逆向而来，故**不在**排除列表、照常转发官服以抓真实响应。
+ * 本地挂载点前缀（单一事实源在 @utils/path-prefix，此处 re-export 保持既有引用点）
  */
-const LOCAL_ONLY_PREFIXES = [
-  "/admin",
-  "/assetbundle",
-  "/pcSdk",
-  "/config",
-  "/api",
-  "/audit",
-  "/batch_event",
-] as const;
-
-/** 判断路径是否精确等于 prefix 或以 prefix/ 开头（避免误剥 /gamemode 之类路径） */
-function hasPathPrefix(path: string, prefix: string): boolean {
-  return path === prefix || path.startsWith(prefix + "/");
-}
+export { LOCAL_ONLY_PREFIXES } from "@utils/path-prefix";
 
 /** 转发目标：baseUrl + 转发路径（endpoint 已去前导斜杠由调用方处理） */
 export interface ForwardTarget {
@@ -168,7 +152,7 @@ export function resolveForwardTarget(
       // gs 域：官服游戏路径无 /game 基址，若客户端带则剥掉；
       // 本地挂载点（/batch_event 等）无论 Host 都不转发——事件上报由私服 home.ts 返回 {} 即可
       const p = hasPathPrefix(path, "/game") ? path.slice("/game".length) || "/" : path;
-      if (LOCAL_ONLY_PREFIXES.some((prefix) => hasPathPrefix(p, prefix))) {
+      if (matchesAnyPrefix(p, LOCAL_ONLY_PREFIXES)) {
         return null;
       }
       return { baseUrl: gsHost, path: p };
@@ -195,7 +179,7 @@ export function resolveForwardTarget(
     return { baseUrl: gsHost, path: path.slice("/game".length) || "/" };
   }
   // 根路径游戏域兜底（POST）：排除本地挂载点，避免 /admin 等被误转发
-  if (method.toUpperCase() === "POST" && !LOCAL_ONLY_PREFIXES.some((p) => hasPathPrefix(path, p))) {
+  if (method.toUpperCase() === "POST" && !matchesAnyPrefix(path, LOCAL_ONLY_PREFIXES)) {
     return { baseUrl: gsHost, path };
   }
   // GET 非 as 路径（/pcSdk、/admin、/assetbundle 等）保持本地

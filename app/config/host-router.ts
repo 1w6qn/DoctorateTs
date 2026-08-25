@@ -15,13 +15,9 @@
  * 非 *.hypergryph.com 请求（localhost / 私服 IP 直连 / mitmweb 重写）不重写，保持原有路径分发。
  */
 import { RequestHandler } from "express";
+import { hasPathPrefix } from "@utils/path-prefix";
 
 const HOST_SUFFIX = "hypergryph.com";
-
-/** 判断路径是否精确等于 prefix 或以 prefix/ 开头（避免误剥 /gamemode 之类路径） */
-function hasPathPrefix(path: string, prefix: string): boolean {
-  return path === prefix || path.startsWith(prefix + "/");
-}
 
 /**
  * 路径级兜底分发（Host 头不含子域名时按路径识别域）

@@ -1325,18 +1325,18 @@ pnpm run migrate:official -- --accounts <账号文件路径> --template 1
 | 值 | 官方枚举 | 中文名 | 落地行为 |
 |---|---|---|---|
 | 1 / 2 / 4 | BATTLE_NORMAL / _ELITE / _BOSS | 作战 / 紧急作战 / 险路恶敌 | 战斗（关卡按三池分流） |
-| 16 | REST | 安全的角落 | SCENE `scene_ro6_rest*` |
-| 32 | INCIDENT | 不期而遇 | SCENE `normal*` / `bat*`（回退通用 incident） |
-| 512 / 1024 | WISH / SACRIFICE | 得偿所愿 / 失与得 | SCENE `wish*`+`relic*` / `sacrifice*` |
+| 16 | REST | 安全的角落 | 事件引擎：6 选项随机出 3，displayData 发放（对照文档 §13.2） |
+| 32 | INCIDENT | 不期而遇 | 事件引擎 `incident.ts` 完整事件池（见 design-spec §16.9 与对照文档 §十三）；回退 `normal` / `bat` |
+| 512 / 1024 | WISH / SACRIFICE | 得偿所愿 / 失与得 | 事件引擎：免费收藏品（撬桶 4 金刷新提档）/ 藏品与零件交换 + 复原“文明”差分（`relic` 血衣之下/擒与缚归不期而遇，prts.wiki 实锤） |
 | 2048 | EXPEDITION | 先行一步 | SCENE `scout*`（**三结局远征入口**） |
 | 4096 / 2097152 / 33554432 | BATTLE_SHOP / SCRAP_SHOP / EMPLOY | 诡意行商 / 秘境行商 / 应急助力 | BATTLE_SHOP 事件（应急助力另有 `hire*` 场景） |
 | 8192 | PORTAL | 误入奇境 | 生成隐藏层（未萌生的摇篮） |
 | 32768 / 65536 | STORY / STORY_HIDDEN | 命运所指 | 二结局 / 调谐仪式入口 |
 | 262144 | DUEL | 狭路相逢 | SCENE `sala*` |
 | 4194304 | DOOR | 曲折密道 | 地图机制（传送），无场景 |
-| 8388608 | FINAL | 险路尽头 | SCENE `final*`（ZONE_END / 召集同伴） |
-| 16777216 | **EVACUATE** | 险路小径 | SCENE `evacuate*`（保留行动力提前进层） |
-| 67108864 | LIGHT | 羽瞰点 | 地图机制（视野 +1 格），无场景 |
+| 8388608 | FINAL | 险路尽头 | 事件引擎：+1 加工品 + 全部行动力转希望 → ZONE_END 进区；召集同伴（留存券招募） |
+| 16777216 | **EVACUATE** | 险路小径 | 事件引擎：+1 珍贵加工品，保留行动力 → ZONE_END 提前进层（三重身 3 差分） |
+| 67108864 | LIGHT | 羽瞰点 | 地图机制（视野扩大 + 行动力 +1，grid_zone.moveTo），无场景 |
 | 134217728 | **BATTLE_SAVAGE** | “居民”据点 | 归入战斗类（`moduleConsts.savageBubble`） |
 | 268435456 | EMPTY | 林间空地 | 空节点 / 起点 |
 

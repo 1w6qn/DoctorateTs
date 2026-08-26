@@ -2321,3 +2321,11 @@ room-speed / dorm-recovery / mood-cost）：声明式扩展点，value 与既有
   干员信赖/解锁链+任务事件/理智消耗/战前预扣/syncData 刷新/后处理（mainLine+unlockHideStage）
 - 占位（1 项）：好友建议 suggestFriend 恒 false（响应结构对齐，逻辑未实现）
 - 缺失（3 项）：barCard 处理 / 公招槽位解锁 / 主线 buff 检查（无数据源，不虚构实现）
+
+### 35.9 域内实体 Instance 类模式（建议 12）
+对照 Python 参考实现的 sandbox 实例类（stageinstance/baseInstance/statusInstance/troopInstance）：
+- rlv2 五子模块已采用实例类模式：RoguelikeStatusManager/TroopManager/InventoryManager/MapManager/
+  BuffManager 每类状态一个 Manager 类（构造持 doc，init/continue/create/toJSON + 状态迁移方法），
+  业务编排在 controller/composition；battle.ts 等零散落直操（current.<sub> 直接改字段为 0 处）
+- 新玩法子模块按此组织：每类实体一个实例类；状态迁移/持久化/事件触发收敛到类方法；
+  编排层（manager/composition）只做流程组织，不直接操作兄弟实体状态。

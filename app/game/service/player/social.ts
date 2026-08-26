@@ -253,34 +253,31 @@ export class SocialManager {
       };
     };
 
-    // 1. 好友助战（随机洗牌，最多 MAX_LIST）
+    // 1. 好友助战（随机洗牌，最多 MAX_LIST）——并发查询（建议 14：N 次独立 IO 并行，
+    //    结果保持洗牌序，失败项跳过）
     const friends = [...social.friends].sort(() => Math.random() - 0.5);
-    for (const friend of friends) {
-      if (assistList.length >= MAX_LIST) break;
-      let info: any;
-      try {
-        info = await accountManager.getPlayerFriendInfo(friend.uid);
-      } catch {
-        continue;
-      }
-      const item = buildAssistInfo(info, true, friend.alias);
+    const friendInfos = await Promise.all(
+      friends.map((f) => accountManager.getPlayerFriendInfo(f.uid).catch(() => null as any)),
+    );
+    for (let i = 0; i < friendInfos.length && assistList.length < MAX_LIST; i++) {
+      const info = friendInfos[i];
+      if (!info) continue;
+      const item = buildAssistInfo(info, true, friends[i].alias);
       if (item) assistList.push(item);
     }
 
-    // 2. 数据不足时随机补位（其他账号，非好友）
+    // 2. 数据不足时随机补位（其他账号，非好友）——并发查询（建议 14）
     if (assistList.length < MAX_LIST) {
       const otherUids = accountManager
         .getPlayerUidList()
         .filter((uid) => uid !== this._uid && !friendUids.has(uid))
         .sort(() => Math.random() - 0.5);
-      for (const uid of otherUids) {
-        if (assistList.length >= MAX_LIST) break;
-        let info: any;
-        try {
-          info = await accountManager.getPlayerFriendInfo(uid);
-        } catch {
-          continue;
-        }
+      const otherInfos = await Promise.all(
+        otherUids.map((uid) => accountManager.getPlayerFriendInfo(uid).catch(() => null as any)),
+      );
+      for (let i = 0; i < otherInfos.length && assistList.length < MAX_LIST; i++) {
+        const info = otherInfos[i];
+        if (!info) continue;
         const item = buildAssistInfo(info, false, "");
         if (item) assistList.push(item);
       }

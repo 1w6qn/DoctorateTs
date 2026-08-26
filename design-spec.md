@@ -2308,3 +2308,9 @@ gachaRuleType 未知时显式报错（不再静默按 NORMAL 回退）。
 `domain/building/buff-tpl.ts`（BaseBuffTpl）+ `buffs/` 模板注册表（control-global /
 room-speed / dorm-recovery / mood-cost）：声明式扩展点，value 与既有引擎一致
 （buff-parse.ts 纯解析，一致性由 buff-tpl.test.ts 全量差分守护）。
+
+### 35.7 批量状态同步并发规范（建议 14）
+对齐 Python 参考实现的 TaskGroupService 并发批处理：
+- 读 IO 批查询（如社交助战列表 getPlayerFriendInfo）用 Promise.all 并行，保持结果顺序；
+- 状态变更循环（物品获取/保底计数/任务 init 等有顺序依赖或共享状态）必须串行，禁止并发；
+- 事件总线分发（events.ts before/emit/after）保持顺序语义，不得并发。

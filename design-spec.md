@@ -2314,3 +2314,10 @@ room-speed / dorm-recovery / mood-cost）：声明式扩展点，value 与既有
 - 读 IO 批查询（如社交助战列表 getPlayerFriendInfo）用 Promise.all 并行，保持结果顺序；
 - 状态变更循环（物品获取/保底计数/任务 init 等有顺序依赖或共享状态）必须串行，禁止并发；
 - 事件总线分发（events.ts before/emit/after）保持顺序语义，不得并发。
+
+### 35.8 battleFinish 官方规格对齐审计（建议 17）
+对照 OBS battleFinish 后置框架 17 项逐项审计（2026-08-26，battle.ts finish JSDoc）：
+- 已对齐（11 项）：基础数据收集/trace 留存/isCheat 逆向/completeState 地图更新/测试局判定/
+  干员信赖/解锁链+任务事件/理智消耗/战前预扣/syncData 刷新/后处理（mainLine+unlockHideStage）
+- 占位（1 项）：好友建议 suggestFriend 恒 false（响应结构对齐，逻辑未实现）
+- 缺失（3 项）：barCard 处理 / 公招槽位解锁 / 主线 buff 检查（无数据源，不虚构实现）

@@ -344,6 +344,14 @@ export class BattleManager {
    * 9. 助战社交点结算（使用方/助战方分账）
    * 10. 组装结算响应（演习仅返回 result）
    *
+   * 官方规格对照（OBS battleFinish 后置框架，审计 2026-08-26）：
+   *   ✓ 基础数据收集 / 战斗框架 trace（battle_records）/ debug 逆向（isCheat 解密）/
+   *     completeState 地图更新（_settleStageState）/ 测试局判定（演习）/ 干员 buff 值（信赖）/
+   *     解锁状态更新+trigger（解锁链+任务事件）/ 当前卡消耗（apCost）/ 先期消耗（战前预扣）/
+   *     标准 API 刷新（syncData）/ 后处理·mainLine 与隐藏（任务事件+unlockHideStage）
+   *   △ 占位：好友建议（suggestFriend 恒 false，响应结构对齐、逻辑未实现）
+   *   ✗ 缺失：barCard 处理 / 公招槽位解锁 / 主线 buff 检查（无数据源，未虚构实现）
+   *
    * @param args - 客户端上报的战斗数据（加密）与校验字段
    */
   async finish(args: {
@@ -363,6 +371,7 @@ export class BattleManager {
     let goldScale = 0,
       expScale = 0,
       apFailReturn = 0;
+    // 官方步骤 13 存根：好友建议逻辑未实现（响应结构对齐，恒 false）
     const suggestFriend = false;
     const unlockStages: string[] = [];
     const unlockStagesObject: unknown[] = [];

@@ -427,3 +427,18 @@
 | C3 | 获得加工品无 pushMessage 提示 | `/battleFinish`、`/chooseBattleReward`（战斗奖励零件组）、`/sacrificeChoice` 路由漏传 `takePushMessages()` → rlv2GotRandScrap/rlv2GotRandRelic 永不下发 | 三个路由补传 `takePushMessages()`；`tests/unit/router/rlv2.test.ts` 新增 3 条透传断言 |
 
 测试：`rlv2-shop-reach.test.ts`（3 形态均开商店）、`rlv2-glade-gen.test.ts`（Ⅲ/Ⅴ 层填充空地 + Ⅰ 层上限约束）、路由推送 3 条；全量回归 2482 passed（仅既有基线 flaky 失败，经多轮对照与 git stash 隔离确证与本修复无关）。
+
+### 13.6 实战缺陷批次修复（2026-08-26，用户反馈 7 例）
+
+| # | 现象 | 根因 | 修复 |
+|---|---|---|---|
+| 1 | 战斗结算提示护盾血量变化异常 | 官服 battleFinish 抓包 earn={damage:0,hp:0,shield:0}，战斗结束不回血；原实现 earn.hp=伤害×0.3 并直接回血 | earn.damage/hp/shield 恒 0；移除战斗结束回血（回复经安全的角落/藏品） |
+| 2 | 指挥经验获得数量异常 | 官服单点抓包 exp=13（=下一级需求 10 + 三星 3）且经验在 battleFinish 响应内入账；原实现恒发需求值且延迟到 finishBattleReward | exp=需求值+3×isPerfect；battleFinish 即时 await 入账（响应含升级后 exp/level）；finishBattleReward 不再二次发放（避免双重升级） |
+| 3 | 节点可通行状态异常 | 官服 gridZone state 仅 0/2（抓包确证）；原实现揭示时置中间态 1 | 移除 0→1 中间态；初始点亮节点（险路尽头/恶敌/密道/羽瞰点）=2，填充林间空地=0，抵达置 2；起点定位改"state=2 且 GLADE"（locateStartNode）；孤立占位格固定铺林间空地 |
+| 4 | 非战斗节点不会触发事件 | 与 #3 同源：中间态节点客户端解析异常无法进入（另商店判定见 13.5 C1） | 同上；商店/事件分发回退链路已就绪 |
+| 5 | 升级奖励异常 | 经验双发（battleFinish 后 finishBattleReward 再发）→ 双重升级/希望增量 | 同 #2，经验单点入账 |
+| 6 | 异常的临时招募 | 战斗奖励选券走 getItem → RECRUIT_TICKET 自动激活弹 RECRUIT 事件 | 选券改 `rlv2:recruit:gain` 仅入券列表（state=0，玩家自行激活，官服口径） |
+| 7 | 出现两次重复的 pushMessage | /scrap、readEndingChange、gameSettle 漏传 takePushMessages → 推送残留到下一响应重复下发 | 三路由补传（见 13.5 C3 同源） |
+| 8 | 招募券希望消耗受上一把分队影响 | 控制器为玩家持久实例，新局只发 rlv2:create 不发 rlv2:init，_buffs 残留上局分队 recruit_cost 等 buff | buff.create/continue 入口全量重置 _buffs/_zoneGoldLossPercent |
+
+测试：`rlv2-bugfix-20260826.test.ts`（3 条：state 0/2、buff 重置、选券不弹招募）；同步更新受影响断言（battle-reward-blackstream/battle-finish-data/mechanisms/zone-progress/gridzone-smoke/node-dispatch）。rlv2 全家族 19 文件回归通过；全量 2533 passed（剩余失败 = 既有基线 2 项 + 并行基建工作流抖动，均非本会话文件）。

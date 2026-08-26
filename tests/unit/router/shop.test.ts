@@ -20,7 +20,7 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import httpContext from "express-http-context2";
-import shopRouter from "../../../app/game/router/shop";
+import shopRouter from "../../../app/game/modules/shop/handler";
 import { mockPlayerData } from "../../helpers";
 
 function mockRes() {
@@ -46,20 +46,22 @@ describe("shop 路由", () => {
         CLASSIC: { info: [] },
       } as any,
     });
-    // 商店控制器（路由跨周期刷新依赖）
-    player.shop = {
-      todayLowShopId: () => "lggShdShopnumber88",
-      todayExtraShopId: () => "xShdShopnumber5",
-      monthlyRefresh: vi.fn(async () => {
-        player._playerdata.shop.LS.curShopId = "lggShdShopnumber88";
-        player._playerdata.shop.LS.info = [];
-      }),
-      refreshExtraShop: vi.fn(async () => {
-        player._playerdata.shop.ES.curShopId = "xShdShopnumber5";
-        player._playerdata.shop.ES.info = [];
-      }),
-      todaySocialShopId: () => "SOCIAL20260818",
-      refreshSocialShop: vi.fn(async () => {}),
+    // 商店管理器（路由跨周期刷新依赖，经 player.modules.shop 访问）
+    player.modules = {
+      shop: {
+        todayLowShopId: () => "lggShdShopnumber88",
+        todayExtraShopId: () => "xShdShopnumber5",
+        monthlyRefresh: vi.fn(async () => {
+          player._playerdata.shop.LS.curShopId = "lggShdShopnumber88";
+          player._playerdata.shop.LS.info = [];
+        }),
+        refreshExtraShop: vi.fn(async () => {
+          player._playerdata.shop.ES.curShopId = "xShdShopnumber5";
+          player._playerdata.shop.ES.info = [];
+        }),
+        todaySocialShopId: () => "SOCIAL20260818",
+        refreshSocialShop: vi.fn(async () => {}),
+      },
     };
     res = mockRes();
     (vi.mocked(httpContext.get) as any).mockReturnValue(player);
@@ -129,7 +131,7 @@ describe("shop 路由", () => {
     player._playerdata.shop.LS.curShopId = "lggShdShopnumber69";
     await call("/getLowGoodList", {});
     // 触发 monthlyRefresh → delta 更新当月 curShopId
-    expect(player.shop.monthlyRefresh).toHaveBeenCalled();
+    expect(player.modules.shop.monthlyRefresh).toHaveBeenCalled();
     expect(player._playerdata.shop.LS.curShopId).toBe("lggShdShopnumber88");
     expect(player._playerdata.shop.LS.info).toEqual([]);
   });
@@ -137,7 +139,7 @@ describe("shop 路由", () => {
   it("getExtraGoodList 旧年份 curShopId 应跨年重置（剩余时间不为负）", async () => {
     player._playerdata.shop.ES = { curShopId: "xShdShopnumber2", info: [{ id: "ES_xShdShopnumber2_1", count: 6 }] };
     await call("/getExtraGoodList", {});
-    expect(player.shop.refreshExtraShop).toHaveBeenCalled();
+    expect(player.modules.shop.refreshExtraShop).toHaveBeenCalled();
     expect(player._playerdata.shop.ES.curShopId).toBe("xShdShopnumber5");
     expect(player._playerdata.shop.ES.info).toEqual([]);
   });

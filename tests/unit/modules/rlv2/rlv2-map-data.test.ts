@@ -34,7 +34,7 @@ vi.mock("@excel/excel", () => {
 });
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData } from "../../../helpers";
 
 function makePlayer() {
   const pd: any = mockPlayerData({
@@ -55,7 +55,7 @@ describe("rlv2 地图生成数据与区域推进", () => {
 
   describe("nodesInfo.json 数据文件", () => {
     it("应覆盖 6 主题且各主题 zones 有关卡列表", () => {
-      const data = require("../../../data/rlv2/nodesInfo.json");
+      const data = require("../../../../data/rlv2/nodesInfo.json");
       const themes = Object.keys(data.themes);
       expect(themes.length).toBeGreaterThanOrEqual(6);
       for (const th of ["rogue_1", "rogue_2", "rogue_3", "rogue_4", "rogue_5", "rogue_6"]) {
@@ -69,7 +69,7 @@ describe("rlv2 地图生成数据与区域推进", () => {
     });
 
     it("rogue_1 应有 boss 关卡", () => {
-      const data = require("../../../data/rlv2/nodesInfo.json");
+      const data = require("../../../../data/rlv2/nodesInfo.json");
       const hasBoss = Object.values(data.themes.rogue_1.zones).some(
         (z: any) => (z.Boss || []).length > 0
       );

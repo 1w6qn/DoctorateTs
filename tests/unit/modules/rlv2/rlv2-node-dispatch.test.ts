@@ -89,13 +89,13 @@ const excelMock = vi.hoisted(() => ({
 vi.mock("@excel/excel", () => ({ default: excelMock }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData } from "../../../helpers";
 import {
   ROGUE6_NODE,
   ROGUE6_NODE_SCENE_PREFIX,
   ROLL_NODE_TYPE_VALUES,
   isBlackstream,
-} from "@game/controller/rlv2/theme-rules";
+} from "@game/modules/rlv2/theme-rules";
 
 function makePlayer() {
   const pd: any = mockPlayerData({
@@ -267,22 +267,25 @@ describe("rogue_6 节点到达推送（pushMessage）", () => {
     };
     // 沿边可达揭示 visibility：设置 map.zones 邻接（100 边连 0/200/101）供 moveTo 按边揭示。
     // 起点 0 已揭示（visibility=NORMAL），抵达 100 后 200/101 由 HIDE_INVISIBLE → NORMAL，
-    // 起点不降级、1/2 非边连接不入列。
+    // 起点不降级、1/2 非边连接不入列。（变化集 = 视野变化节点；官服 state 仅 0/2，
+    // gridZone state 不再产生 0→1 中间态，故邻居必须有 map 节点才能入变化集）
     (rlv2._map as any).zones["1002"] = {
       nodes: {
         "0": { next: [{ x: 1, y: 0 }], visibility: 0 },
         "100": { next: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 1, y: 1 }], visibility: 1 },
+        "101": { next: [], visibility: 1 },
+        "200": { next: [], visibility: 1 },
       },
     };
     rlv2._status.cursor.zone = 3;
     rlv2.beginMove?.();
     gz.moveTo(["100"]);
     const changed = gz.takeChangedNodes();
-    expect(changed).toContain("100"); // 到达节点：0 → 2
-    expect(changed).toContain("101"); // 距离 1 邻居（x1,y1）：0 → 1（可见+可访问）
-    expect(changed).toContain("200"); // 距离 1 邻居（x2,y0）：0 → 1
-    expect(changed).not.toContain("1"); // 距离 2（x0,y1）：超出视野，不揭示
-    expect(changed).not.toContain("2"); // 距离 3（x0,y2）：超出视野，不揭示
+    expect(changed).toContain("100"); // 到达节点：state 0 → 2
+    expect(changed).toContain("101"); // 距离 1 邻居（x1,y1）：visibility 1 → 0
+    expect(changed).toContain("200"); // 距离 1 邻居（x2,y0）：visibility 1 → 0
+    expect(changed).not.toContain("1"); // 非边连接，不揭示
+    expect(changed).not.toContain("2"); // 非边连接，不揭示
     // 已访问起点 0（state 2 / show 已有）不重复进变化集
     expect(changed).not.toContain("0");
     // nodeList 必须反映真实变化（否则退回归漏、全量兜底回归）

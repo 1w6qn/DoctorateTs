@@ -21,7 +21,7 @@ import {
   SocialGoodList,
   SocialShopData,
 } from "@excel/shop";
-import { PlayerDeltaResponse } from "./common";
+import { PlayerDeltaResponse } from "../../model/protocol/common";
 
 /* ===== 请求类型 ===== */
 

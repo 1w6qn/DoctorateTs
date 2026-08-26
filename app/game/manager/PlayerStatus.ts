@@ -159,7 +159,7 @@ export class PlayerStatus {
    * 保留深拷贝解冻逻辑仅作防御：若未来重新开启 autoFreeze，finishDraft 会冻结整个
    * _playerdata（含 rlv2 的 current/outer），JS 无法解冻已冻结对象 → 以深可变副本替换
    * _playerdata.rlv2 并重建顶层 _playerdata（与 AccountManager.deepFreezeExcept 排除 rlv2
-   * 的约定一致；RoguelikeV2Controller 的 this.outer/current 与 _playerdata.rlv2 保持引用
+   * 的约定一致；RoguelikeV2Manager 的 this.outer/current 与 _playerdata.rlv2 保持引用
    * 别名且可原地写）。
    */
   private _ensureMutableRlv2(): void {

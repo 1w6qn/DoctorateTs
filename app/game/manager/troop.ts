@@ -1,4 +1,4 @@
-import { PlayerSquad, PlayerSquadItem, PlayerCharEquipInfo } from "../model/character";
+import { PlayerSquad, PlayerSquadItem, PlayerCharEquipInfo, PlayerCharacter } from "../model/character";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
@@ -204,6 +204,14 @@ export class TroopManager {
       },
     ]);
     return result;
+  }
+
+  /**
+   * 读取玩家干员字典（跨模块只读查询，rlv2 等模块经此访问，不直接读 _playerdata）
+   * @returns 干员字典（instId → 干员数据）
+   */
+  getChars(): Record<string, PlayerCharacter> {
+    return this._player._playerdata.troop?.chars ?? {};
   }
 
   async fix(): Promise<void> {

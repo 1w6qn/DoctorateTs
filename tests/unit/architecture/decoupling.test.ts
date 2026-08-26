@@ -120,14 +120,14 @@ describe("架构解耦守卫", () => {
     // PDM 构造器不应再内联 new 这些子模块（应收敛到 player-composition.ts）
     const line = firstOffendingLine(
       pdmFile,
-      /new (StatusManager|InventoryManager|TroopManager|DungeonManager|HomeManager|CharRotationManager|CheckInManager|StoryreviewManager|MissionManager|ShopController|BattleManager|RecruitManager|RoguelikeV2Controller|SocialManager|GachaController|DexNavManager|BuildingManager|OpenServerManager|RetroManager|CharManager|EquipmentMissionManager|MedalManager|AprilFoolManager|BossRushManager)\(/,
+      /new (StatusManager|InventoryManager|TroopManager|DungeonManager|HomeManager|CharRotationManager|CheckInManager|StoryreviewManager|MissionManager|ShopManager|BattleManager|RecruitManager|RoguelikeV2Manager|SocialManager|GachaManager|DexNavManager|BuildingManager|OpenServerManager|RetroManager|CharManager|EquipmentMissionManager|MedalManager|AprilFoolManager|BossRushManager)\(/,
     );
     expect(line, `PlayerDataManager.ts:${line} 内联 new 子模块（应移入 player-composition.ts）`).toBeNull();
   });
 
   it("rlv2 控制器组合须经 rlv2-composition 工厂，不内联 new 子模块", () => {
-    const rlv2File = path.join(APP_ROOT, "game", "controller", "rlv2.ts");
-    const factoryFile = path.join(APP_ROOT, "game", "controller", "rlv2-composition.ts");
+    const rlv2File = path.join(APP_ROOT, "game", "modules", "rlv2", "logic.ts");
+    const factoryFile = path.join(APP_ROOT, "game", "modules", "rlv2", "rlv2-composition.ts");
     expect(fs.existsSync(factoryFile)).toBe(true);
     // 组合工厂必须存在且 rlv2 控制器引用它
     expect(firstOffendingLine(rlv2File, /composeRlv2ChildModules/)).not.toBeNull();
@@ -140,13 +140,27 @@ describe("架构解耦守卫", () => {
   });
 
   it("rlv2 主题模块分发表须经 rlv2-module-composition，module.ts 不直连 modules/*", () => {
-    const moduleFile = path.join(APP_ROOT, "game", "controller", "rlv2", "module.ts");
-    const factoryFile = path.join(APP_ROOT, "game", "controller", "rlv2-module-composition.ts");
+    const moduleFile = path.join(APP_ROOT, "game", "modules", "rlv2", "module.ts");
+    const factoryFile = path.join(APP_ROOT, "game", "modules", "rlv2", "rlv2-module-composition.ts");
     expect(fs.existsSync(factoryFile)).toBe(true);
     // module.ts 应消费组合工厂，而不是直接 import 各主题模块实现
     expect(firstOffendingLine(moduleFile, /composeRlv2ThemeModules/)).not.toBeNull();
     const line = firstOffendingLine(moduleFile, /from "\.\/modules\//);
     expect(line, `module.ts:${line} 直连主题模块（应经 rlv2-module-composition）`).toBeNull();
+  });
+
+  it("controller 层已移除：app/game/controller 目录不存在且无 @game/controller 引用", () => {
+    const controllerDir = path.join(APP_ROOT, "game", "controller");
+    expect(fs.existsSync(controllerDir)).toBe(false);
+    const gameDir = path.join(APP_ROOT, "game");
+    const offenders: string[] = [];
+    for (const file of collectFiles(gameDir, ".ts")) {
+      const line = firstOffendingLine(file, /@game\/controller\/|game\/controller\//);
+      if (line !== null) {
+        offenders.push(`${path.relative(APP_ROOT, file)}:${line} 引用已移除的 controller 层（应指向 @game/modules/*）`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 
   it("admin 层不得依赖 game 的 router 层（admin → @game/router 计数为 0）", () => {

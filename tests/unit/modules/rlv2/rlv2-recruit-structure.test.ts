@@ -5,7 +5,7 @@ vi.mock("@utils/crypt", () => ({
 }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData } from "../../../helpers";
 import excel from "@excel/excel";
 
 beforeAll(async () => {

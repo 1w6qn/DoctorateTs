@@ -32,7 +32,7 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData } from "../../../helpers";
 import excel from "@excel/excel";
 
 function makePlayer() {
@@ -59,7 +59,7 @@ describe("rlv2 不期而遇数据接入", () => {
 
   describe("event_choices.json 数据文件", () => {
     it("应存在且含 5 主题 enter/choices 结构", () => {
-      const data = require("../../../data/rlv2/event_choices.json");
+      const data = require("../../../../data/rlv2/event_choices.json");
       const themes = Object.keys(data);
       expect(themes.length).toBeGreaterThanOrEqual(5);
       for (const th of ["rogue_1", "rogue_2", "rogue_3", "rogue_4", "rogue_5"]) {

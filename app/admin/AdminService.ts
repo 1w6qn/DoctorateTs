@@ -278,7 +278,7 @@ function rlv2Key(seg: string, parent: Record<string, unknown>): string | number 
  * manager.toJSON() 为快照回写 current——若直接改 current.* 会被回写覆盖。故把补丁
  * 作用到 manager 实际持有的对象（其 toJSON 读取的同一引用）。record/game/buff 未
  * 被 manager 接管，直接落在 current。
- * @param ctl  - RoguelikeV2Controller（任意类型）
+ * @param ctl  - RoguelikeV2Manager（任意类型）
  * @param segs - 完整路径段（如 ["player","property","hp","current"]）
  * @returns 权威根对象 + 剩余路径段（已去掉顶层段）
  */
@@ -2692,7 +2692,7 @@ export class AdminService {
       const themes = JSON.parse(raw.slice(start + 1, end)) as object;
       // rogue_6 无相地图：构造模板等由黑流树海数据模块提供（并行 GRID_ZONE 同源）
       const { BLACKSTREAM_CONSTRUCTIONS, BLACKSTREAM_DISTANCE_RULES, BLACKSTREAM_COUNT_RULES, BLACKSTREAM_LAYER_TYPES } = await import(
-        "../game/controller/rlv2/modules/blackstream-data"
+        "../game/modules/rlv2/modules/blackstream-data"
       );
       return {
         themes,

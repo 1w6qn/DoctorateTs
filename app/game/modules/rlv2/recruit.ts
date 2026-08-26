@@ -1,7 +1,7 @@
 import excel from "@excel/excel";
 import { TroopManager } from "../../manager/troop";
 import { PlayerRoguelikeV2 } from "../../model/rlv2";
-import { RoguelikeV2Controller } from "../rlv2";
+import { RoguelikeV2Manager } from "./logic";
 import { now } from "@utils/time";
 import { rarityToIndex } from "@utils/rarity";
 import { TypedEventEmitter } from "@game/model/events";
@@ -9,10 +9,10 @@ import { TypedEventEmitter } from "@game/model/events";
 export class RoguelikeRecruitManager {
   tickets: { [key: string]: PlayerRoguelikeV2.CurrentData.Recruit };
   _troop: TroopManager;
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._index = 0;
     this.tickets = player.current.inventory?.recruit || {};
     this._troop = player._troop;
@@ -314,7 +314,7 @@ export class RoguelikeRecruitManager {
     //   skills 空/master {} /无 equip——activeRecruitTicket 抓包确认）。
     // 候选生成时 troopInstId 暂存玩家 instId（active() 里 troopInstId=char.instId），
     // 此处先读玩家源干员补齐养成，再覆写为对局内入队序号（1 基递增）。
-    const troopChars = this._player._player._playerdata.troop?.chars ?? {};
+    const troopChars = this._player._player.troop.getChars();
     const src = troopChars[String(picked.troopInstId)] as any;
     const troopNo = Object.keys(this._player.troop.chars).length + 1;
     // 首次招募精二干员时 active() 用 levelPatch 将候选锁定为精一（evolvePhase=1、

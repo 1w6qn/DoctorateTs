@@ -22,10 +22,10 @@ vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 vi.mock("@excel/shop", () => ({}));
 
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { ShopController } from "@game/controller/shop";
+import { mockPlayerData, mockTypedEventEmitter } from "../../../helpers";
+import { ShopManager } from "@game/modules/shop/logic";
 
-describe("ShopController 每日刷新", () => {
+describe("ShopManager 每日刷新", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
   let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
 
@@ -59,13 +59,13 @@ describe("ShopController 每日刷新", () => {
   });
 
   it("dailyRefresh 应清空低级商店每日限购记录", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     await controller.dailyRefresh();
     expect(mockPlayer._playerdata.shop!.LS.info).toEqual([]);
   });
 });
 
-describe("ShopController 购买", () => {
+describe("ShopManager 购买", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
   let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
 
@@ -106,7 +106,7 @@ describe("ShopController 购买", () => {
   });
 
   it("buyLowGood 应记录购买并触发扣费与发物", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     const items = await controller.buyLowGood({ goodId: "LS_1", count: 2 });
     expect(items).toEqual([{ id: "30012", count: 4 }]);
@@ -116,7 +116,7 @@ describe("ShopController 购买", () => {
   });
 
   it("buyHighGood 应记录高级商店购买", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const items = await controller.buyHighGood({ goodId: "HS_1", count: 1 });
     expect(items).toEqual([{ id: "30011", count: 1 }]);
     expect(mockPlayer._playerdata.shop!.HS.info).toContainEqual({ id: "HS_1", count: 1 });
@@ -164,7 +164,7 @@ describe("buildLMTGSGoodList 自动生成限定商店", () => {
   });
 
   it("应为当前限定池生成商品（限定六星 300/新五星 75/往期限定 300）", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const goods = controller.buildLMTGSGoodList();
     const cur = goods.filter((g) => g.goodId.startsWith("LIMITED_76_0_1"));
     // 本池 UP 六星 → 300 本池凭证
@@ -192,7 +192,7 @@ describe("buildLMTGSGoodList 自动生成限定商店", () => {
   });
 
   it("buyLMTGSGood 应扣对应池凭证并带 type 发放（CHAR → char:get）", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     const items = await controller.buyLMTGSGood({ goodId: "LIMITED_76_0_1_1", count: 1 });
     // 干员（CHAR）经 char:get 入账并返回带 instId（获得干员效果；测试环境无 char:get 订阅 → 0）
@@ -223,7 +223,7 @@ describe("buildSocialGoodList / buySocialGood 信用商店", () => {
   });
 
   it("buildSocialGoodList 无干员时应生成 10 个当天前缀的随机物资", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     controller.socialGoodList = { goodList: [], charPurchase: {} };
     const list = controller.buildSocialGoodList();
     // 无干员购买记录 → 无干员合同 → 10 个随机物资
@@ -239,7 +239,7 @@ describe("buildSocialGoodList / buySocialGood 信用商店", () => {
   });
 
   it("信用交易所物资：同日稳定、折扣高优先排前、价格=原价×(1-折扣)、特价仅限允许物资", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     controller.socialGoodList = { goodList: [], charPurchase: {} };
     // 候选池允许的全部物品 id
     const allowed = new Set([
@@ -278,7 +278,7 @@ describe("buildSocialGoodList / buySocialGood 信用商店", () => {
   });
 
   it("buySocialGood 应扣 socialPoint 并记录购买 + 发放", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     controller.socialGoodList = { goodList: [], charPurchase: {} };
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     // 取当日生成的第 1 个物资回传购买（goodId 为 buildSocialGoodList 动态生成）
@@ -296,7 +296,7 @@ describe("buildSocialGoodList / buySocialGood 信用商店", () => {
   });
 
   it("常规物资 availCount 应为 1（每日限购 1 次，修复前 -1 显示为无限）", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     controller.socialGoodList = { goodList: [], charPurchase: {} };
     const list = controller.buildSocialGoodList();
     // 官服抓包（R-1787479734940-0470 等）：信用交易所每个常规商品 availCount=1
@@ -306,7 +306,7 @@ describe("buildSocialGoodList / buySocialGood 信用商店", () => {
   });
 
   it("buySocialGood 同一商品每日限购 1 次（第二次购买抛 ShopError）", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     controller.socialGoodList = { goodList: [], charPurchase: {} };
     const good = controller.buildSocialGoodList().goodList[0];
     const goodId = good.goodId;
@@ -319,7 +319,7 @@ describe("buildSocialGoodList / buySocialGood 信用商店", () => {
   });
 
   it("buySocialGood 未知商品应返回空（不 500）", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     controller.socialGoodList = { goodList: [], charPurchase: {} };
     const items = await controller.buySocialGood({ goodId: "NOPE", count: 1 });
     expect(items).toEqual([]);
@@ -349,7 +349,7 @@ describe("buyFurniGroup 整组购买家具", () => {
   });
 
   it("应结算组内每个家具（扣家具币 + 发放 + 记录）并跳过未知商品", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     const items = await controller.buyFurniGroup({
       groupId: "test_group",
@@ -374,13 +374,13 @@ describe("buyFurniGroup 整组购买家具", () => {
   });
 
   it("空商品列表应返回空", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const items = await controller.buyFurniGroup({ groupId: "g", goods: [] });
     expect(items).toEqual([]);
   });
 });
 
-describe("ShopController 进度商品（buyClassicGood/buyHighGood progressGoodId）", () => {
+describe("ShopManager 进度商品（buyClassicGood/buyHighGood progressGoodId）", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
   let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
 
@@ -430,7 +430,7 @@ describe("ShopController 进度商品（buyClassicGood/buyHighGood progressGoodI
   });
 
   it("buyClassicGood 进度商品首次购买不崩（修复 progressInfo 判空顺序）", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const items = await controller.buyClassicGood({ goodId: "CL_1", count: 1 });
     // 首次购买按第 1 档发放/计价
     expect(items).toEqual([{ id: "30011", count: 1 }]);
@@ -443,7 +443,7 @@ describe("ShopController 进度商品（buyClassicGood/buyHighGood progressGoodI
   });
 
   it("buyHighGood 进度商品按档位扣费发放（非硬编码 5 档）", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     const items = await controller.buyHighGood({ goodId: "HS_P1", count: 1 });
     expect(items).toEqual([{ id: "4004", count: 5 }]);
@@ -454,7 +454,7 @@ describe("ShopController 进度商品（buyClassicGood/buyHighGood progressGoodI
   });
 });
 
-describe("ShopController 余额/限购校验", () => {
+describe("ShopManager 余额/限购校验", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
   let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
 
@@ -495,7 +495,7 @@ describe("ShopController 余额/限购校验", () => {
   });
 
   it("余额不足应抛 ShopError（不扣费不发放）", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     // lggShard=50，价格 20×3=60 不足
     await expect(
@@ -508,7 +508,7 @@ describe("ShopController 余额/限购校验", () => {
   });
 
   it("信用不足应拒绝购买（socialPoint 不扣成负数）", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     controller.socialGoodList = { goodList: [], charPurchase: {} };
     mockPlayer._playerdata.status.socialPoint = 0;
     // 信用 0 < 任意商品价格 → 拒绝，且不扣成负数
@@ -522,7 +522,7 @@ describe("ShopController 余额/限购校验", () => {
   });
 
   it("超过 availCount 限购应抛 ShopError", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     // 第一次购买（限购 1）
     await controller.buyLowGood({ goodId: "LS_LIMIT", count: 1 });
     // 第二次购买 → 超限购
@@ -572,7 +572,7 @@ describe("buyGoodWithTicket 礼包（周度礼包匹配 + 限购记录）", () =
   });
 
   it("周度礼包（GP_gW_*）应正常发放（修复原 'Wk' 永不匹配）", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const items = await controller.buyGoodWithTicket({
       ticketId: "ticket",
       goodId: "GP_gW_1_W_1",
@@ -581,7 +581,7 @@ describe("buyGoodWithTicket 礼包（周度礼包匹配 + 限购记录）", () =
   });
 
   it("一次性礼包超限购应抛 ShopError", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     await controller.buyGoodWithTicket({ ticketId: "t", goodId: "GP_Once_1" });
     await expect(
       controller.buyGoodWithTicket({ ticketId: "t", goodId: "GP_Once_1" }),
@@ -592,7 +592,7 @@ describe("buyGoodWithTicket 礼包（周度礼包匹配 + 限购记录）", () =
   });
 
   it("null 数据字段（chooseGroup 等）应防御不 500", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     // NpOne 类型请求遇到 chooseGroup=null → 空结果不崩溃
     const items = await controller.buyGoodWithTicket({
       ticketId: "t",
@@ -643,7 +643,7 @@ describe("buySkinGood 校验", () => {
   });
 
   it("皮肤表不存在的皮肤拒绝购买（数据错位防御）", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     await expect(
       controller.buySkinGood({ goodId: "SKIN_BAD" }),
     ).rejects.toThrow();
@@ -651,7 +651,7 @@ describe("buySkinGood 校验", () => {
 
   it("玩家存档无 shop.SKIN 时购买皮肤不 500（_shopDraft 兜底创建）", async () => {
     delete (mockPlayer._playerdata.shop as any).SKIN;
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     await controller.buySkinGood({ goodId: "SKIN_1" });
     // SKIN 被兜底创建且 info 记录写入
     const skin = (mockPlayer._playerdata.shop as any).SKIN;
@@ -661,21 +661,21 @@ describe("buySkinGood 校验", () => {
 
   it("shop.SKIN 已存在但 info 缺失时购买不 500（字段补全）", async () => {
     (mockPlayer._playerdata.shop as any).SKIN = { curShopId: "", gachaGood: { info: [] } };
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     await controller.buySkinGood({ goodId: "SKIN_1" });
     const skin = (mockPlayer._playerdata.shop as any).SKIN;
     expect(skin.info).toContainEqual({ id: "SKIN_1", count: 1 });
   });
 
   it("已拥有皮肤拒绝重复购买", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     await expect(
       controller.buySkinGood({ goodId: "SKIN_OWNED" }),
     ).rejects.toThrow();
   });
 
   it("正常购买应扣源石并记录 SKIN.info", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     await controller.buySkinGood({ goodId: "SKIN_1" });
     expect(emitSpy).toHaveBeenCalledWith("items:use", [
@@ -692,12 +692,12 @@ describe("buySkinGood 校验", () => {
       skinId: "skin_2",
       price: 9999,
     });
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     await expect(controller.buySkinGood({ goodId: "SKIN_2" })).rejects.toThrow();
   });
 });
 
-describe("ShopController 根据卡池自动生成（HS 高级凭证区 / CLASSIC 通用凭证区）", () => {
+describe("ShopManager 根据卡池自动生成（HS 高级凭证区 / CLASSIC 通用凭证区）", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
   let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
 
@@ -784,7 +784,7 @@ describe("ShopController 根据卡池自动生成（HS 高级凭证区 / CLASSIC
   });
 
   it("buildHighCharGoods 按当前标准池生成 6★180/5★45", () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const goods = controller.buildHighCharGoods();
     // 6★ → 180
     expect(goods.find((g) => g.item.id === "char_6s")?.price).toBe(180);
@@ -798,7 +798,7 @@ describe("ShopController 根据卡池自动生成（HS 高级凭证区 / CLASSIC
   });
 
   it("buildClassicCharGoods 按当前中坚池生成 6★2000/5★500", () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const goods = controller.buildClassicCharGoods();
     expect(goods.find((g) => g.item.id === "char_old6")?.price).toBe(2000);
     expect(goods.find((g) => g.item.id === "char_old5")?.price).toBe(500);
@@ -806,7 +806,7 @@ describe("ShopController 根据卡池自动生成（HS 高级凭证区 / CLASSIC
   });
 
   it("buildHighGoodList 合并动态干员 + 静态材料区", () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const list = controller.buildHighGoodList();
     const ids = list.goodList.map((g) => g.goodId);
     expect(ids.some((id) => id.startsWith("HS_NORM_76_0_1_"))).toBe(true);
@@ -814,7 +814,7 @@ describe("ShopController 根据卡池自动生成（HS 高级凭证区 / CLASSIC
   });
 
   it("buyHighGood 支持购买动态生成商品（按池扣高级凭证）", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     const good = controller.buildHighCharGoods().find((g) => g.item.id === "char_6s")!;
     const items = await controller.buyHighGood({ goodId: good.goodId, count: 1 });
@@ -825,14 +825,14 @@ describe("ShopController 根据卡池自动生成（HS 高级凭证区 / CLASSIC
   });
 
   it("buyClassicGood 支持购买动态生成商品（按池扣 2000）", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const good = controller.buildClassicCharGoods().find((g) => g.item.id === "char_old6")!;
     const items = await controller.buyClassicGood({ goodId: good.goodId, count: 1 });
     expect(items).toEqual([{ id: "char_old6", count: 1, type: "CHAR", instId: 0 }]);
   });
 
   it("refreshSocialShop 手动刷新信用交易所（重置 LS/SOCIAL 购买记录）", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     await controller.refreshSocialShop();
     const shop = mockPlayer._playerdata.shop as any;
     expect(shop.LS.info).toEqual([]);
@@ -857,7 +857,7 @@ describe("ShopController 根据卡池自动生成（HS 高级凭证区 / CLASSIC
         upCharInfo: { perCharList: [{ rarityRank: 5, charIdList: ["char_old6c"], percent: 0.25, count: 1 }] },
       },
     };
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     // 已过期池（now > endTime）仍作为最近一期回退
     expect(controller.buildHighCharGoods().some((g) => g.item.id === "char_old6b")).toBe(true);
     expect(controller.buildClassicCharGoods().some((g) => g.item.id === "char_old6c")).toBe(true);
@@ -877,7 +877,7 @@ describe("ShopController 根据卡池自动生成（HS 高级凭证区 / CLASSIC
         upCharInfo: { perCharList: [{ rarityRank: 5, charIdList: ["char_old6c"], percent: 0.25, count: 1 }] },
       },
     };
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     // 回退池已结束（endTime=1710000000 < now），商品 goodEndTime 应顺延为未来，避免客户端按过期时间下架
     const nowSec = Math.floor(Date.now() / 1000);
     for (const g of [
@@ -892,7 +892,7 @@ describe("ShopController 根据卡池自动生成（HS 高级凭证区 / CLASSIC
   });
 });
 
-describe("ShopController 中坚甄选券（FESCLASSIC 自选卡池）", () => {
+describe("ShopManager 中坚甄选券（FESCLASSIC 自选卡池）", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
   let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
   let excelMock: any;
@@ -956,7 +956,7 @@ describe("ShopController 中坚甄选券（FESCLASSIC 自选卡池）", () => {
         classic_fes_pick_tier_5_7601: { name: "中坚甄选5星干员" },
       },
     };
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const hs = controller.buildFesPickGoods("HS");
     expect(hs).toHaveLength(2);
     expect(hs[0]).toMatchObject({
@@ -985,7 +985,7 @@ describe("ShopController 中坚甄选券（FESCLASSIC 自选卡池）", () => {
         classic_fes_pick_tier_6_4401: { name: "中坚甄选6星干员" },
       },
     };
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const hs = controller.buildFesPickGoods("HS");
     // 池 76 的券未收录 → 回退到已收录的后缀最大的 6★ 券
     expect(hs[0].item.id).toBe("classic_fes_pick_tier_6_4401");
@@ -1000,7 +1000,7 @@ describe("ShopController 中坚甄选券（FESCLASSIC 自选卡池）", () => {
         classic_fes_pick_tier_5_7601: {},
       },
     };
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const high = controller.buildHighGoodList();
     expect(high.goodList.some((g) => g.item.type === "CLASSIC_FES_PICK_TIER_6")).toBe(true);
     expect(high.goodList.some((g) => g.goodId.startsWith("HS_FESPICK6_"))).toBe(true);
@@ -1016,7 +1016,7 @@ describe("ShopController 中坚甄选券（FESCLASSIC 自选卡池）", () => {
         classic_fes_pick_tier_5_7601: {},
       },
     };
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     const hsGood = controller.buildFesPickGoods("HS").find((g) => g.goodId.startsWith("HS_FESPICK6_"))!;
     const items = await controller.buyHighGood({ goodId: hsGood.goodId, count: 1 });
@@ -1035,7 +1035,7 @@ describe("ShopController 中坚甄选券（FESCLASSIC 自选卡池）", () => {
         { gachaPoolId: "NORM_76_0_1", gachaRuleType: 0, gachaIndex: 100, openTime: 1700000000, endTime: 1999999999 },
       ],
     };
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     expect(controller.buildFesPickGoods("HS")).toEqual([]);
     expect(controller.buildFesPickGoods("KS")).toEqual([]);
   });
@@ -1052,14 +1052,15 @@ describe("ShopController 中坚甄选券（FESCLASSIC 自选卡池）", () => {
         availCharInfo: { perAvailList: [] },
       },
     };
-    // 模拟 GachaController.effectiveUpPerCharList（getPoolDetail/商店共用）：返回玩家已选 UP
-    (mockPlayer as any).gacha = {
-      effectiveUpPerCharList: () => [
-        { rarityRank: 5, charIdList: ["sel_6"], percent: 0.25, count: 1 },
-        { rarityRank: 4, charIdList: ["sel_5"], percent: 0.1667, count: 1 },
-      ],
+    // 模拟玩家在 FESCLASSIC 池的 choosePoolUp 自选（resolveEffectiveUpPerCharList 读取 gacha.fesClassic[poolId].upChar）
+    (mockPlayer as any)._playerdata.gacha = {
+      fesClassic: {
+        FESCLASSIC_76_0_2: {
+          upChar: { 5: ["sel_6"], 4: ["sel_5"] },
+        },
+      },
     };
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const goods = controller.buildClassicCharGoods();
     expect(goods.some((g) => g.item.id === "sel_6" && g.price === 2000)).toBe(true);
     expect(goods.some((g) => g.item.id === "sel_5" && g.price === 500)).toBe(true);
@@ -1134,7 +1135,7 @@ describe("LMTGS 按当期卡池代币过滤 + REP 剩余数量", () => {
   });
 
   it("buildLMTGSGoodList 只生成当期池商品（跨池商品不存在）", () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const goods = controller.buildLMTGSGoodList();
     expect(goods.length).toBeGreaterThan(0);
     // 全部商品属于当期池且代币为当期池
@@ -1155,13 +1156,13 @@ describe("LMTGS 按当期卡池代币过滤 + REP 剩余数量", () => {
       openTime: 1600000000,
       endTime: 1610000000,
     }));
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     // 全部过期 → 回退最近一期（LIMITED_76_0_1 openTime 更大）
     expect(controller.currentLimitedPool()?.gachaPoolId).toBe("LIMITED_76_0_1");
   });
 
   it("buildREPGoodList 已购超限时 availCount 抬升（剩余不为负）", () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     const list = controller.buildREPGoodList();
     // good_REP_1 已购 500 > 静态 460 → availCount 抬升到 500，剩余 = 0 不为负
     const g1 = list.goodList.find((g) => g.goodId === "good_REP_1")!;
@@ -1229,7 +1230,7 @@ describe("信用交易所干员合同（点击干员进度不卡死）", () => {
       },
     };
     // 基座商品
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     controller.socialGoodList = {
       goodList: [
         {
@@ -1248,7 +1249,7 @@ describe("信用交易所干员合同（点击干员进度不卡死）", () => {
   });
 
   it("buildSocialGoodList 生成干员合同商品并补 creditGroup/costSocialPoint", () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     controller.socialGoodList = {
       goodList: [
         {
@@ -1294,7 +1295,7 @@ describe("信用交易所干员合同（点击干员进度不卡死）", () => {
   });
 
   it("buySocialGood 购买干员合同更新 charPurchase 并累计消费", async () => {
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     controller.socialGoodList = {
       goodList: [
         {
@@ -1339,7 +1340,7 @@ describe("信用交易所干员合同（点击干员进度不卡死）", () => {
       availCount: 1,
       item: { id: `3001${i}`, count: 1, type: "MATERIAL" },
     }));
-    const controller = new ShopController(mockPlayer as any, mockTrigger as any);
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
     controller.socialGoodList = { goodList: baseGoods, charPurchase: {} };
     void excelMock;
     const list = controller.buildSocialGoodList() as any;

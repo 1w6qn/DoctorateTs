@@ -194,7 +194,7 @@ router.post("/getVoucherDetail", validateBody(getVoucherDetailSchema), async (re
  * 凭证抽卡
  *
  * 使用凭证进行抽卡操作。当前为简化实现，返回玩家增量数据。
- * 完整实现需要根据凭证类型关联的卡池执行抽卡逻辑（参考 GachaController）。
+ * 完整实现需要根据凭证类型关联的卡池执行抽卡逻辑（参考 GachaManager）。
  * @route POST /depot/voucherGacha
  * @param req.body - 抽卡参数（含凭证物品ID等）
  * @returns 玩家增量数据
@@ -203,7 +203,7 @@ router.post("/voucherGacha", validateBody(voucherGachaSchema), async (req, res) 
   const player = getPlayer();
   req.body as VoucherGachaDetailRequest;
   // 简化实现：凭证抽卡逻辑较为复杂，需要根据凭证关联的卡池执行抽卡策略
-  // 当前仅返回玩家增量数据，完整实现可参考 GachaController.doAdvancedGacha
+  // 当前仅返回玩家增量数据，完整实现可参考 GachaManager.doAdvancedGacha
   res.send({
     ...player.delta,
   } satisfies VoucherGachaDetailResponse);

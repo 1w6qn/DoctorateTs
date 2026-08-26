@@ -92,7 +92,7 @@ router.post("/roguelike/milestoneRewardTryBest", validateBody(roguelikeMilestone
  * 升级局外增益（解锁增益树/科技树节点）
  *
  * 请求体：{ theme: "rogue_1", id: "outbuff_1" }（兼容 buffId 字段名）
- * 校验与扣点逻辑见 RoguelikeV2Controller.unlockBuff
+ * 校验与扣点逻辑见 RoguelikeV2Manager.unlockBuff
  *
  * @route POST /roguelike/upgradeOutBuff
  */
@@ -100,7 +100,7 @@ router.post("/roguelike/upgradeOutBuff", validateBody(roguelikeUpgradeOutBuffSch
   const player = getPlayer();
   const { theme, id, buffId } = (req.body ?? {}) as RoguelikeUpgradeOutBuffRequest;
   const buffId2 = id || buffId || "";
-  const ret = await player.rlv2.unlockBuff(theme, buffId2);
+  const ret = await player.modules.rlv2.unlockBuff(theme, buffId2);
   res.send({
     ...player.delta,
     result: ret.success ? 0 : 1,

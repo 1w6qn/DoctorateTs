@@ -8,7 +8,7 @@
  * }
  * 简化实现：开局持有 1 个随机 MOVE 型废品（载具）；changeVehicle 切换当前载具。
  */
-import { RoguelikeV2Controller } from "../../rlv2";
+import { RoguelikeV2Manager } from "../logic";
 import excel from "@excel/excel";
 import { now } from "@utils/time";
 import { TypedEventEmitter } from "@game/model/events";
@@ -39,10 +39,10 @@ export class RoguelikeScrapManager {
   inventory: { [key: string]: ScrapItem };
   limit: number;
   _index: number;
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
     // 官服 createGame scrap：activeVehicle 仅 { isWalk: true }（步行无 instId）、

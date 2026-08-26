@@ -38,8 +38,8 @@ const excelMock = vi.hoisted(() => ({
 vi.mock("@excel/excel", () => ({ default: excelMock }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { mockPlayerData } from "../../helpers";
-import { BLACKSTREAM_CONSTRUCTIONS } from "@game/controller/rlv2/modules/blackstream-data";
+import { mockPlayerData } from "../../../helpers";
+import { BLACKSTREAM_CONSTRUCTIONS } from "@game/modules/rlv2/modules/blackstream-data";
 
 function makePlayer() {
   const pd: any = mockPlayerData({
@@ -109,11 +109,12 @@ describe("GRID_ZONE 官服结构对齐（构造模板）", () => {
       const gz = (player.rlv2 as any)._module.gridZone;
       for (const zone of [1, 2]) {
         gz.generate([zone]);
-        const light = gz.toJSON().zones[`zone_${zone}`].nodes;
         const t = BLACKSTREAM_CONSTRUCTIONS.find((c) => c.layerIndex === zone - 1)!;
         const dist = gz.edgeDistances(t);
-        const startId = Object.entries(light).find(([, n]: any) => n.state === 2)![0];
-        for (const [id, n] of Object.entries(light) as [string, any][]) {
+        // 起点按模板 startSlot 定位（同层 5 用例）
+        const startId = String(t.startSlot[0] * 100 + t.startSlot[1]);
+        const zoneNodes = gz.zones[`zone_${zone}`].nodes;
+        for (const [id] of Object.entries(zoneNodes)) {
           if (dist.get(id) === 1 && id !== startId) {
             const mapN = (player.rlv2 as any)._map.zones[String(1000 + zone - 1)]?.nodes?.[id];
             expect(mapN?.type, `zone ${zone} 相邻 ${id}`).toBe(1);
@@ -129,14 +130,18 @@ describe("GRID_ZONE 官服结构对齐（构造模板）", () => {
       await (player.rlv2 as any)._module.create();
       const gz = (player.rlv2 as any)._module.gridZone;
       gz.generate([5]);
-      const light = gz.toJSON().zones["zone_5"].nodes;
+      const zoneNodes = gz.zones["zone_5"].nodes;
       const t5 = BLACKSTREAM_CONSTRUCTIONS.find((c) => c.layerIndex === 4)!;
       const dist = gz.edgeDistances(t5);
-      // 起点
-      const startId = Object.entries(light).find(([, n]: any) => n.state === 2)![0];
-      for (const [id, n] of Object.entries(light) as [string, any][]) {
+      // 起点按模板 startSlot 定位（初始点亮节点与填充林间空地均 state=2/kind=GLADE，
+      // 不能按 state 或 kind 唯一识别起点）
+      const startId = String(t5.startSlot[0] * 100 + t5.startSlot[1]);
+      for (const [id] of Object.entries(zoneNodes)) {
         if (id === startId) continue; // 起点不受距离规则约束
         const d = dist.get(id);
+        // 无边连通的孤立占位格（生成时按兜底距离铺林间空地）不参与沿边距离校验；
+        // 其余填充节点必须落在距离规则内（此前无林间空地填充时此分支从未触发）
+        if (d === undefined) continue;
         expect(d, `zone5 ${id} 距离`).toBeGreaterThanOrEqual(1);
       }
     });

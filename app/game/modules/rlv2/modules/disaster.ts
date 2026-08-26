@@ -1,14 +1,14 @@
 import excel from "@excel/excel";
 import { randomChoice } from "@utils/random";
 import { RoguelikeBuff } from "@game/model/rlv2";
-import { RoguelikeV2Controller } from "../../rlv2";
+import { RoguelikeV2Manager } from "../logic";
 import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeDisasterManager {
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
     this._trigger.on("rlv2:module:init", this.init.bind(this));

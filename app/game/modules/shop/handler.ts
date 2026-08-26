@@ -2,16 +2,16 @@
  * 商店路由模块
  *
  * 处理商店相关的 HTTP 请求，包括商品列表查询和各类商店的购买操作。
- * 路由层保持轻薄，业务逻辑委托给 ShopController / TroopManager 等 Manager 层处理。
- * 请求/响应类型见 @game/model/protocol/shop（参考 CS 2.7.61 协议类）。
+ * 路由层保持轻薄，业务逻辑委托给 ShopManager / TroopManager 等 Manager 层处理。
+ * 请求/响应类型见 ./models（参考 CS 2.7.61 协议类）。
  */
 
 import { Router } from "express";
-import { getPlayer, getPlayerOptional } from "../request-context";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
-import { ShopError } from "../controller/shop";
+import { getPlayer, getPlayerOptional } from "../../request-context";
+import { PlayerDataManager } from "../../manager/PlayerDataManager";
+import { ShopError } from "./errors";
 import excel from "@excel/excel";
-import config from "../../config";
+import config from "../../../config";
 import {
   BuyCashGoodRequest,
   BuyCashGoodResponse,
@@ -76,7 +76,7 @@ import {
   GetVoucherSkinGoodListResponse,
   UseVoucherSkinRequest,
   UseVoucherSkinResponse,
-} from "../model/protocol/shop";
+} from "./models";
 import {
   buyCashGoodSchema,
   buyClassicGoodSchema,
@@ -97,8 +97,8 @@ import {
   emptyRequestSchema,
   getGoodPurchaseStateSchema,
   useVoucherSkinSchema,
-} from "../model/protocol/shop.schema";
-import { validateBody } from "../model/protocol/validate-body";
+} from "./schemas";
+import { validateBody } from "../../model/protocol/validate-body";
 
 const router = Router();
 
@@ -211,8 +211,8 @@ router.post("/getLowGoodList", validateBody(emptyRequestSchema), async (req, res
   // 修复：跨月刷新——玩家 LS.curShopId 停留在旧月份（迁移/未触发 monthlyRefresh）时，
   // 客户端按它计算刷新倒计时 → 剩余时间为负。进入商店时若不是当月立即重置
   const ls = player._playerdata.shop?.LS as { curShopId?: string } | undefined;
-  if (ls && ls.curShopId !== player.shop.todayLowShopId()) {
-    await player.shop.monthlyRefresh();
+  if (ls && ls.curShopId !== player.modules.shop.todayLowShopId()) {
+    await player.modules.shop.monthlyRefresh();
   }
   res.send({
     ...excel.ShopTable.lowGoodList,
@@ -229,7 +229,7 @@ router.post("/getHighGoodList", validateBody(emptyRequestSchema), async (req, re
   const player = getPlayer();
   req.body as GetHighGoodListRequest;
   res.send({
-    ...player.shop.buildHighGoodList(),
+    ...player.modules.shop.buildHighGoodList(),
     ...player.delta,
   } satisfies GetHighGoodListResponse);
 });
@@ -243,7 +243,7 @@ router.post("/getClassicGoodList", validateBody(emptyRequestSchema), async (req,
   const player = getPlayer();
   req.body as GetClassicGoodListRequest;
   res.send({
-    ...player.shop.buildClassicGoodList(),
+    ...player.modules.shop.buildClassicGoodList(),
     ...player.delta,
   } satisfies GetClassicGoodListResponse);
 });
@@ -271,11 +271,11 @@ router.post("/getLMTGSGoodList", validateBody(emptyRequestSchema), async (req, r
   const player = getPlayer();
   req.body as GetLMTGSGoodListRequest;
   // 自动生成 + 静态合并：新限定池无需手动补 LMTGSGoodList.json
-  const auto = player.shop.buildLMTGSGoodList();
+  const auto = player.modules.shop.buildLMTGSGoodList();
   const staticList = excel.ShopTable.LMTGSGoodList;
   // 修复：静态商品仅保留当期池（按池前缀过滤）——原返回全部池商品，非当期池
   // 商品用旧池代币无法购买；自动商品已按当期池代币生成（见 buildLMTGSGoodList）
-  const poolId = player.shop.currentLimitedPool()?.gachaPoolId;
+  const poolId = player.modules.shop.currentLimitedPool()?.gachaPoolId;
   const staticGoods = poolId
     ? staticList.goodList.filter((g) => g.goodId.startsWith(poolId))
     : [];
@@ -302,8 +302,8 @@ router.post("/getExtraGoodList", validateBody(emptyRequestSchema), async (req, r
   // 修复：跨年刷新——玩家 ES.curShopId 停留在旧年份（如 xShdShopnumber2=2023）时，
   // 客户端按它计算刷新倒计时 → 剩余时间为负。进入商店时若不是当年立即重置
   const es = player._playerdata.shop?.ES as { curShopId?: string } | undefined;
-  if (es && es.curShopId !== player.shop.todayExtraShopId()) {
-    await player.shop.refreshExtraShop();
+  if (es && es.curShopId !== player.modules.shop.todayExtraShopId()) {
+    await player.modules.shop.refreshExtraShop();
   }
   res.send({
     ...excel.ShopTable.extraGoodList,
@@ -321,7 +321,7 @@ router.post("/getREPGoodList", validateBody(emptyRequestSchema), async (req, res
   req.body as GetREPGoodListRequest;
   res.send({
     // 修复：availCount 按已购数量抬升（剩余显示不为负，见 buildREPGoodList）
-    ...player.shop.buildREPGoodList(),
+    ...player.modules.shop.buildREPGoodList(),
     ...player.delta,
   } satisfies GetREPGoodListResponse);
 });
@@ -428,12 +428,12 @@ router.post("/getSocialGoodList", validateBody(emptyRequestSchema), async (req, 
   const social = player._playerdata.shop?.SOCIAL as
     | { curShopId?: string }
     | undefined;
-  if (social && social.curShopId !== player.shop.todaySocialShopId()) {
-    await player.shop.refreshSocialShop();
+  if (social && social.curShopId !== player.modules.shop.todaySocialShopId()) {
+    await player.modules.shop.refreshSocialShop();
   }
   // 信用商店：按当天日期自动生成（goodId = SOCIAL<YYYYMMDD>_...）
   res.send({
-    ...player.shop.buildSocialGoodList(),
+    ...player.modules.shop.buildSocialGoodList(),
     ...player.delta,
   } satisfies GetSocialGoodListResponse);
 });
@@ -450,7 +450,7 @@ router.post("/buySocialGood", validateBody(buySocialGoodSchema), async (req, res
   try {
     res.send({
       result: 0,
-      items: await player.shop.buySocialGood(body),
+      items: await player.modules.shop.buySocialGood(body),
       ...player.delta,
     } satisfies BuySocialGoodResponse);
   } catch (e) {
@@ -494,7 +494,7 @@ router.post("/buyLowGood", validateBody(buyLowGoodSchema), async (req, res) => {
   try {
     res.send({
       result: 0,
-      items: await player.shop.buyLowGood(body),
+      items: await player.modules.shop.buyLowGood(body),
       ...player.delta,
     } satisfies BuyLowGoodResponse);
   } catch (e) {
@@ -523,7 +523,7 @@ router.post("/buyHighGood", validateBody(buyHighGoodSchema), async (req, res) =>
   try {
     res.send({
       result: 0,
-      items: await player.shop.buyHighGood(body),
+      items: await player.modules.shop.buyHighGood(body),
       ...player.delta,
     } satisfies BuyHighGoodResponse);
   } catch (e) {
@@ -552,7 +552,7 @@ router.post("/buyExtraGood", validateBody(buyExtraGoodSchema), async (req, res) 
   try {
     res.send({
       result: 0,
-      items: await player.shop.buyExtraGood(body),
+      items: await player.modules.shop.buyExtraGood(body),
       ...player.delta,
     } satisfies BuyExtraGoodResponse);
   } catch (e) {
@@ -583,7 +583,7 @@ router.post("/buyCashGood", validateBody(buyCashGoodSchema), async (req, res) =>
   try {
     res.send({
       result: 0,
-      items: await player.shop.buyCashGood(body),
+      items: await player.modules.shop.buyCashGood(body),
       ...player.delta,
     } satisfies BuyCashGoodResponse);
   } catch (e) {
@@ -612,7 +612,7 @@ router.post("/buyEPGSGood", validateBody(buyEPGSGoodSchema), async (req, res) =>
   try {
     res.send({
       result: 0,
-      items: await player.shop.buyEPGSGood(body),
+      items: await player.modules.shop.buyEPGSGood(body),
       ...player.delta,
     } satisfies BuyEPGSGoodResponse);
   } catch (e) {
@@ -641,7 +641,7 @@ router.post("/buyREPGood", validateBody(buyREPGoodSchema), async (req, res) => {
   try {
     res.send({
       result: 0,
-      items: await player.shop.buyREPGood(body),
+      items: await player.modules.shop.buyREPGood(body),
       ...player.delta,
     } satisfies BuyREPGoodResponse);
   } catch (e) {
@@ -664,7 +664,7 @@ router.post("/buyREPGoodWithTicket", validateBody(buyREPGoodSchema), async (req,
   try {
     res.send({
       result: 0,
-      items: await player.shop.buyREPGood(body),
+      items: await player.modules.shop.buyREPGood(body),
       ...player.delta,
     } satisfies BuyREPGoodResponse);
   } catch (e) {
@@ -693,7 +693,7 @@ router.post("/buyClassicGood", validateBody(buyClassicGoodSchema), async (req, r
   try {
     res.send({
       result: 0,
-      items: await player.shop.buyClassicGood(body),
+      items: await player.modules.shop.buyClassicGood(body),
       ...player.delta,
     } satisfies BuyClassicGoodResponse);
   } catch (e) {
@@ -717,7 +717,7 @@ router.post("/buyLMTGSGood", validateBody(buyLMTGSGoodSchema), async (req, res) 
   try {
     res.send({
       result: 0,
-      items: await player.shop.buyLMTGSGood(body),
+      items: await player.modules.shop.buyLMTGSGood(body),
       ...player.delta,
     } satisfies BuyLMTGSGoodResponse);
   } catch (e) {
@@ -742,7 +742,7 @@ router.post("/buyFurniGroup", validateBody(buyFurniGroupSchema), async (req, res
   try {
     res.send({
       result: 0,
-      items: await player.shop.buyFurniGroup(body),
+      items: await player.modules.shop.buyFurniGroup(body),
       ...player.delta,
     } satisfies BuyFurniGoodResponse);
   } catch (e) {
@@ -760,7 +760,7 @@ router.post("/buyFurniGood", validateBody(buyFurniGoodSchema), async (req, res) 
   try {
     res.send({
       result: 0,
-      items: await player.shop.buyFurniGood(body),
+      items: await player.modules.shop.buyFurniGood(body),
       ...player.delta,
     } satisfies BuyFurniGoodResponse);
   } catch (e) {
@@ -787,7 +787,7 @@ router.post("/buySkinGood", validateBody(buySkinGoodSchema), async (req, res) =>
     return;
   }
   try {
-    await player.shop.buySkinGood(body);
+    await player.modules.shop.buySkinGood(body);
     res.send({ ...player.delta } satisfies BuySkinGoodResponse);
   } catch (e) {
     // 已拥有/源石不足 → result:1 业务错误而非 500
@@ -803,7 +803,7 @@ router.post("/buySkinGood", validateBody(buySkinGoodSchema), async (req, res) =>
  * 使用凭证购买礼包商店商品
  *
  * 对应参考实现中的 buyShopGoodWithTicket，使用凭证兑换礼包。
- * goodId 格式约定为 `GP_<goodType>_<序列>`，详见 ShopController.buyGoodWithTicket。
+ * goodId 格式约定为 `GP_<goodType>_<序列>`，详见 ShopManager.buyGoodWithTicket。
  * @route POST /shop/buyGoodWithTicket
  * @param req.body.ticketId - 凭证ID
  * @param req.body.goodId - 商品ID
@@ -828,7 +828,7 @@ router.post("/buyGoodWithTicket", validateBody(buyGoodWithTicketSchema), async (
     }
     res.send({
       result: 0,
-      items: await player.shop.buyGoodWithTicket(body),
+      items: await player.modules.shop.buyGoodWithTicket(body),
       ...player.delta,
     } satisfies BuyGoodWithTicketResponse);
   } catch (e) {
@@ -852,7 +852,7 @@ router.post("/getCashGoodPurchaseResult", validateBody(emptyRequestSchema), asyn
   const player = getPlayer();
   req.body as GetCashGoodPurchaseResultRequest;
   res.send({
-    result: await player.shop.getCashGoodPurchaseResult(),
+    result: await player.modules.shop.getCashGoodPurchaseResult(),
     ...player.delta,
   } satisfies GetCashGoodPurchaseResultResponse);
 });
@@ -869,7 +869,7 @@ router.post("/getVoucherSkinGoodList", validateBody(emptyRequestSchema), async (
   const player = getPlayer();
   req.body as GetVoucherSkinGoodListRequest;
   res.send({
-    ...player.shop.getVoucherSkinGoodList(),
+    ...player.modules.shop.getVoucherSkinGoodList(),
     ...player.delta,
   } satisfies GetVoucherSkinGoodListResponse);
 });
@@ -891,7 +891,7 @@ router.post("/useVoucherSkin", validateBody(useVoucherSkinSchema), async (req, r
     return;
   }
   try {
-    await player.shop.useVoucherSkin(body);
+    await player.modules.shop.useVoucherSkin(body);
     res.send({ ...player.delta } satisfies UseVoucherSkinResponse);
   } catch (e) {
     if (e instanceof ShopError) {
@@ -914,7 +914,7 @@ router.post("/checkForbidden", validateBody(emptyRequestSchema), async (req, res
   const player = getPlayer();
   req.body as CheckForbiddenRequest;
   res.send({
-    ...player.shop.checkForbidden(),
+    ...player.modules.shop.checkForbidden(),
     ...player.delta,
   } satisfies CheckForbiddenResponse);
 });

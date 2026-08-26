@@ -1,15 +1,15 @@
 import excel from "@excel/excel";
 import { PlayerRoguelikeV2, RoguelikeItemBundle } from "../../model/rlv2";
-import { RoguelikeV2Controller } from "../rlv2";
+import { RoguelikeV2Manager } from "./logic";
 import { now } from "@utils/time";
 import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeRelicManager {
   relics: { [key: string]: PlayerRoguelikeV2.CurrentData.Relic };
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._index = 0;
     this.relics = player.current.inventory?.relic || {};
     this._player = player;

@@ -1,15 +1,15 @@
 import { PlayerRoguelikeV2 } from "@game/model/rlv2";
-import { RoguelikeV2Controller } from "../../rlv2";
+import { RoguelikeV2Manager } from "../logic";
 import { TypedEventEmitter } from "@game/model/events";
 import excel from "@excel/excel";
 
 export class RoguelikeTotemManager {
   _totemPiece: PlayerRoguelikeV2.CurrentData.Module.InventoryTotem[];
   _predictTotemId: string | undefined;
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._totemPiece = [];
     this._trigger = _trigger;

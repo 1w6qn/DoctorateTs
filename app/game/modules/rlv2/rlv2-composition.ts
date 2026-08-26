@@ -1,30 +1,30 @@
 /**
  * rlv2 控制器子模块组合（Rlv2 Composition Factory）
  *
- * 将 RoguelikeV2Controller 构造器中「硬编码 new 8 个子管理器」抽取为可覆写的组合工厂，
+ * 将 RoguelikeV2Manager 构造器中「硬编码 new 8 个子管理器」抽取为可覆写的组合工厂，
  * 与 PlayerDataManager/player-composition 采用同款依赖注入（DI）模式：
  * - `composeRlv2ChildModules` 按原顺序构造全部子管理器；
- * - `RoguelikeV2Controller` 支持 `deps.modules` 部分覆写（测试可替换个别子模块，缩小构造面）。
+ * - `RoguelikeV2Manager` 支持 `deps.modules` 部分覆写（测试可替换个别子模块，缩小构造面）。
  *
  * 构造顺序即事件订阅顺序，必须与迁移前完全一致，以保持事件派发顺序不变。
  * 说明：子管理器需在控制器构造期持有 `this` 引用，故组合仍在控制器内执行，
  * 「构造哪些、顺序如何」已从业务类剥离为可覆写策略。
  */
-import type { RoguelikeV2Controller } from "./rlv2";
+import type { RoguelikeV2Manager } from "./logic";
 import type { TypedEventEmitter } from "@game/model/events";
-import { RoguelikeTroopManager } from "./rlv2/troop";
-import { RoguelikePlayerStatusManager } from "./rlv2/status";
-import { RoguelikeInventoryManager } from "./rlv2/inventory";
-import { RoguelikeBuffManager } from "./rlv2/buff";
-import { RoguelikeMapManager } from "./rlv2/map";
-import { RoguelikeModuleManager } from "./rlv2/module";
-import { RoguelikeBattleManager } from "./rlv2/battle";
-import { RoguelikePoolManager } from "./rlv2/pool";
+import { RoguelikeTroopManager } from "./troop";
+import { RoguelikePlayerStatusManager } from "./status";
+import { RoguelikeInventoryManager } from "./inventory";
+import { RoguelikeBuffManager } from "./buff";
+import { RoguelikeMapManager } from "./map";
+import { RoguelikeModuleManager } from "./module";
+import { RoguelikeBattleManager } from "./battle";
+import { RoguelikePoolManager } from "./pool";
 
 /**
  * rlv2 子模块集合（组合工厂返回值）
  *
- * 覆盖 RoguelikeV2Controller 创建的全部子管理器（不含 controller 自身）。
+ * 覆盖 RoguelikeV2Manager 创建的全部子管理器（不含 controller 自身）。
  */
 export interface Rlv2ChildModules {
   troop: RoguelikeTroopManager;
@@ -50,7 +50,7 @@ export interface Rlv2ChildModules {
  * @returns 全部子模块集合
  */
 export function composeRlv2ChildModules(
-  controller: RoguelikeV2Controller,
+  controller: RoguelikeV2Manager,
   trigger: TypedEventEmitter,
 ): Rlv2ChildModules {
   return {

@@ -17,8 +17,10 @@ const PLAYER_KEY = "playerData";
 /**
  * 门面门面类型
  *
- * 当前原样映射到 PlayerDataManager（组合根）；作为未来「接口化」的替换点，
- * 语义上表示「router 可访问的玩家门面」，而非具体实现类。
+ * 当前原样映射到 PlayerDataManager（组合根）。接口化受限：router 层既有 50+ 处
+ * 直接访问 `player._trigger.emit(...)` 与 `player._playerdata.*`（发事件/读快照的
+ * 既有合法模式），显式接口会破坏这些调用点；子模块访问已收敛为
+ * `player.modules.xxx`（见 PlayerDataManager.modules 聚合），新代码优先经此访问。
  */
 export type PlayerFacade = PlayerDataManager;
 

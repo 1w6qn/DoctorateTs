@@ -4,7 +4,7 @@ vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
 }));
 
-import rlv2Router from "../../../app/game/router/rlv2";
+import rlv2Router from "../../../app/game/modules/rlv2/handler";
 
 function mockRes() {
   return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };
@@ -18,29 +18,33 @@ describe("rlv2 路由", () => {
   beforeEach(async () => {
     player = {
       delta: { playerDataDelta: { modified: { status: { ap: 1 } }, deleted: {} } },
-      rlv2: {
-        persistCurrent: vi.fn(),
-        toJSON: () => ({ outer: {}, current: {} }),
-        refreshShop: vi.fn().mockResolvedValue(undefined),
-        leaveShop: vi.fn().mockResolvedValue(undefined),
-        useTotem: vi.fn().mockResolvedValue(undefined),
-        confirmPredict: vi.fn().mockResolvedValue(undefined),
-        closeRecruitTicket: vi.fn().mockResolvedValue(undefined),
-        selectChoice: vi.fn().mockResolvedValue(undefined),
-        battlePassGetReward: vi.fn().mockResolvedValue({ items: [{ type: "GOLD", id: "4001", count: 1 }] }),
-        nodeMissionConfirm: vi.fn().mockResolvedValue(undefined),
-        nodeMissionGiveUp: vi.fn().mockResolvedValue(undefined),
-        nodeMissionCloseTip: vi.fn().mockResolvedValue(undefined),
-        scrapIdentify: vi.fn().mockResolvedValue({
-          scrap: [{ id: "rogue_6_scrap_G_05", count: 1 }],
-          legacy: [{ id: "rogue_6_legacy_02", count: 1 }],
-        }),
-        battleFinish: vi.fn().mockResolvedValue(undefined),
-        chooseBattleReward: vi.fn().mockResolvedValue(undefined),
-        sacrificeChoice: vi.fn().mockResolvedValue(undefined),
-        // 多数端点经 rlv2Response 透传 takePushMessages；默认返回空数组，
-        // 保证未触发推送时响应不带 pushMessage 字段
-        takePushMessages: vi.fn().mockReturnValue([]),
+      modules: {
+        rlv2: {
+          persistCurrent: vi.fn(),
+          toJSON: () => ({ outer: {}, current: {} }),
+          snapshotCurrent: () => ({ outer: {}, current: {} }),
+          clearPushMessages: vi.fn(),
+          refreshShop: vi.fn().mockResolvedValue(undefined),
+          leaveShop: vi.fn().mockResolvedValue(undefined),
+          useTotem: vi.fn().mockResolvedValue(undefined),
+          confirmPredict: vi.fn().mockResolvedValue(undefined),
+          closeRecruitTicket: vi.fn().mockResolvedValue(undefined),
+          selectChoice: vi.fn().mockResolvedValue(undefined),
+          battlePassGetReward: vi.fn().mockResolvedValue({ items: [{ type: "GOLD", id: "4001", count: 1 }] }),
+          nodeMissionConfirm: vi.fn().mockResolvedValue(undefined),
+          nodeMissionGiveUp: vi.fn().mockResolvedValue(undefined),
+          nodeMissionCloseTip: vi.fn().mockResolvedValue(undefined),
+          scrapIdentify: vi.fn().mockResolvedValue({
+            scrap: [{ id: "rogue_6_scrap_G_05", count: 1 }],
+            legacy: [{ id: "rogue_6_legacy_02", count: 1 }],
+          }),
+          battleFinish: vi.fn().mockResolvedValue(undefined),
+          chooseBattleReward: vi.fn().mockResolvedValue(undefined),
+          sacrificeChoice: vi.fn().mockResolvedValue(undefined),
+          // 多数端点经 rlv2Response 透传 takePushMessages；默认返回空数组，
+          // 保证未触发推送时响应不带 pushMessage 字段
+          takePushMessages: vi.fn().mockReturnValue([]),
+        },
       },
     };
     res = mockRes();
@@ -67,22 +71,22 @@ describe("rlv2 路由", () => {
 
   it("POST /refreshShop 应调用控制器并返回 delta", async () => {
     await call("/refreshShop", {});
-    expect(player.rlv2.refreshShop).toHaveBeenCalled();
+    expect(player.modules.rlv2.refreshShop).toHaveBeenCalled();
     expectRlv2Response(res.send.mock.calls[0][0]);
   });
 
   it("POST /leaveShop 应调用控制器并返回 delta", async () => {
     await call("/leaveShop", {});
-    expect(player.rlv2.leaveShop).toHaveBeenCalled();
+    expect(player.modules.rlv2.leaveShop).toHaveBeenCalled();
     expectRlv2Response(res.send.mock.calls[0][0]);
   });
 
   it("POST /battleFinish 透传 pushMessage（战斗发放护盾/零件推送）", async () => {
-    player.rlv2.takePushMessages.mockReturnValue([
+    player.modules.rlv2.takePushMessages.mockReturnValue([
       { path: "rlv2GotRandScrap", payload: { idList: ["rogue_6_scrap_M_01"] } },
     ]);
     await call("/battleFinish", { battleData: {}, data: "", battleLog: "" });
-    expect(player.rlv2.battleFinish).toHaveBeenCalled();
+    expect(player.modules.rlv2.battleFinish).toHaveBeenCalled();
     const body = res.send.mock.calls[0][0];
     expect(body.pushMessage).toEqual([
       { path: "rlv2GotRandScrap", payload: { idList: ["rogue_6_scrap_M_01"] } },
@@ -90,11 +94,11 @@ describe("rlv2 路由", () => {
   });
 
   it("POST /chooseBattleReward 透传 pushMessage（领取零件组获得提示）", async () => {
-    player.rlv2.takePushMessages.mockReturnValue([
+    player.modules.rlv2.takePushMessages.mockReturnValue([
       { path: "rlv2GotRandScrap", payload: { idList: ["rogue_6_scrap_M_02"] } },
     ]);
     await call("/chooseBattleReward", { index: 1, sub: 0 });
-    expect(player.rlv2.chooseBattleReward).toHaveBeenCalledWith({ index: 1, sub: 0 });
+    expect(player.modules.rlv2.chooseBattleReward).toHaveBeenCalledWith({ index: 1, sub: 0 });
     const body = res.send.mock.calls[0][0];
     expect(body.pushMessage).toEqual([
       { path: "rlv2GotRandScrap", payload: { idList: ["rogue_6_scrap_M_02"] } },
@@ -102,11 +106,11 @@ describe("rlv2 路由", () => {
   });
 
   it("POST /sacrificeChoice 透传 pushMessage（献祭回报藏品推送）", async () => {
-    player.rlv2.takePushMessages.mockReturnValue([
+    player.modules.rlv2.takePushMessages.mockReturnValue([
       { path: "rlv2GotRandRelic", payload: { idList: ["rogue_6_relic_a"] } },
     ]);
     await call("/sacrificeChoice", { choice: "0" });
-    expect(player.rlv2.sacrificeChoice).toHaveBeenCalled();
+    expect(player.modules.rlv2.sacrificeChoice).toHaveBeenCalled();
     const body = res.send.mock.calls[0][0];
     expect(body.pushMessage).toEqual([
       { path: "rlv2GotRandRelic", payload: { idList: ["rogue_6_relic_a"] } },
@@ -115,7 +119,7 @@ describe("rlv2 路由", () => {
 
   it("POST /useTotem 应透传参数", async () => {
     await call("/useTotem", { totemIndex: ["t_0", "t_1"], nodeIndex: ["1"] });
-    expect(player.rlv2.useTotem).toHaveBeenCalledWith({
+    expect(player.modules.rlv2.useTotem).toHaveBeenCalledWith({
       totemIndex: ["t_0", "t_1"],
       nodeIndex: ["1"],
     });
@@ -124,25 +128,25 @@ describe("rlv2 路由", () => {
 
   it("POST /confirmPredict 应调用控制器并返回 delta", async () => {
     await call("/confirmPredict", {});
-    expect(player.rlv2.confirmPredict).toHaveBeenCalled();
+    expect(player.modules.rlv2.confirmPredict).toHaveBeenCalled();
     expectRlv2Response(res.send.mock.calls[0][0]);
   });
 
   it("POST /closeRecruitTicket 应透传 id", async () => {
     await call("/closeRecruitTicket", { id: "t_1" });
-    expect(player.rlv2.closeRecruitTicket).toHaveBeenCalledWith({ id: "t_1" });
+    expect(player.modules.rlv2.closeRecruitTicket).toHaveBeenCalledWith({ id: "t_1" });
     expectRlv2Response(res.send.mock.calls[0][0]);
   });
 
   it("POST /selectChoice 应调用控制器并透传 choice（抓包 body {choice}）", async () => {
     await call("/selectChoice", { choice: "choice_leave" });
-    expect(player.rlv2.selectChoice).toHaveBeenCalledWith({ choice: "choice_leave" });
+    expect(player.modules.rlv2.selectChoice).toHaveBeenCalledWith({ choice: "choice_leave" });
     expectRlv2Response(res.send.mock.calls[0][0]);
   });
 
   it("POST /battlePass_getReward（下划线路径）应调用控制器并带 items", async () => {
     await call("/battlePass_getReward", { theme: "rogue_2", rewards: ["bp_level_1"] });
-    expect(player.rlv2.battlePassGetReward).toHaveBeenCalledWith("rogue_2", ["bp_level_1"]);
+    expect(player.modules.rlv2.battlePassGetReward).toHaveBeenCalledWith("rogue_2", ["bp_level_1"]);
     const sent = res.send.mock.calls[0][0];
     expect(sent.items).toEqual([{ type: "GOLD", id: "4001", count: 1 }]);
     expectRlv2Response(sent);
@@ -150,25 +154,25 @@ describe("rlv2 路由", () => {
 
   it("POST /nodeMission_confirm（下划线路径）应调用控制器", async () => {
     await call("/nodeMission_confirm", {});
-    expect(player.rlv2.nodeMissionConfirm).toHaveBeenCalled();
+    expect(player.modules.rlv2.nodeMissionConfirm).toHaveBeenCalled();
     expectRlv2Response(res.send.mock.calls[0][0]);
   });
 
   it("POST /nodeMission_giveUp（下划线路径）应调用控制器", async () => {
     await call("/nodeMission_giveUp", {});
-    expect(player.rlv2.nodeMissionGiveUp).toHaveBeenCalled();
+    expect(player.modules.rlv2.nodeMissionGiveUp).toHaveBeenCalled();
     expectRlv2Response(res.send.mock.calls[0][0]);
   });
 
   it("POST /nodeMission_closeTip（下划线路径）应调用控制器", async () => {
     await call("/nodeMission_closeTip", {});
-    expect(player.rlv2.nodeMissionCloseTip).toHaveBeenCalled();
+    expect(player.modules.rlv2.nodeMissionCloseTip).toHaveBeenCalled();
     expectRlv2Response(res.send.mock.calls[0][0]);
   });
 
   it("POST /scrap/identify 应调用控制器并带 scrap/legacy", async () => {
     await call("/scrap/identify", { count: 3 });
-    expect(player.rlv2.scrapIdentify).toHaveBeenCalledWith({ count: 3 });
+    expect(player.modules.rlv2.scrapIdentify).toHaveBeenCalledWith({ count: 3 });
     const sent = res.send.mock.calls[0][0];
     expect(sent.scrap).toEqual([{ id: "rogue_6_scrap_G_05", count: 1 }]);
     expect(sent.legacy).toEqual([{ id: "rogue_6_legacy_02", count: 1 }]);
@@ -181,8 +185,8 @@ describe("rlv2 路由", () => {
    * rlv2Response 不应附加 pushMessage 字段（避免破坏客户端合并）。
    */
   it("POST /createGame 应透传控制器收集到的 pushMessage（rogue_6）", async () => {
-    player.rlv2.createGame = vi.fn().mockResolvedValue(undefined);
-    player.rlv2.takePushMessages = vi
+    player.modules.rlv2.createGame = vi.fn().mockResolvedValue(undefined);
+    player.modules.rlv2.takePushMessages = vi
       .fn()
       .mockReturnValue([{ path: "rlv2ScrapLimit", payload: {} }]);
     await call("/createGame", {
@@ -191,15 +195,15 @@ describe("rlv2 路由", () => {
       modeGrade: 0,
       predefinedId: null,
     });
-    expect(player.rlv2.createGame).toHaveBeenCalled();
-    expect(player.rlv2.takePushMessages).toHaveBeenCalled();
+    expect(player.modules.rlv2.createGame).toHaveBeenCalled();
+    expect(player.modules.rlv2.takePushMessages).toHaveBeenCalled();
     const sent = res.send.mock.calls[0][0];
     expect(sent.pushMessage).toEqual([{ path: "rlv2ScrapLimit", payload: {} }]);
   });
 
   it("POST /createGame 非 rogue_6 时响应应无 pushMessage 字段", async () => {
-    player.rlv2.createGame = vi.fn().mockResolvedValue(undefined);
-    player.rlv2.takePushMessages = vi.fn().mockReturnValue([]);
+    player.modules.rlv2.createGame = vi.fn().mockResolvedValue(undefined);
+    player.modules.rlv2.takePushMessages = vi.fn().mockReturnValue([]);
     await call("/createGame", {
       theme: "rogue_1",
       mode: "NORMAL",
@@ -216,8 +220,8 @@ describe("rlv2 路由", () => {
    * 下发多余字段 → 客户端合并 current.record 被污染；此用例锁回归。
    */
   it("POST /giveUpGame 应裁剪 current.record 为仅 {brief}", async () => {
-    player.rlv2.giveUpGame = vi.fn().mockResolvedValue(undefined);
-    player.rlv2.toJSON = () => ({
+    player.modules.rlv2.giveUpGame = vi.fn().mockResolvedValue(undefined);
+    player.modules.rlv2.snapshotCurrent = () => ({
       outer: {},
       current: {
         player: { state: "END" },
@@ -228,7 +232,7 @@ describe("rlv2 路由", () => {
       },
     });
     await call("/giveUpGame", {});
-    expect(player.rlv2.giveUpGame).toHaveBeenCalled();
+    expect(player.modules.rlv2.giveUpGame).toHaveBeenCalled();
     const sent = res.send.mock.calls[0][0];
     const rlv2 = sent.playerDataDelta.modified.rlv2;
     // current.record 只含 brief，不再携带多余 record 键

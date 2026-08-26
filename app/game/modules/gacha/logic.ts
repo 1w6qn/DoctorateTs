@@ -1,12 +1,12 @@
 /**
- * 抽卡控制器类
+ * 抽卡管理器类
  * 
  * 负责处理抽卡相关的核心业务逻辑，包括单抽、十连抽、保底机制、稀有度概率计算等。
  * 使用抽卡数据表配置和玩家数据管理器协同工作。
  */
 
-import { PlayerGacha } from "../model/playerdata";
-import { GachaResult, GachaType, GACHA_RULE_TYPE } from "../model/gacha";
+import { PlayerGacha } from "@game/model/playerdata";
+import { GachaResult, GachaType, GACHA_RULE_TYPE } from "@game/model/gacha";
 import {
   GachaDetailData,
   GachaDetailTable,
@@ -14,14 +14,14 @@ import {
 } from "@excel/gacha_detail_table";
 import { GachaPoolClientData } from "@excel/excel-types";
 import excel from "@excel/excel";
-import { accountManager } from "../manager/AccountManager";
+import { accountManager } from "@game/manager/AccountManager";
 import { ItemBundle } from "@excel/character_table";
 import { randomChoice, randomChoices } from "@utils/random";
 import { logger } from "@utils/logger";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 
-export class GachaController {
+export class GachaManager {
   /** 抽卡详情数据表 */
   _table: GachaDetailTable;
   /** 玩家数据管理器 */
@@ -661,32 +661,12 @@ export class GachaController {
    * @returns 合并玩家自选后的 perCharList（克隆）
    */
   effectiveUpPerCharList(poolId: string): GachaPerChar[] {
-    const detail = this._poolDetail(poolId);
-    const base: GachaPerChar[] = (detail.upCharInfo?.perCharList ?? []).map(
-      (c) => ({ ...c, charIdList: [...c.charIdList] }),
+    return resolveEffectiveUpPerCharList(
+      this._table,
+      excel.GachaTable.gachaPoolClient,
+      this.gacha,
+      poolId,
     );
-    const upChar = this._selfSelectedUpDict(poolId);
-    if (!upChar) return base;
-    const result = base.map((c) => ({ ...c, charIdList: [...c.charIdList] }));
-    for (const [rankKey, charIds] of Object.entries(upChar)) {
-      const rank = Number(rankKey);
-      if (!Number.isInteger(rank) || !Array.isArray(charIds) || !charIds.length) {
-        continue;
-      }
-      const ex = result.find((c) => c.rarityRank === rank);
-      if (ex) {
-        ex.charIdList = [...charIds];
-        ex.count = 1;
-      } else {
-        result.push({
-          rarityRank: rank,
-          charIdList: [...charIds],
-          percent: 0.35,
-          count: 1,
-        });
-      }
-    }
-    return result;
   }
 
   /**
@@ -709,4 +689,78 @@ export class GachaController {
       },
     };
   }
+}
+
+/**
+ * 生效 UP 干员列表（纯函数版，供 ShopManager 等跨模块直接调用）
+ *
+ * 内联 GachaManager.effectiveUpPerCharList/_selfSelectedUpDict 的实现：
+ * 静态 upCharInfo.perCharList 为基座，按稀有度用玩家自选 charIdList 覆盖。
+ * 详情缺失时回退首个结构完整卡池（upCharInfo 置空走通用池）。返回克隆，不改共享详情。
+ *
+ * @param table - 抽卡详情表（excel.GachaDetailTable）
+ * @param poolConfigs - 卡池客户端配置列表（excel.GachaTable.gachaPoolClient）
+ * @param gacha - 玩家抽卡数据（含自选 UP 字典）
+ * @param poolId - 抽卡池ID
+ * @returns 合并玩家自选后的 perCharList（克隆）
+ */
+export function resolveEffectiveUpPerCharList(
+  table: GachaDetailTable,
+  poolConfigs: GachaPoolClientData[],
+  gacha: PlayerGacha | undefined,
+  poolId: string,
+): GachaPerChar[] {
+  // _poolDetail 内联：缺详情回退首个结构完整卡池（无缓存，每次重建）
+  let d = table.details[poolId];
+  if (!d) {
+    const first = Object.values(table.details).find(
+      (x) => x?.availCharInfo?.perAvailList?.length,
+    );
+    d = first
+      ? ({
+          ...first,
+          upCharInfo: { perCharList: [] },
+          limitedChar: [],
+          weightUpCharInfoList: [],
+          gachaObjGroups: null,
+        } as GachaDetailData)
+      : ({
+          upCharInfo: { perCharList: [] },
+          availCharInfo: { perAvailList: [] },
+          gachaObjGroups: null,
+        } as unknown as GachaDetailData);
+  }
+  if (d && !("gachaObjGroups" in d)) {
+    (d as any).gachaObjGroups = null;
+  }
+  const base: GachaPerChar[] = (d.upCharInfo?.perCharList ?? []).map(
+    (c) => ({ ...c, charIdList: [...c.charIdList] }),
+  );
+  // _selfSelectedUpDict 内联：字典形态（{稀有度: 干员列表}）才合并
+  const cfg = poolConfigs.find((g) => g.gachaPoolId === poolId);
+  const gachaType = GACHA_RULE_TYPE[cfg?.gachaRuleType ?? ""] ?? "single";
+  const upChar: unknown = (gacha as any)?.[gachaType]?.[poolId]?.upChar;
+  if (!upChar || typeof upChar !== "object" || Array.isArray(upChar)) {
+    return base;
+  }
+  const result = base.map((c) => ({ ...c, charIdList: [...c.charIdList] }));
+  for (const [rankKey, charIds] of Object.entries(upChar)) {
+    const rank = Number(rankKey);
+    if (!Number.isInteger(rank) || !Array.isArray(charIds) || !charIds.length) {
+      continue;
+    }
+    const ex = result.find((c) => c.rarityRank === rank);
+    if (ex) {
+      ex.charIdList = [...charIds];
+      ex.count = 1;
+    } else {
+      result.push({
+        rarityRank: rank,
+        charIdList: [...charIds],
+        percent: 0.35,
+        count: 1,
+      });
+    }
+  }
+  return result;
 }

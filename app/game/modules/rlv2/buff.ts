@@ -1,19 +1,19 @@
 import { Blackboard } from "@excel/character_table";
 import excel from "@excel/excel";
 import { RoguelikeBuff, RoguelikeItemBundle } from "../../model/rlv2";
-import { RoguelikeV2Controller } from "../rlv2";
+import { RoguelikeV2Manager } from "./logic";
 import { RoguelikePlayerStatusManager } from "./status";
 import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeBuffManager {
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
   _buffs!: RoguelikeBuff[];
   _status: RoguelikePlayerStatusManager;
   /** 难度效果：进入下一区域损失源石锭百分比（difficulty zone_gold_loss_percent） */
   _zoneGoldLossPercent: number;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._status = this._player._status;
     this._buffs = [];
@@ -31,6 +31,10 @@ export class RoguelikeBuffManager {
   }
 
   async continue() {
+    // 重置防残留：续局重建控制器时重复执行 continue 会重复 push 藏品 buff；
+    // 上一局的难度/分队 buff 也不应带入新局（招募希望受上一把分队影响的根因之一）
+    this._buffs = [];
+    this._zoneGoldLossPercent = 0;
     const theme = this._player.current.game!.theme;
     Object.values(this._player.inventory!.relic).reduce((acc, relic) => {
       const buffs =
@@ -41,6 +45,11 @@ export class RoguelikeBuffManager {
   }
 
   async create() {
+    // 重置防残留：控制器为玩家持久实例，上一局的分队/难度/藏品 buff 存于 _buffs；
+    // 新局 createGame 只发 rlv2:create 不再发 rlv2:init（init 仅登录构造时），
+    // 若不重置，上把分队的 recruit_cost 等 buff 污染新局招募希望消耗。
+    this._buffs = [];
+    this._zoneGoldLossPercent = 0;
     const theme = this._player.current.game!.theme;
     const modeGrade = this._player.current.game!.modeGrade;
     // 存档可能没有该主题的 outer 数据（从未玩过）→ 容错
@@ -201,6 +210,14 @@ export class RoguelikeBuffManager {
 
   filterBuffs(key: string): RoguelikeBuff[] {
     return this._buffs.filter((buff) => buff.key == key);
+  }
+
+  /**
+   * 全部生效 buff 只读快照（battle 存档序列化用，不直接读 _buffs）
+   * @returns 当前全部 buff 数组（引用，调用方不得修改）
+   */
+  getBuffs(): RoguelikeBuff[] {
+    return this._buffs;
   }
 
   generateBuff(key: string, id: string, value: number): RoguelikeBuff {

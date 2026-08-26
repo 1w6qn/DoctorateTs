@@ -23,7 +23,7 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData } from "../../../helpers";
 
 /**
  * 2222 存档"无法放弃/无法继续"回归测试（2026-08-19）：

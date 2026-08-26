@@ -8,19 +8,19 @@
  * 每个工厂函数接收父控制器与事件触发器，构造对应主题模块管理器
  * （构造期即挂在控制器/事件上，与迁移前行为一致）。
  */
-import type { RoguelikeV2Controller } from "./rlv2";
+import type { RoguelikeV2Manager } from "./logic";
 import type { TypedEventEmitter } from "@game/model/events";
-import { RoguelikeFragmentManager } from "./rlv2/modules/fragment";
-import { RoguelikeDisasterManager } from "./rlv2/modules/disaster";
-import { RoguelikeNodeUpgradeManager } from "./rlv2/modules/node_upgrade";
-import { RoguelikeTotemManager } from "./rlv2/modules/totem";
-import { RoguelikeGridZoneManager } from "./rlv2/modules/grid_zone";
-import { RoguelikeWeatherManager } from "./rlv2/modules/weather";
-import { RoguelikeScrapManager } from "./rlv2/modules/scrap";
-import { RoguelikeDiceManager, RoguelikeSanManager } from "./rlv2/modules/dice";
-import { RoguelikeCopperManager } from "./rlv2/modules/copper";
-import { RoguelikeChaosManager, RoguelikeVisionManager } from "./rlv2/modules/chaos";
-import { RoguelikeSkyManager, RoguelikeWrathManager } from "./rlv2/modules/wrath_sky";
+import { RoguelikeFragmentManager } from "./modules/fragment";
+import { RoguelikeDisasterManager } from "./modules/disaster";
+import { RoguelikeNodeUpgradeManager } from "./modules/node_upgrade";
+import { RoguelikeTotemManager } from "./modules/totem";
+import { RoguelikeGridZoneManager } from "./modules/grid_zone";
+import { RoguelikeWeatherManager } from "./modules/weather";
+import { RoguelikeScrapManager } from "./modules/scrap";
+import { RoguelikeDiceManager, RoguelikeSanManager } from "./modules/dice";
+import { RoguelikeCopperManager } from "./modules/copper";
+import { RoguelikeChaosManager, RoguelikeVisionManager } from "./modules/chaos";
+import { RoguelikeSkyManager, RoguelikeWrathManager } from "./modules/wrath_sky";
 
 /**
  * 主题模块工厂表：moduleType 键 → 构造该模块管理器的工厂函数
@@ -36,7 +36,7 @@ export type Rlv2ModuleFactoryMap = {
  * @returns moduleType 键 → 模块构造工厂 的映射
  */
 export function composeRlv2ThemeModules(
-  controller: RoguelikeV2Controller,
+  controller: RoguelikeV2Manager,
   trigger: TypedEventEmitter,
 ): Rlv2ModuleFactoryMap {
   return {

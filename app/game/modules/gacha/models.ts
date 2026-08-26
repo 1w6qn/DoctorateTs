@@ -7,8 +7,8 @@
  */
 import { ItemBundle } from "@excel/character_table";
 import { GachaDetailData } from "@excel/gacha_detail_table";
-import { GachaResult, GachaType } from "../gacha";
-import { PlayerDeltaResponse } from "./common";
+import { GachaResult, GachaType } from "../../model/gacha";
+import { PlayerDeltaResponse } from "../../model/protocol/common";
 
 /** 同步普通招募状态请求（CS: SyncNormalGachaRequest，无字段） */
 export interface SyncNormalGachaRequest {}

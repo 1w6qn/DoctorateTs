@@ -50,7 +50,7 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData } from "../../../helpers";
 
 function makePlayer() {
   const pd: any = mockPlayerData({
@@ -138,13 +138,15 @@ describe("rlv2 battleFinish 战报字段消费（data/battleData/battleLog）", 
     expect(rewardEvent).toBeDefined();
   });
 
-  it("earn.damage 优先取战报 stats.totalDamage（战报驱动结算）", async () => {
+  it("earn.damage/hp/shield 恒 0（官服 battleFinish 口径；战报伤害仅存记录不入 earn）", async () => {
     await (player.rlv2 as any)._battle.finish([
       { battleLog: "", data: "encrypted", battleData: { completeState: 2 } },
     ]);
     const rewardEvent = (player.rlv2 as any)._status.pending.find(
       (e: any) => e.type === "BATTLE_REWARD",
     );
-    expect(rewardEvent.content.battleReward.earn.damage).toBe(1200);
+    expect(rewardEvent.content.battleReward.earn.damage).toBe(0);
+    expect(rewardEvent.content.battleReward.earn.hp).toBe(0);
+    expect(rewardEvent.content.battleReward.earn.shield).toBe(0);
   });
 });

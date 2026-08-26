@@ -7,7 +7,7 @@
  *
  * 简化实现：战斗胜利累积坍缩值，达到上限升层并随机挂一个坍缩（chaosDatas 按层过滤）。
  */
-import { RoguelikeV2Controller } from "../../rlv2";
+import { RoguelikeV2Manager } from "../logic";
 import excel from "@excel/excel";
 import { TypedEventEmitter } from "@game/model/events";
 
@@ -24,10 +24,10 @@ export class RoguelikeChaosManager {
     dChaos: string[];
   };
   lastBattleGain: number;
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
     this.value = 0;
@@ -140,10 +140,10 @@ export class RoguelikeChaosManager {
 export class RoguelikeVisionManager {
   value: number;
   isMax: number;
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
     this.value = 0;

@@ -70,8 +70,8 @@ vi.mock("@game/manager/AccountManager", () => ({
   },
 }));
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { GachaController } from "@game/controller/gacha";
+import { mockPlayerData, mockTypedEventEmitter } from "../../../helpers";
+import { GachaManager } from "@game/modules/gacha/logic";
 import { GachaType } from "@game/model/gacha";
 import { accountManager } from "@game/manager/AccountManager";
 import excelData from "@excel/excel";
@@ -79,7 +79,7 @@ import excelData from "@excel/excel";
 /** accountManager 模块 mock 的 saveBeforeNonHitCnt（vi.fn()，调用历史跨测试保留需手动 clear） */
 const saveSpy = vi.mocked(accountManager.saveBeforeNonHitCnt);
 
-describe("GachaController 抽卡扣费 costs 构造", () => {
+describe("GachaManager 抽卡扣费 costs 构造", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
   let mockTrigger: ReturnType<typeof mockTypedEventEmitter>;
 
@@ -107,7 +107,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
   });
 
   it("Diamond 单抽应只扣 600 合成玉（id=4003 带 type，且无 fallthrough）", async () => {
-    const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+    const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     // 阻断后续抽卡流程，只验证 costs 构造
     vi.spyOn(controller, "doAdvancedGacha").mockResolvedValue({
@@ -124,7 +124,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
   });
 
   it("SingleTicket 单抽应只扣 1 张寻访凭证（无 fallthrough）", async () => {
-    const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+    const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     vi.spyOn(controller, "doAdvancedGacha").mockResolvedValue({
       charInstId: 1,
@@ -140,7 +140,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
   });
 
   it("UseItem 单抽应扣客户端指定物品", async () => {
-    const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+    const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     vi.spyOn(controller, "doAdvancedGacha").mockResolvedValue({
       charInstId: 1,
@@ -154,7 +154,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
   });
 
   it("合成玉（DIAMOND_SHD）单抽余额按 diamondShard 校验，不误用源石 androidDiamond", async () => {
-    const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+    const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
     vi.spyOn(controller, "doAdvancedGacha").mockResolvedValue({
       charInstId: 1,
       charId: "char_001",
@@ -179,7 +179,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
   });
 
   it("BOOT 池 Diamond 单抽应扣 380 合成玉", async () => {
-    const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+    const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     vi.spyOn(controller, "doAdvancedGacha").mockResolvedValue({
       charInstId: 1,
@@ -195,7 +195,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
   });
 
   it("Diamond 十连应只扣 6000 合成玉", async () => {
-    const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+    const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     vi.spyOn(controller, "_pullOnce").mockResolvedValue({
       charId: "char_001",
@@ -209,7 +209,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
   });
 
   it("CombineTenTicket 十连应消耗客户端 itemList 且不叠加其他费用", async () => {
-    const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+    const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
     vi.spyOn(controller, "_pullOnce").mockResolvedValue({
       charId: "char_001",
@@ -226,7 +226,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
 
   describe("保底计数批量落盘（2026-08-10 速度优化）", () => {
     it("十连应只调用 saveBeforeNonHitCnt 一次（原每抽一次 SQLite 全表重写）", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       vi.spyOn(controller, "_pullOnce").mockImplementation(async ({ beforeNonHitCnt }) => ({
         charId: "char_001",
         beforeNonHitCnt: beforeNonHitCnt + 1,
@@ -243,7 +243,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("单抽 doAdvancedGacha 仍按次落盘且计数 +1", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       // 强制稀有度 4（非六星）→ 保底计数 +1
       vi.spyOn(controller, "_getRarityRank").mockResolvedValue(4);
       await controller.doAdvancedGacha({ poolId: "p_normal_1", useTkt: 0, itemId: "" });
@@ -251,14 +251,14 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("六星命中（rank 5）应重置保底计数为 0（修复 rank 恒 0 死值）", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       vi.spyOn(controller, "_getRarityRank").mockResolvedValue(5);
       await controller.doAdvancedGacha({ poolId: "p_normal_1", useTkt: 0, itemId: "" });
       expect(saveSpy).toHaveBeenCalledWith(10000, "NORMAL", 0);
     });
 
     it("十连中途中六星应重置计数后继续累积（rank 4,4,5 后清零，7 次未中 → 7）", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       const ranks = [4, 4, 5, 4, 4, 4, 4, 4, 4, 4];
       vi.spyOn(controller, "_getRarityRank").mockImplementation(
         () => Promise.resolve(ranks.shift()!),
@@ -275,7 +275,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
 
   describe("五星保底：一次性事件（2026-08-19 修复：原 cnt 少一 → 前 10 抽可能无五星）", () => {
     it("前 10 抽若无五星，第 10 抽强制五星；此后不再触发（一次性）且计数器不回绕", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       // 屏蔽六星（totalPercent 置 0）——否则 per6 恒命中六星，保底分支不可达
       (excelData as any).GachaDetailTable.details["p_normal_1"].availCharInfo.perAvailList[0].totalPercent = 0;
       // 初始化保底：累计抽数从 0 开始（cnt 只增不减，不回绕）
@@ -304,7 +304,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
 
   describe("缺详情卡池回退（2026-08-09 修复）", () => {
     it("_poolDetail 对 gacha_detail_table 缺失的卡池应回退而非抛错", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       // p_normal_1 在表内直接返回；LIMITED_76_0_1 缺失 → 回退（不抛错）
       expect(controller._poolDetail("p_normal_1")).toBeDefined();
       const fallback = controller._poolDetail("LIMITED_76_0_1");
@@ -313,7 +313,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("doAdvancedGacha 对缺失详情卡池应正常返回（不 500）", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       // char:get 事件 emit 会调用 mockTrigger.emit（测试环境无订阅），
       // 只验证不抛错——真实行为由实机冒烟覆盖
       await expect(
@@ -324,7 +324,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
 
   describe("ruleType 缺失处理（2026-08-09 修复）", () => {
     it("DOUBLE/CLASSIC_DOUBLE/BACKFLOW/SPECIAL 池应走通用 _handleGacha 不 500", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       // p_double_1 是 DOUBLE ruleType（此前 funcs 缺该键 → 500）
       await expect(
         controller.doAdvancedGacha({ poolId: "p_double_1", useTkt: 0, itemId: "" }),
@@ -334,7 +334,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
 
   describe("LIMITED 池 extraItem 接线（2026-08-10 修复：原 extras 死代码）", () => {
     it("LIMITED 池应透传 { from: LIMITED, extraItem: LMTGS 凭证 } 到 char:get", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       const emitSpy = vi.spyOn(mockTrigger, "emit");
       await controller.doAdvancedGacha({ poolId: "p_limited_1", useTkt: 0, itemId: "" });
       // emit 调用形如 emit("char:get", [charId, extras, callback])——extras 含 from/extraItem
@@ -349,7 +349,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("LIMITED 池缺 LMTGSID 时应回退 LMTGS_COIN 凭证（不再空 id 警告跳过）", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       const emitSpy = vi.spyOn(mockTrigger, "emit");
       // p_limited_2 无 LMTGSID → 回退 "LMTGS_COIN"
       await controller.doAdvancedGacha({ poolId: "p_limited_2", useTkt: 0, itemId: "" });
@@ -361,7 +361,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("普通池不携带 extraItem", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       const emitSpy = vi.spyOn(mockTrigger, "emit");
       await controller.doAdvancedGacha({ poolId: "p_normal_1", useTkt: 0, itemId: "" });
       const charGetCall = emitSpy.mock.calls.find((c) => c[0] === "char:get");
@@ -371,14 +371,14 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
 
   describe("中坚甄选自选卡池（self-select upChar 生效）", () => {
     it("GACHA_RULE_TYPE 应将 CLASSIC/FESCLASSIC 映射到对应存储键，不回落 single", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       // CLASSIC → classic，FESCLASSIC → fesClassic（此前都误回落 single）
       expect(controller._selfSelectedUpForRank("p_classic_1", 5)).toEqual([]);
       expect(controller._selfSelectedUpForRank("p_fesclassic_1", 5)).toEqual([]);
     });
 
     it("玩家已选该稀有度 UP（字典形态）时，_getRandomChar 应从自选列表中出", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       // 模拟 choosePoolUp 已写入：gacha[classic][poolId].upChar = { 5: [...], 4: [...] }
       mockPlayer._playerdata.gacha = {
         classic: {
@@ -393,7 +393,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("自选应替换静态 UP 的出率档：命中槽位出玩家所选而非详情静态 char_upA", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       mockPlayer._playerdata.gacha = {
         classic: {
           p_classic_1: { upChar: { "5": ["char_c5b"] } },
@@ -407,7 +407,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("无静态 UP 的自选池（FESCLASSIC）也按 35% 默认档出玩家所选", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       mockPlayer._playerdata.gacha = {
         fesClassic: {
           p_fesclassic_1: { upChar: { "5": ["char_f5a"] } },
@@ -421,7 +421,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("未命中自选概率槽时，从该稀有度候选池排除自选后出（不重复 UP）", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       mockPlayer._playerdata.gacha = {
         classic: {
           p_classic_1: { upChar: { "5": ["char_c5b"] } },
@@ -438,7 +438,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("玩家未自选时维持原静态 UP 逻辑（出静态 UP char_upA）", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       const rnd = vi.spyOn(Math, "random").mockReturnValue(0.1);
       const charId = await controller._getRandomChar("p_classic_1", 5, {});
       expect(charId).toBe("char_upA");
@@ -446,7 +446,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("effectiveUpPerCharList 用玩家自选覆盖静态 UP（按稀有度）", () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       // 模拟 choosePoolUp 已写入：gacha[classic][poolId].upChar = { 5:[...], 4:[...] }
       mockPlayer._playerdata.gacha = {
         classic: {
@@ -463,7 +463,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("getPoolDetail 返回的 detailInfo 应含玩家自选 UP（客户端据此生成所选卡池）", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       mockPlayer._playerdata.gacha = {
         classic: {
           p_classic_1: { upChar: { "5": ["char_c5b"], "4": ["char_c4c"] } },
@@ -480,7 +480,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("FESCLASSIC 无静态 UP 时自选按 35% 默认档注入 perCharList", () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       mockPlayer._playerdata.gacha = {
         fesClassic: {
           p_fesclassic_1: { upChar: { "5": ["char_f5a"] } },
@@ -499,7 +499,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
 
   describe("CLASSIC 自选池保底联动", () => {
     it("CLASSIC 池单抽未中六星（rank 4）应按 ruleType=CLASSIC 累计 +1", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       vi.spyOn(controller, "_getRarityRank").mockResolvedValue(4);
       await controller.doAdvancedGacha({ poolId: "p_classic_1", useTkt: 0, itemId: "" });
       // 保底计数按 ruleType 分组落盘（中坚甄选与 NORMAL 独立，不互相干扰）
@@ -507,14 +507,14 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("CLASSIC 池单抽中六星（rank 5）应按 ruleType=CLASSIC 重置为 0", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       vi.spyOn(controller, "_getRarityRank").mockResolvedValue(5);
       await controller.doAdvancedGacha({ poolId: "p_classic_1", useTkt: 0, itemId: "" });
       expect(saveSpy).toHaveBeenCalledWith(10000, "CLASSIC", 0);
     });
 
     it("CLASSIC 池十连统一落盘：全未中六星时 saveBeforeNonHitCnt 只调一次且计数为 10", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       // 强制 10 抽全为 5 星（rank 4，非六星）→ 保底计数从 0 累积到 10
       vi.spyOn(controller, "_getRarityRank").mockResolvedValue(4);
       await controller.tenAdvancedGacha({
@@ -527,7 +527,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("CLASSIC 池十连中途中六星应重置后继续累积（4,4,5 后 → 7）", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       const ranks = [4, 4, 5, 4, 4, 4, 4, 4, 4, 4];
       vi.spyOn(controller, "_getRarityRank").mockImplementation(
         () => Promise.resolve(ranks.shift()!),
@@ -542,7 +542,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("CLASSIC 池五星保底：前 10 抽若无五星，第 10 抽强制五星（一次性），自选池共用 normal 保底结构", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       // 屏蔽六星（totalPercent 置 0）→ per6 恒不命中
       (excelData as any).GachaDetailTable.details["p_classic_1"].availCharInfo.perAvailList[0].totalPercent = 0;
       await mockPlayer.update((draft: any) => {
@@ -563,7 +563,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("触发五星保底（rank>=4 的五星）后应关闭 avail，客户端不再显示保底提示", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       // 屏蔽六星权重 → 加权只会带 rank4（五星）/rank3，第 10 抽触发保底强制升 rank4
       (excelData as any).GachaDetailTable.details["p_classic_1"].availCharInfo.perAvailList[0].totalPercent = 0;
       await mockPlayer.update((draft: any) => {
@@ -578,7 +578,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("未到五星前（rank<4）不应关闭 avail，保底提示保留", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       // 屏蔽六星与四星权重 → 加权必落 rank3（<4），且不在保底点
       (excelData as any).GachaDetailTable.details["p_classic_1"].availCharInfo.perAvailList[0].totalPercent = 0;
       (excelData as any).GachaDetailTable.details["p_classic_1"].availCharInfo.perAvailList[1].totalPercent = 0;
@@ -593,7 +593,7 @@ describe("GachaController 抽卡扣费 costs 构造", () => {
     });
 
     it("CLASSIC 池六星保底硬化：beforeNonHitCnt≥50 时按 50 抽后每抽 +2% 六星（软保底）", async () => {
-      const controller = new GachaController(mockPlayer as any, mockTrigger as any);
+      const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
       // beforeNonHitCnt=99 → per6 基础 2% + (99-50)*0.02 = 2.98（>1）→ 必出六星
       const rank = await controller._getRarityRank("p_classic_1", { beforeNonHitCnt: 99 });
       expect(rank).toBe(5);

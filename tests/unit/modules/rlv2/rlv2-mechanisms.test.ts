@@ -120,7 +120,7 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData } from "../../../helpers";
 
 function makePlayer(outer: any = {}) {
   const pd: any = mockPlayerData({
@@ -518,7 +518,7 @@ describe("指挥等级/经验（2026-08-11 文档对齐）", () => {
     expect(Number.isNaN(p.hp.current)).toBe(false);
   });
 
-  it("finishBattleReward 应结算 earn.exp 战斗经验", async () => {
+  it("finishBattleReward 不再重复发放经验（经验已在 battleFinish 即时入账，对齐官服）", async () => {
     const player = await readyPlayer("rogue_1");
     (player.rlv2 as any)._status.property.exp = 0;
     (player.rlv2 as any)._status.property.level = 1;
@@ -528,8 +528,9 @@ describe("指挥等级/经验（2026-08-11 文档对齐）", () => {
       content: { battleReward: { rewards: [], earn: { exp: 10, hp: 0 }, show: "1", state: 0, isPerfect: 0 } },
     });
     await (player.rlv2 as any).finishBattleReward({});
-    // 10 exp → 升到 2 级
-    expect((player.rlv2 as any)._status.property.level).toBe(2);
+    // exp 已在 battleFinish 入账；finishBattleReward 不再二次发放（避免双重升级）
+    expect((player.rlv2 as any)._status.property.level).toBe(1);
+    expect((player.rlv2 as any)._status.property.exp).toBe(0);
     expect((player.rlv2 as any)._status.pending.length).toBe(0);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { buildRoguelikeConsts } from "../../../app/excel/roguelike_consts_gen";
+import { buildRoguelikeConsts } from "../../../../app/excel/roguelike_consts_gen";
 
 
 // ===== N15 开局血量回归 =====
@@ -12,15 +12,15 @@ import { buildRoguelikeConsts } from "../../../app/excel/roguelike_consts_gen";
 // 用真实 excel 数据
 vi.mock("@excel/excel", () => ({
   default: {
-    RoguelikeTopicTable: require("../../../data/excel/roguelike_topic_table.json"),
-    CharacterTable: require("../../../data/excel/character_table.json"),
-    GameDataConst: require("../../../data/excel/gamedata_const.json"),
-    RoguelikeConsts: buildRoguelikeConsts(require("../../../data/excel/roguelike_topic_table.json")),
+    RoguelikeTopicTable: require("../../../../data/excel/roguelike_topic_table.json"),
+    CharacterTable: require("../../../../data/excel/character_table.json"),
+    GameDataConst: require("../../../../data/excel/gamedata_const.json"),
+    RoguelikeConsts: buildRoguelikeConsts(require("../../../../data/excel/roguelike_topic_table.json")),
   },
 }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData } from "../../../helpers";
 
 function makePlayer(modeGrade = 15) {
   const pd: any = mockPlayerData({
@@ -158,7 +158,7 @@ describe("rlv2 响应 outer 精简（对齐官服 createGame）", () => {
     const player = makePlayer(15);
     const rlv2 = player.rlv2 as any;
     await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
-    const { rlv2Response } = await import("@game/router/rlv2");
+    const { rlv2Response } = await import("@game/modules/rlv2/handler");
     // 2026-08-18：outer 改为显式 outerKeys（对齐官服 createGame={record,monthTeam}）
     const resp = rlv2Response(player as any, undefined, undefined, ["record", "monthTeam"]);
     const r = resp.playerDataDelta.modified.rlv2;

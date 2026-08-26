@@ -12,7 +12,7 @@
  * 距起点徒步最短距离（沿普通连线数边）落在距离规则（BLACKSTREAM_DISTANCE_RULES）
  * 与数量规则（BLACKSTREAM_COUNT_RULES）范围内。节点 ID 与官服一致：x*100+y。
  */
-import { RoguelikeV2Controller } from "../../rlv2";
+import { RoguelikeV2Manager } from "../logic";
 import excel from "@excel/excel";
 import { TypedEventEmitter } from "@game/model/events";
 import {
@@ -169,7 +169,7 @@ export class RoguelikeGridZoneManager {
   needConfirmStepZero: boolean;
   /** 误入奇境隐藏层活动状态（未进入时为 null） */
   portal: GridPortalState | null;
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
   /**
    * 本层曲折密道（DOOR/TUNNEL）成对索引：zoneId(1 起) → [密道A id, 密道B id]。
@@ -199,7 +199,7 @@ export class RoguelikeGridZoneManager {
   /** 每次移动后流窜居民沿连通路径可移动的最大步数（官方每次 1 格） */
   private readonly BANDIT_STEP = 1;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
     this.zones = {};
@@ -341,10 +341,14 @@ export class RoguelikeGridZoneManager {
     const counts = this.typeCounts(template);
     for (const [x, y] of remaining) {
       const id = this.nodeId(x, y);
-      const d = dist.get(id) ?? 1;
+      const d = dist.get(id);
       const isStartAdjacent = d === 1;
       let type: number;
-      if (startAdjacentCombat && isStartAdjacent) {
+      if (d === undefined) {
+        // 无边连通的孤立占位格：固定铺林间空地（避免不可达的事件/战斗节点；
+        // 林间空地数量规则下限正好容纳此类填充）
+        type = ROGUE6_NODE.GLADE;
+      } else if (startAdjacentCombat && isStartAdjacent) {
         type = ROGUE6_NODE.BATTLE_NORMAL;
       } else {
         type = this.pickTypeByRules(zoneId, d, counts);
@@ -682,13 +686,21 @@ export class RoguelikeGridZoneManager {
    * @returns 网格节点
    */
   makeContentNode(type: number, pools: ZoneStagePools): GridNode {
+    // 官服 gridZone 节点 state 仅取 0/2（官服抓包确证，无中间态）：
+    // 初始点亮节点（险路尽头/险路恶敌/曲折密道/羽瞰点）= 2，其余 0；
+    // 起点 GLADE 由 generate 显式置 2，填充林间空地仍为 0（未访问）；
+    // 抵达后置 2（moveTo）。原实现揭示时置中间态 1 → 客户端可通行状态解析异常。
+    const state =
+      type !== ROGUE6_NODE.GLADE && ROGUE6_INITIALLY_LIT_NODES.includes(type)
+        ? 2
+        : 0;
     // “居民”据点使用独立关卡池（与首领 ro6_b_* 隔离）
     if (type === ROGUE6_NODE.RESIDENT) {
       const pool =
         pools.resident && pools.resident.length > 0 ? pools.resident : pools.normal;
       const stageId =
         pool[Math.floor(Math.random() * Math.max(pool.length, 1))] || "";
-      return { content: { savage: { stageId }, kind: type }, state: 0, show: true };
+      return { content: { savage: { stageId }, kind: type }, state, show: true };
     }
     if (ROGUE6_BATTLE_NODES.includes(type)) {
       const pool =
@@ -700,12 +712,12 @@ export class RoguelikeGridZoneManager {
       const usable = pool.length > 0 ? pool : pools.normal;
       const stageId =
         usable[Math.floor(Math.random() * Math.max(usable.length, 1))] || "";
-      return { content: { savage: { stageId }, kind: type }, state: 0, show: true };
+      return { content: { savage: { stageId }, kind: type }, state, show: true };
     }
     if (ROGUE6_SHOP_NODES.includes(type)) {
-      return { content: { shop: { goods: [] }, kind: type }, state: 0, show: true };
+      return { content: { shop: { goods: [] }, kind: type }, state, show: true };
     }
-    return { content: { kind: type }, state: 0, show: true };
+    return { content: { kind: type }, state, show: true };
   }
 
   /* ================= “居民”据点与流窜居民机制 ================= */
@@ -775,7 +787,7 @@ export class RoguelikeGridZoneManager {
     for (const rid of residentIds) {
       this._residentNodeKeys.add(this.banditKeyOf(zoneKey, rid));
       // 立即揭示：据点 + 其周边地图边邻居各 1 跳（初始版面，不进 rlv2NodeChange）
-      this.revealReachable(mapKey, zoneKey, Math.floor(Number(rid) / 100), Number(rid) % 100, 1, true);
+      this.revealReachable(mapKey, zoneKey, Math.floor(Number(rid) / 100), Number(rid) % 100, 1);
       // 周边邻居中生成若干流窜居民（占领）
       for (const nb of mapNodes[rid]?.next ?? []) {
         const nid = this.nodeId(nb.x, nb.y);
@@ -1098,8 +1110,10 @@ export class RoguelikeGridZoneManager {
     const dist = this.edgeDistances(template);
     for (const [x, y] of remaining) {
       const id = this.nodeId(x, y);
-      const d = dist.get(id) ?? 1;
-      const type = this.pickTypeByRules(6, d, {});
+      const d = dist.get(id);
+      // 孤立占位格铺林间空地（与常规层一致，避免不可达事件节点）
+      const type =
+        d === undefined ? ROGUE6_NODE.GLADE : this.pickTypeByRules(6, d, {});
       nodes[id] = this.makeContentNode(type, pools);
     }
 
@@ -1209,10 +1223,10 @@ export class RoguelikeGridZoneManager {
       // 并补偿 1 行动力（官方："前往该节点后，揭示范围扩大至周围12格并获得1行动力"）。
       // 普通节点仍沿地图边点亮可达路径首节点（1 跳）。
       if (node.content?.kind === ROGUE6_NODE.RAIN_VIEW) {
-        this.revealManhattan(mapKey, zoneKey, lastX, lastY, 2, true);
+        this.revealManhattan(mapKey, zoneKey, lastX, lastY, 2);
         this.stepRemain += 1;
       } else {
-        this.revealReachable(mapKey, zoneKey, lastX, lastY, 1, true);
+        this.revealReachable(mapKey, zoneKey, lastX, lastY, 1);
       }
     }
     return node;
@@ -1267,8 +1281,8 @@ export class RoguelikeGridZoneManager {
    * @param sx 起始 x（x*100+y 节点坐标）
    * @param sy 起始 y
    * @param hops 可达跳数（普通 1；羽瞰点 2）
-   * @param markAccessible 是否把揭示节点 gridZone state 0→1（可访问）。normal moveTo 传 true；
-   *  进层起点揭示传 false——官服进层后 gridZone 节点 state 只取 0/2（无中间态），仅点亮不升状态
+   * 注：官服 gridZone 节点 state 仅取 0/2（无中间态）——揭示仅改 map.zones visibility，
+   * 不改 gridZone state（原实现置中间态 1 → 客户端可通行状态解析异常）。
    */
   private revealReachable(
     mapZoneKey: string,
@@ -1276,7 +1290,6 @@ export class RoguelikeGridZoneManager {
     sx: number,
     sy: number,
     hops: number,
-    markAccessible = false,
   ): void {
     const zone = this.zones[zoneKey];
     const mapNodes = (this._player._map?.zones?.[mapZoneKey]?.nodes ||
@@ -1305,10 +1318,6 @@ export class RoguelikeGridZoneManager {
             mapNode.visibility = ROGUE6_FORESIGHT.NORMAL;
             changed = true;
           }
-          if (gzNode && markAccessible && gzNode.state === 0) {
-            gzNode.state = 1;
-            changed = true;
-          }
           if (changed) this._changedNodeIds.add(nid);
           nextFrontier.push(nb);
         }
@@ -1328,7 +1337,7 @@ export class RoguelikeGridZoneManager {
    * @param sx 羽瞰点 x（x*100+y 节点坐标）
    * @param sy 羽瞰点 y
    * @param radius 曼哈顿距离半径（默认 2；经过后 3）
-   * @param markAccessible 是否把揭示节点 gridZone state 0→1（可访问）
+   * 揭示仅改 visibility，不改 gridZone state（state 仅 0/2，见 revealReachable）
    */
   private revealManhattan(
     mapZoneKey: string,
@@ -1336,7 +1345,6 @@ export class RoguelikeGridZoneManager {
     sx: number,
     sy: number,
     radius: number,
-    markAccessible = false,
   ): void {
     const zone = this.zones[zoneKey];
     if (!zone) return;
@@ -1358,10 +1366,6 @@ export class RoguelikeGridZoneManager {
           ROGUE6_FORESIGHT.NORMAL
       ) {
         mapNode.visibility = ROGUE6_FORESIGHT.NORMAL;
-        changed = true;
-      }
-      if (gzNode && markAccessible && gzNode.state === 0) {
-        gzNode.state = 1;
         changed = true;
       }
       if (changed) this._changedNodeIds.add(nid);

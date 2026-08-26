@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { buildRoguelikeConsts } from "../../../app/excel/roguelike_consts_gen";
+import { buildRoguelikeConsts } from "../../../../app/excel/roguelike_consts_gen";
 
 // ===== 实践者列表（MONTH_TEAM）模式修复回归 =====
 // 用户 bug：MONTH_TEAM 开局血/血上限 0、希望 7、recruitChar 意外临时招募、finishEvent 后卡死。
@@ -13,15 +13,15 @@ import { buildRoguelikeConsts } from "../../../app/excel/roguelike_consts_gen";
 // 用真实 excel 数据（避免 mock 与官方 init 表结构偏差掩盖/伪造 bug）
 vi.mock("@excel/excel", () => ({
   default: {
-    RoguelikeTopicTable: require("../../../data/excel/roguelike_topic_table.json"),
-    CharacterTable: require("../../../data/excel/character_table.json"),
-    GameDataConst: require("../../../data/excel/gamedata_const.json"),
-    RoguelikeConsts: buildRoguelikeConsts(require("../../../data/excel/roguelike_topic_table.json")),
+    RoguelikeTopicTable: require("../../../../data/excel/roguelike_topic_table.json"),
+    CharacterTable: require("../../../../data/excel/character_table.json"),
+    GameDataConst: require("../../../../data/excel/gamedata_const.json"),
+    RoguelikeConsts: buildRoguelikeConsts(require("../../../../data/excel/roguelike_topic_table.json")),
   },
 }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData } from "../../../helpers";
 
 function makePlayer() {
   const pd: any = mockPlayerData({

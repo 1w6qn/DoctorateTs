@@ -1,7 +1,7 @@
 import excel from "@excel/excel";
 import { readFileSync } from "fs";
 import { RoguelikeItemBundle } from "../../model/rlv2";
-import { RoguelikeV2Controller } from "../rlv2";
+import { RoguelikeV2Manager } from "./logic";
 import { randomChoice } from "@utils/random";
 import { TypedEventEmitter } from "@game/model/events";
 import { logger } from "@utils/logger";
@@ -26,10 +26,10 @@ export class RoguelikePoolManager {
   /** 官方池定义（data/rlv2/pools.json，加载失败为 null 时回退推断实现） */
   _official: { pools: { [id: string]: OfficialPoolDef } } | null;
 
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._pools = {};
     this._poolWeights = {};
     this._player = player;

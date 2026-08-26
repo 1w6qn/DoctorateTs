@@ -1,16 +1,16 @@
 import { PlayerRoguelikeV2 } from "../../model/rlv2";
-import { RoguelikeV2Controller } from "../rlv2";
+import { RoguelikeV2Manager } from "./logic";
 import excel from "@excel/excel";
-import { composeRlv2ThemeModules } from "../rlv2-module-composition";
+import { composeRlv2ThemeModules } from "./rlv2-module-composition";
 import { toCamelCase } from "@utils/string";
 import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeModuleManager {
   _modules: { [key: string]: any };
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._modules = {};
     this._trigger = _trigger;
@@ -92,6 +92,14 @@ export class RoguelikeModuleManager {
   /** 网格区域管理器访问器（rogue_6 GRID_ZONE） */
   get gridZone(): any {
     return this._modules["GRID_ZONE"];
+  }
+
+  /**
+   * 主题模块存在性查询（battle 等子模块经此访问，不直接读 _modules）
+   * @param moduleId - 模块名（如 "SANCHECK" / "DICE"）
+   */
+  hasModule(moduleId: string): boolean {
+    return moduleId in this._modules;
   }
 
   /** 废品管理器访问器（rogue_6 SCRAP） */

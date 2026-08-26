@@ -1,5 +1,5 @@
 import { PlayerRoguelikeV2 } from "../../model/rlv2";
-import { RoguelikeV2Controller } from "../rlv2";
+import { RoguelikeV2Manager } from "./logic";
 import { omitKeys } from "@utils/object";
 import { TypedEventEmitter } from "@game/model/events";
 
@@ -11,10 +11,10 @@ export class RoguelikeTroopManager
   expedition: string[];
   expeditionDetails: { [key: string]: number };
   expeditionReturn: PlayerRoguelikeV2.CurrentData.ExpeditionReturn | null;
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._index = 0;
     this._player = player;
     this.chars = {};

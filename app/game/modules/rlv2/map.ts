@@ -5,7 +5,7 @@ import {
   RoguelikeBuff,
   TorappuRoguelikeEventType,
 } from "../../model/rlv2";
-import { RoguelikeV2Controller } from "../rlv2";
+import { RoguelikeV2Manager } from "./logic";
 import { TypedEventEmitter } from "@game/model/events";
 import excel from "@excel/excel";
 import * as crypto from "crypto";
@@ -13,11 +13,11 @@ import { readFileSync } from "fs";
 
 export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
   zones: { [key: string]: PlayerRoguelikeV2Zone };
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
   _nodesInfo: any;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this.zones = {};
     this._player = player;
     this._trigger = _trigger;

@@ -3,30 +3,30 @@ import {
   RoguelikeItemBundle,
   RoguelikeNodePosition,
   TorappuRoguelikeEventType,
-} from "../model/rlv2";
+} from "../../model/rlv2";
 import excel from "@excel/excel";
 import { readFileSync } from "fs";
 import zlib from "node:zlib";
 import { logger } from "@utils/logger";
-import { RoguelikeInventoryManager } from "./rlv2/inventory";
-import { TroopManager } from "../manager/troop";
-import { RoguelikeBuffManager } from "./rlv2/buff";
-import { RoguelikePlayerStatusManager } from "./rlv2/status";
+import { RoguelikeInventoryManager } from "./inventory";
+import { TroopManager } from "../../manager/troop";
+import { RoguelikeBuffManager } from "./buff";
+import { RoguelikePlayerStatusManager } from "./status";
 import { now } from "@utils/time";
-import { RoguelikeModuleManager } from "./rlv2/module";
-import { RoguelikeTroopManager } from "./rlv2/troop";
-import { RoguelikeMapManager } from "./rlv2/map";
+import { RoguelikeModuleManager } from "./module";
+import { RoguelikeTroopManager } from "./troop";
+import { RoguelikeMapManager } from "./map";
 import { PlayerSquad } from "@game/model/character";
-import { RoguelikeBattleManager } from "./rlv2/battle";
+import { RoguelikeBattleManager } from "./battle";
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { BattleData } from "@game/model/battle";
-import { RoguelikePoolManager } from "./rlv2/pool";
+import { RoguelikePoolManager } from "./pool";
 import {
   composeRlv2ChildModules,
   type Rlv2ChildModules,
 } from "./rlv2-composition";
-import { ROGUE6_NODE } from "./rlv2/modules/grid_zone";
+import { ROGUE6_NODE } from "./modules/grid_zone";
 import {
   ROGUE6_BATTLE_NODES,
   ROGUE6_SHOP_NODES,
@@ -38,13 +38,13 @@ import {
   ROGUE6_NON_PORTABLE_SCRAPS,
   ROLL_NODE_TYPE_VALUES,
   isBlackstream,
-} from "./rlv2/theme-rules";
+} from "./theme-rules";
 import { RoguelikeGameInitData } from "@excel/roguelike_topic_table";
 import { TypedEventEmitter } from "@game/model/events";
-import { RoguelikePushMessage } from "../model/protocol/common";
+import { RoguelikePushMessage } from "../../model/protocol/common";
 import { Draft } from "mutative";
 import { ItemBundle } from "@excel/character_table";
-import { Rogue6IncidentEngine } from "./rlv2/incident";
+import { Rogue6IncidentEngine } from "./incident";
 
 export class RoguelikeV2Config {
   choiceScenes: { [key: string]: { choices: { [key: string]: number } } };
@@ -66,18 +66,23 @@ export class RoguelikeV2Config {
       };
     };
   };
+  /** 招募组 → 标准职业映射（data/rlv2/recruit-groups.json） */
+  recruitGroups: { [key: string]: string[] };
 
   constructor() {
     this.choiceScenes = JSON.parse(
-      readFileSync(`${__dirname}/../../../data/rlv2/choices.json`, "utf-8"),
+      readFileSync(`${__dirname}/../../../../data/rlv2/choices.json`, "utf-8"),
     );
     this.eventChoices = JSON.parse(
-      readFileSync(`${__dirname}/../../../data/rlv2/event_choices.json`, "utf-8"),
+      readFileSync(`${__dirname}/../../../../data/rlv2/event_choices.json`, "utf-8"),
+    );
+    this.recruitGroups = JSON.parse(
+      readFileSync(`${__dirname}/../../../../data/rlv2/recruit-groups.json`, "utf-8"),
     );
   }
 }
 
-export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
+export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
   /**
    * 本控制器对 _playerdata.rlv2 的读视图（outer/current/pinned 恒为 live 引用）。
    *
@@ -254,6 +259,11 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     const out = this._pushMessages;
     this._pushMessages = [];
     return out;
+  }
+
+  /** 清空本次请求累积的 pushMessage（由 router 每请求前置复位，防跨请求泄漏） */
+  clearPushMessages(): void {
+    this._pushMessages = [];
   }
 
   /**
@@ -610,32 +620,25 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
 
     // 招募组 → 具体职业券映射（官方 recruitGrps 仅带 desc 文本"XX、YY、ZZ招募券各一张"，
     // 按 desc 中职业顺序映射到标准职业券；group_random 抽 3 张随机标准票）
-    const PROFESSIONS = [
-      "pioneer",
-      "warrior",
-      "tank",
-      "sniper",
-      "caster",
-      "support",
-      "medic",
-      "special",
-    ];
+    // 标准职业列表从 excel recruitTickets 键推导：`_recruit_ticket_<职业>` 后缀，
+    // 顺序即 excel 键顺序（实证与职业枚举顺序一致）
+    const CLASS_TICKET_RE =
+      /_recruit_ticket_(pioneer|warrior|tank|sniper|caster|support|medic|special)$/;
+    const recruitTickets =
+      (excel.RoguelikeTopicTable.details[theme] as any)?.recruitTickets ?? {};
+    const PROFESSIONS = Object.keys(recruitTickets)
+      .filter((t) => CLASS_TICKET_RE.test(t))
+      .map((t) => CLASS_TICKET_RE.exec(t)![1]);
     const roNum = theme.slice(-1);
-    const GROUP_PROFESSIONS: { [key: string]: string[] } = {
-      recruit_group_1: ["pioneer", "sniper", "special"], // 先手必胜：先锋、狙击、特种
-      recruit_group_2: ["tank", "caster", "sniper"], // 稳扎稳打：重装、术师、狙击
-      recruit_group_3: ["warrior", "support", "medic"], // 取长补短：近卫、辅助、医疗
-      recruit_group_4: ["pioneer", "support", "special"], // 灵活部署：先锋、辅助、特种
-      recruit_group_5: ["tank", "caster", "medic"], // 坚不可摧：重装、术师、医疗
-    };
+    // 招募组 → 具体职业券映射（官方 recruitGrps 仅带 desc 文本"XX、YY、ZZ招募券各一张"，
+    // 按 desc 中职业顺序映射到标准职业券；组合表在 data/rlv2/recruit-groups.json）
+    const GROUP_PROFESSIONS: { [key: string]: string[] } = this._data.recruitGroups;
     // 随心所欲：第 1 张 5 星临时招募券（含 5 星）、第 2 张近战四职业（近卫/先锋/重装/特种）、
-    // 第 3 张远程四职业（狙击/术师/医疗/辅助）
+    // 第 3 张远程四职业（狙击/术师/医疗/辅助）；ticket 存在性由 excel 校验
     const GROUP_TICKETS: { [key: string]: string[] } = {
-      recruit_group_random: [
-        `${theme}_recruit_ticket_5star`,
-        `${theme}_recruit_ticket_quad_melee`,
-        `${theme}_recruit_ticket_quad_ranged`,
-      ],
+      recruit_group_random: ["5star", "quad_melee", "quad_ranged"]
+        .map((kind) => `${theme}_recruit_ticket_${kind}`)
+        .filter((t) => recruitTickets[t]),
     };
     const pool = PROFESSIONS.map((p) => `rogue_${roNum}_recruit_ticket_${p}`).filter(
       (t) => (excel.RoguelikeTopicTable.details[theme] as any)?.recruitTickets?.[t],
@@ -869,6 +872,17 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     const gz = this._module?.gridZone;
     if (gz) {
       const zoneKey = gz.currentZoneKey();
+      // 起点 = state=2 且 kind=GLADE（官服 state 仅 0/2：初始点亮的险路尽头/密道/羽瞰点也为 2，
+      // 填充林间空地为 state=0，故 "state=2 且 GLADE" 唯一标识起点；不能仅按 state=2 取首个）
+      for (const [id, n] of Object.entries(gz.zones?.[zoneKey]?.nodes || {})) {
+        if (
+          (n as any)?.state === 2 &&
+          (n as any)?.content?.kind === ROGUE6_NODE.GLADE
+        ) {
+          return { x: Math.floor(Number(id) / 100), y: Number(id) % 100 };
+        }
+      }
+      // 兑底（旧存档/异常形态）：任一 state=2 节点
       for (const [id, n] of Object.entries(gz.zones?.[zoneKey]?.nodes || {})) {
         if ((n as any)?.state === 2) {
           return { x: Math.floor(Number(id) / 100), y: Number(id) % 100 };
@@ -1919,7 +1933,7 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
    */
   private createNodeScene(theme: string, nodeType: number): void {
     const prefixes =
-      RoguelikeV2Controller.NODE_SCENE_PREFIX[nodeType];
+      RoguelikeV2Manager.NODE_SCENE_PREFIX[nodeType];
     if (!prefixes) return;
     const detail = excel.RoguelikeTopicTable.details[theme];
     const sceneIds = Object.keys(detail.choiceScenes || {}).filter(
@@ -1987,30 +2001,23 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     if (rewardGrp.done) return;
     const reward = rewardGrp.items.find((r) => r.sub == args.sub);
     if (!reward) return;
-    // 招募券奖励：reward 无 type 字段，getItem 落 POOL 不触发招募（"拿到券不能招"）——
-    // 招募券定义在 details[theme].recruitTickets（非 items），据此识别并显式标记 RECRUIT_TICKET。
+    // 招募券奖励：仅入招募券库存（官服：战利品选券后券进券列表，由玩家自行激活）。
+    // 原实现标记 RECRUIT_TICKET 走 getItem → 自动激活并弹 RECRUIT 事件 → 战斗中异常弹出招募界面。
     const theme = this.current.game!.theme;
     const item: any = { ...reward };
     if (excel.RoguelikeTopicTable.details[theme]?.recruitTickets?.[item.id]) {
-      item.type = "RECRUIT_TICKET";
+      await this._trigger.emit("rlv2:recruit:gain", [item.id, "battle", 0]);
+    } else {
+      // await：getItem 为异步（gold/希望/零件实时入账），不 await 会先序列化旧状态（奖励不实时）
+      await this._trigger.emit("rlv2:get:items", [[item]]);
     }
-    // await：getItem 为异步（gold/希望/招募券实时入账），不 await 会先序列化旧状态（奖励不实时）
-    await this._trigger.emit("rlv2:get:items", [[item]]);
 
     rewardGrp.done = 1;
   }
 
   async finishBattleReward(args: {}) {
-    // 指挥等级经验结算（文档：战斗胜利后结算战斗经验——earn.exp 从战斗结果带入）
-    const rewardEvent = this._status.pending[0];
-    const earnExp = rewardEvent?.content?.battleReward?.earn?.exp;
-    if (earnExp) {
-      const theme = this.current.game!.theme;
-      // await：经验发放为异步，需在响应序列化前入账（否则 exp/升希望不实时）
-      await this._trigger.emit("rlv2:get:items", [
-        [{ id: `${theme}_exp`, count: earnExp }],
-      ]);
-    }
+    // 指挥等级经验已在 battleFinish 即时入账（对齐官服：battleFinish 响应内已含升级后
+    // exp/level）——此处不再重复发放，避免双重升级/希望增量（升级奖励异常根因）。
     this._status.pending.shift();
     await this.checkZoneEnd();
     this._status.state = "WAIT_MOVE";
@@ -3228,6 +3235,33 @@ export class RoguelikeV2Controller implements PlayerRoguelikeV2 {
     cur.record = j.current.record;
     cur.game = j.current.game;
     this._player.markDirty();
+  }
+
+  /**
+   * 内存态快照并写回存档（rlv2Response 单次调用）
+   *
+   * 合并 persistCurrent 与 toJSON 的重复构建：先取 toJSON 快照，写回
+   * _playerdata.rlv2.current 并 markDirty（供重登"继续探索"恢复），再返回
+   * 快照供响应组装复用——原实现 handler 先 persistCurrent() 再 toJSON()，
+   * 每次 rlv2 响应构建两次快照。
+   * @returns toJSON 全量快照（current/outer）
+   */
+  snapshotCurrent(): PlayerRoguelikeV2 {
+    const j = this.toJSON();
+    const pd = this._player._playerdata;
+    if (pd.rlv2?.current) {
+      const cur = pd.rlv2.current as any;
+      cur.player = j.current.player;
+      cur.map = j.current.map;
+      cur.inventory = j.current.inventory;
+      cur.troop = j.current.troop;
+      cur.buff = j.current.buff;
+      cur.module = j.current.module;
+      cur.record = j.current.record;
+      cur.game = j.current.game;
+      this._player.markDirty();
+    }
+    return j;
   }
 
   /**

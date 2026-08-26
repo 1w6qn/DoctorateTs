@@ -14,16 +14,16 @@ import { HomeManager } from "./home";
 import { StatusManager } from "./status";
 import { CheckInManager } from "./checkin";
 import { StoryreviewManager } from "./storyreview";
-import { MissionManager } from "./mission";
-import ShopController from "../controller/shop";
+import { MissionManager } from "@game/modules/mission/logic";
+import { ShopManager } from "@game/modules/shop/logic";
 import { RecruitManager } from "./recruit";
-import { RoguelikeV2Controller } from "../controller/rlv2";
+import { RoguelikeV2Manager } from "../modules/rlv2/logic";
 import { BattleManager } from "./battle";
-import { GachaController } from "../controller/gacha";
+import { GachaManager } from "@game/modules/gacha/logic";
 import { SocialManager } from "./social";
 import { DexNavManager } from "./dexnav";
 import { MedalManager } from "./medal";
-import { BuildingManager } from "./building";
+import { BuildingManager } from "@game/modules/building/logic";
 import { FriendDataWithNameCard, FriendMedalBoard } from "@game/model/social";
 import { OpenServerManager } from "@game/manager/activity/openServer";
 import { PlayerStatus } from "./PlayerStatus";
@@ -50,54 +50,61 @@ import { BossRushManager } from "@game/manager/activity/bossrush";
 export class PlayerDataManager {
   /** 状态引擎（Immer 状态管理、patch 聚合、序列化） */
   playerStatus: PlayerStatus;
+  /**
+   * 子模块聚合（组合根核心字段）
+   *
+   * 全部 23 个子模块经 composePlayerChildModules 构造后挂在 modules 下；
+   * 下方平铺字段为转发 getter（兼容既有调用点），新代码优先经 player.modules.xxx 访问。
+   */
+  modules: PlayerChildModules;
   /** 地牢管理器 */
-  dungeon: DungeonManager;
+  get dungeon(): DungeonManager { return this.modules.dungeon; }
   /** 背包管理器 */
-  inventory: InventoryManager;
+  get inventory(): InventoryManager { return this.modules.inventory; }
   /** 队伍管理器 */
-  troop: TroopManager;
+  get troop(): TroopManager { return this.modules.troop; }
   /** 状态管理器 */
-  status: StatusManager;
+  get status(): StatusManager { return this.modules.status; }
   /** 家园管理器 */
-  home: HomeManager;
+  get home(): HomeManager { return this.modules.home; }
   /** 角色轮换管理器 */
-  charRotation: CharRotationManager;
+  get charRotation(): CharRotationManager { return this.modules.charRotation; }
   /** 签到管理器 */
-  checkIn: CheckInManager;
+  get checkIn(): CheckInManager { return this.modules.checkIn; }
   /** 剧情回顾管理器 */
-  storyreview: StoryreviewManager;
+  get storyreview(): StoryreviewManager { return this.modules.storyreview; }
   /** 任务管理器 */
-  mission!: MissionManager;
-  /** 商店控制器 */
-  shop: ShopController;
+  get mission(): MissionManager { return this.modules.mission; }
+  /** 商店管理器 */
+  get shop(): ShopManager { return this.modules.shop; }
   /** 招募管理器 */
-  recruit: RecruitManager;
-  /** 肉鸽V2控制器 */
-  rlv2: RoguelikeV2Controller;
-  /** 抽卡控制器 */
-  gacha: GachaController;
+  get recruit(): RecruitManager { return this.modules.recruit; }
+  /** 肉鸽V2管理器 */
+  get rlv2(): RoguelikeV2Manager { return this.modules.rlv2; }
+  /** 抽卡管理器 */
+  get gacha(): GachaManager { return this.modules.gacha; }
   /** 社交管理器 */
-  social: SocialManager;
+  get social(): SocialManager { return this.modules.social; }
   /** 索引导航管理器 */
-  dexNav: DexNavManager;
+  get dexNav(): DexNavManager { return this.modules.dexNav; }
   /** 基建管理器 */
-  building: BuildingManager;
+  get building(): BuildingManager { return this.modules.building; }
   /** 开服活动管理器 */
-  openServer: OpenServerManager;
+  get openServer(): OpenServerManager { return this.modules.openServer; }
   /** 怀旧活动管理器 */
-  retro: RetroManager;
+  get retro(): RetroManager { return this.modules.retro; }
   /** 角色管理器 */
-  char: CharManager;
+  get char(): CharManager { return this.modules.char; }
   /** 模组任务管理器 */
-  equipmentMission: EquipmentMissionManager;
+  get equipmentMission(): EquipmentMissionManager { return this.modules.equipmentMission; }
   /** 勋章管理器 */
-  medal: MedalManager;
+  get medal(): MedalManager { return this.modules.medal; }
   /** 愚人节活动管理器 */
-  aprilFool: AprilFoolManager;
+  get aprilFool(): AprilFoolManager { return this.modules.aprilFool; }
   /** 尖灭测试（bossRush）活动管理器 */
-  bossRush: BossRushManager;
+  get bossRush(): BossRushManager { return this.modules.bossRush; }
   /** 战斗管理器 */
-  battle!: BattleManager;
+  get battle(): BattleManager { return this.modules.battle; }
   /** 事件触发器 */
   _trigger: TypedEventEmitter;
   /**
@@ -132,37 +139,18 @@ export class PlayerDataManager {
       listBattleRecords: async () => [],
     };
     this._trigger = new TypedEventEmitter();
+    // 构造期兼容：子模块构造器可能经 player.xxx 读兄弟模块（getter 转发到 modules），
+    // 先给空壳避免 TypeError——旧字段语义为 undefined，此处保持一致，组合完成后覆写。
+    this.modules = {} as PlayerChildModules;
     // 组合子模块：默认工厂按原顺序构造全部子模块；deps.modules 覆写个别模块。
     // 构造顺序即事件订阅顺序，必须与迁移前完全一致（见 player-composition.ts）。
     const composed = composePlayerChildModules(this, this._trigger);
     const m = { ...composed, ...deps?.modules };
-    this.status = m.status;
-    this.inventory = m.inventory;
-    this.troop = m.troop;
-    this.dungeon = m.dungeon;
-    this.home = m.home;
-    this.charRotation = m.charRotation;
-    this.checkIn = m.checkIn;
-    this.storyreview = m.storyreview;
-    this.mission = m.mission;
-    this.shop = m.shop;
-    this.battle = m.battle;
-    this.recruit = m.recruit;
-    this.rlv2 = m.rlv2;
-    this.social = m.social;
-    this.gacha = m.gacha;
-    this.dexNav = m.dexNav;
-    this.building = m.building;
-    this.openServer = m.openServer;
-    this.retro = m.retro;
-    this.char = m.char;
-    this.equipmentMission = m.equipmentMission;
-    this.medal = m.medal;
-    this.aprilFool = m.aprilFool;
-    this.bossRush = m.bossRush;
+    // 全部子模块挂到 modules 聚合下（平铺字段为转发 getter，见类字段声明）
+    this.modules = m;
     // init 的 promise 暴露给外部（AccountManager 加载后先 await 再播种活动任务，
     // 避免 MissionManager.init 的 missions["ACTIVITY"] = {} 清掉已播种条目）
-    this.mission.initPromise = this.mission
+    this.modules.mission.initPromise = this.modules.mission
       .init()
       .catch((e) => logger.error("MissionManager", `init failed: ${(e as Error).message}`));
     // 子模块初始化副作用

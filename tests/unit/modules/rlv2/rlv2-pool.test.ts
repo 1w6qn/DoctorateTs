@@ -39,8 +39,8 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { mockPlayerData } from "../../helpers";
-import { RoguelikePoolManager } from "@game/controller/rlv2/pool";
+import { mockPlayerData } from "../../../helpers";
+import { RoguelikePoolManager } from "@game/modules/rlv2/pool";
 
 function makePool() {
   const pd: any = mockPlayerData({

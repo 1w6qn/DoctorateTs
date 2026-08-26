@@ -12,18 +12,18 @@ import type {
   RoguelikeItemBundle,
 } from "@game/model/rlv2";
 import type { BattleData } from "@game/model/battle";
-import type { RoguelikeV2Controller } from "@game/controller/rlv2";
+import type { RoguelikeV2Manager } from "@game/modules/rlv2/logic";
 
 /**
  * 肉鸽V2 领域事件映射
  */
 export type EventMapRlv2 = {
   /** 肉鸽V2初始化事件 */
-  "rlv2:init": [RoguelikeV2Controller];
+  "rlv2:init": [RoguelikeV2Manager];
   /** 肉鸽V2模块初始化事件 */
   "rlv2:module:init": [];
   /** 肉鸽V2创建事件 */
-  "rlv2:create": [RoguelikeV2Controller];
+  "rlv2:create": [RoguelikeV2Manager];
   /** 肉鸽V2继续事件 */
   "rlv2:continue": [];
   /** 肉鸽V2移动事件 */

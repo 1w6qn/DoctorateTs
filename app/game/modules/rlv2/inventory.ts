@@ -1,7 +1,7 @@
 import { PlayerRoguelikeV2, RoguelikeItemBundle } from "../../model/rlv2";
 import { RoguelikeRelicManager } from "./relic";
 import { RoguelikeRecruitManager } from "./recruit";
-import { RoguelikeV2Controller } from "../rlv2";
+import { RoguelikeV2Manager } from "./logic";
 import excel from "@excel/excel";
 import { TypedEventEmitter } from "@game/model/events";
 import { logger } from "@utils/logger";
@@ -15,10 +15,10 @@ export class RoguelikeInventoryManager
   /** 黑流树海：已暂存（留存）的招募券（_candle 变体 id 列表）——"放弃招募券"= 留存券 */
   stashRecruit: string[];
   stashRecruitLimit: number;
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._relic = new RoguelikeRelicManager(player, _trigger);
     this._recruit = new RoguelikeRecruitManager(player, _trigger);
     this.trap = null;

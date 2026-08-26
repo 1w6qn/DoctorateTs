@@ -6,10 +6,10 @@
  */
 
 import { Router } from "express";
-import { getPlayer, getPlayerOptional } from "../request-context";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
-import { GACHA_RULE_TYPE } from "../model/gacha";
-import { validateBody } from "../model/protocol/validate-body";
+import { getPlayer, getPlayerOptional } from "../../request-context";
+import { PlayerDataManager } from "../../manager/PlayerDataManager";
+import { GACHA_RULE_TYPE } from "../../model/gacha";
+import { validateBody } from "../../model/protocol/validate-body";
 import {
   syncNormalGachaSchema,
   finishNormalGachaSchema,
@@ -23,7 +23,7 @@ import {
   tenAdvancedGachaSchema,
   choosePoolUpSchema,
   getFreeCharSchema,
-} from "../model/protocol/gacha.schema";
+} from "./schemas";
 import excel from "@excel/excel";
 import {
   AdvancedGachaRequest,
@@ -50,7 +50,7 @@ import {
   SyncNormalGachaResponse,
   TenAdvancedGachaRequest,
   TenAdvancedGachaResponse,
-} from "../model/protocol/gacha";
+} from "./models";
 
 const router = Router();
 
@@ -174,7 +174,7 @@ router.post("/getPoolDetail", validateBody(getPoolDetailSchema), async (req, res
   const player = getPlayer();
   const body = req.body as GetDetailGachaRequest;
   res.send({
-    detailInfo: await player.gacha.getPoolDetail(body),
+    detailInfo: await player.modules.gacha.getPoolDetail(body),
     gachaObjGroupType: 0,
     ...player.delta,
   } satisfies GetDetailGachaResponse);
@@ -191,7 +191,7 @@ router.post("/advancedGacha", validateBody(advancedGachaSchema), async (req, res
   const body = req.body as AdvancedGachaRequest;
   res.send({
     result: 0,
-    charGet: await player.gacha.advancedGacha(body),
+    charGet: await player.modules.gacha.advancedGacha(body),
     ...player.delta,
   } satisfies AdvancedGachaResponse);
 });
@@ -207,7 +207,7 @@ router.post("/tenAdvancedGacha", validateBody(tenAdvancedGachaSchema), async (re
   const body = req.body as TenAdvancedGachaRequest;
   res.send({
     result: 0,
-    gachaResultList: await player.gacha.tenAdvancedGacha(body),
+    gachaResultList: await player.modules.gacha.tenAdvancedGacha(body),
     ...player.delta,
   } satisfies TenAdvancedGachaResponse);
 });

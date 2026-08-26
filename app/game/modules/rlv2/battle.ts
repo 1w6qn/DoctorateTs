@@ -1,4 +1,4 @@
-import { RoguelikeV2Controller } from "../rlv2";
+import { RoguelikeV2Manager } from "./logic";
 import { BattleData } from "@game/model/battle";
 import { decryptBattleData, decryptBattleReplay } from "@utils/crypt";
 import { TypedEventEmitter } from "@game/model/events";
@@ -17,7 +17,7 @@ const battleSessionByUid = new Map<
 /**
  * 组装 rlv2 战斗结束记录（battle_records 表留存，供未来分析）
  *
- * @param controller - RoguelikeV2Controller（提供 _player.data 访问底层 PlayerDataManager）
+ * @param controller - RoguelikeV2Manager（提供 _player.data 访问底层 PlayerDataManager）
  * @param battleId - 战斗 id
  * @param stageId - 关卡 id
  * @param decryptResult - 解密后的战斗数据（win 路径；可为 null）
@@ -26,7 +26,7 @@ const battleSessionByUid = new Map<
  * @returns 战斗结束记录对象
  */
 function buildRlv2Record(
-  controller: RoguelikeV2Controller,
+  controller: RoguelikeV2Manager,
   battleId: string,
   stageId: string,
   decryptResult: any,
@@ -61,33 +61,43 @@ function buildRlv2Record(
   };
 }
 
-/** 黑流树海基础职业招募券列表（官服 battleFinish 奖励为职业券而非通用 _all） */
-const ROGUE6_CLASS_TICKETS = [
-  "rogue_6_recruit_ticket_pioneer",
-  "rogue_6_recruit_ticket_warrior",
-  "rogue_6_recruit_ticket_tank",
-  "rogue_6_recruit_ticket_sniper",
-  "rogue_6_recruit_ticket_caster",
-  "rogue_6_recruit_ticket_support",
-  "rogue_6_recruit_ticket_medic",
-  "rogue_6_recruit_ticket_special",
+/** 黑流树海标准职业枚举（ticket 存在性由 excel recruitTickets 校验） */
+const ROGUE6_CLASSES = [
+  "pioneer",
+  "warrior",
+  "tank",
+  "sniper",
+  "caster",
+  "support",
+  "medic",
+  "special",
 ] as const;
 
 /**
  * 随机抽取一张黑流树海职业招募券（8 职业等概率）
+ *
+ * 修复：ticket id 列表原硬编码——现按职业枚举从 excel recruitTickets 过滤存在性
+ * （官服 battleFinish 奖励为职业券而非通用 _all）。
  * @returns 一个职业招募券 id
  */
 function pickRogue6ClassTicket(): string {
-  return ROGUE6_CLASS_TICKETS[
-    Math.floor(Math.random() * ROGUE6_CLASS_TICKETS.length)
-  ];
+  const tickets =
+    excel.RoguelikeTopicTable.details.rogue_6?.recruitTickets ?? {};
+  const valid = ROGUE6_CLASSES.filter(
+    (c) => tickets[`rogue_6_recruit_ticket_${c}`],
+  );
+  if (valid.length === 0) {
+    logger.warn("rlv2", "rogue_6 recruitTickets 缺失标准职业券，回退先锋券");
+    return "rogue_6_recruit_ticket_pioneer";
+  }
+  return `rogue_6_recruit_ticket_${valid[Math.floor(Math.random() * valid.length)]}`;
 }
 
 export class RoguelikeBattleManager {
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
     this._trigger.on("rlv2:battle:start", this.start.bind(this));
@@ -180,10 +190,10 @@ export class RoguelikeBattleManager {
     battleSessionByUid.set(this._player._player.uid, { battleId, stageId });
     let sanity = 0;
     const diceRoll = [];
-    if ("SANCHECK" in this._player._module._modules) {
+    if (this._player._module.hasModule("SANCHECK")) {
       sanity = this._player._module.toJSON().san?.sanity || sanity;
     }
-    if ("DICE" in this._player._module._modules) {
+    if (this._player._module.hasModule("DICE")) {
       let diceUpgradeCount = 0;
       const relics = Object.values(this._player.inventory!.relic || {});
       const firstRelic = relics[0] as any;
@@ -223,7 +233,7 @@ export class RoguelikeBattleManager {
         boxInfo: {},
         tmpChar: [],
         sanity: sanity,
-        unKeepBuff: this._player._buff._buffs,
+        unKeepBuff: this._player._buff.getBuffs(),
       },
     ]);
     await this._trigger.emit("save:battle", [
@@ -306,25 +316,28 @@ export class RoguelikeBattleManager {
       chaosMgr?.gainChaos(1);
       const finalHp = battleInfo?.finalHp || 0;
       const maxHp = this._player._status.property.hp.max;
-      // 伤害：优先取战报 stats.totalDamage（官方战报口径），无战报时用"最大生命-剩余生命"兜底
-      earn.damage =
-        (battleStats?.totalDamage as number) || (maxHp - finalHp);
-      earn.hp = Math.floor(earn.damage * 0.3);
-
-      if (earn.hp > 0) {
-        this._player._status.property.hp.current += earn.hp;
-        if (this._player._status.property.hp.current > maxHp) {
-          this._player._status.property.hp.current = maxHp;
-        }
-      }
-
-      earn.exp =
-        detail.detailConst.playerLevelTable[this._player._status.property.level + 1]?.exp || 10;
-      // earn.populationMax：本场胜利升级带来的希望上限增加——从下一级等级表读 (
-      // 官服黑流树海 battleFinish 抓包 populationMax=4 = lv2.populationUp，
-      // 实际升级在 finishBattleReward 发放 exp 后进行，earn 仅为回报口径)
+      // 官服 battleFinish 抓包 earn = { damage:0, hp:0, shield:0, exp:13, populationMax:4 }：
+      // 战斗结束不回复目标生命（回复经安全的角落/藏品），earn 仅报经验与升级增量；
+      // 原实现 earn.hp=伤害*0.3 并直接回血 → 客户端结算弹出血量变化异常。
+      // damage/finalHp 仅留存战报记录，不入 earn。
+      void finalHp;
+      void maxHp;
+      
+      // 指挥经验（官服单点抓包 exp=13、isPerfect=1：基础=下一级需求值，三星+3 近似）：
+      // 原实现恒发"下一级需求值"且延迟到 finishBattleReward 才入账（官服在 battleFinish 响应
+      // 内已带升级后的 exp/level）→ 获得数量与升级时机双重异常。现改为战斗结束即入账。
+      const levelTable = detail.detailConst.playerLevelTable;
+      const nextLevelReq =
+        levelTable[this._player._status.property.level + 1]?.exp || 10;
+      const perfectBonus = battleInfo?.isPerfect ? 3 : 0;
+      earn.exp = nextLevelReq + perfectBonus;
+      // earn.populationMax：本场升级带来的希望上限增加（官服=4=lv2.populationUp）
       earn.populationMax =
-        detail.detailConst.playerLevelTable[this._player._status.property.level + 1]?.populationUp ?? 0;
+        levelTable[this._player._status.property.level + 1]?.populationUp ?? 0;
+      // await：经验/升级需在响应序列化前入账（官服 battleFinish 响应已含升级后 exp/level）
+      await this._trigger.emit("rlv2:get:items", [
+        [{ id: `${theme}_exp`, count: earn.exp }],
+      ]);
 
       // —— 战斗奖励组构建：奖励组"序 + 内容"对齐官服黑流树海 battleFinish（金/废品/招募券）——
       const rewards: any[] = [];

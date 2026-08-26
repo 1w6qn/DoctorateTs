@@ -39,8 +39,8 @@ vi.mock("@excel/excel", () => {
 });
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { mockPlayerData } from "../../helpers";
-import { RoguelikePendingEvent } from "@game/controller/rlv2/events";
+import { mockPlayerData } from "../../../helpers";
+import { RoguelikePendingEvent } from "@game/modules/rlv2/events";
 
 function makePlayer(theme: string) {
   const pd: any = mockPlayerData({
@@ -56,7 +56,7 @@ function makePlayer(theme: string) {
 describe("rlv2 开局 buff 选择数据", () => {
   describe("choices.json 数据文件", () => {
     it("应覆盖 6 主题 startbuff 场景", () => {
-      const data = require("../../../data/rlv2/choices.json");
+      const data = require("../../../../data/rlv2/choices.json");
       const scenes = data.choiceScenes;
       expect(scenes["scene_startbuff_enter"]).toBeDefined();
       expect(scenes["scene_ro2_startbuff_enter"]).toBeDefined();
@@ -67,7 +67,7 @@ describe("rlv2 开局 buff 选择数据", () => {
     });
 
     it("各主题选项数量正确", () => {
-      const data = require("../../../data/rlv2/choices.json");
+      const data = require("../../../../data/rlv2/choices.json");
       expect(data.choiceScenes["scene_startbuff_enter"].choices).toHaveLength(6);
       expect(data.choiceScenes["scene_ro2_startbuff_enter"].choices).toHaveLength(8);
       expect(data.choiceScenes["scene_ro6_startbuff_enter"].choices).toHaveLength(12);

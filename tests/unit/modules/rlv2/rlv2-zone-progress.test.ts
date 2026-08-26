@@ -1,20 +1,20 @@
 import { describe, it, expect, vi } from "vitest";
-import { buildRoguelikeConsts } from "../../../app/excel/roguelike_consts_gen";
+import { buildRoguelikeConsts } from "../../../../app/excel/roguelike_consts_gen";
 
 // ===== 探索中 zone 推进回归（真实 excel 数据）=====
 // 完整开局 → 走到 zone_end 节点 → finishEvent → zone 2 生成；
 // NORMAL 与 MONTH_TEAM 双模式验证（此前只测到 zone 1 生成，未覆盖推进）
 vi.mock("@excel/excel", () => ({
   default: {
-    RoguelikeTopicTable: require("../../../data/excel/roguelike_topic_table.json"),
-    CharacterTable: require("../../../data/excel/character_table.json"),
-    GameDataConst: require("../../../data/excel/gamedata_const.json"),
-    RoguelikeConsts: buildRoguelikeConsts(require("../../../data/excel/roguelike_topic_table.json")),
+    RoguelikeTopicTable: require("../../../../data/excel/roguelike_topic_table.json"),
+    CharacterTable: require("../../../../data/excel/character_table.json"),
+    GameDataConst: require("../../../../data/excel/gamedata_const.json"),
+    RoguelikeConsts: buildRoguelikeConsts(require("../../../../data/excel/roguelike_topic_table.json")),
   },
 }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData } from "../../../helpers";
 
 function makePlayer() {
   const pd: any = mockPlayerData({
@@ -222,7 +222,7 @@ describe("探索中 zone 推进（真实 excel）", () => {
     }
   });
 
-  it("多林间空地时起点定位为 gridZone 唯一 state=2 节点，而非 map 首个 GLADE（修复起点错位）", async () => {
+  it("多林间空地时起点定位为 state=2 且 kind=GLADE 节点（官服 state 仅 0/2：点亮节点也为 2）", async () => {
     const player = makePlayer();
     const rlv2 = player.rlv2 as any;
     let seed = 0;
@@ -234,16 +234,16 @@ describe("探索中 zone 推进（真实 excel）", () => {
       const sid = String(
         rlv2._status.cursor.position.x * 100 + rlv2._status.cursor.position.y,
       );
-      // 真实起点应是 gridZone 中唯一 state=2（已访问）的节点
-      const state2Ids = Object.keys(zg.nodes).filter(
-        (id) => zg.nodes[id].state === 2,
+      // 起点是 gridZone 中唯一 state=2 且 kind=GLADE 的节点（初始点亮节点也为 2 但非 GLADE）
+      const startLikeIds = Object.keys(zg.nodes).filter(
+        (id) => zg.nodes[id].state === 2 && zg.nodes[id].content?.kind === 268435456,
       );
-      expect(state2Ids).toEqual([sid]);
+      expect(startLikeIds).toEqual([sid]);
       // 注入一个 state=0 的"填充林间空地"，模拟同一层出现的多个 GLADE
       // （官方数量规则每层可铺 0..16 个，见 BLACKSTREAM_COUNT_RULES）
       const cand = sid === "0" ? "1" : "0";
       zg.nodes[cand] = { content: { kind: 268435456 }, state: 0, show: true };
-      // 修复后定位仍返回真实起点（state=2），而非注入的填充林间空地
+      // 修复后定位仍返回真实起点（state=2 且 GLADE），而非注入的填充林间空地/点亮节点
       const pos = (rlv2 as any).locateStartNode();
       expect(String(pos.x * 100 + pos.y)).toBe(sid);
       expect(String(pos.x * 100 + pos.y)).not.toBe(cand);

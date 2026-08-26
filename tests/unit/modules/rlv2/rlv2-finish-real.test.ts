@@ -6,8 +6,8 @@ vi.mock("@utils/crypt", () => ({
 }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { rlv2Response } from "@game/router/rlv2";
-import { mockPlayerData } from "../../helpers";
+import { rlv2Response } from "@game/modules/rlv2/handler";
+import { mockPlayerData } from "../../../helpers";
 import excel from "@excel/excel";
 
 beforeAll(async () => {
@@ -123,7 +123,7 @@ describe("finishEvent 响应与官服严格结构比对（真实 excel）", () =
     const fs = await import("node:fs");
     const path = await import("node:path");
     // 真实官服抓包期望值（迁移自旧 tmp/rlv2/finishEvent/，归档到 tests/fixtures/ 与运行时抓包解耦）
-    const off = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../fixtures/rlv2-finishEvent.json"), "utf8"));
+    const off = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../../../fixtures/rlv2-finishEvent.json"), "utf8"));
     const our = JSON.parse(JSON.stringify(rlv2.toJSON()));
 
     function diff(a: any, b: any, p: string, out: string[]) {

@@ -60,7 +60,7 @@ vi.mock("@excel/excel", () => ({
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import { decryptBattleData } from "@utils/crypt";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData } from "../../../helpers";
 
 function makePlayer() {
   const pd: any = mockPlayerData({
@@ -142,14 +142,28 @@ describe("rlv2 黑流树海（rogue_6）战斗胜利奖励对齐官服 battleFin
     expect(show).toBe("2");
   });
 
-  it("earn.populationMax 取下一级希望上限（官服 =4），exp 取下一级需求", async () => {
+  it("earn.populationMax 取下一级希望上限（官服 =4），exp = 需求值 + 三星加成（10+3）", async () => {
     await finishBattle("ro6_n_1_1");
     const rewardEvent = (player.rlv2 as any)._status.pending.find(
       (e: any) => e.type === "BATTLE_REWARD",
     );
     const { earn } = rewardEvent.content.battleReward;
     expect(earn.populationMax).toBe(4); // lv2.populationUp
-    expect(earn.exp).toBe(10); // lv2.exp
+    expect(earn.exp).toBe(13); // lv2.exp 10 + isPerfect 3（官服单点抓包 exp=13）
+  });
+
+  it("战斗结束不回血，earn.damage/hp/shield 恒 0（官服口径）", async () => {
+    (player.rlv2 as any)._status.property.hp = { current: 4, max: 8 };
+    await finishBattle("ro6_n_1_1");
+    const rewardEvent = (player.rlv2 as any)._status.pending.find(
+      (e: any) => e.type === "BATTLE_REWARD",
+    );
+    const { earn } = rewardEvent.content.battleReward;
+    expect(earn.damage).toBe(0);
+    expect(earn.hp).toBe(0);
+    expect(earn.shield).toBe(0);
+    // 不因战斗结算回复目标生命（官服无此行为）
+    expect((player.rlv2 as any)._status.property.hp.current).toBe(4);
   });
 
   it("战斗战败（completeState=1）不生成 BATTLE_REWARD，直接触发 gameSettle 结束本局", async () => {
@@ -211,7 +225,7 @@ describe("rlv2 黑流树海（rogue_6）战斗胜利奖励对齐官服 battleFin
     expect((player.rlv2 as any)._status.property.shield).toBe(5);
   });
 
-  it("chooseBattleReward：gold 实时入账 + 招募券触发招募（票入库 + RECRUIT 事件）", async () => {
+  it("chooseBattleReward：gold 实时入账；招募券仅入券列表不自动弹招募（官服口径）", async () => {
     // 清空上一 BATTLE 事件，确保要选的 BATTLE_REWARD 位于 pending[0]（chooseBattleReward 读队首）
     (player.rlv2 as any)._status._pending._pending.length = 0;
     // 直接注入 BATTLE_REWARD pending：金组(index0) + 职业招募券组(index1)
@@ -235,14 +249,14 @@ describe("rlv2 黑流树海（rogue_6）战斗胜利奖励对齐官服 battleFin
     await (player.rlv2 as any).chooseBattleReward({ index: 0, sub: 0 });
     expect((player.rlv2 as any)._status.property.gold).toBe(5);
 
-    // 选招募券：识别为 RECRUIT_TICKET → 票入库存 + 生成 RECRUIT 事件
+    // 选招募券：券以 state=0 入招募券列表（玩家自行激活）；不自动弹招募界面（无 RECRUIT pending）
     await (player.rlv2 as any).chooseBattleReward({ index: 1, sub: 0 });
     const tickets = Object.values(player.rlv2.inventory.recruit) as any[];
     expect(
-      tickets.some((t) => t.id === "rogue_6_recruit_ticket_sniper"),
+      tickets.some((t) => t.id === "rogue_6_recruit_ticket_sniper" && t.state === 0),
     ).toBe(true);
     expect(
       (player.rlv2 as any)._status.pending.some((e: any) => e.type === "RECRUIT"),
-    ).toBe(true);
+    ).toBe(false);
   });
 });

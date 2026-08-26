@@ -22,15 +22,15 @@ import { HomeManager } from "./home";
 import { CharRotationManager } from "./charRotation";
 import { CheckInManager } from "./checkin";
 import { StoryreviewManager } from "./storyreview";
-import { MissionManager } from "./mission";
-import { ShopController } from "@game/controller/shop";
+import { MissionManager } from "@game/modules/mission/logic";
+import { ShopManager } from "@game/modules/shop/logic";
 import { BattleManager } from "./battle";
 import { RecruitManager } from "./recruit";
-import { RoguelikeV2Controller } from "@game/controller/rlv2";
+import { RoguelikeV2Manager } from "@game/modules/rlv2/logic";
 import { SocialManager } from "./social";
-import { GachaController } from "@game/controller/gacha";
+import { GachaManager } from "@game/modules/gacha/logic";
 import { DexNavManager } from "./dexnav";
-import { BuildingManager } from "./building";
+import { BuildingManager } from "@game/modules/building/logic";
 import { OpenServerManager } from "@game/manager/activity/openServer";
 import { RetroManager } from "@game/manager/retro";
 import { CharManager } from "@game/manager/char";
@@ -55,12 +55,12 @@ export interface PlayerChildModules {
   checkIn: CheckInManager;
   storyreview: StoryreviewManager;
   mission: MissionManager;
-  shop: ShopController;
+  shop: ShopManager;
   battle: BattleManager;
   recruit: RecruitManager;
-  rlv2: RoguelikeV2Controller;
+  rlv2: RoguelikeV2Manager;
   social: SocialManager;
-  gacha: GachaController;
+  gacha: GachaManager;
   dexNav: DexNavManager;
   building: BuildingManager;
   openServer: OpenServerManager;
@@ -96,12 +96,12 @@ export function composePlayerChildModules(
     checkIn: new CheckInManager(pdm, trigger),
     storyreview: new StoryreviewManager(pdm, trigger),
     mission: new MissionManager(pdm, trigger),
-    shop: new ShopController(pdm, trigger),
+    shop: new ShopManager(pdm, trigger),
     battle: new BattleManager(pdm, trigger),
     recruit: new RecruitManager(pdm, trigger),
-    rlv2: new RoguelikeV2Controller(pdm, trigger),
+    rlv2: new RoguelikeV2Manager(pdm, trigger),
     social: new SocialManager(pdm, trigger),
-    gacha: new GachaController(pdm, trigger),
+    gacha: new GachaManager(pdm, trigger),
     dexNav: new DexNavManager(pdm, trigger),
     building: new BuildingManager(pdm, trigger),
     openServer: new OpenServerManager(pdm, trigger),

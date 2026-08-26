@@ -43,7 +43,7 @@ Game-data update (`scripts/update-data.ts`) 调用官方热更管线 `scripts/of
 
 ## Architecture
 
-- **Flow**: router → `PlayerDataManager` (via `httpContext`, key `playerData`) → composed sub-managers (inventory, char, battle, mission, medal, building, …). Wiring lives in `PlayerDataManager` constructor; routers are lazy-registered in `app/game/app.ts` (`app.use("/path", (await import("./router/x")).default)`) — **register new routers there**.
+- **Flow**: `routes.ts` → `modules/*/handler.ts`（路由薄壳）→ `modules/*/logic.ts`（业务 Manager，经 `player.modules.xxx` 访问）→ `PlayerDataManager`（via `httpContext`, key `playerData`）→ composed sub-managers。子模块统一在 `app/game/modules/` 下按「五文件约定」（handler/logic/trigger/models/schemas + index）组织；`controller/` 层已移除。Wiring lives in `PlayerDataManager` constructor via `player-composition.ts`; routes are declared in `app/game/routes.ts`（懒加载 `(await import(...)).default`）— **register new routes there**.
 - **Event-driven**: managers subscribe in constructors via `this._trigger.on(...)`. Event names/types are declared in `EventMap` in `app/game/model/events.ts` — extend it for new events.
 - **State changes**: all through `player.update(recipe)` (mutative two-phase `create(base,{enablePatches})` → `[draft, finish()]` in `PlayerStatus`) which records patches. mutative `enableAutoFreeze` is off — managers mutate arrays directly; do not re-enable freezing.
 - **Response contract**: `res.send(player.delta)`. The `delta` getter returns `{ playerDataDelta }`, **clears `_changes` and triggers `save`** (persists to `data/user/databases/{uid}.json`). Never read `player.delta` twice in one request.

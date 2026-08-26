@@ -7,17 +7,17 @@
  *
  * 简化实现：怒气收集列表；天空区域（rogue_5 特殊地图）初始为空（随玩法推进填充）。
  */
-import { RoguelikeV2Controller } from "../../rlv2";
+import { RoguelikeV2Manager } from "../logic";
 import excel from "@excel/excel";
 import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeWrathManager {
   wraths: string[];
   newWrath: number;
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
     this.wraths = [];
@@ -54,10 +54,10 @@ export class RoguelikeWrathManager {
 /** SKY 模块（rogue_5 天空——特殊区域地图） */
 export class RoguelikeSkyManager {
   zones: { [key: string]: any };
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
     this.zones = {};

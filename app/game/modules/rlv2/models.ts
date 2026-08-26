@@ -5,10 +5,10 @@
  * Roguelike、RL03、RL04 系列 Request/Response 类；字段以 CS 类为准，
  * 服务端实现有出入的字段以当前控制器契约为准（注释标注 CS 差异）。
  */
-import { PlayerSquad } from "../character";
-import { BattleData } from "../battle";
-import { PlayerRoguelikeV2, RoguelikeNodePosition } from "../rlv2";
-import { PlayerDeltaResponse } from "./common";
+import { PlayerSquad } from "../../model/character";
+import { BattleData } from "../../model/battle";
+import { PlayerRoguelikeV2, RoguelikeNodePosition } from "../../model/rlv2";
+import { PlayerDeltaResponse } from "../../model/protocol/common";
 
 /* ===== 请求类型 ===== */
 

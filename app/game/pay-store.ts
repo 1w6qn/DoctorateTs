@@ -75,12 +75,12 @@ export async function deliverOrder(
 ): Promise<ItemBundle[]> {
   if (order.goodId.startsWith("CS_")) {
     // 现金包：buyCashGood（含首充双倍 + shop.CASH.info 计数）
-    return await player.shop.buyCashGood({ goodId: order.goodId });
+    return await player.modules.shop.buyCashGood({ goodId: order.goodId });
   }
   if (order.goodId.startsWith("GP_")) {
     // 现金礼包：buyGoodWithTicket 按 goodId 解析发放（gM/Once/NpOne/Lv/gW/Ms）；
     // 月卡 GP_mCard 等无 items 配置 → 返回空（调用方拒绝，不误标已购）
-    return await player.shop.buyGoodWithTicket({
+    return await player.modules.shop.buyGoodWithTicket({
       ticketId: "",
       goodId: order.goodId,
     });

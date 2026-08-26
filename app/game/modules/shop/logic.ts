@@ -1,5 +1,5 @@
 /**
- * 商店控制器类
+ * 商店管理器类
  *
  * 负责处理商店购买相关的核心业务逻辑，包括低级商店、高级商店、皮肤商店、
  * 家具商店等多种类型商店的购买操作和刷新逻辑。
@@ -27,22 +27,12 @@ import {
 } from "@excel/shop";
 import excel from "@excel/excel";
 import { GachaPerChar } from "@excel/gacha_detail_table";
+import { resolveEffectiveUpPerCharList } from "@game/modules/gacha/logic";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";
 import { TypedEventEmitter } from "@game/model/events";
-
-/**
- * 商店业务错误（余额不足/超限购/已拥有）
- *
- * 路由层捕获后返回 result:1 业务错误而非 500；购买流程在抛出前必须未产生任何副作用
- *（不扣费、不发放、不写记录）。
- */
-export class ShopError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ShopError";
-  }
-}
+import { ShopError } from "./errors";
+import { registerShopTriggers } from "./trigger";
 
 /**
  * 信用交易所物资条目（PRTS 采购中心「信用交易所」物资表的单个物资）
@@ -69,61 +59,32 @@ interface CreditShopMaterial {
 }
 
 /**
- * 信用交易所候选池（7 行「并列随机抽取项」）
+ * 信用交易所候选池条目（rows JSON 原始结构；name/type 由 item_table 运行时推导）
+ */
+interface CreditShopRowEntry {
+  /** 物品 id（ItemTable itemId） */
+  id: string;
+  /** 单次购买数量 */
+  count: number;
+  /** 原价（信用） */
+  originPrice: number;
+  /** 是否可刷 -95% 特价 */
+  allow95?: boolean;
+  /** 是否可刷 -99% 特价 */
+  allow99?: boolean;
+}
+
+/**
+ * 信用交易所候选池（7 行「并列随机抽取项」，data/shop/credit-shop-rows.json）
  *
  * PRTS：信用交易所物资每日只刷 10 个；候选物资按"同一行四个物品为并列随机抽取项"——
  * 每次从一行中随机取其一作为当日可能出现的一个物资。行内各物资原价（信用）见文档。
  */
-const CREDIT_SHOP_ROWS: CreditShopMaterial[][] = [
-  // 行1：-95% 特价候选（龙门币×1800 / 基础作战记录×9）
-  [
-    { id: "4001", count: 1800, type: "GOLD", name: "龙门币", originPrice: 100, allow95: true },
-    { id: "2001", count: 9, type: "CARD_EXP", name: "基础作战记录", originPrice: 100, allow95: true },
-    { id: "30011", count: 2, type: "MATERIAL", name: "源岩", originPrice: 80 },
-    { id: "30012", count: 3, type: "MATERIAL", name: "固源岩", originPrice: 200 },
-  ],
-  // 行2：-99% 特价候选（龙门币×3600 / 初级作战记录×9）
-  [
-    { id: "4001", count: 3600, type: "GOLD", name: "龙门币", originPrice: 200, allow99: true },
-    { id: "2002", count: 9, type: "CARD_EXP", name: "初级作战记录", originPrice: 200, allow99: true },
-    { id: "30021", count: 2, type: "MATERIAL", name: "代糖", originPrice: 100 },
-    { id: "30022", count: 2, type: "MATERIAL", name: "糖", originPrice: 200 },
-  ],
-  // 行3
-  [
-    { id: "3401", count: 20, type: "MATERIAL", name: "家具零件", originPrice: 160 },
-    { id: "3301", count: 5, type: "MATERIAL", name: "技巧概要·卷1", originPrice: 160 },
-    { id: "30031", count: 2, type: "MATERIAL", name: "酯原料", originPrice: 100 },
-    { id: "30032", count: 2, type: "MATERIAL", name: "聚酸酯", originPrice: 200 },
-  ],
-  // 行4
-  [
-    { id: "3401", count: 25, type: "MATERIAL", name: "家具零件", originPrice: 200 },
-    { id: "3302", count: 3, type: "MATERIAL", name: "技巧概要·卷2", originPrice: 200 },
-    { id: "30041", count: 2, type: "MATERIAL", name: "异铁碎片", originPrice: 120 },
-    { id: "30042", count: 2, type: "MATERIAL", name: "异铁", originPrice: 240 },
-  ],
-  // 行5
-  [
-    { id: "7001", count: 1, type: "TKT_RECRUIT", name: "招聘许可", originPrice: 160 },
-    { id: "3112", count: 5, type: "MATERIAL", name: "碳", originPrice: 160 },
-    { id: "30051", count: 2, type: "MATERIAL", name: "双酮", originPrice: 120 },
-    { id: "30052", count: 2, type: "MATERIAL", name: "酮凝集", originPrice: 240 },
-  ],
-  // 行6
-  [
-    { id: "7002", count: 1, type: "TKT_INST_FIN", name: "加急许可", originPrice: 160 },
-    { id: "3113", count: 3, type: "MATERIAL", name: "碳素", originPrice: 200 },
-    { id: "30061", count: 2, type: "MATERIAL", name: "破损装置", originPrice: 160 },
-    { id: "30062", count: 1, type: "MATERIAL", name: "装置", originPrice: 160 },
-  ],
-  // 行7：仅赤金
-  [{ id: "3003", count: 6, type: "MATERIAL", name: "赤金", originPrice: 160 }],
-];
-
-export class ShopController {
+export class ShopManager {
   /** 社交商店商品列表 */
   socialGoodList!: SocialGoodList;
+  /** 信用交易所候选池（rows JSON，行式并列随机抽取配置） */
+  private _creditRows: CreditShopRowEntry[][] = [];
   /** 玩家数据管理器 */
   _player: PlayerDataManager;
   /** 事件触发器 */
@@ -137,8 +98,8 @@ export class ShopController {
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
-    this._trigger.on("refresh:daily", this.dailyRefresh.bind(this));
-    this._trigger.on("refresh:monthly", this.monthlyRefresh.bind(this));
+    // 事件订阅抽至 trigger.ts（注册顺序 daily → monthly 不变，即派发顺序）
+    registerShopTriggers(_trigger, this);
     // 信用商店商品基座（静态配置；buildSocialGoodList 按当天日期重新生成）。
     // 修复：同步读取——原异步 readJson 与首次 getSocialGoodList 请求竞态，
     // 启动后首请求拿到空基座 → 信用商店缺常规商品
@@ -148,6 +109,16 @@ export class ShopController {
       );
     } catch {
       this.socialGoodList = { goodList: [], charPurchase: {} };
+    }
+    // 信用交易所候选池（7 行「并列随机抽取项」；name/type 由 item_table 推导）。
+    // 修复：同步读取——原异步 readJson 与首次 getSocialGoodList 请求竞态（同 socialGoodList）
+    try {
+      const cfg = readJsonSync<{ rows: CreditShopRowEntry[][] }>(
+        "./data/shop/credit-shop-rows.json",
+      );
+      this._creditRows = cfg.rows ?? [];
+    } catch {
+      this._creditRows = [];
     }
   }
 
@@ -440,6 +411,30 @@ export class ShopController {
   }
 
   /**
+   * 候选池条目 → 信用交易所物资（name/type 由 item_table 推导）
+   *
+   * 修复：候选池原硬编码 name/type（与 item_table 重复）——现按 id 查询
+   * ItemTable 推导，缺失时告警并以 id 兜底名称（不跳过，避免候选池缩水）。
+   * @param entry - rows JSON 条目
+   * @returns 完整物资（含推导的 name/type）
+   */
+  private _materialFromEntry(entry: CreditShopRowEntry): CreditShopMaterial {
+    const item = (excel.ItemTable as any)?.items?.[entry.id] ?? {};
+    if (!item.name) {
+      logger.warn("shop", `信用交易所候选池条目 ${entry.id} 不在 item_table，按 id 兜底`);
+    }
+    return {
+      id: entry.id,
+      count: entry.count,
+      type: (item.itemType as string) ?? "MATERIAL",
+      name: (item.name as string) ?? entry.id,
+      originPrice: entry.originPrice,
+      ...(entry.allow95 ? { allow95: true } : {}),
+      ...(entry.allow99 ? { allow99: true } : {}),
+    };
+  }
+
+  /**
    * 决定单个信用交易所物资的折扣力度（对应 PRTS 折扣规则）
    *
    * 主档为 -50%/-75%；低概率（约 10%）出现 -95%/-99% 特价，且仅限允许特价的物资
@@ -474,9 +469,9 @@ export class ShopController {
     // 1) 抽 count 个物资：每行随机取一个代表（有放回，允许命中同一行不同物资）
     const picked: { m: CreditShopMaterial; discount: number }[] = [];
     for (let i = 0; i < count; i++) {
-      const row = CREDIT_SHOP_ROWS[Math.floor(rand() * CREDIT_SHOP_ROWS.length)];
+      const row = this._creditRows[Math.floor(rand() * this._creditRows.length)];
       picked.push({
-        m: row[Math.floor(rand() * row.length)],
+        m: this._materialFromEntry(row[Math.floor(rand() * row.length)]),
         discount: 0,
       });
     }
@@ -1378,10 +1373,15 @@ export class ShopController {
       const detail = excel.GachaDetailTable.details[pool.gachaPoolId];
       let seq = 0;
       // 自选卡池（FESCLASSIC 中坚甄选）：干员区反映玩家 choosePoolUp 自选 UP，
-      // 未自选/常规 CLASSIC 池时 effectiveUpPerCharList 原样返回静态 upCharInfo，
-      // 行为不变（详见 GachaController.effectiveUpPerCharList）。
+      // 未自选/常规 CLASSIC 池时 resolveEffectiveUpPerCharList 原样返回静态 upCharInfo，
+      // 行为不变（详见 GachaManager.effectiveUpPerCharList 的纯函数版）。
       const perCharList =
-        this._player.gacha?.effectiveUpPerCharList(pool.gachaPoolId) ??
+        resolveEffectiveUpPerCharList(
+          excel.GachaDetailTable,
+          excel.GachaTable.gachaPoolClient,
+          this._player._playerdata.gacha,
+          pool.gachaPoolId,
+        ) ??
         detail?.upCharInfo?.perCharList ??
         [];
       for (const c of perCharList) {
@@ -1907,5 +1907,3 @@ export class ShopController {
     };
   }
 }
-
-export default ShopController;

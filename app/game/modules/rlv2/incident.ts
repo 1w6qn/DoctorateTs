@@ -22,7 +22,7 @@
  * - normal4 各圈奖励的官方多差分场景合并为单一奖励幕（选项全量给出）。
  */
 import excel from "@excel/excel";
-import { RoguelikeV2Controller } from "../rlv2";
+import { RoguelikeV2Manager } from "./logic";
 
 /** rogue_6 event_choices.json 段的松散类型（其余主题同键结构不同，不做严格契约） */
 interface Ro6IncidentCond {
@@ -39,9 +39,9 @@ type Ro6BattleSpec = string | { random?: string[]; nextZoneNormal?: boolean };
 
 /** 不期而遇事件引擎（控制器持有单例，随控制器持久） */
 export class Rogue6IncidentEngine {
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
 
-  constructor(player: RoguelikeV2Controller) {
+  constructor(player: RoguelikeV2Manager) {
     this._player = player;
   }
 

@@ -20,7 +20,7 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData } from "../../../helpers";
 
 function makePlayer() {
   const pd: any = mockPlayerData({
@@ -34,7 +34,7 @@ function makePlayer() {
 /**
  * rlv2 引用同步回归测试
  *
- * RoguelikeV2Controller.update() 在 recipe 结束后统一刷新 outer/current/pinned 引用。
+ * RoguelikeV2Manager.update() 在 recipe 结束后统一刷新 outer/current/pinned 引用。
  * 若刷新缺失，recipe 克隆过的子树会让 this.current/this.outer 指向旧对象，
  * createGame/gameSettle 的直接写会落到孤儿对象（不持久化，重启丢失）。
  */

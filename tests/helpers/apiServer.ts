@@ -9,11 +9,11 @@ import { accountManager } from "../../app/game/manager/AccountManager";
 import { authMiddleware, gameErrorHandler } from "../../app/game/app";
 import authRouter from "../../app/auth/auth";
 import userRouter from "../../app/game/router/user";
-import gachaRouter from "../../app/game/router/gacha";
-import shopRouter from "../../app/game/router/shop";
+import gachaRouter from "../../app/game/modules/gacha/handler";
+import shopRouter from "../../app/game/modules/shop/handler";
 import mailRouter from "../../app/game/router/mail";
 import socialRouter from "../../app/game/router/social";
-import rlv2Router from "../../app/game/router/rlv2";
+import rlv2Router from "../../app/game/modules/rlv2/handler";
 
 /**
  * 一个 HTTP 请求的响应封装

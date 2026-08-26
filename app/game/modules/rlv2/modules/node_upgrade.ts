@@ -1,5 +1,5 @@
 import { PlayerRoguelikeV2 } from "@game/model/rlv2";
-import { RoguelikeV2Controller } from "../../rlv2";
+import { RoguelikeV2Manager } from "../logic";
 import excel from "@excel/excel";
 import { randomChoice } from "@utils/random";
 import { TypedEventEmitter } from "@game/model/events";
@@ -8,10 +8,10 @@ export class RoguelikeNodeUpgradeManager {
   _nodeTypeInfoMap: {
     [key: string]: PlayerRoguelikeV2.CurrentData.Module.NodeUpgradeInfo;
   };
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._nodeTypeInfoMap = {};
     this._trigger = _trigger;

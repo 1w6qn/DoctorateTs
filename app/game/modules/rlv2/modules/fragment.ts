@@ -1,6 +1,6 @@
 import excel from "@excel/excel";
 import { PlayerRoguelikeV2, RoguelikeBuff } from "@game/model/rlv2";
-import { RoguelikeV2Controller } from "../../rlv2";
+import { RoguelikeV2Manager } from "../logic";
 import { now } from "@utils/time";
 import { randomChoice } from "@utils/random";
 import { rarityToIndex } from "@utils/rarity";
@@ -15,10 +15,10 @@ export class RoguelikeFragmentManager {
   };
   _troopCarry: string[];
   _currInspiration: PlayerRoguelikeV2.CurrentData.Module.InventoryInspiration | null;
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this.index = 0;
     this.limitWeight = 0;
     this._fragments = player.current.module?.fragment?.fragments || {};

@@ -6,12 +6,12 @@ vi.mock("@utils/crypt", () => ({
 vi.mock("@utils/time", () => ({ now: () => 1786434411 }));
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData } from "../../../helpers";
 import excel from "@excel/excel";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-const CAPTURE_ROOT = path.resolve(__dirname, "../../fixtures/rlv2-official");
+const CAPTURE_ROOT = path.resolve(__dirname, "../../../fixtures/rlv2-official");
 function readRes(route: string, ts: string) {
   return JSON.parse(fs.readFileSync(path.join(CAPTURE_ROOT, route, `${ts}.json`), "utf8"));
 }
@@ -114,7 +114,7 @@ describe("8.11 官服值级完全一致（除地图/账号数据）", () => {
 
       // createGame 响应比对（rlv2Response SEC.ALL + outer）——
       // 先 JSON round-trip 还原线格式（实例 toJSON 生效，剥离 _player/_trigger 等内部字段）
-      const { rlv2Response } = await import("@game/router/rlv2");
+      const { rlv2Response } = await import("@game/modules/rlv2/handler");
       const ourResp = rlv2Response(player as any, undefined, undefined, ["record", "monthTeam"]);
       const offRlv2 = OFF_CREATE.playerDataDelta.modified.rlv2;
       const ourRlv2 = JSON.parse(JSON.stringify(ourResp.playerDataDelta.modified.rlv2));

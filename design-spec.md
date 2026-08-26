@@ -56,10 +56,10 @@ DoctorateTs/
 │   ├── config/             # 配置模块
 │   ├── excel/              # Excel 数据表管理
 │   ├── game/               # 游戏核心逻辑
-│   │   ├── controller/     # 控制器层
-│   │   ├── manager/        # 管理器层
-│   │   ├── model/          # 数据模型层
-│   │   └── router/         # 路由层
+│   │   ├── modules/         # 功能模块（handler/logic/trigger/models/schemas 五文件约定）
+│   │   ├── manager/         # 管理器层（PlayerDataManager 组合根 + 通用子管理器）
+│   │   ├── model/           # 数据模型层
+│   │   └── router/          # 路由层（薄路由，其余路由已迁入 modules/*/handler）
 │   └── utils/              # 工具函数
 ├── data/                   # 数据文件
 │   ├── announce/           # 公告数据
@@ -83,7 +83,7 @@ DoctorateTs/
 | `app/auth/` | 用户认证逻辑，处理登录、Token验证等 | 单文件模块 |
 | `app/config/` | 应用配置，包括端口、环境变量等 | 按环境分离配置文件 |
 | `app/excel/` | Excel数据表管理，加载和提供游戏配置数据 | 每个数据表对应一个文件或类属性 |
-| `app/game/controller/` | 业务控制器，处理复杂业务逻辑 | 按功能模块划分 |
+| `app/game/modules/` | 功能模块层：业务逻辑（logic/Manager）+ 路由薄壳（handler）+ 协议类型（models）+ zod 校验（schemas）+ 事件订阅（trigger） | 按功能模块划分，五文件约定 |
 | `app/game/manager/` | 管理器层，协调子系统的数据操作 | 每个子系统对应一个管理器 |
 | `app/game/model/` | 数据模型定义，包括玩家数据结构 | 按数据类型划分 |
 | `app/game/router/` | 路由定义，处理HTTP请求和响应 | 每个功能模块对应一个路由文件 |
@@ -1073,6 +1073,61 @@ BuildingManager（app/game/manager/building.ts）已实现完整基建玩法：
 
 **测试**：`tests/unit/manager/building-client-fixes.test.ts`（12 条）——deliveryBatchOrder 五种字段变体、batchChangeWorkChar 轮换四场景（首组/循环/空体不改/显式列表）、confirmMission 已领不重复发 + 未领正常发放。基建+任务 9 文件 224 测试通过，tsc 干净。
 
+### 11.13 基建全量对齐官服（2026-08-26，prts.wiki × excel 差距补齐）
+
+以 prts.wiki 机制文档 + excel 数据为准的差距补齐（设计文档：
+`docs/superpowers/specs/2026-08-25-building-full-parity-design.md`）。新增 6 个纯函数引擎模块（沿用 buff.ts/special.ts 分层，manager 薄接线）：
+
+**① mood.ts 通用基座**：
+- 注意力涣散（ap ≤ 0）技能失效：`getActiveCharBuffs` 默认拒绝涣散干员的 buff（宿舍休息语境 `allowDispersed` 豁免）；加工站无干员/涣散时副产物概率锁定 0%（官方）
+- 头数心情减免：制造/贸易 2人 -0.05、3人 -0.1 点/时（_recomputeCharScales）
+- 暖机工时：`building.chars[].warmupSec/warmupTs/warmupSlot`（服务端扩展）——在岗累积、离岗/换工位清零（`_accrueWarmup`）
+- 修复：sync 浮点秒基准与 ts 同源（`ts + Date.now()%1000/1000`）——避免测试注入时间与真实时钟混用把心情超发扣成涣散
+
+**② unlocks.ts + mastery.ts（配方解锁 + 专精）**：
+- 配方解锁校验：`requireRooms`（曾达等级 + 房间数）/`requireStages`（关卡星，rank 语义）——制造/加工配方不再无门槛；曾达等级存 `building.maxLevelReached`（服务端扩展，建造/升级取 max、降级不回退）
+- 开采协力（O_DIAMOND）策略需贸易站 ≥ `tradingStrategyUnlockLevel`(3)
+- 专精门控：精英2 + 技能 7 级 + 专精≤3 且≤训练室等级 + 训练槽占用互斥；消耗 `levelUpCostCond[].levelUpCost` 材料（足额校验）；训练时长阈值 `trainee.maxPoint = lvlUpTime`（8/16/24h），`_accrueTraining` 达阈置待领取（state=2），`completeUpgradeSpecialization` 门控（旧存档无 maxPoint 保持原行为）
+- 协助位非涣散基础 +5%（官方）叠加教官 train_* 技能；训练锁：训练中干员拒绝 assignChar 派往其他房间；开发者开关 `specializationTimeZero` 保持即时完成兼容
+- 尤里卡特殊订单：数据表无对应 buff，不建模（已知限制）
+
+**③ trade-orders.ts（贸易订单模型）**：
+- 站级概率表（替代均匀随机 1~4）：Lv1 {2金:100%}；Lv2 {2:60%,3:40%}；Lv3 {2:30%,3:50%,4:20%}
+- 暖机概率改写（`trade_ord_wt&cost` α[00x] 3h / β[01x] 5h）：α {4:55,3:30,2:15}；β {4:85,3:10,2:5}；双α {4:65,3:22,2:13}（玩家实测，中置信）；α+β 按 β；离岗清零由暖机基座保证
+- 特殊订单补全：违约订单（trade_ord_law 交付<4 视为违约 + trade_ord_against 交付 +1/+2）、龙舌兰投资（trade_ord_long 交付>3 收益 +250/+500）；佩佩/可露希尔既有保留；订单上限沿用存档 stockLimit（官方线格式）
+- 开采协力订单生成：源石碎片(3141)×2 → 合成玉(4003)×20（strategy=O_DIAMOND）
+
+**④ 加速无人机语义**：审计确认客户端协议无持有点/急速充能端点、官服存档无无人机字段 → 官方行为为客户端本地推算，服务端不建模持有量（维持 11.7 结论）；`accelerateSolution` 带 `cost` 时按官方“1 架 = 3 分钟”推进等价进度（有效产能换算），`cost` 缺省保持旧行为（立即完成 1 方案）兼容旧客户端
+
+**⑤ hire-contacts.ts + clue-speed.ts（人力 + 会客）**：
+- 办公室联络：每 12h × 速度系数（进驻基础 +5% + hire_* 技能）得 1 次人脉库存（`room.refreshStock`，上限相位 refreshTimes=3，满则停工、无人进驻不恢复）；`gacha/refreshTags` 消耗人脉库存（库存 0 拒绝；无人力办公室/未进驻免消耗兑底，防公开招募锁死）
+- 会客室线索速度全公式：相位 107/109/111% + 全宿舍氛围档（≥2000/3000/4000 → +5/10/15%）+ Σ干员（稀有度 4★2/5★4/6★5% + 精1 8%/精2 16% + 非涣散 5%）+ meet_* 技能（加算）
+- 进度真实产线索：20h 基准阈值达即生成（阵营加权含晓歌/U-Official），长离线多份；自有库上限 10 满则停工（官方）
+
+**⑥ dorm-special.ts + 中枢杂项**：
+- 宿舍恢复公式对齐：(1.5+0.1×等级) + 氛围×0.0004（替换 /160 与 /1000×0.55 拆分，总和不变、低氛围场景拆分更准）
+- 宿舍技能按作用域分发（修复：原实现把全部宿舍技能当全体恢复 → 自身/单体恢复错发全员）：all 全员（同种取最高）/ self 仅自身（dorm_rec_oneself*）/ single 心情最低成员（除施放者，dorm_rec_single*，含 &oneself 双数值拆分）/ shared 均分（小酌怡情 dorm_rec_all&single 0.8 总量均分给未满成员）
+- buyLabor 双路径：中枢 ≥ `apToLaborUnlockLevel`(4) 时理智兑换（1 AP → `apToLaborRatio`(2) 劳动力），未达级保留源石兼容路径（文档记录）
+- 未建模（已知限制，待后续立项）：副手信赖 4:00/16:00 定时结算（wiki 未给氛围折算公式，低置信，需真实存档校准）；患难之交（dorm_exchangeAp，需进驻顺序追踪）；自律/嗜睡/慵懒（当前数据表无匹配 buff）
+
+**测试**：新增 5 个测试文件（building-mood / building-unlocks / building-trade-orders / building-contacts / building-dorm，共 80 条）；存量基建设定随行为对齐更新（头数减免、协助位 +5%、概率表、专精门控、宿舍公式）。基建 12 文件 298 测试通过，tsc 干净；全仓 2534/2536（2 失败为 rlv2 在途改动预存问题，与基建无关）。
+
+
+
+### 11.14 dc-fix 真机四问题修复（2026-08-26）
+
+用户真机报告 4 项，按 dc-fix 流程（Find 取证 → Verify → Fix 最小改动）修复：
+
+1. **workshopSynthesis 400（roomSlotId 校验失败）**：CS `BuildingWorkshopSynthesisRequest` 仅 `formulaId + times`（反编译 2.7.61 取证），无 roomSlotId 字段——schema 改可选，manager 按 formulaId 合成（无需房间定位）。
+2. **deliveryOrder 400（orderId 类型不匹）**：CS `BuildingTradingDeliveryRequest.orderId` 为 Int64（客户端发数字）——schema 改 `string|number` 兼容（manager 已按 String(instId) 匹配）。
+3. **制造站无法补货（补不到 99）**：旧存档无 `maxLevelReached` 记录 → 11.13 引入的解锁门控把全部配方判为未解锁。修复：`_unlockCtx` 曾达等级 = max(记录值, 当前房间等级)——当前等级本身即“曾达”（lv3 制造站必然曾达 3 级）。
+4. **制造/贸易生产速度过快**（两处单位错误，2222 真存档定量取证）：
+   - 制造站：原按 `容量(54)×(1+加成)` 点/秒累积 → 快约 54 倍；官方速率 = **1×(1+加成) 点/秒**，阈值 costPoint = 配方基础秒数（赤金 4320=72 分钟）。存档实测验证：剩余进度 1481.3 ÷ 剩余 833s = 1.778 = 1 + buff.speed(0.78) ✓；容量 24/36/54 仅为仓库容量显示语义。
+   - 贸易站：原 `next.speed = next.speed × (1+bonus)` 回写 → 加成每次 sync 复利滚雪球（订单越来越快）；存档 `next.speed` 已是有效值（1.78 = 1+0.78，maxPoint = 官方基础秒数，如 12600 = 3:30:00）。修复：速度 = **1 + 当前加成**（每次按进驻干员重算，换班即时生效，不复利）。
+   - 无人机加速同步改单位：1 架 = 3 分钟 = 180×(1+加成) 进度点。
+5. **测试**：新增 `building-dcfix.test.ts`（6 条：schema 形态/数字 orderId 命中/无记录补货 99/制造速率 4320 秒一批/贸易不复利）；存量速率断言随官方语义更新（6 处）。基建 13 文件 304 测试通过，tsc 干净；全仓失败仅剩 rlv2 在途预存项（与本次无关）。
+6. **协议语义沉淀**（项目级约束）：基建请求体字段以反编译 CS 类为准（不凭服务端直觉加必填字段）；生产/订单进度单位以真存档实测速率反推（点/秒 = 1×加成，阈值 = 基础秒数）；回写到存档的速度字段不得被当乘数再相乘（复利陷阱）。
+
 ---
 
 ## 12. 战斗结算后处理逻辑
@@ -1186,7 +1241,7 @@ pnpm run migrate:official -- --accounts <账号文件路径> --template 1
 ## 16. 集成战略 rlv2 接口补全
 
 ### 16.1 背景
-对照参考项目 Dorothinights（Python）的 rogue_3 接口集审计，现有 `app/game/controller/rlv2.ts`（主控制器）已实现 28 个方法（createGame/buyGoods/moveTo/battleFinish/gameSettle 等），本次补全 5 个缺失接口。
+对照参考项目 Dorothinights（Python）的 rogue_3 接口集审计，现有 `app/game/modules/rlv2/logic.ts`（主管理器）已实现 28 个方法（createGame/buyGoods/moveTo/battleFinish/gameSettle 等），本次补全 5 个缺失接口。
 
 ### 16.2 本次补全接口
 | 接口 | 行为 | 参考 |
@@ -1230,7 +1285,7 @@ pnpm run migrate:official -- --accounts <账号文件路径> --template 1
 
 ### 16.6 藏品池功能（2026-08，战斗收藏品掉落）
 
-**池分类**（`app/game/controller/rlv2/pool.ts` `create()`，官方 `details[theme].items` 动态分池）：
+**池分类**（`app/game/modules/rlv2/pool.ts` `create()`，官方 `details[theme].items` 动态分池）：
 - `pool_relic_all`：全部收藏品（type === "RELIC"）
 - `pool_relic_normal` / `pool_relic_rare` / `pool_relic_super_rare`：按 `rarity` 分类（NORMAL/RARE/SUPER_RARE，BORN 不在稀有度池）
 - `pool_sacrifice_n/r`：可献祭物品（value 8/12）
@@ -1309,12 +1364,12 @@ pnpm run migrate:official -- --accounts <账号文件路径> --template 1
 
 | 层 | 文件 | 职责 |
 |---|---|---|
-| 主题规则注册表 | `app/game/controller/rlv2/theme-rules.ts` | **单一事实来源**：节点类型数值、商店/战斗节点集合、各层行动力、场景前缀、结局关卡与收藏品、重掷类型映射。**不 import 任何管理器**（避免循环依赖） |
-| 主控制器 | `app/game/controller/rlv2.ts` | 请求编排：`gridZoneMoveTo` / `gridZoneEmptyStep` / `gridZoneReadStepZero` / `changeVehicle` / `loseScrap` / `scrapIdentify`；节点 → 事件分发 |
+| 主题规则注册表 | `app/game/modules/rlv2/theme-rules.ts` | **单一事实来源**：节点类型数值、商店/战斗节点集合、各层行动力、场景前缀、结局关卡与收藏品、重掷类型映射。**不 import 任何管理器**（避免循环依赖） |
+| 主管理器 | `app/game/modules/rlv2/logic.ts` | 请求编排：`gridZoneMoveTo` / `gridZoneEmptyStep` / `gridZoneReadStepZero` / `changeVehicle` / `loseScrap` / `scrapIdentify`；节点 → 事件分发 |
 | 地图模块 | `rlv2/modules/grid_zone.ts` | 网格生成（构造模板 + BFS 边距离 + 数量规则）、视野、移动、误入奇境隐藏层 |
 | 零件箱模块 | `rlv2/modules/scrap.ts` | 废品增删、载具切换、官方 `sellPrice` 估价 |
 | 天气模块 | `rlv2/modules/weather.ts` | 层天气状态 |
-| 路由 | `app/game/router/rlv2.ts` | 8 个 rogue_6 专属 POST（协议见 `api.md`） |
+| 路由 | `app/game/modules/rlv2/handler.ts` | 8 个 rogue_6 专属 POST（协议见 `api.md`） |
 
 **分层原则**：「主题相关的**数据**」集中到 theme-rules；「主题相关的**行为**」留在各自管理器（不做上帝对象）。重构前 `theme === "rogue_6"` 与节点数值字面量散落 7 个文件 20+ 处，现全部改为查表 / `isBlackstream(theme)`。`grid_zone.ts` 对外 re-export `ROGUE6_NODE`，既有调用方零改动。
 
@@ -1347,7 +1402,7 @@ pnpm run migrate:official -- --accounts <账号文件路径> --template 1
 ```
 POST /rlv2/gridZone/moveTo {route:[nodeId…]}
   → router 校验 route 非空数组
-  → controller.gridZoneMoveTo：清空 _pushMessages
+  → manager.gridZoneMoveTo：清空 _pushMessages
      → gridZone.moveTo(route)（逐格扣 stepRemain、揭示视野、写 cursor.position）
      → 读 node.content.kind → 查 theme-rules 分发：
          战斗类 → BATTLE 事件 ／ 商店类 → BATTLE_SHOP 事件

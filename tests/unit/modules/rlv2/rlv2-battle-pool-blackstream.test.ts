@@ -13,7 +13,7 @@ vi.mock("@excel/excel", () => {
   const path = require("path");
   const pools = JSON.parse(
     fs.readFileSync(
-      path.join(__dirname, "../../../data/rlv2/pools.json"),
+      path.join(__dirname, "../../../../data/rlv2/pools.json"),
       "utf8",
     ),
   ).pools;
@@ -67,14 +67,14 @@ vi.mock("@excel/excel", () => {
 
 import { PlayerDataManager } from "@game/manager/PlayerDataManager";
 import excel from "@excel/excel";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData } from "../../../helpers";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const fs = require("fs");
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const path = require("path");
 const realPools = JSON.parse(
   fs.readFileSync(
-    path.join(__dirname, "../../../data/rlv2/pools.json"),
+    path.join(__dirname, "../../../../data/rlv2/pools.json"),
     "utf8",
   ),
 ).pools;

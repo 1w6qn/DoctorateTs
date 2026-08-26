@@ -1,6 +1,6 @@
 import { PlayerRoguelikeV2 } from "../../model/rlv2";
 
-import { RoguelikeV2Controller } from "../rlv2";
+import { RoguelikeV2Manager } from "./logic";
 import excel from "@excel/excel";
 import { RoguelikeEventManager, RoguelikePendingEvent } from "./events";
 import { TypedEventEmitter } from "@game/model/events";
@@ -21,10 +21,10 @@ export class RoguelikePlayerStatusManager
   nodeMission?: PlayerRoguelikeV2.CurrentData.PlayerStatus.NodeMission;
   zoneReward?: { [key: string]: PlayerRoguelikeV2.CurrentData.PlayerStatus.ZoneRewardItem };
   traderReturn?: { [key: string]: PlayerRoguelikeV2.CurrentData.PlayerStatus.ZoneRewardItem };
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._player = player;
     this.init();
     this._pending = new RoguelikeEventManager(this._player, _trigger);

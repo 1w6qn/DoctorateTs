@@ -6,7 +6,7 @@
  * }
  * 简化实现：按官服抓包对齐，进层后 weather 保持为空（不下发随机主/副天气）。
  */
-import { RoguelikeV2Controller } from "../../rlv2";
+import { RoguelikeV2Manager } from "../logic";
 import { TypedEventEmitter } from "@game/model/events";
 
 export class RoguelikeWeatherManager {
@@ -15,10 +15,10 @@ export class RoguelikeWeatherManager {
   eye: string;
   effectArea: { [key: string]: number };
   weatherStep: number;
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
     this.currentMain = "";

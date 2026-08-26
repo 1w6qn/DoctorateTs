@@ -8,7 +8,7 @@
  * 简化实现：开局抽 3 枚铜币入袋；gild 升级指定铜币（层数+1）；
  * redraw 重置抽牌（扣 redrawCost，3 次后冻结）。
  */
-import { RoguelikeV2Controller } from "../../rlv2";
+import { RoguelikeV2Manager } from "../logic";
 import excel from "@excel/excel";
 import { now } from "@utils/time";
 import { TypedEventEmitter } from "@game/model/events";
@@ -27,10 +27,10 @@ export class RoguelikeCopperManager {
   redrawFreeze: number;
   redrawFreezeCnt: number;
   _index: number;
-  _player: RoguelikeV2Controller;
+  _player: RoguelikeV2Manager;
   _trigger: TypedEventEmitter;
 
-  constructor(player: RoguelikeV2Controller, _trigger: TypedEventEmitter) {
+  constructor(player: RoguelikeV2Manager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
     this.bag = {};

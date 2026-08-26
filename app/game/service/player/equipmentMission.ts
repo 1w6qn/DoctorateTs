@@ -30,6 +30,7 @@ import { logger } from "@utils/logger";
 import { PlayerDataManager } from "../PlayerDataManager";
 import { BattleInfo } from "./BattleInfoStore";
 import { BattleData, BattleStats } from "@game/domain/battle";
+import { BadRequestError } from "@game/domain/contracts/errors";
 
 /** 模组任务进度条目（playerdata.equipment.missions 的单项） */
 interface EquipmentMissionEntry {
@@ -662,7 +663,7 @@ export class EquipmentMissionManager {
       }
       const cur = missions[missionId]?.value ?? 0;
       if (cur < target) {
-        throw new Error(`模组 ${missionId} 任务未完成（${cur}/${target}），请完成对应战斗后再解锁`);
+        throw new BadRequestError(`模组 ${missionId} 任务未完成（${cur}/${target}），请完成对应战斗后再解锁`);
       }
     }
   }

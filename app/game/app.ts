@@ -8,6 +8,7 @@ import httpContext from "express-http-context2";
 import express from "express";
 import bodyParser from "body-parser";
 import { accountManager } from "./service/player/AccountManager";
+import { isGameError } from "./domain/contracts/errors";
 import { PlayerDataManager } from "./service/PlayerDataManager";
 import { setPlayer, getPlayerOptional } from "./request-context";
 import { acquireLock } from "@utils/mutex";
@@ -144,6 +145,17 @@ export function gameErrorHandler(
   res: express.Response,
   _next: express.NextFunction,
 ): void {
+  // 统一业务异常（建议 13）：状态码/错误码/业务文案透传，客户端可解析
+  if (isGameError(err)) {
+    logger.error("game", `[${err.code}] ${err.message}`);
+    res.status(err.status).json({
+      status: 1,
+      msg: err.message,
+      code: err.code,
+      ...(err.detail !== undefined ? { detail: err.detail } : {}),
+    });
+    return;
+  }
   logger.error("game", (err as Error)?.message || String(err));
   logger.error("game", (err as Error)?.stack || String(err));
   res.status(500).json({

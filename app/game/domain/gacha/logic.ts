@@ -21,6 +21,7 @@ import { domainLogger } from "@utils/logger";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { TypedEventEmitter } from "@game/service/events";
 import { random } from "../util/random";
+import { BadRequestError, InternalError } from "../contracts/errors";
 
 /** 寻访域日志（域标签固定为 GachaManager，Dashboard 可按域过滤） */
 const log = domainLogger("GachaManager");
@@ -236,7 +237,7 @@ export class GachaManager {
     }
     // 修复：先校验余额再抽（原实现先扣费且可扣成负数）
     if (!this._verifyCost(costs)) {
-      throw new Error("资源不足，无法抽卡");
+      throw new BadRequestError("资源不足，无法抽卡");
     }
     // 统一物品管道：单抽消耗（等价 items:use 直发，见建议 4）
     for (const c of costs) this._player.gainItem.add(c);
@@ -290,7 +291,7 @@ export class GachaManager {
     }
     // 修复：先校验余额再抽（原实现十连先发干员后扣费且可扣成负数）
     if (!this._verifyCost(costs)) {
-      throw new Error("资源不足，无法抽卡");
+      throw new BadRequestError("资源不足，无法抽卡");
     }
     const res: (GachaResult & { logInfo: { beforeNonHitCnt: number } })[] = [];
     // 优化：保底计数只在十连结束统一落盘一次（原每抽 saveBeforeNonHitCnt →
@@ -435,7 +436,7 @@ export class GachaManager {
       log.error(
         `未知寻访规则类型 gachaRuleType=${ruleType}（池 ${poolId}）：请显式适配策略表`,
       );
-      throw new Error(`unknown gachaRuleType: ${ruleType}`);
+      throw new InternalError(`unknown gachaRuleType: ${ruleType}`);
     }
     const { charId, rank } = await gachaFn();
     // 修复：原 `const rank = 0` 恒等判断 → 保底计数六星命中后从未重置（无限增长，

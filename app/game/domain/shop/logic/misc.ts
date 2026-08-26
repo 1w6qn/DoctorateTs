@@ -17,6 +17,7 @@ import {
   PeriodicityGroup,
   PeriodicityGPItem,
 } from "@excel/shop";
+import { BadRequestError } from "../../contracts/errors";
 
   /**
    * 校验购买数量为正整数
@@ -27,7 +28,7 @@ import {
    */
 export function _assertBuyCount(mgr: ShopManager, count: number) : void {
     if (typeof count !== "number" || !Number.isInteger(count) || count <= 0) {
-      throw new Error(`非法购买数量: ${count}`);
+      throw new BadRequestError(`非法购买数量: ${count}`);
     }
 }
 

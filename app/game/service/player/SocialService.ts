@@ -6,6 +6,7 @@
  * 由 AccountManager 持有并委托——公共方法签名保留在门面上，调用点零改动。
  */
 import type { AccountManager } from "./AccountManager";
+import { BadRequestError } from "@game/domain/contracts/errors";
 
 export class SocialService {
   constructor(private _manager: AccountManager) {}
@@ -39,13 +40,13 @@ export class SocialService {
   /** 发送好友请求（带校验：不能给自己发、已是好友拒绝、重复申请拒绝） */
   async sendFriendRequest(from: string, to: string): Promise<void> {
     if (from === to) {
-      throw new Error("不能向自己发送好友请求");
+      throw new BadRequestError("不能向自己发送好友请求");
     }
     if (this._manager._friendRepo.hasFriend(from, to)) {
-      throw new Error("对方已是你的好友");
+      throw new BadRequestError("对方已是你的好友");
     }
     if (this._manager._friendRepo.hasFriendRequest(to, from)) {
-      throw new Error("好友请求已发送，请勿重复发送");
+      throw new BadRequestError("好友请求已发送，请勿重复发送");
     }
     this._manager._friendRepo.sendFriendRequest(from, to);
     const friendData = await this._manager.getPlayerData(to);

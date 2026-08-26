@@ -21,6 +21,7 @@ import {
   PIXEL_DATA_LEN,
   PIXEL_PALETTE,
 } from "../../../../admin/arkhub-pixel";
+import { BadRequestError } from "@game/domain/contracts/errors";
 
 /** 像素存储目录（gitignored 运行时数据；index.json 为元数据索引；测试可注入临时目录） */
 export let PIXELS_DIR = path.resolve("data/arkhub/pixels");
@@ -129,7 +130,7 @@ const PALETTE_SET: Set<string> = new Set(PIXEL_PALETTE.map((h) => h.toLowerCase(
 export function savePixel(uid: string, pixelData: unknown, pixelArtId?: number): number {
   const buf = validatePixelData(pixelData);
   if (buf.length !== PIXEL_DATA_LEN) {
-    throw new Error(`pixel data length ${buf.length} != ${PIXEL_DATA_LEN}`);
+    throw new BadRequestError(`pixel data length ${buf.length} != ${PIXEL_DATA_LEN}`);
   }
   // 调色板白名单校验（每像素 RGB → hex）
   for (let i = 0; i < buf.length; i += 3) {
@@ -139,7 +140,7 @@ export function savePixel(uid: string, pixelData: unknown, pixelArtId?: number):
       buf[i + 1].toString(16).padStart(2, "0") +
       buf[i + 2].toString(16).padStart(2, "0");
     if (!PALETTE_SET.has(hex)) {
-      throw new Error(`invalid pixel color ${hex} at px ${i / 3}`);
+      throw new BadRequestError(`invalid pixel color ${hex} at px ${i / 3}`);
     }
   }
   const idx = loadIndex();

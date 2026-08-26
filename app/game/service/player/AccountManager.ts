@@ -34,6 +34,7 @@ import { hashPassword, verifyPassword, isHashedPassword } from "@utils/crypt";
 import { logger } from "@utils/logger";
 import { checkAndRepairSave, logSaveRepair } from "../../service/util/save-health";
 import { buildFreshPlayerData } from "./freshPlayer";
+import { BadRequestError } from "@game/domain/contracts/errors";
 
 /**
  * 热路径顶层键（放最前）
@@ -497,7 +498,7 @@ export class AccountManager implements BattleInfoStore {
     } catch {
       const official = await readJson<any>("./player_data.json").catch(() => null);
       if (!official) {
-        throw new Error(
+        throw new BadRequestError(
           `找不到模板存档 ${templatePath}（player_data.json 亦缺失），无法创建账号`,
         );
       }
@@ -735,7 +736,7 @@ export class AccountManager implements BattleInfoStore {
       const [uid, conf] = found;
       // 禁用账号拦截：已禁用（Dashboard 操作）则拒绝登录
       if (conf.disabled) {
-        throw new Error("该账号已被禁用，请联系管理员");
+        throw new BadRequestError("该账号已被禁用，请联系管理员");
       }
       // 旧明文账号登录成功后惰性升级为哈希（之后不再明文存储）
       if (!isHashedPassword(conf.password)) {
@@ -766,10 +767,10 @@ export class AccountManager implements BattleInfoStore {
     try {
       const phoneStr = String(phone ?? "").trim();
       if (!phoneStr) {
-        throw new Error(`手机号不能为空`);
+        throw new BadRequestError(`手机号不能为空`);
       }
       if (Object.values(this.configs).some((c) => c.auth.phone === phoneStr)) {
-        throw new Error(`手机号已存在: ${phoneStr}`);
+        throw new BadRequestError(`手机号已存在: ${phoneStr}`);
       }
       const uids = Object.keys(this.configs).map(Number);
       const newUid = String((uids.length ? Math.max(...uids) : 0) + 1);

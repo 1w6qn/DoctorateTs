@@ -12,6 +12,7 @@ import {
 } from "@game/domain/util/char-skills";
 import { PlayerCharacter, PlayerCharPatch } from "@game/domain/character";
 import { UniEquipData } from "@excel/excel-types";
+import { BadRequestError } from "@game/domain/contracts/errors";
 
 /** 物品类型数字枚举 → 字符串（spCharMissions 等表的 rewards.type 为数字枚举） */
 function itemTypeToString(itemType: number | string): string {
@@ -257,7 +258,7 @@ export class CharManager {
       const char = draft.troop.chars[charInstId];
       // 防御：charInstId 悬空/错指时直接抛业务错误（原实现读 char.charId 500）
       if (!char) {
-        throw new Error(`干员不存在: instId=${charInstId}`);
+        throw new BadRequestError(`干员不存在: instId=${charInstId}`);
       }
       const expMap = excel.GameDataConst.characterExpMap;
       const goldMap = excel.GameDataConst.characterUpgradeCostMap;
@@ -413,7 +414,7 @@ export class CharManager {
       const char = draft.troop.chars[charInstId];
       // 防御：干员不存在/技能索引越界/指向未解锁技能时拒绝（客户端按索引查技能崩溃）
       if (!char) {
-        throw new Error(`干员不存在: instId=${charInstId}`);
+        throw new BadRequestError(`干员不存在: instId=${charInstId}`);
       }
       const skills = char.skills ?? [];
       const valid =
@@ -422,7 +423,7 @@ export class CharManager {
           defaultSkillIndex < skills.length &&
           skills[defaultSkillIndex]?.unlock === 1);
       if (!valid) {
-        throw new Error(
+        throw new BadRequestError(
           `默认技能索引 ${defaultSkillIndex} 非法或技能未解锁（干员 ${char.charId}）`,
         );
       }
@@ -439,18 +440,18 @@ export class CharManager {
       const char = draft.troop.chars[charInstId];
       // 防御：干员不存在时抛业务错误（原实现读 char.charId 500）
       if (!char) {
-        throw new Error(`干员不存在: instId=${charInstId}`);
+        throw new BadRequestError(`干员不存在: instId=${charInstId}`);
       }
       // 防御：targetLevel < 2 时 allSkillLvlup[-] 越界（客户端正常只发 >=2）
       if (targetLevel < 2) {
-        throw new Error(`技能目标等级 ${targetLevel} 非法（最低 2）`);
+        throw new BadRequestError(`技能目标等级 ${targetLevel} 非法（最低 2）`);
       }
       const info = excel.CharacterTable[char.charId];
       const allSkillLvlup = info?.allSkillLvlup;
       // 防御：无技能干员（2 星等）或 targetLevel 超上限（官方最高 7）时拒绝
       //（原实现 allSkillLvlup[targetLevel-2] 取 undefined 再读 .lvlUpCost 500）
       if (!allSkillLvlup || targetLevel - 2 >= allSkillLvlup.length) {
-        throw new Error(
+        throw new BadRequestError(
           `技能目标等级 ${targetLevel} 超过上限 ${allSkillLvlup ? allSkillLvlup.length + 1 : 1}（干员 ${char.charId}）`,
         );
       }
@@ -459,7 +460,7 @@ export class CharManager {
       // 原实现不校验 unlockCond.phase，E0 干员可越级升满
       const phaseNeed = this._phaseRank(lvlUpCond?.unlockCond?.phase);
       if (char.evolvePhase < phaseNeed) {
-        throw new Error(
+        throw new BadRequestError(
           `技能升至 ${targetLevel} 需精英化${phaseNeed}（当前精${char.evolvePhase}）`,
         );
       }
@@ -468,7 +469,7 @@ export class CharManager {
       // 目标不高于当前等级时拒绝（无升级空间，防刷请求）。
       const currentLevel = char.mainSkillLvl ?? 1;
       if (targetLevel <= currentLevel) {
-        throw new Error(
+        throw new BadRequestError(
           `技能目标等级 ${targetLevel} 不高于当前等级 ${currentLevel}（干员 ${char.charId}）`,
         );
       }
@@ -540,7 +541,7 @@ export class CharManager {
   private _getEquipData(equipId: string): UniEquipData {
     const data = excel.UniequipTable.equipDict[equipId];
     if (!data) {
-      throw new Error(`模组不存在: ${equipId}`);
+      throw new BadRequestError(`模组不存在: ${equipId}`);
     }
     return data;
   }
@@ -559,7 +560,7 @@ export class CharManager {
   ): void {
     const owner = templateId || char.charId;
     if (equip.charId !== owner && equip.charId !== char.charId) {
-      throw new Error(`模组 ${equip.uniEquipId} 不属于干员 ${owner}`);
+      throw new BadRequestError(`模组 ${equip.uniEquipId} 不属于干员 ${owner}`);
     }
   }
 
@@ -571,18 +572,18 @@ export class CharManager {
   ): void {
     const phaseNeed = this._phaseRank(equip.unlockEvolvePhase);
     if (char.evolvePhase < phaseNeed) {
-      throw new Error(
+      throw new BadRequestError(
         `模组 ${equip.uniEquipId} 需精英化${phaseNeed}才能解锁（当前精${char.evolvePhase}）`,
       );
     }
     if (char.level < (equip.unlockLevel ?? 0)) {
-      throw new Error(
+      throw new BadRequestError(
         `模组 ${equip.uniEquipId} 需等级 ${equip.unlockLevel} 才能解锁（当前 ${char.level}）`,
       );
     }
     const favorNeed = equip.unlockFavors?.[String(level)];
     if (typeof favorNeed === "number" && (char.favorPoint ?? 0) < favorNeed) {
-      throw new Error(
+      throw new BadRequestError(
         `模组 ${equip.uniEquipId} 需信赖 ${favorNeed}（当前 ${char.favorPoint}）`,
       );
     }
@@ -663,10 +664,10 @@ export class CharManager {
     const itemType = (excel.ItemTable?.items as Record<string, any>)?.[itemId]
       ?.itemType as string | undefined;
     if (!itemType || !itemType.startsWith(familyPrefix)) {
-      throw new Error(`道具 ${itemId} 不是 ${familyPrefix}* 直升券，无法使用`);
+      throw new BadRequestError(`道具 ${itemId} 不是 ${familyPrefix}* 直升券，无法使用`);
     }
     if (!this._voucherRarityMatches(itemType, charRarityIndex)) {
-      throw new Error(
+      throw new BadRequestError(
         `直升券 ${itemId} 稀有度与干员不匹配（干员为 ${charRarityIndex + 1}★）`,
       );
     }
@@ -685,7 +686,7 @@ export class CharManager {
       const target = this._resolveEquipTarget(char, templateId);
       const entry = (target.equip[equipId] ??= { hide: 1, locked: 1, level: 1 });
       if (entry.locked) {
-        throw new Error(`模组 ${equipId} 尚未解锁，无法装备`);
+        throw new BadRequestError(`模组 ${equipId} 尚未解锁，无法装备`);
       }
       target.currentEquip = equipId;
     });
@@ -706,7 +707,7 @@ export class CharManager {
       const target = this._resolveEquipTarget(char, templateId);
       const entry = (target.equip[equipId] ??= { hide: 1, locked: 1, level: 1 });
       if (!entry.locked) {
-        throw new Error(`模组 ${equipId} 已解锁`);
+        throw new BadRequestError(`模组 ${equipId} 已解锁`);
       }
       entry.hide = 0;
       entry.locked = 0;
@@ -739,17 +740,17 @@ export class CharManager {
       const target = this._resolveEquipTarget(char, templateId);
       const entry = (target.equip[equipId] ??= { hide: 1, locked: 1, level: 1 });
       if (entry.locked) {
-        throw new Error(`模组 ${equipId} 尚未解锁，无法升级`);
+        throw new BadRequestError(`模组 ${equipId} 尚未解锁，无法升级`);
       }
       // 修复：先快照旧等级再算扣费（原实现先置 level 再按已更新等级循环——
       // 只扣了目标档一级，且 tmpl 变体误读 base 等级）
       const oldLevel = entry.level;
       if (targetLevel <= oldLevel) {
-        throw new Error(`目标等级 ${targetLevel} 不高于当前等级 ${oldLevel}`);
+        throw new BadRequestError(`目标等级 ${targetLevel} 不高于当前等级 ${oldLevel}`);
       }
       const maxLevel = this._maxEquipLevel(equipData);
       if (targetLevel > maxLevel) {
-        throw new Error(`模组 ${equipId} 最高等级为 ${maxLevel}`);
+        throw new BadRequestError(`模组 ${equipId} 最高等级为 ${maxLevel}`);
       }
       // 信赖门槛：unlockFavors[targetLevel] 数值时校验（如 2732/10070 信赖点）
       this._assertEquipCondition(char, equipData, targetLevel);
@@ -833,34 +834,34 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, skillIndex, targetLevel } = args;
       const char = draft.troop.chars[charInstId];
-      if (!char) throw new Error(`干员不存在: instId=${charInstId}`);
+      if (!char) throw new BadRequestError(`干员不存在: instId=${charInstId}`);
       const skill = char.skills?.[skillIndex];
       if (!skill) {
-        throw new Error(`技能索引 ${skillIndex} 越界（干员 ${char.charId}）`);
+        throw new BadRequestError(`技能索引 ${skillIndex} 越界（干员 ${char.charId}）`);
       }
       if (skill.unlock !== 1) {
-        throw new Error(`技能 ${skill.skillId} 未解锁，无法专精`);
+        throw new BadRequestError(`技能 ${skill.skillId} 未解锁，无法专精`);
       }
       if ((char.mainSkillLvl ?? 1) < 7) {
-        throw new Error(`主技能等级 ${char.mainSkillLvl} 未达 7，无法专精`);
+        throw new BadRequestError(`主技能等级 ${char.mainSkillLvl} 未达 7，无法专精`);
       }
       const current = skill.specializeLevel ?? 0;
       if (targetLevel < 1 || targetLevel > 3) {
-        throw new Error(`专精目标等级 ${targetLevel} 非法（1-3）`);
+        throw new BadRequestError(`专精目标等级 ${targetLevel} 非法（1-3）`);
       }
       if (targetLevel !== current + 1) {
-        throw new Error(`专精需逐级提升（当前 ${current}，目标必须为 ${current + 1}）`);
+        throw new BadRequestError(`专精需逐级提升（当前 ${current}，目标必须为 ${current + 1}）`);
       }
       if (skill.state === 1 && (skill.completeUpgradeTime ?? 0) > 0) {
-        throw new Error(`技能 ${skill.skillId} 正在专精训练中`);
+        throw new BadRequestError(`技能 ${skill.skillId} 正在专精训练中`);
       }
       const cond = this._masterCond(char.charId, skillIndex, targetLevel);
       if (!cond) {
-        throw new Error(`缺少技能 ${skill.skillId} 专精 ${targetLevel} 配置`);
+        throw new BadRequestError(`缺少技能 ${skill.skillId} 专精 ${targetLevel} 配置`);
       }
       const phaseNeed = this._phaseRank(cond.unlockCond?.phase);
       if (char.evolvePhase < phaseNeed) {
-        throw new Error(
+        throw new BadRequestError(
           `专精需要精英化${phaseNeed}（当前精${char.evolvePhase}）`,
         );
       }
@@ -886,17 +887,17 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, skillIndex, targetLevel } = args;
       const char = draft.troop.chars[charInstId];
-      if (!char) throw new Error(`干员不存在: instId=${charInstId}`);
+      if (!char) throw new BadRequestError(`干员不存在: instId=${charInstId}`);
       const skill = char.skills?.[skillIndex];
       if (!skill) {
-        throw new Error(`技能索引 ${skillIndex} 越界（干员 ${char.charId}）`);
+        throw new BadRequestError(`技能索引 ${skillIndex} 越界（干员 ${char.charId}）`);
       }
       if ((skill.completeUpgradeTime ?? -1) <= 0) {
-        throw new Error(`技能 ${skill.skillId} 未在专精训练中，无法结算`);
+        throw new BadRequestError(`技能 ${skill.skillId} 未在专精训练中，无法结算`);
       }
       const current = skill.specializeLevel ?? 0;
       if (targetLevel < 1 || targetLevel > 3 || targetLevel !== current + 1) {
-        throw new Error(`专精结算等级 ${targetLevel} 非法（应为 ${current + 1}）`);
+        throw new BadRequestError(`专精结算等级 ${targetLevel} 非法（应为 ${current + 1}）`);
       }
       skill.specializeLevel = targetLevel;
       skill.state = 0;
@@ -913,13 +914,13 @@ export class CharManager {
       const { charId, missionId } = args;
       const mission = excel.CharMetaTable?.spCharMissions?.[charId]?.[missionId];
       if (!mission) {
-        throw new Error(`异格干员任务不存在: ${charId}/${missionId}`);
+        throw new BadRequestError(`异格干员任务不存在: ${charId}/${missionId}`);
       }
       // 加固：charMission 缺省初始化（新干员/导入存档可能无此键）
       if (!draft.troop.charMission) draft.troop.charMission = {};
       draft.troop.charMission[charId] = draft.troop.charMission[charId] || {};
       if (draft.troop.charMission[charId][missionId] === 2) {
-        throw new Error(`任务奖励已领取: ${missionId}`);
+        throw new BadRequestError(`任务奖励已领取: ${missionId}`);
       }
       // 资格校验：condType 数值 1 = EVOLVE_PHASE（JSON 数值与 TS 字符串枚举
       // 不一致——按数值/字符串双判断；param = [精二阶段, 等级]）
@@ -930,10 +931,10 @@ export class CharManager {
           (c) => c.charId === charId,
         );
         if (!char) {
-          throw new Error(`干员不存在: ${charId}`);
+          throw new BadRequestError(`干员不存在: ${charId}`);
         }
         if (char.evolvePhase < phaseReq || char.level < levelReq) {
-          throw new Error(
+          throw new BadRequestError(
             `未满足异格干员任务条件（需精${phaseReq} 级${levelReq}）: ${missionId}`,
           );
         }
@@ -967,11 +968,11 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, itemId, instId } = args;
       const char = draft.troop.chars[charInstId];
-      if (!char) throw new Error(`干员不存在: instId=${charInstId}`);
+      if (!char) throw new BadRequestError(`干员不存在: instId=${charInstId}`);
       const rarity = rarityToIndex(excel.CharacterTable[char.charId].rarity);
       this._assertVoucher(itemId, "VOUCHER_ELITE_II_", rarity);
       if (char.evolvePhase >= 2) {
-        throw new Error(`干员 ${char.charId} 已精二，无需使用直升券`);
+        throw new BadRequestError(`干员 ${char.charId} 已精二，无需使用直升券`);
       }
       char.evolvePhase = 2;
       char.level = 1;
@@ -1003,7 +1004,7 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, itemId, instId } = args;
       const char = draft.troop.chars[charInstId];
-      if (!char) throw new Error(`干员不存在: instId=${charInstId}`);
+      if (!char) throw new BadRequestError(`干员不存在: instId=${charInstId}`);
       const rarity = rarityToIndex(excel.CharacterTable[char.charId].rarity);
       this._assertVoucher(itemId, "VOUCHER_LEVELMAX_", rarity);
       // 修复：原实现恒写 maxLevel[rarity][2]（精二满级）——maxLevel 数据为空桩时
@@ -1037,15 +1038,15 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, skillIndex, itemId, instId } = args;
       const char = draft.troop.chars[charInstId];
-      if (!char) throw new Error(`干员不存在: instId=${charInstId}`);
+      if (!char) throw new BadRequestError(`干员不存在: instId=${charInstId}`);
       const rarity = rarityToIndex(excel.CharacterTable[char.charId].rarity);
       this._assertVoucher(itemId, "VOUCHER_SKILL_SPECIALLEVELMAX_", rarity);
       const skill = char.skills?.[skillIndex];
       if (!skill) {
-        throw new Error(`技能索引 ${skillIndex} 越界（干员 ${char.charId}）`);
+        throw new BadRequestError(`技能索引 ${skillIndex} 越界（干员 ${char.charId}）`);
       }
       if (skill.unlock !== 1) {
-        throw new Error(`技能 ${skill.skillId} 未解锁，无法直升专精`);
+        throw new BadRequestError(`技能 ${skill.skillId} 未解锁，无法直升专精`);
       }
       skill.specializeLevel = 3;
       skill.state = 0;

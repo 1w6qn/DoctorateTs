@@ -1,3 +1,10 @@
+# domain 领域层
+
+> domain 按路由编排：每个路由域一个目录（account/activity/gacha/...），
+> 目录内含该路由的协议契约（schema/DTO）与领域模型；
+> 跨域共享件保留在 contracts/（common/validate-body）与根（battle/character/playerdata）；
+> events/（事件契约）、util/（纯工具）、building/（基建纯函数引擎）按既有组织保持。
+
 # app/game/domain — 领域层
 
 DDD 分层的**领域层**：只允许存放纯类型与纯函数规则，零 IO、零副作用。

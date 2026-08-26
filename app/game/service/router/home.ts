@@ -28,7 +28,7 @@ import {
   SetLowPowerResponse,
   SetTrapSquadRequest,
   SetTrapSquadResponse,
-} from "../../domain/contracts/home";
+} from "../../domain/home/home";
 import {
   CharRotationCreatePresetRequest,
   CharRotationCreatePresetResponse,
@@ -38,7 +38,7 @@ import {
   CharRotationSetCurrentPresetResponse,
   CharRotationUpdatePresetRequest,
   CharRotationUpdatePresetResponse,
-} from "../../domain/contracts/charRotation";
+} from "../../domain/character/charRotation";
 import { validateBody } from "../../domain/contracts/validate-body";
 import {
   batchEventSchema,
@@ -58,7 +58,7 @@ import {
   setHomeThemeSchema,
   setLowPowerSchema,
   setTrapSquadSchema,
-} from "../../domain/contracts/home.schema";
+} from "../../domain/home/home.schema";
 
 const router = Router();
 router.post("/homeTheme/change", validateBody(setHomeThemeSchema), async (req, res) => {

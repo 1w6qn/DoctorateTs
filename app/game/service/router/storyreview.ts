@@ -13,7 +13,7 @@ import {
   StoryReviewRewardResponse,
   UnlockStoryByCoinRequest,
   UnlockStoryByCoinResponse,
-} from "../../domain/contracts/storyreview";
+} from "../../domain/storyreview/storyreview";
 import { validateBody } from "../../domain/contracts/validate-body";
 import {
   markStoryAcceKnownSchema,
@@ -21,7 +21,7 @@ import {
   rewardGroupSchema,
   trailRewardSchema,
   unlockStoryByCoinSchema,
-} from "../../domain/contracts/storyreview.schema";
+} from "../../domain/storyreview/storyreview.schema";
 
 const router = Router();
 router.post("/markStoryAcceKnown", validateBody(markStoryAcceKnownSchema), async (req, res) => {

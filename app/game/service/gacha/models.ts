@@ -7,7 +7,7 @@
  */
 import { ItemBundle } from "@excel/character_table";
 import { GachaDetailData } from "@excel/gacha_detail_table";
-import { GachaResult, GachaType } from "../../domain/gacha";
+import { GachaResult, GachaType } from "../../domain/gacha/gacha";
 import { PlayerDeltaResponse } from "../../domain/contracts/common";
 
 /** 同步普通招募状态请求（CS: SyncNormalGachaRequest，无字段） */

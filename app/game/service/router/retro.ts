@@ -9,7 +9,7 @@ import {
   getRetroPassRewardSchema,
   competitionStartSchema,
   competitionFinishSchema,
-} from "../../domain/contracts/retro.schema";
+} from "../../domain/retro/retro.schema";
 import {
   RetroCarCompetitionFinishRequest,
   RetroCarCompetitionFinishResponse,
@@ -21,7 +21,7 @@ import {
   RetroTrailRewardResponse,
   RetroUnlockRetroBlockRequest,
   RetroUnlockRetroBlockResponse,
-} from "../../domain/contracts/retro";
+} from "../../domain/retro/retro";
 
 const router = Router();
 router.post("/retro/unlockRetroBlock", validateBody(unlockRetroBlockSchema), async (req, res) => {

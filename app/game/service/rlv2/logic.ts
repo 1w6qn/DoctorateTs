@@ -1,4 +1,4 @@
-import { PlayerRoguelikeV2, RoguelikeItemBundle, RoguelikeNodePosition, TorappuRoguelikeEventType } from "../../domain/rlv2";
+import { PlayerRoguelikeV2, RoguelikeItemBundle, RoguelikeNodePosition, TorappuRoguelikeEventType } from "../../domain/rlv2/rlv2";
 import excel from "@excel/excel";
 import { readFileSync } from "fs";
 import zlib from "node:zlib";

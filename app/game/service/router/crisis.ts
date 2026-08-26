@@ -34,7 +34,7 @@ import {
   crisisV2GetSnapshotSchema,
   recalRuneBattleFinishSchema,
   recalRuneBattleStartSchema,
-} from "../../domain/contracts/crisis.schema";
+} from "../../domain/crisis/crisis.schema";
 import { PlayerDataManager } from "../PlayerDataManager";
 import { recordPurchase } from "../../domain/util/purchase-record";
 import { now } from "@utils/time";
@@ -84,7 +84,7 @@ import {
   RecalRuneBattleFinishResponse,
   RecalRuneBattleStartRequest,
   RecalRuneBattleStartResponse,
-} from "../../domain/contracts/crisis";
+} from "../../domain/crisis/crisis";
 
 // ==================== 常量定义 ====================
 

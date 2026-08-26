@@ -24,7 +24,7 @@ import {
   CampaignStartBattleResponse,
   CampaignSweepRequest,
   CampaignSweepResponse,
-} from "../../domain/contracts/campaignV2";
+} from "../../domain/campaignV2/campaignV2";
 import { validateBody } from "../../domain/contracts/validate-body";
 import {
   campaignV2BattleFinishSchema,
@@ -32,7 +32,7 @@ import {
   campaignV2BattleSweepSchema,
   campaignV2GetBreakRewardSchema,
   campaignV2GetExMissionRewardSchema,
-} from "../../domain/contracts/campaignV2.schema";
+} from "../../domain/campaignV2/campaignV2.schema";
 
 const router = Router();
 

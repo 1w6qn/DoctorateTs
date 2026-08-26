@@ -1,6 +1,6 @@
 import excel from "@excel/excel";
 import { randomChoice } from "@utils/random";
-import { RoguelikeBuff } from "@game/domain/rlv2";
+import { RoguelikeBuff } from "@game/domain/rlv2/rlv2";
 import { RoguelikeV2Manager } from "../logic";
 import { TypedEventEmitter } from "@game/service/events";
 

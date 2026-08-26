@@ -2,15 +2,15 @@
  * 干员编队路由模块
  * 
  * 处理干员基建技能组合设置相关的 HTTP 请求。
- * 请求/响应类型见 @game/domain/contracts/charm（参考 CS 2.7.61 协议类）。
+ * 请求/响应类型见 @game/domain/charm/charm（参考 CS 2.7.61 协议类）。
  */
 
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
 import { PlayerDataManager } from "../PlayerDataManager";
 import { validateBody } from "../../domain/contracts/validate-body";
-import { setSquadSchema } from "../../domain/contracts/charm.schema";
-import { CharmSetSquadRequest, CharmSetSquadResponse } from "../../domain/contracts/charm";
+import { setSquadSchema } from "../../domain/charm/charm.schema";
+import { CharmSetSquadRequest, CharmSetSquadResponse } from "../../domain/charm/charm";
 
 const router = Router();
 

@@ -27,7 +27,7 @@ import type {
   BossRushFinishBattleResponse,
   BossRushStartBattleRequest,
   BossRushStartBattleResponse,
-} from "@game/domain/contracts/activity";
+} from "@game/domain/activity/activity";
 import type {
   ActivityBossRushData,
   ActivityBossRushData_RelicLevelInfo,

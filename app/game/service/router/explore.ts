@@ -19,7 +19,7 @@ import {
   selectInitGroupSchema,
   selectTargetChoiceSchema,
   settleGameSchema,
-} from "../../domain/contracts/explore.schema";
+} from "../../domain/explore/explore.schema";
 
 const router = Router();
 

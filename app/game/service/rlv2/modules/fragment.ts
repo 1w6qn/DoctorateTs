@@ -1,5 +1,5 @@
 import excel from "@excel/excel";
-import { PlayerRoguelikeV2, RoguelikeBuff } from "@game/domain/rlv2";
+import { PlayerRoguelikeV2, RoguelikeBuff } from "@game/domain/rlv2/rlv2";
 import { RoguelikeV2Manager } from "../logic";
 import { now } from "@utils/time";
 import { randomChoice } from "@utils/random";

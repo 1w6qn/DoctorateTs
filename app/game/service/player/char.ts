@@ -2,7 +2,7 @@ import { TypedEventEmitter } from "@game/service/events";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
-import { GachaResult } from "@game/domain/gacha";
+import { GachaResult } from "@game/domain/gacha/gacha";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";
 import { rarityToIndex } from "@utils/rarity";

@@ -9,7 +9,7 @@ import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
 import { PlayerDataManager } from "../PlayerDataManager";
 import { validateBody } from "../../domain/contracts/validate-body";
-import { miscAlignmentStubSchema } from "../../domain/contracts/misc-alignment.schema";
+import { miscAlignmentStubSchema } from "../../domain/misc-alignment/misc-alignment.schema";
 
 const router = Router();
 

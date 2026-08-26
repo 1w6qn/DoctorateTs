@@ -2,7 +2,7 @@
  * 活动路由：act24side（由 router/activity.ts 拆分而来，实现未改动）
  */
 import { Router } from "express";
-import * as ReqSchema from "../../../domain/contracts/activity.schema";
+import * as ReqSchema from "../../../domain/activity/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../request-context";
 import { ItemBundle } from "@excel/character_table";
@@ -131,7 +131,7 @@ import {
   ActivityStubItemsResponse,
   ActivityStubRequest,
   ActivityStubResponse,
-} from "../../../domain/contracts/activity";
+} from "../../../domain/activity/activity";
 import { validateBody } from "../../../domain/contracts/validate-body";
 
 const router = Router();

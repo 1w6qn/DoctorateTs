@@ -4,7 +4,7 @@
  * 处理模板商店相关的 HTTP 请求，包括商品列表查询和购买操作。
  * 商品配置来自 data/shop/templateShop.json（参考 ODPY 数据源，33 家商店含
  * sandbox_1/2、shop_act53side 等）；请求/响应类型见
- * @game/domain/contracts/templateShop（参考 CS 2.7.61 协议类）。
+ * @game/domain/templateShop/templateShop（参考 CS 2.7.61 协议类）。
  *
  * 2026-08-16 官服抓包对齐（tmp/capture/records/R-1786877194008-0087/0088）：
  * - getGoodList 响应含 allPriceDict（[{startTime, maxPrice}]，maxPrice=购全店总额）
@@ -21,7 +21,7 @@ import { validateBody } from "../../domain/contracts/validate-body";
 import {
   templateGetGoodListSchema,
   templateBuyGoodSchema,
-} from "../../domain/contracts/templateShop.schema";
+} from "../../domain/templateShop/templateShop.schema";
 import { readJsonSync } from "@utils/file";
 import { ItemBundle } from "@excel/character_table";
 import {
@@ -29,7 +29,7 @@ import {
   TemplateBuyGoodResponse,
   TemplateGetGoodListRequest,
   TemplateGetGoodListResponse,
-} from "../../domain/contracts/templateShop";
+} from "../../domain/templateShop/templateShop";
 
 const router = Router();
 

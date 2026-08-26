@@ -1,6 +1,6 @@
 import excel from "@excel/excel";
 import { readFileSync } from "fs";
-import { RoguelikeItemBundle } from "../../domain/rlv2";
+import { RoguelikeItemBundle } from "../../domain/rlv2/rlv2";
 import { RoguelikeV2Manager } from "./logic";
 import { randomChoice } from "@utils/random";
 import { TypedEventEmitter } from "@game/service/events";

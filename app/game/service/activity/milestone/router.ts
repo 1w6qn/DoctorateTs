@@ -3,7 +3,7 @@
  */
 import { Router } from "express";
 import { confirmOneActivityMission, autoConfirmActivityMissionsIn, ItemTypeToString } from "../shared";
-import * as ReqSchema from "../../../domain/contracts/activity.schema";
+import * as ReqSchema from "../../../domain/activity/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../request-context";
 import { ItemBundle } from "@excel/character_table";
@@ -141,7 +141,7 @@ import {
   ActivityStubItemsResponse,
   ActivityStubRequest,
   ActivityStubResponse,
-} from "../../../domain/contracts/activity";
+} from "../../../domain/activity/activity";
 import { validateBody } from "../../../domain/contracts/validate-body";
 
 const router = Router();

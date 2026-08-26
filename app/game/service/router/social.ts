@@ -26,7 +26,7 @@ import {
   SetFriendAliasResponse,
   SetStarFriendListRequest,
   SetStarFriendListResponse,
-} from "../../domain/contracts/social";
+} from "../../domain/social/social";
 import { validateBody } from "../../domain/contracts/validate-body";
 import {
   deleteFriendSchema,
@@ -41,7 +41,7 @@ import {
   setCardShowMedalSchema,
   setFriendAliasSchema,
   setStarFriendListSchema,
-} from "../../domain/contracts/social.schema";
+} from "../../domain/social/social.schema";
 
 const router = Router();
 router.post("/deleteFriend", validateBody(deleteFriendSchema), async (req, res) => {

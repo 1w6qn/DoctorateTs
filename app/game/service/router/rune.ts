@@ -13,7 +13,7 @@ import { validateBody } from "../../domain/contracts/validate-body";
 import {
   runeFinishBattleSchema,
   runeStartBattleSchema,
-} from "../../domain/contracts/rune.schema";
+} from "../../domain/rune/rune.schema";
 import { PlayerDataManager } from "../PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 import { PlayerDeltaResponse } from "../../domain/contracts/common";

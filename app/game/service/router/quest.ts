@@ -19,7 +19,7 @@ import {
   unlockStageFogSchema,
   unlockHideStageSchema,
   confirmSixStarRewardSchema,
-} from "../../domain/contracts/quest.schema";
+} from "../../domain/quest/quest.schema";
 import { ItemBundle } from "@excel/character_table";
 import {
   BattleContinueRequest,
@@ -51,7 +51,7 @@ import {
   UnlockHideStageResponse,
   UnlockStageFogRequest,
   UnlockStageFogResponse,
-} from "../../domain/contracts/quest";
+} from "../../domain/quest/quest";
 import { CommonStartBattleRequest } from "../../domain/battle";
 
 /**

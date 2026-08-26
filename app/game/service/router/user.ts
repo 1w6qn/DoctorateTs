@@ -1,6 +1,6 @@
 /**
  * 用户路由
- * 请求/响应类型见 @game/domain/contracts/user（参考 CS 2.7.61 协议类）
+ * 请求/响应类型见 @game/domain/account/user（参考 CS 2.7.61 协议类）
  */
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
@@ -59,7 +59,7 @@ import {
   UseItemsResponse,
   UseRenameCardRequest,
   UseRenameCardResponse,
-} from "../../domain/contracts/user";
+} from "../../domain/account/user";
 import { validateBody } from "../../domain/contracts/validate-body";
 import {
   bindBirthdaySchema,
@@ -91,7 +91,7 @@ import {
   useItemSchema,
   useItemsSchema,
   useRenameCardSchema,
-} from "../../domain/contracts/user.schema";
+} from "../../domain/account/user.schema";
 
 
 /** 1x1 透明 PNG（静态图片占位） */

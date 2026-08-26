@@ -1,4 +1,4 @@
-import { PlayerRoguelikeV2 } from "../../domain/rlv2";
+import { PlayerRoguelikeV2 } from "../../domain/rlv2/rlv2";
 
 import { RoguelikeV2Manager } from "./logic";
 import excel from "@excel/excel";

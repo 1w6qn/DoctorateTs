@@ -17,7 +17,7 @@ import {
   cardSelectSchema,
   operaCommentLikeSchema,
   taskRingGainRewardSchema,
-} from "../../domain/contracts/siracusaMap.schema";
+} from "../../domain/siracusaMap/siracusaMap.schema";
 
 const router = Router();
 

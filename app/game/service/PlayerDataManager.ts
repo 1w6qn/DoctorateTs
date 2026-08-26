@@ -25,7 +25,7 @@ import { SocialManager } from "./player/social";
 import { DexNavManager } from "./player/dexnav";
 import { MedalManager } from "./player/medal";
 import { BuildingManager } from "@game/service/building/logic";
-import { FriendDataWithNameCard, FriendMedalBoard } from "@game/domain/social";
+import { FriendDataWithNameCard, FriendMedalBoard } from "@game/domain/social/social.model";
 import { OpenServerManager } from "@game/service/activity/checkin/openServer";
 import { PlayerStatus } from "./PlayerStatus";
 import {

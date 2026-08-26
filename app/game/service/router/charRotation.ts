@@ -12,7 +12,7 @@ import {
   deletePresetSchema,
   setCurrentSchema,
   updatePresetSchema,
-} from "../../domain/contracts/charRotation.schema";
+} from "../../domain/character/charRotation.schema";
 import { PlayerDataManager } from "../PlayerDataManager";
 import {
   CharRotationCreatePresetRequest,
@@ -23,7 +23,7 @@ import {
   CharRotationSetCurrentPresetResponse,
   CharRotationUpdatePresetRequest,
   CharRotationUpdatePresetResponse,
-} from "../../domain/contracts/charRotation";
+} from "../../domain/character/charRotation";
 
 const router = Router();
 

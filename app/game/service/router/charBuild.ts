@@ -27,7 +27,7 @@ import {
   upgradeSkillSchema,
   upgradeSpecializationSchema,
   upgradeSpecializedSkillUseItemSchema,
-} from "../../domain/contracts/charBuild.schema";
+} from "../../domain/character/charBuild.schema";
 import {
   AddonStageBattleFinishRequest,
   AddonStageBattleFinishResponse,
@@ -77,7 +77,7 @@ import {
   UpgradeSpecializedSkillUseItemResponse,
   UnlockEquipmentRequest,
   UnlockEquipmentResponse,
-} from "../../domain/contracts/charBuild";
+} from "../../domain/character/charBuild";
 
 const router = Router();
 router.post("/setDefaultSkill", validateBody(setDefaultSkillSchema), async (req, res) => {

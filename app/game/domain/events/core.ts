@@ -11,13 +11,13 @@
  * 新增/修改事件只触及对应领域文件即可。
  */
 import type { ItemBundle } from "@excel/character_table";
-import type { GachaResult } from "@game/domain/gacha";
+import type { GachaResult } from "@game/domain/gacha/gacha";
 import type {
   BattleData,
   CommonStartBattleRequest,
 } from "@game/domain/battle";
 import type { PlayerCharacter } from "@game/domain/character";
-import type { PlayerRoguelikeV2 } from "@game/domain/rlv2";
+import type { PlayerRoguelikeV2 } from "@game/domain/rlv2/rlv2";
 
 /**
  * 核心事件映射

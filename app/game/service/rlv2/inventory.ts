@@ -1,4 +1,4 @@
-import { PlayerRoguelikeV2, RoguelikeItemBundle } from "../../domain/rlv2";
+import { PlayerRoguelikeV2, RoguelikeItemBundle } from "../../domain/rlv2/rlv2";
 import { RoguelikeRelicManager } from "./relic";
 import { RoguelikeRecruitManager } from "./recruit";
 import { RoguelikeV2Manager } from "./logic";

@@ -131,7 +131,7 @@ import {
   ActivityStubItemsResponse,
   ActivityStubRequest,
   ActivityStubResponse,
-} from "../../domain/contracts/activity";
+} from "../../domain/activity/activity";
 
 export function miniBattleStart(player: PlayerDataManager) {
   return {

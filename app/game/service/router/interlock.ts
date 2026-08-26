@@ -10,14 +10,14 @@ import {
   Act1LockSetDefendResponse,
   Act1LockSetSquadRequest,
   Act1LockSetSquadResponse,
-} from "../../domain/contracts/interlock";
+} from "../../domain/interlock/interlock";
 import { validateBody } from "../../domain/contracts/validate-body";
 import {
   getMilestoneBatchSchema,
   getMilestoneSchema,
   setDefendSchema,
   setSquadSchema,
-} from "../../domain/contracts/interlock.schema";
+} from "../../domain/interlock/interlock.schema";
 
 const router = Router();
 

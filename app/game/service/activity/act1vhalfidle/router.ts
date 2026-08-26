@@ -3,7 +3,7 @@
  */
 import { Router } from "express";
 import { miniBattleStart, miniBattleFinish } from "../shared";
-import * as ReqSchema from "../../../domain/contracts/activity.schema";
+import * as ReqSchema from "../../../domain/activity/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../request-context";
 import { now } from "@utils/time";
@@ -131,7 +131,7 @@ import {
   ActivityStubItemsResponse,
   ActivityStubRequest,
   ActivityStubResponse,
-} from "../../../domain/contracts/activity";
+} from "../../../domain/activity/activity";
 import { validateBody } from "../../../domain/contracts/validate-body";
 
 const router = Router();

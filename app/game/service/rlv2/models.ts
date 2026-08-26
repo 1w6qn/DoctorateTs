@@ -7,7 +7,7 @@
  */
 import { PlayerSquad } from "../../domain/character";
 import { BattleData } from "../../domain/battle";
-import { PlayerRoguelikeV2, RoguelikeNodePosition } from "../../domain/rlv2";
+import { PlayerRoguelikeV2, RoguelikeNodePosition } from "../../domain/rlv2/rlv2";
 import { PlayerDeltaResponse } from "../../domain/contracts/common";
 
 /* ===== 请求类型 ===== */

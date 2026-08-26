@@ -8,7 +8,7 @@
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
 import { PlayerDataManager } from "../PlayerDataManager";
-import { GACHA_RULE_TYPE } from "../../domain/gacha";
+import { GACHA_RULE_TYPE } from "../../domain/gacha/gacha";
 import { validateBody } from "../../domain/contracts/validate-body";
 import {
   syncNormalGachaSchema,

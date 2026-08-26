@@ -10,7 +10,7 @@ import type {
   PlayerRoguelikeV2,
   RoguelikeBuff,
   RoguelikeItemBundle,
-} from "@game/domain/rlv2";
+} from "@game/domain/rlv2/rlv2";
 import type { BattleData } from "@game/domain/battle";
 import type { RoguelikeV2Manager } from "@game/service/rlv2/logic";
 

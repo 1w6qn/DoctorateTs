@@ -10,7 +10,7 @@ import {
   RoguelikeItemBundle,
   RoguelikeNodePosition,
   TorappuRoguelikeEventType,
-} from "../../domain/rlv2";
+} from "../../domain/rlv2/rlv2";
 import excel from "@excel/excel";
 
 export async function activeRecruitTicket(mgr: RoguelikeV2Manager, args: { id: string }) {

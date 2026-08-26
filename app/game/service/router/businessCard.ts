@@ -7,7 +7,7 @@ import {
   changeNameCardSkinSchema,
   editNameCardSchema,
   getOtherPlayerNameCardSchema,
-} from "../../domain/contracts/businessCard.schema";
+} from "../../domain/businessCard/businessCard.schema";
 import {
   ChangeNameCardComponentRequest,
   ChangeNameCardComponentResponse,
@@ -17,7 +17,7 @@ import {
   EditNameCardResponse,
   GetOtherPlayerNameCardRequest,
   GetOtherPlayerNameCardResponse,
-} from "../../domain/contracts/businessCard";
+} from "../../domain/businessCard/businessCard";
 
 const router = Router();
 router.post(

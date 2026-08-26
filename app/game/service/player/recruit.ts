@@ -1,5 +1,5 @@
 import excel from "@excel/excel";
-import { GachaResult } from "../../domain/gacha";
+import { GachaResult } from "../../domain/gacha/gacha";
 import {
   randomChoice,
   randomChoices,

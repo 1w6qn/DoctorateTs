@@ -6,7 +6,7 @@
  */
 
 import { PlayerGacha } from "@game/domain/playerdata";
-import { GachaResult, GachaType, GACHA_RULE_TYPE, resolveGachaRank } from "@game/domain/gacha";
+import { GachaResult, GachaType, GACHA_RULE_TYPE, resolveGachaRank } from "@game/domain/gacha/gacha";
 import {
   GachaDetailData,
   GachaDetailTable,
@@ -619,7 +619,7 @@ export class GachaManager {
       });
       return fallbackRank;
     }
-    // 概率/保底计算收敛到 domain/gacha.ts 的纯函数 resolveGachaRank（可注入随机源、可单测）
+    // 概率/保底计算收敛到 domain/gacha/gacha.ts 的纯函数 resolveGachaRank（可注入随机源、可单测）
     const gachaSt = this.gacha.normal?.[poolId] ?? { cnt: 0, maxCnt: 10 };
     const nextCnt = (gachaSt.cnt ?? 0) + 1;
     const rank = resolveGachaRank({

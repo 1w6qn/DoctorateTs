@@ -24,7 +24,7 @@ import {
   useMaterialVoucherSchema,
   useFullPotentialItemSchema,
   useOptionVoucherSchema,
-} from "../../domain/contracts/depot.schema";
+} from "../../domain/depot/depot.schema";
 import { readJsonSync } from "@utils/file";
 import { ItemBundle } from "@excel/character_table";
 import { randomChoice } from "@utils/random";
@@ -47,7 +47,7 @@ import {
   VoucherGachaDetailResponse,
   VoucherItemDetailRequest,
   VoucherItemDetailResponse,
-} from "../../domain/contracts/depot";
+} from "../../domain/depot/depot";
 
 /** 凭证信息接口（对应 voucher.json 中的数据结构） */
 interface VoucherInfo {

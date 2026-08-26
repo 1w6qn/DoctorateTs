@@ -13,14 +13,14 @@ import {
   SyncPushMessageResponse,
   SyncStatusRequest,
   SyncStatusResponse,
-} from "../../domain/contracts/account";
+} from "../../domain/account/account";
 import { validateBody } from "../../domain/contracts/validate-body";
 import {
   loginSchema,
   syncDataSchema,
   syncPushMessageSchema,
   syncStatusSchema,
-} from "../../domain/contracts/account.schema";
+} from "../../domain/account/account.schema";
 
 const router = Router();
 

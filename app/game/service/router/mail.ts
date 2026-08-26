@@ -1,6 +1,6 @@
 /**
  * 邮件路由
- * 请求/响应类型见 @game/domain/contracts/mail（参考 CS 2.7.61 协议类）
+ * 请求/响应类型见 @game/domain/mail/mail（参考 CS 2.7.61 协议类）
  */
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
@@ -17,7 +17,7 @@ import {
   ReceiveMailResponse,
   RemoveAllReceivedMailRequest,
   RemoveAllReceivedMailResponse,
-} from "../../domain/contracts/mail";
+} from "../../domain/mail/mail";
 import { validateBody } from "../../domain/contracts/validate-body";
 import {
   getMetaInfoListSchema,
@@ -25,7 +25,7 @@ import {
   receiveAllMailSchema,
   receiveMailSchema,
   removeAllReceivedMailSchema,
-} from "../../domain/contracts/mail.schema";
+} from "../../domain/mail/mail.schema";
 
 const router = Router();
 

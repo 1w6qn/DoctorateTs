@@ -22,7 +22,7 @@ import {
   Act7FunBattleFinishResponse,
   Act7FunBattleStartRequest,
   Act7FunBattleStartResponse,
-} from "@game/domain/contracts/aprilFool";
+} from "@game/domain/aprilFool/aprilFool";
 import { validateBody } from "../../domain/contracts/validate-body";
 import {
   act3funBattleFinishSchema,
@@ -37,7 +37,7 @@ import {
   act6funRecvRewardSchema,
   act7funBattleFinishSchema,
   act7funBattleStartSchema,
-} from "../../domain/contracts/aprilFool.schema";
+} from "../../domain/aprilFool/aprilFool.schema";
 
 const router = Router();
 

@@ -153,8 +153,8 @@ import {
   SandboxV3SwitchModeResponse,
   SandboxV3UnlockTechRequest,
   SandboxV3UnlockTechResponse,
-} from "../../domain/contracts/sandbox";
-import * as ReqSchema from "../../domain/contracts/sandbox.schema";
+} from "../../domain/sandbox/sandbox";
+import * as ReqSchema from "../../domain/sandbox/sandbox.schema";
 import { validateBody } from "../../domain/contracts/validate-body";
 
 const router = Router();

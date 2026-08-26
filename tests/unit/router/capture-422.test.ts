@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import * as Building from "../../../app/game/service/building/schemas";
-import * as BusinessCard from "../../../app/game/domain/contracts/businessCard.schema";
+import * as BusinessCard from "../../../app/game/domain/businessCard/businessCard.schema";
 import { validateBody } from "../../../app/game/domain/contracts/validate-body";
 
 function makeRes() {

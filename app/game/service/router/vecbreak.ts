@@ -14,7 +14,7 @@ import {
   VecBreakV2SetDefendRequest,
   VecBreakV2SetDefendResponse,
   VecBreakV2StartBattleResponse,
-} from "../../domain/contracts/vecbreak";
+} from "../../domain/vecbreak/vecbreak";
 import { validateBody } from "../../domain/contracts/validate-body";
 import {
   battleFinishSchema,
@@ -24,7 +24,7 @@ import {
   defendBattleStartSchema,
   getSeasonRecordSchema,
   setDefendSchema,
-} from "../../domain/contracts/vecbreak.schema";
+} from "../../domain/vecbreak/vecbreak.schema";
 
 const router = Router();
 

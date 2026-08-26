@@ -1,6 +1,6 @@
 /**
  * 老版集成战略（roguelike v1）路由
- * 请求/响应类型见 @game/domain/contracts/roguelike（CS 2.7.61 无对应类，以服务端实现为准）
+ * 请求/响应类型见 @game/domain/rlv2/roguelike（CS 2.7.61 无对应类，以服务端实现为准）
  */
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
@@ -18,7 +18,7 @@ import {
   RoguelikeMilestoneRewardTryBestResponse,
   RoguelikeUpgradeOutBuffRequest,
   RoguelikeUpgradeOutBuffResponse,
-} from "../../domain/contracts/roguelike";
+} from "../../domain/rlv2/roguelike";
 import { validateBody } from "../../domain/contracts/validate-body";
 import {
   roguelikeCreateGameSchema,
@@ -27,7 +27,7 @@ import {
   roguelikeMilestoneRewardSchema,
   roguelikeMilestoneRewardTryBestSchema,
   roguelikeUpgradeOutBuffSchema,
-} from "../../domain/contracts/roguelike.schema";
+} from "../../domain/rlv2/roguelike.schema";
 
 const router = Router();
 

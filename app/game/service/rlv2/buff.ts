@@ -1,6 +1,6 @@
 import { Blackboard } from "@excel/character_table";
 import excel from "@excel/excel";
-import { RoguelikeBuff, RoguelikeItemBundle } from "../../domain/rlv2";
+import { RoguelikeBuff, RoguelikeItemBundle } from "../../domain/rlv2/rlv2";
 import { RoguelikeV2Manager } from "./logic";
 import { RoguelikePlayerStatusManager } from "./status";
 import { TypedEventEmitter } from "@game/service/events";

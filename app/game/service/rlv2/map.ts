@@ -4,7 +4,7 @@ import {
   PlayerRoguelikeV2Zone,
   RoguelikeBuff,
   TorappuRoguelikeEventType,
-} from "../../domain/rlv2";
+} from "../../domain/rlv2/rlv2";
 import { RoguelikeV2Manager } from "./logic";
 import { TypedEventEmitter } from "@game/service/events";
 import excel from "@excel/excel";

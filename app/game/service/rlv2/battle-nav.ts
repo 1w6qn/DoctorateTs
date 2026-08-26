@@ -10,7 +10,7 @@ import {
   RoguelikeItemBundle,
   RoguelikeNodePosition,
   TorappuRoguelikeEventType,
-} from "../../domain/rlv2";
+} from "../../domain/rlv2/rlv2";
 import excel from "@excel/excel";
 import { PlayerSquad } from "@game/domain/character";
 import { ItemBundle } from "@excel/character_table";

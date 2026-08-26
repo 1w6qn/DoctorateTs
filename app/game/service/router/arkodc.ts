@@ -23,7 +23,7 @@ import {
   arkOdcRestartSchema,
   arkOdcSavePositionSchema,
   arkOdcTriggerActionSchema,
-} from "../../domain/contracts/arkodc.schema";
+} from "../../domain/arkodc/arkodc.schema";
 
 const router = Router();
 

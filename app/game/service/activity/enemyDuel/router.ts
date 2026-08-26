@@ -4,7 +4,7 @@
 import { Router } from "express";
 import excel from "@excel/excel";
 import config from "../../../../config";
-import * as ReqSchema from "../../../domain/contracts/activity.schema";
+import * as ReqSchema from "../../../domain/activity/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../request-context";
 import {
@@ -130,7 +130,7 @@ import {
   ActivityStubItemsResponse,
   ActivityStubRequest,
   ActivityStubResponse,
-} from "../../../domain/contracts/activity";
+} from "../../../domain/activity/activity";
 import { validateBody } from "../../../domain/contracts/validate-body";
 
 let enemyDuelMatchState: { activityId: string; modeId: string } | null = null;

@@ -9,7 +9,7 @@
  * - 保底点边界（maxCnt 前/后不触发）
  */
 import { describe, it, expect } from "vitest";
-import { resolveGachaRank } from "@game/domain/gacha";
+import { resolveGachaRank } from "@game/domain/gacha/gacha";
 
 const base = {
   per6Base: 0.02, // totalPercent 为小数概率（0.02 = 2%）

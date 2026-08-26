@@ -1,6 +1,6 @@
 /**
  * 自走棋（AutoChess）赛季路由
- * 请求/响应类型见 @game/domain/contracts/autochess（参考 CS 2.7.61 协议类）
+ * 请求/响应类型见 @game/domain/autochess/autochess（参考 CS 2.7.61 协议类）
  */
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
@@ -42,8 +42,8 @@ import {
   AutoChessTrainingBattleFinishResponse,
   AutoChessTrainingBattleStartRequest,
   AutoChessTrainingBattleStartResponse,
-} from "../../domain/contracts/autochess";
-import { emptyRequestSchema } from "../../domain/contracts/autochess.schema";
+} from "../../domain/autochess/autochess";
+import { emptyRequestSchema } from "../../domain/autochess/autochess.schema";
 import { validateBody } from "../../domain/contracts/validate-body";
 
 const router = Router();

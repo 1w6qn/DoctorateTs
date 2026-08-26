@@ -135,265 +135,54 @@ import {
 import { validateBody } from "../../../domain/contracts/validate-body";
 
 const router = Router();
+import { handleAct1vhalfidlebattleStart, handleAct1vhalfidlebattleFinish, handleAct1vhalfidlerefreshProduct, handleAct1vhalfidleharvest, handleAct1vhalfidleunlockTech, handleAct1vhalfidlerecruitNormal, handleAct1vhalfidlerecruitDirect, handleAct1vhalfidleupgradeChar, handleAct1vhalfidleupgradeSkill, handleAct1vhalfidleevolveChar, handleAct1vhalfidlereplaceRate, handleAct1vhalfidlesetAssistChar } from "./logic";
+
 router.post("/act1vhalfidle/battleStart", validateBody(ReqSchema.activityMiniBattleStartSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as ActivityMiniBattleStartRequest;
-  res.send(miniBattleStart(player));
+  res.send(await handleAct1vhalfidlebattleStart(getPlayer(), req.body as ActivityMiniBattleStartRequest));
 });
 
 router.post("/act1vhalfidle/battleFinish", validateBody(ReqSchema.activityMiniBattleFinishSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as ActivityMiniBattleFinishRequest;
-  res.send(miniBattleFinish(player, body));
+  res.send(await handleAct1vhalfidlebattleFinish(getPlayer(), req.body as ActivityMiniBattleFinishRequest));
 });
-
-/** 按需初始化 HALFIDLE_VERIFY1 活动数据 */
-function ensureHalfIdleData(draft: any, activityId: string): any {
-  // 修复：draft.activity / HALFIDLE_VERIFY1 缺失时可能为 undefined，先兜底再重读引用，
-  // 避免赋值后本地变量仍为 undefined，导致 hf[activityId] 抛「reading 'undefined'」500。
-  if (!draft.activity) draft.activity = {};
-  if (!draft.activity.HALFIDLE_VERIFY1) {
-    draft.activity.HALFIDLE_VERIFY1 = {};
-  }
-  const hf = draft.activity.HALFIDLE_VERIFY1;
-  if (!hf[activityId]) {
-    hf[activityId] = {
-      production: { rate: {}, product: {}, harvestTs: now(), refreshTs: now() },
-      inventory: {},
-      tech: { unlock: [] },
-      troop: { char: {} },
-      recruit: { poolTimes: {} },
-    };
-  }
-  return hf[activityId];
-}
-
-/** 挂机产出刷新（参考 ODPY refreshProduct：rate × 流逝小时 → product） */
 
 router.post("/act1vhalfidle/refreshProduct", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as Act1vhalfidleRequest;
-  if (!body.activityId) return res.send({ result: 1, ...player.delta });
-  await player.update(async (draft) => {
-    const data = ensureHalfIdleData(draft, body.activityId!);
-    const production = data.production;
-    const diffMult = (now() - (production.harvestTs ?? now())) / 3600;
-    production.refreshTs = now();
-    if (diffMult > 0) {
-      for (const [key, value] of Object.entries(production.rate ?? {})) {
-        production.product[key] = Math.floor(Number(value) * diffMult);
-      }
-    }
-  });
-  res.send(player.delta satisfies ActivityStubResponse);
+  res.send(await handleAct1vhalfidlerefreshProduct(getPlayer(), req.body as Act1vhalfidleRequest));
 });
-
-/** 收获（参考 ODPY harvest：product → inventory，token_point 计 milestoneAdd） */
 
 router.post("/act1vhalfidle/harvest", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as Act1vhalfidleRequest;
-  if (!body.activityId) return res.send({ result: 1, ...player.delta });
-  let milestoneAdd = 0;
-  const items: { itemId: string; count: number }[] = [];
-  await player.update(async (draft) => {
-    const data = ensureHalfIdleData(draft, body.activityId!);
-    const production = data.production;
-    for (const [key, count] of Object.entries(production.product ?? {})) {
-      if (key === "act1vhalfidle_token_point") {
-        milestoneAdd = Number(count);
-      }
-      data.inventory[key] = (data.inventory[key] ?? 0) + Number(count);
-      items.push({ itemId: key, count: Number(count) });
-    }
-    production.product = {};
-    production.harvestTs = now();
-    production.refreshTs = now();
-  });
-  res.send({
-    milestoneAdd,
-    items,
-    ...player.delta,
-  } satisfies { milestoneAdd: number; items: { itemId: string; count: number }[] } as any);
+  res.send(await handleAct1vhalfidleharvest(getPlayer(), req.body as Act1vhalfidleRequest));
 });
-
-/** 解锁科技（参考 ODPY unlockTech：tech.unlock 追加 techId） */
 
 router.post("/act1vhalfidle/unlockTech", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as Act1vhalfidleRequest;
-  if (!body.activityId) return res.send({ result: 1, ...player.delta });
-  await player.update(async (draft) => {
-    const data = ensureHalfIdleData(draft, body.activityId!);
-    if (body.techId && !data.tech.unlock.includes(body.techId)) {
-      data.tech.unlock.push(body.techId);
-    }
-  });
-  res.send(player.delta satisfies ActivityStubResponse);
+  res.send(await handleAct1vhalfidleunlockTech(getPlayer(), req.body as Act1vhalfidleRequest));
 });
-
-/** 招募（参考 ODPY recruitNormal/recruitDirect：卡池抽干员加入活动 troop） */
 
 router.post("/act1vhalfidle/recruitNormal", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as Act1vhalfidleRequest;
-  if (!body.activityId) return res.send({ result: 1, ...player.delta });
-  const { poolId, count = 1 } = body as any;
-  let ticketCount = count;
-  await player.update(async (draft) => {
-    const data = ensureHalfIdleData(draft, body.activityId!);
-    const actChars = data.troop.char;
-    const have = new Set(Object.values(actChars).map((c: any) => c.charId));
-    const addChar = (charId: string) => {
-      if (have.has(charId)) return;
-      // 从玩家主数据找该干员
-      for (const c of Object.values(draft.troop.chars) as any[]) {
-        if (c.charId === charId) {
-          actChars[String(c.instId)] = {
-            instId: c.instId,
-            charId: c.charId,
-            level: c.level ?? 1,
-            evolvePhase: c.evolvePhase ?? 0,
-            skillLvl: (c.evolvePhase ?? 0) >= 2 ? 10 : 7,
-            isAssist: false,
-            defaultSkillId: c.skills?.[c.defaultSkillIndex ?? 0]?.skillId ?? "",
-            defaultEquipId: c.currentEquip ?? "",
-          };
-          have.add(charId);
-          return;
-        }
-      }
-    };
-    const pools = VHALFIDLE_POOLS;
-    if (poolId && pools[poolId]) {
-      for (const charId of pools[poolId]) addChar(charId);
-    } else if (poolId === "normalGachaPool") {
-      const specSet = new Set(VHALFIDLE_SPEC_CHAR);
-      const candidates = Object.values(draft.troop.chars)
-        .map((c: any) => c.charId)
-        .filter((id) => !specSet.has(id));
-      for (let i = 0; i < count; i++) {
-        if (candidates.length) {
-          addChar(candidates[Math.floor(Math.random() * candidates.length)]);
-        }
-      }
-    }
-  });
-  // CS: Act1VHalfIdleRecruitNormalResponse { ticketCount }
-  res.send({
-    ticketCount,
-    ...player.delta,
-  } as any);
+  res.send(await handleAct1vhalfidlerecruitNormal(getPlayer(), req.body as Act1vhalfidleRequest));
 });
-
-/** 定向招募（参考 ODPY recruitDirect） */
 
 router.post("/act1vhalfidle/recruitDirect", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as Act1vhalfidleRequest;
-  if (!body.activityId) return res.send({ result: 1, ...player.delta });
-  await player.update(async (draft) => {
-    const data = ensureHalfIdleData(draft, body.activityId!);
-    const actChars = data.troop.char;
-    const have = new Set(Object.values(actChars).map((c: any) => c.charId));
-    const charId = (body as any).charId;
-    if (charId && !have.has(charId)) {
-      for (const c of Object.values(draft.troop.chars) as any[]) {
-        if (c.charId === charId) {
-          actChars[String(c.instId)] = {
-            instId: c.instId,
-            charId: c.charId,
-            level: c.level ?? 1,
-            evolvePhase: c.evolvePhase ?? 0,
-            skillLvl: (c.evolvePhase ?? 0) >= 2 ? 10 : 7,
-            isAssist: false,
-            defaultSkillId: "",
-            defaultEquipId: c.currentEquip ?? "",
-          };
-          break;
-        }
-      }
-    }
-  });
-  res.send(player.delta satisfies ActivityStubResponse);
+  res.send(await handleAct1vhalfidlerecruitDirect(getPlayer(), req.body as Act1vhalfidleRequest));
 });
 
-/** 升级/替换/助战（对齐 CS Response 字段：upgrade 返回 charId/currentLvl 等） */
-
 router.post("/act1vhalfidle/upgradeChar", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as Act1vhalfidleRequest;
-  if (!body.activityId) return res.send({ result: 1, ...player.delta });
-  let charId = "";
-  let currentLvl = 0;
-  await player.update(async (draft) => {
-    const data = ensureHalfIdleData(draft, body.activityId!);
-    const actChar = data.troop.char[String((body as any).charInstId ?? "")];
-    if (!actChar) return;
-    charId = actChar.charId;
-    if ((body as any).level) actChar.level = (body as any).level;
-    currentLvl = actChar.level;
-  });
-  // CS: Act1VHalfIdleCharUpgradeLevelResponse { charId, currentLvl }
-  res.send({ charId, currentLvl, ...player.delta } as any);
+  res.send(await handleAct1vhalfidleupgradeChar(getPlayer(), req.body as Act1vhalfidleRequest));
 });
 
 router.post("/act1vhalfidle/upgradeSkill", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as Act1vhalfidleRequest;
-  if (!body.activityId) return res.send({ result: 1, ...player.delta });
-  let charId = "";
-  let currentLvl = 0;
-  await player.update(async (draft) => {
-    const data = ensureHalfIdleData(draft, body.activityId!);
-    const actChar = data.troop.char[String((body as any).charInstId ?? "")];
-    if (!actChar) return;
-    charId = actChar.charId;
-    if ((body as any).skillLvl) actChar.skillLvl = (body as any).skillLvl;
-    currentLvl = actChar.skillLvl;
-  });
-  // CS: Act1VHalfIdleCharUpgradeSkillResponse { charId, currentLvl }
-  res.send({ charId, currentLvl, ...player.delta } as any);
+  res.send(await handleAct1vhalfidleupgradeSkill(getPlayer(), req.body as Act1vhalfidleRequest));
 });
 
 router.post("/act1vhalfidle/evolveChar", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as Act1vhalfidleRequest;
-  if (!body.activityId) return res.send({ result: 1, ...player.delta });
-  let charId = "";
-  let currentEvolvePhase = 0;
-  await player.update(async (draft) => {
-    const data = ensureHalfIdleData(draft, body.activityId!);
-    const actChar = data.troop.char[String((body as any).charInstId ?? "")];
-    if (!actChar) return;
-    charId = actChar.charId;
-    if ((body as any).evolvePhase != null) {
-      actChar.evolvePhase = (body as any).evolvePhase;
-      actChar.skillLvl = actChar.evolvePhase >= 2 ? 10 : 7;
-    }
-    currentEvolvePhase = actChar.evolvePhase;
-  });
-  // CS: Act1VHalfIdleCharUpgradeEliteResponse { charId, currentEvolvePhase, item }
-  res.send({ charId, currentEvolvePhase, item: null, ...player.delta } as any);
+  res.send(await handleAct1vhalfidleevolveChar(getPlayer(), req.body as Act1vhalfidleRequest));
 });
 
 router.post("/act1vhalfidle/replaceRate", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as Act1vhalfidleRequest;
-  res.send(player.delta satisfies ActivityStubResponse);
+  res.send(await handleAct1vhalfidlereplaceRate(getPlayer(), req.body as Act1vhalfidleRequest));
 });
 
 router.post("/act1vhalfidle/setAssistChar", validateBody(ReqSchema.act1vhalfidleSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as Act1vhalfidleRequest;
-  if (!body.activityId) return res.send({ result: 1, ...player.delta });
-  await player.update(async (draft) => {
-    const data = ensureHalfIdleData(draft, body.activityId!);
-    const actChar = data.troop.char[String((body as any).charInstId ?? "")];
-    if (actChar) actChar.isAssist = true;
-  });
-  res.send(player.delta satisfies ActivityStubResponse);
+  res.send(await handleAct1vhalfidlesetAssistChar(getPlayer(), req.body as Act1vhalfidleRequest));
 });
 
-// act13side（日任务）
 export default router;

@@ -137,329 +137,58 @@ import {
 import { validateBody } from "../../../domain/contracts/validate-body";
 
 const router = Router();
-router.post("/getChainLogInReward", validateBody(ReqSchema.getChainLogInRewardSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as GetChainLogInRewardRequest;
-  res.send({
-    reward: await player.openServer.getChainLogInReward(body),
-    ...player.delta,
-  } satisfies GetChainLogInRewardResponse);
-});
+import { handleGetChainLogInReward, handleGetChainLogInFinalRewards, handleGetOpenServerCheckInReward, handleGetActivityCheckInReward, handleActCheckinvssign, handleGetSwitchOnlyReward, handleGetCheckInReward, handleChangeFestivalChar, handleActBlessOnlygetCheckInReward, handleActBlessOnlychangeFestivalChar, handleActCheckinAccessgetCheckInReward, handleYear5GeneralgetInfReward } from "./logic";
 
-/**
- * 获取连签最终奖励
- * @route POST /activity/getChainLogInFinalRewards
- * @returns 奖励列表和玩家增量数据
- */
+router.post("/getChainLogInReward", validateBody(ReqSchema.getChainLogInRewardSchema), async (req, res) => {
+  res.send(await handleGetChainLogInReward(getPlayer(), req.body as GetChainLogInRewardRequest));
+});
 
 router.post("/getChainLogInFinalRewards", validateBody(ReqSchema.getChainLogInFinalRewardsSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as GetChainLogInFinalRewardsRequest;
-  res.send({
-    reward: await player.openServer.getChainLogInFinalRewards(),
-    ...player.delta,
-  } satisfies GetChainLogInFinalRewardsResponse);
+  res.send(await handleGetChainLogInFinalRewards(getPlayer(), req.body as GetChainLogInFinalRewardsRequest));
 });
-
-/**
- * 获取开服签到奖励
- * @route POST /activity/getOpenServerCheckInReward
- * @param req.body - 包含 index 的请求体
- * @returns 奖励列表和玩家增量数据
- */
 
 router.post("/getOpenServerCheckInReward", validateBody(ReqSchema.getOpenServerCheckInRewardSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as GetOpenServerCheckInRewardRequest;
-  // 读类缺参校验：index 为必填，缺失时返回业务错误
-  if (body.index == null) {
-    return res.send({ result: 1, ...player.delta });
-  }
-  res.send({
-    reward: await player.openServer.getCheckInReward(body),
-    ...player.delta,
-  } satisfies GetOpenServerCheckInRewardResponse);
+  res.send(await handleGetOpenServerCheckInReward(getPlayer(), req.body as GetOpenServerCheckInRewardRequest));
 });
-
-/**
- * 获取活动签到奖励
- * @route POST /activity/getActivityCheckInReward
- * @param req.body.activityId - 活动ID
- * @param req.body.index - 签到索引
- * @returns 玩家增量数据和物品列表
- */
 
 router.post("/getActivityCheckInReward", validateBody(ReqSchema.getActivityCheckInRewardSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as GetActivityCheckInRewardRequest;
-  // 缺参校验：activityId/index 为必填，缺失时返回业务错误
-  if (body.activityId == null || body.index == null) {
-    return res.send({ result: 1, ...player.delta });
-  }
-
-  await player.update(async (draft) => {
-    const activityId = body.activityId;
-    const targetIndex = body.index;
-
-    if (!draft.activity.CHECKIN_ONLY[activityId]) {
-      draft.activity.CHECKIN_ONLY[activityId] = {
-        lastTs: 0,
-        history: [],
-      };
-    }
-    (draft.activity as any).CHECKIN_ONLY[activityId].history[targetIndex] = 0;
-  });
-
-  res.send({
-    ...player.delta,
-    items: [],
-  } satisfies GetActivityCheckInRewardResponse);
+  res.send(await handleGetActivityCheckInReward(getPlayer(), req.body as GetActivityCheckInRewardRequest));
 });
-
-/**
- * 签到对决活动签到
- * @route POST /activity/actCheckinvs/sign
- * @param req.body.actId - 活动ID
- * @param req.body.tasteChoice - 口味选择（1=甜，2=咸）
- * @returns 玩家增量和物品列表
- */
 
 router.post("/actCheckinvs/sign", validateBody(ReqSchema.actCheckinvsSignSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as ActCheckinvsSignRequest;
-
-  await player.update(async (draft) => {
-    const actId = body.actId;
-    const tasteChoice = body.tasteChoice;
-
-    const vsData = draft.activity.CHECKIN_VS as any;
-    if (!vsData[actId]) {
-      vsData[actId] = {
-        sweetVote: 0,
-        saltyVote: 0,
-        canVote: true,
-        todayVoteState: 0,
-        voteRewardState: 0,
-        signedCnt: 0,
-        availSignCnt: 1,
-        socialState: 2,
-        actDay: 1,
-      };
-    }
-    vsData[actId].signedCnt++;
-    vsData[actId].canVote = false;
-    if (tasteChoice === 1) {
-      vsData[actId].sweetVote++;
-    } else {
-      vsData[actId].saltyVote++;
-    }
-  });
-
-  res.send({
-    ...player.delta,
-    items: [
-      { type: "AP_SUPPLY", id: "ap_supply_lt_120", count: 1 },
-      { type: "GOLD", id: "4001", count: 30000 },
-    ],
-  } satisfies ActCheckinvsSignResponse);
+  res.send(await handleActCheckinvssign(getPlayer(), req.body as ActCheckinvsSignRequest));
 });
-
-/**
- * 获取开关型活动奖励
- * @route POST /activity/getSwitchOnlyReward
- * @param req.body.activityId - 活动ID
- * @param req.body.reward - 奖励ID
- * @returns 玩家增量数据
- */
 
 router.post("/getSwitchOnlyReward", validateBody(ReqSchema.getSwitchOnlyRewardSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as GetSwitchOnlyRewardRequest;
-
-  await player.update(async (draft) => {
-    const activityId = body.activityId;
-    const rewardId = body.reward;
-
-    const switchData = draft.activity.SWITCH_ONLY as any;
-    if (!switchData[activityId]) {
-      switchData[activityId] = {};
-    }
-    switchData[activityId][rewardId] = 0;
-  });
-
-  res.send(player.delta satisfies GetSwitchOnlyRewardResponse);
+  res.send(await handleGetSwitchOnlyReward(getPlayer(), req.body as GetSwitchOnlyRewardRequest));
 });
-
-/**
- * 获取签到奖励（通用入口）
- * @route POST /activity/getCheckInReward
- * @param req.body.activityId - 活动ID
- * @returns 玩家增量和物品列表
- *
- * 根据 activityId 后缀分发到不同的处理逻辑：
- * - access 后缀：访问型签到，发放理智药剂和合成玉
- * - blessing 后缀：祝福型签到，初始化祝福数据
- */
 
 router.post("/getCheckInReward", validateBody(ReqSchema.getCheckInRewardSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as GetCheckInRewardRequest;
-
-  const activityId = body.activityId;
-  // 缺参校验：activityId 为必填，缺失时返回业务错误（避免 activityId.endsWith 抛 TypeError → 500）
-  if (activityId == null) {
-    return res.send({ result: 1, ...player.delta });
-  }
-
-  if (activityId.endsWith("access")) {
-    const REWARDS: ItemBundle[] = [
-      { type: "AP_SUPPLY", id: "ap_supply_lt_80", count: 1 },
-      { type: "DIAMOND_SHD", id: "4003", count: 200 },
-    ];
-    let already = false;
-    await player.update(async (draft) => {
-      if (!draft.activity.CHECKIN_ACCESS[activityId]) {
-        draft.activity.CHECKIN_ACCESS[activityId] = {
-          rewardsCount: 0,
-          currentStatus: 0,
-          lastTs: 0,
-        };
-      }
-      const data = (draft.activity as any).CHECKIN_ACCESS[activityId];
-      // 修复：每日限领一次（原实现 rewardsCount 无限累加、无任何限制）
-      const dayKey = Math.floor(Date.now() / 86400000);
-      if (Math.floor((data.lastTs || 0) / 86400000) === dayKey) {
-        already = true;
-        return;
-      }
-      data.rewardsCount++;
-      data.lastTs = Math.floor(Date.now() / 1000);
-    });
-
-    // 修复：奖励入账（原实现只回显 items 从不 emit items:get → 领了但没到账）
-    if (!already) {
-      await player._trigger.emit("items:get", [REWARDS]);
-    }
-    res.send({
-      ...player.delta,
-      items: already ? [] : REWARDS,
-    } satisfies GetCheckInRewardResponse);
-  } else if (activityId.endsWith("blessing")) {
-    await player.update(async (draft) => {
-      const blessData = draft.activity.BLESS_ONLY as any;
-      if (!blessData[activityId]) {
-        blessData[activityId] = {};
-      }
-    });
-
-    res.send({
-      ...player.delta,
-      items: [],
-    } satisfies GetCheckInRewardResponse);
-  } else {
-    res.send({
-      ...player.delta,
-      items: [],
-    } satisfies GetCheckInRewardResponse);
-  }
+  res.send(await handleGetCheckInReward(getPlayer(), req.body as GetCheckInRewardRequest));
 });
-
-/**
- * 更换节日干员
- * @route POST /activity/changeFestivalChar
- * @param req.body.activityId - 活动ID（如 act3blessing）
- * @param req.body.index - 节日历史索引
- * @param req.body.newChar - 新干员ID
- * @returns 玩家增量数据
- *
- * 参考实现：更新 BLESS_ONLY 中 festivalHistory[index].charId 字段。
- * 由于活动数据结构差异，简化处理为直接写入 charId。
- */
 
 router.post("/changeFestivalChar", validateBody(ReqSchema.changeFestivalCharSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as ChangeFestivalCharRequest;
-  // 缺参校验：activityId/index/newChar 缺失时返回业务错误
-  if (body.activityId == null || body.index == null || body.newChar == null) {
-    return res.send({ result: 1, ...player.delta });
-  }
-
-  await player.update(async (draft) => {
-    const blessData = draft.activity.BLESS_ONLY as any;
-    if (!blessData[body.activityId]) {
-      blessData[body.activityId] = { festivalHistory: [], history: [] };
-    }
-    const activityData = blessData[body.activityId];
-    if (!activityData.festivalHistory) {
-      activityData.festivalHistory = [];
-    }
-    if (!activityData.festivalHistory[body.index]) {
-      activityData.festivalHistory[body.index] = { charId: body.newChar, state: 1 };
-    } else {
-      activityData.festivalHistory[body.index].charId = body.newChar;
-    }
-  });
-
-  res.send(player.delta satisfies ChangeFestivalCharResponse);
+  res.send(await handleChangeFestivalChar(getPlayer(), req.body as ChangeFestivalCharRequest));
 });
 
-/**
- * 领取活动里程碑奖励
- * @route POST /activity/rewardMilestone
- * @param req.body.activityId - 活动ID
- * @param req.body.milestoneId - 里程碑ID
- * @returns 玩家增量和奖励物品列表
- *
- * 简化实现：从活动数据中查找里程碑奖励配置，标记已领取状态并发放奖励。
- * 由于活动里程碑数据结构因活动类型而异，此处采用通用处理逻辑。
- */
-
 router.post("/actBlessOnly/getCheckInReward", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as ActivityStubRequest;
-  res.send({
-    items: [],
-    ...player.delta,
-  } satisfies ActivityStubItemsResponse);
+  res.send(await handleActBlessOnlygetCheckInReward(getPlayer(), req.body as ActivityStubRequest));
 });
 
 router.post("/actBlessOnly/changeFestivalChar", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as ActivityStubRequest;
-  res.send(player.delta satisfies ActivityStubResponse);
+  res.send(await handleActBlessOnlychangeFestivalChar(getPlayer(), req.body as ActivityStubRequest));
 });
 
 router.post("/actCheckinAccess/getCheckInReward", validateBody(ReqSchema.activityStubSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as ActivityStubRequest;
-  res.send({
-    items: [],
-    ...player.delta,
-  } satisfies ActivityStubItemsResponse);
+  res.send(await handleActCheckinAccessgetCheckInReward(getPlayer(), req.body as ActivityStubRequest));
 });
-for (const loginRoute of ["loginOnly/getReward", "loginOnlyUnique/getReward", "prayOnly/getReward"]) {
-  router.post(`/${loginRoute}`, validateBody(ReqSchema.activityGetRewardSchema), async (req, res) => {
-    const player = getPlayer();
-    req.body as ActivityGetRewardRequest;
-    res.send({
-      items: [],
-      ...player.delta,
-    } satisfies ActivityStubItemsResponse);
-  });
-}
-
-// year5General（五周年）
 
 router.post("/year5General/getInfReward", validateBody(ReqSchema.activityGetRewardSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as ActivityGetRewardRequest;
-  res.send({
-    items: [],
-    ...player.delta,
-  } satisfies ActivityStubItemsResponse);
+  res.send(await handleYear5GeneralgetInfReward(getPlayer(), req.body as ActivityGetRewardRequest));
 });
 
-// teamQuest
+export default router;
+
 export const rootRouter = Router();
 rootRouter.post("/actcheckinvs/sign", validateBody(ReqSchema.actCheckinvsSignSchema), async (req, res) => {
   const player = getPlayer();
@@ -526,4 +255,3 @@ rootRouter.post("/actcheckinvs/sign", validateBody(ReqSchema.actCheckinvsSignSch
 });
 
 /** 训练场开始战斗（参考 ODPY trainingGroundBattleStart 空 stub） */
-export default router;

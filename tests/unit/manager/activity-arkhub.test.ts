@@ -75,7 +75,7 @@ vi.mock("@excel/excel", () => {
 import config from "../../../app/config";
 import { mockPlayerData } from "../../helpers";
 import { unlockActivity } from "@game/manager/activity/unlockActivity";
-import { MissionProgress } from "@game/manager/mission";
+import { MissionProgress } from "@game/modules/mission/logic";
 import { MedalProgress } from "@game/manager/medal";
 import {
   arkhubOnDuelSettle,

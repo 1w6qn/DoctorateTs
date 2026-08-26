@@ -18,7 +18,7 @@
 import { Priority } from "./eventmaps/priority";
 import type { EventMapActivity } from "./eventmaps/activity";
 import type { EventMapCore } from "./eventmaps/core";
-import type { EventMapMission } from "./eventmaps/mission";
+import type { EventMapMission } from "@game/modules/mission/models";
 import type { EventMapMedal } from "./eventmaps/medal";
 import type { EventMapRlv2 } from "./eventmaps/rlv2";
 import Emittery from "emittery";

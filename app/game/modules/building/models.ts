@@ -8,8 +8,8 @@
  * 部分接口（升级自定义等级等）无 CS 类对应，标注为服务端自定义。
  */
 import { ItemBundle } from "@excel/character_table";
-import { PlayerBuildingDIYSolution, PlayerBuildingMeetingClue } from "../playerdata";
-import { PlayerDeltaResponse } from "./common";
+import { PlayerBuildingDIYSolution, PlayerBuildingMeetingClue } from "../../model/playerdata";
+import { PlayerDeltaResponse } from "../../model/protocol/common";
 
 /* ===== 同步与基础设置 ===== */
 

@@ -1,0 +1,7 @@
+{
+  "recruit_group_1": ["pioneer", "sniper", "special"],
+  "recruit_group_2": ["tank", "caster", "sniper"],
+  "recruit_group_3": ["warrior", "support", "medic"],
+  "recruit_group_4": ["pioneer", "support", "special"],
+  "recruit_group_5": ["tank", "caster", "medic"]
+}

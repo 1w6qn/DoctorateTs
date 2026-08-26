@@ -44,8 +44,8 @@ vi.mock("@game/manager/PlayerDataManager", () => ({ PlayerDataManager: vi.fn() }
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { BuildingManager } from "@game/manager/building";
-import { MissionManager } from "@game/manager/mission";
+import { BuildingManager } from "@game/modules/building/logic";
+import { MissionManager } from "@game/modules/mission/logic";
 
 function baseBuilding(): any {
   return {

@@ -78,13 +78,13 @@ import {
   headcountMoodRelief,
   warmupHoursOf,
   MAX_AP,
-} from "@game/building/mood";
+} from "@game/modules/building/mood";
 import {
   getActiveCharBuffs,
   roomSpeedBonus,
   dormRecoveryBonus,
-} from "@game/building/buff";
-import { BuildingManager } from "@game/manager/building";
+} from "@game/modules/building/buff";
+import { BuildingManager } from "@game/modules/building/logic";
 
 /** 构造带指定 building 的 mock 玩家（update 深拷贝 → recipe → 回写） */
 function makePlayer(building: any, extra: any = {}) {

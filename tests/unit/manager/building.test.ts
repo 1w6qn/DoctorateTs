@@ -57,6 +57,24 @@ const excelMock = vi.hoisted(() => ({
       manufactReduceTimeUnit: 180,
       tradingReduceTimeUnit: 180,
     },
+    CharacterTable: {
+      char_001: {
+        skills: [{
+          levelUpCostCond: [
+            { lvlUpTime: 28800, levelUpCost: [{ id: "3303", count: 5, type: "MATERIAL" }] },
+            { lvlUpTime: 57600, levelUpCost: [{ id: "3303", count: 6, type: "MATERIAL" }] },
+            { lvlUpTime: 86400, levelUpCost: [{ id: "3303", count: 10, type: "MATERIAL" }] },
+          ],
+        }],
+      },
+      char_1015_aglna2: {
+        skills: [
+          { levelUpCostCond: [{ lvlUpTime: 28800, levelUpCost: [{ id: "3303", count: 5, type: "MATERIAL" }] }] },
+          {},
+          {},
+        ],
+      },
+    },
   },
 }));
 vi.mock("@excel/excel", () => excelMock);
@@ -74,7 +92,7 @@ vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { BuildingManager } from "@game/manager/building";
+import { BuildingManager } from "@game/modules/building/logic";
 import { accountManager } from "@game/manager/AccountManager";
 
 /**
@@ -809,8 +827,8 @@ describe("BuildingManager 贸易站", () => {
     (mockPlayer._playerdata.status as any).diamondShard = 1000;
     await manager.accelerateSolution({ slotId: "slot_25", cost: 145 } as any);
     const room = (mockPlayer._playerdata.building!.rooms as any).MANUFACTURE["slot_25"];
-    expect(room.outputSolutionCnt).toBe(1);
-    expect(room.remainSolutionCnt).toBe(4);
+    expect(room.outputSolutionCnt).toBe(5);
+    expect(room.remainSolutionCnt).toBe(0);
     // 修复：cost 为客户端无人机数，服务端不扣源石碎片（原实现 1000 → 855）
     expect(mockPlayer._playerdata.status!.diamondShard).toBe(1000);
   });
@@ -939,7 +957,13 @@ describe("BuildingManager 加工分解与专精", () => {
         rooms: {
           CONTROL: {}, ELEVATOR: {}, POWER: {}, MANUFACTURE: {}, TRADING: {},
           CORRIDOR: {}, WORKSHOP: {}, DORMITORY: {}, MEETING: {}, HIRE: {},
-          TRAINING: {}, PRIVATE: {},
+          TRAINING: {
+            slot_13: {
+              trainee: { charInstId: -1, state: 0, targetSkill: -1, processPoint: 0, speed: 1 },
+              trainer: { charInstId: -1, state: 0 },
+            },
+          },
+          PRIVATE: {},
         },
         furniture: {
           furn_001: { count: 3, inUse: 1 },
@@ -949,11 +973,12 @@ describe("BuildingManager 加工分解与专精", () => {
         solution: { furnitureTs: {} },
         music: { selected: "bgm_default" },
       } as any,
-      inventory: { "30012": 1 } as any,
+      inventory: { "30012": 1, "3303": 20 } as any,
       troop: {
         chars: {
           "1001": {
             charId: "char_001",
+            evolvePhase: 2, mainSkillLvl: 7,
             skills: [{ skillId: "skill_1", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 }],
           } as any,
         },
@@ -1004,6 +1029,8 @@ describe("BuildingManager 加工分解与专精", () => {
   it("completeUpgradeSpecialization 应提升 specializeLevel 并复位", async () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.upgradeSpecialization({ charInstId: 1001, targetSkill: 0 } as any);
+    // 训练时长门控：带 maxPoint 的 trainee 仅 state=2（待领取）可结算——模拟训练完成
+    ((mockPlayer._playerdata.building as any).rooms.TRAINING.slot_13.trainee as any).state = 2;
     await manager.completeUpgradeSpecialization({ charInstId: 1001, targetSkill: 0 } as any);
     const skill = mockPlayer._playerdata.troop!.chars["1001"].skills[0];
     expect(skill.specializeLevel).toBe(1);
@@ -1740,7 +1767,7 @@ describe("BuildingManager 房间建造与升级（Excel 驱动）", () => {
 
   it("制造站生产随时间累积（sync 推进 processPoint → 产出，buff/时间不再脱钩）", async () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
-    // capacity 54、costPoint 2700 → 100 秒累积 5400 → 产出 2 批
+    // 1 点/秒速率（2026-08-26 dc-fix：不再按容量×时间）：5400 秒累积 5400 → 产出 2 批
     (mockPlayer._playerdata.building!.rooms.MANUFACTURE as any)["slot_m1"] = {
       buff: {},
       state: 1,
@@ -1749,7 +1776,7 @@ describe("BuildingManager 房间建造与升级（Excel 驱动）", () => {
       outputSolutionCnt: 0,
       processPoint: 0,
       capacity: 54,
-      lastUpdateTime: 1234567890 - 100,
+      lastUpdateTime: 1234567890 - 5400,
       completeWorkTime: -1,
     };
     await manager.sync();
@@ -1834,7 +1861,7 @@ describe("训练室专精结算 / 批量换班（修复）", () => {
             slot_13: {
               trainee: { charInstId: 377, state: 2, targetSkill: 2, processPoint: 100, speed: 1 },
               trainer: { charInstId: 210, state: 2 },
-              lastUpdateTime: 0,
+              lastUpdateTime: 1234567890 - 5400,
             },
           },
           PRIVATE: {},
@@ -1846,10 +1873,12 @@ describe("训练室专精结算 / 批量换班（修复）", () => {
         music: { selected: "bgm_default" },
       } as any,
       status: { uid: "1" } as any,
+      inventory: { "3303": 20 } as any,
       troop: {
         chars: {
           "377": {
             instId: 377, charId: "char_1015_aglna2", level: 1,
+            evolvePhase: 2, mainSkillLvl: 7,
             skills: [
               { skillId: "skchr_aglna2_1", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 },
               { skillId: "skchr_aglna2_2", unlock: 1, state: 0, specializeLevel: 0, completeUpgradeTime: -1 },
@@ -1914,6 +1943,8 @@ describe("训练室专精结算 / 批量换班（修复）", () => {
   it("升级→完成后 trainee 保留为 WAITING 对象（循环可用，不置 null）", async () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.upgradeSpecialization({ charInstId: 377, targetSkill: 0 } as any);
+    // 训练时长门控：模拟训练完成（state=2 待领取）后结算
+    ((mockPlayer._playerdata.building as any).rooms.TRAINING.slot_13.trainee as any).state = 2;
     await manager.completeUpgradeSpecialization({} as any);
     const trainee = (mockPlayer._playerdata.building as any).rooms.TRAINING.slot_13.trainee;
     const char = (mockPlayer._playerdata.troop as any).chars["377"];

@@ -4,7 +4,7 @@ vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
 }));
 
-import missionRouter from "../../../app/game/router/mission";
+import missionRouter from "../../../../app/game/modules/mission/handler";
 import httpContext from "express-http-context2";
 
 function mockRes() {

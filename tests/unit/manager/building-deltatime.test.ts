@@ -98,8 +98,8 @@ import {
   parseVupValue,
   parseMoodCostValue,
   buffValueForTarget,
-} from "@game/building/buff";
-import { BuildingManager } from "@game/manager/building";
+} from "@game/modules/building/buff";
+import { BuildingManager } from "@game/modules/building/logic";
 
 /** 构造带指定 building 的 mock 玩家（update 深拷贝 → recipe → 回写） */
 function makePlayer(building: any, extra: any = {}) {
@@ -182,7 +182,7 @@ function setup() {
   return { mockPlayer, mockTrigger, manager };
 }
 
-describe("基建技能描述解析器增强（@game/building/buff）", () => {
+describe("基建技能描述解析器增强（@game/modules/building/buff）", () => {
   it("parseDescTags 提取 vup/vdown/vdo 全部数值标签", () => {
     // 注意："+<@cc.vup>4%</>" 的加号在标签外 → 标签内数值 4 无符号
     expect(parseDescTags("每<@cc.vup>16</>个机器人+<@cc.vup>4%</>")).toEqual([
@@ -251,17 +251,17 @@ describe("BuildingManager 统一 deltaTime 推进（_advanceBuilding 注入 ts�
     expect(draft.building.status.labor.value).toBe(225);
   });
 
-  it("制造站按 deltaTime 产出（capacity × elapsed → costPoint 阈值，计划剩余钳制）", () => {
+  it("制造站按 deltaTime 产出（1 点/秒速率 → costPoint 阈值，计划剩余钳制）", () => {
     const { manager, mockPlayer } = setup();
     const draft = draftOf(mockPlayer);
     draft.building.rooms.MANUFACTURE.slot_5.lastUpdateTime = LAST;
-    // lv3 制造站 base 54（无干员 buff）→ 3600s × 54 = 194400 → 194400/4320 = 45 批 → remain 10 钳制
-    (manager as any)._advanceBuilding(draft, at(3600));
+    // 1 点/秒（2026-08-26 dc-fix，不再按容量×时间）→ 43200s × 1 = 43200 → 43200/4320 = 10 批 → remain 10 钳制
+    (manager as any)._advanceBuilding(draft, at(43200));
     const room = draft.building.rooms.MANUFACTURE.slot_5;
     expect(room.outputSolutionCnt).toBe(10);
     expect(room.remainSolutionCnt).toBe(0);
     // 进度按计划消耗后归零（processPoint -= produced × costPoint = 10×4320）
-    expect(room.processPoint).toBe(194400 - 43200);
+    expect(room.processPoint).toBe(0);
   });
 
   it("干员心情按 deltaTime 消耗/恢复（changeScale 档位 × elapsed）", () => {
@@ -284,9 +284,9 @@ describe("BuildingManager 统一 deltaTime 推进（_advanceBuilding 注入 ts�
     // 制造干员：基础 -55 AP/秒 → ap = 8640000 - 55×3600
     expect(draft.building.chars["101"].changeScale).toBe(-55);
     expect(draft.building.chars["101"].ap).toBe(8640000 - 55 * 3600);
-    // 宿舍干员：基础 160/160=1 点/小时 × 100 = 100 AP/秒 → ap = 100×3600
-    expect(draft.building.chars["201"].changeScale).toBe(100);
-    expect(draft.building.chars["201"].ap).toBe(360000);
+    // 宿舍干员：恢复公式 (1.5+0.1×1级)=1.6 点/小时 × 100 = 160 AP/秒 → ap = 160×3600
+    expect(draft.building.chars["201"].changeScale).toBe(160);
+    expect(draft.building.chars["201"].ap).toBe(576000);
   });
 
   it("训练室按 deltaTime 推进 trainee.processPoint（教官 train buff 加成）", () => {
@@ -303,8 +303,8 @@ describe("BuildingManager 统一 deltaTime 推进（_advanceBuilding 注入 ts�
     mockPlayer._playerdata.troop.chars["401"] = { charId: "char_train", level: 1, evolvePhase: 0 };
     const draft = draftOf(mockPlayer);
     (manager as any)._advanceBuilding(draft, at(3600));
-    // 1000 × (1 + 0.5) × 3600
-    expect(draft.building.rooms.TRAINING.slot_13.trainee.processPoint).toBe(1000 * 1.5 * 3600);
+    // 1000 × (1 + 0.55) × 3600（教官 0.5 + 协助位 0.05）
+    expect(draft.building.rooms.TRAINING.slot_13.trainee.processPoint).toBe(1000 * 1.55 * 3600);
   });
 
   it("训练室 state=3（WAITING 等待）不推进——官方枚举语义", () => {
@@ -335,9 +335,9 @@ describe("BuildingManager 统一 deltaTime 推进（_advanceBuilding 注入 ts�
     const draft = draftOf(mockPlayer);
     (manager as any)._advanceBuilding(draft, at(3600));
     const room = draft.building.rooms.MEETING.slot_36;
-    // 基础 gatheringSpeed=100 × (1 + 0 buff) = 100 → 3600 × 100
-    expect(room.speed).toBe(100);
-    expect(room.processPoint).toBe(3600 * 100);
+    // 官方全公式（2026-08-25）：Lv1 效率 107% → speed = 100 × 1.07 = 107 → 3600 × 107
+    expect(room.speed).toBe(107);
+    expect(room.processPoint).toBe(3600 * 107);
     // 时间戳推进到当前
     expect(room.lastUpdateTime).toBe(at(3600));
   });

@@ -91,13 +91,13 @@ import {
   controlGlobalBonus,
   dormRecoveryBonus,
   charMoodCost,
-} from "@game/building/buff";
-import { BuildingManager } from "@game/manager/building";
+} from "@game/modules/building/buff";
+import { BuildingManager } from "@game/modules/building/logic";
 
 /** 便捷构造干员 buff 源 */
 const src = (charId: string, level = 1, evolvePhase = 0) => ({ charId, level, evolvePhase });
 
-describe("基建 buff 引擎（@game/building/buff）", () => {
+describe("基建 buff 引擎（@game/modules/building/buff）", () => {
   it("phaseRank 解析 PHASE_N", () => {
     expect(phaseRank("PHASE_2")).toBe(2);
     expect(phaseRank("PHASE_0")).toBe(0);
@@ -268,9 +268,10 @@ describe("BuildingManager 干员技能（buff）集成", () => {
     // 0.15[char_001] + 0.25[char_003 F_GOLD] + 0.02[控制中枢]
     expect(room.capacity).toBe(54);
     expect(room.buff.speed).toBeCloseTo(0.42);
-    // 有效容量 77（54×1.42）→ 1 小时 × 77 → 277200 processPoint → 64 批（costPoint 4320）
-    expect(room.outputSolutionCnt).toBe(64);
-    expect(room.remainSolutionCnt).toBe(73 - 64);
+    // 1 点/秒速率（2026-08-26 dc-fix）→ 1 小时 × 1.42 = 5112 processPoint → 1 批（costPoint 4320）
+    expect(room.outputSolutionCnt).toBe(1);
+    expect(room.remainSolutionCnt).toBe(73 - 1);
+    expect(room.processPoint).toBe(5112 - 4320);
   });
 
   it("sync：工作干员心情档位 = 基础消耗 - 技能附加（vdown），换班后立即重算", async () => {
@@ -321,8 +322,8 @@ describe("BuildingManager 干员技能（buff）集成", () => {
     const manager = new BuildingManager(mockPlayer as any, mockTrigger as any);
     await manager.sync();
     const trainee = (mockPlayer._playerdata.building!.rooms.TRAINING as any).slot_13.trainee;
-    // 1000 × (1 + 0.6) × 3600
-    expect(trainee.processPoint).toBe(1000 * 1.6 * 3600);
+    // 1000 × (1 + 0.65) × 3600（教官 0.5 + 协助位 0.05 + 训练室等级 0.1）
+    expect(trainee.processPoint).toBe(1000 * 1.65 * 3600);
   });
 
   it("制造 F_ASC 配方：普通生产力 buff 不生效（targets 过滤），控制中枢全局仍生效", async () => {

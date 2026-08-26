@@ -1,0 +1,43 @@
+{
+  "rows": [
+    [
+      { "id": "4001", "count": 1800, "originPrice": 100, "allow95": true },
+      { "id": "2001", "count": 9, "originPrice": 100, "allow95": true },
+      { "id": "30011", "count": 2, "originPrice": 80 },
+      { "id": "30012", "count": 3, "originPrice": 200 }
+    ],
+    [
+      { "id": "4001", "count": 3600, "originPrice": 200, "allow99": true },
+      { "id": "2002", "count": 9, "originPrice": 200, "allow99": true },
+      { "id": "30021", "count": 2, "originPrice": 100 },
+      { "id": "30022", "count": 2, "originPrice": 200 }
+    ],
+    [
+      { "id": "3401", "count": 20, "originPrice": 160 },
+      { "id": "3301", "count": 5, "originPrice": 160 },
+      { "id": "30031", "count": 2, "originPrice": 100 },
+      { "id": "30032", "count": 2, "originPrice": 200 }
+    ],
+    [
+      { "id": "3401", "count": 25, "originPrice": 200 },
+      { "id": "3302", "count": 3, "originPrice": 200 },
+      { "id": "30041", "count": 2, "originPrice": 120 },
+      { "id": "30042", "count": 2, "originPrice": 240 }
+    ],
+    [
+      { "id": "7001", "count": 1, "originPrice": 160 },
+      { "id": "3112", "count": 5, "originPrice": 160 },
+      { "id": "30051", "count": 2, "originPrice": 120 },
+      { "id": "30052", "count": 2, "originPrice": 240 }
+    ],
+    [
+      { "id": "7002", "count": 1, "originPrice": 160 },
+      { "id": "3113", "count": 3, "originPrice": 200 },
+      { "id": "30061", "count": 2, "originPrice": 160 },
+      { "id": "30062", "count": 1, "originPrice": 160 }
+    ],
+    [
+      { "id": "3003", "count": 6, "originPrice": 160 }
+    ]
+  ]
+}

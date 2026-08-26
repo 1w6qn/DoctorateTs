@@ -113,7 +113,7 @@ vi.mock("@utils/time", () => ({
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { BuildingManager } from "@game/manager/building";
+import { BuildingManager } from "@game/modules/building/logic";
 import { accountManager } from "@game/manager/AccountManager";
 
 /** 构造带指定 building 的 mock 玩家 */

@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { getPlayer, getPlayerOptional } from "../request-context";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { getPlayer, getPlayerOptional } from "../../request-context";
+import { PlayerDataManager } from "../../manager/PlayerDataManager";
 import {
   AccelerateOrderRequest,
   AccelerateOrderResponse,
@@ -129,9 +129,9 @@ import {
   BuildingSyncResponse,
   TakeClueFromBoardRequest,
   TakeClueFromBoardResponse,
-} from "../model/protocol/building";
-import * as B from "../model/protocol/building.schema";
-import { validateBody } from "../model/protocol/validate-body";
+} from "./models";
+import * as B from "./schemas";
+import { validateBody } from "../../model/protocol/validate-body";
 
 const router = Router();
 

@@ -1,11 +1,11 @@
 /**
- * 任务路由
- * 请求/响应类型见 @game/model/protocol/mission（参考 CS 2.7.61 协议类）
+ * 任务路由（mission 模块 handler）
+ * 请求/响应类型见 ./models（参考 CS 2.7.61 协议类）
  */
 import { Router } from "express";
-import { getPlayer, getPlayerOptional } from "../request-context";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
-import { validateBody } from "../model/protocol/validate-body";
+import { getPlayer, getPlayerOptional } from "../../request-context";
+import { PlayerDataManager } from "../../manager/PlayerDataManager";
+import { validateBody } from "../../model/protocol/validate-body";
 import {
   confirmMissionSchema,
   confirmMissionGroupSchema,
@@ -13,7 +13,7 @@ import {
   exchangeMissionRewardsSchema,
   confirmMissionListSchema,
   confirmMultiGroupMissionListSchema,
-} from "../model/protocol/mission.schema";
+} from "./schemas";
 import { ItemBundle } from "@excel/character_table";
 import {
   AutoConfirmMissionsRequest,
@@ -28,7 +28,7 @@ import {
   ConfirmMultiGroupMissionListResponse,
   ExchangeMissionRewardsRequest,
   ExchangeMissionRewardsResponse,
-} from "../model/protocol/mission";
+} from "./models";
 
 const router = Router();
 

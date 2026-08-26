@@ -12,16 +12,18 @@
  * 2. 完成任务可获得任务点数，累计点数可兑换奖励
  * 3. 每日/每周任务到期自动重置进度
  */
-import { MissionCalcState } from "../model/playerdata";
+import { MissionCalcState } from "../../model/playerdata";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
-import { PlayerCharacter } from "../model/character";
-import { BattleData } from "../model/battle";
+import { PlayerCharacter } from "../../model/character";
+import { BattleData } from "../../model/battle";
 import { checkBetween, now, userTimestamp } from "@utils/time";
 import { EventMap, TypedEventEmitter } from "@game/model/events";
 import { MissionData } from "@excel/excel-types";
-import { PlayerDataManager } from "./PlayerDataManager";
+import { PlayerDataManager } from "../../manager/PlayerDataManager";
 import { logger } from "@utils/logger";
+import { readJsonSync } from "@utils/file";
+import { registerMissionTriggers } from "./trigger";
 
 /**
  * 每日任务链头 ID 列表（startList）。
@@ -92,8 +94,8 @@ export class MissionManager {
     this._player = player;
     this._trigger = _trigger;
     this.missions = {};
-    this._trigger.on("refresh:weekly", this.weeklyRefresh.bind(this));
-    this._trigger.on("refresh:daily", this.dailyRefresh.bind(this));
+    // 事件订阅统一登记（见 ./trigger；构造期执行，时机与原内联订阅一致）
+    registerMissionTriggers(this);
   }
 
   /**
@@ -979,33 +981,13 @@ export class MissionProgress {
  * "BATTLE_NORMAL,BATTLE_ELITE,BATTLE_BOSS"）解析为地图节点 type 数值。
  * 数值与 TorappuRoguelikeEventType / ROGUE6_NODE 对齐。
  * 岁兽残识"祸乱"节点（BATTLE / BATTLE_HARD）后端未实现专属机制，按作战/紧急作战近似。
+ * 映射固化在 data/rlv2/mission-node-values.json——excel nodeTypeData 分主题且同名节点
+ * 位值跨主题不一致（如「诡意行商」rogue_1~5=8、rogue_6=4096），无法从单一主题推出
+ * 全局映射；一致性由 tests/unit/data/mission-node-values.test.ts 守护（位值 ∈ 某主题键）。
  */
-const RLV2_MISSION_NODE_VALUES: Record<string, number> = {
-  BATTLE_NORMAL: 1,
-  BATTLE_ELITE: 2,
-  BATTLE_BOSS: 4,
-  SHOP: 8,
-  REST: 16,
-  INCIDENT: 32,
-  TREASURE: 64,
-  ENTERTAINMENT: 128,
-  UNKNOWN: 256,
-  WISH: 512,
-  SACRIFICE: 1024,
-  EXPEDITION: 2048,
-  BATTLE_SHOP: 4096,
-  PORTAL: 8192,
-  MISSION: 16384,
-  STORY: 32768,
-  STORY_HIDDEN: 65536,
-  ALCHEMY: 131072,
-  DUEL: 262144,
-  EMPLOY: 33554432,
-  BATTLE_SAVAGE: 134217728,
-  SCRAP_SHOP: 2097152,
-  BATTLE: 1,
-  BATTLE_HARD: 2,
-};
+const RLV2_MISSION_NODE_VALUES: Record<string, number> = readJsonSync(
+  `${__dirname}/../../../../data/rlv2/mission-node-values.json`,
+);
 
 /**
  * 校验特勤干员任务事件上下文是否匹配任务 param 的 theme/mode/grade 门槛。

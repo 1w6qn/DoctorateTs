@@ -26,6 +26,26 @@ export class RecruitManager {
   async refreshTags(args: { slotId: number }): Promise<void> {
     const { slotId } = args;
     await this._player.update(async (draft) => {
+      // 官方人脉资源消耗（2026-08-25 基建对齐，办公室页）：标签刷新消耗人力办公室
+      // 联络库存（building.rooms.HIRE[].refreshStock，_accrueHire 每 12h 充能 1 次，
+      // 上限 3）——库存 0 时拒绝刷新；私服兑底：无人力办公室/未进驻 → 免消耗放行，
+      // 避免公开招募锁死。
+      let stationedRoom: any = null;
+      for (const [hireSlotId, roomRaw] of Object.entries(
+        draft.building?.rooms?.HIRE ?? {},
+      )) {
+        const stationed = (
+          draft.building.roomSlots[hireSlotId]?.charInstIds ?? []
+        ).some((i: number) => i > 0);
+        if (stationed) {
+          stationedRoom = roomRaw;
+          break;
+        }
+      }
+      if (stationedRoom) {
+        if (((stationedRoom as any).refreshStock ?? 0) <= 0) return; // 人脉不足
+        (stationedRoom as any).refreshStock -= 1;
+      }
       draft.recruit.normal.slots[slotId].tags =
         await RecruitTools.refreshTagList();
     });

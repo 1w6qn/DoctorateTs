@@ -1,0 +1,31 @@
+{
+  "warmupAlphaHours": 3,
+  "warmupBetaHours": 5,
+  "goldOrderDistribution": {
+    "1": [{ "gold": 2, "weight": 100 }],
+    "2": [
+      { "gold": 2, "weight": 60 },
+      { "gold": 3, "weight": 40 }
+    ],
+    "3": [
+      { "gold": 2, "weight": 30 },
+      { "gold": 3, "weight": 50 },
+      { "gold": 4, "weight": 20 }
+    ]
+  },
+  "distAlpha": [
+    { "gold": 4, "weight": 55 },
+    { "gold": 3, "weight": 30 },
+    { "gold": 2, "weight": 15 }
+  ],
+  "distBeta": [
+    { "gold": 4, "weight": 85 },
+    { "gold": 3, "weight": 10 },
+    { "gold": 2, "weight": 5 }
+  ],
+  "distAlphaAlpha": [
+    { "gold": 4, "weight": 65 },
+    { "gold": 3, "weight": 22 },
+    { "gold": 2, "weight": 13 }
+  ]
+}

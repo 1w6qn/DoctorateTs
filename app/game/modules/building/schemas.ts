@@ -149,10 +149,14 @@ export const accelerateSolutionSchema = z.object({
   cost: z.number().optional(),
 });
 
-/** 完成订单（CS: BuildingTradingDeliveryRequest；服务端以 string 读 orderId） */
+/**
+ * 完成订单（CS: BuildingTradingDeliveryRequest { slotId, orderId }）。
+ * 修复（2026-08-26 dc-fix）：CS orderId 为 Int64（客户端发数字）——原 schema 强制
+ * string 导致 400；兼容两种形态（manager 内按 String(instId) 匹配）。
+ */
 export const deliveryOrderSchema = z.object({
   slotId: z.string(),
-  orderId: z.string(),
+  orderId: z.union([z.string(), z.number()]),
 });
 
 /** 批量完成订单（CS: BuildingDeliveryBatchOrderRequest { slotList }，均可选） */
@@ -209,9 +213,13 @@ export const changeDiySolutionSchema = z.object({
   solution: z.any(),
 });
 
-/** 加工站合成（CS: BuildingWorkshopSynthesisRequest { roomSlotId, formulaId, times }） */
+/**
+ * 加工站合成（CS: BuildingWorkshopSynthesisRequest { formulaId, times }）。
+ * 修复（2026-08-26 dc-fix）：CS 请求体无 roomSlotId 字段——原 schema 强制导致客户端请求 400；
+ * 改可选（服务端按 formulaId 合成，无需房间定位）。
+ */
 export const workshopSynthesisSchema = z.object({
-  roomSlotId: z.string(),
+  roomSlotId: z.string().optional(),
   formulaId: z.string(),
   times: z.number(),
 });

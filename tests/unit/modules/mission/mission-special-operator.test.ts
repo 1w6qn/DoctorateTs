@@ -191,12 +191,12 @@ vi.mock("moment", () => ({
   default: () => ({ diff: () => 0 }),
 }));
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import { mockPlayerData, mockTypedEventEmitter } from "../../../helpers";
 import {
   MissionManager,
   MissionProgress,
   MissionTemplates,
-} from "@game/manager/mission";
+} from "@game/modules/mission/logic";
 
 /** 构造任务进度实例（与既有 mission.test 同款） */
 function makeMission(param: string[], value = 0) {

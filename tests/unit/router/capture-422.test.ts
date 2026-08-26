@@ -5,7 +5,7 @@
  * 防止后续收紧 schema 再次误伤正常客户端请求。
  */
 import { describe, it, expect, vi } from "vitest";
-import * as Building from "../../../app/game/model/protocol/building.schema";
+import * as Building from "../../../app/game/modules/building/schemas";
 import * as BusinessCard from "../../../app/game/model/protocol/businessCard.schema";
 import { validateBody } from "../../../app/game/model/protocol/validate-body";
 

@@ -3,25 +3,48 @@ import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";
-import config from "../../config";
-import { PlayerDataManager } from "./PlayerDataManager";
+import config from "../../../config";
+import { PlayerDataManager } from "../../manager/PlayerDataManager";
 import { TypedEventEmitter } from "@game/model/events";
 import { Draft } from "mutative";
 import { PlayerDataModel } from "@game/model/playerdata";
 import { PlayerBuildingMeetingClue } from "@game/model/playerdata";
 import { BuildingData_OrderType, BuildingData_RoomType } from "@game/model/playerdata";
-import { accountManager } from "./AccountManager";
+import { accountManager } from "../../manager/AccountManager";
+import { registerBuildingTriggers } from "./trigger";
 import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst } from "@excel/building_excel";
 import {
   CharBuffSource,
   roomSpeedBonus,
   controlGlobalBonus,
-  dormRecoveryBonus,
   charMoodCost,
   getActiveCharBuffs,
   parseVupValue,
-} from "@game/building/buff";
-import { headcountMoodRelief, isDispersedAp } from "@game/building/mood";
+  phaseRank,
+} from "./buff";
+import { headcountMoodRelief, isDispersedAp, warmupHoursOf, MAX_AP } from "./mood";
+import { splitDormBuffs, sumByGroupMax } from "./dorm-special";
+import {
+  isFormulaUnlocked,
+  isDiamondStrategyUnlocked,
+  FormulaUnlockCtx,
+} from "./unlocks";
+import { getSpecCond, SPEC_ASSIST_BASE_BONUS } from "./mastery";
+import {
+  goldOrderDistribution,
+  pickGoldCount,
+  warmupSkillTier,
+  WARMUP_ALPHA_HOURS,
+  WARMUP_BETA_HOURS,
+  WarmupActive,
+} from "./trade-orders";
+import { contactSpeedFactor, settleContactProgress } from "./hire-contacts";
+import {
+  meetingSpeedMultiplier,
+  CLUE_BASE_SECONDS,
+  OWN_CLUE_LIMIT,
+} from "./clue-speed";
+import { rarityToIndex } from "@utils/rarity";
 
 /**
  * 基建管理器类
@@ -44,39 +67,41 @@ export class BuildingManager {
   constructor(player: PlayerDataManager, _trigger: TypedEventEmitter) {
     this._player = player;
     this._trigger = _trigger;
-    // 每日刷新：会客室每日免费线索重置（dailyReward=null——"今日未领"合法值）
-    this._trigger.on("refresh:daily", this.dailyRefresh.bind(this));
-    this._trigger.on(
-      "building:char:init",
-      async ([char]: [PlayerCharacter]) => {
-        await this._player.update(async (draft) => {
-          draft.building.chars[char.instId] = {
-            charId: char.charId,
-            lastApAddTime: now(),
-            ap: 8640000,
-            roomSlotId: "",
-            index: -1,
-            changeScale: 0,
-            bubble: {
-              normal: {
-                add: -1,
-                ts: 0,
-              },
-              assist: {
-                add: -1,
-                ts: 0,
-              },
-              private: {
-                add: -1,
-                ts: 0,
-              },
-            },
-            workTime: 0,
-            privateRooms: [],
-          };
-        });
-      },
-    );
+    // 事件订阅抽至 trigger.ts（注册顺序 refresh:daily → building:char:init 不变）
+    registerBuildingTriggers(_trigger, this);
+  }
+
+  /**
+   * 干员进驻建档回调（building:char:init）：初始化基建在编状态
+   * @param char - 新入编干员
+   */
+  async _onCharInit(char: PlayerCharacter): Promise<void> {
+    await this._player.update(async (draft) => {
+      draft.building.chars[char.instId] = {
+        charId: char.charId,
+        lastApAddTime: now(),
+        ap: 8640000,
+        roomSlotId: "",
+        index: -1,
+        changeScale: 0,
+        bubble: {
+          normal: {
+            add: -1,
+            ts: 0,
+          },
+          assist: {
+            add: -1,
+            ts: 0,
+          },
+          private: {
+            add: -1,
+            ts: 0,
+          },
+        },
+        workTime: 0,
+        privateRooms: [],
+      };
+    });
   }
 
   /** 获取会客室留言板信息 */
@@ -492,18 +517,69 @@ export class BuildingManager {
       const slot = draft.building.roomSlots[slotId];
       const base = getMeetingPhase(slot?.level ?? 1)?.gatheringSpeed;
       if (typeof base !== "number" || base <= 0) continue;
-      // 有效速度 = 基础搜集速度 × (1 + 干员 meet_* buff)，回写供客户端进度一致
-      const bonus = roomSpeedBonus(
+      // 官方线索速度全公式（2026-08-25 对齐，会客室页）：等级基础效率（107/109/111%）+
+      // 全宿舍氛围档 + Σ进驻干员（稀有度/精英阶段/非涣散）+ meet_* 技能
+      const meetBonus = roomSpeedBonus(
         this._roomCharSources(draft, slot),
         "MEETING",
         [],
         this._specialCtx(draft),
       );
-      room.speed = Math.round(base * (1 + bonus));
+      let totalComfort = 0;
+      for (const d of Object.values(draft.building.rooms.DORMITORY ?? {})) {
+        totalComfort += (d as any)?.comfort ?? 0;
+      }
+      const charInfos = (slot?.charInstIds ?? [])
+        .filter((i) => i > 0)
+        .map((instId) => {
+          const src = this._charSource(draft, instId);
+          if (!src) return null;
+          return {
+            rarityIndex: rarityToIndex(
+              (excel.CharacterTable as Record<string, any>)?.[src.charId]?.rarity,
+            ),
+            evolvePhase: src.evolvePhase ?? 0,
+            dispersed: isDispersedAp(
+              (draft.building.chars[String(instId)] as any)?.ap,
+            ),
+          };
+        })
+        .filter((c): c is NonNullable<typeof c> => c != null);
+      const mult = meetingSpeedMultiplier({
+        roomLevel: slot?.level ?? 1,
+        totalComfort,
+        chars: charInfos,
+        meetBonus,
+      });
+      room.speed = Math.round(base * mult);
       const elapsed = ts - (room.lastUpdateTime || ts);
       if (elapsed <= 0) continue;
       room.lastUpdateTime = ts;
+      // 官方：自有库满（≥10）停工——滞留线索，进度不再累积（时间戳照常推进）
+      if ((room.ownStock?.length ?? 0) >= OWN_CLUE_LIMIT) continue;
       room.processPoint = (room.processPoint ?? 0) + elapsed * room.speed;
+      // 达到 20h 基准阈值 → 真实产出线索（阵营加权含晓歌/U-Official 技能），
+      // 支持长离线多份；满库即停（官方自有库上限 10）
+      const threshold = CLUE_BASE_SECONDS * base;
+      while (
+        room.processPoint >= threshold &&
+        (room.ownStock?.length ?? 0) < OWN_CLUE_LIMIT
+      ) {
+        room.processPoint -= threshold;
+        const clue: PlayerBuildingMeetingClue = {
+          id: `${draft.status.uid}#${Math.floor(Math.random() * 9000 + 1000)}#${ts}`,
+          type: this._clueFactionWeighted(draft, room),
+          number: 1 + Math.floor(Math.random() * 3),
+          uid: String(draft.status.uid),
+          name: draft.status.nickName,
+          nickNum: String(draft.status.nickNumber),
+          chars: [],
+          inUse: 0,
+          ts: now() + getClueExpiredDays() * 86400,
+        };
+        room.ownStock.push(clue);
+        draft.pushFlags.hasClues = 1;
+      }
     }
   }
 
@@ -523,19 +599,31 @@ export class BuildingManager {
       const room = roomRaw as any;
       if (!room || room.state !== 1) continue;
       const slot = draft.building.roomSlots[slotId];
-      const base = getHirePhase(slot?.level ?? 1)?.resSpeed;
+      const phase = getHirePhase(slot?.level ?? 1);
+      const base = phase?.resSpeed;
       if (typeof base !== "number" || base <= 0) continue;
-      const bonus = roomSpeedBonus(
-        this._roomCharSources(draft, slot),
-        "HIRE",
-        [],
-        this._specialCtx(draft),
-      );
+      const chars = this._roomCharSources(draft, slot);
+      const bonus = roomSpeedBonus(chars, "HIRE", [], this._specialCtx(draft));
       room.speed = Math.round(base * (1 + bonus));
       const elapsed = ts - (room.lastUpdateTime || ts);
       if (elapsed <= 0) continue;
       room.lastUpdateTime = ts;
       room.processPoint = (room.processPoint ?? 0) + elapsed * room.speed;
+      // 官方联络模型（2026-08-25 对齐，办公室页）：每 12h × 速度系数获得 1 次人脉库存，
+      // 上限相位 refreshTimes（3），满则暂停累积（达上限干员暂停工作）；
+      // 无人进驻不恢复（官方：无人进驻时刷新次数不恢复）。
+      // refreshStock/contactSec 为服务端扩展字段（旧存档惰性初始化），
+      // 供公开招募标签刷新（gacha/refreshTags）消耗。
+      if (chars.length === 0) continue;
+      const cap = phase?.refreshTimes ?? 3;
+      if ((room.refreshStock ?? 0) >= cap) continue;
+      room.contactSec =
+        (room.contactSec ?? 0) + elapsed * contactSpeedFactor(base, bonus);
+      const { gained, remainder } = settleContactProgress(room.contactSec);
+      if (gained > 0) {
+        room.refreshStock = Math.min((room.refreshStock ?? 0) + gained, cap);
+        room.contactSec = remainder;
+      }
     }
   }
 
@@ -673,12 +761,22 @@ export class BuildingManager {
         "TRAINING",
         [],
       );
+      // 协助位非涣散基础 +5%（官方，2026-08-25 对齐）叠加教官 train_* 技能
+      const assistBase =
+        trainerSrc && !isDispersedAp(trainerSrc.ap) ? SPEC_ASSIST_BASE_BONUS : 0;
       const elapsed = ts - (room.lastUpdateTime || ts);
       if (elapsed <= 0) continue;
       room.lastUpdateTime = ts;
       trainee.processPoint =
         (trainee.processPoint ?? 0) +
-        elapsed * (trainee.speed ?? 1) * (1 + trainBonus);
+        elapsed * (trainee.speed ?? 1) * (1 + assistBase + trainBonus);
+      // 达到训练时长（maxPoint = lvlUpTime，新模型）→ 待领取（OUTOFDATE），不超额；
+      // 旧存档无 maxPoint → 保持原行为（领取由 completeUpgradeSpecialization 驱动）
+      const maxPoint = (trainee as any).maxPoint ?? 0;
+      if (maxPoint > 0 && trainee.processPoint >= maxPoint) {
+        trainee.processPoint = maxPoint;
+        trainee.state = 2; // OUTOFDATE 待领取
+      }
     }
   }
 
@@ -702,6 +800,17 @@ export class BuildingManager {
       chars.some((c) =>
         getActiveCharBuffs(c, "TRADING").some((b) => re.test(b?.buffId ?? "")),
       );
+    // 开采协力（O_DIAMOND，官方 Lv3 策略）：源石碎片×2 交付 → 合成玉×20（2026-08-25 对齐）
+    if ((room.strategy as string) === "O_DIAMOND") {
+      room.stock.push({
+        instId,
+        delivery: [{ id: "3141", type: "MATERIAL", count: 2 }],
+        type: "O_DIAMOND",
+        gain: { id: "4003", type: "DIAMOND_SHD", count: 20 },
+        buff: [],
+      });
+      return;
+    }
     // 佩佩「特别独占订单」：赤金交付 0、收益恒定（rate×2）
     if (hasBuff(/^trade_ord_pepe/)) {
       room.stock.push({
@@ -726,14 +835,63 @@ export class BuildingManager {
       });
       return;
     }
-    const count = 1 + Math.floor(Math.random() * 4);
+    // 官方站级概率表（Lv1 2金100%；Lv2 60/40；Lv3 30/50/20）+ 暖机概率改写
+    // （trade_ord_wt&cost α/β，累积工时达阈后生效，离岗清零）——替代原均匀随机 1~4
+    const warmup = this._tradeWarmupActive(draft, slot);
+    let count = pickGoldCount(goldOrderDistribution(slot?.level ?? 1, warmup));
+    // 违约订单（官方）：trade_ord_law 将交付数 <4 的订单视为违约；
+    // trade_ord_against 违约订单赤金交付额外 +1/+2（取最高档）
+    let special: string | undefined;
+    if (hasBuff(/^trade_ord_law/) && count < 4) {
+      special = "breach";
+      count += hasBuff(/^trade_ord_against\[01/) ? 2 : 1;
+    }
+    // 龙舌兰投资订单（官方）：非违约且交付数 >3 时龙门币收益 +250/+500（取最高档）
+    let gainBonus = 0;
+    if (!special && count > 3 && hasBuff(/^trade_ord_long/)) {
+      gainBonus = hasBuff(/^trade_ord_long\[01/) ? 500 : 250;
+    }
     room.stock.push({
       instId,
       delivery: [{ id: "3003", type: "MATERIAL", count }],
       type: "O_GOLD",
-      gain: { id: "4001", type: "GOLD", count: count * rate },
+      gain: { id: "4001", type: "GOLD", count: count * rate + gainBonus },
       buff: [],
+      ...(special ? { special } : {}),
     });
+  }
+
+  /**
+   * 内部方法：贸易站暖机技能激活统计（裁缝/手工艺品类订单概率改写）。
+   * 干员持有 trade_ord_wt&cost α（[00x]）/β（[01x]）且累积工时（暖机基座 warmupSec）
+   * 达阈（3h/5h）计为激活；离岗/换工位清零由 _accrueWarmup 保证。
+   */
+  private _tradeWarmupActive(
+    draft: Draft<PlayerDataModel>,
+    slot: { charInstIds?: number[] } | null | undefined,
+  ): WarmupActive {
+    const active: WarmupActive = { alpha: 0, beta: 0 };
+    for (const instId of slot?.charInstIds ?? []) {
+      if (instId <= 0) continue;
+      const src = this._charSource(draft, instId);
+      if (!src) continue;
+      const hours = warmupHoursOf(
+        (draft.building.chars[String(instId)] as any)?.warmupSec,
+      );
+      let tier: "alpha" | "beta" | null = null;
+      for (const b of getActiveCharBuffs(src, "TRADING")) {
+        const t = warmupSkillTier(b?.buffId ?? "");
+        // 同一干员同时持 α/β 时按高档（β）计（α+β 按 β）
+        if (t === "beta") {
+          tier = "beta";
+          break;
+        }
+        if (t === "alpha") tier = "alpha";
+      }
+      if (tier === "beta" && hours >= WARMUP_BETA_HOURS) active.beta += 1;
+      else if (tier === "alpha" && hours >= WARMUP_ALPHA_HOURS) active.alpha += 1;
+    }
+    return active;
   }
 
   /**
@@ -773,8 +931,11 @@ export class BuildingManager {
       const elapsed = ts - (room.lastUpdateTime || ts);
       if (elapsed <= 0) continue;
       room.lastUpdateTime = ts;
-      // 有效速度 = 基础 × (1 + 加成)，回写 next.speed 供客户端倒计时一致
-      const effSpeed = Math.max(0.01, (next.speed || 1) * (1 + bonus));
+      // 修复（2026-08-26 dc-fix，生产速度过快）：存档 next.speed 已是有效速度（如 1.78 =
+      // 1+0.78，maxPoint = 官方基础秒数，如 12600 = 3:30:00）——原实现
+      // `next.speed = next.speed × (1+bonus)` 回写 → 加成每次 sync 复利滚雪球，订单越来越快。
+      // 官方语义：速度 = 1 + 当前加成（每次按进驻干员重算，换班即时生效）。
+      const effSpeed = Math.max(0.01, 1 + bonus);
       next.speed = effSpeed;
       next.processPoint = (next.processPoint ?? 0) + elapsed * effSpeed;
       // 达到阈值 → 逐笔生成订单（修复：while 一次性结算全部达到的订单——
@@ -1090,21 +1251,10 @@ export class BuildingManager {
   }
 
   /**
-   * 宿舍等级基础心情恢复（点/小时）：phase.manpowerRecover / 160（1 级 = 1.0 点/小时）。
-   * 数据版本部分相位为占位字符串（YOSTAR_SDK_DELETE_ACCOUNT 等）→ 按等差回退（160 + (lv-1)×10）。
+   * 宿舍基础恢复（点/小时，官方公式 2026-08-25 对齐，宿舍页）：
+   * (1.5 + 0.1×等级) + 氛围×0.0004（技能部分按作用域在 _recomputeCharScales 分发）。
    */
-  private _dormPhaseRecovery(level: number): number {
-    const raw = getDormPhase(level)?.manpowerRecover;
-    if (typeof raw === "number" && raw > 0) return raw;
-    return 160 + (level - 1) * 10;
-  }
-
-  /**
-   * 宿舍心情恢复档位（changeScale，AP/秒）：
-   * (基础 + 舒适度 + 进驻干员 dorm_* buff + 控制中枢 control_dorm_* 全局) × 100
-   * 单位校准：1 点/小时 = 100 AP/秒（真实存档：5 级 5000 舒适 → 405，与公式吻合）。
-   */
-  private _dormRecoveryPerSec(
+  private _dormBaseRecoveryPerHour(
     draft: Draft<PlayerDataModel>,
     slotId: string,
   ): number {
@@ -1112,13 +1262,7 @@ export class BuildingManager {
     const room = draft.building.rooms.DORMITORY?.[slotId];
     const level = slot?.level ?? 1;
     const comfort = (room as any)?.comfort ?? 0;
-    const basePerHour = this._dormPhaseRecovery(level) / 160;
-    const comfortPerHour = (comfort / 1000) * 0.55; // 校准：5000 舒适 ≈ +2.75 点/小时
-    const buffPerHour = dormRecoveryBonus(this._roomCharSources(draft, slot));
-    const controlPerHour = this._controlGlobalFor(draft).DORMITORY ?? 0;
-    return Math.round(
-      (basePerHour + comfortPerHour + buffPerHour + controlPerHour) * 100,
-    );
+    return 1.5 + 0.1 * level + comfort * 0.0004;
   }
 
   /** 输出类房间基础心情消耗（AP/秒，真实存档校准：制造/贸易 -55、会客/人力/发电 -65） */
@@ -1153,13 +1297,60 @@ export class BuildingManager {
         headcountOf.set(instId, stationed.length);
       }
     }
-    // 宿舍恢复按宿舍房间分别计算（干员 → 所在宿舍恢复档位）
+    // 宿舍恢复按宿舍房间 × 成员分别计算（官方 2026-08-25 对齐，宿舍页）：
+    // 基础 (1.5+0.1×级) + 氛围×0.0004 + 控制中枢 dorm 全局为全员共享；技能按作用域分发：
+    // all 全员（同种取最高）/ self 仅自身 / single 心情最低成员（除施放者）/
+    // shared（小酌怡情）总量均分给心情未满成员；单位：1 点/时 = 100 AP/秒
     const dormScale = new Map<number, number>();
     for (const [slotId, slot] of Object.entries(draft.building.roomSlots)) {
       if (slot.roomId !== "DORMITORY") continue;
-      const scale = this._dormRecoveryPerSec(draft, slotId);
-      for (const instId of slot.charInstIds ?? []) {
-        if (instId > 0) dormScale.set(instId, scale);
+      const basePerHour = this._dormBaseRecoveryPerHour(draft, slotId);
+      const controlPerHour = this._controlGlobalFor(draft).DORMITORY ?? 0;
+      const members = (slot.charInstIds ?? []).filter((i) => i > 0);
+      const allEntries: { group: string; value: number }[] = [];
+      const sharedEntries: { group: string; value: number }[] = [];
+      const singleEntries: { group: string; value: number }[] = [];
+      const selfOf = new Map<number, number>();
+      const singleOwners = new Set<number>();
+      for (const instId of members) {
+        const src = this._charSource(draft, instId);
+        if (!src) continue;
+        // 宿舍为休息语境：涣散干员的宿舍技能仍生效（allowDispersed）
+        const split = splitDormBuffs(
+          getActiveCharBuffs(src, "DORMITORY", { allowDispersed: true }),
+        );
+        allEntries.push(...split.all);
+        sharedEntries.push(...split.shared);
+        if (split.single.length > 0) {
+          singleEntries.push(...split.single);
+          singleOwners.add(instId);
+        }
+        selfOf.set(instId, sumByGroupMax(split.self));
+      }
+      const allBonus = sumByGroupMax(allEntries);
+      const singleBonus = sumByGroupMax(singleEntries);
+      const sharedTotal = sumByGroupMax(sharedEntries);
+      const apOf = (instId: number): number =>
+        (draft.building.chars[String(instId)] as any)?.ap ?? MAX_AP;
+      // 单体恢复目标：除施放者外心情最低成员（官方近似：锁定最低心情者）
+      let singleTarget = -1;
+      let lowestAp = Infinity;
+      for (const instId of members) {
+        if (singleOwners.has(instId)) continue;
+        const ap = apOf(instId);
+        if (ap < MAX_AP && ap < lowestAp) {
+          lowestAp = ap;
+          singleTarget = instId;
+        }
+      }
+      const unfull = members.filter((i) => apOf(i) < MAX_AP);
+      const sharedPer = unfull.length > 0 ? sharedTotal / unfull.length : 0;
+      for (const instId of members) {
+        let perHour =
+          basePerHour + allBonus + controlPerHour + (selfOf.get(instId) ?? 0);
+        if (instId === singleTarget) perHour += singleBonus;
+        if (unfull.includes(instId)) perHour += sharedPer;
+        dormScale.set(instId, Math.round(perHour * 100));
       }
     }
     for (const [instIdStr, ch] of Object.entries(draft.building.chars ?? {})) {
@@ -1246,6 +1437,8 @@ export class BuildingManager {
       slot.state = 1; // 建造中（completeUpgradeRoom 完成后置 2）
       slot.roomId = roomId as BuildingData_RoomType;
       slot.level = 1;
+      // 曾达等级记录（配方解锁判定：官方以“曾达等级”解锁制造/加工配方）
+      this._touchMaxLevel(draft, roomId, 1);
       const buildTime = phase.buildCost?.time ?? 0;
       slot.completeConstructTime = now() + Math.max(1, buildTime);
       // 修复：确保 rooms[roomId][slotId] 房间对象存在（客户端按类型查房间）
@@ -1281,6 +1474,79 @@ export class BuildingManager {
       if (draft.building.status.labor.value < buildCost.labor) return false;
     }
     return true;
+  }
+
+  /**
+   * 配方解锁判定上下文：曾达等级（服务端扩展字段）+ 当前房间数 + 关卡星数。
+   * 官方以“曾达等级”解锁制造/加工配方（解锁后任意等级房间可用）；官服存档无该字段，
+   * 服务端自建 building.maxLevelReached（降级不回退，旧存档惰性初始化）。
+   * 修复（2026-08-26 dc-fix）：旧存档无 maxLevelReached 记录时曾达等级恒 0 →
+   * 全部配方被判未解锁（制造站无法补货/换配方）；当前房间等级本身即“曾达”
+   * （lv3 制造站必然曾达 3 级），取两者最大值。
+   */
+  private _unlockCtx(draft: Draft<PlayerDataModel>): FormulaUnlockCtx {
+    const roomCountByType: Record<string, number> = {};
+    const currentMaxLevel: Record<string, number> = {};
+    for (const slot of Object.values(draft.building.roomSlots)) {
+      if (!slot?.roomId || (slot.level ?? 0) < 1) continue;
+      roomCountByType[slot.roomId] = (roomCountByType[slot.roomId] ?? 0) + 1;
+      currentMaxLevel[slot.roomId] = Math.max(
+        currentMaxLevel[slot.roomId] ?? 0,
+        slot.level ?? 0,
+      );
+    }
+    const stageState: Record<string, number> = {};
+    for (const [stageId, st] of Object.entries(draft.dungeon?.stages ?? {})) {
+      stageState[stageId] = (st as any)?.state ?? 0;
+    }
+    const recorded = (draft.building as any).maxLevelReached ?? {};
+    const maxLevelReached: Record<string, number> = {};
+    for (const roomId of new Set([
+      ...Object.keys(recorded),
+      ...Object.keys(currentMaxLevel),
+    ])) {
+      maxLevelReached[roomId] = Math.max(
+        recorded[roomId] ?? 0,
+        currentMaxLevel[roomId] ?? 0,
+      );
+    }
+    return { maxLevelReached, roomCountByType, stageState };
+  }
+
+  /** 记录房间类型曾达最高等级（建造/升级时取 max，降级不回退） */
+  private _touchMaxLevel(
+    draft: Draft<PlayerDataModel>,
+    roomId: string,
+    level: number,
+  ): void {
+    const reached = ((draft.building as any).maxLevelReached ??= {});
+    if ((reached[roomId] ?? 0) < level) reached[roomId] = level;
+  }
+
+  /** 材料/金币列表足额校验（专精材料等通用成本） */
+  private _canAffordCosts(
+    draft: Draft<PlayerDataModel>,
+    costs: { id: string; count: number; type: string }[],
+  ): boolean {
+    for (const c of costs ?? []) {
+      if ((c.count ?? 0) <= 0) continue;
+      const have =
+        c.type === "GOLD" ? draft.status.gold : draft.inventory[c.id] || 0;
+      if (have < c.count) return false;
+    }
+    return true;
+  }
+
+  /** 扣减材料/金币列表（足额校验后调用） */
+  private _applyCosts(
+    draft: Draft<PlayerDataModel>,
+    costs: { id: string; count: number; type: string }[],
+  ): void {
+    for (const c of costs ?? []) {
+      if ((c.count ?? 0) <= 0) continue;
+      if (c.type === "GOLD") this._applyGoldDelta(draft, -c.count);
+      else this._applyItemDelta(draft, c.id, -c.count);
+    }
   }
 
   /**
@@ -1324,6 +1590,8 @@ export class BuildingManager {
       this._applyBuildCost(draft, phase.buildCost);
       slot.level = target;
       slot.state = 1; // 升级中（completeUpgradeRoom 完成后置 2，客户端进度一致）
+      // 曾达等级记录（降级不回退）
+      this._touchMaxLevel(draft, slot.roomId, target);
     });
   }
 
@@ -1481,36 +1749,60 @@ export class BuildingManager {
     }
     return await this._player.update(async (draft) => {
       const char = draft.troop.chars[String(charInstId)];
-      if (char && char.skills && char.skills[targetSkill]) {
-        char.skills[targetSkill].state = 1; // 专精中
+      if (!(char && char.skills && char.skills[targetSkill])) return;
+      const skill = char.skills[targetSkill];
+      const targetLevel = (skill.specializeLevel ?? 0) + 1;
+      // 官方门控：精英2 + 技能 7 级 + 专精≤3（训练室等级上限/槽位占用在下方校验）
+      if (phaseRank(char.evolvePhase) < 2) return;
+      if ((char.mainSkillLvl ?? 0) < 7) return;
+      if (targetLevel > 3) return;
+      // 训练室定位：优先该干员已在训练的房间，其次首个空训练槽（按槽位遍历以取房间等级）
+      const roomEntries = Object.entries(draft.building.rooms.TRAINING);
+      const entry =
+        roomEntries.find(([, r]) => r.trainee?.charInstId === charInstId) ??
+        roomEntries.find(
+          ([, r]) => !r.trainee || r.trainee.state === 0 || r.trainee.charInstId === -1,
+        ) ??
+        roomEntries[0];
+      if (!entry) return;
+      const [trainSlotId, roomRaw] = entry;
+      const room = roomRaw as any;
+      // 同时只能执行一个训练计划：他人训练中 → 拒绝（官方）
+      const curTrainee = room.trainee;
+      if (
+        curTrainee &&
+        curTrainee.charInstId > 0 &&
+        curTrainee.charInstId !== charInstId &&
+        curTrainee.state === 1
+      ) {
+        return;
       }
-      // 训练室状态同步：找到该干员的训练室（或首个空训练槽），记录训练目标。
-      // 旧实现只改 skill.state，不写 trainee.targetSkill → 完成时（body 为空）读不到
-      // 目标技能 → 专精永远无法结算。
-      const rooms = Object.values(draft.building.rooms.TRAINING);
-      const room =
-        rooms.find((r) => r.trainee?.charInstId === charInstId) ??
-        rooms.find((r) => !r.trainee || r.trainee.state === 0 || r.trainee.charInstId === -1) ??
-        rooms[0];
-      if (!room) return;
+      // 专精等级上限 = 训练室等级（官方）
+      const trainLevel = draft.building.roomSlots[trainSlotId]?.level ?? 3;
+      if (targetLevel > trainLevel) return;
+      // 消耗训练材料（足额校验后扣——官方专精需材料，2026-08-25 对齐）
+      const cond = getSpecCond(char.charId, targetSkill, targetLevel);
+      if (!cond || !this._canAffordCosts(draft, cond.costs)) return;
+      this._applyCosts(draft, cond.costs);
+      skill.state = 1; // 专精中
+      skill.completeUpgradeTime = now() + cond.lvlUpTime;
       if (room.trainee?.charInstId !== charInstId) {
         room.trainee = {
           charInstId,
           state: 1,
           targetSkill,
           processPoint: 0,
-          // 修复（2026-08-25）：speed 原硬编码 1000（参考实现移植值）→ 官方模型为
-          // 训练速度系数（4.json 官服快照空态 speed=1、训练中 ≈1.x，如 2222 存档 1.65）。
-          // speed=1000 使 _accrueTraining 的 processPoint 秒涨 1000（官方 600 倍），
-          // 客户端 LevelUpSnapshot 按 (totalRequirePoint - processPoint)/speed 显示
-          // 剩余时间 → 训练进度/倒计时异常。改回官方基础速度 1（教官 train_* buff
-          // 在 _accrueTraining 另行加成）。
+          // speed 同旧注释：官方基础速度 1（教官/协助加成在 _accrueTraining 实时合成）
           speed: 1,
         };
       } else {
         room.trainee.targetSkill = targetSkill;
         room.trainee.state = 1; // TRAINING
+        room.trainee.processPoint = 0;
       }
+      // 官方训练时长阈值（专一 8h/专二 16h/专三 24h = lvlUpTime）——
+      // _accrueTraining 推进 processPoint 至 maxPoint 后置待领取（state=2）
+      room.trainee.maxPoint = cond.lvlUpTime;
       room.trainer = room.trainer ?? { charInstId: -1, state: 0 };
       room.trainer.state = 1; // TRAINING
       room.lastUpdateTime = now();
@@ -1543,6 +1835,12 @@ export class BuildingManager {
       if (charInstId == null) charInstId = room?.trainee?.charInstId;
       if (targetSkill == null) targetSkill = room?.trainee?.targetSkill;
       if (charInstId == null || targetSkill == null || targetSkill < 0) return;
+      // 时长门控（新模型）：带 maxPoint 的 trainee 仅训练完成（state=2 待领取）可结算；
+      // 旧存档无 maxPoint → 保持原行为（避免存量流程断裂）
+      const traineeRec = room?.trainee as any;
+      if (traineeRec && (traineeRec.maxPoint ?? 0) > 0 && traineeRec.state !== 2) {
+        return;
+      }
       const char = draft.troop.chars[String(charInstId)];
       let settled = false;
       if (char && char.skills && char.skills[targetSkill]) {
@@ -1595,6 +1893,22 @@ export class BuildingManager {
   async assignChar(args: { roomSlotId: string; charInstIdList: number[] }) {
     const { roomSlotId, charInstIdList } = args;
     return await this._player.update(async (draft) => {
+      // 训练锁（官方：训练开始后不可中止，训练位干员锁定至完成）：
+      // 正在训练（trainee.state=1）的干员拒绝派往非训练室房间
+      const targetRoomId = draft.building.roomSlots[roomSlotId]?.roomId;
+      if (targetRoomId !== "TRAINING") {
+        for (const tr of Object.values(draft.building.rooms.TRAINING ?? {})) {
+          const t = (tr as any)?.trainee;
+          if (
+            t &&
+            t.charInstId > 0 &&
+            t.state === 1 &&
+            charInstIdList.includes(t.charInstId)
+          ) {
+            return;
+          }
+        }
+      }
       // 先将所有房间中已存在的相同干员移除（置为 -1）
       for (const slotKey in draft.building.roomSlots) {
         const slot = draft.building.roomSlots[slotKey];
@@ -2037,13 +2351,37 @@ export class BuildingManager {
    * @param args - 包含 slotId（制造站槽位）和 cost（客户端无人机数，服务端不消耗）的参数对象
    */
   async accelerateSolution(args: { slotId: string; cost?: number }) {
+    const { slotId, cost } = args;
     await this._player.update(async (draft) => {
       const room = draft.building.rooms.MANUFACTURE[args.slotId];
       // 无可加速方案（房间不存在/未开工/无配方）——不 500
       if (!room || !room.formulaId || room.state !== 1) return;
       const formula = getManufactFormula(String(room.formulaId));
       if (!formula) return;
-      // 立即完成当前生产方案：产出 1 个方案
+      // 官方无人机语义（2026-08-25 对齐）：请求带 cost（客户端消耗的无人机数）时，
+      // 1 架 = 3 分钟制造时间 → 按有效产能推进等价进度（持有量为客户端本地状态，
+      // 官服存档无无人机字段，服务端不校验余额）
+      if (typeof cost === "number" && Number.isInteger(cost) && cost > 0) {
+        this._accrueManufacture(draft, slotId, now());
+        if ((room.remainSolutionCnt ?? 0) <= 0) return; // 计划耗尽停摆，无可加速
+        // 官方速率（2026-08-26 dc-fix）：1 点/秒 × (1+加成)——与 _accrueManufacture 同单位，
+        // 1 架无人机 = 3 分钟制造时间 = 180 × (1+加成) 进度点（_roomCapacity 已回写 buff.speed）
+        this._roomCapacity(draft, slotId, formula);
+        const speedBonus = ((room.buff as any)?.speed as number) ?? 0;
+        const costPoint = formula.costPoint ?? 0;
+        if (costPoint <= 0) return;
+        room.processPoint = (room.processPoint ?? 0) + cost * 180 * (1 + speedBonus);
+        let produced = Math.floor(room.processPoint / costPoint);
+        if (produced > 0) {
+          produced = Math.min(produced, room.remainSolutionCnt ?? 0);
+          room.processPoint -= produced * costPoint;
+          room.remainSolutionCnt = (room.remainSolutionCnt ?? 0) - produced;
+          room.outputSolutionCnt = (room.outputSolutionCnt ?? 0) + produced;
+        }
+        room.lastUpdateTime = now();
+        return;
+      }
+      // 兼容旧客户端（cost 缺省）：立即完成当前生产方案 1 个（私服既有行为）
       if ((room.remainSolutionCnt ?? 0) > 0) room.remainSolutionCnt -= 1;
       room.outputSolutionCnt = (room.outputSolutionCnt ?? 0) + 1;
       room.processPoint = 0;
@@ -2056,7 +2394,7 @@ export class BuildingManager {
    * 完成订单（贸易站交付——结算首条库存订单，扣 delivery 加 gain）
    * @param args - 包含 slotId 和 orderId 的参数对象
    */
-  async deliveryOrder(args: { slotId: string; orderId: string }) {
+  async deliveryOrder(args: { slotId: string; orderId: string | number }) {
     const { slotId, orderId } = args;
     let delivered = 0;
     await this._player.update(async (draft) => {
@@ -2187,9 +2525,14 @@ export class BuildingManager {
     const formula = getManufactFormula(room.formulaId);
     if (!formula) return;
     const costPoint = formula.costPoint ?? 0;
-    // 有效容量受进驻干员技能/控制中枢全局加成驱动（而非存档静态值）
+    // 有效容量回写客户端显示字段（仓库容量语义）；同时从回写的 buff.speed 取加成
     const capacity = this._roomCapacity(draft, roomSlotId, formula);
     if (costPoint <= 0 || capacity <= 0) return;
+    // 修复（2026-08-26 dc-fix，生产速度过快）：官方生产速率 = 1 × (1+加成) 点/秒，
+    // 阈值 costPoint = 配方基础秒数（如赤金 4320=72 分钟）——2222 真存档实测：
+    // 剩余进度 1481.3 ÷ 剩余 833s = 1.778 = 1 + buff.speed(0.78) ✓。
+    // 原实现按 capacity(54)×(1+加成) 点/秒累积 → 快约 54 倍（制造站几分钟出一批）。
+    const speedBonus = ((room.buff as any)?.speed as number) ?? 0;
     // 修复：计划已耗尽（remain ≤ 0）即停止生产——官方计划完成后房间停摆待收取；
     // 原实现 remain=0 时跳过钳制 → 产出无上限累积（制造站赤金数量异常）
     const remain = room.remainSolutionCnt ?? 0;
@@ -2197,7 +2540,7 @@ export class BuildingManager {
     const elapsed = ts - (room.lastUpdateTime || ts);
     if (elapsed <= 0) return;
     room.lastUpdateTime = ts;
-    room.processPoint = (room.processPoint ?? 0) + elapsed * capacity;
+    room.processPoint = (room.processPoint ?? 0) + elapsed * (1 + speedBonus);
     let produced = Math.floor(room.processPoint / costPoint);
     if (produced <= 0) return;
     // 修复：先按 remain 钳制再扣进度——原实现先扣全部 produced 再钳制，
@@ -2394,13 +2737,16 @@ export class BuildingManager {
   }): Promise<{ change: boolean }> {
     const { roomSlotId, targetFormulaId, solutionCount } = args;
     await this._player.update(async (draft) => {
+      const room = draft.building.rooms.MANUFACTURE[roomSlotId];
+      if (!room) return;
+      // 官方配方解锁校验（曾达等级 + 房间数 + 关卡星）——未解锁拒绝，不结算不扣资源
+      const formula = getManufactFormula(targetFormulaId);
+      if (formula && !isFormulaUnlocked(formula, this._unlockCtx(draft))) return;
       // 先推进并结算当前已产出的方案
       this._accrueManufacture(draft, roomSlotId, now());
       this._settleManufactureInternal(draft, roomSlotId);
       // 切换到新配方（修复：产出随时间累积而非立即满产——
       // remainSolutionCnt 为目标批次数，outputSolutionCnt 从 0 开始由 _accrueManufacture 推进）
-      const room = draft.building.rooms.MANUFACTURE[roomSlotId];
-      if (!room) return;
       room.state = 1;
       room.formulaId = targetFormulaId;
       room.lastUpdateTime = now();
@@ -2436,7 +2782,14 @@ export class BuildingManager {
     return await this._player.update(async (draft) => {
       const room = draft.building.rooms.TRADING[slotId];
       if (room) {
-        if (strategy) room.strategy = strategy as BuildingData_OrderType;
+        // 官方：开采协力（O_DIAMOND）需贸易站等级达 tradingStrategyUnlockLevel（3），
+        // 未达标时忽略策略变更（库存上限正常生效）
+        const strategyLocked =
+          strategy === "O_DIAMOND" &&
+          !isDiamondStrategyUnlocked(draft.building.roomSlots[slotId]?.level ?? 0);
+        if (strategy && !strategyLocked) {
+          room.strategy = strategy as BuildingData_OrderType;
+        }
         if (stockLimit != null) room.stockLimit = stockLimit;
       }
     });
@@ -2511,7 +2864,7 @@ export class BuildingManager {
    * @returns 合成结果对象（包含 type/id/count）
    */
   async workshopSynthesis(args: {
-    roomSlotId: string;
+    roomSlotId?: string;
     times: number;
     formulaId?: string;
   }) {
@@ -2524,9 +2877,14 @@ export class BuildingManager {
     let synGroup: string | undefined;
     await this._player.update(async (draft) => {
       const roomFormulaId =
-        formulaId ?? (draft.building.rooms.MANUFACTURE as any)[roomSlotId]?.formulaId;
+        formulaId ??
+        (roomSlotId
+          ? (draft.building.rooms.MANUFACTURE as any)[roomSlotId]?.formulaId
+          : undefined);
       const formula = getWorkshopFormula(roomFormulaId);
       if (!formula) return; // 配方不存在（数据版本错位/制造配方 ID）——容错跳过
+      // 官方配方解锁校验（加工站等级 + 关卡星）——未解锁拒绝，不扣资源不产出
+      if (!isFormulaUnlocked(formula, this._unlockCtx(draft))) return;
       synGroup = formula.formulaType as string | undefined;
 
       // 修复：余额校验——材料/金币不足时按可承担次数合成，避免负库存/负金币
@@ -3685,6 +4043,21 @@ export class BuildingManager {
     }
     return await this._player.update(async (draft) => {
       const labor = draft.building.status.labor;
+      // 官方 AP 兑换路径（2026-08-25 对齐）：控制中枢等级 ≥ apToLaborUnlockLevel(4)
+      // 后用理智兑换劳动力，比例 apToLaborRatio(2)：1 AP → 2 劳动力（buyCount = 劳动力数）
+      const ctlSlot = Object.values(draft.building.roomSlots).find(
+        (s) => s.roomId === "CONTROL",
+      );
+      const unlockLevel = getBuildingConstant<number>("apToLaborUnlockLevel") ?? 4;
+      const ratio = getBuildingConstant<number>("apToLaborRatio") ?? 2;
+      if ((ctlSlot?.level ?? 0) >= unlockLevel && ratio > 0) {
+        const apCost = Math.ceil(buyCount / ratio);
+        if (((draft.status as any).ap ?? 0) < apCost) return;
+        (draft.status as any).ap -= apCost;
+        labor.value = Math.min(labor.value + buyCount, labor.maxValue);
+        return;
+      }
+      // 私服兼容路径（中枢未达 4 级）：1 源石 → 10 劳动力（既有行为，文档记录）
       const cost = 1;
       if (draft.status.androidDiamond < cost * buyCount) return;
       draft.status.androidDiamond -= cost * buyCount;

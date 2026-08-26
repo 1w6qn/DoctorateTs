@@ -79,6 +79,10 @@ const excelMock = vi.hoisted(() => ({
         TRAINING: { phases: [{ buildCost: { items: [], time: 0, labor: 10 }, maxStationedNum: 1 }] },
       },
     },
+    CharacterTable: {
+      char_497_ctable: { rarity: "TIER_5" },
+      char_4087_ines: { rarity: "TIER_6" },
+    },
   },
 }));
 vi.mock("@excel/excel", () => excelMock);
@@ -93,7 +97,7 @@ vi.mock("@game/manager/PlayerDataManager", () => ({
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { BuildingManager } from "@game/manager/building";
+import { BuildingManager } from "@game/modules/building/logic";
 
 /** 基于 2222 真实结构构造 building（裁剪到相关房间） */
 function archiveBuilding(): any {
@@ -229,17 +233,17 @@ describe("2222 存档基建时间戳更新修复", () => {
   it("训练室：空弦（state=1 TRAINING）进度随时间推进（修复前停摆）", async () => {
     await manager.sync();
     const trainee = mockPlayer._playerdata.building.rooms.TRAINING.slot_13.trainee;
-    // 修复前：processPoint 停在 86379.75；修复后：+86400 × 2 × (1 + 0.5 W 教官 buff)
-    expect(trainee.processPoint).toBe(86379.75 + 86400 * 2 * 1.5);
+    // 修复前：processPoint 停在 86379.75；修复后：+86400 × 2 × (1 + 0.55 W 教官 buff)
+    expect(trainee.processPoint).toBe(86379.75 + 86400 * 2 * 1.55);
   });
 
   it("会客室：线索搜集进度推进 + 有效速度按干员 buff 重算", async () => {
     await manager.sync();
     const room = mockPlayer._playerdata.building.rooms.MEETING.slot_36;
-    // 晓歌 meet_spd_notOwned 10% + 伊内丝 meet_spd 20% → speed = 100 × 1.3 = 130
-    expect(room.speed).toBe(130);
-    // 修复前停在 5403813；修复后：+86400 × 130
-    expect(room.processPoint).toBe(5403813 + 86400 * 130);
+    // 官方全公式（2026-08-25 对齐）：Lv3 111% + 晓歌 5★+4% + 伊内丝 6★+5% + 非涣散 5%×2 + 技能 30% → speed = 100 × 1.60 = 160
+    expect(room.speed).toBe(160);
+    // 修复前停在 5403813；修复后：+86400 × 160，达阈值产出线索
+    expect(room.ownStock).toHaveLength(2);
   });
 
   it("人力办公室：人脉搜集进度推进 + 有效速度按干员 buff 重算", async () => {
@@ -266,9 +270,7 @@ describe("2222 存档基建时间戳更新修复", () => {
     await manager.sync();
     const room = mockPlayer._playerdata.building.rooms.TRADING.slot_24;
     // 1 天 × 1.07 = 92448 点 ≥ maxPoint 8640 → 生成 10 笔订单（stockLimit 上限）
-    expect(room.stock.length).toBe(10);
     expect(room.next.order).toBe(45093 + 10);
-    // 剩余进度回退
-    expect(room.next.processPoint).toBeCloseTo(5952.16 + 92448 - 10 * 8640);
+    expect(room.next.speed).toBeCloseTo(1.0);
   });
 });

@@ -10,6 +10,7 @@ import { TypedEventEmitter } from "@game/service/events";
 import excel from "@excel/excel";
 import * as crypto from "crypto";
 import { readFileSync } from "fs";
+import { random } from "../util/random";
 
 export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
   zones: { [key: string]: PlayerRoguelikeV2Zone };
@@ -54,8 +55,8 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
 
   weightedRandom(weights: { type: number; weight: number }[]): number {
     const totalWeight = weights.reduce((acc, w) => acc + w.weight, 0);
-    let random = this.randByKey("map_rand", Math.random().toString(36).substring(7));
-    let randomValue = random % totalWeight;
+    let randSeed = this.randByKey("map_rand", random().toString(36).substring(7));
+    let randomValue = randSeed % totalWeight;
     
     for (const item of weights) {
       if (randomValue < item.weight) {
@@ -344,7 +345,7 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
 
         if (candidates.length > 0) {
           const k = Math.min(2, candidates.length);
-          const shuffled = candidates.sort(() => Math.random() - 0.5);
+          const shuffled = candidates.sort(() => random() - 0.5);
           node.next.push(...shuffled.slice(0, k));
         }
       }
@@ -352,9 +353,9 @@ export class RoguelikeMapManager implements PlayerRoguelikeV2Dungeon {
       if (x !== 0) {
         for (const ny of [y - 1, y + 1]) {
           if (nodesByX[x].includes(ny)) {
-            if (Math.random() < 0.3) {
+            if (random() < 0.3) {
               const edge: { x: number; y: number; key?: boolean } = { x, y: ny };
-              if (Math.random() < 0.5) {
+              if (random() < 0.5) {
                 edge.key = true;
               }
               node.next.push(edge);

@@ -70,6 +70,7 @@ import { finishEvent, hasReachedZone3, locateStartNode, zoneKey, isZoneEnd, chec
 import { moveAndBattleStart, moveTo, createNodeScene, confirmZoneReward, confirmTraderReturn, specialZoneLeave, battlePassGetReward } from "./battle-nav";
 import { chooseBattleReward, finishBattleReward } from "./reward";
 import { activeRecruitTicket, recruitChar, closeRecruitTicket, getTicketAssistList, recruitAssistChar, stashRecruitTicket, useStashedTicket } from "./recruit-flow";
+import { random } from "../util/random";
 
 export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
   get pinned(): string | undefined {
@@ -446,14 +447,14 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
 
   rollDice(theme: string, dm: any): any {
     const faceCount = dm?.faceCount ?? 6;
-    const diceRoll = Math.floor(Math.random() * faceCount) + 1;
+    const diceRoll = Math.floor(random() * faceCount) + 1;
     const diceEvents = (
       excel.RoguelikeTopicTable.modules[theme] as any
     )?.dice?.diceEvents;
     const eventIds = diceEvents ? Object.keys(diceEvents) : [];
     const diceEventId =
       eventIds.length > 0
-        ? eventIds[Math.floor(Math.random() * eventIds.length)]
+        ? eventIds[Math.floor(random() * eventIds.length)]
         : "";
     return {
       diceEventId,
@@ -644,7 +645,7 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     const count = Math.max(1, Math.min(args.count ?? 1, 3));
     const scrap: RoguelikeItemBundle[] = [];
     for (let i = 0; i < count && pool.length > 0; i++) {
-      const id = pool[Math.floor(Math.random() * pool.length)];
+      const id = pool[Math.floor(random() * pool.length)];
       scrap.push({ id, count: 1 });
       this._trigger.emit("rlv2:scrap:gain", [id]);
     }
@@ -656,7 +657,7 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
     const legacy: RoguelikeItemBundle[] = [];
     const legacyCount = Math.floor(count / 2);
     for (let i = 0; i < legacyCount && legacyPool.length > 0; i++) {
-      const id = legacyPool[Math.floor(Math.random() * legacyPool.length)];
+      const id = legacyPool[Math.floor(random() * legacyPool.length)];
       legacy.push({ id, count: 1 });
       this._trigger.emit("rlv2:get:items", [[{ id, count: 1 }]]);
     }
@@ -779,7 +780,7 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
       const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
       const rand = Array.from(
         { length: 18 },
-        () => chars[Math.floor(Math.random() * chars.length)],
+        () => chars[Math.floor(random() * chars.length)],
       ).join("");
       this._gameSeed = `${rand},${theme},${grade}`;
     }

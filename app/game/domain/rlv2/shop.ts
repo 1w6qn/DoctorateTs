@@ -18,6 +18,7 @@ import {
   ROLL_NODE_TYPE_VALUES,
   isBlackstream,
 } from "@game/domain/rlv2/theme-rules";
+import { random } from "../util/random";
 
   /**
    * 生成商店商品（对照官方抓包 2026-08：票/碎片/战术道具/藏品混合，价格按类型+稀有度：
@@ -45,7 +46,7 @@ export function generateShopGoods(mgr: RoguelikeV2Manager, theme: string) : any[
       return 8;
     };
 
-    const shuffled = (arr: string[]) => [...arr].sort(() => Math.random() - 0.5);
+    const shuffled = (arr: string[]) => [...arr].sort(() => random() - 0.5);
 
     // 藏品池过滤已拥有；按稀有度分层各抽 1 件再补齐到 4 件（避免全抽同档）
     const hasRelic = Object.values(mgr.inventory?.relic || {}).map(
@@ -91,7 +92,7 @@ export function generateShopGoods(mgr: RoguelikeV2Manager, theme: string) : any[
     let i = 0;
     const pushGood = (itemId: string) => {
       const orig = priceOf(itemId);
-      const discount = Math.random() < 0.25;
+      const discount = random() < 0.25;
       const priceCount = discount ? Math.max(1, Math.round(orig * 0.5)) : orig;
       goods.push({
         index: `${i}`,

@@ -1,5 +1,6 @@
 import { ItemBundle } from "@excel/character_table"
 import { randomChoices } from "@utils/random";
+import { random } from "../util/random";
 
 export interface GachaResult{
     charInstId:number
@@ -67,7 +68,7 @@ export const GACHA_RULE_TYPE: { [rule: string]: string } = {
  * @param params.maxCnt - 五星一次性保底点（缺省 10）
  * @param params.ranks - 详情稀有度列表（与 weights 等长）
  * @param params.weights - 详情权重列表（totalPercent）
- * @param params.rand - 随机源（默认 Math.random；测试可注入固定值）
+ * @param params.rand - 随机源（默认 random；测试可注入固定值）
  * @returns 稀有度下标
  */
 export function resolveGachaRank(params: {
@@ -81,7 +82,7 @@ export function resolveGachaRank(params: {
 }): number {
     const { per6Base, beforeNonHitCnt, nextCnt, ranks, weights } = params;
     const maxCnt = params.maxCnt ?? 10;
-    const rand = params.rand ?? Math.random;
+    const rand = params.rand ?? random;
     let per6 = per6Base;
     per6 += beforeNonHitCnt < 50 ? 0 : (beforeNonHitCnt - 50) * 0.02;
     // 一次性保底点：恰好第 maxCnt 抽强制五星

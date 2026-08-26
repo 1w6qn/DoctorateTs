@@ -23,6 +23,7 @@ import {
 import { applyBandUpgradeVisibility, initModeGradeStates, maxClearedGrade, buildSettlement, exploreBreakdown, exploreScoreFactor, exploreScore, lifeGameNodes, blackstreamEfficiency, canEvolveOperators, blackstreamAwards, gameSettle, buildSettleResponse } from "./settle";
 import { rerollNode, upgradeNode, gridZoneMoveTo, createRogue6NodeScene, createPortalScene, enterPortalZone, consumePortalScrap, startChaosSourceBattle, gainPreciousScrap, gainRandomScrap, isBeakUnlocked, createFateScene, createIncidentScene, gridZoneMoveAndBattleStart, gridZoneEmptyStep, gridZoneReadStepZero } from "./grid-nav";
 import { _normalizeMutablePlayerdata, setPinned, giveUpGame, createGame, ensureOuterTheme, refreshMission, chooseInitialRelic, chooseInitialRecruitSet, chooseInitialExploreTool } from "./game-init";
+import { random } from "../util/random";
 
 export async function finishEvent(mgr: RoguelikeV2Manager) {
     if (mgr._status.cursor.zone === 0) {
@@ -428,7 +429,7 @@ export async function selectChoice(mgr: RoguelikeV2Manager, args: { choice: stri
             (id) => typeMap[id] === "MOVE",
           );
           if (moveIds.length > 0) {
-            const scrapId = moveIds[Math.floor(Math.random() * moveIds.length)];
+            const scrapId = moveIds[Math.floor(random() * moveIds.length)];
             await mgr._trigger.emit("rlv2:scrap:gain", [scrapId]);
           }
         } else {
@@ -607,7 +608,7 @@ export async function selectChoice(mgr: RoguelikeV2Manager, args: { choice: stri
         if (stageKeyword && stageKeyword.endsWith("_")) {
           const stageKeys = Object.keys(detail.stages || {}).filter((k) => k.includes(stageKeyword));
           if (stageKeys.length > 0) {
-            stageId = stageKeys[Math.floor(Math.random() * stageKeys.length)];
+            stageId = stageKeys[Math.floor(random() * stageKeys.length)];
           }
         }
 
@@ -678,7 +679,7 @@ export async function selectChoice(mgr: RoguelikeV2Manager, args: { choice: stri
             (k) => k.includes(get) && !k.includes("curse_")
           );
           if (itemKeys.length > 0) {
-            const itemId = itemKeys[Math.floor(Math.random() * itemKeys.length)];
+            const itemId = itemKeys[Math.floor(random() * itemKeys.length)];
             mgr._trigger.emit("rlv2:get:items", [[{ id: itemId, count: 1 }]]);
           }
         }

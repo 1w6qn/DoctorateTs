@@ -14,6 +14,7 @@ import { now } from "@utils/time";
 import { TypedEventEmitter } from "@game/service/events";
 import { isBlackstream } from "@game/domain/rlv2/theme-rules";
 import type { RoguelikeScrapModuleData } from "@excel/roguelike_topic_table";
+import { random } from "../../util/random";
 
 export interface ScrapItem {
   instId: string;
@@ -206,7 +207,7 @@ export class RoguelikeScrapManager {
       case "rogue_6_scrap_G_05": // 每次移动后估价随机 -6~+8（含两端）
         if (trigger === "move") {
           for (let i = 0; i < count; i++) {
-            it.value += Math.floor(Math.random() * 15) - 6;
+            it.value += Math.floor(random() * 15) - 6;
           }
         }
         break;

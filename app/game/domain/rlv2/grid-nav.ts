@@ -26,6 +26,7 @@ import {
   ROLL_NODE_TYPE_VALUES,
   isBlackstream,
 } from "@game/domain/rlv2/theme-rules";
+import { random } from "../util/random";
 
   /** 重掷节点（CS: RoguelikeRollNodeRequest { nodeIndex }）：消耗次数并按 rollNodeData 重生成节点 */
 export async function rerollNode(mgr: RoguelikeV2Manager, args: { nodeIndex: string }) : Promise<void> {
@@ -49,7 +50,7 @@ export async function rerollNode(mgr: RoguelikeV2Manager, args: { nodeIndex: str
     const roNum = theme.slice(-1);
     if (group) {
       const types = Object.values(group) as { nodeType: string }[];
-      const pick = types[Math.floor(Math.random() * types.length)];
+      const pick = types[Math.floor(random() * types.length)];
       // 节点类型名 → 数值统一走 theme-rules 表（原 typeMap 缺 rogue_6 的
       // 命运所指/狭路相逢/秘境行商等 11 类 → 一律退化为普通作战）
       node.type = ROLL_NODE_TYPE_VALUES[pick.nodeType] ?? ROGUE6_NODE.BATTLE_NORMAL;
@@ -62,7 +63,7 @@ export async function rerollNode(mgr: RoguelikeV2Manager, args: { nodeIndex: str
         s.startsWith(`ro${roNum}_n_${zone}_`),
       );
       if (candidates.length > 0) {
-        node.stage = candidates[Math.floor(Math.random() * candidates.length)];
+        node.stage = candidates[Math.floor(random() * candidates.length)];
       }
     }
 }
@@ -273,7 +274,7 @@ export function createRogue6NodeScene(mgr: RoguelikeV2Manager, nodeType: number)
       prefixes.some((p) => new RegExp(`^scene_ro\\d+_${p}\\d*_enter$`).test(id)),
     );
     if (sceneIds.length === 0) return false;
-    const sceneId = sceneIds[Math.floor(Math.random() * sceneIds.length)];
+    const sceneId = sceneIds[Math.floor(random() * sceneIds.length)];
     // 该幕的选项：与场景同名前缀（scene_ro6_bat1_enter → choice_ro6_bat1_*）
     const stem = sceneId.replace(/^scene_/, "").replace(/_enter$/, "");
     const choiceIds = Object.keys(detail?.choices || {}).filter((k) =>
@@ -314,7 +315,7 @@ export function createPortalScene(mgr: RoguelikeV2Manager) : void {
       mgr._status.state = "WAIT_MOVE";
       return;
     }
-    const sceneId = sceneIds[Math.floor(Math.random() * sceneIds.length)];
+    const sceneId = sceneIds[Math.floor(random() * sceneIds.length)];
     // 场景族：scene_ro6_portal1a_enter → "1a"
     const family =
       sceneId.match(/scene_ro\d+_portal(\d+[ab]?)_enter/)?.[1] ?? "1a";
@@ -439,7 +440,7 @@ export function gainRandomScrap(mgr: RoguelikeV2Manager) : void {
       excel.RoguelikeTopicTable.modules[theme]?.scrap?.scrapItemToType || {},
     );
     if (pool.length === 0) return;
-    const id = pool[Math.floor(Math.random() * pool.length)];
+    const id = pool[Math.floor(random() * pool.length)];
     mgr._trigger.emit("rlv2:scrap:gain", [id]);
 }
 
@@ -475,7 +476,7 @@ export function createFateScene(mgr: RoguelikeV2Manager) : void {
     const hasBoth =
       mgr.hasRelic(ROGUE6_END2_RELICS.sandboxAlpha) &&
       mgr.hasRelic(ROGUE6_END2_RELICS.sandboxBeta);
-    const isBox = hasBoth || Math.random() < 1 / 3;
+    const isBox = hasBoth || random() < 1 / 3;
     const sceneId = isBox ? "scene_ro6_end2_enter" : "scene_ro6_end1_enter";
     const prefix = isBox ? "choice_ro6_end2_" : "choice_ro6_end1_";
     const detail = excel.RoguelikeTopicTable.details[theme];
@@ -521,7 +522,7 @@ export async function createIncidentScene(mgr: RoguelikeV2Manager) : Promise<boo
     }
     const zone = mgr._status.cursor.zone;
     // 线人仅 Ⅱ-Ⅳ 层出现；概率触发（40%）
-    if (zone < 2 || zone > 4 || Math.random() >= 0.4) {
+    if (zone < 2 || zone > 4 || random() >= 0.4) {
       return await mgr._incident.createIncident();
     }
     const detail = excel.RoguelikeTopicTable.details[theme];

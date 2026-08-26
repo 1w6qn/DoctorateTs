@@ -3,6 +3,7 @@ import { randomChoice } from "@utils/random";
 import { RoguelikeBuff } from "@game/domain/rlv2/rlv2";
 import { RoguelikeV2Manager } from "../logic";
 import { TypedEventEmitter } from "@game/service/events";
+import { random } from "../../util/random";
 
 export class RoguelikeDisasterManager {
   _player: RoguelikeV2Manager;
@@ -25,7 +26,7 @@ export class RoguelikeDisasterManager {
         if (!disaster) return;
         if (disaster.curDisaster) {
           disaster.disperseStep -= 1;
-        } else if (Math.random() < 0.3) {
+        } else if (random() < 0.3) {
           await this._trigger.emit("rlv2:disaster:generate", []);
         }
         if (disaster.disperseStep <= 0) {

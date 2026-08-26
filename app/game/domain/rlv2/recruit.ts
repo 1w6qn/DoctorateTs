@@ -5,6 +5,7 @@ import { RoguelikeV2Manager } from "./logic";
 import { now } from "@utils/time";
 import { rarityToIndex } from "@utils/rarity";
 import { TypedEventEmitter } from "@game/service/events";
+import { random } from "../util/random";
 
 export class RoguelikeRecruitManager {
   tickets: { [key: string]: PlayerRoguelikeV2.CurrentData.Recruit };
@@ -191,7 +192,7 @@ export class RoguelikeRecruitManager {
           buff.blackboard[0].valueStr?.includes(data.rarity.toString()) &&
           buff.blackboard[1].valueStr?.includes(data.profession)
         ) {
-          isUpgraded = Math.random() <= buff.blackboard[3].value!;
+          isUpgraded = random() <= buff.blackboard[3].value!;
         }
       }
 
@@ -276,7 +277,7 @@ export class RoguelikeRecruitManager {
     }
 
     if (freeCharIndexes.length > 0) {
-      const freeIndex = freeCharIndexes[Math.floor(Math.random() * freeCharIndexes.length)];
+      const freeIndex = freeCharIndexes[Math.floor(random() * freeCharIndexes.length)];
       chars[freeIndex].type = "FREE";
       chars[freeIndex].population = 0;
     }

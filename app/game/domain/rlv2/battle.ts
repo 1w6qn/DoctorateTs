@@ -7,6 +7,7 @@ import type { BattleRecord } from "@game/service/player/BattleInfoStore";
 import { logger } from "@utils/logger";
 import excel from "@excel/excel";
 import { ROGUE6_NODE } from "@game/domain/rlv2/theme-rules";
+import { random } from "../util/random";
 
 /** 各账号最近一次 rlv2 战斗上下文（start 生成写入，finish 读取结算与记录留存用） */
 const battleSessionByUid = new Map<
@@ -90,7 +91,7 @@ function pickRogue6ClassTicket(): string {
     logger.warn("rlv2", "rogue_6 recruitTickets 缺失标准职业券，回退先锋券");
     return "rogue_6_recruit_ticket_pioneer";
   }
-  return `rogue_6_recruit_ticket_${valid[Math.floor(Math.random() * valid.length)]}`;
+  return `rogue_6_recruit_ticket_${valid[Math.floor(random() * valid.length)]}`;
 }
 
 export class RoguelikeBattleManager {
@@ -220,7 +221,7 @@ export class RoguelikeBattleManager {
         diceId = "trap_089_dice3";
       }
       for (let i = 0; i < 100; i++) {
-        diceRoll.push(Math.floor(Math.random() * diceFaceCount) + 1);
+        diceRoll.push(Math.floor(random() * diceFaceCount) + 1);
       }
     }
     await this._trigger.emit("rlv2:event:create", [
@@ -358,7 +359,7 @@ export class RoguelikeBattleManager {
       // 黄金奖励（官服 index 0）：基础 5-14，随击杀表现上调上限（每 10 杀 +5，封顶 30）
       const killed = (battleStats?.checkKilledCnt as number) || 0;
       const goldMax = Math.min(14 + Math.floor(killed / 10) * 5, 30);
-      const goldReward = Math.floor(Math.random() * (goldMax - 4)) + 5;
+      const goldReward = Math.floor(random() * (goldMax - 4)) + 5;
       rewards.push({
         index: 0,
         items: [{ sub: 0, id: `${theme}_gold`, count: goldReward }],
@@ -373,10 +374,10 @@ export class RoguelikeBattleManager {
           excel.RoguelikeTopicTable.modules[theme]?.scrap?.scrapItemToType || {},
         );
         const scrapRewards: any[] = [];
-        const scrapCount = isBoss ? 2 : Math.random() < 0.5 ? 1 : 0;
+        const scrapCount = isBoss ? 2 : random() < 0.5 ? 1 : 0;
         for (let i = 0; i < scrapCount && scrapPool.length > 0; i++) {
           const pick =
-            scrapPool[Math.floor(Math.random() * scrapPool.length)];
+            scrapPool[Math.floor(random() * scrapPool.length)];
           scrapRewards.push({ sub: i, id: pick, count: 1 });
         }
         if (scrapRewards.length > 0) {
@@ -402,7 +403,7 @@ export class RoguelikeBattleManager {
           : [];
         if (fragmentPool.length > 0) {
           const fragmentId =
-            fragmentPool[Math.floor(Math.random() * fragmentPool.length)];
+            fragmentPool[Math.floor(random() * fragmentPool.length)];
           rewards.push({
             index: rewards.length,
             items: [{ sub: 0, id: fragmentId, count: 1 }],
@@ -417,7 +418,7 @@ export class RoguelikeBattleManager {
           (r) => (r as any).id,
         );
         const relicCount = isBoss ? 2 : 1;
-        if (Math.random() < relicChance) {
+        if (random() < relicChance) {
           const relicItems: any[] = [];
           for (let i = 0; i < relicCount; i++) {
             const relicId = this._player._pool.getRelic(
@@ -439,7 +440,7 @@ export class RoguelikeBattleManager {
         const nodeType = (node as any)?.type as number | undefined;
         const isSavage = nodeType === ROGUE6_NODE.RESIDENT;
         const ro6Chance = isBoss || isSavage ? 1 : 0.4;
-        if (Math.random() < ro6Chance) {
+        if (random() < ro6Chance) {
           const owned = Object.values(this._player.inventory!.relic || {}).map(
             (r) => (r as any).id,
           );
@@ -475,7 +476,7 @@ export class RoguelikeBattleManager {
         if (this.hasBand("rogue_6_band_21")) {
           const visited = this._player._status.trace.length;
           const extraChance = Math.min(0.2 + visited * 0.02, 0.6);
-          if (Math.random() < extraChance) {
+          if (random() < extraChance) {
             const owned = Object.values(
               this._player.inventory!.relic || {},
             ).map((r) => (r as any).id);
@@ -641,7 +642,7 @@ export class RoguelikeBattleManager {
     if (!pool) return "";
     const avail = pool.filter((id) => !owned.includes(id) && ok(id));
     if (avail.length === 0) return "";
-    const id = avail[Math.floor(Math.random() * avail.length)];
+    const id = avail[Math.floor(random() * avail.length)];
     pool.splice(pool.indexOf(id), 1);
     return id;
   }

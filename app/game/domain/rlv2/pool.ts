@@ -5,6 +5,7 @@ import { RoguelikeV2Manager } from "./logic";
 import { randomChoice } from "@utils/random";
 import { TypedEventEmitter } from "@game/service/events";
 import { logger } from "@utils/logger";
+import { random } from "../util/random";
 
 /**
  * 官方池定义（data/rlv2/pools.json）：成员清单来自路标档案馆 pools/rogue_6 页面
@@ -145,7 +146,7 @@ export class RoguelikePoolManager {
     const pool = this._pools[poolId] || [];
     const avail = pool.filter((id) => !hasRelic.includes(id));
     if (avail.length === 0) return "";
-    const picked = avail[Math.floor(Math.random() * avail.length)];
+    const picked = avail[Math.floor(random() * avail.length)];
     // 不放回：从池中移除（同一探索内不重复出同池藏品）
     this._pools[poolId].splice(this._pools[poolId].indexOf(picked), 1);
     return picked;
@@ -158,7 +159,7 @@ export class RoguelikePoolManager {
     if (weights && pool.length > 0) {
       // 加权抽取（官方出现概率）：按权重累加命中
       const total = pool.reduce((sum, m) => sum + (weights[m] ?? 1), 0);
-      let r = Math.random() * total;
+      let r = random() * total;
       for (const m of pool) {
         r -= weights[m] ?? 1;
         if (r <= 0) { res = m; break; }

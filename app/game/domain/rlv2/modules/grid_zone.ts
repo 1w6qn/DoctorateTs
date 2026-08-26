@@ -35,6 +35,7 @@ import {
   BLACKSTREAM_THEME,
   isBlackstream,
 } from "@game/domain/rlv2/theme-rules";
+import { random } from "../../util/random";
 
 // 节点类型数值统一由 theme-rules 提供（单一事实来源）；此处 re-export 保持既有
 // `import { ROGUE6_NODE } from "./modules/grid_zone"` 调用方不变。
@@ -298,7 +299,7 @@ export class RoguelikeGridZoneManager {
     );
     const template: BlackstreamConstruction =
       pool.length > 0
-        ? pool[Math.floor(Math.random() * pool.length)]
+        ? pool[Math.floor(random() * pool.length)]
         : BLACKSTREAM_CONSTRUCTIONS[0];
 
     const nodes: { [key: string]: GridNode } = {};
@@ -412,11 +413,11 @@ export class RoguelikeGridZoneManager {
     const modeGrade = this._player.current.game?.modeGrade ?? 0;
     if (modeGrade < 2) return;
     const chance = modeGrade >= 12 ? 0.6 : modeGrade >= 6 ? 0.4 : 0.25;
-    if (Math.random() >= chance) return;
+    if (random() >= chance) return;
     const detail = excel.RoguelikeTopicTable.details[theme];
     const variations = Object.keys(detail?.variationData || {});
     if (variations.length === 0) return;
-    const varId = variations[Math.floor(Math.random() * variations.length)];
+    const varId = variations[Math.floor(random() * variations.length)];
     const map = this._player._map;
     const key = String(1000 + zoneId - 1);
     if (map?.zones?.[key]) {
@@ -637,7 +638,7 @@ export class RoguelikeGridZoneManager {
 
     const pool = underLimit.length > 0 ? underLimit : candidates;
     if (pool.length === 0) return ROGUE6_NODE.GLADE;
-    return pool[Math.floor(Math.random() * pool.length)];
+    return pool[Math.floor(random() * pool.length)];
   }
 
   /** 层类型中文标签集合 → 节点数值集合 */
@@ -699,7 +700,7 @@ export class RoguelikeGridZoneManager {
       const pool =
         pools.resident && pools.resident.length > 0 ? pools.resident : pools.normal;
       const stageId =
-        pool[Math.floor(Math.random() * Math.max(pool.length, 1))] || "";
+        pool[Math.floor(random() * Math.max(pool.length, 1))] || "";
       return { content: { savage: { stageId }, kind: type }, state, show: true };
     }
     if (ROGUE6_BATTLE_NODES.includes(type)) {
@@ -711,7 +712,7 @@ export class RoguelikeGridZoneManager {
             : pools.normal;
       const usable = pool.length > 0 ? pool : pools.normal;
       const stageId =
-        usable[Math.floor(Math.random() * Math.max(usable.length, 1))] || "";
+        usable[Math.floor(random() * Math.max(usable.length, 1))] || "";
       return { content: { savage: { stageId }, kind: type }, state, show: true };
     }
     if (ROGUE6_SHOP_NODES.includes(type)) {
@@ -795,7 +796,7 @@ export class RoguelikeGridZoneManager {
         if (typeof kind !== "number") continue;
         if (!this.isValidBanditTarget(mapKey, zoneKey, nid)) continue;
         // 每个据点随机在部分合法邻居上生成流窜居民（“若干”，最多 2 个）
-        if (Math.random() < 0.6) this.spawnBanditAt(zoneKey, mapKey, nid, pools);
+        if (random() < 0.6) this.spawnBanditAt(zoneKey, mapKey, nid, pools);
       }
     }
   }
@@ -847,7 +848,7 @@ export class RoguelikeGridZoneManager {
     const zoneNode = zone?.nodes[nodeId];
     if (!zoneNode) return;
     const pool = pools.resident && pools.resident.length > 0 ? pools.resident : pools.normal;
-    const stageId = pool[Math.floor(Math.random() * Math.max(pool.length, 1))] || "";
+    const stageId = pool[Math.floor(random() * Math.max(pool.length, 1))] || "";
     const originalType =
       typeof zoneNode.content?.kind === "number" ? zoneNode.content!.kind! : ROGUE6_NODE.GLADE;
     const bandit: Bandit = { zoneKey, nodeId, originalType, stageId };
@@ -968,7 +969,7 @@ export class RoguelikeGridZoneManager {
           this.isValidBanditTarget(mapKey, zoneKey, this.nodeId(n.x, n.y), playerId),
         );
         if (candidates.length === 0) continue;
-        const pick = candidates[Math.floor(Math.random() * candidates.length)];
+        const pick = candidates[Math.floor(random() * candidates.length)];
         const targetId = this.nodeId(pick.x, pick.y);
         this.moveBandit(zoneKey, mapKey, b, targetId);
       }
@@ -1062,7 +1063,7 @@ export class RoguelikeGridZoneManager {
     );
     const usable = pool.length > 0 ? pool : hidden;
     return (
-      usable[Math.floor(Math.random() * usable.length)] ??
+      usable[Math.floor(random() * usable.length)] ??
       BLACKSTREAM_CONSTRUCTIONS[0]
     );
   }
@@ -1075,7 +1076,7 @@ export class RoguelikeGridZoneManager {
     const detail = excel.RoguelikeTopicTable.details[theme];
     const variationIds = portalVariationIds(family);
     const variationId =
-      variationIds[Math.floor(Math.random() * variationIds.length)] ??
+      variationIds[Math.floor(random() * variationIds.length)] ??
       "variation_1";
     const template = this.pickPortalTemplate(family);
     // 隐藏层无专属关卡池（官方 stages 无 portal 层条目）→ 用全主题关卡兜底

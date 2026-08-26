@@ -12,6 +12,7 @@ import { RoguelikeV2Manager } from "../logic";
 import excel from "@excel/excel";
 import { now } from "@utils/time";
 import { TypedEventEmitter } from "@game/service/events";
+import { random } from "../../util/random";
 
 export interface CopperItem {
   id: string;
@@ -74,7 +75,7 @@ export class RoguelikeCopperManager {
     const ids = Object.keys(copperData);
     if (ids.length === 0) return;
     for (let i = 0; i < 3; i++) {
-      const id = ids[Math.floor(Math.random() * ids.length)];
+      const id = ids[Math.floor(random() * ids.length)];
       this.bag[`c_${this._index}`] = {
         id,
         isDrawn: 1,

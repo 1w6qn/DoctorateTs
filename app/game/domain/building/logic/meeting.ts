@@ -22,6 +22,7 @@ import {
   parseVupValue,
   phaseRank,
 } from "@game/domain/building/buff";
+import { random } from "../../util/random";
 
   /** 获取首个会客室房间 */
 export function _meetingRoom(mgr: BuildingManager) {
@@ -63,7 +64,7 @@ export function _clueFactionWeighted(mgr: BuildingManager, draft: Draft<PlayerDa
       return w;
     });
     const total = weights.reduce((s, w) => s + w, 0);
-    let r = Math.random() * total;
+    let r = random() * total;
     for (let i = 0; i < factions.length; i++) {
       r -= weights[i];
       if (r <= 0) return factions[i];
@@ -84,9 +85,9 @@ export async function getDailyClue(mgr: BuildingManager, args: any) {
       const status = draft.status;
       // 特殊技能适配：进驻会客室干员的线索概率技能影响阵营抽取权重
       const clue: PlayerBuildingMeetingClue = {
-        id: `${status.uid}#${Math.floor(Math.random() * 9000 + 1000)}#${now()}`,
+        id: `${status.uid}#${Math.floor(random() * 9000 + 1000)}#${now()}`,
         type: mgr._clueFactionWeighted(draft, room),
-        number: 1 + Math.floor(Math.random() * 3),
+        number: 1 + Math.floor(random() * 3),
         uid: String(status.uid),
         name: status.nickName,
         nickNum: String(status.nickNumber),

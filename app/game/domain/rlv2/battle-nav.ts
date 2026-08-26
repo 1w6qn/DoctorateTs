@@ -15,6 +15,7 @@ import excel from "@excel/excel";
 import { PlayerSquad } from "@game/domain/character";
 import { ItemBundle } from "@excel/character_table";
 import { generateShopGoods, buildShopContent, buyGoods, refreshShop, leaveShop, shopBattleStart, isInShopNode } from "./shop";
+import { random } from "../util/random";
 
 export async function moveAndBattleStart(mgr: RoguelikeV2Manager, args: {
     to: RoguelikeNodePosition;
@@ -68,7 +69,7 @@ export async function moveTo(mgr: RoguelikeV2Manager, args: { to: RoguelikeNodeP
         if (enterScenes) {
           const sceneIds = Object.keys(enterScenes);
           if (sceneIds.length > 0) {
-            const sceneId = sceneIds[Math.floor(Math.random() * sceneIds.length)];
+            const sceneId = sceneIds[Math.floor(random() * sceneIds.length)];
             const choicesList = enterScenes[sceneId] || [];
             const choices = choicesList.reduce((acc, cid) => ({ ...acc, [cid]: 1 }), {});
             const choiceAdditional = choicesList.reduce(
@@ -145,7 +146,7 @@ export function createNodeScene(mgr: RoguelikeV2Manager, theme: string, nodeType
     );
     if (sceneIds.length === 0) return;
     const sceneId =
-      sceneIds[Math.floor(Math.random() * sceneIds.length)];
+      sceneIds[Math.floor(random() * sceneIds.length)];
     const roNum = theme.slice(-1);
     const prefix = prefixes.find((p) => sceneId.includes(`_${p}`))!;
     const choiceIds = Object.keys(detail.choices || {}).filter(

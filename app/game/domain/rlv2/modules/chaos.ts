@@ -10,6 +10,7 @@
 import { RoguelikeV2Manager } from "../logic";
 import excel from "@excel/excel";
 import { TypedEventEmitter } from "@game/service/events";
+import { random } from "../../util/random";
 
 export class RoguelikeChaosManager {
   value: number;
@@ -112,7 +113,7 @@ export class RoguelikeChaosManager {
       .filter(([, d]) => d.level <= this.level && !this.chaosList.includes(d.id))
       .map(([id]) => id);
     if (candidates.length === 0) return "";
-    return candidates[Math.floor(Math.random() * candidates.length)];
+    return candidates[Math.floor(random() * candidates.length)];
   }
 
   toJSON(): {

@@ -4,6 +4,7 @@ import { RoguelikeV2Manager } from "./logic";
 import excel from "@excel/excel";
 import { RoguelikeEventManager, RoguelikePendingEvent } from "./events";
 import { TypedEventEmitter } from "@game/service/events";
+import { random } from "../util/random";
 
 export class RoguelikePlayerStatusManager
   implements PlayerRoguelikeV2.CurrentData.PlayerStatus
@@ -144,7 +145,7 @@ export class RoguelikePlayerStatusManager
 
   async bankPut() {
     const theme = this._player.current.game!.theme;
-    const succeed = Math.random() <= 0.5;
+    const succeed = random() <= 0.5;
     if (succeed && this._player.outer[theme].bank.current <= 999) {
       this.status.bankPut += 1;
       // outer 为 _playerdata.rlv2 引用（update() 后冻结），写入须放入配方

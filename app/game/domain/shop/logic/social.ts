@@ -14,6 +14,7 @@ import {
   SocialGoodList,
   SocialShopData,
 } from "@excel/shop";
+import { random } from "../../util/random";
 
   /**
    * 每日刷新处理：重置低级商店每日限购记录
@@ -177,7 +178,7 @@ export function buildSocialGoodList(mgr: ShopManager) : SocialGoodList & {
    * 基于种子串的确定性伪随机数生成器（线性同余，同日稳定 / 跨日轮换）
    *
    * 信用交易所物资抽选/折扣需要"同一天多次请求返回一致、次日自然变化"的随机源，
-   * 不能直接用 Math.random。以当天的日期前缀（SOCIAL<YYYYMMDD>）作种子。
+   * 不能直接用 random。以当天的日期前缀（SOCIAL<YYYYMMDD>）作种子。
    * @param seed - 随机种子串（当天日期前缀）
    * @returns 每次调用返回 [0,1) 的确定性随机函数
    */

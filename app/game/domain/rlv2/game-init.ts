@@ -8,6 +8,7 @@ import type { RoguelikeV2Manager } from "./logic";
 import excel from "@excel/excel";
 import { now } from "@utils/time";
 import { PlayerDataModel } from "@game/domain/playerdata";
+import { random } from "../util/random";
 
   /**
    * 规范化 rlv2 持久态为可写（autoFreeze 兼容）
@@ -288,13 +289,13 @@ export async function refreshMission(mgr: RoguelikeV2Manager, args: { theme?: st
       const count = cls === "C" ? 2 : 1;
       const copy = [...(poolByClass[cls] || [])];
       for (let i = 0; i < count && copy.length > 0; i++) {
-        const task = copy.splice(Math.floor(Math.random() * copy.length), 1)[0];
+        const task = copy.splice(Math.floor(random() * copy.length), 1)[0];
         picks.push({ cls, task });
       }
     }
     // 保底：C 类不足时从 A/B 补足到 4 槽
     while (picks.length < 4 && poolByClass.C.length > 0) {
-      const task = poolByClass.C[Math.floor(Math.random() * poolByClass.C.length)];
+      const task = poolByClass.C[Math.floor(random() * poolByClass.C.length)];
       picks.push({ cls: "C", task });
     }
 
@@ -379,7 +380,7 @@ export async function chooseInitialRecruitSet(mgr: RoguelikeV2Manager, args: { s
     const groupTickets = GROUP_TICKETS[args.select] || [];
     if (/^recruit_group_m[12]$/.test(args.select)) {
       // 实践者列表（recruit_group_m1/m2 "支援作战"）：两张随机的招募券
-      const shuffled = [...pool].sort(() => Math.random() - 0.5);
+      const shuffled = [...pool].sort(() => random() - 0.5);
       picked = shuffled.slice(0, 2);
     } else if (groupTickets.length > 0) {
       // 随心所欲专用券（5star/quad_melee/quad_ranged）——校验存在，缺失回退随机
@@ -389,14 +390,14 @@ export async function chooseInitialRecruitSet(mgr: RoguelikeV2Manager, args: { s
       if (valid.length === 3) {
         picked = valid;
       } else {
-        const shuffled = [...pool].sort(() => Math.random() - 0.5);
+        const shuffled = [...pool].sort(() => random() - 0.5);
         picked = shuffled.slice(0, 3);
       }
     } else {
       const groupProfs =
         GROUP_PROFESSIONS[args.select] || GROUP_PROFESSIONS["recruit_group_random"];
       if (args.select === "recruit_group_random" || !groupProfs) {
-        const shuffled = [...pool].sort(() => Math.random() - 0.5);
+        const shuffled = [...pool].sort(() => random() - 0.5);
         picked = shuffled.slice(0, 3);
       } else {
         // 按组合职业顺序取对应标准券（"先锋、狙击、特种招募券各一张"）
@@ -407,7 +408,7 @@ export async function chooseInitialRecruitSet(mgr: RoguelikeV2Manager, args: { s
         while (picked.length < 3) {
           const rest = pool.filter((t) => !picked.includes(t));
           if (rest.length === 0) break;
-          picked.push(rest[Math.floor(Math.random() * rest.length)]);
+          picked.push(rest[Math.floor(random() * rest.length)]);
         }
       }
     }

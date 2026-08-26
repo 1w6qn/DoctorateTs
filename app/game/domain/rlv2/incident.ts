@@ -23,6 +23,7 @@
  */
 import excel from "@excel/excel";
 import { RoguelikeV2Manager } from "./logic";
+import { random } from "../util/random";
 
 /** rogue_6 event_choices.json 段的松散类型（其余主题同键结构不同，不做严格契约） */
 interface Ro6IncidentCond {
@@ -77,7 +78,7 @@ export class Rogue6IncidentEngine {
       return true;
     });
     if (pool.length === 0) return false;
-    let [sceneId] = pool[Math.floor(Math.random() * pool.length)];
+    let [sceneId] = pool[Math.floor(random() * pool.length)];
     // 误入奇境隐藏层内「洞中宝」使用 bat6b 差分（官方：内外各出现一次）
     if (inPortal && sceneId === "scene_ro6_bat6_enter") {
       sceneId = "scene_ro6_bat6b_enter";
@@ -126,7 +127,7 @@ export class Rogue6IncidentEngine {
     const rand = this.data.randomScenes?.[choice] as string[] | undefined;
     let nextScene: string | null = null;
     if (Array.isArray(rand) && rand.length > 0) {
-      nextScene = rand[Math.floor(Math.random() * rand.length)];
+      nextScene = rand[Math.floor(random() * rand.length)];
     } else {
       nextScene = (choiceConfig.nextSceneId as string) || null;
     }
@@ -309,7 +310,7 @@ export class Rogue6IncidentEngine {
               items[k]?.rarity === "SUPER_RARE" &&
               !owned.includes(k),
           );
-          id = rarePool[Math.floor(Math.random() * rarePool.length)];
+          id = rarePool[Math.floor(random() * rarePool.length)];
         }
         id = id || player._pool?.getRelic("pool_relic_all", owned);
         if (id) {
@@ -330,7 +331,7 @@ export class Rogue6IncidentEngine {
     const pool = Object.keys(typeMap).filter((id) => typeMap[id] === want);
     if (pool.length === 0) return;
     for (let i = 0; i < count; i++) {
-      const id = pool[Math.floor(Math.random() * pool.length)];
+      const id = pool[Math.floor(random() * pool.length)];
       await player._trigger.emit("rlv2:scrap:gain", [id]);
     }
   }
@@ -342,13 +343,13 @@ export class Rogue6IncidentEngine {
     if (typeof spec === "string") {
       stageId = spec;
     } else if (Array.isArray(spec.random) && spec.random.length > 0) {
-      stageId = spec.random[Math.floor(Math.random() * spec.random.length)];
+      stageId = spec.random[Math.floor(random() * spec.random.length)];
     } else if (spec.nextZoneNormal) {
       const zone = Math.min(((player._status.cursor.zone as number) || 1) + 1, 6);
       const keys = Object.keys(this.detail.stages || {}).filter((k) =>
         k.startsWith(`ro6_n_${zone}_`),
       );
-      stageId = keys[Math.floor(Math.random() * keys.length)];
+      stageId = keys[Math.floor(random() * keys.length)];
     }
     if (stageId) {
       const pos = player._status.cursor.position;
@@ -475,7 +476,7 @@ export class Rogue6IncidentEngine {
     if (!enter) return false;
     let sceneId = enter.scene || "";
     if (Array.isArray(enter.scenes) && enter.scenes.length > 0) {
-      sceneId = enter.scenes[Math.floor(Math.random() * enter.scenes.length)];
+      sceneId = enter.scenes[Math.floor(random() * enter.scenes.length)];
     }
     // 三结局削弱差分：持怦然信标后失与得提供"复原文明"选项（焚毁文明）
     if (enter.beaconScene && this.hasRelic("rogue_6_relic_final_3")) {
@@ -485,7 +486,7 @@ export class Rogue6IncidentEngine {
     let list = (this.data?.enter?.[sceneId] as string[] | undefined) || [];
     if (enter.randomChoices && list.length > enter.randomChoices) {
       list = [...list]
-        .sort(() => Math.random() - 0.5)
+        .sort(() => random() - 0.5)
         .slice(0, enter.randomChoices);
     }
     list = list.filter((c) => c === "choice_leave" || this.passGate(c));
@@ -622,7 +623,7 @@ export class Rogue6IncidentEngine {
       (id) => !owned.includes(id) && !!this.detail.relics?.[id],
     );
     if (avail.length === 0) return "";
-    const id = avail[Math.floor(Math.random() * avail.length)];
+    const id = avail[Math.floor(random() * avail.length)];
     pool.splice(pool.indexOf(id), 1);
     return id;
   }
@@ -674,7 +675,7 @@ export class Rogue6IncidentEngine {
     }) as any[];
     if (sacrificable.length === 0) return;
     const offered =
-      sacrificable[Math.floor(Math.random() * sacrificable.length)];
+      sacrificable[Math.floor(random() * sacrificable.length)];
     delete relicMap[offered.index];
     const offeredRarity = this.detail.items?.[offered.id]?.rarity;
     const owned = Object.values(relicMap).map((r: any) => r.id as string);
@@ -705,7 +706,7 @@ export class Rogue6IncidentEngine {
     if (scrap) {
       const list = Object.values(scrap.inventory || {}) as any[];
       if (list.length > 0) {
-        const it = list[Math.floor(Math.random() * list.length)];
+        const it = list[Math.floor(random() * list.length)];
         consumedId = it.id;
         delete scrap.inventory[it.instId];
         if (scrap.activeVehicle?.instId === it.instId) {
@@ -722,7 +723,7 @@ export class Rogue6IncidentEngine {
       (id) => (this.detail.items?.[id]?.rarity ?? "") === rarity,
     );
     if (sameRarity.length > 0) {
-      const id = sameRarity[Math.floor(Math.random() * sameRarity.length)];
+      const id = sameRarity[Math.floor(random() * sameRarity.length)];
       player._trigger.emit("rlv2:scrap:gain", [id]);
     } else {
       player.gainRandomScrap?.();

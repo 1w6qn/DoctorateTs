@@ -32,6 +32,7 @@ import {
   CLUE_BASE_SECONDS,
   OWN_CLUE_LIMIT,
 } from "@game/domain/building/clue-speed";
+import { random } from "../../util/random";
 
   /**
    * 干员进驻建档回调（building:char:init）：初始化基建在编状态
@@ -499,9 +500,9 @@ export function _accrueMeeting(mgr: BuildingManager, draft: Draft<PlayerDataMode
       ) {
         room.processPoint -= threshold;
         const clue: PlayerBuildingMeetingClue = {
-          id: `${draft.status.uid}#${Math.floor(Math.random() * 9000 + 1000)}#${ts}`,
+          id: `${draft.status.uid}#${Math.floor(random() * 9000 + 1000)}#${ts}`,
           type: mgr._clueFactionWeighted(draft, room),
-          number: 1 + Math.floor(Math.random() * 3),
+          number: 1 + Math.floor(random() * 3),
           uid: String(draft.status.uid),
           name: draft.status.nickName,
           nickNum: String(draft.status.nickNumber),

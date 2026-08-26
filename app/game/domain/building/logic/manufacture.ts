@@ -16,6 +16,7 @@ import {
   isDiamondStrategyUnlocked,
   FormulaUnlockCtx,
 } from "@game/domain/building/unlocks";
+import { random } from "../../util/random";
 
   /**
    * 内部方法：制造站生产时间推进（deltaTime 驱动）
@@ -429,7 +430,7 @@ export async function workshopSynthesis(mgr: BuildingManager, args: {
           const shouldRoll =
             canBonus &&
             (guaranteed ||
-              (!!formula.extraOutcomeRate && Math.random() < formula.extraOutcomeRate));
+              (!!formula.extraOutcomeRate && random() < formula.extraOutcomeRate));
           if (shouldRoll) {
             const pool = formula.extraOutcomeGroup as {
               weight?: number;
@@ -437,7 +438,7 @@ export async function workshopSynthesis(mgr: BuildingManager, args: {
               itemCount: number;
             }[];
             const total = pool.reduce((s, g) => s + (g.weight ?? 1), 0);
-            let roll = Math.random() * total;
+            let roll = random() * total;
             for (const g of pool) {
               roll -= g.weight ?? 1;
               if (roll <= 0) {

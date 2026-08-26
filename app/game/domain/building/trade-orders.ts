@@ -13,6 +13,7 @@
  */
 
 import { readJsonSync } from "@utils/file";
+import { random } from "../util/random";
 
 /**
  * 贸易站订单概率配置（data/building/trade-order-dist.json，启动时一次性加载）。
@@ -82,7 +83,7 @@ export function goldOrderDistribution(
  * @param dist - 概率分布
  * @param roll - 随机数 [0,1)，可注入便于测试
  */
-export function pickGoldCount(dist: GoldDistEntry[], roll: number = Math.random()): number {
+export function pickGoldCount(dist: GoldDistEntry[], roll: number = random()): number {
   const total = dist.reduce((s, e) => s + e.weight, 0);
   let r = roll * total;
   for (const e of dist) {

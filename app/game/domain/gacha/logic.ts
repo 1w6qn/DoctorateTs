@@ -20,6 +20,7 @@ import { randomChoice } from "@utils/random";
 import { domainLogger } from "@utils/logger";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { TypedEventEmitter } from "@game/service/events";
+import { random } from "../util/random";
 
 /** 寻访域日志（域标签固定为 GachaManager，Dashboard 可按域过滤） */
 const log = domainLogger("GachaManager");
@@ -562,7 +563,7 @@ export class GachaManager {
           count: 1,
         }
       : staticPerChar;
-    const rr = Math.random();
+    const rr = random();
     if (perChar) {
       if (rr < perChar.percent * perChar.count) {
         charId = randomChoice(perChar.charIdList);
@@ -610,7 +611,7 @@ export class GachaManager {
     const perAvailList = detail.availCharInfo.perAvailList;
     // 防御：详情缺失/为空时回退固定概率（2% 六星，否则四星），不 500
     if (!perAvailList?.length) {
-      const fallbackRank = Math.random() <= 0.02 ? 5 : 4;
+      const fallbackRank = random() <= 0.02 ? 5 : 4;
       await this._player.update(async (draft) => {
         draft.gacha.normal[poolId].cnt += 1;
         if (draft.gacha.normal[poolId].avail && fallbackRank >= 4) {

@@ -6,6 +6,7 @@ import { randomChoice } from "@utils/random";
 import { rarityToIndex } from "@utils/rarity";
 import { logger } from "@utils/logger";
 import { TypedEventEmitter } from "@game/service/events";
+import { random } from "../../util/random";
 
 export class RoguelikeFragmentManager {
   index: number;
@@ -161,7 +162,7 @@ export class RoguelikeFragmentManager {
       fragment1.used = true;
       fragment2.used = true;
 
-      const rand = Math.random();
+      const rand = random();
       if (rand < (matchedRecipe as any).relicProp) {
         // 修复：原实现 emit 不存在的 `${theme}_relic_` → getItem 500（且多为
         // fire-and-forget → unhandled rejection）；改为随机发一个真实 RELIC 物品

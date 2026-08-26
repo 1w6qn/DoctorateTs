@@ -2,6 +2,7 @@ import { PlayerRoguelikePendingEvent } from "../../domain/rlv2/rlv2";
 import { RoguelikeV2Manager } from "./logic";
 import { TypedEventEmitter } from "@game/service/events";
 import excel from "@excel/excel";
+import { random } from "../util/random";
 
 export class RoguelikeEventManager {
   _index: number;
@@ -243,7 +244,7 @@ export class RoguelikePendingEvent implements PlayerRoguelikePendingEvent {
           })
         : allChoiceKeys;
     const shuffled = [...(baseKeys.length > 0 ? baseKeys : allChoiceKeys)].sort(
-      () => Math.random() - 0.5,
+      () => random() - 0.5,
     );
     const picked = shuffled.slice(0, 3);
     // 襁褓生灵加成（数据驱动，官方 force_add_choice buff——襁褓羽蛇 legacy_04..09：

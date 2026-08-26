@@ -343,6 +343,50 @@ export function domainLogger(domain: string): {
 }
 
 /**
+ * 结构化域日志（建议 16：域日志对象结构化）
+ *
+ * 对齐 Python 参考实现的 `self.MI.domainLog.<业务事件>(字段...)` 模式：
+ * 每个业务域一个 DomainLog 实例，业务事件方法携带结构化字段（JSON 序列化），
+ * 与统一日志服务（subscribeLog）联动——Dashboard 可按域/事件过滤，
+ * 排障时字段自解释（结果/时间戳/上下文），避免散落的日志文案格式不一。
+ *
+ * @example
+ * const socialLog = domainLog("SocialManager");
+ * socialLog.event("refreshAssistList", { profession, nextAllowAskTs, friendCount });
+ *
+ * @param domain - 域标签（类名/模块名，与 domainLogger 约定一致）
+ */
+export class DomainLog {
+  constructor(private readonly domain: string) {}
+
+  /** 业务事件日志：`<事件名> <JSON 字段>`（info 级） */
+  event(name: string, fields?: Record<string, unknown>): void {
+    write("info", this.domain, [`${name}${fields ? " " + JSON.stringify(fields) : ""}`]);
+  }
+
+  debug(...args: unknown[]): void {
+    write("debug", this.domain, args);
+  }
+
+  info(...args: unknown[]): void {
+    write("info", this.domain, args);
+  }
+
+  warn(...args: unknown[]): void {
+    write("warn", this.domain, args);
+  }
+
+  error(...args: unknown[]): void {
+    write("error", this.domain, args);
+  }
+}
+
+/** 域日志工厂（建议 16）：返回带域标签的结构化日志对象 */
+export function domainLog(domain: string): DomainLog {
+  return new DomainLog(domain);
+}
+
+/**
  * 角色稀有度颜色映射
  *
  * 根据角色稀有度等级返回对应的颜色值，用于日志输出或 UI 显示。

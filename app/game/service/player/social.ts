@@ -5,6 +5,7 @@ import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { TypedEventEmitter } from "@game/service/events";
 import excel from "@excel/excel";
 import { NameCardMedalType, PlayerNameCardMisc } from "@game/domain/playerdata";
+import { domainLog } from "@utils/logger";
 
 enum FriendServiceType {
   SEARCH_FRIEND = 0,
@@ -13,6 +14,7 @@ enum FriendServiceType {
 }
 
 export class SocialManager {
+  private readonly socialLog = domainLog("SocialManager");
   _player: PlayerDataManager;
   _uid: string;
   _trigger: TypedEventEmitter;
@@ -290,6 +292,14 @@ export class SocialManager {
       const item = buildAssistInfo(self, true, "");
       if (item) assistList.push(item);
     }
+
+    // 结构化域日志（建议 16）：助战列表刷新事件，字段自解释，Dashboard 可按域/事件过滤
+    this.socialLog.event("refreshAssistList", {
+      profession,
+      assistCount: assistList.length,
+      friendCount: social.friends.length,
+      nextAllowAskTs: 0, // 占位：无独立冷却字段（请求冷却在路由层判定）
+    });
 
     return assistList;
   }

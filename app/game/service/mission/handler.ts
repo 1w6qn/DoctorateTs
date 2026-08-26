@@ -13,7 +13,7 @@ import {
   exchangeMissionRewardsSchema,
   confirmMissionListSchema,
   confirmMultiGroupMissionListSchema,
-} from "./schemas";
+} from "../../domain/mission/schemas";
 import { ItemBundle } from "@excel/character_table";
 import {
   AutoConfirmMissionsRequest,
@@ -28,7 +28,7 @@ import {
   ConfirmMultiGroupMissionListResponse,
   ExchangeMissionRewardsRequest,
   ExchangeMissionRewardsResponse,
-} from "./models";
+} from "../../domain/mission/models";
 
 const router = Router();
 

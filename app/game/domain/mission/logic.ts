@@ -21,7 +21,7 @@ import { checkBetween, now, userTimestamp } from "@utils/time";
 import type { EventMap } from "@game/domain/events";
 import { TypedEventEmitter } from "@game/service/events";
 import { MissionData } from "@excel/excel-types";
-import { PlayerDataManager } from "../PlayerDataManager";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { logger } from "@utils/logger";
 import { readJsonSync } from "@utils/file";
 import { registerMissionTriggers } from "./trigger";

@@ -31,8 +31,9 @@ describe("resolveGachaRank", () => {
     // beforeNonHitCnt=60 → per6 = 0.02 + 10*0.02 = 0.22
     const r = resolveGachaRank({ ...base, beforeNonHitCnt: 60, rand: () => 0.21 });
     expect(r).toBe(5); // rand=0.21 < 0.22（修正后命中）
-    const r2 = resolveGachaRank({ ...base, beforeNonHitCnt: 60, rand: () => 0.23 });
-    expect(r2).not.toBe(5); // rand=0.23 > 0.22 → 非六星
+    // 非六星分支用单权重确定性验证（避免权重随机选中五星的 2% 概率波动）
+    const r2 = resolveGachaRank({ ...base, beforeNonHitCnt: 60, rand: () => 0.23, ranks: [3], weights: [1] });
+    expect(r2).toBe(3); // 0.23 > 0.22 → 非六星，单权重必选 3
   });
 
   it("rand 高于修正后权重时不中六星，走权重选择", () => {

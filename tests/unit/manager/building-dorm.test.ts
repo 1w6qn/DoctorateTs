@@ -68,7 +68,7 @@ import {
   splitDormBuffs,
   sumByGroupMax,
 } from "@game/domain/building/dorm-special";
-import { BuildingManager } from "@game/service/building/logic";
+import { BuildingManager } from "@game/domain/building/logic";
 
 function makePlayer(building: any, extra: any = {}) {
   const mockPlayer = mockPlayerData({

@@ -60,7 +60,7 @@ vi.mock("@excel/excel", () => {
 });
 
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
-import { RoguelikeScrapManager } from "@game/service/rlv2/modules/scrap";
+import { RoguelikeScrapManager } from "@game/domain/rlv2/modules/scrap";
 import { mockPlayerData } from "../../../helpers";
 
 function makePlayer() {

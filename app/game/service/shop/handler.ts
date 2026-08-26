@@ -9,7 +9,7 @@
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
 import { PlayerDataManager } from "../PlayerDataManager";
-import { ShopError } from "./errors";
+import { ShopError } from "../../domain/shop/errors";
 import excel from "@excel/excel";
 import config from "../../../config";
 import {
@@ -76,7 +76,7 @@ import {
   GetVoucherSkinGoodListResponse,
   UseVoucherSkinRequest,
   UseVoucherSkinResponse,
-} from "./models";
+} from "../../domain/shop/models";
 import {
   buyCashGoodSchema,
   buyClassicGoodSchema,
@@ -97,7 +97,7 @@ import {
   emptyRequestSchema,
   getGoodPurchaseStateSchema,
   useVoucherSkinSchema,
-} from "./schemas";
+} from "../../domain/shop/schemas";
 import { validateBody } from "../../domain/contracts/validate-body";
 
 const router = Router();

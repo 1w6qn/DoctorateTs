@@ -99,7 +99,7 @@ import {
   parseMoodCostValue,
   buffValueForTarget,
 } from "@game/domain/building/buff";
-import { BuildingManager } from "@game/service/building/logic";
+import { BuildingManager } from "@game/domain/building/logic";
 
 /** 构造带指定 building 的 mock 玩家（update 深拷贝 → recipe → 回写） */
 function makePlayer(building: any, extra: any = {}) {
@@ -182,7 +182,7 @@ function setup() {
   return { mockPlayer, mockTrigger, manager };
 }
 
-describe("基建技能描述解析器增强（@game/service/building/buff）", () => {
+describe("基建技能描述解析器增强（@game/domain/building/buff）", () => {
   it("parseDescTags 提取 vup/vdown/vdo 全部数值标签", () => {
     // 注意："+<@cc.vup>4%</>" 的加号在标签外 → 标签内数值 4 无符号
     expect(parseDescTags("每<@cc.vup>16</>个机器人+<@cc.vup>4%</>")).toEqual([

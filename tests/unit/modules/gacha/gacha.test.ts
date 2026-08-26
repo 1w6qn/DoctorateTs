@@ -72,7 +72,7 @@ vi.mock("@game/service/player/AccountManager", () => ({
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../../helpers";
 import { GainItemPipeline } from "@game/service/player/inventory-pipeline";
-import { GachaManager } from "@game/service/gacha/logic";
+import { GachaManager } from "@game/domain/gacha/logic";
 import { GachaType } from "@game/domain/gacha/gacha";
 import { accountManager } from "@game/service/player/AccountManager";
 import excelData from "@excel/excel";

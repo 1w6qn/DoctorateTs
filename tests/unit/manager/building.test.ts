@@ -92,7 +92,7 @@ vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { BuildingManager } from "@game/service/building/logic";
+import { BuildingManager } from "@game/domain/building/logic";
 import { accountManager } from "@game/service/player/AccountManager";
 
 /**

@@ -12,7 +12,7 @@ import { logger } from "@utils/logger";
 import { Draft } from "mutative";
 import { PlayerDataModel } from "@game/domain/playerdata";
 import { PlayerBuildingMeetingClue } from "@game/domain/playerdata";
-import { accountManager } from "../../player/AccountManager";
+import { accountManager } from "@game/service/player/AccountManager";
 import { headcountMoodRelief, isDispersedAp, warmupHoursOf, MAX_AP } from "@game/domain/building/mood";
 import { getSpecCond, SPEC_ASSIST_BASE_BONUS } from "@game/domain/building/mastery";
 import { contactSpeedFactor, settleContactProgress } from "@game/domain/building/hire-contacts";

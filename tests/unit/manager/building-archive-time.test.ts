@@ -97,7 +97,7 @@ vi.mock("@game/service/PlayerDataManager", () => ({
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { BuildingManager } from "@game/service/building/logic";
+import { BuildingManager } from "@game/domain/building/logic";
 
 /** 基于 2222 真实结构构造 building（裁剪到相关房间） */
 function archiveBuilding(): any {

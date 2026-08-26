@@ -84,7 +84,7 @@ import {
   roomSpeedBonus,
   dormRecoveryBonus,
 } from "@game/domain/building/buff";
-import { BuildingManager } from "@game/service/building/logic";
+import { BuildingManager } from "@game/domain/building/logic";
 
 /** 构造带指定 building 的 mock 玩家（update 深拷贝 → recipe → 回写） */
 function makePlayer(building: any, extra: any = {}) {

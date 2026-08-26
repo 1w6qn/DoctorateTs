@@ -92,12 +92,12 @@ import {
   dormRecoveryBonus,
   charMoodCost,
 } from "@game/domain/building/buff";
-import { BuildingManager } from "@game/service/building/logic";
+import { BuildingManager } from "@game/domain/building/logic";
 
 /** 便捷构造干员 buff 源 */
 const src = (charId: string, level = 1, evolvePhase = 0) => ({ charId, level, evolvePhase });
 
-describe("基建 buff 引擎（@game/service/building/buff）", () => {
+describe("基建 buff 引擎（@game/domain/building/buff）", () => {
   it("phaseRank 解析 PHASE_N", () => {
     expect(phaseRank("PHASE_2")).toBe(2);
     expect(phaseRank("PHASE_0")).toBe(0);

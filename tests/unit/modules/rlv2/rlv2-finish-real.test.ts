@@ -6,7 +6,7 @@ vi.mock("@utils/crypt", () => ({
 }));
 
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
-import { rlv2Response } from "@game/service/rlv2/handler";
+import { rlv2Response } from "@game/domain/rlv2/response";
 import { mockPlayerData } from "../../../helpers";
 import excel from "@excel/excel";
 

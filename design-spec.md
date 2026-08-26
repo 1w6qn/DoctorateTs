@@ -56,7 +56,7 @@ DoctorateTs/
 │   ├── config/             # 配置模块
 │   ├── excel/              # Excel 数据表管理
 │   ├── game/               # 游戏核心逻辑（DDD 分层：domain 纯领域 + service 应用服务）
-│   │   ├── domain/          # 领域层（按路由编排）：每路由域一目录（契约+模型），共享件在根/contracts，事件契约 events/，纯函数引擎 building/rlv2
+│   │   ├── domain/          # 领域层（业务逻辑+路由契约）：每路由域一目录（业务 logic/模型/契约），service 仅数据面与路由适配
 │   │   ├── service/         # 应用服务 + 基础设施：组合根与玩家子模块(PlayerDataManager 等位于根、player/ 存放玩家子模块)/玩法模块(按五文件约定)/activity(每活动一包)/router/shared/util
 │   │   └── (根文件)          # 基础设施例外：app.ts/routes.ts/request-context.ts/resp-schema.ts/auth-strategy.ts
 │   └── utils/              # 工具函数

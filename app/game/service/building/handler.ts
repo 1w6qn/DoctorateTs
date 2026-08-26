@@ -129,8 +129,8 @@ import {
   BuildingSyncResponse,
   TakeClueFromBoardRequest,
   TakeClueFromBoardResponse,
-} from "./models";
-import * as B from "./schemas";
+} from "../../domain/building/models";
+import * as B from "../../domain/building/schemas";
 import { validateBody } from "../../domain/contracts/validate-body";
 
 const router = Router();

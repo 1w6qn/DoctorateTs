@@ -11,7 +11,7 @@ import { logger } from "@utils/logger";
 import { Draft } from "mutative";
 import { PlayerDataModel } from "@game/domain/playerdata";
 import { PlayerBuildingMeetingClue } from "@game/domain/playerdata";
-import { accountManager } from "../../player/AccountManager";
+import { accountManager } from "@game/service/player/AccountManager";
 import { getManufactFormula, getWorkshopFormula, getBuildingConstant, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getFurnitureInfo, getRoomMaxLevel, getManufactFormulaType, getRoomElectricity, getMeetingPhase, getHirePhase, getClueExpiredDays, getMessageLeaveBoardConst } from "@excel/building_excel";
 import {
   CharBuffSource,

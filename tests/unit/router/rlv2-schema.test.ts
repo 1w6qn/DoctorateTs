@@ -9,7 +9,7 @@
  * 与服务端"缺参不再 500、改为 4xx"契约对齐。
  */
 import { describe, it, expect, vi } from "vitest";
-import * as ReqSchema from "../../../app/game/service/rlv2/schemas";
+import * as ReqSchema from "../../../app/game/domain/rlv2/schemas";
 import { validateBody } from "../../../app/game/domain/contracts/validate-body";
 
 function makeRes() {

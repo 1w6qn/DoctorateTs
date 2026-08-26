@@ -1,5 +1,5 @@
 import excel from "@excel/excel";
-import { TroopManager } from "../player/troop";
+import { TroopManager } from "@game/service/player/troop";
 import { PlayerRoguelikeV2 } from "../../domain/rlv2/rlv2";
 import { RoguelikeV2Manager } from "./logic";
 import { now } from "@utils/time";

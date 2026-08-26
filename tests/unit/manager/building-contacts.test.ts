@@ -48,7 +48,7 @@ import {
   meetingSpeedMultiplier,
   MEETING_PHASE_EFFICIENCY,
 } from "@game/domain/building/clue-speed";
-import { BuildingManager } from "@game/service/building/logic";
+import { BuildingManager } from "@game/domain/building/logic";
 import { RecruitManager, RecruitTools } from "@game/service/player/recruit";
 
 function makePlayer(building: any, extra: any = {}) {

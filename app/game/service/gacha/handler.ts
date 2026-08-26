@@ -2,7 +2,7 @@
  * 抽卡路由模块
  * 
  * 处理抽卡和招募相关的 HTTP 请求，包括普通招募、高级抽卡、十连抽等功能。
- * 请求/响应类型见 @game/domain/contracts/gacha（参考 CS 2.7.61 协议类）。
+ * 请求/响应类型见 @game/domain/gacha（参考 CS 2.7.61 协议类）。
  */
 
 import { Router } from "express";
@@ -23,7 +23,7 @@ import {
   tenAdvancedGachaSchema,
   choosePoolUpSchema,
   getFreeCharSchema,
-} from "./schemas";
+} from "../../domain/gacha/schemas";
 import excel from "@excel/excel";
 import {
   AdvancedGachaRequest,
@@ -50,7 +50,7 @@ import {
   SyncNormalGachaResponse,
   TenAdvancedGachaRequest,
   TenAdvancedGachaResponse,
-} from "./models";
+} from "../../domain/gacha/models";
 
 const router = Router();
 

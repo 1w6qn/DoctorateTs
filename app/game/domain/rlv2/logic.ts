@@ -3,7 +3,7 @@ import excel from "@excel/excel";
 import { readFileSync } from "fs";
 import zlib from "node:zlib";
 import { RoguelikeInventoryManager } from "./inventory";
-import { TroopManager } from "../player/troop";
+import { TroopManager } from "@game/service/player/troop";
 import { RoguelikeBuffManager } from "./buff";
 import { RoguelikePlayerStatusManager } from "./status";
 import { now } from "@utils/time";

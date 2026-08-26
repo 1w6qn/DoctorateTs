@@ -9,6 +9,18 @@
  */
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
+
+const router = Router();
+
+/**
+ * 每请求开始时清空 pushMessage 收集器（控制器为玩家持久实例，_pushMessages 跨请求累积；
+ * 此处统一在进入端点前复位，保证推送只随触发它的那次响应下发）
+ */
+router.use((_req, _res, next) => {
+  const player = getPlayerOptional();
+  player?.modules?.rlv2?.clearPushMessages();
+  next();
+});
 import { PlayerDataManager } from "../PlayerDataManager";
 import { RoguelikePushMessage } from "../../domain/contracts/common";
 import { isBlackstream } from "@game/domain/rlv2/theme-rules";
@@ -128,150 +140,11 @@ import {
   RoguelikeZoneRewardResponse,
   SetTroopCarryRequest,
   SetTroopCarryResponse,
-} from "./models";
-import * as ReqSchema from "./schemas";
+} from "../../domain/rlv2/models";
+import * as ReqSchema from "../../domain/rlv2/schemas";
+import { rlv2Response, SEC } from "../../domain/rlv2/response";
 import { validateBody } from "../../domain/contracts/validate-body";
 import { logger } from "@utils/logger";
-
-/** 响应运行时校验开关（环境变量 RLV2_RESPONSE_SCHEMA，默认开启；设 "0"/"false" 关闭） */
-const RESPONSE_SCHEMA_ENABLED = (
-  process.env.RLV2_RESPONSE_SCHEMA ?? "1"
-).toLowerCase() !== "0" && (process.env.RLV2_RESPONSE_SCHEMA ?? "1").toLowerCase() !== "false";
-
-const router = Router();
-
-/**
- * 每请求开始时清空 pushMessage 收集器。
- * 控制器为玩家持久实例，`_pushMessages` 跨请求累积；新增收藏品/散件/载具/天气/结局等
- * 推送由多种端点触发，此处统一在进入端点前复位，保证推送只随触发它的那次响应下发、
- * 不泄漏到后续请求（与 createGame/gridZone/moveTo 内各自的手动复位等价且冗余安全）。
- */
-router.use((_req, _res, next) => {
-  const player = getPlayerOptional();
-  player?.modules?.rlv2?.clearPushMessages();
-  next();
-});
-
-/**
- * 官方各路由响应包含的 current 节（抓包 2026-08-11/08-18 统计）。
- * 核心节 player/inventory/record/buff 几乎总是出现；map/module 仅在生成/变化时出现；
- * game/troop 仅 createGame/gameSettle/recruitChar 等变更时出现。
- * 2026-08-18 按官服抓包逐路由校准（finishEvent/selectChoice/recruitSet/ticket/recruitChar/giveUpGame）：
- *   chooseInitialRelic/finishEvent(INIT)/selectChoice/battleFinish = CORE
- *   finishEvent(进层)/gridZone 移动 = CORE_MAP_MODULE
- *   chooseInitialRecruitSet = player/inventory/record（无 buff）
- *   activeRecruitTicket = player/inventory（无 record/buff）
- *   recruitChar = player/inventory/record/buff/troop/module（无 map/game）
- *   giveUpGame = player/record（极少）
- */
-const SEC = {
-  ALL: undefined, // 全量（createGame/gameSettle）
-  CORE: ["player", "inventory", "record", "buff"],
-  CORE_MAP: ["player", "inventory", "record", "buff", "map"],
-  CORE_MODULE: ["player", "inventory", "record", "buff", "module"],
-  CORE_MAP_MODULE: ["player", "inventory", "record", "buff", "map", "module"],
-  RECRUIT: ["player", "inventory", "record", "troop"],
-  PLAYER: ["player"],
-  // 官服增量节（2026-08-18 校准）
-  RECRUIT_SET: ["player", "inventory", "record"],
-  TICKET: ["player", "inventory"],
-  RECRUIT_CHAR: ["player", "inventory", "record", "buff", "troop", "module"],
-  GIVEUP: ["player", "record"],
-} as const;
-
-/**
- * rlv2 统一响应：并入控制器 toJSON 的 rlv2 子树。
- * 官方抓包确认：客户端按 modified.rlv2 合并状态，但每路由只发送"发生变化"的
- * current 节（createGame/gameSettle 全量；其余为增量节）——多发的 game/troop 等
- * 节会破坏客户端状态合并导致崩溃。rlv2Response 按 sections 过滤 current。
- *
- * 2026-08-18 对齐官服抓包修正：
- * 1. pinned 不输出（官服所有 rlv2 响应均无 pinned——置顶主题由其他接口下发）
- * 2. outer 仅显式要求（outerKeys 非空，createGame/gameSettle/gridZone moveAndBattleStart）
- *    时输出当前主题指定键（官服各路由 outer 内容不同：createGame={record,monthTeam}、
- *    gameSettle=7 键全量、moveAndBattleStart={record}）；其余路由不带
- *    （原实现 theme 存在即输出，且 {...full} 泄漏全量 6 主题 outer → 255KB 冗余）
- * 3. sections=undefined 全量时也只取 current 自身，不再展开 full.outer/full.pinned
- */
-export function rlv2Response<T extends object>(
-  player: PlayerDataManager,
-  extra?: T,
-  sections?: readonly string[],
-  outerKeys?: readonly string[],
-  pushMessages?: RoguelikePushMessage[],
-) {
-  // 内存态写回存档 + 单次快照（原 persistCurrent + toJSON 双构建）——
-  // 供重登"继续探索"（controller 重建走 rlv2:continue 恢复）使用；否则 current.player 等为空
-  const full = player.modules.rlv2.snapshotCurrent();
-  const base = player.delta;
-  const current = full.current as any;
-  const currentOut: any = {};
-  if (sections) {
-    for (const s of sections) {
-      if (s in current) currentOut[s] = current[s];
-    }
-  } else {
-    Object.assign(currentOut, current);
-  }
-  // 修复：黑流树海（rogue_6）地图 zone 以「区域索引」为 map.zones 键（1000+层号-1，如层 1 → "1000"），
-  // 而游标/轨迹内部按「层号」存储（1,2,3…）。若不把输出到客户端的 cursor.zone 与 trace[].zone 映射回
-  // 区域索引，客户端按 cursor.zone 去 map.zones 里找不到对应区域（"zone 在 map 中不存在"），导致地图
-  // 渲染/推进异常（官方抓包：cursor.zone=1000、trace[].zone=1000 与 map.zones 键 "1000" 对齐）。
-  // 仍按层号存储可保持内部逻辑（checkZoneEnd/maxZone/zoneKey/结算）与重登"继续探索"不变。
-  // 注意：先经 toJSON() 取干净的可序列化副本再改写 zone——若用 {...p} 直接展平，会丢掉 toJSON()，
-  // 使 res.send 序列化整个状态管理器（_player 自指控制器 → map/inventory/troop 冗余全量泄漏，
-  // 响应体积暴涨，如 giveUpGame）。仅在响应副本上改写，不触碰控制器内存态。
-  const respTheme = (current as any)?.game?.theme as string | undefined;
-  if (isBlackstream(respTheme) && currentOut.player?.cursor?.zone > 0) {
-    const toZoneIndex = (zone: number) => zone + 999;
-    const clean =
-      typeof currentOut.player.toJSON === "function"
-        ? currentOut.player.toJSON()
-        : currentOut.player;
-    currentOut.player = {
-      ...clean,
-      cursor: { ...clean.cursor, zone: toZoneIndex(clean.cursor.zone) },
-      trace: Array.isArray(clean.trace)
-        ? clean.trace.map((t: any) => ({ ...t, zone: toZoneIndex(t.zone) }))
-        : clean.trace,
-    };
-  }
-  const rlv2: any = { current: currentOut };
-  if (outerKeys && outerKeys.length > 0) {
-    const theme = current?.game?.theme as string | undefined;
-    const fullOuter = full.outer as Record<string, any> | undefined;
-    if (theme && fullOuter?.[theme]) {
-      const o = fullOuter[theme];
-      const picked: Record<string, unknown> = {};
-      for (const k of outerKeys) {
-        if (k in o) picked[k] = o[k];
-      }
-      rlv2.outer = { [theme]: picked };
-    }
-  }
-  const resp = {
-    ...(extra ?? ({} as T)),
-    ...(pushMessages && pushMessages.length > 0 ? { pushMessage: pushMessages } : {}),
-    playerDataDelta: {
-      modified: {
-        ...base.playerDataDelta.modified,
-        rlv2,
-      },
-      deleted: base.playerDataDelta.deleted,
-    },
-  };
-  // 响应骨架运行时校验：仅验证结构（playerDataDelta/rlv2.current 对象），失败记录
-  // 告警但不阻断响应（避免破坏已对齐的客户端协议）；开关经 RLV2_RESPONSE_SCHEMA 控制。
-  if (RESPONSE_SCHEMA_ENABLED) {
-    const check = ReqSchema.playerDeltaResponseSchema.safeParse(resp);
-    if (!check.success) {
-      const first = check.error.issues[0];
-      const where = first.path.length > 0 ? ` at "${first.path.join(".")}"` : "";
-      logger.warn("rlv2-resp-schema", `响应骨架校验失败：${first.message}${where}`);
-    }
-  }
-  return resp;
-}
 
 /**
  * 缺参校验辅助：必填字段缺失时返回业务错误（HTTP 200 + result≠0），

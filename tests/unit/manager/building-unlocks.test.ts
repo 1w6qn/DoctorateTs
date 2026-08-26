@@ -73,7 +73,7 @@ import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import config from "../../../app/config";
 import { isFormulaUnlocked, isDiamondStrategyUnlocked } from "@game/domain/building/unlocks";
 import { getSpecCond, SPEC_ASSIST_BASE_BONUS } from "@game/domain/building/mastery";
-import { BuildingManager } from "@game/service/building/logic";
+import { BuildingManager } from "@game/domain/building/logic";
 
 function makePlayer(building: any, extra: any = {}) {
   const mockPlayer = mockPlayerData({

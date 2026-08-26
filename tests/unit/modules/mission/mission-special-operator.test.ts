@@ -196,7 +196,7 @@ import {
   MissionManager,
   MissionProgress,
   MissionTemplates,
-} from "@game/service/mission/logic";
+} from "@game/domain/mission/logic";
 
 /** 构造任务进度实例（与既有 mission.test 同款） */
 function makeMission(param: string[], value = 0) {

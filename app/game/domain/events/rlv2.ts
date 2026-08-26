@@ -12,7 +12,7 @@ import type {
   RoguelikeItemBundle,
 } from "@game/domain/rlv2/rlv2";
 import type { BattleData } from "@game/domain/battle";
-import type { RoguelikeV2Manager } from "@game/service/rlv2/logic";
+import type { RoguelikeV2Manager } from "@game/domain/rlv2/logic";
 
 /**
  * 肉鸽V2 领域事件映射

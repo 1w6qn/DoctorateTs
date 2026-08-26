@@ -49,8 +49,8 @@ import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import {
   workshopSynthesisSchema,
   deliveryOrderSchema,
-} from "@game/service/building/schemas";
-import { BuildingManager } from "@game/service/building/logic";
+} from "@game/domain/building/schemas";
+import { BuildingManager } from "@game/domain/building/logic";
 
 function makePlayer(building: any, extra: any = {}) {
   const mockPlayer = mockPlayerData({

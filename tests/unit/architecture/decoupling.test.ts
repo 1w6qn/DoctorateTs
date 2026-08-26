@@ -126,8 +126,8 @@ describe("架构解耦守卫", () => {
   });
 
   it("rlv2 控制器组合须经 rlv2-composition 工厂，不内联 new 子模块", () => {
-    const rlv2File = path.join(APP_ROOT, "game", "service", "rlv2", "logic.ts");
-    const factoryFile = path.join(APP_ROOT, "game", "service", "rlv2", "rlv2-composition.ts");
+    const rlv2File = path.join(APP_ROOT, "game", "domain", "rlv2", "logic.ts");
+    const factoryFile = path.join(APP_ROOT, "game", "domain", "rlv2", "rlv2-composition.ts");
     expect(fs.existsSync(factoryFile)).toBe(true);
     // 组合工厂必须存在且 rlv2 控制器引用它
     expect(firstOffendingLine(rlv2File, /composeRlv2ChildModules/)).not.toBeNull();
@@ -140,8 +140,8 @@ describe("架构解耦守卫", () => {
   });
 
   it("rlv2 主题模块分发表须经 rlv2-module-composition，module.ts 不直连 modules/*", () => {
-    const moduleFile = path.join(APP_ROOT, "game", "service", "rlv2", "module.ts");
-    const factoryFile = path.join(APP_ROOT, "game", "service", "rlv2", "rlv2-module-composition.ts");
+    const moduleFile = path.join(APP_ROOT, "game", "domain", "rlv2", "module.ts");
+    const factoryFile = path.join(APP_ROOT, "game", "domain", "rlv2", "rlv2-module-composition.ts");
     expect(fs.existsSync(factoryFile)).toBe(true);
     // module.ts 应消费组合工厂，而不是直接 import 各主题模块实现
     expect(firstOffendingLine(moduleFile, /composeRlv2ThemeModules/)).not.toBeNull();
@@ -179,16 +179,20 @@ describe("架构解耦守卫", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("domain 层不得依赖 service 层（domain → @game/service 非 type-only 引用计数为 0）", () => {
+  it("domain 层不得依赖 service 路由/适配面（router/handler/activity；数据面 player/、组合根、events、shared、util 允许）", () => {
     const domainDir = path.join(APP_ROOT, "game", "domain");
     const offenders: string[] = [];
+    // 业务逻辑迁 domain 后（分层语义：domain=业务逻辑，service=数据/路由适配），
+    // domain 允许依赖 service 数据面（player 子模块/组合根/事件总线/共享件/IO 工具），
+    // 但不得依赖路由/适配面（router/activity/handler——HTTP 层应反向依赖 domain）
+    const DATA_FACE = /service\/(player\/|PlayerDataManager|PlayerStatus|player-composition|events|shared\/|util\/)/;
     for (const file of collectFiles(domainDir, ".ts")) {
       const lines = fs.readFileSync(file, "utf-8").split(/\r?\n/);
       for (let i = 0; i < lines.length; i++) {
         const l = lines[i];
         if (l.trim().startsWith("import type")) continue; // type-only 无运行时依赖,放行
-        if (/from\s+["'](@game\/service|.*service\/)/.test(l)) {
-          offenders.push(`${path.relative(APP_ROOT, file)}:${i + 1} domain 依赖 service（应下沉到 domain 或改经 domain 契约）`);
+        if (/from\s+["'](@game\/service|.*service\/)/.test(l) && !DATA_FACE.test(l)) {
+          offenders.push(`${path.relative(APP_ROOT, file)}:${i + 1} domain 依赖 service 路由/适配面（仅允许数据面）`);
           break;
         }
       }

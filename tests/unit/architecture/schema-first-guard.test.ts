@@ -2,7 +2,7 @@
  * 契约先行守卫（schema-first）
  *
  * 强制「新路由先落 contract」：service/router 与 service/activity 下所有 POST 路由
- * 必须经 validateBody 校验（契约层 domain/contracts/*.schema.ts 定义请求形状）。
+ * 必须经 validateBody 校验（契约层 domain/<路由域>/*.schema.ts 定义请求形状）。
  * GET 路由（无 body）豁免；plugin-heartbeat 为内部 GET 端点豁免。
  */
 import { describe, it, expect } from "vitest";

@@ -62,7 +62,7 @@ describe("组合工厂构造顺序快照（事件订阅顺序）", () => {
     const file = path.join(
       APP_ROOT,
       "game",
-      "service",
+      "domain",
       "rlv2",
       "rlv2-composition.ts",
     );

@@ -114,7 +114,7 @@ describe("8.11 官服值级完全一致（除地图/账号数据）", () => {
 
       // createGame 响应比对（rlv2Response SEC.ALL + outer）——
       // 先 JSON round-trip 还原线格式（实例 toJSON 生效，剥离 _player/_trigger 等内部字段）
-      const { rlv2Response } = await import("@game/service/rlv2/handler");
+      const { rlv2Response } = await import("@game/domain/rlv2/response");
       const ourResp = rlv2Response(player as any, undefined, undefined, ["record", "monthTeam"]);
       const offRlv2 = OFF_CREATE.playerDataDelta.modified.rlv2;
       const ourRlv2 = JSON.parse(JSON.stringify(ourResp.playerDataDelta.modified.rlv2));

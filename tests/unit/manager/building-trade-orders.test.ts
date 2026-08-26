@@ -73,7 +73,7 @@ import {
   warmupSkillTier,
   GOLD_ORDER_DISTRIBUTION,
 } from "@game/domain/building/trade-orders";
-import { BuildingManager } from "@game/service/building/logic";
+import { BuildingManager } from "@game/domain/building/logic";
 
 function makePlayer(building: any, extra: any = {}) {
   const mockPlayer = mockPlayerData({

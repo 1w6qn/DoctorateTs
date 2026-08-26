@@ -7,7 +7,7 @@
 import type { ShopManager } from "../logic";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
-import { resolveEffectiveUpPerCharList } from "@game/service/gacha/logic";
+import { resolveEffectiveUpPerCharList } from "@game/domain/gacha/logic";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";
 import {

@@ -4,6 +4,7 @@ import { readJson } from "@utils/file";
 import { buildNetworkConfigContent } from "./remote-config";
 import { ensureModsLoaded, getModVersionSuffix, refreshModsIfChanged } from "../asset";
 import { assetRegistry } from "../asset-registry/asset-service";
+import { resolveRegion, resolveRegionVersion } from "./region";
 
 /** 版本端点签发溯源（fire-and-forget，不阻断响应） */
 function traceVersionIssued(platform: string, resVersion: string): void {
@@ -29,10 +30,21 @@ function withModSig(base: string, sig: string): string {
   return base.slice(0, 18) + sig;
 }
 
+/**
+ * 生效版本：capture + region 伪装（region.version 字段级回退 config.version）；
+ * 无生效 region 时返回 config.version（现状）。仅 capture 模式消费——非 capture
+ * 的私服游玩场景不伪装，避免破坏客户端正常更新链路。
+ */
+function servedVersion() {
+  const region = resolveRegion();
+  return region ? resolveRegionVersion(region, config.version) : config.version;
+}
+
 const router = Router();
 // Windows 平台独立版本（odpy 参考：config.version.windows；无则回退单版本）
 router.get("/official/Windows/version", async (req, res) => {
-  const win = (config.version as any).windows;
+  const version = servedVersion();
+  const win = (version as any).windows;
   let modPatch: { resVersion?: string } = {};
   if (config.assets.enableMods) {
     await ensureModsLoaded("Windows");
@@ -40,12 +52,13 @@ router.get("/official/Windows/version", async (req, res) => {
     await refreshModsIfChanged("Windows");
     const sig = getModVersionSuffix("Windows");
     // Windows 与 Android 均需各自平台 mod 签名：resVersion 变更才能触发客户端重新拉取热更清单
-    if (sig) modPatch = { resVersion: withModSig(win?.resVersion || config.version.resVersion, sig) };
+    if (sig) modPatch = { resVersion: withModSig(win?.resVersion || version.resVersion, sig) };
   }
-  traceVersionIssued("Windows", modPatch.resVersion ?? (win?.resVersion || config.version.resVersion));
-  res.send(Object.assign({}, win || config.version, modPatch));
+  traceVersionIssued("Windows", modPatch.resVersion ?? (win?.resVersion || version.resVersion));
+  res.send(Object.assign({}, win || version, modPatch));
 });
 router.get("/official/Android/version", async (req, res) => {
+  const version = servedVersion();
   let modPatch: { resVersion?: string } = {};
   if (config.assets.enableMods) {
     await ensureModsLoaded("Android");
@@ -53,13 +66,14 @@ router.get("/official/Android/version", async (req, res) => {
     await refreshModsIfChanged("Android");
     const sig = getModVersionSuffix("Android");
     // 确定性签名：mod 不变则版本稳定（避免随机 +0..99 每次启动全量重下），mod 变更才变
-    if (sig) modPatch = { resVersion: withModSig(config.version.resVersion, sig) };
+    if (sig) modPatch = { resVersion: withModSig(version.resVersion, sig) };
   }
-  traceVersionIssued("Android", modPatch.resVersion ?? config.version.resVersion);
-  res.send(Object.assign({}, config.version, modPatch));
+  traceVersionIssued("Android", modPatch.resVersion ?? version.resVersion);
+  res.send(Object.assign({}, version, modPatch));
 });
 // hv 端点格式：/config/prod/official/{clientVersion}/version（客户端按版本号请求）
 router.get("/official/:version/version", async (req, res) => {
+  const version = servedVersion();
   let modPatch: { resVersion?: string } = {};
   if (config.assets.enableMods) {
     // 通用版本端点无法判定平台，回退 Android mod 集
@@ -67,10 +81,10 @@ router.get("/official/:version/version", async (req, res) => {
     // 运行时检测 mod 变更（重打包后无需重启即可让 resVersion 变化 → 客户端重新拉取下载）
     await refreshModsIfChanged("Android");
     const sig = getModVersionSuffix("Android");
-    if (sig) modPatch = { resVersion: withModSig(config.version.resVersion, sig) };
+    if (sig) modPatch = { resVersion: withModSig(version.resVersion, sig) };
   }
-  traceVersionIssued("Android", modPatch.resVersion ?? config.version.resVersion);
-  res.send(Object.assign({}, config.version, modPatch));
+  traceVersionIssued("Android", modPatch.resVersion ?? version.resVersion);
+  res.send(Object.assign({}, version, modPatch));
 });
 router.get("/official/network_config", async (req, res) => {
   const content = buildNetworkConfigContent();
@@ -78,7 +92,7 @@ router.get("/official/network_config", async (req, res) => {
   res.send({ sign, content });
 });
 router.get("/official/refresh_config", async (req, res) => {
-  res.send(config.version);
+  res.send(servedVersion());
 });
 router.get("/official/remote_config", async (req, res) => {
   res.send({

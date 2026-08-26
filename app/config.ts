@@ -50,6 +50,14 @@ interface UserConfig {
   };
   /** 登录响应主版本号（客户端校验用——去硬编码，缺省 "446"） */
   majorVersion?: string;
+  /** 当前 region（缺省 "cn"；仅 capture 模式消费，见 config/region.ts） */
+  region?: string;
+  /**
+   * region 配置表（capture 模式下按 region 伪装版本/资源通道/转发目标；
+   * 字段级回退，零迁移——未配置任何 region 时行为与现状一致）。
+   * 结构见 app/config/region.ts 的 RegionConfig。
+   */
+  regions?: Record<string, import("./config/region").RegionConfig>;
   /** 版本信息 */
   version: {
     /** 资源版本 */
@@ -87,6 +95,8 @@ interface UserConfig {
     /** 是否开启官服转发（客户端连接私服，as/gs 请求转发官服；config/asset/admin 仍本地响应）。
      *  开启时强制禁用 assets.enableMods——抓包须还原官服原生资源，mod 污染抓包流量 */
     enabled?: boolean;
+    /** capture 专用 region 覆盖（可选；优先于全局 region；缺省跟随 config.region） */
+    region?: string;
     /** 官服 as 主机（缺省 https://as.hypergryph.com） */
     asHost?: string;
     /** 官服 gs 主机（缺省 https://ak-gs-gf.hypergryph.com） */

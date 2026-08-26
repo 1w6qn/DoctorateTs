@@ -11,6 +11,12 @@ import { exists, size } from "@utils/file";
 import { logger } from "@utils/logger";
 import { backfillFile } from "./asset-backfill";
 import { assetRegistry } from "@asset/asset-service";
+import {
+  resolveRegion,
+  resolveRegionCdn,
+  resolveRegionCdnVersion,
+  resolveRegionVersion,
+} from "./config/region";
 
 const router = Router();
 
@@ -61,7 +67,7 @@ router.get(
       const rangeHeader = req.headers.range as string | undefined;
       if (rangeHeader) forwardHeaders.Range = rangeHeader;
       const resp = await fetch(
-        `https://ak.hycdn.cn/assetbundle/official/${cdnPlatform}/assets/${cdnVersion}/${fileName}`,
+        `${resolveCdnBase()}/assetbundle/official/${cdnPlatform}/assets/${cdnVersion}/${fileName}`,
         { headers: forwardHeaders, signal: AbortSignal.timeout(CDN_TIMEOUT) },
       );
       const body = Buffer.from(await resp.arrayBuffer());
@@ -80,7 +86,7 @@ router.get(
         !mods.download.includes(fileName)
       ) {
         return res.redirect(
-          `https://ak.hycdn.cn/assetbundle/official/${cdnPlatform}/assets/${version}/${fileName}`,
+          `${resolveCdnBase()}/assetbundle/official/${cdnPlatform}/assets/${version}/${fileName}`,
         );
       }
     }
@@ -167,7 +173,7 @@ router.get(
       }
     }
     const fp = await exportFile(
-      `https://ak.hycdn.cn/assetbundle/official/${cdnPlatform}/assets/${cdnVersion}/${fileName}`,
+      `${resolveCdnBase()}/assetbundle/official/${cdnPlatform}/assets/${cdnVersion}/${fileName}`,
       basePath,
       fileName,
       filePath,
@@ -389,11 +395,24 @@ export function getModVersionSuffix(platform: string): string {
 /**
  * 官方（无 mod 签名）资源版本：按平台取 config 中登记的官方 resVersion（CDN 下载用）。
  * 客户端请求的 assetsHash 是替换过 hash 的 mod 版本，需还原官方版本才能命中官方 CDN。
+ * region 生效时：region.cdnVersion 显式指定则用之（「指定资源版本」），否则用伪装后的
+ * region.version.resVersion（version 端点下发的值），最后回退 config.version 现状。
  * @param platform - 平台键（Windows/Android），未知平台回退默认版本
  */
 export function officialResVersion(platform: string): string {
-  const win = (config.version as any).windows;
-  return platform === "Windows" && win?.resVersion ? win.resVersion : config.version.resVersion;
+  const region = resolveRegion();
+  const version = region ? resolveRegionVersion(region, config.version) : config.version;
+  const win = (version as any).windows;
+  if (platform === "Windows" && win?.resVersion) return win.resVersion;
+  return region ? resolveRegionCdnVersion(region, version) : version.resVersion;
+}
+
+/**
+ * 资源 CDN 基址：region.cdn 可配（缺省国服 CDN）——downloadPeoxy 代理转发、
+ * downloadLocally=false 重定向与 exportFile 下载共用。
+ */
+function resolveCdnBase(): string {
+  return resolveRegionCdn(resolveRegion());
 }
 
 /**

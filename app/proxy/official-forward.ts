@@ -28,6 +28,7 @@ import https from "https";
 import { logger } from "@utils/logger";
 import { hasPathPrefix, matchesAnyPrefix, LOCAL_ONLY_PREFIXES } from "@utils/path-prefix";
 import config from "../config";
+import { resolveRegion, resolveRegionAsPrefixes, resolveRegionHosts } from "../config/region";
 import {
   ArkhubGatewayInfo,
   adaptArkhubEnterHallResponse,
@@ -116,6 +117,8 @@ export interface ForwardTarget {
 export interface ForwardHostOptions {
   asHost?: string;
   gsHost?: string;
+  /** 额外 as 域路径前缀（region 扩展——yostar 登录链路等；缺省不扩展） */
+  asPathPrefixes?: string[];
 }
 
 /**
@@ -140,6 +143,7 @@ export function resolveForwardTarget(
 ): ForwardTarget | null {
   const asHost = opts.asHost || OFFICIAL_AS_HOST;
   const gsHost = opts.gsHost || OFFICIAL_GS_HOST;
+  const asPathPrefixes = [...AS_PATH_PREFIXES, ...(opts.asPathPrefixes ?? [])];
   const path = (url.split("?")[0] || "/").replace(/^\/+/, "/");
 
   const h = host.toLowerCase();
@@ -166,7 +170,7 @@ export function resolveForwardTarget(
   if (hasPathPrefix(path, "/as")) {
     return { baseUrl: asHost, path: path.slice("/as".length) || "/" };
   }
-  for (const prefix of AS_PATH_PREFIXES) {
+  for (const prefix of asPathPrefixes) {
     if (hasPathPrefix(path, prefix)) {
       // 注意：path 保留完整原路径（含 /u8），baseUrl 只给 as 域根地址——若 baseUrl 再拼 /u8 基址
       // 会与 path 里的 /u8 双写（实测 as.hypergryph.com/u8/u8/user/v1/getToken → 404），
@@ -203,14 +207,22 @@ export interface OfficialForwarderOptions {
  * @returns Express 中间件
  */
 export function createOfficialForwarder(opts: OfficialForwarderOptions = {}): RequestHandler {
-  const asHost = config.capture?.asHost || OFFICIAL_AS_HOST;
-  const gsHost = config.capture?.gsHost || OFFICIAL_GS_HOST;
+  // region 主机数据源（优先级：region.as/gs → capture.asHost/gsHost 现状 → OFFICIAL_*_HOST）；
+  // as 域路径前缀同步扩展（region.asPathPrefixes，yostar 登录链路等）
+  const region = resolveRegion();
+  const fallbackAs = config.capture?.asHost || OFFICIAL_AS_HOST;
+  const fallbackGs = config.capture?.gsHost || OFFICIAL_GS_HOST;
+  const hosts = region
+    ? resolveRegionHosts(region, fallbackAs, fallbackGs)
+    : { as: fallbackAs, gs: fallbackGs };
+  const asPathPrefixes = resolveRegionAsPrefixes(region, AS_PATH_PREFIXES);
   const { arkhubGateway } = opts;
 
   return async (req, res, next) => {
     const target = resolveForwardTarget(req.method, req.url, req.headers.host || "", {
-      asHost,
-      gsHost,
+      asHost: hosts.as,
+      gsHost: hosts.gs,
+      asPathPrefixes,
     });
     if (!target) return next();
 

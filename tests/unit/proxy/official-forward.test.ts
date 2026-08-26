@@ -10,6 +10,28 @@ import {
   OFFICIAL_GS_HOST,
 } from "../../../app/proxy/official-forward";
 import { getGatewayTarget } from "../../../app/proxy/arkhub-gateway";
+import config from "../../../app/config";
+
+/** 保存/恢复 config 的 region 相关字段（region 主机用例隔离；支持 async fn） */
+async function withCaptureRegion(
+  patch: { enabled: boolean; region?: string; regions?: Record<string, any> },
+  fn: () => Promise<void> | void,
+): Promise<void> {
+  const savedCapture = config.capture;
+  const savedRegions = (config as any).regions;
+  try {
+    (config as any).capture = {
+      ...(savedCapture ?? {}),
+      enabled: patch.enabled,
+      ...(patch.region !== undefined ? { region: patch.region } : {}),
+    };
+    if (patch.regions !== undefined) (config as any).regions = patch.regions;
+    await fn();
+  } finally {
+    (config as any).capture = savedCapture;
+    (config as any).regions = savedRegions;
+  }
+}
 
 const mockAxios = axios as unknown as ReturnType<typeof vi.fn>;
 
@@ -153,6 +175,30 @@ describe("resolveForwardTarget（官服转发目标解析）", () => {
       });
       expect(resolveForwardTarget("POST", "/account/login", "127.0.0.1", opts)).toEqual({
         baseUrl: "https://gs.example.com",
+        path: "/account/login",
+      });
+    });
+
+    it("opts.asPathPrefixes 额外前缀 → as 域（yostar 登录链路）", () => {
+      const opts = {
+        asHost: "https://as.example.jp",
+        gsHost: "https://gs.example.jp",
+        asPathPrefixes: ["/account/yostar_auth_request", "/user/yostar_createlogin", "/yostar/get-auth"],
+      };
+      expect(resolveForwardTarget("POST", "/account/yostar_auth_request", "127.0.0.1", opts)).toEqual({
+        baseUrl: "https://as.example.jp",
+        path: "/account/yostar_auth_request",
+      });
+      expect(resolveForwardTarget("POST", "/yostar/get-auth", "127.0.0.1", opts)).toEqual({
+        baseUrl: "https://as.example.jp",
+        path: "/yostar/get-auth",
+      });
+    });
+
+    it("未传 asPathPrefixes → 默认列表行为不变（/account/login 仍走 gs 兜底）", () => {
+      const opts = { asHost: "https://as.example.jp", gsHost: "https://gs.example.jp" };
+      expect(resolveForwardTarget("POST", "/account/login", "127.0.0.1", opts)).toEqual({
+        baseUrl: "https://gs.example.jp",
         path: "/account/login",
       });
     });
@@ -413,6 +459,68 @@ describe("resolveForwardTarget（官服转发目标解析）", () => {
       expect(call[0].data).toBe(raw);
       expect(call[0].data).not.toBe(req.body);
       expect(call[0].headers["content-type"]).toBe('multipart/form-data; boundary="C880D0B0"');
+    });
+
+    it("capture + region.as/gs → 转发目标使用 region 主机（yostar 登录路径 → region.as）", async () => {
+      mockAxios.mockResolvedValueOnce({ status: 200, data: {} });
+      await withCaptureRegion(
+        {
+          enabled: true,
+          region: "jp",
+          regions: {
+            jp: {
+              as: "https://as.example.jp",
+              gs: "https://gs.example.jp",
+              asPathPrefixes: ["/account/yostar_auth_request"],
+            },
+          },
+        },
+        async () => {
+          const handler = createOfficialForwarder();
+          const req = {
+            method: "POST",
+            url: "/account/yostar_auth_request",
+            headers: { host: "127.0.0.1:8443" },
+            body: { account: "x", password: "y" },
+            query: {},
+            originalUrl: "/account/yostar_auth_request",
+          } as any;
+          const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+          const next = vi.fn();
+
+          await handler(req, res, next);
+
+          expect(mockAxios).toHaveBeenCalledWith(
+            expect.objectContaining({ url: "https://as.example.jp/account/yostar_auth_request" }),
+          );
+        },
+      );
+    });
+
+    it("capture 未启用 → 转发目标回退现状（OFFICIAL_GS_HOST）", async () => {
+      mockAxios.mockResolvedValueOnce({ status: 200, data: {} });
+      await withCaptureRegion(
+        { enabled: false, regions: { jp: { gs: "https://gs.example.jp" } } },
+        async () => {
+          const handler = createOfficialForwarder();
+          const req = {
+            method: "POST",
+            url: "/account/login",
+            headers: { host: "127.0.0.1:8443" },
+            body: {},
+            query: {},
+            originalUrl: "/account/login",
+          } as any;
+          const res = { status: vi.fn().mockReturnThis(), send: vi.fn() } as any;
+          const next = vi.fn();
+
+          await handler(req, res, next);
+
+          expect(mockAxios).toHaveBeenCalledWith(
+            expect.objectContaining({ url: `${OFFICIAL_GS_HOST}/account/login` }),
+          );
+        },
+      );
     });
   });
 });

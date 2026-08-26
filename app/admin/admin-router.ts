@@ -16,7 +16,7 @@ import { logService } from "@logs/log-service";
 import { assetRegistry } from "@asset/asset-service";
 import { createSse, sseSend } from "@utils/sse";
 import { pluginConfigService } from "@plugin/index";
-import { validateBody } from "../game/model/protocol/validate-body";
+import { validateBody } from "../game/domain/contracts/validate-body";
 import {
   backfillAssetsSchema,
   buildingAdvanceSchema,

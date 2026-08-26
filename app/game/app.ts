@@ -7,8 +7,8 @@
 import httpContext from "express-http-context2";
 import express from "express";
 import bodyParser from "body-parser";
-import { accountManager } from "./manager/AccountManager";
-import { PlayerDataManager } from "./manager/PlayerDataManager";
+import { accountManager } from "./service/manager/AccountManager";
+import { PlayerDataManager } from "./service/manager/PlayerDataManager";
 import { setPlayer, getPlayerOptional } from "./request-context";
 import { acquireLock } from "@utils/mutex";
 import { logger } from "@utils/logger";

@@ -88,14 +88,14 @@ const excelMock = vi.hoisted(() => ({
 
 vi.mock("@excel/excel", () => ({ default: excelMock }));
 
-import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
 import { mockPlayerData } from "../../../helpers";
 import {
   ROGUE6_NODE,
   ROGUE6_NODE_SCENE_PREFIX,
   ROLL_NODE_TYPE_VALUES,
   isBlackstream,
-} from "@game/modules/rlv2/theme-rules";
+} from "@game/domain/rlv2/theme-rules";
 
 function makePlayer() {
   const pd: any = mockPlayerData({

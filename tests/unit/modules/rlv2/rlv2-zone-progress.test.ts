@@ -13,7 +13,7 @@ vi.mock("@excel/excel", () => ({
   },
 }));
 
-import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
 import { mockPlayerData } from "../../../helpers";
 
 function makePlayer() {

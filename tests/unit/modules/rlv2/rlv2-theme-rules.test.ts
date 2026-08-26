@@ -92,9 +92,9 @@ vi.mock("@excel/excel", () => ({
   },
 }));
 
-import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
 import { mockPlayerData } from "../../../helpers";
-import { RoguelikePendingEvent } from "@game/modules/rlv2/events";
+import { RoguelikePendingEvent } from "@game/service/rlv2/events";
 
 function makePlayer(theme: string, opts: { lastZone?: number; legacy?: string[]; relic?: string[] } = {}) {
   const pd: any = mockPlayerData({

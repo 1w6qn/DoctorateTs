@@ -25,7 +25,7 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-vi.mock("@game/manager/PlayerDataManager", () => ({
+vi.mock("@game/service/manager/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
@@ -47,7 +47,7 @@ vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { StatusManager } from "@game/manager/status";
+import { StatusManager } from "@game/service/manager/status";
 
 /**
  * StatusManager 单元测试

@@ -61,7 +61,7 @@ vi.mock("@excel/excel", () => excelMock);
 const timeMock = vi.hoisted(() => ({ now: 1234567890 }));
 vi.mock("@utils/time", () => ({ now: () => timeMock.now }));
 
-vi.mock("@game/manager/PlayerDataManager", () => ({
+vi.mock("@game/service/manager/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
@@ -72,8 +72,8 @@ import {
   pickGoldCount,
   warmupSkillTier,
   GOLD_ORDER_DISTRIBUTION,
-} from "@game/modules/building/trade-orders";
-import { BuildingManager } from "@game/modules/building/logic";
+} from "@game/domain/building/trade-orders";
+import { BuildingManager } from "@game/service/building/logic";
 
 function makePlayer(building: any, extra: any = {}) {
   const mockPlayer = mockPlayerData({

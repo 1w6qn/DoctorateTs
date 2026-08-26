@@ -18,7 +18,7 @@ import type {
   SquadFriendData,
   PlayerHandBookAddon,
   PlayerCharRotationPreset,
-} from '@game/model/character';
+} from '@game/domain/character';
 
 describe('Character 模型', () => {
   describe('PlayerCharacter', () => {

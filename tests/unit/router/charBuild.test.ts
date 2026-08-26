@@ -4,7 +4,7 @@ vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
 }));
 
-import charBuildRouter from "../../../app/game/router/charBuild";
+import charBuildRouter from "../../../app/game/service/router/charBuild";
 import httpContext from "express-http-context2";
 
 function mockRes() {

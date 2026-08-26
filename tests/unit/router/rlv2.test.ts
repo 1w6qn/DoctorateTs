@@ -4,7 +4,7 @@ vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
 }));
 
-import rlv2Router from "../../../app/game/modules/rlv2/handler";
+import rlv2Router from "../../../app/game/service/rlv2/handler";
 
 function mockRes() {
   return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };

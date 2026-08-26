@@ -19,7 +19,7 @@ vi.mock("@excel/excel", () => ({
   },
 }));
 
-import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
 import { mockPlayerData } from "../../../helpers";
 
 function makePlayer(modeGrade = 15) {
@@ -158,7 +158,7 @@ describe("rlv2 响应 outer 精简（对齐官服 createGame）", () => {
     const player = makePlayer(15);
     const rlv2 = player.rlv2 as any;
     await rlv2.createGame({ theme: "rogue_6", mode: "NORMAL", modeGrade: 15, predefinedId: null });
-    const { rlv2Response } = await import("@game/modules/rlv2/handler");
+    const { rlv2Response } = await import("@game/service/rlv2/handler");
     // 2026-08-18：outer 改为显式 outerKeys（对齐官服 createGame={record,monthTeam}）
     const resp = rlv2Response(player as any, undefined, undefined, ["record", "monthTeam"]);
     const r = resp.playerDataDelta.modified.rlv2;

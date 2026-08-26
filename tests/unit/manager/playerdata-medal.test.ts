@@ -13,8 +13,8 @@ vi.mock("@utils/time", () => ({ now: () => 1234567890 }));
 vi.mock("moment", () => ({ default: () => ({ diff: () => 0 }) }));
 
 import { mockPlayerData } from "../../helpers";
-import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { MedalManager } from "@game/manager/medal";
+import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
+import { MedalManager } from "@game/service/manager/medal";
 
 describe("PlayerDataManager medal 挂载", () => {
   it("构造后 player.medal 应为 MedalManager 实例", () => {

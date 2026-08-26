@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const configMock = vi.hoisted(() => ({ default: { authMode: "single" } }));
 vi.mock("../../../app/config", () => configMock);
-vi.mock("@game/manager/AccountManager", () => ({
+vi.mock("@game/service/manager/AccountManager", () => ({
   accountManager: { getPlayerData: vi.fn(), getUidByToken: vi.fn() },
 }));
 vi.mock("express-http-context2", () => ({
@@ -10,7 +10,7 @@ vi.mock("express-http-context2", () => ({
 }));
 
 import { authMiddleware } from "../../../app/game/app";
-import { accountManager } from "@game/manager/AccountManager";
+import { accountManager } from "@game/service/manager/AccountManager";
 import httpContext from "express-http-context2";
 
 function mockReqRes(headers: any) {

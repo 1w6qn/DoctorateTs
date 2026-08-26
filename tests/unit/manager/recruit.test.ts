@@ -79,7 +79,7 @@ vi.mock("@utils/time", () => ({
 }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { RecruitManager } from "@game/manager/recruit";
+import { RecruitManager } from "@game/service/manager/recruit";
 
 describe("RecruitManager sync", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
@@ -155,7 +155,7 @@ describe("RecruitManager 核心方法", () => {
   });
 
   it("refreshTags 应刷新槽位标签", async () => {
-    const { RecruitTools } = await import("@game/manager/recruit");
+    const { RecruitTools } = await import("@game/service/manager/recruit");
     vi.spyOn(RecruitTools, "refreshTagList").mockResolvedValue([2, 4, 6, 8, 10] as any);
     const manager = new RecruitManager(mockPlayer as any, mockTrigger as any);
     await manager.refreshTags({ slotId: 0 });
@@ -163,7 +163,7 @@ describe("RecruitManager 核心方法", () => {
   });
 
   it("cancel 应重置槽位状态", async () => {
-    const { RecruitTools } = await import("@game/manager/recruit");
+    const { RecruitTools } = await import("@game/service/manager/recruit");
     vi.spyOn(RecruitTools, "refreshTagList").mockResolvedValue([9, 9, 9, 9, 9] as any);
     mockPlayer._playerdata.recruit!.normal.slots["0"] = {
       state: 2, tags: [], selectTags: [{ tagId: 1, pick: 1 }], startTs: 100, durationInSec: 32400, maxFinishTs: 200, realFinishTs: 200,
@@ -178,7 +178,7 @@ describe("RecruitManager 核心方法", () => {
   });
 
   it("normalGacha 应开始招募并消耗招募券", async () => {
-    const { RecruitTools } = await import("@game/manager/recruit");
+    const { RecruitTools } = await import("@game/service/manager/recruit");
     vi.spyOn(RecruitTools, "refreshTagList").mockResolvedValue([1, 2, 3, 4, 5] as any);
     const manager = new RecruitManager(mockPlayer as any, mockTrigger as any);
     const emitSpy = vi.spyOn(mockTrigger, "emit");
@@ -191,7 +191,7 @@ describe("RecruitManager 核心方法", () => {
   });
 
   it("finish 应结算招募并出干员", async () => {
-    const { RecruitTools } = await import("@game/manager/recruit");
+    const { RecruitTools } = await import("@game/service/manager/recruit");
     vi.spyOn(RecruitTools, "generateValidTags").mockResolvedValue(["char_001", [1]] as any);
     vi.spyOn(RecruitTools, "refreshTagList").mockResolvedValue([1, 2, 3, 4, 5] as any);
     const manager = new RecruitManager(mockPlayer as any, mockTrigger as any);
@@ -220,7 +220,7 @@ describe("RecruitManager 核心方法", () => {
 
 describe("RecruitTools 数据驱动公招逻辑（参考 ArkGachaService gacha_table.json）", () => {
   it("generateRecruitableData 不应因 tagList undefined 崩溃（修复 500）", async () => {
-    const { RecruitTools } = await import("@game/manager/recruit");
+    const { RecruitTools } = await import("@game/service/manager/recruit");
     // char_008 的 tagList 为 undefined——修复前 line 331 value.tagList.map 崩溃
     const [charsList, charData] = await RecruitTools.generateRecruitableData();
     expect(Object.keys(charData).length).toBeGreaterThan(0);
@@ -235,7 +235,7 @@ describe("RecruitTools 数据驱动公招逻辑（参考 ArkGachaService gacha_t
   });
 
   it("9 小时 + 高级资深干员(11) 必出 6 星（specialTagRarityTable 强制稀有度）", async () => {
-    const { RecruitTools } = await import("@game/manager/recruit");
+    const { RecruitTools } = await import("@game/service/manager/recruit");
     const [charId, filterTags] = await RecruitTools.generateValidTags(32400, [11, 1]);
     // selectedTags = [11]（randomSample 取前 1）；charRange=[5,5] → 只有 6 星匹配
     expect(charId).toBe("char_007");
@@ -244,7 +244,7 @@ describe("RecruitTools 数据驱动公招逻辑（参考 ArkGachaService gacha_t
   });
 
   it("3:50 短时招募稀有度范围由 recruitRarityTable[230] 决定（1-4 星）", async () => {
-    const { RecruitTools } = await import("@game/manager/recruit");
+    const { RecruitTools } = await import("@game/service/manager/recruit");
     const [charId] = await RecruitTools.generateValidTags(13800, [1, 2, 3]);
     // selectedTags = [1]；charRange=[0,3] → 结果干员稀有度索引 ≤ 3
     const charData = (await RecruitTools.generateRecruitableData())[1];
@@ -252,7 +252,7 @@ describe("RecruitTools 数据驱动公招逻辑（参考 ArkGachaService gacha_t
   });
 
   it("9 小时无特殊标签 → 基础范围 [2,4]（3-5 星）", async () => {
-    const { RecruitTools } = await import("@game/manager/recruit");
+    const { RecruitTools } = await import("@game/service/manager/recruit");
     const [charId] = await RecruitTools.generateValidTags(32400, [1]);
     const charData = (await RecruitTools.generateRecruitableData())[1];
     const r = charData[charId].rarity;

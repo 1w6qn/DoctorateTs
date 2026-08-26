@@ -411,7 +411,7 @@ function stageIdsByZone(zoneId: string, out: Set<string>): void {
  */
 export async function collectActivityLevelRefs(activityId: string): Promise<ActivityLevelRef[]> {
   // 1) 危机合约赛季（data/crisis/ccN.json / data/crisisV2/*.json 文件名直查）
-  const seasons = await (await import("./game/crisis-seasons")).listCrisisSeasons();
+  const seasons = await (await import("./game/service/shared/crisis-seasons")).listCrisisSeasons();
   if (seasons.v1.includes(activityId)) {
     return crisisSeasonLevelRefs(activityId, false);
   }

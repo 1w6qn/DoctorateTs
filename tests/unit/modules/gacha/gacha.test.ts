@@ -63,7 +63,7 @@ vi.mock("@excel/excel", () => ({
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 vi.mock("@excel/gacha_detail_table", () => ({}));
 
-vi.mock("@game/manager/AccountManager", () => ({
+vi.mock("@game/service/manager/AccountManager", () => ({
   accountManager: {
     getBeforeNonHitCnt: vi.fn().mockResolvedValue(0),
     saveBeforeNonHitCnt: vi.fn().mockResolvedValue(undefined),
@@ -71,9 +71,10 @@ vi.mock("@game/manager/AccountManager", () => ({
 }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../../helpers";
-import { GachaManager } from "@game/modules/gacha/logic";
-import { GachaType } from "@game/model/gacha";
-import { accountManager } from "@game/manager/AccountManager";
+import { GainItemPipeline } from "@game/service/manager/inventory-pipeline";
+import { GachaManager } from "@game/service/gacha/logic";
+import { GachaType } from "@game/domain/gacha";
+import { accountManager } from "@game/service/manager/AccountManager";
 import excelData from "@excel/excel";
 
 /** accountManager 模块 mock 的 saveBeforeNonHitCnt（vi.fn()，调用历史跨测试保留需手动 clear） */
@@ -94,6 +95,11 @@ describe("GachaManager 抽卡扣费 costs 构造", () => {
       } as any,
     });
     mockPlayer._trigger = mockTrigger;
+    // 统一物品管道（建议 4）：扣费走管道 use()，与 items:use 直发等价
+    (mockPlayer as any).gainItem = new GainItemPipeline(
+      mockPlayer as any,
+      mockTrigger as any,
+    );
     mockPlayer.update = vi
       .fn()
       .mockImplementation(

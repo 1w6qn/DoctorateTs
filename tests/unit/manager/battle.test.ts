@@ -95,7 +95,7 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-vi.mock("@game/manager/PlayerDataManager", () => ({
+vi.mock("@game/service/manager/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
@@ -121,7 +121,7 @@ vi.mock("@utils/crypt", () => ({
   }),
 }));
 
-vi.mock("@game/manager/AccountManager", () => {
+vi.mock("@game/service/manager/AccountManager", () => {
   const mockAccountConfigs: any = {
     "10000": {
       battle: {
@@ -182,7 +182,7 @@ vi.mock("@game/manager/AccountManager", () => {
 });
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { BattleManager } from "@game/manager/battle";
+import { BattleManager } from "@game/service/manager/battle";
 
 describe("BattleManager", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;
@@ -537,7 +537,7 @@ describe("BattleManager", () => {
         battleData: { isCheat: "0", completeTime: 100 },
       } as any);
 
-      const { accountManager } = await import("@game/manager/AccountManager");
+      const { accountManager } = await import("@game/service/manager/AccountManager");
       const calls = (accountManager.saveBattleRecord as any).mock.calls;
       const saved = calls[calls.length - 1][0];
       expect(saved.battleId).toBe(started.battleId);
@@ -870,7 +870,7 @@ describe("BattleManager", () => {
 
   describe("start 保存助战好友信息", () => {
     async function lastSavedBattleInfo() {
-      const { accountManager } = await import("@game/manager/AccountManager");
+      const { accountManager } = await import("@game/service/manager/AccountManager");
       const calls = vi.mocked(accountManager.saveBattleInfo).mock.calls;
       return calls[calls.length - 1][2];
     }

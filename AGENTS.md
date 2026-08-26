@@ -43,8 +43,8 @@ Game-data update (`scripts/update-data.ts`) 调用官方热更管线 `scripts/of
 
 ## Architecture
 
-- **Flow**: `routes.ts` → `modules/*/handler.ts`（路由薄壳）→ `modules/*/logic.ts`（业务 Manager，经 `player.modules.xxx` 访问）→ `PlayerDataManager`（via `httpContext`, key `playerData`）→ composed sub-managers。子模块统一在 `app/game/modules/` 下按「五文件约定」（handler/logic/trigger/models/schemas + index）组织；`controller/` 层已移除。Wiring lives in `PlayerDataManager` constructor via `player-composition.ts`; routes are declared in `app/game/routes.ts`（懒加载 `(await import(...)).default`）— **register new routes there**.
-- **Event-driven**: managers subscribe in constructors via `this._trigger.on(...)`. Event names/types are declared in `EventMap` in `app/game/model/events.ts` — extend it for new events.
+- **Flow**: `routes.ts` → `service/*/handler.ts`（路由薄壳）→ `service/*/logic.ts`（业务 Manager，经 `player.modules.xxx` 访问）→ `PlayerDataManager`（via `httpContext`, key `playerData`）→ composed sub-managers。`app/game/` 业务代码按 **DDD 分层**收敛为两目录：`domain/`（纯类型/事件契约/协议契约/纯函数规则引擎，零 IO、禁依赖 service）与 `service/`（应用服务 Manager/组合根/状态引擎/持久化/路由适配，按玩法模块分组）；顶层仅保留 5 个基础设施文件（app/routes/request-context/resp-schema/auth-strategy）。Wiring lives in `PlayerDataManager` constructor via `player-composition.ts`; routes are declared in `app/game/routes.ts`（懒加载 `(await import(...)).default`）— **register new routes there**. 活动路由按族拆包：`service/activity/<family>/router.ts`（聚合 `service/activity/index.ts` 导出 default + rootRouter），新增活动路由**新建族包**而非加进单文件。巨型 logic 拆分为分区函数模块：`service/<mod>/logic/<section>.ts`（函数首参 `mgr` 为管理器实例，类侧保留同名薄委派）、`mission/templates/`（任务模板注册表分组）；单文件超过 1500 行会被 `tests/unit/architecture/file-size-guard.test.ts` 拒绝。
+- **Event-driven**: managers subscribe in constructors via `this._trigger.on(...)`. Event names/types are declared in `EventMap` in `app/game/domain/events/index.ts`（契约）with runtime bus in `app/game/service/manager/events.ts` — extend `domain/events/` for new events.
 - **State changes**: all through `player.update(recipe)` (mutative two-phase `create(base,{enablePatches})` → `[draft, finish()]` in `PlayerStatus`) which records patches. mutative `enableAutoFreeze` is off — managers mutate arrays directly; do not re-enable freezing.
 - **Response contract**: `res.send(player.delta)`. The `delta` getter returns `{ playerDataDelta }`, **clears `_changes` and triggers `save`** (persists to `data/user/databases/{uid}.json`). Never read `player.delta` twice in one request.
 - **Single-account private server**: `app/game/app.ts` middleware forces any `secret` header to `"1"` → every request is uid=1.
@@ -54,7 +54,11 @@ Game-data update (`scripts/update-data.ts`) 调用官方热更管线 `scripts/of
 ## Conventions
 
 - Imports use aliases `@game/*`, `@excel/*`, `@utils/*`, `@capture/*` (统一抓包存储), `@logs/*` (统一日志服务). **Aliases are configured in both `tsconfig.json` and `vitest.config.ts`** — update both when adding one.
-- Logging: use `logger` from `@utils/logger` (`logger.info/debug/warn/error(tag, ...args)`). Never `console.*` in `app/`. Level is gated by `LOG_LEVEL` env (default `info`; `debug` shows battle drop traces). 实时日志订阅见 `subscribeLog`（统一日志服务 SSE 尾随的数据源）。
+- Logging: use `logger` from `@utils/logger` (`logger.info/debug/warn/error(tag, ...args)`). Never `console.*` in `app/`. Level is gated by `LOG_LEVEL` env (default `info`; `debug` shows battle drop traces). 实时日志订阅见 `subscribeLog`（统一日志服务 SSE 尾随的数据源）。高日志密度域用 `domainLogger(domain)` 工厂（固定域标签，见 design-spec §35.2）。
+- 物品增减统一经 `player.gainItem.setTarget(...).use()/handle()` 管道（inventory-pipeline.ts），不直发 `items:get/items:use` 事件（见 design-spec §35.3）。
+- 新增寻访池规则类型须显式适配 gacha 策略表（未知类型会报错，不再静默回退 NORMAL）；保底概率计算收敛在 `domain/gacha.ts#resolveGachaRank` 纯函数（见 design-spec §35.4）。
+- 基建新技能优先以 Buff 模板类声明（`domain/building/buffs/`，继承 BaseBuffTpl），value 与 buff-parse 引擎一致（见 design-spec §35.6）。
+- 新路由先落 contract：POST 路由必须经 `validateBody(zodSchema)`（守卫 tests/unit/architecture/schema-first-guard.test.ts 强制，multipart 端点豁免）。
 - JSDoc on all classes/methods (design-spec §3); private fields prefixed `_`.
 - Commit messages: conventional prefixes with Chinese descriptions, e.g. `feat(offline): 完全离线模式数据校验`.
 

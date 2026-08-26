@@ -84,7 +84,7 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-vi.mock("@game/manager/PlayerDataManager", () => ({
+vi.mock("@game/service/manager/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
@@ -98,7 +98,7 @@ vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { InventoryManager } from "@game/manager/inventory";
+import { InventoryManager } from "@game/service/manager/inventory";
 
 describe("InventoryManager", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;

@@ -79,7 +79,7 @@ const excelMock = vi.hoisted(() => ({
 }));
 vi.mock("@excel/excel", () => excelMock);
 
-vi.mock("@game/manager/PlayerDataManager", () => ({
+vi.mock("@game/service/manager/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
@@ -92,8 +92,8 @@ vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { BuildingManager } from "@game/modules/building/logic";
-import { accountManager } from "@game/manager/AccountManager";
+import { BuildingManager } from "@game/service/building/logic";
+import { accountManager } from "@game/service/manager/AccountManager";
 
 /**
  * BuildingManager 单元测试

@@ -10,8 +10,8 @@ import { appendFile, copyFile, mkdir, readFile, readdir, rm, stat, writeFile } f
 import * as path from "path";
 import excel from "@excel/excel";
 import { getRoomPhase } from "@excel/building_excel";
-import { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import { PlayerDataModel } from "@game/model/playerdata";
+import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
+import { PlayerDataModel } from "@game/domain/playerdata";
 import { adminGame } from "./game-gateway";
 import { runMigration } from "../../scripts/migrate-official";
 import { loadUsers } from "../../scripts/official-register";
@@ -36,7 +36,7 @@ import {
   autoBackfillAfterSwitch,
   BackfillTask,
 } from "../asset-backfill";
-import type { PayOrderRecord } from "@game/pay-store";
+import type { PayOrderRecord } from "@game/service/shared/pay-store";
 import {
   itemName,
   charName,
@@ -2692,7 +2692,7 @@ export class AdminService {
       const themes = JSON.parse(raw.slice(start + 1, end)) as object;
       // rogue_6 无相地图：构造模板等由黑流树海数据模块提供（并行 GRID_ZONE 同源）
       const { BLACKSTREAM_CONSTRUCTIONS, BLACKSTREAM_DISTANCE_RULES, BLACKSTREAM_COUNT_RULES, BLACKSTREAM_LAYER_TYPES } = await import(
-        "../game/modules/rlv2/modules/blackstream-data"
+        "@game/domain/rlv2/data/blackstream-data"
       );
       return {
         themes,

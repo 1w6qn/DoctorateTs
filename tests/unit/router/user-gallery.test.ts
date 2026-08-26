@@ -16,7 +16,7 @@ vi.mock("express-http-context2", () => ({
 }));
 vi.mock("@utils/time", () => ({ now: () => 1234567890 }));
 
-import { rootRouter } from "../../../app/game/router/user";
+import { rootRouter } from "../../../app/game/service/router/user";
 import httpContext from "express-http-context2";
 import { mockPlayerData } from "../../helpers";
 

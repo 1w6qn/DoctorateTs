@@ -6,7 +6,7 @@ const configMock = vi.hoisted(() => ({
 vi.mock("../../../app/config", () => configMock);
 
 // mock accountManager：提供 configs（login/register 用）+ 基础方法
-vi.mock("@game/manager/AccountManager", () => {
+vi.mock("@game/service/manager/AccountManager", () => {
   const configs: any = {
     "10000": {
       uid: "10000",
@@ -35,7 +35,7 @@ vi.mock("@utils/file", () => ({
 vi.mock("@utils/logger", () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 
 import authRouter from "../../../app/auth/auth";
-import { accountManager } from "@game/manager/AccountManager";
+import { accountManager } from "@game/service/manager/AccountManager";
 
 function mockRes() {
   const res: any = {

@@ -315,6 +315,34 @@ export const logger = {
 };
 
 /**
+ * 域日志工厂（建议 8：域日志规范落地）
+ *
+ * 为高日志密度域（building/rlv2/gacha 等）提供带固定域标签的便捷方法，
+ * 避免每个调用点重复手写域标签；标签与统一日志服务（subscribeLog）联动，
+ * Dashboard 可按域过滤。
+ *
+ * @example
+ * const log = domainLogger("GachaManager");
+ * log.warn("未知寻访规则类型", ruleType); // 等价 logger.warn("GachaManager", ...)
+ *
+ * @param domain - 域标签（建议使用类名/模块名，与现有 logger 首参约定一致）
+ * @returns 带域标签的 debug/info/warn/error 方法
+ */
+export function domainLogger(domain: string): {
+  debug: (...args: unknown[]) => void;
+  info: (...args: unknown[]) => void;
+  warn: (...args: unknown[]) => void;
+  error: (...args: unknown[]) => void;
+} {
+  return {
+    debug: (...args) => write("debug", domain, args),
+    info: (...args) => write("info", domain, args),
+    warn: (...args) => write("warn", domain, args),
+    error: (...args) => write("error", domain, args),
+  };
+}
+
+/**
  * 角色稀有度颜色映射
  *
  * 根据角色稀有度等级返回对应的颜色值，用于日志输出或 UI 显示。

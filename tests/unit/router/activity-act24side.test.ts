@@ -25,7 +25,7 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import httpContext from "express-http-context2";
-import activityRouter from "../../../app/game/router/activity";
+import activityRouter from "../../../app/game/service/activity";
 import { mockPlayerData } from "../../helpers";
 
 function mockRes() {

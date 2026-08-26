@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { SocialManager } from "../../../app/game/manager/social";
-import { accountManager } from "../../../app/game/manager/AccountManager";
+import { SocialManager } from "../../../app/game/service/manager/social";
+import { accountManager } from "../../../app/game/service/manager/AccountManager";
 import { mockPlayerData } from "../../helpers";
 
 describe("SocialManager 双向好友", () => {

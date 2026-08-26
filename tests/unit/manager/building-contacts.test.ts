@@ -31,7 +31,7 @@ vi.mock("@excel/excel", () => excelMock);
 const timeMock = vi.hoisted(() => ({ now: 1234567890 }));
 vi.mock("@utils/time", () => ({ now: () => timeMock.now }));
 
-vi.mock("@game/manager/PlayerDataManager", () => ({
+vi.mock("@game/service/manager/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
@@ -41,15 +41,15 @@ import {
   contactSpeedFactor,
   settleContactProgress,
   CONTACT_BASE_SECONDS,
-} from "@game/modules/building/hire-contacts";
+} from "@game/domain/building/hire-contacts";
 import {
   comfortClueBonus,
   charClueBonus,
   meetingSpeedMultiplier,
   MEETING_PHASE_EFFICIENCY,
-} from "@game/modules/building/clue-speed";
-import { BuildingManager } from "@game/modules/building/logic";
-import { RecruitManager, RecruitTools } from "@game/manager/recruit";
+} from "@game/domain/building/clue-speed";
+import { BuildingManager } from "@game/service/building/logic";
+import { RecruitManager, RecruitTools } from "@game/service/manager/recruit";
 
 function makePlayer(building: any, extra: any = {}) {
   const mockPlayer = mockPlayerData({

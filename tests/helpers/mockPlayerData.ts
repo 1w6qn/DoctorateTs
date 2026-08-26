@@ -1,5 +1,5 @@
-import type { PlayerDataManager } from "@game/manager/PlayerDataManager";
-import type { PlayerDataModel } from "@game/model/playerdata";
+import type { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
+import type { PlayerDataModel } from "@game/domain/playerdata";
 
 export interface MockPlayerDataManager {
   update: ReturnType<typeof vi.fn>;

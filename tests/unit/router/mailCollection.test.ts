@@ -13,7 +13,7 @@ vi.mock("@excel/excel", () => ({
   },
 }));
 
-import mailCollectionRouter from "../../../app/game/router/mailCollection";
+import mailCollectionRouter from "../../../app/game/service/router/mailCollection";
 
 function mockRes() {
   return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };

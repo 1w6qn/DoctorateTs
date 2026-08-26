@@ -19,7 +19,7 @@ vi.mock("@utils/crypt", () => ({
   }),
 }));
 
-vi.mock("@game/manager/AccountManager", () => ({
+vi.mock("@game/service/manager/AccountManager", () => ({
   accountManager: {
     getBattleInfo: vi.fn().mockResolvedValue({ stageId: "ro1_n_1_1" }),
   },
@@ -49,7 +49,7 @@ vi.mock("@excel/excel", () => ({
   },
 }));
 
-import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
 import { mockPlayerData } from "../../../helpers";
 
 function makePlayer() {

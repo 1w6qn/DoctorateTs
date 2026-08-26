@@ -4,7 +4,7 @@ vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
 }));
 
-import socialRouter from "../../../app/game/router/social";
+import socialRouter from "../../../app/game/service/router/social";
 import httpContext from "express-http-context2";
 
 function mockRes() {

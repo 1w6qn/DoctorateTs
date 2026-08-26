@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
 }));
-vi.mock("@game/manager/mail", () => ({
+vi.mock("@game/service/manager/mail", () => ({
   MailManager: vi.fn(),
   mailManager: {
     listMailbox: vi.fn().mockResolvedValue([{ mailId: 1 }]),
@@ -14,9 +14,9 @@ vi.mock("@game/manager/mail", () => ({
   },
 }));
 
-import mailRouter from "../../../app/game/router/mail";
+import mailRouter from "../../../app/game/service/router/mail";
 import httpContext from "express-http-context2";
-import { mailManager } from "@game/manager/mail";
+import { mailManager } from "@game/service/manager/mail";
 
 function mockRes() {
   return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };

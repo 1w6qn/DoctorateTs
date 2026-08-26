@@ -15,7 +15,7 @@ vi.mock("@utils/file", async (importOriginal) => {
   return { ...actual, readJson: vi.fn(actual.readJson) };
 });
 
-import { accountManager } from "../../../app/game/manager/AccountManager";
+import { accountManager } from "../../../app/game/service/manager/AccountManager";
 import config from "../../../app/config";
 import { readJson } from "@utils/file";
 import { readFileSync } from "fs";

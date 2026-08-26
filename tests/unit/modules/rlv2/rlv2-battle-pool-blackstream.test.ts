@@ -65,7 +65,7 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-import { PlayerDataManager } from "@game/manager/PlayerDataManager";
+import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
 import excel from "@excel/excel";
 import { mockPlayerData } from "../../../helpers";
 // eslint-disable-next-line @typescript-eslint/no-var-requires

@@ -55,11 +55,10 @@ DoctorateTs/
 │   ├── auth/               # 认证模块
 │   ├── config/             # 配置模块
 │   ├── excel/              # Excel 数据表管理
-│   ├── game/               # 游戏核心逻辑
-│   │   ├── modules/         # 功能模块（handler/logic/trigger/models/schemas 五文件约定）
-│   │   ├── manager/         # 管理器层（PlayerDataManager 组合根 + 通用子管理器）
-│   │   ├── model/           # 数据模型层
-│   │   └── router/          # 路由层（薄路由，其余路由已迁入 modules/*/handler）
+│   ├── game/               # 游戏核心逻辑（DDD 分层：domain 纯领域 + service 应用服务）
+│   │   ├── domain/          # 领域层：领域模型/事件契约/协议契约(contracts)/纯函数规则引擎（禁依赖 service）
+│   │   ├── service/         # 应用服务 + 基础设施：manager(组合根/状态引擎/子管理器)/玩法模块(按五文件约定)/activity(每活动一包)/router/shared/util
+│   │   └── (根文件)          # 基础设施例外：app.ts/routes.ts/request-context.ts/resp-schema.ts/auth-strategy.ts
 │   └── utils/              # 工具函数
 ├── data/                   # 数据文件
 │   ├── announce/           # 公告数据
@@ -83,10 +82,9 @@ DoctorateTs/
 | `app/auth/` | 用户认证逻辑，处理登录、Token验证等 | 单文件模块 |
 | `app/config/` | 应用配置，包括端口、环境变量等 | 按环境分离配置文件 |
 | `app/excel/` | Excel数据表管理，加载和提供游戏配置数据 | 每个数据表对应一个文件或类属性 |
-| `app/game/modules/` | 功能模块层：业务逻辑（logic/Manager）+ 路由薄壳（handler）+ 协议类型（models）+ zod 校验（schemas）+ 事件订阅（trigger） | 按功能模块划分，五文件约定 |
-| `app/game/manager/` | 管理器层，协调子系统的数据操作 | 每个子系统对应一个管理器 |
-| `app/game/model/` | 数据模型定义，包括玩家数据结构 | 按数据类型划分 |
-| `app/game/router/` | 路由定义，处理HTTP请求和响应 | 每个功能模块对应一个路由文件 |
+| `app/game/domain/` | 领域层：领域模型（playerdata/character/battle 等纯类型）、事件契约（events/）、协议契约（contracts/）、纯函数规则引擎（building 9 引擎、rlv2 theme-rules 等）、纯工具（util/） | 零 IO、禁依赖 service；允许依赖 @excel 只读数据表 |
+| `app/game/service/` | 应用服务 + 基础设施：manager（组合根/状态引擎/子管理器）、玩法模块（building/gacha/mission/rlv2/shop 五文件约定）、activity（每活动一族一包 `activity/<family>/router.ts`，多族共用辅助收敛 `activity/shared.ts`）、router（薄路由）、shared（pay-store/crisis-seasons）、util（IO 工具） | 按玩法模块分组；service → domain 单向依赖 |
+| `app/game/service/*/logic/` | 巨型 logic 的分区函数模块：`building/logic/<section>.ts`、`shop/logic/<section>.ts` 等，函数首参 mgr 为管理器实例，类侧保留同名薄委派；`mission/templates/` 为任务模板注册表分组；`rlv2/` 下 shop/bank/settle/grid-nav/game-init/event/battle-nav/reward/recruit-flow 为分区文件 | 单文件超 1500 行须继续下沉（`tests/unit/architecture/file-size-guard.test.ts` 守卫） |
 | `app/utils/` | 通用工具函数，包括文件操作、加密等 | 按功能划分工具模块 |
 | `data/excel/` | 游戏配置数据表，JSON格式 | 与Excel类属性一一对应 |
 | `data/user/` | 用户数据存储，包括玩家数据和配置 | 按用户ID划分文件 |
@@ -242,6 +240,27 @@ get delta() {
   return { playerDataDelta: delta };
 }
 ```
+
+#### 3.4.4 类内分区横幅（大类的公有/私有分区）
+
+超过 300 行的类（或拆分后的薄委派类）应在类体内用**横幅注释**划分方法区，
+对齐 OBS 的 `# ↑ 内部逻辑的公有方法 ↑ / # ↓ 内部逻辑的私有方法 ↓` 分区习惯：
+
+```typescript
+export class ExampleManager {
+  // ↓ 内部逻辑的公有方法 ↓
+  async publicApi() { /* ... */ }
+
+  // ↑ 内部逻辑的私有方法 ↑
+  // ↓ 内部逻辑的私有方法 ↓
+  private _helper() { /* ... */ }
+}
+```
+
+约定：
+- 私有成员一律 `_` 前缀（§3.1），**不使用** `private` 关键字的情况仅限分区函数模块
+  （`service/<mod>/logic/<section>.ts` 中被分区函数经 `mgr` 访问的成员，见 §2.2）；
+- 横幅注释仅用于成员**分组语义**，不得承载行为说明（行为说明进 JSDoc）。
 
 ### 3.5 导入导出规范
 
@@ -2259,3 +2278,33 @@ ARKDEX 状态层不依赖生物数值，但**客户端实际游玩**仍缺以下
 ### 34.3 测试
 activity-arkdex.test.ts 22 条全绿（+5：特质位掩码/栖息地分组/深层策略组/NPC 策略/野外模式）。
 全量 vitest 通过（基线环境失败除外）。
+
+## 35. 建议落地补充（2026-08-26）
+
+### 35.1 支付调试分支（建议 10）
+`config.pay.mode` 双模式即调试分支（对齐 OBS api_alipay_debug_trade）：
+- "fake"（默认）：createOrder 返回占位参数，confirmOrderAlipay/Wechat 直接标 paid，
+  私服免支付全流程可用；
+- "real"：真实支付渠道（config.pay.alipay/wechat 配置），异步回调 /pay/notify +
+  CLI `pay order <id> confirm` 手动确认。
+
+### 35.2 域日志（建议 8）
+`@utils/logger` 提供 `domainLogger(domain)` 工厂：固定域标签的 debug/info/warn/error，
+与统一日志服务（subscribeLog）联动；新代码建议使用，域标签用类名/模块名。
+
+### 35.3 统一物品管道（建议 4）
+`player.gainItem.setTarget(id, type, count, instId?).use()/.handle()`：
+物品增减统一入队执行（等价 items:use/items:get 直发），见 inventory-pipeline.ts。
+
+### 35.4 寻访策略显式化与保底纯函数（建议 5）
+`domain/gacha.ts#resolveGachaRank` 为保底稀有度解析纯函数（可注入随机源）；
+gachaRuleType 未知时显式报错（不再静默按 NORMAL 回退）。
+
+### 35.5 战斗后置流程清单（建议 6）
+`BattleManager.finish` 头部 JSDoc 为 10 步后置流程概要；关卡结算与胜利事件补发
+分别收敛到 `_settleStageState` / `_emitBattleWinEvents`。
+
+### 35.6 Buff 模板类体系（建议 3）
+`domain/building/buff-tpl.ts`（BaseBuffTpl）+ `buffs/` 模板注册表（control-global /
+room-speed / dorm-recovery / mood-cost）：声明式扩展点，value 与既有引擎一致
+（buff-parse.ts 纯解析，一致性由 buff-tpl.test.ts 全量差分守护）。

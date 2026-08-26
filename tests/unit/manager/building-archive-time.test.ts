@@ -91,13 +91,13 @@ vi.mock("@excel/excel", () => excelMock);
 const timeMock = vi.hoisted(() => ({ now: 1786589894 }));
 vi.mock("@utils/time", () => ({ now: () => timeMock.now }));
 
-vi.mock("@game/manager/PlayerDataManager", () => ({
+vi.mock("@game/service/manager/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { BuildingManager } from "@game/modules/building/logic";
+import { BuildingManager } from "@game/service/building/logic";
 
 /** 基于 2222 真实结构构造 building（裁剪到相关房间） */
 function archiveBuilding(): any {

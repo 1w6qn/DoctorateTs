@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// 策略模块经 @game/manager/AccountManager 访问 accountManager —— mock 以便隔离验证
-vi.mock("@game/manager/AccountManager", () => ({
+// 策略模块经 @game/service/manager/AccountManager 访问 accountManager —— mock 以便隔离验证
+vi.mock("@game/service/manager/AccountManager", () => ({
   accountManager: { getUidByToken: vi.fn(), registerUser: vi.fn() },
 }));
 
-import { accountManager } from "@game/manager/AccountManager";
+import { accountManager } from "@game/service/manager/AccountManager";
 import {
   SingleAccountStrategy,
   RealAccountStrategy,

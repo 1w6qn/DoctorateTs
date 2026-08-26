@@ -30,8 +30,8 @@ vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
 }));
 
-import { VoucherDataManager } from "../../../app/game/router/depot";
-import depotRouter from "../../../app/game/router/depot";
+import { VoucherDataManager } from "../../../app/game/service/router/depot";
+import depotRouter from "../../../app/game/service/router/depot";
 import httpContext from "express-http-context2";
 
 describe("VoucherDataManager", () => {

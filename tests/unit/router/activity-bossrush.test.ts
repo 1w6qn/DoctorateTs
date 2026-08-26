@@ -12,7 +12,7 @@ vi.mock("@utils/crypt", () => ({
   }),
 }));
 
-vi.mock("@game/manager/AccountManager", () => ({
+vi.mock("@game/service/manager/AccountManager", () => ({
   accountManager: {
     getBattleInfo: vi.fn().mockResolvedValue({ stageId: "act6bossrush_01" }),
   },
@@ -108,9 +108,9 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import httpContext from "express-http-context2";
-import activityRouter from "../../../app/game/router/activity";
+import activityRouter from "../../../app/game/service/activity";
 import { mockPlayerData } from "../../helpers";
-import { BossRushManager } from "../../../app/game/manager/activity/bossrush";
+import { BossRushManager } from "../../../app/game/service/activity/bossRush/bossrush";
 
 function mockRes() {
   return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };

@@ -64,16 +64,16 @@ vi.mock("@excel/excel", () => excelMock);
 const timeMock = vi.hoisted(() => ({ now: 1234567890 }));
 vi.mock("@utils/time", () => ({ now: () => timeMock.now }));
 
-vi.mock("@game/manager/PlayerDataManager", () => ({
+vi.mock("@game/service/manager/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import config from "../../../app/config";
-import { isFormulaUnlocked, isDiamondStrategyUnlocked } from "@game/modules/building/unlocks";
-import { getSpecCond, SPEC_ASSIST_BASE_BONUS } from "@game/modules/building/mastery";
-import { BuildingManager } from "@game/modules/building/logic";
+import { isFormulaUnlocked, isDiamondStrategyUnlocked } from "@game/domain/building/unlocks";
+import { getSpecCond, SPEC_ASSIST_BASE_BONUS } from "@game/domain/building/mastery";
+import { BuildingManager } from "@game/service/building/logic";
 
 function makePlayer(building: any, extra: any = {}) {
   const mockPlayer = mockPlayerData({

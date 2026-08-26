@@ -1,4 +1,4 @@
-import { EventBus, TypedEventEmitter } from "@game/model/events";
+import { EventBus, TypedEventEmitter } from "@game/service/manager/events";
 
 /**
  * 创建一个测试用的 EventBus 实例

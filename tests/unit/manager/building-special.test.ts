@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 /**
  * 基建特殊技能适配测试
  *
- * 覆盖 2026-08-19 增量（@game/modules/building/special.ts + buff.ts/building.ts 集成）：
+ * 覆盖 2026-08-19 增量（@game/service/building/special.ts + buff.ts/building.ts 集成）：
  * - 条件标签技能（<$cc.*>）：fraction（"每个X干员+Y%"按数量叠加）、
  *   token（"N台以上/与X一起"条件触发）——不再把 vup% 当无条件固定加成
  * - 数据源：gamedata_const.termDescriptionDict 术语 → 干员名单 → character_table charId
@@ -144,7 +144,7 @@ vi.mock("@excel/excel", () => excelMock);
 const timeMock = vi.hoisted(() => ({ now: 1234567890 }));
 vi.mock("@utils/time", () => ({ now: () => timeMock.now }));
 
-vi.mock("@game/manager/PlayerDataManager", () => ({
+vi.mock("@game/service/manager/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
@@ -156,17 +156,17 @@ import {
   charMatchesTerm,
   termCharIds,
   specialBuffValue,
-} from "@game/modules/building/special";
+} from "@game/domain/building/special";
 import {
   roomSpeedBonus,
   controlGlobalBonus,
-} from "@game/modules/building/buff";
-import { BuildingManager } from "@game/modules/building/logic";
+} from "@game/domain/building/buff";
+import { BuildingManager } from "@game/service/building/logic";
 
 /** 干员 buff 源便捷构造 */
 const src = (charId: string, level = 1, evolvePhase = 0) => ({ charId, level, evolvePhase });
 
-describe("特殊技能解析（@game/modules/building/special）", () => {
+describe("特殊技能解析（@game/service/building/special）", () => {
   it("parseConditionTerms 提取 <$cc.*> 条件标签（排除 <@cc.kw> 关键词）", () => {
     expect(parseConditionTerms("每个<$cc.tag.knight><@cc.kw>骑士</></>干员+<@cc.vup>7%</>")).toEqual(["cc.tag.knight"]);
     expect(parseConditionTerms("与<$cc.g.bs><@cc.kw>黑钢国际</></>干员")).toEqual(["cc.g.bs"]);

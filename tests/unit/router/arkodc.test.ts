@@ -53,7 +53,7 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import httpContext from "express-http-context2";
-import arkodcRouter, { finishArkOdcGuideStory } from "../../../app/game/router/arkodc";
+import arkodcRouter, { finishArkOdcGuideStory } from "../../../app/game/service/router/arkodc";
 import { mockPlayerData } from "../../helpers";
 
 function mockRes() {

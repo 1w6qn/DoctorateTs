@@ -9,11 +9,11 @@ const accountMock = vi.hoisted(() => ({
   getUidByToken: vi.fn(),
   getUserConfig: vi.fn(),
 }));
-vi.mock("../../../app/game/manager/AccountManager", () => ({
+vi.mock("../../../app/game/service/manager/AccountManager", () => ({
   accountManager: accountMock,
 }));
 
-import accountRouter from "../../../app/game/router/account";
+import accountRouter from "../../../app/game/service/router/account";
 import httpContext from "express-http-context2";
 
 function mockRes() {

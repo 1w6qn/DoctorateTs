@@ -4,8 +4,8 @@ import type {
   BattleLogger,
   BattleStats,
   CommonStartBattleRequest,
-} from '@game/model/battle';
-import type { PlayerSquad, SquadFriendData } from '@game/model/character';
+} from '@game/domain/battle';
+import type { PlayerSquad, SquadFriendData } from '@game/domain/character';
 
 describe('Battle 模型', () => {
   describe('BattleData', () => {

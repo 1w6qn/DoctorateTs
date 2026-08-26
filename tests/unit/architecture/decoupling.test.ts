@@ -111,8 +111,8 @@ describe("架构解耦守卫", () => {
   });
 
   it("PlayerDataManager 组合根须经 player-composition 工厂，不内联 new 子模块", () => {
-    const pdmFile = path.join(APP_ROOT, "game", "manager", "PlayerDataManager.ts");
-    const factoryFile = path.join(APP_ROOT, "game", "manager", "player-composition.ts");
+    const pdmFile = path.join(APP_ROOT, "game", "service", "manager", "PlayerDataManager.ts");
+    const factoryFile = path.join(APP_ROOT, "game", "service", "manager", "player-composition.ts");
     expect(fs.existsSync(factoryFile)).toBe(true);
     // 组合工厂必须存在且 PDM 引用它（子模块创建收敛到可覆写策略）
     expect(firstOffendingLine(pdmFile, /composePlayerChildModules/)).not.toBeNull();
@@ -126,8 +126,8 @@ describe("架构解耦守卫", () => {
   });
 
   it("rlv2 控制器组合须经 rlv2-composition 工厂，不内联 new 子模块", () => {
-    const rlv2File = path.join(APP_ROOT, "game", "modules", "rlv2", "logic.ts");
-    const factoryFile = path.join(APP_ROOT, "game", "modules", "rlv2", "rlv2-composition.ts");
+    const rlv2File = path.join(APP_ROOT, "game", "service", "rlv2", "logic.ts");
+    const factoryFile = path.join(APP_ROOT, "game", "service", "rlv2", "rlv2-composition.ts");
     expect(fs.existsSync(factoryFile)).toBe(true);
     // 组合工厂必须存在且 rlv2 控制器引用它
     expect(firstOffendingLine(rlv2File, /composeRlv2ChildModules/)).not.toBeNull();
@@ -140,8 +140,8 @@ describe("架构解耦守卫", () => {
   });
 
   it("rlv2 主题模块分发表须经 rlv2-module-composition，module.ts 不直连 modules/*", () => {
-    const moduleFile = path.join(APP_ROOT, "game", "modules", "rlv2", "module.ts");
-    const factoryFile = path.join(APP_ROOT, "game", "modules", "rlv2", "rlv2-module-composition.ts");
+    const moduleFile = path.join(APP_ROOT, "game", "service", "rlv2", "module.ts");
+    const factoryFile = path.join(APP_ROOT, "game", "service", "rlv2", "rlv2-module-composition.ts");
     expect(fs.existsSync(factoryFile)).toBe(true);
     // module.ts 应消费组合工厂，而不是直接 import 各主题模块实现
     expect(firstOffendingLine(moduleFile, /composeRlv2ThemeModules/)).not.toBeNull();
@@ -158,6 +158,54 @@ describe("架构解耦守卫", () => {
       const line = firstOffendingLine(file, /@game\/controller\/|game\/controller\//);
       if (line !== null) {
         offenders.push(`${path.relative(APP_ROOT, file)}:${line} 引用已移除的 controller 层（应指向 @game/modules/*）`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("旧 manager/modules 目录已移除：game 业务代码收敛为 domain + service 两目录", () => {
+    const managerDir = path.join(APP_ROOT, "game", "manager");
+    const modulesDir = path.join(APP_ROOT, "game", "modules");
+    expect(fs.existsSync(managerDir)).toBe(false);
+    expect(fs.existsSync(modulesDir)).toBe(false);
+    const gameDir = path.join(APP_ROOT, "game");
+    const offenders: string[] = [];
+    for (const file of collectFiles(gameDir, ".ts")) {
+      const line = firstOffendingLine(file, /@game\/manager\/|@game\/modules\/|game\/manager\//);
+      if (line !== null) {
+        offenders.push(`${path.relative(APP_ROOT, file)}:${line} 引用已移除的 manager/modules 层（应指向 @game/service/* 或 @game/domain/*）`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("domain 层不得依赖 service 层（domain → @game/service 非 type-only 引用计数为 0）", () => {
+    const domainDir = path.join(APP_ROOT, "game", "domain");
+    const offenders: string[] = [];
+    for (const file of collectFiles(domainDir, ".ts")) {
+      const lines = fs.readFileSync(file, "utf-8").split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        const l = lines[i];
+        if (l.trim().startsWith("import type")) continue; // type-only 无运行时依赖,放行
+        if (/from\s+["'](@game\/service|.*service\/)/.test(l)) {
+          offenders.push(`${path.relative(APP_ROOT, file)}:${i + 1} domain 依赖 service（应下沉到 domain 或改经 domain 契约）`);
+          break;
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("domain 层不得引用根基础设施（request-context/routes/app/resp-schema/auth-strategy）", () => {
+    const domainDir = path.join(APP_ROOT, "game", "domain");
+    const offenders: string[] = [];
+    for (const file of collectFiles(domainDir, ".ts")) {
+      const line = firstOffendingLine(
+        file,
+        /from\s+["'](@game\/request-context|@game\/routes|@game\/app|@game\/resp-schema|@game\/auth-strategy|.*request-context.*|.*\/routes["'])/,
+      );
+      if (line !== null) {
+        offenders.push(`${path.relative(APP_ROOT, file)}:${line} domain 引用根基础设施`);
       }
     }
     expect(offenders).toEqual([]);
@@ -183,7 +231,7 @@ describe("架构解耦守卫", () => {
     // admin 对 game 的「值」依赖边界：AccountManager/mail/maxout/model-gacha/crisis-seasons/pay-store/unlockActivity
     // 只能由 game-gateway.ts 聚合，其余 admin 文件不得直连；`import type` 不受限（无运行期耦合）。
     const gameValueModules =
-      /from\s+["'](@game\/manager\/AccountManager|@game\/manager\/mail|@game\/maxout|@game\/model\/gacha|@game\/crisis-seasons|@game\/pay-store|@game\/manager\/activity\/unlockActivity)/;
+      /from\s+["'](@game\/service\/manager\/AccountManager|@game\/service\/manager\/mail|@game\/domain\/util\/maxout|@game\/domain\/gacha|@game\/service\/shared\/crisis-seasons|@game\/service\/shared\/pay-store|@game\/service\/manager\/activity\/unlockActivity)/;
     const offenders: string[] = [];
     for (const file of collectFiles(adminDir, ".ts")) {
       if (path.basename(file) === "game-gateway.ts") continue;

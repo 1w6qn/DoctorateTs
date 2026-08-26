@@ -20,7 +20,7 @@ const accountMock = vi.hoisted(() => ({
     getUidByToken: vi.fn(),
   },
 }));
-vi.mock("@game/manager/AccountManager", () => accountMock);
+vi.mock("@game/service/manager/AccountManager", () => accountMock);
 
 /** 避免加载真实 excel 数据表（重量级磁盘 IO），仅满足路由 import 的依赖形状 */
 vi.mock("@excel/excel", () => ({
@@ -28,9 +28,9 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import { authMiddleware, gameErrorHandler } from "../../../app/game/app";
-import userRouter from "../../../app/game/router/user";
-import miscAlignmentRouter from "../../../app/game/router/misc-alignment";
-import auditRouter from "../../../app/game/router/audit";
+import userRouter from "../../../app/game/service/router/user";
+import miscAlignmentRouter from "../../../app/game/service/router/misc-alignment";
+import auditRouter from "../../../app/game/service/router/audit";
 
 /**
  * 创建可满足被测路由契约的 mock 玩家

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { GachaType } from '@game/model/gacha';
-import type { GachaResult } from '@game/model/gacha';
+import { GachaType } from '@game/domain/gacha';
+import type { GachaResult } from '@game/domain/gacha';
 import type { ItemBundle } from '@excel/character_table';
 
 describe('Gacha 模型', () => {

@@ -12,13 +12,13 @@
 import excel from "@excel/excel";
 import config from "../app/config";
 import { readJson } from "@utils/file";
-import { PlayerDataManager } from "../app/game/manager/PlayerDataManager";
+import { PlayerDataManager } from "../app/game/service/manager/PlayerDataManager";
 import {
   buildMaxedSkills,
   buildMaxedEquip,
-} from "../app/game/maxout";
+} from "../app/game/domain/util/maxout";
 
-export { buildMaxedSkills, buildMaxedEquip } from "../app/game/maxout";
+export { buildMaxedSkills, buildMaxedEquip } from "../app/game/domain/util/maxout";
 
 /**
  * 满配干员结构（满潜/满级/精二/满信赖/满技能）

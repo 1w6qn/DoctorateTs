@@ -20,7 +20,7 @@ import auth from "./app/auth/auth";
 import asset from "./app/asset";
 import game, { setup } from "./app/game/app";
 import bodyParser from "body-parser";
-import { accountManager } from "./app/game/manager/AccountManager";
+import { accountManager } from "./app/game/service/manager/AccountManager";
 
 /**
  * 应用启动入口函数
@@ -303,7 +303,7 @@ process.on("exit", (code) => {
       onDuelSettle: (uid: string) => {
         const player = accountManager.data[uid];
         if (!player) return;
-        void import("./app/game/manager/activity/arkhub").then(({ arkhubOnDuelSettle }) =>
+        void import("./app/game/service/activity/arkhub/arkhub").then(({ arkhubOnDuelSettle }) =>
           arkhubOnDuelSettle(player).catch((e: Error) =>
             logger.warn("index", `ARKDUEL 结算处理失败: ${e.message}`),
           ),
@@ -313,7 +313,7 @@ process.on("exit", (code) => {
       onDailySupplyClaimed: (uid: string) => {
         const player = accountManager.data[uid];
         if (!player) return;
-        void import("./app/game/manager/activity/arkhub").then(({ arkhubOnDailySupply }) =>
+        void import("./app/game/service/activity/arkhub/arkhub").then(({ arkhubOnDailySupply }) =>
           arkhubOnDailySupply(player).catch((e: Error) =>
             logger.warn("index", `每日物资处理失败: ${e.message}`),
           ),
@@ -326,7 +326,7 @@ process.on("exit", (code) => {
         if (!config.arkhub?.guideProgressive) return undefined; // 完成态（网关默认，零风险）
         const player = accountManager.data[uid];
         if (!player) return undefined;
-        return import("./app/game/manager/activity/arkhub").then(({ arkhubResolveGuideFlags }) =>
+        return import("./app/game/service/activity/arkhub/arkhub").then(({ arkhubResolveGuideFlags }) =>
           arkhubResolveGuideFlags(player, true),
         );
       },
@@ -334,7 +334,7 @@ process.on("exit", (code) => {
         if (!config.arkhub?.guideProgressive) return;
         const player = accountManager.data[uid];
         if (!player) return;
-        void import("./app/game/manager/activity/arkhub").then(({ arkhubAdvanceGuide }) =>
+        void import("./app/game/service/activity/arkhub/arkhub").then(({ arkhubAdvanceGuide }) =>
           arkhubAdvanceGuide(player, actorId).catch((e: Error) =>
             logger.warn("index", `引导推进处理失败: ${e.message}`),
           ),
@@ -379,7 +379,7 @@ process.on("exit", (code) => {
       onScanStart: (uid: string, areaId: number | string) => {
         const player = accountManager.data[uid];
         if (!player) return;
-        void import("./app/game/manager/activity/arkdex").then(({ arkhubStartEncounter }) =>
+        void import("./app/game/service/activity/arkhub/arkdex").then(({ arkhubStartEncounter }) =>
           arkhubStartEncounter(player, areaId).catch((e: Error) =>
             logger.warn("index", `草丛遭遇生成失败: ${e.message}`),
           ),
@@ -390,7 +390,7 @@ process.on("exit", (code) => {
       onScanSettle: (uid: string, capturedNumIds: number[]) => {
         const player = accountManager.data[uid];
         if (!player) return;
-        void import("./app/game/manager/activity/arkdex").then(({ arkhubEndScan }) =>
+        void import("./app/game/service/activity/arkhub/arkdex").then(({ arkhubEndScan }) =>
           arkhubEndScan(player, capturedNumIds).catch((e: Error) =>
             logger.warn("index", `草丛扫描结算失败: ${e.message}`),
           ),
@@ -401,7 +401,7 @@ process.on("exit", (code) => {
       onBuyProp: (uid: string, itemNumId: number, count: number) => {
         const player = accountManager.data[uid];
         if (!player) return;
-        void import("./app/game/manager/activity/arkdex").then(({ arkhubBuyProp }) =>
+        void import("./app/game/service/activity/arkhub/arkdex").then(({ arkhubBuyProp }) =>
           arkhubBuyProp(player, itemNumId, count).catch((e: Error) =>
             logger.warn("index", `巡展道具购买失败: ${e.message}`),
           ),

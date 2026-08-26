@@ -92,7 +92,7 @@ import {
   informantStartGame,
   informantUseInsight,
   resolveAct44Data,
-} from "../../../app/game/manager/activity/informant";
+} from "../../../app/game/service/activity/act44side/informant";
 
 /** 受控随机：pick 恒取首个、掷点恒成功、incomeRate 无抖动 */
 let randomSpy: ReturnType<typeof vi.spyOn>;

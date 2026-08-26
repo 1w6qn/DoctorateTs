@@ -4,7 +4,7 @@
  */
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { PlayerDataManager } from "../PlayerDataManager";
 import { parseMultipartForm } from "../activity/arkhub/arkpixel";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";

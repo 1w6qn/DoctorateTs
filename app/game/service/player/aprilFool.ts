@@ -1,5 +1,5 @@
-import { PlayerDataManager } from "./PlayerDataManager";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { PlayerDataManager } from "../PlayerDataManager";
+import { TypedEventEmitter } from "@game/service/events";
 import { decryptBattleData } from "@utils/crypt";
 
 export class AprilFoolManager {

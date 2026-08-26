@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
 import { randomUUID } from "node:crypto";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { PlayerDataManager } from "../PlayerDataManager";
 import { validateBody } from "../../domain/contracts/validate-body";
 import {
   unlockRetroBlockSchema,

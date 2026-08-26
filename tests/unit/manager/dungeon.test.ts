@@ -59,7 +59,7 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-vi.mock("@game/service/manager/PlayerDataManager", () => ({
+vi.mock("@game/service/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
@@ -71,7 +71,7 @@ vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { DungeonManager } from "@game/service/manager/dungeon";
+import { DungeonManager } from "@game/service/player/dungeon";
 
 /**
  * DungeonManager 单元测试

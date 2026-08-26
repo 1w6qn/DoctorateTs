@@ -63,7 +63,7 @@ vi.mock("@excel/excel", () => ({
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 vi.mock("@excel/gacha_detail_table", () => ({}));
 
-vi.mock("@game/service/manager/AccountManager", () => ({
+vi.mock("@game/service/player/AccountManager", () => ({
   accountManager: {
     getBeforeNonHitCnt: vi.fn().mockResolvedValue(0),
     saveBeforeNonHitCnt: vi.fn().mockResolvedValue(undefined),
@@ -71,10 +71,10 @@ vi.mock("@game/service/manager/AccountManager", () => ({
 }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../../helpers";
-import { GainItemPipeline } from "@game/service/manager/inventory-pipeline";
+import { GainItemPipeline } from "@game/service/player/inventory-pipeline";
 import { GachaManager } from "@game/service/gacha/logic";
 import { GachaType } from "@game/domain/gacha";
-import { accountManager } from "@game/service/manager/AccountManager";
+import { accountManager } from "@game/service/player/AccountManager";
 import excelData from "@excel/excel";
 
 /** accountManager 模块 mock 的 saveBeforeNonHitCnt（vi.fn()，调用历史跨测试保留需手动 clear） */

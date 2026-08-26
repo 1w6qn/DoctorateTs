@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { mockPlayerData } from "../../helpers";
 
 

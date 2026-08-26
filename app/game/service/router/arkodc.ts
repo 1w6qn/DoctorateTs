@@ -9,13 +9,13 @@
  */
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { PlayerDataManager } from "../PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
 import { decryptBattleData } from "@utils/crypt";
 import { now } from "@utils/time";
 import { PlayerDeltaResponse } from "../../domain/contracts/common";
-import { activityDictKey } from "../manager/activity/unlockActivity";
+import { activityDictKey } from "../player/unlockActivity";
 import { validateBody } from "../../domain/contracts/validate-body";
 import {
   arkOdcBattleFinishSchema,

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
 import { validateBody } from "../../domain/contracts/validate-body";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { PlayerDataManager } from "../PlayerDataManager";
 import {
   addonStageBattleFinishSchema,
   addonStageBattleStartSchema,

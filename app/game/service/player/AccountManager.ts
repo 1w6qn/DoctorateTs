@@ -6,18 +6,18 @@
  */
 
 import { PlayerDataModel } from "../../domain/playerdata";
-import { PlayerDataManager } from "./PlayerDataManager";
+import { PlayerDataManager } from "../PlayerDataManager";
 import {
   BattleInfo,
   BattleInfoStore,
   BattleRecord,
 } from "./BattleInfoStore";
-import { unlockActivity } from "./activity/unlockActivity";
+import { unlockActivity } from "./unlockActivity";
 import { readJson } from "@utils/file";
 import { now } from "@utils/time";
 import { writeFile, rename, rm } from "fs/promises";
 import { createHash } from "crypto";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { TypedEventEmitter } from "@game/service/events";
 import Emittery from "emittery";
 import { FriendRepository } from "../../../db/friend-repo";
 import { openDatabase } from "../../../db/database";

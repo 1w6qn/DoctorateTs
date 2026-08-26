@@ -5,7 +5,7 @@ import bodyParser from "body-parser";
 import httpContext from "express-http-context2";
 import { openDatabase, closeDatabase } from "../../app/db/database";
 import excel from "../../app/excel/excel";
-import { accountManager } from "../../app/game/service/manager/AccountManager";
+import { accountManager } from "../../app/game/service/player/AccountManager";
 import { authMiddleware, gameErrorHandler } from "../../app/game/app";
 import authRouter from "../../app/auth/auth";
 import userRouter from "../../app/game/service/router/user";

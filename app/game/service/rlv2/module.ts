@@ -3,7 +3,7 @@ import { RoguelikeV2Manager } from "./logic";
 import excel from "@excel/excel";
 import { composeRlv2ThemeModules } from "./rlv2-module-composition";
 import { toCamelCase } from "@utils/string";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { TypedEventEmitter } from "@game/service/events";
 
 export class RoguelikeModuleManager {
   _modules: { [key: string]: any };

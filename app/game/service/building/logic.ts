@@ -1,7 +1,7 @@
 ﻿import { PlayerCharacter } from "@game/domain/character";
 import { ItemBundle } from "@excel/character_table";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { PlayerDataManager } from "../PlayerDataManager";
+import { TypedEventEmitter } from "@game/service/events";
 import { Draft } from "mutative";
 import { PlayerDataModel } from "@game/domain/playerdata";
 import { registerBuildingTriggers } from "./trigger";

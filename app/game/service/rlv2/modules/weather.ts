@@ -7,7 +7,7 @@
  * 简化实现：按官服抓包对齐，进层后 weather 保持为空（不下发随机主/副天气）。
  */
 import { RoguelikeV2Manager } from "../logic";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { TypedEventEmitter } from "@game/service/events";
 
 export class RoguelikeWeatherManager {
   currentMain: string;

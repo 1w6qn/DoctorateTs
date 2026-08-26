@@ -7,7 +7,7 @@ import * as ReqSchema from "../../../domain/contracts/activity.schema";
 import { getPlayer, getPlayerOptional } from "../../../request-context";
 import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
-import { activityDictKey } from "../../manager/activity/unlockActivity";
+import { activityDictKey } from "../../player/unlockActivity";
 import {
   ActCheckinvsSignRequest,
   ActCheckinvsSignResponse,

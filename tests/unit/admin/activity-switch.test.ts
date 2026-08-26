@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { AdminService } from "../../../app/admin/AdminService";
-import { accountManager } from "../../../app/game/service/manager/AccountManager";
+import { accountManager } from "../../../app/game/service/player/AccountManager";
 import { readJsonSync, writeJson } from "@utils/file";
 import config from "../../../app/config";
 import { mockPlayerData } from "../../helpers";
@@ -41,7 +41,7 @@ vi.mock("@excel/excel", () => ({
   },
 }));
 
-vi.mock("@game/service/manager/PlayerDataManager", () => ({ PlayerDataManager: vi.fn() }));
+vi.mock("@game/service/PlayerDataManager", () => ({ PlayerDataManager: vi.fn() }));
 vi.mock("../../../app/admin/official-ops", () => ({ runGachaSync: vi.fn() }));
 vi.mock("fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs/promises")>();

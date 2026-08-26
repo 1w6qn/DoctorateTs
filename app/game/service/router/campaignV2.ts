@@ -12,7 +12,7 @@
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
 import { ItemBundle } from "@excel/character_table";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { PlayerDataManager } from "../PlayerDataManager";
 import {
   CampaignConfirmBreakRewardRequest,
   CampaignConfirmBreakRewardResponse,

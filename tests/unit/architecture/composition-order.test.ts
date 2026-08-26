@@ -26,7 +26,6 @@ describe("组合工厂构造顺序快照（事件订阅顺序）", () => {
       APP_ROOT,
       "game",
       "service",
-      "manager",
       "player-composition.ts",
     );
     expect(fs.existsSync(file)).toBe(true);

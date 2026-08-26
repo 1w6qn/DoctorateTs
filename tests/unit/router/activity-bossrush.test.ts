@@ -12,7 +12,7 @@ vi.mock("@utils/crypt", () => ({
   }),
 }));
 
-vi.mock("@game/service/manager/AccountManager", () => ({
+vi.mock("@game/service/player/AccountManager", () => ({
   accountManager: {
     getBattleInfo: vi.fn().mockResolvedValue({ stageId: "act6bossrush_01" }),
   },

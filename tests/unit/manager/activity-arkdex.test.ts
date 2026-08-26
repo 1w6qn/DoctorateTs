@@ -3,7 +3,7 @@
  * 道具购买（扣券/库存/每日重置）与使用、交换、保护区解锁。2026-08-17。
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { EventBus } from "@game/service/manager/events";
+import { EventBus } from "@game/service/events";
 import { mockPlayerData } from "../../helpers";
 import {
   ARKDEX_PROPS,

@@ -20,7 +20,7 @@ vi.mock("@utils/time", () => ({ now: () => 1234567890, checkBetween: () => true 
 vi.mock("moment", () => ({ default: () => ({ diff: () => 0 }) }));
 
 import { mockPlayerData } from "../../../helpers";
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { MissionManager } from "@game/service/mission/logic";
 
 describe("PlayerDataManager mission 挂载", () => {

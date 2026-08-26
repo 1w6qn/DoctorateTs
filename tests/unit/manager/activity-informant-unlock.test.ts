@@ -136,11 +136,11 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-vi.mock("@game/service/manager/PlayerDataManager", () => ({
+vi.mock("@game/service/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
-vi.mock("@game/service/manager/AccountManager", () => {
+vi.mock("@game/service/player/AccountManager", () => {
   const mockAccountConfigs: any = {
     "10000": {
       battle: {
@@ -193,10 +193,10 @@ vi.mock("@excel/stage_table", () => ({
 
 import config from "../../../app/config";
 import { mockPlayerData } from "../../helpers";
-import { BattleManager } from "@game/service/manager/battle";
-import { unlockActivity } from "@game/service/manager/activity/unlockActivity";
+import { BattleManager } from "@game/service/player/battle";
+import { unlockActivity } from "@game/service/player/unlockActivity";
 import { syncAct44SideEntry } from "@game/service/activity/act44side/informant";
-import { accountManager } from "@game/service/manager/AccountManager";
+import { accountManager } from "@game/service/player/AccountManager";
 
 /** 构造一个已解锁/已通关的关卡条目 */
 function stageEntry(state: number) {

@@ -9,7 +9,7 @@
  * 行为零变化契约：三种调用点的分支语义差异（锚点判定项、条件谓词、null 伪键处理、
  * noCostCnt 规则、mainStageProgress 推进）通过参数显式保留，见各参数说明。
  *
- * 本文件属 util 层：只允许依赖 excel 数据模块，禁止 import manager/*——
+ * 本文件属 util 层：只允许依赖 excel 数据模块，禁止 import player/*——
  * unlockActivity 与 battle 各自引用本文件即可，不引入 manager 间循环依赖。
  */
 import excel from "@excel/excel";

@@ -2,7 +2,7 @@ import excel from "@excel/excel";
 import { PlayerRoguelikeV2, RoguelikeItemBundle } from "../../domain/rlv2";
 import { RoguelikeV2Manager } from "./logic";
 import { now } from "@utils/time";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { TypedEventEmitter } from "@game/service/events";
 
 export class RoguelikeRelicManager {
   relics: { [key: string]: PlayerRoguelikeV2.CurrentData.Relic };

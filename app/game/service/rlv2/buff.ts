@@ -3,7 +3,7 @@ import excel from "@excel/excel";
 import { RoguelikeBuff, RoguelikeItemBundle } from "../../domain/rlv2";
 import { RoguelikeV2Manager } from "./logic";
 import { RoguelikePlayerStatusManager } from "./status";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { TypedEventEmitter } from "@game/service/events";
 
 export class RoguelikeBuffManager {
   _player: RoguelikeV2Manager;

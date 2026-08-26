@@ -36,7 +36,7 @@ const excelMock = vi.hoisted(() => ({
 
 vi.mock("@excel/excel", () => ({ default: excelMock }));
 
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { mockPlayerData } from "../../../helpers";
 
 const GLADE = 268435456;

@@ -5,7 +5,7 @@ vi.mock("@utils/crypt", () => ({
 }));
 vi.mock("@utils/time", () => ({ now: () => 1786434411 }));
 
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { mockPlayerData } from "../../../helpers";
 import excel from "@excel/excel";
 import * as fs from "node:fs";

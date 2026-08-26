@@ -40,7 +40,7 @@ const excelMock = vi.hoisted(() => ({
 vi.mock("@excel/excel", () => excelMock);
 const timeMock = vi.hoisted(() => ({ now: 1787000000 }));
 vi.mock("@utils/time", () => ({ now: () => timeMock.now, checkBetween: () => true, userTimestamp: () => timeMock.now }));
-vi.mock("@game/service/manager/PlayerDataManager", () => ({ PlayerDataManager: vi.fn() }));
+vi.mock("@game/service/PlayerDataManager", () => ({ PlayerDataManager: vi.fn() }));
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";

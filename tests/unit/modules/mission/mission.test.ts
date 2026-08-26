@@ -65,7 +65,7 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-vi.mock("@game/service/manager/PlayerDataManager", () => ({
+vi.mock("@game/service/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 

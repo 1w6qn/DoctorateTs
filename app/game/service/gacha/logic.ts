@@ -14,12 +14,12 @@ import {
 } from "@excel/gacha_detail_table";
 import { GachaPoolClientData } from "@excel/excel-types";
 import excel from "@excel/excel";
-import { accountManager } from "@game/service/manager/AccountManager";
+import { accountManager } from "@game/service/player/AccountManager";
 import { ItemBundle } from "@excel/character_table";
 import { randomChoice } from "@utils/random";
 import { domainLogger } from "@utils/logger";
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
+import { TypedEventEmitter } from "@game/service/events";
 
 /** 寻访域日志（域标签固定为 GachaManager，Dashboard 可按域过滤） */
 const log = domainLogger("GachaManager");

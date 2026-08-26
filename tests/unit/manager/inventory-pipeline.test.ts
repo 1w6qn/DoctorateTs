@@ -7,9 +7,9 @@
  * 3. 空队列 no-op。
  */
 import { describe, it, expect, vi } from "vitest";
-import { GainItemPipeline } from "@game/service/manager/inventory-pipeline";
-import type { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
-import type { TypedEventEmitter } from "@game/service/manager/events";
+import { GainItemPipeline } from "@game/service/player/inventory-pipeline";
+import type { PlayerDataManager } from "@game/service/PlayerDataManager";
+import type { TypedEventEmitter } from "@game/service/events";
 
 function makeEnv() {
   const emitted: { event: string; args: unknown[] }[] = [];

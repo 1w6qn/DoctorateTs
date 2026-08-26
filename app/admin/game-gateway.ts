@@ -10,9 +10,9 @@
  */
 import { buildMaxedSkills, buildMaxedEquip } from "@game/domain/util/maxout";
 import { GACHA_RULE_TYPE } from "@game/domain/gacha";
-import { accountManager } from "@game/service/manager/AccountManager";
-import { mailManager } from "@game/service/manager/mail";
-import { unlockActivity, forcedActivityIds } from "@game/service/manager/activity/unlockActivity";
+import { accountManager } from "@game/service/player/AccountManager";
+import { mailManager } from "@game/service/player/mail";
+import { unlockActivity, forcedActivityIds } from "@game/service/player/unlockActivity";
 import { listCrisisSeasons } from "@game/service/shared/crisis-seasons";
 import { loadOrders, markPaid } from "@game/service/shared/pay-store";
 

@@ -7,7 +7,7 @@
  * @param trigger - 类型化事件触发器
  * @param mgr - BuildingManager 实例（绑定订阅回调）
  */
-import type { TypedEventEmitter } from "@game/service/manager/events";
+import type { TypedEventEmitter } from "@game/service/events";
 import type { BuildingManager } from "./logic";
 import type { PlayerCharacter } from "@game/domain/character";
 

@@ -4,10 +4,10 @@ import { logger } from "@utils/logger";
 import { now } from "@utils/time";
 import { getFurnitureThemeId } from "@excel/building_excel";
 import { PlayerDataModel } from "../../domain/playerdata";
-import { PlayerDataManager } from "./PlayerDataManager";
+import { PlayerDataManager } from "../PlayerDataManager";
 import { Draft } from "mutative";
-import { TypedEventEmitter } from "@game/service/manager/events";
-import { activityDictKey } from "./activity/unlockActivity";
+import { TypedEventEmitter } from "@game/service/events";
+import { activityDictKey } from "./unlockActivity";
 
 /** TYPE_ACT53SIDE 活动币映射（coinItemId → actId，惰性构建；奇象巡展等事件共用） */
 let _act53CoinMap: Map<string, string> | null = null;

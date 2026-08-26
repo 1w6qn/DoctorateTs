@@ -114,7 +114,7 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-vi.mock("@game/service/manager/PlayerDataManager", () => ({
+vi.mock("@game/service/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
@@ -126,7 +126,7 @@ vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { RetroManager } from "@game/service/manager/retro";
+import { RetroManager } from "@game/service/player/retro";
 
 /**
  * RetroManager 单元测试

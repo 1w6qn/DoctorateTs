@@ -11,7 +11,7 @@
  * 「构造哪些、顺序如何」已从业务类剥离为可覆写策略。
  */
 import type { RoguelikeV2Manager } from "./logic";
-import type { TypedEventEmitter } from "@game/service/manager/events";
+import type { TypedEventEmitter } from "@game/service/events";
 import { RoguelikeTroopManager } from "./troop";
 import { RoguelikePlayerStatusManager } from "./status";
 import { RoguelikeInventoryManager } from "./inventory";

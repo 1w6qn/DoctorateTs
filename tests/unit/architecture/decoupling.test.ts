@@ -111,8 +111,8 @@ describe("架构解耦守卫", () => {
   });
 
   it("PlayerDataManager 组合根须经 player-composition 工厂，不内联 new 子模块", () => {
-    const pdmFile = path.join(APP_ROOT, "game", "service", "manager", "PlayerDataManager.ts");
-    const factoryFile = path.join(APP_ROOT, "game", "service", "manager", "player-composition.ts");
+    const pdmFile = path.join(APP_ROOT, "game", "service", "PlayerDataManager.ts");
+    const factoryFile = path.join(APP_ROOT, "game", "service", "player-composition.ts");
     expect(fs.existsSync(factoryFile)).toBe(true);
     // 组合工厂必须存在且 PDM 引用它（子模块创建收敛到可覆写策略）
     expect(firstOffendingLine(pdmFile, /composePlayerChildModules/)).not.toBeNull();
@@ -163,7 +163,7 @@ describe("架构解耦守卫", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("旧 manager/modules 目录已移除：game 业务代码收敛为 domain + service 两目录", () => {
+  it("旧 player/modules 目录已移除：game 业务代码收敛为 domain + service 两目录", () => {
     const managerDir = path.join(APP_ROOT, "game", "manager");
     const modulesDir = path.join(APP_ROOT, "game", "modules");
     expect(fs.existsSync(managerDir)).toBe(false);
@@ -173,7 +173,7 @@ describe("架构解耦守卫", () => {
     for (const file of collectFiles(gameDir, ".ts")) {
       const line = firstOffendingLine(file, /@game\/manager\/|@game\/modules\/|game\/manager\//);
       if (line !== null) {
-        offenders.push(`${path.relative(APP_ROOT, file)}:${line} 引用已移除的 manager/modules 层（应指向 @game/service/* 或 @game/domain/*）`);
+        offenders.push(`${path.relative(APP_ROOT, file)}:${line} 引用已移除的 player/modules 层（应指向 @game/service/* 或 @game/domain/*）`);
       }
     }
     expect(offenders).toEqual([]);

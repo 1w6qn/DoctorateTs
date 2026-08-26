@@ -58,7 +58,7 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-vi.mock("@game/service/manager/PlayerDataManager", () => ({
+vi.mock("@game/service/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
@@ -75,7 +75,7 @@ vi.mock("moment", () => ({
 }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { MedalManager, MedalProgress } from "@game/service/manager/medal";
+import { MedalManager, MedalProgress } from "@game/service/player/medal";
 
 describe("MedalManager", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;

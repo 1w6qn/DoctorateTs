@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
-import { accountManager } from "../manager/AccountManager";
+import { PlayerDataManager } from "../PlayerDataManager";
+import { accountManager } from "../player/AccountManager";
 import { userTimestamp } from "@utils/time";
 import config from "../../../config";
 import {

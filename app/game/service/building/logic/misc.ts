@@ -10,7 +10,7 @@ import { now } from "@utils/time";
 import { logger } from "@utils/logger";
 import { Draft } from "mutative";
 import { PlayerDataModel } from "@game/domain/playerdata";
-import { accountManager } from "../../manager/AccountManager";
+import { accountManager } from "../../player/AccountManager";
 
   /**
    * 切换基建背景音乐

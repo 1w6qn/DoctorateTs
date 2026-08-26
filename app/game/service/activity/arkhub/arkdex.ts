@@ -13,7 +13,7 @@
  * - 道具价格逆向自官服 ARKDUEL 商店价格表（design-spec §28）；未在价格表的道具价格按同类推断并标注
  * - 六维换算为攻略明文（进攻×20≈攻击、守备×2≈防御、耐久×100≈HP、法抗×0.5、攻速=间隔倒数×10）
  */
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";

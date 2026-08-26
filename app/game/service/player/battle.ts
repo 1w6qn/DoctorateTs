@@ -4,8 +4,8 @@ import excel from "@excel/excel";
 import { decryptBattleData } from "@utils/crypt";
 import { now } from "@utils/time";
 import { CommonStartBattleRequest } from "@game/domain/battle";
-import { TypedEventEmitter } from "@game/service/manager/events";
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
+import { TypedEventEmitter } from "@game/service/events";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 import { DisplayDetailRewards } from "@excel/stage_table";
 import { syncAct44SideEntry } from "../activity/act44side/informant";
@@ -17,7 +17,7 @@ import {
   defaultStageState,
   scanUnlockChain,
 } from "@game/domain/util/stage-unlock";
-import type { BattleRecord } from "@game/service/manager/BattleInfoStore";
+import type { BattleRecord } from "@game/service/player/BattleInfoStore";
 
 /** excel 关卡表镜像类型（来自 types_excel_gen，与 excel.StageTable.stages 值一致） */
 type ExcelStage = (typeof excel.StageTable.stages)[string];

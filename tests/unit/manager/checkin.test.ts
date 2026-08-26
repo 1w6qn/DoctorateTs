@@ -45,7 +45,7 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-vi.mock("@game/service/manager/PlayerDataManager", () => ({
+vi.mock("@game/service/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
@@ -60,7 +60,7 @@ vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { CheckInManager } from "@game/service/manager/checkin";
+import { CheckInManager } from "@game/service/player/checkin";
 
 /**
  * CheckInManager 单元测试

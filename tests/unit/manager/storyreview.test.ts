@@ -76,7 +76,7 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-vi.mock("@game/service/manager/PlayerDataManager", () => ({
+vi.mock("@game/service/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
@@ -89,7 +89,7 @@ vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { StoryreviewManager } from "@game/service/manager/storyreview";
+import { StoryreviewManager } from "@game/service/player/storyreview";
 
 /**
  * StoryreviewManager 单元测试

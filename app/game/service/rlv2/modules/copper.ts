@@ -11,7 +11,7 @@
 import { RoguelikeV2Manager } from "../logic";
 import excel from "@excel/excel";
 import { now } from "@utils/time";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { TypedEventEmitter } from "@game/service/events";
 
 export interface CopperItem {
   id: string;

@@ -6,24 +6,24 @@
  * 本类退化为组合根：持有子管理器、事件总线与序列化入口，并委托状态操作。
  */
 
-import { PlayerDataModel } from "../../domain/playerdata";
-import { InventoryManager } from "./inventory";
-import { GainItemPipeline } from "./inventory-pipeline";
-import { TroopManager } from "./troop";
-import { DungeonManager } from "./dungeon";
-import { HomeManager } from "./home";
-import { StatusManager } from "./status";
-import { CheckInManager } from "./checkin";
-import { StoryreviewManager } from "./storyreview";
+import { PlayerDataModel } from "../domain/playerdata";
+import { InventoryManager } from "./player/inventory";
+import { GainItemPipeline } from "./player/inventory-pipeline";
+import { TroopManager } from "./player/troop";
+import { DungeonManager } from "./player/dungeon";
+import { HomeManager } from "./player/home";
+import { StatusManager } from "./player/status";
+import { CheckInManager } from "./player/checkin";
+import { StoryreviewManager } from "./player/storyreview";
 import { MissionManager } from "@game/service/mission/logic";
 import { ShopManager } from "@game/service/shop/logic";
-import { RecruitManager } from "./recruit";
-import { RoguelikeV2Manager } from "../rlv2/logic";
-import { BattleManager } from "./battle";
+import { RecruitManager } from "./player/recruit";
+import { RoguelikeV2Manager } from "./rlv2/logic";
+import { BattleManager } from "./player/battle";
 import { GachaManager } from "@game/service/gacha/logic";
-import { SocialManager } from "./social";
-import { DexNavManager } from "./dexnav";
-import { MedalManager } from "./medal";
+import { SocialManager } from "./player/social";
+import { DexNavManager } from "./player/dexnav";
+import { MedalManager } from "./player/medal";
 import { BuildingManager } from "@game/service/building/logic";
 import { FriendDataWithNameCard, FriendMedalBoard } from "@game/domain/social";
 import { OpenServerManager } from "@game/service/activity/checkin/openServer";
@@ -36,16 +36,16 @@ import {
   BattleInfo,
   BattleInfoStore,
   BattleRecord,
-} from "./BattleInfoStore";
+} from "./player/BattleInfoStore";
 import { PlayerDataDelta, RoguelikePushMessage } from "@game/domain/contracts/common";
 import { Draft } from "mutative";
 import { logger } from "@utils/logger";
-import { TypedEventEmitter } from "@game/service/manager/events";
-import { CharRotationManager } from "@game/service/manager/charRotation";
-import { RetroManager } from "@game/service/manager/retro";
-import { CharManager } from "@game/service/manager/char";
-import { EquipmentMissionManager } from "@game/service/manager/equipmentMission";
-import { AprilFoolManager } from "@game/service/manager/aprilFool";
+import { TypedEventEmitter } from "@game/service/events";
+import { CharRotationManager } from "@game/service/player/charRotation";
+import { RetroManager } from "@game/service/player/retro";
+import { CharManager } from "@game/service/player/char";
+import { EquipmentMissionManager } from "@game/service/player/equipmentMission";
+import { AprilFoolManager } from "@game/service/player/aprilFool";
 import { BossRushManager } from "@game/service/activity/bossRush/bossrush";
 
 export class PlayerDataManager {

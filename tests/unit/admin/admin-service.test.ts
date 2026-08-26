@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { AdminService } from "../../../app/admin/AdminService";
-import { accountManager } from "../../../app/game/service/manager/AccountManager";
-import { mailManager } from "../../../app/game/service/manager/mail";
+import { accountManager } from "../../../app/game/service/player/AccountManager";
+import { mailManager } from "../../../app/game/service/player/mail";
 import { mockPlayerData } from "../../helpers";
 import config from "../../../app/config";
 import { appendFile, mkdir } from "fs/promises";

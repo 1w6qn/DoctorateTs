@@ -3,7 +3,7 @@ import { readFileSync } from "fs";
 import { RoguelikeItemBundle } from "../../domain/rlv2";
 import { RoguelikeV2Manager } from "./logic";
 import { randomChoice } from "@utils/random";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { TypedEventEmitter } from "@game/service/events";
 import { logger } from "@utils/logger";
 
 /**

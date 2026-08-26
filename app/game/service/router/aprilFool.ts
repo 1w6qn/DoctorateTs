@@ -1,5 +1,5 @@
 import { getPlayer, getPlayerOptional } from "../../request-context";
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { Router } from "express";
 import { decryptBattleData } from "@utils/crypt";
 import {

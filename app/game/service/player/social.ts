@@ -1,8 +1,8 @@
 import { PlayerFriendAssist } from "@game/domain/playerdata";
 import { accountManager } from "./AccountManager";
 import { pickKeys, pickLoose } from "@utils/object";
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
+import { TypedEventEmitter } from "@game/service/events";
 import excel from "@excel/excel";
 import { NameCardMedalType, PlayerNameCardMisc } from "@game/domain/playerdata";
 

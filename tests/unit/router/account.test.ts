@@ -9,7 +9,7 @@ const accountMock = vi.hoisted(() => ({
   getUidByToken: vi.fn(),
   getUserConfig: vi.fn(),
 }));
-vi.mock("../../../app/game/service/manager/AccountManager", () => ({
+vi.mock("../../../app/game/service/player/AccountManager", () => ({
   accountManager: accountMock,
 }));
 

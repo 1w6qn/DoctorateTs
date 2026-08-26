@@ -57,7 +57,7 @@ DoctorateTs/
 │   ├── excel/              # Excel 数据表管理
 │   ├── game/               # 游戏核心逻辑（DDD 分层：domain 纯领域 + service 应用服务）
 │   │   ├── domain/          # 领域层：领域模型/事件契约/协议契约(contracts)/纯函数规则引擎（禁依赖 service）
-│   │   ├── service/         # 应用服务 + 基础设施：manager(组合根/状态引擎/子管理器)/玩法模块(按五文件约定)/activity(每活动一包)/router/shared/util
+│   │   ├── service/         # 应用服务 + 基础设施：组合根与玩家子模块(PlayerDataManager 等位于根、player/ 存放玩家子模块)/玩法模块(按五文件约定)/activity(每活动一包)/router/shared/util
 │   │   └── (根文件)          # 基础设施例外：app.ts/routes.ts/request-context.ts/resp-schema.ts/auth-strategy.ts
 │   └── utils/              # 工具函数
 ├── data/                   # 数据文件
@@ -83,7 +83,7 @@ DoctorateTs/
 | `app/config/` | 应用配置，包括端口、环境变量等 | 按环境分离配置文件 |
 | `app/excel/` | Excel数据表管理，加载和提供游戏配置数据 | 每个数据表对应一个文件或类属性 |
 | `app/game/domain/` | 领域层：领域模型（playerdata/character/battle 等纯类型）、事件契约（events/）、协议契约（contracts/）、纯函数规则引擎（building 9 引擎、rlv2 theme-rules 等）、纯工具（util/） | 零 IO、禁依赖 service；允许依赖 @excel 只读数据表 |
-| `app/game/service/` | 应用服务 + 基础设施：manager（组合根/状态引擎/子管理器）、玩法模块（building/gacha/mission/rlv2/shop 五文件约定）、activity（每活动一族一包 `activity/<family>/router.ts`，多族共用辅助收敛 `activity/shared.ts`）、router（薄路由）、shared（pay-store/crisis-seasons）、util（IO 工具） | 按玩法模块分组；service → domain 单向依赖 |
+| `app/game/service/` | 应用服务 + 基础设施：组合根（PlayerDataManager/PlayerStatus/player-composition/events 位于 service 根）、玩家子模块（`player/`：status/inventory/troop/battle/char/medal/social/AccountManager 等）、玩法模块（building/gacha/mission/rlv2/shop 五文件约定）、activity（每活动一族一包 `activity/<family>/router.ts`，多族共用辅助收敛 `activity/shared.ts`）、router（薄路由）、shared（pay-store/crisis-seasons）、util（IO 工具） | 按玩法模块分组；service → domain 单向依赖；**不设 manager 目录**（子模块归 player/，组合根归 service 根） |
 | `app/game/service/*/logic/` | 巨型 logic 的分区函数模块：`building/logic/<section>.ts`、`shop/logic/<section>.ts` 等，函数首参 mgr 为管理器实例，类侧保留同名薄委派；`mission/templates/` 为任务模板注册表分组；`rlv2/` 下 shop/bank/settle/grid-nav/game-init/event/battle-nav/reward/recruit-flow 为分区文件 | 单文件超 1500 行须继续下沉（`tests/unit/architecture/file-size-guard.test.ts` 守卫） |
 | `app/utils/` | 通用工具函数，包括文件操作、加密等 | 按功能划分工具模块 |
 | `data/excel/` | 游戏配置数据表，JSON格式 | 与Excel类属性一一对应 |

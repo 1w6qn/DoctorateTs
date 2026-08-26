@@ -2,7 +2,7 @@ import { PlayerRoguelikeV2 } from "@game/domain/rlv2";
 import { RoguelikeV2Manager } from "../logic";
 import excel from "@excel/excel";
 import { randomChoice } from "@utils/random";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { TypedEventEmitter } from "@game/service/events";
 
 export class RoguelikeNodeUpgradeManager {
   _nodeTypeInfoMap: {

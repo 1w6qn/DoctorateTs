@@ -75,7 +75,7 @@ export function checkNew(
 /**
  * 本地时区紧凑日期 YYYYMMDD（缺省当前时间）
  *
- * 收敛此前手写 padStart 句式 ×6（logger/log-service/capture-manager/shop/AdminService）：
+ * 收敛此前手写 padStart 句式 ×6（logger/log-service/capture-player/shop/AdminService）：
  * 日志文件名后缀、抓包默认会话名、信用商店周期 id、备份文件名日期段等。
  *
  * @param d - Date 对象，缺省 new Date()

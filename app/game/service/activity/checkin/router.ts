@@ -9,7 +9,7 @@ import { getPlayer, getPlayerOptional } from "../../../request-context";
 import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
 import { now } from "@utils/time";
-import { activityDictKey } from "../../manager/activity/unlockActivity";
+import { activityDictKey } from "../../player/unlockActivity";
 import {
   ActCheckinvsSignRequest,
   ActCheckinvsSignResponse,

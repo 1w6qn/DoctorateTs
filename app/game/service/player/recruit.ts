@@ -7,8 +7,8 @@ import {
   randomSample,
 } from "@utils/random";
 import { now } from "@utils/time";
-import { PlayerDataManager } from "./PlayerDataManager";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { PlayerDataManager } from "../PlayerDataManager";
+import { TypedEventEmitter } from "@game/service/events";
 import { rarityToIndex } from "@utils/rarity";
 
 export class RecruitManager {

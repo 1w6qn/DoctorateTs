@@ -6,7 +6,7 @@
  */
 
 import { ItemBundle } from "@excel/character_table";
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { readJsonSync } from "@utils/file";
 import {
   ChooseGPItem,
@@ -25,7 +25,7 @@ import {
   SocialShopData,
 } from "@excel/shop";
 import excel from "@excel/excel";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { TypedEventEmitter } from "@game/service/events";
 import { registerShopTriggers } from "./trigger";
 
 /**

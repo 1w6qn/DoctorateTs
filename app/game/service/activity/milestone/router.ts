@@ -9,7 +9,7 @@ import { getPlayer, getPlayerOptional } from "../../../request-context";
 import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
-import { activityDictKey } from "../../manager/activity/unlockActivity";
+import { activityDictKey } from "../../player/unlockActivity";
 import { recordPurchase } from "../../../domain/util/purchase-record";
 import {
   informantNextState,

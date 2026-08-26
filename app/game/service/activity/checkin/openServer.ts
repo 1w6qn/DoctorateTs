@@ -1,10 +1,10 @@
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 import { checkBetween, now } from "@utils/time";
-import { PlayerDataManager } from "../../manager/PlayerDataManager";
+import { PlayerDataManager } from "../../PlayerDataManager";
 import moment from "moment";
 import { OpenServerItemData } from "@excel/open_server_table";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { TypedEventEmitter } from "@game/service/events";
 
 export class OpenServerManager {
   _player: PlayerDataManager;

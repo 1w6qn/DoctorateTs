@@ -12,31 +12,31 @@
  * 构造顺序即事件订阅顺序，必须与迁移前完全一致，以保证事件派发顺序不变。
  */
 import type { PlayerDataManager } from "./PlayerDataManager";
-import type { TypedEventEmitter } from "@game/service/manager/events";
+import type { TypedEventEmitter } from "@game/service/events";
 
-import { StatusManager } from "./status";
-import { InventoryManager } from "./inventory";
-import { TroopManager } from "./troop";
-import { DungeonManager } from "./dungeon";
-import { HomeManager } from "./home";
-import { CharRotationManager } from "./charRotation";
-import { CheckInManager } from "./checkin";
-import { StoryreviewManager } from "./storyreview";
+import { StatusManager } from "./player/status";
+import { InventoryManager } from "./player/inventory";
+import { TroopManager } from "./player/troop";
+import { DungeonManager } from "./player/dungeon";
+import { HomeManager } from "./player/home";
+import { CharRotationManager } from "./player/charRotation";
+import { CheckInManager } from "./player/checkin";
+import { StoryreviewManager } from "./player/storyreview";
 import { MissionManager } from "@game/service/mission/logic";
 import { ShopManager } from "@game/service/shop/logic";
-import { BattleManager } from "./battle";
-import { RecruitManager } from "./recruit";
+import { BattleManager } from "./player/battle";
+import { RecruitManager } from "./player/recruit";
 import { RoguelikeV2Manager } from "@game/service/rlv2/logic";
-import { SocialManager } from "./social";
+import { SocialManager } from "./player/social";
 import { GachaManager } from "@game/service/gacha/logic";
-import { DexNavManager } from "./dexnav";
+import { DexNavManager } from "./player/dexnav";
 import { BuildingManager } from "@game/service/building/logic";
 import { OpenServerManager } from "@game/service/activity/checkin/openServer";
-import { RetroManager } from "@game/service/manager/retro";
-import { CharManager } from "@game/service/manager/char";
-import { EquipmentMissionManager } from "@game/service/manager/equipmentMission";
-import { MedalManager } from "@game/service/manager/medal";
-import { AprilFoolManager } from "@game/service/manager/aprilFool";
+import { RetroManager } from "@game/service/player/retro";
+import { CharManager } from "@game/service/player/char";
+import { EquipmentMissionManager } from "@game/service/player/equipmentMission";
+import { MedalManager } from "@game/service/player/medal";
+import { AprilFoolManager } from "@game/service/player/aprilFool";
 import { BossRushManager } from "@game/service/activity/bossRush/bossrush";
 
 /**

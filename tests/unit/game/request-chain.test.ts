@@ -20,7 +20,7 @@ const accountMock = vi.hoisted(() => ({
     getUidByToken: vi.fn(),
   },
 }));
-vi.mock("@game/service/manager/AccountManager", () => accountMock);
+vi.mock("@game/service/player/AccountManager", () => accountMock);
 
 /** 避免加载真实 excel 数据表（重量级磁盘 IO），仅满足路由 import 的依赖形状 */
 vi.mock("@excel/excel", () => ({

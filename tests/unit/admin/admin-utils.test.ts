@@ -4,7 +4,7 @@ import {
   buildMailItem,
   nextMailId,
   MailDB,
-} from "../../../app/game/service/manager/mail";
+} from "../../../app/game/service/player/mail";
 import { now } from "../../../app/utils/time";
 import { parseArgs } from "../../../scripts/admin-cli";
 

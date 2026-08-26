@@ -35,7 +35,7 @@ import {
   recalRuneBattleFinishSchema,
   recalRuneBattleStartSchema,
 } from "../../domain/contracts/crisis.schema";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { PlayerDataManager } from "../PlayerDataManager";
 import { recordPurchase } from "../../domain/util/purchase-record";
 import { now } from "@utils/time";
 import { readJson } from "@utils/file";

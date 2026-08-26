@@ -13,13 +13,13 @@
  * excel 数据源：excel.ActivityTable.basicInfo[actId].type === "BOSS_RUSH"，
  * 活动详情位于 excel.ActivityTable.activity.bossRush[actId]（ActivityBossRushData）。
  */
-import { PlayerDataManager } from "../../manager/PlayerDataManager";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { PlayerDataManager } from "../../PlayerDataManager";
+import { TypedEventEmitter } from "@game/service/events";
 import excel from "@excel/excel";
 import { decryptBattleData } from "@utils/crypt";
 import { logger } from "@utils/logger";
-import { accountManager } from "../../manager/AccountManager";
-import { activityDictKey } from "../../manager/activity/unlockActivity";
+import { accountManager } from "../../player/AccountManager";
+import { activityDictKey } from "../../player/unlockActivity";
 import type { CommonStartBattleRequest } from "@game/domain/battle";
 import type { PlayerDeltaResponse } from "@game/domain/contracts/common";
 import type {

@@ -13,7 +13,7 @@ import {
   setCurrentSchema,
   updatePresetSchema,
 } from "../../domain/contracts/charRotation.schema";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { PlayerDataManager } from "../PlayerDataManager";
 import {
   CharRotationCreatePresetRequest,
   CharRotationCreatePresetResponse,

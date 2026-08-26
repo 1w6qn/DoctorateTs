@@ -12,13 +12,13 @@
  *
  * 真实时间模式（timestamp 缺省/-1）不做任何改动，保持现有行为。
  */
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { defaultAct44State } from "@game/service/activity/act44side/informant";
 import excel from "@excel/excel";
 import { userTimestamp } from "@utils/time";
-import { syncAct44SideEntry } from "../../activity/act44side/informant";
+import { syncAct44SideEntry } from "../activity/act44side/informant";
 import { logger } from "@utils/logger";
-import config from "../../../../config";
+import config from "../../../config";
 import { scanUnlockChain } from "@game/domain/util/stage-unlock";
 
 /**
@@ -158,7 +158,7 @@ function defaultAct53SideState(startTime: number): object {
 }
 
 /**
- * 勋章播种目标值推导（与 manager/medal.ts 各模板 init 的 target 保持一致，
+ * 勋章播种目标值推导（与 player/medal.ts 各模板 init 的 target 保持一致，
  * 修改任一模板 target 语义时需同步本函数）
  * @param medalInfo - MedalTable.medalList 条目
  * @returns 目标值（无模板/纯展示章返回 0——MedalProgress 不注册监听）

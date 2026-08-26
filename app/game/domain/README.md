@@ -13,7 +13,7 @@ DDD 分层的**领域层**：只允许存放纯类型与纯函数规则，零 IO
 | 目录/文件 | 内容 |
 |---|---|
 | `playerdata.ts` + 8 领域模型 | 纯类型（生成模型 re-export、character/battle/gacha/mail/social/user/activity/rlv2） |
-| `events/` | 事件契约（EventMap 组合，纯类型；运行时总线在 service/manager/events.ts） |
+| `events/` | 事件契约（EventMap 组合，纯类型；运行时总线在 service/events.ts） |
 | `contracts/` | 协议契约（对外 DTO + zod schema + validate-body，零行为） |
 | `building/` | 9 个纯函数规则引擎（buff/mood/clue-speed/mastery/unlocks/dorm-special/hire-contacts/trade-orders/special） |
 | `rlv2/` | theme-rules（纯规则）+ data/blackstream-data（纯数据） |

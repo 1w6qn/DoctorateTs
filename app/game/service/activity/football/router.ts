@@ -5,7 +5,7 @@ import { Router } from "express";
 import * as ReqSchema from "../../../domain/contracts/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../request-context";
-import { PlayerDataManager } from "../../manager/PlayerDataManager";
+import { PlayerDataManager } from "../../PlayerDataManager";
 import {
   ActCheckinvsSignRequest,
   ActCheckinvsSignResponse,

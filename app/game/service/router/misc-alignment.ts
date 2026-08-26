@@ -7,7 +7,7 @@
  */
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { PlayerDataManager } from "../PlayerDataManager";
 import { validateBody } from "../../domain/contracts/validate-body";
 import { miscAlignmentStubSchema } from "../../domain/contracts/misc-alignment.schema";
 

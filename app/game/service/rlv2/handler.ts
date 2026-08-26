@@ -9,7 +9,7 @@
  */
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { PlayerDataManager } from "../PlayerDataManager";
 import { RoguelikePushMessage } from "../../domain/contracts/common";
 import { isBlackstream } from "@game/domain/rlv2/theme-rules";
 import {

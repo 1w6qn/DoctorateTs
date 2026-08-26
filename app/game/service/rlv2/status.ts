@@ -3,7 +3,7 @@ import { PlayerRoguelikeV2 } from "../../domain/rlv2";
 import { RoguelikeV2Manager } from "./logic";
 import excel from "@excel/excel";
 import { RoguelikeEventManager, RoguelikePendingEvent } from "./events";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { TypedEventEmitter } from "@game/service/events";
 
 export class RoguelikePlayerStatusManager
   implements PlayerRoguelikeV2.CurrentData.PlayerStatus

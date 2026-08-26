@@ -14,7 +14,7 @@
  */
 import { RoguelikeV2Manager } from "../logic";
 import excel from "@excel/excel";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { TypedEventEmitter } from "@game/service/events";
 import {
   BLACKSTREAM_CONSTRUCTIONS,
   BLACKSTREAM_COUNT_RULES,

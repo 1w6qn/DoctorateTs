@@ -1,10 +1,10 @@
 import excel from "@excel/excel";
-import { TroopManager } from "../manager/troop";
+import { TroopManager } from "../player/troop";
 import { PlayerRoguelikeV2 } from "../../domain/rlv2";
 import { RoguelikeV2Manager } from "./logic";
 import { now } from "@utils/time";
 import { rarityToIndex } from "@utils/rarity";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { TypedEventEmitter } from "@game/service/events";
 
 export class RoguelikeRecruitManager {
   tickets: { [key: string]: PlayerRoguelikeV2.CurrentData.Recruit };

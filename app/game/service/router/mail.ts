@@ -4,8 +4,8 @@
  */
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
-import { mailManager } from "../manager/mail";
+import { PlayerDataManager } from "../PlayerDataManager";
+import { mailManager } from "../player/mail";
 import {
   GetMetaInfoListRequest,
   GetMetaInfoListResponse,

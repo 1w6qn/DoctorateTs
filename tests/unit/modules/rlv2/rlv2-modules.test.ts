@@ -65,7 +65,7 @@ vi.mock("@excel/excel", () => ({
   },
 }));
 
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { mockPlayerData } from "../../../helpers";
 import { BLACKSTREAM_CONSTRUCTIONS } from "@game/domain/rlv2/data/blackstream-data";
 

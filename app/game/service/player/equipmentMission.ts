@@ -27,7 +27,7 @@
  */
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
-import { PlayerDataManager } from "./PlayerDataManager";
+import { PlayerDataManager } from "../PlayerDataManager";
 import { BattleInfo } from "./BattleInfoStore";
 import { BattleData, BattleStats } from "@game/domain/battle";
 

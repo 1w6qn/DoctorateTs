@@ -17,7 +17,7 @@
  */
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { PlayerDataManager } from "../PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
 import { readJsonSync } from "@utils/file";

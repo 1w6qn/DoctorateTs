@@ -1,6 +1,6 @@
 import excel from "@excel/excel";
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
+import { TypedEventEmitter } from "@game/service/events";
 
 export class DungeonManager {
   _player: PlayerDataManager;

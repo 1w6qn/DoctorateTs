@@ -1,6 +1,6 @@
 import { now } from "@utils/time";
-import { PlayerDataManager } from "./PlayerDataManager";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { PlayerDataManager } from "../PlayerDataManager";
+import { TypedEventEmitter } from "@game/service/events";
 
 export class HomeManager {
   _player: PlayerDataManager;

@@ -10,7 +10,7 @@ import { appendFile, copyFile, mkdir, readFile, readdir, rm, stat, writeFile } f
 import * as path from "path";
 import excel from "@excel/excel";
 import { getRoomPhase } from "@excel/building_excel";
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { PlayerDataModel } from "@game/domain/playerdata";
 import { adminGame } from "./game-gateway";
 import { runMigration } from "../../scripts/migrate-official";

@@ -1,8 +1,8 @@
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 import { now } from "@utils/time";
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
+import { TypedEventEmitter } from "@game/service/events";
 
 export class StoryreviewManager {
   _player: PlayerDataManager;

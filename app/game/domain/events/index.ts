@@ -2,7 +2,7 @@
  * 领域事件契约组合（EventMap）
  *
  * 领域层事件契约:组合各领域事件映射为总契约,供 service 层事件总线
- * (service/manager/events.ts)与订阅方类型化引用。
+ * (service/events.ts)与订阅方类型化引用。
  * 本目录仅含纯类型,无运行时实现(总线/中间件/验证器在 service 侧)。
  *
  * 新增事件:在对应领域文件追加;跨领域共享事件放 core.ts。

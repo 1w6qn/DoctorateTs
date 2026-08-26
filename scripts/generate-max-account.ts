@@ -12,7 +12,7 @@
 import excel from "@excel/excel";
 import config from "../app/config";
 import { readJson } from "@utils/file";
-import { PlayerDataManager } from "../app/game/service/manager/PlayerDataManager";
+import { PlayerDataManager } from "../app/game/service/PlayerDataManager";
 import {
   buildMaxedSkills,
   buildMaxedEquip,

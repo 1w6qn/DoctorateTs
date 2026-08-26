@@ -3,7 +3,7 @@
  * arkhub 玩法事件入口（结算/每日物资/生物收录）。2026-08-17。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { EventBus } from "@game/service/manager/events";
+import { EventBus } from "@game/service/events";
 
 // ---- excel mock（ActivityTable.missionData 用官服真实形状的子集）----
 vi.mock("@excel/excel", () => {
@@ -74,9 +74,9 @@ vi.mock("@excel/excel", () => {
 
 import config from "../../../app/config";
 import { mockPlayerData } from "../../helpers";
-import { unlockActivity } from "@game/service/manager/activity/unlockActivity";
+import { unlockActivity } from "@game/service/player/unlockActivity";
 import { MissionProgress } from "@game/service/mission/logic";
-import { MedalProgress } from "@game/service/manager/medal";
+import { MedalProgress } from "@game/service/player/medal";
 import {
   arkhubOnDuelSettle,
   arkhubOnDailySupply,

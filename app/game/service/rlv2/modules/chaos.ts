@@ -9,7 +9,7 @@
  */
 import { RoguelikeV2Manager } from "../logic";
 import excel from "@excel/excel";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { TypedEventEmitter } from "@game/service/events";
 
 export class RoguelikeChaosManager {
   value: number;

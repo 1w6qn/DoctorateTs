@@ -7,8 +7,8 @@
 import httpContext from "express-http-context2";
 import express from "express";
 import bodyParser from "body-parser";
-import { accountManager } from "./service/manager/AccountManager";
-import { PlayerDataManager } from "./service/manager/PlayerDataManager";
+import { accountManager } from "./service/player/AccountManager";
+import { PlayerDataManager } from "./service/PlayerDataManager";
 import { setPlayer, getPlayerOptional } from "./request-context";
 import { acquireLock } from "@utils/mutex";
 import { logger } from "@utils/logger";
@@ -108,7 +108,7 @@ export async function setup(app: express.Application) {
   await accountManager.init();
   // 路由挂载顺序即匹配优先级（多根挂载与别名匹配依赖先后次序），必须保持顺序。
   // 但模块加载本身彼此独立：并行动态 import 所有路由模块（Node 会并行编译/执行其
-  // 依赖链 manager/controller/excel），再按声明顺序串行挂载——把启动关键路径上的
+  // 依赖链 player/controller/excel），再按声明顺序串行挂载——把启动关键路径上的
   // 串行 import（40+ 模块）收敛为一次并行加载，显著缩短启动耗时。
   const mods = await Promise.all(
     routes.map((reg) => import(reg.module) as Promise<Record<string, unknown>>),

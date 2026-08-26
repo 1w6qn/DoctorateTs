@@ -1,5 +1,5 @@
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
+import { TypedEventEmitter } from "@game/service/events";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
 

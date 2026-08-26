@@ -1,6 +1,6 @@
 import { PlayerRoguelikePendingEvent } from "../../domain/rlv2";
 import { RoguelikeV2Manager } from "./logic";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { TypedEventEmitter } from "@game/service/events";
 import excel from "@excel/excel";
 
 export class RoguelikeEventManager {

@@ -5,7 +5,7 @@ import { now } from "@utils/time";
 import { randomChoice } from "@utils/random";
 import { rarityToIndex } from "@utils/rarity";
 import { logger } from "@utils/logger";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { TypedEventEmitter } from "@game/service/events";
 
 export class RoguelikeFragmentManager {
   index: number;

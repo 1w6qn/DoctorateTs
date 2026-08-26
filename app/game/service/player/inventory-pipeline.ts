@@ -17,8 +17,8 @@
  * await player.gainItem.add({ id: "4002", type: "DIAMOND", count: 1 }).handle(); // 发放
  * ```
  */
-import type { PlayerDataManager } from "./PlayerDataManager";
-import type { TypedEventEmitter } from "./events";
+import type { PlayerDataManager } from "../PlayerDataManager";
+import type { TypedEventEmitter } from "../events";
 import { ItemBundle } from "@excel/character_table";
 
 export class GainItemPipeline {

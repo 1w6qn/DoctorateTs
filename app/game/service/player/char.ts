@@ -1,5 +1,5 @@
-import { TypedEventEmitter } from "@game/service/manager/events";
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
+import { TypedEventEmitter } from "@game/service/events";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 import excel from "@excel/excel";
 import { GachaResult } from "@game/domain/gacha";

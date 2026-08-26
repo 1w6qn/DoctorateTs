@@ -7,7 +7,7 @@
  */
 
 import type { Request } from "express";
-import { accountManager } from "@game/service/manager/AccountManager";
+import { accountManager } from "@game/service/player/AccountManager";
 
 /**
  * 策略工厂读取的最小配置形状

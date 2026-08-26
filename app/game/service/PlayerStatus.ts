@@ -10,7 +10,7 @@ import {
   Draft,
   Patch,
 } from "mutative";
-import { PlayerDataModel } from "../../domain/playerdata";
+import { PlayerDataModel } from "../domain/playerdata";
 import { patchesToObject } from "@utils/delta";
 
 /**

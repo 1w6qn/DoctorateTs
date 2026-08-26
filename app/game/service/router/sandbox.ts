@@ -6,7 +6,7 @@
 
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
-import { PlayerDataManager } from "../manager/PlayerDataManager";
+import { PlayerDataManager } from "../PlayerDataManager";
 import { now } from "@utils/time";
 import {
   SandboxPermChangeTopicRequest,

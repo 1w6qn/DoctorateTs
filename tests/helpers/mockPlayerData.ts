@@ -1,4 +1,4 @@
-import type { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
+import type { PlayerDataManager } from "@game/service/PlayerDataManager";
 import type { PlayerDataModel } from "@game/domain/playerdata";
 
 export interface MockPlayerDataManager {

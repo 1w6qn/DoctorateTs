@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
-import { PlayerDataManager } from "@game/service/manager/PlayerDataManager";
+import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import {
   DeleteFriendRequest,
   DeleteFriendResponse,

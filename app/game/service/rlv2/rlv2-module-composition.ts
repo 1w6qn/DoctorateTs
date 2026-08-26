@@ -9,7 +9,7 @@
  * （构造期即挂在控制器/事件上，与迁移前行为一致）。
  */
 import type { RoguelikeV2Manager } from "./logic";
-import type { TypedEventEmitter } from "@game/service/manager/events";
+import type { TypedEventEmitter } from "@game/service/events";
 import { RoguelikeFragmentManager } from "./modules/fragment";
 import { RoguelikeDisasterManager } from "./modules/disaster";
 import { RoguelikeNodeUpgradeManager } from "./modules/node_upgrade";

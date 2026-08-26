@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import { openDatabase, SCHEMA_SQL } from "../../../app/db/database";
 import { ReplayRepository } from "../../../app/db/replay-repo";
-import { AccountManager } from "../../../app/game/service/manager/AccountManager";
-import { BattleStore } from "../../../app/game/service/manager/BattleStore";
+import { AccountManager } from "../../../app/game/service/player/AccountManager";
+import { BattleStore } from "../../../app/game/service/player/BattleStore";
 
 /**
  * AccountManager 战斗回放独立存储（R4）

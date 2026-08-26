@@ -1,9 +1,9 @@
 import { RoguelikeV2Manager } from "./logic";
 import { BattleData } from "@game/domain/battle";
 import { decryptBattleData, decryptBattleReplay } from "@utils/crypt";
-import { TypedEventEmitter } from "@game/service/manager/events";
+import { TypedEventEmitter } from "@game/service/events";
 import { generateBattleId } from "@utils/random";
-import type { BattleRecord } from "@game/service/manager/BattleInfoStore";
+import type { BattleRecord } from "@game/service/player/BattleInfoStore";
 import { logger } from "@utils/logger";
 import excel from "@excel/excel";
 import { ROGUE6_NODE } from "@game/domain/rlv2/theme-rules";

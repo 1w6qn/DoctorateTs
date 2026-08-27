@@ -6,7 +6,7 @@
  */
 import type { ShopManager } from "../logic";
 import excel from "@excel/excel";
-import { ItemBundle } from "@excel/excel";
+import { ItemBundle, ItemType } from "@excel/excel";
 import { resolveEffectiveUpPerCharList } from "@game/domain/gacha/logic";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";
@@ -70,22 +70,22 @@ export async function buyLowGood(mgr: ShopManager, args: {
     mgr._assertAffordable("4005", good.price * count);
     // 修复：每日限购检查
     mgr._assertAvail("LS", goodId, count, good.availCount);
-    const item = { id: good.item.id, count: good.item.count * count };
+    const item = { id: good.item.id, count: good.item.count * count  } as unknown as ItemBundle;
     await mgr._player.update(async (draft) => {
       const ls = mgr._shopDraft(draft, "LS");
       const existingItem = ls.info.find((i: any) => i.id === goodId);
       if (existingItem) {
         existingItem.count += count;
       } else {
-        ls.info.push({ id: goodId, count });
+        ls.info.push({ id: goodId, count } as unknown as ItemBundle);
       }
     });
     await mgr._trigger.emit("items:use", [
-      [{ id: "4005", count: good.price * count }],
+      [{ id: "4005", count: good.price * count  } as unknown as ItemBundle],
     ]);
     await mgr._trigger.emit("items:get", [[item]]);
     // 修复：BuyShopItem 任务事件从未 emit → 商店购买任务永不推进
-    await mgr._trigger.emit("BuyShopItem", [{ type: "LS", socialPoint: 0 }]);
+    await mgr._trigger.emit("BuyShopItem", [{ type: "LS" as ItemType, socialPoint: 0 }]);
     return [item];
 }
 
@@ -131,12 +131,12 @@ export async function buyHighGood(mgr: ShopManager, args: {
     await mgr._player.update(async (draft) => {
       const hs = mgr._shopDraft(draft, "HS");
       if (!good?.progressGoodId) {
-        item = { id: good.item.id, count: good.item.count * count, type: good.item.type };
+        item = { id: good.item.id, count: good.item.count * count, type: good.item.type as ItemType };
         const existingItem = hs.info.find((i: any) => i.id === good.goodId);
         if (existingItem) {
           existingItem.count += count;
         } else {
-          hs.info.push({ id: good.goodId, count: count });
+          hs.info.push({ id: good.goodId, count: count  } as unknown as ItemBundle);
         }
       } else {
         const progressGood =
@@ -160,12 +160,12 @@ export async function buyHighGood(mgr: ShopManager, args: {
       }
     });
     await mgr._trigger.emit("items:use", [
-      [{ id: "4004", count: price * count }],
+      [{ id: "4004", count: price * count  } as unknown as ItemBundle],
     ]);
     // 修复：干员（CHAR）走 char:get 入账并返回带 instId（获得干员效果）；其余走 items:get
     const granted = await mgr._issueCharItem(item);
     // 修复：BuyShopItem 任务事件从未 emit → 商店购买任务永不推进
-    await mgr._trigger.emit("BuyShopItem", [{ type: "HS", socialPoint: 0 }]);
+    await mgr._trigger.emit("BuyShopItem", [{ type: "HS" as ItemType, socialPoint: 0 }]);
     return [granted];
 }
 
@@ -192,23 +192,23 @@ export async function buyExtraGood(mgr: ShopManager, args: {
     mgr._assertAffordable("4006", good.price * count);
     // 修复：限购检查
     mgr._assertAvail("ES", goodId, count, good.availCount);
-    const item = { id: good.item.id, count: good.item.count * count, type: good.item.type };
+    const item = { id: good.item.id, count: good.item.count * count, type: good.item.type as ItemType };
     await mgr._player.update(async (draft) => {
       const es = mgr._shopDraft(draft, "ES");
       const existingItem = es.info.find((i: any) => i.id === goodId);
       if (existingItem) {
         existingItem.count += count;
       } else {
-        es.info.push({ id: goodId, count });
+        es.info.push({ id: goodId, count } as unknown as ItemBundle);
       }
     });
     await mgr._trigger.emit("items:use", [
-      [{ id: "4006", count: good!.price * count }],
+      [{ id: "4006", count: good!.price * count  } as unknown as ItemBundle],
     ]);
     // 修复：干员（CHAR）走 char:get 入账并返回带 instId 的效果，避免客户端显示"未知物品"
     const granted = await mgr._issueCharItem(item);
     // 修复：BuyShopItem 任务事件从未 emit → 商店购买任务永不推进
-    await mgr._trigger.emit("BuyShopItem", [{ type: "ES", socialPoint: 0 }]);
+    await mgr._trigger.emit("BuyShopItem", [{ type: "ES" as ItemType, socialPoint: 0 }]);
     return [granted];
 }
 
@@ -314,7 +314,7 @@ export async function _issueCharItem(mgr: ShopManager, item: ItemBundle) : Promi
           charInstId = res?.charInstId ?? 0;
         },
       ]);
-      return { ...item, instId: charInstId };
+      return { ...item, instId: charInstId } as any;
     }
     await mgr._trigger.emit("items:get", [[item]]);
     return item;
@@ -349,7 +349,7 @@ export function buildHighCharGoods(mgr: ShopManager) : QCObject[] {
             priority: 1,
             number: seq,
             goodType: "NORMAL",
-            item: { id: charId, count: 1, type: "CHAR" },
+            item: { id: charId, count: 1, type: "CHAR" as ItemType },
             progressGoodId: "",
             price,
             originPrice: price,
@@ -405,7 +405,7 @@ export function buildClassicCharGoods(mgr: ShopManager) : QCObject[] {
             priority: 1,
             number: seq,
             goodType: "NORMAL",
-            item: { id: charId, count: 1, type: "CHAR" },
+            item: { id: charId, count: 1, type: "CHAR" as ItemType },
             progressGoodId: "",
             price,
             originPrice: price,

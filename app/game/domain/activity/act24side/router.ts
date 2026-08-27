@@ -5,7 +5,7 @@ import { Router } from "express";
 import * as ReqSchema from "../../../domain/activity/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../request-context";
-import { ItemBundle } from "@excel/excel";
+import { ItemBundle, ItemType } from "@excel/excel";
 import excel from "@excel/excel";
 import { activityDictKey } from "@game/service/player/unlockActivity";
 import {
@@ -227,11 +227,8 @@ router.post("/act24side/alchemy", validateBody(ReqSchema.act24sideAlchemySchema)
     }
     for (const v of Object.values(drawResult)) {
       drawnMap[v.goodId] = (drawnMap[v.goodId] ?? 0) + v.count;
-      rewards.push({
-        id: v.itemId,
-        type: v.itemType,
-        count: v.perCount * v.count,
-      });
+      rewards.push({ id: v.itemId, type: v.itemType as ItemType, count: v.perCount * v.count,
+       });
     }
   });
 

@@ -56,6 +56,176 @@ import {
   RoguelikeGridZoneModuleData,
   RoguelikeWeatherModuleData,
   RoguelikeScrapModuleData,
+  ChapterData,
+  Blackboard,
+  RoguelikeBuff,
+  CharacterData,
+  ItemBundle,
+  ExternalBuff,
+  EquipTalentData,
+  TalentData,
+  ActivityPotentialCharacterInfo,
+  ApSupplyFeature,
+  ExpItemFeature,
+  FavorCharacterInfo,
+  FullPotentialCharacterInfo,
+  ItemPackInfo,
+  ItemData,
+  ItemClassifyType,
+  ItemRarity,
+  OccPer,
+  UniCollectionInfo,
+  MissionTable,
+  CrossAppShareMissionConst,
+  CrossAppShareMission,
+  DailyMissionGroupInfo,
+  MissionGroup,
+  MissionDailyRewardConf,
+  MissionWeeklyRewardConf,
+  OpenServerSchedule,
+  OpenServerConst,
+  OpenServerData,
+  TotalCheckinData,
+  ChainLoginData,
+  OpenServerItemData,
+  NewbieCheckInPackageData,
+  NewbieCheckInPackageRewardData,
+  ReturnData,
+  OpenServerScheduleItem,
+  StageTable,
+  ActCustomStageData,
+  ApProtectZoneInfo,
+  StageValidInfo,
+  StageDiffGroupTable,
+  WeeklyForceOpenTable,
+  MapThemeData,
+  OverrideDropInfo,
+  SpecialBattleFinishStageData,
+  StageFogInfo,
+  StageStartCond,
+  StageData,
+  StoryStageShowGroup,
+  TileAppendInfo,
+  TimelyDropTimeInfo,
+  TimelyDropInfo,
+  OverrideUnlockInfo,
+  RoguelikeTopicTable,
+  RoguelikeTopicConst,
+  RoguelikeTopicDetail,
+  RoguelikeArchiveComponentData,
+  ActArchiveBuffData,
+  ActArchiveCapsuleData,
+  ActArchiveCapsuleItemData,
+  ActArchiveChatData,
+  ActArchiveChatGroupData,
+  ActArchiveChatItemData,
+  ActArchiveEndbookData,
+  ActArchiveRelicData,
+  ActArchiveRelicItemData,
+  ActArchiveTrapData,
+  ActArchiveTrapItemData,
+  RoguelikeArchiveUnlockCondData,
+  RoguelikeArchiveEnroll,
+  RoguelikeArchiveUnlockCondDesc,
+  RoguelikeTopicBankReward,
+  TipData,
+  RoguelikeBattleSummeryDescriptionData,
+  RoguelikeTopicCapsule,
+  RoguelikeTopicChallenge,
+  RoguelikeTopicChallengeTask,
+  RoguelikeGameChoiceSceneData,
+  RoguelikeGameChoiceData,
+  RoguelikeTopicDetailConst,
+  RoguelikeTopicDifficulty,
+  RoguelikeEndingDetailText,
+  RoguelikeGameEndingData,
+  RoguelikeTopicEnroll,
+  RoguelikeGameConst,
+  RoguelikeTopicBPGrandPrize,
+  RoguelikeGameInitData,
+  RoguelikeGameItemData,
+  RoguelikeTopicMilestoneUpdateData,
+  RoguelikeTopicBP,
+  RoguelikeTopicMonthMission,
+  RoguelikeTopicMonthSquad,
+  RoguelikeGameNodeTypeData,
+  RoguelikeGameRecruitGrpData,
+  RoguelikeGameRecruitTicketData,
+  RoguelikeGameRelicParamData,
+  RoguelikeGameRelicData,
+  RoguelikeGameShopDialogData,
+  RoguelikeGameShopDialogTypeData,
+  RoguelikeGameShopDialogGroupData,
+  RoguelikeGameStageData,
+  RoguelikePredefinedConstStyleData,
+  RoguelikeGameTrapData,
+  RoguelikeGameExploreToolData,
+  RoguelikeTopicUpdate,
+  RoguelikeGameUpgradeTicketData,
+  RoguelikeGameVariationData,
+  RoguelikeGameCharBuffData,
+  RoguelikeGameSquadBuffData,
+  RoguelikeGameZoneData,
+  ActArchiveBuffItemData,
+  ActArchiveEndbookGroupData,
+  ActArchiveEndbookItemData,
+  RoguelikeBandRefData,
+  RoguelikeGameCustomTicketData,
+  RoguelikeTaskData,
+  RoguelikeGameTreasureData,
+  ActArchiveChaosData,
+  ActArchiveChaosItemData,
+  ActArchiveTotemData,
+  ActArchiveTotemItemData,
+  RoguelikeDifficultyUpgradeRelicGroupData,
+  RoguelikeDifficultyUpgradeRelicData,
+  RoguelikePredefinedStyleData,
+  RoguelikeGameNodeSubTypeData,
+  ActArchiveDisasterData,
+  ActArchiveDisasterItemData,
+  ActArchiveFragmentData,
+  ActArchiveFragmentItemData,
+  RoguelikeEndingRelicDetailText,
+  RoguelikeRollNodeData,
+  RoguelikeRollNodeGroupData,
+  RoguelikeModule,
+  RoguelikeChaosModuleData,
+  RoguelikeChaosData,
+  RoguelikeChaosRangeData,
+  RoguelikeChaosPredefineLevelInfo,
+  RoguelikeChaosModuleConsts,
+  RoguelikeDiceModuleData,
+  RoguelikeDiceData,
+  RoguelikeDiceRuleData,
+  RoguelikeDicePredefineData,
+  RoguelikeDiceRuleGroupData,
+  RoguelikeDisasterModuleData,
+  RoguelikeDisasterData,
+  RoguelikeFragmentModuleData,
+  RoguelikeAlchemyData,
+  RoguelikeAlchemyFormulationData,
+  RoguelikeFragmentBuffData,
+  RoguelikeFragmentData,
+  RoguelikeFragmentLevelRelatedData,
+  RoguelikeFragmentTypeData,
+  RoguelikeFragmentModuleConsts,
+  RoguelikeNodeUpgradeModuleData,
+  RoguelikeNodeUpgradeData,
+  RoguelikePermNodeUpgradeItemData,
+  RoguelikeTempNodeUpgradeItemData,
+  RoguelikeSanCheckModuleData,
+  RoguelikeSanCheckConsts,
+  RoguelikeSanRangeData,
+  RoguelikeTotemBuffModuleData,
+  RoguelikeTotemModuleConsts,
+  RoguelikeTotemSubBuffData,
+  RoguelikeTotemBuffData,
+  RoguelikeTotemLinkedNodeTypeData,
+  RoguelikeVisionModuleData,
+  RoguelikeVisionModuleConsts,
+  RoguelikeVisionData,
+  RoguelikeTopicBasicData,
+  RoguelikeTopicConfig,
 } from "./types_excel_gen";
 
 
@@ -66,13 +236,6 @@ import { buildRoguelikeConsts } from "./roguelike_consts_gen";
 
 
 
-export type ChapterData = any;
-
-/**
- * Excel 数据表管理类
- * 
- * 聚合所有游戏配置数据表，提供统一的访问接口。
- */
 export class Excel {
   BattleEquipTable!: BattleEquipPack;
   BuildingData!: BuildingData;
@@ -396,153 +559,14 @@ export interface KeyFrame<TInput, TOutput> {
     data: TInput
 }
 export type KeyFrames<TData> = KeyFrame<TData, TData>[]
-export type Blackboard = BlackboardDataPair[];
-
-/**
- * 肉鸽 buff（复用 CS 反编译的 buff 结构）
- *
- * 定义于 excel 数据层（而非 game 业务层），供 excel 表类型使用，
- * 避免 excel → game 的反向依赖；game 侧再从本处 re-export 复用。
- */
-export interface RoguelikeBuff {
-    key: string
-    blackboard: Blackboard
-}
-
 export interface CharacterTable {
     [key: string]: CharacterData
 }
-export interface CharacterData {
-  name: string;
-  description: null | string;
-  canUseGeneralPotentialItem: boolean;
-  canUseActivityPotentialItem: boolean;
-  potentialItemId: null | string;
-  activityPotentialItemId: null | string;
-  classicPotentialItemId: null | string;
-  nationId: null | string;
-  groupId: null | string;
-  teamId: null | string;
-  displayNumber: null | string;
-  appellation: string;
-  position: BuildableType;
-  tagList: string[] | null;
-  itemUsage: null | string;
-  itemDesc: null | string;
-  itemObtainApproach: string | null;
-  isNotObtainable: boolean;
-  isSpChar: boolean;
-  maxPotentialLevel: number;
-  rarity: number; //RarityRank;
-  profession: ProfessionCategory;
-  subProfessionId: string;
-  trait: TraitDataBundle | null;
-  phases: PhaseData[];
-  skills: MainSkill[];
-  displayTokenDict: { [key: string]: boolean } | null;
-  talents: TalentDataBundle[] | null;
-  potentialRanks: PotentialRank[];
-  favorKeyFrames: KeyFrames<AttributesData> | null;
-  allSkillLvlup: SkillLevelCost[];
-}
-
 export interface SkillLevelCost {
     unlockCond: UnlockCondition;
     lvlUpCost: ItemBundle[] | null;
 }
 
-export interface ItemBundle {
-    id: string;
-    count: number;
-    type?: string;
-    instId?: number;
-}
-export enum ItemType {
-    NONE = 0,
-    CHAR = 1,
-    CARD_EXP = 2,
-    MATERIAL = 3,
-    GOLD = 4,
-    EXP_PLAYER = 5,
-    TKT_TRY = 6,
-    TKT_RECRUIT = 7,
-    TKT_INST_FIN = 8,
-    TKT_GACHA = 9,
-    ACTIVITY_COIN = 10,
-    DIAMOND = 11,
-    DIAMOND_SHD = 12,
-    HGG_SHD = 13,
-    LGG_SHD = 14,
-    FURN = 15,
-    AP_GAMEPLAY = 16,
-    AP_BASE = 17,
-    SOCIAL_PT = 18,
-    CHAR_SKIN = 19,
-    TKT_GACHA_10 = 20,
-    TKT_GACHA_PRSV = 21,
-    AP_ITEM = 22,
-    AP_SUPPLY = 23,
-    RENAMING_CARD = 24,
-    RENAMING_CARD_2 = 25,
-    ET_STAGE = 26,
-    ACTIVITY_ITEM = 27,
-    VOUCHER_PICK = 28,
-    VOUCHER_CGACHA = 29,
-    VOUCHER_MGACHA = 30,
-    CRS_SHOP_COIN = 31,
-    CRS_RUNE_COIN = 32,
-    LMTGS_COIN = 33,
-    EPGS_COIN = 34,
-    LIMITED_TKT_GACHA_10 = 35,
-    LIMITED_FREE_GACHA = 36,
-    REP_COIN = 37,
-    ROGUELIKE = 38,
-    LINKAGE_TKT_GACHA_10 = 39,
-    VOUCHER_ELITE_II_4 = 40,
-    VOUCHER_ELITE_II_5 = 41,
-    VOUCHER_ELITE_II_6 = 42,
-    VOUCHER_SKIN = 43,
-    RETRO_COIN = 44,
-    PLAYER_AVATAR = 45,
-    UNI_COLLECTION = 46,
-    VOUCHER_FULL_POTENTIAL = 47,
-    RL_COIN = 48,
-    RETURN_CREDIT = 49,
-    MEDAL = 50,
-    CHARM = 51,
-    HOME_BACKGROUND = 52,
-    EXTERMINATION_AGENT = 53,
-    OPTIONAL_VOUCHER_PICK = 54,
-    ACT_CART_COMPONENT = 55,
-    VOUCHER_LEVELMAX_6 = 56,
-    VOUCHER_LEVELMAX_5 = 57,
-    VOUCHER_LEVELMAX_4 = 58,
-    VOUCHER_SKILL_SPECIALLEVELMAX_6 = 59,
-    VOUCHER_SKILL_SPECIALLEVELMAX_5 = 60,
-    VOUCHER_SKILL_SPECIALLEVELMAX_4 = 61,
-    ACTIVITY_POTENTIAL = 62,
-    ITEM_PACK = 63,
-    SANDBOX = 64,
-    FAVOR_ADD_ITEM = 65,
-    CLASSIC_SHD = 66,
-    CLASSIC_TKT_GACHA = 67,
-    CLASSIC_TKT_GACHA_10 = 68,
-    LIMITED_BUFF = 69,
-    CLASSIC_FES_PICK_TIER_5 = 70,
-    CLASSIC_FES_PICK_TIER_6 = 71,
-    RETURN_PROGRESS = 72,
-    NEW_PROGRESS = 73,
-    MCARD_VOUCHER = 74,
-    MATERIAL_ISSUE_VOUCHER = 75,
-    CRS_SHOP_COIN_V2 = 76,
-    HOME_THEME = 77,
-    SANDBOX_PERM = 78,
-    SANDBOX_TOKEN = 79,
-    TEMPLATE_TRAP = 80,
-    NAME_CARD_SKIN = 81,
-    EXCLUSIVE_TKT_GACHA = 82,
-    EXCLUSIVE_TKT_GACHA_10 = 83,
-}
 export interface UnlockCondition {
     phase: string|number;
     level: number;
@@ -594,10 +618,6 @@ export interface PotentialRank {
     description: string;
     buff: ExternalBuff | null;
     equivalentCost: null;
-}
-
-export interface ExternalBuff {
-    attributes: Attributes;
 }
 
 export interface Attributes {
@@ -672,24 +692,8 @@ export interface SpecializeLevelData {
 export interface EquipTalentDataBundle extends TalentDataBundle {
     candidates: EquipTalentData[] | null;
 }
-export interface EquipTalentData extends TalentData {
-    displayRangeId: boolean;
-    talentIndex: number;
-    upgradeDescription: string
-}
 export interface TalentDataBundle {
     candidates: TalentData[] | null;
-}
-
-export interface TalentData {
-    unlockCondition: UnlockCondition;
-    requiredPotentialRank: number;
-    prefabKey: string;
-    name: null | string;
-    description: null | string;
-    rangeId: null | string;
-    blackboard: Blackboard;
-    tokenKey?: null|string;
 }
 
 export interface BlackboardDataPair {
@@ -737,16 +741,6 @@ export interface ServerItemTable {
   favorCharacters: { [key: string]: FavorCharacterInfo };
 }
 
-export interface ActivityPotentialCharacterInfo {
-  charId: string;
-}
-
-export interface ApSupplyFeature {
-  id: string;
-  ap: number;
-  hasTs: boolean;
-}
-
 export interface CharVoucherItem {
   id: string;
   displayType: string; //DisplayType;
@@ -754,45 +748,6 @@ export interface CharVoucherItem {
 
 export type DisplayType = "NONE" | "DIVIDE";
 
-export interface ExpItemFeature {
-  id: string;
-  gainExp: number;
-}
-
-export interface FavorCharacterInfo {
-  itemId: string;
-  charId: string;
-  favorAddAmt: number;
-}
-
-export interface FullPotentialCharacterInfo {
-  itemId: string;
-  ts: number;
-}
-
-export interface ItemPackInfo {
-  packId: string;
-  content: ItemBundle[];
-}
-
-export interface ItemData {
-  itemId: string;
-  name: string;
-  description: null | string;
-  rarity: number; //ItemRarity;
-  iconId: string;
-  overrideBkg: null | string;
-  stackIconId: null | string;
-  sortId: number;
-  usage: null | string;
-  obtainApproach: null | string;
-  hideInItemGet: boolean;
-  classifyType: string; //ItemClassifyType;
-  itemType: string;
-  stageDropList: ItemData.StageDropInfo[];
-  buildingProductList: ItemData.BuildingProductInfo[];
-  voucherRelateList: ItemData.VoucherRelateInfo[] | null;
-}
 export namespace ItemData {
   export interface BuildingProductInfo {
     roomType: string; //BuildingData.RoomType
@@ -810,61 +765,6 @@ export namespace ItemData {
   }
 }
 
-export type ItemClassifyType = "MATERIAL" | "NORMAL" | "NONE" | "CONSUME";
-
-export type ItemRarity =
-  | "TIER_2"
-  | "TIER_3"
-  | "TIER_4"
-  | "TIER_5"
-  | "TIER_6"
-  | "TIER_1";
-
-export type OccPer = "ALWAYS" | "USUAL" | "ALMOST" | "OFTEN" | "SOMETIMES";
-
-export interface UniCollectionInfo {
-  uniCollectionItemId: string;
-  uniqueItem: ItemBundle[];
-}
-
-// ===== mission_table.ts（合并）=====
-export interface MissionTable {
-    missions:                  { [key: string]: MissionData };
-    missionGroups:             { [key: string]: MissionGroup };
-    periodicalRewards:         { [key: string]: MissionDailyRewardConf };
-    weeklyRewards:             { [key: string]: MissionWeeklyRewardConf };
-    dailyMissionGroupInfo:     {};
-    dailyMissionPeriodInfo:    DailyMissionGroupInfo[];
-    crossAppShareMissions:     { [key: string]: CrossAppShareMission };
-    crossAppShareMissionConst: CrossAppShareMissionConst;
-}
-
-export interface CrossAppShareMissionConst {
-    nameCardShareMissionId: string;
-}
-
-
-export interface CrossAppShareMission {
-    shareMissionId:   string;
-    missionType:      string;
-    relateActivityId: null | string;
-    startTime:        number;
-    endTime:          number;
-    limitCount:       number;
-    condTemplate:     null;
-    condParam:        any[];
-    rewardsList:      null;
-}
-
-
-
-export interface DailyMissionGroupInfo {
-    startTime:  number;
-    endTime:    number;
-    tagState:   null|string;
-    periodList: PeriodInfo[];
-}
-
 export interface PeriodInfo {
     missionGroupId: string;
     rewardGroupId:  string;
@@ -872,99 +772,6 @@ export interface PeriodInfo {
 }
 
 
-export interface MissionGroup {
-    id:              string;
-    title:           null | string;
-    type:            string;
-    preMissionGroup: null | string;
-    period:          null;
-    rewards:         ItemBundle[] | null;
-    missionIds:      string[];
-    startTs:         number;
-    endTs:           number;
-}
-
-
-
-
-
-
-export interface MissionDailyRewardConf {
-    groupId:             string;
-    id:                  string;
-    periodicalPointCost: number;
-    type:                string;
-    sortIndex:           number;
-    rewards:             ItemBundle[];
-    beginTime?:          number;
-    endTime?:            number;
-}
-export interface MissionWeeklyRewardConf {
-    groupId:             string;
-    id:                  string;
-    periodicalPointCost: number;
-    type:                string;
-    sortIndex:           number;
-    rewards:             ItemBundle[];
-    beginTime?:          number;
-    endTime?:            number;
-}
-
-// ===== open_server_table.ts（合并）=====
-export interface OpenServerSchedule {
-    schedule:                 OpenServerScheduleItem[];
-    dataMap:                  {[key: string]:OpenServerData};
-    constant:                 OpenServerConst;
-    playerReturn:             ReturnData;
-    playerReturnV2:           ReturnV2Data;
-    newbieCheckInPackageList: NewbieCheckInPackageData[];
-}
-
-export interface OpenServerConst {
-    firstDiamondShardMailCount:     number;
-    initApMailEndTs:                number;
-    resFullOpenUnlockStageId:       string;
-    resFullOpenDuration:            number;
-    resFullOpenTitle:               string;
-    resFullOpenDesc:                string;
-    resFullOpenGuideGroupThreshold: string;
-    resFullOpenStartTime:           number;
-}
-
-
-
-export interface OpenServerData {
-    openServerMissionGroup: MissionGroup;
-    openServerMissionData:  MissionData[];
-    checkInData:            TotalCheckinData[];
-    chainLoginData:         ChainLoginData[];
-    totalCheckinCharData:   string[];
-    chainLoginCharData:     string[];
-}
-
-export interface TotalCheckinData {
-    order:   number;
-    item:    OpenServerItemData;
-    colorId: number;
-}
-export type ChainLoginData=TotalCheckinData
-export interface OpenServerItemData {
-    itemId:   string;
-    itemType: string;
-    count:    number;
-    name:     null | string;
-}
-
-export interface NewbieCheckInPackageData {
-    groupId:            string;
-    startTime:          number;
-    endTime:            number;
-    bindGPGoodId:       string;
-    checkInDuration:   number;
-    totalCheckInDay:    number;
-    iconId:             string;
-    checkInRewardDict: { [key: string]: NewbieCheckInPackageRewardData[] };
-}
 export interface ReturnV2PackageCheckInRewardData {
     groupId:            string;
     startTime:          number;
@@ -977,21 +784,6 @@ export interface ReturnV2PackageCheckInRewardData {
 }
 export interface ReturnV2ItemData extends ItemBundle{
     sortId: number;
-}
-
-export interface NewbieCheckInPackageRewardData {
-    orderNum:   number;
-    itemBundle: ItemBundle;
-}
-
-export interface ReturnData {
-    constData:              ReturnConst;
-    onceRewards:            ItemBundle[];
-    intro:                  ReturnIntroData[];
-    returnDailyTaskDic:     { [key: string]: ReturnDailyTaskData[] };
-    returnLongTermTaskList: ReturnLongTermTaskData[];
-    creditsList:            ItemBundle[];
-    checkinRewardList:      ReturnCheckinData[];
 }
 
 export interface ReturnCheckinData {
@@ -1124,17 +916,6 @@ export interface ReturnV2MissionItemData {
     desc:       string;
     rewardList: ItemBundle[];
 }
-export interface OpenServerScheduleItem {
-    id:                    string;
-    versionId:             string;
-    startTs:               number;
-    endTs:                 number;
-    totalCheckinDescption: string;
-    chainLoginDescription: string;
-    charImg:               string;
-}
-
-// ===== shop.ts（合并）=====
 export class ShopData {
   lowGoodList!: LowGoodList;
   skinGoodList!: SkinGoodList;
@@ -1480,83 +1261,9 @@ export interface ImageDisplayData {
 }
 
 // ===== stage_table.ts（合并）=====
-export interface StageTable {
-  stages: { [key: string]: StageData };
-  runeStageGroups: {};
-  mapThemes: { [key: string]: MapThemeData };
-  tileInfo: { [key: string]: TileAppendInfo };
-  forceOpenTable: { [key: string]: WeeklyForceOpenTable };
-  timelyStageDropInfo: { [key: string]: TimelyDropTimeInfo };
-  overrideDropInfo: { [key: string]: OverrideDropInfo };
-  overrideUnlockInfo: { [key: string]: OverrideUnlockInfo };
-  timelyTable: { [key: string]: TimelyDropInfo };
-  stageValidInfo: { [key: string]: StageValidInfo };
-  stageFogInfo: { [key: string]: StageFogInfo };
-  stageStartConds: { [key: string]: StageStartCond };
-  diffGroupTable: { [key: string]: StageDiffGroupTable };
-  storyStageShowGroup: {
-    [key: string]: { [key: string]: StoryStageShowGroup };
-  };
-  specialBattleFinishStageData: { [key: string]: SpecialBattleFinishStageData };
-  recordRewardData: null;
-  apProtectZoneInfo: { [key: string]: ApProtectZoneInfo };
-  antiSpoilerDict: { [key: string]: string };
-  actCustomStageDatas: { [key: string]: ActCustomStageData };
-  spNormalStageIdFor4StarList: string[];
-}
-
-export interface ActCustomStageData {
-  overrideGameMode: string;
-}
-
-export interface ApProtectZoneInfo {
-  zoneId: string;
-  timeRanges: TimeRange[];
-}
-export interface StageValidInfo {
-  startTs: number;
-  endTs: number;
-}
 export interface TimeRange {
   startTs: number;
   endTs: number;
-}
-
-export interface StageDiffGroupTable {
-  normalId: string;
-  toughId: null | string;
-  easyId: string;
-}
-
-export interface WeeklyForceOpenTable {
-  id: string;
-  startTime: number;
-  endTime: number;
-  forceOpenList: string[];
-}
-
-export interface MapThemeData {
-  themeId: string;
-  unitColor: string;
-  buildableColor: null | string;
-  themeType: null | string;
-  trapTintColor: null | string;
-}
-
-export interface OverrideDropInfo {
-  itemId: string;
-  startTs: number;
-  endTs: number;
-  zoneRange: string;
-  times: number;
-  name: string;
-  egName: string;
-  desc1: string;
-  desc2: string;
-  desc3: string;
-  dropTag: string;
-  dropTypeDesc: string;
-  dropInfo: { [key: string]: StageDropInfo };
 }
 
 export interface StageDropInfo {
@@ -1643,94 +1350,14 @@ export function normalizeStageDropInfo(table: {
   }
 }
 
-export interface SpecialBattleFinishStageData {
-  stageId: string;
-  skipAccomplishPerform: boolean;
-}
-
-export interface StageFogInfo {
-  lockId: string;
-  fogType: FogType;
-  stageId: string;
-  lockName: string;
-  lockDesc: string;
-  unlockItemId: string;
-  unlockItemType: string;
-  unlockItemNum: number;
-  preposedStageId: string;
-  preposedLockId: null | string;
-}
-
 export enum FogType {
   Stage = "STAGE",
   Zone = "ZONE",
 }
 
-export interface StageStartCond {
-  requireChars: RequireChar[];
-  excludeAssists: string[];
-  isNotPass: boolean;
-}
-
 export interface RequireChar {
   charId: string;
   evolvePhase: string;
-}
-
-export interface StageData {
-  stageType: StageType;
-  difficulty: Difficulty;
-  performanceStageFlag: PerformanceStageFlag;
-  diffGroup: StageDiffGroup;
-  unlockCondition: ConditionDesc[];
-  stageId: string;
-  levelId: null | string;
-  zoneId: string;
-  code: string;
-  name: null | string;
-  description: null | string;
-  hardStagedId: null | string;
-  dangerLevel: null | string;
-  dangerPoint: number;
-  loadingPicId: string;
-  canPractice: boolean;
-  canBattleReplay: boolean;
-  apCost: number;
-  apFailReturn: number;
-  etItemId: null | string;
-  etCost: number;
-  etFailReturn: number;
-  etButtonStyle: null | string;
-  apProtectTimes: number;
-  diamondOnceDrop: number;
-  practiceTicketCost: number;
-  dailyStageDifficulty: number;
-  expGain: number;
-  goldGain: number;
-  loseExpGain: number;
-  loseGoldGain: number;
-  passFavor: number;
-  completeFavor: number;
-  slProgress: number;
-  displayMainItem: null | string;
-  hilightMark: boolean;
-  bossMark: boolean;
-  isPredefined: boolean;
-  isHardPredefined: boolean;
-  isSkillSelectablePredefined: boolean;
-  isStoryOnly: boolean;
-  appearanceStyle: AppearanceStyle;
-  stageDropInfo: StageDropInfo;
-  canUseCharm: boolean;
-  canUseTech: boolean;
-  canUseTrapTool: boolean;
-  canUseBattlePerformance: boolean;
-  canContinuousBattle: boolean;
-  startButtonOverrideId: string | null;
-  isStagePatch: boolean;
-  mainStageId: null | string;
-  extraCondition: ExtraConditionDesc[] | null;
-  extraInfo: SpecialStoryInfo[] | null;
 }
 
 export enum AppearanceStyle {
@@ -1800,75 +1427,12 @@ export enum PlayerBattleRank {
   Pass = "PASS",
 }
 
-export interface StoryStageShowGroup {
-  displayRecordId: string;
-  stageId: string;
-  accordingStageId: null | string;
-  diffGroup: StageDiffGroup;
-}
-
-export interface TileAppendInfo {
-  tileKey: string;
-  name: string;
-  description: string;
-  isFunctional: boolean;
-}
-
-export interface TimelyDropTimeInfo {
-  startTs: number;
-  endTs: number;
-  stagePic: null | string;
-  dropPicId: null | string;
-  stageUnlock: string;
-  entranceDownPicId: null | string;
-  entranceUpPicId: null | string;
-  timelyGroupId: string;
-  weeklyPicId: null | string;
-  isReplace: boolean;
-  apSupplyOutOfDateDict: { [key: string]: number };
-}
-
-export interface TimelyDropInfo {
-  dropInfo: { [key: string]: StageDropInfo };
-}
-export interface OverrideUnlockInfo {
-  groudId: string;
-  startTime: number;
-  endTime: number;
-  unlockDict: { [key: string]: ConditionDesc[] };
-}
-
-// ===== roguelike_topic_table.ts（合并）=====
-// 黑流树海（rogue_6）三模块数据类型复用 CS 反编译生成的权威定义
-// （types_excel_gen.ts，由 scripts/generate-types.ts --excel 产出），避免手写重复。
-
 export type {
   RoguelikeGridZoneModuleData,
   RoguelikeWeatherModuleData,
   RoguelikeScrapModuleData,
 };
 
-export interface RoguelikeTopicTable {
-    topics:        {[key:string]:RoguelikeTopicBasicData};
-    constant:      RoguelikeTopicConst;
-    details:       {[key: string]:RoguelikeTopicDetail};
-    modules:       {[key: string]:RoguelikeModule};
-    customizeData: CustomizeData;
-}
-
-export interface RoguelikeTopicConst {
-    milestoneTokenRatio:           number;
-    outerBuffTokenRatio:           number;
-    relicTokenRatio:               number;
-    rogueSystemUnlockStage:        string;
-    ordiModeReOpenCoolDown:        number;
-    monthModeReOpenCoolDown:       number;
-    monthlyTaskUncompletedTime:    number;
-    monthlyTaskManualRefreshLimit: number;
-    monthlyTeamUncompletedTime:    number;
-    bpPurchaseSystemUnlockTime:    number;
-    predefinedChars:               { [key: string]: RoguelikeTopicConst.PredefinedChar };
-}
 export namespace RoguelikeTopicConst{
     export interface PredefinedChar {
     charId:      string;
@@ -2192,220 +1756,7 @@ export interface FluffyDifficulty {
     buffDesc:              string[];
 }
 
-export interface RoguelikeTopicDetail {
-    updates:                      RoguelikeTopicUpdate[];
-    enrolls:                      {[key: string]: RoguelikeTopicEnroll};
-    milestones:                   RoguelikeTopicBP[];
-    milestoneUpdates:             RoguelikeTopicMilestoneUpdateData[];
-    grandPrizes:                  RoguelikeTopicBPGrandPrize[];
-    monthMission:                 RoguelikeTopicMonthMission[];
-    monthSquad:                   {[key:string]:RoguelikeTopicMonthSquad};
-    challenges:                   {[key:string]:RoguelikeTopicChallenge};
-    difficulties:                 RoguelikeTopicDifficulty[];
-    bankRewards:                  RoguelikeTopicBankReward[];
-    archiveComp:                  RoguelikeArchiveComponentData;
-    archiveUnlockCond:            RoguelikeArchiveUnlockCondData;
-    detailConst:                  RoguelikeTopicDetailConst;
-    init:                         RoguelikeGameInitData[];
-    stages:                       { [key: string]: RoguelikeGameStageData };
-    zones:                        {[key:string]:RoguelikeGameZoneData};
-    variation:                    {[key:string]:{}};
-    traps:                        {[key:string]:RoguelikeGameTrapData};
-    recruitTickets:               {[key:string]:RoguelikeGameRecruitTicketData};
-    upgradeTickets:               {[key:string]:RoguelikeGameUpgradeTicketData};
-    customTickets:                {[key:string]:RoguelikeGameCustomTicketData};
-    relics:                       { [key: string]: RoguelikeGameRelicData };
-    relicParams:                  { [key: string]: RoguelikeGameRelicParamData };
-    recruitGrps:                  {[key:string]:RoguelikeGameRecruitGrpData};
-    choices:                      { [key: string]: RoguelikeGameChoiceData };
-    choiceScenes:                 { [key: string]: RoguelikeGameChoiceSceneData };
-    nodeTypeData:                 {[key:string]:RoguelikeGameNodeTypeData};
-    subTypeData:                  RoguelikeGameNodeSubTypeData[];
-    variationData:                {[key:string]:RoguelikeGameVariationData};
-    charBuffData:                 {[key:string]:RoguelikeGameCharBuffData};
-    squadBuffData:                {[key:string]:RoguelikeGameCharBuffData};
-    taskData:                     {[key:string]:RoguelikeTaskData};
-    gameConst:                    RoguelikeGameConst;
-    shopDialogData:               RoguelikeGameShopDialogData;
-    capsuleDict:                  { [key: string]: RoguelikeTopicCapsule }|null;
-    endings:                      {[key:string]:RoguelikeGameEndingData};
-    battleSummeryDescriptions:    {[key:string]:RoguelikeBattleSummeryDescriptionData};
-    battleLoadingTips:            TipData[];
-    items:                        { [key: string]: RoguelikeGameItemData };
-    bandRef:                      {[key:string]:RoguelikeBandRefData};
-    endingDetailList:             RoguelikeEndingDetailText[];
-    endingRelicDetailList:        RoguelikeEndingRelicDetailText[];
-    treasures:                    {[key:string]:RoguelikeGameTreasureData[]};
-    difficultyUpgradeRelicGroups: {[key:string]:RoguelikeDifficultyUpgradeRelicGroupData};
-    styles:                       {[key:string]:RoguelikePredefinedStyleData};
-    styleConfig:                  RoguelikePredefinedConstStyleData;
-    exploreTools:                 {[key: string]:RoguelikeGameExploreToolData};
-    rollNodeData:                 { [key: string]: RoguelikeRollNodeData };
-}
-
-export interface RoguelikeArchiveComponentData {
-    relic:    ActArchiveRelicData;
-    capsule:  null|ActArchiveCapsuleData;
-    trap:     ActArchiveTrapData;
-    chat:     ActArchiveChatData;
-    endbook:  ActArchiveEndbookData;
-    buff:     ActArchiveBuffData;
-    totem:    null|ActArchiveTotemData;
-    chaos:    null|ActArchiveChaosData;
-    fragment: null|ActArchiveFragmentData;
-    disaster: null|ActArchiveDisasterData;
-}
-
-export interface ActArchiveBuffData {
-    buff: {[key:string]:ActArchiveBuffItemData};
-}
-
 export interface BandRef {
-}
-
-export interface ActArchiveCapsuleData {
-    capsule: { [key: string]: ActArchiveCapsuleItemData };
-}
-
-export interface ActArchiveCapsuleItemData {
-    capsuleId:     string;
-    capsuleSortId: number;
-    englishName:   string;
-    enrollId:      null|string;
-}
-
-export interface ActArchiveChatData {
-    chat: {[key:string]:ActArchiveChatGroupData};
-}
-
-
-
-export interface ActArchiveChatGroupData {
-    sortId:             number;
-    numChat:            number;
-    clientChatItemData: ActArchiveChatItemData[];
-}
-
-export interface ActArchiveChatItemData {
-    chatFloor:   number;
-    chatDesc:    null | string;
-    chatStoryId: string;
-}
-
-export interface ActArchiveEndbookData {
-    endbook: {[key:string]:ActArchiveEndbookGroupData};
-}
-
-export interface ActArchiveRelicData {
-    relic: { [key: string]: ActArchiveRelicItemData };
-}
-
-export interface ActArchiveRelicItemData {
-    relicId:      string;
-    relicSortId:  number;
-    relicGroupId: number;
-    orderId:      string;
-    isSpRelic:    boolean;
-    enrollId:     null | string;
-}
-
-export interface ActArchiveTrapData {
-    trap: {[key:string]:ActArchiveTrapItemData};
-}
-
-
-export interface ActArchiveTrapItemData {
-    trapId:     string;
-    trapSortId: number;
-    orderId:    string;
-    enrollId:   null|string;
-}
-
-export interface RoguelikeArchiveUnlockCondData {
-    unlockCondDesc: { [key: string]: RoguelikeArchiveUnlockCondDesc };
-    enroll:         { [key: string]: RoguelikeArchiveEnroll };
-}
-
-export interface RoguelikeArchiveEnroll {
-    archiveType: string;
-    enrollId:    null | string;
-}
-
-export interface RoguelikeArchiveUnlockCondDesc {
-    archiveType: string;
-    description: string;
-}
-
-export interface RoguelikeTopicBankReward {
-    rewardId:      string;
-    unlockGoldCnt: number;
-    rewardType:    string;
-    desc:          string;
-}
-
-export interface TipData {
-    tip:      string;
-    weight:   number;
-    category: string;
-}
-
-export interface RoguelikeBattleSummeryDescriptionData {
-    randomDescriptionList: string[];
-}
-
-export interface RoguelikeTopicCapsule {
-    itemId:     string;
-    maskType:   string;
-    innerColor: string;
-}
-
-
-
-export interface RoguelikeTopicChallenge {
-    challengeId:              string;
-    sortId:                   number;
-    challengeName:            string;
-    challengeGroup:           number;
-    challengeGroupSortId:     number;
-    challengeGroupName:       null|string;
-    challengeUnlockDesc:      null|string;
-    challengeUnlockToastDesc: null|string;
-    challengeDes:             string;
-    challengeConditionDes:    string[];
-    challengeTasks:           {[key:string]:RoguelikeTopicChallengeTask};
-    defaultTaskId:            string;
-    rewards:                  ItemBundle[];
-    challengeStoryId:         null|string;
-}
-export interface RoguelikeTopicChallengeTask {
-    taskId:           string;
-    taskDes:          string;
-    completionClass:  string;
-    completionParams: string[];
-}
-
-
-export interface RoguelikeGameChoiceSceneData {
-    id:             string;
-    title:          string;
-    description:    string;
-    background:     null | string;
-    titleIcon:      null | string;
-    subTypeId:      number;
-    useHiddenMusic: boolean;
-}
-
-export interface RoguelikeGameChoiceData {
-    id:                     string;
-    title:                  string;
-    description:            null | string;
-    lockedCoverDesc:        null | string;
-    type:                   string;
-    leftDecoType:           string;
-    nextSceneId:            null | string;
-    icon:                   null | string;
-    displayData:            DisplayData;
-    forceShowWhenOnlyLeave: boolean;
 }
 
 export interface DisplayData {
@@ -2416,42 +1767,6 @@ export interface DisplayData {
     itemId:                        null | string;
     difficultyUpgradeRelicGroupId: null;
     taskId:                        null;
-}
-
-export interface RoguelikeTopicDetailConst {
-    playerLevelTable:                  { [key: string]: PlayerLevelData };
-    charUpgradeTable:                  { [key: string]: CharUpgradeData };
-    difficultyUpgradeRelicDescTable:   { [key: string]: string };
-    predefinedLevelTable:              { [key: string]: PredefinedPlayerLevelData };
-    tokenBpId:                         string;
-    tokenOuterBuffId:                  string;
-    previewedRewardsAccordingUpdateId: string;
-    tipButtonName:                     string;
-    collectButtonName:                 string;
-    bpSystemName:                      string;
-    autoSetKV:                         string;
-    bpPurchaseActiveEnroll:            string|null;
-    defaultSacrificeDesc:              null | string;
-    defaultExpeditionSelectDesc:       null | string;
-    gotCharBuffToast:                  null | string;
-    gotSquadBuffToast:                 null | string;
-    loseCharBuffToast:                 null | string;
-    monthTeamSystemName:               string;
-    battlePassUpdateName:              string;
-    monthCharCardTagName:              string;
-    monthTeamDescTagName:              string;
-    outerBuffCompleteText:             string;
-    outerProgressTextColor:            string;
-    challengeTaskTargetName:           string;
-    challengeTaskConditionName:        string;
-    challengeTaskRewardName:           string;
-    challengeTaskModeName:             string;
-    challengeTaskName:                 string;
-    outerBuffTokenSum:                 number;
-    needAllFrontNode:                  boolean;
-    showBlurBack:                      boolean;
-    endingIconBorderDifficulty:        number;
-    endingIconBorderCount:             number;
 }
 
 export interface CharUpgradeData {
@@ -2468,261 +1783,14 @@ export interface PlayerLevelData {
     maxHpUp:           number;
 }
 
-export interface RoguelikeTopicDifficulty {
-    modeDifficulty:       string;
-    grade:                number;
-    name:                 string;
-    subName:              null | string;
-    enrollId:             null | string;
-    haveInitialRelicIcon: boolean;
-    scoreFactor:          number;
-    canUnlockItem:        boolean;
-    doMonthTask:          boolean;
-    ruleDesc:             string;
-    ruleDescReplacements: RuleDescReplacement[] | null;
-    failTitle:            string;
-    failImageId:          string;
-    failForceDesc:        string;
-    sortId:               number;
-    equivalentGrade:      number;
-    color:                null | string;
-    bpValue:              number;
-    bossValue:            number;
-    addDesc:              null | string;
-    isHard:               boolean;
-    unlockText:           null | string;
-    displayIconId:        null | string;
-    hideEndingStory:      boolean;
-}
-
 export interface RuleDescReplacement {
     enrollId: string;
     ruleDesc: string;
 }
 
-export interface RoguelikeEndingDetailText {
-    textId:        string;
-    text:          string;
-    eventType:     string;
-    showType:      string;
-    choiceSceneId: null | string;
-    paramList:     string[];
-    otherPara1:    null|string;
-}
-
-export interface RoguelikeGameEndingData {
-    id:               string;
-    familyId:         number;
-    name:             string;
-    desc:             string;
-    bgId:             string;
-    icons:            LevelIcon[];
-    priority:         number;
-    changeEndingDesc: null | string;
-    bossIconId:       null | string;
-}
-
 export interface LevelIcon {
     level:  number;
     iconId: string;
-}
-
-export interface RoguelikeTopicEnroll {
-    enrollId:   string;
-    enrollTime: number;
-}
-
-export interface RoguelikeGameConst {
-    initSceneName:                     string;
-    failSceneName:                     string;
-    hpItemId:                          string;
-    goldItemId:                        string;
-    populationItemId:                  string;
-    squadCapacityItemId:               string;
-    expItemId:                         string;
-    initialBandShowGradeFlag:          boolean;
-    bankMaxGold:                       number;
-    bankCostId:                        null | string;
-    bankDrawCount:                     number;
-    bankDrawLimit:                     number;
-    mimicEnemyIds:                     string[];
-    bossIds:                           string[];
-    goldChestTrapId:                   string;
-    normBoxTrapId:                     null | string;
-    rareBoxTrapId:                     null | string;
-    badBoxTrapId:                      null | string;
-    maxHpItemId:                       null | string;
-    shieldItemId:                      null | string;
-    keyItemId:                         null | string;
-    chestKeyCnt:                       number;
-    chestKeyItemId:                    null | string;
-    keyColorId:                        null | string;
-    onceNodeTypeList:                  string[];
-    gpScoreRatio:                      number;
-    overflowUsageSquadBuff:            null | string;
-    specialTrapId:                     null | string;
-    trapRewardRelicId:                 null | string;
-    unlockRouteItemId:                 null | string;
-    unlockRouteItemCount:              number;
-    hideBattleNodeName:                null| string;
-    hideBattleNodeDescription:         null| string;
-    hideNonBattleNodeName:             null| string;
-    hideNonBattleNodeDescription:      null| string;
-    charSelectExpeditionConflictToast: null | string;
-    itemDropTagDict:                   {[key:string]:string};
-    expeditionReturnDescCureUpgrade:   null | string;
-    expeditionReturnDescUpgrade:       null | string;
-    expeditionReturnDescCure:          null | string;
-    expeditionReturnDesc:              null | string;
-    expeditionSelectDescFormat:        null| string;
-    expeditionReturnDescItem:          null | string;
-    expeditionReturnRewardBlackList:   string[];
-    travelLeaveToastFormat:            null| string;
-    charSelectTravelConflictToast:     null| string;
-    travelReturnDescUpgrade:           null| string;
-    travelReturnDesc:                  null| string;
-    travelReturnDescItem:              null| string;
-    traderReturnTitle:                 null| string;
-    traderReturnDesc:                  null| string;
-    gainBuffDiffGrade:                 number;
-    dsPredictTips:                     null| string;
-    dsBuffActiveTips:                  null| string;
-    totemDesc:                         null| string;
-    relicDesc:                         null| string;
-    buffDesc:                          null| string;
-    refreshNodeItemId:                 null| string;
-    portalZones:                       string[];
-    exploreExpOnKill:                  null| string;
-}
-
-export interface RoguelikeTopicBPGrandPrize {
-    grandPrizeDisplayId: string;
-    sortId:              number;
-    displayUnlockYear:   number;
-    displayUnlockMonth:  number;
-    acquireTitle:        string;
-    purchaseTitle:       string;
-    displayName:         string;
-    displayDiscription:  string;
-    bpLevelId:           string;
-    itemBundle:          ItemBundle | null;
-    detailAnnounceTime:  null | string;
-    picIdAftrerUnlock:   null | string;
-}
-
-export interface RoguelikeGameInitData {
-    modeId:               string;
-    modeGrade:            number;
-    predefinedId:         null | string;
-    predefinedStyle:      null | string;
-    initialBandRelic:     string[];
-    initialRecruitGroup:  string[] | null;
-    initialHp:            number;
-    initialPopulation:    number;
-    initialGold:          number;
-    initialSquadCapacity: number;
-    initialShield:        number;
-    initialMaxHp:         number;
-    initialKey:           number;
-}
-
-export interface RoguelikeGameItemData {
-    id:             string;
-    name:           string;
-    description:    null | string;
-    usage:          string;
-    obtainApproach: string;
-    iconId:         string;
-    type:           string;
-    subType:        string;
-    rarity:         string;
-    value:          number;
-    sortId:         number;
-    canSacrifice:   boolean;
-    unlockCondDesc: null | string;
-}
-
-export interface RoguelikeTopicMilestoneUpdateData {
-    updateTime:        number;
-    endTime:           number;
-    maxBpLevel:        number;
-    maxBpCount:        number;
-    maxDisplayBpCount: number;
-}
-
-export interface RoguelikeTopicBP {
-    id:           string;
-    level:        number;
-    tokenNum:     number;
-    nextTokenNum: number;
-    itemID:       string;
-    itemType:     string;
-    itemCount:    number;
-    isGoodPrize:  boolean;
-    isGrandPrize: boolean;
-}
-
-export interface RoguelikeTopicMonthMission {
-    id:               string;
-    taskName:         string;
-    taskClass:        string;
-    innerClassWeight: number;
-    template:         string;
-    paramList:        string[];
-    desc:             string;
-    tokenRewardNum:   number;
-}
-
-export interface RoguelikeTopicMonthSquad {
-  id: string;
-  teamName: string;
-  teamSubName: null | string;
-  teamFlavorDesc: null | string;
-  teamDes: string;
-  teamColor: string;
-  teamMonth: string;
-  teamYear: string;
-  teamIndex: null | string;
-  teamChars: string[];
-  zoneId: null | string;
-  chatId: string;
-  tokenRewardNum: number;
-  items: ItemBundle[];
-  startTime: number;
-  endTime: number;
-  taskDes: null | string;
-}
-
-
-export interface RoguelikeGameNodeTypeData {
-    name:        string;
-    description: string;
-}
-
-export interface RoguelikeGameRecruitGrpData {
-    id:         string;
-    iconId:     string;
-    name:       string;
-    desc:       string;
-    unlockDesc: null | string;
-}
-
-
-export interface RoguelikeGameRecruitTicketData {
-    id:              string;
-    profession:      string|number;
-    rarity:          string|number;
-    professionList:  string[];
-  rarityList: number[];
-    extraEliteNum?:   number;
-    extraFreeRarity?: string[];
-    extraCharIds?:    string[];
-}
-
-export interface RoguelikeGameRelicParamData {
-    id:                 string;
-    checkCharBoxTypes:  string[];
-    checkCharBoxParams: CheckCharBoxParam[];
 }
 
 export interface CheckCharBoxParam {
@@ -2731,590 +1799,13 @@ export interface CheckCharBoxParam {
     valueInt:            number;
 }
 
-export interface RoguelikeGameRelicData {
-    id:    string;
-    buffs: RoguelikeBuff[];
-}
-
-export interface RoguelikeGameShopDialogData {
-    types: {[key:string]:RoguelikeGameShopDialogTypeData};
-}
-
-
-export interface RoguelikeGameShopDialogTypeData {
-    groups: {[key:string]:RoguelikeGameShopDialogGroupData};
-}
-
-export interface RoguelikeGameShopDialogGroupData {
-    content: string[];
-}
-
-export interface RoguelikeGameStageData {
-    id:            string;
-    linkedStageId: string;
-    levelId:       string;
-    code:          string;
-    name:          string;
-    loadingPicId:  string;
-    description:   string;
-    eliteDesc:     null | string;
-    isBoss:        number;
-    isElite:       number;
-    difficulty:    string;
-    capsulePool:   null | string;
-    capsuleProb:   number;
-    vutresProb:    number[];
-    boxProb:       number[];
-    specialNodeId: null | string;
-}
-
-export interface RoguelikePredefinedConstStyleData {
-    expStyleConfig: null;
-}
-
-
-export interface RoguelikeGameTrapData {
-    itemId:   string;
-    trapId:   string;
-    trapDesc: string;
-}
-export type RoguelikeGameExploreToolData=RoguelikeGameTrapData
-export interface RoguelikeTopicUpdate {
-    updateId:        string;
-    topicUpdateTime: number;
-    topicEndTime:    number;
-}
-
-export interface RoguelikeGameUpgradeTicketData {
-    id:             string;
-    profession:     number|string;
-    rarity:         number|string;
-    professionList: string[];
-    rarityList:     string[];
-}
-
-
-export interface RoguelikeGameVariationData {
-    id:           string;
-    type:        string;
-    outerName:    string;
-    innerName:    string;
-    functionDesc: string;
-    desc:         string;
-    iconId:       null | string;
-    sound:       null | string;
-}
-export interface RoguelikeGameCharBuffData {
-    id:           string;
-    outerName:    string;
-    innerName:    string;
-    functionDesc: string;
-    desc:         string;
-    iconId:       null | string;
-    buffs:       RoguelikeBuff[];
-}
-export type RoguelikeGameSquadBuffData=RoguelikeGameCharBuffData;
-export interface RoguelikeGameZoneData {
-    id:                string;
-    name:              string;
-    clockPerformance:  null | string;
-    displayTime:       null | string;
-    description:       string;
-    buffDescription:   null | string;
-    endingDescription: string;
-    backgroundId:      string;
-    zoneIconId:        string;
-    isHiddenZone:      boolean;
-}
-
-export interface ActArchiveBuffItemData {
-    buffId:         string;
-    buffGroupIndex: number;
-    innerSortId:    number;
-    name:           string;
-    iconId:         string;
-    usage:          string;
-    desc:           string;
-    color:          string;
-}
-
-export interface ActArchiveEndbookGroupData {
-    endId:                  string;
-    endingId:               string;
-    sortId:                 number;
-    title:                  string;
-    cgId:                   string;
-    backBlurId:             string;
-    cardId:                 string;
-    hasAvg:                 boolean;
-    avgId:                  string;
-    clientEndbookItemDatas: ActArchiveEndbookItemData[];
-}
-
-export interface ActArchiveEndbookItemData {
-    endBookId:   string;
-    sortId:      number;
-    enrollId:    null | string;
-    isLast:      boolean;
-    endbookName: string;
-    unlockDesc:  string;
-    textId:      string;
-}
-
-export interface RoguelikeBandRefData {
-    itemId:       string;
-    iconId:       string;
-    description:  string;
-    bandLevel:    number;
-    normalBandId: string;
-}
-
-
-export interface RoguelikeGameCustomTicketData {
-    id:          string;
-    subType:     string;
-    discardText: string;
-}
-
-export interface RoguelikeTaskData {
-    taskId:        string;
-    taskName:      string;
-    taskDesc:      string;
-    rewardSceneId: string;
-    taskRarity:    string;
-}
-
-export interface RoguelikeGameTreasureData {
-    treasureId: string;
-    groupId:    string;
-    subIndex:   number;
-    name:       string;
-    usage:      string;
-}
-export interface ActArchiveChaosData {
-    chaos: { [key: string]: ActArchiveChaosItemData };
-}
-
-export interface ActArchiveChaosItemData {
-    id:       string;
-    isHidden: boolean;
-    enrollId: null|string;
-    sortId:   number;
-}
-
-export interface ActArchiveTotemData {
-    totem: { [key: string]: ActArchiveTotemItemData };
-}
-
-export interface ActArchiveTotemItemData {
-    id:                string;
-    type:              string;
-    enrollConditionId: null | string;
-    sortId:            number;
-}
-
 export interface PredefinedPlayerLevelData {
     levels: { [key: string]: PlayerLevelData };
-}
-
-export interface RoguelikeDifficultyUpgradeRelicGroupData {
-    relicData: RoguelikeDifficultyUpgradeRelicData[];
-}
-
-export interface RoguelikeDifficultyUpgradeRelicData {
-    relicId:         string;
-    equivalentGrade: number;
-}
-
-
-export interface RoguelikePredefinedStyleData {
-    styleId:     string;
-    styleConfig: number;
-}
-
-export interface RoguelikeGameNodeSubTypeData {
-    eventType:   string;
-    subTypeId:   number;
-    iconId:      string;
-    name:        null;
-    description: string;
-}
-
-
-export interface ActArchiveDisasterData {
-    disasters: { [key: string]: ActArchiveDisasterItemData };
-}
-
-export interface ActArchiveDisasterItemData {
-    disasterId:        string;
-    sortId:            number;
-    enrollConditionId: null|string;
-    picSmallId:        string;
-    picBigActiveId:    string;
-    picBigInactiveId:  string;
-}
-
-
-
-export interface ActArchiveFragmentData {
-    fragment: { [key: string]: ActArchiveFragmentItemData };
-}
-
-export interface ActArchiveFragmentItemData {
-    fragmentId:        string;
-    sortId:            number;
-    enrollConditionId: null|string;
-}
-
-
-export interface RoguelikeEndingRelicDetailText {
-    relicId:          string;
-    summaryEventText: string;
-}
-
-
-export interface RoguelikeRollNodeData {
-    zoneId: string;
-    groups: {[key:string]:RoguelikeRollNodeGroupData};
-}
-export interface RoguelikeRollNodeGroupData {
-    nodeType: string;
-}
-
-
-/**
- * 主题模块数据（官方 modules[theme]）。
- * moduleTypes 决定 RoguelikeModuleManager 实例化哪些管理器；各模块数据键为 null 表示
- * 该主题不启用。gridZone/scrap/weather 为黑流树海（rogue_6）三模块——实测
- * data/excel/roguelike_topic_table.json 的 modules.rogue_6 键名为小驼峰
- * `gridZone`/`scrap`/`weather`（moduleTypes = ["GRID_ZONE","WEATHER","SCRAP"]）。
- */
-export interface RoguelikeModule {
-    moduleTypes: string[];
-    sanCheck:    RoguelikeSanCheckModuleData | null;
-    dice:        RoguelikeDiceModuleData | null;
-    chaos:       RoguelikeChaosModuleData | null;
-    totemBuff:   RoguelikeTotemBuffModuleData | null;
-    vision:      RoguelikeVisionModuleData | null;
-    fragment:    RoguelikeFragmentModuleData | null;
-    disaster:    RoguelikeDisasterModuleData | null;
-    nodeUpgrade: RoguelikeNodeUpgradeModuleData | null;
-    gridZone?:   RoguelikeGridZoneModuleData | null;
-    weather?:    RoguelikeWeatherModuleData | null;
-    scrap?:      RoguelikeScrapModuleData | null;
-}
-
-export interface RoguelikeChaosModuleData {
-    chaosDatas:    { [key: string]: RoguelikeChaosData };
-    chaosRanges:   RoguelikeChaosRangeData[];
-    levelInfoDict: {[key:string]:{ [key: string]: RoguelikeChaosPredefineLevelInfo }};
-    moduleConsts:  RoguelikeChaosModuleConsts;
-}
-
-export interface RoguelikeChaosData {
-    chaosId:      string;
-    level:        number;
-    nextChaosId:  null | string;
-    prevChaosId:  null | string;
-    iconId:       string;
-    name:         string;
-    functionDesc: string;
-    desc:         string;
-    sound:        string;
-    sortId:       number;
-}
-
-export interface RoguelikeChaosRangeData {
-    chaosMax:           number;
-    chaosDungeonEffect: string;
-}
-
-export interface RoguelikeChaosPredefineLevelInfo {
-    chaosLevelBeginNum: number;
-    chaosLevelEndNum:   number;
-}
-
-export interface RoguelikeChaosModuleConsts {
-    maxChaosLevel:           number;
-    maxChaosSlot:            number;
-    chaosNotMaxDescription:  string;
-    chaosMaxDescription:     string;
-    chaosPredictDescription: string;
-}
-
-export interface RoguelikeDiceModuleData {
-    dice:           { [key: string]: RoguelikeDiceData };
-    diceEvents:     { [key: string]: RoguelikeDiceRuleData };
-    diceChoices:    { [key: string]: string };
-    diceRuleGroups: { [key: string]: RoguelikeDiceRuleGroupData };
-    dicePredefines: RoguelikeDicePredefineData[];
-}
-
-export interface RoguelikeDiceData {
-    diceId:        string;
-    description:   string;
-    isUpgradeDice: number;
-    upgradeDiceId: null | string;
-    diceFaceCount: number;
-    battleDiceId:  string;
-}
-
-
-export interface RoguelikeDiceRuleData {
-    dicePointMax:    number;
-    diceResultClass: string;
-    diceGroupId:     string;
-    diceEventId:     string;
-    resultDesc:      string;
-    showType:        string;
-    canReroll:       boolean;
-    diceEndingScene: string;
-    diceEndingDesc:  string;
-    sound:           string;
-}
-
-export interface RoguelikeDicePredefineData {
-    modeId:           string;
-    modeGrade:        number;
-    predefinedId:     null | string;
-    initialDiceCount: number;
-}
-
-export interface RoguelikeDiceRuleGroupData {
-    ruleGroupId: string;
-    minGoodNum:  number;
-}
-
-export interface RoguelikeDisasterModuleData {
-    disasterData: { [key: string]: RoguelikeDisasterData };
-}
-
-export interface RoguelikeDisasterData {
-    id:           string;
-    iconId:       string;
-    toastIconId:  string;
-    level:        number;
-    name:         string;
-    levelName:    string;
-    type:         string;
-    functionDesc: string;
-    desc:         string;
-    sound:        null;
-}
-
-export interface RoguelikeFragmentModuleData {
-    fragmentData:       { [key: string]: RoguelikeFragmentData };
-    fragmentTypeData:   {[key:string]:RoguelikeFragmentTypeData};
-    moduleConsts:       RoguelikeFragmentModuleConsts;
-    fragmentBuffData:   { [key: string]: RoguelikeFragmentBuffData };
-    alchemyData:        { [key: string]: RoguelikeAlchemyData };
-    alchemyFormulaData: { [key: string]: RoguelikeAlchemyFormulationData };
-    fragmentLevelData:  { [key: string]: RoguelikeFragmentLevelRelatedData };
-}
-
-export interface RoguelikeAlchemyData {
-    fragmentTypeList:  string[];
-    fragmentSquareSum: number;
-    poolRarity:        string;
-    relicProp:         number;
-    shieldProp:        number;
-    populationProp:    number;
-}
-
-export interface RoguelikeAlchemyFormulationData {
-    fragmentIds:    string[];
-    rewardId:       string;
-    rewardCount:    number;
-    rewardItemType: string;
-}
-
-export interface RoguelikeFragmentBuffData {
-    itemId:   string;
-    maskType: string;
-    desc:     null | string;
-}
-
-export interface RoguelikeFragmentData {
-    id:     string;
-    type:   string;
-    value:  number;
-    weight: number;
-}
-
-export interface RoguelikeFragmentLevelRelatedData {
-    weightUp: number;
-}
-
-
-
-export interface RoguelikeFragmentTypeData {
-    type:       string;
-    typeName:   string;
-    typeDesc:   string;
-    typeIconId: string;
-}
-
-export interface RoguelikeFragmentModuleConsts {
-    weightStatusSafeDesc:            string;
-    weightStatusLimitDesc:           string;
-    weightStatusOverweightDesc:      string;
-    charWeightSlot:                  number;
-    limitWeightThresholdValue:       number;
-    overWeightThresholdValue:        number;
-    maxAlchemyField:                 number;
-    maxAlchemyCount:                 number;
-    fragmentBagWeightLimitTips:      string;
-    fragmentBagWeightOverWeightTips: string;
-    weightUpgradeToastFormat:        string;
-}
-
-export interface RoguelikeNodeUpgradeModuleData {
-    nodeUpgradeDataMap: {[key:string]:RoguelikeNodeUpgradeData};
-}
-
-
-export interface RoguelikeNodeUpgradeData {
-    nodeType:     string;
-    sortId:       number;
-    permItemList: RoguelikePermNodeUpgradeItemData[];
-    tempItemList: RoguelikeTempNodeUpgradeItemData[];
-}
-
-export interface RoguelikePermNodeUpgradeItemData {
-    upgradeId:     string;
-    nodeType:      string;
-    nodeLevel:     number;
-    costItemId:    string;
-    costItemCount: number;
-    desc:          string;
-    nodeName:      string;
-}
-
-export interface RoguelikeTempNodeUpgradeItemData {
-    upgradeId:     string;
-    nodeType:      string;
-    sortId:        number;
-    costItemId:    string;
-    costItemCount: number;
-    desc:          string;
-}
-
-export interface RoguelikeSanCheckModuleData {
-    sanRanges:    RoguelikeSanRangeData[];
-    moduleConsts: RoguelikeSanCheckConsts;
-}
-
-export interface RoguelikeSanCheckConsts {
-    sanDecreaseToast: string;
-}
-
-export interface RoguelikeSanRangeData {
-    sanMax:           number;
-    diceGroupId:      string;
-    description:      string;
-    sanDungeonEffect: string;
-    sanEffectRank:    string;
-    sanEndingDesc:    null|string;
-}
-
-export interface RoguelikeTotemBuffModuleData {
-    totemBuffDatas: { [key: string]: RoguelikeTotemBuffData };
-    subBuffs:       { [key: string]: RoguelikeTotemSubBuffData };
-    moduleConsts:   RoguelikeTotemModuleConsts;
-}
-
-export interface RoguelikeTotemModuleConsts {
-    totemPredictDescription:    string;
-    colorCombineDesc:           { [key: string]: string };
-    bossCombineDesc:            string;
-    battleNoPredictDescription: string;
-    shopNoGoodsDescription:     string;
-}
-
-export interface RoguelikeTotemSubBuffData {
-    subBuffId:    string;
-    name:         string;
-    desc:         string;
-    combinedDesc: string;
-    info:         string;
-}
-
-export interface RoguelikeTotemBuffData {
-    totemId:                  string;
-    color:                    string;
-    pos:                      string;
-    rhythm:                   string;
-    normalDesc:               string;
-    synergyDesc:              string;
-    archiveDesc:              string;
-    combineGroupName:         string;
-    bgIconId:                 string;
-    isManual:                 boolean;
-    linkedNodeTypeData:       RoguelikeTotemLinkedNodeTypeData;
-    distanceMin:              number;
-    distanceMax:              number;
-    vertPassable:             boolean;
-    expandLength:             number;
-    onlyForVert:              boolean;
-    portalLinkedNodeTypeData: RoguelikeTotemLinkedNodeTypeData;
-}
-
-export interface RoguelikeTotemLinkedNodeTypeData {
-    effectiveNodeTypes: string[];
-    blurNodeTypes:      string[];
-}
-
-export interface RoguelikeVisionModuleData {
-    visionDatas:   { [key: string]: RoguelikeVisionData };
-    visionChoices: { [key: string]: VisionChoiceConfig };
-    moduleConsts:  RoguelikeVisionModuleConsts;
-}
-
-export interface RoguelikeVisionModuleConsts {
-    maxVision:              number;
-    totemBottomDescription: string;
-    chestBottomDescription: string;
-    goodsBottomDescription: string;
 }
 
 export interface VisionChoiceConfig {
     value: number;
     type:  string;
-}
-
-export interface RoguelikeVisionData {
-    sightNum:   number;
-    level:      number;
-    canForesee: boolean;
-    dividedDis: number;
-    status:     string;
-    clr:        string;
-    desc1:      string;
-    desc2:      string;
-    icon:       string;
-}
-
-export interface RoguelikeTopicBasicData {
-    id:                        string;
-    name:                      string;
-    startTime:                 number;
-    disappearTimeOnMainScreen: number;
-    sort:                      number;
-    showMedalId:               string;
-    medalGroupId:              string;
-    fullStoredTime:            number;
-    lineText:                  string;
-    homeEntryDisplayData:      HomeEntryDisplayData[];
-    moduleTypes:               string[];
-    config:                    RoguelikeTopicConfig;
-}
-
-export interface RoguelikeTopicConfig {
-    loadCharCardPlugin:        boolean;
-    webBusType:                string;
-    monthChatTrigType:         string;
-    loadRewardHpDecoPlugin:    boolean;
-    loadRewardExtraInfoPlugin: boolean;
 }
 
 export interface HomeEntryDisplayData {
@@ -3359,3 +1850,178 @@ export type {
 
 
 import { getManufactFormula, getWorkshopFormula, getRoomPhase, getGoldRate, getManufactPhase, getDormPhase, getBuildingConstant, getFurnitureInfo, getFurnitureThemeId, getRoomMaxLevel, getWorkshopFormulaType, getManufactFormulaType, getRoomElectricity, getClueExpiredDays, getMessageLeaveBoardConst, getMeetingPhase, getHirePhase } from "./building_excel";
+
+// 生成类型 re-export（防腐层：业务经 @excel/excel 取类型，不直连 gen）
+export {
+  ChapterData,
+  Blackboard,
+  RoguelikeBuff,
+  CharacterData,
+  ItemBundle,
+  ExternalBuff,
+  EquipTalentData,
+  TalentData,
+  ActivityPotentialCharacterInfo,
+  ApSupplyFeature,
+  ExpItemFeature,
+  FavorCharacterInfo,
+  FullPotentialCharacterInfo,
+  ItemPackInfo,
+  ItemData,
+  ItemClassifyType,
+  ItemRarity,
+  OccPer,
+  UniCollectionInfo,
+  MissionTable,
+  CrossAppShareMissionConst,
+  CrossAppShareMission,
+  DailyMissionGroupInfo,
+  MissionGroup,
+  MissionDailyRewardConf,
+  MissionWeeklyRewardConf,
+  OpenServerSchedule,
+  OpenServerConst,
+  OpenServerData,
+  TotalCheckinData,
+  ChainLoginData,
+  OpenServerItemData,
+  NewbieCheckInPackageData,
+  NewbieCheckInPackageRewardData,
+  ReturnData,
+  OpenServerScheduleItem,
+  StageTable,
+  ActCustomStageData,
+  ApProtectZoneInfo,
+  StageValidInfo,
+  StageDiffGroupTable,
+  WeeklyForceOpenTable,
+  MapThemeData,
+  OverrideDropInfo,
+  SpecialBattleFinishStageData,
+  StageFogInfo,
+  StageStartCond,
+  StageData,
+  StoryStageShowGroup,
+  TileAppendInfo,
+  TimelyDropTimeInfo,
+  TimelyDropInfo,
+  OverrideUnlockInfo,
+  RoguelikeTopicTable,
+  RoguelikeTopicConst,
+  RoguelikeTopicDetail,
+  RoguelikeArchiveComponentData,
+  ActArchiveBuffData,
+  ActArchiveCapsuleData,
+  ActArchiveCapsuleItemData,
+  ActArchiveChatData,
+  ActArchiveChatGroupData,
+  ActArchiveChatItemData,
+  ActArchiveEndbookData,
+  ActArchiveRelicData,
+  ActArchiveRelicItemData,
+  ActArchiveTrapData,
+  ActArchiveTrapItemData,
+  RoguelikeArchiveUnlockCondData,
+  RoguelikeArchiveEnroll,
+  RoguelikeArchiveUnlockCondDesc,
+  RoguelikeTopicBankReward,
+  TipData,
+  RoguelikeBattleSummeryDescriptionData,
+  RoguelikeTopicCapsule,
+  RoguelikeTopicChallenge,
+  RoguelikeTopicChallengeTask,
+  RoguelikeGameChoiceSceneData,
+  RoguelikeGameChoiceData,
+  RoguelikeTopicDetailConst,
+  RoguelikeTopicDifficulty,
+  RoguelikeEndingDetailText,
+  RoguelikeGameEndingData,
+  RoguelikeTopicEnroll,
+  RoguelikeGameConst,
+  RoguelikeTopicBPGrandPrize,
+  RoguelikeGameInitData,
+  RoguelikeGameItemData,
+  RoguelikeTopicMilestoneUpdateData,
+  RoguelikeTopicBP,
+  RoguelikeTopicMonthMission,
+  RoguelikeTopicMonthSquad,
+  RoguelikeGameNodeTypeData,
+  RoguelikeGameRecruitGrpData,
+  RoguelikeGameRecruitTicketData,
+  RoguelikeGameRelicParamData,
+  RoguelikeGameRelicData,
+  RoguelikeGameShopDialogData,
+  RoguelikeGameShopDialogTypeData,
+  RoguelikeGameShopDialogGroupData,
+  RoguelikeGameStageData,
+  RoguelikePredefinedConstStyleData,
+  RoguelikeGameTrapData,
+  RoguelikeGameExploreToolData,
+  RoguelikeTopicUpdate,
+  RoguelikeGameUpgradeTicketData,
+  RoguelikeGameVariationData,
+  RoguelikeGameCharBuffData,
+  RoguelikeGameSquadBuffData,
+  RoguelikeGameZoneData,
+  ActArchiveBuffItemData,
+  ActArchiveEndbookGroupData,
+  ActArchiveEndbookItemData,
+  RoguelikeBandRefData,
+  RoguelikeGameCustomTicketData,
+  RoguelikeTaskData,
+  RoguelikeGameTreasureData,
+  ActArchiveChaosData,
+  ActArchiveChaosItemData,
+  ActArchiveTotemData,
+  ActArchiveTotemItemData,
+  RoguelikeDifficultyUpgradeRelicGroupData,
+  RoguelikeDifficultyUpgradeRelicData,
+  RoguelikePredefinedStyleData,
+  RoguelikeGameNodeSubTypeData,
+  ActArchiveDisasterData,
+  ActArchiveDisasterItemData,
+  ActArchiveFragmentData,
+  ActArchiveFragmentItemData,
+  RoguelikeEndingRelicDetailText,
+  RoguelikeRollNodeData,
+  RoguelikeRollNodeGroupData,
+  RoguelikeModule,
+  RoguelikeChaosModuleData,
+  RoguelikeChaosData,
+  RoguelikeChaosRangeData,
+  RoguelikeChaosPredefineLevelInfo,
+  RoguelikeChaosModuleConsts,
+  RoguelikeDiceModuleData,
+  RoguelikeDiceData,
+  RoguelikeDiceRuleData,
+  RoguelikeDicePredefineData,
+  RoguelikeDiceRuleGroupData,
+  RoguelikeDisasterModuleData,
+  RoguelikeDisasterData,
+  RoguelikeFragmentModuleData,
+  RoguelikeAlchemyData,
+  RoguelikeAlchemyFormulationData,
+  RoguelikeFragmentBuffData,
+  RoguelikeFragmentData,
+  RoguelikeFragmentLevelRelatedData,
+  RoguelikeFragmentTypeData,
+  RoguelikeFragmentModuleConsts,
+  RoguelikeNodeUpgradeModuleData,
+  RoguelikeNodeUpgradeData,
+  RoguelikePermNodeUpgradeItemData,
+  RoguelikeTempNodeUpgradeItemData,
+  RoguelikeSanCheckModuleData,
+  RoguelikeSanCheckConsts,
+  RoguelikeSanRangeData,
+  RoguelikeTotemBuffModuleData,
+  RoguelikeTotemModuleConsts,
+  RoguelikeTotemSubBuffData,
+  RoguelikeTotemBuffData,
+  RoguelikeTotemLinkedNodeTypeData,
+  RoguelikeVisionModuleData,
+  RoguelikeVisionModuleConsts,
+  RoguelikeVisionData,
+  RoguelikeTopicBasicData,
+  RoguelikeTopicConfig,
+  ItemType,
+} from "./types_excel_gen";

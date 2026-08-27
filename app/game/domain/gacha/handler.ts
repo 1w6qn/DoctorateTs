@@ -207,7 +207,7 @@ router.post("/tenAdvancedGacha", validateBody(tenAdvancedGachaSchema), async (re
   const body = req.body as TenAdvancedGachaRequest;
   res.send({
     result: 0,
-    gachaResultList: await player.modules.gacha.tenAdvancedGacha(body),
+    gachaResultList: await player.modules.gacha.tenAdvancedGacha(body as any),
     ...player.delta,
   } satisfies TenAdvancedGachaResponse);
 });

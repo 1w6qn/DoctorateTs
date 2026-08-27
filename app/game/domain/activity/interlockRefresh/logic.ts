@@ -5,7 +5,7 @@ import { Router } from "express";
 import * as ReqSchema from "../../../domain/activity/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../request-context";
-import { ItemBundle } from "@excel/excel";
+import { ItemBundle, ItemType } from "@excel/excel";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
 import config from "../../../../config";
@@ -176,7 +176,7 @@ async function confirmOneActivityMission(
     rewards.push({
       id: reward.id,
       count: reward.count,
-      type: ItemTypeToString(reward.type),
+      type: ItemTypeToString(reward.type) as ItemType,
     });
   }
   await player.update(async (draft) => {
@@ -225,7 +225,7 @@ async function autoConfirmActivityMissionsIn(
           rewards.push({
             id: reward.id,
             count: reward.count,
-            type: ItemTypeToString(reward.type),
+            type: ItemTypeToString(reward.type) as ItemType,
           });
         }
       }

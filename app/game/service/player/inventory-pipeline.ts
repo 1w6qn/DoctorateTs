@@ -19,7 +19,7 @@
  */
 import type { PlayerDataManager } from "../PlayerDataManager";
 import type { TypedEventEmitter } from "../events";
-import { ItemBundle } from "@excel/excel";
+import { ItemBundle, ItemType } from "@excel/excel";
 
 export class GainItemPipeline {
   private _targets: ItemBundle[] = [];
@@ -49,10 +49,10 @@ export class GainItemPipeline {
   ): this {
     this._targets.push({
       id: itemId,
-      type: itemType as never,
+      type: itemType as ItemType,
       count: itemCount ?? 1,
       instId: itemInstId,
-    });
+    } as any);
     return this;
   }
 

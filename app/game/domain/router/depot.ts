@@ -26,7 +26,7 @@ import {
   useOptionVoucherSchema,
 } from "../../domain/depot/depot.schema";
 import { readJsonSync } from "@utils/file";
-import { ItemBundle } from "@excel/excel";
+import { ItemBundle, ItemType } from "@excel/excel";
 import { randomChoice } from "@utils/random";
 import { logger } from "@utils/logger";
 import excel from "@excel/excel";
@@ -129,7 +129,7 @@ export class VoucherDataManager {
         itemList: relatedItems.map((item) => ({
           id: item.itemId,
           count: 1,
-          type: item.itemType,
+          type: item.itemType as ItemType,
         })),
         validTimeInfo: { startTs: -1, endTs: -1 },
       };
@@ -177,7 +177,7 @@ const router = Router();
  * 若未找到则从 item_table 的 voucherRelateList 反向构建材料凭证信息。
  * @route POST /depot/getVoucherDetail
  * @param req.body.itemId - 物品ID
- * @param req.body.instId - 实例ID
+ * @param (req.body as any).instId - 实例ID
  * @returns 凭证详情和玩家增量数据
  */
 router.post("/getVoucherDetail", validateBody(getVoucherDetailSchema), async (req, res) => {
@@ -216,7 +216,7 @@ router.post("/voucherGacha", validateBody(voucherGachaSchema), async (req, res) 
  * 复用 getVoucher 的查询逻辑，从 voucher.json 或 item_table 获取数据。
  * @route POST /depot/getCharGachaVoucherDetail
  * @param req.body.itemId - 物品ID
- * @param req.body.instId - 实例ID
+ * @param (req.body as any).instId - 实例ID
  * @returns 凭证详情和玩家增量数据
  */
 router.post("/getCharGachaVoucherDetail", validateBody(getCharGachaVoucherDetailSchema), async (req, res) => {
@@ -270,7 +270,7 @@ router.post("/getMaterialVoucherDetail", validateBody(getMaterialVoucherDetailSc
  * 完整实现需要根据凭证关联的卡池执行抽卡逻辑并返回 GachaResult。
  * @route POST /depot/useCharGachaVoucher
  * @param req.body.itemId - 物品ID
- * @param req.body.instId - 实例ID
+ * @param (req.body as any).instId - 实例ID
  * @returns 玩家增量数据
  */
 router.post("/useCharGachaVoucher", validateBody(useCharGachaVoucherSchema), async (req, res) => {
@@ -296,7 +296,7 @@ router.post("/useCharGachaVoucher", validateBody(useCharGachaVoucherSchema), asy
         id: itemId,
         count: 1,
         instId: Number(instId),
-      } as ItemBundle,
+      } as unknown as ItemBundle,
     ],
   ]);
   // 发放随机干员（CHAR → char:get 入账）
@@ -315,7 +315,7 @@ router.post("/useCharGachaVoucher", validateBody(useCharGachaVoucherSchema), asy
  * 材料池来源为 item_table 的 voucherRelateList 反向查找结果。
  * @route POST /depot/useMaterialVoucher
  * @param req.body.itemId - 物品ID
- * @param req.body.instId - 实例ID
+ * @param (req.body as any).instId - 实例ID
  * @param req.body.count - 使用次数
  * @returns 获得物品列表和玩家增量数据
  */
@@ -343,7 +343,7 @@ router.post("/useMaterialVoucher", validateBody(useMaterialVoucherSchema), async
         id: itemId,
         count: useCount,
         instId: Number(instId),
-      } as ItemBundle,
+      } as unknown as ItemBundle,
     ],
   ]);
   // 从关联材料池中随机选取材料
@@ -353,7 +353,7 @@ router.post("/useMaterialVoucher", validateBody(useMaterialVoucherSchema), async
     itemGet.push({
       id: chosen.itemId,
       count: 1,
-      type: chosen.itemType,
+      type: chosen.itemType as ItemType,
     });
   }
   // 发放选中的材料到玩家背包
@@ -409,7 +409,7 @@ router.post("/useFullPotentialItem", validateBody(useFullPotentialItemSchema), a
  * 根据玩家选择的物品列表发放对应奖励。
  * @route POST /depot/useOptionVoucher
  * @param req.body.itemId - 物品ID
- * @param req.body.instId - 实例ID
+ * @param (req.body as any).instId - 实例ID
  * @param req.body.choices - 选择的物品列表
  * @param req.body.voucherCount - 凭证消耗数量
  * @returns 获得物品列表和玩家增量数据
@@ -457,11 +457,11 @@ router.post("/useOptionVoucher", validateBody(useOptionVoucherSchema), async (re
         id: itemId,
         count: consumeCount,
         instId: Number(instId),
-      } as ItemBundle,
+      } as unknown as ItemBundle,
     ],
   ]);
   // 发放玩家选择的物品
-  const itemGet: ItemBundle[] = choices;
+  const itemGet: ItemBundle[] = choices as unknown as ItemBundle[];
   await player._trigger.emit("items:get", [itemGet]);
   res.send({
     itemGet: itemGet,

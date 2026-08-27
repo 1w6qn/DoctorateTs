@@ -6,7 +6,7 @@ import { confirmOneActivityMission, autoConfirmActivityMissionsIn, ItemTypeToStr
 import * as ReqSchema from "../../../domain/activity/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../request-context";
-import { ItemBundle } from "@excel/excel";
+import { ItemBundle, ItemType } from "@excel/excel";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
 import { activityDictKey } from "@game/service/player/unlockActivity";
@@ -300,7 +300,7 @@ export async function handleConfirmActivityMissionGroup(player: PlayerDataManage
       rewards = groupInfo.rewards.map((r) => ({
         id: r.id,
         count: r.count,
-        type: ItemTypeToString(r.type),
+        type: ItemTypeToString(r.type) as ItemType,
       }));
       await player._trigger.emit("items:get", [rewards]);
     }
@@ -327,7 +327,7 @@ export async function handleAutoConfirmMissions(player: PlayerDataManager, body:
   } else {
     try {
       const items = await player.mission.autoConfirmMissions({
-        type: body.type,
+        type: body.type as ItemType,
       });
       allRewards.push(...items);
     } catch {
@@ -415,7 +415,7 @@ export async function handleGetActivityCollectionReward(player: PlayerDataManage
         rewards.push({
           id: collectionInfo.itemId,
           count: collectionInfo.itemCnt,
-        });
+          } as unknown as ItemBundle);
       }
     }
     // 标记收集项为已领取（0 表示已领取）

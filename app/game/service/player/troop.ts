@@ -64,8 +64,8 @@ export class TroopManager {
       if (count <= 0) continue;
       const item = excel.GachaTable.potentialMaterialConverter.items[rarity];
       if (!item) continue; // 防御：无对应分解配置跳过
-      costs.push({ id: potentialItemId, count: count });
-      items.push({ id: item.id, count: item.count * count });
+      costs.push({ id: potentialItemId, count: count } as unknown as ItemBundle);
+      items.push({ id: item.id, count: item.count * count } as unknown as ItemBundle);
     }
     if (costs.length > 0) {
       await this._trigger.emit("items:use", [costs]);
@@ -97,8 +97,8 @@ export class TroopManager {
       if (count <= 0) continue;
       const item = excel.GachaTable.classicPotentialMaterialConverter.items[rarity];
       if (!item) continue; // 防御：无对应分解配置跳过
-      costs.push({ id: potentialItemId, count: count });
-      items.push({ id: item.id, count: item.count * count });
+      costs.push({ id: potentialItemId, count: count } as unknown as ItemBundle);
+      items.push({ id: item.id, count: item.count * count } as unknown as ItemBundle);
     }
     if (costs.length > 0) {
       await this._trigger.emit("items:use", [costs]);

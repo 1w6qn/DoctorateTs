@@ -6,7 +6,7 @@ import { ItemTypeToString } from "../shared";
 import * as ReqSchema from "../../../domain/activity/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../request-context";
-import { ItemBundle } from "@excel/excel";
+import { ItemBundle, ItemType } from "@excel/excel";
 import excel from "@excel/excel";
 import { now } from "@utils/time";
 import { activityDictKey } from "@game/service/player/unlockActivity";
@@ -240,7 +240,7 @@ rootRouter.post("/actcheckinvs/sign", validateBody(ReqSchema.actCheckinvsSignSch
       rewards.push({
         id: reward.id,
         count: reward.count,
-        type: ItemTypeToString(reward.type),
+        type: ItemTypeToString(reward.type) as ItemType,
       });
     }
   }

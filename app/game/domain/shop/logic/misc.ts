@@ -6,7 +6,7 @@
  */
 import type { ShopManager } from "../logic";
 import excel from "@excel/excel";
-import { ItemBundle } from "@excel/excel";
+import { ItemBundle, ItemType } from "@excel/excel";
 import { ShopError } from "../errors";
 import { ChooseGPItem, GPGoodList, LevelGPItem, MonthlySubItem, NormalGPItem, PeriodicityGroup, PeriodicityGPItem } from "@excel/excel";
 import { BadRequestError } from "../../contracts/errors";
@@ -155,7 +155,7 @@ export async function buySkinGood(mgr: ShopManager, args: { goodId: string }) : 
     }
     // 修复：余额不足拒绝（至纯源石 4002）
     mgr._assertAffordable("4002", good.price);
-    const item = { id: good.skinId, count: 1, type: "CHAR_SKIN" };
+    const item = { id: good.skinId, count: 1, type: "CHAR_SKIN" as ItemType };
     // 修复：记录购买（原不写 SKIN.info → 客户端购买状态永远可买）
     await mgr._player.update(async (draft) => {
       const skin = mgr._shopDraft(draft, "SKIN");
@@ -163,11 +163,11 @@ export async function buySkinGood(mgr: ShopManager, args: { goodId: string }) : 
       if (existing) {
         existing.count += 1;
       } else {
-        skin.info.push({ id: good.goodId, count: 1 });
+        skin.info.push({ id: good.goodId, count: 1  } as unknown as ItemBundle);
       }
     });
     await mgr._trigger.emit("items:use", [
-      [{ id: "4002", type: "DIAMOND", count: good.price }],
+      [{ id: "4002", type: "DIAMOND" as ItemType, count: good.price }],
     ]);
     await mgr._trigger.emit("items:get", [[item]]);
 }
@@ -200,7 +200,7 @@ export async function buyCashGood(mgr: ShopManager, args: { goodId: string }) : 
         existingItem.count += 1;
         return 0;
       } else {
-        cash.info.push({ id: goodId, count: 1 });
+        cash.info.push({ id: goodId, count: 1  } as unknown as ItemBundle);
         return good.doubleCount > 0 ? 1 : 0;
       }
     });
@@ -209,7 +209,7 @@ export async function buyCashGood(mgr: ShopManager, args: { goodId: string }) : 
       : good.diamondNum + good.plusNum;
     const item: ItemBundle = {
       id: "4002",
-      type: "DIAMOND",
+      type: "DIAMOND" as ItemType,
       count: diamondCount,
     };
     await mgr._trigger.emit("items:get", [[item]]);
@@ -248,12 +248,12 @@ export async function buyFurniGood(mgr: ShopManager, args: {
     mgr._assertAvail("FURNI", goodId, buyCount, good.count);
     if (isCoin) {
       await mgr._trigger.emit("items:use", [
-        [{ id: "3401", count: good.priceCoin * buyCount }],
+        [{ id: "3401", count: good.priceCoin * buyCount  } as unknown as ItemBundle],
       ]);
     } else {
       // 修复：DIAMOND 分支 id 补全（原 id 为空串，仅靠 type 分支扣减）
       await mgr._trigger.emit("items:use", [
-        [{ id: "4002", type: "DIAMOND", count: good.priceDia * buyCount }],
+        [{ id: "4002", type: "DIAMOND" as ItemType, count: good.priceDia * buyCount }],
       ]);
     }
     await mgr._player.update(async (draft) => {
@@ -262,10 +262,10 @@ export async function buyFurniGood(mgr: ShopManager, args: {
       if (existingItem) {
         existingItem.count += buyCount;
       } else {
-        furni.info.push({ id: goodId, count: buyCount });
+        furni.info.push({ id: goodId, count: buyCount  } as unknown as ItemBundle);
       }
     });
-    const item = { id: good.furniId, type: "FURN", count: buyCount };
+    const item = { id: good.furniId, type: "FURN" as ItemType, count: buyCount };
     await mgr._trigger.emit("items:get", [[item]]);
     return [item];
 }
@@ -297,7 +297,7 @@ export async function buyFurniGroup(mgr: ShopManager, args: {
       // 修复：限购检查
       mgr._assertAvail("FURNI", g.id, count, good.count);
       await mgr._trigger.emit("items:use", [
-        [{ id: "3401", count: (good.priceCoin ?? 0) * count }],
+        [{ id: "3401", count: (good.priceCoin ?? 0) * count  } as unknown as ItemBundle],
       ]);
       await mgr._player.update(async (draft) => {
         const furni = mgr._shopDraft(draft, "FURNI");
@@ -305,10 +305,10 @@ export async function buyFurniGroup(mgr: ShopManager, args: {
         if (existing) {
           existing.count += count;
         } else {
-          furni.info.push({ id: g.id, count });
+          furni.info.push({ id: g.id, count } as unknown as ItemBundle);
         }
       });
-      items.push({ id: good.furniId, type: "FURN", count });
+      items.push({ id: good.furniId, type: "FURN" as ItemType, count });
     }
     await mgr._trigger.emit("items:get", [items]);
     return items;
@@ -431,7 +431,7 @@ export async function buyGoodWithTicket(mgr: ShopManager, args: {
           if (rec) {
             rec.count += 1;
           } else {
-            shop.GP[sub].info.push({ id: goodId, count: 1 });
+            shop.GP[sub].info.push({ id: goodId, count: 1  } as unknown as ItemBundle);
           }
         });
       }
@@ -502,14 +502,14 @@ export async function useVoucherSkin(mgr: ShopManager, args: { goodId: string })
     // 当前 SkinGoodList.json 无 isRedeem 商品，此路径有配置时不再无限免费兑换）
     if (good.isRedeem && good.currencyUnit && good.currencyUnit !== "DIAMOND") {
       await mgr._trigger.emit("items:use", [
-        [{ id: good.currencyUnit, count: 1 }],
+        [{ id: good.currencyUnit, count: 1  } as unknown as ItemBundle],
       ]);
     }
     // 发放皮肤物品
     const item: ItemBundle = {
       id: good.skinId,
       count: 1,
-      type: "CHAR_SKIN",
+      type: "CHAR_SKIN" as ItemType,
     };
     await mgr._player.update(async (draft) => {
       // 修复：兑换记录写入 SKIN 商店而非信用商店（原写 SOCIAL.info 污染信用记录）
@@ -518,7 +518,7 @@ export async function useVoucherSkin(mgr: ShopManager, args: { goodId: string })
       if (existingItem) {
         existingItem.count += 1;
       } else {
-        skin.info.push({ id: goodId, count: 1 });
+        skin.info.push({ id: goodId, count: 1  } as unknown as ItemBundle);
       }
     });
     await mgr._trigger.emit("items:get", [[item]]);

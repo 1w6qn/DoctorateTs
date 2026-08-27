@@ -1,3 +1,4 @@
+import { ItemType, ItemBundle } from "@excel/excel";
 import { RoguelikeV2Manager } from "./logic";
 import { BattleData } from "@game/domain/battle";
 import { decryptBattleData, decryptBattleReplay } from "@utils/crypt";
@@ -31,7 +32,7 @@ function buildRlv2Record(
   battleId: string,
   stageId: string,
   decryptResult: any,
-  rewards: { type: string; id: string; count: number }[],
+  rewards: ItemBundle[],
   opts: { isCheat?: string; battleLog?: unknown } = {},
 ): BattleRecord {
   // controller 内置 _player 字段即底层 PlayerDataManager（提供 uid 与记录存储）
@@ -291,7 +292,7 @@ export class RoguelikeBattleManager {
       const dropCount = bb[2]?.value ?? 1;
       if (dropId && this._player._status.property.shield < threshold) {
         await this._trigger.emit("rlv2:get:items", [
-          [{ id: dropId, count: dropCount }],
+          [{ id: dropId, count: dropCount  } as unknown as ItemBundle],
         ]);
       }
     }
@@ -511,12 +512,12 @@ export class RoguelikeBattleManager {
       scrap?.applyGoodsEffect(perfect ? "battle_perfect" : "battle_nonperfect");
 
       // —— 战斗结束记录留存（win 路径）：扁平化奖励摘要 + 统计 + 回放/反作弊标识入库 ——
-      const flatRewards: { type: string; id: string; count: number }[] = [];
+      const flatRewards: ItemBundle[] = [];
       for (const block of rewards as {
         items?: { sub: number; id: string; count: number }[];
       }[]) {
         for (const it of block.items ?? []) {
-          flatRewards.push({ type: "", id: it.id, count: it.count });
+          flatRewards.push({ type: "" as ItemType, id: it.id, count: it.count });
         }
       }
       await this.persistRecord(

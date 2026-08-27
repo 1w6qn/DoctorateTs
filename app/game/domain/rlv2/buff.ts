@@ -227,7 +227,7 @@ export class RoguelikeBuffManager {
         immediate_reward: (id: string, value: number) => {
           return [
             { key: "id", value: 0.0, valueStr: id },
-            { key: "count", value: value, valueStr: null },
+            { key: "count", value: value, valueStr: "" },
           ];
         },
       };

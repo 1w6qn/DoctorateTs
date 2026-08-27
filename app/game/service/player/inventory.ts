@@ -1,4 +1,4 @@
-import { ItemBundle } from "@excel/excel";
+import { ItemBundle, ItemType } from "@excel/excel";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
 import { now } from "@utils/time";
@@ -105,11 +105,11 @@ export class InventoryManager {
     ) => {
       // 防御：目标 consumable 条目不存在（客户端乱传 itemId/instId）时不 500，
       // WARN 跳过——避免 useItem 假 instId 直接崩溃
-      const target = draft.consumable[item.id]?.[item.instId!];
+      const target = draft.consumable[item.id]?.[(item as any).instId!];
       if (!target) {
         logger.warn(
           "inventory",
-          `items:use ${item.id}#${item.instId} 不存在于 consumable，跳过消耗`,
+          `items:use ${item.id}#${(item as any).instId} 不存在于 consumable，跳过消耗`,
         );
         return;
       }
@@ -134,7 +134,7 @@ export class InventoryManager {
       AP_SUPPLY: async (item, draft) => {
         await consumableFunc(item, draft);
         await this._trigger.emit("items:get", [
-          [{ id: "", type: "AP_GAMEPLAY", count: 120 * item.count }],
+          [{ id: "", type: "AP_GAMEPLAY" as ItemType, count: 120 * item.count }],
         ]);
       },
     };
@@ -159,13 +159,13 @@ export class InventoryManager {
         );
         return;
       }
-      item.type = def.itemType as string;
+      item.type = def.itemType as ItemType;
     }
     const consumableFunc = async (
       item: ItemBundle,
       draft: Draft<PlayerDataModel>,
     ) => {
-      let consumableId = item?.instId;
+      let consumableId = (item as any)?.instId;
       if (!consumableId) {
         const consumable_set = new Set<number>();
         // 性能：从实时对象遍历（经 draft 代理遍历会对每个 consumable 条目创建
@@ -229,7 +229,7 @@ export class InventoryManager {
               [
                 {
                   id: "",
-                  type: "AP_GAMEPLAY",
+                  type: "AP_GAMEPLAY" as ItemType,
                   count: draft.status.maxAp,
                 },
               ],

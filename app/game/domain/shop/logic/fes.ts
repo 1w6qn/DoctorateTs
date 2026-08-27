@@ -6,7 +6,7 @@
  */
 import type { ShopManager } from "../logic";
 import excel from "@excel/excel";
-import { ItemBundle } from "@excel/excel";
+import { ItemBundle, ItemType } from "@excel/excel";
 import { GachaPerChar } from "@excel/excel";
 import { now } from "@utils/time";
 import { LMTGSGood, QCObject, REPGoodList } from "@excel/excel";
@@ -49,18 +49,18 @@ export async function buyEPGSGood(mgr: ShopManager, args: {
     mgr._assertAffordable("EPGS_COIN", good.price * count);
     // 修复：限购检查
     mgr._assertAvail("EPGS", goodId, count, good.availCount);
-    const item = { id: good.item.id, count: good.item.count * count, type: good.item.type };
+    const item = { id: good.item.id, count: good.item.count * count, type: good.item.type as ItemType };
     await mgr._player.update(async (draft) => {
       const epgs = mgr._shopDraft(draft, "EPGS");
       const existingItem = epgs.info.find((i: any) => i.id === goodId);
       if (existingItem) {
         existingItem.count += count;
       } else {
-        epgs.info.push({ id: goodId, count });
+        epgs.info.push({ id: goodId, count } as unknown as ItemBundle);
       }
     });
     await mgr._trigger.emit("items:use", [
-      [{ id: "EPGS_COIN", count: good!.price * count }],
+      [{ id: "EPGS_COIN", count: good!.price * count  } as unknown as ItemBundle],
     ]);
     // 修复：干员（CHAR）走 char:get 入账并返回 instId；其余走 items:get
     const granted = await mgr._issueCharItem(item);
@@ -90,18 +90,18 @@ export async function buyREPGood(mgr: ShopManager, args: {
     mgr._assertAffordable("REP_COIN", good.price * count);
     // 修复：限购检查
     mgr._assertAvail("REP", goodId, count, good.availCount);
-    const item = { id: good.item.id, count: good.item.count * count };
+    const item = { id: good.item.id, count: good.item.count * count  } as unknown as ItemBundle;
     await mgr._player.update(async (draft) => {
       const rep = mgr._shopDraft(draft, "REP");
       const existingItem = rep.info.find((i: any) => i.id === goodId);
       if (existingItem) {
         existingItem.count += count;
       } else {
-        rep.info.push({ id: goodId, count });
+        rep.info.push({ id: goodId, count } as unknown as ItemBundle);
       }
     });
     await mgr._trigger.emit("items:use", [
-      [{ id: "REP_COIN", count: good.price * count }],
+      [{ id: "REP_COIN", count: good.price * count  } as unknown as ItemBundle],
     ]);
     await mgr._trigger.emit("items:get", [[item]]);
     return [item];
@@ -149,14 +149,14 @@ export async function buyClassicGood(mgr: ShopManager, args: {
     await mgr._player.update(async (draft) => {
       const classic = mgr._shopDraft(draft, "CLASSIC");
       if (!good?.progressGoodId) {
-        item = { id: good.item.id, count: good.item.count * count, type: good.item.type };
+        item = { id: good.item.id, count: good.item.count * count, type: good.item.type as ItemType };
         const existingItem = classic.info.find(
           (i: any) => i.id === good.goodId,
         );
         if (existingItem) {
           existingItem.count += count;
         } else {
-          classic.info.push({ id: good.goodId, count: count });
+          classic.info.push({ id: good.goodId, count: count  } as unknown as ItemBundle);
         }
       } else {
         const { progressGoodId } = good;
@@ -184,11 +184,11 @@ export async function buyClassicGood(mgr: ShopManager, args: {
     });
 
     await mgr._trigger.emit("items:use", [
-      [{ id: "4004", count: price * count }],
+      [{ id: "4004", count: price * count  } as unknown as ItemBundle],
     ]);
     // 修复：干员（CHAR）走 char:get 入账并返回带 instId（获得干员效果）；其余走 items:get
     const granted = await mgr._issueCharItem(item);
-    await mgr._trigger.emit("BuyShopItem", [{ type: "CLASSIC", socialPoint: 0 }]);
+    await mgr._trigger.emit("BuyShopItem", [{ type: "CLASSIC" as ItemType, socialPoint: 0 }]);
     return [granted];
 }
 
@@ -224,11 +224,11 @@ export async function buyLMTGSGood(mgr: ShopManager, args: {
       if (existing) {
         existing.count += count;
       } else {
-        shop.LMTGS.info.push({ id: goodId, count });
+        shop.LMTGS.info.push({ id: goodId, count } as unknown as ItemBundle);
       }
     });
     await mgr._trigger.emit("items:use", [
-      [{ id: good.price.id, count: good.price.count * count, type: good.price.type }],
+      [{ id: good.price.id, count: good.price.count * count, type: good.price.type as ItemType }],
     ]);
     // 带 type 发放（CHAR → char:get 入账干员并返回 instId，客户端"获得干员"效果）
     const item: ItemBundle = {
@@ -312,24 +312,24 @@ export function buildLMTGSGoodList(mgr: ShopManager) : LMTGSGood[] {
           endTime: pool.endTime,
           availCount: -1,
           item,
-          price: { id: token, count: price, type: "LMTGS_COIN" },
+          price: { id: token, count: price, type: "LMTGS_COIN" as ItemType },
           sortId: seq,
         });
       };
       // 本池 UP 六星（含限定干员）→ 300 凭证
       for (const c of up6) {
-        for (const id of c.charIdList) push({ id, count: 1, type: "CHAR" }, 300);
+        for (const id of c.charIdList) push({ id, count: 1, type: "CHAR" as ItemType }, 300);
       }
       // 本池新五星 → 75 凭证
       if (up4) {
-        for (const id of up4.charIdList) push({ id, count: 1, type: "CHAR" }, 75);
+        for (const id of up4.charIdList) push({ id, count: 1, type: "CHAR" as ItemType }, 75);
       }
       // 历史限定六星（最多 4 个，排除本池已含）→ 300 凭证
       let added = 0;
       for (const id of historical) {
         if (added >= 4) break;
         if (up6.some((c: GachaPerChar) => c.charIdList.includes(id))) continue;
-        push({ id, count: 1, type: "CHAR" }, 300);
+        push({ id, count: 1, type: "CHAR" as ItemType }, 300);
         added++;
       }
     }
@@ -395,7 +395,7 @@ export function _buildFesPickGood(mgr: ShopManager, prefix: "HS" | "KS",
       priority: 1,
       number: tier === "6" ? 1 : 2,
       goodType: "NORMAL",
-      item: { id: ticketId, count: 1, type: itemType },
+      item: { id: ticketId, count: 1, type: itemType as ItemType },
       progressGoodId: "",
       price,
       originPrice: price,

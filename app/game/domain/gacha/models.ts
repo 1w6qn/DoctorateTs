@@ -108,6 +108,7 @@ export interface AdvancedGachaResponse extends PlayerDeltaResponse {
 export interface CombineGachaItem {
   id: string;
   count: number;
+  type?: string;
 }
 
 /** 高级抽卡（十连）请求（CS: TenAdvancedGachaRequest） */

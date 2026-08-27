@@ -283,8 +283,8 @@ export class RoguelikeRecruitManager {
     }
 
     const sortedByRarity = [...chars].sort((a, b) => {
-      const aRarity = excel.CharacterTable[a.charId]?.rarity || 0;
-      const bRarity = excel.CharacterTable[b.charId]?.rarity || 0;
+      const aRarity = Number(String(excel.CharacterTable[a.charId]?.rarity ?? "").replace("TIER_", "")) || 0;
+      const bRarity = Number(String(excel.CharacterTable[b.charId]?.rarity ?? "").replace("TIER_", "")) || 0;
       return aRarity - bRarity;
     });
 

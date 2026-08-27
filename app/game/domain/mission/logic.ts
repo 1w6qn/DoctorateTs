@@ -14,7 +14,7 @@
  */
 import { MissionCalcState } from "../../domain/playerdata";
 import excel from "@excel/excel";
-import { ItemBundle } from "@excel/excel";
+import { ItemBundle, ItemType } from "@excel/excel";
 import { PlayerCharacter } from "../../domain/character";
 import { BattleData } from "../../domain/battle";
 import { checkBetween, now, userTimestamp } from "@utils/time";
@@ -504,7 +504,7 @@ export class MissionManager {
           // 原实现 default 分支空 out → 完成态任务 confirm 后 items 为空，客户端视为
           // "领取无奖励/无法领取"（2222 存档里大量 MAIN/SUB 任务即属此类）。
           for (const r of missionInfo.rewards ?? []) {
-            items.push({ id: r.id, count: r.count, type: String(r.type) });
+            items.push({ id: r.id, count: r.count, type: String(r.type) as ItemType });
           }
           break;
       }

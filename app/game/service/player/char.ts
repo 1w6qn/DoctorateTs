@@ -1,6 +1,6 @@
 import { TypedEventEmitter } from "@game/service/events";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
-import { ItemBundle } from "@excel/excel";
+import { ItemBundle, ItemType } from "@excel/excel";
 import excel from "@excel/excel";
 import { GachaResult } from "@game/domain/gacha/gacha";
 import { now } from "@utils/time";
@@ -114,7 +114,7 @@ export class CharManager {
       }
       if (!isNew) {
         const potentId = excel.CharacterTable[charId].potentialItemId!;
-        items.push({ id: potentId, count: 1, type: "MATERIAL" });
+        items.push({ id: potentId, count: 1 } as unknown as ItemBundle);
         // 修复：CS GachaResult.potent——未满潜的重复干员返回潜能提升信息（delta/now）
         const maxPotential = excel.CharacterTable[charId].maxPotentialLevel ?? 5;
         // 性能：从实时对象读（不经 draft 代理 troop.chars——只读子树被代理后
@@ -128,16 +128,16 @@ export class CharManager {
         if (from == "CLASSIC") {
           switch (rarityToIndex(excel.CharacterTable[charId].rarity)) {
             case 5:
-              items.push({ id: "classic_normal_ticket", count: 100 });
+              items.push({ id: "classic_normal_ticket", count: 100  } as unknown as ItemBundle);
               break;
             case 4:
-              items.push({ id: "classic_normal_ticket", count: 50 });
+              items.push({ id: "classic_normal_ticket", count: 50  } as unknown as ItemBundle);
               break;
             case 3:
-              items.push({ id: "classic_normal_ticket", count: 5 });
+              items.push({ id: "classic_normal_ticket", count: 5  } as unknown as ItemBundle);
               break;
             case 2:
-              items.push({ id: "classic_normal_ticket", count: 1 });
+              items.push({ id: "classic_normal_ticket", count: 1  } as unknown as ItemBundle);
               break;
             default:
               break;
@@ -145,22 +145,22 @@ export class CharManager {
         } else {
           switch (rarityToIndex(excel.CharacterTable[charId].rarity)) {
             case 5:
-              items.push({ id: "4004", count: Math.ceil(10 * mul) });
+              items.push({ id: "4004", count: Math.ceil(10 * mul)  } as unknown as ItemBundle);
               break;
             case 4:
-              items.push({ id: "4004", count: Math.ceil(5 * mul) });
+              items.push({ id: "4004", count: Math.ceil(5 * mul)  } as unknown as ItemBundle);
               break;
             case 3:
-              items.push({ id: "4005", count: 30 });
+              items.push({ id: "4005", count: 30  } as unknown as ItemBundle);
               break;
             case 2:
-              items.push({ id: "4005", count: 5 });
+              items.push({ id: "4005", count: 5  } as unknown as ItemBundle);
               break;
             case 1:
-              items.push({ id: "4005", count: 1 });
+              items.push({ id: "4005", count: 1  } as unknown as ItemBundle);
               break;
             case 0:
-              items.push({ id: "4005", count: 1 });
+              items.push({ id: "4005", count: 1  } as unknown as ItemBundle);
               break;
             default:
               break;
@@ -200,9 +200,9 @@ export class CharManager {
         draft.troop.curCharInstId += 1;
         createdCharInstId = charInstId;
         if (from == "CLASSIC") {
-          items.push({ id: "classic_normal_ticket", count: 10 });
+          items.push({ id: "classic_normal_ticket", count: 10  } as unknown as ItemBundle);
         } else {
-          items.push({ id: "4004", count: 1, type: "HGG_SHD" });
+          items.push({ id: "4004", count: 1, type: "HGG_SHD" as ItemType });
         }
       }
       // 修复：extraItem（如限定池 LMTGSID 凭证）每抽发放，与是否新干员无关
@@ -310,7 +310,7 @@ export class CharManager {
       // 累计消耗龙门币任务（CostGold / CostGoldPlus）—— 升级耗币统计（type0 param[1]=target）
       await this._trigger.emit("CostGold", [{ goldCost: gold }]);
       await this._trigger.emit("CostGoldPlus", [{ goldCostPlus: gold }]);
-      expMats.push({ id: "4001", count: gold });
+      expMats.push({ id: "4001", count: gold  } as unknown as ItemBundle);
       // 技能：按官服线格式校正 unlock（等级提升不会解锁技能），保留已有技能状态
       reconcileCharSkills(char);
       await this._trigger.emit("items:use", [expMats]);
@@ -350,7 +350,7 @@ export class CharManager {
       const goldCost = goldRow?.[destEvolvePhase - 1] ?? -1;
       if (goldCost < 0) return;
       await this._trigger.emit("items:use", [
-        evolveCost.concat([{ id: "4001", count: goldCost } as ItemBundle]),
+        evolveCost.concat([{ id: "4001", count: goldCost  } as unknown as ItemBundle as unknown as ItemBundle]),
       ]);
       // 累计消耗龙门币任务（CostGold / CostGoldPlus）—— 晋升耗币统计
       await this._trigger.emit("CostGold", [{ goldCost: goldCost }]);
@@ -398,7 +398,7 @@ export class CharManager {
         return; // 非法道具：拒绝（防消耗任意库存物品）
       }
       char.potentialRank = target;
-      await this._trigger.emit("items:use", [[{ id: itemId, count: 1 }]]);
+      await this._trigger.emit("items:use", [[{ id: itemId, count: 1  } as unknown as ItemBundle]]);
       await this._trigger.emit("BoostPotential", [{ targetLevel: target }]);
       // 修复：勋章 CharPotential 事件从未 emit → 潜能提升勋章永不推进
       await this._trigger.emit("CharPotential", [{ targetLevel: target }]);
@@ -946,7 +946,7 @@ export class CharManager {
       const rewards: ItemBundle[] = (mission.rewards ?? []).map((r: any) => ({
         id: r.id,
         count: r.count,
-        type: itemTypeToString(r.type),
+        type: itemTypeToString(r.type) as ItemType,
       }));
       await this._trigger.emit("items:get", [rewards]);
       return rewards;
@@ -983,7 +983,7 @@ export class CharManager {
       // 精二后校正模组状态（同 evolveChar：hide 置 0、补齐条目、首个模组 locked 0 + currentEquip）
       reconcileCharEquips(char);
       await this._trigger.emit("items:use", [
-        [{ id: itemId, count: 1, instId }],
+        [{ id: itemId, count: 1, instId } as any],
       ]);
       await this._trigger.emit("CharEvolveCount", [{ char }]);
       await this._trigger.emit("EvolveChar", [{ char }]);
@@ -1017,7 +1017,7 @@ export class CharManager {
       char.level = phaseMax;
       char.exp = 0;
       await this._trigger.emit("items:use", [
-        [{ id: itemId, count: 1, instId }],
+        [{ id: itemId, count: 1, instId } as any],
       ]);
       await this._trigger.emit("UpgradeChar", [{ char, exp: 0 }]);
     });
@@ -1052,7 +1052,7 @@ export class CharManager {
       skill.state = 0;
       skill.completeUpgradeTime = -1;
       await this._trigger.emit("items:use", [
-        [{ id: itemId, count: 1, instId }],
+        [{ id: itemId, count: 1, instId } as any],
       ]);
       await this._trigger.emit("UpgradeSpecialization", [{ targetLevel: 3 }]);
     });

@@ -1,3 +1,4 @@
+import { ItemBundle } from "@excel/excel";
 /**
  * 商店路由模块
  *
@@ -823,7 +824,7 @@ router.post("/buyGoodWithTicket", validateBody(buyGoodWithTicketSchema), async (
     // WARN 跳过不 500，避免客户端乱传导致崩溃。
     if (body.ticketId) {
       await player._trigger.emit("items:use", [
-        [{ id: body.ticketId, count: 1 }],
+        [{ id: body.ticketId, count: 1 } as unknown as ItemBundle],
       ]);
     }
     res.send({

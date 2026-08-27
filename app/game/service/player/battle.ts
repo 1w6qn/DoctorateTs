@@ -6,7 +6,7 @@ import { now } from "@utils/time";
 import { CommonStartBattleRequest } from "@game/domain/battle";
 import { TypedEventEmitter } from "@game/service/events";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
-import { ItemBundle } from "@excel/excel";
+import { ItemBundle, ItemType } from "@excel/excel";
 import { DisplayDetailRewards } from "@excel/excel";
 import { syncAct44SideEntry } from "../../domain/activity/act44side/informant";
 import { randomChoice, randomChoices, generateBattleId } from "@utils/random";
@@ -313,7 +313,7 @@ export class BattleManager {
         unlockStages.push(...unlockedIds);
 
         rewards.push({
-          type: "DIAMOND",
+          type: "DIAMOND" as ItemType,
           id: "4002",
           count: 1,
         });
@@ -423,17 +423,17 @@ export class BattleManager {
       await this._trigger.emit("items:get", [
         [
           {
-            type: "AP_GAMEPLAY",
+            type: "AP_GAMEPLAY" as ItemType,
             id: "",
             count: -apCost,
           },
           {
-            type: "EXP_PLAYER",
+            type: "EXP_PLAYER" as ItemType,
             id: "",
             count: expGain * expScale,
           },
           {
-            type: "GOLD",
+            type: "GOLD" as ItemType,
             id: "4001",
             count: goldGain * goldScale,
           },
@@ -596,7 +596,7 @@ export class BattleManager {
       await this._trigger.emit("items:get", [
         [
           {
-            type: "AP_GAMEPLAY",
+            type: "AP_GAMEPLAY" as ItemType,
             id: "",
             count: ctx.apFailReturn,
           },
@@ -648,14 +648,14 @@ export class BattleManager {
         for (const item of displayDetailRewards) {
           if ([1, 8].includes(item.dropType as unknown as number)) {
             ctx.firstRewards.push({
-              type: item.type,
+              type: item.type as ItemType,
               id: item.id,
               count: 1,
             });
             await this._trigger.emit("items:get", [
               [
                 {
-                  type: item.type,
+                  type: item.type as ItemType,
                   id: item.id,
                   count: 1,
                 },
@@ -703,7 +703,7 @@ export class BattleManager {
         );
       if (goldGain * goldScale != 0) {
         ctx.rewards.push({
-          type: "GOLD",
+          type: "GOLD" as ItemType,
           id: "4001",
           count: goldGain * goldScale,
         });
@@ -1130,11 +1130,8 @@ export class BattleManager {
 
       const pushReward = () => {
         if (occPercent === 0 && dropType === 3) {
-          unusualRewards.push({
-            id: reward_id,
-            type: reward_type,
-            count: reward_count,
-          });
+          unusualRewards.push({ id: reward_id, type: reward_type as ItemType, count: reward_count,
+           });
         } else if (occPercent === 0 && dropType === 4) {
           const drop_array = randomChoices(
             [0, 1],
@@ -1142,24 +1139,15 @@ export class BattleManager {
             1,
           )[0];
           if (drop_array)
-            additionalRewards.push({
-              id: reward_id,
-              type: reward_type,
-              count: reward_count + 1,
-            });
+            additionalRewards.push({ id: reward_id, type: reward_type as ItemType, count: reward_count + 1,
+             });
         } else {
           if (reward_type === "FURN")
-            furnitureRewards.push({
-              id: reward_id,
-              type: reward_type,
-              count: reward_count,
-            });
+            furnitureRewards.push({ id: reward_id, type: reward_type as ItemType, count: reward_count,
+             });
           else
-            rewards.push({
-              id: reward_id,
-              type: reward_type,
-              count: reward_count,
-            });
+            rewards.push({ id: reward_id, type: reward_type as ItemType, count: reward_count,
+             });
         }
       };
 
@@ -1194,11 +1182,8 @@ export class BattleManager {
               1,
             )[0];
             if (drop_array)
-              rewards.push({
-                id: reward_id,
-                type: reward_type,
-                count: reward_count,
-              });
+              rewards.push({ id: reward_id, type: reward_type as ItemType, count: reward_count,
+               });
           }
         } else if (occPercent === 2) {
           if (dropType === 2) {
@@ -1211,7 +1196,7 @@ export class BattleManager {
               rewards.push({
                 ...pickKeys(displayDetailRewards[drop_array], ["id", "type"]),
                 count: reward_count,
-              });
+              } as any);
             } else {
               const addWeights = 2;
               const drop_array = randomChoices(
@@ -1220,11 +1205,8 @@ export class BattleManager {
                 1,
               )[0];
               if (drop_array)
-                rewards.push({
-                  id: reward_id,
-                  type: reward_type,
-                  count: reward_count,
-                });
+                rewards.push({ id: reward_id, type: reward_type as ItemType, count: reward_count,
+                 });
             }
           }
         } else if (occPercent === 3) {
@@ -1250,11 +1232,8 @@ export class BattleManager {
               1,
             )[0];
             if (drop_array)
-              additionalRewards.push({
-                id: reward_id,
-                type: reward_type,
-                count: reward_count,
-              });
+              additionalRewards.push({ id: reward_id, type: reward_type as ItemType, count: reward_count,
+               });
           }
         } else if (occPercent === 4) {
           if (dropType === 2) {
@@ -1279,11 +1258,8 @@ export class BattleManager {
               1,
             )[0];
             if (drop_array)
-              unusualRewards.push({
-                id: reward_id,
-                type: reward_type,
-                count: reward_count,
-              });
+              unusualRewards.push({ id: reward_id, type: reward_type as ItemType, count: reward_count,
+               });
           } else if (dropType === 4) {
             logger.debug(
               "BattleManager",
@@ -1295,11 +1271,8 @@ export class BattleManager {
               103,
             )[0];
             if (drop_array)
-              additionalRewards.push({
-                id: reward_id,
-                type: reward_type,
-                count: reward_count,
-              });
+              additionalRewards.push({ id: reward_id, type: reward_type as ItemType, count: reward_count,
+               });
           }
         } else {
           logger.warn("BattleManager", `Unknown dropType: ${JSON.stringify(item)}`);

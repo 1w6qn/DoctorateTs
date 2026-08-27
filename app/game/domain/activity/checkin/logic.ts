@@ -6,7 +6,7 @@ import { ItemTypeToString } from "../shared";
 import * as ReqSchema from "../../../domain/activity/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../request-context";
-import { ItemBundle } from "@excel/excel";
+import { ItemBundle, ItemType } from "@excel/excel";
 import excel from "@excel/excel";
 import { now } from "@utils/time";
 import { activityDictKey } from "@game/service/player/unlockActivity";
@@ -222,8 +222,8 @@ export async function handleActCheckinvssign(player: PlayerDataManager, body: Ac
    return ({
     ...player.delta,
     items: [
-      { type: "AP_SUPPLY", id: "ap_supply_lt_120", count: 1 },
-      { type: "GOLD", id: "4001", count: 30000 },
+      { type: "AP_SUPPLY" as ItemType, id: "ap_supply_lt_120", count: 1 },
+      { type: "GOLD" as ItemType, id: "4001", count: 30000 },
     ],
   } satisfies ActCheckinvsSignResponse);
 }
@@ -249,8 +249,8 @@ export async function handleGetCheckInReward(player: PlayerDataManager, body: Ge
   }
    if (activityId.endsWith("access")) {
     const REWARDS: ItemBundle[] = [
-      { type: "AP_SUPPLY", id: "ap_supply_lt_80", count: 1 },
-      { type: "DIAMOND_SHD", id: "4003", count: 200 },
+      { type: "AP_SUPPLY" as ItemType, id: "ap_supply_lt_80", count: 1 },
+      { type: "DIAMOND_SHD" as ItemType, id: "4003", count: 200 },
     ];
     let already = false;
     await player.update(async (draft) => {
@@ -399,7 +399,7 @@ rootRouter.post("/actcheckinvs/sign", validateBody(ReqSchema.actCheckinvsSignSch
       rewards.push({
         id: reward.id,
         count: reward.count,
-        type: ItemTypeToString(reward.type),
+        type: ItemTypeToString(reward.type) as ItemType,
       });
     }
   }

@@ -7,7 +7,7 @@
 
 import { PlayerGacha } from "@game/domain/playerdata";
 import { GachaResult, GachaType, GACHA_RULE_TYPE, resolveGachaRank } from "@game/domain/gacha/gacha";
-import { GachaDetailData, GachaDetailTable, GachaPerChar } from "@excel/excel";
+import { GachaDetailData, GachaDetailTable, GachaPerChar, ItemType } from "@excel/excel";
 import { GachaPoolClientData } from "@excel/excel";
 import excel from "@excel/excel";
 import { accountManager } from "@game/service/player/AccountManager";
@@ -189,8 +189,8 @@ export class GachaManager {
         case "LIMITED_FREE_GACHA":
           break; // 免费抽，无消耗
         default:
-          if (c.instId != null) {
-            const entry = p.consumable?.[c.id]?.[c.instId];
+          if ((c as any).instId != null) {
+            const entry = p.consumable?.[c.id]?.[(c as any).instId];
             if (!entry || entry.count < c.count) return false;
           } else if (type) {
             if ((p.inventory?.[c.id] ?? 0) < c.count) return false;
@@ -225,7 +225,7 @@ export class GachaManager {
         costs.push({id:"LIMITED_FREE_GACHA",type:"LIMITED_FREE_GACHA",count:1})
         break;
       case GachaType.UseItem:
-        costs.push({id:itemId ?? "",count:1})
+        costs.push({id:itemId ?? "",count:1} as unknown as ItemBundle)
         break;
       case GachaType.ClassicSingleTicket:
         costs.push({id:"CLASSIC_TKT_GACHA",type:"CLASSIC_TKT_GACHA",count:1})
@@ -394,7 +394,7 @@ export class GachaManager {
         extras.extraItem = {
           id: poolConfig?.lMTGSID || "LMTGS_COIN",
           count: 1,
-          type: "LMTGS_COIN",
+          type: "LMTGS_COIN" as ItemType,
         };
         return this._handleGacha(poolId, { beforeNonHitCnt });
       },

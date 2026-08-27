@@ -1,3 +1,4 @@
+import { ItemType, ItemBundle } from "@excel/excel";
 /**
  * 管理服务层
  *
@@ -478,7 +479,7 @@ export class AdminService {
       throw new Error(`物品 ${resolved} 不在 ItemTable，无法发放`);
     }
     const pd = await this.getPlayer(uid);
-    await pd.inventory.gainItem({ id: resolved, count });
+    await pd.inventory.gainItem({ id: resolved, count } as unknown as ItemBundle);
     await this.savePlayer(uid);
     await this._audit("grantItem", uid, `${resolved}(${itemName(resolved)}) x${count}`);
   }
@@ -502,7 +503,7 @@ export class AdminService {
       await pd.update(async (draft) => {
         const ch = draft.troop.chars[res.charInstId as number];
         if (ch) {
-          const full = buildMaxedChar(ch.instId, "char_002_amiya");
+          const full = buildMaxedChar((ch as any).instId, "char_002_amiya");
           ch.currentTmpl = (full as any).currentTmpl as string;
           ch.tmpl = (full as any).tmpl as any;
         }
@@ -523,7 +524,7 @@ export class AdminService {
       throw new Error(`未知皮肤: ${skinId}`);
     }
     const pd = await this.getPlayer(uid);
-    await pd.inventory.gainItem({ id: skinId, count: 1, type: "CHAR_SKIN" });
+    await pd.inventory.gainItem({ id: skinId, count: 1, type: "CHAR_SKIN" as ItemType });
     await this.savePlayer(uid);
     await this._audit("grantSkin", uid, `${skinId}(${skinName(skinId) ?? ""})`);
   }
@@ -533,13 +534,13 @@ export class AdminService {
     const pd = await this.getPlayer(uid);
     const chars = pd._playerdata.troop?.chars ?? {};
     return Object.values(chars)
-      .sort((a, b) => a.instId - b.instId)
+      .sort((a, b) => (a as any).instId - (b as any).instId)
       .map((ch) => {
         const info = (excel.CharacterTable as Record<string, any>)?.[ch.charId];
         const phases = info?.phases as any[] | undefined;
         const maxLevel = phases?.[ch.evolvePhase ?? 0]?.maxLevel ?? 90;
         return {
-          instId: ch.instId,
+          instId: (ch as any).instId,
           charId: ch.charId,
           name: charName(ch.charId),
           rarity: charRarity(ch.charId),
@@ -692,7 +693,7 @@ export class AdminService {
       uid,
       `instId=${instId} ${JSON.stringify(attrs)}`,
     );
-    return (await this.listChars(uid)).find((c) => c.instId === instId)!;
+    return (await this.listChars(uid)).find((c) => (c as any).instId === instId)!;
   }
 
   /**
@@ -923,7 +924,7 @@ export class AdminService {
     } catch {
       throw new Error(`用户不存在: ${uid}`);
     }
-    const items = args.items.map((it) => ({ id: it.id, count: it.count }));
+    const items = args.items.map((it) => ({ id: it.id, count: it.count  } as unknown as ItemBundle));
     const mail = await mailManager.sendMail(uid, {
       subject: args.subject,
       content: args.content,
@@ -946,7 +947,7 @@ export class AdminService {
       await mailManager.sendMail(uid, {
         subject: args.subject,
         content: args.content,
-        items: args.items,
+        items: args.items as unknown as ItemBundle[],
       });
     }
     await this._audit("sendMailAll", "", `${args.subject} → ${uids.length} 人`);
@@ -2220,7 +2221,7 @@ export class AdminService {
           ch.equip = equip as any;
         });
         patch(ch.charId === "char_002_amiya" && (!ch.currentTmpl || !ch.tmpl), () => {
-          const full = buildMaxedChar(Number(ch.instId), "char_002_amiya");
+          const full = buildMaxedChar(Number((ch as any).instId), "char_002_amiya");
           ch.currentTmpl = "char_002_amiya";
           ch.tmpl = full.tmpl as any;
         });

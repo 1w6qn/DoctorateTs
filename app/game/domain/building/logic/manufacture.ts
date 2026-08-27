@@ -1,3 +1,4 @@
+import { ItemBundle } from "@excel/excel";
 /**
  * 基建分区逻辑：制造站与加工站（生产结算/配方切换/合成分解）
  *
@@ -159,7 +160,7 @@ export async function _settleManufactureInternal(mgr: BuildingManager, draft: Dr
     // 修复：ManufactureItem 任务事件从未 emit → 制造物品类任务永不推进
     //（模板 0/2 读 item、模板 1 读 count，一并携带）
     await mgr._trigger.emit("ManufactureItem", [
-      { item: { id: formula.itemId, count: gainCount }, count: gainCount },
+      { item: { id: formula.itemId, count: gainCount } as unknown as ItemBundle, count: gainCount },
     ]);
 
     // 消耗：costs（MATERIAL 扣 inventory / GOLD 扣 status.gold）
@@ -460,7 +461,7 @@ export async function workshopSynthesis(mgr: BuildingManager, args: {
       // 修复：WorkshopSynthesis 任务事件从未 emit → 工坊合成类任务永不推进
       await mgr._trigger.emit("WorkshopSynthesis", [
         {
-          item: { id: formula.itemId, count: (formula.count ?? 1) * times2 },
+          item: { id: formula.itemId, count: (formula.count ?? 1) * times2 } as unknown as ItemBundle,
         },
       ]);
     });

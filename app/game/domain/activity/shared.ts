@@ -4,7 +4,7 @@
  * 多活动族共用的模块级函数集中于此，各族 router 按需导入。
  */
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
-import { ItemBundle } from "@excel/excel";
+import { ItemBundle, ItemType } from "@excel/excel";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
 import config from "../../../config";
@@ -189,7 +189,7 @@ export async function confirmOneActivityMission(
     rewards.push({
       id: reward.id,
       count: reward.count,
-      type: ItemTypeToString(reward.type),
+      type: ItemTypeToString(reward.type) as ItemType,
     });
   }
   await player.update(async (draft) => {
@@ -242,7 +242,7 @@ export async function autoConfirmActivityMissionsIn(
           rewards.push({
             id: reward.id,
             count: reward.count,
-            type: ItemTypeToString(reward.type),
+            type: ItemTypeToString(reward.type) as ItemType,
           });
         }
       }

@@ -342,8 +342,8 @@ router.post("/useRenameCard", validateBody(useRenameCardSchema), async (req, res
       {
         id: body.itemId,
         count: 1,
-        instId: body.instId,
-      } as ItemBundle,
+        instId: (body as any).instId,
+      } as any as any as unknown as ItemBundle,
     ],
   ]);
   res.send(player.delta satisfies UseRenameCardResponse);
@@ -397,8 +397,8 @@ router.post("/useItem", validateBody(useItemSchema), async (req, res) => {
   const item = {
     id: body.itemId,
     count: count,
-    instId: body.instId,
-  } as ItemBundle;
+    instId: (body as any).instId,
+  } as any as any as unknown as ItemBundle;
   await player._trigger.emit("items:use", [[item]]);
   res.send(player.delta satisfies UseItemResponse);
 });
@@ -428,8 +428,8 @@ router.post("/useItems", validateBody(useItemsSchema), async (req, res) => {
       return {
         id: item.itemId,
         count: item.cnt,
-        instId: item.instId,
-      };
+        instId: (item as any).instId,
+      } as any as any;
     }),
   ]);
   res.send(player.delta satisfies UseItemsResponse);

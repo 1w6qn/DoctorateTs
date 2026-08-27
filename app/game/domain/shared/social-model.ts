@@ -1,4 +1,4 @@
-import { AvatarInfo, SharedCharData } from '../character';
+import { AvatarInfo, SharedCharData } from './model';
 import { PlayerBirthday, PlayerMedalCustomLayout, PlayerNameCardSkin, PlayerNameCardStyle } from '../playerdata';
 export interface FriendDataWithNameCard extends FriendData {
     registerTs:number,

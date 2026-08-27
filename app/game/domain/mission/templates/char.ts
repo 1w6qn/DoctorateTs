@@ -3,7 +3,7 @@
  */
 import type { MissionTemplateGroup } from "./types";
 import excel from "@excel/excel";
-import { PlayerCharacter } from "../../../domain/character";
+import { PlayerCharacter } from "../../../domain/shared/model";
 
 export const charTemplates: MissionTemplateGroup = {
 

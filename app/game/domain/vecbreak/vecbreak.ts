@@ -6,7 +6,7 @@
  * VecBreakV2Offense/DefenseStartBattleRequest 等 Request/Response 类；
  * 字段以 CS 类为准，服务端未返回的协议字段标为可选。
  */
-import { PlayerSquad, SquadFriendData } from "../character";
+import { PlayerSquad, SquadFriendData } from "../shared/model";
 import { PlayerDeltaResponse } from "../contracts/common";
 
 /** 获取赛季记录请求（CS: VecBreakV2SeasonRecordRequest，无字段） */

@@ -12,7 +12,7 @@ import {
   TorappuRoguelikeEventType,
 } from "../../domain/rlv2/rlv2";
 import excel from "@excel/excel";
-import { PlayerSquad } from "@game/domain/character";
+import { PlayerSquad } from "@game/domain/shared/model";
 import { ItemBundle } from "@excel/excel";
 import { generateShopGoods, buildShopContent, buyGoods, refreshShop, leaveShop, shopBattleStart, isInShopNode } from "./shop";
 import { random } from "../util/random";

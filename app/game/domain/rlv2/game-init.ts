@@ -128,7 +128,7 @@ export async function createGame(mgr: RoguelikeV2Manager, args: {
 
     // 供 rlv2:create 事件处理器读取（其内部经 update() 写，正常）
     mgr._player.markDirty();
-    await mgr._trigger.emit("rlv2:create", [mgr]);
+    await mgr._trigger.emit("rlv2:create", []);
 
     // 开局 legacy 襁褓藏品：
     // - 特勤任务影像（难度 0 失败补偿）：开局直接获得该收藏品

@@ -1,4 +1,4 @@
-import { PlayerSquad, SquadFriendData } from "../domain/character";
+import { PlayerSquad, SquadFriendData } from "./model";
 
 type ListCounterPool<T> = { Key: T; Value: number }[];
 export interface BattleData {

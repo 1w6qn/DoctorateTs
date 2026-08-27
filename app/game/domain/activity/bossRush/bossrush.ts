@@ -20,7 +20,7 @@ import { decryptBattleData } from "@utils/crypt";
 import { logger } from "@utils/logger";
 import { accountManager } from "@game/service/player/AccountManager";
 import { activityDictKey } from "@game/service/player/unlockActivity";
-import type { CommonStartBattleRequest } from "@game/domain/battle";
+import type { CommonStartBattleRequest } from "@game/domain/shared/battle-model";
 import type { PlayerDeltaResponse } from "@game/domain/contracts/common";
 import type {
   BossRushFinishBattleRequest,

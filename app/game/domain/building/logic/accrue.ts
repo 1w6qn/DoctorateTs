@@ -5,7 +5,7 @@
  * 类侧保留同名薄委派（见 logic.ts）。
  */
 import type { BuildingManager } from "../logic";
-import { PlayerCharacter } from "@game/domain/character";
+import { PlayerCharacter } from "@game/domain/shared/model";
 import excel from "@excel/excel";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";

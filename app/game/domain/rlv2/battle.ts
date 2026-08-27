@@ -1,6 +1,6 @@
 import { ItemType, ItemBundle } from "@excel/excel";
 import { RoguelikeV2Manager } from "./logic";
-import { BattleData } from "@game/domain/battle";
+import { BattleData } from "@game/domain/shared/battle-model";
 import { decryptBattleData, decryptBattleReplay } from "@utils/crypt";
 import { TypedEventEmitter } from "@game/service/events";
 import { generateBattleId } from "@utils/random";

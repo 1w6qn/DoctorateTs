@@ -15,8 +15,8 @@
 import { MissionCalcState } from "../../domain/playerdata";
 import excel from "@excel/excel";
 import { ItemBundle, ItemType } from "@excel/excel";
-import { PlayerCharacter } from "../../domain/character";
-import { BattleData } from "../../domain/battle";
+import { PlayerCharacter } from "../../domain/shared/model";
+import { BattleData } from "../../domain/shared/battle-model";
 import { checkBetween, now, userTimestamp } from "@utils/time";
 import type { EventMap } from "@game/domain/events";
 import { TypedEventEmitter } from "@game/service/events";

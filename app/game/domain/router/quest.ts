@@ -52,7 +52,7 @@ import {
   UnlockStageFogRequest,
   UnlockStageFogResponse,
 } from "../../domain/quest/quest";
-import { CommonStartBattleRequest } from "../../domain/battle";
+import { CommonStartBattleRequest } from "../../domain/shared/battle-model";
 
 /**
  *    SQUAD_FORMATION = "/quest/squadFormation";

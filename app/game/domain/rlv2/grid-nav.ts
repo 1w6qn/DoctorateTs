@@ -12,7 +12,7 @@ import {
   TorappuRoguelikeEventType,
 } from "../../domain/rlv2/rlv2";
 import excel from "@excel/excel";
-import { PlayerSquad } from "@game/domain/character";
+import { PlayerSquad } from "@game/domain/shared/model";
 import { ROGUE6_NODE } from "./modules/grid_zone";
 import {
   ROGUE6_BATTLE_NODES,

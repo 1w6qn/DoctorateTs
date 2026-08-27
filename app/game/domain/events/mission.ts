@@ -5,7 +5,7 @@
  * 与任务协议 DTO 分离,归入 domain 事件层。
  */
 import type { ItemBundle } from "@excel/excel";
-import type { BattleData } from "@game/domain/battle";
+import type { BattleData } from "@game/domain/shared/battle-model";
 
 export type EventMapMission = {
   /** 任务完成事件 */

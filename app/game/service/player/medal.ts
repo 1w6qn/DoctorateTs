@@ -28,7 +28,7 @@ import moment from "moment";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import type { EventMap } from "@game/domain/events";
 import { TypedEventEmitter } from "@game/service/events";
-import { PlayerCharacter } from "../../domain/character";
+import { PlayerCharacter } from "../../domain/shared/model";
 import { rarityToIndex } from "@utils/rarity";
 import { logger } from "@utils/logger";
 

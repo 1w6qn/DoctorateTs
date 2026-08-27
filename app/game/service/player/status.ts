@@ -1,7 +1,7 @@
 import excel from "@excel/excel";
 import { checkNew, now } from "@utils/time";
 import moment from "moment";
-import { AvatarInfo } from "@game/domain/character";
+import { AvatarInfo } from "@game/domain/shared/model";
 import { PlayerDataManager } from "../PlayerDataManager";
 import { TypedEventEmitter } from "@game/service/events";
 import { Draft } from "mutative";

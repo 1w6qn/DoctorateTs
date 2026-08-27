@@ -8,22 +8,21 @@
  */
 import type {
   PlayerRoguelikeV2,
-  RoguelikeBuff,
   RoguelikeItemBundle,
-} from "@game/domain/rlv2/rlv2";
-import type { BattleData } from "@game/domain/battle";
-import type { RoguelikeV2Manager } from "@game/domain/rlv2/logic";
+} from "../shared/rlv2-model";
+import type { RoguelikeBuff } from "@excel/excel";
+import type { BattleData } from "../shared/battle-model";
 
 /**
  * 肉鸽V2 领域事件映射
  */
 export type EventMapRlv2 = {
   /** 肉鸽V2初始化事件 */
-  "rlv2:init": [RoguelikeV2Manager];
+  "rlv2:init": [];
   /** 肉鸽V2模块初始化事件 */
   "rlv2:module:init": [];
   /** 肉鸽V2创建事件 */
-  "rlv2:create": [RoguelikeV2Manager];
+  "rlv2:create": [];
   /** 肉鸽V2继续事件 */
   "rlv2:continue": [];
   /** 肉鸽V2移动事件 */

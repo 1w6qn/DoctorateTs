@@ -17,7 +17,7 @@ import {
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { ItemBundle } from "@excel/excel";
 import { PlayerDeltaResponse } from "../../domain/contracts/common";
-import { CommonStartBattleRequest } from "../../domain/battle";
+import { CommonStartBattleRequest } from "../../domain/shared/battle-model";
 
 const router = Router();
 

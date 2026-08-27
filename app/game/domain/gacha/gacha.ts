@@ -2,16 +2,9 @@ import { ItemBundle } from "@excel/excel"
 import { randomChoices } from "@utils/random";
 import { random } from "../util/random";
 
-export interface GachaResult{
-    charInstId:number
-    charId:string
-    isNew:number
-    itemGet:ItemBundle[]
-    potent?:{
-        delta:number
-        now:number
-    }
-}
+export { GachaResult } from "../shared/model";
+export { GACHA_RULE_TYPE } from "../util/gacha-up-list";
+
 export enum GachaType {
     None = 4294967295,
     Diamond = 0,
@@ -35,21 +28,6 @@ export enum GachaType {
  * 正确子结构、抽卡时也读不到（自选形同虚设）。键名对齐
  * app/game/service/excel/types-playerdata.ts 的 PlayerGacha 字段（fesClassic/special/backflow/doubleGacha）。
  */
-export const GACHA_RULE_TYPE: { [rule: string]: string } = {
-    NORMAL: "normal",
-    ATTAIN: "attain",
-    LIMITED: "limit",
-    SINGLE: "single",
-    CLASSIC: "classic",
-    CLASSIC_ATTAIN: "classic",
-    CLASSIC_DOUBLE: "doubleGacha",
-    FESCLASSIC: "fesClassic",
-    SPECIAL: "special",
-    BACKFLOW: "backflow",
-    DOUBLE: "double",
-    NEWBEE: "newbee",
-    LINKAGE: "linkage",
-};
 
 /**
  * 保底稀有度解析（纯函数，可注入随机源）

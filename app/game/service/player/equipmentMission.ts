@@ -29,7 +29,7 @@ import excel from "@excel/excel";
 import { logger } from "@utils/logger";
 import { PlayerDataManager } from "../PlayerDataManager";
 import { BattleInfo } from "./BattleInfoStore";
-import { BattleData, BattleStats } from "@game/domain/battle";
+import { BattleData, BattleStats } from "@game/domain/shared/battle-model";
 import { BadRequestError } from "@game/domain/contracts/errors";
 
 /** 模组任务进度条目（playerdata.equipment.missions 的单项） */

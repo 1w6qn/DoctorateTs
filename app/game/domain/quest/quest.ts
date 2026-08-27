@@ -8,8 +8,8 @@
  * Request/Response 类；字段以 CS 类为准，服务端未返回的协议字段标为可选。
  */
 import { ItemBundle } from "@excel/excel";
-import { PlayerSquadItem } from "../character";
-import { CommonStartBattleRequest } from "../battle";
+import { PlayerSquadItem } from "../shared/model";
+import { CommonStartBattleRequest } from "../shared/battle-model";
 import { PlayerDeltaResponse } from "../contracts/common";
 
 export { CommonStartBattleRequest };

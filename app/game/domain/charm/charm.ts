@@ -5,4 +5,3 @@
  * Torappu.Activity.Act12side.UI.CharmSetSquadRequest / CharmSetSquadResponse；
  * 与协议 home.ts 中同名类型字段一致，直接复用。
  */
-export { CharmSetSquadRequest, CharmSetSquadResponse } from "../home/home";

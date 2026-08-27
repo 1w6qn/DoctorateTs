@@ -6,8 +6,8 @@
  * 字段以 CS 类为准，服务端未返回的协议字段（如部分 result/starFriendList）标为可选。
  */
 import { PlayerDeltaResponse } from "../contracts/common";
-import { FriendData, FriendDataWithNameCard } from "../social/social.model";
-import { PlayerFriendAssist } from "../character";
+import { FriendData, FriendDataWithNameCard } from "../shared/social-model";
+import { PlayerFriendAssist } from "../shared/model";
 
 /** 删除好友请求（CS: DeleteFriendRequest；CS 字段名为 friendId，服务端契约为 id） */
 export interface DeleteFriendRequest {

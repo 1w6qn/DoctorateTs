@@ -3,7 +3,7 @@ import { accountManager } from "./AccountManager";
 import excel from "@excel/excel";
 import { decryptBattleData } from "@utils/crypt";
 import { now } from "@utils/time";
-import { CommonStartBattleRequest } from "@game/domain/battle";
+import { CommonStartBattleRequest } from "@game/domain/shared/battle-model";
 import { TypedEventEmitter } from "@game/service/events";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { ItemBundle, ItemType } from "@excel/excel";

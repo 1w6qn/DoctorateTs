@@ -9,7 +9,7 @@
  */
 import type { TypedEventEmitter } from "@game/service/events";
 import type { BuildingManager } from "./logic";
-import type { PlayerCharacter } from "@game/domain/character";
+import type { PlayerCharacter } from "@game/domain/shared/model";
 
 export function registerBuildingTriggers(
   trigger: TypedEventEmitter,

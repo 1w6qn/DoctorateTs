@@ -10,11 +10,11 @@ import { now } from "@utils/time";
 import { RoguelikeModuleManager } from "./module";
 import { RoguelikeTroopManager } from "./troop";
 import { RoguelikeMapManager } from "./map";
-import { PlayerSquad } from "@game/domain/character";
+import { PlayerSquad } from "@game/domain/shared/model";
 import { RoguelikeBattleManager } from "./battle";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { PlayerDataModel } from "@game/domain/playerdata";
-import { BattleData } from "@game/domain/battle";
+import { BattleData } from "@game/domain/shared/battle-model";
 import { RoguelikePoolManager } from "./pool";
 import { composeRlv2ChildModules, type Rlv2ChildModules } from "./rlv2-composition";
 import { RoguelikeGameInitData } from "@excel/excel";
@@ -185,7 +185,7 @@ export class RoguelikeV2Manager implements PlayerRoguelikeV2 {
       this._trigger.emit("rlv2:continue", []);
       this._status.continue();
     } else {
-      this._trigger.emit("rlv2:init", [this]);
+      this._trigger.emit("rlv2:init", []);
     }
   }
 

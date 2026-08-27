@@ -7,7 +7,7 @@
  * 服务端未返回的协议字段标为可选。
  */
 import { ItemBundle } from "@excel/excel";
-import { PlayerSquad } from "../character";
+import { PlayerSquad } from "../shared/model";
 import { PlayerDeltaResponse, RoguelikePushMessage } from "../contracts/common";
 
 /* ===== 基础养成 ===== */

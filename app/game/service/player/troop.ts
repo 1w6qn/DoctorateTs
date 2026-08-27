@@ -1,4 +1,4 @@
-import { PlayerSquad, PlayerSquadItem, PlayerCharEquipInfo, PlayerCharacter } from "../../domain/character";
+import { PlayerSquad, PlayerSquadItem, PlayerCharEquipInfo, PlayerCharacter } from "../../domain/shared/model";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/excel";
 import { now } from "@utils/time";

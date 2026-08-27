@@ -1,4 +1,4 @@
-﻿import { PlayerCharacter } from "@game/domain/character";
+﻿import { PlayerCharacter } from "@game/domain/shared/model";
 import { ItemBundle } from "@excel/excel";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { TypedEventEmitter } from "@game/service/events";

@@ -10,7 +10,7 @@ import {
   reconcileCharEquips,
   reconcileCharSkills,
 } from "@game/domain/util/char-skills";
-import { PlayerCharacter, PlayerCharPatch } from "@game/domain/character";
+import { PlayerCharacter, PlayerCharPatch } from "@game/domain/shared/model";
 import { UniEquipData } from "@excel/excel";
 import { BadRequestError } from "@game/domain/contracts/errors";
 

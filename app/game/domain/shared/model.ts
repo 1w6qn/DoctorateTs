@@ -1,22 +1,11 @@
 /**
- * 干员相关类型
+ * 公共领域模型（shared 公共件：玩家数据模型 + 跨模块共享形状）
  *
- * 与生成模型（@excel/types-playerdata.ts，经 app/game/model/playerdata.ts 导出）
- * 重叠的类型一律以生成版为准（单一权威定义）；本文件仅保留生成模型不含的
- * 服务端社交/分享专用类型与技能类型。
+ * 各业务模块一律从本层取共享模型，禁止跨模块直接引用对方模型：
+ * - 玩家数据模型（PlayerCharacter/PlayerSquad 等）：re-export 自 domain/playerdata（生成权威）
+ * - 干员社交/分享形状（SharedCharData/OrigChar 等）：原 domain/character.ts
+ * - GachaResult：原 domain/gacha/gacha.ts（抽卡结果契约，depot/events 共用）
  */
-import {
-  AvatarInfo,
-  PlayerCharEquipInfo,
-  PlayerCharPatch,
-  PlayerCharacter,
-  PlayerFriendAssist,
-  PlayerHandBookAddon,
-  PlayerSquad,
-  PlayerSquadItem,
-  PlayerTroop,
-} from "./playerdata";
-
 export {
   AvatarInfo,
   PlayerCharEquipInfo,
@@ -27,7 +16,21 @@ export {
   PlayerSquad,
   PlayerSquadItem,
   PlayerTroop,
-} from "./playerdata";
+} from "../playerdata";
+
+export interface GachaResult {
+  charInstId: number;
+  charId: string;
+  isNew: number;
+  itemGet: ItemBundle[];
+  potent?: {
+    delta: number;
+    now: number;
+  };
+}
+
+import type { ItemBundle } from "@excel/excel";
+import type { AvatarInfo } from "../playerdata";
 
 /** 干员技能状态（客户端模型类，生成闭包外） */
 export interface PlayerCharSkill {

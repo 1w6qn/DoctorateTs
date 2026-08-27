@@ -7,7 +7,7 @@
  *   MedalManager 的勋章模板按 template 名订阅
  */
 import type { PlayerDataManager } from "@game/service/PlayerDataManager";
-import type { PlayerCharacter } from "@game/domain/character";
+import type { PlayerCharacter } from "@game/domain/shared/model";
 
 /**
  * 勋章领域事件映射

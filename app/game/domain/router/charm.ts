@@ -10,7 +10,7 @@ import { getPlayer, getPlayerOptional } from "../../request-context";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { validateBody } from "../../domain/contracts/validate-body";
 import { setSquadSchema } from "../../domain/charm/charm.schema";
-import { CharmSetSquadRequest, CharmSetSquadResponse } from "../../domain/charm/charm";
+import { CharmSetSquadRequest, CharmSetSquadResponse } from "../../domain/home/home";
 
 const router = Router();
 

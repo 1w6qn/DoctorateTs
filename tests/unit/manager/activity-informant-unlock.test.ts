@@ -195,7 +195,7 @@ import config from "../../../app/config";
 import { mockPlayerData } from "../../helpers";
 import { BattleManager } from "@game/service/player/battle";
 import { unlockActivity } from "@game/service/player/unlockActivity";
-import { syncAct44SideEntry } from "@game/service/activity/act44side/informant";
+import { syncAct44SideEntry } from "@game/domain/activity/act44side/informant";
 import { accountManager } from "@game/service/player/AccountManager";
 
 /** 构造一个已解锁/已通关的关卡条目 */

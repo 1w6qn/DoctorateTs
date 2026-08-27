@@ -90,7 +90,7 @@ import {
   arkhubResolveGuideFlags,
   arkhubAdvanceGuide,
   ARKHUB_GUIDE_ACTOR_FLAGS,
-} from "@game/service/activity/arkhub/arkhub";
+} from "@game/domain/activity/arkhub/arkhub";
 
 /** 冻结时间（2026-08-15 12:00 +8：活动窗口内、8/18 更新前） */
 const FROZEN_TS = 1786766400;

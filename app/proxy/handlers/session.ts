@@ -10,7 +10,7 @@
  *           play → session（CAPTURE_MAP_IDS 捕抓区判定）。
  */
 import { logger } from "@utils/logger";
-import { ARKHUB_GUIDE_ACTOR_FLAGS } from "@game/service/activity/arkhub/arkhub";
+import { ARKHUB_GUIDE_ACTOR_FLAGS } from "@game/domain/activity/arkhub/arkhub";
 import {
   encodeFieldBytes as fb,
   encodeFieldVarint as fv,

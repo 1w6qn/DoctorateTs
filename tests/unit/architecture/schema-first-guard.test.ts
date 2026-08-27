@@ -1,7 +1,7 @@
 /**
  * 契约先行守卫（schema-first）
  *
- * 强制「新路由先落 contract」：service/router 与 service/activity 下所有 POST 路由
+ * 强制「新路由先落 contract」：domain/router 与 domain/activity 下所有 POST 路由
  * 必须经 validateBody 校验（契约层 domain/<路由域>/*.schema.ts 定义请求形状）。
  * GET 路由（无 body）豁免；plugin-heartbeat 为内部 GET 端点豁免。
  */
@@ -26,8 +26,8 @@ describe("契约先行守卫", () => {
   it("router 层 POST 路由必须经 validateBody 校验（契约先行）", () => {
     const offenders: string[] = [];
     const files = [
-      ...collectFiles(path.join(APP_ROOT, "game/service/router")),
-      ...collectFiles(path.join(APP_ROOT, "game/service/activity")),
+      ...collectFiles(path.join(APP_ROOT, "game/domain/router")),
+      ...collectFiles(path.join(APP_ROOT, "game/domain/activity")),
     ];
     for (const file of files) {
       const lines = fs.readFileSync(file, "utf-8").split(/\r?\n/);

@@ -39,7 +39,7 @@ vi.mock("../../../app/game/service/shared/pay-store", () => ({
 }));
 
 import httpContext from "express-http-context2";
-import payRouter from "../../../app/game/service/router/pay";
+import payRouter from "../../../app/game/domain/router/pay";
 import config from "../../../app/config";
 import { mockPlayerData } from "../../helpers";
 

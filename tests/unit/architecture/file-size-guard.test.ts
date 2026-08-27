@@ -46,8 +46,8 @@ describe("文件规模守卫", () => {
         }
       }
     };
-    scan(path.join(APP_ROOT, "game/service/router"));
-    scan(path.join(APP_ROOT, "game/service/activity"));
+    scan(path.join(APP_ROOT, "game/domain/router"));
+    scan(path.join(APP_ROOT, "game/domain/activity"));
     expect(offenders).toEqual([]);
   });
 });

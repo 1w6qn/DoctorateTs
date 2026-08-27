@@ -20,7 +20,7 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import httpContext from "express-http-context2";
-import shopRouter from "../../../app/game/service/shop/handler";
+import shopRouter from "../../../app/game/domain/shop/handler";
 import { mockPlayerData } from "../../helpers";
 
 function mockRes() {

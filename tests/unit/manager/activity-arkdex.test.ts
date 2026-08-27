@@ -36,7 +36,7 @@ import {
   arkhubEndScan,
   arkdexAlterOfMap,
   ARKDEX_MAX_ENCOUNTER,
-} from "@game/service/activity/arkhub/arkdex";
+} from "@game/domain/activity/arkhub/arkdex";
 
 function hubPlayer(overrides: Record<string, any> = {}) {
   const bus = new EventBus();

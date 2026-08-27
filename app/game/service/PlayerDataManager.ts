@@ -26,7 +26,7 @@ import { DexNavManager } from "./player/dexnav";
 import { MedalManager } from "./player/medal";
 import { BuildingManager } from "@game/domain/building/logic";
 import { FriendDataWithNameCard, FriendMedalBoard } from "@game/domain/social/social.model";
-import { OpenServerManager } from "@game/service/activity/checkin/openServer";
+import { OpenServerManager } from "@game/domain/activity/checkin/openServer";
 import { PlayerStatus } from "./PlayerStatus";
 import {
   composePlayerChildModules,
@@ -46,7 +46,7 @@ import { RetroManager } from "@game/service/player/retro";
 import { CharManager } from "@game/service/player/char";
 import { EquipmentMissionManager } from "@game/service/player/equipmentMission";
 import { AprilFoolManager } from "@game/service/player/aprilFool";
-import { BossRushManager } from "@game/service/activity/bossRush/bossrush";
+import { BossRushManager } from "@game/domain/activity/bossRush/bossrush";
 
 export class PlayerDataManager {
   /** 状态引擎（Immer 状态管理、patch 聚合、序列化） */

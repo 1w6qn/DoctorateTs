@@ -200,16 +200,20 @@ describe("架构解耦守卫", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("domain 层不得引用根基础设施（request-context/routes/app/resp-schema/auth-strategy）", () => {
+  it("domain 纯领域不得引用根基础设施（路由/处理面 router/activity/handler 允许经 request-context 取上下文）", () => {
     const domainDir = path.join(APP_ROOT, "game", "domain");
     const offenders: string[] = [];
+    // 路由及处理迁 domain 后：domain/router、domain/activity、domain/<玩法>/handler 为 HTTP 适配面，
+    // 允许引用 request-context（getPlayer 等）；纯领域文件（其余路径）仍禁引用根基础设施
+    const HTTP_FACE = /domain[\\/](router[\\/]|activity[\\/]|(building|gacha|mission|rlv2|shop)[\\/]handler)/;
     for (const file of collectFiles(domainDir, ".ts")) {
+      if (HTTP_FACE.test(file)) continue;
       const line = firstOffendingLine(
         file,
         /from\s+["'](@game\/request-context|@game\/routes|@game\/app|@game\/resp-schema|@game\/auth-strategy|.*request-context.*|.*\/routes["'])/,
       );
       if (line !== null) {
-        offenders.push(`${path.relative(APP_ROOT, file)}:${line} domain 引用根基础设施`);
+        offenders.push(`${path.relative(APP_ROOT, file)}:${line} domain 纯领域引用根基础设施`);
       }
     }
     expect(offenders).toEqual([]);

@@ -8,7 +8,7 @@ import { TypedEventEmitter } from "@game/service/events";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { ItemBundle } from "@excel/character_table";
 import { DisplayDetailRewards } from "@excel/stage_table";
-import { syncAct44SideEntry } from "../activity/act44side/informant";
+import { syncAct44SideEntry } from "../../domain/activity/act44side/informant";
 import { randomChoice, randomChoices, generateBattleId } from "@utils/random";
 import { rarityToIndex } from "@utils/rarity";
 import { pickKeys } from "@utils/object";

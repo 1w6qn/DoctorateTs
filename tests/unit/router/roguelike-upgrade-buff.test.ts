@@ -44,7 +44,7 @@ vi.mock("@excel/excel", () => ({
 import httpContext from "express-http-context2";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { mockPlayerData } from "../../helpers";
-import router from "@game/service/router/roguelike";
+import router from "@game/domain/router/roguelike";
 
 function makePlayerData() {
   const pd: any = mockPlayerData({

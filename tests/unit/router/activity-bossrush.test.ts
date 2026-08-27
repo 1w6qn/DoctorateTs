@@ -108,9 +108,9 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import httpContext from "express-http-context2";
-import activityRouter from "../../../app/game/service/activity";
+import activityRouter from "../../../app/game/domain/activity";
 import { mockPlayerData } from "../../helpers";
-import { BossRushManager } from "../../../app/game/service/activity/bossRush/bossrush";
+import { BossRushManager } from "../../../app/game/domain/activity/bossRush/bossrush";
 
 function mockRes() {
   return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };

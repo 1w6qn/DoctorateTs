@@ -4,7 +4,7 @@ vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
 }));
 
-import homeRouter from "../../../app/game/service/router/home";
+import homeRouter from "../../../app/game/domain/router/home";
 
 function mockRes() {
   return { send: vi.fn(), sendStatus: vi.fn(), status: vi.fn().mockReturnThis(), json: vi.fn() };

@@ -13,7 +13,7 @@ vi.mock("../../../app/game/service/player/AccountManager", () => ({
   accountManager: accountMock,
 }));
 
-import accountRouter from "../../../app/game/service/router/account";
+import accountRouter from "../../../app/game/domain/router/account";
 import httpContext from "express-http-context2";
 
 function mockRes() {

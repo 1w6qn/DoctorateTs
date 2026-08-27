@@ -31,13 +31,13 @@ import { SocialManager } from "./player/social";
 import { GachaManager } from "@game/domain/gacha/logic";
 import { DexNavManager } from "./player/dexnav";
 import { BuildingManager } from "@game/domain/building/logic";
-import { OpenServerManager } from "@game/service/activity/checkin/openServer";
+import { OpenServerManager } from "@game/domain/activity/checkin/openServer";
 import { RetroManager } from "@game/service/player/retro";
 import { CharManager } from "@game/service/player/char";
 import { EquipmentMissionManager } from "@game/service/player/equipmentMission";
 import { MedalManager } from "@game/service/player/medal";
 import { AprilFoolManager } from "@game/service/player/aprilFool";
-import { BossRushManager } from "@game/service/activity/bossRush/bossrush";
+import { BossRushManager } from "@game/domain/activity/bossRush/bossrush";
 
 /**
  * 玩家子模块集合（组合工厂返回值）

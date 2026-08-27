@@ -1,5 +1,5 @@
 /**
- * rlv2 业务响应构造（由 service/rlv2/handler 迁出，建议「业务逻辑归 domain」）
+ * rlv2 业务响应构造（由 domain/rlv2/handler 迁出，建议「业务逻辑归 domain」）
  *
  * 官方抓包确认的响应节过滤规则与黑流树海 zone 索引映射集中于此；
  * handler 只保留路由注册（薄壳）。

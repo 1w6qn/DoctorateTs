@@ -4,7 +4,7 @@ vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
 }));
 
-import retroRouter from "../../../app/game/service/router/retro";
+import retroRouter from "../../../app/game/domain/router/retro";
 import httpContext from "express-http-context2";
 
 function mockRes() {

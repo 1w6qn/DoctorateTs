@@ -28,9 +28,9 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import { authMiddleware, gameErrorHandler } from "../../../app/game/app";
-import userRouter from "../../../app/game/service/router/user";
-import miscAlignmentRouter from "../../../app/game/service/router/misc-alignment";
-import auditRouter from "../../../app/game/service/router/audit";
+import userRouter from "../../../app/game/domain/router/user";
+import miscAlignmentRouter from "../../../app/game/domain/router/misc-alignment";
+import auditRouter from "../../../app/game/domain/router/audit";
 
 /**
  * 创建可满足被测路由契约的 mock 玩家

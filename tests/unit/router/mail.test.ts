@@ -14,7 +14,7 @@ vi.mock("@game/service/player/mail", () => ({
   },
 }));
 
-import mailRouter from "../../../app/game/service/router/mail";
+import mailRouter from "../../../app/game/domain/router/mail";
 import httpContext from "express-http-context2";
 import { mailManager } from "@game/service/player/mail";
 

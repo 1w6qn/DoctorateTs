@@ -8,12 +8,12 @@ import excel from "../../app/excel/excel";
 import { accountManager } from "../../app/game/service/player/AccountManager";
 import { authMiddleware, gameErrorHandler } from "../../app/game/app";
 import authRouter from "../../app/auth/auth";
-import userRouter from "../../app/game/service/router/user";
-import gachaRouter from "../../app/game/service/gacha/handler";
-import shopRouter from "../../app/game/service/shop/handler";
-import mailRouter from "../../app/game/service/router/mail";
-import socialRouter from "../../app/game/service/router/social";
-import rlv2Router from "../../app/game/service/rlv2/handler";
+import userRouter from "../../app/game/domain/router/user";
+import gachaRouter from "../../app/game/domain/gacha/handler";
+import shopRouter from "../../app/game/domain/shop/handler";
+import mailRouter from "../../app/game/domain/router/mail";
+import socialRouter from "../../app/game/domain/router/social";
+import rlv2Router from "../../app/game/domain/rlv2/handler";
 
 /**
  * 一个 HTTP 请求的响应封装

@@ -81,7 +81,7 @@ DoctorateTs/
 |------|------|-------------|
 | `app/auth/` | 用户认证逻辑，处理登录、Token验证等 | 单文件模块 |
 | `app/config/` | 应用配置，包括端口、环境变量等 | 按环境分离配置文件 |
-| `app/excel/` | Excel数据表管理，加载和提供游戏配置数据 | 每个数据表对应一个文件或类属性 |
+| `app/game/service/excel/` | Excel数据表管理，加载和提供游戏配置数据 | 每个数据表对应一个文件或类属性 |
 | `app/game/domain/` | 领域层：领域模型（playerdata/character/battle 等纯类型）、事件契约（events/）、协议契约（contracts/）、纯函数规则引擎（building 9 引擎、rlv2 theme-rules 等）、纯工具（util/） | 零 IO、禁依赖 service；允许依赖 @excel 只读数据表 |
 | `app/game/service/` | 应用服务 + 基础设施：组合根（PlayerDataManager/PlayerStatus/player-composition/events 位于 service 根）、玩家子模块（`player/`：status/inventory/troop/battle/char/medal/social/AccountManager 等）、玩法模块（building/gacha/mission/rlv2/shop 五文件约定）、activity（每活动一族一包 `activity/<family>/router.ts`，多族共用辅助收敛 `activity/shared.ts`）、router（薄路由）、shared（pay-store/crisis-seasons）、util（IO 工具） | 按玩法模块分组；service → domain 单向依赖；**不设 manager 目录**（子模块归 player/，组合根归 service 根） |
 | `app/game/service/*/logic/` | 巨型 logic 的分区函数模块：`building/logic/<section>.ts`、`shop/logic/<section>.ts` 等，函数首参 mgr 为管理器实例，类侧保留同名薄委派；`mission/templates/` 为任务模板注册表分组；`rlv2/` 下 shop/bank/settle/grid-nav/game-init/event/battle-nav/reward/recruit-flow 为分区文件 | 单文件超 1500 行须继续下沉（`tests/unit/architecture/file-size-guard.test.ts` 守卫） |
@@ -567,7 +567,7 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@excel/*": ["app/excel/*"],
+      "@excel/*": ["app/game/service/excel/*"],
       "@utils/*": ["app/utils/*"],
       "@game/*": ["app/game/*"]
     }
@@ -590,7 +590,7 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
 
 ### 7.4 PlayerDataModel 类型生成
 
-`app/excel/types-playerdata.ts` 是**运行时 PlayerDataModel 的唯一权威定义**——`app/game/model/playerdata.ts` 直接 `export *` 该文件（手写模型已全量替换删除），`app/game/model/character.ts` 等对生成模型重叠类型做桥接 re-export。由官服反编译自动生成（客户端闭包 + 服务端协议适配 + 线格式适配），线格式经真实官服存档标量+结构双维度校验。
+`app/game/service/excel/types-playerdata.ts` 是**运行时 PlayerDataModel 的唯一权威定义**——`app/game/model/playerdata.ts` 直接 `export *` 该文件（手写模型已全量替换删除），`app/game/model/character.ts` 等对生成模型重叠类型做桥接 re-export。由官服反编译自动生成（客户端闭包 + 服务端协议适配 + 线格式适配），线格式经真实官服存档标量+结构双维度校验。
 
 - 输入：`reference/com.hypergryph.arknights_2.7.61.cs`（官服反编译，`reference/` 已被 gitignore，不入库）
 - 命令：`pnpm run generate:playerdata`
@@ -604,7 +604,7 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
 
 ### 7.4.1 excel 表类型生成（从 cs）
 
-`app/excel/types_excel_gen.ts` 从 cs 反编译生成 **47 个 excel 表的权威类型**（1480+ 类 / 349+ 枚举），`app/excel/excel.ts` 的 55 个表类型引用与 troop/mission/mailCollection/mockExcel 等直接引用方均已从 FBS 版 `types_auto_gen.ts` 切换过来（FBS 版已删除，不再依赖 OpenArknightsFBS）。以 `data/excel/*.json` 全量校验 **0 缺失 / 0 大小写 / 0 结构 / 0 标量**（3.29M 节点）。
+`app/game/service/excel/types_excel_gen.ts` 从 cs 反编译生成 **47 个 excel 表的权威类型**（1480+ 类 / 349+ 枚举），`app/game/service/excel/excel.ts` 的 55 个表类型引用与 troop/mission/mailCollection/mockExcel 等直接引用方均已从 FBS 版 `types_auto_gen.ts` 切换过来（FBS 版已删除，不再依赖 OpenArknightsFBS）。以 `data/excel/*.json` 全量校验 **0 缺失 / 0 大小写 / 0 结构 / 0 标量**（3.29M 节点）。
 
 - 命令：`pnpm run generate:excel`；链路：`scripts/types-builder.ts`（统一构建器：C# 数组 `X[]`、泛型 `Undefinable<T>`/`KeyFrames<T>`、类继承字段合并、`abstract class`、List 继承 → 数组别名，多根闭包）→ `scripts/excel-server-adapt.ts`（表根映射 + rename/add/override/optional/枚举补充/字段覆盖/索引签名）→ `scripts/generate-types.ts --excel`（CLI，统一生成器）
 - **表根映射** `EXCEL_TABLE_ROOTS`：表键 → cs 根类（包装类如 StageTable/ZoneTable/ActivityTable，元素类如 CharacterData/SkillDataBundle，多根表如 enemy_handbook_table 按 key 映射）；由 JSON 顶层结构 × cs 类字段匹配自动反推
@@ -788,9 +788,9 @@ logs show [--last N] [--json]
 ### A. 常用类型定义位置
 | 类型来源 | 文件路径 | 说明 |
 |----------|----------|------|
-| CS自动生成 | `app/excel/types_excel_gen.ts` | excel 表权威类型（1470+ 类 / 347+ 枚举，原 FBS 版 types_auto_gen 已删除） |
-| PlayerDataModel | `app/excel/types-playerdata.ts` | 796个接口，1065个枚举 |
-| Excel数据表 | `app/excel/excel.ts` | 统一管理所有数据表 |
+| CS自动生成 | `app/game/service/excel/types_excel_gen.ts` | excel 表权威类型（1470+ 类 / 347+ 枚举，原 FBS 版 types_auto_gen 已删除） |
+| PlayerDataModel | `app/game/service/excel/types-playerdata.ts` | 796个接口，1065个枚举 |
+| Excel数据表 | `app/game/service/excel/excel.ts` | 统一管理所有数据表 |
 
 ### B. 状态管理流程
 ```
@@ -867,7 +867,7 @@ BuildingManager（app/game/manager/building.ts）已实现完整基建玩法：
 
 ### 11.2 实现约定
 - 所有变更通过 PlayerDataManager.update（Immer）落盘
-- **Excel 驱动（2026-08-07，替代硬编码简化）**：查询工具层 `app/excel/building_excel.ts`（getManufactFormula / getWorkshopFormula / getRoomPhase / getGoldRate / getBuildingConstant）
+- **Excel 驱动（2026-08-07，替代硬编码简化）**：查询工具层 `app/game/service/excel/building_excel.ts`（getManufactFormula / getWorkshopFormula / getRoomPhase / getGoldRate / getBuildingConstant）
   - 制造结算：查 `manufactFormulas`（14 配方：F_EXP 2001-2003 / F_GOLD 3003 / F_ASC 3213-3283 / F_DIAMOND 3141）——产出 `itemId×count×outputSolutionCnt`、消耗 `costs`（MATERIAL 扣 inventory / GOLD 扣金币）
   - 贸易结算：对齐真实订单结构 `{instId, delivery:[{id,count}], gain:{id,type,count}}`——扣 delivery 物品、加 gain 物品（不再 count×500 假结算）；instId 查找
   - 加工合成：查 `workshopFormulas`（68 配方）——goldCost/costs 消耗、产出、`extraOutcomeRate` 概率触发 `extraOutcomeGroup` 加权副产物；formulaId 支持请求体传入（回退房间 formulaId）
@@ -1164,7 +1164,7 @@ BattleManager（app/game/manager/battle.ts）的战斗结束（finish）后处�
 - **dropReward 无限递归**：零产出时用未收敛的 `displayDetailRewards` 重试（概率未中的条目永不移除）→ 真实掉落表下栈溢出崩溃 → 增加 depth 上限（10 轮）防死循环
 
 ### 12.4 掉落信息自动提取（excel 驱动）
-- **归一化**：`app/excel/stage_table.ts` 的 `normalizeStageDropInfo` 在 excel 加载时（excel.init）将 `displayDetailRewards` 的 `occPercent`/`dropType` 字符串映射为数字档位（`ALWAYS→0, USUAL→1, OFTEN→2, SOMETIMES→3, ALMOST→4`；`ONCE→1, NORMAL→2, SPECIAL→3, ADDITIONAL→4, COMPLETE/CONDITION_DROP→8`），幂等（数字值保持不变）
+- **归一化**：`app/game/service/excel/stage_table.ts` 的 `normalizeStageDropInfo` 在 excel 加载时（excel.init）将 `displayDetailRewards` 的 `occPercent`/`dropType` 字符串映射为数字档位（`ALWAYS→0, USUAL→1, OFTEN→2, SOMETIMES→3, ALMOST→4`；`ONCE→1, NORMAL→2, SPECIAL→3, ADDITIONAL→4, COMPLETE/CONDITION_DROP→8`），幂等（数字值保持不变）
 - **修复前**：原始 excel 为字符串格式，而 dropReward 按数字比较 → **所有关卡掉落从未生效**（仅 finish 硬编码 GOLD/EXP 结算）
 - **补产出**：对照 Python 参考 quest.py，`occPercent=0/dropType=2`（ALWAYS+NORMAL 必掉基础掉落）分支补 `pushReward()`——此前只 console.log 不产出，必掉材料（如 1-7 的 30012）从未掉落
 - **保留的硬编码表**：SpecialGold / TacticalDrill / ToughSiege 等特殊关卡固定掉落（游戏设计值，excel 不含数量字段，无法自动提取）
@@ -1288,7 +1288,7 @@ pnpm run migrate:official -- --accounts <账号文件路径> --template 1
 | 数据文件 | 覆盖 | 数据源 | 消费点 |
 |---|---|---|---|
 | `data/rlv2/event_choices.json`（505KB） | rogue_1..5 不期而遇全量效果 | 参考项目 odpy（官方 choices 的效果增强版，rogue_3/4/5 与官方 excel 数量完全一致） | `selectChoice`（lose/get/m_lose/m_get/i_get/i_lose/curse/get_id）、`moveTo` INCIDENT 生成 SCENE |
-| `app/excel/roguelike_consts_gen.ts`（RoguelikeConsts） | 6 主题 outbuff/modebuff/recruitGrps | 运行时由官方 `customizeData[theme].developments`（含 commonDevelopment）的 `buffDisplayInfo` 派生（displayType→RoguelikeBuff 映射，PERCENTAGE 除 100、ABSOLUTE_VAL 作 count）；`buffDisplayInfo` 空的分队开发项按 `RAWRULES` 逐条给出；modebuff 官方 excel 无此表，内嵌常量（odpy rogue_2/3 难度 0-15）；recruitGrps 直接引用官方 `details[theme].recruitGrps` | `buff.create()`（outbuff/modebuff 应用）、`chooseInitialRecruitSet` |
+| `app/game/service/excel/roguelike_consts_gen.ts`（RoguelikeConsts） | 6 主题 outbuff/modebuff/recruitGrps | 运行时由官方 `customizeData[theme].developments`（含 commonDevelopment）的 `buffDisplayInfo` 派生（displayType→RoguelikeBuff 映射，PERCENTAGE 除 100、ABSOLUTE_VAL 作 count）；`buffDisplayInfo` 空的分队开发项按 `RAWRULES` 逐条给出；modebuff 官方 excel 无此表，内嵌常量（odpy rogue_2/3 难度 0-15）；recruitGrps 直接引用官方 `details[theme].recruitGrps` | `buff.create()`（outbuff/modebuff 应用）、`chooseInitialRecruitSet` |
 | `data/rlv2/nodesInfo.json` | 6 主题 × zone 关卡列表（Normal/Emergency/Boss） | 官方 `details[theme].stages` 按 `ro{n}_{n|e}_{zone}_` 前缀提取 | `map.generate()` 优先读（缺失回退动态过滤） |
 | `data/rlv2/choices.json` | 6 主题开局 buff（行动奖励）场景 | 官方 `choiceScenes` + `choices`（startbuff 前缀） | `RoguelikeV2Config.choiceScenes`（数据完整性） |
 

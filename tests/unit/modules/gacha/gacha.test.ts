@@ -73,6 +73,7 @@ vi.mock("@game/service/player/AccountManager", () => ({
 import { mockPlayerData, mockTypedEventEmitter } from "../../../helpers";
 import { GainItemPipeline } from "@game/service/player/inventory-pipeline";
 import { GachaManager } from "@game/domain/gacha/logic";
+import { setRandSource, resetRandSource } from "@game/domain/util/random";
 import { GachaType } from "@game/domain/gacha/gacha";
 import { accountManager } from "@game/service/player/AccountManager";
 import excelData from "@excel/excel";
@@ -600,9 +601,14 @@ describe("GachaManager 抽卡扣费 costs 构造", () => {
 
     it("CLASSIC 池六星保底硬化：beforeNonHitCnt≥50 时按 50 抽后每抽 +2% 六星（软保底）", async () => {
       const controller = new GachaManager(mockPlayer as any, mockTrigger as any);
-      // beforeNonHitCnt=99 → per6 基础 2% + (99-50)*0.02 = 2.98（>1）→ 必出六星
-      const rank = await controller._getRarityRank("p_classic_1", { beforeNonHitCnt: 99 });
-      expect(rank).toBe(5);
+      // beforeNonHitCnt=99 → per6 修正 0.98+，rand 注入 0 恒命中 → 必出六星（确定性，避免 2% 概率波动）
+      setRandSource(() => 0);
+      try {
+        const rank = await controller._getRarityRank("p_classic_1", { beforeNonHitCnt: 99 });
+        expect(rank).toBe(5);
+      } finally {
+        resetRandSource();
+      }
     });
   });
 });

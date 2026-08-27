@@ -1488,3 +1488,11 @@ export interface HomeEntryDisplayData {
     startTs:   number;
     endTs:     number;
 }
+
+
+export interface RoguelikeConst {
+  outbuff: { [key: string]: RoguelikeBuff[] };
+  modebuff: { [key: string]: RoguelikeBuff[] };
+  recruitGrps: { [key: string]: string[] };
+}
+

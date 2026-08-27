@@ -6,7 +6,7 @@
  * 服务端未返回的协议字段（如部分 result/items）标为可选。
  */
 import { ItemBundle } from "@excel/character_table";
-import { GachaDetailData } from "@excel/gacha_detail_table";
+import { GachaDetailData } from "@excel/excel";
 import { GachaResult, GachaType } from "../../domain/gacha/gacha";
 import { PlayerDeltaResponse } from "../../domain/contracts/common";
 

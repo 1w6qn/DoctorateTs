@@ -7,7 +7,7 @@
 import type { ShopManager } from "../logic";
 import excel from "@excel/excel";
 import { ItemBundle } from "@excel/character_table";
-import { GachaPerChar } from "@excel/gacha_detail_table";
+import { GachaPerChar } from "@excel/excel";
 import { now } from "@utils/time";
 import {
   LMTGSGood,

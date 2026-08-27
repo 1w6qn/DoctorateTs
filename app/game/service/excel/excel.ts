@@ -60,8 +60,7 @@ import {
   ZoneTable,
 } from "./types_excel_gen";
 import { ServerItemTable } from "./item_table";
-import { GachaDetailTable } from "./gacha_detail_table";
-import { RoguelikeConst } from "@excel/roguelike_consts";
+import { RoguelikeConst } from "@excel/roguelike_topic_table";
 import { buildRoguelikeConsts } from "./roguelike_consts_gen";
 import { ShopData } from "@excel/shop";
 
@@ -333,3 +332,58 @@ export class Excel {
 
 /** Excel 数据表管理实例 */
 export default new Excel();
+
+
+export interface GachaDetailTable {
+    details: { [key: string]: GachaDetailData} 
+}
+
+export interface GachaDetailData {
+    gachaObjGroups: GachaObjGroup[] | null
+    availCharInfo: GachaAvailChar
+    upCharInfo: GachaUpChar | null
+    limitedChar: string[] | null
+    weightUpCharInfoList: GachaWeightUpChar[] | null
+    gachaObjList: GachaObject[]
+}
+
+export interface GachaAvailChar {
+    perAvailList: GachaPerAvail[]
+}
+
+export interface GachaPerAvail {
+    rarityRank: number
+    charIdList: string[]
+    totalPercent: number
+}
+
+export interface GachaObjGroup {
+    groupType: number
+    startIndex: number
+    endIndex: number
+}
+
+export interface GachaObject {
+    gachaObject: string
+    type: number
+    imageType: number
+    param: null | string
+}
+
+export interface GachaUpChar {
+    perCharList: GachaPerChar[]
+}
+
+export interface GachaPerChar {
+    rarityRank: number
+    charIdList: string[]
+    percent: number
+    count: number
+}
+
+export interface GachaWeightUpChar {
+    rarityRank: number
+    charId: string
+    weight: number
+}
+

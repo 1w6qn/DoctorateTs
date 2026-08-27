@@ -11,7 +11,7 @@ import {
   GachaDetailData,
   GachaDetailTable,
   GachaPerChar,
-} from "@excel/gacha_detail_table";
+} from "@excel/excel";
 import { GachaPoolClientData } from "@excel/excel-types";
 import excel from "@excel/excel";
 import { accountManager } from "@game/service/player/AccountManager";

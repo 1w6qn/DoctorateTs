@@ -61,7 +61,6 @@ vi.mock("@excel/excel", () => ({
   },
 }));
 vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
-vi.mock("@excel/gacha_detail_table", () => ({}));
 
 vi.mock("@game/service/player/AccountManager", () => ({
   accountManager: {

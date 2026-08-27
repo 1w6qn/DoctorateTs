@@ -150,37 +150,42 @@ describe("扫描结算", () => {
 });
 
 describe("巡展道具", () => {
-  it("购买：扣券 + 道具箱 +生效次数；券不足失败", async () => {
+  it("购买：扣券 + 道具箱 +生效次数；券不足失败（官方错误码 601）", async () => {
     const player = hubPlayer({ coin: 100 });
     const ok = await arkhubBuyProp(player as any, 5004, 2); // 标准诱引剂 40×2
-    expect(ok).toBe(true);
+    expect(ok).toEqual({ ok: true, code: 100 });
     const hub = hubOf(player);
     expect(hub.coin).toBe(20);
     expect(hub.props["5004"]).toEqual({ count: 2, uses: 2 });
 
-    // 券不足（只剩 20，专业 60）
+    // 券不足（只剩 20，专业 60）→ ITEM_NOT_ENOUGH 601
     const ok2 = await arkhubBuyProp(player as any, 5005);
-    expect(ok2).toBe(false);
+    expect(ok2).toEqual({ ok: false, code: 601 });
     expect(hubOf(player).coin).toBe(20);
+    // 未知道具 → ITEM_ID_INVALID 602
+    expect(await arkhubBuyProp(player as any, 9999)).toEqual({ ok: false, code: 602 });
   });
 
-  it("购买：每日库存限购（稀有诱引剂 2），跨日重置", async () => {
+  it("购买：每日库存限购（稀有诱引剂 2），跨日重置；售罄错误码 605", async () => {
     const player = hubPlayer({ coin: 10000 });
-    expect((await arkhubBuyProp(player as any, 5006, 2))).toBe(true); // 稀有 250×2 库存 2
-    expect((await arkhubBuyProp(player as any, 5006))).toBe(false); // 库存售罄
+    expect(await arkhubBuyProp(player as any, 5006, 2)).toEqual({ ok: true, code: 100 }); // 稀有 250×2 库存 2
+    // 库存售罄 → SHOP_ITEM_NOT_ENOUGH 605
+    expect(await arkhubBuyProp(player as any, 5006)).toEqual({ ok: false, code: 605 });
     // 模拟跨日：直接改 propSoldToday 日期
     await (player as any).update(async (draft: any) => {
       draft.activity.ARK_HUB.act1arkhub.propSoldToday = { date: "Sun Aug 16 2026", sold: {} };
     });
-    expect((await arkhubBuyProp(player as any, 5006))).toBe(true);
+    expect(await arkhubBuyProp(player as any, 5006)).toEqual({ ok: true, code: 100 });
   });
 
-  it("使用：消耗 1 次生效次数；次数耗尽不可用", async () => {
+  it("使用：消耗 1 次生效次数；次数耗尽/未知道具回官方错误码 603/602", async () => {
     const player = hubPlayer({ props: { "5004": { count: 1, uses: 1 } } });
-    expect(await arkhubUseProp(player as any, 5004)).toBe(true);
+    expect(await arkhubUseProp(player as any, 5004)).toEqual({ ok: true, code: 100 });
     expect(hubOf(player).props["5004"].uses).toBe(0);
-    expect(await arkhubUseProp(player as any, 5004)).toBe(false);
-    expect(await arkhubUseProp(player as any, 9999)).toBe(false); // 未知道具
+    // 生效次数耗尽 → ITEM_CAN_NOT_USE 603
+    expect(await arkhubUseProp(player as any, 5004)).toEqual({ ok: false, code: 603 });
+    // 未知道具 → ITEM_ID_INVALID 602
+    expect(await arkhubUseProp(player as any, 9999)).toEqual({ ok: false, code: 602 });
   });
 });
 
@@ -188,9 +193,13 @@ describe("数据集换与保护区", () => {
   it("设置交换需求：同时 1 条、可清除", async () => {
     const player = hubPlayer();
     await arkhubSetTrade(player as any, 5001, [5002, 5003]);
-    expect(hubOf(player).trade).toEqual({ wantSpecies: 5001, offerNumIds: [5002, 5003] });
+    const trade = hubOf(player).trade;
+    expect(trade.wantSpecies).toBe(5001);
+    expect(trade.offerNumIds).toEqual([5002, 5003]);
+    expect(trade.ts).toBeGreaterThan(0); // 挂单时间（GetAll requests 回填的 request_time 数据源）
     await arkhubSetTrade(player as any, null);
-    expect(hubOf(player).trade).toEqual({ wantSpecies: null, offerNumIds: [] });
+    expect(hubOf(player).trade.wantSpecies).toBeNull();
+    expect(hubOf(player).trade.offerNumIds).toEqual([]);
   });
 
   it("发起交换：发 ArkhubCreatureExchange 事件（任务 16）", async () => {
@@ -409,7 +418,7 @@ describe("草丛遭遇机制（2026-08-19）", () => {
   it("生效道具：使用后记录 activeLure，生效次数耗尽失效", async () => {
     const player = hubPlayer({ props: { "5004": { count: 1, uses: 1 } } });
     expect(arkdexActiveLure(player as any)).toBeUndefined();
-    expect(await arkhubUseProp(player as any, 5004)).toBe(true);
+    expect((await arkhubUseProp(player as any, 5004)).ok).toBe(true);
     expect(hubOf(player).arkdexState.activeLure).toBe(5004);
     // uses=0 → 不再生效
     expect(arkdexActiveLure(player as any)).toBeUndefined();

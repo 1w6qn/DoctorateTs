@@ -18,6 +18,7 @@ import { createSse, sseSend } from "@utils/sse";
 import { pluginConfigService } from "@plugin/index";
 import { validateBody } from "../game/domain/contracts/validate-body";
 import {
+  arkhubImportPetsSchema,
   backfillAssetsSchema,
   buildingAdvanceSchema,
   buildingMaxSchema,
@@ -726,6 +727,25 @@ router.post("/api/official/migrate", validateBody(migrateOfficialSchema, 400), a
     res.status(400).json({ error: (err as Error).message });
   }
 });
+
+/** 官服枢纽宠物还原（旧存档/官服账号导入后继承宠物；源为官服网关抓包户籍） */
+router.post(
+  "/api/official/arkhub-import-pets",
+  validateBody(arkhubImportPetsSchema, 400),
+  async (req: Request, res: Response) => {
+    try {
+      const { uid, rid, officialUid } = req.body ?? {};
+      const result = await adminService.importArkhubPets(
+        String(uid),
+        rid ? String(rid) : undefined,
+        officialUid ? String(officialUid) : undefined,
+      );
+      res.json(result);
+    } catch (err) {
+      res.status(400).json({ error: (err as Error).message });
+    }
+  },
+);
 
 /** 官服操作（登录官服执行签到/邮件等；无状态会话即用即弃） */
 router.post("/api/official/action", validateBody(officialActionSchema, 400), async (req: Request, res: Response) => {

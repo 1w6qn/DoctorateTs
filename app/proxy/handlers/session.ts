@@ -59,6 +59,8 @@ const GW_INTERACT_ACK = BigInt(0x38b38cd6);
  * 形状：{2:{1:更新数}, 5:[{1:{1:key, 2:value}}×N]}——客户端据此更新引导状态并结束对话。
  */
 const GW_GUIDE_FLAGS_NOTIFY = BigInt(0x38b36462);
+/** 状态变更广播 subID（SyncAlterDataNotify，shop.ts 购买后推送道具变更复用） */
+export const GW_SYNC_ALTER_NOTIFY = GW_GUIDE_FLAGS_NOTIFY;
 /**
  * 奖励/掉落通知（服务端主动下发：{1:类型, 3:生物id列表} / {1:4, 4:npcPixel id}）
  */
@@ -75,8 +77,79 @@ const GW_CHANGE_OUTLOOK_RESP = BigInt(0x38b3f7a7);
 /** 交互（InteractWithUnitReq：{1:target_unique_id, 2:action, 3:squad_index}）→ 38b3d134 */
 const GW_INTERACT_WITH_UNIT_REQ = BigInt(0x38b36055);
 const GW_INTERACT_WITH_UNIT_RESP = BigInt(0x38b3d134);
-/** 动作掩码（ModifyPlayerActionReq：{1:operation, 2:state_mask}）→ ACK */
+/** 动作掩码（ModifyPlayerActionReq：{1:operation, 2:state_mask}）→ ACK + 状态广播 */
 const GW_MODIFY_PLAYER_ACTION_REQ = BigInt(0x38b39680);
+
+/**
+ * 玩家状态掩码位（反编译 ActArkhubPlayerStateMask / ActArkhubServerPlayerStatusMask，
+ * 二者数值一致：UI 层常量 = 服务端枚举）。
+ */
+export const ARKHUB_STATE_MASK = {
+  IDLE: 0,
+  MOVE: 1,
+  SPECIAL: 2,
+  INTERACT: 0x100,
+  MATCHING: 0x200,
+  CAPTURE_BATTLE: 0x400,
+  DUEL_BATTLE: 0x800,
+  PIXEL_CREATE: 0x1000,
+} as const;
+
+/** 状态操作（反编译 ActArkhubServerPlayerStatusOperation：SET=1，CLEAR=2） */
+export const ARKHUB_STATE_OP = { SET: 1, CLEAR: 2 } as const;
+
+/**
+ * 下发玩家状态掩码（PlayerAlterDataNotify 38b36462 的 f1=state_mask）。
+ * 官服抓包实锤：捕捉战开始推 0x400、对局开始推 0x800（可单独携带，与 f2 item_alter 独立）；
+ * 客户端据此驱动枢纽状态机（对局等待/战斗开始对话框、名片状态图标等）。
+ *
+ * @param mask - 缺省推连接当前掩码（调用方先改 state.stateMask 再调）
+ * @param coin - 可选：同步下发变更后券数（f2=ItemChangeNotify{1:coin}）——状态与券变更
+ * 合并为同一帧推送，避免客户端两次消费（对局/扫描结算等“状态+奖励”同时变更场景）。
+ */
+export function pushPlayerStateMask(
+  ctx: ArkhubGatewayHandlerContext,
+  mask?: number,
+  coin?: number,
+): void {
+  const value = mask ?? ctx.state.stateMask;
+  const parts: Buffer[] = [fv(1, value)];
+  if (coin !== undefined) {
+    parts.push(fb(2, fv(1, Math.max(0, coin))));
+  }
+  ctx.send(
+    8,
+    (BigInt("0x2c89b3") << BigInt(32)) | GW_GUIDE_FLAGS_NOTIFY,
+    Buffer.concat(parts),
+  );
+  // 持久化：重连/重启后登录可恢复（官服 PlayerReconnectData.f1 同语义）
+  try {
+    ctx.opts.onStateMaskChanged?.(ctx.state.uid, value);
+  } catch (e) {
+    logger.warn("arkhub-gateway", `状态掩码持久化失败: ${(e as Error).message}`);
+  }
+}
+
+/**
+ * 登录/重连时恢复持久化的网关状态（存档 → 连接）：状态掩码、已结算对局去重键、
+ * 捕捉会话（重连后 GetCaptureInfo/EndCapture 仍可用）。
+ */
+function restoreGatewayState(ctx: ArkhubGatewayHandlerContext): void {
+  const { state, opts } = ctx;
+  let persisted: ReturnType<NonNullable<typeof opts.resolveGatewayState>>;
+  try {
+    persisted = opts.resolveGatewayState?.(state.uid);
+  } catch (e) {
+    logger.warn("arkhub-gateway", `网关状态恢复失败: ${(e as Error).message}`);
+    return;
+  }
+  if (!persisted) return;
+  state.stateMask = Number(persisted.stateMask ?? 0);
+  state.settledDuelBattles = new Set(persisted.settledDuels ?? []);
+  if (persisted.encounter?.creatures?.length) {
+    state.encounter = persisted.encounter;
+  }
+}
 /** 活跃上报（ReportPlayerActiveReq：{1:count}）——fire-and-forget，不响应 */
 const GW_REPORT_ACTIVE_REQ = BigInt(0x38b3ab0c);
 /** 表情/动作发送（DoRolePlayingReq：{1:emoj_id, 2:theme_id, 3:action_mask}）→ ACK */
@@ -446,9 +519,19 @@ function buildProfile(ctx: ArkhubGatewayHandlerContext): {
   };
 }
 
-/** 场景数据帧：EnterSceneNotify（目标 map_id 决定客户端加载场景） */
-function sendSceneFrame(ctx: ArkhubGatewayHandlerContext, mapId: number): void {
+/**
+ * 场景数据帧：EnterSceneNotify（目标 map_id 决定客户端加载场景）
+ *
+ * 户籍依赖玩家存档在内存：构建前 await ensurePlayerLoaded（网关登录不走 HTTP 懒加载链，
+ * 未加载时 resolveArkdexDocs 读不到玩家 → 场景帧缺 f5-f9 → 捕捉区/图鉴等功能不解锁）。
+ */
+async function sendSceneFrame(ctx: ArkhubGatewayHandlerContext, mapId: number): Promise<void> {
   const { state, opts } = ctx;
+  try {
+    await opts.ensurePlayerLoaded?.(state.uid);
+  } catch (e) {
+    logger.warn("arkhub-gateway", `场景帧构建前存档加载失败: ${(e as Error).message}`);
+  }
   // 户籍裁剪：配置 resolveArkdexDocs 时把玩家奇象展册数据编进 PlayerSyncData f5-f9
   const arkdocs = opts.resolveArkdexDocs?.(state.uid);
   ctx.send(
@@ -472,6 +555,8 @@ function handleLogin(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame
   const uid = readLoginUid(frame.body);
   state.uid = uid;
   state.currentMapId = HALL_MAP_ID;
+  // 恢复持久化的网关状态（掩码/对局去重键/捕捉会话——重连与重启后不丢）
+  restoreGatewayState(ctx);
   // 渐进引导：登录后按 uid 解析 GuideFlags（persisted，缺省回退完成态）。
   // 支持异步回调（动态加载玩法模块）——fire-and-forget，场景 hello 前生效。
   const guideResolved = opts.resolveGuideFlags?.(uid);
@@ -492,6 +577,8 @@ function handleLogin(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame
 function handleReconnect(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): void {
   const uid = readLoginUid(frame.body);
   ctx.state.uid = uid;
+  // 重连同样恢复持久化状态（官服重连经 PlayerReconnectData 下发 state_mask 等）
+  restoreGatewayState(ctx);
   logger.info("arkhub-gateway", `本地网关重连登录: uid=${uid || "?"}`);
   ctx.send(4, GW_RECONNECT_RESP, buildReconnectResp());
 }
@@ -670,12 +757,33 @@ function handleInteractWithUnit(ctx: ArkhubGatewayHandlerContext, frame: ArkhubG
   );
 }
 
-/** 动作掩码（ModifyPlayerActionReq）→ 通用 ACK {1:100} */
+/**
+ * 动作掩码（ModifyPlayerActionReq：{1:operation(SET=1/CLEAR=2), 2:state_mask}）。
+ * 客户端上报自身状态变化（像素画 0x1000 / 交互 0x100 等）：按连接应用 SET（置位）/CLEAR（清位）
+ * 后 ACK，并回推 PlayerAlterDataNotify f1=新掩码确认（官服同形——客户端据此更新状态机）。
+ */
 function handleModifyPlayerAction(
   ctx: ArkhubGatewayHandlerContext,
   frame: ArkhubGatewayFrame,
 ): void {
+  let op = 0;
+  let mask = 0;
+  const reader = new ProtoReader(frame.body);
+  for (;;) {
+    const tag = reader.readTag();
+    if (!tag || tag.wire !== 0) break;
+    const v = Number(reader.readVarint());
+    if (tag.field === 1) op = v;
+    else if (tag.field === 2) mask = v;
+  }
+  if (op === ARKHUB_STATE_OP.SET) ctx.state.stateMask |= mask;
+  else if (op === ARKHUB_STATE_OP.CLEAR) ctx.state.stateMask &= ~mask;
+  logger.info(
+    "arkhub-gateway",
+    `动作掩码 ${op === ARKHUB_STATE_OP.SET ? "SET" : "CLEAR"} 0x${mask.toString(16)} → 当前 0x${ctx.state.stateMask.toString(16)} (uid=${ctx.state.uid || "?"})`,
+  );
   ctx.send(8, frame.subID + BigInt(1), ackBody());
+  pushPlayerStateMask(ctx);
 }
 
 /** 活跃上报（ReportPlayerActiveReq）——官服 fire-and-forget，不响应（仅日志） */
@@ -723,6 +831,30 @@ function handleSubmitActorOp(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGate
     // 解析失败按空 actor 处理
   }
   const reward = HUB_REWARD_MAP[actorId] ?? [];
+  // 领奖一次性闸门：get_reward 已领过 → 仅回 ACK（不重复发奖、不弹提示——修复“每次进入都提示”）。
+  // 每日演员（daily_task）按自然日重置，次日可再领；其余演员永久一次性。
+  if (operationId === "get_reward" && opts.claimActorReward) {
+    const claimKey = actorId.includes("daily_task")
+      ? `${actorId}:${new Date().toDateString()}`
+      : actorId;
+    let claimable = true;
+    try {
+      claimable = opts.claimActorReward(state.uid, claimKey);
+    } catch (e) {
+      logger.warn("arkhub-gateway", `领奖闸门检查失败: ${(e as Error).message}`);
+    }
+    if (!claimable) {
+      logger.info("arkhub-gateway", `交互提交 actor=${actorId} op=${operationId} → 已领过，仅回 ACK`);
+      const ackOnly = Buffer.alloc(4);
+      ackOnly.writeUInt32BE(seq, 0);
+      ctx.send(
+        8,
+        (frame.subID & ~0xffffffffn) | GW_INTERACT_ACK,
+        Buffer.concat([ackOnly, Buffer.from([0x08, GW_CODE_OK])]),
+      );
+      return;
+    }
+  }
   // 引导推进：命中引导 actor → 本连接 guideState 同步 + 通知私服落持久化/出展指引任务。
   // 引导推进后服务端主动下发 GuideFlags 广播（38b36462）——客户端据此更新引导状态并结束对话。
   const guideFlags = ARKHUB_GUIDE_ACTOR_FLAGS[actorId];
@@ -735,7 +867,13 @@ function handleSubmitActorOp(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGate
     //  ① capture_update_guide=1 —— 客户端据此"重新读取引导状态并结束当前对话"；
     //  ② 本次推进的其余 GuideFlags（如 pixel_unlock）——经 task_alter_data 下发，
     //     客户端据此解锁画像册等设施。f2 对齐官服：{1:当前券数, 2:[本次领奖道具]}
-    const gold = opts.resolveArkDexGold?.(state.uid) ?? 0;
+    // 券数修正：发奖为异步落盘，此处直接加上本次增量（每日物资 +100，仅当日未领过时），
+    // 否则客户端券数要等切地图重发场景帧才刷新。
+    const dailyDelta =
+      actorId === "arkhub_main_daily_task_02a" && !(opts.resolveDailyClaimed?.(state.uid) ?? false)
+        ? 100
+        : 0;
+    const gold = (opts.resolveArkDexGold?.(state.uid) ?? 0) + dailyDelta;
     guideBroadcast = buildGuideFlagsNotify(
       { ...(guideFlags as Record<string, number>), capture_update_guide: 1 },
       gold,

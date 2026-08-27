@@ -19,6 +19,8 @@ export interface MigrationResult {
   phone: string;
   uid?: string;
   nickName?: string;
+  /** 官服原 uid（网关抓包宠物还原按此匹配登录帧） */
+  officialUid?: string;
   error?: string;
 }
 
@@ -78,6 +80,7 @@ export async function runMigration(opts: {
   for (const { phone, pwd } of accounts) {
     try {
       const official = await syncPlayerData(phone, pwd);
+      const officialUid = String(official.status?.uid ?? "");
       const newUid = String(
         Math.max(...Object.keys(readUsers()).map(Number).filter((n) => !Number.isNaN(n)), 0) + 1,
       );
@@ -87,10 +90,10 @@ export async function runMigration(opts: {
       });
       const reg = await registerImportedUser({
         phone,
-        officialUid: official.status?.uid ?? "",
+        officialUid,
         convertedData: converted,
       });
-      results.push({ phone, uid: reg.uid, nickName: reg.nickName });
+      results.push({ phone, uid: reg.uid, nickName: reg.nickName, officialUid });
       console.log(`[迁移成功] ${phone} → uid=${reg.uid} 昵称=${reg.nickName}`);
     } catch (err) {
       results.push({ phone, error: (err as Error).message });

@@ -24,15 +24,54 @@ export const ARKHUB_DAILY_SUPPLY_REWARD: ItemBundle = {
 };
 
 /**
- * 奇象拟合对战奖励：胜 15 券（官方：胜 15 / 负 7 + 概率道具）。
- * 结算帧胜负字段未确认（当前帧仅 battleId 回显），暂按胜利发放；
- * 待抓包确认胜负字段后接入 15/7 分支。
+ * 奇象拟合对战奖励：胜 15 券 / 负 7 券（攻略 + 官服回合结算上报帧
+ * f8fa293a 胜负字段实锤：胜局带胜者 uid、负局仅终局报，见 docs/arkhub-gateway-protocol.md §12）。
  */
 export const ARKHUB_DUEL_WIN_REWARD: ItemBundle = {
   id: "act1arkhub_token_seal",
   count: 15,
   type: "ACTIVITY_ITEM",
 };
+
+/** 奇象拟合对战失败奖励：7 券（官方：负 7） */
+export const ARKHUB_DUEL_LOSE_REWARD: ItemBundle = {
+  id: "act1arkhub_token_seal",
+  count: 7,
+  type: "ACTIVITY_ITEM",
+};
+
+/**
+ * 网关错误码（反编译 ActArkhubErrorCode 全量还原）。
+ * 客户端两条消费链路（反编译实锤）：
+ * - 响应 f1 code≠100 → ActArkhubErrorCodeUtil.ShowErrorToast 按码映射 i18n 键弹提示；
+ * - 服务端推 NotifyErrorMessageNotify(30009df1){1:error_code} → ON_ERROR_CODE → 同样弹提示。
+ * 故业务失败只需回正确错误码，客户端自行显示对应文案。
+ */
+export const ARKHUB_ERR = {
+  OK: 100,
+  CREATURE_HAS_DISAPPEARED: 201,
+  CREATURE_ALREADY_CAPTURED: 202,
+  CREATURE_BAG_FULL: 203,
+  CREATURE_DUEL_ROOM_FULL: 204,
+  CREATURE_DUEL_FINISHED: 205,
+  SERVER_REGISTER_FAILED: 500,
+  HUB_SCENE_NOT_EXIST: 501,
+  PRIVATE_HALL_IN_CD: 502,
+  HALL_FULL: 503,
+  HALL_DESTROYED: 504,
+  NO_VALID_LINE: 505,
+  PRIVATE_HALL_UPPER_LIMIT: 506,
+  INTERACT_TARGET_BUSY: 534,
+  ITEM_NOT_ENOUGH: 601,
+  ITEM_ID_INVALID: 602,
+  ITEM_CAN_NOT_USE: 603,
+  ITEM_BAG_FULL: 604,
+  SHOP_ITEM_NOT_ENOUGH: 605,
+  SHOP_ITEM_NOT_FOUND: 606,
+  SHOP_EXPIRED: 607,
+  NO_EMPTY_CREATURE_POINT: 608,
+  MUST_IN_CAPTURE_AREA: 609,
+} as const;
 
 /** 读 ARK_HUB 状态（防缺省；非 update 配方内只读用） */
 function hubState(player: PlayerDataManager): any {
@@ -59,22 +98,27 @@ async function grantTokenSeal(
 }
 
 /**
- * ARKDUEL 战斗结算（网关战斗结算帧后调用）
- * 累计对战次数（任务 17-19）+ 发放胜利奖励 + 同步币。
+ * ARKDUEL 战斗结算（网关回合结算上报帧后调用，同一局已按 battle_id 去重）
+ * 累计对战次数（任务 17-19）+ 按胜负发放奖励（WIN 15 / LOSE 7）+ 同步币。
+ * @param win - 是否胜利（缺省 true：胜负字段不可解析时保守按胜，不扣玩家）
  */
 export async function arkhubOnDuelSettle(
   player: PlayerDataManager,
+  win = true,
 ): Promise<void> {
   await player.update(async (draft) => {
     const hub = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!hub) return;
     hub.duelCount = (hub.duelCount ?? 0) + 1;
   });
-  await grantTokenSeal(player, ARKHUB_DUEL_WIN_REWARD);
+  await grantTokenSeal(player, win ? ARKHUB_DUEL_WIN_REWARD : ARKHUB_DUEL_LOSE_REWARD);
   await player._trigger.emit("ArkhubPassDexBattle", [
     { activityId: ARKHUB_ACT_ID, count: hubState(player)?.duelCount ?? 0 },
   ]);
-  logger.info("arkhub", `ARKDUEL 结算: duelCount=${hubState(player)?.duelCount}`);
+  logger.info(
+    "arkhub",
+    `ARKDUEL 结算: ${win ? "WIN(15 券)" : "LOSE(7 券)"} duelCount=${hubState(player)?.duelCount}`,
+  );
 }
 
 /**
@@ -253,6 +297,98 @@ export function arkhubProgressiveGuideFlags(): Record<string, number> {
     arkdex_battle_guide: 0,
     pixel_unlock: 0,
     pixel_unlock_system: 0,
+  };
+}
+
+/**
+ * 网关状态持久化：状态掩码落盘（重连/重启不丢；官服 PlayerReconnectData.f1=state_mask
+ * 即重连恢复状态的服务端数据源）。
+ */
+export async function arkhubSetStateMask(
+  player: PlayerDataManager,
+  mask: number,
+): Promise<void> {
+  await player.update(async (draft) => {
+    const hub = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    if (hub) hub.stateMask = Number(mask) || 0;
+  });
+}
+
+/** 已结算对局去重键上限（防存档无限增长；远超单活动对局量） */
+const ARKHUB_SETTLED_DUEL_CAP = 64;
+
+/**
+ * 网关状态持久化：已结算对局 battle_id 落盘（BO3 去重键；重连/重启后客户端重报
+ * 不会重复发券）——环形保留最近 64 条，幂等（重复键不追加）。
+ */
+export async function arkhubRecordSettledDuel(
+  player: PlayerDataManager,
+  battleId: string,
+): Promise<void> {
+  if (!battleId || battleId === "unknown") return;
+  await player.update(async (draft) => {
+    const hub = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    if (!hub) return;
+    const list: string[] = Array.isArray(hub.settledDuels) ? hub.settledDuels : [];
+    if (list.includes(battleId)) return;
+    hub.settledDuels = [...list.slice(-(ARKHUB_SETTLED_DUEL_CAP - 1)), battleId];
+  });
+}
+
+/**
+ * 网关状态持久化：交互领奖一次性记录（防“每次进入都提示/重复领奖”）。
+ * claimKey 语义：一次性演员用 actorId；每日演员用 `actorId:自然日`（次日可再领）。
+ * 返回 true=首次领取（已记录），false=已领过。
+ */
+export function arkhubIsRewardClaimed(
+  player: PlayerDataManager,
+  claimKey: string,
+): boolean {
+  const claimed = hubState(player)?.claimedRewards;
+  return !!(claimed && claimed[claimKey]);
+}
+
+/** 记录领奖（与 arkhubIsRewardClaimed 配套；异步落盘，内存标记由调用方同步完成） */
+export async function arkhubMarkRewardClaimed(
+  player: PlayerDataManager,
+  claimKey: string,
+): Promise<void> {
+  await player.update(async (draft) => {
+    const hub = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    if (!hub) return;
+    hub.claimedRewards = hub.claimedRewards ?? {};
+    hub.claimedRewards[claimKey] = Date.now();
+  });
+}
+
+/**
+ * 读玩家持久化的网关状态（登录/重连时恢复连接状态用，同步读内存存档）。
+ * @returns { stateMask, settledDuels, encounter }——encounter 取自已落盘的
+ * activeEncounter（捕捉会话，重连后 GetCaptureInfo/EndCapture 仍可用）。
+ */
+export function arkhubReadGatewayState(player: PlayerDataManager): {
+  stateMask: number;
+  settledDuels: string[];
+  encounter?: { creatures: number[]; lureNumId?: number };
+} {
+  const hub = hubState(player);
+  const enc = hub?.arkdexState?.activeEncounter;
+  const creatures = Array.isArray(enc?.creatures)
+    ? (enc.creatures as Array<{ numId?: number }>)
+        .map((c) => Number(c?.numId))
+        .filter((n) => Number.isFinite(n) && n > 0)
+    : [];
+  return {
+    stateMask: Number(hub?.stateMask ?? 0),
+    settledDuels: Array.isArray(hub?.settledDuels) ? hub.settledDuels.map(String) : [],
+    ...(creatures.length > 0
+      ? {
+          encounter: {
+            creatures,
+            ...(enc?.lureNumId != null ? { lureNumId: Number(enc.lureNumId) } : {}),
+          },
+        }
+      : {}),
   };
 }
 

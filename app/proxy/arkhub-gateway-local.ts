@@ -100,7 +100,8 @@ export function startArkhubLocalGateway(
       uid: "",
       currentMapId: HALL_MAP_ID,
       guideState: defaultGuideFlags(),
-      encounterCreatures: [],
+      settledDuelBattles: new Set<string>(),
+      stateMask: 0,
     };
 
     /**

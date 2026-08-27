@@ -97,7 +97,13 @@ import {
   arkhubResolveGuideFlags,
   arkhubAdvanceGuide,
   ARKHUB_GUIDE_ACTOR_FLAGS,
+  arkhubSetStateMask,
+  arkhubRecordSettledDuel,
+  arkhubReadGatewayState,
+  arkhubIsRewardClaimed,
+  arkhubMarkRewardClaimed,
 } from "@game/domain/activity/arkhub/arkhub";
+import { arkhubBuyProp, arkhubUseProp } from "@game/domain/activity/arkhub/arkdex";
 
 /** 冻结时间（2026-08-15 12:00 +8：活动窗口内、8/18 更新前） */
 const FROZEN_TS = 1786766400;
@@ -350,6 +356,68 @@ describe("arkhub 玩法事件入口（arkhub.ts）", () => {
     const hub2 = (player._playerdata as any).activity.ARK_HUB.act1arkhub;
     expect(hub2.duelCount).toBe(2);
     expect(hub2.coin).toBe(30);
+  });
+
+  it("arkhubOnDuelSettle(win=false)：败局发 7 券（官方：负 7），对战计数照常", async () => {
+    const player = hubPlayer();
+    await arkhubOnDuelSettle(player as any, false);
+
+    const hub = (player._playerdata as any).activity.ARK_HUB.act1arkhub;
+    expect(hub.duelCount).toBe(1);
+    expect(hub.coin).toBe(7);
+    expect((player._playerdata as any).tshop.shop_act1arkhub.coin).toBe(7);
+  });
+
+  it("arkhubBuyProp：券不足拒绝购买（不扣券不入道具箱，错码 601）；券足时扣券+道具箱+生效次数", async () => {
+    // 券不足：5004 标准诱引剂 40 券，持有 0 → 拒绝（网关据此回错误码）
+    const poor = hubPlayer();
+    expect(await arkhubBuyProp(poor as any, 5004, 1)).toEqual({ ok: false, code: 601 });
+    const poorHub = (poor._playerdata as any).activity.ARK_HUB.act1arkhub;
+    expect(poorHub.coin).toBe(0);
+    expect(poorHub.props).toBeUndefined();
+    // 券足：持有 100 → 扣 40，道具箱 +1 且生效次数 +1（使用后消耗）
+    const rich = hubPlayer({ coin: 100 });
+    expect(await arkhubBuyProp(rich as any, 5004, 1)).toEqual({ ok: true, code: 100 });
+    const richHub = (rich._playerdata as any).activity.ARK_HUB.act1arkhub;
+    expect(richHub.coin).toBe(60);
+    expect(richHub.props["5004"]).toEqual({ count: 1, uses: 1 });
+    // 使用一次后生效次数耗尽 → 再次使用被拒（错码 603）
+    expect(await arkhubUseProp(rich as any, 5004)).toEqual({ ok: true, code: 100 });
+    expect(await arkhubUseProp(rich as any, 5004)).toEqual({ ok: false, code: 603 });
+  });
+
+  it("网关状态持久化：状态掩码/对局去重键落盘 + 读取还原（含捕捉会话）", async () => {
+    const player = hubPlayer();
+    const hubOf = (p: any) => (p._playerdata as any).activity.ARK_HUB.act1arkhub;
+    // 掩码落盘（官服 PlayerReconnectData.f1 同语义）
+    await arkhubSetStateMask(player as any, 0x800);
+    expect(hubOf(player).stateMask).toBe(0x800);
+    // 去重键：幂等 + 忽略 unknown，环形保留
+    await arkhubRecordSettledDuel(player as any, "b1");
+    await arkhubRecordSettledDuel(player as any, "b1"); // 重复不追加
+    await arkhubRecordSettledDuel(player as any, "unknown"); // 忽略
+    await arkhubRecordSettledDuel(player as any, "b2");
+    expect(hubOf(player).settledDuels).toEqual(["b1", "b2"]);
+    // 捕捉会话（已落盘的 activeEncounter → 读取还原为 numId 列表）
+    await (player as any).update(async (draft: any) => {
+      draft.activity.ARK_HUB.act1arkhub.arkdexState = {
+        activeEncounter: { creatures: [{ numId: 19001 }, { numId: 19002 }], lureNumId: 5004 },
+      };
+    });
+    const s = arkhubReadGatewayState(player as any);
+    expect(s.stateMask).toBe(0x800);
+    expect(s.settledDuels).toEqual(["b1", "b2"]);
+    expect(s.encounter).toEqual({ creatures: [19001, 19002], lureNumId: 5004 });
+  });
+
+  it("交互领奖一次性记录：首次未领/标记后已领（防每次进入重复领奖）", async () => {
+    const player = hubPlayer();
+    expect(arkhubIsRewardClaimed(player as any, "arkhub_main_shiane_02b")).toBe(false);
+    await arkhubMarkRewardClaimed(player as any, "arkhub_main_shiane_02b");
+    expect(arkhubIsRewardClaimed(player as any, "arkhub_main_shiane_02b")).toBe(true);
+    // 每日键与一次性键互不影响（同一演员不同自然日键可再领）
+    expect(arkhubIsRewardClaimed(player as any, "arkhub_main_daily_task_02a:Wed")).toBe(false);
+    expect((player._playerdata as any).activity.ARK_HUB.act1arkhub.claimedRewards["arkhub_main_shiane_02b"]).toBeGreaterThan(0);
   });
 
   it("arkhubOnDailySupply：每日限 1 次、累计天数 +1、发 100 券", async () => {

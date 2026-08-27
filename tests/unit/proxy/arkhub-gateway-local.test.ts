@@ -620,9 +620,10 @@ describe("arkhub 本地网关应答器", () => {
         Buffer.concat([Buffer.from([0x08, 0x02, 0x10]), signedVarint(-820616879)]));
       await pa; // 切场景 ACK
       await ps; // 新场景 EnterSceneNotify
-      // 捕捉开始 b7c267d7 → 连发两帧：StartCaptureResp(b7c2b07e) + EncounterCreatureNotify(b7c20f13)
+      // 捕捉开始 b7c267d7 → 连发三帧：StartCaptureResp + EncounterCreatureNotify + 捕捉战状态推送（f1=0x400）
       const ps1 = next();
       const ps2 = next();
+      const psState = next();
       sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0xb7c267d7),
         Buffer.from([0x0a, 0x00])); // {1:param=ArkDexStartParam}，本地无需解析
       const startResp = await ps1;
@@ -632,17 +633,110 @@ describe("arkhub 本地网关应答器", () => {
       const notify = await ps2;
       expect((notify.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("b7c20f13");
       const notifyHex = notify.subarray(16).toString("hex");
-      expect(notifyHex).toContain("6163743161726b6875625f3135"); // stage act1arkhub_15
+      expect(notifyHex).toContain("6163743161726b6875625f3133"); // stage act1arkhub_13（CAPTURE 1 按序映射）
       expect(notifyHex).toContain("10bd9401"); // 本地遭遇生物 19005（template_id f2）
-      // 捕捉结束 b7c204e8 → EndCaptureResp(b7c26451) 含 settle_info；遭遇非空则发 onScanSettle
+      // 捕捉战状态推送（官服同形：PlayerAlterDataNotify f1=state_mask=0x400 CAPTURE_BATTLE）
+      const capState = await psState;
+      expect((capState.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("38b36462");
+      expect(capState.subarray(16).toString("hex")).toBe("088008"); // f1=1024 varint
+      // 捕捉结束 b7c204e8 → EndCaptureResp(b7c26451) 含 settle_info + 状态清除推送（f1=0）
       p = next();
+      const pClear = next();
       sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0xb7c204e8), Buffer.alloc(0));
       const endResp = await p;
       expect((endResp.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("b7c26451");
       const endHex = endResp.subarray(16).toString("hex");
       expect(endHex).toContain("0801"); // settle_info.f1 is_success=true
       expect(endHex).toContain("10bd9401"); // 捕获生物 19005（CreatureBrief.template_id）
+      expect(endHex).toContain("08892710" ); // settle_info.f4 rewards 奖励 id 5001（扫描 15 券）
       expect(onScanSettle).toHaveBeenCalledWith("1", [19005, 19016, 19060]);
+      const clearState = await pClear;
+      // f1=0（状态回闲）+ f2=ItemChangeNotify{1:15}（扫描 +15 券同帧推送，免切地图才刷新）
+      expect(clearState.subarray(16).toString("hex")).toBe("08001202080f");
+      sock.end();
+    });
+
+    it("捕捉结束官服形状（[seq]{battle_id, param{complete_state=3, captured 槽位}}）→ 按槽位取捕获子集", async () => {
+      const onScanSettle = vi.fn();
+      const server = (await startArkhubLocalGateway({
+        port: 0,
+        onScanStart: () => ({ creatures: [19001, 19002, 19003] }),
+        onScanSettle,
+      }))!;
+      servers.push(server);
+      const port = (server.address() as net.AddressInfo).port;
+      const { sock, next, sendFrame } = await openConn(port);
+      // 登录（uid=1）
+      let p = next();
+      sendFrame(4, BigInt(0x0fa1), Buffer.concat([
+        Buffer.from([0x0a, 0x01]), Buffer.from("1"),
+        Buffer.from([0x12, 0x01]), Buffer.from("x"),
+        Buffer.from([0x18, 0x01]),
+      ]));
+      await p;
+      // 切到捕抓区 CAPTURE 1（-820616879）
+      const signedVarint = (v: number) => {
+        let value = BigInt.asUintN(64, BigInt(v));
+        const out: number[] = [];
+        do {
+          let byte = Number(value & 0x7fn);
+          value >>= 7n;
+          if (value !== 0n) byte |= 0x80;
+          out.push(byte);
+        } while (value !== 0n);
+        return Buffer.from(out);
+      };
+      let pa = next();
+      let ps = next();
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0x38b3b60b),
+        Buffer.concat([Buffer.from([0x08, 0x02, 0x10]), signedVarint(-820616879)]));
+      await pa;
+      await ps;
+      // StartCapture：onScanStart 同步返回遭遇 [19001,19002,19003] → Notify 用真实遭遇而非兜底集（后随状态推送）
+      const ps1 = next();
+      const ps2 = next();
+      const psSt = next();
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0xb7c267d7), Buffer.from([0x0a, 0x00]));
+      await ps1;
+      const notify = await ps2;
+      expect(notify.subarray(16).toString("hex")).toContain("10b99401"); // 19001（遭遇引擎结果送达）
+      await psSt; // 捕捉战状态推送（0x400）
+      // EndCapture 官服形状：[4B seq] {1:battle_id, 2:{1:complete_state=3, 2:packed[2,0]}}
+      p = next();
+      const pSt2 = next();
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0xb7c204e8), Buffer.concat([
+        Buffer.from([0, 0, 0, 7]), // seq
+        Buffer.from([0x0a, 0x04]), Buffer.from("1:23"), // f1 battle_id
+        Buffer.from([0x12, 0x06, 0x08, 0x03, 0x12, 0x02, 0x02, 0x00]), // f2 param（内容 6B）
+      ]));
+      const endResp = await p;
+      const endHex = endResp.subarray(16).toString("hex");
+      expect(endHex.startsWith("00000007")).toBe(true); // seq 回显
+      expect(endHex).toContain("0801"); // is_success
+      // 槽位 [2,0] → 捕获子集 [19003, 19001]（而非全量遭遇）
+      expect(onScanSettle).toHaveBeenCalledWith("1", [19003, 19001]);
+      await pSt2; // 状态清除推送（f1=0）
+      // 放弃帧（仅 {2:{1:1}}）→ 无奖励最小响应，不发 onScanSettle
+      const ps3 = next();
+      const ps4 = next();
+      const ps5 = next();
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0xb7c267d7), Buffer.from([0x0a, 0x00]));
+      await ps3;
+      await ps4;
+      await ps5; // 状态推送（0x400）
+      onScanSettle.mockClear();
+      p = next();
+      const pSt3 = next();
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0xb7c204e8), Buffer.concat([
+        Buffer.from([0, 0, 0, 8]),
+        Buffer.from([0x12, 0x02, 0x08, 0x01]), // param{1:1}，无 captured
+      ]));
+      const abortResp = await p;
+      const abortHex = abortResp.subarray(16).toString("hex");
+      expect(abortHex).not.toContain("0801"); // 无 is_success
+      expect(abortHex).not.toContain("2205"); // 无 rewards（f4）
+      expect(onScanSettle).not.toHaveBeenCalled();
+      await pSt3; // 状态清除推送（f1=0）
       sock.end();
     });
 
@@ -670,32 +764,211 @@ describe("arkhub 本地网关应答器", () => {
       const notify = await pj2;
       expect((notify.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("b7c2ef4f");
       expect(notify.subarray(16).toString("hex")).toContain("6163743161726b6875625f3038"); // stage act1arkhub_08
-      // 对局开始 f8faa515 → StartDuelResp(f8fa2dce{code=100})
+      // 对局开始 f8faa515 → StartDuelResp(f8fa2dce{code=100}) + 对局战状态推送（f1=0x800）
       p = next();
+      const pDuelState = next();
       sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0xf8faa515),
         Buffer.concat([Buffer.from([0x0a, 0x01]), Buffer.from("d"), Buffer.from([0x10, 0x05])]));
       const start = await p;
       expect((start.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("f8fa2dce");
       expect(start.subarray(16).toString("hex")).toBe("0864"); // f1=code 100
-      // 对局回合结算上报 f8fa293a → onDuelSettle（对局结算发券）+ ACK
+      // 对局战状态推送（官服同形：PlayerAlterDataNotify f1=2048 DUEL_BATTLE，客户端据此开战斗对话框）
+      const duelState = await pDuelState;
+      expect((duelState.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("38b36462");
+      expect(duelState.subarray(16).toString("hex")).toBe("088010"); // f1=2048 varint
+      // 对局回合结算上报 f8fa293a（空 body 不可解析 → 保守按胜）→ onDuelSettle(uid, true) + ACK + 状态清除
       p = next();
+      const pClear = next();
       sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0xf8fa293a), Buffer.alloc(0));
       const report = await p;
       expect((report.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("f8fa293b");
       expect(report.subarray(16).toString("hex")).toBe("0864");
-      expect(onDuelSettle).toHaveBeenCalledWith("1");
+      expect(onDuelSettle).toHaveBeenCalledWith("1", true);
+      const clearState = await pClear;
+      // f1=0（状态回闲）+ f2={1:15}（WIN +15 券同帧推送）
+      expect(clearState.subarray(16).toString("hex")).toBe("08001202080f");
       sock.end();
     });
 
-    it("交换信息查询 → 空状态；生物/交换管理请求 → ACK", async () => {
+    it("回合结算胜负判定：胜局带胜者 uid / 负局仅终局报；同 battle_id 去重", async () => {
+      const onDuelSettle = vi.fn();
+      const server = (await startArkhubLocalGateway({ port: 0, onDuelSettle }))!;
+      servers.push(server);
+      const port = (server.address() as net.AddressInfo).port;
+      const { sock, next, sendFrame } = await openConn(port);
+      // 登录（uid=1，胜负判定按 winner===登录 uid 比对）
+      let p = next();
+      sendFrame(4, BigInt(0x0fa1), Buffer.concat([
+        Buffer.from([0x0a, 0x01]), Buffer.from("1"),
+        Buffer.from([0x12, 0x01]), Buffer.from("x"),
+        Buffer.from([0x18, 0x01]),
+      ]));
+      await p;
+      const reportSub = (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0xf8fa293a);
+      const varint = (v: number | bigint) => {
+        let value = BigInt.asUintN(64, BigInt(v));
+        const out: number[] = [];
+        do {
+          let byte = Number(value & 0x7fn);
+          value >>= 7n;
+          if (value !== 0n) byte |= 0x80;
+          out.push(byte);
+        } while (value !== 0n);
+        return Buffer.from(out);
+      };
+      // ① 胜局回合报（官服 08-23 形状）：{1:battle_id, 3:winner="1"(本人)} → WIN + 状态清除推送；同 battle_id 第二报去重（接登录帧后继续）
+      p = next();
+      let pSt = next();
+      sendFrame(8, reportSub, Buffer.concat([
+        Buffer.from([0x08]), varint(999), // f1 battle_id
+        Buffer.from([0x1a, 0x01]), Buffer.from("1"), // f3 winner=本人
+      ]));
+      await p;
+      expect(onDuelSettle).toHaveBeenLastCalledWith("1", true);
+      const stWin = await pSt; // 状态清除 + 券数同帧推送（WIN +15）
+      expect(stWin.subarray(16).toString("hex")).toBe("08001202080f");
+      p = next();
+      sendFrame(8, reportSub, Buffer.concat([
+        Buffer.from([0x08]), varint(999), // 同 battle_id → 已结算跳过（仅 ACK，无状态推送）
+        Buffer.from([0x1a, 0x01]), Buffer.from("1"),
+      ]));
+      await p;
+      expect(onDuelSettle).toHaveBeenCalledTimes(1);
+      // ② 负局（官服 08-16 形状）：回合报无 f3/f4 不发券；终局报带 f4 → LOSE + 状态清除推送
+      p = next();
+      sendFrame(8, reportSub, Buffer.concat([
+        Buffer.from([0x08]), varint(888), // 回合报：仅 battle_id + 快照（无 f3 无 f4）
+        Buffer.from([0x2a, 0x02, 0x0a, 0x00]), // f5 快照占位
+      ]));
+      await p;
+      expect(onDuelSettle).toHaveBeenCalledTimes(1); // 回合报不结算，等终局报
+      p = next();
+      pSt = next();
+      sendFrame(8, reportSub, Buffer.concat([
+        Buffer.from([0x08]), varint(888), // 同 battle_id 终局报：{4:{…}} 无 winner
+        Buffer.from([0x22, 0x04, 0x0a, 0x02, 0x0a, 0x00]),
+      ]));
+      await p;
+      expect(onDuelSettle).toHaveBeenLastCalledWith("1", false);
+      expect(onDuelSettle).toHaveBeenCalledTimes(2);
+      const clearFrame = await pSt;
+      // 状态回闲（f1=0）+ 券数同帧推送（LOSE +7）
+      expect(clearFrame.subarray(16).toString("hex")).toBe("080012020807");
+      sock.end();
+    });
+
+    it("动作掩码（0x38b39680）：SET/CLEAR 应用 + 状态推送（ActArkhubPlayerStateMask 官形）", async () => {
       const port = await startServer();
       const { sock, next, sendFrame } = await openConn(port);
-      // 交换信息 b7c21f3a → b7c25f13（本地空状态：仅 exchange_type=0）
+      const maskSub = (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0x38b39680);
+      // SET PIXEL_CREATE(0x1000)（官服样本：像素画打开时客户端上报 {1:1, 2:4096}）
+      let p1 = next();
+      let p2 = next();
+      sendFrame(8, maskSub, Buffer.from([0x08, 0x01, 0x10, 0x80, 0x20]));
+      const ack = await p1;
+      expect((ack.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("38b39681");
+      expect(ack.subarray(16).toString("hex")).toBe("0864");
+      const push = await p2;
+      expect((push.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("38b36462");
+      expect(push.subarray(16).toString("hex")).toBe("088020"); // f1=4096 varint
+      // CLEAR PIXEL_CREATE（{1:2, 2:4096}）→ 状态回 0
+      p1 = next();
+      p2 = next();
+      sendFrame(8, maskSub, Buffer.from([0x08, 0x02, 0x10, 0x80, 0x20]));
+      await p1;
+      const push2 = await p2;
+      expect(push2.subarray(16).toString("hex")).toBe("0800"); // f1=0（回闲）
+      sock.end();
+    });
+
+    it("网关状态持久化：登录恢复掩码/去重键；变更后经钩子落盘", async () => {
+      const onDuelSettle = vi.fn();
+      const onStateMaskChanged = vi.fn();
+      const onDuelSettled = vi.fn();
+      const server = (await startArkhubLocalGateway({
+        port: 0,
+        onDuelSettle,
+        onStateMaskChanged,
+        onDuelSettled,
+        // 存档恢复源：掩码 0x800（对局战中）+ 已结算对局 ["777"]
+        resolveGatewayState: () => ({ stateMask: 0x800, settledDuels: ["777"] }),
+      }))!;
+      servers.push(server);
+      const port = (server.address() as net.AddressInfo).port;
+      const { sock, next, sendFrame } = await openConn(port);
+      const varint = (v: number | bigint) => {
+        let value = BigInt.asUintN(64, BigInt(v));
+        const out: number[] = [];
+        do {
+          let byte = Number(value & 0x7fn);
+          value >>= 7n;
+          if (value !== 0n) byte |= 0x80;
+          out.push(byte);
+        } while (value !== 0n);
+        return Buffer.from(out);
+      };
+      // 登录（恢复持久化状态）
+      let p = next();
+      sendFrame(4, BigInt(0x0fa1), Buffer.concat([
+        Buffer.from([0x0a, 0x01]), Buffer.from("1"),
+        Buffer.from([0x12, 0x01]), Buffer.from("x"),
+        Buffer.from([0x18, 0x01]),
+      ]));
+      await p;
+      const reportSub = (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0xf8fa293a);
+      // ① 已结算对局 777（存档恢复的去重键）重报 → 不重复发券（仅 ACK）
+      p = next();
+      sendFrame(8, reportSub, Buffer.concat([
+        Buffer.from([0x08]), varint(777),
+        Buffer.from([0x1a, 0x01]), Buffer.from("1"),
+      ]));
+      await p;
+      expect(onDuelSettle).not.toHaveBeenCalled();
+      // ② ModifyPlayerAction SET 0x100 → 掩码 0x800|0x100=0x900 → onStateMaskChanged 落盘钩子
+      const maskSub = (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0x38b39680);
+      const pm1 = next();
+      const pm2 = next();
+      sendFrame(8, maskSub, Buffer.from([0x08, 0x01, 0x10, 0x80, 0x02]));
+      await pm1; // ACK
+      const maskPush = await pm2;
+      expect(maskPush.subarray(16).toString("hex")).toBe("088012"); // f1=2304(0x900) varint
+      expect(onStateMaskChanged).toHaveBeenCalledWith("1", 0x900);
+      // ③ 新对局 888 胜局结算 → 发券 + onDuelSettled 去重键落盘钩子；掩码清 DUEL 位后余 0x100
+      p = next();
+      const pSt = next();
+      sendFrame(8, reportSub, Buffer.concat([
+        Buffer.from([0x08]), varint(888),
+        Buffer.from([0x1a, 0x01]), Buffer.from("1"),
+      ]));
+      await p;
+      expect(onDuelSettle).toHaveBeenCalledWith("1", true);
+      expect(onDuelSettled).toHaveBeenCalledWith("1", "888");
+      const clearPush = await pSt;
+      // f1=256(0x100)：DUEL 位已清，INTERACT 保留（0x900 & ~0x800）；+ f2={1:15} 券数推送
+      expect(clearPush.subarray(16).toString("hex")).toBe("0880021202080f");
+      sock.end();
+    });
+
+    it("交换信息查询 → f2 回显请求 exchange_type（官服样本 `1001`）；预设交换 → onTradePreset + ACK", async () => {
+      const onTradePreset = vi.fn();
+      const server = (await startArkhubLocalGateway({ port: 0, onTradePreset }))!;
+      servers.push(server);
+      const port = (server.address() as net.AddressInfo).port;
+      const { sock, next, sendFrame } = await openConn(port);
+      // 交换信息 b7c21f3a {1:1} → b7c25f13 {2:1}（回显而非硬编 0）
       let p = next();
       sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0xb7c21f3a), Buffer.from([0x08, 0x01]));
       const resp = await p;
       expect((resp.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("b7c25f13");
-      expect(resp.subarray(16).toString("hex")).toBe("1000"); // {2:exchange_type=0}
+      expect(resp.subarray(16).toString("hex")).toBe("1001"); // {2:exchange_type=1}
+      // 预设交换 b7c2369e（官服样本 `08f29401 1004` = want 19058 / giving 个体 4）→ ACK + 回调
+      p = next();
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0xb7c2369e),
+        Buffer.from([0x08, 0xf2, 0x94, 0x01, 0x10, 0x04]));
+      const ackResp = await p;
+      expect((ackResp.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("b7c2369f");
+      expect(ackResp.subarray(16).toString("hex")).toBe("0864");
+      expect(onTradePreset).toHaveBeenCalledWith("", 19058, 4);
       // 删除生物 b7c264e3 → ACK {1:100}
       p = next();
       sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0xb7c264e3),
@@ -706,39 +979,85 @@ describe("arkhub 本地网关应答器", () => {
       sock.end();
     });
 
-    it("使用道具（0x28f5b1ab item_id=5006, count=1）→ UseItemResp（0x28f5de74{1:100}）", async () => {
-      const port = await startServer();
+    it("交换信息查询（配置 resolveTrade）→ requests 按挂单回填（CreatureExchangeRequest 反编译字段）", async () => {
+      const server = (await startArkhubLocalGateway({
+        port: 0,
+        resolveTrade: () => ({ wantSpecies: 19058, offeringUniqueId: 4, ts: 1786000000000 }),
+      }))!;
+      servers.push(server);
+      const port = (server.address() as net.AddressInfo).port;
       const { sock, next, sendFrame } = await openConn(port);
-      // {1:5006, 2:1}（道具 id × 数量，纯 protobuf 无 seq 前缀）
+      const p = next();
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0xb7c21f3a), Buffer.from([0x08, 0x01]));
+      const resp = await p;
+      expect((resp.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("b7c25f13");
+      const hex = resp.subarray(16).toString("hex");
+      expect(hex.endsWith("1001")).toBe(true); // f2 exchange_type 回显在帧尾（requests 在前）
+      expect(hex).toContain("0a0130"); // f1 from_player_uid="0"（未登录）
+      expect(hex).toContain("10f29401"); // to_creature_brief.template_id=19058（想要的种类）
+      expect(hex).toContain("0804"); // from_creature_brief.unique_id=4（给出的个体）
+      sock.end();
+    });
+
+    it("使用道具（0x28f5b1ab [seq]{item_id=5006, count=1}）→ UseItemResp（[seq回显]{1:100}）+ onUseProp", async () => {
+      const onUseProp = vi.fn();
+      const server = (await startArkhubLocalGateway({ port: 0, onUseProp }))!;
+      servers.push(server);
+      const port = (server.address() as net.AddressInfo).port;
+      const { sock, next, sendFrame } = await openConn(port);
+      // 官服抓包形状（08-12/08-18）：[4B seq] {1:5006, 2:1}
       const p = next();
       const body = Buffer.concat([
+        Buffer.from([0x00, 0x00, 0x00, 0x11]), // seq=17
         Buffer.from([0x08, 0x8e, 0x27, 0x10, 0x01]),
       ]);
       sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0x28f5b1ab), body);
       const resp = await p;
       expect((resp.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("28f5de74");
-      expect(resp.subarray(16).toString("hex")).toBe("0864"); // {1:code=100}
+      expect(resp.subarray(16).toString("hex")).toBe("000000110864"); // [seq回显]{1:code=100}
+      expect(onUseProp).toHaveBeenCalledWith("", 5006, 1);
       sock.end();
     });
 
-    it("商店序号购买（0x28f56f2c 序号1=5004）→ 购买响应 + onBuyProp", async () => {
+    it("商店序号购买（0x28f56f2c [seq]{count=1, index=1}）→ 官服形状响应 + 道具变更广播 + onBuyProp；业务拒绝 → 错误码", async () => {
       const onBuyProp = vi.fn();
       const server = (await startArkhubLocalGateway({ port: 0, onBuyProp }))!;
       servers.push(server);
       const port = (server.address() as net.AddressInfo).port;
       const { sock, next, sendFrame } = await openConn(port);
-      // [seq=10] {1:1, 2:1}（商店序号 1 = 5004 标准诱引剂）
-      const p = next();
+      // [seq=10] {1:count=1, 2:index=1}（1 号位恒为 5004 标准诱引剂）
+      const p1 = next();
+      const p2 = next();
       const body = Buffer.concat([
         Buffer.from([0, 0, 0, 10]),
         Buffer.from([0x08, 0x01, 0x10, 0x01]),
       ]);
       sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0x28f56f2c), body);
-      const resp = await p;
+      let resp = await p1;
       expect((resp.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("28f5568f");
-      const hex = resp.subarray(16).toString("hex");
+      let hex = resp.subarray(16).toString("hex");
+      expect(hex.startsWith("0000000a")).toBe(true); // seq 回显
+      expect(hex).toContain("0864"); // f1=100
       expect(hex).toContain("188c27"); // f3=5004（标准诱引剂）
       expect(onBuyProp).toHaveBeenCalledWith("", 5004, 1);
+      // 购买响应后紧跟道具变更广播（0x38b36462，官服样本同序）——客户端据此弹获得提示；
+      // body = f2=ItemChangeNotify{1:剩余券, 2:[{1:5004, 2:1}]}
+      const notify = await p2;
+      expect((notify.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("38b36462");
+      const notifyHex = notify.subarray(16).toString("hex");
+      expect(notifyHex).toContain("1205088c271001"); // f2.f2 = {1:5004, 2:1}
+      // 业务拒绝（券不足 601）→ 官方错误码响应 + 错误提示通知（双通道，客户端弹对应文案）
+      onBuyProp.mockReturnValueOnce({ ok: false, code: 601 });
+      const p3 = next();
+      const p4 = next();
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0x28f56f2c), body);
+      resp = await p3;
+      hex = resp.subarray(16).toString("hex");
+      expect(hex.startsWith("0000000a")).toBe(true);
+      expect(hex).toBe("0000000a08d904"); // [seq]{1:601}（varint d904 = ITEM_NOT_ENOUGH）
+      const errNotify = await p4;
+      expect((errNotify.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("30009df1"); // NotifyErrorMessageNotify
+      expect(errNotify.subarray(16).toString("hex")).toBe("08d904"); // ErrorCodeNotify{1:601}
       sock.end();
     });
 
@@ -971,6 +1290,46 @@ describe("arkhub 本地网关应答器", () => {
       sendFrame(8, BigInt("0x18fb64de29cdb"), Buffer.from([0x08, 0x01]));
       enter = await p2;
       expect(enter.subarray(16).toString("hex")).toContain(key01 + "1002");
+      sock.end();
+    });
+
+    it("交互领奖一次性闸门：首次正常发奖，已领过仅回 ACK（修复每次进入都提示）", async () => {
+      const claimActorReward = vi
+        .fn()
+        .mockReturnValueOnce(true) // 首次：可领（已记录）
+        .mockReturnValueOnce(false); // 二次：已领过
+      const server = (await startArkhubLocalGateway({ port: 0, claimActorReward }))!;
+      servers.push(server);
+      const port = (server.address() as net.AddressInfo).port;
+      const { sock, next, sendFrame } = await openConn(port);
+      const interactBody = Buffer.concat([
+        Buffer.from([0, 0, 0, 9]),
+        Buffer.from([0x0a, 0x16]),
+        Buffer.from("arkhub_main_shiane_02b", "utf8"),
+        Buffer.from([0x12, 0x0a]),
+        Buffer.from("get_reward", "utf8"),
+      ]);
+      // 首次：ACK + 奖励通知 + 引导广播（完整链路）
+      const p1 = next();
+      const p2 = next();
+      const p3 = next();
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0x38b3116d), interactBody);
+      await p1;
+      await p2;
+      await p3;
+      expect(claimActorReward).toHaveBeenCalledTimes(1);
+      // 二次：仅 ACK，无奖励通知/广播（不重复提示）
+      const q1 = next();
+      sendFrame(8, (BigInt("0x2c89b3") << BigInt(32)) | BigInt(0x38b3116d), interactBody);
+      const ackOnly = await q1;
+      expect((ackOnly.readBigUInt64BE(8) & 0xffffffffn).toString(16)).toBe("38b38cd6");
+      expect(ackOnly.subarray(16).toString("hex")).toBe("000000090864");
+      const extra = await new Promise<boolean>((resolve) => {
+        sock.once("data", () => resolve(true));
+        setTimeout(() => resolve(false), 80);
+      });
+      expect(extra).toBe(false); // 80ms 内无后续帧（无奖励通知/广播）
+      expect(claimActorReward).toHaveBeenCalledTimes(2);
       sock.end();
     });
   });

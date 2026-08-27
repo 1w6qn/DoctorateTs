@@ -1321,3 +1321,31 @@ string→菜单名映射在客户端热更）→ 菜单项激活/置灰。
 | 0fa3 / 0fa4 | UserReconnect Req/Resp | UserReconnectReq/Resp | 重连登录 | 🟢 |
 
 > 🔴 项即「拆分战斗与捕捉流程」需归位/实现的帧；🟡 为占位 ack 或待核 body；🆕 为对局段全新实现。
+
+---
+
+## 12. 帧形状差异表（Phase 0 取证，2026-08-27）
+
+> 证据源：官服抓包会话 `2026-08-12T10-01-12-289Z` / `08-16T10-37-19-938Z` /
+> `08-18T10-06-26-382Z` / `08-23T08-28-20-330Z`（up.bin/down.bin 原始字节）+
+> 反编译数据类（`Torappu.UI.ActArkhub.Server.Data`）。帧体统一为 `[4B BE 请求序号] + proto`（商店/捕捉/对局段）或纯 proto（交换/广播段）。
+>
+> 复现工具：`tmp/p0-forensics.ts`（`pnpm exec tsx tmp/p0-forensics.ts`）。
+
+| 帧 | 官服真实形状 | 本地原实现差异 | 结论 |
+|---|---|---|---|
+| BuyItemReq `28f56f2c` | [seq] `{1:count, 2:index}`（BuyShopItemReq f1=index/f2=count，样本 `00000010 08031001`=买 1 件 3 号位） | 解析把 f1→index、f2→count **字段互换** | 🔴 修正：f1=count、f2=index |
+| BuyItemResp `28f5568f` | [seq] `{1:100, 2:index, 3:item_numId, 4:数量, 5:价格, 6:剩余券数}`（样本 `0864 1003 188e27 2001 28fa01 30ce01`） | 字段序错位（f2 写数量）且**缺 f6 剩余券数** | 🔴 修正为 6 字段 |
+| UseItemReq `28f5b1ab` | [seq] `{1:item_id, 2:count}`（样本 `088e271001`=使用 5006） | 解析正确，**未接业务**（诱引剂/信息素不生效） | 🟡 接线 |
+| EndCaptureReq `b7c204e8` | [seq] `{1:battle_id="uid:ts", 2:param{1:complete_state(3=成功), 2:captured[packed]=捕获槽位索引}}`；成功帧不带 battle_id，放弃帧仅 `{1:"uid:ts", 2:{1:1}}` | 不解析 body（按连接状态全捕获结算） | 🔴 修正：按槽位索引取捕获子集 |
+| EndCaptureResp `b7c26451` | [seq] `{1:{1:is_success, 2:end_time, 3:creatures[], 4:rewards[{1:id,2:count}]}}`；放弃回最小 `{1:{2:ts}}` | **缺 f4 rewards**（官服扫描成功发 act1arkhub_token_seal×15） | 🔴 补 f4 |
+| StartCaptureResp `b7c2b07e` | [seq] `{1:100, 2:battle_id="uid:epoch_ms"}` | battle_id 用 `cap_xxx` 形状 | 🟢 改官服形状 |
+| EncounterCreatureNotify `b7c20f13` | `{1:{1:CreatureBrief{1:unique_id,2:template_id,3:persona}[], 2:stage_id, 3:1}}`；stage_id 随捕抓区：_13/_14/_15 | stage_id 固定 `act1arkhub_15` | 🟡 按场景映射 |
+| DuelRoundResultReportReq `f8fa293a` | `{1:battle_id(ulong), 2:round(可选), 3:winner(胜局回合报=胜者uid), 4:battle_info(map, 终局报=双方), 5:enemy_runtime_snapshot[]}` | 不解析（恒按胜发券） | 🔴 修正：胜局=带 f3 报告；负局=终局报（仅 f4）；按 battle_id 去重 |
+| GetAllCreatureExchangeInfo Req/Resp `b7c21f3a/b7c25f13` | Req `{1:exchange_type}`；Resp `{1:requests[](CreatureExchangeRequest), 2:exchange_type}`（样本 `1001`=f2 回显；Rsp ProtoMember(1/2/3)，Request 反编译字段 1/3/4/5/6） | Resp 回 `fv(2,0)` 字段号对但**值硬编 0**且无挂单 | 🔴 修正：f2 回显请求值 + requests 按 `hub.trade` 回填（单机回显自己挂单） |
+| PresetCreatureExchangeReq `b7c2369e` | `{1:creature_wanting(种类 numId), 2:creature_giving(个体 unique_id)}`（样本 `08f29401 1004`）；**无响应样本** | 仅 ACK | 🟡 接 arkhubSetTrade，保持 ACK |
+| GetShopInfoResp `28f5229c` | [seq] `{1:100, 3:{1:ts, 2:[{1:序号,2:商品,3:价格,4:库存}×7]}}` | 形状一致；货架内容硬编码 | 🟡 每日货架数据驱动（固定 5004/5005/5006 + 按日种子 2 味道 + 2 信息素，三日样本实锤轮换）；落盘 `hub.shopToday` 保证价格表与购买校验同源 |
+| JoinDuelReq `b7c277bf` | [seq] `{1:{2:mode_type}}`（1-7 对应 modeData） | 不解析 | 🟢 无业务依赖（可选记录） |
+| 状态掩码（状态机） | `ModifyPlayerActionReq(38b39680)` = `{1:op(SET=1/CLEAR=2), 2:state_mask}`；状态位：Interact=0x100/Matching=0x200/CaptureBattle=0x400/DuelBattle=0x800/PixelCreate=0x1000（`ActArkhubPlayerStateMask`）。官服经 `PlayerAlterDataNotify(38b36462)` f1 下发：捕捉战开始推 0x400（08-16 down#104）、对局开始推 0x800（08-16 down#431/592、08-23 down#91/147/221）；像素画 0x1000 由客户端上报（08-16 up#136/141） | 原仅 ACK 无状态应用 | 🔴 修正：连接维护 stateMask，SET/CLEAR 位操 + 玩法节点服务端驱动，均经 f1 回推（先响应后推送） |
+| 败局语义 | 08-16 会话实锤：负局报告**无 f3**，终局带 f4；BO3 胜局首回合报带 f3=本人 uid | — | 胜负判定证据链闭合 |
+

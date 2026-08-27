@@ -13,11 +13,12 @@
  * - 道具价格逆向自官服 ARKDUEL 商店价格表（design-spec §28）；未在价格表的道具价格按同类推断并标注
  * - 六维换算为攻略明文（进攻×20≈攻击、守备×2≈防御、耐久×100≈HP、法抗×0.5、攻速=间隔倒数×10）
  */
+import fs from "node:fs";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { ItemBundle } from "@excel/excel";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
-import { ARKHUB_ACT_ID, arkhubCreatureCollected } from "./arkhub";
+import { ARKHUB_ACT_ID, arkhubCreatureCollected, ARKHUB_ERR } from "./arkhub";
 
 /** 扫描仪内存上限（ArkdexConstData.arkdexCreatureBagMaxNum） */
 export const ARKDEX_BAG_MAX = 400;
@@ -365,23 +366,25 @@ export async function arkhubPheromoneScan(player: PlayerDataManager): Promise<vo
 /**
  * 购买巡展道具（ARKDUEL 商店；扣 coin → 道具箱 +生效次数）
  * 攻略：所有工作人员共享库存、每日刷新；诱引剂/信息素使用后消耗生效次数，
- * 离开会场不清除。购买帧 subID 待官服抓包，此函数供帧回调/路由复用。
+ * 离开会场不清除。
  * @param count - 购买数量（缺省 1）
- * @returns 是否成功（道具未知/库存不足/券不足返回 false）
+ * @returns { ok, code }——code 为 ActArkhubErrorCode 官方错误码（券不足 601 /
+ * 库存不足 605 / 未知道具 602），客户端据此弹对应文案提示（反编译消费链路实锤）。
  */
 export async function arkhubBuyProp(
   player: PlayerDataManager,
   itemNumId: number,
   count: number = 1,
-): Promise<boolean> {
+): Promise<{ ok: boolean; code: number }> {
   const def = ARKDEX_PROPS[itemNumId];
-  if (!def || count < 1) return false;
+  if (!def || count < 1) return { ok: false, code: ARKHUB_ERR.ITEM_ID_INVALID };
   const totalPrice = def.price * count;
   const h = hub(player);
-  if ((h?.coin ?? 0) < totalPrice) return false;
+  if ((h?.coin ?? 0) < totalPrice) return { ok: false, code: ARKHUB_ERR.ITEM_NOT_ENOUGH };
   // 库存限购（按自然日，跨日重置——简化：每日首购清零记录）
   const today = new Date().toDateString();
   let ok = false;
+  let stockShort = false;
   await player.update(async (draft) => {
     const hh = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!hh) return;
@@ -392,7 +395,10 @@ export async function arkhubBuyProp(
       hh.propSoldToday = { date: today, sold: {} };
     }
     const soldCount = hh.propSoldToday?.sold?.[stockKey] ?? 0;
-    if (soldCount + count > def.dailyStock) return; // 库存不足
+    if (soldCount + count > def.dailyStock) {
+      stockShort = true; // 库存不足（共享库存每日刷新，官码 SHOP_ITEM_NOT_ENOUGH）
+      return;
+    }
     hh.coin = (hh.coin ?? 0) - totalPrice;
     const shop = (draft.tshop as any)?.["shop_act1arkhub"];
     if (shop) shop.coin = Math.max(0, (shop.coin ?? 0) - totalPrice);
@@ -405,8 +411,9 @@ export async function arkhubBuyProp(
   });
   if (ok) {
     logger.info("arkdex", `购买道具 ${def.name}×${count}（单价 ${def.price}）`);
+    return { ok: true, code: ARKHUB_ERR.OK };
   }
-  return ok;
+  return { ok: false, code: stockShort ? ARKHUB_ERR.SHOP_ITEM_NOT_ENOUGH : ARKHUB_ERR.ITEM_NOT_ENOUGH };
 }
 
 /**
@@ -417,19 +424,21 @@ export async function arkhubBuyProp(
  * 扫描结算时每完成一次扫描再消耗 1 次（arkhubEndScan 复用本函数；攻略"每完成一次
  * 扫描消耗一次生效次数"）。
  *
- * @returns 是否可用（道具不存在/生效次数用完返回 false；扣减在 update 内完成）
+ * @returns { ok, code }——code 为官方错误码（未知道具 602 / 未持有或生效次数耗尽 603；
+ * 扣减在 update 内完成），客户端据此弹对应文案提示。
  */
 export async function arkhubUseProp(
   player: PlayerDataManager,
   itemNumId: number,
-): Promise<boolean> {
+): Promise<{ ok: boolean; code: number }> {
   const def = ARKDEX_PROPS[itemNumId];
+  if (!def) return { ok: false, code: ARKHUB_ERR.ITEM_ID_INVALID };
   const key = String(itemNumId);
   let ok = false;
   await player.update(async (draft) => {
     const hh = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
     const p = hh?.props?.[key];
-    if (!def || !p || (p.uses ?? 0) < 1) return;
+    if (!p || (p.uses ?? 0) < 1) return;
     p.uses -= 1;
     // 记录生效道具（草丛遭遇/信息素引出按此定向遭遇池）
     hh.arkdexState = hh.arkdexState ?? {};
@@ -438,14 +447,15 @@ export async function arkhubUseProp(
   });
   if (ok) {
     logger.info("arkdex", `使用道具 ${def.name}（剩余生效次数 ${hub(player)?.props?.[key]?.uses ?? 0}）`);
+    return { ok: true, code: ARKHUB_ERR.OK };
   }
-  return ok;
+  return { ok: false, code: ARKHUB_ERR.ITEM_CAN_NOT_USE };
 }
 
 /**
  * 设置交换需求（数据仪-交换站；攻略：只能指定想要的生物种类、同时 1 条）
  * @param wantSpecies - 想要的生物种类 id（null = 清除需求）
- * @param offerNumIds - 准备交换出去的生物个体种类列表
+ * @param offerNumIds - 准备交换出去的生物个体种类列表（个体 unique_id）
  */
 export async function arkhubSetTrade(
   player: PlayerDataManager,
@@ -455,7 +465,11 @@ export async function arkhubSetTrade(
   await player.update(async (draft) => {
     const h = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
     if (!h) return;
-    h.trade = { wantSpecies: wantSpecies === null ? null : Number(wantSpecies), offerNumIds: offerNumIds ?? [] };
+    h.trade = {
+      wantSpecies: wantSpecies === null ? null : Number(wantSpecies),
+      offerNumIds: offerNumIds ?? [],
+      ts: Date.now(), // 挂单时间（CreatureExchangeRequest.request_time 数据源）
+    };
   });
 }
 
@@ -465,6 +479,72 @@ export async function arkhubSetTrade(
  */
 export async function arkhubDoTrade(player: PlayerDataManager): Promise<void> {
   await player._trigger.emit("ArkhubCreatureExchange", [{ activityId: ARKHUB_ACT_ID }]);
+}
+
+/**
+ * 当日货架生成（攻略 + 08-16/08-18/08-23 三日官服样本实锤轮换）：固定 5004/5005/5006 +
+ * 味道诱引剂（5007-5011）随机 2 + 信息素（5014-5021）随机 2。确定性按日种子：
+ * 同日多次调用结果一致，价格表与购买校验无需持久化即保持一致（落盘另见
+ * arkhubPersistShopToday）。
+ */
+const DUEL_SHOP_FIXED = [5004, 5005, 5006];
+const DUEL_SHOP_FLAVOR_POOL = [5007, 5008, 5009, 5010, 5011];
+const DUEL_SHOP_PHEROMONE_POOL = [5014, 5015, 5016, 5017, 5018, 5019, 5020, 5021];
+
+/** 确定性伪随机（LCG，仅用于每日货架抽取——非密码学用途） */
+function seededNext(seed: { s: number }): number {
+  seed.s = (Math.imul(seed.s, 1664525) + 1013904223) >>> 0;
+  return seed.s / 0x100000000;
+}
+
+/** 从池中按种子确定性抽 n 个（同种子结果稳定） */
+function seededPick(pool: number[], n: number, seed: { s: number }): number[] {
+  const rest = [...pool];
+  const out: number[] = [];
+  while (out.length < n && rest.length > 0) {
+    out.push(rest.splice(Math.floor(seededNext(seed) * rest.length), 1)[0]);
+  }
+  return out;
+}
+
+/** 当日货架道具 numId（7 件：固定 3 + 味道 2 + 信息素 2，按自然日确定性） */
+export function arkhubDailyShopIds(): number[] {
+  const dateKey = new Date().toISOString().slice(0, 10);
+  let hash = 0;
+  for (const ch of dateKey) hash = (Math.imul(hash, 31) + ch.charCodeAt(0)) >>> 0;
+  const seed = { s: hash || 1 };
+  return [
+    ...DUEL_SHOP_FIXED,
+    ...seededPick(DUEL_SHOP_FLAVOR_POOL, 2, seed),
+    ...seededPick(DUEL_SHOP_PHEROMONE_POOL, 2, seed),
+  ];
+}
+
+/**
+ * 当日货架落盘（hub.shopToday={date, ids}）：保证商店价格表与购买校验读同一份货架。
+ * 生成规则为按日确定性种子（网关侧同算法），落盘值与生成值一致；跨日后网关侧重新生成并覆盖。
+ * @param ids - 当日货架道具 numId（7 件：固定 3 + 味道 2 + 信息素 2）
+ */
+export async function arkhubPersistShopToday(
+  player: PlayerDataManager,
+  ids: number[],
+): Promise<void> {
+  const dateKey = new Date().toISOString().slice(0, 10);
+  await player.update(async (draft) => {
+    const h = (draft.activity as any)?.ARK_HUB?.[ARKHUB_ACT_ID];
+    if (!h) return;
+    h.shopToday = { date: dateKey, ids: ids.map(Number) };
+  });
+}
+
+/** 同步读当日货架（仅当落盘日期=今日时返回；否则 undefined，调用方回确定性生成） */
+export function arkhubShopTodayIds(player: PlayerDataManager): number[] | undefined {
+  const h = hub(player);
+  const st = h?.shopToday;
+  if (st?.date === new Date().toISOString().slice(0, 10) && Array.isArray(st.ids)) {
+    return st.ids.map(Number);
+  }
+  return undefined;
 }
 
 /**
@@ -496,10 +576,10 @@ export async function arkhubUnlockArea(
  * - 扫描结算：扫描成功 15 券 + 个体数据入库（arkhubScanSucceed），失败无奖励；
  *   诱引剂每完成一次扫描消耗 1 次生效次数（复用 arkhubUseProp）
  *
- * 传输层说明：官方 StartCaptureReq/EndCaptureReq/EncounterCreatureNotify 帧 subID
- * 未抓包确认（design-spec §30.4 教训：不硬写假 subID）——私服以 HTTP 路由
- * /activity/arkhub/encounter/start|end 为接口（仿 savePixelArt 模式），
- * 网关接线待官服抓包后补帧即可（抓包指引见 design-spec §30.4）。
+ * 传输层（2026-08-27 实锤接线）：官方帧 subID 已由抓包 + 反编译双重确认——
+ * StartCaptureReq(b7c267d7) / EndCaptureReq(b7c204e8) / EncounterCreatureNotify(b7c20f13)，
+ * 经本地网关（app/proxy/handlers/play.ts）接 index.ts 回调：onScanStart 同步返回遭遇、
+ * onScanSettle 结算；帧形状差异表见 docs/arkhub-gateway-protocol.md §12。
  */
 
 /** 捕抓区 CAPTURE 场景 map_id → 栖息地（sceneTypeMap：CAPTURE 1/2/3 = 三栖息地） */
@@ -702,12 +782,35 @@ export function arkdexAlterOfMap(numIds: number[]): Record<number, number> {
   return out;
 }
 
-/** 活动频繁映射：{ [numId]: true }（creatureData.upWeightTagIsShow；本地全 false，留接线） */
+/**
+ * 活动频繁（upWeightTagIsShow）私服降级覆盖表（data/arkhub/active-weights.json）。
+ * 官方语义为网关服务端动态下发——本地 excel 全 false、现存抓包无样本，无法还原；
+ * 私服用本地确定性标记供任务 12-14（收集 N 种活动频繁生物）可推进（懒加载 + 缓存）。
+ */
+let activeOverrideCache: Set<number> | undefined;
+function arkdexActiveOverride(): Set<number> {
+  if (activeOverrideCache) return activeOverrideCache;
+  let ids: number[] = [];
+  try {
+    const raw = JSON.parse(fs.readFileSync("./data/arkhub/active-weights.json", "utf8"));
+    ids = Array.isArray(raw?.activeNumIds) ? raw.activeNumIds.map(Number) : [];
+  } catch (e) {
+    logger.debug("arkdex", `活动频繁覆盖表读取失败（降级为空）: ${(e as Error).message}`);
+  }
+  activeOverrideCache = new Set(ids.filter((n: number) => Number.isFinite(n)));
+  return activeOverrideCache;
+}
+
+/**
+ * 活动频繁映射：{ [numId]: true }（creatureData.upWeightTagIsShow 优先；本地全 false 时
+ * 回落私服降级覆盖表 active-weights.json——官服语义未确认，见文件内注释）。
+ */
 export function arkdexActiveMap(numIds: number[]): Record<number, boolean> {
   const out: Record<number, boolean> = {};
+  const override = arkdexActiveOverride();
   for (const id of numIds) {
     const c = arkdexCreature(id);
-    if (c?.upWeightTagIsShow) out[id] = true;
+    if (c?.upWeightTagIsShow || override.has(id)) out[id] = true;
   }
   return out;
 }

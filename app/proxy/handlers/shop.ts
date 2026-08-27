@@ -25,6 +25,7 @@ import {
   listPixelsByUid,
   ARKPIXEL_MAX_PUBLISH,
 } from "@game/domain/activity/arkhub/arkpixel";
+import { ARKDEX_PROPS, arkhubDailyShopIds } from "@game/domain/activity/arkhub/arkdex";
 
 /* ---------- 帧 subID（low32，见 docs/arkhub-gateway-protocol.md §9.4/§9.5） ---------- */
 
@@ -32,15 +33,51 @@ import {
 const GW_DUEL_SHOP_REQ = BigInt(0x28f5ba6f);
 const GW_DUEL_SHOP_RESP = BigInt(0x28f5229c);
 /**
- * 道具购买（BuyItemReq → 店铺按序号）→ 0x28f5568f 购买响应（{1:100, 2:index, 3:item_id,
- * 4:数量, 5:价格, 6:当前券数}）——28f56f2c：{1:商店序号, 2:数量}，接 arkhubBuyProp
- * （扣券 + 道具箱 + 生效次数 + 每日库存限购）。用道具另见 GW_USE_ITEM_REQ(28f5b1ab)。
+ * 道具购买（BuyItemReq → 店铺按序号）→ 0x28f5568f 购买响应（[4B seq回显]
+ * {1:100, 2:商店序号, 3:道具, 4:数量, 5:价格, 6:剩余券数}）——28f56f2c：
+ * [4B seq] {1:count, 2:index}（BuyShopItemReq f1=index/f2=count，抓包实锤修正），
+ * 接 arkhubBuyProp（扣券 + 道具箱 + 生效次数 + 每日库存限购）。用道具另见 GW_USE_ITEM_REQ(28f5b1ab)。
  */
 const GW_BUY_ITEM_REQ = BigInt(0x28f56f2c);
 const GW_BUY_ITEM_RESP = BigInt(0x28f5568f);
 /** 使用道具（UseItemReq：{1:item_id, 2:count}）→ UseItemResp 0x28f5de74 {1:code=100} */
 const GW_USE_ITEM_REQ = BigInt(0x28f5b1ab);
 const GW_USE_ITEM_RESP = BigInt(0x28f5de74);
+/**
+ * 状态变更广播（SyncAlterDataNotify 0x38b36462）：购买成功后推送道具变更，
+ * 客户端据此弹“获得物品”提示并刷新道具箱。官服样本（08-18 购买后紧跟购买响应）：
+ * `120a 08ce01 1205088e271001` = f2=ItemChangeNotify{1:剩余券, 2:[{1:道具,2:数量}]}。
+ */
+const GW_SYNC_ALTER_NOTIFY = BigInt(0x38b36462);
+/**
+ * 错误提示通知（NotifyErrorMessageNotify 0x30009df1，段前缀 0x1ffd3）：
+ * ErrorCodeNotify{1:error_code}——客户端 ActArkhubGamePlayModule 收后 emit ON_ERROR_CODE →
+ * ActArkhubErrorCodeUtil.ShowErrorToast 按码弹官方文案（反编译消费链路实锤）。
+ * 响应 f1 错误码与本帧双通道，保证提示必达。
+ */
+const GW_ERROR_CODE_NOTIFY = BigInt(0x30009df1);
+
+/**
+ * 道具变更通知（购买后推送；官服字节对齐：仅 f2=ItemChangeNotify{1:coin, 2:items[]}）
+ *
+ * @param remainCoin - 变更后剩余券数（f2.f1）
+ * @param itemNumId - 变更道具 numId（f2.f2[].f1）
+ * @param count - 变更数量（f2.f2[].f2）
+ */
+function buildItemAlterNotify(remainCoin: number, itemNumId: number, count: number): Buffer {
+  return fb(
+    2,
+    Buffer.concat([
+      fv(1, Math.max(0, remainCoin)),
+      fb(2, Buffer.concat([fv(1, itemNumId), fv(2, count)])),
+    ]),
+  );
+}
+
+/** 错误提示通知帧体（ErrorCodeNotify{1:error_code}） */
+function buildErrorCodeNotify(code: number): Buffer {
+  return fv(1, code);
+}
 /** 像素上传 token 请求（RequestPixelArtUploadTokenReq：{1:pixel_art_id, 2:md5}）→ 0x31d60cf6 凭据 */
 const GW_PIXEL_UPLOAD_TOKEN_REQ = BigInt(0x31d603b3);
 const GW_PIXEL_UPLOAD_TOKEN_RESP = BigInt(0x31d60cf6);
@@ -65,25 +102,24 @@ const GW_DELETE_PIXEL_COLLECTION_RESP = BigInt(0x31d6ea56);
 
 /**
  * ARKDUEL 商店价格表（0x28f5ba6f → 0x28f5229c）
- * 官服响应：{1:100, 3:{1:ts, 2:[{1:序号, 2:itemNumId, 3:价格, 4:库存}×7]}}
- * 道具与价格对齐官服（activity.ARK_HUB.itemData 的 itemNumId）：
- * 5004 标准诱引剂 40 / 5005 专业诱引剂 60 / 5006 稀有诱引剂 250 /
- * 5009 甜味诱引剂 60 / 5010 辣味诱引剂 60 / 5015 专业信息素 60 / 5021 苦味信息素 60
+ * 官服响应：{1:100, 3:{1:ts, 2:[{1:序号, 2:itemNumId, 3:价格, 4:库存}×7]}}。
+ * 每日货架：优先读 hub.shopToday 落盘值（resolveShopIds，日期匹配时），缺省/跨日回落
+ * 域层确定性生成（arkhubDailyShopIds：固定 3 + 按日种子 2 味道 + 2 信息素，三日官服样本实锤）；
+ * 价格/日库存取 ARKDEX_PROPS（源 itemEffectData）。
  */
-const DUEL_SHOP_ITEMS: Array<[number, number, number, number]> = [
-  [1, 5004, 40, 99],
-  [2, 5005, 60, 99],
-  [3, 5006, 250, 2],
-  [4, 5009, 60, 5],
-  [5, 5010, 60, 5],
-  [6, 5015, 60, 5],
-  [7, 5021, 60, 5],
-];
 
-/** 商店序号 → itemNumId（购买帧 28f56f2c f1=序号 用） */
-const DUEL_SHOP_INDEX_TO_ITEM: Record<number, number> = Object.fromEntries(
-  DUEL_SHOP_ITEMS.map(([no, numId]) => [no, numId]),
-);
+/** 当日货架 numId（resolveShopIds 落盘值优先 → 确定性生成） */
+function shopItemIdsFor(ctx: ArkhubGatewayHandlerContext): number[] {
+  return ctx.opts.resolveShopIds?.(ctx.state.uid) ?? arkhubDailyShopIds();
+}
+
+/** 当日货架（[序号, itemNumId, 价格, 日库存]，序号 1 起） */
+function duelShopItems(ids: number[]): Array<[number, number, number, number]> {
+  return ids.map((numId, i) => {
+    const def = ARKDEX_PROPS[numId];
+    return [i + 1, numId, def?.price ?? 60, def?.dailyStock ?? 5];
+  });
+}
 
 /* ---------- 应答构建 ---------- */
 
@@ -91,9 +127,10 @@ const DUEL_SHOP_INDEX_TO_ITEM: Record<number, number> = Object.fromEntries(
  * ARKDUEL 商店价格表响应（官服字节对齐：{1:100, 3:{1:ts, 2:[7 items]}} + [4B seq 回显]）
  *
  * @param seq - 请求序号（body 前 4B 大端）
+ * @param ids - 当日货架道具 numId（7 件）
  */
-function buildDuelShopResp(seq: number): Buffer {
-  const items = DUEL_SHOP_ITEMS.map(([no, numId, price, avail]) =>
+function buildDuelShopResp(seq: number, ids: number[]): Buffer {
+  const items = duelShopItems(ids).map(([no, numId, price, avail]) =>
     fb(2, Buffer.concat([fv(1, no), fv(2, numId), fv(3, price), fv(4, avail)])),
   );
   const payload = Buffer.concat([
@@ -210,23 +247,43 @@ function buildPixelUploadTokenResp(
 
 /**
  * 道具购买响应（28f56f2c → 0x28f5568f）
- * 官服形状：[4B seq回显] {1:100, 2:index, 3:item_id, 4:数量, 5:价格}。
+ * 官服形状（抓包实锤 `0864 1003 188e27 2001 28fa01 30ce01`）：
+ * [4B seq回显] {1:100, 2:商店序号, 3:道具 numId, 4:数量, 5:价格, 6:剩余券数}。
+ * 失败响应：{1:非100 错误码}（券/库存不足，客户端据此提示）。
  *
  * @param seq - 请求序号回显
- * @param itemNumId - 道具 id（商店表校验；不在表内返回 null 由调用方回通用 ACK）
+ * @param shopIndex - 商店序号（当日货架）
+ * @param itemNumId - 道具 id
  * @param count - 购买数量
+ * @param remainCoin - 购买后剩余券数（resolveCoin；缺省 0）
  */
-function buildBuyItemResp(seq: number, itemNumId: number, count: number): Buffer | null {
-  const entry = DUEL_SHOP_ITEMS.find(([, numId]) => numId === itemNumId);
-  if (!entry) return null;
-  const [, , price, avail] = entry;
+function buildBuyItemResp(
+  seq: number,
+  shopIndex: number,
+  itemNumId: number,
+  count: number,
+  remainCoin: number,
+  ids: number[],
+): Buffer {
+  const entry = duelShopItems(ids).find(([, numId]) => numId === itemNumId);
+  const price = entry?.[2] ?? ARKDEX_PROPS[itemNumId]?.price ?? 0;
   const payload = Buffer.concat([
     fv(1, GW_CODE_OK),
-    fv(2, count),
+    fv(2, shopIndex),
     fv(3, itemNumId),
-    fv(4, Math.max(0, avail - count)), // 剩余库存（每日固定库存减本次购买）
+    fv(4, count),
     fv(5, price),
+    fv(6, Math.max(0, remainCoin)),
   ]);
+  const seqBuf = Buffer.alloc(4);
+  seqBuf.writeUInt32BE(seq, 0);
+  return Buffer.concat([seqBuf, payload]);
+}
+
+/** 购买/使用失败响应：[4B seq回显] {1:官方错误码}（ActArkhubErrorCode；客户端据此弹对应文案） */
+function buildPropErrorResp(seq: number | null, code: number): Buffer {
+  const payload = fv(1, code); // varint 编码（错误码 601+ 超单字节，不能用定长字节）
+  if (seq === null) return payload;
   const seqBuf = Buffer.alloc(4);
   seqBuf.writeUInt32BE(seq, 0);
   return Buffer.concat([seqBuf, payload]);
@@ -234,10 +291,12 @@ function buildBuyItemResp(seq: number, itemNumId: number, count: number): Buffer
 
 /**
  * 使用道具响应（28f5b1ab → 0x28f5de74）
- * 官服形状：{1:code=100}。UseItemResp.cs ProtoMember(1)。
+ * 官服形状（抓包实锤 `00000006 0864`）：[4B seq回显] {1:code=100}。UseItemResp.cs ProtoMember(1)。
  */
-function buildUseItemResp(): Buffer {
-  return Buffer.from([0x08, GW_CODE_OK]);
+function buildUseItemResp(seq: number): Buffer {
+  const seqBuf = Buffer.alloc(4);
+  seqBuf.writeUInt32BE(seq, 0);
+  return Buffer.concat([seqBuf, Buffer.from([0x08, GW_CODE_OK])]);
 }
 
 /**
@@ -264,52 +323,94 @@ function buildDeletePixelCollectionResp(seq: number): Buffer {
 
 /* ---------- 帧处理 ---------- */
 
-/** ARKDUEL 商店：请求体为 [4B seq] → 返回价格表（0x28f5229c） */
+/** ARKDUEL 商店：请求体为 [4B seq] → 返回当日价格表（0x28f5229c）；同步触发货架落盘 */
 function handleGetShopInfo(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): void {
   const seq = frame.body.length >= 4 ? frame.body.readUInt32BE(0) : 0;
-  logger.info("arkhub-gateway", `ARKDUEL 商店 → 价格表 (seq=${seq})`);
-  ctx.send(8, (frame.subID & ~0xffffffffn) | GW_DUEL_SHOP_RESP, buildDuelShopResp(seq));
+  const ids = shopItemIdsFor(ctx);
+  try {
+    ctx.opts.onShopResolved?.(ctx.state.uid, ids); // 落盘 hub.shopToday（fire-and-forget）
+  } catch (e) {
+    logger.warn("arkhub-gateway", `货架落盘失败: ${(e as Error).message}`);
+  }
+  logger.info("arkhub-gateway", `ARKDUEL 商店 → 价格表 (货架=${ids.join(",")})`);
+  ctx.send(8, (frame.subID & ~0xffffffffn) | GW_DUEL_SHOP_RESP, buildDuelShopResp(seq, ids));
 }
 
 /**
  * 道具购买（BuyItemReq，店铺按序号）→ 0x28f5568f 购买响应 + onBuyProp（扣券/道具箱/库存）
- * 28f56f2c：{1:商店序号, 2:数量}，请求带 [4B seq] 前缀。
+ * 28f56f2c：[4B seq] {1:count, 2:index}（BuyShopItemReq f1=index/f2=count——抓包实锤：
+ * `08031001` = 买 1 件 3 号位，现字段语义按官服抓包修正）。
+ * 响应时序：先 await 业务（扣券/库存校验）再按结果组响应，避免"回成功但实际没扣钱"。
  */
-function handleBuyItem(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): void {
+async function handleBuyItem(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): Promise<void> {
   const body = frame.body;
   const seq = body.length >= 4 ? body.readUInt32BE(0) : 0;
   const reader = new ProtoReader(body.subarray(4));
-  let f1 = 0;
   let count = 1;
+  let shopIndex = 0;
   for (;;) {
     const tag = reader.readTag();
     if (!tag || tag.wire !== 0) break;
     const v = Number(reader.readVarint());
-    if (tag.field === 1) f1 = v;
-    else if (tag.field === 2) count = v;
+    if (tag.field === 1) count = v;
+    else if (tag.field === 2) shopIndex = v;
   }
-  // 商店序号（28f56f2c f1）→ itemNumId
-  const itemNumId = DUEL_SHOP_INDEX_TO_ITEM[f1] ?? 0;
+  // 商店序号 → 当日货架道具 numId（落盘值优先，不在当日货架 → 官方错误码 606 未找到商品）
+  const ids = shopItemIdsFor(ctx);
+  const itemNumId = duelShopItems(ids).find(([no]) => no === shopIndex)?.[1] ?? 0;
   if (itemNumId > 0) {
-    const resp = buildBuyItemResp(seq, itemNumId, Math.max(1, count));
-    if (resp) {
+    let result: { ok: boolean; code: number } | undefined;
+    try {
+      result = await ctx.opts.onBuyProp?.(ctx.state.uid, itemNumId, Math.max(1, count));
+    } catch (e) {
+      logger.warn("arkhub-gateway", `道具购买处理失败: ${(e as Error).message}`);
+      result = { ok: false, code: 601 };
+    }
+    if (result?.ok !== false) {
+      const remainCoin = ctx.opts.resolveCoin?.(ctx.state.uid) ?? 0;
       logger.info("arkhub-gateway", `道具购买 itemNumId=${itemNumId} ×${count} → 响应`);
-      ctx.send(8, (frame.subID & ~0xffffffffn) | GW_BUY_ITEM_RESP, resp);
-      try {
-        ctx.opts.onBuyProp?.(ctx.state.uid, itemNumId, Math.max(1, count));
-      } catch (e) {
-        logger.warn("arkhub-gateway", `道具购买处理失败: ${(e as Error).message}`);
-      }
+      ctx.send(
+        8,
+        (frame.subID & ~0xffffffffn) | GW_BUY_ITEM_RESP,
+        buildBuyItemResp(seq, shopIndex, itemNumId, Math.max(1, count), remainCoin, ids),
+      );
+      // 官服购买响应后紧跟道具变更广播——客户端据此弹“获得物品”提示并刷新道具箱（缺此帧无提示）。
+      // 注意：该广播属场景段（前缀 0x2c89b3），不沿用购买帧的商店段前缀。
+      ctx.send(
+        8,
+        (BigInt("0x2c89b3") << BigInt(32)) | GW_SYNC_ALTER_NOTIFY,
+        buildItemAlterNotify(remainCoin, itemNumId, Math.max(1, count)),
+      );
       return;
     }
+    // 业务拒绝（券不足 601 / 库存不足 605）：响应官方错误码 + 推错误通知（双通道弹提示）
+    const errCode = result?.code ?? 601;
+    logger.info("arkhub-gateway", `道具购买 itemNumId=${itemNumId} 被业务拒绝（码 ${errCode}）`);
+    ctx.send(8, (frame.subID & ~0xffffffffn) | GW_BUY_ITEM_RESP, buildPropErrorResp(seq, errCode));
+    ctx.send(
+      8,
+      (BigInt("0x1ffd3") << BigInt(32)) | GW_ERROR_CODE_NOTIFY,
+      buildErrorCodeNotify(errCode),
+    );
+    return;
   }
-  // 未知道具 → 通用 ACK
-  ctx.send(8, frame.subID + BigInt(1), Buffer.from([0x08, GW_CODE_OK]));
+  // 未知商品（不在当日货架）：官方错误码 606 SHOP_ITEM_NOT_FOUND
+  ctx.send(8, (frame.subID & ~0xffffffffn) | GW_BUY_ITEM_RESP, buildPropErrorResp(seq, 606));
+  ctx.send(
+    8,
+    (BigInt("0x1ffd3") << BigInt(32)) | GW_ERROR_CODE_NOTIFY,
+    buildErrorCodeNotify(606),
+  );
 }
-
-/** 使用道具（UseItemReq：{1:item_id, 2:count}）→ UseItemResp（0x28f5de74）{1:code=100} */
-function handleUseItem(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): void {
-  const reader = new ProtoReader(frame.body);
+/**
+ * 使用道具（UseItemReq：[4B seq] {1:item_id, 2:count}）→ UseItemResp（0x28f5de74）。
+ * 业务接线：诱引剂 → arkhubUseProp（写 activeLure 定向遭遇池）；信息素 →
+ * arkhubUseProp 扣生效次数 + arkhubPheromoneScan（任务 15）。
+ */
+async function handleUseItem(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFrame): Promise<void> {
+  const body = frame.body;
+  const seq = body.length >= 4 ? body.readUInt32BE(0) : 0;
+  const reader = new ProtoReader(body.subarray(4));
   let itemId = 0;
   let count = 1;
   for (;;) {
@@ -320,7 +421,27 @@ function handleUseItem(ctx: ArkhubGatewayHandlerContext, frame: ArkhubGatewayFra
     else if (tag.field === 2) count = v;
   }
   logger.info("arkhub-gateway", `使用道具 item_id=${itemId || "?"} ×${count}`);
-  ctx.send(8, (frame.subID & ~0xffffffffn) | GW_USE_ITEM_RESP, buildUseItemResp());
+  if (itemId > 0) {
+    let result: { ok: boolean; code: number } | undefined;
+    try {
+      result = await ctx.opts.onUseProp?.(ctx.state.uid, itemId, Math.max(1, count));
+    } catch (e) {
+      logger.warn("arkhub-gateway", `道具使用处理失败: ${(e as Error).message}`);
+      result = { ok: false, code: 603 };
+    }
+    if (result?.ok === false) {
+      // 未知道具 602 / 未持有或生效次数耗尽 603：错误码响应 + 错误通知（双通道弹提示）
+      const errCode = result.code || 603;
+      ctx.send(8, (frame.subID & ~0xffffffffn) | GW_USE_ITEM_RESP, buildPropErrorResp(seq, errCode));
+      ctx.send(
+        8,
+        (BigInt("0x1ffd3") << BigInt(32)) | GW_ERROR_CODE_NOTIFY,
+        buildErrorCodeNotify(errCode),
+      );
+      return;
+    }
+  }
+  ctx.send(8, (frame.subID & ~0xffffffffn) | GW_USE_ITEM_RESP, buildUseItemResp(seq));
 }
 
 /**

@@ -8,7 +8,9 @@ import { ItemType, ItemBundle } from "@excel/excel";
  * 所有数据操作均基于本地 JSON（AccountManager / mailManager），离线可用。
  */
 import { appendFile, copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from "fs/promises";
+import * as fs from "fs";
 import * as path from "path";
+import { captureManager } from "@capture/capture-manager";
 import excel from "@excel/excel";
 import { getRoomPhase } from "@excel/building_excel";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
@@ -2346,6 +2348,22 @@ export class AdminService {
             `迁移后加载用户 ${r.uid} 失败: ${(e as Error).message}`,
           );
         }
+        // 官服枢纽宠物继承（官服存档不含宠物，只存在于官服网关户籍——按官服 uid 匹配
+        // 本机网关抓包还原；无匹配抓包时静默跳过，不阻断迁移。见 app/admin/arkhub-pets.ts）
+        try {
+          const pets = await this.importArkhubPets(r.uid, undefined, r.officialUid);
+          if (pets.imported) {
+            logger.info(
+              "AdminService",
+              `迁移 ${r.uid} 继承官服宠物: 图鉴+${pets.dexAdded} 个体+${pets.bagAdded}`,
+            );
+          }
+        } catch (e) {
+          logger.warn(
+            "AdminService",
+            `迁移 ${r.uid} 宠物还原失败（不阻断迁移）: ${(e as Error).message}`,
+          );
+        }
         await this._audit(
           "officialMigrate",
           r.uid,
@@ -2354,6 +2372,49 @@ export class AdminService {
       }
     }
     return results;
+  }
+
+  /**
+   * 官服枢纽宠物还原（旧存档/官服账号导入后继承原有宠物）
+   *
+   * 官服 playerdata 不含枢纽宠物（仅网关户籍持有）——从官服网关抓包（tmp/capture/
+   * gateway-bidi）提取 EnterSceneNotify 的 CreatureData/ArkhubItemData 并合并进存档。
+   * @param uid - 私服目标账号 uid
+   * @param rid - 可选：指定抓包记录 rid（缺省按官服 uid 自动匹配，其次取最新含户籍的记录）
+   * @param officialUid - 可选：官服原 uid（迁移流程传入；缺省读存档 status.officialUid 如有）
+   * @returns { imported, dexAdded, bagAdded, rid }（无可用抓包时 imported=false）
+   */
+  async importArkhubPets(
+    uid: string,
+    rid?: string,
+    officialUid?: string,
+  ): Promise<{ imported: boolean; dexAdded: number; bagAdded: number; rid?: string }> {
+    const {
+      extractArkhubDocsFromRecord,
+      findCaptureDirByOfficialUid,
+      applyArkhubDocs,
+    } = await import("./arkhub-pets");
+    let dir = "";
+    if (rid) {
+      dir = path.join(captureManager.recordsDir(), rid);
+      if (!fs.existsSync(path.join(dir, "down.bin"))) {
+        throw new Error(`抓包记录不存在或非网关记录: ${rid}`);
+      }
+    } else if (officialUid) {
+      dir = await findCaptureDirByOfficialUid(officialUid);
+    }
+    if (!dir) return { imported: false, dexAdded: 0, bagAdded: 0 };
+    const docs = extractArkhubDocsFromRecord(dir);
+    if (!docs) return { imported: false, dexAdded: 0, bagAdded: 0 };
+    const player = await accountManager.getPlayerData(uid);
+    const stats = await applyArkhubDocs(player, docs);
+    await accountManager.flushSave(uid);
+    await this._audit(
+      "arkhubImportPets",
+      uid,
+      `宠物还原 图鉴+${stats.dexAdded} 个体+${stats.bagAdded}（源 ${path.basename(dir)}）`,
+    );
+    return { imported: true, ...stats, rid: path.basename(dir) };
   }
 
   /**

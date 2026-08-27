@@ -17,7 +17,7 @@ function makeCtx(): {
 } {
   const sent: Array<{ mainID: number; subID: bigint; body: Buffer }> = [];
   const ctx: ArkhubGatewayHandlerContext = {
-    state: { uid: "", currentMapId: 0, guideState: {}, encounterCreatures: [] },
+    state: { uid: "", currentMapId: 0, guideState: {}, settledDuelBattles: new Set<string>(), stateMask: 0 },
     opts: {},
     send: (mainID, subID, body) => sent.push({ mainID, subID, body }),
   };

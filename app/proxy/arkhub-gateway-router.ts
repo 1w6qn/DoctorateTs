@@ -51,8 +51,18 @@ export interface ArkhubLocalGatewayOptions {
     skinId?: string;
     avatarId?: string;
   };
-  /** 可选：ARKDUEL 战斗结算回调（uid=已登录账号；私服据此发 15 券 + 对战计数） */
-  onDuelSettle?: (uid: string) => void;
+  /**
+   * 可选：网关登录时确保玩家存档已加载到内存（含 ARK_HUB 播种）。
+   * 背景：网关登录不经过 HTTP 请求链，若存档未被加载（懒加载仅在 HTTP 首访触发），
+   * 后续场景帧的户籍（resolveArkdexDocs）/购买扣券等回调全部读不到玩家 → 捕捉区功能不解锁。
+   */
+  ensurePlayerLoaded?: (uid: string) => Promise<void> | void;
+  /**
+   * 可选：ARKDUEL 战斗结算回调（uid=已登录账号；私服据此发券 + 对战计数）。
+   * win 由回合结算上报帧（f8fa293a）的 winner 字段判定（胜局带胜者 uid、负局仅终局报，
+   * 官服抓包 + 反编译双证）；解析失败/空上报保守按胜（不扣玩家）。
+   */
+  onDuelSettle?: (uid: string, win: boolean) => void;
   /** 可选：每日物资领取回调（uid；私服据此记录领取天数 + 发 100 券） */
   onDailySupplyClaimed?: (uid: string) => void;
   /**
@@ -84,21 +94,85 @@ export interface ArkhubLocalGatewayOptions {
   resolveArkdexDocs?: (uid: string) => ArkdexDocsData | undefined;
   /**
    * 可选：捕捉开始回调（StartCaptureReq b7c267d7 后，捕获区场景时）。
-   * 私服据此调 arkhubStartEncounter 生成/记录遭遇（ARK_HUB.arkdexState.activeEncounter），
-   * 供结算 arkhubEndScan 做亚种/活动频繁映射。与 onDuelSettle 同源（index.ts 注入）。
+   * **同步**返回本轮遭遇（私服读上一轮已落盘的 ARK_HUB.arkdexState.activeEncounter，
+   * 错开一帧避免 async 竞态），并异步触发下一轮遭遇生成；返回 undefined 时网关回落兜底集。
    */
-  onScanStart?: (uid: string, areaId: number | string) => void;
+  onScanStart?: (
+    uid: string,
+    areaId: number | string,
+  ) => { creatures: number[]; lureNumId?: number } | undefined;
   /**
-   * 可选：捕捉结算回调（EndCaptureReq b7c204e8 后，遭遇生物非空时）。
-   * capturedNumIds = 本次遭遇生物种类 id（encounterCreatures）——私服据此调
+   * 可选：捕捉结算回调（EndCaptureReq b7c204e8 后，捕获成功时）。
+   * capturedNumIds = 客户端上报的捕获槽位对应的生物种类 id——私服据此调
    * arkhubEndScan（扫描成功 15 券 + 数据库收录 + 扫描仪入袋，失败无奖励）。
    */
   onScanSettle?: (uid: string, capturedNumIds: number[]) => void;
   /**
-   * 可选：巡展道具购买回调（购买帧 28f56f2c/28f5b1ab 后；私服据此扣券 + 道具箱 +
-   * 生效次数 + 每日库存限购——arkhubBuyProp）。
+   * 可选：巡展道具购买回调（购买帧 28f56f2c；私服据此扣券 + 道具箱 +
+   * 生效次数 + 每日库存限购——arkhubBuyProp）。返回 { ok, code }：code 为
+   * ActArkhubErrorCode 官方错误码（响应用之弹对应文案提示）；返回 undefined（未接线）视为成功。
    */
-  onBuyProp?: (uid: string, itemNumId: number, count: number) => void;
+  onBuyProp?: (
+    uid: string,
+    itemNumId: number,
+    count: number,
+  ) => { ok: boolean; code: number } | Promise<{ ok: boolean; code: number } | undefined> | undefined;
+  /**
+   * 可选：巡展道具使用回调（使用帧 28f5b1ab；诱引剂写 activeLure 定向遭遇池，
+   * 信息素发射任务 15 事件——arkhubUseProp/arkhubPheromoneScan）。
+   * 返回 { ok, code }：失败时 code 为官方错误码（602/603）。
+   */
+  onUseProp?: (
+    uid: string,
+    itemNumId: number,
+    count: number,
+  ) => { ok: boolean; code: number } | Promise<{ ok: boolean; code: number } | undefined> | undefined;
+  /**
+   * 可选：交换预设回调（PresetCreatureExchangeReq b7c2369e：{1:想要的种类, 2:给出的个体}）。
+   * 私服据此落 ARK_HUB.trade（arkhubSetTrade）。
+   */
+  onTradePreset?: (uid: string, wantNumId: number, givingUniqueId: number) => void;
+  /** 可选：发起交换回调（CreateCreatureExchangeReq b7c2394d；任务 16 计数——arkhubDoTrade） */
+  onTradeCreate?: (uid: string) => void;
+  /**
+   * 可选：按 uid 解析玩家当前交换挂单（GetAllCreatureExchangeInfoResp 的 requests 回填，
+   * 单机：回显自己的挂单）。数据源 ARK_HUB.trade（arkhubSetTrade 落）。
+   */
+  resolveTrade?: (
+    uid: string,
+  ) => { wantSpecies: number; offeringUniqueId: number; ts: number } | undefined;
+  /**
+   * 可选：按 uid 解析当日货架道具 numId（hub.shopToday 落盘值，日期匹配时）；
+   * 缺省/跨日回落网关侧确定性生成（同算法，保证价格表与购买校验一致）。
+   */
+  resolveShopIds?: (uid: string) => number[] | undefined;
+  /** 可选：商店打开/购买后货架落盘回调（hub.shopToday；arkhubPersistShopToday） */
+  onShopResolved?: (uid: string, ids: number[]) => void;
+  /** 可选：按 uid 解析玩家当前奇象兑换券数（购买响应 f6 剩余券数；缺省 0） */
+  resolveCoin?: (uid: string) => number;
+  /**
+   * 可选：登录/重连时按 uid 解析持久化的网关状态（连接状态恢复：重连/重启不丢）。
+   * 数据源：存档 ARK_HUB.act1arkhub（stateMask/settledDuels）+ activeEncounter（捕捉会话）。
+   */
+  resolveGatewayState?: (uid: string) =>
+    | {
+        stateMask?: number;
+        settledDuels?: string[];
+        encounter?: { creatures: number[]; lureNumId?: number };
+      }
+    | undefined;
+  /** 可选：状态掩码变更持久化回调（每次 stateMask 变化后触发；arkhubSetStateMask） */
+  onStateMaskChanged?: (uid: string, mask: number) => void;
+  /** 可选：对局结算去重键持久化回调（整局结算后触发；arkhubRecordSettledDuel） */
+  onDuelSettled?: (uid: string, battleId: string) => void;
+  /**
+   * 可选：交互领奖一次性闸门（get_reward 提交时调用）。
+   * 返回 true=首次领取（已记录，正常发奖）；false=已领过（仅回 ACK，不发奖/不提示）。
+   * claimKey：一次性演员=actorId；每日演员=`actorId:自然日`（次日可再领）。未配置时不拦截。
+   */
+  claimActorReward?: (uid: string, claimKey: string) => boolean;
+  /** 可选：按 uid 解析今日是否已领每日物资（每日奖励推送券数修正用） */
+  resolveDailyClaimed?: (uid: string) => boolean;
 }
 
 /** 单条连接的可变状态（handler 直接读写；按连接维护，不跨连接保留） */
@@ -110,10 +184,26 @@ export interface ArkhubGatewayConnectionState {
   /** 枢纽 GuideFlags（按连接维护——mmkabi 引导领奖后 capture_catch_guide_02 1→2） */
   guideState: Record<string, number>;
   /**
-   * 本次捕捉的遭遇生物种类 id（capture 链路：EndCaptureReq 结算入参 + EncounterCreatureNotify
-   * 推送数据源）。位于捕捉区时 StartCaptureReq 触发 onScanStart；若无遭遇回填本地兜底集。
+   * 本次捕捉的遭遇会话（capture 链路：EndCaptureReq 结算入参 + EncounterCreatureNotify
+   * 推送数据源）。位于捕捉区时 StartCaptureReq 同步读 onScanStart 返回的遭遇填入；
+   * 无遭遇时回填本地兜底集（私服降级）。结算后清空。
    */
-  encounterCreatures: number[];
+  encounter?: {
+    /** 遭遇生物种类 id（模板 numId，顺序 = 客户端捕获槽位索引） */
+    creatures: number[];
+    /** 定向本次遭遇的生效道具（诱引剂/信息素；可空） */
+    lureNumId?: number;
+  };
+  /** 已结算的对局 battle_id 集（BO3 每回合上报，按局去重防重复发券） */
+  settledDuelBattles: Set<string>;
+  /**
+   * 玩家状态掩码（反编译 ActArkhubPlayerStateMask/ActArkhubServerPlayerStatusMask：
+   * IDLE=0 / MOVE=1 / SPECIAL=2 / INTERACT=0x100 / MATCHING=0x200 /
+   * CAPTURE_BATTLE=0x400 / DUEL_BATTLE=0x800 / PIXEL_CREATE=0x1000）。
+   * 客户端 ModifyPlayerActionReq(SET/CLEAR) 上报 + 玩法节点服务端驱动，经
+   * PlayerAlterDataNotify(38b36462) f1 下发驱动客户端状态机（官服抓包实锤）。
+   */
+  stateMask: number;
 }
 
 /** 解析后的一帧（传输层切帧后交给路由层） */

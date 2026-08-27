@@ -191,6 +191,13 @@ export const migrateOfficialSchema = z.object({
   templateUid: z.string().optional(),
 });
 
+/** 官服枢纽宠物还原（读 uid/rid/officialUid；rid、officialUid 可选） */
+export const arkhubImportPetsSchema = z.object({
+  uid: z.string(),
+  rid: z.string().optional(),
+  officialUid: z.string().optional(),
+});
+
 /** 官服操作（读 phone/pwd/action） */
 export const officialActionSchema = z.object({
   phone: z.string(),

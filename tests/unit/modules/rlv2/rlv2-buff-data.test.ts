@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { buildRoguelikeConsts } from "../../../../app/excel/roguelike_consts_gen";
+import { buildRoguelikeConsts } from "../../../../app/game/service/excel/roguelike_consts_gen";
 
 
 // 官方 excel mock：提供 RoguelikeConsts（由官方表派生，替代 data/rlv2.json）

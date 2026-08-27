@@ -9,7 +9,7 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "paths": {
-      "@excel/*": ["./app/excel/*"],
+      "@excel/*": ["./app/game/service/excel/*"],
       "@utils/*": ["./app/utils/*"],
       "@game/*": ["./app/game/*"],
       "@capture/*": ["./app/capture/*"],

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { buildRoguelikeConsts } from "../../../../app/excel/roguelike_consts_gen";
+import { buildRoguelikeConsts } from "../../../../app/game/service/excel/roguelike_consts_gen";
 
 
 // ===== N15 开局血量回归 =====

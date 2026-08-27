@@ -4,12 +4,12 @@ import * as path from "path";
 /**
  * player_data.json 类型覆盖校验
  *
- * 用官服真实玩家存档校验 app/excel/types-playerdata.ts 的 PlayerDataModel
+ * 用官服真实玩家存档校验 app/game/service/excel/types-playerdata.ts 的 PlayerDataModel
  * 类型闭包是否完整描述真实数据结构（"toJson 输出与原输入一致"）。
  *
  * 用法: pnpm exec tsx scripts/validate-playerdata-json.ts [--input <json>] [--types <ts>] [--root <path>]
  * 默认输入: reference/OpenBachelorS-master/tmp/player_data.json
- * 默认类型: app/excel/types-playerdata.ts
+ * 默认类型: app/game/service/excel/types-playerdata.ts
  * --root: JSON 内玩家数据根路径（如官服账号文件 test.json 的 "user"）
  */
 
@@ -324,7 +324,7 @@ function getArg(args: string[], name: string, def: string): string {
 export function main(argv: string[] = []): void {
   const args = argv;
   const input = getArg(args, "--input", "D:/develop/DoctorateTs/reference/OpenBachelorS-master/tmp/player_data.json");
-  const typesFile = getArg(args, "--types", "D:/develop/DoctorateTs/app/excel/types-playerdata.ts");
+  const typesFile = getArg(args, "--types", "D:/develop/DoctorateTs/app/game/service/excel/types-playerdata.ts");
   const rootPath = getArg(args, "--root", "");
 
   console.log(`输入 JSON: ${input}`);

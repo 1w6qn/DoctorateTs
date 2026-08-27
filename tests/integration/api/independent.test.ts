@@ -6,7 +6,7 @@
  */
 import { describe, beforeAll, afterAll, it, expect } from "vitest";
 import { startApiFixture, type ApiFixture } from "../../helpers/apiServer";
-import excel from "../../../app/excel/excel";
+import excel from "../../../app/game/service/excel/excel";
 
 describe("游戏 API 独立端点：输入 → 输出", () => {
   let fx: ApiFixture;

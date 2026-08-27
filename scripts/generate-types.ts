@@ -14,8 +14,8 @@ import { reconcileExcelJsonKeys } from "./excel-json-keys";
  * 统一类型生成器
  *
  * 从 reference/com.hypergryph.arknights_*.cs 生成两类类型文件：
- *  - --playerdata：PlayerDataModel 运行时类型（app/excel/types-playerdata.ts）
- *  - --excel：excel 表类型（app/excel/types_excel_gen.ts）
+ *  - --playerdata：PlayerDataModel 运行时类型（app/game/service/excel/types-playerdata.ts）
+ *  - --excel：excel 表类型（app/game/service/excel/types_excel_gen.ts）
  * 无参数 = 全部生成。命令: pnpm run generate:types
  * 输入文件：默认自动选 reference/ 下最新的 com.hypergryph.arknights_*.cs，
  * 也可用 --cs <路径> 或环境变量 GENERATE_CS 显式指定（配合 scripts/decompile-client.sh 一键再生）。
@@ -38,8 +38,8 @@ function resolveCsFile(): string {
 }
 
 const CS_FILE = resolveCsFile();
-const PLAYERDATA_OUT = path.join(__dirname, "../app/excel/types-playerdata.ts");
-const EXCEL_OUT = path.join(__dirname, "../app/excel/types_excel_gen.ts");
+const PLAYERDATA_OUT = path.join(__dirname, "../app/game/service/excel/types-playerdata.ts");
+const EXCEL_OUT = path.join(__dirname, "../app/game/service/excel/types_excel_gen.ts");
 
 function buildPlayerdataTypes(content: string): string {
   const result = buildTypes(content, {

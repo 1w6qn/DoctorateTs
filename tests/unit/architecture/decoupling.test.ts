@@ -72,6 +72,7 @@ describe("架构解耦守卫", () => {
     const gameDir = path.join(APP_ROOT, "game");
     const offenders: string[] = [];
     for (const file of collectFiles(gameDir, ".ts")) {
+      if (file.includes(path.join("service", "excel"))) continue; // excel 防腐层自身豁免
       const line = firstOffendingLine(
         file,
         /@excel\/types_excel_gen|\.\.\/(\.\.\/)*excel\/types_excel_gen/,

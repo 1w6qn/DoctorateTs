@@ -7,7 +7,7 @@
  */
 import { describe, beforeAll, afterAll, it, expect } from "vitest";
 import { startApiFixture, type ApiFixture } from "../../helpers/apiServer";
-import excel from "../../../app/excel/excel";
+import excel from "../../../app/game/service/excel/excel";
 
 describe("游戏 API 核心业务流程（注册→登录→签到→商城→抽卡）", () => {
   let fx: ApiFixture;

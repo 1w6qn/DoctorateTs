@@ -17,7 +17,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'json', 'lcov'],
       include: ['app/**/*.ts'],
-      exclude: ['app/excel/**', 'app/config/**', 'app/assets.ts'],
+      exclude: ['app/game/service/excel/**', 'app/config/**', 'app/assets.ts'],
       thresholds: {
         // 实测全局 ~51% 行 / 47% 函数 / 41% 分支——阈值低于现值留缓冲（D2）
         lines: 40,
@@ -30,7 +30,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@game': path.resolve(__dirname, 'app/game'),
-      '@excel': path.resolve(__dirname, 'app/excel'),
+      '@excel': path.resolve(__dirname, 'app/game/service/excel'),
       '@utils': path.resolve(__dirname, 'app/utils'),
       '@capture': path.resolve(__dirname, 'app/capture'),
       '@logs': path.resolve(__dirname, 'app/logs'),

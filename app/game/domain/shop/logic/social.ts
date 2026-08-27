@@ -7,13 +7,10 @@
 import type { ShopManager } from "../logic";
 import type { CreditShopMaterial, CreditShopRowEntry } from "../logic";
 import excel from "@excel/excel";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { logger } from "@utils/logger";
 import { recordPurchase } from "@game/domain/util/purchase-record";
-import {
-  SocialGoodList,
-  SocialShopData,
-} from "@excel/shop";
+import { SocialGoodList, SocialShopData } from "@excel/excel";
 import { random } from "../../util/random";
 
   /**

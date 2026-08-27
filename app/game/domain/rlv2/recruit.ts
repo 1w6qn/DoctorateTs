@@ -179,7 +179,7 @@ export class RoguelikeRecruitManager {
         const delta = buff.blackboard[2]?.value ?? 0;
         if (
           delta !== 0 &&
-          rarities.includes(data.rarity) &&
+          rarities.includes(String(data.rarity)) &&
           subProfs.includes(data.subProfessionId)
         ) {
           population += delta;
@@ -269,7 +269,7 @@ export class RoguelikeRecruitManager {
       const extraFreeRarity = ticketInfo.extraFreeRarity || [];
       for (const tier of extraFreeRarity) {
         const tierNum = tierMap[tier];
-        if (tierNum && charData.rarity === tier) {
+        if (tierNum && String(charData.rarity) === tier) {
           freeCharIndexes.push(i);
           break;
         }

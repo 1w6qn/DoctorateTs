@@ -5,7 +5,7 @@
  * 独立于 AccountManager，供 PlayerDataManager 通过构造器注入使用，
  * 避免 PlayerDataManager 与 AccountManager 之间的循环依赖。
  */
-import type { ItemBundle } from "@excel/character_table";
+import type { ItemBundle } from "@excel/excel";
 
 /**
  * 战斗信息接口（battle_infos 表：结算所需的最小上下文，战斗期间即写入）

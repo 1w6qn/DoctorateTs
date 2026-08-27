@@ -94,7 +94,6 @@ vi.mock("@utils/time", () => ({
     ts >= start && ts <= end,
 }));
 
-vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";

@@ -1,5 +1,5 @@
 import { OrigChar, PlayerCharacter } from "../character"
-import type { RoguelikeBuff } from "@excel/character_table"
+import type { RoguelikeBuff } from "@excel/excel"
 
 // Assembly-CSharp
 export enum TorappuRoguelikeEventType {

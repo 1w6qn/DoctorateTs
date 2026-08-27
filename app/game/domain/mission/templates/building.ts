@@ -2,7 +2,7 @@
  * 基建类任务模板（制造/订单/宿舍/加工室/线索等）
  */
 import type { MissionTemplateGroup } from "./types";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 
 export const buildingTemplates: MissionTemplateGroup = {
 

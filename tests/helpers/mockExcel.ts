@@ -8,7 +8,7 @@ import type {
   ShopClientData,
   SkillDataBundle,
 } from "@excel/types_excel_gen";
-import type { ItemTable } from "@excel/item_table";
+import type { ItemTable } from "@excel/excel";
 
 /**
  * 创建最小化的 excel 数据 Mock

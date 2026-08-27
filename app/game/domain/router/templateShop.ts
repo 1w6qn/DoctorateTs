@@ -23,7 +23,7 @@ import {
   templateBuyGoodSchema,
 } from "../../domain/templateShop/templateShop.schema";
 import { readJsonSync } from "@utils/file";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import {
   TemplateBuyGoodRequest,
   TemplateBuyGoodResponse,

@@ -41,7 +41,6 @@ vi.mock("@excel/excel", () => excelMock);
 const timeMock = vi.hoisted(() => ({ now: 1787000000 }));
 vi.mock("@utils/time", () => ({ now: () => timeMock.now, checkBetween: () => true, userTimestamp: () => timeMock.now }));
 vi.mock("@game/service/PlayerDataManager", () => ({ PlayerDataManager: vi.fn() }));
-vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import { BuildingManager } from "@game/domain/building/logic";

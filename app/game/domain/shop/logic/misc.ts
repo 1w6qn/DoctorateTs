@@ -6,17 +6,9 @@
  */
 import type { ShopManager } from "../logic";
 import excel from "@excel/excel";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { ShopError } from "../errors";
-import {
-  ChooseGPItem,
-  GPGoodList,
-  LevelGPItem,
-  MonthlySubItem,
-  NormalGPItem,
-  PeriodicityGroup,
-  PeriodicityGPItem,
-} from "@excel/shop";
+import { ChooseGPItem, GPGoodList, LevelGPItem, MonthlySubItem, NormalGPItem, PeriodicityGroup, PeriodicityGPItem } from "@excel/excel";
 import { BadRequestError } from "../../contracts/errors";
 
   /**

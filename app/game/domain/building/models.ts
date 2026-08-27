@@ -7,7 +7,7 @@
  * 服务端未返回的协议字段标为可选。
  * 部分接口（升级自定义等级等）无 CS 类对应，标注为服务端自定义。
  */
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { PlayerBuildingDIYSolution, PlayerBuildingMeetingClue } from "../../domain/playerdata";
 import { PlayerDeltaResponse } from "../../domain/contracts/common";
 

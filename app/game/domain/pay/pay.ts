@@ -7,7 +7,7 @@
  * 服务端实现完整支付流程（订单持久化 data/pay/orders.json，状态机 created→paid→delivered），
  * 支持可配置真实/虚假支付（config.pay.mode）；支付宝/微信扩展端点参考 DoctoratePy pay.py。
  */
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { PlayerDeltaResponse } from "../contracts/common";
 
 /** 未确认订单列表请求（CS 无对应请求类，请求体为空） */

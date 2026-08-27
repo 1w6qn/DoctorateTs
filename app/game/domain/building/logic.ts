@@ -1,5 +1,5 @@
 ﻿import { PlayerCharacter } from "@game/domain/character";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { TypedEventEmitter } from "@game/service/events";
 import { Draft } from "mutative";

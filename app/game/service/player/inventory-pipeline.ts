@@ -19,7 +19,7 @@
  */
 import type { PlayerDataManager } from "../PlayerDataManager";
 import type { TypedEventEmitter } from "../events";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 
 export class GainItemPipeline {
   private _targets: ItemBundle[] = [];

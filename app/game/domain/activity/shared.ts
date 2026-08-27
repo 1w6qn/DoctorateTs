@@ -4,7 +4,7 @@
  * 多活动族共用的模块级函数集中于此，各族 router 按需导入。
  */
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
 import config from "../../../config";

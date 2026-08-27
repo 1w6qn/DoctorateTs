@@ -11,7 +11,7 @@
 
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import {
   CampaignConfirmBreakRewardRequest,

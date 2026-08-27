@@ -1,4 +1,4 @@
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 
 export interface MailItem extends BaseMailItem {
     mailId:    number;

@@ -1,4 +1,4 @@
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
 import { now } from "@utils/time";

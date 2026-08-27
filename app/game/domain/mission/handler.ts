@@ -14,7 +14,7 @@ import {
   confirmMissionListSchema,
   confirmMultiGroupMissionListSchema,
 } from "../../domain/mission/schemas";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import {
   AutoConfirmMissionsRequest,
   AutoConfirmMissionsResponse,

@@ -7,7 +7,7 @@ import { getPlayer, getPlayerOptional } from "../../request-context";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { parseMultipartForm } from "../util/multipart";
 import excel from "@excel/excel";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { now } from "@utils/time";
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";

@@ -4,7 +4,7 @@
  * 协议类型对应客户端 com.hypergryph.arknights_2.7.61.cs 中 Torappu 命名空间的
  * ConfirmMission/ConfirmMissionGroup/AutoConfirmMissions/ExchangeMissionRewards 系列类。
  */
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { PlayerDeltaResponse } from "../../domain/contracts/common";
 
 /** 确认单个任务请求（CS: ConfirmMissionRequest） */

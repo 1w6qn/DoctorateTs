@@ -31,7 +31,7 @@ import type {
 import type {
   ActivityBossRushData,
   ActivityBossRushData_RelicLevelInfo,
-} from "@excel/excel-types";
+} from "@excel/excel";
 
 /** 玩家尖灭存档（draft.activity.BOSS_RUSH[actId] 的宽松子集，对齐 PlayerActivity_PlayerBossRushActivity） */
 interface BossRushPlayerData {

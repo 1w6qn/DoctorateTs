@@ -4,7 +4,7 @@
  * 从 service/mission/models.ts 拆分迁出:EventMapMission 是领域事件契约(纯类型),
  * 与任务协议 DTO 分离,归入 domain 事件层。
  */
-import type { ItemBundle } from "@excel/character_table";
+import type { ItemBundle } from "@excel/excel";
 import type { BattleData } from "@game/domain/battle";
 
 export type EventMapMission = {

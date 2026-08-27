@@ -1,7 +1,7 @@
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { TypedEventEmitter } from "@game/service/events";
 import excel from "@excel/excel";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 
 export class RetroManager {
   _player: PlayerDataManager;

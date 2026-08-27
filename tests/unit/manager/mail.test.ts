@@ -48,8 +48,8 @@ vi.mock("fs/promises", () => ({
 }));
 
 vi.mock("@utils/time", () => ({ now: () => 1234567890 }));
-// mail.ts 使用无前缀路径 app/game/service/excel/character_table（vitest 无此 alias），mock 拦截
-vi.mock("app/game/service/excel/character_table", () => ({ ItemBundle: {} }));
+// mail.ts 使用无前缀路径 app/game/service/excel/excel（vitest 无此 alias），mock 拦截
+vi.mock("app/game/service/excel/excel", () => ({ ItemBundle: {} }));
 
 import { MailManager, buildMailItem, nextMailId } from "@game/service/player/mail";
 import { writeFile } from "fs/promises";

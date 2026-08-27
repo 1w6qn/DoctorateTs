@@ -43,7 +43,6 @@ vi.mock("moment", () => ({
   }),
 }));
 
-vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";

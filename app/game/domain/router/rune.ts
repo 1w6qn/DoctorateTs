@@ -15,7 +15,7 @@ import {
   runeStartBattleSchema,
 } from "../../domain/rune/rune.schema";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { PlayerDeltaResponse } from "../../domain/contracts/common";
 import { CommonStartBattleRequest } from "../../domain/battle";
 

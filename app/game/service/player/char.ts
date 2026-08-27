@@ -1,6 +1,6 @@
 import { TypedEventEmitter } from "@game/service/events";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import excel from "@excel/excel";
 import { GachaResult } from "@game/domain/gacha/gacha";
 import { now } from "@utils/time";
@@ -11,7 +11,7 @@ import {
   reconcileCharSkills,
 } from "@game/domain/util/char-skills";
 import { PlayerCharacter, PlayerCharPatch } from "@game/domain/character";
-import { UniEquipData } from "@excel/excel-types";
+import { UniEquipData } from "@excel/excel";
 import { BadRequestError } from "@game/domain/contracts/errors";
 
 /** 物品类型数字枚举 → 字符串（spCharMissions 等表的 rewards.type 为数字枚举） */

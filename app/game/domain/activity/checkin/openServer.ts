@@ -1,9 +1,9 @@
 import excel from "@excel/excel";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { checkBetween, now } from "@utils/time";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import moment from "moment";
-import { OpenServerItemData } from "@excel/open_server_table";
+import { OpenServerItemData } from "@excel/excel";
 import { TypedEventEmitter } from "@game/service/events";
 
 export class OpenServerManager {

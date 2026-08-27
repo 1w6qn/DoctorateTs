@@ -6,14 +6,10 @@
  */
 import type { ShopManager } from "../logic";
 import excel from "@excel/excel";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { GachaPerChar } from "@excel/excel";
 import { now } from "@utils/time";
-import {
-  LMTGSGood,
-  QCObject,
-  REPGoodList,
-} from "@excel/shop";
+import { LMTGSGood, QCObject, REPGoodList } from "@excel/excel";
 
   /**
    * 每月刷新处理

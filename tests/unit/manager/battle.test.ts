@@ -105,11 +105,6 @@ vi.mock("@utils/time", () => ({
     ts >= start && ts <= end,
 }));
 
-vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
-vi.mock("@excel/stage_table", () => ({
-  DisplayDetailRewards: {},
-  ConditionDesc: {},
-}));
 
 vi.mock("@utils/crypt", () => ({
   decryptBattleData: vi.fn().mockResolvedValue({

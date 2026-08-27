@@ -29,7 +29,7 @@
  * 种子伪随机导出（抓包验证同一营业日内三顾客同值），无需落盘。
  */
 import excel from "@excel/excel";
-import type { Act44SideData } from "@excel/excel-types";
+import type { Act44SideData } from "@excel/excel";
 import { logger } from "@utils/logger";
 
 /** InformantState 数值语义（官服 PlayerAct44SideActivity.InformantState） */

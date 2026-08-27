@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeStageDropInfo } from "@excel/stage_table";
+import { normalizeStageDropInfo } from "@excel/excel";
 
 /**
  * 掉落信息归一化单元测试

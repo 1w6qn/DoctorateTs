@@ -18,8 +18,6 @@ vi.mock("@excel/excel", () => ({
     },
   },
 }));
-vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
-vi.mock("@excel/shop", () => ({}));
 
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../../helpers";

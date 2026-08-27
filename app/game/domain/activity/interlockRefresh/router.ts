@@ -6,7 +6,7 @@ import * as ReqSchema from "../../../domain/activity/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../request-context";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
 import config from "../../../../config";

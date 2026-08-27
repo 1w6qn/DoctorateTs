@@ -3,24 +3,10 @@
  *
  * 对应客户端 com.hypergryph.arknights_2.7.61.cs 中 Torappu 命名空间的
  * Get\*GoodList、Buy\*Good、Decompose\*、ShopCashGoodPurchase 系列类；
- * 商品列表结构直接复用 @excel/shop 中的表格类型。
+ * 商品列表结构直接复用 @excel/excel 中的表格类型。
  */
-import { ItemBundle } from "@excel/character_table";
-import {
-  CashGoodList,
-  ClassicGoodList,
-  EPGSGoodList,
-  ExtraGoodList,
-  FurniGoodList,
-  GPGoodList,
-  HighGoodList,
-  LowGoodList,
-  LMTGSGoodList,
-  REPGoodList,
-  SkinGoodList,
-  SocialGoodList,
-  SocialShopData,
-} from "@excel/shop";
+import { ItemBundle } from "@excel/excel";
+import { CashGoodList, ClassicGoodList, EPGSGoodList, ExtraGoodList, FurniGoodList, GPGoodList, HighGoodList, LowGoodList, LMTGSGoodList, REPGoodList, SkinGoodList, SocialGoodList, SocialShopData } from "@excel/excel";
 import { PlayerDeltaResponse } from "../../domain/contracts/common";
 
 /* ===== 请求类型 ===== */

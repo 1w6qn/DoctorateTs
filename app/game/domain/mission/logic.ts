@@ -14,13 +14,13 @@
  */
 import { MissionCalcState } from "../../domain/playerdata";
 import excel from "@excel/excel";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { PlayerCharacter } from "../../domain/character";
 import { BattleData } from "../../domain/battle";
 import { checkBetween, now, userTimestamp } from "@utils/time";
 import type { EventMap } from "@game/domain/events";
 import { TypedEventEmitter } from "@game/service/events";
-import { MissionData } from "@excel/excel-types";
+import { MissionData } from "@excel/excel";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { logger } from "@utils/logger";
 import { readJsonSync } from "@utils/file";

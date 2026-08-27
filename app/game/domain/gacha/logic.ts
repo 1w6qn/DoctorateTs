@@ -7,15 +7,11 @@
 
 import { PlayerGacha } from "@game/domain/playerdata";
 import { GachaResult, GachaType, GACHA_RULE_TYPE, resolveGachaRank } from "@game/domain/gacha/gacha";
-import {
-  GachaDetailData,
-  GachaDetailTable,
-  GachaPerChar,
-} from "@excel/excel";
-import { GachaPoolClientData } from "@excel/excel-types";
+import { GachaDetailData, GachaDetailTable, GachaPerChar } from "@excel/excel";
+import { GachaPoolClientData } from "@excel/excel";
 import excel from "@excel/excel";
 import { accountManager } from "@game/service/player/AccountManager";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { randomChoice } from "@utils/random";
 import { domainLogger } from "@utils/logger";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";

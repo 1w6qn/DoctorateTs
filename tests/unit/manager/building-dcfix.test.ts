@@ -43,7 +43,6 @@ vi.mock("@utils/time", () => ({ now: () => timeMock.now }));
 vi.mock("@game/service/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
-vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import {

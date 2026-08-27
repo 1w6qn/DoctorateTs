@@ -7,7 +7,7 @@
  * Request/Response 类；字段以 CS 类为准，服务端未返回的协议字段标为可选。
  * 部分接口（签到对决/开关活动/活动商店等）无直接 CS 类对应，标注为服务端自定义。
  */
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { PlayerSquad, SquadFriendData } from "../character";
 import { CommonStartBattleRequest } from "../battle";
 import { PlayerDeltaResponse } from "../contracts/common";

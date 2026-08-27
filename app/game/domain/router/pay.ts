@@ -18,7 +18,7 @@
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../request-context";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { now } from "@utils/time";
 import { readJsonSync } from "@utils/file";
 import { logger } from "@utils/logger";

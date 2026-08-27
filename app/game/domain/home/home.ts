@@ -8,7 +8,7 @@
  * 字段以 CS 类为准，服务端未返回的协议字段标为可选。
  * 部分接口（事件上报/战车确认/特殊干员置顶等）无 CS 类对应，标注为服务端自定义。
  */
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { PlayerCartInfo_Cart } from "../playerdata";
 import { PlayerDeltaResponse } from "../contracts/common";
 

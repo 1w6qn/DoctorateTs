@@ -19,8 +19,6 @@ vi.mock("@excel/excel", () => ({
     },
   },
 }));
-vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
-vi.mock("@excel/open_server_table", () => ({ OpenServerItemData: {} }));
 vi.mock("@utils/time", () => ({
   now: () => 1234567890,
   checkBetween: (ts: number, start: number, end: number) => ts >= start && ts <= end,

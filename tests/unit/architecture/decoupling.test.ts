@@ -78,7 +78,7 @@ describe("架构解耦守卫", () => {
         /@excel\/types_excel_gen|\.\.\/(\.\.\/)*excel\/types_excel_gen/,
       );
       if (line !== null) {
-        offenders.push(`${path.relative(APP_ROOT, file)}:${line} 直连生成类型（应经 @excel/excel-types）`);
+        offenders.push(`${path.relative(APP_ROOT, file)}:${line} 直连生成类型（应经 @excel/excel）`);
       }
     }
     expect(offenders).toEqual([]);

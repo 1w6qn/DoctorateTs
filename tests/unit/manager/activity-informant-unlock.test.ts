@@ -185,11 +185,6 @@ vi.mock("@utils/crypt", () => ({
   }),
 }));
 
-vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
-vi.mock("@excel/stage_table", () => ({
-  DisplayDetailRewards: {},
-  ConditionDesc: {},
-}));
 
 import config from "../../../app/config";
 import { mockPlayerData } from "../../helpers";

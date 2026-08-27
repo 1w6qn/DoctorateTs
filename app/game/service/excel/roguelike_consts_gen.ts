@@ -15,8 +15,8 @@
  * 保证本次迁移行为零变更。
  */
 
-import type { RoguelikeBuff } from "./character_table";
-import type { RoguelikeConst } from "@excel/roguelike_topic_table";
+import type { RoguelikeBuff } from "@excel/excel";
+import type { RoguelikeConst } from "@excel/excel";
 
 /** buildRoguelikeConsts 所需的官方表最小结构（customizeData 六主题 + details[].recruitGrps） */
 export interface RoguelikeTopicTableInput {

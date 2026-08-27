@@ -15,7 +15,6 @@ vi.mock("@utils/time", () => ({
   now: () => 1234567890,
 }));
 
-vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 
 // Mock 加密工具,使用 vi.fn() 以便针对每个用例动态配置返回值

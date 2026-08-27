@@ -13,7 +13,7 @@ import excel from "@excel/excel";
 import { now } from "@utils/time";
 import { TypedEventEmitter } from "@game/service/events";
 import { isBlackstream } from "@game/domain/rlv2/theme-rules";
-import type { RoguelikeScrapModuleData } from "@excel/roguelike_topic_table";
+import type { RoguelikeScrapModuleData } from "@excel/excel";
 import { random } from "../../util/random";
 
 export interface ScrapItem {

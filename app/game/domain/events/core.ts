@@ -10,7 +10,7 @@
  * 拆分为独立领域文件，避免所有事件挤在一个全局文件中，
  * 新增/修改事件只触及对应领域文件即可。
  */
-import type { ItemBundle } from "@excel/character_table";
+import type { ItemBundle } from "@excel/excel";
 import type { GachaResult } from "@game/domain/gacha/gacha";
 import type {
   BattleData,

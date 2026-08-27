@@ -25,7 +25,6 @@ vi.mock("@utils/file", () => ({
 vi.mock("@excel/excel", () => ({
   default: { ItemTable: itemTable },
 }));
-vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
 }));

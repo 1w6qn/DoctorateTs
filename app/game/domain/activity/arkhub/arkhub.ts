@@ -10,7 +10,7 @@
  * ARKPIXEL 玩法路由。所有函数幂等可重复调用（计数取 max/累加）。
  */
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { logger } from "@utils/logger";
 
 /** ARK_HUB 活动 id（activity.basicInfo.act1arkhub） */

@@ -20,7 +20,7 @@ import {
   unlockHideStageSchema,
   confirmSixStarRewardSchema,
 } from "../../domain/quest/quest.schema";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import {
   BattleContinueRequest,
   BattleContinueResponse,

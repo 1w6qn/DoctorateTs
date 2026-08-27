@@ -6,7 +6,7 @@
  * ExchangeDiamondShard/ReceiveTeamCollectionReward/MedalSetCustomData/
  * UI.Birthday.BirthdaySetting 等类；gallery/cg/mainlineClue 等为服务端自定义接口。
  */
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { AvatarInfo } from "../character";
 import { PlayerMedalCustomLayout } from "../playerdata";
 import { PlayerDeltaResponse } from "../contracts/common";

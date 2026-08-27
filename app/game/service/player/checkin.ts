@@ -1,5 +1,5 @@
 import excel from "@excel/excel";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { checkBetween, now } from "@utils/time";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { TypedEventEmitter } from "@game/service/events";

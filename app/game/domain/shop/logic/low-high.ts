@@ -6,15 +6,11 @@
  */
 import type { ShopManager } from "../logic";
 import excel from "@excel/excel";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { resolveEffectiveUpPerCharList } from "@game/domain/gacha/logic";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";
-import {
-  ClassicGoodList,
-  HighGoodList,
-  QCObject,
-} from "@excel/shop";
+import { ClassicGoodList, HighGoodList, QCObject } from "@excel/excel";
 
   /**
    * 当前低级商店 ID（资质凭证区，按月刷新）

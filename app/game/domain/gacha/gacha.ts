@@ -1,4 +1,4 @@
-import { ItemBundle } from "@excel/character_table"
+import { ItemBundle } from "@excel/excel"
 import { randomChoices } from "@utils/random";
 import { random } from "../util/random";
 

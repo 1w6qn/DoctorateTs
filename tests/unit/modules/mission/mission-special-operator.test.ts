@@ -185,7 +185,6 @@ vi.mock("@utils/time", () => ({
     ts >= start && ts <= end,
 }));
 
-vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 vi.mock("moment", () => ({
   default: () => ({ diff: () => 0 }),

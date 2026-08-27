@@ -5,7 +5,7 @@ import { Router } from "express";
 import * as ReqSchema from "../../../domain/activity/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../request-context";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import excel from "@excel/excel";
 import { activityDictKey } from "@game/service/player/unlockActivity";
 import {

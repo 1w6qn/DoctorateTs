@@ -1,4 +1,4 @@
-import { Blackboard } from "@excel/character_table";
+import { Blackboard } from "@excel/excel";
 import excel from "@excel/excel";
 import { RoguelikeBuff, RoguelikeItemBundle } from "../../domain/rlv2/rlv2";
 import { RoguelikeV2Manager } from "./logic";

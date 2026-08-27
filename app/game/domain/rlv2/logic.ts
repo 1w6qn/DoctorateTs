@@ -17,11 +17,11 @@ import { PlayerDataModel } from "@game/domain/playerdata";
 import { BattleData } from "@game/domain/battle";
 import { RoguelikePoolManager } from "./pool";
 import { composeRlv2ChildModules, type Rlv2ChildModules } from "./rlv2-composition";
-import { RoguelikeGameInitData } from "@excel/roguelike_topic_table";
+import { RoguelikeGameInitData } from "@excel/excel";
 import { TypedEventEmitter } from "@game/service/events";
 import { RoguelikePushMessage } from "../../domain/contracts/common";
 import { Draft } from "mutative";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { Rogue6IncidentEngine } from "./incident";
 
 export class RoguelikeV2Config {

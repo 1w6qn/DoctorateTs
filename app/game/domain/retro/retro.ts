@@ -6,7 +6,7 @@
  * Request/Response 类，以及 Torappu.Activity.Act20side.RetroCarCompetitionStart/Finish
  * Request/Response 类；字段以 CS 类为准，服务端未返回的协议字段（如 result）标为可选。
  */
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { PlayerDeltaResponse } from "../contracts/common";
 
 /** 解锁复刻区块请求（CS: RetroUnlockRetroBlockRequest） */

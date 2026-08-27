@@ -6,7 +6,7 @@
  * StoryReviewRewardRequest / StoryReviewGetTrialRewardRequest 等 Request/Response 类；
  * 字段以 CS 类为准，服务端未返回的协议字段（如 readCount）标为可选。
  */
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { PlayerDeltaResponse } from "../contracts/common";
 
 /** 标记剧情回顾加速为已知请求（CS: MarkStoryAcceKnownRequest，无字段；服务端不读取 body） */

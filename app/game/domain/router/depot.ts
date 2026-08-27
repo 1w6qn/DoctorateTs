@@ -26,7 +26,7 @@ import {
   useOptionVoucherSchema,
 } from "../../domain/depot/depot.schema";
 import { readJsonSync } from "@utils/file";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { randomChoice } from "@utils/random";
 import { logger } from "@utils/logger";
 import excel from "@excel/excel";

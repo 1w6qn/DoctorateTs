@@ -60,7 +60,6 @@ vi.mock("@excel/excel", () => ({
     },
   },
 }));
-vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 vi.mock("@game/service/player/AccountManager", () => ({
   accountManager: {

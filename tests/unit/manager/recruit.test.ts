@@ -64,7 +64,6 @@ const excelMock = vi.hoisted(() => ({
 }));
 
 vi.mock("@excel/excel", () => excelMock);
-vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 // 控制随机性：randomInt=1（选 1 个标签）、randomSample 取前 n 个、randomChoice 取第一个
 vi.mock("@utils/random", () => ({

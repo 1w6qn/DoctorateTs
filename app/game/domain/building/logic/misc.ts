@@ -5,7 +5,7 @@
  * 类侧保留同名薄委派（见 logic.ts）。
  */
 import type { BuildingManager } from "../logic";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";
 import { Draft } from "mutative";

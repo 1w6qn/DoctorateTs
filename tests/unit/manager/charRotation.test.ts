@@ -14,7 +14,6 @@ vi.mock("@utils/time", () => ({
   now: () => 1234567890,
 }));
 
-vi.mock("@excel/character_table", () => ({ ItemBundle: {} }));
 
 // Mock immer:original 在源码中导入但未实际使用,提供空实现避免运行时错误
 vi.mock("immer", () => ({

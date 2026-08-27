@@ -5,25 +5,10 @@
  * 家具商店等多种类型商店的购买操作和刷新逻辑。
  */
 
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { readJsonSync } from "@utils/file";
-import {
-  ChooseGPItem,
-  ClassicGoodList,
-  GPGoodList,
-  HighGoodList,
-  LevelGPItem,
-  LMTGSGood,
-  MonthlySubItem,
-  NormalGPItem,
-  PeriodicityGroup,
-  PeriodicityGPItem,
-  QCObject,
-  REPGoodList,
-  SocialGoodList,
-  SocialShopData,
-} from "@excel/shop";
+import { ChooseGPItem, ClassicGoodList, GPGoodList, HighGoodList, LevelGPItem, LMTGSGood, MonthlySubItem, NormalGPItem, PeriodicityGroup, PeriodicityGPItem, QCObject, REPGoodList, SocialGoodList, SocialShopData } from "@excel/excel";
 import excel from "@excel/excel";
 import { TypedEventEmitter } from "@game/service/events";
 import { registerShopTriggers } from "./trigger";

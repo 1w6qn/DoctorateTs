@@ -7,7 +7,7 @@
  * - real：真实支付，须 /pay/notify 渠道回调或 admin `pay order <id> confirm` markPaid 后发货
  */
 import fs from "node:fs";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { now } from "@utils/time";
 import { readJsonSync } from "@utils/file";

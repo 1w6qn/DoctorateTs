@@ -22,7 +22,7 @@ import {
   PlayerPerMedal,
 } from "../../domain/playerdata";
 import excel from "@excel/excel";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { now } from "@utils/time";
 import moment from "moment";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";

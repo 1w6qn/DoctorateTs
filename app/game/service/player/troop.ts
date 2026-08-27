@@ -1,6 +1,6 @@
 import { PlayerSquad, PlayerSquadItem, PlayerCharEquipInfo, PlayerCharacter } from "../../domain/character";
 import excel from "@excel/excel";
-import { ItemBundle } from "@excel/character_table";
+import { ItemBundle } from "@excel/excel";
 import { now } from "@utils/time";
 import { rarityToIndex } from "@utils/rarity";
 import {

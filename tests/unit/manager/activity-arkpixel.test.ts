@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { parseMultipartForm } from "@game/domain/util/multipart";
 import {
   setPixelsDirForTest,
   savePixel,
@@ -13,7 +14,6 @@ import {
   pixelMeta,
   buildPixelArtResp,
   computeNewCollects,
-  parseMultipartForm,
   registerPixelUploadToken,
   consumePixelUploadToken,
   _resetPendingPixelUploadsForTest,

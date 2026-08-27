@@ -11,12 +11,12 @@ import {
   arkhubPixelPublished,
   arkhubPixelCollected,
 } from "./arkhub";
+import { parseMultipartForm } from "../../util/multipart";
 import {
   savePixel,
   loadPixelBytes,
   buildPixelArtResp,
   computeNewCollects,
-  parseMultipartForm,
   consumePixelUploadToken,
   ARKPIXEL_MAX_PUBLISH,
 } from "./arkpixel";

@@ -226,6 +226,7 @@ import {
   RoguelikeVisionData,
   RoguelikeTopicBasicData,
   RoguelikeTopicConfig,
+  ItemType,
 } from "./types_excel_gen";
 
 
@@ -408,6 +409,41 @@ export class Excel {
   }
 
   constructor() {}
+  /**
+   * 常用 excel 操作门面（业务层收敛入口）
+   *
+   * 业务代码不再散落 excel.ItemTable?.items?.[id] / as unknown as ItemBundle
+   * 等长链访问，统一经门面方法取数/构造；查询类为纯转发（行为不变），
+   * 构造类 makeItem 保持「type 缺省 = 无 type 语义」（由库存层按 item_table 推导）。
+   */
+
+  /** 查物品表（ItemTable.items[id]，未收录返回 undefined） */
+  getItem(id: string): ItemData | undefined {
+    return this.ItemTable?.items?.[id];
+  }
+
+  /** 物品显示名（未收录回退 id 本身） */
+  itemName(id: string): string {
+    return this.getItem(id)?.name ?? id;
+  }
+
+  /** 构造 ItemBundle（type 可选：缺省保持无 type 语义，由库存层推导） */
+  makeItem(id: string, count: number, type?: string): ItemBundle {
+    return type
+      ? ({ id, count, type: type as ItemType } as ItemBundle)
+      : ({ id, count } as unknown as ItemBundle);
+  }
+
+  /** 干员数据（CharacterTable[charId]） */
+  charData(charId: string): CharacterData | undefined {
+    return this.CharacterTable?.[charId];
+  }
+
+  /** 关卡数据（StageTable.stages[stageId]） */
+  stageData(stageId: string): StageData | undefined {
+    return this.StageTable?.stages?.[stageId];
+  }
+
 
   /**
    * 初始化所有 Excel 数据表

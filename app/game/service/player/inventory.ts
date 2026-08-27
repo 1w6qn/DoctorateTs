@@ -89,7 +89,7 @@ export class InventoryManager {
 
   async _useItem(item: ItemBundle): Promise<void> {
     if (!item.type) {
-      const def = excel.ItemTable.items[item.id];
+      const def = excel.getItem(item.id);
       if (!def) {
         logger.warn(
           "inventory",
@@ -151,7 +151,7 @@ export class InventoryManager {
 
   async gainItem(item: ItemBundle, callback?: () => void): Promise<void> {
     if (!item.type) {
-      const def = excel.ItemTable.items[item.id];
+      const def = excel.getItem(item.id);
       if (!def) {
         logger.warn(
           "inventory",

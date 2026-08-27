@@ -12,6 +12,12 @@ import { describe, it, expect, vi } from "vitest";
 // 6. 废品估价取官方 sellPrice（原恒为 1）
 // 7. 误入奇境消耗 MOVE 型（官方 scrapTypeData：MOVE=加工品）
 const excelMock = vi.hoisted(() => ({
+  // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+  getItem(id: string) { return this.ItemTable?.items?.[id]; },
+  itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+  makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+  charData(charId: string) { return this.CharacterTable?.[charId]; },
+  stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
   RoguelikeTopicTable: {
     details: {
       rogue_6: {

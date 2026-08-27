@@ -4,6 +4,13 @@ import config from "../../../app/config";
 // Excel BuildingData 样本（真实结构，制造/加工/房间/常量——任务 2-7 复用）
 const excelMock = vi.hoisted(() => ({
   default: {
+    // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+    makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+    charData(charId: string) { return this.CharacterTable?.[charId]; },
+    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+
     BuildingData: {
       manufactFormulas: {
         "1": { formulaId: "1", itemId: "2001", count: 1, costPoint: 2700, formulaType: "F_EXP", costs: [] },

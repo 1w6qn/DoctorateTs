@@ -3,6 +3,12 @@ import { describe, it, expect, vi } from "vitest";
 // rogue_6 二结局·维度重构：线人（bomb1）→ 沙盘α；沙盘β 商店；V 层命运所指
 // （好奇心与死 end1 / 窥视箱中 end2）→ 混沌源阶理论（ro6_b_5）→ ending_2
 const excelMock = vi.hoisted(() => ({
+  // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+  getItem(id: string) { return this.ItemTable?.items?.[id]; },
+  itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+  makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+  charData(charId: string) { return this.CharacterTable?.[charId]; },
+  stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
   RoguelikeTopicTable: {
     details: {
       rogue_6: {

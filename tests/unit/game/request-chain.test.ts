@@ -9,7 +9,14 @@ import httpContext from "express-http-context2";
 
 /** 被测模块 app/config 的 mock：authMode/singleUid 可热切换 */
 const configMock = vi.hoisted(() => ({
-  default: { authMode: "single", singleUid: "1" },
+  default: {
+    // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+    makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+    charData(charId: string) { return this.CharacterTable?.[charId]; },
+    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+ authMode: "single", singleUid: "1" },
 }));
 vi.mock("../../../app/config", () => configMock);
 
@@ -24,7 +31,14 @@ vi.mock("@game/service/player/AccountManager", () => accountMock);
 
 /** 避免加载真实 excel 数据表（重量级磁盘 IO），仅满足路由 import 的依赖形状 */
 vi.mock("@excel/excel", () => ({
-  default: { DisplayMetaTable: null },
+  default: {
+    // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+    makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+    charData(charId: string) { return this.CharacterTable?.[charId]; },
+    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+ DisplayMetaTable: null },
 }));
 
 import { authMiddleware, gameErrorHandler } from "../../../app/game/app";

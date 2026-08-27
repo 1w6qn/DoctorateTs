@@ -292,7 +292,7 @@ export class RoguelikeBattleManager {
       const dropCount = bb[2]?.value ?? 1;
       if (dropId && this._player._status.property.shield < threshold) {
         await this._trigger.emit("rlv2:get:items", [
-          [{ id: dropId, count: dropCount  } as unknown as ItemBundle],
+          [excel.makeItem(dropId, dropCount)],
         ]);
       }
     }

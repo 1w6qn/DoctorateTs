@@ -3,6 +3,12 @@ import { describe, it, expect, vi } from "vitest";
 // rogue_6 分队专属逻辑：本源研修（本源系希望-2）、多边贸易（零件箱容量+2/+4）、
 // 开拓者（进区获加工品）、zone_into_reward 无区域限定不崩
 const excelMock = vi.hoisted(() => ({
+  // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+  getItem(id: string) { return this.ItemTable?.items?.[id]; },
+  itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+  makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+  charData(charId: string) { return this.CharacterTable?.[charId]; },
+  stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
   RoguelikeTopicTable: {
     details: {
       rogue_6: {

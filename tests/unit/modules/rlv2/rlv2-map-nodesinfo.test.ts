@@ -4,6 +4,13 @@ import { describe, it, expect, vi } from "vitest";
 // 修复前 __dirname 3 级路径指向 app/data/ 导致 _nodesInfo 恒为 null（旧主题走 stages.filter 回退）
 vi.mock("@excel/excel", () => ({
   default: {
+    // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+    makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+    charData(charId: string) { return this.CharacterTable?.[charId]; },
+    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+
     RoguelikeTopicTable: {
       details: {
         // mock stages 故意只有 1 个——若 nodesInfo 加载成功，生成节点会使用官方列表（ro1_n_1_* 等）

@@ -53,7 +53,7 @@ export class OpenServerManager {
       draft.openServer.chainLogin.history[index] = 0;
     });
     // 修复：奖励入账（原实现只回显不入账 → 领了但不到账，刷新即消失）
-    const reward = [{ id: item.itemId, count: item.count  } as unknown as ItemBundle];
+    const reward = [excel.makeItem(item.itemId, item.count)];
     await this._trigger.emit("items:get", [reward]);
     return reward;
   }
@@ -77,7 +77,7 @@ export class OpenServerManager {
 
     if (!item) return [];
     // 修复：奖励入账
-    const reward = [{ id: item.itemId, count: item.count  } as unknown as ItemBundle];
+    const reward = [excel.makeItem(item.itemId, item.count)];
     await this._trigger.emit("items:get", [reward]);
     return reward;
   }
@@ -102,7 +102,7 @@ export class OpenServerManager {
     });
     if (!item) return [];
     // 修复：奖励入账
-    const reward = [{ id: item.itemId, count: item.count  } as unknown as ItemBundle];
+    const reward = [excel.makeItem(item.itemId, item.count)];
     await this._trigger.emit("items:get", [reward]);
     return reward;
   }

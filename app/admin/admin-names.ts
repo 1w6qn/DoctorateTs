@@ -28,7 +28,7 @@ export const COMMON_ITEMS: { [key: string]: string } = {
 
 /** 物品 ID → 中文名（未知原样返回 ID） */
 export function itemName(id: string): string {
-  const def = excel.ItemTable?.items?.[id];
+  const def = excel.getItem(id);
   return def?.name || id;
 }
 

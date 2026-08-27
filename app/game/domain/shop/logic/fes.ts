@@ -60,7 +60,7 @@ export async function buyEPGSGood(mgr: ShopManager, args: {
       }
     });
     await mgr._trigger.emit("items:use", [
-      [{ id: "EPGS_COIN", count: good!.price * count  } as unknown as ItemBundle],
+      [excel.makeItem("EPGS_COIN", good!.price * count)],
     ]);
     // 修复：干员（CHAR）走 char:get 入账并返回 instId；其余走 items:get
     const granted = await mgr._issueCharItem(item);
@@ -90,7 +90,7 @@ export async function buyREPGood(mgr: ShopManager, args: {
     mgr._assertAffordable("REP_COIN", good.price * count);
     // 修复：限购检查
     mgr._assertAvail("REP", goodId, count, good.availCount);
-    const item = { id: good.item.id, count: good.item.count * count  } as unknown as ItemBundle;
+    const item = excel.makeItem(good.item.id, good.item.count * count);
     await mgr._player.update(async (draft) => {
       const rep = mgr._shopDraft(draft, "REP");
       const existingItem = rep.info.find((i: any) => i.id === goodId);
@@ -101,7 +101,7 @@ export async function buyREPGood(mgr: ShopManager, args: {
       }
     });
     await mgr._trigger.emit("items:use", [
-      [{ id: "REP_COIN", count: good.price * count  } as unknown as ItemBundle],
+      [excel.makeItem("REP_COIN", good.price * count)],
     ]);
     await mgr._trigger.emit("items:get", [[item]]);
     return [item];
@@ -156,7 +156,7 @@ export async function buyClassicGood(mgr: ShopManager, args: {
         if (existingItem) {
           existingItem.count += count;
         } else {
-          classic.info.push({ id: good.goodId, count: count  } as unknown as ItemBundle);
+          classic.info.push(excel.makeItem(good.goodId, count));
         }
       } else {
         const { progressGoodId } = good;
@@ -184,7 +184,7 @@ export async function buyClassicGood(mgr: ShopManager, args: {
     });
 
     await mgr._trigger.emit("items:use", [
-      [{ id: "4004", count: price * count  } as unknown as ItemBundle],
+      [excel.makeItem("4004", price * count)],
     ]);
     // 修复：干员（CHAR）走 char:get 入账并返回带 instId（获得干员效果）；其余走 items:get
     const granted = await mgr._issueCharItem(item);

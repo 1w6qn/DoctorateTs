@@ -152,7 +152,7 @@ export class GachaManager {
     const p = this._player._playerdata;
     for (const c of costs) {
       const type =
-        c.type || excel.ItemTable?.items?.[c.id]?.itemType;
+        c.type || excel.getItem(c.id)?.itemType;
       switch (type) {
         case "DIAMOND_SHD":
           // 合成玉（4003）→ status.diamondShard。修复：原实现把 DIAMOND_SHD 与 DIAMOND

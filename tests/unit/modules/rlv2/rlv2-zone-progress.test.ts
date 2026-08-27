@@ -6,6 +6,13 @@ import { buildRoguelikeConsts } from "../../../../app/game/service/excel/rogueli
 // NORMAL 与 MONTH_TEAM 双模式验证（此前只测到 zone 1 生成，未覆盖推进）
 vi.mock("@excel/excel", () => ({
   default: {
+    // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+    makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+    charData(charId: string) { return this.CharacterTable?.[charId]; },
+    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+
     RoguelikeTopicTable: require("../../../../data/excel/roguelike_topic_table.json"),
     CharacterTable: require("../../../../data/excel/character_table.json"),
     GameDataConst: require("../../../../data/excel/gamedata_const.json"),

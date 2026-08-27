@@ -70,7 +70,7 @@ export async function buyLowGood(mgr: ShopManager, args: {
     mgr._assertAffordable("4005", good.price * count);
     // 修复：每日限购检查
     mgr._assertAvail("LS", goodId, count, good.availCount);
-    const item = { id: good.item.id, count: good.item.count * count  } as unknown as ItemBundle;
+    const item = excel.makeItem(good.item.id, good.item.count * count);
     await mgr._player.update(async (draft) => {
       const ls = mgr._shopDraft(draft, "LS");
       const existingItem = ls.info.find((i: any) => i.id === goodId);
@@ -81,7 +81,7 @@ export async function buyLowGood(mgr: ShopManager, args: {
       }
     });
     await mgr._trigger.emit("items:use", [
-      [{ id: "4005", count: good.price * count  } as unknown as ItemBundle],
+      [excel.makeItem("4005", good.price * count)],
     ]);
     await mgr._trigger.emit("items:get", [[item]]);
     // 修复：BuyShopItem 任务事件从未 emit → 商店购买任务永不推进
@@ -136,7 +136,7 @@ export async function buyHighGood(mgr: ShopManager, args: {
         if (existingItem) {
           existingItem.count += count;
         } else {
-          hs.info.push({ id: good.goodId, count: count  } as unknown as ItemBundle);
+          hs.info.push(excel.makeItem(good.goodId, count));
         }
       } else {
         const progressGood =
@@ -160,7 +160,7 @@ export async function buyHighGood(mgr: ShopManager, args: {
       }
     });
     await mgr._trigger.emit("items:use", [
-      [{ id: "4004", count: price * count  } as unknown as ItemBundle],
+      [excel.makeItem("4004", price * count)],
     ]);
     // 修复：干员（CHAR）走 char:get 入账并返回带 instId（获得干员效果）；其余走 items:get
     const granted = await mgr._issueCharItem(item);
@@ -203,7 +203,7 @@ export async function buyExtraGood(mgr: ShopManager, args: {
       }
     });
     await mgr._trigger.emit("items:use", [
-      [{ id: "4006", count: good!.price * count  } as unknown as ItemBundle],
+      [excel.makeItem("4006", good!.price * count)],
     ]);
     // 修复：干员（CHAR）走 char:get 入账并返回带 instId 的效果，避免客户端显示"未知物品"
     const granted = await mgr._issueCharItem(item);

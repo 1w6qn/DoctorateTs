@@ -233,7 +233,7 @@ export class SocialManager {
     const buildAssistInfo = (info: any, isFriend: boolean, alias: string) => {
       const assistChars: any[] = info?.assistCharList || [];
       const matched = assistChars.find((c) => {
-        const data = excel.CharacterTable[c?.charId];
+        const data = excel.charData(c?.charId);
         return data?.profession === profession;
       });
       if (!matched) return null;

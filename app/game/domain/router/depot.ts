@@ -386,7 +386,7 @@ router.post("/useFullPotentialItem", validateBody(useFullPotentialItemSchema), a
   if (!char) {
     return res.send({ result: 1, ...player.delta } satisfies BoostPotentialResponse);
   }
-  const charInfo = excel.CharacterTable[char.charId];
+  const charInfo = excel.charData(char.charId);
   // maxPotentialLevel 通常为 6（潜能等级 1-6），potentialRank 为 0-5
   const maxPotentialRank = (charInfo?.maxPotentialLevel ?? 5) - 1;
   // 委托 CharManager 执行潜能提升（内部包含物品消耗逻辑）

@@ -23,6 +23,13 @@ vi.mock("@game/service/player/AccountManager", () => ({
 // - ActivityTable.bossRush[actId]：尖灭活动详情（stageDropDataMap 驱动 milestone/token 加值）
 vi.mock("@excel/excel", () => ({
   default: {
+    // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+    makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+    charData(charId: string) { return this.CharacterTable?.[charId]; },
+    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+
     StageTable: {
       stages: {
         act6bossrush_01: {

@@ -44,7 +44,7 @@ export class StoryreviewManager {
       if (group.stories.some((s) => s.id === storyId)) return; // 已解锁
       group.stories.push({ id: storyId, uts: now(), rc: 0 });
       await this._trigger.emit("items:use", [
-        [{ id: "STORY_REVIEW_COIN", count: 1 } as unknown as ItemBundle],
+        [excel.makeItem("STORY_REVIEW_COIN", 1)],
       ]);
     });
   }

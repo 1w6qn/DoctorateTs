@@ -929,7 +929,7 @@ export class BattleManager {
           const rawRarity =
             reward_type === "FURN"
               ? excel.BuildingData.customData.furnitures[reward_id]?.rarity
-              : excel.ItemTable.items[reward_id]?.rarity;
+              : excel.getItem(reward_id)?.rarity;
           reward_rarity = rarityToIndex(rawRarity);
 
           switch (reward_rarity) {
@@ -952,7 +952,7 @@ export class BattleManager {
       } else if (completeState === 2) {
         if (reward_type !== "FURN" && reward_type !== "CHAR") {
           reward_rarity = rarityToIndex(
-            excel.ItemTable.items[reward_id]?.rarity,
+            excel.getItem(reward_id)?.rarity,
           );
         }
 

@@ -9,6 +9,12 @@ import { describe, it, expect, vi } from "vitest";
 // 5. 险路小径：+1 珍贵加工品 + 保留行动力进区（三重身差分）
 // 6. 先行一步：休息 +2 希望；远征标记（三结局）保持
 const excelMock = vi.hoisted(() => ({
+  // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+  getItem(id: string) { return this.ItemTable?.items?.[id]; },
+  itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+  makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+  charData(charId: string) { return this.CharacterTable?.[charId]; },
+  stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
   RoguelikeTopicTable: {
     details: {
       rogue_6: {

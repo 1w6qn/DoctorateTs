@@ -5,6 +5,12 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 // 2. 行动奖励发放语义（官方 funcIconId）：
 //    未编号物=NORMAL 藏品 / 巢寄生=RARE 藏品+零件箱-1 / 林间代步=加工品 / 空间租赁=-6金+零件箱+2
 const excelMock = vi.hoisted(() => ({
+  // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+  getItem(id: string) { return this.ItemTable?.items?.[id]; },
+  itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+  makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+  charData(charId: string) { return this.CharacterTable?.[charId]; },
+  stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
   RoguelikeTopicTable: {
     details: {
       rogue_6: {

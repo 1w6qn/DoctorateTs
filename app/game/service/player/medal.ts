@@ -618,7 +618,7 @@ export class MedalProgress implements PlayerPerMedal {
         this.val[0].push(0, target);
       },
       update: (args: { char: PlayerCharacter }) => {
-        const data = excel.CharacterTable[args.char.charId];
+        const data = excel.charData(args.char.charId);
         const p0 = String(this.param[0] ?? "");
         if (p0.includes(";")) {
           // 指定干员列表形式：命中列表内干员 +1

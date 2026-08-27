@@ -7,6 +7,12 @@ import { describe, it, expect, vi } from "vitest";
 // 7. pushMessage 路由补齐 → 见 tests/unit/router/rlv2.test.ts
 // 8. 上一把分队 buff 不残留到新局（招募希望消耗受上把分队影响的根因）
 const excelMock = vi.hoisted(() => ({
+  // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+  getItem(id: string) { return this.ItemTable?.items?.[id]; },
+  itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+  makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+  charData(charId: string) { return this.CharacterTable?.[charId]; },
+  stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
   RoguelikeTopicTable: {
     details: {
       rogue_6: {

@@ -87,7 +87,7 @@ export class RoguelikeFragmentManager {
     const chars = this._player.troop.chars;
     return Object.fromEntries(
       Object.entries(chars).map(([k, v]) => {
-        const data = excel.CharacterTable[v.charId];
+        const data = excel.charData(v.charId);
         // 修复：rarity 是 "TIER_N" 字符串——原 `rarity - 1` 得 NaN → 权重恒 undefined
         //（limitWeight 全 NaN）；统一经 rarityToIndex 转 0~5 下标
         const rarity = rarityToIndex(data?.rarity);

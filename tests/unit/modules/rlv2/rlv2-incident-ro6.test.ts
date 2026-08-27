@@ -15,6 +15,12 @@ import { describe, it, expect, vi } from "vitest";
 // 可重复事件（res2/res3/res5/bat6）不受遭遇记录排除，故各用例按
 // 「候选顺序 + 固定随机值」锁定目标事件（候选顺序 = event_choices.json 声明序）。
 const excelMock = vi.hoisted(() => ({
+  // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+  getItem(id: string) { return this.ItemTable?.items?.[id]; },
+  itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+  makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+  charData(charId: string) { return this.CharacterTable?.[charId]; },
+  stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
   RoguelikeTopicTable: {
     details: {
       rogue_6: {

@@ -4,6 +4,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("@excel/excel", () => {
   return {
     default: {
+    // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+    makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+    charData(charId: string) { return this.CharacterTable?.[charId]; },
+    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+
       // 游戏常量:提供钻石碎片兑换比例
       GameDataConst: {
         diamondToShdRate: 10,

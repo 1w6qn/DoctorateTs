@@ -43,7 +43,7 @@ export class CharManager {
     this._trigger.on("char:levelUp", async ([{ charId, level }]) => {
       await this._player.update(async (draft) => {
         const char = draft.troop.chars[charId];
-        const charInfo = excel.CharacterTable[char.charId];
+        const charInfo = excel.charData(char.charId)!;
         if (rarityToIndex(charInfo.rarity) <= 1 && char.level == 30) {
           //unlock addonStage
           //unlock addonStory
@@ -74,7 +74,7 @@ export class CharManager {
       // 防御：全新号 dexNav 可能为空对象（无 character 子树），先补结构再读写
       if (!draft.dexNav.character) draft.dexNav.character = {};
       isNew = draft.dexNav.character[charId] ? 0 : 1;
-      const info = excel.CharacterTable[charId];
+      const info = excel.charData(charId)!;
       logger.info(
         "CharManager",
         `获得${rarityToIndex(info.rarity) + 1}星干员 ${info.name} ${isNew ? "新" : "重复"} ${from}`,
@@ -113,10 +113,10 @@ export class CharManager {
         }
       }
       if (!isNew) {
-        const potentId = excel.CharacterTable[charId].potentialItemId!;
-        items.push({ id: potentId, count: 1 } as unknown as ItemBundle);
+        const potentId = excel.charData(charId)!.potentialItemId!;
+        items.push(excel.makeItem(potentId, 1));
         // 修复：CS GachaResult.potent——未满潜的重复干员返回潜能提升信息（delta/now）
-        const maxPotential = excel.CharacterTable[charId].maxPotentialLevel ?? 5;
+        const maxPotential = excel.charData(charId)!.maxPotentialLevel ?? 5;
         // 性能：从实时对象读（不经 draft 代理 troop.chars——只读子树被代理后
         // unfinalizedDrafts_ 永不归零，Immer finalize 全树遍历每次 update ~90ms）
         const repeatChar =
@@ -126,41 +126,41 @@ export class CharManager {
         }
         const mul: number = dexInfo.count > 6 ? 1.5 : 1;
         if (from == "CLASSIC") {
-          switch (rarityToIndex(excel.CharacterTable[charId].rarity)) {
+          switch (rarityToIndex(excel.charData(charId)!.rarity)) {
             case 5:
-              items.push({ id: "classic_normal_ticket", count: 100  } as unknown as ItemBundle);
+              items.push(excel.makeItem("classic_normal_ticket", 100));
               break;
             case 4:
-              items.push({ id: "classic_normal_ticket", count: 50  } as unknown as ItemBundle);
+              items.push(excel.makeItem("classic_normal_ticket", 50));
               break;
             case 3:
-              items.push({ id: "classic_normal_ticket", count: 5  } as unknown as ItemBundle);
+              items.push(excel.makeItem("classic_normal_ticket", 5));
               break;
             case 2:
-              items.push({ id: "classic_normal_ticket", count: 1  } as unknown as ItemBundle);
+              items.push(excel.makeItem("classic_normal_ticket", 1));
               break;
             default:
               break;
           }
         } else {
-          switch (rarityToIndex(excel.CharacterTable[charId].rarity)) {
+          switch (rarityToIndex(excel.charData(charId)!.rarity)) {
             case 5:
-              items.push({ id: "4004", count: Math.ceil(10 * mul)  } as unknown as ItemBundle);
+              items.push(excel.makeItem("4004", Math.ceil(10 * mul)));
               break;
             case 4:
-              items.push({ id: "4004", count: Math.ceil(5 * mul)  } as unknown as ItemBundle);
+              items.push(excel.makeItem("4004", Math.ceil(5 * mul)));
               break;
             case 3:
-              items.push({ id: "4005", count: 30  } as unknown as ItemBundle);
+              items.push(excel.makeItem("4005", 30));
               break;
             case 2:
-              items.push({ id: "4005", count: 5  } as unknown as ItemBundle);
+              items.push(excel.makeItem("4005", 5));
               break;
             case 1:
-              items.push({ id: "4005", count: 1  } as unknown as ItemBundle);
+              items.push(excel.makeItem("4005", 1));
               break;
             case 0:
-              items.push({ id: "4005", count: 1  } as unknown as ItemBundle);
+              items.push(excel.makeItem("4005", 1));
               break;
             default:
               break;
@@ -200,7 +200,7 @@ export class CharManager {
         draft.troop.curCharInstId += 1;
         createdCharInstId = charInstId;
         if (from == "CLASSIC") {
-          items.push({ id: "classic_normal_ticket", count: 10  } as unknown as ItemBundle);
+          items.push(excel.makeItem("classic_normal_ticket", 10));
         } else {
           items.push({ id: "4004", count: 1, type: "HGG_SHD" as ItemType });
         }
@@ -267,7 +267,7 @@ export class CharManager {
         gold = 0;
       const charId = char.charId;
       const evolvePhase = char.evolvePhase;
-      const rarity = rarityToIndex(excel.CharacterTable[charId].rarity);
+      const rarity = rarityToIndex(excel.charData(charId)!.rarity);
       // 防御：稀有度/精二阶段超界（如 1 星机器人被满配生成器置为 phase 2）时钳制到有效档位
       const maxLevelArr = excel.GameDataConst.maxLevel[rarity] ?? [];
       const maxLevel =
@@ -310,7 +310,7 @@ export class CharManager {
       // 累计消耗龙门币任务（CostGold / CostGoldPlus）—— 升级耗币统计（type0 param[1]=target）
       await this._trigger.emit("CostGold", [{ goldCost: gold }]);
       await this._trigger.emit("CostGoldPlus", [{ goldCostPlus: gold }]);
-      expMats.push({ id: "4001", count: gold  } as unknown as ItemBundle);
+      expMats.push(excel.makeItem("4001", gold));
       // 技能：按官服线格式校正 unlock（等级提升不会解锁技能），保留已有技能状态
       reconcileCharSkills(char);
       await this._trigger.emit("items:use", [expMats]);
@@ -326,7 +326,7 @@ export class CharManager {
       const { charInstId, destEvolvePhase } = args;
       const char = draft.troop.chars[charInstId];
       if (!char) return;
-      const info = excel.CharacterTable[char.charId];
+      const info = excel.charData(char.charId)!;
       const phases = info?.phases;
       // 修复：目标相位必须存在且高于当前——原实现无校验，可升到不存在的相位/免费升阶/倒降级
       if (
@@ -350,7 +350,7 @@ export class CharManager {
       const goldCost = goldRow?.[destEvolvePhase - 1] ?? -1;
       if (goldCost < 0) return;
       await this._trigger.emit("items:use", [
-        evolveCost.concat([{ id: "4001", count: goldCost  } as unknown as ItemBundle as unknown as ItemBundle]),
+        evolveCost.concat([excel.makeItem("4001", goldCost) as unknown as ItemBundle]),
       ]);
       // 累计消耗龙门币任务（CostGold / CostGoldPlus）—— 晋升耗币统计
       await this._trigger.emit("CostGold", [{ goldCost: goldCost }]);
@@ -382,7 +382,7 @@ export class CharManager {
       const { charInstId, itemId, targetRank } = args;
       const char = draft.troop.chars[charInstId];
       if (!char) return;
-      const info = excel.CharacterTable[char.charId];
+      const info = excel.charData(char.charId)!;
       // 修复：targetRank 无钳制可写超上限（如 maxPotential 5 写 99）+ 无道具归属校验；
       // 钳制到 [当前+1, maxPotential]，且只接受该干员潜能道具
       const maxPotential = info?.maxPotentialLevel ?? 5;
@@ -398,7 +398,7 @@ export class CharManager {
         return; // 非法道具：拒绝（防消耗任意库存物品）
       }
       char.potentialRank = target;
-      await this._trigger.emit("items:use", [[{ id: itemId, count: 1  } as unknown as ItemBundle]]);
+      await this._trigger.emit("items:use", [[excel.makeItem(itemId, 1)]]);
       await this._trigger.emit("BoostPotential", [{ targetLevel: target }]);
       // 修复：勋章 CharPotential 事件从未 emit → 潜能提升勋章永不推进
       await this._trigger.emit("CharPotential", [{ targetLevel: target }]);
@@ -446,7 +446,7 @@ export class CharManager {
       if (targetLevel < 2) {
         throw new BadRequestError(`技能目标等级 ${targetLevel} 非法（最低 2）`);
       }
-      const info = excel.CharacterTable[char.charId];
+      const info = excel.charData(char.charId)!;
       const allSkillLvlup = info?.allSkillLvlup;
       // 防御：无技能干员（2 星等）或 targetLevel 超上限（官方最高 7）时拒绝
       //（原实现 allSkillLvlup[targetLevel-2] 取 undefined 再读 .lvlUpCost 500）
@@ -969,7 +969,7 @@ export class CharManager {
       const { charInstId, itemId, instId } = args;
       const char = draft.troop.chars[charInstId];
       if (!char) throw new BadRequestError(`干员不存在: instId=${charInstId}`);
-      const rarity = rarityToIndex(excel.CharacterTable[char.charId].rarity);
+      const rarity = rarityToIndex(excel.charData(char.charId)!.rarity);
       this._assertVoucher(itemId, "VOUCHER_ELITE_II_", rarity);
       if (char.evolvePhase >= 2) {
         throw new BadRequestError(`干员 ${char.charId} 已精二，无需使用直升券`);
@@ -1005,7 +1005,7 @@ export class CharManager {
       const { charInstId, itemId, instId } = args;
       const char = draft.troop.chars[charInstId];
       if (!char) throw new BadRequestError(`干员不存在: instId=${charInstId}`);
-      const rarity = rarityToIndex(excel.CharacterTable[char.charId].rarity);
+      const rarity = rarityToIndex(excel.charData(char.charId)!.rarity);
       this._assertVoucher(itemId, "VOUCHER_LEVELMAX_", rarity);
       // 修复：原实现恒写 maxLevel[rarity][2]（精二满级）——maxLevel 数据为空桩时
       // 写 undefined（等级字段从存档消失）；且无视当前相位（E0 干员被写成 E2 满级）。
@@ -1039,7 +1039,7 @@ export class CharManager {
       const { charInstId, skillIndex, itemId, instId } = args;
       const char = draft.troop.chars[charInstId];
       if (!char) throw new BadRequestError(`干员不存在: instId=${charInstId}`);
-      const rarity = rarityToIndex(excel.CharacterTable[char.charId].rarity);
+      const rarity = rarityToIndex(excel.charData(char.charId)!.rarity);
       this._assertVoucher(itemId, "VOUCHER_SKILL_SPECIALLEVELMAX_", rarity);
       const skill = char.skills?.[skillIndex];
       if (!skill) {

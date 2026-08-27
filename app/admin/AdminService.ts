@@ -475,7 +475,7 @@ export class AdminService {
     if (!resolved) {
       throw new Error(`未知物品: ${itemId}（可先 users config 或用 item_table.json 核对 ID）`);
     }
-    if (!excel.ItemTable?.items?.[resolved]) {
+    if (!excel.getItem(resolved)) {
       throw new Error(`物品 ${resolved} 不在 ItemTable，无法发放`);
     }
     const pd = await this.getPlayer(uid);
@@ -924,7 +924,7 @@ export class AdminService {
     } catch {
       throw new Error(`用户不存在: ${uid}`);
     }
-    const items = args.items.map((it) => ({ id: it.id, count: it.count  } as unknown as ItemBundle));
+    const items = args.items.map((it) => (excel.makeItem(it.id, it.count)));
     const mail = await mailManager.sendMail(uid, {
       subject: args.subject,
       content: args.content,
@@ -1873,7 +1873,7 @@ export class AdminService {
         // 干员结构校验（历史问题：旧生成器 currentTmpl:null 卡死——逐字段检查）
         const chars = d.troop?.chars ?? {};
         for (const [instId, ch] of Object.entries(chars)) {
-          if (!ch?.charId || !excel.CharacterTable?.[ch.charId]) {
+          if (!ch?.charId || !excel.charData(ch.charId)) {
             throw new Error(`干员 instId=${instId} 缺失 charId 或不在 CharacterTable`);
           }
           for (const f of ["level", "evolvePhase", "potentialRank", "mainSkillLvl", "favorPoint", "gainTime", "voiceLan"]) {

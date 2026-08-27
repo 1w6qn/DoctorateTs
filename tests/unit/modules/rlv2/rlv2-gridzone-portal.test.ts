@@ -4,6 +4,12 @@ import { describe, it, expect, vi } from "vitest";
 // 数据 mock：variationData（乌托邦效果表）、portal 场景/选项（scene_ro6_portal*）、
 // SCRAP 模块（零件箱：初始 2 件 GOODS 加工品，供消耗）
 const excelMock = vi.hoisted(() => ({
+  // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+  getItem(id: string) { return this.ItemTable?.items?.[id]; },
+  itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+  makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+  charData(charId: string) { return this.CharacterTable?.[charId]; },
+  stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
   RoguelikeTopicTable: {
     details: {
       rogue_6: {

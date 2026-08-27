@@ -3,6 +3,12 @@ import { describe, it, expect, vi } from "vitest";
 // 回归：黑流树海网格生成——林间空地填充格按数量规则生成（修复：生成数据中
 // 「林间空地」规则 nodeType 为 null，距离/数量规则解析跳过 → 填充格永无林间空地）
 const excelMock = vi.hoisted(() => ({
+  // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
+  getItem(id: string) { return this.ItemTable?.items?.[id]; },
+  itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+  makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+  charData(charId: string) { return this.CharacterTable?.[charId]; },
+  stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
   RoguelikeTopicTable: {
     details: {
       rogue_6: {

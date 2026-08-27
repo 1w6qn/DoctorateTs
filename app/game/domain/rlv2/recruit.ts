@@ -85,7 +85,7 @@ export class RoguelikeRecruitManager {
    * @param charId 干员 id（如 char_504_rguard）
    */
   async initialChar(charId: string): Promise<void> {
-    const data = excel.CharacterTable[charId];
+    const data = excel.charData(charId)!;
     if (!data) return;
     const rarity = rarityToIndex(data.rarity);
     const popMap = [0, 0, 0, 2, 3, 6];
@@ -135,7 +135,7 @@ export class RoguelikeRecruitManager {
         [key: string]: any;
       },
     ).reduce((acc, char) => {
-      const data = excel.CharacterTable[char.charId];
+      const data = excel.charData(char.charId)!;
 
       if (!ticketInfo.professionList.some((p) => data.profession.includes(p))) {
         return acc;
@@ -263,7 +263,7 @@ export class RoguelikeRecruitManager {
 
     for (let i = 0; i < chars.length; i++) {
       const char = chars[i];
-      const charData = excel.CharacterTable[char.charId];
+      const charData = excel.charData(char.charId)!;
       if (!charData) continue;
 
       const extraFreeRarity = ticketInfo.extraFreeRarity || [];
@@ -283,8 +283,8 @@ export class RoguelikeRecruitManager {
     }
 
     const sortedByRarity = [...chars].sort((a, b) => {
-      const aRarity = Number(String(excel.CharacterTable[a.charId]?.rarity ?? "").replace("TIER_", "")) || 0;
-      const bRarity = Number(String(excel.CharacterTable[b.charId]?.rarity ?? "").replace("TIER_", "")) || 0;
+      const aRarity = Number(String(excel.charData(a.charId)?.rarity ?? "").replace("TIER_", "")) || 0;
+      const bRarity = Number(String(excel.charData(b.charId)?.rarity ?? "").replace("TIER_", "")) || 0;
       return aRarity - bRarity;
     });
 

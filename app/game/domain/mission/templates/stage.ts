@@ -1023,7 +1023,7 @@ export const stageTemplates: MissionTemplateGroup = {
         let count = 0;
         for (const n of stats?.charStats ?? []) {
           if (n.Key.counterType === "SPAWN") {
-            const national = excel.CharacterTable[n.Key.charId]?.nationId;
+            const national = excel.charData(n.Key.charId)?.nationId;
             if (national === mission.param[3]) {
               count += n.Value;
             }
@@ -1048,7 +1048,7 @@ export const stageTemplates: MissionTemplateGroup = {
         for (const n of stats?.charStats ?? []) {
           if (seen.has(n.Key.charId)) continue;
           seen.add(n.Key.charId);
-          const tags = excel.CharacterTable[n.Key.charId]?.tagList;
+          const tags = excel.charData(n.Key.charId)?.tagList;
           const hit = Array.isArray(tags)
             ? (tags as string[]).some((t) => String(t).includes(mission.param[4]))
             : String(tags ?? "").includes(mission.param[4]);

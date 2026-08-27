@@ -177,7 +177,7 @@ export const charTemplates: MissionTemplateGroup = {
         });
       },
       update: (mission, args: { char: PlayerCharacter }) => {
-        const data = excel.CharacterTable[args.char.charId];
+        const data = excel.charData(args.char.charId)!;
         if (args.char.evolvePhase < parseInt(mission.param[2])) {
           return;
         }
@@ -204,7 +204,7 @@ export const charTemplates: MissionTemplateGroup = {
         });
       },
       update: (mission, args: { char: PlayerCharacter }) => {
-        const data = excel.CharacterTable[args.char.charId];
+        const data = excel.charData(args.char.charId)!;
         if (args.char.evolvePhase < parseInt(mission.param[2])) {
           return;
         }
@@ -244,7 +244,7 @@ export const charTemplates: MissionTemplateGroup = {
         });
       },
       update: (mission, args: { char: PlayerCharacter }) => {
-        const data = excel.CharacterTable[args.char.charId];
+        const data = excel.charData(args.char.charId)!;
         const rarities = mission.param[1].split("^");
         const levels = mission.param[2].split("^");
         if (args.char.evolvePhase < 2) {

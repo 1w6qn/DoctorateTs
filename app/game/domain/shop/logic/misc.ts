@@ -163,7 +163,7 @@ export async function buySkinGood(mgr: ShopManager, args: { goodId: string }) : 
       if (existing) {
         existing.count += 1;
       } else {
-        skin.info.push({ id: good.goodId, count: 1  } as unknown as ItemBundle);
+        skin.info.push(excel.makeItem(good.goodId, 1));
       }
     });
     await mgr._trigger.emit("items:use", [
@@ -200,7 +200,7 @@ export async function buyCashGood(mgr: ShopManager, args: { goodId: string }) : 
         existingItem.count += 1;
         return 0;
       } else {
-        cash.info.push({ id: goodId, count: 1  } as unknown as ItemBundle);
+        cash.info.push(excel.makeItem(goodId, 1));
         return good.doubleCount > 0 ? 1 : 0;
       }
     });
@@ -248,7 +248,7 @@ export async function buyFurniGood(mgr: ShopManager, args: {
     mgr._assertAvail("FURNI", goodId, buyCount, good.count);
     if (isCoin) {
       await mgr._trigger.emit("items:use", [
-        [{ id: "3401", count: good.priceCoin * buyCount  } as unknown as ItemBundle],
+        [excel.makeItem("3401", good.priceCoin * buyCount)],
       ]);
     } else {
       // 修复：DIAMOND 分支 id 补全（原 id 为空串，仅靠 type 分支扣减）
@@ -262,7 +262,7 @@ export async function buyFurniGood(mgr: ShopManager, args: {
       if (existingItem) {
         existingItem.count += buyCount;
       } else {
-        furni.info.push({ id: goodId, count: buyCount  } as unknown as ItemBundle);
+        furni.info.push(excel.makeItem(goodId, buyCount));
       }
     });
     const item = { id: good.furniId, type: "FURN" as ItemType, count: buyCount };
@@ -297,7 +297,7 @@ export async function buyFurniGroup(mgr: ShopManager, args: {
       // 修复：限购检查
       mgr._assertAvail("FURNI", g.id, count, good.count);
       await mgr._trigger.emit("items:use", [
-        [{ id: "3401", count: (good.priceCoin ?? 0) * count  } as unknown as ItemBundle],
+        [excel.makeItem("3401", (good.priceCoin ?? 0) * count)],
       ]);
       await mgr._player.update(async (draft) => {
         const furni = mgr._shopDraft(draft, "FURNI");
@@ -431,7 +431,7 @@ export async function buyGoodWithTicket(mgr: ShopManager, args: {
           if (rec) {
             rec.count += 1;
           } else {
-            shop.GP[sub].info.push({ id: goodId, count: 1  } as unknown as ItemBundle);
+            shop.GP[sub].info.push(excel.makeItem(goodId, 1));
           }
         });
       }
@@ -502,7 +502,7 @@ export async function useVoucherSkin(mgr: ShopManager, args: { goodId: string })
     // 当前 SkinGoodList.json 无 isRedeem 商品，此路径有配置时不再无限免费兑换）
     if (good.isRedeem && good.currencyUnit && good.currencyUnit !== "DIAMOND") {
       await mgr._trigger.emit("items:use", [
-        [{ id: good.currencyUnit, count: 1  } as unknown as ItemBundle],
+        [excel.makeItem(good.currencyUnit, 1)],
       ]);
     }
     // 发放皮肤物品
@@ -518,7 +518,7 @@ export async function useVoucherSkin(mgr: ShopManager, args: { goodId: string })
       if (existingItem) {
         existingItem.count += 1;
       } else {
-        skin.info.push({ id: goodId, count: 1  } as unknown as ItemBundle);
+        skin.info.push(excel.makeItem(goodId, 1));
       }
     });
     await mgr._trigger.emit("items:get", [[item]]);

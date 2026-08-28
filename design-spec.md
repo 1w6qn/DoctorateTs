@@ -79,13 +79,9 @@ DoctorateTs/
 
 | 目录 | 职责 | 文件组织方式 |
 |------|------|-------------|
-| `app/auth/` | 用户认证逻辑，处理登录、Token验证等 | 单文件模块 |
-| `app/config/` | 应用配置，包括端口、环境变量等 | 按环境分离配置文件 |
-| `app/game/service/excel/` | Excel数据表管理，加载和提供游戏配置数据 | 每个数据表对应一个文件或类属性 |
-| `app/game/domain/` | 领域层：领域模型（playerdata/character/battle 等纯类型）、事件契约（events/）、协议契约（contracts/）、纯函数规则引擎（building 9 引擎、rlv2 theme-rules 等）、纯工具（util/） | 零 IO、禁依赖 service；允许依赖 @excel 只读数据表 |
-| `app/game/service/` | 应用服务 + 基础设施：组合根（PlayerDataManager/PlayerStatus/player-composition/events 位于 service 根）、玩家子模块（`player/`：status/inventory/troop/battle/char/medal/social/AccountManager 等）、玩法模块（building/gacha/mission/rlv2/shop 五文件约定）、activity（每活动一族一包 `activity/<family>/router.ts`，多族共用辅助收敛 `activity/shared.ts`）、router（薄路由）、shared（pay-store/crisis-seasons）、util（IO 工具） | 按玩法模块分组；service → domain 单向依赖；**不设 manager 目录**（子模块归 player/，组合根归 service 根） |
-| `app/game/service/*/logic/` | 巨型 logic 的分区函数模块：`building/logic/<section>.ts`、`shop/logic/<section>.ts` 等，函数首参 mgr 为管理器实例，类侧保留同名薄委派；`mission/templates/` 为任务模板注册表分组；`rlv2/` 下 shop/bank/settle/grid-nav/game-init/event/battle-nav/reward/recruit-flow 为分区文件 | 单文件超 1500 行须继续下沉（`tests/unit/architecture/file-size-guard.test.ts` 守卫） |
-| `app/utils/` | 通用工具函数，包括文件操作、加密等 | 按功能划分工具模块 |
+| `app/core/` | 基础设施内核：config/db/logs/utils/auth | 被依赖方，禁止 import game/ops |
+| `app/game/` | 业务（特性切片）：`kernel/`（PlayerDataManager 组合根、PlayerStatus、player-composition、events 事件契约+总线、http 路由契约基建、inventory-pipeline、共享 util）、`excel/`（游戏数据 + 生成类型）、`modules/<mod>/`（一业务模块一目录：routes.ts 薄路由 + manager/业务 + rules/types + public.ts 对外出口）、`modules/activities/<family>/`（活动族：router.ts+logic.ts，共享逻辑在 `activities/shared/`） | 不设 domain/service/manager 目录；模块间仅可 import 对方 `public.ts` 或走事件总线（守卫见 `tests/unit/architecture/module-boundary.test.ts`） |
+| `app/ops/` | 运营设施：admin/capture/proxy/updater/plugin/assets | 可依赖 core 与 game 模块的 public.ts |
 | `data/excel/` | 游戏配置数据表，JSON格式 | 与Excel类属性一一对应 |
 | `data/user/` | 用户数据存储，包括玩家数据和配置 | 按用户ID划分文件 |
 | `scripts/` | 脚本工具，包括数据更新、类型生成等 | 每个脚本对应一个功能 |
@@ -287,27 +283,26 @@ export default router;
 ## 4. 路由设计规范
 
 ### 4.1 路由文件结构
-- 每个功能模块对应一个路由文件
+- 每个业务模块对应一个路由文件（模块五文件约定的 `routes.ts` 薄壳；活动族为 `activities/<family>/router.ts`）
 - 路由文件命名使用 kebab-case
 
 ```
-app/game/router/
-├── account.ts
-├── activity.ts
-├── gacha.ts
-├── home.ts
-├── mission.ts
-└── shop.ts
+app/game/modules/<mod>/
+├── routes.ts        # 模块路由薄壳（挂载于 game/routes.ts）
+└── handler.ts       # 路由处理（部分模块 handler 即路由载体）
+app/game/modules/activities/<family>/
+└── router.ts        # 活动族路由（聚合于 activities/index.ts）
 ```
 
 ### 4.2 路由注册方式
-- 在 `app/game/app.ts` 中统一注册路由
+- 在 `app/game/routes.ts` 中聚合注册路由（`app/game/app.ts` 挂载该聚合根）
 - 使用动态导入（`await import()`）实现懒加载
 
 ```typescript
-app.use("/account", (await import("./router/account")).default);
-app.use("/activity", (await import("./router/activity")).default);
-app.use("/gacha", (await import("./router/gacha")).default);
+// app/game/routes.ts
+{ prefix: "/account", module: "./modules/account/routes" },
+{ prefix: "/building", module: "./modules/building/handler" },
+{ prefix: "/gacha", module: "./modules/gacha/handler" },
 ```
 
 ### 4.3 接口实现模式
@@ -567,7 +562,7 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@excel/*": ["app/game/service/excel/*"],
+      "@excel/*": ["app/game/excel/*"],
       "@utils/*": ["app/utils/*"],
       "@game/*": ["app/game/*"]
     }
@@ -590,7 +585,7 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
 
 ### 7.4 PlayerDataModel 类型生成
 
-`app/game/service/excel/types-playerdata.ts` 是**运行时 PlayerDataModel 的唯一权威定义**——`app/game/model/playerdata.ts` 直接 `export *` 该文件（手写模型已全量替换删除），`app/game/model/character.ts` 等对生成模型重叠类型做桥接 re-export。由官服反编译自动生成（客户端闭包 + 服务端协议适配 + 线格式适配），线格式经真实官服存档标量+结构双维度校验。
+`app/game/excel/types-playerdata.ts` 是**运行时 PlayerDataModel 的唯一权威定义**——`app/game/kernel/playerdata.ts` 直接 `export *` 该文件（手写模型已全量替换删除），`app/game/modules/character/char.ts` 等对生成模型重叠类型做桥接 re-export。由官服反编译自动生成（客户端闭包 + 服务端协议适配 + 线格式适配），线格式经真实官服存档标量+结构双维度校验。
 
 - 输入：`reference/com.hypergryph.arknights_2.7.61.cs`（官服反编译，`reference/` 已被 gitignore，不入库）
 - 命令：`pnpm run generate:playerdata`
@@ -600,11 +595,11 @@ constructor(player: PlayerDataManager, trigger: TypedEventEmitter) {
 - **线格式适配（wire pass）**：官服 JSON 把枚举/时间戳/布尔系统性降为数字——枚举字段→`number`（保留枚举定义作参考）、`System.DateTime`→`number`（unix ts）、布尔→`number`（0/1）；少数字符串序列化枚举（`roomId` "CONTROL"、`mode` "NORMAL"、`type` "CHAR" 等）与真实布尔（`avail`、`unlock` 等）经抓包标量审计反推的白名单保留
 - **校验闭环**：`pnpm exec tsx scripts/validate-playerdata-json.ts --input test.json --root user`（官服账号文件 test.json 的 user 根路径）——**0 缺失 / 0 大小写差异 / 0 结构不匹配 / 0 标量不匹配**（95,694 节点）；`--input player_data.json`（官服大存档）同样全 0（107,515 节点）；`--input tmp/official/account/syncData/2026-08-09T07-31-24-506Z.json --root user`（最新抓包）同样全 0（95,977 节点）。清单增量维护流程：校验报告 → 更新适配清单 → 重生成 → 再校验
 - 校验器含标量叶子类型比对（number/string/boolean/枚举字面量/基础类型联合）与 untyped 盲区报告（`object` 型字段路径）；已知线格式分歧（如 `flags` 官服 '1' 字符串 vs 运行时 number）在 `SCALAR_EXCEPTIONS` 文档化
-- 运行时替换：`app/game/model/playerdata.ts` 为生成模型 re-export；`character.ts` 保留生成模型不含的服务端社交/分享类型；rlv2 子系统（`model/rlv2.ts`）为功能实现内部模型，与生成模型在 controller 边界显式桥接
+- 运行时替换：`app/game/kernel/playerdata.ts` 为生成模型 re-export；`app/game/modules/character/char.ts` 保留生成模型不含的服务端社交/分享类型；rlv2 子系统（`app/game/modules/roguelike/rlv2-model.ts`）为功能实现内部模型，与生成模型在路由边界显式桥接
 
 ### 7.4.1 excel 表类型生成（从 cs）
 
-`app/game/service/excel/types_excel_gen.ts` 从 cs 反编译生成 **47 个 excel 表的权威类型**（1480+ 类 / 349+ 枚举），`app/game/service/excel/excel.ts` 的 55 个表类型引用与 troop/mission/mailCollection/mockExcel 等直接引用方均已从 FBS 版 `types_auto_gen.ts` 切换过来（FBS 版已删除，不再依赖 OpenArknightsFBS）。以 `data/excel/*.json` 全量校验 **0 缺失 / 0 大小写 / 0 结构 / 0 标量**（3.29M 节点）。
+`app/game/excel/types_excel_gen.ts` 从 cs 反编译生成 **47 个 excel 表的权威类型**（1480+ 类 / 349+ 枚举），`app/game/excel/excel.ts` 的 55 个表类型引用与 troop/mission/mailCollection/mockExcel 等直接引用方均已从 FBS 版 `types_auto_gen.ts` 切换过来（FBS 版已删除，不再依赖 OpenArknightsFBS）。以 `data/excel/*.json` 全量校验 **0 缺失 / 0 大小写 / 0 结构 / 0 标量**（3.29M 节点）。
 
 - 命令：`pnpm run generate:excel`；链路：`scripts/types-builder.ts`（统一构建器：C# 数组 `X[]`、泛型 `Undefinable<T>`/`KeyFrames<T>`、类继承字段合并、`abstract class`、List 继承 → 数组别名，多根闭包）→ `scripts/excel-server-adapt.ts`（表根映射 + rename/add/override/optional/枚举补充/字段覆盖/索引签名）→ `scripts/generate-types.ts --excel`（CLI，统一生成器）
 - **表根映射** `EXCEL_TABLE_ROOTS`：表键 → cs 根类（包装类如 StageTable/ZoneTable/ActivityTable，元素类如 CharacterData/SkillDataBundle，多根表如 enemy_handbook_table 按 key 映射）；由 JSON 顶层结构 × cs 类字段匹配自动反推
@@ -788,9 +783,9 @@ logs show [--last N] [--json]
 ### A. 常用类型定义位置
 | 类型来源 | 文件路径 | 说明 |
 |----------|----------|------|
-| CS自动生成 | `app/game/service/excel/types_excel_gen.ts` | excel 表权威类型（1470+ 类 / 347+ 枚举，原 FBS 版 types_auto_gen 已删除） |
-| PlayerDataModel | `app/game/service/excel/types-playerdata.ts` | 796个接口，1065个枚举 |
-| Excel数据表 | `app/game/service/excel/excel.ts` | 统一管理所有数据表 |
+| CS自动生成 | `app/game/excel/types_excel_gen.ts` | excel 表权威类型（1470+ 类 / 347+ 枚举，原 FBS 版 types_auto_gen 已删除） |
+| PlayerDataModel | `app/game/excel/types-playerdata.ts` | 796个接口，1065个枚举 |
+| Excel数据表 | `app/game/excel/excel.ts` | 统一管理所有数据表 |
 
 ### B. 状态管理流程
 ```
@@ -867,7 +862,7 @@ BuildingManager（app/game/manager/building.ts）已实现完整基建玩法：
 
 ### 11.2 实现约定
 - 所有变更通过 PlayerDataManager.update（Immer）落盘
-- **Excel 驱动（2026-08-07，替代硬编码简化）**：查询工具层 `app/game/service/excel/building_excel.ts`（getManufactFormula / getWorkshopFormula / getRoomPhase / getGoldRate / getBuildingConstant）
+- **Excel 驱动（2026-08-07，替代硬编码简化）**：查询工具层 `app/game/excel/building_excel.ts`（getManufactFormula / getWorkshopFormula / getRoomPhase / getGoldRate / getBuildingConstant）
   - 制造结算：查 `manufactFormulas`（14 配方：F_EXP 2001-2003 / F_GOLD 3003 / F_ASC 3213-3283 / F_DIAMOND 3141）——产出 `itemId×count×outputSolutionCnt`、消耗 `costs`（MATERIAL 扣 inventory / GOLD 扣金币）
   - 贸易结算：对齐真实订单结构 `{instId, delivery:[{id,count}], gain:{id,type,count}}`——扣 delivery 物品、加 gain 物品（不再 count×500 假结算）；instId 查找
   - 加工合成：查 `workshopFormulas`（68 配方）——goldCost/costs 消耗、产出、`extraOutcomeRate` 概率触发 `extraOutcomeGroup` 加权副产物；formulaId 支持请求体传入（回退房间 formulaId）
@@ -951,7 +946,7 @@ BuildingManager（app/game/manager/building.ts）已实现完整基建玩法：
 ### 11.6 基建协议完整性审计 + 线索板格式校准（2026-08-14）
 
 **协议完整性审计（对照客户端 ServiceCode.cs 全量 60+ BUILDING_* 服务码）**：
-- 逐一比对 `app/game/router/building.ts`——**唯一缺失端点** `building/takeClueFromBoard`（CS BuildingMeetingClueTakeClueFromBoardRequest{type}，客户端 UnequipClue 按阵营取下留言板线索）已补
+- 逐一比对 `app/game/modules/building/handler.ts`——**唯一缺失端点** `building/takeClueFromBoard`（CS BuildingMeetingClueTakeClueFromBoardRequest{type}，客户端 UnequipClue 按阵营取下留言板线索）已补
 - 家具商店端点 `shop/getFurniGoodList`/`shop/buyFurniGood`（CS BuildingGetFurnitureGoodListRequest/BuildingBuyFurnitureGoodRequest{goodId,buyCount,costType}）确认已存在于 shop 路由（非 building 命名空间）
 - 其余 60 端点全部命中现有路由（含别名/兼容字段）
 
@@ -1164,7 +1159,7 @@ BattleManager（app/game/manager/battle.ts）的战斗结束（finish）后处�
 - **dropReward 无限递归**：零产出时用未收敛的 `displayDetailRewards` 重试（概率未中的条目永不移除）→ 真实掉落表下栈溢出崩溃 → 增加 depth 上限（10 轮）防死循环
 
 ### 12.4 掉落信息自动提取（excel 驱动）
-- **归一化**：`app/game/service/excel/stage_table.ts` 的 `normalizeStageDropInfo` 在 excel 加载时（excel.init）将 `displayDetailRewards` 的 `occPercent`/`dropType` 字符串映射为数字档位（`ALWAYS→0, USUAL→1, OFTEN→2, SOMETIMES→3, ALMOST→4`；`ONCE→1, NORMAL→2, SPECIAL→3, ADDITIONAL→4, COMPLETE/CONDITION_DROP→8`），幂等（数字值保持不变）
+- **归一化**：`app/game/excel/stage_table.ts` 的 `normalizeStageDropInfo` 在 excel 加载时（excel.init）将 `displayDetailRewards` 的 `occPercent`/`dropType` 字符串映射为数字档位（`ALWAYS→0, USUAL→1, OFTEN→2, SOMETIMES→3, ALMOST→4`；`ONCE→1, NORMAL→2, SPECIAL→3, ADDITIONAL→4, COMPLETE/CONDITION_DROP→8`），幂等（数字值保持不变）
 - **修复前**：原始 excel 为字符串格式，而 dropReward 按数字比较 → **所有关卡掉落从未生效**（仅 finish 硬编码 GOLD/EXP 结算）
 - **补产出**：对照 Python 参考 quest.py，`occPercent=0/dropType=2`（ALWAYS+NORMAL 必掉基础掉落）分支补 `pushReward()`——此前只 console.log 不产出，必掉材料（如 1-7 的 30012）从未掉落
 - **保留的硬编码表**：SpecialGold / TacticalDrill / ToughSiege 等特殊关卡固定掉落（游戏设计值，excel 不含数量字段，无法自动提取）
@@ -1271,7 +1266,7 @@ pnpm run migrate:official -- --accounts <账号文件路径> --template 1
 | `useTotem` | 接线 `modules/totem.ts` 的 `use()`（上下板效果已实现） | useTotem.py |
 | `closeRecruitTicket` | 招募票 state=3（关闭）+ 清空候选列表 | closeRecruitTicket.py |
 
-路由：`app/game/router/rlv2.ts` 新增 5 个 POST（refreshShop/leaveShop/useTotem/confirmPredict/closeRecruitTicket）。
+路由：`app/game/modules/roguelike/handler.ts` 新增 5 个 POST（refreshShop/leaveShop/useTotem/confirmPredict/closeRecruitTicket）。
 
 ### 16.3 隐藏问题
 - **`_status.pending` 是只读 getter**（经 `_pending._pending` 内部数组操作）——实现/测试都需注意
@@ -1288,7 +1283,7 @@ pnpm run migrate:official -- --accounts <账号文件路径> --template 1
 | 数据文件 | 覆盖 | 数据源 | 消费点 |
 |---|---|---|---|
 | `data/rlv2/event_choices.json`（505KB） | rogue_1..5 不期而遇全量效果 | 参考项目 odpy（官方 choices 的效果增强版，rogue_3/4/5 与官方 excel 数量完全一致） | `selectChoice`（lose/get/m_lose/m_get/i_get/i_lose/curse/get_id）、`moveTo` INCIDENT 生成 SCENE |
-| `app/game/service/excel/roguelike_consts_gen.ts`（RoguelikeConsts） | 6 主题 outbuff/modebuff/recruitGrps | 运行时由官方 `customizeData[theme].developments`（含 commonDevelopment）的 `buffDisplayInfo` 派生（displayType→RoguelikeBuff 映射，PERCENTAGE 除 100、ABSOLUTE_VAL 作 count）；`buffDisplayInfo` 空的分队开发项按 `RAWRULES` 逐条给出；modebuff 官方 excel 无此表，内嵌常量（odpy rogue_2/3 难度 0-15）；recruitGrps 直接引用官方 `details[theme].recruitGrps` | `buff.create()`（outbuff/modebuff 应用）、`chooseInitialRecruitSet` |
+| `app/game/excel/roguelike_consts_gen.ts`（RoguelikeConsts） | 6 主题 outbuff/modebuff/recruitGrps | 运行时由官方 `customizeData[theme].developments`（含 commonDevelopment）的 `buffDisplayInfo` 派生（displayType→RoguelikeBuff 映射，PERCENTAGE 除 100、ABSOLUTE_VAL 作 count）；`buffDisplayInfo` 空的分队开发项按 `RAWRULES` 逐条给出；modebuff 官方 excel 无此表，内嵌常量（odpy rogue_2/3 难度 0-15）；recruitGrps 直接引用官方 `details[theme].recruitGrps` | `buff.create()`（outbuff/modebuff 应用）、`chooseInitialRecruitSet` |
 | `data/rlv2/nodesInfo.json` | 6 主题 × zone 关卡列表（Normal/Emergency/Boss） | 官方 `details[theme].stages` 按 `ro{n}_{n|e}_{zone}_` 前缀提取 | `map.generate()` 优先读（缺失回退动态过滤） |
 | `data/rlv2/choices.json` | 6 主题开局 buff（行动奖励）场景 | 官方 `choiceScenes` + `choices`（startbuff 前缀） | `RoguelikeV2Config.choiceScenes`（数据完整性） |
 
@@ -1649,7 +1644,7 @@ tmp/capture/
 ```
 
 关键实现：
-- **`/account/login` 按 token 动态解析**（`app/game/router/account.ts`）：读 `req.body.token` → `accountManager.getUidByToken(token)`（real 按 uid/secret 双查；single 任意 token 收敛 singleUid）→ 返回动态 `uid` + `secret`（账号 secret，无则回退 uid）——**无效 token 返回 `{result: 3}`**（参考 DoctoratePy「记忆已经模糊，请重新输入登录信息」）
+- **`/account/login` 按 token 动态解析**（`app/game/modules/account/routes.ts`）：读 `req.body.token` → `accountManager.getUidByToken(token)`（real 按 uid/secret 双查；single 任意 token 收敛 singleUid）→ 返回动态 `uid` + `secret`（账号 secret，无则回退 uid）——**无效 token 返回 `{result: 3}`**（参考 DoctoratePy「记忆已经模糊，请重新输入登录信息」）
 - **版本校验 YAGNI**：`clientVersion`/`networkVersion` 读取但不拦截——私服客户端版本可能滞后于配置（用户不跑 update），严格校验（result 2/5）会卡登录且客户端不报原因；版本同步由 `syncGameVersion`（22 章）负责
 - **`getTokenByUid(uid)`**：返回 `configs[uid].secret || uid`（完整 token 语义；旧账号无 secret 回退 uid）
 - **`getPlayerData(uid)` 懒加载**：data 缺失时 `_loadPlayer` 从存档文件读取——real 模式注册新账号后登录/同步免重启
@@ -1822,7 +1817,7 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 - **building/setPrivateDormOwner 破坏存档修复（2026-08-09，用户报告）**：CS 字段名为 `charInsId`（大 S），原实现读 `charInstId` → undefined 被 JSON 序列化为 null → `owners:[null]` 写入存档。已改读 `charInsId ?? charInstId` 并加 null/非法 slotId 防御；实测 charInsId 正确写入数字。单测 1 条。
 - **进程自动退出防护（2026-08-09，用户报告程序可能自动结束）**：Node 24 未处理 Promise 拒绝默认终止进程——`rlv2.checkZoneEnd` 的 `void this.gameSettle()` 在无进行中游戏（game 为 null）时崩溃。已加 `.catch()` 记录；index.ts 增加全局 `unhandledRejection`/`uncaughtException` 处理器（记录错误栈 + 保持进程存活）。
 
-- **存档健康检查与自动修复（2026-08-09）**：新增 `app/game/util/save-health.ts`——加载/保存时自动检测并修复常见损坏：必填顶层结构缺失（重建）、troop.chars 非法干员（移除）、`building.rooms.PRIVATE[].owners` 含 null 条目（setPrivateDormOwner 字段名 bug 残留，过滤）、status.uid 类型（转字符串）。幂等、保守（不做破坏性重建）；修复结果 WARN 记录。实机：2222 存档 slot_47.owners [null] 加载时自动修复并落盘。单测 6 条。
+- **存档健康检查与自动修复（2026-08-09）**：新增 `app/game/kernel/save-health.ts`——加载/保存时自动检测并修复常见损坏：必填顶层结构缺失（重建）、troop.chars 非法干员（移除）、`building.rooms.PRIVATE[].owners` 含 null 条目（setPrivateDormOwner 字段名 bug 残留，过滤）、status.uid 类型（转字符串）。幂等、保守（不做破坏性重建）；修复结果 WARN 记录。实机：2222 存档 slot_47.owners [null] 加载时自动修复并落盘。单测 6 条。
 
 - **P4 跳过**：YoStar/EN 专属（yostar/get-auth、user/login、user/quick-login、user/detail、/common/* 等）——CN hypergryph 客户端不调用（全量对齐后已补 stub，路径可达）
 
@@ -2066,7 +2061,7 @@ auth: `/u8/user/auth/v1/agreement_version` POST 别名（响应同 GET）
 
 基于 PRTS 攻略差距分析（`docs/奇象巡展-差距分析.md`），Phase 1 实现 P0 缺口（不改数据文件、不破坏官方 playerdata 形状）：
 
-### 29.1 事件层（app/game/model/events.ts）
+### 29.1 事件层（app/game/kernel/events/）
 新增 11 个事件，事件名 = ActivityTable.missionData.template / medal_table.template：
 - 任务 8 类：`ArkhubMissionCompleted / ArkhubDailyMissionCompleted / ArkhubCreatureCollection / ArkhubCreatureCaptured / ArkhubCreatureExchange / ArkhubPassDexBattle / ArkhubPublishPixelArt / ArkhubCollectPixelArt`
 - 勋章 3 类：`ActivityArkhubPixelCollect / ActivityArkhubCreatureCollect / ActivityArkhubAlterCollect`

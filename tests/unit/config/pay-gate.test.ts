@@ -14,7 +14,7 @@ vi.mock("express-http-context2", () => ({
 vi.mock("@utils/time", () => ({ now: () => 1234567890, userTimestamp: () => 1234567890 }));
 
 import payRouter from "../../../app/game/domain/router/pay";
-import gateRouter from "../../../app/config/gate";
+import gateRouter from "@core/config/gate";
 
 function mockRes() {
   return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };

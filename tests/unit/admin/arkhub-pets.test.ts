@@ -10,13 +10,13 @@ import { mockPlayerData } from "../../helpers";
 import {
   encodeFieldBytes as fb,
   encodeFieldVarint as fv,
-} from "../../../app/proxy/arkhub-gateway-codec";
-import { parseGatewayStream } from "../../../app/proxy/arkhub-gateway-protocol";
+} from "@ops/proxy/arkhub-gateway-codec";
+import { parseGatewayStream } from "@ops/proxy/arkhub-gateway-protocol";
 import {
   extractArkhubDocsFromSceneFrame,
   applyArkhubDocs,
   type ArkhubImportedDocs,
-} from "../../../app/admin/arkhub-pets";
+} from "@ops/admin/arkhub-pets";
 
 afterEach(() => vi.clearAllMocks());
 

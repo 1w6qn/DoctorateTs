@@ -15,8 +15,8 @@
 import { readdir, readFile, writeFile, mkdir, rm } from "fs/promises";
 import { join, relative, basename, sep } from "path";
 import JSZip from "jszip";
-import { exists } from "../app/utils/file";
-import { assetRegistry } from "../app/asset-registry/asset-service";
+import { exists } from "@utils/file";
+import { assetRegistry } from "@asset/asset-service";
 
 interface CliArgs {
   dir: string;

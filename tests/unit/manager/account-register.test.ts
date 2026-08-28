@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 // registerUser 现在会加载玩家（_loadPlayer 构造 PlayerDataManager，mission.init 需要 Immer Patches 插件）
 
 const configMock = vi.hoisted(() => ({ default: { authMode: "real" } }));
-vi.mock("../../../app/config", () => configMock);
+vi.mock("@core/config/index", () => configMock);
 
 import { accountManager } from "../../../app/game/service/player/AccountManager";
 import { mockPlayerData } from "../../helpers";

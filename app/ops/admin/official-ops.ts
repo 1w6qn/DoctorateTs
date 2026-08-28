@@ -16,7 +16,7 @@ import {
   getToken,
   loginGame,
   getRandomDevices,
-} from "../../scripts/official-api";
+} from "../../../scripts/official-api";
 import { pixelDataMd5, validatePixelData } from "./arkhub-pixel";
 import { captureManager } from "@capture/capture-manager";
 import { logger } from "@utils/logger";

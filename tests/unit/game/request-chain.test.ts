@@ -18,7 +18,7 @@ const configMock = vi.hoisted(() => ({
     stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
  authMode: "single", singleUid: "1" },
 }));
-vi.mock("../../../app/config", () => configMock);
+vi.mock("@core/config/index", () => configMock);
 
 /** 被测模块 AccountManager 的 mock：getPlayerData/getUidByToken 由各用例注入行为 */
 const accountMock = vi.hoisted(() => ({

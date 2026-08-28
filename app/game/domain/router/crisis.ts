@@ -42,7 +42,7 @@ import { readJson } from "@utils/file";
 import { decryptBattleData } from "@utils/crypt";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
-import config from "../../../config";
+import config from "@core/config/index";
 import {
   CrisisBuyGoodsRequest,
   CrisisBuyGoodsResponse,

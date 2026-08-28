@@ -3,7 +3,7 @@
  *
  * 从 data/config.json 读取 admin 配置段（enable / token）。
  */
-import config from "../config";
+import config from "../../core/config";
 
 /** 管理后台配置接口 */
 export interface AdminConfig {

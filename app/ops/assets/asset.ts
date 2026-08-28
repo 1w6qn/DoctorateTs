@@ -6,7 +6,7 @@ import axios from "axios";
 import { EventEmitter } from "events";
 import yauzl, { ZipFile } from "yauzl";
 import { mkdir, readdir, readFile, writeFile, rename, stat } from "fs/promises";
-import config from "./config";
+import config from "../../core/config";
 import { exists, size } from "@utils/file";
 import { logger } from "@utils/logger";
 import { backfillFile } from "./asset-backfill";
@@ -16,7 +16,7 @@ import {
   resolveRegionCdn,
   resolveRegionCdnVersion,
   resolveRegionVersion,
-} from "./config/region";
+} from "../../core/config/region";
 
 const router = Router();
 
@@ -38,7 +38,7 @@ router.get(
     // CDN 下载用官方原始版本（客户端请求的 assetsHash 是替换过 hash 的 mod 版本；
     // 官方 CDN 无 mod 版本，须按平台还原官方 resVersion）
     const cdnVersion = officialResVersion(platform);
-    let basePath = join(__dirname, "..", "assets", version, "redirect");
+    let basePath = join(__dirname, "..", "..", "..", "assets", version, "redirect");
 
     if (fileName === "hot_update_list.json" && config.assets.enableMods) {
       try {
@@ -80,7 +80,7 @@ router.get(
     }
 
     if (!config.assets.downloadLocally) {
-      basePath = join(__dirname, "..", "assets", version);
+      basePath = join(__dirname, "..", "..", "..", "assets", version);
       if (
         fileName !== "hot_update_list.json" &&
         !mods.download.includes(fileName)
@@ -138,14 +138,14 @@ router.get(
         logger.info("Asset", "serve mod file", fileName, modPath);
         wrongSize = false;
         filePath = modPath;
-        basePath = join(__dirname, "..", "mods");
+        basePath = join(__dirname, "..", "..", "..", "mods");
         fileName = basename(filePath);
       } else {
         // 非 mod 资源：本版本目录缺失时回退「官方版本目录」（assets/{官方版本}/redirect/）。
         // asset-backfill 的预取/补全统一落官方版本目录，mod 签名版本与直连版本共享命中；
         // 仅当官方版本目录与请求目录不同才回退，且不覆盖 wrongSize 校验（文件已存在判定）。
         const canonicalPath = join(
-          join(__dirname, "..", "assets", cdnVersion, "redirect"),
+          join(__dirname, "..", "..", "..", "assets", cdnVersion, "redirect"),
           fileName,
         );
         if (
@@ -161,7 +161,7 @@ router.get(
       fileName !== "hot_update_list.json"
     ) {
       const canonicalPath = join(
-        join(__dirname, "..", "assets", cdnVersion, "redirect"),
+        join(__dirname, "..", "..", "..", "assets", cdnVersion, "redirect"),
         fileName,
       );
       if (
@@ -237,7 +237,7 @@ function writeModCacheAtomically(modCachePath: string, data: string): Promise<vo
 }
 
 /** mods 目录（.gitignore；仅 mods/.placeholder 与平台子目录占位入 git） */
-const MODS_DIR = join(__dirname, "..", "mods");
+const MODS_DIR = join(__dirname, "..", "..", "..", "mods");
 
 /** 平台 → 专属 mod 子目录（小写）；未知平台无专属目录（仅共享根目录） */
 const PLATFORM_DIRS: Record<string, string> = { Windows: "windows", Android: "android" };
@@ -509,7 +509,7 @@ async function exportFile(
 
     hotUpdateList.abInfos = newAbInfos;
 
-    const cachePath = join(__dirname, "..", "./assets/cache/");
+    const cachePath = join(__dirname, "..", "..", "..", "./assets/cache/");
     const savePath = join(cachePath, "hot_update_list.json");
     logger.debug("Asset", "cache path", cachePath);
     if (!(await exists(cachePath))) {
@@ -559,7 +559,7 @@ async function exportFile(
         .catch(() => undefined);
     }
 
-    return join(__dirname, "../assets/cache/hot_update_list.json");
+    return join(__dirname, "..", "..", "../assets/cache/hot_update_list.json");
   }
 
   let downloadingThread = null;
@@ -591,7 +591,7 @@ async function exportFile(
     // 仅对常规资源生效（hot_update_list 已提前 return；mod 文件走 modPath 不进入此路径）。
     const platform = backfillPlatform ?? "Android";
     const canonicalPath = join(
-      join(__dirname, "..", "assets", officialResVersion(platform), "redirect"),
+      join(__dirname, "..", "..", "..", "assets", officialResVersion(platform), "redirect"),
       fileName,
     );
     if (await backfillFile(platform, fileName, canonicalPath)) {
@@ -656,7 +656,7 @@ async function loadMods(platform: string): Promise<ModsList> {
   }
 
   // 平台隔离缓存文件（避免 Windows/Android 互踩覆盖）
-  const modCachePath = join(__dirname, "..", `mods.${platform}.json`);
+  const modCachePath = join(__dirname, "..", "..", "..", `mods.${platform}.json`);
   let modCache = null;
 
   if (await exists(modCachePath)) {

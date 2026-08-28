@@ -38,7 +38,7 @@ const excelMock = vi.hoisted(() => ({
   },
 }));
 vi.mock("@excel/excel", () => excelMock);
-vi.mock("../../../app/config", () => ({
+vi.mock("@core/config/index", () => ({
   default: { version: { resVersion: "26-08-03-23-34-20_test", clientVersion: "2.7.61" } },
 }));
 vi.mock("@utils/file", () => ({

@@ -5,7 +5,7 @@ vi.mock("express-http-context2", () => ({
 }));
 
 // AllProductList 商品表（vi.mock 工厂提升，数据须内联）
-vi.mock("../../../app/utils/file", () => ({
+vi.mock("@utils/file", () => ({
   readJsonSync: vi.fn(() => ({
     productList: [
       { store_id: 49, product_id: "CS_1", name: "6元开采源石", price: 600 },
@@ -40,7 +40,7 @@ vi.mock("../../../app/game/service/shared/pay-store", () => ({
 
 import httpContext from "express-http-context2";
 import payRouter from "../../../app/game/domain/router/pay";
-import config from "../../../app/config";
+import config from "@core/config/index";
 import { mockPlayerData } from "../../helpers";
 
 function mockRes() {

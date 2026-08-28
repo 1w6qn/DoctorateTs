@@ -11,13 +11,13 @@
  */
 import fs from "fs";
 import path from "path";
-import { captureManager } from "../app/capture/capture-manager";
+import { captureManager } from "@capture/capture-manager";
 import {
   parseGatewayStream,
   framesToJson,
   fieldsToJson,
   gatewayTranscript,
-} from "../app/proxy/arkhub-gateway-protocol";
+} from "@ops/proxy/arkhub-gateway-protocol";
 
 function parseConnection(dir: string, id: string): void {
   const upPath = path.join(dir, "up.bin");

@@ -193,7 +193,7 @@ vi.mock("@utils/crypt", () => ({
 }));
 
 
-import config from "../../../app/config";
+import config from "@core/config/index";
 import { mockPlayerData } from "../../helpers";
 import { BattleManager } from "@game/service/player/battle";
 import { unlockActivity } from "@game/service/player/unlockActivity";

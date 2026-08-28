@@ -10,9 +10,9 @@ const configMock = vi.hoisted(() => ({
     stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
  version: { clientVersion: "2.7.61" }, Host: "http://127.0.0.1", PORT: 8443 },
 }));
-vi.mock("../../../app/config", () => configMock);
+vi.mock("@core/config/index", () => configMock);
 
-import launcherRouter from "../../../app/config/launcher";
+import launcherRouter from "@core/config/launcher";
 
 function mockRes() {
   return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };

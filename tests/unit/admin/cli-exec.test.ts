@@ -7,7 +7,7 @@ vi.mock("../../../scripts/admin-cli", () => ({
 }));
 
 import { parseArgs, dispatch } from "../../../scripts/admin-cli";
-import { cliExec } from "../../../app/admin/cli-exec";
+import { cliExec } from "@ops/admin/cli-exec";
 
 describe("cliExec（CLI 集成默认服务）", () => {
   beforeEach(() => {

@@ -2,8 +2,8 @@ import { Router } from "express";
 import config from "../config";
 import { readJson } from "@utils/file";
 import { buildNetworkConfigContent } from "./remote-config";
-import { ensureModsLoaded, getModVersionSuffix, refreshModsIfChanged } from "../asset";
-import { assetRegistry } from "../asset-registry/asset-service";
+import { ensureModsLoaded, getModVersionSuffix, refreshModsIfChanged } from "../../ops/assets/asset";
+import { assetRegistry } from "@asset/asset-service";
 import { resolveRegion, resolveRegionVersion } from "./region";
 
 /** 版本端点签发溯源（fire-and-forget，不阻断响应） */

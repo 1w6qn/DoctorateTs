@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // 缺失会报「The plugin for 'Patches' has not been loaded」unhandled rejection（假阳性噪音）
 
 const configMock = vi.hoisted(() => ({ default: { authMode: "single" } }));
-vi.mock("../../../app/config", () => configMock);
+vi.mock("@core/config/index", () => configMock);
 vi.mock("@utils/time", () => ({ now: () => 1234567890 }));
 vi.mock("fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs/promises")>();

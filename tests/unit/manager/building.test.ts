@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import config from "../../../app/config";
+import config from "@core/config/index";
 
 // Excel BuildingData 样本（真实结构，制造/加工/房间/常量——任务 2-7 复用）
 const excelMock = vi.hoisted(() => ({

@@ -17,7 +17,7 @@
 
 import { readdir, readFile, copyFile, mkdir, writeFile } from "fs/promises";
 import { join, dirname } from "path";
-import config from "./config";
+import config from "../../core/config";
 import excel from "@excel/excel";
 import { exists } from "@utils/file";
 import { logger } from "@utils/logger";
@@ -34,7 +34,7 @@ const DOWNLOAD_CONCURRENCY = 6;
 const PREWARM_MAX_FILES = 400;
 
 /** assets 根目录 */
-const ASSETS_DIR = join(__dirname, "..", "assets");
+const ASSETS_DIR = join(__dirname, "..", "..", "..", "assets");
 
 /** 版本目录识别：形如 YYYY-MM-DD-HH-MM-SS_6hex（可选 -m 后缀的 mod 版本） */
 const VERSION_DIR_RE = /^\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}_[0-9a-f]{6}(?:-m[0-9a-f]{6})?$/;
@@ -411,7 +411,7 @@ function stageIdsByZone(zoneId: string, out: Set<string>): void {
  */
 export async function collectActivityLevelRefs(activityId: string): Promise<ActivityLevelRef[]> {
   // 1) 危机合约赛季（data/crisis/ccN.json / data/crisisV2/*.json 文件名直查）
-  const seasons = await (await import("./game/service/shared/crisis-seasons")).listCrisisSeasons();
+  const seasons = await (await import("@game/service/shared/crisis-seasons")).listCrisisSeasons();
   if (seasons.v1.includes(activityId)) {
     return crisisSeasonLevelRefs(activityId, false);
   }

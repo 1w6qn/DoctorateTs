@@ -10,13 +10,13 @@ import { adminService } from "./AdminService";
 import { adminAuth } from "./admin-auth";
 import { ADMIN_ENDPOINTS } from "./api-spec";
 import { buildOpenApi } from "./openapi";
-import config from "../config";
+import config from "../../core/config";
 import { captureManager } from "@capture/capture-manager";
 import { logService } from "@logs/log-service";
 import { assetRegistry } from "@asset/asset-service";
 import { createSse, sseSend } from "@utils/sse";
 import { pluginConfigService } from "@plugin/index";
-import { validateBody } from "../game/domain/contracts/validate-body";
+import { validateBody } from "@game/domain/contracts/validate-body";
 import {
   arkhubImportPetsSchema,
   backfillAssetsSchema,

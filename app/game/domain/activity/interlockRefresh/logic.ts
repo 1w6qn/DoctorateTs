@@ -8,7 +8,7 @@ import { getPlayer, getPlayerOptional } from "../../../request-context";
 import { ItemBundle, ItemType } from "@excel/excel";
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
-import config from "../../../../config";
+import config from "@core/config/index";
 import {
   ActCheckinvsSignRequest,
   ActCheckinvsSignResponse,

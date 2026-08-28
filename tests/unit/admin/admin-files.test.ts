@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { AdminService } from "../../../app/admin/AdminService";
+import { AdminService } from "@ops/admin/AdminService";
 import { accountManager } from "../../../app/game/service/player/AccountManager";
 import { PlayerDataManager } from "../../../app/game/service/PlayerDataManager";
 import { exists, readJson, writeJson } from "@utils/file";
@@ -32,11 +32,11 @@ vi.mock("@game/service/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 // 官服卡池同步 mock（不真实联网）
-vi.mock("../../../app/admin/official-ops", () => ({
+vi.mock("@ops/admin/official-ops", () => ({
   runGachaSync: vi.fn(),
 }));
 
-import { runGachaSync } from "../../../app/admin/official-ops";
+import { runGachaSync } from "@ops/admin/official-ops";
 
 describe("AdminService 备份/恢复", () => {
   let service: AdminService;

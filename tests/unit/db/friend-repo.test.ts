@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { openDatabase, SCHEMA_SQL } from "../../../app/db/database";
-import { FriendRepository } from "../../../app/db/friend-repo";
+import { openDatabase, SCHEMA_SQL } from "@core/db/database";
+import { FriendRepository } from "@core/db/friend-repo";
 import { DatabaseSync } from "node:sqlite";
 
 describe("SQLite 数据库基础设施", () => {

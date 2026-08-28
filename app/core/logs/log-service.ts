@@ -141,7 +141,7 @@ class LogService {
   /** 审计日志（复用 AdminService，过滤 action/uid/关键字） */
   async readAuditLog(q: { action?: string; uid?: string; q?: string; limit?: number } = {}): Promise<AuditLogEntry[]> {
     // 动态引入避免模块加载期的重依赖（adminService 已由 admin-router/CLI 加载）
-    const { adminService } = await import("../admin/AdminService");
+    const { adminService } = await import("../../ops/admin/AdminService");
     const limit = Math.min(Math.max(Math.floor(q.limit ?? 100), 1), 1000);
     const entries = await adminService.logs(limit);
     const action = q.action?.trim();

@@ -20,7 +20,7 @@ import {
   validatePixelData,
   PIXEL_DATA_LEN,
   PIXEL_PALETTE,
-} from "../../../../admin/arkhub-pixel";
+} from "@ops/admin/arkhub-pixel";
 import { BadRequestError } from "@game/domain/contracts/errors";
 
 /** 像素存储目录（gitignored 运行时数据；index.json 为元数据索引；测试可注入临时目录） */

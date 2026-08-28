@@ -9,8 +9,8 @@
  */
 import { readFileSync } from "fs";
 import * as path from "path";
-import { openDatabase } from "../app/db/database";
-import { UserRepository } from "../app/db/user-repo";
+import { openDatabase } from "@core/db/database";
+import { UserRepository } from "@core/db/user-repo";
 import { syncPlayerData } from "./official-api";
 import { convertOfficialData } from "./official-convert";
 import { registerImportedUser } from "./official-register";

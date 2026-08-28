@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildOpenApi } from "../../../app/admin/openapi";
+import { buildOpenApi } from "@ops/admin/openapi";
 
 describe("buildOpenApi", () => {
   it("应生成 OpenAPI 3.0 文档且路径参数转为 {param} 模板", () => {

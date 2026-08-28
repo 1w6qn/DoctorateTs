@@ -12,7 +12,7 @@ vi.mock("@utils/file", () => ({
   })),
 }));
 
-import config from "../../../app/config";
+import config from "@core/config/index";
 import {
   resolveRegion,
   resolveRegionId,
@@ -23,7 +23,7 @@ import {
   resolveRegionVersion,
   DEFAULT_CDN,
   RegionConfig,
-} from "../../../app/config/region";
+} from "@core/config/region";
 
 /** 测试间隔离：保存/恢复 config 的 region 相关字段 */
 function withRegionConfig(

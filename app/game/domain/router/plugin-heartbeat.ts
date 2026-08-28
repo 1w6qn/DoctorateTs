@@ -16,7 +16,7 @@
  */
 import { Router } from "express";
 import { logger } from "@utils/logger";
-import { pluginConfigService } from "../../../plugin";
+import { pluginConfigService } from "@plugin/index";
 
 const router = Router();
 

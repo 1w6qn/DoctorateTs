@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 
 // mock cli-exec 与 admin-cli，避免加载完整 AdminService 依赖链
-vi.mock("../../../app/admin/cli-exec", () => ({ cliExec: vi.fn() }));
+vi.mock("@ops/admin/cli-exec", () => ({ cliExec: vi.fn() }));
 vi.mock("../../../scripts/admin-cli", () => ({
   parseArgs: vi.fn(),
   dispatch: vi.fn(),
@@ -13,7 +13,7 @@ const rlMock = vi.hoisted(() => ({
 }));
 vi.mock("readline", () => rlMock);
 
-import { startServerRepl } from "../../../app/admin/server-repl";
+import { startServerRepl } from "@ops/admin/server-repl";
 import { printHelp } from "../../../scripts/admin-cli";
 
 describe("startServerRepl（服务器内嵌命令行）", () => {

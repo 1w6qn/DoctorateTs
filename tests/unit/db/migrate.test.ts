@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { DatabaseSync } from "node:sqlite";
-import { SCHEMA_SQL, openDatabase, closeDatabase } from "../../../app/db/database";
-import { FriendRepository } from "../../../app/db/friend-repo";
-import { migrateFromUserConfigs } from "../../../app/db/migrate";
+import { SCHEMA_SQL, openDatabase, closeDatabase } from "@core/db/database";
+import { FriendRepository } from "@core/db/friend-repo";
+import { migrateFromUserConfigs } from "@core/db/migrate";
 import { accountManager } from "../../../app/game/service/player/AccountManager";
 
 describe("社交数据迁移", () => {

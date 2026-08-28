@@ -26,7 +26,7 @@ const gwMocks = vi.hoisted(() => ({
   GatewaySession: vi.fn(),
   randomGatewayDeviceId: vi.fn().mockReturnValue("device-1"),
 }));
-vi.mock("../../../app/admin/arkhub-gateway-client", () => ({
+vi.mock("@ops/admin/arkhub-gateway-client", () => ({
   GatewaySession: gwMocks.GatewaySession,
   randomGatewayDeviceId: gwMocks.randomGatewayDeviceId,
 }));
@@ -50,7 +50,7 @@ import {
   getPixelArtList,
   deletePixelArt,
   validateCgi,
-} from "../../../app/admin/official-ops";
+} from "@ops/admin/official-ops";
 
 function fakeRes(body: any, seqnum: string | null = null) {
   return Promise.resolve({

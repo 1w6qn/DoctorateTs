@@ -79,7 +79,7 @@ vi.mock("@excel/excel", () => {
 // @utils/time 不 mock——真实 userTimestamp 支持冻结时间（config.developer.timestamp ≤ now 时返回冻结值），
 // 与 activity-unlock.test.ts 同款做法：测试通过设置 config.developer 控制播种/门控时间。
 
-import config from "../../../app/config";
+import config from "@core/config/index";
 import { mockPlayerData } from "../../helpers";
 import { unlockActivity } from "@game/service/player/unlockActivity";
 import { MissionProgress } from "@game/domain/mission/logic";

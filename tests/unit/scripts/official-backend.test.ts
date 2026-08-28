@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 // mock config：自定义后端启用（模块加载时 official-api 读取）
-vi.mock("../../../app/config", () => ({
+vi.mock("@core/config/index", () => ({
   default: {
     officialBackend: {
       enabled: true,

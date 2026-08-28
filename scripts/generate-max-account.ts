@@ -10,7 +10,7 @@
  * 此处 re-export 保持公共 API 不变。
  */
 import excel from "@excel/excel";
-import config from "../app/config";
+import config from "@core/config/index";
 import { readJson } from "@utils/file";
 import { PlayerDataManager } from "../app/game/service/PlayerDataManager";
 import {

@@ -6,7 +6,7 @@ import * as ReqSchema from "../../../domain/activity/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../request-context";
 import excel from "@excel/excel";
-import config from "../../../../config";
+import config from "@core/config/index";
 import {
   ActCheckinvsSignRequest,
   ActCheckinvsSignResponse,

@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { getAdminConfig } from "../../../app/admin/admin-config";
+import { getAdminConfig } from "@ops/admin/admin-config";
 import {
   buildMailItem,
   nextMailId,
   MailDB,
 } from "../../../app/game/service/player/mail";
-import { now } from "../../../app/utils/time";
+import { now } from "@utils/time";
 import { parseArgs } from "../../../scripts/admin-cli";
 
 describe("admin 配置", () => {

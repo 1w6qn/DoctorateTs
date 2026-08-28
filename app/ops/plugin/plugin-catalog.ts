@@ -80,7 +80,7 @@ export function parsePluginDefs(content: string): PluginCatalogEntry[] {
  * @returns 插件目录
  */
 export function loadPluginCatalog(luaPath?: string): PluginCatalogEntry[] {
-  const file = luaPath ?? path.join(__dirname, "..", "..", "lua", "plugin", "PluginDefs.lua");
+  const file = luaPath ?? path.join(__dirname, "..", "..", "..", "lua", "plugin", "PluginDefs.lua");
   try {
     if (fs.existsSync(file)) {
       const parsed = parsePluginDefs(fs.readFileSync(file, "utf-8"));

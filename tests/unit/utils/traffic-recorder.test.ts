@@ -5,8 +5,8 @@ import * as os from "os";
 import {
   createTrafficRecorder,
   parseReqresLogMode,
-} from "../../../app/utils/traffic-recorder";
-import { captureManager } from "../../../app/capture/capture-manager";
+} from "@utils/traffic-recorder";
+import { captureManager } from "@capture/capture-manager";
 
 // 测试专用独立临时目录——绝不碰真实 tmp/capture/（统一抓包存储）
 const RECORD_ROOT = path.join(os.tmpdir(), "traffic-recorder-test");

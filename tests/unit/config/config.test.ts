@@ -5,7 +5,7 @@ vi.mock("os", () => ({
 }));
 
 import os from "os";
-import config, { detectLocalIp, resolvePortOverride } from "../../../app/config";
+import config, { detectLocalIp, resolvePortOverride } from "@core/config/index";
 
 describe("config Host 处理", () => {
   beforeEach(() => {

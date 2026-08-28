@@ -7,7 +7,7 @@ import {
   validatePixelData,
   pixelDataToPng,
   pixelDataMd5,
-} from "../../../app/admin/arkhub-pixel";
+} from "@ops/admin/arkhub-pixel";
 
 /** 生成合法像素数据：全部 (34,34,34)，中间 3×3 用 (255,0,0) */
 function samplePixels(): Buffer {

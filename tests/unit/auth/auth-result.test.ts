@@ -10,7 +10,7 @@ const configMock = vi.hoisted(() => ({
     stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
  authMode: "real", Host: "http://127.0.0.1", PORT: 8443 },
 }));
-vi.mock("../../../app/config", () => configMock);
+vi.mock("@core/config/index", () => configMock);
 
 // mock accountManager：提供 configs（login/register 用）+ 基础方法
 vi.mock("@game/service/player/AccountManager", () => {
@@ -41,7 +41,7 @@ vi.mock("@utils/file", () => ({
 }));
 vi.mock("@utils/logger", () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 
-import authRouter from "../../../app/auth/auth";
+import authRouter from "@core/auth/auth";
 import { accountManager } from "@game/service/player/AccountManager";
 
 function mockRes() {

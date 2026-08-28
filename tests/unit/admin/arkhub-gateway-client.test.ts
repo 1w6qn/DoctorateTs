@@ -8,7 +8,7 @@ import {
   GW_USER_LOGIN_REQ,
   GW_TOKEN_REQ,
   GW_TOKEN_RESP,
-} from "../../../app/admin/arkhub-gateway-client";
+} from "@ops/admin/arkhub-gateway-client";
 
 /**
  * 网关协议编解码 golden 测试

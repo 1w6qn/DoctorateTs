@@ -10,12 +10,14 @@
     "skipLibCheck": true,
     "paths": {
       "@excel/*": ["./app/game/service/excel/*"],
-      "@utils/*": ["./app/utils/*"],
+      "@utils/*": ["./app/core/utils/*"],
       "@game/*": ["./app/game/*"],
-      "@capture/*": ["./app/capture/*"],
-      "@logs/*": ["./app/logs/*"],
-      "@plugin/*": ["./app/plugin/*"],
-      "@asset/*": ["./app/asset-registry/*"]
+      "@capture/*": ["./app/ops/capture/*"],
+      "@logs/*": ["./app/core/logs/*"],
+      "@plugin/*": ["./app/ops/plugin/*"],
+      "@asset/*": ["./app/ops/assets/asset-registry/*"],
+      "@core/*": ["./app/core/*"],
+      "@ops/*": ["./app/ops/*"]
     }
   },
   "include": ["app/**/*", "index.ts"],

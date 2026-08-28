@@ -22,7 +22,7 @@ import { ItemBundle } from "@excel/excel";
 import { now } from "@utils/time";
 import { readJsonSync } from "@utils/file";
 import { logger } from "@utils/logger";
-import config from "../../../config";
+import config from "@core/config/index";
 import { validateBody } from "../../domain/contracts/validate-body";
 import {
   confirmOrderAlipaySchema,

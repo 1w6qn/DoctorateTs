@@ -8,7 +8,7 @@ vi.mock("../../../scripts/official-api", () => ({
   getResVersion: vi.fn(),
 }));
 vi.mock("../../../scripts/update-data", () => ({ main: mainMock }));
-vi.mock("../../../app/config", () => ({
+vi.mock("@core/config/index", () => ({
   default: { version: { resVersion: "v-local", clientVersion: "c" } },
 }));
 vi.mock("@excel/excel", () => ({
@@ -22,7 +22,7 @@ vi.mock("@excel/excel", () => ({
  init: excelInitMock, warmupLazyTables: warmupMock },
 }));
 
-import { autoUpdateWatch } from "../../../app/updater/auto-update-watch";
+import { autoUpdateWatch } from "@ops/updater/auto-update-watch";
 import { getResVersion } from "../../../scripts/official-api";
 
 const mockedGetResVersion = vi.mocked(getResVersion);

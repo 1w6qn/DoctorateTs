@@ -57,7 +57,7 @@ interface UserConfig {
    * 字段级回退，零迁移——未配置任何 region 时行为与现状一致）。
    * 结构见 app/config/region.ts 的 RegionConfig。
    */
-  regions?: Record<string, import("./config/region").RegionConfig>;
+  regions?: Record<string, import("./region").RegionConfig>;
   /** 版本信息 */
   version: {
     /** 资源版本 */

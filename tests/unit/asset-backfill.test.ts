@@ -53,7 +53,7 @@ import {
   officialVersion,
   crisisSeasonLevelRefs,
   collectActivityLevelRefs,
-} from "../../../app/asset-backfill";
+} from "../../app/ops/assets/asset-backfill";
 
 describe("asset-backfill 关卡 bundle 推导", () => {
   beforeEach(() => {

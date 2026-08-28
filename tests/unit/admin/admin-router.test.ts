@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 
-vi.mock("../../../app/admin/AdminService", () => ({
+vi.mock("@ops/admin/AdminService", () => ({
   adminService: {
     status: vi.fn().mockResolvedValue({ online: true }),
     listUsers: vi.fn().mockResolvedValue([{ uid: "1" }]),
@@ -67,13 +67,13 @@ vi.mock("../../../app/admin/AdminService", () => ({
     deletePixelArt: vi.fn().mockResolvedValue([{ id: "1001", ok: true }]),
   },
 }));
-vi.mock("../../../app/admin/admin-auth", () => ({
+vi.mock("@ops/admin/admin-auth", () => ({
   adminAuth: vi.fn((_req: any, _res: any, next: any) => next()),
 }));
-vi.mock("../../../app/admin/cli-exec", () => ({
+vi.mock("@ops/admin/cli-exec", () => ({
   cliExec: vi.fn(),
 }));
-vi.mock("../../../app/config", () => ({ default: {} }));
+vi.mock("@core/config/index", () => ({ default: {} }));
 vi.mock("@capture/capture-manager", () => ({
   captureManager: {
     listSessions: vi.fn().mockResolvedValue([{ id: "s-1", name: "登录链路", source: "official", recordCount: 3 }]),
@@ -106,9 +106,9 @@ vi.mock("@utils/sse", () => ({
   sseSend: vi.fn(),
 }));
 
-import adminRouter from "../../../app/admin/admin-router";
-import { cliExec } from "../../../app/admin/cli-exec";
-import { adminService } from "../../../app/admin/AdminService";
+import adminRouter from "@ops/admin/admin-router";
+import { cliExec } from "@ops/admin/cli-exec";
+import { adminService } from "@ops/admin/AdminService";
 import { captureManager } from "@capture/capture-manager";
 import { logService } from "@logs/log-service";
 import { createSse, sseSend } from "@utils/sse";

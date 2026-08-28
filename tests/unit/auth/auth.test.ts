@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 
 const configMock = vi.hoisted(() => ({ default: { authMode: "single" } }));
-vi.mock("../../../app/config", () => configMock);
+vi.mock("@core/config/index", () => configMock);
 
 vi.mock("@game/service/player/AccountManager", () => ({
   accountManager: {
@@ -15,7 +15,7 @@ vi.mock("@utils/file", () => ({
   readJson: vi.fn().mockResolvedValue({ version: "1", appVersion: "1.0" }),
 }));
 
-import authRouter from "../../../app/auth/auth";
+import authRouter from "@core/auth/auth";
 import { accountManager } from "@game/service/player/AccountManager";
 
 function mockRes() {

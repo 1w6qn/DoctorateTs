@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { rarityToIndex, rarityIndexToString } from "../../../app/utils/rarity";
+import { rarityToIndex, rarityIndexToString } from "@utils/rarity";
 
 describe("rarityToIndex（RarityRank 字符串枚举转数值索引）", () => {
   it("TIER_N → N-1（maxLevel/evolveGoldCost 表的下标约定）", () => {

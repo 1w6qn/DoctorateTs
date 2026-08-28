@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 
-vi.mock("../../../app/admin/admin-config", () => ({
+vi.mock("@ops/admin/admin-config", () => ({
   getAdminConfig: vi.fn(),
 }));
 
-import { adminAuth } from "../../../app/admin/admin-auth";
-import { getAdminConfig } from "../../../app/admin/admin-config";
+import { adminAuth } from "@ops/admin/admin-auth";
+import { getAdminConfig } from "@ops/admin/admin-config";
 
 function mockReqRes() {
   const res: any = {

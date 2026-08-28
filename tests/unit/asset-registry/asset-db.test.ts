@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as path from "path";
 import * as os from "os";
 import * as fs from "fs";
-import { openAssetDb, ASSET_DB_FILENAME, ASSET_SCHEMA_SQL } from "../../../app/asset-registry/asset-db";
+import { openAssetDb, ASSET_DB_FILENAME, ASSET_SCHEMA_SQL } from "@asset/asset-db";
 
 const TEST_ROOT = path.join(os.tmpdir(), "asset-db-test");
 

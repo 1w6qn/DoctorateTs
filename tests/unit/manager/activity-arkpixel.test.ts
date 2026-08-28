@@ -18,7 +18,7 @@ import {
   consumePixelUploadToken,
   _resetPendingPixelUploadsForTest,
 } from "@game/domain/activity/arkhub/arkpixel";
-import { PIXEL_PALETTE, PIXEL_DATA_LEN } from "../../../app/admin/arkhub-pixel";
+import { PIXEL_PALETTE, PIXEL_DATA_LEN } from "@ops/admin/arkhub-pixel";
 
 /** 合法像素：全空白（255,255,255） */
 function blankPixel(): Buffer {

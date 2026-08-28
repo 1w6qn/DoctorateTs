@@ -13,7 +13,7 @@ import { PlayerDataManager } from "./service/PlayerDataManager";
 import { setPlayer, getPlayerOptional } from "./request-context";
 import { acquireLock } from "@utils/mutex";
 import { logger } from "@utils/logger";
-import config from "../config";
+import config from "@core/config/index";
 import { routes } from "./routes";
 import { createAuthStrategy, type AuthStrategy } from "./auth-strategy";
 import { responseSchemaMiddleware } from "./resp-schema";

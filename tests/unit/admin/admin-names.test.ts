@@ -7,7 +7,7 @@ import {
   resolveItemRef,
   resolveCharRef,
   COMMON_ITEMS,
-} from "../../../app/admin/admin-names";
+} from "@ops/admin/admin-names";
 
 vi.mock("@excel/excel", () => ({
   default: {

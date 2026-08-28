@@ -8,7 +8,7 @@
  */
 import * as readline from "readline";
 import { cliExec } from "./cli-exec";
-import { printHelp } from "../../scripts/admin-cli";
+import { printHelp } from "../../../scripts/admin-cli";
 import { logger } from "@utils/logger";
 
 /** 启动服务器内嵌命令行 REPL（非 TTY 直接返回） */

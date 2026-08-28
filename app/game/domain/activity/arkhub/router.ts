@@ -6,7 +6,7 @@ import { collectRawBody, arkhubFullHost } from "../shared";
 import * as ReqSchema from "../../../domain/activity/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../request-context";
-import config from "../../../../config";
+import config from "@core/config/index";
 import {
   arkhubPixelPublished,
   arkhubPixelCollected,

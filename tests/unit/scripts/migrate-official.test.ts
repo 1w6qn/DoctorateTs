@@ -10,7 +10,7 @@ vi.mock("../../../scripts/official-register", () => ({
   nextUid: vi.fn(() => "2"),
 }));
 // readUsers 改走 SQLite——mock user-repo 返回种子用户（避免真实 social.db）
-vi.mock("../../../app/db/user-repo", () => ({
+vi.mock("@core/db/user-repo", () => ({
   UserRepository: class {
     getAll() {
       return { "1": { uid: "1" } };

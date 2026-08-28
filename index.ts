@@ -6,18 +6,18 @@
 
 import express from "express";
 import * as path from "path";
-import config from "./app/config";
-import { logger, flush as flushLogs } from "./app/utils/logger";
-import { createTrafficRecorder } from "./app/utils/traffic-recorder";
-import { captureManager } from "./app/capture/capture-manager";
+import config from "@core/config/index";
+import { logger, flush as flushLogs } from "@utils/logger";
+import { createTrafficRecorder } from "@utils/traffic-recorder";
+import { captureManager } from "@capture/capture-manager";
 import excel from "@excel/excel";
 import morgan from "morgan";
 import compression, { filter as compressionFilter } from "compression";
-import prod from "./app/config/prod";
-import { remoteConfigRouter } from "./app/config/remote-config";
-import { createHostRouter } from "./app/config/host-router";
-import auth from "./app/auth/auth";
-import asset from "./app/asset";
+import prod from "@core/config/prod";
+import { remoteConfigRouter } from "@core/config/remote-config";
+import { createHostRouter } from "@core/config/host-router";
+import auth from "@core/auth/auth";
+import asset from "@ops/assets/asset";
 import game, { setup } from "./app/game/app";
 import bodyParser from "body-parser";
 import { accountManager } from "./app/game/service/player/AccountManager";
@@ -191,14 +191,14 @@ process.on("exit", (code) => {
           // 插件源码变更后无需手动 pnpm run repack:lua，服务启动自动整包重建并覆盖下发。
           // （缺省开启，可用 data/config.json 的 assets.autoBuildLuaMod=false 关闭）
           if (config.assets.autoBuildLuaMod !== false) {
-            await (await import("./app/plugin/lua-mod-builder")).ensureLuaModBuilt();
+            await (await import("@plugin/lua-mod-builder")).ensureLuaModBuilt();
           }
-          await (await import("./app/asset")).initMods();
+          await (await import("@ops/assets/asset")).initMods();
         })()
       : Promise.resolve(),
     // 一体化资产注册表初始化（幂等）：Dashboard「资产」Tab / 各上游获取与生成点共用
     (async () => {
-      const { assetRegistry } = await import("./app/asset-registry/asset-service");
+      const { assetRegistry } = await import("@asset/asset-service");
       await assetRegistry
         .init()
         .catch((e) => logger.warn("index", `资产注册表初始化失败: ${(e as Error).message}`));
@@ -250,9 +250,9 @@ process.on("exit", (code) => {
   app.use(createHostRouter());
   app.use("/config/prod", prod);
   app.use("/api/remote_config", remoteConfigRouter);
-  app.use("/api/gate", (await import("./app/config/gate")).default);
+  app.use("/api/gate", (await import("@core/config/gate")).default);
   // 启动器版本检查（/api/game/get_latest——action:0 空包，客户端无需更新直接启动）
-  app.use("/api/game", (await import("./app/config/launcher")).default);
+  app.use("/api/game", (await import("@core/config/launcher")).default);
   // 全量对齐（参考 ODPY 旧版路径）：/user/register 等别名到既有 /user/auth/v1/* 实现
   app.use("/", (req, _res, next) => {
     const OLD_AUTH_ALIASES: Record<string, string> = {
@@ -277,7 +277,7 @@ process.on("exit", (code) => {
   // 抓包专用官服转发模式：as/gs 流量转发官服（config/launcher 保持本地——客户端才能被引导连到本代理）
   if (capture) {
     const { createOfficialForwarder, warmUpOfficialConnections } = await import(
-      "./app/proxy/official-forward"
+      "@ops/proxy/official-forward"
     );
     // 预热官服连接（共享 keep-alive 池）：客户端首个请求（登录 getToken 等）免付 TLS 冷启动延迟
     const asHost = config.capture?.asHost ?? "https://as.hypergryph.com";
@@ -285,7 +285,7 @@ process.on("exit", (code) => {
     await warmUpOfficialConnections(asHost, gsHost).catch(() => undefined);
     // arkhub 网关特殊适配：enterHall 返回官服网关地址，客户端随后 WebSocket 连网关——本代理
     // 监听 gatewayPort（缺省 30000）透传官服网关并记录流量，enterHall 响应 endpoint 改写为本代理
-    const { startArkhubGatewayProxy } = await import("./app/proxy/arkhub-gateway");
+    const { startArkhubGatewayProxy } = await import("@ops/proxy/arkhub-gateway");
     const gatewayPort = config.capture?.gatewayPort ?? 30000;
     // 端口自动避让：多实例并存时首选端口被占会依次尝试下一个空闲端口（30000/30001/30002...），
     // 每个实例各自拿到空闲端口，客户端互不干扰。改写用实际监听端口（gw.port）。
@@ -307,7 +307,7 @@ process.on("exit", (code) => {
   } else {
     // 私服模式：启动 arkhub 本地网关应答器（登录 code=100 + 心跳 + 合法 EnterSceneNotify），
     // enterHall 指向本服端口——客户端可进入空广场（不再连不可达的官服网关域名）
-    const { startArkhubLocalGateway } = await import("./app/proxy/arkhub-gateway-local");
+    const { startArkhubLocalGateway } = await import("@ops/proxy/arkhub-gateway-local");
     await startArkhubLocalGateway({
       port: config.capture?.gatewayPort ?? 30000,
       // 场景 self 条目用玩家真实昵称/秘书干员（存档已加载则直读，否则回退默认）
@@ -605,7 +605,7 @@ process.on("exit", (code) => {
     }
   }
 
-  app.use("/admin", (await import("./app/admin/admin-router")).default);
+  app.use("/admin", (await import("@ops/admin/admin-router")).default);
   const server = app.listen(config.PORT, () => {
     logger.info("index", `--------------DoctorateTs--------------`);
     logger.info("index", `running at http://localhost:${config.PORT}`);
@@ -616,14 +616,14 @@ process.on("exit", (code) => {
       .catch(() => undefined);
     logger.info("index", `命令行已就绪：终端输入管理 CLI 命令（如 users list --json），exit 退出命令行`);
     // 服务器内嵌命令行 REPL（日志与命令行共存；非 TTY 自动跳过）
-    import("./app/admin/server-repl").then((m) => m.startServerRepl());
+    import("@ops/admin/server-repl").then((m) => m.startServerRepl());
     // 后台版本检测提示（非阻塞）：本地数据较旧时提醒 pnpm run update（默认已跳过自动更新）
     if (!offline && !autoUpdate && !watchAutoUpdate) {
       checkRemoteVersionHint().catch(() => undefined);
     }
     // 运行期自动更新（检测官服 CDN 数据变动 → 自动拉取 + 解包重签）：开启后不再仅提示，自动执行
     if (!offline && watchAutoUpdate) {
-      import("./app/updater/auto-update-watch").then(({ autoUpdateWatch }) =>
+      import("@ops/updater/auto-update-watch").then(({ autoUpdateWatch }) =>
         autoUpdateWatch.start((config.autoUpdateWatch?.intervalMinutes ?? 15) * 60 * 1000),
       );
     }

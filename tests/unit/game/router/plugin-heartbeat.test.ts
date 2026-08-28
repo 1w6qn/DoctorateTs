@@ -11,7 +11,7 @@ import { AddressInfo } from "net";
  *
  * 通过 vi.mock 拦截 pluginConfigService，避免测试触碰真实 data/plugin/config.json。
  */
-vi.mock("../../../../app/plugin", () => {
+vi.mock("@plugin", () => {
   const has = vi.fn((id: string) => id === "enemy_hp");
   const setEnabled = vi.fn(async (_id: string, _v: boolean) => true);
   const getAll = vi.fn(async () => [
@@ -24,7 +24,7 @@ vi.mock("../../../../app/plugin", () => {
 // eslint-disable-next-line import/first
 import pluginHeartbeatRouter from "../../../../app/game/domain/router/plugin-heartbeat";
 // eslint-disable-next-line import/first
-import { pluginConfigService } from "../../../../app/plugin";
+import { pluginConfigService } from "@plugin";
 
 const mockedService = pluginConfigService as unknown as {
   has: ReturnType<typeof vi.fn>;

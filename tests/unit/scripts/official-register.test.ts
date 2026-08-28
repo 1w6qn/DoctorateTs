@@ -6,8 +6,8 @@ vi.mock("fs/promises", async (importOriginal) => {
   return { ...actual, writeFile: vi.fn().mockResolvedValue(undefined) };
 });
 
-import { openDatabase, closeDatabase } from "../../../app/db/database";
-import { UserRepository } from "../../../app/db/user-repo";
+import { openDatabase, closeDatabase } from "@core/db/database";
+import { UserRepository } from "@core/db/user-repo";
 import { registerImportedUser } from "../../../scripts/official-register";
 
 describe("registerImportedUser", () => {

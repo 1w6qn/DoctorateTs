@@ -7,8 +7,8 @@
  */
 import { writeFile as writeFileAsync } from "fs/promises";
 import * as path from "path";
-import { openDatabase } from "../app/db/database";
-import { UserRepository } from "../app/db/user-repo";
+import { openDatabase } from "@core/db/database";
+import { UserRepository } from "@core/db/user-repo";
 
 const DATA_USER_DIR = path.join(__dirname, "../data/user");
 

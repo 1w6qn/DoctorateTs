@@ -5,7 +5,7 @@ import {
   isArkhubLocalGatewayActive,
   setArkhubLocalGatewayActive,
   getArkhubLocalGatewayPort,
-} from "../../../app/proxy/arkhub-gateway-local";
+} from "@ops/proxy/arkhub-gateway-local";
 
 const servers: net.Server[] = [];
 afterEach(() => {

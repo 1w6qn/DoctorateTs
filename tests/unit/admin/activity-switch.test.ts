@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { AdminService } from "../../../app/admin/AdminService";
+import { AdminService } from "@ops/admin/AdminService";
 import { accountManager } from "../../../app/game/service/player/AccountManager";
 import { readJsonSync, writeJson } from "@utils/file";
-import config from "../../../app/config";
+import config from "@core/config/index";
 import { mockPlayerData } from "../../helpers";
 
 // 配置读写走 mock（不落盘真实 data/config.json）
@@ -49,7 +49,7 @@ vi.mock("@excel/excel", () => ({
 }));
 
 vi.mock("@game/service/PlayerDataManager", () => ({ PlayerDataManager: vi.fn() }));
-vi.mock("../../../app/admin/official-ops", () => ({ runGachaSync: vi.fn() }));
+vi.mock("@ops/admin/official-ops", () => ({ runGachaSync: vi.fn() }));
 vi.mock("fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs/promises")>();
   return {

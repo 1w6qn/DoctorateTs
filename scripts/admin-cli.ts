@@ -74,10 +74,10 @@ import * as readline from "readline";
 import { readFileSync } from "fs";
 import excel from "@excel/excel";
 import { accountManager } from "@game/service/player/AccountManager";
-import { adminService } from "../app/admin/AdminService";
-import config from "../app/config";
-import { captureManager } from "../app/capture/capture-manager";
-import { logService } from "../app/logs/log-service";
+import { adminService } from "@ops/admin/AdminService";
+import config from "@core/config/index";
+import { captureManager } from "@capture/capture-manager";
+import { logService } from "@logs/log-service";
 import { writeJson, readJsonSync } from "@utils/file";
 
 /** 解析结果 */
@@ -877,7 +877,7 @@ async function runMail(args: string[], flags: { [key: string]: string }): Promis
     let items: { id: string; count: number }[] = [];
     // 模板发送：--template 名称（支持 {date} 等占位符替换）
     if (flags.template && flags.template !== "true") {
-      const { expandTemplate } = await import("../app/admin/mail-templates");
+      const { expandTemplate } = await import("@ops/admin/mail-templates");
       const t = expandTemplate(flags.template, {
         date: new Date().toLocaleDateString(),
       });
@@ -1436,7 +1436,7 @@ async function runGacha(args: string[], flags: { [key: string]: string }): Promi
  */
 async function runMaxAccount(args: string[]): Promise<void> {
   const { accountManager } = await import("@game/service/player/AccountManager");
-  const config = (await import("../app/config")).default;
+  const config = (await import("@core/config/index")).default;
   const uid = args[0] || (config as any).singleUid || "1";
   const player = await accountManager.getPlayerData(uid);
   const { generateMaxedAccount } = await import("../scripts/generate-max-account");

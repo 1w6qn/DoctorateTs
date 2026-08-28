@@ -100,7 +100,7 @@ describe("架构解耦守卫", () => {
     // reqres-log 已并入 traffic-recorder（include 定向记录 + parseReqresLogMode），文件已删除——守卫防回归
     const mergedAway = path.join(APP_ROOT, "game", "reqres-log.ts");
     expect(fs.existsSync(mergedAway)).toBe(false);
-    const targets = [path.join(APP_ROOT, "utils", "traffic-recorder.ts")];
+    const targets = [path.join(APP_ROOT, "core", "utils", "traffic-recorder.ts")];
     // 通过端口类型注入 recorder，而不是直接落库到具体单例
     expect(targets.every((f) => fs.existsSync(f))).toBe(true);
     for (const file of targets) {
@@ -221,7 +221,7 @@ describe("架构解耦守卫", () => {
   });
 
   it("admin 层不得依赖 game 的 router 层（admin → @game/router 计数为 0）", () => {
-    const adminDir = path.join(APP_ROOT, "admin");
+    const adminDir = path.join(APP_ROOT, "ops", "admin");
     const offenders: string[] = [];
     for (const file of collectFiles(adminDir, ".ts")) {
       const line = firstOffendingLine(
@@ -236,7 +236,7 @@ describe("架构解耦守卫", () => {
   });
 
   it("admin 运行期 game 取值须经 game-gateway 网关（设计外直连可拦截）", () => {
-    const adminDir = path.join(APP_ROOT, "admin");
+    const adminDir = path.join(APP_ROOT, "ops", "admin");
     // admin 对 game 的「值」依赖边界：AccountManager/mail/maxout/model-gacha/crisis-seasons/pay-store/unlockActivity
     // 只能由 game-gateway.ts 聚合，其余 admin 文件不得直连；`import type` 不受限（无运行期耦合）。
     const gameValueModules =

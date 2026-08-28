@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { MAIL_TEMPLATES, expandTemplate } from "../../../app/admin/mail-templates";
+import { MAIL_TEMPLATES, expandTemplate } from "@ops/admin/mail-templates";
 
 describe("邮件模板", () => {
   it("应包含补偿/公告/欢迎模板", () => {

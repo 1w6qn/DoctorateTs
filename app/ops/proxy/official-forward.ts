@@ -27,8 +27,8 @@ import http from "http";
 import https from "https";
 import { logger } from "@utils/logger";
 import { hasPathPrefix, matchesAnyPrefix, LOCAL_ONLY_PREFIXES } from "@utils/path-prefix";
-import config from "../config";
-import { resolveRegion, resolveRegionAsPrefixes, resolveRegionHosts } from "../config/region";
+import config from "../../core/config";
+import { resolveRegion, resolveRegionAsPrefixes, resolveRegionHosts } from "../../core/config/region";
 import {
   ArkhubGatewayInfo,
   adaptArkhubEnterHallResponse,

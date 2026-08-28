@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import moment from 'moment';
 import { now, checkBetween, checkNew, userTimestamp } from '@utils/time';
-import config from '../../../app/config';
+import config from '@core/config/index';
 
 describe('now', () => {
   it('应该返回当前时间戳（秒）', () => {

@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
 import { getResVersion, CONF_API } from "./official-api";
-import { assetRegistry } from "../app/asset-registry/asset-service";
+import { assetRegistry } from "@asset/asset-service";
 
 const EXCEL_TARGET_DIR = path.join(__dirname, "../data/excel");
 

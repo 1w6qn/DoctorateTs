@@ -5,7 +5,7 @@ import {
   buildNetworkConfigContent,
   buildRemoteConfig,
   remoteConfigRouter,
-} from "../../../app/config/remote-config";
+} from "@core/config/remote-config";
 
 function mockRes() {
   return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };

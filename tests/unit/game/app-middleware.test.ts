@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const configMock = vi.hoisted(() => ({ default: { authMode: "single" } }));
-vi.mock("../../../app/config", () => configMock);
+vi.mock("@core/config/index", () => configMock);
 vi.mock("@game/service/player/AccountManager", () => ({
   accountManager: { getPlayerData: vi.fn(), getUidByToken: vi.fn() },
 }));

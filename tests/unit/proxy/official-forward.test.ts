@@ -8,9 +8,9 @@ import {
   createOfficialForwarder,
   OFFICIAL_AS_HOST,
   OFFICIAL_GS_HOST,
-} from "../../../app/proxy/official-forward";
-import { getGatewayTarget } from "../../../app/proxy/arkhub-gateway";
-import config from "../../../app/config";
+} from "@ops/proxy/official-forward";
+import { getGatewayTarget } from "@ops/proxy/arkhub-gateway";
+import config from "@core/config/index";
 
 /** 保存/恢复 config 的 region 相关字段（region 主机用例隔离；支持 async fn） */
 async function withCaptureRegion(

@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("../../../app/admin/AdminService", () => ({
+vi.mock("@ops/admin/AdminService", () => ({
   adminService: {},
 }));
-vi.mock("../../../app/admin/admin-auth", () => ({
+vi.mock("@ops/admin/admin-auth", () => ({
   adminAuth: vi.fn((_req: any, _res: any, next: any) => next()),
 }));
-vi.mock("../../../app/admin/cli-exec", () => ({ cliExec: vi.fn() }));
-vi.mock("../../../app/config", () => ({ default: {} }));
+vi.mock("@ops/admin/cli-exec", () => ({ cliExec: vi.fn() }));
+vi.mock("@core/config/index", () => ({ default: {} }));
 vi.mock("@capture/capture-manager", () => ({ captureManager: {} }));
 vi.mock("@logs/log-service", () => ({ logService: {} }));
 vi.mock("@utils/sse", () => ({ createSse: vi.fn(() => () => {}), sseSend: vi.fn() }));
@@ -18,7 +18,7 @@ vi.mock("@plugin/index", () => ({
   },
 }));
 
-import adminRouter from "../../../app/admin/admin-router";
+import adminRouter from "@ops/admin/admin-router";
 import { pluginConfigService } from "@plugin/index";
 
 function mockRes() {

@@ -76,7 +76,7 @@ vi.mock("@game/service/PlayerDataManager", () => ({
 }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import config from "../../../app/config";
+import config from "@core/config/index";
 import { isFormulaUnlocked, isDiamondStrategyUnlocked } from "@game/domain/building/unlocks";
 import { getSpecCond, SPEC_ASSIST_BASE_BONUS } from "@game/domain/building/mastery";
 import { BuildingManager } from "@game/domain/building/logic";

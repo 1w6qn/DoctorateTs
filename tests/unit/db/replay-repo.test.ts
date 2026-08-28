@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { DatabaseSync } from "node:sqlite";
-import { openDatabase, SCHEMA_SQL } from "../../../app/db/database";
-import { ReplayRepository } from "../../../app/db/replay-repo";
+import { openDatabase, SCHEMA_SQL } from "@core/db/database";
+import { ReplayRepository } from "@core/db/replay-repo";
 
 describe("ReplayRepository 战斗回放独立存储（R4）", () => {
   let repo: ReplayRepository;

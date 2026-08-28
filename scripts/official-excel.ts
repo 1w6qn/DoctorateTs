@@ -14,7 +14,7 @@ import { extractTextAsset } from "./vendor/unityfs";
 import { FBO } from "./vendor/fbo";
 import { LUACRYPT_MASK } from "./vendor/lua-crypt";
 import { convertTable, buildCompletion, isUpToDate } from "./excel-convert";
-import { assetRegistry } from "../app/asset-registry/asset-service";
+import { assetRegistry } from "@asset/asset-service";
 
 const ROOT = path.join(__dirname, "..");
 const HU = "https://ak.hycdn.cn/assetbundle/official";

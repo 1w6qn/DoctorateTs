@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { AdminService } from "../../../app/admin/AdminService";
+import { AdminService } from "@ops/admin/AdminService";
 import { accountManager } from "../../../app/game/service/player/AccountManager";
 import { mailManager } from "../../../app/game/service/player/mail";
 import { mockPlayerData } from "../../helpers";
-import config from "../../../app/config";
+import config from "@core/config/index";
 import { appendFile, mkdir } from "fs/promises";
 import { runMigration } from "../../../scripts/migrate-official";
-import { runOfficialAction, runOfficialCall, uploadPixelArtBatch as uploadPixelArtBatchMock, getPixelArtList as getPixelArtListMock, deletePixelArt as deletePixelArtMock } from "../../../app/admin/official-ops";
+import { runOfficialAction, runOfficialCall, uploadPixelArtBatch as uploadPixelArtBatchMock, getPixelArtList as getPixelArtListMock, deletePixelArt as deletePixelArtMock } from "@ops/admin/official-ops";
 
 // 官服迁移 mock（不真实联网/写库）
 vi.mock("../../../scripts/migrate-official", () => ({
@@ -14,7 +14,7 @@ vi.mock("../../../scripts/migrate-official", () => ({
   parseAccounts: vi.fn(),
 }));
 // 官服操作 mock（不真实联网）
-vi.mock("../../../app/admin/official-ops", () => ({
+vi.mock("@ops/admin/official-ops", () => ({
   runOfficialAction: vi.fn(),
   runOfficialCall: vi.fn(),
   validateCgi: (cgi: string) => cgi,

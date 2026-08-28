@@ -15,8 +15,8 @@ vi.mock("@utils/file", () => ({
   readJson: vi.fn().mockResolvedValue({ announcement: "test" }),
 }));
 
-import prod from "../../../app/config/prod";
-import config from "../../../app/config";
+import prod from "@core/config/prod";
+import config from "@core/config/index";
 
 /** 保存/恢复 config 的 region 相关字段（version 伪装用例隔离；支持 async fn） */
 async function withCaptureRegion(

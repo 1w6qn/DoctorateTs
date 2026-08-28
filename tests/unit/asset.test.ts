@@ -36,7 +36,7 @@ vi.mock("fs/promises", async (importOriginal) => {
   };
 });
 
-import assetRouter from "../../../app/asset";
+import assetRouter from "../../app/ops/assets/asset";
 
 function mockRes() {
   return {

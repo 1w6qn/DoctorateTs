@@ -27,7 +27,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import JSZip from "jszip";
-import config from "../app/config";
+import config from "@core/config/index";
 import { extractTextAssets } from "./vendor/unityfs";
 import { buildLuaMinPack } from "./pack-lua-min";
 

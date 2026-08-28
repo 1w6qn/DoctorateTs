@@ -12,7 +12,7 @@ import { getPlayer, getPlayerOptional } from "../../request-context";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { ShopError } from "../../domain/shop/errors";
 import excel from "@excel/excel";
-import config from "../../../config";
+import config from "@core/config/index";
 import {
   BuyCashGoodRequest,
   BuyCashGoodResponse,

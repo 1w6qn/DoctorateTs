@@ -11,7 +11,7 @@
  * - 用 `getResVersion()` 轻量探测（不写配置）；真实解包重签走 update-data.main()。
  */
 import { logger } from "@utils/logger";
-import { getResVersion } from "../../scripts/official-api";
+import { getResVersion } from "../../../scripts/official-api";
 
 /** 默认探测间隔（毫秒）：15 分钟 */
 const DEFAULT_INTERVAL_MS = 15 * 60 * 1000;
@@ -65,7 +65,7 @@ class AutoUpdateWatch {
     this._running = true;
     try {
       const android = await getResVersion();
-      const { default: config } = await import("../config");
+      const { default: config } = await import("../../core/config");
       const local =
         (config.version as { windows?: { resVersion?: string } })?.windows?.resVersion ??
         (config.version as { resVersion?: string })?.resVersion;
@@ -76,7 +76,7 @@ class AutoUpdateWatch {
         "AutoUpdateWatch",
         `检测到官服数据变动 ${local} → ${android.resVersion}，自动拉取并解包重签`,
       );
-      const updateModule = await import("../../scripts/update-data");
+      const updateModule = await import("../../../scripts/update-data");
       const code = await updateModule.main(false);
       if (code === 0) {
         // 全管线成功：切到新 excel 数据（复用 index 启动时的热重载方式）

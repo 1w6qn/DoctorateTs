@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as path from "path";
 import * as os from "os";
 import * as fs from "fs";
-import { assetRegistry } from "../../../app/asset-registry/asset-service";
+import { assetRegistry } from "@asset/asset-service";
 
 /** 测试专用独立临时目录——绝不碰真实 tmp/asset/ */
 const TEST_ROOT = path.join(os.tmpdir(), "asset-registry-test");

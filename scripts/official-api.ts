@@ -10,7 +10,7 @@
  * 全部使用 Node 24 内置 fetch + node:crypto，零第三方依赖。
  */
 import crypto from "node:crypto";
-import config from "../app/config";
+import config from "@core/config/index";
 
 /**
  * 官服操作后端地址（支持自定义后端）

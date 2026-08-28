@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { createHostRouter } from "../../../app/config/host-router";
+import { createHostRouter } from "@core/config/host-router";
 
 function mockReq(host: string, url: string) {
   return { headers: { host }, url } as any;

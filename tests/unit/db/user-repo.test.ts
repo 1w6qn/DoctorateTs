@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { openDatabase, SCHEMA_SQL } from "../../../app/db/database";
-import { UserRepository, migrateUsersFromJsonFile } from "../../../app/db/user-repo";
+import { openDatabase, SCHEMA_SQL } from "@core/db/database";
+import { UserRepository, migrateUsersFromJsonFile } from "@core/db/user-repo";
 import { DatabaseSync } from "node:sqlite";
 
 const fileMock = vi.hoisted(() => ({ readJson: vi.fn() }));

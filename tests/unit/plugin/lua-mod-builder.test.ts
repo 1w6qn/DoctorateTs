@@ -10,7 +10,7 @@ import {
   ensureLuaMinModBuilt,
   isLuaModStale,
   BUILTIN_LUA_MOD_NAME,
-} from "../../../app/plugin/lua-mod-builder";
+} from "@plugin/lua-mod-builder";
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();

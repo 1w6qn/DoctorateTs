@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as path from "path";
 import * as os from "os";
 import * as fs from "fs";
-import { captureManager, splitPath } from "../../../app/capture/capture-manager";
+import { captureManager, splitPath } from "@capture/capture-manager";
 
 // 测试专用独立临时目录——绝不碰真实 tmp/capture/
 const TEST_ROOT = path.join(os.tmpdir(), "capture-manager-test");

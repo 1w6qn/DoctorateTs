@@ -5,7 +5,7 @@
  * 复用 scripts/admin-cli 的 dispatch（同一套命令集），捕获 console 输出返回给调用方。
  * 放在独立模块避免 AdminService ↔ admin-cli 循环依赖（router → cli-exec → admin-cli → AdminService）。
  */
-import { parseArgs, dispatch } from "../../scripts/admin-cli";
+import { parseArgs, dispatch } from "../../../scripts/admin-cli";
 
 export interface CliExecResult {
   ok: boolean;

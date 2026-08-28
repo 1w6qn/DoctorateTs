@@ -3,8 +3,8 @@ import axios, { AxiosError, RawAxiosRequestHeaders } from "axios";
 import http from "http";
 import https from "https";
 import morgan from "morgan";
-import { logger } from "../app/utils/logger";
-import { captureManager } from "../app/capture/capture-manager";
+import { logger } from "@utils/logger";
+import { captureManager } from "@capture/capture-manager";
 
 /**
  * 官服独立抓包代理（pnpm run ts，端口 8444）

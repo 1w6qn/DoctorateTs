@@ -16,10 +16,10 @@ import { getRoomPhase } from "@excel/building_excel";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { PlayerDataModel } from "@game/domain/playerdata";
 import { adminGame } from "./game-gateway";
-import { runMigration } from "../../scripts/migrate-official";
-import { loadUsers } from "../../scripts/official-register";
-import { buildMaxedChar } from "../../scripts/generate-max-account";
-import { GAME_API, ACCOUNT_API, CONF_API } from "../../scripts/official-api";
+import { runMigration } from "../../../scripts/migrate-official";
+import { loadUsers } from "../../../scripts/official-register";
+import { buildMaxedChar } from "../../../scripts/generate-max-account";
+import { GAME_API, ACCOUNT_API, CONF_API } from "../../../scripts/official-api";
 import {
   runOfficialAction,
   runOfficialCall,
@@ -38,7 +38,7 @@ import {
   listBackfillTasks as listAssetBackfillTasks,
   autoBackfillAfterSwitch,
   BackfillTask,
-} from "../asset-backfill";
+} from "../assets/asset-backfill";
 import type { PayOrderRecord } from "@game/service/shared/pay-store";
 import {
   itemName,
@@ -49,7 +49,7 @@ import {
   resolveCharRef,
   COMMON_ITEMS,
 } from "./admin-names";
-import config from "../config";
+import config from "../../core/config";
 
 /**
  * 解构 admin 可访问的 game 运行时实体（来自 game-gateway 薄网关）。

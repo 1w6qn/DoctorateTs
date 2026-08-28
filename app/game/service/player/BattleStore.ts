@@ -6,7 +6,7 @@
  * 由 AccountManager 持有并委托（门面保留原公共方法签名）。
  */
 import type { BattleInfo, BattleRecord } from "./BattleInfoStore";
-import type { ReplayRepository } from "../../../db/replay-repo";
+import type { ReplayRepository } from "@core/db/replay-repo";
 
 export class BattleStore {
   constructor(private _replayRepo?: ReplayRepository) {}

@@ -60,8 +60,8 @@ vi.mock("yauzl", () => ({
   ZipFile: class {},
 }));
 
-import assetRouter from "../../app/asset";
-import { getModsList, getModVersionSuffix, refreshModsIfChanged, nextModBaseCid } from "../../app/asset";
+import assetRouter from "@ops/assets/asset";
+import { getModsList, getModVersionSuffix, refreshModsIfChanged, nextModBaseCid } from "@ops/assets/asset";
 import { exists, size } from "@utils/file";
 import { readdir, readFile, stat } from "fs/promises";
 

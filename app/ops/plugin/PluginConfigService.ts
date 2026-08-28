@@ -11,7 +11,7 @@ import { logger } from "@utils/logger";
 import { loadPluginCatalog, type PluginCatalogEntry } from "./plugin-catalog";
 
 /** 插件目录（相对项目根） */
-const PLUGIN_DIR = join(__dirname, "..", "..", "data", "plugin");
+const PLUGIN_DIR = join(__dirname, "..", "..", "..", "data", "plugin");
 /** 配置文件路径 */
 const PLUGIN_CONFIG_PATH = join(PLUGIN_DIR, "config.json");
 

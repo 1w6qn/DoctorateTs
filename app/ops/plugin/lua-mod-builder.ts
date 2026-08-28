@@ -14,8 +14,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import { logger } from "@utils/logger";
-import { repackBuiltinLua, repackBuiltinFromRef } from "../../scripts/repack-lua-bundle";
-import { buildLuaMinPack } from "../../scripts/pack-lua-min";
+import { repackBuiltinLua, repackBuiltinFromRef } from "../../../scripts/repack-lua-bundle";
+import { buildLuaMinPack } from "../../../scripts/pack-lua-min";
 
 /** 内置 Lua 主 bundle 覆盖 mod 文件名（对应 app/asset.ts mod 管线下载名）。
  *  以客户端真实引导 Lua 的 bundle 为准（2.7.61 当前为 anon/6edf14bb….bin）；
@@ -46,13 +46,14 @@ export interface LuaModBuildOptions {
 
 /** 缺省插件源码目录（相对项目根） */
 function defaultPluginDir(): string {
-  return path.join(__dirname, "..", "..", "lua", "plugin");
+  return path.join(__dirname, "..", "..", "..", "lua", "plugin");
 }
 
 /** 缺省官方明文 Lua 参考目录 */
 function defaultRefDir(): string {
   return path.join(
     __dirname,
+    "..",
     "..",
     "..",
     "reference",
@@ -142,7 +143,7 @@ function hasLuaFiles(dir: string): boolean {
 export async function ensureLuaModBuilt(
   options: LuaModBuildOptions = {},
 ): Promise<LuaModBuildResult> {
-  const modsDir = options.modsDir ?? path.join(__dirname, "..", "..", "mods");
+  const modsDir = options.modsDir ?? path.join(__dirname, "..", "..", "..", "mods");
   const pluginDir = options.pluginDir ?? defaultPluginDir();
   const refDir = options.refDir ?? defaultRefDir();
   const datPath = path.join(modsDir, BUILTIN_LUA_MOD_NAME);
@@ -199,7 +200,7 @@ export async function ensureLuaModBuilt(
  * @returns 结果（built / dat 路径）
  */
 export async function ensureLuaMinModBuilt(
-  modsDir: string = path.join(__dirname, "..", "..", "mods"),
+  modsDir: string = path.join(__dirname, "..", "..", "..", "mods"),
 ): Promise<{ built: boolean; dat: string | null }> {
   try {
     const result = await buildLuaMinPack(undefined, undefined, modsDir);

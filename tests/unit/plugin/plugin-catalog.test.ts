@@ -6,7 +6,7 @@ import {
   parsePluginDefs,
   loadPluginCatalog,
   FALLBACK_CATALOG,
-} from "../../../app/plugin/plugin-catalog";
+} from "@plugin/plugin-catalog";
 
 describe("plugin-catalog 插件目录单一数据源", () => {
   it("parsePluginDefs 解析 PluginDefs.lua 文本为目录条目", () => {

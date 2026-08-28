@@ -110,7 +110,7 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-import config from "../../../app/config";
+import config from "@core/config/index";
 import { mockPlayerData } from "../../helpers";
 import { unlockActivity } from "@game/service/player/unlockActivity";
 

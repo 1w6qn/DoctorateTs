@@ -3,7 +3,7 @@ import { getPlayer, getPlayerOptional } from "../../request-context";
 import { PlayerDataManager } from "@game/service/PlayerDataManager";
 import { accountManager } from "@game/service/player/AccountManager";
 import { userTimestamp } from "@utils/time";
-import config from "../../../config";
+import config from "@core/config/index";
 import {
   LoginRequest,
   LoginResponse,

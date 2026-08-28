@@ -9,7 +9,7 @@ import {
   isArkhubEnterHall,
   OFFICIAL_ARKHUB_GATEWAY_HOST,
   OFFICIAL_ARKHUB_GATEWAY_PORT,
-} from "../../../app/proxy/arkhub-gateway";
+} from "@ops/proxy/arkhub-gateway";
 
 /** 等待端口监听就绪 */
 function listen(server: net.Server): Promise<void> {
@@ -128,7 +128,7 @@ describe("startArkhubGatewayProxy（30000 TCP 转发器）", () => {
     });
     expect(first.server).not.toBeNull();
     const usedPort = first.port;
-    let second: import("../../../app/proxy/arkhub-gateway").ArkhubGatewayProxyResult | undefined;
+    let second: import("@ops/proxy/arkhub-gateway").ArkhubGatewayProxyResult | undefined;
     try {
       // 第二个实例首选 usedPort 被占 → 自动避让到 usedPort+1
       second = await startArkhubGatewayProxy({

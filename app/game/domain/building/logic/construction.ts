@@ -6,7 +6,7 @@
  */
 import type { BuildingManager } from "../logic";
 import { now } from "@utils/time";
-import config from "../../../../config";
+import config from "@core/config/index";
 import { Draft } from "mutative";
 import { PlayerDataModel } from "@game/domain/playerdata";
 import { BuildingData_OrderType, BuildingData_RoomType } from "@game/domain/playerdata";

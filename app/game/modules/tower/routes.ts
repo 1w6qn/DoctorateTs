@@ -2,7 +2,7 @@
  * 爬塔路由模块
  *
  * 处理保全派驻相关的 HTTP 请求，包括游戏创建、神卡初始化、战斗处理等功能。
- * 请求/响应类型见 @game/domain/tower/tower（参考 CS 2.7.61 协议类）。
+ * 请求/响应类型见 @game/modules/tower/tower（参考 CS 2.7.61 协议类）。
  *
  * 实现说明：
  * - 路由处理函数通过 PlayerDataManager.update() 修改玩家数据，并使用 player.delta 返回增量。

@@ -1,6 +1,6 @@
 /**
  * Lua 插件打包器：把 lua/plugin/ 下的明文 Lua 插件脚本打包为单个 UnityFS bundle，
- * 并包装为 mods/*.dat（zip 单条目，条目名 = bundle 名），经 app/asset.ts mod 管线热更下发。
+ * 并包装为 mods/*.dat（zip 单条目，条目名 = bundle 名），经 app/ops/assets/asset.ts mod 管线热更下发。
  *
  * 用法：
  *   pnpm run pack:lua-plugins [--dir <lua根目录>] [--out <mods目录>]

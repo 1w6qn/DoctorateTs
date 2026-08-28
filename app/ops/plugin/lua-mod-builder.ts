@@ -17,7 +17,7 @@ import { logger } from "@utils/logger";
 import { repackBuiltinLua, repackBuiltinFromRef } from "../../../scripts/repack-lua-bundle";
 import { buildLuaMinPack } from "../../../scripts/pack-lua-min";
 
-/** 内置 Lua 主 bundle 覆盖 mod 文件名（对应 app/asset.ts mod 管线下载名）。
+/** 内置 Lua 主 bundle 覆盖 mod 文件名（对应 app/ops/assets/asset.ts mod 管线下载名）。
  *  以客户端真实引导 Lua 的 bundle 为准（2.7.61 当前为 anon/6edf14bb….bin）；
  *  官服更新 Lua bundle（hash 变化）后需同步校准。 */
 export const BUILTIN_LUA_MOD_NAME = "anon_6edf14bbd79243eb61e288ff28e446c3.dat";

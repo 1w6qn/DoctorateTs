@@ -2,7 +2,7 @@
 
 > 体检日期：2026-08-17（首版）；**2026-08-17 18:35 更新**：P0（实托邦/误入奇境/行动力）与三结局核心链路已实现（见 §十一 变更记录）；**18:40 更新**：二结局·维度重构全链路已实现；**2026-08-19 更新**：节点分发全量补齐 + 主题规则注册表重构 + B1~B9 bug 修复（见 §十二）
 > 对照源：用户提供的官方探索模式文本（模式/难度/分队/行动奖励/招募组合/区域/结局）
-> 检查范围：`app/game/controller/rlv2/` 全部控制器、`app/excel/roguelike_topic_table.ts`、`data/excel/roguelike_topic_table.json`、`data/rlv2/*.json`、`app/game/router/rlv2.ts`
+> 检查范围：`app/game/modules/roguelike/` 全部控制器、`app/game/excel/excel.ts`、`data/excel/roguelike_topic_table.json`、`data/rlv2/*.json`、`app/game/modules/roguelike/`
 >
 > **阅读须知**：本文按时间线增量更新，早期章节中被后续实现推翻的结论已就地标注 `~~已过期~~`；如遇同一项在不同章节结论冲突，**以日期更晚的结论为准**（§十二 > §十一 > 首版）。
 >
@@ -240,20 +240,20 @@
 
 实托邦 + 行动力 + 二/三结局流程落地，新增/更新测试 31 条（controller 247 全绿）：
 
-1. `app/game/controller/rlv2/modules/grid_zone.ts`：
+1. `app/game/modules/roguelike/modules/grid_zone.ts`：
    - 导出 `ROGUE6_NODE`；新增 `GridPortalState` + `PORTAL_FAMILY`（雾色场景族 1~9 → 乌托邦效果 + utopia 模板映射）
    - `generatePortal`（误入奇境隐藏层：按雾色选模板 + variation + 专用行动力 + 返回点记录）、`leavePortal`（行动力耗尽返回）、`currentZoneKey`、`pickPortalTemplate`
    - `applyUtopiaVariation`（常规区实托邦：难度 2/6/12 三档概率附加 variation）
    - `initialActionForZone`（层行动力 5/6/7/8/8 + 翅膀节点 + 襁褓天马）、`step` 行动力耗尽自动返回、`generate` 支持模板 action（VI 层 5）
    - `pickTypeByRules` 支持无层类型表的隐藏层（跳过过滤）、`syncMapZones` 支持自定义 mapKey、toJSON 条件输出 portal
-2. `app/game/controller/rlv2.ts`：
+2. `app/game/modules/roguelike/handler.ts`：
    - `gridZoneMoveTo` MIRAGE → `createPortalScene`；PROPHECY → `createFateScene`；INCIDENT → `createIncidentScene`（线人）
    - `selectChoice`：portal 分支（_1.._3 消耗加工品进入 / _4 直接 / _5·_6 结束）+ scout 三结局标记 + end1/end2/bomb1 二结局分支
    - `checkZoneEnd`：先行一步干员返回 +2 希望 + 怦然信标（expedEndingRelic 数据驱动）；通过 VI 层 → ending_3；持沙盘不持怦然信标通过 V 层 → ending_2
    - `maxZone`：怦然信标放行 6 层；`hasRelic` 辅助；`startChaosSourceBattle`（混沌源阶理论 ro6_b_5）/`gainPreciousScrap`/`createFateScene`/`createIncidentScene`
    - `generateShopGoods`：随机藏品池排除二结局专属沙盘；`buildShopContent`：Ⅰ-Ⅲ 层行商上架沙盘β（1 源石锭）
-3. `app/game/controller/rlv2/inventory.ts`：`SPECIAL_ZONE_AP` handler 生效（增减当前区行动力）
-4. `app/game/model/events.ts`：注册 `rlv2:portal:return` 事件
+3. `app/game/modules/roguelike/inventory.ts`：`SPECIAL_ZONE_AP` handler 生效（增减当前区行动力）
+4. `app/game/kernel/events/rlv2.ts`：注册 `rlv2:portal:return` 事件
 5. 测试：`rlv2-gridzone-portal.test.ts`（新 13 条）、`rlv2-ending-3.test.ts`（新 5 条）、`rlv2-ending-2.test.ts`（新 7 条）、`rlv2-legacy-support.test.ts`（新 8 条：襁褓选项/次数/特勤影像）；`rlv2-modules.test.ts` 更新行动力断言
 
 ### P2 变更（2026-08-17 18:50）
@@ -302,7 +302,7 @@
 
 ### 12.2 主题规则注册表（架构重构）
 
-新增 `app/game/controller/rlv2/theme-rules.ts` 作为主题数据的**单一事实来源**：`ROGUE6_NODE`（21 项）、`ROGUE6_SHOP_NODES` / `ROGUE6_BATTLE_NODES`、`ROGUE6_ZONE_ACTION`、`ROGUE6_NODE_SCENE_PREFIX`、`ROLL_NODE_TYPE_VALUES`、结局关卡/收藏品常量、`isBlackstream(theme)`。原先散落 7 个文件的 20+ 处 `theme === "rogue_6"` 与节点数值字面量全部改为查表。该文件**不 import 任何管理器**（避免循环依赖），`grid_zone.ts` 对外 re-export `ROGUE6_NODE` 保证既有调用方零改动。
+新增 `app/game/modules/roguelike/theme-rules.ts` 作为主题数据的**单一事实来源**：`ROGUE6_NODE`（21 项）、`ROGUE6_SHOP_NODES` / `ROGUE6_BATTLE_NODES`、`ROGUE6_ZONE_ACTION`、`ROGUE6_NODE_SCENE_PREFIX`、`ROLL_NODE_TYPE_VALUES`、结局关卡/收藏品常量、`isBlackstream(theme)`。原先散落 7 个文件的 20+ 处 `theme === "rogue_6"` 与节点数值字面量全部改为查表。该文件**不 import 任何管理器**（避免循环依赖），`grid_zone.ts` 对外 re-export `ROGUE6_NODE` 保证既有调用方零改动。
 
 ### 12.3 bug 修复台账
 
@@ -342,7 +342,7 @@
 
 ### 13.1 新增/修改
 
-1. `app/game/controller/rlv2/incident.ts`（新增）：`Rogue6IncidentEngine` 事件引擎。
+1. `app/game/modules/roguelike/incident.ts`（新增）：`Rogue6IncidentEngine` 事件引擎。
    - `createIncident`：按当前层（floors）、遭遇记录（非重复事件只出现一次）、前置事件（呼吸的红苔←沉寂之屋）、持有物（泪之聚落←怦然信标）过滤事件池随机一幕；误入奇境隐藏层内「洞中宝」切 bat6b 差分；遭遇记录持久于 `current.game.incidentSeen`。
    - `resolveChoice`：消耗按官方描述文本解析（全部/一半源石锭、N源石锭/目标生命值（至少保留1）/行动力、随机2件加工品、种子、源私钥）；发放走官方 `displayData.itemID`（虚拟资源物品既有 handler）+ grants 表随机奖励（收藏品/珍贵收藏品/三类零件）；随机分支（randomScenes）与场景图（sceneChoices）推进；战斗选项映射关卡（固定/随机/下一层普通作战）并标记节点。
 2. `data/rlv2/event_choices.json`：新增 `rogue_6` 段（incidents/enter/sceneChoices/randomScenes/battles/grants/gates）。

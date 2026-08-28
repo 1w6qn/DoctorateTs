@@ -2349,7 +2349,7 @@ export class AdminService {
           );
         }
         // 官服枢纽宠物继承（官服存档不含宠物，只存在于官服网关户籍——按官服 uid 匹配
-        // 本机网关抓包还原；无匹配抓包时静默跳过，不阻断迁移。见 app/admin/arkhub-pets.ts）
+        // 本机网关抓包还原；无匹配抓包时静默跳过，不阻断迁移。见 app/ops/admin/arkhub-pets.ts）
         try {
           const pets = await this.importArkhubPets(r.uid, undefined, r.officialUid);
           if (pets.imported) {

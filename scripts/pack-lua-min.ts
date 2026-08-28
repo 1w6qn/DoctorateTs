@@ -127,7 +127,7 @@ export async function buildLuaMinPack(
 
   fs.mkdirSync(outs, { recursive: true });
   // dat 名 = bundleToModName(bundleName)（规范实现在 repack-lua-bundle，语义对齐
-  // app/asset.ts loadMods 由 zip 条目名推导 downloadName 的查找规则：/ → _、# → __、去扩展名 + .dat）。
+  // app/ops/assets/asset.ts loadMods 由 zip 条目名推导 downloadName 的查找规则：/ → _、# → __、去扩展名 + .dat）。
   const datName = bundleToModName(bundleName);
   const dat = path.join(outs, datName);
   fs.writeFileSync(dat, Buffer.from(datBuf));

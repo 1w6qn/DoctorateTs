@@ -221,7 +221,7 @@ const logListeners = new Set<(e: LogEvent) => void>();
 /**
  * 订阅日志事件（通过级别过滤的实时日志）
  *
- * 统一日志服务（app/logs/log-service.ts）与 Dashboard「日志」Tab 的 SSE 尾随依赖此订阅。
+ * 统一日志服务（app/core/logs/log-service.ts）与 Dashboard「日志」Tab 的 SSE 尾随依赖此订阅。
  * 与文件/控制台输出并行，不影响既有行为。
  *
  * @param fn - 回调（每次 write 触发，参数为 LogEvent）

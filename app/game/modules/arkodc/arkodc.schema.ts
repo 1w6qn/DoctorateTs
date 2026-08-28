@@ -1,7 +1,7 @@
 /**
  * arkodc（act53side「直到大地变成一颗酸橙」ODC 小游戏）请求 zod schema
  *
- * 参照 app/game/router/arkodc.ts 顶部内联的 ArkOdc*Request 接口，为各端点建立
+ * 参照 app/game/modules/arkodc/routes.ts 顶部内联的 ArkOdc*Request 接口，为各端点建立
  * 请求格式约束：缺失必填字段 / 类型不符时由 validateBody 中间件返回 HTTP 4xx。
  *
  * 约定：

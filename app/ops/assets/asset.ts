@@ -375,7 +375,7 @@ export function nextModBaseCid(abInfos: { cid?: number }[], packInfos: { cid?: n
  * mod 变更 → 签名变化（触发热更清单重新拉取）。无 mod 时返回 ""（保持原版行为）。
  *
  * 返回 6 位 hex 签名（对齐官方 hash 格式）。调用方用它**替换** resVersion 的 hash 部分
- * （见 app/config/prod.ts：`resVersion.slice(0, 18) + sig`），保持官方
+ * （见 app/core/config/prod.ts：`resVersion.slice(0, 18) + sig`），保持官方
  * `YYYY-MM-DD-HH-MM-SS_<6位hash>` 格式——追加 `-m` 后缀会破坏客户端 versionId 解析，
  * 导致客户端静默跳过整个热更流程（mod 永不下载）。
  * @param platform - 平台键（Windows/Android），签名按平台独立计算

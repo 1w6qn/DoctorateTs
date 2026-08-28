@@ -2,7 +2,7 @@
  * mod 打包工具：将 ArkUnpacker 解包出的资源目录打包为 mods/*.dat（zip）资源包
  *
  * 每个文件打成一个 .dat（zip，单条目），条目名 = 相对源目录的 posix 路径——
- * 与 app/asset.ts loadMods 的约定一致（zip 条目名即 mod 名，如 "activity/[uc]act5fun.ab"）。
+ * 与 app/ops/assets/asset.ts loadMods 的约定一致（zip 条目名即 mod 名，如 "activity/[uc]act5fun.ab"）。
  *
  * 用法：
  *   pnpm run pack:mod -- --dir <ArkUnpacker 解包目录> [--out <mods 目录>] [--clean]
@@ -41,7 +41,7 @@ function parseArgs(argv: string[]): CliArgs {
   return args;
 }
 
-/** 与 app/asset.ts 一致的下载名转换：/ → _，# → __，去扩展名 + .dat */
+/** 与 app/ops/assets/asset.ts 一致的下载名转换：/ → _，# → __，去扩展名 + .dat */
 export function toDownloadName(relPosix: string): string {
   return relPosix.replace(/\//g, "_").replace(/#/g, "__").split(".")[0] + ".dat";
 }

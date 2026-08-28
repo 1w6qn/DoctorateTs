@@ -4,7 +4,7 @@
  * 背景：内置 Lua 主 bundle（如 anon/7d91430e114d86fef7d3b3511151e12d.bin）是客户端 base 资产，
  * 不在官方 hot_update_list 中、CDN 亦 404，唯一取数源是已装客户端 / 安装包。本脚本把
  * 「下载 APK → 解包定位 Lua bundle → 提取明文 → 注入插件引导（merge lua/plugin + patch DefinedFix）」
- * 全链路自动化，产出 mods/anon_*.dat 供 app/asset.ts 热更下发。
+ * 全链路自动化，产出 mods/anon_*.dat 供 app/ops/assets/asset.ts 热更下发。
  *
  * 下载源（多级回退）：
  *   1. 官方稳定链接 https://ak.hypergryph.com/downloads/android_lastest（302 跟随 → 最新 APK）

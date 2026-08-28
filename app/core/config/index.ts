@@ -55,7 +55,7 @@ interface UserConfig {
   /**
    * region 配置表（capture 模式下按 region 伪装版本/资源通道/转发目标；
    * 字段级回退，零迁移——未配置任何 region 时行为与现状一致）。
-   * 结构见 app/config/region.ts 的 RegionConfig。
+   * 结构见 app/core/config/region.ts 的 RegionConfig。
    */
   regions?: Record<string, import("./region").RegionConfig>;
   /** 版本信息 */

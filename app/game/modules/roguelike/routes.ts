@@ -1,6 +1,6 @@
 /**
  * 老版集成战略（roguelike v1）路由
- * 请求/响应类型见 @game/domain/rlv2/roguelike（CS 2.7.61 无对应类，以服务端实现为准）
+ * 请求/响应类型见 @game/modules/roguelike/roguelike（CS 2.7.61 无对应类，以服务端实现为准）
  */
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../kernel/http/request-context";

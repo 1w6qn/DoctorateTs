@@ -182,7 +182,7 @@ router.post("/act42side/confirmTask", validateBody(ReqSchema.act42sideTaskSchema
   res.send(player.delta satisfies ActivityStubResponse);
 });
 
-// act44side（「墟」情报屋）：状态机实现在 @game/domain/activity/act44side/informant，
+// act44side（「墟」情报屋）：状态机实现在 @game/modules/activities/act44side/informant，
 // 协议形状以官服抓包为准（activity.TYPE_ACT44SIDE[actId].game，见 spec
 // .trae/specs/act44side-informant/spec.md）；响应均为纯 PlayerDeltaResponse。
 /**

@@ -22,7 +22,7 @@ function traceVersionIssued(platform: string, resVersion: string): void {
 /**
  * 拼接带 mod 签名的 resVersion：替换 hash 部分而非追加后缀，保持官方格式
  * `YYYY-MM-DD-HH-MM-SS_<6位hash>`——追加 `-m` 会破坏客户端 versionId 解析，
- * 导致客户端静默跳过热更（mod 永不下载，见 app/asset.ts getModVersionSuffix 注释）。
+ * 导致客户端静默跳过热更（mod 永不下载，见 app/ops/assets/asset.ts getModVersionSuffix 注释）。
  * @param base - 官方 resVersion（如 26-08-07-10-51-39_26e0fc）
  * @param sig  - 6 位 mod 签名（空则不修改版本）
  */

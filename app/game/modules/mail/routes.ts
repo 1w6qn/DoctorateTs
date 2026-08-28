@@ -1,6 +1,6 @@
 /**
  * 邮件路由
- * 请求/响应类型见 @game/domain/mail/mail（参考 CS 2.7.61 协议类）
+ * 请求/响应类型见 @game/modules/mail/mail（参考 CS 2.7.61 协议类）
  */
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../kernel/http/request-context";

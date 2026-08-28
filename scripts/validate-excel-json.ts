@@ -5,7 +5,7 @@ import { EXCEL_TABLE_ROOTS } from "./excel-server-adapt";
 /**
  * data/excel/*.json 类型覆盖校验
  *
- * 用真实 excel 数据校验 app/game/service/excel/types_excel_gen.ts 的类型闭包是否完整描述
+ * 用真实 excel 数据校验 app/game/excel/types_excel_gen.ts 的类型闭包是否完整描述
  * 各表结构（缺字段/大小写/结构/标量 四维）。
  *
  * 用法: pnpm exec tsx scripts/validate-excel-json.ts [--tables t1,t2] [--full <file>]
@@ -260,7 +260,7 @@ function walkTable(
 
 export function main(argv: string[] = []): void {
   const args = argv;
-  const typesFile = "D:/develop/DoctorateTs/app/game/service/excel/types_excel_gen.ts";
+  const typesFile = "D:/develop/DoctorateTs/app/game/excel/types_excel_gen.ts";
   const tablesArg = args.indexOf("--tables");
   const tableFilter = tablesArg !== -1 ? new Set(args[tablesArg + 1].split(",")) : null;
 

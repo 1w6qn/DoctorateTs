@@ -139,7 +139,7 @@ const ASSET_ACTIONS: readonly AssetAction[] = [
  * 统一资产注册与审计管理器
  *
  * 单例 assetRegistry：configure() 注入测试目录后 init()；生产路径 index.ts 启动时 init()；
- * 写入方（app/asset.ts / scripts/*）经 register/recordEvent 统一落库。
+ * 写入方（app/ops/assets/asset.ts / scripts/*）经 register/recordEvent 统一落库。
  * 未 init 时写入方调用会触发惰性 init（ensureInit），保证独立工具（CLI 等）开箱即用。
  */
 class AssetRegistry {

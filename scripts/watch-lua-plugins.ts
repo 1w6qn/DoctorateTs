@@ -2,7 +2,7 @@
  * Lua 插件热重载脚本
  *
  * 监听 lua/plugin/*.lua 变更 → 自动重打包内置 Lua bundle mod → 使平台 mods 指纹缓存失效，
- * 客户端下次拉取 hot_update_list.json 时 app/asset.ts 会重扫 mods/ 拿到新指纹并重新下载覆盖。
+ * 客户端下次拉取 hot_update_list.json 时 app/ops/assets/asset.ts 会重扫 mods/ 拿到新指纹并重新下载覆盖。
  * 目标：改一个插件 Lua 免手动重打包，提升插件开发迭代体验。
  *
  * 依赖：Node 24 内置 fs.watch（无需 chokidar）。
@@ -32,7 +32,7 @@ const REF_LUA_DIR = path.join(
 const OUT_MODS_DIR = path.join(__dirname, "..", "mods");
 /**
  * mods 指纹缓存路径集合：asset.ts 实际缓存为 mods.<platform>.json
- * （见 app/asset.ts loadMods，平台隔离缓存），另兼容历史单文件 mods.json。
+ * （见 app/ops/assets/asset.ts loadMods，平台隔离缓存），另兼容历史单文件 mods.json。
  * 重打包后需删除以强制重建（asset.ts 的 refreshModsIfChanged 指纹检测是主要重载路径，
  * 此处为双保险）。
  */

@@ -1,7 +1,7 @@
 /**
  * 管理 REST API 请求体 zod schema
  *
- * 供 app/admin/admin-router.ts 的 POST/DELETE/PUT/PATCH 端点经 validateBody
+ * 供 app/ops/admin/admin-router.ts 的 POST/DELETE/PUT/PATCH 端点经 validateBody
  * 做运行时校验：缺失必填字段 / 类型不符时返回 HTTP 400，避免非法 body 传入
  * AdminService 抛 500。GET 端点基本只读（除个别用 query 参数），不在此列。
  *

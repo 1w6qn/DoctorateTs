@@ -1,8 +1,8 @@
 /**
  * 愚人节（act3fun/act4fun/act5fun/act6fun/act7fun）请求 zod schema
  *
- * 参照 app/game/model/protocol/aprilFool.ts 中各类 Request 接口，为
- * app/game/router/aprilFool.ts 全部端点建立请求格式约束：缺失必填字段 / 类型不符时
+ * 参照 app/game/modules/aprilFool/aprilFool.ts 中各类 Request 接口，为
+ * app/game/modules/aprilFool/routes.ts 全部端点建立请求格式约束：缺失必填字段 / 类型不符时
  * 由 validateBody 中间件返回 HTTP 4xx，避免非法 body 传入控制器抛 500。
  *
  * 约定：

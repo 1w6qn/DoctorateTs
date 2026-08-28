@@ -13,7 +13,7 @@
  *   /pay/notify（或管理端 `pay order <id> confirm` 手动确认）标记 paid 后，confirmOrder 才发货。
  *   支付宝/微信支付参数可配（config.pay.alipay.appId / wechat.mchId 等）。
  *
- * 请求/响应类型见 @game/domain/pay/pay（参考 CS 2.7.61 协议类 + DoctoratePy pay.py）。
+ * 请求/响应类型见 @game/modules/pay/pay（参考 CS 2.7.61 协议类 + DoctoratePy pay.py）。
  */
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../kernel/http/request-context";

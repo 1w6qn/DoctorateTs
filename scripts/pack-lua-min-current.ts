@@ -75,7 +75,7 @@ function transName(name: string): string {
 
 /** 哈希命名 anon mod 的文件名判定（anon_<32位hex>.dat） */
 const ANON_HASH_RE = /^anon_[0-9a-f]{32}\.dat$/i;
-/** 平台 → 专属 mod 子目录（对齐 app/asset.ts PLATFORM_DIRS） */
+/** 平台 → 专属 mod 子目录（对齐 app/ops/assets/asset.ts PLATFORM_DIRS） */
 const PLATFORM_DIRS: Record<string, string> = { Windows: "windows", Android: "android" };
 
 /**

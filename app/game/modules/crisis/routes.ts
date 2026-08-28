@@ -622,7 +622,7 @@ router.post("/buyGoods", validateBody(crisisBuyGoodsSchema), async (req, res) =>
   const { goodId, count } = req.body as CrisisBuyGoodsRequest;
 
   await player.update(async (draft) => {
-    /** 更新商店购买记录（共享实现，见 @game/domain/util/purchase-record） */
+    /** 更新商店购买记录（共享实现，见 @game/modules/pay/purchase-record） */
     recordPurchase(draft.crisis.shop.info, goodId, count);
   });
 
@@ -955,7 +955,7 @@ router.post("/v2/buyGood", validateBody(crisisV2BuyGoodSchema), async (req, res)
   const { goodId, count } = req.body as CrisisV2BuyGoodRequest;
 
   await player.update(async (draft) => {
-    /** 更新V2商店购买记录（共享实现，见 @game/domain/util/purchase-record） */
+    /** 更新V2商店购买记录（共享实现，见 @game/modules/pay/purchase-record） */
     recordPurchase(draft.crisisV2.shop.info, goodId, count);
   });
 

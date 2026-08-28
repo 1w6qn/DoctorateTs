@@ -2,7 +2,7 @@
  * 深海路由模块
  * 
  * 处理深海猎人相关的 HTTP 请求，包括科技树分支选择等功能。
- * 请求/响应类型见 @game/domain/deepsea/deepsea（参考 CS 2.7.61 协议类）。
+ * 请求/响应类型见 @game/modules/deepsea/deepsea（参考 CS 2.7.61 协议类）。
  */
 
 import { Router } from "express";

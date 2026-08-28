@@ -2,7 +2,7 @@
  * 干员编队路由模块
  * 
  * 处理干员基建技能组合设置相关的 HTTP 请求。
- * 请求/响应类型见 @game/domain/charm/charm（参考 CS 2.7.61 协议类）。
+ * 请求/响应类型见 @game/modules/charm/charm（参考 CS 2.7.61 协议类）。
  */
 
 import { Router } from "express";

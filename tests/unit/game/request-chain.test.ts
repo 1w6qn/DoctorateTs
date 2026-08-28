@@ -7,7 +7,7 @@ import httpContext from "express-http-context2";
 
 // —— 模块级 mock（需在 import 被测模块前建立）——
 
-/** 被测模块 app/config 的 mock：authMode/singleUid 可热切换 */
+/** 被测模块 app/core/config 的 mock：authMode/singleUid 可热切换 */
 const configMock = vi.hoisted(() => ({
   default: {
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——

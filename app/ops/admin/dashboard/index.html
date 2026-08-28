@@ -3862,7 +3862,7 @@ main.global #detail-card { grid-column: 1 / -1; }
     var pane = $("pane-map");
     pane.innerHTML =
       '<p style="color:var(--muted);font-size:12px;margin-bottom:10px;">集成战略地图生成节点可视化：复现 ' +
-      'app/game/controller/rlv2/map.ts 的 generate() 逻辑（md5 种子随机、权重节点类型、同列/跨列连线、zone_end 终点）。' +
+      'app/game/modules/roguelike/map.ts 的 generate() 逻辑（md5 种子随机、权重节点类型、同列/跨列连线、zone_end 终点）。' +
       '所有主题最多 7 层，险路恶敌位于第 3/5/6/7 层结尾；rogue_6 黑流树海为无相地图，按官方构造模板（gridzone）生成。' +
       '数据源 data/mapviz/game-data.js + 黑流树海构造数据。</p>' +
       '<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px;">' +

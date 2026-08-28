@@ -8,7 +8,7 @@
  *   BOSS_RUSH / TYPE_ACT* 默认状态、活动任务（ACTIVITY 任务组，可领取态）、
  *   ARK_HUB（奇象巡展方舟枢纽）活动状态、arkodc 主题（ODC 地图 varSeqs/rewards/position）
  * - 关卡：unlockCondition 链扫描解锁可达关卡（seed 语义，共享实现
- *   `@game/domain/util/stage-unlock` 的 scanUnlockChain，与 battle.finishStoryStage/finish 同源）
+ *   `@game/kernel/util/stage-unlock` 的 scanUnlockChain，与 battle.finishStoryStage/finish 同源）
  *
  * 真实时间模式（timestamp 缺省/-1）不做任何改动，保持现有行为。
  */

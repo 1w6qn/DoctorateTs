@@ -578,7 +578,7 @@ export async function arkhubUnlockArea(
  *
  * 传输层（2026-08-27 实锤接线）：官方帧 subID 已由抓包 + 反编译双重确认——
  * StartCaptureReq(b7c267d7) / EndCaptureReq(b7c204e8) / EncounterCreatureNotify(b7c20f13)，
- * 经本地网关（app/proxy/handlers/play.ts）接 index.ts 回调：onScanStart 同步返回遭遇、
+ * 经本地网关（app/ops/proxy/handlers/play.ts）接 index.ts 回调：onScanStart 同步返回遭遇、
  * onScanSettle 结算；帧形状差异表见 docs/arkhub-gateway-protocol.md §12。
  */
 

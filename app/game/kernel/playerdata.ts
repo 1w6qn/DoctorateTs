@@ -6,6 +6,6 @@
  * 标量+结构双维度校验（scripts/validate-playerdata-json.ts）。
  *
  * 生成命令: pnpm run generate:playerdata
- * 请勿手动修改生成文件 app/game/service/excel/types-playerdata.ts。
+ * 请勿手动修改生成文件 app/game/excel/types-playerdata.ts。
  */
 export * from "@excel/types-playerdata";

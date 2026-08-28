@@ -103,7 +103,7 @@ import { BuildingManager } from "@game/modules/building/logic";
 /** 便捷构造干员 buff 源 */
 const src = (charId: string, level = 1, evolvePhase = 0) => ({ charId, level, evolvePhase });
 
-describe("基建 buff 引擎（@game/domain/building/buff）", () => {
+describe("基建 buff 引擎（@game/modules/building/buff）", () => {
   it("phaseRank 解析 PHASE_N", () => {
     expect(phaseRank("PHASE_2")).toBe(2);
     expect(phaseRank("PHASE_0")).toBe(0);

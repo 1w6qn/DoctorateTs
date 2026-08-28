@@ -26,7 +26,7 @@ export enum GachaType {
  * 补齐中坚甄选/回归/特殊等自选池的映射——此前这些规则类型未收录，
  * choosePoolUp 会把玩家自选 UP 误回落写入 "single"，导致自选既不落盘在
  * 正确子结构、抽卡时也读不到（自选形同虚设）。键名对齐
- * app/game/service/excel/types-playerdata.ts 的 PlayerGacha 字段（fesClassic/special/backflow/doubleGacha）。
+ * app/game/excel/types-playerdata.ts 的 PlayerGacha 字段（fesClassic/special/backflow/doubleGacha）。
  */
 
 /**

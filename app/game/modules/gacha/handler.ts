@@ -2,7 +2,7 @@
  * 抽卡路由模块
  * 
  * 处理抽卡和招募相关的 HTTP 请求，包括普通招募、高级抽卡、十连抽等功能。
- * 请求/响应类型见 @game/domain/gacha（参考 CS 2.7.61 协议类）。
+ * 请求/响应类型见 @game/modules/gacha（参考 CS 2.7.61 协议类）。
  */
 
 import { Router } from "express";

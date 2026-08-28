@@ -3,7 +3,7 @@
  *
  * 一体化可溯源资产系统的元数据索引（Node 24 内置 node:sqlite，零第三方依赖）。
  * 数据库只存元数据（资产注册 + 生命周期审计事件），不存文件本体——
- * 资产内容/文件仍由各来源（app/asset.ts、scripts/*、mods/）负责，本库仅作溯源与审计。
+ * 资产内容/文件仍由各来源（app/ops/assets/asset.ts、scripts/*、mods/）负责，本库仅作溯源与审计。
  *
  * 默认位置：tmp/asset/index.db（gitignored；测试经 assetRegistry.configure 注入临时目录）。
  */

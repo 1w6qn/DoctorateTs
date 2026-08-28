@@ -1,8 +1,8 @@
 /**
  * 主线战役V2请求 zod schema
  *
- * 参照 app/game/model/protocol/campaignV2.ts 中各类 Request 接口，为
- * app/game/router/campaignV2.ts 各端点建立请求格式约束：缺失必填字段 / 类型不符时
+ * 参照 app/game/modules/campaignV2/campaignV2.ts 中各类 Request 接口，为
+ * app/game/modules/campaignV2/routes.ts 各端点建立请求格式约束：缺失必填字段 / 类型不符时
  * 由 validateBody 中间件返回 HTTP 4xx。
  *
  * 约定：

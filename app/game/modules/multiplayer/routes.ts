@@ -1,6 +1,6 @@
 /**
  * 联机V3（多人合作）与邀请路由
- * 请求/响应类型见 @game/domain/multiplayer/multiplayer（参考 CS 2.7.61 协议类）
+ * 请求/响应类型见 @game/modules/multiplayer/multiplayer（参考 CS 2.7.61 协议类）
  */
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../kernel/http/request-context";

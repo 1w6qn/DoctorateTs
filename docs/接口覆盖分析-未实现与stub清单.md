@@ -143,7 +143,7 @@
 | siracusaMap（6） | 404 | ✅ 已实现（`router/siracusaMap.ts` 挂载） |
 | deepSea（7） | 404 | ✅ 运行时可达（`/deepsea/*` 大小写不敏感命中） |
 | rlv2（6） | 404 | ❌ **仍缺失**（本报告第二部分） |
-| user/auth（4） | 404 | ✅ 已实现（`app/auth/auth.ts` + index.ts 别名） |
+| user/auth（4） | 404 | ✅ 已实现（`app/core/auth/auth.ts` + index.ts 别名） |
 | mainline / mainlineClue（5） | 404 | ✅ 已实现（`user.ts` rootRouter） |
 | misc（10） | 404 | ✅ 已实现（activity/misc-alignment/quest/shop/aprilFool 等） |
 

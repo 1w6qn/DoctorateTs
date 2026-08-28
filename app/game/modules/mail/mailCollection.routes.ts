@@ -3,7 +3,7 @@
  *
  * 处理邮件收藏（mailCollection）相关请求。
  * 参考实现：reference/OpenBachelorS-master/src/openbachelors/bp/bp_mail.py mailCollection_getList
- * 请求/响应类型见 @game/domain/mail/mailCollection（参考 CS 2.7.61 协议类）。
+ * 请求/响应类型见 @game/modules/mail/mailCollection（参考 CS 2.7.61 协议类）。
  */
 
 import { Router } from "express";

@@ -36,7 +36,7 @@ const BUILTIN_BUNDLE_NAME = "anon/6edf14bbd79243eb61e288ff28e446c3.bin";
 
 /**
  * 由 bundle 名推导 mod 下载名（客户端资源名 → .dat 文件名）：
- * 目录分隔符 / → _、# → __、扩展名 → .dat，与 app/asset.ts loadMods 的 downloadName 语义一致。
+ * 目录分隔符 / → _、# → __、扩展名 → .dat，与 app/ops/assets/asset.ts loadMods 的 downloadName 语义一致。
  * @param bundleName - 客户端资源名（如 anon/xxx.bin）
  * @returns 对应 .dat 文件名（如 anon_xxx.dat）
  */

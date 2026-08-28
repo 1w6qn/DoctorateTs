@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// 策略模块经 @game/service/player/AccountManager 访问 accountManager —— mock 以便隔离验证
+// 策略模块经 @game/modules/account/AccountManager 访问 accountManager —— mock 以便隔离验证
 vi.mock("@game/modules/account/AccountManager", () => ({
   accountManager: { getUidByToken: vi.fn(), registerUser: vi.fn() },
 }));

@@ -83,7 +83,7 @@ pnpm run admin -- config set admin.token mytoken # 修改配置（重启后生�
 ```
 
 > 物品发放支持三种写法：数字 ID（`4001`）、中文名（`龙门币`）、别名（`合成玉`）。
-> 常用别名表见 `app/admin/admin-names.ts`（注意：**合成玉是 4003**，5001 是声望）。
+> 常用别名表见 `app/ops/admin/admin-names.ts`（注意：**合成玉是 4003**，5001 是声望）。
 > 所有变更操作写入审计日志 `data/admin/logs.jsonl`。
 
 ### Web Dashboard

@@ -125,7 +125,7 @@ pnpm run watch:lua -- --once  # 只重打包一次后退出（CI / 手动触发�
 ```
 
 - 变更后自动重建 `mods/anon_7d91430e114d86fef7d3b3511151e12d.dat` 并删除 `mods.json` 指纹缓存。
-- 客户端下次拉取 `hot_update_list.json` 时 `app/asset.ts` 重扫 mods/ 拿到新指纹 → 重新下载覆盖 → 生效。
+- 客户端下次拉取 `hot_update_list.json` 时 `app/ops/assets/asset.ts` 重扫 mods/ 拿到新指纹 → 重新下载覆盖 → 生效。
 - `--debounce <ms>` 调整保存防抖（缺省 300ms）。
 
 ### 2.2 插件补丁模式（BasePlugin）
@@ -149,7 +149,7 @@ pnpm run watch:lua -- --once  # 只重打包一次后退出（CI / 手动触发�
   - `POST /admin/api/plugin/<id>/enable`  → 启用
   - `POST /admin/api/plugin/<id>/disable` → 停用
 - 配置持久化于 `data/plugin/config.json`（`{ "enabled": { "<id>": bool } }`）。
-- **单一数据源**：服务端插件目录由 `app/plugin/plugin-catalog.ts` 从 `lua/plugin/PluginDefs.lua` 动态解析（无需在 TS 侧重复维护清单）；解析失败回退内置目录。新增插件只需改 `PluginDefs.lua` 并重打包即可，admin API 自动反映。
+- **单一数据源**：服务端插件目录由 `app/ops/plugin/plugin-catalog.ts` 从 `lua/plugin/PluginDefs.lua` 动态解析（无需在 TS 侧重复维护清单）；解析失败回退内置目录。新增插件只需改 `PluginDefs.lua` 并重打包即可，admin API 自动反映。
 - **启停状态双向同步**：游戏内面板切换插件 → 客户端持久化本地 `plugin_config.json`，并经 `PluginHeartbeat.PushState` 推送 `GET /plugin/config/<id>/<0|1>` 到服务端 `data/plugin/config.json`；管理端 enable/disable 写入同一配置源，客户端在心跳响应（best-effort 回调，真机需按 UISender 回调约定校准）中应用服务端状态。管理端与面板最终收敛到同一状态。
 - **加载容错**：单个插件 require/实例化/初始化失败不拖垮系统——`PluginManager` 记录错误，其余插件照常加载；游戏内面板会把失败插件标为红色 `ERR` 并显示错误摘要（`ON/OFF` 按钮禁用）。
 

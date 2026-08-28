@@ -106,6 +106,33 @@ interface UserConfig {
     /** 统一抓包存储根目录（缺省 tmp/capture；一般无需覆盖） */
     root?: string;
   };
+  /**
+   * proxy 通用转发管线（capture 模式生效）：静态自定义上游声明。
+   * 结构与 app/ops/proxy/upstream.ts 的 ProxyUpstream 一致——core 不依赖 ops（R1），
+   * 此处内联结构类型，字段级兼容（rules 缺省 = 空）。
+   */
+  proxy?: {
+    /** 静态自定义上游（优先于官方内置上游求值；同名 id 覆盖，不重复） */
+    upstreams?: Array<{
+      /** 唯一 id */
+      id: string;
+      /** 目标主机（如 https://obs.example.com） */
+      baseUrl: string;
+      /** 有序规则（同一上游内按序求值） */
+      rules?: Array<{
+        /** Host 通配匹配（小写，* 段通配；如 "ak-gs-*"、"as.*.hypergryph.com"） */
+        hosts?: string[];
+        /** 路径前缀匹配（精确或 前缀/ 开头） */
+        paths?: string[];
+        /** 允许的方法（大写；缺省全匹配） */
+        methods?: Array<"GET" | "POST" | "PUT" | "DELETE" | "PATCH">;
+        /** 转发前剥除的路径前缀（如 "/game"） */
+        stripPrefix?: string;
+        /** 兜底规则（任意未命中路径；配合 methods，如仅 POST） */
+        catchAll?: boolean;
+      }>;
+    }>;
+  };
   /** 奇象巡展（arkhub）配置 */
   arkhub?: {
     /**

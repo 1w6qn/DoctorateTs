@@ -19,13 +19,54 @@ import net from "net";
 import { mkdir, writeFile } from "fs/promises";
 import * as path from "path";
 import { logger } from "@utils/logger";
-import { captureManager } from "@capture/capture-manager";
 import {
   parseGatewayStream,
   framesToJson,
   gatewayTranscript,
   fieldsToJson,
-} from "./arkhub-gateway-protocol";
+} from "./protocol";
+
+/**
+ * 网关抓包记录提交回调（server.ts 注入 captureManager；缺省 no-op）
+ *
+ * 与 @ops/capture/capture-manager 的 commitRecord 结构化兼容（本模块不依赖 ops——
+ * 迁移自 ops/proxy 时为消除 game→ops 逆向依赖而抽象为注入；字段形状见 capture-manager.ts 的
+ * CaptureRecordInput）。未注入时网关流量仍落盘 tmp/capture/records/，仅不提交统一索引库。
+ */
+export interface GatewayRecordSink {
+  isReady(): boolean;
+  commitRecord(
+    rid: string,
+    input: {
+      ts: number;
+      path: string;
+      /** 固定 "gateway"（与 @ops/capture 的 CaptureSource 兼容，结构化收紧） */
+      source: "gateway";
+      /** 固定 "gateway-bidi"（与 CaptureDirection 兼容） */
+      direction: "gateway-bidi";
+      status: number | null;
+      latencyMs: number;
+      reqSize: number;
+      resSize: number;
+      note: string;
+    },
+    dir: string,
+    extraMeta?: Record<string, unknown>,
+  ): Promise<unknown>;
+}
+
+/** 已注入的记录提交 sink（null = 未注入，仅落盘不索引） */
+let recordSink: GatewayRecordSink | null = null;
+
+/** 注入抓包记录提交回调（server.ts capture 分支调用；null 取消注入） */
+export function setGatewayRecordSink(sink: GatewayRecordSink | null): void {
+  recordSink = sink;
+}
+
+/** 当前注入的记录 sink（测试/接线判断用） */
+export function getGatewayRecordSink(): GatewayRecordSink | null {
+  return recordSink;
+}
 
 /** 官服 arkhub 网关主机 */
 export const OFFICIAL_ARKHUB_GATEWAY_HOST = "arkhub-gateway.hypergryph.com";
@@ -253,10 +294,10 @@ export function startArkhubGatewayProxy(
         } catch {
           /* 解析失败不影响抓包 */
         }
-        // 提交网关抓包记录到统一索引库（captureManager 未初始化时仅保留文件，不落库）
+        // 提交网关抓包记录到统一索引库（sink 未注入/未初始化时仅保留文件，不落库）
         try {
-          if (captureManager.isReady()) {
-            await captureManager.commitRecord(
+          if (recordSink?.isReady()) {
+            await recordSink.commitRecord(
               connectionId,
               {
                 ts: startedAt,

@@ -19,23 +19,23 @@
  */
 import net from "net";
 import { logger } from "@utils/logger";
-import { buildFrame } from "./arkhub-gateway-codec";
+import { buildFrame } from "./codec";
 import {
   ArkhubFrameRouter,
   GW_CODE_OK,
-} from "./arkhub-gateway-router";
+} from "./router";
 import type {
   ArkhubGatewayConnectionState,
   ArkhubGatewayHandlerContext,
   ArkhubGatewayFrame,
   ArkhubLocalGatewayOptions,
-} from "./arkhub-gateway-router";
+} from "./router";
 import { registerSessionHandlers, HALL_MAP_ID, defaultGuideFlags } from "./handlers/session";
 import { registerPlayHandlers } from "./handlers/play";
 import { registerShopHandlers } from "./handlers/shop";
 
 /** 兼容旧导出：网关配置项/户籍数据类型（现定义于 arkhub-gateway-router.ts） */
-export type { ArkhubLocalGatewayOptions, ArkdexDocsData } from "./arkhub-gateway-router";
+export type { ArkhubLocalGatewayOptions, ArkdexDocsData } from "./router";
 
 /** 本地网关是否已启动（enterHall 路由据此把客户端导向本地而非官服域名） */
 let _localGatewayActive = false;

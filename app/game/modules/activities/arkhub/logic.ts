@@ -158,7 +158,7 @@ export async function handleArkhubenterHall(player: PlayerDataManager, body: Act
   // 私服模式：本地网关应答器启动后指向本服端口（客户端连本服进空广场），
   // 否则返回官服域名（官服网关不可达/账号凭据无效时客户端无法进入）
   const { isArkhubLocalGatewayActive, getArkhubLocalGatewayPort } = await import(
-    "@ops/proxy/arkhub-gateway-local"
+    "./gateway/local"
   );
   const endpoint = isArkhubLocalGatewayActive()
     ? String(config.Host).replace(/^https?:\/\//, "")

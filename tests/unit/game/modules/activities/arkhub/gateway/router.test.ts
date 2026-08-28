@@ -4,11 +4,11 @@
  * 验证路由分发优先级（main 级 > full 匹配 > low32 匹配 > fallback）与帧名查询。
  */
 import { describe, it, expect } from "vitest";
-import { ArkhubFrameRouter, GW_CODE_OK } from "@ops/proxy/arkhub-gateway-router";
+import { ArkhubFrameRouter, GW_CODE_OK } from "@game/modules/activities/arkhub/public";
 import type {
   ArkhubGatewayHandlerContext,
   ArkhubGatewayFrame,
-} from "@ops/proxy/arkhub-gateway-router";
+} from "@game/modules/activities/arkhub/public";
 
 /** 构造一个带发送捕获的测试上下文 */
 function makeCtx(): {

@@ -237,8 +237,13 @@ export async function main(): Promise<void> {
   });
   // 抓包专用官服转发模式：as/gs 流量转发官服（config/launcher 保持本地——客户端才能被引导连到本代理）
   if (capture) {
-    const { createOfficialForwarder, warmUpOfficialConnections } = await import(
-      "@ops/proxy/official-forward"
+    const { createProxyForwarder, warmUpOfficialConnections, registerUpstreams } = await import(
+      "@ops/proxy"
+    );
+    // 静态自定义上游（config.proxy.upstreams）：优先于官方内置求值，可截获本会落到官方兜底的路径。
+    // config 结构类型 rules 可选 → 归一化为 ProxyUpstream（缺省空规则）
+    registerUpstreams(
+      (config.proxy?.upstreams ?? []).map((u) => ({ ...u, rules: u.rules ?? [] })),
     );
     // 预热官服连接（共享 keep-alive 池）：客户端首个请求（登录 getToken 等）免付 TLS 冷启动延迟
     const asHost = config.capture?.asHost ?? "https://as.hypergryph.com";
@@ -246,7 +251,12 @@ export async function main(): Promise<void> {
     await warmUpOfficialConnections(asHost, gsHost).catch(() => undefined);
     // arkhub 网关特殊适配：enterHall 返回官服网关地址，客户端随后 WebSocket 连网关——本代理
     // 监听 gatewayPort（缺省 30000）透传官服网关并记录流量，enterHall 响应 endpoint 改写为本代理
-    const { startArkhubGatewayProxy } = await import("@ops/proxy/arkhub-gateway");
+    // （网关基础设施已迁入 arkhub 活动模块，经 public 出口消费；抓包记录经注入接入 captureManager）
+    const { startArkhubGatewayProxy, setGatewayRecordSink } = await import(
+      "@game/modules/activities/arkhub/public"
+    );
+    // 注入网关抓包记录提交回调（captureManager 未就绪时网关仅落盘不索引）
+    setGatewayRecordSink(captureManager);
     const gatewayPort = config.capture?.gatewayPort ?? 30000;
     // 端口自动避让：多实例并存时首选端口被占会依次尝试下一个空闲端口（30000/30001/30002...），
     // 每个实例各自拿到空闲端口，客户端互不干扰。改写用实际监听端口（gw.port）。
@@ -256,19 +266,15 @@ export async function main(): Promise<void> {
     // endpoint 指向本代理——否则客户端直连官服网关、网关流量不经过任何代理（实测无法进入）。
     // 转发器目标主机为动态值：官服 enterHall 响应 endpoint 会变化（2026-08-18 起为
     // arkhub-gateway-canary.hypergryph.com 灰度域名，老域名登录帧 0 响应）——
-    // official-forward 在改写响应前调用 updateGatewayTarget 跟随；启动初始值缺省 canary。
+    // proxy 内置 enterHall 变换器在改写响应前调用 updateGatewayTarget 跟随；启动初始值缺省 canary。
     const arkhubGateway =
       gw.server || gw.exhausted ? { endpoint: proxyHost, port: gw.port } : null;
-    app.use(
-      createOfficialForwarder({
-        arkhubGateway,
-      }),
-    );
-    logger.info("index", "抓包官服转发模式已开启：as/gs 流量将转发到官服并记录到统一抓包存储 tmp/capture/");
+    app.use(createProxyForwarder({ arkhubGateway }));
+    logger.info("index", "抓包官服转发模式已开启：proxy 通用转发管线（自定义上游 + 变换器）转发上游并记录到统一抓包存储 tmp/capture/");
   } else {
     // 私服模式：启动 arkhub 本地网关应答器（登录 code=100 + 心跳 + 合法 EnterSceneNotify），
     // enterHall 指向本服端口——客户端可进入空广场（不再连不可达的官服网关域名）
-    const { startArkhubLocalGateway } = await import("@ops/proxy/arkhub-gateway-local");
+    const { startArkhubLocalGateway } = await import("@game/modules/activities/arkhub/public");
     await startArkhubLocalGateway({
       port: config.capture?.gatewayPort ?? 30000,
       // 场景 self 条目用玩家真实昵称/秘书干员（存档已加载则直读，否则回退默认）

@@ -13,7 +13,7 @@ import {
   MSG_NAMES,
   MSG_SCHEMAS,
   GATEWAY_HEADER_SIZE,
-} from "@ops/proxy/arkhub-gateway-protocol";
+} from "@game/modules/activities/arkhub/public";
 
 /** 构造一帧：[4B大端总长][4B消息ID][8B头][payload] */
 function frame(msgId: number, payload: Buffer, seq = 0, flag = 0): Buffer {

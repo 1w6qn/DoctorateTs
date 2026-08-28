@@ -10,8 +10,8 @@ import { mockPlayerData } from "../../helpers";
 import {
   encodeFieldBytes as fb,
   encodeFieldVarint as fv,
-} from "@ops/proxy/arkhub-gateway-codec";
-import { parseGatewayStream } from "@ops/proxy/arkhub-gateway-protocol";
+} from "@game/modules/activities/arkhub/public";
+import { parseGatewayStream } from "@game/modules/activities/arkhub/public";
 import {
   extractArkhubDocsFromSceneFrame,
   applyArkhubDocs,

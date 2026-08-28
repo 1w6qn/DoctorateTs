@@ -15,7 +15,7 @@
  * 本模块同时承载路由层共享的类型契约（连接状态/处理上下文/网关配置项），
  * 供 handlers 与传输层共同使用，避免循环依赖。
  */
-import { FRAME_NAMES } from "./arkhub-gateway-codec";
+import { FRAME_NAMES } from "./codec";
 
 /** 网关返回码：100 = OK */
 export const GW_CODE_OK = 100;

@@ -12,13 +12,13 @@ import {
   encodeFieldBytes as fb,
   encodeFieldVarint as fv,
   ProtoReader,
-} from "../arkhub-gateway-codec";
-import { GW_CODE_OK } from "../arkhub-gateway-router";
+} from "../codec";
+import { GW_CODE_OK } from "../router";
 import type {
   ArkhubFrameRouter,
   ArkhubGatewayHandlerContext,
   ArkhubGatewayFrame,
-} from "../arkhub-gateway-router";
+} from "../router";
 import { CAPTURE_MAP_IDS, ARKHUB_STATE_MASK, pushPlayerStateMask } from "./session";
 
 /* ---------- 帧 subID（low32） ---------- */

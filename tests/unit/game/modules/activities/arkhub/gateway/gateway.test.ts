@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import net from "net";
 import os from "os";
 import path from "path";
@@ -7,9 +7,10 @@ import {
   startArkhubGatewayProxy,
   adaptArkhubEnterHallResponse,
   isArkhubEnterHall,
+  setGatewayRecordSink,
   OFFICIAL_ARKHUB_GATEWAY_HOST,
   OFFICIAL_ARKHUB_GATEWAY_PORT,
-} from "@ops/proxy/arkhub-gateway";
+} from "@game/modules/activities/arkhub/public";
 
 /** 等待端口监听就绪 */
 function listen(server: net.Server): Promise<void> {
@@ -70,6 +71,58 @@ describe("isArkhubEnterHall", () => {
 });
 
 describe("startArkhubGatewayProxy（30000 TCP 转发器）", () => {
+  afterEach(() => {
+    // 清理注入 sink（模块级全局状态，防用例间泄漏）
+    setGatewayRecordSink(null);
+  });
+
+  it("注入 GatewayRecordSink 后连接关闭时提交记录；取消注入后 no-op", async () => {
+    // 本地 echo 服务器模拟官服网关
+    const echo = net.createServer((sock) => sock.pipe(sock));
+    await listen(echo);
+    const echoPort = (echo.address() as net.AddressInfo).port;
+
+    const recordRoot = path.join(os.tmpdir(), `arkhub-gw-sink-${Date.now()}-${Math.floor(Math.random() * 1e5)}`);
+    const sink = {
+      isReady: vi.fn(() => true),
+      commitRecord: vi.fn().mockResolvedValue(null),
+    };
+    setGatewayRecordSink(sink);
+    const result = await startArkhubGatewayProxy({
+      port: 0,
+      targetHost: "127.0.0.1",
+      targetPort: echoPort,
+      recordRoot,
+    });
+    try {
+      // 注入 sink：连接关闭后提交记录（字段形状与 capture-manager CaptureRecordInput 兼容）
+      await roundTrip(result.port, Buffer.from("sink-1"));
+      await new Promise((r) => setTimeout(r, 300));
+      expect(sink.isReady).toHaveBeenCalled();
+      expect(sink.commitRecord).toHaveBeenCalledTimes(1);
+      const [rid, input] = sink.commitRecord.mock.calls[0] as [string, Record<string, unknown>];
+      expect(rid).toBeTruthy();
+      expect(input).toMatchObject({
+        path: "/arkhub/gateway",
+        source: "gateway",
+        direction: "gateway-bidi",
+        reqSize: 6,
+        resSize: 6,
+      });
+
+      // 取消注入 → 后续连接不再提交（no-op 不抛）
+      sink.commitRecord.mockClear();
+      setGatewayRecordSink(null);
+      await roundTrip(result.port, Buffer.from("noop-1"));
+      await new Promise((r) => setTimeout(r, 300));
+      expect(sink.commitRecord).not.toHaveBeenCalled();
+    } finally {
+      result.server?.close();
+      echo.close();
+      fs.rmSync(recordRoot, { recursive: true, force: true });
+    }
+  });
+
   it("透传客户端↔目标字节流并记录 up/down/meta", async () => {
     // 本地 echo 服务器模拟官服网关
     const echo = net.createServer((sock) => sock.pipe(sock));
@@ -128,7 +181,7 @@ describe("startArkhubGatewayProxy（30000 TCP 转发器）", () => {
     });
     expect(first.server).not.toBeNull();
     const usedPort = first.port;
-    let second: import("@ops/proxy/arkhub-gateway").ArkhubGatewayProxyResult | undefined;
+    let second: import("@game/modules/activities/arkhub/public").ArkhubGatewayProxyResult | undefined;
     try {
       // 第二个实例首选 usedPort 被占 → 自动避让到 usedPort+1
       second = await startArkhubGatewayProxy({

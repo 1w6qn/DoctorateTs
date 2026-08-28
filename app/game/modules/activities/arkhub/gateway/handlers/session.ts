@@ -16,14 +16,14 @@ import {
   encodeFieldVarint as fv,
   encodeFieldFixed32 as ff32,
   ProtoReader,
-} from "../arkhub-gateway-codec";
-import { GW_CODE_OK } from "../arkhub-gateway-router";
+} from "../codec";
+import { GW_CODE_OK } from "../router";
 import type {
   ArkdexDocsData,
   ArkhubFrameRouter,
   ArkhubGatewayHandlerContext,
   ArkhubGatewayFrame,
-} from "../arkhub-gateway-router";
+} from "../router";
 import { buildPixelArtData } from "./shop";
 
 /* ---------- 帧 subID ---------- */

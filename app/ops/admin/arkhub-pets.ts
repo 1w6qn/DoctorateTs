@@ -17,7 +17,7 @@ import {
   parseGatewayStream,
   type GatewayFrame,
   type PbField,
-} from "../proxy/arkhub-gateway-protocol";
+} from "@game/modules/activities/arkhub/public";
 import {
   arkdexIsAlter,
   arkdexAlterBase,

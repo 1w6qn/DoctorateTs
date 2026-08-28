@@ -17,7 +17,7 @@ import {
   framesToJson,
   fieldsToJson,
   gatewayTranscript,
-} from "@ops/proxy/arkhub-gateway-protocol";
+} from "@game/modules/activities/arkhub/public";
 
 function parseConnection(dir: string, id: string): void {
   const upPath = path.join(dir, "up.bin");

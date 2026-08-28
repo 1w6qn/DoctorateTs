@@ -77,23 +77,23 @@ import {
 const router = Router();
 
 /** Dashboard 静态页面（免认证，页面内输入令牌后访问 API） */
-router.get("/dashboard", (_req: Request, res: Response) => {
+router.get(["/", "/dashboard"], (_req: Request, res: Response) => {
   // 单文件页面无版本号：禁止缓存，避免浏览器拿到旧版（新增功能不生效）
   res.set("Cache-Control", "no-cache, no-store, must-revalidate");
   // 用 process.cwd() 而非 __dirname，兼容 ts-node 与 tsc build 产物
-  res.sendFile(path.join(process.cwd(), "app", "admin", "dashboard", "index.html"));
+  res.sendFile(path.join(process.cwd(), "app", "ops", "admin", "dashboard", "index.html"));
 });
 
 /** PWA manifest / 图标（可安装到主屏幕） */
 router.get("/manifest.webmanifest", (_req: Request, res: Response) => {
   res.set("Content-Type", "application/manifest+json");
   res.set("Cache-Control", "no-cache");
-  res.sendFile(path.join(process.cwd(), "app", "admin", "dashboard", "manifest.webmanifest"));
+  res.sendFile(path.join(process.cwd(), "app", "ops", "admin", "dashboard", "manifest.webmanifest"));
 });
 router.get("/icon.svg", (_req: Request, res: Response) => {
   res.set("Content-Type", "image/svg+xml");
   res.set("Cache-Control", "no-cache");
-  res.sendFile(path.join(process.cwd(), "app", "admin", "dashboard", "icon.svg"));
+  res.sendFile(path.join(process.cwd(), "app", "ops", "admin", "dashboard", "icon.svg"));
 });
 
 /** API 全部需要认证 */

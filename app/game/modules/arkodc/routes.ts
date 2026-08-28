@@ -9,13 +9,11 @@
  */
 import { Router } from "express";
 import { getPlayer, getPlayerOptional } from "../../kernel/http/request-context";
-import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { ItemBundle } from "@excel/excel";
 import excel from "@excel/excel";
 import { decryptBattleData } from "@utils/crypt";
 import { now } from "@utils/time";
 import { PlayerDeltaResponse } from "../../kernel/http/common";
-import { activityDictKey } from "../activities/shared/unlockActivity";
 import { validateBody } from "../../kernel/http/validate-body";
 import {
   arkOdcBattleFinishSchema,
@@ -24,6 +22,7 @@ import {
   arkOdcSavePositionSchema,
   arkOdcTriggerActionSchema,
 } from "./arkodc.schema";
+import { ensureArkOdcTopic } from "./guide";
 
 const router = Router();
 
@@ -52,61 +51,6 @@ function applyVarSeqList(
   }
 }
 
-/**
- * 惰性获取（并播种）arkodc 主题——draft.arkodc.topics[topicId] 不存在时创建默认结构。
- * 奇象巡展主题未在解锁播种中创建（真实时间模式/旧存档）时，路由不再静默丢弃。
- */
-function ensureArkOdcTopic(draft: any, topicId: string): any {
-  if (!draft.arkodc) draft.arkodc = {};
-  if (!draft.arkodc.topics) draft.arkodc.topics = {};
-  let topic = draft.arkodc.topics[topicId];
-  if (!topic) {
-    topic = draft.arkodc.topics[topicId] = {
-      varSeqs: {},
-      rewards: {},
-      position: { x: 0, y: 0, z: 0 },
-    };
-  }
-  if (!topic.varSeqs) topic.varSeqs = {};
-  if (!topic.rewards) topic.rewards = {};
-  if (!topic.position) topic.position = { x: 0, y: 0, z: 0 };
-  return topic;
-}
-
-/** ODC 新手教程剧情 id（客户端 /story/finishStory 提交；trigger CUSTOM_OPERATION=PlayArkodcTutorial） */
-export const ARK_ODC_GUIDE_STORY_ID = "activities/act53side/ark_odc_act53side_guide";
-
-/**
- * ODC 新手教程完成同步（home.ts /story/finishStory 调用）
- *
- * 客户端教程（story ark_odc_act53side_guide）提交后，除 status.flags 标记外还需把
- * 主题 varSeq `bool_end_guide_done` 置 1——logic_game_end_p1 的 actorShowCondition
- * （q003_prog==4 && bool_end_guide_done==0 && q003_banner_showed==1）要求其为 0 才
- * AUTO_ONCE 触发 PlayArkodcTutorial；缺失该 varSeq → 每次进图都重放新手教程。
- * （官服完成态快照：varSeqs.bool_end_guide_done=1）
- */
-export async function finishArkOdcGuideStory(
-  player: PlayerDataManager,
-  storyId: string,
-): Promise<void> {
-  if (storyId !== ARK_ODC_GUIDE_STORY_ID) return;
-  // topicId 从 excel 活动配置取（数据版本键名多变时 activityDictKey 动态命中）
-  const detail = (excel.ActivityTable?.activity as Record<string, any> | undefined)?.[
-    activityDictKey("TYPE_ACT53SIDE") ?? "tYPE_ACT53SIDE"
-  ];
-  let topicId = "ark_odc_act53side";
-  for (const data of Object.values(detail ?? {})) {
-    const candidate = (data as any)?.constData?.arkOdcTopicId;
-    if (candidate) {
-      topicId = candidate;
-      break;
-    }
-  }
-  await player.update(async (draft) => {
-    const topic = ensureArkOdcTopic(draft, topicId);
-    topic.varSeqs.bool_end_guide_done = 1;
-  });
-}
 
 /** ODC 开始战斗请求（CS: ArkOdcBattleStartRequest : DefaultStartBattleRequest） */
 export interface ArkOdcBattleStartRequest {

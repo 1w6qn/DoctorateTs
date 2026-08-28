@@ -11,7 +11,7 @@ import {
   BattleInfo,
   BattleInfoStore,
   BattleRecord,
-} from "../battle/BattleInfoStore";
+} from "../../kernel/battle-info-store";
 import { unlockActivity } from "../activities/shared/unlockActivity";
 import { readJson } from "@utils/file";
 import { now } from "@utils/time";
@@ -1027,7 +1027,7 @@ export interface UserConfig {
 /**
  * 战斗信息接口（从 BattleInfoStore 重导出，保持向后兼容）
  */
-export type { BattleInfo, BattleRecord } from "../battle/BattleInfoStore";
+export type { BattleInfo, BattleRecord } from "../../kernel/battle-info-store";
 
 /** 账户管理器全局实例 */
 export const accountManager = new AccountManager();

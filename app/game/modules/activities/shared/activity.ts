@@ -9,7 +9,7 @@
  */
 import { ItemBundle } from "@excel/excel";
 import { PlayerSquad, SquadFriendData } from "../../../kernel/model";
-import { CommonStartBattleRequest } from "../../battle/battle-model";
+import { CommonStartBattleRequest } from "../../../kernel/battle-model";
 import { PlayerDeltaResponse } from "../../../kernel/http/common";
 
 /* ===== 签到类 ===== */

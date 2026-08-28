@@ -197,7 +197,8 @@ vi.mock("moment", () => ({
   default: () => ({ diff: () => 0 }),
 }));
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../../helpers";
+import { mockPlayerData } from "../../../helpers/mockPlayerData";
+import { mockTypedEventEmitter } from "../../../helpers/mockEventBus";;
 import {
   MissionManager,
   MissionProgress,

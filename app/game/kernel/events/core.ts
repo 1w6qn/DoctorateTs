@@ -15,7 +15,7 @@ import type { GachaResult } from "../model";
 import type {
   BattleData,
   CommonStartBattleRequest,
-} from "../../modules/battle/battle-model";
+} from "../battle-model";
 import type { PlayerCharacter } from "../model";
 import type { PlayerRoguelikeV2 } from "../../modules/roguelike/rlv2-model";
 

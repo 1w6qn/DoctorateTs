@@ -5,7 +5,7 @@
  * 大对象独立于用户配置存储，避免每次保存配置时全量重写（R4 + A3）。
  * 由 AccountManager 持有并委托（门面保留原公共方法签名）。
  */
-import type { BattleInfo, BattleRecord } from "./BattleInfoStore";
+import type { BattleInfo, BattleRecord } from "../../kernel/battle-info-store";
 import type { ReplayRepository } from "@core/db/replay-repo";
 
 export class BattleStore {

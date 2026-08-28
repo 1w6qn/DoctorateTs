@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { SocialManager } from "@game/modules/social/SocialManager";
 import { accountManager } from "@game/modules/account/AccountManager";
-import { mockPlayerData } from "../../helpers";
+import { mockPlayerData } from "../../helpers/mockPlayerData";
 
 vi.mock("@excel/excel", () => ({
   default: {

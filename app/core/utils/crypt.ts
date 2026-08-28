@@ -6,7 +6,7 @@
 
 import crypto from "crypto";
 import JSZip from "jszip";
-import { BattleData } from "@game/modules/battle/battle-model";
+import { BattleData } from "@game/kernel/battle-model";
 
 const LOG_TOKEN_KEY = "pM6Umv*^hVQuB6t&";
 

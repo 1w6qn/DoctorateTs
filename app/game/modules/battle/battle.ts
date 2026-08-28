@@ -3,7 +3,7 @@ import { accountManager } from "../account/AccountManager";
 import excel from "@excel/excel";
 import { decryptBattleData } from "@utils/crypt";
 import { now } from "@utils/time";
-import { CommonStartBattleRequest } from "./battle-model";
+import { CommonStartBattleRequest } from "../../kernel/battle-model";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { ItemBundle, ItemType } from "@excel/excel";
@@ -17,7 +17,7 @@ import {
   defaultStageState,
   scanUnlockChain,
 } from "../../kernel/util/stage-unlock";
-import type { BattleRecord } from "./BattleInfoStore";
+import type { BattleRecord } from "../../kernel/battle-info-store";
 
 /** excel 关卡表镜像类型（来自 types_excel_gen，与 excel.StageTable.stages 值一致） */
 type ExcelStage = (typeof excel.StageTable.stages)[string];

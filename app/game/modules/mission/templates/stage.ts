@@ -3,7 +3,7 @@
  */
 import type { MissionTemplateGroup } from "./types";
 import excel from "@excel/excel";
-import { BattleData } from "../../battle/battle-model";
+import { BattleData } from "../../../kernel/battle-model";
 
 export const stageTemplates: MissionTemplateGroup = {
   /**

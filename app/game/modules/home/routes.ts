@@ -128,7 +128,7 @@ router.post("/story/finishStory", validateBody(finishStorySchema), async (req, r
   // ODC：教程剧情提交后同步主题 varSeq bool_end_guide_done=1——
   // 否则 logic_game_end_p1（q003_prog==4 && bool_end_guide_done==0 &&
   // q003_banner_showed==1）每次进图 AUTO_ONCE 重放新手教程（无限教程）
-  const { finishArkOdcGuideStory } = await import("../arkodc/routes");
+  const { finishArkOdcGuideStory } = await import("../arkodc/public");
   await finishArkOdcGuideStory(player, body.storyId);
   res.send({
     items: [],

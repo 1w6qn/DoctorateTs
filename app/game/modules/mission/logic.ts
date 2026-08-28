@@ -16,7 +16,7 @@ import { MissionCalcState } from "../../kernel/playerdata";
 import excel from "@excel/excel";
 import { ItemBundle, ItemType } from "@excel/excel";
 import { PlayerCharacter } from "../../kernel/model";
-import { BattleData } from "../battle/battle-model";
+import { BattleData } from "../../kernel/battle-model";
 import { checkBetween, now, userTimestamp } from "@utils/time";
 import type { EventMap } from "../../kernel/events";
 import { TypedEventEmitter } from "../../kernel/events/runtime";

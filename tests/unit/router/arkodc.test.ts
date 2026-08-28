@@ -60,8 +60,9 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import httpContext from "express-http-context2";
-import arkodcRouter, { finishArkOdcGuideStory } from "@game/modules/arkodc/routes";
-import { mockPlayerData } from "../../helpers";
+import arkodcRouter from "@game/modules/arkodc/routes";
+import { finishArkOdcGuideStory } from "@game/modules/arkodc/public";
+import { mockPlayerData } from "../../helpers/mockPlayerData";
 
 function mockRes() {
   return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };

@@ -11,7 +11,7 @@ import type {
   RoguelikeItemBundle,
 } from "../../modules/roguelike/rlv2-model";
 import type { RoguelikeBuff } from "@excel/excel";
-import type { BattleData } from "../../modules/battle/battle-model";
+import type { BattleData } from "../battle-model";
 
 /**
  * 肉鸽V2 领域事件映射

@@ -28,8 +28,8 @@
 import excel from "@excel/excel";
 import { logger } from "@utils/logger";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
-import { BattleInfo } from "../battle/BattleInfoStore";
-import { BattleData, BattleStats } from "../battle/battle-model";
+import { BattleInfo } from "../../kernel/battle-info-store";
+import { BattleData, BattleStats } from "../../kernel/battle-model";
 import { BadRequestError } from "../../kernel/http/errors";
 
 /** 模组任务进度条目（playerdata.equipment.missions 的单项） */

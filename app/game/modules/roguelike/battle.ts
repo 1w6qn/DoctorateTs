@@ -1,10 +1,10 @@
 import { ItemType, ItemBundle } from "@excel/excel";
 import { RoguelikeV2Manager } from "./logic";
-import { BattleData } from "../battle/battle-model";
+import { BattleData } from "../../kernel/battle-model";
 import { decryptBattleData, decryptBattleReplay } from "@utils/crypt";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
 import { generateBattleId } from "@utils/random";
-import type { BattleRecord } from "../battle/BattleInfoStore";
+import type { BattleRecord } from "../../kernel/battle-info-store";
 import { logger } from "@utils/logger";
 import excel from "@excel/excel";
 import { ROGUE6_NODE } from "./theme-rules";

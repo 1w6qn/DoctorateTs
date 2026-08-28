@@ -183,7 +183,8 @@ vi.mock("@game/modules/account/AccountManager", () => {
   };
 });
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
+import { mockPlayerData } from "../../helpers/mockPlayerData";
+import { mockTypedEventEmitter } from "../../helpers/mockEventBus";
 import { BattleManager } from "@game/modules/battle/battle";
 
 describe("BattleManager", () => {

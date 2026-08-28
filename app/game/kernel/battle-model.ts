@@ -1,4 +1,4 @@
-import { PlayerSquad, SquadFriendData } from "../../kernel/model";
+import { PlayerSquad, SquadFriendData } from "./model";
 
 type ListCounterPool<T> = { Key: T; Value: number }[];
 export interface BattleData {

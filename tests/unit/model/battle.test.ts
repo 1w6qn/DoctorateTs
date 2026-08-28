@@ -4,7 +4,7 @@ import type {
   BattleLogger,
   BattleStats,
   CommonStartBattleRequest,
-} from '@game/modules/battle/battle-model';
+} from '@game/kernel/battle-model';
 import type { PlayerSquad, SquadFriendData } from '@game/kernel/model';
 
 describe('Battle 模型', () => {

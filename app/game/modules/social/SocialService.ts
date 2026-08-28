@@ -5,11 +5,25 @@
  * 依赖 AccountManager 门面（friendRepo/trigger/data/playerData）。
  * 由 AccountManager 持有并委托——公共方法签名保留在门面上，调用点零改动。
  */
-import type { AccountManager } from "../account/AccountManager";
+import type { FriendRepository } from "@core/db/friend-repo";
+import type { PlayerDataManager } from "../../kernel/PlayerDataManager";
+import type { TypedEventEmitter } from "../../kernel/events/runtime";
+
+/**
+ * AccountManager ??? SocialService ????????????
+ * ???????? account ??????????social ??? core/kernel ?????
+ * ???? social ? account ???? import???? docs/architecture-coupling-adjudication.md??
+ */
+interface SocialAccountAccess {
+  _friendRepo: FriendRepository;
+  _trigger: TypedEventEmitter;
+  data: { [key: string]: PlayerDataManager };
+  getPlayerData(uid: string): Promise<PlayerDataManager>;
+}
 import { BadRequestError } from "../../kernel/http/errors";
 
 export class SocialService {
-  constructor(private _manager: AccountManager) {}
+  constructor(private _manager: SocialAccountAccess) {}
 
   /** 获取社交信息（好友列表、好友请求、访问记录） */
   async getSocial(uid: string): Promise<{

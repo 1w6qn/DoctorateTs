@@ -25,7 +25,7 @@ vi.mock("@excel/excel", () => ({
 vi.mock("@utils/time", () => ({ now: () => 1234567890, checkBetween: () => true }));
 vi.mock("moment", () => ({ default: () => ({ diff: () => 0 }) }));
 
-import { mockPlayerData } from "../../../helpers";
+import { mockPlayerData } from "../../../helpers/mockPlayerData";;
 import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
 import { MissionManager } from "@game/modules/mission/logic";
 

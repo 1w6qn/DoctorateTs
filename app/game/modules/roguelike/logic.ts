@@ -14,7 +14,7 @@ import { PlayerSquad } from "../../kernel/model";
 import { RoguelikeBattleManager } from "./battle";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { PlayerDataModel } from "../../kernel/playerdata";
-import { BattleData } from "../battle/battle-model";
+import { BattleData } from "../../kernel/battle-model";
 import { RoguelikePoolManager } from "./pool";
 import { composeRlv2ChildModules, type Rlv2ChildModules } from "./rlv2-composition";
 import { RoguelikeGameInitData } from "@excel/excel";

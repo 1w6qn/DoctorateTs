@@ -36,7 +36,7 @@ import {
   BattleInfo,
   BattleInfoStore,
   BattleRecord,
-} from "../modules/battle/BattleInfoStore";
+} from "./battle-info-store";
 import { PlayerDataDelta, RoguelikePushMessage } from "./http/common";
 import { Draft } from "mutative";
 import { logger } from "@utils/logger";

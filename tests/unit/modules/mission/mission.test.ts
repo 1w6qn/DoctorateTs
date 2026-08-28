@@ -89,7 +89,8 @@ vi.mock("moment", () => ({
   }),
 }));
 
-import { mockPlayerData, mockTypedEventEmitter } from "../../../helpers";
+import { mockPlayerData } from "../../../helpers/mockPlayerData";
+import { mockTypedEventEmitter } from "../../../helpers/mockEventBus";;
 import { MissionManager, MissionProgress, MissionTemplates } from "@game/modules/mission/logic";
 
 describe("MissionManager", () => {

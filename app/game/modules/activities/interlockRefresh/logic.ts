@@ -1,7 +1,6 @@
 /**
  * 活动路由：interlockRefresh（由 router/activity.ts 拆分而来，实现未改动）
  */
-import { Router } from "express";
 import * as ReqSchema from "../shared/activity.schema";
 
 import { getPlayer, getPlayerOptional } from "../../../kernel/http/request-context";
@@ -135,7 +134,6 @@ import {
 } from "../shared/activity";
 import { validateBody } from "../../../kernel/http/validate-body";
 
-const router = Router();
 import { PlayerDataManager } from "../../../kernel/PlayerDataManager";
 
 /**
@@ -340,4 +338,3 @@ function ItemTypeToString(itemType: number | string): string {
   return itemTypeMap[key] || "MATERIAL";
 }
 
-export default router;

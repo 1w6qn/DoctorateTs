@@ -1,7 +1,6 @@
 /**
  * 活动路由：arkhub（由 router/activity.ts 拆分而来，实现未改动）
  */
-import { Router } from "express";
 import { collectRawBody, arkhubFullHost } from "../shared/shared";
 import * as ReqSchema from "../shared/activity.schema";
 
@@ -146,7 +145,6 @@ import {
 } from "../shared/activity";
 import { validateBody } from "../../../kernel/http/validate-body";
 
-const router = Router();
 import { PlayerDataManager } from "../../../kernel/PlayerDataManager";
 
 /**
@@ -278,4 +276,3 @@ export async function handleArkhubreport(player: PlayerDataManager, body: Activi
 
 // ===== 顶层辅助函数（由 router.ts 拆分时保留，原样迁移）=====
 
-export default router;

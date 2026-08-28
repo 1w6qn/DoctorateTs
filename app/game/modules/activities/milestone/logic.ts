@@ -1,7 +1,6 @@
 /**
  * 活动路由：milestone（由 router/activity.ts 拆分而来，实现未改动）
  */
-import { Router } from "express";
 import { confirmOneActivityMission, autoConfirmActivityMissionsIn, ItemTypeToString } from "../shared/shared";
 import * as ReqSchema from "../shared/activity.schema";
 
@@ -144,7 +143,6 @@ import {
 } from "../shared/activity";
 import { validateBody } from "../../../kernel/http/validate-body";
 
-const router = Router();
 import { PlayerDataManager } from "../../../kernel/PlayerDataManager";
 
 /**

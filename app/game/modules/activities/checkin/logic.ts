@@ -1,7 +1,6 @@
 /**
  * 活动路由：checkin（由 router/activity.ts 拆分而来，实现未改动）
  */
-import { Router } from "express";
 import { ItemTypeToString } from "../shared/shared";
 import * as ReqSchema from "../shared/activity.schema";
 
@@ -134,9 +133,7 @@ import {
   ActivityStubRequest,
   ActivityStubResponse,
 } from "../shared/activity";
-import { validateBody } from "../../../kernel/http/validate-body";
 
-const router = Router();
 import { PlayerDataManager } from "../../../kernel/PlayerDataManager";
 
 /**
@@ -346,71 +343,3 @@ export async function handleYear5GeneralgetInfReward(player: PlayerDataManager, 
   } satisfies ActivityStubItemsResponse);
 }
 
-// ===== 顶层辅助函数（由 router.ts 拆分时保留，原样迁移）=====
-
-export const rootRouter = Router();
-rootRouter.post("/actcheckinvs/sign", validateBody(ReqSchema.actCheckinvsSignSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as ActCheckinvsSignRequest;
-
-  await player.update(async (draft) => {
-    const actId = body.actId;
-    const tasteChoice = body.tasteChoice;
-
-    const vsData = draft.activity.CHECKIN_VS as any;
-    if (!vsData[actId]) {
-      vsData[actId] = {
-        sweetVote: 0,
-        saltyVote: 0,
-        canVote: true,
-        todayVoteState: 0,
-        voteRewardState: 0,
-        signedCnt: 0,
-        availSignCnt: 1,
-        socialState: 2,
-        actDay: 1,
-      };
-    }
-    const actData = vsData[actId];
-    // 修复：签到次数限制（availSignCnt 未校验 → 无限签到刷奖励）
-    if ((actData.signedCnt ?? 0) >= (actData.availSignCnt ?? 1)) {
-      return;
-    }
-    // 投票计数
-    if (tasteChoice === 1) {
-      actData.sweetVote += 1;
-    } else if (tasteChoice === 2) {
-      actData.saltyVote += 1;
-    }
-    actData.signedCnt += 1;
-    actData.canVote = false;
-    actData.todayVoteState = 2;
-  });
-
-  // 修复：excel activity 字典键大小写随数据版本多变（cHECKIN_VS 旧坏键/checkinVs 规范键）
-  // ——动态查键，不再依赖固定大小写
-  const checkinVsKey = activityDictKey("CHECKIN_VS") ?? "cHECKIN_VS";
-  const signReward = (
-    excel.ActivityTable.activity as { [key: string]: { [key: string]: any } }
-  )[checkinVsKey]?.[body.actId] as any;
-  const rewards: ItemBundle[] = [];
-  if (signReward?.signedReward) {
-    for (const reward of signReward.signedReward) {
-      rewards.push({
-        id: reward.id,
-        count: reward.count,
-        type: ItemTypeToString(reward.type) as ItemType,
-      });
-    }
-  }
-  if (rewards.length > 0) {
-    await player._trigger.emit("items:get", [rewards]);
-  }
-
-  res.send({
-    items: rewards,
-    ...player.delta,
-  } satisfies ActCheckinvsSignResponse);
-});
-
-export default router;

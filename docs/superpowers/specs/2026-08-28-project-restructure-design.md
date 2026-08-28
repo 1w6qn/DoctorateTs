@@ -95,7 +95,7 @@ index.ts                   # 根入口：仅 CLI 参数解析（~100 行），�
 | `service/player/inventory.ts` | `kernel/inventory.ts`（实测消费者：admin + rlv2 + 组合根，横切） |
 | `domain/playerdata.ts` | `kernel/playerdata.ts` |
 | `domain/shared/model.ts` | `kernel/model.ts` |
-| `domain/util/random.ts`、`domain/util/multipart.ts`、`domain/util/stage-unlock.ts` | `kernel/util/`（stage-unlock 实测消费者为 battle 与 unlockActivity 两个域，按 §5.3 规则 2 归 kernel） |
+| `domain/util/random.ts`、`domain/util/multipart.ts`、`domain/util/stage-unlock.ts`、`domain/util/maxout.ts` | `kernel/util/`（stage-unlock 实测消费者为 battle 与 unlockActivity；maxout 唯一消费者是 ops/admin 网关，均按 §5.3 规则归 kernel） |
 | `service/util/save-health.ts` | `kernel/save-health.ts` |
 | `service/excel/` | `excel/`（生成类型随包；`scripts/generate-types.ts:41-42` 的 `PLAYERDATA_OUT`/`EXCEL_OUT` 输出常量同步改指新路径——这是 scripts/ 范围外仅有的两行路径常量修改） |
 
@@ -147,7 +147,7 @@ index.ts                   # 根入口：仅 CLI 参数解析（~100 行），�
 | `equipmentMission/` | `service/player/equipmentMission.ts` |
 | `system/` | `domain/router/audit.ts`、`domain/router/plugin-heartbeat.ts`（系统级杂项协议） |
 
-`modules/activities/`：`domain/activity/` 下 24 个族目录原样平移；`domain/activity/activity.ts`（948 行共享逻辑）→ `activities/shared/`；`service/player/unlockActivity.ts` → `activities/shared/`（实测消费者为 act24side/bossRush/checkin 三个族 + admin）。
+`modules/activities/`：`domain/activity/` 下 24 个族目录原样平移；`domain/activity/activity.ts`（948 行共享逻辑）→ `activities/shared/`；`service/player/unlockActivity.ts` → `activities/shared/`（实测消费者为 act24side/bossRush/checkin 三个族 + admin）；`domain/data/vhalfidle.ts` → `activities/act1vhalfidle/`（唯一消费者，实测）。
 
 注：`domain/contracts/` 是路由契约基建（validateBody/errors/common），已归 `kernel/http/`（§5.1），不构成业务模块。
 

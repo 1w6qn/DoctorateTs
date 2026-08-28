@@ -95,8 +95,9 @@ index.ts                   # 根入口：仅 CLI 参数解析（~100 行），�
 | `service/player/inventory.ts` | `kernel/inventory.ts`（实测消费者：admin + rlv2 + 组合根，横切） |
 | `domain/playerdata.ts` | `kernel/playerdata.ts` |
 | `domain/shared/model.ts` | `kernel/model.ts` |
-| `domain/util/random.ts`、`domain/util/multipart.ts` | `kernel/util/` |
+| `domain/util/random.ts`、`domain/util/multipart.ts`、`domain/util/stage-unlock.ts` | `kernel/util/`（stage-unlock 实测消费者为 battle 与 unlockActivity 两个域，按 §5.3 规则 2 归 kernel） |
 | `service/util/save-health.ts` | `kernel/save-health.ts` |
+| `service/excel/` | `excel/`（生成类型随包；`scripts/generate-types.ts:41-42` 的 `PLAYERDATA_OUT`/`EXCEL_OUT` 输出常量同步改指新路径——这是 scripts/ 范围外仅有的两行路径常量修改） |
 
 `game/app.ts`、`game/routes.ts` 留在 `game/` 根不动（Express 装配与路由聚合）。
 
@@ -107,10 +108,10 @@ index.ts                   # 根入口：仅 CLI 参数解析（~100 行），�
 | `user/` | `domain/router/user.ts`、`service/player/freshPlayer.ts`、`service/player/status.ts` |
 | `account/` | `domain/account/`、`domain/router/account.ts`、`service/player/AccountManager.ts` |
 | `character/` | `domain/character/`、`domain/router/charBuild.ts`、`domain/router/charRotation.ts`、`service/player/char.ts`、`service/player/charRotation.ts`、`service/player/troop.ts`、`domain/util/char-skills.ts` |
-| `battle/` | `service/player/battle.ts`、`service/player/BattleStore.ts`、`service/player/BattleInfoStore.ts`、`domain/shared/battle-model.ts`（含现 `domain/battle.ts`，若为散文件） |
+| `battle/` | `service/player/battle.ts`、`service/player/BattleStore.ts`、`service/player/BattleInfoStore.ts`、`domain/shared/battle-model.ts` |
 | `gacha/` | `domain/gacha/` 全包、`service/player/recruit.ts`、`domain/util/gacha-up-list.ts` |
 | `building/` | `domain/building/` 全包 |
-| `mission/` | `domain/mission/` 全包（templates/ 随包）、`domain/util/stage-unlock.ts`（按唯一消费者校准） |
+| `mission/` | `domain/mission/` 全包（templates/ 随包） |
 | `shop/` | `domain/shop/` 全包 |
 | `roguelike/` | `domain/rlv2/` 全包、`domain/router/roguelike.ts`、`domain/shared/rlv2-model.ts` |
 | `sandbox/` | `domain/sandbox/`、`domain/router/sandbox.ts` |
@@ -177,7 +178,7 @@ index.ts                   # 根入口：仅 CLI 参数解析（~100 行），�
 | `index.ts`（35KB） | 根 `index.ts` 仅留 CLI 解析；其余 → `app/server.ts` |
 | `player_data.json`（4.4MB，未跟踪） | 本地移入 `data/`（不涉及 git） |
 
-别名：`@game/*` 保持不变；新增 `@core/*`、`@ops/*`，tsconfig.json 与 vitest.config.mts 两处同步。
+别名：现有 `@game`、`@excel`、`@utils`、`@capture`、`@logs` 名称不变，目标路径随 §5.1/§5.4 映射同步 retarget（`@excel`→`app/game/excel`、`@utils`→`app/core/utils`、`@capture`→`app/ops/capture`、`@logs`→`app/core/logs`）；另新增 `@core/*`、`@ops/*`。tsconfig.json 与 vitest.config.mts 两处同步。
 
 ## 6. 已确认的归并判断（用户已认可）
 
@@ -202,7 +203,7 @@ index.ts                   # 根入口：仅 CLI 参数解析（~100 行），�
 
 前置：`app/asset.ts` 的未提交修改先由用户处置（提交或暂存），迁移在干净工作树上进行。
 
-1. **别名准备**：tsconfig.json + vitest.config.mts 新增 `@core/*`、`@ops/*`
+1. **别名准备**：tsconfig.json + vitest.config.mts 新增 `@core/*`、`@ops/*`（`@excel`/`@utils`/`@capture`/`@logs` 的 retarget 分别随 commit 1 / commit 2 落地）
 2. **core + ops 迁移**（commit 1）：git mv §5.4 各项；脚本按映射表重写 import；`tsc --noEmit` + `vitest run` 绿
 3. **game 迁移**（commit 2）：按 §5.1–5.3 git mv；生成逐文件映射表（含散件裁决）；批量重写全仓 import（含 `tests/**` 的 `@game/domain|service/*` 行——tests 目录结构与用例逻辑不动）；路由懒加载 `await import(...)` 路径同步；`tsc --noEmit` + `vitest run` 绿
 4. **守卫上线**（commit 3a）：新增 module-boundary 测试，清理越界 import
@@ -219,6 +220,7 @@ index.ts                   # 根入口：仅 CLI 参数解析（~100 行），�
 | 动态拼路径的插件/资源加载（`app/plugin`、admin dashboard 静态资源） | 迁移前后 grep 路径常量并冒烟验证 dashboard |
 | tests import 机械改写引入语义漂移 | 仅允许路径前缀替换，禁止改动用例逻辑；tsc + vitest 全量验证 |
 | **tests 不在 tsc 检查范围**（tsconfig include 仅 `app/**` + `index.ts`），存在指向已不存在模块的 stale type-only import（实测：`tests/unit/model/battle.test.ts` 引用 `@game/domain/battle`，该文件已不存在，因 type-only import 被 esbuild 剥离而潜伏） | 重写脚本对"旧路径在仓库中无对应文件"的 import 逐条人工裁决重定向，不做盲目前缀替换 |
+| 生成类型输出路径失效（excel 迁移后 `scripts/generate-types.ts` 找不到写入目标） | commit 2 内同步更新 `PLAYERDATA_OUT`/`EXCEL_OUT` 常量，并实际运行一次生成器验证输出落点 |
 | 一次性迁移中途不可运行 | 按 §8 的 commit 1 / 2 / 3a / 3b 切分，每步验证后推进 |
 | `git mv` 后历史追溯断裂担忧 | 全程 git mv（非删除重建），rename 检测可追溯 |
 

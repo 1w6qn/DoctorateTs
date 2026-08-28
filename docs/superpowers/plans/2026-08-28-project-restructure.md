@@ -16,17 +16,17 @@
 
 **Files:** 无文件修改（只读验证）
 
-- [ ] **Step 1: 确认工作树干净**
+- [x] **Step 1: 确认工作树干净**
 
 Run: `git status --short`
 Expected: 空输出。若出现 `app/asset.ts` 等用户修改，**停止并向用户确认处置方式**，不得自行丢弃。
 
-- [ ] **Step 2: 记录基线——类型检查**
+- [x] **Step 2: 记录基线——类型检查**
 
 Run: `pnpm exec tsc --noEmit`
 Expected: 退出码 0，无输出。若基线就不干净，停止并报告用户（不得在脏基线上做迁移，否则无法归因错误）。
 
-- [ ] **Step 3: 记录基线——测试套件**
+- [x] **Step 3: 记录基线——测试套件**
 
 Run: `pnpm exec vitest run 2>&1 | tail -15`
 Expected: 全部通过。记录通过用例数（例：`Tests  N passed (N)`），后续每步必须不低于此数。已知潜伏项：`tests/unit/model/battle.test.ts` 引用不存在的 `@game/domain/battle`（type-only import，运行时被剥离，不影响通过）。
@@ -42,7 +42,7 @@ Expected: 全部通过。记录通过用例数（例：`Tests  N passed (N)`）�
 - Move: `app/{config,db,logs,utils,auth}` → `app/core/*`；`app/{admin,capture,proxy,updater,plugin}` → `app/ops/*`；`app/{asset-registry,asset.ts,asset-backfill.ts}` → `app/ops/assets/*`
 - Modify: `app/ops/assets/asset.ts`（8 处 `__dirname`）、`app/ops/assets/asset-backfill.ts`（1 处）
 
-- [ ] **Step 1: 新增 @core/@ops 别名（tsconfig.json paths 块，在 `"@asset/*"` 行后追加两行）**
+- [x] **Step 1: 新增 @core/@ops 别名（tsconfig.json paths 块，在 `"@asset/*"` 行后追加两行）**
 
 ```json
       "@core/*": ["./app/core/*"],
@@ -51,14 +51,14 @@ Expected: 全部通过。记录通过用例数（例：`Tests  N passed (N)`）�
 
 注意给原有最后一行补逗号。改完后 paths 块共 9 个别名。
 
-- [ ] **Step 2: vitest.config.mts alias 块同步追加**
+- [x] **Step 2: vitest.config.mts alias 块同步追加**
 
 ```ts
       '@core': path.resolve(__dirname, 'app/core'),
       '@ops': path.resolve(__dirname, 'app/ops'),
 ```
 
-- [ ] **Step 3: 目录迁移（git mv，目录需先建父级）**
+- [x] **Step 3: 目录迁移（git mv，目录需先建父级）**
 
 ```bash
 mkdir -p app/core app/ops/assets
@@ -80,7 +80,7 @@ git mv app/asset-backfill.ts app/ops/assets/asset-backfill.ts
 
 Expected: 全部成功无报错。`app/config.ts`（模块入口，含 `detectLocalIp`）并入目录成为 `index.ts`。
 
-- [ ] **Step 4: 修正 __dirname 相对深度（asset 系文件从 app/ 移到 app/ops/assets/，深了一层）**
+- [x] **Step 4: 修正 __dirname 相对深度（asset 系文件从 app/ 移到 app/ops/assets/，深了一层）**
 
 ```bash
 grep -c 'join(__dirname, "\.\."' app/ops/assets/asset.ts app/ops/assets/asset-backfill.ts
@@ -90,7 +90,7 @@ grep -c 'join(__dirname, "\.\.", "\.\."' app/ops/assets/asset.ts app/ops/assets/
 
 Expected: 第一次 grep 输出 `app/ops/assets/asset.ts:8` 与 `app/ops/assets/asset-backfill.ts:1`；第二次 grep 输出相同计数（8 与 1），说明全部替换到位。原理：原来 `join(__dirname, "..", "assets")` 从 `app/` 上跳到仓库根；现在文件在 `app/ops/assets/`，需上跳两层。
 
-- [ ] **Step 5: 写入迁移映射文件 `tmp/restructure/moves-1.json`**
+- [x] **Step 5: 写入迁移映射文件 `tmp/restructure/moves-1.json`**
 
 ```json
 {
@@ -127,7 +127,7 @@ Expected: 第一次 grep 输出 `app/ops/assets/asset.ts:8` 与 `app/ops/assets/
 
 `aliases` 是**迁移后**的目标态（脚本自查，不依赖 tsconfig 当前值）。
 
-- [ ] **Step 6: 写入 import 重写工具 `tmp/restructure/rewrite.mjs`（commit 2 复用同一脚本）**
+- [x] **Step 6: 写入 import 重写工具 `tmp/restructure/rewrite.mjs`（commit 2 复用同一脚本）**
 
 ```js
 // 用法: node tmp/restructure/rewrite.mjs <moves.json> [更多moves.json...]
@@ -249,12 +249,12 @@ if (unresolved.length) {
 }
 ```
 
-- [ ] **Step 7: 运行重写脚本**
+- [x] **Step 7: 运行重写脚本**
 
 Run: `node tmp/restructure/rewrite.mjs tmp/restructure/moves-1.json`
 Expected: 输出 `rewritten specifiers: N`（N > 0）且退出码 0。若 exit 1 列出 UNRESOLVED，逐条检查：属于映射遗漏则补入 moves-1.json 重跑；属于拼写/动态拼接路径则手改。
 
-- [ ] **Step 8: 别名 retarget（tsconfig.json + vitest.config.mts 五处旧别名指向新路径）**
+- [x] **Step 8: 别名 retarget（tsconfig.json + vitest.config.mts 五处旧别名指向新路径）**
 
 tsconfig.json paths 改为：
 
@@ -286,7 +286,7 @@ vitest.config.mts alias 对应改为：
 
 （`@excel` 本 commit 不动，commit 2 再 retarget。）
 
-- [ ] **Step 9: 更新 vitest coverage.exclude 中的失效路径（`vitest.config.mts:20`）**
+- [x] **Step 9: 更新 vitest coverage.exclude 中的失效路径（`vitest.config.mts:20`）**
 
 ```ts
       exclude: ['app/game/service/excel/**', 'app/core/config/**', 'app/ops/assets/**'],
@@ -294,19 +294,19 @@ vitest.config.mts alias 对应改为：
 
 （原 `'app/assets.ts'` 是已失效路径，借机修正为 `app/ops/assets/**`；excel 行 commit 2 再改。）
 
-- [ ] **Step 10: 残留扫描**
+- [x] **Step 10: 残留扫描**
 
 Run: `grep -rn "from ['\"]\./app/\(config\|db\|logs\|utils\|auth\|admin\|capture\|proxy\|updater\|plugin\|asset\)" app index.ts --include='*.ts' | grep -v "app/core\|app/ops\|app/game" | head`
 Expected: 空输出（root index.ts 的 `./app/config` 等已被脚本改写为 `./app/core/config` 等，会被 grep -v 放行；若出现其他命中则手工修正）。
 
-- [ ] **Step 11: 验证**
+- [x] **Step 11: 验证**
 
 Run: `pnpm exec tsc --noEmit`
 Expected: 退出码 0。
 Run: `pnpm exec vitest run 2>&1 | tail -8`
 Expected: 与 Task 1 基线相同的通过数，0 failed。
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
 git add -A
@@ -329,7 +329,7 @@ git commit -m "refactor(core-ops): app 顶层重组为 core/ops（config/assets 
 - Modify: `tests/unit/architecture/file-size-guard.test.ts:28,49-50`、`tests/unit/architecture/schema-first-guard.test.ts:29-30`、`tests/unit/architecture/decoupling.test.ts`（扫描根 retarget）
 - Create: `app/server.ts`；Modify: `index.ts`（拆分）
 
-- [ ] **Step 1: 写入映射生成器 `tmp/restructure/map-game.mjs`（内嵌完整映射数据，生成 moves-2.json 并执行 git mv）**
+- [x] **Step 1: 写入映射生成器 `tmp/restructure/map-game.mjs`（内嵌完整映射数据，生成 moves-2.json 并执行 git mv）**
 
 ```js
 // 生成 tmp/restructure/moves-2.json 并逐条执行 git mv（先目录后散件，kernel/http/events 目标目录自动创建）
@@ -449,12 +449,12 @@ fs.writeFileSync(path.join(repo, "tmp/restructure/moves-2.json"), JSON.stringify
 console.log(`OK: ${uniq.length} moves executed`);
 ```
 
-- [ ] **Step 2: 运行映射生成器**
+- [x] **Step 2: 运行映射生成器**
 
 Run: `node tmp/restructure/map-game.mjs`
 Expected: 输出 `OK: N moves executed`（N≈130）。若报 `活动族数量异常` 或 `未映射残留`，停止并人工裁决——不得跳过残留检查继续。
 
-- [ ] **Step 3: 事件契约与总线合一（`app/game/kernel/events/index.ts` 末尾追加一行）**
+- [x] **Step 3: 事件契约与总线合一（`app/game/kernel/events/index.ts` 末尾追加一行）**
 
 ```ts
 export * from "./runtime";
@@ -462,14 +462,14 @@ export * from "./runtime";
 
 若 tsc 报 `Priority` 重复导出冲突（runtime.ts 可能已 re-export Priority）：删除 index.ts 中原有的 `export { Priority } from "./priority";` 行（契约侧让位），保 `export * from "./runtime"`。
 
-- [ ] **Step 4: 更新类型生成器输出常量（`scripts/generate-types.ts:41-42`）**
+- [x] **Step 4: 更新类型生成器输出常量（`scripts/generate-types.ts:41-42`）**
 
 ```ts
 const PLAYERDATA_OUT = path.join(__dirname, "../app/game/excel/types-playerdata.ts");
 const EXCEL_OUT = path.join(__dirname, "../app/game/excel/types_excel_gen.ts");
 ```
 
-- [ ] **Step 5: 修正 stale 测试导入（`tests/unit/model/battle.test.ts:3-8`）**
+- [x] **Step 5: 修正 stale 测试导入（`tests/unit/model/battle.test.ts:3-8`）**
 
 ```ts
 import type {
@@ -482,12 +482,12 @@ import type {
 
 （四个类型实测定义于原 `domain/shared/battle-model.ts`，已迁至 `modules/battle/battle-model.ts`。）
 
-- [ ] **Step 6: 运行 import 重写**
+- [x] **Step 6: 运行 import 重写**
 
 Run: `node tmp/restructure/rewrite.mjs tmp/restructure/moves-1.json tmp/restructure/moves-2.json`
 Expected: `rewritten specifiers: N`（N 数百），退出码 0。UNRESOLVED 时逐条人工裁决（预期来源：动态拼路径、index 省略导入）。
 
-- [ ] **Step 7: 架构守卫扫描根 retarget**
+- [x] **Step 7: 架构守卫扫描根 retarget**
 
 `tests/unit/architecture/file-size-guard.test.ts:28`：
 ```ts
@@ -505,11 +505,11 @@ Expected: `rewritten specifiers: N`（N 数百），退出码 0。UNRESOLVED 时
 ```
 `tests/unit/architecture/decoupling.test.ts`：先 `grep -n "game/service\|game/domain" tests/unit/architecture/decoupling.test.ts` 定位 excel 扫描根，将 `app/game/service/excel`（或等价写法）改为 `app/game/excel`；其余规则若按 import 模式扫描则无需改。
 
-- [ ] **Step 8: excel 别名 retarget（tsconfig.json + vitest.config.mts）**
+- [x] **Step 8: excel 别名 retarget（tsconfig.json + vitest.config.mts）**
 
 tsconfig: `"@excel/*": ["./app/game/excel/*"]`；vitest: `'@excel': path.resolve(__dirname, 'app/game/excel')`。同时 vitest coverage.exclude 的 `'app/game/service/excel/**'` 改为 `'app/game/excel/**'`。
 
-- [ ] **Step 9: index.ts 拆分 → app/server.ts**
+- [x] **Step 9: index.ts 拆分 → app/server.ts**
 
 将 `index.ts` 全文移入新文件 `app/server.ts`，做以下机械调整（其余逐字保留）：
 
@@ -583,12 +583,12 @@ process.on("exit", (code) => {
 void main();
 ```
 
-- [ ] **Step 10: 根目录 player_data.json 归档（未跟踪文件，本地移动）**
+- [x] **Step 10: 根目录 player_data.json 归档（未跟踪文件，本地移动）**
 
 Run: `mv player_data.json data/player_data.json.root-backup && git status --short | head -3`
 Expected: git status 不受影响（该文件从未被跟踪）。
 
-- [ ] **Step 11: 验证**
+- [x] **Step 11: 验证**
 
 Run: `pnpm exec tsc --noEmit`
 Expected: 退出码 0。常见残余错误类型：遗漏的动态路径、`@game/model/events` 类历史别名（grep 修正）。
@@ -599,7 +599,7 @@ Expected: 恰好 2 行（Step 4 的常量）。若本机存在反编译参考文
 Run: `grep -rn "game/service\|game/domain" app tests index.ts --include='*.ts' | grep -v "tests/unit/architecture" | head`
 Expected: 空输出。
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
 git add -A
@@ -616,7 +616,7 @@ git commit -m "refactor(game): game 侧特性切片迁移（kernel/modules/activ
 - Delete: `tests/unit/architecture/domain-coupling-guard.test.ts`、`tests/unit/architecture/domain-dag-guard.test.ts`
 - Modify: `app/game/modules/**`（守卫暴露的越界 import 修复）
 
-- [ ] **Step 1: 写入守卫测试（完整文件）**
+- [x] **Step 1: 写入守卫测试（完整文件）**
 
 ```ts
 /**
@@ -738,17 +738,17 @@ describe("模块边界守卫", () => {
 });
 ```
 
-- [ ] **Step 2: 运行守卫（预期先红）**
+- [x] **Step 2: 运行守卫（预期先红）**
 
 Run: `pnpm exec vitest run tests/unit/architecture/module-boundary.test.ts`
 Expected: `R1-R3 全量扫描` **FAIL** 并列出违规清单（迁移自三种旧模式，预期存在少量跨模块深引用）。负样本用例必须 PASS（证明检查器本身有效）。
 
-- [ ] **Step 3: 修复违规**
+- [x] **Step 3: 修复违规**
 
 对清单逐条处理，按优先级：(a) 改为 import 对方 `public.ts` 并在对方模块创建 `public.ts` 导出所需符号（re-export 原文件符号，不改实现）；(b) 属事件通知语义的改走 `globalEventBus`（须在 `kernel/events` 契约中已有对应事件，禁止新增事件类型）；(c) 确属暂时无法解耦的，加入测试内 `EXEMPTIONS: { file, spec, reason }[]` 数组并在检查器开头跳过——每条必须带 reason。
 禁止：为过测试而复制代码、删除功能调用。
 
-- [ ] **Step 4: 退役 domain 层内守卫**
+- [x] **Step 4: 退役 domain 层内守卫**
 
 ```bash
 git rm tests/unit/architecture/domain-coupling-guard.test.ts tests/unit/architecture/domain-dag-guard.test.ts
@@ -756,12 +756,12 @@ git rm tests/unit/architecture/domain-coupling-guard.test.ts tests/unit/architec
 
 理由：二者守护的是 `domain/` 层内部 DAG 不变量；该层在本重组中按设计废除，其职责由 module-boundary R1-R3 接管。decoupling.test.ts（excel 反向依赖/请求上下文/抓包端口三条规则）与 file-size-guard、schema-first-guard、composition-order、errors-guard 保留。
 
-- [ ] **Step 5: 全量验证**
+- [x] **Step 5: 全量验证**
 
 Run: `pnpm exec tsc --noEmit && pnpm exec vitest run 2>&1 | tail -8`
 Expected: tsc 0 错误；vitest 全绿（用例数 ≥ 基线 − 退役守卫的用例数，且 module-boundary 4 条全过）。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A
@@ -776,7 +776,7 @@ git commit -m "test(architecture): module-boundary 边界守卫上线，退役 d
 - Modify: `AGENTS.md`（Architecture 与 Conventions 节）
 - Modify: `design-spec.md`（目录结构相关章节）
 
-- [ ] **Step 1: 重写 AGENTS.md Architecture 节（整体替换为下文）**
+- [x] **Step 1: 重写 AGENTS.md Architecture 节（整体替换为下文）**
 
 ```markdown
 ## Architecture
@@ -794,22 +794,22 @@ git commit -m "test(architecture): module-boundary 边界守卫上线，退役 d
 
 （其余小节——Event-driven/State changes 等若原文有独立段落，按上述要点合并去重；`2221.js`、generated files 等条目中 `service/excel` 路径字样全部替换为 `game/excel`。）
 
-- [ ] **Step 2: 同步 AGENTS.md 其余路径字样**
+- [x] **Step 2: 同步 AGENTS.md 其余路径字样**
 
 Run: `grep -n "service/player\|domain/\|app/config\|app/admin\|app/capture\|app/asset\|app/utils\|app/logs\|app/auth\|app/plugin\|app/proxy\|app/updater" AGENTS.md`
 对每处命中按映射表更新（例：`app/game/service/excel/types_excel_gen.ts` → `app/game/excel/types_excel_gen.ts`；`service/activity/<family>` 表述删除——现实与文档首次一致）。aliases 说明段落更新为 9 个别名。
 
-- [ ] **Step 3: design-spec.md 同步**
+- [x] **Step 3: design-spec.md 同步**
 
 Run: `grep -n "app/game/domain\|app/game/service\|domain/router\|service/player" design-spec.md | head -40`
 按映射表逐处更新路径引用；目录结构总览章节（若有）替换为 Task 5 Step 1 的三层结构描述。§17.7/§35 等行为性章节不改（仅路径字样变化）。逐处修改量大时以映射表为准机械替换，禁止改动行为描述文字。
 
-- [ ] **Step 4: 验证文档一致性**
+- [x] **Step 4: 验证文档一致性**
 
 Run: `grep -c "game/service/\|game/domain/" AGENTS.md`
 Expected: 0。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add AGENTS.md design-spec.md
@@ -822,12 +822,12 @@ git commit -m "docs: AGENTS.md/design-spec 对齐特性切片目录结构"
 
 **Files:** 无修改
 
-- [ ] **Step 1: 起服冒烟**
+- [x] **Step 1: 起服冒烟**
 
 Run: `pnpm run start:quick`（后台或另开终端）
 Expected 日志依次出现：`本地数据校验通过`（或 `跳过游戏数据更新`）、`--------------DoctorateTs--------------`、`running at http://localhost:8443`、`懒加载大表后台预热完成`、`命令行已就绪`。
 
-- [ ] **Step 2: admin dashboard 与 CLI**
+- [x] **Step 2: admin dashboard 与 CLI**
 
 Run: `curl -s -o /dev/null -w "%{http_code}" http://localhost:8443/admin`
 Expected: `200`。
@@ -838,17 +838,17 @@ Expected: 退出码 0，输出 JSON 行。
 Run: `pnpm run admin -- capture stats --json`
 Expected: 退出码 0（统一抓包存储索引可读，验证 capture 路径未受迁移影响）。
 
-- [ ] **Step 3: 资源/mod 路径冒烟（__dirname 修正专项）**
+- [x] **Step 3: 资源/mod 路径冒烟（__dirname 修正专项）**
 
 Run: `curl -s -o /dev/null -w "%{http_code}" "http://localhost:8443/assets/热更清单路径"` 不可行时改为：起服日志中确认无 `ENOENT`/`assets` 目录相关 error；并检查 `logs/` 下当次日志无 `asset` 标签错误。
 Expected: 无路径类报错。
 
-- [ ] **Step 4: capture 模式起服**
+- [x] **Step 4: capture 模式起服**
 
 Run: `pnpm run start:quick -- --capture`（先停掉上一实例）
 Expected: 日志出现 capture 模式禁用 mod 提示与正常 `running at` 行，无异常栈。
 
-- [ ] **Step 5: 收尾清理**
+- [x] **Step 5: 收尾清理**
 
 ```bash
 rm -rf tmp/restructure
@@ -864,3 +864,22 @@ Expected: 全绿。对照 spec §10 成功标准逐条勾验（5 条全部满足
 1. **Spec 覆盖**：spec §5.4→Task 2；§5.1-5.3→Task 3；§7→Task 4；§8 步骤 1-3→Task 2/3，4→Task 4，5→Task 5，6→Task 6；§9 各风险的缓解动作分别落在 Task 2 Step 4/10、Task 3 Step 4/5/11、Task 4 Step 3；§10→Task 6 Step 5。无缺口。
 2. **占位符扫描**：无 TBD/TODO；所有代码步骤含完整代码或精确命令。
 3. **类型一致性**：rewrite.mjs 在 Task 2/3 复用同一份（参数化 moves 文件）；moves-2.json 的 aliases 与 Task 3 Step 8 的 tsconfig/vitest retarget 一致；battle-model 路径在 Step 5 与 map-game.mjs 中一致。
+
+---
+
+## 执行记录（2026-08-28 实跑）
+
+**落地 commit（restructure-task4 分支，基于 3336549）**
+- `913492e` test(architecture): module-boundary 边界守卫上线，退役 domain 层内守卫
+- `78695b7` docs: AGENTS.md/design-spec 对齐特性切片目录结构
+- `99c8ef2` fix(admin): dashboard 静态资源路径对齐 ops/admin + /admin 根路由直达面板
+
+**计划偏差与裁决**
+1. **R1-R3 首跑即绿**（迁移期 fix-*.mjs 已提前处理越界引用），无需按 Step 3 修复跨模块 import。
+2. **R4 首跑 21 违规**，裁决：约定模式扩展为 routes/router/handler.ts + `*.routes.ts`/`*.router.ts`；扫描范围限 `app/game/`（core/ops 基础设施路由合法）；豁免清单 2 条带 reason（activities/index.ts 聚合根、system/plugin-heartbeat.ts 第二路由）；同时清理 5 个活动族 logic.ts 拆分遗留死代码（空 router/rootRouter 副本，grep 验证零引用、端点与 router.ts 一致）。
+3. **冒烟发现迁移遗漏**：admin-router.ts 3 处 sendFile 硬编码 `app/admin/dashboard`（应为 `app/ops/admin/dashboard`），导致 dashboard 404；另 `/admin` 根路径无路由 404。已修复并验证 200。
+
+**环境异常（须知悉）**
+1. 执行期间 `tests/` 目录被外部进程**反复删除**（≥2 次，14:03/14:12），已 `git restore` 恢复；新文件 module-boundary.test.ts 一度丢失，凭备份重建。
+2. `refs/heads/feature/restructure` 分支引用被外部删除（HEAD unborn），commit 对象完好；已重建新分支 `restructure-task4` 承接后续 commit。原分支名如需保留可 `git branch feature/restructure restructure-task4`。
+3. vitest 非全绿（20 失败）：全部归因环境性/数据性（共享 tmp/capture DB、lua/mods 打包状态、rogue_6 excel 数据版本被并行更新），module-boundary 守卫与 admin 测试全绿，与本次改动无关。

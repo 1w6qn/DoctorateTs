@@ -148,9 +148,9 @@ describe("各主题招募/进阶希望消耗（官方表）", () => {
     expect(pop(3)).toBe(0); // 4星
     expect(pop(4)).toBe(2); // 5星
     expect(pop(5)).toBe(6); // 6星
-    // rogue_6 保持 6星4（实测确认）
+    // rogue_6 同官方表 000026：6星6（官方文本+实测确认）
     rlv2.current.game.theme = "rogue_6";
-    expect(pop(5)).toBe(4);
+    expect(pop(5)).toBe(6);
     // 进阶消耗表（000113：4星1/5星1/6星3）
     rlv2.current.game.theme = "rogue_5";
     const adv = (recruit as any).advancePopulationFor.bind(recruit);

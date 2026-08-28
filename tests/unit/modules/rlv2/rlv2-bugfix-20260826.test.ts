@@ -83,11 +83,17 @@ describe("节点状态仅 0/2（官服口径，无中间态 1）", () => {
     for (const [id, n] of Object.entries(nodes) as [string, any][]) {
       expect([0, 2], `node ${id} state=${n.state}`).toContain(n.state);
     }
-    // 初始点亮类型（起点/险路尽头/曲折密道/羽瞰点）= 2
+    // 初始点亮类型（险路尽头/曲折密道/羽兽点）= 2；起点 GLADE 由 generate 置 2，
+    // 其余林间空地（GLADE 填充）仍为 0（官服抓包：state 仅 0/2，仅起点点亮）
     const lit = Object.values(nodes).filter(
-      (n: any) => [268435456, 8388608, 4194304, 67108864].includes(n.content?.kind),
+      (n: any) => [8388608, 4194304, 67108864].includes(n.content?.kind),
     );
     for (const n of lit as any[]) expect(n.state).toBe(2);
+    const glades = Object.values(nodes).filter((n: any) => n.content?.kind === 268435456);
+    expect(glades.filter((n: any) => n.state === 2).length).toBe(1); // 起点
+    for (const n of glades as any[]) {
+      if (n.state !== 2) expect(n.state).toBe(0); // 填充林间空地
+    }
     // 移动揭示后邻居仍为 0（不置中间态 1）
     rlv2._status.cursor.zone = 1;
     const startId = Object.keys(nodes).find(

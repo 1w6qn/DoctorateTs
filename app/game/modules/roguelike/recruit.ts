@@ -4,6 +4,7 @@ import { PlayerRoguelikeV2 } from "./rlv2";
 import { RoguelikeV2Manager } from "./logic";
 import { now } from "@utils/time";
 import { rarityToIndex } from "@utils/rarity";
+import { logger } from "@utils/logger";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
 import { random } from "../../kernel/util/random";
 
@@ -126,7 +127,16 @@ export class RoguelikeRecruitManager {
     const ticketInfo =
       excel.RoguelikeTopicTable.details[theme].recruitTickets[
         this.tickets[id].id
+      ] ??
+      excel.RoguelikeTopicTable.details[theme].upgradeTickets?.[
+        this.tickets[id].id
       ];
+    // 遗物/奖励可发放 upgradeTickets（如 *_from_relic），结构与 recruitTickets 同构；
+    // 未知票（无候选定义）跳过激活，避免 500。
+    if (!ticketInfo?.professionList) {
+      logger.warn("rlv2", `active: 未知招募票 ${this.tickets[id].id}，跳过激活`);
+      return;
+    }
     // 候选干员来自玩家主队伍（collection，312 干员），非 rlv2 对局内 troop（初始为空）
     // 防御：troop 未初始化（构造/测试早期）时不崩
     const troopChars = this._player._player._playerdata.troop?.chars ?? {};

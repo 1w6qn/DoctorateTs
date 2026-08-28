@@ -180,6 +180,7 @@ describe("finishEvent 响应与官服严格结构比对（真实 excel）", () =
         !d.startsWith("player.pending") &&
         !d.startsWith("inventory.recruit") &&
         !d.startsWith("inventory.relic") &&
+        !d.startsWith("module.scrap.activeVehicle") && // init 随机自动装备 MOVE 载具，instId 有无随 RNG
         !d.startsWith("module.scrap.inventory"),
     );
     console.log("finishEvent 结构不变量差异:", structural.length);

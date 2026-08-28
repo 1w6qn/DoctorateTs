@@ -72,7 +72,7 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-vi.mock("@game/service/PlayerDataManager", () => ({
+vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
@@ -90,7 +90,7 @@ vi.mock("moment", () => ({
 }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../../helpers";
-import { MissionManager, MissionProgress, MissionTemplates } from "@game/domain/mission/logic";
+import { MissionManager, MissionProgress, MissionTemplates } from "@game/modules/mission/logic";
 
 describe("MissionManager", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;

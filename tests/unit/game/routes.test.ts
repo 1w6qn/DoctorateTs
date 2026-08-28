@@ -14,46 +14,46 @@ import {
 
 /** 客户端关键单前缀 → 意图 router 模块（默认导出） */
 const expectedPrefixes: Array<[string, string]> = [
-  ["/businessCard", "./domain/router/businessCard"],
-  ["/account", "./domain/router/account"],
-  ["/charBuild", "./domain/router/charBuild"],
-  ["/building", "./domain/building/handler"],
-  ["/quest", "./domain/router/quest"],
-  ["/user", "./domain/router/user"],
-  ["/activity", "./domain/activity"],
-  ["/storyreview", "./domain/router/storyreview"],
-  ["/mission", "./domain/mission/handler"],
-  ["/shop", "./domain/shop/handler"],
-  ["/rlv2", "./domain/rlv2/handler"],
-  ["/gacha", "./domain/gacha/handler"],
-  ["/mail", "./domain/router/mail"],
-  ["/social", "./domain/router/social"],
-  ["/retro", "./domain/router/retro"],
-  ["/aprilFool", "./domain/router/aprilFool"],
-  ["/crisis", "./domain/router/crisis"],
-  ["/deepsea", "./domain/router/deepsea"],
-  ["/siracusaMap", "./domain/router/siracusaMap"],
-  ["/explore", "./domain/router/explore"],
-  ["/tower", "./domain/router/tower"],
-  ["/charm", "./domain/router/charm"],
-  ["/charRotation", "./domain/router/charRotation"],
-  ["/depot", "./domain/router/depot"],
-  ["/sandbox", "./domain/router/sandbox"],
-  ["/templateShop", "./domain/router/templateShop"],
-  ["/mailCollection", "./domain/router/mailCollection"],
-  ["/multiplayer", "./domain/router/multiplayer"],
-  ["/roguelike", "./domain/router/roguelike"],
-  ["/campaignV2", "./domain/router/campaignV2"],
-  ["/vecbreak", "./domain/router/vecbreak"],
-  ["/interlock", "./domain/router/interlock"],
-  ["/autochess", "./domain/router/autochess"],
-  ["/pay", "./domain/router/pay"],
-  ["/plugin", "./domain/router/plugin-heartbeat"],
-  ["/rune", "./domain/router/rune"],
-  ["/audit", "./domain/router/audit"],
-  ["/arkodc", "./domain/router/arkodc"],
-  ["/", "./domain/router/home"],
-  ["/", "./domain/router/misc-alignment"],
+  ["/businessCard", "./modules/businessCard/routes"],
+  ["/account", "./modules/account/routes"],
+  ["/charBuild", "./modules/character/routes"],
+  ["/building", "./modules/building/handler"],
+  ["/quest", "./modules/quest/routes"],
+  ["/user", "./modules/user/routes"],
+  ["/activity", "./modules/activities"],
+  ["/storyreview", "./modules/storyreview/routes"],
+  ["/mission", "./modules/mission/handler"],
+  ["/shop", "./modules/shop/handler"],
+  ["/rlv2", "./modules/roguelike/handler"],
+  ["/gacha", "./modules/gacha/handler"],
+  ["/mail", "./modules/mail/routes"],
+  ["/social", "./modules/social/routes"],
+  ["/retro", "./modules/retro/routes"],
+  ["/aprilFool", "./modules/aprilFool/routes"],
+  ["/crisis", "./modules/crisis/routes"],
+  ["/deepsea", "./modules/deepsea/routes"],
+  ["/siracusaMap", "./modules/siracusaMap/routes"],
+  ["/explore", "./modules/explore/routes"],
+  ["/tower", "./modules/tower/routes"],
+  ["/charm", "./modules/charm/routes"],
+  ["/charRotation", "./modules/character/charRotation.routes"],
+  ["/depot", "./modules/depot/routes"],
+  ["/sandbox", "./modules/sandbox/routes"],
+  ["/templateShop", "./modules/templateShop/routes"],
+  ["/mailCollection", "./modules/mail/mailCollection.routes"],
+  ["/multiplayer", "./modules/multiplayer/routes"],
+  ["/roguelike", "./modules/roguelike/routes"],
+  ["/campaignV2", "./modules/campaignV2/routes"],
+  ["/vecbreak", "./modules/vecbreak/routes"],
+  ["/interlock", "./modules/interlock/routes"],
+  ["/autochess", "./modules/autochess/routes"],
+  ["/pay", "./modules/pay/routes"],
+  ["/plugin", "./modules/system/plugin-heartbeat"],
+  ["/rune", "./modules/rune/routes"],
+  ["/audit", "./modules/system/routes"],
+  ["/arkodc", "./modules/arkodc/routes"],
+  ["/", "./modules/home/routes"],
+  ["/", "./modules/misc-alignment/routes"],
 ];
 
 describe("集中路由注册表 routes", () => {
@@ -69,23 +69,23 @@ describe("集中路由注册表 routes", () => {
   it("user/activity 根级路由通过 rootRouter 挂载到根路径", () => {
     expect(
       routes.some(
-        (r) => r.prefix === "/" && r.module === "./domain/router/user" && r.exportName === "rootRouter",
+        (r) => r.prefix === "/" && r.module === "./modules/user/routes" && r.exportName === "rootRouter",
       ),
     ).toBe(true);
     expect(
       routes.some(
         (r) =>
-          r.prefix === "/" && r.module === "./domain/activity" && r.exportName === "rootRouter",
+          r.prefix === "/" && r.module === "./modules/activities" && r.exportName === "rootRouter",
       ),
     ).toBe(true);
   });
 
   it("/activity 前缀别名覆盖 roguelike/interlock/vecbreak/multiplayer", () => {
     for (const module of [
-      "./domain/router/roguelike",
-      "./domain/router/interlock",
-      "./domain/router/vecbreak",
-      "./domain/router/multiplayer",
+      "./modules/roguelike/routes",
+      "./modules/interlock/routes",
+      "./modules/vecbreak/routes",
+      "./modules/multiplayer/routes",
     ]) {
       expect(
         routes.some((r) => r.prefix === "/activity" && r.module === module),
@@ -96,10 +96,10 @@ describe("集中路由注册表 routes", () => {
 
   it("根挂载别名（multiplayer/campaignV2/retro/vecbreak）对齐客户端单前缀", () => {
     for (const module of [
-      "./domain/router/multiplayer",
-      "./domain/router/campaignV2",
-      "./domain/router/retro",
-      "./domain/router/vecbreak",
+      "./modules/multiplayer/routes",
+      "./modules/campaignV2/routes",
+      "./modules/retro/routes",
+      "./modules/vecbreak/routes",
     ]) {
       expect(
         routes.some((r) => r.prefix === "/" && r.module === module),
@@ -113,7 +113,7 @@ describe("集中路由注册表 routes", () => {
       routes.some(
         (r) =>
           r.prefix === "/crisisV2" &&
-          r.module === "./domain/router/crisis" &&
+          r.module === "./modules/crisis/routes" &&
           r.rewrite === crisisV2Rewrite,
       ),
     ).toBe(true);
@@ -124,7 +124,7 @@ describe("集中路由注册表 routes", () => {
       routes.some(
         (r) =>
           r.prefix === "/sandboxPerm" &&
-          r.module === "./domain/router/sandbox" &&
+          r.module === "./modules/sandbox/routes" &&
           r.rewrite === sandboxPermRewrite,
       ),
     ).toBe(true);
@@ -163,8 +163,8 @@ describe("集中路由注册表 routes", () => {
       .map((r, i) => ({ ...r, index: i }))
       .filter((r) => r.prefix === "/");
     // 首个根级挂载为 home 兜底
-    expect(rootEntries[0].module).toBe("./domain/router/home");
+    expect(rootEntries[0].module).toBe("./modules/home/routes");
     // 末个根级挂载为 misc-alignment 全量对齐
-    expect(rootEntries[rootEntries.length - 1].module).toBe("./domain/router/misc-alignment");
+    expect(rootEntries[rootEntries.length - 1].module).toBe("./modules/misc-alignment/routes");
   });
 });

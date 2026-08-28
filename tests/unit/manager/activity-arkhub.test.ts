@@ -3,7 +3,7 @@
  * arkhub 玩法事件入口（结算/每日物资/生物收录）。2026-08-17。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { EventBus } from "@game/service/events";
+import { EventBus } from "@game/kernel/events/runtime";
 
 // ---- excel mock（ActivityTable.missionData 用官服真实形状的子集）----
 vi.mock("@excel/excel", () => {
@@ -81,9 +81,9 @@ vi.mock("@excel/excel", () => {
 
 import config from "@core/config/index";
 import { mockPlayerData } from "../../helpers";
-import { unlockActivity } from "@game/service/player/unlockActivity";
-import { MissionProgress } from "@game/domain/mission/logic";
-import { MedalProgress } from "@game/service/player/medal";
+import { unlockActivity } from "@game/modules/activities/shared/unlockActivity";
+import { MissionProgress } from "@game/modules/mission/logic";
+import { MedalProgress } from "@game/modules/medal/medal";
 import {
   arkhubOnDuelSettle,
   arkhubOnDailySupply,
@@ -102,8 +102,8 @@ import {
   arkhubReadGatewayState,
   arkhubIsRewardClaimed,
   arkhubMarkRewardClaimed,
-} from "@game/domain/activity/arkhub/arkhub";
-import { arkhubBuyProp, arkhubUseProp } from "@game/domain/activity/arkhub/arkdex";
+} from "@game/modules/activities/arkhub/arkhub";
+import { arkhubBuyProp, arkhubUseProp } from "@game/modules/activities/arkhub/arkdex";
 
 /** 冻结时间（2026-08-15 12:00 +8：活动窗口内、8/18 更新前） */
 const FROZEN_TS = 1786766400;

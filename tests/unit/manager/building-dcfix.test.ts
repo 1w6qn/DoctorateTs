@@ -47,7 +47,7 @@ vi.mock("@excel/excel", () => excelMock);
 const timeMock = vi.hoisted(() => ({ now: 1234567890 }));
 vi.mock("@utils/time", () => ({ now: () => timeMock.now }));
 
-vi.mock("@game/service/PlayerDataManager", () => ({
+vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
@@ -55,8 +55,8 @@ import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import {
   workshopSynthesisSchema,
   deliveryOrderSchema,
-} from "@game/domain/building/schemas";
-import { BuildingManager } from "@game/domain/building/logic";
+} from "@game/modules/building/schemas";
+import { BuildingManager } from "@game/modules/building/logic";
 
 function makePlayer(building: any, extra: any = {}) {
   const mockPlayer = mockPlayerData({

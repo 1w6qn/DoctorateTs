@@ -1,16 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // 策略模块经 @game/service/player/AccountManager 访问 accountManager —— mock 以便隔离验证
-vi.mock("@game/service/player/AccountManager", () => ({
+vi.mock("@game/modules/account/AccountManager", () => ({
   accountManager: { getUidByToken: vi.fn(), registerUser: vi.fn() },
 }));
 
-import { accountManager } from "@game/service/player/AccountManager";
+import { accountManager } from "@game/modules/account/AccountManager";
 import {
   SingleAccountStrategy,
   RealAccountStrategy,
   createAuthStrategy,
-} from "../../../app/game/auth-strategy";
+} from "@game/kernel/http/auth-strategy";
 
 /** 构造最小 Express 请求对象 */
 function mockReq(headers: Record<string, unknown> = {}): any {

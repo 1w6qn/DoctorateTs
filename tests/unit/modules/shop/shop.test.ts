@@ -28,7 +28,7 @@ vi.mock("@excel/excel", () => ({
 
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../../helpers";
-import { ShopManager } from "@game/domain/shop/logic";
+import { ShopManager } from "@game/modules/shop/logic";
 
 describe("ShopManager 每日刷新", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;

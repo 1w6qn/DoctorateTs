@@ -143,11 +143,11 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-vi.mock("@game/service/PlayerDataManager", () => ({
+vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
-vi.mock("@game/service/player/AccountManager", () => {
+vi.mock("@game/modules/account/AccountManager", () => {
   const mockAccountConfigs: any = {
     "10000": {
       battle: {
@@ -195,10 +195,10 @@ vi.mock("@utils/crypt", () => ({
 
 import config from "@core/config/index";
 import { mockPlayerData } from "../../helpers";
-import { BattleManager } from "@game/service/player/battle";
-import { unlockActivity } from "@game/service/player/unlockActivity";
-import { syncAct44SideEntry } from "@game/domain/activity/act44side/informant";
-import { accountManager } from "@game/service/player/AccountManager";
+import { BattleManager } from "@game/modules/battle/battle";
+import { unlockActivity } from "@game/modules/activities/shared/unlockActivity";
+import { syncAct44SideEntry } from "@game/modules/activities/act44side/informant";
+import { accountManager } from "@game/modules/account/AccountManager";
 
 /** 构造一个已解锁/已通关的关卡条目 */
 function stageEntry(state: number) {

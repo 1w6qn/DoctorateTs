@@ -10,8 +10,8 @@ import { now } from "@utils/time";
 import { readJson } from "@utils/file";
 import { logger } from "@utils/logger";
 import { verifyPassword } from "@utils/crypt";
-import { accountManager } from "@game/service/player/AccountManager";
-import config from "../config";
+import { accountManager } from "@game/modules/account/AccountManager";
+import config from "../config/index";
 
 const router = Router();
 

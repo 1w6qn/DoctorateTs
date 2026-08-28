@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { AccountManager } from "../../../app/game/service/player/AccountManager";
+import { AccountManager } from "@game/modules/account/AccountManager";
 import { closeDatabase, openDatabase } from "@core/db/database";
 import { FriendRepository } from "@core/db/friend-repo";
 

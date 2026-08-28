@@ -3,7 +3,7 @@
  * 道具购买（扣券/库存/每日重置）与使用、交换、保护区解锁。2026-08-17。
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { EventBus } from "@game/service/events";
+import { EventBus } from "@game/kernel/events/runtime";
 import { mockPlayerData } from "../../helpers";
 import {
   ARKDEX_PROPS,
@@ -36,7 +36,7 @@ import {
   arkhubEndScan,
   arkdexAlterOfMap,
   ARKDEX_MAX_ENCOUNTER,
-} from "@game/domain/activity/arkhub/arkdex";
+} from "@game/modules/activities/arkhub/arkdex";
 
 function hubPlayer(overrides: Record<string, any> = {}) {
   const bus = new EventBus();

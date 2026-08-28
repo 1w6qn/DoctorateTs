@@ -1,5 +1,5 @@
 import { Router } from "express";
-import config from "../config";
+import config from "./index";
 import { readJson } from "@utils/file";
 import { buildNetworkConfigContent } from "./remote-config";
 import { ensureModsLoaded, getModVersionSuffix, refreshModsIfChanged } from "../../ops/assets/asset";

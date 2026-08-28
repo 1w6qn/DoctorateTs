@@ -5,8 +5,8 @@ vi.mock("@utils/crypt", () => ({
   decryptBattleData: vi.fn().mockResolvedValue({ completeState: 1, finalHp: 8, isPerfect: 1 }),
 }));
 
-import { PlayerDataManager } from "@game/service/PlayerDataManager";
-import { rlv2Response } from "@game/domain/rlv2/response";
+import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
+import { rlv2Response } from "@game/modules/roguelike/response";
 import { mockPlayerData } from "../../../helpers";
 import excel from "@excel/excel";
 

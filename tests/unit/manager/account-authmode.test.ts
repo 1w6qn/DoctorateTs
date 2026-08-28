@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 // PlayerDataManager 构造挂载 mission.init（fire-and-forget）需要 Immer Patches 插件——
 // 缺失会报「The plugin for 'Patches' has not been loaded」unhandled rejection（假阳性噪音）
 
@@ -15,13 +15,29 @@ vi.mock("@utils/file", async (importOriginal) => {
   return { ...actual, readJson: vi.fn(actual.readJson) };
 });
 
-import { accountManager } from "../../../app/game/service/player/AccountManager";
+import { accountManager } from "@game/modules/account/AccountManager";
 import config from "@core/config/index";
 import { readJson } from "@utils/file";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync, copyFileSync, rmSync } from "fs";
 import { writeFile, rename } from "fs/promises";
 
 describe("getUidByToken 认证模式", () => {
+  // T3 目录重组：根 player_data.json 已归档至 data/player_data.json.root-backup（未跟踪本地产物）。
+  // S3 回退/官服基底用例按 CWD 读取根种子文件（AccountManager._loadTemplate 运行时语义），
+  // 缺失时从归档临时还原，测试结束后清理。
+  const ROOT_SEED = "./player_data.json";
+  const SEED_ARCHIVE = "./data/player_data.json.root-backup";
+  let seeded = false;
+  beforeAll(() => {
+    if (!existsSync(ROOT_SEED) && existsSync(SEED_ARCHIVE)) {
+      copyFileSync(SEED_ARCHIVE, ROOT_SEED);
+      seeded = true;
+    }
+  });
+  afterAll(() => {
+    if (seeded) rmSync(ROOT_SEED, { force: true });
+  });
+
   beforeEach(() => {
     vi.restoreAllMocks();
     configMock.default.authMode = "single";
@@ -88,7 +104,7 @@ describe("getUidByToken 认证模式", () => {
       .mockResolvedValue(undefined as any);
     (vi.mocked(readJson) as any)
       .mockRejectedValueOnce(new Error("ENOENT")) // 1.json 缺失
-      .mockResolvedValueOnce(JSON.parse(readFileSync("./player_data.json", "utf8")));
+      .mockResolvedValueOnce(JSON.parse(readFileSync(ROOT_SEED, "utf8")));
     await accountManager.ensureSingleUser("9999");
     expect((accountManager as any).configs["9999"]).toBeDefined();
     expect(spy).toHaveBeenCalled();

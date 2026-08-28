@@ -5,7 +5,7 @@
  */
 
 import moment from "moment";
-import config from "../config";
+import config from "../config/index";
 // 类型别名（Node 原生 transform-types 不支持 import= 语法）
 type StartOf = moment.unitOfTime.StartOf;
 

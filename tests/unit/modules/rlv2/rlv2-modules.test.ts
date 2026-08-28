@@ -72,9 +72,9 @@ vi.mock("@excel/excel", () => ({
   },
 }));
 
-import { PlayerDataManager } from "@game/service/PlayerDataManager";
+import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
 import { mockPlayerData } from "../../../helpers";
-import { BLACKSTREAM_CONSTRUCTIONS } from "@game/domain/rlv2/data/blackstream-data";
+import { BLACKSTREAM_CONSTRUCTIONS } from "@game/modules/roguelike/data/blackstream-data";
 
 function makePlayer(theme: string) {
   const pd: any = mockPlayerData({

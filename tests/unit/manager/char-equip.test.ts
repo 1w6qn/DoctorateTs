@@ -129,9 +129,9 @@ vi.mock("@excel/excel", () => {
 });
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { CharManager } from "@game/service/player/char";
-import { EquipmentMissionManager } from "@game/service/player/equipmentMission";
-import { reconcileCharEquips } from "@game/domain/util/char-skills";
+import { CharManager } from "@game/modules/character/char";
+import { EquipmentMissionManager } from "@game/modules/equipmentMission/equipmentMission";
+import { reconcileCharEquips } from "@game/modules/character/char-skills";
 
 function makeChar(overrides: Record<string, unknown> = {}) {
   return {

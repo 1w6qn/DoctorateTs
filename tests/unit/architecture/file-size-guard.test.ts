@@ -1,7 +1,7 @@
 /**
  * 文件规模守卫
  *
- * 防巨型文件回潮：service 层 logic 文件与 router 文件单文件不超过 1500 行。
+ * 防巨型文件回潮：modules 层 logic 文件与 router/handler 文件单文件不超过 1500 行。
  * 拆分基准（2026-08-26）：mission 983 / building 900 / rlv2 1231 行。
  */
 import { describe, it, expect } from "vitest";
@@ -23,9 +23,9 @@ function collectFiles(dir: string, ext: string): string[] {
 }
 
 describe("文件规模守卫", () => {
-  it("service 层 logic.ts 单文件不超过 1500 行", () => {
+  it("modules 层 logic.ts 单文件不超过 1500 行", () => {
     const offenders: string[] = [];
-    for (const file of collectFiles(path.join(APP_ROOT, "game/service"), ".ts")) {
+    for (const file of collectFiles(path.join(APP_ROOT, "game/modules"), ".ts")) {
       if (!file.endsWith("logic.ts")) continue;
       const count = fs.readFileSync(file, "utf-8").split("\n").length;
       if (count > MAX_LINES) {
@@ -46,8 +46,8 @@ describe("文件规模守卫", () => {
         }
       }
     };
-    scan(path.join(APP_ROOT, "game/domain/router"));
-    scan(path.join(APP_ROOT, "game/domain/activity"));
+    scan(path.join(APP_ROOT, "game/modules"));
+    scan(path.join(APP_ROOT, "game/modules/activities"));
     expect(offenders).toEqual([]);
   });
 });

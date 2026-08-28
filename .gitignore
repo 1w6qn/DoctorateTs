@@ -75,3 +75,5 @@ data/\[uc\]lua/
 data/arkhub/pixels/
 # 运行时用户画廊图片（gallery 存档），不入库
 data/user/gallery/
+# T3 目录重组：根 player_data.json 归档（未跟踪本地产物，勿提交）
+data/player_data.json.root-backup

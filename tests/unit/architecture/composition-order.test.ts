@@ -25,7 +25,7 @@ describe("组合工厂构造顺序快照（事件订阅顺序）", () => {
     const file = path.join(
       APP_ROOT,
       "game",
-      "service",
+      "kernel",
       "player-composition.ts",
     );
     expect(fs.existsSync(file)).toBe(true);
@@ -62,8 +62,8 @@ describe("组合工厂构造顺序快照（事件订阅顺序）", () => {
     const file = path.join(
       APP_ROOT,
       "game",
-      "domain",
-      "rlv2",
+      "modules",
+      "roguelike",
       "rlv2-composition.ts",
     );
     expect(fs.existsSync(file)).toBe(true);

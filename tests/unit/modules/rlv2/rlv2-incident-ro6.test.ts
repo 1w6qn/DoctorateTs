@@ -205,7 +205,7 @@ const excelMock = vi.hoisted(() => ({
 
 vi.mock("@excel/excel", () => ({ default: excelMock }));
 
-import { PlayerDataManager } from "@game/service/PlayerDataManager";
+import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
 import { mockPlayerData } from "../../../helpers";
 
 function makePlayer(): any {

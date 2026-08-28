@@ -22,7 +22,7 @@ vi.mock("@plugin", () => {
 });
 
 // eslint-disable-next-line import/first
-import pluginHeartbeatRouter from "../../../../app/game/domain/router/plugin-heartbeat";
+import pluginHeartbeatRouter from "@game/modules/system/plugin-heartbeat";
 // eslint-disable-next-line import/first
 import { pluginConfigService } from "@plugin";
 

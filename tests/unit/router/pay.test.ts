@@ -16,7 +16,7 @@ vi.mock("@utils/file", () => ({
 
 // 支付订单存储 mock（内存数组，测试可控）
 const orderStore: any[] = [];
-vi.mock("../../../app/game/service/shared/pay-store", () => ({
+vi.mock("@game/modules/pay/pay-store", () => ({
   loadOrders: vi.fn(() => orderStore),
   saveOrders: vi.fn(() => {}),
   markPaid: vi.fn((orderId: string) => {
@@ -39,7 +39,7 @@ vi.mock("../../../app/game/service/shared/pay-store", () => ({
 }));
 
 import httpContext from "express-http-context2";
-import payRouter from "../../../app/game/domain/router/pay";
+import payRouter from "@game/modules/pay/routes";
 import config from "@core/config/index";
 import { mockPlayerData } from "../../helpers";
 

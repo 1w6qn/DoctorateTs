@@ -13,7 +13,7 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-vi.mock("@game/service/PlayerDataManager", () => ({
+vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
@@ -31,7 +31,7 @@ import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 import {
   CharRotationManager,
   CharRotationUpdatePresetRequest,
-} from "@game/service/player/charRotation";
+} from "@game/modules/character/CharRotationManager";
 
 /**
  * CharRotationManager 单元测试

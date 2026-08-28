@@ -14,7 +14,7 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-vi.mock("@game/service/PlayerDataManager", () => ({
+vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
@@ -25,7 +25,7 @@ vi.mock("@utils/time", () => ({
 
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { DexNavManager } from "@game/service/player/dexnav";
+import { DexNavManager } from "@game/modules/dexnav/dexnav";
 
 /**
  * DexNavManager 单元测试

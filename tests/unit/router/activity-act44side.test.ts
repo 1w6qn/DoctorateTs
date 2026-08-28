@@ -92,7 +92,7 @@ vi.mock("@excel/excel", () => ({
 }));
 
 import httpContext from "express-http-context2";
-import activityRouter from "../../../app/game/domain/activity";
+import activityRouter from "@game/modules/activities";
 import { mockPlayerData } from "../../helpers";
 
 function mockRes() {

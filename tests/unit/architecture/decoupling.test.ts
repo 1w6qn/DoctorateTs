@@ -56,7 +56,7 @@ function firstOffendingLine(
 
 describe("架构解耦守卫", () => {
   it("excel 数据层不得反向依赖 game 业务层（excel → @game 计数为 0）", () => {
-    const excelDir = path.join(APP_ROOT, "excel");
+    const excelDir = path.join(APP_ROOT, "game", "excel");
     const offenders: string[] = [];
     for (const file of collectFiles(excelDir, ".ts")) {
       const line = firstOffendingLine(file, /from\s+["']@game\//);
@@ -72,7 +72,7 @@ describe("架构解耦守卫", () => {
     const gameDir = path.join(APP_ROOT, "game");
     const offenders: string[] = [];
     for (const file of collectFiles(gameDir, ".ts")) {
-      if (file.includes(path.join("service", "excel"))) continue; // excel 防腐层自身豁免
+      if (file.includes(path.join("game", "excel"))) continue; // excel 防腐层自身豁免
       const line = firstOffendingLine(
         file,
         /@excel\/types_excel_gen|\.\.\/(\.\.\/)*excel\/types_excel_gen/,
@@ -85,7 +85,7 @@ describe("架构解耦守卫", () => {
   });
 
   it("router 层不得直接依赖请求上下文实现（无 express-http-context2）", () => {
-    const routerDir = path.join(APP_ROOT, "game", "router");
+    const routerDir = path.join(APP_ROOT, "game", "modules");
     const offenders: string[] = [];
     for (const file of collectFiles(routerDir, ".ts")) {
       const line = firstOffendingLine(file, /express-http-context2/);
@@ -112,8 +112,8 @@ describe("架构解耦守卫", () => {
   });
 
   it("PlayerDataManager 组合根须经 player-composition 工厂，不内联 new 子模块", () => {
-    const pdmFile = path.join(APP_ROOT, "game", "service", "PlayerDataManager.ts");
-    const factoryFile = path.join(APP_ROOT, "game", "service", "player-composition.ts");
+    const pdmFile = path.join(APP_ROOT, "game", "kernel", "PlayerDataManager.ts");
+    const factoryFile = path.join(APP_ROOT, "game", "kernel", "player-composition.ts");
     expect(fs.existsSync(factoryFile)).toBe(true);
     // 组合工厂必须存在且 PDM 引用它（子模块创建收敛到可覆写策略）
     expect(firstOffendingLine(pdmFile, /composePlayerChildModules/)).not.toBeNull();
@@ -127,8 +127,8 @@ describe("架构解耦守卫", () => {
   });
 
   it("rlv2 控制器组合须经 rlv2-composition 工厂，不内联 new 子模块", () => {
-    const rlv2File = path.join(APP_ROOT, "game", "domain", "rlv2", "logic.ts");
-    const factoryFile = path.join(APP_ROOT, "game", "domain", "rlv2", "rlv2-composition.ts");
+    const rlv2File = path.join(APP_ROOT, "game", "modules", "roguelike", "logic.ts");
+    const factoryFile = path.join(APP_ROOT, "game", "modules", "roguelike", "rlv2-composition.ts");
     expect(fs.existsSync(factoryFile)).toBe(true);
     // 组合工厂必须存在且 rlv2 控制器引用它
     expect(firstOffendingLine(rlv2File, /composeRlv2ChildModules/)).not.toBeNull();
@@ -141,8 +141,8 @@ describe("架构解耦守卫", () => {
   });
 
   it("rlv2 主题模块分发表须经 rlv2-module-composition，module.ts 不直连 modules/*", () => {
-    const moduleFile = path.join(APP_ROOT, "game", "domain", "rlv2", "module.ts");
-    const factoryFile = path.join(APP_ROOT, "game", "domain", "rlv2", "rlv2-module-composition.ts");
+    const moduleFile = path.join(APP_ROOT, "game", "modules", "roguelike", "module.ts");
+    const factoryFile = path.join(APP_ROOT, "game", "modules", "roguelike", "rlv2-module-composition.ts");
     expect(fs.existsSync(factoryFile)).toBe(true);
     // module.ts 应消费组合工厂，而不是直接 import 各主题模块实现
     expect(firstOffendingLine(moduleFile, /composeRlv2ThemeModules/)).not.toBeNull();
@@ -164,17 +164,20 @@ describe("架构解耦守卫", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("旧 player/modules 目录已移除：game 业务代码收敛为 domain + service 两目录", () => {
-    const managerDir = path.join(APP_ROOT, "game", "manager");
-    const modulesDir = path.join(APP_ROOT, "game", "modules");
-    expect(fs.existsSync(managerDir)).toBe(false);
-    expect(fs.existsSync(modulesDir)).toBe(false);
+  it("旧 domain/service 分层已移除：game 业务代码收敛为 kernel + modules 特性切片", () => {
+    const domainDir = path.join(APP_ROOT, "game", "domain");
+    const serviceDir = path.join(APP_ROOT, "game", "service");
+    expect(fs.existsSync(domainDir)).toBe(false);
+    expect(fs.existsSync(serviceDir)).toBe(false);
     const gameDir = path.join(APP_ROOT, "game");
     const offenders: string[] = [];
     for (const file of collectFiles(gameDir, ".ts")) {
-      const line = firstOffendingLine(file, /@game\/manager\/|@game\/modules\/|game\/manager\//);
+      const line = firstOffendingLine(
+        file,
+        /(?:from|import\()\s*["'][^"']*(?:@game\/(domain|service)|game\/(domain|service))/,
+      );
       if (line !== null) {
-        offenders.push(`${path.relative(APP_ROOT, file)}:${line} 引用已移除的 player/modules 层（应指向 @game/service/* 或 @game/domain/*）`);
+        offenders.push(`${path.relative(APP_ROOT, file)}:${line} 引用已移除的 domain/service 分层（应指向 @game/kernel/* 或 @game/modules/*）`);
       }
     }
     expect(offenders).toEqual([]);

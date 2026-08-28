@@ -13,7 +13,7 @@ vi.mock("express-http-context2", () => ({
 }));
 vi.mock("@utils/time", () => ({ now: () => 1234567890, userTimestamp: () => 1234567890 }));
 
-import payRouter from "../../../app/game/domain/router/pay";
+import payRouter from "@game/modules/pay/routes";
 import gateRouter from "@core/config/gate";
 
 function mockRes() {

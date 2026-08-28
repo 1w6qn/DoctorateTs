@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { checkAndRepairSave, hasRepairableIssues } from "../../../app/game/service/util/save-health";
+import { checkAndRepairSave, hasRepairableIssues } from "@game/kernel/save-health";
 
 vi.mock("@excel/excel", () => ({
   default: {

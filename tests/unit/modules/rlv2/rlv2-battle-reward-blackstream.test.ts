@@ -8,7 +8,7 @@ vi.mock("@utils/crypt", () => ({
   }),
 }));
 
-vi.mock("@game/service/player/AccountManager", () => ({
+vi.mock("@game/modules/account/AccountManager", () => ({
   accountManager: {
     getBattleInfo: vi.fn().mockResolvedValue({ stageId: "ro6_n_1_1" }),
   },
@@ -65,7 +65,7 @@ vi.mock("@excel/excel", () => ({
   },
 }));
 
-import { PlayerDataManager } from "@game/service/PlayerDataManager";
+import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
 import { decryptBattleData } from "@utils/crypt";
 import { mockPlayerData } from "../../../helpers";
 

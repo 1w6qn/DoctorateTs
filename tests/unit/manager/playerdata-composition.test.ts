@@ -6,7 +6,7 @@
  * - 不传 deps 时，构造并组装全部默认子模块（行为与迁移前一致）。
  */
 import { describe, it, expect, vi } from "vitest";
-import { PlayerDataManager } from "@game/service/PlayerDataManager";
+import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
 import { mockPlayerData } from "../../helpers";
 
 /** 构造真实 PlayerDataManager 所需的模型（复用 mock helper 的原始数据） */

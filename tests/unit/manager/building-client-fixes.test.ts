@@ -47,11 +47,11 @@ const excelMock = vi.hoisted(() => ({
 vi.mock("@excel/excel", () => excelMock);
 const timeMock = vi.hoisted(() => ({ now: 1787000000 }));
 vi.mock("@utils/time", () => ({ now: () => timeMock.now, checkBetween: () => true, userTimestamp: () => timeMock.now }));
-vi.mock("@game/service/PlayerDataManager", () => ({ PlayerDataManager: vi.fn() }));
+vi.mock("@game/kernel/PlayerDataManager", () => ({ PlayerDataManager: vi.fn() }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { BuildingManager } from "@game/domain/building/logic";
-import { MissionManager } from "@game/domain/mission/logic";
+import { BuildingManager } from "@game/modules/building/logic";
+import { MissionManager } from "@game/modules/mission/logic";
 
 function baseBuilding(): any {
   return {

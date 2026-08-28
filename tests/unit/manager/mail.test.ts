@@ -51,7 +51,7 @@ vi.mock("@utils/time", () => ({ now: () => 1234567890 }));
 // mail.ts 使用无前缀路径 app/game/service/excel/excel（vitest 无此 alias），mock 拦截
 vi.mock("app/game/service/excel/excel", () => ({ ItemBundle: {} }));
 
-import { MailManager, buildMailItem, nextMailId } from "@game/service/player/mail";
+import { MailManager, buildMailItem, nextMailId } from "@game/modules/mail/MailManager";
 import { writeFile } from "fs/promises";
 
 describe("MailManager", () => {

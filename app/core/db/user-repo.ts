@@ -7,7 +7,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { readJson } from "@utils/file";
 import { now } from "@utils/time";
-import type { UserConfig } from "@game/service/player/AccountManager";
+import type { UserConfig } from "@game/modules/account/AccountManager";
 
 /**
  * 持久化前剔除社交字段

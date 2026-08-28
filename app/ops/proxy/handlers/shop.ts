@@ -24,8 +24,8 @@ import {
   deletePixel,
   listPixelsByUid,
   ARKPIXEL_MAX_PUBLISH,
-} from "@game/domain/activity/arkhub/arkpixel";
-import { ARKDEX_PROPS, arkhubDailyShopIds } from "@game/domain/activity/arkhub/arkdex";
+} from "@game/modules/activities/arkhub/arkpixel";
+import { ARKDEX_PROPS, arkhubDailyShopIds } from "@game/modules/activities/arkhub/arkdex";
 
 /* ---------- 帧 subID（low32，见 docs/arkhub-gateway-protocol.md §9.4/§9.5） ---------- */
 

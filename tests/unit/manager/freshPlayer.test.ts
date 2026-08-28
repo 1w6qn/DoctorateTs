@@ -4,7 +4,7 @@ import {
   buildFreshStatus,
   freshTroop,
   freshGacha,
-} from "../../../app/game/service/player/freshPlayer";
+} from "@game/modules/user/freshPlayer";
 
 /** 一份模拟的「满配模板」基底（足够表征各分区，用于验证全新化） */
 function maxedTemplate(): Record<string, unknown> {

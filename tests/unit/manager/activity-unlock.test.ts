@@ -112,7 +112,7 @@ vi.mock("@excel/excel", () => {
 
 import config from "@core/config/index";
 import { mockPlayerData } from "../../helpers";
-import { unlockActivity } from "@game/service/player/unlockActivity";
+import { unlockActivity } from "@game/modules/activities/shared/unlockActivity";
 
 describe("unlockActivity（活动播种，DoctoratePy 移植）", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;

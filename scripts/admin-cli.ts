@@ -73,7 +73,7 @@
 import * as readline from "readline";
 import { readFileSync } from "fs";
 import excel from "@excel/excel";
-import { accountManager } from "@game/service/player/AccountManager";
+import { accountManager } from "@game/modules/account/AccountManager";
 import { adminService } from "@ops/admin/AdminService";
 import config from "@core/config/index";
 import { captureManager } from "@capture/capture-manager";
@@ -1435,7 +1435,7 @@ async function runGacha(args: string[], flags: { [key: string]: string }): Promi
  * @param args - [uid?]（缺省 singleUid）
  */
 async function runMaxAccount(args: string[]): Promise<void> {
-  const { accountManager } = await import("@game/service/player/AccountManager");
+  const { accountManager } = await import("@game/modules/account/AccountManager");
   const config = (await import("@core/config/index")).default;
   const uid = args[0] || (config as any).singleUid || "1";
   const player = await accountManager.getPlayerData(uid);

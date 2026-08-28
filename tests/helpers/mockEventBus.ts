@@ -1,4 +1,4 @@
-import { EventBus, TypedEventEmitter } from "@game/service/events";
+import { EventBus, TypedEventEmitter } from "@game/kernel/events/runtime";
 
 /**
  * 创建一个测试用的 EventBus 实例

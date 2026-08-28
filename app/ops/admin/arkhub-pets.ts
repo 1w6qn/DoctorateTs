@@ -22,9 +22,9 @@ import {
   arkdexIsAlter,
   arkdexAlterBase,
   arkdexActiveMap,
-} from "@game/domain/activity/arkhub/arkdex";
-import { ARKHUB_ACT_ID } from "@game/domain/activity/arkhub/arkhub";
-import type { PlayerDataManager } from "@game/service/PlayerDataManager";
+} from "@game/modules/activities/arkhub/arkdex";
+import { ARKHUB_ACT_ID } from "@game/modules/activities/arkhub/arkhub";
+import type { PlayerDataManager } from "@game/kernel/PlayerDataManager";
 import { logger } from "@utils/logger";
 
 /** 从官服户籍提取的枢纽数据（私服扩展形状） */

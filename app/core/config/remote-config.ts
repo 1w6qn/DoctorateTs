@@ -8,7 +8,7 @@
  * devsdk, pkgIOS, configVer }，各 *hypergryph.com 端点替换为实际服务器地址。
  */
 import { Router } from "express";
-import config from "../config";
+import config from "./index";
 
 /** 用实际服务器地址替换各端点的官方域名或 {server} 占位符（保留端口与私服路径前缀） */
 function resolveServer(raw: string | null): string {

@@ -9,7 +9,7 @@ import { now } from "@utils/time";
 import type {
   BattleInfo,
   BattleRecord,
-} from "@game/service/player/BattleInfoStore";
+} from "@game/modules/battle/BattleInfoStore";
 
 export class ReplayRepository {
   constructor(private db: DatabaseSync) {}

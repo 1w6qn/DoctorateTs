@@ -59,8 +59,8 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-import { PlayerDataManager } from "@game/service/PlayerDataManager";
-import { RoguelikeScrapManager } from "@game/domain/rlv2/modules/scrap";
+import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
+import { RoguelikeScrapManager } from "@game/modules/roguelike/modules/scrap";
 import { mockPlayerData } from "../../../helpers";
 
 function makePlayer() {

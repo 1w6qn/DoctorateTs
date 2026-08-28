@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 const configMock = vi.hoisted(() => ({ default: { authMode: "single" } }));
 vi.mock("@core/config/index", () => configMock);
 
-vi.mock("@game/service/player/AccountManager", () => ({
+vi.mock("@game/modules/account/AccountManager", () => ({
   accountManager: {
     tokenByPhonePassword: vi.fn().mockResolvedValue("token_123"),
     getUidByToken: vi.fn().mockResolvedValue("10000"),
@@ -16,7 +16,7 @@ vi.mock("@utils/file", () => ({
 }));
 
 import authRouter from "@core/auth/auth";
-import { accountManager } from "@game/service/player/AccountManager";
+import { accountManager } from "@game/modules/account/AccountManager";
 
 function mockRes() {
   const res: any = {

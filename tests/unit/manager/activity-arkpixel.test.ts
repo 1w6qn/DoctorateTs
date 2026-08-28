@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { parseMultipartForm } from "@game/domain/util/multipart";
+import { parseMultipartForm } from "@game/kernel/util/multipart";
 import {
   setPixelsDirForTest,
   savePixel,
@@ -17,7 +17,7 @@ import {
   registerPixelUploadToken,
   consumePixelUploadToken,
   _resetPendingPixelUploadsForTest,
-} from "@game/domain/activity/arkhub/arkpixel";
+} from "@game/modules/activities/arkhub/arkpixel";
 import { PIXEL_PALETTE, PIXEL_DATA_LEN } from "@ops/admin/arkhub-pixel";
 
 /** 合法像素：全空白（255,255,255） */

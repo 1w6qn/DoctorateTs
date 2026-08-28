@@ -4,16 +4,16 @@ import express from "express";
 import bodyParser from "body-parser";
 import httpContext from "express-http-context2";
 import { openDatabase, closeDatabase } from "@core/db/database";
-import excel from "../../app/game/service/excel/excel";
-import { accountManager } from "../../app/game/service/player/AccountManager";
+import excel from "@game/excel/excel";
+import { accountManager } from "@game/modules/account/AccountManager";
 import { authMiddleware, gameErrorHandler } from "../../app/game/app";
 import authRouter from "@core/auth/auth";
-import userRouter from "../../app/game/domain/router/user";
-import gachaRouter from "../../app/game/domain/gacha/handler";
-import shopRouter from "../../app/game/domain/shop/handler";
-import mailRouter from "../../app/game/domain/router/mail";
-import socialRouter from "../../app/game/domain/router/social";
-import rlv2Router from "../../app/game/domain/rlv2/handler";
+import userRouter from "@game/modules/user/routes";
+import gachaRouter from "@game/modules/gacha/handler";
+import shopRouter from "@game/modules/shop/handler";
+import mailRouter from "@game/modules/mail/routes";
+import socialRouter from "@game/modules/social/routes";
+import rlv2Router from "@game/modules/roguelike/handler";
 
 /**
  * 一个 HTTP 请求的响应封装

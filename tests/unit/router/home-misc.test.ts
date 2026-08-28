@@ -4,7 +4,7 @@ vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
 }));
 
-import homeRouter from "../../../app/game/domain/router/home";
+import homeRouter from "@game/modules/home/routes";
 import httpContext from "express-http-context2";
 
 function mockRes() {

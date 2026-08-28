@@ -7,16 +7,16 @@
 import httpContext from "express-http-context2";
 import express from "express";
 import bodyParser from "body-parser";
-import { accountManager } from "./service/player/AccountManager";
-import { isGameError } from "./domain/contracts/errors";
-import { PlayerDataManager } from "./service/PlayerDataManager";
-import { setPlayer, getPlayerOptional } from "./request-context";
+import { accountManager } from "./modules/account/AccountManager";
+import { isGameError } from "./kernel/http/errors";
+import { PlayerDataManager } from "./kernel/PlayerDataManager";
+import { setPlayer, getPlayerOptional } from "./kernel/http/request-context";
 import { acquireLock } from "@utils/mutex";
 import { logger } from "@utils/logger";
 import config from "@core/config/index";
 import { routes } from "./routes";
-import { createAuthStrategy, type AuthStrategy } from "./auth-strategy";
-import { responseSchemaMiddleware } from "./resp-schema";
+import { createAuthStrategy, type AuthStrategy } from "./kernel/http/auth-strategy";
+import { responseSchemaMiddleware } from "./kernel/http/resp-schema";
 
 /** Express 应用实例 */
 const app = express();

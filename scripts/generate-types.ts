@@ -38,8 +38,8 @@ function resolveCsFile(): string {
 }
 
 const CS_FILE = resolveCsFile();
-const PLAYERDATA_OUT = path.join(__dirname, "../app/game/service/excel/types-playerdata.ts");
-const EXCEL_OUT = path.join(__dirname, "../app/game/service/excel/types_excel_gen.ts");
+const PLAYERDATA_OUT = path.join(__dirname, "../app/game/excel/types-playerdata.ts");
+const EXCEL_OUT = path.join(__dirname, "../app/game/excel/types_excel_gen.ts");
 
 function buildPlayerdataTypes(content: string): string {
   const result = buildTypes(content, {

@@ -32,7 +32,7 @@ vi.mock("@utils/time", () => ({
 }));
 
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
-import { OpenServerManager } from "@game/domain/activity/checkin/openServer";
+import { OpenServerManager } from "@game/modules/activities/checkin/openServer";
 
 describe("OpenServerManager", () => {
   let mockPlayer: ReturnType<typeof mockPlayerData>;

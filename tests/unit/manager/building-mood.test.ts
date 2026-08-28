@@ -74,7 +74,7 @@ vi.mock("@excel/excel", () => excelMock);
 const timeMock = vi.hoisted(() => ({ now: 1234567890 }));
 vi.mock("@utils/time", () => ({ now: () => timeMock.now }));
 
-vi.mock("@game/service/PlayerDataManager", () => ({
+vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
@@ -84,13 +84,13 @@ import {
   headcountMoodRelief,
   warmupHoursOf,
   MAX_AP,
-} from "@game/domain/building/mood";
+} from "@game/modules/building/mood";
 import {
   getActiveCharBuffs,
   roomSpeedBonus,
   dormRecoveryBonus,
-} from "@game/domain/building/buff";
-import { BuildingManager } from "@game/domain/building/logic";
+} from "@game/modules/building/buff";
+import { BuildingManager } from "@game/modules/building/logic";
 
 /** 构造带指定 building 的 mock 玩家（update 深拷贝 → recipe → 回写） */
 function makePlayer(building: any, extra: any = {}) {

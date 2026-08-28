@@ -7,7 +7,7 @@
  */
 import { DatabaseSync } from "node:sqlite";
 import { FriendRepository } from "./friend-repo";
-import { UserConfig } from "@game/service/player/AccountManager";
+import { UserConfig } from "@game/modules/account/AccountManager";
 
 /**
  * 从用户配置迁移社交数据到 SQLite，并重置 JSON 中的 social 字段

@@ -8,13 +8,13 @@
  *
  * 说明：类型（TS 纯类型）不具运行时依赖，admin 仍允许直接 `import type` 自 game。
  */
-import { buildMaxedSkills, buildMaxedEquip } from "@game/domain/util/maxout";
-import { GACHA_RULE_TYPE } from "@game/domain/gacha/gacha";
-import { accountManager } from "@game/service/player/AccountManager";
-import { mailManager } from "@game/service/player/mail";
-import { unlockActivity, forcedActivityIds } from "@game/service/player/unlockActivity";
-import { listCrisisSeasons } from "@game/service/shared/crisis-seasons";
-import { loadOrders, markPaid } from "@game/service/shared/pay-store";
+import { buildMaxedSkills, buildMaxedEquip } from "@game/kernel/util/maxout";
+import { GACHA_RULE_TYPE } from "@game/modules/gacha/gacha";
+import { accountManager } from "@game/modules/account/AccountManager";
+import { mailManager } from "@game/modules/mail/MailManager";
+import { unlockActivity, forcedActivityIds } from "@game/modules/activities/shared/unlockActivity";
+import { listCrisisSeasons } from "@game/modules/crisis/crisis-seasons";
+import { loadOrders, markPaid } from "@game/modules/pay/pay-store";
 
 /**
  * admin 可访问的 game 运行时实体集合

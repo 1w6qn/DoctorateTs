@@ -8,7 +8,7 @@
  * 响应结构参考官服抓包（2026-08-07，ak-hg 启动器 get_latest 响应）。
  */
 import { Router } from "express";
-import config from "../config";
+import config from "./index";
 
 const router = Router();
 

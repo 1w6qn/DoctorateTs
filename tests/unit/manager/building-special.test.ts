@@ -151,7 +151,7 @@ vi.mock("@excel/excel", () => excelMock);
 const timeMock = vi.hoisted(() => ({ now: 1234567890 }));
 vi.mock("@utils/time", () => ({ now: () => timeMock.now }));
 
-vi.mock("@game/service/PlayerDataManager", () => ({
+vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
@@ -162,12 +162,12 @@ import {
   charMatchesTerm,
   termCharIds,
   specialBuffValue,
-} from "@game/domain/building/special";
+} from "@game/modules/building/special";
 import {
   roomSpeedBonus,
   controlGlobalBonus,
-} from "@game/domain/building/buff";
-import { BuildingManager } from "@game/domain/building/logic";
+} from "@game/modules/building/buff";
+import { BuildingManager } from "@game/modules/building/logic";
 
 /** 干员 buff 源便捷构造 */
 const src = (charId: string, level = 1, evolvePhase = 0) => ({ charId, level, evolvePhase });

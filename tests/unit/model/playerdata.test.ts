@@ -34,7 +34,7 @@ import type {
   PlayerSetting,
   PlayerSettingPerf,
   PlayerPushFlags,
-} from '@game/domain/playerdata';
+} from '@game/kernel/playerdata';
 import { mockPlayerData } from '../../helpers/mockPlayerData';
 
 describe('PlayerDataModel 模型', () => {

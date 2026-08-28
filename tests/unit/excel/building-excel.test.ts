@@ -72,7 +72,7 @@ import {
   getRoomPhase,
   getGoldRate,
   getBuildingConstant,
-} from "../../../app/game/service/excel/building_excel";
+} from "@game/excel/building_excel";
 
 describe("BuildingExcel 查询工具", () => {
   it("getManufactFormula 按 formulaId 查表（字符串/数字兼容）", () => {

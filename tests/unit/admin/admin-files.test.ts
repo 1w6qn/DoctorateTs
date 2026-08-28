@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { AdminService } from "@ops/admin/AdminService";
-import { accountManager } from "../../../app/game/service/player/AccountManager";
-import { PlayerDataManager } from "../../../app/game/service/PlayerDataManager";
+import { accountManager } from "@game/modules/account/AccountManager";
+import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
 import { exists, readJson, writeJson } from "@utils/file";
 import { copyFile, mkdir, readFile, readdir, appendFile, rm, writeFile } from "fs/promises";
 
@@ -28,7 +28,7 @@ vi.mock("fs/promises", () => ({
   writeFile: vi.fn().mockResolvedValue(undefined),
 }));
 // restore 用 new PlayerDataManager 替换内存；mock 类避免真实构造副作用
-vi.mock("@game/service/PlayerDataManager", () => ({
+vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 // 官服卡池同步 mock（不真实联网）

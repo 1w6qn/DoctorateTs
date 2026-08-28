@@ -8,7 +8,7 @@
  * 作用域：region 特性仅在 capture 模式生效（config.capture.enabled）；非 capture
  * 的私服游玩场景保持现状，避免伪装版本破坏正常更新链路。
  */
-import config from "../config";
+import config from "./index";
 import { logger } from "@utils/logger";
 
 /** region 版本伪装（字段级可选，缺省回退 config.version 对应字段） */

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { AccountManager } from "../../../app/game/service/player/AccountManager";
+import { AccountManager } from "@game/modules/account/AccountManager";
 import { writeFile, rename } from "fs/promises";
 import { mockPlayerData } from "../../helpers";
 

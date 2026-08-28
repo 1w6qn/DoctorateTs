@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 const configMock = vi.hoisted(() => ({ default: { authMode: "real" } }));
 vi.mock("@core/config/index", () => configMock);
 
-import { accountManager } from "../../../app/game/service/player/AccountManager";
+import { accountManager } from "@game/modules/account/AccountManager";
 import { mockPlayerData } from "../../helpers";
 import { hashPassword, verifyPassword } from "@utils/crypt";
 

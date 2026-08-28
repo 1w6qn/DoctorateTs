@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { buildRoguelikeConsts } from "../../../../app/game/service/excel/roguelike_consts_gen";
+import { buildRoguelikeConsts } from "@game/excel/roguelike_consts_gen";
 
 // ===== 探索中 zone 推进回归（真实 excel 数据）=====
 // 完整开局 → 走到 zone_end 节点 → finishEvent → zone 2 生成；
@@ -20,7 +20,7 @@ vi.mock("@excel/excel", () => ({
   },
 }));
 
-import { PlayerDataManager } from "@game/service/PlayerDataManager";
+import { PlayerDataManager } from "@game/kernel/PlayerDataManager";
 import { mockPlayerData } from "../../../helpers";
 
 function makePlayer() {

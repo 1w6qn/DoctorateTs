@@ -18,7 +18,7 @@ vi.mock("@utils/file", async (importOriginal) => {
   return { ...actual, readJson: vi.fn(actual.readJson) };
 });
 
-import { accountManager } from "../../../app/game/service/player/AccountManager";
+import { accountManager } from "@game/modules/account/AccountManager";
 
 describe("AccountManager 抽卡保底计数", () => {
   beforeEach(() => {

@@ -12,12 +12,12 @@ import {
   buffValue,
   buffValueForTarget,
   parseMoodCostValue,
-} from "@game/domain/building/buff-parse";
-import { buffTplFor } from "@game/domain/building/buffs";
-import { RoomSpeedTpl } from "@game/domain/building/buffs/room-speed";
-import { ControlGlobalTpl } from "@game/domain/building/buffs/control-global";
-import { DormRecoveryTpl } from "@game/domain/building/buffs/dorm-recovery";
-import { MoodCostTpl } from "@game/domain/building/buffs/mood-cost";
+} from "@game/modules/building/buff-parse";
+import { buffTplFor } from "@game/modules/building/buffs";
+import { RoomSpeedTpl } from "@game/modules/building/buffs/room-speed";
+import { ControlGlobalTpl } from "@game/modules/building/buffs/control-global";
+import { DormRecoveryTpl } from "@game/modules/building/buffs/dorm-recovery";
+import { MoodCostTpl } from "@game/modules/building/buffs/mood-cost";
 
 function allBuffs(): any[] {
   const building = (excel as any).BuildingData as any;

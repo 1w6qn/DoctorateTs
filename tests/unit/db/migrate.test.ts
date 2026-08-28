@@ -3,7 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import { SCHEMA_SQL, openDatabase, closeDatabase } from "@core/db/database";
 import { FriendRepository } from "@core/db/friend-repo";
 import { migrateFromUserConfigs } from "@core/db/migrate";
-import { accountManager } from "../../../app/game/service/player/AccountManager";
+import { accountManager } from "@game/modules/account/AccountManager";
 
 describe("社交数据迁移", () => {
   let db: DatabaseSync;

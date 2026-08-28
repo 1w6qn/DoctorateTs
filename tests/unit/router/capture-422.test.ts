@@ -5,9 +5,9 @@
  * 防止后续收紧 schema 再次误伤正常客户端请求。
  */
 import { describe, it, expect, vi } from "vitest";
-import * as Building from "../../../app/game/domain/building/schemas";
-import * as BusinessCard from "../../../app/game/domain/businessCard/businessCard.schema";
-import { validateBody } from "../../../app/game/domain/contracts/validate-body";
+import * as Building from "@game/modules/building/schemas";
+import * as BusinessCard from "@game/modules/businessCard/businessCard.schema";
+import { validateBody } from "@game/kernel/http/validate-body";
 
 function makeRes() {
   const json = vi.fn();

@@ -64,7 +64,7 @@ vi.mock("@excel/excel", () => excelMock);
 const timeMock = vi.hoisted(() => ({ now: 1234567890 }));
 vi.mock("@utils/time", () => ({ now: () => timeMock.now }));
 
-vi.mock("@game/service/PlayerDataManager", () => ({
+vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
@@ -73,8 +73,8 @@ import {
   classifyDormBuff,
   splitDormBuffs,
   sumByGroupMax,
-} from "@game/domain/building/dorm-special";
-import { BuildingManager } from "@game/domain/building/logic";
+} from "@game/modules/building/dorm-special";
+import { BuildingManager } from "@game/modules/building/logic";
 
 function makePlayer(building: any, extra: any = {}) {
   const mockPlayer = mockPlayerData({

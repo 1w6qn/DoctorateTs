@@ -7,7 +7,7 @@ vi.mock("@utils/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-import excel from "../../../app/game/service/excel/excel";
+import excel from "@game/excel/excel";
 
 describe("Excel.init 并行加载", () => {
   let readJsonMock: any;

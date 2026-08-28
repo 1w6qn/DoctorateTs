@@ -94,7 +94,7 @@ vi.mock("@excel/excel", () => ({
   },
 }));
 
-import { EquipmentMissionManager } from "@game/service/player/equipmentMission";
+import { EquipmentMissionManager } from "@game/modules/equipmentMission/equipmentMission";
 import { mockPlayerData } from "../../helpers";
 
 function playerData() {

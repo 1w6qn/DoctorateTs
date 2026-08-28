@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { EventBus, Priority, globalEventBus } from "@game/service/events";
+import { EventBus, Priority, globalEventBus } from "@game/kernel/events/runtime";
 
 describe("EventBus", () => {
   let bus: EventBus;

@@ -5,7 +5,7 @@ vi.mock("express-http-context2", () => ({
 }));
 
 import httpContext from "express-http-context2";
-import { rootRouter } from "../../../app/game/domain/activity";
+import { rootRouter } from "@game/modules/activities";
 import { mockPlayerData } from "../../helpers";
 
 function mockRes() {

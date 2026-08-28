@@ -182,7 +182,7 @@ vi.mock("@excel/excel", () => {
   };
 });
 
-vi.mock("@game/service/PlayerDataManager", () => ({
+vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
 }));
 
@@ -202,7 +202,7 @@ import {
   MissionManager,
   MissionProgress,
   MissionTemplates,
-} from "@game/domain/mission/logic";
+} from "@game/modules/mission/logic";
 
 /** 构造任务进度实例（与既有 mission.test 同款） */
 function makeMission(param: string[], value = 0) {

@@ -5,7 +5,7 @@
  * 从官服网关抓包的 EnterSceneNotify（PlayerSyncData.f5/f6）还原。
  */
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { EventBus } from "@game/service/events";
+import { EventBus } from "@game/kernel/events/runtime";
 import { mockPlayerData } from "../../helpers";
 import {
   encodeFieldBytes as fb,

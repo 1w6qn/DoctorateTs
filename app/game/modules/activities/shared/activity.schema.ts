@@ -53,6 +53,27 @@ export const getCheckInRewardSchema = z.object({
   activityId: z.string(),
 });
 
+/** 登录奖励领取（CS: LoginOnlyService.GET_REWARD；服务端读 activityId） */
+export const loginOnlyGetRewardSchema = z.object({
+  activityId: z.string(),
+});
+
+/** 全服签到活动签到（CS: CheckinAllPlayerServiceCode.CHECKIN；服务端读 activityId/index） */
+export const checkinAllPlayerCheckinSchema = z.object({
+  activityId: z.string(),
+  index: z.number(),
+});
+
+/** 全服签到活动行为数据同步（CS: CheckinAllPlayerServiceCode.SYNC_DATA；服务端读 activityId） */
+export const checkinAllPlayerSyncSchema = z.object({
+  activityId: z.string(),
+});
+
+/** 全服签到活动行为奖励领取（CS: CheckinAllPlayerServiceCode.GET_ALL_REWARD；服务端读 activityId） */
+export const checkinAllPlayerGetAllRewardSchema = z.object({
+  activityId: z.string(),
+});
+
 /** 更换节日干员（服务端自定义；服务端读 activityId/index/newChar） */
 export const changeFestivalCharSchema = z.object({
   activityId: z.string(),

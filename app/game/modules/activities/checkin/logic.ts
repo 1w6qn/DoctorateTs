@@ -26,6 +26,12 @@ import {
   ExchangeActivityShopItemResponse,
   GetActivityCheckInRewardRequest,
   GetActivityCheckInRewardResponse,
+  CheckinAllPlayerCheckinRequest,
+  CheckinAllPlayerCheckinResponse,
+  CheckinAllPlayerGetAllRewardRequest,
+  CheckinAllPlayerGetAllRewardResponse,
+  CheckinAllPlayerSyncRequest,
+  CheckinAllPlayerSyncResponse,
   GetActivityCollectionRewardRequest,
   GetActivityCollectionRewardResponse,
   GetActivityShopInfoRequest,
@@ -36,6 +42,8 @@ import {
   GetChainLogInRewardResponse,
   GetCheckInRewardRequest,
   GetCheckInRewardResponse,
+  LoginOnlyGetRewardRequest,
+  LoginOnlyGetRewardResponse,
   GetOpenServerCheckInRewardRequest,
   GetOpenServerCheckInRewardResponse,
   GetSwitchOnlyRewardRequest,
@@ -173,28 +181,86 @@ export async function handleGetActivityCheckInReward(player: PlayerDataManager, 
   if (body.activityId == null || body.index == null) {
     return ({ result: 1, ...player.delta });
   }
-   await player.update(async (draft) => {
-    const activityId = body.activityId;
-    const targetIndex = body.index;
-     if (!draft.activity.CHECKIN_ONLY[activityId]) {
+  const activityId = body.activityId;
+  const targetIndex = body.index;
+  let already = false;
+
+  await player.update(async (draft) => {
+    if (!draft.activity) {
+      (draft as any).activity = {};
+    }
+    if (!draft.activity.CHECKIN_ONLY) {
+      (draft.activity as any).CHECKIN_ONLY = {};
+    }
+    if (!draft.activity.CHECKIN_ONLY[activityId]) {
       draft.activity.CHECKIN_ONLY[activityId] = {
         lastTs: 0,
         history: [],
       };
     }
+    // 修复：已领取的 index 不再重复发奖（原实现恒置 0 → 可重复刷）
+    if ((draft.activity as any).CHECKIN_ONLY[activityId].history[targetIndex] === 0) {
+      already = true;
+      return;
+    }
     (draft.activity as any).CHECKIN_ONLY[activityId].history[targetIndex] = 0;
+    (draft.activity as any).CHECKIN_ONLY[activityId].lastTs = Math.floor(Date.now() / 1000);
   });
-   return ({
+
+  if (already) {
+    return ({
+      ...player.delta,
+      items: [],
+    } satisfies GetActivityCheckInRewardResponse);
+  }
+
+  // 从 excel 读取签到奖励（值一律从表读，不硬编码）
+  // 修复：excel activity 字典键大小写随数据版本多变（cHECKIN_ONLY 旧坏键/checkinOnly 规范键）
+  const checkinKey = activityDictKey("CHECKIN_ONLY") ?? "cHECKIN_ONLY";
+  const checkinConfig = (
+    excel.ActivityTable.activity as { [key: string]: { [key: string]: any } }
+  )[checkinKey]?.[activityId] as any;
+  const daily = checkinConfig?.checkInList?.[String(targetIndex)];
+  let rewards: ItemBundle[] = [];
+
+  if (daily?.isDynItem && body.dynOpt) {
+    // 动态签到日：奖励按 dynOpt 从 dynItemDict 读取（如 act43sign 月饼制作选项）
+    rewards = (checkinConfig.dynCheckInData?.dynItemDict?.[body.dynOpt] ?? []) as ItemBundle[];
+  } else {
+    rewards = (daily?.itemList ?? []) as ItemBundle[];
+  }
+
+  if (rewards.length > 0) {
+    for (const reward of rewards) {
+      player.gainItem.add({
+        id: reward.id,
+        count: reward.count,
+        type: ItemTypeToString(reward.type) as ItemType,
+      });
+    }
+    await player.gainItem.handle();
+  }
+
+  return ({
     ...player.delta,
-    items: [],
+    items: rewards,
   } satisfies GetActivityCheckInRewardResponse);
 }
 
 export async function handleActCheckinvssign(player: PlayerDataManager, body: ActCheckinvsSignRequest) {
-   await player.update(async (draft) => {
+  let rewards: ItemBundle[] = [];
+  let claimed = false;
+
+  await player.update(async (draft) => {
     const actId = body.actId;
     const tasteChoice = body.tasteChoice;
-     const vsData = draft.activity.CHECKIN_VS as any;
+    if (!draft.activity) {
+      (draft as any).activity = {};
+    }
+    if (!draft.activity.CHECKIN_VS) {
+      (draft.activity as any).CHECKIN_VS = {};
+    }
+    const vsData = draft.activity.CHECKIN_VS as any;
     if (!vsData[actId]) {
       vsData[actId] = {
         sweetVote: 0,
@@ -208,34 +274,256 @@ export async function handleActCheckinvssign(player: PlayerDataManager, body: Ac
         actDay: 1,
       };
     }
-    vsData[actId].signedCnt++;
-    vsData[actId].canVote = false;
-    if (tasteChoice === 1) {
-      vsData[actId].sweetVote++;
-    } else {
-      vsData[actId].saltyVote++;
+    const actData = vsData[actId];
+    // 修复：签到次数限制（availSignCnt 未校验 → 无限签到刷奖励）
+    if ((actData.signedCnt ?? 0) >= (actData.availSignCnt ?? 1)) {
+      claimed = true;
+      return;
     }
+    actData.signedCnt++;
+    actData.canVote = false;
+    if (tasteChoice === 1) {
+      actData.sweetVote++;
+    } else if (tasteChoice === 2) {
+      actData.saltyVote++;
+    }
+    actData.todayVoteState = 2;
   });
-   return ({
+
+  if (!claimed) {
+    // 从 excel 读取当日签到奖励（按已签天数取 checkInDict[day]，值从表读不硬编码）
+    const checkinVsKey = activityDictKey("CHECKIN_VS") ?? "cHECKIN_VS";
+    const vsConfig = (
+      excel.ActivityTable.activity as { [key: string]: { [key: string]: any } }
+    )[checkinVsKey]?.[body.actId] as any;
+    const day = (player._playerdata as any).activity?.CHECKIN_VS?.[body.actId]?.signedCnt ?? 1;
+    const daily = vsConfig?.checkInDict?.[String(day)];
+    rewards = (daily?.rewardList ?? []) as ItemBundle[];
+
+    if (rewards.length > 0) {
+      for (const reward of rewards) {
+        player.gainItem.add({
+          id: reward.id,
+          count: reward.count,
+          type: ItemTypeToString(reward.type) as ItemType,
+        });
+      }
+      await player.gainItem.handle();
+    }
+  }
+
+  return ({
     ...player.delta,
-    items: [
-      { type: "AP_SUPPLY" as ItemType, id: "ap_supply_lt_120", count: 1 },
-      { type: "GOLD" as ItemType, id: "4001", count: 30000 },
-    ],
+    items: rewards,
   } satisfies ActCheckinvsSignResponse);
 }
 
 export async function handleGetSwitchOnlyReward(player: PlayerDataManager, body: GetSwitchOnlyRewardRequest) {
-   await player.update(async (draft) => {
+  let rewards: ItemBundle[] = [];
+  let claimed = false;
+
+  await player.update(async (draft) => {
     const activityId = body.activityId;
     const rewardId = body.reward;
-     const switchData = draft.activity.SWITCH_ONLY as any;
+    if (!draft.activity) {
+      (draft as any).activity = {};
+    }
+    if (!draft.activity.SWITCH_ONLY) {
+      (draft.activity as any).SWITCH_ONLY = {};
+    }
+    const switchData = draft.activity.SWITCH_ONLY as any;
     if (!switchData[activityId]) {
       switchData[activityId] = {};
     }
+    // 修复：已领取的奖励不再重复发（原实现只写标记不校验 → 可重复刷）
+    if (switchData[activityId][rewardId] === 0) {
+      claimed = true;
+      return;
+    }
     switchData[activityId][rewardId] = 0;
   });
-   return (player.delta satisfies GetSwitchOnlyRewardResponse);
+
+  if (!claimed) {
+    // 从 excel 读取开关奖励（值从表读不硬编码）
+    const switchKey = activityDictKey("SWITCH_ONLY") ?? "sWITCH_ONLY";
+    const switchConfig = (
+      excel.ActivityTable.activity as { [key: string]: { [key: string]: any } }
+    )[switchKey]?.[body.activityId] as any;
+    rewards = (switchConfig?.rewards?.[body.reward] ?? []) as ItemBundle[];
+
+    if (rewards.length > 0) {
+      for (const reward of rewards) {
+        player.gainItem.add({
+          id: reward.id,
+          count: reward.count,
+          type: ItemTypeToString(reward.type) as ItemType,
+        });
+      }
+      await player.gainItem.handle();
+    }
+  }
+
+  return ({
+    ...player.delta,
+    items: rewards,
+  } satisfies GetSwitchOnlyRewardResponse);
+}
+
+/**
+ * 登录奖励领取（LOGIN_ONLY，excel `activity.loginOnly[actId].itemList`）
+ * 协议：CS LoginOnlyService.GET_REWARD "/activity/loginOnly/getReward"；
+ * 官服抓包 R-1707618442119.734-4504：响应 `{ reward: [...], playerDataDelta }`，
+ * delta 写 `activity.LOGIN_ONLY[actId].reward = 0`（0=已领）。
+ */
+export async function handleLoginOnlyGetReward(player: PlayerDataManager, body: LoginOnlyGetRewardRequest) {
+  const activityId = body.activityId;
+  if (activityId == null) {
+    return ({ result: 1, ...player.delta });
+  }
+
+  let already = false;
+  await player.update(async (draft) => {
+    if (!draft.activity) {
+      (draft as any).activity = {};
+    }
+    if (!draft.activity.LOGIN_ONLY) {
+      (draft.activity as any).LOGIN_ONLY = {};
+    }
+    const data = draft.activity.LOGIN_ONLY as any;
+    if (!data[activityId]) {
+      data[activityId] = { reward: 1 };
+    }
+    if (data[activityId].reward === 0) {
+      already = true;
+      return;
+    }
+    data[activityId].reward = 0;
+  });
+
+  if (already) {
+    return ({
+      ...player.delta,
+      reward: [],
+    } satisfies LoginOnlyGetRewardResponse);
+  }
+
+  // 从 excel 读取登录奖励（值从表读不硬编码）
+  const loginKey = activityDictKey("LOGIN_ONLY") ?? "lOGIN_ONLY";
+  const loginConfig = (
+    excel.ActivityTable.activity as { [key: string]: { [key: string]: any } }
+  )[loginKey]?.[activityId] as any;
+  const rewards = (loginConfig?.itemList ?? []) as ItemBundle[];
+
+  if (rewards.length > 0) {
+    for (const reward of rewards) {
+      player.gainItem.add({
+        id: reward.id,
+        count: reward.count,
+        type: ItemTypeToString(reward.type) as ItemType,
+      });
+    }
+    await player.gainItem.handle();
+  }
+
+  return ({
+    ...player.delta,
+    reward: rewards,
+  } satisfies LoginOnlyGetRewardResponse);
+}
+
+/**
+ * 全服签到活动签到（CHECKIN_ALL_PLAYER，excel `activity.checkinAllPlayer[actId].checkInList`）
+ * 协议：CS CheckinAllPlayerServiceCode.CHECKIN "/activity/checkinAllPlayer/getActivityCheckInReward"
+ */
+export async function handleCheckinAllPlayerCheckin(
+  player: PlayerDataManager,
+  body: CheckinAllPlayerCheckinRequest,
+) {
+  const activityId = body.activityId;
+  const targetIndex = body.index;
+  if (activityId == null || targetIndex == null) {
+    return ({ result: 1, ...player.delta });
+  }
+
+  let already = false;
+  await player.update(async (draft) => {
+    if (!draft.activity) {
+      (draft as any).activity = {};
+    }
+    if (!draft.activity.CHECKIN_ALL_PLAYER) {
+      (draft.activity as any).CHECKIN_ALL_PLAYER = {};
+    }
+    if (!draft.activity.CHECKIN_ALL_PLAYER[activityId]) {
+      draft.activity.CHECKIN_ALL_PLAYER[activityId] = {
+        lastTs: 0,
+        history: [],
+      };
+    }
+    const data = (draft.activity as any).CHECKIN_ALL_PLAYER[activityId];
+    if (data.history[targetIndex] === 0) {
+      already = true;
+      return;
+    }
+    data.history[targetIndex] = 0;
+    data.lastTs = Math.floor(Date.now() / 1000);
+  });
+
+  if (already) {
+    return ({
+      ...player.delta,
+      items: [],
+    } satisfies CheckinAllPlayerCheckinResponse);
+  }
+
+  const allPlayerKey = activityDictKey("CHECKIN_ALL_PLAYER") ?? "cHECKIN_ALL_PLAYER";
+  const config = (
+    excel.ActivityTable.activity as { [key: string]: { [key: string]: any } }
+  )[allPlayerKey]?.[activityId] as any;
+  const daily = config?.checkInList?.[String(targetIndex)];
+  const rewards = (daily?.itemList ?? []) as ItemBundle[];
+
+  if (rewards.length > 0) {
+    for (const reward of rewards) {
+      player.gainItem.add({
+        id: reward.id,
+        count: reward.count,
+        type: ItemTypeToString(reward.type) as ItemType,
+      });
+    }
+    await player.gainItem.handle();
+  }
+
+  return ({
+    ...player.delta,
+    items: rewards,
+  } satisfies CheckinAllPlayerCheckinResponse);
+}
+
+/**
+ * 全服签到活动行为数据同步（SYNC_DATA）
+ * 行为进度（pubBhvs/personalBhvs）依赖战斗/助战统计，第一档仅空增量返回；
+ * TODO：行为进度事件化后按 excel AllPlayerCheckinData.pubBhvs 填充。
+ */
+export async function handleCheckinAllPlayerSync(
+  player: PlayerDataManager,
+  body: CheckinAllPlayerSyncRequest,
+) {
+  return (player.delta satisfies CheckinAllPlayerSyncResponse);
+}
+
+/**
+ * 全服签到活动行为奖励领取（GET_ALL_REWARD）
+ * 行为奖励需行为进度统计支撑，第一档仅空增量返回；
+ * TODO：行为进度事件化后按 excel pubBhvs.rewards 发放。
+ */
+export async function handleCheckinAllPlayerGetAllReward(
+  player: PlayerDataManager,
+  body: CheckinAllPlayerGetAllRewardRequest,
+) {
+  return ({
+    ...player.delta,
+    items: [],
+  } satisfies CheckinAllPlayerGetAllRewardResponse);
 }
 
 export async function handleGetCheckInReward(player: PlayerDataManager, body: GetCheckInRewardRequest) {
@@ -244,7 +532,10 @@ export async function handleGetCheckInReward(player: PlayerDataManager, body: Ge
   if (activityId == null) {
     return ({ result: 1, ...player.delta });
   }
-   if (activityId.endsWith("access")) {
+  if (activityId.endsWith("access")) {
+    // TODO：本地 excel 无 CHECKIN_ACCESS 活动配置（activity_table.json 仅 basicInfo），
+    // 奖励暂按官服抓包 R-1714621119603.1292-4500（act1access：DIAMOND_SHD 200 + ap_supply_lt_80）
+    // 固定发放；待数据源补全后改为从 excel 读取。
     const REWARDS: ItemBundle[] = [
       { type: "AP_SUPPLY" as ItemType, id: "ap_supply_lt_80", count: 1 },
       { type: "DIAMOND_SHD" as ItemType, id: "4003", count: 200 },
@@ -268,9 +559,12 @@ export async function handleGetCheckInReward(player: PlayerDataManager, body: Ge
       data.rewardsCount++;
       data.lastTs = Math.floor(Date.now() / 1000);
     });
-     // 修复：奖励入账（原实现只回显 items 从不 emit items:get → 领了但没到账）
+    // 修复：奖励入账（原实现只回显 items 从不发放 → 领了但没到账；统一走 gainItem 管道）
     if (!already) {
-      await player._trigger.emit("items:get", [REWARDS]);
+      for (const reward of REWARDS) {
+        player.gainItem.add(reward);
+      }
+      await player.gainItem.handle();
     }
     return ({
       ...player.delta,
@@ -319,6 +613,9 @@ export async function handleChangeFestivalChar(player: PlayerDataManager, body: 
 }
 
 export async function handleActBlessOnlygetCheckInReward(player: PlayerDataManager, body: ActivityStubRequest) {
+  // TODO：本地 excel 无 BLESS_ONLY 活动配置（activity_table.json 仅 basicInfo/homeActConfig/dynActs，
+  // 无 blessData 奖励表），无法从表推导奖励；官服抓包 act1blessing 为 DIAMOND_SHD 500（R-1708390915174.524-0096），
+  // 待数据源补全后按 excel 实现，当前返回空增量。
   return ({
     items: [],
     ...player.delta,
@@ -330,6 +627,9 @@ export async function handleActBlessOnlychangeFestivalChar(player: PlayerDataMan
 }
 
 export async function handleActCheckinAccessgetCheckInReward(player: PlayerDataManager, body: ActivityStubRequest) {
+  // TODO：本地 excel 无 CHECKIN_ACCESS 活动配置（activity_table.json 仅 basicInfo/homeActConfig/dynActs，
+  // 无 checkinAccessData 奖励表），无法从表推导奖励；官服抓包 act1access 为 DIAMOND_SHD 200 +
+  // ap_supply_lt_80（R-1714621119603.1292-4500），待数据源补全后按 excel 实现，当前返回空增量。
   return ({
     items: [],
     ...player.delta,

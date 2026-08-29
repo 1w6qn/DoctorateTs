@@ -67,6 +67,48 @@ export interface GetActivityCheckInRewardResponse extends PlayerDeltaResponse {
 }
 
 /**
+ * 获取登录奖励请求（CS: LoginOnlyService.GET_REWARD "/activity/loginOnly/getReward"）
+ * 字段：activityId（官服抓包 R-1707618442119.734-4504）
+ */
+export interface LoginOnlyGetRewardRequest {
+  activityId: string;
+}
+
+/** 获取登录奖励响应（官服抓包：reward 数组 + playerDataDelta） */
+export interface LoginOnlyGetRewardResponse extends PlayerDeltaResponse {
+  reward: ItemBundle[];
+}
+
+/** 全服签到活动签到请求（CS: CheckinAllPlayerServiceCode.CHECKIN；读 activityId/index） */
+export interface CheckinAllPlayerCheckinRequest {
+  activityId: string;
+  index: number;
+}
+
+/** 全服签到活动签到响应（items + delta） */
+export interface CheckinAllPlayerCheckinResponse extends PlayerDeltaResponse {
+  items: ItemBundle[];
+}
+
+/** 全服签到活动行为数据同步请求（CS: CheckinAllPlayerServiceCode.SYNC_DATA） */
+export interface CheckinAllPlayerSyncRequest {
+  activityId: string;
+}
+
+/** 全服签到活动行为数据同步响应（空增量） */
+export type CheckinAllPlayerSyncResponse = PlayerDeltaResponse;
+
+/** 全服签到活动行为奖励领取请求（CS: CheckinAllPlayerServiceCode.GET_ALL_REWARD） */
+export interface CheckinAllPlayerGetAllRewardRequest {
+  activityId: string;
+}
+
+/** 全服签到活动行为奖励领取响应（items + delta） */
+export interface CheckinAllPlayerGetAllRewardResponse extends PlayerDeltaResponse {
+  items: ItemBundle[];
+}
+
+/**
  * 签到对决活动签到请求（服务端自定义）
  * 参考 CS PlayerActivity.PlayerCheckinVsTypeActivity / VersusCheckInData.TasteInfoData
  * tasteChoice：1=甜，2=咸
@@ -90,8 +132,10 @@ export interface GetSwitchOnlyRewardRequest {
   reward: string;
 }
 
-/** 获取开关型活动奖励响应（服务端自定义；仅增量） */
-export type GetSwitchOnlyRewardResponse = PlayerDeltaResponse;
+/** 获取开关型活动奖励响应（服务端自定义；items + 增量） */
+export interface GetSwitchOnlyRewardResponse extends PlayerDeltaResponse {
+  items: ItemBundle[];
+}
 
 /**
  * 获取签到奖励（通用入口）请求（服务端自定义）

@@ -27,6 +27,9 @@ import {
   ExchangeActivityShopItemResponse,
   GetActivityCheckInRewardRequest,
   GetActivityCheckInRewardResponse,
+  CheckinAllPlayerCheckinRequest,
+  CheckinAllPlayerGetAllRewardRequest,
+  CheckinAllPlayerSyncRequest,
   GetActivityCollectionRewardRequest,
   GetActivityCollectionRewardResponse,
   GetActivityShopInfoRequest,
@@ -37,6 +40,7 @@ import {
   GetChainLogInRewardResponse,
   GetCheckInRewardRequest,
   GetCheckInRewardResponse,
+  LoginOnlyGetRewardRequest,
   GetOpenServerCheckInRewardRequest,
   GetOpenServerCheckInRewardResponse,
   GetSwitchOnlyRewardRequest,
@@ -137,7 +141,24 @@ import {
 import { validateBody } from "../../../kernel/http/validate-body";
 
 const router = Router();
-import { handleGetChainLogInReward, handleGetChainLogInFinalRewards, handleGetOpenServerCheckInReward, handleGetActivityCheckInReward, handleActCheckinvssign, handleGetSwitchOnlyReward, handleGetCheckInReward, handleChangeFestivalChar, handleActBlessOnlygetCheckInReward, handleActBlessOnlychangeFestivalChar, handleActCheckinAccessgetCheckInReward, handleYear5GeneralgetInfReward } from "./logic";
+import {
+  handleGetChainLogInReward,
+  handleGetChainLogInFinalRewards,
+  handleGetOpenServerCheckInReward,
+  handleGetActivityCheckInReward,
+  handleActCheckinvssign,
+  handleGetSwitchOnlyReward,
+  handleGetCheckInReward,
+  handleChangeFestivalChar,
+  handleActBlessOnlygetCheckInReward,
+  handleActBlessOnlychangeFestivalChar,
+  handleActCheckinAccessgetCheckInReward,
+  handleYear5GeneralgetInfReward,
+  handleLoginOnlyGetReward,
+  handleCheckinAllPlayerCheckin,
+  handleCheckinAllPlayerSync,
+  handleCheckinAllPlayerGetAllReward,
+} from "./logic";
 
 router.post("/getChainLogInReward", validateBody(ReqSchema.getChainLogInRewardSchema), async (req, res) => {
   res.send(await handleGetChainLogInReward(getPlayer(), req.body as GetChainLogInRewardRequest));
@@ -161,6 +182,60 @@ router.post("/actCheckinvs/sign", validateBody(ReqSchema.actCheckinvsSignSchema)
 
 router.post("/getSwitchOnlyReward", validateBody(ReqSchema.getSwitchOnlyRewardSchema), async (req, res) => {
   res.send(await handleGetSwitchOnlyReward(getPlayer(), req.body as GetSwitchOnlyRewardRequest));
+});
+
+router.post("/loginOnly/getReward", validateBody(ReqSchema.loginOnlyGetRewardSchema), async (req, res) => {
+  res.send(await handleLoginOnlyGetReward(getPlayer(), req.body as LoginOnlyGetRewardRequest));
+});
+
+/**
+ * 许愿墙登录奖励（PRAY_ONLY）
+ * TODO：本地 excel 无 PRAY_ONLY 活动配置（activity_table.json 仅 basicInfo/homeActConfig/dynActs，
+ * 无 prayData 奖励表），无法从表推导奖励；官服抓包见 tmp/capture（prayArray 请求 + DIAMOND_SHD 奖励），
+ * 待数据源补全后按 excel 实现，当前返回空增量避免客户端 404。
+ */
+router.post("/prayOnly/getReward", validateBody(ReqSchema.activityGetRewardSchema), async (req, res) => {
+  res.send({
+    rewards: [],
+    ...getPlayer().delta,
+  });
+});
+
+/**
+ * 登录独有奖励（UNIQUE_ONLY）
+ * TODO：本地 excel 无 UNIQUE_ONLY 活动配置（activity_table.json 仅 basicInfo），无法从表推导奖励；
+ * 官服抓包 R-1786876473005-0023（voucher/avatar/gallery 奖励），待数据源补全后按 excel 实现。
+ */
+router.post("/loginOnlyUnique/getReward", validateBody(ReqSchema.activityGetRewardSchema), async (req, res) => {
+  res.send({
+    reward: [],
+    ...getPlayer().delta,
+  });
+});
+
+/**
+ * 视频签到奖励（CHECKIN_VIDEO）
+ * TODO：本地 excel 无 CHECKIN_VIDEO 活动配置（activity_table.json 仅 basicInfo），无法从表推导奖励；
+ * 客户端路径 /activity/getActivityCheckInVideoReward（ArknightsGameData Lua CheckinVideoServiceCode），
+ * 待数据源补全后按 excel 实现，当前返回空增量避免客户端 404。
+ */
+router.post("/getActivityCheckInVideoReward", validateBody(ReqSchema.activityGetRewardSchema), async (req, res) => {
+  res.send({
+    items: [],
+    ...getPlayer().delta,
+  });
+});
+
+router.post("/checkinAllPlayer/getActivityCheckInReward", validateBody(ReqSchema.checkinAllPlayerCheckinSchema), async (req, res) => {
+  res.send(await handleCheckinAllPlayerCheckin(getPlayer(), req.body as CheckinAllPlayerCheckinRequest));
+});
+
+router.post("/checkinAllPlayer/syncBehaviorData", validateBody(ReqSchema.checkinAllPlayerSyncSchema), async (req, res) => {
+  res.send(await handleCheckinAllPlayerSync(getPlayer(), req.body as CheckinAllPlayerSyncRequest));
+});
+
+router.post("/checkinAllPlayer/getAllBehaviorReward", validateBody(ReqSchema.checkinAllPlayerGetAllRewardSchema), async (req, res) => {
+  res.send(await handleCheckinAllPlayerGetAllReward(getPlayer(), req.body as CheckinAllPlayerGetAllRewardRequest));
 });
 
 router.post("/getCheckInReward", validateBody(ReqSchema.getCheckInRewardSchema), async (req, res) => {
@@ -191,67 +266,7 @@ export default router;
 
 export const rootRouter = Router();
 rootRouter.post("/actcheckinvs/sign", validateBody(ReqSchema.actCheckinvsSignSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as ActCheckinvsSignRequest;
-
-  await player.update(async (draft) => {
-    const actId = body.actId;
-    const tasteChoice = body.tasteChoice;
-
-    const vsData = draft.activity.CHECKIN_VS as any;
-    if (!vsData[actId]) {
-      vsData[actId] = {
-        sweetVote: 0,
-        saltyVote: 0,
-        canVote: true,
-        todayVoteState: 0,
-        voteRewardState: 0,
-        signedCnt: 0,
-        availSignCnt: 1,
-        socialState: 2,
-        actDay: 1,
-      };
-    }
-    const actData = vsData[actId];
-    // 修复：签到次数限制（availSignCnt 未校验 → 无限签到刷奖励）
-    if ((actData.signedCnt ?? 0) >= (actData.availSignCnt ?? 1)) {
-      return;
-    }
-    // 投票计数
-    if (tasteChoice === 1) {
-      actData.sweetVote += 1;
-    } else if (tasteChoice === 2) {
-      actData.saltyVote += 1;
-    }
-    actData.signedCnt += 1;
-    actData.canVote = false;
-    actData.todayVoteState = 2;
-  });
-
-  // 修复：excel activity 字典键大小写随数据版本多变（cHECKIN_VS 旧坏键/checkinVs 规范键）
-  // ——动态查键，不再依赖固定大小写
-  const checkinVsKey = activityDictKey("CHECKIN_VS") ?? "cHECKIN_VS";
-  const signReward = (
-    excel.ActivityTable.activity as { [key: string]: { [key: string]: any } }
-  )[checkinVsKey]?.[body.actId] as any;
-  const rewards: ItemBundle[] = [];
-  if (signReward?.signedReward) {
-    for (const reward of signReward.signedReward) {
-      rewards.push({
-        id: reward.id,
-        count: reward.count,
-        type: ItemTypeToString(reward.type) as ItemType,
-      });
-    }
-  }
-  if (rewards.length > 0) {
-    await player._trigger.emit("items:get", [rewards]);
-  }
-
-  res.send({
-    items: rewards,
-    ...player.delta,
-  } satisfies ActCheckinvsSignResponse);
+  res.send(await handleActCheckinvssign(getPlayer(), req.body as ActCheckinvsSignRequest));
 });
 
 /** 训练场开始战斗（参考 ODPY trainingGroundBattleStart 空 stub） */

@@ -22,11 +22,11 @@ vi.mock("@excel/excel", () => {
           },
           act1arkhub: {
             id: "act1arkhub", type: "ARK_HUB", name: "奇象巡展", displayType: "ARK_HUB",
-            startTime: 1786176000, endTime: 1788465599, rewardEndTime: 1788724799,
+            startTime: 1786176000, endTime: 1900000000, rewardEndTime: 1900000000,
           },
           act53side: {
             id: "act53side", type: "TYPE_ACT53SIDE", name: "直到大地变成一颗酸橙",
-            startTime: 1785538800, endTime: 1787342399, rewardEndTime: 1787947199,
+            startTime: 1785538800, endTime: 1900000000, rewardEndTime: 1900000000,
           },
           // 窗口已过期的 TYPE_ACT 别传：forceOpen 时强制播种；medalGroupId 触发奖章组播种
           act49side: {

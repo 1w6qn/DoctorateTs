@@ -1,5 +1,5 @@
 export interface PlayerActivity {
-  LOGIN_ONLY: object;
+  LOGIN_ONLY: { [key: string]: PlayerActivity.PlayerLoginOnlyTypeActivity };
   CHECKIN_ONLY: { [key: string]: PlayerActivity.PlayerCheckinOnlyTypeActivity };
   TYPE_ACT9D0: object;
   AVG_ONLY: object;
@@ -31,10 +31,10 @@ export interface PlayerActivity {
   FLIP_ONLY: object;
   MAIN_BUFF: object;
   TYPE_ACT25SIDE: object;
-  CHECKIN_ALL_PLAYER: object;
+  CHECKIN_ALL_PLAYER: { [key: string]: PlayerActivity.PlayerCheckinAllTypeActivity };
   TYPE_ACT38D1: object;
-  CHECKIN_VS: object;
-  SWITCH_ONLY: object;
+  CHECKIN_VS: { [key: string]: PlayerActivity.PlayerCheckinVsTypeActivity };
+  SWITCH_ONLY: { [key: string]: PlayerActivity.PlayerSwitchOnlyActivity };
   TYPE_ACT27SIDE: object;
   MAINLINE_BP: object;
   UNIQUE_ONLY: object;
@@ -62,5 +62,36 @@ export namespace PlayerActivity {
   export interface PlayerCheckinOnlyTypeActivity {
     lastTs: number;
     history: number[];
+  }
+
+  /** 登录奖励活动（CS: PlayerActivity.PlayerLoginOnlyTypeActivity） */
+  export interface PlayerLoginOnlyTypeActivity {
+    /** 0=已领，1=未领（官服抓包 R-1707618442119.734-4504） */
+    reward: number;
+  }
+
+  /** 全服签到活动（CS: PlayerActivity.PlayerCheckinAllTypeActivity） */
+  export interface PlayerCheckinAllTypeActivity {
+    lastTs: number;
+    history: number[];
+  }
+
+  /** 签到对决活动（CS: PlayerActivity.PlayerCheckinVsTypeActivity） */
+  export interface PlayerCheckinVsTypeActivity {
+    sweetVote: number;
+    saltyVote: number;
+    canVote: boolean;
+    todayVoteState: number;
+    voteRewardState: number;
+    signedCnt: number;
+    availSignCnt: number;
+    socialState: number;
+    actDay: number;
+  }
+
+  /** 开关型活动（CS: PlayerActivity.PlayerSwitchOnlyActivity） */
+  export interface PlayerSwitchOnlyActivity {
+    /** rewardId → 0（0=已领） */
+    [rewardId: string]: number;
   }
 }

@@ -266,7 +266,9 @@ export interface UnlockEquipmentRequest {
 }
 
 /** 解锁模组响应（CS: UI.UnlockEquipmentResponse） */
-export type UnlockEquipmentResponse = PlayerDeltaResponse;
+export interface UnlockEquipmentResponse extends PlayerDeltaResponse {
+  result: number;
+}
 
 /** 升级模组请求（CS: UI.UpgradeEquipmentRequest） */
 export interface UpgradeEquipmentRequest {
@@ -277,7 +279,9 @@ export interface UpgradeEquipmentRequest {
 }
 
 /** 升级模组响应（CS: UI.UpgradeEquipmentResponse） */
-export type UpgradeEquipmentResponse = PlayerDeltaResponse;
+export interface UpgradeEquipmentResponse extends PlayerDeltaResponse {
+  result: number;
+}
 
 /** 装备模组请求（CS: UI.UniEquipSetEquipRequest） */
 export interface SetEquipmentRequest {

@@ -327,7 +327,7 @@ router.post("/unlockEquipment", validateBody(unlockEquipmentSchema), async (req,
     return res.send({ result: 1, ...player.delta });
   }
   await player.char.unlockEquipment(body);
-  res.send(player.delta satisfies UnlockEquipmentResponse);
+  res.send({ result: 0, ...player.delta } satisfies UnlockEquipmentResponse);
 });
 router.post("/upgradeEquipment", validateBody(upgradeEquipmentSchema), async (req, res) => {
   const player = getPlayer();
@@ -341,7 +341,7 @@ router.post("/upgradeEquipment", validateBody(upgradeEquipmentSchema), async (re
     return res.send({ result: 1, ...player.delta });
   }
   await player.char.upgradeEquipment(body);
-  res.send(player.delta satisfies UpgradeEquipmentResponse);
+  res.send({ result: 0, ...player.delta } satisfies UpgradeEquipmentResponse);
 });
 router.post("/setEquipment", validateBody(setEquipmentSchema), async (req, res) => {
   const player = getPlayer();

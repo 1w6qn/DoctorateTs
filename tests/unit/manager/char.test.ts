@@ -331,13 +331,12 @@ describe("CharManager", () => {
         mockTrigger as any
       );
 
-      const emitSpy = vi.spyOn(mockTrigger, "emit");
       await manager.onCharGet(["char_001", { from: "NORMAL" }]);
 
-      const itemsGetCalls = emitSpy.mock.calls.filter(
-        (c) => c[0] === "items:get"
-      );
-      expect(itemsGetCalls.length).toBeGreaterThan(0);
+      // 物品返还经 gainItem 管道（add + handle），不再直发 items:get
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
+      const granted = mockPlayer.gainItem.add.mock.calls.map((c: any) => c[0]);
+      expect(granted.some((i: any) => i.id === "pot_001")).toBe(true);
     });
   });
 
@@ -399,7 +398,6 @@ describe("CharManager", () => {
         { specializeLevel: 0 },
       ];
 
-      const emitSpy = vi.spyOn(mockTrigger, "emit");
       await manager.upgradeSkill({
         charInstId: 1001,
         targetLevel: 2,
@@ -408,10 +406,7 @@ describe("CharManager", () => {
       expect(
         mockPlayer._playerdata.troop!.chars[1001].mainSkillLvl
       ).toBe(2);
-      expect(emitSpy).toHaveBeenCalledWith(
-        "items:use",
-        expect.any(Array)
-      );
+      expect(mockPlayer.gainItem.use).toHaveBeenCalled();
     });
   });
 
@@ -551,12 +546,10 @@ describe("CharManager", () => {
 
     it("空 id 的 extraItem 不应发放（防御：避免 gainItem 查 ItemTable[''] 警告）", async () => {
       const manager = new CharManager(mockPlayer as any, mockTrigger as any);
-      const emitSpy = vi.spyOn(mockTrigger, "emit");
       // 限定池 LMTGSID 缺失时旧实现 extraItem.id = "" → items:get 警告跳过
       await manager.onCharGet(["char_001", { from: "LIMITED", extraItem: { id: "", count: 1 } }]);
-      const itemsGetCalls = emitSpy.mock.calls.filter((c) => c[0] === "items:get");
-      // 空 id extraItem 被过滤（不进入 items:get 发放）
-      const granted = itemsGetCalls.flatMap((c: any) => c[1][0]);
+      // 空 id extraItem 被过滤（不进入 gainItem 管道发放）
+      const granted = mockPlayer.gainItem.add.mock.calls.map((c: any) => c[0]);
       expect(granted.some((i: any) => i.id === "")).toBe(false);
     });
   });
@@ -581,7 +574,8 @@ describe("CharManager", () => {
       const emitSpy = vi.spyOn(mockTrigger, "emit");
       await manager.upgradeSpecialization({ charInstId, skillIndex: 0, targetLevel: 1 });
       // 材料扣减（levelUpCostCond[0] = M1 材料）
-      expect(emitSpy).toHaveBeenCalledWith("items:use", [[{ id: "sp_mat", count: 2 }]]);
+      expect(mockPlayer.gainItem.use).toHaveBeenCalled();
+      expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({ id: "sp_mat", count: 2 });
       ch = getChar(charInstId);
       expect(ch.skills[0].state).toBe(1); // 训练中
       expect(ch.skills[0].completeUpgradeTime).toBeGreaterThan(0); // now + lvlUpTime
@@ -799,26 +793,35 @@ describe("CharManager", () => {
     it("精一应扣精一档金币（evolveGoldCost[rarity][0]，非精二价）", async () => {
       // char_001 mock rarity=5（数字）→ rarityToIndex 直接返回 5 → index5=6星 [30000,180000]
       const manager = new CharManager(mockPlayer as any, mockTrigger as any);
-      const emitSpy = vi.spyOn(mockTrigger, "emit");
       await manager.evolveChar({ charInstId: 1001, destEvolvePhase: 1 });
       expect(mockPlayer._playerdata.troop!.chars[1001].evolvePhase).toBe(1);
-      const useCall = emitSpy.mock.calls.find((c) => c[0] === "items:use");
-      expect(useCall).toBeDefined();
-      expect((useCall as any)[1][0]).toEqual(
-        expect.arrayContaining([{ id: "4001", count: 30000 }]),
-      );
+      expect(mockPlayer.gainItem.use).toHaveBeenCalled();
+      expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({ id: "4001", count: 30000 });
     });
 
     it("精二应扣精二档金币（前端 destEvolvePhase=2 不再被拒，可正常精二）", async () => {
       const manager = new CharManager(mockPlayer as any, mockTrigger as any);
-      const emitSpy = vi.spyOn(mockTrigger, "emit");
       await manager.evolveChar({ charInstId: 1001, destEvolvePhase: 2 });
       expect(mockPlayer._playerdata.troop!.chars[1001].evolvePhase).toBe(2);
-      const useCall = emitSpy.mock.calls.find((c) => c[0] === "items:use");
-      expect(useCall).toBeDefined();
-      expect((useCall as any)[1][0]).toEqual(
-        expect.arrayContaining([{ id: "4001", count: 180000 }]),
-      );
+      expect(mockPlayer.gainItem.use).toHaveBeenCalled();
+      expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({ id: "4001", count: 180000 });
+    });
+  });
+
+  describe("精英化错误路径（防静默失败）", () => {
+    it("不存在的干员应抛业务错误", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      await expect(
+        manager.evolveChar({ charInstId: 9999, destEvolvePhase: 1 }),
+      ).rejects.toThrow("干员不存在");
+    });
+
+    it("目标相位不高于当前相位应抛业务错误", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.troop!.chars[1001].evolvePhase = 1;
+      await expect(
+        manager.evolveChar({ charInstId: 1001, destEvolvePhase: 1 }),
+      ).rejects.toThrow("目标相位");
     });
   });
 
@@ -829,15 +832,13 @@ describe("CharManager", () => {
       const char = mockPlayer._playerdata.troop!.chars[1001];
       char.level = 50;
       char.exp = 0;
-      const emitSpy = vi.spyOn(mockTrigger, "emit");
       await manager.upgradeChar({
         charInstId: 1001,
         expMats: [{ id: "exp_mat", count: 2 }],
       });
       // 满级时不产生金币消耗（不 push 4001）
-      const useCall = emitSpy.mock.calls.find((c) => c[0] === "items:use");
-      expect(useCall).toBeDefined();
-      const used = (useCall as any)[1][0];
+      expect(mockPlayer.gainItem.use).toHaveBeenCalled();
+      const used = mockPlayer.gainItem.add.mock.calls.map((c: any) => c[0]);
       expect(used.some((i: any) => i.id === "4001")).toBe(false);
       expect(used.some((i: any) => i.id === "exp_mat" && i.count === 2)).toBe(true);
       expect(char.level).toBe(50);
@@ -856,16 +857,14 @@ describe("CharManager", () => {
     it("从 1 级直接升 4 级应累计扣 2~4 级三档材料", async () => {
       const manager = new CharManager(mockPlayer as any, mockTrigger as any);
       const charInstId = await setupChar002(manager);
-      const emitSpy = vi.spyOn(mockTrigger, "emit");
       mockPlayer._playerdata.troop!.chars[charInstId].evolvePhase = 2; // 满足 4 级精英化门槛
       await manager.upgradeSkill({ charInstId, targetLevel: 4 });
       // mock 的 update 整体替换 troop → 升级后须重新读取干员对象
       const char = mockPlayer._playerdata.troop!.chars[charInstId];
       expect(char.mainSkillLvl).toBe(4);
-      const useCall = emitSpy.mock.calls.find((c) => c[0] === "items:use");
-      expect(useCall).toBeDefined();
+      expect(mockPlayer.gainItem.use).toHaveBeenCalled();
       // char_002 allSkillLvlup 三档各 1 个 skill_mat → 累计 3 个
-      const used = (useCall as any)[1][0];
+      const used = mockPlayer.gainItem.add.mock.calls.map((c: any) => c[0]);
       const skillMat = used.filter((i: any) => i.id === "skill_mat");
       expect(skillMat.reduce((s: number, i: any) => s + i.count, 0)).toBe(3);
     });
@@ -907,6 +906,24 @@ describe("CharManager", () => {
       expect(ch.equip["uniequip_001_test"].hide).toBe(0); // 显示
       expect(ch.equip["uniequip_001_test"].locked).toBe(0); // 精二即用解锁
       expect(ch.currentEquip).toBe("uniequip_001_test");
+    });
+  });
+
+  describe("批量语音设置（batchSetCharVoiceLan 对齐官服抓包 R-1689144511000-4558）", () => {
+    it("应设置全部干员 voiceLan 并同步 status.globalVoiceLan 与 npcAudio", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      (mockPlayer._playerdata as any).status.globalVoiceLan = "JP";
+      (mockPlayer._playerdata as any).npcAudio = {
+        char_508_aguard: { voiceLan: 0, npcShowAudioInfoFlag: "JP" },
+      };
+
+      await manager.batchSetCharVoiceLan({ voiceLan: "CN_MANDARIN" });
+
+      expect(mockPlayer._playerdata.troop!.chars[1001].voiceLan).toBe("CN_MANDARIN");
+      expect((mockPlayer._playerdata as any).status.globalVoiceLan).toBe("CN_MANDARIN");
+      expect(
+        (mockPlayer._playerdata as any).npcAudio.char_508_aguard.npcShowAudioInfoFlag
+      ).toBe("CN_MANDARIN");
     });
   });
 });

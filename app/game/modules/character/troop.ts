@@ -68,10 +68,12 @@ export class TroopManager {
       items.push(excel.makeItem(item.id, item.count * count));
     }
     if (costs.length > 0) {
-      await this._trigger.emit("items:use", [costs]);
+      for (const item of costs) this._player.gainItem.add(item);
+      await this._player.gainItem.use();
     }
     if (items.length > 0) {
-      await this._trigger.emit("items:get", [items]);
+      for (const item of items) this._player.gainItem.add(item);
+      await this._player.gainItem.handle();
     }
     return items;
   }
@@ -101,10 +103,12 @@ export class TroopManager {
       items.push(excel.makeItem(item.id, item.count * count));
     }
     if (costs.length > 0) {
-      await this._trigger.emit("items:use", [costs]);
+      for (const item of costs) this._player.gainItem.add(item);
+      await this._player.gainItem.use();
     }
     if (items.length > 0) {
-      await this._trigger.emit("items:get", [items]);
+      for (const item of items) this._player.gainItem.add(item);
+      await this._player.gainItem.handle();
     }
     return items;
   }

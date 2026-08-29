@@ -58,6 +58,28 @@ export class CharManager {
     });
   }
 
+  /**
+   * 消耗物品：经 gainItem 管道统一出队（inventory-pipeline），不直发 items:use。
+   * @param items - 待消耗物品列表（空列表直接跳过）
+   */
+  private async _useItems(items: ItemBundle[]): Promise<void> {
+    if (items.length === 0) return;
+    const pipe = this._player.gainItem;
+    for (const item of items) pipe.add(item);
+    await pipe.use();
+  }
+
+  /**
+   * 发放物品：经 gainItem 管道统一入账（inventory-pipeline），不直发 items:get。
+   * @param items - 待发放物品列表（空列表直接跳过）
+   */
+  private async _getItems(items: ItemBundle[]): Promise<void> {
+    if (items.length === 0) return;
+    const pipe = this._player.gainItem;
+    for (const item of items) pipe.add(item);
+    await pipe.handle();
+  }
+
   async onCharGet([charId, args = { from: "NORMAL" }, callback]: [
     string,
     ({ from: string; extraItem?: ItemBundle } | undefined)?,
@@ -223,7 +245,7 @@ export class CharManager {
         this._player._playerdata.troop.chars[createdCharInstId],
       ]);
     }
-    await this._trigger.emit("items:get", [items]);
+    await this._getItems(items);
     // 修复：HasChar 任务事件从未 emit（模板已注册监听）→ 拥有干员类任务永不推进；
     // 干员入账后补发（含新/重复干员）
     const liveChar = this._player._playerdata.troop.chars[charInstId];
@@ -287,7 +309,7 @@ export class CharManager {
       // 清 exp 丢弃溢出经验，仅扣经验卡本身、不产生金币。
       if (char.level >= maxLevel) {
         char.exp = 0;
-        await this._trigger.emit("items:use", [expMats]);
+        await this._useItems(expMats);
         return;
       }
       while (true) {
@@ -313,7 +335,7 @@ export class CharManager {
       expMats.push(excel.makeItem("4001", gold));
       // 技能：按官服线格式校正 unlock（等级提升不会解锁技能），保留已有技能状态
       reconcileCharSkills(char);
-      await this._trigger.emit("items:use", [expMats]);
+      await this._useItems(expMats);
       await this._trigger.emit("UpgradeChar", [{ char, exp: expTotal }]);
     });
   }
@@ -325,7 +347,7 @@ export class CharManager {
     await this._player.update(async (draft) => {
       const { charInstId, destEvolvePhase } = args;
       const char = draft.troop.chars[charInstId];
-      if (!char) return;
+      if (!char) throw new BadRequestError(`干员不存在 instId=${charInstId}`);
       const info = excel.charData(char.charId)!;
       const phases = info?.phases;
       // 修复：目标相位必须存在且高于当前——原实现无校验，可升到不存在的相位/免费升阶/倒降级
@@ -334,7 +356,9 @@ export class CharManager {
         destEvolvePhase <= char.evolvePhase ||
         !phases[destEvolvePhase]
       ) {
-        return;
+        throw new BadRequestError(
+          `目标相位 ${destEvolvePhase} 非法（当前精${char.evolvePhase}，最高精${phases.length - 1}）`,
+        );
       }
       const phaseConfig = phases[destEvolvePhase] as {
         evolveCost?: ItemBundle[] | null;
@@ -348,10 +372,14 @@ export class CharManager {
       // -1 表示该稀有度无此相位（如 3 星无精二），直接拒绝。
       const goldRow = excel.GameDataConst.evolveGoldCost[rarity];
       const goldCost = goldRow?.[destEvolvePhase - 1] ?? -1;
-      if (goldCost < 0) return;
-      await this._trigger.emit("items:use", [
+      if (goldCost < 0) {
+        throw new BadRequestError(
+          `干员 ${char.charId} 无精${destEvolvePhase} 相位配置`,
+        );
+      }
+      await this._useItems(
         evolveCost.concat([excel.makeItem("4001", goldCost) as unknown as ItemBundle]),
-      ]);
+      );
       // 累计消耗龙门币任务（CostGold / CostGoldPlus）—— 晋升耗币统计
       await this._trigger.emit("CostGold", [{ goldCost: goldCost }]);
       await this._trigger.emit("CostGoldPlus", [{ goldCostPlus: goldCost }]);
@@ -398,7 +426,7 @@ export class CharManager {
         return; // 非法道具：拒绝（防消耗任意库存物品）
       }
       char.potentialRank = target;
-      await this._trigger.emit("items:use", [[excel.makeItem(itemId, 1)]]);
+      await this._useItems([excel.makeItem(itemId, 1)]);
       await this._trigger.emit("BoostPotential", [{ targetLevel: target }]);
       // 修复：勋章 CharPotential 事件从未 emit → 潜能提升勋章永不推进
       await this._trigger.emit("CharPotential", [{ targetLevel: target }]);
@@ -478,7 +506,7 @@ export class CharManager {
         costItems.push(...(allSkillLvlup[i]?.lvlUpCost ?? []));
       }
       char.mainSkillLvl = targetLevel;
-      await this._trigger.emit("items:use", [costItems]);
+      await this._useItems(costItems);
       // 修复：原实现发错事件 BoostPotential → 技能升级任务（监听 UpgradeSkill）永不推进；
       // 改为 UpgradeSkill
       await this._trigger.emit("UpgradeSkill", [{ targetLevel }]);
@@ -522,6 +550,14 @@ export class CharManager {
       Object.values(draft.troop.chars).forEach(
         (char) => (char.voiceLan = voiceLan),
       );
+      // 对齐官服抓包 R-1689144511000-4558：批量设置是全局语音设置——
+      // 同步 status.globalVoiceLan 与 npcAudio.*.npcShowAudioInfoFlag
+      if (draft.status) {
+        (draft.status as any).globalVoiceLan = voiceLan;
+      }
+      Object.values(draft.npcAudio ?? {}).forEach((npc) => {
+        npc.npcShowAudioInfoFlag = voiceLan;
+      });
     });
   }
 
@@ -721,7 +757,7 @@ export class CharManager {
           draft as any,
         );
       }
-      await this._trigger.emit("items:use", [equipData.itemCost?.[1] ?? []]);
+      await this._useItems(equipData.itemCost?.[1] ?? []);
       await this._trigger.emit("HasEquipment", [{ char }]);
     });
   }
@@ -759,7 +795,7 @@ export class CharManager {
         items.push(...(equipData.itemCost?.[i] ?? []));
       }
       entry.level = targetLevel;
-      await this._trigger.emit("items:use", [items]);
+      await this._useItems(items);
       await this._trigger.emit("HasEquipment", [{ char }]);
     });
   }
@@ -865,7 +901,7 @@ export class CharManager {
           `专精需要精英化${phaseNeed}（当前精${char.evolvePhase}）`,
         );
       }
-      await this._trigger.emit("items:use", [cond.levelUpCost ?? []]);
+      await this._useItems(cond.levelUpCost ?? []);
       skill.state = 1;
       skill.completeUpgradeTime = now() + (cond.lvlUpTime ?? 0);
     });
@@ -948,7 +984,7 @@ export class CharManager {
         count: r.count,
         type: itemTypeToString(r.type) as ItemType,
       }));
-      await this._trigger.emit("items:get", [rewards]);
+      await this._getItems(rewards);
       return rewards;
     });
   }
@@ -982,9 +1018,7 @@ export class CharManager {
       reconcileCharSkills(char);
       // 精二后校正模组状态（同 evolveChar：hide 置 0、补齐条目、首个模组 locked 0 + currentEquip）
       reconcileCharEquips(char);
-      await this._trigger.emit("items:use", [
-        [{ id: itemId, count: 1, instId } as any],
-      ]);
+      await this._useItems([{ id: itemId, count: 1, instId } as any]);
       await this._trigger.emit("CharEvolveCount", [{ char }]);
       await this._trigger.emit("EvolveChar", [{ char }]);
     });
@@ -1016,9 +1050,7 @@ export class CharManager {
         1;
       char.level = phaseMax;
       char.exp = 0;
-      await this._trigger.emit("items:use", [
-        [{ id: itemId, count: 1, instId } as any],
-      ]);
+      await this._useItems([{ id: itemId, count: 1, instId } as any]);
       await this._trigger.emit("UpgradeChar", [{ char, exp: 0 }]);
     });
   }
@@ -1051,9 +1083,7 @@ export class CharManager {
       skill.specializeLevel = 3;
       skill.state = 0;
       skill.completeUpgradeTime = -1;
-      await this._trigger.emit("items:use", [
-        [{ id: itemId, count: 1, instId } as any],
-      ]);
+      await this._useItems([{ id: itemId, count: 1, instId } as any]);
       await this._trigger.emit("UpgradeSpecialization", [{ targetLevel: 3 }]);
     });
   }

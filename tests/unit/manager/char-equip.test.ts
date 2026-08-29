@@ -184,10 +184,8 @@ describe("CharManager 模组（uniequip）", () => {
   }
 
   function emittedItemsUse(): any[] {
-    // emit("items:use", [itemsArray]) —— c[1][0] 为物品数组
-    return emitSpy.mock.calls
-      .filter((c) => c[0] === "items:use")
-      .flatMap((c) => c[1]?.[0] ?? []);
+    // 物品消耗经 gainItem 管道（add + use），不再直发 items:use
+    return mockPlayer.gainItem.add.mock.calls.map((c) => c[0]);
   }
 
   describe("unlockEquipment", () => {

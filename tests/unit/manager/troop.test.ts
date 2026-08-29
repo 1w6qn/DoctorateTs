@@ -245,21 +245,17 @@ describe("TroopManager", () => {
         mockTrigger as any
       );
 
-      const emitSpy = vi.spyOn(mockTrigger, "emit");
       // rarity=5 -> 10 个 shard_5;inventory 中 pot_001 有 3 个 -> 共 30 个
       const result = await manager.decomposePotentialItem({
         charInstIdList: ["1001"],
       });
 
       expect(result).toEqual([{ id: "shard_5", count: 30 }]);
-      expect(emitSpy).toHaveBeenCalledWith(
-        "items:use",
-        [[{ id: "pot_001", count: 3 }]]
-      );
-      expect(emitSpy).toHaveBeenCalledWith(
-        "items:get",
-        [[{ id: "shard_5", count: 30 }]]
-      );
+      // 扣/发经 gainItem 管道（use/handle + add），不再直发 items:use/items:get
+      expect(mockPlayer.gainItem.use).toHaveBeenCalled();
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
+      expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({ id: "pot_001", count: 3 });
+      expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({ id: "shard_5", count: 30 });
     });
   });
 
@@ -270,21 +266,17 @@ describe("TroopManager", () => {
         mockTrigger as any
       );
 
-      const emitSpy = vi.spyOn(mockTrigger, "emit");
       // rarity=5 -> 5 个 classic_shard_5;inventory 中 pot_classic_001 有 2 个 -> 共 10 个
       const result = await manager.decomposeClassicPotentialItem({
         charInstIdList: ["1001"],
       });
 
       expect(result).toEqual([{ id: "classic_shard_5", count: 10 }]);
-      expect(emitSpy).toHaveBeenCalledWith(
-        "items:use",
-        [[{ id: "pot_classic_001", count: 2 }]]
-      );
-      expect(emitSpy).toHaveBeenCalledWith(
-        "items:get",
-        [[{ id: "classic_shard_5", count: 10 }]]
-      );
+      // 扣/发经 gainItem 管道（use/handle + add），不再直发 items:use/items:get
+      expect(mockPlayer.gainItem.use).toHaveBeenCalled();
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
+      expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({ id: "pot_classic_001", count: 2 });
+      expect(mockPlayer.gainItem.add).toHaveBeenCalledWith({ id: "classic_shard_5", count: 10 });
     });
   });
 

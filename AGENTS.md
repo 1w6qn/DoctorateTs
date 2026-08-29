@@ -45,6 +45,7 @@ Game-data update (`scripts/update-data.ts`) 调用官方热更管线 `scripts/of
 
 - **目录三层**：`app/core/`（基础设施内核：config/db/logs/utils/auth，被依赖方，禁止 import game/ops）、`app/game/`（业务）、`app/ops/`（运营设施：admin/capture/proxy/updater/plugin/assets，可依赖 core 与 game 模块的 public.ts）。
 - **game 侧特性切片**：`game/kernel/`（PlayerDataManager 组合根、PlayerStatus、player-composition、events 事件契约+总线、http 路由契约基建、inventory-pipeline、共享 util）、`game/excel/`（游戏数据 + 生成类型）、`game/modules/<mod>/`（一业务模块一目录，自含 routes.ts 薄路由 + manager/业务 + rules/types + public.ts 对外出口）、`game/modules/activities/<family>/`（活动族自含 router.ts+logic.ts，共享逻辑在 `activities/shared/`）。
+- **模块示例**：autochess（卫戍协议自走棋，`modules/autochess/`，路由挂 `/activity` 前缀、客户端调用 `/activity/autochessSeason/*`）、user（玩家资料端点：buyAp/useItem/主线线索/语音档案/长期签到/CG 持久化，`modules/user/`）；全量模块清单与成熟度结论见 `docs/module-audit-2026-08-29.md`。
 - **落位规则（唯一）**：新功能 = 找到业务模块包，没有就在 `modules/` 建包。不设 domain/service/manager 目录。模块间只允许 import 对方 `public.ts` 或走事件总线；守卫见 `tests/unit/architecture/module-boundary.test.ts`。
 - **Flow**: `game/routes.ts` 聚合注册（懒加载）→ `modules/<mod>/routes.ts`（薄壳 + validateBody）→ 模块内 manager（经 `kernel/PlayerDataManager` 组合，`httpContext` key `playerData`）。事件驱动：managers 在构造器 `this._trigger.on(...)` 订阅，事件契约在 `game/kernel/events/`。
 - **State changes**: all through `player.update(recipe)` (mutative two-phase in `kernel/PlayerStatus`) which records patches. mutative `enableAutoFreeze` is off — managers mutate arrays directly; do not re-enable freezing.
@@ -66,7 +67,7 @@ Game-data update (`scripts/update-data.ts`) 调用官方热更管线 `scripts/of
 
 ## Tests
 
-- Vitest, globals on, node env. `tests/unit/**` mirrors `app/` layout. **Do not add tests under `test/`** (`test/` is gitignored, `scripts/proxy-harness.ts` 是官服代理抓包 harness).
+- Vitest, globals on, node env. `tests/unit/**` mirrors `app/` layout（模块级单测放 `tests/unit/modules/<mod>/`，路由/manager 测试按原镜像路径）。**Do not add tests under `test/`** (`test/` is gitignored, `scripts/proxy-harness.ts` 是官服代理抓包 harness).
 - Helpers in `tests/helpers/`: `mockPlayerData`, `mockExcel`, `mockEventBus`, `mocks` — use these instead of loading real excel/user data.
 
 ## Known constraints (documented in design-spec.md)
@@ -74,4 +75,4 @@ Game-data update (`scripts/update-data.ts`) 调用官方热更管线 `scripts/of
 - Routes after `/campaignV2` in `app/game/app.ts` 404 on the real server (pre-existing issue).
 - Non-practice battle HTTP chain is incomplete (battleStart lacks battleId) — settlement covered by unit tests instead.
 - Social/friend data AND user account configs (UserConfig) live in SQLite `data/user/social.db` (runtime-generated, gitignored); `users.json` is now a first-run migration seed only.
-- Docs of record: `design-spec.md` (architecture + mission/medal/battle/building/migration internals), `api.md` (protocol), `.trae/specs/` (feature specs, local).
+- Docs of record: `design-spec.md` (architecture + mission/medal/battle/building/migration internals), `api.md` (protocol), `docs/module-audit-2026-08-29.md` (模块成熟度审计，含抓包/反编译/excel 证据), `.trae/specs/` (feature specs, local).

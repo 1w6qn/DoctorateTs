@@ -9,6 +9,7 @@ export interface MockPlayerDataManager {
   forcePatch: ReturnType<typeof vi.fn>;
   pushMessage: ReturnType<typeof vi.fn>;
   _pushMessages: { path: string; payload: unknown }[];
+  gainItem: any;
   get delta(): any;
   get uid(): string;
   _playerdata: Partial<PlayerDataModel>;
@@ -52,6 +53,35 @@ export function mockPlayerData(
     pushMessage: vi.fn(function (path: string, payload: unknown) {
       this._pushMessages.push({ path, payload });
     }),
+    gainItem: {
+      setTarget: vi.fn(function () { return this; }),
+      add: vi.fn(function () { return this; }),
+      use: vi.fn().mockResolvedValue(undefined),
+      handle: vi.fn().mockResolvedValue(undefined),
+      clear: vi.fn(function () { return this; }),
+      get size() { return 0; },
+      get targets() { return []; },
+    } as any,
+    checkIn: {
+      ensureShowCount: vi.fn().mockResolvedValue(undefined),
+      checkIn: vi.fn().mockResolvedValue(undefined),
+      dailyRefresh: vi.fn().mockResolvedValue(undefined),
+      monthlyRefresh: vi.fn().mockResolvedValue(undefined),
+    } as any,
+    status: {
+      buyAp: vi.fn(async () => {
+        const remain = (_playerdata.status as any)?.buyApRemainTimes ?? 0;
+        if (remain <= 0) return false;
+        (_playerdata.status as any).buyApRemainTimes = remain - 1;
+        return true;
+      }),
+      bindNickName: vi.fn().mockResolvedValue(undefined),
+      changeSecretary: vi.fn().mockResolvedValue(undefined),
+      changeAvatar: vi.fn().mockResolvedValue(undefined),
+      changeResume: vi.fn().mockResolvedValue(undefined),
+      receiveTeamCollectionReward: vi.fn().mockResolvedValue(undefined),
+      exchangeDiamondShard: vi.fn().mockResolvedValue(undefined),
+    } as any,
     _playerdata,
     _trigger: {
       emit: vi.fn(),

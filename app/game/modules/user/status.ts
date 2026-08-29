@@ -126,38 +126,34 @@ export class StatusManager {
     });
   }
 
-  async buyAp() {
-    // 修复：每日购买次数（buyApRemainTimes，dailyRefresh 重置为 10）从未校验/递减 →
-    // 可无限 1 源石换 135 理智；现按剩余次数拦截并扣减
+  /**
+   * 购买理智
+   * 每日次数（dailyRefresh 重置为 10）扣减；消耗 1 源石、发放 135 点理智（gainItem 管道）。
+   * @returns 是否成功（false = 当日额度耗尽）
+   */
+  async buyAp(): Promise<boolean> {
     const allowed = await this._player.update(async (draft) => {
       // 旧存档缺失字段视为当日额度未用（dailyRefresh 每日重置为 10）
       if ((draft.status.buyApRemainTimes ?? 10) <= 0) return false;
       draft.status.buyApRemainTimes -= 1;
       return true;
     });
-    if (!allowed) return;
-    await this._trigger.emit("items:use", [
-      [{ id: "", type: "DIAMOND", count: 1 }],
-    ]);
-    await this._trigger.emit("items:get", [
-      [{ id: "", type: "AP_GAMEPLAY", count: 135 }],
-    ]);
+    if (!allowed) return false;
+    await this._player.gainItem.setTarget("", "DIAMOND", 1).use();
+    await this._player.gainItem.setTarget("", "AP_GAMEPLAY", 135).handle();
+    return true;
   }
 
+  /**
+   * 兑换源石碎片（1 源石 → diamondToShdRate 碎片，gainItem 管道）
+   * @param args.count - 兑换次数（路由层已校验正整数）
+   */
   async exchangeDiamondShard(args: { count: number }) {
     const { count } = args;
-    await this._trigger.emit("items:get", [
-      [
-        {
-          id: "",
-          type: "DIAMOND_SHD",
-          count: count * excel.GameDataConst.diamondToShdRate,
-        },
-      ],
-    ]);
-    await this._trigger.emit("items:use", [
-      [{ id: "", type: "DIAMOND", count }],
-    ]);
+    await this._player.gainItem
+      .setTarget("", "DIAMOND_SHD", count * excel.GameDataConst.diamondToShdRate)
+      .handle();
+    await this._player.gainItem.setTarget("", "DIAMOND", count).use();
   }
 
   async receiveTeamCollectionReward(args: { rewardId: string }) {

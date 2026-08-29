@@ -92,9 +92,9 @@ export const unlockClueSchema = z.object({
   id: z.string(),
 });
 
-/** 领取长期签到奖励请求（服务端自定义 { groupId? }），服务端仅返回空奖励 */
+/** 领取长期签到奖励请求（CS: ReceiveLongTermCheckInRewardRequest { groupId }） */
 export const recvLongTermCheckInRewardSchema = z.object({
-  groupId: z.string().optional(),
+  groupId: z.string(),
 });
 
 /** 进入角色语音记录请求（服务端自定义 { topicId }） */
@@ -114,20 +114,26 @@ export const pixelArtReviewSchema = z.object({
   status: z.number().optional(),
 });
 
-/** 演出剧情开始请求（服务端自定义 { storyId? }） */
+/** 演出剧情开始请求（CS: PerformanceStoryRequest { storyId }） */
 export const startStorySchema = z.object({
-  storyId: z.string().optional(),
+  storyId: z.string(),
 });
 
-/** 确认分享任务请求（服务端自定义 { shareMissionId? }） */
+/** 确认分享任务请求（服务端自定义 { shareMissionId }） */
 export const confirmShareMissionSchema = z.object({
-  shareMissionId: z.string().optional(),
+  shareMissionId: z.string(),
 });
 
-/** 特勤干员解锁节点请求（服务端自定义 { instId?, nodeId? }） */
+/** 特勤干员解锁节点请求（服务端自定义 { instId, nodeId }） */
 export const specialOperatorUnlockNodeSchema = z.object({
-  instId: z.string().optional(),
-  nodeId: z.string().optional(),
+  instId: z.string(),
+  nodeId: z.string(),
+});
+
+/** 领取线索奖励请求（CS: Anniv7thGetRewardsRequest { ids }；兼容旧单 id 写法） */
+export const getRewardsSchema = z.object({
+  ids: z.array(z.string()).optional(),
+  id: z.string().optional(),
 });
 
 /** 获取 CG 收藏列表请求（服务端自定义，空请求体） */

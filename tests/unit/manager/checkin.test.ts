@@ -191,6 +191,31 @@ describe("CheckInManager", () => {
       expect(mockPlayer._playerdata.checkIn!.canCheckIn).toBe(1);
       expect(mockPlayer._playerdata.checkIn!.checkInRewardIndex).toBe(6);
     });
+
+    it("dailyRefresh 应递增 showCount（累计签到天数）", async () => {
+      const manager = new CheckInManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.checkIn!.canCheckIn = 0;
+      mockPlayer._playerdata.checkIn!.showCount = 10;
+      await manager.dailyRefresh();
+      expect(mockPlayer._playerdata.checkIn!.showCount).toBe(11);
+    });
+
+    it("老档缺失 showCount 时按注册时长回填（不再重复 +1）", async () => {
+      const manager = new CheckInManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.checkIn!.canCheckIn = 0;
+      delete (mockPlayer._playerdata.checkIn as any).showCount;
+      (mockPlayer._playerdata.status as any).registerTs = 1234567890 - 180 * 86400; // 180 天前注册
+      await manager.dailyRefresh();
+      expect(mockPlayer._playerdata.checkIn!.showCount).toBe(180);
+    });
+
+    it("每日重复触发 dailyRefresh（canCheckIn 已为 1）时不再重复递增", async () => {
+      const manager = new CheckInManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.checkIn!.canCheckIn = 1;
+      mockPlayer._playerdata.checkIn!.showCount = 10;
+      await manager.dailyRefresh();
+      expect(mockPlayer._playerdata.checkIn!.showCount).toBe(10);
+    });
   });
 
   describe("monthlyRefresh", () => {

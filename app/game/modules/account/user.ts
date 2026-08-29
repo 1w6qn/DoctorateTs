@@ -247,3 +247,78 @@ export interface ServerTimeResponse {
     isHoliday: boolean;
   };
 }
+
+/* ===== 本次补全：长期签到 / 语音档案 / 线索奖励 / 演出 / 分享 / 特勤 ===== */
+
+/** 道具获得项（CS: ItemGet 结构；charGet 无干员时省略） */
+export interface ItemGet {
+  type: string;
+  id: string;
+  charGet?: unknown;
+  count: number;
+}
+
+/** 奖励物品模型（CS: RewardItemModel struct { type, id, charGet?, count }） */
+export interface RewardItemModel {
+  type: string;
+  id: string;
+  charGet?: unknown;
+  count: number;
+}
+
+/** 领取长期签到奖励请求（CS: UI.LongTermCheckIn.ReceiveLongTermCheckInRewardRequest { groupId }） */
+export interface RecvLongTermCheckInRewardRequest {
+  groupId: string;
+}
+
+/** 领取长期签到奖励响应（CS: ReceiveLongTermCheckInRewardResponse : PlayerDeltaResponse { rewards }） */
+export interface RecvLongTermCheckInRewardResponse extends PlayerDeltaResponse {
+  rewards: RewardItemModel[];
+}
+
+/** 领取主线线索奖励请求（CS: Anniv7thService.Anniv7thGetRewardsRequest { ids }） */
+export interface GetClueRewardsRequest {
+  ids: string[];
+}
+
+/** 领取主线线索奖励响应（CS: Anniv7thGetRewardsResponse { items }） */
+export interface GetClueRewardsResponse extends PlayerDeltaResponse {
+  items: RewardItemModel[];
+}
+
+/** 进入角色语音档案请求（CS: FifthAnnivService.MissionArchiveClaimEntryRewardRequest { topicId }） */
+export interface EnterCharVoiceRecordRequest {
+  topicId: string;
+}
+
+/** 进入角色语音档案响应（CS: MissionArchiveClaimEntryRewardResponse { reward }） */
+export interface EnterCharVoiceRecordResponse extends PlayerDeltaResponse {
+  reward: ItemGet[];
+}
+
+/** 领取语音档案节点奖励请求（CS: MissionArchiveClaimNodeRewardRequest { topicId, nodeId }） */
+export interface ConfirmCharVoiceRecordRewardRequest {
+  topicId: string;
+  nodeId: string;
+}
+
+/** 领取语音档案节点奖励响应（CS: MissionArchiveClaimNodeRewardResponse { reward }） */
+export interface ConfirmCharVoiceRecordRewardResponse extends PlayerDeltaResponse {
+  reward: ItemGet[];
+}
+
+/** 演出剧情开始请求（CS: PerformanceStoryRequest { storyId }） */
+export interface StartStoryRequest {
+  storyId: string;
+}
+
+/** 确认分享任务请求（服务端自定义 { shareMissionId }） */
+export interface ConfirmShareMissionRequest {
+  shareMissionId: string;
+}
+
+/** 特勤干员解锁节点请求（服务端自定义 { instId, nodeId }） */
+export interface SpecialOperatorUnlockNodeRequest {
+  instId: string;
+  nodeId: string;
+}

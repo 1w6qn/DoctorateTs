@@ -268,61 +268,52 @@ describe("StatusManager", () => {
   });
 
   describe("buyAp", () => {
-    it("应扣减每日次数并触发 items:use 消耗钻石与 items:get 增加理智", async () => {
+    it("buyAp 扣次数、经 gainItem 消耗 1 源石并回满体力，返回 true", async () => {
       mockPlayer._playerdata.status!.buyApRemainTimes = 10;
       const manager = new StatusManager(
         mockPlayer as any,
         mockTrigger as any
       );
 
-      const emitSpy = vi.spyOn(mockTrigger, "emit");
-      await manager.buyAp();
+      const ok = await manager.buyAp();
 
+      expect(ok).toBe(true);
       expect(mockPlayer._playerdata.status!.buyApRemainTimes).toBe(9);
-      expect(emitSpy).toHaveBeenCalledWith(
-        "items:use",
-        [[{ id: "", type: "DIAMOND", count: 1 }]]
-      );
-      expect(emitSpy).toHaveBeenCalledWith(
-        "items:get",
-        [[{ id: "", type: "AP_GAMEPLAY", count: 135 }]]
-      );
+      expect(mockPlayer.gainItem.setTarget).toHaveBeenCalledWith("", "DIAMOND", 1);
+      expect(mockPlayer.gainItem.setTarget).toHaveBeenCalledWith("", "AP_GAMEPLAY", 135);
+      expect(mockPlayer.gainItem.use).toHaveBeenCalled();
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
     });
 
-    it("每日次数耗尽后不应购买（修复：原无限制可无限 1 源石换理智）", async () => {
+    it("buyAp 额度耗尽返回 false 且不扣次数", async () => {
       mockPlayer._playerdata.status!.buyApRemainTimes = 0;
       const manager = new StatusManager(
         mockPlayer as any,
         mockTrigger as any
       );
 
-      const emitSpy = vi.spyOn(mockTrigger, "emit");
-      await manager.buyAp();
+      const ok = await manager.buyAp();
 
-      expect(emitSpy).not.toHaveBeenCalled();
+      expect(ok).toBe(false);
       expect(mockPlayer._playerdata.status!.buyApRemainTimes).toBe(0);
+      expect(mockPlayer.gainItem.use).not.toHaveBeenCalled();
     });
   });
 
   describe("exchangeDiamondShard", () => {
-    it("应该按 diamondToShdRate 比例兑换钻石碎片并触发事件", async () => {
+    it("应该按 diamondToShdRate 比例经 gainItem 兑换钻石碎片", async () => {
       const manager = new StatusManager(
         mockPlayer as any,
         mockTrigger as any
       );
 
-      const emitSpy = vi.spyOn(mockTrigger, "emit");
       // count=10, diamondToShdRate=10 -> 获得 100 钻石碎片
       await manager.exchangeDiamondShard({ count: 10 });
 
-      expect(emitSpy).toHaveBeenCalledWith(
-        "items:get",
-        [[{ id: "", type: "DIAMOND_SHD", count: 100 }]]
-      );
-      expect(emitSpy).toHaveBeenCalledWith(
-        "items:use",
-        [[{ id: "", type: "DIAMOND", count: 10 }]]
-      );
+      expect(mockPlayer.gainItem.setTarget).toHaveBeenCalledWith("", "DIAMOND_SHD", 100);
+      expect(mockPlayer.gainItem.setTarget).toHaveBeenCalledWith("", "DIAMOND", 10);
+      expect(mockPlayer.gainItem.use).toHaveBeenCalled();
+      expect(mockPlayer.gainItem.handle).toHaveBeenCalled();
     });
   });
 

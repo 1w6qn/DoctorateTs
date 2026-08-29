@@ -3,6 +3,8 @@ import { ItemBundle } from "@excel/excel";
 import { checkBetween, now } from "@utils/time";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
+import { Draft } from "mutative";
+import { PlayerDataModel } from "../../kernel/playerdata";
 
 export class CheckInManager {
   _player: PlayerDataManager;
@@ -17,8 +19,41 @@ export class CheckInManager {
 
   async dailyRefresh() {
     await this._player.update(async (draft) => {
+      // 幂等：同日重复触发（周一/月初 daily+weekly 并发）不重复计数
+      if (draft.checkIn.canCheckIn === 1) return;
       draft.checkIn.canCheckIn = 1;
       draft.checkIn.checkInRewardIndex += 1;
+      // 累计签到天数（长期签到进度）：官服"登录即自动签到"语义，每日 +1
+      this._bumpShowCount(draft);
+    });
+  }
+
+  /**
+   * 递增累计签到天数；老档缺失时按注册时长回填（满配号可直接领取长期签到档位）
+   * @param draft - 可写草稿
+   */
+  private _bumpShowCount(draft: Draft<PlayerDataModel>) {
+    if (draft.checkIn.showCount == null) {
+      draft.checkIn.showCount = Math.max(
+        0,
+        Math.floor((now() - (draft.status.registerTs ?? now())) / 86400),
+      );
+    } else {
+      draft.checkIn.showCount += 1;
+    }
+  }
+
+  /**
+   * 确保累计签到天数存在（长期签到路由读取前调用）
+   */
+  async ensureShowCount() {
+    await this._player.update(async (draft) => {
+      if (draft.checkIn.showCount == null) {
+        draft.checkIn.showCount = Math.max(
+          0,
+          Math.floor((now() - (draft.status.registerTs ?? now())) / 86400),
+        );
+      }
     });
   }
 

@@ -11,6 +11,7 @@ import { ItemBundle } from "@excel/excel";
 import { now } from "@utils/time";
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
+import { cgCollectionStore } from "./cg-store";
 import {
   AddCgCollectionRequest,
   AddCgCollectionResponse,
@@ -30,27 +31,40 @@ import {
   ChangeSecretaryResponse,
   CheckInHomeRequest,
   CheckInHomeResponse,
+  ConfirmShareMissionRequest,
+  ConfirmCharVoiceRecordRewardRequest,
+  ConfirmCharVoiceRecordRewardResponse,
+  EnterCharVoiceRecordRequest,
+  EnterCharVoiceRecordResponse,
   ExchangeDiamondShardRequest,
   ExchangeDiamondShardResponse,
   GetCgCollectionRequest,
   GetCgCollectionResponse,
+  GetClueRewardsRequest,
+  GetClueRewardsResponse,
   GetCollectionRewardsRequest,
   GetCollectionRewardsResponse,
   GetFirstRewardsRequest,
   GetFirstRewardsResponse,
   GetThumbnailUrlRequest,
   GetThumbnailUrlResponse,
+  ItemGet,
   MedalSetCustomDataRequest,
   MedalSetCustomDataResponse,
   ReceiveTeamCollectionRewardRequest,
   ReceiveTeamCollectionRewardResponse,
+  RecvLongTermCheckInRewardRequest,
+  RecvLongTermCheckInRewardResponse,
   RemoveCgCollectionRequest,
   RemoveCgCollectionResponse,
+  RewardItemModel,
   RewardMedalRequest,
   RewardMedalResponse,
   SaveDiyMagazineRequest,
   SaveDiyMagazineResponse,
   ServerTimeResponse,
+  SpecialOperatorUnlockNodeRequest,
+  StartStoryRequest,
   UnlockClueRequest,
   UnlockClueResponse,
   UseItemRequest,
@@ -78,6 +92,7 @@ import {
   getCgCollectionSchema,
   getCollectionRewardsSchema,
   getFirstRewardsSchema,
+  getRewardsSchema,
   getThumbnailUrlSchema,
   medalSetCustomDataSchema,
   pixelArtReviewSchema,
@@ -337,15 +352,8 @@ router.post("/useRenameCard", validateBody(useRenameCardSchema), async (req, res
   const player = getPlayer();
   const body = req.body as UseRenameCardRequest;
   await player.status.bindNickName({ nickname: body.nickName });
-  await player._trigger.emit("items:use", [
-    [
-      {
-        id: body.itemId,
-        count: 1,
-        instId: (body as any).instId,
-      } as any as any as unknown as ItemBundle,
-    ],
-  ]);
+  player.gainItem.setTarget(body.itemId, undefined, 1, (body as any).instId);
+  await player.gainItem.use();
   res.send(player.delta satisfies UseRenameCardResponse);
 });
 
@@ -361,7 +369,10 @@ router.post("/receiveTeamCollectionReward", validateBody(receiveTeamCollectionRe
 router.post("/buyAp", validateBody(buyApSchema), async (req, res) => {
   const player = getPlayer();
   req.body as BuyApRequest;
-  await player.status.buyAp();
+  const ok = await player.status.buyAp();
+  if (!ok) {
+    return res.send({ result: 1, ...player.delta } satisfies BuyApResponse);
+  }
   res.send(player.delta satisfies BuyApResponse);
 });
 
@@ -394,12 +405,8 @@ router.post("/useItem", validateBody(useItemSchema), async (req, res) => {
   if (typeof count !== "number" || !Number.isInteger(count) || count <= 0) {
     return res.status(400).send({ status: 1, msg: "非法参数" });
   }
-  const item = {
-    id: body.itemId,
-    count: count,
-    instId: (body as any).instId,
-  } as any as any as unknown as ItemBundle;
-  await player._trigger.emit("items:use", [[item]]);
+  player.gainItem.setTarget(body.itemId, undefined, count, (body as any).instId);
+  await player.gainItem.use();
   res.send(player.delta satisfies UseItemResponse);
 });
 
@@ -418,20 +425,10 @@ router.post("/useItems", validateBody(useItemsSchema), async (req, res) => {
   ) {
     return res.status(400).send({ status: 1, msg: "非法参数" });
   }
-  const items: {
-    itemId: string;
-    cnt: number;
-    instId: number;
-  }[] = body.items;
-  await player._trigger.emit("items:use", [
-    items.map((item) => {
-      return {
-        id: item.itemId,
-        count: item.cnt,
-        instId: (item as any).instId,
-      } as any as any;
-    }),
-  ]);
+  for (const item of body.items) {
+    player.gainItem.setTarget(item.itemId, undefined, item.cnt, item.instId);
+  }
+  await player.gainItem.use();
   res.send(player.delta satisfies UseItemsResponse);
 });
 
@@ -471,6 +468,7 @@ router.post("/bindBirthday", validateBody(bindBirthdaySchema), async (req, res) 
   res.send(player.delta satisfies BindBirthdayResponse);
 });
 
+export { router };
 export default router;
 
 // ==================== 根级路由 ====================
@@ -489,8 +487,6 @@ export default router;
  * 参考实现中 cgList 存储于 server_data（SERVER_DATA_PATH），为全服共享数据。
  * 此处简化为模块级内存 Set，进程重启后不持久化。
  */
-const cgCollection = new Set<string>();
-
 /** 根级路由实例，挂载非 /user 前缀的用户相关接口 */
 export const rootRouter = Router();
 
@@ -538,64 +534,111 @@ rootRouter.post("/mainlineClue/unlockClue", validateBody(unlockClueSchema), asyn
 
 /**
  * 领取长期签到奖励
- *
  * CS: Torappu.UI.LongTermCheckIn.ReceiveLongTermCheckInRewardRequest { groupId }
- * 响应：PlayerDeltaResponse + rewards（RewardItemModel[]）。
- * 私服不做长期签到活动时返回空奖励（客户端正常收包不崩溃）。
+ * 条件：活动已开启（now >= constData.startTs）且 status.level >= group.level
+ * 且 checkIn.showCount >= group.days 且 longTermRecvRecord 未领。
+ * 发放后写 longTermRecvRecord[groupId]（幂等），响应 { rewards, ...delta }。
  */
 rootRouter.post("/user/recvLongTermCheckInReward", validateBody(recvLongTermCheckInRewardSchema), async (req, res) => {
   const player = getPlayer();
-  req.body as { groupId?: string };
-  res.send({
-    ...player.delta,
-    rewards: [],
+  const { groupId } = req.body as RecvLongTermCheckInRewardRequest;
+  const ltData = excel.OpenServerTable?.longTermCheckInData as
+    | {
+        groupList?: Array<{ groupId: string; level: number; days: number; rewardList: ItemBundle[] }>;
+        constData?: { startTs: number };
+      }
+    | undefined;
+  const group = ltData?.groupList?.find((g) => g.groupId === groupId);
+  if (!group || !ltData?.constData || now() < ltData.constData.startTs) {
+    return res.send({ ...player.delta, rewards: [] } as RecvLongTermCheckInRewardResponse);
+  }
+  await player.checkIn.ensureShowCount();
+  let granted = false;
+  await player.update(async (draft) => {
+    draft.checkIn.longTermRecvRecord = draft.checkIn.longTermRecvRecord ?? {};
+    if (draft.checkIn.longTermRecvRecord[groupId] != null) return;
+    const days = draft.checkIn.showCount ?? 0;
+    const level = draft.status.level ?? 0;
+    if (level < group.level || days < group.days) return;
+    draft.checkIn.longTermRecvRecord[groupId] = now();
+    granted = true;
   });
+  const rewards: RewardItemModel[] = [];
+  if (granted) {
+    for (const item of group.rewardList ?? []) player.gainItem.add(item);
+    await player.gainItem.handle();
+    for (const item of group.rewardList ?? []) {
+      rewards.push({ type: item.type, id: item.id, count: item.count });
+    }
+  }
+  res.send({ rewards, ...player.delta } satisfies RecvLongTermCheckInRewardResponse);
 });
+
+/** 取语音档案 topic 的干员 id（取首个 clip 的 charId） */
+function missionArchiveCharId(topicId: string): string | undefined {
+  const ma = (excel.ActivityTable as any)?.missionArchives?.[topicId];
+  const clips: Array<{ charId: string }> =
+    ma?.nodes?.flatMap((n: any) => n?.clips ?? []) ?? ma?.hiddenClips ?? [];
+  return clips[0]?.charId;
+}
 
 /**
  * 进入角色语音记录并领取入口奖励
  * CS: FifthAnnivService.MissionArchiveClaimEntryRewardRequest { topicId }
- * 写 mainline.missionArchive[topicId].entryRewardClaimed
+ * 响应 { reward: ItemGet[] }；写 mainline.charVoiceRecord[topicId]（isOpen/confirmEnterReward）
  */
 rootRouter.post("/mainline/enterCharVoiceRecord", validateBody(enterCharVoiceRecordSchema), async (req, res) => {
   const player = getPlayer();
-  const { topicId } = req.body as { topicId: string };
-  // 修复：缺 topicId 必填参数时返回业务错误，而非 500
-  if (typeof topicId !== "string" || topicId === "") {
-    return res.send({ result: 1, ...player.delta });
-  }
+  const { topicId } = req.body as EnterCharVoiceRecordRequest;
+  const charId = missionArchiveCharId(topicId);
+  let granted = false;
   await player.update(async (draft) => {
-    const archive = (draft.mainline as any).missionArchive;
-    archive[topicId] = archive[topicId] ?? { entryOpen: 0, entryRewardClaimed: 0, nodes: {} };
-    archive[topicId].entryOpen = 1;
-    archive[topicId].entryRewardClaimed = 1;
+    const mainline = (draft.mainline as any) ??= {};
+    mainline.charVoiceRecord = mainline.charVoiceRecord ?? {};
+    const archive = (mainline.charVoiceRecord[topicId] ??= { isOpen: false, confirmEnterReward: false, nodes: {} });
+    if (archive.confirmEnterReward) return;
+    archive.isOpen = true;
+    archive.confirmEnterReward = true;
+    granted = true;
   });
-  res.send(player.delta);
+  const reward: ItemGet[] = [];
+  if (granted && charId) {
+    player.gainItem.setTarget(charId, "CHAR", 1);
+    await player.gainItem.handle();
+    reward.push({ type: "CHAR", id: charId, count: 1 });
+  }
+  res.send({ reward, ...player.delta } satisfies EnterCharVoiceRecordResponse);
 });
 
 /**
  * 领取语音记录节点奖励
  * CS: FifthAnnivService.MissionArchiveClaimNodeRewardRequest { topicId, nodeId }
- * 写 mainline.missionArchive[topicId].nodes[nodeId]
+ * 响应 { reward: ItemGet[] }；写 mainline.charVoiceRecord[topicId].nodes[nodeId]=2（CLAIMED）
  */
 rootRouter.post("/mainline/confirmCharVoiceRecordReward", validateBody(confirmCharVoiceRecordRewardSchema), async (req, res) => {
   const player = getPlayer();
-  const { topicId, nodeId } = req.body as { topicId: string; nodeId: string };
-  // 修复：缺 topicId/nodeId 必填参数时返回业务错误，而非 500
-  if (
-    typeof topicId !== "string" ||
-    topicId === "" ||
-    typeof nodeId !== "string" ||
-    nodeId === ""
-  ) {
-    return res.send({ result: 1, ...player.delta });
-  }
+  const { topicId, nodeId } = req.body as ConfirmCharVoiceRecordRewardRequest;
+  const topic = (excel.ActivityTable as any)?.missionArchives?.[topicId];
+  const node = topic?.nodes?.find((n: any) => n?.nodeId === nodeId);
+  const charId = node?.clips?.[0]?.charId ?? topic?.hiddenClips?.[0]?.charId;
+  let granted = false;
   await player.update(async (draft) => {
-    const archive = (draft.mainline as any).missionArchive;
-    archive[topicId] = archive[topicId] ?? { entryOpen: 0, entryRewardClaimed: 0, nodes: {} };
-    archive[topicId].nodes[nodeId] = 2;
+    const mainline = (draft.mainline as any) ??= {};
+    mainline.charVoiceRecord = mainline.charVoiceRecord ?? {};
+    const archive = (mainline.charVoiceRecord[topicId] ??= { isOpen: false, confirmEnterReward: false, nodes: {} });
+    if (!node || archive.nodes[nodeId] === 2) return;
+    archive.nodes[nodeId] = 2;
+    granted = true;
   });
-  res.send(player.delta);
+  const reward: ItemGet[] = [];
+  if (granted && charId) {
+    // 潜能信物 id 约定：`p_char_` + 干员 id（去 char_ 前缀，如 char_4134_cetsyr → p_char_4134_cetsyr）
+    const tokenId = `p_char_${charId.replace(/^char_/, "")}`;
+    player.gainItem.setTarget(tokenId, "MATERIAL", 1);
+    await player.gainItem.handle();
+    reward.push({ type: "MATERIAL", id: tokenId, count: 1 });
+  }
+  res.send({ reward, ...player.delta } satisfies ConfirmCharVoiceRecordRewardResponse);
 });
 
 /**
@@ -618,20 +661,42 @@ rootRouter.post("/mainlineClue/readClue", validateBody(unlockClueSchema), async 
 
 /**
  * 领取线索奖励
- * CS: Anniv7thService.GET_REWARDS "/mainlineClue/getRewards"
- * 写 mainline.clue.reward[id]
+ * CS: Anniv7thService.GET_REWARDS "/mainlineClue/getRewards"（请求 { ids: string[] }）
+ * 条件：已解锁线索数（state >= 2）达到 clueRewardData[recordId].clueRecord；
+ * 发放后写 mainline.clue.reward[recordId]（幂等）。奖励经 gainItem 管道发放（recipe 外）。
  */
-rootRouter.post("/mainlineClue/getRewards", validateBody(unlockClueSchema), async (req, res) => {
+rootRouter.post("/mainlineClue/getRewards", validateBody(getRewardsSchema), async (req, res) => {
   const player = getPlayer();
-  const { id } = req.body as { id: string };
+  const body = req.body as GetClueRewardsRequest & { id?: string };
+  const ids = Array.isArray(body?.ids) && body.ids.length > 0 ? body.ids : body?.id ? [body.id] : [];
+  if (ids.length === 0) {
+    return res.send({ ...player.delta, items: [] } satisfies GetClueRewardsResponse);
+  }
+  const anniv = excel.ActivityTable?.anniv7thData as
+    | { clueRewardData?: Array<{ clueRecordId: string; clueRecord: number; rewards: ItemBundle[] }> }
+    | undefined;
+  const rewardConfig = anniv?.clueRewardData ?? [];
+  const pending: ItemBundle[] = [];
   await player.update(async (draft) => {
     const mainline = draft.mainline as any;
-    if (!mainline.clue) {
-      mainline.clue = { unlock: false, state: {}, reward: {} };
+    if (!mainline.clue) mainline.clue = { unlock: false, state: {}, reward: {} };
+    const clueState: Record<string, number> = mainline.clue.state ?? {};
+    const gainedRecord = Object.values(clueState).filter((v) => v >= 2).length;
+    for (const recordId of ids) {
+      const cfg = rewardConfig.find((c) => c.clueRecordId === recordId);
+      if (!cfg || mainline.clue.reward[recordId]) continue;
+      if (gainedRecord < cfg.clueRecord) continue;
+      mainline.clue.reward[recordId] = 1;
+      pending.push(...(cfg.rewards ?? []));
     }
-    mainline.clue.reward[id] = 1;
   });
-  res.send(player.delta);
+  const items: RewardItemModel[] = [];
+  if (pending.length > 0) {
+    for (const item of pending) player.gainItem.add(item);
+    await player.gainItem.handle();
+    for (const item of pending) items.push({ type: item.type, id: item.id, count: item.count });
+  }
+  res.send({ items, ...player.delta } satisfies GetClueRewardsResponse);
 });
 
 // ---- 2026-08-13 补全：客户端缺失路由（根路径）----
@@ -652,42 +717,55 @@ rootRouter.post("/pixelArt/review", validateBody(pixelArtReviewSchema), async (r
   res.send(player.delta);
 });
 
-/** 演出剧情开始（CS: Torappu.Network.ServiceCode，/performanceStory/startStory）——空增量 */
+/**
+ * 演出剧情开始
+ * CS: PerformanceStoryRequest { storyId }（ServiceCode REFRESH_PERFORMANCE_STORY_BEFORE_START）
+ * 写 performanceStory.unlock[storyId]
+ */
 rootRouter.post("/performanceStory/startStory", validateBody(startStorySchema), async (req, res) => {
   const player = getPlayer();
-  req.body as { storyId?: string };
+  const { storyId } = req.body as StartStoryRequest;
+  await player.update(async (draft) => {
+    draft.performanceStory ??= { unlock: {} };
+    draft.performanceStory.unlock[storyId] = 1;
+  });
   res.send(player.delta);
 });
 
 /**
- * 确认分享任务（CS: ConfirmShareMissionRequest { shareMissionId }）
- * 写 share 状态，返回空增量
+ * 确认分享任务
+ * CS: CrossAppShare Mission（PlayerCrossAppShare.shareMissions[id].counter）
+ * 每次确认 counter+1（当前 excel rewardsList 为空，仅计数；奖励逻辑留待活动数据补全）
  */
 rootRouter.post("/share/confirmShareMission", validateBody(confirmShareMissionSchema), async (req, res) => {
   const player = getPlayer();
-  const { shareMissionId } = req.body as { shareMissionId?: string };
+  const { shareMissionId } = req.body as ConfirmShareMissionRequest;
   await player.update(async (draft) => {
-    if (shareMissionId) {
-      draft.share = draft.share ?? {};
-      (draft.share as any)[shareMissionId] = 2;
-    }
+    draft.share ??= { shareMissions: {} };
+    const entry = (draft.share.shareMissions[shareMissionId] ??= { counter: 0 });
+    entry.counter += 1;
   });
   res.send(player.delta);
 });
 
 /**
  * 特勤干员解锁节点（CS: SpecialOperatorBoardUnlockNodeRequest { instId, nodeId }）
- * 记录到 troop 特勤数据，返回空增量
+ * 写 troop.spOperator[charId][nodeType][nodeId] = { id, state: 1, type: nodeType }
+ *（抓包 R-1787477989284-0439：delta 为 troop.spOperator.char_4230_mcnist.SKILL.mcnist_n_skill1_6）
  */
 rootRouter.post("/troop/SpecialOperatorUnlockNode", validateBody(specialOperatorUnlockNodeSchema), async (req, res) => {
   const player = getPlayer();
-  const { instId, nodeId } = req.body as { instId?: string; nodeId?: string };
+  const { instId, nodeId } = req.body as SpecialOperatorUnlockNodeRequest;
   await player.update(async (draft) => {
-    const troop = draft.troop as any;
-    troop.specialOperator = troop.specialOperator ?? {};
-    const so = troop.specialOperator[instId ?? ""] ?? { unlockedNodes: {} };
-    if (nodeId) so.unlockedNodes[nodeId] = 1;
-    troop.specialOperator[instId ?? ""] = so;
+    const char = draft.troop.chars[instId];
+    if (!char) return;
+    const nodeCfg = excel.SpecialOperatorTable?.operatorDetailData?.[char.charId]?.nodeUnlockData?.[nodeId];
+    const nodeType = nodeCfg?.nodeType;
+    if (!nodeType) return;
+    draft.troop.spOperator ??= {};
+    draft.troop.spOperator[char.charId] ??= {};
+    draft.troop.spOperator[char.charId][nodeType] ??= {};
+    draft.troop.spOperator[char.charId][nodeType][nodeId] = { id: nodeId, state: 1, type: nodeType };
   });
   res.send(player.delta);
 });
@@ -706,7 +784,7 @@ rootRouter.post("/cg/getCgCollection", validateBody(getCgCollectionSchema), asyn
   req.body as GetCgCollectionRequest;
   res.send({
     ...player.delta,
-    cgList: Array.from(cgCollection),
+    cgList: cgCollectionStore.list(String(player.uid)),
   } satisfies GetCgCollectionResponse);
 });
 
@@ -723,10 +801,10 @@ rootRouter.post("/cg/addCgCollection", validateBody(cgCollectionSchema), async (
   const player = getPlayer();
   const body = req.body as AddCgCollectionRequest;
   const { cgId } = body;
-  cgCollection.add(cgId);
+  cgCollectionStore.add(String(player.uid), cgId);
   res.send({
     ...player.delta,
-    cgList: Array.from(cgCollection),
+    cgList: cgCollectionStore.list(String(player.uid)),
   } satisfies AddCgCollectionResponse);
 });
 
@@ -743,10 +821,10 @@ rootRouter.post("/cg/removeCgCollection", validateBody(cgCollectionSchema), asyn
   const player = getPlayer();
   const body = req.body as RemoveCgCollectionRequest;
   const { cgId } = body;
-  cgCollection.delete(cgId);
+  cgCollectionStore.remove(String(player.uid), cgId);
   res.send({
     ...player.delta,
-    cgList: Array.from(cgCollection),
+    cgList: cgCollectionStore.list(String(player.uid)),
   } satisfies RemoveCgCollectionResponse);
 });
 
@@ -981,19 +1059,20 @@ function saveDiyMagazine(draft: any, magazine: any): void {
 
 /**
  * 设置勋章自定义数据
- *
- * 参考 OBS misc_bp.medal_setCustomData：写入 medal.custom.customs["1"]。
+ * 对齐抓包 R-1707532038347.211-4603：delta 含 medal.custom.currentIndex 与 customs[index]
  *
  * 路径：POST /medal/setCustomData
+ * @param req.body.index - 槽位索引（缺省 "1"）
  * @param req.body.data - 自定义布局数据
  * @returns playerDataDelta（包含 medal.custom 的变更）
  */
 rootRouter.post("/medal/setCustomData", validateBody(medalSetCustomDataSchema), async (req, res) => {
   const player = getPlayer();
   const body = req.body as MedalSetCustomDataRequest;
-  const customData = body.data;
+  const index = body.index ?? "1";
   await player.update(async (draft) => {
-    draft.medal.custom.customs["1"] = customData;
+    draft.medal.custom.currentIndex = index;
+    draft.medal.custom.customs[index] = body.data;
   });
   res.send(player.delta satisfies MedalSetCustomDataResponse);
 });

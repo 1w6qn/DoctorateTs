@@ -38,6 +38,7 @@ import { EquipmentMissionManager } from "../modules/equipmentMission/equipmentMi
 import { MedalManager } from "../modules/medal/medal";
 import { AprilFoolManager } from "../modules/aprilFool/AprilFoolManager";
 import { BossRushManager } from "../modules/activities/bossRush/bossrush";
+import { AutoChessManager } from "../modules/autochess/autochess";
 
 /**
  * 玩家子模块集合（组合工厂返回值）
@@ -70,6 +71,7 @@ export interface PlayerChildModules {
   medal: MedalManager;
   aprilFool: AprilFoolManager;
   bossRush: BossRushManager;
+  autoChess: AutoChessManager;
 }
 
 /**
@@ -111,5 +113,6 @@ export function composePlayerChildModules(
     medal: new MedalManager(pdm, trigger),
     aprilFool: new AprilFoolManager(pdm, trigger),
     bossRush: new BossRushManager(pdm, trigger),
+    autoChess: new AutoChessManager(pdm, trigger),
   };
 }

@@ -47,6 +47,7 @@ import { CharManager } from "../modules/character/char";
 import { EquipmentMissionManager } from "../modules/equipmentMission/equipmentMission";
 import { AprilFoolManager } from "../modules/aprilFool/AprilFoolManager";
 import { BossRushManager } from "../modules/activities/bossRush/bossrush";
+import { AutoChessManager } from "../modules/autochess/autochess";
 
 export class PlayerDataManager {
   /** 状态引擎（Immer 状态管理、patch 聚合、序列化） */
@@ -104,6 +105,8 @@ export class PlayerDataManager {
   get aprilFool(): AprilFoolManager { return this.modules.aprilFool; }
   /** 尖灭测试（bossRush）活动管理器 */
   get bossRush(): BossRushManager { return this.modules.bossRush; }
+  /** 自走棋（卫戍协议）赛季活动管理器 */
+  get autoChess(): AutoChessManager { return this.modules.autoChess; }
   /** 战斗管理器 */
   get battle(): BattleManager { return this.modules.battle; }
   /**

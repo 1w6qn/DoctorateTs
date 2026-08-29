@@ -1881,6 +1881,7 @@ export type {
   ActivityBossRushData,
   ActivityBossRushData_RelicLevelInfo,
 } from "./types_excel_gen";
+export type { ActAutoChessData } from "./types_excel_gen";
 
 
 

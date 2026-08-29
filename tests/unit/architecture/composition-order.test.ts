@@ -21,7 +21,7 @@ function collectMatchingLines(file: string, re: RegExp): string[] {
 }
 
 describe("组合工厂构造顺序快照（事件订阅顺序）", () => {
-  it("player-composition 子模块构造顺序与基线一致（23 个，顺序即派发顺序）", () => {
+  it("player-composition 子模块构造顺序与基线一致（24 个，顺序即派发顺序）", () => {
     const file = path.join(
       APP_ROOT,
       "game",
@@ -55,6 +55,7 @@ describe("组合工厂构造顺序快照（事件订阅顺序）", () => {
       "medal: new MedalManager(pdm, trigger)",
       "aprilFool: new AprilFoolManager(pdm, trigger)",
       "bossRush: new BossRushManager(pdm, trigger)",
+      "autoChess: new AutoChessManager(pdm, trigger)",
     ]);
   });
 

@@ -133,6 +133,8 @@ export const routes: RouteRegistration[] = [
   { prefix: "/activity", module: "./modules/interlock/routes" },
   { prefix: "/activity", module: "./modules/vecbreak/routes" },
   { prefix: "/activity", module: "./modules/multiplayer/routes" },
+  // 自走棋（卫戍协议）：客户端 /activity/autochessSeason/*（见 reference/client-routes.txt）
+  { prefix: "/activity", module: "./modules/autochess/routes" },
   // 客户端在根路径调用 /invite/*，multiplayer router 自带 /invite/* 路径，补根挂载
   { prefix: "/", module: "./modules/multiplayer/routes" },
   // campaignV2/retro 的 router 自带模块前缀，客户端调用单前缀，补根挂载对齐

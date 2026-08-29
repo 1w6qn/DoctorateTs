@@ -1,23 +1,47 @@
 /**
- * 自走棋（AutoChess）赛季路由
- * 请求/响应类型见 @game/modules/autochess/autochess（参考 CS 2.7.61 协议类）
+ * 自走棋（AutoChess，卫戍协议）赛季路由
+ *
+ * 客户端路由前缀 /activity/autochessSeason/*（reference/client-routes.txt 90-107 行）；
+ * 本 router 以 /autochessSeason/* 相对路径注册，由 app/game/routes.ts 挂载于
+ * /activity 与 /autochess 两个前缀下。请求/响应类型见 ./autochess.protocol。
  */
 import { Router } from "express";
-import { getPlayer, getPlayerOptional } from "../../kernel/http/request-context";
-import { PlayerDataManager } from "../../kernel/PlayerDataManager";
+import { getPlayer } from "../../kernel/http/request-context";
+import { validateBody } from "../../kernel/http/validate-body";
+import { emptyAutoChessFinishPayload } from "./autochess";
 import {
+  autoChessCreateTeamSchema,
+  autoChessGetFriendAssistListSchema,
+  autoChessJoinTeamSchema,
+  autoChessMultiBattleFinishSchema,
+  autoChessMultiBattleStartSchema,
+  autoChessQueryMatchSchema,
+  autoChessQuitSingleGameSchema,
+  autoChessRemoveChessPoolCharSchema,
+  autoChessReportSchema,
+  autoChessSeasonEntrySchema,
+  autoChessSettleGameSchema,
+  autoChessSettleLikeSchema,
+  autoChessSetChessPoolAssistSchema,
+  autoChessSetChessPoolDeploySchema,
+  autoChessSetChessPoolDiyCharSchema,
+  autoChessStartMatchSchema,
+  autoChessSyncInfoSchema,
+  autoChessTrainingBattleFinishSchema,
+  autoChessTrainingBattleStartSchema,
+} from "./autochess.schema";
+import type {
   ActAutoChessSyncInfoRequest,
   ActAutoChessSyncInfoResponse,
   AutoChessCreateTeamRequest,
   AutoChessCreateTeamResponse,
+  AutoChessFinishBattleResponse,
   AutoChessGetFriendAssistListRequest,
   AutoChessGetFriendAssistListResponse,
   AutoChessJoinTeamRequest,
   AutoChessJoinTeamResponse,
   AutoChessMultiBattleFinishRequest,
-  AutoChessMultiBattleFinishResponse,
   AutoChessMultiBattleStartRequest,
-  AutoChessMultiBattleStartResponse,
   AutoChessQueryMatchRequest,
   AutoChessQueryMatchResponse,
   AutoChessQuitSingleGameRequest,
@@ -38,187 +62,207 @@ import {
   AutoChessSettleLikeResponse,
   AutoChessStartMatchRequest,
   AutoChessStartMatchResponse,
+  AutoChessStartBattleResponse,
   AutoChessTrainingBattleFinishRequest,
-  AutoChessTrainingBattleFinishResponse,
   AutoChessTrainingBattleStartRequest,
-  AutoChessTrainingBattleStartResponse,
-} from "./autochess";
-import { emptyRequestSchema } from "./autochess.schema";
-import { validateBody } from "../../kernel/http/validate-body";
+} from "./autochess.protocol";
 
 const router = Router();
 
-/** 同步赛季信息（CS: ActAutoChessSyncInfoRequest） */
-router.post("/autochessSeason/syncInfo", validateBody(emptyRequestSchema), async (req, res) => {
+/** 同步赛季信息（CS: ActAutoChessSyncInfoRequest/Response） */
+router.post("/autochessSeason/syncInfo", validateBody(autoChessSyncInfoSchema), async (req, res) => {
   const player = getPlayer();
-  req.body as ActAutoChessSyncInfoRequest;
-
-  res.send({
-    ...player.delta,
-    info: {},
-  } satisfies ActAutoChessSyncInfoResponse);
+  const body = req.body as ActAutoChessSyncInfoRequest;
+  const payload = await player.autoChess.syncInfo(body);
+  res.send({ ...payload, ...player.delta } satisfies ActAutoChessSyncInfoResponse);
 });
 
-/** 设置棋子池部署（CS: AutoChessSetChessPoolDeployRequest） */
-router.post("/autochessSeason/setChessPoolDeploy", validateBody(emptyRequestSchema), async (req, res) => {
+/** 设置棋池部署（CS: AutoChessSetChessPoolDeployRequest/Response） */
+router.post("/autochessSeason/setChessPoolDeploy", validateBody(autoChessSetChessPoolDeploySchema), async (req, res) => {
   const player = getPlayer();
-  req.body as AutoChessSetChessPoolDeployRequest;
-
+  const body = req.body as AutoChessSetChessPoolDeployRequest;
+  const result = await player.autoChess.setChessPoolDeploy(body);
+  if (!result.ok) {
+    return res.send({ result: 1, ...player.delta });
+  }
   res.send(player.delta satisfies AutoChessSetChessPoolDeployResponse);
 });
 
-/** 完成引导战斗（CS: AutoChessTrainingBattleFinishRequest） */
-router.post("/autochessSeason/finishGuideBattle", validateBody(emptyRequestSchema), async (req, res) => {
+/** 设置棋池自定干员（CS: AutoChessSetChessPoolDiyCharRequest/Response） */
+router.post("/autochessSeason/setChessPoolDiyChar", validateBody(autoChessSetChessPoolDiyCharSchema), async (req, res) => {
   const player = getPlayer();
-  req.body as AutoChessTrainingBattleFinishRequest;
-
-  res.send(player.delta satisfies AutoChessTrainingBattleFinishResponse);
-});
-
-/** 获取好友助战列表（CS: AutoChessGetFriendAssistListRequest） */
-router.post("/autochessSeason/getFriendCharAssistList", validateBody(emptyRequestSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as AutoChessGetFriendAssistListRequest;
-
-  res.send({
-    ...player.delta,
-    charList: [],
-  } satisfies AutoChessGetFriendAssistListResponse);
-});
-
-/** 加入队伍（CS: AutoChessJoinTeamRequest） */
-router.post("/autochessSeason/joinTeam", validateBody(emptyRequestSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as AutoChessJoinTeamRequest;
-
-  res.send(player.delta satisfies AutoChessJoinTeamResponse);
-});
-
-/** 多人战斗结束（CS: AutoChessMultiBattleFinishRequest） */
-router.post("/autochessSeason/multiBattleFinish", validateBody(emptyRequestSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as AutoChessMultiBattleFinishRequest;
-
-  res.send(player.delta satisfies AutoChessMultiBattleFinishResponse);
-});
-
-/** 多人战斗开始（CS: AutoChessMultiBattleStartRequest） */
-router.post("/autochessSeason/multiBattleStart", validateBody(emptyRequestSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as AutoChessMultiBattleStartRequest;
-
-  res.send({
-    ...player.delta,
-    battleId: "abcdefgh-1234-5678-a1b2c3d4e5f6",
-    result: 0,
-  } satisfies AutoChessMultiBattleStartResponse);
-});
-
-/** 查询匹配（CS: AutoChessQueryMatchRequest） */
-router.post("/autochessSeason/queryMatch", validateBody(emptyRequestSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as AutoChessQueryMatchRequest;
-
-  res.send({
-    ...player.delta,
-    matchInfo: null,
-    result: 1,
-  } satisfies AutoChessQueryMatchResponse);
-});
-
-/** 退出单机游戏（CS: AutoChessQuitSingleGameRequest） */
-router.post("/autochessSeason/quitSingleGame", validateBody(emptyRequestSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as AutoChessQuitSingleGameRequest;
-
-  res.send(player.delta satisfies AutoChessQuitSingleGameResponse);
-});
-
-/** 移除棋子池角色（CS: AutoChessRemoveChessPoolCharRequest） */
-router.post("/autochessSeason/removeChessPoolChar", validateBody(emptyRequestSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as AutoChessRemoveChessPoolCharRequest;
-
-  res.send(player.delta satisfies AutoChessRemoveChessPoolCharResponse);
-});
-
-/** 上报战斗结果（服务端自定义） */
-router.post("/autochessSeason/report", validateBody(emptyRequestSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as AutoChessReportRequest;
-
-  res.send(player.delta satisfies AutoChessReportResponse);
-});
-
-/** 设置棋子池助战（CS: AutoChessSetFriendAssistRequest） */
-router.post("/autochessSeason/setChessPoolAssist", validateBody(emptyRequestSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as AutoChessSetFriendAssistRequest;
-
-  res.send(player.delta satisfies AutoChessSetFriendAssistResponse);
-});
-
-/** 设置棋子池自定角色（CS: AutoChessSetChessPoolDiyCharRequest） */
-router.post("/autochessSeason/setChessPoolDiyChar", validateBody(emptyRequestSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as AutoChessSetChessPoolDiyCharRequest;
-
+  const body = req.body as AutoChessSetChessPoolDiyCharRequest;
+  const result = await player.autoChess.setChessPoolDiyChar(body);
+  if (!result.ok) {
+    return res.send({ result: 1, ...player.delta });
+  }
   res.send(player.delta satisfies AutoChessSetChessPoolDiyCharResponse);
 });
 
-/** 结算游戏（CS: AutoChessSettleGameRequest） */
-router.post("/autochessSeason/settleGame", validateBody(emptyRequestSchema), async (req, res) => {
+/** 移除棋池角色（CS: AutoChessRemoveChessPoolCharRequest/Response） */
+router.post("/autochessSeason/removeChessPoolChar", validateBody(autoChessRemoveChessPoolCharSchema), async (req, res) => {
   const player = getPlayer();
-  req.body as AutoChessSettleGameRequest;
-
-  res.send({
-    ...player.delta,
-    result: 0,
-  } satisfies AutoChessSettleGameResponse);
+  const body = req.body as AutoChessRemoveChessPoolCharRequest;
+  const result = await player.autoChess.removeChessPoolChar(body);
+  if (!result.ok) {
+    return res.send({ result: 1, ...player.delta });
+  }
+  res.send(player.delta satisfies AutoChessRemoveChessPoolCharResponse);
 });
 
-/** 点赞结算（CS: AutoChessSettleLikeRequest） */
-router.post("/autochessSeason/settleLike", validateBody(emptyRequestSchema), async (req, res) => {
+/** 设置棋池助战（CS: AutoChessSetFriendAssistRequest/Response） */
+router.post("/autochessSeason/setChessPoolAssist", validateBody(autoChessSetChessPoolAssistSchema), async (req, res) => {
+  const player = getPlayer();
+  const body = req.body as AutoChessSetFriendAssistRequest;
+  const result = await player.autoChess.setChessPoolAssist(body);
+  if (!result.ok) {
+    return res.send({ result: 1, ...player.delta });
+  }
+  res.send(player.delta satisfies AutoChessSetFriendAssistResponse);
+});
+
+/** 获取好友助战列表（CS: AutoChessGetFriendAssistListRequest/Response） */
+router.post("/autochessSeason/getFriendCharAssistList", validateBody(autoChessGetFriendAssistListSchema), async (req, res) => {
+  const player = getPlayer();
+  req.body as AutoChessGetFriendAssistListRequest;
+  const payload = await player.autoChess.getFriendCharAssistList();
+  res.send({ ...payload, ...player.delta } satisfies AutoChessGetFriendAssistListResponse);
+});
+
+/** 创建队伍（CS: AutoChessCreateTeamRequest/Response） */
+router.post("/autochessSeason/createTeam", validateBody(autoChessCreateTeamSchema), async (req, res) => {
+  const player = getPlayer();
+  const body = req.body as AutoChessCreateTeamRequest;
+  const payload = player.autoChess.createTeam(body);
+  res.send({ ...payload, ...player.delta } satisfies AutoChessCreateTeamResponse);
+});
+
+/** 加入队伍（CS: AutoChessJoinTeamRequest/Response） */
+router.post("/autochessSeason/joinTeam", validateBody(autoChessJoinTeamSchema), async (req, res) => {
+  const player = getPlayer();
+  const body = req.body as AutoChessJoinTeamRequest;
+  const payload = player.autoChess.joinTeam(body);
+  res.send({ ...payload, ...player.delta } satisfies AutoChessJoinTeamResponse);
+});
+
+/** 开始匹配（CS: AutoChessStartMatchRequest/Response） */
+router.post("/autochessSeason/startMatch", validateBody(autoChessStartMatchSchema), async (req, res) => {
+  const player = getPlayer();
+  const body = req.body as AutoChessStartMatchRequest;
+  const payload = player.autoChess.startMatch(body);
+  res.send({ ...payload, ...player.delta } satisfies AutoChessStartMatchResponse);
+});
+
+/** 查询匹配（CS: AutoChessQueryMatchRequest/Response） */
+router.post("/autochessSeason/queryMatch", validateBody(autoChessQueryMatchSchema), async (req, res) => {
+  const player = getPlayer();
+  const body = req.body as AutoChessQueryMatchRequest;
+  const payload = player.autoChess.queryMatch(body);
+  res.send({ ...payload, ...player.delta } satisfies AutoChessQueryMatchResponse);
+});
+
+/** 多人战斗开始（CS: AutoChessMultiBattleStartRequest，响应 CommonStartBattleResponse） */
+router.post("/autochessSeason/multiBattleStart", validateBody(autoChessMultiBattleStartSchema), async (req, res) => {
+  const player = getPlayer();
+  const body = req.body as AutoChessMultiBattleStartRequest;
+  const result = await player.autoChess.multiBattleStart(body);
+  if (!result.ok) {
+    return res.send({
+      result: 1,
+      battleId: "",
+      apFailReturn: 0,
+      isApProtect: 0,
+      inApProtectPeriod: false,
+      notifyPowerScoreNotEnoughIfFailed: false,
+      ...player.delta,
+    } satisfies AutoChessStartBattleResponse);
+  }
+  res.send({ ...result.data!, ...player.delta } satisfies AutoChessStartBattleResponse);
+});
+
+/** 多人战斗结束（CS: AutoChessMultiBattleFinishRequest/Response） */
+router.post("/autochessSeason/multiBattleFinish", validateBody(autoChessMultiBattleFinishSchema), async (req, res) => {
+  const player = getPlayer();
+  const body = req.body as AutoChessMultiBattleFinishRequest;
+  const result = player.autoChess.multiBattleFinish(body);
+  if (!result.ok) {
+    return res.send({ ...emptyAutoChessFinishPayload(), result: 1, ...player.delta });
+  }
+  res.send({ ...result.data!, ...player.delta } satisfies AutoChessFinishBattleResponse);
+});
+
+/** 引导（训练）战斗开始（CS: AutoChessTrainingBattleStartRequest，响应 CommonStartBattleResponse） */
+router.post("/autochessSeason/startGuideBattle", validateBody(autoChessTrainingBattleStartSchema), async (req, res) => {
+  const player = getPlayer();
+  const body = req.body as AutoChessTrainingBattleStartRequest;
+  const result = await player.autoChess.trainingBattleStart(body);
+  if (!result.ok) {
+    return res.send({
+      result: 1,
+      battleId: "",
+      apFailReturn: 0,
+      isApProtect: 0,
+      inApProtectPeriod: false,
+      notifyPowerScoreNotEnoughIfFailed: false,
+      ...player.delta,
+    } satisfies AutoChessStartBattleResponse);
+  }
+  res.send({ ...result.data!, ...player.delta } satisfies AutoChessStartBattleResponse);
+});
+
+/** 引导（训练）战斗结束（CS: AutoChessTrainingBattleFinishRequest/Response） */
+router.post("/autochessSeason/finishGuideBattle", validateBody(autoChessTrainingBattleFinishSchema), async (req, res) => {
+  const player = getPlayer();
+  const body = req.body as AutoChessTrainingBattleFinishRequest;
+  const result = await player.autoChess.trainingBattleFinish(body);
+  if (!result.ok) {
+    return res.send({ ...emptyAutoChessFinishPayload(), result: 1, ...player.delta });
+  }
+  res.send({ ...result.data!, ...player.delta } satisfies AutoChessFinishBattleResponse);
+});
+
+/** 退出单机游戏（CS: AutoChessQuitSingleGameRequest/Response） */
+router.post("/autochessSeason/quitSingleGame", validateBody(autoChessQuitSingleGameSchema), async (req, res) => {
+  const player = getPlayer();
+  const body = req.body as AutoChessQuitSingleGameRequest;
+  const payload = player.autoChess.quitSingleGame(body);
+  res.send({ ...payload, ...player.delta } satisfies AutoChessQuitSingleGameResponse);
+});
+
+/** 结算游戏（CS: AutoChessSettleGameRequest/Response） */
+router.post("/autochessSeason/settleGame", validateBody(autoChessSettleGameSchema), async (req, res) => {
+  const player = getPlayer();
+  const body = req.body as AutoChessSettleGameRequest;
+  const result = await player.autoChess.settleGame(body);
+  if (!result.ok) {
+    return res.send({
+      result: 1,
+      gameSettleData: null,
+      ...player.delta,
+    } satisfies AutoChessSettleGameResponse);
+  }
+  res.send({ ...result.data!, ...player.delta } satisfies AutoChessSettleGameResponse);
+});
+
+/** 结算点赞（CS: AutoChessSettleLikeRequest/Response） */
+router.post("/autochessSeason/settleLike", validateBody(autoChessSettleLikeSchema), async (req, res) => {
   const player = getPlayer();
   req.body as AutoChessSettleLikeRequest;
-
+  player.autoChess.settleLike();
   res.send(player.delta satisfies AutoChessSettleLikeResponse);
 });
 
-/** 开始匹配（CS: AutoChessStartMatchRequest） */
-router.post("/autochessSeason/startMatch", validateBody(emptyRequestSchema), async (req, res) => {
+/** 上报战斗结果（服务端自定义，宽松透传） */
+router.post("/autochessSeason/report", validateBody(autoChessReportSchema), async (req, res) => {
   const player = getPlayer();
-  req.body as AutoChessStartMatchRequest;
-
-  res.send(player.delta satisfies AutoChessStartMatchResponse);
+  req.body as AutoChessReportRequest;
+  player.autoChess.report();
+  res.send(player.delta satisfies AutoChessReportResponse);
 });
 
-/** 创建队伍（CS: AutoChessCreateTeamRequest） */
-router.post("/autochessSeason/createTeam", validateBody(emptyRequestSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as AutoChessCreateTeamRequest;
-
-  res.send({
-    ...player.delta,
-    teamId: "team_" + Math.random().toString(36).substr(2, 9),
-  } satisfies AutoChessCreateTeamResponse);
-});
-
-/** 开始引导战斗（CS: AutoChessTrainingBattleStartRequest） */
-router.post("/autochessSeason/startGuideBattle", validateBody(emptyRequestSchema), async (req, res) => {
-  const player = getPlayer();
-  req.body as AutoChessTrainingBattleStartRequest;
-
-  res.send({
-    ...player.delta,
-    battleId: "abcdefgh-1234-5678-a1b2c3d4e5f6",
-    result: 0,
-  } satisfies AutoChessTrainingBattleStartResponse);
-});
-
-/** 自走棋赛季信息（客户端路由 /autoChess/act1autochess|act2autochess；stub 返回空增量） */
+/** 赛季入口兜底（客户端按赛季 id 直达入口时的空响应） */
 for (const autoChessSeason of ["act1autochess", "act2autochess"]) {
-  router.post(`/${autoChessSeason}`, validateBody(emptyRequestSchema), async (req, res) => {
+  router.post(`/${autoChessSeason}`, validateBody(autoChessSeasonEntrySchema), async (req, res) => {
     const player = getPlayer();
     res.send(player.delta satisfies { playerDataDelta: unknown });
   });

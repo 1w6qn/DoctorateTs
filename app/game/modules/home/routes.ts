@@ -147,14 +147,10 @@ router.post("/batch_event", validateBody(batchEventSchema), async (req, res) => 
   req.body as BatchEventRequest;
   res.send({} satisfies BatchEventResponse);
 });
-router.post("/charm/setSquad", validateBody(charmSetSquadSchema), async (req, res) => {
-  const player = getPlayer();
-  const body = req.body as CharmSetSquadRequest;
-  await player.update(async (draft) => {
-    draft.charm.squad = body.squad;
-  });
-  res.send(player.delta satisfies CharmSetSquadResponse);
-});
+
+// 修复（2026-09-09）：原此处重复注册 `/charm/setSquad`（与 modules/charm/routes.ts 的
+// `/charm/setSquad` 同路径）。/charm 前缀（routes.ts:110）先于根级 home（:126）挂载，
+// 本处实为死代码且与 charm 模块的落盘实现重复；信物编队路由归 charm 模块独有。
 router.post("/firework/savePlateSlots", validateBody(fireworkSavePlateSlotsSchema), async (req, res) => {
   const player = getPlayer();
   const body = req.body as FireworkSavePlateSlotsRequest;

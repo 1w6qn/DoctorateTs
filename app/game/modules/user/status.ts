@@ -1,6 +1,5 @@
 import excel from "@excel/excel";
 import { checkNew, now } from "@utils/time";
-import moment from "moment";
 import { AvatarInfo } from "../../kernel/model";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
@@ -24,6 +23,35 @@ export class StatusManager {
   get uid(): string {
     return this._player._playerdata.status.uid;
   }
+
+  /**
+   * 周期性刷新节流窗口（秒）：同一账号在该窗口内只做一次跨天/跨周/跨月判定
+   * （refreshTime 每次都会 player.update 写时间戳，需避免每请求一次写）。
+   */
+  private static readonly _REFRESH_THROTTLE_SECONDS = 60;
+
+  /**
+   * 请求内按节流补触发的周期性刷新
+   *
+   * 修复（2026-09-09，审计 §5.4-7/9 的系统性根因）：跨天/跨周/跨月的**唯一**驱动是
+   * {@link refreshTime}，而此前它**只被管理端**调用（ops/admin/AdminService 的
+   * 「刷新时间戳」入口）——正常游戏流程中 refresh:daily / refresh:weekly /
+   * refresh:monthly **永不派发**，所有订阅方长期失效：每日任务播种与印章、商店每日/
+   * 每月重置、宿舍氛围信用结算、签到/开服连签、周常切档等。
+   *
+   * 现由认证后的每请求中间件（app.ts 的每账号互斥中间件，持锁后）调用本方法：距上次
+   * 刷新超过 {@link _REFRESH_THROTTLE_SECONDS} 才真正执行 refreshTime()。判定基准用
+   * status.lastOnlineTs（该字段本就由 refreshTime 维护，此前在正常流程中从不更新 →
+   * 管理端「最后在线」也一并失真，本修复顺带修正）。
+   */
+  async ensurePeriodicRefresh(): Promise<void> {
+    const ts = now();
+    const last = Number(this._player._playerdata.status.lastOnlineTs ?? 0);
+    // last ≤ 0（新号/迁移档）视为「从未刷新」→ 立即执行一次
+    if (last > 0 && ts - last < StatusManager._REFRESH_THROTTLE_SECONDS) return;
+    await this.refreshTime();
+  }
+
   async refreshTime() {
     // 先读取跨天判断所需的时间戳，再触发刷新事件
     // 注意：不能在 Immer recipe 内 emit（嵌套 update 会被外层 finishDraft 覆盖丢失）
@@ -33,11 +61,15 @@ export class StatusManager {
       logger.info("StatusManager", "daily refresh");
       await this._trigger.emit("refresh:daily", [lastRefreshTs]);
     }
-    if (moment().day() == 1 && checkNew(lastRefreshTs, ts, "week")) {
+    // 修复（2026-09-09）：去掉「当天必须是周一」的硬门槛——原实现要求玩家恰好在周一登录
+    // 才会触发周刷新，周一未登录则整周不刷新（周任务/凭证商店停在上一周期）。
+    // checkNew(..., "week") 已按「跨周（每周一 04:00 边界，delta=4h）」判定，语义正确。
+    if (checkNew(lastRefreshTs, ts, "week")) {
       logger.info("StatusManager", "weekly refresh");
       await this._trigger.emit("refresh:weekly", []);
     }
-    if (moment().date() == 1 && checkNew(lastRefreshTs, ts, "month")) {
+    // 修复（2026-09-09）：同理去掉「当天必须是 1 号」的硬门槛（月度刷新只在 1 号登录才触发）
+    if (checkNew(lastRefreshTs, ts, "month")) {
       logger.info("StatusManager", "monthly refresh");
       await this._trigger.emit("refresh:monthly", []);
     }

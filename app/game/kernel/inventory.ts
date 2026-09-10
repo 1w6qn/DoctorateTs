@@ -7,7 +7,70 @@ import { PlayerDataModel } from "./playerdata";
 import { PlayerDataManager } from "./PlayerDataManager";
 import { Draft } from "mutative";
 import { TypedEventEmitter } from "./events/runtime";
+import { BadRequestError } from "./http/errors";
 import { activityDictKey } from "../modules/activities/shared/unlockActivity";
+
+/** 余额位于 consumable 实例的物品类型（consumable[itemId][instId].count） */
+const CONSUMABLE_TYPES: ReadonlySet<string> = new Set([
+  "AP_SUPPLY",
+  "RENAMING_CARD",
+  "RENAMING_CARD_2",
+  "VOUCHER_PICK",
+  "VOUCHER_CGACHA",
+  "VOUCHER_MGACHA",
+  "LMTGS_COIN",
+  "LIMITED_TKT_GACHA_10",
+  "LINKAGE_TKT_GACHA_10",
+  "VOUCHER_ELITE_II_4",
+  "VOUCHER_ELITE_II_5",
+  "VOUCHER_ELITE_II_6",
+  "VOUCHER_SKIN",
+  "EXTERMINATION_AGENT",
+  "OPTIONAL_VOUCHER_PICK",
+  "VOUCHER_LEVELMAX_4",
+  "VOUCHER_LEVELMAX_5",
+  "VOUCHER_LEVELMAX_6",
+  "VOUCHER_SKILL_SPECIALLEVELMAX_4",
+  "VOUCHER_SKILL_SPECIALLEVELMAX_5",
+  "VOUCHER_SKILL_SPECIALLEVELMAX_6",
+  "ACTIVITY_POTENTIAL",
+  "ITEM_PACK",
+  "MATERIAL_ISSUE_VOUCHER",
+  "EXCLUSIVE_TKT_GACHA",
+  "EXCLUSIVE_TKT_GACHA_10",
+]);
+
+/** 余额位于 inventory[itemId] 的物品类型 */
+const INVENTORY_TYPES: ReadonlySet<string> = new Set([
+  "MATERIAL",
+  "CARD_EXP",
+  "ACTIVITY_COIN",
+  "ACTIVITY_ITEM",
+  "PLOT_ITEM",
+  "TKT_GACHA_PRSV",
+  "EPGS_COIN",
+  "REP_COIN",
+  "VOUCHER_FULL_POTENTIAL",
+  "MAGAZINE_LEAF",
+]);
+
+/** 余额位于 status 字段的物品类型 → 字段名 */
+const STATUS_TYPES: Readonly<Record<string, string>> = {
+  GOLD: "gold",
+  DIAMOND: "androidDiamond",
+  DIAMOND_SHD: "diamondShard",
+  HGG_SHD: "hggShard",
+  LGG_SHD: "lggShard",
+  CLASSIC_SHD: "classicShard",
+  SOCIAL_PT: "socialPoint",
+  TKT_TRY: "practiceTicket",
+  TKT_RECRUIT: "recruitLicense",
+  TKT_INST_FIN: "instantFinishTicket",
+  TKT_GACHA: "gachaTicket",
+  TKT_GACHA_10: "tenGachaTicket",
+  CLASSIC_TKT_GACHA: "classicGachaTicket",
+  CLASSIC_TKT_GACHA_10: "classicTenGachaTicket",
+};
 
 /** TYPE_ACT53SIDE 活动币映射（coinItemId → actId，惰性构建；奇象巡展等事件共用） */
 let _act53CoinMap: Map<string, string> | null = null;
@@ -36,7 +99,37 @@ export class InventoryManager {
     this._player = player;
     this._trigger = _trigger;
     this._trigger.on("items:use", async ([items]: [ItemBundle[]]) => {
-      await Promise.all(items.map((item) => this._useItem(item)));
+      // 修复（2026-09-09）：消耗接口**不接受负数量**（全局不变量）。`_useItem` 对非
+      // consumable 类型走 else 分支 emit `items:get`（`count: -item.count`），即负数量
+      // 会被当作「反向入账」**发放**物品；而 `canConsume` 又用 `Math.abs()` 校验余额——
+      // 二者叠加即可凭空复制物品（Round 41 的 depot / milestone 两处入口漏洞正是由此
+      // 放大）。0 仍放行：部分商店商品价格为 0（免费），等价于无操作且无副作用。
+      for (const item of items) {
+        if (Number(item.count ?? 0) < 0) {
+          logger.warn(
+            "inventory",
+            `items:use 拒绝负数量：${item.id} count=${item.count}`,
+          );
+          throw new BadRequestError(
+            `物品数量非法：${item.id} count=${item.count}`,
+          );
+        }
+      }
+      // 修复（2026-09-09，S5 消耗余额校验）：整批「先校验后扣减」——原实现无任何余额
+      // 校验（gainItem 的 `+=` 无下限），玩家 0 材料即可精二/专三/模组满级，库存与
+      // 龙门币可被扣成负数。校验失败抛 BadRequestError（gameErrorHandler → 400 JSON），
+      // 调用方 await emit 时自然中断，不再执行后续发放。
+      for (const item of items) {
+        const reason = this.canConsume(item);
+        if (reason) {
+          logger.warn("inventory", `items:use 余额不足，拒绝消耗：${reason}`);
+          throw new BadRequestError(`物品不足：${reason}`);
+        }
+      }
+      // 串行扣减（与 items:get 同理：并发 update 会在同一 _playerdata 上交错）
+      for (const item of items) {
+        await this._useItem(item);
+      }
     });
     this._trigger.on("items:get", async ([items]: [ItemBundle[]]) => {
       // 串行发放：Promise.all 并发 gainItem 会在同一 _playerdata 上并发
@@ -53,6 +146,9 @@ export class InventoryManager {
         await this._trigger.emit("TotalSimpleTokenCount", [
           { itemId: item.id, count: item.count ?? 1 },
         ]);
+        // 修复（2026-09-09，S1）：限时获得物品勋章（GotItemBeforeTime）——原实现无 emit
+        // 站点，模板退化为「注册后天数」占位；此处按官方契约补发 itemId。
+        await this._trigger.emit("GotItemBeforeTime", [{ itemId: item.id }]);
         // 累计获得活动币任务（ActivityCoinGain）—— 模板按 param[3] 活动币 itemId 过滤。
         // act17side/act24side 等别传用（累计获得 actXXside_token 达目标）
         await this._trigger.emit("ActivityCoinGain", [
@@ -60,6 +156,55 @@ export class InventoryManager {
         ]);
       }
     });
+  }
+
+  /**
+   * 校验玩家是否持有足量「待消耗」物品（count 取绝对值）
+   *
+   * 余额来源按物品类型判定：consumable 实例（凭证/道具）→ inventory[itemId]
+   * （材料/作战记录/活动币）→ status 字段（龙门币/合成玉/各类票据）。
+   * 未纳入校验的类型（如 AP_GAMEPLAY、活动专用计数）返回 null（本层不拦截）。
+   * @param item - 待消耗物品（count 为正表示消耗数量）
+   * @returns 不足时的原因文案；充足或不可校验时为 null
+   */
+  canConsume(item: ItemBundle): string | null {
+    const count = Math.abs(item.count ?? 0);
+    if (count <= 0) return null;
+    const data = this._player._playerdata as any;
+    const type = (item.type ??
+      (excel.getItem(item.id)?.itemType as string | undefined)) as
+      | string
+      | undefined;
+    if (!type) return null;
+    const balances: Array<{ from: string; value: number }> = [];
+    if (CONSUMABLE_TYPES.has(type)) {
+      const inst = data?.consumable?.[item.id]?.[String((item as any).instId)];
+      balances.push({
+        from: "consumable",
+        value: typeof inst?.count === "number" ? inst.count : 0,
+      });
+    }
+    if (INVENTORY_TYPES.has(type)) {
+      const owned = data?.inventory?.[item.id];
+      balances.push({
+        from: "inventory",
+        value: typeof owned === "number" ? owned : 0,
+      });
+    }
+    const statusField = STATUS_TYPES[type];
+    if (statusField) {
+      const owned = data?.status?.[statusField];
+      balances.push({
+        from: `status.${statusField}`,
+        value: typeof owned === "number" ? owned : 0,
+      });
+    }
+    // 无可校验余额来源的类型不拦截（避免误拒：AP 增减、活动专用计数等）
+    if (balances.length === 0) return null;
+    const best = balances.reduce((a, b) => (b.value > a.value ? b : a));
+    return best.value >= count
+      ? null
+      : `${item.id}（${type}）持有 ${best.value} < 需要 ${count}`;
   }
 
   get skinCnt(): number {
@@ -161,6 +306,17 @@ export class InventoryManager {
       }
       item.type = def.itemType as ItemType;
     }
+    // 修复（2026-09-09，S5）：负数增收即消耗，先校验余额（防库存/龙门币被扣成负数）
+    if ((item.count ?? 0) < 0) {
+      const reason = this.canConsume({
+        ...item,
+        count: -(item.count ?? 0),
+      } as ItemBundle);
+      if (reason) {
+        logger.warn("inventory", `items:get 负数消耗余额不足，拒绝：${reason}`);
+        throw new BadRequestError(`物品不足：${reason}`);
+      }
+    }
     const consumableFunc = async (
       item: ItemBundle,
       draft: Draft<PlayerDataModel>,
@@ -204,6 +360,13 @@ export class InventoryManager {
         await this._trigger.emit("char:get", [item.id]);
       },
       CARD_EXP: async (item, draft) => {
+        draft.inventory[item.id] = (draft.inventory[item.id] || 0) + item.count;
+      },
+      // 修复（2026-09-09，审计 §5.4-11 配套）：特勤作战记录（so_char_exp_1 / SO_CHAR_EXP，
+      // item_table 实测 itemType = SO_CHAR_EXP，用途「增加特勤干员的经验值」）——
+      // 原实现未处理该类型 → gainItem 走「未知物品类型」分支 WARN 跳过，特勤干员周任务
+      // 奖励（6000/8000 特勤作战记录）实际**发放失败**。与 CARD_EXP/MATERIAL 同口径入库。
+      SO_CHAR_EXP: async (item, draft) => {
         draft.inventory[item.id] = (draft.inventory[item.id] || 0) + item.count;
       },
       MATERIAL: async (item, draft) => {

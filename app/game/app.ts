@@ -96,6 +96,24 @@ app.use(async (req, res, next) => {
   const release = await acquireLock(player.uid);
   res.on("finish", release);
   res.on("close", release);
+  // 修复（2026-09-09，审计 §5.4 系统性根因）：周期性刷新（每日/每周/每月 04:00 边界）
+  // 此前**只有管理端**会触发（AdminService 调 status.refreshTime()）——正常游戏流程中
+  // refresh:daily / refresh:weekly / refresh:monthly 永不派发，每日任务、商店日/月重置、
+  // 宿舍氛围信用、签到与开服连签等订阅方全部失效。此处于**持有该账号请求锁之后**补触发
+  // （内部 60s 节流，一账号至多每分钟一次 update）；失败仅告警，不影响本次请求。
+  try {
+    await player.status.ensurePeriodicRefresh();
+  } catch (err) {
+    logger.warn("game", `周期性刷新失败：` + (err as Error).message);
+  }
+  // 修复（2026-09-09，审计 §5.4-8 前半）：登录签到后的【事相结晶】自动补充
+  // （官方 retroDetail：「未达到储存上限时，在登录签到后将自动领取 2 个…60 级后 3 个」）。
+  // 方法内含前置判定（无领取机会 / 已达上限直接返回 0）→ 无副作用时不产生 update。
+  try {
+    await player.retro.ensureWeeklySupplement();
+  } catch (err) {
+    logger.warn("game", `事相结晶补充失败：` + (err as Error).message);
+  }
   next();
 });
 

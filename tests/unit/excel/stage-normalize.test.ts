@@ -24,11 +24,36 @@ describe("normalizeStageDropInfo", () => {
     };
     normalizeStageDropInfo(table);
     const drops = table.stages.main_01.stageDropInfo.displayDetailRewards;
+    // 档位按官方 OccPer 声明序单调递减：ALWAYS(0) > ALMOST(1) > USUAL(2) > OFTEN(3) > SOMETIMES(4)
     expect(drops[0].occPercent).toBe(0); // ALWAYS
-    expect(drops[1].occPercent).toBe(1); // USUAL
-    expect(drops[2].occPercent).toBe(2); // OFTEN
-    expect(drops[3].occPercent).toBe(3); // SOMETIMES
-    expect(drops[4].occPercent).toBe(4); // ALMOST
+    expect(drops[1].occPercent).toBe(2); // USUAL
+    expect(drops[2].occPercent).toBe(3); // OFTEN
+    expect(drops[3].occPercent).toBe(4); // SOMETIMES
+    expect(drops[4].occPercent).toBe(1); // ALMOST
+  });
+
+  it("档位应按实测掉落率单调递减（ALMOST 最高、SOMETIMES 最低）", () => {
+    const table: any = {
+      stages: {
+        main_01: {
+          stageDropInfo: {
+            displayDetailRewards: [
+              { occPercent: "ALMOST", type: "MATERIAL", id: "30041", dropType: "NORMAL" },
+              { occPercent: "USUAL", type: "MATERIAL", id: "30013", dropType: "NORMAL" },
+              { occPercent: "OFTEN", type: "MATERIAL", id: "30073", dropType: "NORMAL" },
+              { occPercent: "SOMETIMES", type: "MATERIAL", id: "30011", dropType: "ADDITIONAL" },
+              { occPercent: "NEVER", type: "MATERIAL", id: "30099", dropType: "ADDITIONAL" },
+            ],
+          },
+        },
+      },
+    };
+    normalizeStageDropInfo(table);
+    const d = table.stages.main_01.stageDropInfo.displayDetailRewards;
+    expect(d[0].occPercent).toBeLessThan(d[1].occPercent); // ALMOST < USUAL
+    expect(d[1].occPercent).toBeLessThan(d[2].occPercent); // USUAL < OFTEN
+    expect(d[2].occPercent).toBeLessThan(d[3].occPercent); // OFTEN < SOMETIMES
+    expect(d[4].occPercent).toBeGreaterThanOrEqual(5); // NEVER 不产出
   });
 
   it("应将 dropType 字符串映射为数字", () => {

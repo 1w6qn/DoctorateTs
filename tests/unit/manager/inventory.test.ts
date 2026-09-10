@@ -240,6 +240,32 @@ describe("InventoryManager", () => {
       ).toBe(5);
     });
 
+    it("SO_CHAR_EXP 类型物品（特勤作战记录）应该增加到库存", async () => {
+      // 修复（2026-09-09，审计 §5.4-11 配套）：item_table 中 so_char_exp_1 的
+      // itemType = "SO_CHAR_EXP"，原 gainItem 未处理该类型 → 走「未知物品类型」
+      // WARN 分支静默跳过，特勤干员周任务奖励（6000/8000 特勤作战记录）发放失败。
+      const manager = new InventoryManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      await manager.gainItem({
+        type: "SO_CHAR_EXP",
+        id: "so_char_exp_1",
+        count: 6000,
+      });
+
+      expect(mockPlayer._playerdata.inventory!["so_char_exp_1"]).toBe(6000);
+
+      // 累加而非覆盖
+      await manager.gainItem({
+        type: "SO_CHAR_EXP",
+        id: "so_char_exp_1",
+        count: 8000,
+      });
+      expect(mockPlayer._playerdata.inventory!["so_char_exp_1"]).toBe(14000);
+    });
+
     it("GOLD 类型物品应该增加金币", async () => {
       const manager = new InventoryManager(
         mockPlayer as any,
@@ -384,6 +410,8 @@ describe("InventoryManager", () => {
       );
 
       const emitSpy = vi.spyOn(mockTrigger, "emit");
+      // 修复（2026-09-09）：消耗前校验余额——先给足 3 个材料
+      (mockPlayer._playerdata as any).inventory["mat_001"] = 3;
       await manager._useItem({
         type: "MATERIAL",
         id: "mat_001",
@@ -394,6 +422,71 @@ describe("InventoryManager", () => {
         (c) => c[0] === "items:get"
       );
       expect(itemsGetCalls.length).toBeGreaterThan(0);
+    });
+
+    it("余额不足的材料消耗应抛 BadRequestError（防负库存）", async () => {
+      const manager = new InventoryManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+
+      (mockPlayer._playerdata as any).inventory["mat_001"] = 1;
+      await expect(
+        manager._useItem({ type: "MATERIAL", id: "mat_001", count: 3 })
+      ).rejects.toThrow(/物品不足/);
+      // 余额未被扣成负数
+      expect((mockPlayer._playerdata as any).inventory["mat_001"]).toBe(1);
+    });
+
+    // Round 42：把「拒绝负数量」下沉为 items:use 的全局不变量 —— 负数量在 _useItem
+    // 的非 consumable 分支会被当作反向入账（items:get 发放 -count 个），配合
+    // canConsume 的 Math.abs 校验即可凭空复制物品（Round 41 的两处入口漏洞即由此放大）。
+    it("items:use 负数量应被拒绝（不反向发放物品）", async () => {
+      const manager = new InventoryManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      (mockPlayer._playerdata as any).inventory["mat_001"] = 5;
+      await expect(
+        mockTrigger.emit("items:use", [
+          [{ type: "MATERIAL", id: "mat_001", count: -5 }],
+        ] as any)
+      ).rejects.toThrow(/数量非法/);
+      // 库存未被反向增加
+      expect((mockPlayer._playerdata as any).inventory["mat_001"]).toBe(5);
+    });
+
+    it("items:use 数量 0 仍放行（免费商品价格为 0 的场景）", async () => {
+      const manager = new InventoryManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      (mockPlayer._playerdata as any).inventory["mat_001"] = 5;
+      await expect(
+        mockTrigger.emit("items:use", [
+          [{ type: "MATERIAL", id: "mat_001", count: 0 }],
+        ] as any)
+      ).resolves.toBeUndefined();
+      expect((mockPlayer._playerdata as any).inventory["mat_001"]).toBe(5);
+    });
+
+    it("canConsume：材料 0 持有应报告不足、充足应放行", () => {
+      const manager = new InventoryManager(
+        mockPlayer as any,
+        mockTrigger as any
+      );
+      (mockPlayer._playerdata as any).inventory["mat_001"] = 0;
+      expect(
+        manager.canConsume({ type: "MATERIAL", id: "mat_001", count: 1 } as any)
+      ).toMatch(/持有 0/);
+      (mockPlayer._playerdata as any).inventory["mat_001"] = 2;
+      expect(
+        manager.canConsume({ type: "MATERIAL", id: "mat_001", count: 2 } as any)
+      ).toBeNull();
+      // 未纳入校验的类型（AP）不拦截
+      expect(
+        manager.canConsume({ type: "AP_GAMEPLAY", id: "", count: 999 } as any)
+      ).toBeNull();
     });
 
     it("无 type 且 ItemTable 不存在的物品应跳过（不 500）", async () => {

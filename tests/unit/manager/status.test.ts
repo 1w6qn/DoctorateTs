@@ -405,4 +405,35 @@ describe("StatusManager", () => {
       expect(dailySpy).toHaveBeenCalledTimes(2);
     });
   });
+
+  // Round 46（审计 §5.4 系统性根因）：跨天/跨周/跨月的唯一驱动 refreshTime 此前只被
+  // 管理端调用 → refresh:daily/weekly/monthly 在正常游戏流程中永不派发。现由认证后的
+  // 每请求中间件调用 ensurePeriodicRefresh()（内部 60s 节流）。
+  describe("ensurePeriodicRefresh（请求内周期性刷新补触发）", () => {
+    it("lastOnlineTs 为 0（新号/迁移档）时应立即执行一次 refreshTime", async () => {
+      const manager = new StatusManager(mockPlayer as any, mockTrigger as any);
+      const spy = vi.spyOn(manager, "refreshTime");
+      mockPlayer._playerdata.status!.lastOnlineTs = 0;
+      await manager.ensurePeriodicRefresh();
+      expect(spy).toHaveBeenCalledTimes(1);
+      // refreshTime 会写回时间戳（now() mock = 1234567890）
+      expect(mockPlayer._playerdata.status!.lastOnlineTs).toBe(1234567890);
+    });
+
+    it("节流窗口内（<60s）重复调用不再触发", async () => {
+      const manager = new StatusManager(mockPlayer as any, mockTrigger as any);
+      const spy = vi.spyOn(manager, "refreshTime");
+      mockPlayer._playerdata.status!.lastOnlineTs = 1234567890 - 10; // 10s 前
+      await manager.ensurePeriodicRefresh();
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("超过节流窗口（>=60s）后再次触发", async () => {
+      const manager = new StatusManager(mockPlayer as any, mockTrigger as any);
+      const spy = vi.spyOn(manager, "refreshTime");
+      mockPlayer._playerdata.status!.lastOnlineTs = 1234567890 - 61;
+      await manager.ensurePeriodicRefresh();
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+  });
 });

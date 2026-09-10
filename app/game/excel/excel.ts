@@ -231,6 +231,7 @@ import {
 
 
 import { buildRoguelikeConsts } from "./roguelike_consts_gen";
+import { verifyLoadedDataVersion } from "./data-version";
 
 
 
@@ -525,6 +526,9 @@ export class Excel {
     normalizeStageDropInfo(this.StageTable);
 
     logger.info("Excel", `${loaders.length} excels loaded`);
+    // S10：数据版本一致性校验（data_version.txt 的 VersionControl vs gamedata_const.dataVersion）——
+    // 不一致说明更新中断/仅部分表被转换，仅告警不阻断启动
+    verifyLoadedDataVersion((this.GameDataConst as { dataVersion?: string })?.dataVersion);
     this.ShopTable = new ShopData();
     await this.ShopTable.init();
     logger.info("Excel", "10 shops loaded");
@@ -1339,13 +1343,22 @@ export enum OccPercent {
   Usual = "USUAL",
 }
 
-/** occPercent 字符串 → 数字档位（对应 dropReward 概率语义：0=必定, 1=75%, 2=40%, 3=15%, 4=3%） */
+/**
+ * occPercent 字符串 → 数字档位（对应 dropReward 概率语义：0=必定, 1=75%, 2=40%, 3=15%, 4=3%）。
+ * 枚举序即概率序：ALWAYS > ALMOST > USUAL > OFTEN > SOMETIMES
+ * （PenguinStats 实测 ALMOST≈89%、USUAL≈60-67%、OFTEN≈36%、SOMETIMES≈3%）。
+ * 修复：原实现将 ALMOST 映射到 4(3%)、SOMETIMES 映射到 3(15%)，档位整体轮换，
+ * 导致 172 条 ALMOST 主掉落按 3% 掉落、4922 条 SOMETIMES 额外物资按 15-20% 超发。
+ */
 export const OCC_PERCENT_NUMERIC: { [key: string]: number } = {
   [OccPercent.Always]: 0,
-  [OccPercent.Usual]: 1,
-  [OccPercent.Often]: 2,
-  [OccPercent.Sometimes]: 3,
-  [OccPercent.Almost]: 4,
+  [OccPercent.Almost]: 1,
+  [OccPercent.Usual]: 2,
+  [OccPercent.Often]: 3,
+  [OccPercent.Sometimes]: 4,
+  // 官方 OccPer 余项（当前数据未使用）：落到 5+ → dropReward 不产出
+  NEVER: 5,
+  DEFINITELY_BUFF: 6,
 };
 
 /** dropType 字符串 → 数字（1=首通, 2=普通, 3=特殊, 4=额外, 8=完成/条件） */
@@ -1372,7 +1385,8 @@ export function normalizeStageDropInfo(table: {
     if (!drops) continue;
     for (const item of drops) {
       if (typeof item.occPercent === "string") {
-        item.occPercent = OCC_PERCENT_NUMERIC[item.occPercent] ?? 0;
+        // 修复：未知档位不再静默回退 0（=必掉，超发）——回退最低档 4（3%）保守处理
+        item.occPercent = OCC_PERCENT_NUMERIC[item.occPercent] ?? 4;
       } else if (item.occPercent === undefined || item.occPercent === null) {
         // 修复：无 occPercent 字段 = 必掉（官方协议缺省即 ALWAYS）——
         // 原实现保持 undefined，handleOccPercent 全部分支不匹配 → 必掉物品（1-7 糖等）
@@ -1873,6 +1887,8 @@ export interface RoguelikeConst {
  * 本 seam 是对其的业务侧唯一可编辑入口）。
  */
 export type { GachaPoolClientData } from "./types_excel_gen";
+/** 新手池（新人特惠寻访）客户端配置：gachaPrice/gachaTimes（21 次上限）等 */
+export type { NewbeeGachaPoolClientData } from "./types_excel_gen";
 export type { UniEquipData } from "./types_excel_gen";
 export type { MailArchiveItemData } from "./types_excel_gen";
 export type { MissionData } from "./types_excel_gen";

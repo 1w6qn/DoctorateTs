@@ -3,6 +3,7 @@ import * as path from "path";
 import { execSync } from "child_process";
 import { getResVersion, CONF_API } from "./official-api";
 import { assetRegistry } from "@asset/asset-service";
+import { verifyLocalDataVersion } from "@excel/data-version";
 
 const EXCEL_TARGET_DIR = path.join(__dirname, "../data/excel");
 
@@ -187,6 +188,10 @@ export async function main(skipUpdate: boolean = false, offline: boolean = false
     }
 
     log(`本地数据完整性校验通过（${REQUIRED_DATA_FILES.length} 个文件就绪）`);
+    // S10：数据版本一致性校验（data_version.txt 的 VersionControl vs gamedata_const.dataVersion）
+    const ver = verifyLocalDataVersion();
+    if (ver.ok) log(`数据版本校验：${ver.message}`);
+    else logError(`数据版本校验：${ver.message}`);
     return 0;
   }
 

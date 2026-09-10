@@ -63,10 +63,21 @@ describe("ShopManager 每日刷新", () => {
       );
   });
 
-  it("dailyRefresh 应清空低级商店每日限购记录", async () => {
+  it("dailyRefresh 只重置信用商店（低级商店 LS 改为月度重置，不再每日清空）", async () => {
     const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
+    mockPlayer._playerdata.shop!.LS.info = [{ id: "LS_x", count: 1 } as any];
     await controller.dailyRefresh();
+    // 修复（2026-09-09）：资质凭证区为月度重置，每日刷新不得清除其购买记录
+    expect(mockPlayer._playerdata.shop!.LS.info).toEqual([{ id: "LS_x", count: 1 }]);
+  });
+
+  it("monthlyRefresh 应重置低级商店与高级凭证区购买记录", async () => {
+    const controller = new ShopManager(mockPlayer as any, mockTrigger as any);
+    mockPlayer._playerdata.shop!.LS.info = [{ id: "LS_x", count: 1 } as any];
+    mockPlayer._playerdata.shop!.HS = { info: [{ id: "HS_x", count: 1 } as any] } as any;
+    await controller.monthlyRefresh();
     expect(mockPlayer._playerdata.shop!.LS.info).toEqual([]);
+    expect(mockPlayer._playerdata.shop!.HS.info).toEqual([]);
   });
 });
 
@@ -298,6 +309,12 @@ describe("buildSocialGoodList / buySocialGood 信用商店", () => {
     // 购买记录
     const social = (mockPlayer._playerdata.shop as any).SOCIAL;
     expect(social.info).toContainEqual({ id: goodId, count: 1 });
+    // 修复（2026-09-09，审计 §6.2-17）：信用交易所购买此前从不 emit BuyShopItem，
+    // 而任务模板分支 1 正是按 type == "SOCIAL" 计数（数据表 27 条：guide_33 +
+    // daily_4816/4916/…/5716）→ 「在信用商店中购买任意商品 1 次」永不完不成。
+    expect(emitSpy).toHaveBeenCalledWith("BuyShopItem", [
+      { type: "SOCIAL", socialPoint: good.price },
+    ]);
   });
 
   it("常规物资 availCount 应为 1（每日限购 1 次，修复前 -1 显示为无限）", async () => {

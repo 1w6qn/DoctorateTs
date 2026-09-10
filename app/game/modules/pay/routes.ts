@@ -16,6 +16,7 @@
  * 请求/响应类型见 @game/modules/pay/pay（参考 CS 2.7.61 协议类 + DoctoratePy pay.py）。
  */
 import { Router } from "express";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { getPlayer, getPlayerOptional } from "../../kernel/http/request-context";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { ItemBundle } from "@excel/excel";
@@ -93,23 +94,103 @@ function payMode(): "fake" | "real" {
   return config.pay?.mode === "real" ? "real" : "fake";
 }
 
-/** 商品信息（AllProductList 按 store_id） */
+/**
+ * 商品信息（AllProductList 按 store_id）
+ *
+ * 修复（2026-09-09）：补 productId/status 字段——下单与发货都需要校验
+ * 「storeId ↔ goodId」一致性（原实现只按 storeId 取价，goodId 原样入库，
+ * 可用 6 元商品的 storeId 搭配 168 元礼包的 goodId 下单）。
+ * @param storeId - 商品位 id
+ * @returns 金额（分）/名称/商品 id/上架状态；未命中 found=false
+ */
 function productInfo(storeId: number): {
   amount: number;
   productName: string;
+  productId: string;
+  onSale: boolean;
+  found: boolean;
 } {
   try {
-    const list = readJsonSync<{ productList?: { store_id: number; price: number; name: string }[] }>(
-      "./data/shop/AllProductList.json",
-    );
+    const list = readJsonSync<{
+      productList?: {
+        store_id: number;
+        price: number;
+        name: string;
+        product_id?: string;
+        status?: number;
+      }[];
+    }>("./data/shop/AllProductList.json");
     const p = (list.productList ?? []).find(
       (x) => Number(x.store_id) === Number(storeId),
     );
-    return { amount: p?.price ?? 0, productName: p?.name ?? "" };
+    if (!p) {
+      return {
+        amount: 0,
+        productName: "",
+        productId: "",
+        onSale: false,
+        found: false,
+      };
+    }
+    return {
+      amount: p.price ?? 0,
+      productName: p.name ?? "",
+      productId: p.product_id ?? "",
+      onSale: (p.status ?? 1) === 1,
+      found: true,
+    };
   } catch {
-    return { amount: 0, productName: "" };
+    return {
+      amount: 0,
+      productName: "",
+      productId: "",
+      onSale: false,
+      found: false,
+    };
   }
 }
+
+/**
+ * 回调验签密钥（config.pay.notifySecret → 微信 apiKey → 支付宝 privateKey）
+ */
+function notifySecret(): string {
+  return (
+    (config.pay as { notifySecret?: string } | undefined)?.notifySecret ||
+    config.pay?.wechat?.apiKey ||
+    config.pay?.alipay?.privateKey ||
+    ""
+  );
+}
+
+/**
+ * 校验渠道回调签名：hex(HMAC-SHA256(`${orderId}|${amount}`, secret))
+ * @param sign - 渠道回传签名
+ * @param orderId - 订单号
+ * @param amount - 订单金额（分）
+ * @returns 验签通过返回 true；未配置密钥或缺失签名返回 false
+ */
+function verifyNotifySign(
+  sign: string,
+  orderId: string,
+  amount: number,
+): boolean {
+  const secret = notifySecret();
+  if (!secret || !sign) return false;
+  const expect = createHmac("sha256", secret)
+    .update(`${orderId}|${amount}`)
+    .digest("hex");
+  const got = sign.trim().toLowerCase();
+  if (got.length !== expect.length) return false;
+  return timingSafeEqual(Buffer.from(got), Buffer.from(expect));
+}
+
+/**
+ * 正在发货的订单号（进程内防并发双发货）
+ *
+ * 修复（2026-09-09）：原实现只检查持久化 status==="delivered"，同一订单的两个并发
+ * confirmOrder 请求可同时通过检查 → 奖励发放两次。
+ */
+const deliveringOrders = new Set<string>();
 
 /** 未确认订单列表（该 uid 未交付的订单 id） */
 router.post("/getUnconfirmedOrderIdList", validateBody(getUnconfirmedOrderListSchema), async (req, res) => {
@@ -132,7 +213,37 @@ router.post("/getUnconfirmedOrderIdList", validateBody(getUnconfirmedOrderListSc
 router.post("/createOrder", validateBody(createOrderSchema), async (req, res) => {
   const player = getPlayer();
   const body = req.body as PayCreateOrderRequest;
-  const { amount, productName } = productInfo(body.storeId);
+  const info = productInfo(body.storeId);
+  // 修复（2026-09-09）：下单必须命中在售商品，且 storeId 与 goodId 必须一致——
+  // 原实现只按 storeId 取价、goodId 原样入库，可「用 6 元商品的 storeId + 168 元礼包的
+  // goodId」下单，页面按 6 元收款、发货按 168 元礼包发放。
+  if (!info.found || !info.onSale || !body.goodId) {
+    logger.warn(
+      "pay",
+      `createOrder 拒绝：storeId=${body.storeId} 不在售（found=${info.found} onSale=${info.onSale}）`,
+    );
+    return res.send({
+      result: 1,
+      orderId: "",
+      extension: "",
+      alertMinor: 0,
+      ...player.delta,
+    } satisfies PayCreateOrderResponse);
+  }
+  if (info.productId && info.productId !== body.goodId) {
+    logger.warn(
+      "pay",
+      `createOrder 拒绝：storeId=${body.storeId} 对应 ${info.productId}，请求 goodId=${body.goodId}`,
+    );
+    return res.send({
+      result: 1,
+      orderId: "",
+      extension: "",
+      alertMinor: 0,
+      ...player.delta,
+    } satisfies PayCreateOrderResponse);
+  }
+  const { amount, productName } = info;
   const orderId = genOrderId();
   const orders = loadOrders();
   orders.push({
@@ -317,6 +428,32 @@ router.post("/confirmOrder", validateBody(confirmOrderSchema), async (req, res) 
       ...player.delta,
     } satisfies PayConfirmOrderResponse);
   }
+  // 修复（2026-09-09）：发货前复核商品表——goodId 必须仍是同 storeId 的在售商品
+  //（挡住历史/伪造订单：amount=0 或 goodId 与商品位不匹配的订单不予发货）
+  const current = productInfo(order.storeId);
+  if (!current.found || !current.onSale || current.productId !== order.goodId) {
+    logger.warn(
+      "pay",
+      `订单 ${order.orderId} 发货拒绝：商品校验失败（storeId=${order.storeId} goodId=${order.goodId}）`,
+    );
+    return res.send({
+      result: 1,
+      goodId: order.goodId,
+      receiveItems: { items: [], checkInItems: [] },
+      ...player.delta,
+    } satisfies PayConfirmOrderResponse);
+  }
+  // 修复（2026-09-09）：进程内并发双发货防护（持久化状态在两次并发请求间不可见）
+  if (deliveringOrders.has(order.orderId)) {
+    logger.warn("pay", `订单 ${order.orderId} 正在发货中，拒绝重复请求`);
+    return res.send({
+      result: 1,
+      goodId: order.goodId,
+      receiveItems: { items: [], checkInItems: [] },
+      ...player.delta,
+    } satisfies PayConfirmOrderResponse);
+  }
+  deliveringOrders.add(order.orderId);
   let items: ItemBundle[];
   try {
     items = await deliverOrder(player, order);
@@ -330,6 +467,8 @@ router.post("/confirmOrder", validateBody(confirmOrderSchema), async (req, res) 
       receiveItems: { items: [], checkInItems: [] },
       ...player.delta,
     } satisfies PayConfirmOrderResponse);
+  } finally {
+    deliveringOrders.delete(order.orderId);
   }
   // GP_ 月卡等无发放配置 → 拒绝（订单保留，不误标已购）
   if (order.goodId.startsWith("GP_") && items.length === 0) {
@@ -357,9 +496,37 @@ router.post("/confirmOrder", validateBody(confirmOrderSchema), async (req, res) 
  * 真实渠道接入时在此处验签（config.pay.alipay.privateKey / wechat.apiKey）。
  */
 router.post("/notify", validateBody(notifySchema), async (req, res) => {
-  const body = (req.body ?? {}) as PayNotifyRequest;
+  const body = (req.body ?? {}) as PayNotifyRequest & {
+    sign?: string;
+    total_amount?: string | number;
+  };
   const orderId = body.orderId || body.out_trade_no || "";
-  const ok = orderId ? markPaid(orderId) !== null : false;
+  const order = orderId
+    ? (loadOrders().find((o) => o.orderId === orderId) ?? null)
+    : null;
+  if (!order) {
+    logger.warn("pay", `notify 拒绝：订单不存在（${orderId}）`);
+    return res.send({ result: 1, errMsg: "order not found" } satisfies PayNotifyResponse);
+  }
+  // 修复（2026-09-09）：金额校验——渠道回传 total_amount（元）必须与订单金额一致，
+  // 原实现完全不看金额，可对任意订单回调「已支付」。
+  if (body.total_amount != null) {
+    const cents = Math.round(Number(body.total_amount) * 100);
+    if (!Number.isFinite(cents) || cents !== order.amount) {
+      logger.warn(
+        "pay",
+        `notify 拒绝：金额不符（order=${order.amount} notify=${body.total_amount}）`,
+      );
+      return res.send({ result: 1, errMsg: "amount mismatch" } satisfies PayNotifyResponse);
+    }
+  }
+  // 修复（2026-09-09）：real 模式必须验签（config.pay.notifySecret / wechat.apiKey /
+  // alipay.privateKey）；未配置密钥或签名不匹配一律拒绝。fake 模式（私服默认）保持可用。
+  if (payMode() === "real" && !verifyNotifySign(String(body.sign ?? ""), orderId, order.amount)) {
+    logger.warn("pay", `notify 拒绝：验签失败（${orderId}）`);
+    return res.send({ result: 1, errMsg: "invalid sign" } satisfies PayNotifyResponse);
+  }
+  const ok = markPaid(orderId) !== null;
   // 支付宝 notify 期望纯文本 "success"；此处统一 JSON（私服内部使用）
   res.send({
     result: ok ? 0 : 1,

@@ -49,6 +49,29 @@ import {
   VoucherItemDetailResponse,
 } from "./depot";
 
+/**
+ * 校验凭证持有量（consumable 实例）
+ *
+ * 修复（2026-09-09）：原实现不校验持有量——凭证实例不存在或数量不足时，
+ * `items:use` 的消耗分支只 warn 跳过，随后仍照常发放奖励（可零成本刷任意凭证奖励）。
+ * @param player - 玩家管理器
+ * @param itemId - 凭证物品 id
+ * @param instId - consumable 实例 id（客户端传入）
+ * @param count - 本次需要的数量
+ * @returns 是否持有足量
+ */
+function hasVoucherStock(
+  player: PlayerDataManager,
+  itemId: string,
+  instId: unknown,
+  count: number,
+): boolean {
+  const entry = ((player as any)?._playerdata?.consumable as any)?.[itemId]?.[
+    Number(instId)
+  ];
+  return !!entry && (entry.count ?? 0) >= count;
+}
+
 /** 凭证信息接口（对应 voucher.json 中的数据结构） */
 interface VoucherInfo {
   /** 凭证类型（如 CHAR_VOUCHER、MATERIAL_VOUCHER） */
@@ -289,6 +312,14 @@ router.post("/useCharGachaVoucher", validateBody(useCharGachaVoucherSchema), asy
     );
     return res.send({ ...player.delta } satisfies UseCharGachaVoucherResponse);
   }
+  // 修复（2026-09-09）：消耗前校验持有量（原实现实例缺失时消耗被跳过但仍发干员）
+  if (!hasVoucherStock(player, itemId, instId, 1)) {
+    logger.warn(
+      "depot",
+      `useCharGachaVoucher ${itemId}#${instId} 持有不足，拒绝发放`,
+    );
+    return res.send({ ...player.delta } satisfies UseCharGachaVoucherResponse);
+  }
   // 消耗凭证物品（consumable 类型，需要 instId 定位具体实例）
   await player._trigger.emit("items:use", [
     [
@@ -322,7 +353,21 @@ router.post("/useCharGachaVoucher", validateBody(useCharGachaVoucherSchema), asy
 router.post("/useMaterialVoucher", validateBody(useMaterialVoucherSchema), async (req, res) => {
   const player = getPlayer();
   const { itemId, instId, count } = req.body as UseMaterialVoucherRequest;
-  const useCount = count || 1;
+  const useCount = count ?? 1;
+  // 修复（2026-09-09）：count 必须为正整数 —— 原实现 `count || 1` 直接透传负数，而
+  // items:use 对负数走「反向入账」分支（inventory._useItem 的非 consumable 类型分支
+  // emit items:get，count: -item.count），配合 canConsume 的 Math.abs 校验（凑够
+  // abs(count) 即可通过）即可**凭空复制凭证**：持有 ≥5 张时传 count=-5 会净赚 5 张。
+  if (!Number.isInteger(useCount) || useCount <= 0) {
+    logger.warn(
+      "depot",
+      `useMaterialVoucher 非法 count=${count}（itemId=${itemId}），拒绝`,
+    );
+    return res.send({
+      itemGet: [],
+      ...player.delta,
+    } satisfies UseMaterialVoucherResponse);
+  }
   // 修复：材料池为空时不再消耗凭证（原实现先扣证后 findRelatedItems 可能为空 →
   // 凭证白扣无发放，数据丢失；与 useCharGachaVoucher 的防白扣守卫一致）
   const relatedItems = VoucherDataManager.findRelatedItems(itemId);
@@ -330,6 +375,17 @@ router.post("/useMaterialVoucher", validateBody(useMaterialVoucherSchema), async
     logger.warn(
       "depot",
       `useMaterialVoucher ${itemId} 无材料池数据，跳过消耗（防凭证白扣）`,
+    );
+    return res.send({
+      itemGet: [],
+      ...player.delta,
+    } satisfies UseMaterialVoucherResponse);
+  }
+  // 修复（2026-09-09）：消耗前校验持有量（原实现实例缺失时消耗被跳过但仍发材料）
+  if (!hasVoucherStock(player, itemId, instId, useCount)) {
+    logger.warn(
+      "depot",
+      `useMaterialVoucher ${itemId}#${instId} 持有不足（需 ${useCount}），拒绝发放`,
     );
     return res.send({
       itemGet: [],
@@ -439,6 +495,15 @@ router.post("/useOptionVoucher", validateBody(useOptionVoucherSchema), async (re
     } satisfies UseOptionalVoucherResponse);
   }
   const voucherInfo = VoucherDataManager.getVoucher(itemId);
+  // 修复（2026-09-09）：凭证数据缺失时白名单校验整段被跳过 → 任意 itemId 均可发任意
+  // 物品（含源石）。凭证必须存在于凭证表且带可选项列表，否则拒绝。
+  if (!voucherInfo) {
+    logger.warn("depot", `useOptionVoucher ${itemId} 不在凭证表，拒绝发放`);
+    return res.send({
+      itemGet: [],
+      ...player.delta,
+    } satisfies UseOptionalVoucherResponse);
+  }
   const allowedIds = new Set((voucherInfo?.itemList ?? []).map((i) => i.id));
   if (allowedIds.size > 0) {
     const bad = choices.filter((c) => !allowedIds.has(c.id));
@@ -449,6 +514,17 @@ router.post("/useOptionVoucher", validateBody(useOptionVoucherSchema), async (re
         ...player.delta,
       } satisfies UseOptionalVoucherResponse);
     }
+  }
+  // 修复（2026-09-09）：消耗前校验持有量——原实现凭证实例不存在时消耗被静默跳过但仍发放
+  if (!hasVoucherStock(player, itemId, instId, consumeCount)) {
+    logger.warn(
+      "depot",
+      `useOptionVoucher ${itemId}#${instId} 持有不足（需 ${consumeCount}），拒绝发放`,
+    );
+    return res.send({
+      itemGet: [],
+      ...player.delta,
+    } satisfies UseOptionalVoucherResponse);
   }
   // 消耗凭证物品
   await player._trigger.emit("items:use", [

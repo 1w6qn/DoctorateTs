@@ -136,6 +136,30 @@ describe("templateShop 路由", () => {
     );
   });
 
+  // Round 23：跨档计价修复（原实现取单档价再 ×count，跳过中间档位）
+  it("buyGood PROGRESS 一次买多档：按逐档价格计费并逐档发放", async () => {
+    player._playerdata.activity.TYPE_ACT53SIDE.act53side.actCoin = 99999;
+    await call("/buyGood", { shopId: "shop_act53side", goodId: "act53side_1", count: 2 });
+    const send = res.send.mock.calls[0][0];
+    // char_tmslot_progress 档位价 = [200, 240, 280, 320, 360] → 前两档 440（旧实现 200×2=400）
+    expect(player._playerdata.activity.TYPE_ACT53SIDE.act53side.actCoin).toBe(99999 - 440);
+    expect(send.itemList).toEqual([
+      { id: "p_char_4236_tmslot", type: "MATERIAL", count: 1 },
+      { id: "p_char_4236_tmslot", type: "MATERIAL", count: 1 },
+    ]);
+    expect(player._playerdata.tshop["shop_act53side"].progressInfo).toEqual({
+      char_tmslot_progress: { order: 3, count: 0 },
+    });
+  });
+
+  it("buyGood PROGRESS 超出剩余档位时整单拒绝（不扣币不发放）", async () => {
+    player._playerdata.activity.TYPE_ACT53SIDE.act53side.actCoin = 99999;
+    await call("/buyGood", { shopId: "shop_act53side", goodId: "act53side_1", count: 6 }); // 仅 5 档
+    const send = res.send.mock.calls[0][0];
+    expect(send.itemList).toEqual([]);
+    expect(player._playerdata.activity.TYPE_ACT53SIDE.act53side.actCoin).toBe(99999);
+  });
+
   it("buyGood PROGRESS 商品应写入 progressInfo（阶段显示随购买推进）", async () => {
     // 修复：原漏写 progressInfo，购买后阶段显示不更新
     player._playerdata.activity.TYPE_ACT53SIDE.act53side.actCoin = 99999;

@@ -200,6 +200,8 @@ router.post("/buyGood", validateBody(templateBuyGoodSchema), async (req, res) =>
   if (good) {
     /** 本次扣币总额（recipe 内计算，块级承接——event ActivityCoinCost 用） */
     let costSpent = 0;
+    /** PROGRESS 商品逐档发放的物品（非空时取代单一 grant 的 count 倍发放） */
+    let boughtTierItems: any[] = [];
     // 修复：限购/余额不足拒绝——update 透传 recipe 返回值标记失败，响应 result:1
     const rejected = await player.update(async (draft): Promise<boolean> => {
       const st = ensureShopState(draft, shopId);
@@ -214,29 +216,38 @@ router.post("/buyGood", validateBody(templateBuyGoodSchema), async (req, res) =>
       }
       // PROGRESS 商品：价格与发放物按档位（progressGoods[progressGoodId][bought]）
       let price = good.price ?? 0;
-      let grant = good.item;
+      let grantCount = count;
+      const grant = good.item;
       if (good.goodType === "PROGRESS" && good.progressGoodId) {
+        // 修复（2026-09-09）：原实现只取**单档**价再 ×count —— 一次买 N 件时把第 1 档价格
+        // 复制了 N 份、却只推进 1 档（后续更贵档位被跳过），即「跨档按单档价 ×count」。
+        // 现按官方语义逐档计价：第 i 件取 `tiers[bought + i]` 的价格与物品，任一档缺失即整单拒绝。
         const tiers = group?.progressGoods?.[good.progressGoodId] ?? [];
-        const tier = tiers[bought];
-        if (!tier) return true; // 已购完所有档位
-        price = tier.price ?? 0;
-        grant = tier.item;
-        // 修复：写入 progressInfo（客户端据此显示阶段性物品的当前档位——原实现漏写，
-        // 购买后阶段始终停在第 1 档不更新）。order 存下一次将购的档位序号（1 起，
-        // 对齐 HS/CLASSIC 进度商品形状）；全部档位购完后 count 累计超出次数。
+        let totalPrice = 0;
+        const tierItems: any[] = [];
+        for (let i = 0; i < count; i++) {
+          const tier = tiers[bought + i];
+          if (!tier) return true; // 超出可得档位 → 整单拒绝
+          totalPrice += tier.price ?? 0;
+          if (tier.item) tierItems.push(tier.item);
+        }
+        price = totalPrice;
+        grantCount = 1; // 逐档物品已在 tierItems 中，不再按 count 倍数发放
+        // 写入 progressInfo（客户端据此显示阶段性物品的当前档位）。order 存下一次将购的
+        // 档位序号（1 起，对齐 HS/CLASSIC 进度商品形状）；全部档位购完后 count 累计超出次数。
         const prog = st.progressInfo[good.progressGoodId] ?? { order: 1, count: 0 };
-        if (prog.order < tiers.length) {
-          prog.order += 1;
-        } else {
-          prog.count += 1;
+        for (let i = 0; i < count; i++) {
+          if (prog.order < tiers.length) prog.order += 1;
+          else prog.count += 1;
         }
         st.progressInfo[good.progressGoodId] = prog;
+        boughtTierItems = tierItems;
       }
       // 扣货币（活动币引用优先，其余走 tshop.coin；不足则不发放）
       const have = coinRef ? coinRef.coin : st.coin;
-      if (have < price * count) return true;
-      const remain = have - price * count;
-      costSpent = price * count;
+      if (have < price * grantCount) return true;
+      const remain = have - price * grantCount;
+      costSpent = price * grantCount;
       if (coinRef) coinRef.set(remain);
       st.coin = remain;
       // 记录购买
@@ -246,7 +257,16 @@ router.post("/buyGood", validateBody(templateBuyGoodSchema), async (req, res) =>
         st.info.push({ id: goodId, count: bought + count });
       }
       // 发放商品（CHAR_SKIN 等经 items:get 正确入账）
-      if (grant) {
+      if (boughtTierItems.length > 0) {
+        // PROGRESS：逐档物品各发一份
+        for (const it of boughtTierItems) {
+          items.push({
+            id: it.id ?? goodId,
+            type: it.type ?? "MATERIAL",
+            count: it.count ?? 1,
+          });
+        }
+      } else if (grant) {
         items.push({
           id: grant.id ?? goodId,
           type: grant.type ?? "MATERIAL",

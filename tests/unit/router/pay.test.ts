@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { createHmac } from "node:crypto";
 
 vi.mock("express-http-context2", () => ({
   default: { get: vi.fn(), set: vi.fn() },
@@ -117,12 +118,20 @@ describe("pay 路由（完整支付流程 + fake/real 模式）", () => {
     expect(orderStore[0].status).toBe("created");
   });
 
-  it("real 模式：notify 回调标记 paid 后 confirmOrder 发货", async () => {
-    (config as any).pay = { mode: "real" };
+  it("real 模式：notify 回调（验签+金额一致）标记 paid 后 confirmOrder 发货", async () => {
+    (config as any).pay = { mode: "real", notifySecret: "test-secret" };
     await call("/createOrder", { storeId: 49, goodId: "CS_1" });
     const orderId = res.send.mock.calls[0][0].orderId;
-    // 渠道异步回调
-    await call("/notify", { out_trade_no: orderId, trade_status: "TRADE_SUCCESS" });
+    // 渠道异步回调：签名 = HMAC-SHA256(`${orderId}|${amountCents}`, secret)
+    const sign = createHmac("sha256", "test-secret")
+      .update(`${orderId}|600`)
+      .digest("hex");
+    await call("/notify", {
+      out_trade_no: orderId,
+      trade_status: "TRADE_SUCCESS",
+      sign,
+      total_amount: "6.00",
+    });
     expect(orderStore[0].status).toBe("paid");
     await call("/confirmOrder", { orderId, enterTs: 0 });
     const sent = res.send.mock.calls[2][0];
@@ -137,6 +146,44 @@ describe("pay 路由（完整支付流程 + fake/real 模式）", () => {
     await call("/getUnconfirmedOrderIdList", {});
     const sent = res.send.mock.calls[1][0];
     expect(sent.orderIdList).toContain(orderId);
+  });
+
+  it("real 模式：notify 未验签应拒绝（订单保持 created）", async () => {
+    (config as any).pay = { mode: "real", notifySecret: "test-secret" };
+    await call("/createOrder", { storeId: 49, goodId: "CS_1" });
+    const orderId = res.send.mock.calls[0][0].orderId;
+    await call("/notify", { out_trade_no: orderId, trade_status: "TRADE_SUCCESS" });
+    expect(orderStore[0].status).toBe("created");
+  });
+
+  it("real 模式：notify 金额不符应拒绝", async () => {
+    (config as any).pay = { mode: "real", notifySecret: "test-secret" };
+    await call("/createOrder", { storeId: 49, goodId: "CS_1" });
+    const orderId = res.send.mock.calls[0][0].orderId;
+    const sign = createHmac("sha256", "test-secret")
+      .update(`${orderId}|600`)
+      .digest("hex");
+    await call("/notify", {
+      out_trade_no: orderId,
+      trade_status: "TRADE_SUCCESS",
+      sign,
+      total_amount: "1.00", // 与订单 600 分不符
+    });
+    expect(orderStore[0].status).toBe("created");
+  });
+
+  it("createOrder：goodId 与 storeId 不匹配应拒绝且不建单", async () => {
+    await call("/createOrder", { storeId: 49, goodId: "GP_gW_10_W_1" });
+    const sent = res.send.mock.calls[0][0];
+    expect(sent.result).toBe(1);
+    expect(orderStore).toHaveLength(0);
+  });
+
+  it("createOrder：未知 storeId 应拒绝且不建单", async () => {
+    await call("/createOrder", { storeId: 9999, goodId: "CS_1" });
+    const sent = res.send.mock.calls[0][0];
+    expect(sent.result).toBe(1);
+    expect(orderStore).toHaveLength(0);
   });
 
   it("GP_ 无发放配置订单 confirmOrder 拒绝（不误标已购）", async () => {

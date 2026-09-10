@@ -126,7 +126,12 @@ describe("depot 路由", () => {
 
   it("useMaterialVoucher 有池时应扣凭证并发放材料", async () => {
     const emit = vi.fn();
-    (vi.mocked(httpContext.get) as any).mockReturnValue({ delta: {}, _trigger: { emit } });
+    (vi.mocked(httpContext.get) as any).mockReturnValue({
+      delta: {},
+      _trigger: { emit },
+      // 修复：使用凭证前需持有足量 consumable 实例
+      _playerdata: { consumable: { voucher_mat_1: { 1: { count: 2 } } } },
+    });
     const res = mockRes();
     await call(
       { method: "POST", url: "/useMaterialVoucher", body: { itemId: "voucher_mat_1", instId: 1, count: 2 } },
@@ -135,6 +140,41 @@ describe("depot 路由", () => {
     const arg = res.send.mock.calls[0][0];
     expect(arg.itemGet).toHaveLength(2);
     expect(emit).toHaveBeenCalledWith("items:use", [[{ id: "voucher_mat_1", count: 2, instId: 1 }]]);
+  });
+
+  // 修复（2026-09-09）：count 必须为正整数 —— 原实现 `count || 1` 直接透传负数，
+  // 而 items:use 对负数走反向入账分支（items:get 发放 -count 个）→ 凭空复制凭证。
+  it("useMaterialVoucher 负数 count 应拒绝（防凭证复制）", async () => {
+    const emit = vi.fn();
+    (vi.mocked(httpContext.get) as any).mockReturnValue({
+      delta: {},
+      _trigger: { emit },
+      _playerdata: { consumable: { voucher_mat_1: { 1: { count: 5 } } } },
+    });
+    const res = mockRes();
+    await call(
+      { method: "POST", url: "/useMaterialVoucher", body: { itemId: "voucher_mat_1", instId: 1, count: -5 } },
+      res,
+    );
+    expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ itemGet: [] }));
+    // 全程无消耗、无发放（原实现会 emit items:use(count:-5) → 反向发放 5 张）
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it("useMaterialVoucher 非整数 count（1.5）应拒绝", async () => {
+    const emit = vi.fn();
+    (vi.mocked(httpContext.get) as any).mockReturnValue({
+      delta: {},
+      _trigger: { emit },
+      _playerdata: { consumable: { voucher_mat_1: { 1: { count: 5 } } } },
+    });
+    const res = mockRes();
+    await call(
+      { method: "POST", url: "/useMaterialVoucher", body: { itemId: "voucher_mat_1", instId: 1, count: 1.5 } },
+      res,
+    );
+    expect(res.send).toHaveBeenCalledWith(expect.objectContaining({ itemGet: [] }));
+    expect(emit).not.toHaveBeenCalled();
   });
 
   it("useOptionVoucher 非法 choices（负数/不在凭证列表）应拒绝发放", async () => {
@@ -159,7 +199,12 @@ describe("depot 路由", () => {
 
   it("useOptionVoucher 合法 choices 应消耗并发放", async () => {
     const emit = vi.fn();
-    (vi.mocked(httpContext.get) as any).mockReturnValue({ delta: {}, _trigger: { emit } });
+    (vi.mocked(httpContext.get) as any).mockReturnValue({
+      delta: {},
+      _trigger: { emit },
+      // 修复：使用凭证前需持有足量 consumable 实例
+      _playerdata: { consumable: { voucher_pick_1: { 1: { count: 1 } } } },
+    });
     const res = mockRes();
     await call(
       { method: "POST", url: "/useOptionVoucher", body: { itemId: "voucher_pick_1", instId: 1, choices: [{ id: "char_001", count: 1 }] } },

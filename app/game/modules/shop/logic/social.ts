@@ -18,9 +18,9 @@ import { random } from "../../../kernel/util/random";
    */
 export async function dailyRefresh(mgr: ShopManager) {
     await mgr._player.update(async (draft) => {
-      // 修复：兜底 shop.LS 缺失（官服迁移数据 shop 可能为空对象 → 原直接访问 .info 500）
-      const ls = mgr._shopDraft(draft, "LS");
-      ls.info = [];
+      // 修复（2026-09-09）：资质凭证区（LS）**不是**每日重置的商店——旧实现每天清
+      // `LS.info`（购买记录），与官服「每月 1 日 04:00 重置」不符；月度重置保留在
+      // monthlyRefresh（logic/fes.ts）。此处仅保留信用商店（SOCIAL）的每日刷新。
       // 信用商店按当天日期重置（curShopId 对齐 buildSocialGoodList 的 goodId 前缀）
       if (draft.shop.SOCIAL) {
         draft.shop.SOCIAL.curShopId = mgr.todaySocialShopId();
@@ -345,6 +345,15 @@ export async function buySocialGood(mgr: ShopManager, args: {
       type: good.item.type,
     };
     const granted = await mgr._issueCharItem(item);
+    // 修复（2026-09-09，审计 §6.2-17 后半）：信用交易所购买**从不 emit BuyShopItem**
+    // —— LS/HS/ES（low-high.ts）与 CLASSIC（fes.ts）都有，唯独 SOCIAL 漏了。
+    // 任务模板 BuyShopItem 的分支 1 正是「在信用商店中购买任意商品 1 次」
+    // （args.type == "SOCIAL" → +1），当前数据表 27 条任务用该分支
+    // （guide_33 + daily_4816/4916/…/5716，每个每日任务组各一条）→ 这些任务此前永不完成。
+    // 分支 3 按 args.socialPoint 累计信用消费额，故一并携带本次实付价格。
+    await mgr._trigger.emit("BuyShopItem", [
+      { type: "SOCIAL", socialPoint: price },
+    ]);
     return [granted];
 }
 
@@ -352,8 +361,14 @@ export async function buySocialGood(mgr: ShopManager, args: {
    * 手动刷新信用交易所（服务器指令入口）
    *
    * 自动刷新已由 dailyRefresh（每天 04:00 refresh:daily 事件）承担；此方法供管理端
-   * 指令手动触发同一逻辑——重置低级商店/信用商店当日购买记录并更新信用商店 shopId。
+   * 指令手动触发——重置**低级商店（LS）与信用商店（SOCIAL）**购买记录并更新信用商店 shopId。
+   * 注（2026-09-09）：LS 的自动重置已移出 dailyRefresh（官服为月度重置），
+   * 但管理端手动刷新仍按原语义同时清空两者。
    */
 export async function refreshSocialShop(mgr: ShopManager) : Promise<void> {
     await mgr.dailyRefresh();
+    await mgr._player.update(async (draft) => {
+      const ls = mgr._shopDraft(draft, "LS");
+      ls.info = [];
+    });
 }

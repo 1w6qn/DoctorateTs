@@ -23,6 +23,11 @@ export async function monthlyRefresh(mgr: ShopManager) {
       ls.curShopId = mgr.todayLowShopId();
       ls.curGroupId = `${mgr.todayLowShopId()}_Group_1`;
       ls.info = [];
+      // 修复（2026-09-09）：高级凭证区（HS）月度商品同样应随月重置——HS 商品带真实
+      // `availCount` 限购（HighGoodList.json：1/4/30 等），而 `_assertAvail` 以 `HS.info`
+      // 的累计购买数判定，`HS.info` 从不清理 → 「阶梯一生只买一次」。
+      const hs = mgr._shopDraft(draft, "HS");
+      hs.info = [];
     });
 }
 

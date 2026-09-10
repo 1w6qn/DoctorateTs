@@ -1,4 +1,7 @@
-﻿# DoctorateTs 模块实现成熟度审计报告（2026-08-29）
+# DoctorateTs 模块实现成熟度审计报告（2026-08-29）
+
+> **后续（2026-09-09）**：prts.wiki 对照续篇见 `docs/prts-wiki-实现评估-2026-09-09.md`（耦合量化 + 约 90 条「与实际效果不符」清单 + P0/P1/P2 修复清单）。
+> 该续篇修订本报告 3 处结论：`social` 借出方 socialPoint 已实现（`battle.ts:824-830`）、`user` CG 已落盘（`user/cg-store.ts`）、`dungeon` 全关卡默认三星在运行时不成立（`stage:update` 无 emit）；并证伪「主线记录奖励未落地」（`recordRewardData` 为 null，空 items 与数据一致）。
 
 > 调查方式：全仓只读静态审计（未运行测试/构建/服务器），由 11 个并行子代理按模块族分工，结合四类证据：服务器代码、官服反编译 C# 源码（reference/arknights-2.7.61-csharp，21825 文件）、本地 excel 数据（data/excel，63 表 + data_version.txt，约 101MB）、官服抓包（tmp/capture，11614 条记录）。
 > 项目规模：app/ 约 139k LOC TS（core 3.5k / game 124k / ops 10.7k），scripts 12.6k，tests/unit 242 个测试文件（56.9k LOC）。服务器路由面：679 POST + 16 GET（63 个来源文件）。

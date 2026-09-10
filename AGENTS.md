@@ -75,4 +75,4 @@ Game-data update (`scripts/update-data.ts`) 调用官方热更管线 `scripts/of
 - Routes after `/campaignV2` in `app/game/app.ts` 404 on the real server (pre-existing issue).
 - Non-practice battle HTTP chain is incomplete (battleStart lacks battleId) — settlement covered by unit tests instead.
 - Social/friend data AND user account configs (UserConfig) live in SQLite `data/user/social.db` (runtime-generated, gitignored); `users.json` is now a first-run migration seed only.
-- Docs of record: `design-spec.md` (architecture + mission/medal/battle/building/migration internals), `api.md` (protocol), `docs/module-audit-2026-08-29.md` (模块成熟度审计，含抓包/反编译/excel 证据), `.trae/specs/` (feature specs, local).
+- Docs of record: `design-spec.md` (architecture + mission/medal/battle/building/migration internals), `api.md` (protocol), `docs/module-audit-2026-08-29.md` (模块成熟度审计，含抓包/反编译/excel 证据), `docs/prts-wiki-实现评估-2026-09-09.md` (prts.wiki 对照的耦合量化 + 「与实际效果不符」实现清单 + P0/P1/P2 修复清单，含复核记录与可复跑脚本), `.trae/specs/` (feature specs, local).

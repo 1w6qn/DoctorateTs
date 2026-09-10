@@ -204,6 +204,8 @@ function main() {
   let untouched = 0;
   let shown = 0;
   let protectedClasses = 0;
+  let protectedLoss = 0;
+  const lostSamples: { key: string; names: string[] }[] = [];
 
   for (const file of fs.readdirSync(SCHEMA_DIR).filter((f) => f.endsWith(".json"))) {
     const base = file.replace(/\.json$/, "");
@@ -234,9 +236,21 @@ function main() {
         const type = old && eqType(old.type, mapped) ? old.type : mapped;
         return { name, type, slot: 4 + 2 * i };
       });
-      // 安全阀：字段类型或子类无法解析（泛型实例化类等）→ 保留旧字段表，避免把数据解成 null
+      // 安全阀 1：字段类型或子类无法解析（泛型实例化类等）→ 保留旧字段表，避免把数据解成 null
       if (fieldCtx.size > 0) {
         protectedClasses++;
+        continue;
+      }
+      // 安全阀 2：重生成会丢掉旧字段（C# 运行时模型缺该字段，如 SkillData.unlockCond）→
+      // 保留旧字段表。丢字段比错位更危险：整片数据静默消失（skin_table 曾丢 30953 处）。
+      const lostFields = oldFields.filter(
+        (o) => !regenRaw.some((f) => f.name === o.name),
+      );
+      if (lostFields.length > 0) {
+        protectedLoss++;
+        if (!lostSamples.some((s) => s.key === key)) {
+          lostSamples.push({ key, names: lostFields.map((f) => f.name).slice(0, 6) });
+        }
         continue;
       }
       const regen = regenRaw;
@@ -273,6 +287,11 @@ function main() {
 
   console.log(`比对表类: ${checked}；有差异的表文件: ${changed.length}（无差异 ${untouched}）`);
   console.log(`因未解析类型而保留旧字段表的类: ${protectedClasses}`);
+  console.log(`因会丢失旧字段而保留旧字段表的类: ${protectedLoss}`);
+  if (lostSamples.length) {
+    console.log(`丢字段样例（前 ${Math.min(10, lostSamples.length)} 个）:`);
+    for (const s of lostSamples.slice(0, 10)) console.log(`  ${s.key} 丢: ${s.names.join(", ")}`);
+  }
   console.log(`差异统计: 新增字段 ${fieldDiffs} / slot 位移 ${slotDiffs} / 类型变化 ${typeDiffs}`);
   if (changed.length) console.log("差异表:", changed.join(", "));
   const slotTables = perTable.filter((t) => t.shifted > 0).sort((a, b) => b.shifted - a.shifted);

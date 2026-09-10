@@ -181,6 +181,7 @@ function main() {
   let checked = 0;
   let untouched = 0;
   let shown = 0;
+  let protectedClasses = 0;
 
   for (const file of fs.readdirSync(SCHEMA_DIR).filter((f) => f.endsWith(".json"))) {
     const base = file.replace(/\.json$/, "");
@@ -202,14 +203,21 @@ function main() {
       const fields = classes.get(full)!;
       const ctx = new Set<string>();
       const oldByName = new Map(oldFields.map((f) => [f.name, f]));
-      const regen = fields.map((f, i) => {
+      const fieldCtx = new Set<string>();
+      const regenRaw = fields.map((f, i) => {
         const name = pascal(f.name);
-        const mapped = mapType(f.type, ctx);
+        const mapped = mapType(f.type, fieldCtx);
         const old = oldByName.get(name);
         // int/enum 同义时保留旧 token（减少无谓 diff）
         const type = old && eqType(old.type, mapped) ? old.type : mapped;
         return { name, type, slot: 4 + 2 * i };
       });
+      // 安全阀：字段类型或子类无法解析（泛型实例化类等）→ 保留旧字段表，避免把数据解成 null
+      if (fieldCtx.size > 0) {
+        protectedClasses++;
+        continue;
+      }
+      const regen = regenRaw;
       checked++;
       const same =
         regen.length === oldFields.length &&
@@ -242,6 +250,7 @@ function main() {
   }
 
   console.log(`比对表类: ${checked}；有差异的表文件: ${changed.length}（无差异 ${untouched}）`);
+  console.log(`因未解析类型而保留旧字段表的类: ${protectedClasses}`);
   console.log(`差异统计: 新增字段 ${fieldDiffs} / slot 位移 ${slotDiffs} / 类型变化 ${typeDiffs}`);
   if (changed.length) console.log("差异表:", changed.join(", "));
   const slotTables = perTable.filter((t) => t.shifted > 0).sort((a, b) => b.shifted - a.shifted);

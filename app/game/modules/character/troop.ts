@@ -9,6 +9,7 @@ import {
 } from "./char-skills";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
+import { BadRequestError } from "../../kernel/http/errors";
 
 export class TroopManager {
   _trigger: TypedEventEmitter;
@@ -118,15 +119,21 @@ export class TroopManager {
    * 对照官服抓包（tmp/charBuild_addonStory_unlock_res_1107.json）：
    * 写入 addon.story + 同步发放对应勋章（medal_story_x，CharStoryUnlock 模板）。
    *
+   * 修复（2026-09-09）：原实现**零校验** —— 任意 charId/storyId 组合都能写入 `addon.story`
+   * 并白拿 384 枚 `CharStoryUnlock` 勋章。现按 `handbook_info_table.handbookDict[charId]
+   * .handbookAvgList[]`（`storySetId` / `unlockParam`）校验归属与解锁条件。
+   *
    * @param args.charId - 干员 ID
-   * @param args.storyId - 密录剧情 ID
+   * @param args.storyId - 密录剧情集 ID（`storySetId`，如 story_amgoat_set_1）
    * @returns 发放的勋章 ID（无对应勋章配置时返回 null，供 router 组装 medalFinish pushMessage）
+   * @throws BadRequestError 干员无该密录、未持有该干员、或未满足解锁条件
    */
   async addonStoryUnlock(args: {
     charId: string;
     storyId: string;
   }): Promise<string | null> {
     const { charId, storyId } = args;
+    this._assertAvgUnlockable(charId, storyId);
     let medalId: string | null = null;
     await this._player.update(async (draft) => {
       // 防御：addon 条目缺失（新干员/发放干员无密录基座）时先初始化，避免 500
@@ -161,6 +168,66 @@ export class TroopManager {
       }
     });
     return medalId;
+  }
+
+  /**
+   * 校验密录解锁条件（`handbookAvgList[].unlockParam`）
+   *
+   * 数据源：`handbook_info_table.handbookDict[charId].handbookAvgList[]`，每集含
+   * `storySetId` 与 `unlockParam[]`：
+   * - `AWAKE`：`unlockParam1` = 精英化阶段、`unlockParam2` = 等级（如精二 Lv60）
+   * - `FAVOR`：`unlockParam1` = 信赖值（0~200 显示值）——需经 `favor_table.favorFrames`
+   *   换算为存档内部 favorPoint（0~25570）后比较
+   * @param charId - 干员 id
+   * @param storyId - 密录剧情集 id
+   * @throws BadRequestError 归属或条件不符
+   */
+  private _assertAvgUnlockable(charId: string, storyId: string): void {
+    const sets: any[] =
+      (excel.HandbookInfoTable as any)?.handbookDict?.[charId]?.handbookAvgList ?? [];
+    const set = sets.find((s) => s?.storySetId === storyId);
+    if (!set) {
+      throw new BadRequestError(`干员 ${charId} 不存在密录 ${storyId}`);
+    }
+    const char = Object.values(this._player._playerdata.troop.chars).find(
+      (c) => c.charId === charId,
+    );
+    if (!char) {
+      throw new BadRequestError(`未持有干员 ${charId}，无法解锁密录 ${storyId}`);
+    }
+    for (const p of (set.unlockParam ?? []) as any[]) {
+      const type = String(p?.unlockType ?? "");
+      if (type === "AWAKE") {
+        const phase = Number(p.unlockParam1 ?? 0);
+        const level = Number(p.unlockParam2 ?? 0);
+        if ((char.evolvePhase ?? 0) < phase || (char.level ?? 0) < level) {
+          throw new BadRequestError(
+            `密录 ${storyId} 需精英化${phase} Lv${level}（当前精${char.evolvePhase} Lv${char.level}）`,
+          );
+        }
+      } else if (type === "FAVOR") {
+        const favor = Number(p.unlockParam1 ?? 0);
+        const need = this._favorPointFor(favor);
+        if ((char.favorPoint ?? 0) < need) {
+          throw new BadRequestError(
+            `密录 ${storyId} 需信赖 ${favor}（当前信赖点数 ${char.favorPoint ?? 0}/${need}）`,
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * 信赖显示值（0~200）→ 存档内部 favorPoint（favor_table.favorFrames）
+   * @param favor - unlockParam 给出的信赖值
+   * @returns 所需 favorPoint（表缺失时按 maxFavor/200 线性回退）
+   */
+  private _favorPointFor(favor: number): number {
+    const frames = ((excel.FavorTable as any)?.favorFrames ?? []) as any[];
+    const exact = frames.find((f) => Number(f?.data?.percent ?? -1) >= favor);
+    if (exact) return Number(exact.data?.favorPoint ?? 0);
+    const maxFavor = Number((excel.FavorTable as any)?.maxFavor ?? 25570);
+    return Math.ceil((favor / 200) * maxFavor);
   }
 
   async addonStageBattleStart(args: {

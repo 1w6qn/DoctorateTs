@@ -2,6 +2,7 @@ import { TypedEventEmitter } from "../../kernel/events/runtime";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { ItemBundle, ItemType } from "@excel/excel";
 import excel from "@excel/excel";
+import { newlyCompletedPowers } from "./team-power";
 import { GachaResult } from "../gacha/gacha";
 import { now } from "@utils/time";
 import { logger } from "@utils/logger";
@@ -259,6 +260,20 @@ export class CharManager {
       // 限时获得干员勋章（GotCharsBeforeTime）—— 活动期间获得指定干员（模板按
       // unlockParam charId + 结束时间过滤，越界/非目标干员不推进）
       await this._trigger.emit("GotCharsBeforeTime", [{ charId }]);
+      // 修复（2026-09-09，S2）：势力全员收集任务（GainTeamChar，guide_43/guide_48）——
+      // 仅在「新干员」时判定，避免重复获得干员时对已完成的势力重复计数。
+      if (isNew) {
+        const owned = new Set(
+          Object.values(this._player._playerdata.troop.chars).map(
+            (c) => c.charId,
+          ),
+        );
+        owned.add(charId);
+        for (const teamId of newlyCompletedPowers(owned, charId)) {
+          logger.info("CharManager", `势力 ${teamId} 全员收集达成`);
+          await this._trigger.emit("GainTeamChar", [{ teamId }]);
+        }
+      }
     }
     const res = {
       charInstId: charInstId,
@@ -360,6 +375,17 @@ export class CharManager {
           `目标相位 ${destEvolvePhase} 非法（当前精${char.evolvePhase}，最高精${phases.length - 1}）`,
         );
       }
+      // 修复（2026-09-09）：精英化需当前阶段满级（prts《精英化》；gamedata_const.maxLevel
+      // 按 [稀有度][当前相位]，如 6★ 精0=50、精1=80、精2=90）——原实现只校验目标相位更高，
+      // 改包/构造请求即可把 1 级干员直接精二。
+      const maxLevelRow = (excel.GameDataConst as { maxLevel?: number[][] })
+        .maxLevel;
+      const phaseCap = maxLevelRow?.[rarityToIndex(info.rarity)]?.[char.evolvePhase];
+      if (typeof phaseCap === "number" && phaseCap > 0 && (char.level ?? 0) < phaseCap) {
+        throw new BadRequestError(
+          `干员 ${char.charId} 未满级（当前 ${char.level}/${phaseCap}），无法精英化`,
+        );
+      }
       const phaseConfig = phases[destEvolvePhase] as {
         evolveCost?: ItemBundle[] | null;
       } | undefined;
@@ -388,6 +414,11 @@ export class CharManager {
       char.exp = 0;
       // 修复：勋章 CharEvolveCount 事件从未 emit → 精英化勋章永不推进
       await this._trigger.emit("CharEvolveCount", [{ char }]);
+      // 修复（2026-09-09，审计 §5.3）：CharEvolvePhase（特勤干员精二章，2 枚）此前既无
+      // emit 方、模板目标位又取错下标（param[0] 是 charId）→ 恒不可得。现派发干员 id + 阶段。
+      await this._trigger.emit("CharEvolvePhase", [
+        { charId: char.charId, phase: destEvolvePhase },
+      ]);
       // 技能：精英化后按官服线格式校正 unlock（如 E1 解锁技能2、E2 解锁技能3），保留已有技能状态
       reconcileCharSkills(char);
       // 修复：精二后校正当前目标相位范围内干员的模组状态——按 showEvolvePhase
@@ -939,6 +970,9 @@ export class CharManager {
       skill.state = 0;
       skill.completeUpgradeTime = -1;
       await this._trigger.emit("UpgradeSpecialization", [{ targetLevel }]);
+      // 修复（2026-09-09，审计 §5.3）：CharSkillSpecCount（技能精熟奖章 I–IX，9 枚）模板已
+      // 实现（按 targetLevel >= param[1] 计数），但全仓无同名事件派发 → 全部不可得。
+      await this._trigger.emit("CharSkillSpecCount", [{ targetLevel }]);
     });
   }
 
@@ -1020,6 +1054,10 @@ export class CharManager {
       reconcileCharEquips(char);
       await this._useItems([{ id: itemId, count: 1, instId } as any]);
       await this._trigger.emit("CharEvolveCount", [{ char }]);
+      // 修复（2026-09-09，审计 §5.3）：精二直升券同样应推进 CharEvolvePhase（特勤干员精二章）
+      await this._trigger.emit("CharEvolvePhase", [
+        { charId: char.charId, phase: 2 },
+      ]);
       await this._trigger.emit("EvolveChar", [{ char }]);
     });
   }
@@ -1085,6 +1123,8 @@ export class CharManager {
       skill.completeUpgradeTime = -1;
       await this._useItems([{ id: itemId, count: 1, instId } as any]);
       await this._trigger.emit("UpgradeSpecialization", [{ targetLevel: 3 }]);
+      // 修复（2026-09-09，审计 §5.3）：专精直升券（VOUCHER_SKILL_SPECIALLEVELMAX_*）同样计数
+      await this._trigger.emit("CharSkillSpecCount", [{ targetLevel: 3 }]);
     });
   }
 }

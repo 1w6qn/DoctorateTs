@@ -423,6 +423,24 @@ describe("CharManager", () => {
       expect(dexChar.charInstId).toBe(0);
     });
 
+    it("新干员创建后应 emit char:init（基建侧据此建档），重复干员不派发", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      const emitSpy = vi.spyOn(mockTrigger, "emit");
+      mockPlayer._playerdata.dexNav!.character = {};
+      mockPlayer._playerdata.troop!.curCharInstId = 0;
+      await manager.onCharGet(["char_001", { from: "NORMAL" }]);
+      // 修复（2026-09-09，审计 §6.3-27）：该 emit 自建仓起就存在，但基建侧订阅的是
+      // 从未派发的 "building:char:init" → 新干员在 building.chars 永不建档。
+      // 此处固化「新干员必派发 char:init」的契约，防止回归。
+      const call = emitSpy.mock.calls.find((c) => c[0] === "char:init");
+      expect(call).toBeTruthy();
+      expect((call as any[])[1][0].charId).toBe("char_001");
+      // 重复干员（已在 roster）不派发 char:init
+      emitSpy.mockClear();
+      await manager.onCharGet(["char_001", { from: "NORMAL" }]);
+      expect(emitSpy.mock.calls.find((c) => c[0] === "char:init")).toBeFalsy();
+    });
+
     it("重复且未满潜干员应返回 potent {delta, now}", async () => {
       const manager = new CharManager(mockPlayer as any, mockTrigger as any);
       // char_001 已在 mock 中（potentialRank 0，maxPotentialLevel 5）
@@ -485,6 +503,8 @@ describe("CharManager", () => {
       mockPlayer._playerdata.troop!.curCharInstId = 0;
       const result = await manager.onCharGet(["char_002", { from: "NORMAL" }]);
       const charInstId = result.charInstId as number;
+      // 修复（2026-09-09）：精英化需当前阶段满级（maxLevel[rarity][phase]=50）
+      mockPlayer._playerdata.troop!.chars[charInstId].level = 50;
       // 精1 解锁技能2；技能1 专精状态保留；技能3 仍是 unlock:0 占位
       await manager.evolveChar({ charInstId, destEvolvePhase: 1 });
       let ch = mockPlayer._playerdata.troop!.chars[charInstId];
@@ -496,7 +516,8 @@ describe("CharManager", () => {
       ]);
       expect(ch.skills[1].unlock).toBe(1);
       expect(ch.skills[2].unlock).toBe(0);
-      // 精2 解锁技能3
+      // 精2 解锁技能3（精英化后等级重置为 1，需重新补满）
+      mockPlayer._playerdata.troop!.chars[charInstId].level = 50;
       await manager.evolveChar({ charInstId, destEvolvePhase: 2 });
       ch = mockPlayer._playerdata.troop!.chars[charInstId];
       expect(ch.skills.map((s) => s.skillId)).toEqual([
@@ -534,6 +555,8 @@ describe("CharManager", () => {
       ]);
       expect(ch.skills[1].unlock).toBe(0);
       expect(ch.defaultSkillIndex).toBe(0);
+      // 修复（2026-09-09）：精英化需当前阶段满级 → 先补满等级
+      mockPlayer._playerdata.troop!.chars[1001].level = 50;
       // 精1 后解锁技能2
       await manager.evolveChar({ charInstId: 1001, destEvolvePhase: 1 });
       const ch1 = mockPlayer._playerdata.troop!.chars[1001];
@@ -587,6 +610,8 @@ describe("CharManager", () => {
       expect(ch.skills[0].state).toBe(0);
       expect(ch.skills[0].completeUpgradeTime).toBe(-1);
       expect(emitSpy).toHaveBeenCalledWith("UpgradeSpecialization", [{ targetLevel: 1 }]);
+      // 修复（2026-09-09，审计 §5.3）：CharSkillSpecCount（技能精熟奖章）此前无 emit 方
+      expect(emitSpy).toHaveBeenCalledWith("CharSkillSpecCount", [{ targetLevel: 1 }]);
     });
 
     it("专精需逐级提升（目标必须为当前+1，防跳级少扣材料）", async () => {
@@ -667,7 +692,8 @@ describe("CharManager", () => {
       await expect(manager.upgradeSkill({ charInstId, targetLevel: 4 })).rejects.toThrow(
         "精英化2",
       );
-      // 精2 后可正常升至 4 级
+      // 精2 后可正常升至 4 级（先补满等级：精英化需当前阶段满级）
+      mockPlayer._playerdata.troop!.chars[charInstId].level = 50;
       await manager.evolveChar({ charInstId, destEvolvePhase: 2 });
       await manager.upgradeSkill({ charInstId, targetLevel: 4 });
       expect(mockPlayer._playerdata.troop!.chars[charInstId].mainSkillLvl).toBe(4);
@@ -718,6 +744,10 @@ describe("CharManager", () => {
       expect(ch.skills[2].unlock).toBe(1); // 精二解锁技能3
       expect(emitSpy).toHaveBeenCalledWith("CharEvolveCount", [{ char: ch }]);
       expect(emitSpy).toHaveBeenCalledWith("EvolveChar", [{ char: ch }]);
+      // 修复（2026-09-09，审计 §5.3）：CharEvolvePhase（特勤干员精二章）此前无 emit 方
+      expect(emitSpy).toHaveBeenCalledWith("CharEvolvePhase", [
+        { charId: "char_002", phase: 2 },
+      ]);
     });
 
     it("满级直升券应按当前精英化阶段提升等级", async () => {
@@ -793,6 +823,7 @@ describe("CharManager", () => {
     it("精一应扣精一档金币（evolveGoldCost[rarity][0]，非精二价）", async () => {
       // char_001 mock rarity=5（数字）→ rarityToIndex 直接返回 5 → index5=6星 [30000,180000]
       const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.troop!.chars[1001].level = 50; // 精英化需满级
       await manager.evolveChar({ charInstId: 1001, destEvolvePhase: 1 });
       expect(mockPlayer._playerdata.troop!.chars[1001].evolvePhase).toBe(1);
       expect(mockPlayer.gainItem.use).toHaveBeenCalled();
@@ -801,6 +832,7 @@ describe("CharManager", () => {
 
     it("精二应扣精二档金币（前端 destEvolvePhase=2 不再被拒，可正常精二）", async () => {
       const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.troop!.chars[1001].level = 50; // 精英化需满级
       await manager.evolveChar({ charInstId: 1001, destEvolvePhase: 2 });
       expect(mockPlayer._playerdata.troop!.chars[1001].evolvePhase).toBe(2);
       expect(mockPlayer.gainItem.use).toHaveBeenCalled();
@@ -809,6 +841,21 @@ describe("CharManager", () => {
   });
 
   describe("精英化错误路径（防静默失败）", () => {
+    it("未满级不应可精英化（修复：原实现 1 级可直接精二）", async () => {
+      const manager = new CharManager(mockPlayer as any, mockTrigger as any);
+      mockPlayer._playerdata.troop!.chars[1001].level = 1;
+      mockPlayer._playerdata.troop!.chars[1001].evolvePhase = 0;
+      await expect(
+        manager.evolveChar({ charInstId: 1001, destEvolvePhase: 1 }),
+      ).rejects.toThrow("未满级");
+      // 阶段未推进
+      expect(mockPlayer._playerdata.troop!.chars[1001].evolvePhase).toBe(0);
+      // 满级后放行
+      mockPlayer._playerdata.troop!.chars[1001].level = 50;
+      await manager.evolveChar({ charInstId: 1001, destEvolvePhase: 1 });
+      expect(mockPlayer._playerdata.troop!.chars[1001].evolvePhase).toBe(1);
+    });
+
     it("不存在的干员应抛业务错误", async () => {
       const manager = new CharManager(mockPlayer as any, mockTrigger as any);
       await expect(
@@ -900,6 +947,7 @@ describe("CharManager", () => {
       mockPlayer._playerdata.troop!.curCharInstId = 0;
       const res = await manager.onCharGet(["char_001", { from: "NORMAL" }]);
       const charInstId = res.charInstId as number;
+      mockPlayer._playerdata.troop!.chars[charInstId].level = 50; // 精英化需满级
       await manager.evolveChar({ charInstId, destEvolvePhase: 2 });
       const ch = mockPlayer._playerdata.troop!.chars[charInstId];
       expect(ch.evolvePhase).toBe(2);

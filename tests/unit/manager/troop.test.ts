@@ -75,6 +75,41 @@ vi.mock("@excel/excel", () => {
           },
         },
       },
+      // 干员密录表（Round 22：addonStoryUnlock 归属与解锁条件校验的数据源）
+      HandbookInfoTable: {
+        handbookDict: {
+          char_001: {
+            charID: "char_001",
+            handbookAvgList: [
+              {
+                storySetId: "story_001",
+                storySetName: "测试密录",
+                unlockParam: [
+                  { unlockType: "AWAKE", unlockParam1: "2", unlockParam2: "1" },
+                  { unlockType: "FAVOR", unlockParam1: "50" },
+                ],
+              },
+              // 无解锁条件、且无对应勋章的密录（用于「无勋章配置返回 null」用例）
+              { storySetId: "story_002", storySetName: "无勋章密录", unlockParam: [] },
+            ],
+          },
+          // 有密录配置但玩家未持有（「未持有干员」用例）
+          char_003: {
+            charID: "char_003",
+            handbookAvgList: [{ storySetId: "story_003", unlockParam: [] }],
+          },
+        },
+      },
+      // 信赖换算表（favorFrames：percent = 信赖显示值、favorPoint = 存档内部值）
+      // 实测锚点：信赖 50 → 2732、信赖 200 → 25570（非线性曲线）
+      FavorTable: {
+        maxFavor: 25570,
+        favorFrames: [
+          { level: 0, data: { favorPoint: 0, percent: 0 } },
+          { level: 2732, data: { favorPoint: 2732, percent: 50 } },
+          { level: 25570, data: { favorPoint: 25570, percent: 200 } },
+        ],
+      },
       // 勋章表:提供干员密录勋章（CharStoryUnlock 模板）配置
       MedalTable: {
         medalList: [
@@ -281,7 +316,16 @@ describe("TroopManager", () => {
   });
 
   describe("addonStoryUnlock", () => {
+    /** 让 char_001 满足 story_001 的解锁条件（精二 Lv1 + 信赖 50 = favorPoint 2732） */
+    function satisfyConditions() {
+      const c = mockPlayer._playerdata.troop!.chars[1001] as any;
+      c.evolvePhase = 2;
+      c.level = 1;
+      c.favorPoint = 2732;
+    }
+
     it("应该解锁指定干员的附加故事并记录时间戳", async () => {
+      satisfyConditions();
       const manager = new TroopManager(
         mockPlayer as any,
         mockTrigger as any
@@ -300,6 +344,7 @@ describe("TroopManager", () => {
     });
 
     it("应该同步发放密录对应勋章并返回勋章 ID（对照官服抓包）", async () => {
+      satisfyConditions();
       const manager = new TroopManager(
         mockPlayer as any,
         mockTrigger as any
@@ -320,18 +365,65 @@ describe("TroopManager", () => {
     });
 
     it("无对应勋章配置时返回 null 且不写勋章", async () => {
+      satisfyConditions();
       const manager = new TroopManager(
         mockPlayer as any,
         mockTrigger as any
       );
 
       const medalId = await manager.addonStoryUnlock({
-        charId: "char_unknown",
-        storyId: "story_unknown",
+        charId: "char_001",
+        storyId: "story_002",
       });
 
       expect(medalId).toBeNull();
       expect(mockPlayer._playerdata.medal).toBeUndefined();
+      expect(mockPlayer._playerdata.troop!.addon!.char_001.story.story_002).toBeDefined();
+    });
+
+    // ===== Round 22：零校验修复（原实现任意组合都能解锁并白拿 384 枚勋章）=====
+
+    it("归属校验：干员没有该密录时拒绝", async () => {
+      satisfyConditions();
+      const manager = new TroopManager(mockPlayer as any, mockTrigger as any);
+      await expect(
+        manager.addonStoryUnlock({ charId: "char_001", storyId: "story_401_not_exist" }),
+      ).rejects.toThrow(/不存在密录/);
+      expect(mockPlayer._playerdata.troop!.addon?.char_001?.story?.story_401_not_exist).toBeUndefined();
+      expect(mockPlayer._playerdata.medal).toBeUndefined();
+    });
+
+    it("归属校验：storyId 与 charId 不匹配（他人密录）时拒绝", async () => {
+      satisfyConditions();
+      const manager = new TroopManager(mockPlayer as any, mockTrigger as any);
+      await expect(
+        manager.addonStoryUnlock({ charId: "char_002", storyId: "story_001" }),
+      ).rejects.toThrow(/不存在密录/);
+    });
+
+    it("未持有该干员时拒绝", async () => {
+      const manager = new TroopManager(mockPlayer as any, mockTrigger as any);
+      await expect(
+        manager.addonStoryUnlock({ charId: "char_003", storyId: "story_003" }),
+      ).rejects.toThrow(/未持有干员/);
+    });
+
+    it("精英化/等级不满足时拒绝（story_001 需精二 Lv1）", async () => {
+      satisfyConditions();
+      (mockPlayer._playerdata.troop!.chars[1001] as any).evolvePhase = 1;
+      const manager = new TroopManager(mockPlayer as any, mockTrigger as any);
+      await expect(
+        manager.addonStoryUnlock({ charId: "char_001", storyId: "story_001" }),
+      ).rejects.toThrow(/需精英化2/);
+    });
+
+    it("信赖不足时拒绝（story_001 需信赖 50 = favorPoint 2732）", async () => {
+      satisfyConditions();
+      (mockPlayer._playerdata.troop!.chars[1001] as any).favorPoint = 2731;
+      const manager = new TroopManager(mockPlayer as any, mockTrigger as any);
+      await expect(
+        manager.addonStoryUnlock({ charId: "char_001", storyId: "story_001" }),
+      ).rejects.toThrow(/需信赖 50/);
     });
   });
 

@@ -13,6 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { logger } from "@utils/logger";
+import { excelFilePath } from "./excel-data-dir";
 
 /** data_version.txt 解析结果 */
 export interface DataVersionDescriptor {
@@ -127,7 +128,10 @@ export function verifyLoadedDataVersion(dataVersion?: string): DataVersionCheck 
   const fileVersion = (() => {
     try {
       return parseDataVersionFile(
-        fs.readFileSync("./data/excel/data_version.txt", "utf8"),
+        fs.readFileSync(
+          excelFilePath("./data/excel/data_version.txt"),
+          "utf8",
+        ),
       ).versionControl;
     } catch {
       return undefined;

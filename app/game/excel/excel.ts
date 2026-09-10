@@ -6,6 +6,7 @@
  */
 
 import { readJson, readJsonSync } from "@utils/file";
+import { excelFilePath } from "./excel-data-dir";
 import { logger } from "@utils/logger";
 import {
   ActivityTable,
@@ -303,49 +304,49 @@ export class Excel {
   private _handbookInfoTable?: HandbookInfoTable;
   get HandbookInfoTable(): HandbookInfoTable {
     return (this._handbookInfoTable ??= readJsonSync<HandbookInfoTable>(
-      "./data/excel/handbook_info_table.json",
+      excelFilePath("./data/excel/handbook_info_table.json"),
     ));
   }
 
   private _charWordTable?: CharWordTable;
   get CharWordTable(): CharWordTable {
     return (this._charWordTable ??= readJsonSync<CharWordTable>(
-      "./data/excel/charword_table.json",
+      excelFilePath("./data/excel/charword_table.json"),
     ));
   }
 
   private _enemyDatabase?: EnemyDatabase;
   get EnemyDatabase(): EnemyDatabase {
     return (this._enemyDatabase ??= readJsonSync<EnemyDatabase>(
-      "./data/excel/enemy_database.json",
+      excelFilePath("./data/excel/enemy_database.json"),
     ));
   }
 
   private _enemyHandbookLevelInfoTable?: EnemyHandbookLevelInfoData;
   get EnemyHandbookLevelInfoTable(): EnemyHandbookLevelInfoData {
     return (this._enemyHandbookLevelInfoTable ??= readJsonSync<EnemyHandbookLevelInfoData>(
-      "./data/excel/enemy_handbook_table.json",
+      excelFilePath("./data/excel/enemy_handbook_table.json"),
     ));
   }
 
   private _enemyHandbookRaceTable?: EnemyHandbookRaceData;
   get EnemyHandbookRaceTable(): EnemyHandbookRaceData {
     return (this._enemyHandbookRaceTable ??= readJsonSync<EnemyHandbookRaceData>(
-      "./data/excel/enemy_handbook_table.json",
+      excelFilePath("./data/excel/enemy_handbook_table.json"),
     ));
   }
 
   private _handbookTeamTable?: HandbookTeamData;
   get HandbookTeamTable(): HandbookTeamData {
     return (this._handbookTeamTable ??= readJsonSync<HandbookTeamData>(
-      "./data/excel/handbook_team_table.json",
+      excelFilePath("./data/excel/handbook_team_table.json"),
     ));
   }
 
   private _skillDataBundle?: SkillDataBundle;
   get SkillDataBundle(): SkillDataBundle {
     return (this._skillDataBundle ??= readJsonSync<SkillDataBundle>(
-      "./data/excel/skill_table.json",
+      excelFilePath("./data/excel/skill_table.json"),
     ));
   }
 
@@ -357,7 +358,7 @@ export class Excel {
    */
   private _clueData?: any;
   get ClueData(): any {
-    return (this._clueData ??= readJsonSync<any>("./data/excel/clue_data.json"));
+    return (this._clueData ??= readJsonSync<any>(excelFilePath("./data/excel/clue_data.json")));
   }
 
   /**
@@ -509,7 +510,9 @@ export class Excel {
     // 去重后的唯一路径：同一文件被多个 key 引用时只读取/解析一次，
     // 各 key 共享同一对象引用（只读数据表，共享安全）。
     const uniquePaths = [...new Set(loaders.map(([, path]) => path))];
-    const results = await Promise.all(uniquePaths.map((path) => readJson(path)));
+    const results = await Promise.all(
+      uniquePaths.map((path) => readJson(excelFilePath(path))),
+    );
     const byPath = new Map<string, object>();
     uniquePaths.forEach((path, i) => {
       byPath.set(path, results[i]);

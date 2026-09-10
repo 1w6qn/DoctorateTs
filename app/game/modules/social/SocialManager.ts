@@ -4,7 +4,6 @@ import { accountManager } from "../account/AccountManager";
 import { pickKeys, pickLoose } from "@utils/object";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
-import excel from "@excel/excel";
 import { NameCardMedalType, PlayerNameCardMisc } from "../../kernel/playerdata";
 import { domainLog } from "@utils/logger";
 
@@ -48,7 +47,7 @@ export class SocialManager {
       reward.comfortAmount = settleDormComfortCredit(draft);
       reward.canReceive = 1;
       // 数据缺失时兜底官方实测值（data/excel/gamedata_const.json → creditLimit = 300）
-      const limit = excel.GameDataConst?.creditLimit ?? 300;
+      const limit = this._player.excel.GameDataConst?.creditLimit ?? 300;
       const point = draft.status.socialPoint ?? 0;
       if (point > limit) draft.status.socialPoint = limit;
     });
@@ -229,13 +228,13 @@ export class SocialManager {
         } else {
           medalGroupId = "";
         }
-        const medalIdList = excel.MedalTable.medalTypeData[
+        const medalIdList = this._player.excel.MedalTable.medalTypeData[
           medalGroupId
         ].groupData.find((item) => item.groupId === templateGroup)!.medalId;
         // 修复：`medal.medalId in medalIdList` 在数组上测的是下标（恒 false）→
         // 进阶勋章永不加入模板；改为 includes 语义判断
         medalIdList.push(
-          ...excel.MedalTable.medalList
+          ...this._player.excel.MedalTable.medalList
             .filter(
               (medal) => medalIdList.includes(medal.medalId) && medal.advancedMedal,
             )
@@ -315,7 +314,7 @@ export class SocialManager {
     const buildAssistInfo = (info: any, isFriend: boolean, alias: string) => {
       const assistChars: any[] = info?.assistCharList || [];
       const matched = assistChars.find((c) => {
-        const data = excel.charData(c?.charId);
+        const data = this._player.excel.charData(c?.charId);
         return data?.profession === profession;
       });
       if (!matched) return null;

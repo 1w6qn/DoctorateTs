@@ -1,4 +1,3 @@
-import excel from "@excel/excel";
 import { ItemBundle } from "@excel/excel";
 import { checkBetween, now } from "@utils/time";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
@@ -60,7 +59,7 @@ export class CheckInManager {
   async monthlyRefresh() {
     await this._player.update(async (draft) => {
       // 防御：当前时间无匹配签到组（数据缺失/时间跨度断档）时保持原组，不 500
-      const group = Object.values(excel.CheckinTable.groups).find(
+      const group = Object.values(this._player.excel.CheckinTable.groups).find(
         // 防御：数据表末尾字段名伪键（值 null）——t.signStartTime 读 null 崩溃
         (t: any) => !!t && checkBetween(now(), t.signStartTime, t.signEndTime),
       );
@@ -88,7 +87,7 @@ export class CheckInManager {
         draft.checkIn.checkInRewardIndex = 0;
       }
       const groupItems =
-        excel.CheckinTable.groups[draft.checkIn.checkInGroupId]?.items ?? [];
+        this._player.excel.CheckinTable.groups[draft.checkIn.checkInGroupId]?.items ?? [];
       // 修复：奖励索引越界（组内物品数少于连续签到天数）时钳制到末位，不 500
       const idx = Math.min(
         draft.checkIn.checkInRewardIndex,
@@ -112,9 +111,9 @@ export class CheckInManager {
           monthlySubscriptionEndTime,
         )
       ) {
-        const currentMonthlySubId = excel.CheckinTable.currentMonthlySubId;
+        const currentMonthlySubId = this._player.excel.CheckinTable.currentMonthlySubId;
         subscriptionRewards.push(
-          ...excel.CheckinTable.monthlySubItem[currentMonthlySubId][1].items,
+          ...this._player.excel.CheckinTable.monthlySubItem[currentMonthlySubId][1].items,
         );
       }
       draft.checkIn.checkInHistory.push(0);

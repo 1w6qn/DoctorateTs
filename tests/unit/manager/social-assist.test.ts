@@ -3,8 +3,8 @@ import { SocialManager } from "@game/modules/social/SocialManager";
 import { accountManager } from "@game/modules/account/AccountManager";
 import { mockPlayerData } from "../../helpers/mockPlayerData";
 
-vi.mock("@excel/excel", () => ({
-  default: {
+// excel 数据端口替身:SocialManager 经 `player.excel` 取表(不再是模块级 mock)
+const excelMock: any = {
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
@@ -17,8 +17,7 @@ vi.mock("@excel/excel", () => ({
       char_002: { profession: "CASTER" },
       char_003: { profession: "WARRIOR" },
     },
-  },
-}));
+};
 
 describe("SocialManager.getAssistList 随机补位", () => {
   let social: SocialManager;
@@ -54,6 +53,8 @@ describe("SocialManager.getAssistList 随机补位", () => {
     const pd: any = mockPlayerData({
       status: { uid: "1" as any, nickName: "A" } as any,
     });
+    // excel 数据端口替身注入(见文件头说明)
+    pd.excel = excelMock;
     social = new SocialManager(pd, pd._trigger);
     vi.spyOn(accountManager, "getPlayerUidList").mockReturnValue(["1", "2", "3"]);
   });

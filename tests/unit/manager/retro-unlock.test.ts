@@ -8,8 +8,8 @@ import { describe, it, expect, vi } from "vitest";
  * 官方规则原文（data/excel/retro_table.json → retroDetail）：
  * 「消耗 {1} 个【事相结晶】，可解锁 1 个【插曲】」，{1} = retroUnlockCost。
  */
-vi.mock("@excel/excel", () => ({
-  default: {
+// excel 数据端口替身:RetroManager 经 `player.excel` 取表(不再是模块级 mock)
+const excelMock: any = {
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
     makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
@@ -25,18 +25,20 @@ vi.mock("@excel/excel", () => ({
       retroCoinMaxOfLevels: { "60": 3 },
     },
     ActivityTable: { activity: {} },
-  },
-}));
+};
 
 import { RetroManager } from "@game/modules/retro/RetroManager";
 import { mockPlayerData, mockTypedEventEmitter } from "../../helpers";
 
 function makePlayer(retro: any, level = 1) {
-  return mockPlayerData({
+  const pd: any = mockPlayerData({
     retro,
     status: { level } as any,
     pushFlags: {} as any,
   } as any);
+  // excel 数据端口替身注入
+  pd.excel = excelMock;
+  return pd;
 }
 
 /** 时间 mock 基准（本文件不 mock @utils/time，故只断言变化而非具体值） */

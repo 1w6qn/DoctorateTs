@@ -67,7 +67,7 @@ const EXEMPTIONS: { file: string; spec: string; reason: string }[] = [
   { file: "app/core/utils/traffic-recorder.ts", spec: "@capture/capture-recorder", reason: "技术债：抓包记录器依赖 ops capture 单例/端口" },
   { file: "app/game/kernel/events/core.ts", spec: "../../modules/roguelike/rlv2-model", reason: "事件契约载荷类型引用模块模型（建议上移 kernel/shared 类型层）" },
   { file: "app/game/kernel/events/rlv2.ts", spec: "../../modules/roguelike/rlv2-model", reason: "事件契约载荷类型引用模块模型（建议上移 kernel/shared 类型层）" },
-  { file: "app/game/kernel/http/auth-strategy.ts", spec: "../../modules/account/AccountManager", reason: "技术债：kernel HTTP 鉴权策略直用账号服务（建议经 core-auth 接口）" },
+  { file: "app/game/kernel/http/auth-strategy.ts", spec: "../../modules/account/AccountManager", reason: "端口默认值绑定：RealAccountStrategy/createAuthStrategy 的 AuthAccountPort 缺省值取 accountManager 单例（可注入，见 design-spec §6.2.2）" },
   { file: "app/game/kernel/inventory.ts", spec: "../modules/activities/shared/unlockActivity", reason: "技术债：物品增减管道调用活动解锁逻辑（建议事件驱动）" },
   { file: "app/game/kernel/save-health.ts", spec: "../modules/character/char-skills", reason: "技术债：存档健康检查引用干员技能数据" },
   { file: "app/game/modules/account/AccountManager.ts", spec: "../battle/BattleStore", reason: "共享战斗存储/信息接口（回放/结算）" },

@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock excel 数据表,提供 StatusManager 依赖的最小数据
-vi.mock("@excel/excel", () => {
-  return {
-    default: {
+// excel 数据端口替身:提供 StatusManager 依赖的最小数据
+//
+// 迁移说明(2026-09,excel 端口注入):管理者不再直连 `@excel/excel` 单例,
+// 改经 `player.excel`(PlayerDataManager 注入的数据端口)取表——模块级
+// vi.mock 因此失效,夹具改为显式注入到 mockPlayerData 的 excel 字段。
+const excelMock: any = {
     // —— excel 门面方法（与 excel.ts 实现一致，操作 mock 数据）——
     getItem(id: string) { return this.ItemTable?.items?.[id]; },
     itemName(id: string): string { return this.getItem(id)?.name ?? id; },
@@ -28,9 +30,7 @@ vi.mock("@excel/excel", () => {
           },
         },
       },
-    },
-  };
-});
+};
 
 vi.mock("@game/kernel/PlayerDataManager", () => ({
   PlayerDataManager: vi.fn(),
@@ -144,6 +144,8 @@ describe("StatusManager", () => {
         team: {},
       },
     });
+    // excel 数据端口替身注入(见文件头说明)
+    mockPlayer.excel = excelMock;
 
     mockPlayer._trigger = mockTrigger;
     mockPlayer.update = vi

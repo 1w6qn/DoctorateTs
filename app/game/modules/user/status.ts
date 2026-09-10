@@ -1,4 +1,3 @@
-import excel from "@excel/excel";
 import { checkNew, now } from "@utils/time";
 import { AvatarInfo } from "../../kernel/model";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
@@ -183,14 +182,14 @@ export class StatusManager {
   async exchangeDiamondShard(args: { count: number }) {
     const { count } = args;
     await this._player.gainItem
-      .setTarget("", "DIAMOND_SHD", count * excel.GameDataConst.diamondToShdRate)
+      .setTarget("", "DIAMOND_SHD", count * this._player.excel.GameDataConst.diamondToShdRate)
       .handle();
     await this._player.gainItem.setTarget("", "DIAMOND", count).use();
   }
 
   async receiveTeamCollectionReward(args: { rewardId: string }) {
     const { rewardId } = args;
-    const teamMission = excel.HandbookInfoTable.teamMissionList[rewardId];
+    const teamMission = this._player.excel.HandbookInfoTable.teamMissionList[rewardId];
     // 防御：未知奖励 id 不 500
     if (!teamMission?.item) return;
     let claimed = false;

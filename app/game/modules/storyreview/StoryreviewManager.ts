@@ -1,4 +1,3 @@
-import excel from "@excel/excel";
 import { ItemBundle } from "@excel/excel";
 import { now } from "@utils/time";
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
@@ -44,7 +43,7 @@ export class StoryreviewManager {
       if (group.stories.some((s) => s.id === storyId)) return; // 已解锁
       group.stories.push({ id: storyId, uts: now(), rc: 0 });
       await this._trigger.emit("items:use", [
-        [excel.makeItem("STORY_REVIEW_COIN", 1)],
+        [this._player.excel.makeItem("STORY_REVIEW_COIN", 1)],
       ]);
     });
   }
@@ -67,7 +66,7 @@ export class StoryreviewManager {
       // 修复：已领取过（rts 已设）不再发放——原实现只写 rts 从不读 → 无限刷
       if (group.rts) return [];
       group.rts = now();
-      const items = excel.StoryReviewTable[groupId]?.rewards ?? [];
+      const items = this._player.excel.StoryReviewTable[groupId]?.rewards ?? [];
       if (items.length > 0) {
         await this._trigger.emit("items:get", [items]);
       }
@@ -88,7 +87,7 @@ export class StoryreviewManager {
     return await this._player.update(async (draft) => {
       const { groupId, rewardIdList } = args;
       const group =
-        excel.StoryReviewMetaTable.miniActTrialData.miniActTrialDataMap[
+        this._player.excel.StoryReviewMetaTable.miniActTrialData.miniActTrialDataMap[
           groupId
         ];
       const groupData = draft.storyreview.groups[groupId];

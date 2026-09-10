@@ -1,6 +1,5 @@
 import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { TypedEventEmitter } from "../../kernel/events/runtime";
-import excel from "@excel/excel";
 import { ItemBundle } from "@excel/excel";
 import { now } from "@utils/time";
 
@@ -46,7 +45,7 @@ export class RetroManager {
    * @returns 本次实际发放的结晶数量（0 = 未发放）
    */
   async ensureWeeklySupplement(): Promise<number> {
-    const table = excel.RetroTable as unknown as {
+    const table = this._player.excel.RetroTable as unknown as {
       initRetroCoin?: number;
       retroCoinPerWeek?: number;
       retroCoinMaxOfLevels?: Record<string, number>;
@@ -96,7 +95,7 @@ export class RetroManager {
   async unlockRetroBlock(args: { retroId: string }): Promise<boolean> {
     const cost = Math.max(
       0,
-      Number((excel.RetroTable as any)?.retroUnlockCost ?? 1),
+      Number((this._player.excel.RetroTable as any)?.retroUnlockCost ?? 1),
     );
     let unlocked = false;
     await this._player.update(async (draft) => {
@@ -115,7 +114,7 @@ export class RetroManager {
   async getRetroTrailReward(args: { retroId: string; rewardId: string }) {
     return await this._player.update(async (draft) => {
       const { retroId, rewardId } = args;
-      const trailList = excel.RetroTable.retroTrailList[retroId]?.trailRewardList;
+      const trailList = this._player.excel.RetroTable.retroTrailList[retroId]?.trailRewardList;
       const reward = trailList?.find((v) => v.trailRewardId === rewardId)
         ?.rewardItem;
       // 防御：未知 retro/奖励 id 不 500
@@ -139,7 +138,7 @@ export class RetroManager {
       return [];
     }
     const rewards: ItemBundle[] = [];
-    const retroActivities = excel.ActivityTable.activity;
+    const retroActivities = this._player.excel.ActivityTable.activity;
     for (const [, activities] of Object.entries(retroActivities)) {
       for (const [id, activity] of Object.entries(activities as { [key: string]: any })) {
         if (id === args.activityId && "retroData" in activity) {

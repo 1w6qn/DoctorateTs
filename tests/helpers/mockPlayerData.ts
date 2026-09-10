@@ -1,5 +1,6 @@
 import type { PlayerDataManager } from "@game/kernel/PlayerDataManager";
 import type { PlayerDataModel } from "@game/kernel/playerdata";
+import { mockExcel } from "./mockExcel";
 
 export interface MockPlayerDataManager {
   update: ReturnType<typeof vi.fn>;
@@ -14,6 +15,13 @@ export interface MockPlayerDataManager {
   get uid(): string;
   _playerdata: Partial<PlayerDataModel>;
   _trigger: any;
+  /**
+   * excel 数据端口替身（管理器的 `player.excel` 依赖）
+   *
+   * 默认 `mockExcel()`（空表 + 门面方法）；用例需要具体表时直接覆写本字段，
+   * 替代此前 "vi.mock('@excel/excel') 模块级打桩" 的做法。
+   */
+  excel: any;
 }
 
 /**
@@ -94,5 +102,6 @@ export function mockPlayerData(
     get uid() {
       return (_playerdata.status as any)?.uid ?? 10000;
     },
+    excel: mockExcel(),
   };
 }

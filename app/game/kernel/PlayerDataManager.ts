@@ -6,6 +6,8 @@
  * 本类退化为组合根：持有子管理器、事件总线与序列化入口，并委托状态操作。
  */
 
+import excel from "@excel/excel";
+import type { ExcelData } from "./excel-port";
 import { PlayerDataModel } from "./playerdata";
 import { InventoryManager } from "./inventory";
 import { GainItemPipeline } from "./inventory-pipeline";
@@ -135,17 +137,37 @@ export class PlayerDataManager {
   private _battleStore: BattleInfoStore;
 
   /**
+   * excel 数据表端口（构造器注入，解耦 `@excel/excel` 全局单例）
+   *
+   * 缺省绑定全局单例（行为与迁移前一致），测试/多数据目录场景经 `deps.excel` 覆写。
+   * 类型为只读数据端口（见 excel-port.ts），不含 init/resetLazyTables 等生命周期方法。
+   */
+  private _excel: ExcelData;
+
+  /**
+   * excel 数据表端口（模块层读取游戏配置表的唯一入口）
+   *
+   * 子管理器经 `this._player.excel` 取表，替代 `import excel from "@excel/excel"` 直连单例；
+   * 端口成员为消费方驱动（新增表须显式加入 excel-port.ts），守卫见
+   * tests/unit/architecture/excel-singleton-ratchet.test.ts。
+   */
+  get excel(): ExcelData { return this._excel; }
+
+  /**
    * 构造函数
    * @param playerdata - 玩家数据模型
    * @param battleStore - 战斗信息存储（默认 no-op，由 AccountManager 注入）
-   * @param deps - 可选依赖（DI）：`deps.modules` 可部分覆写子模块，用于测试缩小构造面
+   * @param deps - 可选依赖（DI）：`deps.modules` 可部分覆写子模块（测试缩小构造面）；
+   *   `deps.excel` 覆写 excel 数据端口（测试注入替身 / 多数据目录）
    */
   constructor(
     playerdata: PlayerDataModel,
     battleStore?: BattleInfoStore,
-    deps?: { modules?: Partial<PlayerChildModules> },
+    deps?: { modules?: Partial<PlayerChildModules>; excel?: ExcelData },
   ) {
     this.playerStatus = new PlayerStatus(playerdata);
+    // excel 数据端口须在组合子模块之前就位：子模块构造期即可经 this._player.excel 取表
+    this._excel = deps?.excel ?? excel;
     this._battleStore = battleStore ?? {
       getBattleInfo: async () => undefined as unknown as BattleInfo,
       saveBattleInfo: async () => {},

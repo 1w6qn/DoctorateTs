@@ -11,6 +11,7 @@ import {
   RealAccountStrategy,
   createAuthStrategy,
 } from "@game/kernel/http/auth-strategy";
+import type { AuthAccountPort } from "@game/kernel/http/auth-strategy";
 
 /** 构造最小 Express 请求对象 */
 function mockReq(headers: Record<string, unknown> = {}): any {
@@ -68,6 +69,45 @@ describe("RealAccountStrategy 真实多账号策略", () => {
     const s = new RealAccountStrategy();
     expect(await s.registerUid("13800000000", "pwd123456")).toBe("42");
     expect(accountManager.registerUser).toHaveBeenCalledWith("13800000000", "pwd123456");
+  });
+});
+
+describe("RealAccountStrategy 账号端口注入（AuthAccountPort）", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("注入端口后无需模块打桩：resolveUid/registerUid 全部走端口", async () => {
+    const port: AuthAccountPort = {
+      getUidByToken: vi.fn(async (token: string) => (token === "ok" ? "777" : "")),
+      registerUser: vi.fn(async () => "888"),
+    };
+    const s = new RealAccountStrategy(port);
+
+    expect(await s.resolveUid(mockReq({ secret: "ok" }))).toBe("777");
+    expect(await s.resolveUid(mockReq({ secret: "bad" }))).toBeUndefined();
+    expect(await s.registerUid("13800000000", "pwd123456")).toBe("888");
+    expect(port.getUidByToken).toHaveBeenCalledWith("ok");
+    expect(port.registerUser).toHaveBeenCalledWith("13800000000", "pwd123456");
+    // 端口被使用即意味着没有回落到全局单例
+    expect(accountManager.getUidByToken).not.toHaveBeenCalled();
+    expect(accountManager.registerUser).not.toHaveBeenCalled();
+  });
+
+  it("缺省端口回落 accountManager 单例（行为与迁移前一致）", async () => {
+    (accountManager.getUidByToken as any).mockResolvedValue("2221");
+    const s = new RealAccountStrategy();
+    expect(await s.resolveUid(mockReq({ secret: "secret_2221" }))).toBe("2221");
+  });
+
+  it("工厂透传端口：createAuthStrategy(cfg, port) 的 real 策略使用注入端口", async () => {
+    const port: AuthAccountPort = {
+      getUidByToken: vi.fn(async () => "999"),
+      registerUser: vi.fn(async () => "999"),
+    };
+    const s = createAuthStrategy({ authMode: "real" }, port);
+    expect(s).toBeInstanceOf(RealAccountStrategy);
+    expect(await s.resolveUid(mockReq({ secret: "x" }))).toBe("999");
   });
 });
 

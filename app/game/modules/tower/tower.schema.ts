@@ -60,11 +60,27 @@ export const chooseSubGodCardSchema = z.object({
 /** 爬塔结算请求（CS: ClimbTowerSettleGameRequest，无字段） */
 export const settleGameSchema = z.object({});
 
-/** 获取层奖励请求（CS: ClimbTowerLayerFirstPassRewardRequest，服务端不读取 body） */
-export const layerRewardSchema = z.object({});
+/**
+ * 获取层首通奖励请求（CS: ClimbTowerLayerFirstPassRewardRequest）
+ *
+ * 修复（2026-09-09）：原为 `z.object({})` —— zod 会静默剥掉 tower/layers，
+ * handler 永远拿不到请求内容（与 campaignV2/act1vhalfidle 同类缺陷）。
+ */
+export const layerRewardSchema = z.object({
+  tower: z.string().optional(),
+  layers: z.array(z.any()).optional(),
+  isHard: z.union([z.number(), z.boolean()]).optional(),
+});
 
-/** 获取赛季任务奖励请求（CS: ClimbTowerSeasonMissionAwardRequest，服务端不读取 body；被两个拼写端点复用） */
-export const seasonMissionsAwardSchema = z.object({});
+/** 获取赛季任务奖励请求（CS: ClimbTowerSeasonMissionAwardRequest；被两个拼写端点复用） */
+export const seasonMissionsAwardSchema = z.object({
+  missionIds: z.array(z.string()).optional(),
+});
 
-/** 扫荡游戏请求（CS: ClimbTowerSweepRequest，服务端不读取 body） */
-export const sweepGameSchema = z.object({});
+/** 扫荡游戏请求（CS: ClimbTowerSweepRequest） */
+export const sweepGameSchema = z.object({
+  tower: z.string().optional(),
+  isHard: z.union([z.number(), z.boolean()]).optional(),
+  itemId: z.string().optional(),
+  instIds: z.array(z.number()).optional(),
+});

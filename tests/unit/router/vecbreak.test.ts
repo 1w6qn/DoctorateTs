@@ -1,0 +1,171 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("express-http-context2", () => ({
+  default: { get: vi.fn(), set: vi.fn() },
+}));
+
+const timeMock = vi.hoisted(() => ({ now: 1772000000 })); // act2break 特别战线第一期限时窗口内
+vi.mock("@utils/time", () => ({ now: () => timeMock.now }));
+
+// 矢量突破两期活动配置（act1break 旧 / act2break 当前）——赛季选择与关卡奖励均据此判定
+vi.mock("@excel/excel", () => ({
+  default: {
+    getItem(id: string) { return this.ItemTable?.items?.[id]; },
+    itemName(id: string): string { return this.getItem(id)?.name ?? id; },
+    makeItem(id: string, count: number, type?: string) { return type ? { id, count, type } : { id, count }; },
+    charData(charId: string) { return this.CharacterTable?.[charId]; },
+    stageData(stageId: string) { return this.StageTable?.stages?.[stageId]; },
+
+    ActivityTable: {
+      basicInfo: {
+        act1break: { id: "act1break", startTime: 1747296000, endTime: 1749067199 },
+        act2break: { id: "act2break", startTime: 1771920000, endTime: 1773691199 },
+      },
+      activity: {
+        vecBreakV2: {
+          act1break: {
+            offenseStageDict: {
+              act1break_01: { stageId: "act1break_01", level: 1 },
+            },
+            hardStageDict: {},
+            defenseBasicDict: {},
+            stageRewardDict: {
+              act1break_01: { stageId: "act1break_01", completeRewardCnt: 75, normalRewardCnt: 25, limitReward: null },
+            },
+          },
+          act2break: {
+            offenseStageDict: {
+              act2break_01: { stageId: "act2break_01", level: 1 },
+              act2break_02: { stageId: "act2break_02", level: 2 },
+            },
+            hardStageDict: { act2break_h01: { stageId: "act2break_h01" } },
+            defenseBasicDict: {
+              act2break_sp01: { stageId: "act2break_sp01", sortId: 1 },
+              act2break_sp02: { stageId: "act2break_sp02", sortId: 2 },
+            },
+            stageRewardDict: {
+              act2break_01: { stageId: "act2break_01", completeRewardCnt: 75, normalRewardCnt: 25, limitReward: null },
+              act2break_02: { stageId: "act2break_02", completeRewardCnt: 75, normalRewardCnt: 25, limitReward: null },
+              act2break_h01: { stageId: "act2break_h01", completeRewardCnt: 180, normalRewardCnt: 60, limitReward: null },
+              act2break_sp01: {
+                stageId: "act2break_sp01",
+                completeRewardCnt: 20,
+                normalRewardCnt: 0,
+                limitReward: { startTs: 1771920000, endTs: 1772222399, rewardCnt: 20 },
+              },
+              act2break_sp02: {
+                stageId: "act2break_sp02",
+                completeRewardCnt: 20,
+                normalRewardCnt: 0,
+                limitReward: { startTs: 1771920000, endTs: 1772222399, rewardCnt: 20 },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+}));
+
+import httpContext from "express-http-context2";
+import vecbreakRouter from "@game/modules/vecbreak/routes";
+import { mockPlayerData } from "../../helpers";
+
+function mockRes() {
+  return { send: vi.fn(), status: vi.fn().mockReturnThis(), sendStatus: vi.fn(), json: vi.fn() };
+}
+
+describe("vecbreak（矢量突破）进攻链与里程碑", () => {
+  let player: any;
+  let res: any;
+
+  function makePlayer(extra: any = {}) {
+    const p = mockPlayerData({
+      dungeon: { stages: {} },
+      activity: { VEC_BREAK_V2: {} },
+      ...extra,
+    } as any);
+    p.battle = {
+      start: vi.fn().mockResolvedValue({ result: 0, battleId: "real-battle-id" }),
+      finish: vi.fn().mockResolvedValue({ result: 0, apFailReturn: 0, rewards: [], firstRewards: [] }),
+      getActiveBattle: vi.fn(() => ({ battleId: "real-battle-id", stageId: "act2break_01" })),
+    };
+    return p;
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    player = makePlayer();
+    res = mockRes();
+    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
+  });
+
+  async function call(url: string, body: any) {
+    vecbreakRouter({ method: "POST", url, body } as any, res, () => {});
+    await new Promise((r) => setTimeout(r, 25));
+  }
+
+  it("getSeasonRecord：赛季取当前 act2break 且 stageInfo 反映真实通关状态", async () => {
+    player = makePlayer({
+      dungeon: { stages: { act2break_01: { state: 3 }, act2break_02: { state: 1 } } },
+    });
+    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
+    await call("/vecBreakV2/getSeasonRecord", {});
+    const sent = res.send.mock.calls[0][0];
+    expect(Object.keys(sent.seasons)).toEqual(["act2break"]);
+    const info = sent.seasons.act2break.stageInfo;
+    expect(info.act2break_01.state).toBe(3);
+    expect(info.act2break_02.state).toBe(1); // 原实现一律写 3
+    expect(info.act2break_h01.state).toBe(0);
+    expect(info.act2break_sp01.state).toBe(0);
+    // 最佳记录 = 已通关的最高层
+    expect(sent.seasons.act2break.bestRecord.stageId).toBe("act2break_01");
+  });
+
+  it("battleStart：复用标准战斗开始并返回真实 battleId（原为固定桩）", async () => {
+    await call("/vecBreakV2/battleStart", { activityId: "act2break", stageId: "act2break_01", squad: {} });
+    expect(player.battle.start).toHaveBeenCalled();
+    expect(res.send.mock.calls[0][0].battleId).toBe("real-battle-id");
+  });
+
+  it("battleFinish：首通发 completeRewardCnt 并写真实 msBefore/msAfter", async () => {
+    await call("/vecBreakV2/battleStart", { activityId: "act2break", stageId: "act2break_01", squad: {} });
+    await call("/vecBreakV2/battleFinish", { data: "enc", battleData: {} });
+    const sent = res.send.mock.calls.at(-1)![0];
+    expect(sent.msBefore).toBe(0);
+    expect(sent.msAfter).toBe(75);
+    const act = player._playerdata.activity.VEC_BREAK_V2.act2break;
+    expect(act.milestone.point).toBe(75);
+  });
+
+  it("battleFinish：重复通关发 normalRewardCnt", async () => {
+    player = makePlayer({ dungeon: { stages: { act2break_01: { state: 3 } } } });
+    (vi.mocked(httpContext.get) as any).mockReturnValue(player);
+    await call("/vecBreakV2/battleStart", { activityId: "act2break", stageId: "act2break_01", squad: {} });
+    await call("/vecBreakV2/battleFinish", { data: "enc", battleData: {} });
+    expect(res.send.mock.calls.at(-1)![0].msAfter).toBe(25);
+  });
+
+  it("defendBattleFinish：首通发 complete + 窗口内限时奖励，并按数值置标记", async () => {
+    await call("/vecBreakV2/defendBattleStart", { activityId: "act2break", stageId: "act2break_sp01", squad: { slots: [{ charInstId: 5 }] } });
+    await call("/vecBreakV2/defendBattleFinish", {});
+    const sent = res.send.mock.calls.at(-1)![0];
+    expect(sent.msBefore).toBe(0);
+    expect(sent.msAfter).toBe(40); // 20 首通 + 20 限时
+    const rec = player._playerdata.activity.VEC_BREAK_V2.act2break.defendStages.act2break_sp01;
+    expect(rec.recvTimeLimited).toBe(1);
+    // recvNormal = 非限时奖励已领取（特别战线各关 normalRewardCnt 为 0，普通奖励即 completeRewardCnt）
+    expect(rec.recvNormal).toBe(1);
+    expect(rec.defendSquad).toEqual([{ charInstId: 5, currentTmpl: null }]);
+  });
+
+  it("defendBattleFinish：限时窗口外不发限时奖励", async () => {
+    timeMock.now = 1772400000; // 超出 [1771920000, 1772222399]
+    await call("/vecBreakV2/defendBattleStart", { activityId: "act2break", stageId: "act2break_sp02", squad: { slots: [] } });
+    await call("/vecBreakV2/defendBattleFinish", {});
+    expect(res.send.mock.calls.at(-1)![0].msAfter).toBe(20);
+    const rec = player._playerdata.activity.VEC_BREAK_V2.act2break.defendStages.act2break_sp02;
+    expect(rec.recvTimeLimited).toBe(0);
+    timeMock.now = 1772000000;
+  });
+});

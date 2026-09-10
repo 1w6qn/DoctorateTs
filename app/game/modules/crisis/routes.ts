@@ -134,6 +134,8 @@ async function selectedCrisisV2(): Promise<string> {
 interface CrisisV1BattleContext {
   /** 选中的危机合约赛季 */
   chosenCrisis: string;
+  /** 关卡ID（勋章 CrisisStageScoreSome / CrisisStageScoreBeforeTime 按 unlockParam[1] 门控） */
+  stageId: string;
   /** 选中的风险符文列表 */
   chosenRisks: string[];
   /** 总风险等级 */
@@ -144,8 +146,12 @@ interface CrisisV1BattleContext {
 interface CrisisV2BattleContext {
   /** 地图ID */
   mapId: string;
+  /** 赛季ID（勋章赛季门控用） */
+  seasonId: string;
   /** 符文槽位列表 */
   runeSlots: string[];
+  /** 是否携带助战（CrisisV2UseAssist：使用助战并通关 N 次） */
+  usedAssist: boolean;
 }
 
 /** 重构符文战斗上下文 */
@@ -319,6 +325,66 @@ function buildSeasonTemporary(nextDay: number): any {
 }
 
 /**
+ * 取（必要时创建）危机合约V1某赛季的玩家记录
+ *
+ * 官服形状（`data/user/databases/1.json` → `crisis.season[rune_season_X_Y]`）：
+ * `{ coin, tCoin, permanent: { rune, point, challenge: { taskList, topPoint, pointList } }, temporary, sInfo }`。
+ * 私服存档可能完全没有该赛季条目，直接下标会 500。
+ * @param draft - 玩家数据草稿
+ * @param seasonId - 赛季 id（如 rune_season_1_1）
+ * @returns 该赛季的玩家记录
+ */
+function ensureCrisisV1Season(draft: any, seasonId: string): any {
+  if (!draft.crisis) draft.crisis = {};
+  if (!draft.crisis.season) draft.crisis.season = {};
+  if (!draft.crisis.season[seasonId]) draft.crisis.season[seasonId] = {};
+  const season = draft.crisis.season[seasonId];
+  if (season.coin == null) season.coin = 0;
+  if (season.tCoin == null) season.tCoin = 0;
+  if (!season.permanent) season.permanent = {};
+  const perm = season.permanent;
+  if (!perm.rune) perm.rune = {};
+  if (perm.point == null) perm.point = -1;
+  if (!perm.challenge) perm.challenge = {};
+  if (!perm.challenge.taskList) perm.challenge.taskList = {};
+  if (perm.challenge.topPoint == null) perm.challenge.topPoint = -1;
+  if (!perm.challenge.pointList) perm.challenge.pointList = {};
+  if (!season.temporary) season.temporary = {};
+  if (!season.sInfo) season.sInfo = { assistCnt: 0, maxPnt: 0 };
+  return season;
+}
+
+/**
+ * 取（必要时创建）危机合约V2某赛季的玩家记录
+ *
+ * 官服形状（`crisisV2.seasons[seasonId]`）：`{ permanent: { state, scoreTotal, scoreSingle,
+ * rune, challenge, comment, exRunes, runePack, reward }, temporary: { [mapId]: { state, scoreTotal,
+ * rune, challenge } }, social }`（见 types-playerdata PlayerCrisisV2Season*）。
+ * @param draft - 玩家数据草稿
+ * @param seasonId - 赛季 id（如 crisis_v2_season_1_1）
+ * @returns 该赛季的玩家记录
+ */
+function ensureCrisisV2Season(draft: any, seasonId: string): any {
+  if (!draft.crisisV2) draft.crisisV2 = {};
+  if (!draft.crisisV2.seasons) draft.crisisV2.seasons = {};
+  if (!draft.crisisV2.seasons[seasonId]) draft.crisisV2.seasons[seasonId] = {};
+  const season = draft.crisisV2.seasons[seasonId];
+  if (!season.permanent) season.permanent = {};
+  const perm = season.permanent;
+  if (perm.state == null) perm.state = 0;
+  if (!Array.isArray(perm.scoreTotal)) perm.scoreTotal = [0, 0, 0, 0, 0, 0];
+  if (!Array.isArray(perm.scoreSingle)) perm.scoreSingle = [0, 0, 0, 0, 0, 0];
+  if (!perm.rune) perm.rune = {};
+  if (!perm.exRunes) perm.exRunes = {};
+  if (!perm.runePack) perm.runePack = {};
+  if (!perm.challenge) perm.challenge = {};
+  if (!Array.isArray(perm.comment)) perm.comment = [];
+  if (!perm.reward) perm.reward = {};
+  if (!season.temporary) season.temporary = {};
+  return season;
+}
+
+/**
  * 计算危机合约V2战斗分数
  *
  * 移植自参考实现的评分逻辑：根据玩家选择的符文槽位，
@@ -332,14 +398,16 @@ function computeV2BattleScore(
   rune: any,
   mapId: string,
   runeSlots: string[],
-): { scoreCurrent: number[]; runeIds: string[] } {
+): { scoreCurrent: number[]; runeIds: string[]; satisfiedPacks: string[] } {
   /** 6个维度的得分 */
   const scoreCurrent = [0, 0, 0, 0, 0, 0];
   const runeIds: string[] = [];
+  /** 本局满足全部互斥组的指标集（bagDataMap 键，写入 permanent.runePack 用） */
+  const satisfiedPacks: string[] = [];
 
   const mapData = rune?.info?.mapDetailDataMap?.[mapId];
   if (!mapData) {
-    return { scoreCurrent, runeIds };
+    return { scoreCurrent, runeIds, satisfiedPacks };
   }
 
   /** 构建节点结构：slotPackId -> mutualExclusionGroup -> slot -> score */
@@ -401,6 +469,7 @@ function computeV2BattleScore(
       const bagData = mapData.bagDataMap?.[slotPackId];
       if (bagData) {
         scoreCurrent[bagData.dimension] += bagData.rewardScore;
+        satisfiedPacks.push(slotPackId);
       }
     }
   }
@@ -419,7 +488,83 @@ function computeV2BattleScore(
     }
   }
 
-  return { scoreCurrent, runeIds };
+  return { scoreCurrent, runeIds, satisfiedPacks };
+}
+
+/**
+ * V2 挑战节点求值（官方 challengeNodeDataMap 条件）
+ *
+ * 官服条件仅两类（实测 data/crisisV2 全部 92 张地图、33 种参数组合）：
+ * - PassWithDimScore ["0;1;2;3;4;5","300"]：单局任一（清单内）维度得分 ≥ 门槛
+ * - PassWithRunes    ["node_7;node_8","2"]：单局携带清单内节点数 ≥ 门槛
+ * 官服存档实证：已完成节点在 season.permanent.challenge / temporary[mapId].challenge
+ * 中记为 **2**（crisis_v2_season_2_1 / crisis_v2_02-02 →
+ * {keypoint_1:2,keypoint_2:2,keypoint_3:2}）。
+ *
+ * @param mapData - mapDetailDataMap[mapId]
+ * @param scoreCurrent - 本局 6 维得分
+ * @param runeSlots - 本局选择的节点槽位（node_N）
+ * @returns 本局新达成的挑战节点键列表
+ */
+function evaluateV2NodeCompletion(
+  mapData: any,
+  scoreCurrent: number[],
+  runeSlots: string[],
+): string[] {
+  const done: string[] = [];
+  const map = mapData?.challengeNodeDataMap;
+  if (!map) return done;
+  const slots = new Set(runeSlots ?? []);
+  for (const [key, node] of Object.entries<any>(map)) {
+    const params: string[] = node?.missionParamList ?? [];
+    const list = String(params[0] ?? "")
+      .split(";")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    const need = parseInt(String(params[1] ?? ""), 10);
+    if (!Number.isFinite(need)) continue;
+    if (node?.missionType === "PassWithDimScore") {
+      const hit = list.some((d) => Number(scoreCurrent[Number(d)] ?? 0) >= need);
+      if (hit) done.push(key);
+    } else if (node?.missionType === "PassWithRunes") {
+      const carried = list.filter((id) => slots.has(id)).length;
+      if (carried >= need) done.push(key);
+    }
+  }
+  return done;
+}
+
+/**
+ * 收集赛季内**已完成**的 V2 节点 id
+ *
+ * 勋章 CrisisV2NodeSome 的 unlockParam[1] 为节点 id 清单，形如
+ * `${mapId}^pack_1` / `${mapId}^keypoint_1` / `${mapId}^reward_1`——主测试地的
+ * 记录位于 season.permanent（challenge / runePack / reward），轮换测试地位于
+ * season.temporary[mapId].challenge。官服已完成值实测为 2。
+ *
+ * @param season - crisisV2.seasons[seasonId]
+ * @param permanentMapId - 该赛季主测试地（stageType=PERMANENT）的 mapId
+ */
+function collectCompletedV2NodeIds(season: any, permanentMapId: string): string[] {
+  const ids: string[] = [];
+  const perm = season?.permanent;
+  if (perm && permanentMapId) {
+    for (const [k, v] of Object.entries(perm.challenge ?? {})) {
+      if (Number(v) >= 2) ids.push(`${permanentMapId}^${k}`);
+    }
+    for (const [k, v] of Object.entries(perm.runePack ?? {})) {
+      if (Number(v) >= 2) ids.push(`${permanentMapId}^${k}`);
+    }
+    for (const [k, v] of Object.entries<any>(perm.reward ?? {})) {
+      if (Number(v?.state ?? 0) >= 2) ids.push(`${permanentMapId}^${k}`);
+    }
+  }
+  for (const [mid, m] of Object.entries<any>(season?.temporary ?? {})) {
+    for (const [k, v] of Object.entries(m?.challenge ?? {})) {
+      if (Number(v) >= 2) ids.push(`${mid}^${k}`);
+    }
+  }
+  return ids;
 }
 
 /**
@@ -541,6 +686,7 @@ router.post("/battleStart", validateBody(crisisV1BattleStartSchema), async (req,
   /** 保存战斗上下文，供 battleFinish 使用 */
   battleStore.setV1(player.uid, {
     chosenCrisis: await selectedCrisisV1(),
+    stageId,
     chosenRisks: runeList || [],
     totalRisks,
   });
@@ -570,19 +716,64 @@ router.post("/battleFinish", validateBody(crisisV1BattleFinishSchema), async (re
   const ctx = battleStore.getV1(player.uid);
   const totalRisks = ctx?.totalRisks ?? 0;
 
+  // 修复（2026-09-09）：原实现只把风险点数回给客户端，**从不落盘** —— `permanent.point`/
+  // `challenge.topPoint` 恒不变（官服存档 crisis.season[rune_season_X_Y].permanent.point = 4、
+  // challenge.topPoint = 4，且点数为历史最高）。
+  let pointBefore = -1;
+  let pointAfter = -1;
+  let seasonIdV1 = "";
+  try {
+    const v1 = await dataCache.getV1Data(await selectedCrisisV1());
+    const seasonId = String(v1?.data?.seasonInfo?.[0]?.seasonId ?? "");
+    seasonIdV1 = seasonId;
+    if (seasonId && totalRisks > 0) {
+      await player.update(async (draft) => {
+        const season = ensureCrisisV1Season(draft, seasonId);
+        const perm = season.permanent;
+        pointBefore = Number(perm.point ?? -1);
+        if (totalRisks > pointBefore) {
+          perm.point = totalRisks;
+          if (totalRisks > Number(perm.challenge.topPoint ?? -1)) {
+            perm.challenge.topPoint = totalRisks;
+          }
+        }
+        pointAfter = Number(perm.point ?? -1);
+      });
+    } else {
+      pointAfter = totalRisks;
+    }
+  } catch (err) {
+    logger.error("crisis/battleFinish", "记录危机等级失败:", err);
+    pointAfter = totalRisks;
+  }
+
+  // 勋章（2026-09-09 修复）：V1 危机合约批次此前**从不 emit** ——
+  // CrisisStageScoreSome / CrisisStageScoreBeforeTime 的监听器虽注册，却因零事件 +
+  // 目标位取错（medal.ts 原取 parseInt(param[0])，而 param[0] 是赛季 id → NaN）而永不可得。
+  // 现按官方 unlockParam 参数位发载荷：[赛季, 常驻行动地点, 评价档, 目标危机等级] /
+  // [赛季, 常驻行动地点, 目标危机等级, 截止时间]。
+  const stageIdV1 = ctx?.stageId ?? "";
+  try {
+    await player._trigger.emit("CrisisStageScoreSome", [
+      { seasonId: seasonIdV1, stageId: stageIdV1, score: totalRisks },
+    ]);
+    await player._trigger.emit("CrisisStageScoreBeforeTime", [
+      { seasonId: seasonIdV1, stageId: stageIdV1, score: totalRisks },
+    ]);
+  } catch (err) {
+    logger.error("crisis/battleFinish", "勋章事件派发失败:", err);
+  }
+
   res.send({
     result: 0,
     score: totalRisks,
     updateInfo: {
       point: {
-        before: -1,
-        after: totalRisks,
+        before: pointBefore,
+        after: pointAfter,
       },
     },
-    playerDataDelta: {
-      modified: {},
-      deleted: {},
-    },
+    ...player.delta,
   } satisfies CrisisV1BattleFinishResponse);
 });
 
@@ -645,12 +836,27 @@ router.post("/challengeRewardTask", validateBody(crisisChallengeRewardTaskSchema
   const player = getPlayer();
   const { seasonId, taskId } = req.body as CrisisChallengeRewardTaskRequest;
 
+  let claimed = false;
   await player.update(async (draft) => {
     const season = (draft.crisis.season as any)?.[seasonId];
-    if (season?.permanent?.challenge?.taskList?.[taskId]) {
-      season.permanent.challenge.taskList[taskId].rts = now();
+    const task = season?.permanent?.challenge?.taskList?.[taskId];
+    // 修复（2026-09-09）：原实现无条件置 rts —— 未完成（fts = -1）的任务也能「领取」。
+    // 官服形状 { fts, rts }（-1 = 未完成/未领取），故要求已完成且未领取。
+    if (task && Number(task.fts ?? -1) >= 0 && Number(task.rts ?? -1) === -1) {
+      task.rts = now();
+      claimed = true;
     }
   });
+
+  // 勋章（2026-09-09 修复）：CrisisTaskSome（unlockParam [赛季, 常驻任务清单, 目标任务数]）
+  // 此前零 emit；仅在**首次领取**时计入，避免重复请求刷进度。
+  if (claimed) {
+    try {
+      await player._trigger.emit("CrisisTaskSome", [{ seasonId, taskId, count: 1 }]);
+    } catch (err) {
+      logger.error("crisis/challengeRewardTask", "勋章事件派发失败:", err);
+    }
+  }
 
   res.send({
     items: [],
@@ -675,8 +881,10 @@ router.post("/challengeRewardPoint", validateBody(crisisChallengeRewardPointSche
     const season = (draft.crisis.season as any)?.[seasonId];
     if (season?.permanent?.challenge?.pointList) {
       const pointKey = String(pointId);
-      if (season.permanent.challenge.pointList[pointKey] !== undefined) {
-        season.permanent.challenge.pointList[pointKey] = 1;
+      // 修复（2026-09-09）：原实现写入字面量 1 —— 官服 pointList 的值为「领取时间戳」，
+      // 未领取为 -1（存档样本：{"1":1591420215,…,"5":-1}）。
+      if (Number(season.permanent.challenge.pointList[pointKey] ?? -1) === -1) {
+        season.permanent.challenge.pointList[pointKey] = now();
       }
     }
   });
@@ -703,8 +911,9 @@ router.post("/challengeRewardAll", validateBody(crisisChallengeRewardAllSchema),
     const season = (draft.crisis.season as any)?.[seasonId];
     if (season?.permanent?.challenge?.pointList) {
       for (const pointKey in season.permanent.challenge.pointList) {
-        if (season.permanent.challenge.pointList[pointKey] === -1) {
-          season.permanent.challenge.pointList[pointKey] = 1;
+        // 同上：领取标记应为时间戳而非 1
+        if (Number(season.permanent.challenge.pointList[pointKey] ?? -1) === -1) {
+          season.permanent.challenge.pointList[pointKey] = now();
         }
       }
     }
@@ -773,12 +982,27 @@ router.post("/unlockRune", validateBody(crisisUnlockRuneSchema), async (req, res
   const player = getPlayer();
   const { seasonId, runeId } = req.body as CrisisUnlockRuneRequest;
 
+  let firstUnlock = false;
   await player.update(async (draft) => {
     const season = (draft.crisis.season as any)?.[seasonId];
     if (season?.permanent?.rune) {
+      // 幂等赋值；仅「首次解锁」计入勋章进度，重复请求不刷进度
+      firstUnlock = Number(season.permanent.rune[runeId] ?? 0) !== 3;
       season.permanent.rune[runeId] = 3;
     }
   });
+
+  // 勋章（2026-09-09 修复）：CrisisUnlockPermRuneSome
+  // （unlockParam [赛季, 3 级词条清单, 目标词条数]，官服文案「解锁4个3级合约」）此前零 emit。
+  if (firstUnlock) {
+    try {
+      await player._trigger.emit("CrisisUnlockPermRuneSome", [
+        { seasonId, runeId, count: 1 },
+      ]);
+    } catch (err) {
+      logger.error("crisis/unlockRune", "勋章事件派发失败:", err);
+    }
+  }
 
   res.send(player.delta satisfies CrisisUnlockRuneResponse);
 });
@@ -821,11 +1045,23 @@ router.post("/v2/getInfo", validateBody(crisisV2GetInfoSchema), async (req, res)
 router.post("/v2/battleStart", validateBody(crisisV2BattleStartSchema), async (req, res) => {
   const player = getPlayer();
   const { mapId, runeSlots } = req.body as CrisisV2BattleStartRequest;
+  // 助战：CS CrisisV2BattleStartRequest : CrisisStartBattleBaseRequest（含 squad/assistFriend）
+  const assistFriend = (req.body as { assistFriend?: unknown }).assistFriend;
+  /** 赛季ID：勋章（CrisisV2* 系列）unlockParam[0] 为赛季 id，需据此门控 */
+  let seasonId = "";
+  try {
+    const v2 = await dataCache.getV2Data(await selectedCrisisV2());
+    seasonId = String(v2?.info?.seasonId ?? "");
+  } catch (err) {
+    logger.error("crisis/v2/battleStart", "读取赛季ID失败:", err);
+  }
 
   /** 保存战斗上下文，供 battleFinish 使用 */
   battleStore.setV2(player.uid, {
     mapId: mapId || "",
+    seasonId,
     runeSlots: runeSlots || [],
+    usedAssist: assistFriend != null,
   });
 
   res.send({
@@ -855,13 +1091,132 @@ router.post("/v2/battleFinish", validateBody(crisisV2BattleFinishSchema), async 
   let scoreCurrent = [0, 0, 0, 0, 0, 0];
   let runeIds: string[] = [];
 
+  let satisfiedPacks: string[] = [];
   try {
     const rune = await dataCache.getV2Data(await selectedCrisisV2());
     const result = computeV2BattleScore(rune, mapId, runeSlots);
     scoreCurrent = result.scoreCurrent;
     runeIds = result.runeIds;
+    satisfiedPacks = result.satisfiedPacks;
   } catch (err) {
     logger.error("crisis/v2/battleFinish", "计算分数失败:", err);
+  }
+
+  // 修复（2026-09-09）：原实现恒 `isNewRecord: false`、`scoreRecord` 全 0 且**从不落盘** ——
+  // 最高分永不更新（危机合约勋章批次因此永不可得）。官服存档形状：
+  // permanent.{scoreSingle,scoreTotal} 为 6 维数组；temporary[mapId].{scoreTotal,state,rune}。
+  // 说明：`permanent.scoreTotal`（跨图总计）语义未能从数据判定（官服存档中存在 total < single 的样本），
+  // 故仅更新可判定的 `scoreSingle`（单次最高）与 temporary 的 `scoreTotal`（该图最高）。
+  let isNewRecord = false;
+  let scoreRecord: number[] = [0, 0, 0, 0, 0, 0];
+  /** 赛季内已完成节点 id（供 CrisisV2NodeSome 勋章） */
+  let completedNodeIds: string[] = [];
+  try {
+    const v2 = await dataCache.getV2Data(await selectedCrisisV2());
+    const seasonId = String(v2?.info?.seasonId ?? "");
+    const stageType = String(v2?.info?.mapStageDataMap?.[mapId]?.stageType ?? "");
+    // 主测试地 mapId（勋章节点 id 前缀；permanent 段自身不存 mapId）
+    const permanentMapId =
+      Object.entries<any>(v2?.info?.mapStageDataMap ?? {}).find(
+        ([mid, mm]) =>
+          String(mm?.stageType ?? "") === "PERMANENT" &&
+          Boolean(v2?.info?.mapDetailDataMap?.[mid]),
+      )?.[0] ?? "";
+    // 挑战节点求值（PassWithDimScore / PassWithRunes）
+    const nodeKeys = evaluateV2NodeCompletion(
+      v2?.info?.mapDetailDataMap?.[mapId],
+      scoreCurrent,
+      runeSlots,
+    );
+    if (seasonId && mapId) {
+      await player.update(async (draft) => {
+        const season = ensureCrisisV2Season(draft, seasonId);
+        if (stageType === "PERMANENT") {
+          const perm = season.permanent;
+          perm.state = 1;
+          const single: number[] = perm.scoreSingle;
+          for (let i = 0; i < 6; i++) {
+            const cur = Number(scoreCurrent[i] ?? 0);
+            if (cur > Number(single[i] ?? 0)) {
+              single[i] = cur;
+              isNewRecord = true;
+            }
+          }
+          scoreRecord = [...single];
+        } else {
+          if (!season.temporary[mapId]) {
+            season.temporary[mapId] = { state: 0, scoreTotal: [0, 0, 0, 0, 0, 0], rune: {}, challenge: {} };
+          }
+          const map = season.temporary[mapId];
+          map.state = 1;
+          if (!Array.isArray(map.scoreTotal)) map.scoreTotal = [0, 0, 0, 0, 0, 0];
+          for (let i = 0; i < 6; i++) {
+            const cur = Number(scoreCurrent[i] ?? 0);
+            if (cur > Number(map.scoreTotal[i] ?? 0)) {
+              map.scoreTotal[i] = cur;
+              isNewRecord = true;
+            }
+          }
+          scoreRecord = [...map.scoreTotal];
+        }
+        // 挑战节点 / 指标集记录（2026-09-09 修复，B11 同批）：此前**从不写**
+        // challenge 与 runePack —— CrisisV2NodeSome（25 枚）既无记录也无事件，
+        // 官服存档中二者分别是 {keypoint_N:2} 与 {pack_N:2}。
+        const rec: any =
+          stageType === "PERMANENT" ? season.permanent : season.temporary[mapId];
+        if (rec) {
+          if (!rec.challenge) rec.challenge = {};
+          for (const key of nodeKeys) rec.challenge[key] = 2;
+        }
+        if (stageType === "PERMANENT") {
+          if (!season.permanent.runePack) season.permanent.runePack = {};
+          for (const pack of satisfiedPacks) {
+            season.permanent.runePack[pack] = 2;
+          }
+        }
+        if (isNewRecord) draft.crisisV2.newRecordTs = now();
+      });
+      // 事件在 update 之外发出（勋章订阅方内部会再次 update，避免嵌套 update 覆盖）
+      completedNodeIds = collectCompletedV2NodeIds(
+        (player._playerdata.crisisV2?.seasons as any)?.[seasonId],
+        permanentMapId,
+      );
+    }
+  } catch (err) {
+    logger.error("crisis/v2/battleFinish", "记录最高分失败:", err);
+  }
+
+  // 勋章（2026-09-09 修复）：V2 批次此前零 emit，且模板目标位取错（param[0] 是赛季 id）。
+  // 官方 unlockParam 形状：[赛季, 地图/主测试地, 维度表(0;1;..;5), 目标分]
+  //  - CrisisV2DimScoreSome：任意一项分数历史最高达到 N 分 → 单局各维最大值
+  //  - CrisisV2DimScoreTotal：主测试地总分达到 N 分 → 单局各维之和
+  //  - CrisisV2UseAssist：使用助战并通关 N 次（battleStart 携带 assistFriend 时计 1）
+  if (mapId) {
+    const dimMax = scoreCurrent.reduce((m, v) => Math.max(m, Number(v ?? 0)), 0);
+    const dimSum = scoreCurrent.reduce((s, v) => s + Number(v ?? 0), 0);
+    // 「任意一项分数**历史最高**达到 N 分」→ 取本局与既有记录（scoreRecord 为该图各维
+    // 历史峰值）的较大者；「总分达到 N 分」→ 本局各维之和。
+    const recordMax = scoreRecord.reduce((m, v) => Math.max(m, Number(v ?? 0)), 0);
+    try {
+      await player._trigger.emit("CrisisV2DimScoreSome", [
+        { seasonId: ctx?.seasonId ?? "", mapId, score: Math.max(dimMax, recordMax) },
+      ]);
+      await player._trigger.emit("CrisisV2DimScoreTotal", [
+        { seasonId: ctx?.seasonId ?? "", mapId, score: dimSum },
+      ]);
+      if (ctx?.usedAssist) {
+        await player._trigger.emit("CrisisV2UseAssist", [
+          { seasonId: ctx?.seasonId ?? "", used: 1 },
+        ]);
+      }
+      // CrisisV2NodeSome：模板按 unlockParam[1] 节点清单与本次「已完成节点集合」求交计数
+      //（取 max，幂等——不依赖逐次 +1，重复作战不会刷进度）
+      await player._trigger.emit("CrisisV2NodeSome", [
+        { seasonId: ctx?.seasonId ?? "", nodeIds: completedNodeIds },
+      ]);
+    } catch (err) {
+      logger.error("crisis/v2/battleFinish", "勋章事件派发失败:", err);
+    }
   }
 
   res.send({
@@ -869,17 +1224,14 @@ router.post("/v2/battleFinish", validateBody(crisisV2BattleFinishSchema), async 
     mapId,
     runeSlots,
     runeIds,
-    isNewRecord: false,
-    scoreRecord: [0, 0, 0, 0, 0, 0],
+    isNewRecord,
+    scoreRecord,
     scoreCurrent,
     runeCount: [0, 0],
     commentNew: [],
     commentOld: [],
     ts: now(),
-    playerDataDelta: {
-      modified: {},
-      deleted: {},
-    },
+    ...player.delta,
   } satisfies CrisisV2BattleFinishResponse);
 });
 

@@ -37,11 +37,35 @@ export const campaignV2BattleFinishSchema = z.object({
   battleData: z.any(),
 });
 
-/** 主线战役V2扫荡（stub，handler 不读 body） */
-export const campaignV2BattleSweepSchema = z.object({});
+/**
+ * 主线战役V2扫荡（CS: CampaignSweepRequest { stageId, itemId, instId }）
+ *
+ * 修复（2026-09-09）：原为 z.object({}) → zod 剥掉全部字段，handler 拿不到 stageId，
+ * 于是「扫荡」既无法校验记录也无从扣代理指挥卡，变成无条件发合成玉。
+ */
+export const campaignV2BattleSweepSchema = z.object({
+  stageId: z.string(),
+  // 代理指挥卡（EXTERMINATION_AGENT）：客户端必带，服务端据此扣券
+  itemId: z.string().optional(),
+  instId: z.number().optional(),
+});
 
-/** 主线战役V2突破奖励（stub，handler 不读 body） */
-export const campaignV2GetBreakRewardSchema = z.object({});
+/**
+ * 主线战役V2突破奖励（CS: CampaignConfirmBreakRewardRequest { stageId, indexList }）
+ *
+ * 修复（2026-09-09）：原为 `z.object({})` → 字段被剥掉，handler 拿不到 stageId/indexList
+ *（领取永远空转）。indexList 为空表示一键领取全部可领档位。
+ */
+export const campaignV2GetBreakRewardSchema = z.object({
+  stageId: z.string(),
+  indexList: z.array(z.number()).optional(),
+});
 
-/** 主线战役V2额外任务奖励（stub，handler 不读 body） */
-export const campaignV2GetExMissionRewardSchema = z.object({});
+/**
+ * 主线战役V2额外任务奖励（CS: CampaignGetCommonMissionRewardRequest { id }）
+ *
+ * 修复（2026-09-09）：原为 `z.object({})` → 字段被剥掉，handler 拿不到任务 id。
+ */
+export const campaignV2GetExMissionRewardSchema = z.object({
+  id: z.string(),
+});

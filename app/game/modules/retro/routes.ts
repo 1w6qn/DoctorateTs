@@ -31,8 +31,14 @@ router.post("/retro/unlockRetroBlock", validateBody(unlockRetroBlockSchema), asy
     res.send({ result: 1, ...player.delta } satisfies RetroUnlockRetroBlockResponse);
     return;
   }
-  await player.retro.unlockRetroBlock(body);
-  res.send(player.delta satisfies RetroUnlockRetroBlockResponse);
+  // 修复（2026-09-09）：未成功解锁（已解锁/结晶不足/未知插曲）时回 result=1，
+  // 客户端据此提示；原实现无条件返回 delta（失败静默）
+  const unlocked = await player.retro.unlockRetroBlock(body);
+  res.send(
+    (unlocked
+      ? player.delta
+      : { result: 1, ...player.delta }) satisfies RetroUnlockRetroBlockResponse,
+  );
 });
 router.post("/retro/getRetroTrailReward", validateBody(getRetroTrailRewardSchema), async (req, res) => {
   const player = getPlayer();

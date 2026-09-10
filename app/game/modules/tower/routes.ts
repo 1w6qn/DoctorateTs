@@ -16,7 +16,7 @@ import { PlayerDataManager } from "../../kernel/PlayerDataManager";
 import { now } from "@utils/time";
 import { decryptBattleData } from "@utils/crypt";
 import { randomSample } from "@utils/random";
-import excel from "@excel/excel";
+import excel, { ItemBundle } from "@excel/excel";
 import { logger } from "@utils/logger";
 import {
   ClimbTowerBattleFinishRequest,
@@ -59,6 +59,16 @@ import {
   settleGameSchema,
   sweepGameSchema,
 } from "./tower.schema";
+import {
+  advanceTowerSeasonMissions,
+  claimTowerLayerRewards,
+  currentTowerSeason,
+  ensureTowerOuterTower,
+  ensureTowerSeasonMissions,
+  ensureTowerState,
+  normalizeTowerLayers,
+  towerDetailConst,
+} from "./tower-reward";
 
 const router = Router();
 
@@ -347,6 +357,10 @@ router.post("/battleFinish", validateBody(battleFinishSchema), async (req, res) 
   }
 
   const trap: { id: string; alias: string }[] = [];
+  // 修复（2026-09-09，S1）：通关最后一层时补发保全派驻勋章事件（PassTower 模板），
+  // 原实现该事件从未 emit → 59 枚「保全任务」勋章永不可得。
+  let clearedTowerId = "";
+  let clearedHard = false;
 
   await player.update(async (draft) => {
     const current = draft.tower.current;
@@ -360,6 +374,9 @@ router.post("/battleFinish", validateBody(battleFinishSchema), async (req, res) 
     // 战斗成功
     const currentStage = current.layer[coord]?.id;
     const layerCount = current.layer.length;
+    // 修复（2026-09-09）：层通关标记从未写入（TowerCurrent_TowerGameLayer.pass 恒 0）——
+    // 首通奖励与 best 进度都依赖它
+    if (current.layer[coord]) current.layer[coord].pass = 1;
 
     if (layerCount >= 3 && coord === 2) {
       // 第三层：进入副神卡招募阶段
@@ -383,8 +400,10 @@ router.post("/battleFinish", validateBody(battleFinishSchema), async (req, res) 
       }
       current.trap = trap;
     } else if (coord === layerCount - 1) {
-      // 最后一层：游戏结束
+      // 最后一层：游戏结束（= 通关，用于保全派驻勋章判定）
       current.status.state = "END";
+      clearedTowerId = String(current.status.tower ?? "");
+      clearedHard = !!current.status.isHard;
     } else {
       // 其他层：进入招募阶段
       current.status.state = "RECRUIT";
@@ -398,6 +417,13 @@ router.post("/battleFinish", validateBody(battleFinishSchema), async (req, res) 
     current.halftime.count += 1;
     current.halftime.candidate = buildRecruitCandidate(draft);
   });
+
+  // 修复（2026-09-09）：通关勋章事件（medal_tower_complete_*，PassTower 模板）
+  if (clearedTowerId) {
+    await player._trigger.emit("PassTower", [
+      { stageId: clearedTowerId, count: 1, isHard: clearedHard },
+    ]);
+  }
 
   res.send({
     drop: [],
@@ -424,6 +450,7 @@ router.post("/battleFinish", validateBody(battleFinishSchema), async (req, res) 
 router.post("/recruit", validateBody(recruitSchema), async (req, res) => {
   const player = getPlayer();
   const { charId, giveUp } = req.body as ClimbTowerHalftimeRecruitRequest;
+  let recruitedProfession = "";
 
   await player.update(async (draft) => {
     const current = draft.tower.current;
@@ -449,6 +476,7 @@ router.post("/recruit", validateBody(recruitSchema), async (req, res) => {
       }
       const char = draft.troop.chars[charInstId];
       if (char) {
+        recruitedProfession = String(excel.charData(char.charId)?.profession ?? "");
         current.cards[String(cnt)] = {
           charId,
           currentEquip: char.currentEquip ?? null,
@@ -470,6 +498,11 @@ router.post("/recruit", validateBody(recruitSchema), async (req, res) => {
 
     // 重新生成招募候选列表
     current.halftime.candidate = buildRecruitCandidate(draft);
+    // 修复（2026-09-09）：赛季任务进度从未推进（TowerRecruit 模板：累计招募 N 次某职业）
+    if (recruitedProfession) {
+      ensureTowerSeasonMissions(draft, Math.round(now()));
+      advanceTowerSeasonMissions(draft, { recruitProfession: recruitedProfession });
+    }
   });
 
   res.send(player.delta satisfies ClimbTowerHalftimeRecruitResponse);
@@ -489,8 +522,18 @@ router.post("/chooseSubGodCard", validateBody(chooseSubGodCardSchema), async (re
   const { subGodCardId } = req.body as ClimbTowerRecruitSubGodCardRequest;
 
   await player.update(async (draft) => {
+    ensureTowerState(draft);
     draft.tower.current.status.state = "STANDBY";
     draft.tower.current.godCard.subGodCardId = subGodCardId;
+    // 修复（2026-09-09）：导能配件甄选结果从未落盘（官服 outer.pickedGodCard: { 神卡: [副卡…] }）
+    const godCardId = String(draft.tower.current.godCard.id ?? "");
+    if (godCardId) {
+      const picked = draft.tower.outer.pickedGodCard as Record<string, string[]>;
+      if (!Array.isArray(picked[godCardId])) picked[godCardId] = [];
+      if (subGodCardId && !picked[godCardId].includes(subGodCardId)) {
+        picked[godCardId].push(subGodCardId);
+      }
+    }
   });
 
   res.send(player.delta satisfies ClimbTowerRecruitSubGodCardResponse);
@@ -499,17 +542,82 @@ router.post("/chooseSubGodCard", validateBody(chooseSubGodCardSchema), async (re
 /**
  * 爬塔结算
  *
- * 重置 tower.current 全部字段到初始状态，状态切换为 NONE。
- * 返回结算奖励（简化为固定数值）与时间戳。
+ * 修复（2026-09-09）：原实现直接返回 high{0,24}/low{0,60} 且不写 `outer.towers[]` —— 打通零报酬、
+ * 进度不落盘。现按 `climb_tower_table`：
+ * - 领取本次已通关层的首通奖励（`rewardInfoList`，按 `detailConst` 上限 60/24 封顶，已领层去重）；
+ * - 写 `outer.towers[tower]` 的 best / hardBest / unlockHard / canSweep / canSweepHard；
+ * - 推进赛季任务（TowerCardPassLayer / TowerCardChallenge / TowerSettlePass / TowerSettleLayer）；
+ * - 记录 `season.passWithGodCard` 与 `outer.hasTowerPass`。
  *
  * @route POST /tower/settleGame
- * @returns 奖励信息、时间戳与玩家增量数据
+ * @returns 奖励信息（cnt/from/to）、时间戳与玩家增量数据
  */
 router.post("/settleGame", validateBody(settleGameSchema), async (req, res) => {
   const player = getPlayer();
   req.body as ClimbTowerSettleGameRequest;
 
+  const detail = towerDetailConst();
+  const lowId = String(detail.lowerItemId ?? "mod_update_token_1");
+  const highId = String(detail.higherItemId ?? "mod_update_token_2");
+  let lowBefore = 0;
+  let lowAfter = 0;
+  let highBefore = 0;
+  let highAfter = 0;
+  let lowCnt = 0;
+  let highCnt = 0;
+  let grantedItems: ItemBundle[] = [];
+
   await player.update(async (draft) => {
+    ensureTowerState(draft);
+    const current = draft.tower.current;
+    const towerId = String(current?.status?.tower ?? "");
+    const isHard = Boolean(current?.status?.isHard);
+    const layers: any[] = Array.isArray(current?.layer) ? current.layer : [];
+    const totalLayers = layers.length;
+    const clearedSorts = layers
+      .map((l, idx) => (l?.pass === 1 ? idx + 1 : 0))
+      .filter((s) => s > 0);
+    const clearedLayers = clearedSorts.length;
+    lowBefore = Number(draft.inventory?.[lowId] ?? 0);
+    highBefore = Number(draft.inventory?.[highId] ?? 0);
+    if (towerId && clearedLayers > 0) {
+      const claim = claimTowerLayerRewards(draft, towerId, clearedSorts, isHard);
+      grantedItems = claim.granted;
+      lowCnt = claim.low;
+      highCnt = claim.high;
+      const rec = ensureTowerOuterTower(draft, towerId);
+      if (clearedLayers > Number(rec.best ?? 0)) rec.best = clearedLayers;
+      if (isHard && clearedLayers > Number(rec.hardBest ?? 0)) rec.hardBest = clearedLayers;
+      if (isHard) rec.isHardValid = 1;
+      const fullClear = totalLayers > 0 && clearedLayers >= totalLayers;
+      if (fullClear && !isHard) rec.unlockHard = true;
+      // 扫荡解锁：该塔属于当期赛季且已全通（官服快照中仅当期赛季塔带 canSweep）
+      const season = currentTowerSeason(Math.round(now()));
+      const inSeason = Boolean(season && (season.towers ?? []).includes(towerId));
+      if (inSeason && fullClear) {
+        if (isHard) rec.canSweepHard = true;
+        else rec.canSweep = true;
+      }
+      if (fullClear) {
+        draft.tower.outer.hasTowerPass = 1;
+        const godCardId = String(current?.godCard?.id ?? "");
+        if (godCardId) {
+          const passMap = draft.tower.season.passWithGodCard;
+          if (!Array.isArray(passMap[godCardId])) passMap[godCardId] = [];
+          if (!passMap[godCardId].includes(towerId)) passMap[godCardId].push(towerId);
+        }
+      }
+      ensureTowerSeasonMissions(draft, Math.round(now()));
+      advanceTowerSeasonMissions(draft, {
+        godCardId: String(current?.godCard?.id ?? ""),
+        towerId,
+        clearedLayers,
+        totalLayers,
+        isHard,
+      });
+      lowAfter = Number(draft.inventory?.[lowId] ?? 0);
+      highAfter = Number(draft.inventory?.[highId] ?? 0);
+    }
     draft.tower.current.status = {
       state: "NONE",
       tower: "",
@@ -543,10 +651,14 @@ router.post("/settleGame", validateBody(settleGameSchema), async (req, res) => {
     draft.tower.current.reward = { high: 0, low: 0 };
   });
 
+  if (grantedItems.length > 0) {
+    await player._trigger.emit("items:get", [grantedItems]);
+  }
+
   res.send({
     reward: {
-      high: { cnt: 0, from: 24, to: 24 },
-      low: { cnt: 0, from: 60, to: 60 },
+      high: { cnt: highCnt, from: highBefore, to: highAfter },
+      low: { cnt: lowCnt, from: lowBefore, to: lowAfter },
     },
     ts: Math.round(now()),
     ...player.delta,
@@ -554,51 +666,158 @@ router.post("/settleGame", validateBody(settleGameSchema), async (req, res) => {
 });
 
 /**
- * 获取层奖励
+ * 获取层首通奖励
  *
- * 简化实现：参考 Python 实现直接返回 202，无实际奖励发放。
+ * 修复（2026-09-09）：原实现直接 `sendStatus(202)`（无响应体），客户端拿不到 delta；也不发奖。
+ * 现按 `climb_tower_table.rewardInfoList[stageSort-1]` 发放 `detailConst.lowerItemId` /
+ * `higherItemId`（上限 60 / 24），并把层号记入 `outer.towers[tower].reward` 去重
+ * （官服存档实证：reward 即已领取层号数组）。
  *
  * @route POST /tower/layerReward
- * @returns 空响应（202）
+ * @returns 玩家增量数据
  */
 router.post("/layerReward", validateBody(layerRewardSchema), async (req, res) => {
-  req.body as ClimbTowerLayerFirstPassRewardRequest;
-  res.sendStatus(202);
+  const player = getPlayer();
+  const body = req.body as ClimbTowerLayerFirstPassRewardRequest;
+  let grantedItems: ItemBundle[] = [];
+  await player.update(async (draft) => {
+    ensureTowerState(draft);
+    const towerId = String(body.tower || draft.tower.current?.status?.tower || "");
+    if (!towerId) return;
+    const isHard = body.isHard === 1 || body.isHard === true;
+    let sorts = normalizeTowerLayers(body.layers);
+    if (sorts.length === 0) {
+      // 未带 layers 时按「本次已通关且未领取」的层补齐
+      const layers: any[] = Array.isArray(draft.tower.current?.layer)
+        ? draft.tower.current.layer
+        : [];
+      sorts = layers.map((l, idx) => (l?.pass === 1 ? idx + 1 : 0)).filter((s) => s > 0);
+    }
+    grantedItems = claimTowerLayerRewards(draft, towerId, sorts, isHard).granted;
+  });
+  if (grantedItems.length > 0) {
+    await player._trigger.emit("items:get", [grantedItems]);
+  }
+  res.send(player.delta satisfies ClimbTowerLayerFirstPassRewardResponse);
 });
 
 /**
- * 获取赛季任务奖励
+ * 领取赛季任务奖励
  *
- * 简化实现：参考 Python 实现直接返回 202，无实际奖励发放。
+ * 修复（2026-09-09）：原实现 `sendStatus(202)` 不发奖、不置 hasRecv。现对达成（value ≥ target）
+ * 且未领取的赛季任务发 `missionData[id].rewards` 并置 `season.missions[id].hasRecv = true`。
  *
  * @route POST /tower/seasonMissionsAward
- * @returns 空响应（202）
+ * @returns 玩家增量数据
  */
 router.post("/seasonMissionsAward", validateBody(seasonMissionsAwardSchema), async (req, res) => {
-  req.body as ClimbTowerSeasonMissionAwardRequest;
-  res.sendStatus(202);
+  const player = getPlayer();
+  const body = req.body as ClimbTowerSeasonMissionAwardRequest;
+  const grantedItems = await claimTowerSeasonMissions(player, body);
+  if (grantedItems.length > 0) {
+    await player._trigger.emit("items:get", [grantedItems]);
+  }
+  res.send(player.delta satisfies ClimbTowerSeasonMissionAwardResponse);
 });
 
 /**
  * 赛季任务奖励（客户端拼写别名）
  * 客户端实际调用 /tower/seasonMissonsAward（CS 类名同此拼写），既有 /seasonMissionsAward 命中不到
+ *
+ * @route POST /tower/seasonMissonsAward
+ * @returns 玩家增量数据
  */
 router.post("/seasonMissonsAward", validateBody(seasonMissionsAwardSchema), async (req, res) => {
-  req.body as ClimbTowerSeasonMissionAwardRequest;
-  res.sendStatus(202);
+  const player = getPlayer();
+  const body = req.body as ClimbTowerSeasonMissionAwardRequest;
+  const grantedItems = await claimTowerSeasonMissions(player, body);
+  if (grantedItems.length > 0) {
+    await player._trigger.emit("items:get", [grantedItems]);
+  }
+  res.send(player.delta satisfies ClimbTowerSeasonMissionAwardResponse);
 });
 
 /**
  * 扫荡游戏
  *
- * 简化实现：参考 Python 实现直接返回 202，无实际扫荡逻辑。
+ * 修复（2026-09-09）：原实现 `sendStatus(202)`。现要求 `outer.towers[tower].canSweep`
+ * （该塔属当期赛季且已全通）后，一次性领取该塔全部未领首通奖励；客户端给了 `itemId` 时
+ * 按 `detailConst.sweepCostCount` 扣费（不足则 result=1 拒绝）。
  *
  * @route POST /tower/sweepGame
- * @returns 空响应（202）
+ * @returns 玩家增量数据
  */
 router.post("/sweepGame", validateBody(sweepGameSchema), async (req, res) => {
-  req.body as ClimbTowerSweepRequest;
-  res.sendStatus(202);
+  const player = getPlayer();
+  const body = req.body as ClimbTowerSweepRequest;
+  let grantedItems: ItemBundle[] = [];
+  let ok = true;
+  await player.update(async (draft) => {
+    ensureTowerState(draft);
+    const towerId = String(body.tower || draft.tower.current?.status?.tower || "");
+    const isHard = body.isHard === 1 || body.isHard === true;
+    const rec = towerId ? draft.tower.outer.towers[towerId] : undefined;
+    const canSweep = isHard ? Boolean(rec?.canSweepHard) : Boolean(rec?.canSweep);
+    if (!towerId || !canSweep) {
+      ok = false;
+      return;
+    }
+    const cost = Math.max(0, Number(towerDetailConst().sweepCostCount ?? 0));
+    if (body.itemId && cost > 0) {
+      const stock = Number(draft.inventory[body.itemId] ?? 0);
+      if (stock < cost) {
+        ok = false;
+        return;
+      }
+      draft.inventory[body.itemId] = stock - cost;
+    }
+    const totalLayers = Number((excel.ClimbTowerTable as any)?.towers?.[towerId]?.levels?.length ?? 0);
+    const all = Array.from({ length: totalLayers }, (_, i) => i + 1);
+    grantedItems = claimTowerLayerRewards(draft, towerId, all, isHard).granted;
+  });
+  if (!ok) {
+    res.send({ result: 1, ...player.delta });
+    return;
+  }
+  if (grantedItems.length > 0) {
+    await player._trigger.emit("items:get", [grantedItems]);
+  }
+  res.send(player.delta satisfies ClimbTowerSweepResponse);
 });
+
+/**
+ * 领取赛季任务奖励（两个拼写端点共用）
+ * @param player - 玩家数据管理器
+ * @param body - 请求体（missionIds 可选；缺省时领取全部已达成任务）
+ * @returns 实际发放的物品列表
+ */
+async function claimTowerSeasonMissions(
+  player: PlayerDataManager,
+  body: ClimbTowerSeasonMissionAwardRequest,
+): Promise<ItemBundle[]> {
+  const out: ItemBundle[] = [];
+  await player.update(async (draft) => {
+    ensureTowerState(draft);
+    ensureTowerSeasonMissions(draft, Math.round(now()));
+    const wanted = Array.isArray(body.missionIds) && body.missionIds.length > 0
+      ? body.missionIds
+      : Object.keys(draft.tower.season.missions);
+    const missions = (excel.ClimbTowerTable as any)?.missionData ?? {};
+    for (const id of wanted) {
+      const state = draft.tower.season.missions[id];
+      if (!state || state.hasRecv) continue;
+      if (Number(state.value ?? 0) < Number(state.target ?? 1)) continue;
+      state.hasRecv = true;
+      for (const reward of missions[id]?.rewards ?? []) {
+        out.push({
+          id: String(reward.id),
+          count: Number(reward.count ?? 0),
+          type: String(reward.type ?? "MATERIAL") as ItemBundle["type"],
+        });
+      }
+    }
+  });
+  return out;
+}
 
 export default router;

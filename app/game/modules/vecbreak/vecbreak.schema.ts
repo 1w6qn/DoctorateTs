@@ -10,6 +10,10 @@
  * - 必填字段（activityId/stageId 等）用对应类型。
  * - 复杂嵌套对象（squad/squadSlots 等）用 z.any()，仅保证键存在。
  * - 服务端不读取 body 的端点用 z.object({})。
+ *
+ * 修复（2026-09-09）：进攻链路三处原为 `z.object({})`，zod 会静默剥掉全部字段——
+ * `battleStart` 拿不到 stageId/squad（无法复用标准战斗开始），`battleFinish` 拿不到 data/battleData
+ * （无法结算），此处按 CS 类型补齐（与 campaignV2/act1vhalfidle 同类缺陷）。
  */
 import { z } from "zod";
 
@@ -29,8 +33,11 @@ export const defendBattleStartSchema = z.object({
   squad: z.any(),
 });
 
-/** 防守战斗结束请求（CS: VecBreakV2DefenseFinishBattleRequest，服务端不读取 body） */
-export const defendBattleFinishSchema = z.object({});
+/** 防守战斗结束请求（CS: VecBreakV2DefenseFinishBattleRequest : CommonFinishBattleRequest） */
+export const defendBattleFinishSchema = z.object({
+  data: z.string().optional(),
+  battleData: z.any().optional(),
+});
 
 /** 设置防守请求（CS: VecBreakV2SetDefendRequest；squadSlots 为复杂嵌套数组） */
 export const setDefendSchema = z.object({
@@ -39,8 +46,17 @@ export const setDefendSchema = z.object({
   squadSlots: z.any(),
 });
 
-/** 进攻战斗开始请求（CS: VecBreakV2OffenseStartBattleRequest，服务端不读取 body） */
-export const battleStartSchema = z.object({});
+/** 进攻战斗开始请求（CS: VecBreakV2OffenseStartBattleRequest : DefaultStartBattleRequest + activityId） */
+export const battleStartSchema = z.object({
+  activityId: z.string().optional(),
+  stageId: z.string(),
+  squad: z.any().optional(),
+  assistFriend: z.any().optional(),
+  usePracticeTicket: z.number().optional(),
+});
 
-/** 进攻战斗结束请求（CS: VecBreakV2OffenseFinishBattleRequest，服务端不读取 body） */
-export const battleFinishSchema = z.object({});
+/** 进攻战斗结束请求（CS: VecBreakV2OffenseFinishBattleRequest : CommonFinishBattleRequest） */
+export const battleFinishSchema = z.object({
+  data: z.string().optional(),
+  battleData: z.any().optional(),
+});

@@ -26,6 +26,15 @@ import {
   CampaignSweepResponse,
 } from "./campaignV2";
 import { validateBody } from "../../kernel/http/validate-body";
+import excel from "@excel/excel";
+import { now } from "@utils/time";
+import { logger } from "@utils/logger";
+import {
+  campaignMaxKills,
+  campaignWeeklyBudget,
+  claimCampaignBreakRewards,
+  claimCampaignMissionReward,
+} from "./public";
 import {
   campaignV2BattleFinishSchema,
   campaignV2BattleStartSchema,
@@ -95,62 +104,220 @@ router.post("/campaignV2/battleFinish", validateBody(campaignV2BattleFinishSchem
  */
 router.post("/campaignV2/battleSweep", validateBody(campaignV2BattleSweepSchema), async (req, res) => {
   const player = getPlayer();
-  req.body as CampaignSweepRequest;
+  const body = req.body as CampaignSweepRequest;
+  const stageId = body?.stageId ?? "";
+  const stage = stageId
+    ? (excel.StageTable.stages as Record<string, { apCost?: number } | undefined>)[
+        stageId
+      ]
+    : undefined;
+  const maxKills = campaignMaxKills(
+    (player._playerdata as unknown as { campaignsV2?: never }).campaignsV2,
+    stageId,
+  );
 
-  // 修复：展示的奖励入账（原实现只在响应里给 1 合成玉，从不 items:get → 不到账）
-  const diamondRewards: ItemBundle[] = [
-    { type: "DIAMOND_SHD", id: "4003", count: 1 },
-  ];
-  await player._trigger.emit("items:get", [diamondRewards]);
+  /** 空奖励响应（不消耗、不发奖） */
+  const emptyResponse = () => {
+    const { before, remaining } = campaignWeeklyBudget(
+      player._playerdata as unknown as { campaignsV2?: never },
+      now(),
+    );
+    res.send({
+      ...player.delta,
+      result: 1,
+      apFailReturn: 0,
+      rewards: [],
+      unlockStages: [],
+      unusualRewards: [],
+      additionalRewards: [],
+      furnitureRewards: [],
+      diamondMaterialRewards: [],
+      currentFeeBefore: before,
+      currentFeeAfter: before,
+    } satisfies CampaignSweepResponse);
+    // remaining 参与闭包计算（保持类型完整），此处无实际用途
+    void remaining;
+  };
+
+  // 修复（2026-09-09，S6）：扫荡必须建立在「已通关该委托」之上——原实现无条件固定发
+  // 1 合成玉、不扣理智与代理指挥卡，可脚本无限刷合成玉。
+  if (!stage || maxKills <= 0) {
+    logger.warn(
+      "campaignV2",
+      `battleSweep ${stageId} 无歼灭记录（maxKills=${maxKills}），拒绝结算`,
+    );
+    return emptyResponse();
+  }
+  // 代理指挥卡（EXTERMINATION_AGENT）为扫荡前提：缺失即拒绝（不消耗理智）
+  if (!body?.itemId) {
+    logger.warn("campaignV2", `battleSweep ${stageId} 未携带代理指挥卡，拒绝结算`);
+    return emptyResponse();
+  }
+  await player._trigger.emit("items:use", [
+    [
+      {
+        id: body.itemId,
+        count: 1,
+        instId: body.instId,
+      } as unknown as ItemBundle,
+    ],
+  ]);
+  // 理智消耗（与直接作战一致）
+  const apCost = stage.apCost ?? 0;
+  if (apCost > 0) {
+    await player._trigger.emit("items:get", [
+      [{ id: "", type: "AP_GAMEPLAY" as ItemBundle["type"], count: -apCost }],
+    ]);
+  }
+  // 合成玉结算：按历史最高歼灭数，受本周上限（campaignTotalFee）封顶
+  let currentFeeBefore = 0;
+  let currentFeeAfter = 0;
+  let gained = 0;
+  await player.update(async (draft) => {
+    const before = campaignWeeklyBudget(
+      draft as unknown as { campaignsV2?: never },
+      now(),
+    );
+    const grant = Math.min(maxKills, before.remaining);
+    currentFeeBefore = before.before;
+    gained = grant;
+    currentFeeAfter = before.before + grant;
+    (draft as { campaignsV2?: { campaignCurrentFee?: number } }).campaignsV2!
+      .campaignCurrentFee = currentFeeAfter;
+  });
+  const diamondRewards: ItemBundle[] =
+    gained > 0
+      ? [{ type: "DIAMOND_SHD" as ItemBundle["type"], id: "4003", count: gained }]
+      : [];
+  if (diamondRewards.length > 0) {
+    await player._trigger.emit("items:get", [diamondRewards]);
+  }
 
   res.send({
     ...player.delta,
     result: 0,
-    apFailReturn: 1,
+    apFailReturn: 0,
     rewards: [],
     unlockStages: [],
     unusualRewards: [],
     additionalRewards: [],
     furnitureRewards: [],
     diamondMaterialRewards: diamondRewards,
-    currentFeeBefore: 0,
-    currentFeeAfter: 1,
+    currentFeeBefore,
+    currentFeeAfter,
   } satisfies CampaignSweepResponse);
 });
 
 /**
  * 获取主线战役V2突破奖励
  *
- * 简化实现：参考 Python 实现返回 202 状态码（已接受但未处理）。
- * 突破奖励的完整逻辑涉及 mission 系统的 CompleteBreakReward 事件，
- * 当前版本暂不实现，等待后续迭代补全。
+ * 修复（2026-09-09，S6）：突破奖励真实发放——原实现只回 delta（空增量）、rewardStatus
+ * 永不写入，导致剿灭蚀刻章（CampaignsComplete）与任务「获得任意一个剿灭作战的全部进度奖励」
+ *（guide_60，CompleteBreakReward）双双卡死。
  *
  * @route POST /campaignV2/getBreakReward
- * @returns HTTP 202 状态码
+ * @returns items（本次领取的奖励）与 feeAdd（计入本周进度的额外合成玉）+ 玩家增量
  */
 router.post("/campaignV2/getBreakReward", validateBody(campaignV2GetBreakRewardSchema), async (req, res) => {
   const player = getPlayer();
-  req.body as CampaignConfirmBreakRewardRequest;
-  // 修复：sendStatus(202) 返回文本 "Accepted"，客户端按 JSON 解析失败（同 gallery
-  // 修复模式）→ 返回 JSON 增量
-  res.send(player.delta satisfies CampaignConfirmBreakRewardResponse);
+  const body = req.body as CampaignConfirmBreakRewardRequest;
+  const stageId = body?.stageId ?? "";
+  const indexList = Array.isArray(body?.indexList) ? body.indexList : [];
+  const ladders =
+    (excel.CampaignTable as {
+      campaigns?: Record<
+        string,
+        {
+          breakLadders?: {
+            killCnt: number;
+            breakFeeAdd?: number;
+            rewards?: { id: string; count: number; type: string }[];
+          }[];
+        }
+      >;
+    }).campaigns?.[stageId]?.breakLadders ?? [];
+  let items: ItemBundle[] = [];
+  let feeAdd = 0;
+  let allClaimed = false;
+  await player.update(async (draft) => {
+    const result = claimCampaignBreakRewards(
+      draft as unknown as { campaignsV2?: never },
+      stageId,
+      indexList,
+      ladders,
+      now(),
+    );
+    items = result.items as unknown as ItemBundle[];
+    feeAdd = result.feeGain;
+    allClaimed = result.allClaimed;
+  });
+  if (items.length > 0) {
+    await player._trigger.emit("items:get", [items]);
+  }
+  if (feeAdd > 0) {
+    await player._trigger.emit("items:get", [
+      [{ type: "DIAMOND_SHD" as ItemBundle["type"], id: "4003", count: feeAdd }],
+    ]);
+  }
+  if (allClaimed) {
+    // 「获得全部进度奖励」任务（guide_60）与剿灭蚀刻章
+    await player._trigger.emit("CompleteBreakReward", []);
+    await player._trigger.emit("CampaignsComplete", [
+      (player._playerdata as unknown as { campaignsV2?: unknown }).campaignsV2 ?? {},
+    ]);
+  }
+  res.send({
+    ...player.delta,
+    feeAdd,
+    items,
+  } satisfies CampaignConfirmBreakRewardResponse);
 });
 
 /**
  * 获取主线战役V2额外任务奖励
  *
- * 简化实现：参考 Python 实现返回 202 状态码（已接受但未处理）。
- * 额外任务奖励的完整逻辑涉及 mission 系统的事件触发与奖励发放，
- * 当前版本暂不实现，等待后续迭代补全。
+ * 修复（2026-09-09，S6）：委托任务奖励真实发放——原实现恒返回空 delta，
+ * `campaignsV2.missions` 永不写入（客户端任务列表恒未完成）。
+ * 任务达标由 battleFinish 的 CAMPAIGN 分支刷新（0 → 1 待领），此处领取后置 2。
  *
  * @route POST /campaignV2/getExMissionReward
- * @returns HTTP 202 状态码
+ * @returns feeAdd（计入本周进度的合成玉）+ 玩家增量
  */
 router.post("/campaignV2/getExMissionReward", validateBody(campaignV2GetExMissionRewardSchema), async (req, res) => {
   const player = getPlayer();
-  req.body as CampaignGetCommonMissionRewardRequest;
-  // 修复：同上——JSON 响应避免客户端解析失败
-  res.send(player.delta satisfies CampaignGetCommonMissionRewardResponse);
+  const body = req.body as CampaignGetCommonMissionRewardRequest;
+  const missionId = body?.id ?? "";
+  const missionCfg =
+    (excel.CampaignTable as {
+      campaignMissions?: Record<
+        string,
+        { id: string; param?: string[]; breakFeeAdd?: number }
+      >;
+    }).campaignMissions ?? {};
+  let feeAdd = 0;
+  let ok = false;
+  await player.update(async (draft) => {
+    const result = claimCampaignMissionReward(
+      draft as unknown as { campaignsV2?: never },
+      missionId,
+      missionCfg,
+      now(),
+    );
+    ok = result.ok;
+    feeAdd = result.feeGain;
+  });
+  if (!ok) {
+    logger.warn("campaignV2", `getExMissionReward ${missionId} 不可领（未达标或已领取）`);
+  }
+  if (feeAdd > 0) {
+    await player._trigger.emit("items:get", [
+      [{ type: "DIAMOND_SHD" as ItemBundle["type"], id: "4003", count: feeAdd }],
+    ]);
+  }
+  res.send({
+    ...player.delta,
+    feeAdd,
+  } satisfies CampaignGetCommonMissionRewardResponse & { feeAdd: number });
 });
 
 export default router;

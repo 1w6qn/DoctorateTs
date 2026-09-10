@@ -48,10 +48,13 @@ vi.mock("@excel/excel", () => {
           typeAct20Side: {},
           typeAct21Side: {},
         },
-        initRetroCoin: 0,
-        retroCoinPerWeek: 0,
-        retroCoinMax: 0,
-        retroUnlockCost: 0,
+        // 修复（2026-09-09）：解锁费用改为读数据（retroUnlockCost）后，夹具须与真实数据
+        // 对齐——data/excel/retro_table.json 实测 retroUnlockCost = 1（此前夹具写 0 只是
+        // 因为旧实现写死 -= 1，与数据无关）。下面「消耗一个怀旧币」用例据此仍成立。
+        initRetroCoin: 2,
+        retroCoinPerWeek: 3,
+        retroCoinMaxOfLevels: { "60": 3 },
+        retroUnlockCost: 1,
         retroDetail: "",
         retroPreShowTime: 0,
       },

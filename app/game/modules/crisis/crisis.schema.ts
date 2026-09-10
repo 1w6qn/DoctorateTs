@@ -72,10 +72,15 @@ export const crisisUnlockRuneSchema = z.object({
 /** 获取危机合约V2信息请求（无字段） */
 export const crisisV2GetInfoSchema = z.object({});
 
-/** 危机合约V2战斗开始请求（服务端仅读取 mapId / runeSlots） */
+/**
+ * 危机合约V2战斗开始请求（服务端读取 mapId / runeSlots；assistFriend 用于
+ * CrisisV2UseAssist 勋章判定——CS CrisisV2BattleStartRequest 继承
+ * CrisisStartBattleBaseRequest，含 squad/assistFriend）
+ */
 export const crisisV2BattleStartSchema = z.object({
   mapId: z.string(),
   runeSlots: z.array(z.string()),
+  assistFriend: z.any().optional(),
 });
 
 /** 危机合约V2战斗结束请求（服务端不读取 body） */

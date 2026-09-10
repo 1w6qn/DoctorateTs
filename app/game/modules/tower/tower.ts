@@ -66,14 +66,33 @@ export interface ClimbTowerRecruitSubGodCardRequest {
 /** 爬塔结算请求（CS: ClimbTowerSettleGameRequest，无字段） */
 export interface ClimbTowerSettleGameRequest {}
 
-/** 获取层奖励请求（CS: ClimbTowerLayerFirstPassRewardRequest，含 tower / layers；服务端不读取） */
-export interface ClimbTowerLayerFirstPassRewardRequest {}
+/** 获取层首通奖励请求（CS: ClimbTowerLayerFirstPassRewardRequest，含 tower / layers） */
+export interface ClimbTowerLayerFirstPassRewardRequest {
+  /** 塔 id（缺省用 tower.current.status.tower） */
+  tower?: string;
+  /** 目标层（层号 1-based 或关卡 id，混用） */
+  layers?: (number | string)[];
+  /** 是否困难模式（协议层 0/1） */
+  isHard?: number | boolean;
+}
 
-/** 获取赛季任务奖励请求（CS: ClimbTowerSeasonMissionAwardRequest，含 missionIds；服务端不读取） */
-export interface ClimbTowerSeasonMissionAwardRequest {}
+/** 获取赛季任务奖励请求（CS: ClimbTowerSeasonMissionAwardRequest，含 missionIds） */
+export interface ClimbTowerSeasonMissionAwardRequest {
+  /** 目标任务 id（缺省领取全部已达成任务） */
+  missionIds?: string[];
+}
 
-/** 扫荡游戏请求（CS: ClimbTowerSweepRequest，含 tower / isHard / itemId / instIds；服务端不读取） */
-export interface ClimbTowerSweepRequest {}
+/** 扫荡游戏请求（CS: ClimbTowerSweepRequest，含 tower / isHard / itemId / instIds） */
+export interface ClimbTowerSweepRequest {
+  /** 塔 id（缺省用 tower.current.status.tower） */
+  tower?: string;
+  /** 是否困难模式（协议层 0/1） */
+  isHard?: number | boolean;
+  /** 扫荡消耗道具（detailConst.sweepCostCount 个） */
+  itemId?: string;
+  /** 扫荡编队干员 instId */
+  instIds?: number[];
+}
 
 /* ===== 响应类型 ===== */
 
